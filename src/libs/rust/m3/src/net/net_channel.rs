@@ -27,13 +27,13 @@ pub struct NetChannel {
     rg: RecvGate,
 
     #[allow(dead_code)]
-    mem: MemGate, //TODO Used when socket as file is used?
+    mem: MemGate, // TODO Used when socket as file is used?
 }
 
 impl NetChannel {
-    ///Creates a new channel that is bound to `caps` and `caps+2`. Assumes that the `caps` where obtained from the netrs service, and are valid gates
+    /// Creates a new channel that is bound to `caps` and `caps+2`. Assumes that the `caps` where obtained from the netrs service, and are valid gates
     pub fn new_with_gates(send: SendGate, mut recv: RecvGate, mem: MemGate) -> Self {
-        //activate rgate
+        // activate rgate
         recv.activate().expect("Failed to activate server rgate");
 
         NetChannel {
@@ -43,7 +43,7 @@ impl NetChannel {
         }
     }
 
-    ///Does not crate new gates for this channel, but binds to them at `caps`-`caps+2`
+    /// Does not crate new gates for this channel, but binds to them at `caps`-`caps+2`
     pub fn bind(caps: Selector) -> Result<Self, Error> {
         let mut rgate = RecvGate::new_bind(caps + 0, MSG_BUF_ORDER, MSG_ORDER);
         rgate.activate().expect("Failed to activate rgate");
@@ -57,7 +57,7 @@ impl NetChannel {
         })
     }
 
-    ///Sends data over the send gate
+    /// Sends data over the send gate
     pub fn send(&self, net_data: NetData) -> Result<(), Error> {
         self.sg.send_aligned(
             &net_data as *const _ as *const u8,
@@ -67,16 +67,16 @@ impl NetChannel {
         Ok(())
     }
 
-    ///Tries to receive a message from the other side
+    /// Tries to receive a message from the other side
     pub fn receive(&self) -> Result<NetData, Error> {
-        //Fetch message by hand, if something is fetched,
-        //assumes that it is a NetData package.
+        // Fetch message by hand, if something is fetched,
+        // assumes that it is a NetData package.
         if let Some(msg) = self.rg.fetch() {
-            //TODO can we get around the clone?
+            // TODO can we get around the clone?
             // safety: we know that we always receive NetData here and when receiving it, it doesn't
             // have to be 2048-byte aligned.
             let net_data = unsafe { msg.get_data_unchecked::<NetData>().clone() };
-            //mark message as read
+            // mark message as read
             self.rg.ack_msg(msg)?;
 
             Ok(net_data)

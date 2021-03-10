@@ -47,19 +47,19 @@ int_enum! {
 }
 
 pub struct NetworkManager {
-    #[allow(dead_code)] //Needs to keep the session alive
+    #[allow(dead_code)] // Needs to keep the session alive
     client_session: ClientSession,
     metagate: SendGate,
     channel: NetChannel,
-    ///receive queue that holds all received net data, keyed by the socket_descriptor the data belongs to.
+    /// receive queue that holds all received net data, keyed by the socket_descriptor the data belongs to.
     receive_queue: RefCell<Treap<i32, Vec<NetData>>>,
 }
 
 impl NetworkManager {
-    ///Creates a new instance for `service`. Returns Err if there was no network service with name `service`.
+    /// Creates a new instance for `service`. Returns Err if there was no network service with name `service`.
     pub fn new(service: &str) -> Result<Self, Error> {
         let client_session = ClientSession::new(service)?;
-        //Obtain meta gate for the service
+        // Obtain meta gate for the service
         let metagate = SendGate::new_bind(client_session.obtain_crd(1)?.start());
         let channel = NetChannel::bind(client_session.obtain_crd(3)?.start())?;
         Ok(NetworkManager {
@@ -150,15 +150,15 @@ impl NetworkManager {
         _mem: &MemGate,
         _memsize: usize,
     ) -> Result<(), Error> {
-        //TODO FD?
-        //TODO support file session creation.
+        // TODO FD?
+        // TODO support file session creation.
         llog!(DEF, "Asfile not implemented for network manager");
         Err(Error::new(Code::NotSup))
     }
 
-    ///Notifies the network manager that the socket at `sd` was dropped.
+    /// Notifies the network manager that the socket at `sd` was dropped.
     pub fn notify_drop(&self, sd: i32) -> Result<(), Error> {
-        //Notifies the server that this socket was dropped
+        // Notifies the server that this socket was dropped
         let _res = send_recv_res!(&self.metagate, RecvGate::def(), NetworkOp::CLOSE, sd)?;
         Ok(())
     }
@@ -173,17 +173,17 @@ impl NetworkManager {
         data: &[u8],
     ) -> Result<(), Error> {
         let wrapped_data = NetData::from_slice(sd, data, src_addr, src_port, dst_addr, dst_port);
-        //Send data over channel to service
+        // Send data over channel to service
 
         let channel_res = self.channel.send(wrapped_data);
 
-        //ticks the server
+        // ticks the server
         send_recv_res!(&self.metagate, RecvGate::def(), NetworkOp::TICK)?;
 
         channel_res
     }
 
-    ///Pulls all messages that are on the channel
+    /// Pulls all messages that are on the channel
     fn update_recv_queue(&self) -> Result<(), Error> {
         while let Ok(data) = self.channel.receive() {
             let mut queue_lock = self.receive_queue.borrow_mut();
@@ -201,15 +201,15 @@ impl NetworkManager {
         Ok(())
     }
 
-    ///Updates the recv queue for all sockets on this manager. The returns the first package for this socket
-    ///if there is some.
+    /// Updates the recv queue for all sockets on this manager. The returns the first package for this socket
+    /// if there is some.
     /// Return format is: ((source_ip, source_port), data)
     pub fn recv<'a>(&'a self, sd: i32) -> Result<NetData, Error> {
-        //ticks the server
+        // ticks the server
 
         send_recv_res!(&self.metagate, RecvGate::def(), NetworkOp::TICK)?;
 
-        //after ticking, check recv queue
+        // after ticking, check recv queue
         self.update_recv_queue()?;
         if let Some(recv_queue) = self.receive_queue.borrow_mut().get_mut(&sd) {
             if recv_queue.len() > 0 {

@@ -35,7 +35,7 @@ use m3::server::{CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::NetworkOp;
 use m3::{log, println, reply_vmsg};
 
-//Smol tcp network stuff
+// Smol tcp network stuff
 use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
 use smoltcp::socket::SocketSet;
 use smoltcp::time::Duration;
@@ -56,10 +56,10 @@ pub const LOG_SMOLTCP: bool = false;
 struct NetHandler {
     sel: Selector,
     sessions: SessionContainer<NetworkSession>,
-    ///Holds all the actual smoltcp sockets. Used for polling events on them.
+    /// Holds all the actual smoltcp sockets. Used for polling events on them.
     socket_set: SocketSet<'static>,
     rgate: Rc<RefCell<RecvGate>>,
-    ///True if shutdown was called.
+    /// True if shutdown was called.
     shuting_down: bool,
 }
 
@@ -89,7 +89,7 @@ impl NetHandler {
                 NetworkOp::ACCEPT => sess.accept(is, &mut self.socket_set),
                 NetworkOp::COUNT => sess.count(is, &mut self.socket_set),
                 NetworkOp::QUERY_STATE => sess.query_state(is, &mut self.socket_set),
-                NetworkOp::TICK => reply_vmsg!(is, Code::None as i32), //a tick does nothing, but lets the smoltcp stack do its work
+                NetworkOp::TICK => reply_vmsg!(is, Code::None as i32), // a tick does nothing, but lets the smoltcp stack do its work
                 _ => {
                     log!(LOG_DEF, "Net::handle got invalid NetworkOp: {}", op);
                     Err(Error::new(Code::InvArgs))
@@ -113,7 +113,7 @@ impl NetHandler {
         }
     }
 
-    //Checks each socket session if it should send data. If so, queues the send on the socket.
+    // Checks each socket session if it should send data. If so, queues the send on the socket.
     fn tick_send(&mut self) {
         for i in 0..self.sessions.capacity() {
             if let Some(sess) = self.sessions.get_mut(i) {
@@ -137,7 +137,7 @@ impl Handler<NetworkSession> for NetHandler {
         srv_sel: Selector,
         _arg: &str,
     ) -> Result<(Selector, SessId), Error> {
-        //Needed to satisfy the borrow checker
+        // Needed to satisfy the borrow checker
         let rgate = self.rgate.clone();
 
         let res = self.sessions.add_next(crt, srv_sel, false, |sess| {
@@ -145,7 +145,7 @@ impl Handler<NetworkSession> for NetHandler {
             let new_session = NetworkSession::SocketSession(sess::SocketSession::new(
                 crt,
                 sess,
-                rgate.clone(), //clone also needed to satisfy the borrow checker, otherwise E0507 occurred.
+                rgate.clone(), // clone also needed to satisfy the borrow checker, otherwise E0507 occurred.
             ));
             Ok(new_session)
         });
@@ -158,8 +158,8 @@ impl Handler<NetworkSession> for NetHandler {
         log!(crate::LOG_DEF, "netrs::obtain(crt={}, sid={})", crt, sid);
 
         if let Some(s) = self.sessions.get_mut(sid) {
-            //If this is a socket session. Create a send gate, that can be used to communicate with this
-            //request handler.
+            // If this is a socket session. Create a send gate, that can be used to communicate with this
+            // request handler.
 
             let res = s.obtain(crt, self.sel, xchg);
             log!(crate::LOG_DEF, "End obtain");
@@ -205,7 +205,7 @@ pub fn my_server_loop<F: FnMut() -> Result<(), Error>>(mut func: F) -> Result<()
 
 #[no_mangle]
 pub fn main() -> i32 {
-    //Parse args
+    // Parse args
     let args: Vec<&str> = env::args().collect();
     if args.len() != 4 {
         println!("Usage: {} <name> <ip address> <netmask>", args[0]);
@@ -235,8 +235,8 @@ pub fn main() -> i32 {
 
     rgate.activate().expect("Failed to activate main rgate");
 
-    //Create interface to networking device
-    //Depending on the platform, create a networking device.
+    // Create interface to networking device
+    // Depending on the platform, create a networking device.
     #[cfg(target_os = "none")]
     let device = driver::driver::E1000Device::new().expect("Failed to create E1000 driver");
 
@@ -281,11 +281,11 @@ pub fn main() -> i32 {
     let mut clock = smoltcp::time::Instant::from_millis(0);
 
     my_server_loop(|| {
-        //log!(crate::LOG_DEF, "POLL");
+        // log!(crate::LOG_DEF, "POLL");
         serv.handle_ctrl_chan(&mut handler)?;
         {
             let rgate = rgatec.borrow();
-            //Check if we got some messages through our main rgate.
+            // Check if we got some messages through our main rgate.
             if let Some(msg) = rgate.fetch() {
                 let mut is = GateIStream::new(msg, &rgate);
                 let op = is.pop::<NetworkOp>()?;
@@ -295,25 +295,25 @@ pub fn main() -> i32 {
             }
         }
 
-        //Tick all socket sessions to receive packages that are in the tcp socket.
+        // Tick all socket sessions to receive packages that are in the tcp socket.
         handler.tick_receive();
-        //Tick all socket sessions to send data thats on the channel to the socket.
+        // Tick all socket sessions to send data thats on the channel to the socket.
         handler.tick_send();
 
-        //log!(crate::LOG_DEF, "Poll");
+        // log!(crate::LOG_DEF, "Poll");
         match iface.poll(&mut handler.socket_set, clock) {
             Ok(_) => {},
             Err(_e) => {
-                //Not loging any error since those happen fairly often.
-                //TODO match error and lock the important ones.
-                //log!(LOG_DEF, "Poll error: {}", e);
+                // Not loging any error since those happen fairly often.
+                // TODO match error and lock the important ones.
+                // log!(LOG_DEF, "Poll error: {}", e);
             },
         }
-        //log!(crate::LOG_DEF, "Poll Delay");
+        // log!(crate::LOG_DEF, "Poll Delay");
         match iface.poll_delay(&handler.socket_set, clock) {
             Some(Duration { millis: 0 }) => clock += Duration::from_millis(1),
             Some(delay) => {
-                //log!(LOG_DEF, "sleeping for {} ms", delay);
+                // log!(LOG_DEF, "sleeping for {} ms", delay);
                 clock += delay;
             },
             None => clock += Duration::from_millis(1),

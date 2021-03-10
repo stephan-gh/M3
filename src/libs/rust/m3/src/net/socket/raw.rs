@@ -20,7 +20,7 @@ use crate::errors::Error;
 use crate::net::{socket::Socket, SocketType};
 use crate::session::NetworkManager;
 
-///A Raw socket sends already finished packages. Therefore the IpHeader must be written, before the package is passed to send.
+/// A Raw socket sends already finished packages. Therefore the IpHeader must be written, before the package is passed to send.
 pub struct RawSocket<'a> {
     #[allow(dead_code)]
     socket: Socket<'a>,

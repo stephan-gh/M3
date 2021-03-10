@@ -53,7 +53,7 @@ enum UdpState { Unbound = 0, Open = 1, Invalid_Udp };
  *Contains the anonymous state for some socket type.
  */
 struct SocketState {
-    ///Returnst the tcp state if this an tcp state, or TcpState::Invalid
+    /// Returnst the tcp state if this an tcp state, or TcpState::Invalid
     TcpState tcp_state() {
         if(_socket_type == SocketType::SOCK_STREAM) {
             return static_cast<TcpState>(_socket_state);
@@ -63,7 +63,7 @@ struct SocketState {
         }
     }
 
-    ///Returns the udp state, if this is an udp state
+    /// Returns the udp state, if this is an udp state
     UdpState udp_state() {
         if(_socket_type == SocketType::SOCK_DGRAM) {
             return static_cast<UdpState>(_socket_state);
@@ -159,19 +159,19 @@ static const int MAX_NETDATA_SIZE = 1024;
  * Represents a network package with context information
  */
 struct __attribute__((aligned(2048), packed)) NetData {
-    ///Constructs a new NetData package from all context informations
+    /// Constructs a new NetData package from all context informations
     explicit NetData(int32_t sd, const uint8_t *data, uint32_t data_size, IpAddr src_addr, uint16_t src_port,
                      IpAddr dst_addr, uint16_t dst_port) {
-        //Throw an error if the data size is too big
+        // Throw an error if the data size is too big
         if(data_size > MAX_NETDATA_SIZE) {
             LLOG(NET, "Packages size was too big when creating NetData. Max size="
                           << MAX_NETDATA_SIZE << ", package size=" << data_size);
             throw Exception(Errors::INV_ARGS);
         }
-        //Copy data into local, 0 initialized array
+        // Copy data into local, 0 initialized array
         memcpy(static_cast<void *>(this->data), data, data_size);
         if(data_size < MAX_NETDATA_SIZE) {
-            //set a zero byte if this is interpreted as string
+            // set a zero byte if this is interpreted as string
             this->data[data_size] = '0';
         }
 
@@ -183,7 +183,7 @@ struct __attribute__((aligned(2048), packed)) NetData {
         this->dst_port = dst_port;
     }
 
-    ///Initializes an empty package.
+    /// Initializes an empty package.
     explicit NetData() {
         sd       = 0;
         size     = 0;
@@ -207,7 +207,7 @@ struct __attribute__((aligned(2048), packed)) NetData {
         }
     }
 
-    ///Returns ptr to inner data that is being transported
+    /// Returns ptr to inner data that is being transported
     uint8_t *get_data() {
         return data;
     }

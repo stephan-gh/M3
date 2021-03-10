@@ -36,7 +36,7 @@ int main() {
     Semaphore::attach("net").down();
 
     socket.set_blocking(true);
-    //Bind this socket to our Ip address. Not needed realy, we could just start sending.
+    // Bind this socket to our Ip address. Not needed realy, we could just start sending.
     socket.bind(IpAddr(192, 168, 112, 2), 1337);
 
     constexpr size_t packet_size = 1024;

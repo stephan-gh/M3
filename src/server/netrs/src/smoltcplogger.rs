@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-//! Provides a really simple logger that logs messages generated somewhere in the crate via the log crate.
+// ! Provides a really simple logger that logs messages generated somewhere in the crate via the log crate.
 
 use log::{LevelFilter, Metadata, Record, SetLoggerError};
 use m3::log;

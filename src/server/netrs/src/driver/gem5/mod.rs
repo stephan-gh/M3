@@ -74,8 +74,8 @@ impl EEPROM {
         Err(Error::new(Code::Timeout))
     }
 
-    //reads `data` of `len` from the device.
-    //TOD: Currently doing stuff with the ptr of data. Should probably give sub slices of the length of one
+    // reads `data` of `len` from the device.
+    // TOD: Currently doing stuff with the ptr of data. Should probably give sub slices of the length of one
     // word tp the read_word fct. Also `len` is not needed since rust slice know their length.
     fn read(&self, dev: &E1000, mut address: usize, mut data: &mut [u8]) -> Result<(), Error> {
         assert!((data.len() & ((1 << WORD_LEN_LOG2) - 1)) == 0);
@@ -84,7 +84,7 @@ impl EEPROM {
         let mut len = data.len();
         while len > 0 {
             self.read_word(dev, address, data)?;
-            //move to next word
+            // move to next word
             data = &mut data[num_bytes_to_move..];
             address += 1;
             len -= num_bytes_to_move;
@@ -93,26 +93,26 @@ impl EEPROM {
     }
 
     fn read_word(&self, dev: &E1000, address: usize, data: &mut [u8]) -> Result<(), Error> {
-        //cast to 16bit array
+        // cast to 16bit array
         let data_word: &mut [u16] = unsafe { core::mem::transmute::<&mut [u8], &mut [u16]>(data) };
 
-        //set address
+        // set address
         dev.write_reg(
             e1000::REG::EERD,
             e1000::EERD::START.bits() as u32 | (address << self.shift) as u32,
         );
 
-        //Wait for read to complete
+        // Wait for read to complete
         let t = base::tcu::TCU::nanotime();
         let mut done_once = false;
         while (base::tcu::TCU::nanotime() - t) < MAX_WAIT_NANOS && !done_once {
             let value = dev.read_reg(e1000::REG::EERD);
             done_once = true;
             if (!value & self.done_bit) != 0 {
-                //Not read yet, therefore try again
+                // Not read yet, therefore try again
                 continue;
             }
-            //Move word into slice
+            // Move word into slice
             data_word[0] = (value >> 16) as u16;
             return Ok(());
         }
@@ -143,14 +143,14 @@ impl E1000 {
         log!(crate::LOG_NIC, "Creating NIC");
         let nic = Device::new("nic", PEISA::NIC_DEV)?;
 
-        //TODO create global memory in rust, should be global...?
+        // TODO create global memory in rust, should be global...?
         let bufs = MemGate::new(core::mem::size_of::<Buffers>(), Perm::RW)?;
         let devbufs = bufs.derive(0, core::mem::size_of::<Buffers>(), Perm::RW)?;
 
         let mut dev = E1000 {
             eeprom: EEPROM::new(&nic)?,
             nic,
-            mac: MAC::broadcast(), //gets initialised at reset
+            mac: MAC::broadcast(), // gets initialised at reset
 
             cur_tx_desc: 0,
             cur_tx_buf: 0,
@@ -164,7 +164,7 @@ impl E1000 {
 
         dev.nic.set_dma_buffer(&dev.devbufs)?;
 
-        //clear descriptors
+        // clear descriptors
         let mut i = 0;
         while i < core::mem::size_of::<Buffers>() {
             dev.write_bufs(
@@ -176,10 +176,10 @@ impl E1000 {
             i += core::mem::size_of_val(&ZEROS);
         }
 
-        //Reset card
+        // Reset card
         dev.reset();
 
-        //Enable interrupts
+        // Enable interrupts
         dev.write_reg(
             e1000::REG::IMC,
             (e1000::ICR::LSC | e1000::ICR::RXO | e1000::ICR::RXT0)
@@ -197,12 +197,12 @@ impl E1000 {
     }
 
     fn reset(&mut self) {
-        //always reset MAC. Required to reset the TX and RX rings.
+        // always reset MAC. Required to reset the TX and RX rings.
         let mut ctrl: u32 = self.read_reg(e1000::REG::CTRL);
         self.write_reg(e1000::REG::CTRL, ctrl | e1000::CTL::RESET.bits());
         self.sleep(RESET_SLEEP_TIME);
 
-        //set a sensible default configuration
+        // set a sensible default configuration
         ctrl |= (e1000::CTL::SLU | e1000::CTL::ASDE).bits();
         ctrl &= (e1000::CTL::LRST | e1000::CTL::FRCSPD | e1000::CTL::FRCDPLX).bits();
         self.write_reg(e1000::REG::CTRL, ctrl);
@@ -240,7 +240,7 @@ impl E1000 {
 
         // setup rx descriptors
         for i in 0..RX_BUF_COUNT {
-            //Init rxdesc which is written
+            // Init rxdesc which is written
             let desc = RxDesc {
                 buffer: (RX_BUF_OFF + i * RX_BUF_SIZE) as u64,
                 length: RX_BUF_SIZE as u16,
@@ -346,7 +346,7 @@ impl E1000 {
             return false;
         }
 
-        //Check which protocol is used, ip, tcp, udp.
+        // Check which protocol is used, ip, tcp, udp.
         let (is_ip, mut txo_proto) = {
             let ethf = smoltcp::wire::EthernetFrame::new_unchecked(packet);
             if ethf.ethertype() == smoltcp::wire::EthernetProtocol::Ipv4 {
@@ -377,7 +377,7 @@ impl E1000 {
         let is_tcp = txo_proto == TxoProto::TCP;
         let is_udp = txo_proto == TxoProto::UDP;
 
-        //check if the type of package has changed, in that case update the context
+        // check if the type of package has changed, in that case update the context
         let txd_context_update_required: bool = (self.txd_context_proto & txo_proto) != txo_proto;
         if txd_context_update_required {
             next_tx_desc = inc_rb(next_tx_desc, TX_BUF_COUNT as u32);
@@ -395,7 +395,7 @@ impl E1000 {
         const TX_BUF_OFF: usize = offset_of!(Buffers, tx_buf);
         const TX_DESCS_OFF: usize = offset_of!(Buffers, tx_descs);
 
-        //swap tx desc
+        // swap tx desc
         let mut cur_tx_desc: u32 = self.cur_tx_desc;
         self.cur_tx_desc = next_tx_desc;
 
@@ -420,9 +420,9 @@ impl E1000 {
                         UDP_CHECKSUM_OFFSET
                     }) as usize) as u8,
                 tucse: 0,
-                //set later by setter
+                // set later by setter
                 paylen_dtyp_tucmd: 0,
-                //set later by setter
+                // set later by setter
                 sta_rsv: 0,
                 hdrlen: 0,
                 mss: 0,
@@ -471,8 +471,8 @@ impl E1000 {
 
         let mut desc = TxDataDesc {
             buffer: offset as u64,
-            length_dtyp_dcmd: 0, //set later via setter
-            sta_rsv: 0,          //set later as well
+            length_dtyp_dcmd: 0, // set later via setter
+            sta_rsv: 0,          // set later as well
             popts: (((is_tcp | is_udp) as u8) << 1 | (is_ip as u8) << 0), // TXSM | IXSM
             special: 0,
         };
@@ -494,9 +494,9 @@ impl E1000 {
         true
     }
 
-    ///Receives a single package with the max size for E1000::mtu().
+    /// Receives a single package with the max size for E1000::mtu().
     fn receive(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-        //if there is nothing to receive, return
+        // if there is nothing to receive, return
         if !self.check_irq() {
             log!(crate::LOG_NIC, "No irq");
             return Err(Error::new(Code::NotSup));
@@ -516,7 +516,7 @@ impl E1000 {
 
         let tail: u32 = inc_rb(self.read_reg(e1000::REG::RDT), RX_BUF_COUNT as u32);
 
-        //Need to create the slice here, since we want to read the value after `read` took the slice
+        // Need to create the slice here, since we want to read the value after `read` took the slice
         let mut desc = [RxDesc::default()];
         self.read_bufs(
             &mut desc,
@@ -540,7 +540,7 @@ impl E1000 {
             desc.error,
         );
 
-        //TODO in C++ the valid_checksum is uninitialized and probably not set when checked for the first
+        // TODO in C++ the valid_checksum is uninitialized and probably not set when checked for the first
         // time. In rust we init to false, but that might produce a different result.
         let mut valid_checksum = false;
         // Ignore Checksum Indication not set
@@ -588,12 +588,12 @@ impl E1000 {
             log!(crate::LOG_NIC, "E1000: IXMS not set, skipping checksum");
         }
 
-        //TODO this was done in a loop over sub buffer, however,
+        // TODO this was done in a loop over sub buffer, however,
         // in rust we just allocate e big enough buffer and receive the
-        //package into this buffer
+        // package into this buffer
         let read_size;
         if valid_checksum {
-            //Create buffer with enough size, initialized to 0
+            // Create buffer with enough size, initialized to 0
             assert!(
                 (desc.length as usize) < E1000::mtu(),
                 "desc wanted to store buffer, bigger then mtu"
@@ -609,7 +609,7 @@ impl E1000 {
             return Err(Error::new(Code::InvChecksum));
         }
 
-        //Write back the updated rx buffer.
+        // Write back the updated rx buffer.
         desc.length = 0;
         desc.checksum = 0;
         desc.status = 0;
@@ -694,12 +694,12 @@ impl E1000 {
 
         log!(crate::LOG_NIC, "Got MAC: {}", mac);
 
-        //if thats valid, take it
+        // if thats valid, take it
         if mac != MAC::broadcast() && mac.value() != 0 {
             return mac;
         }
 
-        //wasn't correct, therefore try to read from eeprom
+        // wasn't correct, therefore try to read from eeprom
         log!(crate::LOG_NIC, "Reading MAC from EEPROM");
         let mut bytes = [0 as u8; MAC_LEN];
         self.read_eeprom(0, &mut bytes);
@@ -730,7 +730,7 @@ impl E1000 {
         TX_BUF_SIZE
     }
 
-    //checks if a irq occured
+    // checks if a irq occured
     fn check_irq(&mut self) -> bool {
         let icr = self.read_reg(e1000::REG::ICR);
         log!(crate::LOG_NIC, "Status: icr={:x}", icr);
@@ -741,7 +741,7 @@ impl E1000 {
     }
 }
 
-///Wrapper around the E1000 driver, implementing smols Device trait
+/// Wrapper around the E1000 driver, implementing smols Device trait
 pub struct E1000Device {
     dev: Rc<RefCell<E1000>>,
 }
@@ -810,7 +810,7 @@ impl smoltcp::phy::TxToken for TxToken {
         F: FnOnce(&mut [u8]) -> smoltcp::Result<R>,
     {
         let mut buffer = vec![0; len];
-        //fill buffer with "to be send" data
+        // fill buffer with "to be send" data
         let res = f(&mut buffer)?;
         if !self.device.borrow_mut().send(&buffer[..]) {
             panic!("Could not send package");

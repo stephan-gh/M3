@@ -28,11 +28,11 @@ use smoltcp::wire::{IpAddress, IpEndpoint, Ipv4Address};
 
 use crate::sess::FileSession;
 
-//Needed to create correct buffer sizes
+// Needed to create correct buffer sizes
 pub const TCP_HEADER_SIZE: usize = 32;
 pub const UDP_HEADER_SIZE: usize = 8;
 
-///Allows us to convert a smol tcp state to a m3 tcp state. Cannot use the From trait since we would implement on a foreign type.
+/// Allows us to convert a smol tcp state to a m3 tcp state. Cannot use the From trait since we would implement on a foreign type.
 fn tcp_state_from_smoltcp_state(other: smoltcp::socket::TcpState) -> m3::net::TcpState {
     match other {
         smoltcp::socket::TcpState::Closed => m3::net::TcpState::Closed,
@@ -49,17 +49,17 @@ fn tcp_state_from_smoltcp_state(other: smoltcp::socket::TcpState) -> m3::net::Tc
     }
 }
 
-///Socket abstraction
+/// Socket abstraction
 pub struct Socket {
     pub sd: i32,
-    //The handle into the global socket set, used to get the smol socket.
+    // The handle into the global socket set, used to get the smol socket.
     pub socket: SocketHandle,
-    //tracks the internal type
+    // tracks the internal type
     pub ty: SocketType,
 
     pub socket_session_rgate: Rc<RefCell<RecvGate>>,
     pub rgate: Option<Rc<RefCell<RecvGate>>>,
-    //Might be a file session
+    // Might be a file session
     pub rfile: Option<Rc<RefCell<FileSession>>>,
     pub sfile: Option<Rc<RefCell<FileSession>>>,
 }
@@ -71,7 +71,7 @@ impl Socket {
         socket_session_rgate: Rc<RefCell<RecvGate>>,
     ) -> Self {
         Socket {
-            sd: -1, //Invalid socket for now
+            sd: -1, // Invalid socket for now
             socket,
             ty,
 
@@ -83,7 +83,7 @@ impl Socket {
         }
     }
 
-    ///returns a reference to the parents socket session's rgate
+    /// returns a reference to the parents socket session's rgate
     pub fn socket_session_rgate<'a>(&'a self) -> Ref<'a, RecvGate> {
         self.socket_session_rgate.borrow()
     }
@@ -98,7 +98,7 @@ impl Socket {
             return Err(Error::new(Code::NoSpace));
         }
 
-        //If Udp socket, bind, otherwise do nothing, since in smoltcp, the tcp_bind event is fused with tcp_listen.
+        // If Udp socket, bind, otherwise do nothing, since in smoltcp, the tcp_bind event is fused with tcp_listen.
         let mut udp_socket = socket_set.get::<UdpSocket>(self.socket);
         log!(crate::LOG_DEF, "Binding Udp socket: {}", endpoint);
         if let Err(e) = udp_socket.bind(endpoint) {
@@ -157,25 +157,25 @@ impl Socket {
         }
     }
 
-    ///Tries to receive a package on this socket. Depending on the type of this socket, the data might be a raw
+    /// Tries to receive a package on this socket. Depending on the type of this socket, the data might be a raw
     /// ethernet frame (raw sockets) or some byte data (tcp/udp sockets).
     /// Returns (remote_endpoint, data)
     pub fn receive<'a>(
         &mut self,
         socket_set: &'a mut SocketSet<'static>,
     ) -> Result<NetData, Error> {
-        //Currently allocating Vec<u8> since the result is going into a NetData package for marshalling anyways.
-        //However it would be possible to use slices here if the marshalled package would use a slice.
+        // Currently allocating Vec<u8> since the result is going into a NetData package for marshalling anyways.
+        // However it would be possible to use slices here if the marshalled package would use a slice.
         match self.ty {
             SocketType::Stream => {
                 let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
                 let addr = tcp_socket.remote_endpoint();
                 match tcp_socket.recv(|d| (d.len(), d)) {
                     Ok(buf) => {
-                        //Build the net data struct
+                        // Build the net data struct
                         let (m3addr, port) = crate::util::to_m3_addr(addr);
                         let data =
-                            NetData::from_slice(0, buf, m3addr, port, IpAddr::unspecified(), 0); //sd gets set in the socket session
+                            NetData::from_slice(0, buf, m3addr, port, IpAddr::unspecified(), 0); // sd gets set in the socket session
 
                         Ok(data)
                     },
@@ -188,7 +188,7 @@ impl Socket {
                     Ok((data, remote_endpoint)) => {
                         let (m3addr, port) = crate::util::to_m3_addr(remote_endpoint);
                         let data =
-                            NetData::from_slice(0, data, m3addr, port, IpAddr::unspecified(), 0); //sd gets set in the socket session
+                            NetData::from_slice(0, data, m3addr, port, IpAddr::unspecified(), 0); // sd gets set in the socket session
 
                         Ok(data)
                     },
@@ -201,7 +201,7 @@ impl Socket {
                     Ok(data) => {
                         let (m3addr, port) = crate::util::to_m3_addr(IpEndpoint::UNSPECIFIED);
                         let data =
-                            NetData::from_slice(0, data, m3addr, port, IpAddr::unspecified(), 0); //sd gets set in the socket session
+                            NetData::from_slice(0, data, m3addr, port, IpAddr::unspecified(), 0); // sd gets set in the socket session
 
                         Ok(data)
                     },
@@ -223,7 +223,7 @@ impl Socket {
         Ok(())
     }
 
-    ///Send data over this socket connect, if everything is set alright. Returns the smoltcp error if something failed.
+    /// Send data over this socket connect, if everything is set alright. Returns the smoltcp error if something failed.
     pub fn send_data_slice(
         &mut self,
         data: NetData,
@@ -245,7 +245,7 @@ impl Socket {
                 tcp_socket.send_slice(data.raw_data())
             },
             SocketType::Dgram => {
-                //on udp send dictates the destination
+                // on udp send dictates the destination
                 let rend = endpoint(data.dest_addr, data.dest_port);
                 log!(
                     crate::LOG_DEF,
@@ -276,7 +276,7 @@ impl Socket {
         res
     }
 
-    ///returns the socket state depending on the socket type
+    /// returns the socket state depending on the socket type
     pub fn get_state(&self, socket_set: &mut SocketSet<'static>) -> Result<SocketState, Error> {
         match self.ty {
             SocketType::Stream => {
@@ -286,7 +286,7 @@ impl Socket {
                 )))
             },
             SocketType::Dgram => {
-                //udp socket can only be bound or unbound, therefore just check if send is true
+                // udp socket can only be bound or unbound, therefore just check if send is true
                 let udp_socket = socket_set.get::<UdpSocket>(self.socket);
                 let udp_state = if udp_socket.is_open() {
                     UdpState::Open

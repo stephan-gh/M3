@@ -29,7 +29,7 @@ namespace m3 {
 
 class NetworkManagerRs : public ClientSession {
 private:
-    //Thin wrapper around the NetElement so we dont destroy the NetData memory layout
+    // Thin wrapper around the NetElement so we dont destroy the NetData memory layout
     struct NetElement : public SListItem {
         NetElement(m3::net::NetData *new_el) {
             el = new_el;
@@ -42,12 +42,12 @@ private:
             : m3::TreapNode<RecvElement, int32_t>(first_element->sd), waiting_packages() {
             push(first_element);
         }
-        ///Returns true if there is an element
+        /// Returns true if there is an element
         bool has_element() {
             return waiting_packages.length() > 0;
         }
 
-        //Pops an element from the queue
+        // Pops an element from the queue
         m3::net::NetData *pop_element() {
             NetElement *removed = waiting_packages.remove_first();
             if(removed != nullptr) {
@@ -64,17 +64,17 @@ private:
             waiting_packages.append(new NetElement(element));
         }
 
-        ///deletes all elements in the list
+        /// deletes all elements in the list
         void clear() {
             NetElement *pkg;
             while((pkg = waiting_packages.remove_first()) != nullptr) {
-                //dealloc inner NetData, then delete self
+                // dealloc inner NetData, then delete self
                 delete pkg->el;
                 delete pkg;
             }
         }
 
-        //Manages order of waiting packages
+        // Manages order of waiting packages
         SList<NetElement> waiting_packages;
     };
 
@@ -105,7 +105,7 @@ public:
         return _metagate;
     }
 
-    //Creates a new socket on the service anr returns the descriptor. Returns -1 if failed.
+    // Creates a new socket on the service anr returns the descriptor. Returns -1 if failed.
     int32_t create(SocketType type, uint8_t protocol = 0);
     void bind(int32_t sd, IpAddr addr, uint16_t port);
     void listen(int32_t sd, IpAddr local_addr, uint16_t port);
@@ -116,7 +116,7 @@ public:
     void notify_drop(int32_t sd);
     void send(int32_t sd, IpAddr src_sddr, uint16_t src_port, IpAddr dst_addr, uint16_t dst_port,
               uint8_t *data, uint32_t data_length);
-    ///Returns non empty packge if some package was in the queue, or an empty package if none was in the queue.
+    /// Returns non empty packge if some package was in the queue, or an empty package if none was in the queue.
     m3::net::NetData recv(int32_t sd);
     SocketState get_state(int32_t sd);
 
@@ -125,7 +125,7 @@ private:
 
     SendGate _metagate;
     NetChannel _channel;
-    ///Keeps track of all received packges, keyed by their socket descriptor number.
+    /// Keeps track of all received packges, keyed by their socket descriptor number.
     Treap<RecvElement> _receive_queue;
 };
 

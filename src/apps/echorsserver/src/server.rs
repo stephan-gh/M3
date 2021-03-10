@@ -40,7 +40,7 @@ pub fn main() -> i32 {
         "Socket state did not match"
     );
 
-    //Signal that we are listening
+    // Signal that we are listening
     Semaphore::attach("net")
         .expect("Failed to get semaphore")
         .up()

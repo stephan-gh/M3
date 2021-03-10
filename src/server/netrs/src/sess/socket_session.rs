@@ -45,7 +45,7 @@ use super::sockets::{TCP_HEADER_SIZE, UDP_HEADER_SIZE};
 
 pub const MAX_SEND_RECEIVE_BATCH_SIZE: usize = 5;
 pub const MAX_SOCKETS: usize = 16;
-///Defines how big the socket buffers must be, currently this is the max NetDataSize multiplied by the
+/// Defines how big the socket buffers must be, currently this is the max NetDataSize multiplied by the
 /// Maximum in flight packages
 pub const TCP_BUFFER_SIZE: usize =
     (MAX_NETDATA_SIZE + TCP_HEADER_SIZE) * MAX_SEND_RECEIVE_BATCH_SIZE;
@@ -57,14 +57,14 @@ pub struct SocketSession {
     sgate: Option<SendGate>,
     rgate: Rc<RefCell<RecvGate>>,
     server_session: ServerSession,
-    sockets: Vec<Option<Rc<RefCell<Socket>>>>, //All sockets registered to this socket session.
-    ///Size of the memory gate that can be used to transfer buffers
+    sockets: Vec<Option<Rc<RefCell<Socket>>>>, // All sockets registered to this socket session.
+    /// Size of the memory gate that can be used to transfer buffers
     size: usize,
-    ///Used to communicate with the client
+    /// Used to communicate with the client
     channel: Option<NetChannel>,
-    ///Capabilities start, saved for revoking purpose
+    /// Capabilities start, saved for revoking purpose
     channel_caps: Selector,
-    ///Only used to keep the gates used by the client alive
+    /// Only used to keep the gates used by the client alive
     client_gates: Option<(SendGate, RecvGate, MemGate)>,
 }
 
@@ -90,8 +90,8 @@ impl SocketSession {
             sgate: None,
             rgate,
             server_session,
-            sockets: vec![None; MAX_SOCKETS], //TODO allocate correct amount up front?
-            size: TCP_BUFFER_SIZE,            //currently going with the max number
+            sockets: vec![None; MAX_SOCKETS], // TODO allocate correct amount up front?
+            size: TCP_BUFFER_SIZE,            // currently going with the max number
             channel: None,
             channel_caps: m3::kif::INVALID_SEL,
             client_gates: None,
@@ -114,7 +114,7 @@ impl SocketSession {
             self.get_sgate(xchg)
         }
         else if xchg.in_caps() == 3 {
-            //establish a connection with the network manager in that session
+            // establish a connection with the network manager in that session
             self.connect_nm(xchg)
         }
         else if xchg.in_caps() == 2 {
@@ -129,8 +129,8 @@ impl SocketSession {
         self.rgate.clone()
     }
 
-    ///Creates a SendGate that is used to send data to this socket session.
-    ///keeps the Sendgate alive and sends back the selector that needs to be binded to.
+    /// Creates a SendGate that is used to send data to this socket session.
+    /// keeps the Sendgate alive and sends back the selector that needs to be binded to.
     fn get_sgate(&mut self, xchg: &mut CapExchange) -> Result<(), Error> {
         if self.sgate.is_some() {
             return Err(Error::new(Code::InvArgs));
@@ -161,22 +161,22 @@ impl SocketSession {
     fn connect_nm(&mut self, xchg: &mut CapExchange) -> Result<(), Error> {
         log!(crate::LOG_DEF, "Establishing channel for socket session");
 
-        //establishes the channel by creating the send/recv gates
+        // establishes the channel by creating the send/recv gates
         // src->client
         // client->server
 
-        //0: rgate_srv,
-        //1: sgate_srv,
-        //2: mem_srv
+        // 0: rgate_srv,
+        // 1: sgate_srv,
+        // 2: mem_srv
 
-        //3: rgate_cli,
-        //4: sgate_cli
-        //5: mem_cli
+        // 3: rgate_cli,
+        // 4: sgate_cli
+        // 5: mem_cli
         let caps = m3::pes::VPE::cur().alloc_sels(6);
 
         self.channel_caps = caps;
 
-        //Create the local channel, but also keep the client data alive so the client can bind to them.
+        // Create the local channel, but also keep the client data alive so the client can bind to them.
         let rgate_srv = RecvGate::new_with(
             RGateArgs::default()
                 .order(MSG_BUF_ORDER)
@@ -189,7 +189,7 @@ impl SocketSession {
                 .msg_order(MSG_ORDER)
                 .sel(caps + 3),
         )?;
-        let sgate_srv = SendGate::new_with(SGateArgs::new(&rgate_cli).sel(caps + 1))?; //reply gate, flags and credits?
+        let sgate_srv = SendGate::new_with(SGateArgs::new(&rgate_cli).sel(caps + 1))?; // reply gate, flags and credits?
         let sgate_cli = SendGate::new_with(SGateArgs::new(&rgate_srv).sel(caps + 4))?;
 
         let mem_srv =
@@ -202,11 +202,11 @@ impl SocketSession {
             m3::kif::Perm::RW,
         )?;
 
-        //Create local channel end and store the rest
+        // Create local channel end and store the rest
         self.channel = Some(NetChannel::new_with_gates(sgate_srv, rgate_srv, mem_srv));
         self.client_gates = Some((sgate_cli, rgate_cli, mem_cli));
 
-        //Send capabilities back to caller so it can connect to the created gates
+        // Send capabilities back to caller so it can connect to the created gates
         xchg.out_caps(m3::kif::CapRngDesc::new(
             m3::kif::CapType::OBJECT,
             caps + 3,
@@ -241,7 +241,7 @@ impl SocketSession {
             rmemsize,
             smemsize
         );
-        //Create socket for file
+        // Create socket for file
         if let Some(socket) = self.get_socket(sd) {
             if (mode & OpenFlags::RW.bits()) == 0 {
                 log!(crate::LOG_DEF, "open_file failed: invalid mode");
@@ -296,7 +296,7 @@ impl SocketSession {
     }
 
     fn remove_socket(&mut self, sd: i32) {
-        //if there is a socket, delete it.
+        // if there is a socket, delete it.
         if self.sockets.get(sd as usize).is_some() {
             self.sockets[sd as usize] = None;
         }
@@ -376,12 +376,12 @@ impl SocketSession {
             },
         };
 
-        //Create the abstract socket from some created socket instance
+        // Create the abstract socket from some created socket instance
         let socket = Socket::from_smol_socket(socket_handle, ty, self.rgate.clone());
         let sd = match self.request_sd(socket) {
             Ok(sd) => sd,
             Err(_e) => {
-                //TODO release socket
+                // TODO release socket
                 log!(
                     crate::LOG_DEF,
                     "create failed: maximum number of sockets reached"
@@ -417,7 +417,7 @@ impl SocketSession {
         );
 
         if let Some(sock) = self.get_socket(sd) {
-            //TODO verify that the bigEndian is indeed the correct byte order
+            // TODO verify that the bigEndian is indeed the correct byte order
             sock.borrow_mut().bind(endpoint, socket_set)?;
             reply_vmsg!(is, Code::None as i32)
         }
@@ -486,10 +486,10 @@ impl SocketSession {
         );
 
         if let Some(sock) = self.get_socket(sd) {
-            //TODO verify that the bigEndian is indeed the correct byte order
+            // TODO verify that the bigEndian is indeed the correct byte order
             sock.borrow_mut()
                 .connect(remote_endpoint, local_endpoint, socket_set)?;
-            reply_vmsg!(is, Code::None as i32) //all went good
+            reply_vmsg!(is, Code::None as i32) // all went good
         }
         else {
             log!(crate::LOG_DEF, "connect failed: invalid socket descriptor");
@@ -518,13 +518,13 @@ impl SocketSession {
 
     pub fn send(&mut self, socket_set: &mut SocketSet<'static>) {
         if self.channel.is_none() {
-            //Cannot send yet since the channel is not active.
+            // Cannot send yet since the channel is not active.
             return;
         }
 
         let mut num_received = 0;
 
-        //receive everything in the channel
+        // receive everything in the channel
         while let Ok(data) = self.channel.as_ref().unwrap().receive() {
             num_received += 1;
 
@@ -545,7 +545,7 @@ impl SocketSession {
                         0
                     },
                 };
-            //TODO return send size if it is blocking?
+            // TODO return send size if it is blocking?
             }
             else {
                 log!(
@@ -561,19 +561,19 @@ impl SocketSession {
         }
     }
 
-    ///Ticks this socket. If there was a package to receive, puts it onto the netChannel to be consumed by some client.
+    /// Ticks this socket. If there was a package to receive, puts it onto the netChannel to be consumed by some client.
     pub fn receive(&mut self, socket_set: &mut SocketSet<'static>) {
         if self.channel.is_none() {
-            //Cannot receive yet since the channel is not active.
+            // Cannot receive yet since the channel is not active.
             return;
         }
-        //iterate over all sockets and try to receive
+        // iterate over all sockets and try to receive
         for socket in self.sockets.iter() {
             if let Some(socket) = socket {
                 let socket_sd = socket.borrow().sd;
                 if let Ok(mut net_data) = socket.borrow_mut().receive(socket_set) {
-                    //Drop if no data was send. In that case this was some communication
-                    //package between sockets
+                    // Drop if no data was send. In that case this was some communication
+                    // package between sockets
                     if net_data.size == 0 {
                         continue;
                     }
@@ -586,7 +586,7 @@ impl SocketSession {
                         net_data.source_port
                     );
 
-                    //set the packages socket descriptor
+                    // set the packages socket descriptor
                     net_data.sd = socket_sd;
 
                     if let Err(e) = self.channel.as_ref().unwrap().send(net_data) {
@@ -610,11 +610,11 @@ impl SocketSession {
         if let Some(socket) = self.get_socket(sd) {
             let state = socket.borrow().get_state(socket_set)?;
             log!(crate::LOG_DEF, "net::state: State is: {:?}", state);
-            //send state back
+            // send state back
             reply_vmsg!(is, Code::None as i32, state)
         }
         else {
-            Err(Error::new(Code::NotSup)) //TODO change back into "NoSuchSocket"
+            Err(Error::new(Code::NotSup)) // TODO change back into "NoSuchSocket"
         }
     }
 }

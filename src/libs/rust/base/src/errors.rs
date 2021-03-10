@@ -76,7 +76,7 @@ pub enum Code {
     ReadFailed,
     WriteFailed,
     Utf8Error,
-    //Net Errors
+    // Net Errors
     InvState,
     WrongSocketType,
     InvChecksum,

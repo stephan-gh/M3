@@ -39,7 +39,7 @@ pub fn main() -> i32 {
 
     let request = [0 as u8; 1024];
     loop {
-        //Wait for at least one package before sending one back
+        // Wait for at least one package before sending one back
         let _pkg = socket.recv().unwrap();
         socket
             .send(IpAddr::new(192, 168, 112, 2), 1337, &request)

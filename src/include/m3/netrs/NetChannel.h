@@ -37,10 +37,10 @@ static const uint32_t MSG_BUF_ORDER     = MSG_ORDER + MSG_CREDITS_ORDER;
 
 class NetChannel {
 public:
-    ///Binds a channel to caps. Assumes a service is holding a RecvGate at caps+0, SendGate at caps+1 and MemGate at caps+2.
+    /// Binds a channel to caps. Assumes a service is holding a RecvGate at caps+0, SendGate at caps+1 and MemGate at caps+2.
     explicit NetChannel(capsel_t caps);
     void send(m3::net::NetData data);
-    //Tries to fetch a NetData package. If non exists an empty package is returned.
+    // Tries to fetch a NetData package. If non exists an empty package is returned.
     m3::net::NetData *receive();
 
 private:

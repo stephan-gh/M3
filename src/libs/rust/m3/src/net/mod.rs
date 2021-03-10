@@ -63,13 +63,13 @@ impl core::fmt::Display for IpAddr {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SocketType {
-    ///Tcp socket
+    /// Tcp socket
     Stream    = 0,
-    ///Udp Socket
+    /// Udp Socket
     Dgram     = 1,
-    ///Raw IpSocket
+    /// Raw IpSocket
     Raw       = 2,
-    Undefined = 3, //Something else
+    Undefined = 3, // Something else
 }
 
 impl SocketType {
@@ -86,28 +86,28 @@ impl SocketType {
 #[derive(Debug)]
 pub enum SocketState {
     TcpState(crate::net::socket::TcpState),
-    UdpState(crate::net::socket::UdpState), //TODO implement?
-    RawState, //TODO implement, might not have to since a raw socket has no state?
+    UdpState(crate::net::socket::UdpState), // TODO implement?
+    RawState, // TODO implement, might not have to since a raw socket has no state?
 }
 
 impl Marshallable for SocketState {
     fn marshall(&self, sink: &mut Sink) {
         match self {
             SocketState::TcpState(tcps) => {
-                //Is tcp state
+                // Is tcp state
                 sink.push(&(0 as u64));
-                //Push tcp state info
+                // Push tcp state info
                 sink.push(&(*tcps as u64));
             },
             SocketState::UdpState(udps) => {
-                //is udpstate
+                // is udpstate
                 sink.push(&(1 as u64));
                 sink.push(&(*udps as u64));
             },
             SocketState::RawState => {
-                //is rawstate
+                // is rawstate
                 sink.push(&(2 as u64));
-                //No other state info
+                // No other state info
             },
         }
     }
@@ -132,7 +132,7 @@ impl Unmarshallable for SocketState {
     }
 }
 
-///Represents network data that is send over some socket or received.
+/// Represents network data that is send over some socket or received.
 ///
 /// Use the `data()` function to try and format the data as any `T`. Use `raw_data()` to receive the bytes.
 #[derive(Clone)]
@@ -150,7 +150,7 @@ pub struct NetData {
 }
 
 impl NetData {
-    ///Creates the net data struct from `slice`. Assumes that the slice is not longer than MAX_NETDATA_SIZE.
+    /// Creates the net data struct from `slice`. Assumes that the slice is not longer than MAX_NETDATA_SIZE.
     pub fn from_slice(
         sd: i32,
         slice: &[u8],
@@ -160,9 +160,9 @@ impl NetData {
         dest_port: u16,
     ) -> Self {
         let mut data_slice = [0; MAX_NETDATA_SIZE];
-        //Copy data into slice
+        // Copy data into slice
         let copy_size = MAX_NETDATA_SIZE.min(slice.len());
-        //Copy the minimum of the slices length and the array length. Therefore, store max `MAX_NETDATA`
+        // Copy the minimum of the slices length and the array length. Therefore, store max `MAX_NETDATA`
         // or, if the slice is shorter, less.
         data_slice[0..(copy_size)].copy_from_slice(&slice[0..(copy_size)]);
 

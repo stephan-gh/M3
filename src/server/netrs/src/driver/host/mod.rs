@@ -40,7 +40,7 @@ fn get_socket(name: &str, suff: &str) -> sockaddr_un {
         sun_path: [0; 108],
     };
 
-    //Note: I'm note sure why we need to start here with the \0. However, if we don't,
+    // Note: I'm note sure why we need to start here with the \0. However, if we don't,
     // we cant send over this address does not exist. That's correct since
     // now only one, shared socket with name "" gets created in each service.
     let formated = format!("\0m3_net_{}_{}\0", name, suff);
@@ -53,7 +53,7 @@ fn get_socket(name: &str, suff: &str) -> sockaddr_un {
     addr
 }
 
-//Inner raw socket description, more or less copied from smoltcps's sys::RawSocket, but in no_std.
+// Inner raw socket description, more or less copied from smoltcps's sys::RawSocket, but in no_std.
 pub struct RawSocketDesc {
     in_fd: c_int,
     out_fd: c_int,
@@ -88,7 +88,7 @@ impl RawSocketDesc {
             lower
         };
 
-        //Bind socket
+        // Bind socket
         let in_sock = get_socket(name, "in");
         unsafe {
             let res = libc::bind(
@@ -117,7 +117,7 @@ impl RawSocketDesc {
     }
 
     pub fn recv(&mut self, buffer: &mut [u8]) -> Result<usize, ()> {
-        //log!(crate::LOG_NIC, "recv for buffer of size={}", buffer.len());
+        // log!(crate::LOG_NIC, "recv for buffer of size={}", buffer.len());
         if buffer.len() <= 0 {
             return Err(());
         }
@@ -131,12 +131,12 @@ impl RawSocketDesc {
                 core::ptr::null_mut() as *mut u32,
             );
             if len == -1 {
-                //TODO handle would block error.
+                // TODO handle would block error.
 
                 let errc = (*libc::__errno_location()) as i32;
                 if errc == 11 {
-                    //Would block ignore that error
-                    //log!(crate::LOG_NIC, "Would block");
+                    // Would block ignore that error
+                    // log!(crate::LOG_NIC, "Would block");
                 }
                 else {
                     log!(
@@ -170,7 +170,7 @@ impl RawSocketDesc {
                     log!(crate::LOG_NIC, "SEND: Would block");
                 }
 
-                //TODO handle would block error
+                // TODO handle would block error
                 log!(
                     crate::LOG_NIC,
                     "Failed to send on socket[{}] buffer of len={} with error={}",
@@ -201,7 +201,7 @@ impl Drop for RawSocketDesc {
                 log!(crate::LOG_NIC, "Failed to close out_fd={}", self.out_fd);
             }
 
-            //Delete in file
+            // Delete in file
             let formated_string = format!("m3_net_{}_in\0", self.name);
 
             let mut c_char_name = [0 as c_char; 108];
@@ -221,7 +221,7 @@ impl Drop for RawSocketDesc {
     }
 }
 
-///Fifo wrapper around the RawSocketDesc.
+/// Fifo wrapper around the RawSocketDesc.
 pub struct DevFifo {
     lower: Rc<RefCell<RawSocketDesc>>,
     mtu: usize,

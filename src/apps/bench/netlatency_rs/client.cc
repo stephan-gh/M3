@@ -69,7 +69,7 @@ int main() {
 
             request.time = start;
             socket.send(dest_addr, dest_port, request.raw, pkt_size);
-            //TODO smoltcp doesn't tell us how much was send...
+            // TODO smoltcp doesn't tell us how much was send...
             ssize_t send_len     = static_cast<ssize_t>(pkt_size);
             m3::net::NetData pkg = socket.recv();
             ssize_t recv_len;

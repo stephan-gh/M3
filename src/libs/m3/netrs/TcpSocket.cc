@@ -27,7 +27,7 @@ TcpSocketRs::TcpSocketRs(NetworkManagerRs &nm)
 }
 
 TcpSocketRs::~TcpSocketRs() {
-    //Try close anyways. Maybe it wasnt closed yet
+    // Try close anyways. Maybe it wasnt closed yet
     if(!_is_closed) {
         close();
     }
@@ -53,8 +53,8 @@ void TcpSocketRs::connect(IpAddr remote_addr, uint16_t remote_port, IpAddr local
     _is_closed = false;
 }
 
-///When non blocking always returns a package, but it might be empty.
-///When blocking, blocks until a non-empty package is received.
+/// When non blocking always returns a package, but it might be empty.
+/// When blocking, blocks until a non-empty package is received.
 m3::net::NetData TcpSocketRs::recv() {
     if(_blocking) {
         while(1) {
@@ -62,8 +62,8 @@ m3::net::NetData TcpSocketRs::recv() {
             if(!pkg.is_empty()) {
                 return pkg;
             }
-            //else keep waiting.
-            //TODO should yield?
+            // else keep waiting.
+            // TODO should yield?
         }
     }
     else {
@@ -72,8 +72,8 @@ m3::net::NetData TcpSocketRs::recv() {
 }
 
 void TcpSocketRs::send(uint8_t *data, uint32_t size) {
-    //Note on tcp the we let the service do ip handling, since the socket must be connected
-    //before use. Therefore all ips are unspecified
+    // Note on tcp the we let the service do ip handling, since the socket must be connected
+    // before use. Therefore all ips are unspecified
     _socket._nm.send(_socket._sd, IpAddr(), 0, IpAddr(), 0, data, size);
 }
 
@@ -87,7 +87,7 @@ void TcpSocketRs::close() {
 	*/
 }
 
-///Returns the tcp state, or TcpState::Invalid, if tcp state was queried on a non TCP socket.
+/// Returns the tcp state, or TcpState::Invalid, if tcp state was queried on a non TCP socket.
 TcpState TcpSocketRs::state() {
     SocketState state = _socket._nm.get_state(_socket._sd);
     return state.tcp_state();
@@ -95,8 +95,8 @@ TcpState TcpSocketRs::state() {
 
 void TcpSocketRs::wait_for_state(TcpState target_state) {
     while(state() != target_state) {
-        //TODO check for error
-        //TODO signal yield?
+        // TODO check for error
+        // TODO signal yield?
     }
 }
 

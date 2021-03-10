@@ -40,7 +40,7 @@ int main() {
     while(true) {
         m3::net::NetData pkg = socket.recv();
 
-        //Send package back
+        // Send package back
         socket.send(pkg.src_addr, pkg.src_port, pkg.get_data(), pkg.get_size());
     }
 }

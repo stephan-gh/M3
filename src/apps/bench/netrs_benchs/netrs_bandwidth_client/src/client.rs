@@ -74,7 +74,7 @@ fn run(t: &mut dyn test::WvTester) {
 fn simple_bandwidth() {
     let mut prof = Profiler::default().repeats(5);
 
-    //Setup context
+    // Setup context
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
     let mut socket = wv_assert_ok!(UdpSocket::new(&nm));
 

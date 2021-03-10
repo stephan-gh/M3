@@ -41,7 +41,7 @@ pub struct FileSession {
 
     mode: u32,
 
-    rbuf: VarRingBuf, //Probably not needed since there is a rx / tx buffer in the device right?
+    rbuf: VarRingBuf, // Probably not needed since there is a rx / tx buffer in the device right?
     sbuf: VarRingBuf,
 
     last_amount: usize,
@@ -59,7 +59,7 @@ impl Drop for FileSession {
     }
 }
 
-//TODO File session is currently unused and needs to be implemented
+// TODO File session is currently unused and needs to be implemented
 #[allow(dead_code)]
 impl FileSession {
     pub fn new(
@@ -70,7 +70,7 @@ impl FileSession {
         rmemsize: usize,
         smemsize: usize,
     ) -> Result<Rc<RefCell<Self>>, Error> {
-        //Alloc selector for self,
+        // Alloc selector for self,
         let sels = m3::pes::VPE::cur().alloc_sels(2);
 
         let label = 32 as tcu::Label;
@@ -78,7 +78,7 @@ impl FileSession {
             m3::com::SGateArgs::new(&socket.borrow().socket_session_rgate())
                 .label(label)
                 .credits(1)
-                .sel(sels + 1), //put sgate on sel 1
+                .sel(sels + 1), // put sgate on sel 1
         )?;
 
         log!(
@@ -166,7 +166,7 @@ impl FileSession {
     pub fn prepare(&mut self) -> Result<(), Error> {
         if self.pending.is_some() {
             log!(crate::LOG_DEF, "already has a pending request");
-            return Err(Error::new(Code::Exists)); //Should be InvState
+            return Err(Error::new(Code::Exists)); // Should be InvState
         }
         self.activate()
     }
@@ -178,14 +178,14 @@ impl FileSession {
 
         self.prepare()?;
 
-        //TODO from C++: Socket is closed
+        // TODO from C++: Socket is closed
         if false {
             log!(crate::LOG_DEF, "recv: EOF");
             reply_vmsg!(is, 0 as u32, 0 as usize, 0 as usize)?;
             return Ok(());
         }
 
-        //implicitly commit the previous in request
+        // implicitly commit the previous in request
         if !self.sending && self.last_amount != 0 {
             log!(
                 crate::LOG_DEF,
@@ -204,7 +204,7 @@ impl FileSession {
             reply_vmsg!(is, 0 as u32, pos, amount)
         }
         else {
-            //Could not allocate
+            // Could not allocate
             log!(crate::LOG_DEF, "recv: waiting for data");
             self.mark_pending(is)
         }
@@ -216,14 +216,14 @@ impl FileSession {
             return Err(Error::new(Code::NotSup));
         }
 
-        //TODO from C++: socket is closed
+        // TODO from C++: socket is closed
         if false {
             log!(crate::LOG_DEF, "send: EOF");
             reply_vmsg!(is, 0 as u32, 0 as usize, 0 as usize)?;
             return Ok(());
         }
 
-        //implicitly commit the previous out request
+        // implicitly commit the previous out request
         if self.last_amount != 0 {
             log!(
                 crate::LOG_DEF,
@@ -242,7 +242,7 @@ impl FileSession {
             reply_vmsg!(is, 0 as u32, self.rbuf.size() + pos, amount)
         }
         else {
-            //Could not allocate
+            // Could not allocate
             log!(crate::LOG_DEF, "send: waiting for free memory");
             self.mark_pending(is)
         }
@@ -279,12 +279,12 @@ impl FileSession {
         }
 
         if self.sending {
-            //Advance write pointer
+            // Advance write pointer
             self.sbuf.push(self.last_amount, amount);
             log!(crate::LOG_DEF, "push-send: {} -> {:?}", amount, self.sbuf);
         }
         else {
-            //advance read pointer
+            // advance read pointer
             let pullam = if amount != 0 {
                 amount
             }
@@ -327,8 +327,8 @@ impl FileSession {
     fn mark_pending(&mut self, is: &mut GateIStream) -> Result<(), Error> {
         assert!(self.pending.is_none());
 
-        //Since in Rust we cant just copy the pointer to the stream,
-        //we take the message and create a new gate for the same selector with the same size.
+        // Since in Rust we cant just copy the pointer to the stream,
+        // we take the message and create a new gate for the same selector with the same size.
         log!(
             crate::LOG_DEF,
             "mark stream pending on gate: {:?}",
@@ -350,12 +350,12 @@ impl FileSession {
         if let (Some(pending_msg), Some(pending_gate)) =
             (self.pending.take(), self.pending_gate.take())
         {
-            //send eof
+            // send eof
             log!(crate::LOG_DEF, "Closing: Sending EOF");
 
             let mut late_is = GateIStream::new(pending_msg, &pending_gate);
 
-            //TODO encode correctly?
+            // TODO encode correctly?
             reply_vmsg!(late_is, 0 as usize, 0 as usize, 0 as usize)
         }
         else {
@@ -365,9 +365,9 @@ impl FileSession {
     }
 
     fn handle_send_buffer(&mut self) -> Result<(), Error> {
-        //Always has a socket
+        // Always has a socket
 
-        //Currently processing just one chunk. Might change to process all pending.
+        // Currently processing just one chunk. Might change to process all pending.
         let amount = self.get_send_size();
         if let Some((pos, amount)) = self.sbuf.get_read_pos(amount) {
             log!(
@@ -377,8 +377,8 @@ impl FileSession {
                 pos
             );
 
-            //Read memory from memgate into vec, then send over the socket
-            //TODO why is rbug size added to pos when reading?
+            // Read memory from memgate into vec, then send over the socket
+            // TODO why is rbug size added to pos when reading?
             let _data = self
                 .memory
                 .as_ref()
@@ -435,7 +435,7 @@ impl FileSession {
 
         let amount = self.get_send_size();
         if let Some(pos) = self.sbuf.get_write_pos(amount) {
-            //TODO: from C++:  maybe fallback to a smaller chunk?
+            // TODO: from C++:  maybe fallback to a smaller chunk?
             self.last_amount = amount;
             log!(crate::LOG_DEF, "late-send: {}@{}", amount, pos);
             if let (Some(pending_msg), Some(pending_gate)) =

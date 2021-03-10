@@ -33,7 +33,7 @@ pub mod io;
 #[macro_use]
 pub mod com;
 
-///Netstack related structures
+/// Netstack related structures
 pub mod net;
 
 pub mod envdata {

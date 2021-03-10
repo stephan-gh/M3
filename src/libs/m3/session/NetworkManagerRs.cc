@@ -23,7 +23,7 @@
 #include <m3/session/NetworkManagerRs.h>
 #include <m3/stream/Standard.h>
 
-#include <stdlib.h> //needed for mallocing list elements and received packages
+#include <stdlib.h> // needed for mallocing list elements and received packages
 #include <thread/ThreadManager.h>
 
 namespace m3 {
@@ -36,12 +36,12 @@ NetworkManagerRs::NetworkManagerRs(const String &service)
 }
 
 NetworkManagerRs::~NetworkManagerRs() {
-    //Delete all packages that have not been taken yet
+    // Delete all packages that have not been taken yet
     RecvElement *queue_element;
     while((queue_element = _receive_queue.remove_root()) != nullptr) {
-        //Delete elements in this sockets queue
+        // Delete elements in this sockets queue
         queue_element->clear();
-        //Now delete treap element
+        // Now delete treap element
         delete queue_element;
     }
 }
@@ -118,13 +118,13 @@ void NetworkManagerRs::notify_drop(int32_t sd) {
 
 void NetworkManagerRs::send(int32_t sd, IpAddr src_addr, uint16_t src_port, IpAddr dst_addr,
                             uint16_t dst_port, uint8_t *data, uint32_t data_length) {
-    //Wrap our data into a NetData struct and send it
+    // Wrap our data into a NetData struct and send it
     LLOG(NET, "Send:(sd=" << sd << ", size=" << data_length << ")");
 
     m3::net::NetData wrapped_data =
         m3::net::NetData(sd, data, data_length, src_addr, src_port, dst_addr, dst_port);
     _channel.send(wrapped_data);
-    //Tick server
+    // Tick server
     GateIStream reply = send_receive_vmsg(_metagate, TICK, sd);
     reply.pull_result();
 }
@@ -132,19 +132,19 @@ void NetworkManagerRs::send(int32_t sd, IpAddr src_addr, uint16_t src_port, IpAd
 m3::net::NetData NetworkManagerRs::recv(int32_t sd) {
     update_recv_queue();
 
-    //Now check if we can take out a package
+    // Now check if we can take out a package
     RecvElement *el = _receive_queue.find(sd);
     if(el != nullptr) {
-        //Try to get a package out of the queue, if there is non return.
+        // Try to get a package out of the queue, if there is non return.
         m3::net::NetData *package = el->pop_element();
         if(package == nullptr) {
             return m3::net::NetData();
         }
-        //Copy package into stack allocated value
+        // Copy package into stack allocated value
         m3::net::NetData new_pkg = m3::net::NetData();
         memcpy((void *)&new_pkg, (void *)package, sizeof(m3::net::NetData));
 
-        //Delete allocation
+        // Delete allocation
         delete package;
 
         LLOG(NET, "Recved: ");
@@ -172,24 +172,24 @@ SocketState NetworkManagerRs::get_state(int32_t sd) {
 }
 
 void NetworkManagerRs::update_recv_queue() {
-    //Pull packages from the channel and store them until no packages are received anymore
+    // Pull packages from the channel and store them until no packages are received anymore
     while(1) {
         m3::net::NetData *pkg = _channel.receive();
         if(pkg == nullptr) {
             break;
         }
         else {
-            //Got a valid package, either insert it into the already pending queue, or create a queue for this packages's
-            //sd.
+            // Got a valid package, either insert it into the already pending queue, or create a queue for this packages's
+            // sd.
             RecvElement *sd_queue = _receive_queue.find(pkg->sd);
             if(sd_queue == nullptr) {
-                //No queue for this sd yet, therefore create one
+                // No queue for this sd yet, therefore create one
                 RecvElement *el = new RecvElement(pkg);
-                //insert this sockets queue into treap
+                // insert this sockets queue into treap
                 _receive_queue.insert(el);
             }
             else {
-                //there is a queue for this descriptor, therefore just push
+                // there is a queue for this descriptor, therefore just push
                 sd_queue->push(pkg);
             }
         }

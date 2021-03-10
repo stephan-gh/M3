@@ -42,15 +42,15 @@ pub fn main() -> i32 {
         .down()
         .expect("Failed to down sem");
 
-    //socket.bind(IpAddr::new(127, 0, 0, 1), 1234).unwrap();
+    // socket.bind(IpAddr::new(127, 0, 0, 1), 1234).unwrap();
 
-    //Wait for server to allow connection
+    // Wait for server to allow connection
     socket
         .connect(
             IpAddr::new(127, 0, 0, 2),
-            1234, //remote
+            1234, // remote
             IpAddr::new(0, 0, 0, 0),
-            65000, //local
+            65000, // local
         )
         .expect("Failed to connect in client");
 

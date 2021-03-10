@@ -214,9 +214,9 @@ pub struct TxContextDesc {
     pub tucss: u8,
     pub tucso: u8,
     pub tucse: u16,
-    //20bits PAYLEN, then 4bit DTYP then 8bit TUCMD, use getter/setter to get those
+    // 20bits PAYLEN, then 4bit DTYP then 8bit TUCMD, use getter/setter to get those
     pub paylen_dtyp_tucmd: u32,
-    //First 4 are STA, second 4 are RSV, use getter/setter to get those
+    // First 4 are STA, second 4 are RSV, use getter/setter to get those
     pub sta_rsv: u8,
     pub hdrlen: u8,
     pub mss: u16,
@@ -229,7 +229,7 @@ impl TxContextDesc {
             (self.paylen_dtyp_tucmd & 0xff_f0_00_00) | (paylen & 0x00_0f_ff_ff);
     }
 
-    //sets the 4bits of the dtyp
+    // sets the 4bits of the dtyp
     pub fn set_dtyp(&mut self, dtyp: u8) {
         self.paylen_dtyp_tucmd =
             (self.paylen_dtyp_tucmd & 0xff_0f_ff_ff) | (((dtyp as u32) << 20) & 0x00_f0_00_00);
@@ -252,9 +252,9 @@ impl TxContextDesc {
 #[repr(C, align(4))]
 pub struct TxDataDesc {
     pub buffer: u64,
-    //first 20bits are length, then 4 bits DTYP, then 8bits DCMD, use getter/setter
+    // first 20bits are length, then 4 bits DTYP, then 8bits DCMD, use getter/setter
     pub length_dtyp_dcmd: u32,
-    //first 4bits are STA, second 4 bits are RSV
+    // first 4bits are STA, second 4 bits are RSV
     pub sta_rsv: u8,
     pub popts: u8,
     pub special: u16,
@@ -266,7 +266,7 @@ impl TxDataDesc {
         self.length_dtyp_dcmd = new_length;
     }
 
-    //sets the 4bits of the dtyp
+    // sets the 4bits of the dtyp
     pub fn set_dtyp(&mut self, dtyp: u8) {
         self.length_dtyp_dcmd =
             (self.length_dtyp_dcmd & 0xff_0f_ff_ff) | (((dtyp as u32) << 20) & 0x00_f0_00_00);
@@ -286,7 +286,7 @@ impl TxDataDesc {
     }
 }
 
-//TODO ignore packed?
+// TODO ignore packed?
 #[repr(C, align(4))]
 pub struct RxDesc {
     pub buffer: u64,

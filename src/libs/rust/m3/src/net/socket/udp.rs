@@ -21,11 +21,11 @@ use crate::session::NetworkManager;
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum UdpState {
-    ///If the socket is not bound to any address
+    /// If the socket is not bound to any address
     Unbound,
-    ///If the socket was bound to some address
+    /// If the socket was bound to some address
     Open,
-    ///Some invalid state of the socket
+    /// Some invalid state of the socket
     Invalid,
 }
 
@@ -75,7 +75,7 @@ impl<'a> UdpSocket<'a> {
     }
 
     pub fn send(&self, dest_addr: IpAddr, dest_port: u16, data: &[u8]) -> Result<(), Error> {
-        //Only specify destination address, source is handled by the server
+        // Only specify destination address, source is handled by the server
         self.socket.nm.send(
             self.socket.sd,
             IpAddr::unspecified(),
@@ -86,7 +86,7 @@ impl<'a> UdpSocket<'a> {
         )
     }
 
-    ///Queries the socket state from the server. Can be used to wait for the socket to change into a specific state.
+    /// Queries the socket state from the server. Can be used to wait for the socket to change into a specific state.
     pub fn state(&mut self) -> Result<UdpState, Error> {
         let state = self.socket.nm.get_state(self.socket.sd)?;
         if let SocketState::UdpState(st) = state {

@@ -115,12 +115,12 @@ fn simple_bandwidth() {
 
                         wv_assert!((recv_len as usize) == *pkt_size || start == recved_time);
 
-                        //println!("RTT ({}): {} cycles / {} ms (@3Ghz)", pkt_size, stop-start, (stop - start) / 0x3e6f);
+                        // println!("RTT ({}): {} cycles / {} ms (@3Ghz)", pkt_size, stop-start, (stop - start) / 0x3e6f);
 
                         res[i] = stop - start;
                     }
                     let avg = res.iter().sum::<u64>() / res.len() as u64;
-                    //println!("network latency({}b) {}ms (+/- {} with {} runs)", pkt_size, avg / 0x3e6f, "unknown", res.len());
+                    // println!("network latency({}b) {}ms (+/- {} with {} runs)", pkt_size, avg / 0x3e6f, "unknown", res.len());
                 }
             },
             0xa1

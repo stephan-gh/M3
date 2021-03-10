@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-///Conditional include of the driver
+/// Conditional include of the driver
 #[cfg(target_os = "linux")]
 #[path = "host/mod.rs"]
 pub mod driver;

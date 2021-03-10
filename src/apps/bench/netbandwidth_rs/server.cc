@@ -31,7 +31,7 @@ int main() {
     UdpSocketRs socket(net);
     socket.set_blocking(true);
 
-    //Bind to our address
+    // Bind to our address
     socket.bind(IpAddr(192, 168, 112, 1), 1337);
 
     // notify client
@@ -46,7 +46,7 @@ int main() {
             exitmsg("Received invalid data");
         }
 
-        //Send ack
+        // Send ack
         socket.send(dst_addr, dst_port, request, 1024);
     }
 }
