@@ -38,6 +38,12 @@ void SendGate::send(const MsgBuf &msg, label_t reply_label) {
         throw TCUException(res);
 }
 
+void SendGate::send_aligned(const void *msg, size_t len, label_t reply_label) {
+    Errors::Code res = try_send_aligned(msg, len, reply_label);
+    if(res != Errors::NONE)
+        throw TCUException(res);
+}
+
 Errors::Code SendGate::try_send(const MsgBuf &msg, label_t reply_label) {
     return try_send_aligned(msg.bytes(), msg.size(), reply_label);
 }

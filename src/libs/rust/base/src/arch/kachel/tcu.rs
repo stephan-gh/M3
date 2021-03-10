@@ -326,18 +326,39 @@ impl TCU {
         reply_lbl: Label,
         reply_ep: EpId,
     ) -> Result<(), Error> {
-        let msg_addr = msg.bytes().as_ptr() as usize;
+        Self::send_aligned(ep, msg.bytes().as_ptr(), msg.size(), reply_lbl, reply_ep)
+    }
+
+    /// Sends the message `msg` of `len` bytes via given endpoint. The message address needs to be
+    /// 16-byte aligned and `msg`..`msg` + `len` cannot contain a page boundary.
+    ///
+    /// The `reply_ep` specifies the endpoint the reply is sent to. The label of the reply will be
+    /// `reply_lbl`.
+    ///
+    /// # Errors
+    ///
+    /// If the number of left credits is not sufficient, the function returns
+    /// [`MissCredits`](::errors::Code::MissCredits).
+    #[inline(always)]
+    pub fn send_aligned(
+        ep: EpId,
+        msg: *const u8,
+        len: usize,
+        reply_lbl: Label,
+        reply_ep: EpId,
+    ) -> Result<(), Error> {
+        let msg_addr = msg as usize;
         log!(
             TCU,
             "TCU::send(ep={}, msg={:#x}, size={:#x}, reply_lbl={:#x}, reply_ep={})",
             ep,
             msg_addr,
-            msg.size(),
+            len,
             reply_lbl,
             reply_ep
         );
 
-        Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(msg_addr, msg.size()));
+        Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(msg_addr, len));
         if reply_lbl != 0 {
             Self::write_unpriv_reg(UnprivReg::ARG1, reply_lbl as Reg);
         }

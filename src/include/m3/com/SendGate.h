@@ -162,6 +162,17 @@ public:
     void send(const MsgBuf &msg, label_t reply_label = 0);
 
     /**
+     * Sends <msg> with <len> bytes to the associated RecvGate and returns the error code on
+     * failure. Assumes that <msg>:<len> is properly aligned and does not contain a page boundary.
+     *
+     * @param msg the message to send
+     * @param len the length of the message
+     * @param reply_label the reply label to set
+     * @return the error code if failed
+     */
+    void send_aligned(const void *msg, size_t len, label_t reply_label = 0);
+
+    /**
      * Tries to send <msg> to the associated RecvGate and returns the error code on failure.
      *
      * @param msg the message to send

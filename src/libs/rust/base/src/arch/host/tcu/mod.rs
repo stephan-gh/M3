@@ -210,16 +210,17 @@ impl TCU {
         reply_lbl: Label,
         reply_ep: EpId,
     ) -> Result<(), Error> {
-        Self::exec_command(
-            ep,
-            Command::SEND,
-            msg.bytes().as_ptr(),
-            msg.size(),
-            0,
-            0,
-            reply_lbl,
-            reply_ep,
-        )
+        Self::send_aligned(ep, msg.bytes().as_ptr(), msg.size(), reply_lbl, reply_ep)
+    }
+
+    pub fn send_aligned(
+        ep: EpId,
+        msg: *const u8,
+        len: usize,
+        reply_lbl: Label,
+        reply_ep: EpId,
+    ) -> Result<(), Error> {
+        Self::exec_command(ep, Command::SEND, msg, len, 0, 0, reply_lbl, reply_ep)
     }
 
     pub fn reply(ep: EpId, reply: &mem::MsgBuf, msg_off: usize) -> Result<(), Error> {

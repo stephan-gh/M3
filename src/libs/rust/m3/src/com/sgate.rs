@@ -133,6 +133,14 @@ impl SendGate {
         self.send_with_rlabel(msg, reply_gate, 0)
     }
 
+    /// Sends the message `msg` of `len` bytes via given endpoint. The message address needs to be
+    /// 16-byte aligned and `msg`..`msg` + `len` cannot contain a page boundary.
+    #[inline(always)]
+    pub fn send_aligned(&self, msg: *const u8, len: usize, reply_gate: &RecvGate) -> Result<(), Error> {
+        let ep = self.activate()?;
+        tcu::TCU::send_aligned(ep.id(), msg, len, 0, reply_gate.ep().unwrap())
+    }
+
     /// Sends `msg` to the associated [`RecvGate`], uses `reply_gate` to receive the reply, and lets
     /// the communication partner use the label `rlabel` for the reply.
     pub fn send_with_rlabel(
