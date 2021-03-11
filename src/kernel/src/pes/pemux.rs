@@ -20,7 +20,7 @@ use base::goff;
 use base::kif;
 use base::mem::GlobAddr;
 use base::rc::{Rc, SRc, Weak};
-use base::mem::MsgBuf;
+use base::mem::{MsgBuf, MsgBufRef};
 use base::tcu::{self, EpId, PEId, VPEId};
 use core::cmp;
 
@@ -308,7 +308,7 @@ impl PEMux {
 
         let unread = ktcu::invalidate_ep_remote(self.pe_id(), ep, force)?;
         if unread != 0 && notify {
-            let mut msg = MsgBuf::new();
+            let mut msg = MsgBuf::borrow_def();
             msg.set(kif::pemux::RemMsgs {
                 op: kif::pemux::Sidecalls::REM_MSGS.val as u64,
                 vpe_sel: vpe as u64,
@@ -358,7 +358,7 @@ impl PEMux {
             vpe.stop_app_async(exitcode, true);
         }
 
-        let mut reply = MsgBuf::new();
+        let mut reply = MsgBuf::borrow_def();
         reply.set(kif::DefaultReply { error: 0 });
         ktcu::reply(ktcu::KPEX_EP, &reply, msg).unwrap();
     }
@@ -369,7 +369,7 @@ impl PEMux {
         eps_start: EpId,
         ctrl: base::kif::pemux::VPEOp,
     ) -> Result<(), Error> {
-        let mut msg = MsgBuf::new();
+        let mut msg = MsgBuf::borrow_def();
         msg.set(kif::pemux::VPECtrl {
             op: kif::pemux::Sidecalls::VPE_CTRL.val as u64,
             vpe_sel: vpe as u64,
@@ -377,7 +377,7 @@ impl PEMux {
             eps_start: eps_start as u64,
         });
 
-        self.send_receive_sidecall_async::<kif::pemux::VPECtrl>(None, &msg)
+        self.send_receive_sidecall_async::<kif::pemux::VPECtrl>(None, msg)
             .map(|_| ())
     }
 
@@ -389,7 +389,7 @@ impl PEMux {
         pages: usize,
         perm: kif::PageFlags,
     ) -> Result<(), Error> {
-        let mut msg = MsgBuf::new();
+        let mut msg = MsgBuf::borrow_def();
         msg.set(kif::pemux::Map {
             op: kif::pemux::Sidecalls::MAP.val as u64,
             vpe_sel: vpe as u64,
@@ -399,7 +399,7 @@ impl PEMux {
             perm: perm.bits() as u64,
         });
 
-        self.send_receive_sidecall_async::<kif::pemux::Map>(Some(vpe), &msg)
+        self.send_receive_sidecall_async::<kif::pemux::Map>(Some(vpe), msg)
             .map(|_| ())
     }
 
@@ -415,7 +415,7 @@ impl PEMux {
     ) -> Result<GlobAddr, Error> {
         use base::cfg::PAGE_MASK;
 
-        let mut msg = MsgBuf::new();
+        let mut msg = MsgBuf::borrow_def();
         msg.set(kif::pemux::Translate {
             op: kif::pemux::Sidecalls::TRANSLATE.val as u64,
             vpe_sel: vpe as u64,
@@ -423,12 +423,12 @@ impl PEMux {
             perm: perm.bits() as u64,
         });
 
-        self.send_receive_sidecall_async::<kif::pemux::Translate>(Some(vpe), &msg)
+        self.send_receive_sidecall_async::<kif::pemux::Translate>(Some(vpe), msg)
             .map(|reply| GlobAddr::new(reply.val & !(PAGE_MASK as goff)))
     }
 
     pub fn notify_invalidate(&mut self, vpe: VPEId, ep: EpId) -> Result<(), Error> {
-        let mut msg = MsgBuf::new();
+        let mut msg = MsgBuf::borrow_def();
         msg.set(kif::pemux::EpInval {
             op: kif::pemux::Sidecalls::EP_INVAL.val as u64,
             vpe_sel: vpe as u64,
@@ -465,11 +465,13 @@ impl PEMux {
     fn send_receive_sidecall_async<R: core::fmt::Debug>(
         &mut self,
         vpe: Option<VPEId>,
-        req: &MsgBuf,
+        req: MsgBufRef<'_>,
     ) -> Result<&'static kif::pemux::Response, Error> {
         use crate::com::SendQueue;
 
-        let event = self.send_sidecall::<R>(vpe, req)?;
+        let event = self.send_sidecall::<R>(vpe, &req)?;
+        drop(req);
+
         let reply = SendQueue::receive_async(event)?;
 
         let reply = reply.get_data::<kif::pemux::Response>();

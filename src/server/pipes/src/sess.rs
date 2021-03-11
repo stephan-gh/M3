@@ -30,7 +30,7 @@ use m3::tcu::{Label, Message};
 
 macro_rules! reply_vmsg_late {
     ( $msg:expr, $( $args:expr ),* ) => ({
-        let mut msg = m3::mem::MsgBuf::new();
+        let mut msg = m3::mem::MsgBuf::borrow_def();
         m3::build_vmsg!(&mut msg, $( $args ),*);
         crate::REQHDL.recv_gate().reply(&msg, $msg)
     });

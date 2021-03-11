@@ -93,12 +93,6 @@ pub struct PagefaultMessage {
     pub access: u64,
 }
 
-static MSG_BUF: StaticCell<mem::MsgBuf> = StaticCell::new(mem::MsgBuf::new_initialized());
-
-pub fn msgbuf() -> &'static mut mem::MsgBuf {
-    MSG_BUF.get_mut()
-}
-
 #[no_mangle]
 pub extern "C" fn abort() {
     exit(1);

@@ -355,7 +355,7 @@ impl VPE {
     }
 
     pub fn upcall_vpe_wait(&self, event: u64, vpe_sel: CapSel, exitcode: i32) {
-        let mut msg = MsgBuf::new();
+        let mut msg = MsgBuf::borrow_def();
         msg.set(kif::upcalls::VPEWait {
             def: kif::upcalls::DefaultUpcall {
                 opcode: kif::upcalls::Operation::VPE_WAIT.val,
@@ -370,7 +370,7 @@ impl VPE {
     }
 
     pub fn upcall_derive_srv(&self, event: u64, result: Result<(), Error>) {
-        let mut msg = MsgBuf::new();
+        let mut msg = MsgBuf::borrow_def();
         msg.set(kif::upcalls::DeriveSrv {
             def: kif::upcalls::DefaultUpcall {
                 opcode: kif::upcalls::Operation::DERIVE_SRV.val,

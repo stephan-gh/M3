@@ -164,14 +164,14 @@ pub fn derive_srv_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
 
     let srvcap = get_kobj!(vpe, srv_sel, Serv);
 
-    let mut smsg = MsgBuf::new();
+    // everything worked, send the reply
+    reply_success(msg);
+
+    let mut smsg = MsgBuf::borrow_def();
     smsg.set(kif::service::DeriveCreator {
         opcode: kif::service::Operation::DERIVE_CRT.val as u64,
         sessions: sessions as u64,
     });
-
-    // everything worked, send the reply
-    reply_success(msg);
 
     let label = srvcap.creator() as tcu::Label;
     klog!(
@@ -181,7 +181,7 @@ pub fn derive_srv_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
         srvcap.service().name(),
         label,
     );
-    let res = Service::send_receive_async(srvcap.service(), label, &smsg);
+    let res = Service::send_receive_async(srvcap.service(), label, smsg);
 
     let res = match res {
         Err(e) => {

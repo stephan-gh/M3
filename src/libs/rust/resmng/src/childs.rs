@@ -884,7 +884,7 @@ impl ChildManager {
             _ => panic!("Unexpected upcall {}", upcall.opcode),
         }
 
-        let mut reply_buf = MsgBuf::new();
+        let mut reply_buf = MsgBuf::borrow_def();
         reply_buf.set(kif::DefaultReply { error: 0 });
         RecvGate::upcall()
             .reply(&reply_buf, msg)

@@ -18,7 +18,7 @@ use base::cell::RefCell;
 use base::col::String;
 use base::errors::Error;
 use base::rc::{Rc, SRc, Weak};
-use base::mem::MsgBuf;
+use base::mem::{MsgBuf, MsgBufRef};
 use base::tcu;
 use core::fmt;
 
@@ -59,9 +59,10 @@ impl Service {
     pub fn send_receive_async(
         &self,
         lbl: tcu::Label,
-        msg: &MsgBuf,
+        msg: MsgBufRef,
     ) -> Result<&'static tcu::Message, Error> {
-        let event = self.send(lbl, msg)?;
+        let event = self.send(lbl, &msg)?;
+        drop(msg);
         SendQueue::receive_async(event)
     }
 

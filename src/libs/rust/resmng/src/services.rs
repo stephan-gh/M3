@@ -116,11 +116,12 @@ impl Service {
             self.name
         );
 
-        let mut smsg_buf = MsgBuf::new();
+        let mut smsg_buf = MsgBuf::borrow_def();
         smsg_buf.set(kif::service::Shutdown {
             opcode: kif::service::Operation::SHUTDOWN.val as u64,
         });
         let event = self.queue.send(&smsg_buf);
+        drop(smsg_buf);
 
         if let Ok(ev) = event {
             thread::ThreadManager::get().wait_for(ev);
@@ -136,9 +137,10 @@ pub struct Session {
 
 impl Session {
     pub fn new_async(sel: Selector, serv: &mut Service, arg: &str) -> Result<Self, Error> {
-        let mut smsg_buf = MsgBuf::new();
+        let mut smsg_buf = MsgBuf::borrow_def();
         smsg_buf.set(kif::service::Open::new(arg));
         let event = serv.queue.send(&smsg_buf);
+        drop(smsg_buf);
 
         event.and_then(|event| {
             thread::ThreadManager::get().wait_for(event);
@@ -172,12 +174,13 @@ impl Session {
     pub fn close_async(&self) -> Result<(), Error> {
         let serv = get().get_by_id(self.serv)?;
 
-        let mut smsg_buf = MsgBuf::new();
+        let mut smsg_buf = MsgBuf::borrow_def();
         smsg_buf.set(kif::service::Close {
             opcode: kif::service::Operation::CLOSE.val as u64,
             sess: self.ident as u64,
         });
         let event = serv.queue.send(&smsg_buf);
+        drop(smsg_buf);
 
         event.map(|ev| thread::ThreadManager::get().wait_for(ev))
     }

@@ -17,10 +17,51 @@
 use core::intrinsics;
 use core::ops::{Deref, DerefMut};
 
+use crate::cell::StaticCell;
 use crate::mem;
 use crate::util;
 
 pub const MAX_MSG_SIZE: usize = 512;
+
+static DEF_MSG_BUF: StaticCell<MsgBuf> = StaticCell::new(MsgBuf {
+    bytes: [0u8; MAX_MSG_SIZE],
+    pos: 0,
+    used: false,
+});
+
+/// A reference to a `MsgBuf` that makes sure that each `MsgBuf` is used at most once at a time.
+pub struct MsgBufRef<'m> {
+    buf: &'m mut MsgBuf,
+}
+
+impl<'m> MsgBufRef<'m> {
+    fn new(buf: &'m mut MsgBuf) -> Self {
+        assert!(!buf.used);
+        buf.used = true;
+        Self { buf }
+    }
+}
+
+impl<'m> Drop for MsgBufRef<'m> {
+    fn drop(&mut self) {
+        self.buf.pos = 0;
+        self.buf.used = false;
+    }
+}
+
+impl<'m> Deref for MsgBufRef<'m> {
+    type Target = MsgBuf;
+
+    fn deref(&self) -> &Self::Target {
+        self.buf
+    }
+}
+
+impl<'m> DerefMut for MsgBufRef<'m> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.buf
+    }
+}
 
 // messages cannot contain a page boundary, so make sure that they are max-size-aligned
 #[repr(C, align(512))]
@@ -29,14 +70,25 @@ pub const MAX_MSG_SIZE: usize = 512;
 pub struct MsgBuf {
     bytes: [u8; MAX_MSG_SIZE],
     pos: usize,
+    used: bool,
 }
 
 impl MsgBuf {
+    /// Borrows the default message buffer
+    ///
+    /// Every message buffer can only be used once at a time, so that the caller has to make sure
+    /// that the returned `MsgBufRef` is dropped before the next call to `borrow_ref`.
+    /// Alternatively, `MsgBuf::new` can be used to allocate a new buffer.
+    pub fn borrow_def() -> MsgBufRef<'static> {
+        MsgBufRef::new(DEF_MSG_BUF.get_mut())
+    }
+
     /// Creates a new zero'd message buffer containing an empty message
     pub const fn new_initialized() -> Self {
         Self {
             bytes: [0u8; MAX_MSG_SIZE],
             pos: 0,
+            used: false,
         }
     }
 
@@ -45,6 +97,7 @@ impl MsgBuf {
         Self {
             bytes: unsafe { mem::MaybeUninit::uninit().assume_init() },
             pos: 0,
+            used: false,
         }
     }
 

@@ -155,7 +155,7 @@ pub fn testcliexit() {
         wv_assert_ok!(send_vmsg!(&sg, RecvGate::def(), 1));
 
         // perform the obtain syscall
-        let mut req_buf = MsgBuf::new();
+        let mut req_buf = MsgBuf::borrow_def();
         req_buf.set(kif::syscalls::ExchangeSess {
             opcode: kif::syscalls::Operation::OBTAIN.val,
             vpe_sel: VPE::cur().sel(),

@@ -228,7 +228,7 @@ impl Server {
 
         match res {
             Ok((sel, ident)) => {
-                let mut buf = MsgBuf::new();
+                let mut buf = MsgBuf::borrow_def();
                 buf.set(service::OpenReply {
                     res: 0,
                     sess: sel,
@@ -237,7 +237,7 @@ impl Server {
                 is.reply(&buf)
             },
             Err(e) => {
-                let mut buf = MsgBuf::new();
+                let mut buf = MsgBuf::borrow_def();
                 buf.set(service::OpenReply {
                     res: e.code() as u64,
                     sess: 0,
@@ -263,7 +263,7 @@ impl Server {
 
         let (nid, sgate) = hdl.sessions().derive_creator(is.rgate(), crt, sessions)?;
 
-        let mut buf = MsgBuf::new();
+        let mut buf = MsgBuf::borrow_def();
         buf.set(service::DeriveCreatorReply {
             res: 0,
             creator: nid as u64,

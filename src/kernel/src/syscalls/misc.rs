@@ -102,7 +102,7 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     dst_vpe.pe().alloc(ep_count);
     pemux.alloc_eps(epid, ep_count);
 
-    let mut kreply = MsgBuf::new();
+    let mut kreply = MsgBuf::borrow_def();
     kreply.set(kif::syscalls::AllocEPReply {
         error: 0,
         ep: epid as u64,
@@ -180,7 +180,7 @@ pub fn kmem_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     let vpe_caps = vpe.obj_caps().borrow();
     let kmem = get_kobj_ref!(vpe_caps, kmem_sel, KMem);
 
-    let mut kreply = MsgBuf::new();
+    let mut kreply = MsgBuf::borrow_def();
     kreply.set(kif::syscalls::KMemQuotaReply {
         error: 0,
         amount: kmem.left() as u64,
@@ -200,7 +200,7 @@ pub fn pe_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     let vpe_caps = vpe.obj_caps().borrow();
     let pe = get_kobj_ref!(vpe_caps, pe_sel, PE);
 
-    let mut kreply = MsgBuf::new();
+    let mut kreply = MsgBuf::borrow_def();
     kreply.set(kif::syscalls::PEQuotaReply {
         error: 0,
         amount: pe.eps() as u64,
@@ -509,14 +509,13 @@ pub fn vpe_wait_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), S
 
     sysc_log!(vpe, "vpe_wait(vpes={}, event={})", count, event);
 
-    let mut reply = MsgBuf::new();
-
     // copy the message to the VPE to ensure that we can still access it after reply
     if !vpe.start_wait(&sels[0..count]) && event == 0 {
         sysc_err!(Code::InvArgs, "Sync wait while async wait in progress");
     }
 
     if event != 0 {
+        let mut reply = MsgBuf::borrow_def();
         reply.set(kif::syscalls::VPEWaitReply {
             error: 0,
             vpe_sel: kif::INVALID_SEL as u64,
@@ -533,6 +532,7 @@ pub fn vpe_wait_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), S
             vpe.upcall_vpe_wait(event, sel, code);
         }
         else {
+            let mut reply = MsgBuf::borrow_def();
             reply.set(kif::syscalls::VPEWaitReply {
                 error: 0,
                 vpe_sel: sel as u64,

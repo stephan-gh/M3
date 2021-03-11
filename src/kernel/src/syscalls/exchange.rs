@@ -129,7 +129,7 @@ pub fn exchange_over_sess_async(
     let vpecap = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
     let sess = get_kobj!(vpe, sess_sel, Sess);
 
-    let mut smsg = MsgBuf::new();
+    let mut smsg = MsgBuf::borrow_def();
     smsg.set(service::Exchange {
         opcode,
         sess: sess.ident(),
@@ -152,7 +152,7 @@ pub fn exchange_over_sess_async(
         serv.service().name(),
         label,
     );
-    let rmsg = match Service::send_receive_async(serv.service(), label, &smsg) {
+    let rmsg = match Service::send_receive_async(serv.service(), label, smsg) {
         Ok(rmsg) => rmsg,
         Err(e) => sysc_err!(e.code(), "Service {} unreachable", serv.service().name()),
     };
@@ -175,7 +175,7 @@ pub fn exchange_over_sess_async(
         do_exchange(&vpecap, &serv.service().vpe(), &crd, &srv_crd, obtain)?;
     }
 
-    let mut kreply = MsgBuf::new();
+    let mut kreply = MsgBuf::borrow_def();
     kreply.set(syscalls::ExchangeSessReply {
         error: 0,
         args: reply.data.args,

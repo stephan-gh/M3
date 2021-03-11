@@ -111,7 +111,7 @@ fn send_reply(msg: &'static tcu::Message, rep: &mem::MsgBuf) {
 }
 
 fn reply_result(msg: &'static tcu::Message, code: u64) {
-    let mut rep_buf = mem::MsgBuf::new();
+    let mut rep_buf = mem::MsgBuf::borrow_def();
     rep_buf.set(kif::DefaultReply { error: code });
     send_reply(msg, &rep_buf);
 }

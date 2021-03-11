@@ -24,7 +24,7 @@ use base::impl_boxitem;
 use base::kif;
 use base::log;
 use base::math;
-use base::mem::{size_of, GlobAddr};
+use base::mem::{size_of, GlobAddr, MsgBuf};
 use base::tcu;
 use core::cmp;
 use core::ptr::NonNull;
@@ -413,13 +413,14 @@ pub fn remove(id: Id, status: u32, notify: bool, sched: bool) {
                 tcu::TCU::xchg_vpe(our().vpe_reg()).unwrap();
             }
 
-            crate::msgbuf().set(kif::pemux::Exit {
+            let mut msg_buf = MsgBuf::borrow_def();
+            msg_buf.set(kif::pemux::Exit {
                 op: kif::pemux::Calls::EXIT.val as u64,
                 vpe_sel: old.id(),
                 code: status as u64,
             });
 
-            tcu::TCU::send(tcu::KPEX_SEP, crate::msgbuf(), 0, tcu::KPEX_REP).unwrap();
+            tcu::TCU::send(tcu::KPEX_SEP, &msg_buf, 0, tcu::KPEX_REP).unwrap();
 
             // switch back to old VPE
             if !pex_is_running {
@@ -728,7 +729,7 @@ impl VPE {
         self.map(0, base, 1, rx).unwrap();
 
         // insert fixed entry for messages into TLB
-        let virt = crate::msgbuf().bytes().as_ptr() as usize;
+        let virt = MsgBuf::borrow_def().bytes().as_ptr() as usize;
         let pte = self.translate(virt, kif::PageFlags::R);
         let phys = pte & !(cfg::PAGE_MASK as u64);
         let mut flags = kif::PageFlags::from_bits_truncate(pte & cfg::PAGE_MASK as u64);

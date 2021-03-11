@@ -183,22 +183,25 @@ fn ep_inval(msg: &'static tcu::Message) -> Result<(), Error> {
 fn handle_sidecall(msg: &'static tcu::Message) {
     let req = msg.get_data::<kif::DefaultRequest>();
 
-    let reply = crate::msgbuf().set(kif::pemux::Response { error: 0, val: 0 });
-
+    let mut val = 0;
     let res = match kif::pemux::Sidecalls::from(req.opcode) {
         kif::pemux::Sidecalls::VPE_CTRL => vpe_ctrl(msg),
         kif::pemux::Sidecalls::MAP => map(msg),
-        kif::pemux::Sidecalls::TRANSLATE => translate(msg).map(|pte| reply.val = pte),
+        kif::pemux::Sidecalls::TRANSLATE => translate(msg).map(|pte| val = pte),
         kif::pemux::Sidecalls::REM_MSGS => rem_msgs(msg),
         kif::pemux::Sidecalls::EP_INVAL => ep_inval(msg),
         _ => Err(Error::new(Code::NotSup)),
     };
 
-    reply.error = match res {
-        Ok(_) => 0,
-        Err(e) => e.code() as u64,
-    };
-    reply_msg(msg, crate::msgbuf());
+    let mut reply_buf = MsgBuf::borrow_def();
+    reply_buf.set(kif::pemux::Response {
+        error: match res {
+            Ok(_) => 0,
+            Err(e) => e.code() as u64,
+        },
+        val,
+    });
+    reply_msg(msg, &reply_buf);
 }
 
 #[inline(never)]

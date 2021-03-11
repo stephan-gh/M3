@@ -73,7 +73,7 @@ fn send_recv() {
     ));
     wv_assert_ok!(rgate.activate());
 
-    let mut buf = MsgBuf::new();
+    let mut buf = MsgBuf::borrow_def();
     buf.set([0u8; 16]);
     wv_assert_ok!(sgate.send(&buf, RecvGate::def()));
     wv_assert_ok!(sgate.send(&buf, RecvGate::def()));

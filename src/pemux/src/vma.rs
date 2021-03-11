@@ -18,6 +18,7 @@ use base::cfg;
 use base::errors::Error;
 use base::kif::{DefaultReply, PageFlags};
 use base::log;
+use base::mem::MsgBuf;
 use base::tcu;
 
 use crate::helper;
@@ -40,7 +41,8 @@ fn send_pf(vpe: &mut vpe::VPE, virt: usize, perm: PageFlags) -> Result<(), Error
     }
 
     // build message
-    crate::msgbuf().set(crate::PagefaultMessage {
+    let mut msg_buf = MsgBuf::borrow_def();
+    msg_buf.set(crate::PagefaultMessage {
         op: 0, // PagerOp::PAGEFAULT
         virt: virt as u64,
         access: perm.bits(),
@@ -50,7 +52,7 @@ fn send_pf(vpe: &mut vpe::VPE, virt: usize, perm: PageFlags) -> Result<(), Error
     let eps_start = vpe.eps_start();
     let res = tcu::TCU::send(
         eps_start + tcu::PG_SEP_OFF,
-        crate::msgbuf(),
+        &msg_buf,
         0,
         eps_start + tcu::PG_REP_OFF,
     )

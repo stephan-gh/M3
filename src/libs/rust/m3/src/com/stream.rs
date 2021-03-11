@@ -176,7 +176,7 @@ macro_rules! build_vmsg {
 #[macro_export]
 macro_rules! send_vmsg {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({
-        let mut msg = $crate::mem::MsgBuf::new();
+        let mut msg = $crate::mem::MsgBuf::borrow_def();
         $crate::build_vmsg!(&mut msg, $( $args ),*);
         $sg.send(&msg, $rg)
     });
@@ -187,7 +187,7 @@ macro_rules! send_vmsg {
 #[macro_export]
 macro_rules! reply_vmsg {
     ( $is:expr, $( $args:expr ),* ) => ({
-        let mut msg = $crate::mem::MsgBuf::new();
+        let mut msg = $crate::mem::MsgBuf::borrow_def();
         $crate::build_vmsg!(&mut msg, $( $args ),*);
         $is.reply_os(&msg)
     });
@@ -239,7 +239,7 @@ pub fn recv_result<'r>(
 #[macro_export]
 macro_rules! send_recv {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({
-        let mut msg = $crate::mem::MsgBuf::new();
+        let mut msg = $crate::mem::MsgBuf::borrow_def();
         $crate::build_vmsg!(&mut msg, $( $args ),*);
         $sg.call(&msg, $rg)
             .map(|m| $crate::com::GateIStream::new(m, $rg))
