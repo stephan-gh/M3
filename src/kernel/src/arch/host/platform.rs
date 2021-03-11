@@ -45,7 +45,7 @@ pub fn init(args: &[String]) -> platform::KEnv {
     }
     let mut upes = Vec::new();
     for (i, pe) in pes[1..].iter().enumerate() {
-        upes.push(boot::PE::new(i as u32, *pe));
+        upes.push(boot::PE::new((i + 1) as u32, *pe));
     }
     info.pe_count = upes.len() as u64;
 
