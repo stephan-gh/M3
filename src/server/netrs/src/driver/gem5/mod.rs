@@ -761,6 +761,9 @@ impl<'a> smoltcp::phy::Device<'a> for E1000Device {
     fn capabilities(&self) -> smoltcp::phy::DeviceCapabilities {
         let mut caps = smoltcp::phy::DeviceCapabilities::default();
         caps.max_transmission_unit = E1000::mtu();
+        caps.checksum.ipv4 = smoltcp::phy::Checksum::None;
+        caps.checksum.udp = smoltcp::phy::Checksum::None;
+        caps.checksum.tcp = smoltcp::phy::Checksum::None;
         caps
     }
 
