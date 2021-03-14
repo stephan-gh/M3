@@ -150,6 +150,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "netechoserver"
+version = "0.1.0"
+dependencies = [
+ "m3",
+]
+
+[[package]]
 name = "netrs"
 version = "0.1.0"
 dependencies = [
@@ -161,34 +168,6 @@ dependencies = [
  "pci",
  "smoltcp",
  "thread",
-]
-
-[[package]]
-name = "netrs_bandwidth_client"
-version = "0.1.0"
-dependencies = [
- "m3",
-]
-
-[[package]]
-name = "netrs_bandwidth_server"
-version = "0.1.0"
-dependencies = [
- "m3",
-]
-
-[[package]]
-name = "netrs_latency_client"
-version = "0.1.0"
-dependencies = [
- "m3",
-]
-
-[[package]]
-name = "netrs_latency_server"
-version = "0.1.0"
-dependencies = [
- "m3",
 ]
 
 [[package]]
@@ -282,6 +261,13 @@ dependencies = [
 
 [[package]]
 name = "rusthello"
+version = "0.1.0"
+dependencies = [
+ "m3",
+]
+
+[[package]]
+name = "rustnetbenchs"
 version = "0.1.0"
 dependencies = [
  "m3",

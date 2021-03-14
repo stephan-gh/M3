@@ -11,6 +11,7 @@ dirs = [
     'float',
     'hello',
     'netecho',
+    'netechoserver',
     'echorsclient',
     'echorsserver',
     'noop',
