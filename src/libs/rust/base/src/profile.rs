@@ -35,6 +35,11 @@ impl Results {
         }
     }
 
+    /// Pushes the given time to the container
+    pub fn push(&mut self, time: time::Time) {
+        self.times.push(time);
+    }
+
     /// Returns the number of runs
     pub fn runs(&self) -> usize {
         self.times.len()
@@ -73,10 +78,6 @@ impl Results {
         else {
             math::sqrt((sum as f32) / (self.times.len() as f32))
         }
-    }
-
-    fn push(&mut self, time: time::Time) {
-        self.times.push(time);
     }
 }
 
