@@ -1,6 +1,6 @@
 <config>
     <kernel args="kernel -b net0-net1" />
-    <app args="root sem=net">
+    <app args="root sem=net-udp sem=net-tcp">
         <dom>
             <app args="netrs net0 192.168.112.2 255.255.255.0" daemon="1">
                 <serv name="net0" />
@@ -14,15 +14,17 @@
             </app>
         </dom>
         <dom>
-            <app args="netbandwidth-rs-server" daemon="1">
+            <app args="netechoserver" daemon="1">
                 <sess name="net1" />
-                <sem name="net" />
+                <sem name="net-udp" />
+                <sem name="net-tcp" />
             </app>
         </dom>
         <dom>
-            <app args="netbandwidth-rs-client">
+            <app args="cppnetbenchs">
                 <sess name="net0" />
-                <sem name="net" />
+                <sem name="net-udp" />
+                <sem name="net-tcp" />
             </app>
         </dom>
     </app>
