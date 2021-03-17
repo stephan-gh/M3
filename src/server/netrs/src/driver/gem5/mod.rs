@@ -727,7 +727,8 @@ impl E1000 {
 
     #[inline]
     fn mtu() -> usize {
-        TX_BUF_SIZE
+        // gem5 limits us to TX_BUF_SIZE - 1 (2047)
+        TX_BUF_SIZE - 1
     }
 
     // checks if a irq occured
