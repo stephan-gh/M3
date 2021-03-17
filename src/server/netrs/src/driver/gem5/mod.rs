@@ -241,16 +241,16 @@ impl E1000 {
         // setup rx descriptors
         for i in 0..RX_BUF_COUNT {
             // Init rxdesc which is written
-            let desc = RxDesc {
+            let desc = [RxDesc {
                 buffer: (RX_BUF_OFF + i * RX_BUF_SIZE) as u64,
                 length: RX_BUF_SIZE as u16,
                 checksum: 0,
                 status: 0,
                 error: 0,
                 pad: 0,
-            };
+            }];
             self.write_bufs(
-                &[desc],
+                &desc,
                 (RX_DESCS_OFF + i * core::mem::size_of::<RxDesc>()) as goff,
             );
 
@@ -333,7 +333,7 @@ impl E1000 {
 
     fn send(&mut self, packet: &[u8]) -> bool {
         assert!(
-            packet.len() < E1000::mtu(),
+            packet.len() <= E1000::mtu(),
             "Package was too big for E1000 device"
         );
 
@@ -406,7 +406,7 @@ impl E1000 {
         if txd_context_update_required {
             log!(crate::LOG_NIC, "Writing context descriptor.");
 
-            let mut desc = TxContextDesc {
+            let mut desc = [TxContextDesc {
                 ipcss: 0,
                 ipcso: (core::mem::size_of::<EthHdr>() + offset_of!(IpHdr, chksum)) as u8,
                 ipcse: 0,
@@ -426,19 +426,19 @@ impl E1000 {
                 sta_rsv: 0,
                 hdrlen: 0,
                 mss: 0,
-            };
+            }];
 
-            desc.set_sta(0);
-            desc.set_tucmd(
+            desc[0].set_sta(0);
+            desc[0].set_tucmd(
                 // DEXT | IP | TCP
                 1 << 5 | (if is_ip { 1 << 1 } else { 0 } | if is_tcp { 1 } else { 0 }) as u8,
             );
 
-            desc.set_dtyp(0x0000);
-            desc.set_paylen(0);
+            desc[0].set_dtyp(0x0000);
+            desc[0].set_paylen(0);
 
             self.write_bufs(
-                &[desc],
+                &desc,
                 (TX_DESCS_OFF + cur_tx_desc as usize * core::mem::size_of::<TxDesc>()) as goff,
             );
             cur_tx_desc = inc_rb(cur_tx_desc, TX_BUF_COUNT as u32);
@@ -469,23 +469,23 @@ impl E1000 {
             }
         );
 
-        let mut desc = TxDataDesc {
+        let mut desc = [TxDataDesc {
             buffer: offset as u64,
             length_dtyp_dcmd: 0, // set later via setter
             sta_rsv: 0,          // set later as well
             popts: (((is_tcp | is_udp) as u8) << 1 | (is_ip as u8) << 0), // TXSM | IXSM
             special: 0,
-        };
+        }];
 
-        desc.set_length(packet.len() as u32);
-        desc.set_dtyp(0x0001);
+        desc[0].set_length(packet.len() as u32);
+        desc[0].set_dtyp(0x0001);
         // DEXT | TX_CMD_EOP | TX_CMD_IFCS
-        desc.set_dcmd(1 << 5 | (e1000::TX::CMD_EOP | e1000::TX::CMD_IFCS).bits());
-        desc.set_sta(0);
-        desc.set_rsv(0);
+        desc[0].set_dcmd(1 << 5 | (e1000::TX::CMD_EOP | e1000::TX::CMD_IFCS).bits());
+        desc[0].set_sta(0);
+        desc[0].set_rsv(0);
 
         self.write_bufs(
-            &[desc],
+            &desc,
             (TX_DESCS_OFF + cur_tx_desc as usize * core::mem::size_of::<TxDesc>()) as goff,
         );
 
@@ -522,11 +522,10 @@ impl E1000 {
             &mut desc,
             (RX_DESCS_OFF + tail as usize * core::mem::size_of::<RxDesc>()) as goff,
         );
-        let mut desc = &mut desc[0];
         // TODO: Ensure that packets that are not processed because the maxReceiveCount has been exceeded,
         // to be processed later, independently of an interrupt.
 
-        if (desc.status & e1000::RXDS::DD.bits()) == 0 {
+        if (desc[0].status & e1000::RXDS::DD.bits()) == 0 {
             return Err(Error::new(Code::NotFound));
         }
 
@@ -534,31 +533,31 @@ impl E1000 {
             crate::LOG_NIC,
             "RX {}: {:x}..{:x} st={:x} er={:x}",
             tail,
-            desc.buffer,
-            desc.buffer + desc.length as u64,
-            desc.status,
-            desc.error,
+            desc[0].buffer,
+            desc[0].buffer + desc[0].length as u64,
+            desc[0].status,
+            desc[0].error,
         );
 
         // TODO in C++ the valid_checksum is uninitialized and probably not set when checked for the first
         // time. In rust we init to false, but that might produce a different result.
         let mut valid_checksum = false;
         // Ignore Checksum Indication not set
-        if (desc.status & e1000::RXDS::IXSM.bits()) == 0 {
-            if (desc.status & e1000::RXDS::IPCS.bits()) > 0 {
-                valid_checksum = (desc.error & e1000::RXDE::IPE.bits()) == 0;
+        if (desc[0].status & e1000::RXDS::IXSM.bits()) == 0 {
+            if (desc[0].status & e1000::RXDS::IPCS.bits()) > 0 {
+                valid_checksum = (desc[0].error & e1000::RXDE::IPE.bits()) == 0;
 
                 if !valid_checksum {
                     // TODO: Increase lwIP ip drop/chksum counters
                     log!(crate::LOG_NIC, "Dropped packet with IP checksum error.");
                 }
-                else if (desc.status & (e1000::RXDS::TCPCS | e1000::RXDS::UDPCS).bits()) > 0 {
+                else if (desc[0].status & (e1000::RXDS::TCPCS | e1000::RXDS::UDPCS).bits()) > 0 {
                     log!(
                         crate::LOG_NIC,
                         "E1000: IXMS set, bur TCPS and UDPCS set, therefore trying alternative checksum..."
                     );
 
-                    valid_checksum = (desc.error & e1000::RXDE::TCPE.bits()) == 0;
+                    valid_checksum = (desc[0].error & e1000::RXDE::TCPE.bits()) == 0;
                     if !valid_checksum {
                         // TODO: Increase lwIP tcp/udp drop/chksum counters
                         log!(
@@ -595,11 +594,11 @@ impl E1000 {
         if valid_checksum {
             // Create buffer with enough size, initialized to 0
             assert!(
-                (desc.length as usize) < E1000::mtu(),
+                (desc[0].length as usize) <= E1000::mtu(),
                 "desc wanted to store buffer, bigger then mtu"
             );
-            self.read_bufs(&mut buf[0..desc.length.into()], desc.buffer);
-            read_size = desc.length.into();
+            self.read_bufs(&mut buf[0..desc[0].length.into()], desc[0].buffer);
+            read_size = desc[0].length.into();
         }
         else {
             log!(
@@ -610,12 +609,12 @@ impl E1000 {
         }
 
         // Write back the updated rx buffer.
-        desc.length = 0;
-        desc.checksum = 0;
-        desc.status = 0;
-        desc.error = 0;
+        desc[0].length = 0;
+        desc[0].checksum = 0;
+        desc[0].status = 0;
+        desc[0].error = 0;
         self.write_bufs(
-            &[desc],
+            &desc,
             (RX_DESCS_OFF + tail as usize * core::mem::size_of::<RxDesc>()) as u64,
         );
 
