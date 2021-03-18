@@ -583,17 +583,35 @@ impl SocketSession {
                         .unwrap();
                 }
 
-                if socket.borrow_mut().got_closed(socket_set) {
-                    log!(crate::LOG_DEF, "Socket {} is closed now", socket_sd);
+                match socket.borrow_mut().got_closed(socket_set) {
+                    1 => {
+                        log!(crate::LOG_DEF, "Socket {} is closed now", socket_sd);
 
-                    // remove all pending events from queue
-                    self.event_queue.retain(|e| e.sd() != socket_sd);
+                        // remove all pending events from queue
+                        self.event_queue.retain(|e| e.sd() != socket_sd);
 
-                    self.channel
-                        .as_ref()
-                        .unwrap()
-                        .send_closed(socket_sd)
-                        .unwrap();
+                        self.channel
+                            .as_ref()
+                            .unwrap()
+                            .send_closed(socket_sd)
+                            .unwrap();
+                    },
+
+                    2 => {
+                        log!(
+                            crate::LOG_DEF,
+                            "Socket {} got closed by remote side",
+                            socket_sd
+                        );
+
+                        self.channel
+                            .as_ref()
+                            .unwrap()
+                            .send_close_req(socket_sd)
+                            .unwrap();
+                    },
+
+                    _ => {},
                 }
 
                 socket

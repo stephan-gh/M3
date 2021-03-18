@@ -19,7 +19,7 @@
 use crate::cell::{Cell, RefCell};
 use crate::errors::{Code, Error};
 use crate::net::dataqueue::DataQueue;
-use crate::net::{event, IpAddr, NetEvent, Port, Sd};
+use crate::net::{event, IpAddr, NetEvent, Port, Sd, SocketType};
 use crate::rc::Rc;
 use crate::session::NetworkManager;
 
@@ -37,14 +37,16 @@ pub enum State {
     Listening,
     Connecting,
     Connected,
+    Closing,
     Closed,
 }
 
 /// Socket prototype that is shared between sockets.
 pub(crate) struct Socket {
     sd: Sd,
+    ty: SocketType,
+
     state: Cell<State>,
-    close_cause: Cell<Code>,
     blocking: Cell<bool>,
 
     local_addr: Cell<IpAddr>,
@@ -56,11 +58,12 @@ pub(crate) struct Socket {
 }
 
 impl Socket {
-    pub fn new(sd: Sd) -> Rc<Self> {
+    pub fn new(sd: Sd, ty: SocketType) -> Rc<Self> {
         Rc::new(Self {
             sd,
+            ty,
+
             state: Cell::new(State::Closed),
-            close_cause: Cell::new(Code::None),
             blocking: Cell::new(true),
 
             local_addr: Cell::new(IpAddr::new(0, 0, 0, 0)),
@@ -110,6 +113,9 @@ impl Socket {
                 return Err(Error::new(Code::IsConnected));
             }
             return Ok(());
+        }
+        if self.state.get() == State::Closing {
+            return Err(Error::new(Code::InvState));
         }
 
         if self.state.get() == State::Connecting {
@@ -184,9 +190,6 @@ impl Socket {
                 return Ok(res);
             }
 
-            if self.state.get() == State::Closed {
-                return Err(Error::new(Code::SocketClosed));
-            }
             if !self.blocking.get() {
                 return Err(Error::new(Code::WouldBlock));
             }
@@ -268,6 +271,9 @@ impl Socket {
 
     pub fn process_closed(&self, _msg: &event::ClosedMessage) {
         self.state.set(State::Closed);
-        // TODO cause
+    }
+
+    pub fn process_close_req(&self, _msg: &event::CloseReqMessage) {
+        self.state.set(State::Closing);
     }
 }

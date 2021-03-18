@@ -56,6 +56,8 @@ void SocketRs::process_message(const NetEventChannelRs::SocketControlMessage &me
             return handle_connected(static_cast<NetEventChannelRs::ConnectedMessage const &>(message));
         case NetEventChannelRs::Closed:
             return handle_closed(static_cast<NetEventChannelRs::ClosedMessage const &>(message));
+        case NetEventChannelRs::CloseReq:
+            return handle_close_req(static_cast<NetEventChannelRs::CloseReqMessage const &>(message));
         default:
             throw Exception(Errors::NOT_SUP);
     }
@@ -69,6 +71,10 @@ void SocketRs::handle_connected(NetEventChannelRs::ConnectedMessage const &msg) 
     _state = Connected;
     _remote_addr = IpAddr(msg.addr);
     _remote_port = msg.port;
+}
+
+void SocketRs::handle_close_req(NetEventChannelRs::CloseReqMessage const &) {
+    _state = Closing;
 }
 
 void SocketRs::handle_closed(NetEventChannelRs::ClosedMessage const &) {

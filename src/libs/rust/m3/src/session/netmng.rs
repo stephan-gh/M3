@@ -83,7 +83,7 @@ impl NetworkManager {
         )?;
 
         let sd = reply.pop::<Sd>()?;
-        let sock = Socket::new(sd);
+        let sock = Socket::new(sd, ty);
         self.sockets.borrow_mut().push(sock.clone());
         Ok(sock)
     }
@@ -214,7 +214,15 @@ impl NetworkManager {
                 Some(msg.sd as Sd)
             },
 
-            _ => None,
+            NetEventType::CLOSE_REQ => {
+                let msg = event.msg::<event::CloseReqMessage>();
+                if let Some(sock) = Self::get_socket(&sockets, msg.sd as Sd) {
+                    sock.process_close_req(&msg);
+                }
+                Some(msg.sd as Sd)
+            },
+
+            t => panic!("unexpected message type {}", t),
         }
     }
 

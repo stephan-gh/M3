@@ -23,7 +23,7 @@ use m3::rc::Rc;
 
 use smoltcp;
 use smoltcp::socket::SocketSet;
-use smoltcp::socket::{RawSocket, SocketHandle, TcpSocket, UdpSocket};
+use smoltcp::socket::{RawSocket, SocketHandle, TcpSocket, TcpState, UdpSocket};
 use smoltcp::wire::{IpAddress, IpEndpoint, Ipv4Address};
 
 use crate::sess::FileSession;
@@ -85,7 +85,7 @@ impl Socket {
             match self.ty {
                 SocketType::Stream => {
                     let tcp_socket = socket_set.get::<TcpSocket>(self.socket);
-                    if tcp_socket.is_active() {
+                    if tcp_socket.state() == TcpState::Established {
                         self.state = State::Connected;
                         Some(tcp_socket.remote_endpoint())
                     }
@@ -101,30 +101,36 @@ impl Socket {
         }
     }
 
-    pub fn got_closed(&mut self, socket_set: &mut SocketSet<'static>) -> bool {
+    pub fn got_closed(&mut self, socket_set: &mut SocketSet<'static>) -> u32 {
         if self.state == State::Connected {
             let closed = match self.ty {
                 SocketType::Stream => {
                     let tcp_socket = socket_set.get::<TcpSocket>(self.socket);
-                    !tcp_socket.is_open()
+                    if !tcp_socket.is_open() {
+                        1
+                    }
+                    // remote side has closed the connection?
+                    else if tcp_socket.state() == TcpState::CloseWait {
+                        2
+                    }
+                    else {
+                        0
+                    }
                 },
                 SocketType::Dgram => {
                     let udp_socket = socket_set.get::<UdpSocket>(self.socket);
-                    !udp_socket.is_open()
+                    !udp_socket.is_open() as u32
                 },
-                _ => false,
+                _ => 0,
             };
 
-            if closed {
+            if closed == 1 {
                 self.state = State::None;
-                true
             }
-            else {
-                false
-            }
+            closed
         }
         else {
-            false
+            0
         }
     }
 
@@ -213,15 +219,20 @@ impl Socket {
         match self.ty {
             SocketType::Stream => {
                 let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
-                let addr = tcp_socket.remote_endpoint();
-                tcp_socket.recv(|d| {
-                    if d.len() > 0 {
-                        (func(d, addr), ())
-                    }
-                    else {
-                        (0, ())
-                    }
-                })
+                if self.state == State::Connected {
+                    let addr = tcp_socket.remote_endpoint();
+                    tcp_socket.recv(|d| {
+                        if d.len() > 0 {
+                            (func(d, addr), ())
+                        }
+                        else {
+                            (0, ())
+                        }
+                    })
+                }
+                else {
+                    Ok(())
+                }
             },
             SocketType::Dgram => {
                 let mut udp_socket = socket_set.get::<UdpSocket>(self.socket);

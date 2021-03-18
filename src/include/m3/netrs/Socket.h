@@ -40,6 +40,7 @@ public:
         Listening,
         Connecting,
         Connected,
+        Closing,
         Closed
     };
 
@@ -129,6 +130,7 @@ protected:
 
     virtual void handle_data(NetEventChannelRs::DataMessage const &msg, NetEventChannelRs::Event &event);
     void handle_connected(NetEventChannelRs::ConnectedMessage const &msg);
+    void handle_close_req(NetEventChannelRs::CloseReqMessage const &msg);
     void handle_closed(NetEventChannelRs::ClosedMessage const &msg);
 
     NORETURN void inv_state();

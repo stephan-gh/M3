@@ -59,7 +59,12 @@ pub fn main() -> i32 {
         }
 
         if !udp_socket.has_data() && !tcp_socket.has_data() {
-            nm.wait_sync();
+            if tcp_socket.state() == State::Closing {
+                tcp_socket.abort().unwrap();
+            }
+            else {
+                nm.wait_sync();
+            }
         }
 
         nm.process_events(None);

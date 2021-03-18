@@ -123,15 +123,17 @@ void TcpSocketRs::accept(IpAddr *remote_addr, uint16_t *remote_port) {
 }
 
 ssize_t TcpSocketRs::recvfrom(void *dst, size_t amount, IpAddr *src_addr, uint16_t *src_port) {
-    // Allow receiving that arrived before the socket/connection was closed.
-    if(_state != Connected && _state != Closed)
+    // receive is possible with an established connection or a connection that that has already been
+    // closed by the remote side
+    if(_state != Connected && _state != Closing)
         throw Exception(Errors::NOT_CONNECTED);
 
     return SocketRs::recvfrom(dst, amount, src_addr, src_port);
 }
 
 ssize_t TcpSocketRs::sendto(const void *src, size_t amount, IpAddr dst_addr, uint16_t dst_port) {
-    if(_state != Connected)
+    // like for receive: still allow sending if the remote side closed the connection
+    if(_state != Connected && _state != Closing)
         throw Exception(Errors::NOT_CONNECTED);
 
     return SocketRs::sendto(src, amount, dst_addr, dst_port);
