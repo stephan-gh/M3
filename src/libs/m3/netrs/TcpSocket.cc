@@ -137,4 +137,9 @@ ssize_t TcpSocketRs::sendto(const void *src, size_t amount, IpAddr dst_addr, uin
     return SocketRs::sendto(src, amount, dst_addr, dst_port);
 }
 
+void TcpSocketRs::handle_data(NetEventChannelRs::DataMessage const & msg, NetEventChannelRs::Event &event) {
+    if(_state != Closed)
+        _recv_queue.append(new DataQueueRs::Item(&msg, std::move(event)));
+}
+
 }

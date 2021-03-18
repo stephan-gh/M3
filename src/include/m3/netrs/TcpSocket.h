@@ -76,6 +76,9 @@ public:
      * In blocking mode, this method blocks until the socket is closed.
      */
     void close();
+
+private:
+    void handle_data(NetEventChannelRs::DataMessage const &msg, NetEventChannelRs::Event &event) override;
 };
 
 }

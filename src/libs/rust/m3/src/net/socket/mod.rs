@@ -255,7 +255,9 @@ impl Socket {
     }
 
     pub fn process_data_transfer(&self, event: NetEvent) {
-        self.recv_queue.borrow_mut().append(event);
+        if self.ty != SocketType::Stream || self.state.get() != State::Closed {
+            self.recv_queue.borrow_mut().append(event);
+        }
     }
 
     pub fn process_connected(&self, msg: &event::ConnectedMessage) {

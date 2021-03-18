@@ -265,6 +265,16 @@ impl NetEvent {
         NetEventType::from(*self.msg.get_data::<u64>())
     }
 
+    pub fn sd(&self) -> Sd {
+        match self.msg_type() {
+            NetEventType::DATA => self.msg::<DataMessage>().sd as Sd,
+            NetEventType::CONNECTED => self.msg::<ConnectedMessage>().sd as Sd,
+            NetEventType::CLOSED => self.msg::<ClosedMessage>().sd as Sd,
+            NetEventType::CLOSE_REQ => self.msg::<CloseReqMessage>().sd as Sd,
+            _ => unreachable!(),
+        }
+    }
+
     pub fn msg<T>(&self) -> &T {
         // TODO improve that
         unsafe { self.msg.get_data_unchecked::<T>() }

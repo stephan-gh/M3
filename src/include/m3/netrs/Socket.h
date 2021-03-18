@@ -127,7 +127,7 @@ protected:
     void process_message(const NetEventChannelRs::SocketControlMessage &message,
                          NetEventChannelRs::Event &event);
 
-    void handle_data(NetEventChannelRs::DataMessage const &msg, NetEventChannelRs::Event &event);
+    virtual void handle_data(NetEventChannelRs::DataMessage const &msg, NetEventChannelRs::Event &event);
     void handle_connected(NetEventChannelRs::ConnectedMessage const &msg);
     void handle_closed(NetEventChannelRs::ClosedMessage const &msg);
 

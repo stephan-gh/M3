@@ -585,6 +585,10 @@ impl SocketSession {
 
                 if socket.borrow_mut().got_closed(socket_set) {
                     log!(crate::LOG_DEF, "Socket {} is closed now", socket_sd);
+
+                    // remove all pending events from queue
+                    self.event_queue.retain(|e| e.sd() != socket_sd);
+
                     self.channel
                         .as_ref()
                         .unwrap()
