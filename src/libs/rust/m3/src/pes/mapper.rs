@@ -16,7 +16,7 @@
 
 //! The mapper types that are used to init the memory of an activity.
 
-use crate::errors::Error;
+use crate::errors::{Code, Error};
 use crate::goff;
 use crate::kif;
 use crate::session::{MapFlags, Pager};
@@ -77,8 +77,8 @@ impl Mapper for DefaultMapper {
                 .map(|_| false)
         }
         else if self.has_virtmem {
-            // TODO handle that case
-            unimplemented!();
+            // exec with VM, but without pager is not supported
+            return Err(Error::new(Code::NotSup));
         }
         else {
             Ok(true)
@@ -97,8 +97,8 @@ impl Mapper for DefaultMapper {
             pg.map_anon(virt, len, perm, flags).map(|_| false)
         }
         else if self.has_virtmem {
-            // TODO handle that case
-            unimplemented!();
+            // exec with VM, but without pager is not supported
+            return Err(Error::new(Code::NotSup));
         }
         else {
             Ok(true)

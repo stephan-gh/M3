@@ -439,13 +439,12 @@ impl VPE {
     {
         use crate::cfg;
         use crate::cpu;
+        use crate::errors::Code;
         use crate::mem;
         use crate::pes::Activity;
 
         let env = arch::env::get();
         let mut senv = arch::env::EnvData::default();
-
-        let mem = self.get_mem(cfg::ENV_START as goff, cfg::ENV_SIZE as goff, kif::Perm::RW)?;
 
         let closure = {
             senv.set_platform(arch::env::get().platform());
@@ -454,15 +453,16 @@ impl VPE {
                 // clone via copy-on-write
                 Some(ref pg) => arch::loader::clone_vpe(pg),
                 // copy all regions to child
-                None => arch::loader::copy_vpe(
-                    self.pe_desc(),
-                    senv.sp(),
-                    self.get_mem(
+                None if self.pe_desc().has_mem() => {
+                    let mem = self.get_mem(
                         0,
                         (cfg::MEM_OFFSET + self.pe_desc().mem_size()) as goff,
                         kif::Perm::RW,
-                    )?,
-                ),
+                    )?;
+                    arch::loader::copy_vpe(self.pe_desc(), senv.sp(), mem)
+                },
+                // cloning with VM, but without pager is not supported
+                None => return Err(Error::new(Code::NotSup)),
             }?;
             senv.set_entry(entry);
             senv.set_heap_size(env.heap_size());
@@ -472,6 +472,7 @@ impl VPE {
             senv.set_vpe(&self);
 
             // env goes first
+            let mem = self.get_mem(cfg::ENV_START as goff, cfg::ENV_SIZE as goff, kif::Perm::RW)?;
             let mut off = cfg::ENV_START + mem::size_of_val(&senv);
 
             // create and write closure
