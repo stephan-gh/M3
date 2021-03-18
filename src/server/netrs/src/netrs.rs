@@ -24,7 +24,6 @@
 use core::str::FromStr;
 
 use m3::cap::Selector;
-use m3::cell::RefCell;
 use m3::col::Vec;
 use m3::com::{GateIStream, RecvGate};
 use m3::env;
@@ -58,7 +57,7 @@ struct NetHandler {
     sessions: SessionContainer<NetworkSession>,
     /// Holds all the actual smoltcp sockets. Used for polling events on them.
     socket_set: SocketSet<'static>,
-    rgate: Rc<RefCell<RecvGate>>,
+    rgate: Rc<RecvGate>,
     /// True if shutdown was called.
     shuting_down: bool,
 }
@@ -133,16 +132,12 @@ impl Handler<NetworkSession> for NetHandler {
         srv_sel: Selector,
         _arg: &str,
     ) -> Result<(Selector, SessId), Error> {
-        // Needed to satisfy the borrow checker
         let rgate = self.rgate.clone();
 
         let res = self.sessions.add_next(crt, srv_sel, false, |sess| {
             log!(LOG_DEF, "[{}] net::open(sel={})", sess.ident(), sess.sel());
-            let new_session = NetworkSession::SocketSession(sess::SocketSession::new(
-                crt,
-                sess,
-                rgate.clone(), // clone also needed to satisfy the borrow checker, otherwise E0507 occurred.
-            ));
+            let new_session =
+                NetworkSession::SocketSession(sess::SocketSession::new(crt, sess, rgate));
             Ok(new_session)
         });
 
@@ -218,16 +213,11 @@ pub fn main() -> i32 {
         smoltcp::wire::Ipv4Address::from_str(args.get(3).expect("Failed to read netmask!"))
             .expect("Failed to create netmask!");
 
-    let mut rgate = if let Ok(rg) = RecvGate::new(
+    let mut rgate = RecvGate::new(
         math::next_log2(sess::MSG_SIZE * 32),
         math::next_log2(sess::MSG_SIZE),
-    ) {
-        rg
-    }
-    else {
-        log!(LOG_DEF, "failed to create main rgate for handler!");
-        return -1;
-    };
+    )
+    .expect("failed to create main rgate for handler!");
 
     rgate.activate().expect("Failed to activate main rgate");
 
@@ -255,7 +245,7 @@ pub fn main() -> i32 {
         sel: 0,
         sessions: SessionContainer::new(m3::server::DEF_MAX_CLIENTS),
         socket_set,
-        rgate: Rc::new(RefCell::new(rgate)),
+        rgate: Rc::new(rgate),
         shuting_down: false,
     };
 
@@ -280,10 +270,9 @@ pub fn main() -> i32 {
         // log!(crate::LOG_DEF, "POLL");
         serv.handle_ctrl_chan(&mut handler)?;
         {
-            let rgate = rgatec.borrow();
             // Check if we got some messages through our main rgate.
-            if let Some(msg) = rgate.fetch() {
-                let mut is = GateIStream::new(msg, &rgate);
+            if let Some(msg) = rgatec.fetch() {
+                let mut is = GateIStream::new(msg, &rgatec);
                 let op = is.pop::<NetworkOp>()?;
                 if let Err(e) = handler.handle(op, &mut is) {
                     is.reply_error(e.code()).ok();

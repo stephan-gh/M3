@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::cell::{Ref, RefCell};
+use m3::cell::RefCell;
 use m3::com::RecvGate;
 use m3::errors::{Code, Error};
 use m3::log;
@@ -48,7 +48,6 @@ pub struct Socket {
     pub ty: SocketType,
     pub state: State,
 
-    pub socket_session_rgate: Rc<RefCell<RecvGate>>,
     pub rgate: Option<Rc<RefCell<RecvGate>>>,
     // Might be a file session
     pub rfile: Option<Rc<RefCell<FileSession>>>,
@@ -56,28 +55,18 @@ pub struct Socket {
 }
 
 impl Socket {
-    pub fn from_smol_socket(
-        socket: SocketHandle,
-        ty: SocketType,
-        socket_session_rgate: Rc<RefCell<RecvGate>>,
-    ) -> Self {
+    pub fn from_smol_socket(socket: SocketHandle, ty: SocketType) -> Self {
         Socket {
             sd: Sd::MAX, // Invalid socket for now
             socket,
             ty,
             state: State::None,
 
-            socket_session_rgate,
             rgate: None,
 
             rfile: None,
             sfile: None,
         }
-    }
-
-    /// returns a reference to the parents socket session's rgate
-    pub fn socket_session_rgate<'a>(&'a self) -> Ref<'a, RecvGate> {
-        self.socket_session_rgate.borrow()
     }
 
     pub fn got_connected(&mut self, socket_set: &mut SocketSet<'static>) -> Option<IpEndpoint> {

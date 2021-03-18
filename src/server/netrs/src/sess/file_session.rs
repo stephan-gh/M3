@@ -66,6 +66,7 @@ impl FileSession {
         _crt: usize,
         srv_sel: Selector,
         socket: Rc<RefCell<Socket>>,
+        rgate: &Rc<RecvGate>,
         mode: u32,
         rmemsize: usize,
         smemsize: usize,
@@ -75,7 +76,7 @@ impl FileSession {
 
         let label = 32 as tcu::Label;
         let new_sgate = SendGate::new_with(
-            m3::com::SGateArgs::new(&socket.borrow().socket_session_rgate())
+            m3::com::SGateArgs::new(rgate)
                 .label(label)
                 .credits(1)
                 .sel(sels + 1), // put sgate on sel 1

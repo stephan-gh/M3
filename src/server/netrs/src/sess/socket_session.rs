@@ -62,7 +62,7 @@ pub const RAW_BUFFER_SIZE: usize = MAX_NETDATA_SIZE * MAX_RECV_BUF_PACKETS;
 
 pub struct SocketSession {
     sgate: Option<SendGate>,
-    rgate: Rc<RefCell<RecvGate>>,
+    rgate: Rc<RecvGate>,
     server_session: ServerSession,
     sockets: Vec<Option<Rc<RefCell<Socket>>>>, // All sockets registered to this socket session.
     /// Size of the memory gate that can be used to transfer buffers
@@ -81,7 +81,7 @@ impl Drop for SocketSession {
 }
 
 impl SocketSession {
-    pub fn new(_crt: usize, server_session: ServerSession, rgate: Rc<RefCell<RecvGate>>) -> Self {
+    pub fn new(_crt: usize, server_session: ServerSession, rgate: Rc<RecvGate>) -> Self {
         SocketSession {
             sgate: None,
             rgate,
@@ -121,10 +121,6 @@ impl SocketSession {
         }
     }
 
-    pub fn rgate(&self) -> Rc<RefCell<RecvGate>> {
-        self.rgate.clone()
-    }
-
     /// Creates a SendGate that is used to send data to this socket session.
     /// keeps the Sendgate alive and sends back the selector that needs to be binded to.
     fn get_sgate(&mut self, xchg: &mut CapExchange) -> Result<(), Error> {
@@ -141,7 +137,7 @@ impl SocketSession {
         );
 
         self.sgate = Some(SendGate::new_with(
-            m3::com::SGateArgs::new(&self.rgate.borrow())
+            m3::com::SGateArgs::new(&self.rgate)
                 .label(label)
                 .credits(1),
         )?);
@@ -212,7 +208,7 @@ impl SocketSession {
                 );
                 return Err(Error::new(Code::InvArgs));
             }
-            let file = FileSession::new(crt, srv_sel, socket.clone(), mode, rmemsize, smemsize)?;
+            let file = FileSession::new(crt, srv_sel, socket.clone(), &self.rgate, mode, rmemsize, smemsize)?;
             if file.borrow().is_recv() {
                 socket.borrow_mut().rfile = Some(file.clone());
             }
@@ -220,7 +216,6 @@ impl SocketSession {
                 socket.borrow_mut().sfile = Some(file.clone());
             }
 
-            socket.borrow_mut().rgate = Some(self.rgate.clone());
             xchg.out_caps(file.borrow().caps());
 
             log!(
@@ -331,7 +326,7 @@ impl SocketSession {
         };
 
         // Create the abstract socket from some created socket instance
-        let socket = Socket::from_smol_socket(socket_handle, ty, self.rgate.clone());
+        let socket = Socket::from_smol_socket(socket_handle, ty);
         let sd = match self.request_sd(socket) {
             Ok(sd) => sd,
             Err(_e) => {
