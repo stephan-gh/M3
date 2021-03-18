@@ -4,6 +4,7 @@ members = [
     "src/apps/bench/rustnetbenchs",
     "src/apps/disktest",
     "src/apps/rusthello",
+    "src/apps/rustnettests",
     "src/apps/ruststandalone",
     "src/apps/rustunittests",
     "src/apps/vmtest",

@@ -20,6 +20,7 @@ dirs = [
     'queue',
     'rdwr',
     'rusthello',
+    'rustnettests',
     'ruststandalone',
     'rustunittests',
     'shell',
