@@ -44,6 +44,7 @@ extern "C" {
 pub extern "C" fn env_run() {
     let res = if arch::env::get().has_lambda() {
         syscalls::reinit();
+        mem::reinit();
         com::pre_init();
         io::reinit();
         pes::reinit();
