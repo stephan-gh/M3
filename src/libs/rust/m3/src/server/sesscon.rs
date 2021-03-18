@@ -171,7 +171,7 @@ impl<S> SessionContainer<S> {
         create_sess: F,
     ) -> Result<(Selector, SessId), Error>
     where
-        F: Fn(ServerSession) -> Result<S, Error>,
+        F: FnOnce(ServerSession) -> Result<S, Error>,
     {
         let sid = self.next_id()?;
         let sel = VPE::cur().alloc_sel();
