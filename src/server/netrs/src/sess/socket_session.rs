@@ -452,11 +452,14 @@ impl SocketSession {
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         let sd: Sd = is.pop()?;
-        log!(crate::LOG_DEF, "net::abort(sd={})", sd);
+        let remove: bool = is.pop()?;
+        log!(crate::LOG_DEF, "net::abort(sd={}, remove={})", sd, remove);
 
         if let Some(socket) = self.get_socket(sd) {
             socket.borrow_mut().abort(socket_set);
-            self.remove_socket(sd);
+            if remove {
+                self.remove_socket(sd);
+            }
             reply_vmsg!(is, Code::None as i32)
         }
         else {

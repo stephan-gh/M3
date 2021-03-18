@@ -76,9 +76,9 @@ bool NetworkManagerRs::close(int32_t sd) {
     return _channel.send_close_req(sd);
 }
 
-void NetworkManagerRs::abort(int32_t sd) {
+void NetworkManagerRs::abort(int32_t sd, bool remove) {
     LLOG(NET, "Abort:()");
-    GateIStream reply = send_receive_vmsg(_metagate, ABORT, sd);
+    GateIStream reply = send_receive_vmsg(_metagate, ABORT, sd, remove);
     reply.pull_result();
 }
 

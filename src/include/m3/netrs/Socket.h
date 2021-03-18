@@ -134,6 +134,8 @@ protected:
     NORETURN void inv_state();
     NORETURN void or_closed(Errors::Code err);
 
+    void do_abort(bool remove);
+
     // Socket descriptor on the server
     int32_t _sd;
     State _state;

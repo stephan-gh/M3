@@ -247,8 +247,9 @@ impl Socket {
         Ok(())
     }
 
-    pub fn abort(&self, nm: &NetworkManager) -> Result<(), Error> {
-        nm.abort(self.sd)?;
+    pub fn abort(&self, nm: &NetworkManager, remove: bool) -> Result<(), Error> {
+        nm.abort(self.sd, remove)?;
+        self.recv_queue.borrow_mut().clear();
         self.state.set(State::Closed);
         Ok(())
     }

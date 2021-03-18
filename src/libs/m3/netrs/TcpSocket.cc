@@ -29,15 +29,11 @@ TcpSocketRs::TcpSocketRs(int sd, NetworkManagerRs &nm)
 
 TcpSocketRs::~TcpSocketRs() {
     try {
-        abort();
+        do_abort(true);
     }
     catch(...) {
         // ignore errors here
     }
-
-    // Clear receive queue before potentially destroying the channel,
-    // because the queue contains events that point to the channel.
-    _recv_queue.clear();
 
     _nm.remove_socket(this);
 }

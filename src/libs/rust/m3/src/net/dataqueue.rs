@@ -57,6 +57,10 @@ impl DataQueue {
         self.items.push_back(Item { event, pos: 0 });
     }
 
+    pub fn clear(&mut self) {
+        self.items.clear();
+    }
+
     pub fn has_data(&self) -> bool {
         !self.items.is_empty()
     }

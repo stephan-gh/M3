@@ -67,7 +67,7 @@ private:
     void listen(int32_t sd, IpAddr local_addr, uint16_t port);
     void connect(int32_t sd, IpAddr remote_addr, uint16_t remote_port, uint16_t local_port);
     bool close(int32_t sd);
-    void abort(int32_t sd);
+    void abort(int32_t sd, bool remove);
 
     ssize_t send(int32_t sd, IpAddr dst_addr, uint16_t dst_port, const void *data, size_t data_length);
 

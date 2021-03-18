@@ -115,14 +115,14 @@ impl<'n> TcpSocket<'n> {
     }
 
     pub fn abort(&mut self) -> Result<(), Error> {
-        self.socket.abort(self.nm)
+        self.socket.abort(self.nm, false)
     }
 }
 
 impl Drop for TcpSocket<'_> {
     fn drop(&mut self) {
         // ignore errors
-        self.abort().ok();
+        self.socket.abort(self.nm, true).ok();
         self.nm.remove_socket(self.socket.sd());
     }
 }

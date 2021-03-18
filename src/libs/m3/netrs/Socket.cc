@@ -154,7 +154,14 @@ void SocketRs::or_closed(Errors::Code err) {
 }
 
 void SocketRs::abort() {
-    _nm.abort(sd());
+    do_abort(false);
+}
+
+void SocketRs::do_abort(bool remove) {
+    _nm.abort(sd(), remove);
+    // Clear receive queue before potentially destroying the channel,
+    // because the queue contains events that point to the channel.
+    _recv_queue.clear();
     _state = State::Closed;
 }
 

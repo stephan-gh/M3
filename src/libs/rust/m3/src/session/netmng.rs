@@ -139,8 +139,15 @@ impl NetworkManager {
         self.channel.send_close_req(sd)
     }
 
-    pub(crate) fn abort(&self, sd: Sd) -> Result<(), Error> {
-        send_recv_res!(&self.metagate, RecvGate::def(), NetworkOp::ABORT, sd).map(|_| ())
+    pub(crate) fn abort(&self, sd: Sd, remove: bool) -> Result<(), Error> {
+        send_recv_res!(
+            &self.metagate,
+            RecvGate::def(),
+            NetworkOp::ABORT,
+            sd,
+            remove
+        )
+        .map(|_| ())
     }
 
     pub(crate) fn send(
