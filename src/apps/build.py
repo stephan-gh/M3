@@ -3,6 +3,7 @@ dirs = [
     'asciiplay',
     'bench',
     'coreutils',
+    'cppnettests',
     'disktest',
     'dosattack',
     'evilcompute',
