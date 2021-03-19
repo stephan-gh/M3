@@ -283,8 +283,8 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
 
         // are there messages left we care about?
         if action == ScheduleAction::Block && !old.can_block((old_id >> 16) as u16) {
-            // if the VPE has budget left, continue with it
-            if old.budget_left > 0 {
+            // if the VPE has budget left (or there is no one else ready), continue with it
+            if old.budget_left > 0 || next.id() == kif::pemux::IDLE_ID {
                 let next_id = tcu::TCU::xchg_vpe(old_id).unwrap();
                 next.set_vpe_reg(next_id);
                 if next.id() != kif::pemux::IDLE_ID {
