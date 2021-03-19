@@ -33,8 +33,8 @@ pub const STACK_SIZE: usize         = 0x8000;
 pub const RBUF_STD_ADDR: usize      = 0;
 pub const RBUF_STD_SIZE: usize      = PAGE_SIZE;
 pub const RBUF_ADDR: usize          = RBUF_STD_ADDR + RBUF_STD_SIZE;
-pub const RBUF_SIZE: usize          = 16384;
-pub const RBUF_SIZE_SPM: usize      = 16384;
+pub const RBUF_SIZE: usize          = 32768;
+pub const RBUF_SIZE_SPM: usize      = 32768;
 
 pub const LOCAL_MEM_SIZE: usize     = 512 * 1024 * 1024;
 pub const EPMEM_SIZE: usize         = 1 * 1024 * 1024;
