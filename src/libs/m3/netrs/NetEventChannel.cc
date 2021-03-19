@@ -107,8 +107,9 @@ bool NetEventChannelRs::Event::is_present() noexcept {
 
 void NetEventChannelRs::Event::finish() {
     if(is_present() && _ack) {
-        // Only acknowledge message
-        _channel->_rgate.ack_msg(_msg);
+        // give credits back with empty message
+        MsgBuf msg_buf;
+        _channel->_rgate.reply(msg_buf, _msg);
         _ack = false;
     }
 }

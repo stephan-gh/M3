@@ -50,7 +50,6 @@ pub const MAX_SEND_BUF_PACKETS: usize = 8;
 pub const MAX_RECV_BUF_PACKETS: usize = 32;
 
 pub const MAX_SEND_BATCH_SIZE: usize = 4;
-pub const MAX_RECEIVE_BATCH_SIZE: usize = 4;
 
 pub const MAX_SOCKETS: usize = 16;
 
@@ -65,11 +64,9 @@ pub struct SocketSession {
     rgate: Rc<RecvGate>,
     server_session: ServerSession,
     sockets: Vec<Option<Rc<RefCell<Socket>>>>, // All sockets registered to this socket session.
-    /// Size of the memory gate that can be used to transfer buffers
-    size: usize,
     /// Used to communicate with the client
     channel: Option<Rc<NetEventChannel>>,
-    event_queue: VecDeque<NetEvent>,
+    send_queue: VecDeque<NetEvent>,
 }
 
 impl Drop for SocketSession {
@@ -87,9 +84,8 @@ impl SocketSession {
             rgate,
             server_session,
             sockets: vec![None; MAX_SOCKETS], // TODO allocate correct amount up front?
-            size: TCP_BUFFER_SIZE,            // currently going with the max number
             channel: None,
-            event_queue: VecDeque::new(),
+            send_queue: VecDeque::new(),
         }
     }
 
@@ -137,9 +133,7 @@ impl SocketSession {
         );
 
         self.sgate = Some(SendGate::new_with(
-            m3::com::SGateArgs::new(&self.rgate)
-                .label(label)
-                .credits(1),
+            m3::com::SGateArgs::new(&self.rgate).label(label).credits(1),
         )?);
 
         xchg.out_caps(m3::kif::CapRngDesc::new(
@@ -208,7 +202,15 @@ impl SocketSession {
                 );
                 return Err(Error::new(Code::InvArgs));
             }
-            let file = FileSession::new(crt, srv_sel, socket.clone(), &self.rgate, mode, rmemsize, smemsize)?;
+            let file = FileSession::new(
+                crt,
+                srv_sel,
+                socket.clone(),
+                &self.rgate,
+                mode,
+                rmemsize,
+                smemsize,
+            )?;
             if file.borrow().is_recv() {
                 socket.borrow_mut().rfile = Some(file.clone());
             }
@@ -285,14 +287,12 @@ impl SocketSession {
 
         let socket_handle = match ty {
             SocketType::Stream => {
-                self.size = TCP_BUFFER_SIZE;
                 socket_set.add(TcpSocket::new(
                     TcpSocketBuffer::new(vec![0 as u8; TCP_BUFFER_SIZE]),
                     TcpSocketBuffer::new(vec![0 as u8; TCP_BUFFER_SIZE]),
                 ))
             },
             SocketType::Dgram => {
-                self.size = UDP_BUFFER_SIZE;
                 socket_set.add(UdpSocket::new(
                     UdpSocketBuffer::new(
                         vec![PacketMetadata::EMPTY; MAX_RECV_BUF_PACKETS],
@@ -305,7 +305,6 @@ impl SocketSession {
                 ))
             },
             SocketType::Raw => {
-                self.size = RAW_BUFFER_SIZE;
                 socket_set.add(RawSocket::new(
                     IpVersion::Ipv4,
                     protocol.into(),
@@ -463,20 +462,22 @@ impl SocketSession {
         }
     }
 
-    pub fn send(&mut self, socket_set: &mut SocketSet<'static>) {
+    pub fn process_incoming(&mut self, socket_set: &mut SocketSet<'static>) -> bool {
         if self.channel.is_none() {
             // Cannot send yet since the channel is not active.
-            return;
+            return false;
         }
+
+        self.channel.as_ref().unwrap().fetch_replies();
 
         let mut num_sent = 0;
 
-        while let Some(event) = self.event_queue.pop_front() {
+        while let Some(event) = self.send_queue.pop_front() {
             num_sent += 1;
 
             log!(crate::LOG_DEF, "re-processing packet from queue");
             if !self.process_event(socket_set, event) || num_sent > MAX_SEND_BATCH_SIZE {
-                return;
+                return true;
             }
         }
 
@@ -485,9 +486,11 @@ impl SocketSession {
             num_sent += 1;
 
             if !self.process_event(socket_set, event) || num_sent > MAX_SEND_BATCH_SIZE {
-                return;
+                return true;
             }
         }
+
+        false
     }
 
     fn process_event(&mut self, socket_set: &mut SocketSet<'static>, event: NetEvent) -> bool {
@@ -502,40 +505,21 @@ impl SocketSession {
                             "no buffer space, delaying send of {} bytes",
                             data.size
                         );
-                        self.event_queue.push_back(event);
+                        self.send_queue.push_back(event);
                         return false;
                     }
 
-                    // log!(
-                    //     crate::LOG_DEF,
-                    //     "DataAsString={}",
-                    //     core::str::from_utf8(data.raw_data()).unwrap_or("Could not parse")
-                    // );
                     log!(crate::LOG_DEF, "got packet of {} bytes to send", data.size);
 
-                    match socket.borrow_mut().send_data_slice(
-                        &data.data[0..data.size as usize],
-                        IpAddr(data.addr as u32),
-                        data.port as u16,
-                        socket_set,
-                    ) {
-                        Ok(send_size) => send_size,
-                        Err(e) => {
-                            log!(
-                                crate::LOG_DEF,
-                                "Failed to send data over smoltcp_socket: {}",
-                                e
-                            );
-                            0
-                        },
-                    };
-                }
-                else {
-                    log!(
-                        crate::LOG_DEF,
-                        "send failed: invalid socket descriptor [{}]",
-                        data.sd
-                    );
+                    socket
+                        .borrow_mut()
+                        .send_data_slice(
+                            &data.data[0..data.size as usize],
+                            IpAddr(data.addr as u32),
+                            data.port as u16,
+                            socket_set,
+                        )
+                        .unwrap();
                 }
             },
 
@@ -554,28 +538,32 @@ impl SocketSession {
         true
     }
 
-    /// Ticks this socket. If there was a package to receive, puts it onto the netChannel to be consumed by some client.
-    pub fn receive(&mut self, socket_set: &mut SocketSet<'static>) {
+    pub fn process_outgoing(&mut self, socket_set: &mut SocketSet<'static>) {
         if self.channel.is_none() {
             // Cannot receive yet since the channel is not active.
             return;
         }
 
-        let mut num_received = 0;
+        let chan = self.channel.as_ref().unwrap();
+
+        chan.fetch_replies();
 
         // iterate over all sockets and try to receive
         for socket in self.sockets.iter() {
             if let Some(socket) = socket {
                 let socket_sd = socket.borrow().sd;
 
+                // if we don't have credits anymore to send events, stop here. we'll get a reply
+                // to one of our earlier events and get credits back with this, so that we'll wake
+                // up from a potential sleep and call receive again.
+                if !chan.can_send().unwrap() {
+                    break;
+                }
+
                 if let Some(ep) = socket.borrow_mut().got_connected(socket_set) {
                     log!(crate::LOG_DEF, "Socket {} is connected now", socket_sd);
                     let (ip, port) = crate::util::to_m3_addr(ep);
-                    self.channel
-                        .as_ref()
-                        .unwrap()
-                        .send_connected(socket_sd, ip, port)
-                        .unwrap();
+                    chan.send_connected(socket_sd, ip, port).unwrap();
                 }
 
                 match socket.borrow_mut().got_closed(socket_set) {
@@ -583,13 +571,9 @@ impl SocketSession {
                         log!(crate::LOG_DEF, "Socket {} is closed now", socket_sd);
 
                         // remove all pending events from queue
-                        self.event_queue.retain(|e| e.sd() != socket_sd);
+                        self.send_queue.retain(|e| e.sd() != socket_sd);
 
-                        self.channel
-                            .as_ref()
-                            .unwrap()
-                            .send_closed(socket_sd)
-                            .unwrap();
+                        chan.send_closed(socket_sd).unwrap();
                     },
 
                     2 => {
@@ -599,11 +583,7 @@ impl SocketSession {
                             socket_sd
                         );
 
-                        self.channel
-                            .as_ref()
-                            .unwrap()
-                            .send_close_req(socket_sd)
-                            .unwrap();
+                        chan.send_close_req(socket_sd).unwrap();
                     },
 
                     _ => {},
@@ -620,32 +600,15 @@ impl SocketSession {
                             ip,
                             port
                         );
-                        num_received += 1;
 
                         let amount = cmp::min(event::MTU, data.len());
-                        let send_res = self.channel.as_ref().unwrap().send_data(
-                            socket_sd,
-                            ip,
-                            port,
-                            amount,
-                            |buf| {
-                                buf[0..amount].copy_from_slice(&data[0..amount]);
-                            },
-                        );
-                        if let Err(e) = send_res {
-                            log!(
-                                crate::LOG_DEF,
-                                "Failed to send received package over channel to client: {}",
-                                e
-                            );
-                        }
+                        chan.send_data(socket_sd, ip, port, amount, |buf| {
+                            buf[0..amount].copy_from_slice(&data[0..amount]);
+                        })
+                        .unwrap();
                         amount
                     })
                     .ok();
-
-                if num_received > MAX_RECEIVE_BATCH_SIZE {
-                    return;
-                }
             }
         }
     }

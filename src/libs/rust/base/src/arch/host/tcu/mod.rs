@@ -279,6 +279,10 @@ impl TCU {
         Self::get_ep(ep, EpReg::BUF_UNREAD) != 0
     }
 
+    pub fn has_credits(ep: EpId) -> bool {
+        Self::get_ep(ep, EpReg::CREDITS) != 0
+    }
+
     pub fn ack_msg(ep: EpId, msg_off: usize) -> Result<(), Error> {
         Self::set_cmd(CmdReg::EPID, ep as Reg);
         Self::set_cmd(CmdReg::OFFSET, msg_off as Reg);
@@ -287,6 +291,17 @@ impl TCU {
             (Command::ACK_MSG.val << 3) | Control::START.bits,
         );
         Self::get_command_result()
+    }
+
+    pub fn nanotime() -> u64 {
+        let mut time = libc::timespec {
+            tv_nsec: 1000,
+            tv_sec: 0,
+        };
+        unsafe {
+            libc::clock_gettime(libc::CLOCK_REALTIME, &mut time);
+        }
+        (time.tv_sec * 1_000_000_000 + time.tv_nsec) as u64
     }
 
     pub fn sleep() -> Result<(), Error> {

@@ -118,6 +118,12 @@ impl SendGate {
         self.gate.sel()
     }
 
+    /// Returns whether the TCU EP has credits to send a message
+    pub fn can_send(&self) -> Result<bool, Error> {
+        let ep = self.activate()?;
+        Ok(tcu::TCU::has_credits(ep.id()))
+    }
+
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
     pub(crate) fn ep(&self) -> Option<&EP> {
         self.gate.ep()

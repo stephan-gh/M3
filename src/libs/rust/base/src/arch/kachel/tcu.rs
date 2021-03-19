@@ -535,6 +535,13 @@ impl TCU {
         (r0 & 0x7) != EpType::INVALID.val
     }
 
+    /// Returns true if the given endpoint is a SEND EP and has credits
+    pub fn has_credits(ep: EpId) -> bool {
+        let r0 = Self::read_ep_reg(ep, 0);
+        let cur = (r0 >> 19) & 0x3F;
+        cur > 0
+    }
+
     /// Returns true if the given endpoint is a SEND EP and has missing credits
     pub fn has_missing_credits(ep: EpId) -> bool {
         let r0 = Self::read_ep_reg(ep, 0);

@@ -243,10 +243,6 @@ impl TxContextDesc {
     pub fn set_sta(&mut self, sta: u8) {
         self.sta_rsv = (self.sta_rsv & 0xf0) | (sta & 0x0f);
     }
-
-    pub fn set_rsv(&mut self, rsv: u8) {
-        self.sta_rsv = (self.sta_rsv & 0x0f) | (rsv & 0xf0);
-    }
 }
 
 #[repr(C, align(4))]
@@ -327,15 +323,12 @@ pub const TCP_CHECKSUM_OFFSET: u8 = 0x10;
 pub const UDP_CHECKSUM_OFFSET: u8 = 0x06;
 
 pub const ETH_HWADDR_LEN: usize = 6;
-pub const ETHTYPE_IP: u16 = 0x0008;
 
 pub const WORD_LEN_LOG2: usize = 1;
 // TODO: Use a sensible value, the current one is chosen arbitrarily
 pub const MAX_WAIT_NANOS: u64 = 100000;
 
 pub const RESET_SLEEP_TIME: u64 = 20 * 1000;
-
-pub const MAX_RECEIVE_COUNT_PER_INTERRUPT: usize = 5;
 
 pub const RX_BUF_COUNT: usize = 256;
 pub const TX_BUF_COUNT: usize = 256;

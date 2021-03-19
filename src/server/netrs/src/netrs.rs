@@ -32,9 +32,9 @@ use m3::math;
 use m3::rc::Rc;
 use m3::server::{CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::NetworkOp;
+use m3::tcu::TCU;
 use m3::{log, println};
 
-// Smol tcp network stuff
 use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
 use smoltcp::socket::SocketSet;
 use smoltcp::time::Duration;
@@ -43,11 +43,12 @@ use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 use crate::sess::socket_session::MAX_SOCKETS;
 use crate::sess::NetworkSession;
 
-pub mod driver;
-pub mod sess;
+mod driver;
+mod sess;
 mod smoltcplogger;
-pub mod util;
+mod util;
 
+pub const LOG_ERR: bool = true;
 pub const LOG_DEF: bool = false;
 pub const LOG_NIC: bool = false;
 pub const LOG_SMOLTCP: bool = false;
@@ -63,7 +64,8 @@ struct NetHandler {
 }
 
 impl NetHandler {
-    fn handle(&mut self, op: NetworkOp, is: &mut GateIStream) -> Result<(), Error> {
+    fn handle(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+        let op = is.pop::<NetworkOp>()?;
         log!(
             LOG_DEF,
             "net::handle(net_op={:?}, session={})",
@@ -97,27 +99,32 @@ impl NetHandler {
         }
     }
 
-    fn tick_receive(&mut self) {
+    // processes outgoing events to clients
+    fn process_outgoing(&mut self) {
         for i in 0..self.sessions.capacity() {
             if let Some(sess) = self.sessions.get_mut(i) {
                 match sess {
-                    NetworkSession::SocketSession(ss) => ss.receive(&mut self.socket_set),
+                    NetworkSession::SocketSession(ss) => ss.process_outgoing(&mut self.socket_set),
                     _ => {},
                 }
             }
         }
     }
 
-    // Checks each socket session if it should send data. If so, queues the send on the socket.
-    fn tick_send(&mut self) {
+    // processes incoming events from clients and returns whether there is still work to do
+    fn process_incoming(&mut self) -> bool {
+        let mut res = false;
         for i in 0..self.sessions.capacity() {
             if let Some(sess) = self.sessions.get_mut(i) {
                 match sess {
-                    NetworkSession::SocketSession(ss) => ss.send(&mut self.socket_set),
+                    NetworkSession::SocketSession(ss) => {
+                        res |= ss.process_incoming(&mut self.socket_set)
+                    },
                     _ => {},
                 }
             }
         }
+        res
     }
 }
 
@@ -184,13 +191,6 @@ impl Handler<NetworkSession> for NetHandler {
         driver stop?
         rgate stop
          */
-    }
-}
-
-/// Executes the server loop, calling `func` in every iteration.
-pub fn my_server_loop<F: FnMut() -> Result<(), Error>>(mut func: F) -> Result<(), Error> {
-    loop {
-        func()?;
     }
 }
 
@@ -264,49 +264,55 @@ pub fn main() -> i32 {
 
     log!(LOG_DEF, "Started net server");
 
-    let mut clock = smoltcp::time::Instant::from_millis(0);
+    'outer: loop {
+        let sleep_nanos = loop {
+            if serv.handle_ctrl_chan(&mut handler).is_err() {
+                break 'outer;
+            }
 
-    my_server_loop(|| {
-        // log!(crate::LOG_DEF, "POLL");
-        serv.handle_ctrl_chan(&mut handler)?;
-        {
             // Check if we got some messages through our main rgate.
             if let Some(msg) = rgatec.fetch() {
                 let mut is = GateIStream::new(msg, &rgatec);
-                let op = is.pop::<NetworkOp>()?;
-                if let Err(e) = handler.handle(op, &mut is) {
+                if let Err(e) = handler.handle(&mut is) {
                     is.reply_error(e.code()).ok();
                 }
             }
-        }
 
-        // Tick all socket sessions to receive packages that are in the tcp socket.
-        handler.tick_receive();
-        // Tick all socket sessions to send data thats on the channel to the socket.
-        handler.tick_send();
+            // receive events from clients and push data to send into smoltcp sockets
+            let sends_pending = handler.process_incoming();
 
-        // log!(crate::LOG_DEF, "Poll");
-        match iface.poll(&mut handler.socket_set, clock) {
-            Ok(_) => {},
-            Err(_e) => {
-                // Not loging any error since those happen fairly often.
-                // TODO match error and lock the important ones.
-                // log!(LOG_DEF, "Poll error: {}", e);
-            },
-        }
-        // log!(crate::LOG_DEF, "Poll Delay");
-        match iface.poll_delay(&handler.socket_set, clock) {
-            Some(Duration { millis: 0 }) => clock += Duration::from_millis(1),
-            Some(delay) => {
-                // log!(LOG_DEF, "sleeping for {} ms", delay);
-                clock += delay;
-            },
-            None => clock += Duration::from_millis(1),
-        }
+            let cur_time = smoltcp::time::Instant::from_millis(TCU::nanotime() as i64 / 1_000_000);
 
-        Ok(())
-    })
-    .ok();
+            // now poll smoltcp to send and receive packets
+            let activity = match iface.poll(&mut handler.socket_set, cur_time) {
+                Ok(a) => a,
+                Err(e) => {
+                    log!(LOG_ERR, "Poll error: {}", e);
+                    false
+                },
+            };
+
+            // if there was activity, check for outgoing events we have to send to clients
+            if activity {
+                handler.process_outgoing();
+            }
+
+            if !sends_pending {
+                // ask smoltcp how long we can sleep
+                match iface.poll_delay(&handler.socket_set, cur_time) {
+                    // we need to call it again immediately => continue the loop
+                    Some(Duration { millis: 0 }) => continue,
+                    // we should not wait longer than `n` => sleep for `n`
+                    Some(n) => break n.total_millis() as u64 * 1_000_000,
+                    // smoltcp has nothing to do => sleep until the next TCU message arrives
+                    None => break 0,
+                }
+            }
+        };
+
+        log!(LOG_DEF, "Sleeping for {} ns", sleep_nanos);
+        m3::pes::VPE::sleep_for(sleep_nanos).ok();
+    }
 
     log!(crate::LOG_DEF, "SERVER ENDED");
     0

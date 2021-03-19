@@ -114,7 +114,11 @@ impl NetEventChannel {
                 .order(math::next_log2(MSG_BUF_SIZE))
                 .flags(CapFlags::KEEP_CAP),
         )?;
-        let sgate = SendGate::new_with(SGateArgs::new(&rgate_cli).sel(caps + 1))?;
+        let sgate = SendGate::new_with(
+            SGateArgs::new(&rgate_cli)
+                .sel(caps + 1)
+                .credits(MSG_CREDITS as u32),
+        )?;
 
         let mut rpl_gate =
             RecvGate::new(math::next_log2(REPLY_BUF_SIZE), math::next_log2(REPLY_SIZE))?;
@@ -146,6 +150,10 @@ impl NetEventChannel {
             rpl_gate,
             sgate: SendGate::new_bind(caps + 1),
         }))
+    }
+
+    pub fn can_send(&self) -> Result<bool, Error> {
+        self.sgate.can_send()
     }
 
     pub fn has_events(&self) -> bool {
@@ -284,17 +292,9 @@ impl NetEvent {
 impl Drop for NetEvent {
     fn drop(&mut self) {
         if self.ack {
-            // the server returns credits to the client via reply
-            if self.channel.side == NetEventSide::Server {
-                // reply empty message; ignore failures here
-                let reply = MsgBuf::borrow_def();
-                self.channel.rgate.reply(&reply, self.msg).ok();
-            }
-            // the client just acks the messages
-            else {
-                // ignore failures here
-                self.channel.rgate.ack_msg(self.msg).ok();
-            }
+            // reply empty message; ignore failures here
+            let reply = MsgBuf::borrow_def();
+            self.channel.rgate.reply(&reply, self.msg).ok();
         }
     }
 }
