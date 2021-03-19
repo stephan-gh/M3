@@ -229,7 +229,7 @@ def main():
     print("Stopping all PEs...")
     for i, pe in enumerate(fpga_inst.pms, 0):
         try:
-            print("PM{}: dropped {} flits".format(i, pe.tcu_drop_flit_count()))
+            print("PM{}: dropped/error flits: {}/{}".format(i, pe.tcu_drop_flit_count(), pe.tcu_error_flit_count()))
         except Exception as e:
             print("PM{}: unable to read number of dropped flits: {}".format(i, e))
 
