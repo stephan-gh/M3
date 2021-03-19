@@ -97,8 +97,8 @@ def load_prog(pm, i, args, vm):
     # enable instruction trace for all PEs (doesn't cost anything)
     pm.rocket_enableTrace()
 
-    # make privileged
-    pm.tcu_set_privileged(1)
+    # set features: privileged, vm, ctxsw
+    pm.tcu_set_features(1, vm, vm)
 
     # invalidate all EPs
     for ep in range(0, 63):
