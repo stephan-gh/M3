@@ -73,7 +73,7 @@ pub struct SocketSession {
 impl Drop for SocketSession {
     fn drop(&mut self) {
         for i in 0..MAX_SOCKETS {
-            self.release_sd(i)
+            self.remove_socket(i)
         }
     }
 }
@@ -248,13 +248,6 @@ impl SocketSession {
         }
     }
 
-    fn remove_socket(&mut self, sd: Sd) {
-        // if there is a socket, delete it.
-        if self.sockets.get(sd).is_some() {
-            self.sockets[sd] = None;
-        }
-    }
-
     fn add_socket(&mut self, socket: SocketHandle, ty: SocketType) -> Result<Sd, Error> {
         for (i, s) in self.sockets.iter_mut().enumerate() {
             if s.is_none() {
@@ -265,8 +258,11 @@ impl SocketSession {
         Err(Error::new(Code::NoSpace))
     }
 
-    fn release_sd(&mut self, sd: Sd) {
-        self.sockets[sd] = None;
+    fn remove_socket(&mut self, sd: Sd) {
+        // if there is a socket, delete it.
+        if self.sockets.get(sd).is_some() {
+            self.sockets[sd] = None;
+        }
     }
 
     pub fn create(

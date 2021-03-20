@@ -327,7 +327,10 @@ impl Socket {
             },
             SocketType::Dgram => {
                 // on udp send dictates the destination
-                let rend = endpoint(dest_addr, dest_port);
+                let rend = IpEndpoint::new(
+                    IpAddress::Ipv4(Ipv4Address::from_bytes(&dest_addr.0.to_be_bytes())),
+                    dest_port,
+                );
                 let mut udp_socket = socket_set.get::<UdpSocket>(self.socket);
                 log!(
                     crate::LOG_DEF,
@@ -359,11 +362,4 @@ impl Socket {
 
         res
     }
-}
-
-fn endpoint(addr: IpAddr, port: u16) -> IpEndpoint {
-    IpEndpoint::new(
-        IpAddress::Ipv4(Ipv4Address::from_bytes(&addr.0.to_be_bytes())),
-        port,
-    )
 }
