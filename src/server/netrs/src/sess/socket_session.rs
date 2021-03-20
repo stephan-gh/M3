@@ -485,28 +485,23 @@ impl SocketSession {
             NetEventType::DATA => {
                 let data = event.msg::<event::DataMessage>();
                 if let Some(socket) = self.get_socket(data.sd as Sd) {
-                    // if no buffers are available, remember the event for later
-                    if !socket.borrow().can_send(socket_set) {
+                    log!(crate::LOG_DEF, "got packet of {} bytes to send", data.size);
+
+                    let succeeded = socket.borrow_mut().send_data_slice(
+                        &data.data[0..data.size as usize],
+                        IpAddr(data.addr as u32),
+                        data.port as u16,
+                        socket_set,
+                    );
+                    if succeeded.is_err() {
+                        // if no buffers are available, remember the event for later
                         log!(
                             crate::LOG_DEF,
                             "no buffer space, delaying send of {} bytes",
                             data.size
                         );
                         self.send_queue.push_back(event);
-                        return false;
                     }
-
-                    log!(crate::LOG_DEF, "got packet of {} bytes to send", data.size);
-
-                    socket
-                        .borrow_mut()
-                        .send_data_slice(
-                            &data.data[0..data.size as usize],
-                            IpAddr(data.addr as u32),
-                            data.port as u16,
-                            socket_set,
-                        )
-                        .unwrap();
                 }
             },
 

@@ -99,7 +99,9 @@ impl Socket {
                 if tcp_socket.state() == TcpState::Established {
                     self.state = State::Connected;
                     let (ip, port) = crate::util::to_m3_addr(tcp_socket.remote_endpoint());
-                    Some(SendNetEvent::Connected(event::ConnectedMessage::new(self.sd, ip, port)))
+                    Some(SendNetEvent::Connected(event::ConnectedMessage::new(
+                        self.sd, ip, port,
+                    )))
                 }
                 else {
                     None
@@ -270,82 +272,77 @@ impl Socket {
         self.state = State::None;
     }
 
-    pub fn can_send(&self, socket_set: &mut SocketSet<'static>) -> bool {
-        match self.ty {
-            SocketType::Stream => {
-                let tcp_socket = socket_set.get::<TcpSocket>(self.socket);
-                tcp_socket.can_send()
-            },
-            SocketType::Dgram => {
-                let udp_socket = socket_set.get::<UdpSocket>(self.socket);
-                udp_socket.can_send()
-            },
-            SocketType::Raw => {
-                let raw_socket = socket_set.get::<RawSocket>(self.socket);
-                raw_socket.can_send()
-            },
-            SocketType::Undefined => false,
-        }
-    }
-
-    /// Send data over this socket connect, if everything is set alright. Returns the smoltcp error if something failed.
     pub fn send_data_slice(
         &mut self,
         data: &[u8],
         dest_addr: IpAddr,
         dest_port: u16,
         socket_set: &mut SocketSet<'static>,
-    ) -> Result<usize, smoltcp::Error> {
-        let size = data.len() as usize;
-        log!(crate::LOG_DEF, "send_data: size={}", size);
-
-        let res = match self.ty {
+    ) -> Result<(), Error> {
+        match self.ty {
             SocketType::Stream => {
                 let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
+                if !tcp_socket.can_send() {
+                    return Err(Error::new(Code::NoSpace));
+                }
+
                 log!(
                     crate::LOG_DEF,
                     "TCP: Send: src={}, dst={}, data_size={}",
                     tcp_socket.local_endpoint(),
                     tcp_socket.remote_endpoint(),
-                    size
+                    data.len() as usize
                 );
-                tcp_socket.send_slice(data)
+
+                tcp_socket.send_slice(data).unwrap();
+                Ok(())
             },
+
             SocketType::Dgram => {
+                let mut udp_socket = socket_set.get::<UdpSocket>(self.socket);
+                if !udp_socket.can_send() {
+                    return Err(Error::new(Code::NoSpace));
+                }
+
                 // on udp send dictates the destination
                 let rend = IpEndpoint::new(
                     IpAddress::Ipv4(Ipv4Address::from_bytes(&dest_addr.0.to_be_bytes())),
                     dest_port,
                 );
-                let mut udp_socket = socket_set.get::<UdpSocket>(self.socket);
+
                 log!(
                     crate::LOG_DEF,
-                    "UDP: Send: dst={}, data_size={} (can_send={}, capacity={}, bytes={})",
+                    "UDP: Send: dst={}, data_size={} (capacity={}, bytes={})",
                     rend,
-                    size,
-                    udp_socket.can_send(),
+                    data.len() as usize,
                     udp_socket.packet_send_capacity(),
                     udp_socket.payload_send_capacity(),
                 );
-                match udp_socket.send_slice(data, rend) {
-                    Ok(_) => Ok(size),
-                    Err(e) => Err(e),
-                }
+
+                udp_socket.send_slice(data, rend).unwrap();
+                Ok(())
             },
+
             SocketType::Raw => {
                 let mut raw_socket = socket_set.get::<RawSocket>(self.socket);
-                log!(crate::LOG_DEF, "RAW: Send: data_size={}", size);
-                match raw_socket.send_slice(data) {
-                    Ok(_) => Ok(size),
-                    Err(e) => Err(e),
+                if !raw_socket.can_send() {
+                    return Err(Error::new(Code::NoSpace));
                 }
+
+                log!(
+                    crate::LOG_DEF,
+                    "RAW: Send: data_size={}",
+                    data.len() as usize
+                );
+
+                raw_socket.send_slice(data).unwrap();
+                Ok(())
             },
+
             SocketType::Undefined => {
                 log!(crate::LOG_DEF, "Can't send on undefined socket!");
-                Ok(0)
+                Err(Error::new(Code::NotSup))
             },
-        };
-
-        res
+        }
     }
 }
