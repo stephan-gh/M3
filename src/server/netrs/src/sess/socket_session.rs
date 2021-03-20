@@ -43,7 +43,7 @@ use smoltcp::storage::PacketMetadata;
 use smoltcp::wire::{IpAddress, IpEndpoint, IpVersion, Ipv4Address};
 
 use crate::sess::file_session::FileSession;
-use crate::smoltcpif::socket::{Socket, TCP_HEADER_SIZE, UDP_HEADER_SIZE};
+use crate::smoltcpif::socket::{SendNetEvent, Socket, TCP_HEADER_SIZE, UDP_HEADER_SIZE};
 
 pub const MAX_SEND_BUF_PACKETS: usize = 8;
 pub const MAX_RECV_BUF_PACKETS: usize = 32;
@@ -547,33 +547,17 @@ impl SocketSession {
                     break;
                 }
 
-                if let Some(ep) = socket.borrow_mut().got_connected(socket_set) {
-                    log!(crate::LOG_DEF, "Socket {} is connected now", socket_sd);
-                    let (ip, port) = crate::util::to_m3_addr(ep);
-                    chan.send_connected(socket_sd, ip, port).unwrap();
-                }
-
-                match socket.borrow_mut().got_closed(socket_set) {
-                    1 => {
-                        log!(crate::LOG_DEF, "Socket {} is closed now", socket_sd);
-
-                        // remove all pending events from queue
-                        self.send_queue.retain(|e| e.sd() != socket_sd);
-
-                        chan.send_closed(socket_sd).unwrap();
-                    },
-
-                    2 => {
-                        log!(
-                            crate::LOG_DEF,
-                            "Socket {} got closed by remote side",
-                            socket_sd
-                        );
-
-                        chan.send_close_req(socket_sd).unwrap();
-                    },
-
-                    _ => {},
+                if let Some(event) = socket.borrow_mut().fetch_event(socket_set) {
+                    log!(crate::LOG_DEF, "Socket got event {:?}", event);
+                    match event {
+                        SendNetEvent::Connected(e) => chan.send_event(e).unwrap(),
+                        SendNetEvent::Closed(e) => {
+                            // remove all pending events from queue
+                            self.send_queue.retain(|e| e.sd() != socket_sd);
+                            chan.send_event(e).unwrap()
+                        },
+                        SendNetEvent::CloseReq(e) => chan.send_event(e).unwrap(),
+                    }
                 }
 
                 socket

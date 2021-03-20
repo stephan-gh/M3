@@ -57,6 +57,7 @@ pub struct DataMessage {
     pub data: [u8; MTU],
 }
 
+#[derive(Debug)]
 #[repr(C)]
 pub struct ConnectedMessage {
     ty: u64,
@@ -65,16 +66,47 @@ pub struct ConnectedMessage {
     pub remote_port: u64,
 }
 
+impl ConnectedMessage {
+    pub fn new(sd: Sd, remote_addr: IpAddr, remote_port: Port) -> Self {
+        Self {
+            ty: NetEventType::CONNECTED.val,
+            sd: sd as u64,
+            remote_addr: remote_addr.0 as u64,
+            remote_port: remote_port as u64,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[repr(C)]
 pub struct ClosedMessage {
     ty: u64,
     pub sd: u64,
 }
 
+impl ClosedMessage {
+    pub fn new(sd: Sd) -> Self {
+        Self {
+            ty: NetEventType::CLOSED.val,
+            sd: sd as u64,
+        }
+    }
+}
+
+#[derive(Debug)]
 #[repr(C)]
 pub struct CloseReqMessage {
     ty: u64,
     pub sd: u64,
+}
+
+impl CloseReqMessage {
+    pub fn new(sd: Sd) -> Self {
+        Self {
+            ty: NetEventType::CLOSE_REQ.val,
+            sd: sd as u64,
+        }
+    }
 }
 
 #[derive(Eq, PartialEq)]
@@ -166,6 +198,12 @@ impl NetEventChannel {
             .map(|msg| NetEvent::new(msg, self.clone()))
     }
 
+    pub fn send_event<E>(&self, event: E) -> Result<(), Error> {
+        let mut msg_buf = MsgBuf::borrow_def();
+        msg_buf.set(event);
+        self.sgate.send(&msg_buf, &self.rpl_gate)
+    }
+
     pub fn send_data<F>(
         &self,
         sd: Sd,
@@ -197,40 +235,6 @@ impl NetEventChannel {
         let msg_size = 5 * mem::size_of::<u64>() + size;
         self.sgate
             .send_aligned(&msg as *const _ as *const u8, msg_size, &self.rpl_gate)
-    }
-
-    pub fn send_connected(
-        &self,
-        sd: Sd,
-        remote_addr: IpAddr,
-        remote_port: Port,
-    ) -> Result<(), Error> {
-        let mut msg_buf = MsgBuf::borrow_def();
-        msg_buf.set(ConnectedMessage {
-            ty: NetEventType::CONNECTED.val,
-            sd: sd as u64,
-            remote_addr: remote_addr.0 as u64,
-            remote_port: remote_port as u64,
-        });
-        self.sgate.send(&msg_buf, &self.rpl_gate)
-    }
-
-    pub fn send_closed(&self, sd: Sd) -> Result<(), Error> {
-        let mut msg_buf = MsgBuf::borrow_def();
-        msg_buf.set(ClosedMessage {
-            ty: NetEventType::CLOSED.val,
-            sd: sd as u64,
-        });
-        self.sgate.send(&msg_buf, &self.rpl_gate)
-    }
-
-    pub fn send_close_req(&self, sd: Sd) -> Result<(), Error> {
-        let mut msg_buf = MsgBuf::borrow_def();
-        msg_buf.set(CloseReqMessage {
-            ty: NetEventType::CLOSE_REQ.val,
-            sd: sd as u64,
-        });
-        self.sgate.send(&msg_buf, &self.rpl_gate)
     }
 
     pub fn fetch_replies(&self) {

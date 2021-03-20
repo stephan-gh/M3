@@ -136,7 +136,7 @@ impl NetworkManager {
     }
 
     pub(crate) fn close(&self, sd: Sd) -> Result<(), Error> {
-        self.channel.send_close_req(sd)
+        self.channel.send_event(event::CloseReqMessage::new(sd))
     }
 
     pub(crate) fn abort(&self, sd: Sd, remove: bool) -> Result<(), Error> {

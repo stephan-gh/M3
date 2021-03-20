@@ -17,7 +17,7 @@
 use m3::cell::RefCell;
 use m3::errors::{Code, Error};
 use m3::log;
-use m3::net::{IpAddr, Sd, SocketType};
+use m3::net::{event, IpAddr, Sd, SocketType};
 use m3::rc::Rc;
 
 use smoltcp;
@@ -31,7 +31,14 @@ use crate::sess::FileSession;
 pub const TCP_HEADER_SIZE: usize = 32;
 pub const UDP_HEADER_SIZE: usize = 8;
 
-#[derive(Eq, PartialEq)]
+#[derive(Debug)]
+pub enum SendNetEvent {
+    Connected(event::ConnectedMessage),
+    Closed(event::ClosedMessage),
+    CloseReq(event::CloseReqMessage),
+}
+
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub enum State {
     None,
     Connecting,
@@ -85,57 +92,36 @@ impl Socket {
         self.sfile = file;
     }
 
-    pub fn got_connected(&mut self, socket_set: &mut SocketSet<'static>) -> Option<IpEndpoint> {
-        if self.state == State::Connecting {
-            match self.ty {
-                SocketType::Stream => {
-                    let tcp_socket = socket_set.get::<TcpSocket>(self.socket);
-                    if tcp_socket.state() == TcpState::Established {
-                        self.state = State::Connected;
-                        Some(tcp_socket.remote_endpoint())
-                    }
-                    else {
-                        None
-                    }
-                },
-                _ => None,
-            }
-        }
-        else {
-            None
-        }
-    }
+    pub fn fetch_event(&mut self, socket_set: &mut SocketSet<'static>) -> Option<SendNetEvent> {
+        match (self.ty, self.state) {
+            (SocketType::Stream, State::Connecting) => {
+                let tcp_socket = socket_set.get::<TcpSocket>(self.socket);
+                if tcp_socket.state() == TcpState::Established {
+                    self.state = State::Connected;
+                    let (ip, port) = crate::util::to_m3_addr(tcp_socket.remote_endpoint());
+                    Some(SendNetEvent::Connected(event::ConnectedMessage::new(self.sd, ip, port)))
+                }
+                else {
+                    None
+                }
+            },
 
-    pub fn got_closed(&mut self, socket_set: &mut SocketSet<'static>) -> u32 {
-        if self.state == State::Connected {
-            let closed = match self.ty {
-                SocketType::Stream => {
-                    let tcp_socket = socket_set.get::<TcpSocket>(self.socket);
-                    if !tcp_socket.is_open() {
-                        1
-                    }
-                    // remote side has closed the connection?
-                    else if tcp_socket.state() == TcpState::CloseWait {
-                        2
-                    }
-                    else {
-                        0
-                    }
-                },
-                SocketType::Dgram => {
-                    let udp_socket = socket_set.get::<UdpSocket>(self.socket);
-                    !udp_socket.is_open() as u32
-                },
-                _ => 0,
-            };
+            (SocketType::Stream, State::Connected) => {
+                let tcp_socket = socket_set.get::<TcpSocket>(self.socket);
+                if !tcp_socket.is_open() {
+                    self.state = State::None;
+                    Some(SendNetEvent::Closed(event::ClosedMessage::new(self.sd)))
+                }
+                // remote side has closed the connection?
+                else if tcp_socket.state() == TcpState::CloseWait {
+                    Some(SendNetEvent::CloseReq(event::CloseReqMessage::new(self.sd)))
+                }
+                else {
+                    None
+                }
+            },
 
-            if closed == 1 {
-                self.state = State::None;
-            }
-            closed
-        }
-        else {
-            0
+            _ => None,
         }
     }
 
