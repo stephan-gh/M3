@@ -36,7 +36,8 @@ use m3::{log, reply_vmsg, vec};
 use smoltcp;
 use smoltcp::socket::SocketSet;
 use smoltcp::socket::{
-    RawSocket, RawSocketBuffer, TcpSocket, TcpSocketBuffer, UdpSocket, UdpSocketBuffer,
+    RawSocket, RawSocketBuffer, SocketHandle, TcpSocket, TcpSocketBuffer, UdpSocket,
+    UdpSocketBuffer,
 };
 use smoltcp::storage::PacketMetadata;
 use smoltcp::wire::{IpAddress, IpEndpoint, IpVersion, Ipv4Address};
@@ -193,8 +194,8 @@ impl SocketSession {
                 return Err(Error::new(Code::InvArgs));
             }
 
-            if (socket.borrow().rfile.is_some() && ((mode & OpenFlags::R.bits()) > 0))
-                || (socket.borrow().sfile.is_some() && ((mode & OpenFlags::W.bits()) > 0))
+            if (socket.borrow().recv_file().is_some() && ((mode & OpenFlags::R.bits()) > 0))
+                || (socket.borrow().send_file().is_some() && ((mode & OpenFlags::W.bits()) > 0))
             {
                 log!(
                     crate::LOG_DEF,
@@ -212,10 +213,10 @@ impl SocketSession {
                 smemsize,
             )?;
             if file.borrow().is_recv() {
-                socket.borrow_mut().rfile = Some(file.clone());
+                socket.borrow_mut().set_recv_file(Some(file.clone()));
             }
             if file.borrow().is_send() {
-                socket.borrow_mut().sfile = Some(file.clone());
+                socket.borrow_mut().set_send_file(Some(file.clone()));
             }
 
             xchg.out_caps(file.borrow().caps());
@@ -254,11 +255,10 @@ impl SocketSession {
         }
     }
 
-    fn request_sd(&mut self, mut socket: Socket) -> Result<Sd, Error> {
+    fn add_socket(&mut self, socket: SocketHandle, ty: SocketType) -> Result<Sd, Error> {
         for (i, s) in self.sockets.iter_mut().enumerate() {
             if s.is_none() {
-                socket.sd = i;
-                *s = Some(Rc::new(RefCell::new(socket)));
+                *s = Some(Rc::new(RefCell::new(Socket::new(i, socket, ty))));
                 return Ok(i);
             }
         }
@@ -286,38 +286,32 @@ impl SocketSession {
         );
 
         let socket_handle = match ty {
-            SocketType::Stream => {
-                socket_set.add(TcpSocket::new(
-                    TcpSocketBuffer::new(vec![0 as u8; TCP_BUFFER_SIZE]),
-                    TcpSocketBuffer::new(vec![0 as u8; TCP_BUFFER_SIZE]),
-                ))
-            },
-            SocketType::Dgram => {
-                socket_set.add(UdpSocket::new(
-                    UdpSocketBuffer::new(
-                        vec![PacketMetadata::EMPTY; MAX_RECV_BUF_PACKETS],
-                        vec![0 as u8; UDP_BUFFER_SIZE],
-                    ),
-                    UdpSocketBuffer::new(
-                        vec![PacketMetadata::EMPTY; MAX_SEND_BUF_PACKETS],
-                        vec![0 as u8; UDP_BUFFER_SIZE],
-                    ),
-                ))
-            },
-            SocketType::Raw => {
-                socket_set.add(RawSocket::new(
-                    IpVersion::Ipv4,
-                    protocol.into(),
-                    RawSocketBuffer::new(
-                        vec![PacketMetadata::EMPTY; MSG_BUF_SIZE],
-                        vec![0 as u8; RAW_BUFFER_SIZE],
-                    ),
-                    RawSocketBuffer::new(
-                        vec![PacketMetadata::EMPTY; MSG_BUF_SIZE],
-                        vec![0 as u8; RAW_BUFFER_SIZE],
-                    ),
-                ))
-            },
+            SocketType::Stream => socket_set.add(TcpSocket::new(
+                TcpSocketBuffer::new(vec![0 as u8; TCP_BUFFER_SIZE]),
+                TcpSocketBuffer::new(vec![0 as u8; TCP_BUFFER_SIZE]),
+            )),
+            SocketType::Dgram => socket_set.add(UdpSocket::new(
+                UdpSocketBuffer::new(
+                    vec![PacketMetadata::EMPTY; MAX_RECV_BUF_PACKETS],
+                    vec![0 as u8; UDP_BUFFER_SIZE],
+                ),
+                UdpSocketBuffer::new(
+                    vec![PacketMetadata::EMPTY; MAX_SEND_BUF_PACKETS],
+                    vec![0 as u8; UDP_BUFFER_SIZE],
+                ),
+            )),
+            SocketType::Raw => socket_set.add(RawSocket::new(
+                IpVersion::Ipv4,
+                protocol.into(),
+                RawSocketBuffer::new(
+                    vec![PacketMetadata::EMPTY; MSG_BUF_SIZE],
+                    vec![0 as u8; RAW_BUFFER_SIZE],
+                ),
+                RawSocketBuffer::new(
+                    vec![PacketMetadata::EMPTY; MSG_BUF_SIZE],
+                    vec![0 as u8; RAW_BUFFER_SIZE],
+                ),
+            )),
             _ => {
                 log!(crate::LOG_DEF, "create failed: invalid socket type");
                 return Err(Error::new(Code::InvArgs));
@@ -325,8 +319,7 @@ impl SocketSession {
         };
 
         // Create the abstract socket from some created socket instance
-        let socket = Socket::from_smol_socket(socket_handle, ty);
-        let sd = match self.request_sd(socket) {
+        let sd = match self.add_socket(socket_handle, ty) {
             Ok(sd) => sd,
             Err(_e) => {
                 // TODO release socket
@@ -551,7 +544,7 @@ impl SocketSession {
         // iterate over all sockets and try to receive
         for socket in self.sockets.iter() {
             if let Some(socket) = socket {
-                let socket_sd = socket.borrow().sd;
+                let socket_sd = socket.borrow().sd();
 
                 // if we don't have credits anymore to send events, stop here. we'll get a reply
                 // to one of our earlier events and get credits back with this, so that we'll wake

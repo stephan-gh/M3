@@ -15,7 +15,6 @@
  */
 
 use m3::cell::RefCell;
-use m3::com::RecvGate;
 use m3::errors::{Code, Error};
 use m3::log;
 use m3::net::{IpAddr, Sd, SocketType};
@@ -41,32 +40,49 @@ pub enum State {
 
 /// Socket abstraction
 pub struct Socket {
-    pub sd: Sd,
+    sd: Sd,
     // The handle into the global socket set, used to get the smol socket.
-    pub socket: SocketHandle,
+    socket: SocketHandle,
     // tracks the internal type
-    pub ty: SocketType,
-    pub state: State,
+    ty: SocketType,
+    state: State,
 
-    pub rgate: Option<Rc<RefCell<RecvGate>>>,
     // Might be a file session
-    pub rfile: Option<Rc<RefCell<FileSession>>>,
-    pub sfile: Option<Rc<RefCell<FileSession>>>,
+    rfile: Option<Rc<RefCell<FileSession>>>,
+    sfile: Option<Rc<RefCell<FileSession>>>,
 }
 
 impl Socket {
-    pub fn from_smol_socket(socket: SocketHandle, ty: SocketType) -> Self {
+    pub fn new(sd: Sd, socket: SocketHandle, ty: SocketType) -> Self {
         Socket {
-            sd: Sd::MAX, // Invalid socket for now
+            sd,
             socket,
             ty,
             state: State::None,
 
-            rgate: None,
-
             rfile: None,
             sfile: None,
         }
+    }
+
+    pub fn sd(&self) -> Sd {
+        self.sd
+    }
+
+    pub fn recv_file(&self) -> Option<&Rc<RefCell<FileSession>>> {
+        self.rfile.as_ref()
+    }
+
+    pub fn send_file(&self) -> Option<&Rc<RefCell<FileSession>>> {
+        self.sfile.as_ref()
+    }
+
+    pub fn set_recv_file(&mut self, file: Option<Rc<RefCell<FileSession>>>) {
+        self.rfile = file;
+    }
+
+    pub fn set_send_file(&mut self, file: Option<Rc<RefCell<FileSession>>>) {
+        self.sfile = file;
     }
 
     pub fn got_connected(&mut self, socket_set: &mut SocketSet<'static>) -> Option<IpEndpoint> {
