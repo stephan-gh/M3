@@ -24,7 +24,6 @@ use smoltcp::socket::SocketSet;
 
 pub mod file_session;
 pub mod socket_session;
-pub mod sockets;
 
 pub use file_session::FileSession;
 pub use socket_session::SocketSession;

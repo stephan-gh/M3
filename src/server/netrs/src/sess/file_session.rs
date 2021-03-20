@@ -27,7 +27,7 @@ use m3::tcu;
 use m3::vfs::OpenFlags;
 use m3::{log, reply_vmsg};
 
-use crate::sess::sockets::*;
+use crate::smoltcpif::socket::Socket;
 
 pub struct FileSession {
     sel: Selector,

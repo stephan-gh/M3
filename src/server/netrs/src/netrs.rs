@@ -45,7 +45,7 @@ use crate::sess::NetworkSession;
 
 mod driver;
 mod sess;
-mod smoltcplogger;
+mod smoltcpif;
 mod util;
 
 pub const LOG_ERR: bool = true;
@@ -205,7 +205,7 @@ pub fn main() -> i32 {
 
     let name = args.get(1).expect("Failed to read name!");
 
-    smoltcplogger::init().unwrap();
+    smoltcpif::logger::init().unwrap();
 
     let ip = smoltcp::wire::Ipv4Address::from_str(args.get(2).expect("Failed to read ip!"))
         .expect("Failed to convert IP address!");
