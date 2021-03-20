@@ -23,7 +23,7 @@ use m3::col::{Vec, VecDeque};
 use m3::com::{GateIStream, RecvGate, SendGate};
 use m3::errors::{Code, Error};
 use m3::net::{
-    event, IpAddr, NetEvent, NetEventChannel, NetEventType, Sd, SocketType, MAX_NETDATA_SIZE,
+    event, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketType, MAX_NETDATA_SIZE,
     MSG_BUF_SIZE,
 };
 use m3::rc::Rc;
@@ -338,7 +338,7 @@ impl SocketSession {
     ) -> Result<(), Error> {
         let sd: Sd = is.pop()?;
         let addr: u32 = is.pop()?;
-        let port: u16 = is.pop()?;
+        let port: Port = is.pop()?;
 
         let endpoint = IpEndpoint::new(
             IpAddress::Ipv4(Ipv4Address::from_bytes(&addr.to_be_bytes())),
@@ -371,7 +371,7 @@ impl SocketSession {
     ) -> Result<(), Error> {
         let sd: Sd = is.pop()?;
         let addr: u32 = is.pop()?;
-        let port: u16 = is.pop()?;
+        let port: Port = is.pop()?;
         let endpoint = IpEndpoint::new(
             IpAddress::Ipv4(Ipv4Address::from_bytes(&addr.to_be_bytes())),
             port,
@@ -402,8 +402,8 @@ impl SocketSession {
     ) -> Result<(), Error> {
         let sd: Sd = is.pop()?;
         let remote_addr: u32 = is.pop()?;
-        let remote_port: u16 = is.pop()?;
-        let local_port: u16 = is.pop()?;
+        let remote_port: Port = is.pop()?;
+        let local_port: Port = is.pop()?;
 
         let remote_endpoint = IpEndpoint::new(
             IpAddress::Ipv4(Ipv4Address::from_bytes(&remote_addr.to_be_bytes())),
@@ -492,7 +492,7 @@ impl SocketSession {
                     let succeeded = socket.borrow_mut().send_data_slice(
                         &data.data[0..data.size as usize],
                         IpAddr(data.addr as u32),
-                        data.port as u16,
+                        data.port as Port,
                         socket_set,
                     );
                     if succeeded.is_err() {

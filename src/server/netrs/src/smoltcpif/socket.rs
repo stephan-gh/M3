@@ -287,7 +287,7 @@ impl Socket {
         &mut self,
         data: &[u8],
         dest_addr: IpAddr,
-        dest_port: u16,
+        dest_port: Port,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         match self.ty {
