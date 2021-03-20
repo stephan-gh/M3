@@ -75,12 +75,6 @@ impl SocketSession {
         srv_sel: Selector,
         xchg: &mut CapExchange,
     ) -> Result<(), Error> {
-        log!(
-            crate::LOG_DEF,
-            "SocketSession::obtain with {} in caps",
-            xchg.in_caps()
-        );
-
         if xchg.in_caps() == 1 {
             self.get_sgate(xchg)
         }
@@ -105,13 +99,6 @@ impl SocketSession {
         }
 
         let label = self.server_session.ident() as tcu::Label;
-
-        log!(
-            crate::LOG_DEF,
-            "SocketSession::get_sgate with label={}",
-            label
-        );
-
         self.sgate = Some(SendGate::new_with(
             m3::com::SGateArgs::new(&self.rgate).label(label).credits(1),
         )?);
@@ -125,8 +112,6 @@ impl SocketSession {
     }
 
     fn connect_nm(&mut self, xchg: &mut CapExchange) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "Establishing channel for socket session");
-
         // 2 caps for us, 2 for the client
         let caps = m3::pes::VPE::cur().alloc_sels(4);
         self.channel = Some(NetEventChannel::new_server(caps)?);
@@ -159,7 +144,7 @@ impl SocketSession {
             .expect("Failed to get smemsize");
 
         log!(
-            crate::LOG_DEF,
+            crate::LOG_SESS,
             "socket_session::open_file(sd={}, mode={}, rmemsize={}, smemsize={})",
             sd,
             mode,
@@ -169,7 +154,7 @@ impl SocketSession {
         // Create socket for file
         if let Some(socket) = self.get_socket(sd) {
             if (mode & OpenFlags::RW.bits()) == 0 {
-                log!(crate::LOG_DEF, "open_file failed: invalid mode");
+                log!(crate::LOG_SESS, "open_file failed: invalid mode");
                 return Err(Error::new(Code::InvArgs));
             }
 
@@ -177,7 +162,7 @@ impl SocketSession {
                 || (socket.borrow().send_file().is_some() && ((mode & OpenFlags::W.bits()) > 0))
             {
                 log!(
-                    crate::LOG_DEF,
+                    crate::LOG_SESS,
                     "open_file failed: socket already has a file session attached"
                 );
                 return Err(Error::new(Code::InvArgs));
@@ -201,7 +186,7 @@ impl SocketSession {
             xchg.out_caps(file.borrow().caps());
 
             log!(
-                crate::LOG_DEF,
+                crate::LOG_SESS,
                 "open_file: {}@{}{}",
                 sd,
                 if file.borrow().is_recv() { "r" } else { "" },
@@ -211,7 +196,7 @@ impl SocketSession {
         }
         else {
             log!(
-                crate::LOG_DEF,
+                crate::LOG_SESS,
                 "open_file failed: invalud socket descriptor"
             );
             Err(Error::new(Code::InvArgs))
@@ -256,32 +241,23 @@ impl SocketSession {
         is: &mut GateIStream,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
-        let ty_id: usize = is.pop()?;
-        let ty = SocketType::from_usize(ty_id);
+        let ty = SocketType::from_usize(is.pop::<usize>()?);
         let protocol: u8 = is.pop()?;
 
+        let res = self.add_socket(ty, protocol, socket_set);
+
         log!(
-            crate::LOG_DEF,
-            "net::create(type={:?}, protocol={})",
+            crate::LOG_SESS,
+            "net::create(type={:?}, protocol={}) -> {:?}",
             ty,
-            protocol
+            protocol,
+            res
         );
 
-        // Create the abstract socket from some created socket instance
-        let sd = match self.add_socket(ty, protocol, socket_set) {
-            Ok(sd) => sd,
-            Err(_e) => {
-                // TODO release socket
-                log!(
-                    crate::LOG_DEF,
-                    "create failed: maximum number of sockets reached"
-                );
-                return Err(Error::new(Code::NoSpace));
-            },
-        };
-
-        log!(crate::LOG_DEF, "-> sd={}", sd);
-        reply_vmsg!(is, 0 as u32, sd)
+        match res {
+            Ok(sd) => reply_vmsg!(is, 0 as u32, sd),
+            Err(e) => Err(e),
+        }
     }
 
     pub fn bind(
@@ -294,8 +270,9 @@ impl SocketSession {
         let port: Port = is.pop()?;
 
         log!(
-            crate::LOG_DEF,
-            "net::bind(sd={}, addr={}, port={})",
+            crate::LOG_SESS,
+            "[{}] net::bind(sd={}, addr={}, port={})",
+            self.server_session.ident(),
             sd,
             addr,
             port
@@ -306,7 +283,6 @@ impl SocketSession {
             reply_vmsg!(is, Code::None as i32)
         }
         else {
-            log!(crate::LOG_DEF, "bind failed, invalid socket descriptor");
             Err(Error::new(Code::InvArgs))
         }
     }
@@ -321,8 +297,9 @@ impl SocketSession {
         let port: Port = is.pop()?;
 
         log!(
-            crate::LOG_DEF,
-            "net::listen(sd={}, addr={}, port={})",
+            crate::LOG_SESS,
+            "[{}] net::listen(sd={}, addr={}, port={})",
+            self.server_session.ident(),
             sd,
             addr,
             port
@@ -333,7 +310,6 @@ impl SocketSession {
             reply_vmsg!(is, Code::None as i32)
         }
         else {
-            log!(crate::LOG_DEF, "listen failed: invalud socket descriptor");
             Err(Error::new(Code::InvArgs))
         }
     }
@@ -349,8 +325,9 @@ impl SocketSession {
         let local_port: Port = is.pop()?;
 
         log!(
-            crate::LOG_DEF,
-            "net::connect(sd={}, remote={}:{}, local={})",
+            crate::LOG_SESS,
+            "[{}] net::connect(sd={}, remote={}:{}, local={})",
+            self.server_session.ident(),
             sd,
             remote_addr,
             remote_port,
@@ -358,13 +335,11 @@ impl SocketSession {
         );
 
         if let Some(sock) = self.get_socket(sd) {
-            // TODO verify that the bigEndian is indeed the correct byte order
             sock.borrow_mut()
                 .connect(remote_addr, remote_port, local_port, socket_set)?;
-            reply_vmsg!(is, Code::None as i32) // all went good
+            reply_vmsg!(is, Code::None as i32)
         }
         else {
-            log!(crate::LOG_DEF, "connect failed: invalid socket descriptor");
             Err(Error::new(Code::InvArgs))
         }
     }
@@ -376,7 +351,14 @@ impl SocketSession {
     ) -> Result<(), Error> {
         let sd: Sd = is.pop()?;
         let remove: bool = is.pop()?;
-        log!(crate::LOG_DEF, "net::abort(sd={}, remove={})", sd, remove);
+
+        log!(
+            crate::LOG_SESS,
+            "[{}] net::abort(sd={}, remove={})",
+            self.server_session.ident(),
+            sd,
+            remove
+        );
 
         if let Some(socket) = self.get_socket(sd) {
             socket.borrow_mut().abort(socket_set);
@@ -386,7 +368,6 @@ impl SocketSession {
             reply_vmsg!(is, Code::None as i32)
         }
         else {
-            log!(crate::LOG_DEF, "close failed: invalid socket descriptor");
             Err(Error::new(Code::InvArgs))
         }
     }
@@ -404,7 +385,6 @@ impl SocketSession {
         while let Some(event) = self.send_queue.pop_front() {
             num_sent += 1;
 
-            log!(crate::LOG_DEF, "re-processing packet from queue");
             if !self.process_event(socket_set, event) || num_sent > MAX_INCOMING_BATCH_SIZE {
                 return true;
             }
@@ -427,29 +407,50 @@ impl SocketSession {
             NetEventType::DATA => {
                 let data = event.msg::<event::DataMessage>();
                 if let Some(socket) = self.get_socket(data.sd as Sd) {
-                    log!(crate::LOG_DEF, "got packet of {} bytes to send", data.size);
+                    let ip = IpAddr(data.addr as u32);
+                    let port = data.port as Port;
 
                     let succeeded = socket.borrow_mut().send(
                         &data.data[0..data.size as usize],
-                        IpAddr(data.addr as u32),
-                        data.port as Port,
+                        ip,
+                        port,
                         socket_set,
                     );
                     if succeeded.is_err() {
                         // if no buffers are available, remember the event for later
                         log!(
-                            crate::LOG_DEF,
-                            "no buffer space, delaying send of {} bytes",
-                            data.size
+                            crate::LOG_DATA,
+                            "[{}] socket {}: no buffer space, delaying send of {}b to {}:{}",
+                            self.server_session.ident(),
+                            data.sd,
+                            data.size,
+                            ip,
+                            port,
                         );
                         self.send_queue.push_back(event);
+                    }
+                    else {
+                        log!(
+                            crate::LOG_DATA,
+                            "[{}] socket {}: sent packet of {}b to {}:{}",
+                            self.server_session.ident(),
+                            data.sd,
+                            data.size,
+                            ip,
+                            port,
+                        );
                     }
                 }
             },
 
             NetEventType::CLOSE_REQ => {
                 let req = event.msg::<event::CloseReqMessage>();
-                log!(crate::LOG_DEF, "net::close(sd={})", req.sd);
+                log!(
+                    crate::LOG_SESS,
+                    "[{}] net::close_req(sd={})",
+                    self.server_session.ident(),
+                    req.sd
+                );
 
                 if let Some(socket) = self.get_socket(req.sd as Sd) {
                     // ignore error
@@ -485,7 +486,14 @@ impl SocketSession {
                 }
 
                 if let Some(event) = socket.borrow_mut().fetch_event(socket_set) {
-                    log!(crate::LOG_DEF, "Socket got event {:?}", event);
+                    log!(
+                        crate::LOG_DATA,
+                        "[{}] socket {}: received event {:?}",
+                        socket_sd,
+                        self.server_session.ident(),
+                        event,
+                    );
+
                     match event {
                         SendNetEvent::Connected(e) => chan.send_event(e).unwrap(),
                         SendNetEvent::Closed(e) => {
@@ -499,9 +507,12 @@ impl SocketSession {
 
                 socket.borrow_mut().receive(socket_set, |data, addr| {
                     let (ip, port) = to_m3_addr(addr);
+
                     log!(
-                        crate::LOG_DEF,
-                        "Received package with size={} from {}:{}",
+                        crate::LOG_DATA,
+                        "[{}] socket {}: received paket with {}b from {}:{}",
+                        socket_sd,
+                        self.server_session.ident(),
                         data.len(),
                         ip,
                         port

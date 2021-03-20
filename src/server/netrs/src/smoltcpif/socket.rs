@@ -339,14 +339,6 @@ impl Socket {
                     return Err(Error::new(Code::NoSpace));
                 }
 
-                log!(
-                    crate::LOG_DEF,
-                    "TCP: Send: src={}, dst={}, data_size={}",
-                    tcp_socket.local_endpoint(),
-                    tcp_socket.remote_endpoint(),
-                    data.len() as usize
-                );
-
                 tcp_socket.send_slice(data).unwrap();
                 Ok(())
             },
@@ -362,15 +354,6 @@ impl Socket {
                     dest_port,
                 );
 
-                log!(
-                    crate::LOG_DEF,
-                    "UDP: Send: dst={}, data_size={} (capacity={}, bytes={})",
-                    rend,
-                    data.len() as usize,
-                    udp_socket.packet_send_capacity(),
-                    udp_socket.payload_send_capacity(),
-                );
-
                 udp_socket.send_slice(data, rend).unwrap();
                 Ok(())
             },
@@ -380,12 +363,6 @@ impl Socket {
                 if !raw_socket.can_send() {
                     return Err(Error::new(Code::NoSpace));
                 }
-
-                log!(
-                    crate::LOG_DEF,
-                    "RAW: Send: data_size={}",
-                    data.len() as usize
-                );
 
                 raw_socket.send_slice(data).unwrap();
                 Ok(())

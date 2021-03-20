@@ -30,7 +30,7 @@ impl log::Log for SimpleLogger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            log!(crate::LOG_SMOLTCP, "{} - {}", record.level(), record.args());
+            log!(crate::LOG_SMOLTCP, "{}: {}", record.level(), record.args());
         }
     }
 

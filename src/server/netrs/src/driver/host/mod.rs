@@ -149,7 +149,7 @@ impl RawSocketDesc {
                 }
                 return Err(());
             }
-            log!(crate::LOG_DEF, "Got package of len {}", len);
+            log!(crate::LOG_NIC, "Got package of len {}", len);
             Ok(len as usize)
         }
     }

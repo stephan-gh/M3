@@ -83,7 +83,7 @@ impl FileSession {
         )?;
 
         log!(
-            crate::LOG_DEF,
+            crate::LOG_SESS,
             "WARNING using not unique label in FileSession!"
         );
         let s = Rc::new(RefCell::new(FileSession {
@@ -166,7 +166,7 @@ impl FileSession {
 
     pub fn prepare(&mut self) -> Result<(), Error> {
         if self.pending.is_some() {
-            log!(crate::LOG_DEF, "already has a pending request");
+            log!(crate::LOG_SESS, "already has a pending request");
             return Err(Error::new(Code::Exists)); // Should be InvState
         }
         self.activate()
@@ -181,7 +181,7 @@ impl FileSession {
 
         // TODO from C++: Socket is closed
         if false {
-            log!(crate::LOG_DEF, "recv: EOF");
+            log!(crate::LOG_SESS, "recv: EOF");
             reply_vmsg!(is, 0 as u32, 0 as usize, 0 as usize)?;
             return Ok(());
         }
@@ -189,7 +189,7 @@ impl FileSession {
         // implicitly commit the previous in request
         if !self.sending && self.last_amount != 0 {
             log!(
-                crate::LOG_DEF,
+                crate::LOG_SESS,
                 "recv: implicit commit of previous recv ({})",
                 self.last_amount
             );
@@ -201,25 +201,25 @@ impl FileSession {
         let amount = self.get_recv_size();
         if let Some((pos, amount)) = self.rbuf.get_read_pos(amount) {
             self.last_amount = amount;
-            log!(crate::LOG_DEF, "recv: {}@{}", amount, pos);
+            log!(crate::LOG_SESS, "recv: {}@{}", amount, pos);
             reply_vmsg!(is, 0 as u32, pos, amount)
         }
         else {
             // Could not allocate
-            log!(crate::LOG_DEF, "recv: waiting for data");
+            log!(crate::LOG_SESS, "recv: waiting for data");
             self.mark_pending(is)
         }
     }
 
     pub fn next_out(&mut self, is: &mut GateIStream) -> Result<(), Error> {
         if !self.is_send() {
-            log!(crate::LOG_DEF, "recv: waiting for data");
+            log!(crate::LOG_SESS, "recv: waiting for data");
             return Err(Error::new(Code::NotSup));
         }
 
         // TODO from C++: socket is closed
         if false {
-            log!(crate::LOG_DEF, "send: EOF");
+            log!(crate::LOG_SESS, "send: EOF");
             reply_vmsg!(is, 0 as u32, 0 as usize, 0 as usize)?;
             return Ok(());
         }
@@ -227,7 +227,7 @@ impl FileSession {
         // implicitly commit the previous out request
         if self.last_amount != 0 {
             log!(
-                crate::LOG_DEF,
+                crate::LOG_SESS,
                 "recv: implicit commit of previous out recv ({})",
                 self.last_amount
             );
@@ -239,12 +239,12 @@ impl FileSession {
         let amount = self.get_send_size();
         if let Some(pos) = self.rbuf.get_write_pos(amount) {
             self.last_amount = amount;
-            log!(crate::LOG_DEF, "send: {}@{}", amount, pos);
+            log!(crate::LOG_SESS, "send: {}@{}", amount, pos);
             reply_vmsg!(is, 0 as u32, self.rbuf.size() + pos, amount)
         }
         else {
             // Could not allocate
-            log!(crate::LOG_DEF, "send: waiting for free memory");
+            log!(crate::LOG_SESS, "send: waiting for free memory");
             self.mark_pending(is)
         }
     }
@@ -282,7 +282,7 @@ impl FileSession {
         if self.sending {
             // Advance write pointer
             self.sbuf.push(self.last_amount, amount);
-            log!(crate::LOG_DEF, "push-send: {} -> {:?}", amount, self.sbuf);
+            log!(crate::LOG_SESS, "push-send: {} -> {:?}", amount, self.sbuf);
         }
         else {
             // advance read pointer
@@ -293,7 +293,7 @@ impl FileSession {
                 self.last_amount
             };
             self.rbuf.pull(pullam);
-            log!(crate::LOG_DEF, "pull-recv: {} -> {:?}", amount, self.rbuf);
+            log!(crate::LOG_SESS, "pull-recv: {} -> {:?}", amount, self.rbuf);
         }
 
         self.last_amount = 0;
@@ -316,7 +316,7 @@ impl FileSession {
         let amount = buf.len();
         if let Some(pos) = self.rbuf.get_write_pos(amount) {
             self.memory.as_ref().unwrap().write(buf, pos as u64)?;
-            log!(crate::LOG_DEF, "push-recv: {} -> {:?}", amount, self.rbuf);
+            log!(crate::LOG_SESS, "push-recv: {} -> {:?}", amount, self.rbuf);
             self.rbuf.push(amount, amount);
             Ok(())
         }
@@ -331,7 +331,7 @@ impl FileSession {
         // Since in Rust we cant just copy the pointer to the stream,
         // we take the message and create a new gate for the same selector with the same size.
         log!(
-            crate::LOG_DEF,
+            crate::LOG_SESS,
             "mark stream pending on gate: {:?}",
             is.rgate()
         );
@@ -352,7 +352,7 @@ impl FileSession {
             (self.pending.take(), self.pending_gate.take())
         {
             // send eof
-            log!(crate::LOG_DEF, "Closing: Sending EOF");
+            log!(crate::LOG_SESS, "Closing: Sending EOF");
 
             let mut late_is = GateIStream::new(pending_msg, &pending_gate);
 
@@ -360,7 +360,7 @@ impl FileSession {
             reply_vmsg!(late_is, 0 as usize, 0 as usize, 0 as usize)
         }
         else {
-            log!(crate::LOG_DEF, "Closing: Could not send EOF");
+            log!(crate::LOG_SESS, "Closing: Could not send EOF");
             Ok(())
         }
     }
@@ -372,7 +372,7 @@ impl FileSession {
         let amount = self.get_send_size();
         if let Some((pos, amount)) = self.sbuf.get_read_pos(amount) {
             log!(
-                crate::LOG_DEF,
+                crate::LOG_SESS,
                 "handle_send_buffer: amount={}, pos={}",
                 amount,
                 pos
@@ -390,10 +390,10 @@ impl FileSession {
                     match self.socket.borrow_mut().send_data_slice(&data, amount) {
                             Ok(size) => {
                                 self.sbuf.pull(size);
-                                log!(crate::LOG_DEF, "pull-send: {} -> {:?}", size, self.sbuf);
+                                log!(crate::LOG_SESS, "pull-send: {} -> {:?}", size, self.sbuf);
                             },
                             Err(e) => {
-                                log!(crate::LOG_DEF, "Failed to send data over socket: {}", e);
+                                log!(crate::LOG_SESS, "Failed to send data over socket: {}", e);
                             },
                         }
             */
@@ -410,7 +410,7 @@ impl FileSession {
         let amount = self.get_recv_size();
         if let Some((pos, amount)) = self.rbuf.get_read_pos(amount) {
             self.last_amount = amount;
-            log!(crate::LOG_DEF, "late-recv: {}@{}", amount, pos);
+            log!(crate::LOG_SESS, "late-recv: {}@{}", amount, pos);
 
             if let (Some(pending_msg), Some(pending_gate)) =
                 (self.pending.take(), self.pending_gate.take())
@@ -420,7 +420,7 @@ impl FileSession {
                 reply_vmsg!(late_is, 0 as u32, pos, amount)
             }
             else {
-                log!(crate::LOG_DEF, "Failed to send late reply for pending_recv");
+                log!(crate::LOG_SESS, "Failed to send late reply for pending_recv");
                 Ok(())
             }
         }
@@ -438,7 +438,7 @@ impl FileSession {
         if let Some(pos) = self.sbuf.get_write_pos(amount) {
             // TODO: from C++:  maybe fallback to a smaller chunk?
             self.last_amount = amount;
-            log!(crate::LOG_DEF, "late-send: {}@{}", amount, pos);
+            log!(crate::LOG_SESS, "late-send: {}@{}", amount, pos);
             if let (Some(pending_msg), Some(pending_gate)) =
                 (self.pending.take(), self.pending_gate.take())
             {
@@ -446,7 +446,7 @@ impl FileSession {
                 reply_vmsg!(late_is, 0 as u32, pos, amount)
             }
             else {
-                log!(crate::LOG_DEF, "Failed to send late reply for pending_send");
+                log!(crate::LOG_SESS, "Failed to send late reply for pending_send");
                 Ok(())
             }
         }

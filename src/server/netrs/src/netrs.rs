@@ -48,9 +48,12 @@ mod sess;
 mod smoltcpif;
 
 pub const LOG_ERR: bool = true;
-pub const LOG_DEF: bool = false;
+pub const LOG_DEF: bool = true;
+pub const LOG_SESS: bool = false;
+pub const LOG_DATA: bool = false;
 pub const LOG_NIC: bool = false;
 pub const LOG_SMOLTCP: bool = false;
+pub const LOG_DETAIL: bool = false;
 
 struct NetHandler {
     sel: Selector,
@@ -65,13 +68,6 @@ struct NetHandler {
 impl NetHandler {
     fn handle(&mut self, is: &mut GateIStream) -> Result<(), Error> {
         let op = is.pop::<NetworkOp>()?;
-        log!(
-            LOG_DEF,
-            "net::handle(net_op={:?}, session={})",
-            op,
-            is.label() as SessId
-        );
-
         let sess_id: SessId = is.label() as SessId;
 
         if let Some(sess) = self.sessions.get_mut(sess_id) {
@@ -86,14 +82,10 @@ impl NetHandler {
                 NetworkOp::LISTEN => sess.listen(is, &mut self.socket_set),
                 NetworkOp::CONNECT => sess.connect(is, &mut self.socket_set),
                 NetworkOp::ABORT => sess.abort(is, &mut self.socket_set),
-                _ => {
-                    log!(LOG_DEF, "Net::handle got invalid NetworkOp: {}", op);
-                    Err(Error::new(Code::InvArgs))
-                },
+                _ => Err(Error::new(Code::InvArgs)),
             }
         }
         else {
-            log!(LOG_DEF, "No session found with label/id={}", sess_id);
             Err(Error::new(Code::InvArgs))
         }
     }
@@ -141,7 +133,7 @@ impl Handler<NetworkSession> for NetHandler {
         let rgate = self.rgate.clone();
 
         let res = self.sessions.add_next(crt, srv_sel, false, |sess| {
-            log!(LOG_DEF, "[{}] net::open(sel={})", sess.ident(), sess.sel());
+            log!(LOG_SESS, "[{}] net::open(sel={})", sess.ident(), sess.sel());
             let new_session =
                 NetworkSession::SocketSession(sess::SocketSession::new(crt, sess, rgate));
             Ok(new_session)
@@ -152,15 +144,16 @@ impl Handler<NetworkSession> for NetHandler {
     }
 
     fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "netrs::obtain(crt={}, sid={})", crt, sid);
+        log!(
+            LOG_SESS,
+            "[{}] net::obtain(crt={}, #caps={})",
+            sid,
+            crt,
+            xchg.in_caps()
+        );
 
         if let Some(s) = self.sessions.get_mut(sid) {
-            // If this is a socket session. Create a send gate, that can be used to communicate with this
-            // request handler.
-
-            let res = s.obtain(crt, self.sel, xchg);
-            log!(crate::LOG_DEF, "End obtain");
-            res
+            s.obtain(crt, self.sel, xchg)
         }
         else {
             Err(Error::new(Code::InvArgs))
@@ -168,7 +161,8 @@ impl Handler<NetworkSession> for NetHandler {
     }
 
     fn delegate(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "netrs::delegate(crt={}, sid={})", crt, sid);
+        log!(LOG_SESS, "[{}] net::delegate(crt={})", sid, crt);
+
         if let Some(s) = self.sessions.get_mut(sid) {
             s.delegate(xchg)
         }
@@ -178,11 +172,13 @@ impl Handler<NetworkSession> for NetHandler {
     }
 
     fn close(&mut self, crt: usize, sid: SessId) {
+        log!(LOG_SESS, "[{}] net::close(crt={})", sid, crt);
+
         self.sessions.remove(crt, sid);
     }
 
     fn shutdown(&mut self) {
-        log!(LOG_DEF, "NetRs: Shutdown");
+        log!(LOG_DEF, "netrs: shutdown");
         self.shuting_down = true;
         /*
         TODO:
@@ -253,15 +249,13 @@ pub fn main() -> i32 {
 
     log!(
         LOG_DEF,
-        "Created name={}, ip={}, netmask={}",
+        "netrs: created service {} with ip={} and netmask={}",
         name,
         ip,
         netmask
     );
 
     let rgatec = handler.rgate.clone();
-
-    log!(LOG_DEF, "Started net server");
 
     'outer: loop {
         let sleep_nanos = loop {
@@ -286,7 +280,7 @@ pub fn main() -> i32 {
             let activity = match iface.poll(&mut handler.socket_set, cur_time) {
                 Ok(a) => a,
                 Err(e) => {
-                    log!(LOG_ERR, "Poll error: {}", e);
+                    log!(LOG_DETAIL, "netrs: poll failed: {}", e);
                     false
                 },
             };
@@ -309,10 +303,9 @@ pub fn main() -> i32 {
             }
         };
 
-        log!(LOG_DEF, "Sleeping for {} ns", sleep_nanos);
+        log!(LOG_DETAIL, "Sleeping for {} ns", sleep_nanos);
         m3::pes::VPE::sleep_for(sleep_nanos).ok();
     }
 
-    log!(crate::LOG_DEF, "SERVER ENDED");
     0
 }

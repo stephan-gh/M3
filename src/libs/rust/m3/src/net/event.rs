@@ -15,6 +15,8 @@
  * General Public License version 2 for more details.
  */
 
+use core::fmt;
+
 use crate::cap::{CapFlags, Selector};
 use crate::com::{RGateArgs, RecvGate, SGateArgs, SendGate};
 use crate::errors::Error;
@@ -57,7 +59,6 @@ pub struct DataMessage {
     pub data: [u8; MTU],
 }
 
-#[derive(Debug)]
 #[repr(C)]
 pub struct ConnectedMessage {
     ty: u64,
@@ -77,7 +78,18 @@ impl ConnectedMessage {
     }
 }
 
-#[derive(Debug)]
+impl fmt::Debug for ConnectedMessage {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "sd={}, remote={}:{}",
+            self.sd,
+            IpAddr(self.remote_addr as u32),
+            self.remote_port
+        )
+    }
+}
+
 #[repr(C)]
 pub struct ClosedMessage {
     ty: u64,
@@ -93,7 +105,12 @@ impl ClosedMessage {
     }
 }
 
-#[derive(Debug)]
+impl fmt::Debug for ClosedMessage {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "sd={}", self.sd,)
+    }
+}
+
 #[repr(C)]
 pub struct CloseReqMessage {
     ty: u64,
@@ -106,6 +123,12 @@ impl CloseReqMessage {
             ty: NetEventType::CLOSE_REQ.val,
             sd: sd as u64,
         }
+    }
+}
+
+impl fmt::Debug for CloseReqMessage {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "sd={}", self.sd,)
     }
 }
 
