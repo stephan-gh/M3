@@ -17,15 +17,30 @@
 use m3::cell::RefCell;
 use m3::errors::{Code, Error};
 use m3::log;
-use m3::net::{event, IpAddr, Port, Sd, SocketType};
+use m3::net::{event, IpAddr, Port, Sd, SocketType, MAX_NETDATA_SIZE, MSG_BUF_SIZE};
 use m3::rc::Rc;
+use m3::vec;
 
 use smoltcp;
 use smoltcp::socket::SocketSet;
-use smoltcp::socket::{RawSocket, SocketHandle, TcpSocket, TcpState, UdpSocket};
+use smoltcp::socket::{
+    RawSocket, RawSocketBuffer, SocketHandle, TcpSocket, TcpSocketBuffer, TcpState, UdpSocket,
+    UdpSocketBuffer,
+};
+use smoltcp::storage::PacketMetadata;
+use smoltcp::wire::IpVersion;
 use smoltcp::wire::{IpAddress, IpEndpoint, Ipv4Address};
 
 use crate::sess::FileSession;
+
+pub const MAX_SEND_BUF_PACKETS: usize = 8;
+pub const MAX_RECV_BUF_PACKETS: usize = 32;
+
+/// Defines how big the socket buffers must be, currently this is the max NetDataSize multiplied by the
+/// Maximum in flight packages
+pub const TCP_BUFFER_SIZE: usize = (MAX_NETDATA_SIZE + TCP_HEADER_SIZE) * MAX_RECV_BUF_PACKETS;
+pub const UDP_BUFFER_SIZE: usize = (MAX_NETDATA_SIZE + UDP_HEADER_SIZE) * MAX_RECV_BUF_PACKETS;
+pub const RAW_BUFFER_SIZE: usize = MAX_NETDATA_SIZE * MAX_RECV_BUF_PACKETS;
 
 pub const TCP_HEADER_SIZE: usize = 32;
 pub const UDP_HEADER_SIZE: usize = 8;
@@ -68,8 +83,43 @@ pub struct Socket {
 }
 
 impl Socket {
-    pub fn new(sd: Sd, socket: SocketHandle, ty: SocketType) -> Self {
-        Socket {
+    pub fn new(
+        sd: Sd,
+        ty: SocketType,
+        protocol: u8,
+        socket_set: &mut SocketSet<'static>,
+    ) -> Result<Self, Error> {
+        let socket = match ty {
+            SocketType::Stream => socket_set.add(TcpSocket::new(
+                TcpSocketBuffer::new(vec![0 as u8; TCP_BUFFER_SIZE]),
+                TcpSocketBuffer::new(vec![0 as u8; TCP_BUFFER_SIZE]),
+            )),
+            SocketType::Dgram => socket_set.add(UdpSocket::new(
+                UdpSocketBuffer::new(
+                    vec![PacketMetadata::EMPTY; MAX_RECV_BUF_PACKETS],
+                    vec![0 as u8; UDP_BUFFER_SIZE],
+                ),
+                UdpSocketBuffer::new(
+                    vec![PacketMetadata::EMPTY; MAX_SEND_BUF_PACKETS],
+                    vec![0 as u8; UDP_BUFFER_SIZE],
+                ),
+            )),
+            SocketType::Raw => socket_set.add(RawSocket::new(
+                IpVersion::Ipv4,
+                protocol.into(),
+                RawSocketBuffer::new(
+                    vec![PacketMetadata::EMPTY; MSG_BUF_SIZE],
+                    vec![0 as u8; RAW_BUFFER_SIZE],
+                ),
+                RawSocketBuffer::new(
+                    vec![PacketMetadata::EMPTY; MSG_BUF_SIZE],
+                    vec![0 as u8; RAW_BUFFER_SIZE],
+                ),
+            )),
+            _ => return Err(Error::new(Code::InvArgs)),
+        };
+
+        Ok(Socket {
             sd,
             socket,
             ty,
@@ -77,7 +127,7 @@ impl Socket {
 
             rfile: None,
             sfile: None,
-        }
+        })
     }
 
     pub fn sd(&self) -> Sd {
@@ -137,12 +187,18 @@ impl Socket {
 
     pub fn bind(
         &mut self,
-        endpoint: IpEndpoint,
+        addr: IpAddr,
+        port: Port,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         if self.ty != SocketType::Dgram {
             return Err(Error::new(Code::WrongSocketType));
         }
+
+        let endpoint = IpEndpoint::new(
+            IpAddress::Ipv4(Ipv4Address::from_bytes(&addr.0.to_be_bytes())),
+            port,
+        );
 
         let mut udp_socket = socket_set.get::<UdpSocket>(self.socket);
         udp_socket.bind(endpoint).map_err(|e| {
@@ -154,14 +210,20 @@ impl Socket {
     pub fn listen(
         &mut self,
         socket_set: &mut SocketSet<'static>,
-        local_endpoint: IpEndpoint,
+        addr: IpAddr,
+        port: Port,
     ) -> Result<(), Error> {
         if self.ty != SocketType::Stream {
             return Err(Error::new(Code::WrongSocketType));
         }
 
+        let endpoint = IpEndpoint::new(
+            IpAddress::Ipv4(Ipv4Address::from_bytes(&addr.0.to_be_bytes())),
+            port,
+        );
+
         let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
-        match tcp_socket.listen(local_endpoint) {
+        match tcp_socket.listen(endpoint) {
             Ok(_) => {
                 self.state = State::Connecting;
                 Ok(())
@@ -175,13 +237,20 @@ impl Socket {
 
     pub fn connect(
         &mut self,
-        remote_endpoint: IpEndpoint,
-        local_endpoint: IpEndpoint,
+        remote_addr: IpAddr,
+        remote_port: Port,
+        local_port: Port,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         if self.ty != SocketType::Stream {
             return Err(Error::new(Code::WrongSocketType));
         }
+
+        let remote_endpoint = IpEndpoint::new(
+            IpAddress::Ipv4(Ipv4Address::from_bytes(&remote_addr.0.to_be_bytes())),
+            remote_port,
+        );
+        let local_endpoint = IpEndpoint::from(local_port);
 
         let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
         match tcp_socket.connect(remote_endpoint, local_endpoint) {

@@ -22,10 +22,7 @@ use m3::cell::RefCell;
 use m3::col::{Vec, VecDeque};
 use m3::com::{GateIStream, RecvGate, SendGate};
 use m3::errors::{Code, Error};
-use m3::net::{
-    event, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketType, MAX_NETDATA_SIZE,
-    MSG_BUF_SIZE,
-};
+use m3::net::{event, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketType};
 use m3::rc::Rc;
 use m3::server::CapExchange;
 use m3::session::ServerSession;
@@ -33,32 +30,14 @@ use m3::tcu;
 use m3::vfs::OpenFlags;
 use m3::{log, reply_vmsg, vec};
 
-use smoltcp;
 use smoltcp::socket::SocketSet;
-use smoltcp::socket::{
-    RawSocket, RawSocketBuffer, SocketHandle, TcpSocket, TcpSocketBuffer, UdpSocket,
-    UdpSocketBuffer,
-};
-use smoltcp::storage::PacketMetadata;
-use smoltcp::wire::{IpAddress, IpEndpoint, IpVersion, Ipv4Address};
 
 use crate::sess::file::FileSession;
-use crate::smoltcpif::socket::{
-    to_m3_addr, SendNetEvent, Socket, TCP_HEADER_SIZE, UDP_HEADER_SIZE,
-};
-
-pub const MAX_SEND_BUF_PACKETS: usize = 8;
-pub const MAX_RECV_BUF_PACKETS: usize = 32;
+use crate::smoltcpif::socket::{to_m3_addr, SendNetEvent, Socket};
 
 pub const MAX_INCOMING_BATCH_SIZE: usize = 4;
 
 pub const MAX_SOCKETS: usize = 16;
-
-/// Defines how big the socket buffers must be, currently this is the max NetDataSize multiplied by the
-/// Maximum in flight packages
-pub const TCP_BUFFER_SIZE: usize = (MAX_NETDATA_SIZE + TCP_HEADER_SIZE) * MAX_RECV_BUF_PACKETS;
-pub const UDP_BUFFER_SIZE: usize = (MAX_NETDATA_SIZE + UDP_HEADER_SIZE) * MAX_RECV_BUF_PACKETS;
-pub const RAW_BUFFER_SIZE: usize = MAX_NETDATA_SIZE * MAX_RECV_BUF_PACKETS;
 
 pub struct SocketSession {
     sgate: Option<SendGate>,
@@ -248,10 +227,17 @@ impl SocketSession {
         }
     }
 
-    fn add_socket(&mut self, socket: SocketHandle, ty: SocketType) -> Result<Sd, Error> {
+    fn add_socket(
+        &mut self,
+        ty: SocketType,
+        protocol: u8,
+        socket_set: &mut SocketSet<'static>,
+    ) -> Result<Sd, Error> {
         for (i, s) in self.sockets.iter_mut().enumerate() {
             if s.is_none() {
-                *s = Some(Rc::new(RefCell::new(Socket::new(i, socket, ty))));
+                *s = Some(Rc::new(RefCell::new(Socket::new(
+                    i, ty, protocol, socket_set,
+                )?)));
                 return Ok(i);
             }
         }
@@ -281,41 +267,8 @@ impl SocketSession {
             protocol
         );
 
-        let socket_handle = match ty {
-            SocketType::Stream => socket_set.add(TcpSocket::new(
-                TcpSocketBuffer::new(vec![0 as u8; TCP_BUFFER_SIZE]),
-                TcpSocketBuffer::new(vec![0 as u8; TCP_BUFFER_SIZE]),
-            )),
-            SocketType::Dgram => socket_set.add(UdpSocket::new(
-                UdpSocketBuffer::new(
-                    vec![PacketMetadata::EMPTY; MAX_RECV_BUF_PACKETS],
-                    vec![0 as u8; UDP_BUFFER_SIZE],
-                ),
-                UdpSocketBuffer::new(
-                    vec![PacketMetadata::EMPTY; MAX_SEND_BUF_PACKETS],
-                    vec![0 as u8; UDP_BUFFER_SIZE],
-                ),
-            )),
-            SocketType::Raw => socket_set.add(RawSocket::new(
-                IpVersion::Ipv4,
-                protocol.into(),
-                RawSocketBuffer::new(
-                    vec![PacketMetadata::EMPTY; MSG_BUF_SIZE],
-                    vec![0 as u8; RAW_BUFFER_SIZE],
-                ),
-                RawSocketBuffer::new(
-                    vec![PacketMetadata::EMPTY; MSG_BUF_SIZE],
-                    vec![0 as u8; RAW_BUFFER_SIZE],
-                ),
-            )),
-            _ => {
-                log!(crate::LOG_DEF, "create failed: invalid socket type");
-                return Err(Error::new(Code::InvArgs));
-            },
-        };
-
         // Create the abstract socket from some created socket instance
-        let sd = match self.add_socket(socket_handle, ty) {
+        let sd = match self.add_socket(ty, protocol, socket_set) {
             Ok(sd) => sd,
             Err(_e) => {
                 // TODO release socket
@@ -337,25 +290,19 @@ impl SocketSession {
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         let sd: Sd = is.pop()?;
-        let addr: u32 = is.pop()?;
+        let addr = IpAddr(is.pop::<u32>()?);
         let port: Port = is.pop()?;
-
-        let endpoint = IpEndpoint::new(
-            IpAddress::Ipv4(Ipv4Address::from_bytes(&addr.to_be_bytes())),
-            port,
-        );
 
         log!(
             crate::LOG_DEF,
             "net::bind(sd={}, addr={}, port={})",
             sd,
-            endpoint.addr,
-            endpoint.port
+            addr,
+            port
         );
 
         if let Some(sock) = self.get_socket(sd) {
-            // TODO verify that the bigEndian is indeed the correct byte order
-            sock.borrow_mut().bind(endpoint, socket_set)?;
+            sock.borrow_mut().bind(addr, port, socket_set)?;
             reply_vmsg!(is, Code::None as i32)
         }
         else {
@@ -370,23 +317,19 @@ impl SocketSession {
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         let sd: Sd = is.pop()?;
-        let addr: u32 = is.pop()?;
+        let addr = IpAddr(is.pop::<u32>()?);
         let port: Port = is.pop()?;
-        let endpoint = IpEndpoint::new(
-            IpAddress::Ipv4(Ipv4Address::from_bytes(&addr.to_be_bytes())),
-            port,
-        );
 
         log!(
             crate::LOG_DEF,
-            "net::listen(sd={}, local_addr={}, local_port={})",
+            "net::listen(sd={}, addr={}, port={})",
             sd,
-            endpoint.addr,
-            endpoint.port
+            addr,
+            port
         );
 
         if let Some(socket) = self.get_socket(sd) {
-            socket.borrow_mut().listen(socket_set, endpoint)?;
+            socket.borrow_mut().listen(socket_set, addr, port)?;
             reply_vmsg!(is, Code::None as i32)
         }
         else {
@@ -401,26 +344,23 @@ impl SocketSession {
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         let sd: Sd = is.pop()?;
-        let remote_addr: u32 = is.pop()?;
+        let remote_addr = IpAddr(is.pop::<u32>()?);
         let remote_port: Port = is.pop()?;
         let local_port: Port = is.pop()?;
 
-        let remote_endpoint = IpEndpoint::new(
-            IpAddress::Ipv4(Ipv4Address::from_bytes(&remote_addr.to_be_bytes())),
-            remote_port,
-        );
         log!(
             crate::LOG_DEF,
-            "net::connect(sd={}, remote={}, local={})",
+            "net::connect(sd={}, remote={}:{}, local={})",
             sd,
-            remote_endpoint,
+            remote_addr,
+            remote_port,
             local_port
         );
 
         if let Some(sock) = self.get_socket(sd) {
             // TODO verify that the bigEndian is indeed the correct byte order
             sock.borrow_mut()
-                .connect(remote_endpoint, IpEndpoint::from(local_port), socket_set)?;
+                .connect(remote_addr, remote_port, local_port, socket_set)?;
             reply_vmsg!(is, Code::None as i32) // all went good
         }
         else {
@@ -557,25 +497,23 @@ impl SocketSession {
                     }
                 }
 
-                socket
-                    .borrow_mut()
-                    .receive(socket_set, |data, addr| {
-                        let (ip, port) = to_m3_addr(addr);
-                        log!(
-                            crate::LOG_DEF,
-                            "Received package with size={} from {}:{}",
-                            data.len(),
-                            ip,
-                            port
-                        );
+                socket.borrow_mut().receive(socket_set, |data, addr| {
+                    let (ip, port) = to_m3_addr(addr);
+                    log!(
+                        crate::LOG_DEF,
+                        "Received package with size={} from {}:{}",
+                        data.len(),
+                        ip,
+                        port
+                    );
 
-                        let amount = cmp::min(event::MTU, data.len());
-                        chan.send_data(socket_sd, ip, port, amount, |buf| {
-                            buf[0..amount].copy_from_slice(&data[0..amount]);
-                        })
-                        .unwrap();
-                        amount
-                    });
+                    let amount = cmp::min(event::MTU, data.len());
+                    chan.send_data(socket_sd, ip, port, amount, |buf| {
+                        buf[0..amount].copy_from_slice(&data[0..amount]);
+                    })
+                    .unwrap();
+                    amount
+                });
             }
         }
     }
