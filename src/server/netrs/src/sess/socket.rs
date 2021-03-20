@@ -50,7 +50,7 @@ use crate::smoltcpif::socket::{
 pub const MAX_SEND_BUF_PACKETS: usize = 8;
 pub const MAX_RECV_BUF_PACKETS: usize = 32;
 
-pub const MAX_SEND_BATCH_SIZE: usize = 4;
+pub const MAX_INCOMING_BATCH_SIZE: usize = 4;
 
 pub const MAX_SOCKETS: usize = 16;
 
@@ -465,7 +465,7 @@ impl SocketSession {
             num_sent += 1;
 
             log!(crate::LOG_DEF, "re-processing packet from queue");
-            if !self.process_event(socket_set, event) || num_sent > MAX_SEND_BATCH_SIZE {
+            if !self.process_event(socket_set, event) || num_sent > MAX_INCOMING_BATCH_SIZE {
                 return true;
             }
         }
@@ -474,7 +474,7 @@ impl SocketSession {
         while let Some(event) = self.channel.as_ref().unwrap().receive_event() {
             num_sent += 1;
 
-            if !self.process_event(socket_set, event) || num_sent > MAX_SEND_BATCH_SIZE {
+            if !self.process_event(socket_set, event) || num_sent > MAX_INCOMING_BATCH_SIZE {
                 return true;
             }
         }
