@@ -40,7 +40,7 @@ use smoltcp::socket::SocketSet;
 use smoltcp::time::Duration;
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 
-use crate::sess::socket_session::MAX_SOCKETS;
+use crate::sess::socket::MAX_SOCKETS;
 use crate::sess::NetworkSession;
 
 mod driver;

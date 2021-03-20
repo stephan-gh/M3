@@ -42,7 +42,7 @@ use smoltcp::socket::{
 use smoltcp::storage::PacketMetadata;
 use smoltcp::wire::{IpAddress, IpEndpoint, IpVersion, Ipv4Address};
 
-use crate::sess::file_session::FileSession;
+use crate::sess::file::FileSession;
 use crate::smoltcpif::socket::{SendNetEvent, Socket, TCP_HEADER_SIZE, UDP_HEADER_SIZE};
 
 pub const MAX_SEND_BUF_PACKETS: usize = 8;

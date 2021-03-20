@@ -22,11 +22,11 @@ use m3::server::CapExchange;
 
 use smoltcp::socket::SocketSet;
 
-pub mod file_session;
-pub mod socket_session;
+pub mod file;
+pub mod socket;
 
-pub use file_session::FileSession;
-pub use socket_session::SocketSession;
+pub use file::FileSession;
+pub use socket::SocketSession;
 
 pub const MSG_SIZE: usize = 128;
 
