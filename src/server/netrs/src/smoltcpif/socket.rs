@@ -17,7 +17,7 @@
 use m3::cell::RefCell;
 use m3::errors::{Code, Error};
 use m3::log;
-use m3::net::{event, IpAddr, Sd, SocketType};
+use m3::net::{event, IpAddr, Port, Sd, SocketType};
 use m3::rc::Rc;
 
 use smoltcp;
@@ -30,6 +30,17 @@ use crate::sess::FileSession;
 // Needed to create correct buffer sizes
 pub const TCP_HEADER_SIZE: usize = 32;
 pub const UDP_HEADER_SIZE: usize = 8;
+
+/// Converts an IpEndpoint from smoltcp into an M³ (IpAddr, Port) tuple.
+/// Assumes that the IpEndpoint a is Ipv4 address, otherwise this will panic.
+pub fn to_m3_addr(addr: IpEndpoint) -> (IpAddr, Port) {
+    assert!(addr.addr.as_bytes().len() == 4, "Address was not ipv4!");
+    let bytes = addr.addr.as_bytes();
+    (
+        IpAddr::new(bytes[0], bytes[1], bytes[2], bytes[3]),
+        addr.port,
+    )
+}
 
 #[derive(Debug)]
 pub enum SendNetEvent {
@@ -98,7 +109,7 @@ impl Socket {
                 let tcp_socket = socket_set.get::<TcpSocket>(self.socket);
                 if tcp_socket.state() == TcpState::Established {
                     self.state = State::Connected;
-                    let (ip, port) = crate::util::to_m3_addr(tcp_socket.remote_endpoint());
+                    let (ip, port) = to_m3_addr(tcp_socket.remote_endpoint());
                     Some(SendNetEvent::Connected(event::ConnectedMessage::new(
                         self.sd, ip, port,
                     )))

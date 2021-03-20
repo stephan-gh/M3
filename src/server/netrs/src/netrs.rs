@@ -46,7 +46,6 @@ use crate::sess::NetworkSession;
 mod driver;
 mod sess;
 mod smoltcpif;
-mod util;
 
 pub const LOG_ERR: bool = true;
 pub const LOG_DEF: bool = false;

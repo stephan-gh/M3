@@ -43,7 +43,9 @@ use smoltcp::storage::PacketMetadata;
 use smoltcp::wire::{IpAddress, IpEndpoint, IpVersion, Ipv4Address};
 
 use crate::sess::file::FileSession;
-use crate::smoltcpif::socket::{SendNetEvent, Socket, TCP_HEADER_SIZE, UDP_HEADER_SIZE};
+use crate::smoltcpif::socket::{
+    to_m3_addr, SendNetEvent, Socket, TCP_HEADER_SIZE, UDP_HEADER_SIZE,
+};
 
 pub const MAX_SEND_BUF_PACKETS: usize = 8;
 pub const MAX_RECV_BUF_PACKETS: usize = 32;
@@ -558,7 +560,7 @@ impl SocketSession {
                 socket
                     .borrow_mut()
                     .receive(socket_set, |data, addr| {
-                        let (ip, port) = crate::util::to_m3_addr(addr);
+                        let (ip, port) = to_m3_addr(addr);
                         log!(
                             crate::LOG_DEF,
                             "Received package with size={} from {}:{}",
