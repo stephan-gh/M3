@@ -489,7 +489,7 @@ impl SocketSession {
                 if let Some(socket) = self.get_socket(data.sd as Sd) {
                     log!(crate::LOG_DEF, "got packet of {} bytes to send", data.size);
 
-                    let succeeded = socket.borrow_mut().send_data_slice(
+                    let succeeded = socket.borrow_mut().send(
                         &data.data[0..data.size as usize],
                         IpAddr(data.addr as u32),
                         data.port as Port,
@@ -575,8 +575,7 @@ impl SocketSession {
                         })
                         .unwrap();
                         amount
-                    })
-                    .ok();
+                    });
             }
         }
     }

@@ -27,7 +27,6 @@ use smoltcp::wire::{IpAddress, IpEndpoint, Ipv4Address};
 
 use crate::sess::FileSession;
 
-// Needed to create correct buffer sizes
 pub const TCP_HEADER_SIZE: usize = 32;
 pub const UDP_HEADER_SIZE: usize = 8;
 
@@ -56,16 +55,14 @@ pub enum State {
     Connected,
 }
 
-/// Socket abstraction
+/// Socket abstraction that unifies the different socket types
 pub struct Socket {
     sd: Sd,
-    // The handle into the global socket set, used to get the smol socket.
     socket: SocketHandle,
-    // tracks the internal type
     ty: SocketType,
     state: State,
 
-    // Might be a file session
+    // for the file session
     rfile: Option<Rc<RefCell<FileSession>>>,
     sfile: Option<Rc<RefCell<FileSession>>>,
 }
@@ -144,20 +141,14 @@ impl Socket {
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         if self.ty != SocketType::Dgram {
-            log!(crate::LOG_DEF, "Can not bind tcp or raw socket!");
             return Err(Error::new(Code::WrongSocketType));
         }
 
-        // If Udp socket, bind, otherwise do nothing, since in smoltcp, the tcp_bind event is fused with tcp_listen.
         let mut udp_socket = socket_set.get::<UdpSocket>(self.socket);
-        log!(crate::LOG_DEF, "Binding Udp socket: {}", endpoint);
-        if let Err(e) = udp_socket.bind(endpoint) {
-            log!(crate::LOG_DEF, "Udp::bind() failed with: {}", e);
-            Err(Error::new(Code::BindFailed))
-        }
-        else {
-            Ok(())
-        }
+        udp_socket.bind(endpoint).map_err(|e| {
+            log!(crate::LOG_ERR, "bind failed: {}", e);
+            Error::new(Code::BindFailed)
+        })
     }
 
     pub fn listen(
@@ -166,24 +157,19 @@ impl Socket {
         local_endpoint: IpEndpoint,
     ) -> Result<(), Error> {
         if self.ty != SocketType::Stream {
-            log!(crate::LOG_DEF, "Can not listen on udp or raw socket!");
             return Err(Error::new(Code::WrongSocketType));
         }
 
         let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
-        log!(
-            crate::LOG_DEF,
-            "Listening on TCP socket: {}",
-            local_endpoint
-        );
-
-        if let Err(e) = tcp_socket.listen(local_endpoint) {
-            log!(crate::LOG_DEF, "Tcp::listen() failed with: {}", e);
-            Err(Error::new(Code::ListenFailed))
-        }
-        else {
-            self.state = State::Connecting;
-            Ok(())
+        match tcp_socket.listen(local_endpoint) {
+            Ok(_) => {
+                self.state = State::Connecting;
+                Ok(())
+            },
+            Err(e) => {
+                log!(crate::LOG_ERR, "listen failed: {}", e);
+                Err(Error::new(Code::ListenFailed))
+            },
         }
     }
 
@@ -194,78 +180,24 @@ impl Socket {
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         if self.ty != SocketType::Stream {
-            log!(crate::LOG_DEF, "Udp or raw socket can't be connected!");
             return Err(Error::new(Code::WrongSocketType));
         }
 
         let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
-        if let Err(e) = tcp_socket.connect(remote_endpoint, local_endpoint) {
-            log!(crate::LOG_DEF, "Failed to connect socket: {}", e);
-            Err(Error::new(Code::ConnectionFailed))
-        }
-        else {
-            self.state = State::Connecting;
-            Ok(())
-        }
-    }
-
-    /// Tries to receive a package on this socket. Depending on the type of this socket, the data might be a raw
-    /// ethernet frame (raw sockets) or some byte data (tcp/udp sockets).
-    /// Returns (remote_endpoint, data)
-    pub fn receive<F>(
-        &mut self,
-        socket_set: &mut SocketSet<'static>,
-        func: F,
-    ) -> Result<(), smoltcp::Error>
-    where
-        F: FnOnce(&[u8], IpEndpoint) -> usize,
-    {
-        match self.ty {
-            SocketType::Stream => {
-                let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
-                if self.state == State::Connected {
-                    let addr = tcp_socket.remote_endpoint();
-                    tcp_socket.recv(|d| {
-                        if d.len() > 0 {
-                            (func(d, addr), ())
-                        }
-                        else {
-                            (0, ())
-                        }
-                    })
-                }
-                else {
-                    Ok(())
-                }
+        match tcp_socket.connect(remote_endpoint, local_endpoint) {
+            Ok(_) => {
+                self.state = State::Connecting;
+                Ok(())
             },
-            SocketType::Dgram => {
-                let mut udp_socket = socket_set.get::<UdpSocket>(self.socket);
-                match udp_socket.recv() {
-                    Ok((data, remote_endpoint)) => {
-                        func(data, remote_endpoint);
-                        Ok(())
-                    },
-                    Err(e) => Err(e),
-                }
+            Err(e) => {
+                log!(crate::LOG_ERR, "connect failed: {}", e);
+                Err(Error::new(Code::ConnectionFailed))
             },
-            SocketType::Raw => {
-                let mut raw_socket = socket_set.get::<RawSocket>(self.socket);
-                match raw_socket.recv() {
-                    Ok(data) => {
-                        func(data, IpEndpoint::UNSPECIFIED);
-                        Ok(())
-                    },
-                    Err(e) => Err(e),
-                }
-            },
-            // TODO fix error
-            SocketType::Undefined => Err(smoltcp::Error::Unrecognized),
         }
     }
 
     pub fn close(&mut self, socket_set: &mut SocketSet<'static>) -> Result<(), Error> {
         if self.ty != SocketType::Stream {
-            log!(crate::LOG_DEF, "Udp or raw socket can't be closed!");
             return Err(Error::new(Code::WrongSocketType));
         }
 
@@ -283,7 +215,48 @@ impl Socket {
         self.state = State::None;
     }
 
-    pub fn send_data_slice(
+    pub fn receive<F>(&mut self, socket_set: &mut SocketSet<'static>, func: F)
+    where
+        F: FnOnce(&[u8], IpEndpoint) -> usize,
+    {
+        match self.ty {
+            SocketType::Stream => {
+                let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
+                if self.state == State::Connected {
+                    let addr = tcp_socket.remote_endpoint();
+                    // don't even log errors here, since they occur often and are uninteresting
+                    tcp_socket
+                        .recv(|d| {
+                            if d.len() > 0 {
+                                (func(d, addr), ())
+                            }
+                            else {
+                                (0, ())
+                            }
+                        })
+                        .ok();
+                }
+            },
+
+            SocketType::Dgram => {
+                let mut udp_socket = socket_set.get::<UdpSocket>(self.socket);
+                if let Ok((data, remote_endpoint)) = udp_socket.recv() {
+                    func(data, remote_endpoint);
+                }
+            },
+
+            SocketType::Raw => {
+                let mut raw_socket = socket_set.get::<RawSocket>(self.socket);
+                if let Ok(data) = raw_socket.recv() {
+                    func(data, IpEndpoint::UNSPECIFIED);
+                }
+            },
+
+            SocketType::Undefined => panic!("cannot receive from undefined socket"),
+        }
+    }
+
+    pub fn send(
         &mut self,
         data: &[u8],
         dest_addr: IpAddr,
@@ -315,7 +288,6 @@ impl Socket {
                     return Err(Error::new(Code::NoSpace));
                 }
 
-                // on udp send dictates the destination
                 let rend = IpEndpoint::new(
                     IpAddress::Ipv4(Ipv4Address::from_bytes(&dest_addr.0.to_be_bytes())),
                     dest_port,
@@ -350,10 +322,7 @@ impl Socket {
                 Ok(())
             },
 
-            SocketType::Undefined => {
-                log!(crate::LOG_DEF, "Can't send on undefined socket!");
-                Err(Error::new(Code::NotSup))
-            },
+            SocketType::Undefined => panic!("cannot send to undefined socket"),
         }
     }
 }
