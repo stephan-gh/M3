@@ -32,6 +32,8 @@ use pci::Device;
 use smoltcp::time::Instant;
 
 pub mod defines;
+mod eeprom;
+
 use defines::*;
 
 #[inline]
@@ -39,93 +41,9 @@ fn inc_rb(index: u32, size: u32) -> u32 {
     (index + 1) % size
 }
 
-struct EEPROM {
-    shift: i32,
-    done_bit: u32,
-}
-
-impl EEPROM {
-    fn new(device: &Device) -> Result<Self, Error> {
-        device.write_reg(e1000::REG::EERD.val, e1000::EERD::START.bits() as u32)?;
-
-        let t = base::tcu::TCU::nanotime();
-        let mut tried_once = false;
-        while !tried_once && (base::tcu::TCU::nanotime() - t) < MAX_WAIT_NANOS {
-            let value: u32 = device.read_reg(e1000::REG::EERD.val)?;
-
-            if (value & e1000::EERD::DONE_LARGE.bits() as u32) > 0 {
-                log!(crate::LOG_NIC, "e1000: detected large EERD");
-                return Ok(Self {
-                    shift: e1000::EERD::SHIFT_LARGE.bits().into(),
-                    done_bit: e1000::EERD::DONE_LARGE.bits().into(),
-                });
-            }
-
-            if (value & e1000::EERD::DONE_SMALL.bits() as u32) > 0 {
-                log!(crate::LOG_NIC, "e1000: detected small EERD");
-                return Ok(Self {
-                    shift: e1000::EERD::SHIFT_SMALL.bits().into(),
-                    done_bit: e1000::EERD::DONE_SMALL.bits().into(),
-                });
-            }
-
-            tried_once = true;
-        }
-
-        log!(crate::LOG_NIC, "e1000: timeout while trying to create EEPROM");
-        Err(Error::new(Code::Timeout))
-    }
-
-    // reads `data` of `len` from the device.
-    // TOD: Currently doing stuff with the ptr of data. Should probably give sub slices of the length of one
-    // word tp the read_word fct. Also `len` is not needed since rust slice know their length.
-    fn read(&self, dev: &E1000, mut address: usize, mut data: &mut [u8]) -> Result<(), Error> {
-        assert!((data.len() & ((1 << WORD_LEN_LOG2) - 1)) == 0);
-
-        let num_bytes_to_move = 1 << WORD_LEN_LOG2;
-        let mut len = data.len();
-        while len > 0 {
-            self.read_word(dev, address, data)?;
-            // move to next word
-            data = &mut data[num_bytes_to_move..];
-            address += 1;
-            len -= num_bytes_to_move;
-        }
-        Ok(())
-    }
-
-    fn read_word(&self, dev: &E1000, address: usize, data: &mut [u8]) -> Result<(), Error> {
-        // cast to 16bit array
-        let data_word: &mut [u16] = unsafe { core::mem::transmute::<&mut [u8], &mut [u16]>(data) };
-
-        // set address
-        dev.write_reg(
-            e1000::REG::EERD,
-            e1000::EERD::START.bits() as u32 | (address << self.shift) as u32,
-        );
-
-        // Wait for read to complete
-        let t = base::tcu::TCU::nanotime();
-        let mut done_once = false;
-        while (base::tcu::TCU::nanotime() - t) < MAX_WAIT_NANOS && !done_once {
-            let value = dev.read_reg(e1000::REG::EERD);
-            done_once = true;
-            if (!value & self.done_bit) != 0 {
-                // Not read yet, therefore try again
-                continue;
-            }
-            // Move word into slice
-            data_word[0] = (value >> 16) as u16;
-            return Ok(());
-        }
-
-        Err(Error::new(Code::Timeout))
-    }
-}
-
-struct E1000 {
+pub struct E1000 {
     nic: Device,
-    eeprom: EEPROM,
+    eeprom: eeprom::EEPROM,
     mac: MAC,
 
     cur_tx_desc: u32,
@@ -148,7 +66,7 @@ impl E1000 {
         let devbufs = bufs.derive(0, core::mem::size_of::<Buffers>(), Perm::RW)?;
 
         let mut dev = E1000 {
-            eeprom: EEPROM::new(&nic)?,
+            eeprom: eeprom::EEPROM::new(&nic)?,
             nic,
             mac: MAC::broadcast(), // gets initialised at reset
 

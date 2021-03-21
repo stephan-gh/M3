@@ -324,10 +324,6 @@ pub const UDP_CHECKSUM_OFFSET: u8 = 0x06;
 
 pub const ETH_HWADDR_LEN: usize = 6;
 
-pub const WORD_LEN_LOG2: usize = 1;
-// TODO: Use a sensible value, the current one is chosen arbitrarily
-pub const MAX_WAIT_NANOS: u64 = 100000;
-
 pub const RESET_SLEEP_TIME: u64 = 20 * 1000;
 
 pub const RX_BUF_COUNT: usize = 256;
