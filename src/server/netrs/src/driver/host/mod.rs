@@ -21,18 +21,13 @@ use core::default::Default;
 
 use libc::{c_char, c_int, sockaddr_un};
 
-use log::info;
-
-use m3::cell::RefCell;
 use m3::col::Vec;
 use m3::libc;
 use m3::rc::Rc;
-use m3::{log, vec, format};
+use m3::{format, log, vec};
 
 use smoltcp::phy::{Device, DeviceCapabilities};
 use smoltcp::time::Instant;
-
-use crate::sess::socket_session::TCP_BUFFER_SIZE;
 
 fn get_socket(name: &str, suff: &str) -> sockaddr_un {
     let mut addr = sockaddr_un {
@@ -40,12 +35,7 @@ fn get_socket(name: &str, suff: &str) -> sockaddr_un {
         sun_path: [0; 108],
     };
 
-    // Note: I'm note sure why we need to start here with the \0. However, if we don't,
-    // we cant send over this address does not exist. That's correct since
-    // now only one, shared socket with name "" gets created in each service.
     let formated = format!("\0m3_net_{}_{}\0", name, suff);
-    info!("Get socket {}", formated);
-
     for (i, c) in formated.as_bytes().iter().enumerate() {
         addr.sun_path[i] = *c as c_char;
     }
@@ -58,35 +48,37 @@ pub struct RawSocketDesc {
     in_fd: c_int,
     out_fd: c_int,
     out_socket: sockaddr_un,
-    name: &'static str,
 }
 
 impl RawSocketDesc {
-    pub fn new(name: &'static str) -> Result<Self, ()> {
+    pub fn new(name: &'static str) -> Self {
         let in_fd = unsafe {
             let lower = libc::socket(libc::AF_UNIX, libc::SOCK_DGRAM, 0);
-
             if lower == -1 {
-                info!(
-                    "Unix socket creation failed with {}!",
+                panic!(
+                    "Unix socket creation failed with {}",
                     (*libc::__errno_location()) as i32
                 );
-                return Err(());
             }
             lower
         };
         let out_fd = unsafe {
             let lower = libc::socket(libc::AF_UNIX, libc::SOCK_DGRAM, 0);
-
             if lower == -1 {
-                info!(
+                panic!(
                     "Unix socket creation failed with {}!",
                     (*libc::__errno_location()) as i32
                 );
-                return Err(());
             }
             lower
         };
+
+        log!(
+            crate::LOG_NIC,
+            "opened unix socket[{}] & socket[{}]",
+            in_fd,
+            out_fd,
+        );
 
         // Bind socket
         let in_sock = get_socket(name, "in");
@@ -97,30 +89,27 @@ impl RawSocketDesc {
                 core::mem::size_of::<libc::sockaddr_un>() as u32,
             );
             if res == -1 {
-                info!(
+                panic!(
                     "Failed to bind in_socket[{}] with error={}",
                     in_fd,
                     (*libc::__errno_location()) as i32
                 );
-                return Err(());
             }
         }
 
         let out_socket = get_socket(name, "out");
-
-        Ok(RawSocketDesc {
+        RawSocketDesc {
             in_fd,
             out_fd,
             out_socket,
-            name,
-        })
+        }
     }
 
-    pub fn recv(&mut self, buffer: &mut [u8]) -> Result<usize, ()> {
-        // log!(crate::LOG_NIC, "recv for buffer of size={}", buffer.len());
+    pub fn recv(&self, buffer: &mut [u8]) -> Option<usize> {
         if buffer.len() <= 0 {
-            return Err(());
+            return None;
         }
+
         unsafe {
             let len = libc::recvfrom(
                 self.in_fd,
@@ -131,30 +120,19 @@ impl RawSocketDesc {
                 core::ptr::null_mut() as *mut u32,
             );
             if len == -1 {
-                // TODO handle would block error.
-
                 let errc = (*libc::__errno_location()) as i32;
-                if errc == 11 {
-                    // Would block ignore that error
-                    // log!(crate::LOG_NIC, "Would block");
+                if errc != libc::EWOULDBLOCK {
+                    log!(crate::LOG_NIC, "receive failed with error={}", errc);
                 }
-                else {
-                    log!(
-                        crate::LOG_NIC,
-                        "Failed to recv on socket[{}] for buffer of len={} with error={}",
-                        self.in_fd,
-                        buffer.len(),
-                        errc
-                    );
-                }
-                return Err(());
+                return None;
             }
-            log!(crate::LOG_NIC, "Got package of len {}", len);
-            Ok(len as usize)
+
+            log!(crate::LOG_NIC, "received paket with {}b", len);
+            Some(len as usize)
         }
     }
 
-    pub fn send(&mut self, buffer: &[u8]) -> Result<usize, ()> {
+    pub fn send(&self, buffer: &[u8]) -> Option<usize> {
         unsafe {
             let len = libc::sendto(
                 self.out_fd,
@@ -166,21 +144,14 @@ impl RawSocketDesc {
             );
             if len == -1 {
                 let errc = (*libc::__errno_location()) as i32;
-                if errc == 11 {
-                    log!(crate::LOG_NIC, "SEND: Would block");
+                if errc != libc::EWOULDBLOCK {
+                    log!(crate::LOG_NIC, "send failed with error={}", errc);
                 }
-
-                // TODO handle would block error
-                log!(
-                    crate::LOG_NIC,
-                    "Failed to send on socket[{}] buffer of len={} with error={}",
-                    self.out_fd,
-                    buffer.len(),
-                    errc
-                );
-                return Err(());
+                return None;
             }
-            Ok(len as usize)
+
+            log!(crate::LOG_NIC, "sent paket with {}b", len);
+            Some(len as usize)
         }
     }
 }
@@ -193,29 +164,13 @@ impl Drop for RawSocketDesc {
             self.in_fd,
             self.out_fd
         );
+
         unsafe {
             if libc::close(self.in_fd) != 0 {
-                log!(crate::LOG_NIC, "Failed to close in_fd={}", self.in_fd);
+                panic!("failed to close {}", self.in_fd);
             }
             if libc::close(self.out_fd) != 0 {
-                log!(crate::LOG_NIC, "Failed to close out_fd={}", self.out_fd);
-            }
-
-            // Delete in file
-            let formated_string = format!("m3_net_{}_in\0", self.name);
-
-            let mut c_char_name = [0 as c_char; 108];
-
-            for (i, c) in formated_string.as_bytes().iter().enumerate() {
-                c_char_name[i] = *c as c_char;
-            }
-            if libc::remove(&c_char_name as *const _) == -1 {
-                log!(
-                    crate::LOG_NIC,
-                    "Failed to delete socket {} with error={}",
-                    self.name,
-                    (*libc::__errno_location()) as i32
-                );
+                panic!("failed to close {}", self.out_fd);
             }
         }
     }
@@ -223,17 +178,17 @@ impl Drop for RawSocketDesc {
 
 /// Fifo wrapper around the RawSocketDesc.
 pub struct DevFifo {
-    lower: Rc<RefCell<RawSocketDesc>>,
+    lower: Rc<RawSocketDesc>,
     mtu: usize,
 }
 
 impl<'a> DevFifo {
-    pub fn new(name: &'static str) -> Result<Self, ()> {
-        let lower = RawSocketDesc::new(name)?;
-        Ok(DevFifo {
-            lower: Rc::new(RefCell::new(lower)),
-            mtu: TCP_BUFFER_SIZE,
-        })
+    pub fn new(name: &'static str) -> Self {
+        let lower = RawSocketDesc::new(name);
+        DevFifo {
+            lower: Rc::new(lower),
+            mtu: 4096,
+        }
     }
 }
 
@@ -248,19 +203,15 @@ impl<'a> Device<'a> for DevFifo {
     }
 
     fn receive(&'a mut self) -> Option<(Self::RxToken, Self::TxToken)> {
-        let mut lower = self.lower.borrow_mut();
         let mut buffer = vec![0; self.mtu];
-        match lower.recv(&mut buffer[..]) {
-            Ok(size) => {
-                buffer.resize(size, 0);
-                let rx = RxToken { buffer };
-                let tx = TxToken {
-                    lower: self.lower.clone(),
-                };
-                Some((rx, tx))
-            },
-            Err(_err) => None,
-        }
+        self.lower.recv(&mut buffer[..]).and_then(|size| {
+            buffer.resize(size, 0);
+            let rx = RxToken { buffer };
+            let tx = TxToken {
+                lower: self.lower.clone(),
+            };
+            Some((rx, tx))
+        })
     }
 
     fn transmit(&'a mut self) -> Option<Self::TxToken> {
@@ -284,7 +235,7 @@ impl smoltcp::phy::RxToken for RxToken {
 }
 
 pub struct TxToken {
-    lower: Rc<RefCell<RawSocketDesc>>,
+    lower: Rc<RawSocketDesc>,
 }
 
 impl smoltcp::phy::TxToken for TxToken {
@@ -292,14 +243,11 @@ impl smoltcp::phy::TxToken for TxToken {
     where
         F: FnOnce(&mut [u8]) -> smoltcp::Result<R>,
     {
-        let mut lower = self.lower.borrow_mut();
         let mut buffer = vec![0; len];
         let res = f(&mut buffer)?;
-        if let Err(_) = lower.send(&buffer[..]) {
-            panic!("Could not send package");
-        }
-        else {
-            Ok(res)
+        match self.lower.send(&buffer[..]) {
+            Some(_) => Ok(res),
+            None => Err(smoltcp::Error::Exhausted),
         }
     }
 }

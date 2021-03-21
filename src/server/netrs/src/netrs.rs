@@ -222,7 +222,7 @@ pub fn main() -> i32 {
     let device = driver::driver::E1000Device::new().expect("Failed to create E1000 driver");
 
     #[cfg(target_os = "linux")]
-    let device = driver::driver::DevFifo::new(name).expect("Failed to create FIFO Driver");
+    let device = driver::driver::DevFifo::new(name);
 
     let mut neighbor_cache_entries = [None; 8];
     let neighbor_cache = NeighborCache::new(&mut neighbor_cache_entries[..]);
