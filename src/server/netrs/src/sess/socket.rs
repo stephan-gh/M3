@@ -152,63 +152,53 @@ impl SocketSession {
             smemsize
         );
         // Create socket for file
-        if let Some(socket) = self.get_socket(sd) {
-            if (mode & OpenFlags::RW.bits()) == 0 {
-                log!(crate::LOG_SESS, "open_file failed: invalid mode");
-                return Err(Error::new(Code::InvArgs));
-            }
+        let socket = self.get_socket(sd)?;
+        if (mode & OpenFlags::RW.bits()) == 0 {
+            log!(crate::LOG_SESS, "open_file failed: invalid mode");
+            return Err(Error::new(Code::InvArgs));
+        }
 
-            if (socket.borrow().recv_file().is_some() && ((mode & OpenFlags::R.bits()) > 0))
-                || (socket.borrow().send_file().is_some() && ((mode & OpenFlags::W.bits()) > 0))
-            {
-                log!(
-                    crate::LOG_SESS,
-                    "open_file failed: socket already has a file session attached"
-                );
-                return Err(Error::new(Code::InvArgs));
-            }
-            let file = FileSession::new(
-                crt,
-                srv_sel,
-                socket.clone(),
-                &self.rgate,
-                mode,
-                rmemsize,
-                smemsize,
-            )?;
-            if file.borrow().is_recv() {
-                socket.borrow_mut().set_recv_file(Some(file.clone()));
-            }
-            if file.borrow().is_send() {
-                socket.borrow_mut().set_send_file(Some(file.clone()));
-            }
-
-            xchg.out_caps(file.borrow().caps());
-
+        if (socket.borrow().recv_file().is_some() && ((mode & OpenFlags::R.bits()) > 0))
+            || (socket.borrow().send_file().is_some() && ((mode & OpenFlags::W.bits()) > 0))
+        {
             log!(
                 crate::LOG_SESS,
-                "open_file: {}@{}{}",
-                sd,
-                if file.borrow().is_recv() { "r" } else { "" },
-                if file.borrow().is_send() { "s" } else { "" }
+                "open_file failed: socket already has a file session attached"
             );
-            Ok(())
+            return Err(Error::new(Code::InvArgs));
         }
-        else {
-            log!(
-                crate::LOG_SESS,
-                "open_file failed: invalud socket descriptor"
-            );
-            Err(Error::new(Code::InvArgs))
+        let file = FileSession::new(
+            crt,
+            srv_sel,
+            socket.clone(),
+            &self.rgate,
+            mode,
+            rmemsize,
+            smemsize,
+        )?;
+        if file.borrow().is_recv() {
+            socket.borrow_mut().set_recv_file(Some(file.clone()));
         }
+        if file.borrow().is_send() {
+            socket.borrow_mut().set_send_file(Some(file.clone()));
+        }
+
+        xchg.out_caps(file.borrow().caps());
+
+        log!(
+            crate::LOG_SESS,
+            "open_file: {}@{}{}",
+            sd,
+            if file.borrow().is_recv() { "r" } else { "" },
+            if file.borrow().is_send() { "s" } else { "" }
+        );
+        Ok(())
     }
 
-    fn get_socket(&self, sd: Sd) -> Option<Rc<RefCell<Socket>>> {
-        if let Some(s) = self.sockets.get(sd) {
-            s.clone()
-        }
-        else {
-            None
+    fn get_socket(&self, sd: Sd) -> Result<Rc<RefCell<Socket>>, Error> {
+        match self.sockets.get(sd) {
+            Some(Some(s)) => Ok(s.clone()),
+            _ => Err(Error::new(Code::InvArgs)),
         }
     }
 
@@ -278,13 +268,9 @@ impl SocketSession {
             port
         );
 
-        if let Some(sock) = self.get_socket(sd) {
-            sock.borrow_mut().bind(addr, port, socket_set)?;
-            reply_vmsg!(is, Code::None as i32)
-        }
-        else {
-            Err(Error::new(Code::InvArgs))
-        }
+        let sock = self.get_socket(sd)?;
+        sock.borrow_mut().bind(addr, port, socket_set)?;
+        reply_vmsg!(is, Code::None as i32)
     }
 
     pub fn listen(
@@ -305,13 +291,9 @@ impl SocketSession {
             port
         );
 
-        if let Some(socket) = self.get_socket(sd) {
-            socket.borrow_mut().listen(socket_set, addr, port)?;
-            reply_vmsg!(is, Code::None as i32)
-        }
-        else {
-            Err(Error::new(Code::InvArgs))
-        }
+        let socket = self.get_socket(sd)?;
+        socket.borrow_mut().listen(socket_set, addr, port)?;
+        reply_vmsg!(is, Code::None as i32)
     }
 
     pub fn connect(
@@ -334,14 +316,10 @@ impl SocketSession {
             local_port
         );
 
-        if let Some(sock) = self.get_socket(sd) {
-            sock.borrow_mut()
-                .connect(remote_addr, remote_port, local_port, socket_set)?;
-            reply_vmsg!(is, Code::None as i32)
-        }
-        else {
-            Err(Error::new(Code::InvArgs))
-        }
+        let sock = self.get_socket(sd)?;
+        sock.borrow_mut()
+            .connect(remote_addr, remote_port, local_port, socket_set)?;
+        reply_vmsg!(is, Code::None as i32)
     }
 
     pub fn abort(
@@ -360,16 +338,12 @@ impl SocketSession {
             remove
         );
 
-        if let Some(socket) = self.get_socket(sd) {
-            socket.borrow_mut().abort(socket_set);
-            if remove {
-                self.remove_socket(sd);
-            }
-            reply_vmsg!(is, Code::None as i32)
+        let socket = self.get_socket(sd)?;
+        socket.borrow_mut().abort(socket_set);
+        if remove {
+            self.remove_socket(sd);
         }
-        else {
-            Err(Error::new(Code::InvArgs))
-        }
+        reply_vmsg!(is, Code::None as i32)
     }
 
     pub fn process_incoming(&mut self, socket_set: &mut SocketSet<'static>) -> bool {
@@ -406,7 +380,7 @@ impl SocketSession {
         match event.msg_type() {
             NetEventType::DATA => {
                 let data = event.msg::<event::DataMessage>();
-                if let Some(socket) = self.get_socket(data.sd as Sd) {
+                if let Ok(socket) = self.get_socket(data.sd as Sd) {
                     let ip = IpAddr(data.addr as u32);
                     let port = data.port as Port;
 
@@ -452,13 +426,13 @@ impl SocketSession {
                     req.sd
                 );
 
-                if let Some(socket) = self.get_socket(req.sd as Sd) {
+                if let Ok(socket) = self.get_socket(req.sd as Sd) {
                     // ignore error
                     socket.borrow_mut().close(socket_set).ok();
                 }
             },
 
-            _ => panic!("Unexpected message from client"),
+            m => log!(crate::LOG_ERR, "Unexpected message from client: {}", m),
         }
         true
     }
