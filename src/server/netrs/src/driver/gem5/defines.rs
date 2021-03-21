@@ -21,9 +21,10 @@ use bitflags::bitflags;
 pub mod e1000 {
 
 use bitflags::bitflags;
+use m3::int_enum;
 use m3::goff;
 
-bitflags! {
+int_enum! {
     pub struct REG: goff {
         const CTRL            = 0x0;           /* device control register */
         const STATUS          = 0x8;           /* device status register */
@@ -282,7 +283,6 @@ impl TxDataDesc {
     }
 }
 
-// TODO ignore packed?
 #[repr(C, align(4))]
 pub struct RxDesc {
     pub buffer: u64,

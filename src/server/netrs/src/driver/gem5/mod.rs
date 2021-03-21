@@ -46,31 +46,33 @@ struct EEPROM {
 
 impl EEPROM {
     fn new(device: &Device) -> Result<Self, Error> {
-        device.write_reg(e1000::REG::EERD.bits(), e1000::EERD::START.bits() as u32)?;
+        device.write_reg(e1000::REG::EERD.val, e1000::EERD::START.bits() as u32)?;
 
         let t = base::tcu::TCU::nanotime();
         let mut tried_once = false;
         while !tried_once && (base::tcu::TCU::nanotime() - t) < MAX_WAIT_NANOS {
-            let value: u32 = device.read_reg(e1000::REG::EERD.bits())?;
+            let value: u32 = device.read_reg(e1000::REG::EERD.val)?;
 
             if (value & e1000::EERD::DONE_LARGE.bits() as u32) > 0 {
-                log!(crate::LOG_NIC, "Detected large EERD");
+                log!(crate::LOG_NIC, "e1000: detected large EERD");
                 return Ok(Self {
                     shift: e1000::EERD::SHIFT_LARGE.bits().into(),
                     done_bit: e1000::EERD::DONE_LARGE.bits().into(),
                 });
             }
+
             if (value & e1000::EERD::DONE_SMALL.bits() as u32) > 0 {
-                log!(crate::LOG_NIC, "Detected small EERD");
+                log!(crate::LOG_NIC, "e1000: detected small EERD");
                 return Ok(Self {
                     shift: e1000::EERD::SHIFT_SMALL.bits().into(),
                     done_bit: e1000::EERD::DONE_SMALL.bits().into(),
                 });
             }
+
             tried_once = true;
         }
 
-        log!(crate::LOG_NIC, "Timeout while trying to create EEPROM");
+        log!(crate::LOG_NIC, "e1000: timeout while trying to create EEPROM");
         Err(Error::new(Code::Timeout))
     }
 
@@ -140,10 +142,8 @@ static ZEROS: [u8; 4096] = [0; 4096];
 
 impl E1000 {
     pub fn new() -> Result<Self, Error> {
-        log!(crate::LOG_NIC, "Creating NIC");
         let nic = Device::new("nic", PEISA::NIC_DEV)?;
 
-        // TODO create global memory in rust, should be global...?
         let bufs = MemGate::new(core::mem::size_of::<Buffers>(), Perm::RW)?;
         let devbufs = bufs.derive(0, core::mem::size_of::<Buffers>(), Perm::RW)?;
 
@@ -176,10 +176,10 @@ impl E1000 {
             i += core::mem::size_of_val(&ZEROS);
         }
 
-        // Reset card
+        // reset card
         dev.reset();
 
-        // Enable interrupts
+        // enable interrupts
         dev.write_reg(
             e1000::REG::IMC,
             (e1000::ICR::LSC | e1000::ICR::RXO | e1000::ICR::RXT0)
@@ -213,7 +213,7 @@ impl E1000 {
         // drop the link speed to 10Mbps.
         let status: u32 = self.read_reg(e1000::REG::STATUS);
         if ((!status) & e1000::STATUS::LU.bits() as u32) > 0 {
-            // Reset PHY and MAC simultaneously
+            // reset PHY and MAC simultaneously
             self.write_reg(
                 e1000::REG::CTRL,
                 ctrl | (e1000::CTL::RESET | e1000::CTL::PHY_RESET).bits(),
@@ -240,7 +240,7 @@ impl E1000 {
 
         // setup rx descriptors
         for i in 0..RX_BUF_COUNT {
-            // Init rxdesc which is written
+            // write RxDesc to descriptors
             let desc = [RxDesc {
                 buffer: (RX_BUF_OFF + i * RX_BUF_SIZE) as u64,
                 length: RX_BUF_SIZE as u16,
@@ -254,7 +254,8 @@ impl E1000 {
                 (RX_DESCS_OFF + i * core::mem::size_of::<RxDesc>()) as goff,
             );
 
-            let mut desc2 = [RxDesc {
+            // read it back; TODO why is that necessary?
+            let mut desc = [RxDesc {
                 buffer: 0,
                 length: 0,
                 checksum: 0,
@@ -263,7 +264,7 @@ impl E1000 {
                 pad: 0,
             }];
             self.read_bufs(
-                &mut desc2,
+                &mut desc,
                 (RX_DESCS_OFF + i * core::mem::size_of::<RxDesc>()) as goff,
             );
         }
@@ -332,21 +333,18 @@ impl E1000 {
     }
 
     fn send(&mut self, packet: &[u8]) -> bool {
-        assert!(
-            packet.len() <= E1000::mtu(),
-            "Package was too big for E1000 device"
-        );
+        assert!(packet.len() <= E1000::mtu());
 
         let mut next_tx_desc: u32 = inc_rb(self.cur_tx_desc, TX_BUF_COUNT as u32);
 
         let head: u32 = self.read_reg(e1000::REG::TDH);
-        // TODO: Is the condition correct or off by one?
+        // TODO: is the condition correct or off by one?
         if next_tx_desc == head {
-            log!(crate::LOG_NIC, "No free descriptors.");
+            log!(crate::LOG_NIC, "e1000: no free descriptors for sending");
             return false;
         }
 
-        // Check which protocol is used, ip, tcp, udp.
+        // check which protocol is used: ip, tcp, or udp.
         let (is_ip, mut txo_proto) = {
             let ethf = smoltcp::wire::EthernetFrame::new_unchecked(packet);
             if ethf.ethertype() == smoltcp::wire::EthernetProtocol::Ipv4 {
@@ -386,7 +384,7 @@ impl E1000 {
         if txd_context_update_required && (next_tx_desc == head) {
             log!(
                 crate::LOG_NIC,
-                "Not enough free descriptors to update context and transmit data."
+                "e1000: no free descriptors to update context and transmit data"
             );
             return false;
         }
@@ -402,10 +400,8 @@ impl E1000 {
         let cur_tx_buf: u32 = self.cur_tx_buf;
         self.cur_tx_buf = inc_rb(self.cur_tx_buf, TX_BUF_COUNT as u32);
 
-        // Update context descriptor if necessary (different protocol)
+        // update context descriptor if necessary (different protocol)
         if txd_context_update_required {
-            log!(crate::LOG_NIC, "Writing context descriptor.");
-
             let mut desc = [TxContextDesc {
                 ipcss: 0,
                 ipcso: (core::mem::size_of::<EthHdr>() + offset_of!(IpHdr, chksum)) as u8,
@@ -446,27 +442,22 @@ impl E1000 {
             self.txd_context_proto = txo_proto;
         }
 
-        // Send packet
+        // send packet
         let offset = TX_BUF_OFF + cur_tx_buf as usize * TX_BUF_SIZE;
         self.write_bufs(packet, offset as goff);
 
         log!(
             crate::LOG_NIC,
-            "TX {} : {}..{}, {}",
+            "e1000: TX {} : {:#x}..{:#x}, {}",
             cur_tx_desc,
             offset,
             (offset + packet.len()),
-            if is_udp {
-                "UDP"
-            }
-            else {
-                if is_tcp {
-                    "TCP"
-                }
-                else {
-                    if is_ip { "IP" } else { "Unknown ethertype" }
-                }
-            }
+            match txo_proto {
+                TxoProto::IP => "IP",
+                TxoProto::UDP => "UDP",
+                TxoProto::TCP => "TCP",
+                _ => "??",
+            },
         );
 
         let mut desc = [TxDataDesc {
@@ -494,15 +485,51 @@ impl E1000 {
         true
     }
 
+    fn valid_checksum(desc: &RxDesc) -> bool {
+        if (desc.status & e1000::RXDS::IXSM.bits()) == 0 {
+            if (desc.status & e1000::RXDS::IPCS.bits()) != 0 {
+                if (desc.error & e1000::RXDE::IPE.bits()) != 0 {
+                    log!(crate::LOG_NIC, "e1000: IP checksum error");
+                    false
+                }
+                else if (desc.status & (e1000::RXDS::TCPCS | e1000::RXDS::UDPCS).bits()) != 0 {
+                    if (desc.error & e1000::RXDE::TCPE.bits()) != 0 {
+                        log!(crate::LOG_NIC, "e1000: TCP/UDP checksum error");
+                        false
+                    }
+                    else {
+                        true
+                    }
+                }
+                else {
+                    // TODO: Maybe ensure that it is really not TCP/UDP?
+                    log!(
+                        crate::LOG_NIC,
+                        "e1000: IXMS set, but checksum does not match"
+                    );
+                    false
+                }
+            }
+            else {
+                // TODO: Maybe ensure that it is really not IP?
+                log!(
+                    crate::LOG_NIC,
+                    "e1000: IXMS set, IPCS not set, skipping checksum"
+                );
+                true
+            }
+        }
+        else {
+            log!(crate::LOG_NIC, "e1000: IXMS not set, skipping checksum");
+            true
+        }
+    }
+
     /// Receives a single package with the max size for E1000::mtu().
     fn receive(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
         // if there is nothing to receive, return
         if !self.check_irq() {
-            log!(crate::LOG_NIC, "No irq");
             return Err(Error::new(Code::NotSup));
-        }
-        else {
-            log!(crate::LOG_NIC, "Found irq");
         }
 
         // TODO: Improve, do it without reading registers, like quoted in the manual and how the
@@ -516,14 +543,15 @@ impl E1000 {
 
         let tail: u32 = inc_rb(self.read_reg(e1000::REG::RDT), RX_BUF_COUNT as u32);
 
-        // Need to create the slice here, since we want to read the value after `read` took the slice
+        // need to create the slice here, since we want to read the value after `read` took the slice
         let mut desc = [RxDesc::default()];
         self.read_bufs(
             &mut desc,
             (RX_DESCS_OFF + tail as usize * core::mem::size_of::<RxDesc>()) as goff,
         );
-        // TODO: Ensure that packets that are not processed because the maxReceiveCount has been exceeded,
-        // to be processed later, independently of an interrupt.
+
+        // TODO: Ensure that packets that are not processed because the maxReceiveCount has been
+        // exceeded, to be processed later, independently of an interrupt.
 
         if (desc[0].status & e1000::RXDS::DD.bits()) == 0 {
             return Err(Error::new(Code::NotFound));
@@ -531,7 +559,7 @@ impl E1000 {
 
         log!(
             crate::LOG_NIC,
-            "RX {}: {:x}..{:x} st={:x} er={:x}",
+            "e1000: RX {}: {:#x}..{:#x} st={:#x} er={:#x}",
             tail,
             desc[0].buffer,
             desc[0].buffer + desc[0].length as u64,
@@ -539,74 +567,13 @@ impl E1000 {
             desc[0].error,
         );
 
-        // TODO in C++ the valid_checksum is uninitialized and probably not set when checked for the first
-        // time. In rust we init to false, but that might produce a different result.
-        let mut valid_checksum = false;
-        // Ignore Checksum Indication not set
-        if (desc[0].status & e1000::RXDS::IXSM.bits()) == 0 {
-            if (desc[0].status & e1000::RXDS::IPCS.bits()) > 0 {
-                valid_checksum = (desc[0].error & e1000::RXDE::IPE.bits()) == 0;
-
-                if !valid_checksum {
-                    // TODO: Increase lwIP ip drop/chksum counters
-                    log!(crate::LOG_NIC, "Dropped packet with IP checksum error.");
-                }
-                else if (desc[0].status & (e1000::RXDS::TCPCS | e1000::RXDS::UDPCS).bits()) > 0 {
-                    log!(
-                        crate::LOG_NIC,
-                        "E1000: IXMS set, bur TCPS and UDPCS set, therefore trying alternative checksum..."
-                    );
-
-                    valid_checksum = (desc[0].error & e1000::RXDE::TCPE.bits()) == 0;
-                    if !valid_checksum {
-                        // TODO: Increase lwIP tcp/udp drop/chksum counters
-                        log!(
-                            crate::LOG_NIC,
-                            "Dropped packet with TCP/UDP checksum error. (IXMS set, TCPCS | UDPCS set)"
-                        );
-                    }
-                }
-                else {
-                    // TODO: Maybe ensure that it is really not TCP/UDP?
-                    log!(
-                        crate::LOG_NIC,
-                        "E1000: IXMS set, but checksum does not match."
-                    );
-                }
-            }
-            else {
-                // TODO: Maybe ensure that it is really not IP?
-                log!(
-                    crate::LOG_NIC,
-                    "E1000: IXMS set, ICPCS not set, skipping checksum"
-                );
-                valid_checksum = true;
-            }
-        }
-        else {
-            log!(crate::LOG_NIC, "E1000: IXMS not set, skipping checksum");
-        }
-
-        // TODO this was done in a loop over sub buffer, however,
-        // in rust we just allocate e big enough buffer and receive the
-        // package into this buffer
-        let read_size;
-        if valid_checksum {
-            // Create buffer with enough size, initialized to 0
-            assert!(
-                (desc[0].length as usize) <= E1000::mtu(),
-                "desc wanted to store buffer, bigger then mtu"
-            );
-            self.read_bufs(&mut buf[0..desc[0].length.into()], desc[0].buffer);
-            read_size = desc[0].length.into();
-        }
-        else {
-            log!(
-                crate::LOG_NIC,
-                "Failed to validate checksum of RxDesc in E1000"
-            );
+        if !Self::valid_checksum(&desc[0]) {
             return Err(Error::new(Code::InvChecksum));
         }
+
+        assert!((desc[0].length as usize) <= E1000::mtu());
+        self.read_bufs(&mut buf[0..desc[0].length.into()], desc[0].buffer);
+        let read_size = desc[0].length.into();
 
         // Write back the updated rx buffer.
         desc[0].length = 0;
@@ -625,27 +592,32 @@ impl E1000 {
     }
 
     fn read_reg(&self, reg: e1000::REG) -> u32 {
-        // same as above
+        // there is no reasonable way to continue if that fails -> panic
         let val: u32 = self
             .nic
-            .read_reg(reg.bits())
+            .read_reg(reg.val)
             .expect("failed to read NIC register");
-        log!(crate::LOG_NIC, "REG[{:x}] -> {:x}", reg.bits(), val);
+        log!(crate::LOG_NIC_DETAIL, "e1000: REG[{:?}] -> {:#x}", reg, val);
         val
     }
 
     fn write_reg(&self, reg: e1000::REG, value: u32) {
-        log!(crate::LOG_NIC, "REG[{:x}] <- {:x}", reg.bits(), value);
+        log!(
+            crate::LOG_NIC_DETAIL,
+            "e1000: REG[{:?}] <- {:#x}",
+            reg,
+            value
+        );
         // there is no reasonable way to continue if that fails -> panic
         self.nic
-            .write_reg(reg.bits(), value)
+            .write_reg(reg.val, value)
             .expect("failed to write NIC register");
     }
 
     fn read_bufs<T>(&self, data: &mut [T], offset: goff) {
         log!(
-            crate::LOG_NIC,
-            "Reading BUF[{:#x} .. {:#x}]",
+            crate::LOG_NIC_DETAIL,
+            "e1000: reading BUF[{:#x} .. {:#x}]",
             offset,
             offset + data.len() as goff - 1
         );
@@ -656,8 +628,8 @@ impl E1000 {
 
     fn write_bufs<T>(&self, data: &[T], offset: goff) {
         log!(
-            crate::LOG_NIC,
-            "Writing BUF[{:#x} .. {:#x}]",
+            crate::LOG_NIC_DETAIL,
+            "e1000: writing BUF[{:#x} .. {:#x}]",
             offset,
             offset + data.len() as goff - 1
         );
@@ -673,9 +645,8 @@ impl E1000 {
     }
 
     fn sleep(&self, usec: u64) {
-        log!(crate::LOG_NIC, "NIC sleep: {}usec", usec);
-        let nanos = usec * 1000;
-        m3::pes::VPE::sleep_for(nanos).expect("Failed to sleep in NIC driver");
+        log!(crate::LOG_NIC, "e1000: sleep for {}usec", usec);
+        m3::pes::VPE::sleep_for(usec * 1000).expect("Failed to sleep in NIC driver");
     }
 
     fn read_mac(&self) -> MAC {
@@ -691,7 +662,7 @@ impl E1000 {
             ((mach >> 8) & 0xff) as u8,
         );
 
-        log!(crate::LOG_NIC, "Got MAC: {}", mac);
+        log!(crate::LOG_NIC, "e1000: got MAC: {}", mac);
 
         // if thats valid, take it
         if mac != MAC::broadcast() && mac.value() != 0 {
@@ -699,13 +670,12 @@ impl E1000 {
         }
 
         // wasn't correct, therefore try to read from eeprom
-        log!(crate::LOG_NIC, "Reading MAC from EEPROM");
         let mut bytes = [0 as u8; MAC_LEN];
         self.read_eeprom(0, &mut bytes);
 
         mac = MAC::new(bytes[1], bytes[0], bytes[3], bytes[2], bytes[5], bytes[4]);
 
-        log!(crate::LOG_NIC, "Got MAC from EEPROM: {}", mac);
+        log!(crate::LOG_NIC, "e1000: got MAC from EEPROM: {}", mac);
 
         mac
     }
@@ -733,7 +703,6 @@ impl E1000 {
     // checks if a irq occured
     fn check_irq(&mut self) -> bool {
         let icr = self.read_reg(e1000::REG::ICR);
-        log!(crate::LOG_NIC, "Status: icr={:x}", icr);
         if (icr & e1000::ICR::LSC.bits() as u32) > 0 {
             self.link_state_changed = true;
         }
@@ -770,7 +739,9 @@ impl<'a> smoltcp::phy::Device<'a> for E1000Device {
     fn receive(&'a mut self) -> Option<(Self::RxToken, Self::TxToken)> {
         let mut buffer = Vec::<u8>::with_capacity(E1000::mtu());
         // safety: we initialize and shrink it accordingly below
-        unsafe { buffer.set_len(E1000::mtu()); }
+        unsafe {
+            buffer.set_len(E1000::mtu());
+        }
 
         match self.dev.borrow_mut().receive(&mut buffer) {
             Ok(size) => {
@@ -816,15 +787,15 @@ impl smoltcp::phy::TxToken for TxToken {
     {
         let mut buffer = Vec::<u8>::with_capacity(len);
         // safety: we initialize it below
-        unsafe { buffer.set_len(len); }
+        unsafe {
+            buffer.set_len(len);
+        }
 
         // fill buffer with "to be send" data
         let res = f(&mut buffer)?;
-        if !self.device.borrow_mut().send(&buffer[..]) {
-            panic!("Could not send package");
-        }
-        else {
-            Ok(res)
+        match self.device.borrow_mut().send(&buffer[..]) {
+            true => Ok(res),
+            false => Err(smoltcp::Error::Exhausted),
         }
     }
 }
