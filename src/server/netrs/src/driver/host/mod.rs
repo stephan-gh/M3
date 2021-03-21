@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
  * Copyright (C) 2021, Tendsin Mende <tendsin.mende@mailbox.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
  *
