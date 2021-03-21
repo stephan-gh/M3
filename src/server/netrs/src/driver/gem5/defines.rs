@@ -16,11 +16,9 @@
  */
 
 use base::const_assert;
-use bitflags::bitflags;
-
-pub mod e1000 {
 
 use bitflags::bitflags;
+
 use m3::int_enum;
 use m3::goff;
 
@@ -191,8 +189,6 @@ bitflags! {
         const SE              = 1 << 1; /* Symbol Error */
         const CE              = 1 << 0; /* CRC Error or Alignment Error */
     }
-}
-
 }
 
 #[repr(C, align(4))]
@@ -375,17 +371,6 @@ impl core::fmt::Display for EthHdr {
 }
 
 #[repr(C)]
-pub struct Ip4Addr(pub u32);
-
-impl core::fmt::Display for Ip4Addr {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        const_assert!(core::mem::size_of::<Ip4Addr>() == 4);
-        let [a, b, c, d] = self.0.to_be_bytes();
-        write!(f, "Ipv4[{}, {}, {}, {}]", a, b, c, d)
-    }
-}
-
-#[repr(C)]
 pub struct IpHdr {
     pub v_hl: u8,
     pub tos: u8,
@@ -395,37 +380,6 @@ pub struct IpHdr {
     pub ttl: u8,
     pub proto: u8,
     pub chksum: u16,
-    pub src: Ip4Addr,
-    pub dest: Ip4Addr,
-}
-
-impl core::fmt::Display for IpHdr {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        const_assert!(core::mem::size_of::<IpHdr>() == 20);
-        write!(
-            f,
-            "
-IpHdr[
-v_hl={},\
-tos={},
-len={},
-id={},
-offset={},
-ttl={},
-proto={:x},
-chksum={:x},
-src={},
-dest={}]",
-            self.v_hl,
-            self.tos,
-            self.len,
-            self.id,
-            self.offset,
-            self.ttl,
-            self.proto,
-            self.chksum,
-            self.src,
-            self.dest,
-        )
-    }
+    pub src: u32,
+    pub dest: u32,
 }
