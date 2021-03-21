@@ -60,20 +60,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "echorsclient"
-version = "0.1.0"
-dependencies = [
- "m3",
-]
-
-[[package]]
-name = "echorsserver"
-version = "0.1.0"
-dependencies = [
- "m3",
-]
-
-[[package]]
 name = "heap"
 version = "0.1.0"
 dependencies = [

@@ -13,8 +13,6 @@ dirs = [
     'hello',
     'netecho',
     'netechoserver',
-    'echorsclient',
-    'echorsserver',
     'noop',
     'parchksum',
     'plasma',
