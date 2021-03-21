@@ -36,25 +36,21 @@ use crate::sess::file::FileSession;
 use crate::smoltcpif::socket::{to_m3_addr, SendNetEvent, Socket};
 
 pub const MAX_INCOMING_BATCH_SIZE: usize = 4;
-
 pub const MAX_SOCKETS: usize = 16;
 
 pub struct SocketSession {
+    // client send gate to send us requests
     sgate: Option<SendGate>,
+    // our receive gate (shared among all sessions)
     rgate: Rc<RecvGate>,
+    // our session cap
     server_session: ServerSession,
-    sockets: Vec<Option<Rc<RefCell<Socket>>>>, // All sockets registered to this socket session.
-    /// Used to communicate with the client
+    // sockets the client has open
+    sockets: Vec<Option<Rc<RefCell<Socket>>>>,
+    // communication channel to client for incoming data/close-requests and outgoing events/data
     channel: Option<Rc<NetEventChannel>>,
+    // pending incoming data events we could not send due to missing buffer space
     send_queue: VecDeque<NetEvent>,
-}
-
-impl Drop for SocketSession {
-    fn drop(&mut self) {
-        for i in 0..MAX_SOCKETS {
-            self.remove_socket(i)
-        }
-    }
 }
 
 impl SocketSession {
@@ -63,7 +59,7 @@ impl SocketSession {
             sgate: None,
             rgate,
             server_session,
-            sockets: vec![None; MAX_SOCKETS], // TODO allocate correct amount up front?
+            sockets: vec![None; MAX_SOCKETS],
             channel: None,
             send_queue: VecDeque::new(),
         }
@@ -80,7 +76,6 @@ impl SocketSession {
         }
         // TODO we only need 2
         else if xchg.in_caps() == 3 {
-            // establish a connection with the network manager in that session
             self.connect_nm(xchg)
         }
         else if xchg.in_caps() == 2 {
@@ -91,8 +86,6 @@ impl SocketSession {
         }
     }
 
-    /// Creates a SendGate that is used to send data to this socket session.
-    /// keeps the Sendgate alive and sends back the selector that needs to be binded to.
     fn get_sgate(&mut self, xchg: &mut CapExchange) -> Result<(), Error> {
         if self.sgate.is_some() {
             return Err(Error::new(Code::InvArgs));
@@ -220,10 +213,7 @@ impl SocketSession {
     }
 
     fn remove_socket(&mut self, sd: Sd) {
-        // if there is a socket, delete it.
-        if self.sockets.get(sd).is_some() {
-            self.sockets[sd] = None;
-        }
+        self.sockets[sd] = None;
     }
 
     pub fn create(
