@@ -45,7 +45,6 @@ pub struct E1000 {
     bufs: MemGate,
     devbufs: MemGate,
 
-    link_state_changed: bool,
     txd_context_proto: TxoProto,
 }
 
@@ -69,7 +68,6 @@ impl E1000 {
             bufs,
             devbufs,
 
-            link_state_changed: true,
             txd_context_proto: TxoProto::UNSUPPORTED,
         };
 
@@ -212,8 +210,6 @@ impl E1000 {
         rctl |= (RCTL::ENABLE | RCTL::UPE | RCTL::MPE | RCTL::BAM | RCTL::BSIZE_2K | RCTL::SECRC)
             .bits() as u32;
         self.write_reg(REG::RCTL, rctl);
-
-        self.link_state_changed = true;
     }
 
     pub fn mtu() -> usize {
@@ -569,26 +565,9 @@ impl E1000 {
         mac
     }
 
-    fn link_state_changed(&mut self) -> bool {
-        if self.link_state_changed {
-            self.link_state_changed = false;
-            true
-        }
-        else {
-            false
-        }
-    }
-
-    fn link_is_up(&self) -> bool {
-        (self.read_reg(REG::STATUS) & STATUS::LU.bits() as u32) > 0
-    }
-
-    // checks if a irq occured
     fn check_irq(&mut self) -> bool {
-        let icr = self.read_reg(REG::ICR);
-        if (icr & ICR::LSC.bits() as u32) > 0 {
-            self.link_state_changed = true;
-        }
+        // the NIC does not generate another interrupt until ICR is read
+        let _icr = self.read_reg(REG::ICR);
         self.nic.check_for_irq()
     }
 }
