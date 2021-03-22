@@ -75,9 +75,8 @@ public:
      *
      * @param remote_addr address of the socket to connect to
      * @param remote_port port of the socket to connect to
-     * @param local_port the local port to bind the socket to
      */
-    void connect(IpAddr remote_addr, uint16_t remote_port, uint16_t local_port);
+    void connect(IpAddr remote_addr, uint16_t remote_port);
 
     /**
      * Waits for an incoming connection. The socket needs to be in listening state.

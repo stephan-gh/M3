@@ -71,19 +71,17 @@ void TcpSocketRs::listen(uint16_t local_port) {
     set_local(local_addr, local_port, State::Listening);
 }
 
-void TcpSocketRs::connect(IpAddr remote_addr, uint16_t remote_port, uint16_t local_port) {
+void TcpSocketRs::connect(IpAddr remote_addr, uint16_t remote_port) {
     if(_state == State::Connected) {
-        if(!(_remote_addr == remote_addr && _remote_port == remote_port &&
-             _local_port == local_port)) {
+        if(!(_remote_addr == remote_addr && _remote_port == remote_port))
             throw Exception(Errors::IS_CONNECTED);
-        }
         return;
     }
 
     if(_state == State::Connecting)
         throw Exception(Errors::ALREADY_IN_PROGRESS);
 
-    _nm.connect(sd(), remote_addr, remote_port, local_port);
+    uint16_t local_port = _nm.connect(sd(), remote_addr, remote_port);
     _state = State::Connecting;
     _remote_addr = remote_addr;
     _remote_port = remote_port;

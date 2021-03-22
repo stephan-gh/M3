@@ -75,11 +75,13 @@ IpAddr NetworkManagerRs::listen(int32_t sd, uint16_t port) {
     return IpAddr(addr);
 }
 
-void NetworkManagerRs::connect(int32_t sd, IpAddr remote_addr, uint16_t remote_port, uint16_t local_port) {
+uint16_t NetworkManagerRs::connect(int32_t sd, IpAddr remote_addr, uint16_t remote_port) {
     LLOG(NET, "Connect:()");
-    GateIStream reply = send_receive_vmsg(_metagate, CONNECT,
-                                          sd, remote_addr.addr(), remote_port, local_port);
+    GateIStream reply = send_receive_vmsg(_metagate, CONNECT, sd, remote_addr.addr(), remote_port);
     reply.pull_result();
+    uint16_t port;
+    reply >> port;
+    return port;
 }
 
 bool NetworkManagerRs::close(int32_t sd) {

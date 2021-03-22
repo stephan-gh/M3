@@ -34,6 +34,7 @@ use m3::{log, reply_vmsg, vec};
 
 use smoltcp::socket::SocketSet;
 
+use crate::ports;
 use crate::sess::file::FileSession;
 use crate::smoltcpif::socket::{to_m3_addr, to_m3_ep, SendNetEvent, Socket};
 
@@ -119,6 +120,13 @@ impl SocketSession {
             );
             e
         })?;
+
+        for range in &args.ports {
+            if ports::is_ephemeral(range.0) || ports::is_ephemeral(range.1) {
+                log!(crate::LOG_ERR, "Cannot bind/listen on ephemeral ports");
+                return Err(Error::new(Code::InvArgs));
+            }
+        }
 
         Ok(SocketSession {
             sgate: None,
@@ -404,8 +412,8 @@ impl SocketSession {
         let sd: Sd = is.pop()?;
         let remote_addr = IpAddr(is.pop::<u32>()?);
         let remote_port: Port = is.pop()?;
-        let local_port: Port = is.pop()?;
 
+        let local_port = ports::alloc();
         log!(
             crate::LOG_SESS,
             "[{}] net::connect(sd={}, remote={}:{}, local={})",
@@ -417,9 +425,10 @@ impl SocketSession {
         );
 
         let sock = self.get_socket(sd)?;
+        let port_no = *local_port;
         sock.borrow_mut()
             .connect(remote_addr, remote_port, local_port, socket_set)?;
-        reply_vmsg!(is, Code::None as i32)
+        reply_vmsg!(is, Code::None as i32, port_no)
     }
 
     pub fn abort(

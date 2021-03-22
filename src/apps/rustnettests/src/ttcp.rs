@@ -15,20 +15,13 @@
  */
 
 use m3::boxed::Box;
-use m3::cell::StaticCell;
 use m3::com::Semaphore;
 use m3::errors::Code;
-use m3::net::{IpAddr, Port, State, StreamSocketArgs, TcpSocket};
+use m3::net::{IpAddr, State, StreamSocketArgs, TcpSocket};
 use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::session::NetworkManager;
 use m3::test;
 use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
-
-fn alloc_local() -> Port {
-    static NEXT_LOCAL: StaticCell<Port> = StaticCell::new(2000);
-    *NEXT_LOCAL.get_mut() += 1;
-    *NEXT_LOCAL - 1
-}
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, basics);
@@ -46,28 +39,23 @@ fn basics() {
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
-    let local = alloc_local();
     wv_assert_err!(socket.send(&[0]), Code::InvState);
-    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 1338, local));
+    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 1338));
     wv_assert_eq!(socket.state(), State::Connected);
 
     let mut buf = [0u8; 32];
     wv_assert_ok!(socket.send(&buf));
     wv_assert_ok!(socket.recv(&mut buf));
 
-    // connecting to the same remote endpoint and using the same local port is okay
-    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 1338, local));
+    // connecting to the same remote endpoint is okay
+    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 1338));
     // if anything differs, it's an error
     wv_assert_err!(
-        socket.connect(IpAddr::new(192, 168, 112, 1), 1339, local),
+        socket.connect(IpAddr::new(192, 168, 112, 1), 1339),
         Code::IsConnected
     );
     wv_assert_err!(
-        socket.connect(IpAddr::new(192, 168, 112, 1), 1338, local + 1),
-        Code::IsConnected
-    );
-    wv_assert_err!(
-        socket.connect(IpAddr::new(192, 168, 112, 2), 1338, local),
+        socket.connect(IpAddr::new(192, 168, 112, 2), 1338),
         Code::IsConnected
     );
 
@@ -82,7 +70,7 @@ fn open_close() {
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
-    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 1338, alloc_local()));
+    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 1338));
     wv_assert_eq!(socket.state(), State::Connected);
 
     wv_assert_ok!(socket.close());
@@ -112,9 +100,8 @@ fn receive_after_close() {
         wv_assert_eq!(socket.state(), State::Listening);
         wv_assert_ok!(sem.up());
 
-        let (ip, port) = wv_assert_ok!(socket.accept());
+        let (ip, _port) = wv_assert_ok!(socket.accept());
         wv_assert_eq!(ip, IpAddr::new(192, 168, 112, 2));
-        wv_assert_eq!(port, 4000);
         wv_assert_eq!(socket.state(), State::Connected);
 
         let mut buf = [0u8; 32];
@@ -133,7 +120,7 @@ fn receive_after_close() {
 
     wv_assert_ok!(sem.down());
 
-    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 3000, 4000));
+    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 3000));
 
     let mut buf = [0u8; 32];
     wv_assert_ok!(socket.send(&buf));
@@ -157,7 +144,7 @@ fn data() {
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
-    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 1338, alloc_local()));
+    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 1338));
 
     let mut send_buf = [0u8; 1024];
     for i in 0..1024 {

@@ -36,7 +36,7 @@ NOINLINE static void latency() {
     // wait for server socket to be ready
     Semaphore::attach("net-tcp").down();
 
-    socket->connect(IpAddr(192, 168, 112, 1), 1338, 1339);
+    socket->connect(IpAddr(192, 168, 112, 1), 1338);
 
     const size_t samples = 15;
 
@@ -93,7 +93,7 @@ NOINLINE static void bandwidth() {
     // wait for server socket to be ready
     Semaphore::attach("net-tcp").down();
 
-    socket->connect(IpAddr(192, 168, 112, 1), 1338, 1340);
+    socket->connect(IpAddr(192, 168, 112, 1), 1338);
 
     constexpr size_t packet_size = 1024;
 

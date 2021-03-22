@@ -45,6 +45,7 @@ use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 use crate::sess::NetworkSession;
 
 mod driver;
+mod ports;
 mod sess;
 mod smoltcpif;
 
@@ -52,6 +53,7 @@ pub const LOG_ERR: bool = true;
 pub const LOG_DEF: bool = true;
 pub const LOG_SESS: bool = false;
 pub const LOG_DATA: bool = false;
+pub const LOG_PORTS: bool = false;
 pub const LOG_NIC: bool = false;
 pub const LOG_NIC_DETAIL: bool = false;
 pub const LOG_SMOLTCP: bool = false;
@@ -239,6 +241,7 @@ pub fn main() -> i32 {
 
     let ip_addr = IpCidr::new(IpAddress::Ipv4(ip), 8);
     OWN_ADDR.set(ip_addr.address());
+    ports::init(MAX_SOCKETS);
 
     let mut iface = EthernetInterfaceBuilder::new(device)
         .ethernet_addr(EthernetAddress::default())

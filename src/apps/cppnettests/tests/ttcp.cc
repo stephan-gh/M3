@@ -25,11 +25,6 @@
 
 using namespace m3;
 
-static uint16_t alloc_local() {
-    static uint16_t next_local = 2000;
-    return next_local++;
-}
-
 static void basics() {
     NetworkManagerRs net("net0");
 
@@ -44,25 +39,21 @@ static void basics() {
         socket->send(&dummy, sizeof(dummy));
     });
 
-    auto local = alloc_local();
-    socket->connect(IpAddr(192, 168, 112, 1), 1338, local);
+    socket->connect(IpAddr(192, 168, 112, 1), 1338);
     WVASSERTEQ(socket->state(), SocketRs::Connected);
 
     uint8_t buf[32];
     WVASSERT(socket->send(buf, sizeof(buf)) != -1);
     WVASSERT(socket->recv(buf, sizeof(buf)) != -1);
 
-    // connecting to the same remote endpoint and using the same local port is okay
-    socket->connect(IpAddr(192, 168, 112, 1), 1338, local);
+    // connecting to the same remote endpoint is okay
+    socket->connect(IpAddr(192, 168, 112, 1), 1338);
     // if anything differs, it's an error
-    WVASSERTERR(Errors::IS_CONNECTED, [&socket, local] {
-        socket->connect(IpAddr(192, 168, 112, 1), 1339, local);
+    WVASSERTERR(Errors::IS_CONNECTED, [&socket] {
+        socket->connect(IpAddr(192, 168, 112, 1), 1339);
     });
-    WVASSERTERR(Errors::IS_CONNECTED, [&socket, local] {
-        socket->connect(IpAddr(192, 168, 112, 1), 1338, local + 1);
-    });
-    WVASSERTERR(Errors::IS_CONNECTED, [&socket, local] {
-        socket->connect(IpAddr(192, 168, 112, 2), 1338, local);
+    WVASSERTERR(Errors::IS_CONNECTED, [&socket] {
+        socket->connect(IpAddr(192, 168, 112, 2), 1338);
     });
 
     socket->abort();
@@ -76,7 +67,7 @@ NOINLINE static void open_close() {
 
     Semaphore::attach("net-tcp").down();
 
-    socket->connect(IpAddr(192, 168, 112, 1), 1338, alloc_local());
+    socket->connect(IpAddr(192, 168, 112, 1), 1338);
     socket->close();
     WVASSERTEQ(socket->state(), SocketRs::Closed);
 
@@ -112,7 +103,6 @@ NOINLINE static void receive_after_close() {
         uint16_t remote_port;
         socket->accept(&remote_addr, &remote_port);
         WVASSERTEQ(remote_addr.addr(), IpAddr(192, 168, 112, 2).addr());
-        WVASSERTEQ(remote_port, 4000);
         WVASSERTEQ(socket->state(), SocketRs::Connected);
 
         uint8_t buf[32];
@@ -131,7 +121,7 @@ NOINLINE static void receive_after_close() {
 
     sem.down();
 
-    socket->connect(IpAddr(192, 168, 112, 1), 3000, 4000);
+    socket->connect(IpAddr(192, 168, 112, 1), 3000);
 
     uint8_t buf[32];
     WVASSERT(socket->send(buf, sizeof(buf)) != -1);
@@ -155,7 +145,7 @@ NOINLINE static void data() {
 
     Semaphore::attach("net-tcp").down();
 
-    socket->connect(IpAddr(192, 168, 112, 1), 1338, alloc_local());
+    socket->connect(IpAddr(192, 168, 112, 1), 1338);
 
     uint8_t send_buf[1024];
     for(int i = 0; i < 1024; ++i)

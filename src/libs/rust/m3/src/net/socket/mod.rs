@@ -121,13 +121,9 @@ impl Socket {
         nm: &NetworkManager,
         remote_addr: IpAddr,
         remote_port: Port,
-        local_port: Port,
     ) -> Result<(), Error> {
         if self.state.get() == State::Connected {
-            if !(self.remote_addr.get() == remote_addr
-                && self.remote_port.get() == remote_port
-                && self.local_port.get() == local_port)
-            {
+            if !(self.remote_addr.get() == remote_addr && self.remote_port.get() == remote_port) {
                 return Err(Error::new(Code::IsConnected));
             }
             return Ok(());
@@ -140,7 +136,7 @@ impl Socket {
             return Err(Error::new(Code::ConnectAlreadyInProgress));
         }
 
-        nm.connect(self.sd, remote_addr, remote_port, local_port)?;
+        let local_port = nm.connect(self.sd, remote_addr, remote_port)?;
         self.state.set(State::Connecting);
         self.remote_addr.set(remote_addr);
         self.remote_port.set(remote_port);

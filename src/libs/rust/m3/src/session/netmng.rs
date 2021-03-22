@@ -120,18 +120,16 @@ impl NetworkManager {
         sd: Sd,
         remote_addr: IpAddr,
         remote_port: Port,
-        local_port: Port,
-    ) -> Result<(), Error> {
-        send_recv_res!(
+    ) -> Result<Port, Error> {
+        let mut reply = send_recv_res!(
             &self.metagate,
             RecvGate::def(),
             NetworkOp::CONNECT,
             sd,
             remote_addr.0,
-            remote_port,
-            local_port
-        )
-        .map(|_| ())
+            remote_port
+        )?;
+        Ok(reply.pop::<Port>()?)
     }
 
     pub(crate) fn close(&self, sd: Sd) -> Result<(), Error> {

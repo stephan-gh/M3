@@ -34,6 +34,7 @@ use smoltcp::wire::IpVersion;
 use smoltcp::wire::{IpAddress, IpEndpoint, Ipv4Address};
 
 use crate::sess::FileSession;
+use crate::ports::EphemeralPort;
 
 pub fn to_m3_addr(addr: IpAddress) -> IpAddr {
     assert!(addr.as_bytes().len() == 4, "Address was not ipv4!");
@@ -67,6 +68,7 @@ pub struct Socket {
     socket: SocketHandle,
     ty: SocketType,
     state: State,
+    _local_port: Option<EphemeralPort>,
     buffer_space: usize,
 
     // for the file session
@@ -136,6 +138,7 @@ impl Socket {
             socket,
             ty,
             state: State::None,
+            _local_port: None,
             buffer_space: Self::required_space(ty, rbuf_space, rbuf_slots, sbuf_space, sbuf_slots),
 
             rfile: None,
@@ -186,6 +189,7 @@ impl Socket {
             (SocketType::Stream, State::Connected) => {
                 let tcp_socket = socket_set.get::<TcpSocket>(self.socket);
                 if !tcp_socket.is_open() {
+                    self._local_port = None;
                     self.state = State::None;
                     Some(SendNetEvent::Closed(event::ClosedMessage::new(self.sd)))
                 }
@@ -248,7 +252,7 @@ impl Socket {
         &mut self,
         remote_addr: IpAddr,
         remote_port: Port,
-        local_port: Port,
+        local_port: EphemeralPort,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         if self.ty != SocketType::Stream {
@@ -259,12 +263,13 @@ impl Socket {
             IpAddress::Ipv4(Ipv4Address::from_bytes(&remote_addr.0.to_be_bytes())),
             remote_port,
         );
-        let local_endpoint = IpEndpoint::from(local_port);
+        let local_endpoint = IpEndpoint::from(*local_port);
 
         let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
         match tcp_socket.connect(remote_endpoint, local_endpoint) {
             Ok(_) => {
                 self.state = State::Connecting;
+                self._local_port = Some(local_port);
                 Ok(())
             },
             Err(e) => {
@@ -290,6 +295,7 @@ impl Socket {
             tcp_socket.abort();
         }
 
+        self._local_port = None;
         self.state = State::None;
     }
 

@@ -37,7 +37,7 @@ fn latency() {
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
-    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 1338, 1339));
+    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 1338));
 
     let samples = 5;
 
@@ -96,7 +96,7 @@ fn bandwidth() {
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
-    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 1338, 1340));
+    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 1338));
 
     let mut buf = [0u8; 1024];
 

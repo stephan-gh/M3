@@ -90,14 +90,8 @@ impl<'n> TcpSocket<'n> {
         Ok(())
     }
 
-    pub fn connect(
-        &mut self,
-        remote_addr: IpAddr,
-        remote_port: Port,
-        local_port: Port,
-    ) -> Result<(), Error> {
-        self.socket
-            .connect(self.nm, remote_addr, remote_port, local_port)
+    pub fn connect(&mut self, remote_addr: IpAddr, remote_port: Port) -> Result<(), Error> {
+        self.socket.connect(self.nm, remote_addr, remote_port)
     }
 
     pub fn accept(&mut self) -> Result<(IpAddr, Port), Error> {

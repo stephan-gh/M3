@@ -65,7 +65,7 @@ private:
 
     IpAddr bind(int32_t sd, uint16_t port);
     IpAddr listen(int32_t sd, uint16_t port);
-    void connect(int32_t sd, IpAddr remote_addr, uint16_t remote_port, uint16_t local_port);
+    uint16_t connect(int32_t sd, IpAddr remote_addr, uint16_t remote_port);
     bool close(int32_t sd);
     void abort(int32_t sd, bool remove);
 
