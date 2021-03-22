@@ -527,7 +527,7 @@ impl AppConfig {
         for s in &self.services {
             writeln!(
                 f,
-                "{:0w$}Service[lname={}, gname={}],",
+                "{:0w$}Service[lname='{}', gname='{}'],",
                 "",
                 s.local_name,
                 s.global_name,
@@ -537,7 +537,7 @@ impl AppConfig {
         for s in &self.sesscrt {
             writeln!(
                 f,
-                "{:0w$}SessCreator[service={}, count={:?}],",
+                "{:0w$}SessCreator[service='{}', count={:?}],",
                 "",
                 s.serv_name(),
                 s.sess_count(),
@@ -547,7 +547,7 @@ impl AppConfig {
         for s in &self.sessions {
             writeln!(
                 f,
-                "{:0w$}Session[lname={}, gname={}, arg={}, dep={}],",
+                "{:0w$}Session[lname='{}', gname='{}', arg='{}', dep={}],",
                 "",
                 s.local_name,
                 s.serv,
@@ -559,7 +559,7 @@ impl AppConfig {
         for m in &self.mounts {
             writeln!(
                 f,
-                "{:0w$}Mount[fs={}, path={}],",
+                "{:0w$}Mount[fs='{}', path='{}'],",
                 "",
                 m.fs,
                 m.path,
