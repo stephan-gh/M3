@@ -32,13 +32,13 @@ pub const RBUF_MSG_SIZE: usize = 1 << 6;
 pub const RBUF_SIZE: usize = RBUF_MSG_SIZE * DEF_MAX_CLIENTS;
 
 struct Entry {
-    id: u64,
+    event: thread::Event,
     msg: Vec<u8>,
 }
 
 impl Entry {
-    pub fn new(id: u64, msg: Vec<u8>) -> Self {
-        Entry { id, msg }
+    pub fn new(event: thread::Event, msg: Vec<u8>) -> Self {
+        Entry { event, msg }
     }
 }
 
@@ -95,8 +95,10 @@ impl SendQueue {
             self.serv_name()
         );
 
+        let event = events::alloc_event();
+
         if self.state == QState::Idle {
-            return self.do_send(events::alloc_unique_id(), msg);
+            return self.do_send(event, msg);
         }
 
         log!(
@@ -105,12 +107,10 @@ impl SendQueue {
             self.serv_name()
         );
 
-        let qid = events::alloc_unique_id();
-
         // copy message to heap
         let vec = msg.bytes().to_vec();
-        self.queue.push_back(Entry::new(qid, vec));
-        Ok(events::uid_to_event(qid))
+        self.queue.push_back(Entry::new(event, vec));
+        Ok(event)
     }
 
     fn serv_name(&self) -> &String {
@@ -149,7 +149,7 @@ impl SendQueue {
 
                     let mut msg_buf = MsgBuf::new();
                     msg_buf.set_from_slice(&e.msg);
-                    if self.do_send(e.id, &msg_buf).is_ok() {
+                    if self.do_send(e.event, &msg_buf).is_ok() {
                         break;
                     }
                 },
@@ -157,14 +157,14 @@ impl SendQueue {
         }
     }
 
-    fn do_send(&mut self, id: u64, msg: &MsgBuf) -> Result<thread::Event, Error> {
+    fn do_send(&mut self, event: thread::Event, msg: &MsgBuf) -> Result<thread::Event, Error> {
         log!(
             crate::LOG_SQUEUE,
             "{}:squeue: sending msg",
             self.serv_name()
         );
 
-        self.cur_event = events::uid_to_event(id);
+        self.cur_event = event;
         self.state = QState::Waiting;
 
         #[allow(clippy::useless_conversion)]

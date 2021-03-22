@@ -87,7 +87,7 @@ impl Service {
 
     pub fn derive_async(&self, child: childs::Id, sessions: u32) -> Result<Self, Error> {
         let dst = VPE::cur().alloc_sels(2);
-        let event = events::uid_to_event(events::alloc_unique_id());
+        let event = events::alloc_event();
         syscalls::derive_srv(
             self.sel(),
             kif::CapRngDesc::new(kif::CapType::OBJECT, dst, 2),

@@ -23,14 +23,10 @@ use crate::childs::Id;
 
 static CHILD_EVENTS: StaticCell<Treap<Id, Option<u64>>> = StaticCell::new(Treap::new());
 
-pub fn alloc_unique_id() -> u64 {
+pub fn alloc_event() -> thread::Event {
     static NEXT_ID: StaticCell<u64> = StaticCell::new(0);
     NEXT_ID.set(*NEXT_ID + 1);
-    *NEXT_ID
-}
-
-pub fn uid_to_event(id: u64) -> thread::Event {
-    0x8000_0000_0000_0000 | id
+    0x8000_0000_0000_0000 | *NEXT_ID
 }
 
 pub fn wait_for(child: Id, event: thread::Event) -> Result<&'static tcu::Message, Error> {
