@@ -64,13 +64,14 @@ const MAX_SOCKETS: usize = 64;
 static OWN_ADDR: LazyStaticCell<IpAddress> = LazyStaticCell::default();
 
 struct NetHandler {
+    // our service selector
     sel: Selector,
+    // our sessions
     sessions: SessionContainer<NetworkSession>,
-    /// Holds all the actual smoltcp sockets. Used for polling events on them.
+    // holds all the actual smoltcp sockets. Used for polling events on them.
     socket_set: SocketSet<'static>,
+    // the receive gates for requests from clients
     rgate: Rc<RecvGate>,
-    /// True if shutdown was called.
-    shuting_down: bool,
 }
 
 impl NetHandler {
@@ -186,14 +187,7 @@ impl Handler<NetworkSession> for NetHandler {
     }
 
     fn shutdown(&mut self) {
-        log!(LOG_DEF, "netrs: shutdown");
-        self.shuting_down = true;
-        /*
-        TODO:
-        Drop each session.
-        driver stop?
-        rgate stop
-         */
+        log!(LOG_DEF, "Shutting down");
     }
 }
 
@@ -203,7 +197,6 @@ pub fn own_addr() -> IpAddress {
 
 #[no_mangle]
 pub fn main() -> i32 {
-    // Parse args
     let args: Vec<&str> = env::args().collect();
     if args.len() != 4 {
         println!("Usage: {} <name> <ip address> <netmask>", args[0]);
@@ -228,11 +221,8 @@ pub fn main() -> i32 {
 
     rgate.activate().expect("Failed to activate main rgate");
 
-    // Create interface to networking device
-    // Depending on the platform, create a networking device.
     #[cfg(target_os = "none")]
     let device = driver::driver::E1000Device::new().expect("Failed to create E1000 driver");
-
     #[cfg(target_os = "linux")]
     let device = driver::driver::DevFifo::new(name);
 
@@ -256,7 +246,6 @@ pub fn main() -> i32 {
         sessions: SessionContainer::new(m3::server::DEF_MAX_CLIENTS),
         socket_set,
         rgate: Rc::new(rgate),
-        shuting_down: false,
     };
 
     let serv = Server::new(name, &mut handler).expect("Failed to create server!");
