@@ -24,7 +24,9 @@ pub use self::event::{NetEvent, NetEventChannel, NetEventType};
 pub mod socket;
 pub use self::socket::*;
 
+/// A socket descriptor
 pub type Sd = usize;
+/// A network port
 pub type Port = u16;
 
 pub const MSG_SIZE: usize = 2048;
@@ -43,14 +45,17 @@ pub const INBAND_DATA_CREDITS: usize = 4;
 pub const INBAND_DATA_BUF_SIZE: usize = INBAND_DATA_SIZE * INBAND_DATA_CREDITS;
 pub const MAX_NETDATA_SIZE: usize = 1024;
 
+/// Represents an internet protocol (IP) address
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub struct IpAddr(pub u32);
 
 impl IpAddr {
+    /// Creates an IP address from given 4 bytes
     pub fn new(v0: u8, v1: u8, v2: u8, v3: u8) -> Self {
         IpAddr(u32::from_be_bytes([v0, v1, v2, v3]))
     }
 
+    /// Creates an unspecified IP address
     pub fn unspecified() -> Self {
         IpAddr::new(0, 0, 0, 0)
     }
@@ -65,9 +70,9 @@ impl core::fmt::Display for IpAddr {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SocketType {
-    /// Tcp socket
+    /// TCP socket
     Stream    = 0,
-    /// Udp Socket
+    /// UDP Socket
     Dgram     = 1,
     /// Raw IpSocket
     Raw       = 2,
@@ -86,14 +91,18 @@ impl SocketType {
 }
 
 pub const MAC_LEN: usize = 6;
+
+/// Represents a media access control address (MAC) address
 #[derive(Eq, PartialEq)]
 pub struct MAC([u8; MAC_LEN]);
 
 impl MAC {
+    /// Returns the broadcast address
     pub fn broadcast() -> Self {
         MAC([0xff, 0xff, 0xff, 0xff, 0xff, 0xff])
     }
 
+    /// Creates a new MAC address with given bytes
     pub fn new(b0: u8, b1: u8, b2: u8, b3: u8, b4: u8, b5: u8) -> Self {
         MAC([b0, b1, b2, b3, b4, b5])
     }
@@ -102,6 +111,7 @@ impl MAC {
         &self.0
     }
 
+    /// Returns the MAC address as a u64
     pub fn value(&self) -> u64 {
         return ((self.0[5] as u64) << 40)
             | ((self.0[4] as u64) << 32)

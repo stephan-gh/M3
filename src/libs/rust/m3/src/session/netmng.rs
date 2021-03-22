@@ -32,7 +32,7 @@ use crate::session::ClientSession;
 const EVENT_FETCH_BATCH_SIZE: u32 = 4;
 
 int_enum! {
-    /// The operations for [`GenericFile`].
+    /// The operations for the network service
     pub struct NetworkOp : u64 {
         const STAT          = 0;
         const SEEK          = 1;
@@ -50,6 +50,12 @@ int_enum! {
     }
 }
 
+/// Represents a session at the network service, allowing to create and use sockets
+///
+/// To exchange events and data with the server, the [`NetEventChannel`] is used, which allows to
+/// send and receive multiple messages. Events are used to receive connected or closed events from
+/// the server and to send close requests to the server. Transmitted and received data is exchanged
+/// via the [`NetEventChannel`] in both directions.
 pub struct NetworkManager {
     #[allow(dead_code)] // Needs to keep the session alive
     client_session: ClientSession,
@@ -59,7 +65,7 @@ pub struct NetworkManager {
 }
 
 impl NetworkManager {
-    /// Creates a new instance for `service`. Returns Err if there was no network service with name `service`.
+    /// Creates a new instance for `service`
     pub fn new(service: &str) -> Result<Self, Error> {
         let client_session = ClientSession::new(service)?;
         // Obtain meta gate for the service
@@ -160,6 +166,11 @@ impl NetworkManager {
             })
     }
 
+    /// Waits until events are available to process
+    ///
+    /// Note: this function uses [`VPE::sleep`] if no events are present, which suspends the core
+    /// until the next TCU message arrives. Thus, calling this function can only be done if all work
+    /// is done.
     pub fn wait_sync(&self) {
         while !self.channel.has_events() {
             // ignore errors
@@ -169,6 +180,7 @@ impl NetworkManager {
         }
     }
 
+    /// Processes some events that have queued up
     pub fn process_events(&self, socket: Option<Sd>) {
         for _ in 0..EVENT_FETCH_BATCH_SIZE {
             if let Some(event) = self.channel.receive_event() {

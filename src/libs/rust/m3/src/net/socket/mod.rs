@@ -49,13 +49,20 @@ impl Default for SocketArgs {
     }
 }
 
+/// The states sockets can be in
 #[derive(Eq, Debug, PartialEq, Clone, Copy)]
 pub enum State {
+    /// The socket is bound to a local address and port
     Bound,
+    /// The socket is listening on a local address and port for remote connections
     Listening,
+    /// The socket is currently connecting to a remote endpoint
     Connecting,
+    /// The socket is connected to a remote endpoint
     Connected,
+    /// The remote side has closed the connection
     Closing,
+    /// The socket is closed (default state)
     Closed,
 }
 

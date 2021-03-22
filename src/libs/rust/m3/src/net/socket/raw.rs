@@ -24,8 +24,7 @@ use crate::net::{
 use crate::rc::Rc;
 use crate::session::NetworkManager;
 
-/// A Raw socket sends already finished packages. Therefore the IpHeader must be written, before the
-/// package is passed to send.
+/// Represents a raw internet protocol (IP) socket
 pub struct RawSocket<'n> {
     socket: Rc<Socket>,
     nm: &'n NetworkManager,
