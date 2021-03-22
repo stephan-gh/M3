@@ -24,6 +24,7 @@ use m3::col::{Vec, VecDeque};
 use m3::com::{GateIStream, RecvGate, SendGate};
 use m3::errors::{Code, Error};
 use m3::net::{event, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketType};
+use m3::parse;
 use m3::rc::Rc;
 use m3::server::CapExchange;
 use m3::session::ServerSession;
@@ -37,13 +38,44 @@ use crate::sess::file::FileSession;
 use crate::smoltcpif::socket::{to_m3_addr, SendNetEvent, Socket};
 
 pub const MAX_INCOMING_BATCH_SIZE: usize = 4;
-pub const MAX_SOCKETS: usize = 16;
+
+struct Args {
+    bufs: usize,
+    socks: usize,
+}
+
+impl Default for Args {
+    fn default() -> Self {
+        Self {
+            bufs: 64 * 1024,
+            socks: 4,
+        }
+    }
+}
+
+fn parse_arguments(args_str: &str) -> Result<Args, Error> {
+    let mut args = Args::default();
+    for arg in args_str.split_whitespace() {
+        if arg.starts_with("bufs=") {
+            args.bufs = parse::size(&arg[5..])?;
+        }
+        else if arg.starts_with("socks=") {
+            args.socks = parse::int(&arg[6..])? as usize;
+        }
+        else {
+            return Err(Error::new(Code::InvArgs));
+        }
+    }
+    Ok(args)
+}
 
 pub struct SocketSession {
     // client send gate to send us requests
     sgate: Option<SendGate>,
     // our receive gate (shared among all sessions)
     rgate: Rc<RecvGate>,
+    // the remaining buffer space available to this session
+    buf_quota: usize,
     // our session cap
     server_session: ServerSession,
     // sockets the client has open
@@ -55,15 +87,30 @@ pub struct SocketSession {
 }
 
 impl SocketSession {
-    pub fn new(_crt: usize, server_session: ServerSession, rgate: Rc<RecvGate>) -> Self {
-        SocketSession {
+    pub fn new(
+        _crt: usize,
+        args_str: &str,
+        server_session: ServerSession,
+        rgate: Rc<RecvGate>,
+    ) -> Result<Self, Error> {
+        let args = parse_arguments(args_str).map_err(|e| {
+            log!(
+                crate::LOG_ERR,
+                "Unable to parse session arguments: '{}'",
+                args_str
+            );
+            e
+        })?;
+
+        Ok(SocketSession {
             sgate: None,
             rgate,
+            buf_quota: args.bufs,
             server_session,
-            sockets: vec![None; MAX_SOCKETS],
+            sockets: vec![None; args.socks],
             channel: None,
             send_queue: VecDeque::new(),
-        }
+        })
     }
 
     pub fn obtain(
@@ -200,13 +247,24 @@ impl SocketSession {
         &mut self,
         ty: SocketType,
         protocol: u8,
+        rbuf_space: usize,
+        rbuf_slots: usize,
+        sbuf_space: usize,
+        sbuf_slots: usize,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<Sd, Error> {
+        let total_space =
+            Socket::required_space(ty, rbuf_space, rbuf_slots, sbuf_space, sbuf_slots);
+        if self.buf_quota < total_space {
+            return Err(Error::new(Code::NoSpace));
+        }
+
         for (i, s) in self.sockets.iter_mut().enumerate() {
             if s.is_none() {
                 *s = Some(Rc::new(RefCell::new(Socket::new(
-                    i, ty, protocol, socket_set,
+                    i, ty, protocol, rbuf_space, rbuf_slots, sbuf_space, sbuf_slots, socket_set,
                 )?)));
+                self.buf_quota -= total_space;
                 return Ok(i);
             }
         }
@@ -214,7 +272,9 @@ impl SocketSession {
     }
 
     fn remove_socket(&mut self, sd: Sd) {
-        self.sockets[sd] = None;
+        if let Some(s) = self.sockets[sd].take() {
+            self.buf_quota += s.borrow().buffer_space();
+        }
     }
 
     pub fn create(
@@ -224,14 +284,24 @@ impl SocketSession {
     ) -> Result<(), Error> {
         let ty = SocketType::from_usize(is.pop::<usize>()?);
         let protocol: u8 = is.pop()?;
+        let rbuf_space: usize = is.pop()?;
+        let rbuf_slots: usize = is.pop()?;
+        let sbuf_space: usize = is.pop()?;
+        let sbuf_slots: usize = is.pop()?;
 
-        let res = self.add_socket(ty, protocol, socket_set);
+        let res = self.add_socket(
+            ty, protocol, rbuf_space, rbuf_slots, sbuf_space, sbuf_slots, socket_set,
+        );
 
         log!(
             crate::LOG_SESS,
-            "net::create(type={:?}, protocol={}) -> {:?}",
+            "net::create(type={:?}, protocol={}, rbuf=[{}b,{}], sbuf=[{}b,{}]) -> {:?}",
             ty,
             protocol,
+            rbuf_space,
+            rbuf_slots,
+            sbuf_space,
+            sbuf_slots,
             res
         );
 

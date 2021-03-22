@@ -28,8 +28,26 @@ mod tcp;
 mod udp;
 
 pub use self::raw::RawSocket;
-pub use self::tcp::TcpSocket;
-pub use self::udp::UdpSocket;
+pub use self::tcp::{StreamSocketArgs, TcpSocket};
+pub use self::udp::{DgramSocketArgs, UdpSocket};
+
+pub(crate) struct SocketArgs {
+    pub rbuf_slots: usize,
+    pub rbuf_size: usize,
+    pub sbuf_slots: usize,
+    pub sbuf_size: usize,
+}
+
+impl Default for SocketArgs {
+    fn default() -> Self {
+        Self {
+            rbuf_slots: 4,
+            rbuf_size: 8 * 1024,
+            sbuf_slots: 4,
+            sbuf_size: 8 * 1024,
+        }
+    }
+}
 
 #[derive(Eq, Debug, PartialEq, Clone, Copy)]
 pub enum State {

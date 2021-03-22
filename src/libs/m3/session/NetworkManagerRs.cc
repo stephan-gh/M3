@@ -35,9 +35,13 @@ NetworkManagerRs::NetworkManagerRs(const String &service)
       _channel(NetEventChannelRs(obtain(3).start())) {
 }
 
-int32_t NetworkManagerRs::create(SocketType type, uint8_t protocol) {
+int32_t NetworkManagerRs::create(SocketType type, uint8_t protocol, const SocketArgs &args) {
     LLOG(NET, "Create:()");
-    GateIStream reply = send_receive_vmsg(_metagate, CREATE, static_cast<uint64_t>(type), protocol);
+    GateIStream reply = send_receive_vmsg(
+        _metagate, CREATE, static_cast<uint64_t>(type), protocol,
+        args.rbuf_size, args.rbuf_slots,
+        args.sbuf_size, args.sbuf_slots
+    );
     reply.pull_result();
 
     int32_t sd;

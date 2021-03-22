@@ -17,7 +17,10 @@
  */
 
 use crate::errors::Error;
-use crate::net::{socket::Socket, Sd, SocketType};
+use crate::net::{
+    socket::{DgramSocketArgs, Socket},
+    Sd, SocketType,
+};
 use crate::rc::Rc;
 use crate::session::NetworkManager;
 
@@ -29,10 +32,10 @@ pub struct RawSocket<'n> {
 }
 
 impl<'n> RawSocket<'n> {
-    pub fn new(nm: &'n NetworkManager, protocol: Option<u8>) -> Result<Self, Error> {
+    pub fn new(args: DgramSocketArgs<'n>, protocol: Option<u8>) -> Result<Self, Error> {
         Ok(RawSocket {
-            socket: nm.create(SocketType::Raw, protocol)?,
-            nm,
+            socket: args.nm.create(SocketType::Raw, protocol, &args.args)?,
+            nm: args.nm,
         })
     }
 

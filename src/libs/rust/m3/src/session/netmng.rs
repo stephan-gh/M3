@@ -22,7 +22,8 @@ use crate::col::Vec;
 use crate::com::{RecvGate, SendGate};
 use crate::errors::Error;
 use crate::net::{
-    event, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, Socket, SocketType,
+    event, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, Socket, SocketArgs,
+    SocketType,
 };
 use crate::pes::VPE;
 use crate::rc::Rc;
@@ -73,13 +74,22 @@ impl NetworkManager {
         })
     }
 
-    pub(crate) fn create(&self, ty: SocketType, protocol: Option<u8>) -> Result<Rc<Socket>, Error> {
+    pub(crate) fn create(
+        &self,
+        ty: SocketType,
+        protocol: Option<u8>,
+        args: &SocketArgs,
+    ) -> Result<Rc<Socket>, Error> {
         let mut reply = send_recv_res!(
             &self.metagate,
             RecvGate::def(),
             NetworkOp::CREATE,
             ty as usize,
-            protocol.unwrap_or(0)
+            protocol.unwrap_or(0),
+            args.rbuf_size,
+            args.rbuf_slots,
+            args.sbuf_size,
+            args.sbuf_slots
         )?;
 
         let sd = reply.pop::<Sd>()?;

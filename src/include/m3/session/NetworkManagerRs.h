@@ -59,7 +59,7 @@ private:
         return _metagate;
     }
 
-    int32_t create(SocketType type, uint8_t protocol = 0);
+    int32_t create(SocketType type, uint8_t protocol, const SocketArgs &args);
     void add_socket(SocketRs *socket);
     void remove_socket(SocketRs *socket);
 

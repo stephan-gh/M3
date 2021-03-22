@@ -29,6 +29,20 @@ namespace m3 {
 
 class NetworkManagerRs;
 
+struct SocketArgs {
+    explicit SocketArgs()
+        : rbuf_slots(4),
+          rbuf_size(8 * 1024),
+          sbuf_slots(4),
+          sbuf_size(8 * 1024)
+    {}
+
+    size_t rbuf_slots;
+    size_t rbuf_size;
+    size_t sbuf_slots;
+    size_t sbuf_size;
+};
+
 class SocketRs : public m3::TreapNode<SocketRs, int>, public RefCounted {
     friend class NetworkManagerRs;
 

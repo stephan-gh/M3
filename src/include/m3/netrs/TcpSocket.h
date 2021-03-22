@@ -23,13 +23,45 @@
 
 namespace m3 {
 
+/**
+ * Configures the sizes of the receive and send buffers.
+ */
+class StreamSocketArgs : public SocketArgs {
+public:
+    explicit StreamSocketArgs() noexcept : SocketArgs() {
+        rbuf_slots = 0;
+        sbuf_slots = 0;
+    }
+
+    /**
+     * Sets the size in bytes of the receive buffer
+     *
+     * @param size the total size of the buffer in bytes
+     */
+    StreamSocketArgs &recv_buffer(size_t size) noexcept {
+        rbuf_size = size;
+        return *this;
+    }
+
+    /**
+     * Sets the size in bytes of the send buffer
+     *
+     * @param size the total size of the buffer in bytes
+     */
+    StreamSocketArgs &send_buffer(size_t size) noexcept {
+        sbuf_size = size;
+        return *this;
+    }
+};
+
 class TcpSocketRs : public SocketRs {
     friend class SocketRs;
 
     explicit TcpSocketRs(int sd, NetworkManagerRs &nm);
 
 public:
-    static Reference<TcpSocketRs> create(NetworkManagerRs &nm);
+    static Reference<TcpSocketRs> create(NetworkManagerRs &nm,
+                                         const StreamSocketArgs &args = StreamSocketArgs());
 
     ~TcpSocketRs();
 

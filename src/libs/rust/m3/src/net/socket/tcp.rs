@@ -18,11 +18,38 @@
 
 use crate::errors::{Code, Error};
 use crate::net::{
-    socket::{Socket, State},
+    socket::{Socket, SocketArgs, State},
     IpAddr, Port, Sd, SocketType,
 };
 use crate::rc::Rc;
 use crate::session::NetworkManager;
+
+pub struct StreamSocketArgs<'n> {
+    nm: &'n NetworkManager,
+    args: SocketArgs,
+}
+
+impl<'n> StreamSocketArgs<'n> {
+    /// Creates a new `StreamSocketArgs` with default settings.
+    pub fn new(nm: &'n NetworkManager) -> Self {
+        Self {
+            nm,
+            args: SocketArgs::default(),
+        }
+    }
+
+    /// Sets the size in bytes of the receive buffer
+    pub fn recv_buffer(mut self, size: usize) -> Self {
+        self.args.rbuf_size = size;
+        self
+    }
+
+    /// Sets the size in bytes of the send buffer
+    pub fn send_buffer(mut self, size: usize) -> Self {
+        self.args.sbuf_size = size;
+        self
+    }
+}
 
 pub struct TcpSocket<'n> {
     socket: Rc<Socket>,
@@ -30,10 +57,10 @@ pub struct TcpSocket<'n> {
 }
 
 impl<'n> TcpSocket<'n> {
-    pub fn new(nm: &'n NetworkManager) -> Result<Self, Error> {
+    pub fn new(args: StreamSocketArgs<'n>) -> Result<Self, Error> {
         Ok(TcpSocket {
-            socket: nm.create(SocketType::Stream, None)?,
-            nm,
+            socket: args.nm.create(SocketType::Stream, None, &args.args)?,
+            nm: args.nm,
         })
     }
 

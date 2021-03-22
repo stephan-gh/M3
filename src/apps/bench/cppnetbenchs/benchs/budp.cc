@@ -96,7 +96,8 @@ NOINLINE static void latency() {
 NOINLINE static void bandwidth() {
     NetworkManagerRs net("net0");
 
-    auto socket = UdpSocketRs::create(net);
+    auto socket = UdpSocketRs::create(net, DgramSocketArgs().send_buffer(8, 16 * 1024)
+                                                            .recv_buffer(32, 64 * 1024));
 
     socket->bind(IpAddr(192, 168, 112, 2), 1338);
 

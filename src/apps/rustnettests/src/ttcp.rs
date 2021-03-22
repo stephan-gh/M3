@@ -18,7 +18,7 @@ use m3::boxed::Box;
 use m3::cell::StaticCell;
 use m3::com::Semaphore;
 use m3::errors::Code;
-use m3::net::{IpAddr, Port, State, TcpSocket};
+use m3::net::{IpAddr, Port, State, StreamSocketArgs, TcpSocket};
 use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::session::NetworkManager;
 use m3::test;
@@ -40,7 +40,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 fn basics() {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
-    let mut socket = wv_assert_ok!(TcpSocket::new(&nm));
+    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(&nm)));
 
     wv_assert_eq!(socket.state(), State::Closed);
 
@@ -78,7 +78,7 @@ fn basics() {
 fn open_close() {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
-    let mut socket = wv_assert_ok!(TcpSocket::new(&nm));
+    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(&nm)));
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
@@ -106,7 +106,7 @@ fn receive_after_close() {
 
         let nm = wv_assert_ok!(NetworkManager::new("net1"));
 
-        let mut socket = wv_assert_ok!(TcpSocket::new(&nm));
+        let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(&nm)));
 
         wv_assert_ok!(socket.listen(IpAddr::new(192, 168, 112, 1), 4000));
         wv_assert_eq!(socket.state(), State::Listening);
@@ -129,7 +129,7 @@ fn receive_after_close() {
 
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
-    let mut socket = wv_assert_ok!(TcpSocket::new(&nm));
+    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(&nm)));
 
     wv_assert_ok!(sem.down());
 
@@ -153,7 +153,7 @@ fn receive_after_close() {
 fn data() {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
-    let mut socket = wv_assert_ok!(TcpSocket::new(&nm));
+    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(&nm)));
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 

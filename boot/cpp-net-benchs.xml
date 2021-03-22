@@ -15,14 +15,14 @@
         </dom>
         <dom>
             <app args="netechoserver" daemon="1">
-                <sess name="net1" />
+                <sess name="net1" args="bufs=256K socks=2" />
                 <sem name="net-udp" />
                 <sem name="net-tcp" />
             </app>
         </dom>
         <dom>
             <app args="cppnetbenchs">
-                <sess name="net0" />
+                <sess name="net0" args="bufs=256K socks=2" />
                 <sem name="net-udp" />
                 <sem name="net-tcp" />
             </app>

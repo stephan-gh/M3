@@ -17,15 +17,26 @@
 #![no_std]
 
 use m3::com::Semaphore;
-use m3::net::{IpAddr, State, TcpSocket, UdpSocket};
+use m3::net::{DgramSocketArgs, IpAddr, State, StreamSocketArgs, TcpSocket, UdpSocket};
 use m3::session::NetworkManager;
 
 #[no_mangle]
 pub fn main() -> i32 {
     let nm = NetworkManager::new("net1").expect("connecting to net1 failed");
 
-    let mut udp_socket = UdpSocket::new(&nm).expect("creating UDP socket failed");
-    let mut tcp_socket = TcpSocket::new(&nm).expect("creating TCP socket failed");
+    let mut udp_socket = UdpSocket::new(
+        DgramSocketArgs::new(&nm)
+            .send_buffer(8, 16 * 1024)
+            .recv_buffer(32, 64 * 1024),
+    )
+    .expect("creating UDP socket failed");
+
+    let mut tcp_socket = TcpSocket::new(
+        StreamSocketArgs::new(&nm)
+            .send_buffer(16 * 1024)
+            .recv_buffer(64 * 1024),
+    )
+    .expect("creating TCP socket failed");
 
     udp_socket
         .bind(IpAddr::new(192, 168, 112, 1), 1337)

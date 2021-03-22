@@ -38,8 +38,8 @@ TcpSocketRs::~TcpSocketRs() {
     _nm.remove_socket(this);
 }
 
-Reference<TcpSocketRs> TcpSocketRs::create(NetworkManagerRs &nm) {
-    int sd = nm.create(SOCK_STREAM, 0);
+Reference<TcpSocketRs> TcpSocketRs::create(NetworkManagerRs &nm, const StreamSocketArgs &args) {
+    int sd = nm.create(SOCK_STREAM, 0, args);
     auto sock = new TcpSocketRs(sd, nm);
     nm.add_socket(sock);
     return Reference<TcpSocketRs>(sock);

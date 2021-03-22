@@ -17,7 +17,7 @@
 use m3::com::Semaphore;
 use m3::errors::Code;
 use m3::format;
-use m3::net::{IpAddr, UdpSocket};
+use m3::net::{DgramSocketArgs, IpAddr, UdpSocket};
 use m3::pes::VPE;
 use m3::println;
 use m3::profile::Results;
@@ -36,7 +36,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 
 fn latency() {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
-    let mut socket = wv_assert_ok!(UdpSocket::new(&nm));
+    let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(&nm)));
 
     wv_assert_ok!(socket.bind(IpAddr::new(192, 168, 112, 2), 1337));
 
@@ -88,7 +88,11 @@ fn bandwidth() {
     const TIMEOUT: u64 = 10_000_000; // cycles
 
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
-    let mut socket = wv_assert_ok!(UdpSocket::new(&nm));
+    let mut socket = wv_assert_ok!(UdpSocket::new(
+        DgramSocketArgs::new(&nm)
+            .send_buffer(8, 16 * 1024)
+            .recv_buffer(32, 64 * 1024)
+    ));
 
     wv_assert_ok!(socket.bind(IpAddr::new(192, 168, 112, 2), 1338));
 

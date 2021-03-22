@@ -41,7 +41,6 @@ use smoltcp::socket::SocketSet;
 use smoltcp::time::Duration;
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 
-use crate::sess::socket::MAX_SOCKETS;
 use crate::sess::NetworkSession;
 
 mod driver;
@@ -56,6 +55,8 @@ pub const LOG_NIC: bool = false;
 pub const LOG_NIC_DETAIL: bool = false;
 pub const LOG_SMOLTCP: bool = false;
 pub const LOG_DETAIL: bool = false;
+
+const MAX_SOCKETS: usize = 64;
 
 struct NetHandler {
     sel: Selector,
@@ -130,15 +131,13 @@ impl Handler<NetworkSession> for NetHandler {
         &mut self,
         crt: usize,
         srv_sel: Selector,
-        _arg: &str,
+        arg: &str,
     ) -> Result<(Selector, SessId), Error> {
         let rgate = self.rgate.clone();
 
         let res = self.sessions.add_next(crt, srv_sel, false, |sess| {
             log!(LOG_SESS, "[{}] net::open(sel={})", sess.ident(), sess.sel());
-            let new_session =
-                NetworkSession::SocketSession(sess::SocketSession::new(crt, sess, rgate));
-            Ok(new_session)
+            Ok(NetworkSession::SocketSession(sess::SocketSession::new(crt, arg, sess, rgate)?))
         });
 
         assert!(res.is_ok());

@@ -18,7 +18,8 @@
 use m3::cell::RefCell;
 use m3::errors::{Code, Error};
 use m3::log;
-use m3::net::{event, IpAddr, Port, Sd, SocketType, MAX_NETDATA_SIZE, MSG_BUF_SIZE};
+use m3::mem::size_of;
+use m3::net::{event, IpAddr, Port, Sd, SocketType};
 use m3::rc::Rc;
 use m3::vec;
 
@@ -33,18 +34,6 @@ use smoltcp::wire::IpVersion;
 use smoltcp::wire::{IpAddress, IpEndpoint, Ipv4Address};
 
 use crate::sess::FileSession;
-
-pub const MAX_SEND_BUF_PACKETS: usize = 8;
-pub const MAX_RECV_BUF_PACKETS: usize = 32;
-
-/// Defines how big the socket buffers must be, currently this is the max NetDataSize multiplied by the
-/// Maximum in flight packages
-pub const TCP_BUFFER_SIZE: usize = (MAX_NETDATA_SIZE + TCP_HEADER_SIZE) * MAX_RECV_BUF_PACKETS;
-pub const UDP_BUFFER_SIZE: usize = (MAX_NETDATA_SIZE + UDP_HEADER_SIZE) * MAX_RECV_BUF_PACKETS;
-pub const RAW_BUFFER_SIZE: usize = MAX_NETDATA_SIZE * MAX_RECV_BUF_PACKETS;
-
-pub const TCP_HEADER_SIZE: usize = 32;
-pub const UDP_HEADER_SIZE: usize = 8;
 
 /// Converts an IpEndpoint from smoltcp into an M³ (IpAddr, Port) tuple.
 /// Assumes that the IpEndpoint a is Ipv4 address, otherwise this will panic.
@@ -77,6 +66,7 @@ pub struct Socket {
     socket: SocketHandle,
     ty: SocketType,
     state: State,
+    buffer_space: usize,
 
     // for the file session
     rfile: Option<Rc<RefCell<FileSession>>>,
@@ -84,38 +74,58 @@ pub struct Socket {
 }
 
 impl Socket {
+    pub fn required_space(
+        ty: SocketType,
+        rbuf_space: usize,
+        rbuf_slots: usize,
+        sbuf_space: usize,
+        sbuf_slots: usize,
+    ) -> usize {
+        rbuf_space
+            + sbuf_space
+            + match ty {
+                SocketType::Dgram => (sbuf_slots + rbuf_slots) * size_of::<UdpSocketBuffer>(),
+                SocketType::Raw => (sbuf_slots + rbuf_slots) * size_of::<RawSocketBuffer>(),
+                _ => 0,
+            }
+    }
+
     pub fn new(
         sd: Sd,
         ty: SocketType,
         protocol: u8,
+        rbuf_space: usize,
+        rbuf_slots: usize,
+        sbuf_space: usize,
+        sbuf_slots: usize,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<Self, Error> {
         let socket = match ty {
             SocketType::Stream => socket_set.add(TcpSocket::new(
-                TcpSocketBuffer::new(vec![0 as u8; TCP_BUFFER_SIZE]),
-                TcpSocketBuffer::new(vec![0 as u8; TCP_BUFFER_SIZE]),
+                TcpSocketBuffer::new(vec![0 as u8; rbuf_space]),
+                TcpSocketBuffer::new(vec![0 as u8; sbuf_space]),
             )),
             SocketType::Dgram => socket_set.add(UdpSocket::new(
-                UdpSocketBuffer::new(
-                    vec![PacketMetadata::EMPTY; MAX_RECV_BUF_PACKETS],
-                    vec![0 as u8; UDP_BUFFER_SIZE],
-                ),
-                UdpSocketBuffer::new(
-                    vec![PacketMetadata::EMPTY; MAX_SEND_BUF_PACKETS],
-                    vec![0 as u8; UDP_BUFFER_SIZE],
-                ),
+                UdpSocketBuffer::new(vec![PacketMetadata::EMPTY; rbuf_slots], vec![
+                    0 as u8;
+                    rbuf_space
+                ]),
+                UdpSocketBuffer::new(vec![PacketMetadata::EMPTY; sbuf_slots], vec![
+                    0 as u8;
+                    sbuf_space
+                ]),
             )),
             SocketType::Raw => socket_set.add(RawSocket::new(
                 IpVersion::Ipv4,
                 protocol.into(),
-                RawSocketBuffer::new(
-                    vec![PacketMetadata::EMPTY; MSG_BUF_SIZE],
-                    vec![0 as u8; RAW_BUFFER_SIZE],
-                ),
-                RawSocketBuffer::new(
-                    vec![PacketMetadata::EMPTY; MSG_BUF_SIZE],
-                    vec![0 as u8; RAW_BUFFER_SIZE],
-                ),
+                RawSocketBuffer::new(vec![PacketMetadata::EMPTY; rbuf_slots], vec![
+                    0 as u8;
+                    rbuf_space
+                ]),
+                RawSocketBuffer::new(vec![PacketMetadata::EMPTY; sbuf_slots], vec![
+                    0 as u8;
+                    sbuf_space
+                ]),
             )),
             _ => return Err(Error::new(Code::InvArgs)),
         };
@@ -125,6 +135,7 @@ impl Socket {
             socket,
             ty,
             state: State::None,
+            buffer_space: Self::required_space(ty, rbuf_space, rbuf_slots, sbuf_space, sbuf_slots),
 
             rfile: None,
             sfile: None,
@@ -133,6 +144,10 @@ impl Socket {
 
     pub fn sd(&self) -> Sd {
         self.sd
+    }
+
+    pub fn buffer_space(&self) -> usize {
+        self.buffer_space
     }
 
     pub fn recv_file(&self) -> Option<&Rc<RefCell<FileSession>>> {

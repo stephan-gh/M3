@@ -23,13 +23,47 @@
 
 namespace m3 {
 
+/**
+ * Configures the sizes of the receive and send buffers.
+ */
+class DgramSocketArgs : public SocketArgs {
+public:
+    explicit DgramSocketArgs() noexcept : SocketArgs()
+    {}
+
+    /**
+     * Sets the number of slots and the size in bytes of the receive buffer
+     *
+     * @param slots the number of slots
+     * @param size the total size of the buffer in bytes
+     */
+    DgramSocketArgs &recv_buffer(size_t slots, size_t size) noexcept {
+        rbuf_slots = slots;
+        rbuf_size = size;
+        return *this;
+    }
+
+    /**
+     * Sets the number of slots and the size in bytes of the send buffer
+     *
+     * @param slots the number of slots
+     * @param size the total size of the buffer in bytes
+     */
+    DgramSocketArgs &send_buffer(size_t slots, size_t size) noexcept {
+        sbuf_slots = slots;
+        sbuf_size = size;
+        return *this;
+    }
+};
+
 class UdpSocketRs : public SocketRs {
     friend class SocketRs;
 
     explicit UdpSocketRs(int sd, NetworkManagerRs &nm);
 
 public:
-    static Reference<UdpSocketRs> create(NetworkManagerRs &nm);
+    static Reference<UdpSocketRs> create(NetworkManagerRs &nm,
+                                         const DgramSocketArgs &args = DgramSocketArgs());
 
     ~UdpSocketRs();
 

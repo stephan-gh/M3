@@ -18,11 +18,40 @@
 
 use crate::errors::{Code, Error};
 use crate::net::{
-    socket::{Socket, State},
+    socket::{Socket, SocketArgs, State},
     IpAddr, Port, Sd, SocketType,
 };
 use crate::rc::Rc;
 use crate::session::NetworkManager;
+
+pub struct DgramSocketArgs<'n> {
+    pub(crate) nm: &'n NetworkManager,
+    pub(crate) args: SocketArgs,
+}
+
+impl<'n> DgramSocketArgs<'n> {
+    /// Creates a new `DgramSocketArgs` with default settings.
+    pub fn new(nm: &'n NetworkManager) -> Self {
+        Self {
+            nm,
+            args: SocketArgs::default(),
+        }
+    }
+
+    /// Sets the number of slots and the size in bytes of the receive buffer
+    pub fn recv_buffer(mut self, slots: usize, size: usize) -> Self {
+        self.args.rbuf_slots = slots;
+        self.args.rbuf_size = size;
+        self
+    }
+
+    /// Sets the number of slots and the size in bytes of the send buffer
+    pub fn send_buffer(mut self, slots: usize, size: usize) -> Self {
+        self.args.sbuf_slots = slots;
+        self.args.sbuf_size = size;
+        self
+    }
+}
 
 pub struct UdpSocket<'n> {
     socket: Rc<Socket>,
@@ -30,10 +59,10 @@ pub struct UdpSocket<'n> {
 }
 
 impl<'n> UdpSocket<'n> {
-    pub fn new(nm: &'n NetworkManager) -> Result<Self, Error> {
+    pub fn new(args: DgramSocketArgs<'n>) -> Result<Self, Error> {
         Ok(UdpSocket {
-            socket: nm.create(SocketType::Dgram, None)?,
-            nm,
+            socket: args.nm.create(SocketType::Dgram, None, &args.args)?,
+            nm: args.nm,
         })
     }
 

@@ -16,7 +16,7 @@
 
 use m3::com::Semaphore;
 use m3::errors::Code;
-use m3::net::{IpAddr, State, UdpSocket};
+use m3::net::{DgramSocketArgs, IpAddr, State, UdpSocket};
 use m3::session::NetworkManager;
 use m3::test;
 use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
@@ -32,7 +32,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 fn basics() {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
-    let mut socket = wv_assert_ok!(UdpSocket::new(&nm));
+    let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(&nm)));
 
     wv_assert_eq!(socket.state(), State::Closed);
 
@@ -51,7 +51,7 @@ fn basics() {
 fn data() {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
-    let mut socket = wv_assert_ok!(UdpSocket::new(&nm));
+    let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(&nm)));
     wv_assert_ok!(socket.bind(IpAddr::new(192, 168, 112, 2), 1338));
 
     let dest_addr = IpAddr::new(192, 168, 112, 1);

@@ -87,7 +87,8 @@ NOINLINE static void bandwidth() {
 
     NetworkManagerRs net("net0");
 
-    auto socket = TcpSocketRs::create(net);
+    auto socket = TcpSocketRs::create(net, StreamSocketArgs().send_buffer(16 * 1024)
+                                                             .recv_buffer(64 * 1024));
 
     // wait for server socket to be ready
     Semaphore::attach("net-tcp").down();

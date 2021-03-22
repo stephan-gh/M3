@@ -38,8 +38,8 @@ UdpSocketRs::~UdpSocketRs() {
     _nm.remove_socket(this);
 }
 
-Reference<UdpSocketRs> UdpSocketRs::create(NetworkManagerRs &nm) {
-    int sd = nm.create(SOCK_DGRAM, 0);
+Reference<UdpSocketRs> UdpSocketRs::create(NetworkManagerRs &nm, const DgramSocketArgs &args) {
+    int sd = nm.create(SOCK_DGRAM, 0, args);
     auto sock = new UdpSocketRs(sd, nm);
     nm.add_socket(sock);
     return Reference<UdpSocketRs>(sock);
