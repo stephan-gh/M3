@@ -283,7 +283,7 @@ case "$cmd" in
         export RUSTDOCFLAGS=$RUSTFLAGS
         for lib in src/libs/rust/*; do
             if [ -d $lib ]; then
-                ( cd $lib && cargo doc --target $RUST_TARGET )
+                ( cd $lib && cargo doc -Z build-std=core,alloc --target $RUST_TARGET )
             fi
         done
         ;;

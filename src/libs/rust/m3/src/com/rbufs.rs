@@ -29,7 +29,7 @@ use crate::syscalls;
 
 static BUFS: LazyStaticCell<MemMap> = LazyStaticCell::default();
 
-/// A buffer to receive messages from a [`RecvGate`](::com::RecvGate).
+/// A buffer to receive messages from a [`RecvGate`](crate::com::RecvGate).
 ///
 /// For SPM PEs, the receive buffer will always be in the local SPM and thus there is no [`MemGate`]
 /// used. For cache PEs, we allocate physical memory and map it into our address space.
@@ -50,7 +50,7 @@ impl RecvBuf {
         self.size
     }
 
-    /// Returns the offset to specify on [`RecvGate`](::com::RecvGate) activation
+    /// Returns the offset to specify on [`RecvGate`](crate::com::RecvGate) activation
     pub fn off(&self) -> usize {
         match self.mgate {
             Some(_) => 0,
@@ -58,7 +58,7 @@ impl RecvBuf {
         }
     }
 
-    /// Returns the selector to specify on [`RecvGate`](::com::RecvGate) activation
+    /// Returns the selector to specify on [`RecvGate`](crate::com::RecvGate) activation
     pub fn mem(&self) -> Option<Selector> {
         self.mgate.as_ref().map(|mg| mg.sel())
     }
