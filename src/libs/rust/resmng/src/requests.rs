@@ -118,7 +118,7 @@ fn handle_request_async(mut is: GateIStream) {
         },
         Ok(_) => reply_vmsg!(is, 0 as u64),
     }
-    .expect("Unable to reply");
+    .ok(); // ignore errors; we might have removed the child in the meantime
 }
 
 fn reg_serv(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {

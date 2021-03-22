@@ -110,6 +110,7 @@ pub trait Child {
     fn our_pe(&self) -> Option<Rc<pes::PEUsage>>;
     fn child_pe(&self) -> Option<Rc<pes::PEUsage>>;
     fn vpe_sel(&self) -> Selector;
+    fn resmng_sgate_sel(&self) -> Selector;
 
     fn mem(&self) -> &Rc<ChildMem>;
     fn cfg(&self) -> Rc<AppConfig>;
@@ -664,6 +665,17 @@ impl Child for OwnChild {
         self.activity.as_ref().unwrap().vpe().sel()
     }
 
+    fn resmng_sgate_sel(&self) -> Selector {
+        self.activity
+            .as_ref()
+            .unwrap()
+            .vpe()
+            .resmng()
+            .as_ref()
+            .unwrap()
+            .sel()
+    }
+
     fn mem(&self) -> &Rc<ChildMem> {
         &self.mem
     }
@@ -754,6 +766,10 @@ impl Child for ForeignChild {
 
     fn vpe_sel(&self) -> Selector {
         self.vpe
+    }
+
+    fn resmng_sgate_sel(&self) -> Selector {
+        self._sgate.sel()
     }
 
     fn mem(&self) -> &Rc<ChildMem> {
@@ -953,6 +969,16 @@ impl ChildManager {
 
             // let a potential ongoing async. operation fail
             events::remove_child(id);
+
+            // first, revoke the child's SendGate
+            syscalls::revoke(
+                VPE::cur().sel(),
+                CapRngDesc::new(CapType::OBJECT, child.resmng_sgate_sel(), 1),
+                true,
+            )
+            .ok();
+            // now remove all potentially pending messages from the child
+            crate::requests::rgate().drop_msgs_with(child.id().into());
 
             for csel in &child.res().childs {
                 self.remove_rec_async(csel.0);
