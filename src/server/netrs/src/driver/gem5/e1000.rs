@@ -21,7 +21,7 @@ use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{Perm, PEISA};
 use m3::log;
-use m3::net::{MAC, MAC_LEN};
+use m3::net::MAC;
 
 use memoffset::offset_of;
 
@@ -556,7 +556,7 @@ impl E1000 {
         }
 
         // wasn't correct, therefore try to read from eeprom
-        let mut bytes = [0 as u8; MAC_LEN];
+        let mut bytes = [0 as u8; 6];
         self.read_eeprom(0, &mut bytes);
 
         mac = MAC::new(bytes[1], bytes[0], bytes[3], bytes[2], bytes[5], bytes[4]);

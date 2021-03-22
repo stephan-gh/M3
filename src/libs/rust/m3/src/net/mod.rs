@@ -90,11 +90,9 @@ impl SocketType {
     }
 }
 
-pub const MAC_LEN: usize = 6;
-
 /// Represents a media access control address (MAC) address
 #[derive(Eq, PartialEq)]
-pub struct MAC([u8; MAC_LEN]);
+pub struct MAC([u8; 6]);
 
 impl MAC {
     /// Returns the broadcast address
@@ -105,10 +103,6 @@ impl MAC {
     /// Creates a new MAC address with given bytes
     pub fn new(b0: u8, b1: u8, b2: u8, b3: u8, b4: u8, b5: u8) -> Self {
         MAC([b0, b1, b2, b3, b4, b5])
-    }
-
-    pub fn as_slice(&self) -> &[u8] {
-        &self.0
     }
 
     /// Returns the MAC address as a u64
