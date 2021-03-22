@@ -65,6 +65,7 @@ pub use base::{
     log,
     math,
     mem,
+    parse,
     pexif,
     profile,
     rc,

@@ -19,6 +19,7 @@ use m3::errors::{Code, Error};
 use m3::format;
 use m3::goff;
 use m3::kif;
+use m3::parse;
 use m3::rc::Rc;
 
 use crate::config;
@@ -168,10 +169,10 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
                         app.args.push(a.to_string());
                     }
                 },
-                "usermem" => app.user_mem = Some(parse_size(&v)?),
-                "kernmem" => app.kern_mem = Some(parse_size(&v)?),
-                "eps" => app.eps = Some(parse_int(&v)? as u32),
-                "daemon" => app.daemon = parse_bool(&v)?,
+                "usermem" => app.user_mem = Some(parse::size(&v)?),
+                "kernmem" => app.kern_mem = Some(parse::size(&v)?),
+                "eps" => app.eps = Some(parse::int(&v)? as u32),
+                "daemon" => app.daemon = parse::bool(&v)?,
                 _ => return Err(Error::new(Code::InvArgs)),
             },
         }
@@ -297,9 +298,9 @@ fn parse_physmem(p: &mut ConfigParser) -> Result<config::PhysMemDesc, Error> {
         match p.parse_arg()? {
             None => break,
             Some((n, v)) => match n.as_ref() {
-                "addr" => phys = parse_addr(&v)?,
-                "size" => size = parse_size(&v)? as goff,
-                "perm" => perm = parse_perm(&v)?,
+                "addr" => phys = parse::addr(&v)?,
+                "size" => size = parse::size(&v)? as goff,
+                "perm" => perm = parse::perm(&v)?,
                 _ => return Err(Error::new(Code::InvArgs)),
             },
         }
@@ -335,7 +336,7 @@ fn parse_sesscrt(p: &mut ConfigParser) -> Result<config::SessCrtDesc, Error> {
             None => break,
             Some((n, v)) => match n.as_ref() {
                 "name" => name = v,
-                "count" => count = Some(parse_int(&v)? as u32),
+                "count" => count = Some(parse::int(&v)? as u32),
                 _ => return Err(Error::new(Code::InvArgs)),
             },
         }
@@ -359,7 +360,7 @@ fn parse_session(p: &mut ConfigParser) -> Result<config::SessionDesc, Error> {
                 "lname" => lname = v,
                 "gname" => serv = v,
                 "args" => arg = v,
-                "dep" => dep = parse_bool(&v)?,
+                "dep" => dep = parse::bool(&v)?,
                 _ => return Err(Error::new(Code::InvArgs)),
             },
         }
@@ -376,8 +377,8 @@ fn parse_pe(p: &mut ConfigParser) -> Result<config::PEDesc, Error> {
             None => break,
             Some((n, v)) => match n.as_ref() {
                 "type" => ty = v,
-                "count" => count = parse_int(&v)? as u32,
-                "optional" => optional = parse_bool(&v)?,
+                "count" => count = parse::int(&v)? as u32,
+                "optional" => optional = parse::bool(&v)?,
                 _ => return Err(Error::new(Code::InvArgs)),
             },
         }
@@ -416,53 +417,4 @@ fn parse_close_tag(p: &mut ConfigParser, name: &str) -> Result<(), Error> {
     else {
         Ok(())
     }
-}
-
-fn parse_addr(s: &str) -> Result<goff, Error> {
-    if s.starts_with("0x") {
-        goff::from_str_radix(&s[2..], 16)
-    }
-    else {
-        s.parse::<goff>()
-    }
-    .map_err(|_| Error::new(Code::InvArgs))
-}
-
-fn parse_size(s: &str) -> Result<usize, Error> {
-    let mul = match s.chars().last() {
-        Some(c) if c >= '0' && c <= '9' => 1,
-        Some('k') | Some('K') => 1024,
-        Some('m') | Some('M') => 1024 * 1024,
-        Some('g') | Some('G') => 1024 * 1024 * 1024,
-        _ => return Err(Error::new(Code::InvArgs)),
-    };
-    Ok(match mul {
-        1 => parse_int(s)? as usize,
-        m => m * parse_int(&s[0..s.len() - 1])? as usize,
-    })
-}
-
-fn parse_int(s: &str) -> Result<u64, Error> {
-    s.parse::<u64>().map_err(|_| Error::new(Code::InvArgs))
-}
-
-fn parse_bool(s: &str) -> Result<bool, Error> {
-    match s {
-        "true" => Ok(true),
-        "false" => Ok(false),
-        _ => Ok(parse_int(s)? == 1),
-    }
-}
-
-fn parse_perm(s: &str) -> Result<kif::Perm, Error> {
-    let mut perm = kif::Perm::empty();
-    for c in s.chars() {
-        match c {
-            'r' => perm |= kif::Perm::R,
-            'w' => perm |= kif::Perm::W,
-            'x' => perm |= kif::Perm::X,
-            _ => return Err(Error::new(Code::InvArgs)),
-        }
-    }
-    Ok(perm)
 }
