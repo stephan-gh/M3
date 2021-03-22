@@ -61,8 +61,8 @@ pub fn main() -> i32 {
         }
 
         if tcp_socket.has_data() {
-            let (size, ip, port) = tcp_socket.recv_from(&mut buffer).unwrap();
-            tcp_socket.send_to(&buffer[0..size], ip, port).unwrap();
+            let size = tcp_socket.recv(&mut buffer).unwrap();
+            tcp_socket.send(&buffer[0..size]).unwrap();
         }
 
         if !udp_socket.has_data() && !tcp_socket.has_data() {

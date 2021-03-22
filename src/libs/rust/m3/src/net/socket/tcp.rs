@@ -103,18 +103,14 @@ impl<'n> TcpSocket<'n> {
     }
 
     pub fn recv(&mut self, data: &mut [u8]) -> Result<usize, Error> {
-        self.recv_from(data).map(|(size, _addr, _port)| size)
-    }
-
-    pub fn recv_from(&mut self, data: &mut [u8]) -> Result<(usize, IpAddr, Port), Error> {
         match self.socket.state() {
             // receive is possible with an established connection or a connection that that has
             // already been closed by the remote side
             State::Connected | State::Closing => {
                 self.socket
-                    .next_data(self.nm, data.len(), |buf, addr, port| {
+                    .next_data(self.nm, data.len(), |buf, _addr, _port| {
                         data[0..buf.len()].copy_from_slice(buf);
-                        (buf.len(), addr, port)
+                        buf.len()
                     })
             },
             _ => Err(Error::new(Code::InvState)),
@@ -122,13 +118,11 @@ impl<'n> TcpSocket<'n> {
     }
 
     pub fn send(&mut self, data: &[u8]) -> Result<(), Error> {
-        self.send_to(data, IpAddr::unspecified(), 0)
-    }
-
-    pub fn send_to(&mut self, data: &[u8], addr: IpAddr, port: Port) -> Result<(), Error> {
         match self.socket.state() {
             // like for receive: still allow sending if the remote side closed the connection
-            State::Connected | State::Closing => self.socket.send(self.nm, data, addr, port),
+            State::Connected | State::Closing => {
+                self.socket.send(self.nm, data, IpAddr::unspecified(), 0)
+            },
             _ => Err(Error::new(Code::InvState)),
         }
     }
