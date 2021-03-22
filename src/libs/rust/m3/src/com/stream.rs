@@ -182,8 +182,7 @@ macro_rules! send_vmsg {
     });
 }
 
-/// Marshalls a message from `$args` and sends it as a reply to the given
-/// [`GateIStream`](::com::GateIStream).
+/// Marshalls a message from `$args` and sends it as a reply to the given [`GateIStream`].
 #[macro_export]
 macro_rules! reply_vmsg {
     ( $is:expr, $( $args:expr ),* ) => ({
@@ -234,8 +233,7 @@ pub fn recv_result<'r>(
 }
 
 /// Marshalls a message from `$args` and sends it via `$sg`, using `$rg` to receive the reply.
-/// Afterwards, it waits for the reply and returns the [`GateIStream`](::com::GateIStream) for the
-/// reply.
+/// Afterwards, it waits for the reply and returns the [`GateIStream`] for the reply.
 #[macro_export]
 macro_rules! send_recv {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({
@@ -248,7 +246,7 @@ macro_rules! send_recv {
 
 /// Marshalls a message from `$args` and sends it via `$sg`, using `$rg` to receive the reply.
 /// Afterwards, it waits for the reply and unmarshalls the result (error code). If the result is an
-/// error, it returns the error and otherwise the [`GateIStream`](::com::GateIStream) for the reply.
+/// error, it returns the error and otherwise the [`GateIStream`] for the reply.
 #[macro_export]
 macro_rules! send_recv_res {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({

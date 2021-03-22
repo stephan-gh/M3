@@ -74,7 +74,7 @@ impl From<OpenFlags> for kif::Perm {
     }
 }
 
-/// The file information that can be retrieved via [`VFS::stat`](::vfs::VFS::stat).
+/// The file information that can be retrieved via [`VFS::stat`](crate::vfs::VFS::stat).
 #[derive(Clone, Debug)]
 pub struct FileInfo {
     pub devno: DevId,
