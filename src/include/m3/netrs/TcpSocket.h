@@ -66,9 +66,9 @@ public:
     ~TcpSocketRs();
 
     /**
-     * Set socket into listen mode on given address and port.
+     * Set socket into listen mode on given port.
      */
-    void listen(IpAddr local_addr, uint16_t local_port);
+    void listen(uint16_t local_port);
 
     /**
      * Connect the socket to the socket at <addr>:<port>.

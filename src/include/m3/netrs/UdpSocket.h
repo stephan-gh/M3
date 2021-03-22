@@ -68,12 +68,11 @@ public:
     ~UdpSocketRs();
 
     /**
-     * Bind socket to <address> and <port>.
+     * Bind socket to the given <port>.
      *
-     * @param addr the local address to bind to
      * @param port the local port to bind to
      */
-    void bind(IpAddr addr, uint16_t port);
+    void bind(uint16_t port);
 };
 
 }

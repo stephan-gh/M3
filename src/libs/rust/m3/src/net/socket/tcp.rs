@@ -80,12 +80,12 @@ impl<'n> TcpSocket<'n> {
         self.socket.set_blocking(blocking);
     }
 
-    pub fn listen(&mut self, addr: IpAddr, port: Port) -> Result<(), Error> {
+    pub fn listen(&mut self, port: Port) -> Result<(), Error> {
         if self.socket.state() != State::Closed {
             return Err(Error::new(Code::InvState));
         }
 
-        self.nm.listen(self.socket.sd(), addr, port)?;
+        let addr = self.nm.listen(self.socket.sd(), port)?;
         self.socket.set_local(addr, port, State::Listening);
         Ok(())
     }

@@ -63,8 +63,8 @@ private:
     void add_socket(SocketRs *socket);
     void remove_socket(SocketRs *socket);
 
-    void bind(int32_t sd, IpAddr addr, uint16_t port);
-    void listen(int32_t sd, IpAddr local_addr, uint16_t port);
+    IpAddr bind(int32_t sd, uint16_t port);
+    IpAddr listen(int32_t sd, uint16_t port);
     void connect(int32_t sd, IpAddr remote_addr, uint16_t remote_port, uint16_t local_port);
     bool close(int32_t sd);
     void abort(int32_t sd, bool remove);

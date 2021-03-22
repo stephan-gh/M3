@@ -108,7 +108,7 @@ fn receive_after_close() {
 
         let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(&nm)));
 
-        wv_assert_ok!(socket.listen(IpAddr::new(192, 168, 112, 1), 4000));
+        wv_assert_ok!(socket.listen(4000));
         wv_assert_eq!(socket.state(), State::Listening);
         wv_assert_ok!(sem.up());
 

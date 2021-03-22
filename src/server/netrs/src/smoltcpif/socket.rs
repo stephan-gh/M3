@@ -35,15 +35,16 @@ use smoltcp::wire::{IpAddress, IpEndpoint, Ipv4Address};
 
 use crate::sess::FileSession;
 
+pub fn to_m3_addr(addr: IpAddress) -> IpAddr {
+    assert!(addr.as_bytes().len() == 4, "Address was not ipv4!");
+    let bytes = addr.as_bytes();
+    IpAddr::new(bytes[0], bytes[1], bytes[2], bytes[3])
+}
+
 /// Converts an IpEndpoint from smoltcp into an M³ (IpAddr, Port) tuple.
 /// Assumes that the IpEndpoint a is Ipv4 address, otherwise this will panic.
-pub fn to_m3_addr(addr: IpEndpoint) -> (IpAddr, Port) {
-    assert!(addr.addr.as_bytes().len() == 4, "Address was not ipv4!");
-    let bytes = addr.addr.as_bytes();
-    (
-        IpAddr::new(bytes[0], bytes[1], bytes[2], bytes[3]),
-        addr.port,
-    )
+pub fn to_m3_ep(addr: IpEndpoint) -> (IpAddr, Port) {
+    (to_m3_addr(addr.addr), addr.port)
 }
 
 #[derive(Debug)]
@@ -172,7 +173,7 @@ impl Socket {
                 let tcp_socket = socket_set.get::<TcpSocket>(self.socket);
                 if tcp_socket.state() == TcpState::Established {
                     self.state = State::Connected;
-                    let (ip, port) = to_m3_addr(tcp_socket.remote_endpoint());
+                    let (ip, port) = to_m3_ep(tcp_socket.remote_endpoint());
                     Some(SendNetEvent::Connected(event::ConnectedMessage::new(
                         self.sd, ip, port,
                     )))
@@ -203,7 +204,7 @@ impl Socket {
 
     pub fn bind(
         &mut self,
-        addr: IpAddr,
+        addr: IpAddress,
         port: Port,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
@@ -211,11 +212,7 @@ impl Socket {
             return Err(Error::new(Code::WrongSocketType));
         }
 
-        let endpoint = IpEndpoint::new(
-            IpAddress::Ipv4(Ipv4Address::from_bytes(&addr.0.to_be_bytes())),
-            port,
-        );
-
+        let endpoint = IpEndpoint::new(addr, port);
         let mut udp_socket = socket_set.get::<UdpSocket>(self.socket);
         udp_socket.bind(endpoint).map_err(|e| {
             log!(crate::LOG_ERR, "bind failed: {}", e);
@@ -226,18 +223,14 @@ impl Socket {
     pub fn listen(
         &mut self,
         socket_set: &mut SocketSet<'static>,
-        addr: IpAddr,
+        addr: IpAddress,
         port: Port,
     ) -> Result<(), Error> {
         if self.ty != SocketType::Stream {
             return Err(Error::new(Code::WrongSocketType));
         }
 
-        let endpoint = IpEndpoint::new(
-            IpAddress::Ipv4(Ipv4Address::from_bytes(&addr.0.to_be_bytes())),
-            port,
-        );
-
+        let endpoint = IpEndpoint::new(addr, port);
         let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
         match tcp_socket.listen(endpoint) {
             Ok(_) => {

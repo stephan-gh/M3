@@ -82,12 +82,12 @@ impl<'n> UdpSocket<'n> {
         self.socket.set_blocking(blocking);
     }
 
-    pub fn bind(&mut self, addr: IpAddr, port: Port) -> Result<(), Error> {
+    pub fn bind(&mut self, port: Port) -> Result<(), Error> {
         if self.socket.state() != State::Closed {
             return Err(Error::new(Code::InvState));
         }
 
-        self.nm.bind(self.socket.sd(), addr, port)?;
+        let addr = self.nm.bind(self.socket.sd(), port)?;
         self.socket.set_local(addr, port, State::Bound);
         Ok(())
     }

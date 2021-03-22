@@ -43,7 +43,7 @@ NOINLINE static void latency() {
 
     auto socket = UdpSocketRs::create(net);
 
-    socket->bind(IpAddr(192, 168, 112, 2), 1337);
+    socket->bind(1337);
 
     const size_t samples = 15;
     IpAddr dest_addr     = IpAddr(192, 168, 112, 1);
@@ -99,7 +99,7 @@ NOINLINE static void bandwidth() {
     auto socket = UdpSocketRs::create(net, DgramSocketArgs().send_buffer(8, 16 * 1024)
                                                             .recv_buffer(32, 64 * 1024));
 
-    socket->bind(IpAddr(192, 168, 112, 2), 1338);
+    socket->bind(1338);
 
     constexpr size_t packet_size = 1024;
     IpAddr dest_addr             = IpAddr(192, 168, 112, 1);

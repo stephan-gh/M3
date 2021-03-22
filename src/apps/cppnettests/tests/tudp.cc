@@ -32,11 +32,11 @@ static void basics() {
 
     WVASSERTEQ(socket->state(), SocketRs::Closed);
 
-    socket->bind(IpAddr(192, 168, 112, 2), 1337);
+    socket->bind(1337);
     WVASSERTEQ(socket->state(), SocketRs::Bound);
 
     WVASSERTERR(Errors::INV_STATE, [&socket] {
-        socket->bind(IpAddr(192, 168, 112, 2), 1338);
+        socket->bind(1338);
     });
 
     socket->abort();
@@ -47,7 +47,7 @@ NOINLINE static void data() {
     NetworkManagerRs net("net0");
 
     auto socket = UdpSocketRs::create(net);
-    socket->bind(IpAddr(192, 168, 112, 2), 1338);
+    socket->bind(1338);
 
     IpAddr dest_addr = IpAddr(192, 168, 112, 1);
     uint16_t dest_port = 1337;

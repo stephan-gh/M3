@@ -35,7 +35,7 @@ use m3::{log, reply_vmsg, vec};
 use smoltcp::socket::SocketSet;
 
 use crate::sess::file::FileSession;
-use crate::smoltcpif::socket::{to_m3_addr, SendNetEvent, Socket};
+use crate::smoltcpif::socket::{to_m3_addr, to_m3_ep, SendNetEvent, Socket};
 
 pub const MAX_INCOMING_BATCH_SIZE: usize = 4;
 
@@ -317,21 +317,22 @@ impl SocketSession {
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         let sd: Sd = is.pop()?;
-        let addr = IpAddr(is.pop::<u32>()?);
         let port: Port = is.pop()?;
 
         log!(
             crate::LOG_SESS,
-            "[{}] net::bind(sd={}, addr={}, port={})",
+            "[{}] net::bind(sd={}, port={})",
             self.server_session.ident(),
             sd,
-            addr,
             port
         );
 
         let sock = self.get_socket(sd)?;
-        sock.borrow_mut().bind(addr, port, socket_set)?;
-        reply_vmsg!(is, Code::None as i32)
+        sock.borrow_mut()
+            .bind(crate::own_addr(), port, socket_set)?;
+
+        let addr = to_m3_addr(crate::own_addr());
+        reply_vmsg!(is, Code::None as i32, addr.0)
     }
 
     pub fn listen(
@@ -340,21 +341,23 @@ impl SocketSession {
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         let sd: Sd = is.pop()?;
-        let addr = IpAddr(is.pop::<u32>()?);
         let port: Port = is.pop()?;
 
         log!(
             crate::LOG_SESS,
-            "[{}] net::listen(sd={}, addr={}, port={})",
+            "[{}] net::listen(sd={}, port={})",
             self.server_session.ident(),
             sd,
-            addr,
             port
         );
 
         let socket = self.get_socket(sd)?;
-        socket.borrow_mut().listen(socket_set, addr, port)?;
-        reply_vmsg!(is, Code::None as i32)
+        socket
+            .borrow_mut()
+            .listen(socket_set, crate::own_addr(), port)?;
+
+        let addr = to_m3_addr(crate::own_addr());
+        reply_vmsg!(is, Code::None as i32, addr.0)
     }
 
     pub fn connect(
@@ -541,7 +544,7 @@ impl SocketSession {
                 }
 
                 socket.borrow_mut().receive(socket_set, |data, addr| {
-                    let (ip, port) = to_m3_addr(addr);
+                    let (ip, port) = to_m3_ep(addr);
 
                     log!(
                         crate::LOG_DATA,

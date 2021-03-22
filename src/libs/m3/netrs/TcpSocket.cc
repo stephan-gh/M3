@@ -63,11 +63,11 @@ void TcpSocketRs::close() {
     }
 }
 
-void TcpSocketRs::listen(IpAddr local_addr, uint16_t local_port) {
+void TcpSocketRs::listen(uint16_t local_port) {
     if(_state != State::Closed)
         inv_state();
 
-    _nm.listen(sd(), local_addr, local_port);
+    IpAddr local_addr = _nm.listen(sd(), local_port);
     set_local(local_addr, local_port, State::Listening);
 }
 

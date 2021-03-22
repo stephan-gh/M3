@@ -25,6 +25,7 @@
 use core::str::FromStr;
 
 use m3::cap::Selector;
+use m3::cell::LazyStaticCell;
 use m3::col::Vec;
 use m3::com::{GateIStream, RecvGate};
 use m3::env;
@@ -57,6 +58,8 @@ pub const LOG_SMOLTCP: bool = false;
 pub const LOG_DETAIL: bool = false;
 
 const MAX_SOCKETS: usize = 64;
+
+static OWN_ADDR: LazyStaticCell<IpAddress> = LazyStaticCell::default();
 
 struct NetHandler {
     sel: Selector,
@@ -137,7 +140,9 @@ impl Handler<NetworkSession> for NetHandler {
 
         let res = self.sessions.add_next(crt, srv_sel, false, |sess| {
             log!(LOG_SESS, "[{}] net::open(sel={})", sess.ident(), sess.sel());
-            Ok(NetworkSession::SocketSession(sess::SocketSession::new(crt, arg, sess, rgate)?))
+            Ok(NetworkSession::SocketSession(sess::SocketSession::new(
+                crt, arg, sess, rgate,
+            )?))
         });
 
         assert!(res.is_ok());
@@ -190,6 +195,10 @@ impl Handler<NetworkSession> for NetHandler {
     }
 }
 
+pub fn own_addr() -> IpAddress {
+    *OWN_ADDR
+}
+
 #[no_mangle]
 pub fn main() -> i32 {
     // Parse args
@@ -228,11 +237,13 @@ pub fn main() -> i32 {
     let mut neighbor_cache_entries = [None; 8];
     let neighbor_cache = NeighborCache::new(&mut neighbor_cache_entries[..]);
 
-    let ip_addrs = [IpCidr::new(IpAddress::Ipv4(ip), 8)];
+    let ip_addr = IpCidr::new(IpAddress::Ipv4(ip), 8);
+    OWN_ADDR.set(ip_addr.address());
+
     let mut iface = EthernetInterfaceBuilder::new(device)
         .ethernet_addr(EthernetAddress::default())
         .neighbor_cache(neighbor_cache)
-        .ip_addrs(ip_addrs)
+        .ip_addrs([ip_addr])
         .finalize();
 
     let socket_set = SocketSet::new(Vec::with_capacity(MAX_SOCKETS));

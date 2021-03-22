@@ -17,7 +17,7 @@
 #![no_std]
 
 use m3::com::Semaphore;
-use m3::net::{DgramSocketArgs, IpAddr, State, StreamSocketArgs, TcpSocket, UdpSocket};
+use m3::net::{DgramSocketArgs, State, StreamSocketArgs, TcpSocket, UdpSocket};
 use m3::session::NetworkManager;
 
 #[no_mangle]
@@ -38,9 +38,7 @@ pub fn main() -> i32 {
     )
     .expect("creating TCP socket failed");
 
-    udp_socket
-        .bind(IpAddr::new(192, 168, 112, 1), 1337)
-        .expect("bind failed");
+    udp_socket.bind(1337).expect("bind failed");
 
     Semaphore::attach("net-udp")
         .expect("attaching to net-udp semaphore failed")
@@ -53,9 +51,7 @@ pub fn main() -> i32 {
 
     loop {
         if tcp_socket.state() == State::Closed {
-            tcp_socket
-                .listen(IpAddr::new(192, 168, 112, 1), 1338)
-                .expect("listen failed");
+            tcp_socket.listen(1338).expect("listen failed");
             sem_tcp.up().expect("tcp up failed");
         }
 

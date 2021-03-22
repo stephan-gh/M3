@@ -45,11 +45,11 @@ Reference<UdpSocketRs> UdpSocketRs::create(NetworkManagerRs &nm, const DgramSock
     return Reference<UdpSocketRs>(sock);
 }
 
-void UdpSocketRs::bind(IpAddr addr, uint16_t port) {
+void UdpSocketRs::bind(uint16_t port) {
     if(_state != Closed)
         inv_state();
 
-    _nm.bind(sd(), addr, port);
+    IpAddr addr = _nm.bind(sd(), port);
     set_local(addr, port, State::Bound);
 }
 

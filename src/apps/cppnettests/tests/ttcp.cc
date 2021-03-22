@@ -103,7 +103,7 @@ NOINLINE static void receive_after_close() {
 
         auto socket = TcpSocketRs::create(net);
 
-        socket->listen(IpAddr(192, 168, 112, 1), 4000);
+        socket->listen(4000);
         WVASSERTEQ(socket->state(), SocketRs::Listening);
 
         sem.up();

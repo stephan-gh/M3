@@ -57,16 +57,22 @@ void NetworkManagerRs::remove_socket(SocketRs *socket) {
     _sockets.remove(socket);
 }
 
-void NetworkManagerRs::bind(int32_t sd, IpAddr addr, uint16_t port) {
+IpAddr NetworkManagerRs::bind(int32_t sd, uint16_t port) {
     LLOG(NET, "Bind:()");
-    GateIStream reply = send_receive_vmsg(_metagate, BIND, sd, addr.addr(), port);
+    GateIStream reply = send_receive_vmsg(_metagate, BIND, sd, port);
     reply.pull_result();
+    uint32_t addr;
+    reply >> addr;
+    return IpAddr(addr);
 }
 
-void NetworkManagerRs::listen(int32_t sd, IpAddr local_addr, uint16_t port) {
+IpAddr NetworkManagerRs::listen(int32_t sd, uint16_t port) {
     LLOG(NET, "Listen:()");
-    GateIStream reply = send_receive_vmsg(_metagate, LISTEN, sd, local_addr.addr(), port);
+    GateIStream reply = send_receive_vmsg(_metagate, LISTEN, sd, port);
     reply.pull_result();
+    uint32_t addr;
+    reply >> addr;
+    return IpAddr(addr);
 }
 
 void NetworkManagerRs::connect(int32_t sd, IpAddr remote_addr, uint16_t remote_port, uint16_t local_port) {
