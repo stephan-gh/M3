@@ -28,6 +28,7 @@ use m3::tcu::Label;
 
 use core::cmp::Reverse;
 
+use crate::childs;
 use crate::events;
 use crate::sendqueue::SendQueue;
 
@@ -35,6 +36,7 @@ pub type Id = u32;
 
 pub struct Service {
     id: Id,
+    child: childs::Id,
     cap: Capability,
     queue: SendQueue,
     name: String,
@@ -45,6 +47,7 @@ pub struct Service {
 impl Service {
     pub fn new(
         id: Id,
+        child: childs::Id,
         srv_sel: Selector,
         sgate_sel: Selector,
         name: String,
@@ -53,6 +56,7 @@ impl Service {
     ) -> Self {
         Service {
             id,
+            child,
             cap: Capability::new(srv_sel, CapFlags::empty()),
             queue: SendQueue::new(id, SendGate::new_bind(sgate_sel)),
             name,
@@ -81,7 +85,7 @@ impl Service {
         self.sessions
     }
 
-    pub fn derive_async(&self, sessions: u32) -> Result<Self, Error> {
+    pub fn derive_async(&self, child: childs::Id, sessions: u32) -> Result<Self, Error> {
         let dst = VPE::cur().alloc_sels(2);
         let event = events::uid_to_event(events::alloc_unique_id());
         syscalls::derive_srv(
@@ -91,16 +95,13 @@ impl Service {
             event,
         )?;
 
-        thread::ThreadManager::get().wait_for(event);
-
-        let reply = thread::ThreadManager::get()
-            .fetch_msg()
-            .ok_or_else(|| Error::new(Code::RecvGone))?;
+        let reply = events::wait_for(child, event)?;
         let reply = reply.get_data::<kif::upcalls::DeriveSrv>();
         Result::from(Code::from(reply.error as u32))?;
 
         Ok(Self::new(
             self.id,
+            child,
             dst,
             dst + 1,
             self.name.clone(),
@@ -124,7 +125,8 @@ impl Service {
         drop(smsg_buf);
 
         if let Ok(ev) = event {
-            thread::ThreadManager::get().wait_for(ev);
+            // ignore errors here
+            events::wait_for(self.child, ev).ok();
         }
     }
 }
@@ -136,18 +138,19 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new_async(sel: Selector, serv: &mut Service, arg: &str) -> Result<Self, Error> {
+    pub fn new_async(
+        child: childs::Id,
+        sel: Selector,
+        serv: &mut Service,
+        arg: &str,
+    ) -> Result<Self, Error> {
         let mut smsg_buf = MsgBuf::borrow_def();
         smsg_buf.set(kif::service::Open::new(arg));
         let event = serv.queue.send(&smsg_buf);
         drop(smsg_buf);
 
         event.and_then(|event| {
-            thread::ThreadManager::get().wait_for(event);
-
-            let reply = thread::ThreadManager::get()
-                .fetch_msg()
-                .ok_or_else(|| Error::new(Code::RecvGone))?;
+            let reply = events::wait_for(child, event)?;
             let reply = reply.get_data::<kif::service::OpenReply>();
 
             let res = Code::from(reply.res as u32);
@@ -171,7 +174,7 @@ impl Session {
         self.ident
     }
 
-    pub fn close_async(&self) -> Result<(), Error> {
+    pub fn close_async(&self, child: childs::Id) -> Result<(), Error> {
         let serv = get().get_by_id(self.serv)?;
 
         let mut smsg_buf = MsgBuf::borrow_def();
@@ -182,7 +185,11 @@ impl Session {
         let event = serv.queue.send(&smsg_buf);
         drop(smsg_buf);
 
-        event.map(|ev| thread::ThreadManager::get().wait_for(ev))
+        if let Ok(ev) = event {
+            // ignore errors
+            events::wait_for(child, ev).ok();
+        }
+        Ok(())
     }
 }
 
@@ -222,6 +229,7 @@ impl ServiceManager {
 
     pub fn add_service(
         &mut self,
+        child: childs::Id,
         srv_sel: Selector,
         sgate_sel: Selector,
         name: String,
@@ -232,7 +240,15 @@ impl ServiceManager {
             return Err(Error::new(Code::Exists));
         }
 
-        let serv = Service::new(self.next_id, srv_sel, sgate_sel, name, sessions, owned);
+        let serv = Service::new(
+            self.next_id,
+            child,
+            srv_sel,
+            sgate_sel,
+            name,
+            sessions,
+            owned,
+        );
         self.servs.push(serv);
         self.next_id += 1;
 

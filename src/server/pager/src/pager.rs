@@ -188,8 +188,9 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), Error> {
         .add_mem_region(fs_mem, fs_size, true)?;
 
     // pass subsystem info to child, if it's a subsystem
+    let id = child.id();
     if let Some(sub) = child.subsys() {
-        sub.finalize_async(&mut vpe)?;
+        sub.finalize_async(id, &mut vpe)?;
     }
 
     // mount file systems for childs

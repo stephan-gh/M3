@@ -74,8 +74,9 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), Error> {
         vpe.obtain_mounts()?;
     }
 
+    let id = child.id();
     if let Some(sub) = child.subsys() {
-        sub.finalize_async(&mut vpe)
+        sub.finalize_async(id, &mut vpe)
             .expect("Unable to finalize subsystem");
     }
 

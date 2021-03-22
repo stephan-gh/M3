@@ -134,7 +134,14 @@ impl Subsystem {
                     s.sessions()
                 );
                 services::get()
-                    .add_service(sel, sel + 1, s.name().to_string(), s.sessions(), false)
+                    .add_service(
+                        childs::Id::MAX,
+                        sel,
+                        sel + 1,
+                        s.name().to_string(),
+                        s.sessions(),
+                        false,
+                    )
                     .unwrap();
             }
         }
@@ -460,7 +467,7 @@ impl SubsystemBuilder {
             + size_of::<boot::Service>() * self.servs.len()
     }
 
-    pub fn finalize_async(&mut self, vpe: &mut VPE) -> Result<(), Error> {
+    pub fn finalize_async(&mut self, child: childs::Id, vpe: &mut VPE) -> Result<(), Error> {
         let mut sel = SUBSYS_SELS;
         let mut off: goff = 0;
 
@@ -521,7 +528,7 @@ impl SubsystemBuilder {
                 }
                 (serv.sessions() - sess_fixed) / sess_frac
             };
-            let subserv = serv.derive_async(sessions)?;
+            let subserv = serv.derive_async(child, sessions)?;
             let boot_serv = boot::Service::new(name, sessions);
             mem.write_obj(&boot_serv, off)?;
 

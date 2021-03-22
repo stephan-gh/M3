@@ -35,6 +35,7 @@ use m3::tcu;
 use m3::vfs::FileRef;
 
 use crate::config::AppConfig;
+use crate::events;
 use crate::memory::{Allocation, MemPool};
 use crate::pes;
 use crate::sems;
@@ -235,6 +236,7 @@ pub trait Child {
         let our_srv = self.obtain(srv_sel)?;
         let our_sgate = self.obtain(sgate_sel)?;
         let id = services::get().add_service(
+            self.id(),
             our_srv,
             our_sgate,
             sdesc.global_name().to_string(),
@@ -283,7 +285,7 @@ pub trait Child {
         }
 
         let serv = services::get().get(sdesc.serv_name())?;
-        let sess = Session::new_async(dst_sel, serv, sdesc.arg())?;
+        let sess = Session::new_async(self.id(), dst_sel, serv, sdesc.arg())?;
         // check again if it's still unused, because of the async call above
         if sdesc.is_used() {
             return Err(Error::new(Code::Exists));
@@ -310,7 +312,7 @@ pub trait Child {
         }?;
 
         self.cfg().close_session(cfg_idx);
-        sess.close_async()
+        sess.close_async(self.id())
     }
 
     fn alloc_local(&mut self, size: goff, perm: Perm) -> Result<MemGate, Error> {
@@ -532,7 +534,7 @@ pub trait Child {
         while !self.res().sessions.is_empty() {
             let (idx, sess) = self.res_mut().sessions.remove(0);
             self.cfg().close_session(idx);
-            sess.close_async().ok();
+            sess.close_async(self.id()).ok();
         }
 
         while !self.res().services.is_empty() {
@@ -947,6 +949,16 @@ impl ChildManager {
 
     fn remove_rec_async(&mut self, id: Id) -> Option<Box<dyn Child>> {
         self.childs.remove(&id).map(|mut child| {
+            log!(crate::LOG_CHILD, "Removing child '{}'", child.name());
+
+            // let a potential ongoing async. operation fail
+            events::remove_child(id);
+
+            for csel in &child.res().childs {
+                self.remove_rec_async(csel.0);
+            }
+            child.remove_resources_async();
+
             self.ids.retain(|&i| i != id);
             if child.daemon() {
                 self.daemons -= 1;
@@ -957,10 +969,6 @@ impl ChildManager {
 
             log!(crate::LOG_CHILD, "Removed child '{}'", child.name());
 
-            for csel in &child.res().childs {
-                self.remove_rec_async(csel.0);
-            }
-            child.remove_resources_async();
             child
         })
     }
