@@ -203,7 +203,7 @@ pub struct DListIntoIter<T> {
 
 /// A doubly-linked list
 ///
-/// In contrast to [`LinkedList`](::col::LinkedList), it supports the insertion (before and after
+/// In contrast to [`LinkedList`](super::LinkedList), it supports the insertion (before and after
 /// the current element) and removal of elements during iteration.
 pub struct DList<T> {
     head: Option<NonNull<Node<T>>>,

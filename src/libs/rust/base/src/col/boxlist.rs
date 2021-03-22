@@ -40,7 +40,7 @@ pub trait BoxItem {
     fn set_prev(&mut self, prev: Option<BoxRef<Self::T>>);
 }
 
-/// Convenience macro to implement [`BoxItem`](::col::BoxItem) in the default way.
+/// Convenience macro to implement [`BoxItem`] in the default way.
 ///
 /// The macro expects a `$t` like:
 ///

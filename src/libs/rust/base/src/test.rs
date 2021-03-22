@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-//! Contains unittest utilities inspired by WvTest (https://github.com/apenwarr/wvtest)
+//! Contains unittest utilities inspired by WvTest <https://github.com/apenwarr/wvtest>
 
 /// Runs the tests
 pub trait WvTester {
@@ -24,8 +24,8 @@ pub trait WvTester {
     fn run_test(&mut self, name: &str, file: &str, f: &dyn Fn());
 }
 
-/// Convenience macro that calls [`WvTester::run_suite`](::test::WvTester::run_suite) and uses
-/// the function name as suite name
+/// Convenience macro that calls [`WvTester::run_suite`](WvTester::run_suite) and uses the function
+/// name as suite name
 #[macro_export]
 macro_rules! wv_run_suite {
     ($t:expr, $func:path) => {
@@ -33,8 +33,8 @@ macro_rules! wv_run_suite {
     };
 }
 
-/// Convenience macro that calls [`WvTester::run_test`](::test::WvTester::run_test) and uses
-/// the function name as test name
+/// Convenience macro that calls [`WvTester::run_test`](WvTester::run_test) and uses the function
+/// name as test name
 #[macro_export]
 macro_rules! wv_run_test {
     ($t:expr, $func:path) => {

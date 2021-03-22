@@ -18,7 +18,7 @@ use core::ops::Deref;
 
 use crate::cell::StaticCell;
 
-/// A `LazyStaticCell` is the same as the [`StaticCell`](::cell::StaticCell), but contains an
+/// A `LazyStaticCell` is the same as the [`StaticCell`](super::StaticCell), but contains an
 /// [`Option<T>`](Option). At construction, the value is `None` and it needs to be set before other
 /// functions can be used. That is, all access functions assume that the value has been set before.
 pub struct LazyStaticCell<T: Sized> {

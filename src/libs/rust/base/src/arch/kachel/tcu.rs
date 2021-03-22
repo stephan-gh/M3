@@ -327,7 +327,7 @@ impl TCU {
     /// # Errors
     ///
     /// If the number of left credits is not sufficient, the function returns
-    /// [`MissCredits`](::errors::Code::MissCredits).
+    /// [`MissCredits`](Code::NoCredits).
     #[inline(always)]
     pub fn send(
         ep: EpId,
@@ -347,7 +347,7 @@ impl TCU {
     /// # Errors
     ///
     /// If the number of left credits is not sufficient, the function returns
-    /// [`MissCredits`](::errors::Code::MissCredits).
+    /// [`MissCredits`](Code::NoCredits).
     #[inline(always)]
     pub fn send_aligned(
         ep: EpId,
