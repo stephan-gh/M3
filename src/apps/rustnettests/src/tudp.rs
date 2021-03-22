@@ -36,10 +36,10 @@ fn basics() {
 
     wv_assert_eq!(socket.state(), State::Closed);
 
-    wv_assert_ok!(socket.bind(1337));
+    wv_assert_ok!(socket.bind(2000));
     wv_assert_eq!(socket.state(), State::Bound);
 
-    wv_assert_err!(socket.bind(1338), Code::InvState);
+    wv_assert_err!(socket.bind(2001), Code::InvState);
 
     wv_assert_ok!(socket.abort());
     wv_assert_eq!(socket.state(), State::Closed);
@@ -49,7 +49,7 @@ fn data() {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
     let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(&nm)));
-    wv_assert_ok!(socket.bind(1338));
+    wv_assert_ok!(socket.bind(2001));
 
     let dest_addr = IpAddr::new(192, 168, 112, 1);
     let dest_port = 1337;

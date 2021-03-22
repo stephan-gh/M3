@@ -103,7 +103,7 @@ NOINLINE static void receive_after_close() {
 
         auto socket = TcpSocketRs::create(net);
 
-        socket->listen(4000);
+        socket->listen(3000);
         WVASSERTEQ(socket->state(), SocketRs::Listening);
 
         sem.up();
@@ -112,7 +112,7 @@ NOINLINE static void receive_after_close() {
         uint16_t remote_port;
         socket->accept(&remote_addr, &remote_port);
         WVASSERTEQ(remote_addr.addr(), IpAddr(192, 168, 112, 2).addr());
-        WVASSERTEQ(remote_port, 3000);
+        WVASSERTEQ(remote_port, 4000);
         WVASSERTEQ(socket->state(), SocketRs::Connected);
 
         uint8_t buf[32];
@@ -131,7 +131,7 @@ NOINLINE static void receive_after_close() {
 
     sem.down();
 
-    socket->connect(IpAddr(192, 168, 112, 1), 4000, 3000);
+    socket->connect(IpAddr(192, 168, 112, 1), 3000, 4000);
 
     uint8_t buf[32];
     WVASSERT(socket->send(buf, sizeof(buf)) != -1);

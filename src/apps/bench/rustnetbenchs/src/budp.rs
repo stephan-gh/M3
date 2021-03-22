@@ -38,7 +38,7 @@ fn latency() {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
     let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(&nm)));
 
-    wv_assert_ok!(socket.bind(1337));
+    wv_assert_ok!(socket.bind(2000));
 
     let samples = 5;
     let dest_addr = IpAddr::new(192, 168, 112, 1);
@@ -94,7 +94,7 @@ fn bandwidth() {
             .recv_buffer(32, 64 * 1024)
     ));
 
-    wv_assert_ok!(socket.bind(1338));
+    wv_assert_ok!(socket.bind(2001));
 
     let dest_addr = IpAddr::new(192, 168, 112, 1);
     let dest_port = 1337;

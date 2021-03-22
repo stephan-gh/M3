@@ -26,15 +26,15 @@
                 <pes type="core" count="2" />
                 <dom>
                     <app args="/bin/netechoserver" daemon="1">
-                        <sess name="net1" args="bufs=256K socks=2" />
+                        <sess name="net1" args="bufs=256K socks=2 ports=1337,1338" />
                         <sem name="net-udp" />
                         <sem name="net-tcp" />
                     </app>
                 </dom>
                 <dom>
                     <app args="/bin/cppnettests">
-                        <sess name="net0" args="bufs=32K socks=2" />
-                        <sess name="net1" args="bufs=32K socks=2" />
+                        <sess name="net0" args="bufs=32K socks=2 ports=2000-2001" />
+                        <sess name="net1" args="bufs=32K socks=2 ports=3000" />
                         <pes type="core" count="1" />
                         <sem name="net-udp" />
                         <sem name="net-tcp" />

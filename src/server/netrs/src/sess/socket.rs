@@ -42,6 +42,7 @@ pub const MAX_INCOMING_BATCH_SIZE: usize = 4;
 struct Args {
     bufs: usize,
     socks: usize,
+    ports: Vec<(Port, Port)>,
 }
 
 impl Default for Args {
@@ -49,6 +50,7 @@ impl Default for Args {
         Self {
             bufs: 64 * 1024,
             socks: 4,
+            ports: Vec::new(),
         }
     }
 }
@@ -62,6 +64,20 @@ fn parse_arguments(args_str: &str) -> Result<Args, Error> {
         else if arg.starts_with("socks=") {
             args.socks = parse::int(&arg[6..])? as usize;
         }
+        else if arg.starts_with("ports=") {
+            // comma separated list of "x-y" or "x"
+            for ports in arg[6..].split(',') {
+                if let Some(pos) = ports.find('-') {
+                    let from = parse::int(&ports[0..pos])? as Port;
+                    let to = parse::int(&ports[(pos + 1)..])? as Port;
+                    args.ports.push((from, to));
+                }
+                else {
+                    let port = parse::int(&ports)? as Port;
+                    args.ports.push((port, port));
+                }
+            }
+        }
         else {
             return Err(Error::new(Code::InvArgs));
         }
@@ -74,6 +90,8 @@ pub struct SocketSession {
     sgate: Option<SendGate>,
     // our receive gate (shared among all sessions)
     rgate: Rc<RecvGate>,
+    // the ports usable for bind and listen
+    ports: Vec<(Port, Port)>,
     // the remaining buffer space available to this session
     buf_quota: usize,
     // our session cap
@@ -105,6 +123,7 @@ impl SocketSession {
         Ok(SocketSession {
             sgate: None,
             rgate,
+            ports: args.ports,
             buf_quota: args.bufs,
             server_session,
             sockets: vec![None; args.socks],
@@ -311,6 +330,15 @@ impl SocketSession {
         }
     }
 
+    fn can_use_port(&self, port: Port) -> bool {
+        for range in &self.ports {
+            if port >= range.0 && port <= range.1 {
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn bind(
         &mut self,
         is: &mut GateIStream,
@@ -326,6 +354,10 @@ impl SocketSession {
             sd,
             port
         );
+
+        if !self.can_use_port(port) {
+            return Err(Error::new(Code::NoPerm));
+        }
 
         let sock = self.get_socket(sd)?;
         sock.borrow_mut()
@@ -350,6 +382,10 @@ impl SocketSession {
             sd,
             port
         );
+
+        if !self.can_use_port(port) {
+            return Err(Error::new(Code::NoPerm));
+        }
 
         let socket = self.get_socket(sd)?;
         socket

@@ -108,13 +108,13 @@ fn receive_after_close() {
 
         let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(&nm)));
 
-        wv_assert_ok!(socket.listen(4000));
+        wv_assert_ok!(socket.listen(3000));
         wv_assert_eq!(socket.state(), State::Listening);
         wv_assert_ok!(sem.up());
 
         let (ip, port) = wv_assert_ok!(socket.accept());
         wv_assert_eq!(ip, IpAddr::new(192, 168, 112, 2));
-        wv_assert_eq!(port, 3000);
+        wv_assert_eq!(port, 4000);
         wv_assert_eq!(socket.state(), State::Connected);
 
         let mut buf = [0u8; 32];
@@ -133,7 +133,7 @@ fn receive_after_close() {
 
     wv_assert_ok!(sem.down());
 
-    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 4000, 3000));
+    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 3000, 4000));
 
     let mut buf = [0u8; 32];
     wv_assert_ok!(socket.send(&buf));
