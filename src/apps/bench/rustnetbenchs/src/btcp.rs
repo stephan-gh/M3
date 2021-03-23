@@ -91,7 +91,7 @@ fn bandwidth() {
     let mut socket = wv_assert_ok!(TcpSocket::new(
         StreamSocketArgs::new(&nm)
             .send_buffer(64 * 1024)
-            .recv_buffer(64 * 1024)
+            .recv_buffer(256 * 1024)
     ));
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());

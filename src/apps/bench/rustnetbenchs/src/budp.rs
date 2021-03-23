@@ -90,8 +90,8 @@ fn bandwidth() {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
     let mut socket = wv_assert_ok!(UdpSocket::new(
         DgramSocketArgs::new(&nm)
-            .send_buffer(8, 16 * 1024)
-            .recv_buffer(32, 64 * 1024)
+            .send_buffer(8, 64 * 1024)
+            .recv_buffer(32, 256 * 1024)
     ));
 
     wv_assert_ok!(socket.bind(2001));

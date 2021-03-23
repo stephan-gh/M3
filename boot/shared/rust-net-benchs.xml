@@ -7,7 +7,7 @@
                 <pes type="nic" />
             </app>
             <app args="rustnetbenchs">
-                <sess name="net0" args="bufs=256K socks=2 ports=2000-2001" />
+                <sess name="net0" args="bufs=1M socks=2 ports=2000-2001" />
                 <sem name="net-udp" />
                 <sem name="net-tcp" />
             </app>
