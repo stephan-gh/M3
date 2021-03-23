@@ -36,8 +36,8 @@ BEGIN_FUNC(isr_setup)
     // set address to save the state on interrupts to
     csrw    sscratch, a0
 
-    // delegate all interrupts and exceptions to supervisor mode
-    li      t1, 0xBBB
+    // delegate all interrupts and exceptions to supervisor mode (but exclude the timer)
+    li      t1, 0xB3B
     csrw    mideleg, t1
     li      t0, -1
     csrw    medeleg, t0
