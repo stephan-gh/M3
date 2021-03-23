@@ -23,7 +23,7 @@
 
 using namespace m3;
 
-static ALIGNED(8) uint8_t rbuf[8 * 64];
+static uint8_t rbuf[8 * 64];
 
 int main() {
     size_t size = nextlog2<sizeof(rbuf)>::val;

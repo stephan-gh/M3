@@ -19,7 +19,7 @@
 using namespace m3;
 
 static void test_inv_ep() {
-    ALIGNED(8) char rbuffer[32];
+    char rbuffer[32];
     uintptr_t buf = reinterpret_cast<uintptr_t>(&rbuffer);
 
     MsgBuf msg;

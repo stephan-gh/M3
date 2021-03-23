@@ -28,11 +28,10 @@ static const char *errmsgs[] = {
     "Foreign endpoint",
     "SEND/REPLY with wrong endpoint",
     "Receiver gone",
-    "Receive buffer misaligned",
     "Receive buffer full",
     "Replies disabled",
-    /* 10 */
     "Out of bounds",
+    /* 10 */
     "No credits",
     "No permission",
     "Invalid message offset",
@@ -42,9 +41,8 @@ static const char *errmsgs[] = {
     "Message too large for receive buffer",
     "Invalid reply EPs in receive EP",
     "Invalid credit EP in send EP",
-    /* 20 */
     "Invalid msg_sz in send EP",
-    "Receiver is busy, retry command",
+    /* 20 */
     "Timeout while waiting for memory response",
     "Timeout while waiting for NoC response",
     "Data contains page boundary",
@@ -53,9 +51,9 @@ static const char *errmsgs[] = {
     "TLB contains only fixed entries",
     "Invalid arguments",
     "VPE gone",
-    /* 30 */
     "Out of memory",
     "No such file or directory",
+    /* 30 */
     "Not supported",
     "No free/suitable PE",
     "Invalid ELF file",
@@ -64,9 +62,9 @@ static const char *errmsgs[] = {
     "Cross-filesystem link not possible",
     "Directory not empty",
     "Is a directory",
-    /* 40 */
     "Is no directory",
     "Endpoint is invalid",
+    /* 40 */
     "End of file",
     "Messages are waiting to be handled",
     "Reply will be sent via upcall",

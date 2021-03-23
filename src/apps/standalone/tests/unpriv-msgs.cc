@@ -19,7 +19,7 @@
 using namespace m3;
 
 static void test_msg_errors() {
-    ALIGNED(8) char buffer[2 * 64];
+    char buffer[2 * 64];
     uintptr_t buf1 = reinterpret_cast<uintptr_t>(&buffer);
 
     MsgBuf msg, empty_msg;
@@ -83,13 +83,6 @@ static void test_msg_errors() {
     {
         kernel::TCU::config_send(1, 0x5678, pe_id(PE::PE0), TOTAL_EPS, 4 /* 16 */, 1);
         ASSERT_EQ(kernel::TCU::send(1, empty_msg, 0x1111, TCU::NO_REPLIES), Errors::RECV_GONE);
-    }
-
-    Serial::get() << "SEND to receive EP with misaligned receive buffer\n";
-    {
-        kernel::TCU::config_recv(1, buf1 + 1 /* misaligned */, 6 /* 64 */, 6 /* 64 */, TCU::NO_REPLIES);
-        kernel::TCU::config_send(2, 0x5678, pe_id(PE::PE0), 1, 4 /* 16 */, 1);
-        ASSERT_EQ(kernel::TCU::send(2, empty_msg, 0x1111, TCU::NO_REPLIES), Errors::RECV_MISALIGN);
     }
 
     Serial::get() << "SEND of too large message\n";
@@ -211,7 +204,7 @@ static void test_msg_errors() {
 static void test_msg_send_empty() {
     Serial::get() << "SEND with empty message\n";
 
-    ALIGNED(8) char buffer[2 * 64];
+    char buffer[2 * 64];
     uintptr_t buf1 = reinterpret_cast<uintptr_t>(&buffer);
 
     MsgBuf empty_msg;
@@ -244,8 +237,8 @@ static void test_msg_send_empty() {
 static void test_msg_reply_empty() {
     Serial::get() << "REPLY with empty message\n";
 
-    ALIGNED(8) char buffer[2 * 64];
-    ALIGNED(8) char buffer2[2 * 64];
+    char buffer[2 * 64];
+    char buffer2[2 * 64];
     uintptr_t buf1 = reinterpret_cast<uintptr_t>(&buffer);
     uintptr_t buf2 = reinterpret_cast<uintptr_t>(&buffer2);
 
@@ -302,8 +295,8 @@ static void test_msg_reply_empty() {
 static void test_msg_no_reply() {
     Serial::get() << "SEND without reply\n";
 
-    ALIGNED(8) char buffer[2 * 64];
-    ALIGNED(8) char buffer2[2 * 64];
+    char buffer[2 * 64];
+    char buffer2[2 * 64];
     uintptr_t buf1 = reinterpret_cast<uintptr_t>(&buffer);
     uintptr_t buf2 = reinterpret_cast<uintptr_t>(&buffer2);
 
@@ -346,8 +339,8 @@ static void test_msg_no_reply() {
 static void test_msg_no_credits() {
     Serial::get() << "SEND without credits\n";
 
-    ALIGNED(8) char buffer[2 * 64];
-    ALIGNED(8) char buffer2[2 * 64];
+    char buffer[2 * 64];
+    char buffer2[2 * 64];
     uintptr_t buf1 = reinterpret_cast<uintptr_t>(&buffer);
     uintptr_t buf2 = reinterpret_cast<uintptr_t>(&buffer2);
 
@@ -415,8 +408,8 @@ static void test_msg_no_credits() {
 static void test_msg_2send_2reply() {
     Serial::get() << "Two SENDs and two REPLYs\n";
 
-    ALIGNED(8) char buffer[2 * 64];
-    ALIGNED(8) char buffer2[2 * 64];
+    char buffer[2 * 64];
+    char buffer2[2 * 64];
     uintptr_t buf1 = reinterpret_cast<uintptr_t>(&buffer);
     uintptr_t buf2 = reinterpret_cast<uintptr_t>(&buffer2);
 
@@ -491,8 +484,8 @@ static void test_msg(size_t msg_size_in, size_t reply_size_in) {
     const size_t TOTAL_MSG_SIZE = msg_size_in * sizeof(DATA) + sizeof(TCU::Header);
     const size_t TOTAL_REPLY_SIZE = reply_size_in * sizeof(DATA) + sizeof(TCU::Header);
 
-    ALIGNED(8) char rbuffer[2 * TOTAL_MSG_SIZE];
-    ALIGNED(8) char rbuffer2[2 * TOTAL_REPLY_SIZE];
+    char rbuffer[2 * TOTAL_MSG_SIZE];
+    char rbuffer2[2 * TOTAL_REPLY_SIZE];
     uintptr_t buf1 = reinterpret_cast<uintptr_t>(&rbuffer);
     uintptr_t buf2 = reinterpret_cast<uintptr_t>(&rbuffer2);
 
@@ -558,7 +551,7 @@ static void test_msg(size_t msg_size_in, size_t reply_size_in) {
 static void test_msg_receive() {
     Serial::get() << "SEND+FETCH and verify unread/occupied/rpos/wpos\n";
 
-    ALIGNED(8) char rbuffer[32 * 32];
+    char rbuffer[32 * 32];
     uintptr_t buf = reinterpret_cast<uintptr_t>(&rbuffer);
 
     kernel::TCU::config_recv(2, buf, 5 + 5 /* 32 * 32 */, 5 /* 32 */, TCU::NO_REPLIES, 0, 0);

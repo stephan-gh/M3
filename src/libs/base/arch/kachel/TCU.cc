@@ -72,8 +72,7 @@ Errors::Code TCU::perform_send_reply(uintptr_t addr, reg_t cmd) {
             PEXABI::call2(Operation::TRANSL_FAULT, addr, KIF::Perm::R);
             continue;
         }
-        if(res != Errors::RECV_BUSY)
-            return res;
+        return res;
     }
 }
 

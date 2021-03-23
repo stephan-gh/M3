@@ -410,7 +410,6 @@ impl TCU {
                     // retry the access
                     continue;
                 },
-                Err(e) if e.code() == Code::RecvBusy => continue,
                 Err(e) => break Err(e),
             }
         }
