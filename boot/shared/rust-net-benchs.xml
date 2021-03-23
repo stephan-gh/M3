@@ -18,7 +18,7 @@
                 <pes type="nic" />
             </app>
             <app args="netechoserver" daemon="1">
-                <sess name="net1" args="bufs=256K socks=2 ports=1337,1338" />
+                <sess name="net1" args="bufs=1M socks=2 ports=1337,1338" />
                 <sem name="net-udp" />
                 <sem name="net-tcp" />
             </app>

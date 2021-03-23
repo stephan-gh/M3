@@ -26,15 +26,15 @@ pub fn main() -> i32 {
 
     let mut udp_socket = UdpSocket::new(
         DgramSocketArgs::new(&nm)
-            .send_buffer(8, 16 * 1024)
-            .recv_buffer(32, 64 * 1024),
+            .send_buffer(8, 64 * 1024)
+            .recv_buffer(32, 256 * 1024),
     )
     .expect("creating UDP socket failed");
 
     let mut tcp_socket = TcpSocket::new(
         StreamSocketArgs::new(&nm)
-            .send_buffer(16 * 1024)
-            .recv_buffer(64 * 1024),
+            .send_buffer(64 * 1024)
+            .recv_buffer(256 * 1024),
     )
     .expect("creating TCP socket failed");
 
