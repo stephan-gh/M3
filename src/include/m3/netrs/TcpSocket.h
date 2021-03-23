@@ -54,19 +54,36 @@ public:
     }
 };
 
+/**
+ * Represents a stream socket using the transmission control protocol (TCP)
+ */
 class TcpSocketRs : public SocketRs {
     friend class SocketRs;
 
     explicit TcpSocketRs(int sd, NetworkManagerRs &nm);
 
 public:
+    /**
+     * Creates a new TCP sockets with given arguments.
+     *
+     * By default, the socket is in blocking mode, that is, all functions (connect, send, recv, ...)
+     * do not return until the operation is complete. This can be changed via set_blocking.
+     */
     static Reference<TcpSocketRs> create(NetworkManagerRs &nm,
                                          const StreamSocketArgs &args = StreamSocketArgs());
 
     ~TcpSocketRs();
 
     /**
-     * Set socket into listen mode on given port.
+     * Puts this socket into listen mode on the given port.
+     *
+     * In listen mode, remote connections can be accepted. See accept. Note that in contrast to
+     * conventional TCP/IP stacks, listen is a combination of the traditional bind and listen.
+     *
+     * Listing on this port requires that the used session has permission for this port. This is
+     * controlled with the "ports=..." argument in the session argument of M³'s config files.
+     *
+     * @param local_port the port to listen on
      */
     void listen(uint16_t local_port);
 
@@ -79,32 +96,52 @@ public:
     void connect(IpAddr remote_addr, uint16_t remote_port);
 
     /**
-     * Waits for an incoming connection. The socket needs to be in listening state.
+     * Accepts a remote connection on this socket
      *
-     * @param remote_addr will be set to the remote address
-     * @param remote_port will be set to the remote port
+     * The socket has to be put into listen mode first. Note that in contrast to conventional
+     * TCP/IP stacks, accept does not yield a new socket, but uses this socket for the accepted
+     * connection. Thus, to support multiple connections to the same port, put multiple sockets in
+     * listen mode on this port and call accept on each of them.
+     *
+     * @param remote_addr if not null, it's set to the IP address of the remote endpoint
+     * @param remote_port if not null, it's set to the port of the remote endpoint
      */
     void accept(IpAddr *remote_addr, uint16_t *remote_port);
 
     /**
-     * Sends <amount> bytes from <src> to the connected remote socket.
+     * Receives data from the socket into the given buffer.
+     *
+     * The socket has to be connected first (either via connect or accept). Note that data can be
+     * received after the remote side has closed the socket (state Closing), but not if this side
+     * has been closed.
+     *
+     * @param dst the buffer to receive into
+     * @param amount the maximum number of bytes to receive
+     * @return the number of received bytes or -1 if it failed
+     */
+    ssize_t recv(void *dst, size_t amount);
+
+    /**
+     * Sends the given data to this socket
+     *
+     * The socket has to be connected first (either via connect or accept). Note that data can be
+     * received after the remote side has closed the socket (state Closing), but not if this side
+     * has been closed.
      *
      * @param src the data to send
      * @param amount the number of bytes to send
-     * @return the number of sent bytes (-1 if it would block and the socket is non-blocking)
+     * @return the number of sent bytes or -1 if it failed
      */
-    ssize_t send(const void *src, size_t amount) {
-        return sendto(src, amount, _remote_addr, _remote_port);
-    }
-
-    ssize_t sendto(const void *src, size_t amount, IpAddr dst_addr, uint16_t dst_port) override;
-
-    ssize_t recvfrom(void *dst, size_t amount, IpAddr *src_addr, uint16_t *src_port) override;
+    ssize_t send(const void *src, size_t amount);
 
     /**
-     * Closes the transmit side of the socket.
+     * Closes the connection
      *
-     * In blocking mode, this method blocks until the socket is closed.
+     * In contrast to abort, close properly closes the connection to the remote endpoint by going
+     * through the TCP protocol.
+     *
+     * Note that close is *not* called on drop, but has to be called explicitly to ensure that all
+     * data is transmitted to the remote end and the connection is properly closed.
      */
     void close();
 

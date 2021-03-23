@@ -101,8 +101,10 @@ void TcpSocketRs::connect(IpAddr remote_addr, uint16_t remote_port) {
 
 void TcpSocketRs::accept(IpAddr *remote_addr, uint16_t *remote_port) {
     if(_state == State::Connected) {
-        *remote_addr = _remote_addr;
-        *remote_port = _remote_port;
+        if(remote_addr)
+            *remote_addr = _remote_addr;
+        if(remote_port)
+            *remote_port = _remote_port;
         return;
     }
     if(_state == State::Connecting)
@@ -118,23 +120,28 @@ void TcpSocketRs::accept(IpAddr *remote_addr, uint16_t *remote_port) {
 
     if(_state != State::Connected)
         inv_state();
+
+    if(remote_addr)
+        *remote_addr = _remote_addr;
+    if(remote_port)
+        *remote_port = _remote_port;
 }
 
-ssize_t TcpSocketRs::recvfrom(void *dst, size_t amount, IpAddr *src_addr, uint16_t *src_port) {
+ssize_t TcpSocketRs::recv(void *dst, size_t amount) {
     // receive is possible with an established connection or a connection that that has already been
     // closed by the remote side
     if(_state != Connected && _state != Closing)
         throw Exception(Errors::NOT_CONNECTED);
 
-    return SocketRs::recvfrom(dst, amount, src_addr, src_port);
+    return SocketRs::do_recv(dst, amount, nullptr, nullptr);
 }
 
-ssize_t TcpSocketRs::sendto(const void *src, size_t amount, IpAddr dst_addr, uint16_t dst_port) {
+ssize_t TcpSocketRs::send(const void *src, size_t amount) {
     // like for receive: still allow sending if the remote side closed the connection
     if(_state != Connected && _state != Closing)
         throw Exception(Errors::NOT_CONNECTED);
 
-    return SocketRs::sendto(src, amount, dst_addr, dst_port);
+    return SocketRs::do_send(src, amount, _remote_addr, _remote_port);
 }
 
 void TcpSocketRs::handle_data(NetEventChannelRs::DataMessage const & msg, NetEventChannelRs::Event &event) {

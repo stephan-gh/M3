@@ -63,9 +63,9 @@ NOINLINE static void data() {
     size_t packet_sizes[] = {8, 16, 32, 64, 128, 256, 512, 1024};
 
     for(auto pkt_size : packet_sizes) {
-        socket->sendto(send_buf, pkt_size, dest_addr, dest_port);
+        socket->send_to(send_buf, pkt_size, dest_addr, dest_port);
 
-        ssize_t recv_size = socket->recvfrom(recv_buf, sizeof(recv_buf), &src_addr, &src_port);
+        ssize_t recv_size = socket->recv_from(recv_buf, sizeof(recv_buf), &src_addr, &src_port);
 
         WVASSERTEQ(static_cast<ssize_t>(pkt_size), recv_size);
         WVASSERTEQ(src_addr.addr(), dest_addr.addr());

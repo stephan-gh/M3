@@ -56,23 +56,62 @@ public:
     }
 };
 
+/**
+ * Represents a datagram socket using the user datagram protocol (UDP)
+ */
 class UdpSocketRs : public SocketRs {
     friend class SocketRs;
 
     explicit UdpSocketRs(int sd, NetworkManagerRs &nm);
 
 public:
+    /**
+     * Creates a new UDP sockets with given arguments.
+     *
+     * By default, the socket is in blocking mode, that is, all functions (send_to, recv_from, ...)
+     * do not return until the operation is complete. This can be changed via set_blocking.
+     *
+     * @param nm the network manager
+     * @param args optionally additional arguments that define the buffer sizes
+     */
     static Reference<UdpSocketRs> create(NetworkManagerRs &nm,
                                          const DgramSocketArgs &args = DgramSocketArgs());
 
     ~UdpSocketRs();
 
     /**
-     * Bind socket to the given <port>.
+     * Binds this socket to the given local port.
+     *
+     * When bound, packets can be received from remote endpoints.
+     *
+     * Binding requires that the used session has permission for this port. This is controlled with
+     * the "ports=..." argument in the session argument of M³'s config files.
      *
      * @param port the local port to bind to
      */
     void bind(uint16_t port);
+
+    /**
+     * Sends at most <amount> bytes from <src> to the socket at <addr>:<port>.
+     *
+     * @param src the data to send
+     * @param amount the number of bytes to send
+     * @param dst_addr destination socket address
+     * @param dst_port destination socket port
+     * @return the number of sent bytes (-1 if it would block and the socket is non-blocking)
+     */
+    ssize_t send_to(const void *src, size_t amount, IpAddr dst_addr, uint16_t dst_port);
+
+    /**
+     * Receives <amount> or a smaller number of bytes into <dst>.
+     *
+     * @param dst the destination buffer
+     * @param amount the number of bytes to receive
+     * @param src_addr if not null, the source address is filled in
+     * @param src_port if not null, the source port is filled in
+     * @return the number of received bytes (-1 if it would block and the socket is non-blocking)
+     */
+    ssize_t recv_from(void *dst, size_t amount, IpAddr *src_addr, uint16_t *src_port);
 };
 
 }

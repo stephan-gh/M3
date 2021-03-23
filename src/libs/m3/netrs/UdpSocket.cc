@@ -53,4 +53,12 @@ void UdpSocketRs::bind(uint16_t port) {
     set_local(addr, port, State::Bound);
 }
 
+ssize_t UdpSocketRs::recv_from(void *dst, size_t amount, IpAddr *src_addr, uint16_t *src_port) {
+    return SocketRs::do_recv(dst, amount, src_addr, src_port);
+}
+
+ssize_t UdpSocketRs::send_to(const void *src, size_t amount, IpAddr dst_addr, uint16_t dst_port) {
+    return SocketRs::do_send(src, amount, dst_addr, dst_port);
+}
+
 }

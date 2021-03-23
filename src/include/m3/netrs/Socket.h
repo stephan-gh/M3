@@ -29,6 +29,9 @@ namespace m3 {
 
 class NetworkManagerRs;
 
+/**
+ * Arguments for socket creations that define the buffer sizes
+ */
 struct SocketArgs {
     explicit SocketArgs()
         : rbuf_slots(4),
@@ -43,84 +46,68 @@ struct SocketArgs {
     size_t sbuf_size;
 };
 
+/**
+ * The base class of all sockets, which provides the common functionality
+ */
 class SocketRs : public m3::TreapNode<SocketRs, int>, public RefCounted {
     friend class NetworkManagerRs;
 
     static const int EVENT_FETCH_BATCH_SIZE = 4;
 
 public:
+    /**
+     * The states sockets can be in
+     */
     enum State {
+        // The socket is bound to a local address and port
         Bound,
+        // The socket is listening on a local address and port for remote connections
         Listening,
+        // The socket is currently connecting to a remote endpoint
         Connecting,
+        // The socket is connected to a remote endpoint
         Connected,
+        // The remote side has closed the connection
         Closing,
+        // The socket is closed (default state)
         Closed
     };
 
     virtual ~SocketRs() {}
 
+    /**
+     * @return the socket descriptor used to identify this socket within the session on the server
+     */
     int sd() const noexcept {
         return _sd;
     }
 
+    /**
+     * @return the current state of the socket
+     */
     State state() const noexcept {
         return _state;
     }
 
+    /**
+     * @return whether the socket is currently in blocking mode
+     */
     bool blocking() const noexcept {
         return _blocking;
     }
 
     /**
-     * Determines whether socket operates in blocking or non-blocking mode.
+     * Sets whether the socket is using blocking mode.
      *
-     * When a socket operates in blocking mode operations on the socket block the caller
-     * until a result is present (e.g. a connection request is present in Socket::accept,
-     * or data is available in Socket::recv).
-     * A socket in non-blocking mode returns Errors::WOULD_BLOCK instead of blocking the caller.
+     * In blocking mode, all functions (connect, send_to, recv_from, ...) do not return until the
+     * operation is complete. In non-blocking mode, all functions return -1 in case they would need
+     * to block, that is, wait until an event is received or further data can be sent.
      *
-     * Sockets in blocking mode require the application to use a multithreaded workloop.
-     *
-     * @param blocking whether socket operates in blocking or
-     *        non-blocking mode (default = blocking)
+     * @param blocking whether socket operates in blocking or non-block mode (default = blocking)
      */
     void blocking(bool blocking) noexcept {
         _blocking = blocking;
     }
-
-    /**
-     * Sends at most <amount> bytes from <src> to the socket at <addr>:<port>.
-     *
-     * @param src the data to send
-     * @param amount the number of bytes to send
-     * @param dst_addr destination socket address
-     * @param dst_port destination socket port
-     * @return the number of sent bytes (-1 if it would block and the socket is non-blocking)
-     */
-    virtual ssize_t sendto(const void *src, size_t amount, IpAddr dst_addr, uint16_t dst_port);
-
-    /**
-     * Receives at most <amount> bytes into <src> and returns the number of received bytes.
-     *
-     * @param dst the destination buffer
-     * @param amount the maximum number of bytes to receive
-     * @return the number of received bytes (-1 if it would block and the socket is non-blocking)
-     */
-    ssize_t recv(void *dst, size_t amount) {
-        return recvfrom(dst, amount, nullptr, nullptr);
-    }
-
-    /**
-     * Receives <amount> or a smaller number of bytes into <dst>.
-     *
-     * @param dst the destination buffer
-     * @param amount the number of bytes to receive
-     * @param src_addr if not null, the source address is filled in
-     * @param src_port if not null, the source port is filled in
-     * @return the number of received bytes (-1 if it would block and the socket is non-blocking)
-     */
-    virtual ssize_t recvfrom(void *dst, size_t amount, IpAddr *src_addr, uint16_t *src_port);
 
     /**
      * Performs a hard abort by closing the socket on our end and dropping all data. Note that
@@ -128,7 +115,14 @@ public:
      */
     void abort();
 
+    /**
+     * Waits until an event has been received from the server
+     */
     void wait_for_event();
+
+    /**
+     * Processes already received events
+     */
     void process_events();
 
 protected:
@@ -138,6 +132,9 @@ protected:
 
     bool get_next_data(const uchar **data, size_t *size, IpAddr *src_addr, uint16_t *src_port);
     void ack_data(size_t size);
+
+    ssize_t do_send(const void *src, size_t amount, IpAddr dst_addr, uint16_t dst_port);
+    ssize_t do_recv(void *dst, size_t amount, IpAddr *src_addr, uint16_t *src_port);
 
     void process_message(const NetEventChannelRs::SocketControlMessage &message,
                          NetEventChannelRs::Event &event);
@@ -152,7 +149,6 @@ protected:
 
     void do_abort(bool remove);
 
-    // Socket descriptor on the server
     int32_t _sd;
     State _state;
     Errors::Code _close_cause;
@@ -163,7 +159,6 @@ protected:
     IpAddr _remote_addr;
     uint16_t _remote_port;
 
-    // Reference to the network manager
     NetworkManagerRs &_nm;
 
     DataQueueRs _recv_queue;

@@ -32,6 +32,14 @@ namespace m3 {
 class UdpSocketRs;
 class TcpSocketRs;
 
+/**
+ * Represents a session at the network service, allowing to create and use sockets
+ *
+ * To exchange events and data with the server, the NetEventChannel is used, which allows to send
+ * and receive multiple messages. Events are used to receive connected or closed events from the
+ * server and to send close requests to the server. Transmitted and received data is exchanged via
+ * the NetEventChannel in both directions.
+ */
 class NetworkManagerRs : public ClientSession {
     friend class SocketRs;
     friend class UdpSocketRs;
@@ -52,6 +60,11 @@ class NetworkManagerRs : public ClientSession {
     };
 
 public:
+    /**
+     * Creates a new instance for `service`
+     *
+     * @param service the service name
+     */
     explicit NetworkManagerRs(const String &service);
 
 private:

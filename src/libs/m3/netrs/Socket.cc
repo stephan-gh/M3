@@ -97,7 +97,7 @@ bool SocketRs::get_next_data(const uchar **data, size_t *size, IpAddr *src_addr,
     }
 }
 
-ssize_t SocketRs::recvfrom(void *dst, size_t amount, IpAddr *src_addr, uint16_t *src_port) {
+ssize_t SocketRs::do_recv(void *dst, size_t amount, IpAddr *src_addr, uint16_t *src_port) {
     const uchar *pkt_data = nullptr;
     size_t pkt_size = 0;
     if(!get_next_data(&pkt_data, &pkt_size, src_addr, src_port))
@@ -112,7 +112,7 @@ ssize_t SocketRs::recvfrom(void *dst, size_t amount, IpAddr *src_addr, uint16_t 
     return static_cast<ssize_t>(msg_size);
 }
 
-ssize_t SocketRs::sendto(const void *src, size_t amount, IpAddr dst_addr, uint16_t dst_port) {
+ssize_t SocketRs::do_send(const void *src, size_t amount, IpAddr dst_addr, uint16_t dst_port) {
     while(true) {
         ssize_t res = _nm.send(_sd, dst_addr, dst_port, src, amount);
         if(res != -1)
