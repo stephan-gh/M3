@@ -56,13 +56,17 @@ pub fn main() -> i32 {
         }
 
         if udp_socket.has_data() {
-            let (size, ip, port) = udp_socket.recv_from(&mut buffer).unwrap();
-            udp_socket.send_to(&buffer[0..size], ip, port).unwrap();
+            // ignore errors
+            if let Ok((size, ip, port)) = udp_socket.recv_from(&mut buffer) {
+                udp_socket.send_to(&buffer[0..size], ip, port).ok();
+            }
         }
 
         if tcp_socket.has_data() {
-            let size = tcp_socket.recv(&mut buffer).unwrap();
-            tcp_socket.send(&buffer[0..size]).unwrap();
+            // ignore errors
+            if let Ok(size) = tcp_socket.recv(&mut buffer) {
+                tcp_socket.send(&buffer[0..size]).ok();
+            }
         }
 
         if !udp_socket.has_data() && !tcp_socket.has_data() {
