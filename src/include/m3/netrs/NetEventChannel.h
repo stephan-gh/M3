@@ -101,9 +101,9 @@ public:
     bool has_events() const;
     Event recv_message();
 
-private:
     void fetch_replies();
 
+private:
     RecvGate _rgate;
     RecvGate _rplgate;
     SendGate _sgate;

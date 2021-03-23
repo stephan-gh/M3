@@ -155,6 +155,8 @@ void NetworkManagerRs::wait_sync() {
 
         if(_channel.has_events())
             break;
+
+        _channel.fetch_replies();
     }
 }
 
