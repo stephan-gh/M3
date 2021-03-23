@@ -24,6 +24,7 @@ mod pes;
 
 use base::cell::{LazyStaticCell, StaticCell};
 use base::cfg;
+use base::errors::{Code, Error};
 use base::io;
 use base::kif::{PageFlags, Perm};
 use base::libc;
@@ -181,15 +182,15 @@ fn test_mem(area_begin: usize, area_size: usize) {
 static RBUF1: [u64; 32] = [0; 32];
 static RBUF2: [u64; 32] = [0; 32];
 
-fn send_recv(send_addr: usize, size: usize) {
-    let virt_to_phys = |virt: usize| -> (usize, ::paging::Phys) {
-        let rbuf_pte = paging::translate(virt, PageFlags::R);
-        (
-            virt,
-            (rbuf_pte & !cfg::PAGE_MASK as u64) + (virt & cfg::PAGE_MASK) as u64,
-        )
-    };
+fn virt_to_phys(virt: usize) -> (usize, ::paging::Phys) {
+    let rbuf_pte = paging::translate(virt, PageFlags::R);
+    (
+        virt,
+        (rbuf_pte & !cfg::PAGE_MASK as u64) + (virt & cfg::PAGE_MASK) as u64,
+    )
+}
 
+fn send_recv(send_addr: usize, size: usize) {
     let fetch_msg = |ep: EpId, rbuf: usize| -> Option<&'static Message> {
         tcu::TCU::fetch_msg(ep).map(|off| tcu::TCU::offset_to_msg(rbuf, off))
     };
@@ -266,9 +267,60 @@ fn send_recv(send_addr: usize, size: usize) {
     }
 }
 
+#[repr(C, align(4096))]
+struct LargeAlignedBuf {
+    bytes: [u8; cfg::PAGE_SIZE + 16],
+}
+
 fn test_msgs(area_begin: usize, _area_size: usize) {
     *XLATES.get_mut() = 0;
     let mut count = 0;
+
+    let (_rbuf1_virt, rbuf1_phys) = virt_to_phys(RBUF1.as_ptr() as usize);
+
+    {
+        log!(crate::LOG_DEF, "SEND with page boundary");
+
+        let buf = LargeAlignedBuf {
+            bytes: [0u8; cfg::PAGE_SIZE + 16],
+        };
+
+        config_local_ep(1, |regs| {
+            TCU::config_recv(regs, OWN_VPE, rbuf1_phys, 6, 6, None);
+        });
+        config_local_ep(2, |regs| {
+            TCU::config_send(regs, OWN_VPE, 0x5678, PE::PE0.id(), 1, 6, 1);
+        });
+        let buf_addr = unsafe { (buf.bytes.as_ptr() as *const u8).add(cfg::PAGE_SIZE - 16) };
+        assert_eq!(
+            TCU::send_aligned(2, buf_addr, 32, 0x1111, tcu::NO_REPLIES),
+            Err(Error::new(Code::PageBoundary))
+        );
+    }
+
+    {
+        log!(crate::LOG_DEF, "REPLY with page boundary");
+
+        let buf = LargeAlignedBuf {
+            bytes: [0u8; cfg::PAGE_SIZE + 16],
+        };
+
+        config_local_ep(1, |regs| {
+            TCU::config_recv(regs, OWN_VPE, rbuf1_phys, 6, 6, Some(2));
+            // make the message occupied
+            regs[2] = 0 << 32 | 1;
+        });
+        config_local_ep(2, |regs| {
+            TCU::config_send(regs, OWN_VPE, 0x5678, PE::PE0.id(), 1, 6, 1);
+            // make it a reply EP
+            regs[0] |= 1 << 53;
+        });
+        let buf_addr = unsafe { (buf.bytes.as_ptr() as *const u8).add(cfg::PAGE_SIZE - 16) };
+        assert_eq!(
+            TCU::reply_aligned(1, buf_addr, 32, 0),
+            Err(Error::new(Code::PageBoundary))
+        );
+    }
 
     // small
     {

@@ -380,17 +380,29 @@ impl TCU {
     /// Sends the given message as reply to `msg`.
     #[inline(always)]
     pub fn reply(ep: EpId, reply: &mem::MsgBuf, msg_off: usize) -> Result<(), Error> {
-        let reply_addr = reply.bytes().as_ptr() as usize;
+        Self::reply_aligned(ep, reply.bytes().as_ptr(), reply.size(), msg_off)
+    }
+
+    /// Sends the given message as reply to `msg`. The message address needs to be 16-byte aligned
+    /// and `reply`..`reply` + `len` cannot contain a page boundary.
+    #[inline(always)]
+    pub fn reply_aligned(
+        ep: EpId,
+        reply: *const u8,
+        len: usize,
+        msg_off: usize,
+    ) -> Result<(), Error> {
+        let reply_addr = reply as usize;
         log!(
             TCU,
             "TCU::reply(ep={}, reply={:#x}, size={:#x}, msg_off={:#x})",
             ep,
             reply_addr,
-            reply.size(),
+            len,
             msg_off
         );
 
-        Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(reply_addr, reply.size()));
+        Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(reply_addr, len));
 
         Self::perform_send_reply(
             reply_addr,
@@ -712,11 +724,11 @@ impl TCU {
                 else if (cmd >> 9) == 0 {
                     // if the command was finished successfully, use the current command register
                     // to ensure that we don't forget the error code
-                    break Ok(Self::read_unpriv_reg(UnprivReg::COMMAND))
+                    break Ok(Self::read_unpriv_reg(UnprivReg::COMMAND));
                 }
                 else {
                     // otherwise use the old one to repeat it later
-                    break Ok(cmd_reg)
+                    break Ok(cmd_reg);
                 };
             }
         }
