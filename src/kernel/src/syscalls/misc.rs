@@ -406,7 +406,7 @@ pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), S
         EPObject::configure(&ep, &kobj);
     }
     else if !invalidated {
-        if let Err(e) = pemux.invalidate_ep(ep_vpe.id(), epid, true, false) {
+        if let Err(e) = pemux.invalidate_ep(ep_vpe.id(), epid, true, true) {
             sysc_err!(e.code(), "Invalidation of EP {}:{} failed", dst_pe, epid);
         }
     }

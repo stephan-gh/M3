@@ -676,7 +676,7 @@ impl EPObject {
             // invalidate receive and send EPs
             match gate {
                 GateObject::RGate(_) | GateObject::SGate(_) => {
-                    pemux.invalidate_ep(self.vpe().unwrap().id(), self.ep, force, false)?;
+                    pemux.invalidate_ep(self.vpe().unwrap().id(), self.ep, force, true)?;
                     invalidated = true;
                 },
                 _ => {},
