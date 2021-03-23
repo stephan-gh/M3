@@ -33,8 +33,8 @@
                 </dom>
                 <dom>
                     <app args="/bin/cppnettests">
-                        <sess name="net0" args="bufs=32K socks=2 ports=2000-2001" />
-                        <sess name="net1" args="bufs=32K socks=2 ports=3000" />
+                        <sess name="net0" args="bufs=64K socks=2 ports=2000-2001" />
+                        <sess name="net1" args="bufs=64K socks=2 ports=3000" />
                         <pes type="core" count="1" />
                         <sem name="net-udp" />
                         <sem name="net-tcp" />

@@ -42,9 +42,9 @@ impl Default for SocketArgs {
     fn default() -> Self {
         Self {
             rbuf_slots: 4,
-            rbuf_size: 8 * 1024,
+            rbuf_size: 16 * 1024,
             sbuf_slots: 4,
-            sbuf_size: 8 * 1024,
+            sbuf_size: 16 * 1024,
         }
     }
 }
