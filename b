@@ -204,11 +204,6 @@ run_on_host() {
     kill $tailpid
 }
 
-kill_m3_procs() {
-    # kill all processes that are using the m3 sockets
-    lsof -a -U -u $USER | grep '@m3_ep_' | awk '{ print $2 }' | sort | uniq | xargs kill || true
-}
-
 childpids() {
     n=0
     for pid in $(ps h -o pid --ppid $1); do
@@ -236,7 +231,6 @@ case "$cmd" in
     run)
         if [ "$M3_TARGET" = "host" ]; then
             run_on_host $script
-            kill_m3_procs 2>/dev/null
         else
             if [ "$DBG_GEM5" = "1" ]; then
                 ./src/tools/execute.sh $script
@@ -256,7 +250,6 @@ case "$cmd" in
         if [ "$M3_TARGET" = "host" ]; then
             export M3_VALGRIND=${M3_VALGRIND:-"--leak-check=full"}
             run_on_host $script
-            kill_m3_procs 2>/dev/null
         else
             echo "Not supported"
         fi
@@ -340,7 +333,6 @@ case "$cmd" in
             echo "set var wait_for_debugger = 0" >> $tmp
             rust-gdb --tui $build/bin/$prog $pid --command=$tmp
 
-            kill_m3_procs 2>/dev/null
             rm $tmp
         elif [ "$M3_TARGET" = "gem5" ] || [ "$M3_RUN_GEM5" = "1" ]; then
             truncate --size 0 $M3_OUT/log.txt

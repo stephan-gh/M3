@@ -7,6 +7,7 @@ dirs = [
     'ignoreint',
     'm3fsck',
     'mkm3fs',
+    'setpgrp',
     'shm3fs',
 ]
 

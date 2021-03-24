@@ -238,10 +238,16 @@ if [ "$M3_TARGET" = "host" ]; then
     fi
 
     if [ "$M3_VALGRIND" != "" ]; then
-        valgrind $M3_VALGRIND $params
+        $build/tools/setpgrp valgrind $M3_VALGRIND $params &
     else
-        setarch $(uname -m) -R $params
+        $build/tools/setpgrp setarch $(uname -m) -R $params &
     fi
+
+    # kill the whole process group on exit; just to be sure
+    kernelpid=$!
+    trap "/bin/kill -- -$kernelpid 2>/dev/null" EXIT ERR INT TERM
+
+    wait
 elif [ "$M3_TARGET" = "gem5" ] || [ "$M3_RUN_GEM5" = "1" ]; then
     build_params_gem5 $script
 elif [ "$M3_TARGET" = "hw" ]; then
