@@ -32,6 +32,7 @@ pub use socket::SocketSession;
 pub const MSG_SIZE: usize = 128;
 
 pub enum NetworkSession {
+    #[allow(dead_code)]
     FileSession(FileSession),
     SocketSession(SocketSession),
 }

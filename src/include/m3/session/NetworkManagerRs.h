@@ -84,8 +84,6 @@ private:
 
     ssize_t send(int32_t sd, IpAddr dst_addr, uint16_t dst_port, const void *data, size_t data_length);
 
-    void as_file(int32_t sd, int mode, MemGate &mem, size_t memsize, fd_t &fd);
-
     void wait_sync();
 
     NetEventChannelRs::Event recv_event();

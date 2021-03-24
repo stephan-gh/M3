@@ -94,31 +94,6 @@ void NetworkManagerRs::abort(int32_t sd, bool remove) {
     reply.pull_result();
 }
 
-void m3::NetworkManagerRs::as_file(int sd, int mode, MemGate &mem, size_t memsize, fd_t &fd) {
-    LLOG(NET, "Warning: as_file is unimplemented!");
-    throw Exception(Errors::NOT_SUP);
-    ;
-    /*
-    // Create file session for socket
-    KIF::ExchangeArgs args;
-    ExchangeOStream os(args);
-    os << sd << mode << (mode & FILE_R ? memsize : 0) << (mode & FILE_W ? memsize : 0);
-    args.bytes = os.total();
-    KIF::CapRngDesc desc = obtain(2, &args);
-
-    // Delegate shared memory to file session
-    ClientSession fs(desc.start());
-    KIF::CapRngDesc shm_crd(KIF::CapRngDesc::OBJ, mem.sel(), 1);
-
-    ExchangeOStream shm_os(args);
-    shm_os << sd;
-    args.bytes = shm_os.total();
-    fs.delegate(shm_crd, &args);
-
-    fd = VPE::self().fds()->alloc(Reference<File>(new GenericFile(mode, desc.start())));
-    */
-}
-
 ssize_t NetworkManagerRs::send(int32_t sd, IpAddr dst_addr, uint16_t dst_port,
                                const void *data, size_t data_length) {
     LLOG(NET, "Send:(sd=" << sd << ", size=" << data_length << ")");
