@@ -57,7 +57,8 @@ pub enum SendNetEvent {
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum State {
-    None,
+    Closed,
+    Bound,
     Connecting,
     Connected,
 }
@@ -137,7 +138,7 @@ impl Socket {
             sd,
             socket,
             ty,
-            state: State::None,
+            state: State::Closed,
             _local_port: None,
             buffer_space: Self::required_space(ty, rbuf_space, rbuf_slots, sbuf_space, sbuf_slots),
 
@@ -190,7 +191,7 @@ impl Socket {
                 let tcp_socket = socket_set.get::<TcpSocket>(self.socket);
                 if !tcp_socket.is_open() {
                     self._local_port = None;
-                    self.state = State::None;
+                    self.state = State::Closed;
                     Some(SendNetEvent::Closed(event::ClosedMessage::new(self.sd)))
                 }
                 // remote side has closed the connection?
@@ -213,15 +214,25 @@ impl Socket {
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         if self.ty != SocketType::Dgram {
-            return Err(Error::new(Code::WrongSocketType));
+            return Err(Error::new(Code::InvArgs));
+        }
+        if self.state != State::Closed {
+            return Err(Error::new(Code::InvState));
         }
 
         let endpoint = IpEndpoint::new(addr, port);
         let mut udp_socket = socket_set.get::<UdpSocket>(self.socket);
-        udp_socket.bind(endpoint).map_err(|e| {
-            log!(crate::LOG_ERR, "bind failed: {}", e);
-            Error::new(Code::BindFailed)
-        })
+        match udp_socket.bind(endpoint) {
+            Ok(_) => {
+                self.state = State::Bound;
+                Ok(())
+            },
+            Err(e) => {
+                log!(crate::LOG_ERR, "bind failed: {}", e);
+                // bind can only fail if the port is zero
+                Err(Error::new(Code::InvArgs))
+            }
+        }
     }
 
     pub fn listen(
@@ -231,7 +242,10 @@ impl Socket {
         port: Port,
     ) -> Result<(), Error> {
         if self.ty != SocketType::Stream {
-            return Err(Error::new(Code::WrongSocketType));
+            return Err(Error::new(Code::InvArgs));
+        }
+        if self.state != State::Closed {
+            return Err(Error::new(Code::InvState));
         }
 
         let endpoint = IpEndpoint::new(addr, port);
@@ -243,7 +257,8 @@ impl Socket {
             },
             Err(e) => {
                 log!(crate::LOG_ERR, "listen failed: {}", e);
-                Err(Error::new(Code::ListenFailed))
+                // listen can only fail if the port is zero
+                Err(Error::new(Code::InvArgs))
             },
         }
     }
@@ -256,7 +271,10 @@ impl Socket {
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         if self.ty != SocketType::Stream {
-            return Err(Error::new(Code::WrongSocketType));
+            return Err(Error::new(Code::InvArgs));
+        }
+        if self.state != State::Closed {
+            return Err(Error::new(Code::InvState));
         }
 
         let remote_endpoint = IpEndpoint::new(
@@ -274,14 +292,15 @@ impl Socket {
             },
             Err(e) => {
                 log!(crate::LOG_ERR, "connect failed: {}", e);
-                Err(Error::new(Code::ConnectionFailed))
+                // connect can only fail if the endpoints are invalid
+                Err(Error::new(Code::InvArgs))
             },
         }
     }
 
     pub fn close(&mut self, socket_set: &mut SocketSet<'static>) -> Result<(), Error> {
         if self.ty != SocketType::Stream {
-            return Err(Error::new(Code::WrongSocketType));
+            return Err(Error::new(Code::InvArgs));
         }
 
         let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
@@ -296,7 +315,7 @@ impl Socket {
         }
 
         self._local_port = None;
-        self.state = State::None;
+        self.state = State::Closed;
     }
 
     pub fn receive<F>(&mut self, socket_set: &mut SocketSet<'static>, func: F)

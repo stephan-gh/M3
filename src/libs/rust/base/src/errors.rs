@@ -76,20 +76,22 @@ pub enum Code {
     ReadFailed,
     WriteFailed,
     Utf8Error,
-    // Net Errors
+    // networking
     InvState,
-    WrongSocketType,
+    WouldBlock,
+    InProgress,
+    AlreadyInProgress,
+    NotConnected,
+    IsConnected,
     InvChecksum,
     SocketClosed,
     ConnectionFailed,
-    IsConnected,
-    ConnectInProgress,
-    ConnectAlreadyInProgress,
-    ListenFailed,
-    BindFailed,
-    FailedToSend,
-    NoSuchSocket,
-    WouldBlock,
+    // lwip
+    AddressInUse,
+    NetworkUnreachable,
+    ConnAbort,
+    ConnReset,
+    ConnClosed,
 }
 
 // we only use this implementation in debug mode, because it adds a bit of some overhead, errors
@@ -220,7 +222,7 @@ impl From<u32> for Error {
 
 impl From<u32> for Code {
     fn from(error: u32) -> Self {
-        assert!(error <= Code::NoSuchSocket as u32);
+        assert!(error <= Code::AddressInUse as u32);
         // safety: assuming that the assert above doesn't fail, the conversion is safe
         // TODO better way?
         unsafe { intrinsics::transmute(error as u8) }

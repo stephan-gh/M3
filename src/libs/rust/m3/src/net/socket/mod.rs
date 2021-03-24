@@ -140,7 +140,7 @@ impl Socket {
         }
 
         if self.state.get() == State::Connecting {
-            return Err(Error::new(Code::ConnectAlreadyInProgress));
+            return Err(Error::new(Code::AlreadyInProgress));
         }
 
         let local_port = nm.connect(self.sd, remote_addr, remote_port)?;
@@ -150,7 +150,7 @@ impl Socket {
         self.local_port.set(local_port);
 
         if !self.blocking.get() {
-            return Err(Error::new(Code::ConnectInProgress));
+            return Err(Error::new(Code::InProgress));
         }
 
         while self.state.get() == State::Connecting {
@@ -159,7 +159,7 @@ impl Socket {
         }
 
         if self.state.get() != State::Connected {
-            Err(Error::new(Code::InvState))
+            Err(Error::new(Code::ConnectionFailed))
         }
         else {
             Ok(())
@@ -171,7 +171,7 @@ impl Socket {
             return Ok((self.remote_addr.get(), self.remote_port.get()));
         }
         if self.state.get() == State::Connecting {
-            return Err(Error::new(Code::ConnectAlreadyInProgress));
+            return Err(Error::new(Code::AlreadyInProgress));
         }
         if self.state.get() != State::Listening {
             return Err(Error::new(Code::InvState));
@@ -184,7 +184,7 @@ impl Socket {
         }
 
         if self.state.get() != State::Connected {
-            Err(Error::new(Code::InvState))
+            Err(Error::new(Code::ConnectionFailed))
         }
         else {
             Ok((self.remote_addr.get(), self.remote_port.get()))

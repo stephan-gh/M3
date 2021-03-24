@@ -73,20 +73,28 @@ static const char *errmsgs[] = {
     "Not found",
     "Not revocable",
     "Timeout",
+    "Read failed",
+    "Write failed",
+    /* 50 */
+    "UTF-8 error",
 
     /* Socket */
-    "In use",
     "Invalid state",
     "Would block",
     "In progress",
     "Already in progress",
     "Socket is not connected",
     "Socket is connected",
+    "Invalid checksum",
+    "Socket is closed",
+    "Connection failed",
+
+    // lwip
+    "Address/port already in use",
+    "Network is unreachable",
     "Connection aborted",
     "Connection reset/refused by peer",
     "Connection closed gracefully",
-    "Network is unreachable",
-    "Socket closed"
 };
 
 const char *Errors::to_string(Code code) {

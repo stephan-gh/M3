@@ -75,19 +75,25 @@ struct Errors {
         NOT_FOUND,
         NOT_REVOCABLE,
         TIMEOUT,
-        // Socket
-        IN_USE,
+        READ_FAILED,
+        WRITE_FAILED,
+        UTF8_ERROR,
+        // networking
         INV_STATE,
         WOULD_BLOCK,
         IN_PROGRESS,
         ALREADY_IN_PROGRESS,
         NOT_CONNECTED,
         IS_CONNECTED,
+        INV_CHECKSUM,
+        SOCKET_CLOSED,
+        CONNECTION_FAILED,
+        // lwip
+        ADDR_IN_USE,
+        NET_UNREACHABLE,
         CONN_ABORT,
         CONN_RESET,
         CONN_CLOSED,
-        NET_UNREACHABLE,
-        SOCKET_CLOSED,
     };
 
     /**

@@ -96,7 +96,7 @@ void TcpSocketRs::connect(IpAddr remote_addr, uint16_t remote_port) {
     }
 
     if(_state != Connected)
-        throw Exception(Errors::INV_STATE);
+        throw Exception(Errors::CONNECTION_FAILED);
 }
 
 void TcpSocketRs::accept(IpAddr *remote_addr, uint16_t *remote_port) {
@@ -119,7 +119,7 @@ void TcpSocketRs::accept(IpAddr *remote_addr, uint16_t *remote_port) {
     }
 
     if(_state != State::Connected)
-        throw Exception(Errors::INV_STATE);
+        throw Exception(Errors::CONNECTION_FAILED);
 
     if(remote_addr)
         *remote_addr = _remote_addr;

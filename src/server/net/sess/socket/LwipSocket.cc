@@ -77,7 +77,7 @@ Errors::Code LwipSocket::mapError(err_t err) {
        case ERR_WOULDBLOCK: // Operation would block.
            return Errors::WOULD_BLOCK;
        case ERR_USE: // Address in use.
-           return Errors::IN_USE;
+           return Errors::ADDR_IN_USE;
        case ERR_ALREADY: // Already connecting.
            return Errors::ALREADY_IN_PROGRESS;
        case ERR_ISCONN: // Conn already

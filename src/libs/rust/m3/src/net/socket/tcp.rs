@@ -155,7 +155,7 @@ impl<'n> TcpSocket<'n> {
                         buf.len()
                     })
             },
-            _ => Err(Error::new(Code::InvState)),
+            _ => Err(Error::new(Code::NotConnected)),
         }
     }
 
@@ -170,7 +170,7 @@ impl<'n> TcpSocket<'n> {
             State::Connected | State::Closing => {
                 self.socket.send(self.nm, data, IpAddr::unspecified(), 0)
             },
-            _ => Err(Error::new(Code::InvState)),
+            _ => Err(Error::new(Code::NotConnected)),
         }
     }
 

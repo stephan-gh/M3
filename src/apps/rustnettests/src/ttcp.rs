@@ -39,7 +39,7 @@ fn basics() {
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
-    wv_assert_err!(socket.send(&[0]), Code::InvState);
+    wv_assert_err!(socket.send(&[0]), Code::NotConnected);
     wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 1338));
     wv_assert_eq!(socket.state(), State::Connected);
 
@@ -77,8 +77,8 @@ fn open_close() {
     wv_assert_eq!(socket.state(), State::Closed);
 
     let mut buf = [0u8; 32];
-    wv_assert_err!(socket.send(&buf), Code::InvState);
-    wv_assert_err!(socket.recv(&mut buf), Code::InvState);
+    wv_assert_err!(socket.send(&buf), Code::NotConnected);
+    wv_assert_err!(socket.recv(&mut buf), Code::NotConnected);
 }
 
 fn receive_after_close() {

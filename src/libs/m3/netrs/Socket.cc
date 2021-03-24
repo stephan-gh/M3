@@ -125,7 +125,7 @@ ssize_t SocketRs::do_send(const void *src, size_t amount, IpAddr dst_addr, uint1
         process_events();
 
         if(_state == Closed)
-            throw Exception(Errors::INV_STATE);
+            throw Exception(Errors::SOCKET_CLOSED);
     }
 }
 
