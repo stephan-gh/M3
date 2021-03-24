@@ -85,12 +85,12 @@ void TCU::configure_recv(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
 Errors::Code TCU::check_cmd(epid_t ep, int op, word_t perms, word_t credits, size_t offset, size_t length) {
     if(op == READ || op == WRITE) {
         if(!(perms & (1U << (op - 1)))) {
-            LLOG(TCUERR, "DMA-error: operation not permitted on ep " << ep << " (perms="
+            LLOG(TCUERR, "TCU-error: operation not permitted on ep " << ep << " (perms="
                     << perms << ", op=" << op << ")");
             return Errors::NO_PERM;
         }
         if(offset >= credits || offset + length < offset || offset + length > credits) {
-            LLOG(TCUERR, "DMA-error: invalid parameters (credits=" << credits
+            LLOG(TCUERR, "TCU-error: invalid parameters (credits=" << credits
                     << ", offset=" << offset << ", datalen=" << length << ")");
             return Errors::INV_ARGS;
         }
@@ -108,13 +108,13 @@ Errors::Code TCU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
 
     size_t idx = reply_off >> msgord;
     if(idx >= (1UL << (ord - msgord))) {
-        LLOG(TCUERR, "DMA-error: EP" << ep << ": invalid message offset " << (void*)reply_off);
+        LLOG(TCUERR, "TCU-error: EP" << ep << ": invalid message offset " << (void*)reply_off);
         return Errors::INV_ARGS;
     }
 
     Buffer *buf = reinterpret_cast<Buffer*>(const_cast<Message*>(offset_to_msg(bufaddr, reply_off)));
     if(!buf->has_replycap || buf->rpl_ep == TCU::NO_REPLIES) {
-        LLOG(TCUERR, "DMA-error: EP" << ep << ": double-reply for msg " << (void*)reply_off);
+        LLOG(TCUERR, "TCU-error: EP" << ep << ": double-reply for msg " << (void*)reply_off);
         return Errors::INV_ARGS;
     }
 
@@ -146,7 +146,7 @@ Errors::Code TCU::prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     if(credits != UNLIM_CREDITS) {
         const size_t size = 1UL << msg_order;
         if(size > credits) {
-            LLOG(TCUERR, "DMA-error: insufficient credits on ep " << ep
+            LLOG(TCUERR, "TCU-error: insufficient credits on ep " << ep
                     << " (have #" << fmt(credits, "x") << ", need #" << fmt(size, "x")
                     << ")." << " Ignoring send-command");
             return Errors::NO_CREDITS;
@@ -202,13 +202,13 @@ Errors::Code TCU::prepare_ackmsg(epid_t ep) {
 
     size_t idx = msgoff >> msgord;
     if(idx >= (1UL << (ord - msgord))) {
-        LLOG(TCUERR, "DMA-error: EP" << ep << ": invalid message addr " << (void*)(bufaddr + msgoff));
+        LLOG(TCUERR, "TCU-error: EP" << ep << ": invalid message addr " << (void*)(bufaddr + msgoff));
         return Errors::INV_ARGS;
     }
 
     word_t occupied = get_ep(ep, EP_BUF_OCCUPIED);
     if(!bit_set(occupied, idx)) {
-        LLOG(TCUERR, "DMA-error: EP" << ep << ": slot at " << (void*)(bufaddr + msgoff) << " not occupied");
+        LLOG(TCUERR, "TCU-error: EP" << ep << ": slot at " << (void*)(bufaddr + msgoff) << " not occupied");
         return Errors::INV_ARGS;
     }
 
@@ -282,7 +282,7 @@ void TCU::handle_command(peid_t pe) {
     const word_t ctrl = get_cmd(CMD_CTRL);
     int op = (ctrl >> OPCODE_SHIFT) & 0xF;
     if(ep >= TOTAL_EPS) {
-        LLOG(TCUERR, "DMA-error: invalid ep-id (" << ep << ")");
+        LLOG(TCUERR, "TCU-error: invalid ep-id (" << ep << ")");
         res = Errors::INV_ARGS;
         goto done;
     }
@@ -414,7 +414,7 @@ void TCU::handle_msg(size_t len, epid_t ep) {
     const size_t msgord = get_ep(ep, EP_BUF_MSGORDER);
     const size_t msgsize = 1UL << msgord;
     if(len > msgsize) {
-        LLOG(TCUERR, "DMA-error: dropping message for EP " << ep
+        LLOG(TCUERR, "TCU-error: dropping message for EP " << ep
                 << " because space is not sufficient"
                 << " (required: " << len << ", available: " << msgsize << ")");
         return;
@@ -484,7 +484,7 @@ bool TCU::handle_receive(epid_t ep) {
 
     // refill credits
     if(_buf.crd_ep >= TOTAL_EPS)
-        LLOG(TCUERR, "DMA-error: should give credits to endpoint " << _buf.crd_ep);
+        LLOG(TCUERR, "TCU-error: should give credits to endpoint " << _buf.crd_ep);
     else {
         word_t credits = get_ep(_buf.crd_ep, EP_CREDITS);
         word_t msg_order = get_ep(_buf.crd_ep, EP_MSGORDER);
