@@ -251,5 +251,5 @@ else
 fi
 
 if [ -f $build/$M3_FS.out ]; then
-    $build/src/tools/m3fsck/m3fsck $build/$M3_FS.out && echo "FS image '$build/$M3_FS.out' is valid"
+    $build/tools/m3fsck $build/$M3_FS.out && echo "FS image '$build/$M3_FS.out' is valid"
 fi
