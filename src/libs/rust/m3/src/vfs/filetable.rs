@@ -89,6 +89,10 @@ impl FileTable {
         }
 
         if fd >= self.files.len() {
+            self.files.reserve((fd + 1) - self.files.len());
+            for _ in self.files.len()..fd {
+                self.files.push(None);
+            }
             self.files.push(Some(file));
         }
         else {
