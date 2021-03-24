@@ -36,7 +36,7 @@ void Machine::shutdown() {
     UNREACHED;
 }
 
-int Machine::write(const char *str, size_t len) {
+ssize_t Machine::write(const char *str, size_t len) {
     if(env()->platform == Platform::GEM5) {
         TCU::get().print(str, len);
 
@@ -48,7 +48,7 @@ int Machine::write(const char *str, size_t len) {
         TCU::get().write(PRINT_EP, str, len, 0);
     }
 #endif
-    return 0;
+    return static_cast<ssize_t>(len);
 }
 
 ssize_t Machine::read(char *dst, size_t max) {

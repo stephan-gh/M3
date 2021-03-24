@@ -27,7 +27,7 @@ void Machine::shutdown() {
     exit(EXIT_FAILURE);
 }
 
-int Machine::write(const char *str, size_t len) {
+ssize_t Machine::write(const char *str, size_t len) {
     return ::write(env()->log_fd(), str, len);
 }
 

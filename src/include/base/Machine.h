@@ -39,9 +39,9 @@ public:
      *
      * @param str the string to write
      * @param len the length of the string
-     * @return 0 on success
+     * @return the number of written bytes on success
      */
-    static int write(const char *str, size_t len);
+    static ssize_t write(const char *str, size_t len);
 
     /**
      * Reads at most <len> bytes into <buf> from the serial device.
