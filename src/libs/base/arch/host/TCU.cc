@@ -120,7 +120,12 @@ Errors::Code TCU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
 
     // ack message
     word_t occupied = get_ep(ep, EP_BUF_OCCUPIED);
-    assert(bit_set(occupied, idx));
+    // if the slot is not occupied, it's equivalent to the reply EP being invalid
+    if(!bit_set(occupied, idx)) {
+        LLOG(TCUERR, "TCU-error: EP" << ep << ": slot not occupied " << (void*)reply_off);
+        return Errors::NO_SEP;
+    }
+
     set_bit(occupied, idx, false);
     set_ep(ep, EP_BUF_OCCUPIED, occupied);
     LLOG(TCU, "EP" << ep << ": acked message at index " << idx);

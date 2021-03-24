@@ -174,7 +174,11 @@ fn prepare_reply(ep: EpId) -> Result<(PEId, EpId), Error> {
 
     // ack message
     let mut occupied = TCU::get_ep(ep, EpReg::BUF_OCCUPIED);
-    assert!(is_bit_set(occupied, idx as u64));
+    // if the slot is not occupied, it's equivalent to the reply EP being invalid
+    if !is_bit_set(occupied, idx as u64) {
+        return Err(Error::new(Code::NoSEP));
+    }
+
     occupied = set_bit(occupied, idx as u64, false);
     TCU::set_ep(ep, EpReg::BUF_OCCUPIED, occupied);
     log_tcu!("EP{}: acked message at index {}", ep, idx);
@@ -291,7 +295,6 @@ fn prepare_ack(ep: EpId) -> Result<(PEId, EpId), Error> {
 
     let mut occupied = TCU::get_ep(ep, EpReg::BUF_OCCUPIED);
     let unread = TCU::get_ep(ep, EpReg::BUF_UNREAD);
-    assert!(is_bit_set(occupied, idx));
     occupied = set_bit(occupied, idx, false);
     if is_bit_set(unread, idx) {
         let unread = set_bit(unread, idx, false);
