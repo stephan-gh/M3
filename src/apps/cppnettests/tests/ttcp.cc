@@ -60,6 +60,16 @@ static void basics() {
     WVASSERTEQ(socket->state(), SocketRs::Closed);
 }
 
+NOINLINE static void unreachable() {
+    NetworkManagerRs net("net0");
+
+    auto socket = TcpSocketRs::create(net);
+
+    WVASSERTERR(Errors::CONNECTION_FAILED, [&socket] {
+        socket->connect(IpAddr(127, 0, 0, 1), 80);
+    });
+}
+
 NOINLINE static void open_close() {
     NetworkManagerRs net("net0");
 
@@ -175,6 +185,7 @@ NOINLINE static void data() {
 
 void ttcp() {
     RUN_TEST(basics);
+    RUN_TEST(unreachable);
     RUN_TEST(open_close);
     RUN_TEST(receive_after_close);
     RUN_TEST(data);

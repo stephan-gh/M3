@@ -21,6 +21,7 @@ use m3::log;
 use m3::mem::size_of;
 use m3::net::{event, IpAddr, Port, Sd, SocketType};
 use m3::rc::Rc;
+use m3::tcu::TCU;
 use m3::vec;
 
 use smoltcp;
@@ -33,8 +34,10 @@ use smoltcp::storage::PacketMetadata;
 use smoltcp::wire::IpVersion;
 use smoltcp::wire::{IpAddress, IpEndpoint, Ipv4Address};
 
-use crate::sess::FileSession;
 use crate::ports::EphemeralPort;
+use crate::sess::FileSession;
+
+const CONNECT_TIMEOUT: u64 = 6_000_000_000;    /* 6s */
 
 pub fn to_m3_addr(addr: IpAddress) -> IpAddr {
     assert!(addr.as_bytes().len() == 4, "Address was not ipv4!");
@@ -69,6 +72,7 @@ pub struct Socket {
     socket: SocketHandle,
     ty: SocketType,
     state: State,
+    connect_start: Option<u64>,
     _local_port: Option<EphemeralPort>,
     buffer_space: usize,
 
@@ -139,6 +143,7 @@ impl Socket {
             socket,
             ty,
             state: State::Closed,
+            connect_start: None,
             _local_port: None,
             buffer_space: Self::required_space(ty, rbuf_space, rbuf_slots, sbuf_space, sbuf_slots),
 
@@ -174,13 +179,24 @@ impl Socket {
     pub fn fetch_event(&mut self, socket_set: &mut SocketSet<'static>) -> Option<SendNetEvent> {
         match (self.ty, self.state) {
             (SocketType::Stream, State::Connecting) => {
-                let tcp_socket = socket_set.get::<TcpSocket>(self.socket);
+                let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
                 if tcp_socket.state() == TcpState::Established {
                     self.state = State::Connected;
                     let (ip, port) = to_m3_ep(tcp_socket.remote_endpoint());
                     Some(SendNetEvent::Connected(event::ConnectedMessage::new(
                         self.sd, ip, port,
                     )))
+                }
+                else if let Some(start) = self.connect_start {
+                    if TCU::nanotime() - start > CONNECT_TIMEOUT {
+                        tcp_socket.abort();
+                        self._local_port = None;
+                        self.state = State::Closed;
+                        Some(SendNetEvent::Closed(event::ClosedMessage::new(self.sd)))
+                    }
+                    else {
+                        None
+                    }
                 }
                 else {
                     None
@@ -231,7 +247,7 @@ impl Socket {
                 log!(crate::LOG_ERR, "bind failed: {}", e);
                 // bind can only fail if the port is zero
                 Err(Error::new(Code::InvArgs))
-            }
+            },
         }
     }
 
@@ -252,6 +268,7 @@ impl Socket {
         let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
         match tcp_socket.listen(endpoint) {
             Ok(_) => {
+                self.connect_start = None;
                 self.state = State::Connecting;
                 Ok(())
             },
@@ -286,6 +303,7 @@ impl Socket {
         let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
         match tcp_socket.connect(remote_endpoint, local_endpoint) {
             Ok(_) => {
+                self.connect_start = Some(TCU::nanotime());
                 self.state = State::Connecting;
                 self._local_port = Some(local_port);
                 Ok(())

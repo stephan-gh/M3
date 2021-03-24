@@ -25,9 +25,18 @@ use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, basics);
+    wv_run_test!(t, unreachable);
     wv_run_test!(t, open_close);
     wv_run_test!(t, receive_after_close);
     wv_run_test!(t, data);
+}
+
+fn unreachable() {
+    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+
+    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(&nm)));
+
+    wv_assert_err!(socket.connect(IpAddr::new(127, 0, 0, 1), 80), Code::ConnectionFailed);
 }
 
 fn basics() {

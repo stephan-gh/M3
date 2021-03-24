@@ -281,18 +281,12 @@ pub fn main() -> i32 {
             let cur_time = smoltcp::time::Instant::from_millis(TCU::nanotime() as i64 / 1_000_000);
 
             // now poll smoltcp to send and receive packets
-            let activity = match iface.poll(&mut handler.socket_set, cur_time) {
-                Ok(a) => a,
-                Err(e) => {
-                    log!(LOG_DETAIL, "netrs: poll failed: {}", e);
-                    false
-                },
-            };
-
-            // if there was activity, check for outgoing events we have to send to clients
-            if activity {
-                handler.process_outgoing();
+            if let Err(e) = iface.poll(&mut handler.socket_set, cur_time) {
+                log!(LOG_DETAIL, "netrs: poll failed: {}", e);
             }
+
+            // check for outgoing events we have to send to clients
+            handler.process_outgoing();
 
             if !sends_pending {
                 // ask smoltcp how long we can sleep
