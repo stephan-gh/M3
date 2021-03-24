@@ -144,14 +144,10 @@ protected:
     void handle_close_req(NetEventChannelRs::CloseReqMessage const &msg);
     void handle_closed(NetEventChannelRs::ClosedMessage const &msg);
 
-    NORETURN void inv_state();
-    NORETURN void or_closed(Errors::Code err);
-
     void do_abort(bool remove);
 
     int32_t _sd;
     State _state;
-    Errors::Code _close_cause;
     bool _blocking;
 
     IpAddr _local_addr;

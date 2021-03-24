@@ -47,7 +47,7 @@ Reference<UdpSocketRs> UdpSocketRs::create(NetworkManagerRs &nm, const DgramSock
 
 void UdpSocketRs::bind(uint16_t port) {
     if(_state != Closed)
-        inv_state();
+        throw Exception(Errors::INV_STATE);
 
     IpAddr addr = _nm.bind(sd(), port);
     set_local(addr, port, State::Bound);

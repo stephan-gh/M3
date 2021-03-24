@@ -65,7 +65,7 @@ void TcpSocketRs::close() {
 
 void TcpSocketRs::listen(uint16_t local_port) {
     if(_state != State::Closed)
-        inv_state();
+        throw Exception(Errors::INV_STATE);
 
     IpAddr local_addr = _nm.listen(sd(), local_port);
     set_local(local_addr, local_port, State::Listening);
@@ -96,7 +96,7 @@ void TcpSocketRs::connect(IpAddr remote_addr, uint16_t remote_port) {
     }
 
     if(_state != Connected)
-        inv_state();
+        throw Exception(Errors::INV_STATE);
 }
 
 void TcpSocketRs::accept(IpAddr *remote_addr, uint16_t *remote_port) {
@@ -110,7 +110,7 @@ void TcpSocketRs::accept(IpAddr *remote_addr, uint16_t *remote_port) {
     if(_state == State::Connecting)
         throw Exception(Errors::ALREADY_IN_PROGRESS);
     if(_state != State::Listening)
-        inv_state();
+        throw Exception(Errors::INV_STATE);
 
     _state = State::Connecting;
     while(_state == State::Connecting) {
@@ -119,7 +119,7 @@ void TcpSocketRs::accept(IpAddr *remote_addr, uint16_t *remote_port) {
     }
 
     if(_state != State::Connected)
-        inv_state();
+        throw Exception(Errors::INV_STATE);
 
     if(remote_addr)
         *remote_addr = _remote_addr;

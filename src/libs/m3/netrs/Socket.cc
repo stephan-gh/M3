@@ -31,7 +31,6 @@ SocketRs::SocketRs(int sd, NetworkManagerRs &nm)
       RefCounted(),
       _sd(sd),
       _state(Closed),
-      _close_cause(Errors::NONE),
       _blocking(true),
       _local_addr(IpAddr(0, 0, 0, 0)),
       _local_port(0),
@@ -89,7 +88,7 @@ bool SocketRs::get_next_data(const uchar **data, size_t *size, IpAddr *src_addr,
             return true;
 
         if(_state == Closed)
-            inv_state();
+            throw Exception(Errors::INV_STATE);
         if(!_blocking)
             return false;
 
@@ -126,7 +125,7 @@ ssize_t SocketRs::do_send(const void *src, size_t amount, IpAddr dst_addr, uint1
         process_events();
 
         if(_state == Closed)
-          inv_state();
+            throw Exception(Errors::INV_STATE);
     }
 }
 
@@ -147,16 +146,6 @@ void SocketRs::process_events() {
 
 void SocketRs::wait_for_event() {
     _nm.wait_sync();
-}
-
-void SocketRs::inv_state() {
-    or_closed(Errors::INV_STATE);
-}
-
-void SocketRs::or_closed(Errors::Code err) {
-    if(_state == Closed)
-        err = _close_cause != Errors::NONE ? _close_cause : Errors::SOCKET_CLOSED;
-    throw Exception(err);
 }
 
 void SocketRs::abort() {
