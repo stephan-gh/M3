@@ -154,16 +154,19 @@ pub fn testcliexit() {
         // first send to activate the gate
         wv_assert_ok!(send_vmsg!(&sg, RecvGate::def(), 1));
 
-        // perform the obtain syscall
-        let mut req_buf = MsgBuf::borrow_def();
-        req_buf.set(kif::syscalls::ExchangeSess {
-            opcode: kif::syscalls::Operation::OBTAIN.val,
-            vpe_sel: VPE::cur().sel(),
-            sess_sel: sess.sel(),
-            caps: [0; 2],
-            args: kif::syscalls::ExchangeArgs::default(),
-        });
-        wv_assert_ok!(syscalls::send_gate().send(&req_buf, RecvGate::syscall()));
+        // ensure that we drop MsgBuf before using send_vmsg below
+        {
+            // perform the obtain syscall
+            let mut req_buf = MsgBuf::borrow_def();
+            req_buf.set(kif::syscalls::ExchangeSess {
+                opcode: kif::syscalls::Operation::OBTAIN.val,
+                vpe_sel: VPE::cur().sel(),
+                sess_sel: sess.sel(),
+                caps: [0; 2],
+                args: kif::syscalls::ExchangeArgs::default(),
+            });
+            wv_assert_ok!(syscalls::send_gate().send(&req_buf, RecvGate::syscall()));
+        }
 
         // now we're ready to be killed
         wv_assert_ok!(send_vmsg!(&sg, RecvGate::def(), 1));
