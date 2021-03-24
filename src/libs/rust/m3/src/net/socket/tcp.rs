@@ -167,9 +167,12 @@ impl<'n> TcpSocket<'n> {
     pub fn send(&mut self, data: &[u8]) -> Result<(), Error> {
         match self.socket.state() {
             // like for receive: still allow sending if the remote side closed the connection
-            State::Connected | State::Closing => {
-                self.socket.send(self.nm, data, IpAddr::unspecified(), 0)
-            },
+            State::Connected | State::Closing => self.socket.send(
+                self.nm,
+                data,
+                self.socket.remote_addr.get(),
+                self.socket.remote_port.get(),
+            ),
             _ => Err(Error::new(Code::NotConnected)),
         }
     }
