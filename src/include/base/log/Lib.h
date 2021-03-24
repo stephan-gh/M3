@@ -43,7 +43,7 @@ public:
         DIRPIPE     = 1 << 13,
     };
 
-    static const int level = TCUERR;
+    static const int level = 0;
 };
 
 }
