@@ -102,8 +102,8 @@ fn bandwidth() {
     let mut buf = [0u8; 1024];
 
     for _ in 0..10 {
-        socket.send_to(&buf, dest_addr, dest_port).unwrap();
-        socket.recv(&mut buf).unwrap();
+        wv_assert_ok!(socket.send_to(&buf, dest_addr, dest_port));
+        wv_assert_ok!(socket.recv(&mut buf));
     }
 
     socket.set_blocking(false);
@@ -125,24 +125,31 @@ fn bandwidth() {
             if sent_count > PACKETS_TO_SEND {
                 break;
             }
-            if let Err(e) = socket.send_to(&buf, dest_addr, dest_port) {
-                wv_assert_eq!(e.code(), Code::WouldBlock);
-                failures += 1;
-            }
-            else {
-                sent_count += 1;
-                failures = 0;
+
+            match socket.send_to(&buf, dest_addr, dest_port) {
+                Err(e) => {
+                    wv_assert_eq!(e.code(), Code::WouldBlock);
+                    failures += 1;
+                },
+                Ok(_) => {
+                    sent_count += 1;
+                    failures = 0;
+                },
             }
         }
 
         for _ in 0..BURST_SIZE {
-            if let Ok(size) = socket.recv(&mut buf) {
-                received_bytes += size as usize;
-                receive_count += 1;
-                last_received = time::start(1);
-            }
-            else {
-                failures += 1;
+            match socket.recv(&mut buf) {
+                Err(e) => {
+                    wv_assert_eq!(e.code(), Code::WouldBlock);
+                    failures += 1;
+                },
+                Ok(size) => {
+                    received_bytes += size as usize;
+                    receive_count += 1;
+                    last_received = time::start(1);
+                    failures = 0;
+                },
             }
         }
 
