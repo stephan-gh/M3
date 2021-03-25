@@ -117,7 +117,14 @@ NOINLINE static void bandwidth() {
         // Wait for wakeup (message or credits received)
         if(failures >= 10) {
             failures = 0;
-            VPE::sleep();
+            if(sent_count >= PACKETS_TO_SEND) {
+                auto waited = Time::start(1) - last_received;
+                if(waited > TIMEOUT)
+                    break;
+                VPE::sleep_for(TIMEOUT - waited);
+            }
+            else
+                VPE::sleep();
         }
 
         for(size_t i = 0; i < BURST_SIZE; ++i) {
@@ -150,8 +157,6 @@ NOINLINE static void bandwidth() {
         }
 
         if(received_bytes >= PACKETS_TO_SEND * sizeof(buffer))
-            break;
-        if(sent_count >= PACKETS_TO_SEND && Time::start(1) - last_received > TIMEOUT)
             break;
     }
 

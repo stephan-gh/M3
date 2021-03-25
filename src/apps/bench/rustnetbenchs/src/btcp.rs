@@ -117,7 +117,16 @@ fn bandwidth() {
     loop {
         if failures > 9 {
             failures = 0;
-            wv_assert_ok!(VPE::sleep());
+            if sent_count >= PACKETS_TO_SEND {
+                let waited = time::start(1) - last_received;
+                if waited > TIMEOUT {
+                    break;
+                }
+                wv_assert_ok!(VPE::sleep_for(TIMEOUT - waited));
+            }
+            else {
+                wv_assert_ok!(VPE::sleep());
+            }
         }
 
         for _ in 0..BURST_SIZE {
@@ -153,9 +162,6 @@ fn bandwidth() {
         }
 
         if received_bytes >= PACKETS_TO_SEND * buf.len() {
-            break;
-        }
-        if sent_count >= PACKETS_TO_SEND && time::start(1) - last_received > TIMEOUT {
             break;
         }
     }
