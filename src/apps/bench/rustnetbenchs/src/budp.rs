@@ -131,7 +131,7 @@ fn bandwidth() {
         }
 
         for _ in 0..BURST_SIZE {
-            if sent_count > PACKETS_TO_SEND {
+            if sent_count >= PACKETS_TO_SEND {
                 break;
             }
 

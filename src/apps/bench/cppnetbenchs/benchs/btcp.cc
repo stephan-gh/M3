@@ -130,7 +130,7 @@ NOINLINE static void bandwidth() {
         }
 
         for(size_t i = 0; i < BURST_SIZE; ++i) {
-            if(sent_count > PACKETS_TO_SEND)
+            if(sent_count >= PACKETS_TO_SEND)
                 break;
 
             if(socket->send(buffer, packet_size) > 0) {
