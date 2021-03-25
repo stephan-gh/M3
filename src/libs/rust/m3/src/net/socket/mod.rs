@@ -212,6 +212,7 @@ impl Socket {
             }
 
             if !self.blocking.get() {
+                nm.fetch_replies();
                 return Err(Error::new(Code::WouldBlock));
             }
 
@@ -234,6 +235,7 @@ impl Socket {
             }
 
             if !self.blocking.get() {
+                nm.fetch_replies();
                 return Err(Error::new(Code::WouldBlock));
             }
 

@@ -166,6 +166,11 @@ impl NetworkManager {
             })
     }
 
+    /// Fetch replies (ACKs) from the event channel.
+    pub fn fetch_replies(&self) {
+        self.channel.fetch_replies();
+    }
+
     /// Waits until events are available to process
     ///
     /// Note: this function uses [`VPE::sleep`] if no events are present, which suspends the core

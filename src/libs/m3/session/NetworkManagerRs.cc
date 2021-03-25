@@ -124,12 +124,9 @@ SocketRs *NetworkManagerRs::process_event(NetEventChannelRs::Event &event) {
 }
 
 void NetworkManagerRs::wait_sync() {
-    while(1) {
+    while(!_channel.has_events()) {
         // This would be the place to implement timeouts.
         VPE::sleep();
-
-        if(_channel.has_events())
-            break;
 
         _channel.fetch_replies();
     }

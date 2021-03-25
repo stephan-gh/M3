@@ -89,8 +89,10 @@ bool SocketRs::get_next_data(const uchar **data, size_t *size, IpAddr *src_addr,
 
         if(_state == Closed)
             throw Exception(Errors::INV_STATE);
-        if(!_blocking)
+        if(!_blocking) {
+            _nm._channel.fetch_replies();
             return false;
+        }
 
         wait_for_event();
     }
@@ -117,8 +119,10 @@ ssize_t SocketRs::do_send(const void *src, size_t amount, IpAddr dst_addr, uint1
         if(res != -1)
             return res;
 
-        if(!blocking())
+        if(!blocking()) {
+            _nm._channel.fetch_replies();
             return -1;
+        }
 
         _nm.wait_sync();
 
