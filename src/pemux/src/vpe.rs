@@ -293,6 +293,9 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
                 else {
                     Box::into_raw(next);
                 }
+                if old.sleeping {
+                    timer::remove(old.id());
+                }
                 old.scheduled = now;
                 return old.user_state_addr;
             }
