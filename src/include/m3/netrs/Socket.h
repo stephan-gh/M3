@@ -118,7 +118,7 @@ public:
     /**
      * Waits until an event has been received from the server
      */
-    void wait_for_event();
+    void wait_for_events();
 
     /**
      * Processes already received events

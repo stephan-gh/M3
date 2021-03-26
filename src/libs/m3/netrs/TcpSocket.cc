@@ -57,7 +57,7 @@ void TcpSocketRs::close() {
         if(!_blocking)
             throw Exception(Errors::IN_PROGRESS);
 
-        _nm.wait_sync();
+        wait_for_events();
 
         process_events();
     }
@@ -91,7 +91,7 @@ void TcpSocketRs::connect(IpAddr remote_addr, uint16_t remote_port) {
         throw Exception(Errors::IN_PROGRESS);
 
     while(_state == State::Connecting) {
-        wait_for_event();
+        wait_for_events();
         process_events();
     }
 
@@ -114,7 +114,7 @@ void TcpSocketRs::accept(IpAddr *remote_addr, uint16_t *remote_port) {
 
     _state = State::Connecting;
     while(_state == State::Connecting) {
-        wait_for_event();
+        wait_for_events();
         process_events();
     }
 

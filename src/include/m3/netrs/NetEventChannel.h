@@ -98,6 +98,7 @@ public:
     bool send_data(int sd, IpAddr addr, uint16_t port, size_t size, std::function<void(uchar *)> cb_data);
     bool send_close_req(int sd);
 
+    bool can_send() const;
     bool has_events() const;
     Event recv_message();
 

@@ -154,7 +154,7 @@ impl Socket {
         }
 
         while self.state.get() == State::Connecting {
-            nm.wait_sync();
+            nm.wait_for_events();
             nm.process_events(Some(self.sd));
         }
 
@@ -179,7 +179,7 @@ impl Socket {
 
         self.state.set(State::Connecting);
         while self.state.get() == State::Connecting {
-            nm.wait_sync();
+            nm.wait_for_events();
             nm.process_events(Some(self.sd));
         }
 
@@ -216,7 +216,7 @@ impl Socket {
                 return Err(Error::new(Code::WouldBlock));
             }
 
-            nm.wait_sync();
+            nm.wait_for_events();
         }
     }
 
@@ -239,7 +239,7 @@ impl Socket {
                 return Err(Error::new(Code::WouldBlock));
             }
 
-            nm.wait_sync();
+            nm.wait_for_credits();
 
             nm.process_events(Some(self.sd));
 
@@ -266,7 +266,7 @@ impl Socket {
                 return Err(Error::new(Code::WouldBlock));
             }
 
-            nm.wait_sync();
+            nm.wait_for_events();
 
             nm.process_events(Some(self.sd));
         }

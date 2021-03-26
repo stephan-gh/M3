@@ -123,8 +123,17 @@ SocketRs *NetworkManagerRs::process_event(NetEventChannelRs::Event &event) {
     return socket;
 }
 
-void NetworkManagerRs::wait_sync() {
+void NetworkManagerRs::wait_for_events() {
     while(!_channel.has_events()) {
+        // This would be the place to implement timeouts.
+        VPE::sleep();
+
+        _channel.fetch_replies();
+    }
+}
+
+void NetworkManagerRs::wait_for_credits() {
+    while(!_channel.can_send()) {
         // This would be the place to implement timeouts.
         VPE::sleep();
 

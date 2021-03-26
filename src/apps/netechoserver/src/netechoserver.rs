@@ -74,7 +74,7 @@ pub fn main() -> i32 {
                 tcp_socket.abort().unwrap();
             }
             else {
-                nm.wait_sync();
+                nm.wait_for_events();
             }
         }
 

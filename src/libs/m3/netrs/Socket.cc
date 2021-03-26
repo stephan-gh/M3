@@ -94,7 +94,7 @@ bool SocketRs::get_next_data(const uchar **data, size_t *size, IpAddr *src_addr,
             return false;
         }
 
-        wait_for_event();
+        wait_for_events();
     }
 }
 
@@ -124,7 +124,7 @@ ssize_t SocketRs::do_send(const void *src, size_t amount, IpAddr dst_addr, uint1
             return -1;
         }
 
-        _nm.wait_sync();
+        _nm.wait_for_credits();
 
         process_events();
 
@@ -148,8 +148,8 @@ void SocketRs::process_events() {
     }
 }
 
-void SocketRs::wait_for_event() {
-    _nm.wait_sync();
+void SocketRs::wait_for_events() {
+    _nm.wait_for_events();
 }
 
 void SocketRs::abort() {

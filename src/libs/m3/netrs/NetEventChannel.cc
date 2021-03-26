@@ -55,6 +55,10 @@ bool NetEventChannelRs::send_close_req(int sd) {
     return _sgate.try_send(msg_buf) == Errors::NONE;
 }
 
+bool NetEventChannelRs::can_send() const {
+    return _sgate.can_send();
+}
+
 bool NetEventChannelRs::has_events() const {
     return _rgate.has_msgs();
 }

@@ -84,7 +84,8 @@ private:
 
     ssize_t send(int32_t sd, IpAddr dst_addr, uint16_t dst_port, const void *data, size_t data_length);
 
-    void wait_sync();
+    void wait_for_events();
+    void wait_for_credits();
 
     NetEventChannelRs::Event recv_event();
     SocketRs *process_event(NetEventChannelRs::Event &event);

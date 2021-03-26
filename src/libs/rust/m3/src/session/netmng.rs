@@ -176,8 +176,22 @@ impl NetworkManager {
     /// Note: this function uses [`VPE::sleep`] if no events are present, which suspends the core
     /// until the next TCU message arrives. Thus, calling this function can only be done if all work
     /// is done.
-    pub fn wait_sync(&self) {
+    pub fn wait_for_events(&self) {
         while !self.channel.has_events() {
+            // ignore errors
+            VPE::sleep().ok();
+
+            self.channel.fetch_replies();
+        }
+    }
+
+    /// Waits until we can send events to the server
+    ///
+    /// Note: this function uses [`VPE::sleep`] if no credits are available, which suspends the core
+    /// until the next TCU message arrives. Thus, calling this function can only be done if all work
+    /// is done.
+    pub fn wait_for_credits(&self) {
+        while !self.channel.can_send().unwrap() {
             // ignore errors
             VPE::sleep().ok();
 
