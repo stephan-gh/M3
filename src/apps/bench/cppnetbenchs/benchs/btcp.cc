@@ -78,6 +78,8 @@ NOINLINE static void latency() {
         WVPERF(name.str(), (res.avg() / 3e6f) << " ms (+/- " << (res.stddev() / 3e6f) << " with "
                                               << res.runs() << " runs)\n");
     }
+
+    socket->close();
 }
 
 NOINLINE static void bandwidth() {
@@ -169,6 +171,9 @@ NOINLINE static void bandwidth() {
     cout << "Duration: " << duration << "\n";
     float mbps = (static_cast<float>(received_bytes) / (duration / 3e9f)) / (1024 * 1024);
     WVPERF("TCP bandwidth", mbps << " MiB/s (+/- 0 with 1 runs)\n");
+
+    socket->blocking(true);
+    socket->close();
 }
 
 void btcp() {

@@ -80,6 +80,8 @@ fn latency() {
             )
         );
     }
+
+    wv_assert_ok!(socket.close());
 }
 
 fn bandwidth() {
@@ -176,4 +178,7 @@ fn bandwidth() {
         "TCP bandwidth",
         format!("{} MiB/s (+/- 0 with 1 runs)", mbps)
     );
+    
+    socket.set_blocking(true);
+    wv_assert_ok!(socket.close());
 }
