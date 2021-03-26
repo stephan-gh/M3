@@ -435,9 +435,6 @@ impl E1000 {
             (RX_DESCS_OFF + tail as usize * core::mem::size_of::<RxDesc>()) as goff,
         );
 
-        // TODO: Ensure that packets that are not processed because the maxReceiveCount has been
-        // exceeded, to be processed later, independently of an interrupt.
-
         if (desc[0].status & RXDS::DD.bits()) == 0 {
             return Err(Error::new(Code::NotFound));
         }
