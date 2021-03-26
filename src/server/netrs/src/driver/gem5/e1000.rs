@@ -413,10 +413,9 @@ impl E1000 {
 
     /// Receives a single package with the max size for E1000::mtu().
     pub fn receive(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-        // if there is nothing to receive, return
-        if !self.check_irq() {
-            return Err(Error::new(Code::NotSup));
-        }
+        // always check for IRQs to ACK them, but also always check whether there are packets
+        // in the ring buffer in case we received a single IRQ for multiple packets.
+        self.check_irq();
 
         // TODO: Improve, do it without reading registers, like quoted in the manual and how the
         // linux e1000 driver does it: "Software can determine if a receive buffer is valid by
