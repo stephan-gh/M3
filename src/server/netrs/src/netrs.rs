@@ -101,29 +101,21 @@ impl NetHandler {
 
     // processes outgoing events to clients
     fn process_outgoing(&mut self) {
-        for i in 0..self.sessions.capacity() {
-            if let Some(sess) = self.sessions.get_mut(i) {
-                match sess {
-                    NetworkSession::SocketSession(ss) => ss.process_outgoing(&mut self.socket_set),
-                    _ => {},
-                }
-            }
-        }
+        let socks = &mut self.socket_set;
+        self.sessions.for_each(|s| match s {
+            NetworkSession::SocketSession(ss) => ss.process_outgoing(socks),
+            _ => {},
+        });
     }
 
     // processes incoming events from clients and returns whether there is still work to do
     fn process_incoming(&mut self) -> bool {
+        let socks = &mut self.socket_set;
         let mut res = false;
-        for i in 0..self.sessions.capacity() {
-            if let Some(sess) = self.sessions.get_mut(i) {
-                match sess {
-                    NetworkSession::SocketSession(ss) => {
-                        res |= ss.process_incoming(&mut self.socket_set)
-                    },
-                    _ => {},
-                }
-            }
-        }
+        self.sessions.for_each(|s| match s {
+            NetworkSession::SocketSession(ss) => res |= ss.process_incoming(socks),
+            _ => {},
+        });
         res
     }
 }

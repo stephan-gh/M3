@@ -139,6 +139,27 @@ impl<S> SessionContainer<S> {
         }
     }
 
+    /// Iterates over all sessions and calls `func` on each session.
+    pub fn for_each<F>(&mut self, mut func: F)
+    where
+        F: FnMut(&mut S),
+    {
+        let mut used = self.used;
+        let mut idx = 0;
+        loop {
+            let dist = used.trailing_zeros();
+            if dist == 64 {
+                break;
+            }
+            else {
+                idx += dist as usize;
+                func(self.con[idx].as_mut().unwrap());
+                used = used >> (dist + 1);
+                idx += 1;
+            }
+        }
+    }
+
     /// Returns true if the given creator can add another session
     pub fn can_add(&self, crt: usize) -> bool {
         crt < self.creators.len() && self.creators[crt].sessions > 0
