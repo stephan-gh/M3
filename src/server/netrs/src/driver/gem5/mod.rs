@@ -54,15 +54,8 @@ impl<'a> smoltcp::phy::Device<'a> for E1000Device {
     }
 
     fn receive(&'a mut self) -> Option<(Self::RxToken, Self::TxToken)> {
-        let mut buffer = Vec::<u8>::with_capacity(e1000::E1000::mtu());
-        // safety: we initialize and shrink it accordingly below
-        unsafe {
-            buffer.set_len(e1000::E1000::mtu());
-        }
-
-        match self.dev.borrow_mut().receive(&mut buffer) {
-            Ok(size) => {
-                buffer.resize(size, 0);
+        match self.dev.borrow_mut().receive() {
+            Ok(buffer) => {
                 let rx = RxToken { buffer };
                 let tx = TxToken {
                     device: self.dev.clone(),

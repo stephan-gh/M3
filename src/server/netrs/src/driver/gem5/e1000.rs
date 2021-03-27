@@ -17,6 +17,7 @@
  */
 
 use m3::com::MemGate;
+use m3::col::Vec;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{Perm, PEISA};
@@ -412,7 +413,7 @@ impl E1000 {
     }
 
     /// Receives a single package with the max size for E1000::mtu().
-    pub fn receive(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
+    pub fn receive(&mut self) -> Result<Vec<u8>, Error> {
         // always check for IRQs to ACK them, but also always check whether there are packets
         // in the ring buffer in case we received a single IRQ for multiple packets.
         self.check_irq();
@@ -454,8 +455,14 @@ impl E1000 {
         }
 
         assert!((desc[0].length as usize) <= E1000::mtu());
-        self.read_bufs(&mut buf[0..desc[0].length.into()], desc[0].buffer);
+
         let read_size = desc[0].length.into();
+        let mut buf = Vec::<u8>::with_capacity(read_size);
+        // safety: the buffer will be initialized by read_bufs below
+        unsafe {
+            buf.set_len(read_size);
+        }
+        self.read_bufs(&mut buf, desc[0].buffer);
 
         // Write back the updated rx buffer.
         desc[0].length = 0;
@@ -470,7 +477,7 @@ impl E1000 {
         // move to next package by updating the `tail` value on the device.
         self.write_reg(REG::RDT, tail);
 
-        Ok(read_size)
+        Ok(buf)
     }
 
     pub fn read_reg(&self, reg: REG) -> u32 {
