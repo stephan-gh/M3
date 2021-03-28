@@ -112,7 +112,7 @@ NOINLINE static void bandwidth() {
     size_t packets_to_send    = 105;
     size_t packets_to_receive = 100;
     size_t burst_size         = 2;
-    cycles_t timeout          = 10000000;
+    uint64_t timeout          = 1000000000; // 1sec
 
     size_t packet_sent_count     = 0;
     size_t packet_received_count = 0;
@@ -125,15 +125,15 @@ NOINLINE static void bandwidth() {
 
     socket->blocking(false);
 
-    cycles_t start         = Time::start(0);
-    cycles_t last_received = start;
+    uint64_t start         = TCU::get().nanotime();
+    uint64_t last_received = start;
     size_t failures        = 0;
     while(true) {
         // Wait for wakeup (message or credits received)
         if(failures >= 10) {
             failures = 0;
             if(packet_sent_count >= packets_to_send) {
-                auto waited = Time::start(1) - last_received;
+                auto waited = TCU::get().nanotime() - last_received;
                 if(waited > timeout)
                     break;
                 VPE::sleep_for(timeout - waited);
@@ -160,7 +160,7 @@ NOINLINE static void bandwidth() {
             if(pkt_size != -1) {
                 received_bytes += static_cast<size_t>(pkt_size);
                 packet_received_count++;
-                last_received = Time::start(0);
+                last_received = TCU::get().nanotime();
                 failures = 0;
             }
             else {
@@ -178,9 +178,9 @@ NOINLINE static void bandwidth() {
     cout << "Sent packets: " << packet_sent_count << "\n";
     cout << "Received packets: " << packet_received_count << "\n";
     cout << "Received bytes: " << received_bytes << "\n";
-    cycles_t duration = last_received - start;
+    uint64_t duration = last_received - start;
     cout << "Duration: " << duration << "\n";
-    float mbps = (static_cast<float>(received_bytes) / (duration / 3e9f)) / (1024 * 1024);
+    float mbps = (static_cast<float>(received_bytes) / (duration / 1e9f)) / (1024 * 1024);
     WVPERF("network bandwidth", mbps << " MiB/s (+/- 0 with 1 runs)\n");
 }
 

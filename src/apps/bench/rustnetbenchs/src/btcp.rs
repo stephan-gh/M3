@@ -22,6 +22,7 @@ use m3::pes::VPE;
 use m3::println;
 use m3::profile::Results;
 use m3::session::NetworkManager;
+use m3::tcu::TCU;
 use m3::test;
 use m3::time;
 use m3::{wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test};
@@ -87,7 +88,7 @@ fn latency() {
 fn bandwidth() {
     const PACKETS_TO_SEND: usize = 105;
     const BURST_SIZE: usize = 2;
-    const TIMEOUT: u64 = 10_000_000; // cycles
+    const TIMEOUT: u64 = 1_000_000_000; // 1sec
 
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
     let mut socket = wv_assert_ok!(TcpSocket::new(
@@ -109,7 +110,7 @@ fn bandwidth() {
 
     socket.set_blocking(false);
 
-    let start = time::start(0);
+    let start = TCU::nanotime();
     let mut last_received = start;
     let mut sent_count = 0;
     let mut receive_count = 0;
@@ -120,7 +121,7 @@ fn bandwidth() {
         if failures > 9 {
             failures = 0;
             if sent_count >= PACKETS_TO_SEND {
-                let waited = time::start(1) - last_received;
+                let waited = TCU::nanotime() - last_received;
                 if waited > TIMEOUT {
                     break;
                 }
@@ -157,7 +158,7 @@ fn bandwidth() {
                 Ok(size) => {
                     received_bytes += size as usize;
                     receive_count += 1;
-                    last_received = time::start(1);
+                    last_received = TCU::nanotime();
                     failures = 0;
                 },
             }
@@ -173,12 +174,12 @@ fn bandwidth() {
     println!("Received bytes: {}", received_bytes);
     let duration = last_received - start;
     println!("Duration: {}", duration);
-    let mbps = (received_bytes as f64 / (duration as f64 / 3e9)) / (1024f64 * 1024f64);
+    let mbps = (received_bytes as f64 / (duration as f64 / 1e9)) / (1024f64 * 1024f64);
     wv_perf!(
         "TCP bandwidth",
         format!("{} MiB/s (+/- 0 with 1 runs)", mbps)
     );
-    
+
     socket.set_blocking(true);
     wv_assert_ok!(socket.close());
 }

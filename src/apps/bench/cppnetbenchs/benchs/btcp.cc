@@ -85,7 +85,7 @@ NOINLINE static void latency() {
 NOINLINE static void bandwidth() {
     const size_t PACKETS_TO_SEND = 105;
     const size_t BURST_SIZE = 2;
-    const cycles_t TIMEOUT = 10000000;
+    const uint64_t TIMEOUT = 1000000000; // 1sec
 
     NetworkManagerRs net("net0");
 
@@ -108,8 +108,8 @@ NOINLINE static void bandwidth() {
 
     socket->blocking(false);
 
-    cycles_t start              = Time::start(0);
-    cycles_t last_received      = start;
+    uint64_t start              = TCU::get().nanotime();
+    uint64_t last_received      = start;
     size_t sent_count           = 0;
     size_t received_count       = 0;
     size_t received_bytes       = 0;
@@ -120,7 +120,7 @@ NOINLINE static void bandwidth() {
         if(failures >= 10) {
             failures = 0;
             if(sent_count >= PACKETS_TO_SEND) {
-                auto waited = Time::start(1) - last_received;
+                auto waited = TCU::get().nanotime() - last_received;
                 if(waited > TIMEOUT)
                     break;
                 VPE::sleep_for(TIMEOUT - waited);
@@ -149,7 +149,7 @@ NOINLINE static void bandwidth() {
             if(pkt_size != -1) {
                 received_bytes += static_cast<size_t>(pkt_size);
                 received_count++;
-                last_received = Time::start(1);
+                last_received = TCU::get().nanotime();
                 failures = 0;
             }
             else {
@@ -167,9 +167,9 @@ NOINLINE static void bandwidth() {
     cout << "Sent packets: " << sent_count << "\n";
     cout << "Received packets: " << received_count << "\n";
     cout << "Received bytes: " << received_bytes << "\n";
-    cycles_t duration = last_received - start;
+    uint64_t duration = last_received - start;
     cout << "Duration: " << duration << "\n";
-    float mbps = (static_cast<float>(received_bytes) / (duration / 3e9f)) / (1024 * 1024);
+    float mbps = (static_cast<float>(received_bytes) / (duration / 1e9f)) / (1024 * 1024);
     WVPERF("TCP bandwidth", mbps << " MiB/s (+/- 0 with 1 runs)\n");
 
     socket->blocking(true);
