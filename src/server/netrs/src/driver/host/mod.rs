@@ -188,7 +188,7 @@ impl<'a> DevFifo {
         let lower = RawSocketDesc::new(name);
         DevFifo {
             lower: Rc::new(lower),
-            mtu: 4096,
+            mtu: 2048,
         }
     }
 }
