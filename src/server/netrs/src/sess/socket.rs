@@ -588,6 +588,10 @@ impl SocketSession {
                     }
                 }
 
+                if !chan.can_send().unwrap() {
+                    break;
+                }
+
                 socket.borrow_mut().receive(socket_set, |data, addr| {
                     let (ip, port) = to_m3_ep(addr);
                     let amount = cmp::min(event::MTU, data.len());
