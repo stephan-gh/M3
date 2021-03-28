@@ -73,7 +73,7 @@ macro_rules! log_tcu {
     ($fmt:expr, $($arg:tt)*) => (log_tcu_impl!(TCU, concat!($fmt, "\n"), $($arg)*));
 }
 
-macro_rules! log_tcu_err {
+macro_rules! log_tcu_critical {
     ($fmt:expr)              => (log_tcu_impl!(TCU_ERR, concat!($fmt, "\n")));
     ($fmt:expr, $($arg:tt)*) => (log_tcu_impl!(TCU_ERR, concat!($fmt, "\n"), $($arg)*));
 }
@@ -110,13 +110,13 @@ fn prepare_send(ep: EpId) -> Result<(PEId, EpId), Error> {
     if credits != UNLIM_CREDITS as usize {
         let msg_order = TCU::get_ep(ep, EpReg::MSGORDER);
         if msg_order == 0 {
-            log_tcu_err!("TCU-error: invalid EP {}", ep);
+            log_tcu!("TCU-error: invalid EP {}", ep);
             return Err(Error::new(Code::NoSEP));
         }
 
         let needed = 1 << msg_order;
         if needed > credits {
-            log_tcu_err!(
+            log_tcu!(
                 "TCU-error: insufficient credits on ep {} (have {:#x}, need {:#x})",
                 ep,
                 credits,
@@ -154,7 +154,7 @@ fn prepare_reply(ep: EpId) -> Result<(PEId, EpId), Error> {
 
     let idx = reply_off >> msg_ord;
     if idx >= (1 << (ord - msg_ord)) {
-        log_tcu_err!(
+        log_tcu!(
             "TCU-error: EP{}: invalid message offset {:#x}",
             ep,
             reply_off
@@ -164,7 +164,7 @@ fn prepare_reply(ep: EpId) -> Result<(PEId, EpId), Error> {
 
     let reply_msg = TCU::offset_to_msg(buf_addr, reply_off);
     if reply_msg.header.has_replycap == 0 {
-        log_tcu_err!(
+        log_tcu!(
             "TCU-error: EP{}: double-reply for msg offset {:#x}?",
             ep,
             reply_off
@@ -207,7 +207,7 @@ fn check_rdwr(ep: EpId, read: bool) -> Result<(), Error> {
     let length = TCU::get_cmd(CmdReg::LENGTH);
 
     if (perms & (1 << op)) == 0 {
-        log_tcu_err!(
+        log_tcu!(
             "TCU-error: EP{}: operation not permitted (perms={}, op={})",
             ep,
             perms,
@@ -218,7 +218,7 @@ fn check_rdwr(ep: EpId, read: bool) -> Result<(), Error> {
     else {
         let end = offset.overflowing_add(length);
         if end.1 || end.0 > credits {
-            log_tcu_err!(
+            log_tcu!(
                 "TCU-error: EP{}: invalid parameters (credits={}, offset={}, datalen={})",
                 ep,
                 credits,
@@ -289,7 +289,7 @@ fn prepare_ack(ep: EpId) -> Result<(PEId, EpId), Error> {
 
     let idx = msg_off >> msg_ord;
     if idx >= (1 << (ord - msg_ord)) {
-        log_tcu_err!("TCU-error: EP{}: invalid message offset {:#x}", ep, msg_off);
+        log_tcu!("TCU-error: EP{}: invalid message offset {:#x}", ep, msg_off);
         return Err(Error::new(Code::InvArgs));
     }
 
@@ -361,7 +361,7 @@ fn handle_msg(ep: EpId, len: usize) {
     let msg_ord = TCU::get_ep(ep, EpReg::BUF_MSGORDER);
     let msg_size = 1 << msg_ord;
     if len > msg_size {
-        log_tcu_err!(
+        log_tcu_critical!(
             "TCU-error: dropping msg due to insufficient space (required: {}, available: {})",
             len,
             msg_size
@@ -411,7 +411,7 @@ fn handle_msg(ep: EpId, len: usize) {
         }
     }
 
-    log_tcu_err!("TCU-error: EP{}: dropping msg because no slot is free", ep);
+    log_tcu_critical!("TCU-error: EP{}: dropping msg because no slot is free", ep);
 }
 
 fn handle_write_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Error> {
@@ -564,7 +564,7 @@ fn handle_command(backend: &backend::SocketBackend) {
     let ep = TCU::get_cmd(CmdReg::EPID) as EpId;
 
     let res = if ep >= TOTAL_EPS {
-        log_tcu_err!("TCU-error: invalid ep-id ({})", ep);
+        log_tcu!("TCU-error: invalid ep-id ({})", ep);
         Err(Error::new(Code::InvArgs))
     }
     else {
@@ -633,7 +633,7 @@ fn handle_receive(backend: &backend::SocketBackend, ep: EpId) -> bool {
         // refill credits
         let crd_ep = buf.header.crd_ep as EpId;
         if crd_ep >= TOTAL_EPS {
-            log_tcu_err!("TCU-error: should give credits to ep {}", crd_ep);
+            log_tcu_critical!("TCU-error: should give credits to ep {}", crd_ep);
         }
         else {
             let msg_ord = TCU::get_ep(crd_ep, EpReg::MSGORDER);
