@@ -590,18 +590,18 @@ impl SocketSession {
 
                 socket.borrow_mut().receive(socket_set, |data, addr| {
                     let (ip, port) = to_m3_ep(addr);
+                    let amount = cmp::min(event::MTU, data.len());
 
                     log!(
                         crate::LOG_DATA,
-                        "[{}] socket {}: received paket with {}b from {}:{}",
+                        "[{}] socket {}: received packet with {}b from {}:{}",
                         socket_sd,
                         self.server_session.ident(),
-                        data.len(),
+                        amount,
                         ip,
                         port
                     );
 
-                    let amount = cmp::min(event::MTU, data.len());
                     chan.send_data(socket_sd, ip, port, amount, |buf| {
                         buf[0..amount].copy_from_slice(&data[0..amount]);
                     })
