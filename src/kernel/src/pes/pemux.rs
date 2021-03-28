@@ -20,7 +20,7 @@ use base::goff;
 use base::kif;
 use base::mem::GlobAddr;
 use base::rc::{Rc, SRc, Weak};
-use base::mem::{MsgBuf, MsgBufRef};
+use base::mem::MsgBuf;
 use base::tcu::{self, EpId, PEId, VPEId};
 use core::cmp;
 
@@ -465,7 +465,7 @@ impl PEMux {
     fn send_receive_sidecall_async<R: core::fmt::Debug>(
         &mut self,
         vpe: Option<VPEId>,
-        req: MsgBufRef<'_>,
+        req: base::mem::MsgBufRef<'_>,
     ) -> Result<&'static kif::pemux::Response, Error> {
         use crate::com::SendQueue;
 
