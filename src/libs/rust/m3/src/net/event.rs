@@ -27,7 +27,7 @@ use crate::mem::{self, MaybeUninit, MsgBuf};
 use crate::net::{IpAddr, Port, Sd};
 use crate::pes::VPE;
 use crate::rc::Rc;
-use crate::tcu::Message;
+use crate::tcu::{Header, Message};
 
 const MSG_SIZE: usize = 2048;
 const MSG_CREDITS: usize = 4;
@@ -38,7 +38,7 @@ const REPLY_BUF_SIZE: usize = REPLY_SIZE * MSG_CREDITS;
 
 // the receive buffer slots are 2048 bytes, but we need to substract the TCU header and the other
 // fields in DataMessage.
-pub const MTU: usize = MSG_SIZE - (16 + 5 * mem::size_of::<u64>());
+pub const MTU: usize = MSG_SIZE - (mem::size_of::<Header>() + 5 * mem::size_of::<u64>());
 
 int_enum! {
     pub struct NetEventType : u64 {
