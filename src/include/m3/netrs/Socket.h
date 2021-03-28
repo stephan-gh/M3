@@ -68,6 +68,8 @@ public:
         // The socket is connected to a remote endpoint
         Connected,
         // The remote side has closed the connection
+        RemoteClosed,
+        // The socket is currently being closed, initiated by our side
         Closing,
         // The socket is closed (default state)
         Closed

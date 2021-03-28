@@ -112,8 +112,8 @@ public:
      * Receives data from the socket into the given buffer.
      *
      * The socket has to be connected first (either via connect or accept). Note that data can be
-     * received after the remote side has closed the socket (state Closing), but not if this side
-     * has been closed.
+     * received after the remote side has closed the socket (state RemoteClosed), but not if this
+     * side has been closed.
      *
      * @param dst the buffer to receive into
      * @param amount the maximum number of bytes to receive
@@ -125,8 +125,8 @@ public:
      * Sends the given data to this socket
      *
      * The socket has to be connected first (either via connect or accept). Note that data can be
-     * received after the remote side has closed the socket (state Closing), but not if this side
-     * has been closed.
+     * received after the remote side has closed the socket (state RemoteClosed), but not if this
+     * side has been closed.
      *
      * @param src the data to send
      * @param amount the number of bytes to send

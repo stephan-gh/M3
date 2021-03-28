@@ -73,7 +73,7 @@ void SocketRs::handle_connected(NetEventChannelRs::ConnectedMessage const &msg) 
 }
 
 void SocketRs::handle_close_req(NetEventChannelRs::CloseReqMessage const &) {
-    _state = Closing;
+    _state = RemoteClosed;
 }
 
 void SocketRs::handle_closed(NetEventChannelRs::ClosedMessage const &) {

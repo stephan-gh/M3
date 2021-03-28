@@ -61,6 +61,8 @@ pub enum State {
     /// The socket is connected to a remote endpoint
     Connected,
     /// The remote side has closed the connection
+    RemoteClosed,
+    /// The socket is currently being closed, initiated by our side
     Closing,
     /// The socket is closed (default state)
     Closed,
@@ -135,7 +137,7 @@ impl Socket {
             }
             return Ok(());
         }
-        if self.state.get() == State::Closing {
+        if self.state.get() == State::RemoteClosed {
             return Err(Error::new(Code::InvState));
         }
 
@@ -252,6 +254,11 @@ impl Socket {
     pub fn close(&self, nm: &NetworkManager) -> Result<(), Error> {
         let mut sent_req = false;
 
+        // ensure that we don't receive more data (which could block our event channel and thus
+        // prevent us from receiving the closed event)
+        self.state.set(State::Closing);
+        self.recv_queue.borrow_mut().clear();
+
         while self.state.get() != State::Closed {
             if !sent_req {
                 match nm.close(self.sd) {
@@ -281,7 +288,9 @@ impl Socket {
     }
 
     pub fn process_data_transfer(&self, event: NetEvent) {
-        if self.ty != SocketType::Stream || self.state.get() != State::Closed {
+        if self.ty != SocketType::Stream
+            || (self.state.get() != State::Closing && self.state.get() != State::Closed)
+        {
             self.recv_queue.borrow_mut().append(event);
         }
     }
@@ -297,6 +306,6 @@ impl Socket {
     }
 
     pub fn process_close_req(&self, _msg: &event::CloseReqMessage) {
-        self.state.set(State::Closing);
+        self.state.set(State::RemoteClosed);
     }
 }

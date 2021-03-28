@@ -70,7 +70,7 @@ pub fn main() -> i32 {
         }
 
         if !udp_socket.has_data() && !tcp_socket.has_data() {
-            if tcp_socket.state() == State::Closing {
+            if tcp_socket.state() == State::RemoteClosed {
                 tcp_socket.abort().unwrap();
             }
             else {

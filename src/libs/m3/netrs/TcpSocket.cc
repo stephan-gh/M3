@@ -48,6 +48,11 @@ Reference<TcpSocketRs> TcpSocketRs::create(NetworkManagerRs &nm, const StreamSoc
 void TcpSocketRs::close() {
     bool sent_req = false;
 
+    // ensure that we don't receive more data (which could block our event channel and thus prevent
+    // us from receiving the closed event)
+    _state = State::Closing;
+    _recv_queue.clear();
+
     while(_state != State::Closed) {
         if(!sent_req) {
             if(_nm.close(sd()))
@@ -130,7 +135,7 @@ void TcpSocketRs::accept(IpAddr *remote_addr, uint16_t *remote_port) {
 ssize_t TcpSocketRs::recv(void *dst, size_t amount) {
     // receive is possible with an established connection or a connection that that has already been
     // closed by the remote side
-    if(_state != Connected && _state != Closing)
+    if(_state != Connected && _state != RemoteClosed)
         throw Exception(Errors::NOT_CONNECTED);
 
     return SocketRs::do_recv(dst, amount, nullptr, nullptr);
@@ -138,14 +143,14 @@ ssize_t TcpSocketRs::recv(void *dst, size_t amount) {
 
 ssize_t TcpSocketRs::send(const void *src, size_t amount) {
     // like for receive: still allow sending if the remote side closed the connection
-    if(_state != Connected && _state != Closing)
+    if(_state != Connected && _state != RemoteClosed)
         throw Exception(Errors::NOT_CONNECTED);
 
     return SocketRs::do_send(src, amount, _remote_addr, _remote_port);
 }
 
 void TcpSocketRs::handle_data(NetEventChannelRs::DataMessage const & msg, NetEventChannelRs::Event &event) {
-    if(_state != Closed)
+    if(_state != Closed && _state != Closing)
         _recv_queue.append(new DataQueueRs::Item(&msg, std::move(event)));
 }
 

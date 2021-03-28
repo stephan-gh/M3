@@ -141,14 +141,15 @@ impl<'n> TcpSocket<'n> {
     ///
     /// The socket has to be connected first (either via [`connect`](TcpSocket::connect) or
     /// [`accept`](TcpSocket::accept)). Note that data can be received after the remote side has
-    /// closed the socket (state [`Closing`](State::Closing)), but not if this side has been closed.
+    /// closed the socket (state [`RemoteClosed`](State::RemoteClosed)), but not if this side has
+    /// been closed.
     ///
     /// Returns the number of received bytes.
     pub fn recv(&mut self, data: &mut [u8]) -> Result<usize, Error> {
         match self.socket.state() {
             // receive is possible with an established connection or a connection that that has
             // already been closed by the remote side
-            State::Connected | State::Closing => {
+            State::Connected | State::RemoteClosed => {
                 self.socket
                     .next_data(self.nm, data.len(), |buf, _addr, _port| {
                         data[0..buf.len()].copy_from_slice(buf);
@@ -163,11 +164,12 @@ impl<'n> TcpSocket<'n> {
     ///
     /// The socket has to be connected first (either via [`connect`](TcpSocket::connect) or
     /// [`accept`](TcpSocket::accept)). Note that data can be received after the remote side has
-    /// closed the socket (state [`Closing`](State::Closing)), but not if this side has been closed.
+    /// closed the socket (state [`RemoteClosed`](State::RemoteClosed)), but not if this side has
+    /// been closed.
     pub fn send(&mut self, data: &[u8]) -> Result<(), Error> {
         match self.socket.state() {
             // like for receive: still allow sending if the remote side closed the connection
-            State::Connected | State::Closing => self.socket.send(
+            State::Connected | State::RemoteClosed => self.socket.send(
                 self.nm,
                 data,
                 self.socket.remote_addr.get(),
