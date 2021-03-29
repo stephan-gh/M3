@@ -404,7 +404,7 @@ impl Capability {
             let pemux = PEMng::get().pemux(ep.pe_id());
             if let Some(vpe) = ep.vpe() {
                 // if that fails, just ignore it
-                pemux.invalidate_ep(vpe.id(), ep.ep(), true, true).ok();
+                pemux.invalidate_ep(vpe.id(), ep.ep(), !ep.is_rgate(), true).ok();
 
                 // notify PEMux about the invalidation if it's not a self-invalidation (technically,
                 // <foreign> indicates whether we're in the first level of revoke, but since it is just a

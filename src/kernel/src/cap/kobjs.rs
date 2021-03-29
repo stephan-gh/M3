@@ -643,6 +643,13 @@ impl EPObject {
         self.replies
     }
 
+    pub fn is_rgate(&self) -> bool {
+        match self.gate.borrow().as_ref() {
+            Some(GateObject::RGate(_)) => true,
+            _ => false
+        }
+    }
+
     pub fn set_gate(&self, g: GateObject) {
         self.gate.replace(Some(g));
     }
