@@ -1,0 +1,12 @@
+[package]
+name = "netrs_ycsb_bench_server"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+path = "src/server.rs"
+crate-type = ["staticlib"]
+
+[dependencies]
+m3 = { path = "../../../../libs/rust/m3" }
+hashbrown = "0.11.0"

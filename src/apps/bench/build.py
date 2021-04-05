@@ -15,6 +15,7 @@ dirs = [
     'tlbmiss',
     'vpe-clone',
     'vpe-exec',
+    'ycsbbench'
 ]
 
 def build(gen, env):

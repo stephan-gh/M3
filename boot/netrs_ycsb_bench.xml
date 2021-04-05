@@ -1,0 +1,44 @@
+<config>
+  <kernel args="kernel -b net0-net1 -f $fs.path" />
+  <app args="root sem=net">
+    <dom>
+      <app args="net net0 192.168.112.2 255.255.255.0" daemon="1">
+        <serv name="net0" />
+        <pes type="nic" />
+      </app>
+    </dom>
+    <dom>
+      <app args="net net1 192.168.112.1 255.255.255.0" daemon="1">
+        <serv name="net1" />
+        <pes type="nic" />
+      </app>
+    </dom>
+    <dom>
+      <app args="m3fs mem $fs.size" daemon="1">
+        <serv name="m3fs" />
+        <physmem addr="0" size="$fs.size" />
+      </app>
+    </dom>
+    <dom>
+      <app args="pager $fs.size sem=net">
+        <sess name="m3fs" />
+        <physmem addr="0" size="$fs.size" perm="r" />
+        <pes type="core" count="2" />
+        <dom>
+          <app args="/bin/netrs_ycsb_bench_server" daemon="1">
+            <sess name="net1" args="bufs=1M socks=1 ports=1337" />
+            <sem name="net" />
+          </app>
+        </dom>
+        <dom>
+          <app args="/bin/netrs_ycsb_bench_client">
+            <sess name="net0" args="bufs=1M socks=1 ports=1337" />
+            <sess name="m3fs" />
+            <pes type="core" count="1" />
+            <sem name="net" />
+          </app>
+        </dom>
+      </app>
+    </dom>
+  </app>
+</config>
