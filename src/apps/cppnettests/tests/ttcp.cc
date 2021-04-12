@@ -138,10 +138,8 @@ NOINLINE static void receive_after_close() {
     WVASSERTEQ(socket->recv(buf, sizeof(buf)), 32);
 
     // at some point, the socket should receive the closed event from the remote side
-    while(socket->state() != SocketRs::RemoteClosed) {
-        socket->wait_for_events();
-        socket->process_events();
-    }
+    while(socket->state() != SocketRs::RemoteClosed)
+        net.wait_for_events();
 
     socket->close();
 

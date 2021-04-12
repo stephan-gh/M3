@@ -29,14 +29,13 @@ NetEventChannelRs::NetEventChannelRs(capsel_t caps)
     _rplgate.activate();
 }
 
-bool NetEventChannelRs::send_data(int sd, IpAddr addr, uint16_t port, size_t size, std::function<void(uchar *)> cb_data) {
-    LLOG(NET, "NetEventChannel::data(sd=" << sd << ", size=" << size << ")");
+bool NetEventChannelRs::send_data(IpAddr addr, uint16_t port, size_t size, std::function<void(uchar *)> cb_data) {
+    LLOG(NET, "NetEventChannel::data(size=" << size << ")");
 
     // make sure that the message does not contain a page boundary
     ALIGNED(2048) char msg_buf[2048];
     auto msg = reinterpret_cast<DataMessage*>(msg_buf);
     msg->type = Data;
-    msg->sd = static_cast<uint64_t>(sd);
     msg->addr = static_cast<uint64_t>(addr.addr());
     msg->port = static_cast<uint64_t>(port);
     msg->size = static_cast<uint64_t>(size);
@@ -47,11 +46,10 @@ bool NetEventChannelRs::send_data(int sd, IpAddr addr, uint16_t port, size_t siz
     return _sgate.try_send_aligned(msg_buf, size + sizeof(DataMessage)) == Errors::NONE;
 }
 
-bool NetEventChannelRs::send_close_req(int sd) {
+bool NetEventChannelRs::send_close_req() {
     MsgBuf msg_buf;
     auto &msg = msg_buf.cast<CloseReqMessage>();
     msg.type = CloseReq;
-    msg.sd = static_cast<uint64_t>(sd);
     return _sgate.try_send(msg_buf) == Errors::NONE;
 }
 

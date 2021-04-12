@@ -48,26 +48,22 @@ public:
         uint64_t type;
     } PACKED;
 
-    struct SocketControlMessage : public ControlMessage {
-        uint64_t sd;
-    } PACKED;
-
-    struct DataMessage : public SocketControlMessage {
+    struct DataMessage : public ControlMessage {
         uint64_t addr;
         uint64_t port;
         uint64_t size;
         uchar data[0];
     } PACKED;
 
-    struct ConnectedMessage : public SocketControlMessage {
+    struct ConnectedMessage : public ControlMessage {
         uint64_t addr;
         uint64_t port;
     } PACKED;
 
-    struct ClosedMessage : public SocketControlMessage {
+    struct ClosedMessage : public ControlMessage {
     } PACKED;
 
-    struct CloseReqMessage : public SocketControlMessage {
+    struct CloseReqMessage : public ControlMessage {
     } PACKED;
 
     class Event {
@@ -95,8 +91,8 @@ public:
 
     NetEventChannelRs(capsel_t caps);
 
-    bool send_data(int sd, IpAddr addr, uint16_t port, size_t size, std::function<void(uchar *)> cb_data);
-    bool send_close_req(int sd);
+    bool send_data(IpAddr addr, uint16_t port, size_t size, std::function<void(uchar *)> cb_data);
+    bool send_close_req();
 
     bool can_send() const;
     bool has_events() const;

@@ -137,8 +137,7 @@ fn receive_after_close() {
 
     // at some point, the socket should receive the closed event from the remote side
     while socket.state() != State::RemoteClosed {
-        nm.wait_for_events();
-        nm.process_events(Some(socket.sd()));
+        nm.wait_for_events(Some(socket.sd()));
     }
 
     wv_assert_ok!(socket.close());

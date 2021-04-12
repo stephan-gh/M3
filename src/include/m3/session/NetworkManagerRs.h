@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include <base/col/Treap.h>
+#include <base/col/SList.h>
 
 #include <m3/com/SendGate.h>
 #include <m3/netrs/Net.h>
@@ -52,8 +52,7 @@ class NetworkManagerRs : public ClientSession {
         NEXT_OUT = GenericFile::NEXT_OUT,
         COMMIT   = GenericFile::COMMIT,
         CLOSE    = GenericFile::CLOSE,
-        CREATE   = 6,
-        BIND,
+        BIND     = 6,
         LISTEN,
         CONNECT,
         ABORT,
@@ -67,12 +66,36 @@ public:
      */
     explicit NetworkManagerRs(const String &service);
 
+    /**
+     * Waits until any socket or a specific socket has received an event.
+     *
+     * If socket is nullptr, the function waits until any socket has received an event. Otherwise,
+     * it waits until the socket with this socket descriptor has received an event.
+     *
+     * Note: this function uses VPE::sleep if no events are present, which suspends the core until
+     * the next TCU message arrives. Thus, calling this function can only be done if all work is
+     * done.
+     */
+    void wait_for_events(SocketRs *socket = nullptr);
+
+    /**
+     * Waits until any socket or a specific socket can send events to the server.
+     *
+     * If socket is nullptr, the function waits until any socket can send. Otherwise, it waits until
+     * the socket with this socket descriptor can send.
+     *
+     * Note: this function uses VPE::sleep if no credits are available, which suspends the core
+     * until the next TCU message arrives. Thus, calling this function can only be done if all work
+     * is done.
+     */
+    void wait_for_credits(SocketRs *socket = nullptr);
+
 private:
     const SendGate &meta_gate() const noexcept {
         return _metagate;
     }
 
-    int32_t create(SocketType type, uint8_t protocol, const SocketArgs &args);
+    int32_t create(SocketType type, uint8_t protocol, const SocketArgs &args, capsel_t *caps);
     void add_socket(SocketRs *socket);
     void remove_socket(SocketRs *socket);
 
@@ -84,15 +107,8 @@ private:
 
     ssize_t send(int32_t sd, IpAddr dst_addr, uint16_t dst_port, const void *data, size_t data_length);
 
-    void wait_for_events();
-    void wait_for_credits();
-
-    NetEventChannelRs::Event recv_event();
-    SocketRs *process_event(NetEventChannelRs::Event &event);
-
     SendGate _metagate;
-    NetEventChannelRs _channel;
-    m3::Treap<SocketRs> _sockets;
+    SList<SocketRs> _sockets;
 };
 
 }

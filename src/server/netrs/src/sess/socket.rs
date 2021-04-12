@@ -20,10 +20,10 @@ use core::cmp;
 
 use m3::cap::Selector;
 use m3::cell::RefCell;
-use m3::col::{Vec, VecDeque};
+use m3::col::Vec;
 use m3::com::{GateIStream, RecvGate, SendGate};
 use m3::errors::{Code, Error};
-use m3::net::{event, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketType};
+use m3::net::{event, IpAddr, Port, Sd, SocketType};
 use m3::parse;
 use m3::rc::Rc;
 use m3::server::CapExchange;
@@ -37,8 +37,6 @@ use smoltcp::socket::SocketSet;
 use crate::ports;
 use crate::sess::file::FileSession;
 use crate::smoltcpif::socket::{to_m3_addr, to_m3_ep, SendNetEvent, Socket};
-
-pub const MAX_INCOMING_BATCH_SIZE: usize = 4;
 
 struct Args {
     bufs: usize,
@@ -99,10 +97,6 @@ pub struct SocketSession {
     server_session: ServerSession,
     // sockets the client has open
     sockets: Vec<Option<Rc<RefCell<Socket>>>>,
-    // communication channel to client for incoming data/close-requests and outgoing events/data
-    channel: Option<Rc<NetEventChannel>>,
-    // pending incoming data events we could not send due to missing buffer space
-    send_queue: VecDeque<NetEvent>,
 }
 
 impl SocketSession {
@@ -135,8 +129,6 @@ impl SocketSession {
             buf_quota: args.bufs,
             server_session,
             sockets: vec![None; args.socks],
-            channel: None,
-            send_queue: VecDeque::new(),
         })
     }
 
@@ -145,13 +137,14 @@ impl SocketSession {
         crt: usize,
         srv_sel: Selector,
         xchg: &mut CapExchange,
+        socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         if xchg.in_caps() == 1 {
             self.get_sgate(xchg)
         }
         // TODO we only need 2
         else if xchg.in_caps() == 3 {
-            self.connect_nm(xchg)
+            self.create_socket(xchg, socket_set)
         }
         else if xchg.in_caps() == 2 {
             self.open_file(crt, srv_sel, xchg)
@@ -176,21 +169,6 @@ impl SocketSession {
             self.sgate.as_ref().unwrap().sel(),
             1,
         ));
-        Ok(())
-    }
-
-    fn connect_nm(&mut self, xchg: &mut CapExchange) -> Result<(), Error> {
-        // 2 caps for us, 2 for the client
-        let caps = m3::pes::VPE::cur().alloc_sels(4);
-        self.channel = Some(NetEventChannel::new_server(caps)?);
-
-        // Send capabilities back to caller so it can connect to the created gates
-        xchg.out_caps(m3::kif::CapRngDesc::new(
-            m3::kif::CapType::OBJECT,
-            caps + 2,
-            2,
-        ));
-
         Ok(())
     }
 
@@ -278,6 +256,7 @@ impl SocketSession {
         rbuf_slots: usize,
         sbuf_space: usize,
         sbuf_slots: usize,
+        caps: Selector,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<Sd, Error> {
         let total_space =
@@ -289,7 +268,8 @@ impl SocketSession {
         for (i, s) in self.sockets.iter_mut().enumerate() {
             if s.is_none() {
                 *s = Some(Rc::new(RefCell::new(Socket::new(
-                    i, ty, protocol, rbuf_space, rbuf_slots, sbuf_space, sbuf_slots, socket_set,
+                    i, ty, protocol, rbuf_space, rbuf_slots, sbuf_space, sbuf_slots, caps,
+                    socket_set,
                 )?)));
                 self.buf_quota -= total_space;
                 return Ok(i);
@@ -304,11 +284,12 @@ impl SocketSession {
         }
     }
 
-    pub fn create(
+    fn create_socket(
         &mut self,
-        is: &mut GateIStream,
+        xchg: &mut CapExchange,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
+        let is = xchg.in_args();
         let ty = SocketType::from_usize(is.pop::<usize>()?);
         let protocol: u8 = is.pop()?;
         let rbuf_space: usize = is.pop()?;
@@ -316,8 +297,11 @@ impl SocketSession {
         let sbuf_space: usize = is.pop()?;
         let sbuf_slots: usize = is.pop()?;
 
+        // 2 caps for us, 2 for the client
+        let caps = m3::pes::VPE::cur().alloc_sels(4);
+
         let res = self.add_socket(
-            ty, protocol, rbuf_space, rbuf_slots, sbuf_space, sbuf_slots, socket_set,
+            ty, protocol, rbuf_space, rbuf_slots, sbuf_space, sbuf_slots, caps, socket_set,
         );
 
         log!(
@@ -333,7 +317,18 @@ impl SocketSession {
         );
 
         match res {
-            Ok(sd) => reply_vmsg!(is, 0 as u32, sd),
+            Ok(sd) => {
+                // Send capabilities back to caller so it can connect to the created gates
+                xchg.out_caps(m3::kif::CapRngDesc::new(
+                    m3::kif::CapType::OBJECT,
+                    caps + 2,
+                    2,
+                ));
+
+                xchg.out_args().push_word(sd as u64);
+                Ok(())
+            },
+
             Err(e) => Err(e),
         }
     }
@@ -456,110 +451,45 @@ impl SocketSession {
     }
 
     pub fn process_incoming(&mut self, socket_set: &mut SocketSet<'static>) -> bool {
-        if self.channel.is_none() {
-            // Cannot send yet since the channel is not active.
-            return false;
-        }
+        let sess = self.server_session.ident();
+        let mut queued_events = false;
 
-        self.channel.as_ref().unwrap().fetch_replies();
+        // iterate over all sockets and check for events
+        'outer_loop: for idx in 0..self.sockets.len() {
+            if let Some(socket) = self.sockets.get(idx).unwrap() {
+                let mut sock = socket.borrow_mut();
+                let chan = sock.channel().clone();
 
-        let mut num_sent = 0;
+                chan.fetch_replies();
 
-        while let Some(event) = self.send_queue.pop_front() {
-            num_sent += 1;
+                while let Some(event) = sock.fetch_queued_event() {
+                    if !sock.process_event(sess, socket_set, event) {
+                        queued_events = true;
+                        continue 'outer_loop;
+                    }
+                }
 
-            if !self.process_event(socket_set, event) || num_sent > MAX_INCOMING_BATCH_SIZE {
-                return true;
+                // receive everything in the channel
+                while let Some(event) = chan.receive_event() {
+                    if !sock.process_event(sess, socket_set, event) {
+                        queued_events = true;
+                        continue 'outer_loop;
+                    }
+                }
             }
         }
 
-        // receive everything in the channel
-        while let Some(event) = self.channel.as_ref().unwrap().receive_event() {
-            num_sent += 1;
-
-            if !self.process_event(socket_set, event) || num_sent > MAX_INCOMING_BATCH_SIZE {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    fn process_event(&mut self, socket_set: &mut SocketSet<'static>, event: NetEvent) -> bool {
-        match event.msg_type() {
-            NetEventType::DATA => {
-                let data = event.msg::<event::DataMessage>();
-                if let Ok(socket) = self.get_socket(data.sd as Sd) {
-                    let ip = IpAddr(data.addr as u32);
-                    let port = data.port as Port;
-
-                    let succeeded = socket.borrow_mut().send(
-                        &data.data[0..data.size as usize],
-                        ip,
-                        port,
-                        socket_set,
-                    );
-                    if succeeded.is_err() {
-                        // if no buffers are available, remember the event for later
-                        log!(
-                            crate::LOG_DATA,
-                            "[{}] socket {}: no buffer space, delaying send of {}b to {}:{}",
-                            self.server_session.ident(),
-                            data.sd,
-                            data.size,
-                            ip,
-                            port,
-                        );
-                        self.send_queue.push_back(event);
-                    }
-                    else {
-                        log!(
-                            crate::LOG_DATA,
-                            "[{}] socket {}: sent packet of {}b to {}:{}",
-                            self.server_session.ident(),
-                            data.sd,
-                            data.size,
-                            ip,
-                            port,
-                        );
-                    }
-                }
-            },
-
-            NetEventType::CLOSE_REQ => {
-                let req = event.msg::<event::CloseReqMessage>();
-                log!(
-                    crate::LOG_SESS,
-                    "[{}] net::close_req(sd={})",
-                    self.server_session.ident(),
-                    req.sd
-                );
-
-                if let Ok(socket) = self.get_socket(req.sd as Sd) {
-                    // ignore error
-                    socket.borrow_mut().close(socket_set).ok();
-                }
-            },
-
-            m => log!(crate::LOG_ERR, "Unexpected message from client: {}", m),
-        }
-        true
+        queued_events
     }
 
     pub fn process_outgoing(&mut self, socket_set: &mut SocketSet<'static>) {
-        if self.channel.is_none() {
-            // Cannot receive yet since the channel is not active.
-            return;
-        }
-
-        let chan = self.channel.as_ref().unwrap();
-
-        chan.fetch_replies();
-
         // iterate over all sockets and try to receive
         for socket in self.sockets.iter() {
             if let Some(socket) = socket {
                 let socket_sd = socket.borrow().sd();
+                let chan = socket.borrow().channel().clone();
+
+                chan.fetch_replies();
 
                 // if we don't have credits anymore to send events, stop here. we'll get a reply
                 // to one of our earlier events and get credits back with this, so that we'll wake
@@ -577,13 +507,11 @@ impl SocketSession {
                         event,
                     );
 
+                    // the match is needed, because we don't want to send the enum, but the
+                    // contained event struct
                     match event {
                         SendNetEvent::Connected(e) => chan.send_event(e).unwrap(),
-                        SendNetEvent::Closed(e) => {
-                            // remove all pending events from queue
-                            self.send_queue.retain(|e| e.sd() != socket_sd);
-                            chan.send_event(e).unwrap()
-                        },
+                        SendNetEvent::Closed(e) => chan.send_event(e).unwrap(),
                         SendNetEvent::CloseReq(e) => chan.send_event(e).unwrap(),
                     }
                 }
@@ -606,7 +534,7 @@ impl SocketSession {
                         port
                     );
 
-                    chan.send_data(socket_sd, ip, port, amount, |buf| {
+                    chan.send_data(ip, port, amount, |buf| {
                         buf[0..amount].copy_from_slice(&data[0..amount]);
                     })
                     .unwrap();

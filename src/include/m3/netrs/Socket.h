@@ -19,7 +19,6 @@
 #pragma once
 
 #include <base/col/List.h>
-#include <base/col/Treap.h>
 #include <base/util/Reference.h>
 
 #include <m3/netrs/DataQueue.h>
@@ -49,7 +48,7 @@ struct SocketArgs {
 /**
  * The base class of all sockets, which provides the common functionality
  */
-class SocketRs : public m3::TreapNode<SocketRs, int>, public RefCounted {
+class SocketRs : public SListItem, public RefCounted {
     friend class NetworkManagerRs;
 
     static const int EVENT_FETCH_BATCH_SIZE = 4;
@@ -117,18 +116,8 @@ public:
      */
     void abort();
 
-    /**
-     * Waits until an event has been received from the server
-     */
-    void wait_for_events();
-
-    /**
-     * Processes already received events
-     */
-    void process_events();
-
 protected:
-    explicit SocketRs(int sd, NetworkManagerRs &nm);
+    explicit SocketRs(int sd, capsel_t caps, NetworkManagerRs &nm);
 
     void set_local(IpAddr addr, uint16_t port, State state);
 
@@ -138,13 +127,16 @@ protected:
     ssize_t do_send(const void *src, size_t amount, IpAddr dst_addr, uint16_t dst_port);
     ssize_t do_recv(void *dst, size_t amount, IpAddr *src_addr, uint16_t *src_port);
 
-    void process_message(const NetEventChannelRs::SocketControlMessage &message,
+    void process_message(const NetEventChannelRs::ControlMessage &message,
                          NetEventChannelRs::Event &event);
 
     virtual void handle_data(NetEventChannelRs::DataMessage const &msg, NetEventChannelRs::Event &event);
     void handle_connected(NetEventChannelRs::ConnectedMessage const &msg);
     void handle_close_req(NetEventChannelRs::CloseReqMessage const &msg);
     void handle_closed(NetEventChannelRs::ClosedMessage const &msg);
+
+    bool process_events();
+    bool can_send();
 
     void do_abort(bool remove);
 
@@ -159,6 +151,7 @@ protected:
 
     NetworkManagerRs &_nm;
 
+    NetEventChannelRs _channel;
     DataQueueRs _recv_queue;
 };
 

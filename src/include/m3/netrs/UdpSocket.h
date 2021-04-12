@@ -62,7 +62,7 @@ public:
 class UdpSocketRs : public SocketRs {
     friend class SocketRs;
 
-    explicit UdpSocketRs(int sd, NetworkManagerRs &nm);
+    explicit UdpSocketRs(int sd, capsel_t caps, NetworkManagerRs &nm);
 
 public:
     /**

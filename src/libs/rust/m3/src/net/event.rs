@@ -24,7 +24,7 @@ use crate::int_enum;
 use crate::kif::{CapRngDesc, CapType};
 use crate::math;
 use crate::mem::{self, MaybeUninit, MsgBuf};
-use crate::net::{IpAddr, Port, Sd};
+use crate::net::{IpAddr, Port};
 use crate::pes::VPE;
 use crate::rc::Rc;
 use crate::tcu::{Header, Message};
@@ -38,7 +38,7 @@ const REPLY_BUF_SIZE: usize = REPLY_SIZE * MSG_CREDITS;
 
 // the receive buffer slots are 2048 bytes, but we need to substract the TCU header and the other
 // fields in DataMessage.
-pub const MTU: usize = MSG_SIZE - (mem::size_of::<Header>() + 5 * mem::size_of::<u64>());
+pub const MTU: usize = MSG_SIZE - (mem::size_of::<Header>() + 4 * mem::size_of::<u64>());
 
 int_enum! {
     pub struct NetEventType : u64 {
@@ -52,7 +52,6 @@ int_enum! {
 #[repr(C, align(2048))]
 pub struct DataMessage {
     ty: u64,
-    pub sd: u64,
     pub addr: u64,
     pub port: u64,
     pub size: u64,
@@ -62,16 +61,14 @@ pub struct DataMessage {
 #[repr(C)]
 pub struct ConnectedMessage {
     ty: u64,
-    pub sd: u64,
     pub remote_addr: u64,
     pub remote_port: u64,
 }
 
 impl ConnectedMessage {
-    pub fn new(sd: Sd, remote_addr: IpAddr, remote_port: Port) -> Self {
+    pub fn new(remote_addr: IpAddr, remote_port: Port) -> Self {
         Self {
             ty: NetEventType::CONNECTED.val,
-            sd: sd as u64,
             remote_addr: remote_addr.0 as u64,
             remote_port: remote_port as u64,
         }
@@ -82,8 +79,7 @@ impl fmt::Debug for ConnectedMessage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "sd={}, remote={}:{}",
-            self.sd,
+            "remote={}:{}",
             IpAddr(self.remote_addr as u32),
             self.remote_port
         )
@@ -93,42 +89,38 @@ impl fmt::Debug for ConnectedMessage {
 #[repr(C)]
 pub struct ClosedMessage {
     ty: u64,
-    pub sd: u64,
 }
 
 impl ClosedMessage {
-    pub fn new(sd: Sd) -> Self {
+    pub fn new() -> Self {
         Self {
             ty: NetEventType::CLOSED.val,
-            sd: sd as u64,
         }
     }
 }
 
 impl fmt::Debug for ClosedMessage {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "sd={}", self.sd,)
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        Ok(())
     }
 }
 
 #[repr(C)]
 pub struct CloseReqMessage {
     ty: u64,
-    pub sd: u64,
 }
 
 impl CloseReqMessage {
-    pub fn new(sd: Sd) -> Self {
+    pub fn new() -> Self {
         Self {
             ty: NetEventType::CLOSE_REQ.val,
-            sd: sd as u64,
         }
     }
 }
 
 impl fmt::Debug for CloseReqMessage {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "sd={}", self.sd,)
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        Ok(())
     }
 }
 
@@ -229,7 +221,6 @@ impl NetEventChannel {
 
     pub fn send_data<F>(
         &self,
-        sd: Sd,
         addr: IpAddr,
         port: Port,
         size: usize,
@@ -240,7 +231,6 @@ impl NetEventChannel {
     {
         let mut msg = DataMessage {
             ty: NetEventType::DATA.val,
-            sd: sd as u64,
             addr: addr.0 as u64,
             port: port as u64,
             size: size as u64,
@@ -255,7 +245,7 @@ impl NetEventChannel {
         // replies from the server. otherwise we stop getting the credits for our sgate back.
         self.fetch_replies();
 
-        let msg_size = 5 * mem::size_of::<u64>() + size;
+        let msg_size = 4 * mem::size_of::<u64>() + size;
         self.sgate
             .send_aligned(&msg as *const _ as *const u8, msg_size, &self.rpl_gate)
     }
@@ -298,16 +288,6 @@ impl NetEvent {
 
     pub fn msg_type(&self) -> NetEventType {
         NetEventType::from(*self.msg.get_data::<u64>())
-    }
-
-    pub fn sd(&self) -> Sd {
-        match self.msg_type() {
-            NetEventType::DATA => self.msg::<DataMessage>().sd as Sd,
-            NetEventType::CONNECTED => self.msg::<ConnectedMessage>().sd as Sd,
-            NetEventType::CLOSED => self.msg::<ClosedMessage>().sd as Sd,
-            NetEventType::CLOSE_REQ => self.msg::<CloseReqMessage>().sd as Sd,
-            _ => unreachable!(),
-        }
     }
 
     pub fn msg<T>(&self) -> &T {

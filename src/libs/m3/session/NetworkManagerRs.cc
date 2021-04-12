@@ -31,26 +31,29 @@ namespace m3 {
 
 NetworkManagerRs::NetworkManagerRs(const String &service)
     : ClientSession(service),
-      _metagate(SendGate::bind(obtain(1).start())),
-      _channel(NetEventChannelRs(obtain(3).start())) {
+      _metagate(SendGate::bind(obtain(1).start())) {
 }
 
-int32_t NetworkManagerRs::create(SocketType type, uint8_t protocol, const SocketArgs &args) {
+int32_t NetworkManagerRs::create(SocketType type, uint8_t protocol, const SocketArgs &args,
+                                 capsel_t *caps) {
     LLOG(NET, "Create:()");
-    GateIStream reply = send_receive_vmsg(
-        _metagate, CREATE, static_cast<uint64_t>(type), protocol,
-        args.rbuf_size, args.rbuf_slots,
-        args.sbuf_size, args.sbuf_slots
-    );
-    reply.pull_result();
+    KIF::ExchangeArgs eargs;
+    ExchangeOStream os(eargs);
+    os << static_cast<uint64_t>(type) << protocol
+       << args.rbuf_size << args.rbuf_slots
+       << args.sbuf_size << args.sbuf_slots;
+    eargs.bytes = os.total();
+    KIF::CapRngDesc crd = obtain(3, &eargs);
+    *caps = crd.start();
 
     int32_t sd;
-    reply >> sd;
+    ExchangeIStream is(eargs);
+    is >> sd;
     return sd;
 }
 
 void NetworkManagerRs::add_socket(SocketRs *socket) {
-    _sockets.insert(socket);
+    _sockets.append(socket);
 }
 
 void NetworkManagerRs::remove_socket(SocketRs *socket) {
@@ -84,65 +87,34 @@ uint16_t NetworkManagerRs::connect(int32_t sd, IpAddr remote_addr, uint16_t remo
     return port;
 }
 
-bool NetworkManagerRs::close(int32_t sd) {
-    return _channel.send_close_req(sd);
-}
-
 void NetworkManagerRs::abort(int32_t sd, bool remove) {
     LLOG(NET, "Abort:()");
     GateIStream reply = send_receive_vmsg(_metagate, ABORT, sd, remove);
     reply.pull_result();
 }
 
-ssize_t NetworkManagerRs::send(int32_t sd, IpAddr dst_addr, uint16_t dst_port,
-                               const void *data, size_t data_length) {
-    LLOG(NET, "Send:(sd=" << sd << ", size=" << data_length << ")");
-    bool succeeded = _channel.send_data(sd, dst_addr, dst_port, data_length, [data, data_length](void *buf) {
-        memcpy(buf, data, data_length);
-    });
-    if(!succeeded)
-        return -1;
-    return static_cast<ssize_t>(data_length);
-}
+void NetworkManagerRs::wait_for_events(SocketRs *socket) {
+    while(true) {
+        for(auto sock = _sockets.begin(); sock != _sockets.end(); ++sock) {
+            if(sock->process_events() && (!socket || socket == &*sock))
+                return;
+        }
 
-SocketRs *NetworkManagerRs::process_event(NetEventChannelRs::Event &event) {
-    if(!event.is_present())
-        return nullptr;
-
-    auto message = static_cast<NetEventChannelRs::SocketControlMessage const *>(event.get_message());
-    LLOG(NET, "NetworkManager::process_event: type=" << message->type << ", sd=" << message->sd);
-
-    SocketRs *socket = _sockets.find(message->sd);
-    if(!socket) {
-        LLOG(NET, "Received event with invalid socket descriptor: " << message->sd);
-        return nullptr;
-    }
-
-    // TODO socket leaks if this throws
-    socket->process_message(*message, event);
-    return socket;
-}
-
-void NetworkManagerRs::wait_for_events() {
-    while(!_channel.has_events()) {
         // This would be the place to implement timeouts.
         VPE::sleep();
-
-        _channel.fetch_replies();
     }
 }
 
-void NetworkManagerRs::wait_for_credits() {
-    while(!_channel.can_send()) {
+void NetworkManagerRs::wait_for_credits(SocketRs *socket) {
+    while(true) {
+        for(auto sock = _sockets.begin(); sock != _sockets.end(); ++sock) {
+            if(sock->can_send() && (!socket || socket == &*sock))
+                return;
+        }
+
         // This would be the place to implement timeouts.
         VPE::sleep();
-
-        _channel.fetch_replies();
     }
-}
-
-NetEventChannelRs::Event NetworkManagerRs::recv_event() {
-    return _channel.recv_message();
 }
 
 } // namespace m3

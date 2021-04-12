@@ -17,19 +17,14 @@
 
 use base::int_enum;
 
-use crate::cell::{Ref, RefCell};
+use crate::cell::RefCell;
 use crate::col::Vec;
 use crate::com::{RecvGate, SendGate};
 use crate::errors::Error;
-use crate::net::{
-    event, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, Socket, SocketArgs,
-    SocketType,
-};
+use crate::net::{IpAddr, NetEventChannel, Port, Sd, Socket, SocketArgs, SocketType};
 use crate::pes::VPE;
 use crate::rc::Rc;
 use crate::session::ClientSession;
-
-const EVENT_FETCH_BATCH_SIZE: u32 = 4;
 
 int_enum! {
     /// The operations for the network service
@@ -42,11 +37,10 @@ int_enum! {
         const NEXT_OUT      = 3;
         const COMMIT        = 4;
         // TODO what about GenericFile::CLOSE?
-        const CREATE        = 6;
-        const BIND          = 7;
-        const LISTEN        = 8;
-        const CONNECT       = 9;
-        const ABORT         = 10;
+        const BIND          = 6;
+        const LISTEN        = 7;
+        const CONNECT       = 8;
+        const ABORT         = 9;
     }
 }
 
@@ -60,7 +54,6 @@ pub struct NetworkManager {
     #[allow(dead_code)] // Needs to keep the session alive
     client_session: ClientSession,
     metagate: SendGate,
-    channel: Rc<NetEventChannel>,
     sockets: RefCell<Vec<Rc<Socket>>>,
 }
 
@@ -70,12 +63,9 @@ impl NetworkManager {
         let client_session = ClientSession::new(service)?;
         // Obtain meta gate for the service
         let metagate = SendGate::new_bind(client_session.obtain_crd(1)?.start());
-        let chan_caps = client_session.obtain_crd(3)?.start();
-        let channel = NetEventChannel::new_client(chan_caps)?;
         Ok(NetworkManager {
             client_session,
             metagate,
-            channel,
             sockets: RefCell::new(Vec::new()),
         })
     }
@@ -86,20 +76,25 @@ impl NetworkManager {
         protocol: Option<u8>,
         args: &SocketArgs,
     ) -> Result<Rc<Socket>, Error> {
-        let mut reply = send_recv_res!(
-            &self.metagate,
-            RecvGate::def(),
-            NetworkOp::CREATE,
-            ty as usize,
-            protocol.unwrap_or(0),
-            args.rbuf_size,
-            args.rbuf_slots,
-            args.sbuf_size,
-            args.sbuf_slots
+        let mut sd = 0;
+        let crd = self.client_session.obtain(
+            3,
+            |sink| {
+                sink.push_word(ty as u64);
+                sink.push_word(protocol.unwrap_or(0) as u64);
+                sink.push_word(args.rbuf_size as u64);
+                sink.push_word(args.rbuf_slots as u64);
+                sink.push_word(args.sbuf_size as u64);
+                sink.push_word(args.sbuf_slots as u64);
+            },
+            |source| {
+                sd = source.pop_word()? as Sd;
+                Ok(())
+            },
         )?;
 
-        let sd = reply.pop::<Sd>()?;
-        let sock = Socket::new(sd, ty);
+        let chan = NetEventChannel::new_client(crd.start())?;
+        let sock = Socket::new(sd, ty, chan);
         self.sockets.borrow_mut().push(sock.clone());
         Ok(sock)
     }
@@ -138,10 +133,6 @@ impl NetworkManager {
         Ok(reply.pop::<Port>()?)
     }
 
-    pub(crate) fn close(&self, sd: Sd) -> Result<(), Error> {
-        self.channel.send_event(event::CloseReqMessage::new(sd))
-    }
-
     pub(crate) fn abort(&self, sd: Sd, remove: bool) -> Result<(), Error> {
         send_recv_res!(
             &self.metagate,
@@ -153,113 +144,55 @@ impl NetworkManager {
         .map(|_| ())
     }
 
-    pub(crate) fn send(
-        &self,
-        sd: Sd,
-        dst_addr: IpAddr,
-        dst_port: Port,
-        data: &[u8],
-    ) -> Result<(), Error> {
-        self.channel
-            .send_data(sd, dst_addr, dst_port, data.len(), |buf| {
-                buf.copy_from_slice(data);
-            })
-    }
-
-    /// Fetch replies (ACKs) from the event channel.
-    pub fn fetch_replies(&self) {
-        self.channel.fetch_replies();
-    }
-
-    /// Waits until events are available to process
+    /// Waits until any socket or a specific socket has received an event
+    ///
+    /// If `wait_sd` is None, the function waits until any socket has received an event. Otherwise,
+    /// it waits until the socket with this socket descriptor has received an event.
     ///
     /// Note: this function uses [`VPE::sleep`] if no events are present, which suspends the core
     /// until the next TCU message arrives. Thus, calling this function can only be done if all work
     /// is done.
-    pub fn wait_for_events(&self) {
-        while !self.channel.has_events() {
+    pub fn wait_for_events(&self, wait_sd: Option<Sd>) {
+        loop {
+            for sock in self.sockets.borrow_mut().iter() {
+                if sock.process_events() {
+                    if let Some(sd) = wait_sd {
+                        if sd != sock.sd() {
+                            continue;
+                        }
+                    }
+                    return;
+                }
+            }
+
             // ignore errors
             VPE::sleep().ok();
-
-            self.channel.fetch_replies();
         }
     }
 
-    /// Waits until we can send events to the server
+    /// Waits until any socket or a specific socket can send events to the server
+    ///
+    /// If `wait_sd` is None, the function waits until any socket can send. Otherwise, it waits
+    /// until the socket with this socket descriptor can send.
     ///
     /// Note: this function uses [`VPE::sleep`] if no credits are available, which suspends the core
     /// until the next TCU message arrives. Thus, calling this function can only be done if all work
     /// is done.
-    pub fn wait_for_credits(&self) {
-        while !self.channel.can_send().unwrap() {
+    pub fn wait_for_credits(&self, wait_sd: Option<Sd>) {
+        loop {
+            for sock in self.sockets.borrow_mut().iter() {
+                if sock.can_send() {
+                    if let Some(sd) = wait_sd {
+                        if sd != sock.sd() {
+                            continue;
+                        }
+                    }
+                    return;
+                }
+            }
+
             // ignore errors
             VPE::sleep().ok();
-
-            self.channel.fetch_replies();
         }
-    }
-
-    /// Processes some events that have queued up
-    pub fn process_events(&self, socket: Option<Sd>) {
-        for _ in 0..EVENT_FETCH_BATCH_SIZE {
-            if let Some(event) = self.channel.receive_event() {
-                if let Some(sd) = self.process_event(event) {
-                    if sd == socket.unwrap_or(Sd::MAX) {
-                        break;
-                    }
-                }
-            }
-            else {
-                break;
-            }
-        }
-    }
-
-    fn process_event(&self, event: NetEvent) -> Option<Sd> {
-        let sockets = self.sockets.borrow();
-        match event.msg_type() {
-            NetEventType::DATA => {
-                let sd = event.msg::<event::DataMessage>().sd as Sd;
-                if let Some(sock) = Self::get_socket(&sockets, sd) {
-                    sock.process_data_transfer(event);
-                }
-                Some(sd)
-            },
-
-            NetEventType::CONNECTED => {
-                let msg = event.msg::<event::ConnectedMessage>();
-                if let Some(sock) = Self::get_socket(&sockets, msg.sd as Sd) {
-                    sock.process_connected(&msg);
-                }
-                Some(msg.sd as Sd)
-            },
-
-            NetEventType::CLOSED => {
-                let msg = event.msg::<event::ClosedMessage>();
-                if let Some(sock) = Self::get_socket(&sockets, msg.sd as Sd) {
-                    sock.process_closed(&msg);
-                }
-                Some(msg.sd as Sd)
-            },
-
-            NetEventType::CLOSE_REQ => {
-                let msg = event.msg::<event::CloseReqMessage>();
-                if let Some(sock) = Self::get_socket(&sockets, msg.sd as Sd) {
-                    sock.process_close_req(&msg);
-                }
-                Some(msg.sd as Sd)
-            },
-
-            t => panic!("unexpected message type {}", t),
-        }
-    }
-
-    fn get_socket<'s>(sockets: &'s Ref<'_, Vec<Rc<Socket>>>, sd: Sd) -> Option<&'s Rc<Socket>> {
-        for s in sockets.iter() {
-            if s.sd() == sd {
-                return Some(s);
-            }
-        }
-        None
     }
 }

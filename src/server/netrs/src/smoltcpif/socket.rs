@@ -15,11 +15,13 @@
  * General Public License version 2 for more details.
  */
 
+use m3::cap::Selector;
 use m3::cell::RefCell;
+use m3::col::VecDeque;
 use m3::errors::{Code, Error};
 use m3::log;
 use m3::mem::size_of;
-use m3::net::{event, IpAddr, Port, Sd, SocketType};
+use m3::net::{event, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketType};
 use m3::rc::Rc;
 use m3::tcu::TCU;
 use m3::vec;
@@ -37,7 +39,7 @@ use smoltcp::wire::{IpAddress, IpEndpoint, Ipv4Address};
 use crate::ports::EphemeralPort;
 use crate::sess::FileSession;
 
-const CONNECT_TIMEOUT: u64 = 6_000_000_000;    /* 6s */
+const CONNECT_TIMEOUT: u64 = 6_000_000_000; /* 6s */
 
 pub fn to_m3_addr(addr: IpAddress) -> IpAddr {
     assert!(addr.as_bytes().len() == 4, "Address was not ipv4!");
@@ -76,6 +78,11 @@ pub struct Socket {
     _local_port: Option<EphemeralPort>,
     buffer_space: usize,
 
+    // communication channel to client for incoming data/close-requests and outgoing events/data
+    channel: Rc<NetEventChannel>,
+    // pending incoming data events we could not send due to missing buffer space
+    send_queue: VecDeque<NetEvent>,
+
     // for the file session
     rfile: Option<Rc<RefCell<FileSession>>>,
     sfile: Option<Rc<RefCell<FileSession>>>,
@@ -106,6 +113,7 @@ impl Socket {
         rbuf_slots: usize,
         sbuf_space: usize,
         sbuf_slots: usize,
+        caps: Selector,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<Self, Error> {
         let socket = match ty {
@@ -147,6 +155,9 @@ impl Socket {
             _local_port: None,
             buffer_space: Self::required_space(ty, rbuf_space, rbuf_slots, sbuf_space, sbuf_slots),
 
+            channel: NetEventChannel::new_server(caps)?,
+            send_queue: VecDeque::new(),
+
             rfile: None,
             sfile: None,
         })
@@ -154,6 +165,14 @@ impl Socket {
 
     pub fn sd(&self) -> Sd {
         self.sd
+    }
+
+    pub fn channel(&self) -> &Rc<NetEventChannel> {
+        &self.channel
+    }
+
+    pub fn fetch_queued_event(&mut self) -> Option<NetEvent> {
+        self.send_queue.pop_front()
     }
 
     pub fn buffer_space(&self) -> usize {
@@ -184,7 +203,7 @@ impl Socket {
                     self.state = State::Connected;
                     let (ip, port) = to_m3_ep(tcp_socket.remote_endpoint());
                     Some(SendNetEvent::Connected(event::ConnectedMessage::new(
-                        self.sd, ip, port,
+                        ip, port,
                     )))
                 }
                 else if let Some(start) = self.connect_start {
@@ -192,7 +211,8 @@ impl Socket {
                         tcp_socket.abort();
                         self._local_port = None;
                         self.state = State::Closed;
-                        Some(SendNetEvent::Closed(event::ClosedMessage::new(self.sd)))
+                        self.send_queue.clear();
+                        Some(SendNetEvent::Closed(event::ClosedMessage::new()))
                     }
                     else {
                         None
@@ -208,11 +228,12 @@ impl Socket {
                 if !tcp_socket.is_open() {
                     self._local_port = None;
                     self.state = State::Closed;
-                    Some(SendNetEvent::Closed(event::ClosedMessage::new(self.sd)))
+                    self.send_queue.clear();
+                    Some(SendNetEvent::Closed(event::ClosedMessage::new()))
                 }
                 // remote side has closed the connection?
                 else if tcp_socket.state() == TcpState::CloseWait {
-                    Some(SendNetEvent::CloseReq(event::CloseReqMessage::new(self.sd)))
+                    Some(SendNetEvent::CloseReq(event::CloseReqMessage::new()))
                 }
                 else {
                     None
@@ -422,5 +443,57 @@ impl Socket {
 
             SocketType::Undefined => panic!("cannot send to undefined socket"),
         }
+    }
+
+    pub fn process_event(
+        &mut self,
+        sess: u64,
+        socket_set: &mut SocketSet<'static>,
+        event: NetEvent,
+    ) -> bool {
+        match event.msg_type() {
+            NetEventType::DATA => {
+                let data = event.msg::<event::DataMessage>();
+                let ip = IpAddr(data.addr as u32);
+                let port = data.port as Port;
+
+                let succeeded = self.send(&data.data[0..data.size as usize], ip, port, socket_set);
+                if succeeded.is_err() {
+                    // if no buffers are available, remember the event for later
+                    log!(
+                        crate::LOG_DATA,
+                        "[{}] socket {}: no buffer space, delaying send of {}b to {}:{}",
+                        sess,
+                        self.sd,
+                        data.size,
+                        ip,
+                        port,
+                    );
+                    self.send_queue.push_back(event);
+                    return false;
+                }
+                else {
+                    log!(
+                        crate::LOG_DATA,
+                        "[{}] socket {}: sent packet of {}b to {}:{}",
+                        sess,
+                        self.sd,
+                        data.size,
+                        ip,
+                        port,
+                    );
+                }
+            },
+
+            NetEventType::CLOSE_REQ => {
+                log!(crate::LOG_SESS, "[{}] net::close_req(sd={})", sess, self.sd);
+
+                // ignore error
+                self.close(socket_set).ok();
+            },
+
+            m => log!(crate::LOG_ERR, "Unexpected message from client: {}", m),
+        }
+        true
     }
 }

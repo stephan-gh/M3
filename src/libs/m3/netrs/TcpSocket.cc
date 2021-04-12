@@ -23,8 +23,8 @@
 
 namespace m3 {
 
-TcpSocketRs::TcpSocketRs(int sd, NetworkManagerRs &nm)
-    : SocketRs(sd, nm) {
+TcpSocketRs::TcpSocketRs(int sd, capsel_t caps, NetworkManagerRs &nm)
+    : SocketRs(sd, caps, nm) {
 }
 
 TcpSocketRs::~TcpSocketRs() {
@@ -39,32 +39,29 @@ TcpSocketRs::~TcpSocketRs() {
 }
 
 Reference<TcpSocketRs> TcpSocketRs::create(NetworkManagerRs &nm, const StreamSocketArgs &args) {
-    int sd = nm.create(SOCK_STREAM, 0, args);
-    auto sock = new TcpSocketRs(sd, nm);
+    capsel_t caps;
+    int sd = nm.create(SOCK_STREAM, 0, args, &caps);
+    auto sock = new TcpSocketRs(sd, caps, nm);
     nm.add_socket(sock);
     return Reference<TcpSocketRs>(sock);
 }
 
 void TcpSocketRs::close() {
-    bool sent_req = false;
-
     // ensure that we don't receive more data (which could block our event channel and thus prevent
     // us from receiving the closed event)
     _state = State::Closing;
     _recv_queue.clear();
 
-    while(_state != State::Closed) {
-        if(!sent_req) {
-            if(_nm.close(sd()))
-                sent_req = true;
-        }
+    // send the close request; this has to be blocking
+    while(!_channel.send_close_req())
+        _nm.wait_for_credits(this);
 
+    // now wait for the response; can be non-blocking
+    while(_state != State::Closed) {
         if(!_blocking)
             throw Exception(Errors::IN_PROGRESS);
 
-        wait_for_events();
-
-        process_events();
+        _nm.wait_for_events(this);
     }
 }
 
@@ -95,10 +92,8 @@ void TcpSocketRs::connect(IpAddr remote_addr, uint16_t remote_port) {
     if(!_blocking)
         throw Exception(Errors::IN_PROGRESS);
 
-    while(_state == State::Connecting) {
-        wait_for_events();
-        process_events();
-    }
+    while(_state == State::Connecting)
+        _nm.wait_for_events(this);
 
     if(_state != Connected)
         throw Exception(Errors::CONNECTION_FAILED);
@@ -118,10 +113,8 @@ void TcpSocketRs::accept(IpAddr *remote_addr, uint16_t *remote_port) {
         throw Exception(Errors::INV_STATE);
 
     _state = State::Connecting;
-    while(_state == State::Connecting) {
-        wait_for_events();
-        process_events();
-    }
+    while(_state == State::Connecting)
+        _nm.wait_for_events(this);
 
     if(_state != State::Connected)
         throw Exception(Errors::CONNECTION_FAILED);

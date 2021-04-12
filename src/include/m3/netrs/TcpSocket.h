@@ -60,7 +60,7 @@ public:
 class TcpSocketRs : public SocketRs {
     friend class SocketRs;
 
-    explicit TcpSocketRs(int sd, NetworkManagerRs &nm);
+    explicit TcpSocketRs(int sd, capsel_t caps, NetworkManagerRs &nm);
 
 public:
     /**

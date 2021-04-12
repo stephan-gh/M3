@@ -19,7 +19,7 @@
 use crate::cell::{Cell, RefCell};
 use crate::errors::{Code, Error};
 use crate::net::dataqueue::DataQueue;
-use crate::net::{event, IpAddr, NetEvent, Port, Sd, SocketType};
+use crate::net::{event, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketType};
 use crate::rc::Rc;
 use crate::session::NetworkManager;
 
@@ -30,6 +30,8 @@ mod udp;
 pub use self::raw::RawSocket;
 pub use self::tcp::{StreamSocketArgs, TcpSocket};
 pub use self::udp::{DgramSocketArgs, UdpSocket};
+
+const EVENT_FETCH_BATCH_SIZE: u32 = 4;
 
 pub(crate) struct SocketArgs {
     pub rbuf_slots: usize,
@@ -81,11 +83,12 @@ pub(crate) struct Socket {
     remote_addr: Cell<IpAddr>,
     remote_port: Cell<Port>,
 
+    channel: Rc<NetEventChannel>,
     recv_queue: RefCell<DataQueue>,
 }
 
 impl Socket {
-    pub fn new(sd: Sd, ty: SocketType) -> Rc<Self> {
+    pub fn new(sd: Sd, ty: SocketType, channel: Rc<NetEventChannel>) -> Rc<Self> {
         Rc::new(Self {
             sd,
             ty,
@@ -99,6 +102,7 @@ impl Socket {
             remote_addr: Cell::new(IpAddr::new(0, 0, 0, 0)),
             remote_port: Cell::new(0),
 
+            channel,
             recv_queue: RefCell::new(DataQueue::default()),
         })
     }
@@ -156,8 +160,7 @@ impl Socket {
         }
 
         while self.state.get() == State::Connecting {
-            nm.wait_for_events();
-            nm.process_events(Some(self.sd));
+            nm.wait_for_events(Some(self.sd));
         }
 
         if self.state.get() != State::Connected {
@@ -179,10 +182,11 @@ impl Socket {
             return Err(Error::new(Code::InvState));
         }
 
+        // TODO non-blocking
+
         self.state.set(State::Connecting);
         while self.state.get() == State::Connecting {
-            nm.wait_for_events();
-            nm.process_events(Some(self.sd));
+            nm.wait_for_events(Some(self.sd));
         }
 
         if self.state.get() != State::Connected {
@@ -207,18 +211,16 @@ impl Socket {
         F: FnMut(&[u8], IpAddr, Port) -> R,
     {
         loop {
-            nm.process_events(Some(self.sd));
-
             if let Some(res) = self.recv_queue.borrow_mut().next_data(amount, &mut consume) {
                 return Ok(res);
             }
 
             if !self.blocking.get() {
-                nm.fetch_replies();
+                self.process_events();
                 return Err(Error::new(Code::WouldBlock));
             }
 
-            nm.wait_for_events();
+            nm.wait_for_events(Some(self.sd));
         }
     }
 
@@ -230,20 +232,21 @@ impl Socket {
         port: Port,
     ) -> Result<(), Error> {
         loop {
-            match nm.send(self.sd, addr, port, data) {
+            let res = self.channel.send_data(addr, port, data.len(), |buf| {
+                buf.copy_from_slice(data);
+            });
+            match res {
                 Err(e) if e.code() != Code::NoCredits => break Err(e),
                 Ok(_) => break Ok(()),
                 _ => {},
             }
 
             if !self.blocking.get() {
-                nm.fetch_replies();
+                self.channel.fetch_replies();
                 return Err(Error::new(Code::WouldBlock));
             }
 
-            nm.wait_for_credits();
-
-            nm.process_events(Some(self.sd));
+            nm.wait_for_credits(Some(self.sd));
 
             if self.state.get() == State::Closed {
                 return Err(Error::new(Code::SocketClosed));
@@ -252,30 +255,30 @@ impl Socket {
     }
 
     pub fn close(&self, nm: &NetworkManager) -> Result<(), Error> {
-        let mut sent_req = false;
-
         // ensure that we don't receive more data (which could block our event channel and thus
         // prevent us from receiving the closed event)
         self.state.set(State::Closing);
         self.recv_queue.borrow_mut().clear();
 
-        while self.state.get() != State::Closed {
-            if !sent_req {
-                match nm.close(self.sd) {
-                    Err(e) if e.code() == Code::NoCredits => {},
-                    Err(e) => return Err(e),
-                    Ok(_) => sent_req = true,
-                }
+        // send the close request; this has to be blocking
+        loop {
+            match self.channel.send_event(event::CloseReqMessage::new()) {
+                Err(e) if e.code() == Code::NoCredits => {},
+                Err(e) => return Err(e),
+                Ok(_) => break,
             }
 
+            nm.wait_for_credits(Some(self.sd));
+        }
+
+        // now wait for the response; can be non-blocking
+        while self.state.get() != State::Closed {
             if !self.blocking.get() {
                 // TODO error inprogress?
                 return Err(Error::new(Code::WouldBlock));
             }
 
-            nm.wait_for_events();
-
-            nm.process_events(Some(self.sd));
+            nm.wait_for_events(Some(self.sd));
         }
         Ok(())
     }
@@ -287,25 +290,52 @@ impl Socket {
         Ok(())
     }
 
-    pub fn process_data_transfer(&self, event: NetEvent) {
-        if self.ty != SocketType::Stream
-            || (self.state.get() != State::Closing && self.state.get() != State::Closed)
-        {
-            self.recv_queue.borrow_mut().append(event);
+    pub(crate) fn can_send(&self) -> bool {
+        self.channel.fetch_replies();
+        self.channel.can_send().unwrap()
+    }
+
+    pub(crate) fn process_events(&self) -> bool {
+        let mut res = false;
+        self.channel.fetch_replies();
+        for _ in 0..EVENT_FETCH_BATCH_SIZE {
+            if let Some(event) = self.channel.receive_event() {
+                self.process_event(event);
+                res = true;
+            }
+            else {
+                break;
+            }
         }
+        res
     }
 
-    pub fn process_connected(&self, msg: &event::ConnectedMessage) {
-        self.state.set(State::Connected);
-        self.remote_addr.set(IpAddr(msg.remote_addr as u32));
-        self.remote_port.set(msg.remote_port as Port);
-    }
+    fn process_event(&self, event: NetEvent) {
+        match event.msg_type() {
+            NetEventType::DATA => {
+                if self.ty != SocketType::Stream
+                    || (self.state.get() != State::Closing && self.state.get() != State::Closed)
+                {
+                    self.recv_queue.borrow_mut().append(event);
+                }
+            },
 
-    pub fn process_closed(&self, _msg: &event::ClosedMessage) {
-        self.state.set(State::Closed);
-    }
+            NetEventType::CONNECTED => {
+                let msg = event.msg::<event::ConnectedMessage>();
+                self.state.set(State::Connected);
+                self.remote_addr.set(IpAddr(msg.remote_addr as u32));
+                self.remote_port.set(msg.remote_port as Port);
+            },
 
-    pub fn process_close_req(&self, _msg: &event::CloseReqMessage) {
-        self.state.set(State::RemoteClosed);
+            NetEventType::CLOSED => {
+                self.state.set(State::Closed);
+            },
+
+            NetEventType::CLOSE_REQ => {
+                self.state.set(State::RemoteClosed);
+            },
+
+            t => panic!("unexpected message type {}", t),
+        }
     }
 }

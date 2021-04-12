@@ -43,10 +43,11 @@ impl NetworkSession {
         crt: usize,
         server: Selector,
         xchg: &mut CapExchange,
+        socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         match self {
             NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
-            NetworkSession::SocketSession(ss) => ss.obtain(crt, server, xchg),
+            NetworkSession::SocketSession(ss) => ss.obtain(crt, server, xchg, socket_set),
         }
     }
 
@@ -89,17 +90,6 @@ impl NetworkSession {
         match self {
             NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
             NetworkSession::SocketSession(_ss) => Err(Error::new(Code::NotSup)),
-        }
-    }
-
-    pub fn create(
-        &mut self,
-        is: &mut GateIStream,
-        socket_set: &mut SocketSet<'static>,
-    ) -> Result<(), Error> {
-        match self {
-            NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
-            NetworkSession::SocketSession(ss) => ss.create(is, socket_set),
         }
     }
 

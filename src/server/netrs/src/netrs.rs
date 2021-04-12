@@ -86,7 +86,6 @@ impl NetHandler {
                 NetworkOp::NEXT_IN => sess.next_in(is),
                 NetworkOp::NEXT_OUT => sess.next_out(is),
                 NetworkOp::COMMIT => sess.commit(is),
-                NetworkOp::CREATE => sess.create(is, &mut self.socket_set),
                 NetworkOp::BIND => sess.bind(is, &mut self.socket_set),
                 NetworkOp::LISTEN => sess.listen(is, &mut self.socket_set),
                 NetworkOp::CONNECT => sess.connect(is, &mut self.socket_set),
@@ -154,7 +153,7 @@ impl Handler<NetworkSession> for NetHandler {
         );
 
         if let Some(s) = self.sessions.get_mut(sid) {
-            s.obtain(crt, self.sel, xchg)
+            s.obtain(crt, self.sel, xchg, &mut self.socket_set)
         }
         else {
             Err(Error::new(Code::InvArgs))

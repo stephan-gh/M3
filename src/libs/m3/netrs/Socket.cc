@@ -26,8 +26,8 @@
 
 namespace m3 {
 
-SocketRs::SocketRs(int sd, NetworkManagerRs &nm)
-    : TreapNode(sd),
+SocketRs::SocketRs(int sd, capsel_t caps, NetworkManagerRs &nm)
+    : SListItem(),
       RefCounted(),
       _sd(sd),
       _state(Closed),
@@ -37,6 +37,7 @@ SocketRs::SocketRs(int sd, NetworkManagerRs &nm)
       _remote_addr(IpAddr(0, 0, 0, 0)),
       _remote_port(0),
       _nm(nm),
+      _channel(caps),
       _recv_queue() {
 }
 
@@ -46,7 +47,7 @@ void SocketRs::set_local(IpAddr addr, uint16_t port, State state) {
     _state = state;
 }
 
-void SocketRs::process_message(const NetEventChannelRs::SocketControlMessage &message,
+void SocketRs::process_message(const NetEventChannelRs::ControlMessage &message,
                                NetEventChannelRs::Event &event) {
     switch(message.type) {
         case NetEventChannelRs::Data:
@@ -82,19 +83,17 @@ void SocketRs::handle_closed(NetEventChannelRs::ClosedMessage const &) {
 
 bool SocketRs::get_next_data(const uchar **data, size_t *size, IpAddr *src_addr, uint16_t *src_port) {
     while(true) {
-        process_events();
-
         if(_recv_queue.get_next_data(data, size, src_addr, src_port))
             return true;
 
         if(_state == Closed)
             throw Exception(Errors::INV_STATE);
         if(!_blocking) {
-            _nm._channel.fetch_replies();
+            process_events();
             return false;
         }
 
-        wait_for_events();
+        _nm.wait_for_events(this);
     }
 }
 
@@ -115,18 +114,18 @@ ssize_t SocketRs::do_recv(void *dst, size_t amount, IpAddr *src_addr, uint16_t *
 
 ssize_t SocketRs::do_send(const void *src, size_t amount, IpAddr dst_addr, uint16_t dst_port) {
     while(true) {
-        ssize_t res = _nm.send(_sd, dst_addr, dst_port, src, amount);
-        if(res != -1)
-            return res;
+        bool succeeded = _channel.send_data(dst_addr, dst_port, amount, [src, amount](void *buf) {
+            memcpy(buf, src, amount);
+        });
+        if(succeeded)
+            return static_cast<ssize_t>(amount);
 
         if(!blocking()) {
-            _nm._channel.fetch_replies();
+            _channel.fetch_replies();
             return -1;
         }
 
-        _nm.wait_for_credits();
-
-        process_events();
+        _nm.wait_for_credits(this);
 
         if(_state == Closed)
             throw Exception(Errors::SOCKET_CLOSED);
@@ -137,19 +136,27 @@ void SocketRs::ack_data(size_t size) {
     _recv_queue.ack_data(size);
 }
 
-void SocketRs::process_events() {
+bool SocketRs::process_events() {
+    _channel.fetch_replies();
+
+    bool seen_event = false;
     for(int i = 0; i < EVENT_FETCH_BATCH_SIZE; i++) {
-        auto event = _nm.recv_event();
+        auto event = _channel.recv_message();
         if(!event.is_present())
             break;
-        // Stop once we received a message for this socket.
-        if(_nm.process_event(event) == this)
-            break;
+
+        auto message = static_cast<NetEventChannelRs::ControlMessage const *>(event.get_message());
+        LLOG(NET, "SocketRs::process_event: type=" << message->type << ", sd=" << _sd);
+
+        process_message(*message, event);
+        seen_event = true;
     }
+    return seen_event;
 }
 
-void SocketRs::wait_for_events() {
-    _nm.wait_for_events();
+bool SocketRs::can_send() {
+    _channel.fetch_replies();
+    return _channel.can_send();
 }
 
 void SocketRs::abort() {
