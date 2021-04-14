@@ -144,6 +144,10 @@ void RecvGate::stop() noexcept {
     _workitem.reset();
 }
 
+void RecvGate::wait_for_msg() const {
+    VPE::wait_for_msg(ep()->id());
+}
+
 const TCU::Message *RecvGate::fetch() {
     activate();
     size_t msg_off = TCU::get().fetch_msg(ep()->id());

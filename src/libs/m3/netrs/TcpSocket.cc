@@ -54,14 +54,14 @@ void TcpSocketRs::close() {
 
     // send the close request; this has to be blocking
     while(!_channel.send_close_req())
-        _nm.wait_for_credits(this);
+        wait_for_credits();
 
     // now wait for the response; can be non-blocking
     while(_state != State::Closed) {
         if(!_blocking)
             throw Exception(Errors::IN_PROGRESS);
 
-        _nm.wait_for_events(this);
+        wait_for_events();
     }
 }
 
@@ -93,7 +93,7 @@ void TcpSocketRs::connect(IpAddr remote_addr, uint16_t remote_port) {
         throw Exception(Errors::IN_PROGRESS);
 
     while(_state == State::Connecting)
-        _nm.wait_for_events(this);
+        wait_for_events();
 
     if(_state != Connected)
         throw Exception(Errors::CONNECTION_FAILED);
@@ -114,7 +114,7 @@ void TcpSocketRs::accept(IpAddr *remote_addr, uint16_t *remote_port) {
 
     _state = State::Connecting;
     while(_state == State::Connecting)
-        _nm.wait_for_events(this);
+        wait_for_events();
 
     if(_state != State::Connected)
         throw Exception(Errors::CONNECTION_FAILED);

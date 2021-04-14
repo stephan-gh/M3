@@ -199,6 +199,16 @@ impl NetEventChannel {
         }))
     }
 
+    pub fn wait_for_events(&self) {
+        // ignore errors
+        VPE::wait_for_msg(self.rgate.ep().unwrap()).ok();
+    }
+
+    pub fn wait_for_credits(&self) {
+        // ignore errors
+        VPE::wait_for_msg(self.rpl_gate.ep().unwrap()).ok();
+    }
+
     pub fn can_send(&self) -> Result<bool, Error> {
         self.sgate.can_send()
     }

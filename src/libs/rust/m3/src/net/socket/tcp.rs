@@ -129,10 +129,13 @@ impl<'n> TcpSocket<'n> {
     /// connection. Thus, to support multiple connections to the same port, put multiple sockets in
     /// listen mode on this port and call accept on each of them.
     pub fn accept(&mut self) -> Result<(IpAddr, Port), Error> {
-        self.socket.accept(self.nm)
+        self.socket.accept()
     }
 
     /// Returns whether data can currently be received from the socket
+    ///
+    /// Note that this function does not process events. To receive data, any receive function on
+    /// this socket or [`NetworkManager::wait`] has to be called.
     pub fn has_data(&self) -> bool {
         self.socket.has_data()
     }
@@ -150,11 +153,10 @@ impl<'n> TcpSocket<'n> {
             // receive is possible with an established connection or a connection that that has
             // already been closed by the remote side
             State::Connected | State::RemoteClosed => {
-                self.socket
-                    .next_data(self.nm, data.len(), |buf, _addr, _port| {
-                        data[0..buf.len()].copy_from_slice(buf);
-                        buf.len()
-                    })
+                self.socket.next_data(data.len(), |buf, _addr, _port| {
+                    data[0..buf.len()].copy_from_slice(buf);
+                    buf.len()
+                })
             },
             _ => Err(Error::new(Code::NotConnected)),
         }
@@ -170,7 +172,6 @@ impl<'n> TcpSocket<'n> {
         match self.socket.state() {
             // like for receive: still allow sending if the remote side closed the connection
             State::Connected | State::RemoteClosed => self.socket.send(
-                self.nm,
                 data,
                 self.socket.remote_addr.get(),
                 self.socket.remote_port.get(),
@@ -188,7 +189,7 @@ impl<'n> TcpSocket<'n> {
     /// explicitly to ensure that all data is transmitted to the remote end and the connection is
     /// properly closed.
     pub fn close(&mut self) -> Result<(), Error> {
-        self.socket.close(self.nm)
+        self.socket.close()
     }
 
     /// Aborts the connection

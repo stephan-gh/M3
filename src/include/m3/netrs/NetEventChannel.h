@@ -98,6 +98,9 @@ public:
     bool has_events() const;
     Event recv_message();
 
+    void wait_for_events();
+    void wait_for_credits();
+
     void fetch_replies();
 
 private:

@@ -24,7 +24,6 @@
 #include <m3/session/NetworkManagerRs.h>
 #include <m3/stream/Standard.h>
 
-#include <stdlib.h> // needed for mallocing list elements and received packages
 #include <thread/ThreadManager.h>
 
 namespace m3 {
@@ -93,28 +92,36 @@ void NetworkManagerRs::abort(int32_t sd, bool remove) {
     reply.pull_result();
 }
 
-void NetworkManagerRs::wait_for_events(SocketRs *socket) {
+void NetworkManagerRs::wait(uint dirs) {
     while(true) {
-        for(auto sock = _sockets.begin(); sock != _sockets.end(); ++sock) {
-            if(sock->process_events() && (!socket || socket == &*sock))
-                return;
-        }
+        if(tick_sockets(dirs))
+            break;
 
-        // This would be the place to implement timeouts.
         VPE::sleep();
     }
 }
 
-void NetworkManagerRs::wait_for_credits(SocketRs *socket) {
-    while(true) {
-        for(auto sock = _sockets.begin(); sock != _sockets.end(); ++sock) {
-            if(sock->can_send() && (!socket || socket == &*sock))
-                return;
-        }
+void NetworkManagerRs::wait_for(uint64_t timeout, uint dirs) {
+    uint64_t end = TCU::get().nanotime() + timeout;
+    uint64_t now;
+    while((now = TCU::get().nanotime()) < end) {
+        if(tick_sockets(dirs))
+            break;
 
-        // This would be the place to implement timeouts.
-        VPE::sleep();
+        VPE::sleep_for(end - now);
     }
+}
+
+bool NetworkManagerRs::tick_sockets(uint dirs) {
+    bool found = false;
+    for(auto sock = _sockets.begin(); sock != _sockets.end(); ++sock) {
+        sock->fetch_replies();
+        if(((dirs & Direction::INPUT) && sock->process_events()) ||
+            ((dirs & Direction::OUTPUT) && sock->can_send())) {
+            found = true;
+        }
+    }
+    return found;
 }
 
 } // namespace m3

@@ -19,7 +19,7 @@ use m3::com::Semaphore;
 use m3::errors::Code;
 use m3::net::{IpAddr, State, StreamSocketArgs, TcpSocket};
 use m3::pes::{Activity, VPEArgs, PE, VPE};
-use m3::session::NetworkManager;
+use m3::session::{NetworkDirection, NetworkManager};
 use m3::test;
 use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
@@ -137,7 +137,7 @@ fn receive_after_close() {
 
     // at some point, the socket should receive the closed event from the remote side
     while socket.state() != State::RemoteClosed {
-        nm.wait_for_events(Some(socket.sd()));
+        nm.wait(NetworkDirection::INPUT);
     }
 
     wv_assert_ok!(socket.close());

@@ -160,7 +160,7 @@ impl Socket {
         }
 
         while self.state.get() == State::Connecting {
-            nm.wait_for_events(Some(self.sd));
+            self.wait_for_events();
         }
 
         if self.state.get() != State::Connected {
@@ -171,7 +171,7 @@ impl Socket {
         }
     }
 
-    pub fn accept(&self, nm: &NetworkManager) -> Result<(IpAddr, Port), Error> {
+    pub fn accept(&self) -> Result<(IpAddr, Port), Error> {
         if self.state.get() == State::Connected {
             return Ok((self.remote_addr.get(), self.remote_port.get()));
         }
@@ -186,7 +186,7 @@ impl Socket {
 
         self.state.set(State::Connecting);
         while self.state.get() == State::Connecting {
-            nm.wait_for_events(Some(self.sd));
+            self.wait_for_events();
         }
 
         if self.state.get() != State::Connected {
@@ -201,12 +201,7 @@ impl Socket {
         self.recv_queue.borrow().has_data()
     }
 
-    pub fn next_data<F, R>(
-        &self,
-        nm: &NetworkManager,
-        amount: usize,
-        mut consume: F,
-    ) -> Result<R, Error>
+    pub fn next_data<F, R>(&self, amount: usize, mut consume: F) -> Result<R, Error>
     where
         F: FnMut(&[u8], IpAddr, Port) -> R,
     {
@@ -220,17 +215,11 @@ impl Socket {
                 return Err(Error::new(Code::WouldBlock));
             }
 
-            nm.wait_for_events(Some(self.sd));
+            self.wait_for_events();
         }
     }
 
-    pub fn send(
-        &self,
-        nm: &NetworkManager,
-        data: &[u8],
-        addr: IpAddr,
-        port: Port,
-    ) -> Result<(), Error> {
+    pub fn send(&self, data: &[u8], addr: IpAddr, port: Port) -> Result<(), Error> {
         loop {
             let res = self.channel.send_data(addr, port, data.len(), |buf| {
                 buf.copy_from_slice(data);
@@ -242,11 +231,11 @@ impl Socket {
             }
 
             if !self.blocking.get() {
-                self.channel.fetch_replies();
+                self.fetch_replies();
                 return Err(Error::new(Code::WouldBlock));
             }
 
-            nm.wait_for_credits(Some(self.sd));
+            self.wait_for_credits();
 
             if self.state.get() == State::Closed {
                 return Err(Error::new(Code::SocketClosed));
@@ -254,7 +243,7 @@ impl Socket {
         }
     }
 
-    pub fn close(&self, nm: &NetworkManager) -> Result<(), Error> {
+    pub fn close(&self) -> Result<(), Error> {
         // ensure that we don't receive more data (which could block our event channel and thus
         // prevent us from receiving the closed event)
         self.state.set(State::Closing);
@@ -268,7 +257,7 @@ impl Socket {
                 Ok(_) => break,
             }
 
-            nm.wait_for_credits(Some(self.sd));
+            self.wait_for_credits();
         }
 
         // now wait for the response; can be non-blocking
@@ -278,7 +267,7 @@ impl Socket {
                 return Err(Error::new(Code::WouldBlock));
             }
 
-            nm.wait_for_events(Some(self.sd));
+            self.wait_for_events();
         }
         Ok(())
     }
@@ -290,14 +279,16 @@ impl Socket {
         Ok(())
     }
 
-    pub(crate) fn can_send(&self) -> bool {
+    pub fn fetch_replies(&self) {
         self.channel.fetch_replies();
+    }
+
+    pub fn can_send(&self) -> bool {
         self.channel.can_send().unwrap()
     }
 
-    pub(crate) fn process_events(&self) -> bool {
+    pub fn process_events(&self) -> bool {
         let mut res = false;
-        self.channel.fetch_replies();
         for _ in 0..EVENT_FETCH_BATCH_SIZE {
             if let Some(event) = self.channel.receive_event() {
                 self.process_event(event);
@@ -308,6 +299,22 @@ impl Socket {
             }
         }
         res
+    }
+
+    fn wait_for_events(&self) {
+        while !self.process_events() {
+            self.channel.wait_for_events();
+        }
+    }
+
+    fn wait_for_credits(&self) {
+        loop {
+            self.fetch_replies();
+            if self.can_send() {
+                break;
+            }
+            self.channel.wait_for_credits();
+        }
     }
 
     fn process_event(&self, event: NetEvent) {

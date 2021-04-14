@@ -135,7 +135,10 @@ protected:
     void handle_close_req(NetEventChannelRs::CloseReqMessage const &msg);
     void handle_closed(NetEventChannelRs::ClosedMessage const &msg);
 
+    void wait_for_events();
+    void wait_for_credits();
     bool process_events();
+    void fetch_replies();
     bool can_send();
 
     void do_abort(bool remove);

@@ -60,6 +60,16 @@ class NetworkManagerRs : public ClientSession {
 
 public:
     /**
+     * A bitmask of directions for wait.
+     */
+    enum Direction {
+        // Data can be received or the socket state has changed
+        INPUT         = 1,
+        // Data can be sent
+        OUTPUT        = 2,
+    };
+
+    /**
      * Creates a new instance for `service`
      *
      * @param service the service name
@@ -67,28 +77,33 @@ public:
     explicit NetworkManagerRs(const String &service);
 
     /**
-     * Waits until any socket or a specific socket has received an event.
+     * Waits until any socket has received input (including state-change events) or can produce
+     * output.
      *
-     * If socket is nullptr, the function waits until any socket has received an event. Otherwise,
-     * it waits until the socket with this socket descriptor has received an event.
+     * Note that Direction::INPUT has to be specified to process events (state changes and data).
      *
-     * Note: this function uses VPE::sleep if no events are present, which suspends the core until
-     * the next TCU message arrives. Thus, calling this function can only be done if all work is
-     * done.
-     */
-    void wait_for_events(SocketRs *socket = nullptr);
-
-    /**
-     * Waits until any socket or a specific socket can send events to the server.
-     *
-     * If socket is nullptr, the function waits until any socket can send. Otherwise, it waits until
-     * the socket with this socket descriptor can send.
-     *
-     * Note: this function uses VPE::sleep if no credits are available, which suspends the core
+     * Note: this function uses VPE::sleep if tick_sockets returns false, which suspends the core
      * until the next TCU message arrives. Thus, calling this function can only be done if all work
      * is done.
+     *
+     * @param dirs the directions to check
      */
-    void wait_for_credits(SocketRs *socket = nullptr);
+    void wait(uint dirs = Direction::INPUT | Direction::OUTPUT);
+
+    /**
+     * Waits until any socket has received input (including state-change events) or can produce
+     * output or the given timeout is reached.
+     *
+     * Note that Direction::INPUT has to be specified to process events (state changes and data).
+     *
+     * Note: this function uses VPE::sleep if tick_sockets returns false, which suspends the core
+     * until the next TCU message arrives. Thus, calling this function can only be done if all work
+     * is done.
+     *
+     * @param timeout the number of nanoseconds to wait at most
+     * @param dirs the directions to check
+     */
+    void wait_for(uint64_t timeout, uint dirs = Direction::INPUT | Direction::OUTPUT);
 
 private:
     const SendGate &meta_gate() const noexcept {
@@ -105,7 +120,7 @@ private:
     bool close(int32_t sd);
     void abort(int32_t sd, bool remove);
 
-    ssize_t send(int32_t sd, IpAddr dst_addr, uint16_t dst_port, const void *data, size_t data_length);
+    bool tick_sockets(uint dirs = Direction::INPUT | Direction::OUTPUT);
 
     SendGate _metagate;
     SList<SocketRs> _sockets;

@@ -196,6 +196,11 @@ public:
     bool has_msgs() const;
 
     /**
+     * Suspend the VPE until a message arrives on this RecvGate.
+     */
+    void wait_for_msg() const;
+
+    /**
      * Fetches a message from this receive gate and returns it, if there is any.
      *
      * @return the message or nullptr

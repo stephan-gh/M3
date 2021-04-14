@@ -136,10 +136,11 @@ NOINLINE static void bandwidth() {
                 auto waited = TCU::get().nanotime() - last_received;
                 if(waited > timeout)
                     break;
-                VPE::sleep_for(timeout - waited);
+                // we are not interested in output anymore
+                net.wait_for(timeout - waited, NetworkManagerRs::INPUT);
             }
             else
-                VPE::sleep();
+                net.wait();
         }
 
         size_t send_count = burst_size;

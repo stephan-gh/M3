@@ -118,6 +118,9 @@ impl<'n> UdpSocket<'n> {
     }
 
     /// Returns whether data can currently be received from the socket
+    ///
+    /// Note that this function does not process events. To receive data, any receive function on
+    /// this socket or [`NetworkManager::wait`] has to be called.
     pub fn has_data(&self) -> bool {
         self.socket.has_data()
     }
@@ -133,16 +136,15 @@ impl<'n> UdpSocket<'n> {
     ///
     /// Returns the number of received bytes and the remote endpoint it was received from.
     pub fn recv_from(&self, data: &mut [u8]) -> Result<(usize, IpAddr, Port), Error> {
-        self.socket
-            .next_data(self.nm, data.len(), |buf, addr, port| {
-                data[0..buf.len()].copy_from_slice(buf);
-                (buf.len(), addr, port)
-            })
+        self.socket.next_data(data.len(), |buf, addr, port| {
+            data[0..buf.len()].copy_from_slice(buf);
+            (buf.len(), addr, port)
+        })
     }
 
     /// Sends the given data to the given remote endpoint
     pub fn send_to(&self, data: &[u8], addr: IpAddr, port: Port) -> Result<(), Error> {
-        self.socket.send(self.nm, data, addr, port)
+        self.socket.send(data, addr, port)
     }
 
     /// Puts the socket in [`Closed`](State::Closed) state again, enabling a new bind of this socket

@@ -18,10 +18,9 @@ use m3::com::Semaphore;
 use m3::errors::Code;
 use m3::format;
 use m3::net::{DgramSocketArgs, IpAddr, UdpSocket};
-use m3::pes::VPE;
 use m3::println;
 use m3::profile::Results;
-use m3::session::NetworkManager;
+use m3::session::{NetworkDirection, NetworkManager};
 use m3::tcu::TCU;
 use m3::test;
 use m3::time;
@@ -124,10 +123,11 @@ fn bandwidth() {
                 if waited > TIMEOUT {
                     break;
                 }
-                wv_assert_ok!(VPE::sleep_for(TIMEOUT - waited));
+                // we are not interested in output anymore
+                nm.wait_for(TIMEOUT - waited, NetworkDirection::INPUT);
             }
             else {
-                wv_assert_ok!(VPE::sleep());
+                nm.wait(NetworkDirection::INPUT | NetworkDirection::OUTPUT);
             }
         }
 

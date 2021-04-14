@@ -18,7 +18,7 @@
 
 use m3::com::Semaphore;
 use m3::net::{DgramSocketArgs, State, StreamSocketArgs, TcpSocket, UdpSocket};
-use m3::session::NetworkManager;
+use m3::session::{NetworkDirection, NetworkManager};
 
 #[no_mangle]
 pub fn main() -> i32 {
@@ -74,7 +74,10 @@ pub fn main() -> i32 {
                 tcp_socket.abort().unwrap();
             }
             else {
-                nm.wait_for_events(None);
+                // we only care about input here, because we operate in blocking mode and only want
+                // to know if any of the sockets might return true for has_data. Sending is done in
+                // blocking mode so that we simply wait there until that's possible.
+                nm.wait(NetworkDirection::INPUT);
             }
         }
     }

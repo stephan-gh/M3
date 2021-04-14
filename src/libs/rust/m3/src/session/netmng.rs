@@ -16,6 +16,7 @@
  */
 
 use base::int_enum;
+use bitflags::bitflags;
 
 use crate::cell::RefCell;
 use crate::col::Vec;
@@ -25,6 +26,7 @@ use crate::net::{IpAddr, NetEventChannel, Port, Sd, Socket, SocketArgs, SocketTy
 use crate::pes::VPE;
 use crate::rc::Rc;
 use crate::session::ClientSession;
+use crate::tcu::TCU;
 
 int_enum! {
     /// The operations for the network service
@@ -41,6 +43,16 @@ int_enum! {
         const LISTEN        = 7;
         const CONNECT       = 8;
         const ABORT         = 9;
+    }
+}
+
+bitflags! {
+    /// A bitmask of directions for [`NetworkManager::wait`].
+    pub struct NetworkDirection : usize {
+        /// Data can be received or the socket state has changed
+        const INPUT         = 1;
+        /// Data can be sent
+        const OUTPUT        = 2;
     }
 }
 
@@ -68,6 +80,61 @@ impl NetworkManager {
             metagate,
             sockets: RefCell::new(Vec::new()),
         })
+    }
+
+    /// Waits until any socket has received input (including state-change events) or can produce
+    /// output.
+    ///
+    /// Note that [`NetworkDirection::INPUT`] has to be specified to process events (state changes
+    /// and data).
+    ///
+    /// Note also that this function uses [`VPE::sleep`] if no input/output on any socket is
+    /// possible, which suspends the core until the next TCU message arrives. Thus, calling this
+    /// function can only be done if all work is done.
+    pub fn wait(&self, dirs: NetworkDirection) {
+        loop {
+            if self.tick_sockets(dirs) {
+                break;
+            }
+
+            // ignore errors
+            VPE::sleep().ok();
+        }
+    }
+
+    /// Waits until any socket has received input (including state-change events) or can produce
+    /// output or the given timeout in nanoseconds is reached.
+    ///
+    /// Note that [`NetworkDirection::INPUT`] has to be specified to process events (state changes
+    /// and data).
+    ///
+    /// Note also that this function uses [`VPE::sleep`] if no input/output on any socket is
+    /// possible, which suspends the core until the next TCU message arrives. Thus, calling this
+    /// function can only be done if all work is done.
+    pub fn wait_for(&self, timeout: u64, dirs: NetworkDirection) {
+        let end = TCU::nanotime() + timeout;
+        loop {
+            let now = TCU::nanotime();
+            if now >= end || self.tick_sockets(dirs) {
+                break;
+            }
+
+            // ignore errors
+            VPE::sleep_for(end - now).ok();
+        }
+    }
+
+    fn tick_sockets(&self, dirs: NetworkDirection) -> bool {
+        let mut found = false;
+        for sock in self.sockets.borrow_mut().iter() {
+            sock.fetch_replies();
+            if (dirs.contains(NetworkDirection::INPUT) && sock.process_events())
+                || (dirs.contains(NetworkDirection::OUTPUT) && sock.can_send())
+            {
+                found = true;
+            }
+        }
+        found
     }
 
     pub(crate) fn create(
@@ -142,57 +209,5 @@ impl NetworkManager {
             remove
         )
         .map(|_| ())
-    }
-
-    /// Waits until any socket or a specific socket has received an event
-    ///
-    /// If `wait_sd` is None, the function waits until any socket has received an event. Otherwise,
-    /// it waits until the socket with this socket descriptor has received an event.
-    ///
-    /// Note: this function uses [`VPE::sleep`] if no events are present, which suspends the core
-    /// until the next TCU message arrives. Thus, calling this function can only be done if all work
-    /// is done.
-    pub fn wait_for_events(&self, wait_sd: Option<Sd>) {
-        loop {
-            for sock in self.sockets.borrow_mut().iter() {
-                if sock.process_events() {
-                    if let Some(sd) = wait_sd {
-                        if sd != sock.sd() {
-                            continue;
-                        }
-                    }
-                    return;
-                }
-            }
-
-            // ignore errors
-            VPE::sleep().ok();
-        }
-    }
-
-    /// Waits until any socket or a specific socket can send events to the server
-    ///
-    /// If `wait_sd` is None, the function waits until any socket can send. Otherwise, it waits
-    /// until the socket with this socket descriptor can send.
-    ///
-    /// Note: this function uses [`VPE::sleep`] if no credits are available, which suspends the core
-    /// until the next TCU message arrives. Thus, calling this function can only be done if all work
-    /// is done.
-    pub fn wait_for_credits(&self, wait_sd: Option<Sd>) {
-        loop {
-            for sock in self.sockets.borrow_mut().iter() {
-                if sock.can_send() {
-                    if let Some(sd) = wait_sd {
-                        if sd != sock.sd() {
-                            continue;
-                        }
-                    }
-                    return;
-                }
-            }
-
-            // ignore errors
-            VPE::sleep().ok();
-        }
     }
 }

@@ -65,6 +65,14 @@ NetEventChannelRs::Event NetEventChannelRs::recv_message() {
     return Event(_rgate.fetch(), this);
 }
 
+void NetEventChannelRs::wait_for_events() {
+    _rgate.wait_for_msg();
+}
+
+void NetEventChannelRs::wait_for_credits() {
+    _rplgate.wait_for_msg();
+}
+
 void NetEventChannelRs::fetch_replies() {
     auto reply = _rplgate.fetch();
     while(reply != nullptr) {

@@ -93,7 +93,7 @@ bool SocketRs::get_next_data(const uchar **data, size_t *size, IpAddr *src_addr,
             return false;
         }
 
-        _nm.wait_for_events(this);
+        wait_for_events();
     }
 }
 
@@ -121,11 +121,11 @@ ssize_t SocketRs::do_send(const void *src, size_t amount, IpAddr dst_addr, uint1
             return static_cast<ssize_t>(amount);
 
         if(!blocking()) {
-            _channel.fetch_replies();
+            fetch_replies();
             return -1;
         }
 
-        _nm.wait_for_credits(this);
+        wait_for_credits();
 
         if(_state == Closed)
             throw Exception(Errors::SOCKET_CLOSED);
@@ -136,9 +136,21 @@ void SocketRs::ack_data(size_t size) {
     _recv_queue.ack_data(size);
 }
 
-bool SocketRs::process_events() {
-    _channel.fetch_replies();
+void SocketRs::wait_for_events() {
+    while(!process_events())
+        _channel.wait_for_events();
+}
 
+void SocketRs::wait_for_credits() {
+    while(true) {
+        fetch_replies();
+        if(can_send())
+            break;
+        _channel.wait_for_credits();
+    }
+}
+
+bool SocketRs::process_events() {
     bool seen_event = false;
     for(int i = 0; i < EVENT_FETCH_BATCH_SIZE; i++) {
         auto event = _channel.recv_message();
@@ -154,8 +166,11 @@ bool SocketRs::process_events() {
     return seen_event;
 }
 
-bool SocketRs::can_send() {
+void SocketRs::fetch_replies() {
     _channel.fetch_replies();
+}
+
+bool SocketRs::can_send() {
     return _channel.can_send();
 }
 
