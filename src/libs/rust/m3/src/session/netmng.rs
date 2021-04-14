@@ -43,6 +43,9 @@ int_enum! {
         const LISTEN        = 7;
         const CONNECT       = 8;
         const ABORT         = 9;
+        const CREATE        = 10;
+        const GET_SGATE     = 11;
+        const OPEN_FILE     = 12;
     }
 }
 
@@ -73,11 +76,17 @@ impl NetworkManager {
     /// Creates a new instance for `service`
     pub fn new(service: &str) -> Result<Self, Error> {
         let client_session = ClientSession::new(service)?;
+
         // Obtain meta gate for the service
-        let metagate = SendGate::new_bind(client_session.obtain_crd(1)?.start());
+        let sgate_crd = client_session.obtain(
+            1,
+            |sink| sink.push_word(NetworkOp::GET_SGATE.val),
+            |_source| Ok(()),
+        )?;
+
         Ok(NetworkManager {
             client_session,
-            metagate,
+            metagate: SendGate::new_bind(sgate_crd.start()),
             sockets: RefCell::new(Vec::new()),
         })
     }
@@ -145,8 +154,9 @@ impl NetworkManager {
     ) -> Result<Rc<Socket>, Error> {
         let mut sd = 0;
         let crd = self.client_session.obtain(
-            3,
+            2,
             |sink| {
+                sink.push_word(NetworkOp::CREATE.val);
                 sink.push_word(ty as u64);
                 sink.push_word(protocol.unwrap_or(0) as u64);
                 sink.push_word(args.rbuf_size as u64);

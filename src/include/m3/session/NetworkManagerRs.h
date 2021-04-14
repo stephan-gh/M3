@@ -56,6 +56,9 @@ class NetworkManagerRs : public ClientSession {
         LISTEN,
         CONNECT,
         ABORT,
+        CREATE,
+        GET_SGATE,
+        OPEN_FILE,
     };
 
 public:
@@ -106,6 +109,8 @@ public:
     void wait_for(uint64_t timeout, uint dirs = Direction::INPUT | Direction::OUTPUT);
 
 private:
+    static KIF::CapRngDesc get_sgate(ClientSession &sess);
+
     const SendGate &meta_gate() const noexcept {
         return _metagate;
     }

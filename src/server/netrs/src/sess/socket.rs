@@ -23,11 +23,13 @@ use m3::cell::RefCell;
 use m3::col::Vec;
 use m3::com::{GateIStream, RecvGate, SendGate};
 use m3::errors::{Code, Error};
+use m3::kif::{CapRngDesc, CapType};
 use m3::net::{event, IpAddr, Port, Sd, SocketType};
 use m3::parse;
 use m3::rc::Rc;
+use m3::serialize::Source;
 use m3::server::CapExchange;
-use m3::session::ServerSession;
+use m3::session::{NetworkOp, ServerSession};
 use m3::tcu;
 use m3::vfs::OpenFlags;
 use m3::{log, reply_vmsg, vec};
@@ -139,22 +141,31 @@ impl SocketSession {
         xchg: &mut CapExchange,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
-        if xchg.in_caps() == 1 {
-            self.get_sgate(xchg)
-        }
-        // TODO we only need 2
-        else if xchg.in_caps() == 3 {
-            self.create_socket(xchg, socket_set)
-        }
-        else if xchg.in_caps() == 2 {
-            self.open_file(crt, srv_sel, xchg)
-        }
-        else {
-            Err(Error::new(Code::InvArgs))
+        let is = xchg.in_args();
+        let op = is.pop::<NetworkOp>()?;
+
+        match op {
+            NetworkOp::GET_SGATE => {
+                let caps = self.get_sgate()?;
+                xchg.out_caps(caps);
+                Ok(())
+            },
+            NetworkOp::CREATE => {
+                let (caps, sd) = self.create_socket(is, socket_set)?;
+                xchg.out_caps(caps);
+                xchg.out_args().push_word(sd as u64);
+                Ok(())
+            },
+            NetworkOp::OPEN_FILE => {
+                let caps = self.open_file(crt, srv_sel, is)?;
+                xchg.out_caps(caps);
+                Ok(())
+            },
+            _ => Err(Error::new(Code::InvArgs)),
         }
     }
 
-    fn get_sgate(&mut self, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn get_sgate(&mut self) -> Result<CapRngDesc, Error> {
         if self.sgate.is_some() {
             return Err(Error::new(Code::InvArgs));
         }
@@ -164,30 +175,23 @@ impl SocketSession {
             m3::com::SGateArgs::new(&self.rgate).label(label).credits(1),
         )?);
 
-        xchg.out_caps(m3::kif::CapRngDesc::new(
-            m3::kif::CapType::OBJECT,
+        Ok(CapRngDesc::new(
+            CapType::OBJECT,
             self.sgate.as_ref().unwrap().sel(),
             1,
-        ));
-        Ok(())
+        ))
     }
 
     fn open_file(
         &mut self,
         crt: usize,
         srv_sel: Selector,
-        xchg: &mut CapExchange,
-    ) -> Result<(), Error> {
-        let sd = xchg.in_args().pop::<Sd>().expect("Failed to get sd");
-        let mode = xchg.in_args().pop::<u32>().expect("Failed to get mode");
-        let rmemsize = xchg
-            .in_args()
-            .pop::<usize>()
-            .expect("Failed to get rmemsize");
-        let smemsize = xchg
-            .in_args()
-            .pop::<usize>()
-            .expect("Failed to get smemsize");
+        is: &mut Source,
+    ) -> Result<CapRngDesc, Error> {
+        let sd = is.pop::<Sd>().expect("Failed to get sd");
+        let mode = is.pop::<u32>().expect("Failed to get mode");
+        let rmemsize = is.pop::<usize>().expect("Failed to get rmemsize");
+        let smemsize = is.pop::<usize>().expect("Failed to get smemsize");
 
         log!(
             crate::LOG_SESS,
@@ -229,8 +233,6 @@ impl SocketSession {
             socket.borrow_mut().set_send_file(Some(file.clone()));
         }
 
-        xchg.out_caps(file.borrow().caps());
-
         log!(
             crate::LOG_SESS,
             "open_file: {}@{}{}",
@@ -238,7 +240,9 @@ impl SocketSession {
             if file.borrow().is_recv() { "r" } else { "" },
             if file.borrow().is_send() { "s" } else { "" }
         );
-        Ok(())
+
+        let caps = file.borrow().caps();
+        Ok(caps)
     }
 
     fn get_socket(&self, sd: Sd) -> Result<Rc<RefCell<Socket>>, Error> {
@@ -286,10 +290,9 @@ impl SocketSession {
 
     fn create_socket(
         &mut self,
-        xchg: &mut CapExchange,
+        is: &mut Source,
         socket_set: &mut SocketSet<'static>,
-    ) -> Result<(), Error> {
-        let is = xchg.in_args();
+    ) -> Result<(CapRngDesc, Sd), Error> {
         let ty = SocketType::from_usize(is.pop::<usize>()?);
         let protocol: u8 = is.pop()?;
         let rbuf_space: usize = is.pop()?;
@@ -319,14 +322,8 @@ impl SocketSession {
         match res {
             Ok(sd) => {
                 // Send capabilities back to caller so it can connect to the created gates
-                xchg.out_caps(m3::kif::CapRngDesc::new(
-                    m3::kif::CapType::OBJECT,
-                    caps + 2,
-                    2,
-                ));
-
-                xchg.out_args().push_word(sd as u64);
-                Ok(())
+                let caps = CapRngDesc::new(CapType::OBJECT, caps + 2, 2);
+                Ok((caps, sd))
             },
 
             Err(e) => Err(e),

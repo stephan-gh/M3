@@ -28,9 +28,17 @@
 
 namespace m3 {
 
+KIF::CapRngDesc NetworkManagerRs::get_sgate(ClientSession &sess) {
+    KIF::ExchangeArgs eargs;
+    ExchangeOStream os(eargs);
+    os << Operation::GET_SGATE;
+    eargs.bytes = os.total();
+    return sess.obtain(1, &eargs);
+}
+
 NetworkManagerRs::NetworkManagerRs(const String &service)
     : ClientSession(service),
-      _metagate(SendGate::bind(obtain(1).start())) {
+      _metagate(SendGate::bind(get_sgate(*this).start())) {
 }
 
 int32_t NetworkManagerRs::create(SocketType type, uint8_t protocol, const SocketArgs &args,
@@ -38,11 +46,12 @@ int32_t NetworkManagerRs::create(SocketType type, uint8_t protocol, const Socket
     LLOG(NET, "Create:()");
     KIF::ExchangeArgs eargs;
     ExchangeOStream os(eargs);
-    os << static_cast<uint64_t>(type) << protocol
+    os << Operation::CREATE
+       << static_cast<uint64_t>(type) << protocol
        << args.rbuf_size << args.rbuf_slots
        << args.sbuf_size << args.sbuf_slots;
     eargs.bytes = os.total();
-    KIF::CapRngDesc crd = obtain(3, &eargs);
+    KIF::CapRngDesc crd = obtain(2, &eargs);
     *caps = crd.start();
 
     int32_t sd;
