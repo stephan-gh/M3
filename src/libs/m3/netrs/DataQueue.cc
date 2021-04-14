@@ -28,7 +28,7 @@ IpAddr DataQueueRs::Item::src_addr() const noexcept {
     return IpAddr(_msg->addr);
 }
 
-uint16_t DataQueueRs::Item::src_port() const noexcept {
+port_t DataQueueRs::Item::src_port() const noexcept {
     return _msg->port;
 }
 
@@ -62,7 +62,7 @@ bool DataQueueRs::has_data() const noexcept {
 }
 
 bool DataQueueRs::get_next_data(const uchar **data, size_t *size,
-                                IpAddr *src_addr, uint16_t *src_port) noexcept {
+                                IpAddr *src_addr, port_t *src_port) noexcept {
     if(!has_data())
         return false;
 

@@ -47,9 +47,9 @@ NOINLINE static void latency() {
 
     const size_t samples = 15;
     IpAddr dest_addr     = IpAddr(192, 168, 112, 1);
-    uint16_t dest_port   = 1337;
+    port_t dest_port     = 1337;
     IpAddr src_addr;
-    uint16_t src_port;
+    port_t src_port;
 
     size_t warmup = 5;
     while(warmup--) {
@@ -103,10 +103,10 @@ NOINLINE static void bandwidth() {
 
     constexpr size_t packet_size = 1024;
     IpAddr dest_addr             = IpAddr(192, 168, 112, 1);
-    uint16_t dest_port           = 1337;
+    port_t dest_port             = 1337;
 
     IpAddr src_addr;
-    uint16_t src_port;
+    port_t src_port;
 
     size_t warmup             = 5;
     size_t packets_to_send    = 105;

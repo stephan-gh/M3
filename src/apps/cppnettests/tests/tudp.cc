@@ -50,9 +50,9 @@ NOINLINE static void data() {
     socket->bind(2001);
 
     IpAddr dest_addr = IpAddr(192, 168, 112, 1);
-    uint16_t dest_port = 1337;
+    port_t dest_port = 1337;
     IpAddr src_addr;
-    uint16_t src_port;
+    port_t src_port;
 
     uint8_t send_buf[1024];
     for(int i = 0; i < 1024; ++i)

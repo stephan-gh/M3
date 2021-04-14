@@ -65,7 +65,7 @@ void TcpSocketRs::close() {
     }
 }
 
-void TcpSocketRs::listen(uint16_t local_port) {
+void TcpSocketRs::listen(port_t local_port) {
     if(_state != State::Closed)
         throw Exception(Errors::INV_STATE);
 
@@ -73,7 +73,7 @@ void TcpSocketRs::listen(uint16_t local_port) {
     set_local(local_addr, local_port, State::Listening);
 }
 
-void TcpSocketRs::connect(IpAddr remote_addr, uint16_t remote_port) {
+void TcpSocketRs::connect(IpAddr remote_addr, port_t remote_port) {
     if(_state == State::Connected) {
         if(!(_remote_addr == remote_addr && _remote_port == remote_port))
             throw Exception(Errors::IS_CONNECTED);
@@ -83,7 +83,7 @@ void TcpSocketRs::connect(IpAddr remote_addr, uint16_t remote_port) {
     if(_state == State::Connecting)
         throw Exception(Errors::ALREADY_IN_PROGRESS);
 
-    uint16_t local_port = _nm.connect(sd(), remote_addr, remote_port);
+    port_t local_port = _nm.connect(sd(), remote_addr, remote_port);
     _state = State::Connecting;
     _remote_addr = remote_addr;
     _remote_port = remote_port;
@@ -99,7 +99,7 @@ void TcpSocketRs::connect(IpAddr remote_addr, uint16_t remote_port) {
         throw Exception(Errors::CONNECTION_FAILED);
 }
 
-void TcpSocketRs::accept(IpAddr *remote_addr, uint16_t *remote_port) {
+void TcpSocketRs::accept(IpAddr *remote_addr, port_t *remote_port) {
     if(_state == State::Connected) {
         if(remote_addr)
             *remote_addr = _remote_addr;

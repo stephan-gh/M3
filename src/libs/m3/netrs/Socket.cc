@@ -41,7 +41,7 @@ SocketRs::SocketRs(int sd, capsel_t caps, NetworkManagerRs &nm)
       _recv_queue() {
 }
 
-void SocketRs::set_local(IpAddr addr, uint16_t port, State state) {
+void SocketRs::set_local(IpAddr addr, port_t port, State state) {
     _local_addr = addr;
     _local_port = port;
     _state = state;
@@ -81,7 +81,7 @@ void SocketRs::handle_closed(NetEventChannelRs::ClosedMessage const &) {
     _state = Closed;
 }
 
-bool SocketRs::get_next_data(const uchar **data, size_t *size, IpAddr *src_addr, uint16_t *src_port) {
+bool SocketRs::get_next_data(const uchar **data, size_t *size, IpAddr *src_addr, port_t *src_port) {
     while(true) {
         if(_recv_queue.get_next_data(data, size, src_addr, src_port))
             return true;
@@ -97,7 +97,7 @@ bool SocketRs::get_next_data(const uchar **data, size_t *size, IpAddr *src_addr,
     }
 }
 
-ssize_t SocketRs::do_recv(void *dst, size_t amount, IpAddr *src_addr, uint16_t *src_port) {
+ssize_t SocketRs::do_recv(void *dst, size_t amount, IpAddr *src_addr, port_t *src_port) {
     const uchar *pkt_data = nullptr;
     size_t pkt_size = 0;
     if(!get_next_data(&pkt_data, &pkt_size, src_addr, src_port))
@@ -112,7 +112,7 @@ ssize_t SocketRs::do_recv(void *dst, size_t amount, IpAddr *src_addr, uint16_t *
     return static_cast<ssize_t>(msg_size);
 }
 
-ssize_t SocketRs::do_send(const void *src, size_t amount, IpAddr dst_addr, uint16_t dst_port) {
+ssize_t SocketRs::do_send(const void *src, size_t amount, IpAddr dst_addr, port_t dst_port) {
     while(true) {
         bool succeeded = _channel.send_data(dst_addr, dst_port, amount, [src, amount](void *buf) {
             memcpy(buf, src, amount);

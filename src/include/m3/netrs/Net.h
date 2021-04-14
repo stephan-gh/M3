@@ -27,6 +27,8 @@
 
 namespace m3 {
 
+using port_t = uint16_t;
+
 enum SocketType {
     SOCK_STREAM, // TCP
     SOCK_DGRAM,  // UDP

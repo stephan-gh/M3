@@ -89,7 +89,7 @@ public:
      *
      * @param port the local port to bind to
      */
-    void bind(uint16_t port);
+    void bind(port_t port);
 
     /**
      * Sends at most <amount> bytes from <src> to the socket at <addr>:<port>.
@@ -100,7 +100,7 @@ public:
      * @param dst_port destination socket port
      * @return the number of sent bytes (-1 if it would block and the socket is non-blocking)
      */
-    ssize_t send_to(const void *src, size_t amount, IpAddr dst_addr, uint16_t dst_port);
+    ssize_t send_to(const void *src, size_t amount, IpAddr dst_addr, port_t dst_port);
 
     /**
      * Receives <amount> or a smaller number of bytes into <dst>.
@@ -111,7 +111,7 @@ public:
      * @param src_port if not null, the source port is filled in
      * @return the number of received bytes (-1 if it would block and the socket is non-blocking)
      */
-    ssize_t recv_from(void *dst, size_t amount, IpAddr *src_addr, uint16_t *src_port);
+    ssize_t recv_from(void *dst, size_t amount, IpAddr *src_addr, port_t *src_port);
 };
 
 }

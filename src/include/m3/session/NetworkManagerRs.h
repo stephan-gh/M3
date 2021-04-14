@@ -119,9 +119,9 @@ private:
     void add_socket(SocketRs *socket);
     void remove_socket(SocketRs *socket);
 
-    IpAddr bind(int32_t sd, uint16_t port);
-    IpAddr listen(int32_t sd, uint16_t port);
-    uint16_t connect(int32_t sd, IpAddr remote_addr, uint16_t remote_port);
+    IpAddr bind(int32_t sd, port_t port);
+    IpAddr listen(int32_t sd, port_t port);
+    port_t connect(int32_t sd, IpAddr remote_addr, port_t remote_port);
     bool close(int32_t sd);
     void abort(int32_t sd, bool remove);
 

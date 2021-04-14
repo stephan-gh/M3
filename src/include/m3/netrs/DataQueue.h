@@ -31,7 +31,7 @@ public:
              NetEventChannelRs::Event &&event) noexcept;
 
         IpAddr src_addr() const noexcept;
-        uint16_t src_port() const noexcept;
+        port_t src_port() const noexcept;
         const uchar *get_data() const noexcept;
         size_t get_size() const noexcept;
         size_t get_pos() const noexcept;
@@ -49,7 +49,7 @@ public:
     void append(Item *item) noexcept;
     bool has_data() const noexcept;
     bool get_next_data(const uchar **data, size_t *size,
-                       IpAddr *src_addr, uint16_t *src_port) noexcept;
+                       IpAddr *src_addr, port_t *src_port) noexcept;
     void ack_data(size_t size) noexcept;
     void clear() noexcept;
 

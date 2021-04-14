@@ -29,7 +29,7 @@ NetEventChannelRs::NetEventChannelRs(capsel_t caps)
     _rplgate.activate();
 }
 
-bool NetEventChannelRs::send_data(IpAddr addr, uint16_t port, size_t size, std::function<void(uchar *)> cb_data) {
+bool NetEventChannelRs::send_data(IpAddr addr, port_t port, size_t size, std::function<void(uchar *)> cb_data) {
     LLOG(NET, "NetEventChannel::data(size=" << size << ")");
 
     // make sure that the message does not contain a page boundary

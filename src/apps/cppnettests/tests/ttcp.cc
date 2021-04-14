@@ -110,7 +110,7 @@ NOINLINE static void receive_after_close() {
         sem.up();
 
         IpAddr remote_addr;
-        uint16_t remote_port;
+        port_t remote_port;
         socket->accept(&remote_addr, &remote_port);
         WVASSERTEQ(remote_addr.addr(), IpAddr(192, 168, 112, 2).addr());
         WVASSERTEQ(socket->state(), SocketRs::Connected);

@@ -119,13 +119,13 @@ public:
 protected:
     explicit SocketRs(int sd, capsel_t caps, NetworkManagerRs &nm);
 
-    void set_local(IpAddr addr, uint16_t port, State state);
+    void set_local(IpAddr addr, port_t port, State state);
 
-    bool get_next_data(const uchar **data, size_t *size, IpAddr *src_addr, uint16_t *src_port);
+    bool get_next_data(const uchar **data, size_t *size, IpAddr *src_addr, port_t *src_port);
     void ack_data(size_t size);
 
-    ssize_t do_send(const void *src, size_t amount, IpAddr dst_addr, uint16_t dst_port);
-    ssize_t do_recv(void *dst, size_t amount, IpAddr *src_addr, uint16_t *src_port);
+    ssize_t do_send(const void *src, size_t amount, IpAddr dst_addr, port_t dst_port);
+    ssize_t do_recv(void *dst, size_t amount, IpAddr *src_addr, port_t *src_port);
 
     void process_message(const NetEventChannelRs::ControlMessage &message,
                          NetEventChannelRs::Event &event);
@@ -148,9 +148,9 @@ protected:
     bool _blocking;
 
     IpAddr _local_addr;
-    uint16_t _local_port;
+    port_t _local_port;
     IpAddr _remote_addr;
-    uint16_t _remote_port;
+    port_t _remote_port;
 
     NetworkManagerRs &_nm;
 

@@ -91,7 +91,7 @@ public:
 
     NetEventChannelRs(capsel_t caps);
 
-    bool send_data(IpAddr addr, uint16_t port, size_t size, std::function<void(uchar *)> cb_data);
+    bool send_data(IpAddr addr, port_t port, size_t size, std::function<void(uchar *)> cb_data);
     bool send_close_req();
 
     bool can_send() const;

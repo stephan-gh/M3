@@ -85,7 +85,7 @@ public:
      *
      * @param local_port the port to listen on
      */
-    void listen(uint16_t local_port);
+    void listen(port_t local_port);
 
     /**
      * Connect the socket to the socket at <addr>:<port>.
@@ -93,7 +93,7 @@ public:
      * @param remote_addr address of the socket to connect to
      * @param remote_port port of the socket to connect to
      */
-    void connect(IpAddr remote_addr, uint16_t remote_port);
+    void connect(IpAddr remote_addr, port_t remote_port);
 
     /**
      * Accepts a remote connection on this socket
@@ -106,7 +106,7 @@ public:
      * @param remote_addr if not null, it's set to the IP address of the remote endpoint
      * @param remote_port if not null, it's set to the port of the remote endpoint
      */
-    void accept(IpAddr *remote_addr, uint16_t *remote_port);
+    void accept(IpAddr *remote_addr, port_t *remote_port);
 
     /**
      * Receives data from the socket into the given buffer.
