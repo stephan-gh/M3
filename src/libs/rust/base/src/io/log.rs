@@ -34,8 +34,8 @@ pub const SERV: bool = false;
 pub const TCU: bool = false;
 /// Logs critical TCU errors (only on host)
 pub const TCU_ERR: bool = true;
-/// Logs file multiplexing
-pub const FILES: bool = false;
+/// Logs networking events
+pub const NET: bool = false;
 
 const MAX_LINE_LEN: usize = 160;
 const SUFFIX: &[u8] = b"\x1B[0m";

@@ -142,9 +142,9 @@ ssize_t TcpSocketRs::send(const void *src, size_t amount) {
     return SocketRs::do_send(src, amount, _remote_addr, _remote_port);
 }
 
-void TcpSocketRs::handle_data(NetEventChannelRs::DataMessage const & msg, NetEventChannelRs::Event &event) {
+void TcpSocketRs::handle_data(NetEventChannelRs::DataMessage const &msg, NetEventChannelRs::Event &event) {
     if(_state != Closed && _state != Closing)
-        _recv_queue.append(new DataQueueRs::Item(&msg, std::move(event)));
+        SocketRs::handle_data(msg, event);
 }
 
 }

@@ -63,21 +63,26 @@ void SocketRs::process_message(const NetEventChannelRs::ControlMessage &message,
     }
 }
 
-void SocketRs::handle_data(NetEventChannelRs::DataMessage const & msg, NetEventChannelRs::Event &event) {
+void SocketRs::handle_data(NetEventChannelRs::DataMessage const &msg, NetEventChannelRs::Event &event) {
+    LLOG(NET, "socket " << _sd << ": received data with " << msg.size << "b"
+                              << " from " << IpAddr(msg.addr) << ":" << msg.port);
     _recv_queue.append(new DataQueueRs::Item(&msg, std::move(event)));
 }
 
 void SocketRs::handle_connected(NetEventChannelRs::ConnectedMessage const &msg) {
+    LLOG(NET, "socket " << _sd << ": connected to " << IpAddr(msg.addr) << ":" << msg.port);
     _state = Connected;
     _remote_addr = IpAddr(msg.addr);
     _remote_port = msg.port;
 }
 
 void SocketRs::handle_close_req(NetEventChannelRs::CloseReqMessage const &) {
+    LLOG(NET, "socket " << _sd << ": remote side was closed");
     _state = RemoteClosed;
 }
 
 void SocketRs::handle_closed(NetEventChannelRs::ClosedMessage const &) {
+    LLOG(NET, "socket " << _sd << ": closed");
     _state = Closed;
 }
 
@@ -158,8 +163,6 @@ bool SocketRs::process_events() {
             break;
 
         auto message = static_cast<NetEventChannelRs::ControlMessage const *>(event.get_message());
-        LLOG(NET, "SocketRs::process_event: type=" << message->type << ", sd=" << _sd);
-
         process_message(*message, event);
         seen_event = true;
     }

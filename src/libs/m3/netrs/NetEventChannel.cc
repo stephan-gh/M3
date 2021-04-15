@@ -30,8 +30,6 @@ NetEventChannelRs::NetEventChannelRs(capsel_t caps)
 }
 
 bool NetEventChannelRs::send_data(IpAddr addr, port_t port, size_t size, std::function<void(uchar *)> cb_data) {
-    LLOG(NET, "NetEventChannel::data(size=" << size << ")");
-
     // make sure that the message does not contain a page boundary
     ALIGNED(2048) char msg_buf[2048];
     auto msg = reinterpret_cast<DataMessage*>(msg_buf);

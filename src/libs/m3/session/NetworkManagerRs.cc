@@ -43,7 +43,6 @@ NetworkManagerRs::NetworkManagerRs(const String &service)
 
 int32_t NetworkManagerRs::create(SocketType type, uint8_t protocol, const SocketArgs &args,
                                  capsel_t *caps) {
-    LLOG(NET, "Create:()");
     KIF::ExchangeArgs eargs;
     ExchangeOStream os(eargs);
     os << Operation::CREATE
@@ -69,7 +68,6 @@ void NetworkManagerRs::remove_socket(SocketRs *socket) {
 }
 
 IpAddr NetworkManagerRs::bind(int32_t sd, port_t port) {
-    LLOG(NET, "Bind:()");
     GateIStream reply = send_receive_vmsg(_metagate, BIND, sd, port);
     reply.pull_result();
     uint32_t addr;
@@ -78,7 +76,6 @@ IpAddr NetworkManagerRs::bind(int32_t sd, port_t port) {
 }
 
 IpAddr NetworkManagerRs::listen(int32_t sd, port_t port) {
-    LLOG(NET, "Listen:()");
     GateIStream reply = send_receive_vmsg(_metagate, LISTEN, sd, port);
     reply.pull_result();
     uint32_t addr;
@@ -87,7 +84,6 @@ IpAddr NetworkManagerRs::listen(int32_t sd, port_t port) {
 }
 
 port_t NetworkManagerRs::connect(int32_t sd, IpAddr remote_addr, port_t remote_port) {
-    LLOG(NET, "Connect:()");
     GateIStream reply = send_receive_vmsg(_metagate, CONNECT, sd, remote_addr.addr(), remote_port);
     reply.pull_result();
     port_t port;
@@ -96,7 +92,6 @@ port_t NetworkManagerRs::connect(int32_t sd, IpAddr remote_addr, port_t remote_p
 }
 
 void NetworkManagerRs::abort(int32_t sd, bool remove) {
-    LLOG(NET, "Abort:()");
     GateIStream reply = send_receive_vmsg(_metagate, ABORT, sd, remove);
     reply.pull_result();
 }

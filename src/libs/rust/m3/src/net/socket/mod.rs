@@ -18,6 +18,7 @@
 
 use crate::cell::{Cell, RefCell};
 use crate::errors::{Code, Error};
+use crate::llog;
 use crate::net::dataqueue::DataQueue;
 use crate::net::{event, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketType};
 use crate::rc::Rc;
@@ -323,22 +324,40 @@ impl Socket {
                 if self.ty != SocketType::Stream
                     || (self.state.get() != State::Closing && self.state.get() != State::Closed)
                 {
+                    let _msg = event.msg::<event::DataMessage>();
+                    llog!(
+                        NET,
+                        "socket {}: received data with {}b from {}:{}",
+                        self.sd,
+                        _msg.size,
+                        IpAddr(_msg.addr as u32),
+                        _msg.port
+                    );
                     self.recv_queue.borrow_mut().append(event);
                 }
             },
 
             NetEventType::CONNECTED => {
                 let msg = event.msg::<event::ConnectedMessage>();
+                llog!(
+                    NET,
+                    "socket {}: connected to {}:{}",
+                    self.sd,
+                    IpAddr(msg.remote_addr as u32),
+                    msg.remote_port
+                );
                 self.state.set(State::Connected);
                 self.remote_addr.set(IpAddr(msg.remote_addr as u32));
                 self.remote_port.set(msg.remote_port as Port);
             },
 
             NetEventType::CLOSED => {
+                llog!(NET, "socket {}: closed", self.sd,);
                 self.state.set(State::Closed);
             },
 
             NetEventType::CLOSE_REQ => {
+                llog!(NET, "socket {}: remote side was closed", self.sd,);
                 self.state.set(State::RemoteClosed);
             },
 
