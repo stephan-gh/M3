@@ -29,10 +29,10 @@ namespace m3 {
 
 using port_t = uint16_t;
 
-enum SocketType {
-    SOCK_STREAM, // TCP
-    SOCK_DGRAM,  // UDP
-    SOCK_RAW     // IP
+enum class SocketType {
+    STREAM, // TCP
+    DGRAM,  // UDP
+    RAW     // IP
 };
 
 class IpAddr {

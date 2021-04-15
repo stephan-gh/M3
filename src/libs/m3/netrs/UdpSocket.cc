@@ -40,7 +40,7 @@ UdpSocketRs::~UdpSocketRs() {
 
 Reference<UdpSocketRs> UdpSocketRs::create(NetworkManagerRs &nm, const DgramSocketArgs &args) {
     capsel_t caps;
-    int sd = nm.create(SOCK_DGRAM, 0, args, &caps);
+    int sd = nm.create(SocketType::DGRAM, 0, args, &caps);
     auto sock = new UdpSocketRs(sd, caps, nm);
     nm.add_socket(sock);
     return Reference<UdpSocketRs>(sock);

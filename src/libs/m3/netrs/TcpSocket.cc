@@ -40,7 +40,7 @@ TcpSocketRs::~TcpSocketRs() {
 
 Reference<TcpSocketRs> TcpSocketRs::create(NetworkManagerRs &nm, const StreamSocketArgs &args) {
     capsel_t caps;
-    int sd = nm.create(SOCK_STREAM, 0, args, &caps);
+    int sd = nm.create(SocketType::STREAM, 0, args, &caps);
     auto sock = new TcpSocketRs(sd, caps, nm);
     nm.add_socket(sock);
     return Reference<TcpSocketRs>(sock);
