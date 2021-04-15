@@ -21,16 +21,16 @@
 #include <base/col/SList.h>
 
 #include <m3/com/SendGate.h>
-#include <m3/netrs/Net.h>
-#include <m3/netrs/NetEventChannel.h>
-#include <m3/netrs/Socket.h>
+#include <m3/net/Net.h>
+#include <m3/net/NetEventChannel.h>
+#include <m3/net/Socket.h>
 #include <m3/session/ClientSession.h>
 #include <m3/vfs/GenericFile.h>
 
 namespace m3 {
 
-class UdpSocketRs;
-class TcpSocketRs;
+class UdpSocket;
+class TcpSocket;
 
 /**
  * Represents a session at the network service, allowing to create and use sockets
@@ -40,10 +40,10 @@ class TcpSocketRs;
  * server and to send close requests to the server. Transmitted and received data is exchanged via
  * the NetEventChannel in both directions.
  */
-class NetworkManagerRs : public ClientSession {
-    friend class SocketRs;
-    friend class UdpSocketRs;
-    friend class TcpSocketRs;
+class NetworkManager : public ClientSession {
+    friend class Socket;
+    friend class UdpSocket;
+    friend class TcpSocket;
 
     enum Operation {
         STAT     = GenericFile::STAT,
@@ -77,7 +77,7 @@ public:
      *
      * @param service the service name
      */
-    explicit NetworkManagerRs(const String &service);
+    explicit NetworkManager(const String &service);
 
     /**
      * Waits until any socket has received input (including state-change events) or can produce
@@ -116,8 +116,8 @@ private:
     }
 
     int32_t create(SocketType type, uint8_t protocol, const SocketArgs &args, capsel_t *caps);
-    void add_socket(SocketRs *socket);
-    void remove_socket(SocketRs *socket);
+    void add_socket(Socket *socket);
+    void remove_socket(Socket *socket);
 
     IpAddr bind(int32_t sd, port_t port);
     IpAddr listen(int32_t sd, port_t port);
@@ -128,7 +128,7 @@ private:
     bool tick_sockets(uint dirs = Direction::INPUT | Direction::OUTPUT);
 
     SendGate _metagate;
-    SList<SocketRs> _sockets;
+    SList<Socket> _sockets;
 };
 
 }

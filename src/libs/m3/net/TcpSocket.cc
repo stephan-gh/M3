@@ -17,17 +17,17 @@
  */
 
 #include <m3/Exception.h>
-#include <m3/netrs/Socket.h>
-#include <m3/netrs/TcpSocket.h>
-#include <m3/session/NetworkManagerRs.h>
+#include <m3/net/Socket.h>
+#include <m3/net/TcpSocket.h>
+#include <m3/session/NetworkManager.h>
 
 namespace m3 {
 
-TcpSocketRs::TcpSocketRs(int sd, capsel_t caps, NetworkManagerRs &nm)
-    : SocketRs(sd, caps, nm) {
+TcpSocket::TcpSocket(int sd, capsel_t caps, NetworkManager &nm)
+    : Socket(sd, caps, nm) {
 }
 
-TcpSocketRs::~TcpSocketRs() {
+TcpSocket::~TcpSocket() {
     try {
         do_abort(true);
     }
@@ -38,15 +38,15 @@ TcpSocketRs::~TcpSocketRs() {
     _nm.remove_socket(this);
 }
 
-Reference<TcpSocketRs> TcpSocketRs::create(NetworkManagerRs &nm, const StreamSocketArgs &args) {
+Reference<TcpSocket> TcpSocket::create(NetworkManager &nm, const StreamSocketArgs &args) {
     capsel_t caps;
     int sd = nm.create(SocketType::STREAM, 0, args, &caps);
-    auto sock = new TcpSocketRs(sd, caps, nm);
+    auto sock = new TcpSocket(sd, caps, nm);
     nm.add_socket(sock);
-    return Reference<TcpSocketRs>(sock);
+    return Reference<TcpSocket>(sock);
 }
 
-void TcpSocketRs::close() {
+void TcpSocket::close() {
     // ensure that we don't receive more data (which could block our event channel and thus prevent
     // us from receiving the closed event)
     _state = State::Closing;
@@ -65,7 +65,7 @@ void TcpSocketRs::close() {
     }
 }
 
-void TcpSocketRs::listen(port_t local_port) {
+void TcpSocket::listen(port_t local_port) {
     if(_state != State::Closed)
         throw Exception(Errors::INV_STATE);
 
@@ -73,7 +73,7 @@ void TcpSocketRs::listen(port_t local_port) {
     set_local(local_addr, local_port, State::Listening);
 }
 
-void TcpSocketRs::connect(IpAddr remote_addr, port_t remote_port) {
+void TcpSocket::connect(IpAddr remote_addr, port_t remote_port) {
     if(_state == State::Connected) {
         if(!(_remote_addr == remote_addr && _remote_port == remote_port))
             throw Exception(Errors::IS_CONNECTED);
@@ -99,7 +99,7 @@ void TcpSocketRs::connect(IpAddr remote_addr, port_t remote_port) {
         throw Exception(Errors::CONNECTION_FAILED);
 }
 
-void TcpSocketRs::accept(IpAddr *remote_addr, port_t *remote_port) {
+void TcpSocket::accept(IpAddr *remote_addr, port_t *remote_port) {
     if(_state == State::Connected) {
         if(remote_addr)
             *remote_addr = _remote_addr;
@@ -125,26 +125,26 @@ void TcpSocketRs::accept(IpAddr *remote_addr, port_t *remote_port) {
         *remote_port = _remote_port;
 }
 
-ssize_t TcpSocketRs::recv(void *dst, size_t amount) {
+ssize_t TcpSocket::recv(void *dst, size_t amount) {
     // receive is possible with an established connection or a connection that that has already been
     // closed by the remote side
     if(_state != Connected && _state != RemoteClosed)
         throw Exception(Errors::NOT_CONNECTED);
 
-    return SocketRs::do_recv(dst, amount, nullptr, nullptr);
+    return Socket::do_recv(dst, amount, nullptr, nullptr);
 }
 
-ssize_t TcpSocketRs::send(const void *src, size_t amount) {
+ssize_t TcpSocket::send(const void *src, size_t amount) {
     // like for receive: still allow sending if the remote side closed the connection
     if(_state != Connected && _state != RemoteClosed)
         throw Exception(Errors::NOT_CONNECTED);
 
-    return SocketRs::do_send(src, amount, _remote_addr, _remote_port);
+    return Socket::do_send(src, amount, _remote_addr, _remote_port);
 }
 
-void TcpSocketRs::handle_data(NetEventChannelRs::DataMessage const &msg, NetEventChannelRs::Event &event) {
+void TcpSocket::handle_data(NetEventChannel::DataMessage const &msg, NetEventChannel::Event &event) {
     if(_state != Closed && _state != Closing)
-        SocketRs::handle_data(msg, event);
+        Socket::handle_data(msg, event);
 }
 
 }

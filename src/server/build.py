@@ -3,7 +3,7 @@ dirs = [
     'console',
     'disk',
     'm3fs',
-    'netrs',
+    'net',
     'pager',
     'pipes',
     'root',

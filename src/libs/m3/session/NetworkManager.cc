@@ -20,15 +20,15 @@
 
 #include <m3/Exception.h>
 #include <m3/com/GateStream.h>
-#include <m3/netrs/Socket.h>
-#include <m3/session/NetworkManagerRs.h>
+#include <m3/net/Socket.h>
+#include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
 
 #include <thread/ThreadManager.h>
 
 namespace m3 {
 
-KIF::CapRngDesc NetworkManagerRs::get_sgate(ClientSession &sess) {
+KIF::CapRngDesc NetworkManager::get_sgate(ClientSession &sess) {
     KIF::ExchangeArgs eargs;
     ExchangeOStream os(eargs);
     os << Operation::GET_SGATE;
@@ -36,13 +36,13 @@ KIF::CapRngDesc NetworkManagerRs::get_sgate(ClientSession &sess) {
     return sess.obtain(1, &eargs);
 }
 
-NetworkManagerRs::NetworkManagerRs(const String &service)
+NetworkManager::NetworkManager(const String &service)
     : ClientSession(service),
       _metagate(SendGate::bind(get_sgate(*this).start())) {
 }
 
-int32_t NetworkManagerRs::create(SocketType type, uint8_t protocol, const SocketArgs &args,
-                                 capsel_t *caps) {
+int32_t NetworkManager::create(SocketType type, uint8_t protocol, const SocketArgs &args,
+                               capsel_t *caps) {
     KIF::ExchangeArgs eargs;
     ExchangeOStream os(eargs);
     os << Operation::CREATE
@@ -59,15 +59,15 @@ int32_t NetworkManagerRs::create(SocketType type, uint8_t protocol, const Socket
     return sd;
 }
 
-void NetworkManagerRs::add_socket(SocketRs *socket) {
+void NetworkManager::add_socket(Socket *socket) {
     _sockets.append(socket);
 }
 
-void NetworkManagerRs::remove_socket(SocketRs *socket) {
+void NetworkManager::remove_socket(Socket *socket) {
     _sockets.remove(socket);
 }
 
-IpAddr NetworkManagerRs::bind(int32_t sd, port_t port) {
+IpAddr NetworkManager::bind(int32_t sd, port_t port) {
     GateIStream reply = send_receive_vmsg(_metagate, BIND, sd, port);
     reply.pull_result();
     uint32_t addr;
@@ -75,7 +75,7 @@ IpAddr NetworkManagerRs::bind(int32_t sd, port_t port) {
     return IpAddr(addr);
 }
 
-IpAddr NetworkManagerRs::listen(int32_t sd, port_t port) {
+IpAddr NetworkManager::listen(int32_t sd, port_t port) {
     GateIStream reply = send_receive_vmsg(_metagate, LISTEN, sd, port);
     reply.pull_result();
     uint32_t addr;
@@ -83,7 +83,7 @@ IpAddr NetworkManagerRs::listen(int32_t sd, port_t port) {
     return IpAddr(addr);
 }
 
-port_t NetworkManagerRs::connect(int32_t sd, IpAddr remote_addr, port_t remote_port) {
+port_t NetworkManager::connect(int32_t sd, IpAddr remote_addr, port_t remote_port) {
     GateIStream reply = send_receive_vmsg(_metagate, CONNECT, sd, remote_addr.addr(), remote_port);
     reply.pull_result();
     port_t port;
@@ -91,12 +91,12 @@ port_t NetworkManagerRs::connect(int32_t sd, IpAddr remote_addr, port_t remote_p
     return port;
 }
 
-void NetworkManagerRs::abort(int32_t sd, bool remove) {
+void NetworkManager::abort(int32_t sd, bool remove) {
     GateIStream reply = send_receive_vmsg(_metagate, ABORT, sd, remove);
     reply.pull_result();
 }
 
-void NetworkManagerRs::wait(uint dirs) {
+void NetworkManager::wait(uint dirs) {
     while(true) {
         if(tick_sockets(dirs))
             break;
@@ -105,7 +105,7 @@ void NetworkManagerRs::wait(uint dirs) {
     }
 }
 
-void NetworkManagerRs::wait_for(uint64_t timeout, uint dirs) {
+void NetworkManager::wait_for(uint64_t timeout, uint dirs) {
     uint64_t end = TCU::get().nanotime() + timeout;
     uint64_t now;
     while((now = TCU::get().nanotime()) < end) {
@@ -116,7 +116,7 @@ void NetworkManagerRs::wait_for(uint64_t timeout, uint dirs) {
     }
 }
 
-bool NetworkManagerRs::tick_sockets(uint dirs) {
+bool NetworkManager::tick_sockets(uint dirs) {
     bool found = false;
     for(auto sock = _sockets.begin(); sock != _sockets.end(); ++sock) {
         sock->fetch_replies();

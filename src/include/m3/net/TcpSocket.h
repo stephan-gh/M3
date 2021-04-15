@@ -18,8 +18,8 @@
 
 #pragma once
 
-#include <m3/netrs/Socket.h>
-#include <m3/session/NetworkManagerRs.h>
+#include <m3/net/Socket.h>
+#include <m3/session/NetworkManager.h>
 
 namespace m3 {
 
@@ -57,10 +57,10 @@ public:
 /**
  * Represents a stream socket using the transmission control protocol (TCP)
  */
-class TcpSocketRs : public SocketRs {
-    friend class SocketRs;
+class TcpSocket : public Socket {
+    friend class Socket;
 
-    explicit TcpSocketRs(int sd, capsel_t caps, NetworkManagerRs &nm);
+    explicit TcpSocket(int sd, capsel_t caps, NetworkManager &nm);
 
 public:
     /**
@@ -69,10 +69,10 @@ public:
      * By default, the socket is in blocking mode, that is, all functions (connect, send, recv, ...)
      * do not return until the operation is complete. This can be changed via set_blocking.
      */
-    static Reference<TcpSocketRs> create(NetworkManagerRs &nm,
+    static Reference<TcpSocket> create(NetworkManager &nm,
                                          const StreamSocketArgs &args = StreamSocketArgs());
 
-    ~TcpSocketRs();
+    ~TcpSocket();
 
     /**
      * Puts this socket into listen mode on the given port.
@@ -146,7 +146,7 @@ public:
     void close();
 
 private:
-    void handle_data(NetEventChannelRs::DataMessage const &msg, NetEventChannelRs::Event &event) override;
+    void handle_data(NetEventChannel::DataMessage const &msg, NetEventChannel::Event &event) override;
 };
 
 }

@@ -136,14 +136,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "netechoserver"
-version = "0.1.0"
-dependencies = [
- "m3",
-]
-
-[[package]]
-name = "netrs"
+name = "net"
 version = "0.1.0"
 dependencies = [
  "base",
@@ -154,6 +147,13 @@ dependencies = [
  "pci",
  "smoltcp",
  "thread",
+]
+
+[[package]]
+name = "netechoserver"
+version = "0.1.0"
+dependencies = [
+ "m3",
 ]
 
 [[package]]

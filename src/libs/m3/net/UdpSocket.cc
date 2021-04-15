@@ -17,17 +17,17 @@
  */
 
 #include <m3/Exception.h>
-#include <m3/netrs/Socket.h>
-#include <m3/netrs/UdpSocket.h>
-#include <m3/session/NetworkManagerRs.h>
+#include <m3/net/Socket.h>
+#include <m3/net/UdpSocket.h>
+#include <m3/session/NetworkManager.h>
 
 namespace m3 {
 
-UdpSocketRs::UdpSocketRs(int sd, capsel_t caps, NetworkManagerRs &nm)
-    : SocketRs(sd, caps, nm) {
+UdpSocket::UdpSocket(int sd, capsel_t caps, NetworkManager &nm)
+    : Socket(sd, caps, nm) {
 }
 
-UdpSocketRs::~UdpSocketRs() {
+UdpSocket::~UdpSocket() {
     try {
         do_abort(true);
     }
@@ -38,15 +38,15 @@ UdpSocketRs::~UdpSocketRs() {
     _nm.remove_socket(this);
 }
 
-Reference<UdpSocketRs> UdpSocketRs::create(NetworkManagerRs &nm, const DgramSocketArgs &args) {
+Reference<UdpSocket> UdpSocket::create(NetworkManager &nm, const DgramSocketArgs &args) {
     capsel_t caps;
     int sd = nm.create(SocketType::DGRAM, 0, args, &caps);
-    auto sock = new UdpSocketRs(sd, caps, nm);
+    auto sock = new UdpSocket(sd, caps, nm);
     nm.add_socket(sock);
-    return Reference<UdpSocketRs>(sock);
+    return Reference<UdpSocket>(sock);
 }
 
-void UdpSocketRs::bind(port_t port) {
+void UdpSocket::bind(port_t port) {
     if(_state != Closed)
         throw Exception(Errors::INV_STATE);
 
@@ -54,12 +54,12 @@ void UdpSocketRs::bind(port_t port) {
     set_local(addr, port, State::Bound);
 }
 
-ssize_t UdpSocketRs::recv_from(void *dst, size_t amount, IpAddr *src_addr, port_t *src_port) {
-    return SocketRs::do_recv(dst, amount, src_addr, src_port);
+ssize_t UdpSocket::recv_from(void *dst, size_t amount, IpAddr *src_addr, port_t *src_port) {
+    return Socket::do_recv(dst, amount, src_addr, src_port);
 }
 
-ssize_t UdpSocketRs::send_to(const void *src, size_t amount, IpAddr dst_addr, port_t dst_port) {
-    return SocketRs::do_send(src, amount, dst_addr, dst_port);
+ssize_t UdpSocket::send_to(const void *src, size_t amount, IpAddr dst_addr, port_t dst_port) {
+    return Socket::do_send(src, amount, dst_addr, dst_port);
 }
 
 }

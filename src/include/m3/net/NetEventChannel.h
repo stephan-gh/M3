@@ -24,11 +24,11 @@
 #include <m3/com/MemGate.h>
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
-#include <m3/netrs/Net.h>
+#include <m3/net/Net.h>
 
 namespace m3 {
 
-class NetEventChannelRs : public RefCounted {
+class NetEventChannel : public RefCounted {
 public:
     static const size_t MSG_SIZE                = 2048;
     static const size_t MSG_CREDITS             = 4;
@@ -67,7 +67,7 @@ public:
     } PACKED;
 
     class Event {
-    friend class NetEventChannelRs;
+    friend class NetEventChannel;
     public:
         Event() noexcept;
         ~Event();
@@ -82,14 +82,14 @@ public:
 
         const ControlMessage *get_message() noexcept;
     private:
-        explicit Event(const TCU::Message *msg, NetEventChannelRs *channel) noexcept;
+        explicit Event(const TCU::Message *msg, NetEventChannel *channel) noexcept;
 
         const TCU::Message *_msg;
-        NetEventChannelRs *_channel;
+        NetEventChannel *_channel;
         bool _ack;
     };
 
-    NetEventChannelRs(capsel_t caps);
+    NetEventChannel(capsel_t caps);
 
     bool send_data(IpAddr addr, port_t port, size_t size, std::function<void(uchar *)> cb_data);
     bool send_close_req();

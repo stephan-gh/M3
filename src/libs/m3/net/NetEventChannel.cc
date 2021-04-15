@@ -16,12 +16,12 @@
  */
 
 #include <base/log/Lib.h>
-#include <m3/netrs/NetEventChannel.h>
+#include <m3/net/NetEventChannel.h>
 #include <m3/pes/VPE.h>
 
 namespace m3 {
 
-NetEventChannelRs::NetEventChannelRs(capsel_t caps)
+NetEventChannel::NetEventChannel(capsel_t caps)
     : _rgate(RecvGate::bind(caps + 0, nextlog2<MSG_BUF_SIZE>::val, nextlog2<MSG_SIZE>::val)),
       _rplgate(RecvGate::create(nextlog2<REPLY_BUF_SIZE>::val, nextlog2<REPLY_SIZE>::val)),
       _sgate(SendGate::bind(caps + 1, &_rplgate)) {
@@ -29,7 +29,7 @@ NetEventChannelRs::NetEventChannelRs(capsel_t caps)
     _rplgate.activate();
 }
 
-bool NetEventChannelRs::send_data(IpAddr addr, port_t port, size_t size, std::function<void(uchar *)> cb_data) {
+bool NetEventChannel::send_data(IpAddr addr, port_t port, size_t size, std::function<void(uchar *)> cb_data) {
     // make sure that the message does not contain a page boundary
     ALIGNED(2048) char msg_buf[2048];
     auto msg = reinterpret_cast<DataMessage*>(msg_buf);
@@ -44,34 +44,34 @@ bool NetEventChannelRs::send_data(IpAddr addr, port_t port, size_t size, std::fu
     return _sgate.try_send_aligned(msg_buf, size + sizeof(DataMessage)) == Errors::NONE;
 }
 
-bool NetEventChannelRs::send_close_req() {
+bool NetEventChannel::send_close_req() {
     MsgBuf msg_buf;
     auto &msg = msg_buf.cast<CloseReqMessage>();
     msg.type = CloseReq;
     return _sgate.try_send(msg_buf) == Errors::NONE;
 }
 
-bool NetEventChannelRs::can_send() const {
+bool NetEventChannel::can_send() const {
     return _sgate.can_send();
 }
 
-bool NetEventChannelRs::has_events() const {
+bool NetEventChannel::has_events() const {
     return _rgate.has_msgs();
 }
 
-NetEventChannelRs::Event NetEventChannelRs::recv_message() {
+NetEventChannel::Event NetEventChannel::recv_message() {
     return Event(_rgate.fetch(), this);
 }
 
-void NetEventChannelRs::wait_for_events() {
+void NetEventChannel::wait_for_events() {
     _rgate.wait_for_msg();
 }
 
-void NetEventChannelRs::wait_for_credits() {
+void NetEventChannel::wait_for_credits() {
     _rplgate.wait_for_msg();
 }
 
-void NetEventChannelRs::fetch_replies() {
+void NetEventChannel::fetch_replies() {
     auto reply = _rplgate.fetch();
     while(reply != nullptr) {
         _rplgate.ack_msg(reply);
@@ -79,13 +79,13 @@ void NetEventChannelRs::fetch_replies() {
     }
 }
 
-NetEventChannelRs::Event::Event() noexcept
+NetEventChannel::Event::Event() noexcept
     : _msg(nullptr),
        _channel(nullptr),
        _ack(false) {
 }
 
-NetEventChannelRs::Event::~Event() {
+NetEventChannel::Event::~Event() {
     try {
         finish();
     }
@@ -94,14 +94,14 @@ NetEventChannelRs::Event::~Event() {
     }
 }
 
-NetEventChannelRs::Event::Event(NetEventChannelRs::Event&& e) noexcept
+NetEventChannel::Event::Event(NetEventChannel::Event&& e) noexcept
     : _msg(e._msg),
       _channel(e._channel),
       _ack(e._ack) {
     e._ack = false;
 }
 
-NetEventChannelRs::Event& NetEventChannelRs::Event::operator =(NetEventChannelRs::Event&& e) noexcept {
+NetEventChannel::Event& NetEventChannel::Event::operator =(NetEventChannel::Event&& e) noexcept {
     _msg = e._msg;
     _channel = e._channel;
     _ack = e._ack;
@@ -109,11 +109,11 @@ NetEventChannelRs::Event& NetEventChannelRs::Event::operator =(NetEventChannelRs
     return *this;
 }
 
-bool NetEventChannelRs::Event::is_present() noexcept {
+bool NetEventChannel::Event::is_present() noexcept {
     return _msg;
 }
 
-void NetEventChannelRs::Event::finish() {
+void NetEventChannel::Event::finish() {
     if(is_present() && _ack) {
         // give credits back with empty message
         MsgBuf msg_buf;
@@ -122,11 +122,11 @@ void NetEventChannelRs::Event::finish() {
     }
 }
 
-const NetEventChannelRs::ControlMessage* NetEventChannelRs::Event::get_message() noexcept {
-    return reinterpret_cast<const NetEventChannelRs::ControlMessage *>(_msg->data);
+const NetEventChannel::ControlMessage* NetEventChannel::Event::get_message() noexcept {
+    return reinterpret_cast<const NetEventChannel::ControlMessage *>(_msg->data);
 }
 
-NetEventChannelRs::Event::Event(const TCU::Message *msg, NetEventChannelRs *channel) noexcept
+NetEventChannel::Event::Event(const TCU::Message *msg, NetEventChannel *channel) noexcept
     : _msg(msg),
       _channel(channel),
       _ack(true) {

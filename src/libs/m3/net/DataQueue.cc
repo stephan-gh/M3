@@ -15,54 +15,54 @@
  * General Public License version 2 for more details.
  */
 
-#include <m3/netrs/DataQueue.h>
+#include <m3/net/DataQueue.h>
 
 namespace m3 {
 
-DataQueueRs::Item::Item(NetEventChannelRs::DataMessage const *msg,
-                        NetEventChannelRs::Event &&event) noexcept
+DataQueue::Item::Item(NetEventChannel::DataMessage const *msg,
+                      NetEventChannel::Event &&event) noexcept
     : _msg(msg), _event(std::move(event)), _pos(0) {
 }
 
-IpAddr DataQueueRs::Item::src_addr() const noexcept {
+IpAddr DataQueue::Item::src_addr() const noexcept {
     return IpAddr(_msg->addr);
 }
 
-port_t DataQueueRs::Item::src_port() const noexcept {
+port_t DataQueue::Item::src_port() const noexcept {
     return _msg->port;
 }
 
-const uchar *DataQueueRs::Item::get_data() const noexcept {
+const uchar *DataQueue::Item::get_data() const noexcept {
     return _msg->data;
 }
 
-size_t DataQueueRs::Item::get_size() const noexcept {
+size_t DataQueue::Item::get_size() const noexcept {
     return _msg->size;
 }
 
-size_t DataQueueRs::Item::get_pos() const noexcept {
+size_t DataQueue::Item::get_pos() const noexcept {
     return _pos;
 }
 
-void DataQueueRs::Item::set_pos(size_t pos) noexcept {
+void DataQueue::Item::set_pos(size_t pos) noexcept {
     assert(pos <= get_size());
     _pos = pos;
 }
 
-DataQueueRs::~DataQueueRs() {
+DataQueue::~DataQueue() {
     clear();
 }
 
-void DataQueueRs::append(Item *item) noexcept {
+void DataQueue::append(Item *item) noexcept {
     _recv_queue.append(item);
 }
 
-bool DataQueueRs::has_data() const noexcept {
+bool DataQueue::has_data() const noexcept {
     return _recv_queue.length() > 0;
 }
 
-bool DataQueueRs::get_next_data(const uchar **data, size_t *size,
-                                IpAddr *src_addr, port_t *src_port) noexcept {
+bool DataQueue::get_next_data(const uchar **data, size_t *size,
+                              IpAddr *src_addr, port_t *src_port) noexcept {
     if(!has_data())
         return false;
 
@@ -76,7 +76,7 @@ bool DataQueueRs::get_next_data(const uchar **data, size_t *size,
     return true;
 }
 
-void DataQueueRs::ack_data(size_t size) noexcept {
+void DataQueue::ack_data(size_t size) noexcept {
     // May be called exactly once for every successful invocation of get_next_data().
     assert(_recv_queue.length() > 0);
 
@@ -89,7 +89,7 @@ void DataQueueRs::ack_data(size_t size) noexcept {
         delete _recv_queue.remove_first();
 }
 
-void DataQueueRs::clear() noexcept {
+void DataQueue::clear() noexcept {
     Item *item;
     while((item = _recv_queue.remove_first()) != nullptr)
         delete item;

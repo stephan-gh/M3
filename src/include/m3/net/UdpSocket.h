@@ -18,8 +18,8 @@
 
 #pragma once
 
-#include <m3/netrs/Socket.h>
-#include <m3/session/NetworkManagerRs.h>
+#include <m3/net/Socket.h>
+#include <m3/session/NetworkManager.h>
 
 namespace m3 {
 
@@ -59,10 +59,10 @@ public:
 /**
  * Represents a datagram socket using the user datagram protocol (UDP)
  */
-class UdpSocketRs : public SocketRs {
-    friend class SocketRs;
+class UdpSocket : public Socket {
+    friend class Socket;
 
-    explicit UdpSocketRs(int sd, capsel_t caps, NetworkManagerRs &nm);
+    explicit UdpSocket(int sd, capsel_t caps, NetworkManager &nm);
 
 public:
     /**
@@ -74,10 +74,10 @@ public:
      * @param nm the network manager
      * @param args optionally additional arguments that define the buffer sizes
      */
-    static Reference<UdpSocketRs> create(NetworkManagerRs &nm,
+    static Reference<UdpSocket> create(NetworkManager &nm,
                                          const DgramSocketArgs &args = DgramSocketArgs());
 
-    ~UdpSocketRs();
+    ~UdpSocket();
 
     /**
      * Binds this socket to the given local port.

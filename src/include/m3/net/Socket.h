@@ -21,12 +21,12 @@
 #include <base/col/List.h>
 #include <base/util/Reference.h>
 
-#include <m3/netrs/DataQueue.h>
-#include <m3/netrs/Net.h>
+#include <m3/net/DataQueue.h>
+#include <m3/net/Net.h>
 
 namespace m3 {
 
-class NetworkManagerRs;
+class NetworkManager;
 
 /**
  * Arguments for socket creations that define the buffer sizes
@@ -48,8 +48,8 @@ struct SocketArgs {
 /**
  * The base class of all sockets, which provides the common functionality
  */
-class SocketRs : public SListItem, public RefCounted {
-    friend class NetworkManagerRs;
+class Socket : public SListItem, public RefCounted {
+    friend class NetworkManager;
 
     static const int EVENT_FETCH_BATCH_SIZE = 4;
 
@@ -74,7 +74,7 @@ public:
         Closed
     };
 
-    virtual ~SocketRs() {}
+    virtual ~Socket() {}
 
     /**
      * @return the socket descriptor used to identify this socket within the session on the server
@@ -117,7 +117,7 @@ public:
     void abort();
 
 protected:
-    explicit SocketRs(int sd, capsel_t caps, NetworkManagerRs &nm);
+    explicit Socket(int sd, capsel_t caps, NetworkManager &nm);
 
     void set_local(IpAddr addr, port_t port, State state);
 
@@ -127,13 +127,13 @@ protected:
     ssize_t do_send(const void *src, size_t amount, IpAddr dst_addr, port_t dst_port);
     ssize_t do_recv(void *dst, size_t amount, IpAddr *src_addr, port_t *src_port);
 
-    void process_message(const NetEventChannelRs::ControlMessage &message,
-                         NetEventChannelRs::Event &event);
+    void process_message(const NetEventChannel::ControlMessage &message,
+                         NetEventChannel::Event &event);
 
-    virtual void handle_data(NetEventChannelRs::DataMessage const &msg, NetEventChannelRs::Event &event);
-    void handle_connected(NetEventChannelRs::ConnectedMessage const &msg);
-    void handle_close_req(NetEventChannelRs::CloseReqMessage const &msg);
-    void handle_closed(NetEventChannelRs::ClosedMessage const &msg);
+    virtual void handle_data(NetEventChannel::DataMessage const &msg, NetEventChannel::Event &event);
+    void handle_connected(NetEventChannel::ConnectedMessage const &msg);
+    void handle_close_req(NetEventChannel::CloseReqMessage const &msg);
+    void handle_closed(NetEventChannel::ClosedMessage const &msg);
 
     void wait_for_events();
     void wait_for_credits();
@@ -152,10 +152,10 @@ protected:
     IpAddr _remote_addr;
     port_t _remote_port;
 
-    NetworkManagerRs &_nm;
+    NetworkManager &_nm;
 
-    NetEventChannelRs _channel;
-    DataQueueRs _recv_queue;
+    NetEventChannel _channel;
+    DataQueue _recv_queue;
 };
 
 }

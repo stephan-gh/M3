@@ -156,7 +156,7 @@ class M3Env(ninjagen.Env):
             'src/server/disk',
             'src/server/pager',
             'src/server/m3fs',
-            'src/server/netrs',
+            'src/server/net',
             'src/server/pipes',
             'src/server/root',
             'src/server/vterm',

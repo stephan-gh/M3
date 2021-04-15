@@ -19,8 +19,8 @@
 #include <base/Panic.h>
 
 #include <m3/com/Semaphore.h>
-#include <m3/netrs/TcpSocket.h>
-#include <m3/session/NetworkManagerRs.h>
+#include <m3/net/TcpSocket.h>
+#include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
 #include <m3/Test.h>
 
@@ -29,9 +29,9 @@
 using namespace m3;
 
 NOINLINE static void latency() {
-    NetworkManagerRs net("net0");
+    NetworkManager net("net0");
 
-    auto socket = TcpSocketRs::create(net);
+    auto socket = TcpSocket::create(net);
 
     // wait for server socket to be ready
     Semaphore::attach("net-tcp").down();
@@ -87,9 +87,9 @@ NOINLINE static void bandwidth() {
     const size_t BURST_SIZE = 2;
     const uint64_t TIMEOUT = 1000000000; // 1sec
 
-    NetworkManagerRs net("net0");
+    NetworkManager net("net0");
 
-    auto socket = TcpSocketRs::create(net, StreamSocketArgs().send_buffer(64 * 1024)
+    auto socket = TcpSocket::create(net, StreamSocketArgs().send_buffer(64 * 1024)
                                                              .recv_buffer(256 * 1024));
 
     // wait for server socket to be ready
@@ -124,7 +124,7 @@ NOINLINE static void bandwidth() {
                 if(waited > TIMEOUT)
                     break;
                 // we are not interested in output anymore
-                net.wait_for(TIMEOUT - waited, NetworkManagerRs::INPUT);
+                net.wait_for(TIMEOUT - waited, NetworkManager::INPUT);
             }
             else
                 net.wait();

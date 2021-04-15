@@ -19,8 +19,8 @@
 #include <base/Panic.h>
 
 #include <m3/com/Semaphore.h>
-#include <m3/netrs/UdpSocket.h>
-#include <m3/session/NetworkManagerRs.h>
+#include <m3/net/UdpSocket.h>
+#include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
 #include <m3/Test.h>
 
@@ -39,9 +39,9 @@ union {
 } response;
 
 NOINLINE static void latency() {
-    NetworkManagerRs net("net0");
+    NetworkManager net("net0");
 
-    auto socket = UdpSocketRs::create(net);
+    auto socket = UdpSocket::create(net);
 
     socket->bind(2000);
 
@@ -94,9 +94,9 @@ NOINLINE static void latency() {
 }
 
 NOINLINE static void bandwidth() {
-    NetworkManagerRs net("net0");
+    NetworkManager net("net0");
 
-    auto socket = UdpSocketRs::create(net, DgramSocketArgs().send_buffer(8, 64 * 1024)
+    auto socket = UdpSocket::create(net, DgramSocketArgs().send_buffer(8, 64 * 1024)
                                                             .recv_buffer(32, 256 * 1024));
 
     socket->bind(2001);
@@ -137,7 +137,7 @@ NOINLINE static void bandwidth() {
                 if(waited > timeout)
                     break;
                 // we are not interested in output anymore
-                net.wait_for(timeout - waited, NetworkManagerRs::INPUT);
+                net.wait_for(timeout - waited, NetworkManager::INPUT);
             }
             else
                 net.wait();

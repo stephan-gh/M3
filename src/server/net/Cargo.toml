@@ -1,11 +1,11 @@
 [package]
-name = "netrs"
+name = "net"
 version = "0.1.0"
 authors = ["Tendsin Mende <tendsin@protonmail.com>"]
 edition = "2018"
 
 [lib]
-path = "src/netrs.rs"
+path = "src/net.rs"
 crate-type = ["staticlib"]
 
 [dependencies]

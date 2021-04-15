@@ -17,8 +17,8 @@
 #include <base/Common.h>
 
 #include <m3/com/Semaphore.h>
-#include <m3/netrs/UdpSocket.h>
-#include <m3/session/NetworkManagerRs.h>
+#include <m3/net/UdpSocket.h>
+#include <m3/session/NetworkManager.h>
 #include <m3/Test.h>
 
 #include "../cppnettests.h"
@@ -26,27 +26,27 @@
 using namespace m3;
 
 static void basics() {
-    NetworkManagerRs net("net0");
+    NetworkManager net("net0");
 
-    auto socket = UdpSocketRs::create(net);
+    auto socket = UdpSocket::create(net);
 
-    WVASSERTEQ(socket->state(), SocketRs::Closed);
+    WVASSERTEQ(socket->state(), Socket::Closed);
 
     socket->bind(2000);
-    WVASSERTEQ(socket->state(), SocketRs::Bound);
+    WVASSERTEQ(socket->state(), Socket::Bound);
 
     WVASSERTERR(Errors::INV_STATE, [&socket] {
         socket->bind(2001);
     });
 
     socket->abort();
-    WVASSERTEQ(socket->state(), SocketRs::Closed);
+    WVASSERTEQ(socket->state(), Socket::Closed);
 }
 
 NOINLINE static void data() {
-    NetworkManagerRs net("net0");
+    NetworkManager net("net0");
 
-    auto socket = UdpSocketRs::create(net);
+    auto socket = UdpSocket::create(net);
     socket->bind(2001);
 
     IpAddr dest_addr = IpAddr(192, 168, 112, 1);

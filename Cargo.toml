@@ -21,7 +21,7 @@ members = [
     "src/pemux",
     "src/kernel",
     "src/server/disk",
-    "src/server/netrs",
+    "src/server/net",
     "src/server/pager",
     "src/server/pipes",
     "src/server/m3fs",

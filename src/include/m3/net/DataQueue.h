@@ -19,16 +19,15 @@
 
 #include <base/col/SList.h>
 
-#include <m3/netrs/NetEventChannel.h>
+#include <m3/net/NetEventChannel.h>
 
 namespace m3 {
 
-class DataQueueRs {
+class DataQueue {
 public:
     class Item : public SListItem {
     public:
-        Item(NetEventChannelRs::DataMessage const *msg,
-             NetEventChannelRs::Event &&event) noexcept;
+        Item(NetEventChannel::DataMessage const *msg, NetEventChannel::Event &&event) noexcept;
 
         IpAddr src_addr() const noexcept;
         port_t src_port() const noexcept;
@@ -38,13 +37,13 @@ public:
         void set_pos(size_t pos) noexcept;
 
     private:
-        NetEventChannelRs::DataMessage const *_msg;
-        NetEventChannelRs::Event _event;
+        NetEventChannel::DataMessage const *_msg;
+        NetEventChannel::Event _event;
         size_t _pos;
     };
 
 public:
-    ~DataQueueRs();
+    ~DataQueue();
 
     void append(Item *item) noexcept;
     bool has_data() const noexcept;

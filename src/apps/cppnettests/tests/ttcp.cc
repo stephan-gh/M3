@@ -17,8 +17,8 @@
 #include <base/Common.h>
 
 #include <m3/com/Semaphore.h>
-#include <m3/netrs/TcpSocket.h>
-#include <m3/session/NetworkManagerRs.h>
+#include <m3/net/TcpSocket.h>
+#include <m3/session/NetworkManager.h>
 #include <m3/Test.h>
 
 #include "../cppnettests.h"
@@ -26,11 +26,11 @@
 using namespace m3;
 
 static void basics() {
-    NetworkManagerRs net("net0");
+    NetworkManager net("net0");
 
-    auto socket = TcpSocketRs::create(net);
+    auto socket = TcpSocket::create(net);
 
-    WVASSERTEQ(socket->state(), SocketRs::Closed);
+    WVASSERTEQ(socket->state(), Socket::Closed);
 
     Semaphore::attach("net-tcp").down();
 
@@ -40,7 +40,7 @@ static void basics() {
     });
 
     socket->connect(IpAddr(192, 168, 112, 1), 1338);
-    WVASSERTEQ(socket->state(), SocketRs::Connected);
+    WVASSERTEQ(socket->state(), Socket::Connected);
 
     uint8_t buf[32];
     WVASSERT(socket->send(buf, sizeof(buf)) != -1);
@@ -57,13 +57,13 @@ static void basics() {
     });
 
     socket->abort();
-    WVASSERTEQ(socket->state(), SocketRs::Closed);
+    WVASSERTEQ(socket->state(), Socket::Closed);
 }
 
 NOINLINE static void unreachable() {
-    NetworkManagerRs net("net0");
+    NetworkManager net("net0");
 
-    auto socket = TcpSocketRs::create(net);
+    auto socket = TcpSocket::create(net);
 
     WVASSERTERR(Errors::CONNECTION_FAILED, [&socket] {
         socket->connect(IpAddr(127, 0, 0, 1), 80);
@@ -71,15 +71,15 @@ NOINLINE static void unreachable() {
 }
 
 NOINLINE static void open_close() {
-    NetworkManagerRs net("net0");
+    NetworkManager net("net0");
 
-    auto socket = TcpSocketRs::create(net);
+    auto socket = TcpSocket::create(net);
 
     Semaphore::attach("net-tcp").down();
 
     socket->connect(IpAddr(192, 168, 112, 1), 1338);
     socket->close();
-    WVASSERTEQ(socket->state(), SocketRs::Closed);
+    WVASSERTEQ(socket->state(), Socket::Closed);
 
     WVASSERTERR(Errors::NOT_CONNECTED, [&socket] {
         uint8_t dummy;
@@ -100,12 +100,12 @@ NOINLINE static void receive_after_close() {
     vpe.delegate_obj(sem_sel);
 
     vpe.run([&sem] {
-        NetworkManagerRs net("net1");
+        NetworkManager net("net1");
 
-        auto socket = TcpSocketRs::create(net);
+        auto socket = TcpSocket::create(net);
 
         socket->listen(3000);
-        WVASSERTEQ(socket->state(), SocketRs::Listening);
+        WVASSERTEQ(socket->state(), Socket::Listening);
 
         sem.up();
 
@@ -113,21 +113,21 @@ NOINLINE static void receive_after_close() {
         port_t remote_port;
         socket->accept(&remote_addr, &remote_port);
         WVASSERTEQ(remote_addr.addr(), IpAddr(192, 168, 112, 2).addr());
-        WVASSERTEQ(socket->state(), SocketRs::Connected);
+        WVASSERTEQ(socket->state(), Socket::Connected);
 
         uint8_t buf[32];
         WVASSERTEQ(socket->recv(buf, sizeof(buf)), 32);
         WVASSERT(socket->send(buf, sizeof(buf)) != -1);
 
         socket->close();
-        WVASSERTEQ(socket->state(), SocketRs::Closed);
+        WVASSERTEQ(socket->state(), Socket::Closed);
 
         return 0;
     });
 
-    NetworkManagerRs net("net0");
+    NetworkManager net("net0");
 
-    auto socket = TcpSocketRs::create(net);
+    auto socket = TcpSocket::create(net);
 
     sem.down();
 
@@ -138,8 +138,8 @@ NOINLINE static void receive_after_close() {
     WVASSERTEQ(socket->recv(buf, sizeof(buf)), 32);
 
     // at some point, the socket should receive the closed event from the remote side
-    while(socket->state() != SocketRs::RemoteClosed)
-        net.wait(NetworkManagerRs::INPUT);
+    while(socket->state() != Socket::RemoteClosed)
+        net.wait(NetworkManager::INPUT);
 
     socket->close();
 
@@ -147,9 +147,9 @@ NOINLINE static void receive_after_close() {
 }
 
 NOINLINE static void data() {
-    NetworkManagerRs net("net0");
+    NetworkManager net("net0");
 
-    auto socket = TcpSocketRs::create(net);
+    auto socket = TcpSocket::create(net);
 
     Semaphore::attach("net-tcp").down();
 
