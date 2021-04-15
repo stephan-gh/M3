@@ -35,7 +35,7 @@ enum SocketType {
     SOCK_RAW     // IP
 };
 
-class __attribute__((aligned(4), packed)) IpAddr {
+class IpAddr {
 public:
     explicit IpAddr() noexcept : _addr(0) {
     }
@@ -63,54 +63,6 @@ static inline bool operator==(const IpAddr &a, const IpAddr &b) noexcept {
 }
 static inline bool operator!=(const IpAddr &a, const IpAddr &b) noexcept {
     return !operator==(a, b);
-}
-
-namespace net {
-
-/**
- * Represents a MAC address
- */
-class MAC {
-public:
-    static const size_t LEN = 6;
-
-    static MAC broadcast() noexcept {
-        return MAC(0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF);
-    }
-
-    explicit MAC() noexcept : _bytes() {
-    }
-    explicit MAC(const uint8_t *b) noexcept : MAC(b[0], b[1], b[2], b[3], b[4], b[5]) {
-    }
-    explicit MAC(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5, uint8_t b6) noexcept {
-        _bytes[0] = b1;
-        _bytes[1] = b2;
-        _bytes[2] = b3;
-        _bytes[3] = b4;
-        _bytes[4] = b5;
-        _bytes[5] = b6;
-    }
-
-    const uint8_t *bytes() const noexcept {
-        return _bytes;
-    }
-    uint64_t value() const noexcept {
-        return (uint64_t)_bytes[5] << 40 | (uint64_t)_bytes[4] << 32 | (uint64_t)_bytes[3] << 24 |
-               (uint64_t)_bytes[2] << 16 | (uint64_t)_bytes[1] << 8 | (uint64_t)_bytes[0] << 0;
-    }
-
-private:
-    uint8_t _bytes[LEN];
-};
-
-static inline bool operator==(const MAC &a, const MAC &b) noexcept {
-    return a.bytes()[0] == b.bytes()[0] && a.bytes()[1] == b.bytes()[1] && a.bytes()[2] == b.bytes()[2] &&
-           a.bytes()[3] == b.bytes()[3] && a.bytes()[4] == b.bytes()[4] && a.bytes()[5] == b.bytes()[5];
-}
-static inline bool operator!=(const MAC &a, const MAC &b) noexcept {
-    return !operator==(a, b);
-}
-
 }
 
 }
