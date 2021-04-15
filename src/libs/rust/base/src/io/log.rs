@@ -16,6 +16,8 @@
 
 //! Contains the logger
 
+use core::cmp;
+
 use crate::cell::StaticCell;
 use crate::errors::Error;
 use crate::io::{Serial, Write};
@@ -84,12 +86,13 @@ impl Log {
             Some(b) => b + 1,
             None => 0,
         };
+        let len = cmp::min(name.len() - begin, 8);
 
         self.pos = 0;
         self.write_fmt(format_args!(
             "\x1B[0;{}m[{:<8}@{:X}] ",
             colors[(pe_id as usize) % colors.len()],
-            &name[begin..],
+            &name[begin..begin + len],
             pe_id
         ))
         .unwrap();
