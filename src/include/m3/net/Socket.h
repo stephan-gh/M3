@@ -74,7 +74,7 @@ public:
         Closed
     };
 
-    virtual ~Socket() {}
+    virtual ~Socket();
 
     /**
      * @return the socket descriptor used to identify this socket within the session on the server
@@ -110,12 +110,6 @@ public:
         _blocking = blocking;
     }
 
-    /**
-     * Performs a hard abort by closing the socket on our end and dropping all data. Note that
-     * submitted packets for sending are not guaranteed to be sent out.
-     */
-    void abort();
-
 protected:
     explicit Socket(int sd, capsel_t caps, NetworkManager &nm);
 
@@ -135,13 +129,13 @@ protected:
     void handle_close_req(NetEventChannel::CloseReqMessage const &msg);
     void handle_closed(NetEventChannel::ClosedMessage const &msg);
 
+    void disconnect();
+
     void wait_for_events();
     void wait_for_credits();
     bool process_events();
     void fetch_replies();
     bool can_send();
-
-    void do_abort(bool remove);
 
     int32_t _sd;
     State _state;

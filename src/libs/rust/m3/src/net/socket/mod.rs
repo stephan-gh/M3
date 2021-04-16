@@ -22,7 +22,6 @@ use crate::llog;
 use crate::net::dataqueue::DataQueue;
 use crate::net::{event, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketType};
 use crate::rc::Rc;
-use crate::session::NetworkManager;
 
 mod raw;
 mod tcp;
@@ -75,17 +74,17 @@ pub enum State {
 pub(crate) struct Socket {
     sd: Sd,
     ty: SocketType,
-
-    state: Cell<State>,
     blocking: Cell<bool>,
 
-    local_addr: Cell<IpAddr>,
-    local_port: Cell<Port>,
-    remote_addr: Cell<IpAddr>,
-    remote_port: Cell<Port>,
+    pub state: Cell<State>,
 
-    channel: Rc<NetEventChannel>,
-    recv_queue: RefCell<DataQueue>,
+    pub local_addr: Cell<IpAddr>,
+    pub local_port: Cell<Port>,
+    pub remote_addr: Cell<IpAddr>,
+    pub remote_port: Cell<Port>,
+
+    pub channel: Rc<NetEventChannel>,
+    pub recv_queue: RefCell<DataQueue>,
 }
 
 impl Socket {
@@ -97,10 +96,10 @@ impl Socket {
             state: Cell::new(State::Closed),
             blocking: Cell::new(true),
 
-            local_addr: Cell::new(IpAddr::new(0, 0, 0, 0)),
+            local_addr: Cell::new(IpAddr::unspecified()),
             local_port: Cell::new(0),
 
-            remote_addr: Cell::new(IpAddr::new(0, 0, 0, 0)),
+            remote_addr: Cell::new(IpAddr::unspecified()),
             remote_port: Cell::new(0),
 
             channel,
@@ -130,76 +129,20 @@ impl Socket {
         self.state.set(state);
     }
 
-    pub fn connect(
-        &self,
-        nm: &NetworkManager,
-        remote_addr: IpAddr,
-        remote_port: Port,
-    ) -> Result<(), Error> {
-        if self.state.get() == State::Connected {
-            if !(self.remote_addr.get() == remote_addr && self.remote_port.get() == remote_port) {
-                return Err(Error::new(Code::IsConnected));
-            }
-            return Ok(());
-        }
-        if self.state.get() == State::RemoteClosed {
-            return Err(Error::new(Code::InvState));
-        }
-
-        if self.state.get() == State::Connecting {
-            return Err(Error::new(Code::AlreadyInProgress));
-        }
-
-        let local_port = nm.connect(self.sd, remote_addr, remote_port)?;
-        self.state.set(State::Connecting);
-        self.remote_addr.set(remote_addr);
-        self.remote_port.set(remote_port);
-        self.local_port.set(local_port);
-
-        if !self.blocking.get() {
-            return Err(Error::new(Code::InProgress));
-        }
-
-        while self.state.get() == State::Connecting {
-            self.wait_for_events();
-        }
-
-        if self.state.get() != State::Connected {
-            Err(Error::new(Code::ConnectionFailed))
-        }
-        else {
-            Ok(())
-        }
-    }
-
-    pub fn accept(&self) -> Result<(IpAddr, Port), Error> {
-        if self.state.get() == State::Connected {
-            return Ok((self.remote_addr.get(), self.remote_port.get()));
-        }
-        if self.state.get() == State::Connecting {
-            return Err(Error::new(Code::AlreadyInProgress));
-        }
-        if self.state.get() != State::Listening {
-            return Err(Error::new(Code::InvState));
-        }
-
-        // TODO non-blocking
-
-        self.state.set(State::Connecting);
-        while self.state.get() == State::Connecting {
-            self.wait_for_events();
-        }
-
-        if self.state.get() != State::Connected {
-            Err(Error::new(Code::ConnectionFailed))
-        }
-        else {
-            Ok((self.remote_addr.get(), self.remote_port.get()))
-        }
+    pub fn disconnect(&self) {
+        self.local_addr.set(IpAddr::unspecified());
+        self.local_port.set(0);
+        self.remote_addr.set(IpAddr::unspecified());
+        self.remote_port.set(0);
+        self.state.set(State::Closed);
     }
 
     pub fn has_data(&self) -> bool {
         self.recv_queue.borrow().has_data()
+    }
+
+    pub fn has_all_credits(&self) -> bool {
+        self.channel.has_all_credits()
     }
 
     pub fn next_data<F, R>(&self, amount: usize, mut consume: F) -> Result<R, Error>
@@ -242,42 +185,6 @@ impl Socket {
                 return Err(Error::new(Code::SocketClosed));
             }
         }
-    }
-
-    pub fn close(&self) -> Result<(), Error> {
-        // ensure that we don't receive more data (which could block our event channel and thus
-        // prevent us from receiving the closed event)
-        self.state.set(State::Closing);
-        self.recv_queue.borrow_mut().clear();
-
-        // send the close request; this has to be blocking
-        loop {
-            match self.channel.send_event(event::CloseReqMessage::new()) {
-                Err(e) if e.code() == Code::NoCredits => {},
-                Err(e) => return Err(e),
-                Ok(_) => break,
-            }
-
-            self.wait_for_credits();
-        }
-
-        // now wait for the response; can be non-blocking
-        while self.state.get() != State::Closed {
-            if !self.blocking.get() {
-                // TODO error inprogress?
-                return Err(Error::new(Code::WouldBlock));
-            }
-
-            self.wait_for_events();
-        }
-        Ok(())
-    }
-
-    pub fn abort(&self, nm: &NetworkManager, remove: bool) -> Result<(), Error> {
-        nm.abort(self.sd, remove)?;
-        self.recv_queue.borrow_mut().clear();
-        self.state.set(State::Closed);
-        Ok(())
     }
 
     pub fn fetch_replies(&self) {
@@ -352,12 +259,12 @@ impl Socket {
             },
 
             NetEventType::CLOSED => {
-                llog!(NET, "socket {}: closed", self.sd,);
-                self.state.set(State::Closed);
+                llog!(NET, "socket {}: closed", self.sd);
+                self.disconnect();
             },
 
             NetEventType::CLOSE_REQ => {
-                llog!(NET, "socket {}: remote side was closed", self.sd,);
+                llog!(NET, "socket {}: remote side was closed", self.sd);
                 self.state.set(State::RemoteClosed);
             },
 

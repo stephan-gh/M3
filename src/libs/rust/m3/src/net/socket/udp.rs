@@ -146,18 +146,17 @@ impl<'n> UdpSocket<'n> {
     pub fn send_to(&self, data: &[u8], addr: IpAddr, port: Port) -> Result<(), Error> {
         self.socket.send(data, addr, port)
     }
-
-    /// Puts the socket in [`Closed`](State::Closed) state again, enabling a new bind of this socket
-    /// afterwards.
-    pub fn abort(&mut self) -> Result<(), Error> {
-        self.socket.abort(self.nm, false)
-    }
 }
 
 impl Drop for UdpSocket<'_> {
     fn drop(&mut self) {
-        // ignore errors
-        self.socket.abort(self.nm, true).ok();
+        // we have no connection to tear down here, but only want to make sure that all packets we
+        // sent are seen and handled by the server. thus, wait until we have got all replies to our
+        // potentially in-flight packets, in which case we also have received our credits back.
+        while !self.socket.has_all_credits() {
+            self.socket.wait_for_credits();
+        }
+
         self.nm.remove_socket(self.socket.sd());
     }
 }

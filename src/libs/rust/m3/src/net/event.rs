@@ -217,6 +217,10 @@ impl NetEventChannel {
         self.rgate.has_msgs()
     }
 
+    pub fn has_all_credits(&self) -> bool {
+        self.sgate.credits().unwrap() == MSG_CREDITS as u32
+    }
+
     pub fn receive_event(self: &Rc<Self>) -> Option<NetEvent> {
         self.rgate
             .fetch()

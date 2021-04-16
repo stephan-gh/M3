@@ -70,7 +70,7 @@ public:
      * do not return until the operation is complete. This can be changed via set_blocking.
      */
     static Reference<TcpSocket> create(NetworkManager &nm,
-                                         const StreamSocketArgs &args = StreamSocketArgs());
+                                       const StreamSocketArgs &args = StreamSocketArgs());
 
     ~TcpSocket();
 
@@ -92,8 +92,10 @@ public:
      *
      * @param remote_addr address of the socket to connect to
      * @param remote_port port of the socket to connect to
+     * @return true if the socket is connected (false if the socket is non-blocking and the
+     *     connection is in progress)
      */
-    void connect(IpAddr remote_addr, port_t remote_port);
+    bool connect(IpAddr remote_addr, port_t remote_port);
 
     /**
      * Accepts a remote connection on this socket
@@ -105,8 +107,10 @@ public:
      *
      * @param remote_addr if not null, it's set to the IP address of the remote endpoint
      * @param remote_port if not null, it's set to the port of the remote endpoint
+     * @return true if the socket is connected (false if the socket is non-blocking and the
+     *     connection is in progress)
      */
-    void accept(IpAddr *remote_addr, port_t *remote_port);
+    bool accept(IpAddr *remote_addr, port_t *remote_port);
 
     /**
      * Receives data from the socket into the given buffer.
@@ -135,15 +139,24 @@ public:
     ssize_t send(const void *src, size_t amount);
 
     /**
-     * Closes the connection
+     * Closes the socket.
      *
      * In contrast to abort, close properly closes the connection to the remote endpoint by going
      * through the TCP protocol.
      *
-     * Note that close is *not* called on drop, but has to be called explicitly to ensure that all
-     * data is transmitted to the remote end and the connection is properly closed.
+     * Note that close is called in the destructor in case the socket has not be closed/aborted yet.
+     *
+     * @return Errors::NONE if the socket has been successfully closed or Errors::WOULD_BLOCK if the
+     *     close request could not been sent or Errors::IN_PROGRESS if the close request was sent,
+     *     but the socket is not closed yet. The former two errors only occur in non-blocking mode.
      */
-    void close();
+    Errors::Code close();
+
+    /**
+     * Performs a hard abort by closing the socket on our end and dropping all data. Note that
+     * submitted packets for sending are not guaranteed to be sent out.
+     */
+    void abort();
 
 private:
     void handle_data(NetEventChannel::DataMessage const &msg, NetEventChannel::Event &event) override;

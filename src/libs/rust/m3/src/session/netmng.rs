@@ -177,6 +177,8 @@ impl NetworkManager {
     }
 
     pub(crate) fn remove_socket(&self, sd: Sd) {
+        // ignore errors
+        self.abort(sd, true).ok();
         self.sockets.borrow_mut().retain(|s| s.sd() != sd);
     }
 

@@ -32,6 +32,13 @@ SendGate SendGate::create(RecvGate *rgate, const SendGateArgs &args) {
     return SendGate(sel, args._flags, replygate);
 }
 
+uint SendGate::credits() {
+    const EP &sep = activate();
+    if(!TCU::get().is_valid(sep.id()))
+        throw Exception(Errors::NO_SEP);
+    return TCU::get().credits(sep.id());
+}
+
 void SendGate::send(const MsgBuf &msg, label_t reply_label) {
     Errors::Code res = try_send(msg, reply_label);
     if(res != Errors::NONE)

@@ -70,6 +70,103 @@ NOINLINE static void unreachable() {
     });
 }
 
+NOINLINE static void nonblocking_client() {
+    NetworkManager net("net0");
+
+    auto socket = TcpSocket::create(net);
+
+    Semaphore::attach("net-tcp").down();
+
+    socket->blocking(false);
+
+    WVASSERT(!socket->connect(IpAddr(192, 168, 112, 1), 1338));
+
+    while(socket->state() != Socket::Connected) {
+        WVASSERTEQ(socket->state(), Socket::Connecting);
+        WVASSERTERR(Errors::ALREADY_IN_PROGRESS, [&socket] {
+            socket->connect(IpAddr(192, 168, 112, 1), 1338);
+        });
+        net.wait(NetworkManager::INPUT);
+    }
+
+    uint8_t buf[32];
+
+    for(int i = 0; i < 8; ++i) {
+        while(socket->send(buf, sizeof(buf)) == -1)
+            net.wait(NetworkManager::OUTPUT);
+    }
+
+    size_t total = 0;
+    while(total < 8 * sizeof(buf)) {
+        ssize_t res;
+        while((res = socket->recv(buf, sizeof(buf))) == -1)
+            net.wait(NetworkManager::INPUT);
+        total += static_cast<size_t>(res);
+    }
+    WVASSERTEQ(total, 8 * sizeof(buf));
+
+    while(socket->close() == Errors::WOULD_BLOCK)
+        net.wait(NetworkManager::OUTPUT);
+
+    while(socket->state() != Socket::Closed) {
+        WVASSERTEQ(socket->state(), Socket::Closing);
+        WVASSERTERR(Errors::ALREADY_IN_PROGRESS, [&socket] {
+            socket->close();
+        });
+        net.wait(NetworkManager::INPUT);
+    }
+}
+
+NOINLINE static void nonblocking_server() {
+    auto pe = PE::alloc(VPE::self().pe_desc());
+    VPE vpe(pe, "tcp-server");
+
+    auto sem = Semaphore::create(0);
+    auto sem_sel = sem.sel();
+    vpe.delegate_obj(sem_sel);
+
+    vpe.run([&sem] {
+        NetworkManager net("net1");
+
+        auto socket = TcpSocket::create(net);
+
+        socket->blocking(false);
+
+        socket->listen(3000);
+        WVASSERTEQ(socket->state(), Socket::Listening);
+
+        sem.up();
+
+        IpAddr remote_addr;
+        port_t remote_port;
+        WVASSERTEQ(socket->accept(&remote_addr, &remote_port), false);
+        while(socket->state() != Socket::Connected) {
+            WVASSERTEQ(socket->state(), Socket::Connecting);
+            WVASSERTERR(Errors::ALREADY_IN_PROGRESS, [&socket, &remote_addr, &remote_port] {
+                socket->accept(&remote_addr, &remote_port);
+            });
+            net.wait(NetworkManager::INPUT);
+        }
+
+        socket->blocking(true);
+        socket->close();
+
+        return 0;
+    });
+
+    NetworkManager net("net0");
+
+    auto socket = TcpSocket::create(net);
+
+    sem.down();
+
+    socket->connect(IpAddr(192, 168, 112, 1), 3000);
+
+    socket->close();
+
+    WVASSERTEQ(vpe.wait(), 0);
+}
+
 NOINLINE static void open_close() {
     NetworkManager net("net0");
 
@@ -184,6 +281,8 @@ NOINLINE static void data() {
 void ttcp() {
     RUN_TEST(basics);
     RUN_TEST(unreachable);
+    RUN_TEST(nonblocking_client);
+    RUN_TEST(nonblocking_server);
     RUN_TEST(open_close);
     RUN_TEST(receive_after_close);
     RUN_TEST(data);

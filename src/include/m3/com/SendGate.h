@@ -149,9 +149,14 @@ public:
     /**
      * @return true if this SendGate can potentially send a message
      */
-    bool can_send() const {
-        return !ep() || TCU::get().has_credits(ep()->id());
+    bool can_send() const noexcept {
+        return !ep() || TCU::get().credits(ep()->id()) > 0;
     }
+
+    /**
+     * @return the currently available credits
+     */
+    uint credits();
 
     /**
      * Sends <msg> to the associated RecvGate.

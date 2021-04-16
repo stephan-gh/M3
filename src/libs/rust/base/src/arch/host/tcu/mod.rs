@@ -279,8 +279,11 @@ impl TCU {
         Self::get_ep(ep, EpReg::BUF_UNREAD) != 0
     }
 
-    pub fn has_credits(ep: EpId) -> bool {
-        Self::get_ep(ep, EpReg::CREDITS) != 0
+    pub fn credits(ep: EpId) -> Result<u32, Error> {
+        if !Self::is_valid(ep) {
+            return Err(Error::new(Code::NoSEP));
+        }
+        Ok((Self::get_ep(ep, EpReg::CREDITS) >> Self::get_ep(ep, EpReg::MSGORDER)) as u32)
     }
 
     pub fn ack_msg(ep: EpId, msg_off: usize) -> Result<(), Error> {

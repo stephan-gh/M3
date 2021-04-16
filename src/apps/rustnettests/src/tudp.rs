@@ -40,9 +40,6 @@ fn basics() {
     wv_assert_eq!(socket.state(), State::Bound);
 
     wv_assert_err!(socket.bind(2001), Code::InvState);
-
-    wv_assert_ok!(socket.abort());
-    wv_assert_eq!(socket.state(), State::Closed);
 }
 
 fn data() {

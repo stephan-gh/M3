@@ -226,8 +226,8 @@ public:
         return false;
     }
 
-    bool has_credits(epid_t ep) const {
-        return get_ep(ep, EP_CREDITS) > 0;
+    uint credits(epid_t ep) const {
+        return get_ep(ep, EP_CREDITS) >> get_ep(ep, EP_MSGORDER);
     }
 
     bool has_msgs(epid_t ep) const {

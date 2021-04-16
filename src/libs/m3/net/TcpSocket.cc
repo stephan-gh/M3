@@ -28,14 +28,15 @@ TcpSocket::TcpSocket(int sd, capsel_t caps, NetworkManager &nm)
 }
 
 TcpSocket::~TcpSocket() {
+    // use blocking mode here, because we cannot leave the destructor until the socket is closed.
+    _blocking = true;
+
     try {
-        do_abort(true);
+        close();
     }
     catch(...) {
-        // ignore errors here
+        // ignore errors
     }
-
-    _nm.remove_socket(this);
 }
 
 Reference<TcpSocket> TcpSocket::create(NetworkManager &nm, const StreamSocketArgs &args) {
@@ -46,25 +47,6 @@ Reference<TcpSocket> TcpSocket::create(NetworkManager &nm, const StreamSocketArg
     return Reference<TcpSocket>(sock);
 }
 
-void TcpSocket::close() {
-    // ensure that we don't receive more data (which could block our event channel and thus prevent
-    // us from receiving the closed event)
-    _state = State::Closing;
-    _recv_queue.clear();
-
-    // send the close request; this has to be blocking
-    while(!_channel.send_close_req())
-        wait_for_credits();
-
-    // now wait for the response; can be non-blocking
-    while(_state != State::Closed) {
-        if(!_blocking)
-            throw Exception(Errors::IN_PROGRESS);
-
-        wait_for_events();
-    }
-}
-
 void TcpSocket::listen(port_t local_port) {
     if(_state != State::Closed)
         throw Exception(Errors::INV_STATE);
@@ -73,11 +55,11 @@ void TcpSocket::listen(port_t local_port) {
     set_local(local_addr, local_port, State::Listening);
 }
 
-void TcpSocket::connect(IpAddr remote_addr, port_t remote_port) {
+bool TcpSocket::connect(IpAddr remote_addr, port_t remote_port) {
     if(_state == State::Connected) {
         if(!(_remote_addr == remote_addr && _remote_port == remote_port))
             throw Exception(Errors::IS_CONNECTED);
-        return;
+        return true;
     }
 
     if(_state == State::Connecting)
@@ -90,22 +72,23 @@ void TcpSocket::connect(IpAddr remote_addr, port_t remote_port) {
     _local_port = local_port;
 
     if(!_blocking)
-        throw Exception(Errors::IN_PROGRESS);
+        return false;
 
     while(_state == State::Connecting)
         wait_for_events();
 
     if(_state != Connected)
         throw Exception(Errors::CONNECTION_FAILED);
+    return true;
 }
 
-void TcpSocket::accept(IpAddr *remote_addr, port_t *remote_port) {
+bool TcpSocket::accept(IpAddr *remote_addr, port_t *remote_port) {
     if(_state == State::Connected) {
         if(remote_addr)
             *remote_addr = _remote_addr;
         if(remote_port)
             *remote_port = _remote_port;
-        return;
+        return true;
     }
     if(_state == State::Connecting)
         throw Exception(Errors::ALREADY_IN_PROGRESS);
@@ -113,8 +96,11 @@ void TcpSocket::accept(IpAddr *remote_addr, port_t *remote_port) {
         throw Exception(Errors::INV_STATE);
 
     _state = State::Connecting;
-    while(_state == State::Connecting)
+    while(_state == State::Connecting) {
+        if(!_blocking)
+            return false;
         wait_for_events();
+    }
 
     if(_state != State::Connected)
         throw Exception(Errors::CONNECTION_FAILED);
@@ -123,6 +109,7 @@ void TcpSocket::accept(IpAddr *remote_addr, port_t *remote_port) {
         *remote_addr = _remote_addr;
     if(remote_port)
         *remote_port = _remote_port;
+    return true;
 }
 
 ssize_t TcpSocket::recv(void *dst, size_t amount) {
@@ -145,6 +132,45 @@ ssize_t TcpSocket::send(const void *src, size_t amount) {
 void TcpSocket::handle_data(NetEventChannel::DataMessage const &msg, NetEventChannel::Event &event) {
     if(_state != Closed && _state != Closing)
         Socket::handle_data(msg, event);
+}
+
+Errors::Code TcpSocket::close() {
+    if(_state == State::Closed)
+        return Errors::NONE;
+
+    if(_state == State::Closing)
+        throw Exception(Errors::ALREADY_IN_PROGRESS);
+
+    // send the close request; this has to be blocking
+    while(!_channel.send_close_req()) {
+        if(!_blocking)
+            return Errors::WOULD_BLOCK;
+
+        wait_for_credits();
+    }
+
+    // ensure that we don't receive more data (which could block our event channel and thus
+    // prevent us from receiving the closed event)
+    _state = State::Closing;
+    _recv_queue.clear();
+
+    // now wait for the response; can be non-blocking
+    while(_state != State::Closed) {
+        if(!_blocking)
+            return Errors::IN_PROGRESS;
+
+        wait_for_events();
+    }
+    return Errors::NONE;
+}
+
+void TcpSocket::abort() {
+    if(_state == State::Closed)
+        return;
+
+    _nm.abort(sd(), false);
+    _recv_queue.clear();
+    disconnect();
 }
 
 }

@@ -38,9 +38,6 @@ static void basics() {
     WVASSERTERR(Errors::INV_STATE, [&socket] {
         socket->bind(2001);
     });
-
-    socket->abort();
-    WVASSERTEQ(socket->state(), Socket::Closed);
 }
 
 NOINLINE static void data() {

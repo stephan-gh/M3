@@ -94,8 +94,9 @@ public:
     bool send_data(IpAddr addr, port_t port, size_t size, std::function<void(uchar *)> cb_data);
     bool send_close_req();
 
-    bool can_send() const;
-    bool has_events() const;
+    bool can_send() const noexcept;
+    bool has_events() const noexcept;
+    bool has_all_credits();
     Event recv_message();
 
     void wait_for_events();

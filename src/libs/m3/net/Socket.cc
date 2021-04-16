@@ -41,6 +41,18 @@ Socket::Socket(int sd, capsel_t caps, NetworkManager &nm)
       _recv_queue() {
 }
 
+Socket::~Socket() {
+    _nm.remove_socket(this);
+}
+
+void Socket::disconnect() {
+    _state = Closed;
+    _local_addr = IpAddr();
+    _local_port = 0;
+    _remote_addr = IpAddr();
+    _remote_port = 0;
+}
+
 void Socket::set_local(IpAddr addr, port_t port, State state) {
     _local_addr = addr;
     _local_port = port;
@@ -83,7 +95,7 @@ void Socket::handle_close_req(NetEventChannel::CloseReqMessage const &) {
 
 void Socket::handle_closed(NetEventChannel::ClosedMessage const &) {
     LLOG(NET, "socket " << _sd << ": closed");
-    _state = Closed;
+    disconnect();
 }
 
 bool Socket::get_next_data(const uchar **data, size_t *size, IpAddr *src_addr, port_t *src_port) {
@@ -175,18 +187,6 @@ void Socket::fetch_replies() {
 
 bool Socket::can_send() {
     return _channel.can_send();
-}
-
-void Socket::abort() {
-    do_abort(false);
-}
-
-void Socket::do_abort(bool remove) {
-    _nm.abort(sd(), remove);
-    // Clear receive queue before potentially destroying the channel,
-    // because the queue contains events that point to the channel.
-    _recv_queue.clear();
-    _state = State::Closed;
 }
 
 }

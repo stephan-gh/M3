@@ -26,17 +26,11 @@ use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, basics);
     wv_run_test!(t, unreachable);
+    wv_run_test!(t, nonblocking_client);
+    wv_run_test!(t, nonblocking_server);
     wv_run_test!(t, open_close);
     wv_run_test!(t, receive_after_close);
     wv_run_test!(t, data);
-}
-
-fn unreachable() {
-    let nm = wv_assert_ok!(NetworkManager::new("net0"));
-
-    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(&nm)));
-
-    wv_assert_err!(socket.connect(IpAddr::new(127, 0, 0, 1), 80), Code::ConnectionFailed);
 }
 
 fn basics() {
@@ -70,6 +64,132 @@ fn basics() {
 
     wv_assert_ok!(socket.abort());
     wv_assert_eq!(socket.state(), State::Closed);
+}
+
+fn unreachable() {
+    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+
+    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(&nm)));
+
+    wv_assert_err!(
+        socket.connect(IpAddr::new(127, 0, 0, 1), 80),
+        Code::ConnectionFailed
+    );
+}
+
+fn nonblocking_client() {
+    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+
+    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(&nm)));
+
+    wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
+
+    socket.set_blocking(false);
+
+    wv_assert_err!(
+        socket.connect(IpAddr::new(192, 168, 112, 1), 1338),
+        Code::InProgress
+    );
+    while socket.state() != State::Connected {
+        wv_assert_eq!(socket.state(), State::Connecting);
+        wv_assert_err!(
+            socket.connect(IpAddr::new(192, 168, 112, 1), 1338),
+            Code::AlreadyInProgress
+        );
+        nm.wait(NetworkDirection::INPUT);
+    }
+
+    let mut buf = [0u8; 32];
+
+    for _ in 0..8 {
+        loop {
+            match socket.send(&buf) {
+                Err(e) => wv_assert_eq!(e.code(), Code::WouldBlock),
+                Ok(()) => break,
+            }
+            nm.wait(NetworkDirection::OUTPUT);
+        }
+    }
+
+    let mut total = 0;
+    while total < 8 * buf.len() {
+        loop {
+            match socket.recv(&mut buf) {
+                Err(e) => wv_assert_eq!(e.code(), Code::WouldBlock),
+                Ok(size) => {
+                    total += size;
+                    break;
+                },
+            }
+            nm.wait(NetworkDirection::INPUT);
+        }
+    }
+    wv_assert_eq!(total, 8 * buf.len());
+
+    loop {
+        match socket.close() {
+            Err(e) => {
+                if e.code() != Code::WouldBlock {
+                    wv_assert_eq!(e.code(), Code::InProgress);
+                    break;
+                }
+            },
+            Ok(()) => break,
+        }
+        nm.wait(NetworkDirection::OUTPUT);
+    }
+
+    while socket.state() != State::Closed {
+        wv_assert_eq!(socket.state(), State::Closing);
+        wv_assert_err!(socket.close(), Code::AlreadyInProgress);
+        nm.wait(NetworkDirection::INPUT);
+    }
+}
+
+fn nonblocking_server() {
+    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
+    let mut vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("tcp-server")));
+
+    let sem = wv_assert_ok!(Semaphore::create(0));
+    let sem_sel = sem.sel();
+    wv_assert_ok!(vpe.delegate_obj(sem_sel));
+
+    let act = wv_assert_ok!(vpe.run(Box::new(move || {
+        let sem = Semaphore::bind(sem_sel);
+
+        let nm = wv_assert_ok!(NetworkManager::new("net1"));
+
+        let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(&nm)));
+        socket.set_blocking(false);
+
+        wv_assert_ok!(socket.listen(3000));
+        wv_assert_eq!(socket.state(), State::Listening);
+        wv_assert_ok!(sem.up());
+
+        wv_assert_err!(socket.accept(), Code::InProgress);
+        while socket.state() != State::Connected {
+            wv_assert_eq!(socket.state(), State::Connecting);
+            wv_assert_err!(socket.accept(), Code::AlreadyInProgress);
+            nm.wait(NetworkDirection::INPUT);
+        }
+
+        socket.set_blocking(true);
+        wv_assert_ok!(socket.close());
+
+        0
+    })));
+
+    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+
+    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(&nm)));
+
+    wv_assert_ok!(sem.down());
+
+    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 3000));
+
+    wv_assert_ok!(socket.close());
+
+    wv_assert_eq!(act.wait(), Ok(0));
 }
 
 fn open_close() {

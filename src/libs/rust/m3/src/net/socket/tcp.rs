@@ -18,6 +18,7 @@
 
 use crate::errors::{Code, Error};
 use crate::net::{
+    event,
     socket::{Socket, SocketArgs, State},
     IpAddr, Port, Sd, SocketType,
 };
@@ -119,7 +120,42 @@ impl<'n> TcpSocket<'n> {
 
     /// Connects this socket to the given remote endpoint.
     pub fn connect(&mut self, remote_addr: IpAddr, remote_port: Port) -> Result<(), Error> {
-        self.socket.connect(self.nm, remote_addr, remote_port)
+        if self.state() == State::Connected {
+            if !(self.socket.remote_addr.get() == remote_addr
+                && self.socket.remote_port.get() == remote_port)
+            {
+                return Err(Error::new(Code::IsConnected));
+            }
+            return Ok(());
+        }
+        if self.state() == State::RemoteClosed {
+            return Err(Error::new(Code::InvState));
+        }
+
+        if self.state() == State::Connecting {
+            return Err(Error::new(Code::AlreadyInProgress));
+        }
+
+        let local_port = self.nm.connect(self.sd(), remote_addr, remote_port)?;
+        self.socket.state.set(State::Connecting);
+        self.socket.remote_addr.set(remote_addr);
+        self.socket.remote_port.set(remote_port);
+        self.socket.local_port.set(local_port);
+
+        if !self.blocking() {
+            return Err(Error::new(Code::InProgress));
+        }
+
+        while self.state() == State::Connecting {
+            self.socket.wait_for_events();
+        }
+
+        if self.state() != State::Connected {
+            Err(Error::new(Code::ConnectionFailed))
+        }
+        else {
+            Ok(())
+        }
     }
 
     /// Accepts a remote connection on this socket
@@ -129,7 +165,30 @@ impl<'n> TcpSocket<'n> {
     /// connection. Thus, to support multiple connections to the same port, put multiple sockets in
     /// listen mode on this port and call accept on each of them.
     pub fn accept(&mut self) -> Result<(IpAddr, Port), Error> {
-        self.socket.accept()
+        if self.state() == State::Connected {
+            return Ok((self.socket.remote_addr.get(), self.socket.remote_port.get()));
+        }
+        if self.state() == State::Connecting {
+            return Err(Error::new(Code::AlreadyInProgress));
+        }
+        if self.state() != State::Listening {
+            return Err(Error::new(Code::InvState));
+        }
+
+        self.socket.state.set(State::Connecting);
+        while self.state() == State::Connecting {
+            if !self.blocking() {
+                return Err(Error::new(Code::InProgress));
+            }
+            self.socket.wait_for_events();
+        }
+
+        if self.state() != State::Connected {
+            Err(Error::new(Code::ConnectionFailed))
+        }
+        else {
+            Ok((self.socket.remote_addr.get(), self.socket.remote_port.get()))
+        }
     }
 
     /// Returns whether data can currently be received from the socket
@@ -189,7 +248,47 @@ impl<'n> TcpSocket<'n> {
     /// explicitly to ensure that all data is transmitted to the remote end and the connection is
     /// properly closed.
     pub fn close(&mut self) -> Result<(), Error> {
-        self.socket.close()
+        if self.state() == State::Closed {
+            return Ok(());
+        }
+
+        if self.state() == State::Closing {
+            return Err(Error::new(Code::AlreadyInProgress));
+        }
+
+        // send the close request
+        loop {
+            match self
+                .socket
+                .channel
+                .send_event(event::CloseReqMessage::new())
+            {
+                Err(e) if e.code() == Code::NoCredits => {},
+                Err(e) => return Err(e),
+                Ok(_) => break,
+            }
+
+            if !self.blocking() {
+                return Err(Error::new(Code::WouldBlock));
+            }
+
+            self.socket.wait_for_credits();
+        }
+
+        // ensure that we don't receive more data (which could block our event channel and thus
+        // prevent us from receiving the closed event)
+        self.socket.state.set(State::Closing);
+        self.socket.recv_queue.borrow_mut().clear();
+
+        // now wait for the response; can be non-blocking
+        while self.state() != State::Closed {
+            if !self.blocking() {
+                return Err(Error::new(Code::InProgress));
+            }
+
+            self.socket.wait_for_events();
+        }
+        Ok(())
     }
 
     /// Aborts the connection
@@ -200,14 +299,20 @@ impl<'n> TcpSocket<'n> {
     ///
     /// Note also that [`abort`](TcpSocket::abort) is called automatically on drop.
     pub fn abort(&mut self) -> Result<(), Error> {
-        self.socket.abort(self.nm, false)
+        self.nm.abort(self.sd(), false)?;
+        self.socket.recv_queue.borrow_mut().clear();
+        self.socket.disconnect();
+        Ok(())
     }
 }
 
 impl Drop for TcpSocket<'_> {
     fn drop(&mut self) {
+        // use blocking mode here, because we cannot leave here until the socket is closed.
+        self.set_blocking(true);
         // ignore errors
-        self.socket.abort(self.nm, true).ok();
+        self.close().ok();
+
         self.nm.remove_socket(self.socket.sd());
     }
 }

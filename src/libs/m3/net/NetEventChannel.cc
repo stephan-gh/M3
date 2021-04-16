@@ -51,12 +51,16 @@ bool NetEventChannel::send_close_req() {
     return _sgate.try_send(msg_buf) == Errors::NONE;
 }
 
-bool NetEventChannel::can_send() const {
+bool NetEventChannel::can_send() const noexcept {
     return _sgate.can_send();
 }
 
-bool NetEventChannel::has_events() const {
+bool NetEventChannel::has_events() const noexcept {
     return _rgate.has_msgs();
+}
+
+bool NetEventChannel::has_all_credits() {
+    return _sgate.credits() == MSG_CREDITS;
 }
 
 NetEventChannel::Event NetEventChannel::recv_message() {

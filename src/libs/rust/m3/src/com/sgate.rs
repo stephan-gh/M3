@@ -121,7 +121,13 @@ impl SendGate {
     /// Returns whether the TCU EP has credits to send a message
     pub fn can_send(&self) -> Result<bool, Error> {
         let ep = self.activate()?;
-        Ok(tcu::TCU::has_credits(ep.id()))
+        Ok(tcu::TCU::credits(ep.id())? > 0)
+    }
+
+    /// Returns the number of available credits
+    pub fn credits(&self) -> Result<u32, Error> {
+        let ep = self.activate()?;
+        tcu::TCU::credits(ep.id())
     }
 
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.

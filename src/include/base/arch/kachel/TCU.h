@@ -195,10 +195,10 @@ public:
         return cur < max;
     }
 
-    bool has_credits(epid_t ep) const {
+    uint credits(epid_t ep) const {
         reg_t r0 = read_reg(ep, 0);
         uint16_t cur = (r0 >> 19) & 0x3F;
-        return cur > 0;
+        return cur;
     }
 
     bool has_msgs(epid_t ep) const {

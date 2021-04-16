@@ -29,13 +29,15 @@ UdpSocket::UdpSocket(int sd, capsel_t caps, NetworkManager &nm)
 
 UdpSocket::~UdpSocket() {
     try {
-        do_abort(true);
+        // we have no connection to tear down here, but only want to make sure that all packets we sent
+        // are seen and handled by the server. thus, wait until we have got all replies to our
+        // potentially in-flight packets, in which case we also have received our credits back.
+        while(!_channel.has_all_credits())
+            wait_for_credits();
     }
     catch(...) {
-        // ignore errors here
+        // ignore errors
     }
-
-    _nm.remove_socket(this);
 }
 
 Reference<UdpSocket> UdpSocket::create(NetworkManager &nm, const DgramSocketArgs &args) {

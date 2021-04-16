@@ -64,6 +64,7 @@ void NetworkManager::add_socket(Socket *socket) {
 }
 
 void NetworkManager::remove_socket(Socket *socket) {
+    abort(socket->sd(), true);
     _sockets.remove(socket);
 }
 
