@@ -17,7 +17,7 @@
 use m3::com::Semaphore;
 use m3::errors::Code;
 use m3::format;
-use m3::net::{IpAddr, StreamSocketArgs, TcpSocket};
+use m3::net::{Endpoint, IpAddr, StreamSocketArgs, TcpSocket};
 use m3::println;
 use m3::profile::Results;
 use m3::session::{NetworkDirection, NetworkManager};
@@ -37,7 +37,7 @@ fn latency() {
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
-    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 1338));
+    wv_assert_ok!(socket.connect(Endpoint::new(IpAddr::new(192, 168, 112, 1), 1338)));
 
     let samples = 5;
 
@@ -98,7 +98,7 @@ fn bandwidth() {
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
-    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 1338));
+    wv_assert_ok!(socket.connect(Endpoint::new(IpAddr::new(192, 168, 112, 1), 1338)));
 
     let mut buf = [0u8; 1024];
 

@@ -17,7 +17,7 @@
 use m3::com::Semaphore;
 use m3::errors::Code;
 use m3::format;
-use m3::net::{DgramSocketArgs, IpAddr, UdpSocket};
+use m3::net::{DgramSocketArgs, Endpoint, IpAddr, UdpSocket};
 use m3::println;
 use m3::profile::Results;
 use m3::session::{NetworkDirection, NetworkManager};
@@ -41,14 +41,13 @@ fn latency() {
     wv_assert_ok!(socket.bind(2000));
 
     let samples = 5;
-    let dest_addr = IpAddr::new(192, 168, 112, 1);
-    let dest_port = 1337;
+    let dest = Endpoint::new(IpAddr::new(192, 168, 112, 1), 1337);
 
     let mut buf = [0u8; 1024];
 
     // warmup
     for _ in 0..5 {
-        wv_assert_ok!(socket.send_to(&buf, dest_addr, dest_port));
+        wv_assert_ok!(socket.send_to(&buf, dest));
         let _res = socket.recv(&mut buf);
     }
 
@@ -60,7 +59,7 @@ fn latency() {
         for i in 0..samples {
             let start = time::start(i);
 
-            wv_assert_ok!(socket.send_to(&buf[0..*pkt_size], dest_addr, dest_port));
+            wv_assert_ok!(socket.send_to(&buf[0..*pkt_size], dest));
             let recv_size = wv_assert_ok!(socket.recv(&mut buf));
 
             let stop = time::stop(i);
@@ -96,13 +95,12 @@ fn bandwidth() {
 
     wv_assert_ok!(socket.bind(2001));
 
-    let dest_addr = IpAddr::new(192, 168, 112, 1);
-    let dest_port = 1337;
+    let dest = Endpoint::new(IpAddr::new(192, 168, 112, 1), 1337);
 
     let mut buf = [0u8; 1024];
 
     for _ in 0..10 {
-        wv_assert_ok!(socket.send_to(&buf, dest_addr, dest_port));
+        wv_assert_ok!(socket.send_to(&buf, dest));
         wv_assert_ok!(socket.recv(&mut buf));
     }
 
@@ -136,7 +134,7 @@ fn bandwidth() {
                 break;
             }
 
-            match socket.send_to(&buf, dest_addr, dest_port) {
+            match socket.send_to(&buf, dest) {
                 Err(e) => {
                     wv_assert_eq!(e.code(), Code::WouldBlock);
                     failures += 1;

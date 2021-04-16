@@ -16,7 +16,7 @@
 
 use m3::com::Semaphore;
 use m3::errors::Code;
-use m3::net::{DgramSocketArgs, IpAddr, State, UdpSocket};
+use m3::net::{DgramSocketArgs, Endpoint, IpAddr, State, UdpSocket};
 use m3::session::NetworkManager;
 use m3::test;
 use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
@@ -35,9 +35,14 @@ fn basics() {
     let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(&nm)));
 
     wv_assert_eq!(socket.state(), State::Closed);
+    wv_assert_eq!(socket.local_endpoint(), None);
 
     wv_assert_ok!(socket.bind(2000));
     wv_assert_eq!(socket.state(), State::Bound);
+    wv_assert_eq!(
+        socket.local_endpoint(),
+        Some(Endpoint::new(IpAddr::new(192, 168, 112, 2), 2000))
+    );
 
     wv_assert_err!(socket.bind(2001), Code::InvState);
 }
@@ -48,8 +53,7 @@ fn data() {
     let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(&nm)));
     wv_assert_ok!(socket.bind(2001));
 
-    let dest_addr = IpAddr::new(192, 168, 112, 1);
-    let dest_port = 1337;
+    let dest = Endpoint::new(IpAddr::new(192, 168, 112, 1), 1337);
 
     let mut send_buf = [0u8; 1024];
     for i in 0..1024 {
@@ -61,13 +65,12 @@ fn data() {
     let packet_sizes = [8, 16, 32, 64, 128, 256, 512, 1024];
 
     for pkt_size in &packet_sizes {
-        wv_assert_ok!(socket.send_to(&send_buf[0..*pkt_size], dest_addr, dest_port));
+        wv_assert_ok!(socket.send_to(&send_buf[0..*pkt_size], dest));
 
-        let (recv_size, ip, port) = wv_assert_ok!(socket.recv_from(&mut recv_buf));
+        let (recv_size, src) = wv_assert_ok!(socket.recv_from(&mut recv_buf));
 
         wv_assert_eq!(*pkt_size, recv_size as usize);
-        wv_assert_eq!(ip, dest_addr);
-        wv_assert_eq!(port, dest_port);
+        wv_assert_eq!(src, dest);
 
         wv_assert_eq!(&recv_buf[0..recv_size], &send_buf[0..recv_size]);
     }

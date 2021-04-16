@@ -73,4 +73,32 @@ static inline OStream &operator<<(OStream &os, const IpAddr &a) noexcept {
     return os;
 }
 
+struct Endpoint {
+    static Endpoint unspecified() {
+        return Endpoint();
+    }
+
+    explicit Endpoint() : addr(), port() {
+    }
+    explicit Endpoint(IpAddr addr, port_t port)
+        : addr(addr),
+          port(port) {
+    }
+
+    IpAddr addr;
+    port_t port;
+};
+
+static inline bool operator==(const Endpoint &a, const Endpoint &b) noexcept {
+    return a.addr == b.addr && a.port == b.port;
+}
+static inline bool operator!=(const Endpoint &a, const Endpoint &b) noexcept {
+    return !operator==(a, b);
+}
+
+static inline OStream &operator<<(OStream &os, const Endpoint &ep) noexcept {
+    os << ep.addr << ":" << ep.port;
+    return os;
+}
+
 }

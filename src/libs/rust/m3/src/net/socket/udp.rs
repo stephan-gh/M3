@@ -19,7 +19,7 @@
 use crate::errors::{Code, Error};
 use crate::net::{
     socket::{Socket, SocketArgs, State},
-    IpAddr, Port, Sd, SocketType,
+    Endpoint, Port, Sd, SocketType,
 };
 use crate::rc::Rc;
 use crate::session::NetworkManager;
@@ -84,6 +84,13 @@ impl<'n> UdpSocket<'n> {
         self.socket.state()
     }
 
+    /// Returns the local endpoint
+    ///
+    /// The local endpoint is only `Some` if the socket has been bound via [`bind`].
+    pub fn local_endpoint(&self) -> Option<Endpoint> {
+        self.socket.local_ep.get()
+    }
+
     /// Returns whether the socket is currently in blocking mode
     pub fn blocking(&self) -> bool {
         self.socket.blocking()
@@ -113,7 +120,8 @@ impl<'n> UdpSocket<'n> {
         }
 
         let addr = self.nm.bind(self.socket.sd(), port)?;
-        self.socket.set_local(addr, port, State::Bound);
+        self.socket.local_ep.set(Some(Endpoint::new(addr, port)));
+        self.socket.state.set(State::Bound);
         Ok(())
     }
 
@@ -129,22 +137,22 @@ impl<'n> UdpSocket<'n> {
     ///
     /// Returns the number of received bytes.
     pub fn recv(&self, data: &mut [u8]) -> Result<usize, Error> {
-        self.recv_from(data).map(|(size, _, _)| size)
+        self.recv_from(data).map(|(size, _)| size)
     }
 
     /// Receives data from the socket into the given buffer.
     ///
     /// Returns the number of received bytes and the remote endpoint it was received from.
-    pub fn recv_from(&self, data: &mut [u8]) -> Result<(usize, IpAddr, Port), Error> {
-        self.socket.next_data(data.len(), |buf, addr, port| {
+    pub fn recv_from(&self, data: &mut [u8]) -> Result<(usize, Endpoint), Error> {
+        self.socket.next_data(data.len(), |buf, ep| {
             data[0..buf.len()].copy_from_slice(buf);
-            (buf.len(), addr, port)
+            (buf.len(), ep)
         })
     }
 
     /// Sends the given data to the given remote endpoint
-    pub fn send_to(&self, data: &[u8], addr: IpAddr, port: Port) -> Result<(), Error> {
-        self.socket.send(data, addr, port)
+    pub fn send_to(&self, data: &[u8], endpoint: Endpoint) -> Result<(), Error> {
+        self.socket.send(data, endpoint)
     }
 }
 

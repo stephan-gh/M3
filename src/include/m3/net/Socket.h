@@ -113,13 +113,11 @@ public:
 protected:
     explicit Socket(int sd, capsel_t caps, NetworkManager &nm);
 
-    void set_local(IpAddr addr, port_t port, State state);
-
-    bool get_next_data(const uchar **data, size_t *size, IpAddr *src_addr, port_t *src_port);
+    bool get_next_data(const uchar **data, size_t *size, Endpoint *ep);
     void ack_data(size_t size);
 
-    ssize_t do_send(const void *src, size_t amount, IpAddr dst_addr, port_t dst_port);
-    ssize_t do_recv(void *dst, size_t amount, IpAddr *src_addr, port_t *src_port);
+    ssize_t do_send(const void *src, size_t amount, const Endpoint &ep);
+    ssize_t do_recv(void *dst, size_t amount, Endpoint *ep);
 
     void process_message(const NetEventChannel::ControlMessage &message,
                          NetEventChannel::Event &event);
@@ -141,10 +139,8 @@ protected:
     State _state;
     bool _blocking;
 
-    IpAddr _local_addr;
-    port_t _local_port;
-    IpAddr _remote_addr;
-    port_t _remote_port;
+    Endpoint _local_ep;
+    Endpoint _remote_ep;
 
     NetworkManager &_nm;
 

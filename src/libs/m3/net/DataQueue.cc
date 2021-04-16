@@ -61,18 +61,15 @@ bool DataQueue::has_data() const noexcept {
     return _recv_queue.length() > 0;
 }
 
-bool DataQueue::get_next_data(const uchar **data, size_t *size,
-                              IpAddr *src_addr, port_t *src_port) noexcept {
+bool DataQueue::get_next_data(const uchar **data, size_t *size, Endpoint *ep) noexcept {
     if(!has_data())
         return false;
 
     Item &item = *_recv_queue.begin();
     *data = item.get_data() + item.get_pos();
     *size = item.get_size() - item.get_pos();
-    if(src_addr)
-        *src_addr = item.src_addr();
-    if(src_port)
-        *src_port = item.src_port();
+    if(ep)
+        *ep = Endpoint(item.src_addr(), item.src_port());
     return true;
 }
 

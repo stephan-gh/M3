@@ -22,7 +22,7 @@ use crate::cell::RefCell;
 use crate::col::Vec;
 use crate::com::{RecvGate, SendGate};
 use crate::errors::Error;
-use crate::net::{IpAddr, NetEventChannel, Port, Sd, Socket, SocketArgs, SocketType};
+use crate::net::{Endpoint, IpAddr, NetEventChannel, Port, Sd, Socket, SocketArgs, SocketType};
 use crate::pes::VPE;
 use crate::rc::Rc;
 use crate::session::ClientSession;
@@ -195,21 +195,18 @@ impl NetworkManager {
         Ok(addr)
     }
 
-    pub(crate) fn connect(
-        &self,
-        sd: Sd,
-        remote_addr: IpAddr,
-        remote_port: Port,
-    ) -> Result<Port, Error> {
+    pub(crate) fn connect(&self, sd: Sd, endpoint: Endpoint) -> Result<Endpoint, Error> {
         let mut reply = send_recv_res!(
             &self.metagate,
             RecvGate::def(),
             NetworkOp::CONNECT,
             sd,
-            remote_addr.0,
-            remote_port
+            endpoint.addr.0,
+            endpoint.port
         )?;
-        Ok(reply.pop::<Port>()?)
+        let addr = reply.pop::<u32>()?;
+        let port = reply.pop::<Port>()?;
+        Ok(Endpoint::new(IpAddr(addr), port))
     }
 
     pub(crate) fn abort(&self, sd: Sd, remove: bool) -> Result<(), Error> {

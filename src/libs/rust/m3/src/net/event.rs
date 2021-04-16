@@ -24,7 +24,7 @@ use crate::int_enum;
 use crate::kif::{CapRngDesc, CapType};
 use crate::math;
 use crate::mem::{self, MaybeUninit, MsgBuf};
-use crate::net::{IpAddr, Port};
+use crate::net::{Endpoint, IpAddr, Port};
 use crate::pes::VPE;
 use crate::rc::Rc;
 use crate::tcu::{Header, Message};
@@ -66,11 +66,11 @@ pub struct ConnectedMessage {
 }
 
 impl ConnectedMessage {
-    pub fn new(remote_addr: IpAddr, remote_port: Port) -> Self {
+    pub fn new(endpoint: Endpoint) -> Self {
         Self {
             ty: NetEventType::CONNECTED.val,
-            remote_addr: remote_addr.0 as u64,
-            remote_port: remote_port as u64,
+            remote_addr: endpoint.addr.0 as u64,
+            remote_port: endpoint.port as u64,
         }
     }
 }
@@ -79,9 +79,8 @@ impl fmt::Debug for ConnectedMessage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "remote={}:{}",
-            IpAddr(self.remote_addr as u32),
-            self.remote_port
+            "remote={}",
+            Endpoint::new(IpAddr(self.remote_addr as u32), self.remote_port as Port)
         )
     }
 }
@@ -233,20 +232,14 @@ impl NetEventChannel {
         self.sgate.send(&msg_buf, &self.rpl_gate)
     }
 
-    pub fn send_data<F>(
-        &self,
-        addr: IpAddr,
-        port: Port,
-        size: usize,
-        populate: F,
-    ) -> Result<(), Error>
+    pub fn send_data<F>(&self, endpoint: Endpoint, size: usize, populate: F) -> Result<(), Error>
     where
         F: FnOnce(&mut [u8]),
     {
         let mut msg = DataMessage {
             ty: NetEventType::DATA.val,
-            addr: addr.0 as u64,
-            port: port as u64,
+            addr: endpoint.addr.0 as u64,
+            port: endpoint.port as u64,
             size: size as u64,
             // safety: data[0..size] will be initialized below; the rest will not be sent
             data: unsafe { MaybeUninit::uninit().assume_init() },

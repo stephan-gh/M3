@@ -53,15 +53,17 @@ void UdpSocket::bind(port_t port) {
         throw Exception(Errors::INV_STATE);
 
     IpAddr addr = _nm.bind(sd(), port);
-    set_local(addr, port, State::Bound);
+    _local_ep.addr = addr;
+    _local_ep.port = port;
+    _state = State::Bound;
 }
 
-ssize_t UdpSocket::recv_from(void *dst, size_t amount, IpAddr *src_addr, port_t *src_port) {
-    return Socket::do_recv(dst, amount, src_addr, src_port);
+ssize_t UdpSocket::recv_from(void *dst, size_t amount, Endpoint *src_ep) {
+    return Socket::do_recv(dst, amount, src_ep);
 }
 
-ssize_t UdpSocket::send_to(const void *src, size_t amount, IpAddr dst_addr, port_t dst_port) {
-    return Socket::do_send(src, amount, dst_addr, dst_port);
+ssize_t UdpSocket::send_to(const void *src, size_t amount, const Endpoint &dst_ep) {
+    return Socket::do_send(src, amount, dst_ep);
 }
 
 }

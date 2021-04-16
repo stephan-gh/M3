@@ -75,6 +75,22 @@ public:
     ~TcpSocket();
 
     /**
+     * @return the local endpoint (only valid if the socket has been put into listen mode via listen
+     *     or was connected to a remote endpoint via connect)
+     */
+    const Endpoint &local_endpoint() const noexcept {
+        return _local_ep;
+    }
+
+    /**
+     * @return the remote endpoint (only valid, if the socket is currently connected (achieved
+     *     either via connect or accept)
+     */
+    const Endpoint &remote_endpoint() const noexcept {
+        return _remote_ep;
+    }
+
+    /**
      * Puts this socket into listen mode on the given port.
      *
      * In listen mode, remote connections can be accepted. See accept. Note that in contrast to
@@ -83,19 +99,18 @@ public:
      * Listing on this port requires that the used session has permission for this port. This is
      * controlled with the "ports=..." argument in the session argument of M³'s config files.
      *
-     * @param local_port the port to listen on
+     * @param port the port to listen on
      */
-    void listen(port_t local_port);
+    void listen(port_t port);
 
     /**
-     * Connect the socket to the socket at <addr>:<port>.
+     * Connect the socket to the given remote endpoint.
      *
-     * @param remote_addr address of the socket to connect to
-     * @param remote_port port of the socket to connect to
+     * @param endpoint the remote endpoint to connect to
      * @return true if the socket is connected (false if the socket is non-blocking and the
      *     connection is in progress)
      */
-    bool connect(IpAddr remote_addr, port_t remote_port);
+    bool connect(const Endpoint &endpoint);
 
     /**
      * Accepts a remote connection on this socket
@@ -105,12 +120,11 @@ public:
      * connection. Thus, to support multiple connections to the same port, put multiple sockets in
      * listen mode on this port and call accept on each of them.
      *
-     * @param remote_addr if not null, it's set to the IP address of the remote endpoint
-     * @param remote_port if not null, it's set to the port of the remote endpoint
+     * @param remote_ep if not null, it's set to the remote endpoint
      * @return true if the socket is connected (false if the socket is non-blocking and the
      *     connection is in progress)
      */
-    bool accept(IpAddr *remote_addr, port_t *remote_port);
+    bool accept(Endpoint *remote_ep);
 
     /**
      * Receives data from the socket into the given buffer.

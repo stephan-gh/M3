@@ -420,7 +420,9 @@ impl SocketSession {
         let port_no = *local_port;
         sock.borrow_mut()
             .connect(remote_addr, remote_port, local_port, socket_set)?;
-        reply_vmsg!(is, Code::None as i32, port_no)
+
+        let addr = to_m3_addr(crate::own_addr());
+        reply_vmsg!(is, Code::None as i32, addr.0, port_no)
     }
 
     pub fn abort(
@@ -518,20 +520,19 @@ impl SocketSession {
                 }
 
                 socket.borrow_mut().receive(socket_set, |data, addr| {
-                    let (ip, port) = to_m3_ep(addr);
+                    let ep = to_m3_ep(addr);
                     let amount = cmp::min(event::MTU, data.len());
 
                     log!(
                         crate::LOG_DATA,
-                        "[{}] socket {}: received packet with {}b from {}:{}",
+                        "[{}] socket {}: received packet with {}b from {}",
                         socket_sd,
                         self.server_session.ident(),
                         amount,
-                        ip,
-                        port
+                        ep
                     );
 
-                    chan.send_data(ip, port, amount, |buf| {
+                    chan.send_data(ep, amount, |buf| {
                         buf[0..amount].copy_from_slice(&data[0..amount]);
                     })
                     .unwrap();

@@ -20,7 +20,9 @@ use crate::cell::{Cell, RefCell};
 use crate::errors::{Code, Error};
 use crate::llog;
 use crate::net::dataqueue::DataQueue;
-use crate::net::{event, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketType};
+use crate::net::{
+    event, Endpoint, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketType,
+};
 use crate::rc::Rc;
 
 mod raw;
@@ -78,10 +80,8 @@ pub(crate) struct Socket {
 
     pub state: Cell<State>,
 
-    pub local_addr: Cell<IpAddr>,
-    pub local_port: Cell<Port>,
-    pub remote_addr: Cell<IpAddr>,
-    pub remote_port: Cell<Port>,
+    pub local_ep: Cell<Option<Endpoint>>,
+    pub remote_ep: Cell<Option<Endpoint>>,
 
     pub channel: Rc<NetEventChannel>,
     pub recv_queue: RefCell<DataQueue>,
@@ -96,11 +96,8 @@ impl Socket {
             state: Cell::new(State::Closed),
             blocking: Cell::new(true),
 
-            local_addr: Cell::new(IpAddr::unspecified()),
-            local_port: Cell::new(0),
-
-            remote_addr: Cell::new(IpAddr::unspecified()),
-            remote_port: Cell::new(0),
+            local_ep: Cell::new(None),
+            remote_ep: Cell::new(None),
 
             channel,
             recv_queue: RefCell::new(DataQueue::default()),
@@ -123,17 +120,9 @@ impl Socket {
         self.blocking.set(blocking);
     }
 
-    pub fn set_local(&self, addr: IpAddr, port: Port, state: State) {
-        self.local_addr.set(addr);
-        self.local_port.set(port);
-        self.state.set(state);
-    }
-
     pub fn disconnect(&self) {
-        self.local_addr.set(IpAddr::unspecified());
-        self.local_port.set(0);
-        self.remote_addr.set(IpAddr::unspecified());
-        self.remote_port.set(0);
+        self.local_ep.set(None);
+        self.remote_ep.set(None);
         self.state.set(State::Closed);
     }
 
@@ -147,7 +136,7 @@ impl Socket {
 
     pub fn next_data<F, R>(&self, amount: usize, mut consume: F) -> Result<R, Error>
     where
-        F: FnMut(&[u8], IpAddr, Port) -> R,
+        F: FnMut(&[u8], Endpoint) -> R,
     {
         loop {
             if let Some(res) = self.recv_queue.borrow_mut().next_data(amount, &mut consume) {
@@ -163,9 +152,9 @@ impl Socket {
         }
     }
 
-    pub fn send(&self, data: &[u8], addr: IpAddr, port: Port) -> Result<(), Error> {
+    pub fn send(&self, data: &[u8], endpoint: Endpoint) -> Result<(), Error> {
         loop {
-            let res = self.channel.send_data(addr, port, data.len(), |buf| {
+            let res = self.channel.send_data(endpoint, data.len(), |buf| {
                 buf.copy_from_slice(data);
             });
             match res {
@@ -234,11 +223,10 @@ impl Socket {
                     let _msg = event.msg::<event::DataMessage>();
                     llog!(
                         NET,
-                        "socket {}: received data with {}b from {}:{}",
+                        "socket {}: received data with {}b from {}",
                         self.sd,
                         _msg.size,
-                        IpAddr(_msg.addr as u32),
-                        _msg.port
+                        Endpoint::new(IpAddr(_msg.addr as u32), _msg.port as Port)
                     );
                     self.recv_queue.borrow_mut().append(event);
                 }
@@ -246,16 +234,10 @@ impl Socket {
 
             NetEventType::CONNECTED => {
                 let msg = event.msg::<event::ConnectedMessage>();
-                llog!(
-                    NET,
-                    "socket {}: connected to {}:{}",
-                    self.sd,
-                    IpAddr(msg.remote_addr as u32),
-                    msg.remote_port
-                );
+                let ep = Endpoint::new(IpAddr(msg.remote_addr as u32), msg.remote_port as Port);
+                llog!(NET, "socket {}: connected to {}", self.sd, ep);
                 self.state.set(State::Connected);
-                self.remote_addr.set(IpAddr(msg.remote_addr as u32));
-                self.remote_port.set(msg.remote_port as Port);
+                self.remote_ep.set(Some(ep));
             },
 
             NetEventType::CLOSED => {

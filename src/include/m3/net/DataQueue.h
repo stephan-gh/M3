@@ -47,8 +47,7 @@ public:
 
     void append(Item *item) noexcept;
     bool has_data() const noexcept;
-    bool get_next_data(const uchar **data, size_t *size,
-                       IpAddr *src_addr, port_t *src_port) noexcept;
+    bool get_next_data(const uchar **data, size_t *size, Endpoint *ep) noexcept;
     void ack_data(size_t size) noexcept;
     void clear() noexcept;
 

@@ -18,7 +18,7 @@
 use core::cmp;
 
 use crate::col::DList;
-use crate::net::{event, IpAddr, NetEvent, Port};
+use crate::net::{event, Endpoint, IpAddr, NetEvent, Port};
 
 struct Item {
     event: NetEvent,
@@ -67,12 +67,13 @@ impl DataQueue {
 
     pub fn next_data<F, R>(&mut self, len: usize, consume: &mut F) -> Option<R>
     where
-        F: FnMut(&[u8], IpAddr, Port) -> R,
+        F: FnMut(&[u8], Endpoint) -> R,
     {
         if let Some(first) = self.items.front_mut() {
             let data = first.data();
             let amount = cmp::min(len, data.len());
-            let res = consume(&data[0..amount], first.addr(), first.port());
+            let ep = Endpoint::new(first.addr(), first.port());
+            let res = consume(&data[0..amount], ep);
             if amount >= data.len() {
                 self.items.pop_front();
             }

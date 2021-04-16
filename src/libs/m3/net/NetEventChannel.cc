@@ -29,13 +29,13 @@ NetEventChannel::NetEventChannel(capsel_t caps)
     _rplgate.activate();
 }
 
-bool NetEventChannel::send_data(IpAddr addr, port_t port, size_t size, std::function<void(uchar *)> cb_data) {
+bool NetEventChannel::send_data(const Endpoint &ep, size_t size, std::function<void(uchar *)> cb_data) {
     // make sure that the message does not contain a page boundary
     ALIGNED(2048) char msg_buf[2048];
     auto msg = reinterpret_cast<DataMessage*>(msg_buf);
     msg->type = Data;
-    msg->addr = static_cast<uint64_t>(addr.addr());
-    msg->port = static_cast<uint64_t>(port);
+    msg->addr = static_cast<uint64_t>(ep.addr.addr());
+    msg->port = static_cast<uint64_t>(ep.port);
     msg->size = static_cast<uint64_t>(size);
     cb_data(msg->data);
 

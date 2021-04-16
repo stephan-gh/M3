@@ -80,6 +80,13 @@ public:
     ~UdpSocket();
 
     /**
+     * @return the local endpoint (only valid if the socket has been bound via bind)
+     */
+    const Endpoint &local_endpoint() const noexcept {
+        return _local_ep;
+    }
+
+    /**
      * Binds this socket to the given local port.
      *
      * When bound, packets can be received from remote endpoints.
@@ -96,22 +103,20 @@ public:
      *
      * @param src the data to send
      * @param amount the number of bytes to send
-     * @param dst_addr destination socket address
-     * @param dst_port destination socket port
+     * @param dst_ep destination endpoint
      * @return the number of sent bytes (-1 if it would block and the socket is non-blocking)
      */
-    ssize_t send_to(const void *src, size_t amount, IpAddr dst_addr, port_t dst_port);
+    ssize_t send_to(const void *src, size_t amount, const Endpoint &dst_ep);
 
     /**
      * Receives <amount> or a smaller number of bytes into <dst>.
      *
      * @param dst the destination buffer
      * @param amount the number of bytes to receive
-     * @param src_addr if not null, the source address is filled in
-     * @param src_port if not null, the source port is filled in
+     * @param src_ep if not null, the source endpoint is filled in
      * @return the number of received bytes (-1 if it would block and the socket is non-blocking)
      */
-    ssize_t recv_from(void *dst, size_t amount, IpAddr *src_addr, port_t *src_port);
+    ssize_t recv_from(void *dst, size_t amount, Endpoint *src_ep);
 };
 
 }

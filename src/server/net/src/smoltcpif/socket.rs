@@ -21,7 +21,9 @@ use m3::col::VecDeque;
 use m3::errors::{Code, Error};
 use m3::log;
 use m3::mem::size_of;
-use m3::net::{event, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketType};
+use m3::net::{
+    event, Endpoint, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketType,
+};
 use m3::rc::Rc;
 use m3::tcu::TCU;
 use m3::vec;
@@ -49,8 +51,8 @@ pub fn to_m3_addr(addr: IpAddress) -> IpAddr {
 
 /// Converts an IpEndpoint from smoltcp into an M³ (IpAddr, Port) tuple.
 /// Assumes that the IpEndpoint a is Ipv4 address, otherwise this will panic.
-pub fn to_m3_ep(addr: IpEndpoint) -> (IpAddr, Port) {
-    (to_m3_addr(addr.addr), addr.port)
+pub fn to_m3_ep(addr: IpEndpoint) -> Endpoint {
+    Endpoint::new(to_m3_addr(addr.addr), addr.port)
 }
 
 #[derive(Debug)]
@@ -201,10 +203,8 @@ impl Socket {
                 let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
                 if tcp_socket.state() == TcpState::Established {
                     self.state = State::Connected;
-                    let (ip, port) = to_m3_ep(tcp_socket.remote_endpoint());
-                    Some(SendNetEvent::Connected(event::ConnectedMessage::new(
-                        ip, port,
-                    )))
+                    let ep = to_m3_ep(tcp_socket.remote_endpoint());
+                    Some(SendNetEvent::Connected(event::ConnectedMessage::new(ep)))
                 }
                 else if let Some(start) = self.connect_start {
                     if TCU::nanotime() - start > CONNECT_TIMEOUT {

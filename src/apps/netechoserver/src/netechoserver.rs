@@ -57,8 +57,8 @@ pub fn main() -> i32 {
 
         if udp_socket.has_data() {
             // ignore errors
-            if let Ok((size, ip, port)) = udp_socket.recv_from(&mut buffer) {
-                udp_socket.send_to(&buffer[0..size], ip, port).ok();
+            if let Ok((size, src)) = udp_socket.recv_from(&mut buffer) {
+                udp_socket.send_to(&buffer[0..size], src).ok();
             }
         }
 

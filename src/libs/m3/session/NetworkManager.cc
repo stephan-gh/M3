@@ -84,12 +84,14 @@ IpAddr NetworkManager::listen(int32_t sd, port_t port) {
     return IpAddr(addr);
 }
 
-port_t NetworkManager::connect(int32_t sd, IpAddr remote_addr, port_t remote_port) {
-    GateIStream reply = send_receive_vmsg(_metagate, CONNECT, sd, remote_addr.addr(), remote_port);
+Endpoint NetworkManager::connect(int32_t sd, Endpoint remote_ep) {
+    GateIStream reply = send_receive_vmsg(_metagate, CONNECT, sd,
+                                          remote_ep.addr.addr(), remote_ep.port);
     reply.pull_result();
+    uint32_t addr;
     port_t port;
-    reply >> port;
-    return port;
+    reply >> addr >> port;
+    return Endpoint(IpAddr(addr), port);
 }
 
 void NetworkManager::abort(int32_t sd, bool remove) {

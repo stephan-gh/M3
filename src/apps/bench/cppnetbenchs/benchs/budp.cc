@@ -46,15 +46,13 @@ NOINLINE static void latency() {
     socket->bind(2000);
 
     const size_t samples = 15;
-    IpAddr dest_addr     = IpAddr(192, 168, 112, 1);
-    port_t dest_port     = 1337;
-    IpAddr src_addr;
-    port_t src_port;
+    Endpoint src;
+    Endpoint dest = Endpoint(IpAddr(192, 168, 112, 1), 1337);
 
     size_t warmup = 5;
     while(warmup--) {
-        socket->send_to(request.raw, 8, dest_addr, dest_port);
-        socket->recv_from(response.raw, 8, &src_addr, &src_port);
+        socket->send_to(request.raw, 8, dest);
+        socket->recv_from(response.raw, 8, &src);
     }
 
     const size_t packet_size[] = {8, 16, 32, 64, 128, 256, 512, 1024};
@@ -66,8 +64,8 @@ NOINLINE static void latency() {
             cycles_t start = Time::start(0);
 
             request.time = start;
-            ssize_t send_len = socket->send_to(request.raw, pkt_size, dest_addr, dest_port);
-            ssize_t recv_len = socket->recv_from(response.raw, pkt_size, &src_addr, &src_port);
+            ssize_t send_len = socket->send_to(request.raw, pkt_size, dest);
+            ssize_t recv_len = socket->recv_from(response.raw, pkt_size, &src);
             if(recv_len == -1)
                 exitmsg("Got empty package!");
             cycles_t stop = Time::stop(0);
@@ -102,11 +100,9 @@ NOINLINE static void bandwidth() {
     socket->bind(2001);
 
     constexpr size_t packet_size = 1024;
-    IpAddr dest_addr             = IpAddr(192, 168, 112, 1);
-    port_t dest_port             = 1337;
 
-    IpAddr src_addr;
-    port_t src_port;
+    Endpoint src;
+    Endpoint dest = Endpoint(IpAddr(192, 168, 112, 1), 1337);
 
     size_t warmup             = 5;
     size_t packets_to_send    = 105;
@@ -119,8 +115,8 @@ NOINLINE static void bandwidth() {
     size_t received_bytes        = 0;
 
     while(warmup--) {
-        socket->send_to(request.raw, 8, dest_addr, dest_port);
-        socket->recv_from(response.raw, sizeof(response.raw), &src_addr, &src_port);
+        socket->send_to(request.raw, 8, dest);
+        socket->recv_from(response.raw, sizeof(response.raw), &src);
     }
 
     socket->blocking(false);
@@ -145,7 +141,7 @@ NOINLINE static void bandwidth() {
 
         size_t send_count = burst_size;
         while(send_count-- && packet_sent_count < packets_to_send) {
-            if(socket->send_to(request.raw, packet_size, dest_addr, dest_port) > 0) {
+            if(socket->send_to(request.raw, packet_size, dest) > 0) {
                 packet_sent_count++;
                 failures = 0;
             } else {
@@ -156,7 +152,7 @@ NOINLINE static void bandwidth() {
 
         size_t receive_count = burst_size;
         while(receive_count--) {
-            ssize_t pkt_size = socket->recv_from(response.raw, sizeof(response.raw), &src_addr, &src_port);
+            ssize_t pkt_size = socket->recv_from(response.raw, sizeof(response.raw), &src);
 
             if(pkt_size != -1) {
                 received_bytes += static_cast<size_t>(pkt_size);

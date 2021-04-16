@@ -47,17 +47,19 @@ Reference<TcpSocket> TcpSocket::create(NetworkManager &nm, const StreamSocketArg
     return Reference<TcpSocket>(sock);
 }
 
-void TcpSocket::listen(port_t local_port) {
+void TcpSocket::listen(port_t port) {
     if(_state != State::Closed)
         throw Exception(Errors::INV_STATE);
 
-    IpAddr local_addr = _nm.listen(sd(), local_port);
-    set_local(local_addr, local_port, State::Listening);
+    IpAddr addr = _nm.listen(sd(), port);
+    _local_ep.addr = addr;
+    _local_ep.port = port;
+    _state = State::Listening;
 }
 
-bool TcpSocket::connect(IpAddr remote_addr, port_t remote_port) {
+bool TcpSocket::connect(const Endpoint &endpoint) {
     if(_state == State::Connected) {
-        if(!(_remote_addr == remote_addr && _remote_port == remote_port))
+        if(_remote_ep != endpoint)
             throw Exception(Errors::IS_CONNECTED);
         return true;
     }
@@ -65,11 +67,10 @@ bool TcpSocket::connect(IpAddr remote_addr, port_t remote_port) {
     if(_state == State::Connecting)
         throw Exception(Errors::ALREADY_IN_PROGRESS);
 
-    port_t local_port = _nm.connect(sd(), remote_addr, remote_port);
+    Endpoint local_ep = _nm.connect(sd(), endpoint);
     _state = State::Connecting;
-    _remote_addr = remote_addr;
-    _remote_port = remote_port;
-    _local_port = local_port;
+    _remote_ep = endpoint;
+    _local_ep = local_ep;
 
     if(!_blocking)
         return false;
@@ -82,12 +83,10 @@ bool TcpSocket::connect(IpAddr remote_addr, port_t remote_port) {
     return true;
 }
 
-bool TcpSocket::accept(IpAddr *remote_addr, port_t *remote_port) {
+bool TcpSocket::accept(Endpoint *remote_ep) {
     if(_state == State::Connected) {
-        if(remote_addr)
-            *remote_addr = _remote_addr;
-        if(remote_port)
-            *remote_port = _remote_port;
+        if(remote_ep)
+            *remote_ep = _remote_ep;
         return true;
     }
     if(_state == State::Connecting)
@@ -105,10 +104,8 @@ bool TcpSocket::accept(IpAddr *remote_addr, port_t *remote_port) {
     if(_state != State::Connected)
         throw Exception(Errors::CONNECTION_FAILED);
 
-    if(remote_addr)
-        *remote_addr = _remote_addr;
-    if(remote_port)
-        *remote_port = _remote_port;
+    if(remote_ep)
+        *remote_ep = _remote_ep;
     return true;
 }
 
@@ -118,7 +115,7 @@ ssize_t TcpSocket::recv(void *dst, size_t amount) {
     if(_state != Connected && _state != RemoteClosed)
         throw Exception(Errors::NOT_CONNECTED);
 
-    return Socket::do_recv(dst, amount, nullptr, nullptr);
+    return Socket::do_recv(dst, amount, nullptr);
 }
 
 ssize_t TcpSocket::send(const void *src, size_t amount) {
@@ -126,7 +123,7 @@ ssize_t TcpSocket::send(const void *src, size_t amount) {
     if(_state != Connected && _state != RemoteClosed)
         throw Exception(Errors::NOT_CONNECTED);
 
-    return Socket::do_send(src, amount, _remote_addr, _remote_port);
+    return Socket::do_send(src, amount, _remote_ep);
 }
 
 void TcpSocket::handle_data(NetEventChannel::DataMessage const &msg, NetEventChannel::Event &event) {

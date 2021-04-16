@@ -68,6 +68,26 @@ impl core::fmt::Display for IpAddr {
     }
 }
 
+/// Represents an TCP/UDP endpoint consisting of an IP address and a port
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub struct Endpoint {
+    pub addr: IpAddr,
+    pub port: Port,
+}
+
+impl Endpoint {
+    /// Creates a new endpoint for given IP address and port
+    pub fn new(addr: IpAddr, port: Port) -> Self {
+        Self { addr, port }
+    }
+}
+
+impl core::fmt::Display for Endpoint {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}:{}", self.addr, self.port)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SocketType {
     /// TCP socket

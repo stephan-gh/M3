@@ -32,10 +32,8 @@ Socket::Socket(int sd, capsel_t caps, NetworkManager &nm)
       _sd(sd),
       _state(Closed),
       _blocking(true),
-      _local_addr(IpAddr(0, 0, 0, 0)),
-      _local_port(0),
-      _remote_addr(IpAddr(0, 0, 0, 0)),
-      _remote_port(0),
+      _local_ep(),
+      _remote_ep(),
       _nm(nm),
       _channel(caps),
       _recv_queue() {
@@ -47,16 +45,8 @@ Socket::~Socket() {
 
 void Socket::disconnect() {
     _state = Closed;
-    _local_addr = IpAddr();
-    _local_port = 0;
-    _remote_addr = IpAddr();
-    _remote_port = 0;
-}
-
-void Socket::set_local(IpAddr addr, port_t port, State state) {
-    _local_addr = addr;
-    _local_port = port;
-    _state = state;
+    _local_ep = Endpoint();
+    _remote_ep = Endpoint();
 }
 
 void Socket::process_message(const NetEventChannel::ControlMessage &message,
@@ -84,8 +74,8 @@ void Socket::handle_data(NetEventChannel::DataMessage const &msg, NetEventChanne
 void Socket::handle_connected(NetEventChannel::ConnectedMessage const &msg) {
     LLOG(NET, "socket " << _sd << ": connected to " << IpAddr(msg.addr) << ":" << msg.port);
     _state = Connected;
-    _remote_addr = IpAddr(msg.addr);
-    _remote_port = msg.port;
+    _remote_ep.addr = IpAddr(msg.addr);
+    _remote_ep.port = msg.port;
 }
 
 void Socket::handle_close_req(NetEventChannel::CloseReqMessage const &) {
@@ -98,9 +88,9 @@ void Socket::handle_closed(NetEventChannel::ClosedMessage const &) {
     disconnect();
 }
 
-bool Socket::get_next_data(const uchar **data, size_t *size, IpAddr *src_addr, port_t *src_port) {
+bool Socket::get_next_data(const uchar **data, size_t *size, Endpoint *ep) {
     while(true) {
-        if(_recv_queue.get_next_data(data, size, src_addr, src_port))
+        if(_recv_queue.get_next_data(data, size, ep))
             return true;
 
         if(_state == Closed)
@@ -114,10 +104,10 @@ bool Socket::get_next_data(const uchar **data, size_t *size, IpAddr *src_addr, p
     }
 }
 
-ssize_t Socket::do_recv(void *dst, size_t amount, IpAddr *src_addr, port_t *src_port) {
+ssize_t Socket::do_recv(void *dst, size_t amount, Endpoint *ep) {
     const uchar *pkt_data = nullptr;
     size_t pkt_size = 0;
-    if(!get_next_data(&pkt_data, &pkt_size, src_addr, src_port))
+    if(!get_next_data(&pkt_data, &pkt_size, ep))
         return -1;
 
     size_t msg_size = Math::min(pkt_size, amount);
@@ -129,9 +119,9 @@ ssize_t Socket::do_recv(void *dst, size_t amount, IpAddr *src_addr, port_t *src_
     return static_cast<ssize_t>(msg_size);
 }
 
-ssize_t Socket::do_send(const void *src, size_t amount, IpAddr dst_addr, port_t dst_port) {
+ssize_t Socket::do_send(const void *src, size_t amount, const Endpoint &ep) {
     while(true) {
-        bool succeeded = _channel.send_data(dst_addr, dst_port, amount, [src, amount](void *buf) {
+        bool succeeded = _channel.send_data(ep, amount, [src, amount](void *buf) {
             memcpy(buf, src, amount);
         });
         if(succeeded)

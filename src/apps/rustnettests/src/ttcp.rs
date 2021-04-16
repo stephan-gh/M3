@@ -17,7 +17,7 @@
 use m3::boxed::Box;
 use m3::com::Semaphore;
 use m3::errors::Code;
-use m3::net::{IpAddr, State, StreamSocketArgs, TcpSocket};
+use m3::net::{Endpoint, IpAddr, State, StreamSocketArgs, TcpSocket};
 use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::session::{NetworkDirection, NetworkManager};
 use m3::test;
@@ -39,31 +39,43 @@ fn basics() {
     let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(&nm)));
 
     wv_assert_eq!(socket.state(), State::Closed);
+    wv_assert_eq!(socket.local_endpoint(), None);
+    wv_assert_eq!(socket.remote_endpoint(), None);
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
     wv_assert_err!(socket.send(&[0]), Code::NotConnected);
-    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 1338));
+    wv_assert_ok!(socket.connect(Endpoint::new(IpAddr::new(192, 168, 112, 1), 1338)));
     wv_assert_eq!(socket.state(), State::Connected);
+    wv_assert_eq!(
+        socket.local_endpoint().unwrap().addr,
+        IpAddr::new(192, 168, 112, 2)
+    );
+    wv_assert_eq!(
+        socket.remote_endpoint(),
+        Some(Endpoint::new(IpAddr::new(192, 168, 112, 1), 1338))
+    );
 
     let mut buf = [0u8; 32];
     wv_assert_ok!(socket.send(&buf));
     wv_assert_ok!(socket.recv(&mut buf));
 
     // connecting to the same remote endpoint is okay
-    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 1338));
+    wv_assert_ok!(socket.connect(Endpoint::new(IpAddr::new(192, 168, 112, 1), 1338)));
     // if anything differs, it's an error
     wv_assert_err!(
-        socket.connect(IpAddr::new(192, 168, 112, 1), 1339),
+        socket.connect(Endpoint::new(IpAddr::new(192, 168, 112, 1), 1339)),
         Code::IsConnected
     );
     wv_assert_err!(
-        socket.connect(IpAddr::new(192, 168, 112, 2), 1338),
+        socket.connect(Endpoint::new(IpAddr::new(192, 168, 112, 2), 1338)),
         Code::IsConnected
     );
 
     wv_assert_ok!(socket.abort());
     wv_assert_eq!(socket.state(), State::Closed);
+    wv_assert_eq!(socket.local_endpoint(), None);
+    wv_assert_eq!(socket.remote_endpoint(), None);
 }
 
 fn unreachable() {
@@ -72,7 +84,7 @@ fn unreachable() {
     let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(&nm)));
 
     wv_assert_err!(
-        socket.connect(IpAddr::new(127, 0, 0, 1), 80),
+        socket.connect(Endpoint::new(IpAddr::new(127, 0, 0, 1), 80)),
         Code::ConnectionFailed
     );
 }
@@ -87,13 +99,13 @@ fn nonblocking_client() {
     socket.set_blocking(false);
 
     wv_assert_err!(
-        socket.connect(IpAddr::new(192, 168, 112, 1), 1338),
+        socket.connect(Endpoint::new(IpAddr::new(192, 168, 112, 1), 1338)),
         Code::InProgress
     );
     while socket.state() != State::Connected {
         wv_assert_eq!(socket.state(), State::Connecting);
         wv_assert_err!(
-            socket.connect(IpAddr::new(192, 168, 112, 1), 1338),
+            socket.connect(Endpoint::new(IpAddr::new(192, 168, 112, 1), 1338)),
             Code::AlreadyInProgress
         );
         nm.wait(NetworkDirection::INPUT);
@@ -162,6 +174,9 @@ fn nonblocking_server() {
         let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(&nm)));
         socket.set_blocking(false);
 
+        wv_assert_eq!(socket.local_endpoint(), None);
+        wv_assert_eq!(socket.remote_endpoint(), None);
+
         wv_assert_ok!(socket.listen(3000));
         wv_assert_eq!(socket.state(), State::Listening);
         wv_assert_ok!(sem.up());
@@ -172,6 +187,15 @@ fn nonblocking_server() {
             wv_assert_err!(socket.accept(), Code::AlreadyInProgress);
             nm.wait(NetworkDirection::INPUT);
         }
+
+        wv_assert_eq!(
+            socket.local_endpoint(),
+            Some(Endpoint::new(IpAddr::new(192, 168, 112, 1), 3000))
+        );
+        wv_assert_eq!(
+            socket.remote_endpoint().unwrap().addr,
+            IpAddr::new(192, 168, 112, 2)
+        );
 
         socket.set_blocking(true);
         wv_assert_ok!(socket.close());
@@ -185,7 +209,7 @@ fn nonblocking_server() {
 
     wv_assert_ok!(sem.down());
 
-    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 3000));
+    wv_assert_ok!(socket.connect(Endpoint::new(IpAddr::new(192, 168, 112, 1), 3000)));
 
     wv_assert_ok!(socket.close());
 
@@ -199,11 +223,13 @@ fn open_close() {
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
-    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 1338));
+    wv_assert_ok!(socket.connect(Endpoint::new(IpAddr::new(192, 168, 112, 1), 1338)));
     wv_assert_eq!(socket.state(), State::Connected);
 
     wv_assert_ok!(socket.close());
     wv_assert_eq!(socket.state(), State::Closed);
+    wv_assert_eq!(socket.local_endpoint(), None);
+    wv_assert_eq!(socket.remote_endpoint(), None);
 
     let mut buf = [0u8; 32];
     wv_assert_err!(socket.send(&buf), Code::NotConnected);
@@ -229,8 +255,8 @@ fn receive_after_close() {
         wv_assert_eq!(socket.state(), State::Listening);
         wv_assert_ok!(sem.up());
 
-        let (ip, _port) = wv_assert_ok!(socket.accept());
-        wv_assert_eq!(ip, IpAddr::new(192, 168, 112, 2));
+        let ep = wv_assert_ok!(socket.accept());
+        wv_assert_eq!(ep.addr, IpAddr::new(192, 168, 112, 2));
         wv_assert_eq!(socket.state(), State::Connected);
 
         let mut buf = [0u8; 32];
@@ -249,7 +275,7 @@ fn receive_after_close() {
 
     wv_assert_ok!(sem.down());
 
-    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 3000));
+    wv_assert_ok!(socket.connect(Endpoint::new(IpAddr::new(192, 168, 112, 1), 3000)));
 
     let mut buf = [0u8; 32];
     wv_assert_ok!(socket.send(&buf));
@@ -272,7 +298,7 @@ fn data() {
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
-    wv_assert_ok!(socket.connect(IpAddr::new(192, 168, 112, 1), 1338));
+    wv_assert_ok!(socket.connect(Endpoint::new(IpAddr::new(192, 168, 112, 1), 1338)));
 
     let mut send_buf = [0u8; 1024];
     for i in 0..1024 {

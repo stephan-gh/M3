@@ -31,6 +31,8 @@ static void basics() {
     auto socket = TcpSocket::create(net);
 
     WVASSERTEQ(socket->state(), Socket::Closed);
+    WVASSERTEQ(socket->local_endpoint(), Endpoint::unspecified());
+    WVASSERTEQ(socket->remote_endpoint(), Endpoint::unspecified());
 
     Semaphore::attach("net-tcp").down();
 
@@ -39,25 +41,29 @@ static void basics() {
         socket->send(&dummy, sizeof(dummy));
     });
 
-    socket->connect(IpAddr(192, 168, 112, 1), 1338);
+    socket->connect(Endpoint(IpAddr(192, 168, 112, 1), 1338));
     WVASSERTEQ(socket->state(), Socket::Connected);
+    WVASSERTEQ(socket->local_endpoint().addr, IpAddr(192, 168, 112, 2));
+    WVASSERTEQ(socket->remote_endpoint(), Endpoint(IpAddr(192, 168, 112, 1), 1338));
 
     uint8_t buf[32];
     WVASSERT(socket->send(buf, sizeof(buf)) != -1);
     WVASSERT(socket->recv(buf, sizeof(buf)) != -1);
 
     // connecting to the same remote endpoint is okay
-    socket->connect(IpAddr(192, 168, 112, 1), 1338);
+    socket->connect(Endpoint(IpAddr(192, 168, 112, 1), 1338));
     // if anything differs, it's an error
     WVASSERTERR(Errors::IS_CONNECTED, [&socket] {
-        socket->connect(IpAddr(192, 168, 112, 1), 1339);
+        socket->connect(Endpoint(IpAddr(192, 168, 112, 1), 1339));
     });
     WVASSERTERR(Errors::IS_CONNECTED, [&socket] {
-        socket->connect(IpAddr(192, 168, 112, 2), 1338);
+        socket->connect(Endpoint(IpAddr(192, 168, 112, 2), 1338));
     });
 
     socket->abort();
     WVASSERTEQ(socket->state(), Socket::Closed);
+    WVASSERTEQ(socket->local_endpoint(), Endpoint::unspecified());
+    WVASSERTEQ(socket->remote_endpoint(), Endpoint::unspecified());
 }
 
 NOINLINE static void unreachable() {
@@ -66,7 +72,7 @@ NOINLINE static void unreachable() {
     auto socket = TcpSocket::create(net);
 
     WVASSERTERR(Errors::CONNECTION_FAILED, [&socket] {
-        socket->connect(IpAddr(127, 0, 0, 1), 80);
+        socket->connect(Endpoint(IpAddr(127, 0, 0, 1), 80));
     });
 }
 
@@ -79,12 +85,12 @@ NOINLINE static void nonblocking_client() {
 
     socket->blocking(false);
 
-    WVASSERT(!socket->connect(IpAddr(192, 168, 112, 1), 1338));
+    WVASSERT(!socket->connect(Endpoint(IpAddr(192, 168, 112, 1), 1338)));
 
     while(socket->state() != Socket::Connected) {
         WVASSERTEQ(socket->state(), Socket::Connecting);
         WVASSERTERR(Errors::ALREADY_IN_PROGRESS, [&socket] {
-            socket->connect(IpAddr(192, 168, 112, 1), 1338);
+            socket->connect(Endpoint(IpAddr(192, 168, 112, 1), 1338));
         });
         net.wait(NetworkManager::INPUT);
     }
@@ -137,16 +143,18 @@ NOINLINE static void nonblocking_server() {
 
         sem.up();
 
-        IpAddr remote_addr;
-        port_t remote_port;
-        WVASSERTEQ(socket->accept(&remote_addr, &remote_port), false);
+        Endpoint remote_ep;
+        WVASSERTEQ(socket->accept(&remote_ep), false);
         while(socket->state() != Socket::Connected) {
             WVASSERTEQ(socket->state(), Socket::Connecting);
-            WVASSERTERR(Errors::ALREADY_IN_PROGRESS, [&socket, &remote_addr, &remote_port] {
-                socket->accept(&remote_addr, &remote_port);
+            WVASSERTERR(Errors::ALREADY_IN_PROGRESS, [&socket, &remote_ep] {
+                socket->accept(&remote_ep);
             });
             net.wait(NetworkManager::INPUT);
         }
+
+        WVASSERTEQ(socket->local_endpoint(), Endpoint(IpAddr(192, 168, 112, 1), 3000));
+        WVASSERTEQ(socket->remote_endpoint().addr, IpAddr(192, 168, 112, 2));
 
         socket->blocking(true);
         socket->close();
@@ -160,7 +168,7 @@ NOINLINE static void nonblocking_server() {
 
     sem.down();
 
-    socket->connect(IpAddr(192, 168, 112, 1), 3000);
+    socket->connect(Endpoint(IpAddr(192, 168, 112, 1), 3000));
 
     socket->close();
 
@@ -174,7 +182,7 @@ NOINLINE static void open_close() {
 
     Semaphore::attach("net-tcp").down();
 
-    socket->connect(IpAddr(192, 168, 112, 1), 1338);
+    socket->connect(Endpoint(IpAddr(192, 168, 112, 1), 1338));
     socket->close();
     WVASSERTEQ(socket->state(), Socket::Closed);
 
@@ -206,10 +214,9 @@ NOINLINE static void receive_after_close() {
 
         sem.up();
 
-        IpAddr remote_addr;
-        port_t remote_port;
-        socket->accept(&remote_addr, &remote_port);
-        WVASSERTEQ(remote_addr.addr(), IpAddr(192, 168, 112, 2).addr());
+        Endpoint remote_ep;
+        socket->accept(&remote_ep);
+        WVASSERTEQ(remote_ep.addr, IpAddr(192, 168, 112, 2));
         WVASSERTEQ(socket->state(), Socket::Connected);
 
         uint8_t buf[32];
@@ -228,7 +235,7 @@ NOINLINE static void receive_after_close() {
 
     sem.down();
 
-    socket->connect(IpAddr(192, 168, 112, 1), 3000);
+    socket->connect(Endpoint(IpAddr(192, 168, 112, 1), 3000));
 
     uint8_t buf[32];
     WVASSERT(socket->send(buf, sizeof(buf)) != -1);
@@ -250,7 +257,7 @@ NOINLINE static void data() {
 
     Semaphore::attach("net-tcp").down();
 
-    socket->connect(IpAddr(192, 168, 112, 1), 1338);
+    socket->connect(Endpoint(IpAddr(192, 168, 112, 1), 1338));
 
     uint8_t send_buf[1024];
     for(int i = 0; i < 1024; ++i)

@@ -20,7 +20,7 @@ use crate::errors::{Code, Error};
 use crate::net::{
     event,
     socket::{Socket, SocketArgs, State},
-    IpAddr, Port, Sd, SocketType,
+    Endpoint, Port, Sd, SocketType,
 };
 use crate::rc::Rc;
 use crate::session::NetworkManager;
@@ -83,6 +83,22 @@ impl<'n> TcpSocket<'n> {
         self.socket.state()
     }
 
+    /// Returns the local endpoint
+    ///
+    /// The local endpoint is only `Some` if the socket has been put into listen mode via [`listen`]
+    /// or was connected to a remote endpoint via [`connect`].
+    pub fn local_endpoint(&self) -> Option<Endpoint> {
+        self.socket.local_ep.get()
+    }
+
+    /// Returns the remote endpoint
+    ///
+    /// The remote endpoint is only `Some`, if the socket is currently connected (achieved either
+    /// via [`connect`] or [`accept`]). Otherwise, the remote endpoint is `None`.
+    pub fn remote_endpoint(&self) -> Option<Endpoint> {
+        self.socket.remote_ep.get()
+    }
+
     /// Returns whether the socket is currently in blocking mode
     pub fn blocking(&self) -> bool {
         self.socket.blocking()
@@ -114,16 +130,15 @@ impl<'n> TcpSocket<'n> {
         }
 
         let addr = self.nm.listen(self.socket.sd(), port)?;
-        self.socket.set_local(addr, port, State::Listening);
+        self.socket.local_ep.set(Some(Endpoint::new(addr, port)));
+        self.socket.state.set(State::Listening);
         Ok(())
     }
 
     /// Connects this socket to the given remote endpoint.
-    pub fn connect(&mut self, remote_addr: IpAddr, remote_port: Port) -> Result<(), Error> {
+    pub fn connect(&mut self, endpoint: Endpoint) -> Result<(), Error> {
         if self.state() == State::Connected {
-            if !(self.socket.remote_addr.get() == remote_addr
-                && self.socket.remote_port.get() == remote_port)
-            {
+            if self.remote_endpoint().unwrap() != endpoint {
                 return Err(Error::new(Code::IsConnected));
             }
             return Ok(());
@@ -136,11 +151,10 @@ impl<'n> TcpSocket<'n> {
             return Err(Error::new(Code::AlreadyInProgress));
         }
 
-        let local_port = self.nm.connect(self.sd(), remote_addr, remote_port)?;
+        let local_ep = self.nm.connect(self.sd(), endpoint)?;
         self.socket.state.set(State::Connecting);
-        self.socket.remote_addr.set(remote_addr);
-        self.socket.remote_port.set(remote_port);
-        self.socket.local_port.set(local_port);
+        self.socket.remote_ep.set(Some(endpoint));
+        self.socket.local_ep.set(Some(local_ep));
 
         if !self.blocking() {
             return Err(Error::new(Code::InProgress));
@@ -164,9 +178,9 @@ impl<'n> TcpSocket<'n> {
     /// TCP/IP stacks, accept does not yield a new socket, but uses this socket for the accepted
     /// connection. Thus, to support multiple connections to the same port, put multiple sockets in
     /// listen mode on this port and call accept on each of them.
-    pub fn accept(&mut self) -> Result<(IpAddr, Port), Error> {
+    pub fn accept(&mut self) -> Result<Endpoint, Error> {
         if self.state() == State::Connected {
-            return Ok((self.socket.remote_addr.get(), self.socket.remote_port.get()));
+            return Ok(self.remote_endpoint().unwrap());
         }
         if self.state() == State::Connecting {
             return Err(Error::new(Code::AlreadyInProgress));
@@ -187,7 +201,7 @@ impl<'n> TcpSocket<'n> {
             Err(Error::new(Code::ConnectionFailed))
         }
         else {
-            Ok((self.socket.remote_addr.get(), self.socket.remote_port.get()))
+            Ok(self.remote_endpoint().unwrap())
         }
     }
 
@@ -212,7 +226,7 @@ impl<'n> TcpSocket<'n> {
             // receive is possible with an established connection or a connection that that has
             // already been closed by the remote side
             State::Connected | State::RemoteClosed => {
-                self.socket.next_data(data.len(), |buf, _addr, _port| {
+                self.socket.next_data(data.len(), |buf, _ep| {
                     data[0..buf.len()].copy_from_slice(buf);
                     buf.len()
                 })
@@ -230,11 +244,9 @@ impl<'n> TcpSocket<'n> {
     pub fn send(&mut self, data: &[u8]) -> Result<(), Error> {
         match self.socket.state() {
             // like for receive: still allow sending if the remote side closed the connection
-            State::Connected | State::RemoteClosed => self.socket.send(
-                data,
-                self.socket.remote_addr.get(),
-                self.socket.remote_port.get(),
-            ),
+            State::Connected | State::RemoteClosed => {
+                self.socket.send(data, self.remote_endpoint().unwrap())
+            },
             _ => Err(Error::new(Code::NotConnected)),
         }
     }
