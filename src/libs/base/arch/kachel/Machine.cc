@@ -37,17 +37,11 @@ void Machine::shutdown() {
 }
 
 ssize_t Machine::write(const char *str, size_t len) {
+    TCU::get().print(str, len);
     if(env()->platform == Platform::GEM5) {
-        TCU::get().print(str, len);
-
         static const char *fileAddr = "stdout";
         gem5_writefile(str, len, 0, reinterpret_cast<uint64_t>(fileAddr));
     }
-#if defined(__hw__)
-    else {
-        TCU::get().write(PRINT_EP, str, len, 0);
-    }
-#endif
     return static_cast<ssize_t>(len);
 }
 

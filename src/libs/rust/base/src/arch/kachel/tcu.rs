@@ -47,15 +47,12 @@ cfg_if! {
         pub const TOTAL_EPS: EpId = 192;
         /// The number of available endpoints in each TCU
         pub const AVAIL_EPS: EpId = TOTAL_EPS;
-        const PRINT_EP: EpId = INVALID_EP;  // unused
     }
     else {
         /// The total number of endpoints in each TCU
         pub const TOTAL_EPS: EpId = 64;
         /// The number of available endpoints in each TCU
         pub const AVAIL_EPS: EpId = TOTAL_EPS - 1;
-        /// The special EP to write prints out to the host
-        pub const PRINT_EP: EpId = TOTAL_EPS - 1;
     }
 }
 
@@ -447,16 +444,14 @@ impl TCU {
     /// Writes `size` bytes from `data` to offset `off` in the memory region denoted by the endpoint.
     #[inline(always)]
     pub fn write(ep: EpId, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
-        if ep != PRINT_EP {
-            log!(
-                TCU,
-                "TCU::write(ep={}, data={:#x}, size={:#x}, off={:#x})",
-                ep,
-                data as usize,
-                size,
-                off
-            );
-        }
+        log!(
+            TCU,
+            "TCU::write(ep={}, data={:#x}, size={:#x}, off={:#x})",
+            ep,
+            data as usize,
+            size,
+            off
+        );
 
         Self::perform_transfer(ep, data as usize, size, off, CmdOpCode::WRITE)
     }
@@ -666,6 +661,8 @@ impl TCU {
         }
 
         Self::write_unpriv_reg(UnprivReg::PRINT, s.len() as u64);
+        // wait until the print was carried out
+        while Self::read_unpriv_reg(UnprivReg::PRINT) != 0 {}
     }
 
     /// Translates the offset `off` to the message address, using `base` as the base address of the

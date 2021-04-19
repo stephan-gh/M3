@@ -36,6 +36,9 @@ void TCU::print(const char *str, size_t len) {
     }
 
     write_reg(UnprivRegs::PRINT, len);
+    // wait until the print was carried out
+    while(read_reg(UnprivRegs::PRINT) != 0)
+        ;
 }
 
 Errors::Code TCU::send(epid_t ep, const MsgBuf &msg, label_t replylbl, epid_t reply_ep) {

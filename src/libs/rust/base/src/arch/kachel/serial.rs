@@ -33,17 +33,13 @@ pub fn read(buf: &mut [u8]) -> Result<usize, Error> {
 }
 
 pub fn write(buf: &[u8]) -> Result<usize, Error> {
+    tcu::TCU::print(buf);
     if envdata::get().platform == crate::envdata::Platform::GEM5.val {
-        tcu::TCU::print(buf);
         unsafe {
             // put the string on the stack to prevent that gem5_writefile causes a pagefault
             let file: [u8; 7] = *b"stdout\0";
             gem5_writefile(buf.as_ptr(), buf.len() as u64, 0, file.as_ptr() as u64);
         }
-    }
-    else {
-        #[cfg(target_vendor = "hw")]
-        tcu::TCU::write(tcu::PRINT_EP, buf.as_ptr(), buf.len(), 0)?;
     }
     Ok(buf.len())
 }
