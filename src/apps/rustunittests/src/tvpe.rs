@@ -17,14 +17,13 @@
 use m3::boxed::Box;
 use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
 use m3::env;
-use m3::envdata;
 use m3::math;
 use m3::pes::{Activity, VPEArgs, PE, VPE};
-use m3::println;
 use m3::test;
-use m3::{send_vmsg, wv_assert_eq, wv_assert_ok, wv_assert_some, wv_run_test};
+use m3::{send_vmsg, wv_assert_eq, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
+    #[cfg(not(target_vendor = "hw"))]
     wv_run_test!(t, run_stop);
     wv_run_test!(t, run_arguments);
     wv_run_test!(t, run_send_receive);
@@ -34,14 +33,12 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, exec_rust_hello);
 }
 
+// we can't remotely stop VPEs with peidle
+#[cfg(not(target_vendor = "hw"))]
 fn run_stop() {
-    if envdata::get().platform() == envdata::Platform::HW {
-        println!("Unsupported because VPEs cannot be stopped remotely");
-        return;
-    }
-
     use m3::com::RGateArgs;
     use m3::vfs;
+    use m3::wv_assert_some;
 
     let mut rg = wv_assert_ok!(RecvGate::new_with(
         RGateArgs::default().order(6).msg_order(6)
