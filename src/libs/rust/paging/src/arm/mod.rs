@@ -143,6 +143,10 @@ pub fn enable_paging() {
     }
 }
 
+pub fn disable_paging() {
+    // not necessary
+}
+
 pub fn invalidate_page(id: crate::VPEId, virt: usize) {
     unsafe {
         llvm_asm!(

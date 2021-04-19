@@ -28,6 +28,7 @@ pub const LEVEL_CNT: usize = 3;
 pub const LEVEL_BITS: usize = cfg::PAGE_BITS - PTE_BITS;
 pub const LEVEL_MASK: usize = (1 << LEVEL_BITS) - 1;
 
+pub const MODE_BARE: u64 = 0;
 pub const MODE_SV39: u64 = 8;
 
 bitflags! {
@@ -124,6 +125,11 @@ pub fn to_mmu_perms(flags: PageFlags) -> MMUFlags {
 pub fn enable_paging() {
     // set sstatus.SUM = 1 to allow accesses to user memory (required for TCU)
     set_csr_bits!("sstatus", 1 << 18);
+}
+
+pub fn disable_paging() {
+    set_csr_bits!("sstatus", 0);
+    write_csr!("satp", MODE_BARE);
 }
 
 pub fn invalidate_page(id: crate::VPEId, virt: usize) {

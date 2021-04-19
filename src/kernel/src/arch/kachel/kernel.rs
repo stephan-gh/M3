@@ -44,10 +44,10 @@ pub extern "C" fn exit(_code: i32) -> ! {
 #[no_mangle]
 pub extern "C" fn env_run() {
     io::init(0, "kernel");
-    exceptions::init();
     heap::init();
-    crate::slab::init();
     paging::init();
+    exceptions::init();
+    crate::slab::init();
     mem::init();
     ktcu::init();
 

@@ -47,7 +47,9 @@ use arch::{LEVEL_BITS, LEVEL_CNT, LEVEL_MASK};
 
 pub type VPEId = u64;
 
-pub use arch::{build_pte, enable_paging, pte_to_phys, to_page_flags, MMUFlags, Phys, MMUPTE};
+pub use arch::{
+    build_pte, disable_paging, enable_paging, pte_to_phys, to_page_flags, MMUFlags, Phys, MMUPTE,
+};
 
 /// Logs mapping operations
 pub const LOG_MAP: bool = false;

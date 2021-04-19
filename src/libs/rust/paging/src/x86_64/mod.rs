@@ -119,6 +119,10 @@ pub fn enable_paging() {
     // already enabled by gem5
 }
 
+pub fn disable_paging() {
+    // not possible/necessary
+}
+
 pub fn invalidate_page(_id: crate::VPEId, virt: usize) {
     unsafe {
         llvm_asm!(

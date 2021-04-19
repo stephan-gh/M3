@@ -170,6 +170,9 @@ pub fn init() {
         our().switch_to();
         paging::enable_paging();
     }
+    else {
+        paging::disable_paging();
+    }
 
     BOOTSTRAP.set(false);
 }

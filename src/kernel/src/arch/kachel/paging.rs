@@ -75,6 +75,7 @@ pub fn init() {
     }
 
     if !PEDesc::new_from(envdata::get().pe_desc).has_virtmem() {
+        paging::disable_paging();
         return;
     }
 
