@@ -27,8 +27,10 @@ Gate::~Gate() {
 }
 
 const EP &Gate::acquire_ep() {
-    if(!_ep)
+    if(!_ep) {
         _ep = VPE::self().epmng().acquire();
+        _gates.append(this);
+    }
     return *_ep;
 }
 
