@@ -47,9 +47,9 @@ macro_rules! get_entry_mut {
 
 impl DirEntry {
     /// Returns a reference to the directory entry stored at `off` in the given buffer
-    pub fn from_buffer(block: &MetaBufferBlock, off: usize) -> &Self {
+    pub fn from_buffer(block_data: &[u8], off: usize) -> &Self {
         unsafe {
-            let buffer_off = block.data().as_ptr().add(off);
+            let buffer_off = block_data.as_ptr().add(off);
             get_entry_mut!(buffer_off)
         }
     }
@@ -108,15 +108,15 @@ impl DirEntry {
 
 /// Entry iterator takes a block and iterates over it assuming that the block contains entries.
 pub struct DirEntryIterator<'e> {
-    block: &'e MetaBufferBlock,
+    block_data: &'e [u8],
     off: Cell<usize>,
     end: usize,
 }
 
 impl<'e> DirEntryIterator<'e> {
-    pub fn from_block(block: &'e MetaBufferBlock) -> Self {
+    pub fn from_block(block_data: &'e [u8]) -> Self {
         DirEntryIterator {
-            block,
+            block_data,
             off: Cell::from(0),
             end: crate::hdl().superblock().block_size as usize,
         }
@@ -125,7 +125,7 @@ impl<'e> DirEntryIterator<'e> {
     /// Returns the next DirEntry
     pub fn next(&'e self) -> Option<&'e DirEntry> {
         if self.off.get() < self.end {
-            let ret = DirEntry::from_buffer(self.block, self.off.get());
+            let ret = DirEntry::from_buffer(self.block_data, self.off.get());
 
             self.off.set(self.off.get() + ret.next as usize);
 

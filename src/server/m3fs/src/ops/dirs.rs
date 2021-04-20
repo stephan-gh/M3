@@ -55,7 +55,7 @@ fn find_entry(inode: &INodeRef, name: &str) -> Result<InodeNo, Error> {
 
     for ext in inode.extent_iter() {
         for block in ext.block_iter() {
-            let entry_iter = DirEntryIterator::from_block(&block);
+            let entry_iter = DirEntryIterator::from_block(block.data());
             while let Some(entry) = entry_iter.next() {
                 log!(crate::LOG_FIND, "  considering {}", entry.name());
                 if entry.name() == name {
@@ -219,7 +219,7 @@ pub fn remove(path: &str) -> Result<(), Error> {
     // check whether it's empty
     for ext in inode.extent_iter() {
         for block in ext.block_iter() {
-            let entry_iter = DirEntryIterator::from_block(&block);
+            let entry_iter = DirEntryIterator::from_block(block.data());
             while let Some(entry) = entry_iter.next() {
                 if entry.name() != "." && entry.name() != ".." {
                     return Err(Error::new(Code::DirNotEmpty));
