@@ -310,26 +310,34 @@ void VPE::copy_sections() {
     if(pe_desc().has_virtmem())
         VTHROW(Errors::NOT_SUP, "Clone with VM needs a pager");
 
-    MemGate mem = get_mem(0, MEM_OFFSET + pe_desc().mem_size(), MemGate::W);
+    // we cannot put this MemGate on the stack and free it here, because Gate keeps a list of all
+    // activated Gates (with pointers). Since we copy this list to the child with this code, the
+    // child will get the list with this MemGate included and thus accesses a part of the stack that
+    // has already been freed and reused for other things. To work around this problem, put it on
+    // the heap and free it afterwards (here, not in the child).
+    MemGate *mem = new MemGate(get_mem(0, MEM_OFFSET + pe_desc().mem_size(), MemGate::W));
 
     /* copy text */
     start_addr = reinterpret_cast<uintptr_t>(&_text_start);
     end_addr = reinterpret_cast<uintptr_t>(&_text_end);
-    mem.write(reinterpret_cast<void*>(start_addr), end_addr - start_addr, start_addr);
+    mem->write(reinterpret_cast<void*>(start_addr), end_addr - start_addr, start_addr);
 
     /* copy data and heap */
     start_addr = reinterpret_cast<uintptr_t>(&_data_start);
     end_addr = Heap::used_end();
-    mem.write(reinterpret_cast<void*>(start_addr), end_addr - start_addr, start_addr);
+    mem->write(reinterpret_cast<void*>(start_addr), end_addr - start_addr, start_addr);
 
     /* copy end-area of heap */
     start_addr = Heap::end_area();
-    mem.write(reinterpret_cast<void*>(start_addr), Heap::end_area_size(), start_addr);
+    mem->write(reinterpret_cast<void*>(start_addr), Heap::end_area_size(), start_addr);
 
     /* copy stack */
     start_addr = CPU::stack_pointer();
     end_addr = pe_desc().stack_top();
-    mem.write(reinterpret_cast<void*>(start_addr), end_addr - start_addr, start_addr);
+    mem->write(reinterpret_cast<void*>(start_addr), end_addr - start_addr, start_addr);
+
+    // since we have copied our heap now to the child, it's fine to delete it for us.
+    delete mem;
 }
 
 bool VPE::skip_section(ElfPh *) {
