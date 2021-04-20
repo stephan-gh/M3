@@ -261,8 +261,7 @@ pub extern "C" fn env_run() {
     // install exception handlers to ease debugging
     STATE.set(isr::State::default());
     isr::init(STATE.get_mut());
-    isr::reg(isr::Vector::ENV_UCALL.val, handle_pexcall);
-    isr::reg(isr::Vector::ENV_SCALL.val, handle_pexcall);
+    isr::init_pexcalls(handle_pexcall);
     isr::enable_irqs();
 
     io::init(*PE_ID, "pemux");
