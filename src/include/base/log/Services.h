@@ -27,16 +27,17 @@ class ServiceLog {
 
 public:
     enum Level {
-        KEYB        = 1 << 0,
-        HASH        = 1 << 1,
-        LOADGEN     = 1 << 2,
-        NIC         = 1 << 3,
-        NET         = 1 << 4,
-        NET_ALL     = 1 << 5,
-        TIMER       = 1 << 6,
+        DEF         = 1 << 0,
+        KEYB        = 1 << 1,
+        HASH        = 1 << 2,
+        LOADGEN     = 1 << 3,
+        NIC         = 1 << 4,
+        NET         = 1 << 5,
+        NET_ALL     = 1 << 6,
+        TIMER       = 1 << 7,
     };
 
-    static const int level = 0;
+    static const int level = DEF;
 };
 
 }

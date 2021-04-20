@@ -27,23 +27,24 @@ class LibLog {
 
 public:
     enum Level {
-        TCU         = 1 << 0,
-        TCUERR      = 1 << 1,
-        IPC         = 1 << 2,
-        TRACE       = 1 << 3,
-        IRQS        = 1 << 4,
-        SHM         = 1 << 5,
-        HEAP        = 1 << 6,
-        FS          = 1 << 7,
-        SERV        = 1 << 8,
-        THREAD      = 1 << 9,
-        ACCEL       = 1 << 10,
-        FILES       = 1 << 11,
-        NET 		= 1 << 12,
-        DIRPIPE     = 1 << 13,
+        DEF         = 1 << 0,
+        TCU         = 1 << 1,
+        TCUERR      = 1 << 2,
+        IPC         = 1 << 3,
+        TRACE       = 1 << 4,
+        IRQS        = 1 << 5,
+        SHM         = 1 << 6,
+        HEAP        = 1 << 7,
+        FS          = 1 << 8,
+        SERV        = 1 << 9,
+        THREAD      = 1 << 10,
+        ACCEL       = 1 << 11,
+        FILES       = 1 << 12,
+        NET 		= 1 << 13,
+        DIRPIPE     = 1 << 14,
     };
 
-    static const int level = 0;
+    static const int level = DEF;
 };
 
 }
