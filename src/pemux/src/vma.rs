@@ -114,7 +114,11 @@ pub fn handle_xlate(virt: usize, perm: PageFlags) {
     if (!(pte & PageFlags::RW.bits()) & perm.bits()) != 0 {
         // TODO directly insert into TLB when the PF was resolved?
         if send_pf(vpe, virt, perm).is_err() {
-            log!(crate::LOG_ERR, "Unable to handle page fault for {:#x}", virt);
+            log!(
+                crate::LOG_ERR,
+                "Unable to handle page fault for {:#x}",
+                virt
+            );
             vpe::remove_cur(1);
         }
     }

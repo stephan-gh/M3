@@ -20,7 +20,7 @@ use base::kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL};
 
 use crate::arch;
 use crate::cap::Selector;
-use crate::cell::{StaticCell, LazyStaticCell};
+use crate::cell::{LazyStaticCell, StaticCell};
 use crate::com::{RecvGate, SendGate};
 use crate::errors::{Code, Error};
 use crate::goff;
