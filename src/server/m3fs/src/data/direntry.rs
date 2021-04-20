@@ -28,7 +28,7 @@ use m3::math;
 use m3::mem::size_of;
 
 /// On-disk representation of directory entries.
-#[repr(packed, C)]
+#[repr(align(4), C)]
 pub struct DirEntry {
     pub nodeno: InodeNo,
     pub name_length: u32,
