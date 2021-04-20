@@ -67,7 +67,7 @@ public:
           _ep(g._ep) {
         g._ep = nullptr;
     }
-    ~Gate();
+    virtual ~Gate();
 
     const EP &activate(capsel_t rbuf_mem = KIF::INV_SEL, goff_t rbuf_off = 0);
     void activate_on(const EP &ep, capsel_t rbuf_mem = KIF::INV_SEL, goff_t rbuf_off = 0);
