@@ -364,7 +364,7 @@ impl Server {
 
         hdl.close(crt, sid as SessId);
 
-        reply_vmsg!(is, 0)
+        is.reply_error(Code::None)
     }
 
     fn handle_shutdown<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream) -> Result<(), Error> {
@@ -378,7 +378,7 @@ impl Server {
 
         hdl.shutdown();
 
-        reply_vmsg!(is, 0)
+        is.reply_error(Code::None)
     }
 }
 

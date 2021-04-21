@@ -181,7 +181,7 @@ impl FileSession {
         // TODO from C++: Socket is closed
         if false {
             log!(crate::LOG_SESS, "recv: EOF");
-            reply_vmsg!(is, 0u32, 0usize, 0usize)?;
+            reply_vmsg!(is, Code::None as u32, 0usize, 0usize)?;
             return Ok(());
         }
 
@@ -201,7 +201,7 @@ impl FileSession {
         if let Some((pos, amount)) = self.rbuf.get_read_pos(amount) {
             self.last_amount = amount;
             log!(crate::LOG_SESS, "recv: {}@{}", amount, pos);
-            reply_vmsg!(is, 0u32, pos, amount)
+            reply_vmsg!(is, Code::None as u32, pos, amount)
         }
         else {
             // Could not allocate
@@ -219,7 +219,7 @@ impl FileSession {
         // TODO from C++: socket is closed
         if false {
             log!(crate::LOG_SESS, "send: EOF");
-            reply_vmsg!(is, 0u32, 0usize, 0usize)?;
+            reply_vmsg!(is, Code::None as u32, 0usize, 0usize)?;
             return Ok(());
         }
 
@@ -239,7 +239,7 @@ impl FileSession {
         if let Some(pos) = self.rbuf.get_write_pos(amount) {
             self.last_amount = amount;
             log!(crate::LOG_SESS, "send: {}@{}", amount, pos);
-            reply_vmsg!(is, 0u32, self.rbuf.size() + pos, amount)
+            reply_vmsg!(is, Code::None as u32, self.rbuf.size() + pos, amount)
         }
         else {
             // Could not allocate
@@ -356,7 +356,7 @@ impl FileSession {
             let mut late_is = GateIStream::new(pending_msg, &pending_gate);
 
             // TODO encode correctly?
-            reply_vmsg!(late_is, 0usize, 0usize, 0usize)
+            reply_vmsg!(late_is, Code::None as u32, 0usize, 0usize)
         }
         else {
             log!(crate::LOG_SESS, "Closing: Could not send EOF");
@@ -416,7 +416,7 @@ impl FileSession {
             {
                 let mut late_is = GateIStream::new(pending_msg, &pending_gate);
 
-                reply_vmsg!(late_is, 0u32, pos, amount)
+                reply_vmsg!(late_is, Code::None as u32, pos, amount)
             }
             else {
                 log!(crate::LOG_SESS, "Failed to send late reply for pending_recv");
@@ -442,7 +442,7 @@ impl FileSession {
                 (self.pending.take(), self.pending_gate.take())
             {
                 let mut late_is = GateIStream::new(pending_msg, &pending_gate);
-                reply_vmsg!(late_is, 0u32, pos, amount)
+                reply_vmsg!(late_is, Code::None as u32, pos, amount)
             }
             else {
                 log!(crate::LOG_SESS, "Failed to send late reply for pending_send");

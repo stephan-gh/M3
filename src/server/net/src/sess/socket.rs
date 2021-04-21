@@ -450,7 +450,7 @@ impl SocketSession {
         if remove {
             self.remove_socket(sd);
         }
-        reply_vmsg!(is, Code::None as i32)
+        is.reply_error(Code::None)
     }
 
     pub fn process_incoming(&mut self, socket_set: &mut SocketSet<'static>) -> bool {

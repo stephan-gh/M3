@@ -25,7 +25,6 @@ use m3::errors::{Code, Error};
 use m3::kif;
 use m3::log;
 use m3::pes::VPE;
-use m3::reply_vmsg;
 use m3::server::{
     server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
     DEF_MAX_CLIENTS,
@@ -276,7 +275,7 @@ pub fn main() -> i32 {
                     // notice the invalidated sgate before getting the reply and therefore give
                     // up before receiving the reply a bit later anyway. this in turn causes
                     // trouble if the receive gate (with the reply) is reused for something else.
-                    reply_vmsg!(is, 0).ok();
+                    is.reply_error(Code::None).ok();
                     hdl.close_sess(sid)
                 },
                 GenFileOp::STAT => Err(Error::new(Code::NotSup)),

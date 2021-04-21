@@ -34,7 +34,7 @@ use m3::server::{
 };
 use m3::session::{BlockNo, BlockRange, DiskOperation, ServerSession};
 use m3::tcu::Label;
-use m3::{log, reply_vmsg};
+use m3::log;
 
 use backend::BlockDevice;
 use backend::BlockDeviceTrait;
@@ -119,7 +119,7 @@ impl DiskSession {
             func(self.part, &mgate, off, start, len)?;
         }
 
-        reply_vmsg!(is, 0)
+        is.reply_error(Code::None)
     }
 }
 

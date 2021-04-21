@@ -125,7 +125,7 @@ impl Channel {
 
         self.activate()?;
 
-        reply_vmsg!(is, 0, self.pos, self.len - self.pos)
+        reply_vmsg!(is, Code::None as u32, self.pos, self.len - self.pos)
     }
 
     fn next_out(&mut self, is: &mut GateIStream) -> Result<(), Error> {
@@ -141,7 +141,7 @@ impl Channel {
         self.pos = 0;
         self.len = BUF_SIZE;
 
-        reply_vmsg!(is, 0, 0usize, BUF_SIZE)
+        reply_vmsg!(is, Code::None as u32, 0usize, BUF_SIZE)
     }
 
     fn commit(&mut self, is: &mut GateIStream) -> Result<(), Error> {
@@ -165,7 +165,7 @@ impl Channel {
             self.pos += nbytes;
         }
 
-        reply_vmsg!(is, 0)
+        is.reply_error(Code::None)
     }
 
     fn flush(&mut self, nbytes: usize) -> Result<(), Error> {
@@ -318,7 +318,7 @@ pub fn main() -> i32 {
                     // notice the invalidated sgate before getting the reply and therefore give
                     // up before receiving the reply a bit later anyway. this in turn causes
                     // trouble if the receive gate (with the reply) is reused for something else.
-                    reply_vmsg!(is, 0).ok();
+                    is.reply_error(Code::None).ok();
                     hdl.close_sess(sid)
                 },
                 GenFileOp::STAT => Err(Error::new(Code::NotSup)),

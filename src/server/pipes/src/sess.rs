@@ -176,7 +176,7 @@ impl State {
                     amount,
                     pos
                 );
-                reply_vmsg_late!(req.msg, 0, pos, amount).ok();
+                reply_vmsg_late!(req.msg, Code::None as u32, pos, amount).ok();
 
                 // remove write request
                 self.pending_reads.pop();
@@ -186,7 +186,7 @@ impl State {
             else if self.flags.contains(Flags::WRITE_EOF) {
                 // report EOF
                 log!(crate::LOG_DEF, "[{}] pipes::late_read(): EOF", req.chan);
-                reply_vmsg_late!(req.msg, 0, 0usize, 0usize).ok();
+                reply_vmsg_late!(req.msg, Code::None as u32, 0usize, 0usize).ok();
 
                 // remove write request
                 self.pending_reads.pop();
@@ -225,7 +225,7 @@ impl State {
                     amount,
                     pos
                 );
-                reply_vmsg_late!(req.msg, 0, pos, amount).ok();
+                reply_vmsg_late!(req.msg, Code::None as u32, pos, amount).ok();
 
                 // remove write request
                 self.pending_writes.pop();
@@ -427,7 +427,7 @@ impl Channel {
 
         // commits are done here, because they don't get new data
         if commit > 0 {
-            return reply_vmsg!(is, 0, state.rbuf.size());
+            return reply_vmsg!(is, Code::None as u32, state.rbuf.size());
         }
 
         // if there are already queued read requests, just append this request
@@ -451,13 +451,13 @@ impl Channel {
                 amount,
                 pos
             );
-            reply_vmsg!(is, 0, pos, amount)
+            reply_vmsg!(is, Code::None as u32, pos, amount)
         }
         else {
             // nothing to read; if there is no writer left, report EOF
             if state.flags.contains(Flags::WRITE_EOF) {
                 log!(crate::LOG_DEF, "[{}] pipes::read(): EOF", self.id);
-                reply_vmsg!(is, 0, 0usize, 0usize)
+                reply_vmsg!(is, Code::None as u32, 0usize, 0usize)
             }
             // otherwise queue the request
             else {
@@ -503,7 +503,7 @@ impl Channel {
 
         // commits are done here, because they don't get new data
         if commit > 0 {
-            return reply_vmsg!(is, 0, state.rbuf.size());
+            return reply_vmsg!(is, Code::None as u32, state.rbuf.size());
         }
 
         // if there are already queued write requests, just append this request
@@ -524,7 +524,7 @@ impl Channel {
                 amount,
                 pos
             );
-            reply_vmsg!(is, 0, pos, amount)
+            reply_vmsg!(is, Code::None as u32, pos, amount)
         }
         else {
             // nothing to write, so queue the request

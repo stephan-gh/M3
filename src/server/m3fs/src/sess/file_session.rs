@@ -368,7 +368,7 @@ impl FileSession {
             self.cur_bytes
         );
 
-        reply_vmsg!(is, 0u32, capoff, self.cur_bytes)?;
+        reply_vmsg!(is, Code::None as u32, capoff, self.cur_bytes)?;
 
         if self.cur_sel != m3::kif::INVALID_SEL {
             m3::pes::VPE::cur()
@@ -534,7 +534,7 @@ impl M3FSSession for FileSession {
             Err(e)
         }
         else {
-            reply_vmsg!(stream, 0u32)
+            stream.reply_error(Code::None)
         }
     }
 
@@ -560,7 +560,7 @@ impl M3FSSession for FileSession {
         self.next_pos = extpos;
         self.next_fileoff = pos;
 
-        reply_vmsg!(stream, 0, pos - extpos.off, extpos.off)
+        reply_vmsg!(stream, Code::None as u32, pos - extpos.off, extpos.off)
     }
 
     fn fstat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
@@ -603,6 +603,6 @@ impl M3FSSession for FileSession {
         log!(crate::LOG_SESSION, "[{}] file::sync()", self.session_id,);
 
         crate::hdl().flush_buffer()?;
-        reply_vmsg!(stream, 0u32)
+        stream.reply_error(Code::None)
     }
 }
