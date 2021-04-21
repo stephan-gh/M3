@@ -33,7 +33,7 @@ fn panic(info: &PanicInfo) -> ! {
     if let Some(l) = log::Log::get() {
         if let Some(loc) = info.location() {
             l.write_fmt(format_args!(
-                "PANIC at {}, line {}, column {}: ",
+                "PANIC at {}:{}:{}: ",
                 loc.file(),
                 loc.line(),
                 loc.column()
