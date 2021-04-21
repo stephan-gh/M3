@@ -211,7 +211,8 @@ impl CapTable {
     }
 
     pub fn revoke_async(&mut self, crd: CapRngDesc, own: bool) -> Result<(), Error> {
-        for sel in crd.start()..crd.start() + crd.count() {
+        let mut sel = crd.start();
+        while sel < crd.start() + crd.count() {
             if let Some(cap) = self.get_mut(sel) {
                 if !cap.can_revoke() {
                     return Err(Error::new(Code::NotRevocable));
@@ -225,6 +226,10 @@ impl CapTable {
                         (*child.as_ptr()).revoke_async(true, true);
                     }
                 }
+                sel += cap.len();
+            }
+            else {
+                sel += 1;
             }
         }
         Ok(())
@@ -404,7 +409,9 @@ impl Capability {
             let pemux = PEMng::get().pemux(ep.pe_id());
             if let Some(vpe) = ep.vpe() {
                 // if that fails, just ignore it
-                pemux.invalidate_ep(vpe.id(), ep.ep(), !ep.is_rgate(), true).ok();
+                pemux
+                    .invalidate_ep(vpe.id(), ep.ep(), !ep.is_rgate(), true)
+                    .ok();
 
                 // notify PEMux about the invalidation if it's not a self-invalidation (technically,
                 // <foreign> indicates whether we're in the first level of revoke, but since it is just a
