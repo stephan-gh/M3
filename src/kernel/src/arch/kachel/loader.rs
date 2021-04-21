@@ -23,7 +23,7 @@ use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{self, PageFlags};
 use base::math;
-use base::mem::{GlobAddr, size_of};
+use base::mem::{size_of, GlobAddr};
 use base::tcu;
 
 use crate::cap::{Capability, KObject, MapObject, SelRange};
@@ -102,18 +102,20 @@ impl Loader {
         let argv_addr = Self::write_arguments(env_phys, vpe.pe_id(), &["root"]);
 
         // build env
-        let mut senv = envdata::EnvData::default();
-        senv.platform = envdata::get().platform;
-        senv.argc = 1;
-        senv.argv = argv_addr as u64;
-        senv.sp = vpe.pe_desc().stack_top() as u64;
-        senv.entry = entry as u64;
-        senv.pe_id = vpe.pe_id() as u64;
-        senv.pe_desc = vpe.pe_desc().value();
-        senv.heap_size = MOD_HEAP_SIZE as u64;
-        senv.rmng_sel = kif::INVALID_SEL as u64;
-        senv.first_sel = vpe.first_sel() as u64;
-        senv.first_std_ep = vpe.eps_start() as u64;
+        let senv = envdata::EnvData {
+            platform: envdata::get().platform,
+            argc: 1,
+            argv: argv_addr as u64,
+            sp: vpe.pe_desc().stack_top() as u64,
+            entry: entry as u64,
+            pe_id: vpe.pe_id() as u64,
+            pe_desc: vpe.pe_desc().value(),
+            heap_size: MOD_HEAP_SIZE as u64,
+            rmng_sel: kif::INVALID_SEL as u64,
+            first_sel: vpe.first_sel() as u64,
+            first_std_ep: vpe.eps_start() as u64,
+            ..Default::default()
+        };
 
         // write env to target PE
         ktcu::write_slice(vpe.pe_id(), env_phys, &[senv]);

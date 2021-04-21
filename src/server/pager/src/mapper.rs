@@ -39,9 +39,9 @@ impl<'a> ChildMapper<'a> {
 }
 
 impl<'a> Mapper for ChildMapper<'a> {
-    fn map_file<'l>(
+    fn map_file(
         &mut self,
-        _pager: Option<&'l Pager>,
+        _pager: Option<&Pager>,
         file: &mut vfs::BufReader<vfs::FileRef>,
         foff: usize,
         virt: goff,
@@ -60,9 +60,9 @@ impl<'a> Mapper for ChildMapper<'a> {
         }
     }
 
-    fn map_anon<'l>(
+    fn map_anon(
         &mut self,
-        _pager: Option<&'l Pager>,
+        _pager: Option<&Pager>,
         virt: goff,
         len: usize,
         perm: Perm,

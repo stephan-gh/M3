@@ -35,7 +35,7 @@ pub use self::udp::{DgramSocketArgs, UdpSocket};
 
 const EVENT_FETCH_BATCH_SIZE: u32 = 4;
 
-pub(crate) struct SocketArgs {
+pub struct SocketArgs {
     pub rbuf_slots: usize,
     pub rbuf_size: usize,
     pub sbuf_slots: usize,

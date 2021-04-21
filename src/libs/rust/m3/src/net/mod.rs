@@ -63,8 +63,8 @@ impl IpAddr {
 
 impl core::fmt::Display for IpAddr {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let [a, b, c, d] = self.0.to_be_bytes();
-        write!(f, "Ipv4[{}.{}.{}.{}]", a, b, c, d)
+        let [b0, b1, b2, b3] = self.0.to_be_bytes();
+        write!(f, "Ipv4[{}.{}.{}.{}]", b0, b1, b2, b3)
     }
 }
 
@@ -127,12 +127,12 @@ impl MAC {
 
     /// Returns the MAC address as a u64
     pub fn value(&self) -> u64 {
-        return ((self.0[5] as u64) << 40)
+        ((self.0[5] as u64) << 40)
             | ((self.0[4] as u64) << 32)
             | ((self.0[3] as u64) << 24)
             | ((self.0[2] as u64) << 16)
             | ((self.0[1] as u64) << 8)
-            | ((self.0[0] as u64) << 0);
+            | ((self.0[0] as u64) << 0)
     }
 }
 

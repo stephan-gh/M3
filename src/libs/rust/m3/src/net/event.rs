@@ -90,8 +90,8 @@ pub struct ClosedMessage {
     ty: u64,
 }
 
-impl ClosedMessage {
-    pub fn new() -> Self {
+impl Default for ClosedMessage {
+    fn default() -> Self {
         Self {
             ty: NetEventType::CLOSED.val,
         }
@@ -109,8 +109,8 @@ pub struct CloseReqMessage {
     ty: u64,
 }
 
-impl CloseReqMessage {
-    pub fn new() -> Self {
+impl Default for CloseReqMessage {
+    fn default() -> Self {
         Self {
             ty: NetEventType::CLOSE_REQ.val,
         }
@@ -236,6 +236,7 @@ impl NetEventChannel {
     where
         F: FnOnce(&mut [u8]),
     {
+        #[allow(clippy::uninit_assumed_init)]
         let mut msg = DataMessage {
             ty: NetEventType::DATA.val,
             addr: endpoint.addr.0 as u64,

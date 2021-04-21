@@ -113,7 +113,7 @@ fn config_local_ep<CFG>(ep: EpId, cfg: CFG)
 where
     CFG: FnOnce(&mut [Reg]),
 {
-    let mut regs = [0 as Reg; EP_REGS];
+    let mut regs = [0; EP_REGS];
     cfg(&mut regs);
     TCU::set_ep_regs(ep, &regs);
 }

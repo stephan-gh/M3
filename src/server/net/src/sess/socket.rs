@@ -24,7 +24,7 @@ use m3::col::Vec;
 use m3::com::{GateIStream, RecvGate, SendGate};
 use m3::errors::{Code, Error};
 use m3::kif::{CapRngDesc, CapType};
-use m3::net::{event, IpAddr, Port, Sd, SocketType};
+use m3::net::{event, IpAddr, Port, Sd, SocketArgs, SocketType};
 use m3::parse;
 use m3::rc::Rc;
 use m3::serialize::Source;
@@ -59,15 +59,15 @@ impl Default for Args {
 fn parse_arguments(args_str: &str) -> Result<Args, Error> {
     let mut args = Args::default();
     for arg in args_str.split_whitespace() {
-        if arg.starts_with("bufs=") {
-            args.bufs = parse::size(&arg[5..])?;
+        if let Some(bufs) = arg.strip_prefix("bufs=") {
+            args.bufs = parse::size(bufs)?;
         }
-        else if arg.starts_with("socks=") {
-            args.socks = parse::int(&arg[6..])? as usize;
+        else if let Some(socks) = arg.strip_prefix("socks=") {
+            args.socks = parse::int(socks)? as usize;
         }
-        else if arg.starts_with("ports=") {
+        else if let Some(portdesc) = arg.strip_prefix("ports=") {
             // comma separated list of "x-y" or "x"
-            for ports in arg[6..].split(',') {
+            for ports in portdesc.split(',') {
                 if let Some(pos) = ports.find('-') {
                     let from = parse::int(&ports[0..pos])? as Port;
                     let to = parse::int(&ports[(pos + 1)..])? as Port;
@@ -256,15 +256,11 @@ impl SocketSession {
         &mut self,
         ty: SocketType,
         protocol: u8,
-        rbuf_space: usize,
-        rbuf_slots: usize,
-        sbuf_space: usize,
-        sbuf_slots: usize,
+        args: &SocketArgs,
         caps: Selector,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<Sd, Error> {
-        let total_space =
-            Socket::required_space(ty, rbuf_space, rbuf_slots, sbuf_space, sbuf_slots);
+        let total_space = Socket::required_space(ty, args);
         if self.buf_quota < total_space {
             return Err(Error::new(Code::NoSpace));
         }
@@ -272,8 +268,7 @@ impl SocketSession {
         for (i, s) in self.sockets.iter_mut().enumerate() {
             if s.is_none() {
                 *s = Some(Rc::new(RefCell::new(Socket::new(
-                    i, ty, protocol, rbuf_space, rbuf_slots, sbuf_space, sbuf_slots, caps,
-                    socket_set,
+                    i, ty, protocol, args, caps, socket_set,
                 )?)));
                 self.buf_quota -= total_space;
                 return Ok(i);
@@ -295,16 +290,25 @@ impl SocketSession {
     ) -> Result<(CapRngDesc, Sd), Error> {
         let ty = SocketType::from_usize(is.pop::<usize>()?);
         let protocol: u8 = is.pop()?;
-        let rbuf_space: usize = is.pop()?;
+        let rbuf_size: usize = is.pop()?;
         let rbuf_slots: usize = is.pop()?;
-        let sbuf_space: usize = is.pop()?;
+        let sbuf_size: usize = is.pop()?;
         let sbuf_slots: usize = is.pop()?;
 
         // 2 caps for us, 2 for the client
         let caps = m3::pes::VPE::cur().alloc_sels(4);
 
         let res = self.add_socket(
-            ty, protocol, rbuf_space, rbuf_slots, sbuf_space, sbuf_slots, caps, socket_set,
+            ty,
+            protocol,
+            &SocketArgs {
+                rbuf_slots,
+                rbuf_size,
+                sbuf_slots,
+                sbuf_size,
+            },
+            caps,
+            socket_set,
         );
 
         log!(
@@ -312,9 +316,9 @@ impl SocketSession {
             "net::create(type={:?}, protocol={}, rbuf=[{}b,{}], sbuf=[{}b,{}]) -> {:?}",
             ty,
             protocol,
-            rbuf_space,
+            rbuf_size,
             rbuf_slots,
-            sbuf_space,
+            sbuf_size,
             sbuf_slots,
             res
         );
@@ -483,62 +487,60 @@ impl SocketSession {
 
     pub fn process_outgoing(&mut self, socket_set: &mut SocketSet<'static>) {
         // iterate over all sockets and try to receive
-        for socket in self.sockets.iter() {
-            if let Some(socket) = socket {
-                let socket_sd = socket.borrow().sd();
-                let chan = socket.borrow().channel().clone();
+        for socket in self.sockets.iter().flatten() {
+            let socket_sd = socket.borrow().sd();
+            let chan = socket.borrow().channel().clone();
 
-                chan.fetch_replies();
+            chan.fetch_replies();
 
-                // if we don't have credits anymore to send events, stop here. we'll get a reply
-                // to one of our earlier events and get credits back with this, so that we'll wake
-                // up from a potential sleep and call receive again.
-                if !chan.can_send().unwrap() {
-                    break;
-                }
-
-                if let Some(event) = socket.borrow_mut().fetch_event(socket_set) {
-                    log!(
-                        crate::LOG_DATA,
-                        "[{}] socket {}: received event {:?}",
-                        socket_sd,
-                        self.server_session.ident(),
-                        event,
-                    );
-
-                    // the match is needed, because we don't want to send the enum, but the
-                    // contained event struct
-                    match event {
-                        SendNetEvent::Connected(e) => chan.send_event(e).unwrap(),
-                        SendNetEvent::Closed(e) => chan.send_event(e).unwrap(),
-                        SendNetEvent::CloseReq(e) => chan.send_event(e).unwrap(),
-                    }
-                }
-
-                if !chan.can_send().unwrap() {
-                    break;
-                }
-
-                socket.borrow_mut().receive(socket_set, |data, addr| {
-                    let ep = to_m3_ep(addr);
-                    let amount = cmp::min(event::MTU, data.len());
-
-                    log!(
-                        crate::LOG_DATA,
-                        "[{}] socket {}: received packet with {}b from {}",
-                        socket_sd,
-                        self.server_session.ident(),
-                        amount,
-                        ep
-                    );
-
-                    chan.send_data(ep, amount, |buf| {
-                        buf[0..amount].copy_from_slice(&data[0..amount]);
-                    })
-                    .unwrap();
-                    amount
-                });
+            // if we don't have credits anymore to send events, stop here. we'll get a reply
+            // to one of our earlier events and get credits back with this, so that we'll wake
+            // up from a potential sleep and call receive again.
+            if !chan.can_send().unwrap() {
+                break;
             }
+
+            if let Some(event) = socket.borrow_mut().fetch_event(socket_set) {
+                log!(
+                    crate::LOG_DATA,
+                    "[{}] socket {}: received event {:?}",
+                    socket_sd,
+                    self.server_session.ident(),
+                    event,
+                );
+
+                // the match is needed, because we don't want to send the enum, but the
+                // contained event struct
+                match event {
+                    SendNetEvent::Connected(e) => chan.send_event(e).unwrap(),
+                    SendNetEvent::Closed(e) => chan.send_event(e).unwrap(),
+                    SendNetEvent::CloseReq(e) => chan.send_event(e).unwrap(),
+                }
+            }
+
+            if !chan.can_send().unwrap() {
+                break;
+            }
+
+            socket.borrow_mut().receive(socket_set, |data, addr| {
+                let ep = to_m3_ep(addr);
+                let amount = cmp::min(event::MTU, data.len());
+
+                log!(
+                    crate::LOG_DATA,
+                    "[{}] socket {}: received packet with {}b from {}",
+                    socket_sd,
+                    self.server_session.ident(),
+                    amount,
+                    ep
+                );
+
+                chan.send_data(ep, amount, |buf| {
+                    buf[0..amount].copy_from_slice(&data[0..amount]);
+                })
+                .unwrap();
+                amount
+            });
         }
     }
 }

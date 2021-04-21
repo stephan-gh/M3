@@ -65,18 +65,12 @@ impl MountTable {
 
     /// Returns the file system mounted exactly at the given path.
     pub fn get_by_path(&self, path: &str) -> Option<FSHandle> {
-        match self.path_to_idx(path) {
-            Some(i) => Some(self.mounts[i].fs.clone()),
-            None => None,
-        }
+        self.path_to_idx(path).map(|i| self.mounts[i].fs.clone())
     }
 
     /// Returns the mount point with index `mid`.
     pub fn get_by_index(&self, mid: usize) -> Option<FSHandle> {
-        match self.mounts.get(mid) {
-            Some(mp) => Some(mp.fs.clone()),
-            None => None,
-        }
+        self.mounts.get(mid).map(|mp|  mp.fs.clone())
     }
 
     /// Returns the index of the mount point with given file system.
@@ -157,7 +151,7 @@ impl MountTable {
         // TODO support imperfect paths
         assert!(path.starts_with('/'));
         assert!(path.ends_with('/'));
-        assert!(path.find("..").is_none());
+        assert!(!path.contains(".."));
 
         for (i, m) in self.mounts.iter().enumerate() {
             if m.path == path {

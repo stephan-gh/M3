@@ -456,19 +456,16 @@ impl Device {
             chan.write_pio::<u8>(ATAReg::ADDRESS3, (lba >> 40) as u8)?;
             // sector count, low byte
             chan.write_pio::<u8>(ATAReg::SECTOR_COUNT, (sec_count & 0xFF) as u8)?;
-            // LBA1, LBA2, and LBA3
-            chan.write_pio::<u8>(ATAReg::ADDRESS1, (lba & 0xFF) as u8)?;
-            chan.write_pio::<u8>(ATAReg::ADDRESS2, (lba >> 8) as u8)?;
-            chan.write_pio::<u8>(ATAReg::ADDRESS3, (lba >> 16) as u8)?;
         }
         else {
             // sector count
             chan.write_pio::<u8>(ATAReg::SECTOR_COUNT, sec_count as u8)?;
-            // LBA1, LBA2, and LBA3
-            chan.write_pio::<u8>(ATAReg::ADDRESS1, (lba & 0xFF) as u8)?;
-            chan.write_pio::<u8>(ATAReg::ADDRESS2, (lba >> 8) as u8)?;
-            chan.write_pio::<u8>(ATAReg::ADDRESS3, (lba >> 16) as u8)?;
         }
+
+        // LBA1, LBA2, and LBA3
+        chan.write_pio::<u8>(ATAReg::ADDRESS1, (lba & 0xFF) as u8)?;
+        chan.write_pio::<u8>(ATAReg::ADDRESS2, (lba >> 8) as u8)?;
+        chan.write_pio::<u8>(ATAReg::ADDRESS3, (lba >> 16) as u8)?;
 
         log!(
             crate::LOG_ALL,

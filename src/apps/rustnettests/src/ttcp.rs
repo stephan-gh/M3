@@ -114,11 +114,8 @@ fn nonblocking_client() {
     let mut buf = [0u8; 32];
 
     for _ in 0..8 {
-        loop {
-            match socket.send(&buf) {
-                Err(e) => wv_assert_eq!(e.code(), Code::WouldBlock),
-                Ok(()) => break,
-            }
+        while let Err(e) = socket.send(&buf) {
+            wv_assert_eq!(e.code(), Code::WouldBlock);
             nm.wait(NetworkDirection::OUTPUT);
         }
     }
@@ -138,15 +135,10 @@ fn nonblocking_client() {
     }
     wv_assert_eq!(total, 8 * buf.len());
 
-    loop {
-        match socket.close() {
-            Err(e) => {
-                if e.code() != Code::WouldBlock {
-                    wv_assert_eq!(e.code(), Code::InProgress);
-                    break;
-                }
-            },
-            Ok(()) => break,
+    while let Err(e) = socket.close() {
+        if e.code() != Code::WouldBlock {
+            wv_assert_eq!(e.code(), Code::InProgress);
+            break;
         }
         nm.wait(NetworkDirection::OUTPUT);
     }
@@ -301,8 +293,8 @@ fn data() {
     wv_assert_ok!(socket.connect(Endpoint::new(IpAddr::new(192, 168, 112, 1), 1338)));
 
     let mut send_buf = [0u8; 1024];
-    for i in 0..1024 {
-        send_buf[i] = i as u8;
+    for (i, bufi) in send_buf.iter_mut().enumerate() {
+        *bufi = i as u8;
     }
 
     let mut recv_buf = [0u8; 1024];
@@ -317,8 +309,8 @@ fn data() {
         while received < *pkt_size {
             let recv_size = wv_assert_ok!(socket.recv(&mut recv_buf));
 
-            for i in 0..recv_size {
-                wv_assert_eq!(recv_buf[i], expected_byte);
+            for bufi in recv_buf.iter().take(recv_size) {
+                wv_assert_eq!(*bufi, expected_byte);
                 expected_byte = expected_byte.wrapping_add(1);
             }
             received += recv_size;

@@ -212,7 +212,7 @@ impl VPEMng {
 
         // memory
         #[cfg(target_os = "none")]
-        let mut mem_ep = 1 as tcu::EpId;
+        let mut mem_ep = 1;
 
         for m in mem::get().mods() {
             if m.mem_type() != mem::MemType::KERNEL {
@@ -287,12 +287,10 @@ impl VPEMng {
 
 impl Drop for VPEMng {
     fn drop(&mut self) {
-        for v in self.vpes.drain(0..) {
-            if let Some(ref _vpe) = v {
-                #[cfg(target_os = "linux")]
-                if let Some(pid) = _vpe.pid() {
-                    crate::arch::childs::kill_child(pid);
-                }
+        for _vpe in self.vpes.drain(0..).flatten() {
+            #[cfg(target_os = "linux")]
+            if let Some(pid) = _vpe.pid() {
+                crate::arch::childs::kill_child(pid);
             }
         }
     }

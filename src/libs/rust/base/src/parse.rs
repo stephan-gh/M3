@@ -22,8 +22,8 @@ use crate::kif;
 ///
 /// If the string starts with "0x", the remainder is interpreted hexadecimal, otherwise decimal.
 pub fn addr(s: &str) -> Result<goff, Error> {
-    if s.starts_with("0x") {
-        goff::from_str_radix(&s[2..], 16)
+    if let Some(hex) = s.strip_prefix("0x") {
+        goff::from_str_radix(hex, 16)
     }
     else {
         s.parse::<goff>()

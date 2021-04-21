@@ -47,6 +47,8 @@ use crate::services;
 const SUBSYS_SELS: Selector = FIRST_FREE_SEL;
 
 static OUR_PE: StaticCell<Option<Rc<pes::PEUsage>>> = StaticCell::new(None);
+// use Box here, because we also store them in the ChildManager, which expects them to be boxed
+#[allow(clippy::vec_box)]
 static DELAYED: StaticCell<Vec<Box<childs::OwnChild>>> = StaticCell::new(Vec::new());
 
 #[derive(Default)]
@@ -454,7 +456,7 @@ impl SubsystemBuilder {
     }
 
     pub fn add_serv(&mut self, name: String, sess_frac: u32, sess_fixed: u32, quota: Option<u32>) {
-        if self.servs.iter().find(|s| s.0 == name).is_none() {
+        if !self.servs.iter().any(|s| s.0 == name) {
             self.servs.push((name, sess_frac, sess_fixed, quota));
         }
     }
@@ -621,9 +623,9 @@ fn parse_args(cfg: &config::AppConfig) -> Arguments {
         else if arg == "sharepe" {
             args.share_pe = true;
         }
-        else if arg.starts_with("sem=") {
+        else if let Some(sem) = arg.strip_prefix("sem=") {
             sems::get()
-                .add_sem(arg[4..].to_string())
+                .add_sem(sem.to_string())
                 .expect("Unable to add semaphore");
         }
     }

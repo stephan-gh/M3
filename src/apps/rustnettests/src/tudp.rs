@@ -56,8 +56,8 @@ fn data() {
     let dest = Endpoint::new(IpAddr::new(192, 168, 112, 1), 1337);
 
     let mut send_buf = [0u8; 1024];
-    for i in 0..1024 {
-        send_buf[i] = i as u8;
+    for (i, bufi) in send_buf.iter_mut().enumerate() {
+        *bufi = i as u8;
     }
 
     let mut recv_buf = [0u8; 1024];

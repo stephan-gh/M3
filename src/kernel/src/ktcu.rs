@@ -39,7 +39,7 @@ pub fn config_local_ep<CFG>(ep: EpId, cfg: CFG)
 where
     CFG: FnOnce(&mut [Reg]),
 {
-    let mut regs = [0 as Reg; EP_REGS];
+    let mut regs = [0; EP_REGS];
     cfg(&mut regs);
     TCU::set_ep_regs(ep, &regs);
 }
@@ -48,7 +48,7 @@ pub fn config_remote_ep<CFG>(pe: PEId, ep: EpId, cfg: CFG) -> Result<(), Error>
 where
     CFG: FnOnce(&mut [Reg]),
 {
-    let mut regs = [0 as Reg; EP_REGS];
+    let mut regs = [0; EP_REGS];
     cfg(&mut regs);
     write_ep_remote(pe, ep, &regs)
 }

@@ -644,10 +644,7 @@ impl EPObject {
     }
 
     pub fn is_rgate(&self) -> bool {
-        match self.gate.borrow().as_ref() {
-            Some(GateObject::RGate(_)) => true,
-            _ => false
-        }
+        matches!(self.gate.borrow().as_ref(), Some(GateObject::RGate(_)))
     }
 
     pub fn set_gate(&self, g: GateObject) {

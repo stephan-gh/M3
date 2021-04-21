@@ -261,13 +261,17 @@ case "$cmd" in
             if [ "$M3_TARGET" = "host" ] && [[ $f =~ "pemux" ]]; then
                 continue;
             fi
-            # gem5log is always built for the host OS (not our host target)
+            # gem5log+hwitrace are always built for the host OS (not our host target)
             target=""
-            if [[ ! $f =~ "gem5log" ]]; then
+            if [[ ! $f =~ "gem5log" ]] && [[ ! $f =~ "hwitrace" ]]; then
                 target="-Z build-std=core,alloc --target $RUST_TARGET"
             fi
             echo "Running clippy for $(dirname $f)..."
-            ( cd $(dirname $f) && cargo clippy $target -- -A clippy::identity_op )
+            ( cd $(dirname $f) && cargo clippy $target -- \
+                -A clippy::identity_op \
+                -A clippy::manual_range_contains \
+                -A clippy::assertions_on_constants \
+                -A clippy::upper_case_acronyms )
         done
         ;;
 

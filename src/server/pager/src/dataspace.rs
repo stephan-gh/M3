@@ -77,6 +77,7 @@ pub struct DataSpace {
 }
 
 impl DataSpace {
+    #[allow(clippy::too_many_arguments)]
     pub fn new_extern(
         owner: Selector,
         child: childs::Id,
@@ -205,7 +206,7 @@ impl DataSpace {
                     let child = childs::get().child_by_id_mut(self.child).unwrap();
                     let mgate = child.alloc_local(reg.size(), kif::Perm::RWX)?;
                     let mem = Rc::new(RefCell::new(PhysMem::new((self.owner, self.virt), mgate)?));
-                    reg.set_mem(mem.clone());
+                    reg.set_mem(mem);
                     reg.copy_from(&src);
                     reg.set_mem_off(0);
                 }

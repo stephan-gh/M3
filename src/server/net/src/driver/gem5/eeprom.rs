@@ -25,7 +25,6 @@ use pci::Device;
 use super::defines::*;
 use super::e1000::E1000;
 
-const WORD_LEN_LOG2: usize = 1;
 // TODO: Use a sensible value, the current one is chosen arbitrarily
 const MAX_WAIT_NANOS: u64 = 100000;
 
@@ -70,27 +69,23 @@ impl EEPROM {
     }
 
     // reads `data` of `len` from the device.
-    // TOD: Currently doing stuff with the ptr of data. Should probably give sub slices of the length of one
-    // word tp the read_word fct. Also `len` is not needed since rust slice know their length.
     pub fn read(&self, dev: &E1000, mut address: usize, mut data: &mut [u8]) -> Result<(), Error> {
-        assert!((data.len() & ((1 << WORD_LEN_LOG2) - 1)) == 0);
+        assert!((data.len() & 1) == 0);
 
-        let num_bytes_to_move = 1 << WORD_LEN_LOG2;
         let mut len = data.len();
         while len > 0 {
-            self.read_word(dev, address, data)?;
+            let word = self.read_word(dev, address)?;
+            data[0] = word as u8;
+            data[1] = (word >> 8) as u8;
             // move to next word
-            data = &mut data[num_bytes_to_move..];
+            data = &mut data[2..];
             address += 1;
-            len -= num_bytes_to_move;
+            len -= 2;
         }
         Ok(())
     }
 
-    fn read_word(&self, dev: &E1000, address: usize, data: &mut [u8]) -> Result<(), Error> {
-        // cast to 16bit array
-        let data_word: &mut [u16] = unsafe { core::mem::transmute::<&mut [u8], &mut [u16]>(data) };
-
+    fn read_word(&self, dev: &E1000, address: usize) -> Result<u16, Error> {
         // set address
         dev.write_reg(
             REG::EERD,
@@ -107,9 +102,7 @@ impl EEPROM {
                 // Not read yet, therefore try again
                 continue;
             }
-            // Move word into slice
-            data_word[0] = (value >> 16) as u16;
-            return Ok(());
+            return Ok((value >> 16) as u16)
         }
 
         Err(Error::new(Code::Timeout))

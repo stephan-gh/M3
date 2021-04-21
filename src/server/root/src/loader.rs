@@ -197,9 +197,9 @@ impl BootMapper {
 }
 
 impl Mapper for BootMapper {
-    fn map_file<'l>(
+    fn map_file(
         &mut self,
-        pager: Option<&'l Pager>,
+        pager: Option<&Pager>,
         _file: &mut vfs::BufReader<vfs::FileRef>,
         foff: usize,
         virt: goff,
@@ -228,9 +228,9 @@ impl Mapper for BootMapper {
         }
     }
 
-    fn map_anon<'l>(
+    fn map_anon(
         &mut self,
-        _pager: Option<&'l Pager>,
+        _pager: Option<&Pager>,
         virt: goff,
         len: usize,
         perm: Perm,

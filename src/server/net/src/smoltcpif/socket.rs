@@ -22,13 +22,13 @@ use m3::errors::{Code, Error};
 use m3::log;
 use m3::mem::size_of;
 use m3::net::{
-    event, Endpoint, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketType,
+    event, Endpoint, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketArgs,
+    SocketType,
 };
 use m3::rc::Rc;
 use m3::tcu::TCU;
 use m3::vec;
 
-use smoltcp;
 use smoltcp::socket::SocketSet;
 use smoltcp::socket::{
     RawSocket, RawSocketBuffer, SocketHandle, TcpSocket, TcpSocketBuffer, TcpState, UdpSocket,
@@ -91,18 +91,16 @@ pub struct Socket {
 }
 
 impl Socket {
-    pub fn required_space(
-        ty: SocketType,
-        rbuf_space: usize,
-        rbuf_slots: usize,
-        sbuf_space: usize,
-        sbuf_slots: usize,
-    ) -> usize {
-        rbuf_space
-            + sbuf_space
+    pub fn required_space(ty: SocketType, args: &SocketArgs) -> usize {
+        args.rbuf_size
+            + args.sbuf_size
             + match ty {
-                SocketType::Dgram => (sbuf_slots + rbuf_slots) * size_of::<UdpSocketBuffer>(),
-                SocketType::Raw => (sbuf_slots + rbuf_slots) * size_of::<RawSocketBuffer>(),
+                SocketType::Dgram => {
+                    (args.sbuf_slots + args.rbuf_slots) * size_of::<UdpSocketBuffer>()
+                },
+                SocketType::Raw => {
+                    (args.sbuf_slots + args.rbuf_slots) * size_of::<RawSocketBuffer>()
+                },
                 _ => 0,
             }
     }
@@ -111,38 +109,35 @@ impl Socket {
         sd: Sd,
         ty: SocketType,
         protocol: u8,
-        rbuf_space: usize,
-        rbuf_slots: usize,
-        sbuf_space: usize,
-        sbuf_slots: usize,
+        args: &SocketArgs,
         caps: Selector,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<Self, Error> {
         let socket = match ty {
             SocketType::Stream => socket_set.add(TcpSocket::new(
-                TcpSocketBuffer::new(vec![0 as u8; rbuf_space]),
-                TcpSocketBuffer::new(vec![0 as u8; sbuf_space]),
+                TcpSocketBuffer::new(vec![0u8; args.rbuf_size]),
+                TcpSocketBuffer::new(vec![0u8; args.sbuf_size]),
             )),
             SocketType::Dgram => socket_set.add(UdpSocket::new(
-                UdpSocketBuffer::new(vec![PacketMetadata::EMPTY; rbuf_slots], vec![
-                    0 as u8;
-                    rbuf_space
+                UdpSocketBuffer::new(vec![PacketMetadata::EMPTY; args.rbuf_slots], vec![
+                    0u8;
+                    args.rbuf_size
                 ]),
-                UdpSocketBuffer::new(vec![PacketMetadata::EMPTY; sbuf_slots], vec![
-                    0 as u8;
-                    sbuf_space
+                UdpSocketBuffer::new(vec![PacketMetadata::EMPTY; args.sbuf_slots], vec![
+                    0u8;
+                    args.sbuf_size
                 ]),
             )),
             SocketType::Raw => socket_set.add(RawSocket::new(
                 IpVersion::Ipv4,
                 protocol.into(),
-                RawSocketBuffer::new(vec![PacketMetadata::EMPTY; rbuf_slots], vec![
-                    0 as u8;
-                    rbuf_space
+                RawSocketBuffer::new(vec![PacketMetadata::EMPTY; args.rbuf_slots], vec![
+                    0u8;
+                    args.rbuf_size
                 ]),
-                RawSocketBuffer::new(vec![PacketMetadata::EMPTY; sbuf_slots], vec![
-                    0 as u8;
-                    sbuf_space
+                RawSocketBuffer::new(vec![PacketMetadata::EMPTY; args.sbuf_slots], vec![
+                    0u8;
+                    args.sbuf_size
                 ]),
             )),
             _ => return Err(Error::new(Code::InvArgs)),
@@ -155,7 +150,7 @@ impl Socket {
             state: State::Closed,
             connect_start: None,
             _local_port: None,
-            buffer_space: Self::required_space(ty, rbuf_space, rbuf_slots, sbuf_space, sbuf_slots),
+            buffer_space: Self::required_space(ty, args),
 
             channel: NetEventChannel::new_server(caps)?,
             send_queue: VecDeque::new(),
@@ -212,7 +207,7 @@ impl Socket {
                         self._local_port = None;
                         self.state = State::Closed;
                         self.send_queue.clear();
-                        Some(SendNetEvent::Closed(event::ClosedMessage::new()))
+                        Some(SendNetEvent::Closed(event::ClosedMessage::default()))
                     }
                     else {
                         None
@@ -229,11 +224,11 @@ impl Socket {
                     self._local_port = None;
                     self.state = State::Closed;
                     self.send_queue.clear();
-                    Some(SendNetEvent::Closed(event::ClosedMessage::new()))
+                    Some(SendNetEvent::Closed(event::ClosedMessage::default()))
                 }
                 // remote side has closed the connection?
                 else if tcp_socket.state() == TcpState::CloseWait {
-                    Some(SendNetEvent::CloseReq(event::CloseReqMessage::new()))
+                    Some(SendNetEvent::CloseReq(event::CloseReqMessage::default()))
                 }
                 else {
                     None
@@ -369,7 +364,7 @@ impl Socket {
                     // don't even log errors here, since they occur often and are uninteresting
                     tcp_socket
                         .recv(|d| {
-                            if d.len() > 0 {
+                            if !d.is_empty() {
                                 (func(d, addr), ())
                             }
                             else {

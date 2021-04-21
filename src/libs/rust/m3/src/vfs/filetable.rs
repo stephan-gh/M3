@@ -114,10 +114,8 @@ impl FileTable {
         dels: &mut Vec<Selector>,
         max_sel: &mut Selector,
     ) -> Result<(), Error> {
-        for file in &self.files {
-            if let Some(ref f) = file {
-                f.borrow().exchange_caps(vpe, dels, max_sel)?;
-            }
+        for file in self.files.iter().flatten() {
+            file.borrow().exchange_caps(vpe, dels, max_sel)?;
         }
         Ok(())
     }

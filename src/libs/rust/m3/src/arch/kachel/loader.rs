@@ -301,7 +301,7 @@ fn init_mem(
     file.seek(foff, SeekMode::SET)?;
 
     let mut count = fsize;
-    let mut segoff = 0 as goff;
+    let mut segoff = 0;
     while count > 0 {
         let amount = cmp::min(count, buf.len());
         let amount = file.read(&mut buf[0..amount])?;

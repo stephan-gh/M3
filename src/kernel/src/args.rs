@@ -35,8 +35,10 @@ pub fn get() -> &'static Args {
 }
 
 pub fn parse() {
-    let mut args = Args::default();
-    args.kmem = 64 * 1024 * 1024;
+    let mut args = Args {
+        kmem: 64 * 1024 * 1024,
+        ..Default::default()
+    };
 
     let mut i = 1;
     let argv: Vec<&str> = env::args().collect();

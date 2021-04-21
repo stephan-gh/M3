@@ -246,7 +246,7 @@ impl<'n> Thread<'n> {
     }
 
     fn ret(&mut self, sym: &symbols::Symbol, time: u64, tid: &ThreadId) -> Option<Call> {
-        if self.stack.iter().find(|s| s.func == sym.name).is_none() {
+        if !self.stack.iter().any(|s| s.func == sym.name) {
             trace!(
                 "{}: {} return to {} w/o preceeding call",
                 time,

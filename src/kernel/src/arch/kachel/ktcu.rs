@@ -143,7 +143,7 @@ pub fn inv_reply_remote(
     send_pe: PEId,
     send_ep: EpId,
 ) -> Result<(), Error> {
-    let mut regs = [0 as Reg; EP_REGS];
+    let mut regs = [0; EP_REGS];
     read_ep_remote(recv_pe, recv_ep, &mut regs)?;
 
     // if there is no occupied slot, there can't be any reply EP we have to invalidate

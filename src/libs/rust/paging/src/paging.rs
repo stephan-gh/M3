@@ -91,7 +91,8 @@ where
                     return Err(Error::new(Code::NoPerm));
                 }
 
-                let phys = cfg::MEM_OFFSET as Phys + ((ep as Phys) << 30 | global.offset() - addr);
+                let phys =
+                    cfg::MEM_OFFSET as Phys + ((ep as Phys) << 30 | (global.offset() - addr));
                 log!(LOG_TRANSLATE, "Translated {:?} to {:#x}", global, phys);
                 return Ok(phys);
             }

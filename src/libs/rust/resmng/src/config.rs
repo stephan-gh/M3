@@ -265,10 +265,11 @@ impl AppConfig {
 
     pub fn new(args: Vec<String>) -> Self {
         assert!(!args.is_empty());
-        let mut cfg = AppConfig::default();
-        cfg.name = args[0].clone();
-        cfg.args = args;
-        cfg
+        Self {
+            name: args[0].clone(),
+            args,
+            ..Default::default()
+        }
     }
 
     pub fn cfg_range(&self) -> (usize, usize) {

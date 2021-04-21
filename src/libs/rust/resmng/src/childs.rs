@@ -978,6 +978,7 @@ impl ChildManager {
             )
             .ok();
             // now remove all potentially pending messages from the child
+            #[allow(clippy::useless_conversion)]
             crate::requests::rgate().drop_msgs_with(child.id().into());
 
             for csel in &child.res().childs {

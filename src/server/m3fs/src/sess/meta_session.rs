@@ -238,7 +238,7 @@ impl M3FSSession for MetaSession {
 
         dirs::create(path, mode)?;
 
-        reply_vmsg!(stream, 0 as u64)
+        reply_vmsg!(stream, 0u64)
     }
 
     fn rmdir(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
@@ -253,7 +253,7 @@ impl M3FSSession for MetaSession {
 
         dirs::remove(path)?;
 
-        reply_vmsg!(stream, 0 as u32)
+        reply_vmsg!(stream, 0u32)
     }
 
     fn link(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
@@ -270,7 +270,7 @@ impl M3FSSession for MetaSession {
 
         dirs::link(old_path, new_path)?;
 
-        reply_vmsg!(stream, 0 as u32)
+        reply_vmsg!(stream, 0u32)
     }
 
     fn unlink(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
@@ -285,7 +285,7 @@ impl M3FSSession for MetaSession {
 
         dirs::unlink(path, true)?;
 
-        reply_vmsg!(stream, 0 as u32)
+        reply_vmsg!(stream, 0u32)
     }
 
     fn rename(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
@@ -302,6 +302,6 @@ impl M3FSSession for MetaSession {
 
         dirs::rename(old_path, new_path)?;
 
-        reply_vmsg!(stream, 0 as u32)
+        reply_vmsg!(stream, 0u32)
     }
 }

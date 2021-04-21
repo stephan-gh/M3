@@ -148,7 +148,7 @@ pub fn set_pmp(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErro
 
     let kobj = vpe_caps
         .get(mgate_sel)
-        .ok_or(Error::new(Code::InvArgs))?
+        .ok_or_else(|| Error::new(Code::InvArgs))?
         .get();
     match kobj {
         KObject::MGate(mg) => {

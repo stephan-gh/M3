@@ -99,7 +99,7 @@ pub struct CreateSrv {
 
 impl CreateSrv {
     /// Stores a `CreateSrv` message into the given message buffer
-    pub fn to_msgbuf(buf: &mut MsgBuf, dst: CapSel, rgate: CapSel, name: &str, creator: Label) {
+    pub fn fill_msgbuf(buf: &mut MsgBuf, dst: CapSel, rgate: CapSel, name: &str, creator: Label) {
         #[allow(clippy::uninit_assumed_init)]
         let msg = buf.set(Self {
             opcode: Operation::CREATE_SRV.val,
@@ -185,7 +185,7 @@ pub struct CreateVPE {
 
 impl CreateVPE {
     /// Stores a new `CreateVPE` message into the given message buffer
-    pub fn to_msgbuf(
+    pub fn fill_msgbuf(
         buf: &mut MsgBuf,
         dst: CapSel,
         pg_sg: CapSel,
@@ -293,7 +293,7 @@ pub struct VPEWait {
 
 impl VPEWait {
     /// Stores a new `VPEWait` message into given message buffer
-    pub fn to_msgbuf(buf: &mut MsgBuf, vpes: &[CapSel], event: u64) {
+    pub fn fill_msgbuf(buf: &mut MsgBuf, vpes: &[CapSel], event: u64) {
         #[allow(clippy::uninit_assumed_init)]
         let msg = buf.set(Self {
             opcode: Operation::VPE_WAIT.val,

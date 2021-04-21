@@ -154,7 +154,7 @@ impl<S> SessionContainer<S> {
             else {
                 idx += dist as usize;
                 func(self.con[idx].as_mut().unwrap());
-                used = used >> (dist + 1);
+                used >>= dist + 1;
                 idx += 1;
             }
         }

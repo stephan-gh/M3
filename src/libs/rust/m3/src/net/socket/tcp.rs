@@ -273,7 +273,7 @@ impl<'n> TcpSocket<'n> {
             match self
                 .socket
                 .channel
-                .send_event(event::CloseReqMessage::new())
+                .send_event(event::CloseReqMessage::default())
             {
                 Err(e) if e.code() == Code::NoCredits => {},
                 Err(e) => return Err(e),

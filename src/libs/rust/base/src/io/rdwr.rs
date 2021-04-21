@@ -59,7 +59,7 @@ pub trait Read {
             // set final length
             buf.set_len(off);
         }
-        Ok(String::from_utf8(buf).map_err(|_| Error::new(Code::Utf8Error))?)
+        String::from_utf8(buf).map_err(|_| Error::new(Code::Utf8Error))
     }
 
     /// Reads all available bytes from this source into the given vector and returns the number of
@@ -103,7 +103,7 @@ pub trait Read {
     fn read_to_string(&mut self) -> Result<String, Error> {
         let mut v = Vec::new();
         self.read_to_end(&mut v)?;
-        Ok(String::from_utf8(v).map_err(|_| Error::new(Code::Utf8Error))?)
+        String::from_utf8(v).map_err(|_| Error::new(Code::Utf8Error))
     }
 
     /// Reads exactly as many bytes as available in `buf`
@@ -165,7 +165,7 @@ pub trait Write {
             }
             self.write_fmt(format_args!("{:02x} ", b))?;
         }
-        if slice.len() > 0 {
+        if !slice.is_empty() {
             self.write(&[b'\n'])?;
         }
         Ok(())

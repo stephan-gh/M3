@@ -16,8 +16,8 @@
  * General Public License version 2 for more details.
  */
 
-use m3::com::MemGate;
 use m3::col::Vec;
+use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{Perm, PEISA};
@@ -246,8 +246,7 @@ impl E1000 {
             && ((core::mem::size_of::<EthHdr>() + core::mem::size_of::<IpHdr>()) < packet.len())
         {
             let proto: u8 = unsafe {
-                let hdr = (packet as *const _ as *const u8)
-                    .offset(core::mem::size_of::<EthHdr>() as isize)
+                let hdr = (packet as *const _ as *const u8).add(core::mem::size_of::<EthHdr>())
                     as *const IpHdr;
                 (*hdr).proto
             };
@@ -559,7 +558,7 @@ impl E1000 {
         }
 
         // wasn't correct, therefore try to read from eeprom
-        let mut bytes = [0 as u8; 6];
+        let mut bytes = [0u8; 6];
         self.read_eeprom(0, &mut bytes);
 
         mac = MAC::new(bytes[1], bytes[0], bytes[3], bytes[2], bytes[5], bytes[4]);

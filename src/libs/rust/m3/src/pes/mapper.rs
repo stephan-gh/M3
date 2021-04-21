@@ -26,9 +26,9 @@ use crate::vfs::{BufReader, FileRef, Map};
 pub trait Mapper {
     /// Maps the given file to `virt`..`virt`+`len` with given permissions.
     #[allow(clippy::too_many_arguments)]
-    fn map_file<'l>(
+    fn map_file(
         &mut self,
-        pager: Option<&'l Pager>,
+        pager: Option<&Pager>,
         file: &mut BufReader<FileRef>,
         foff: usize,
         virt: goff,
@@ -38,9 +38,9 @@ pub trait Mapper {
     ) -> Result<bool, Error>;
 
     /// Maps anonymous memory to `virt`..`virt`+`len` with given permissions.
-    fn map_anon<'l>(
+    fn map_anon(
         &mut self,
-        pager: Option<&'l Pager>,
+        pager: Option<&Pager>,
         virt: goff,
         len: usize,
         perm: kif::Perm,
@@ -61,9 +61,9 @@ impl DefaultMapper {
 }
 
 impl Mapper for DefaultMapper {
-    fn map_file<'l>(
+    fn map_file(
         &mut self,
-        pager: Option<&'l Pager>,
+        pager: Option<&Pager>,
         file: &mut BufReader<FileRef>,
         foff: usize,
         virt: goff,
@@ -78,16 +78,16 @@ impl Mapper for DefaultMapper {
         }
         else if self.has_virtmem {
             // exec with VM, but without pager is not supported
-            return Err(Error::new(Code::NotSup));
+            Err(Error::new(Code::NotSup))
         }
         else {
             Ok(true)
         }
     }
 
-    fn map_anon<'l>(
+    fn map_anon(
         &mut self,
-        pager: Option<&'l Pager>,
+        pager: Option<&Pager>,
         virt: goff,
         len: usize,
         perm: kif::Perm,
@@ -98,7 +98,7 @@ impl Mapper for DefaultMapper {
         }
         else if self.has_virtmem {
             // exec with VM, but without pager is not supported
-            return Err(Error::new(Code::NotSup));
+            Err(Error::new(Code::NotSup))
         }
         else {
             Ok(true)

@@ -73,7 +73,7 @@ pub fn send_gate() -> &'static SendGate {
 /// service calls from the kernel to the server.
 pub fn create_srv(dst: Selector, rgate: Selector, name: &str, creator: Label) -> Result<(), Error> {
     let mut buf = SYSC_BUF.get_mut();
-    syscalls::CreateSrv::to_msgbuf(&mut buf, dst, rgate, name, creator);
+    syscalls::CreateSrv::fill_msgbuf(&mut buf, dst, rgate, name, creator);
     send_receive_result(&buf)
 }
 
@@ -205,7 +205,7 @@ pub fn create_vpe(
     kmem: Selector,
 ) -> Result<EpId, Error> {
     let mut buf = SYSC_BUF.get_mut();
-    syscalls::CreateVPE::to_msgbuf(&mut buf, dst, pg_sg, pg_rg, name, pe, kmem);
+    syscalls::CreateVPE::fill_msgbuf(&mut buf, dst, pg_sg, pg_rg, name, pe, kmem);
 
     let reply: Reply<syscalls::CreateVPEReply> = send_receive(&buf)?;
     Ok(reply.data.eps_start as EpId)
@@ -247,8 +247,8 @@ pub fn set_pmp(pe: Selector, mgate: Selector, ep: EpId) -> Result<(), Error> {
     let buf = SYSC_BUF.get_mut();
     buf.set(syscalls::SetPMP {
         opcode: syscalls::Operation::SET_PMP.val,
-        pe_sel: u64::from(pe),
-        mgate_sel: u64::from(mgate),
+        pe_sel: pe,
+        mgate_sel: mgate,
         epid: u64::from(ep),
     });
     send_receive_result(&buf)
@@ -383,7 +383,7 @@ pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Erro
 /// exitcode given by the VPE.
 pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error> {
     let mut buf = SYSC_BUF.get_mut();
-    syscalls::VPEWait::to_msgbuf(&mut buf, vpes, event);
+    syscalls::VPEWait::fill_msgbuf(&mut buf, vpes, event);
 
     let reply: Reply<syscalls::VPEWaitReply> = send_receive(&buf)?;
     if event != 0 {

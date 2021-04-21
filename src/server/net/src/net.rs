@@ -101,9 +101,10 @@ impl NetHandler {
     // processes outgoing events to clients
     fn process_outgoing(&mut self) {
         let socks = &mut self.socket_set;
-        self.sessions.for_each(|s| match s {
-            NetworkSession::SocketSession(ss) => ss.process_outgoing(socks),
-            _ => {},
+        self.sessions.for_each(|s| {
+            if let NetworkSession::SocketSession(ss) = s {
+                ss.process_outgoing(socks)
+            }
         });
     }
 
@@ -111,9 +112,10 @@ impl NetHandler {
     fn process_incoming(&mut self) -> bool {
         let socks = &mut self.socket_set;
         let mut res = false;
-        self.sessions.for_each(|s| match s {
-            NetworkSession::SocketSession(ss) => res |= ss.process_incoming(socks),
-            _ => {},
+        self.sessions.for_each(|s| {
+            if let NetworkSession::SocketSession(ss) = s {
+                res |= ss.process_incoming(socks)
+            }
         });
         res
     }
@@ -213,9 +215,9 @@ pub fn main() -> i32 {
     rgate.activate().expect("Failed to activate main rgate");
 
     #[cfg(target_os = "none")]
-    let device = driver::driver::E1000Device::new().expect("Failed to create E1000 driver");
+    let device = driver::E1000Device::new().expect("Failed to create E1000 driver");
     #[cfg(target_os = "linux")]
-    let device = driver::driver::DevFifo::new(name);
+    let device = driver::DevFifo::new(name);
 
     let mut neighbor_cache_entries = [None; 8];
     let neighbor_cache = NeighborCache::new(&mut neighbor_cache_entries[..]);
