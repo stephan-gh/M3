@@ -53,6 +53,8 @@ BEGIN_FUNC(isr_setup)
     csrc    mstatus, t1
     li      t1, 1 << 11     # MPP = S
     csrs    mstatus, t1
+    li      t1, 1 << 21     # TW = 0 (allow wfi in user mode)
+    csrc    mstatus, t1
 
     // jump to 1:
     la      t0, 1f

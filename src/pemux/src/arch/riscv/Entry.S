@@ -41,6 +41,6 @@ END_FUNC(_start)
 .section .user_text
 
 BEGIN_FUNC(sleep)
-1:  wfi
+1:  #wfi
     j       1b
 END_FUNC(sleep)
