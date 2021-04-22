@@ -373,7 +373,8 @@ fn test_foreign_msg() {
     let buf = MsgBuf::new();
     assert_eq!(TCU::send(2, &buf, 0x1111, tcu::NO_REPLIES), Ok(()));
 
-    // send is sync; we already received the core request
+    // wait for core request
+    while unsafe { core::ptr::read_volatile(&*FOREIGN_MSGS) } == 0 {}
     assert_eq!(*FOREIGN_MSGS, 1);
 
     // switch to foreign VPE (we have received a message)
