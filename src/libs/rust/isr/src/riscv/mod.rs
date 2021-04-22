@@ -19,7 +19,7 @@ use base::envdata;
 use base::int_enum;
 use base::libc;
 use base::tcu;
-use base::{set_csr_bits, write_csr};
+use base::{set_csr_bits, read_csr, write_csr};
 use core::fmt;
 
 pub const ISR_COUNT: usize = 32;
@@ -97,6 +97,7 @@ impl fmt::Debug for State {
         writeln!(fmt, "  cause:  {:#x}", { self.cause })?;
         writeln!(fmt, "  epc:    {:#x}", { self.epc })?;
         writeln!(fmt, "  status: {:#x}", { self.status })?;
+        writeln!(fmt, "  stval:  {:#x}", read_csr!("stval"))?;
 
         writeln!(fmt, "\nUser backtrace:")?;
         let mut bt = [0usize; 16];
