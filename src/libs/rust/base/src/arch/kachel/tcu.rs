@@ -21,6 +21,7 @@ use core::intrinsics;
 use core::sync::atomic;
 
 use crate::arch;
+use crate::cell::StaticCell;
 use crate::cfg;
 use crate::errors::{Code, Error};
 use crate::goff;
@@ -571,7 +572,7 @@ impl TCU {
             return None;
         }
 
-        let peid = ((regs[0] >> 23) & 0xFF) as PEId;
+        let peid = Self::nocid_to_peid(((regs[0] >> 23) & 0xFF) as PEId);
         let perm = Perm::from_bits_truncate((regs[0] as u32 >> 19) & 0x3);
         Some((peid, regs[1], regs[2], perm))
     }
@@ -859,7 +860,42 @@ impl TCU {
     }
 }
 
+static PE_IDS: StaticCell<[PEId; cfg::MAX_PES]> = StaticCell::new([0; cfg::MAX_PES]);
+
 impl TCU {
+    pub fn init_pe_ids() {
+        let pes = PE_IDS.get_mut();
+        if arch::envdata::get().platform == crate::envdata::Platform::GEM5.val {
+            for i in 0..cfg::MAX_PES {
+                pes[i] = i as PEId;
+            }
+        }
+        else {
+            let pe_ids = [0x06, 0x25, 0x26, 0x00, 0x01, 0x02, 0x20, 0x21, 0x24];
+            for (i, pe) in pe_ids.iter().enumerate() {
+                pes[i] = *pe;
+            }
+        }
+    }
+
+    pub fn peid_to_nocid(pe: PEId) -> u8 {
+        PE_IDS[pe as usize]
+    }
+
+    pub fn nocid_to_peid(pe: u8) -> PEId {
+        if arch::envdata::get().platform == crate::envdata::Platform::GEM5.val {
+            pe
+        }
+        else {
+            for (i, id) in PE_IDS.iter().enumerate() {
+                if *id == pe {
+                    return i as u8;
+                }
+            }
+            unreachable!();
+        }
+    }
+
     pub fn config_recv(
         regs: &mut [Reg],
         vpe: VPEId,
@@ -891,7 +927,7 @@ impl TCU {
             | ((credits as Reg) << 19)
             | ((credits as Reg) << 25)
             | ((msg_order as Reg) << 31);
-        regs[1] = ((pe as Reg) << 16) | (dst_ep as Reg);
+        regs[1] = ((PE_IDS[pe as usize] as Reg) << 16) | (dst_ep as Reg);
         regs[2] = lbl as Reg;
     }
 
@@ -899,7 +935,7 @@ impl TCU {
         regs[0] = EpType::MEMORY.val
             | ((vpe as Reg) << 3)
             | ((perm.bits() as Reg) << 19)
-            | ((pe as Reg) << 23);
+            | ((PE_IDS[pe as usize] as Reg) << 23);
         regs[1] = addr as Reg;
         regs[2] = size as Reg;
     }

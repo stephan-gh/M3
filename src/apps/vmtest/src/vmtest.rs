@@ -20,7 +20,6 @@
 extern crate heap;
 
 mod paging;
-mod pes;
 
 use base::cell::{LazyStaticCell, StaticCell};
 use base::cfg;
@@ -32,16 +31,17 @@ use base::log;
 use base::machine;
 use base::math::next_log2;
 use base::mem::{size_of, MsgBuf};
-use base::tcu::{self, EpId, Message, Reg, EP_REGS, TCU};
+use base::tcu::{self, EpId, Message, PEId, Reg, EP_REGS, TCU};
 use base::util;
 use base::{read_csr, write_csr};
 
 use core::intrinsics::transmute;
 
-use pes::PE;
-
 static LOG_DEF: bool = true;
 static LOG_PEXCALLS: bool = false;
+
+static OWN_PE: PEId = 0;
+static MEM_PE: PEId = 8;
 
 static OWN_VPE: u16 = 0xFFFF;
 static STATE: LazyStaticCell<isr::State> = LazyStaticCell::default();
@@ -140,7 +140,7 @@ fn read_write(wr_addr: usize, rd_addr: usize, size: usize) {
 
     // configure mem EP
     config_local_ep(1, |regs| {
-        TCU::config_mem(regs, OWN_VPE, PE::MEM.id(), 0x1000, size, Perm::RW);
+        TCU::config_mem(regs, OWN_VPE, MEM_PE, 0x1000, size, Perm::RW);
     });
 
     // test write + read
@@ -218,7 +218,7 @@ fn send_recv(send_addr: usize, size: usize) {
         TCU::config_recv(regs, OWN_VPE, rbuf2_phys, max_msg_ord, max_msg_ord, None);
     });
     config_local_ep(4, |regs| {
-        TCU::config_send(regs, OWN_VPE, 0x1234, PE::PE0.id(), 1, max_msg_ord, 1);
+        TCU::config_send(regs, OWN_VPE, 0x1234, OWN_PE, 1, max_msg_ord, 1);
     });
 
     let msg_buf: &mut MsgBuf = unsafe { transmute(send_addr) };
@@ -289,7 +289,7 @@ fn test_msgs(area_begin: usize, _area_size: usize) {
             TCU::config_recv(regs, OWN_VPE, rbuf1_phys, 6, 6, None);
         });
         config_local_ep(2, |regs| {
-            TCU::config_send(regs, OWN_VPE, 0x5678, PE::PE0.id(), 1, 6, 1);
+            TCU::config_send(regs, OWN_VPE, 0x5678, OWN_PE, 1, 6, 1);
         });
         let buf_addr = unsafe { (buf.bytes.as_ptr() as *const u8).add(cfg::PAGE_SIZE - 16) };
         assert_eq!(
@@ -311,7 +311,7 @@ fn test_msgs(area_begin: usize, _area_size: usize) {
             regs[2] = 0 << 32 | 1;
         });
         config_local_ep(2, |regs| {
-            TCU::config_send(regs, OWN_VPE, 0x5678, PE::PE0.id(), 1, 6, 1);
+            TCU::config_send(regs, OWN_VPE, 0x5678, OWN_PE, 1, 6, 1);
             // make it a reply EP
             regs[0] |= 1 << 53;
         });
@@ -340,6 +340,7 @@ fn test_msgs(area_begin: usize, _area_size: usize) {
 #[no_mangle]
 pub extern "C" fn env_run() {
     io::init(0, "vmtest");
+    tcu::TCU::init_pe_ids();
 
     log!(crate::LOG_DEF, "Setting up paging...");
     paging::init();
