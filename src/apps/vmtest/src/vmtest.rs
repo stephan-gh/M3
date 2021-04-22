@@ -46,6 +46,7 @@ static MEM_PE: PEId = 8;
 static OWN_VPE: u16 = 0xFFFF;
 static STATE: LazyStaticCell<isr::State> = LazyStaticCell::default();
 static XLATES: StaticCell<u64> = StaticCell::new(0);
+static FOREIGN_MSGS: StaticCell<u64> = StaticCell::new(0);
 
 #[no_mangle]
 pub extern "C" fn abort() {
@@ -190,11 +191,11 @@ fn virt_to_phys(virt: usize) -> (usize, ::paging::Phys) {
     )
 }
 
-fn send_recv(send_addr: usize, size: usize) {
-    let fetch_msg = |ep: EpId, rbuf: usize| -> Option<&'static Message> {
-        tcu::TCU::fetch_msg(ep).map(|off| tcu::TCU::offset_to_msg(rbuf, off))
-    };
+fn fetch_msg(ep: EpId, rbuf: usize) -> Option<&'static Message> {
+    tcu::TCU::fetch_msg(ep).map(|off| tcu::TCU::offset_to_msg(rbuf, off))
+}
 
+fn send_recv(send_addr: usize, size: usize) {
     log!(
         crate::LOG_DEF,
         "SEND+REPLY from {:#x} with {} bytes",
@@ -337,6 +338,59 @@ fn test_msgs(area_begin: usize, _area_size: usize) {
     }
 }
 
+pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
+    log!(crate::LOG_DEF, "Got TCU IRQ @ {:#x}", state.epc);
+
+    isr::acknowledge_irq(tcu::IRQ::CORE_REQ);
+
+    // core request from TCU?
+    let req = tcu::TCU::get_core_req().unwrap();
+    log!(crate::LOG_DEF, "Got {:x?}", req);
+    assert_eq!(req.vpe, 0xDEAD);
+    assert_eq!(req.ep, 1);
+
+    *FOREIGN_MSGS.get_mut() += 1;
+
+    state as *mut _ as *mut libc::c_void
+}
+
+fn test_foreign_msg() {
+    *FOREIGN_MSGS.get_mut() = 0;
+
+    let (rbuf1_virt, rbuf1_phys) = virt_to_phys(RBUF1.as_ptr() as usize);
+
+    log!(crate::LOG_DEF, "SEND to REP of foreign VPE");
+
+    // create EPs
+    config_local_ep(1, |regs| {
+        TCU::config_recv(regs, 0xDEAD, rbuf1_phys, 6, 6, None);
+    });
+    config_local_ep(2, |regs| {
+        TCU::config_send(regs, OWN_VPE, 0x5678, OWN_PE, 1, 6, 1);
+    });
+
+    // send message
+    let buf = MsgBuf::new();
+    assert_eq!(TCU::send(2, &buf, 0x1111, tcu::NO_REPLIES), Ok(()));
+
+    // send is sync; we already received the core request
+    assert_eq!(*FOREIGN_MSGS, 1);
+
+    // switch to foreign VPE (we have received a message)
+    let old = TCU::xchg_vpe((1 << 16) | 0xDEAD).unwrap();
+    // we had no unread messages
+    assert_eq!(old, OWN_VPE as u64);
+
+    // fetch message with foreign VPE
+    let msg = fetch_msg(1, rbuf1_virt).unwrap();
+    assert_eq!({ msg.header.label }, 0x5678);
+    tcu::TCU::ack_msg(1, tcu::TCU::msg_to_offset(rbuf1_virt, msg)).unwrap();
+
+    // no unread messages anymore
+    let foreign = TCU::xchg_vpe(old).unwrap();
+    assert_eq!(foreign, 0xDEAD);
+}
+
 #[no_mangle]
 pub extern "C" fn env_run() {
     io::init(0, "vmtest");
@@ -353,6 +407,7 @@ pub extern "C" fn env_run() {
     isr::reg(isr::Vector::LOAD_PAGEFAULT.val, mmu_pf);
     isr::reg(isr::Vector::STORE_PAGEFAULT.val, mmu_pf);
     isr::reg(isr::Vector::SUPER_SW_IRQ.val, sw_irq);
+    isr::reg(isr::Vector::SUPER_EXT_IRQ.val, tcu_irq);
     isr::enable_irqs();
 
     log!(crate::LOG_DEF, "Triggering software IRQ...");
@@ -374,6 +429,7 @@ pub extern "C" fn env_run() {
 
     test_mem(area_begin, area_size);
     test_msgs(area_begin, area_size);
+    test_foreign_msg();
 
     log!(crate::LOG_DEF, "Shutting down");
     exit(0);
