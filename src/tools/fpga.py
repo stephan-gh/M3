@@ -13,12 +13,14 @@ from tcu import EP, MemEP, Flags
 from fpga_utils import FPGA_Error
 import memory
 
+DRAM_OFF = 0x10000000
 ENV = 0x10100000
 MEM_TILE = 8
 MEM_SIZE = 2 * 1024 * 1024
 DRAM_SIZE = 2 * 1024 * 1024 * 1024
 MAX_FS_SIZE = 256 * 1024 * 1024
 KENV_SIZE = 16 * 1024 * 1024
+INIT_PMP_SIZE = 8 * 1024 * 1024
 PRINT_TIMEOUT = 10 # seconds
 
 def read_u64(pm, addr):
@@ -55,9 +57,11 @@ def add_mod(dram, addr, name, offset):
     write_file(dram, name, addr)
     return size
 
-def load_boot_info(dram, mods, pes):
+def load_boot_info(dram, mods, pes, vm):
+    info_start = MAX_FS_SIZE + len(pes) * INIT_PMP_SIZE
+
     # boot info
-    kenv_off = MAX_FS_SIZE
+    kenv_off = info_start
     write_u64(dram, kenv_off + 0 * 8, len(mods))    # mod_count
     write_u64(dram, kenv_off + 1 * 8, len(pes) + 1) # pe_count
     write_u64(dram, kenv_off + 2 * 8, 1)            # mem_count
@@ -65,7 +69,7 @@ def load_boot_info(dram, mods, pes):
     kenv_off += 8 * 4
 
     # mods
-    mods_addr = MAX_FS_SIZE + 0x1000
+    mods_addr = info_start + 0x1000
     for m in mods:
         mod_size = add_mod(dram, mods_addr, m, kenv_off)
         mods_addr = (mods_addr + mod_size + 4096 - 1) & ~(4096 - 1)
@@ -73,18 +77,20 @@ def load_boot_info(dram, mods, pes):
 
     # PEs
     for x in range(0, len(pes)):
-        write_u64(dram, kenv_off, MEM_SIZE | (3 << 3) | 0) # PM
+        pe_desc = (3 << 3) | 1 if vm else MEM_SIZE | (3 << 3) | 0
+        write_u64(dram, kenv_off, pe_desc)              # PM
         kenv_off += 8
     write_u64(dram, kenv_off, DRAM_SIZE | (0 << 3) | 2) # dram
     kenv_off += 8
 
     # mems
-    write_u64(dram, kenv_off, MAX_FS_SIZE + KENV_SIZE) # addr (ignored)
+    write_u64(dram, kenv_off, info_start + KENV_SIZE) # addr (ignored)
     kenv_off += 8
-    write_u64(dram, kenv_off, DRAM_SIZE - MAX_FS_SIZE - KENV_SIZE) # size
+    write_u64(dram, kenv_off, DRAM_SIZE - info_start - KENV_SIZE) # size
     kenv_off += 8
 
-def load_prog(pm, i, args, vm):
+def load_prog(dram, pms, i, args, vm):
+    pm = pms[i]
     print("%s: loading %s..." % (pm.name, args[0]))
     sys.stdout.flush()
 
@@ -103,17 +109,19 @@ def load_prog(pm, i, args, vm):
     # invalidate all EPs
     for ep in range(0, 63):
         pm.tcu_set_ep(ep, EP.invalid())
+
+    mem_begin = MAX_FS_SIZE + i * INIT_PMP_SIZE
     # install first PMP EP
     pmp_ep = MemEP()
-    pmp_ep.set_pe(pm.nocid[1])
+    pmp_ep.set_pe(dram.mem.nocid[1])
     pmp_ep.set_vpe(0xFFFF)
     pmp_ep.set_flags(Flags.READ | Flags.WRITE)
-    pmp_ep.set_addr(0)
-    pmp_ep.set_size(0x200000)
+    pmp_ep.set_addr(mem_begin)
+    pmp_ep.set_size(INIT_PMP_SIZE)
     pm.tcu_set_ep(0, pmp_ep)
 
     # load ELF file
-    pm.mem.write_elf(args[0])
+    dram.mem.write_elf(args[0], mem_begin - DRAM_OFF)
     sys.stdout.flush()
 
     argv = ENV + 0x400
@@ -123,7 +131,7 @@ def load_prog(pm, i, args, vm):
     else:
         pe_desc = MEM_SIZE | (3 << 3) | 0
         heap_size = 0
-    kenv = glob_addr(MEM_TILE, MAX_FS_SIZE) if i == 0 else 0
+    kenv = glob_addr(MEM_TILE, MAX_FS_SIZE + len(pms) * INIT_PMP_SIZE) if i == 0 else 0
 
     # init environment
     write_u64(pm, ENV + 0, 1)           # platform = HW
@@ -170,7 +178,7 @@ def main():
 
     # load boot info into DRAM
     mods = [] if args.mod is None else args.mod
-    load_boot_info(fpga_inst.dram1, mods, fpga_inst.pms)
+    load_boot_info(fpga_inst.dram1, mods, fpga_inst.pms, args.vm)
 
     # load file system into DRAM, if there is any
     if not args.fs is None:
@@ -178,7 +186,7 @@ def main():
 
     # load programs onto PEs
     for i, peargs in enumerate(args.pe[0:len(fpga_inst.pms)], 0):
-        load_prog(fpga_inst.pms[i], i, peargs.split(' '), args.vm)
+        load_prog(fpga_inst.dram1, fpga_inst.pms, i, peargs.split(' '), args.vm)
 
     # start PEs
     debug_pe = len(fpga_inst.pms) if args.debug is None else args.debug
