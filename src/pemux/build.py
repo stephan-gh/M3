@@ -1,5 +1,5 @@
 def build(gen, env):
-    if env['TGT'] == 'gem5':
+    if env['PLATF'] == 'kachel':
         env = env.clone()
 
         env['LINKFLAGS'] += ['-nostartfiles']

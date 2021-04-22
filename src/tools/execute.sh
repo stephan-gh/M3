@@ -160,10 +160,13 @@ build_params_hw() {
         args="$args --reset"
     fi
     if [ "$M3_HW_VM" = "1" ]; then
+        pemux="pemux"
         args="$args --vm"
+    else
+        pemux="peidle"
     fi
 
-    files="$M3_OUT/boot.xml $bindir/peidle"
+    files="$M3_OUT/boot.xml $bindir/$pemux"
     IFS=';'
     c=0
     for karg in $kargs; do
@@ -177,7 +180,7 @@ build_params_hw() {
         files="$files $build/src/fs/default/bin/$(basename $mod)"
     done
     while [ $c -lt 8 ]; do
-        args="$args --pe peidle"
+        args="$args --pe $pemux"
         c=$((c + 1))
     done
     unset IFS
