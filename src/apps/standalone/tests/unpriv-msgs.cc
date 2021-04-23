@@ -615,6 +615,51 @@ static void test_msg_receive() {
     }
 }
 
+static void test_unaligned_recvbuf(size_t pad, size_t msg_size_in) {
+    Serial::get() << "SEND " << msg_size_in << "B with " << pad << "B padding of recv-buf\n";
+
+    const size_t TOTAL_MSG_SIZE = msg_size_in + sizeof(TCU::Header);
+    char rbuffer[TOTAL_MSG_SIZE + 32];  //reserve some extra space for padding
+    uintptr_t recv_buf = reinterpret_cast<uintptr_t>(&rbuffer) + pad;
+
+    // prepare test data
+    MsgBuf msg;
+    auto *msg_data = &msg.cast<uint8_t>();
+    for(size_t i = 0; i < msg_size_in; ++i)
+        msg_data[i] = i + 1;
+    msg.set_size(msg_size_in);
+
+    // mark end of recv-buf, this value should not be overwritten
+    rbuffer[sizeof(TCU::Header)+msg_size_in+pad] = 0xFF;
+
+    TCU::reg_t slot_msgsize = m3::getnextlog2(TOTAL_MSG_SIZE);
+
+    kernel::TCU::config_recv(1, recv_buf, slot_msgsize + 1, slot_msgsize, TCU::NO_REPLIES);
+    kernel::TCU::config_send(2, 0x1234, pe_id(PE::PE0), 1, slot_msgsize, 1);
+
+    ASSERT_EQ(kernel::TCU::send(2, msg, 0x1111, TCU::INVALID_EP), Errors::NONE);
+
+    // fetch message
+    const TCU::Message *rmsg;
+    while((rmsg = kernel::TCU::fetch_msg(1, recv_buf)) == nullptr)
+        ;
+    // validate contents
+    ASSERT_EQ(rmsg->label, 0x1234);
+    ASSERT_EQ(rmsg->replylabel, 0x1111);
+    ASSERT_EQ(rmsg->length, msg.size());
+    ASSERT_EQ(rmsg->senderEp, 2);
+    ASSERT_EQ(rmsg->replyEp, TCU::INVALID_EP);
+    ASSERT_EQ(rmsg->senderPe, pe_id(PE::PE0));
+    ASSERT_EQ(rmsg->flags, 0);
+    const uint8_t *msg_ctrl = reinterpret_cast<const uint8_t*>(rmsg->data);
+    for(size_t i = 0; i < msg_size_in; ++i)
+        ASSERT_EQ(msg_ctrl[i], msg_data[i]);
+    ASSERT_EQ(msg_ctrl[msg_size_in], 0xFF);
+
+    // free slot
+    ASSERT_EQ(kernel::TCU::ack_msg(1, recv_buf, rmsg), Errors::NONE);
+}
+
 void test_msgs() {
     test_msg_receive();
     test_msg_errors();
@@ -630,5 +675,12 @@ void test_msgs() {
         test_msg<uint16_t>(i, i);
         test_msg<uint32_t>(i, i);
         test_msg<uint64_t>(i, i);
+    }
+
+    // test different alignments of receive buffer
+    for(size_t pad = 1; pad <= 16; pad++) {
+        for(size_t n_bytes = 1; n_bytes <= 128; n_bytes++) {
+            test_unaligned_recvbuf(pad, n_bytes);
+        }
     }
 }
