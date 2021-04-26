@@ -730,6 +730,14 @@ impl VPE {
         )
         .unwrap();
 
+        // map PLIC
+        #[cfg(target_vendor = "hw")]
+        {
+            self.map(0x0C00_0000, GlobAddr::new(0x0C00_0000), 1, kif::PageFlags::RW).unwrap();
+            self.map(0x0C00_2000, GlobAddr::new(0x0C00_2000), 1, kif::PageFlags::RW).unwrap();
+            self.map(0x0C20_0000, GlobAddr::new(0x0C20_0000), 1, kif::PageFlags::RW).unwrap();
+        }
+
         // map vectors
         #[cfg(target_arch = "arm")]
         self.map(0, base, 1, rx).unwrap();
