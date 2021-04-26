@@ -104,6 +104,7 @@ pub fn init(state: &mut State) {
             isr::Vector::LOAD_PAGEFAULT => isr::reg(i, crate::mmu_pf),
             isr::Vector::STORE_PAGEFAULT => isr::reg(i, crate::mmu_pf),
             isr::Vector::SUPER_EXT_IRQ => isr::reg(i, crate::tcu_irq),
+            isr::Vector::MACH_EXT_IRQ => isr::reg(i, crate::tcu_irq),
             isr::Vector::SUPER_TIMER_IRQ => isr::reg(i, crate::timer_irq),
             _ => isr::reg(i, crate::unexpected_irq),
         }
