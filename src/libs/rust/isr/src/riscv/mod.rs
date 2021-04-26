@@ -19,7 +19,7 @@ use base::envdata;
 use base::int_enum;
 use base::libc;
 use base::tcu;
-use base::{set_csr_bits, read_csr, write_csr};
+use base::{read_csr, set_csr_bits, write_csr};
 use core::fmt;
 
 pub const ISR_COUNT: usize = 32;
@@ -111,17 +111,20 @@ impl fmt::Debug for State {
 
 mod plic {
     pub const TCU_ID: u32 = 1;
+    pub const TIMER_ID: u32 = 2;
 
     const MMIO_PRIORITY: *mut u32 = 0x0C00_0000 as *mut u32;
     const MMIO_ENABLE: *mut u32 = 0x0C00_2000 as *mut u32;
     const MMIO_THRESHOLD: *mut u32 = 0x0C20_0000 as *mut u32;
     const MMIO_CLAIM: *mut u32 = 0x0C20_0004 as *mut u32;
 
-    pub fn fetch_and_ack() {
+    pub fn get() -> u32 {
+        unsafe { MMIO_CLAIM.read_volatile() }
+    }
+
+    pub fn ack(id: u32) {
         unsafe {
-            let next = MMIO_CLAIM.read_volatile();
-            assert!(next != 0);
-            MMIO_CLAIM.write_volatile(next);
+            MMIO_CLAIM.write_volatile(id);
         }
     }
 
@@ -173,7 +176,9 @@ pub fn init(state: &mut State) {
         // configure PLIC
         plic::set_threshold(0);
         plic::enable(plic::TCU_ID);
+        plic::enable(plic::TIMER_ID);
         plic::set_priority(plic::TCU_ID, 1);
+        plic::set_priority(plic::TIMER_ID, 1);
 
         // disable timer interrupt
         const CLINT_MSIP: *mut u64 = 0x0200_0000 as *mut u64;
@@ -204,13 +209,14 @@ pub fn enable_irqs() {
 
 pub fn acknowledge_irq(irq: tcu::IRQ) {
     if envdata::get().platform == envdata::Platform::HW.val {
+        let irq = plic::get();
+        assert!(irq != 0);
         // TODO: temporary (add to spec and make gem5 behave the same)
         let tcu_set_irq_addr = 0xF000_3030 as *mut u64;
         unsafe {
-            tcu_set_irq_addr.add(irq.val as usize).write_volatile(0);
+            tcu_set_irq_addr.add((irq - 1) as usize).write_volatile(0);
         }
-
-        plic::fetch_and_ack();
+        plic::ack(irq);
     }
     else {
         tcu::TCU::clear_irq(irq);
