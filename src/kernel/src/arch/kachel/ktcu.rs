@@ -18,7 +18,7 @@ use base::cfg;
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{PageFlags, Perm};
-use base::mem::{GlobAddr, size_of};
+use base::mem::GlobAddr;
 use base::tcu::*;
 
 use crate::arch;
@@ -45,13 +45,9 @@ pub fn rbuf_addrs(virt: goff) -> (goff, goff) {
 }
 
 pub fn deprivilege_pe(pe: PEId) -> Result<(), Error> {
-    let features = 0;
-    ktcu::try_write_mem(
-        pe,
-        TCU::ext_reg_addr(ExtReg::FEATURES) as goff,
-        &features,
-        size_of::<Reg>(),
-    )
+    let mut features: u64 = ktcu::try_read_obj(pe, TCU::ext_reg_addr(ExtReg::FEATURES) as goff)?;
+    features &= !1;
+    ktcu::try_write_slice(pe, TCU::ext_reg_addr(ExtReg::FEATURES) as goff, &[features])
 }
 
 pub fn reset_pe(pe: PEId, _pid: i32) -> Result<(), Error> {
@@ -100,7 +96,11 @@ pub fn glob_to_phys_remote(pe: PEId, glob: GlobAddr, flags: PageFlags) -> Result
 
 pub fn read_ep_remote(pe: PEId, ep: EpId, regs: &mut [Reg]) -> Result<(), Error> {
     for i in 0..regs.len() {
-        ktcu::try_read_slice(pe, (TCU::ep_regs_addr(ep) + i * 8) as goff, &mut regs[i..i+1])?;
+        ktcu::try_read_slice(
+            pe,
+            (TCU::ep_regs_addr(ep) + i * 8) as goff,
+            &mut regs[i..i + 1],
+        )?;
     }
     Ok(())
 }
