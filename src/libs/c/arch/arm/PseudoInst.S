@@ -23,16 +23,6 @@ BEGIN_FUNC(gem5_shutdown)
     b       1b
 END_FUNC(gem5_shutdown)
 
-BEGIN_FUNC(gem5_writefile)
-    .long   0xEE4F0110
-    mov     pc, lr
-END_FUNC(gem5_writefile)
-
-BEGIN_FUNC(gem5_readfile)
-    .long   0xEE500110
-    mov     pc, lr
-END_FUNC(gem5_readfile)
-
 BEGIN_FUNC(gem5_resetstats)
     .long   0xEE400110
     mov     pc, lr

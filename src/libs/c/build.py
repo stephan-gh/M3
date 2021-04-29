@@ -9,6 +9,6 @@ def build(gen, env):
         lib = env.static_lib(
             gen,
             out = 'libc',
-            ins = env.glob('*/*.cc') + ['arch/' + env['ISA'] + '/PseudoInst.S']
+            ins = env.glob('*/*.cc') + env.glob('arch/' + env['ISA'] + '/*.*')
         )
         env.install(gen, env['LIBDIR'], lib)
