@@ -146,7 +146,7 @@ impl<'n> UdpSocket<'n> {
     pub fn recv_from(&self, data: &mut [u8]) -> Result<(usize, Endpoint), Error> {
         self.socket.next_data(data.len(), |buf, ep| {
             data[0..buf.len()].copy_from_slice(buf);
-            (buf.len(), ep)
+            (buf.len(), (buf.len(), ep))
         })
     }
 

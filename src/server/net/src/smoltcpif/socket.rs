@@ -17,13 +17,12 @@
 
 use m3::cap::Selector;
 use m3::cell::RefCell;
-use m3::col::VecDeque;
 use m3::errors::{Code, Error};
 use m3::log;
 use m3::mem::size_of;
 use m3::net::{
-    event, Endpoint, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketArgs,
-    SocketType,
+    event, DataQueue, Endpoint, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd,
+    SocketArgs, SocketType,
 };
 use m3::rc::Rc;
 use m3::tcu::TCU;
@@ -83,7 +82,7 @@ pub struct Socket {
     // communication channel to client for incoming data/close-requests and outgoing events/data
     channel: Rc<NetEventChannel>,
     // pending incoming data events we could not send due to missing buffer space
-    send_queue: VecDeque<NetEvent>,
+    send_queue: DataQueue,
 
     // for the file session
     rfile: Option<Rc<RefCell<FileSession>>>,
@@ -153,7 +152,7 @@ impl Socket {
             buffer_space: Self::required_space(ty, args),
 
             channel: NetEventChannel::new_server(caps)?,
-            send_queue: VecDeque::new(),
+            send_queue: DataQueue::default(),
 
             rfile: None,
             sfile: None,
@@ -166,10 +165,6 @@ impl Socket {
 
     pub fn channel(&self) -> &Rc<NetEventChannel> {
         &self.channel
-    }
-
-    pub fn fetch_queued_event(&mut self) -> Option<NetEvent> {
-        self.send_queue.pop_front()
     }
 
     pub fn buffer_space(&self) -> usize {
@@ -393,51 +388,68 @@ impl Socket {
         }
     }
 
-    pub fn send(
-        &mut self,
+    fn send(
+        ty: SocketType,
+        socket: SocketHandle,
         data: &[u8],
         dest_addr: IpAddr,
         dest_port: Port,
         socket_set: &mut SocketSet<'static>,
-    ) -> Result<(), Error> {
-        match self.ty {
+    ) -> usize {
+        match ty {
             SocketType::Stream => {
-                let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
-                if !tcp_socket.can_send() {
-                    return Err(Error::new(Code::NoSpace));
+                let mut tcp_socket = socket_set.get::<TcpSocket>(socket);
+                if tcp_socket.can_send() {
+                    tcp_socket.send_slice(data).unwrap()
                 }
-
-                tcp_socket.send_slice(data).unwrap();
-                Ok(())
+                else {
+                    0
+                }
             },
 
             SocketType::Dgram => {
-                let mut udp_socket = socket_set.get::<UdpSocket>(self.socket);
-                if !udp_socket.can_send() {
-                    return Err(Error::new(Code::NoSpace));
+                let mut udp_socket = socket_set.get::<UdpSocket>(socket);
+                if udp_socket.can_send() {
+                    let rend = IpEndpoint::new(
+                        IpAddress::Ipv4(Ipv4Address::from_bytes(&dest_addr.0.to_be_bytes())),
+                        dest_port,
+                    );
+
+                    udp_socket.send_slice(data, rend).unwrap();
+                    data.len()
                 }
-
-                let rend = IpEndpoint::new(
-                    IpAddress::Ipv4(Ipv4Address::from_bytes(&dest_addr.0.to_be_bytes())),
-                    dest_port,
-                );
-
-                udp_socket.send_slice(data, rend).unwrap();
-                Ok(())
+                else {
+                    0
+                }
             },
 
             SocketType::Raw => {
-                let mut raw_socket = socket_set.get::<RawSocket>(self.socket);
-                if !raw_socket.can_send() {
-                    return Err(Error::new(Code::NoSpace));
+                let mut raw_socket = socket_set.get::<RawSocket>(socket);
+                if raw_socket.can_send() {
+                    raw_socket.send_slice(data).unwrap();
+                    data.len()
                 }
-
-                raw_socket.send_slice(data).unwrap();
-                Ok(())
+                else {
+                    0
+                }
             },
 
             SocketType::Undefined => panic!("cannot send to undefined socket"),
         }
+    }
+
+    pub fn process_queued_events(&mut self, socket_set: &mut SocketSet<'static>) -> bool {
+        let socket = self.socket;
+        let ty = self.ty;
+        while self
+            .send_queue
+            .next_data(usize::MAX, &mut |data, ep: Endpoint| {
+                let amount = Self::send(ty, socket, data, ep.addr, ep.port, socket_set);
+                (amount, amount)
+            })
+            .is_some()
+        {}
+        !self.send_queue.has_data()
     }
 
     pub fn process_event(
@@ -452,31 +464,39 @@ impl Socket {
                 let ip = IpAddr(data.addr as u32);
                 let port = data.port as Port;
 
-                let succeeded = self.send(&data.data[0..data.size as usize], ip, port, socket_set);
-                if succeeded.is_err() {
-                    // if no buffers are available, remember the event for later
-                    log!(
-                        crate::LOG_DATA,
-                        "[{}] socket {}: no buffer space, delaying send of {}b to {}:{}",
-                        sess,
-                        self.sd,
-                        data.size,
-                        ip,
-                        port,
-                    );
-                    self.send_queue.push_back(event);
-                    return false;
-                }
-                else {
+                let res = Self::send(
+                    self.ty,
+                    self.socket,
+                    &data.data[0..data.size as usize],
+                    ip,
+                    port,
+                    socket_set,
+                );
+                if res > 0 {
                     log!(
                         crate::LOG_DATA,
                         "[{}] socket {}: sent packet of {}b to {}:{}",
                         sess,
                         self.sd,
-                        data.size,
+                        res,
                         ip,
                         port,
                     );
+                }
+
+                if res < data.size as usize {
+                    // if insufficient buffer space is available, remember the event for later
+                    log!(
+                        crate::LOG_DATA,
+                        "[{}] socket {}: no buffer space, delaying send of {}b to {}:{}",
+                        sess,
+                        self.sd,
+                        data.size as usize - res,
+                        ip,
+                        port,
+                    );
+                    self.send_queue.append(event, res);
+                    return false;
                 }
             },
 

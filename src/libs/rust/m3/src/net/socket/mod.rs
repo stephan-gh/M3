@@ -136,7 +136,7 @@ impl Socket {
 
     pub fn next_data<F, R>(&self, amount: usize, mut consume: F) -> Result<R, Error>
     where
-        F: FnMut(&[u8], Endpoint) -> R,
+        F: FnMut(&[u8], Endpoint) -> (usize, R),
     {
         loop {
             if let Some(res) = self.recv_queue.borrow_mut().next_data(amount, &mut consume) {
@@ -228,7 +228,7 @@ impl Socket {
                         _msg.size,
                         Endpoint::new(IpAddr(_msg.addr as u32), _msg.port as Port)
                     );
-                    self.recv_queue.borrow_mut().append(event);
+                    self.recv_queue.borrow_mut().append(event, 0);
                 }
             },
 

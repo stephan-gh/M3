@@ -21,7 +21,8 @@ use m3::net::{Endpoint, IpAddr, State, StreamSocketArgs, TcpSocket};
 use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::session::{NetworkDirection, NetworkManager};
 use m3::test;
-use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
+use m3::vec::Vec;
+use m3::{vec, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, basics);
@@ -286,27 +287,30 @@ fn receive_after_close() {
 fn data() {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
-    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(&nm)));
+    let mut socket = wv_assert_ok!(TcpSocket::new(
+        StreamSocketArgs::new(&nm).send_buffer(2 * 1024)
+    ));
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
     wv_assert_ok!(socket.connect(Endpoint::new(IpAddr::new(192, 168, 112, 1), 1338)));
 
-    let mut send_buf = [0u8; 1024];
-    for (i, bufi) in send_buf.iter_mut().enumerate() {
-        *bufi = i as u8;
-    }
-
-    let mut recv_buf = [0u8; 1024];
-
-    let packet_sizes = [8, 16, 32, 64, 128, 256, 512, 1024];
+    let packet_sizes = [8, 16, 32, 64, 128, 256, 512, 934, 1024];
 
     for pkt_size in &packet_sizes {
-        wv_assert_ok!(socket.send(&send_buf[0..*pkt_size]));
+        let mut send_buf = Vec::with_capacity(pkt_size * 8);
+        for i in 0..pkt_size * 8 {
+            send_buf.push(i as u8);
+        }
+        let mut recv_buf = vec![0u8; pkt_size * 8];
+
+        for i in 0..8 {
+            wv_assert_ok!(socket.send(&send_buf[pkt_size * i..pkt_size * (i + 1)]));
+        }
 
         let mut received = 0;
         let mut expected_byte: u8 = 0;
-        while received < *pkt_size {
+        while received < *pkt_size * 8 {
             let recv_size = wv_assert_ok!(socket.recv(&mut recv_buf));
 
             for bufi in recv_buf.iter().take(recv_size) {

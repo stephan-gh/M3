@@ -53,8 +53,8 @@ pub struct DataQueue {
 }
 
 impl DataQueue {
-    pub fn append(&mut self, event: NetEvent) {
-        self.items.push_back(Item { event, pos: 0 });
+    pub fn append(&mut self, event: NetEvent, pos: usize) {
+        self.items.push_back(Item { event, pos });
     }
 
     pub fn clear(&mut self) {
@@ -67,15 +67,18 @@ impl DataQueue {
 
     pub fn next_data<F, R>(&mut self, len: usize, consume: &mut F) -> Option<R>
     where
-        F: FnMut(&[u8], Endpoint) -> R,
+        F: FnMut(&[u8], Endpoint) -> (usize, R),
     {
         if let Some(first) = self.items.front_mut() {
             let data = first.data();
             let amount = cmp::min(len, data.len());
             let ep = Endpoint::new(first.addr(), first.port());
-            let res = consume(&data[0..amount], ep);
+            let (amount, res) = consume(&data[0..amount], ep);
             if amount >= data.len() {
                 self.items.pop_front();
+            }
+            else if amount == 0 {
+                return None;
             }
             else {
                 first.pos += amount;

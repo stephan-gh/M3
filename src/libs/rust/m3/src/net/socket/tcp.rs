@@ -228,7 +228,7 @@ impl<'n> TcpSocket<'n> {
             State::Connected | State::RemoteClosed => {
                 self.socket.next_data(data.len(), |buf, _ep| {
                     data[0..buf.len()].copy_from_slice(buf);
-                    buf.len()
+                    (buf.len(), buf.len())
                 })
             },
             _ => Err(Error::new(Code::NotConnected)),

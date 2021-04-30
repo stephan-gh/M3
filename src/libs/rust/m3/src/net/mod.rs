@@ -17,6 +17,7 @@
  */
 
 mod dataqueue;
+pub use self::dataqueue::DataQueue;
 
 pub mod event;
 pub use self::event::{NetEvent, NetEventChannel, NetEventType};

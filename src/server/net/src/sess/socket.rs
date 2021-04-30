@@ -465,11 +465,9 @@ impl SocketSession {
 
                 chan.fetch_replies();
 
-                while let Some(event) = sock.fetch_queued_event() {
-                    if !sock.process_event(sess, socket_set, event) {
-                        queued_events = true;
-                        continue 'outer_loop;
-                    }
+                if !sock.process_queued_events(socket_set) {
+                    queued_events = true;
+                    continue 'outer_loop;
                 }
 
                 // receive everything in the channel
