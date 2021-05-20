@@ -36,6 +36,8 @@ else:
     target      = 'host'
     rustabi     = 'gnu'
     cross       = ''
+    crossdir    = ''
+    crossver    = ''
     platform    = 'host'
 
 # ensure that the cross compiler is installed and up to date
@@ -83,7 +85,7 @@ class M3Env(ninjagen.Env):
 
         if env['PLATF'] == 'kachel':
             if not NoSup:
-                baselibs = ['gcc', 'c', 'm', 'gloss', 'stdc++', 'supc++', 'heap']
+                baselibs = ['gcc', 'c', 'gem5', 'm', 'gloss', 'stdc++', 'supc++', 'heap']
                 if env['ISA'] == 'x86_64':
                     baselibs += ['gcc_eh']
                 libs = baselibs + m3libs + libs
@@ -101,9 +103,10 @@ class M3Env(ninjagen.Env):
             env['LINKFLAGS'] += ['-B' + os.path.abspath(env['LIBDIR'])]
 
             # TODO workaround to ensure that our memcpy, etc. is used instead of the one from Rust's
-            # compiler-builtins crate, because those are poor implementations.
-            for cc in glob('src/libs/c/string/*.cc'):
-                ins.append(ninjagen.BuildPath.with_ending(env, ninjagen.SourcePath(cc), '.o'))
+            # compiler-builtins crate (or musl), because those are poor implementations.
+            for cc in ['memcmp', 'memcpy', 'memset', 'memmove', 'memzero']:
+                src = ninjagen.SourcePath('src/libs/memory/' + cc + '.cc')
+                ins.append(ninjagen.BuildPath.with_ending(env, src, '.o'))
 
             bin = env.cxx_exe(gen, out, ins, libs, deps)
             if env['TGT'] == 'hw':
@@ -125,7 +128,8 @@ class M3Env(ninjagen.Env):
 
         if env['PLATF'] == 'kachel':
             ins     = [] if startup is None else [startup]
-            libs    = ['c', 'm', 'gloss', 'stdc++', 'heap', 'gcc', out] + libs
+            libs    = ['simplec', 'gem5', 'm', 'gloss', 'stdc++', 'heap', 'gcc', out] + libs
+            env['LINKFLAGS'] += ['-nodefaultlibs']
         else:
             ins     = []
             # leave the host lib in here as well to make it a dependency
@@ -301,6 +305,9 @@ env['BINDIR']       = builddir + '/bin'
 env['LIBDIR']       = builddir + '/bin'
 env['MEMDIR']       = builddir + '/mem'
 env['TOOLDIR']      = builddir + '/tools'
+env['CROSS']        = cross
+env['CROSSDIR']     = crossdir
+env['CROSSVER']     = crossver
 env['RUSTBINS']     = 'build/rust/' + env['TRIPLE'] + '/' + btype
 hostenv['TOOLDIR']  = env['TOOLDIR']
 hostenv['BINDIR']   = env['BINDIR']
@@ -324,8 +331,12 @@ if platform == 'kachel':
         env['CXXFLAGS']     += ['-march=rv64imafdc', '-mabi=lp64']
         env['LINKFLAGS']    += ['-march=rv64imafdc', '-mabi=lp64']
         env['ASFLAGS']      += ['-march=rv64imafdc', '-mabi=lp64']
+    musl_isa = 'riscv64' if isa == 'riscv' else isa
     env['CPPPATH']          += [
-        'src/include/c',
+        'src/libs/musl/arch/' + musl_isa,
+        'src/libs/musl/arch/generic',
+        'src/libs/musl/m3/include/' + isa,
+        'src/libs/musl/include',
         crossdir + '/include/c++/' + crossver,
         crossdir + '/include/c++/' + crossver + '/' + cross[:-1],
     ]

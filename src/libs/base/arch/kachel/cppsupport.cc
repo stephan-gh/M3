@@ -22,17 +22,6 @@
 
 using namespace m3;
 
-struct GlobalObj {
-    void (*f)(void*);
-    void *p;
-    void *d;
-};
-
-static constexpr size_t MAX_EXIT_FUNCS = 8;
-
-static size_t exit_count = 0;
-static GlobalObj exit_funcs[MAX_EXIT_FUNCS];
-
 namespace std {
     namespace placeholders {
         // two are enough for our purposes
@@ -55,58 +44,26 @@ void __throw_bad_function_call() {
 }
 }
 
-WEAK void *operator new(size_t size) {
-    return malloc(size);
+EXTERN_C void *malloc(size_t size) {
+    return heap_alloc(size);
 }
 
-WEAK void *operator new[](size_t size) {
-    return malloc(size);
+EXTERN_C void *calloc(size_t n, size_t size) {
+    return heap_calloc(n, size);
 }
 
-WEAK void operator delete(void *p) noexcept {
-    free(p);
+EXTERN_C void *realloc(void *p, size_t size) {
+    return heap_realloc(p, size);
 }
 
-WEAK void operator delete[](void *p) noexcept {
-    free(p);
+EXTERN_C void free(void *p) {
+    return heap_free(p);
 }
 
-WEAK void operator delete(void *p, size_t) noexcept {
-    free(p);
-}
-
-WEAK void operator delete[](void *p, size_t) noexcept {
-    free(p);
-}
-
-EXTERN_C WEAK void __cxa_pure_virtual() {
-    abort();
-}
-
-EXTERN_C int __cxa_atexit(void (*f)(void *), void *p, void *d) {
-    if(exit_count >= MAX_EXIT_FUNCS)
-        return -1;
-
-    exit_funcs[exit_count].f = f;
-    exit_funcs[exit_count].p = p;
-    exit_funcs[exit_count].d = d;
-    exit_count++;
-    return 0;
-}
-
-EXTERN_C void __cxa_finalize(void *) {
-    for(ssize_t i = static_cast<ssize_t>(exit_count) - 1; i >= 0; i--)
-        exit_funcs[i].f(exit_funcs[i].p);
-}
-
-#if defined(__arm__)
-EXTERN_C WEAK int __aeabi_atexit(void *arg, void (*func) (void *), void *d) {
-    return __cxa_atexit(func, arg, d);
-}
-#endif
+EXTERN_C void *__libc_calloc(size_t n, size_t size) __attribute__((__weak__, __alias__("calloc")));
 
 #ifndef NDEBUG
-void __assert_failed(const char *expr, const char *file, const char *func, int line) {
+void __assert_fail(const char *expr, const char *file, int line, const char *func) {
     m3::Serial::get() << "assertion \"" << expr << "\" failed in " << func << " in "
                       << file << ":" << line << "\n";
     exit(1);
@@ -116,15 +73,15 @@ void __assert_failed(const char *expr, const char *file, const char *func, int l
 
 // for __verbose_terminate_handler from libsupc++
 void *stderr;
-EXTERN_C int fputs(const char *str, void *) {
+EXTERN_C WEAK int fputs(const char *str, void *) {
     m3::Serial::get() << str;
     return 0;
 }
-EXTERN_C int fputc(int c, void *) {
+EXTERN_C WEAK int fputc(int c, void *) {
     m3::Serial::get().write(c);
     return -1;
 }
-EXTERN_C size_t fwrite(const void *str, UNUSED size_t size, size_t nmemb, void *) {
+EXTERN_C WEAK size_t fwrite(const void *str, UNUSED size_t size, size_t nmemb, void *) {
     assert(size == 1);
     const char *s = reinterpret_cast<const char*>(str);
     auto &ser = m3::Serial::get();

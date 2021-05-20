@@ -2,14 +2,18 @@ def build(gen, env):
     if env['PLATF'] == 'kachel':
         env = env.clone()
         env['CXXFLAGS']  += ['-fno-exceptions']
-        env['LINKFLAGS'] += ['-fno-exceptions']
+        env['LINKFLAGS'] += ['-fno-exceptions', '-nodefaultlibs']
+
+        libs = ['simplec', 'gem5', 'heap', 'base', 'supc++', 'gcc']
+        if env['ISA'] == 'x86_64':
+            libs += ['gcc_eh']
 
         env_obj = env.cxx(gen, out = 'env.o', ins = ['env.cc'])
         env.m3_exe(
             gen,
             out = 'standalone',
             ins = [env_obj, 'standalone.cc'] + env.glob('tests/*.cc'),
-            libs = ['c', 'heap', 'base', 'supc++'],
+            libs = libs,
             ldscript = 'baremetal',
             NoSup = True
         )
@@ -21,5 +25,5 @@ def build(gen, env):
                 ins = [env_obj, s + '/' + s + '.cc'],
                 NoSup = True,
                 ldscript = 'baremetal',
-                libs = ['c', 'heap', 'base', 'supc++']
+                libs = libs
             )

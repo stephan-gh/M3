@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Copyright (C) 2015-2016, Nils Asmussen <nils@os.inf.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
  *
  * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
@@ -17,10 +17,6 @@
 #include <base/Common.h>
 #include <string.h>
 
-char *strchr(const char *str, int ch) {
-    while(*str) {
-        if(*str++ == ch)
-            return const_cast<char*>(str - 1);
-    }
-    return NULL;
+EXTERN_C void memzero(void *addr, size_t count) {
+    memset(addr, 0, count);
 }

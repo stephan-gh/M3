@@ -4,3 +4,6 @@
 [submodule "platform/hw"]
 	path = platform/hw
 	url = git@gitlab.com:Nils-TUD/tcu.git
+[submodule "src/libs/musl"]
+	path = src/libs/musl
+	url = git@gitlab.com:Nils-TUD/m3-musl.git

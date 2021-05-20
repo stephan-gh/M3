@@ -1,10 +1,12 @@
 dirs = [
     'base',
-    'c',
     'dummy',
+    'gem5',
     'heap',
     'host',
     'm3',
+    'memory',
+    'musl',
     'pci',
     'rust',
     'support',

@@ -36,9 +36,7 @@
 #       define O_CLOEXEC    0
 #       define O_DIRECTORY  2048
 #   endif
-#   ifndef __cplusplus
 typedef long off_t;
-#   endif
 #endif
 
 #ifndef O_EXLOCK
