@@ -51,7 +51,15 @@ static void init_syscall() {
 }
 
 void Env::on_exit_func(int status, void *) {
-    Syscalls::vpe_ctrl(KIF::SEL_VPE, KIF::Syscall::VCTRL_STOP, static_cast<xfer_t>(status));
+    // don't use Syscalls here, because Syscalls::_sendgate might already have been destroyed
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::VPECtrl>();
+    req.opcode = KIF::Syscall::VPE_CTRL;
+    req.vpe_sel = KIF::SEL_VPE;
+    req.op = static_cast<xfer_t>(KIF::Syscall::VCTRL_STOP);
+    req.arg = static_cast<xfer_t>(status);
+    TCU::get().send(env()->first_std_ep + TCU::SYSC_SEP_OFF, req_buf, 0, TCU::INVALID_EP);
+
     stop_tcu();
     // destroy the enviromment here, because on_exit functions are called last
     delete _inst;
