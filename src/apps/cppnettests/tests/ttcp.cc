@@ -259,7 +259,8 @@ NOINLINE static void data() {
 
     socket->connect(Endpoint(IpAddr(192, 168, 112, 1), 1338));
 
-    size_t packet_sizes[] = {8, 16, 32, 64, 128, 256, 512, 934, 1024};
+    // disable 256 to workaround the bug in gem5's E1000 model
+    size_t packet_sizes[] = {8, 16, 32, 64, 128, /*256,*/ 512, 934, 1024};
     for(auto pkt_size : packet_sizes) {
         uint8_t recv_buf[pkt_size * 8];
         uint8_t send_buf[pkt_size * 8];

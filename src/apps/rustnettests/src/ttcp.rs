@@ -294,8 +294,9 @@ fn data() {
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
     wv_assert_ok!(socket.connect(Endpoint::new(IpAddr::new(192, 168, 112, 1), 1338)));
-
-    let packet_sizes = [8, 16, 32, 64, 128, 256, 512, 934, 1024];
+    
+    // disable 256 to workaround the bug in gem5's E1000 model
+    let packet_sizes = [8, 16, 32, 64, 128, /*256,*/ 512, 934, 1024];
 
     for pkt_size in &packet_sizes {
         let mut send_buf = Vec::with_capacity(pkt_size * 8);
