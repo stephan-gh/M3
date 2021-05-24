@@ -15,6 +15,7 @@
 #
 
 #include <base/Asm.h>
+#include <base/Config.h>
 
 .extern init
 .extern isr_stack
@@ -41,6 +42,12 @@ END_FUNC(_start)
 .section .user_text
 
 BEGIN_FUNC(sleep)
-1:  #wfi
+    la      a0, ENV_START
+    // load platform from environment
+    ld      a0, 0(a0)
+    // skip wfi on hw (TODO why does that not work?)
+1:  bnez    a0, 2f
+    wfi
+2:
     j       1b
 END_FUNC(sleep)
