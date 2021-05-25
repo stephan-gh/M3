@@ -21,6 +21,7 @@ use m3::goff;
 use m3::kif;
 use m3::parse;
 use m3::rc::Rc;
+use m3::tcu::Label;
 
 use crate::config;
 
@@ -193,6 +194,8 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
                 "serv" => app.services.push(parse_service(p)?),
                 "physmem" => app.phys_mems.push(parse_physmem(p)?),
                 "pes" => app.pes.push(parse_pe(p)?),
+                "rgate" => app.rgates.push(parse_rgate(p)?),
+                "sgate" => app.sgates.push(parse_sgate(p)?),
                 "sem" => app.sems.push(parse_sem(p)?),
                 _ => return Err(Error::new(Code::InvArgs)),
             }
@@ -247,6 +250,19 @@ fn collect_sess_crts(app: &config::AppConfig, crts: &mut Vec<config::SessCrtDesc
             collect_sess_crts(a, crts);
         }
     }
+}
+
+fn parse_dual_name(dual: &mut config::DualName, n: String, v: String) -> Result<(), Error> {
+    match n.as_ref() {
+        "name" => {
+            dual.local = v.clone();
+            dual.global = v
+        },
+        "lname" => dual.local = v,
+        "gname" => dual.global = v,
+        _ => return Err(Error::new(Code::InvArgs)),
+    }
+    Ok(())
 }
 
 fn parse_domain(p: &mut ConfigParser) -> Result<config::Domain, Error> {
@@ -369,6 +385,42 @@ fn parse_pe(p: &mut ConfigParser) -> Result<config::PEDesc, Error> {
         }
     }
     Ok(config::PEDesc::new(ty, count, optional))
+}
+
+fn parse_rgate(p: &mut ConfigParser) -> Result<config::RGateDesc, Error> {
+    let mut name = config::DualName::default();
+    let mut msg_size = 64;
+    let mut slots = 1;
+    loop {
+        match p.parse_arg()? {
+            None => break,
+            Some((n, v)) => match n.as_ref() {
+                "name" | "lname" | "gname" => parse_dual_name(&mut name, n, v)?,
+                "msgsize" => msg_size = parse::size(&v)?,
+                "slots" => slots = parse::int(&v)? as usize,
+                _ => return Err(Error::new(Code::InvArgs)),
+            },
+        }
+    }
+    Ok(config::RGateDesc::new(name, msg_size, slots))
+}
+
+fn parse_sgate(p: &mut ConfigParser) -> Result<config::SGateDesc, Error> {
+    let mut name = config::DualName::default();
+    let mut credits = 1;
+    let mut label = 0;
+    loop {
+        match p.parse_arg()? {
+            None => break,
+            Some((n, v)) => match n.as_ref() {
+                "name" | "lname" | "gname" => parse_dual_name(&mut name, n, v)?,
+                "credits" => credits = parse::int(&v)? as u32,
+                "label" => label = parse::int(&v)? as Label,
+                _ => return Err(Error::new(Code::InvArgs)),
+            },
+        }
+    }
+    Ok(config::SGateDesc::new(name, credits, label))
 }
 
 fn parse_sem(p: &mut ConfigParser) -> Result<config::SemDesc, Error> {

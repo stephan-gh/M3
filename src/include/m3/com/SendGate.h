@@ -113,14 +113,25 @@ public:
      *
      * @param rgate the destination receive gate
      * @param args additional arguments
+     * @return the send gate
      */
     static SendGate create(RecvGate *rgate, const SendGateArgs &args = SendGateArgs());
+
+    /**
+     * Creates the send gate with given name as defined in the application's configuration.
+     *
+     * @param name the name in the configuration file
+     * @param replygate the receive gate to which the replies should be sent
+     * @return the send gate
+     */
+    static SendGate create_named(const char *name, RecvGate *replygate = nullptr);
 
     /**
      * Binds this send gate to the given capability. Typically, received from somebody else.
      *
      * @param sel the capability selector
      * @param replygate the receive gate to which the replies should be sent
+     * @return the send gate
      */
     static SendGate bind(capsel_t sel, RecvGate *replygate = nullptr) noexcept {
         return SendGate(sel, ObjCap::KEEP_CAP, replygate);

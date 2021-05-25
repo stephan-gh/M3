@@ -119,6 +119,15 @@ public:
     static RecvGate create(capsel_t sel, uint order, uint msgorder, uint flags = 0);
 
     /**
+     * Creates the receive gate with given name as defined in the application's configuration.
+     *
+     * @param name the name in the configuration file
+     * @param replygate the receive gate to which the replies should be sent
+     * @return the receive gate
+     */
+    static RecvGate create_named(const char *name);
+
+    /**
      * Binds the receive gate at selector <sel>.
      *
      * @param sel the capability selector

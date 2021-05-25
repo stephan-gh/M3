@@ -58,6 +58,26 @@
                 </xs:complexType>
             </xs:element>
 
+            <xs:element name="rgate">
+                <xs:complexType>
+                    <xs:attribute name="name" type="xs:string"/>
+                    <xs:attribute name="lname" type="xs:string"/>
+                    <xs:attribute name="gname" type="xs:string"/>
+                    <xs:attribute name="msgsize" type="xs:string" default="64"/>
+                    <xs:attribute name="slots" type="xs:string" default="1"/>
+                </xs:complexType>
+            </xs:element>
+
+            <xs:element name="sgate">
+                <xs:complexType>
+                    <xs:attribute name="name" type="xs:string"/>
+                    <xs:attribute name="lname" type="xs:string"/>
+                    <xs:attribute name="gname" type="xs:string"/>
+                    <xs:attribute name="credits" type="xs:string" default="1"/>
+                    <xs:attribute name="label" type="xs:string" default="0"/>
+                </xs:complexType>
+            </xs:element>
+
             <xs:element name="sem">
                 <xs:complexType>
                     <xs:attribute name="name" type="xs:string"/>

@@ -26,8 +26,8 @@ use crate::com::{gate::Gate, RecvBuf, SendGate};
 use crate::errors::{Code, Error};
 use crate::kif::INVALID_SEL;
 use crate::math;
-use crate::pes::VPE;
 use crate::mem::MsgBuf;
+use crate::pes::VPE;
 use crate::syscalls;
 use crate::tcu;
 
@@ -159,6 +159,19 @@ impl RecvGate {
         })
     }
 
+    /// Creates the `RecvGate` with given name as defined in the application's configuration
+    pub fn new_named(name: &str) -> Result<Self, Error> {
+        let sel = VPE::cur().alloc_sel();
+        let (order, msg_order) = VPE::cur().resmng().unwrap().use_rgate(sel, name)?;
+        Ok(RecvGate {
+            gate: Gate::new(sel, CapFlags::empty()),
+            buf: None,
+            buf_addr: None,
+            order,
+            msg_order,
+        })
+    }
+
     /// Binds a new `RecvGate` to the given selector. The `order` argument denotes the size of the
     /// receive buffer (`2^order`) and `msg_order` denotes the size of the messages (`2^msg_order`).
     pub fn new_bind(sel: Selector, order: u32, msg_order: u32) -> Self {
@@ -184,6 +197,11 @@ impl RecvGate {
     /// Returns the size of the receive buffer in bytes
     pub fn size(&self) -> usize {
         1 << self.order
+    }
+
+    /// Returns the maximum message size
+    pub fn max_msg_size(&self) -> usize {
+        1 << self.msg_order
     }
 
     /// Returns the address of the receive buffer
@@ -241,11 +259,7 @@ impl RecvGate {
 
     /// Sends `reply` as a reply to the message `msg`.
     #[inline(always)]
-    pub fn reply(
-        &self,
-        reply: &MsgBuf,
-        msg: &'static tcu::Message,
-    ) -> Result<(), Error> {
+    pub fn reply(&self, reply: &MsgBuf, msg: &'static tcu::Message) -> Result<(), Error> {
         let off = tcu::TCU::msg_to_offset(self.address().unwrap(), msg);
         tcu::TCU::reply(self.ep().unwrap(), reply, off)
     }

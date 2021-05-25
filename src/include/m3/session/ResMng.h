@@ -47,6 +47,8 @@ public:
         ALLOC_PE,
         FREE_PE,
 
+        USE_RGATE,
+        USE_SGATE,
         USE_SEM,
     };
 
@@ -152,6 +154,19 @@ public:
     void free_pe(capsel_t sel) {
         GateIStream reply = send_receive_vmsg(_sgate, FREE_PE, sel);
         retrieve_result(FREE_PE, reply);
+    }
+
+    std::pair<uint, uint> use_rgate(capsel_t sel, const char *name) {
+        GateIStream reply = send_receive_vmsg(_sgate, USE_RGATE, sel, name);
+        retrieve_result(USE_SEM, reply);
+        uint order, msg_order;
+        reply >> order >> msg_order;
+        return std::make_pair(order, msg_order);
+    }
+
+    void use_sgate(capsel_t sel, const char *name) {
+        GateIStream reply = send_receive_vmsg(_sgate, USE_SGATE, sel, name);
+        retrieve_result(USE_SEM, reply);
     }
 
     void use_sem(capsel_t sel, const char *name) {

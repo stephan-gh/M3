@@ -26,6 +26,7 @@ use m3::format;
 use m3::goff;
 use m3::kif::{self, CapRngDesc, CapType, Perm};
 use m3::log;
+use m3::math;
 use m3::mem::MsgBuf;
 use m3::pes::{Activity, ExecActivity, KMem, Mapper, VPE};
 use m3::println;
@@ -36,6 +37,7 @@ use m3::vfs::FileRef;
 
 use crate::config::AppConfig;
 use crate::events;
+use crate::gates;
 use crate::memory::{Allocation, MemPool};
 use crate::pes;
 use crate::sems;
@@ -87,6 +89,7 @@ pub struct Resources {
     sessions: Vec<(usize, Session)>,
     mem: Vec<(Option<Selector>, Allocation)>,
     pes: Vec<(pes::PEUsage, usize, Selector)>,
+    sgates: Vec<SendGate>,
 }
 
 impl Default for Resources {
@@ -97,6 +100,7 @@ impl Default for Resources {
             sessions: Vec::new(),
             mem: Vec::new(),
             pes: Vec::new(),
+            sgates: Vec::new(),
         }
     }
 }
@@ -451,6 +455,57 @@ pub trait Child {
         }
     }
 
+    fn use_rgate(&mut self, name: &str, sel: Selector) -> Result<(u32, u32), Error> {
+        log!(
+            crate::LOG_GATE,
+            "{}: use_rgate(name={}, sel={})",
+            self.name(),
+            name,
+            sel
+        );
+
+        let cfg = self.cfg();
+        let rdesc = cfg
+            .get_rgate(name)
+            .ok_or_else(|| Error::new(Code::InvArgs))?;
+
+        let rgate = gates::get().get(rdesc.name().global()).unwrap();
+        self.delegate(rgate.sel(), sel)?;
+        Ok((
+            math::next_log2(rgate.size()),
+            math::next_log2(rgate.max_msg_size()),
+        ))
+    }
+    fn use_sgate(&mut self, name: &str, sel: Selector) -> Result<(), Error> {
+        log!(
+            crate::LOG_GATE,
+            "{}: use_sgate(name={}, sel={})",
+            self.name(),
+            name,
+            sel
+        );
+
+        let cfg = self.cfg();
+        let sdesc = cfg
+            .get_sgate(name)
+            .ok_or_else(|| Error::new(Code::InvArgs))?;
+        if sdesc.is_used() {
+            return Err(Error::new(Code::Exists));
+        }
+
+        let rgate = gates::get().get(sdesc.name().global()).unwrap();
+
+        let sgate = SendGate::new_with(
+            SGateArgs::new(rgate)
+                .credits(sdesc.credits())
+                .label(sdesc.label()),
+        )?;
+        self.delegate(sgate.sel(), sel)?;
+
+        sdesc.mark_used();
+        self.res_mut().sgates.push(sgate);
+        Ok(())
+    }
     fn use_sem(&mut self, name: &str, sel: Selector) -> Result<(), Error> {
         log!(
             crate::LOG_SEM,

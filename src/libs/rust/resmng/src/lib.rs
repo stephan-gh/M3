@@ -21,6 +21,7 @@
 pub mod childs;
 pub mod config;
 mod events;
+pub mod gates;
 pub mod memory;
 mod parser;
 pub mod pes;
@@ -38,6 +39,8 @@ pub const LOG_CFG: bool = true;
 pub const LOG_SUBSYS: bool = true;
 /// Logs child operations
 pub const LOG_CHILD: bool = false;
+/// Logs gate operations
+pub const LOG_GATE: bool = false;
 /// Logs semaphore operations
 pub const LOG_SEM: bool = false;
 /// Logs service operations

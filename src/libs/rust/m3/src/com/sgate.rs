@@ -22,8 +22,8 @@ use crate::com::gate::Gate;
 use crate::com::RecvGate;
 use crate::errors::Error;
 use crate::kif::{INVALID_SEL, UNLIM_CREDITS};
-use crate::pes::VPE;
 use crate::mem::MsgBuf;
+use crate::pes::VPE;
 use crate::syscalls;
 use crate::tcu;
 
@@ -106,6 +106,15 @@ impl SendGate {
         })
     }
 
+    /// Creates the `SendGate` with given name as defined in the application's configuration
+    pub fn new_named(name: &str) -> Result<Self, Error> {
+        let sel = VPE::cur().alloc_sel();
+        VPE::cur().resmng().unwrap().use_sgate(sel, name)?;
+        Ok(SendGate {
+            gate: Gate::new(sel, CapFlags::empty()),
+        })
+    }
+
     /// Binds a new `SendGate` to the given capability selector.
     pub fn new_bind(sel: Selector) -> Self {
         SendGate {
@@ -154,7 +163,12 @@ impl SendGate {
     /// Sends the message `msg` of `len` bytes via given endpoint. The message address needs to be
     /// 16-byte aligned and `msg`..`msg` + `len` cannot contain a page boundary.
     #[inline(always)]
-    pub fn send_aligned(&self, msg: *const u8, len: usize, reply_gate: &RecvGate) -> Result<(), Error> {
+    pub fn send_aligned(
+        &self,
+        msg: *const u8,
+        len: usize,
+        reply_gate: &RecvGate,
+    ) -> Result<(), Error> {
         let ep = self.activate()?;
         tcu::TCU::send_aligned(ep.id(), msg, len, 0, reply_gate.ep().unwrap())
     }

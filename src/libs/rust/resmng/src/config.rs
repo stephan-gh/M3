@@ -16,11 +16,12 @@
 
 use core::fmt;
 use m3::cell::Cell;
-use m3::col::{BTreeSet, String, Vec};
+use m3::col::{BTreeMap, BTreeSet, String, Vec};
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif;
 use m3::rc::Rc;
+use m3::tcu::Label;
 
 use crate::parser;
 use crate::pes;
@@ -178,6 +179,72 @@ impl SessionDesc {
     }
 }
 
+pub struct RGateDesc {
+    name: DualName,
+    msg_size: usize,
+    slots: usize,
+}
+
+impl RGateDesc {
+    pub(crate) fn new(name: DualName, msg_size: usize, slots: usize) -> Self {
+        Self {
+            name,
+            msg_size,
+            slots,
+        }
+    }
+
+    pub fn name(&self) -> &DualName {
+        &self.name
+    }
+
+    pub fn msg_size(&self) -> usize {
+        self.msg_size
+    }
+
+    pub fn slots(&self) -> usize {
+        self.slots
+    }
+}
+
+pub struct SGateDesc {
+    name: DualName,
+    credits: u32,
+    label: Label,
+    used: Cell<bool>,
+}
+
+impl SGateDesc {
+    pub(crate) fn new(name: DualName, credits: u32, label: Label) -> Self {
+        Self {
+            name,
+            credits,
+            label,
+            used: Cell::new(false),
+        }
+    }
+
+    pub fn name(&self) -> &DualName {
+        &self.name
+    }
+
+    pub fn credits(&self) -> u32 {
+        self.credits
+    }
+
+    pub fn label(&self) -> Label {
+        self.label
+    }
+
+    pub fn is_used(&self) -> bool {
+        self.used.get()
+    }
+
+    pub fn mark_used(&self) {
+        self.used.replace(true);
+    }
+}
+
 #[derive(Default)]
 pub struct PEDesc {
     ty: String,
@@ -266,6 +333,8 @@ pub struct AppConfig {
     pub(crate) services: Vec<ServiceDesc>,
     pub(crate) sesscrt: Vec<SessCrtDesc>,
     pub(crate) sessions: Vec<SessionDesc>,
+    pub(crate) rgates: Vec<RGateDesc>,
+    pub(crate) sgates: Vec<SGateDesc>,
     pub(crate) sems: Vec<SemDesc>,
     pub(crate) pes: Vec<PEDesc>,
 }
@@ -338,6 +407,22 @@ impl AppConfig {
 
     pub fn sess_creators(&self) -> &Vec<SessCrtDesc> {
         &self.sesscrt
+    }
+
+    pub fn rgates(&self) -> &Vec<RGateDesc> {
+        &self.rgates
+    }
+
+    pub fn sgates(&self) -> &Vec<SGateDesc> {
+        &self.sgates
+    }
+
+    pub fn get_rgate(&self, lname: &str) -> Option<&RGateDesc> {
+        self.rgates.iter().find(|r| r.name().local() == lname)
+    }
+
+    pub fn get_sgate(&self, lname: &str) -> Option<&SGateDesc> {
+        self.sgates.iter().find(|s| s.name().local() == lname)
     }
 
     pub fn get_sem(&self, lname: &str) -> Option<&SemDesc> {
@@ -420,6 +505,7 @@ impl AppConfig {
 
     pub fn check(&self) {
         self.check_services(&BTreeSet::new());
+        self.check_gates();
         self.check_pes();
     }
 
@@ -496,6 +582,50 @@ impl AppConfig {
         }
     }
 
+    fn check_gates(&self) {
+        let mut map = BTreeMap::new();
+        for d in &self.domains {
+            for a in &d.apps {
+                for rgate in a.rgates() {
+                    if map.contains_key(rgate.name().global()) {
+                        panic!(
+                            "config '{}': rgate '{}' does already exist",
+                            a.name(),
+                            rgate.name().global()
+                        );
+                    }
+                    map.insert(rgate.name().global().clone(), rgate.slots());
+                }
+            }
+        }
+
+        for d in &self.domains {
+            for a in &d.apps {
+                a.check_gates();
+
+                for sgate in a.sgates() {
+                    match map.get_mut(sgate.name().global()) {
+                        Some(s) => {
+                            if *s == 0 {
+                                panic!(
+                                    "config '{}': not enough slots in rgate '{}'",
+                                    a.name(),
+                                    sgate.name().global()
+                                );
+                            }
+                            *s -= 1;
+                        },
+                        None => panic!(
+                            "config '{}': rgate '{}' does not exist",
+                            a.name(),
+                            sgate.name().global()
+                        ),
+                    }
+                }
+            }
+        }
+    }
+
     fn print_rec(&self, f: &mut fmt::Formatter, layer: usize) -> Result<(), fmt::Error> {
         write!(f, "{:0w$}", "", w = layer)?;
         for a in &self.args {
@@ -558,6 +688,28 @@ impl AppConfig {
                 s.name,
                 s.arg,
                 s.dep,
+                w = layer + 2
+            )?;
+        }
+        for r in &self.rgates {
+            writeln!(
+                f,
+                "{:0w$}RGate[{:?}, msgsize='{}', slots={}],",
+                "",
+                r.name,
+                r.msg_size,
+                r.slots,
+                w = layer + 2
+            )?;
+        }
+        for s in &self.sgates {
+            writeln!(
+                f,
+                "{:0w$}SGate[{:?}, credits='{}', label={:#x}],",
+                "",
+                s.name,
+                s.credits,
+                s.label,
                 w = layer + 2
             )?;
         }

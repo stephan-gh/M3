@@ -15,7 +15,7 @@
  */
 
 use crate::cap::Selector;
-use crate::com::{RecvGate, SendGate};
+use crate::com::{GateIStream, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::goff;
 use crate::int_enum;
@@ -41,7 +41,10 @@ int_enum! {
         const ALLOC_PE      = 0x8;
         const FREE_PE       = 0x9;
 
-        const USE_SEM       = 0xA;
+        const USE_RGATE     = 0xA;
+        const USE_SGATE     = 0xB;
+
+        const USE_SEM       = 0xC;
     }
 }
 
@@ -188,16 +191,27 @@ impl ResMng {
         send_recv_res!(&self.sgate, RecvGate::def(), ResMngOperation::FREE_PE, sel).map(|_| ())
     }
 
+    /// Attaches to the RecvGate with given name using selector `sel`.
+    pub fn use_rgate(&self, sel: Selector, name: &str) -> Result<(u32, u32), Error> {
+        let mut reply = self.use_op(ResMngOperation::USE_RGATE, sel, name)?;
+        let order = reply.pop()?;
+        let msg_order = reply.pop()?;
+        Ok((order, msg_order))
+    }
+
+    /// Attaches to the SendGate with given name using selector `sel`.
+    pub fn use_sgate(&self, sel: Selector, name: &str) -> Result<(), Error> {
+        self.use_op(ResMngOperation::USE_SGATE, sel, name)
+            .map(|_| ())
+    }
+
     /// Attaches to the semaphore with given name using selector `sel`.
     pub fn use_sem(&self, sel: Selector, name: &str) -> Result<(), Error> {
-        send_recv_res!(
-            &self.sgate,
-            RecvGate::def(),
-            ResMngOperation::USE_SEM,
-            sel,
-            name
-        )
-        .map(|_| ())
+        self.use_op(ResMngOperation::USE_SEM, sel, name).map(|_| ())
+    }
+
+    fn use_op(&self, op: ResMngOperation, sel: Selector, name: &str) -> Result<GateIStream, Error> {
+        send_recv_res!(&self.sgate, RecvGate::def(), op, sel, name)
     }
 }
 

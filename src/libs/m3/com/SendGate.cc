@@ -15,6 +15,7 @@
  */
 
 #include <m3/com/SendGate.h>
+#include <m3/session/ResMng.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
 #include <m3/pes/VPE.h>
@@ -30,6 +31,14 @@ SendGate SendGate::create(RecvGate *rgate, const SendGateArgs &args) {
     auto sel = args._sel == INVALID ? VPE::self().alloc_sel() : args._sel;
     Syscalls::create_sgate(sel, rgate->sel(), args._label, args._credits);
     return SendGate(sel, args._flags, replygate);
+}
+
+SendGate SendGate::create_named(const char *name, RecvGate *replygate) {
+    if(replygate == nullptr)
+        replygate = &RecvGate::def();
+    auto sel = VPE::self().alloc_sel();
+    VPE::self().resmng()->use_sgate(sel, name);
+    return SendGate(sel, 0, replygate);
 }
 
 uint SendGate::credits() {

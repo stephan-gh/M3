@@ -106,6 +106,13 @@ fn handle_request_async(mut is: GateIStream) {
         },
         Ok(ResMngOperation::FREE_PE) => free_pe(&mut is, child),
 
+        Ok(ResMngOperation::USE_RGATE) => match use_rgate(&mut is, child) {
+            // reply already done
+            Ok(_) => return,
+            Err(e) => Err(e),
+        },
+        Ok(ResMngOperation::USE_SGATE) => use_sgate(&mut is, child),
+
         Ok(ResMngOperation::USE_SEM) => use_sem(&mut is, child),
 
         _ => Err(Error::new(Code::InvArgs)),
@@ -197,6 +204,22 @@ fn free_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let sel: Selector = is.pop()?;
 
     child.free_pe(sel)
+}
+
+fn use_rgate(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+    let sel: Selector = is.pop()?;
+    let name: String = is.pop()?;
+
+    child
+        .use_rgate(&name, sel)
+        .and_then(|(order, msg_order)| reply_vmsg!(is, Code::None as u32, order, msg_order))
+}
+
+fn use_sgate(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+    let sel: Selector = is.pop()?;
+    let name: String = is.pop()?;
+
+    child.use_sgate(&name, sel)
 }
 
 fn use_sem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {

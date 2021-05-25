@@ -21,6 +21,7 @@
 #include <m3/com/RecvGate.h>
 #include <m3/com/RecvBufs.h>
 #include <m3/pes/VPE.h>
+#include <m3/session/ResMng.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
 
@@ -91,6 +92,12 @@ RecvGate RecvGate::create(uint order, uint msgorder) {
 
 RecvGate RecvGate::create(capsel_t cap, uint order, uint msgorder, uint flags) {
     return RecvGate(cap, 0, UNBOUND, order, msgorder, flags);
+}
+
+RecvGate RecvGate::create_named(const char *name) {
+    auto sel = VPE::self().alloc_sel();
+    auto args = VPE::self().resmng()->use_rgate(sel, name);
+    return RecvGate(sel, 0, args.first, args.second, 0);
 }
 
 RecvGate RecvGate::bind(capsel_t cap, uint order, uint msgorder) noexcept {

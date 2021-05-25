@@ -32,6 +32,7 @@ use m3::tcu::PEId;
 
 use crate::childs;
 use crate::config;
+use crate::gates;
 use crate::memory;
 use crate::pes;
 use crate::sems;
@@ -87,6 +88,8 @@ impl Subsystem {
         let servs = mgate.read_into_vec::<boot::Service>(info.serv_count as usize, off)?;
 
         let cfg = Self::parse_config(&mods)?;
+
+        Self::create_rgates(&cfg.1)?;
 
         let sub = Self {
             info,
@@ -173,6 +176,21 @@ impl Subsystem {
         let xml_str = String::from_utf8(xml).map_err(|_| Error::new(Code::InvArgs))?;
         let cfg = config::AppConfig::parse(&xml_str)?;
         Ok((xml_str, cfg))
+    }
+
+    fn create_rgates(cfg: &config::AppConfig) -> Result<(), Error> {
+        for dom in cfg.domains() {
+            for a in dom.apps() {
+                for rgate in a.rgates() {
+                    gates::get().add_rgate(
+                        rgate.name().global().clone(),
+                        rgate.msg_size(),
+                        rgate.slots(),
+                    )?;
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn cfg_str(&self) -> &String {
