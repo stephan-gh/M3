@@ -26,7 +26,28 @@ use m3::rc::Rc;
 use crate::parser;
 use crate::pes;
 
-// #[derive(Default)]
+#[derive(Default)]
+pub struct DualName {
+    pub(crate) local: String,
+    pub(crate) global: String,
+}
+
+impl DualName {
+    pub fn local(&self) -> &String {
+        &self.local
+    }
+
+    pub fn global(&self) -> &String {
+        &self.global
+    }
+}
+
+impl fmt::Debug for DualName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "lname='{}', gname='{}'", self.local, self.global)
+    }
+}
+
 pub struct PhysMemDesc {
     // TODO add memory id
     phys: goff,
@@ -36,7 +57,7 @@ pub struct PhysMemDesc {
 
 impl PhysMemDesc {
     pub(crate) fn new(phys: goff, size: goff, perm: kif::Perm) -> Self {
-        PhysMemDesc { phys, size, perm }
+        Self { phys, size, perm }
     }
 
     pub fn phys(&self) -> goff {
@@ -60,7 +81,7 @@ pub struct MountDesc {
 
 impl MountDesc {
     pub(crate) fn new(fs: String, path: String) -> Self {
-        MountDesc { fs, path }
+        Self { fs, path }
     }
 
     pub fn fs(&self) -> &String {
@@ -74,22 +95,20 @@ impl MountDesc {
 
 #[derive(Default)]
 pub struct ServiceDesc {
-    local_name: String,
-    global_name: String,
+    name: DualName,
     used: Cell<bool>,
 }
 
 impl ServiceDesc {
-    pub(crate) fn new(local_name: String, global_name: String) -> Self {
-        ServiceDesc {
-            local_name,
-            global_name,
+    pub(crate) fn new(name: DualName) -> Self {
+        Self {
+            name,
             used: Cell::new(false),
         }
     }
 
-    pub fn global_name(&self) -> &String {
-        &self.global_name
+    pub fn name(&self) -> &DualName {
+        &self.name
     }
 
     pub fn is_used(&self) -> bool {
@@ -109,7 +128,7 @@ pub struct SessCrtDesc {
 
 impl SessCrtDesc {
     pub(crate) fn new(name: String, count: Option<u32>) -> Self {
-        SessCrtDesc { name, count }
+        Self { name, count }
     }
 
     pub fn serv_name(&self) -> &String {
@@ -123,18 +142,16 @@ impl SessCrtDesc {
 
 #[derive(Default)]
 pub struct SessionDesc {
-    local_name: String,
-    serv: String,
+    name: DualName,
     arg: String,
     dep: bool,
     usage: Cell<Option<Selector>>,
 }
 
 impl SessionDesc {
-    pub(crate) fn new(local_name: String, serv: String, arg: String, dep: bool) -> Self {
-        SessionDesc {
-            local_name,
-            serv,
+    pub(crate) fn new(name: DualName, arg: String, dep: bool) -> Self {
+        Self {
+            name,
             arg,
             dep,
             usage: Cell::new(None),
@@ -145,8 +162,8 @@ impl SessionDesc {
         self.dep
     }
 
-    pub fn serv_name(&self) -> &String {
-        &self.serv
+    pub fn name(&self) -> &DualName {
+        &self.name
     }
 
     pub fn arg(&self) -> &String {
@@ -171,7 +188,7 @@ pub struct PEDesc {
 
 impl PEDesc {
     pub(crate) fn new(ty: String, count: u32, optional: bool) -> Self {
-        PEDesc {
+        Self {
             ty,
             count: Cell::new(count),
             optional,
@@ -211,20 +228,16 @@ impl PEDesc {
 }
 
 pub struct SemDesc {
-    local_name: String,
-    global_name: String,
+    name: DualName,
 }
 
 impl SemDesc {
-    pub(crate) fn new(local_name: String, global_name: String) -> Self {
-        SemDesc {
-            local_name,
-            global_name,
-        }
+    pub(crate) fn new(name: DualName) -> Self {
+        SemDesc { name }
     }
 
-    pub fn global_name(&self) -> &String {
-        &self.global_name
+    pub fn name(&self) -> &DualName {
+        &self.name
     }
 }
 
@@ -329,18 +342,18 @@ impl AppConfig {
     }
 
     pub fn get_sem(&self, lname: &str) -> Option<&SemDesc> {
-        self.sems.iter().find(|s| s.local_name == *lname)
+        self.sems.iter().find(|s| s.name().local() == lname)
     }
 
     pub fn get_service(&self, lname: &str) -> Option<&ServiceDesc> {
-        self.services.iter().find(|s| s.local_name == *lname)
+        self.services.iter().find(|s| s.name().local() == lname)
     }
 
     pub fn unreg_service(&self, gname: &str) {
         let serv = self
             .services
             .iter()
-            .find(|s| s.global_name == *gname)
+            .find(|s| s.name().global() == gname)
             .unwrap();
         serv.used.replace(false);
     }
@@ -348,7 +361,7 @@ impl AppConfig {
     pub fn get_session(&self, lname: &str) -> Option<(usize, &SessionDesc)> {
         self.sessions
             .iter()
-            .position(|s| s.local_name == *lname)
+            .position(|s| s.name().local() == lname)
             .map(|idx| (idx, &self.sessions[idx]))
     }
 
@@ -449,14 +462,14 @@ impl AppConfig {
         for d in &self.domains {
             for a in &d.apps {
                 for serv in a.services() {
-                    if set.contains(serv.global_name()) {
+                    if set.contains(serv.name().global()) {
                         panic!(
                             "config '{}': service '{}' does already exist",
                             a.name(),
-                            serv.global_name()
+                            serv.name().global()
                         );
                     }
-                    set.insert(serv.global_name().clone());
+                    set.insert(serv.name().global().clone());
                 }
             }
         }
@@ -474,11 +487,11 @@ impl AppConfig {
         }
 
         for sess in self.sessions() {
-            if !set.contains(sess.serv_name()) && !parent_set.contains(sess.serv_name()) {
+            if !set.contains(sess.name().global()) && !parent_set.contains(sess.name().global()) {
                 panic!(
                     "config '{}': service '{}' does not exist",
                     self.name(),
-                    sess.serv_name()
+                    sess.name().global()
                 );
             }
         }
@@ -526,14 +539,7 @@ impl AppConfig {
             )?;
         }
         for s in &self.services {
-            writeln!(
-                f,
-                "{:0w$}Service[lname='{}', gname='{}'],",
-                "",
-                s.local_name,
-                s.global_name,
-                w = layer + 2
-            )?;
+            writeln!(f, "{:0w$}Service[{:?}],", "", s.name, w = layer + 2)?;
         }
         for s in &self.sesscrt {
             writeln!(
@@ -548,10 +554,9 @@ impl AppConfig {
         for s in &self.sessions {
             writeln!(
                 f,
-                "{:0w$}Session[lname='{}', gname='{}', arg='{}', dep={}],",
+                "{:0w$}Session[{:?}, arg='{}', dep={}],",
                 "",
-                s.local_name,
-                s.serv,
+                s.name,
                 s.arg,
                 s.dep,
                 w = layer + 2

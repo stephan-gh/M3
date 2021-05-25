@@ -669,7 +669,7 @@ fn split_sessions(cfg: &config::AppConfig, name: &str) -> (u32, u32) {
     for d in cfg.domains() {
         for a in d.apps() {
             for sess in a.sessions() {
-                if sess.serv_name() == name {
+                if sess.name().global() == name {
                     frac += 1;
                 }
             }

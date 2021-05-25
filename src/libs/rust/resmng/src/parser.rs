@@ -228,7 +228,7 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
 fn hosts_service(app: &config::AppConfig, name: &str) -> bool {
     for d in app.domains() {
         for a in d.apps() {
-            if hosts_service(a, name) || a.services().iter().any(|s| s.global_name() == name) {
+            if hosts_service(a, name) || a.services().iter().any(|s| s.name().global() == name) {
                 return true;
             }
         }
@@ -241,7 +241,7 @@ fn collect_sess_crts(app: &config::AppConfig, crts: &mut Vec<config::SessCrtDesc
         for a in d.apps() {
             for s in a.sessions() {
                 if s.is_dep() {
-                    crts.push(config::SessCrtDesc::new(s.serv_name().clone(), None));
+                    crts.push(config::SessCrtDesc::new(s.name().global().clone(), None));
                 }
             }
             collect_sess_crts(a, crts);
@@ -309,23 +309,14 @@ fn parse_physmem(p: &mut ConfigParser) -> Result<config::PhysMemDesc, Error> {
 }
 
 fn parse_service(p: &mut ConfigParser) -> Result<config::ServiceDesc, Error> {
-    let mut lname = String::new();
-    let mut gname = String::new();
+    let mut name = config::DualName::default();
     loop {
         match p.parse_arg()? {
             None => break,
-            Some((n, v)) => match n.as_ref() {
-                "name" => {
-                    lname = v.clone();
-                    gname = v
-                },
-                "lname" => lname = v,
-                "gname" => gname = v,
-                _ => return Err(Error::new(Code::InvArgs)),
-            },
+            Some((n, v)) => parse_dual_name(&mut name, n, v)?,
         }
     }
-    Ok(config::ServiceDesc::new(lname, gname))
+    Ok(config::ServiceDesc::new(name))
 }
 
 fn parse_sesscrt(p: &mut ConfigParser) -> Result<config::SessCrtDesc, Error> {
@@ -345,27 +336,21 @@ fn parse_sesscrt(p: &mut ConfigParser) -> Result<config::SessCrtDesc, Error> {
 }
 
 fn parse_session(p: &mut ConfigParser) -> Result<config::SessionDesc, Error> {
-    let mut lname = String::new();
-    let mut serv = String::new();
+    let mut name = config::DualName::default();
     let mut arg = String::new();
     let mut dep = true;
     loop {
         match p.parse_arg()? {
             None => break,
             Some((n, v)) => match n.as_ref() {
-                "name" => {
-                    lname = v.clone();
-                    serv = v
-                },
-                "lname" => lname = v,
-                "gname" => serv = v,
+                "name" | "lname" | "gname" => parse_dual_name(&mut name, n, v)?,
                 "args" => arg = v,
                 "dep" => dep = parse::bool(&v)?,
                 _ => return Err(Error::new(Code::InvArgs)),
             },
         }
     }
-    Ok(config::SessionDesc::new(lname, serv, arg, dep))
+    Ok(config::SessionDesc::new(name, arg, dep))
 }
 
 fn parse_pe(p: &mut ConfigParser) -> Result<config::PEDesc, Error> {
@@ -387,23 +372,14 @@ fn parse_pe(p: &mut ConfigParser) -> Result<config::PEDesc, Error> {
 }
 
 fn parse_sem(p: &mut ConfigParser) -> Result<config::SemDesc, Error> {
-    let mut lname = String::new();
-    let mut gname = String::new();
+    let mut name = config::DualName::default();
     loop {
         match p.parse_arg()? {
             None => break,
-            Some((n, v)) => match n.as_ref() {
-                "name" => {
-                    lname = v.clone();
-                    gname = v
-                },
-                "lname" => lname = v,
-                "gname" => gname = v,
-                _ => return Err(Error::new(Code::InvArgs)),
-            },
+            Some((n, v)) => parse_dual_name(&mut name, n, v)?,
         }
     }
-    Ok(config::SemDesc::new(lname, gname))
+    Ok(config::SemDesc::new(name))
 }
 
 fn parse_close_tag(p: &mut ConfigParser, name: &str) -> Result<(), Error> {

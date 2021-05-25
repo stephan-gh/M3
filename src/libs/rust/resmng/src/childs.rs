@@ -240,7 +240,7 @@ pub trait Child {
             self.id(),
             our_srv,
             our_sgate,
-            sdesc.global_name().to_string(),
+            sdesc.name().global().to_string(),
             sessions,
             true,
         )?;
@@ -285,7 +285,7 @@ pub trait Child {
             return Err(Error::new(Code::Exists));
         }
 
-        let serv = services::get().get(sdesc.serv_name())?;
+        let serv = services::get().get(sdesc.name().global())?;
         let sess = Session::new_async(self.id(), dst_sel, serv, sdesc.arg())?;
         // check again if it's still unused, because of the async call above
         if sdesc.is_used() {
@@ -463,7 +463,7 @@ pub trait Child {
         let cfg = self.cfg();
         let sdesc = cfg.get_sem(name).ok_or_else(|| Error::new(Code::InvArgs))?;
 
-        let sem = sems::get().get(sdesc.global_name()).unwrap();
+        let sem = sems::get().get(sdesc.name().global()).unwrap();
         self.delegate(sem.sel(), sel)
     }
 
@@ -623,7 +623,7 @@ impl OwnChild {
 
     pub fn has_unmet_reqs(&self) -> bool {
         for sess in self.cfg().sessions() {
-            if sess.is_dep() && services::get().get(sess.serv_name()).is_err() {
+            if sess.is_dep() && services::get().get(sess.name().global()).is_err() {
                 return true;
             }
         }
