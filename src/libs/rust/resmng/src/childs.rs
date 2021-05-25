@@ -294,7 +294,7 @@ pub trait Child {
 
         syscalls::get_sess(serv.sel(), self.vpe_sel(), dst_sel, sess.ident())?;
 
-        sdesc.mark_used(dst_sel);
+        sdesc.mark_used();
         self.res_mut().sessions.push((idx, sess));
 
         Ok(())

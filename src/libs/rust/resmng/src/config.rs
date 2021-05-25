@@ -15,7 +15,6 @@
  */
 
 use core::fmt;
-use m3::cap::Selector;
 use m3::cell::Cell;
 use m3::col::{BTreeSet, String, Vec};
 use m3::errors::{Code, Error};
@@ -145,7 +144,7 @@ pub struct SessionDesc {
     name: DualName,
     arg: String,
     dep: bool,
-    usage: Cell<Option<Selector>>,
+    used: Cell<bool>,
 }
 
 impl SessionDesc {
@@ -154,7 +153,7 @@ impl SessionDesc {
             name,
             arg,
             dep,
-            usage: Cell::new(None),
+            used: Cell::new(false),
         }
     }
 
@@ -171,11 +170,11 @@ impl SessionDesc {
     }
 
     pub fn is_used(&self) -> bool {
-        self.usage.get().is_some()
+        self.used.get()
     }
 
-    pub fn mark_used(&self, sel: Selector) {
-        self.usage.replace(Some(sel));
+    pub fn mark_used(&self) {
+        self.used.replace(true);
     }
 }
 
@@ -366,7 +365,7 @@ impl AppConfig {
     }
 
     pub fn close_session(&self, idx: usize) {
-        self.sessions[idx].usage.replace(None);
+        self.sessions[idx].used.replace(false);
     }
 
     pub fn get_pe_idx(&self, desc: kif::PEDesc) -> Result<usize, Error> {
