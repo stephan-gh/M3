@@ -8,6 +8,7 @@ members = [
     "src/apps/ruststandalone",
     "src/apps/rustunittests",
     "src/apps/vmtest",
+    "src/apps/msgchan/msgchansnd",
     "src/apps/netechoserver",
     "src/libs/rust/base",
     "src/libs/rust/heap",

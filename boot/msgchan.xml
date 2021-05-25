@@ -1,0 +1,20 @@
+<config>
+    <kernel args="kernel" />
+    <app args="root">
+        <dom>
+            <app args="msgchanrcv" daemon="1">
+                <rgate name="chan" msgsize="32" slots="2" />
+            </app>
+        </dom>
+        <dom>
+            <app args="msgchansnd">
+                <sgate name="chan" label="1" />
+            </app>
+        </dom>
+        <dom>
+            <app args="msgchansnd">
+                <sgate name="chan" label="2" />
+            </app>
+        </dom>
+    </app>
+</config>

@@ -136,6 +136,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "msgchansnd"
+version = "0.1.0"
+dependencies = [
+ "m3",
+]
+
+[[package]]
 name = "net"
 version = "0.1.0"
 dependencies = [

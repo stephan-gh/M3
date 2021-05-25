@@ -149,6 +149,7 @@ class M3Env(ninjagen.Env):
             'src/apps/rusthello',
             'src/apps/rustnettests',
             'src/apps/rustunittests',
+            'src/apps/msgchan/msgchansnd',
             'src/apps/netechoserver',
             'src/libs/rust/base',
             'src/libs/rust/heap',

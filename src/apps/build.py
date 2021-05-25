@@ -11,6 +11,7 @@ dirs = [
     'filterchain',
     'float',
     'hello',
+    'msgchan',
     'netechoserver',
     'noop',
     'parchksum',
