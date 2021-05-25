@@ -73,7 +73,7 @@ Now, M³ can be built by using the script `b`:
 
 On all platforms, scenarios can be run by starting the desired boot script in the directory `boot`, e.g.:
 
-    $ ./b run boot/hello.cfg
+    $ ./b run boot/hello.xml
 
 Note that this command ensures that everything is up to date as well. For more information, run
 
