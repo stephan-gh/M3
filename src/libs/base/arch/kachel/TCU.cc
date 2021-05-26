@@ -26,9 +26,17 @@ namespace m3 {
 INIT_PRIO_TCU TCU TCU::inst;
 
 void TCU::print(const char *str, size_t len) {
+    // make sure the string is aligned for the 8-byte accesses below
+    ALIGNED(8) char aligned_buf[len];
+    const char *aligned_str = str;
+    if(reinterpret_cast<uintptr_t>(aligned_str) & 7) {
+        memcpy(aligned_buf, str, len);
+        aligned_str = aligned_buf;
+    }
+
     uintptr_t buffer = buffer_addr();
-    const reg_t *rstr = reinterpret_cast<const reg_t*>(str);
-    const reg_t *end = reinterpret_cast<const reg_t*>(str + len);
+    const reg_t *rstr = reinterpret_cast<const reg_t*>(aligned_str);
+    const reg_t *end = reinterpret_cast<const reg_t*>(aligned_str + len);
     while(rstr < end) {
         CPU::write8b(buffer, *rstr);
         buffer += sizeof(reg_t);

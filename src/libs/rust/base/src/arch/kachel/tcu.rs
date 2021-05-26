@@ -650,10 +650,17 @@ impl TCU {
         let regs = EXT_REGS + UNPRIV_REGS + EP_REGS * TOTAL_EPS as usize;
         let mut buffer = MMIO_ADDR + regs * 8;
 
-        #[allow(clippy::transmute_ptr_to_ptr)]
-        let rstr: &[u64] = unsafe { intrinsics::transmute(s) };
+        // copy string into aligned buffer (just to be sure)
+        let mut words = [0u64; 32];
+        unsafe {
+            words
+                .as_mut_ptr()
+                .cast::<u8>()
+                .copy_from(s.as_ptr(), s.len())
+        };
+
         let num = math::round_up(s.len(), 8) / 8;
-        for c in rstr.iter().take(num) {
+        for c in words.iter().take(num) {
             // safety: we know that the address is within the MMIO region of the TCU
             unsafe {
                 arch::cpu::write8b(buffer, *c)
