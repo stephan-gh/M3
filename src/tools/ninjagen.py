@@ -192,12 +192,15 @@ class Env:
         return bin
 
     def cpp(self, gen, out, ins):
+        flags = ' '.join(self['CPPFLAGS'])
+        flags += ' ' + ' '.join(['-I' + i for i in self['CPPPATH']])
+
         bin = BuildPath.new(self, out)
         edge = BuildEdge(
             'cpp',
             outs = [bin],
             ins = [SourcePath.new(self, i) for i in ins],
-            vars = { 'cpp' : self['CPP'], 'cppflags' : ' '.join(self['CPPFLAGS']) }
+            vars = { 'cpp' : self['CPP'], 'cppflags' : flags }
         )
         gen.add_build(edge)
         return bin
