@@ -56,6 +56,32 @@
 //     puts(buf);
 // }
 
+// for __verbose_terminate_handler from libsupc++
+EXTERN_C ssize_t write(int, const void *, size_t) {
+    return 0;
+}
+EXTERN_C int sprintf(char *, const char *, ...) {
+    return 0;
+}
+
+void *stderr;
+EXTERN_C int fputs(const char *str, void *) {
+    m3::Serial::get() << str;
+    return 0;
+}
+EXTERN_C int fputc(int c, void *) {
+    m3::Serial::get().write(c);
+    return -1;
+}
+EXTERN_C size_t fwrite(const void *str, UNUSED size_t size, size_t nmemb, void *) {
+    assert(size == 1);
+    const char *s = reinterpret_cast<const char*>(str);
+    auto &ser = m3::Serial::get();
+    while(nmemb-- > 0)
+        ser.write(*s++);
+    return 0;
+}
+
 class StandaloneEnvBackend : public m3::Gem5EnvBackend {
 public:
     explicit StandaloneEnvBackend() {

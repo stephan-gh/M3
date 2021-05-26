@@ -5,8 +5,6 @@ def build(gen, env):
         env['LINKFLAGS'] += ['-fno-exceptions', '-nodefaultlibs']
 
         libs = ['simplec', 'gem5', 'heap', 'base', 'supc++', 'gcc']
-        if env['ISA'] == 'x86_64':
-            libs += ['gcc_eh']
 
         env_obj = env.cxx(gen, out = 'env.o', ins = ['env.cc'])
         env.m3_exe(

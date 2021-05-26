@@ -19,7 +19,9 @@
 #define FS_IMG_OFFSET       0x0
 
 #define PAGE_BITS           12
-#define PAGE_SIZE           (static_cast<size_t>(1) << PAGE_BITS)
+#ifndef PAGE_SIZE
+#   define PAGE_SIZE        (static_cast<size_t>(1) << PAGE_BITS)
+#endif
 #define PAGE_MASK           (PAGE_SIZE - 1)
 
 #define LPAGE_BITS          21

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 BUILD_BINUTILS=true
@@ -34,16 +34,14 @@ else
     REBUILD=0
 fi
 
-/bin/echo -e "\e[1mDownloading binutils, gcc, newlib, and gdb...\e[0m"
+/bin/echo -e "\e[1mDownloading binutils, gcc, and gdb...\e[0m"
 
 BINVER=2.32
 GCCVER=10.1.0
-NEWLVER=3.1.0
 GDBVER=10.1
 
 BINARCH=binutils-$BINVER.tar.bz2
 GCCARCH=gcc-$GCCVER.tar.gz
-NEWLARCH=newlib-$NEWLVER.tar.gz
 GDBARCH=gdb-$GDBVER.tar.gz
 
 download() {
@@ -54,7 +52,6 @@ download() {
 
 download http://ftp.gnu.org/gnu/binutils/ $BINARCH
 download http://ftp.gnu.org/gnu/gcc/gcc-$GCCVER/ $GCCARCH
-download ftp://sources.redhat.com/pub/newlib/ $NEWLARCH
 download https://ftp.gnu.org/gnu/gdb/ $GDBARCH
 
 # setup
@@ -80,14 +77,14 @@ if [ $REBUILD -eq 1 ]; then
         rm -Rf $BUILD/gcc $SRC/gcc
     fi
     if $BUILD_CPP; then
-        rm -Rf $BUILD/newlib $BUILD/gcc/libstdc++-v3 $SRC/newlib
+        rm -Rf $BUILD/gcc/libstdc++-v3
     fi
     if $BUILD_GDB; then
         rm -Rf $BUILD/gdb $SRC/gdb
     fi
     mkdir -p $SRC
 fi
-mkdir -p $BUILD/gcc $BUILD/binutils $BUILD/newlib $BUILD/gdb
+mkdir -p $BUILD/gcc $BUILD/binutils $BUILD/gdb
 
 # binutils
 if $BUILD_BINUTILS; then
@@ -110,15 +107,19 @@ if $BUILD_BINUTILS; then
 fi
 
 if $BUILD_GCC || $BUILD_CPP; then
-    # put the include-files of newlib in the system-include-dir to pretend that we have a full libc
-    # this is necessary for libgcc and libsupc++. we'll provide our own version of the few required
-    # libc-functions later
-    rm -Rf $DIST/$TARGET/include $DIST/$TARGET/sys-include
-    mkdir -p tmp
-    cat $ROOT/$NEWLARCH | gunzip | tar -C tmp -xf - newlib-$NEWLVER/newlib/libc/include
-    mv tmp/newlib-$NEWLVER/newlib/libc/include $DIST/$TARGET
-    rm -Rf tmp
+    # create link to musl's include files in target directory
+    ln -sf -T $ROOT/../src/libs/musl/include $DIST/$TARGET/include
+    ln -sf -T $ROOT/../src/libs/musl/include $DIST/$TARGET/sys-include
 fi
+
+# musl headers
+if [ "$ARCH" = "riscv" ]; then
+    includes=" -I$ROOT/../src/libs/musl/arch/riscv64"
+else
+    includes=" -I$ROOT/../src/libs/musl/arch/$ARCH"
+fi
+includes+=" -I$ROOT/../src/libs/musl/arch/generic"
+includes+=" -I$ROOT/../src/libs/musl/m3/include/$ARCH"
 
 # gcc
 export PATH=$PREFIX/bin:$PATH
@@ -134,9 +135,9 @@ if $BUILD_GCC; then
     cd $BUILD/gcc
     if [ $REBUILD -eq 1 ] || [ ! -f $BUILD/gcc/Makefile ]; then
         /bin/echo -e "\e[1mConfiguring gcc...\e[0m"
-        CC=$BUILD_CC CFLAGS_FOR_TARGET=$BUILD_FLAGS \
+        CC=$BUILD_CC CFLAGS_FOR_TARGET="$BUILD_FLAGS $includes" \
             $SRC/gcc/configure --target=$TARGET --prefix=$PREFIX --disable-nls \
-              --enable-languages=c,c++ --disable-linker-build-id
+              --enable-languages=c,c++ --disable-linker-build-id --disable-shared
     fi
     /bin/echo -e "\e[1mBuilding gcc...\e[0m"
     make $MAKE_ARGS all-gcc && make install-gcc
@@ -156,21 +157,22 @@ if $BUILD_CPP; then
     # libstdc++
     mkdir -p $BUILD/gcc/libstdc++-v3
     cd $BUILD/gcc/libstdc++-v3
+
     if [ $REBUILD -eq 1 ] || [ ! -f Makefile ]; then
         /bin/echo -e "\e[1mConfiguring libstdc++...\e[0m"
         # pretend that we're using newlib
-        CPP=$TARGET-cpp CFLAGS=$BUILD_FLAGS CXXFLAGS=$BUILD_FLAGS \
+        CPP=$TARGET-cpp CFLAGS=$BUILD_FLAGS CXXFLAGS=$BUILD_FLAGS CPPFLAGS=$includes \
             $SRC/gcc/libstdc++-v3/configure --host=$TARGET --prefix=$PREFIX \
-            --disable-hosted-libstdcxx --disable-nls --with-newlib
+            --disable-nls --with-newlib --enable-shared=no --disable-tls \
+            --disable-multilib
     fi
 
-    /bin/echo -e "\e[1mBuilding libsupc++...\e[0m"
+    /bin/echo -e "\e[1mBuilding libsupc++ and libstdc++...\e[0m"
+    make $MAKE_ARGS && make install
+
     cd include
     make $MAKE_ARGS && make install-headers
 
-    /bin/echo -e "\e[1mBuilding libstdc++...\e[0m"
-    cd ../libsupc++
-    make $MAKE_ARGS && make install
     cd $ROOT
 fi
 
@@ -199,10 +201,6 @@ if $BUILD_GDB; then
     make $MAKE_ARGS && make install
 fi
 
-# create basic symlinks
-rm -Rf $DIST/$TARGET/include
-ln -sf $ROOT/../src/include $DIST/$TARGET/include
-
 if [ "$ARCH" = "riscv" ]; then
-    cp $DIST/lib/rv64imafdc/lp64d/libsupc++.* $DIST/lib
+    cp $DIST/lib/rv64imafdc/lp64d/lib* $DIST/lib
 fi

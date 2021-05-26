@@ -1,6 +1,6 @@
 diff -rcN src/gcc-org/config.sub src/gcc/config.sub
-*** src/gcc-org/config.sub	2020-07-11 07:48:23.487535246 +0200
---- src/gcc/config.sub	2020-07-11 07:48:51.834382829 +0200
+*** src/gcc-org/config.sub	2020-05-07 12:49:58.000000000 +0200
+--- src/gcc/config.sub	2021-05-26 12:24:17.573106761 +0200
 ***************
 *** 1343,1349 ****
   	     | hpux* | unos* | osf* | luna* | dgux* | auroraux* | solaris* \
@@ -20,7 +20,7 @@ diff -rcN src/gcc-org/config.sub src/gcc/config.sub
   	     | knetbsd* | mirbsd* | netbsd* \
 diff -rcN src/gcc-org/gcc/config/m3.h src/gcc/gcc/config/m3.h
 *** src/gcc-org/gcc/config/m3.h	1970-01-01 01:00:00.000000000 +0100
---- src/gcc/gcc/config/m3.h	2020-07-11 07:48:51.834382829 +0200
+--- src/gcc/gcc/config/m3.h	2021-05-26 12:24:17.579773481 +0200
 ***************
 *** 0 ****
 --- 1,29 ----
@@ -54,8 +54,8 @@ diff -rcN src/gcc-org/gcc/config/m3.h src/gcc/gcc/config/m3.h
 + #define USE_TM_CLONE_REGISTRY 0
 + 
 diff -rcN src/gcc-org/gcc/config.gcc src/gcc/gcc/config.gcc
-*** src/gcc-org/gcc/config.gcc	2020-07-11 07:48:26.137552166 +0200
---- src/gcc/gcc/config.gcc	2020-07-11 07:48:51.837716184 +0200
+*** src/gcc-org/gcc/config.gcc	2020-05-07 12:49:59.000000000 +0200
+--- src/gcc/gcc/config.gcc	2021-05-26 12:24:17.579773481 +0200
 ***************
 *** 675,680 ****
 --- 675,685 ----
@@ -86,7 +86,7 @@ diff -rcN src/gcc-org/gcc/config.gcc src/gcc/gcc/config.gcc
   	tm_file="${tm_file} aarch64/aarch64-elf.h aarch64/aarch64-errata.h aarch64/aarch64-elf-raw.h"
 diff -rcN src/gcc-org/libgcc/config/t-m3 src/gcc/libgcc/config/t-m3
 *** src/gcc-org/libgcc/config/t-m3	1970-01-01 01:00:00.000000000 +0100
---- src/gcc/libgcc/config/t-m3	2020-07-11 07:48:51.837716184 +0200
+--- src/gcc/libgcc/config/t-m3	2021-05-26 12:24:19.056452358 +0200
 ***************
 *** 0 ****
 --- 1,5 ----
@@ -96,8 +96,8 @@ diff -rcN src/gcc-org/libgcc/config/t-m3 src/gcc/libgcc/config/t-m3
 + SHLIB_LDFLAGS = -Wl,-shared -Wl,-soname,$(SHLIB_SONAME)
 + 
 diff -rcN src/gcc-org/libgcc/config.host src/gcc/libgcc/config.host
-*** src/gcc-org/libgcc/config.host	2020-07-11 07:48:40.100974628 +0200
---- src/gcc/libgcc/config.host	2020-07-11 07:48:51.837716184 +0200
+*** src/gcc-org/libgcc/config.host	2020-05-07 12:50:02.000000000 +0200
+--- src/gcc/libgcc/config.host	2021-05-26 12:24:19.056452358 +0200
 ***************
 *** 359,364 ****
 --- 359,368 ----
@@ -111,9 +111,31 @@ diff -rcN src/gcc-org/libgcc/config.host src/gcc/libgcc/config.host
   aarch64*-*-elf | aarch64*-*-rtems*)
   	extra_parts="$extra_parts crtbegin.o crtend.o crti.o crtn.o"
   	extra_parts="$extra_parts crtfastmath.o"
+diff -rcN src/gcc-org/libstdc++-v3/config/os/newlib/ctype_base.h src/gcc/libstdc++-v3/config/os/newlib/ctype_base.h
+*** src/gcc-org/libstdc++-v3/config/os/newlib/ctype_base.h	2020-05-07 12:50:02.000000000 +0200
+--- src/gcc/libstdc++-v3/config/os/newlib/ctype_base.h	2021-05-26 12:24:19.056452358 +0200
+***************
+*** 28,33 ****
+--- 28,43 ----
+  
+  // Information as gleaned from /usr/include/ctype.h
+  
++ // musl doesn't define these; copied from newlib
++ #define _U      01
++ #define _L      02
++ #define _N      04
++ #define _S      010
++ #define _P      020
++ #define _C      040
++ #define _X      0100
++ #define _B      0200
++ 
+  namespace std _GLIBCXX_VISIBILITY(default)
+  {
+  _GLIBCXX_BEGIN_NAMESPACE_VERSION
 diff -rcN src/gcc-org/libstdc++-v3/configure src/gcc/libstdc++-v3/configure
-*** src/gcc-org/libstdc++-v3/configure	2020-07-11 07:48:24.047538822 +0200
---- src/gcc/libstdc++-v3/configure	2020-07-11 07:48:51.854382957 +0200
+*** src/gcc-org/libstdc++-v3/configure	2020-05-07 12:50:02.000000000 +0200
+--- src/gcc/libstdc++-v3/configure	2021-05-26 12:24:19.069785802 +0200
 ***************
 *** 11603,11608 ****
 --- 11603,11616 ----
@@ -161,77 +183,49 @@ diff -rcN src/gcc-org/libstdc++-v3/configure src/gcc/libstdc++-v3/configure
   netbsd*)
     version_type=sunos
     need_lib_prefix=no
-diff -rcN src/gcc-org/libstdc++-v3/libsupc++/eh_term_handler.h src/gcc/libstdc++-v3/libsupc++/eh_term_handler.h
-*** src/gcc-org/libstdc++-v3/libsupc++/eh_term_handler.h	2020-07-11 07:48:24.210873198 +0200
---- src/gcc/libstdc++-v3/libsupc++/eh_term_handler.h	2020-07-11 07:50:42.275086428 +0200
-***************
-*** 31,37 ****
-     --disable-libstdcxx-verbose and rebuilding the library.
-     In a freestanding environment, we default to this latter approach.  */
-  
-! #if _GLIBCXX_HOSTED && _GLIBCXX_VERBOSE && __cpp_exceptions
-  # define _GLIBCXX_DEFAULT_TERM_HANDLER __gnu_cxx::__verbose_terminate_handler
-  #else
-  # include <cstdlib>
---- 31,37 ----
-     --disable-libstdcxx-verbose and rebuilding the library.
-     In a freestanding environment, we default to this latter approach.  */
-  
-! #if 1 // _GLIBCXX_HOSTED && _GLIBCXX_VERBOSE && __cpp_exceptions
-  # define _GLIBCXX_DEFAULT_TERM_HANDLER __gnu_cxx::__verbose_terminate_handler
-  #else
-  # include <cstdlib>
 diff -rcN src/gcc-org/libstdc++-v3/libsupc++/vterminate.cc src/gcc/libstdc++-v3/libsupc++/vterminate.cc
-*** src/gcc-org/libstdc++-v3/libsupc++/vterminate.cc	2020-07-11 07:48:24.227539971 +0200
---- src/gcc/libstdc++-v3/libsupc++/vterminate.cc	2020-07-11 07:48:51.857716311 +0200
+*** src/gcc-org/libstdc++-v3/libsupc++/vterminate.cc	2020-05-07 12:50:02.000000000 +0200
+--- src/gcc/libstdc++-v3/libsupc++/vterminate.cc	2021-05-26 12:25:45.407170089 +0200
 ***************
-*** 24,35 ****
-  
-  #include <bits/c++config.h>
-  
-! #if _GLIBCXX_HOSTED
-  #include <cstdlib>
-  #include <exception>
-  #include <bits/exception_defines.h>
-  #include <cxxabi.h>
-! # include <cstdio>
-  
-  using namespace std;
-  using namespace abi;
---- 24,40 ----
-  
-  #include <bits/c++config.h>
-  
-! #if 1 // _GLIBCXX_HOSTED
-  #include <cstdlib>
-  #include <exception>
-  #include <bits/exception_defines.h>
-  #include <cxxabi.h>
-! // don't include cstdio here because thats too much trouble
-! //# include <cstdio>
-! extern "C" void abort(void);
-! extern "C" int fputs(const char*,void*);
-! extern "C" void *free(void*);
-! extern void *stderr;
-  
-  using namespace std;
-  using namespace abi;
-***************
-*** 61,68 ****
-  	{
+*** 62,68 ****
   	  int status = -1;
   	  char *dem = 0;
-! 	  
+  	  
 ! 	  dem = __cxa_demangle(name, 0, 0, &status);
   
   	  fputs("terminate called after throwing an instance of '", stderr);
   	  if (status == 0)
---- 66,73 ----
-  	{
+--- 62,69 ----
   	  int status = -1;
   	  char *dem = 0;
-! 
+  	  
+! 	  // disable to prevent that it pulls in a lot of code (~50KiB)
 ! 	  // dem = __cxa_demangle(name, 0, 0, &status);
   
   	  fputs("terminate called after throwing an instance of '", stderr);
   	  if (status == 0)
+diff -rcN src/gcc-org/libstdc++-v3/src/c++11/Makefile.in src/gcc/libstdc++-v3/src/c++11/Makefile.in
+*** src/gcc-org/libstdc++-v3/src/c++11/Makefile.in	2020-05-07 12:50:02.000000000 +0200
+--- src/gcc/libstdc++-v3/src/c++11/Makefile.in	2021-05-26 12:26:54.044412064 +0200
+***************
+*** 821,828 ****
+  .PRECIOUS: Makefile
+  
+  
+! ctype_configure_char.cc: ${glibcxx_srcdir}/$(OS_INC_SRCDIR)/ctype_configure_char.cc
+! 	$(LN_S) ${glibcxx_srcdir}/$(OS_INC_SRCDIR)/ctype_configure_char.cc . || true
+  
+  ctype_members.cc: ${glibcxx_srcdir}/$(CCTYPE_CC)
+  	$(LN_S) ${glibcxx_srcdir}/$(CCTYPE_CC) . || true
+--- 821,831 ----
+  .PRECIOUS: Makefile
+  
+  
+! # explicitly use generic here instead of newlib, because we don't have newlib
+! # and therefore are missing _ctype_. however, --with-newlib is required to
+! # make it build at all.
+! ctype_configure_char.cc: ${glibcxx_srcdir}/config/os/generic/ctype_configure_char.cc
+! 	$(LN_S) ${glibcxx_srcdir}/config/os/generic/ctype_configure_char.cc . || true
+  
+  ctype_members.cc: ${glibcxx_srcdir}/$(CCTYPE_CC)
+  	$(LN_S) ${glibcxx_srcdir}/$(CCTYPE_CC) . || true

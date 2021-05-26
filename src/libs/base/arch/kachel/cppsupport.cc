@@ -23,23 +23,7 @@
 using namespace m3;
 
 namespace std {
-    namespace placeholders {
-        // two are enough for our purposes
-        const _Placeholder<1> _1{};
-        const _Placeholder<2> _2{};
-    }
-}
-
-namespace std {
-void __throw_length_error(char const *s) {
-    PANIC(s);
-}
-
-void __throw_bad_alloc() {
-    PANIC("bad alloc");
-}
-
-void __throw_bad_function_call() {
+WEAK void __throw_bad_function_call() {
     PANIC("bad function call");
 }
 }
@@ -60,7 +44,10 @@ EXTERN_C void free(void *p) {
     return heap_free(p);
 }
 
+EXTERN_C void *__libc_malloc(size_t size) __attribute__((__weak__, __alias__("malloc")));
 EXTERN_C void *__libc_calloc(size_t n, size_t size) __attribute__((__weak__, __alias__("calloc")));
+EXTERN_C void *__libc_realloc(void *p, size_t size) __attribute__((__weak__, __alias__("realloc")));
+EXTERN_C void __libc_free(void *p) __attribute__((__weak__, __alias__("free")));
 
 #ifndef NDEBUG
 void __assert_fail(const char *expr, const char *file, int line, const char *func) {
@@ -71,21 +58,7 @@ void __assert_fail(const char *expr, const char *file, int line, const char *fun
 }
 #endif
 
-// for __verbose_terminate_handler from libsupc++
-void *stderr;
-EXTERN_C WEAK int fputs(const char *str, void *) {
-    m3::Serial::get() << str;
-    return 0;
+#if defined(__arm__)
+EXTERN_C void __sync_synchronize() {
 }
-EXTERN_C WEAK int fputc(int c, void *) {
-    m3::Serial::get().write(c);
-    return -1;
-}
-EXTERN_C WEAK size_t fwrite(const void *str, UNUSED size_t size, size_t nmemb, void *) {
-    assert(size == 1);
-    const char *s = reinterpret_cast<const char*>(str);
-    auto &ser = m3::Serial::get();
-    while(nmemb-- > 0)
-        ser.write(*s++);
-    return 0;
-}
+#endif

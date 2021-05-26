@@ -86,8 +86,6 @@ class M3Env(ninjagen.Env):
         if env['PLATF'] == 'kachel':
             if not NoSup:
                 baselibs = ['gcc', 'c', 'gem5', 'm', 'gloss', 'stdc++', 'supc++', 'heap']
-                if env['ISA'] == 'x86_64':
-                    baselibs += ['gcc_eh']
                 libs = baselibs + m3libs + libs
 
             global ldscripts
