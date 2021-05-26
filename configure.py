@@ -239,7 +239,7 @@ env = M3Env()
 
 env['CPPFLAGS'] += ['-D__' + target + '__', '-D__' + platform + '__']
 env['CPPPATH']  += ['src/include']
-env['CFLAGS']   += ['-std=c99', '-Wall', '-Wextra', '-Wsign-conversion']
+env['CFLAGS']   += ['-std=c99', '-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
 env['CXXFLAGS'] += ['-std=c++14', '-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
 
 # for host compilation
