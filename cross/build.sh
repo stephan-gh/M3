@@ -142,48 +142,6 @@ if $BUILD_GCC; then
     make $MAKE_ARGS all-gcc && make install-gcc
     ln -sf $DIST/bin/$TARGET-gcc $DIST/bin/$TARGET-cc
 
-    # libgcc (only i586 supports dynamic linking)
-    if [ "$ARCH" = "x86_64" ]; then
-        # for libgcc, we need crt*S.o and a libc. crt1S.o and crtnS.o need to be working. the others
-        # don't need to do something useful, but at least they have to be present.
-        TMPCRT0=`mktemp`
-        TMPCRT1=`mktemp`
-        TMPCRTN=`mktemp`
-
-        REG_SP="%rsp"
-        REG_BP="%rbp"
-
-        # we need the function prologs and epilogs. otherwise the INIT entry in the dynamic section
-        # won't be created (and the init- and fini-sections don't work).
-        echo ".section .init" >> $TMPCRT1
-        echo ".global _init" >> $TMPCRT1
-        echo "_init:" >> $TMPCRT1
-        echo "  push    $REG_BP" >> $TMPCRT1
-        echo "  mov     $REG_SP,$REG_BP" >> $TMPCRT1
-        echo ".section .fini" >> $TMPCRT1
-        echo ".global _fini" >> $TMPCRT1
-        echo "_fini:" >> $TMPCRT1
-        echo "  push    $REG_BP" >> $TMPCRT1
-        echo "  mov     $REG_SP,$REG_BP" >> $TMPCRT1
-
-        echo ".section .init" >> $TMPCRTN
-        echo "  leave" >> $TMPCRTN
-        echo "  ret" >> $TMPCRTN
-        echo ".section .fini" >> $TMPCRTN
-        echo "  leave" >> $TMPCRTN
-        echo "  ret" >> $TMPCRTN
-
-        # assemble them
-        $TARGET-as -o $DIST/$TARGET/lib/crt0S.o $TMPCRT0 || exit 1
-        $TARGET-as -o $DIST/$TARGET/lib/crt1S.o $TMPCRT1 || exit 1
-        $TARGET-as -o $DIST/$TARGET/lib/crtnS.o $TMPCRTN || exit 1
-        # build empty libc
-        $TARGET-gcc -nodefaultlibs -nostartfiles -shared -Wl,-shared -Wl,-soname,libc.so \
-          -o $DIST/$TARGET/lib/libc.so $DIST/$TARGET/lib/crt0S.o || exit 1
-        # cleanup
-        rm -f $TMPCRT0 $TMPCRT1 $TMPCRTN
-    fi
-
     # now build libgcc
     /bin/echo -e "\e[1mBuilding libgcc...\e[0m"
     make $MAKE_ARGS all-target-libgcc && make install-target-libgcc
