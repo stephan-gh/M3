@@ -44,6 +44,14 @@ public:
     }
 
     /**
+     * Creates a Dir object for the given file descriptor. Assumes that the file position is 0.
+     *
+     * @param fd the file descriptor
+     */
+    explicit Dir(int fd) : _f(fd, FILE_R, sizeof(Entry) * 16) {
+    }
+
+    /**
      * Retrieves the file information about this directory
      *
      * @param info where to store the information

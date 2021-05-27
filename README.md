@@ -30,9 +30,9 @@ If you setup the project on a new (ubuntu) machine make sure to have at least th
         m4 libboost-all-dev libssl-dev libgmp3-dev libmpfr-dev \
         libmpc-dev libncurses5-dev texinfo ninja-build
 
-Afterwards, pull in the submodule `src/libs/musl`:
+Afterwards, pull in the submodules `src/libs/{musl,leveldb}`:
 
-    $ git submodule update --init src/libs/musl
+    $ git submodule update --init src/libs/musl src/libs/leveldb
 
 ### Preparations for gem5:
 

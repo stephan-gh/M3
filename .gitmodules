@@ -7,3 +7,6 @@
 [submodule "src/libs/musl"]
 	path = src/libs/musl
 	url = git@gitlab.com:Nils-TUD/m3-musl.git
+[submodule "src/libs/leveldb"]
+	path = src/libs/leveldb
+	url = git@gitlab.com:Nils-TUD/m3-leveldb.git

@@ -4,6 +4,7 @@ dirs = [
     'gem5',
     'heap',
     'host',
+    'leveldb',
     'm3',
     'memory',
     'musl',

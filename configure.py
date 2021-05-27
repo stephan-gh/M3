@@ -86,7 +86,10 @@ class M3Env(ninjagen.Env):
         if env['PLATF'] == 'kachel':
             if not NoSup:
                 baselibs = ['gcc', 'c', 'gem5', 'm', 'gloss', 'stdc++', 'supc++', 'heap']
-                libs = baselibs + m3libs + libs
+                # add the C library again, because the linker isn't able to resolve m3::Dir::readdir
+                # otherwise, even though we use "--start-group ... --end-group". I have no idea why
+                # that occurs now and why only for this symbol.
+                libs = baselibs + m3libs + libs + ['c']
 
             global ldscripts
             env['LINKFLAGS'] += ['-Wl,-T,' + ldscripts[ldscript]]
