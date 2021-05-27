@@ -38,7 +38,13 @@ fn repl_instr_line(
     }
     let addr = parts.nth(2)?;
     let mut addr_parts = addr.splitn(2, '.');
-    let addr_int = usize::from_str_radix(&addr_parts.next()?[2..], 16).ok()?;
+    let hex_begin = addr_parts.next()?;
+    let addr_int = if hex_begin.starts_with("0x") {
+        usize::from_str_radix(&hex_begin[2..], 16).ok()?
+    }
+    else {
+        usize::from_str_radix(hex_begin, 16).ok()?
+    };
 
     // split the rest of the line and omit the symbol and offset:
     let rem = parts.next()?;
