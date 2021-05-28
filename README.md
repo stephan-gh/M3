@@ -28,7 +28,7 @@ If you setup the project on a new (ubuntu) machine make sure to have at least th
     $ sudo apt update
     $ sudo apt install git build-essential scons zlib1g-dev \
         m4 libboost-all-dev libssl-dev libgmp3-dev libmpfr-dev \
-        libmpc-dev libncurses5-dev texinfo ninja-build
+        libmpc-dev libncurses5-dev texinfo ninja-build libxml2-utils
 
 Afterwards, pull in the submodules `src/libs/{musl,leveldb}`:
 
@@ -36,8 +36,6 @@ Afterwards, pull in the submodules `src/libs/{musl,leveldb}`:
 
 ### Preparations for gem5:
 
-The submodule in `platform/gem5` needs to be pulled in and built: \
-_(__Hint__: you need username/password-authentication. SSH-authentication won't work due to the submodule git urls)_
 The submodule in `platform/gem5` needs to be pulled in and built:
 
     $ git submodule update --init platform/gem5
