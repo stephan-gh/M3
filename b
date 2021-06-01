@@ -192,7 +192,13 @@ esac
 
 if [ $skipbuild -eq 0 ]; then
     echo "Building for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
-    ninja -f $build/build.ninja $ninjaargs >&2 || exit 1
+    ninja -f $build/build.ninja $ninjaargs >&2 || {
+        # ensure that we regenerate the build.ninja next time. Since ninja does not accept the
+        # build.ninja, it will also not detect changes our build files in order to regenerate it.
+        # Therefore, force ourself to regenerate it by removing our "files id".
+        rm -f $filesid
+        exit 1
+    }
 fi
 
 run_on_host() {
