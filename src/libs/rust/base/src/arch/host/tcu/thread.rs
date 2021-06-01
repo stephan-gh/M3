@@ -18,8 +18,8 @@ use core::{ptr, sync::atomic};
 
 use crate::arch::envdata;
 use crate::arch::tcu::{
-    backend, CmdReg, Command, Control, EpId, EpReg, Header, PEId, Reg, TOTAL_EPS, MAX_MSG_SIZE, TCU,
-    UNLIM_CREDITS,
+    backend, CmdReg, Command, Control, EpId, EpReg, Header, PEId, Reg, MAX_MSG_SIZE, TCU,
+    TOTAL_EPS, UNLIM_CREDITS,
 };
 use crate::cell::{LazyStaticCell, StaticCell};
 use crate::errors::{Code, Error};
@@ -106,15 +106,15 @@ fn prepare_send(ep: EpId) -> Result<(PEId, EpId), Error> {
     let msg_size = TCU::get_cmd(CmdReg::SIZE) as usize;
     let credits = TCU::get_ep(ep, EpReg::CREDITS) as usize;
 
-    // check if we have enough credits
-    if credits != UNLIM_CREDITS as usize {
-        let msg_order = TCU::get_ep(ep, EpReg::MSGORDER);
-        if msg_order == 0 {
-            log_tcu!("TCU-error: invalid EP {}", ep);
-            return Err(Error::new(Code::NoSEP));
-        }
+    let msg_order = TCU::get_ep(ep, EpReg::MSGORDER);
+    if msg_order == 0 {
+        log_tcu!("TCU-error: invalid EP {}", ep);
+        return Err(Error::new(Code::NoSEP));
+    }
 
-        let needed = 1 << msg_order;
+    // check if we have enough credits
+    let needed = 1 << msg_order;
+    if credits != UNLIM_CREDITS as usize {
         if needed > credits {
             log_tcu!(
                 "TCU-error: insufficient credits on ep {} (have {:#x}, need {:#x})",
@@ -126,6 +126,18 @@ fn prepare_send(ep: EpId) -> Result<(PEId, EpId), Error> {
         }
 
         TCU::set_ep(ep, EpReg::CREDITS, (credits - needed) as Reg);
+    }
+
+    // check if the message is small enough
+    let total_msg_size = msg_size + mem::size_of::<Header>();
+    if total_msg_size > needed {
+        log_tcu!(
+            "TCU-error: message too large for ep {} (max {:#x}, need {:#x})",
+            ep,
+            needed,
+            total_msg_size
+        );
+        return Err(Error::new(Code::OutOfBounds));
     }
 
     let buf = buffer();

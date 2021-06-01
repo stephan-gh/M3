@@ -147,9 +147,9 @@ Errors::Code TCU::prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     const void *src = reinterpret_cast<const void*>(get_cmd(CMD_ADDR));
     const word_t credits = get_ep(ep, EP_CREDITS);
     const word_t msg_order = get_ep(ep, EP_MSGORDER);
+    const size_t size = 1UL << msg_order;
     // check if we have enough credits
     if(credits != UNLIM_CREDITS) {
-        const size_t size = 1UL << msg_order;
         if(size > credits) {
             LLOG(TCUERR, "TCU-error: insufficient credits on ep " << ep
                     << " (have #" << fmt(credits, "x") << ", need #" << fmt(size, "x")
@@ -157,6 +157,14 @@ Errors::Code TCU::prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep) {
             return Errors::NO_CREDITS;
         }
         set_ep(ep, EP_CREDITS, credits - size);
+    }
+    // check if the message is small enough
+    const size_t msg_size = get_cmd(CMD_SIZE) + HEADER_SIZE;
+    if(msg_size > size) {
+        LLOG(TCUERR, "TCU-error: message too large for ep " << ep
+                << " (max #" << fmt(size, "x") << ", need #" << fmt(msg_size, "x")
+                << ")." << " Ignoring send-command");
+        return Errors::OUT_OF_BOUNDS;
     }
 
     dstpe = get_ep(ep, EP_PEID);
