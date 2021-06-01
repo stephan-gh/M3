@@ -28,7 +28,7 @@ typedef void (*constr_func)();
 extern constr_func CTORS_BEGIN;
 extern constr_func CTORS_END;
 
-EXTERN_C void __init_libc();
+EXTERN_C void __m3_init_libc();
 EXTERN_C void __cxa_finalize(void *);
 EXTERN_C void _init();
 EXTERN_C void init_env(m3::Env *env);
@@ -82,7 +82,7 @@ void Env::run() {
         res = (*f)();
     }
     else {
-        __init_libc();
+        __m3_init_libc();
         init_env(e);
         e->pre_init();
         e->backend()->init();
