@@ -44,7 +44,7 @@ public:
         DIRPIPE     = 1 << 14,
     };
 
-    static const int level = DEF;
+    static const int level = DEF | TCUERR;
 };
 
 }

@@ -85,12 +85,12 @@ void TCU::configure_recv(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
 Errors::Code TCU::check_cmd(epid_t ep, int op, word_t perms, word_t credits, size_t offset, size_t length) {
     if(op == READ || op == WRITE) {
         if(!(perms & (1U << (op - 1)))) {
-            LLOG(TCUERR, "TCU-error: operation not permitted on ep " << ep << " (perms="
+            LLOG(TCU, "TCU-error: operation not permitted on ep " << ep << " (perms="
                     << perms << ", op=" << op << ")");
             return Errors::NO_PERM;
         }
         if(offset >= credits || offset + length < offset || offset + length > credits) {
-            LLOG(TCUERR, "TCU-error: invalid parameters (credits=" << credits
+            LLOG(TCU, "TCU-error: invalid parameters (credits=" << credits
                     << ", offset=" << offset << ", datalen=" << length << ")");
             return Errors::INV_ARGS;
         }
@@ -108,13 +108,13 @@ Errors::Code TCU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
 
     size_t idx = reply_off >> msgord;
     if(idx >= (1UL << (ord - msgord))) {
-        LLOG(TCUERR, "TCU-error: EP" << ep << ": invalid message offset " << (void*)reply_off);
+        LLOG(TCU, "TCU-error: EP" << ep << ": invalid message offset " << (void*)reply_off);
         return Errors::INV_ARGS;
     }
 
     Buffer *buf = reinterpret_cast<Buffer*>(const_cast<Message*>(offset_to_msg(bufaddr, reply_off)));
     if(!buf->has_replycap || buf->rpl_ep == TCU::NO_REPLIES) {
-        LLOG(TCUERR, "TCU-error: EP" << ep << ": double-reply for msg " << (void*)reply_off);
+        LLOG(TCU, "TCU-error: EP" << ep << ": double-reply for msg " << (void*)reply_off);
         return Errors::INV_ARGS;
     }
 
@@ -122,7 +122,7 @@ Errors::Code TCU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     word_t occupied = get_ep(ep, EP_BUF_OCCUPIED);
     // if the slot is not occupied, it's equivalent to the reply EP being invalid
     if(!bit_set(occupied, idx)) {
-        LLOG(TCUERR, "TCU-error: EP" << ep << ": slot not occupied " << (void*)reply_off);
+        LLOG(TCU, "TCU-error: EP" << ep << ": slot not occupied " << (void*)reply_off);
         return Errors::NO_SEP;
     }
 
@@ -151,7 +151,7 @@ Errors::Code TCU::prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     // check if we have enough credits
     if(credits != UNLIM_CREDITS) {
         if(size > credits) {
-            LLOG(TCUERR, "TCU-error: insufficient credits on ep " << ep
+            LLOG(TCU, "TCU-error: insufficient credits on ep " << ep
                     << " (have #" << fmt(credits, "x") << ", need #" << fmt(size, "x")
                     << ")." << " Ignoring send-command");
             return Errors::NO_CREDITS;
@@ -215,13 +215,13 @@ Errors::Code TCU::prepare_ackmsg(epid_t ep) {
 
     size_t idx = msgoff >> msgord;
     if(idx >= (1UL << (ord - msgord))) {
-        LLOG(TCUERR, "TCU-error: EP" << ep << ": invalid message addr " << (void*)(bufaddr + msgoff));
+        LLOG(TCU, "TCU-error: EP" << ep << ": invalid message addr " << (void*)(bufaddr + msgoff));
         return Errors::INV_ARGS;
     }
 
     word_t occupied = get_ep(ep, EP_BUF_OCCUPIED);
     if(!bit_set(occupied, idx)) {
-        LLOG(TCUERR, "TCU-error: EP" << ep << ": slot at " << (void*)(bufaddr + msgoff) << " not occupied");
+        LLOG(TCU, "TCU-error: EP" << ep << ": slot at " << (void*)(bufaddr + msgoff) << " not occupied");
         return Errors::INV_ARGS;
     }
 
@@ -295,7 +295,7 @@ void TCU::handle_command(peid_t pe) {
     const word_t ctrl = get_cmd(CMD_CTRL);
     int op = (ctrl >> OPCODE_SHIFT) & 0xF;
     if(ep >= TOTAL_EPS) {
-        LLOG(TCUERR, "TCU-error: invalid ep-id (" << ep << ")");
+        LLOG(TCU, "TCU-error: invalid ep-id (" << ep << ")");
         res = Errors::INV_ARGS;
         goto done;
     }
