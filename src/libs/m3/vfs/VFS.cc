@@ -76,14 +76,9 @@ void VFS::close(fd_t fd) noexcept {
 }
 
 void VFS::stat(const char *path, FileInfo &info) {
-    try {
-        size_t pos;
-        Reference<FileSystem> fs = ms()->resolve(path, &pos);
-        fs->stat(path + pos, info);
-    }
-    catch(const Exception &e) {
-        VTHROW(e.code(), "stat '" << path << "' failed");
-    }
+    Errors::Code res = try_stat(path, info);
+    if(res != Errors::NONE)
+        VTHROW(res, "stat '" << path << "' failed");
 }
 
 Errors::Code VFS::try_stat(const char *path, FileInfo &info) noexcept {
@@ -95,64 +90,79 @@ Errors::Code VFS::try_stat(const char *path, FileInfo &info) noexcept {
 }
 
 void VFS::mkdir(const char *path, mode_t mode) {
-    try {
-        size_t pos;
-        Reference<FileSystem> fs = ms()->resolve(path, &pos);
-        return fs->mkdir(path + pos, mode);
-    }
-    catch(const Exception &e) {
-        VTHROW(e.code(), "mkdir '" << path << "' failed");
-    }
+    Errors::Code res = try_mkdir(path, mode);
+    if(res != Errors::NONE)
+        VTHROW(res, "mkdir '" << path << "' failed");
+}
+
+Errors::Code VFS::try_mkdir(const char *path, mode_t mode) {
+    size_t pos;
+    Reference<FileSystem> fs = ms()->try_resolve(path, &pos);
+    if(!fs)
+        return Errors::NO_SUCH_FILE;
+    return fs->try_mkdir(path + pos, mode);
 }
 
 void VFS::rmdir(const char *path) {
-    try {
-        size_t pos;
-        Reference<FileSystem> fs = ms()->resolve(path, &pos);
-        return fs->rmdir(path + pos);
-    }
-    catch(const Exception &e) {
-        VTHROW(e.code(), "rmdir '" << path << "' failed");
-    }
+    Errors::Code res = try_rmdir(path);
+    if(res != Errors::NONE)
+        VTHROW(res, "rmdir '" << path << "' failed");
+}
+
+Errors::Code VFS::try_rmdir(const char *path) {
+    size_t pos;
+    Reference<FileSystem> fs = ms()->try_resolve(path, &pos);
+    if(!fs)
+        return Errors::NO_SUCH_FILE;
+    return fs->try_rmdir(path + pos);
 }
 
 void VFS::link(const char *oldpath, const char *newpath) {
-    try {
-        size_t pos1, pos2;
-        Reference<FileSystem> fs1 = ms()->resolve(oldpath, &pos1);
-        Reference<FileSystem> fs2 = ms()->resolve(newpath, &pos2);
-        if(fs1.get() != fs2.get())
-            throw Exception(Errors::XFS_LINK);
-        return fs1->link(oldpath + pos1, newpath + pos2);
-    }
-    catch(const Exception &e) {
-        VTHROW(e.code(), "link '" << oldpath << "' to '" << newpath << "' failed");
-    }
+    Errors::Code res = try_link(oldpath, newpath);
+    if(res != Errors::NONE)
+        VTHROW(res, "link '" << oldpath << "' to '" << newpath << "' failed");
+}
+
+Errors::Code VFS::try_link(const char *oldpath, const char *newpath) {
+    size_t pos1, pos2;
+    Reference<FileSystem> fs1 = ms()->try_resolve(oldpath, &pos1);
+    Reference<FileSystem> fs2 = ms()->try_resolve(newpath, &pos2);
+    if(!fs1 || !fs2)
+        return Errors::NO_SUCH_FILE;
+    if(fs1.get() != fs2.get())
+        return Errors::XFS_LINK;
+    return fs1->try_link(oldpath + pos1, newpath + pos2);
 }
 
 void VFS::unlink(const char *path) {
-    try {
-        size_t pos;
-        Reference<FileSystem> fs = ms()->resolve(path, &pos);
-        return fs->unlink(path + pos);
-    }
-    catch(const Exception &e) {
-        VTHROW(e.code(), "unlink '" << path << "' failed");
-    }
+    Errors::Code res = try_unlink(path);
+    if(res != Errors::NONE)
+        VTHROW(res, "unlink '" << path << "' failed");
+}
+
+Errors::Code VFS::try_unlink(const char *path) {
+    size_t pos;
+    Reference<FileSystem> fs = ms()->try_resolve(path, &pos);
+    if(!fs)
+        return Errors::NO_SUCH_FILE;
+    return fs->try_unlink(path + pos);
 }
 
 void VFS::rename(const char *oldpath, const char *newpath) {
-    try {
-        size_t pos1, pos2;
-        Reference<FileSystem> fs1 = ms()->resolve(oldpath, &pos1);
-        Reference<FileSystem> fs2 = ms()->resolve(newpath, &pos2);
-        if(fs1.get() != fs2.get())
-            throw Exception(Errors::XFS_LINK);
-        return fs1->rename(oldpath + pos1, newpath + pos2);
-    }
-    catch(const Exception &e) {
-        VTHROW(e.code(), "rename '" << oldpath << "' to '" << newpath << "' failed");
-    }
+    Errors::Code res = try_rename(oldpath, newpath);
+    if(res != Errors::NONE)
+        VTHROW(res, "rename '" << oldpath << "' to '" << newpath << "' failed");
+}
+
+Errors::Code VFS::try_rename(const char *oldpath, const char *newpath) {
+    size_t pos1, pos2;
+    Reference<FileSystem> fs1 = ms()->try_resolve(oldpath, &pos1);
+    Reference<FileSystem> fs2 = ms()->try_resolve(newpath, &pos2);
+    if(!fs1 || !fs2)
+        return Errors::NO_SUCH_FILE;
+    if(fs1.get() != fs2.get())
+        return Errors::XFS_LINK;
+    return fs1->try_rename(oldpath + pos1, newpath + pos2);
 }
 
 void VFS::print(OStream &os) noexcept {

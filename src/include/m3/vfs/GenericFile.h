@@ -53,7 +53,7 @@ public:
         return _pos < _len;
     }
 
-    virtual void stat(FileInfo &info) const override;
+    virtual Errors::Code try_stat(FileInfo &info) const override;
 
     virtual size_t seek(size_t offset, int whence) override;
 

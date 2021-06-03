@@ -142,7 +142,20 @@ public:
      *
      * @param info the struct to fill
      */
-    virtual void stat(FileInfo &info) const = 0;
+    void stat(FileInfo &info) const {
+        Errors::Code res = try_stat(info);
+        if(res != Errors::NONE)
+            throw Exception(res);
+    }
+
+    /**
+     * Tries to retrieve information about this file. That is, on error it does not throw an
+     * exception, but returns the error code.
+     *
+     * @param info the struct to fill
+     * @return the error on failure
+     */
+    virtual Errors::Code try_stat(FileInfo &info) const = 0;
 
     /**
      * Changes the file-position to <offset>, using <whence>.

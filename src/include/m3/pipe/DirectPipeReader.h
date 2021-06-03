@@ -50,8 +50,8 @@ public:
     explicit DirectPipeReader(capsel_t caps, std::unique_ptr<State> &&state) noexcept;
 
 public:
-    virtual void stat(FileInfo &) const override {
-        throw Exception(Errors::NOT_SUP);
+    virtual Errors::Code try_stat(FileInfo &) const override {
+        return Errors::NOT_SUP;
     }
     virtual size_t seek(size_t, int) override {
         throw Exception(Errors::NOT_SUP);

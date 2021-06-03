@@ -22,6 +22,8 @@
 
 #include <fs/internal.h>
 
+#include <m3/Exception.h>
+
 namespace m3 {
 
 class File;
@@ -58,7 +60,11 @@ public:
      * @param path the path
      * @param info where to write to
      */
-    virtual void stat(const char *path, FileInfo &info) = 0;
+    void stat(const char *path, FileInfo &info) {
+        Errors::Code res = try_stat(path, info);
+        if(res != Errors::NONE)
+            throw Exception(res);
+    }
 
     /**
      * Tries to retrieve the file information for the given path. That is, on error it does not
@@ -76,14 +82,41 @@ public:
      * @param path the directory path
      * @param mode the permissions to assign
      */
-    virtual void mkdir(const char *path, mode_t mode) = 0;
+    void mkdir(const char *path, mode_t mode) {
+        Errors::Code res = try_mkdir(path, mode);
+        if(res != Errors::NONE)
+            throw Exception(res);
+    }
+
+    /**
+     * Tries to create the given directory. That is, on error it does not throw an exception, but
+     * the error code is returned.
+     *
+     * @param path the directory path
+     * @param mode the permissions to assign
+     * @return the error code on failure
+     */
+    virtual Errors::Code try_mkdir(const char *path, mode_t mode) = 0;
 
     /**
      * Removes the given directory. It needs to be empty.
      *
      * @param path the directory path
      */
-    virtual void rmdir(const char *path) = 0;
+    void rmdir(const char *path) {
+        Errors::Code res = try_rmdir(path);
+        if(res != Errors::NONE)
+            throw Exception(res);
+    }
+
+    /**
+     * Tries to remove the given directory. That is, on error it does not throw an exception, but
+     * the error code is returned. It needs to be empty.
+     *
+     * @param path the directory path
+     * @return the error code on failure
+     */
+    virtual Errors::Code try_rmdir(const char *path) = 0;
 
     /**
      * Creates a link at <newpath> to <oldpath>.
@@ -91,14 +124,41 @@ public:
      * @param oldpath the existing path
      * @param newpath the link to create
      */
-    virtual void link(const char *oldpath, const char *newpath) = 0;
+    void link(const char *oldpath, const char *newpath) {
+        Errors::Code res = try_link(oldpath, newpath);
+        if(res != Errors::NONE)
+            throw Exception(res);
+    }
+
+    /**
+     * Tries to create a link at <newpath> to <oldpath>. That is, on error it does not throw an
+     * exception, but the error code is returned.
+     *
+     * @param oldpath the existing path
+     * @param newpath the link to create
+     * @return the error code on failure
+     */
+    virtual Errors::Code try_link(const char *oldpath, const char *newpath) = 0;
 
     /**
      * Removes the given file.
      *
      * @param path the path
      */
-    virtual void unlink(const char *path) = 0;
+    void unlink(const char *path) {
+        Errors::Code res = try_unlink(path);
+        if(res != Errors::NONE)
+            throw Exception(res);
+    }
+
+    /**
+     * Tries to remove the given file. That is, on error it does not throw an exception, but the
+     * error code is returned.
+     *
+     * @param path the path
+     * @return the error code on failure
+     */
+    virtual Errors::Code try_unlink(const char *path) = 0;
 
     /**
      * Renames <newpath> to <oldpath>.
@@ -106,7 +166,21 @@ public:
      * @param oldpath the existing path
      * @param newpath the new path
      */
-    virtual void rename(const char *oldpath, const char *newpath) = 0;
+    void rename(const char *oldpath, const char *newpath) {
+        Errors::Code res = try_rename(oldpath, newpath);
+        if(res != Errors::NONE)
+            throw Exception(res);
+    }
+
+    /**
+     * Tries to rename <newpath> to <oldpath>. That is, on error it does not throw an exception, but
+     * the error code is returned.
+     *
+     * @param oldpath the existing path
+     * @param newpath the new path
+     * @return the error code on failure
+     */
+    virtual Errors::Code try_rename(const char *oldpath, const char *newpath) = 0;
 
     /**
      * Delegates all this filesystem to the given VPE.

@@ -30,12 +30,6 @@ Reference<File> M3FS::open(const char *path, int perms) {
     return Reference<File>(new GenericFile(perms, crd.start()));
 }
 
-void M3FS::stat(const char *path, FileInfo &info) {
-    GateIStream reply = send_receive_vmsg(_gate, STAT, path);
-    reply.pull_result();
-    reply >> info;
-}
-
 Errors::Code M3FS::try_stat(const char *path, FileInfo &info) noexcept {
     GateIStream reply = send_receive_vmsg(_gate, STAT, path);
     Errors::Code res;
@@ -46,29 +40,39 @@ Errors::Code M3FS::try_stat(const char *path, FileInfo &info) noexcept {
     return Errors::NONE;
 }
 
-void M3FS::mkdir(const char *path, mode_t mode) {
+Errors::Code M3FS::try_mkdir(const char *path, mode_t mode) {
     GateIStream reply = send_receive_vmsg(_gate, MKDIR, path, mode);
-    reply.pull_result();
+    Errors::Code res;
+    reply >> res;
+    return res;
 }
 
-void M3FS::rmdir(const char *path) {
+Errors::Code M3FS::try_rmdir(const char *path) {
     GateIStream reply = send_receive_vmsg(_gate, RMDIR, path);
-    reply.pull_result();
+    Errors::Code res;
+    reply >> res;
+    return res;
 }
 
-void M3FS::link(const char *oldpath, const char *newpath) {
+Errors::Code M3FS::try_link(const char *oldpath, const char *newpath) {
     GateIStream reply = send_receive_vmsg(_gate, LINK, oldpath, newpath);
-    reply.pull_result();
+    Errors::Code res;
+    reply >> res;
+    return res;
 }
 
-void M3FS::unlink(const char *path) {
+Errors::Code M3FS::try_unlink(const char *path) {
     GateIStream reply = send_receive_vmsg(_gate, UNLINK, path);
-    reply.pull_result();
+    Errors::Code res;
+    reply >> res;
+    return res;
 }
 
-void M3FS::rename(const char *oldpath, const char *newpath) {
+Errors::Code M3FS::try_rename(const char *oldpath, const char *newpath) {
     GateIStream reply = send_receive_vmsg(_gate, RENAME, oldpath, newpath);
-    reply.pull_result();
+    Errors::Code res;
+    reply >> res;
+    return res;
 }
 
 void M3FS::delegate(VPE &vpe) {

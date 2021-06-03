@@ -98,11 +98,30 @@ public:
     static void mkdir(const char *path, mode_t mode);
 
     /**
+     * Tries to create the given directory. That is, on error it does not throw an exception, but
+     * returns the error code. Expects that all path-components except the last already exists.
+     *
+     * @param path the path
+     * @param mode the permissions to assign
+     * @return the error code on failure
+     */
+    static Errors::Code try_mkdir(const char *path, mode_t mode);
+
+    /**
      * Removes the given directory. It needs to be empty.
      *
      * @param path the path
      */
     static void rmdir(const char *path);
+
+    /**
+     * Tries to remove the given directory. That is, on error it does not throw an exception, but
+     * returns the error code. It needs to be empty.
+     *
+     * @param path the path
+     * @return the error code on failure
+     */
+    static Errors::Code try_rmdir(const char *path);
 
     /**
      * Creates a link at <newpath> to <oldpath>.
@@ -113,11 +132,30 @@ public:
     static void link(const char *oldpath, const char *newpath);
 
     /**
+     * Tries to create a link at <newpath> to <oldpath>. That is, on error it does not throw an
+     * exception, but returns the error code.
+     *
+     * @param oldpath the existing path
+     * @param newpath the link to create
+     * @return the error code on failure
+     */
+    static Errors::Code try_link(const char *oldpath, const char *newpath);
+
+    /**
      * Removes the given path.
      *
      * @param path the path
      */
     static void unlink(const char *path);
+
+    /**
+     * Tries to remove the given path. That is, on error it does not throw an exception, but returns
+     * the error code.
+     *
+     * @param path the path
+     * @return the error code on failure
+     */
+    static Errors::Code try_unlink(const char *path);
 
     /**
      * Renames <oldpath> to <newpath>.
@@ -126,6 +164,16 @@ public:
      * @param newpath the new path
      */
     static void rename(const char *oldpath, const char *newpath);
+
+    /**
+     * Tries to rename <oldpath> to <newpath>. That is, on error it does not throw an exception, but
+     * returns the error code.
+     *
+     * @param oldpath the existing path
+     * @param newpath the new path
+     * @return the error code on failure
+     */
+    static Errors::Code try_rename(const char *oldpath, const char *newpath);
 
     /**
      * Prints the current mounts to <os>.

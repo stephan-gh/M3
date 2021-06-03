@@ -70,12 +70,15 @@ void GenericFile::close() noexcept {
     }
 }
 
-void GenericFile::stat(FileInfo &info) const {
+Errors::Code GenericFile::try_stat(FileInfo &info) const {
     LLOG(FS, "GenFile[" << fd() << "]::stat()");
 
     GateIStream reply = send_receive_vmsg(_sg, STAT);
-    reply.pull_result();
-    reply >> info;
+    Errors::Code res;
+    reply >> res;
+    if(res == Errors::NONE)
+        reply >> info;
+    return res;
 }
 
 size_t GenericFile::seek(size_t offset, int whence) {
