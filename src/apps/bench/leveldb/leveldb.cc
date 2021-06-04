@@ -2,11 +2,17 @@
 #include <sstream>
 #include <string>
 
+#include <base/CPU.h>
+
 #include "leveldb/db.h"
 #include "leveldb/write_batch.h"
 
 #define INSERT_COUNT    512
 #define STRLEN          1024
+
+#if defined(__kachel__)
+extern "C" void __m3_sysc_trace(bool enable, size_t max);
+#endif
 
 using namespace std;
 
@@ -16,6 +22,12 @@ int main(int argc, char** argv)
         cerr << "Usage: " << argv[0] << " <file>\n";
         return 1;
     }
+
+#if defined(__kachel__)
+    __m3_sysc_trace(true, 8192);
+#endif
+    cycles_t start = m3::CPU::elapsed_cycles();
+
     // Set up database connection information and open database
     leveldb::DB* db;
     leveldb::Options options;
@@ -81,5 +93,12 @@ int main(int argc, char** argv)
 
     // Close the database
     delete db;
+
+    cycles_t end = m3::CPU::elapsed_cycles();
+    cout << "Execution took " << (end - start) << " cycles\n";
+#if defined(__kachel__)
+    __m3_sysc_trace(false, 0);
+#endif
+
     return 0;
 }
