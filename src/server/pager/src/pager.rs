@@ -32,8 +32,10 @@ use m3::kif;
 use m3::log;
 use m3::math;
 use m3::pes::{VPEArgs, VPE};
+use m3::println;
 use m3::server::{
     CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS,
+    DEF_MSG_SIZE,
 };
 use m3::session::{ClientSession, Pager, PagerOp, ResMng, M3FS};
 use m3::tcu::{Label, PEId};
@@ -49,6 +51,7 @@ static PGHDL: LazyStaticCell<PagerReqHandler> = LazyStaticCell::default();
 static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
 static MOUNTS: LazyStaticCell<Vec<(String, vfs::FSHandle)>> = LazyStaticCell::default();
 static PMP_PES: StaticCell<Vec<PEId>> = StaticCell::new(Vec::new());
+static SETTINGS: LazyStaticCell<PagerSettings> = LazyStaticCell::default();
 
 struct PagerReqHandler {
     sel: Selector,
@@ -179,16 +182,11 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), Error> {
     // TODO make that more flexible
     // add PMP EP for file system
     if !PMP_PES.iter().any(|id| *id == pe_usage.pe_id()) {
-        let fs_size = env::args()
-            .nth(1)
-            .unwrap()
-            .parse::<usize>()
-            .map_err(|_| Error::new(Code::InvArgs))?;
-        let fs_mem = MemGate::new_with(MGateArgs::new(fs_size, kif::Perm::R).addr(0))?;
+        let fs_mem = MemGate::new_with(MGateArgs::new(SETTINGS.fs_size, kif::Perm::R).addr(0))?;
         child
             .our_pe()
             .unwrap()
-            .add_mem_region(fs_mem, fs_size, true)?;
+            .add_mem_region(fs_mem, SETTINGS.fs_size, true)?;
         PMP_PES.get_mut().push(pe_usage.pe_id());
     }
 
@@ -257,12 +255,65 @@ fn workloop(serv: &Server) {
     .expect("Unable to run workloop");
 }
 
+#[derive(Clone, Debug)]
+pub struct PagerSettings {
+    fs_size: usize,
+    max_clients: usize,
+}
+
+impl Default for PagerSettings {
+    fn default() -> Self {
+        PagerSettings {
+            fs_size: 0,
+            max_clients: DEF_MAX_CLIENTS,
+        }
+    }
+}
+
+fn usage() -> ! {
+    println!(
+        "Usage: {} [-m <clients>] <fssize>",
+        env::args().next().unwrap()
+    );
+    println!();
+    println!("  -m: the maximum number of clients (receive slots)");
+    m3::exit(1);
+}
+
+fn parse_args() -> Result<PagerSettings, String> {
+    let mut settings = PagerSettings::default();
+
+    let args: Vec<&str> = env::args().collect();
+    let mut i = 1;
+    while i < args.len() {
+        match args[i] {
+            "-m" => {
+                settings.max_clients = args[i + 1]
+                    .parse::<usize>()
+                    .map_err(|_| String::from("Failed to parse client count"))?;
+                i += 1;
+            },
+            _ => break,
+        }
+        i += 1;
+    }
+
+    if i == args.len() {
+        usage();
+    }
+
+    settings.fs_size = args[i]
+        .parse::<usize>()
+        .map_err(|_| String::from("Failed to parse FS size"))?;
+    Ok(settings)
+}
+
 #[no_mangle]
 pub fn main() -> i32 {
-    if env::args().len() < 2 {
-        m3::println!("Usage: {} <fs_size>", env::args().next().unwrap());
-        return 1;
-    }
+    SETTINGS.set(parse_args().unwrap_or_else(|e| {
+        println!("Invalid arguments: {}", e);
+        usage();
+    }));
 
     let subsys = subsys::Subsystem::new().expect("Unable to read subsystem info");
 
@@ -279,20 +330,27 @@ pub fn main() -> i32 {
     // create server
     PGHDL.set(PagerReqHandler {
         sel: 0,
-        sessions: SessionContainer::new(DEF_MAX_CLIENTS),
+        sessions: SessionContainer::new(SETTINGS.max_clients),
     });
     let serv = Server::new_private("pager", PGHDL.get_mut()).expect("Unable to create service");
     PGHDL.get_mut().sel = serv.sel();
-    REQHDL.set(RequestHandler::default().expect("Unable to create request handler"));
+    REQHDL.set(
+        RequestHandler::new_with(SETTINGS.max_clients, DEF_MSG_SIZE)
+            .expect("Unable to create request handler"),
+    );
 
-    let mut req_rgate = RecvGate::new(12, 8).expect("Unable to create resmng RecvGate");
+    let mut req_rgate = RecvGate::new(
+        math::next_log2(256 * SETTINGS.max_clients),
+        math::next_log2(256),
+    )
+    .expect("Unable to create resmng RecvGate");
     req_rgate
         .activate()
         .expect("Unable to activate resmng RecvGate");
     requests::init(req_rgate);
 
     let mut squeue_rgate = RecvGate::new(
-        math::next_log2(sendqueue::RBUF_SIZE),
+        math::next_log2(sendqueue::RBUF_MSG_SIZE * SETTINGS.max_clients),
         math::next_log2(sendqueue::RBUF_MSG_SIZE),
     )
     .expect("Unable to create sendqueue RecvGate");
