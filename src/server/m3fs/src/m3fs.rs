@@ -61,7 +61,6 @@ pub const LOG_FIND: bool = false;
 
 // Server constants
 const FS_IMG_OFFSET: goff = 0;
-const MAX_CLIENTS: usize = DEF_MAX_CLIENTS;
 const MSG_SIZE: usize = 128;
 
 // The global request handler
@@ -350,6 +349,7 @@ pub struct FsSettings {
     fs_size: usize,
     extend: usize,
     max_load: usize,
+    max_clients: usize,
     clear: bool,
     selector: Option<Selector>,
     ep: EpId,
@@ -364,6 +364,7 @@ impl core::default::Default for FsSettings {
             fs_size: 0,
             extend: 128,
             max_load: 128,
+            max_clients: DEF_MAX_CLIENTS,
             clear: false,
             selector: None,
             ep: TOTAL_EPS,
@@ -377,7 +378,7 @@ fn usage() -> ! {
         "Usage: {} [-n <name>] [-s <sel>] [-e <blocks>] [-c] [-b <blocks>]",
         env::args().next().unwrap()
     );
-    println!("       [-o <offset>] (disk|mem <fssize>)");
+    println!("       [-o <offset>] [-m <clients>] (disk|mem <fssize>)");
     println!();
     println!("  -n: the name of the service (m3fs by default)");
     println!("  -s: don't create service, use selectors <sel>..<sel+1>");
@@ -385,6 +386,7 @@ fn usage() -> ! {
     println!("  -c: clear allocated blocks");
     println!("  -b: the maximum number of blocks loaded from the disk");
     println!("  -o: the file system offset in DRAM");
+    println!("  -m: the maximum number of clients (receive slots)");
     m3::exit(1);
 }
 
@@ -415,6 +417,11 @@ fn parse_args() -> Result<FsSettings, String> {
                 settings.fs_offset = args[i + 1]
                     .parse::<goff>()
                     .map_err(|_| String::from("Failed to parse FS offset"))?;
+            },
+            "-m" => {
+                settings.max_clients = args[i + 1]
+                    .parse::<usize>()
+                    .map_err(|_| String::from("Failed to parse client count"))?;
             },
             "-c" => {
                 settings.clear = true;
@@ -467,7 +474,8 @@ pub fn main() -> i32 {
 
     // create request handler
     REQHDL.set(
-        RequestHandler::new_with(MAX_CLIENTS, MSG_SIZE).expect("Unable to create request handler"),
+        RequestHandler::new_with(settings.max_clients, MSG_SIZE)
+            .expect("Unable to create request handler"),
     );
 
     server_loop(|| {
