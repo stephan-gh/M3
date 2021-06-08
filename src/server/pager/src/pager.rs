@@ -23,7 +23,7 @@ mod physmem;
 mod regions;
 
 use m3::cap::Selector;
-use m3::cell::LazyStaticCell;
+use m3::cell::{LazyStaticCell, StaticCell};
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, MGateArgs, MemGate, RecvGate, SGateArgs, SendGate};
 use m3::env;
@@ -36,7 +36,7 @@ use m3::server::{
     CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS,
 };
 use m3::session::{ClientSession, Pager, PagerOp, ResMng, M3FS};
-use m3::tcu::Label;
+use m3::tcu::{Label, PEId};
 use m3::vfs;
 
 use addrspace::AddrSpace;
@@ -48,6 +48,7 @@ pub const LOG_DEF: bool = false;
 static PGHDL: LazyStaticCell<PagerReqHandler> = LazyStaticCell::default();
 static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
 static MOUNTS: LazyStaticCell<Vec<(String, vfs::FSHandle)>> = LazyStaticCell::default();
+static PMP_PES: StaticCell<Vec<PEId>> = StaticCell::new(Vec::new());
 
 struct PagerReqHandler {
     sel: Selector,
@@ -166,8 +167,9 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), Error> {
     )?;
 
     // create child VPE
+    let pe_usage = child.child_pe().unwrap();
     let mut vpe = VPE::new_with(
-        child.child_pe().unwrap().pe_obj().clone(),
+        pe_usage.pe_obj().clone(),
         VPEArgs::new(child.name())
             .resmng(ResMng::new(resmng_sgate))
             .pager(Pager::new(sess, pager_sgate)?)
@@ -176,16 +178,19 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), Error> {
 
     // TODO make that more flexible
     // add PMP EP for file system
-    let fs_size = env::args()
-        .nth(1)
-        .unwrap()
-        .parse::<usize>()
-        .map_err(|_| Error::new(Code::InvArgs))?;
-    let fs_mem = MemGate::new_with(MGateArgs::new(fs_size, kif::Perm::R).addr(0))?;
-    child
-        .our_pe()
-        .unwrap()
-        .add_mem_region(fs_mem, fs_size, true)?;
+    if !PMP_PES.iter().any(|id| *id == pe_usage.pe_id()) {
+        let fs_size = env::args()
+            .nth(1)
+            .unwrap()
+            .parse::<usize>()
+            .map_err(|_| Error::new(Code::InvArgs))?;
+        let fs_mem = MemGate::new_with(MGateArgs::new(fs_size, kif::Perm::R).addr(0))?;
+        child
+            .our_pe()
+            .unwrap()
+            .add_mem_region(fs_mem, fs_size, true)?;
+        PMP_PES.get_mut().push(pe_usage.pe_id());
+    }
 
     // pass subsystem info to child, if it's a subsystem
     let id = child.id();
