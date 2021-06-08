@@ -1,7 +1,7 @@
 <config>
     <kernel args="kernel -f $fs.path" />
-    <app args="root sharepe">
-        <dom>
+    <dom>
+        <app args="root">
             <app args="m3fs mem $fs.size" daemon="1">
                 <serv name="m3fs" />
                 <physmem addr="0" size="$fs.size" />
@@ -9,20 +9,18 @@
             <app args="pipes" daemon="1">
                 <serv name="pipes" />
             </app>
-        </dom>
-        <dom>
-            <app args="pager $fs.size sharepe">
-                <sess name="m3fs" />
-                <physmem addr="0" size="$fs.size" perm="r" />
-                <pes type="core" count="1" />
-                <dom>
+            <dom>
+                <app args="pager $fs.size">
+                    <sess name="m3fs" />
+                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <pes type="core" count="1" />
                     <app args="/bin/bench-scale-pipe -d -i 1 -r 4 -w 1 grep_wc_grep grep_wc_wc $fs.size">
                         <mount fs="m3fs" path="/" />
                         <sess name="pipes" />
                         <pes type="core" count="2" />
                     </app>
-                </dom>
-            </app>
-        </dom>
-    </app>
+                </app>
+            </dom>
+        </app>
+    </dom>
 </config>

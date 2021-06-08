@@ -1,26 +1,24 @@
 <config>
     <kernel args="kernel -f $fs.path" />
-    <app args="root sharepe">
-        <dom>
+    <dom>
+        <app args="root">
             <app args="vterm" daemon="1">
                 <serv name="vterm" />
             </app>
             <app args="pipes" daemon="1">
                 <serv name="pipes" />
             </app>
-        </dom>
-        <dom>
-            <app args="m3fs mem $fs.size" daemon="1">
-                <serv name="m3fs" />
-                <physmem addr="0" size="$fs.size" />
-            </app>
-        </dom>
-        <dom>
-            <app args="pager $fs.size sharepe" usermem="256M">
-                <sess name="m3fs" />
-                <physmem addr="0" size="$fs.size" perm="r" />
-                <pes type="core" count="1" />
-                <dom>
+            <dom>
+                <app args="m3fs mem $fs.size" daemon="1">
+                    <serv name="m3fs" />
+                    <physmem addr="0" size="$fs.size" />
+                </app>
+            </dom>
+            <dom>
+                <app args="pager $fs.size" usermem="256M">
+                    <sess name="m3fs" />
+                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <pes type="core" count="1" />
                     <app args="/bin/shell">
                         <mount fs="m3fs" path="/" />
                         <sess name="pipes" />
@@ -28,8 +26,8 @@
                         <pes type="core" count="3" />
                         <pes type="rot13" count="2" optional="1" />
                     </app>
-                </dom>
-            </app>
-        </dom>
-    </app>
+                </app>
+            </dom>
+        </app>
+    </dom>
 </config>

@@ -1,11 +1,13 @@
 <config>
     <kernel args="kernel" />
-    <app args="root">
-        <dom>
-            <app args="hello" />
-        </dom>
-        <dom>
-            <app args="hello" />
-        </dom>
-    </app>
+    <dom>
+        <app args="root">
+            <dom>
+                <app args="hello" />
+            </dom>
+            <dom>
+                <app args="hello" />
+            </dom>
+        </app>
+    </dom>
 </config>

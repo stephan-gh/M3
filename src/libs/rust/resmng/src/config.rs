@@ -309,6 +309,7 @@ impl SemDesc {
 
 #[derive(Default)]
 pub struct Domain {
+    pub(crate) pseudo: bool,
     pub(crate) apps: Vec<Rc<AppConfig>>,
 }
 
@@ -735,11 +736,17 @@ impl AppConfig {
             )?;
         }
         for d in &self.domains {
-            writeln!(f, "{:0w$}Domain [", "", w = layer + 2)?;
-            for a in &d.apps {
-                a.print_rec(f, layer + 4)?;
+            let mut sub_layer = layer;
+            if !d.pseudo {
+                writeln!(f, "{:0w$}Domain [", "", w = layer + 2)?;
+                sub_layer += 2;
             }
-            writeln!(f, "{:0w$}]", "", w = layer + 2)?;
+            for a in &d.apps {
+                a.print_rec(f, sub_layer + 2)?;
+            }
+            if !d.pseudo {
+                writeln!(f, "{:0w$}]", "", w = layer + 2)?;
+            }
         }
         writeln!(f, "{:0w$}]", "", w = layer)
     }

@@ -10,6 +10,8 @@
                 </xs:complexType>
             </xs:element>
 
+            <xs:element name="app" type="appType" minOccurs="0" maxOccurs="unbounded"/>
+
             <xs:element name="mount">
                 <xs:complexType>
                     <xs:attribute name="fs" type="xs:string" use="required"/>
@@ -102,7 +104,13 @@
                     </xs:complexType>
                 </xs:element>
 
-                <xs:element name="app" type="appType" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="dom" minOccurs="0" maxOccurs="1">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="app" type="appType" minOccurs="0" maxOccurs="unbounded"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
             </xs:sequence>
         </xs:complexType>
     </xs:element>

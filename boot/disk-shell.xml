@@ -1,35 +1,37 @@
 <config>
     <kernel args="kernel -d" />
-    <app args="root">
-        <dom>
-            <app args="disk -d -i -f $hd.path" daemon="1">
-                <serv name="disk" />
-                <pes type="ide" />
-            </app>
-        </dom>
-        <dom>
-            <app args="m3fs -b 2 disk" daemon="1">
-                <sess name="disk" args="0" />
-                <serv name="m3fs" />
-            </app>
-        </dom>
-        <dom>
-            <app args="pipes" daemon="1">
-                <serv name="pipes" />
-            </app>
-        </dom>
-        <dom>
-            <app args="pager">
-                <sess name="m3fs" args="files=4" />
-                <pes type="core" count="1" />
-                <dom>
-                    <app args="/bin/shell">
-                        <mount fs="m3fs" path="/" />
-                        <sess name="pipes" />
-                        <pes type="core" count="3" />
-                    </app>
-                </dom>
-            </app>
-        </dom>
-    </app>
+    <dom>
+        <app args="root">
+            <dom>
+                <app args="disk -d -i -f $hd.path" daemon="1">
+                    <serv name="disk" />
+                    <pes type="ide" />
+                </app>
+            </dom>
+            <dom>
+                <app args="m3fs -b 2 disk" daemon="1">
+                    <sess name="disk" args="0" />
+                    <serv name="m3fs" />
+                </app>
+            </dom>
+            <dom>
+                <app args="pipes" daemon="1">
+                    <serv name="pipes" />
+                </app>
+            </dom>
+            <dom>
+                <app args="pager">
+                    <sess name="m3fs" args="files=4" />
+                    <pes type="core" count="1" />
+                    <dom>
+                        <app args="/bin/shell">
+                            <mount fs="m3fs" path="/" />
+                            <sess name="pipes" />
+                            <pes type="core" count="3" />
+                        </app>
+                    </dom>
+                </app>
+            </dom>
+        </app>
+    </dom>
 </config>

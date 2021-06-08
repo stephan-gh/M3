@@ -1,48 +1,50 @@
 <config>
     <kernel args="kernel -f $fs.path" />
-    <app args="root">
-        <dom>
-            <app args="m3fs mem $fs.size" daemon="1">
-                <serv name="m3fs" />
-                <physmem addr="0" size="$fs.size" />
-            </app>
-        </dom>
-        <dom>
-            <app args="pipes" daemon="1">
-                <serv name="pipes" />
-            </app>
-            <app args="vterm" daemon="1">
-                <serv name="vterm" />
-            </app>
-        </dom>
-        <dom>
-            <app args="pager $fs.size" usermem="512M">
-                <sess name="m3fs" />
-                <physmem addr="0" size="$fs.size" perm="r" />
-                <sesscrt name="m3fs" count="24" />
-                <pes type="core" count="1" />
-                <dom>
-                    <app args="/bin/pager $fs.size">
-                        <sess name="m3fs" />
-                        <physmem addr="0" size="$fs.size" perm="r" />
-                        <pes type="core" count="2" />
-                        <dom>
-                            <app args="/bin/shell">
-                                <mount fs="m3fs" path="/" />
-                                <sess name="pipes" />
-                                <sess name="vterm" />
-                                <pes type="core" count="2" />
-                                <pes type="rot13" count="2" optional="1" />
-                            </app>
-                        </dom>
-                        <dom>
-                            <app args="/bin/filterchain 16384">
-                                <pes type="core" count="2" />
-                            </app>
-                        </dom>
-                    </app>
-                </dom>
-            </app>
-        </dom>
-    </app>
+    <dom>
+        <app args="root">
+            <dom>
+                <app args="m3fs mem $fs.size" daemon="1">
+                    <serv name="m3fs" />
+                    <physmem addr="0" size="$fs.size" />
+                </app>
+            </dom>
+            <dom>
+                <app args="pipes" daemon="1">
+                    <serv name="pipes" />
+                </app>
+                <app args="vterm" daemon="1">
+                    <serv name="vterm" />
+                </app>
+            </dom>
+            <dom>
+                <app args="pager $fs.size" usermem="512M">
+                    <sess name="m3fs" />
+                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <sesscrt name="m3fs" count="24" />
+                    <pes type="core" count="1" />
+                    <dom>
+                        <app args="/bin/pager $fs.size">
+                            <sess name="m3fs" />
+                            <physmem addr="0" size="$fs.size" perm="r" />
+                            <pes type="core" count="2" />
+                            <dom>
+                                <app args="/bin/shell">
+                                    <mount fs="m3fs" path="/" />
+                                    <sess name="pipes" />
+                                    <sess name="vterm" />
+                                    <pes type="core" count="2" />
+                                    <pes type="rot13" count="2" optional="1" />
+                                </app>
+                            </dom>
+                            <dom>
+                                <app args="/bin/filterchain 16384">
+                                    <pes type="core" count="2" />
+                                </app>
+                            </dom>
+                        </app>
+                    </dom>
+                </app>
+            </dom>
+        </app>
+    </dom>
 </config>

@@ -1,9 +1,11 @@
 <config>
     <kernel args="kernel" />
-    <app args="root">
-        <dom>
-            <app args="hello" />
-            <app args="hello" />
-        </dom>
-    </app>
+    <dom>
+        <app args="root">
+            <dom>
+                <app args="hello" />
+                <app args="hello" />
+            </dom>
+        </app>
+    </dom>
 </config>

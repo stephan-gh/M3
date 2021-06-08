@@ -1,31 +1,33 @@
 <config>
     <kernel args="kernel -f $fs.path" />
-    <app args="root">
-        <dom>
-            <app args="m3fs mem $fs.size" daemon="1">
-                <serv name="m3fs" />
-                <physmem addr="0" size="$fs.size" />
-            </app>
-        </dom>
-        <dom>
-            <app args="pipes" daemon="1">
-                <serv name="pipes" />
-            </app>
-        </dom>
-        <dom>
-            <app args="pager $fs.size">
-                <sess name="m3fs" />
-                <physmem addr="0" size="$fs.size" perm="r" />
-                <pes type="core" count="1" />
-                <dom>
-                    <app args="/bin/unittests">
-                        <mount fs="m3fs" path="/" />
-                        <sess lname="m3fs-clone" gname="m3fs" />
-                        <sess name="pipes" />
-                        <pes type="core" count="2" />
-                    </app>
-                </dom>
-            </app>
-        </dom>
-    </app>
+    <dom>
+        <app args="root">
+            <dom>
+                <app args="m3fs mem $fs.size" daemon="1">
+                    <serv name="m3fs" />
+                    <physmem addr="0" size="$fs.size" />
+                </app>
+            </dom>
+            <dom>
+                <app args="pipes" daemon="1">
+                    <serv name="pipes" />
+                </app>
+            </dom>
+            <dom>
+                <app args="pager $fs.size">
+                    <sess name="m3fs" />
+                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <pes type="core" count="1" />
+                    <dom>
+                        <app args="/bin/unittests">
+                            <mount fs="m3fs" path="/" />
+                            <sess lname="m3fs-clone" gname="m3fs" />
+                            <sess name="pipes" />
+                            <pes type="core" count="2" />
+                        </app>
+                    </dom>
+                </app>
+            </dom>
+        </app>
+    </dom>
 </config>

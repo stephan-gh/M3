@@ -1,20 +1,20 @@
 <config>
     <kernel args="kernel -d" />
-    <app args="root sharepe">
-        <dom>
+    <dom>
+        <app args="root">
             <app args="disk -d -i -f $hd.path" daemon="1">
                 <serv name="disk" />
                 <pes type="ide" />
             </app>
-        </dom>
-        <dom>
-            <app args="m3fs -b 2 disk" daemon="1">
-                <sess name="disk" args="0" />
-                <serv name="m3fs" />
-            </app>
-            <app args="disktest">
-                <sess name="m3fs" args="files=4" />
-            </app>
-        </dom>
-    </app>
+            <dom>
+                <app args="m3fs -b 2 disk" daemon="1">
+                    <sess name="disk" args="0" />
+                    <serv name="m3fs" />
+                </app>
+                <app args="disktest">
+                    <sess name="m3fs" args="files=4" />
+                </app>
+            </dom>
+        </app>
+    </dom>
 </config>

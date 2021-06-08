@@ -55,7 +55,7 @@ generate_config() {
 
     xmllint --schema misc/boot.xsd --noout $2/boot-all.xml > /dev/null || exit 1
     # this can fail if there is no app element (e.g., standalone.xml)
-    xmllint --xpath /config/app $2/boot-all.xml > $2/boot.xml || true
+    xmllint --xpath /config/dom/app $2/boot-all.xml > $2/boot.xml || true
 }
 
 build_params_host() {

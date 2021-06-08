@@ -54,7 +54,6 @@ static DELAYED: StaticCell<Vec<Box<childs::OwnChild>>> = StaticCell::new(Vec::ne
 
 #[derive(Default)]
 struct Arguments {
-    share_pe: bool,
     share_kmem: bool,
 }
 
@@ -254,7 +253,7 @@ impl Subsystem {
 
         // keep our own PE to make sure that we allocate a different one for the next domain in case
         // our domain contains just ourself.
-        if !args.share_pe {
+        if !root.domains().first().unwrap().pseudo {
             OUR_PE.set(Some(Rc::new(
                 pes::get().find_and_alloc(VPE::cur().pe_desc())?,
             )));
@@ -266,10 +265,10 @@ impl Subsystem {
         // determine default mem and kmem per child
         let (def_kmem, def_umem) = split_mem(&root)?;
 
-        for (dom_idx, d) in root.domains().iter().enumerate() {
+        for d in root.domains().iter() {
             // we need virtual memory support for multiple apps per domain
             let cur_desc = VPE::cur().pe_desc();
-            let pe_desc = if d.apps().len() > 1 {
+            let pe_desc = if d.pseudo || d.apps().len() > 1 {
                 PEDesc::new(PEType::COMP_EMEM, cur_desc.isa(), 0)
             }
             else {
@@ -277,7 +276,7 @@ impl Subsystem {
             };
 
             // allocate new PE; root allocates from its own set, others ask their resmng
-            let pe_usage = if (args.share_pe && dom_idx == 0) || VPE::cur().resmng().is_none() {
+            let pe_usage = if d.pseudo || VPE::cur().resmng().is_none() {
                 Rc::new(pes::get().find_and_alloc(pe_desc)?)
             }
             else {
@@ -637,9 +636,6 @@ fn parse_args(cfg: &config::AppConfig) -> Arguments {
     for arg in cfg.args() {
         if arg == "sharekmem" {
             args.share_kmem = true;
-        }
-        else if arg == "sharepe" {
-            args.share_pe = true;
         }
         else if let Some(sem) = arg.strip_prefix("sem=") {
             sems::get()

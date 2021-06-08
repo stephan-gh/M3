@@ -1,8 +1,10 @@
 <config>
     <kernel args="kernel" />
-    <app args="root">
-        <dom>
-            <app args="rdwr" />
-        </dom>
-    </app>
+    <dom>
+        <app args="root">
+            <dom>
+                <app args="rdwr" />
+            </dom>
+        </app>
+    </dom>
 </config>

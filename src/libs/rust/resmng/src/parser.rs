@@ -185,8 +185,14 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
         Ok(app)
     }
     else if nc == '>' {
+        // put all apps that belong to the same domain as <app> into a pseudo domain
+        let mut pseudo_dom = config::Domain::default();
+        pseudo_dom.pseudo = true;
+
+        let mut app_start = p.pos;
         while let Some(tag) = p.parse_tag_name()? {
             match tag.as_ref() {
+                "app" => pseudo_dom.apps.push(Rc::new(parse_app(p, app_start)?)),
                 "dom" => app.domains.push(parse_domain(p)?),
                 "mount" => app.mounts.push(parse_mount(p)?),
                 "sess" => app.sessions.push(parse_session(p)?),
@@ -200,12 +206,17 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
                 _ => return Err(Error::new(Code::InvArgs)),
             }
 
-            if tag != "dom" {
+            if tag != "dom" && tag != "app" {
                 p.consume('/')?;
                 p.consume('>')?;
             }
+            app_start = p.pos;
         }
         parse_close_tag(p, "app")?;
+
+        if !pseudo_dom.apps.is_empty() {
+            app.domains.insert(0, pseudo_dom);
+        }
 
         app.cfg_range = (start, p.pos);
         // don't collect session creators for root

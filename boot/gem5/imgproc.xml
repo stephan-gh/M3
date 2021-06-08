@@ -1,30 +1,32 @@
 <config>
     <kernel args="kernel -f $fs.path" />
-    <app args="root">
-        <dom>
-            <app args="m3fs mem $fs.size" daemon="1">
-                <serv name="m3fs" />
-                <physmem addr="0" size="$fs.size" />
-            </app>
-        </dom>
-        <dom>
-            <app args="pipes" daemon="1">
-                <serv name="pipes" />
-            </app>
-        </dom>
-        <dom>
-            <app args="pager $fs.size">
-                <sess name="m3fs" />
-                <physmem addr="0" size="$fs.size" perm="r" />
-                <pes type="core" />
-                <dom>
-                    <app args="/bin/imgproc -m dir -n 1 -r 8 /large.txt">
-                        <mount fs="m3fs" path="/" />
-                        <sess name="pipes" />
-                        <pes type="copy" count="3" />
-                    </app>
-                </dom>
-            </app>
-        </dom>
-    </app>
+    <dom>
+        <app args="root">
+            <dom>
+                <app args="m3fs mem $fs.size" daemon="1">
+                    <serv name="m3fs" />
+                    <physmem addr="0" size="$fs.size" />
+                </app>
+            </dom>
+            <dom>
+                <app args="pipes" daemon="1">
+                    <serv name="pipes" />
+                </app>
+            </dom>
+            <dom>
+                <app args="pager $fs.size">
+                    <sess name="m3fs" />
+                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <pes type="core" />
+                    <dom>
+                        <app args="/bin/imgproc -m dir -n 1 -r 8 /large.txt">
+                            <mount fs="m3fs" path="/" />
+                            <sess name="pipes" />
+                            <pes type="copy" count="3" />
+                        </app>
+                    </dom>
+                </app>
+            </dom>
+        </app>
+    </dom>
 </config>
