@@ -106,7 +106,9 @@ public:
 
 extern void *_bss_end;
 
-EXTERN_C void init_env(m3::Env *e) {
+void m3::Env::init() {
     m3::Heap::init();
-    e->backend_addr = reinterpret_cast<uint64_t>(new StandaloneEnvBackend());
+    env()->backend_addr = reinterpret_cast<uint64_t>(new StandaloneEnvBackend());
+    env()->backend()->init();
+    env()->call_constr();
 }

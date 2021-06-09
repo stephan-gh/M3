@@ -41,15 +41,11 @@ public:
     virtual ~HostEnvBackend();
 };
 
-EXTERN_C void init_env();
-
 class Env {
     struct Init {
         Init();
         ~Init();
     };
-
-    friend void init_env();
 
 public:
     static Env &get() {
@@ -84,6 +80,7 @@ public:
     explicit Env(EnvBackend *backend, int logfd);
     ~Env();
 
+    static void init();
     void reset();
 
     EnvBackend *backend() {

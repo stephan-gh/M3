@@ -85,7 +85,7 @@ static void load_params(Env *e) {
     e->set_params(pe, shm_prefix, lbl, ep, credits, first_sel, kmem_sel);
 }
 
-EXTERN_C WEAK void init_env() {
+WEAK void Env::init() {
     std::set_terminate(Exception::terminate_handler);
 
     char log_file[256];

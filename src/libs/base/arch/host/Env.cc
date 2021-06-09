@@ -61,7 +61,7 @@ Env::Init::Init() {
 #endif
 
     m3::Heap::init();
-    init_env();
+    Env::init();
 
     Serial::init(executable(), env()->pe_id);
 }

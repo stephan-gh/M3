@@ -31,7 +31,6 @@ extern constr_func CTORS_END;
 EXTERN_C void __m3_init_libc();
 EXTERN_C void __cxa_finalize(void *);
 EXTERN_C void _init();
-EXTERN_C void init_env(m3::Env *env);
 EXTERN_C int main(int argc, char **argv);
 
 namespace m3 {
@@ -58,17 +57,10 @@ OStream &operator<<(OStream &os, const Env &senv) {
     return os;
 }
 
-void Env::pre_init() {
-}
-
-void Env::post_init() {
-    // call constructors
+void Env::call_constr() {
     _init();
     for(constr_func *func = &CTORS_BEGIN; func < &CTORS_END; ++func)
         (*func)();
-}
-
-void Env::pre_exit() {
 }
 
 void Env::run() {
@@ -83,10 +75,7 @@ void Env::run() {
     }
     else {
         __m3_init_libc();
-        init_env(e);
-        e->pre_init();
-        e->backend()->init();
-        e->post_init();
+        Env::init();
 
         char **argv = reinterpret_cast<char**>(e->argv);
         if(sizeof(char*) != sizeof(uint64_t)) {
@@ -103,7 +92,6 @@ void Env::run() {
 }
 
 USED void Env::exit(int code, bool abort) {
-    pre_exit();
     if(!abort)
         __cxa_finalize(nullptr);
     backend()->exit(code);

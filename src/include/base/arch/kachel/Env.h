@@ -80,14 +80,13 @@ public:
         return reinterpret_cast<Gem5EnvBackend*>(backend_addr);
     }
 
+    static void init() asm("env_init");
     static void run() asm("env_run");
 
     void exit(int code, bool abort) NORETURN;
 
 private:
-    void pre_init();
-    void post_init();
-    void pre_exit();
+    void call_constr();
 } PACKED;
 
 #define ENV_SPACE_SIZE           (ENV_SIZE - (sizeof(word_t) * 2 + sizeof(m3::Env)))
