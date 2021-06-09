@@ -334,14 +334,14 @@ class Generator:
     def add_build(self, edge):
         self.build_edges.append(edge)
 
-    def write_to_file(self, env):
-        build_file = env['BUILDDIR'] + '/build.ninja'
-        dep_file = env['BUILDDIR'] + '/.build.deps'
+    def write_to_file(self, outdir):
+        build_file = outdir + '/build.ninja'
+        dep_file = outdir + '/.build.deps'
 
         # rules and build edge to automatically regenerate the build.ninja
         self.add_rule('generator', Rule(
             cmd = './configure.py',
-            depfile = env['BUILDDIR'] + '/.build.deps',
+            depfile = outdir + '/.build.deps',
             pool = 'build_pool',
             generator = '1',
             desc = 'Regenerating build.ninja',

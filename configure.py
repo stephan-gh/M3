@@ -372,4 +372,4 @@ env.sub_build(gen, 'src')
 env.cargo_ws(gen)
 
 # finally, write it to file
-gen.write_to_file(env)
+gen.write_to_file(env['BUILDDIR'])
