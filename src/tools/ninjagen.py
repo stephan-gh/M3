@@ -186,6 +186,7 @@ class Env:
             ins = self.objs(gen, ins),
             deps = deps,
             pre_deps = libs,
+            lib_path = self['LIBPATH'],
             vars = { 'link' : self['CXX'], 'linkflags' : flags }
         )
         gen.add_build(edge)
@@ -257,13 +258,14 @@ class Rule:
             file.write('  pool = %s\n' % self.pool)
 
 class BuildEdge:
-    def __init__(self, rule, outs, ins, deps = [], vars = {}, pre_deps = []):
+    def __init__(self, rule, outs, ins, deps = [], vars = {}, pre_deps = [], lib_path = []):
         self.rule = rule
         self.outs = outs
         self.ins = ins
         # copy the dependencies, because we want to alter them for this specific BuildEdge later
         self.deps = deps.copy()
         self.pre_deps = pre_deps
+        self.lib_path = lib_path
         self.vars = vars
 
     def _write_to_file(self, vars, file):
@@ -351,7 +353,7 @@ class Generator:
             deps = ['src/tools/ninjagen.py'],
         ))
 
-        self._finalize_deps(env)
+        self._finalize_deps()
 
         # generate build.ninja
         with open(build_file, 'w') as file:
@@ -379,19 +381,23 @@ class Generator:
         with open(dep_file, 'w') as deps:
             deps.write(build_file + ': ' + ' '.join(build_files))
 
-    def _finalize_deps(self, env):
-        libs = self._collect_libs(env)
+    def _finalize_deps(self):
+        libs = self._collect_libs()
         for b in self.build_edges:
             for d in b.pre_deps:
                 name = 'lib' + d + '.a'
-                if name in libs:
-                    b.deps.append(libs[name])
+                for p in b.lib_path:
+                    if p in libs and name in libs[p]:
+                        b.deps.append(libs[p][name])
+                        break
 
-    def _collect_libs(self, env):
+    def _collect_libs(self):
         libs = {}
         for b in self.build_edges:
             for o in b.outs:
-                in_build = o.startswith(env['BUILDDIR']) or o.startswith(env['RUSTBINS'])
-                if in_build and o.endswith('.a'):
-                    libs[os.path.basename(o)] = o
+                if o.endswith('.a'):
+                    dir = os.path.dirname(o)
+                    if not dir in libs:
+                        libs[dir] = {}
+                    libs[dir][os.path.basename(o)] = o
         return libs
