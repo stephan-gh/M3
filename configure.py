@@ -53,6 +53,7 @@ if cross != '':
                 + ver + ' to ' + crossver + ' (cd cross && ./build.sh ' + isa + ' --rebuild).')
 
 bins = []
+rustcrates = []
 ldscripts = {}
 if isa == 'riscv':
     link_addr = 0x10400000
@@ -122,7 +123,14 @@ class M3Env(ninjagen.Env):
         bins.append(bin)
         return bin
 
+    def m3_rust_lib(self, gen):
+        global rustcrates
+        rustcrates += [env.cwd.path]
+
     def m3_rust_exe(self, gen, out, libs = [], startup = None, ldscript = 'default', varAddr = True):
+        global rustcrates
+        rustcrates += [self.cwd.path]
+
         env = self.clone()
         env['LINKFLAGS'] += ['-Wl,-z,muldefs']
         env['LIBPATH']   += [env['RUSTBINS']]
@@ -141,46 +149,12 @@ class M3Env(ninjagen.Env):
         return env.m3_exe(gen, out, ins, libs, True, ldscript, varAddr)
 
     def cargo_ws(self, gen):
+        global rustcrates
         outs = []
         deps = []
-        crates = [
-            'src/apps/bench/rustbenchs',
-            'src/apps/bench/rustnetbenchs',
-            'src/apps/disktest',
-            'src/apps/rusthello',
-            'src/apps/rustnettests',
-            'src/apps/rustunittests',
-            'src/apps/msgchan/msgchansnd',
-            'src/apps/netechoserver',
-            'src/libs/rust/base',
-            'src/libs/rust/heap',
-            'src/libs/rust/m3',
-            'src/libs/rust/pci',
-            'src/libs/rust/resmng',
-            'src/libs/rust/thread',
-            'src/kernel',
-            'src/server/disk',
-            'src/server/pager',
-            'src/server/m3fs',
-            'src/server/net',
-            'src/server/pipes',
-            'src/server/root',
-            'src/server/vterm',
-        ]
-        if self['PLATF'] == 'kachel':
-            crates += [
-                'src/apps/ruststandalone',
-                'src/libs/rust/isr',
-                'src/libs/rust/paging',
-                'src/pemux',
-            ]
-        if self['PLATF'] == 'kachel' and self['ISA'] == 'riscv':
-            crates += ['src/apps/vmtest',]
-        if self['TGT'] == 'hw':
-            crates += ['src/peidle']
 
         env = self.clone()
-        for cr in crates:
+        for cr in rustcrates:
             crate_name = os.path.basename(cr)
             out = ninjagen.BuildPath(env['RUSTBINS'] + '/lib' + crate_name + '.a')
             outs.append(out)
@@ -391,11 +365,11 @@ if env['PLATF'] == 'kachel':
     pemux_env['CPPFLAGS'] += ['-D__isr__=1', '-D__pemux__=1']
     ldscripts['pemux'] = pemux_env.cpp(gen, out = 'ld-pemux.conf', ins = [ldscript])
 
-# generate build edge to build the workspace with cargo
-env.cargo_ws(gen)
-
-# generate everything else
+# generate build edges first
 env.sub_build(gen, 'src')
+
+# now that we know the rust crates to build, generate build edge to build the workspace with cargo
+env.cargo_ws(gen)
 
 # finally, write it to file
 gen.write_to_file(env)
