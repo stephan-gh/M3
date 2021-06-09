@@ -302,6 +302,7 @@ builddir = 'build/' + target + '-' + isa + '-' + btype
 env['TGT']          = target
 env['PLATF']        = platform
 env['ISA']          = isa
+env['BUILD']        = btype
 env['BUILDDIR']     = builddir
 env['BINDIR']       = builddir + '/bin'
 env['LIBDIR']       = builddir + '/bin'

@@ -1,8 +1,6 @@
-import os
-
 def build(gen, env):
     # not supported on host; too big for the SPM in debug mode
-    if env['PLATF'] == 'host' or (env['TGT'] == 'hw' and os.environ.get('M3_BUILD') == 'debug'):
+    if env['PLATF'] == 'host' or (env['TGT'] == 'hw' and env['BUILD'] == 'debug'):
         return
 
     env = env.clone()
