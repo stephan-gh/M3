@@ -259,7 +259,7 @@ impl Subsystem {
             )));
         }
         else if !VPE::cur().pe_desc().has_virtmem() {
-            panic!("Can't share root's PE without VM support");
+            panic!("Can't share PE without VM support");
         }
 
         // determine default mem and kmem per child
