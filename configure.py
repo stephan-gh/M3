@@ -137,7 +137,7 @@ class M3Env(ninjagen.Env):
 
         if env['PLATF'] == 'kachel':
             ins     = [] if startup is None else [startup]
-            libs    = ['simplec', 'gem5', 'm', 'gloss', 'stdc++', 'heap', 'gcc', out] + libs
+            libs    = ['simplec', 'gem5', 'heap', 'gcc', out] + libs
             env['LINKFLAGS'] += ['-nodefaultlibs']
         else:
             ins     = []
