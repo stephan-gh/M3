@@ -65,8 +65,13 @@ static void collect_blocks_and_inodes(m3::inodeno_t ino, m3::Bitmap &blocks, m3:
             // actually next is not allowed to be 0. but to prevent endless looping here...
             while(e->next > 0 && e < end) {
                 if(!(e->namelen == 1 && strncmp(e->name, ".", 1) == 0) &&
-                    !(e->namelen == 2 && strncmp(e->name, "..", 2) == 0))
+                    !(e->namelen == 2 && strncmp(e->name, "..", 2) == 0)) {
+                    if(e->nodeno >= sb.total_inodes) {
+                        errx(1, "Found invalid inode number %u in directory %u, entry '%s'",
+                                e->nodeno, ino, e->name);
+                    }
                     collect_blocks_and_inodes(e->nodeno, blocks, inodes);
+                }
                 e = reinterpret_cast<m3::DirEntry*>(reinterpret_cast<char*>(e) + e->next);
             }
         }
