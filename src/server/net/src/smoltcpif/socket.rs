@@ -438,13 +438,28 @@ impl Socket {
         }
     }
 
-    pub fn process_queued_events(&mut self, socket_set: &mut SocketSet<'static>) -> bool {
+    pub fn process_queued_events(
+        &mut self,
+        sess: u64,
+        socket_set: &mut SocketSet<'static>,
+    ) -> bool {
         let socket = self.socket;
         let ty = self.ty;
+        let sd = self.sd;
         while self
             .send_queue
             .next_data(usize::MAX, &mut |data, ep: Endpoint| {
                 let amount = Self::send(ty, socket, data, ep.addr, ep.port, socket_set);
+                if amount > 0 {
+                    log!(
+                        crate::LOG_DATA,
+                        "[{}] socket {}: sent delayed packet of {}b to {}",
+                        sess,
+                        sd,
+                        amount,
+                        ep,
+                    );
+                }
                 (amount, amount)
             })
             .is_some()

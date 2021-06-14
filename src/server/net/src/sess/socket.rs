@@ -465,7 +465,7 @@ impl SocketSession {
 
                 chan.fetch_replies();
 
-                if !sock.process_queued_events(socket_set) {
+                if !sock.process_queued_events(sess, socket_set) {
                     queued_events = true;
                     continue 'outer_loop;
                 }
