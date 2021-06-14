@@ -161,8 +161,10 @@ static m3::DirEntry *write_dirent(m3::INode *dir, m3::DirEntry *prev, const char
     // all entries should be 4-byte aligned
     size_t total = sizeof(m3::DirEntry) + m3::Math::round_up(len, static_cast<size_t>(4));
     if(off + total > sb.blocksize) {
+        size_t namelen = m3::Math::round_up(static_cast<size_t>(prev->namelen), static_cast<size_t>(4));
+        size_t prevlen = sizeof(m3::DirEntry) + namelen;
         prev->next += sb.blocksize - off;
-        write_to_block(prev, total, block, off - (sizeof(m3::DirEntry) + prev->namelen));
+        write_to_block(prev, prevlen, block, off - prevlen);
 
         bool new_ext = blks_per_extent > 0 && ((dir->size / sb.blocksize) % blks_per_extent) == 0;
         block = store_blockno(path, dir, alloc_block(new_ext), new_ext);
