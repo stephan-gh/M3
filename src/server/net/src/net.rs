@@ -37,7 +37,7 @@ use m3::session::NetworkOp;
 use m3::tcu::TCU;
 use m3::{log, println};
 
-use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
+use smoltcp::iface::{InterfaceBuilder, NeighborCache};
 use smoltcp::socket::SocketSet;
 use smoltcp::time::Duration;
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
@@ -226,7 +226,7 @@ pub fn main() -> i32 {
     OWN_ADDR.set(ip_addr.address());
     ports::init(MAX_SOCKETS);
 
-    let mut iface = EthernetInterfaceBuilder::new(device)
+    let mut iface = InterfaceBuilder::new(device)
         .ethernet_addr(EthernetAddress::default())
         .neighbor_cache(neighbor_cache)
         .ip_addrs([ip_addr])
