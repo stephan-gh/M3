@@ -26,13 +26,13 @@ use core::str::FromStr;
 
 use m3::cap::Selector;
 use m3::cell::LazyStaticCell;
-use m3::col::Vec;
+use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, RecvGate};
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::math;
 use m3::rc::Rc;
-use m3::server::{CapExchange, Handler, Server, SessId, SessionContainer};
+use m3::server::{CapExchange, Handler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS};
 use m3::session::NetworkOp;
 use m3::tcu::TCU;
 use m3::{log, println};
@@ -188,23 +188,80 @@ pub fn own_addr() -> IpAddress {
     *OWN_ADDR
 }
 
-#[no_mangle]
-pub fn main() -> i32 {
+#[derive(Clone, Debug)]
+pub struct NetSettings {
+    driver: String,
+    name: String,
+    ip: smoltcp::wire::Ipv4Address,
+    max_clients: usize,
+}
+
+impl Default for NetSettings {
+    fn default() -> Self {
+        NetSettings {
+            driver: String::from("default"),
+            name: String::default(),
+            ip: smoltcp::wire::Ipv4Address::default(),
+            max_clients: DEF_MAX_CLIENTS,
+        }
+    }
+}
+
+fn usage() -> ! {
+    println!(
+        "Usage: {} [-d <driver>] [-m <max-clients>] <name> <ip>",
+        env::args().next().unwrap()
+    );
+    println!();
+    println!("  -d: the driver to use (lo=loopback or default=E1000/Fifo)");
+    println!("  -m: the maximum number of clients (receive slots)");
+    m3::exit(1);
+}
+
+fn parse_args() -> Result<NetSettings, String> {
+    let mut settings = NetSettings::default();
+
     let args: Vec<&str> = env::args().collect();
-    if args.len() != 3 && args.len() != 4 {
-        println!("Usage: {} <name> <ip address> [<driver>]", args[0]);
-        return -1;
+    let mut i = 1;
+    while i < args.len() {
+        match args[i] {
+            "-m" => {
+                settings.max_clients = args[i + 1]
+                    .parse::<usize>()
+                    .map_err(|_| String::from("Failed to parse client count"))?;
+                i += 1;
+            },
+            "-d" => {
+                settings.driver = args[i + 1].to_string();
+                i += 1;
+            },
+            _ => break,
+        }
+        i += 1;
     }
 
+    if i == args.len() {
+        usage();
+    }
+
+    settings.name = args.get(i).expect("Failed to read name!").to_string();
+    settings.ip =
+        smoltcp::wire::Ipv4Address::from_str(args.get(i + 1).expect("Failed to read ip!"))
+            .expect("Failed to convert IP address!");
+    Ok(settings)
+}
+
+#[no_mangle]
+pub fn main() -> i32 {
     smoltcpif::logger::init().unwrap();
 
-    let name = args.get(1).expect("Failed to read name!");
-    let ip = smoltcp::wire::Ipv4Address::from_str(args.get(2).expect("Failed to read ip!"))
-        .expect("Failed to convert IP address!");
-    let driver = args.get(3).unwrap_or(&"default");
+    let settings = parse_args().unwrap_or_else(|e| {
+        println!("Invalid arguments: {}", e);
+        usage();
+    });
 
     let mut rgate = RecvGate::new(
-        math::next_log2(sess::MSG_SIZE * 32),
+        math::next_log2(sess::MSG_SIZE * settings.max_clients),
         math::next_log2(sess::MSG_SIZE),
     )
     .expect("failed to create main rgate for handler!");
@@ -214,11 +271,11 @@ pub fn main() -> i32 {
     let mut neighbor_cache_entries = [None; 8];
     let neighbor_cache = NeighborCache::new(&mut neighbor_cache_entries[..]);
 
-    let ip_addr = IpCidr::new(IpAddress::Ipv4(ip), 8);
+    let ip_addr = IpCidr::new(IpAddress::Ipv4(settings.ip), 8);
     OWN_ADDR.set(ip_addr.address());
     ports::init(MAX_SOCKETS);
 
-    let mut iface = if *driver == "lo" {
+    let mut iface = if settings.driver == "lo" {
         driver::DriverInterface::Lo(
             InterfaceBuilder::new(smoltcp::phy::Loopback::new(smoltcp::phy::Medium::Ethernet))
                 .ethernet_addr(EthernetAddress::default())
@@ -245,20 +302,20 @@ pub fn main() -> i32 {
 
     let mut handler = NetHandler {
         sel: 0,
-        sessions: SessionContainer::new(m3::server::DEF_MAX_CLIENTS),
+        sessions: SessionContainer::new(settings.max_clients),
         socket_set,
         rgate: Rc::new(rgate),
     };
 
-    let serv = Server::new(name, &mut handler).expect("Failed to create server!");
+    let serv = Server::new(&settings.name, &mut handler).expect("Failed to create server!");
     handler.sel = serv.sel();
 
     log!(
         LOG_DEF,
         "netrs: created service {} with ip={} and driver={}",
-        name,
-        ip,
-        *driver
+        settings.name,
+        settings.ip,
+        settings.driver
     );
 
     let rgatec = handler.rgate.clone();
