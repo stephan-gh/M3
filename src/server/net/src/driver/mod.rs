@@ -24,3 +24,35 @@ mod inner;
 mod inner;
 
 pub use inner::*;
+
+use smoltcp::iface::Interface;
+use smoltcp::socket::SocketSet;
+use smoltcp::time::{Duration, Instant};
+
+pub enum DriverInterface<'a> {
+    Lo(Interface<'a, smoltcp::phy::Loopback>),
+    #[cfg(target_os = "none")]
+    Eth(Interface<'a, E1000Device>),
+    #[cfg(target_os = "linux")]
+    Eth(Interface<'a, DevFifo>),
+}
+
+impl<'a> DriverInterface<'a> {
+    pub fn poll(
+        &mut self,
+        sockets: &mut SocketSet<'_>,
+        timestamp: Instant,
+    ) -> smoltcp::Result<bool> {
+        match self {
+            Self::Lo(l) => l.poll(sockets, timestamp),
+            Self::Eth(e) => e.poll(sockets, timestamp),
+        }
+    }
+
+    pub fn poll_delay(&self, sockets: &SocketSet<'_>, timestamp: Instant) -> Option<Duration> {
+        match self {
+            Self::Lo(l) => l.poll_delay(sockets, timestamp),
+            Self::Eth(e) => e.poll_delay(sockets, timestamp),
+        }
+    }
+}

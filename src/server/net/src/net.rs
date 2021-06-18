@@ -191,20 +191,17 @@ pub fn own_addr() -> IpAddress {
 #[no_mangle]
 pub fn main() -> i32 {
     let args: Vec<&str> = env::args().collect();
-    if args.len() != 4 {
-        println!("Usage: {} <name> <ip address> <netmask>", args[0]);
+    if args.len() != 3 && args.len() != 4 {
+        println!("Usage: {} <name> <ip address> [<driver>]", args[0]);
         return -1;
     }
 
-    let name = args.get(1).expect("Failed to read name!");
-
     smoltcpif::logger::init().unwrap();
 
+    let name = args.get(1).expect("Failed to read name!");
     let ip = smoltcp::wire::Ipv4Address::from_str(args.get(2).expect("Failed to read ip!"))
         .expect("Failed to convert IP address!");
-    let netmask =
-        smoltcp::wire::Ipv4Address::from_str(args.get(3).expect("Failed to read netmask!"))
-            .expect("Failed to create netmask!");
+    let driver = args.get(3).unwrap_or(&"default");
 
     let mut rgate = RecvGate::new(
         math::next_log2(sess::MSG_SIZE * 32),
@@ -214,11 +211,6 @@ pub fn main() -> i32 {
 
     rgate.activate().expect("Failed to activate main rgate");
 
-    #[cfg(target_os = "none")]
-    let device = driver::E1000Device::new().expect("Failed to create E1000 driver");
-    #[cfg(target_os = "linux")]
-    let device = driver::DevFifo::new(name);
-
     let mut neighbor_cache_entries = [None; 8];
     let neighbor_cache = NeighborCache::new(&mut neighbor_cache_entries[..]);
 
@@ -226,11 +218,28 @@ pub fn main() -> i32 {
     OWN_ADDR.set(ip_addr.address());
     ports::init(MAX_SOCKETS);
 
-    let mut iface = InterfaceBuilder::new(device)
-        .ethernet_addr(EthernetAddress::default())
-        .neighbor_cache(neighbor_cache)
-        .ip_addrs([ip_addr])
-        .finalize();
+    let mut iface = if *driver == "lo" {
+        driver::DriverInterface::Lo(
+            InterfaceBuilder::new(smoltcp::phy::Loopback::new(smoltcp::phy::Medium::Ethernet))
+                .ethernet_addr(EthernetAddress::default())
+                .neighbor_cache(neighbor_cache)
+                .ip_addrs([ip_addr])
+                .finalize(),
+        )
+    }
+    else {
+        #[cfg(target_os = "none")]
+        let device = driver::E1000Device::new().expect("Failed to create E1000 driver");
+        #[cfg(target_os = "linux")]
+        let device = driver::DevFifo::new(name);
+        driver::DriverInterface::Eth(
+            InterfaceBuilder::new(device)
+                .ethernet_addr(EthernetAddress::default())
+                .neighbor_cache(neighbor_cache)
+                .ip_addrs([ip_addr])
+                .finalize(),
+        )
+    };
 
     let socket_set = SocketSet::new(Vec::with_capacity(MAX_SOCKETS));
 
@@ -246,10 +255,10 @@ pub fn main() -> i32 {
 
     log!(
         LOG_DEF,
-        "netrs: created service {} with ip={} and netmask={}",
+        "netrs: created service {} with ip={} and driver={}",
         name,
         ip,
-        netmask
+        *driver
     );
 
     let rgatec = handler.rgate.clone();

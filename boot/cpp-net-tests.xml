@@ -9,13 +9,13 @@
                 </app>
             </dom>
             <dom>
-                <app args="net net0 192.168.112.2 255.255.255.0" daemon="1">
+                <app args="net net0 192.168.112.2" daemon="1">
                     <serv name="net0" />
                     <pes type="nic" />
                 </app>
             </dom>
             <dom>
-                <app args="net net1 192.168.112.1 255.255.255.0" daemon="1">
+                <app args="net net1 192.168.112.1" daemon="1">
                     <serv name="net1" />
                     <pes type="nic" />
                 </app>
