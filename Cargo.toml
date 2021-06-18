@@ -2,8 +2,8 @@
 members = [
     "src/apps/bench/rustbenchs",
     "src/apps/bench/rustnetbenchs",
-    "src/apps/bench/ycsbbench/netrs_ycsb_bench_client",
-    "src/apps/bench/ycsbbench/netrs_ycsb_bench_server",
+    "src/apps/bench/ycsb/ycsbclient",
+    "src/apps/bench/ycsb/memserver",
     "src/apps/disktest",
     "src/apps/rusthello",
     "src/apps/rustnettests",

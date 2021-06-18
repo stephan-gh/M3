@@ -4,9 +4,9 @@ version = 3
 
 [[package]]
 name = "ahash"
-version = "0.7.2"
+version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f200cbb1e856866d9eade941cf3aa0c5d7dd36f74311c4273b494f4ef036957"
+checksum = "43bb833f0bf979d8475d38fbf09ed3b8a55e1885fe93ad3f93239fc6a4f17b98"
 dependencies = [
  "getrandom",
  "once_cell",
@@ -66,9 +66,9 @@ dependencies = [
 
 [[package]]
 name = "getrandom"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9495705279e7140bf035dde1f6e750c162df8b625267cd52cc44e0b156732c8"
+checksum = "7fcd999463524c52659517fe2cea98493cfe485d10565e7b0fb07dbba7ad2753"
 dependencies = [
  "cfg-if",
  "libc",
@@ -161,6 +161,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "memserver"
+version = "0.1.0"
+dependencies = [
+ "hashbrown",
+ "m3",
+]
+
+[[package]]
 name = "msgchansnd"
 version = "0.1.0"
 dependencies = [
@@ -189,21 +197,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "netrs_ycsb_bench_client"
-version = "0.1.0"
-dependencies = [
- "m3",
-]
-
-[[package]]
-name = "netrs_ycsb_bench_server"
-version = "0.1.0"
-dependencies = [
- "hashbrown",
- "m3",
-]
-
-[[package]]
 name = "num-traits"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -214,9 +207,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.7.2"
+version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af8b08b04175473088b46763e51ee54da5f9a164bc162f615b91bc179dbf15a3"
+checksum = "692fcb63b64b1758029e0a96ee63e049ce8c5948587f2f7208df04625e5f6b56"
 
 [[package]]
 name = "pager"
@@ -336,8 +329,8 @@ dependencies = [
 
 [[package]]
 name = "smoltcp"
-version = "0.7.0"
-source = "git+https://github.com/smoltcp-rs/smoltcp.git?branch=master#e4241510337e095b9d21136c5f58b2eaa1b78479"
+version = "0.8.0"
+source = "git+https://github.com/smoltcp-rs/smoltcp.git?branch=master#027f255f904b9b7c4226cfd8b2d31f272ffa5105"
 dependencies = [
  "bitflags",
  "byteorder",
@@ -387,3 +380,10 @@ name = "wasi"
 version = "0.10.2+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd6fbd9a79829dd1ad0cc20627bf1ed606756a7f77edff7b66b7064f9cb327c6"
+
+[[package]]
+name = "ycsbclient"
+version = "0.1.0"
+dependencies = [
+ "m3",
+]

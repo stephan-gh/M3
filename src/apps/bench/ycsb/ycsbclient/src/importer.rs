@@ -1,23 +1,43 @@
-//! This contains the M3 compatible version of the YCSB implementation for M3. This is only an importer for that workload files generated for this benchmark.
+/*
+ * Copyright (C) 2021, Tendsin Mende <tendsin.mende@mailbox.tu-dresden.de>
+ * Copyright (C) 2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Economic rights: Technische Universitaet Dresden (Germany)
+ *
+ * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
+ *
+ * M3 is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * M3 is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License version 2 for more details.
+ */
+
+//! This contains the M3 compatible version of the YCSB implementation for M3. This is only an
+//! importer for that workload files generated for this benchmark.
 //!
 //! For a more detailed explaination have a look at the `parser` at the `ycsb_m3` repository.
+
 use m3::col::String;
 use m3::col::ToString;
 use m3::io::Read;
 use m3::vec::Vec;
 use m3::vfs::BufReader;
 
-///Workload header of the ycsb benchmark implementation for M3.
+/// Workload header of the ycsb benchmark implementation for M3.
 #[allow(dead_code)]
 pub struct WorkloadHeader {
-    ///A workload is split in two phases.
-    ///1. Inserts, that build the database
-    ///2. Actual benchmarking operations
+    /// A workload is split in two phases.
+    /// 1. Inserts, that build the database
+    /// 2. Actual benchmarking operations
     ///
-    ///This is the number of preparing inserts. After this the actual benchmarking operations will start. You
-    ///can use this information to either benchmark the whole workload, or just the operation part of the benchmark.
+    /// This is the number of preparing inserts. After this the actual benchmarking operations will
+    /// start. You can use this information to either benchmark the whole workload, or just the
+    /// operation part of the benchmark.
     pub number_of_preinserts: u32,
-    ///Number of operations including inserts and benchmarking operations.
+    /// Number of operations including inserts and benchmarking operations.
     pub number_of_operations: u32,
 }
 
@@ -38,9 +58,9 @@ impl WorkloadHeader {
     }
 }
 
-///Database operations. They usually use the `key` field to determine on which record is being worked on.
-///The only expection is `scan` which uses the `key` field as "start of scan" and the "scan_length" field
-///to determine how many records are scanned.
+/// Database operations. They usually use the `key` field to determine on which record is being worked on.
+/// The only expection is `scan` which uses the `key` field as "start of scan" and the "scan_length" field
+/// to determine how many records are scanned.
 #[allow(dead_code)]
 pub enum DbOp {
     Insert = 1,
@@ -55,26 +75,27 @@ pub enum Table {
     Usertable,
 }
 
-///A single database operation.
+/// A single database operation.
 #[derive(Debug)]
 #[repr(C)]
 pub struct Package {
-    ///Operation on that package
+    /// Operation on that package
     pub op: u8,
-    ///Table to work on. Should always be 0
+    /// Table to work on. Should always be 0
     pub table: u8,
-    ///Key of the record in `table`
+    /// Key of the record in `table`
     pub key: u64,
-    ///If an scan op, number of keys starting at `key` to scan.
+    /// If an scan op, number of keys starting at `key` to scan.
     pub scan_length: u64,
-    ///If `len()` is 0, this means "everything". So a Delete with `kv_pairs.len() == 0` means "delete whole record".
-    ///If it has a length, the kv_pairs need to be read and worked on. The Keys are `field0`..`field9` usually. However can be more depending on the
-    /// YCSB configuration. The values are long garbage strings.
+    /// If `len()` is 0, this means "everything". So a Delete with `kv_pairs.len() == 0` means
+    /// "delete whole record". If it has a length, the kv_pairs need to be read and worked on. The
+    /// Keys are `field0`..`field9` usually. However can be more depending on the YCSB
+    /// configuration. The values are long garbage strings.
     pub kv_pairs: Vec<(String, String)>,
 }
 
 impl Package {
-    ///assumes that the cursor is on the start of an header
+    /// assumes that the cursor is on the start of an header
     #[allow(dead_code)]
     fn load<R: Read>(reader: &mut BufReader<R>) -> Self {
         let mut header = [0 as u8; 19];
@@ -91,7 +112,7 @@ impl Package {
         let num_kvs = header[2] as usize;
 
         let mut kv_pairs = Vec::with_capacity(num_kvs);
-        //Now read all key_value_pairs
+        // Now read all key_value_pairs
         for _ in 0..num_kvs {
             let mut length = [0 as u8; 2];
             reader.read_exact(&mut length).unwrap();
@@ -110,32 +131,43 @@ impl Package {
         }
     }
 
-    ///Only loads the header information of this package and returns the whole package as byte buffer. Used to read a package from a
-    ///byte stream, without parsing it into the actual format.
+    /// Only loads the header information of this package and returns the whole package as byte
+    /// buffer. Used to read a package from a byte stream, without parsing it into the actual
+    /// format.
     #[allow(dead_code)]
     pub fn load_as_bytes<R: Read>(reader: &mut BufReader<R>) -> Vec<u8> {
-        //Read static sized data into bytes vec
-        let mut bytes = vec![0 as u8; 19];
+        // Read static sized data into bytes vec
+        let mut bytes = Vec::with_capacity(19);
+        // safety: we initialize all bytes below
+        unsafe {
+            bytes.set_len(19);
+        }
         reader.read_exact(&mut bytes).unwrap();
 
         for _i in 0..(bytes[2] as usize) {
             let mut length = [0 as u8; 2];
             reader.read_exact(&mut length).unwrap();
 
-            let mut string_vec = vec![0 as u8; length[0] as usize + length[1] as usize];
-            reader.read_exact(&mut string_vec).unwrap();
-
             bytes.push(length[0]);
             bytes.push(length[1]);
-            bytes.append(&mut string_vec);
+
+            let off = bytes.len();
+            let add = length[0] as usize + length[1] as usize;
+            bytes.reserve_exact(add);
+            // safety: we initialize all bytes below
+            unsafe {
+                bytes.set_len(off + add);
+            }
+            reader.read_exact(&mut bytes[off..]).unwrap();
         }
 
         bytes
     }
 
-    ///Interpretes the `data` slice as a Package. Returns Err(false) if 'data' was too short. Returns Err(true) if some
-    ///information does not add up, for instance if a string can't be parsed.
-    ///Returns true with the (size, Package) where size is the number of bytes that have been read.
+    /// Interpretes the `data` slice as a Package. Returns Err(false) if 'data' was too short.
+    /// Returns Err(true) if some information does not add up, for instance if a string can't be
+    /// parsed. Returns true with the (size, Package) where size is the number of bytes that have
+    /// been read.
     #[allow(dead_code)]
     pub fn from_bytes(data: &[u8]) -> Result<(usize, Self), bool> {
         if data.len() < 19 {
@@ -152,14 +184,14 @@ impl Package {
         let num_kvs = data[2] as usize;
 
         let mut kv_pairs = Vec::with_capacity(num_kvs);
-        //Now read all key_value_pairs
+        // Now read all key_value_pairs
         let mut data_ptr = 19;
         for _i in 0..num_kvs {
             if (data_ptr + 2) > data.len() {
                 return Err(false);
             }
             let length = [data[data_ptr], data[data_ptr + 1]];
-            //check that the length is within the parameters
+            // check that the length is within the parameters
             if (data_ptr + length[0] as usize + length[1] as usize + 2) > data.len() {
                 return Err(false);
             }

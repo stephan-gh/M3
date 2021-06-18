@@ -1,6 +1,7 @@
 dirs = [
-    'netrs_ycsb_bench_client',
-    'netrs_ycsb_bench_server',
+    'lvldbserver',
+    'memserver',
+    'ycsbclient',
 ]
 
 def build(gen, env):

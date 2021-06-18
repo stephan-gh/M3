@@ -6,7 +6,6 @@ dirs = [
     'cppnetbenchs',
     'fstrace',
     'imgproc',
-    'leveldb',
     'loadgen',
     'rustbenchs',
     'rustnetbenchs',
@@ -15,7 +14,7 @@ dirs = [
     'tlbmiss',
     'vpe-clone',
     'vpe-exec',
-    'ycsbbench'
+    'ycsb',
 ]
 
 def build(gen, env):

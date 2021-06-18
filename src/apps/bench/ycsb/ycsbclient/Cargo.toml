@@ -1,5 +1,5 @@
 [package]
-name = "netrs_ycsb_bench_client"
+name = "ycsbclient"
 version = "0.1.0"
 
 [lib]
