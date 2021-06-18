@@ -138,7 +138,7 @@ impl VPE {
         Self::sleep_for(0)
     }
 
-    /// Puts the current VPE to sleep until the next message arrives or <nanos> nanoseconds have
+    /// Puts the current VPE to sleep until the next message arrives or `nanos` nanoseconds have
     /// passed.
     #[inline(always)]
     pub fn sleep_for(nanos: u64) -> Result<(), Error> {

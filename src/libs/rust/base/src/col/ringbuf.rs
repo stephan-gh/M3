@@ -46,7 +46,7 @@ impl VarRingBuf {
         self.size
     }
 
-    /// Determines the write position for inserting <size> bytes.
+    /// Determines the write position for inserting `size` bytes.
     pub fn get_write_pos(&self, size: usize) -> Option<usize> {
         if self.wr_pos >= self.rd_pos {
             if self.size - self.wr_pos >= size {

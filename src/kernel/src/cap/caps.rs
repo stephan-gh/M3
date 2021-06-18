@@ -414,8 +414,9 @@ impl Capability {
                     .ok();
 
                 // notify PEMux about the invalidation if it's not a self-invalidation (technically,
-                // <foreign> indicates whether we're in the first level of revoke, but since it is just a
-                // notification, we can ignore the case that someone delegated a cap to itself).
+                // `foreign` indicates whether we're in the first level of revoke, but since it is
+                // just a notification, we can ignore the case that someone delegated a cap to
+                // itself).
                 if foreign {
                     pemux.notify_invalidate(vpe.id(), ep.ep()).ok();
                 }
