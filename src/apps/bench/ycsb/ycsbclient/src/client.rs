@@ -22,6 +22,7 @@ extern crate m3;
 
 use m3::{
     com::Semaphore,
+    env,
     net::{Endpoint, IpAddr, StreamSocketArgs, TcpSocket},
     println,
     session::NetworkManager,
@@ -31,14 +32,25 @@ use m3::{
 
 mod importer;
 
+fn usage() {
+    println!("Usage: {} <workload>", env::args().next().unwrap());
+    m3::exit(1);
+}
+
 #[no_mangle]
 pub fn main() -> i32 {
+    if env::args().len() < 2 {
+        usage();
+    }
+
     let prg_start = TCU::nanotime();
 
     // Mount fs to load binary data
     m3::vfs::VFS::mount("/", "m3fs", "m3fs").expect("Failed to mount root filesystem on server");
-    let workload =
-        m3::vfs::VFS::open("/data/insert-workload.wl", OpenFlags::R).expect("Could not open file");
+
+    // open workload file
+    let workload_file = env::args().nth(1).unwrap();
+    let workload = m3::vfs::VFS::open(workload_file, OpenFlags::R).expect("Could not open file");
 
     // Connect to server
     let startup_start = TCU::nanotime();
