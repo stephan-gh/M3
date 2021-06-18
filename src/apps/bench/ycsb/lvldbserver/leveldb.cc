@@ -22,6 +22,7 @@
 #include <m3/net/TcpSocket.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
+#include <m3/vfs/VFS.h>
 
 #include <base/CPU.h>
 #include <base/TCU.h>
@@ -89,6 +90,8 @@ int main(int argc, char** argv)
         cerr << "Usage: " << argv[0] << " <file>\n";
         return 1;
     }
+
+    VFS::mount("/", "m3fs", "m3fs");
 
     NetworkManager net("net0");
 
