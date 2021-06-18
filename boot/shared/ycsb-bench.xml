@@ -1,0 +1,40 @@
+<config>
+    <kernel args="kernel -f $fs.path" />
+    <dom>
+        <app args="root sem=net">
+            <dom>
+                <app args="m3fs mem $fs.size" daemon="1">
+                    <serv name="m3fs" />
+                    <physmem addr="0" size="$fs.size" />
+                </app>
+            </dom>
+            <dom>
+                <app args="pager -m 4 $fs.size sem=net">
+                    <sess name="m3fs" />
+                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <pes type="core" count="4" />
+                    <app args="/bin/m3fs -m 1 mem $fs.size" daemon="1">
+                        <serv lname="m3fs" gname="app_m3fs" />
+                        <physmem addr="0" size="$fs.size" />
+                    </app>
+                    <app args="/bin/net -d lo -m 2 net0 127.0.0.1" daemon="1">
+                        <serv name="net0" />
+                    </app>
+                    <app args="/bin/lvldbserver /tmp/foo">
+                        <sess name="net0" args="bufs=1M socks=1 ports=1337" />
+                        <sem name="net" />
+                        <sess lname="m3fs" gname="app_m3fs" />
+                    </app>
+                    <dom>
+                        <app args="/bin/ycsbclient /data/workload.wl">
+                            <sess name="net0" args="bufs=1M socks=1 ports=1337" />
+                            <sess lname="m3fs" gname="app_m3fs" />
+                            <pes type="core" count="1" />
+                            <sem name="net" />
+                        </app>
+                    </dom>
+                </app>
+            </dom>
+        </app>
+    </dom>
+</config>
