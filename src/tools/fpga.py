@@ -176,6 +176,13 @@ def main():
     for pe in fpga_inst.pms:
         pe.stop()
 
+    # disable NoC ARQ for program upload
+    for pe in fpga_inst.pms:
+        pe.nocarq.set_arq_enable(0)
+    fpga_inst.eth_rf.nocarq.set_arq_enable(0)
+    fpga_inst.dram1.nocarq.set_arq_enable(0)
+    fpga_inst.dram2.nocarq.set_arq_enable(0)
+
     # load boot info into DRAM
     mods = [] if args.mod is None else args.mod
     load_boot_info(fpga_inst.dram1, mods, fpga_inst.pms, args.vm)
@@ -187,6 +194,13 @@ def main():
     # load programs onto PEs
     for i, peargs in enumerate(args.pe[0:len(fpga_inst.pms)], 0):
         load_prog(fpga_inst.dram1, fpga_inst.pms, i, peargs.split(' '), args.vm)
+
+    # enable NoC ARQ when cores are running
+    for pe in fpga_inst.pms:
+        pe.nocarq.set_arq_enable(1)
+        pe.nocarq.set_arq_timeout(200)    #reduce timeout
+    fpga_inst.dram1.nocarq.set_arq_enable(1)
+    fpga_inst.dram2.nocarq.set_arq_enable(1)
 
     # start PEs
     debug_pe = len(fpga_inst.pms) if args.debug is None else args.debug
@@ -226,13 +240,26 @@ def main():
         if "Shutting down" in msg:
             break
 
+    # disable NoC ARQ again for post-processing
+    for pe in fpga_inst.pms:
+        pe.nocarq.set_arq_enable(0)
+    fpga_inst.dram1.nocarq.set_arq_enable(0)
+    fpga_inst.dram2.nocarq.set_arq_enable(0)
+
     # stop all PEs
     print("Stopping all PEs...")
     for i, pe in enumerate(fpga_inst.pms, 0):
         try:
-            print("PM{}: dropped/error flits: {}/{}".format(i, pe.tcu_drop_flit_count(), pe.tcu_error_flit_count()))
+            dropped_packets = pe.nocarq.get_arq_drop_packet_count()
+            total_packets = pe.nocarq.get_arq_packet_count()
+            print("PM{}: NoC dropped/total packets: {}/{} ({:.0f}%)".format(i, dropped_packets, total_packets, dropped_packets/total_packets*100))
         except Exception as e:
-            print("PM{}: unable to read number of dropped flits: {}".format(i, e))
+            print("PM{}: unable to read number of dropped NoC packets: {}".format(i, e))
+
+        try:
+            print("PM{}: TCU dropped/error flits: {}/{}".format(i, pe.tcu_drop_flit_count(), pe.tcu_error_flit_count()))
+        except Exception as e:
+            print("PM{}: unable to read number of TCU dropped flits: {}".format(i, e))
 
         # extract TCU log on timeouts
         if timeouts != 0:
