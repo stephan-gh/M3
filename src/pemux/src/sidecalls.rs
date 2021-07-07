@@ -184,7 +184,8 @@ fn handle_sidecall(msg: &'static tcu::Message) {
     let req = msg.get_data::<kif::DefaultRequest>();
 
     let mut val = 0;
-    let res = match kif::pemux::Sidecalls::from(req.opcode) {
+    let op = kif::pemux::Sidecalls::from(req.opcode);
+    let res = match op {
         kif::pemux::Sidecalls::VPE_CTRL => vpe_ctrl(msg),
         kif::pemux::Sidecalls::MAP => map(msg),
         kif::pemux::Sidecalls::TRANSLATE => translate(msg).map(|pte| val = pte),
@@ -197,7 +198,10 @@ fn handle_sidecall(msg: &'static tcu::Message) {
     reply_buf.set(kif::pemux::Response {
         error: match res {
             Ok(_) => 0,
-            Err(e) => e.code() as u64,
+            Err(e) => {
+                log!(crate::LOG_SIDECALLS, "sidecall {} failed: {}", op, e);
+                e.code() as u64
+            },
         },
         val,
     });
