@@ -179,6 +179,20 @@ fn test_mem(area_begin: usize, area_size: usize) {
         count += 2;
         assert_eq!(*XLATES, count);
     }
+
+    // unaligned write with page boundary
+    {
+        read_write(wr_area + 1, rd_area, cfg::PAGE_SIZE);
+        count += 3;
+        assert_eq!(*XLATES, count);
+    }
+
+    // unaligned read with page boundary
+    {
+        read_write(wr_area, rd_area + 1, cfg::PAGE_SIZE);
+        count += 3;
+        assert_eq!(*XLATES, count);
+    }
 }
 
 static RBUF1: [u64; 32] = [0; 32];
