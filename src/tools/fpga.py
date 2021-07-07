@@ -134,20 +134,21 @@ def load_prog(dram, pms, i, args, vm):
     kenv = glob_addr(MEM_TILE, MAX_FS_SIZE + len(pms) * INIT_PMP_SIZE) if i == 0 else 0
 
     # init environment
-    write_u64(pm, ENV + 0, 1)           # platform = HW
-    write_u64(pm, ENV + 8, i)           # pe_id
-    write_u64(pm, ENV + 16, pe_desc)    # pe_desc
-    write_u64(pm, ENV + 24, len(args))  # argc
-    write_u64(pm, ENV + 32, argv)       # argv
-    write_u64(pm, ENV + 40, heap_size)  # heap size
-    write_u64(pm, ENV + 48, kenv)       # kenv
-    write_u64(pm, ENV + 56, 0)          # lambda
+    dram_env = ENV + mem_begin - DRAM_OFF
+    write_u64(dram, dram_env + 0, 1)           # platform = HW
+    write_u64(dram, dram_env + 8, i)           # pe_id
+    write_u64(dram, dram_env + 16, pe_desc)    # pe_desc
+    write_u64(dram, dram_env + 24, len(args))  # argc
+    write_u64(dram, dram_env + 32, argv)       # argv
+    write_u64(dram, dram_env + 40, heap_size)  # heap size
+    write_u64(dram, dram_env + 48, kenv)       # kenv
+    write_u64(dram, dram_env + 56, 0)          # lambda
 
     # write arguments to memory
     args_addr = argv + len(args) * 8
     for (idx, a) in enumerate(args, 0):
-        write_u64(pm, argv + idx * 8, args_addr)
-        write_str(pm, a, args_addr)
+        write_u64(dram, argv + (mem_begin - DRAM_OFF) + idx * 8, args_addr)
+        write_str(dram, a, args_addr + mem_begin - DRAM_OFF)
         args_addr += (len(a) + 1 + 7) & ~7
         if args_addr > ENV + 0x800:
             sys.exit("Not enough space for arguments")
