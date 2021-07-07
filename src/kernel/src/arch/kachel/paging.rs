@@ -101,7 +101,13 @@ pub fn init() {
 
         // map initial heap
         let heap_start = math::round_up(&_bss_end as *const _ as usize, cfg::PAGE_SIZE);
-        map_to_phys(&mut aspace, base, heap_start, 8 * cfg::PAGE_SIZE, rw);
+        map_to_phys(
+            &mut aspace,
+            base,
+            heap_start,
+            envdata::get().heap_size as usize,
+            rw,
+        );
     }
 
     // map env
@@ -170,7 +176,11 @@ extern "C" fn kernel_oom_callback(size: usize) -> bool {
     // allocate memory
     let pages = cmp::max(256, math::round_up(size, cfg::PAGE_SIZE) >> cfg::PAGE_BITS);
     let mut alloc = mem::get()
-        .allocate(mem::MemType::KERNEL, (pages * cfg::PAGE_SIZE) as goff, cfg::PAGE_SIZE as goff)
+        .allocate(
+            mem::MemType::KERNEL,
+            (pages * cfg::PAGE_SIZE) as goff,
+            cfg::PAGE_SIZE as goff,
+        )
         .unwrap();
 
     // map the memory

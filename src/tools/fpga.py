@@ -127,7 +127,7 @@ def load_prog(dram, pms, i, args, vm):
     argv = ENV + 0x400
     if vm:
         pe_desc = (3 << 3) | 1
-        heap_size = 0x4000
+        heap_size = 0x10000
     else:
         pe_desc = MEM_SIZE | (3 << 3) | 0
         heap_size = 0
