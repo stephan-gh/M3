@@ -609,9 +609,10 @@ impl VPE {
 
     pub fn start(&mut self) {
         assert!(self.user_state_addr == 0);
+        // remember the current PE and platform
+        crate::app_env().pe_id = pex_env().pe_id;
+        crate::app_env().platform = pex_env().platform;
         if self.id() != kif::pemux::IDLE_ID {
-            // remember the current PE
-            crate::app_env().pe_id = pex_env().pe_id;
             arch::init_state(
                 &mut self.user_state,
                 crate::app_env().entry as usize,

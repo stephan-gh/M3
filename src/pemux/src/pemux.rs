@@ -72,11 +72,13 @@ static mut HEAP: Heap = Heap { 0: [0; 8 * 1024] };
 pub struct PEXEnv {
     pe_id: u64,
     pe_desc: kif::PEDesc,
+    platform: u64,
 }
 
 static PEX_ENV: StaticCell<PEXEnv> = StaticCell::new(PEXEnv {
     pe_id: 0,
     pe_desc: kif::PEDesc::new_from(0),
+    platform: 0,
 });
 
 pub fn pex_env() -> &'static PEXEnv {
@@ -194,6 +196,7 @@ pub extern "C" fn init() -> usize {
     // the gem5 loader for us. afterwards, our address space does not contain that anymore.s
     PEX_ENV.get_mut().pe_id = app_env().pe_id;
     PEX_ENV.get_mut().pe_desc = kif::PEDesc::new_from(app_env().pe_desc);
+    PEX_ENV.get_mut().platform = app_env().platform;
 
     unsafe {
         heap_init(
@@ -212,5 +215,8 @@ pub extern "C" fn init() -> usize {
     let state = vpe::idle().user_state();
     let state_top = state as *const _ as usize + mem::size_of::<arch::State>();
     arch::init(state);
+    // store platform already in app env, because we need it for logging
+    app_env().platform = PEX_ENV.get_mut().platform;
+
     state_top
 }
