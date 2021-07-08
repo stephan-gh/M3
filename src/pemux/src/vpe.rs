@@ -609,6 +609,10 @@ impl VPE {
 
     pub fn start(&mut self) {
         assert!(self.user_state_addr == 0);
+        // ensure that recent page table modifications (initialization of the AS) are considered
+        if let Some(ref aspace) = self.aspace {
+            aspace.flush_tlb();
+        }
         // remember the current PE and platform
         crate::app_env().pe_id = pex_env().pe_id;
         crate::app_env().platform = pex_env().platform;

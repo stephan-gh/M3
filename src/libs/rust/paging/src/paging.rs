@@ -153,6 +153,10 @@ impl<A: Allocator> AddrSpace<A> {
         arch::set_root_pt(self.id, pte_to_phys(self.root));
     }
 
+    pub fn flush_tlb(&self) {
+        arch::invalidate_tlb();
+    }
+
     pub fn init(&self) {
         let root_phys = pte_to_phys(self.root);
         let pt_virt = self.alloc.translate_pt(root_phys);
