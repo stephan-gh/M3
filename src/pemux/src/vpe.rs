@@ -18,6 +18,7 @@ use base::boxed::Box;
 use base::cell::{LazyStaticCell, StaticCell};
 use base::cfg;
 use base::col::{BoxList, Vec};
+use base::envdata;
 use base::errors::{Code, Error};
 use base::goff;
 use base::impl_boxitem;
@@ -800,7 +801,9 @@ impl Drop for VPE {
         // because of the way the pager handles copy-on-write: it reads the current copy from the
         // owner and updates the version in DRAM. for that reason, the cache for new VPEs needs to
         // be clear, so that the cache loads the current version from DRAM.
-        tcu::TCU::flush_cache().unwrap();
+        if pex_env().platform == envdata::Platform::GEM5.val {
+            tcu::TCU::flush_cache().unwrap();
+        }
 
         if let Some(ref mut aspace) = self.aspace {
             // free frames we allocated for env, receive buffers etc.
