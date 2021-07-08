@@ -174,14 +174,7 @@ pub fn user_pes() -> platform::PEIterator {
 }
 
 pub fn is_shared(pe: PEId) -> bool {
-    #[cfg(target_vendor = "gem5")]
-    {
-        platform::pe_desc(pe).is_programmable()
-    }
-    #[cfg(target_vendor = "hw")]
-    {
-        false
-    }
+    platform::pe_desc(pe).is_programmable()
 }
 
 pub fn rbuf_pemux(_pe: PEId) -> goff {
