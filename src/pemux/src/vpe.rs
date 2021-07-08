@@ -722,7 +722,7 @@ impl VPE {
         // map runtime environment
         self.map_new_mem(
             base,
-            cfg::ENV_START,
+            cfg::ENV_START & !cfg::PAGE_MASK,
             cfg::ENV_SIZE,
             kif::PageFlags::RW | kif::PageFlags::U,
         );

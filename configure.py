@@ -96,7 +96,7 @@ class M3Env(ninjagen.Env):
             env['LINKFLAGS'] += ['-Wl,-T,' + ldscripts[ldscript]]
             deps = [ldscripts[ldscript]] + [env['LIBDIR'] + '/' + crt for crt in crts]
 
-            if env['TGT'] == 'gem5' and varAddr:
+            if varAddr:
                 global link_addr
                 env['LINKFLAGS'] += ['-Wl,--section-start=.text=' + ('0x%x' % link_addr)]
                 link_addr += 0x40000
@@ -350,7 +350,7 @@ gen.add_var('strip', env['STRIP'])
 
 # generate linker scripts
 if env['PLATF'] == 'kachel':
-    ldscript = 'src/toolchain/' + env['TGT'] + '/ld.conf'
+    ldscript = 'src/toolchain/kachel/ld.conf'
     ldscripts['default'] = env.cpp(gen, out = 'ld-default.conf', ins = [ldscript])
 
     bare_env = env.clone()

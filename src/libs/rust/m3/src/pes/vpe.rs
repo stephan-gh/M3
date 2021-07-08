@@ -472,7 +472,11 @@ impl VPE {
             senv.set_vpe(&self);
 
             // env goes first
-            let mem = self.get_mem(cfg::ENV_START as goff, cfg::ENV_SIZE as goff, kif::Perm::RW)?;
+            let mem = self.get_mem(
+                (cfg::ENV_START & !cfg::PAGE_MASK) as goff,
+                cfg::ENV_SIZE as goff,
+                kif::Perm::RW,
+            )?;
             let mut off = cfg::ENV_START + mem::size_of_val(&senv);
 
             // create and write closure
@@ -586,7 +590,11 @@ impl VPE {
 
         let mut senv = arch::env::EnvData::default();
 
-        let mem = self.get_mem(cfg::ENV_START as goff, cfg::ENV_SIZE as goff, kif::Perm::RW)?;
+        let mem = self.get_mem(
+            (cfg::ENV_START & !cfg::PAGE_MASK) as goff,
+            cfg::ENV_SIZE as goff,
+            kif::Perm::RW,
+        )?;
 
         {
             // load program segments

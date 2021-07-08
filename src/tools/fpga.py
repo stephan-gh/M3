@@ -14,7 +14,7 @@ from fpga_utils import FPGA_Error
 import memory
 
 DRAM_OFF = 0x10000000
-ENV = 0x10100000
+ENV = 0x10000008
 MEM_TILE = 8
 MEM_SIZE = 2 * 1024 * 1024
 DRAM_SIZE = 2 * 1024 * 1024 * 1024
@@ -135,6 +135,7 @@ def load_prog(dram, pms, i, args, vm):
 
     # init environment
     dram_env = ENV + mem_begin - DRAM_OFF
+    write_u64(dram, dram_env - 8, 0x0000106f)  # j _start (+0x1000)
     write_u64(dram, dram_env + 0, 1)           # platform = HW
     write_u64(dram, dram_env + 8, i)           # pe_id
     write_u64(dram, dram_env + 16, pe_desc)    # pe_desc

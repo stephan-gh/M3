@@ -53,6 +53,9 @@ pub const PE_MEM_BASE: usize                = 0xE000_0000;
 
 pub const MEM_CAP_END: usize                = RBUF_STD_ADDR;
 
+#[cfg(any(target_vendor = "hw", target_arch = "riscv64"))]
+pub const ENV_START: usize                  = MEM_OFFSET + 0x8;
+#[cfg(all(target_vendor = "gem5", not(target_arch = "riscv64")))]
 pub const ENV_START: usize                  = MEM_OFFSET + 0x10_0000;
 pub const ENV_SIZE: usize                   = PAGE_SIZE;
 

@@ -54,7 +54,8 @@ impl Loader {
         // put mapping for env into cap table (so that we can access it in create_mgate later)
         let env_phys = if platform::pe_desc(vpe.pe_id()).has_virtmem() {
             let pemux = PEMng::get().pemux(vpe.pe_id());
-            let env_addr = pemux.translate_async(vpe.id(), ENV_START as goff, kif::Perm::RW)?;
+            let mut env_addr = pemux.translate_async(vpe.id(), ENV_START as goff, kif::Perm::RW)?;
+            env_addr = env_addr + (ENV_START & PAGE_MASK) as goff;
 
             let flags = PageFlags::from(kif::Perm::RW);
             Self::load_segment_async(vpe, env_addr, ENV_START as goff, PAGE_SIZE, flags, false)?;

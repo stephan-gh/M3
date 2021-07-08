@@ -95,7 +95,7 @@ void VPE::run(void *lambda) {
     senv.vpe_addr = static_cast<uint64_t>(vpe_addr);
     senv.backend_addr = env()->backend_addr;
 
-    MemGate env_mem = get_mem(ENV_START, ENV_SIZE, MemGate::W);
+    MemGate env_mem = get_mem(ENV_START & ~PAGE_MASK, ENV_SIZE, MemGate::W);
 
     /* write start env to PE */
     env_mem.write(&senv, sizeof(senv), 0);
@@ -149,7 +149,7 @@ void VPE::exec(int argc, const char **argv) {
     senv.fds_len = _fds->serialize(buffer.get() + offset, ENV_SPACE_SIZE - offset);
     offset = Math::round_up(offset + static_cast<size_t>(senv.fds_len), sizeof(word_t));
 
-    MemGate env_mem = get_mem(ENV_START, ENV_SIZE, MemGate::W);
+    MemGate env_mem = get_mem(ENV_START & ~PAGE_MASK, ENV_SIZE, MemGate::W);
 
     /* write entire runtime stuff */
     env_mem.write(buffer.get(), offset, sizeof(senv));

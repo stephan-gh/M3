@@ -13,6 +13,7 @@ def build(gen, env):
             ins = [env_obj, 'standalone.cc'] + env.glob('tests/*.cc'),
             libs = libs,
             ldscript = 'baremetal',
+            varAddr = False,
             NoSup = True
         )
 
@@ -23,5 +24,6 @@ def build(gen, env):
                 ins = [env_obj, s + '/' + s + '.cc'],
                 NoSup = True,
                 ldscript = 'baremetal',
+                varAddr = False,
                 libs = libs
             )

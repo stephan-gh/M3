@@ -100,7 +100,6 @@
 // |          TCU MMIO          |
 // +----------------------------+ 0xF0002000
 
-#define ENV_START           (MEM_OFFSET + 0x100000)
 #define ENV_SIZE            PAGE_SIZE
 #define ENV_END             (ENV_START + ENV_SIZE)
 
@@ -115,17 +114,15 @@
 #define PE_MEM_BASE         0xE0000000
 
 #if defined(__hw__)
-#   define APP_CODE_START   (MEM_OFFSET + 0x60000)
-#   define APP_CODE_SIZE    (ENV_START - APP_CODE_START)
-#   define APP_DATA_START   (MEM_OFFSET + 0x160000)
-#   define APP_DATA_SIZE    (MEM_OFFSET + 0x1E0000 - APP_DATA_START)
-
-#   define PEMUX_CODE_START MEM_OFFSET
-#   define PEMUX_CODE_SIZE  (APP_CODE_START - PEMUX_CODE_START)
-#   define PEMUX_DATA_START (ENV_START + 0x1000)
-#   define PEMUX_DATA_SIZE  (APP_DATA_START - PEMUX_DATA_START)
+#   define PEMUX_CODE_START (MEM_OFFSET + 0x1000)
+#   define ENV_START        (MEM_OFFSET + 0x8)
 #else
 #   define PEMUX_CODE_START (MEM_OFFSET + 0x200000)
+#   if defined(__riscv)
+#       define ENV_START    (MEM_OFFSET + 0x8)
+#   else
+#       define ENV_START    (MEM_OFFSET + 0x100000)
+#   endif
 #endif
 
 #define MAX_RB_SIZE         32
