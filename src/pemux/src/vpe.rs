@@ -723,7 +723,7 @@ impl VPE {
             base,
             cfg::ENV_START & !cfg::PAGE_MASK,
             cfg::ENV_SIZE,
-            kif::PageFlags::RW | kif::PageFlags::U,
+            rw | kif::PageFlags::U,
         );
 
         // map PTs
@@ -731,16 +731,19 @@ impl VPE {
             cfg::PE_MEM_BASE,
             base,
             mem_size as usize / cfg::PAGE_SIZE,
-            kif::PageFlags::RW,
+            rw,
         )
         .unwrap();
 
         // map PLIC
         #[cfg(target_vendor = "hw")]
         {
-            self.map(0x0C00_0000, GlobAddr::new(0x0C00_0000), 1, kif::PageFlags::RW).unwrap();
-            self.map(0x0C00_2000, GlobAddr::new(0x0C00_2000), 1, kif::PageFlags::RW).unwrap();
-            self.map(0x0C20_0000, GlobAddr::new(0x0C20_0000), 1, kif::PageFlags::RW).unwrap();
+            self.map(0x0C00_0000, GlobAddr::new(0x0C00_0000), 1, rw)
+                .unwrap();
+            self.map(0x0C00_2000, GlobAddr::new(0x0C00_2000), 1, rw)
+                .unwrap();
+            self.map(0x0C20_0000, GlobAddr::new(0x0C20_0000), 1, rw)
+                .unwrap();
         }
 
         // map vectors
