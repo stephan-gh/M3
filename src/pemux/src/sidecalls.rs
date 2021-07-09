@@ -82,11 +82,6 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
     let pages = req.pages as usize;
     let perm = kif::PageFlags::from_bits_truncate(req.perm as u64);
 
-    // ensure that we don't overmap critical areas
-    if virt < cfg::ENV_START || virt + pages * cfg::PAGE_SIZE > cfg::PE_MEM_BASE {
-        return Err(Error::new(Code::InvArgs));
-    }
-
     log!(
         crate::LOG_SIDECALLS,
         "sidecall::map(vpe={}, virt={:#x}, global={:?}, pages={}, perm={:?})",
@@ -96,6 +91,11 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
         pages,
         perm
     );
+
+    // ensure that we don't overmap critical areas
+    if virt < cfg::ENV_START || virt + pages * cfg::PAGE_SIZE > cfg::PE_MEM_BASE {
+        return Err(Error::new(Code::InvArgs));
+    }
 
     if let Some(vpe) = vpe::get_mut(vpe_id) {
         // if we unmap these pages, flush+invalidate the cache to ensure that we read this memory
