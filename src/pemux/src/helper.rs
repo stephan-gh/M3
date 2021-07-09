@@ -14,8 +14,20 @@
  * General Public License version 2 for more details.
  */
 
+use base::envdata;
 use base::tcu;
 use core::sync::atomic;
+
+pub fn flush_invalidate() {
+    if envdata::get().platform == envdata::Platform::HW.val {
+        unsafe {
+            llvm_asm!("fence.i" : : : : "volatile");
+        }
+    }
+    else {
+        tcu::TCU::flush_cache().unwrap();
+    }
+}
 
 pub struct TCUCmdState {
     cmd_regs: [tcu::Reg; 3],

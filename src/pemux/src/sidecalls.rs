@@ -101,7 +101,7 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
         // if we unmap these pages, flush+invalidate the cache to ensure that we read this memory
         // fresh from DRAM the next time we use it.
         if (perm & kif::PageFlags::RWX).is_empty() {
-            tcu::TCU::flush_cache().unwrap();
+            helper::flush_invalidate();
         }
 
         vpe.map(virt, global, pages, perm | kif::PageFlags::U)

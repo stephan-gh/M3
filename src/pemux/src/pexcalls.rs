@@ -18,12 +18,12 @@ use base::errors::{Code, Error};
 use base::kif;
 use base::log;
 use base::pexif;
-use base::tcu::{EpId, INVALID_EP, TCU};
+use base::tcu::{EpId, INVALID_EP};
 
-use crate::arch;
 use crate::timer::Nanos;
 use crate::vma;
 use crate::vpe;
+use crate::{arch, helper};
 
 fn pexcall_sleep(state: &mut arch::State) -> Result<(), Error> {
     let dur = state.r[isr::PEXC_ARG1] as Nanos;
@@ -77,7 +77,7 @@ fn pexcall_transl_fault(state: &mut arch::State) -> Result<(), Error> {
 fn pexcall_flush_inv(_state: &mut arch::State) -> Result<(), Error> {
     log!(crate::LOG_CALLS, "pexcall::flush_inv()");
 
-    TCU::flush_cache().unwrap();
+    helper::flush_invalidate();
 
     Ok(())
 }
