@@ -396,10 +396,14 @@ fn test_foreign_msg() {
     let old = TCU::xchg_vpe((1 << 16) | 0xDEAD).unwrap();
     // we had no unread messages
     assert_eq!(old, OWN_VPE as u64);
+    // but now we have one
+    assert_eq!(TCU::get_cur_vpe(), (1 << 16) | 0xDEAD);
 
     // fetch message with foreign VPE
     let msg = fetch_msg(1, rbuf1_virt).unwrap();
     assert_eq!({ msg.header.label }, 0x5678);
+    // message is fetched
+    assert_eq!(TCU::get_cur_vpe(), 0xDEAD);
     tcu::TCU::ack_msg(1, tcu::TCU::msg_to_offset(rbuf1_virt, msg)).unwrap();
 
     // no unread messages anymore
