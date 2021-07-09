@@ -411,6 +411,44 @@ fn test_foreign_msg() {
     assert_eq!(foreign, 0xDEAD);
 }
 
+fn test_own_msg() {
+    *FOREIGN_MSGS.get_mut() = 0;
+
+    let (rbuf1_virt, rbuf1_phys) = virt_to_phys(RBUF1.as_ptr() as usize);
+
+    log!(crate::LOG_DEF, "SEND to REP of own VPE");
+
+    // create EPs
+    config_local_ep(1, |regs| {
+        TCU::config_recv(regs, OWN_VPE, rbuf1_phys, 6, 6, None);
+    });
+    config_local_ep(2, |regs| {
+        TCU::config_send(regs, OWN_VPE, 0x5678, OWN_PE, 1, 6, 1);
+    });
+
+    // no message yet
+    assert_eq!(TCU::get_cur_vpe(), OWN_VPE as u64);
+
+    // send message
+    let buf = MsgBuf::new();
+    assert_eq!(TCU::send(2, &buf, 0x1111, tcu::NO_REPLIES), Ok(()));
+
+    // wait until it arrived
+    while !TCU::has_msgs(1) {}
+    // now we have a message
+    assert_eq!(TCU::get_cur_vpe(), (1 << 16) | OWN_VPE as u64);
+
+    // fetch message
+    let msg = fetch_msg(1, rbuf1_virt).unwrap();
+    assert_eq!({ msg.header.label }, 0x5678);
+    // message is fetched
+    assert_eq!(TCU::get_cur_vpe(), OWN_VPE as u64);
+    tcu::TCU::ack_msg(1, tcu::TCU::msg_to_offset(rbuf1_virt, msg)).unwrap();
+
+    // no foreign message core requests here
+    assert_eq!(*FOREIGN_MSGS, 0);
+}
+
 #[no_mangle]
 pub extern "C" fn env_run() {
     io::init(0, "vmtest");
@@ -455,6 +493,7 @@ pub extern "C" fn env_run() {
     test_mem(area_begin, area_size);
     test_msgs(area_begin, area_size);
     test_foreign_msg();
+    test_own_msg();
 
     log!(crate::LOG_DEF, "Shutting down");
     exit(0);
