@@ -52,12 +52,11 @@ where
     P: AsRef<Path>,
 {
     let mut cmd = Command::new(format!("{}objdump", cross_prefix))
-        .arg("-SC")
+        .arg("-dC")
         .arg(file.as_ref().as_os_str())
         .stdout(Stdio::piped())
         .spawn()?;
 
-    let symbol_start_re = Regex::new(r"^[0-9a-f]+\s+<(.*)>:").unwrap();
     let instr_re = Regex::new(r"^\s+([0-9a-f]+):\s+([0-9a-f]+)\s+(.*)").unwrap();
 
     let binary = file
@@ -73,16 +72,19 @@ where
 
     let mut line = String::new();
     while reader.read_line(&mut line)? != 0 {
+        let tline = line.trim_end();
+
         // 0000000010000000 <_start>:
-        if let Some(m) = symbol_start_re.captures(&line) {
-            let sym_name = m.get(1).unwrap().as_str().trim();
-            symbol = Some(sym_name.to_string());
+        if tline.starts_with(|c: char| c.is_digit(16)) && tline.ends_with(">:") {
+            let begin = tline.find('<').unwrap();
+            let end = tline.rfind('>').unwrap();
+            symbol = Some(tline[begin + 1..end].to_string());
         }
         //     10000010:   00a28663                beq     t0,a0,1000001c <_start+0x1c>
-        else if let Some(m) = instr_re.captures(&line) {
+        else if let Some(m) = instr_re.captures(&tline) {
             let addr = usize::from_str_radix(m.get(1).unwrap().as_str(), 16)?;
             let opcode = u32::from_str_radix(m.get(2).unwrap().as_str(), 16)?;
-            let disasm = m.get(3).unwrap().as_str().trim().to_string();
+            let disasm = m.get(3).unwrap().as_str().to_string();
 
             instrs.insert(addr, Instruction {
                 addr,
