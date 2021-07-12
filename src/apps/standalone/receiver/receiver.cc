@@ -23,12 +23,14 @@
 
 using namespace m3;
 
+static constexpr epid_t REP = TCU::FIRST_USER_EP;
+
 static uint8_t rbuf[8 * 64];
 
 int main() {
     size_t size = nextlog2<sizeof(rbuf)>::val;
     uintptr_t rbuf_addr = reinterpret_cast<uintptr_t>(rbuf);
-    kernel::TCU::config_recv(0, rbuf_addr, size, size - nextlog2<8>::val, 1);
+    kernel::TCU::config_recv(REP, rbuf_addr, size, size - nextlog2<8>::val, REP + 1);
 
     MsgBuf reply;
     reply.cast<uint64_t>() = 0;
@@ -38,12 +40,12 @@ int main() {
     for(int count = 0; count < 700000; ++count) {
         // wait for message
         const TCU::Message *rmsg;
-        while((rmsg = kernel::TCU::fetch_msg(0, rbuf_addr)) == nullptr)
+        while((rmsg = kernel::TCU::fetch_msg(REP, rbuf_addr)) == nullptr)
             ;
         ASSERT_EQ(rmsg->label, 0x1234);
 
         // send reply
-        ASSERT_EQ(kernel::TCU::reply(0, reply, rbuf_addr, rmsg), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::reply(REP, reply, rbuf_addr, rmsg), Errors::NONE);
         reply.cast<uint64_t>() += 1;
     }
 

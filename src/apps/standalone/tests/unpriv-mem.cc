@@ -18,6 +18,11 @@
 
 using namespace m3;
 
+static constexpr epid_t MEP = TCU::FIRST_USER_EP;
+static constexpr epid_t MEP2 = TCU::FIRST_USER_EP + 1;
+static constexpr epid_t SEP = TCU::FIRST_USER_EP + 2;
+static constexpr epid_t REP = TCU::FIRST_USER_EP + 3;
+
 static uint8_t src_buf[16384];
 static uint8_t dst_buf[16384];
 static uint8_t mem_buf[16384];
@@ -27,62 +32,62 @@ static void test_mem_short() {
 
     ASSERT_EQ(kernel::TCU::unknown_cmd(), Errors::UNKNOWN_CMD);
 
-    kernel::TCU::config_mem(1, pe_id(PE::MEM), 0x1000, sizeof(uint64_t), TCU::R | TCU::W);
+    kernel::TCU::config_mem(MEP, pe_id(PE::MEM), 0x1000, sizeof(uint64_t), TCU::R | TCU::W);
 
     Serial::get() << "WRITE with invalid arguments\n";
     {
-        kernel::TCU::config_mem(2, pe_id(PE::MEM), 0x1000, sizeof(uint64_t), TCU::R);
-        kernel::TCU::config_send(3, 0x1234, pe_id(PE::PE0), 1, 6 /* 64 */, 2);
+        kernel::TCU::config_mem(MEP2, pe_id(PE::MEM), 0x1000, sizeof(uint64_t), TCU::R);
+        kernel::TCU::config_send(SEP, 0x1234, pe_id(PE::PE0), REP, 6 /* 64 */, 2);
 
         // not a memory EP
-        ASSERT_EQ(kernel::TCU::write(3, &data, sizeof(data), 0), Errors::NO_MEP);
+        ASSERT_EQ(kernel::TCU::write(SEP, &data, sizeof(data), 0), Errors::NO_MEP);
         // offset out of bounds
-        ASSERT_EQ(kernel::TCU::write(1, &data, sizeof(data), 1), Errors::OUT_OF_BOUNDS);
+        ASSERT_EQ(kernel::TCU::write(MEP, &data, sizeof(data), 1), Errors::OUT_OF_BOUNDS);
         // size out of bounds
-        ASSERT_EQ(kernel::TCU::write(1, &data, sizeof(data) + 1, 0), Errors::OUT_OF_BOUNDS);
+        ASSERT_EQ(kernel::TCU::write(MEP, &data, sizeof(data) + 1, 0), Errors::OUT_OF_BOUNDS);
         // no write permission
-        ASSERT_EQ(kernel::TCU::write(2, &data, sizeof(data), 0), Errors::NO_PERM);
+        ASSERT_EQ(kernel::TCU::write(MEP2, &data, sizeof(data), 0), Errors::NO_PERM);
     }
 
     Serial::get() << "READ with invalid arguments\n";
     {
-        kernel::TCU::config_mem(2, pe_id(PE::MEM), 0x1000, sizeof(uint64_t), TCU::W);
-        kernel::TCU::config_send(3, 0x1234, pe_id(PE::PE0), 1, 6 /* 64 */, 2);
+        kernel::TCU::config_mem(MEP2, pe_id(PE::MEM), 0x1000, sizeof(uint64_t), TCU::W);
+        kernel::TCU::config_send(SEP, 0x1234, pe_id(PE::PE0), REP, 6 /* 64 */, 2);
 
         // not a memory EP
-        ASSERT_EQ(kernel::TCU::read(3, &data, sizeof(data), 0), Errors::NO_MEP);
+        ASSERT_EQ(kernel::TCU::read(SEP, &data, sizeof(data), 0), Errors::NO_MEP);
         // offset out of bounds
-        ASSERT_EQ(kernel::TCU::read(1, &data, sizeof(data), 1), Errors::OUT_OF_BOUNDS);
+        ASSERT_EQ(kernel::TCU::read(MEP, &data, sizeof(data), 1), Errors::OUT_OF_BOUNDS);
         // size out of bounds
-        ASSERT_EQ(kernel::TCU::read(1, &data, sizeof(data) + 1, 0), Errors::OUT_OF_BOUNDS);
+        ASSERT_EQ(kernel::TCU::read(MEP, &data, sizeof(data) + 1, 0), Errors::OUT_OF_BOUNDS);
         // no read permission
-        ASSERT_EQ(kernel::TCU::read(2, &data, sizeof(data), 0), Errors::NO_PERM);
+        ASSERT_EQ(kernel::TCU::read(MEP2, &data, sizeof(data), 0), Errors::NO_PERM);
     }
 
     Serial::get() << "READ+WRITE with offset = 0\n";
     {
         uint64_t data_ctrl = 0;
-        ASSERT_EQ(kernel::TCU::write(1, &data, sizeof(data), 0), Errors::NONE);
-        ASSERT_EQ(kernel::TCU::read(1, &data_ctrl, sizeof(data), 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::write(MEP, &data, sizeof(data), 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::read(MEP, &data_ctrl, sizeof(data), 0), Errors::NONE);
         ASSERT_EQ(data, data_ctrl);
     }
 
     Serial::get() << "READ+WRITE with offset != 0\n";
     {
-        kernel::TCU::config_mem(2, pe_id(PE::MEM), 0x2000, sizeof(uint64_t) * 2, TCU::R| TCU::W);
+        kernel::TCU::config_mem(MEP2, pe_id(PE::MEM), 0x2000, sizeof(uint64_t) * 2, TCU::R| TCU::W);
 
         uint64_t data_ctrl = 0;
-        ASSERT_EQ(kernel::TCU::write(2, &data, sizeof(data), 4), Errors::NONE);
-        ASSERT_EQ(kernel::TCU::read(2, &data_ctrl, sizeof(data), 4), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::write(MEP2, &data, sizeof(data), 4), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::read(MEP2, &data_ctrl, sizeof(data), 4), Errors::NONE);
         ASSERT_EQ(data, data_ctrl);
     }
 
     Serial::get() << "0-byte READ+WRITE transfers\n";
     {
-        kernel::TCU::config_mem(2, pe_id(PE::MEM), 0x2000, sizeof(uint64_t) * 2, TCU::R| TCU::W);
+        kernel::TCU::config_mem(MEP2, pe_id(PE::MEM), 0x2000, sizeof(uint64_t) * 2, TCU::R| TCU::W);
 
-        ASSERT_EQ(kernel::TCU::write(2, nullptr, 0, 0), Errors::NONE);
-        ASSERT_EQ(kernel::TCU::read(2, nullptr, 0, 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::write(MEP2, nullptr, 0, 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::read(MEP2, nullptr, 0, 0), Errors::NONE);
     }
 }
 
@@ -91,14 +96,14 @@ static void test_mem_large(PE mem_pe) {
         src_buf[i] = i;
 
     size_t addr = mem_pe == PE::MEM ? 0x1000 : reinterpret_cast<size_t>(mem_buf);
-    kernel::TCU::config_mem(1, pe_id(mem_pe), addr, sizeof(src_buf), TCU::R | TCU::W);
+    kernel::TCU::config_mem(MEP, pe_id(mem_pe), addr, sizeof(src_buf), TCU::R | TCU::W);
 
     const size_t sizes[] = {64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384};
     for(auto size : sizes) {
         Serial::get() << "READ+WRITE with " << size << " bytes with PE" << (int)mem_pe << "\n";
 
-        ASSERT_EQ(kernel::TCU::write(1, src_buf, size, 0), Errors::NONE);
-        ASSERT_EQ(kernel::TCU::read(1, dst_buf, size, 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::write(MEP, src_buf, size, 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::read(MEP, dst_buf, size, 0), Errors::NONE);
         for(size_t i = 0; i < size; ++i)
             ASSERT_EQ(src_buf[i], dst_buf[i]);
     }
@@ -109,7 +114,7 @@ static void test_mem_rdwr(PE mem_pe) {
         src_buf[i] = i;
 
     size_t addr = mem_pe == PE::MEM ? 0x1000 : reinterpret_cast<size_t>(mem_buf);
-    kernel::TCU::config_mem(1, pe_id(mem_pe), addr, sizeof(src_buf), TCU::R | TCU::W);
+    kernel::TCU::config_mem(MEP, pe_id(mem_pe), addr, sizeof(src_buf), TCU::R | TCU::W);
 
     const size_t sizes[] = {4096, 8192};
     for(auto size : sizes) {
@@ -118,13 +123,13 @@ static void test_mem_rdwr(PE mem_pe) {
         Serial::get() << "READ+WRITE+READ+WRITE with " << size << " bytes with PE" << (int)mem_pe << "\n";
 
         // first write our data
-        ASSERT_EQ(kernel::TCU::write(1, src_buf, size, 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::write(MEP, src_buf, size, 0), Errors::NONE);
         // read it into a buffer for the next write
-        ASSERT_EQ(kernel::TCU::read(1, dst_buf, size, 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::read(MEP, dst_buf, size, 0), Errors::NONE);
         // write the just read data
-        ASSERT_EQ(kernel::TCU::write(1, dst_buf, size, 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::write(MEP, dst_buf, size, 0), Errors::NONE);
         // read it again for checking purposes
-        ASSERT_EQ(kernel::TCU::read(1, dst_buf, size, 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::read(MEP, dst_buf, size, 0), Errors::NONE);
         for(size_t i = 0; i < size; ++i)
             ASSERT_EQ(src_buf[i], dst_buf[i]);
     }
@@ -141,11 +146,11 @@ static void test_mem(size_t size_in) {
     for(size_t i = 0; i < size_in; ++i)
         msg[i] = i + 1;
 
-    kernel::TCU::config_mem(1, pe_id(PE::MEM), 0x1000, size_in * sizeof(DATA), TCU::R | TCU::W);
+    kernel::TCU::config_mem(MEP, pe_id(PE::MEM), 0x1000, size_in * sizeof(DATA), TCU::R | TCU::W);
 
     // test write + read
-    ASSERT_EQ(kernel::TCU::write(1, msg, size_in * sizeof(DATA), 0), Errors::NONE);
-    ASSERT_EQ(kernel::TCU::read(1, buffer, size_in * sizeof(DATA), 0), Errors::NONE);
+    ASSERT_EQ(kernel::TCU::write(MEP, msg, size_in * sizeof(DATA), 0), Errors::NONE);
+    ASSERT_EQ(kernel::TCU::read(MEP, buffer, size_in * sizeof(DATA), 0), Errors::NONE);
     for(size_t i = 0; i < size_in; i++)
         ASSERT_EQ(buffer[i], msg[i]);
 }
@@ -162,10 +167,10 @@ static void test_unaligned_rdwr(size_t nwords, size_t offset) {
     for(size_t i = 0; i < nwords; ++i)
         msg.data[i] = i + 1;
 
-    kernel::TCU::config_mem(1, pe_id(PE::MEM), 0x1000, 0x1000, TCU::R | TCU::W);
+    kernel::TCU::config_mem(MEP, pe_id(PE::MEM), 0x1000, 0x1000, TCU::R | TCU::W);
 
-    ASSERT_EQ(kernel::TCU::write(1, msg.data, nwords * sizeof(uint64_t), offset), Errors::NONE);
-    ASSERT_EQ(kernel::TCU::read(1, msg.data, nwords * sizeof(uint64_t), offset), Errors::NONE);
+    ASSERT_EQ(kernel::TCU::write(MEP, msg.data, nwords * sizeof(uint64_t), offset), Errors::NONE);
+    ASSERT_EQ(kernel::TCU::read(MEP, msg.data, nwords * sizeof(uint64_t), offset), Errors::NONE);
 
     ASSERT_EQ(msg.pre, 0xDEADBEEF);
     ASSERT_EQ(msg.post, 0xCAFEBABE);

@@ -24,6 +24,8 @@
 
 using namespace m3;
 
+static constexpr epid_t MEP = TCU::FIRST_USER_EP;
+
 static ALIGNED(8) uint8_t buf1[1024];
 static ALIGNED(8) uint8_t buf2[1024];
 static ALIGNED(8) uint8_t buf3[1024];
@@ -35,7 +37,7 @@ int main() {
     Serial::get() << "Hello from PE" << static_cast<peid_t>(own_pe)
                   << " (partner PE" << static_cast<peid_t>(partner_pe) << ")!\n";
 
-    kernel::TCU::config_mem(1, pe_id(partner_pe),
+    kernel::TCU::config_mem(MEP, pe_id(partner_pe),
                             reinterpret_cast<uintptr_t>(buf1), sizeof(buf1),
                             TCU::R | TCU::W);
 
@@ -46,8 +48,8 @@ int main() {
         if(i % 1000 == 0)
             Serial::get() << "read-write test " << i << "\n";
 
-        ASSERT_EQ(kernel::TCU::write(1, buf2, sizeof(buf2), 0), Errors::NONE);
-        ASSERT_EQ(kernel::TCU::read(1, buf3, sizeof(buf3), 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::write(MEP, buf2, sizeof(buf2), 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::read(MEP, buf3, sizeof(buf3), 0), Errors::NONE);
 
         for(size_t i = 0; i < ARRAY_SIZE(buf2); ++i)
             ASSERT_EQ(buf2[i], buf3[i]);
