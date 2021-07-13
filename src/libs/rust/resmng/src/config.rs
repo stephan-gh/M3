@@ -274,6 +274,7 @@ impl PEType {
                 "nic" => desc.attr().contains(kif::PEAttr::NIC),
                 "boom" => desc.attr().contains(kif::PEAttr::BOOM),
                 "rocket" => desc.attr().contains(kif::PEAttr::ROCKET),
+                "kecacc" => desc.attr().contains(kif::PEAttr::KECACC),
 
                 "indir" => desc.isa() == kif::PEISA::ACCEL_INDIR,
                 "copy" => desc.isa() == kif::PEISA::ACCEL_COPY,

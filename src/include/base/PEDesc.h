@@ -55,6 +55,7 @@ enum PEAttr {
     BOOM           = 0x1,
     ROCKET         = 0x2,
     NIC            = 0x4,
+    KECACC         = 0x8,
 };
 
 /**
@@ -113,7 +114,7 @@ struct PEDesc {
      * @return the attributes of the PE
      */
     uint attr() const {
-        return (_value >> 7) & 0x7;
+        return (_value >> 7) & 0xF;
     }
     /**
      * @return if the PE has a core that is programmable

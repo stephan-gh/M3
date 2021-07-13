@@ -63,6 +63,8 @@ bitflags! {
         const BOOM          = 0x1;
         const ROCKET        = 0x2;
         const NIC           = 0x4;
+        /// PE contains a Keccak Accelerator (KecAcc)
+        const KECACC        = 0x8;
     }
 }
 
@@ -114,7 +116,7 @@ impl PEDesc {
     }
 
     pub fn attr(self) -> PEAttr {
-        PEAttr::from_bits_truncate((self.val >> 7) & 0x7)
+        PEAttr::from_bits_truncate((self.val >> 7) & 0xF)
     }
 
     /// Returns the size of the internal memory (0 if none is present)
@@ -190,6 +192,14 @@ impl PEDesc {
                 "nic" => {
                     res =
                         PEDesc::new_with_attr(res.pe_type(), res.isa(), 0, res.attr() | PEAttr::NIC)
+                },
+                "kecacc" => {
+                    res = PEDesc::new_with_attr(
+                        res.pe_type(),
+                        res.isa(),
+                        0,
+                        res.attr() | PEAttr::KECACC,
+                    )
                 },
 
                 "indir" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::ACCEL_INDIR, 0),

@@ -49,6 +49,8 @@ static PEDesc desc_with_properties(PEDesc desc, const char *props) {
             res = PEDesc(res.type(), res.isa(), 0, res.attr() | PEAttr::BOOM);
         else if(strcmp(prop, "nic") == 0)
             res = PEDesc(res.type(), res.isa(), 0, res.attr() | PEAttr::NIC);
+        else if(strcmp(prop, "kecacc") == 0)
+            res = PEDesc(res.type(), res.isa(), 0, res.attr() | PEAttr::KECACC);
         else if(strcmp(prop, "indir") == 0)
             res = PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_INDIR, 0);
         else if(strcmp(prop, "copy") == 0)
