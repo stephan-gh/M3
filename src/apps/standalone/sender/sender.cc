@@ -46,7 +46,7 @@ int main() {
     while((res = kernel::TCU::send(SEP, msg, 0x2222, REP)) != Errors::NONE) {
         Serial::get() << "send failed: " << res << "\n";
         // get credits back
-        kernel::TCU::config_send(SEP, 0x1234, pe_id(PE::PE0), 0, nextlog2<MSG_SIZE>::val, 1);
+        kernel::TCU::config_send(SEP, 0x1234, pe_id(PE::PE0), DSTEP, nextlog2<MSG_SIZE>::val, 1);
     }
 
     for(int count = 0; count < 100000; ++count) {
