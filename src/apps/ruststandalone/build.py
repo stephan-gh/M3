@@ -1,3 +1,4 @@
 def build(gen, env):
-    if env['PLATF'] == 'kachel':
-        env.m3_rust_exe(gen, out = 'ruststandalone', ldscript = 'baremetal')
+    if env['PLATF'] == 'kachel' and env['ISA'] == 'riscv':
+        for d in ['stdasender', 'stdareceiver', 'vmtest']:
+            env.sub_build(gen, d)

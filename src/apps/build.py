@@ -27,7 +27,6 @@ dirs = [
     'standalone',
     'timertest',
     'unittests',
-    'vmtest',
 ]
 
 def build(gen, env):

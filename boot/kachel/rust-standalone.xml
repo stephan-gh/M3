@@ -1,3 +1,0 @@
-<config>
-    <kernel args="ruststandalone" />
-</config>

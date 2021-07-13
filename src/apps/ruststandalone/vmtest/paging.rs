@@ -113,10 +113,12 @@ pub fn init() {
     BOOTSTRAP.set(false);
 }
 
+#[allow(unused)]
 pub fn translate(virt: usize, perm: PageFlags) -> PTE {
     ASPACE.translate(virt, perm.bits())
 }
 
+#[allow(unused)]
 pub fn map_anon(virt: usize, size: usize, perm: PageFlags) -> Result<(), Error> {
     let (mem_pe, mem_base, _, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
     let base = GlobAddr::new_with(mem_pe, mem_base);

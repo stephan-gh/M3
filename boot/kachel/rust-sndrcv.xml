@@ -1,0 +1,10 @@
+<config>
+    <kernel args="stdareceiver" />
+    <kernel args="stdasender" />
+    <kernel args="stdasender" />
+    <kernel args="stdasender" />
+    <kernel args="stdasender" />
+    <kernel args="stdasender" />
+    <kernel args="stdasender" />
+    <kernel args="stdasender" />
+</config>
