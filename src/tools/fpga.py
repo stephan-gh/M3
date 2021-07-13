@@ -8,6 +8,7 @@ import os, sys
 
 import modids
 import fpga_top
+from elftools.elf.elffile import ELFFile
 from noc import NoCmonitor
 from tcu import EP, MemEP, Flags
 from fpga_utils import FPGA_Error
@@ -119,6 +120,12 @@ def load_prog(dram, pms, i, args, vm):
     pmp_ep.set_addr(mem_begin)
     pmp_ep.set_size(INIT_PMP_SIZE)
     pm.tcu_set_ep(0, pmp_ep)
+
+    # verify entrypoint, because inject a jump instruction below that jumps to that address
+    with open(args[0], 'rb') as f:
+        elf = ELFFile(f)
+        if elf.header['e_entry'] != 0x10001000:
+            sys.exit("error: {} has entry {:#x}, not 0x10001000.".format(args[0], elf.header['e_entry']))
 
     # load ELF file
     dram.mem.write_elf(args[0], mem_begin - DRAM_OFF)
