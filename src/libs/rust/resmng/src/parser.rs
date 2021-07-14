@@ -277,10 +277,25 @@ fn parse_dual_name(dual: &mut config::DualName, n: String, v: String) -> Result<
 }
 
 fn parse_domain(p: &mut ConfigParser) -> Result<config::Domain, Error> {
+    let mut dom = config::Domain::default();
+
+    loop {
+        match p.parse_arg()? {
+            None => break,
+            Some((n, v)) => match n.as_ref() {
+                "pe" => dom.pe = config::PEType(v),
+                _ => return Err(Error::new(Code::InvArgs)),
+            },
+        }
+    }
+
+    if dom.pe.0.is_empty() {
+        dom.pe = config::PEType("core".to_string());
+    }
+
     p.consume('>')?;
 
     let mut app_start = p.pos;
-    let mut dom = config::Domain::default();
     while let Some(tag) = p.parse_tag_name()? {
         if tag != "app" {
             return Err(Error::new(Code::InvArgs));

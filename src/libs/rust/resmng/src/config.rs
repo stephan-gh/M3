@@ -20,6 +20,7 @@ use m3::col::{BTreeMap, BTreeSet, String, Vec};
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif;
+use m3::pes::VPE;
 use m3::rc::Rc;
 use m3::tcu::Label;
 
@@ -246,8 +247,64 @@ impl SGateDesc {
 }
 
 #[derive(Default)]
+pub struct PEType(pub String);
+
+impl PEType {
+    pub fn matches(&self, desc: kif::PEDesc) -> bool {
+        for attr in self.0.split(',') {
+            let matches = match attr {
+                "core" => desc.is_programmable(),
+
+                "imem" => desc.pe_type() == kif::PEType::COMP_IMEM,
+                "emem" => desc.pe_type() == kif::PEType::COMP_EMEM,
+                "vm" => desc.has_virtmem(),
+
+                "arm" => desc.isa() == kif::PEISA::ARM,
+                "x86" => desc.isa() == kif::PEISA::X86,
+                "riscv" => desc.isa() == kif::PEISA::RISCV,
+
+                "indir" => desc.isa() == kif::PEISA::ACCEL_INDIR,
+                "copy" => desc.isa() == kif::PEISA::ACCEL_COPY,
+                "rot13" => desc.isa() == kif::PEISA::ACCEL_ROT13,
+
+                "ide" => desc.isa() == kif::PEISA::IDE_DEV,
+                "nic" => desc.isa() == kif::PEISA::NIC_DEV,
+                _ => false,
+            };
+            if !matches {
+                return false;
+            }
+        }
+        true
+    }
+
+    pub fn pe_desc(&self) -> kif::PEDesc {
+        use kif::{PEDesc, PEType, PEISA};
+
+        let mut res = VPE::cur().pe_desc();
+        for attr in self.0.split(',') {
+            match attr {
+                "imem" => res = PEDesc::new(PEType::COMP_IMEM, res.isa(), res.mem_size()),
+                "emem" | "vm" => res = PEDesc::new(PEType::COMP_EMEM, res.isa(), res.mem_size()),
+                "arm" => res = PEDesc::new(res.pe_type(), PEISA::ARM, res.mem_size()),
+                "x86" => res = PEDesc::new(res.pe_type(), PEISA::X86, res.mem_size()),
+                "riscv" => res = PEDesc::new(res.pe_type(), PEISA::RISCV, res.mem_size()),
+                "indir" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::ACCEL_INDIR, res.mem_size()),
+                "copy" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::ACCEL_COPY, res.mem_size()),
+                "rot13" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::ACCEL_ROT13, res.mem_size()),
+                "ide" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::IDE_DEV, res.mem_size()),
+                "nic" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::NIC_DEV, res.mem_size()),
+
+                _ => {},
+            }
+        }
+        res
+    }
+}
+
+#[derive(Default)]
 pub struct PEDesc {
-    ty: String,
+    ty: PEType,
     count: Cell<u32>,
     optional: bool,
 }
@@ -255,32 +312,18 @@ pub struct PEDesc {
 impl PEDesc {
     pub(crate) fn new(ty: String, count: u32, optional: bool) -> Self {
         Self {
-            ty,
+            ty: PEType(ty),
             count: Cell::new(count),
             optional,
         }
     }
 
-    pub fn pe_type(&self) -> &String {
+    pub fn pe_type(&self) -> &PEType {
         &self.ty
     }
 
     pub fn count(&self) -> u32 {
         self.count.get()
-    }
-
-    pub fn matches(&self, desc: kif::PEDesc) -> bool {
-        match self.ty.as_ref() {
-            "core" => desc.is_programmable(),
-            "arm" => desc.isa() == kif::PEISA::ARM,
-            "x86" => desc.isa() == kif::PEISA::X86,
-            "indir" => desc.isa() == kif::PEISA::ACCEL_INDIR,
-            "copy" => desc.isa() == kif::PEISA::ACCEL_COPY,
-            "rot13" => desc.isa() == kif::PEISA::ACCEL_ROT13,
-            "ide" => desc.isa() == kif::PEISA::IDE_DEV,
-            "nic" => desc.isa() == kif::PEISA::NIC_DEV,
-            _ => false,
-        }
     }
 
     pub fn alloc(&self) {
@@ -310,12 +353,17 @@ impl SemDesc {
 #[derive(Default)]
 pub struct Domain {
     pub(crate) pseudo: bool,
+    pub(crate) pe: PEType,
     pub(crate) apps: Vec<Rc<AppConfig>>,
 }
 
 impl Domain {
     pub fn apps(&self) -> &Vec<Rc<AppConfig>> {
         &self.apps
+    }
+
+    pub fn pe(&self) -> &PEType {
+        &self.pe
     }
 }
 
@@ -458,7 +506,7 @@ impl AppConfig {
         let idx = self
             .pes
             .iter()
-            .position(|pe| pe.matches(desc))
+            .position(|pe| pe.pe_type().matches(desc))
             .ok_or_else(|| Error::new(Code::InvArgs))?;
 
         if self.pes[idx].count.get() > 0 {
@@ -513,7 +561,7 @@ impl AppConfig {
     fn count_pes(pe: &PEDesc) -> u32 {
         let mut count = 0;
         for i in 0..pes::get().count() {
-            if pe.matches(pes::get().get(i).desc()) {
+            if pe.pe_type().matches(pes::get().get(i).desc()) {
                 count += 1;
             }
         }
@@ -534,7 +582,7 @@ impl AppConfig {
                     panic!(
                         "AppConfig '{}' needs PE type '{}' {} times, but {} are available",
                         self.name(),
-                        pe.ty,
+                        pe.pe_type().0,
                         pe.count.get(),
                         available
                     );
@@ -729,7 +777,7 @@ impl AppConfig {
                 f,
                 "{:0w$}PE[type={}, count={}, optional={}],",
                 "",
-                pe.ty,
+                pe.pe_type().0,
                 pe.count.get(),
                 pe.optional,
                 w = layer + 2
@@ -738,7 +786,7 @@ impl AppConfig {
         for d in &self.domains {
             let mut sub_layer = layer;
             if !d.pseudo {
-                writeln!(f, "{:0w$}Domain [", "", w = layer + 2)?;
+                writeln!(f, "{:0w$}Domain on {} [", "", d.pe.0, w = layer + 2)?;
                 sub_layer += 2;
             }
             for a in &d.apps {

@@ -267,12 +267,12 @@ impl Subsystem {
 
         for d in root.domains().iter() {
             // we need virtual memory support for multiple apps per domain
-            let cur_desc = VPE::cur().pe_desc();
+            let req_desc = d.pe.pe_desc();
             let pe_desc = if d.pseudo || d.apps().len() > 1 {
-                PEDesc::new(PEType::COMP_EMEM, cur_desc.isa(), 0)
+                PEDesc::new(PEType::COMP_EMEM, req_desc.isa(), req_desc.mem_size())
             }
             else {
-                cur_desc
+                req_desc
             };
 
             // allocate new PE; root allocates from its own set, others ask their resmng
@@ -602,7 +602,7 @@ fn pass_down_pes(sub: &mut SubsystemBuilder, app: &config::AppConfig) {
         for child in d.apps() {
             for pe in child.pes() {
                 for _ in 0..pe.count() {
-                    if let Some(idx) = pes::get().find(|p| pe.matches(p.desc())) {
+                    if let Some(idx) = pes::get().find(|p| pe.pe_type().matches(p.desc())) {
                         pes::get().alloc(idx);
                         sub.add_pe(pes::get().id(idx), pes::get().get(idx));
                     }

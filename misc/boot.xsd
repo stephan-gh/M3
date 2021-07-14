@@ -7,6 +7,7 @@
                     <xs:sequence minOccurs="1" maxOccurs="unbounded">
                         <xs:element name="app" type="appType"/>
                     </xs:sequence>
+                    <xs:attribute name="pe" type="xs:string"/>
                 </xs:complexType>
             </xs:element>
 
