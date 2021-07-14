@@ -95,16 +95,17 @@ void VPE::run(void *lambda) {
     senv.vpe_addr = static_cast<uint64_t>(vpe_addr);
     senv.backend_addr = env()->backend_addr;
 
-    MemGate env_mem = get_mem(ENV_START & ~PAGE_MASK, ENV_SIZE, MemGate::W);
+    goff_t env_page_off = ENV_START & ~PAGE_MASK;
+    MemGate env_mem = get_mem(env_page_off, ENV_SIZE, MemGate::W);
 
     /* write start env to PE */
-    env_mem.write(&senv, sizeof(senv), 0);
+    env_mem.write(&senv, sizeof(senv), ENV_START - env_page_off);
 
     /* write args */
     std::unique_ptr<char[]> buffer(new char[BUF_SIZE]);
     size_t size = store_arguments(buffer.get(), static_cast<int>(env()->argc),
         reinterpret_cast<const char**>(env()->argv));
-    env_mem.write(buffer.get(), size, sizeof(m3::Env));
+    env_mem.write(buffer.get(), size, ENV_START + sizeof(m3::Env) - env_page_off);
 
     /* go! */
     start();
@@ -149,16 +150,17 @@ void VPE::exec(int argc, const char **argv) {
     senv.fds_len = _fds->serialize(buffer.get() + offset, ENV_SPACE_SIZE - offset);
     offset = Math::round_up(offset + static_cast<size_t>(senv.fds_len), sizeof(word_t));
 
-    MemGate env_mem = get_mem(ENV_START & ~PAGE_MASK, ENV_SIZE, MemGate::W);
+    goff_t env_page_off = ENV_START & ~PAGE_MASK;
+    MemGate env_mem = get_mem(env_page_off, ENV_SIZE, MemGate::W);
 
     /* write entire runtime stuff */
-    env_mem.write(buffer.get(), offset, sizeof(senv));
+    env_mem.write(buffer.get(), offset, ENV_START + sizeof(senv) - env_page_off);
 
     senv.backend_addr = 0;
     senv.vpe_addr = 0;
 
     /* write start env to PE */
-    env_mem.write(&senv, sizeof(senv), 0);
+    env_mem.write(&senv, sizeof(senv), ENV_START - env_page_off);
 
     /* go! */
     start();

@@ -158,9 +158,10 @@ impl Loader {
             let dst_sel = virt >> PAGE_BITS;
             let pages = math::round_up(size, PAGE_SIZE) >> PAGE_BITS;
 
-            let map_obj = MapObject::new(phys, flags);
+            let phys_align = GlobAddr::new_with(phys.pe(), phys.offset() & !PAGE_MASK as goff);
+            let map_obj = MapObject::new(phys_align, flags);
             if map {
-                map_obj.map_async(vpe, virt, phys, pages, flags)?;
+                map_obj.map_async(vpe, virt & !PAGE_MASK as goff, phys_align, pages, flags)?;
             }
 
             vpe.map_caps().borrow_mut().insert(Capability::new_range(

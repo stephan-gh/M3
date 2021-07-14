@@ -472,16 +472,13 @@ impl VPE {
             senv.set_vpe(&self);
 
             // env goes first
-            let mem = self.get_mem(
-                (cfg::ENV_START & !cfg::PAGE_MASK) as goff,
-                cfg::ENV_SIZE as goff,
-                kif::Perm::RW,
-            )?;
+            let env_page_off = (cfg::ENV_START & !cfg::PAGE_MASK) as goff;
+            let mem = self.get_mem(env_page_off, cfg::ENV_SIZE as goff, kif::Perm::RW)?;
             let mut off = cfg::ENV_START + mem::size_of_val(&senv);
 
             // create and write closure
             let closure = env::Closure::new(func);
-            mem.write_obj(&closure, (off - cfg::ENV_START) as goff)?;
+            mem.write_obj(&closure, off as goff - env_page_off)?;
             off += mem::size_of_val(&closure);
 
             // write args
@@ -492,7 +489,7 @@ impl VPE {
             senv.set_pedesc(self.pe_desc());
 
             // write start env to PE
-            mem.write_obj(&senv, 0)?;
+            mem.write_obj(&senv, cfg::ENV_START as goff - env_page_off)?;
 
             closure
         };
@@ -590,11 +587,8 @@ impl VPE {
 
         let mut senv = arch::env::EnvData::default();
 
-        let mem = self.get_mem(
-            (cfg::ENV_START & !cfg::PAGE_MASK) as goff,
-            cfg::ENV_SIZE as goff,
-            kif::Perm::RW,
-        )?;
+        let env_page_off = (cfg::ENV_START & !cfg::PAGE_MASK) as goff;
+        let mem = self.get_mem(env_page_off, cfg::ENV_SIZE as goff, kif::Perm::RW)?;
 
         {
             // load program segments
@@ -615,7 +609,7 @@ impl VPE {
                 mem.write_bytes(
                     words.as_ptr() as *const u8,
                     words.len() * mem::size_of::<u64>(),
-                    (off - cfg::ENV_START) as goff,
+                    off as goff - env_page_off,
                 )?;
                 senv.set_files(off, fds.size());
                 off += fds.size();
@@ -629,7 +623,7 @@ impl VPE {
                 mem.write_bytes(
                     words.as_ptr() as *const u8,
                     words.len() * mem::size_of::<u64>(),
-                    (off - cfg::ENV_START) as goff,
+                    off as goff - env_page_off,
                 )?;
                 senv.set_mounts(off, mounts.size());
             }
@@ -648,7 +642,11 @@ impl VPE {
             }
 
             // write start env to PE
-            mem.write_bytes(&senv as *const _ as *const u8, mem::size_of_val(&senv), 0)?;
+            mem.write_bytes(
+                &senv as *const _ as *const u8,
+                mem::size_of_val(&senv),
+                cfg::ENV_START as goff - env_page_off,
+            )?;
         }
 
         // go!

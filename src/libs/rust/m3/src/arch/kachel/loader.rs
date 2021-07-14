@@ -215,12 +215,13 @@ where
         argoff += arg.len() + 1;
     }
 
+    let env_page_off = (cfg::ENV_START & !cfg::PAGE_MASK) as goff;
     write_bytes_checked(
         mem,
         *off,
         argbuf.as_ptr() as *const _,
         argbuf.len(),
-        (*off - cfg::ENV_START) as goff,
+        *off as goff - env_page_off,
     )?;
 
     argoff = math::round_up(argoff, size_of::<u64>());
@@ -229,7 +230,7 @@ where
         argoff,
         argptr.as_ptr() as *const _,
         argptr.len() * size_of::<u64>(),
-        (argoff - cfg::ENV_START) as goff,
+        argoff as goff - env_page_off,
     )?;
 
     *off = argoff + argptr.len() * size_of::<u64>();
