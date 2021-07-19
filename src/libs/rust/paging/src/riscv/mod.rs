@@ -73,9 +73,9 @@ pub fn pte_to_phys(pte: MMUPTE) -> Phys {
     (pte & !MMUFlags::FLAGS.bits()) << 2
 }
 
-pub fn needs_invalidate(_new_flags: MMUFlags, old_flags: MMUFlags) -> bool {
-    // invalidate the TLB entry on every change
-    old_flags.bits() != 0
+pub fn needs_invalidate(_new_flags: MMUFlags, _old_flags: MMUFlags) -> bool {
+    // according to 4.2.1, we need an invalidate whenever a leaf PTE is updated
+    true
 }
 
 pub fn to_page_flags(level: usize, pte: MMUFlags) -> PageFlags {
