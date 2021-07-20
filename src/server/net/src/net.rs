@@ -180,7 +180,7 @@ impl Handler<NetworkSession> for NetHandler {
     }
 
     fn shutdown(&mut self) {
-        log!(LOG_DEF, "Shutting down");
+        log!(LOG_DEF, "Shutdown request");
     }
 }
 
