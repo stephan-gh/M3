@@ -260,17 +260,18 @@ impl<A: Allocator> AddrSpace<A> {
                 // determine if we need to perform an TLB invalidate
                 let old_flags = MMUFlags::from_bits_truncate(pte);
                 let new_flags = MMUFlags::from_bits_truncate(new_pte);
+
+                // safety: as above
+                unsafe {
+                    *(pte_addr as *mut MMUPTE) = new_pte
+                };
+
                 let invalidate = arch::needs_invalidate(new_flags, old_flags);
                 if invalidate {
                     // it's okay if the page is not in the TLB
                     TCU::invalidate_page(self.id as u16, *virt).ok();
                     arch::invalidate_page(self.id, *virt);
                 }
-
-                // safety: as above
-                unsafe {
-                    *(pte_addr as *mut MMUPTE) = new_pte
-                };
 
                 log!(
                     crate::LOG_MAP_DETAIL,
