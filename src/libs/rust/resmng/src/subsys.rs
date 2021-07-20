@@ -28,6 +28,7 @@ use m3::math;
 use m3::mem::{size_of, GlobAddr};
 use m3::pes::{PE, VPE};
 use m3::rc::Rc;
+use m3::server::DEF_MAX_CLIENTS;
 use m3::tcu::PEId;
 
 use crate::childs;
@@ -52,9 +53,20 @@ static OUR_PE: StaticCell<Option<Rc<pes::PEUsage>>> = StaticCell::new(None);
 #[allow(clippy::vec_box)]
 static DELAYED: StaticCell<Vec<Box<childs::OwnChild>>> = StaticCell::new(Vec::new());
 
-#[derive(Default)]
-struct Arguments {
-    share_kmem: bool,
+pub struct Arguments {
+    pub share_kmem: bool,
+    pub max_clients: usize,
+    sems: Vec<String>,
+}
+
+impl Default for Arguments {
+    fn default() -> Self {
+        Self {
+            share_kmem: false,
+            max_clients: DEF_MAX_CLIENTS,
+            sems: Vec::new(),
+        }
+    }
 }
 
 pub struct Subsystem {
@@ -192,6 +204,24 @@ impl Subsystem {
         Ok(())
     }
 
+    pub fn parse_args(&self) -> Arguments {
+        let mut args = Arguments::default();
+        for arg in self.cfg().args() {
+            if arg == "sharekmem" {
+                args.share_kmem = true;
+            }
+            else if let Some(clients) = arg.strip_prefix("maxcli=") {
+                args.max_clients = clients
+                    .parse::<usize>()
+                    .expect("Failed to parse client count");
+            }
+            else if let Some(sem) = arg.strip_prefix("sem=") {
+                args.sems.push(sem.to_string());
+            }
+        }
+        args
+    }
+
     pub fn cfg_str(&self) -> &String {
         &self.cfg_str
     }
@@ -249,7 +279,12 @@ impl Subsystem {
             root.check();
         }
 
-        let args = parse_args(&root);
+        let args = self.parse_args();
+        for sem in &args.sems {
+            sems::get()
+                .add_sem(sem.clone())
+                .expect("Unable to add semaphore");
+        }
 
         // keep our own PE to make sure that we allocate a different one for the next domain in case
         // our domain contains just ourself.
@@ -629,21 +664,6 @@ fn pass_down_mem(sub: &mut SubsystemBuilder, app: &config::AppConfig) -> Result<
         }
     }
     Ok(())
-}
-
-fn parse_args(cfg: &config::AppConfig) -> Arguments {
-    let mut args = Arguments::default();
-    for arg in cfg.args() {
-        if arg == "sharekmem" {
-            args.share_kmem = true;
-        }
-        else if let Some(sem) = arg.strip_prefix("sem=") {
-            sems::get()
-                .add_sem(sem.to_string())
-                .expect("Unable to add semaphore");
-        }
-    }
-    args
 }
 
 fn split_mem(cfg: &config::AppConfig) -> Result<(usize, goff), Error> {

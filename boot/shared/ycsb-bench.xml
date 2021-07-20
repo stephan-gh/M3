@@ -9,7 +9,7 @@
                 </app>
             </dom>
             <dom>
-                <app args="pager -m 4 $fs.size sem=net">
+                <app args="pager maxcli=4 sem=net $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
                     <pes type="core" count="4" />

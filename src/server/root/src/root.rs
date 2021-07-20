@@ -29,7 +29,6 @@ use m3::log;
 use m3::math;
 use m3::pes::{VPEArgs, VPE};
 use m3::rc::Rc;
-use m3::server::DEF_MAX_CLIENTS;
 use m3::session::ResMng;
 use m3::syscalls;
 use m3::tcu;
@@ -121,8 +120,10 @@ fn workloop() {
 pub fn main() -> i32 {
     SUBSYS.set(subsys::Subsystem::new().expect("Unable to read subsystem info"));
 
+    let args = SUBSYS.parse_args();
+
     let max_msg_size = 1 << 8;
-    let buf_size = max_msg_size * DEF_MAX_CLIENTS;
+    let buf_size = max_msg_size * args.max_clients;
 
     // allocate and map memory for receive buffer. note that we need to do that manually here,
     // because RecvBufs allocate new physical memory via the resource manager and root does not have
