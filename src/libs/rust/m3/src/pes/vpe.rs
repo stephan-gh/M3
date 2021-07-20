@@ -142,32 +142,26 @@ impl VPE {
     /// passed.
     #[inline(always)]
     pub fn sleep_for(nanos: u64) -> Result<(), Error> {
-        if envdata::get().platform == envdata::Platform::GEM5.val {
+        if envdata::get().platform != envdata::Platform::HOST.val {
             if arch::env::get().shared() || nanos != 0 {
-                pexif::sleep(nanos, None)
+                return pexif::sleep(nanos, None);
             }
-            else {
-                TCU::wait_for_msg(INVALID_EP)
+            if envdata::get().platform == envdata::Platform::GEM5.val {
+                return TCU::wait_for_msg(INVALID_EP);
             }
         }
-        else {
-            Ok(())
-        }
+        Ok(())
     }
 
     /// Puts the current VPE to sleep until the next message arrives on the given EP
     pub fn wait_for_msg(ep: EpId) -> Result<(), Error> {
-        if envdata::get().platform == envdata::Platform::GEM5.val {
-            if arch::env::get().shared() {
-                pexif::sleep(0, Some(ep))
-            }
-            else {
-                TCU::wait_for_msg(ep)
-            }
+        if arch::env::get().shared() {
+            return pexif::sleep(0, Some(ep));
         }
-        else {
-            Ok(())
+        if envdata::get().platform != envdata::Platform::HW.val {
+            return TCU::wait_for_msg(ep);
         }
+        Ok(())
     }
 
     /// Returns the currently running [`VPE`].
