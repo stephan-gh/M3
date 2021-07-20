@@ -20,14 +20,17 @@ mod sess;
 
 use m3::cap::Selector;
 use m3::cell::LazyStaticCell;
+use m3::col::{String, Vec};
 use m3::com::GateIStream;
+use m3::env;
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::log;
 use m3::pes::VPE;
+use m3::println;
 use m3::server::{
     server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
-    DEF_MAX_CLIENTS,
+    DEF_MAX_CLIENTS, DEF_MSG_SIZE,
 };
 use m3::session::ServerSession;
 use m3::tcu::Label;
@@ -250,16 +253,64 @@ impl Handler<PipesSession> for PipesHandler {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct PipesSettings {
+    max_clients: usize,
+}
+
+impl Default for PipesSettings {
+    fn default() -> Self {
+        PipesSettings {
+            max_clients: DEF_MAX_CLIENTS,
+        }
+    }
+}
+
+fn usage() -> ! {
+    println!("Usage: {} [-m <clients>]", env::args().next().unwrap());
+    println!();
+    println!("  -m: the maximum number of clients (receive slots)");
+    m3::exit(1);
+}
+
+fn parse_args() -> Result<PipesSettings, String> {
+    let mut settings = PipesSettings::default();
+
+    let args: Vec<&str> = env::args().collect();
+    let mut i = 1;
+    while i < args.len() {
+        match args[i] {
+            "-m" => {
+                settings.max_clients = args[i + 1]
+                    .parse::<usize>()
+                    .map_err(|_| String::from("Failed to parse client count"))?;
+                i += 1;
+            },
+            _ => break,
+        }
+        i += 1;
+    }
+    Ok(settings)
+}
+
 #[no_mangle]
 pub fn main() -> i32 {
+    let settings = parse_args().unwrap_or_else(|e| {
+        println!("Invalid arguments: {}", e);
+        usage();
+    });
+
     let mut hdl = PipesHandler {
         sel: 0,
-        sessions: SessionContainer::new(DEF_MAX_CLIENTS),
+        sessions: SessionContainer::new(settings.max_clients),
     };
     let s = Server::new("pipes", &mut hdl).expect("Unable to create service 'pipes'");
     hdl.sel = s.sel();
 
-    REQHDL.set(RequestHandler::default().expect("Unable to create request handler"));
+    REQHDL.set(
+        RequestHandler::new_with(settings.max_clients, DEF_MSG_SIZE)
+            .expect("Unable to create request handler"),
+    );
 
     server_loop(|| {
         s.handle_ctrl_chan(&mut hdl)?;
