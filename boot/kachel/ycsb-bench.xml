@@ -35,7 +35,6 @@
                         <app args="/bin/ycsbclient /data/workload.wl">
                             <sess name="net0" args="bufs=1M socks=1 ports=1337" />
                             <sess lname="m3fs" gname="app_m3fs" />
-                            <pes type="core" count="1" />
                             <sem name="net" />
                         </app>
                     </dom>
