@@ -207,16 +207,32 @@ pub fn enable_irqs() {
     set_csr_bits!("sstatus", 1 << 1);
 }
 
-pub fn acknowledge_irq(irq: tcu::IRQ) {
+pub fn get_irq() -> tcu::IRQ {
     if envdata::get().platform == envdata::Platform::HW.val {
         let irq = plic::get();
         assert!(irq != 0);
+        match irq {
+            plic::TCU_ID => tcu::IRQ::CORE_REQ,
+            plic::TIMER_ID | _ => tcu::IRQ::TIMER,
+        }
+    }
+    else {
+        tcu::IRQ::CORE_REQ
+    }
+}
+
+pub fn acknowledge_irq(irq: tcu::IRQ) {
+    if envdata::get().platform == envdata::Platform::HW.val {
+        let id = match irq {
+            tcu::IRQ::CORE_REQ => plic::TCU_ID,
+            tcu::IRQ::TIMER | _ => plic::TIMER_ID,
+        };
         // TODO: temporary (add to spec and make gem5 behave the same)
         let tcu_set_irq_addr = 0xF000_3030 as *mut u64;
         unsafe {
-            tcu_set_irq_addr.add((irq - 1) as usize).write_volatile(0);
+            tcu_set_irq_addr.add((id - 1) as usize).write_volatile(0);
         }
-        plic::ack(irq);
+        plic::ack(id);
     }
     else {
         tcu::TCU::clear_irq(irq);

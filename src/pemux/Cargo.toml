@@ -8,7 +8,6 @@ path = "src/pemux.rs"
 crate-type = ["staticlib"]
 
 [dependencies]
-cfg-if = "*"
 base = { path = "../libs/rust/base" }
 heap = { path = "../libs/rust/heap" }
 isr = { path = "../libs/rust/isr" }

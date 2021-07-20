@@ -40,7 +40,6 @@ use base::log;
 use base::machine;
 use base::mem;
 use base::tcu;
-use cfg_if::cfg_if;
 
 /// Logs errors
 pub const LOG_ERR: bool = true;
@@ -156,14 +155,18 @@ pub extern "C" fn pexcall(state: &mut arch::State) -> *mut libc::c_void {
 
 pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
     // on ARM, we use the same IRQ for both core requests and the timer
-    cfg_if! {
-        if #[cfg(target_arch = "arm")] {
-            if tcu::TCU::get_irq() == tcu::IRQ::TIMER {
-                return timer_irq(state);
-            }
-        }
+    #[cfg(target_arch = "arm")]
+    if tcu::TCU::get_irq() == tcu::IRQ::TIMER {
+        return timer_irq(state);
     }
 
+    // on hw, the external IRQ is used for both core requests and the timer as well
+    #[cfg(target_vendor = "hw")]
+    if pex_env().platform == envdata::Platform::HW.val && isr::get_irq() == tcu::IRQ::TIMER {
+        return timer_irq(state);
+    }
+
+    // here it's always a core request
     isr::acknowledge_irq(tcu::IRQ::CORE_REQ);
 
     // core request from TCU?
