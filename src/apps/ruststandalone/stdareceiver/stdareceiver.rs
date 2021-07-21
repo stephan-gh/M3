@@ -35,18 +35,22 @@ const LOG_DETAIL: bool = false;
 const LOG_PEXCALLS: bool = false;
 
 const OWN_VPE: u16 = 0xFFFF;
+const CREDITS: usize = 4;
+const CLIENTS: usize = 8;
+const MSG_SIZE: usize = 64;
+const SENDS: usize = 100000;
 
 const REP: EpId = tcu::FIRST_USER_EP;
 const RPLEPS: EpId = tcu::FIRST_USER_EP + 1;
 
-static RBUF: [u64; 8 * 64] = [0; 8 * 64];
+static RBUF: [u64; CREDITS * CLIENTS * MSG_SIZE] = [0; CREDITS * CLIENTS * MSG_SIZE];
 
 #[no_mangle]
 pub extern "C" fn env_run() {
     helper::init("stdareceiver");
 
     let buf_ord = math::next_log2(RBUF.len());
-    let msg_ord = buf_ord - math::next_log2(8);
+    let msg_ord = buf_ord - math::next_log2(CLIENTS * CREDITS);
     let (rbuf_virt, rbuf_phys) = helper::virt_to_phys(RBUF.as_ptr() as usize);
     helper::config_local_ep(REP, |regs| {
         TCU::config_recv(regs, OWN_VPE, rbuf_phys, buf_ord, msg_ord, Some(RPLEPS));
@@ -57,7 +61,7 @@ pub extern "C" fn env_run() {
 
     log!(crate::LOG_DEF, "Hello World from receiver!");
 
-    for _ in 0..700000 {
+    for _ in 0..SENDS * 7 {
         // wait for message
         let rmsg = loop {
             if let Some(m) = helper::fetch_msg(REP, rbuf_virt) {

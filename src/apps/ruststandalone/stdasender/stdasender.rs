@@ -42,8 +42,10 @@ const REP: EpId = FIRST_USER_EP;
 const SEP: EpId = FIRST_USER_EP + 1;
 
 const MSG_SIZE: usize = 64;
+const CREDITS: u32 = 4;
+const SENDS: usize = 100000;
 
-static RBUF: [u64; 64] = [0; 64];
+static RBUF: [u64; CREDITS as usize * MSG_SIZE] = [0; CREDITS as usize * MSG_SIZE];
 
 #[no_mangle]
 pub extern "C" fn env_run() {
@@ -51,13 +53,14 @@ pub extern "C" fn env_run() {
 
     let msg_size = math::next_log2(MSG_SIZE);
     helper::config_local_ep(SEP, |regs| {
-        TCU::config_send(regs, OWN_VPE, 0x1234, DST_PE, DST_EP, msg_size, 1);
+        TCU::config_send(regs, OWN_VPE, 0x1234, DST_PE, DST_EP, msg_size, CREDITS);
     });
 
     let buf_ord = math::next_log2(RBUF.len());
+    let msg_ord = math::next_log2(MSG_SIZE);
     let (rbuf_virt, rbuf_phys) = helper::virt_to_phys(RBUF.as_ptr() as usize);
     helper::config_local_ep(REP, |regs| {
-        TCU::config_recv(regs, OWN_VPE, rbuf_phys, buf_ord, buf_ord, None);
+        TCU::config_recv(regs, OWN_VPE, rbuf_phys, buf_ord, msg_ord, None);
     });
 
     let mut msg = MsgBuf::new();
@@ -70,26 +73,29 @@ pub extern "C" fn env_run() {
         log!(crate::LOG_DEF, "send failed: {}", e);
         // get credits back
         helper::config_local_ep(SEP, |regs| {
-            TCU::config_send(regs, OWN_VPE, 0x1234, DST_PE, DST_EP, 6, 1);
+            TCU::config_send(regs, OWN_VPE, 0x1234, DST_PE, DST_EP, 6, CREDITS);
         });
     }
 
-    for _ in 0..100000 {
-        // wait for reply
-        let rmsg = loop {
-            if let Some(m) = helper::fetch_msg(REP, rbuf_virt) {
-                break m;
-            }
-        };
-        assert_eq!({ rmsg.header.label }, 0x2222);
-        log!(crate::LOG_DETAIL, "got reply {}", *rmsg.get_data::<u64>());
+    let mut sent = 1;
+    let mut recv = 0;
+    while recv < SENDS {
+        // received reply?
+        if let Some(m) = helper::fetch_msg(REP, rbuf_virt) {
+            assert_eq!({ m.header.label }, 0x2222);
+            log!(crate::LOG_DETAIL, "got reply {}", *m.get_data::<u64>());
 
-        // ack reply
-        TCU::ack_msg(REP, TCU::msg_to_offset(rbuf_virt, rmsg)).unwrap();
+            // ack reply
+            TCU::ack_msg(REP, TCU::msg_to_offset(rbuf_virt, m)).unwrap();
+            recv += 1;
+        }
 
-        // send message
-        TCU::send(SEP, &msg, 0x2222, REP).unwrap();
-        msg.set(msg.get::<u64>() + 1);
+        if sent < SENDS && TCU::credits(SEP).unwrap() > 0 {
+            // send message
+            TCU::send(SEP, &msg, 0x2222, REP).unwrap();
+            msg.set(msg.get::<u64>() + 1);
+            sent += 1;
+        }
     }
 
     // wait for ever
