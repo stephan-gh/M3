@@ -106,7 +106,7 @@ int main(int argc, char** argv)
     socket->accept(nullptr);
 
 #if defined(__kachel__)
-    __m3_sysc_trace(true, 8192);
+    __m3_sysc_trace(true, 16384);
 #endif
 
     uint64_t recv_timing = 0;
