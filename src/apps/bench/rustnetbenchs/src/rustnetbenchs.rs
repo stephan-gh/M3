@@ -19,13 +19,18 @@
 mod btcp;
 mod budp;
 
-use m3::cell::StaticCell;
+use m3::cell::{LazyStaticCell, StaticCell};
+use m3::col::Vec;
+use m3::env;
+use m3::net::IpAddr;
 use m3::test::WvTester;
 use m3::{println, wv_run_suite};
 
 // TODO that's hacky, but the only alternative I can see is to pass the WvTester to every single
 // test case and every single wv_assert_* call, which is quite inconvenient.
 static FAILED: StaticCell<u32> = StaticCell::new(0);
+
+pub static DST_IP: LazyStaticCell<IpAddr> = LazyStaticCell::default();
 
 extern "C" fn wvtest_failed() {
     FAILED.set(*FAILED + 1);
@@ -49,6 +54,18 @@ impl WvTester for MyTester {
 
 #[no_mangle]
 pub fn main() -> i32 {
+    let args: Vec<&str> = env::args().collect();
+    if args.len() != 2 {
+        println!("Usage: {} <dst-IP>", args[0]);
+        m3::exit(1);
+    }
+
+    DST_IP.set(
+        args[1]
+            .parse::<IpAddr>()
+            .expect(&m3::format!("Invalid IP address: {}", args[1])),
+    );
+
     let mut tester = MyTester {};
     wv_run_suite!(tester, budp::run);
     wv_run_suite!(tester, btcp::run);

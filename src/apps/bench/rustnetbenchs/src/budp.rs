@@ -17,7 +17,7 @@
 use m3::com::Semaphore;
 use m3::errors::Code;
 use m3::format;
-use m3::net::{DgramSocketArgs, Endpoint, IpAddr, UdpSocket};
+use m3::net::{DgramSocketArgs, Endpoint, UdpSocket};
 use m3::println;
 use m3::profile::Results;
 use m3::session::{NetworkDirection, NetworkManager};
@@ -41,7 +41,7 @@ fn latency() {
     wv_assert_ok!(socket.bind(2000));
 
     let samples = 5;
-    let dest = Endpoint::new(IpAddr::new(192, 168, 112, 1), 1337);
+    let dest = Endpoint::new(*crate::DST_IP, 1337);
 
     let mut buf = [0u8; 1024];
 
@@ -95,7 +95,7 @@ fn bandwidth() {
 
     wv_assert_ok!(socket.bind(2001));
 
-    let dest = Endpoint::new(IpAddr::new(192, 168, 112, 1), 1337);
+    let dest = Endpoint::new(*crate::DST_IP, 1337);
 
     let mut buf = [0u8; 1024];
 
