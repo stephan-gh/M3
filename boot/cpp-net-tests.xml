@@ -21,7 +21,7 @@
                 </app>
             </dom>
             <dom>
-                <app args="pager $fs.size sem=net-udp sem=net-tcp">
+                <app args="pager sem=net-udp sem=net-tcp $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
                     <pes type="core" count="2" />
