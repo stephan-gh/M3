@@ -52,7 +52,7 @@ pub struct RawSocketDesc {
 }
 
 impl RawSocketDesc {
-    pub fn new(name: &'static str) -> Self {
+    pub fn new(name: &str) -> Self {
         let in_fd = unsafe {
             let lower = libc::socket(libc::AF_UNIX, libc::SOCK_DGRAM, 0);
             if lower == -1 {
@@ -184,7 +184,7 @@ pub struct DevFifo {
 }
 
 impl<'a> DevFifo {
-    pub fn new(name: &'static str) -> Self {
+    pub fn new(name: &str) -> Self {
         let lower = RawSocketDesc::new(name);
         DevFifo {
             lower: Rc::new(lower),

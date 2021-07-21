@@ -288,7 +288,7 @@ pub fn main() -> i32 {
         #[cfg(target_os = "none")]
         let device = driver::E1000Device::new().expect("Failed to create E1000 driver");
         #[cfg(target_os = "linux")]
-        let device = driver::DevFifo::new(name);
+        let device = driver::DevFifo::new(&settings.name);
         driver::DriverInterface::Eth(
             InterfaceBuilder::new(device)
                 .ethernet_addr(EthernetAddress::default())
