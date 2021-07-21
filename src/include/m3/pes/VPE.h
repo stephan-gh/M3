@@ -112,8 +112,10 @@ public:
     static void sleep_for(uint64_t nanos) noexcept {
         if(env()->shared || nanos != 0)
             PEXIF::sleep(nanos, TCU::INVALID_EP);
+#if !defined(__host__)
         else if(env()->platform != Platform::HW)
             TCU::get().wait_for_msg(TCU::INVALID_EP);
+#endif
     }
 
     /**
@@ -122,8 +124,10 @@ public:
     static void wait_for_msg(epid_t ep) noexcept {
         if(env()->shared)
             PEXIF::sleep(0, ep);
+#if !defined(__host__)
         else if(env()->platform != Platform::HW)
             TCU::get().wait_for_msg(ep);
+#endif
     }
 
     explicit VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args = VPEArgs());
