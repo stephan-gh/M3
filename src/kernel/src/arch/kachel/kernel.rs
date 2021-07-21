@@ -46,9 +46,9 @@ pub extern "C" fn env_run() {
     io::init(0, "kernel");
     ktcu::init();
     heap::init();
+    crate::slab::init();
     paging::init();
     exceptions::init();
-    crate::slab::init();
     mem::init();
 
     args::parse();
@@ -65,20 +65,35 @@ pub extern "C" fn env_run() {
     let sysc_slot_size = 9;
     let sysc_rbuf_size = math::next_log2(cfg::MAX_VPES) + sysc_slot_size;
     let sysc_rbuf = vec![0u8; 1 << sysc_rbuf_size];
-    ktcu::recv_msgs(ktcu::KSYS_EP, sysc_rbuf.as_ptr() as goff, sysc_rbuf_size, sysc_slot_size)
-        .expect("Unable to config syscall REP");
+    ktcu::recv_msgs(
+        ktcu::KSYS_EP,
+        sysc_rbuf.as_ptr() as goff,
+        sysc_rbuf_size,
+        sysc_slot_size,
+    )
+    .expect("Unable to config syscall REP");
 
     let serv_slot_size = 8;
     let serv_rbuf_size = math::next_log2(4) + serv_slot_size;
     let serv_rbuf = vec![0u8; 1 << serv_rbuf_size];
-    ktcu::recv_msgs(ktcu::KSRV_EP, serv_rbuf.as_ptr() as goff, serv_rbuf_size, serv_slot_size)
-        .expect("Unable to config service REP");
+    ktcu::recv_msgs(
+        ktcu::KSRV_EP,
+        serv_rbuf.as_ptr() as goff,
+        serv_rbuf_size,
+        serv_slot_size,
+    )
+    .expect("Unable to config service REP");
 
     let pex_slot_size = 7;
     let pex_rbuf_size = math::next_log2(cfg::MAX_VPES) + pex_slot_size;
     let pex_rbuf = vec![0u8; 1 << pex_rbuf_size];
-    ktcu::recv_msgs(ktcu::KPEX_EP, pex_rbuf.as_ptr() as goff, pex_rbuf_size, pex_slot_size)
-        .expect("Unable to config pemux REP");
+    ktcu::recv_msgs(
+        ktcu::KPEX_EP,
+        pex_rbuf.as_ptr() as goff,
+        pex_rbuf_size,
+        pex_slot_size,
+    )
+    .expect("Unable to config pemux REP");
 
     pes::init();
 
