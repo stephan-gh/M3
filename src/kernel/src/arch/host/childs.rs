@@ -68,30 +68,28 @@ fn kill_vpe_async(pid: libc::pid_t, status: i32) {
         None => (None, format!("??")),
     };
 
-    unsafe {
-        if libc::WIFEXITED(status) {
-            klog!(
-                VPES,
-                "Child {} exited with status {}",
-                vpe_name,
-                libc::WEXITSTATUS(status)
-            );
-        }
-        else if libc::WIFSIGNALED(status) {
-            klog!(
-                VPES,
-                "Child {} was killed by signal {}",
-                vpe_name,
-                libc::WTERMSIG(status)
-            );
-        }
+    if libc::WIFEXITED(status) {
+        klog!(
+            VPES,
+            "Child {} exited with status {}",
+            vpe_name,
+            libc::WEXITSTATUS(status)
+        );
+    }
+    else if libc::WIFSIGNALED(status) {
+        klog!(
+            VPES,
+            "Child {} was killed by signal {}",
+            vpe_name,
+            libc::WTERMSIG(status)
+        );
+    }
 
-        if libc::WIFSIGNALED(status) || libc::WEXITSTATUS(status) == 255 {
-            if let Some(v) = vpe {
-                // only remove the VPE if it has an app; otherwise the kernel sent the signal
-                if v.state() == State::RUNNING {
-                    VPEMng::get().remove_vpe_async(v.id());
-                }
+    if libc::WIFSIGNALED(status) || libc::WEXITSTATUS(status) == 255 {
+        if let Some(v) = vpe {
+            // only remove the VPE if it has an app; otherwise the kernel sent the signal
+            if v.state() == State::RUNNING {
+                VPEMng::get().remove_vpe_async(v.id());
             }
         }
     }
