@@ -16,6 +16,8 @@
  * General Public License version 2 for more details.
  */
 
+use base::errors::{Code, Error};
+
 mod dataqueue;
 pub use self::dataqueue::DataQueue;
 
@@ -66,6 +68,26 @@ impl core::fmt::Display for IpAddr {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let [b0, b1, b2, b3] = self.0.to_be_bytes();
         write!(f, "Ipv4[{}.{}.{}.{}]", b0, b1, b2, b3)
+    }
+}
+
+impl core::str::FromStr for IpAddr {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parse_part = |s: &mut core::str::Split<&str>| {
+            s.next()
+                .ok_or(Error::new(Code::InvArgs))?
+                .parse::<u8>()
+                .map_err(|_| Error::new(Code::InvArgs))
+        };
+
+        let mut parts = s.split(".");
+        let p0 = parse_part(&mut parts)?;
+        let p1 = parse_part(&mut parts)?;
+        let p2 = parse_part(&mut parts)?;
+        let p3 = parse_part(&mut parts)?;
+        Ok(Self::new(p0, p1, p2, p3))
     }
 }
 
