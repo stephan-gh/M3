@@ -16,7 +16,7 @@
 
 use m3::com::Semaphore;
 use m3::errors::Code;
-use m3::net::{DgramSocketArgs, Endpoint, IpAddr, State, UdpSocket};
+use m3::net::{DgramSocketArgs, Endpoint, State, UdpSocket};
 use m3::session::NetworkManager;
 use m3::test;
 use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
@@ -41,7 +41,7 @@ fn basics() {
     wv_assert_eq!(socket.state(), State::Bound);
     wv_assert_eq!(
         socket.local_endpoint(),
-        Some(Endpoint::new(IpAddr::new(192, 168, 112, 2), 2000))
+        Some(Endpoint::new(*crate::NET0_IP, 2000))
     );
 
     wv_assert_err!(socket.bind(2001), Code::InvState);
@@ -53,7 +53,7 @@ fn data() {
     let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(&nm)));
     wv_assert_ok!(socket.bind(2001));
 
-    let dest = Endpoint::new(IpAddr::new(192, 168, 112, 1), 1337);
+    let dest = Endpoint::new(*crate::DST_IP, 1337);
 
     let mut send_buf = [0u8; 1024];
     for (i, bufi) in send_buf.iter_mut().enumerate() {

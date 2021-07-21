@@ -16,7 +16,10 @@
 
 #![no_std]
 
-use m3::cell::StaticCell;
+use m3::cell::{LazyStaticCell, StaticCell};
+use m3::col::Vec;
+use m3::env;
+use m3::net::IpAddr;
 use m3::test::WvTester;
 use m3::{println, wv_run_suite};
 
@@ -26,6 +29,10 @@ mod tudp;
 // TODO that's hacky, but the only alternative I can see is to pass the WvTester to every single
 // test case and every single wv_assert_* call, which is quite inconvenient.
 static FAILED: StaticCell<u32> = StaticCell::new(0);
+
+pub static NET0_IP: LazyStaticCell<IpAddr> = LazyStaticCell::default();
+pub static NET1_IP: LazyStaticCell<IpAddr> = LazyStaticCell::default();
+pub static DST_IP: LazyStaticCell<IpAddr> = LazyStaticCell::default();
 
 extern "C" fn wvtest_failed() {
     FAILED.set(*FAILED + 1);
@@ -47,8 +54,23 @@ impl WvTester for MyTester {
     }
 }
 
+fn parse_ip(ip: &str) -> IpAddr {
+    ip.parse::<IpAddr>()
+        .expect(&m3::format!("Invalid IP address: {}", ip))
+}
+
 #[no_mangle]
 pub fn main() -> i32 {
+    let args: Vec<&str> = env::args().collect();
+    if args.len() != 4 {
+        println!("Usage: {} <net0-IP> <net1-IP> <dst-IP>", args[0]);
+        m3::exit(1);
+    }
+
+    NET0_IP.set(parse_ip(args[1]));
+    NET1_IP.set(parse_ip(args[2]));
+    DST_IP.set(parse_ip(args[3]));
+
     let mut tester = MyTester {};
     wv_run_suite!(tester, tudp::run);
     wv_run_suite!(tester, ttcp::run);
