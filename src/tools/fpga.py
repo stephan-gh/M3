@@ -225,29 +225,33 @@ def main():
         ready.close()
 
     # wait for prints
-    timeouts = 0
-    while True:
-        try:
-            bytes = fpga_inst.nocif.receive_bytes(timeout_ns = 1000_000_000)
-        except:
-            timeouts += 1
-            if args.debug is None and timeouts == PRINT_TIMEOUT:
-                print("Stopping execution after {} seconds without print".format(timeouts))
-                sys.stdout.flush()
-                break
-            else:
-                continue
-
+    try:
         timeouts = 0
-        try:
-            msg = bytes.decode()
-            sys.stdout.write(msg)
-        except:
-            print("Unable to decode: {}".format(bytes))
-        sys.stdout.write('\033[0m')
-        sys.stdout.flush()
-        if "Shutting down" in msg:
-            break
+        while True:
+            try:
+                bytes = fpga_inst.nocif.receive_bytes(timeout_ns = 1000_000_000)
+            except:
+                timeouts += 1
+                if args.debug is None and timeouts == PRINT_TIMEOUT:
+                    print("Stopping execution after {} seconds without print".format(timeouts))
+                    sys.stdout.flush()
+                    break
+                else:
+                    continue
+
+            timeouts = 0
+            try:
+                msg = bytes.decode()
+                sys.stdout.write(msg)
+            except:
+                print("Unable to decode: {}".format(bytes))
+            sys.stdout.write('\033[0m')
+            sys.stdout.flush()
+            if "Shutting down" in msg:
+                break
+    except KeyboardInterrupt:
+        # force-extract logs on ^C
+        timeouts = 1
 
     # disable NoC ARQ again for post-processing
     for pe in fpga_inst.pms:
@@ -310,4 +314,4 @@ except Exception:
     sys.stdout.flush()
     traceback.print_exc()
 except KeyboardInterrupt:
-    print("interrupt")
+    pass

@@ -219,7 +219,7 @@ build_params_hw() {
         # make sure that openocd is stopped
         trap "ssh -t $hwssh 'killall openocd'" ERR INT TERM
     else
-        echo "python3 ./fpga.py $fpga $args 2>&1 | tee log.txt" >> $M3_OUT/run.sh
+        echo "python3 ./fpga.py $fpga $args 2>&1 | tee -i log.txt" >> $M3_OUT/run.sh
     fi
 
     rsync -z src/tools/fpga.py $files $M3_OUT/run.sh $hwssh:m3
