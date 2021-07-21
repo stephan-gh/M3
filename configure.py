@@ -262,14 +262,9 @@ if btype == 'debug':
 else:
     env['CRGFLAGS']         += ['--release']
     hostenv['CRGFLAGS']     += ['--release']
-    if target == 'hw':
-        env['CXXFLAGS']     += ['-Os', '-DNDEBUG', '-flto']
-        env['CFLAGS']       += ['-Os', '-DNDEBUG', '-flto']
-        env['LINKFLAGS']    += ['-Os', '-flto']
-    else:
-        env['CXXFLAGS']     += ['-O2', '-DNDEBUG', '-flto']
-        env['CFLAGS']       += ['-O2', '-DNDEBUG', '-flto']
-        env['LINKFLAGS']    += ['-O2', '-flto']
+    env['CXXFLAGS']         += ['-O2', '-DNDEBUG', '-flto']
+    env['CFLAGS']           += ['-O2', '-DNDEBUG', '-flto']
+    env['LINKFLAGS']        += ['-O2', '-flto']
 builddir = 'build/' + target + '-' + isa + '-' + btype
 
 # add some important paths
