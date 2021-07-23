@@ -230,6 +230,10 @@ def main():
         while True:
             try:
                 bytes = fpga_inst.nocif.receive_bytes(timeout_ns = 1000_000_000)
+            except KeyboardInterrupt:
+                # force-extract logs on ^C
+                timeouts = 1
+                break
             except:
                 timeouts += 1
                 if args.debug is None and timeouts == PRINT_TIMEOUT:
@@ -243,6 +247,9 @@ def main():
             try:
                 msg = bytes.decode()
                 sys.stdout.write(msg)
+            except KeyboardInterrupt:
+                timeouts = 1
+                break
             except:
                 print("Unable to decode: {}".format(bytes))
             sys.stdout.write('\033[0m')
@@ -250,7 +257,6 @@ def main():
             if "Shutting down" in msg:
                 break
     except KeyboardInterrupt:
-        # force-extract logs on ^C
         timeouts = 1
 
     # disable NoC ARQ again for post-processing
