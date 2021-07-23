@@ -61,7 +61,7 @@ pub extern "C" fn env_run() {
 
     log!(crate::LOG_DEF, "Hello World from receiver!");
 
-    for _ in 0..SENDS * 7 {
+    for recv in 0..SENDS * 7 {
         // wait for message
         let rmsg = loop {
             if let Some(m) = helper::fetch_msg(REP, rbuf_virt) {
@@ -74,6 +74,10 @@ pub extern "C" fn env_run() {
         // send reply
         TCU::reply(REP, &buf, TCU::msg_to_offset(rbuf_virt, rmsg)).unwrap();
         buf.set(buf.get::<u64>() + 1);
+
+        if recv % 1000 == 0 {
+            log!(crate::LOG_DEF, "Received {} messages", recv);
+        }
     }
 
     // give the other PEs some time
