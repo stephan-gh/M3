@@ -96,6 +96,9 @@ pub extern "C" fn env_run() {
             // ack reply
             TCU::ack_msg(REP, TCU::msg_to_offset(rbuf_virt, m)).unwrap();
             recv += 1;
+
+            let begin = cpu::elapsed_cycles();
+            while cpu::elapsed_cycles() < begin + 1000 {}
         }
 
         if sent < SENDS && TCU::credits(SEP).unwrap() > 0 {
