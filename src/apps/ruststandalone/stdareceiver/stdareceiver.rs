@@ -61,6 +61,11 @@ pub extern "C" fn env_run() {
 
     log!(crate::LOG_DEF, "Hello World from receiver!");
 
+    // wait so that the EPs can be used
+    // TODO why is this necessary?
+    let begin = cpu::elapsed_cycles();
+    while cpu::elapsed_cycles() < begin + 100000 {}
+
     for recv in 0..SENDS * 7 {
         // wait for message
         let rmsg = loop {
