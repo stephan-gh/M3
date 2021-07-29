@@ -159,6 +159,9 @@ build_params_hw() {
     if [ "$M3_HW_RESET" = "1" ]; then
         args="$args --reset"
     fi
+    if [ ! -z $M3_HW_TIMEOUT ]; then
+        args="$args --timeout=$M3_HW_TIMEOUT"
+    fi
     if [ "$M3_HW_VM" = "1" ]; then
         pemux="pemux"
         args="$args --vm"

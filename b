@@ -138,6 +138,7 @@ help() {
     echo "    M3_HW_FPGA:              The FPGA number (default 0 = IP 192.168.42.240)"
     echo "    M3_HW_RESET:             Reset the FPGA before starting"
     echo "    M3_HW_VM:                Use virtual memory"
+    echo "    M3_HW_TIMEOUT:           Stop execution after given number of seconds."
     echo "    M3_HW_PAUSE:             Pause the PE with given number at startup"
     echo "                             (only on hw and with command dbg=)."
     exit 0
@@ -416,7 +417,7 @@ case "$cmd" in
         ;;
 
     dis=*)
-        ${crossprefix}objdump -SC $bindir/${cmd#dis=} | less
+        ${crossprefix}objdump -dC $bindir/${cmd#dis=} | less
         ;;
 
     elf=*)

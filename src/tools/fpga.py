@@ -2,7 +2,7 @@
 
 import argparse
 import traceback
-from time import sleep
+from time import sleep, time
 from datetime import datetime
 import os, sys
 
@@ -22,7 +22,6 @@ DRAM_SIZE = 2 * 1024 * 1024 * 1024
 MAX_FS_SIZE = 256 * 1024 * 1024
 KENV_SIZE = 16 * 1024 * 1024
 INIT_PMP_SIZE = 8 * 1024 * 1024
-PRINT_TIMEOUT = 10 # seconds
 
 def read_u64(pm, addr):
     return pm.mem[addr]
@@ -173,6 +172,7 @@ def main():
     parser.add_argument('--pe', action='append')
     parser.add_argument('--mod', action='append')
     parser.add_argument('--vm', action='store_true')
+    parser.add_argument('--timeout', type=int)
     parser.add_argument('--fs')
     args = parser.parse_args()
 
@@ -225,30 +225,29 @@ def main():
         ready.close()
 
     # wait for prints
+    start = int(time())
+    timed_out = False
     try:
-        timeouts = 0
         while True:
+            if not args.timeout is None and int(time()) - start >= args.timeout:
+                print("Execution timed out after {} seconds".format(args.timeout))
+                timed_out = True
+                break
+
             try:
                 bytes = fpga_inst.nocif.receive_bytes(timeout_ns = 1000_000_000)
             except KeyboardInterrupt:
                 # force-extract logs on ^C
-                timeouts = 1
+                timed_out = True
                 break
             except:
-                timeouts += 1
-                if args.debug is None and timeouts == PRINT_TIMEOUT:
-                    print("Stopping execution after {} seconds without print".format(timeouts))
-                    sys.stdout.flush()
-                    break
-                else:
-                    continue
+                continue
 
-            timeouts = 0
             try:
                 msg = bytes.decode()
                 sys.stdout.write(msg)
             except KeyboardInterrupt:
-                timeouts = 1
+                timed_out = True
                 break
             except:
                 print("Unable to decode: {}".format(bytes))
@@ -257,7 +256,7 @@ def main():
             if "Shutting down" in msg:
                 break
     except KeyboardInterrupt:
-        timeouts = 1
+        timed_out = True
 
     # disable NoC ARQ again for post-processing
     for pe in fpga_inst.pms:
@@ -281,7 +280,7 @@ def main():
             print("PM{}: unable to read number of TCU dropped flits: {}".format(i, e))
 
         # extract TCU log on timeouts
-        if timeouts != 0:
+        if timed_out:
             print("PM{}: reading TCU log...".format(i))
             sys.stdout.flush()
             try:
