@@ -61,7 +61,8 @@ pub const LOG_DETAIL: bool = false;
 
 const MAX_SOCKETS: usize = 64;
 
-static OWN_ADDR: LazyStaticCell<IpAddress> = LazyStaticCell::default();
+static OWN_IP: LazyStaticCell<IpAddress> = LazyStaticCell::default();
+static OWN_MAC: [u8; 6] = [0x00, 0x0A, 0x35, 0x03, 0x02, 0x03];
 
 struct NetHandler {
     // our service selector
@@ -184,8 +185,8 @@ impl Handler<NetworkSession> for NetHandler {
     }
 }
 
-pub fn own_addr() -> IpAddress {
-    *OWN_ADDR
+pub fn own_ip() -> IpAddress {
+    *OWN_IP
 }
 
 #[derive(Clone, Debug)]
@@ -272,26 +273,28 @@ pub fn main() -> i32 {
     let neighbor_cache = NeighborCache::new(&mut neighbor_cache_entries[..]);
 
     let ip_addr = IpCidr::new(IpAddress::Ipv4(settings.ip), 8);
-    OWN_ADDR.set(ip_addr.address());
+    OWN_IP.set(ip_addr.address());
     ports::init(MAX_SOCKETS);
 
     let mut iface = if settings.driver == "lo" {
         driver::DriverInterface::Lo(
             InterfaceBuilder::new(smoltcp::phy::Loopback::new(smoltcp::phy::Medium::Ethernet))
-                .ethernet_addr(EthernetAddress::default())
+                .ethernet_addr(EthernetAddress::from_bytes(&OWN_MAC))
                 .neighbor_cache(neighbor_cache)
                 .ip_addrs([ip_addr])
                 .finalize(),
         )
     }
     else {
-        #[cfg(target_os = "none")]
+        #[cfg(target_vendor = "gem5")]
         let device = driver::E1000Device::new().expect("Failed to create E1000 driver");
-        #[cfg(target_os = "linux")]
+        #[cfg(target_vendor = "hw")]
+        let device = driver::AXIEthDevice::new().expect("Failed to create AXI ethernet driver");
+        #[cfg(target_vendor = "host")]
         let device = driver::DevFifo::new(&settings.name);
         driver::DriverInterface::Eth(
             InterfaceBuilder::new(device)
-                .ethernet_addr(EthernetAddress::default())
+                .ethernet_addr(EthernetAddress::from_bytes(&OWN_MAC))
                 .neighbor_cache(neighbor_cache)
                 .ip_addrs([ip_addr])
                 .finalize(),
@@ -361,7 +364,7 @@ pub fn main() -> i32 {
         };
 
         log!(LOG_DETAIL, "Sleeping for {} ns", sleep_nanos);
-        m3::pes::VPE::sleep_for(sleep_nanos).ok();
+        // m3::pes::VPE::sleep_for(sleep_nanos).ok();
     }
 
     0

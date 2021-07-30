@@ -364,10 +364,9 @@ impl SocketSession {
         }
 
         let sock = self.get_socket(sd)?;
-        sock.borrow_mut()
-            .bind(crate::own_addr(), port, socket_set)?;
+        sock.borrow_mut().bind(crate::own_ip(), port, socket_set)?;
 
-        let addr = to_m3_addr(crate::own_addr());
+        let addr = to_m3_addr(crate::own_ip());
         reply_vmsg!(is, Code::None as i32, addr.0)
     }
 
@@ -394,9 +393,9 @@ impl SocketSession {
         let socket = self.get_socket(sd)?;
         socket
             .borrow_mut()
-            .listen(socket_set, crate::own_addr(), port)?;
+            .listen(socket_set, crate::own_ip(), port)?;
 
-        let addr = to_m3_addr(crate::own_addr());
+        let addr = to_m3_addr(crate::own_ip());
         reply_vmsg!(is, Code::None as i32, addr.0)
     }
 
@@ -425,7 +424,7 @@ impl SocketSession {
         sock.borrow_mut()
             .connect(remote_addr, remote_port, local_port, socket_set)?;
 
-        let addr = to_m3_addr(crate::own_addr());
+        let addr = to_m3_addr(crate::own_ip());
         reply_vmsg!(is, Code::None as i32, addr.0, port_no)
     }
 

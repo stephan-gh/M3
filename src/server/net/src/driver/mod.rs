@@ -15,12 +15,16 @@
  */
 
 /// Conditional include of the driver
-#[cfg(target_os = "linux")]
+#[cfg(target_vendor = "host")]
 #[path = "host/mod.rs"]
 mod inner;
 
-#[cfg(target_os = "none")]
+#[cfg(target_vendor = "gem5")]
 #[path = "gem5/mod.rs"]
+mod inner;
+
+#[cfg(target_vendor = "hw")]
+#[path = "hw/mod.rs"]
 mod inner;
 
 pub use inner::*;
@@ -31,9 +35,11 @@ use smoltcp::time::{Duration, Instant};
 
 pub enum DriverInterface<'a> {
     Lo(Interface<'a, smoltcp::phy::Loopback>),
-    #[cfg(target_os = "none")]
+    #[cfg(target_vendor = "gem5")]
     Eth(Interface<'a, E1000Device>),
-    #[cfg(target_os = "linux")]
+    #[cfg(target_vendor = "hw")]
+    Eth(Interface<'a, AXIEthDevice>),
+    #[cfg(target_vendor = "host")]
     Eth(Interface<'a, DevFifo>),
 }
 

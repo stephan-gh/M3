@@ -1,4 +1,5 @@
 dirs = [
+    'axieth',
     'base',
     'dummy',
     'gem5',
