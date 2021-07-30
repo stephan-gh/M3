@@ -1,0 +1,17 @@
+<config>
+    <kernel args="kernel" />
+    <dom>
+        <app args="root">
+            <dom pe="riscv_nic">
+                <app args="net net 192.168.42.242" daemon="1">
+                    <serv name="net" />
+                </app>
+            </dom>
+            <dom>
+                <app args="nettest">
+                    <sess name="net" />
+                </app>
+            </dom>
+        </app>
+    </dom>
+</config>

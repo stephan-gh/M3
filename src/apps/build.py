@@ -14,6 +14,7 @@ dirs = [
     'libctest',
     'msgchan',
     'netechoserver',
+    'nettest',
     'noop',
     'parchksum',
     'plasma',

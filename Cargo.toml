@@ -13,6 +13,7 @@ members = [
     "src/apps/ruststandalone/vmtest",
     "src/apps/msgchan/msgchansnd",
     "src/apps/netechoserver",
+    "src/apps/nettest",
     "src/libs/rust/base",
     "src/libs/rust/heap",
     "src/libs/rust/isr",
