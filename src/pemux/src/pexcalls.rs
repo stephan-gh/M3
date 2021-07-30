@@ -15,8 +15,10 @@
  */
 
 use base::errors::{Code, Error};
+use base::goff;
 use base::kif;
 use base::log;
+use base::mem::GlobAddr;
 use base::pexif;
 use base::tcu::{EpId, INVALID_EP};
 
@@ -57,6 +59,32 @@ fn pexcall_yield(_state: &mut arch::State) -> Result<(), Error> {
     Ok(())
 }
 
+fn pexcall_map(state: &mut arch::State) -> Result<(), Error> {
+    let virt = state.r[isr::PEXC_ARG1] as usize;
+    let phys = state.r[isr::PEXC_ARG2] as goff;
+    let pages = state.r[isr::PEXC_ARG3] as usize;
+    let access = kif::Perm::from_bits_truncate(state.r[isr::PEXC_ARG4] as u32);
+    let flags = kif::PageFlags::from(access) & kif::PageFlags::RW;
+
+    log!(
+        crate::LOG_CALLS,
+        "pexcall::map(virt={:#x}, phys={:#x}, pages={}, access={:?})",
+        virt,
+        phys,
+        pages,
+        access
+    );
+
+    if pages == 0 || flags.is_empty() {
+        return Err(Error::new(Code::InvArgs));
+    }
+
+    // TODO validate virtual and physical address
+
+    let global = GlobAddr::new(phys);
+    vpe::cur().map(virt, global, pages, flags | kif::PageFlags::U)
+}
+
 fn pexcall_transl_fault(state: &mut arch::State) -> Result<(), Error> {
     let virt = state.r[isr::PEXC_ARG1] as usize;
     let access = kif::Perm::from_bits_truncate(state.r[isr::PEXC_ARG2] as u32);
@@ -95,6 +123,7 @@ pub fn handle_call(state: &mut arch::State) {
         pexif::Operation::SLEEP => pexcall_sleep(state).map(|_| 0isize),
         pexif::Operation::EXIT => pexcall_stop(state).map(|_| 0isize),
         pexif::Operation::YIELD => pexcall_yield(state).map(|_| 0isize),
+        pexif::Operation::MAP => pexcall_map(state).map(|_| 0isize),
         pexif::Operation::TRANSL_FAULT => pexcall_transl_fault(state).map(|_| 0isize),
         pexif::Operation::FLUSH_INV => pexcall_flush_inv(state).map(|_| 0isize),
         pexif::Operation::NOOP => pexcall_noop(state).map(|_| 0isize),

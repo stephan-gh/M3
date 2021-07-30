@@ -39,3 +39,34 @@ pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
 pub fn call2(_op: Operation, _arg1: usize, _arg2: usize) -> Result<usize, Error> {
     Ok(0)
 }
+
+#[cfg(target_os = "none")]
+pub fn call4(
+    op: Operation,
+    arg1: usize,
+    arg2: usize,
+    arg3: usize,
+    arg4: usize,
+) -> Result<usize, Error> {
+    let mut res = op.val;
+    unsafe {
+        llvm_asm!(
+            "int $$63"
+            : "+{rax}"(res)
+            : "{rcx}"(arg1), "{rdx}"(arg2), "{rdi}"(arg3), "{rsi}"(arg4)
+            : "memory"
+        );
+    }
+    crate::pexif::get_result(res)
+}
+
+#[cfg(not(target_os = "none"))]
+pub fn call4(
+    _op: Operation,
+    _arg1: usize,
+    _arg2: usize,
+    _arg3: usize,
+    _arg4: usize,
+) -> Result<usize, Error> {
+    Ok(0)
+}

@@ -28,6 +28,8 @@ pub const TCU_ISR: usize = Vector::SUPER_EXT_IRQ.val;
 pub const PEXC_ARG0: usize = 9; // a0 = x10
 pub const PEXC_ARG1: usize = 10; // a1 = x11
 pub const PEXC_ARG2: usize = 11; // a2 = x12
+pub const PEXC_ARG3: usize = 12; // a3 = x13
+pub const PEXC_ARG4: usize = 13; // a4 = x14
 
 #[derive(Default)]
 // see comment in ARM code

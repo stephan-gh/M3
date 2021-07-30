@@ -33,6 +33,8 @@ pub const TIMER_ISR: usize = 65;
 pub const PEXC_ARG0: usize = 14; // rax
 pub const PEXC_ARG1: usize = 12; // rcx
 pub const PEXC_ARG2: usize = 11; // rdx
+pub const PEXC_ARG3: usize = 10; // rdi
+pub const PEXC_ARG4: usize = 9; // rsi
 
 int_enum! {
     pub struct DPL : u8 {

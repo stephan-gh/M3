@@ -33,3 +33,22 @@ pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
     }
     crate::pexif::get_result(res)
 }
+
+pub fn call4(
+    op: Operation,
+    arg1: usize,
+    arg2: usize,
+    arg3: usize,
+    arg4: usize,
+) -> Result<usize, Error> {
+    let mut res = op.val;
+    unsafe {
+        llvm_asm!(
+            "ecall"
+            : "+{x10}"(res)
+            : "{x11}"(arg1), "{x12}"(arg2), "{x13}"(arg3), "{x14}"(arg4)
+            : "memory"
+        );
+    }
+    crate::pexif::get_result(res)
+}

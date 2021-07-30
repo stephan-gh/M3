@@ -18,6 +18,8 @@
 
 use crate::arch::pexabi;
 use crate::errors::Error;
+use crate::goff;
+use crate::kif;
 use crate::tcu::{EpId, INVALID_EP};
 
 int_enum! {
@@ -29,12 +31,14 @@ int_enum! {
         const EXIT          = 0x1;
         /// Switch to the next ready VPE
         const YIELD         = 0x2;
+        /// Map local physical memory (IO memory)
+        const MAP           = 0x3;
         /// For TCU TLB misses
-        const TRANSL_FAULT  = 0x3;
+        const TRANSL_FAULT  = 0x4;
         /// Flush and invalidate cache
-        const FLUSH_INV     = 0x4;
+        const FLUSH_INV     = 0x5;
         /// Noop operation for testing purposes
-        const NOOP          = 0x5;
+        const NOOP          = 0x6;
     }
 }
 
@@ -59,6 +63,17 @@ pub fn sleep(nanos: u64, ep: Option<EpId>) -> Result<(), Error> {
 pub fn exit(code: i32) -> ! {
     pexabi::call1(Operation::EXIT, code as usize).ok();
     unreachable!();
+}
+
+pub fn map(virt: usize, phys: goff, pages: usize, access: kif::Perm) -> Result<(), Error> {
+    pexabi::call4(
+        Operation::MAP,
+        virt,
+        phys as usize,
+        pages,
+        access.bits() as usize,
+    )
+    .map(|_| ())
 }
 
 pub fn flush_invalidate() -> Result<(), Error> {

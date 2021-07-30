@@ -24,6 +24,7 @@ enum Operation : word_t {
     SLEEP,
     EXIT,
     YIELD,
+    MAP,
     TRANSL_FAULT,
     FLUSH_INV,
     NOOP,
@@ -50,6 +51,10 @@ struct PEXIF {
 
     static void exit(int code) {
         PEXABI::call1(Operation::EXIT, static_cast<word_t>(code));
+    }
+
+    static void map(uintptr_t virt, goff_t phys, size_t pages, uint perm) {
+        PEXABI::call4(Operation::MAP, virt, phys, pages, perm);
     }
 
     static void flush_invalidate() {

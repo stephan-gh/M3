@@ -26,6 +26,8 @@ pub const TCU_ISR: usize = Vector::IRQ.val;
 pub const PEXC_ARG0: usize = 0; // r0
 pub const PEXC_ARG1: usize = 1; // r1
 pub const PEXC_ARG2: usize = 2; // r2
+pub const PEXC_ARG3: usize = 3; // r3
+pub const PEXC_ARG4: usize = 4; // r4
 
 #[derive(Default)]
 // for some reason, we need to specify the alignment here. actually, this struct needs to be packed,
