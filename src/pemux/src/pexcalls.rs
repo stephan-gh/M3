@@ -22,6 +22,7 @@ use base::mem::GlobAddr;
 use base::pexif;
 use base::tcu::{EpId, INVALID_EP};
 
+use crate::irqs;
 use crate::timer::Nanos;
 use crate::vma;
 use crate::vpe;
@@ -33,9 +34,15 @@ fn pexcall_sleep(state: &mut arch::State) -> Result<(), Error> {
 
     log!(crate::LOG_CALLS, "pexcall::sleep(dur={}, ep={})", dur, ep);
 
-    let wait_ep = if ep == INVALID_EP { None } else { Some(ep) };
+    let wait_event = if ep == INVALID_EP {
+        None
+    }
+    else {
+        Some(vpe::Event::Message(ep))
+    };
     let sleep = if dur == 0 { None } else { Some(dur) };
-    vpe::cur().block(None, wait_ep, sleep);
+
+    vpe::cur().block(None, wait_event, sleep);
 
     Ok(())
 }
@@ -85,6 +92,19 @@ fn pexcall_map(state: &mut arch::State) -> Result<(), Error> {
     vpe::cur().map(virt, global, pages, flags | kif::PageFlags::U)
 }
 
+fn pexcall_wait_irq(state: &mut arch::State) -> Result<(), Error> {
+    let irq = state.r[isr::PEXC_ARG1] as u32;
+
+    log!(crate::LOG_CALLS, "pexcall::wait_irq(irq={})", irq);
+
+    // TODO validate whether the VPE is allowed to use that IRQ
+
+    let tcu_irq = isr::to_tcu_irq(irq).ok_or_else(|| Error::new(Code::InvArgs))?;
+    irqs::wait(vpe::cur().id(), tcu_irq);
+
+    Ok(())
+}
+
 fn pexcall_transl_fault(state: &mut arch::State) -> Result<(), Error> {
     let virt = state.r[isr::PEXC_ARG1] as usize;
     let access = kif::Perm::from_bits_truncate(state.r[isr::PEXC_ARG2] as u32);
@@ -124,6 +144,7 @@ pub fn handle_call(state: &mut arch::State) {
         pexif::Operation::EXIT => pexcall_stop(state).map(|_| 0isize),
         pexif::Operation::YIELD => pexcall_yield(state).map(|_| 0isize),
         pexif::Operation::MAP => pexcall_map(state).map(|_| 0isize),
+        pexif::Operation::WAIT_IRQ => pexcall_wait_irq(state).map(|_| 0isize),
         pexif::Operation::TRANSL_FAULT => pexcall_transl_fault(state).map(|_| 0isize),
         pexif::Operation::FLUSH_INV => pexcall_flush_inv(state).map(|_| 0isize),
         pexif::Operation::NOOP => pexcall_noop(state).map(|_| 0isize),

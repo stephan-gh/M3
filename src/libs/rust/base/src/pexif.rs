@@ -33,12 +33,14 @@ int_enum! {
         const YIELD         = 0x2;
         /// Map local physical memory (IO memory)
         const MAP           = 0x3;
+        /// Wait until a given interrupt arrived
+        const WAIT_IRQ      = 0x4;
         /// For TCU TLB misses
-        const TRANSL_FAULT  = 0x4;
+        const TRANSL_FAULT  = 0x5;
         /// Flush and invalidate cache
-        const FLUSH_INV     = 0x5;
+        const FLUSH_INV     = 0x6;
         /// Noop operation for testing purposes
-        const NOOP          = 0x6;
+        const NOOP          = 0x7;
     }
 }
 
@@ -74,6 +76,10 @@ pub fn map(virt: usize, phys: goff, pages: usize, access: kif::Perm) -> Result<(
         access.bits() as usize,
     )
     .map(|_| ())
+}
+
+pub fn wait_irq(irq: u32) -> Result<(), Error> {
+    pexabi::call1(Operation::WAIT_IRQ, irq as usize).map(|_| ())
 }
 
 pub fn flush_invalidate() -> Result<(), Error> {

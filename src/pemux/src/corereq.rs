@@ -46,7 +46,7 @@ pub fn handle_recv(req: tcu::CoreForeignReq) {
         );
 
         if v.id() != kif::pemux::VPE_ID {
-            v.unblock(Some(req.ep), false);
+            v.unblock(Some(vpe::Event::Message(req.ep)), false);
         }
     }
 

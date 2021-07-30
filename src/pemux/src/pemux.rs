@@ -24,6 +24,7 @@ extern crate heap;
 mod arch;
 mod corereq;
 mod helper;
+mod irqs;
 mod pexcalls;
 mod sidecalls;
 mod timer;
@@ -57,6 +58,8 @@ pub const LOG_CORE_REQS: bool = false;
 pub const LOG_PTS: bool = false;
 /// Logs timer IRQs
 pub const LOG_TIMER: bool = false;
+/// Logs interrupts
+pub const LOG_IRQS: bool = false;
 
 extern "C" {
     fn heap_init(begin: usize, end: usize);
@@ -162,8 +165,16 @@ pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
 
     // on hw, the external IRQ is used for both core requests and the timer as well
     #[cfg(target_vendor = "hw")]
-    if pex_env().platform == envdata::Platform::HW.val && isr::get_irq() == tcu::IRQ::TIMER {
-        return timer_irq(state);
+    if pex_env().platform == envdata::Platform::HW.val {
+        match isr::get_irq() {
+            tcu::IRQ::TIMER => return timer_irq(state),
+            tcu::IRQ::CORE_REQ => {},
+            irq => {
+                irqs::signal(irq);
+                isr::acknowledge_irq(irq);
+                return leave(state);
+            },
+        }
     }
 
     // here it's always a core request

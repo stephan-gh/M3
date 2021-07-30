@@ -122,7 +122,13 @@ pub fn set_entry_sp(_sp: usize) {
 }
 
 pub fn enable_irqs() {
-    unsafe { llvm_asm!("msr cpsr, $0" : : "r"(0x53)) };
+    unsafe {
+        llvm_asm!("msr cpsr, $0" : : "r"(0x53))
+    };
+}
+
+pub fn to_tcu_irq(_irq: u32) -> Option<tcu::IRQ> {
+    None
 }
 
 pub fn acknowledge_irq(irq: tcu::IRQ) {

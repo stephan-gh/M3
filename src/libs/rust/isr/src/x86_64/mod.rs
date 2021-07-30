@@ -447,7 +447,13 @@ pub fn set_entry_sp(sp: usize) {
 }
 
 pub fn enable_irqs() {
-    unsafe { llvm_asm!("sti") };
+    unsafe {
+        llvm_asm!("sti")
+    };
+}
+
+pub fn to_tcu_irq(_irq: u32) -> Option<tcu::IRQ> {
+    None
 }
 
 pub fn acknowledge_irq(irq: tcu::IRQ) {

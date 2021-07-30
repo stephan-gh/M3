@@ -32,6 +32,7 @@ use paging::{Allocator, Phys};
 
 use crate::arch;
 use crate::helper;
+use crate::irqs;
 use crate::pex_env;
 use crate::timer::{self, Nanos};
 use crate::vma::PfState;
@@ -93,6 +94,12 @@ pub enum ContResult {
     Failure,
 }
 
+#[derive(Debug)]
+pub enum Event {
+    Message(tcu::EpId),
+    Interrupt(tcu::IRQ),
+}
+
 pub struct VPE {
     state: VPEState,
     prev: Option<NonNull<VPE>>,
@@ -107,7 +114,7 @@ pub struct VPE {
     scheduled: Nanos,
     budget_total: Nanos,
     budget_left: Nanos,
-    wait_ep: Option<tcu::EpId>,
+    wait_event: Option<Event>,
     vpe_reg: tcu::Reg,
     eps_start: tcu::EpId,
     cmd: helper::TCUCmdState,
@@ -248,8 +255,8 @@ pub fn schedule(mut action: ScheduleAction) -> usize {
             continue;
         }
 
-        // reset wait_ep here, now that we really run that VPE
-        vpe.wait_ep = None;
+        // reset wait_event here, now that we really run that VPE
+        vpe.wait_event = None;
 
         break new_state;
     };
@@ -298,6 +305,10 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
                 }
                 if old.sleeping {
                     timer::remove(old.id());
+                    old.sleeping = false;
+                }
+                if let Some(Event::Interrupt(irq)) = old.wait_event {
+                    irqs::remove(old.id(), irq);
                 }
                 old.scheduled = now;
                 return old.user_state_addr;
@@ -459,7 +470,7 @@ impl VPE {
             budget_total: TIME_SLICE,
             budget_left: TIME_SLICE,
             scheduled: 0,
-            wait_ep: None,
+            wait_event: None,
             eps_start,
             cmd: helper::TCUCmdState::new(),
             pf_state: None,
@@ -531,7 +542,7 @@ impl VPE {
     }
 
     fn can_block(&self, msgs: u16) -> bool {
-        if let Some(wep) = self.wait_ep {
+        if let Some(Event::Message(wep)) = self.wait_event {
             !tcu::TCU::has_msgs(wep)
         }
         else {
@@ -539,25 +550,35 @@ impl VPE {
         }
     }
 
-    fn should_unblock(&self, ep: Option<tcu::EpId>) -> bool {
-        match (self.wait_ep, ep) {
-            (Some(wait_ep), Some(msg_ep)) => wait_ep == msg_ep,
-            // always unblock if the VPE either doesn't wait for a message on a specific EP or if
-            // it's a "invalidated EP" unblock.
-            _ => true,
+    fn should_unblock(&self, event: Option<Event>) -> bool {
+        match event {
+            // if we have an event, check whether we are waiting for it
+            Some(ev) => match (self.wait_event.as_ref(), ev) {
+                (Some(Event::Message(wep)), Event::Message(mep)) => *wep == mep,
+                // don't need to check the IRQ number here; we don't get here if it doesn't match
+                (Some(Event::Interrupt(_)), Event::Interrupt(_)) => true,
+                _ => false,
+            },
+            // unblocking without event always unblocks
+            None => true,
         }
     }
 
     pub fn block(
         &mut self,
         cont: Option<fn() -> ContResult>,
-        ep: Option<tcu::EpId>,
+        event: Option<Event>,
         sleep: Option<Nanos>,
     ) {
-        log!(crate::LOG_VPES, "Block VPE {} for ep={:?}", self.id(), ep);
+        log!(
+            crate::LOG_VPES,
+            "Block VPE {} for event={:?}",
+            self.id(),
+            event
+        );
 
         self.cont = cont;
-        self.wait_ep = ep;
+        self.wait_event = event;
         if let Some(nanos) = sleep {
             timer::add(self.id(), nanos);
             self.sleeping = true;
@@ -567,15 +588,20 @@ impl VPE {
         }
     }
 
-    pub fn unblock(&mut self, ep: Option<tcu::EpId>, timer: bool) {
+    pub fn unblock(&mut self, event: Option<Event>, timer: bool) {
         log!(
             crate::LOG_VPES,
-            "Trying to unblock VPE {} for ep={:?}",
+            "Trying to unblock VPE {} for event={:?}",
             self.id(),
-            ep
+            event
         );
 
-        if self.user_state_addr != 0 && self.should_unblock(ep) {
+        // VPE not ready yet?
+        if self.user_state_addr == 0 {
+            return;
+        }
+
+        if self.should_unblock(event) {
             if self.state == VPEState::Blocked {
                 let mut vpe = BLK.get_mut().remove_if(|v| v.id() == self.id()).unwrap();
                 if !timer && vpe.sleeping {

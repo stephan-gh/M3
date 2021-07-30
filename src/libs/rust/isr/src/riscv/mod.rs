@@ -114,6 +114,9 @@ impl fmt::Debug for State {
 mod plic {
     pub const TCU_ID: u32 = 1;
     pub const TIMER_ID: u32 = 2;
+    pub const AXI_ETH_ID: u32 = 3;
+    pub const AXI_FIFO_ID: u32 = 4;
+    pub const AXI_MAC_ID: u32 = 5;
 
     const MMIO_PRIORITY: *mut u32 = 0x0C00_0000 as *mut u32;
     const MMIO_ENABLE: *mut u32 = 0x0C00_2000 as *mut u32;
@@ -177,10 +180,16 @@ pub fn init(state: &mut State) {
     if envdata::get().platform == envdata::Platform::HW.val {
         // configure PLIC
         plic::set_threshold(0);
-        plic::enable(plic::TCU_ID);
-        plic::enable(plic::TIMER_ID);
-        plic::set_priority(plic::TCU_ID, 1);
-        plic::set_priority(plic::TIMER_ID, 1);
+        for id in &[
+            plic::TCU_ID,
+            plic::TIMER_ID,
+            plic::AXI_ETH_ID,
+            plic::AXI_FIFO_ID,
+            plic::AXI_MAC_ID,
+        ] {
+            plic::enable(*id);
+            plic::set_priority(*id, 1);
+        }
 
         // disable timer interrupt
         const CLINT_MSIP: *mut u64 = 0x0200_0000 as *mut u64;
@@ -209,14 +218,22 @@ pub fn enable_irqs() {
     set_csr_bits!("sstatus", 1 << 1);
 }
 
+pub fn to_tcu_irq(irq: u32) -> Option<tcu::IRQ> {
+    match irq {
+        plic::TCU_ID => Some(tcu::IRQ::CORE_REQ),
+        plic::TIMER_ID => Some(tcu::IRQ::TIMER),
+        plic::AXI_ETH_ID => Some(tcu::IRQ::AXI_ETH),
+        plic::AXI_FIFO_ID => Some(tcu::IRQ::AXI_FIFO),
+        plic::AXI_MAC_ID => Some(tcu::IRQ::AXI_MAC),
+        _ => None,
+    }
+}
+
 pub fn get_irq() -> tcu::IRQ {
     if envdata::get().platform == envdata::Platform::HW.val {
         let irq = plic::get();
         assert!(irq != 0);
-        match irq {
-            plic::TCU_ID => tcu::IRQ::CORE_REQ,
-            plic::TIMER_ID | _ => tcu::IRQ::TIMER,
-        }
+        to_tcu_irq(irq).unwrap()
     }
     else {
         tcu::IRQ::CORE_REQ
@@ -227,7 +244,10 @@ pub fn acknowledge_irq(irq: tcu::IRQ) {
     if envdata::get().platform == envdata::Platform::HW.val {
         let id = match irq {
             tcu::IRQ::CORE_REQ => plic::TCU_ID,
-            tcu::IRQ::TIMER | _ => plic::TIMER_ID,
+            tcu::IRQ::TIMER => plic::TIMER_ID,
+            tcu::IRQ::AXI_ETH => plic::AXI_ETH_ID,
+            tcu::IRQ::AXI_FIFO => plic::AXI_FIFO_ID,
+            tcu::IRQ::AXI_MAC | _ => plic::AXI_MAC_ID,
         };
         // TODO: temporary (add to spec and make gem5 behave the same)
         let tcu_set_irq_addr = 0xF000_3030 as *mut u64;

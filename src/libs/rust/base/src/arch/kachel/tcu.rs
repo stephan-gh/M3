@@ -250,6 +250,9 @@ int_enum! {
         const CORE_REQ  = 0;
         /// The timer IRQ
         const TIMER     = 1;
+        const AXI_ETH   = 2;
+        const AXI_FIFO  = 3;
+        const AXI_MAC   = 4;
     }
 }
 

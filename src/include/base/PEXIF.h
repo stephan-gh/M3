@@ -25,6 +25,7 @@ enum Operation : word_t {
     EXIT,
     YIELD,
     MAP,
+    WAIT_IRQ,
     TRANSL_FAULT,
     FLUSH_INV,
     NOOP,
@@ -55,6 +56,10 @@ struct PEXIF {
 
     static void map(uintptr_t virt, goff_t phys, size_t pages, uint perm) {
         PEXABI::call4(Operation::MAP, virt, phys, pages, perm);
+    }
+
+    static void wait_irq(TCU::IRQ irq) {
+        PEXABI::call1(Operation::WAIT_IRQ, static_cast<word_t>(irq));
     }
 
     static void flush_invalidate() {

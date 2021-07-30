@@ -128,12 +128,12 @@ private:
         RESET               = 2,
     };
 
+public:
     enum class IRQ {
         CORE_REQ            = 0,
         TIMER               = 1,
     };
 
-public:
     enum MemFlags : reg_t {
         R                   = 1 << 0,
         W                   = 1 << 1,
