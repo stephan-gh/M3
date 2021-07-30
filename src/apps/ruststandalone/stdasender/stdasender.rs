@@ -68,12 +68,6 @@ pub extern "C" fn env_run() {
     msg.set::<u64>(0);
 
     log!(crate::LOG_DEF, "Hello World from sender!");
-
-    // wait so that the EPs can be used
-    // TODO why is this necessary?
-    let begin = cpu::elapsed_cycles();
-    while cpu::elapsed_cycles() < begin + 1000 {}
-
     log!(crate::LOG_DEF, "Starting sends!");
 
     // initial send; wait until receiver is ready
