@@ -18,11 +18,11 @@ use core::fmt;
 use m3::cell::Cell;
 use m3::col::{BTreeMap, BTreeSet, String, Vec};
 use m3::errors::{Code, Error};
-use m3::goff;
 use m3::kif;
 use m3::pes::VPE;
 use m3::rc::Rc;
 use m3::tcu::Label;
+use m3::{envdata, goff};
 
 use crate::parser;
 use crate::pes;
@@ -262,6 +262,15 @@ impl PEType {
                 "arm" => desc.isa() == kif::PEISA::ARM,
                 "x86" => desc.isa() == kif::PEISA::X86,
                 "riscv" => desc.isa() == kif::PEISA::RISCV,
+                "riscv_nic" => {
+                    // workaround so that we can use the same config for both platforms
+                    if envdata::get().platform() == envdata::Platform::HW {
+                        desc.isa() == kif::PEISA::RISCV_NIC
+                    }
+                    else {
+                        desc.isa() == kif::PEISA::RISCV
+                    }
+                },
 
                 "indir" => desc.isa() == kif::PEISA::ACCEL_INDIR,
                 "copy" => desc.isa() == kif::PEISA::ACCEL_COPY,
@@ -289,6 +298,14 @@ impl PEType {
                 "arm" => res = PEDesc::new(res.pe_type(), PEISA::ARM, res.mem_size()),
                 "x86" => res = PEDesc::new(res.pe_type(), PEISA::X86, res.mem_size()),
                 "riscv" => res = PEDesc::new(res.pe_type(), PEISA::RISCV, res.mem_size()),
+                "riscv_nic" => {
+                    if envdata::get().platform() == envdata::Platform::HW {
+                        res = PEDesc::new(res.pe_type(), PEISA::RISCV_NIC, res.mem_size())
+                    }
+                    else {
+                        res = PEDesc::new(res.pe_type(), PEISA::RISCV, res.mem_size())
+                    }
+                },
                 "indir" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::ACCEL_INDIR, res.mem_size()),
                 "copy" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::ACCEL_COPY, res.mem_size()),
                 "rot13" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::ACCEL_ROT13, res.mem_size()),

@@ -42,16 +42,18 @@ int_enum! {
         const ARM           = 0x2;
         /// RISCV as supported on gem5
         const RISCV         = 0x3;
+        /// RISCV with attached NIC as supported on hw
+        const RISCV_NIC     = 0x4;
         /// Dummy ISA to represent the indirect-chaining fixed-function accelerator
-        const ACCEL_INDIR   = 0x4;
+        const ACCEL_INDIR   = 0x5;
         /// Dummy ISA to represent the COPY fixed-function accelerator
-        const ACCEL_COPY    = 0x5;
+        const ACCEL_COPY    = 0x6;
         /// Dummy ISA to represent the ROT-13 fixed-function accelerator
-        const ACCEL_ROT13   = 0x6;
+        const ACCEL_ROT13   = 0x7;
         /// Dummy ISA to represent the IDE controller
-        const IDE_DEV       = 0x7;
+        const IDE_DEV       = 0x8;
         /// Dummy ISA to represent the NIC
-        const NIC_DEV       = 0x8;
+        const NIC_DEV       = 0x9;
     }
 }
 
@@ -103,7 +105,10 @@ impl PEDesc {
 
     /// Returns whether the PE executes software
     pub fn is_programmable(self) -> bool {
-        matches!(self.isa(), PEISA::X86 | PEISA::ARM | PEISA::RISCV)
+        matches!(
+            self.isa(),
+            PEISA::X86 | PEISA::ARM | PEISA::RISCV | PEISA::RISCV_NIC
+        )
     }
 
     /// Return if the PE supports multiple contexts

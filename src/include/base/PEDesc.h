@@ -43,11 +43,12 @@ enum class PEISA {
     X86             = 1,
     ARM             = 2,
     RISCV           = 3,
-    ACCEL_INDIR     = 4,
-    ACCEL_COPY      = 5,
-    ACCEL_ROT13     = 6,
-    IDE_DEV         = 7,
-    NIC             = 8
+    RISCV_NIC       = 4,
+    ACCEL_INDIR     = 5,
+    ACCEL_COPY      = 6,
+    ACCEL_ROT13     = 7,
+    IDE_DEV         = 8,
+    NIC             = 9,
 };
 
 /**

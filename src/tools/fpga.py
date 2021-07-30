@@ -77,7 +77,8 @@ def load_boot_info(dram, mods, pes, vm):
 
     # PEs
     for x in range(0, len(pes)):
-        pe_desc = (3 << 3) | 1 if vm else MEM_SIZE | (3 << 3) | 0
+        isa = 4 if x == 6 else 3
+        pe_desc = (isa << 3) | 1 if vm else MEM_SIZE | (isa << 3) | 0
         write_u64(dram, kenv_off, pe_desc)              # PM
         kenv_off += 8
     write_u64(dram, kenv_off, DRAM_SIZE | (0 << 3) | 2) # dram
@@ -131,11 +132,12 @@ def load_prog(dram, pms, i, args, vm):
     sys.stdout.flush()
 
     argv = ENV + 0x400
+    isa = 4 if i == 6 else 3
     if vm:
-        pe_desc = (3 << 3) | 1
+        pe_desc = (isa << 3) | 1
         heap_size = 0x10000
     else:
-        pe_desc = MEM_SIZE | (3 << 3) | 0
+        pe_desc = MEM_SIZE | (isa << 3) | 0
         heap_size = 0
     kenv = glob_addr(MEM_TILE, MAX_FS_SIZE + len(pms) * INIT_PMP_SIZE) if i == 0 else 0
 
