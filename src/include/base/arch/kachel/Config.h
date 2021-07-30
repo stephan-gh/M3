@@ -35,13 +35,13 @@
 #define EPMEM_SIZE          0
 
 #if defined(__hw__)
-#   define TOTAL_EPS        64
+#   define TOTAL_EPS        128
 #   define AVAIL_EPS        (TOTAL_EPS - 1)
-#define MAX_VPES            8
+#   define MAX_VPES         8
 #else
 #   define TOTAL_EPS        192
 #   define AVAIL_EPS        TOTAL_EPS
-#define MAX_VPES            32
+#   define MAX_VPES         32
 #endif
 
 #if defined(__riscv)
