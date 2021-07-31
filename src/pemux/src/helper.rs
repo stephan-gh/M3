@@ -20,6 +20,7 @@ use core::sync::atomic;
 
 pub fn flush_invalidate() {
     if envdata::get().platform == envdata::Platform::HW.val {
+        #[cfg(target_vendor = "hw")]
         unsafe {
             llvm_asm!("fence.i" : : : : "volatile");
         }
