@@ -53,8 +53,8 @@ pub fn init(state: &mut State) {
             7 => isr::reg(i, crate::fpu_ex),
             14 => isr::reg(i, crate::mmu_pf),
             63 => isr::reg(i, crate::pexcall),
-            64 => isr::reg(i, crate::tcu_irq),
-            65 => isr::reg(i, crate::timer_irq),
+            64 => isr::reg(i, crate::ext_irq),
+            65 => isr::reg(i, crate::ext_irq),
             i => isr::reg(i, crate::unexpected_irq),
         }
     }

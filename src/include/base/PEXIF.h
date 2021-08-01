@@ -20,6 +20,10 @@
 
 namespace m3 {
 
+typedef uint32_t irq_t;
+
+static constexpr irq_t INVALID_IRQ = static_cast<irq_t>(-1);
+
 enum Operation : word_t {
     WAIT,
     EXIT,
@@ -46,8 +50,8 @@ enum Operation : word_t {
 namespace m3 {
 
 struct PEXIF {
-    static void wait(epid_t ep, TCU::IRQ irq, uint64_t nanos = 0) {
-        PEXABI::call3(Operation::WAIT, ep, static_cast<word_t>(irq), nanos);
+    static void wait(epid_t ep, irq_t irq, uint64_t nanos = 0) {
+        PEXABI::call3(Operation::WAIT, ep, irq, nanos);
     }
 
     static void exit(int code) {
@@ -58,8 +62,8 @@ struct PEXIF {
         PEXABI::call4(Operation::MAP, virt, phys, pages, perm);
     }
 
-    static void reg_irq(TCU::IRQ irq) {
-        PEXABI::call1(Operation::REG_IRQ, static_cast<word_t>(irq));
+    static void reg_irq(irq_t irq) {
+        PEXABI::call1(Operation::REG_IRQ, irq);
     }
 
     static void flush_invalidate() {

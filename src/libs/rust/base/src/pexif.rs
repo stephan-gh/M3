@@ -20,7 +20,11 @@ use crate::arch::pexabi;
 use crate::errors::Error;
 use crate::goff;
 use crate::kif;
-use crate::tcu::{EpId, INVALID_EP, IRQ};
+use crate::tcu::{EpId, INVALID_EP};
+
+pub type IRQId = u32;
+
+pub const INVALID_IRQ: IRQId = !0;
 
 int_enum! {
     /// The operations PEMux supports
@@ -53,12 +57,12 @@ pub(crate) fn get_result(res: isize) -> Result<usize, Error> {
 }
 
 #[inline(always)]
-pub fn wait(ep: Option<EpId>, irq: Option<IRQ>, nanos: u64) -> Result<(), Error> {
+pub fn wait(ep: Option<EpId>, irq: Option<IRQId>, nanos: Option<u64>) -> Result<(), Error> {
     pexabi::call3(
         Operation::WAIT,
         ep.unwrap_or(INVALID_EP) as usize,
-        irq.unwrap_or(IRQ::INVALID).val as usize,
-        nanos as usize,
+        irq.unwrap_or(INVALID_IRQ) as usize,
+        nanos.unwrap_or(0) as usize,
     )
     .map(|_| ())
 }
@@ -79,8 +83,8 @@ pub fn map(virt: usize, phys: goff, pages: usize, access: kif::Perm) -> Result<(
     .map(|_| ())
 }
 
-pub fn reg_irq(irq: IRQ) -> Result<(), Error> {
-    pexabi::call1(Operation::REG_IRQ, irq.val as usize).map(|_| ())
+pub fn reg_irq(irq: IRQId) -> Result<(), Error> {
+    pexabi::call1(Operation::REG_IRQ, irq as usize).map(|_| ())
 }
 
 pub fn flush_invalidate() -> Result<(), Error> {

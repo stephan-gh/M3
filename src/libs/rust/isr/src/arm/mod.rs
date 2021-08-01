@@ -20,6 +20,8 @@ use base::libc;
 use base::tcu;
 use core::fmt;
 
+use crate::IRQSource;
+
 pub const ISR_COUNT: usize = 8;
 pub const TCU_ISR: usize = Vector::IRQ.val;
 
@@ -127,20 +129,14 @@ pub fn enable_irqs() {
     };
 }
 
-pub fn to_plic_irq(_irq: tcu::IRQ) -> Option<u32> {
-    None
-}
-
-pub fn to_tcu_irq(_irq: u32) -> Option<tcu::IRQ> {
-    None
-}
-
-pub fn disable_irq(_irq: tcu::IRQ) {
-}
-
-pub fn enable_irq_mask(_mask: u32) {
-}
-
-pub fn acknowledge_irq(irq: tcu::IRQ) {
+pub fn get_irq() -> IRQSource {
+    let irq = tcu::TCU::get_irq();
     tcu::TCU::clear_irq(irq);
+    IRQSource::TCU(irq)
+}
+
+pub fn enable_ext_irqs(_mask: u32) {
+}
+
+pub fn disable_ext_irqs(_mask: u32) {
 }

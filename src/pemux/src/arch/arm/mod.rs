@@ -37,7 +37,7 @@ pub fn init(state: &mut State) {
             isr::Vector::SWI => isr::reg(i, crate::pexcall),
             isr::Vector::PREFETCH_ABORT => isr::reg(i, crate::mmu_pf),
             isr::Vector::DATA_ABORT => isr::reg(i, crate::mmu_pf),
-            isr::Vector::IRQ => isr::reg(i, crate::tcu_irq),
+            isr::Vector::IRQ => isr::reg(i, crate::ext_irq),
             _ => isr::reg(i, crate::unexpected_irq),
         }
     }

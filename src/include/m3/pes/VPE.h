@@ -111,7 +111,7 @@ public:
      */
     static void sleep_for(uint64_t nanos) noexcept {
         if(env()->shared || nanos != 0)
-            PEXIF::wait(TCU::INVALID_EP, TCU::IRQ::INVALID, nanos);
+            PEXIF::wait(TCU::INVALID_EP, INVALID_IRQ, nanos);
 #if !defined(__host__)
         else if(env()->platform != Platform::HW)
             TCU::get().wait_for_msg(TCU::INVALID_EP);
@@ -123,7 +123,7 @@ public:
      */
     static void wait_for_msg(epid_t ep) noexcept {
         if(env()->shared)
-            PEXIF::wait(ep, TCU::IRQ::INVALID, 0);
+            PEXIF::wait(ep, INVALID_IRQ, 0);
 #if !defined(__host__)
         else if(env()->platform != Platform::HW)
             TCU::get().wait_for_msg(ep);

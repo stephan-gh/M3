@@ -16,7 +16,7 @@
 
 use base::cell::StaticCell;
 use base::log;
-use base::tcu;
+use base::pexif;
 
 use crate::vpe;
 
@@ -30,20 +30,21 @@ const MAX_IRQS: usize = 5;
 
 static IRQS: StaticCell<[Option<IRQCounter>; MAX_IRQS]> = StaticCell::new([None; MAX_IRQS]);
 
-pub fn register(vpe: vpe::Id, irq: tcu::IRQ) {
-    assert!(IRQS[irq.val as usize].is_none());
-    IRQS.get_mut()[irq.val as usize] = Some(IRQCounter { vpe, counter: 0 });
-    vpe::get_mut(vpe)
-        .unwrap()
-        .add_irq(isr::to_plic_irq(irq).unwrap());
+pub fn register(vpe: &mut vpe::VPE, irq: pexif::IRQId) {
+    assert!(IRQS[irq as usize].is_none());
+    IRQS.get_mut()[irq as usize] = Some(IRQCounter {
+        vpe: vpe.id(),
+        counter: 0,
+    });
+    vpe.add_irq(irq);
 }
 
-pub fn wait(cur: &vpe::VPE, irq: Option<tcu::IRQ>) -> Option<vpe::Event> {
+pub fn wait(cur: &vpe::VPE, irq: Option<pexif::IRQId>) -> Option<vpe::Event> {
     if let Some(i) = irq {
-        let cnt = &mut IRQS.get_mut()[i.val as usize]?;
+        let cnt = &mut IRQS.get_mut()[i as usize]?;
         if cnt.vpe == cur.id() && cnt.counter > 0 {
             cnt.counter -= 1;
-            return Some(vpe::Event::Interrupt(tcu::IRQ::from(i.val as u64)));
+            return Some(vpe::Event::Interrupt(i));
         }
     }
     else {
@@ -51,41 +52,42 @@ pub fn wait(cur: &vpe::VPE, irq: Option<tcu::IRQ>) -> Option<vpe::Event> {
             if cnt.vpe == cur.id() {
                 if cnt.counter > 0 {
                     cnt.counter -= 1;
-                    return Some(vpe::Event::Interrupt(tcu::IRQ::from(i as u64)));
+                    return Some(vpe::Event::Interrupt(i as pexif::IRQId));
                 }
             }
         }
     }
 
     log!(crate::LOG_IRQS, "irqmask[{:#x}] enable", cur.irq_mask());
-    isr::enable_irq_mask(cur.irq_mask());
+    isr::enable_ext_irqs(cur.irq_mask());
     None
 }
 
-#[cfg(target_vendor = "hw")]
-pub fn signal(irq: tcu::IRQ) {
-    if let Some(ref mut cnt) = IRQS.get_mut()[irq.val as usize] {
+pub fn signal(irq: pexif::IRQId) {
+    if let Some(ref mut cnt) = IRQS.get_mut()[irq as usize] {
         let vpe = vpe::get_mut(cnt.vpe).unwrap();
         if !vpe.unblock(vpe::Event::Interrupt(irq)) {
             cnt.counter += 1;
             log!(crate::LOG_IRQS, "irqs[{}] signal -> {}", irq, cnt.counter);
         }
 
-        log!(crate::LOG_IRQS, "irqs[{}] disable", irq);
-        isr::disable_irq(irq);
+        log!(crate::LOG_IRQS, "irqmask[{:#x}] disable", 1 << irq);
+        isr::disable_ext_irqs(1 << irq);
     }
 }
 
-pub fn remove(vpe: vpe::Id) {
-    for i in 0..MAX_IRQS {
-        let irq = &mut IRQS.get_mut()[i];
-        if let Some(ref cnt) = irq {
-            if cnt.vpe == vpe {
-                *irq = None;
-                let tcu_irq = tcu::IRQ::from(i as u64);
-                log!(crate::LOG_IRQS, "irqs[{}] disable", tcu_irq);
-                isr::disable_irq(tcu_irq);
+pub fn remove(vpe: &vpe::VPE) {
+    if vpe.irq_mask() != 0 {
+        for i in 0..MAX_IRQS {
+            let irq = &mut IRQS.get_mut()[i];
+            if let Some(ref cnt) = irq {
+                if cnt.vpe == vpe.id() {
+                    *irq = None;
+                }
             }
         }
+
+        log!(crate::LOG_IRQS, "irqmask[{:#x}] disable", vpe.irq_mask());
+        isr::disable_ext_irqs(vpe.irq_mask());
     }
 }

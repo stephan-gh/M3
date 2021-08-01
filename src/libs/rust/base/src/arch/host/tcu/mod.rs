@@ -146,13 +146,6 @@ bitflags! {
     }
 }
 
-int_enum! {
-    /// The TCU-internal IRQ ids to clear IRQs
-    pub struct IRQ : Reg {
-        const INVALID   = 0xFF;
-    }
-}
-
 #[repr(C, packed)]
 #[derive(Copy, Clone, Debug)]
 pub struct Header {

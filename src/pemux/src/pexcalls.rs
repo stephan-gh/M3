@@ -30,8 +30,7 @@ use crate::{arch, helper};
 
 fn pexcall_wait(state: &mut arch::State) -> Result<(), Error> {
     let ep = state.r[isr::PEXC_ARG1] as EpId;
-    // TODO validate IRQ number
-    let irq = IRQ::from(state.r[isr::PEXC_ARG2] as u64);
+    let irq = state.r[isr::PEXC_ARG2] as pexif::IRQId;
     let timeout = state.r[isr::PEXC_ARG3] as timer::Nanos;
 
     log!(
@@ -44,7 +43,7 @@ fn pexcall_wait(state: &mut arch::State) -> Result<(), Error> {
 
     let cur = vpe::cur();
     let wait_ep = if ep == INVALID_EP { None } else { Some(ep) };
-    let wait_irq = if irq <= IRQ::TIMER || irq == IRQ::INVALID {
+    let wait_irq = if irq <= IRQ::TIMER.val as pexif::IRQId || irq == pexif::INVALID_IRQ {
         None
     }
     else {
@@ -52,7 +51,7 @@ fn pexcall_wait(state: &mut arch::State) -> Result<(), Error> {
     };
 
     if wait_ep.is_none() || wait_irq.is_some() {
-        if let Some(ev) = irqs::wait(cur, wait_irq) {
+        if irqs::wait(cur, wait_irq).is_some() {
             return Ok(());
         }
     }
@@ -116,13 +115,13 @@ fn pexcall_map(state: &mut arch::State) -> Result<(), Error> {
 }
 
 fn pexcall_reg_irq(state: &mut arch::State) -> Result<(), Error> {
-    let irq = IRQ::from(state.r[isr::PEXC_ARG1] as u64);
+    let irq = state.r[isr::PEXC_ARG1] as pexif::IRQId;
 
-    log!(crate::LOG_CALLS, "pexcall::reg_irq(irq={:?})", irq,);
+    log!(crate::LOG_CALLS, "pexcall::reg_irq(irq={:?})", irq);
 
     // TODO validate whether the VPE is allowed to use these IRQs
 
-    irqs::register(vpe::cur().id(), irq);
+    irqs::register(vpe::cur(), irq);
 
     Ok(())
 }

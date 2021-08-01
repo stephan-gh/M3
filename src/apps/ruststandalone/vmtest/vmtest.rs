@@ -295,7 +295,7 @@ fn test_msgs(area_begin: usize, _area_size: usize) {
 pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
     log!(crate::LOG_DEF, "Got TCU IRQ @ {:#x}", state.epc);
 
-    isr::acknowledge_irq(tcu::IRQ::CORE_REQ);
+    isr::get_irq();
 
     // core request from TCU?
     let req = tcu::TCU::get_core_req().unwrap();

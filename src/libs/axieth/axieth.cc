@@ -201,9 +201,7 @@ EXTERN_C int axieth_init() {
     XLlFifo_IntEnable(FifoInstancePtr, mask);
     XAxiEthernet_IntEnable(AxiEthernetInstancePtr, mask);
 
-    m3::PEXIF::reg_irq(m3::TCU::IRQ::AXI_ETH);
-    m3::PEXIF::reg_irq(m3::TCU::IRQ::AXI_FIFO);
-    m3::PEXIF::reg_irq(m3::TCU::IRQ::AXI_MAC);
+    m3::PEXIF::reg_irq(XPAR_AXIETHERNET_0_INTR);
 
     return 0;
 }

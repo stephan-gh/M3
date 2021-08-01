@@ -47,10 +47,6 @@ class TCU {
 public:
     typedef word_t reg_t;
 
-    enum class IRQ {
-        INVALID             = 0xFF
-    };
-
     struct Header {
         size_t length;          // = mtype -> has to be non-zero
         unsigned char opcode;   // should actually be part of length but causes trouble in msgsnd

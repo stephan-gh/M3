@@ -156,44 +156,26 @@ pub extern "C" fn pexcall(state: &mut arch::State) -> *mut libc::c_void {
     leave(state)
 }
 
-pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
-    // on ARM, we use the same IRQ for both core requests and the timer
-    #[cfg(target_arch = "arm")]
-    if tcu::TCU::get_irq() == tcu::IRQ::TIMER {
-        return timer_irq(state);
+pub extern "C" fn ext_irq(state: &mut arch::State) -> *mut libc::c_void {
+    match isr::get_irq() {
+        isr::IRQSource::TCU(tcu::IRQ::TIMER) => {
+            vpe::cur().consume_time();
+            timer::trigger();
+        },
+
+        isr::IRQSource::TCU(tcu::IRQ::CORE_REQ) => {
+            if let Some(r) = tcu::TCU::get_core_req() {
+                log!(crate::LOG_CORE_REQS, "Got {:x?}", r);
+                corereq::handle_recv(r);
+            }
+        },
+
+        isr::IRQSource::Ext(id) => {
+            irqs::signal(id);
+        },
+
+        n => log!(crate::LOG_ERR, "Unexpected IRQ {:?}", n),
     }
-
-    // on hw, the external IRQ is used for both core requests and the timer as well
-    #[cfg(target_vendor = "hw")]
-    if pex_env().platform == envdata::Platform::HW.val {
-        match isr::get_irq() {
-            tcu::IRQ::TIMER => return timer_irq(state),
-            tcu::IRQ::CORE_REQ => {},
-            irq => {
-                isr::acknowledge_irq(irq);
-                irqs::signal(irq);
-                return leave(state);
-            },
-        }
-    }
-
-    // here it's always a core request
-    isr::acknowledge_irq(tcu::IRQ::CORE_REQ);
-
-    // core request from TCU?
-    if let Some(r) = tcu::TCU::get_core_req() {
-        log!(crate::LOG_CORE_REQS, "Got {:x?}", r);
-        corereq::handle_recv(r);
-    }
-
-    leave(state)
-}
-
-pub extern "C" fn timer_irq(state: &mut arch::State) -> *mut libc::c_void {
-    isr::acknowledge_irq(tcu::IRQ::TIMER);
-
-    vpe::cur().consume_time();
-    timer::trigger();
 
     leave(state)
 }

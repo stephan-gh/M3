@@ -37,10 +37,18 @@ cfg_if! {
 pub use self::isa::*;
 
 use base::cell::StaticCell;
+use base::pexif;
+use base::tcu;
 
 pub type IsrFunc = extern "C" fn(state: &mut State) -> *mut base::libc::c_void;
 
 static ISRS: StaticCell<[IsrFunc; ISR_COUNT]> = StaticCell::new([unexpected_irq; ISR_COUNT]);
+
+#[derive(Debug)]
+pub enum IRQSource {
+    TCU(tcu::IRQ),
+    Ext(pexif::IRQId),
+}
 
 pub extern "C" fn unexpected_irq(state: &mut State) -> *mut base::libc::c_void {
     panic!("Unexpected IRQ with user state:\n{:?}", state);

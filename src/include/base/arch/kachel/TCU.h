@@ -132,10 +132,6 @@ public:
     enum class IRQ {
         CORE_REQ            = 0,
         TIMER               = 1,
-        AXI_ETH             = 2,
-        AXI_FIFO            = 3,
-        AXI_MAC             = 4,
-        INVALID             = 0xFF,
     };
 
     enum MemFlags : reg_t {

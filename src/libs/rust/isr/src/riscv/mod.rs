@@ -22,6 +22,8 @@ use base::tcu;
 use base::{read_csr, set_csr_bits, write_csr};
 use core::fmt;
 
+use crate::IRQSource;
+
 pub const ISR_COUNT: usize = 32;
 pub const TCU_ISR: usize = Vector::SUPER_EXT_IRQ.val;
 
@@ -144,10 +146,10 @@ mod plic {
         }
     }
 
-    pub fn disable(id: u32) {
+    pub fn disable_mask(mask: u32) {
         unsafe {
             let val = MMIO_ENABLE.read_volatile();
-            MMIO_ENABLE.write_volatile(val & !(1 << id));
+            MMIO_ENABLE.write_volatile(val & !mask);
         }
     }
 
@@ -229,59 +231,39 @@ pub fn enable_irqs() {
     set_csr_bits!("sstatus", 1 << 1);
 }
 
-pub fn to_tcu_irq(irq: u32) -> Option<tcu::IRQ> {
-    match irq {
-        plic::TCU_ID => Some(tcu::IRQ::CORE_REQ),
-        plic::TIMER_ID => Some(tcu::IRQ::TIMER),
-        plic::AXI_ETH_ID => Some(tcu::IRQ::AXI_ETH),
-        plic::AXI_FIFO_ID => Some(tcu::IRQ::AXI_FIFO),
-        plic::AXI_MAC_ID => Some(tcu::IRQ::AXI_MAC),
-        _ => None,
-    }
-}
-
-pub fn to_plic_irq(irq: tcu::IRQ) -> Option<u32> {
-    match irq {
-        tcu::IRQ::CORE_REQ => Some(plic::TCU_ID),
-        tcu::IRQ::TIMER => Some(plic::TIMER_ID),
-        tcu::IRQ::AXI_ETH => Some(plic::AXI_ETH_ID),
-        tcu::IRQ::AXI_FIFO => Some(plic::AXI_FIFO_ID),
-        tcu::IRQ::AXI_MAC => Some(plic::AXI_MAC_ID),
-        _ => None,
-    }
-}
-
-pub fn get_irq() -> tcu::IRQ {
+pub fn get_irq() -> IRQSource {
     if envdata::get().platform == envdata::Platform::HW.val {
         let irq = plic::get();
         assert!(irq != 0);
-        to_tcu_irq(irq).unwrap()
-    }
-    else {
-        tcu::IRQ::CORE_REQ
-    }
-}
 
-pub fn disable_irq(irq: tcu::IRQ) {
-    let id = to_plic_irq(irq).unwrap();
-    plic::disable(id);
-}
-
-pub fn enable_irq_mask(mask: u32) {
-    plic::enable_mask(mask);
-}
-
-pub fn acknowledge_irq(irq: tcu::IRQ) {
-    if envdata::get().platform == envdata::Platform::HW.val {
-        let id = to_plic_irq(irq).unwrap();
         // TODO: temporary (add to spec and make gem5 behave the same)
         let tcu_set_irq_addr = 0xF000_3030 as *mut u64;
         unsafe {
-            tcu_set_irq_addr.add((id - 1) as usize).write_volatile(0);
+            tcu_set_irq_addr.add((irq - 1) as usize).write_volatile(0);
         }
-        plic::ack(id);
+        plic::ack(irq);
+
+        match irq {
+            plic::TCU_ID => IRQSource::TCU(tcu::IRQ::CORE_REQ),
+            plic::TIMER_ID => IRQSource::TCU(tcu::IRQ::TIMER),
+            n => IRQSource::Ext(n),
+        }
     }
     else {
+        let irq = tcu::TCU::get_irq();
         tcu::TCU::clear_irq(irq);
+        IRQSource::TCU(irq)
+    }
+}
+
+pub fn enable_ext_irqs(mask: u32) {
+    if envdata::get().platform == envdata::Platform::HW.val {
+        plic::enable_mask(mask);
+    }
+}
+
+pub fn disable_ext_irqs(mask: u32) {
+    if envdata::get().platform == envdata::Platform::HW.val {
+        plic::disable_mask(mask);
     }
 }

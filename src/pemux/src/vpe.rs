@@ -25,6 +25,7 @@ use base::kif;
 use base::log;
 use base::math;
 use base::mem::{size_of, GlobAddr, MsgBuf};
+use base::pexif;
 use base::tcu;
 use core::cmp;
 use core::ptr::NonNull;
@@ -97,7 +98,7 @@ pub enum ContResult {
 #[derive(Debug)]
 pub enum Event {
     Message(tcu::EpId),
-    Interrupt(tcu::IRQ),
+    Interrupt(pexif::IRQId),
     EpInvalid,
     Timeout,
     Start,
@@ -117,7 +118,7 @@ pub struct VPE {
     budget_total: Nanos,
     budget_left: Nanos,
     wait_timeout: bool,
-    wait_irq: Option<tcu::IRQ>,
+    wait_irq: Option<pexif::IRQId>,
     wait_ep: Option<tcu::EpId>,
     irq_mask: u32,
     vpe_reg: tcu::Reg,
@@ -567,7 +568,7 @@ impl VPE {
         &mut self,
         cont: Option<fn() -> ContResult>,
         ep: Option<tcu::EpId>,
-        irq: Option<tcu::IRQ>,
+        irq: Option<pexif::IRQId>,
         timeout: Option<Nanos>,
     ) {
         log!(
@@ -867,7 +868,7 @@ impl Drop for VPE {
         if self.wait_timeout {
             timer::remove(self.id());
         }
-        irqs::remove(self.id());
+        irqs::remove(self);
         arch::forget_fpu(self.id());
     }
 }
