@@ -452,8 +452,18 @@ pub fn enable_irqs() {
     };
 }
 
+pub fn to_plic_irq(_irq: tcu::IRQ) -> Option<u32> {
+    None
+}
+
 pub fn to_tcu_irq(_irq: u32) -> Option<tcu::IRQ> {
     None
+}
+
+pub fn disable_irq(_irq: tcu::IRQ) {
+}
+
+pub fn enable_irq_mask(_mask: u32) {
 }
 
 pub fn acknowledge_irq(irq: tcu::IRQ) {

@@ -61,7 +61,8 @@ fn send_pf(vpe: &mut vpe::VPE, virt: usize, perm: PageFlags) -> Result<(), Error
         vpe.start_pf(PfState { virt, perm });
         vpe.block(
             Some(recv_pf_resp),
-            Some(vpe::Event::Message(eps_start + tcu::PG_REP_OFF)),
+            Some(eps_start + tcu::PG_REP_OFF),
+            None,
             None,
         );
     });

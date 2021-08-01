@@ -56,7 +56,7 @@ fn vpe_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
             // temporary switch to the VPE to access the environment
             vpe.switch_to();
             vpe.start();
-            vpe.unblock(None, false);
+            vpe.unblock(vpe::Event::Start);
             // now switch back
             cur.switch_to();
             Ok(())
@@ -174,7 +174,7 @@ fn ep_inval(msg: &'static tcu::Message) -> Result<(), Error> {
 
     // just unblock the VPE in case it wants to do something on invalidated EPs
     if let Some(vpe) = vpe::get_mut(vpe_id) {
-        vpe.unblock(None, false);
+        vpe.unblock(vpe::Event::EpInvalid);
     }
 
     Ok(())

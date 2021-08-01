@@ -24,7 +24,6 @@ use libc::{c_char, c_int, sockaddr_un};
 
 use m3::col::Vec;
 use m3::libc;
-use m3::pes::VPE;
 use m3::rc::Rc;
 use m3::{format, log, vec};
 
@@ -191,10 +190,6 @@ impl<'a> DevFifo {
             lower: Rc::new(lower),
             mtu: 2048,
         }
-    }
-
-    pub fn wait_for_irq(&self, timeout_ns: u64) -> Result<(), Error> {
-        VPE::sleep_for(timeout_ns)
     }
 }
 

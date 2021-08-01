@@ -97,7 +97,10 @@ pub enum ContResult {
 #[derive(Debug)]
 pub enum Event {
     Message(tcu::EpId),
-    Interrupt(u32),
+    Interrupt(tcu::IRQ),
+    EpInvalid,
+    Timeout,
+    Start,
 }
 
 pub struct VPE {
@@ -110,11 +113,13 @@ pub struct VPE {
     fpu_state: arch::FPUState,
     user_state: arch::State,
     user_state_addr: usize,
-    sleeping: bool,
     scheduled: Nanos,
     budget_total: Nanos,
     budget_left: Nanos,
-    pub wait_event: Option<Event>,
+    wait_timeout: bool,
+    wait_irq: Option<tcu::IRQ>,
+    wait_ep: Option<tcu::EpId>,
+    irq_mask: u32,
     vpe_reg: tcu::Reg,
     eps_start: tcu::EpId,
     cmd: helper::TCUCmdState,
@@ -255,8 +260,13 @@ pub fn schedule(mut action: ScheduleAction) -> usize {
             continue;
         }
 
-        // reset wait_event here, now that we really run that VPE
-        vpe.wait_event = None;
+        // reset blocked state
+        if vpe.wait_timeout {
+            timer::remove(vpe.id());
+            vpe.wait_timeout = false;
+        }
+        vpe.wait_ep = None;
+        vpe.wait_irq = None;
 
         break new_state;
     };
@@ -302,13 +312,6 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
                 }
                 else {
                     Box::into_raw(next);
-                }
-                if old.sleeping {
-                    timer::remove(old.id());
-                    old.sleeping = false;
-                }
-                if let Some(Event::Interrupt(irqs)) = old.wait_event {
-                    irqs::remove(old.id(), irqs);
                 }
                 old.scheduled = now;
                 return old.user_state_addr;
@@ -466,11 +469,13 @@ impl VPE {
             fpu_state: arch::FPUState::default(),
             user_state: arch::State::default(),
             user_state_addr: 0,
-            sleeping: false,
             budget_total: TIME_SLICE,
             budget_left: TIME_SLICE,
             scheduled: 0,
-            wait_event: None,
+            wait_timeout: false,
+            wait_irq: None,
+            wait_ep: None,
+            irq_mask: 0,
             eps_start,
             cmd: helper::TCUCmdState::new(),
             pf_state: None,
@@ -541,8 +546,16 @@ impl VPE {
         &mut self.user_state
     }
 
+    pub fn irq_mask(&self) -> u32 {
+        self.irq_mask
+    }
+
+    pub fn add_irq(&mut self, irq: u32) {
+        self.irq_mask |= 1 << irq;
+    }
+
     fn can_block(&self, msgs: u16) -> bool {
-        if let Some(Event::Message(wep)) = self.wait_event {
+        if let Some(wep) = self.wait_ep {
             !tcu::TCU::has_msgs(wep)
         }
         else {
@@ -550,47 +563,54 @@ impl VPE {
         }
     }
 
-    fn should_unblock(&self, event: Option<Event>) -> bool {
-        match event {
-            // if we have an event, check whether we are waiting for it
-            Some(ev) => match (self.wait_event.as_ref(), ev) {
-                (Some(Event::Message(wep)), Event::Message(mep)) => *wep == mep,
-                // if there is a message and we don't wait for a specific EP, force-unblock
-                (_, Event::Message(_)) => true,
-                // don't need to check the IRQ mask here; we don't get here if it doesn't match
-                (Some(Event::Interrupt(_)), Event::Interrupt(_)) => true,
-                _ => false,
-            },
-            // unblocking without event always unblocks
-            None => true,
-        }
-    }
-
     pub fn block(
         &mut self,
         cont: Option<fn() -> ContResult>,
-        event: Option<Event>,
-        sleep: Option<Nanos>,
+        ep: Option<tcu::EpId>,
+        irq: Option<tcu::IRQ>,
+        timeout: Option<Nanos>,
     ) {
         log!(
             crate::LOG_VPES,
-            "Block VPE {} for event={:?}",
+            "Block VPE {} for ep={:?}, irq={:?}, timeout={:?}",
             self.id(),
-            event
+            ep,
+            irq,
+            timeout,
         );
 
         self.cont = cont;
-        self.wait_event = event;
-        if let Some(nanos) = sleep {
-            timer::add(self.id(), nanos);
-            self.sleeping = true;
-        }
+        self.wait_ep = ep;
+        self.wait_irq = irq;
+        self.wait_timeout = timeout.is_some();
+
         if self.state == VPEState::Running {
             crate::reg_scheduling(ScheduleAction::Block);
         }
     }
 
-    pub fn unblock(&mut self, event: Option<Event>, timer: bool) {
+    fn should_unblock(&self, event: &Event) -> bool {
+        match event {
+            Event::Message(eep) => match self.wait_ep {
+                // if we wait for a specific EP, only unblock if this EP got a message
+                Some(wep) => *eep == wep,
+                // if we wait for a specific IRQ, don't unblock on messages
+                None => self.wait_irq.is_none(),
+            },
+            Event::Interrupt(eirq) => match self.wait_irq {
+                // if we wait for a specific IRQ, only unblock if this IRQ occurred
+                Some(wirq) => *eirq == wirq,
+                // if we wait for a specific EP, don't unblock on IRQs
+                None => self.wait_ep.is_none(),
+            },
+            // always unblock on timeouts or invalided EPs
+            Event::Timeout => true,
+            Event::EpInvalid => true,
+            Event::Start => true,
+        }
+    }
+
+    pub fn unblock(&mut self, event: Event) -> bool {
         log!(
             crate::LOG_VPES,
             "Trying to unblock VPE {} for event={:?}",
@@ -600,25 +620,25 @@ impl VPE {
 
         // VPE not ready yet?
         if self.user_state_addr == 0 {
-            return;
+            return false;
         }
 
-        if self.should_unblock(event) {
-            if self.state == VPEState::Blocked {
-                let mut vpe = BLK.get_mut().remove_if(|v| v.id() == self.id()).unwrap();
-                if !timer && vpe.sleeping {
-                    timer::remove(vpe.id());
-                }
-                if let Some(Event::Interrupt(irqs)) = vpe.wait_event {
-                    irqs::remove(vpe.id(), irqs);
-                }
-                vpe.sleeping = false;
-                make_ready(vpe);
-            }
-            if self.state != VPEState::Running {
-                crate::reg_scheduling(ScheduleAction::Yield);
-            }
+        if !self.should_unblock(&event) {
+            return false;
         }
+
+        if self.state == VPEState::Blocked {
+            let mut vpe = BLK.get_mut().remove_if(|v| v.id() == self.id()).unwrap();
+            if !matches!(event, Event::Timeout) && vpe.wait_timeout {
+                timer::remove(vpe.id());
+                vpe.wait_timeout = false;
+            }
+            make_ready(vpe);
+        }
+        if self.state != VPEState::Running {
+            crate::reg_scheduling(ScheduleAction::Yield);
+        }
+        true
     }
 
     pub fn consume_time(&mut self) {
@@ -844,9 +864,10 @@ impl Drop for VPE {
         }
 
         // remove VPE from other modules
-        if self.sleeping {
+        if self.wait_timeout {
             timer::remove(self.id());
         }
+        irqs::remove(self.id());
         arch::forget_fpu(self.id());
     }
 }

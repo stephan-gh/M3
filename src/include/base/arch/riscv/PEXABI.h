@@ -41,6 +41,20 @@ public:
         return a0;
     }
 
+    static word_t call3(Operation op, word_t arg1, word_t arg2, word_t arg3) {
+        register word_t a0 asm("a0") = op;
+        register word_t a1 asm("a1") = arg1;
+        register word_t a2 asm("a2") = arg2;
+        register word_t a3 asm("a3") = arg3;
+        asm volatile(
+            "ecall"
+            : "+r"(a0)
+            : "r"(a1), "r"(a2), "r"(a3)
+            : "memory"
+        );
+        return a0;
+    }
+
     static word_t call4(Operation op, word_t arg1, word_t arg2, word_t arg3, word_t arg4) {
         register word_t a0 asm("a0") = op;
         register word_t a1 asm("a1") = arg1;

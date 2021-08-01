@@ -20,21 +20,21 @@ use crate::arch::pexabi;
 use crate::errors::Error;
 use crate::goff;
 use crate::kif;
-use crate::tcu::{EpId, INVALID_EP};
+use crate::tcu::{EpId, INVALID_EP, IRQ};
 
 int_enum! {
     /// The operations PEMux supports
     pub struct Operation : isize {
-        /// Sleep for a given duration or until an event occurs
-        const SLEEP         = 0x0;
+        /// Wait for an event, optionally with timeout
+        const WAIT          = 0x0;
         /// Exit the application
         const EXIT          = 0x1;
         /// Switch to the next ready VPE
         const YIELD         = 0x2;
         /// Map local physical memory (IO memory)
         const MAP           = 0x3;
-        /// Wait until a given interrupt arrived
-        const WAIT_IRQ      = 0x4;
+        /// Register for a given interrupt
+        const REG_IRQ       = 0x4;
         /// For TCU TLB misses
         const TRANSL_FAULT  = 0x5;
         /// Flush and invalidate cache
@@ -53,11 +53,12 @@ pub(crate) fn get_result(res: isize) -> Result<usize, Error> {
 }
 
 #[inline(always)]
-pub fn sleep(nanos: u64, ep: Option<EpId>) -> Result<(), Error> {
-    pexabi::call2(
-        Operation::SLEEP,
-        nanos as usize,
+pub fn wait(ep: Option<EpId>, irq: Option<IRQ>, nanos: u64) -> Result<(), Error> {
+    pexabi::call3(
+        Operation::WAIT,
         ep.unwrap_or(INVALID_EP) as usize,
+        irq.unwrap_or(IRQ::INVALID).val as usize,
+        nanos as usize,
     )
     .map(|_| ())
 }
@@ -78,8 +79,8 @@ pub fn map(virt: usize, phys: goff, pages: usize, access: kif::Perm) -> Result<(
     .map(|_| ())
 }
 
-pub fn wait_irq(irqs: u32, timeout_ns: u64) -> Result<(), Error> {
-    pexabi::call2(Operation::WAIT_IRQ, irqs as usize, timeout_ns as usize).map(|_| ())
+pub fn reg_irq(irq: IRQ) -> Result<(), Error> {
+    pexabi::call1(Operation::REG_IRQ, irq.val as usize).map(|_| ())
 }
 
 pub fn flush_invalidate() -> Result<(), Error> {

@@ -134,9 +134,13 @@ mod plic {
     }
 
     pub fn enable(id: u32) {
+        enable_mask(1 << id);
+    }
+
+    pub fn enable_mask(mask: u32) {
         unsafe {
             let val = MMIO_ENABLE.read_volatile();
-            MMIO_ENABLE.write_volatile(val | (1 << id));
+            MMIO_ENABLE.write_volatile(val | mask);
         }
     }
 
@@ -236,7 +240,7 @@ pub fn to_tcu_irq(irq: u32) -> Option<tcu::IRQ> {
     }
 }
 
-fn to_plic_irq(irq: tcu::IRQ) -> Option<u32> {
+pub fn to_plic_irq(irq: tcu::IRQ) -> Option<u32> {
     match irq {
         tcu::IRQ::CORE_REQ => Some(plic::TCU_ID),
         tcu::IRQ::TIMER => Some(plic::TIMER_ID),
@@ -263,9 +267,8 @@ pub fn disable_irq(irq: tcu::IRQ) {
     plic::disable(id);
 }
 
-pub fn enable_irq(irq: tcu::IRQ) {
-    let id = to_plic_irq(irq).unwrap();
-    plic::enable(id);
+pub fn enable_irq_mask(mask: u32) {
+    plic::enable_mask(mask);
 }
 
 pub fn acknowledge_irq(irq: tcu::IRQ) {

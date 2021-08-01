@@ -21,11 +21,11 @@
 namespace m3 {
 
 enum Operation : word_t {
-    SLEEP,
+    WAIT,
     EXIT,
     YIELD,
     MAP,
-    WAIT_IRQ,
+    REG_IRQ,
     TRANSL_FAULT,
     FLUSH_INV,
     NOOP,
@@ -46,8 +46,8 @@ enum Operation : word_t {
 namespace m3 {
 
 struct PEXIF {
-    static void sleep(uint64_t nanos, epid_t ep = TCU::INVALID_EP) {
-        PEXABI::call2(Operation::SLEEP, nanos, ep);
+    static void wait(epid_t ep, TCU::IRQ irq, uint64_t nanos = 0) {
+        PEXABI::call3(Operation::WAIT, ep, static_cast<word_t>(irq), nanos);
     }
 
     static void exit(int code) {
@@ -58,8 +58,8 @@ struct PEXIF {
         PEXABI::call4(Operation::MAP, virt, phys, pages, perm);
     }
 
-    static void wait_irq(TCU::IRQ irq) {
-        PEXABI::call1(Operation::WAIT_IRQ, static_cast<word_t>(irq));
+    static void reg_irq(TCU::IRQ irq) {
+        PEXABI::call1(Operation::REG_IRQ, static_cast<word_t>(irq));
     }
 
     static void flush_invalidate() {

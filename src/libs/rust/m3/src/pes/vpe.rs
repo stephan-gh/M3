@@ -38,7 +38,7 @@ use crate::pexif;
 use crate::rc::Rc;
 use crate::session::{Pager, ResMng};
 use crate::syscalls;
-use crate::tcu::{EpId, PEId, INVALID_EP, TCU};
+use crate::tcu::{EpId, PEId, INVALID_EP, IRQ, TCU};
 use crate::vfs::{BufReader, FileRef, OpenFlags, VFS};
 use crate::vfs::{FileTable, MountTable};
 
@@ -144,7 +144,7 @@ impl VPE {
     pub fn sleep_for(nanos: u64) -> Result<(), Error> {
         if envdata::get().platform != envdata::Platform::HOST.val {
             if arch::env::get().shared() || nanos != 0 {
-                return pexif::sleep(nanos, None);
+                return pexif::wait(None, None, nanos);
             }
             if envdata::get().platform == envdata::Platform::GEM5.val {
                 return TCU::wait_for_msg(INVALID_EP);
@@ -154,12 +154,14 @@ impl VPE {
     }
 
     /// Puts the current VPE to sleep until the next message arrives on the given EP
-    pub fn wait_for_msg(ep: EpId) -> Result<(), Error> {
+    pub fn wait_for(ep: Option<EpId>, irq: Option<IRQ>, timeout: Option<u64>) -> Result<(), Error> {
         if arch::env::get().shared() {
-            return pexif::sleep(0, Some(ep));
+            return pexif::wait(ep, irq, timeout.unwrap_or(0));
         }
         if envdata::get().platform != envdata::Platform::HW.val {
-            return TCU::wait_for_msg(ep);
+            if let Some(ep) = ep {
+                return TCU::wait_for_msg(ep);
+            }
         }
         Ok(())
     }

@@ -20,29 +20,52 @@ use base::kif;
 use base::log;
 use base::mem::GlobAddr;
 use base::pexif;
-use base::tcu::{EpId, INVALID_EP};
+use base::tcu::{EpId, INVALID_EP, IRQ};
 
 use crate::irqs;
-use crate::timer::Nanos;
+use crate::timer;
 use crate::vma;
 use crate::vpe;
 use crate::{arch, helper};
 
-fn pexcall_sleep(state: &mut arch::State) -> Result<(), Error> {
-    let dur = state.r[isr::PEXC_ARG1] as Nanos;
-    let ep = state.r[isr::PEXC_ARG2] as EpId;
+fn pexcall_wait(state: &mut arch::State) -> Result<(), Error> {
+    let ep = state.r[isr::PEXC_ARG1] as EpId;
+    // TODO validate IRQ number
+    let irq = IRQ::from(state.r[isr::PEXC_ARG2] as u64);
+    let timeout = state.r[isr::PEXC_ARG3] as timer::Nanos;
 
-    log!(crate::LOG_CALLS, "pexcall::sleep(dur={}, ep={})", dur, ep);
+    log!(
+        crate::LOG_CALLS,
+        "pexcall::wait(ep={}, irq={}, timeout={})",
+        ep,
+        irq,
+        timeout,
+    );
 
-    let wait_event = if ep == INVALID_EP {
+    let cur = vpe::cur();
+    let wait_ep = if ep == INVALID_EP { None } else { Some(ep) };
+    let wait_irq = if irq <= IRQ::TIMER || irq == IRQ::INVALID {
         None
     }
     else {
-        Some(vpe::Event::Message(ep))
+        Some(irq)
     };
-    let sleep = if dur == 0 { None } else { Some(dur) };
 
-    vpe::cur().block(None, wait_event, sleep);
+    if wait_ep.is_none() || wait_irq.is_some() {
+        if let Some(ev) = irqs::wait(cur, wait_irq) {
+            return Ok(());
+        }
+    }
+
+    let timeout = if timeout == 0 {
+        None
+    }
+    else {
+        timer::add(cur.id(), timeout);
+        Some(timeout)
+    };
+
+    cur.block(None, wait_ep, wait_irq, timeout);
 
     Ok(())
 }
@@ -92,26 +115,14 @@ fn pexcall_map(state: &mut arch::State) -> Result<(), Error> {
     vpe::cur().map(virt, global, pages, flags | kif::PageFlags::U)
 }
 
-fn pexcall_wait_irq(state: &mut arch::State) -> Result<(), Error> {
-    let irqs = state.r[isr::PEXC_ARG1] as u32;
-    let timeout_ns = state.r[isr::PEXC_ARG2] as u64;
+fn pexcall_reg_irq(state: &mut arch::State) -> Result<(), Error> {
+    let irq = IRQ::from(state.r[isr::PEXC_ARG1] as u64);
 
-    log!(
-        crate::LOG_CALLS,
-        "pexcall::wait_irq(irqs={:#x}, timeout_ns={})",
-        irqs,
-        timeout_ns
-    );
+    log!(crate::LOG_CALLS, "pexcall::reg_irq(irq={:?})", irq,);
 
     // TODO validate whether the VPE is allowed to use these IRQs
 
-    let timeout = if timeout_ns == 0 {
-        None
-    }
-    else {
-        Some(timeout_ns)
-    };
-    irqs::wait(vpe::cur().id(), irqs, timeout);
+    irqs::register(vpe::cur().id(), irq);
 
     Ok(())
 }
@@ -151,11 +162,11 @@ pub fn handle_call(state: &mut arch::State) {
     let call = pexif::Operation::from(state.r[isr::PEXC_ARG0] as isize);
 
     let res = match call {
-        pexif::Operation::SLEEP => pexcall_sleep(state).map(|_| 0isize),
+        pexif::Operation::WAIT => pexcall_wait(state).map(|_| 0isize),
         pexif::Operation::EXIT => pexcall_stop(state).map(|_| 0isize),
         pexif::Operation::YIELD => pexcall_yield(state).map(|_| 0isize),
         pexif::Operation::MAP => pexcall_map(state).map(|_| 0isize),
-        pexif::Operation::WAIT_IRQ => pexcall_wait_irq(state).map(|_| 0isize),
+        pexif::Operation::REG_IRQ => pexcall_reg_irq(state).map(|_| 0isize),
         pexif::Operation::TRANSL_FAULT => pexcall_transl_fault(state).map(|_| 0isize),
         pexif::Operation::FLUSH_INV => pexcall_flush_inv(state).map(|_| 0isize),
         pexif::Operation::NOOP => pexcall_noop(state).map(|_| 0isize),

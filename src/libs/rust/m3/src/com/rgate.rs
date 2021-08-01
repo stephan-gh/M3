@@ -297,7 +297,7 @@ impl RecvGate {
                 }
             }
 
-            VPE::wait_for_msg(rep)?;
+            VPE::wait_for(Some(rep), None, None)?;
         }
     }
 

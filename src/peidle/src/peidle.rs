@@ -145,7 +145,7 @@ pub extern "C" fn handle_pexcall(state: &mut isr::State) -> *mut libc::c_void {
     let res = match call {
         pexif::Operation::EXIT => exit_app(state),
         pexif::Operation::FLUSH_INV => flush_invalidate(),
-        pexif::Operation::SLEEP => Ok(0),
+        pexif::Operation::WAIT => Ok(0),
         pexif::Operation::YIELD => Ok(0),
         pexif::Operation::NOOP => Ok(0),
 

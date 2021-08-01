@@ -253,6 +253,7 @@ int_enum! {
         const AXI_ETH   = 2;
         const AXI_FIFO  = 3;
         const AXI_MAC   = 4;
+        const INVALID   = 0xFF;
     }
 }
 

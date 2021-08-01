@@ -115,7 +115,9 @@ pub fn trigger() {
             timeout.vpe,
             now
         );
-        vpe::get_mut(timeout.vpe).unwrap().unblock(None, true);
+        vpe::get_mut(timeout.vpe)
+            .unwrap()
+            .unblock(vpe::Event::Timeout);
     }
 
     // if a scheduling is pending, we can skip this step here, because we'll do it later anyway
