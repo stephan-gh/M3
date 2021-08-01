@@ -14,11 +14,6 @@ using namespace m3;
 
 #if defined(DEBUG)
 
-#ifndef XDEBUG_WARNING
-#define XDEBUG_WARNING
-#warning DEBUG is enabled
-#endif
-
 //int printf(const char *format, ...);
 
 #define XDBG_DEBUG_ERROR             0x00000001U    /* error  condition messages */
