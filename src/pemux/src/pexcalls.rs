@@ -93,14 +93,25 @@ fn pexcall_map(state: &mut arch::State) -> Result<(), Error> {
 }
 
 fn pexcall_wait_irq(state: &mut arch::State) -> Result<(), Error> {
-    let irq = state.r[isr::PEXC_ARG1] as u32;
+    let irqs = state.r[isr::PEXC_ARG1] as u32;
+    let timeout_ns = state.r[isr::PEXC_ARG2] as u64;
 
-    log!(crate::LOG_CALLS, "pexcall::wait_irq(irq={})", irq);
+    log!(
+        crate::LOG_CALLS,
+        "pexcall::wait_irq(irqs={:#x}, timeout_ns={})",
+        irqs,
+        timeout_ns
+    );
 
-    // TODO validate whether the VPE is allowed to use that IRQ
+    // TODO validate whether the VPE is allowed to use these IRQs
 
-    let tcu_irq = isr::to_tcu_irq(irq).ok_or_else(|| Error::new(Code::InvArgs))?;
-    irqs::wait(vpe::cur().id(), tcu_irq);
+    let timeout = if timeout_ns == 0 {
+        None
+    }
+    else {
+        Some(timeout_ns)
+    };
+    irqs::wait(vpe::cur().id(), irqs, timeout);
 
     Ok(())
 }

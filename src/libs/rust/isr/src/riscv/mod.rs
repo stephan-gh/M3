@@ -140,6 +140,13 @@ mod plic {
         }
     }
 
+    pub fn disable(id: u32) {
+        unsafe {
+            let val = MMIO_ENABLE.read_volatile();
+            MMIO_ENABLE.write_volatile(val & !(1 << id));
+        }
+    }
+
     pub fn set_priority(id: u32, prio: u8) {
         unsafe {
             MMIO_PRIORITY
@@ -229,6 +236,17 @@ pub fn to_tcu_irq(irq: u32) -> Option<tcu::IRQ> {
     }
 }
 
+fn to_plic_irq(irq: tcu::IRQ) -> Option<u32> {
+    match irq {
+        tcu::IRQ::CORE_REQ => Some(plic::TCU_ID),
+        tcu::IRQ::TIMER => Some(plic::TIMER_ID),
+        tcu::IRQ::AXI_ETH => Some(plic::AXI_ETH_ID),
+        tcu::IRQ::AXI_FIFO => Some(plic::AXI_FIFO_ID),
+        tcu::IRQ::AXI_MAC => Some(plic::AXI_MAC_ID),
+        _ => None,
+    }
+}
+
 pub fn get_irq() -> tcu::IRQ {
     if envdata::get().platform == envdata::Platform::HW.val {
         let irq = plic::get();
@@ -240,15 +258,19 @@ pub fn get_irq() -> tcu::IRQ {
     }
 }
 
+pub fn disable_irq(irq: tcu::IRQ) {
+    let id = to_plic_irq(irq).unwrap();
+    plic::disable(id);
+}
+
+pub fn enable_irq(irq: tcu::IRQ) {
+    let id = to_plic_irq(irq).unwrap();
+    plic::enable(id);
+}
+
 pub fn acknowledge_irq(irq: tcu::IRQ) {
     if envdata::get().platform == envdata::Platform::HW.val {
-        let id = match irq {
-            tcu::IRQ::CORE_REQ => plic::TCU_ID,
-            tcu::IRQ::TIMER => plic::TIMER_ID,
-            tcu::IRQ::AXI_ETH => plic::AXI_ETH_ID,
-            tcu::IRQ::AXI_FIFO => plic::AXI_FIFO_ID,
-            tcu::IRQ::AXI_MAC | _ => plic::AXI_MAC_ID,
-        };
+        let id = to_plic_irq(irq).unwrap();
         // TODO: temporary (add to spec and make gem5 behave the same)
         let tcu_set_irq_addr = 0xF000_3030 as *mut u64;
         unsafe {

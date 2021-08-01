@@ -97,7 +97,7 @@ pub enum ContResult {
 #[derive(Debug)]
 pub enum Event {
     Message(tcu::EpId),
-    Interrupt(tcu::IRQ),
+    Interrupt(u32),
 }
 
 pub struct VPE {
@@ -114,7 +114,7 @@ pub struct VPE {
     scheduled: Nanos,
     budget_total: Nanos,
     budget_left: Nanos,
-    wait_event: Option<Event>,
+    pub wait_event: Option<Event>,
     vpe_reg: tcu::Reg,
     eps_start: tcu::EpId,
     cmd: helper::TCUCmdState,
@@ -307,8 +307,8 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
                     timer::remove(old.id());
                     old.sleeping = false;
                 }
-                if let Some(Event::Interrupt(irq)) = old.wait_event {
-                    irqs::remove(old.id(), irq);
+                if let Some(Event::Interrupt(irqs)) = old.wait_event {
+                    irqs::remove(old.id(), irqs);
                 }
                 old.scheduled = now;
                 return old.user_state_addr;
@@ -555,7 +555,9 @@ impl VPE {
             // if we have an event, check whether we are waiting for it
             Some(ev) => match (self.wait_event.as_ref(), ev) {
                 (Some(Event::Message(wep)), Event::Message(mep)) => *wep == mep,
-                // don't need to check the IRQ number here; we don't get here if it doesn't match
+                // if there is a message and we don't wait for a specific EP, force-unblock
+                (_, Event::Message(_)) => true,
+                // don't need to check the IRQ mask here; we don't get here if it doesn't match
                 (Some(Event::Interrupt(_)), Event::Interrupt(_)) => true,
                 _ => false,
             },
@@ -606,6 +608,9 @@ impl VPE {
                 let mut vpe = BLK.get_mut().remove_if(|v| v.id() == self.id()).unwrap();
                 if !timer && vpe.sleeping {
                     timer::remove(vpe.id());
+                }
+                if let Some(Event::Interrupt(irqs)) = vpe.wait_event {
+                    irqs::remove(vpe.id(), irqs);
                 }
                 vpe.sleeping = false;
                 make_ready(vpe);

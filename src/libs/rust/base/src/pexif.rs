@@ -78,8 +78,8 @@ pub fn map(virt: usize, phys: goff, pages: usize, access: kif::Perm) -> Result<(
     .map(|_| ())
 }
 
-pub fn wait_irq(irq: u32) -> Result<(), Error> {
-    pexabi::call1(Operation::WAIT_IRQ, irq as usize).map(|_| ())
+pub fn wait_irq(irqs: u32, timeout_ns: u64) -> Result<(), Error> {
+    pexabi::call2(Operation::WAIT_IRQ, irqs as usize, timeout_ns as usize).map(|_| ())
 }
 
 pub fn flush_invalidate() -> Result<(), Error> {

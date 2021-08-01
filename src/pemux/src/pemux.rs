@@ -170,8 +170,8 @@ pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
             tcu::IRQ::TIMER => return timer_irq(state),
             tcu::IRQ::CORE_REQ => {},
             irq => {
-                irqs::signal(irq);
                 isr::acknowledge_irq(irq);
+                irqs::signal(irq);
                 return leave(state);
             },
         }
