@@ -29,6 +29,9 @@ mod inner;
 
 pub use inner::*;
 
+use m3::errors::Error;
+use m3::pes::VPE;
+
 use smoltcp::iface::Interface;
 use smoltcp::socket::SocketSet;
 use smoltcp::time::{Duration, Instant};
@@ -59,6 +62,13 @@ impl<'a> DriverInterface<'a> {
         match self {
             Self::Lo(l) => l.poll_delay(sockets, timestamp),
             Self::Eth(e) => e.poll_delay(sockets, timestamp),
+        }
+    }
+
+    pub fn wait_for_irq(&self, timeout_ns: u64) -> Result<(), Error> {
+        match self {
+            Self::Lo(_) => VPE::sleep_for(timeout_ns),
+            Self::Eth(e) => e.device().wait_for_irq(timeout_ns),
         }
     }
 }

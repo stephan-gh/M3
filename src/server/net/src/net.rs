@@ -364,7 +364,7 @@ pub fn main() -> i32 {
         };
 
         log!(LOG_DETAIL, "Sleeping for {} ns", sleep_nanos);
-        // m3::pes::VPE::sleep_for(sleep_nanos).ok();
+        iface.wait_for_irq(sleep_nanos).ok();
     }
 
     0

@@ -18,6 +18,7 @@
 
 use m3::cell::RefCell;
 use m3::errors::Error;
+use m3::pes::VPE;
 use m3::rc::Rc;
 use m3::vec::Vec;
 
@@ -37,6 +38,10 @@ impl E1000Device {
         Ok(E1000Device {
             dev: Rc::new(RefCell::new(e1000::E1000::new()?)),
         })
+    }
+
+    pub fn wait_for_irq(&self, timeout_ns: u64) -> Result<(), Error> {
+        VPE::sleep_for(timeout_ns)
     }
 }
 

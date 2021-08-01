@@ -197,9 +197,9 @@ EXTERN_C int axieth_init() {
     /**
      * Enable interrupts
      */
-    // XLlFifo_IntEnable(FifoInstancePtr, XLLF_INT_ALL_MASK);
-    // XAxiEthernet_IntEnable(AxiEthernetInstancePtr,
-    //            XAE_INT_RXRJECT_MASK | XAE_INT_RXFIFOOVR_MASK);
+    uint mask = XAE_INT_RXCMPIT_MASK | XAE_INT_RXRJECT_MASK | XAE_INT_RXFIFOOVR_MASK;
+    XLlFifo_IntEnable(FifoInstancePtr, mask);
+    XAxiEthernet_IntEnable(AxiEthernetInstancePtr, mask);
 
     return 0;
 }
@@ -267,20 +267,7 @@ EXTERN_C int axieth_send(void *packet, size_t len) {
     // Initiate transmit
     XLlFifo_TxSetLen(FifoInstancePtr, len);
 
-    // Wait for status of the transmitted packet
-    switch (AxiEthernetPollForTxStatus()) {
-        case XST_SUCCESS:/* Got a successful transmit status */
-            AxiEthernetUtilErrorTrap("Tx Success");
-            return 0;
-
-        case XST_NO_DATA:   /* Timed out */
-            AxiEthernetUtilErrorTrap("Tx timeout");
-            return 1;
-
-        default:        /* Some other error */
-            AxiEthernetUtilErrorTrap("Tx error");
-            return 1;
-    }
+    return 0;
 }
 
 static int get_recv_status(void) {
@@ -317,6 +304,23 @@ static int get_recv_status(void) {
 
 EXTERN_C size_t axieth_recv(void *buffer, size_t len) {
     XLlFifo *FifoInstancePtr = &FifoInstance;
+
+    u32 Pending = XLlFifo_IntPending(FifoInstancePtr);
+    m3::Serial::get() << "got pending=" << m3::fmt(Pending, "#x") << "\n";
+
+    while (Pending) {
+        if (Pending & XLLF_INT_RC_MASK) {
+            m3::Serial::get() << "frame(s) received\n";
+            XLlFifo_IntClear(FifoInstancePtr, XLLF_INT_RC_MASK);
+        }
+        else if (Pending & XLLF_INT_ERROR_MASK) {
+            m3::Serial::get() << "frame error\n";
+            XLlFifo_IntClear(FifoInstancePtr, XLLF_INT_ERROR_MASK);
+        } else {
+            XLlFifo_IntClear(FifoInstancePtr, Pending);
+        }
+        Pending = XLlFifo_IntPending(FifoInstancePtr);
+    }
 
     // m3::Serial::get() << "axieth_recv(buffer="
     //                   << m3::fmt(buffer, "p") << ", len=" << m3::fmt(len, "#x") << ")\n";

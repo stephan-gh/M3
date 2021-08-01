@@ -18,6 +18,7 @@
 
 use m3::col::Vec;
 use m3::errors::{Code, Error};
+use m3::tcu::IRQ;
 use m3::vec;
 
 use smoltcp::time::Instant;
@@ -38,6 +39,13 @@ impl AXIEthDevice {
             0 => Ok(Self {}),
             _ => Err(Error::new(Code::NotFound)),
         }
+    }
+
+    pub fn wait_for_irq(&self, timeout_ns: u64) -> Result<(), Error> {
+        m3::pexif::wait_irq(
+            (1 << IRQ::AXI_FIFO.val) | (1 << IRQ::AXI_ETH.val) | (1 << IRQ::AXI_MAC.val),
+            timeout_ns,
+        )
     }
 }
 
