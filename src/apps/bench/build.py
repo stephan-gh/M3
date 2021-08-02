@@ -6,6 +6,7 @@ dirs = [
     'cppnetbenchs',
     'fstrace',
     'imgproc',
+    'ipc',
     'loadgen',
     'rustbenchs',
     'rustnetbenchs',

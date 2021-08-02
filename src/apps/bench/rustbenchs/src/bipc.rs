@@ -26,6 +26,9 @@ use m3::{
 
 const MSG_ORD: u32 = 8;
 
+const WARMUP: u64 = 50;
+const RUNS: u64 = 1000;
+
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, pingpong_remote);
     wv_run_test!(t, pingpong_local);
@@ -54,7 +57,7 @@ fn pingpong_with_pe(name: &str, pe: Rc<PE>) {
 
     let act = wv_assert_ok!(vpe.run(Box::new(move || {
         wv_assert_ok!(rgate.activate());
-        for _ in 0..110 {
+        for _ in 0..RUNS + WARMUP {
             let mut msg = wv_assert_ok!(recv_msg(&rgate));
             wv_assert_eq!(msg.pop::<u64>(), Ok(0));
             wv_assert_ok!(reply_vmsg!(msg, 0u64));
@@ -62,7 +65,7 @@ fn pingpong_with_pe(name: &str, pe: Rc<PE>) {
         0
     })));
 
-    let mut prof = profile::Profiler::default().repeats(100).warmup(10);
+    let mut prof = profile::Profiler::default().repeats(RUNS).warmup(WARMUP);
 
     let reply_gate = RecvGate::def();
     wv_perf!(

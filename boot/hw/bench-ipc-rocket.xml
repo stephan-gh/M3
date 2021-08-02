@@ -1,0 +1,23 @@
+<config>
+    <kernel args="kernel" />
+    <dom>
+        <app args="root">
+            <app args="m3fs mem $fs.size" daemon="1">
+                <serv name="m3fs" />
+                <physmem addr="0" size="$fs.size" />
+            </app>
+            <dom>
+                <app args="pager $fs.size">
+                    <sess name="m3fs" />
+                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <pes name="child" type="rocket" count="1" />
+                    <dom pe="rocket">
+                        <app args="/bin/ipc">
+                            <pes name="child" type="rocket" count="1" />
+                        </app>
+                    </dom>
+                </app>
+            </dom>
+        </app>
+    </dom>
+</config>
