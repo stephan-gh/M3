@@ -381,8 +381,20 @@ impl Capability {
             }
             // on the first level, we don't want to revoke siblings
             if rev_next {
-                if let Some(n) = cap.next {
-                    (*n.as_ptr()).revoke_rec_async(true, true);
+                let mut cap_next = cap.next;
+                while let Some(n) = cap_next {
+                    let sib = &mut *n.as_ptr();
+                    // remove it from the table
+                    let sels = SelRange::new(sib.sel());
+                    let cap = sib.table_mut().caps.remove(&sels).unwrap();
+
+                    if let Some(c) = cap.child {
+                        (*c.as_ptr()).revoke_rec_async(true, true);
+                    }
+
+                    sib.release_async(true);
+
+                    cap_next = cap.next;
                 }
             }
         }
