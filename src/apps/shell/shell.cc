@@ -39,31 +39,6 @@ static const size_t ACOMP_TIME = 4096;
 
 static const size_t PIPE_SHM_SIZE   = 512 * 1024;
 
-static struct {
-    const char *name;
-    PEDesc pe;
-} petypes[] = {
-    /* COMP_IMEM */  {"imem",  PEDesc(PEType::COMP_IMEM, PEISA::NONE)},
-    /* COMP_EMEM */  {"emem",  PEDesc(PEType::COMP_EMEM, PEISA::NONE)},
-    /* MEM       */  {"mem",   PEDesc(PEType::MEM, PEISA::NONE)},
-};
-
-static struct {
-    const char *name;
-    PEISA isa;
-} isas[] = {
-    {"COPY",     PEISA::ACCEL_COPY},
-    {"ROT13",    PEISA::ACCEL_ROT13},
-};
-
-static PEDesc get_pe_type(const char *name) {
-    for(size_t i = 0; i < ARRAY_SIZE(petypes); ++i) {
-        if(strcmp(name, petypes[i].name) == 0)
-            return petypes[i].pe;
-    }
-    return VPE::self().pe_desc();
-}
-
 static char **build_args(Command *cmd) {
     char **res = new char*[cmd->args->count + 1];
     for(size_t i = 0; i < cmd->args->count; ++i)
@@ -72,32 +47,23 @@ static char **build_args(Command *cmd) {
     return res;
 }
 
-static PEDesc get_pedesc(const VarList &vars, const char *path) {
+static String get_pe_name(const VarList &vars, const char *path) {
     FStream f(path, FILE_R | FILE_X);
     if(f.bad())
-        return VPE::self().pe_desc();
+        return "";
 
     // accelerator description file?
     if(f.read() == '@' && f.read() == '=') {
-        char line[128];
+        static char line[128];
         f.getline(line, sizeof(line));
-        for(size_t i = 0; i < ARRAY_SIZE(isas); ++i) {
-            if(strcmp(isas[i].name, line) == 0)
-                return PEDesc(PEType::COMP_IMEM, isas[i].isa);
-        }
+        return line;
     }
 
     for(size_t i = 0; i < vars.count; ++i) {
-        if(strcmp(vars.vars[i].name, "PE") == 0) {
-            PEDesc pe = get_pe_type(expr_value(vars.vars[i].value));
-            // use the current ISA for comp-PEs
-            // TODO we could let the user specify the ISA
-            if(pe.type() != PEType::MEM)
-                pe = PEDesc(pe.type(), VPE::self().pe_desc().isa(), pe.mem_size());
-            break;
-        }
+        if(strcmp(vars.vars[i].name, "PE") == 0)
+            return expr_value(vars.vars[i].value);
     }
-    return VPE::self().pe_desc();
+    return "core";
 }
 
 static void execute_assignment(CmdList *list) {
@@ -110,7 +76,7 @@ static void execute_assignment(CmdList *list) {
 }
 
 static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
-    PEDesc descs[MAX_CMDS];
+    String pe_names[MAX_CMDS];
     std::unique_ptr<IndirectPipe> pipes[MAX_CMDS] = {nullptr};
     std::unique_ptr<MemGate> mems[MAX_CMDS] = {nullptr};
     // destroy the VPEs first to prevent errors due to destroyed communication channels
@@ -125,7 +91,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
             return;
         }
 
-        descs[i] = get_pedesc(*list->cmds[i]->vars, expr_value(list->cmds[i]->args->args[0]));
+        pe_names[i] = get_pe_name(*list->cmds[i]->vars, expr_value(list->cmds[i]->args->args[0]));
     }
 
     size_t vpe_count = 0;
@@ -134,7 +100,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
     for(size_t i = 0; i < list->count; ++i) {
         Command *cmd = list->cmds[i];
 
-        pes[i] = PE::alloc(descs[i]);
+        pes[i] = PE::alloc(pe_names[i].c_str());
         vpes[i] = std::make_unique<VPE>(pes[i], expr_value(cmd->args->args[0]));
         vpe_count++;
 
@@ -149,7 +115,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                 infd = VFS::open(cmd->redirs->fds[STDIN_FD], FILE_R);
             vpes[i]->fds()->set(STDIN_FD, VPE::self().fds()->get(infd));
         }
-        else if(descs[i - 1].is_programmable() || descs[i].is_programmable())
+        else if(pes[i - 1]->desc().is_programmable() || pes[i]->desc().is_programmable())
             vpes[i]->fds()->set(STDIN_FD, VPE::self().fds()->get(pipes[i - 1]->reader_fd()));
 
         if(i + 1 == list->count) {
@@ -157,13 +123,13 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                 outfd = VFS::open(cmd->redirs->fds[STDOUT_FD], FILE_W | FILE_CREATE | FILE_TRUNC);
             vpes[i]->fds()->set(STDOUT_FD, VPE::self().fds()->get(outfd));
         }
-        else if(descs[i].is_programmable() || descs[i + 1].is_programmable()) {
+        else if(pes[i]->desc().is_programmable() || pes[i + 1]->desc().is_programmable()) {
             mems[i] = std::make_unique<MemGate>(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
             pipes[i] = std::make_unique<IndirectPipe>(pipesrv, *mems[i], PIPE_SHM_SIZE);
             vpes[i]->fds()->set(STDOUT_FD, VPE::self().fds()->get(pipes[i]->writer_fd()));
         }
 
-        if(descs[i].is_programmable()) {
+        if(pes[i]->desc().is_programmable()) {
             vpes[i]->fds()->set(STDERR_FD, VPE::self().fds()->get(STDERR_FD));
             vpes[i]->obtain_fds();
 

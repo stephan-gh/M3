@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
     cout << "Starting filter chain...\n";
 
     // create receiver
-    auto pe2 = PE::alloc(VPE::self().pe_desc());
+    auto pe2 = PE::alloc("receiver");
     VPE t2(pe2, "receiver");
 
     // create a gate the sender can send to (at the receiver)
@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
         return 0;
     });
 
-    auto pe1 = PE::alloc(VPE::self().pe_desc());
+    auto pe1 = PE::alloc("sender");
     VPE t1(pe1, "sender");
     t1.fds(VPE::self().fds());
     t1.obtain_fds();

@@ -142,8 +142,8 @@ public:
         retrieve_result(FREE_MEM, reply);
     }
 
-    PEDesc alloc_pe(capsel_t sel, const PEDesc &desc) {
-        GateIStream reply = send_receive_vmsg(_sgate, ALLOC_PE, sel, desc.value());
+    PEDesc alloc_pe(capsel_t sel, const char *name) {
+        GateIStream reply = send_receive_vmsg(_sgate, ALLOC_PE, sel, name);
         retrieve_result(ALLOC_PE, reply);
         PEDesc::value_t res;
         peid_t peid;

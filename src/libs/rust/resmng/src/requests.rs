@@ -193,10 +193,10 @@ fn free_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
 
 fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let dst_sel: Selector = is.pop()?;
-    let desc = kif::PEDesc::new_from(is.pop()?);
+    let name: &str = is.pop()?;
 
     child
-        .alloc_pe(dst_sel, desc)
+        .alloc_pe(dst_sel, &name)
         .and_then(|(id, desc)| reply_vmsg!(is, Code::None as u32, id, desc.value()))
 }
 

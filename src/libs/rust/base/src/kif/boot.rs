@@ -108,10 +108,11 @@ impl fmt::Debug for PE {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(
             f,
-            "PE{:02}: {} {} {} KiB memory",
+            "PE{:02}: {} {} {:?} {} KiB memory",
             { self.id },
             self.desc.pe_type(),
             self.desc.isa(),
+            self.desc.attr(),
             self.desc.mem_size() / 1024
         )
     }

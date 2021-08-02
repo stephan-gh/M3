@@ -12,11 +12,11 @@
                 <app args="pager $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes type="core" count="1" />
+                    <pes name="child" type="core" count="1" />
                     <dom>
                         <app args="/bin/bench-scale -i 4 -r 1 empty">
                             <mount fs="m3fs" path="/" />
-                            <pes type="core" count="4" />
+                            <pes name="child" type="core" count="4" />
                         </app>
                     </dom>
                 </app>

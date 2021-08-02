@@ -13,11 +13,11 @@
                 <app args="pager $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes type="core" count="1" />
+                    <pes name="child" type="core" count="1" />
                     <app args="/bin/bench-scale-pipe -d -i 1 -r 4 -w 1 grep_wc_grep grep_wc_wc $fs.size">
                         <mount fs="m3fs" path="/" />
                         <sess name="pipes" />
-                        <pes type="core" count="2" />
+                        <pes name="child" type="core" count="2" />
                     </app>
                 </app>
             </dom>

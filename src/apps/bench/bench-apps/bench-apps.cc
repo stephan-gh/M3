@@ -38,7 +38,7 @@ struct App {
     explicit App(int argc, const char *argv[])
         : argc(argc),
           argv(argv),
-          pe(PE::alloc(VPE::self().pe_desc())),
+          pe(PE::alloc("child")),
           vpe(pe, argv[0]) {
     }
 

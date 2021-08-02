@@ -25,6 +25,8 @@ use m3::rc::Rc;
 use m3::syscalls;
 use m3::tcu::{EpId, PEId, PMEM_PROT_EPS, TCU};
 
+use crate::config;
+
 struct ManagedPE {
     id: PEId,
     pe: Rc<PE>,
@@ -177,6 +179,17 @@ impl PEManager {
                         pmp.next_ep += 1;
                     }
                 }
+                self.alloc(id);
+                return Ok(usage);
+            }
+        }
+        Err(Error::new(Code::NoSpace))
+    }
+
+    pub fn find_and_alloc_named(&mut self, desc: &config::PEType) -> Result<PEUsage, Error> {
+        for (id, pe) in self.pes.iter().enumerate() {
+            if pe.users == 0 && desc.matches(pe.pe.desc()) {
+                let usage = PEUsage::new(id);
                 self.alloc(id);
                 return Ok(usage);
             }

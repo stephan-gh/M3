@@ -18,13 +18,13 @@
                 <app args="pager $fs.size" usermem="256M">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes type="core" count="1" />
+                    <pes name="child" type="core" count="1" />
                     <app args="/bin/shell">
                         <mount fs="m3fs" path="/" />
                         <sess name="pipes" />
                         <sess name="vterm" />
-                        <pes type="core" count="3" />
-                        <pes type="rot13" count="2" optional="1" />
+                        <pes name="core" type="core" count="3" />
+                        <pes name="rot13" type="rot13" count="2" optional="1" />
                     </app>
                 </app>
             </dom>

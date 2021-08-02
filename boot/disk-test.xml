@@ -5,7 +5,7 @@
             <dom>
                 <app args="disk -d -i -f $hd.path" daemon="1">
                     <serv name="disk" />
-                    <pes type="ide" />
+                    <pes name="idectrl" type="ide" />
                 </app>
             </dom>
             <dom>

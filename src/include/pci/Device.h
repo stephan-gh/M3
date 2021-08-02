@@ -36,7 +36,7 @@ public:
     static const size_t REG_ADDR        = 0x4000;
     static const size_t PCI_CFG_ADDR    = 0xF000000;
 
-    explicit ProxiedPciDevice(const char *name, m3::PEISA isa);
+    explicit ProxiedPciDevice(const char *name);
 
     template<typename T>
     T readReg(size_t offset) {

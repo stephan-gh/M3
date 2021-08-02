@@ -45,7 +45,7 @@ fn taking_turns() {
     let sem0 = wv_assert_ok!(Semaphore::create(1));
     let sem1 = wv_assert_ok!(Semaphore::create(0));
 
-    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
+    let pe = wv_assert_ok!(PE::new("child"));
     let mut child = wv_assert_ok!(VPE::new(pe, "child"));
     wv_assert_ok!(child.delegate_obj(sem0.sel()));
     wv_assert_ok!(child.delegate_obj(sem1.sel()));

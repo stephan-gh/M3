@@ -18,11 +18,11 @@ use core::fmt;
 use m3::cell::Cell;
 use m3::col::{BTreeMap, BTreeSet, String, Vec};
 use m3::errors::{Code, Error};
+use m3::goff;
 use m3::kif;
 use m3::pes::VPE;
 use m3::rc::Rc;
 use m3::tcu::Label;
-use m3::{envdata, goff};
 
 use crate::parser;
 use crate::pes;
@@ -262,15 +262,9 @@ impl PEType {
                 "arm" => desc.isa() == kif::PEISA::ARM,
                 "x86" => desc.isa() == kif::PEISA::X86,
                 "riscv" => desc.isa() == kif::PEISA::RISCV,
-                "riscv_nic" => {
-                    // workaround so that we can use the same config for both platforms
-                    if envdata::get().platform() == envdata::Platform::HW {
-                        desc.isa() == kif::PEISA::RISCV_NIC
-                    }
-                    else {
-                        desc.isa() == kif::PEISA::RISCV
-                    }
-                },
+                "rocket" => desc.attr().contains(kif::PEAttr::ROCKET),
+                "boom" => desc.attr().contains(kif::PEAttr::BOOM),
+                "boomnic" => desc.attr().contains(kif::PEAttr::NIC),
 
                 "indir" => desc.isa() == kif::PEISA::ACCEL_INDIR,
                 "copy" => desc.isa() == kif::PEISA::ACCEL_COPY,
@@ -298,13 +292,29 @@ impl PEType {
                 "arm" => res = PEDesc::new(res.pe_type(), PEISA::ARM, res.mem_size()),
                 "x86" => res = PEDesc::new(res.pe_type(), PEISA::X86, res.mem_size()),
                 "riscv" => res = PEDesc::new(res.pe_type(), PEISA::RISCV, res.mem_size()),
-                "riscv_nic" => {
-                    if envdata::get().platform() == envdata::Platform::HW {
-                        res = PEDesc::new(res.pe_type(), PEISA::RISCV_NIC, res.mem_size())
-                    }
-                    else {
-                        res = PEDesc::new(res.pe_type(), PEISA::RISCV, res.mem_size())
-                    }
+                "rocket" => {
+                    res = PEDesc::new_with_attr(
+                        res.pe_type(),
+                        res.isa(),
+                        res.mem_size(),
+                        res.attr() | kif::PEAttr::ROCKET,
+                    )
+                },
+                "boom" => {
+                    res = PEDesc::new_with_attr(
+                        res.pe_type(),
+                        res.isa(),
+                        res.mem_size(),
+                        res.attr() | kif::PEAttr::BOOM,
+                    )
+                },
+                "boomnic" => {
+                    res = PEDesc::new_with_attr(
+                        res.pe_type(),
+                        res.isa(),
+                        res.mem_size(),
+                        res.attr() | kif::PEAttr::NIC,
+                    )
                 },
                 "indir" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::ACCEL_INDIR, res.mem_size()),
                 "copy" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::ACCEL_COPY, res.mem_size()),
@@ -321,18 +331,24 @@ impl PEType {
 
 #[derive(Default)]
 pub struct PEDesc {
+    name: String,
     ty: PEType,
     count: Cell<u32>,
     optional: bool,
 }
 
 impl PEDesc {
-    pub(crate) fn new(ty: String, count: u32, optional: bool) -> Self {
+    pub(crate) fn new(name: String, ty: String, count: u32, optional: bool) -> Self {
         Self {
+            name,
             ty: PEType(ty),
             count: Cell::new(count),
             optional,
         }
+    }
+
+    pub fn name(&self) -> &String {
+        &self.name
     }
 
     pub fn pe_type(&self) -> &PEType {
@@ -519,11 +535,11 @@ impl AppConfig {
         self.sessions[idx].used.replace(false);
     }
 
-    pub fn get_pe_idx(&self, desc: kif::PEDesc) -> Result<usize, Error> {
+    pub fn get_pe_idx(&self, name: &str) -> Result<usize, Error> {
         let idx = self
             .pes
             .iter()
-            .position(|pe| pe.pe_type().matches(desc))
+            .position(|pe| pe.name() == name)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
 
         if self.pes[idx].count.get() > 0 {

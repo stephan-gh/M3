@@ -25,8 +25,8 @@ using namespace m3;
 
 namespace pci {
 
-ProxiedPciDevice::ProxiedPciDevice(const char *name, PEISA isa)
-    : _pe(PE::alloc(PEDesc(PEType::COMP_IMEM, isa))),
+ProxiedPciDevice::ProxiedPciDevice(const char *name)
+    : _pe(PE::alloc(name)),
       _vpe(_pe, name),
       _mem(_vpe.get_mem(0, PCI_CFG_ADDR + REG_ADDR + PAGE_SIZE, MemGate::RW)),
       _sep(_vpe.epmng().acquire(EP_INT)),

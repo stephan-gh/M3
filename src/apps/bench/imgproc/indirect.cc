@@ -50,7 +50,7 @@ struct IndirChain {
             OStringStream name;
             name << "chain" << id << "-" << i;
 
-            pes[i] = PE::alloc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_INDIR));
+            pes[i] = PE::alloc("indir");
             vpes[i] = std::make_unique<VPE>(pes[i], name.str());
 
             accels[i] = std::make_unique<InDirAccel>(vpes[i], reply_gate);

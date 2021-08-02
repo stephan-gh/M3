@@ -57,6 +57,16 @@ def add_mod(dram, addr, name, offset):
     write_file(dram, name, addr)
     return size
 
+def pe_desc(i, vm):
+    pe_desc = (3 << 3) | 1 if vm else MEM_SIZE | (3 << 3) | 0
+    if i < 5:
+        pe_desc |= 1 << 8 # Rocket core
+    else:
+        pe_desc |= 1 << 7 # BOOM core
+    if i == 6:
+        pe_desc |= 1 << 9 # NIC
+    return pe_desc
+
 def load_boot_info(dram, mods, pes, vm):
     info_start = MAX_FS_SIZE + len(pes) * INIT_PMP_SIZE
 
@@ -77,9 +87,7 @@ def load_boot_info(dram, mods, pes, vm):
 
     # PEs
     for x in range(0, len(pes)):
-        isa = 4 if x == 6 else 3
-        pe_desc = (isa << 3) | 1 if vm else MEM_SIZE | (isa << 3) | 0
-        write_u64(dram, kenv_off, pe_desc)              # PM
+        write_u64(dram, kenv_off, pe_desc(x, vm))       # PM
         kenv_off += 8
     write_u64(dram, kenv_off, DRAM_SIZE | (0 << 3) | 2) # dram
     kenv_off += 8
@@ -132,13 +140,11 @@ def load_prog(dram, pms, i, args, vm):
     sys.stdout.flush()
 
     argv = ENV + 0x400
-    isa = 4 if i == 6 else 3
     if vm:
-        pe_desc = (isa << 3) | 1
         heap_size = 0x10000
     else:
-        pe_desc = MEM_SIZE | (isa << 3) | 0
         heap_size = 0
+    desc = pe_desc(i, vm)
     kenv = glob_addr(MEM_TILE, MAX_FS_SIZE + len(pms) * INIT_PMP_SIZE) if i == 0 else 0
 
     # init environment
@@ -146,7 +152,7 @@ def load_prog(dram, pms, i, args, vm):
     write_u64(dram, dram_env - 8, 0x0000106f)  # j _start (+0x1000)
     write_u64(dram, dram_env + 0, 1)           # platform = HW
     write_u64(dram, dram_env + 8, i)           # pe_id
-    write_u64(dram, dram_env + 16, pe_desc)    # pe_desc
+    write_u64(dram, dram_env + 16, desc)       # pe_desc
     write_u64(dram, dram_env + 24, len(args))  # argc
     write_u64(dram, dram_env + 32, argv)       # argv
     write_u64(dram, dram_env + 40, heap_size)  # heap size

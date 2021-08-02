@@ -22,7 +22,7 @@ use m3::com::{MemGate, RecvGate, SendGate, EP};
 use m3::errors::Error;
 use m3::goff;
 use m3::int_enum;
-use m3::kif::{PEDesc, PEType, Perm, PEISA};
+use m3::kif::Perm;
 use m3::math;
 use m3::pes::{DeviceActivity, PE, VPE};
 use m3::tcu::EpId;
@@ -124,8 +124,8 @@ pub struct Info {
 }
 
 impl Device {
-    pub fn new(name: &str, isa: PEISA) -> Result<Self, Error> {
-        let pe = PE::new(PEDesc::new(PEType::COMP_IMEM, isa, 0))?;
+    pub fn new(name: &str) -> Result<Self, Error> {
+        let pe = PE::new(name)?;
         let vpe = VPE::new(pe, name)?;
         let vpe_sel = vpe.sel();
         let mem = vpe.get_mem(

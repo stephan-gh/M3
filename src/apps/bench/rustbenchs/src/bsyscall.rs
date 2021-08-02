@@ -346,7 +346,7 @@ fn exchange() {
         prof.runner_with_id(
             &mut Tester {
                 vpe: None,
-                pe: wv_assert_ok!(PE::new(VPE::cur().pe_desc())),
+                pe: wv_assert_ok!(PE::new("child")),
             },
             0x18
         )

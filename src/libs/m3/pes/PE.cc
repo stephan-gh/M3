@@ -33,9 +33,9 @@ PE::~PE() {
     }
 }
 
-Reference<PE> PE::alloc(const PEDesc &desc) {
+Reference<PE> PE::alloc(const char *name) {
     capsel_t sel = VPE::self().alloc_sel();
-    PEDesc res = VPE::self().resmng()->alloc_pe(sel, desc);
+    PEDesc res = VPE::self().resmng()->alloc_pe(sel, name);
     return Reference<PE>(new PE(sel, res, KEEP_CAP, true));
 }
 

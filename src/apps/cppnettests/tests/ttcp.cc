@@ -124,7 +124,7 @@ NOINLINE static void nonblocking_client() {
 }
 
 NOINLINE static void nonblocking_server() {
-    auto pe = PE::alloc(VPE::self().pe_desc());
+    auto pe = PE::alloc("child");
     VPE vpe(pe, "tcp-server");
 
     auto sem = Semaphore::create(0);
@@ -197,7 +197,7 @@ NOINLINE static void open_close() {
 }
 
 NOINLINE static void receive_after_close() {
-    auto pe = PE::alloc(VPE::self().pe_desc());
+    auto pe = PE::alloc("child");
     VPE vpe(pe, "tcp-server");
 
     auto sem = Semaphore::create(0);

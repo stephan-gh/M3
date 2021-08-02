@@ -50,10 +50,10 @@ public:
     /**
      * Allocate a new processing element
      *
-     * @param desc the PE description
+     * @param name the local name (boot script)
      * @return the PE object
      */
-    static Reference<PE> alloc(const PEDesc &desc);
+    static Reference<PE> alloc(const char *name);
 
     /**
      * Binds a PE object to the given selector and PE description

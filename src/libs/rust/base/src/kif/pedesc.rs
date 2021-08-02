@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use bitflags::bitflags;
 use cfg_if::cfg_if;
 use core::fmt;
 
@@ -40,20 +41,26 @@ int_enum! {
         const X86           = 0x1;
         /// ARMv7 as supported by gem5
         const ARM           = 0x2;
-        /// RISCV as supported on gem5
+        /// RISCV as supported on hw and gem5
         const RISCV         = 0x3;
-        /// RISCV with attached NIC as supported on hw
-        const RISCV_NIC     = 0x4;
         /// Dummy ISA to represent the indirect-chaining fixed-function accelerator
-        const ACCEL_INDIR   = 0x5;
+        const ACCEL_INDIR   = 0x4;
         /// Dummy ISA to represent the COPY fixed-function accelerator
-        const ACCEL_COPY    = 0x6;
+        const ACCEL_COPY    = 0x5;
         /// Dummy ISA to represent the ROT-13 fixed-function accelerator
-        const ACCEL_ROT13   = 0x7;
+        const ACCEL_ROT13   = 0x6;
         /// Dummy ISA to represent the IDE controller
-        const IDE_DEV       = 0x8;
+        const IDE_DEV       = 0x7;
         /// Dummy ISA to represent the NIC
-        const NIC_DEV       = 0x9;
+        const NIC_DEV       = 0x8;
+    }
+}
+
+bitflags! {
+    pub struct PEAttr : PEDescRaw {
+        const BOOM          = 0x1;
+        const ROCKET        = 0x2;
+        const NIC           = 0x4;
     }
 }
 
@@ -80,6 +87,12 @@ impl PEDesc {
         Self::new_from(val)
     }
 
+    /// Creates a new PE description from the given type, ISA, memory size, and attributes.
+    pub const fn new_with_attr(ty: PEType, isa: PEISA, memsize: usize, attr: PEAttr) -> PEDesc {
+        let val = ty.val | (isa.val << 3) | (attr.bits() << 7) | memsize as PEDescRaw;
+        Self::new_from(val)
+    }
+
     /// Creates a new PE description from the given raw value
     pub const fn new_from(val: PEDescRaw) -> PEDesc {
         PEDesc { val }
@@ -98,6 +111,10 @@ impl PEDesc {
         PEISA::from((self.val >> 3) & 0xF)
     }
 
+    pub fn attr(self) -> PEAttr {
+        PEAttr::from_bits_truncate((self.val >> 7) & 0x7)
+    }
+
     /// Returns the size of the internal memory (0 if none is present)
     pub fn mem_size(self) -> usize {
         (self.val & !0xFFF) as usize
@@ -105,10 +122,7 @@ impl PEDesc {
 
     /// Returns whether the PE executes software
     pub fn is_programmable(self) -> bool {
-        matches!(
-            self.isa(),
-            PEISA::X86 | PEISA::ARM | PEISA::RISCV | PEISA::RISCV_NIC
-        )
+        matches!(self.isa(), PEISA::X86 | PEISA::ARM | PEISA::RISCV)
     }
 
     /// Return if the PE supports multiple contexts
@@ -190,10 +204,11 @@ impl fmt::Debug for PEDesc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "PEDesc[type={}, isa={}, memsz={}]",
+            "PEDesc[type={}, isa={}, memsz={}, attr={:?}]",
             self.pe_type(),
             self.isa(),
-            self.mem_size()
+            self.mem_size(),
+            self.attr(),
         )
     }
 }

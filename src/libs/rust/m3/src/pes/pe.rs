@@ -33,10 +33,10 @@ pub struct PE {
 }
 
 impl PE {
-    /// Allocates a new PE from the resource manager with given description
-    pub fn new(desc: PEDesc) -> Result<Rc<Self>, Error> {
+    /// Allocates a new PE from the resource manager with given name
+    pub fn new(name: &str) -> Result<Rc<Self>, Error> {
         let sel = VPE::cur().alloc_sel();
-        let (id, ndesc) = VPE::cur().resmng().unwrap().alloc_pe(sel, desc)?;
+        let (id, ndesc) = VPE::cur().resmng().unwrap().alloc_pe(sel, name)?;
         Ok(Rc::new(PE {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
             id,

@@ -315,7 +315,7 @@ impl Subsystem {
                 Rc::new(pes::get().find_and_alloc(pe_desc)?)
             }
             else {
-                Rc::new(pes::PEUsage::new_obj(PE::new(pe_desc)?))
+                Rc::new(pes::PEUsage::new_obj(PE::new("child")?))
             };
 
             let total_eps = pe_usage.pe_obj().quota()?;

@@ -43,12 +43,17 @@ enum class PEISA {
     X86             = 1,
     ARM             = 2,
     RISCV           = 3,
-    RISCV_NIC       = 4,
-    ACCEL_INDIR     = 5,
-    ACCEL_COPY      = 6,
-    ACCEL_ROT13     = 7,
-    IDE_DEV         = 8,
-    NIC             = 9,
+    ACCEL_INDIR     = 4,
+    ACCEL_COPY      = 5,
+    ACCEL_ROT13     = 6,
+    IDE_DEV         = 7,
+    NIC             = 8,
+};
+
+enum PEAttr {
+    BOOM           = 0x1,
+    ROCKET         = 0x2,
+    NIC            = 0x4,
 };
 
 /**
@@ -99,6 +104,12 @@ struct PEDesc {
      */
     PEISA isa() const {
         return static_cast<PEISA>((_value >> 3) & 0xF);
+    }
+    /**
+     * @return the attributes of the PE
+     */
+    uint attr() const {
+        return (_value >> 7) & 0x7;
     }
     /**
      * @return if the PE has a core that is programmable
