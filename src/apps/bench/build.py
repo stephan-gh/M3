@@ -4,6 +4,7 @@ dirs = [
     'compute',
     'cppbenchs',
     'cppnetbenchs',
+    'fs',
     'fstrace',
     'imgproc',
     'ipc',
