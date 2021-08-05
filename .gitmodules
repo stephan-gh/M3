@@ -13,3 +13,6 @@
 [submodule "src/libs/jpeg"]
 	path = src/libs/jpeg
 	url = git@gitlab.com:Nils-TUD/libjpeg.git
+[submodule "src/libs/flac"]
+	path = src/libs/flac
+	url = git@gitlab.com:Nils-TUD/libFLAC.git

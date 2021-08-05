@@ -2,6 +2,7 @@ dirs = [
     'axieth',
     'base',
     'dummy',
+    'flac',
     'gem5',
     'heap',
     'host',
