@@ -18,7 +18,7 @@ use bitflags::bitflags;
 use core::fmt;
 
 use crate::cap;
-use crate::com::{RGateArgs, RecvGate, SendGate};
+use crate::com::{MemGate, RGateArgs, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::goff;
 use crate::int_enum;
@@ -232,6 +232,32 @@ impl Pager {
                 os.push_word(u64::from(prot.bits()));
                 os.push_word(u64::from(flags.bits()));
                 os.push_word(off as u64);
+            },
+            |is| {
+                res = is.pop_word()? as goff;
+                Ok(())
+            },
+        )?;
+
+        Ok(res)
+    }
+
+    pub fn map_mem(
+        &self,
+        addr: goff,
+        mem: &MemGate,
+        len: usize,
+        prot: kif::Perm,
+    ) -> Result<goff, Error> {
+        let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, mem.sel(), 1);
+        let mut res = 0;
+        self.sess.delegate(
+            crd,
+            |os| {
+                os.push_word(u64::from(PagerOp::MAP_MEM.val));
+                os.push_word(addr as u64);
+                os.push_word(len as u64);
+                os.push_word(u64::from(prot.bits()));
             },
             |is| {
                 res = is.pop_word()? as goff;
