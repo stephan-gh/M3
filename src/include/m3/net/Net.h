@@ -73,6 +73,22 @@ static inline OStream &operator<<(OStream &os, const IpAddr &a) noexcept {
     return os;
 }
 
+static inline IStream &operator>>(IStream &is, IpAddr &addr) {
+    uint8_t a, b, c, d;
+    is >> a;
+    if(is.read() != '.')
+        throw Exception(Errors::INV_ARGS);
+    is >> b;
+    if(is.read() != '.')
+        throw Exception(Errors::INV_ARGS);
+    is >> c;
+    if(is.read() != '.')
+        throw Exception(Errors::INV_ARGS);
+    is >> d;
+    addr = IpAddr(a, b, c, d);
+    return is;
+}
+
 struct Endpoint {
     static Endpoint unspecified() {
         return Endpoint();
