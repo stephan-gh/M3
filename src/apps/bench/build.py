@@ -7,6 +7,7 @@ dirs = [
     'fs',
     'fstrace',
     'imgproc',
+    'imgsig',
     'ipc',
     'loadgen',
     'rustbenchs',
