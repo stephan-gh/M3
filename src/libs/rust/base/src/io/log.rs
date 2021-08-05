@@ -21,6 +21,7 @@ use core::cmp;
 use crate::cell::StaticCell;
 use crate::errors::Error;
 use crate::io::{Serial, Write};
+use crate::tcu::TCU;
 
 /// Default log message type
 pub const DEF: bool = true;
@@ -123,6 +124,12 @@ impl Write for Log {
     }
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
+        if self.pos > 0 && self.pos == self.start_pos {
+            self.put_char(b' ');
+            self.write_fmt(format_args!("{} ", TCU::nanotime()))
+                .unwrap();
+        }
+
         self.write_bytes(buf);
         Ok(buf.len())
     }
