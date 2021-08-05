@@ -43,8 +43,10 @@ int_enum! {
         const TRANSL_FAULT  = 0x5;
         /// Flush and invalidate cache
         const FLUSH_INV     = 0x6;
+        /// Print operations
+        const PRINT         = 0x7;
         /// Noop operation for testing purposes
-        const NOOP          = 0x7;
+        const NOOP          = 0x8;
     }
 }
 
@@ -94,6 +96,11 @@ pub fn flush_invalidate() -> Result<(), Error> {
 #[inline(always)]
 pub fn switch_vpe() -> Result<(), Error> {
     pexabi::call1(Operation::YIELD, 0).map(|_| ())
+}
+
+#[inline(always)]
+pub fn print(buf: &[u8]) -> Result<(), Error> {
+    pexabi::call2(Operation::PRINT, buf.as_ptr() as usize, buf.len()).map(|_| ())
 }
 
 #[inline(always)]
