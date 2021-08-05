@@ -300,7 +300,7 @@ impl Subsystem {
         // determine default mem and kmem per child
         let (def_kmem, def_umem) = split_mem(&root)?;
 
-        for d in root.domains().iter() {
+        for (idx, d) in root.domains().iter().enumerate() {
             // we need virtual memory support for multiple apps per domain
             let req_desc = d.pe.pe_desc();
             let pe_desc = if d.pseudo || d.apps().len() > 1 {
@@ -315,7 +315,11 @@ impl Subsystem {
                 Rc::new(pes::get().find_and_alloc(pe_desc)?)
             }
             else {
-                Rc::new(pes::PEUsage::new_obj(PE::new("child")?))
+                let mut child_pe = PE::new("child");
+                if child_pe.is_err() {
+                    child_pe = PE::new(&m3::format!("child{}", idx));
+                }
+                Rc::new(pes::PEUsage::new_obj(child_pe?))
             };
 
             let total_eps = pe_usage.pe_obj().quota()?;

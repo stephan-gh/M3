@@ -297,7 +297,7 @@ impl PEType {
                         res.pe_type(),
                         res.isa(),
                         res.mem_size(),
-                        res.attr() | kif::PEAttr::ROCKET,
+                        kif::PEAttr::ROCKET,
                     )
                 },
                 "boom" => {
@@ -305,7 +305,7 @@ impl PEType {
                         res.pe_type(),
                         res.isa(),
                         res.mem_size(),
-                        res.attr() | kif::PEAttr::BOOM,
+                        kif::PEAttr::BOOM,
                     )
                 },
                 "boomnic" => {
@@ -313,7 +313,7 @@ impl PEType {
                         res.pe_type(),
                         res.isa(),
                         res.mem_size(),
-                        res.attr() | kif::PEAttr::NIC,
+                        kif::PEAttr::BOOM | kif::PEAttr::NIC,
                     )
                 },
                 "indir" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::ACCEL_INDIR, res.mem_size()),
@@ -808,8 +808,9 @@ impl AppConfig {
         for pe in &self.pes {
             writeln!(
                 f,
-                "{:0w$}PE[type={}, count={}, optional={}],",
+                "{:0w$}PE[name={}, type={}, count={}, optional={}],",
                 "",
+                pe.name,
                 pe.pe_type().0,
                 pe.count.get(),
                 pe.optional,
