@@ -152,9 +152,14 @@ private:
         skip_whitespace();
         u = 0;
         char c = read();
-        if(c == '0' && ((c = read()) == 'x' || c == 'X')) {
-            base = 16;
-            c = read();
+        if(c == '0') {
+            char tc = read();
+            if(tc == 'x' || tc == 'X') {
+                base = 16;
+                c = read();
+            }
+            else
+                putback(tc);
         }
         // ensure that we consume at least one character
         if(Chars::isdigit(c) || (base == 16 && Chars::isxdigit(c))) {
