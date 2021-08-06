@@ -16,7 +16,6 @@
 
 #include <base/Machine.h>
 #include <base/TCU.h>
-#include <base/PEXIF.h>
 #include <string.h>
 
 EXTERN_C void gem5_shutdown(uint64_t delay);
@@ -38,18 +37,10 @@ void Machine::shutdown() {
 }
 
 ssize_t Machine::write(const char *str, size_t len) {
+    TCU::get().print(str, len);
     if(env()->platform == Platform::GEM5) {
-        TCU::get().print(str, len);
         static const char *fileAddr = "stdout";
         gem5_writefile(str, len, 0, reinterpret_cast<uint64_t>(fileAddr));
-    }
-    else {
-        if(env()->pe_id == 0) {
-            TCU::get().write(127, str, len, 0);
-        }
-        else {
-            PEXIF::print(str, len);
-        }
     }
     return static_cast<ssize_t>(len);
 }

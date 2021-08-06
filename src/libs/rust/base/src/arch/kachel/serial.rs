@@ -17,7 +17,6 @@
 use crate::arch::envdata;
 use crate::arch::tcu;
 use crate::errors::Error;
-use crate::pexif;
 
 extern "C" {
     pub fn gem5_writefile(src: *const u8, len: u64, offset: u64, file: u64);
@@ -34,20 +33,12 @@ pub fn read(buf: &mut [u8]) -> Result<usize, Error> {
 }
 
 pub fn write(buf: &[u8]) -> Result<usize, Error> {
+    tcu::TCU::print(buf);
     if envdata::get().platform == crate::envdata::Platform::GEM5.val {
-        tcu::TCU::print(buf);
         unsafe {
             // put the string on the stack to prevent that gem5_writefile causes a pagefault
             let file: [u8; 7] = *b"stdout\0";
             gem5_writefile(buf.as_ptr(), buf.len() as u64, 0, file.as_ptr() as u64);
-        }
-    }
-    else {
-        if envdata::get().pe_id == 0 {
-            tcu::TCU::write(127, buf.as_ptr(), buf.len(), 0).unwrap();
-        }
-        else {
-            pexif::print(buf).unwrap();
         }
     }
     Ok(buf.len())

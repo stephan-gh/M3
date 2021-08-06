@@ -129,15 +129,6 @@ def load_prog(dram, pms, i, args, vm):
     pmp_ep.set_size(INIT_PMP_SIZE)
     pm.tcu_set_ep(0, pmp_ep)
 
-    # install print EP
-    pr_ep = MemEP()
-    pr_ep.set_pe(0x05) # ETH
-    pr_ep.set_vpe(0xFFFF)
-    pr_ep.set_flags(Flags.WRITE)
-    pr_ep.set_addr(0)
-    pr_ep.set_size(0x1000)
-    pm.tcu_set_ep(127, pr_ep)
-
     # verify entrypoint, because inject a jump instruction below that jumps to that address
     with open(args[0], 'rb') as f:
         elf = ELFFile(f)

@@ -14,15 +14,13 @@
  * General Public License version 2 for more details.
  */
 
-use core::slice;
-
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif;
 use base::log;
 use base::mem::GlobAddr;
 use base::pexif;
-use base::tcu::{EpId, INVALID_EP, IRQ, TCU};
+use base::tcu::{EpId, INVALID_EP, IRQ};
 
 use crate::irqs;
 use crate::timer;
@@ -153,31 +151,6 @@ fn pexcall_flush_inv(_state: &mut arch::State) -> Result<(), Error> {
     Ok(())
 }
 
-fn pexcall_print(state: &mut arch::State) -> Result<(), Error> {
-    let addr = state.r[isr::PEXC_ARG1] as usize;
-    let len = state.r[isr::PEXC_ARG2] as usize;
-
-    log!(
-        crate::LOG_CALLS,
-        "pexcall::print(addr={:#x}, len={})",
-        addr,
-        len
-    );
-
-    let old_vpe = TCU::xchg_vpe(vpe::our().vpe_reg()).unwrap();
-
-    let mut msgbuf = base::mem::MsgBuf::borrow_def();
-    msgbuf.set_from_slice(unsafe { slice::from_raw_parts(addr as *const u8, len) });
-    let res = TCU::write(127, msgbuf.bytes().as_ptr(), len, 0);
-
-    // change back to old VPE
-    let our_vpe = TCU::xchg_vpe(old_vpe).unwrap();
-    assert!((our_vpe >> 16) == 0);
-    vpe::our().set_vpe_reg(our_vpe);
-
-    res
-}
-
 fn pexcall_noop(_state: &mut arch::State) -> Result<(), Error> {
     log!(crate::LOG_CALLS, "pexcall::noop()");
 
@@ -195,7 +168,6 @@ pub fn handle_call(state: &mut arch::State) {
         pexif::Operation::REG_IRQ => pexcall_reg_irq(state).map(|_| 0isize),
         pexif::Operation::TRANSL_FAULT => pexcall_transl_fault(state).map(|_| 0isize),
         pexif::Operation::FLUSH_INV => pexcall_flush_inv(state).map(|_| 0isize),
-        pexif::Operation::PRINT => pexcall_print(state).map(|_| 0isize),
         pexif::Operation::NOOP => pexcall_noop(state).map(|_| 0isize),
 
         _ => Err(Error::new(Code::NotSup)),

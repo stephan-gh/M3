@@ -32,7 +32,6 @@ enum Operation : word_t {
     REG_IRQ,
     TRANSL_FAULT,
     FLUSH_INV,
-    PRINT,
     NOOP,
 };
 
@@ -69,10 +68,6 @@ struct PEXIF {
 
     static void flush_invalidate() {
         PEXABI::call2(Operation::FLUSH_INV, 0, 0);
-    }
-
-    static void print(const char *str, size_t len) {
-        PEXABI::call2(Operation::PRINT, reinterpret_cast<word_t>(str), len);
     }
 };
 
