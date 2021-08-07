@@ -143,9 +143,6 @@ size_t encode(const uint8_t *indata, size_t inlen, void *outbuf, size_t outmax) 
 
     ok &= encoder.finish();
 
-    fprintf(stderr, "encoding: %s\n", ok ? "succeeded" : "FAILED");
-    fprintf(stderr, "   state: %s\n", encoder.get_state().resolved_as_cstring(encoder));
-
     /* now that encoding is finished, the metadata can be freed */
     FLAC__metadata_object_delete(metadata[0]);
     FLAC__metadata_object_delete(metadata[1]);
