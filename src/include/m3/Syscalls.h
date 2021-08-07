@@ -91,6 +91,7 @@ public:
     static void exchange(capsel_t vpe, const KIF::CapRngDesc &own, capsel_t other, bool obtain);
     static void revoke(capsel_t vpe, const KIF::CapRngDesc &crd, bool own = true);
 
+    static void reset_stats();
     static void noop();
 
 private:

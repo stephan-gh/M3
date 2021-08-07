@@ -180,6 +180,18 @@ fn ep_inval(msg: &'static tcu::Message) -> Result<(), Error> {
     Ok(())
 }
 
+fn reset_stats(_msg: &'static tcu::Message) -> Result<(), Error> {
+    log!(crate::LOG_SIDECALLS, "sidecall::reset_stats()",);
+
+    for id in 0..64 {
+        if let Some(vpe) = vpe::get_mut(id) {
+            vpe.reset_stats();
+        }
+    }
+
+    Ok(())
+}
+
 fn handle_sidecall(msg: &'static tcu::Message) {
     let req = msg.get_data::<kif::DefaultRequest>();
 
@@ -191,6 +203,7 @@ fn handle_sidecall(msg: &'static tcu::Message) {
         kif::pemux::Sidecalls::TRANSLATE => translate(msg).map(|pte| val = pte),
         kif::pemux::Sidecalls::REM_MSGS => rem_msgs(msg),
         kif::pemux::Sidecalls::EP_INVAL => ep_inval(msg),
+        kif::pemux::Sidecalls::RESET_STATS => reset_stats(msg),
         _ => Err(Error::new(Code::NotSup)),
     };
 

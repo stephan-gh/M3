@@ -190,6 +190,7 @@ struct KIF {
             REVOKE,
 
             // misc
+            RESET_STATS,
             NOOP,
 
             COUNT
@@ -390,6 +391,9 @@ struct KIF {
             xfer_t vpe_sel;
             xfer_t caps[2];
             xfer_t own;
+        } PACKED;
+
+        struct ResetStats : public DefaultRequest {
         } PACKED;
 
         struct Noop : public DefaultRequest {

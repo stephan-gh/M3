@@ -18,8 +18,8 @@ use base::col::ToString;
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{self, CapSel};
-use base::rc::Rc;
 use base::mem::MsgBuf;
+use base::rc::Rc;
 use base::tcu;
 
 use crate::arch::loader::Loader;
@@ -542,6 +542,17 @@ pub fn vpe_wait_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), S
         }
     }
 
+    Ok(())
+}
+
+pub fn reset_stats(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+    sysc_log!(vpe, "reset_stats()",);
+
+    for pe in platform::user_pes() {
+        PEMng::get().pemux(pe).reset_stats().unwrap();
+    }
+
+    reply_success(msg);
     Ok(())
 }
 

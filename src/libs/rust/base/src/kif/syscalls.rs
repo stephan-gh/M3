@@ -64,7 +64,8 @@ int_enum! {
         const REVOKE            = 24;
 
         // misc
-        const NOOP              = 25;
+        const RESET_STATS       = 25;
+        const NOOP              = 26;
     }
 }
 
@@ -444,6 +445,12 @@ pub struct Revoke {
     pub vpe_sel: u64,
     pub caps: [u64; 2],
     pub own: u64,
+}
+
+/// The reset stats request message
+#[repr(C)]
+pub struct ResetStats {
+    pub opcode: u64,
 }
 
 /// The noop request message

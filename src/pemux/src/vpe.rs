@@ -118,6 +118,7 @@ pub struct VPE {
     budget_total: Nanos,
     budget_left: Nanos,
     cpu_time: Nanos,
+    ctxsws: u64,
     wait_timeout: bool,
     wait_irq: Option<pexif::IRQId>,
     wait_ep: Option<tcu::EpId>,
@@ -363,6 +364,7 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
         );
 
         old.cpu_time += now - old.scheduled;
+        old.ctxsws += 1;
 
         if old.id() != kif::pemux::IDLE_ID {
             // block, preempt or kill VPE
@@ -477,6 +479,7 @@ impl VPE {
             budget_total: TIME_SLICE,
             budget_left: TIME_SLICE,
             cpu_time: 0,
+            ctxsws: 0,
             scheduled: 0,
             wait_timeout: false,
             wait_irq: None,
@@ -550,6 +553,15 @@ impl VPE {
 
     pub fn user_state(&mut self) -> &mut arch::State {
         &mut self.user_state
+    }
+
+    pub fn reset_stats(&mut self) -> u64 {
+        let now = tcu::TCU::nanotime();
+        let old_time = self.cpu_time + (now - self.scheduled);
+        self.scheduled = now;
+        self.cpu_time = 0;
+        self.ctxsws = 0;
+        old_time
     }
 
     pub fn irq_mask(&self) -> u32 {
@@ -861,9 +873,10 @@ impl Drop for VPE {
 
         log!(
             crate::LOG_VPES,
-            "Destroyed VPE {} ({}ns CPU time)",
+            "Destroyed VPE {} ({}ns CPU time, {} context switches)",
             self.id(),
-            self.cpu_time
+            self.cpu_time,
+            self.ctxsws,
         );
 
         // flush+invalidate caches to ensure that we have a fresh view on memory. this is required

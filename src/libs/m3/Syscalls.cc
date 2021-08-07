@@ -376,6 +376,13 @@ void Syscalls::revoke(capsel_t vpe, const KIF::CapRngDesc &crd, bool own) {
     send_receive_throw(req_buf);
 }
 
+void Syscalls::reset_stats() {
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::ResetStats>();
+    req.opcode = KIF::Syscall::RESET_STATS;
+    send_receive_throw(req_buf);
+}
+
 void Syscalls::noop() {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::Noop>();

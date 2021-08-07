@@ -29,6 +29,7 @@ int_enum! {
         const TRANSLATE      = 0x2;
         const REM_MSGS       = 0x3;
         const EP_INVAL       = 0x4;
+        const RESET_STATS    = 0x5;
     }
 }
 
@@ -89,6 +90,13 @@ pub struct EpInval {
     pub op: u64,
     pub vpe_sel: u64,
     pub ep: u64,
+}
+
+/// The reset stats sidecall
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ResetStats {
+    pub op: u64,
 }
 
 /// The sidecall response

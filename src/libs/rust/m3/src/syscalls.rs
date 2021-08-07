@@ -540,6 +540,17 @@ pub fn revoke(vpe: Selector, crd: CapRngDesc, own: bool) -> Result<(), Error> {
     send_receive_result(&buf)
 }
 
+/// The reset stats system call for benchmarking
+///
+/// Resets the statistics for all VPEs in the system
+pub fn reset_stats() -> Result<(), Error> {
+    let buf = SYSC_BUF.get_mut();
+    buf.set(syscalls::ResetStats {
+        opcode: syscalls::Operation::RESET_STATS.val,
+    });
+    send_receive_result(&buf)
+}
+
 /// The noop system call for benchmarking
 pub fn noop() -> Result<(), Error> {
     let buf = SYSC_BUF.get_mut();

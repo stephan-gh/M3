@@ -163,6 +163,7 @@ pub fn handle_async(msg: &'static tcu::Message) {
         kif::syscalls::Operation::VPE_CTRL => misc::vpe_ctrl_async(&vpe, msg),
         kif::syscalls::Operation::VPE_WAIT => misc::vpe_wait_async(&vpe, msg),
 
+        kif::syscalls::Operation::RESET_STATS => misc::reset_stats(&vpe, msg),
         kif::syscalls::Operation::NOOP => misc::noop(&vpe, msg),
 
         _ => panic!("Unexpected operation: {}", { req.opcode }),

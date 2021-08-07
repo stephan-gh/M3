@@ -19,8 +19,8 @@ use base::errors::{Code, Error};
 use base::goff;
 use base::kif;
 use base::mem::GlobAddr;
-use base::rc::{Rc, SRc, Weak};
 use base::mem::MsgBuf;
+use base::rc::{Rc, SRc, Weak};
 use base::tcu::{self, EpId, PEId, VPEId};
 use core::cmp;
 
@@ -339,6 +339,16 @@ impl PEMux {
         );
 
         ktcu::inv_reply_remote(recv_pe, recv_ep, self.pe_id(), send_ep)
+    }
+
+    pub fn reset_stats(&mut self) -> Result<(), Error> {
+        let mut msg = MsgBuf::borrow_def();
+        msg.set(kif::pemux::ResetStats {
+            op: kif::pemux::Sidecalls::RESET_STATS.val as u64,
+        });
+
+        self.send_sidecall::<kif::pemux::ResetStats>(None, &msg)
+            .map(|_| ())
     }
 }
 
