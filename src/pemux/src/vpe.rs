@@ -117,6 +117,7 @@ pub struct VPE {
     scheduled: Nanos,
     budget_total: Nanos,
     budget_left: Nanos,
+    cpu_time: Nanos,
     wait_timeout: bool,
     wait_irq: Option<pexif::IRQId>,
     wait_ep: Option<tcu::EpId>,
@@ -314,6 +315,7 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
                 else {
                     Box::into_raw(next);
                 }
+                old.cpu_time += now - old.scheduled;
                 old.scheduled = now;
                 return old.user_state_addr;
             }
@@ -359,6 +361,8 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
             next_budget,
             action
         );
+
+        old.cpu_time += now - old.scheduled;
 
         if old.id() != kif::pemux::IDLE_ID {
             // block, preempt or kill VPE
@@ -472,6 +476,7 @@ impl VPE {
             user_state_addr: 0,
             budget_total: TIME_SLICE,
             budget_left: TIME_SLICE,
+            cpu_time: 0,
             scheduled: 0,
             wait_timeout: false,
             wait_irq: None,
@@ -849,7 +854,17 @@ impl VPE {
 
 impl Drop for VPE {
     fn drop(&mut self) {
-        log!(crate::LOG_VPES, "Destroyed VPE {}", self.id());
+        if self.state == VPEState::Running {
+            let now = tcu::TCU::nanotime();
+            self.cpu_time += now - self.scheduled;
+        }
+
+        log!(
+            crate::LOG_VPES,
+            "Destroyed VPE {} ({}ns CPU time)",
+            self.id(),
+            self.cpu_time
+        );
 
         // flush+invalidate caches to ensure that we have a fresh view on memory. this is required
         // because of the way the pager handles copy-on-write: it reads the current copy from the
