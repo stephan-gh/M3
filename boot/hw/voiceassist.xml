@@ -22,7 +22,7 @@
                     <dom pe="boom">
                         <app args="/bin/vasnd 192.168.42.15 1337 /testcase1.wav">
                             <mount fs="m3fs" path="/" />
-                            <sess name="net" args="bufs=1M socks=1" />
+                            <sess name="net" args="bufs=1M socks=1 ports=2000" />
                         </app>
                     </dom>
                 </app>
