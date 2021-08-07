@@ -38,7 +38,7 @@ pub const TCU_ERR: bool = true;
 /// Logs networking events
 pub const NET: bool = false;
 
-const MAX_LINE_LEN: usize = 160;
+const MAX_LINE_LEN: usize = 180;
 const SUFFIX: &[u8] = b"\x1B[0m";
 
 static LOG: StaticCell<Option<Log>> = StaticCell::new(None);
