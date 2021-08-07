@@ -16,22 +16,20 @@
 
 #![no_std]
 
-use core::slice;
-
 use m3::cap::Selector;
 use m3::cell::LazyStaticCell;
 use m3::cfg;
-use m3::col::{String, ToString, Vec};
+use m3::col::Vec;
 use m3::com::MemGate;
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::format;
+use m3::goff;
 use m3::int_enum;
 use m3::io::Read;
 use m3::kif::{self, Perm};
 use m3::log;
 use m3::math;
-use m3::pes::VPE;
 use m3::println;
 use m3::server::{
     server_loop, CapExchange, Handler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS,
@@ -40,9 +38,10 @@ use m3::session::ServerSession;
 use m3::vfs::OpenFlags;
 use m3::vfs::VFS;
 
-pub const LOG_DEF: bool = true;
+pub const LOG_DEF: bool = false;
 
-static FILE: LazyStaticCell<String> = LazyStaticCell::default();
+static AUDIO_DATA: LazyStaticCell<MemGate> = LazyStaticCell::default();
+static AUDIO_SIZE: LazyStaticCell<usize> = LazyStaticCell::default();
 
 int_enum! {
     struct ImgSndOp : u64 {
@@ -95,7 +94,7 @@ impl Handler<MicSession> for MicHandler {
     }
 
     fn obtain(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "[{}] vamic::get_sgate()", sid);
+        log!(crate::LOG_DEF, "[{}] vamic::recv()", sid);
 
         if xchg.in_caps() != 1 {
             return Err(Error::new(Code::InvArgs));
@@ -108,36 +107,15 @@ impl Handler<MicSession> for MicHandler {
 
         let sess = self.sessions.get_mut(sid).unwrap();
 
-        // revoke old MemGate and mappings, if any
-        sess.img = None;
-
-        // get file size
-        let info = VFS::stat(&FILE).expect(&format!("unable to stat {}", *FILE));
-        let buf_size = math::round_up(info.size, cfg::PAGE_SIZE);
-
-        // create buffer
-        let buffer = MemGate::new(buf_size, Perm::RW).expect("unable to allocate buffer");
-        let virt = VPE::cur()
-            .pager()
-            .unwrap()
-            .map_mem(0x20000000, &buffer, buf_size, Perm::RW)
-            .expect("unable to map buffer");
-
-        // read file into buffer
-        let buf_slice = unsafe { slice::from_raw_parts_mut(virt as *mut u8, info.size) };
-        {
-            let mut file = VFS::open(&FILE, OpenFlags::R)
-                .expect(&format!("unable to open {} for reading", *FILE));
-            file.read_exact(buf_slice).expect("unable to read file");
-        }
-
-        // pass buffer to client
+        // derive a read-only memory cap for the client. this revokes the previous memory cap, if
+        // there was any.
+        sess.img = Some(AUDIO_DATA.derive(0, *AUDIO_SIZE, Perm::R)?);
+        xchg.out_args().push_word(*AUDIO_SIZE as u64);
         xchg.out_caps(kif::CapRngDesc::new(
             kif::CapType::OBJECT,
             sess.img.as_ref().unwrap().sel(),
             1,
         ));
-        sess.img = Some(buffer);
 
         Ok(())
     }
@@ -159,7 +137,34 @@ pub fn main() -> i32 {
         usage(args[0]);
     }
 
-    FILE.set(args[1].to_string());
+    // actually, we should read the audio samples from an actual microphone in real time.
+    // since we don't have this option and for benchmarking simplicity, we pretend that audio data
+    // is always available. to use real audio data, we read a wav file from the FS, read it into
+    // memory and provide our clients read-only access.
+
+    // get file size
+    let info = VFS::stat(&args[1]).expect(&format!("unable to stat {}", args[1]));
+    let buf_size = math::round_up(info.size, cfg::PAGE_SIZE);
+
+    // create buffer
+    AUDIO_SIZE.set(info.size);
+    AUDIO_DATA.set(MemGate::new(buf_size, Perm::RW).expect("unable to allocate buffer"));
+
+    // read file into buffer
+    let mut local = [0u8; 1024];
+    let mut file = VFS::open(&args[1], OpenFlags::R)
+        .expect(&format!("unable to open {} for reading", args[1]));
+    let mut off = 0;
+    loop {
+        let amount = file.read(&mut local).expect("read failed");
+        if amount == 0 {
+            break;
+        }
+        AUDIO_DATA
+            .write(&local[..amount], off)
+            .expect("write failed");
+        off += amount as goff;
+    }
 
     let mut hdl = MicHandler {
         sessions: SessionContainer::new(DEF_MAX_CLIENTS),

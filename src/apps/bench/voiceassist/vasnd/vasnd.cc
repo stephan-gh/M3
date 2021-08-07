@@ -17,6 +17,7 @@
 #include <base/stream/IStringStream.h>
 #include <base/util/Math.h>
 
+#include <m3/com/MemGate.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/net/TcpSocket.h>
 #include <m3/net/UdpSocket.h>
@@ -32,7 +33,7 @@
 using namespace m3;
 
 static void usage(const char *name) {
-    fprintf(stderr, "Usage: %s <ip> <port> <wav>\n", name);
+    fprintf(stderr, "Usage: %s <ip> <port>\n", name);
     exit(1);
 }
 
@@ -41,15 +42,32 @@ static void usage(const char *name) {
 constexpr size_t MAX_FILE_SIZE = 1024 * 1024;
 constexpr int REPEATS = 16;
 
+static size_t recv_audio(void *dst, ClientSession &sess) {
+    size_t size;
+    KIF::CapRngDesc caps;
+    KIF::ExchangeArgs args;
+    ExchangeOStream os(args);
+    os << /* RECV */ 0;
+    args.bytes = os.total();
+    caps = sess.obtain(1, &args);
+    ExchangeIStream is(args);
+    is >> size;
+
+    MemGate audio = MemGate::bind(caps.start());
+    audio.read(dst, size, 0);
+    return size;
+}
+
 int main(int argc, char **argv) {
-    if(argc != 4) {
+    if(argc != 3)
         usage(argv[0]);
-    }
 
     IpAddr ip = IStringStream::read_from<IpAddr>(argv[1]);
     port_t port = IStringStream::read_from<port_t>(argv[2]);
 
     NetworkManager net("net");
+
+    ClientSession vamic("vamic");
 
 #if UDP
     auto socket = UdpSocket::create(net, DgramSocketArgs().send_buffer(64, 128 * 1024));
@@ -73,14 +91,7 @@ int main(int argc, char **argv) {
     for(int i = 0; i < REPEATS; ++i) {
         uint64_t start = TCU::get().nanotime();
 
-        FILE *f = fopen(argv[3], "r");
-        if(!f) {
-            fprintf(stderr, "fopen failed");
-            return 1;
-        }
-
-        size_t size = fread(mem, 1, MAX_FILE_SIZE, f);
-        fclose(f);
+        size_t size = recv_audio(mem, vamic);
 
         m3::cout << "Encoding " << size << " bytes WAV\n";
         size_t res = encode((const uint8_t*)mem, size, out, 1024 * 1024);
