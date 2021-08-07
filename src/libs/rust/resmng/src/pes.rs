@@ -184,6 +184,7 @@ impl PEManager {
                 return Ok(usage);
             }
         }
+        log!(crate::LOG_PES, "Unable to find PE with desc {:?}", desc);
         Err(Error::new(Code::NoSpace))
     }
 
@@ -195,6 +196,7 @@ impl PEManager {
                 return Ok(usage);
             }
         }
+        log!(crate::LOG_PES, "Unable to find PE with name {}", desc.0);
         Err(Error::new(Code::NoSpace))
     }
 
