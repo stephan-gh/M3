@@ -1,7 +1,7 @@
 dirs = [
-    'imgmic',
-    'imgrcv',
-    'imgsnd',
+    'vamic',
+    'varcv',
+    'vasnd',
 ]
 
 def build(gen, env):

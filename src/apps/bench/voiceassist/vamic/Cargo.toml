@@ -1,10 +1,10 @@
 [package]
-name = "imgmic"
+name = "vamic"
 version = "0.1.0"
 edition = "2018"
 
 [lib]
-path = "src/imgmic.rs"
+path = "src/vamic.rs"
 crate-type = ["staticlib"]
 
 [dependencies]

@@ -51,20 +51,20 @@ int_enum! {
 }
 
 #[derive(Debug)]
-struct SigSession {
+struct MicSession {
     crt: usize,
     sess: ServerSession,
     img: Option<MemGate>,
 }
 
-struct SigHandler {
-    sessions: SessionContainer<SigSession>,
+struct MicHandler {
+    sessions: SessionContainer<MicSession>,
 }
 
-impl SigHandler {
-    fn new_sess(crt: usize, sess: ServerSession) -> SigSession {
-        log!(crate::LOG_DEF, "[{}] imgsnd::new()", sess.ident());
-        SigSession {
+impl MicHandler {
+    fn new_sess(crt: usize, sess: ServerSession) -> MicSession {
+        log!(crate::LOG_DEF, "[{}] vamic::new()", sess.ident());
+        MicSession {
             crt,
             sess,
             img: None,
@@ -72,15 +72,15 @@ impl SigHandler {
     }
 
     fn close_sess(&mut self, sid: SessId) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "[{}] imgsnd::close()", sid);
+        log!(crate::LOG_DEF, "[{}] vamic::close()", sid);
         let crt = self.sessions.get(sid).unwrap().crt;
         self.sessions.remove(crt, sid);
         Ok(())
     }
 }
 
-impl Handler<SigSession> for SigHandler {
-    fn sessions(&mut self) -> &mut m3::server::SessionContainer<SigSession> {
+impl Handler<MicSession> for MicHandler {
+    fn sessions(&mut self) -> &mut m3::server::SessionContainer<MicSession> {
         &mut self.sessions
     }
 
@@ -95,7 +95,7 @@ impl Handler<SigSession> for SigHandler {
     }
 
     fn obtain(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "[{}] imgsnd::get_sgate()", sid);
+        log!(crate::LOG_DEF, "[{}] vamic::get_sgate()", sid);
 
         if xchg.in_caps() != 1 {
             return Err(Error::new(Code::InvArgs));
@@ -161,12 +161,11 @@ pub fn main() -> i32 {
 
     FILE.set(args[1].to_string());
 
-
-    let mut hdl = SigHandler {
+    let mut hdl = MicHandler {
         sessions: SessionContainer::new(DEF_MAX_CLIENTS),
     };
 
-    let srv = Server::new("imgsnd", &mut hdl).expect("Unable to create service 'imgsnd'");
+    let srv = Server::new("vamic", &mut hdl).expect("Unable to create service 'vamic'");
 
     server_loop(|| srv.handle_ctrl_chan(&mut hdl)).ok();
 

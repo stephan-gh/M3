@@ -24,6 +24,8 @@ use m3::net::{Port, StreamSocketArgs, TcpSocket};
 use m3::println;
 use m3::session::NetworkManager;
 
+const REPEATS: u32 = 16;
+
 fn usage(name: &str) -> ! {
     println!("Usage: {} <port>", name);
     m3::exit(1);
@@ -53,7 +55,7 @@ pub fn main() -> i32 {
     let ep = tcp_socket.accept().expect("accept failed");
     println!("Accepted remote endpoint {}", ep);
 
-    for _ in 0..4 {
+    for _ in 0..REPEATS {
         let mut length_bytes = [0u8; 8];
         let recv_len = tcp_socket
             .recv(&mut length_bytes)
@@ -72,6 +74,8 @@ pub fn main() -> i32 {
             println!("Received {} -> {}/{} bytes", recv_len, length - rem, length);
             rem -= recv_len as u64;
         }
+
+        tcp_socket.send(&[0u8]).expect("send ACK failed");
     }
 
     tcp_socket.close().expect("close failed");

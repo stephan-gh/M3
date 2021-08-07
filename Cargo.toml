@@ -2,10 +2,10 @@
 members = [
     "src/apps/bench/fs",
     "src/apps/bench/ipc",
-    "src/apps/bench/imgsig/imgmic",
-    "src/apps/bench/imgsig/imgrcv",
     "src/apps/bench/rustbenchs",
     "src/apps/bench/rustnetbenchs",
+    "src/apps/bench/voiceassist/vamic",
+    "src/apps/bench/voiceassist/varcv",
     "src/apps/bench/ycsb/ycsbclient",
     "src/apps/bench/ycsb/memserver",
     "src/apps/disktest",

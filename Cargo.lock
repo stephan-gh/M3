@@ -100,20 +100,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "imgmic"
-version = "0.1.0"
-dependencies = [
- "m3",
-]
-
-[[package]]
-name = "imgrcv"
-version = "0.1.0"
-dependencies = [
- "m3",
-]
-
-[[package]]
 name = "ipc"
 version = "0.1.0"
 dependencies = [
@@ -396,6 +382,20 @@ version = "0.1.0"
 dependencies = [
  "base",
  "bitflags",
+]
+
+[[package]]
+name = "vamic"
+version = "0.1.0"
+dependencies = [
+ "m3",
+]
+
+[[package]]
+name = "varcv"
+version = "0.1.0"
+dependencies = [
+ "m3",
 ]
 
 [[package]]

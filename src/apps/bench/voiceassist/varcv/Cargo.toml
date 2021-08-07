@@ -1,10 +1,10 @@
 [package]
-name = "imgrcv"
+name = "varcv"
 version = "0.1.0"
 edition = "2018"
 
 [lib]
-path = "src/imgrcv.rs"
+path = "src/varcv.rs"
 crate-type = ["staticlib"]
 
 [dependencies]
