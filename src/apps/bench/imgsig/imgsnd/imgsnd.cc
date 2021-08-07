@@ -19,6 +19,7 @@
 
 #include <m3/session/NetworkManager.h>
 #include <m3/net/TcpSocket.h>
+#include <m3/stream/Standard.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -34,55 +35,70 @@ static void usage(const char *name) {
 }
 
 constexpr size_t MAX_FILE_SIZE = 1024 * 1024;
+constexpr int REPEATS = 16;
 
 int main(int argc, char **argv) {
     if(argc != 4) {
         usage(argv[0]);
     }
 
-    NetworkManager net("net");
-
-    // IpAddr ip = IStringStream::read_from<IpAddr>(argv[1]);
-    IpAddr ip(127, 0, 0, 1);
+    IpAddr ip = IStringStream::read_from<IpAddr>(argv[1]);
     port_t port = IStringStream::read_from<port_t>(argv[2]);
 
-    auto socket = TcpSocket::create(net, StreamSocketArgs().send_buffer(512 * 1024));
-    socket->connect(Endpoint(ip, port));
+    NetworkManager net("net");
 
-    for(int i = 0; i < 4; ++i) {
+    auto socket = TcpSocket::create(net, StreamSocketArgs().send_buffer(32 * 1024));
+
+    m3::cout << "Connecting to " << ip << ":" << port << "...\n";
+    socket->connect(Endpoint(ip, port));
+    m3::cout << "Connection established\n";
+
+    void *mem = malloc(MAX_FILE_SIZE);
+    void *out = malloc(MAX_FILE_SIZE);
+
+    for(int i = 0; i < REPEATS; ++i) {
+        uint64_t start = TCU::get().nanotime();
+
         FILE *f = fopen(argv[3], "r");
         if(!f) {
             fprintf(stderr, "fopen failed");
             return 1;
         }
 
-        void *mem = malloc(MAX_FILE_SIZE);
         size_t size = fread(mem, 1, MAX_FILE_SIZE, f);
         fclose(f);
 
-        printf("Encoding %zu bytes WAV\n", size);
-        void *out = malloc(MAX_FILE_SIZE);
-        size_t res = 55 * 1024;//encode((const uint8_t*)mem, size, out, 1024 * 1024);
-        printf("Produced %zu bytes of FLAC\n", res);
+        m3::cout << "Encoding " << size << " bytes WAV\n";
+        size_t res = encode((const uint8_t*)mem, size, out, 1024 * 1024);
+        m3::cout << "Produced " << res << " bytes of FLAC\n";
 
         uint64_t length = res;
         if(socket->send(&length, sizeof(length)) != sizeof(length))
-            fprintf(stderr, "send failed");
+            m3::cerr << "send failed\n";
 
         size_t rem = res;
         char *out_bytes = static_cast<char*>(out);
         while(rem > 0) {
             size_t amount = Math::min(rem, static_cast<size_t>(1024));
             if(socket->send(out_bytes, amount) != static_cast<ssize_t>(amount))
-                fprintf(stderr, "send failed");
+                m3::cerr << "send failed\n";
 
             out_bytes += amount;
             rem -= amount;
         }
 
-        free(out);
-        free(mem);
+        m3::cout << "waiting for ACK\n";
+
+        char dummy;
+        if(socket->recv(&dummy, sizeof(dummy)) != sizeof(dummy))
+            m3::cerr << "receive failed\n";
+
+        uint64_t end = TCU::get().nanotime();
+        m3::cout << "Time: " << (end - start) << "\n";
     }
+
+    free(out);
+    free(mem);
 
     socket->close();
     return 0;
