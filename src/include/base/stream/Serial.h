@@ -70,12 +70,15 @@ private:
     explicit Serial()
         : IStream(),
           OStream(),
+          _start(0),
+          _time(0),
           _outpos(0),
           _inpos(0),
           _inlen(0) {
     }
 
     size_t _start;
+    size_t _time;
     size_t _outpos;
     size_t _inpos;
     size_t _inlen;

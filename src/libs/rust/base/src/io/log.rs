@@ -48,6 +48,7 @@ pub struct Log {
     serial: Serial,
     buf: [u8; MAX_LINE_LEN],
     pos: usize,
+    time_pos: usize,
     start_pos: usize,
 }
 
@@ -91,13 +92,15 @@ impl Log {
 
         self.pos = 0;
         self.write_fmt(format_args!(
-            "\x1B[0;{}m[{:<8}@{:X}] ",
+            "\x1B[0;{}m[PE{:X}:{:<8}@",
             colors[(pe_id as usize) % colors.len()],
-            &name[begin..begin + len],
-            pe_id
+            pe_id,
+            &name[begin..begin + len]
         ))
         .unwrap();
-        self.start_pos = self.pos;
+        self.time_pos = self.pos;
+        self.start_pos = self.pos + 11 + 2;
+        self.pos = self.start_pos;
     }
 }
 
@@ -107,6 +110,7 @@ impl Default for Log {
             serial: Serial::default(),
             buf: [0; MAX_LINE_LEN],
             pos: 0,
+            time_pos: 0,
             start_pos: 0,
         }
     }
@@ -114,7 +118,14 @@ impl Default for Log {
 
 impl Write for Log {
     fn flush(&mut self) -> Result<(), Error> {
-        self.serial.write(&self.buf[0..self.pos])?;
+        let length = self.pos;
+        self.pos = self.time_pos;
+        self.write_fmt(format_args!(
+            "{:11}] ",
+            (TCU::nanotime() / 1000) % 10_000_000_000
+        ))
+        .unwrap();
+        self.serial.write(&self.buf[0..length])?;
         self.pos = self.start_pos;
         Ok(())
     }
@@ -124,12 +135,6 @@ impl Write for Log {
     }
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
-        if self.pos > 0 && self.pos == self.start_pos {
-            self.put_char(b' ');
-            self.write_fmt(format_args!("{} ", TCU::nanotime()))
-                .unwrap();
-        }
-
         self.write_bytes(buf);
         Ok(buf.len())
     }
