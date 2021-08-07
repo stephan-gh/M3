@@ -23,8 +23,6 @@
 #include "xllfifo.h"
 #include "sleep.h"
 
-#define AXIETHERNET_DEVICE_ID   XPAR_AXIETHERNET_0_DEVICE_ID
-
 #define PHY_R0_CTRL_REG     0
 #define PHY_R3_PHY_IDENT_REG    3
 
@@ -66,16 +64,12 @@ static int PhySetup(XAxiEthernet *AxiEthernetInstancePtr) {
     return XST_SUCCESS;
 }
 
-static void AxiEthernetUtilErrorTrap(char const *Message) {
-    m3::Serial::get() << Message << "\n";
-}
-
 EXTERN_C int axieth_reset() {
     int Status;
     u8 MacSave[6];
     u32 Options;
 
-    m3::Serial::get() << "axieth_reset()\n";
+    xdbg_printf(XDBG_DEBUG_GENERAL, "axieth_reset()\n");
 
     /*
      * Stop device
@@ -101,7 +95,7 @@ EXTERN_C int axieth_reset() {
     Status |= XAxiEthernet_SetOptions(&AxiEthernetInstance, Options);
     Status |= XAxiEthernet_ClearOptions(&AxiEthernetInstance, ~Options);
     if (Status != XST_SUCCESS) {
-        AxiEthernetUtilErrorTrap("Error restoring state after reset");
+        xdbg_printf(XDBG_DEBUG_ERROR, "Error restoring state after reset");
         return XST_FAILURE;
     }
 
@@ -111,13 +105,14 @@ EXTERN_C int axieth_reset() {
 EXTERN_C int axieth_init() {
     XAxiEthernet *AxiEthernetInstancePtr = &AxiEthernetInstance;
     XLlFifo *FifoInstancePtr = &FifoInstance;
-    u16 AxiEthernetDeviceId = AXIETHERNET_DEVICE_ID;
+    u16 AxiEthernetDeviceId = XPAR_AXIETHERNET_0_DEVICE_ID;
 
     XAxiEthernet_Config *MacCfgPtr;
     int Status;
 
     m3::Serial::init("net", m3::env()->pe_id);
-    m3::Serial::get() << "axieth_init()\n";
+
+    xdbg_printf(XDBG_DEBUG_GENERAL, "axieth_init()\n");
 
     /*
      *  Get the configuration of AxiEthernet hardware.
@@ -128,8 +123,7 @@ EXTERN_C int axieth_init() {
      * Check whether AXIFIFO is present or not
      */
     if(MacCfgPtr->AxiDevType != XPAR_AXI_FIFO) {
-        AxiEthernetUtilErrorTrap
-            ("Device HW not configured for FIFO mode\r\n");
+        xdbg_printf(XDBG_DEBUG_ERROR, "Device HW not configured for FIFO mode\n");
         return 1;
     }
 
@@ -148,11 +142,11 @@ EXTERN_C int axieth_init() {
     Status = XAxiEthernet_CfgInitialize(AxiEthernetInstancePtr, MacCfgPtr,
                     MacCfgPtr->BaseAddress);
     if (Status != XST_SUCCESS) {
-        AxiEthernetUtilErrorTrap("Error in initialize");
+        xdbg_printf(XDBG_DEBUG_ERROR, "Error in initialize\n");
         return 1;
     }
 
-    AxiEthernetUtilErrorTrap("Cfg init success\n");
+    xdbg_printf(XDBG_DEBUG_GENERAL, "Cfg init success\n");
 
     /*
      * Set the MAC address
@@ -160,7 +154,7 @@ EXTERN_C int axieth_init() {
     Status = XAxiEthernet_SetMacAddress(AxiEthernetInstancePtr,
                     LocalMacAddr);
     if (Status != XST_SUCCESS) {
-          AxiEthernetUtilErrorTrap("Error setting MAC address");
+          xdbg_printf(XDBG_DEBUG_ERROR, "Error setting MAC address");
           return 1;
     }
 
@@ -180,7 +174,7 @@ EXTERN_C int axieth_init() {
                          XAE_RECEIVER_ENABLE_OPTION |
                      XAE_TRANSMITTER_ENABLE_OPTION);
     if (Status != XST_SUCCESS) {
-        AxiEthernetUtilErrorTrap("Error setting options");
+        xdbg_printf(XDBG_DEBUG_ERROR, "Error setting options");
         return 1;
     }
 
@@ -198,68 +192,25 @@ EXTERN_C int axieth_init() {
      * Enable interrupts
      */
     uint mask = XAE_INT_RXCMPIT_MASK | XAE_INT_RXRJECT_MASK | XAE_INT_RXFIFOOVR_MASK;
-    XLlFifo_IntEnable(FifoInstancePtr, mask);
+    // enable the interrupts only that axieth, because the FIFO does not seem to generate any
+    // interrupts. TODO on Linux it does!?
     XAxiEthernet_IntEnable(AxiEthernetInstancePtr, mask);
-
     m3::PEXIF::reg_irq(XPAR_AXIETHERNET_0_INTR);
 
     return 0;
 }
 
-static int AxiEthernetPollForTxStatus(void)
-{
-    int Status = XST_NO_DATA;
-    int Attempts = 100000;  /*
-                 * Number of attempts to get status before
-                 * giving up
-                 */
-
-    /*
-     * Wait for transmit complete indication
-     */
-    do {
-
-        if (--Attempts <= 0)
-            break;  /* Give up? */
-
-        if (XLlFifo_Status(&FifoInstance) & XLLF_INT_TC_MASK) {
-            XLlFifo_IntClear(&FifoInstance, XLLF_INT_TC_MASK);
-            Status = XST_SUCCESS;
-        }
-        if (XLlFifo_Status(&FifoInstance) & XLLF_INT_ERROR_MASK) {
-            Status = XST_FIFO_ERROR;
-        }
-
-    } while (Status == XST_NO_DATA);
-
-    switch (Status) {
-    case XST_SUCCESS:   /* Frame sent without error */
-    case XST_NO_DATA:   /* Timeout */
-        break;
-
-    case XST_FIFO_ERROR:
-        AxiEthernetUtilErrorTrap("FIFO error");
-        axieth_reset();
-        break;
-
-    default:
-        AxiEthernetUtilErrorTrap("Driver returned unknown transmit status");
-        break;
-    }
-
-    return (Status);
-}
-
 EXTERN_C int axieth_send(void *packet, size_t len) {
     XLlFifo *FifoInstancePtr = &FifoInstance;
 
-    m3::Serial::get() << "axieth_send(packet="
-                      << m3::fmt(packet, "p") << ", len=" << m3::fmt(len, "#x") << ")\n";
+    xdbg_printf(XDBG_DEBUG_GENERAL,
+        "axieth_send(packet= " << m3::fmt(packet, "p") << ", len=" << m3::fmt(len, "#x") << ")\n");
 
     // check for enough room in FIFO
     u32 FifoFreeBytes = XLlFifo_TxVacancy(FifoInstancePtr) * 4;
     if (FifoFreeBytes < len) {
-        m3::Serial::get() << "Not enough space; need=" << len << ", have=" << FifoFreeBytes << "\n";
+        xdbg_printf(XDBG_DEBUG_ERROR,
+            "FIFO has not enough space: need=" << len << ", have=" << FifoFreeBytes << "\n");
         return 1;
     }
 
@@ -272,65 +223,30 @@ EXTERN_C int axieth_send(void *packet, size_t len) {
     return 0;
 }
 
-static int get_recv_status(void) {
-    int status = XST_NO_DATA;
-
-    if (XLlFifo_Status(&FifoInstance) & XLLF_INT_RC_MASK)
-        status = XST_SUCCESS;
-    if (XLlFifo_Status(&FifoInstance) & XLLF_INT_ERROR_MASK)
-        status = XST_FIFO_ERROR;
-    if (XAxiEthernet_GetIntStatus(&AxiEthernetInstance) & XAE_INT_RXRJECT_MASK)
-        status = XST_DATA_LOST;
-    /* When the RXFIFOOVR bit is set, the RXRJECT bit also gets set */
-    if (XAxiEthernet_GetIntStatus(&AxiEthernetInstance) & XAE_INT_RXFIFOOVR_MASK)
-        status = XST_DATA_LOST;
-
-    switch (status) {
-        case XST_SUCCESS:   /* Frame has arrived */
-        case XST_NO_DATA:   /* Timeout */
-            break;
-        case XST_DATA_LOST:
-            AxiEthernetUtilErrorTrap("Frame was dropped");
-            break;
-        case XST_FIFO_ERROR:
-            AxiEthernetUtilErrorTrap("FIFO error");
-            axieth_reset();
-            break;
-        default:
-            AxiEthernetUtilErrorTrap("Driver returned invalid transmit status");
-            break;
-    }
-
-    return status;
-}
-
 EXTERN_C size_t axieth_recv(void *buffer, size_t len) {
+    XAxiEthernet *AxiEthernetInstancePtr = &AxiEthernetInstance;
     XLlFifo *FifoInstancePtr = &FifoInstance;
 
-    u32 Pending = XLlFifo_IntPending(FifoInstancePtr);
-    m3::Serial::get() << "got pending=" << m3::fmt(Pending, "#x") << "\n";
+    xdbg_printf(XDBG_DEBUG_GENERAL,
+        "axieth_recv(buffer= " << m3::fmt(buffer, "p") << ", len=" << m3::fmt(len, "#x") << ")\n");
+
+    u32 Pending = XAxiEthernet_IntPending(AxiEthernetInstancePtr);
 
     while (Pending) {
-        if (Pending & XLLF_INT_RC_MASK) {
-            m3::Serial::get() << "frame(s) received\n";
-            XLlFifo_IntClear(FifoInstancePtr, XLLF_INT_RC_MASK);
+        if (Pending & XAE_INT_RXCMPIT_MASK) {
+            XAxiEthernet_IntClear(AxiEthernetInstancePtr, XAE_INT_RXCMPIT_MASK);
         }
-        else if (Pending & XLLF_INT_ERROR_MASK) {
-            m3::Serial::get() << "frame error\n";
-            XLlFifo_IntClear(FifoInstancePtr, XLLF_INT_ERROR_MASK);
-        } else {
-            XLlFifo_IntClear(FifoInstancePtr, Pending);
+        else if (Pending & XAE_INT_RECV_ERROR_MASK) {
+            xdbg_printf(XDBG_DEBUG_ERROR, "Receive error\n");
+            XAxiEthernet_IntClear(AxiEthernetInstancePtr, XAE_INT_RECV_ERROR_MASK);
         }
-        Pending = XLlFifo_IntPending(FifoInstancePtr);
+        else {
+            xdbg_printf(XDBG_DEBUG_ERROR,
+                "Unexpected interrupt: " << m3::fmt(Pending, "#x") << "\n");
+            XAxiEthernet_IntClear(AxiEthernetInstancePtr, Pending);
+        }
+        Pending = XAxiEthernet_IntPending(AxiEthernetInstancePtr);
     }
-
-    // m3::Serial::get() << "axieth_recv(buffer="
-    //                   << m3::fmt(buffer, "p") << ", len=" << m3::fmt(len, "#x") << ")\n";
-
-    // if (XLlFifo_Status(&FifoInstance) & XLLF_INT_ERROR_MASK)
-    //     AxiEthernetUtilErrorTrap("FIFO error");
-    // if (XAxiEthernet_GetIntStatus(&AxiEthernetInstance) & (XAE_INT_RXRJECT_MASK | XAE_INT_RXFIFOOVR_MASK))
-    //     AxiEthernetUtilErrorTrap("Frame was dropped");
 
     if(!XLlFifo_iRxOccupancy(FifoInstancePtr))
         return 0;
@@ -344,7 +260,7 @@ EXTERN_C size_t axieth_recv(void *buffer, size_t len) {
     // read the frame from the FIFO
     XLlFifo_Read(FifoInstancePtr, buffer, RecvFrameLength);
 
-    m3::Serial::get() << "received packet with " << RecvFrameLength << " bytes\n";
+    xdbg_printf(XDBG_DEBUG_GENERAL, "Received packet with " << RecvFrameLength << " bytes\n");
 
     return RecvFrameLength;
 }
