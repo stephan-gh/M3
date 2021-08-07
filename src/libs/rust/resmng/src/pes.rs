@@ -167,7 +167,7 @@ impl PEManager {
             if pe.users == 0
                 && pe.pe.desc().isa() == desc.isa()
                 && pe.pe.desc().pe_type() == desc.pe_type()
-                && pe.pe.desc().attr() == desc.attr()
+                && (desc.attr().is_empty() || pe.pe.desc().attr() == desc.attr())
             {
                 let usage = PEUsage::new(id);
                 if pe.id == VPE::cur().pe_id() {
