@@ -354,7 +354,7 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
     // exchange CUR
     if let Some(mut old) = CUR.set(Some(next)) {
         log!(
-            crate::LOG_VPES,
+            crate::LOG_CTXSWS,
             "Switching from {} (budget {}) to {} (budget {}): {:?} old VPE",
             old.id(),
             old.budget_left,
@@ -388,7 +388,7 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
     }
     else {
         log!(
-            crate::LOG_VPES,
+            crate::LOG_CTXSWS,
             "Switching to {} (budget {})",
             next_id,
             next_budget
@@ -589,7 +589,7 @@ impl VPE {
         timeout: Option<Nanos>,
     ) {
         log!(
-            crate::LOG_VPES,
+            crate::LOG_CTXSWS,
             "Block VPE {} for ep={:?}, irq={:?}, timeout={:?}",
             self.id(),
             ep,
@@ -630,7 +630,7 @@ impl VPE {
 
     pub fn unblock(&mut self, event: Event) -> bool {
         log!(
-            crate::LOG_VPES,
+            crate::LOG_CTXSWS,
             "Trying to unblock VPE {} for event={:?}",
             self.id(),
             event

@@ -44,10 +44,12 @@ use base::tcu;
 
 /// Logs errors
 pub const LOG_ERR: bool = true;
+/// Logs basic VPE operations
+pub const LOG_VPES: bool = true;
 /// Logs pexcalls
 pub const LOG_CALLS: bool = false;
-/// Logs VPE operations
-pub const LOG_VPES: bool = false;
+/// Logs context switches
+pub const LOG_CTXSWS: bool = false;
 /// Logs sidecalls
 pub const LOG_SIDECALLS: bool = false;
 /// Logs foreign messages
