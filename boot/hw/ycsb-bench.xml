@@ -1,0 +1,39 @@
+<config>
+    <kernel args="kernel -f $fs.path" />
+    <dom>
+        <app args="root">
+            <dom>
+                <app args="m3fs mem $fs.size" daemon="1">
+                    <serv name="m3fs" />
+                    <physmem addr="0" size="$fs.size" />
+                </app>
+            </dom>
+            <dom>
+                <app args="pager maxcli=3 $fs.size" usermem="768M">
+                    <sess name="m3fs" />
+                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <pes name="child0" type="boom" count="1" />
+                    <pes name="child1" type="boomnic" count="1" />
+                    <pes name="child2" type="boom" count="1" />
+                    <dom pe="boom">
+                        <app args="/bin/m3fs -m 1 mem $fs.size" daemon="1">
+                            <serv lname="m3fs" gname="app_m3fs" />
+                            <physmem addr="0" size="$fs.size" />
+                        </app>
+                    </dom>
+                    <dom pe="boomnic">
+                        <app args="/bin/net net0 192.168.42.242" daemon="1">
+                            <serv name="net0" />
+                        </app>
+                    </dom>
+                    <dom pe="boom">
+                        <app args="/bin/lvldbserver 192.168.42.15 1337 /tmp/foo">
+                            <sess name="net0" args="bufs=1M socks=1" />
+                            <sess lname="m3fs" gname="app_m3fs" />
+                        </app>
+                    </dom>
+                </app>
+            </dom>
+        </app>
+    </dom>
+</config>
