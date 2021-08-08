@@ -92,7 +92,7 @@ void Serial::flush() {
     char tmp[14];
     OStringStream curtime(tmp, sizeof(tmp));
     curtime << m3::fmt((TCU::get().nanotime() / 1000) % 10000000000, 11) << "] ";
-    strcpy(_outbuf + _time, curtime.str());
+    strncpy(_outbuf + _time, curtime.str(), curtime.length());
     strcpy(_outbuf + _outpos, "\e[0m");
     _outpos += SUFFIX_LEN;
     Machine::write(_outbuf, _outpos);
