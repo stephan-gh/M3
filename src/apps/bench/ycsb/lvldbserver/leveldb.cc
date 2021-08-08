@@ -18,6 +18,8 @@
 #include <sstream>
 #include <string>
 
+#include <base/stream/IStringStream.h>
+
 #include <m3/com/Semaphore.h>
 #include <m3/net/TcpSocket.h>
 #include <m3/session/NetworkManager.h>
@@ -35,7 +37,11 @@
 #include "ops.h"
 
 #if defined(__kachel__)
+#   define SYSC_RECEIVE     0xFFFF
+#   define SYSC_SEND        0xFFFE
 extern "C" void __m3_sysc_trace(bool enable, size_t max);
+extern "C" void __m3_sysc_trace_start(long n);
+extern "C" void __m3_sysc_trace_stop();
 #endif
 
 using namespace m3;
@@ -84,10 +90,9 @@ static bool from_bytes(uint8_t *package_buffer, size_t package_size, Package *pk
     return true;
 }
 
-int main(int argc, char** argv)
-{
-    if(argc < 2) {
-        cerr << "Usage: " << argv[0] << " <file>\n";
+int main(int argc, char** argv) {
+    if(argc != 4) {
+        cerr << "Usage: " << argv[0] << " <ip> <port> <file>\n";
         return 1;
     }
 
@@ -98,89 +103,117 @@ int main(int argc, char** argv)
     auto socket = TcpSocket::create(net, StreamSocketArgs().send_buffer(64 * 1024)
                                                            .recv_buffer(256 * 1024));
 
-    socket->listen(1337);
+    IpAddr ip = IStringStream::read_from<IpAddr>(argv[1]);
+    port_t port = IStringStream::read_from<port_t>(argv[2]);
+    const char *file = argv[3];
 
-    // notify client that our socket is ready
-    Semaphore::attach("net").up();
-
-    socket->accept(nullptr);
-
-#if defined(__kachel__)
-    __m3_sysc_trace(true, 16384);
-#endif
+    for(int i = 0; i < 3; ++i) {
+        cout << "Connecting to " << ip << ":" << port << "...\n";
+        try {
+            socket->connect(Endpoint(ip, port));
+            break;
+        }
+        catch(...) {
+            cout << "Connection failed\n";
+        }
+    }
 
     uint64_t recv_timing = 0;
     uint64_t op_timing = 0;
     uint64_t opcounter = 0;
 
-    Executor *exec = Executor::create(argv[1]);
+    cout << "Starting Benchmark:\n";
+    Executor *exec = Executor::create(file);
 
-    cycles_t start = m3::CPU::elapsed_cycles();
+    bool run = true;
+    while(run) {
+#if defined(__kachel__)
+        __m3_sysc_trace(true, 32768);
+#endif
+        exec->reset_stats();
+        recv_timing = 0;
+        op_timing = 0;
+        opcounter = 0;
 
-    while(1) {
-        // Receiving a package is a two step process. First we receive a u32, which carries the
-        // number of bytes the following package is big. We then wait until we received all those
-        // bytes. After that the package is parsed and send to the database.
-        uint64_t recv_start = TCU::get().nanotime();
-        // First receive package size header
-        union {
-            uint32_t header_word;
-            uint8_t header_bytes[4];
-        };
-        for(size_t i = 0; i < sizeof(header_bytes); ) {
-            ssize_t res = socket->recv(header_bytes + i, sizeof(header_bytes) - i);
-            i += static_cast<size_t>(res);
-        }
+        cycles_t start = m3::CPU::elapsed_cycles();
 
-        uint32_t package_size = be32toh(header_word);
-        if(package_size > sizeof(package_buffer)) {
-            cerr << "Invalid package header length " << package_size << "\n";
-            continue;
-        }
-
-        // Receive the next package from the socket
-        for(size_t i = 0; i < package_size; ) {
-            ssize_t res = socket->recv(package_buffer + i, package_size - i);
-            i += static_cast<size_t>(res);
-        }
-
-        recv_timing += TCU::get().nanotime() - recv_start;
-
-        // There is an edge case where the package size is 6, If thats the case, check if we got the
-        // end flag from the client. In that case its time to stop the benchmark.
-        if(package_size == 6 && memcmp(package_buffer, "ENDNOW", 6) == 0)
-            break;
-
-        uint64_t op_start = TCU::get().nanotime();
-        Package pkg;
-        if(from_bytes(package_buffer, package_size, &pkg)) {
-            if((opcounter % 100) == 0)
-                cout << "Op=" << pkg.op << " @ " << opcounter << "\n";
-
-            exec->execute(pkg);
-            opcounter += 1;
-
-            if((opcounter % 16) == 0) {
-                uint8_t b = 0;
-                socket->send(&b, 1);
+        while(1) {
+            // Receiving a package is a two step process. First we receive a u32, which carries the
+            // number of bytes the following package is big. We then wait until we received all those
+            // bytes. After that the package is parsed and send to the database.
+            uint64_t recv_start = m3::CPU::elapsed_cycles();
+            // First receive package size header
+            union {
+                uint32_t header_word;
+                uint8_t header_bytes[4];
+            };
+            for(size_t i = 0; i < sizeof(header_bytes); ) {
+                // cout << "starting receive1...\n";
+                __m3_sysc_trace_start(SYSC_RECEIVE);
+                ssize_t res = socket->recv(header_bytes + i, sizeof(header_bytes) - i);
+                __m3_sysc_trace_stop();
+                // cout << "stopped receive1.\n";
+                i += static_cast<size_t>(res);
             }
 
-            op_timing += TCU::get().nanotime() - op_start;
+            uint32_t package_size = be32toh(header_word);
+            if(package_size > sizeof(package_buffer)) {
+                cerr << "Invalid package header length " << package_size << "\n";
+                return 1;
+            }
+
+            // Receive the next package from the socket
+            for(size_t i = 0; i < package_size; ) {
+                // cout << "starting receive2...\n";
+                __m3_sysc_trace_start(SYSC_RECEIVE);
+                ssize_t res = socket->recv(package_buffer + i, package_size - i);
+                __m3_sysc_trace_stop();
+                // cout << "stopped receive2.\n";
+                i += static_cast<size_t>(res);
+            }
+
+            recv_timing += m3::CPU::elapsed_cycles() - recv_start;
+
+            // There is an edge case where the package size is 6, If thats the case, check if we got the
+            // end flag from the client. In that case its time to stop the benchmark.
+            if(package_size == 6 && memcmp(package_buffer, "ENDNOW", 6) == 0) {
+                run = false;
+                break;
+            }
+            if(package_size == 6 && memcmp(package_buffer, "ENDRUN", 6) == 0)
+                break;
+
+            uint64_t op_start = m3::CPU::elapsed_cycles();
+            Package pkg;
+            if(from_bytes(package_buffer, package_size, &pkg)) {
+                if((opcounter % 100) == 0)
+                    cout << "Op=" << pkg.op << " @ " << opcounter << "\n";
+
+                exec->execute(pkg);
+                opcounter += 1;
+
+                if((opcounter % 16) == 0) {
+                    //cout << "starting send...\n";
+                    uint8_t b = 0;
+                    __m3_sysc_trace_start(SYSC_SEND);
+                    socket->send(&b, 1);
+                    __m3_sysc_trace_stop();
+                    //cout << "stopped send.\n";
+                }
+
+                op_timing += m3::CPU::elapsed_cycles() - op_start;
+            }
         }
+
+        cycles_t end = m3::CPU::elapsed_cycles();
+        cout << "Execution took " << (end - start) << " cycles\n";
     }
 
-    cycles_t end = m3::CPU::elapsed_cycles();
-
-    // give the client some time to print its results
-    for(volatile int i = 0; i < 100000; ++i)
-        ;
-
     cout << "Server Side:\n";
-    cout << "     avg recv time: " << (recv_timing / opcounter) << "ns\n";
-    cout << "     avg op time  : " << (op_timing / opcounter) << "ns\n";
+    cout << "     avg recv time: " << (recv_timing / opcounter) << " cycles\n";
+    cout << "     avg op time  : " << (op_timing / opcounter) << " cycles\n";
     exec->print_stats(opcounter);
 
-    cout << "Execution took " << (end - start) << " cycles\n";
 #if defined(__kachel__)
     __m3_sysc_trace(false, 0);
 #endif

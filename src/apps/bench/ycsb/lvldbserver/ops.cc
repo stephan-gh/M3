@@ -50,6 +50,17 @@ LevelDBExecutor::~LevelDBExecutor() {
     delete _db;
 }
 
+void LevelDBExecutor::reset_stats() {
+    _n_insert = 0;
+    _n_read = 0;
+    _n_scan = 0;
+    _n_update = 0;
+    _t_insert = 0;
+    _t_read = 0;
+    _t_scan = 0;
+    _t_update = 0;
+}
+
 void LevelDBExecutor::print_stats(size_t num_ops) {
     uint64_t avg;
     m3::cout << "    Key Value Database Timings for " << num_ops << " operations:\n";
