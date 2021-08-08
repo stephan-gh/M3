@@ -69,8 +69,9 @@ void LevelDBExecutor::print_stats(size_t num_ops) {
 
 void LevelDBExecutor::execute(Package &pkg) {
 #if DEBUG > 0
-    m3::cout << "Executing operation " << pkg.op << " with table " << pkg.table << "\n";
-    m3::cout << "  num_kvs=" << pkg.num_kvs << ", key=" << pkg.key << ", scan_length=" << pkg.scan_length << "\n";
+    m3::cout << "Executing operation " << (int)pkg.op << " with table " << (int)pkg.table;
+    m3::cout << "  num_kvs=" << (int)pkg.num_kvs << ", key=" << pkg.key;
+    m3::cout << ", scan_length=" << pkg.scan_length << "\n";
 #endif
 #if DEBUG > 1
     for(auto &pair : pkg.kv_pairs)
@@ -99,7 +100,7 @@ void LevelDBExecutor::execute(Package &pkg) {
             auto vals = exec_read(pkg);
             for(auto &pair : vals) {
                 (void)pair;
-#if DEBUG > 0
+#if DEBUG > 1
                 m3::cout << "  found '" << pair.first.c_str()
                          << "' -> '" << pair.second.c_str() << "'\n";
 #endif
@@ -114,7 +115,7 @@ void LevelDBExecutor::execute(Package &pkg) {
             auto vals = exec_scan(pkg);
             for(auto &pair : vals) {
                 (void)pair;
-#if DEBUG > 0
+#if DEBUG > 1
                 m3::cout << "  found '" << pair.first.c_str()
                          << "' -> '" << pair.second.c_str() << "'\n";
 #endif
@@ -149,7 +150,7 @@ void LevelDBExecutor::exec_insert(Package &pkg) {
     leveldb::WriteOptions writeOptions;
     for(auto &pair : pkg.kv_pairs) {
         auto key = pack_key(pkg.key, pair.first, "field");
-#if DEBUG > 0
+#if DEBUG > 1
         m3::cerr << "Setting '" << key.c_str() << "' to '" << pair.second.c_str() << "'\n";
 #endif
         _db->Put(writeOptions, key, pair.second);
