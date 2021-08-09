@@ -1,0 +1,31 @@
+<config>
+    <kernel args="kernel -f $fs.path" />
+    <dom>
+        <app args="root">
+            <dom>
+                <app args="m3fs mem $fs.size" daemon="1">
+                    <serv name="m3fs" />
+                    <physmem addr="0" size="$fs.size" />
+                </app>
+            </dom>
+            <dom>
+                <app args="pager maxcli=3 sem=net $fs.size" usermem="768M">
+                    <sess name="m3fs" />
+                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <pes name="child" type="core" count="3" />
+                    <app args="/bin/m3fs -m 1 mem $fs.size" daemon="1">
+                        <serv lname="m3fs" gname="app_m3fs" />
+                        <physmem addr="0" size="$fs.size" />
+                    </app>
+                    <app args="/bin/net -m 1 -d lo net0 127.0.0.1" daemon="1">
+                        <serv name="net0" />
+                    </app>
+                    <app args="/bin/lvldbserver 127.0.0.1 1337 /data/small-workload.wl /tmp/foo 10">
+                        <sess name="net0" args="bufs=1M socks=1 ports=2000" />
+                        <sess lname="m3fs" gname="app_m3fs" />
+                    </app>
+                </app>
+            </dom>
+        </app>
+    </dom>
+</config>

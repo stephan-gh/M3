@@ -27,8 +27,8 @@
                         </app>
                     </dom>
                     <dom pe="boom">
-                        <app args="/bin/lvldbserver 192.168.42.15 1337 /tmp/foo">
-                            <sess name="net0" args="bufs=1M socks=1" />
+                        <app args="/bin/lvldbserver 192.168.42.15 1337 /data/small-workload.wl /tmp/foo 10">
+                            <sess name="net0" args="bufs=1M socks=1 ports=2000" />
                             <sess lname="m3fs" gname="app_m3fs" />
                         </app>
                     </dom>

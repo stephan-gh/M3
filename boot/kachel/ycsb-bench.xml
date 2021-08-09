@@ -9,10 +9,10 @@
                 </app>
             </dom>
             <dom>
-                <app args="pager maxcli=4 sem=net $fs.size">
+                <app args="pager maxcli=3 sem=net $fs.size" usermem="768M">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes name="child" type="core" count="4" />
+                    <pes name="child" type="core" count="3" />
                     <dom>
                         <app args="/bin/m3fs -m 1 mem $fs.size" daemon="1">
                             <serv lname="m3fs" gname="app_m3fs" />
@@ -25,17 +25,9 @@
                         </app>
                     </dom>
                     <dom>
-                        <app args="/bin/lvldbserver /tmp/foo">
-                            <sess name="net0" args="bufs=1M socks=1 ports=1337" />
-                            <sem name="net" />
+                        <app args="/bin/lvldbserver 127.0.0.1 1337 /data/small-workload.wl /tmp/foo 10">
+                            <sess name="net0" args="bufs=1M socks=1 ports=2000" />
                             <sess lname="m3fs" gname="app_m3fs" />
-                        </app>
-                    </dom>
-                    <dom>
-                        <app args="/bin/ycsbclient /data/workload.wl">
-                            <sess name="net0" args="bufs=1M socks=1 ports=1337" />
-                            <sess lname="m3fs" gname="app_m3fs" />
-                            <sem name="net" />
                         </app>
                     </dom>
                 </app>
