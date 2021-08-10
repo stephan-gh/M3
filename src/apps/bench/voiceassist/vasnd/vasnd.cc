@@ -63,16 +63,14 @@ static size_t recv_audio(void *dst, ClientSession &sess) {
 
 template<typename T>
 static uint64_t forward_audio(ClientSession &vamic, void *mem, void *out,
-                              const Endpoint &dest, T &socket) {
+                              UNUSED const Endpoint &dest, T &socket) {
     uint64_t start = TCU::get().nanotime();
 
     size_t size = recv_audio(mem, vamic);
 
-    if(VERBOSE)
-        m3::cout << "Encoding " << size << " bytes WAV\n";
+    m3::cout << "Encoding " << size << " bytes WAV\n";
     size_t res = encode((const uint8_t*)mem, size, out, 1024 * 1024);
-    if(VERBOSE)
-        m3::cout << "Produced " << res << " bytes of FLAC\n";
+    m3::cout << "Produced " << res << " bytes of FLAC\n";
 
 #if UDP
     size_t rem = res;
@@ -110,6 +108,7 @@ static uint64_t forward_audio(ClientSession &vamic, void *mem, void *out,
 #endif
 
     uint64_t end = TCU::get().nanotime();
+    m3::cout << "Iteration: " << (end - start) << " ns\n";
     return end - start;
 }
 
@@ -119,6 +118,7 @@ int main(int argc, char **argv) {
 
     IpAddr ip = IStringStream::read_from<IpAddr>(argv[1]);
     port_t port = IStringStream::read_from<port_t>(argv[2]);
+    auto dest = Endpoint(ip, port);
 
     NetworkManager net("net");
 
@@ -126,14 +126,13 @@ int main(int argc, char **argv) {
 
 #if UDP
     auto socket = UdpSocket::create(net, DgramSocketArgs().send_buffer(64, 128 * 1024));
-    auto dest = Endpoint(ip, port);
 
     socket->bind(2000);
 #else
-    auto socket = TcpSocket::create(net, StreamSocketArgs().send_buffer(32 * 1024));
+    auto socket = TcpSocket::create(net, StreamSocketArgs().send_buffer(512 * 1024));
 
     m3::cout << "Connecting to " << ip << ":" << port << "...\n";
-    socket->connect(Endpoint(ip, port));
+    socket->connect(dest);
     m3::cout << "Connection established\n";
 #endif
 
