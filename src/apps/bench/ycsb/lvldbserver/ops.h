@@ -44,7 +44,7 @@ public:
     static Executor *create(const char *db);
 
     virtual ~Executor() {}
-    virtual void execute(Package &pkg) = 0;
+    virtual size_t execute(Package &pkg) = 0;
     virtual void reset_stats() = 0;
     virtual void print_stats(size_t num_ops) = 0;
 };
@@ -54,7 +54,7 @@ public:
     explicit LevelDBExecutor(const char *db);
     ~LevelDBExecutor();
 
-    virtual void execute(Package &pkg) override;
+    virtual size_t execute(Package &pkg) override;
     virtual void reset_stats() override;
     virtual void print_stats(size_t num_ops) override;
 

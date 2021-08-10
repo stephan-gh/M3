@@ -165,7 +165,19 @@ int main(int argc, char** argv) {
             if((opcounter % 100) == 0)
                 cout << "Op=" << pkg.op << " @ " << opcounter << "\n";
 
-            exec->execute(pkg);
+            size_t res_bytes = exec->execute(pkg);
+            while(res_bytes > 0) {
+                size_t amount = Math::min(res_bytes, static_cast<size_t>(1024));
+#if defined(__kachel__)
+                __m3_sysc_trace_start(SYSC_SEND);
+#endif
+                socket->send_to(wl_buffer, amount, Endpoint(ip, port));
+#if defined(__kachel__)
+                __m3_sysc_trace_stop();
+#endif
+                res_bytes -= amount;
+            }
+
             opcounter += 1;
         }
 

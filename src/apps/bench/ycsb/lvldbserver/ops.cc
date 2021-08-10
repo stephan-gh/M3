@@ -78,7 +78,7 @@ void LevelDBExecutor::print_stats(size_t num_ops) {
     m3::cout << "        Scan:   " << _t_scan << " cycles,\t avg_time: " << avg << " cycles\n";
 }
 
-void LevelDBExecutor::execute(Package &pkg) {
+size_t LevelDBExecutor::execute(Package &pkg) {
 #if DEBUG > 0
     m3::cout << "Executing operation " << (int)pkg.op << " with table " << (int)pkg.table;
     m3::cout << "  num_kvs=" << (int)pkg.num_kvs << ", key=" << pkg.key;
@@ -95,7 +95,7 @@ void LevelDBExecutor::execute(Package &pkg) {
             exec_insert(pkg);
             _t_insert += m3::CPU::elapsed_cycles() - start;
             _n_insert++;
-            break;
+            return 4;
         }
 
         case Operation::UPDATE: {
@@ -103,14 +103,15 @@ void LevelDBExecutor::execute(Package &pkg) {
             exec_insert(pkg);
             _t_update += m3::CPU::elapsed_cycles() - start;
             _n_update++;
-            break;
+            return 4;
         }
 
         case Operation::READ: {
             uint64_t start = m3::CPU::elapsed_cycles();
             auto vals = exec_read(pkg);
+            size_t bytes = 0;
             for(auto &pair : vals) {
-                (void)pair;
+                bytes += pair.first.size() + pair.second.size();
 #if DEBUG > 1
                 m3::cout << "  found '" << pair.first.c_str()
                          << "' -> '" << pair.second.c_str() << "'\n";
@@ -118,14 +119,15 @@ void LevelDBExecutor::execute(Package &pkg) {
             }
             _t_read += m3::CPU::elapsed_cycles() - start;
             _n_read++;
-            break;
+            return bytes;
         }
 
         case Operation::SCAN: {
             uint64_t start = m3::CPU::elapsed_cycles();
             auto vals = exec_scan(pkg);
+            size_t bytes = 0;
             for(auto &pair : vals) {
-                (void)pair;
+                bytes += pair.first.size() + pair.second.size();
 #if DEBUG > 1
                 m3::cout << "  found '" << pair.first.c_str()
                          << "' -> '" << pair.second.c_str() << "'\n";
@@ -133,15 +135,15 @@ void LevelDBExecutor::execute(Package &pkg) {
             }
             _t_scan += m3::CPU::elapsed_cycles() - start;
             _n_scan++;
-            break;
+            return bytes;
         }
 
         case Operation::DELETE:
             m3::cerr << "DELETE is not supported\n";
-            break;
-
-        case 0: break;
+            return 4;
     }
+
+    return 0;
 }
 
 static std::string pack_key(uint64_t key, const std::string &field, const char *prefix) {
