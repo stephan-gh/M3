@@ -22,7 +22,7 @@ use m3::test;
 use m3::vfs::{OpenFlags, VFS};
 use m3::{wv_assert_ok, wv_perf, wv_run_test};
 
-static BUF: StaticCell<AlignedBuf<8192>> = StaticCell::new(AlignedBuf::new_zeroed());
+static BUF: StaticCell<AlignedBuf<4096>> = StaticCell::new(AlignedBuf::new_zeroed());
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, read);
@@ -35,7 +35,7 @@ fn read() {
     let mut prof = profile::Profiler::default().repeats(10).warmup(4);
 
     wv_perf!(
-        "read 2 MiB file with 8K buf",
+        "read 2 MiB file with 4K buf",
         prof.run_with_id(
             || {
                 let mut file = wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
@@ -58,7 +58,7 @@ fn write() {
     let mut prof = profile::Profiler::default().repeats(10).warmup(4);
 
     wv_perf!(
-        "write 2 MiB file with 8K buf",
+        "write 2 MiB file with 4K buf",
         prof.run_with_id(
             || {
                 let mut file = wv_assert_ok!(VFS::open(
