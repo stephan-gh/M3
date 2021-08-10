@@ -41,7 +41,8 @@ static bool verbose = 0;
 static const uint64_t GEM5_TICKS_PER_SEC    = 1000000000;
 static const int GEM5_MAX_PES               = 64;
 static const int GEM5_MAX_VPES              = 1024 + 1;
-static const unsigned INVALID_VPEID         = 0xFFFF;
+static const unsigned PRIV_VPEID            = 0xFFFF;
+static const unsigned IDLE_VPEID            = 0xFFFE;
 
 enum event_type {
     EVENT_FUNC_ENTER = 1,
@@ -239,7 +240,7 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
         "(Suspending|Waking up) core"
     );
     std::regex setvpe_regex(
-        "^\\.regFile: (?:TCU|NOC)-> TCU\\[ROOT_PT     \\]: 0x([0-9a-f]+)"
+        "^\\.regFile: TCU-> PRI\\[CUR_VPE     \\]: 0x([0-9a-f]+)"
     );
     std::regex debug_regex(
         "^: DEBUG (?:0x)([0-9a-f]+)"
@@ -322,8 +323,8 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
             last_pe = std::max(pe, last_pe);
             states[pe].tag = tag++;
         }
-        else if(strstr(line.c_str(), "ROOT_PT") && std::regex_search(line, match, setvpe_regex)) {
-            uint32_t vpetag = strtoul(match[1].str().c_str(), NULL, 16) >> 12;
+        else if(strstr(line.c_str(), "CUR_VPE") && std::regex_search(line, match, setvpe_regex)) {
+            uint32_t vpetag = strtoul(match[1].str().c_str(), NULL, 16) & 0xFFFF;
             buf.push_back(build_event(EVENT_SET_VPEID, timestamp, pe, "", "", vpetag));
 
             last_pe = std::max(pe, last_pe);
@@ -434,9 +435,12 @@ static void gen_pe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> &
     unsigned fn_exec_sleep = ++fn_exec_last;
     OTF_Writer_writeDefFunction(writer, 0, fn_exec_sleep, "Sleeping", grp_func_exec, 0);
 
-    unsigned fn_vpe_invalid = ++fn_exec_last;
-    vpefuncs[INVALID_VPEID] = fn_vpe_invalid;
-    OTF_Writer_writeDefFunction(writer, 0, fn_vpe_invalid, "No VPE", grp_func_exec, 0);
+    unsigned fn_vpe_priv = ++fn_exec_last;
+    vpefuncs[PRIV_VPEID] = fn_vpe_priv;
+    OTF_Writer_writeDefFunction(writer, 0, fn_vpe_priv, "Priv VPE", grp_func_exec, 0);
+    unsigned fn_vpe_idle = ++fn_exec_last;
+    vpefuncs[IDLE_VPEID] = fn_vpe_idle;
+    OTF_Writer_writeDefFunction(writer, 0, fn_vpe_idle, "Idle VPE", grp_func_exec, 0);
 
     printf("writing OTF events\n");
 
@@ -447,8 +451,8 @@ static void gen_pe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> &
 
     for(uint32_t i = 0; i < pe_count; ++i) {
         awake[i] = true;
-        cur_vpe[i] = fn_vpe_invalid;
-        OTF_Writer_writeEnter(writer, timestamp, fn_vpe_invalid, i, 0);
+        cur_vpe[i] = fn_vpe_priv;
+        OTF_Writer_writeEnter(writer, timestamp, fn_vpe_priv, i, 0);
     }
 
     // finally loop over events and write OTF
@@ -554,9 +558,10 @@ static void gen_vpe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
     // Processes
     std::set<unsigned> vpeIds;
 
-    OTF_Writer_writeDefProcess(writer, 0, INVALID_VPEID, "No VPE", 0);
-    OTF_Writer_assignProcess(writer, INVALID_VPEID, 1);
-    vpeIds.insert(INVALID_VPEID);
+    OTF_Writer_writeDefProcess(writer, 0, PRIV_VPEID, "Priv VPE", 0);
+    OTF_Writer_assignProcess(writer, PRIV_VPEID, 1);
+    vpeIds.insert(PRIV_VPEID);
+    vpeIds.insert(IDLE_VPEID);
 
     for(auto ev = trace_buf.begin(); ev != trace_buf.end(); ++ev) {
         if(ev->type == EVENT_SET_VPEID && vpeIds.find(ev->tag) == vpeIds.end()) {
@@ -617,7 +622,7 @@ static void gen_vpe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
     unsigned cur_vpe[pe_count];
 
     for(uint32_t i = 0; i < pe_count; ++i)
-        cur_vpe[i] = INVALID_VPEID;
+        cur_vpe[i] = PRIV_VPEID;
 
     uint32_t ufunc_max_id = ( 3 << 20 );
     std::map<std::pair<int, std::string>, uint32_t> ufunc_map;
@@ -657,9 +662,6 @@ static void gen_vpe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
             event->pe = pe;
             event->remote = remote;
         }
-
-        if(vpe == INVALID_VPEID && event->type != EVENT_SET_VPEID)
-            continue;
 
         switch(event->type) {
             case EVENT_MSG_SEND_START:
