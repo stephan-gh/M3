@@ -2,6 +2,7 @@
 members = [
     "src/apps/bench/fs",
     "src/apps/bench/ipc",
+    "src/apps/bench/netlat",
     "src/apps/bench/rustbenchs",
     "src/apps/bench/rustnetbenchs",
     "src/apps/bench/voiceassist/vamic",

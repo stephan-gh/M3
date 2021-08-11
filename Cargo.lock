@@ -211,6 +211,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "netlat"
+version = "0.1.0"
+dependencies = [
+ "m3",
+]
+
+[[package]]
 name = "nettest"
 version = "0.1.0"
 dependencies = [

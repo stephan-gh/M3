@@ -9,6 +9,7 @@ dirs = [
     'imgproc',
     'ipc',
     'loadgen',
+    'netlat',
     'rustbenchs',
     'rustnetbenchs',
     'scale',
