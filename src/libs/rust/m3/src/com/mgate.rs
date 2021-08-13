@@ -128,7 +128,7 @@ impl MemGate {
     }
 
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
-    pub(crate) fn ep(&self) -> Option<&EP> {
+    pub fn ep(&self) -> Option<&EP> {
         self.gate.ep()
     }
 
@@ -224,8 +224,11 @@ impl MemGate {
         tcu::TCU::write(ep.id(), data, size, off)
     }
 
+    /// Activates the gate. Returns the chosen endpoint number.
+    /// The endpoint can be delegated to other services (e.g. M3FS) to let them
+    /// remotely configure it to point to memory in another PE.
     #[inline(always)]
-    pub(crate) fn activate(&self) -> Result<&EP, Error> {
+    pub fn activate(&self) -> Result<&EP, Error> {
         self.gate.activate()
     }
 
