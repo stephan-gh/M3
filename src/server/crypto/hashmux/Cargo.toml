@@ -1,0 +1,12 @@
+[package]
+name = "hashmux"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+path = "src/hashmux.rs"
+crate-type = ["staticlib"]
+
+[dependencies]
+base = { path = "../../../libs/rust/base" }
+m3 = { path = "../../../libs/rust/m3" }
