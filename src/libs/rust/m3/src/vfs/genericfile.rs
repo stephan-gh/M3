@@ -116,6 +116,33 @@ impl GenericFile {
             Ok(())
         }
     }
+
+    fn next_in(&mut self, len: usize) -> Result<usize, Error> {
+        self.submit(false)?;
+        if self.pos == self.len {
+            time::start(0xbbbb);
+            let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::NEXT_IN)?;
+            time::stop(0xbbbb);
+            self.goff += self.len;
+            self.off = reply.pop()?;
+            self.len = reply.pop()?;
+            self.pos = 0;
+        }
+        Ok(cmp::min(len, self.len - self.pos))
+    }
+
+    fn next_out(&mut self, len: usize) -> Result<usize, Error> {
+        if self.pos == self.len {
+            time::start(0xbbbb);
+            let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::NEXT_OUT)?;
+            time::stop(0xbbbb);
+            self.goff += self.len;
+            self.off = reply.pop()?;
+            self.len = reply.pop()?;
+            self.pos = 0;
+        }
+        Ok(cmp::min(len, self.len - self.pos))
+    }
 }
 
 impl File for GenericFile {
@@ -208,19 +235,8 @@ impl Seek for GenericFile {
 impl Read for GenericFile {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
         self.delegate_ep()?;
-        self.submit(false)?;
 
-        if self.pos == self.len {
-            time::start(0xbbbb);
-            let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::NEXT_IN)?;
-            time::stop(0xbbbb);
-            self.goff += self.len;
-            self.off = reply.pop()?;
-            self.len = reply.pop()?;
-            self.pos = 0;
-        }
-
-        let amount = cmp::min(buf.len(), self.len - self.pos);
+        let amount = self.next_in(buf.len())?;
         if amount > 0 {
             time::start(0xaaaa);
             self.mgate
@@ -246,17 +262,7 @@ impl Write for GenericFile {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
         self.delegate_ep()?;
 
-        if self.pos == self.len {
-            time::start(0xbbbb);
-            let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::NEXT_OUT)?;
-            time::stop(0xbbbb);
-            self.goff += self.len;
-            self.off = reply.pop()?;
-            self.len = reply.pop()?;
-            self.pos = 0;
-        }
-
-        let amount = cmp::min(buf.len(), self.len - self.pos);
+        let amount = self.next_out(buf.len())?;
         if amount > 0 {
             time::start(0xaaaa);
             self.mgate
