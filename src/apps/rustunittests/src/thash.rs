@@ -29,6 +29,9 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, hash_empty);
     wv_run_test!(t, hash_file);
     wv_run_test!(t, seek_then_hash_file);
+    wv_run_test!(t, read0_then_hash_file);
+    wv_run_test!(t, write0_then_hash_file);
+    wv_run_test!(t, read_then_hash_file);
     wv_run_test!(t, shake_and_hash);
     wv_run_test!(t, shake_and_hash_file);
     wv_run_test!(t, shake_and_hash_pipe);
@@ -143,6 +146,55 @@ fn seek_then_hash_file() {
         &mut hash,
         &HashAlgorithm::SHA3_256,
         &hex!("56ea8bb7197d843cfe0cb6e80f6b02e6e1a14b026e6628b91f09cb5f60ca4e01"),
+    );
+}
+
+fn read0_then_hash_file() {
+    let mut hash = wv_assert_ok!(HashSession::new("hash", &HashAlgorithm::SHA3_256));
+    let mut file = wv_assert_ok!(VFS::open("/testfile.txt", OpenFlags::RW));
+
+    // Read zero bytes
+    let mut buf = [0u8; 0];
+    wv_assert_ok!(file.read(&mut buf));
+
+    _hash_file(
+        &mut file,
+        &mut hash,
+        &HashAlgorithm::SHA3_256,
+        &hex!("0e63e307beb389b2fd7ea292c3bbf2e9e6e1005d82d3620d39c41b22e6db9df8"),
+    );
+}
+
+fn write0_then_hash_file() {
+    let mut hash = wv_assert_ok!(HashSession::new("hash", &HashAlgorithm::SHA3_256));
+    let mut file = wv_assert_ok!(VFS::open("/testfile.txt", OpenFlags::RW));
+
+    // Write zero bytes
+    let buf = [0u8; 0];
+    wv_assert_ok!(file.write(&buf));
+
+    _hash_file(
+        &mut file,
+        &mut hash,
+        &HashAlgorithm::SHA3_256,
+        &hex!("0e63e307beb389b2fd7ea292c3bbf2e9e6e1005d82d3620d39c41b22e6db9df8"),
+    );
+}
+
+fn read_then_hash_file() {
+    let mut hash = wv_assert_ok!(HashSession::new("hash", &HashAlgorithm::SHA3_256));
+    let mut file = wv_assert_ok!(VFS::open("/testfile.txt", OpenFlags::R));
+
+    // Read some bytes
+    let res = wv_assert_ok!(file.read_string(4));
+    wv_assert_eq!(res, "This");
+
+    // Hash rest of the file
+    _hash_file(
+        &mut file,
+        &mut hash,
+        &HashAlgorithm::SHA3_256,
+        &hex!("e4a0a34734c9c4bd45fb92cca0204fce0b0188e776632150d5be1083059e934f"),
     );
 }
 

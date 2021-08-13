@@ -109,6 +109,7 @@ impl GenericFile {
 
     fn delegate_ep(&mut self, ep_sel: Selector) -> Result<(), Error> {
         if ep_sel != self.delegated_ep {
+            self.submit(true)?;
             let crd = CapRngDesc::new(CapType::OBJECT, ep_sel, 1);
             self.sess
                 .delegate(crd, |s| s.push_word(GenFileOp::SET_DEST.val), |_| Ok(()))?;
@@ -123,6 +124,9 @@ impl GenericFile {
 
     fn next_in(&mut self, len: usize) -> Result<usize, Error> {
         self.submit(false)?;
+        if len == 0 {
+            return Ok(0);
+        }
         if self.pos == self.len {
             time::start(0xbbbb);
             let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::NEXT_IN)?;
@@ -136,6 +140,9 @@ impl GenericFile {
     }
 
     fn next_out(&mut self, len: usize) -> Result<usize, Error> {
+        if len == 0 {
+            return Ok(0);
+        }
         if self.pos == self.len {
             time::start(0xbbbb);
             let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::NEXT_OUT)?;
