@@ -89,6 +89,7 @@ pub use base::{
 };
 
 pub mod cap;
+pub mod crypto;
 pub mod pes;
 pub mod server;
 pub mod session;
