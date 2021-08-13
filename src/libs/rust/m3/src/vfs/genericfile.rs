@@ -62,6 +62,7 @@ pub struct GenericFile {
     sess: ClientSession,
     sgate: SendGate,
     mgate: MemGate,
+    delegated_ep: Selector,
     goff: usize,
     off: usize,
     pos: usize,
@@ -77,6 +78,7 @@ impl GenericFile {
             sess: ClientSession::new_bind(sel),
             sgate: SendGate::new_bind(sel + 1),
             mgate: MemGate::new_bind(INVALID_SEL),
+            delegated_ep: INVALID_SEL,
             goff: 0,
             off: 0,
             pos: 0,
@@ -105,16 +107,18 @@ impl GenericFile {
         Ok(())
     }
 
-    fn delegate_ep(&mut self) -> Result<(), Error> {
-        if self.mgate.ep().is_none() {
-            let ep = self.mgate.activate()?;
-            let crd = CapRngDesc::new(CapType::OBJECT, ep.sel(), 1);
+    fn delegate_ep(&mut self, ep_sel: Selector) -> Result<(), Error> {
+        if ep_sel != self.delegated_ep {
+            let crd = CapRngDesc::new(CapType::OBJECT, ep_sel, 1);
             self.sess
-                .delegate(crd, |s| s.push_word(GenFileOp::SET_DEST.val), |_| Ok(()))
+                .delegate(crd, |s| s.push_word(GenFileOp::SET_DEST.val), |_| Ok(()))?;
+            self.delegated_ep = ep_sel;
         }
-        else {
-            Ok(())
-        }
+        Ok(())
+    }
+
+    fn delegate_own_ep(&mut self) -> Result<(), Error> {
+        self.delegate_ep(self.mgate.activate()?.sel())
     }
 
     fn next_in(&mut self, len: usize) -> Result<usize, Error> {
@@ -234,7 +238,7 @@ impl Seek for GenericFile {
 
 impl Read for GenericFile {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-        self.delegate_ep()?;
+        self.delegate_own_ep()?;
 
         let amount = self.next_in(buf.len())?;
         if amount > 0 {
@@ -260,7 +264,7 @@ impl Write for GenericFile {
     }
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
-        self.delegate_ep()?;
+        self.delegate_own_ep()?;
 
         let amount = self.next_out(buf.len())?;
         if amount > 0 {
