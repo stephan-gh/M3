@@ -22,7 +22,7 @@ use crate::goff;
 use crate::io::{Read, Write};
 use crate::kif;
 use crate::pes::VPE;
-use crate::session::{MapFlags, Pager};
+use crate::session::{HashInput, HashOutput, HashSession, MapFlags, Pager};
 use crate::vfs::filetable::Fd;
 use crate::vfs::{FileHandle, Map, Seek, SeekMode};
 
@@ -101,6 +101,18 @@ impl Map for FileRef {
         flags: MapFlags,
     ) -> Result<(), Error> {
         self.file.borrow().map(pager, virt, off, len, prot, flags)
+    }
+}
+
+impl HashInput for FileRef {
+    fn hash_input(&mut self, sess: &HashSession, len: usize) -> Result<usize, Error> {
+        self.file.borrow_mut().hash_input(sess, len)
+    }
+}
+
+impl HashOutput for FileRef {
+    fn hash_output(&mut self, sess: &HashSession, len: usize) -> Result<usize, Error> {
+        self.file.borrow_mut().hash_output(sess, len)
     }
 }
 

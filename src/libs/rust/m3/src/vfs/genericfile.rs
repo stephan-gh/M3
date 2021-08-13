@@ -29,7 +29,7 @@ use crate::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
 use crate::pes::{StateSerializer, VPE};
 use crate::rc::Rc;
 use crate::serialize::Source;
-use crate::session::{ClientSession, MapFlags, Pager};
+use crate::session::{ClientSession, HashInput, HashOutput, HashSession, MapFlags, Pager};
 use crate::time;
 use crate::vfs::{
     filetable, Fd, File, FileHandle, FileInfo, Map, OpenFlags, Seek, SeekMode, StatResponse,
@@ -293,6 +293,45 @@ impl Map for GenericFile {
         pager
             .map_ds(virt, len, off, prot, flags, &self.sess)
             .map(|_| ())
+    }
+}
+
+impl HashInput for GenericFile {
+    fn hash_input(&mut self, sess: &HashSession, len: usize) -> Result<usize, Error> {
+        self.delegate_ep(sess.ep().sel())?;
+
+        let mut remaining = len;
+        while remaining > 0 {
+            let amount = self.next_in(remaining)?;
+            if amount == 0 {
+                break;
+            }
+
+            sess.input(self.off + self.pos, amount)?;
+            self.pos += amount;
+            remaining -= amount;
+        }
+        Ok(len - remaining)
+    }
+}
+
+impl HashOutput for GenericFile {
+    fn hash_output(&mut self, sess: &HashSession, len: usize) -> Result<usize, Error> {
+        self.delegate_ep(sess.ep().sel())?;
+
+        let mut remaining = len;
+        while remaining > 0 {
+            let amount = self.next_out(remaining)?;
+            if amount == 0 {
+                break;
+            }
+
+            sess.output(self.off + self.pos, amount)?;
+            self.pos += amount;
+            remaining -= amount;
+        }
+        self.writing = true;
+        Ok(len - remaining)
     }
 }
 

@@ -120,3 +120,28 @@ impl HashSession {
         })
     }
 }
+
+/// A trait for objects that allow directly hashing the contents.
+///
+/// For example, this is implemented for files. The [`EP`] from the hash
+/// multiplexer is delegated to M3FS and M3FS configures the [`EP`] accordingly
+/// to let the hash multiplexer read the file contents directly.
+pub trait HashInput {
+    /// Input a maximum of `len` bytes of this object into the [`HashSession`].
+    fn hash_input(&mut self, sess: &HashSession, len: usize) -> Result<usize, Error>;
+}
+
+/// A trait for objects that allow directly writing hash output data.
+///
+/// For example, this is implemented for files. The [`EP`] from the hash
+/// multiplexer is delegated to M3FS and M3FS configures the [`EP`] accordingly
+/// to let the hash multiplexer write the file contents directly.
+pub trait HashOutput {
+    /// Output a maximum of `len` bytes to this object from the [`HashSession`].
+    ///
+    /// Note that this operation does not allow output of more bytes than
+    /// supported by the current hash algorithm. It is mainly intended for
+    /// use with XOFs (extendable output functions) that allow arbitrarily
+    /// large output, e.g. as pseudo-random number generator.
+    fn hash_output(&mut self, sess: &HashSession, len: usize) -> Result<usize, Error>;
+}

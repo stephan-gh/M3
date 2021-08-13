@@ -26,7 +26,7 @@ use crate::int_enum;
 use crate::io::{Read, Write};
 use crate::kif;
 use crate::pes::StateSerializer;
-use crate::session::{MapFlags, Pager};
+use crate::session::{HashInput, HashOutput, MapFlags, Pager};
 use crate::vfs::{BlockId, DevId, Fd, FileMode, INodeId};
 
 int_enum! {
@@ -148,7 +148,7 @@ impl FileInfo {
 /// Trait for files.
 ///
 /// All files can be read, written, seeked and mapped into memory.
-pub trait File: Read + Write + Seek + Map + Debug {
+pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
     /// Returns the file descriptor.
     fn fd(&self) -> Fd;
     /// Sets the file descriptor.

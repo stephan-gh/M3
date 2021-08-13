@@ -27,7 +27,7 @@ use m3::io::{Read, Write};
 use m3::kif::Perm;
 use m3::pes::{Mapper, StateSerializer};
 use m3::rc::Rc;
-use m3::session::{MapFlags, Pager};
+use m3::session::{HashInput, HashOutput, HashSession, MapFlags, Pager};
 use m3::syscalls;
 use m3::vfs;
 
@@ -152,6 +152,18 @@ impl vfs::Map for BootFile {
     ) -> Result<(), Error> {
         // not used
         Ok(())
+    }
+}
+
+impl HashInput for BootFile {
+    fn hash_input(&mut self, _: &HashSession, _: usize) -> Result<usize, Error> {
+        Err(Error::new(Code::NotSup))
+    }
+}
+
+impl HashOutput for BootFile {
+    fn hash_output(&mut self, _: &HashSession, _: usize) -> Result<usize, Error> {
+        Err(Error::new(Code::NotSup))
     }
 }
 

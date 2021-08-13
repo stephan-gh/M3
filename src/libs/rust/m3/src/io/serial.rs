@@ -21,7 +21,7 @@ use crate::goff;
 use crate::io;
 use crate::kif;
 use crate::pes::StateSerializer;
-use crate::session::{MapFlags, Pager};
+use crate::session::{MapFlags, Pager, HashInput, HashOutput, HashSession};
 use crate::vfs;
 
 impl vfs::Seek for io::Serial {
@@ -79,5 +79,17 @@ impl vfs::File for io::Serial {
 
     fn serialize(&self, _s: &mut StateSerializer) {
         // nothing to do
+    }
+}
+
+impl HashInput for io::Serial {
+    fn hash_input(&mut self, _: &HashSession, _: usize) -> Result<usize, Error> {
+        Err(Error::new(Code::NotSup))
+    }
+}
+
+impl HashOutput for io::Serial {
+    fn hash_output(&mut self, _: &HashSession, _: usize) -> Result<usize, Error> {
+        Err(Error::new(Code::NotSup))
     }
 }

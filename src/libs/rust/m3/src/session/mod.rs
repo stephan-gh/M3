@@ -28,7 +28,7 @@ mod srvsession;
 
 pub use self::clisession::ClientSession;
 pub use self::disk::{BlockNo, BlockRange, Disk, DiskOperation};
-pub use self::hash::{HashOp, HashSession};
+pub use self::hash::{HashInput, HashOp, HashOutput, HashSession};
 pub use self::m3fs::{ExtId, M3FS};
 pub use self::netmng::{NetworkDirection, NetworkManager, NetworkOp};
 pub use self::pager::{MapFlags, Pager, PagerOp};
