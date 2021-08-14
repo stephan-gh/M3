@@ -541,7 +541,7 @@ impl M3FSSession for FileSession {
         }
         else {
             if (self.next_pos.ext > self.cur_pos.ext)
-                && ((self.cur_pos.off + nbytes) > self.cur_extlen)
+                && ((self.cur_pos.off + nbytes) < self.cur_extlen)
             {
                 self.next_pos.ext -= 1;
             }

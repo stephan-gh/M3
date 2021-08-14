@@ -29,6 +29,7 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, read_file_in_small_steps);
     wv_run_test!(t, read_file_in_large_steps);
     wv_run_test!(t, write_and_read_file);
+    wv_run_test!(t, write_then_read_file);
     wv_run_test!(t, write_fmt);
     wv_run_test!(t, extend_small_file);
     wv_run_test!(t, overwrite_beginning);
@@ -130,6 +131,31 @@ fn write_and_read_file() {
         *b = i as u8;
     }
     wv_assert_eq!(file.write(&old), Ok(content.len()));
+}
+
+fn write_then_read_file() {
+    {
+        let mut file = wv_assert_ok!(VFS::open("/newfile", OpenFlags::CREATE | OpenFlags::W));
+        wv_assert_ok!(write!(file, "Hallo World!"));
+    }
+
+    {
+        let mut file = wv_assert_ok!(VFS::open("/newfile", OpenFlags::RW));
+
+        // Replace some text
+        wv_assert_ok!(write!(file, "Hello "));
+
+        // Read the rest of the text
+        let text = wv_assert_ok!(file.read_to_string());
+        wv_assert_eq!(text, "World!");
+    }
+
+    {
+        // Check end result
+        let mut file = wv_assert_ok!(VFS::open("/newfile", OpenFlags::R));
+        let text = wv_assert_ok!(file.read_to_string());
+        wv_assert_eq!(text, "Hello World!");
+    }
 }
 
 fn write_fmt() {
