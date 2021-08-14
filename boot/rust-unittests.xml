@@ -13,6 +13,11 @@
                     <serv name="pipes" />
                 </app>
             </dom>
+            <dom pe="imem+kecacc|core">
+                <app args="hashmux" daemon="1">
+                    <serv name="hash"/>
+                </app>
+            </dom>
             <dom>
                 <app args="pager $fs.size">
                     <sess name="m3fs" />
@@ -23,9 +28,14 @@
                             <mount fs="m3fs" path="/" />
                             <sess lname="m3fs-clone" gname="m3fs" />
                             <sess name="pipes" />
+                            <sess name="hash" />
+                            <sess lname="hash1" gname="hash" args="20000" />
+                            <sess lname="hash2" gname="hash" args="20000" />
+                            <sess lname="hash3" gname="hash" args="20000" />
+                            <sess lname="hash4" gname="hash" args="20000" />
                             <serv name="test" />
                             <sess name="test" dep="false" />
-                            <pes type="core" count="2" />
+                            <pes type="core" count="4" />
                         </app>
                     </dom>
                 </app>

@@ -27,6 +27,7 @@ mod tdlist;
 mod tfilemux;
 mod tfloat;
 mod tgenfile;
+mod thash;
 mod tm3fs;
 mod tmemmap;
 mod tmgate;
@@ -75,6 +76,7 @@ pub fn main() -> i32 {
     wv_run_suite!(tester, tfilemux::run);
     wv_run_suite!(tester, tfloat::run);
     wv_run_suite!(tester, tgenfile::run);
+    wv_run_suite!(tester, thash::run);
     wv_run_suite!(tester, tm3fs::run);
     wv_run_suite!(tester, tmemmap::run);
     wv_run_suite!(tester, tmgate::run);
