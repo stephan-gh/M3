@@ -19,6 +19,11 @@
                     <serial />
                 </app>
             </dom>
+            <dom pe="imem+kecacc|core">
+                <app args="hashmux" daemon="1">
+                    <serv name="hash" />
+                </app>
+            </dom>
             <dom>
                 <app args="pager $fs.size" usermem="256M" getinfo="1">
                     <sess name="m3fs" />
@@ -29,6 +34,7 @@
                             <mount fs="m3fs" path="/" />
                             <sess name="pipes" />
                             <sess name="vterm" />
+                            <sess name="hash" />
                             <pes type="core" count="2" optional="1" />
                             <pes type="rot13" count="2" optional="1" />
                         </app>

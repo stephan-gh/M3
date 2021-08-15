@@ -10,6 +10,7 @@ dirs = [
     'readelf',
     'rm',
     'rmdir',
+    'hashsum',
     'sink',
     'stat',
     'time',
