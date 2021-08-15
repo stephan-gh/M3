@@ -23,10 +23,11 @@ use m3::pes::{Activity, ClosureActivity, PE, VPE};
 use m3::session::{HashInput, HashOutput, HashSession, Pipes};
 use m3::vfs::{FileRef, IndirectPipe, OpenFlags, Seek, SeekMode, VFS};
 use m3::{format, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_assert_some, wv_run_test};
-use m3::{test, vec};
+use m3::{goff, pexif, println, test, util, vec};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, hash_empty);
+    wv_run_test!(t, hash_mapped_mem);
     wv_run_test!(t, hash_file);
     wv_run_test!(t, seek_then_hash_file);
     wv_run_test!(t, read0_then_hash_file);
@@ -70,6 +71,52 @@ fn hash_empty() {
         &HashAlgorithm::SHA3_512,
         &hex!("a69f73cca23a9ac5c8b567dc185a756e97c982164fe25859e0d1dcc1475c80a615b2123af1f5f94c11e3e9402c3ac558f500199d95b6d3e301758586281dcd26"),
     );
+}
+
+fn hash_mapped_mem() {
+    if !VPE::cur().pe_desc().has_virtmem() {
+        println!("No virtual memory; skipping hash_mapped_mem test");
+        return;
+    }
+
+    const ADDR: goff = 0x3000_0000;
+    const SIZE: usize = 32 * 1024; // 32 KiB
+    let mgate = wv_assert_ok!(MemGate::new(SIZE, Perm::RW));
+
+    // Prepare hash session
+    let hash = wv_assert_ok!(HashSession::new("hash", &HashAlgorithm::SHA3_256));
+    wv_assert_ok!(hash.ep().configure(mgate.sel()));
+
+    // Map memory
+    wv_assert_ok!(VPE::cur()
+        .pager()
+        .unwrap()
+        .map_mem(ADDR, &mgate, SIZE, Perm::RW));
+
+    // Fill memory with some data
+    let buf = unsafe { util::slice_for_mut(ADDR as *mut u8, SIZE) };
+    let mut i = 0u8;
+    for b in buf {
+        *b = i;
+        i = i.wrapping_add(1);
+    }
+
+    // Flush the cache, otherwise the writes above might not have ended up in
+    // physical memory yet. It should be enough to flush the memory for the buffer
+    // but the PEMux does not seem to provide that functionality at the moment.
+    wv_assert_ok!(pexif::flush_invalidate());
+
+    // Check resulting hash
+    let mut buf = [0u8; HashAlgorithm::SHA3_256.output_bytes];
+    wv_assert_ok!(hash.input(0, SIZE));
+    wv_assert_ok!(hash.finish(&mut buf));
+    wv_assert_eq!(
+        &buf,
+        &hex!("3d69687d744b35b2c3a757240c5dc0f05a99f2402737cd776b8dfca8b6ecc667")
+    );
+
+    // Unmap the memory again. This is important otherwise vpe.run(...) will fail below
+    wv_assert_ok!(VPE::cur().pager().unwrap().unmap(ADDR));
 }
 
 fn _hash_file(
