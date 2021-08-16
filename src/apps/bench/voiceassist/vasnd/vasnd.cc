@@ -163,5 +163,7 @@ int main(int argc, char **argv) {
     uint64_t wall_stop = TCU::get().nanotime();
     m3::cout << "Total Time: " << (wall_stop - wall_start) << "\n";
     m3::cout << "\033[1;32mAll tests successful!\033[0;m\n";
+
+    Syscalls::reset_stats();
     return 0;
 }
