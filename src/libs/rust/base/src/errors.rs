@@ -19,6 +19,8 @@
 use core::fmt;
 use core::intrinsics;
 
+use crate::col::String;
+
 /// The error codes
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Code {
@@ -242,6 +244,51 @@ impl fmt::Debug for Error {
 }
 
 impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.debug(f)
+    }
+}
+
+/// A verbose error type that contains an error message
+pub struct VerboseError {
+    code: Code,
+    msg: String,
+}
+
+impl VerboseError {
+    /// Creates a new error with given error code and error message
+    pub fn new(code: Code, msg: String) -> Self {
+        Self { code, msg }
+    }
+
+    /// Returns the error code
+    pub fn code(&self) -> Code {
+        self.code
+    }
+
+    /// Returns the error code
+    pub fn msg(&self) -> &String {
+        &self.msg
+    }
+
+    fn debug(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} ({:?})", self.msg, self.code)
+    }
+}
+
+impl From<Error> for VerboseError {
+    fn from(e: Error) -> Self {
+        Self::new(e.code(), String::default())
+    }
+}
+
+impl fmt::Debug for VerboseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.debug(f)
+    }
+}
+
+impl fmt::Display for VerboseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.debug(f)
     }

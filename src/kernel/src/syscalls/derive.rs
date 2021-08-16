@@ -15,7 +15,7 @@
  */
 
 use base::col::ToString;
-use base::errors::Code;
+use base::errors::{Code, VerboseError};
 use base::goff;
 use base::kif::{self, CapRngDesc, CapSel, CapType};
 use base::mem::{GlobAddr, MsgBuf};
@@ -27,10 +27,10 @@ use crate::cap::{KMemObject, MGateObject, PEObject, ServObject};
 use crate::com::Service;
 use crate::mem;
 use crate::pes::VPE;
-use crate::syscalls::{get_request, reply_success, SyscError};
+use crate::syscalls::{get_request, reply_success};
 
 #[inline(never)]
-pub fn derive_pe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn derive_pe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &kif::syscalls::DerivePE = get_request(msg)?;
     let pe_sel = req.pe_sel as CapSel;
     let dst_sel = req.dst_sel as CapSel;
@@ -62,7 +62,7 @@ pub fn derive_pe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscEr
 }
 
 #[inline(never)]
-pub fn derive_kmem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn derive_kmem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &kif::syscalls::DeriveKMem = get_request(msg)?;
     let kmem_sel = req.kmem_sel as CapSel;
     let dst_sel = req.dst_sel as CapSel;
@@ -94,7 +94,7 @@ pub fn derive_kmem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sysc
 }
 
 #[inline(never)]
-pub fn derive_mem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn derive_mem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &kif::syscalls::DeriveMem = get_request(msg)?;
     let vpe_sel = req.vpe_sel as CapSel;
     let dst_sel = req.dst_sel as CapSel;
@@ -139,7 +139,7 @@ pub fn derive_mem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 }
 
 #[inline(never)]
-pub fn derive_srv_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn derive_srv_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &kif::syscalls::DeriveSrv = get_request(msg)?;
     let dst_crd = CapRngDesc::new(CapType::OBJECT, req.dst_sel, 2);
     let srv_sel = req.srv_sel as CapSel;

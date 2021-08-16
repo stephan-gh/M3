@@ -16,7 +16,7 @@
 
 use base::cfg;
 use base::col::ToString;
-use base::errors::Code;
+use base::errors::{Code, VerboseError};
 use base::goff;
 use base::kif::{syscalls, CapRngDesc, CapSel, CapType, PageFlags, Perm, INVALID_SEL};
 use base::mem::{GlobAddr, MsgBuf};
@@ -31,10 +31,10 @@ use crate::com::Service;
 use crate::mem;
 use crate::pes::{PEMng, VPEFlags, VPEMng, VPE};
 use crate::platform;
-use crate::syscalls::{get_request, reply_success, send_reply, SyscError};
+use crate::syscalls::{get_request, reply_success, send_reply};
 
 #[inline(never)]
-pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &syscalls::CreateMGate = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let vpe_sel = req.vpe_sel as CapSel;
@@ -69,7 +69,7 @@ pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
         let map_caps = tgt_vpe.map_caps().borrow();
         let map_cap = map_caps
             .get(sel)
-            .ok_or_else(|| SyscError::new(Code::InvArgs, "Invalid capability".to_string()))?;
+            .ok_or_else(|| VerboseError::new(Code::InvArgs, "Invalid capability".to_string()))?;
         let map_obj = as_obj!(map_cap.get(), Map);
 
         // TODO think about the flags in MapObject again
@@ -116,7 +116,7 @@ pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
 }
 
 #[inline(never)]
-pub fn create_rgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn create_rgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &syscalls::CreateRGate = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let order = req.order as u32;
@@ -153,7 +153,7 @@ pub fn create_rgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
 }
 
 #[inline(never)]
-pub fn create_sgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn create_sgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &syscalls::CreateSGate = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let rgate_sel = req.rgate_sel as CapSel;
@@ -190,13 +190,13 @@ pub fn create_sgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
 }
 
 #[inline(never)]
-pub fn create_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn create_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &syscalls::CreateSrv = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let rgate_sel = req.rgate_sel as CapSel;
     let creator = req.creator as usize;
     let name = core::str::from_utf8(&req.name[0..req.namelen as usize])
-        .map_err(|_| SyscError::new(Code::InvArgs, "Invalid name".to_string()))?;
+        .map_err(|_| VerboseError::new(Code::InvArgs, "Invalid name".to_string()))?;
 
     sysc_log!(
         vpe,
@@ -233,7 +233,7 @@ pub fn create_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 }
 
 #[inline(never)]
-pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &syscalls::CreateSess = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let srv_sel = req.srv_sel as CapSel;
@@ -275,7 +275,7 @@ pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sysc
 }
 
 #[inline(never)]
-pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &syscalls::CreateVPE = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let pg_sg_sel = req.pg_sg_sel as CapSel;
@@ -283,7 +283,7 @@ pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
     let pe_sel = req.pe_sel as CapSel;
     let kmem_sel = req.kmem_sel as CapSel;
     let name = core::str::from_utf8(&req.name[0..req.namelen as usize])
-        .map_err(|_| SyscError::new(Code::InvArgs, "Invalid name".to_string()))?;
+        .map_err(|_| VerboseError::new(Code::InvArgs, "Invalid name".to_string()))?;
 
     sysc_log!(
         vpe,
@@ -418,7 +418,7 @@ pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
 }
 
 #[inline(never)]
-pub fn create_sem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn create_sem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &syscalls::CreateSem = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let value = req.value as u32;
@@ -437,7 +437,7 @@ pub fn create_sem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 }
 
 #[inline(never)]
-pub fn create_map_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn create_map_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &syscalls::CreateMap = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let mgate_sel = req.mgate_sel as CapSel;

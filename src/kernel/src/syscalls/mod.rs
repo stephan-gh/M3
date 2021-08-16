@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use base::col::String;
 use base::errors::{Code, Error};
 use base::kif;
 use base::mem;
@@ -39,10 +38,10 @@ macro_rules! sysc_log {
 #[macro_export]
 macro_rules! sysc_err {
     ($e:expr, $fmt:tt) => ({
-        return Err(SyscError::new($e, $fmt.to_string()));
+        return Err(base::errors::VerboseError::new($e, $fmt.to_string()));
     });
     ($e:expr, $fmt:tt, $($args:tt)*) => ({
-        return Err(SyscError::new($e, base::format!($fmt, $($args)*)));
+        return Err(base::errors::VerboseError::new($e, base::format!($fmt, $($args)*)));
     });
 }
 
@@ -88,23 +87,6 @@ mod create;
 mod derive;
 mod exchange;
 mod misc;
-
-pub struct SyscError {
-    pub code: Code,
-    pub msg: String,
-}
-
-impl SyscError {
-    pub fn new(code: Code, msg: String) -> Self {
-        SyscError { code, msg }
-    }
-}
-
-impl From<Error> for SyscError {
-    fn from(e: Error) -> Self {
-        SyscError::new(e.code(), String::default())
-    }
-}
 
 fn send_reply(msg: &'static tcu::Message, rep: &mem::MsgBuf) {
     ktcu::reply(ktcu::KSYS_EP, rep, msg).ok();
@@ -177,10 +159,10 @@ pub fn handle_async(msg: &'static tcu::Message) {
             vpe.name(),
             vpe.pe_id(),
             kif::syscalls::Operation::from(req.opcode),
-            e.msg,
-            e.code
+            e.msg(),
+            e.code()
         );
 
-        reply_result(msg, e.code as u64);
+        reply_result(msg, e.code() as u64);
     }
 }
