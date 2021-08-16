@@ -8,7 +8,6 @@ members = [
     "src/apps/bench/voiceassist/vamic",
     "src/apps/bench/voiceassist/varcv",
     "src/apps/bench/ycsb/ycsbclient",
-    "src/apps/bench/ycsb/memserver",
     "src/apps/disktest",
     "src/apps/rusthello",
     "src/apps/rustnettests",

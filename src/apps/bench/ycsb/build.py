@@ -1,6 +1,5 @@
 dirs = [
     'lvldbserver',
-    'memserver',
     'ycsbclient',
 ]
 
