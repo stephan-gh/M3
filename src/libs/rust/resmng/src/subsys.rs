@@ -20,7 +20,8 @@ use m3::cell::{RefCell, StaticCell};
 use m3::cfg::PAGE_SIZE;
 use m3::col::{String, ToString, Vec};
 use m3::com::MemGate;
-use m3::errors::{Code, Error};
+use m3::errors::{Code, Error, VerboseError};
+use m3::format;
 use m3::goff;
 use m3::kif::{boot, CapRngDesc, CapType, PEDesc, PEType, Perm, FIRST_FREE_SEL};
 use m3::log;
@@ -270,9 +271,9 @@ impl Subsystem {
         SUBSYS_SELS + 1 + (self.mods.len() + self.pes.len() + self.mems.len() + idx * 2) as Selector
     }
 
-    pub fn start<S>(&self, mut spawn: S) -> Result<(), Error>
+    pub fn start<S>(&self, mut spawn: S) -> Result<(), VerboseError>
     where
-        S: FnMut(&mut childs::OwnChild) -> Result<(), Error>,
+        S: FnMut(&mut childs::OwnChild) -> Result<(), VerboseError>,
     {
         let root = self.cfg();
         if VPE::cur().resmng().is_none() {
@@ -290,7 +291,11 @@ impl Subsystem {
         // our domain contains just ourself.
         if !root.domains().first().unwrap().pseudo {
             OUR_PE.set(Some(Rc::new(
-                pes::get().find_and_alloc(VPE::cur().pe_desc())?,
+                pes::get()
+                    .find_and_alloc(VPE::cur().pe_desc())
+                    .map_err(|e| {
+                        VerboseError::new(e.code(), "Unable to allocate own PE".to_string())
+                    })?,
             )));
         }
         else if !VPE::cur().pe_desc().has_virtmem() {
@@ -312,14 +317,30 @@ impl Subsystem {
 
             // allocate new PE; root allocates from its own set, others ask their resmng
             let pe_usage = if d.pseudo || VPE::cur().resmng().is_none() {
-                Rc::new(pes::get().find_and_alloc(pe_desc)?)
+                Rc::new(pes::get().find_and_alloc(pe_desc).map_err(|e| {
+                    VerboseError::new(
+                        e.code(),
+                        format!(
+                            "Unable to allocate PE for domain {} with {:?}",
+                            idx, pe_desc
+                        ),
+                    )
+                })?)
             }
             else {
-                let mut child_pe = PE::new("child");
-                if child_pe.is_err() {
-                    child_pe = PE::new(&m3::format!("child{}", idx));
+                let child_pe = if let Ok(cpe) = PE::new("child") {
+                    cpe
                 }
-                Rc::new(pes::PEUsage::new_obj(child_pe?))
+                else {
+                    let pe_name = format!("child{}", idx);
+                    PE::new(&pe_name).map_err(|e| {
+                        VerboseError::new(
+                            e.code(),
+                            format!("Unable to get PE with name {}", pe_name),
+                        )
+                    })?
+                };
+                Rc::new(pes::PEUsage::new_obj(child_pe))
             };
 
             let total_eps = pe_usage.pe_obj().quota()?;
@@ -329,13 +350,24 @@ impl Subsystem {
             let dom_mem = d.apps().iter().fold(0, |sum, a| {
                 sum + a.user_mem().unwrap_or(def_umem as usize) as goff
             });
-            let mem_pool = Rc::new(RefCell::new(memory::container().alloc_pool(dom_mem)?));
+            let mem_pool = Rc::new(RefCell::new(
+                memory::container().alloc_pool(dom_mem).map_err(|e| {
+                    VerboseError::new(
+                        e.code(),
+                        format!("Unable to allocate memory pool with {} b", dom_mem),
+                    )
+                })?,
+            ));
 
             // if the VPEs should run on our own PE, all PMP EPs are already installed
             if pe_usage.pe_id() != VPE::cur().pe_id() {
                 // add regions to PMP
                 for slice in mem_pool.borrow().slices() {
-                    pe_usage.add_mem_region(slice.derive()?, slice.capacity() as usize, true)?;
+                    pe_usage
+                        .add_mem_region(slice.derive()?, slice.capacity() as usize, true)
+                        .map_err(|e| {
+                            VerboseError::new(e.code(), "Unable to add PMP region".to_string())
+                        })?;
                 }
 
                 // if we're root, we need to provide the PE access to boot modules as well
@@ -345,9 +377,26 @@ impl Subsystem {
                     let end_addr = last_mod.addr() + last_mod.size;
                     let mod_size = end_addr.offset() - start_addr.offset();
                     // boot modules need RW for data segment (every VPE gets its own module)
-                    let mod_slice =
-                        memory::container().find_mem(start_addr.offset(), mod_size, Perm::RW)?;
-                    pe_usage.add_mem_region(mod_slice.derive()?, mod_size as usize, true)?;
+                    let mod_slice = memory::container()
+                        .find_mem(start_addr.offset(), mod_size, Perm::RW)
+                        .map_err(|e| {
+                            VerboseError::new(
+                                e.code(),
+                                format!(
+                                    "Unable to find memory region for boot module {:#x}..{:#x}",
+                                    start_addr.offset(),
+                                    start_addr.offset() + mod_size
+                                ),
+                            )
+                        })?;
+                    pe_usage
+                        .add_mem_region(mod_slice.derive()?, mod_size as usize, true)
+                        .map_err(|e| {
+                            VerboseError::new(
+                                e.code(),
+                                "Unable to add PMP region for boot mods".to_string(),
+                            )
+                        })?;
                 }
             }
             else {
@@ -355,19 +404,32 @@ impl Subsystem {
                 // later to allocated PEs. TODO we could improve that by only providing them access
                 // to the memory pool of the child that allocates the PE, though.
                 for m in memory::container().mods() {
-                    pe_usage.add_mem_region(
-                        m.mgate().derive(0, m.capacity() as usize, Perm::RWX)?,
-                        m.capacity() as usize,
-                        false,
-                    )?;
+                    pe_usage
+                        .add_mem_region(
+                            m.mgate().derive(0, m.capacity() as usize, Perm::RWX)?,
+                            m.capacity() as usize,
+                            false,
+                        )
+                        .unwrap();
                 }
             }
 
             // add requested physical memory regions to pool
             for cfg in d.apps() {
                 for mem in cfg.phys_mems() {
-                    let mslice =
-                        memory::container().find_mem(mem.phys(), mem.size(), mem.perm())?;
+                    let mslice = memory::container()
+                        .find_mem(mem.phys(), mem.size(), mem.perm())
+                        .map_err(|e| {
+                            VerboseError::new(
+                                e.code(),
+                                format!(
+                                    "Unable to find physical memory {:#x}..{:#x} with {:?}",
+                                    mem.phys(),
+                                    mem.phys() + mem.size(),
+                                    mem.perm()
+                                ),
+                            )
+                        })?;
                     mem_pool.borrow_mut().add(mslice);
                 }
             }
@@ -380,7 +442,12 @@ impl Subsystem {
                     assert!(rem > 16);
                     rem -= 16;
                 }
-                Some(Rc::new(pe_usage.derive(rem)?))
+                Some(Rc::new(pe_usage.derive(rem).map_err(|e| {
+                    VerboseError::new(
+                        e.code(),
+                        format!("Unable to derive new PE with {} EPs", rem),
+                    )
+                })?))
             }
             else {
                 None
@@ -393,7 +460,12 @@ impl Subsystem {
                     pe_usage.clone()
                 }
                 else if let Some(eps) = cfg.eps() {
-                    Rc::new(pe_usage.derive(eps)?)
+                    Rc::new(pe_usage.derive(eps).map_err(|e| {
+                        VerboseError::new(
+                            e.code(),
+                            format!("Unable to derive new PE with {} EPs", eps),
+                        )
+                    })?)
                 }
                 else {
                     // without a specific number of EPs, childs share the remaining EP quota
@@ -406,7 +478,12 @@ impl Subsystem {
                 }
                 else {
                     let kmem_bytes = cfg.kernel_mem().unwrap_or(def_kmem);
-                    VPE::cur().kmem().derive(kmem_bytes)?
+                    VPE::cur().kmem().derive(kmem_bytes).map_err(|e| {
+                        VerboseError::new(
+                            e.code(),
+                            format!("Unable to derive {}b of kernel memory", kmem_bytes),
+                        )
+                    })?
                 };
 
                 // determine user and child memory
@@ -423,7 +500,15 @@ impl Subsystem {
                     // create MemGate for config substring
                     let cfg_range = cfg.cfg_range();
                     let cfg_len = cfg_range.1 - cfg_range.0;
-                    let cfg_slice = memory::container().alloc_mem(cfg_len as goff)?;
+                    let cfg_slice =
+                        memory::container()
+                            .alloc_mem(cfg_len as goff)
+                            .map_err(|e| {
+                                VerboseError::new(
+                                    e.code(),
+                                    format!("Unable to allocate {}b for config", cfg_len),
+                                )
+                            })?;
                     let cfg_mem = cfg_slice.derive()?;
                     cfg_mem.write(&self.cfg_str()[cfg_range.0..cfg_range.1].as_bytes(), 0)?;
 
@@ -434,7 +519,12 @@ impl Subsystem {
                     pass_down_pes(&mut sub, &cfg);
 
                     // add memory
-                    let sub_slice = mem_pool.borrow_mut().allocate_slice(sub_mem)?;
+                    let sub_slice = mem_pool.borrow_mut().allocate_slice(sub_mem).map_err(|e| {
+                        VerboseError::new(
+                            e.code(),
+                            format!("Unable to allocate {}b for subsys", sub_mem),
+                        )
+                    })?;
                     sub.add_mem(
                         sub_slice.derive()?,
                         sub_slice.addr(),
@@ -525,12 +615,18 @@ impl SubsystemBuilder {
             + size_of::<boot::Service>() * self.servs.len()
     }
 
-    pub fn finalize_async(&mut self, child: childs::Id, vpe: &mut VPE) -> Result<(), Error> {
+    pub fn finalize_async(&mut self, child: childs::Id, vpe: &mut VPE) -> Result<(), VerboseError> {
         let mut sel = SUBSYS_SELS;
         let mut off: goff = 0;
 
         let mut mem = memory::container()
-            .alloc_mem(self.desc_size() as goff)?
+            .alloc_mem(self.desc_size() as goff)
+            .map_err(|e| {
+                VerboseError::new(
+                    e.code(),
+                    format!("Unable to allocate {}b for subsys info", self.desc_size()),
+                )
+            })?
             .derive()?;
 
         // boot info
@@ -582,11 +678,21 @@ impl SubsystemBuilder {
             }
             else {
                 if *sess_frac > (serv.sessions() - sess_fixed) {
-                    return Err(Error::new(Code::NoSpace));
+                    return Err(VerboseError::new(
+                        Code::NoSpace,
+                        format!(
+                            "Insufficient session quota for {} (have {}, need {})",
+                            name,
+                            serv.sessions() - sess_fixed,
+                            *sess_frac
+                        ),
+                    ));
                 }
                 (serv.sessions() - sess_fixed) / sess_frac
             };
-            let subserv = serv.derive_async(child, sessions)?;
+            let subserv = serv.derive_async(child, sessions).map_err(|e| {
+                VerboseError::new(e.code(), format!("Unable to derive from service {}", name))
+            })?;
             let boot_serv = boot::Service::new(name, sessions);
             mem.write_obj(&boot_serv, off)?;
 
@@ -611,9 +717,9 @@ impl SubsystemBuilder {
     }
 }
 
-pub(crate) fn start_delayed<S>(mut spawn: S) -> Result<(), Error>
+pub(crate) fn start_delayed<S>(mut spawn: S) -> Result<(), VerboseError>
 where
-    S: FnMut(&mut childs::OwnChild) -> Result<(), Error>,
+    S: FnMut(&mut childs::OwnChild) -> Result<(), VerboseError>,
 {
     let mut new_wait = false;
     let mut idx = 0;
@@ -653,11 +759,22 @@ fn pass_down_pes(sub: &mut SubsystemBuilder, app: &config::AppConfig) {
     }
 }
 
-fn pass_down_mem(sub: &mut SubsystemBuilder, app: &config::AppConfig) -> Result<(), Error> {
+fn pass_down_mem(sub: &mut SubsystemBuilder, app: &config::AppConfig) -> Result<(), VerboseError> {
     for d in app.domains() {
         for child in d.apps() {
             for pmem in child.phys_mems() {
-                let slice = memory::container().find_mem(pmem.phys(), pmem.size(), Perm::RW)?;
+                let slice = memory::container()
+                    .find_mem(pmem.phys(), pmem.size(), Perm::RW)
+                    .map_err(|e| {
+                        VerboseError::new(
+                            e.code(),
+                            format!(
+                                "Unable to find memory {:#x}..{:#x} for subsys",
+                                pmem.phys(),
+                                pmem.phys() + pmem.size()
+                            ),
+                        )
+                    })?;
                 let mgate = slice.derive()?;
                 // TODO determine memory id
                 let glob = GlobAddr::new_with(0, pmem.phys());
@@ -670,7 +787,7 @@ fn pass_down_mem(sub: &mut SubsystemBuilder, app: &config::AppConfig) -> Result<
     Ok(())
 }
 
-fn split_mem(cfg: &config::AppConfig) -> Result<(usize, goff), Error> {
+fn split_mem(cfg: &config::AppConfig) -> Result<(usize, goff), VerboseError> {
     let mut total_umem = memory::container().capacity();
     let mut total_kmem = VPE::cur().kmem().quota()?;
 
@@ -680,7 +797,13 @@ fn split_mem(cfg: &config::AppConfig) -> Result<(usize, goff), Error> {
         for a in d.apps() {
             if let Some(kmem) = a.kernel_mem() {
                 if total_kmem < kmem {
-                    return Err(Error::new(Code::OutOfMem));
+                    return Err(VerboseError::new(
+                        Code::OutOfMem,
+                        format!(
+                            "Insufficient kernel memory (need {}, have {})",
+                            kmem, total_kmem
+                        ),
+                    ));
                 }
                 total_kmem -= kmem;
                 total_kparties -= 1;
@@ -688,7 +811,13 @@ fn split_mem(cfg: &config::AppConfig) -> Result<(usize, goff), Error> {
 
             if let Some(amem) = a.user_mem() {
                 if total_umem < amem as goff {
-                    return Err(Error::new(Code::OutOfMem));
+                    return Err(VerboseError::new(
+                        Code::OutOfMem,
+                        format!(
+                            "Insufficient user memory (need {}, have {})",
+                            amem, total_umem
+                        ),
+                    ));
                 }
                 total_umem -= amem as goff;
                 total_mparties -= 1;

@@ -18,7 +18,7 @@ use m3::cap::Selector;
 use m3::cell::LazyStaticCell;
 use m3::col::String;
 use m3::com::{GateIStream, RecvGate};
-use m3::errors::{Code, Error};
+use m3::errors::{Code, Error, VerboseError};
 use m3::goff;
 use m3::kif;
 use m3::log;
@@ -40,10 +40,10 @@ pub fn rgate() -> &'static RecvGate {
     &RGATE
 }
 
-pub fn workloop<F, S>(mut func: F, mut spawn: S) -> Result<(), Error>
+pub fn workloop<F, S>(mut func: F, mut spawn: S) -> Result<(), VerboseError>
 where
     F: FnMut(),
-    S: FnMut(&mut childs::OwnChild) -> Result<(), Error>,
+    S: FnMut(&mut childs::OwnChild) -> Result<(), VerboseError>,
 {
     let thmng = thread::ThreadManager::get();
     let upcall_rg = RecvGate::upcall();

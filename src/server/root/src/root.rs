@@ -21,8 +21,9 @@ mod loader;
 use m3::cap::Selector;
 use m3::cell::{LazyStaticCell, RefCell, StaticCell};
 use m3::cfg;
+use m3::col::ToString;
 use m3::com::{MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
-use m3::errors::{Code, Error};
+use m3::errors::{Code, Error, VerboseError};
 use m3::goff;
 use m3::kif;
 use m3::log;
@@ -51,7 +52,7 @@ fn find_mod(name: &str) -> Option<(MemGate, usize)> {
         })
 }
 
-fn start_child_async(child: &mut OwnChild) -> Result<(), Error> {
+fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
     let bmod = find_mod(child.cfg().name()).ok_or_else(|| Error::new(Code::NotFound))?;
 
     #[allow(clippy::useless_conversion)]
@@ -66,7 +67,8 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), Error> {
         VPEArgs::new(child.name())
             .resmng(ResMng::new(sgate))
             .kmem(child.kmem().clone()),
-    )?;
+    )
+    .map_err(|e| VerboseError::new(e.code(), "Unable to create VPE".to_string()))?;
 
     if let Some(fs) = VPE::cur().mounts().get_by_path("/") {
         vpe.mounts().add("/", fs)?;
@@ -87,7 +89,9 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), Error> {
     );
     let bfile = loader::BootFile::new(bmod.0, bmod.1);
     let bfileref = VPE::cur().files().add(Rc::new(RefCell::new(bfile)))?;
-    child.start(vpe, &mut bmapper, bfileref)?;
+    child
+        .start(vpe, &mut bmapper, bfileref)
+        .map_err(|e| VerboseError::new(e.code(), "Unable to start VPE".to_string()))?;
 
     for a in bmapper.fetch_allocs() {
         child.add_mem(a, None);

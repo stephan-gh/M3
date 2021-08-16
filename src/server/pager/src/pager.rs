@@ -27,7 +27,8 @@ use m3::cell::{LazyStaticCell, StaticCell};
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, MGateArgs, MemGate, RecvGate, SGateArgs, SendGate};
 use m3::env;
-use m3::errors::{Code, Error};
+use m3::errors::{Code, Error, VerboseError};
+use m3::format;
 use m3::kif;
 use m3::log;
 use m3::math;
@@ -135,21 +136,21 @@ impl Handler<AddrSpace> for PagerReqHandler {
     }
 }
 
-fn get_mount(name: &str) -> Result<vfs::FSHandle, Error> {
-    log!(crate::LOG_DEF, "Have {} FSs", MOUNTS.len());
+fn get_mount(name: &str) -> Result<vfs::FSHandle, VerboseError> {
     for (n, fs) in MOUNTS.iter() {
-        log!(crate::LOG_DEF, "Testing {} .. {}", n, name);
         if n == name {
             return Ok(fs.clone());
         }
     }
 
-    let fs = M3FS::new(name)?;
+    let fs = M3FS::new(name).map_err(|e| {
+        VerboseError::new(e.code(), format!("Unable to open m3fs session {}", name))
+    })?;
     MOUNTS.get_mut().push((name.to_string(), fs.clone()));
     Ok(fs)
 }
 
-fn start_child_async(child: &mut OwnChild) -> Result<(), Error> {
+fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
     // send gate for resmng
     #[allow(clippy::useless_conversion)]
     let resmng_sgate = SendGate::new_with(
@@ -207,9 +208,12 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), Error> {
     aspace.init(Some(child.id()), Some(vpe.sel())).unwrap();
 
     // start VPE
-    let file = vfs::VFS::open(child.name(), vfs::OpenFlags::RX)?;
+    let file = vfs::VFS::open(child.name(), vfs::OpenFlags::RX)
+        .map_err(|e| VerboseError::new(e.code(), format!("Unable to open {}", child.name())))?;
     let mut mapper = mapper::ChildMapper::new(&mut aspace, vpe.pe_desc().has_virtmem());
-    child.start(vpe, &mut mapper, file)
+    child
+        .start(vpe, &mut mapper, file)
+        .map_err(|e| VerboseError::new(e.code(), "Unable to start VPE".to_string()))
 }
 
 fn handle_request(op: PagerOp, is: &mut GateIStream) -> Result<(), Error> {
