@@ -557,7 +557,19 @@ impl VPE {
 
     pub fn reset_stats(&mut self) -> u64 {
         let now = tcu::TCU::nanotime();
-        let old_time = self.cpu_time + (now - self.scheduled);
+        let old_time = if self.state == VPEState::Running {
+            self.cpu_time + (now - self.scheduled)
+        }
+        else {
+            self.cpu_time
+        };
+        log!(
+            crate::LOG_VPES,
+            "VPE{} consumed {}ns CPU time and was suspended {} times",
+            self.id(),
+            old_time,
+            self.ctxsws
+        );
         self.scheduled = now;
         self.cpu_time = 0;
         self.ctxsws = 0;
