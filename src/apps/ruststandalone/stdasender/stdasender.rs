@@ -24,7 +24,6 @@ mod helper;
 #[path = "../vmtest/paging.rs"]
 mod paging;
 
-use base::cpu;
 use base::log;
 use base::math;
 use base::mem::MsgBuf;
@@ -83,16 +82,13 @@ pub extern "C" fn env_run() {
     let mut recv = 0;
     while recv < SENDS {
         // received reply?
-        if let Some(m) = helper::fetch_msg(REP, rbuf_virt) {
+        while let Some(m) = helper::fetch_msg(REP, rbuf_virt) {
             assert_eq!({ m.header.label }, 0x2222);
             log!(crate::LOG_DETAIL, "got reply {}", *m.get_data::<u64>());
 
             // ack reply
             TCU::ack_msg(REP, TCU::msg_to_offset(rbuf_virt, m)).unwrap();
             recv += 1;
-
-            let begin = cpu::elapsed_cycles();
-            while cpu::elapsed_cycles() < begin + 1000 {}
         }
 
         if sent < SENDS && TCU::credits(SEP).unwrap() > 0 {
