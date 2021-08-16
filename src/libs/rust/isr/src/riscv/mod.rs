@@ -116,9 +116,6 @@ impl fmt::Debug for State {
 mod plic {
     pub const TCU_ID: u32 = 1;
     pub const TIMER_ID: u32 = 2;
-    pub const AXI_ETH_ID: u32 = 3;
-    pub const AXI_FIFO_ID: u32 = 4;
-    pub const AXI_MAC_ID: u32 = 5;
 
     const MMIO_PRIORITY: *mut u32 = 0x0C00_0000 as *mut u32;
     const MMIO_ENABLE: *mut u32 = 0x0C00_2000 as *mut u32;
@@ -193,13 +190,7 @@ pub fn init(state: &mut State) {
     if envdata::get().platform == envdata::Platform::HW.val {
         // configure PLIC
         plic::set_threshold(0);
-        for id in &[
-            plic::TCU_ID,
-            plic::TIMER_ID,
-            plic::AXI_ETH_ID,
-            plic::AXI_FIFO_ID,
-            plic::AXI_MAC_ID,
-        ] {
+        for id in &[plic::TCU_ID, plic::TIMER_ID] {
             plic::enable(*id);
             plic::set_priority(*id, 1);
         }
