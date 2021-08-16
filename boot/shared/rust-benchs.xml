@@ -2,7 +2,7 @@
     <kernel args="kernel -f $fs.path" />
     <dom>
         <app args="root maxcli=3">
-            <app args="pipes -m 1" daemon="1">
+            <app args="pipes -m 8" daemon="1">
                 <serv name="pipes" />
             </app>
             <dom>
