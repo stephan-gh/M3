@@ -136,4 +136,11 @@ impl NetworkSession {
             NetworkSession::SocketSession(ss) => ss.abort(is, socket_set),
         }
     }
+
+    pub fn get_ip(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+        match self {
+            NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
+            NetworkSession::SocketSession(ss) => ss.get_ip(is),
+        }
+    }
 }

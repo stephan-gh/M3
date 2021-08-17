@@ -59,6 +59,7 @@ class NetworkManager : public ClientSession {
         CONNECT,
         ABORT,
         CREATE,
+        GET_IP,
         GET_SGATE,
         OPEN_FILE,
     };
@@ -109,6 +110,11 @@ public:
      * @param dirs the directions to check
      */
     void wait_for(uint64_t timeout, uint dirs = Direction::INPUT | Direction::OUTPUT);
+
+    /**
+     * @return the local IP address
+     */
+    IpAddr ip_addr();
 
 private:
     static KIF::CapRngDesc get_sgate(ClientSession &sess);

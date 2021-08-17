@@ -44,8 +44,9 @@ int_enum! {
         const CONNECT       = 8;
         const ABORT         = 9;
         const CREATE        = 10;
-        const GET_SGATE     = 11;
-        const OPEN_FILE     = 12;
+        const GET_IP        = 11;
+        const GET_SGATE     = 12;
+        const OPEN_FILE     = 13;
     }
 }
 
@@ -131,6 +132,13 @@ impl NetworkManager {
             // ignore errors
             VPE::sleep_for(end - now).ok();
         }
+    }
+
+    /// Returns the local IP address
+    pub fn ip_addr(&self) -> Result<IpAddr, Error> {
+        let mut reply = send_recv_res!(&self.metagate, RecvGate::def(), NetworkOp::GET_IP)?;
+        let addr = IpAddr(reply.pop::<u32>()?);
+        Ok(addr)
     }
 
     fn tick_sockets(&self, dirs: NetworkDirection) -> bool {

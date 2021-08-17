@@ -92,6 +92,7 @@ impl NetHandler {
                 NetworkOp::LISTEN => sess.listen(is, &mut self.socket_set),
                 NetworkOp::CONNECT => sess.connect(is, &mut self.socket_set),
                 NetworkOp::ABORT => sess.abort(is, &mut self.socket_set),
+                NetworkOp::GET_IP => sess.get_ip(is),
                 _ => Err(Error::new(Code::InvArgs)),
             }
         }
