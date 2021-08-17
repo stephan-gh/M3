@@ -58,6 +58,11 @@ impl IpAddr {
         IpAddr(u32::from_be_bytes([v0, v1, v2, v3]))
     }
 
+    /// Creates an IP address from given raw value
+    pub fn new_from_raw(val: u32) -> Self {
+        IpAddr(val)
+    }
+
     /// Creates an unspecified IP address
     pub fn unspecified() -> Self {
         IpAddr::new(0, 0, 0, 0)
@@ -102,6 +107,14 @@ impl Endpoint {
     /// Creates a new endpoint for given IP address and port
     pub fn new(addr: IpAddr, port: Port) -> Self {
         Self { addr, port }
+    }
+
+    /// Creates an unspecified endpoint
+    pub fn unspecified() -> Self {
+        Self {
+            addr: IpAddr::unspecified(),
+            port: 0,
+        }
     }
 }
 
@@ -167,4 +180,42 @@ impl core::fmt::Display for MAC {
             self.0[0], self.0[1], self.0[2], self.0[3], self.0[4], self.0[5]
         )
     }
+}
+
+/// Compute an RFC 1071 compliant checksum.
+// taken from smoltcp
+pub fn data_checksum(mut data: &[u8]) -> u16 {
+    use core::convert::TryInto;
+
+    let mut accum = 0;
+
+    // For each 32-byte chunk...
+    const CHUNK_SIZE: usize = 32;
+    while data.len() >= CHUNK_SIZE {
+        let mut d = &data[..CHUNK_SIZE];
+        // ... take by 2 bytes and sum them.
+        while d.len() >= 2 {
+            let chunk = u16::from_be_bytes(d[..2].try_into().unwrap());
+            accum += chunk as u32;
+            d = &d[2..];
+        }
+
+        data = &data[CHUNK_SIZE..];
+    }
+
+    // Sum the rest that does not fit the last 32-byte chunk,
+    // taking by 2 bytes.
+    while data.len() >= 2 {
+        let chunk = u16::from_be_bytes(data[..2].try_into().unwrap());
+        accum += chunk as u32;
+        data = &data[2..];
+    }
+
+    // Add the last remaining odd byte, if any.
+    if let Some(&value) = data.first() {
+        accum += (value as u32) << 8;
+    }
+
+    let sum = (accum >> 16) + (accum & 0xffff);
+    ((sum >> 16) as u16) + (sum as u16)
 }

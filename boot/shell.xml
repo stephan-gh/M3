@@ -22,12 +22,18 @@
                 <app args="pager $fs.size" usermem="256M">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes name="child" type="core" count="1" />
+                    <pes name="child" type="core" count="2" />
+                    <dom>
+                        <app args="/bin/net -d lo net 127.0.0.1" daemon="1">
+                            <serv name="net" />
+                        </app>
+                    </dom>
                     <dom>
                         <app args="/bin/shell">
                             <mount fs="m3fs" path="/" />
                             <sess name="pipes" />
                             <sess name="vterm" />
+                            <sess name="net" args="bufs=256K" />
                             <pes name="core" type="core" count="3" />
                             <pes name="rot13" type="rot13" count="2" optional="1" />
                         </app>

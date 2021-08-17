@@ -241,6 +241,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ping"
+version = "0.1.0"
+dependencies = [
+ "m3",
+]
+
+[[package]]
 name = "pipes"
 version = "0.1.0"
 dependencies = [

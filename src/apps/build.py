@@ -18,6 +18,7 @@ dirs = [
     'nettest',
     'noop',
     'parchksum',
+    'ping',
     'plasma',
     'queue',
     'rdwr',

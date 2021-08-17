@@ -134,6 +134,26 @@ impl NetworkManager {
         }
     }
 
+    /// Sleep for `nanos` nanoseconds, respecting messages that may arrive for sockets.
+    ///
+    /// Note that this function uses [`VPE::sleep`] if no input/output on any socket is possible,
+    /// which suspends the core until the next TCU message arrives. Thus, calling this function can
+    /// only be done if all work is done.
+    pub fn sleep_for(&self, nanos: u64) {
+        let end = TCU::nanotime() + nanos;
+        loop {
+            self.tick_sockets(NetworkDirection::empty());
+
+            let now = TCU::nanotime();
+            if now >= end {
+                break;
+            }
+
+            // ignore errors
+            VPE::sleep_for(end - now).ok();
+        }
+    }
+
     /// Returns the local IP address
     pub fn ip_addr(&self) -> Result<IpAddr, Error> {
         let mut reply = send_recv_res!(&self.metagate, RecvGate::def(), NetworkOp::GET_IP)?;
