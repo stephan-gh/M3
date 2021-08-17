@@ -17,6 +17,7 @@
  */
 
 use crate::errors::Error;
+use crate::net::Endpoint;
 use crate::net::{
     socket::{DgramSocketArgs, Socket},
     Sd, SocketType,
@@ -31,6 +32,11 @@ pub struct RawSocket<'n> {
 }
 
 impl<'n> RawSocket<'n> {
+    /// Creates a new raw IP socket with given arguments.
+    ///
+    /// By default, the socket is in blocking mode, that is, all functions
+    /// ([`send_to`](RawSocket::send), [`recv_from`](RawSocket::recv), ...) do not return until the
+    /// operation is complete. This can be changed via [`set_blocking`](RawSocket::set_blocking).
     pub fn new(args: DgramSocketArgs<'n>, protocol: Option<u8>) -> Result<Self, Error> {
         Ok(RawSocket {
             socket: args.nm.create(SocketType::Raw, protocol, &args.args)?,
@@ -38,13 +44,53 @@ impl<'n> RawSocket<'n> {
         })
     }
 
+    /// Returns the socket descriptor used to identify this socket within the session on the server
     pub fn sd(&self) -> Sd {
         self.socket.sd()
+    }
+
+    /// Returns whether the socket is currently in blocking mode
+    pub fn blocking(&self) -> bool {
+        self.socket.blocking()
+    }
+
+    /// Sets whether the socket is using blocking mode.
+    ///
+    /// In blocking mode, all functions ([`send_to`](RawSocket::send_to),
+    /// [`recv_from`](RawSocket::recv_from), ...) do not return until the operation is complete. In
+    /// non-blocking mode, all functions return in case they would need to block, that is, wait
+    /// until an event is received or further data can be sent.
+    pub fn set_blocking(&mut self, blocking: bool) {
+        self.socket.set_blocking(blocking);
+    }
+
+    /// Returns whether data can currently be received from the socket
+    ///
+    /// Note that this function does not process events. To receive data, any receive function on
+    /// this socket or [`NetworkManager::wait`] has to be called.
+    pub fn has_data(&self) -> bool {
+        self.socket.has_data()
+    }
+
+    /// Receives data from the socket into the given buffer.
+    ///
+    /// Returns the number of received bytes.
+    pub fn recv(&self, data: &mut [u8]) -> Result<usize, Error> {
+        self.socket.next_data(data.len(), |buf, _ep| {
+            data[0..buf.len()].copy_from_slice(buf);
+            (buf.len(), buf.len())
+        })
+    }
+
+    /// Sends the given data to the given remote endpoint
+    pub fn send(&self, data: &[u8]) -> Result<(), Error> {
+        self.socket.send(data, Endpoint::unspecified())
     }
 }
 
 impl Drop for RawSocket<'_> {
     fn drop(&mut self) {
+        self.socket.tear_down();
         self.nm.remove_socket(self.socket.sd());
     }
 }

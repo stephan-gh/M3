@@ -31,6 +31,7 @@ namespace m3 {
 
 class UdpSocket;
 class TcpSocket;
+class RawSocket;
 
 /**
  * Represents a session at the network service, allowing to create and use sockets
@@ -44,6 +45,7 @@ class NetworkManager : public ClientSession {
     friend class Socket;
     friend class UdpSocket;
     friend class TcpSocket;
+    friend class RawSocket;
 
     enum Operation {
         STAT     = GenericFile::STAT,

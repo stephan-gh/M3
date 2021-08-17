@@ -43,6 +43,19 @@ Socket::~Socket() {
     _nm.remove_socket(this);
 }
 
+void Socket::tear_down() {
+    try {
+        // we have no connection to tear down here, but only want to make sure that all packets we sent
+        // are seen and handled by the server. thus, wait until we have got all replies to our
+        // potentially in-flight packets, in which case we also have received our credits back.
+        while(!_channel.has_all_credits())
+            wait_for_credits();
+    }
+    catch(...) {
+        // ignore errors
+    }
+}
+
 void Socket::disconnect() {
     _state = Closed;
     _local_ep = Endpoint();

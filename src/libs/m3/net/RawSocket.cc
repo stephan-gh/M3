@@ -18,43 +18,34 @@
 
 #include <m3/Exception.h>
 #include <m3/net/Socket.h>
-#include <m3/net/UdpSocket.h>
+#include <m3/net/RawSocket.h>
 #include <m3/session/NetworkManager.h>
 
 namespace m3 {
 
-UdpSocket::UdpSocket(int sd, capsel_t caps, NetworkManager &nm)
+RawSocket::RawSocket(int sd, capsel_t caps, NetworkManager &nm)
     : Socket(sd, caps, nm) {
 }
 
-UdpSocket::~UdpSocket() {
+RawSocket::~RawSocket() {
     tear_down();
 }
 
-Reference<UdpSocket> UdpSocket::create(NetworkManager &nm, const DgramSocketArgs &args) {
+Reference<RawSocket> RawSocket::create(NetworkManager &nm, uint8_t protocol,
+                                       const DgramSocketArgs &args) {
     capsel_t caps;
-    int sd = nm.create(SocketType::DGRAM, 0, args, &caps);
-    auto sock = new UdpSocket(sd, caps, nm);
+    int sd = nm.create(SocketType::RAW, protocol, args, &caps);
+    auto sock = new RawSocket(sd, caps, nm);
     nm.add_socket(sock);
-    return Reference<UdpSocket>(sock);
+    return Reference<RawSocket>(sock);
 }
 
-void UdpSocket::bind(port_t port) {
-    if(_state != Closed)
-        throw Exception(Errors::INV_STATE);
-
-    IpAddr addr = _nm.bind(sd(), port);
-    _local_ep.addr = addr;
-    _local_ep.port = port;
-    _state = State::Bound;
+ssize_t RawSocket::recv(void *dst, size_t amount) {
+    return Socket::do_recv(dst, amount, nullptr);
 }
 
-ssize_t UdpSocket::recv_from(void *dst, size_t amount, Endpoint *src_ep) {
-    return Socket::do_recv(dst, amount, src_ep);
-}
-
-ssize_t UdpSocket::send_to(const void *src, size_t amount, const Endpoint &dst_ep) {
-    return Socket::do_send(src, amount, dst_ep);
+ssize_t RawSocket::send(const void *src, size_t amount) {
+    return Socket::do_send(src, amount, Endpoint());
 }
 
 }

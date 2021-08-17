@@ -43,9 +43,13 @@ use crate::sess::FileSession;
 const CONNECT_TIMEOUT: u64 = 6_000_000_000; /* 6s */
 
 pub fn to_m3_addr(addr: IpAddress) -> IpAddr {
-    assert!(addr.as_bytes().len() == 4, "Address was not ipv4!");
-    let bytes = addr.as_bytes();
-    IpAddr::new(bytes[0], bytes[1], bytes[2], bytes[3])
+    if addr.as_bytes().len() != 4 {
+        IpAddr::unspecified()
+    }
+    else {
+        let bytes = addr.as_bytes();
+        IpAddr::new(bytes[0], bytes[1], bytes[2], bytes[3])
+    }
 }
 
 /// Converts an IpEndpoint from smoltcp into an M³ (IpAddr, Port) tuple.

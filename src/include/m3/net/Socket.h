@@ -127,6 +127,7 @@ protected:
     void handle_close_req(NetEventChannel::CloseReqMessage const &msg);
     void handle_closed(NetEventChannel::ClosedMessage const &msg);
 
+    void tear_down();
     void disconnect();
 
     void wait_for_events();

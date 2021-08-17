@@ -158,13 +158,7 @@ impl<'n> UdpSocket<'n> {
 
 impl Drop for UdpSocket<'_> {
     fn drop(&mut self) {
-        // we have no connection to tear down here, but only want to make sure that all packets we
-        // sent are seen and handled by the server. thus, wait until we have got all replies to our
-        // potentially in-flight packets, in which case we also have received our credits back.
-        while !self.socket.has_all_credits() {
-            self.socket.wait_for_credits();
-        }
-
+        self.socket.tear_down();
         self.nm.remove_socket(self.socket.sd());
     }
 }

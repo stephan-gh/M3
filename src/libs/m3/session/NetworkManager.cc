@@ -68,6 +68,14 @@ void NetworkManager::remove_socket(Socket *socket) {
     _sockets.remove(socket);
 }
 
+IpAddr NetworkManager::ip_addr() {
+    GateIStream reply = send_receive_vmsg(_metagate, GET_IP);
+    reply.pull_result();
+    uint32_t addr;
+    reply >> addr;
+    return IpAddr(addr);
+}
+
 IpAddr NetworkManager::bind(int32_t sd, port_t port) {
     GateIStream reply = send_receive_vmsg(_metagate, BIND, sd, port);
     reply.pull_result();
