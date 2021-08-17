@@ -15,7 +15,6 @@ dirs = [
     'libctest',
     'msgchan',
     'netechoserver',
-    'nettest',
     'noop',
     'parchksum',
     'ping',
