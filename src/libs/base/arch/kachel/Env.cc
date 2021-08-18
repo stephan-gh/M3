@@ -71,7 +71,15 @@ void Env::run() {
         e->backend()->reinit();
 
         std::function<int()> *f = reinterpret_cast<std::function<int()>*>(e->lambda);
-        res = (*f)();
+        // wrap the call into a try catch to ensure that stack frames are cleaned up properly even
+        // if we terminate afterwards (otherwise, we might omit a TCU ack for example, leading to
+        // other failures during cleanup).
+        try {
+            res = (*f)();
+        }
+        catch(...) {
+            res = 1;
+        }
     }
     else {
         __m3_init_libc();
@@ -84,7 +92,14 @@ void Env::run() {
             for(uint64_t i = 0; i < e->argc; ++i)
                 argv[i] = reinterpret_cast<char*>(argv64[i]);
         }
-        res = main(static_cast<int>(e->argc), argv);
+
+        // see above
+        try {
+            res = main(static_cast<int>(e->argc), argv);
+        }
+        catch(...) {
+            res = 1;
+        }
     }
 
     ::exit(res);
