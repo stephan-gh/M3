@@ -16,6 +16,7 @@
 
 #include <base/Machine.h>
 #include <base/TCU.h>
+#include <base/PEXIF.h>
 #include <string.h>
 
 EXTERN_C void gem5_shutdown(uint64_t delay);
@@ -48,8 +49,7 @@ ssize_t Machine::write(const char *str, size_t len) {
 ssize_t Machine::read(char *dst, size_t max) {
     if(env()->platform == Platform::GEM5)
         return gem5_readfile(dst, max, 0);
-    // TODO
-    return 0;
+    return static_cast<ssize_t>(PEXIF::read_serial(dst, max));
 }
 
 void Machine::reset_stats() {

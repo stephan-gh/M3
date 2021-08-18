@@ -4,7 +4,7 @@ import argparse
 import traceback
 from time import sleep, time
 from datetime import datetime
-import os, sys
+import os, sys, select
 
 import modids
 import fpga_top
@@ -21,25 +21,35 @@ MEM_SIZE = 2 * 1024 * 1024
 DRAM_SIZE = 2 * 1024 * 1024 * 1024
 MAX_FS_SIZE = 256 * 1024 * 1024
 KENV_SIZE = 16 * 1024 * 1024
+SERIAL_SIZE = 4 * 1024
 INIT_PMP_SIZE = 8 * 1024 * 1024
 
-def read_u64(pm, addr):
-    return pm.mem[addr]
+serial_begin = 0
 
-def write_u64(pm, addr, value):
-    pm.mem[addr] = value
+def read_u64(mod, addr):
+    return mod.mem[addr]
+
+def write_u64(mod, addr, value):
+    mod.mem[addr] = value
 
 def read_str(mod, addr, length):
     b = mod.mem.read_bytes(addr, length)
     return b.decode()
 
-def write_str(pm, str, addr):
+def write_str(mod, str, addr):
     buf = bytearray(str.encode())
     buf += b'\x00'
-    pm.mem.write_bytes(addr, bytes(buf), burst=False) # TODO enable burst
+    mod.mem.write_bytes(addr, bytes(buf), burst=False) # TODO enable burst
 
 def glob_addr(pe, offset):
     return (0x80 + pe) << 56 | offset
+
+def send_input(dram, line):
+    global serial_begin
+    while read_u64(dram, serial_begin) != 0:
+        pass
+    write_str(dram, line, serial_begin + 8)
+    write_u64(dram, serial_begin, len(line))
 
 def write_file(mod, file, offset):
     print("%s: loading %u bytes to %#x" % (mod.name, os.path.getsize(file), offset))
@@ -93,10 +103,9 @@ def load_boot_info(dram, mods, pes, vm):
     kenv_off += 8
 
     # mems
-    write_u64(dram, kenv_off, info_start + KENV_SIZE) # addr (ignored)
-    kenv_off += 8
-    write_u64(dram, kenv_off, DRAM_SIZE - info_start - KENV_SIZE) # size
-    kenv_off += 8
+    mem_start = info_start + KENV_SIZE + SERIAL_SIZE
+    write_u64(dram, kenv_off + 0, mem_start)             # addr (ignored)
+    write_u64(dram, kenv_off + 8, DRAM_SIZE - mem_start) # size
 
 def load_prog(dram, pms, i, args, vm):
     pm = pms[i]
@@ -128,6 +137,15 @@ def load_prog(dram, pms, i, args, vm):
     pmp_ep.set_addr(mem_begin)
     pmp_ep.set_size(INIT_PMP_SIZE)
     pm.tcu_set_ep(0, pmp_ep)
+    # install EP for serial input
+    global serial_begin
+    ser_ep = MemEP()
+    ser_ep.set_pe(dram.mem.nocid[1])
+    ser_ep.set_vpe(0xFFFF)
+    ser_ep.set_flags(Flags.READ | Flags.WRITE)
+    ser_ep.set_addr(serial_begin)
+    ser_ep.set_size(SERIAL_SIZE)
+    pm.tcu_set_ep(127, ser_ep)
 
     # verify entrypoint, because inject a jump instruction below that jumps to that address
     with open(args[0], 'rb') as f:
@@ -200,6 +218,9 @@ def main():
     fpga_inst.dram1.nocarq.set_arq_enable(0)
     fpga_inst.dram2.nocarq.set_arq_enable(0)
 
+    global serial_begin
+    serial_begin = MAX_FS_SIZE + len(fpga_inst.pms) * INIT_PMP_SIZE + KENV_SIZE
+
     # load boot info into DRAM
     mods = [] if args.mod is None else args.mod
     load_boot_info(fpga_inst.dram1, mods, fpga_inst.pms, args.vm)
@@ -237,13 +258,21 @@ def main():
     timed_out = False
     try:
         while True:
+            # check for timeout
             if not args.timeout is None and int(time()) - start >= args.timeout:
                 print("Execution timed out after {} seconds".format(args.timeout))
                 timed_out = True
                 break
 
+            # check if there is input to pass to the FPGA
+            while sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
+                line = sys.stdin.readline()
+                if line:
+                    send_input(fpga_inst.dram1, line)
+
+            # check for output
             try:
-                bytes = fpga_inst.nocif.receive_bytes(timeout_ns = 1000_000_000)
+                bytes = fpga_inst.nocif.receive_bytes(timeout_ns = 10_000_000)
             except KeyboardInterrupt:
                 # force-extract logs on ^C
                 timed_out = True

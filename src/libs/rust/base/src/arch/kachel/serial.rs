@@ -17,6 +17,7 @@
 use crate::arch::envdata;
 use crate::arch::tcu;
 use crate::errors::Error;
+use crate::pexif;
 
 extern "C" {
     pub fn gem5_writefile(src: *const u8, len: u64, offset: u64, file: u64);
@@ -28,7 +29,7 @@ pub fn read(buf: &mut [u8]) -> Result<usize, Error> {
         unsafe { Ok(gem5_readfile(buf.as_mut_ptr(), buf.len() as u64, 0) as usize) }
     }
     else {
-        unimplemented!();
+        pexif::read_serial(buf)
     }
 }
 

@@ -14,13 +14,14 @@
  * General Public License version 2 for more details.
  */
 
+use base::cfg;
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif;
 use base::log;
 use base::mem::GlobAddr;
 use base::pexif;
-use base::tcu::{EpId, INVALID_EP, IRQ};
+use base::tcu::{EpId, INVALID_EP, IRQ, TCU};
 
 use crate::irqs;
 use crate::timer;
@@ -151,6 +152,67 @@ fn pexcall_flush_inv(_state: &mut arch::State) -> Result<(), Error> {
     Ok(())
 }
 
+fn pexcall_read_serial(state: &mut arch::State) -> Result<isize, Error> {
+    let addr = state.r[isr::PEXC_ARG1] as usize;
+    let len = state.r[isr::PEXC_ARG2] as usize;
+
+    log!(
+        crate::LOG_CALLS,
+        "pexcall::read_serial(addr={:#x}, len={})",
+        addr,
+        len
+    );
+
+    // ensure that the user has access to this memory region
+    let cur = vpe::cur();
+    let perm = kif::PageFlags::RW | kif::PageFlags::U;
+    if len > cfg::PAGE_SIZE || !cur.has_access(addr, perm) || !cur.has_access(addr + len, perm) {
+        return Err(Error::new(Code::NoPerm));
+    }
+
+    let old_vpe = TCU::xchg_vpe(vpe::our().vpe_reg()).unwrap();
+
+    // use the message buffer to ensure that the TCU's TLB knows the translation
+    let mut msgbuf = base::mem::MsgBuf::borrow_def();
+    // build slice to read into the message buffer
+    let tmp_slice: &mut [u8] = unsafe {
+        core::slice::from_raw_parts_mut(
+            core::intrinsics::transmute(msgbuf.words_mut().as_mut_ptr()),
+            msgbuf.words_mut().len() * 8,
+        )
+    };
+
+    // TODO this is a busy loop polling the DRAM until the user inputs something. therefore, this
+    // loop blocks the entire PE. maybe we should send the input via message instead?
+    let num = loop {
+        // read number of available bytes
+        TCU::read(127, tmp_slice.as_mut_ptr(), 8, 0).unwrap();
+
+        // is there something to read?
+        let num = *msgbuf.get::<u64>();
+        if num != 0 {
+            // read it into our temporary buffer
+            assert!(num as usize <= tmp_slice.len());
+            TCU::read(127, tmp_slice.as_mut_ptr(), num as usize, 8).unwrap();
+
+            // copy to user buffer
+            let dest = unsafe { core::slice::from_raw_parts_mut(addr as *mut u8, len) };
+            dest[0..num as usize].copy_from_slice(&tmp_slice[0..num as usize]);
+
+            // ack serial input
+            msgbuf.set::<u64>(0);
+            TCU::write(127, msgbuf.bytes().as_ptr(), 8, 0).unwrap();
+            break num;
+        }
+    };
+
+    // change back to old VPE
+    let our_vpe = TCU::xchg_vpe(old_vpe).unwrap();
+    vpe::our().set_vpe_reg(our_vpe);
+
+    Ok(num as isize)
+}
+
 fn pexcall_noop(_state: &mut arch::State) -> Result<(), Error> {
     log!(crate::LOG_CALLS, "pexcall::noop()");
 
@@ -168,6 +230,7 @@ pub fn handle_call(state: &mut arch::State) {
         pexif::Operation::REG_IRQ => pexcall_reg_irq(state).map(|_| 0isize),
         pexif::Operation::TRANSL_FAULT => pexcall_transl_fault(state).map(|_| 0isize),
         pexif::Operation::FLUSH_INV => pexcall_flush_inv(state).map(|_| 0isize),
+        pexif::Operation::READ_SERIAL => pexcall_read_serial(state),
         pexif::Operation::NOOP => pexcall_noop(state).map(|_| 0isize),
 
         _ => Err(Error::new(Code::NotSup)),
