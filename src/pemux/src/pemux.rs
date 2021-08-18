@@ -45,7 +45,7 @@ use base::tcu;
 /// Logs errors
 pub const LOG_ERR: bool = true;
 /// Logs basic VPE operations
-pub const LOG_VPES: bool = true;
+pub const LOG_VPES: bool = false;
 /// Logs pexcalls
 pub const LOG_CALLS: bool = false;
 /// Logs context switches
