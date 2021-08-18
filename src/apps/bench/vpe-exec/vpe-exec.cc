@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
     OStringStream os;
     os << "/bin/bench-vpe-clone-" << argv[1];
 
-    auto pe = PE::alloc("child");
+    auto pe = PE::get("core|own");
     for(int i = 0; i < REPEATS; ++i) {
         Time::start(1);
 

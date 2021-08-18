@@ -36,7 +36,7 @@ fn calc_pi_local() {
 }
 
 fn calc_pi_remote() {
-    let pe = wv_assert_ok!(PE::new("child"));
+    let pe = wv_assert_ok!(PE::get("clone"));
     calc_pi(&pe);
 }
 

@@ -180,7 +180,7 @@ NOINLINE static void derive_mem() {
 NOINLINE static void exchange() {
     struct SyscallExchangeRunner : public Runner {
         explicit SyscallExchangeRunner()
-            : pe(PE::alloc("child")),
+            : pe(PE::get("own|core")),
               vpe(pe, "test") {
         }
 

@@ -51,7 +51,7 @@ void chain_indirect(Reference<File> in, Reference<File> out, size_t num, cycles_
         name << "chain" << i;
 
 
-        pes[i] = PE::alloc("indir");
+        pes[i] = PE::get("indir");
         vpes[i] = std::make_unique<VPE>(pes[i], name.str());
 
         accels[i] = std::make_unique<InDirAccel>(vpes[i], reply_gate);

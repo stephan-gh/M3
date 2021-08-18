@@ -20,7 +20,7 @@ use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
-use m3::kif::Perm;
+use m3::kif::{Perm, PEISA};
 use m3::log;
 use m3::net::MAC;
 
@@ -54,7 +54,7 @@ static ZEROS: [u8; 4096] = [0; 4096];
 
 impl E1000 {
     pub fn new() -> Result<Self, Error> {
-        let nic = Device::new("nic")?;
+        let nic = Device::new("nic", PEISA::NIC_DEV)?;
 
         let bufs = MemGate::new(core::mem::size_of::<Buffers>(), Perm::RW)?;
         let devbufs = bufs.derive(0, core::mem::size_of::<Buffers>(), Perm::RW)?;

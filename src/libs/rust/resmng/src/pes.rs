@@ -25,8 +25,6 @@ use m3::rc::Rc;
 use m3::syscalls;
 use m3::tcu::{EpId, PEId, PMEM_PROT_EPS, TCU};
 
-use crate::config;
-
 struct ManagedPE {
     id: PEId,
     pe: Rc<PE>,
@@ -155,49 +153,59 @@ impl PEManager {
         self.pes[idx].pe.clone()
     }
 
-    pub fn find<F>(&self, f: F) -> Option<usize>
-    where
-        F: Fn(&Rc<PE>) -> bool,
-    {
-        self.pes.iter().position(|p| p.users == 0 && f(&p.pe))
+    pub fn find_with_desc(&mut self, desc: &str) -> Option<usize> {
+        let own = VPE::cur().pe().desc();
+        for props in desc.split('|') {
+            let base = PEDesc::new(own.pe_type(), own.isa(), 0);
+            if let Ok(idx) = self.find(base.with_properties(props)) {
+                return Some(idx);
+            }
+        }
+        log!(crate::LOG_PES, "Unable to find PE with desc {}", desc);
+        None
+    }
+
+    pub fn find_and_alloc_with_desc(&mut self, desc: &str) -> Result<PEUsage, Error> {
+        let own = VPE::cur().pe().desc();
+        for props in desc.split('|') {
+            let base = PEDesc::new(own.pe_type(), own.isa(), 0);
+            if let Ok(pe) = self.find_and_alloc(base.with_properties(props)) {
+                return Ok(pe);
+            }
+        }
+        log!(crate::LOG_PES, "Unable to find PE with desc {}", desc);
+        Err(Error::new(Code::NotFound))
     }
 
     pub fn find_and_alloc(&mut self, desc: PEDesc) -> Result<PEUsage, Error> {
+        self.find(desc).map(|idx| {
+            let usage = PEUsage::new(idx);
+            if self.pes[idx].id == VPE::cur().pe_id() {
+                // if it's our own PE, set it to the first free PMP EP
+                let mut pmp = usage.pmp.borrow_mut();
+                for ep in pmp.next_ep..PMEM_PROT_EPS as EpId {
+                    if !TCU::is_valid(ep) {
+                        break;
+                    }
+                    pmp.next_ep += 1;
+                }
+            }
+            self.alloc(idx);
+            usage
+        })
+    }
+
+    fn find(&mut self, desc: PEDesc) -> Result<usize, Error> {
         for (id, pe) in self.pes.iter().enumerate() {
             if pe.users == 0
                 && pe.pe.desc().isa() == desc.isa()
                 && pe.pe.desc().pe_type() == desc.pe_type()
                 && (desc.attr().is_empty() || pe.pe.desc().attr() == desc.attr())
             {
-                let usage = PEUsage::new(id);
-                if pe.id == VPE::cur().pe_id() {
-                    // if it's our own PE, set it to the first free PMP EP
-                    let mut pmp = usage.pmp.borrow_mut();
-                    for ep in pmp.next_ep..PMEM_PROT_EPS as EpId {
-                        if !TCU::is_valid(ep) {
-                            break;
-                        }
-                        pmp.next_ep += 1;
-                    }
-                }
-                self.alloc(id);
-                return Ok(usage);
+                return Ok(id);
             }
         }
-        log!(crate::LOG_PES, "Unable to find PE with desc {:?}", desc);
-        Err(Error::new(Code::NoSpace))
-    }
-
-    pub fn find_and_alloc_named(&mut self, desc: &config::PEType) -> Result<PEUsage, Error> {
-        for (id, pe) in self.pes.iter().enumerate() {
-            if pe.users == 0 && desc.matches(pe.pe.desc()) {
-                let usage = PEUsage::new(id);
-                self.alloc(id);
-                return Ok(usage);
-            }
-        }
-        log!(crate::LOG_PES, "Unable to find PE with name {}", desc.0);
-        Err(Error::new(Code::NoSpace))
+        Err(Error::new(Code::NotFound))
     }
 
     pub fn alloc(&mut self, idx: usize) {

@@ -23,7 +23,7 @@ use m3::com::MemGate;
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::goff;
-use m3::kif::{boot, CapRngDesc, CapType, PEDesc, PEType, Perm, FIRST_FREE_SEL};
+use m3::kif::{boot, CapRngDesc, CapType, Perm, FIRST_FREE_SEL};
 use m3::log;
 use m3::math;
 use m3::mem::{size_of, GlobAddr};
@@ -306,40 +306,19 @@ impl Subsystem {
         let (def_kmem, def_umem) = split_mem(&root)?;
 
         for (idx, d) in root.domains().iter().enumerate() {
-            // we need virtual memory support for multiple apps per domain
-            let req_desc = d.pe.pe_desc();
-            let pe_desc = if d.pseudo || d.apps().len() > 1 {
-                PEDesc::new(PEType::COMP_EMEM, req_desc.isa(), req_desc.mem_size())
-            }
-            else {
-                req_desc
-            };
-
             // allocate new PE; root allocates from its own set, others ask their resmng
             let pe_usage = if d.pseudo || VPE::cur().resmng().is_none() {
-                Rc::new(pes::get().find_and_alloc(pe_desc).map_err(|e| {
+                Rc::new(pes::get().find_and_alloc_with_desc(&d.pe.0).map_err(|e| {
                     VerboseError::new(
                         e.code(),
-                        format!(
-                            "Unable to allocate PE for domain {} with {:?}",
-                            idx, pe_desc
-                        ),
+                        format!("Unable to allocate PE for domain {} with {}", idx, d.pe.0),
                     )
                 })?)
             }
             else {
-                let child_pe = if let Ok(cpe) = PE::new("child") {
-                    cpe
-                }
-                else {
-                    let pe_name = format!("child{}", idx);
-                    PE::new(&pe_name).map_err(|e| {
-                        VerboseError::new(
-                            e.code(),
-                            format!("Unable to get PE with name {}", pe_name),
-                        )
-                    })?
-                };
+                let child_pe = PE::get(&d.pe.0).map_err(|e| {
+                    VerboseError::new(e.code(), format!("Unable to get PE {}", d.pe.0))
+                })?;
                 Rc::new(pes::PEUsage::new_obj(child_pe))
             };
 
@@ -747,7 +726,7 @@ fn pass_down_pes(sub: &mut SubsystemBuilder, app: &config::AppConfig) {
         for child in d.apps() {
             for pe in child.pes() {
                 for _ in 0..pe.count() {
-                    if let Some(idx) = pes::get().find(|p| pe.pe_type().matches(p.desc())) {
+                    if let Some(idx) = pes::get().find_with_desc(&pe.pe_type().0) {
                         pes::get().alloc(idx);
                         sub.add_pe(pes::get().id(idx), pes::get().get(idx));
                     }

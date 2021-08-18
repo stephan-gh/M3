@@ -12,10 +12,10 @@
                 <app args="pager maxcli=3 sem=net $fs.size" usermem="768M">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes name="child0" type="boomnic" count="1" />
-                    <pes name="child1" type="rocket" count="1" />
-                    <pes name="child2" type="boom" count="1" />
-                    <dom pe="boomnic">
+                    <pes type="boom+nic" count="1" />
+                    <pes type="rocket" count="1" />
+                    <pes type="boom" count="1" />
+                    <dom pe="boom+nic">
                         <app args="/bin/net net 192.168.42.242" daemon="1">
                             <serv name="net" />
                         </app>

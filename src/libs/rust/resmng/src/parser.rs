@@ -396,7 +396,6 @@ fn parse_session(p: &mut ConfigParser) -> Result<config::SessionDesc, Error> {
 }
 
 fn parse_pe(p: &mut ConfigParser) -> Result<config::PEDesc, Error> {
-    let mut name = String::new();
     let mut ty = String::new();
     let mut count = 1;
     let mut optional = false;
@@ -404,7 +403,6 @@ fn parse_pe(p: &mut ConfigParser) -> Result<config::PEDesc, Error> {
         match p.parse_arg()? {
             None => break,
             Some((n, v)) => match n.as_ref() {
-                "name" => name = v,
                 "type" => ty = v,
                 "count" => count = parse::int(&v)? as u32,
                 "optional" => optional = parse::bool(&v)?,
@@ -412,7 +410,7 @@ fn parse_pe(p: &mut ConfigParser) -> Result<config::PEDesc, Error> {
             },
         }
     }
-    Ok(config::PEDesc::new(name, ty, count, optional))
+    Ok(config::PEDesc::new(ty, count, optional))
 }
 
 fn parse_rgate(p: &mut ConfigParser) -> Result<config::RGateDesc, Error> {

@@ -34,7 +34,7 @@ struct App {
     explicit App(size_t argc, const char **argv)
         : argc(argc),
           argv(argv),
-          pe(PE::alloc("child")),
+          pe(PE::get("core")),
           vpe(pe, argv[0]),
           rgate(RecvGate::create(6, 6)),
           sgate(SendGate::create(&rgate)) {

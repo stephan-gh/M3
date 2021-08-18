@@ -35,7 +35,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn pingpong_remote() {
-    let pe = wv_assert_ok!(PE::new("child"));
+    let pe = wv_assert_ok!(PE::get("clone"));
     pingpong_with_pe("remote", pe);
 }
 

@@ -1,30 +1,34 @@
 <config>
     <kernel args="kernel -f $fs.path" />
     <dom>
-        <app args="root">
+        <app args="root maxcli=4">
             <app args="vterm" daemon="1">
                 <serv name="vterm" />
             </app>
-            <app args="pipes" daemon="1">
+            <app args="pipes -m 8" daemon="1">
                 <serv name="pipes" />
             </app>
             <dom>
-                <app args="m3fs mem $fs.size" daemon="1">
+                <app args="m3fs -m 4 mem $fs.size" daemon="1">
                     <serv name="m3fs" />
                     <physmem addr="0" size="$fs.size" />
                 </app>
+                <app args="net -m 4 -d lo net 127.0.0.1" daemon="1">
+                    <serv name="net" />
+                </app>
             </dom>
             <dom>
-                <app args="pager $fs.size" usermem="256M">
+                <app args="pager maxcli=4 $fs.size" usermem="256M">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes name="child" type="core" count="1" />
+                    <pes type="core" count="1" />
                     <app args="/bin/shell">
                         <mount fs="m3fs" path="/" />
                         <sess name="pipes" />
                         <sess name="vterm" />
-                        <pes name="core" type="core" count="3" />
-                        <pes name="rot13" type="rot13" count="2" optional="1" />
+                        <sess name="net" args="bufs=256K" />
+                        <pes type="core" count="3" />
+                        <pes type="rot13" count="2" optional="1" />
                     </app>
                 </app>
             </dom>

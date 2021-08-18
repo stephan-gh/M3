@@ -149,7 +149,7 @@ fn nonblocking_client() {
 }
 
 fn nonblocking_server() {
-    let pe = wv_assert_ok!(PE::new("child"));
+    let pe = wv_assert_ok!(PE::get("clone|own"));
     let mut vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("tcp-server")));
 
     let sem = wv_assert_ok!(Semaphore::create(0));
@@ -224,7 +224,7 @@ fn open_close() {
 }
 
 fn receive_after_close() {
-    let pe = wv_assert_ok!(PE::new("child"));
+    let pe = wv_assert_ok!(PE::get("clone|own"));
     let mut vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("tcp-server")));
 
     let sem = wv_assert_ok!(Semaphore::create(0));

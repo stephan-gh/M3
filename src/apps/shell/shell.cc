@@ -47,7 +47,7 @@ static char **build_args(Command *cmd) {
     return res;
 }
 
-static String get_pe_name(const VarList &vars, const char *path) {
+static String get_pe_name(size_t no, const VarList &vars, const char *path) {
     FStream f(path, FILE_R | FILE_X);
     if(f.bad())
         return "";
@@ -63,7 +63,11 @@ static String get_pe_name(const VarList &vars, const char *path) {
         if(strcmp(vars.vars[i].name, "PE") == 0)
             return expr_value(vars.vars[i].value);
     }
-    return "core";
+    // for the first program, prefer the same PE
+    if(no == 0)
+        return "own|core";
+    // for the second, prefer another one
+    return "core|own";
 }
 
 static void execute_assignment(CmdList *list) {
@@ -91,7 +95,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
             return;
         }
 
-        pe_names[i] = get_pe_name(*list->cmds[i]->vars, expr_value(list->cmds[i]->args->args[0]));
+        pe_names[i] = get_pe_name(i, *list->cmds[i]->vars, expr_value(list->cmds[i]->args->args[0]));
     }
 
     size_t vpe_count = 0;
@@ -100,7 +104,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
     for(size_t i = 0; i < list->count; ++i) {
         Command *cmd = list->cmds[i];
 
-        pes[i] = PE::alloc(pe_names[i].c_str());
+        pes[i] = PE::get(pe_names[i].c_str());
         vpes[i] = std::make_unique<VPE>(pes[i], expr_value(cmd->args->args[0]));
         vpe_count++;
 

@@ -155,6 +155,51 @@ impl PEDesc {
         self.has_cache()
     }
 
+    /// Derives a new PEDesc from this by changing it based on the given properties.
+    pub fn with_properties(&self, props: &str) -> PEDesc {
+        let mut res = *self;
+        for prop in props.split('+') {
+            match prop {
+                "imem" => res = PEDesc::new(PEType::COMP_IMEM, res.isa(), 0),
+                "emem" | "vm" => res = PEDesc::new(PEType::COMP_EMEM, res.isa(), 0),
+
+                "arm" => res = PEDesc::new(res.pe_type(), PEISA::ARM, 0),
+                "x86" => res = PEDesc::new(res.pe_type(), PEISA::X86, 0),
+                "riscv" => res = PEDesc::new(res.pe_type(), PEISA::RISCV, 0),
+
+                "rocket" => {
+                    res = PEDesc::new_with_attr(
+                        res.pe_type(),
+                        res.isa(),
+                        0,
+                        res.attr() | PEAttr::ROCKET,
+                    )
+                },
+                "boom" => {
+                    res = PEDesc::new_with_attr(
+                        res.pe_type(),
+                        res.isa(),
+                        0,
+                        res.attr() | PEAttr::BOOM,
+                    )
+                },
+                "nic" => {
+                    res =
+                        PEDesc::new_with_attr(res.pe_type(), res.isa(), 0, res.attr() | PEAttr::NIC)
+                },
+
+                "indir" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::ACCEL_INDIR, 0),
+                "copy" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::ACCEL_COPY, 0),
+                "rot13" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::ACCEL_ROT13, 0),
+                "idedev" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::IDE_DEV, 0),
+                "nicdev" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::NIC_DEV, 0),
+
+                _ => {},
+            }
+        }
+        res
+    }
+
     /// Returns the starting address and size of the standard receive buffer space
     pub fn rbuf_std_space(self) -> (usize, usize) {
         (self.rbuf_base(), cfg::RBUF_STD_SIZE)

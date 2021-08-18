@@ -41,7 +41,7 @@ NOINLINE void child_to_parent() {
         MemGate mgate = MemGate::create_global(0x10000, MemGate::RW);
         IndirectPipe pipe(pipes, mgate, 0x10000);
 
-        Reference<PE> pe = PE::alloc("child");
+        Reference<PE> pe = PE::get("clone|own");
         VPE vpe(pe, "writer");
         vpe.fds()->set(STDOUT_FD, VPE::self().fds()->get(pipe.writer_fd()));
         vpe.obtain_fds();
@@ -79,7 +79,7 @@ NOINLINE void parent_to_child() {
         MemGate mgate = MemGate::create_global(0x10000, MemGate::RW);
         IndirectPipe pipe(pipes, mgate, 0x10000);
 
-        Reference<PE> pe(PE::alloc("child"));
+        Reference<PE> pe(PE::get("clone|own"));
         VPE vpe(pe, "writer");
         vpe.fds()->set(STDIN_FD, VPE::self().fds()->get(pipe.reader_fd()));
         vpe.obtain_fds();

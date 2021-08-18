@@ -346,7 +346,7 @@ fn exchange() {
         prof.runner_with_id(
             &mut Tester {
                 vpe: None,
-                pe: wv_assert_ok!(PE::new("child")),
+                pe: wv_assert_ok!(PE::get("clone|own")),
             },
             0x18
         )

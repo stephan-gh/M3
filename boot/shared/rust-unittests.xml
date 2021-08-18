@@ -15,14 +15,14 @@
                 <app args="pager $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes name="child" type="core" count="1" />
+                    <pes type="core" count="1" />
                     <app args="/bin/rustunittests">
                         <mount fs="m3fs" path="/" />
                         <sess lname="m3fs-clone" gname="m3fs" />
                         <sess name="pipes" />
                         <serv name="test" />
                         <sess name="test" dep="false" />
-                        <pes name="child" type="core" count="2" />
+                        <pes type="core" count="2" />
                     </app>
                 </app>
             </dom>

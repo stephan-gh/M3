@@ -41,7 +41,7 @@ fn destroy() {
     use m3::pes::{Activity, PE, VPE};
     use m3::{reply_vmsg, send_recv, wv_assert_eq, wv_assert_ok};
 
-    let pe = wv_assert_ok!(PE::new("child"));
+    let pe = wv_assert_ok!(PE::get("clone|own"));
     let mut child = wv_assert_ok!(VPE::new(pe, "test"));
 
     let act = {

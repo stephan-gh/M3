@@ -106,7 +106,7 @@ fn remote_access() {
     let sem1 = wv_assert_ok!(Semaphore::create(0));
     let sem2 = wv_assert_ok!(Semaphore::create(0));
 
-    let pe = wv_assert_ok!(PE::new("child"));
+    let pe = wv_assert_ok!(PE::get("clone"));
     let mut child = wv_assert_ok!(VPE::new(pe, "child"));
 
     let virt = if child.pe_desc().has_virtmem() {

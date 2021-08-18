@@ -12,7 +12,7 @@
                 <app args="pager $fs.size" usermem="256M">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes name="child" type="core" count="1" />
+                    <pes type="core" count="1" />
                     <dom>
                         <app args="/bin/libctest">
                             <mount fs="m3fs" path="/" />

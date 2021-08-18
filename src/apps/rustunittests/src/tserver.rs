@@ -95,10 +95,10 @@ fn connect(name: &str) -> ClientSession {
 }
 
 pub fn testnoresp() {
-    let client_pe = wv_assert_ok!(PE::new("child"));
+    let client_pe = wv_assert_ok!(PE::get("clone|own"));
     let client = wv_assert_ok!(VPE::new_with(client_pe, VPEArgs::new("client")));
 
-    let server_pe = wv_assert_ok!(PE::new("child"));
+    let server_pe = wv_assert_ok!(PE::get("clone|own"));
     let cact = {
         let serv = wv_assert_ok!(VPE::new_with(server_pe, VPEArgs::new("server")));
 
@@ -121,10 +121,10 @@ pub fn testnoresp() {
 }
 
 pub fn testcliexit() {
-    let client_pe = wv_assert_ok!(PE::new("child"));
+    let client_pe = wv_assert_ok!(PE::get("clone|own"));
     let mut client = wv_assert_ok!(VPE::new_with(client_pe, VPEArgs::new("client")));
 
-    let server_pe = wv_assert_ok!(PE::new("child"));
+    let server_pe = wv_assert_ok!(PE::get("clone|own"));
     let serv = wv_assert_ok!(VPE::new_with(server_pe, VPEArgs::new("server")));
 
     let sact = wv_assert_ok!(serv.run(Box::new(&server_crash_main)));
@@ -269,7 +269,7 @@ fn server_msgs_main() -> i32 {
 }
 
 pub fn testmsgs() {
-    let server_pe = wv_assert_ok!(PE::new("child"));
+    let server_pe = wv_assert_ok!(PE::get("clone|own"));
     let serv = wv_assert_ok!(VPE::new_with(server_pe, VPEArgs::new("server")));
     let sact = wv_assert_ok!(serv.run(Box::new(&server_msgs_main)));
 
@@ -380,7 +380,7 @@ fn server_notsup_main() -> i32 {
 }
 
 pub fn testcaps() {
-    let server_pe = wv_assert_ok!(PE::new("child"));
+    let server_pe = wv_assert_ok!(PE::get("clone|own"));
     let serv = wv_assert_ok!(VPE::new_with(server_pe, VPEArgs::new("server")));
     let sact = wv_assert_ok!(serv.run(Box::new(&server_notsup_main)));
 

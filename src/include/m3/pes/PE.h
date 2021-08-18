@@ -21,6 +21,7 @@
 
 #include <m3/ObjCap.h>
 
+#include <string>
 #include <utility>
 
 namespace m3 {
@@ -50,10 +51,30 @@ public:
     /**
      * Allocate a new processing element
      *
-     * @param name the local name (boot script)
+     * @param desc the PE description
      * @return the PE object
      */
-    static Reference<PE> alloc(const char *name);
+    static Reference<PE> alloc(const PEDesc &desc);
+
+    /**
+     * Gets a PE with given description.
+     *
+     * The description is an '|' separated list of properties that will be tried in order. Two
+     * special properties are supported:
+     * - "own" to denote the own PE (provided that it has support for multiple VPEs)
+     * - "clone" to denote a separate PE that is identical to the own PE
+     *
+     * For other properties, see `desc_with_properties` in PE.cc.
+     *
+     * Examples:
+     * - PE with an arbitrary ISA, but preferred the own: "own|core"
+     * - Identical PE, but preferred a separate one: "clone|own"
+     * - BOOM core if available, otherwise any core: "boom|core"
+     * - BOOM with NIC if available, otherwise a Rocket: "boom+nic|rocket"
+     *
+     * @param desc the textual description of the PE
+     */
+    static Reference<PE> get(const std::string &desc);
 
     /**
      * Binds a PE object to the given selector and PE description

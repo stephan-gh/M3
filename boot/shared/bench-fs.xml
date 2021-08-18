@@ -1,5 +1,5 @@
 <config>
-    <kernel args="kernel" />
+    <kernel args="kernel -f $fs.path" />
     <dom>
         <app args="root">
             <dom>
@@ -8,7 +8,7 @@
                     <physmem addr="0" size="$fs.size" />
                 </app>
             </dom>
-            <dom pe="boom">
+            <dom pe="boom|core">
                 <app args="pager maxcli=2 $fs.size" usermem="768M">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />

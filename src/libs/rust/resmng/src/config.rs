@@ -20,7 +20,6 @@ use m3::col::{BTreeMap, BTreeSet, String, Vec};
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif;
-use m3::pes::VPE;
 use m3::rc::Rc;
 use m3::tcu::Label;
 
@@ -251,7 +250,16 @@ pub struct PEType(pub String);
 
 impl PEType {
     pub fn matches(&self, desc: kif::PEDesc) -> bool {
-        for attr in self.0.split(',') {
+        for attrs in self.0.split('|') {
+            if self.attrs_match(desc, attrs) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn attrs_match(&self, desc: kif::PEDesc, attrs: &str) -> bool {
+        for attr in attrs.split('+') {
             let matches = match attr {
                 "core" => desc.is_programmable(),
 
@@ -262,16 +270,17 @@ impl PEType {
                 "arm" => desc.isa() == kif::PEISA::ARM,
                 "x86" => desc.isa() == kif::PEISA::X86,
                 "riscv" => desc.isa() == kif::PEISA::RISCV,
-                "rocket" => desc.attr().contains(kif::PEAttr::ROCKET),
+
+                "nic" => desc.attr().contains(kif::PEAttr::NIC),
                 "boom" => desc.attr().contains(kif::PEAttr::BOOM),
-                "boomnic" => desc.attr().contains(kif::PEAttr::NIC),
+                "rocket" => desc.attr().contains(kif::PEAttr::ROCKET),
 
                 "indir" => desc.isa() == kif::PEISA::ACCEL_INDIR,
                 "copy" => desc.isa() == kif::PEISA::ACCEL_COPY,
                 "rot13" => desc.isa() == kif::PEISA::ACCEL_ROT13,
 
-                "ide" => desc.isa() == kif::PEISA::IDE_DEV,
-                "nic" => desc.isa() == kif::PEISA::NIC_DEV,
+                "idedev" => desc.isa() == kif::PEISA::IDE_DEV,
+                "nicdev" => desc.isa() == kif::PEISA::NIC_DEV,
                 _ => false,
             };
             if !matches {
@@ -280,75 +289,22 @@ impl PEType {
         }
         true
     }
-
-    pub fn pe_desc(&self) -> kif::PEDesc {
-        use kif::{PEDesc, PEType, PEISA};
-
-        let mut res = VPE::cur().pe_desc();
-        for attr in self.0.split(',') {
-            match attr {
-                "imem" => res = PEDesc::new(PEType::COMP_IMEM, res.isa(), res.mem_size()),
-                "emem" | "vm" => res = PEDesc::new(PEType::COMP_EMEM, res.isa(), res.mem_size()),
-                "arm" => res = PEDesc::new(res.pe_type(), PEISA::ARM, res.mem_size()),
-                "x86" => res = PEDesc::new(res.pe_type(), PEISA::X86, res.mem_size()),
-                "riscv" => res = PEDesc::new(res.pe_type(), PEISA::RISCV, res.mem_size()),
-                "rocket" => {
-                    res = PEDesc::new_with_attr(
-                        res.pe_type(),
-                        res.isa(),
-                        res.mem_size(),
-                        kif::PEAttr::ROCKET,
-                    )
-                },
-                "boom" => {
-                    res = PEDesc::new_with_attr(
-                        res.pe_type(),
-                        res.isa(),
-                        res.mem_size(),
-                        kif::PEAttr::BOOM,
-                    )
-                },
-                "boomnic" => {
-                    res = PEDesc::new_with_attr(
-                        res.pe_type(),
-                        res.isa(),
-                        res.mem_size(),
-                        kif::PEAttr::BOOM | kif::PEAttr::NIC,
-                    )
-                },
-                "indir" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::ACCEL_INDIR, res.mem_size()),
-                "copy" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::ACCEL_COPY, res.mem_size()),
-                "rot13" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::ACCEL_ROT13, res.mem_size()),
-                "ide" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::IDE_DEV, res.mem_size()),
-                "nic" => res = PEDesc::new(PEType::COMP_IMEM, PEISA::NIC_DEV, res.mem_size()),
-
-                _ => {},
-            }
-        }
-        res
-    }
 }
 
 #[derive(Default)]
 pub struct PEDesc {
-    name: String,
     ty: PEType,
     count: Cell<u32>,
     optional: bool,
 }
 
 impl PEDesc {
-    pub(crate) fn new(name: String, ty: String, count: u32, optional: bool) -> Self {
+    pub(crate) fn new(ty: String, count: u32, optional: bool) -> Self {
         Self {
-            name,
             ty: PEType(ty),
             count: Cell::new(count),
             optional,
         }
-    }
-
-    pub fn name(&self) -> &String {
-        &self.name
     }
 
     pub fn pe_type(&self) -> &PEType {
@@ -535,11 +491,11 @@ impl AppConfig {
         self.sessions[idx].used.replace(false);
     }
 
-    pub fn get_pe_idx(&self, name: &str) -> Result<usize, Error> {
+    pub fn get_pe_idx(&self, desc: kif::PEDesc) -> Result<usize, Error> {
         let idx = self
             .pes
             .iter()
-            .position(|pe| pe.name() == name)
+            .position(|pe| pe.pe_type().matches(desc))
             .ok_or_else(|| Error::new(Code::InvArgs))?;
 
         if self.pes[idx].count.get() > 0 {
@@ -808,9 +764,8 @@ impl AppConfig {
         for pe in &self.pes {
             writeln!(
                 f,
-                "{:0w$}PE[name={}, type={}, count={}, optional={}],",
+                "{:0w$}PE[type={}, count={}, optional={}],",
                 "",
-                pe.name,
                 pe.pe_type().0,
                 pe.count.get(),
                 pe.optional,

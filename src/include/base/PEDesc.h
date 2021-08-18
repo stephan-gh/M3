@@ -47,7 +47,7 @@ enum class PEISA {
     ACCEL_COPY      = 5,
     ACCEL_ROT13     = 6,
     IDE_DEV         = 7,
-    NIC             = 8,
+    NIC_DEV         = 8,
 };
 
 enum PEAttr {
@@ -60,7 +60,7 @@ enum PEAttr {
  * @return the number of supported ISAs
  */
 static constexpr size_t isa_count() {
-    return static_cast<size_t>(PEISA::NIC) + 1;
+    return static_cast<size_t>(PEISA::NIC_DEV) + 1;
 }
 
 /**
@@ -82,8 +82,11 @@ struct PEDesc {
     /**
      * Creates a PE description of given type, ISA and memory size
      */
-    explicit PEDesc(PEType type, PEISA isa, size_t memsize = 0)
-        : _value(static_cast<value_t>(type) | (static_cast<value_t>(isa) << 3) | memsize) {
+    explicit PEDesc(PEType type, PEISA isa, size_t memsize = 0, uint attr = 0)
+        : _value(static_cast<value_t>(type) |
+                (static_cast<value_t>(isa) << 3) |
+                (static_cast<value_t>(attr) << 7) |
+                memsize) {
     }
 
     /**
@@ -121,7 +124,7 @@ struct PEDesc {
      * @return if the PE supports multiple contexts
      */
     bool is_device() const {
-        return isa() == PEISA::NIC || isa() == PEISA::IDE_DEV;
+        return isa() == PEISA::NIC_DEV || isa() == PEISA::IDE_DEV;
     }
 
     /**

@@ -1,5 +1,5 @@
 <config>
-    <kernel args="kernel" />
+    <kernel args="kernel -f $fs.path" />
     <dom>
         <app args="root">
             <dom>
@@ -12,14 +12,14 @@
                 <app args="pager maxcli=2 $fs.size" usermem="768M">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes name="child" type="boom" count="2" />
-                    <dom pe="boom">
+                    <pes type="boom|core" count="2" />
+                    <dom pe="boom|core">
                         <app args="/bin/m3fs -e 64 -c -m 1 mem $fs.size" daemon="1">
                             <serv lname="m3fs" gname="app_m3fs" />
                             <physmem addr="0" size="$fs.size" />
                         </app>
                     </dom>
-                    <dom pe="boom">
+                    <dom pe="boom|core">
                         <app args="/bin/fs">
                             <sess lname="m3fs" gname="app_m3fs" />
                         </app>

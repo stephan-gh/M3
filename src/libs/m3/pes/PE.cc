@@ -20,7 +20,45 @@
 #include <m3/Syscalls.h>
 #include <m3/pes/VPE.h>
 
+#include <iostream>
+#include <sstream>
+
 namespace m3 {
+
+static PEDesc desc_with_properties(PEDesc desc, const std::string &props) {
+    auto res = desc;
+    std::stringstream ss(props);
+    std::string prop;
+    while(std::getline(ss, prop, '+')) {
+        if(prop == "imem")
+            res = PEDesc(PEType::COMP_IMEM, res.isa(), 0);
+        else if(prop == "emem" || prop == "vm")
+            res = PEDesc(PEType::COMP_EMEM, res.isa(), 0);
+        else if(prop == "arm")
+            res = PEDesc(res.type(), PEISA::ARM, 0);
+        else if(prop == "x86")
+            res = PEDesc(res.type(), PEISA::X86, 0);
+        else if(prop == "riscv")
+            res = PEDesc(res.type(), PEISA::RISCV, 0);
+        else if(prop == "rocket")
+            res = PEDesc(res.type(), res.isa(), 0, res.attr() | PEAttr::ROCKET);
+        else if(prop == "boom")
+            res = PEDesc(res.type(), res.isa(), 0, res.attr() | PEAttr::BOOM);
+        else if(prop == "nic")
+            res = PEDesc(res.type(), res.isa(), 0, res.attr() | PEAttr::NIC);
+        else if(prop == "indir")
+            res = PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_INDIR, 0);
+        else if(prop == "copy")
+            res = PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_COPY, 0);
+        else if(prop == "rot13")
+            res = PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_ROT13, 0);
+        else if(prop == "idedev")
+            res = PEDesc(PEType::COMP_IMEM, PEISA::IDE_DEV, 0);
+        else if(prop == "nicdev")
+            res = PEDesc(PEType::COMP_IMEM, PEISA::NIC_DEV, 0);
+    }
+    return res;
+}
 
 PE::~PE() {
     if(_free) {
@@ -33,10 +71,38 @@ PE::~PE() {
     }
 }
 
-Reference<PE> PE::alloc(const char *name) {
+Reference<PE> PE::alloc(const PEDesc &desc) {
     capsel_t sel = VPE::self().alloc_sel();
-    PEDesc res = VPE::self().resmng()->alloc_pe(sel, name);
+    PEDesc res = VPE::self().resmng()->alloc_pe(sel, desc);
     return Reference<PE>(new PE(sel, res, KEEP_CAP, true));
+}
+
+Reference<PE> PE::get(const std::string &desc) {
+    auto own = VPE::self().pe();
+    std::stringstream ss(desc);
+    std::string props;
+    while(std::getline(ss, props, '|')) {
+        if(props == "own") {
+            if(own->desc().supports_pemux() && own->desc().has_virtmem())
+                return own;
+        }
+        else if(props == "clone") {
+            try {
+                return PE::alloc(own->desc());
+            }
+            catch(...) {
+            }
+        }
+        else {
+            auto base = PEDesc(own->desc().type(), own->desc().isa(), 0);
+            try {
+                return PE::alloc(desc_with_properties(base, props));
+            }
+            catch(...) {
+            }
+        }
+    }
+    VTHROW(Errors::NOT_FOUND, "Unable to find PE with " << desc.c_str());
 }
 
 Reference<PE> PE::derive(uint eps) {

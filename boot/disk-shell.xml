@@ -5,7 +5,7 @@
             <dom>
                 <app args="disk -d -i -f $hd.path" daemon="1">
                     <serv name="disk" />
-                    <pes name="idectrl" type="ide" />
+                    <pes type="idedev" />
                 </app>
             </dom>
             <dom>
@@ -22,12 +22,12 @@
             <dom>
                 <app args="pager">
                     <sess name="m3fs" args="files=4" />
-                    <pes name="child" type="core" count="1" />
+                    <pes type="core" count="1" />
                     <dom>
                         <app args="/bin/shell">
                             <mount fs="m3fs" path="/" />
                             <sess name="pipes" />
-                            <pes name="core" type="core" count="3" />
+                            <pes type="core" count="3" />
                         </app>
                     </dom>
                 </app>

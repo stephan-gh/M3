@@ -14,21 +14,15 @@
                 </app>
             </dom>
             <dom>
-                <app args="vterm" daemon="1">
-                    <serv name="vterm" />
-                </app>
-            </dom>
-            <dom>
                 <app args="pager $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes name="child" type="core" count="1" />
-                    <dom>
+                    <pes type="boom|core" count="1" />
+                    <dom pe="boom|core">
                         <app args="/bin/shell cat /test.txt | wc">
                             <mount fs="m3fs" path="/" />
                             <sess name="pipes" />
-                            <sess name="vterm" />
-                            <pes name="core" type="core" count="2" />
+                            <pes type="boom|core" count="2" />
                         </app>
                     </dom>
                 </app>

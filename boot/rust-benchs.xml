@@ -17,12 +17,12 @@
                 <app args="pager $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes name="child" type="core" count="1" />
-                    <dom>
+                    <pes type="boom|core" count="1" />
+                    <dom pe="boom|core">
                         <app args="/bin/rustbenchs">
                             <mount fs="m3fs" path="/" />
                             <sess name="pipes" />
-                            <pes name="child" type="core" count="1" />
+                            <pes type="boom|core" count="1" />
                         </app>
                     </dom>
                 </app>

@@ -12,11 +12,10 @@
                 <app args="pager $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes name="child" type="core" count="1" />
+                    <pes type="core" count="1" />
                     <dom>
                         <app args="/bin/filterchain 16384">
-                            <pes name="sender" type="core" count="1" />
-                            <pes name="receiver" type="core" count="1" />
+                            <pes type="core" count="2" />
                         </app>
                     </dom>
                 </app>

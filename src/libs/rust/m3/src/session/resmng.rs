@@ -172,14 +172,14 @@ impl ResMng {
         send_recv_res!(&self.sgate, RecvGate::def(), ResMngOperation::FREE_MEM, sel).map(|_| ())
     }
 
-    /// Allocates a new processing element with given name and assigns it to selector `sel`.
-    pub fn alloc_pe(&self, sel: Selector, name: &str) -> Result<(PEId, kif::PEDesc), Error> {
+    /// Allocates a new processing element of given type and assigns it to selector `sel`.
+    pub fn alloc_pe(&self, sel: Selector, desc: kif::PEDesc) -> Result<(PEId, kif::PEDesc), Error> {
         let mut reply = send_recv_res!(
             &self.sgate,
             RecvGate::def(),
             ResMngOperation::ALLOC_PE,
             sel,
-            name
+            desc.value()
         )?;
         let pe_id: PEId = reply.pop()?;
         let raw: kif::PEDescRaw = reply.pop()?;

@@ -45,7 +45,7 @@ fn run_stop() {
     ));
     wv_assert_ok!(rg.activate());
 
-    let pe = wv_assert_ok!(PE::new("child"));
+    let pe = wv_assert_ok!(PE::get("clone|own"));
 
     let mut wait_time = 10000;
     for _ in 1..100 {
@@ -84,7 +84,7 @@ fn run_stop() {
 }
 
 fn run_arguments() {
-    let pe = wv_assert_ok!(PE::new("child"));
+    let pe = wv_assert_ok!(PE::get("clone|own"));
     let vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("test")));
 
     let act = wv_assert_ok!(vpe.run(Box::new(|| {
@@ -98,7 +98,7 @@ fn run_arguments() {
 }
 
 fn run_send_receive() {
-    let pe = wv_assert_ok!(PE::new("child"));
+    let pe = wv_assert_ok!(PE::get("clone|own"));
     let mut vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("test")));
 
     let mut rgate = wv_assert_ok!(RecvGate::new(math::next_log2(256), math::next_log2(256)));
@@ -124,7 +124,7 @@ fn run_send_receive() {
 fn exec_fail() {
     use m3::errors::Code;
 
-    let pe = wv_assert_ok!(PE::new("child"));
+    let pe = wv_assert_ok!(PE::get("clone|own"));
     // file too small
     {
         let vpe = wv_assert_ok!(VPE::new_with(pe.clone(), VPEArgs::new("test")));
@@ -141,7 +141,7 @@ fn exec_fail() {
 }
 
 fn exec_hello() {
-    let pe = wv_assert_ok!(PE::new("child"));
+    let pe = wv_assert_ok!(PE::get("clone|own"));
     let vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("test")));
 
     let act = wv_assert_ok!(vpe.exec(&["/bin/hello"]));
@@ -149,7 +149,7 @@ fn exec_hello() {
 }
 
 fn exec_rust_hello() {
-    let pe = wv_assert_ok!(PE::new("child"));
+    let pe = wv_assert_ok!(PE::get("clone|own"));
     let vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("test")));
 
     let act = wv_assert_ok!(vpe.exec(&["/bin/rusthello"]));

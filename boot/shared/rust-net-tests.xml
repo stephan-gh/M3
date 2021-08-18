@@ -9,20 +9,20 @@
             <dom>
                 <app args="net net0 192.168.112.2" daemon="1">
                     <serv name="net0" />
-                    <pes name="nic" type="nic" />
+                    <pes type="nicdev" />
                 </app>
             </dom>
             <dom>
                 <app args="net net1 192.168.112.1" daemon="1">
                     <serv name="net1" />
-                    <pes name="nic" type="nic" />
+                    <pes type="nicdev" />
                 </app>
             </dom>
             <dom>
                 <app args="pager sem=net-udp sem=net-tcp $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes name="child" type="core" count="2" />
+                    <pes type="core" count="2" />
                     <app args="/bin/netechoserver" daemon="1">
                         <sess name="net1" args="bufs=1M socks=2 ports=1337,1338" />
                         <sem name="net-udp" />
@@ -32,7 +32,7 @@
                         <app args="/bin/rustnettests 192.168.112.2 192.168.112.1 192.168.112.1">
                             <sess name="net0" args="bufs=64K socks=2 ports=2000-2001" />
                             <sess name="net1" args="bufs=64K socks=2 ports=3000" />
-                            <pes name="child" type="core" count="1" />
+                            <pes type="core" count="1" />
                             <sem name="net-udp" />
                             <sem name="net-tcp" />
                         </app>

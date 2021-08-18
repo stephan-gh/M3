@@ -17,7 +17,7 @@
 use core::fmt;
 
 use crate::cap::{CapFlags, Capability, Selector};
-use crate::errors::Error;
+use crate::errors::{Code, Error};
 use crate::kif::PEDesc;
 use crate::pes::VPE;
 use crate::rc::Rc;
@@ -33,10 +33,10 @@ pub struct PE {
 }
 
 impl PE {
-    /// Allocates a new PE from the resource manager with given name
-    pub fn new(name: &str) -> Result<Rc<Self>, Error> {
+    /// Allocates a new PE from the resource manager with given description
+    pub fn new(desc: PEDesc) -> Result<Rc<Self>, Error> {
         let sel = VPE::cur().alloc_sel();
-        let (id, ndesc) = VPE::cur().resmng().unwrap().alloc_pe(sel, name)?;
+        let (id, ndesc) = VPE::cur().resmng().unwrap().alloc_pe(sel, desc)?;
         Ok(Rc::new(PE {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
             id,
@@ -53,6 +53,45 @@ impl PE {
             desc,
             free: false,
         }
+    }
+
+    /// Gets a PE with given description.
+    ///
+    /// The description is an '|' separated list of properties that will be tried in order. Two
+    /// special properties are supported:
+    /// - "own" to denote the own PE (provided that it has support for multiple VPEs)
+    /// - "clone" to denote a separate PE that is identical to the own PE
+    ///
+    /// For other properties, see `PEDesc::derive`.
+    ///
+    /// Examples:
+    /// - PE with an arbitrary ISA, but preferred the own: "own|core"
+    /// - Identical PE, but preferred a separate one: "clone|own"
+    /// - BOOM core if available, otherwise any core: "boom|core"
+    /// - BOOM with NIC if available, otherwise a Rocket: "boom+nic|rocket"
+    pub fn get(desc: &str) -> Result<Rc<Self>, Error> {
+        let own = VPE::cur().pe();
+        for props in desc.split('|') {
+            match props {
+                "own" => {
+                    if own.desc().supports_pemux() && own.desc().has_virtmem() {
+                        return Ok(own.clone());
+                    }
+                },
+                "clone" => {
+                    if let Ok(pe) = Self::new(own.desc()) {
+                        return Ok(pe);
+                    }
+                },
+                p => {
+                    let base = PEDesc::new(own.desc().pe_type(), own.desc().isa(), 0);
+                    if let Ok(pe) = Self::new(base.with_properties(p)) {
+                        return Ok(pe);
+                    }
+                },
+            }
+        }
+        Err(Error::new(Code::NotFound))
     }
 
     /// Derives a new PE object from `self` with `eps` EPs, removing them from `self`

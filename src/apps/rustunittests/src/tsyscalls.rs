@@ -297,7 +297,7 @@ fn create_vpe() {
     let sgate = wv_assert_ok!(SendGate::new(&rgate));
     let kmem = VPE::cur().kmem().sel();
 
-    let pe = wv_assert_ok!(PE::new("child"));
+    let pe = wv_assert_ok!(PE::get("clone|own"));
 
     // invalid dest selector
     wv_assert_err!(
@@ -348,7 +348,7 @@ fn alloc_ep() {
     // try to use the EP object after the VPE we allocated it for is gone
     {
         {
-            let pe = wv_assert_ok!(PE::new("child"));
+            let pe = wv_assert_ok!(PE::get("clone"));
             let vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("test")));
             wv_assert_ok!(syscalls::alloc_ep(sel, vpe.sel(), TOTAL_EPS, 1));
         }
@@ -519,7 +519,7 @@ fn derive_kmem() {
 
     let kmem = wv_assert_ok!(VPE::cur().kmem().derive(quota / 2));
     {
-        let pe = wv_assert_ok!(PE::new("child"));
+        let pe = wv_assert_ok!(PE::get("clone"));
         let _vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("test").kmem(kmem.clone())));
         // VPE is still using the kmem
         wv_assert_err!(
@@ -534,7 +534,7 @@ fn derive_kmem() {
 
 fn derive_pe() {
     let sel = VPE::cur().alloc_sel();
-    let pe = wv_assert_ok!(PE::new("child"));
+    let pe = wv_assert_ok!(PE::get("clone"));
     let oquota = wv_assert_ok!(pe.quota());
 
     // invalid dest selector
@@ -619,7 +619,7 @@ fn get_sess() {
     let _sess2 = wv_assert_ok!(ServerSession::new(srv.sel(), 1, 0x1234, false));
 
     // dummy VPE that should receive the session
-    let pe = wv_assert_ok!(PE::new("child"));
+    let pe = wv_assert_ok!(PE::get("clone|own"));
     let vpe = wv_assert_ok!(VPE::new(pe, "test"));
 
     // invalid service selector
@@ -696,7 +696,7 @@ fn vpe_wait() {
 }
 
 fn exchange() {
-    let pe = wv_assert_ok!(PE::new("child"));
+    let pe = wv_assert_ok!(PE::get("clone|own"));
     let mut child = wv_assert_ok!(VPE::new(pe, "test"));
     let csel = child.alloc_sel();
 

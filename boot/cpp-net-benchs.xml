@@ -5,13 +5,13 @@
             <dom>
                 <app args="net net0 192.168.112.2" daemon="1">
                     <serv name="net0" />
-                    <pes name="nic" type="nic" />
+                    <pes type="nicdev" />
                 </app>
             </dom>
             <dom>
                 <app args="net net1 192.168.112.1" daemon="1">
                     <serv name="net1" />
-                    <pes name="nic" type="nic" />
+                    <pes type="nicdev" />
                 </app>
             </dom>
             <dom>

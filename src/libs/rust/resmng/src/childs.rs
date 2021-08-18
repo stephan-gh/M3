@@ -522,18 +522,22 @@ pub trait Child {
         self.delegate(sem.sel(), sel)
     }
 
-    fn alloc_pe(&mut self, sel: Selector, name: &str) -> Result<(tcu::PEId, kif::PEDesc), Error> {
+    fn alloc_pe(
+        &mut self,
+        sel: Selector,
+        desc: kif::PEDesc,
+    ) -> Result<(tcu::PEId, kif::PEDesc), Error> {
         log!(
             crate::LOG_PES,
-            "{}: alloc_pe(sel={}, name={})",
+            "{}: alloc_pe(sel={}, desc={:?})",
             self.name(),
             sel,
-            name
+            desc
         );
 
         let cfg = self.cfg();
-        let idx = cfg.get_pe_idx(name)?;
-        let pe_usage = pes::get().find_and_alloc_named(cfg.pes()[idx].pe_type())?;
+        let idx = cfg.get_pe_idx(desc)?;
+        let pe_usage = pes::get().find_and_alloc(desc)?;
 
         // give this PE access to the same memory regions the child's PE has access to
         // TODO later we could allow childs to customize that

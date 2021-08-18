@@ -18,6 +18,7 @@ use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::Error;
 use m3::int_enum;
+use m3::kif;
 use m3::log;
 use m3::rc::Rc;
 use m3::session::DiskOperation;
@@ -65,7 +66,7 @@ pub struct IDEController {
 impl IDEController {
     pub fn new(use_irq: bool, use_dma: bool) -> Result<Self, Error> {
         // find IDE controller via PCI
-        let pci_dev = Rc::new(pci::Device::new("idectrl")?);
+        let pci_dev = Rc::new(pci::Device::new("idectrl", kif::PEISA::IDE_DEV)?);
         let mut ide_ctrl = pci_dev.get_info()?;
         assert!(ide_ctrl.base_class == IDE_CTRL_CLASS);
         assert!(ide_ctrl.sub_class == IDE_CTRL_SUBCLASS);

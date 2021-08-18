@@ -8,11 +8,11 @@
                     <physmem addr="0" size="$fs.size" />
                 </app>
             </dom>
-            <dom pe="boomnic">
+            <dom pe="boom+nic">
                 <app args="pager maxcli=3 $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes name="child" type="rocket" count="1" />
+                    <pes type="rocket" count="1" />
                     <app args="/bin/net -m 1 net 192.168.42.242" daemon="1">
                         <serv name="net" />
                     </app>
