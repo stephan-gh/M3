@@ -23,7 +23,7 @@ cfg_if! {
     }
     else {
         pub const MAX_PES: usize                    = 9;
-        pub const MAX_VPES: usize                   = 8;
+        pub const MAX_VPES: usize                   = 16;
     }
 }
 
