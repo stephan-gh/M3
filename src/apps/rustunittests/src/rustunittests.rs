@@ -33,7 +33,6 @@ mod tmgate;
 mod tpipe;
 mod trgate;
 mod tsems;
-#[cfg(not(target_vendor = "hw"))]
 mod tserver;
 mod tsgate;
 mod tsyscalls;
@@ -81,8 +80,6 @@ pub fn main() -> i32 {
     wv_run_suite!(tester, trgate::run);
     wv_run_suite!(tester, tsgate::run);
     wv_run_suite!(tester, tsems::run);
-    // unsupported because we don't have a full PEMux (for notifications, ...)
-    #[cfg(not(target_vendor = "hw"))]
     wv_run_suite!(tester, tserver::run);
     wv_run_suite!(tester, tsyscalls::run);
     wv_run_suite!(tester, ttreap::run);
