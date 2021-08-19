@@ -66,16 +66,16 @@ void LevelDBExecutor::print_stats(size_t num_ops) {
     m3::cout << "    Key Value Database Timings for " << num_ops << " operations:\n";
 
     avg = _n_insert > 0 ? _t_insert / _n_insert : 0;
-    m3::cout << "        Insert: " << _t_insert << " cycles,\t avg_time: " << avg << " cycles\n",
+    m3::cout << "        Insert: " << _t_insert << " ns,\t avg_time: " << avg << " ns\n",
 
     avg = _n_read > 0 ? _t_read / _n_read : 0;
-    m3::cout << "        Read:   " << _t_read << " cycles,\t avg_time: " << avg << " cycles\n";
+    m3::cout << "        Read:   " << _t_read << " ns,\t avg_time: " << avg << " ns\n";
 
     avg = _n_update > 0 ? _t_update / _n_update : 0;
-    m3::cout << "        Update: " << _t_update << " cycles,\t avg_time: " << avg << " cycles\n";
+    m3::cout << "        Update: " << _t_update << " ns,\t avg_time: " << avg << " ns\n";
 
     avg = _n_scan > 0 ? _t_scan / _n_scan : 0;
-    m3::cout << "        Scan:   " << _t_scan << " cycles,\t avg_time: " << avg << " cycles\n";
+    m3::cout << "        Scan:   " << _t_scan << " ns,\t avg_time: " << avg << " ns\n";
 }
 
 size_t LevelDBExecutor::execute(Package &pkg) {
@@ -91,23 +91,23 @@ size_t LevelDBExecutor::execute(Package &pkg) {
 
     switch(pkg.op) {
         case Operation::INSERT: {
-            uint64_t start = m3::CPU::elapsed_cycles();
+            uint64_t start = m3::TCU::get().nanotime();
             exec_insert(pkg);
-            _t_insert += m3::CPU::elapsed_cycles() - start;
+            _t_insert += m3::TCU::get().nanotime() - start;
             _n_insert++;
             return 4;
         }
 
         case Operation::UPDATE: {
-            uint64_t start = m3::CPU::elapsed_cycles();
+            uint64_t start = m3::TCU::get().nanotime();
             exec_insert(pkg);
-            _t_update += m3::CPU::elapsed_cycles() - start;
+            _t_update += m3::TCU::get().nanotime() - start;
             _n_update++;
             return 4;
         }
 
         case Operation::READ: {
-            uint64_t start = m3::CPU::elapsed_cycles();
+            uint64_t start = m3::TCU::get().nanotime();
             auto vals = exec_read(pkg);
             size_t bytes = 0;
             for(auto &pair : vals) {
@@ -117,13 +117,13 @@ size_t LevelDBExecutor::execute(Package &pkg) {
                          << "' -> '" << pair.second.c_str() << "'\n";
 #endif
             }
-            _t_read += m3::CPU::elapsed_cycles() - start;
+            _t_read += m3::TCU::get().nanotime() - start;
             _n_read++;
             return bytes;
         }
 
         case Operation::SCAN: {
-            uint64_t start = m3::CPU::elapsed_cycles();
+            uint64_t start = m3::TCU::get().nanotime();
             auto vals = exec_scan(pkg);
             size_t bytes = 0;
             for(auto &pair : vals) {
@@ -133,7 +133,7 @@ size_t LevelDBExecutor::execute(Package &pkg) {
                          << "' -> '" << pair.second.c_str() << "'\n";
 #endif
             }
-            _t_scan += m3::CPU::elapsed_cycles() - start;
+            _t_scan += m3::TCU::get().nanotime() - start;
             _n_scan++;
             return bytes;
         }
