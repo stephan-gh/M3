@@ -16,8 +16,6 @@ dirs = [
     'scale-pipe',
     'tlbmiss',
     'voiceassist',
-    'vpe-clone',
-    'vpe-exec',
     'ycsb',
 ]
 
