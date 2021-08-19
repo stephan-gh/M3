@@ -246,11 +246,29 @@ impl TCU {
     }
 
     pub fn read(ep: EpId, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
-        Self::exec_command(ep, Command::READ, data, size, off as usize, size, 0, 0)
+        Self::perform_transfer(ep, data as usize, size, off, Command::READ)
     }
 
     pub fn write(ep: EpId, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
-        Self::exec_command(ep, Command::WRITE, data, size, off as usize, size, 0, 0)
+        Self::perform_transfer(ep, data as usize, size, off, Command::WRITE)
+    }
+
+    fn perform_transfer(
+        ep: EpId,
+        mut data: usize,
+        mut size: usize,
+        mut off: goff,
+        cmd: Command,
+    ) -> Result<(), Error> {
+        while size > 0 {
+            let amnt = core::cmp::min(size, cfg::PAGE_SIZE - (data & cfg::PAGE_MASK));
+            Self::exec_command(ep, cmd, data as *const u8, amnt, off as usize, amnt, 0, 0)?;
+
+            size -= amnt;
+            data += amnt;
+            off += amnt as goff;
+        }
+        Ok(())
     }
 
     pub fn fetch_msg(ep: EpId) -> Option<usize> {

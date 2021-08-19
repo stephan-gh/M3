@@ -516,6 +516,23 @@ bool TCU::handle_receive(epid_t ep) {
     return true;
 }
 
+Errors::Code TCU::perform_transfer(epid_t ep, uintptr_t data_addr, size_t size,
+                                   goff_t off, int cmd) {
+    while(size > 0) {
+        size_t amount = Math::min(size, PAGE_SIZE - (data_addr & PAGE_MASK));
+        setup_command(ep, cmd, reinterpret_cast<const void*>(data_addr), amount, off,
+                      amount, label_t(), 0);
+        auto res = exec_command();
+        if(res != Errors::NONE)
+            return res;
+
+        size -= amount;
+        data_addr += amount;
+        off += amount;
+    }
+    return Errors::NONE;
+}
+
 Errors::Code TCU::exec_command() {
     while(!is_ready())
         sleep();

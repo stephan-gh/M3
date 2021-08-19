@@ -210,12 +210,10 @@ public:
         return exec_command();
     }
     Errors::Code read(epid_t ep, void *msg, size_t size, size_t off) {
-        setup_command(ep, READ, msg, size, off, size, label_t(), 0);
-        return exec_command();
+        return perform_transfer(ep, reinterpret_cast<uintptr_t>(msg), size, off, READ);
     }
     Errors::Code write(epid_t ep, const void *msg, size_t size, size_t off) {
-        setup_command(ep, WRITE, msg, size, off, size, label_t(), 0);
-        return exec_command();
+        return perform_transfer(ep, reinterpret_cast<uintptr_t>(msg), size, off, WRITE);
     }
 
     bool is_valid(epid_t ep) const {
@@ -346,6 +344,9 @@ private:
     void handle_command(peid_t pe);
     void handle_msg(size_t len, epid_t ep);
     bool handle_receive(epid_t ep);
+
+    Errors::Code perform_transfer(epid_t ep, uintptr_t data_addr, size_t size,
+                                  goff_t off, int cmd);
 
     static Errors::Code check_cmd(epid_t ep, int op, word_t addr, word_t credits,
                                   size_t offset, size_t length);
