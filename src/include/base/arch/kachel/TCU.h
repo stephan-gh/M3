@@ -64,6 +64,7 @@ private:
     static const size_t PRIV_REGS           = 5;
     static const size_t UNPRIV_REGS         = 5;
     static const size_t EP_REGS             = 3;
+    static const size_t PRINT_REGS          = 32;
 
     // actual max is 64k - 1; use less for better alignment
     static const size_t MAX_PKT_SIZE        = 60 * 1024;
@@ -215,7 +216,7 @@ public:
         return read_reg(UnprivRegs::CUR_TIME);
     }
 
-    void print(const char *str, size_t len);
+    size_t print(const char *str, size_t len);
 
 private:
     Errors::Code send(epid_t ep, const MsgBuf &msg, label_t replylbl, epid_t reply_ep);

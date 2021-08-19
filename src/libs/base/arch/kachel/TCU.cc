@@ -25,7 +25,9 @@ namespace m3 {
 
 INIT_PRIO_TCU TCU TCU::inst;
 
-void TCU::print(const char *str, size_t len) {
+size_t TCU::print(const char *str, size_t len) {
+    len = Math::min(len, PRINT_REGS * sizeof(reg_t) - 1);
+
     // make sure the string is aligned for the 8-byte accesses below
     ALIGNED(8) char aligned_buf[len];
     const char *aligned_str = str;
@@ -47,6 +49,7 @@ void TCU::print(const char *str, size_t len) {
     // wait until the print was carried out
     while(read_reg(UnprivRegs::PRINT) != 0)
         ;
+    return len;
 }
 
 Errors::Code TCU::send(epid_t ep, const MsgBuf &msg, label_t replylbl, epid_t reply_ep) {

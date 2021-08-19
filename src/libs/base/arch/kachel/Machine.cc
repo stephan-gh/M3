@@ -38,12 +38,12 @@ void Machine::shutdown() {
 }
 
 ssize_t Machine::write(const char *str, size_t len) {
-    TCU::get().print(str, len);
+    size_t amount = TCU::get().print(str, len);
     if(env()->platform == Platform::GEM5) {
         static const char *fileAddr = "stdout";
-        gem5_writefile(str, len, 0, reinterpret_cast<uint64_t>(fileAddr));
+        gem5_writefile(str, amount, 0, reinterpret_cast<uint64_t>(fileAddr));
     }
-    return static_cast<ssize_t>(len);
+    return static_cast<ssize_t>(amount);
 }
 
 ssize_t Machine::read(char *dst, size_t max) {

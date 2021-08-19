@@ -30,7 +30,7 @@ namespace m3 {
  * Note that it is line-buffered.
  */
 class Serial : public IStream, public OStream {
-    static const size_t OUTBUF_SIZE = Machine::BUF_SIZE;
+    static const size_t OUTBUF_SIZE = 256;
     static const size_t INBUF_SIZE  = 64;
     static const size_t SUFFIX_LEN  = sizeof("\e[0m") - 1;
 

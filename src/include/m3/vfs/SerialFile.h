@@ -51,12 +51,11 @@ public:
     virtual size_t write(const void *buffer, size_t count) override {
         auto buf = reinterpret_cast<const char*>(buffer);
         while(count > 0) {
-            size_t amount = Math::min(Machine::BUF_SIZE, count);
-            int res = Machine::write(buf, amount);
+            ssize_t res = Machine::write(buf, count);
             if(res < 0)
                 throw Exception(static_cast<Errors::Code>(-res));
-            count -= amount;
-            buf += amount;
+            count -= static_cast<size_t>(res);
+            buf += res;
         }
         return static_cast<size_t>(buf - reinterpret_cast<const char*>(buffer));
     }

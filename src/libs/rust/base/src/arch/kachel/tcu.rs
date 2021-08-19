@@ -110,6 +110,8 @@ pub const EXT_REGS: usize = 2;
 pub const UNPRIV_REGS: usize = 5;
 /// The number of registers per EP
 pub const EP_REGS: usize = 3;
+/// The number of PRINT registers
+pub const PRINT_REGS: usize = 32;
 
 int_enum! {
     /// The external registers
@@ -646,9 +648,11 @@ impl TCU {
     }
 
     /// Prints the given message into the gem5 log
-    pub fn print(s: &[u8]) {
+    pub fn print(s: &[u8]) -> usize {
         let regs = EXT_REGS + UNPRIV_REGS + EP_REGS * TOTAL_EPS as usize;
         let mut buffer = MMIO_ADDR + regs * 8;
+
+        let s = &s[0..cmp::min(s.len(), PRINT_REGS * mem::size_of::<Reg>() - 1)];
 
         // copy string into aligned buffer (just to be sure)
         let mut words = [0u64; 32];
@@ -671,6 +675,7 @@ impl TCU {
         Self::write_unpriv_reg(UnprivReg::PRINT, s.len() as u64);
         // wait until the print was carried out
         while Self::read_unpriv_reg(UnprivReg::PRINT) != 0 {}
+        s.len()
     }
 
     /// Translates the offset `off` to the message address, using `base` as the base address of the

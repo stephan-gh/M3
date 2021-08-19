@@ -16,7 +16,6 @@
 
 //! Contains the serial struct
 
-use core::cmp;
 use core::fmt;
 
 use crate::arch;
@@ -26,8 +25,6 @@ use crate::io;
 /// The serial line
 #[derive(Default)]
 pub struct Serial {}
-
-const BUF_SIZE: usize = 256;
 
 impl io::Read for Serial {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
@@ -47,8 +44,7 @@ impl io::Write for Serial {
     fn write(&mut self, mut buf: &[u8]) -> Result<usize, Error> {
         let res = buf.len();
         while !buf.is_empty() {
-            let amount = cmp::min(buf.len(), BUF_SIZE);
-            match arch::serial::write(&buf[0..amount]) {
+            match arch::serial::write(buf) {
                 Err(e) => return Err(e),
                 Ok(n) => buf = &buf[n..],
             }
