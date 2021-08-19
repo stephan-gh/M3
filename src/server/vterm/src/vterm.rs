@@ -116,7 +116,7 @@ impl Channel {
         if self.pos == self.len {
             // safety: will be initialized by read below
             #[allow(clippy::uninit_assumed_init)]
-            let mut buf: [u8; 256] = unsafe { MaybeUninit::uninit().assume_init() };
+            let mut buf: [u8; BUF_SIZE] = unsafe { MaybeUninit::uninit().assume_init() };
             let len = Serial::default().read(&mut buf)?;
             self.our_mem.write(&buf[0..len], mem_off(self.id))?;
             self.len = len;
@@ -172,7 +172,7 @@ impl Channel {
         if nbytes > 0 {
             // safety: will be initialized by read below
             #[allow(clippy::uninit_assumed_init)]
-            let mut buf: [u8; 256] = unsafe { MaybeUninit::uninit().assume_init() };
+            let mut buf: [u8; BUF_SIZE] = unsafe { MaybeUninit::uninit().assume_init() };
             self.our_mem.read(&mut buf[0..nbytes], mem_off(self.id))?;
             Serial::default().write(&buf[0..nbytes])?;
         }
