@@ -21,7 +21,6 @@
 
 #include <m3/ObjCap.h>
 
-#include <string>
 #include <utility>
 
 namespace m3 {
@@ -74,7 +73,7 @@ public:
      *
      * @param desc the textual description of the PE
      */
-    static Reference<PE> get(const std::string &desc);
+    static Reference<PE> get(const char *desc);
 
     /**
      * Binds a PE object to the given selector and PE description

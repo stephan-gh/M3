@@ -20,42 +20,46 @@
 #include <m3/Syscalls.h>
 #include <m3/pes/VPE.h>
 
-#include <iostream>
-#include <sstream>
-
 namespace m3 {
 
-static PEDesc desc_with_properties(PEDesc desc, const std::string &props) {
+constexpr size_t MAX_DESC_LEN = 256;
+
+static PEDesc desc_with_properties(PEDesc desc, const char *props) {
+    char props_cpy[MAX_DESC_LEN];
+    if(strlen(props) >= MAX_DESC_LEN)
+        VTHROW(Errors::NO_SPACE, "PE description too long");
+    strcpy(props_cpy, props);
+
     auto res = desc;
-    std::stringstream ss(props);
-    std::string prop;
-    while(std::getline(ss, prop, '+')) {
-        if(prop == "imem")
+    char *prop = strtok(props_cpy, "+");
+    while(prop != nullptr) {
+        if(strcmp(prop, "imem") == 0)
             res = PEDesc(PEType::COMP_IMEM, res.isa(), 0);
-        else if(prop == "emem" || prop == "vm")
+        else if(strcmp(prop, "emem") == 0 || strcmp(prop, "vm") == 0)
             res = PEDesc(PEType::COMP_EMEM, res.isa(), 0);
-        else if(prop == "arm")
+        else if(strcmp(prop, "arm") == 0)
             res = PEDesc(res.type(), PEISA::ARM, 0);
-        else if(prop == "x86")
+        else if(strcmp(prop, "x86") == 0)
             res = PEDesc(res.type(), PEISA::X86, 0);
-        else if(prop == "riscv")
+        else if(strcmp(prop, "riscv") == 0)
             res = PEDesc(res.type(), PEISA::RISCV, 0);
-        else if(prop == "rocket")
+        else if(strcmp(prop, "rocket") == 0)
             res = PEDesc(res.type(), res.isa(), 0, res.attr() | PEAttr::ROCKET);
-        else if(prop == "boom")
+        else if(strcmp(prop, "boom") == 0)
             res = PEDesc(res.type(), res.isa(), 0, res.attr() | PEAttr::BOOM);
-        else if(prop == "nic")
+        else if(strcmp(prop, "nic") == 0)
             res = PEDesc(res.type(), res.isa(), 0, res.attr() | PEAttr::NIC);
-        else if(prop == "indir")
+        else if(strcmp(prop, "indir") == 0)
             res = PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_INDIR, 0);
-        else if(prop == "copy")
+        else if(strcmp(prop, "copy") == 0)
             res = PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_COPY, 0);
-        else if(prop == "rot13")
+        else if(strcmp(prop, "rot13") == 0)
             res = PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_ROT13, 0);
-        else if(prop == "idedev")
+        else if(strcmp(prop, "idedev") == 0)
             res = PEDesc(PEType::COMP_IMEM, PEISA::IDE_DEV, 0);
-        else if(prop == "nicdev")
+        else if(strcmp(prop, "nicdev") == 0)
             res = PEDesc(PEType::COMP_IMEM, PEISA::NIC_DEV, 0);
+        prop = strtok(NULL, "+");
     }
     return res;
 }
@@ -77,16 +81,20 @@ Reference<PE> PE::alloc(const PEDesc &desc) {
     return Reference<PE>(new PE(sel, res, KEEP_CAP, true));
 }
 
-Reference<PE> PE::get(const std::string &desc) {
+Reference<PE> PE::get(const char *desc) {
+    char desc_cpy[MAX_DESC_LEN];
+    if(strlen(desc) >= MAX_DESC_LEN)
+        VTHROW(Errors::NO_SPACE, "Properties description too long");
+    strcpy(desc_cpy, desc);
+
     auto own = VPE::self().pe();
-    std::stringstream ss(desc);
-    std::string props;
-    while(std::getline(ss, props, '|')) {
-        if(props == "own") {
+    char *props = strtok(desc_cpy, "|");
+    while(props != nullptr) {
+        if(strcmp(props, "own") == 0) {
             if(own->desc().supports_pemux() && own->desc().has_virtmem())
                 return own;
         }
-        else if(props == "clone") {
+        else if(strcmp(props, "clone") == 0) {
             try {
                 return PE::alloc(own->desc());
             }
@@ -101,8 +109,9 @@ Reference<PE> PE::get(const std::string &desc) {
             catch(...) {
             }
         }
+        props = strtok(NULL, "|");
     }
-    VTHROW(Errors::NOT_FOUND, "Unable to find PE with " << desc.c_str());
+    VTHROW(Errors::NOT_FOUND, "Unable to find PE with " << desc);
 }
 
 Reference<PE> PE::derive(uint eps) {
