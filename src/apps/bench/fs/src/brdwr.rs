@@ -30,7 +30,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn read() {
-    let mut buf = &mut BUF.get_mut()[..];
+    let buf = &mut BUF.get_mut()[..];
 
     let mut prof = profile::Profiler::default().repeats(10).warmup(4);
 
@@ -40,7 +40,7 @@ fn read() {
             || {
                 let mut file = wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
                 loop {
-                    let amount = wv_assert_ok!(file.read(&mut buf));
+                    let amount = wv_assert_ok!(file.read(buf));
                     if amount == 0 {
                         break;
                     }
@@ -68,7 +68,7 @@ fn write() {
 
                 let mut total = 0;
                 while total < SIZE {
-                    let amount = wv_assert_ok!(file.write(&buf));
+                    let amount = wv_assert_ok!(file.write(buf));
                     if amount == 0 {
                         break;
                     }
