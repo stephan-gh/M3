@@ -21,40 +21,53 @@
 extern crate m3;
 
 use m3::{
+    col::Vec,
     com::Semaphore,
     env,
-    net::{Endpoint, IpAddr, StreamSocketArgs, TcpSocket},
+    net::{DgramSocketArgs, Endpoint, IpAddr, Port, StreamSocketArgs, TcpSocket, UdpSocket},
     println,
     session::NetworkManager,
-    tcu::TCU,
     vfs::{BufReader, OpenFlags},
 };
 
 mod importer;
 
+const VERBOSE: bool = false;
+
 fn usage() {
-    println!("Usage: {} <workload>", env::args().next().unwrap());
+    let name = env::args().next().unwrap();
+    println!("Usage: {} tcp <ip> <port> <workload>", name);
+    println!("Usage: {} udp <port>", name);
     m3::exit(1);
 }
 
-#[no_mangle]
-pub fn main() -> i32 {
-    if env::args().len() < 2 {
-        usage();
+fn udp_receiver(nm: &NetworkManager, port: Port) {
+    let mut socket = UdpSocket::new(
+        DgramSocketArgs::new(&nm)
+            .send_buffer(2, 1024)
+            .recv_buffer(128, 768 * 1024),
+    )
+    .expect("Could not create TCP socket");
+
+    socket.bind(port).expect("Could not bind socket");
+
+    let mut buf = vec![0u8; 1024];
+    loop {
+        let amount = socket.recv(&mut buf).expect("Receive failed");
+        if VERBOSE {
+            println!("Received {} bytes.", amount);
+        }
     }
+}
 
-    let prg_start = TCU::nanotime();
-
+fn tcp_sender(nm: &NetworkManager, ip: IpAddr, port: Port, wl: &str) {
     // Mount fs to load binary data
     m3::vfs::VFS::mount("/", "m3fs", "m3fs").expect("Failed to mount root filesystem on server");
 
     // open workload file
-    let workload_file = env::args().nth(1).unwrap();
-    let workload = m3::vfs::VFS::open(workload_file, OpenFlags::R).expect("Could not open file");
+    let workload = m3::vfs::VFS::open(wl, OpenFlags::R).expect("Could not open file");
 
     // Connect to server
-    let startup_start = TCU::nanotime();
-    let nm = NetworkManager::new("net").expect("Could not connect to network manager");
     let mut socket = TcpSocket::new(
         StreamSocketArgs::new(&nm)
             .send_buffer(64 * 1024)
@@ -65,62 +78,87 @@ pub fn main() -> i32 {
     // Wait for server to listen
     Semaphore::attach("net").unwrap().down().unwrap();
     socket
-        .connect(Endpoint::new(IpAddr::new(127, 0, 0, 1), 1337))
-        .expect("Unable to connect to 127.0.0.1:1337");
-
-    let startup = TCU::nanotime() - startup_start;
+        .connect(Endpoint::new(ip, port))
+        .expect(&format!("Unable to connect to {}:{}", ip, port));
 
     // Load workload info for the benchmark
     let mut workload_buffer = BufReader::new(workload);
     let workload_header = importer::WorkloadHeader::load_from_file(&mut workload_buffer);
 
-    let mut send_time: u64 = 0;
-    let mut num_send_bytes: u64 = 0;
-
-    let com_start = TCU::nanotime();
-
-    for idx in 0..workload_header.number_of_operations {
+    for _ in 0..workload_header.number_of_operations {
         let operation = importer::Package::load_as_bytes(&mut workload_buffer);
-        num_send_bytes += operation.len() as u64;
         debug_assert!(importer::Package::from_bytes(&operation).is_ok());
 
-        let this_send = TCU::nanotime();
+        if VERBOSE {
+            println!("Sending operation...");
+        }
 
         socket
             .send(&(operation.len() as u32).to_be_bytes())
             .expect("send failed");
         socket.send(&operation).expect("send failed");
-        send_time += TCU::nanotime() - this_send;
 
-        if (idx + 1) % 16 == 0 {
-            socket.recv(&mut [0u8; 1]).expect("receive failed");
+        if VERBOSE {
+            println!("Receiving response...");
+        }
+
+        let mut resp_bytes = [0u8; 8];
+        socket
+            .recv(&mut resp_bytes)
+            .expect("receive response header failed");
+        let resp_len = u64::from_be_bytes(resp_bytes);
+
+        if VERBOSE {
+            println!("Expecting {} byte response.", resp_len);
+        }
+
+        let mut response = vec![0u8; resp_len as usize];
+        let mut rem = resp_len as usize;
+        while rem > 0 {
+            let amount = socket
+                .recv(&mut response[resp_len as usize - rem..])
+                .expect("receive response failed");
+            rem -= amount;
+        }
+
+        if VERBOSE {
+            println!("Got response.");
         }
     }
-    let com_time = TCU::nanotime() - com_start;
 
     let end_msg = b"ENDNOW";
     socket.send(&(end_msg.len() as u32).to_be_bytes()).unwrap();
     socket.send(end_msg).unwrap();
+}
 
-    println!("----YCSB benchmark----");
-    println!("Client Side:");
-    println!(
-        "    Whole benchmark took      {:.4}ns",
-        TCU::nanotime() - prg_start
-    );
-    println!("    Startup took:             {}ns", startup);
-    println!(
-        "    Avg sender time:   {:.4}ns",
-        com_time / workload_header.number_of_operations as u64
-    );
-    println!(
-        "    Avg send time: {:.4}ns",
-        send_time / workload_header.number_of_operations as u64
-    );
-    println!(
-        "    Throughput:               {}b/ns",
-        num_send_bytes / send_time
-    );
-    println!("    Send Data                 {}b", num_send_bytes);
+#[no_mangle]
+pub fn main() -> i32 {
+    let args: Vec<_> = env::args().collect();
+    if args.len() < 2 {
+        usage();
+    }
+
+    let nm = NetworkManager::new("net").expect("Could not connect to network manager");
+
+    if args[1] == "udp" {
+        if args.len() != 3 {
+            usage();
+        }
+
+        let port = args[2].parse::<Port>().expect("Failed to parse port");
+        udp_receiver(&nm, port);
+    }
+    else {
+        if args.len() != 5 {
+            usage();
+        }
+
+        let ip = args[2]
+            .parse::<IpAddr>()
+            .expect("Failed to parse IP address");
+        let port = args[3].parse::<Port>().expect("Failed to parse port");
+        tcp_sender(&nm, ip, port, args[4]);
+    }
+
     0
 }

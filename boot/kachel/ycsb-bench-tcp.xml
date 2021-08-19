@@ -25,14 +25,15 @@
                         </app>
                     </dom>
                     <dom>
-                        <app args="/bin/lvldbserver 127.0.0.1 1337 /data/small-workload.wl /tmp/foo 10">
-                            <sess name="net" args="bufs=1M socks=1 ports=2000" />
+                        <app args="/bin/lvldbserver /tmp/foo 1 tcp 1337">
+                            <sess name="net" args="bufs=1M socks=1 ports=1337" />
                             <sess lname="m3fs" gname="app_m3fs" />
+                            <sem name="net" />
                         </app>
                     </dom>
                     <dom>
-                        <app args="/bin/ycsbclient /data/workload.wl">
-                            <sess name="net" args="bufs=1M socks=1 ports=1337" />
+                        <app args="/bin/ycsbclient tcp 127.0.0.1 1337 /data/small-workload.wl" daemon="1">
+                            <sess name="net" args="bufs=1M socks=1" />
                             <sess lname="m3fs" gname="app_m3fs" />
                             <sem name="net" />
                         </app>

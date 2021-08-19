@@ -1,0 +1,90 @@
+/*
+ * Copyright (C) 2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Economic rights: Technische Universitaet Dresden (Germany)
+ *
+ * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
+ *
+ * M3 is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * M3 is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License version 2 for more details.
+ */
+
+#pragma once
+
+#include <m3/net/Net.h>
+#include <m3/net/TcpSocket.h>
+#include <m3/net/UdpSocket.h>
+#include <m3/session/NetworkManager.h>
+
+#include "ops.h"
+
+#if defined(__kachel__)
+#   define SYSC_RECEIVE     0xFFFF
+#   define SYSC_SEND        0xFFFE
+extern "C" void __m3_sysc_trace(bool enable, size_t max);
+extern "C" void __m3_sysc_trace_start(long n);
+extern "C" void __m3_sysc_trace_stop();
+extern "C" uint64_t __m3_sysc_systime();
+#else
+void __m3_sysc_trace(bool, size_t) {}
+void __m3_sysc_trace_start(long) {}
+void __m3_sysc_trace_stop() {}
+uint64_t __m3_sysc_systime() { return 0; }
+#endif
+
+class OpHandler {
+public:
+    enum Result {
+        READY,
+        INCOMPLETE,
+        STOP,
+    };
+
+    virtual ~OpHandler() {}
+
+    virtual Result receive(Package &pkg) = 0;
+    virtual bool respond(size_t bytes);
+    virtual void reset() {}
+
+    virtual ssize_t send(const void *data, size_t len) = 0;
+
+    static uint64_t read_u64(const uint8_t *bytes);
+    static size_t from_bytes(uint8_t *package_buffer, size_t package_size, Package &pkg);
+};
+
+class TCPOpHandler : public OpHandler {
+public:
+    explicit TCPOpHandler(m3::NetworkManager &nm, m3::port_t port);
+    ~TCPOpHandler() {
+    }
+
+    virtual Result receive(Package &pkg) override;
+
+private:
+    ssize_t send(const void *data, size_t len) override;
+    ssize_t receive(void *data, size_t max);
+
+    m3::Reference<m3::TcpSocket> _socket;
+};
+
+class UDPOpHandler : public OpHandler {
+public:
+    explicit UDPOpHandler(m3::NetworkManager &nm, const char *workload, m3::IpAddr ip, m3::port_t port);
+    ~UDPOpHandler();
+
+    virtual Result receive(Package &pkg) override;
+    virtual void reset() override;
+
+private:
+    ssize_t send(const void *data, size_t len) override;
+
+    uint64_t _ops;
+    uint64_t _total_ops;
+    m3::Endpoint _ep;
+    m3::Reference<m3::UdpSocket> _socket;
+};
