@@ -518,7 +518,9 @@ pub trait Child {
         let cfg = self.cfg();
         let sdesc = cfg.get_sem(name).ok_or_else(|| Error::new(Code::InvArgs))?;
 
-        let sem = sems::get().get(sdesc.name().global()).unwrap();
+        let sem = sems::get()
+            .get(sdesc.name().global())
+            .ok_or_else(|| Error::new(Code::NotFound))?;
         self.delegate(sem.sel(), sel)
     }
 
