@@ -440,6 +440,8 @@ impl TCU {
         );
 
         let res = Self::perform_transfer(ep, data as usize, size, off, CmdOpCode::READ);
+        // ensure that the CPU is not reading the read data before the TCU is finished
+        // note that x86 needs SeqCst here, because the Acquire/Release fence is implemented empty
         atomic::fence(atomic::Ordering::SeqCst);
         res
     }
@@ -456,6 +458,8 @@ impl TCU {
             off
         );
 
+        // ensure that the TCU is not reading the data before the CPU has written everything
+        atomic::fence(atomic::Ordering::SeqCst);
         Self::perform_transfer(ep, data as usize, size, off, CmdOpCode::WRITE)
     }
 

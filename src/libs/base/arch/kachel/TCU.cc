@@ -92,11 +92,14 @@ Errors::Code TCU::perform_send_reply(uintptr_t addr, reg_t cmd) {
 
 Errors::Code TCU::read(epid_t ep, void *data, size_t size, goff_t off) {
     auto res = perform_transfer(ep, reinterpret_cast<uintptr_t>(data), size, off, CmdOpCode::READ);
+    // ensure that the CPU is not reading the read data before the TCU is finished
     CPU::memory_barrier();
     return res;
 }
 
 Errors::Code TCU::write(epid_t ep, const void *data, size_t size, goff_t off) {
+    // ensure that the TCU is not reading the data before the CPU has written everything
+    CPU::memory_barrier();
     return perform_transfer(ep, reinterpret_cast<uintptr_t>(data), size, off, CmdOpCode::WRITE);
 }
 
