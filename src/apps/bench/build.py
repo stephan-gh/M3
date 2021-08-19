@@ -1,7 +1,6 @@
 dirs = [
     'accelchain',
     'bench-apps',
-    'compute',
     'cppbenchs',
     'cppnetbenchs',
     'fs',
