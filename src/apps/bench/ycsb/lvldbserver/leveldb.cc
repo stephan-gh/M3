@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
 
     VFS::mount("/", "m3fs", "m3fs");
 
-    NetworkManager net("net0");
+    NetworkManager net("net");
 
     auto socket = UdpSocket::create(net, DgramSocketArgs().send_buffer(4, 16 * 1024)
                                                           .recv_buffer(64, 512 * 1024));

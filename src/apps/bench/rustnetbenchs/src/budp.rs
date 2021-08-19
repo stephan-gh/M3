@@ -35,7 +35,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn latency() {
-    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+    let nm = wv_assert_ok!(NetworkManager::new("net"));
     let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(&nm)));
 
     wv_assert_ok!(socket.bind(2000));
@@ -86,7 +86,7 @@ fn bandwidth() {
     const BURST_SIZE: usize = 2;
     const TIMEOUT: u64 = 1_000_000_000; // 1sec
 
-    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+    let nm = wv_assert_ok!(NetworkManager::new("net"));
     let mut socket = wv_assert_ok!(UdpSocket::new(
         DgramSocketArgs::new(&nm)
             .send_buffer(8, 64 * 1024)

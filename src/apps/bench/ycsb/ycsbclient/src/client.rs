@@ -54,7 +54,7 @@ pub fn main() -> i32 {
 
     // Connect to server
     let startup_start = TCU::nanotime();
-    let nm = NetworkManager::new("net0").expect("Could not connect to network manager");
+    let nm = NetworkManager::new("net").expect("Could not connect to network manager");
     let mut socket = TcpSocket::new(
         StreamSocketArgs::new(&nm)
             .send_buffer(64 * 1024)

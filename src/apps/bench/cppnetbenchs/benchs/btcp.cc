@@ -29,7 +29,7 @@
 using namespace m3;
 
 NOINLINE static void latency() {
-    NetworkManager net("net0");
+    NetworkManager net("net");
 
     auto socket = TcpSocket::create(net);
 
@@ -87,7 +87,7 @@ NOINLINE static void bandwidth() {
     const size_t BURST_SIZE = 2;
     const uint64_t TIMEOUT = 1000000000; // 1sec
 
-    NetworkManager net("net0");
+    NetworkManager net("net");
 
     auto socket = TcpSocket::create(net, StreamSocketArgs().send_buffer(64 * 1024)
                                                              .recv_buffer(256 * 1024));

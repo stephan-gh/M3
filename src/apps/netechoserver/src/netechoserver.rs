@@ -22,7 +22,7 @@ use m3::session::{NetworkDirection, NetworkManager};
 
 #[no_mangle]
 pub fn main() -> i32 {
-    let nm = NetworkManager::new("net1").expect("connecting to net1 failed");
+    let nm = NetworkManager::new("net").expect("connecting to net failed");
 
     let mut udp_socket = UdpSocket::new(
         DgramSocketArgs::new(&nm)

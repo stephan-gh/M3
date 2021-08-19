@@ -39,7 +39,7 @@ union {
 } response;
 
 NOINLINE static void latency() {
-    NetworkManager net("net0");
+    NetworkManager net("net");
 
     auto socket = UdpSocket::create(net);
 
@@ -92,7 +92,7 @@ NOINLINE static void latency() {
 }
 
 NOINLINE static void bandwidth() {
-    NetworkManager net("net0");
+    NetworkManager net("net");
 
     auto socket = UdpSocket::create(net, DgramSocketArgs().send_buffer(8, 64 * 1024)
                                                             .recv_buffer(32, 256 * 1024));

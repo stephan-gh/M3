@@ -9,14 +9,14 @@
             </dom>
             <dom>
                 <app args="netechoserver" daemon="1">
-                    <sess lname="net1" gname="net" args="bufs=1M socks=2 ports=1337,1338" />
+                    <sess name="net" args="bufs=1M socks=2 ports=1337,1338" />
                     <sem name="net-udp" />
                     <sem name="net-tcp" />
                 </app>
             </dom>
             <dom>
                 <app args="rustnetbenchs 127.0.0.1">
-                    <sess lname="net0" gname="net" args="bufs=1M socks=2 ports=2000-2001" />
+                    <sess name="net" args="bufs=1M socks=2 ports=2000-2001" />
                     <sem name="net-udp" />
                     <sem name="net-tcp" />
                 </app>
