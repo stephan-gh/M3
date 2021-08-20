@@ -58,17 +58,17 @@ NOINLINE static void latency() {
     const size_t packet_size[] = {8, 16, 32, 64, 128, 256, 512, 1024};
 
     for(auto pkt_size : packet_size) {
-        Results res(samples);
+        Results<MicroResult> res(samples);
 
         while(res.runs() < samples) {
-            cycles_t start = Time::start(0);
+            uint64_t start = TCU::get().nanotime();
 
             request.time = start;
             ssize_t send_len = socket->send_to(request.raw, pkt_size, dest);
             ssize_t recv_len = socket->recv_from(response.raw, pkt_size, &src);
             if(recv_len == -1)
                 exitmsg("Got empty package!");
-            cycles_t stop = Time::stop(0);
+            uint64_t stop = TCU::get().nanotime();
 
             if(static_cast<size_t>(send_len) != pkt_size)
                 exitmsg("Send failed, expected " << pkt_size << ", got " << send_len);
@@ -78,16 +78,12 @@ NOINLINE static void latency() {
                 exitmsg("Receive failed, expected " << pkt_size << ", got " << recv_len);
             }
 
-            cout << "RTT (" << pkt_size << "b): "
-                 << stop - start << " cycles / " << (stop - start) / 3e6f << " ms (@3GHz) \n";
+            cout << "RTT (" << pkt_size << "b): " << ((stop - start) / 1000) << " us\n";
 
             res.push(stop - start);
         }
 
-        OStringStream name;
-        name << "network latency (" << pkt_size << "b)";
-        WVPERF(name.str(), (res.avg() / 3e6f) << " ms (+/- " << (res.stddev() / 3e6f) << " with "
-                                              << res.runs() << " runs)\n");
+        WVPERF("network latency (" << pkt_size << "b)", res);
     }
 }
 

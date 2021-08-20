@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
 
     if(VERBOSE) cout << "Creating application VPEs...\n";
 
-    Results res(static_cast<ulong>(repeats));
+    Results<> res(static_cast<ulong>(repeats));
 
     int exitcode = 0;
     for(int j = 0; j < warmup + repeats; ++j) {

@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
 
     const char *in = argv[CmdArgs::ind];
 
-    Results res(repeats);
+    Results<> res(repeats);
     for(ulong i = 0; i < repeats + warmup; ++i) {
         cycles_t time;
         if(mode == Mode::INDIR)

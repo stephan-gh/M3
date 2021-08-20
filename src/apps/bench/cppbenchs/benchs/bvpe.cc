@@ -43,7 +43,7 @@ NOINLINE static void run() {
     auto sgate = SendGate::create(&rgate, SendGateArgs().credits(SendGate::UNLIMITED));
 
     auto pe = PE::get("clone|own");
-    Results res(warmup + repeats);
+    Results<> res(warmup + repeats);
     for(ulong i = 0; i < warmup + repeats; ++i) {
         VPE vpe(pe, "hello");
 

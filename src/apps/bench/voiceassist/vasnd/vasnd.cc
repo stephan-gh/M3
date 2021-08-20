@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
     Syscalls::reset_stats();
     uint64_t wall_start = TCU::get().nanotime();
 
-    Results res(REPEATS);
+    Results<NanoResult> res(REPEATS);
     for(int i = 0; i < REPEATS; ++i)
         res.push(forward_audio(vamic, mem, out, dest, socket));
     m3::cout << "Runtime: " << res.avg() << " " << res.stddev() << "\n";

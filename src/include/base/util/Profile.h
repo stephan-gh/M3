@@ -28,52 +28,90 @@ namespace m3 {
 
 class Profile;
 
-class Results {
+struct CycleResult {
+    using time_t = cycles_t;
+
+    const char *name() const {
+        return "cycles";
+    }
+    time_t get_result(time_t time) const {
+        return time;
+    }
+};
+
+struct NanoResult {
+    using time_t = uint64_t;
+
+    const char *name() const {
+        return "ns";
+    }
+    time_t get_result(time_t time) const {
+        return time;
+    }
+};
+
+struct MicroResult {
+    using time_t = uint64_t;
+
+    const char *name() const {
+        return "us";
+    }
+    time_t get_result(time_t time) const {
+        return time / 1000;
+    }
+};
+
+template<typename T = CycleResult>
+class Results : public T {
     friend class Profile;
 
 public:
+    using time_t = typename T::time_t;
+
     explicit Results(size_t runs)
         : _runs(0),
-          _times(new cycles_t[runs]) {
+          _times(new time_t[runs]) {
     }
 
     size_t runs() const {
         return _runs;
     }
 
-    cycles_t avg() const {
-        cycles_t sum = 0;
+    time_t avg() const {
+        time_t sum = 0;
         for(size_t i = 0; i < _runs; ++i)
             sum += _times[i];
-        return _runs == 0 ? 0 : sum / _runs;
+        return _runs == 0 ? 0 : this->get_result(sum / _runs);
     }
 
     float stddev() const {
-        cycles_t sum = 0;
-        cycles_t average = avg();
+        time_t sum = 0;
+        time_t average = avg();
         for(size_t i = 0; i < _runs; ++i) {
             size_t val;
-            if(_times[i] < average)
-                val = average - _times[i];
+            time_t time_i = this->get_result(_times[i]);
+            if(time_i < average)
+                val = average - time_i;
             else
-                val = _times[i] - average;
+                val = time_i - average;
             sum += val * val;
         }
         return _runs == 0 ? 0 : Math::sqrt((float)sum / _runs);
     }
 
     friend OStream &operator<<(OStream &os, const Results &r) {
-        os << r.avg() << " cycles (+/- " << r.stddev() << " with " << r.runs() << " runs)";
+        os << r.avg() << " " << r.name()
+           << " (+/- " << r.stddev() << " with " << r.runs() << " runs)";
         return os;
     }
 
-    void push(cycles_t time) {
+    void push(time_t time) {
         _times[_runs++] = time;
     }
 
 private:
     size_t _runs;
-    std::unique_ptr<cycles_t[]> _times;
+    std::unique_ptr<time_t[]> _times;
 };
 
 struct Runner {
@@ -94,13 +132,13 @@ public:
     }
 
     template<typename F>
-    ALWAYS_INLINE Results run(F func) const {
+    ALWAYS_INLINE Results<> run(F func) const {
         return run_with_id(func, 0);
     }
 
     template<typename F>
-    ALWAYS_INLINE Results run_with_id(F func, unsigned id) const {
-        Results res(_warmup + _repeats);
+    ALWAYS_INLINE Results<> run_with_id(F func, unsigned id) const {
+        Results<> res(_warmup + _repeats);
         for(ulong i = 0; i < _warmup + _repeats; ++i) {
             auto start = Time::start(id);
             func();
@@ -113,8 +151,8 @@ public:
     }
 
     template<class R>
-    ALWAYS_INLINE Results runner_with_id(R &runner, unsigned id) const {
-        Results res(_warmup + _repeats);
+    ALWAYS_INLINE Results<> runner_with_id(R &runner, unsigned id) const {
+        Results<> res(_warmup + _repeats);
         for(ulong i = 0; i < _warmup + _repeats; ++i) {
             runner.pre();
 

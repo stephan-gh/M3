@@ -51,10 +51,10 @@ NOINLINE static void latency() {
     const size_t packet_size[] = {8, 16, 32, 64, 128, 256, 512, 1024};
 
     for(auto pkt_size : packet_size) {
-        Results res(samples);
+        Results<MicroResult> res(samples);
 
         while(res.runs() < samples) {
-            cycles_t start = Time::start(0);
+            uint64_t start = TCU::get().nanotime();
 
             socket->send(buffer, pkt_size);
             size_t received = 0;
@@ -65,18 +65,13 @@ NOINLINE static void latency() {
                 received += static_cast<size_t>(res);
             }
 
-            cycles_t stop = Time::stop(0);
-
-            cout << "RTT (" << pkt_size << "b): "
-                 << stop - start << " cycles / " << (stop - start) / 3e6f << " ms (@3GHz) \n";
+            uint64_t stop = TCU::get().nanotime();
+            cout << "RTT (" << pkt_size << "b): " << ((stop - start) / 1000) << " us\n";
 
             res.push(stop - start);
         }
 
-        OStringStream name;
-        name << "network latency (" << pkt_size << "b)";
-        WVPERF(name.str(), (res.avg() / 3e6f) << " ms (+/- " << (res.stddev() / 3e6f) << " with "
-                                              << res.runs() << " runs)\n");
+        WVPERF("network latency (" << pkt_size << "b)", res);
     }
 
     socket->close();
