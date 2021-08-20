@@ -36,7 +36,7 @@ const VERBOSE: bool = false;
 
 fn usage() {
     let name = env::args().next().unwrap();
-    println!("Usage: {} tcp <ip> <port> <workload>", name);
+    println!("Usage: {} tcp <ip> <port> <workload> <repeats>", name);
     println!("Usage: {} udp <port>", name);
     m3::exit(1);
 }
@@ -60,12 +60,9 @@ fn udp_receiver(nm: &NetworkManager, port: Port) {
     }
 }
 
-fn tcp_sender(nm: &NetworkManager, ip: IpAddr, port: Port, wl: &str) {
+fn tcp_sender(nm: &NetworkManager, ip: IpAddr, port: Port, wl: &str, repeats: u32) {
     // Mount fs to load binary data
     m3::vfs::VFS::mount("/", "m3fs", "m3fs").expect("Failed to mount root filesystem on server");
-
-    // open workload file
-    let workload = m3::vfs::VFS::open(wl, OpenFlags::R).expect("Could not open file");
 
     // Connect to server
     let mut socket = TcpSocket::new(
@@ -81,54 +78,59 @@ fn tcp_sender(nm: &NetworkManager, ip: IpAddr, port: Port, wl: &str) {
         .connect(Endpoint::new(ip, port))
         .expect(&format!("Unable to connect to {}:{}", ip, port));
 
-    // Load workload info for the benchmark
-    let mut workload_buffer = BufReader::new(workload);
-    let workload_header = importer::WorkloadHeader::load_from_file(&mut workload_buffer);
+    for _ in 0..repeats {
+        // open workload file
+        let workload = m3::vfs::VFS::open(wl, OpenFlags::R).expect("Could not open file");
 
-    for _ in 0..workload_header.number_of_operations {
-        let operation = importer::Package::load_as_bytes(&mut workload_buffer);
-        debug_assert!(importer::Package::from_bytes(&operation).is_ok());
+        // Load workload info for the benchmark
+        let mut workload_buffer = BufReader::new(workload);
+        let workload_header = importer::WorkloadHeader::load_from_file(&mut workload_buffer);
 
-        if VERBOSE {
-            println!("Sending operation...");
+        for _ in 0..workload_header.number_of_operations {
+            let operation = importer::Package::load_as_bytes(&mut workload_buffer);
+            debug_assert!(importer::Package::from_bytes(&operation).is_ok());
+
+            if VERBOSE {
+                println!("Sending operation...");
+            }
+
+            socket
+                .send(&(operation.len() as u32).to_be_bytes())
+                .expect("send failed");
+            socket.send(&operation).expect("send failed");
+
+            if VERBOSE {
+                println!("Receiving response...");
+            }
+
+            let mut resp_bytes = [0u8; 8];
+            socket
+                .recv(&mut resp_bytes)
+                .expect("receive response header failed");
+            let resp_len = u64::from_be_bytes(resp_bytes);
+
+            if VERBOSE {
+                println!("Expecting {} byte response.", resp_len);
+            }
+
+            let mut response = vec![0u8; resp_len as usize];
+            let mut rem = resp_len as usize;
+            while rem > 0 {
+                let amount = socket
+                    .recv(&mut response[resp_len as usize - rem..])
+                    .expect("receive response failed");
+                rem -= amount;
+            }
+
+            if VERBOSE {
+                println!("Got response.");
+            }
         }
 
-        socket
-            .send(&(operation.len() as u32).to_be_bytes())
-            .expect("send failed");
-        socket.send(&operation).expect("send failed");
-
-        if VERBOSE {
-            println!("Receiving response...");
-        }
-
-        let mut resp_bytes = [0u8; 8];
-        socket
-            .recv(&mut resp_bytes)
-            .expect("receive response header failed");
-        let resp_len = u64::from_be_bytes(resp_bytes);
-
-        if VERBOSE {
-            println!("Expecting {} byte response.", resp_len);
-        }
-
-        let mut response = vec![0u8; resp_len as usize];
-        let mut rem = resp_len as usize;
-        while rem > 0 {
-            let amount = socket
-                .recv(&mut response[resp_len as usize - rem..])
-                .expect("receive response failed");
-            rem -= amount;
-        }
-
-        if VERBOSE {
-            println!("Got response.");
-        }
+        let end_msg = b"ENDNOW";
+        socket.send(&(end_msg.len() as u32).to_be_bytes()).unwrap();
+        socket.send(end_msg).unwrap();
     }
-
-    let end_msg = b"ENDNOW";
-    socket.send(&(end_msg.len() as u32).to_be_bytes()).unwrap();
-    socket.send(end_msg).unwrap();
 }
 
 #[no_mangle]
@@ -149,7 +151,7 @@ pub fn main() -> i32 {
         udp_receiver(&nm, port);
     }
     else {
-        if args.len() != 5 {
+        if args.len() != 6 {
             usage();
         }
 
@@ -157,7 +159,8 @@ pub fn main() -> i32 {
             .parse::<IpAddr>()
             .expect("Failed to parse IP address");
         let port = args[3].parse::<Port>().expect("Failed to parse port");
-        tcp_sender(&nm, ip, port, args[4]);
+        let repeats = args[5].parse::<u32>().expect("Failed to parse repeats");
+        tcp_sender(&nm, ip, port, args[4], repeats);
     }
 
     0

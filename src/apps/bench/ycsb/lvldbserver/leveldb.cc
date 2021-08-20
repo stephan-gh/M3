@@ -19,10 +19,12 @@
 #include <string>
 
 #include <base/stream/IStringStream.h>
+#include <base/util/Profile.h>
 
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/VFS.h>
+#include <m3/Test.h>
 
 #include "leveldb/db.h"
 #include "leveldb/write_batch.h"
@@ -62,6 +64,7 @@ int main(int argc, char** argv) {
 
     cout << "Starting Benchmark:\n";
 
+    Results<MicroResult> res(static_cast<size_t>(repeats));
     for(int i = 0; i < repeats; ++i) {
         uint64_t opcounter = 0;
 
@@ -101,7 +104,10 @@ int main(int argc, char** argv) {
 
         cout << "Server Side:\n";
         exec->print_stats(opcounter);
+        res.push(end - start);
     }
+
+    WVPERF("YCSB with " << argv[3], res);
 
     delete hdl;
 

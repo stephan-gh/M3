@@ -25,7 +25,7 @@
                         </app>
                     </dom>
                     <dom>
-                        <app args="/bin/lvldbserver /tmp/foo 1 udp 127.0.0.1 1337 /data/small-workload.wl">
+                        <app args="/bin/lvldbserver /tmp/foo 4 udp 127.0.0.1 1337 /data/small-workload.wl">
                             <sess name="net" args="bufs=1M socks=1 ports=2000" />
                             <sess lname="m3fs" gname="app_m3fs" />
                             <sem name="net" />
