@@ -72,8 +72,8 @@ pub fn send_gate() -> &'static SendGate {
 /// Creates a new service named `name` at selector `dst`. The receive gate `rgate` will be used for
 /// service calls from the kernel to the server.
 pub fn create_srv(dst: Selector, rgate: Selector, name: &str, creator: Label) -> Result<(), Error> {
-    let mut buf = SYSC_BUF.get_mut();
-    syscalls::CreateSrv::fill_msgbuf(&mut buf, dst, rgate, name, creator);
+    let buf = SYSC_BUF.get_mut();
+    syscalls::CreateSrv::fill_msgbuf(buf, dst, rgate, name, creator);
     send_receive_result(&buf)
 }
 
@@ -204,8 +204,8 @@ pub fn create_vpe(
     pe: Selector,
     kmem: Selector,
 ) -> Result<EpId, Error> {
-    let mut buf = SYSC_BUF.get_mut();
-    syscalls::CreateVPE::fill_msgbuf(&mut buf, dst, pg_sg, pg_rg, name, pe, kmem);
+    let buf = SYSC_BUF.get_mut();
+    syscalls::CreateVPE::fill_msgbuf(buf, dst, pg_sg, pg_rg, name, pe, kmem);
 
     let reply: Reply<syscalls::CreateVPEReply> = send_receive(&buf)?;
     Ok(reply.data.eps_start as EpId)
@@ -382,8 +382,8 @@ pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Erro
 /// as a VPE exists. In both cases, the kernel returns the selector of the VPE that exited and the
 /// exitcode given by the VPE.
 pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error> {
-    let mut buf = SYSC_BUF.get_mut();
-    syscalls::VPEWait::fill_msgbuf(&mut buf, vpes, event);
+    let buf = SYSC_BUF.get_mut();
+    syscalls::VPEWait::fill_msgbuf(buf, vpes, event);
 
     let reply: Reply<syscalls::VPEWaitReply> = send_receive(&buf)?;
     if event != 0 {
