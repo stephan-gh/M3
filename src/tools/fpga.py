@@ -122,7 +122,7 @@ def load_prog(dram, pms, i, args, vm):
     pm.rocket_enableTrace()
 
     # set features: privileged, vm, ctxsw
-    pm.tcu_set_features(1, vm, vm)
+    pm.tcu_set_features(1, vm, 1)
 
     # invalidate all EPs
     for ep in range(0, 63):
