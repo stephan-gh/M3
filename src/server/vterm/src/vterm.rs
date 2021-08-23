@@ -17,11 +17,12 @@
 #![no_std]
 
 use m3::cap::Selector;
-use m3::cell::LazyStaticCell;
+use m3::cell::{LazyStaticCell, StaticCell};
+use m3::col::Vec;
 use m3::com::{GateIStream, MemGate, Perm, SGateArgs, SendGate, EP};
 use m3::errors::{Code, Error};
 use m3::goff;
-use m3::io::{Read, Serial, Write};
+use m3::io::{Serial, Write};
 use m3::kif;
 use m3::log;
 use m3::mem::MaybeUninit;
@@ -33,7 +34,7 @@ use m3::server::{
     DEF_MAX_CLIENTS,
 };
 use m3::session::ServerSession;
-use m3::tcu::Label;
+use m3::tcu::{Label, Message};
 use m3::vfs::GenFileOp;
 
 pub const LOG_DEF: bool = false;
@@ -41,6 +42,15 @@ pub const LOG_DEF: bool = false;
 const BUF_SIZE: usize = 256;
 
 static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
+static INPUT: StaticCell<Vec<u8>> = StaticCell::new(Vec::new());
+
+macro_rules! reply_vmsg_late {
+    ( $msg:expr, $( $args:expr ),* ) => ({
+        let mut msg = m3::mem::MsgBuf::borrow_def();
+        m3::build_vmsg!(&mut msg, $( $args ),*);
+        crate::REQHDL.recv_gate().reply(&msg, $msg)
+    });
+}
 
 #[derive(Debug)]
 struct VTermSession {
@@ -63,6 +73,7 @@ struct Channel {
     ep: Option<Selector>,
     sgate: SendGate,
     our_mem: Rc<MemGate>,
+    pending_nextin: Option<&'static Message>,
     mem: MemGate,
     pos: usize,
     len: usize,
@@ -89,6 +100,7 @@ impl Channel {
             ep: None,
             sgate,
             our_mem: mem,
+            pending_nextin: None,
             mem: cmem,
             pos: 0,
             len: 0,
@@ -113,17 +125,20 @@ impl Channel {
 
         self.pos += self.len - self.pos;
 
-        if self.pos == self.len {
-            // safety: will be initialized by read below
-            #[allow(clippy::uninit_assumed_init)]
-            let mut buf: [u8; BUF_SIZE] = unsafe { MaybeUninit::uninit().assume_init() };
-            let len = Serial::default().read(&mut buf)?;
-            self.our_mem.write(&buf[0..len], mem_off(self.id))?;
-            self.len = len;
-            self.pos = 0;
-        }
-
         self.activate()?;
+
+        if self.pos == self.len {
+            if INPUT.is_empty() {
+                assert!(self.pending_nextin.is_none());
+                self.pending_nextin = Some(is.take_msg());
+                return Ok(());
+            }
+
+            self.our_mem.write(&INPUT, mem_off(self.id))?;
+            self.len = INPUT.len();
+            self.pos = 0;
+            INPUT.get_mut().clear();
+        }
 
         reply_vmsg!(is, Code::None as u32, self.pos, self.len - self.pos)
     }
@@ -289,6 +304,33 @@ impl Handler<VTermSession> for VTermHandler {
     }
 }
 
+fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
+    // TODO later we should support different modes like "raw" and "cooked"
+    let bytes =
+        unsafe { core::slice::from_raw_parts(msg.data.as_ptr(), msg.header.length as usize) };
+    for b in bytes {
+        INPUT.get_mut().push(*b);
+    }
+
+    // pass to first session that wants input
+    hdl.sessions.for_each(|s| {
+        if !INPUT.is_empty() {
+            match &mut s.data {
+                SessionData::Chan(c) => {
+                    if let Some(msg) = c.pending_nextin.take() {
+                        c.our_mem.write(&INPUT, mem_off(c.id)).unwrap();
+                        c.len = INPUT.len();
+                        c.pos = 0;
+                        INPUT.get_mut().clear();
+                        reply_vmsg_late!(msg, Code::None as u32, c.pos, c.len - c.pos).unwrap();
+                    }
+                },
+                _ => {},
+            }
+        }
+    });
+}
+
 #[no_mangle]
 pub fn main() -> i32 {
     let mut hdl = VTermHandler {
@@ -304,8 +346,23 @@ pub fn main() -> i32 {
 
     REQHDL.set(RequestHandler::default().expect("Unable to create request handler"));
 
+    let sel = VPE::cur().alloc_sel();
+    let mut serial_gate = VPE::cur()
+        .resmng()
+        .unwrap()
+        .get_serial(sel)
+        .expect("Unable to allocate serial rgate");
+    serial_gate
+        .activate()
+        .expect("Unable to activate serial rgate");
+
     server_loop(|| {
         s.handle_ctrl_chan(&mut hdl)?;
+
+        if let Some(msg) = serial_gate.fetch() {
+            handle_input(&mut hdl, msg);
+            serial_gate.ack_msg(msg).unwrap();
+        }
 
         REQHDL.get_mut().handle(|op, mut is| {
             match op {

@@ -188,7 +188,7 @@ impl VPE {
 
         // attach syscall send endpoint
         {
-            let rgate = RGateObject::new(cfg::SYSC_RBUF_ORD, cfg::SYSC_RBUF_ORD);
+            let rgate = RGateObject::new(cfg::SYSC_RBUF_ORD, cfg::SYSC_RBUF_ORD, false);
             rgate.activate(platform::kernel_pe(), ktcu::KSYS_EP, 0xDEADBEEF);
             let sgate = SGateObject::new(&rgate, self.id() as tcu::Label, 1);
             pemux.config_snd_ep(self.eps_start + tcu::SYSC_SEP_OFF, vpe, &sgate)?;
@@ -197,7 +197,7 @@ impl VPE {
         // attach syscall receive endpoint
         let mut rbuf_addr = self.rbuf_phys.get();
         {
-            let rgate = RGateObject::new(cfg::SYSC_RBUF_ORD, cfg::SYSC_RBUF_ORD);
+            let rgate = RGateObject::new(cfg::SYSC_RBUF_ORD, cfg::SYSC_RBUF_ORD, false);
             rgate.activate(self.pe_id(), self.eps_start + tcu::SYSC_REP_OFF, rbuf_addr);
             pemux.config_rcv_ep(self.eps_start + tcu::SYSC_REP_OFF, vpe, None, &rgate)?;
             rbuf_addr += cfg::SYSC_RBUF_SIZE as goff;
@@ -205,7 +205,7 @@ impl VPE {
 
         // attach upcall receive endpoint
         {
-            let rgate = RGateObject::new(cfg::UPCALL_RBUF_ORD, cfg::UPCALL_RBUF_ORD);
+            let rgate = RGateObject::new(cfg::UPCALL_RBUF_ORD, cfg::UPCALL_RBUF_ORD, false);
             rgate.activate(
                 self.pe_id(),
                 self.eps_start + tcu::UPCALL_REP_OFF,
@@ -222,7 +222,7 @@ impl VPE {
 
         // attach default receive endpoint
         {
-            let rgate = RGateObject::new(cfg::DEF_RBUF_ORD, cfg::DEF_RBUF_ORD);
+            let rgate = RGateObject::new(cfg::DEF_RBUF_ORD, cfg::DEF_RBUF_ORD, false);
             rgate.activate(self.pe_id(), self.eps_start + tcu::DEF_REP_OFF, rbuf_addr);
             pemux.config_rcv_ep(self.eps_start + tcu::DEF_REP_OFF, vpe, None, &rgate)?;
         }

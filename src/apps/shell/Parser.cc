@@ -23,7 +23,8 @@
 using namespace m3;
 
 static bool eof = false;
-static IStream *in;
+static const char *line;
+static size_t line_pos;
 CmdList *curcmd;
 extern YYSTYPE yylval;
 
@@ -35,17 +36,16 @@ EXTERN_C void yyerror(char const *s) {
 }
 
 EXTERN_C int yylex() {
-    static char buf[256];
-    size_t i = 0;
-    buf[i] = '\0';
+    size_t start = line_pos;
 
     char c;
     if(!eof) {
-        while((c = in->read()) > 0) {
+        while((c = line[line_pos]) != '\0') {
             if(c == '|' || c == ';' || c == '>' || c == '<'  || c == '=' || c == '$') {
-                if(i == 0)
+                if(line_pos == start) {
+                    line_pos++;
                     return c;
-                in->putback(c);
+                }
                 break;
             }
 
@@ -54,18 +54,19 @@ EXTERN_C int yylex() {
                 break;
             }
             if(c == ' ' || c == '\t') {
-                if(i > 0)
+                if(line_pos > start)
                     break;
+                start++;
             }
-            else if(i + 1 < sizeof(buf))
-                buf[i++] = c;
+            line_pos++;
         }
     }
 
-    if(i > 0) {
-        buf[i] = '\0';
-        yylval.str = static_cast<char*>(malloc(i + 1));
-        strcpy(const_cast<char*>(yylval.str), buf);
+    if(line_pos > start) {
+        char *token = static_cast<char*>(malloc(line_pos - start + 1));
+        strncpy(token, line + start, line_pos - start);
+        token[line_pos - start] = '\0';
+        yylval.str = token;
         return T_STRING;
     }
     return -1;
@@ -185,10 +186,11 @@ void ast_vars_destroy(VarList *list) {
     delete list;
 }
 
-CmdList *get_command(IStream *stream) {
+CmdList *parse_command(const char *_line) {
     eof = false;
     curcmd = nullptr;
-    in = stream;
+    line = _line;
+    line_pos = 0;
     yyparse();
     return curcmd;
 }

@@ -43,10 +43,8 @@ int_enum! {
         const TRANSL_FAULT  = 0x5;
         /// Flush and invalidate cache
         const FLUSH_INV     = 0x6;
-        /// Read from serial device (only on hw)
-        const READ_SERIAL   = 0x7;
         /// Noop operation for testing purposes
-        const NOOP          = 0x8;
+        const NOOP          = 0x7;
     }
 }
 
@@ -96,10 +94,6 @@ pub fn flush_invalidate() -> Result<(), Error> {
 #[inline(always)]
 pub fn switch_vpe() -> Result<(), Error> {
     pexabi::call1(Operation::YIELD, 0).map(|_| ())
-}
-
-pub fn read_serial(buf: &mut [u8]) -> Result<usize, Error> {
-    pexabi::call2(Operation::READ_SERIAL, buf.as_mut_ptr() as usize, buf.len())
 }
 
 #[inline(always)]

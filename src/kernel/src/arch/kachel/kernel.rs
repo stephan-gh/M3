@@ -88,6 +88,8 @@ pub extern "C" fn env_run() {
     mem::init();
     crate::com::init_queues();
 
+    klog!(DEF, "Entered raw mode; Quit via Ctrl+]");
+
     args::parse();
 
     platform::init(&[]);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Copyright (C) 2016, Nils Asmussen <nils@os.inf.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
  *
  * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
@@ -14,11 +14,11 @@
  * General Public License version 2 for more details.
  */
 
-pub mod childs;
-mod fs;
-pub mod input;
-pub mod kernel;
-pub mod ktcu;
-pub mod loader;
-pub mod net;
-pub mod platform;
+#pragma once
+
+#include <base/Common.h>
+
+class Input {
+public:
+    static ssize_t readline(char *buffer, size_t max);
+};

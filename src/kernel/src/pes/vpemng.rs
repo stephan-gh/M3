@@ -27,7 +27,7 @@ use base::tcu;
 use base::vec;
 
 use crate::args;
-use crate::cap::{Capability, KMemObject, KObject, MGateObject, PEObject};
+use crate::cap::{Capability, KMemObject, KObject, MGateObject, PEObject, RGateObject};
 use crate::ktcu;
 use crate::mem::{self, Allocation};
 use crate::pes::{PEMng, State, VPEFlags, VPE};
@@ -185,6 +185,20 @@ impl VPEMng {
                 KObject::MGate(MGateObject::new(alloc, kif::Perm::RWX, false)),
             );
 
+            vpe.obj_caps().borrow_mut().insert(cap).unwrap();
+            sel += 1;
+        }
+
+        // serial rgate
+        {
+            let cap = Capability::new(
+                sel,
+                KObject::RGate(RGateObject::new(
+                    cfg::SERIAL_BUF_ORD,
+                    cfg::SERIAL_BUF_ORD,
+                    true,
+                )),
+            );
             vpe.obj_caps().borrow_mut().insert(cap).unwrap();
             sel += 1;
         }

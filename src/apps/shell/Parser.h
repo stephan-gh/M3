@@ -80,7 +80,5 @@ EXTERN_C void ast_vars_set(VarList *list, const char *name, Expr *value);
 EXTERN_C void ast_vars_destroy(VarList *list);
 
 #if defined(__cplusplus)
-#   include <base/stream/IStream.h>
-
-CmdList *get_command(m3::IStream *stream);
+CmdList *parse_command(const char *line);
 #endif

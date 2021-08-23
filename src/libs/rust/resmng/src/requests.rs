@@ -115,6 +115,8 @@ fn handle_request_async(mut is: GateIStream) {
 
         Ok(ResMngOperation::USE_SEM) => use_sem(&mut is, child),
 
+        Ok(ResMngOperation::GET_SERIAL) => get_serial(&mut is, child),
+
         _ => Err(Error::new(Code::InvArgs)),
     };
 
@@ -227,4 +229,10 @@ fn use_sem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let name: String = is.pop()?;
 
     child.use_sem(&name, sel)
+}
+
+fn get_serial(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+    let sel: Selector = is.pop()?;
+
+    child.get_serial(sel)
 }

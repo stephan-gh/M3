@@ -71,6 +71,7 @@ pub fn main() -> i32 {
     let builddir = kernel.rsplitn(2, '/').nth(1).unwrap();
     loader::init(&builddir);
     crate::arch::childs::init();
+    crate::arch::input::init();
     crate::com::init_queues();
 
     thread::init();

@@ -4,6 +4,7 @@
         <app args="root maxcli=4">
             <app args="vterm" daemon="1">
                 <serv name="vterm" />
+                <serial />
             </app>
             <app args="pipes -m 8" daemon="1">
                 <serv name="pipes" />

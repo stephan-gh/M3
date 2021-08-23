@@ -4,7 +4,8 @@ import argparse
 import traceback
 from time import sleep, time
 from datetime import datetime
-import os, sys, select
+import fcntl, os, sys, select
+import termios
 
 import modids
 import fpga_top
@@ -44,12 +45,8 @@ def write_str(mod, str, addr):
 def glob_addr(pe, offset):
     return (0x80 + pe) << 56 | offset
 
-def send_input(dram, line):
-    global serial_begin
-    while read_u64(dram, serial_begin) != 0:
-        pass
-    write_str(dram, line, serial_begin + 8)
-    write_u64(dram, serial_begin, len(line))
+def send_input(fpga_inst, pe, ep, bytes):
+    fpga_inst.nocif.send_bytes((0, pe), ep, bytes)
 
 def write_file(mod, file, offset):
     print("%s: loading %u bytes to %#x" % (mod.name, os.path.getsize(file), offset))
@@ -137,15 +134,6 @@ def load_prog(dram, pms, i, args, vm):
     pmp_ep.set_addr(mem_begin)
     pmp_ep.set_size(pmp_size)
     pm.tcu_set_ep(0, pmp_ep)
-    # install EP for serial input
-    global serial_begin
-    ser_ep = MemEP()
-    ser_ep.set_pe(dram.mem.nocid[1])
-    ser_ep.set_vpe(0xFFFF)
-    ser_ep.set_flags(Flags.READ | Flags.WRITE)
-    ser_ep.set_addr(serial_begin)
-    ser_ep.set_size(SERIAL_SIZE)
-    pm.tcu_set_ep(127, ser_ep)
 
     # verify entrypoint, because inject a jump instruction below that jumps to that address
     with open(args[0], 'rb') as f:
@@ -188,6 +176,50 @@ def load_prog(dram, pms, i, args, vm):
 
     sys.stdout.flush()
 
+# inspired by MiniTerm (https://github.com/pyserial/pyserial/blob/master/serial/tools/miniterm.py)
+class TCUTerm:
+    def __init__(self, fpga_inst):
+        global serial_begin
+        self.fd = sys.stdin.fileno()
+        # make stdin nonblocking
+        fl = fcntl.fcntl(self.fd, fcntl.F_GETFL)
+        fcntl.fcntl(self.fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+        # get original terminal attributes to restore them later
+        self.old = termios.tcgetattr(self.fd)
+        self.fpga_inst = fpga_inst
+        # reset PE and EP in case they are set from a previous run
+        write_u64(fpga_inst.dram1, serial_begin + 0, 0)
+        write_u64(fpga_inst.dram1, serial_begin + 8, 0)
+
+    def setup(self):
+        new = termios.tcgetattr(self.fd)
+        new[3] = new[3] & ~(termios.ICANON | termios.ISIG | termios.ECHO)
+        new[6][termios.VMIN] = 1
+        new[6][termios.VTIME] = 0
+        termios.tcsetattr(self.fd, termios.TCSANOW, new)
+        print("-- TCU Terminal ( Quit: Ctrl+] ) --")
+
+    def getkey(self):
+        try:
+            # read multiple bytes to get sequences like ^[D
+            bytes = sys.stdin.read(8)
+        except KeyboardInterrupt:
+            bytes = ['\x03']
+        return bytes
+
+    def write(self, c):
+        global serial_begin
+        bytes = c.encode('utf-8')
+        # read desired destination
+        pe = read_u64(self.fpga_inst.dram1, serial_begin + 0)
+        ep = read_u64(self.fpga_inst.dram1, serial_begin + 8)
+        # only send if it was initialized
+        if ep != 0:
+            send_input(self.fpga_inst, pe, ep, bytes)
+
+    def cleanup(self):
+        termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.old)
+
 def main():
     mon = NoCmonitor()
 
@@ -219,6 +251,8 @@ def main():
     global serial_begin, pmp_size
     pmp_size = 8 * 1024 * 1024 if args.vm else 32 * 1024 * 1024
     serial_begin = MAX_FS_SIZE + len(fpga_inst.pms) * pmp_size + KENV_SIZE
+
+    term = TCUTerm(fpga_inst)
 
     # load boot info into DRAM
     mods = [] if args.mod is None else args.mod
@@ -252,6 +286,8 @@ def main():
         ready.write('1')
         ready.close()
 
+    term.setup()
+
     # wait for prints
     start = int(time())
     timed_out = False
@@ -264,18 +300,17 @@ def main():
                 break
 
             # check if there is input to pass to the FPGA
-            while sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
-                line = sys.stdin.readline()
-                if line:
-                    send_input(fpga_inst.dram1, line)
+            if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
+                bytes = term.getkey()
+                if len(bytes) == 1 and bytes[0] == chr(0x1d):
+                    # force-extract logs on ctrl+]
+                    timed_out = True
+                    break
+                term.write(bytes)
 
             # check for output
             try:
                 bytes = fpga_inst.nocif.receive_bytes(timeout_ns = 10_000_000)
-            except KeyboardInterrupt:
-                # force-extract logs on ^C
-                timed_out = True
-                break
             except:
                 continue
 
@@ -283,9 +318,6 @@ def main():
             try:
                 msg = bytes.decode()
                 sys.stdout.write(msg)
-            except KeyboardInterrupt:
-                timed_out = True
-                break
             except:
                 print("Unable to decode: {}".format(bytes))
             sys.stdout.write('\033[0m')
@@ -294,6 +326,8 @@ def main():
                 break
     except KeyboardInterrupt:
         timed_out = True
+
+    term.cleanup()
 
     # disable NoC ARQ again for post-processing
     for pe in fpga_inst.pms:

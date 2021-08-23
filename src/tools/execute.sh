@@ -267,6 +267,9 @@ else
     echo "Unknown target '$M3_TARGET'"
 fi
 
+# ensure that we get into cooked mode again
+stty sane
+
 if [ -f $build/$M3_FS.out ]; then
     $build/tools/m3fsck $build/$M3_FS.out && echo "FS image '$build/$M3_FS.out' is valid"
 fi

@@ -64,6 +64,8 @@ pub fn workloop() -> ! {
         crate::arch::childs::check_childs_async();
         #[cfg(target_vendor = "host")]
         crate::arch::net::check();
+        #[cfg(target_vendor = "host")]
+        crate::arch::input::check();
     }
 
     thread::ThreadManager::get().stop();

@@ -205,6 +205,7 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
                 "rgate" => app.rgates.push(parse_rgate(p)?),
                 "sgate" => app.sgates.push(parse_sgate(p)?),
                 "sem" => app.sems.push(parse_sem(p)?),
+                "serial" => app.serial = Some(config::SerialDesc::default()),
                 _ => return Err(Error::new(Code::InvArgs)),
             }
 

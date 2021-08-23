@@ -88,6 +88,8 @@
                     <xs:attribute name="gname" type="xs:string"/>
                 </xs:complexType>
             </xs:element>
+
+            <xs:element name="serial" />
         </xs:choice>
         <xs:attribute name="args" type="xs:string" use="required"/>
         <xs:attribute name="daemon" type="xs:int"/>

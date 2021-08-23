@@ -42,15 +42,6 @@ public:
     static ssize_t write(const char *str, size_t len);
 
     /**
-     * Reads at most <len> bytes into <buf> from the serial device.
-     *
-     * @param buf the buffer to write to
-     * @param len the length of the buffer
-     * @return the number of read bytes on success
-     */
-    static ssize_t read(char *buf, size_t len);
-
-    /**
      * Resets the statistics
      */
     static void reset_stats();

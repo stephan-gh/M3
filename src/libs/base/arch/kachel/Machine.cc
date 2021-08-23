@@ -21,7 +21,6 @@
 
 EXTERN_C void gem5_shutdown(uint64_t delay);
 EXTERN_C void gem5_writefile(const char *str, uint64_t len, uint64_t offset, uint64_t file);
-EXTERN_C ssize_t gem5_readfile(char *dst, uint64_t max, uint64_t offset);
 EXTERN_C void gem5_resetstats(uint64_t delay, uint64_t period);
 EXTERN_C void gem5_dumpstats(uint64_t delay, uint64_t period);
 
@@ -44,12 +43,6 @@ ssize_t Machine::write(const char *str, size_t len) {
         gem5_writefile(str, amount, 0, reinterpret_cast<uint64_t>(fileAddr));
     }
     return static_cast<ssize_t>(amount);
-}
-
-ssize_t Machine::read(char *dst, size_t max) {
-    if(env()->platform == Platform::GEM5)
-        return gem5_readfile(dst, max, 0);
-    return static_cast<ssize_t>(PEXIF::read_serial(dst, max));
 }
 
 void Machine::reset_stats() {

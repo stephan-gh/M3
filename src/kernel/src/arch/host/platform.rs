@@ -21,9 +21,10 @@ use base::goff;
 use base::kif::{boot, PEDesc, PEType, PEISA};
 use base::libc;
 use base::mem::{size_of, GlobAddr, MaybeUninit};
-use base::tcu::PEId;
+use base::tcu::{EpId, PEId};
 use core::ptr;
 
+use crate::arch;
 use crate::args;
 use crate::mem;
 use crate::platform;
@@ -209,6 +210,10 @@ fn build_modules(args: &[String]) -> Vec<boot::Mod> {
     }
 
     mods
+}
+
+pub fn init_serial(dest: Option<(PEId, EpId)>) {
+    arch::input::start(dest);
 }
 
 pub fn kernel_pe() -> PEId {

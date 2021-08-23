@@ -18,7 +18,7 @@ use base::cell::StaticCell;
 use base::col::{String, Vec};
 use base::kif::{boot, PEDesc};
 use base::mem::{size_of, GlobAddr};
-use base::tcu::PEId;
+use base::tcu::{EpId, PEId};
 use core::iter;
 
 use crate::arch;
@@ -115,6 +115,10 @@ pub fn pe_desc(pe: PEId) -> PEDesc {
 
 pub fn is_shared(pe: PEId) -> bool {
     arch::platform::is_shared(pe)
+}
+
+pub fn init_serial(dest: Option<(PEId, EpId)>) {
+    arch::platform::init_serial(dest);
 }
 
 pub fn mods() -> &'static [boot::Mod] {

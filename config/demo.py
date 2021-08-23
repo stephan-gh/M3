@@ -15,7 +15,7 @@ fsimg = os.environ.get('M3_GEM5_FS')
 fsimgnum = os.environ.get('M3_GEM5_FSNUM', '1')
 tcupos = int(os.environ.get('M3_GEM5_TCUPOS', 0))
 accs = ['rot13', 'rot13']
-mem_pe = num_pes + len(accs)
+mem_pe = num_pes + len(accs) + 1
 
 pes = []
 
@@ -45,11 +45,19 @@ for i in range(0, len(accs)):
                        epCount=num_eps)
     pes.append(pe)
 
+# create PE for serial input
+pe = createSerialPE(noc=root.noc,
+                    options=options,
+                    no=num_pes + len(accs),
+                    memPE=mem_pe,
+                    epCount=num_eps)
+pes.append(pe)
+
 # create the memory PEs
 for i in range(0, num_mem):
     pe = createMemPE(noc=root.noc,
                      options=options,
-                     no=num_pes + len(accs) + i,
+                     no=num_pes + len(accs) + 1 + i,
                      size='3072MB',
                      image=fsimg if i == 0 else None,
                      imageNum=int(fsimgnum),

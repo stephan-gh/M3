@@ -42,11 +42,9 @@ public:
         throw Exception(Errors::NOT_SUP);
     }
 
-    virtual size_t read(void *buffer, size_t count) override {
-        ssize_t res = Machine::read(reinterpret_cast<char*>(buffer), count);
-        if(res < 0)
-            throw Exception(static_cast<Errors::Code>(-res));
-        return static_cast<size_t>(res);
+    virtual size_t read(void *, size_t) override {
+        // there is never anything to read
+        return 0;
     }
     virtual size_t write(const void *buffer, size_t count) override {
         auto buf = reinterpret_cast<const char*>(buffer);

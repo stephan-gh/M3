@@ -505,10 +505,6 @@ impl VPE {
             .map_pages(virt, global, pages, perm)
     }
 
-    pub fn has_access(&self, virt: usize, perm: kif::PageFlags) -> bool {
-        (self.translate(virt, perm) & perm.bits()) != 0
-    }
-
     pub fn translate(&self, virt: usize, perm: kif::PageFlags) -> kif::PTE {
         self.aspace.as_ref().unwrap().translate(virt, perm.bits())
     }

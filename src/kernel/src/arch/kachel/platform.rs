@@ -19,15 +19,15 @@ use base::cfg;
 use base::col::{String, Vec};
 use base::envdata;
 use base::goff;
-use base::kif::{boot, PEDesc, PEType, Perm};
+use base::kif::{self, boot, PEDesc, PEType, Perm, PEISA};
 use base::mem::{size_of, GlobAddr};
-use base::tcu::PEId;
+use base::tcu::{EpId, PEId, VPEId, TCU, UNLIM_CREDITS};
 
 use crate::args;
 use crate::ktcu;
 use crate::mem::{self, MemMod, MemType};
 use crate::pes::KERNEL_ID;
-use crate::platform;
+use crate::platform::{self, pe_desc};
 
 static LAST_PE: StaticCell<PEId> = StaticCell::new(0);
 
@@ -164,6 +164,29 @@ pub fn init(_args: &[String]) -> platform::KEnv {
     ktcu::write_slice(addr.pe(), uoffset, &umems);
 
     platform::KEnv::new(info, addr, mods, pes)
+}
+
+pub fn init_serial(dest: Option<(PEId, EpId)>) {
+    if envdata::get().platform == envdata::Platform::HW.val {
+        let (pe, ep) = dest.unwrap_or((0, 0));
+        let serial = GlobAddr::new(envdata::get().kenv + 16 * 1024 * 1024);
+        let pe_modid = TCU::peid_to_nocid(pe);
+        ktcu::write_slice(serial.pe(), serial.offset(), &[pe_modid as u64, ep as u64]);
+    }
+    else {
+        if let Some(ser_pe) = user_pes().find(|i| pe_desc(*i).isa() == PEISA::SERIAL_DEV) {
+            if let Some((pe, ep)) = dest {
+                ktcu::config_remote_ep(ser_pe, 4, |regs| {
+                    let vpe = kif::pemux::VPE_ID as VPEId;
+                    ktcu::config_send(regs, vpe, 0, pe, ep, cfg::SERIAL_BUF_ORD, UNLIM_CREDITS);
+                })
+                .unwrap();
+            }
+            else {
+                ktcu::invalidate_ep_remote(ser_pe, 4, true).unwrap();
+            }
+        }
+    }
 }
 
 pub fn kernel_pe() -> PEId {

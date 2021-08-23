@@ -27,8 +27,9 @@ use crate::io;
 pub struct Serial {}
 
 impl io::Read for Serial {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-        arch::serial::read(buf)
+    fn read(&mut self, _buf: &mut [u8]) -> Result<usize, Error> {
+        // there is never anything to read
+        Ok(0)
     }
 }
 

@@ -68,6 +68,8 @@ pub const PEMUX_RBUF_SPACE: usize = PEMUX_START + 0x1F_F000;
 pub const APP_HEAP_SIZE: usize = 64 * 1024 * 1024;
 pub const MOD_HEAP_SIZE: usize = 4 * 1024 * 1024;
 
+pub const SERIAL_BUF_ORD: u32 = 6;
+
 pub const KPEX_RBUF_ORD: u32 = 6;
 pub const PEXUP_RBUF_ORD: u32 = 6;
 pub const SYSC_RBUF_ORD: u32 = 9;

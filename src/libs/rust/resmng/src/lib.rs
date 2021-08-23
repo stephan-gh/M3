@@ -51,3 +51,5 @@ pub const LOG_SQUEUE: bool = false;
 pub const LOG_MEM: bool = false;
 /// Logs PE operations
 pub const LOG_PES: bool = false;
+/// Logs serial operations
+pub const LOG_SERIAL: bool = false;

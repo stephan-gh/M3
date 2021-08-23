@@ -30,6 +30,7 @@
 #include <memory>
 
 #include "Args.h"
+#include "Input.h"
 #include "Parser.h"
 #include "Vars.h"
 
@@ -255,8 +256,7 @@ int main(int argc, char **argv) {
         for(int i = 1; i < argc; ++i)
             os << argv[i] << " ";
 
-        IStringStream is(StringRef(os.str(), os.length()));
-        CmdList *list = get_command(&is);
+        CmdList *list = parse_command(os.str());
         if(!list)
             exitmsg("Unable to parse command '" << os.str() << "'");
 
@@ -274,11 +274,15 @@ int main(int argc, char **argv) {
     cout << "========================\n";
     cout << "\n";
 
+    char buffer[256];
     while(!cin.eof()) {
         cout << "$ ";
         cout.flush();
 
-        CmdList *list = get_command(&cin);
+        ssize_t len = Input::readline(buffer, sizeof(buffer));
+        if(len < 0)
+            break;
+        CmdList *list = parse_command(buffer);
         if(!list)
             continue;
 

@@ -53,6 +53,8 @@ int_enum! {
         const IDE_DEV       = 0x7;
         /// Dummy ISA to represent the NIC
         const NIC_DEV       = 0x8;
+        /// Dummy ISA to represent the serial input device
+        const SERIAL_DEV    = 0x9;
     }
 }
 
@@ -127,7 +129,9 @@ impl PEDesc {
 
     /// Return if the PE supports multiple contexts
     pub fn is_device(self) -> bool {
-        self.isa() == PEISA::NIC_DEV || self.isa() == PEISA::IDE_DEV
+        self.isa() == PEISA::NIC_DEV
+            || self.isa() == PEISA::IDE_DEV
+            || self.isa() == PEISA::SERIAL_DEV
     }
 
     /// Return if the PE supports VPEs

@@ -145,7 +145,7 @@ pub fn create_rgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Ver
 
     try_kmem_quota!(vpe_caps.insert(Capability::new(
         dst_sel,
-        KObject::RGate(RGateObject::new(order, msg_order)),
+        KObject::RGate(RGateObject::new(order, msg_order, false)),
     )));
 
     reply_success(msg);

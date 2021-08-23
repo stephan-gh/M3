@@ -24,14 +24,13 @@
 namespace m3 {
 
 /**
- * An input- and output stream that uses the "serial line" (what that exactly means depends on the
+ * An output stream that uses the "serial line" (what that exactly means depends on the
  * architecture). This can be used for logging. For example:
  * Serial::get() << "Hello, " << 123 << " World!\n";
  * Note that it is line-buffered.
  */
-class Serial : public IStream, public OStream {
+class Serial : public OStream {
     static const size_t OUTBUF_SIZE = 256;
-    static const size_t INBUF_SIZE  = 64;
     static const size_t SUFFIX_LEN  = sizeof("\e[0m") - 1;
 
 public:
@@ -62,28 +61,20 @@ public:
      */
     void flush();
 
-    virtual char read() override;
-    virtual bool putback(char c) override;
     virtual void write(char c) override;
 
 private:
     explicit Serial()
-        : IStream(),
-          OStream(),
+        : OStream(),
           _start(0),
           _time(0),
-          _outpos(0),
-          _inpos(0),
-          _inlen(0) {
+          _outpos(0) {
     }
 
     size_t _start;
     size_t _time;
     size_t _outpos;
-    size_t _inpos;
-    size_t _inlen;
     char _outbuf[OUTBUF_SIZE];
-    char _inbuf[INBUF_SIZE];
 
     static const char *_colors[];
     static Serial *_inst;

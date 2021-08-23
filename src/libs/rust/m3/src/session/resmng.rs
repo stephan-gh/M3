@@ -15,6 +15,7 @@
  */
 
 use crate::cap::Selector;
+use crate::cfg;
 use crate::com::{GateIStream, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::goff;
@@ -45,6 +46,8 @@ int_enum! {
         const USE_SGATE     = 0xB;
 
         const USE_SEM       = 0xC;
+
+        const GET_SERIAL    = 0xD;
     }
 }
 
@@ -208,6 +211,17 @@ impl ResMng {
     /// Attaches to the semaphore with given name using selector `sel`.
     pub fn use_sem(&self, sel: Selector, name: &str) -> Result<(), Error> {
         self.use_op(ResMngOperation::USE_SEM, sel, name).map(|_| ())
+    }
+
+    /// Retrieves the receive gate to receive serial input
+    pub fn get_serial(&self, sel: Selector) -> Result<RecvGate, Error> {
+        send_recv_res!(
+            &self.sgate,
+            RecvGate::def(),
+            ResMngOperation::GET_SERIAL,
+            sel
+        )
+        .map(|_| RecvGate::new_bind(sel, cfg::SERIAL_BUF_ORD, cfg::SERIAL_BUF_ORD))
     }
 
     fn use_op(&self, op: ResMngOperation, sel: Selector, name: &str) -> Result<GateIStream, Error> {

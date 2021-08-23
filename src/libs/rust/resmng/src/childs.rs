@@ -36,13 +36,13 @@ use m3::tcu;
 use m3::vfs::FileRef;
 
 use crate::config::AppConfig;
-use crate::events;
 use crate::gates;
 use crate::memory::{Allocation, MemPool};
 use crate::pes;
 use crate::sems;
 use crate::services::{self, Session};
 use crate::subsys::SubsystemBuilder;
+use crate::{events, subsys};
 
 pub type Id = u32;
 
@@ -522,6 +522,23 @@ pub trait Child {
             .get(sdesc.name().global())
             .ok_or_else(|| Error::new(Code::NotFound))?;
         self.delegate(sem.sel(), sel)
+    }
+
+    fn get_serial(&mut self, sel: Selector) -> Result<(), Error> {
+        log!(
+            crate::LOG_SERIAL,
+            "{}: get_serial(sel={})",
+            self.name(),
+            sel
+        );
+
+        let cfg = self.cfg();
+        if cfg.alloc_serial() {
+            self.delegate(subsys::SERIAL_RGATE_SEL, sel)
+        }
+        else {
+            Err(Error::new(Code::InvArgs))
+        }
     }
 
     fn alloc_pe(

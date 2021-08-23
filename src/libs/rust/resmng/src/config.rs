@@ -340,6 +340,11 @@ impl SemDesc {
 }
 
 #[derive(Default)]
+pub struct SerialDesc {
+    used: Cell<bool>,
+}
+
+#[derive(Default)]
 pub struct Domain {
     pub(crate) pseudo: bool,
     pub(crate) pe: PEType,
@@ -365,6 +370,7 @@ pub struct AppConfig {
     pub(crate) eps: Option<u32>,
     pub(crate) user_mem: Option<usize>,
     pub(crate) kern_mem: Option<usize>,
+    pub(crate) serial: Option<SerialDesc>,
     pub(crate) domains: Vec<Domain>,
     pub(crate) mounts: Vec<MountDesc>,
     pub(crate) phys_mems: Vec<PhysMemDesc>,
@@ -503,6 +509,16 @@ impl AppConfig {
         }
         else {
             Err(Error::new(Code::NoSpace))
+        }
+    }
+
+    pub fn alloc_serial(&self) -> bool {
+        match &self.serial {
+            Some(s) => {
+                s.used.set(true);
+                true
+            },
+            None => false,
         }
     }
 
@@ -771,6 +787,9 @@ impl AppConfig {
                 pe.optional,
                 w = layer + 2
             )?;
+        }
+        if self.serial.is_some() {
+            writeln!(f, "{:0w$}Serial[],", "", w = layer + 2)?;
         }
         for d in &self.domains {
             let mut sub_layer = layer;

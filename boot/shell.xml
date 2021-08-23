@@ -16,6 +16,7 @@
             <dom>
                 <app args="vterm" daemon="1">
                     <serv name="vterm" />
+                    <serial />
                 </app>
             </dom>
             <dom>

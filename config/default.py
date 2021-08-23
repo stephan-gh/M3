@@ -24,7 +24,7 @@ if not os.path.isfile(hard_disk0):
     num_sto = 0
 
 num_rot13 = 2
-mem_pe = num_pes + num_sto + 2 + num_rot13
+mem_pe = num_pes + num_sto + 2 + num_rot13 + 1
 
 tcupos = int(os.environ.get('M3_GEM5_TCUPOS', 0))
 
@@ -90,11 +90,19 @@ for i in range(0, num_rot13):
                         epCount=num_eps)
     pes.append(rpe)
 
+# create PE for serial input
+pe = createSerialPE(noc=root.noc,
+                    options=options,
+                    no=num_pes + num_sto + 2 + num_rot13,
+                    memPE=mem_pe,
+                    epCount=num_eps)
+pes.append(pe)
+
 # create the memory PEs
 for i in range(0, num_mem):
     pe = createMemPE(noc=root.noc,
                      options=options,
-                     no=num_pes + num_sto + 2 + num_rot13 + i,
+                     no=num_pes + num_sto + 2 + num_rot13 + 1 + i,
                      size='3072MB',
                      image=fsimg if i == 0 else None,
                      imageNum=int(fsimgnum),

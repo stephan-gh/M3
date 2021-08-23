@@ -70,24 +70,6 @@ void Serial::write(char c) {
         flush();
 }
 
-char Serial::read() {
-    if(_inpos >= _inlen) {
-        ssize_t res = Machine::read(_inbuf, INBUF_SIZE);
-        if(res < 0)
-            return 0;
-        _inlen = static_cast<size_t>(res);
-        _inpos = 0;
-    }
-    return _inbuf[_inpos++];
-}
-
-bool Serial::putback(char c) {
-    if(_inpos == 0)
-        return false;
-    _inbuf[--_inpos] = c;
-    return true;
-}
-
 void Serial::flush() {
     char tmp[14];
     OStringStream curtime(tmp, sizeof(tmp));

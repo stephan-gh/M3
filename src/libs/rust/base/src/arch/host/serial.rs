@@ -22,13 +22,6 @@ use crate::errors::{Code, Error};
 
 static mut LOG_FD: i32 = -1;
 
-pub fn read(buf: &mut [u8]) -> Result<usize, Error> {
-    match unsafe { libc::read(0, buf.as_mut_ptr() as *mut libc::c_void, buf.len()) } {
-        res if res < 0 => Err(Error::new(Code::ReadFailed)),
-        res => Ok(res as usize),
-    }
-}
-
 pub fn write(buf: &[u8]) -> Result<usize, Error> {
     match unsafe { libc::write(LOG_FD, buf.as_ptr() as *const libc::c_void, buf.len()) } {
         res if res < 0 => Err(Error::new(Code::WriteFailed)),

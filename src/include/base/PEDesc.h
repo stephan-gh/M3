@@ -48,6 +48,7 @@ enum class PEISA {
     ACCEL_ROT13     = 6,
     IDE_DEV         = 7,
     NIC_DEV         = 8,
+    SERIAL_DEV      = 9,
 };
 
 enum PEAttr {
@@ -124,7 +125,7 @@ struct PEDesc {
      * @return if the PE supports multiple contexts
      */
     bool is_device() const {
-        return isa() == PEISA::NIC_DEV || isa() == PEISA::IDE_DEV;
+        return isa() == PEISA::NIC_DEV || isa() == PEISA::IDE_DEV || isa() == PEISA::SERIAL_DEV;
     }
 
     /**

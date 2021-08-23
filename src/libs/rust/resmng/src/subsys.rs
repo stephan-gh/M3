@@ -42,12 +42,14 @@ use crate::services;
 
 //
 // Our parent/kernel initializes our cap space as follows:
-// +-----------+-------+-----+-----------+------+-----+----------+-------+-----+-----------+
-// | boot info | mod_0 | ... | mod_{n-1} | pe_0 | ... | pe_{n-1} | mem_0 | ... | mem_{n-1} |
-// +-----------+-------+-----+-----------+------+-----+----------+-------+-----+-----------+
+// +-----------+--------+-------+-----+-----------+------+-----+----------+-------+-----+-----------+
+// | boot info | serial | mod_0 | ... | mod_{n-1} | pe_0 | ... | pe_{n-1} | mem_0 | ... | mem_{n-1} |
+// +-----------+--------+-------+-----+-----------+------+-----+----------+-------+-----+-----------+
 // ^-- FIRST_FREE_SEL
 //
 const SUBSYS_SELS: Selector = FIRST_FREE_SEL;
+
+pub(crate) const SERIAL_RGATE_SEL: Selector = SUBSYS_SELS + 1;
 
 static OUR_PE: StaticCell<Option<Rc<pes::PEUsage>>> = StaticCell::new(None);
 // use Box here, because we also store them in the ChildManager, which expects them to be boxed
@@ -181,7 +183,7 @@ impl Subsystem {
 
         // read boot config
         let cfg_mem = cfg_mem.unwrap();
-        let memgate = MemGate::new_bind(SUBSYS_SELS + 1 + cfg_mem.0 as Selector);
+        let memgate = MemGate::new_bind(SUBSYS_SELS + 2 + cfg_mem.0 as Selector);
         let xml = memgate.read_into_vec::<u8>(cfg_mem.1 as usize, 0)?;
 
         // parse boot config
@@ -252,23 +254,23 @@ impl Subsystem {
     }
 
     pub fn get_mod(&self, idx: usize) -> MemGate {
-        MemGate::new_bind(SUBSYS_SELS + 1 + idx as Selector)
+        MemGate::new_bind(SUBSYS_SELS + 2 + idx as Selector)
     }
 
     pub fn get_pe(&self, idx: usize) -> Rc<PE> {
         Rc::new(PE::new_bind(
             self.pes[idx].id as PEId,
             self.pes[idx].desc,
-            SUBSYS_SELS + 1 + (self.mods.len() + idx) as Selector,
+            SUBSYS_SELS + 2 + (self.mods.len() + idx) as Selector,
         ))
     }
 
     pub fn get_mem(&self, idx: usize) -> MemGate {
-        MemGate::new_bind(SUBSYS_SELS + 1 + (self.mods.len() + self.pes.len() + idx) as Selector)
+        MemGate::new_bind(SUBSYS_SELS + 2 + (self.mods.len() + self.pes.len() + idx) as Selector)
     }
 
     pub fn get_service(&self, idx: usize) -> Selector {
-        SUBSYS_SELS + 1 + (self.mods.len() + self.pes.len() + self.mems.len() + idx * 2) as Selector
+        SUBSYS_SELS + 2 + (self.mods.len() + self.pes.len() + self.mems.len() + idx * 2) as Selector
     }
 
     pub fn start<S>(&self, mut spawn: S) -> Result<(), VerboseError>
@@ -497,6 +499,9 @@ impl Subsystem {
                     sub.add_pe(child_pe_usage.pe_id(), child_pe_usage.pe_obj().clone());
                     pass_down_pes(&mut sub, &cfg);
 
+                    // serial rgate
+                    pass_down_serial(&mut sub, &cfg);
+
                     // add memory
                     let sub_slice = mem_pool.borrow_mut().allocate_slice(sub_mem).map_err(|e| {
                         VerboseError::new(
@@ -558,6 +563,7 @@ pub struct SubsystemBuilder {
     mems: Vec<(MemGate, GlobAddr, goff, bool)>,
     servs: Vec<(String, u32, u32, Option<u32>)>,
     serv_objs: Vec<services::Service>,
+    serial: bool,
 }
 
 impl SubsystemBuilder {
@@ -569,6 +575,7 @@ impl SubsystemBuilder {
             mems: Vec::new(),
             servs: Vec::new(),
             serv_objs: Vec::new(),
+            serial: false,
         }
     }
 
@@ -584,6 +591,10 @@ impl SubsystemBuilder {
         if !self.servs.iter().any(|s| s.0 == name) {
             self.servs.push((name, sess_frac, sess_fixed, quota));
         }
+    }
+
+    pub fn add_serial(&mut self) {
+        self.serial = true;
     }
 
     pub fn desc_size(&self) -> usize {
@@ -618,6 +629,12 @@ impl SubsystemBuilder {
         mem.write_obj(&info, off)?;
         vpe.delegate_to(CapRngDesc::new(CapType::OBJECT, mem.sel(), 1), sel)?;
         off += size_of::<boot::Info>() as goff;
+        sel += 1;
+
+        // serial rgate
+        if self.serial {
+            vpe.delegate_to(CapRngDesc::new(CapType::OBJECT, SERIAL_RGATE_SEL, 1), sel)?;
+        }
         sel += 1;
 
         // boot module for config
@@ -734,6 +751,17 @@ fn pass_down_pes(sub: &mut SubsystemBuilder, app: &config::AppConfig) {
             }
 
             pass_down_pes(sub, child);
+        }
+    }
+}
+
+fn pass_down_serial(sub: &mut SubsystemBuilder, app: &config::AppConfig) {
+    for d in app.domains() {
+        for child in d.apps() {
+            if child.serial.is_some() {
+                sub.add_serial();
+            }
+            pass_down_serial(sub, child);
         }
     }
 }

@@ -18,7 +18,7 @@ use base::cell::{Cell, Ref, RefCell, RefMut, StaticCell};
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif;
-use base::mem::{GlobAddr, size_of};
+use base::mem::{size_of, GlobAddr};
 use base::rc::{Rc, SRc, Weak};
 use base::tcu::{EpId, Label, PEId};
 use core::fmt;
@@ -149,16 +149,18 @@ pub struct RGateObject {
     addr: Cell<goff>,
     order: u32,
     msg_order: u32,
+    serial: bool,
 }
 
 impl RGateObject {
-    pub fn new(order: u32, msg_order: u32) -> SRc<Self> {
+    pub fn new(order: u32, msg_order: u32, serial: bool) -> SRc<Self> {
         SRc::new(Self {
             gep: RefCell::from(GateEP::new()),
             loc: Cell::from(None),
             addr: Cell::from(0),
             order,
             msg_order,
+            serial,
         })
     }
 
@@ -201,11 +203,17 @@ impl RGateObject {
     pub fn activate(&self, pe: PEId, ep: EpId, addr: goff) {
         self.loc.replace(Some((pe, ep)));
         self.addr.replace(addr);
+        if self.serial {
+            crate::platform::init_serial(Some((pe, ep)));
+        }
     }
 
     pub fn deactivate(&self) {
         self.addr.set(0);
         self.loc.set(None);
+        if self.serial {
+            crate::platform::init_serial(None);
+        }
     }
 
     pub fn get_event(&self) -> thread::Event {
