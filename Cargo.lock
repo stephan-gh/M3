@@ -215,15 +215,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "peidle"
-version = "0.1.0"
-dependencies = [
- "base",
- "heap",
- "isr",
-]
-
-[[package]]
 name = "pemux"
 version = "0.1.0"
 dependencies = [

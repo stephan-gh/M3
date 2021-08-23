@@ -1,9 +1,9 @@
 <config>
-    <kernel args="peidle" />
-    <kernel args="peidle" />
-    <kernel args="peidle" />
-    <kernel args="peidle" />
-    <kernel args="peidle" />
-    <kernel args="peidle" />
+    <kernel args="pemux" />
+    <kernel args="pemux" />
+    <kernel args="pemux" />
+    <kernel args="pemux" />
+    <kernel args="pemux" />
+    <kernel args="pemux" />
     <kernel args="axi_ethernet_driver" />
 </config>

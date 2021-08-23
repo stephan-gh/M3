@@ -4,7 +4,6 @@ dirs = [
     "kernel",
     "libs",
     "pemux",
-    "peidle",
     "server",
     "fs", # generate the file systems last
 ]
