@@ -22,9 +22,9 @@ DRAM_SIZE = 2 * 1024 * 1024 * 1024
 MAX_FS_SIZE = 256 * 1024 * 1024
 KENV_SIZE = 16 * 1024 * 1024
 SERIAL_SIZE = 4 * 1024
-INIT_PMP_SIZE = 8 * 1024 * 1024
 
 serial_begin = 0
+pmp_size = 0
 
 def read_u64(mod, addr):
     return mod.mem[addr]
@@ -68,7 +68,7 @@ def add_mod(dram, addr, name, offset):
     return size
 
 def pe_desc(i, vm):
-    pe_desc = (3 << 3) | 1 if vm else MEM_SIZE | (3 << 3) | 0
+    pe_desc = (3 << 3) | 1 if vm else pmp_size | (3 << 3) | 0
     if i < 5:
         pe_desc |= 1 << 8 # Rocket core
     else:
@@ -78,7 +78,7 @@ def pe_desc(i, vm):
     return pe_desc
 
 def load_boot_info(dram, mods, pes, vm):
-    info_start = MAX_FS_SIZE + len(pes) * INIT_PMP_SIZE
+    info_start = MAX_FS_SIZE + len(pes) * pmp_size
 
     # boot info
     kenv_off = info_start
@@ -128,14 +128,14 @@ def load_prog(dram, pms, i, args, vm):
     for ep in range(0, 63):
         pm.tcu_set_ep(ep, EP.invalid())
 
-    mem_begin = MAX_FS_SIZE + i * INIT_PMP_SIZE
+    mem_begin = MAX_FS_SIZE + i * pmp_size
     # install first PMP EP
     pmp_ep = MemEP()
     pmp_ep.set_pe(dram.mem.nocid[1])
     pmp_ep.set_vpe(0xFFFF)
     pmp_ep.set_flags(Flags.READ | Flags.WRITE)
     pmp_ep.set_addr(mem_begin)
-    pmp_ep.set_size(INIT_PMP_SIZE)
+    pmp_ep.set_size(pmp_size)
     pm.tcu_set_ep(0, pmp_ep)
     # install EP for serial input
     global serial_begin
@@ -163,7 +163,7 @@ def load_prog(dram, pms, i, args, vm):
     else:
         heap_size = 0
     desc = pe_desc(i, vm)
-    kenv = glob_addr(MEM_TILE, MAX_FS_SIZE + len(pms) * INIT_PMP_SIZE) if i == 0 else 0
+    kenv = glob_addr(MEM_TILE, MAX_FS_SIZE + len(pms) * pmp_size) if i == 0 else 0
 
     # init environment
     dram_env = ENV + mem_begin - DRAM_OFF
@@ -218,8 +218,9 @@ def main():
     fpga_inst.dram1.nocarq.set_arq_enable(0)
     fpga_inst.dram2.nocarq.set_arq_enable(0)
 
-    global serial_begin
-    serial_begin = MAX_FS_SIZE + len(fpga_inst.pms) * INIT_PMP_SIZE + KENV_SIZE
+    global serial_begin, pmp_size
+    pmp_size = 8 * 1024 * 1024 if args.vm else 32 * 1024 * 1024
+    serial_begin = MAX_FS_SIZE + len(fpga_inst.pms) * pmp_size + KENV_SIZE
 
     # load boot info into DRAM
     mods = [] if args.mod is None else args.mod
