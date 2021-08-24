@@ -5,7 +5,7 @@ edition = "2018"
 
 [lib]
 name = "base"
-crate-type = ["rlib", "staticlib"]
+crate-type = ["rlib"]
 
 [dependencies]
 bitflags = "*"

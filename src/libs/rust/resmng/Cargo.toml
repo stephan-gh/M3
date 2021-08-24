@@ -5,7 +5,7 @@ edition = "2018"
 
 [lib]
 name = "resmng"
-crate-type = ["rlib", "staticlib"]
+crate-type = ["rlib"]
 
 [dependencies]
 bitflags = "*"
