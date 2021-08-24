@@ -16,6 +16,7 @@
 
 #include <base/arch/host/TCUBackend.h>
 #include <base/log/Lib.h>
+#include <base/util/Math.h>
 #include <base/TCU.h>
 #include <base/Panic.h>
 
@@ -31,22 +32,44 @@
 
 namespace m3 {
 
-TCUBackend::TCUBackend()
-    : _sock(socket(AF_UNIX, SOCK_DGRAM, 0)),
-      _knotify_sock(socket(AF_UNIX, SOCK_DGRAM, 0)),
-      _knotify_addr(),
-      _localsocks(),
-      _endpoints() {
-    if(_sock == -1 || _knotify_sock == -1)
+TCUBackend::UnixSocket::UnixSocket(const char *name, bool pe)
+    : fd(),
+      addr() {
+    fd = socket(AF_UNIX, SOCK_DGRAM, 0);
+    if(fd == -1)
         PANIC("Unable to open socket: " << strerror(errno));
-
-    if(fcntl(_knotify_sock, F_SETFD, FD_CLOEXEC) == -1)
+    if(fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
         PANIC("Setting FD_CLOEXEC failed: " << strerror(errno));
 
-    _knotify_addr.sun_family = AF_UNIX;
-    _knotify_addr.sun_path[0] = '\0';
-    snprintf(_knotify_addr.sun_path + 1, sizeof(_knotify_addr.sun_path) - 1,
-             "%s/knotify", Env::tmp_dir());
+    addr.sun_family = AF_UNIX;
+    addr.sun_path[0] = '\0';
+    if(pe) {
+        snprintf(addr.sun_path + 1, sizeof(addr.sun_path) - 1,
+                 "%s/%d-%s", Env::tmp_dir(), (int)env()->pe_id, name);
+    }
+    else {
+        snprintf(addr.sun_path + 1, sizeof(addr.sun_path) - 1,
+                 "%s/%s", Env::tmp_dir(), name);
+    }
+}
+
+void TCUBackend::UnixSocket::bind() {
+    if(::bind(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1)
+        PANIC("Binding socket failed: " << strerror(errno));
+}
+
+TCUBackend::TCUBackend()
+    : _sock(socket(AF_UNIX, SOCK_DGRAM, 0)),
+      _cmd_sock("cmd", true),
+      _ack_sock("ack", true),
+      _knotify_sock("knotify", false),
+      _localsocks(),
+      _endpoints() {
+    if(_sock == -1)
+        PANIC("Unable to open socket: " << strerror(errno));
+
+    _cmd_sock.bind();
+    _ack_sock.bind();
 
     // build socket names for all endpoints on all PEs
     for(peid_t pe = 0; pe < PE_COUNT; ++pe) {
@@ -87,26 +110,63 @@ TCUBackend::~TCUBackend() {
 }
 
 void TCUBackend::bind_knotify() {
-    if(bind(_knotify_sock, (struct sockaddr*)&_knotify_addr, sizeof(_knotify_addr)) == -1)
-        PANIC("Binding socket for kernel notifications failed: " << strerror(errno));
+    _knotify_sock.bind();
 }
 
 void TCUBackend::notify_kernel(pid_t pid, int status) {
     KNotifyData data = {.pid = pid, .status = status};
-    int res = sendto(_knotify_sock, &data, sizeof(data), 0,
-                     (struct sockaddr*)(&_knotify_addr), sizeof(_knotify_addr));
-    if(res == -1)
-        LLOG(TCUERR, "Notifying kernel failed: " << strerror(errno));
+    _knotify_sock.send(data);
 }
 
 bool TCUBackend::receive_knotify(pid_t *pid, int *status) {
     KNotifyData data;
-    ssize_t res = recvfrom(_knotify_sock, &data, sizeof(data), MSG_DONTWAIT, nullptr, nullptr);
-    if(res <= 0)
-        return false;
-    *pid = data.pid;
-    *status = data.status;
-    return true;
+    if(_knotify_sock.receive(data, false)) {
+        *pid = data.pid;
+        *status = data.status;
+        return true;
+    }
+    return false;
+}
+
+static inline void add_fd(fd_set *set, int fd, int *max_fd) {
+    FD_SET(fd, set);
+    *max_fd = Math::max(*max_fd, fd);
+}
+
+void TCUBackend::wait_for_work() {
+    int max_fd = 0;
+    fd_set fds[2];
+    for(size_t i = 0; i < 2; ++i) {
+        FD_ZERO(&fds[i]);
+        add_fd(&fds[i], _cmd_sock.fd, &max_fd);
+        add_fd(&fds[i], _knotify_sock.fd, &max_fd);
+        for(epid_t ep = 0; ep < ARRAY_SIZE(_localsocks); ++ep)
+            add_fd(&fds[i], _localsocks[ep], &max_fd);
+    }
+
+    UNUSED auto res = ::select(100, &fds[0], nullptr, &fds[1], nullptr);
+    assert(res != -1);
+}
+
+void TCUBackend::send_command() {
+    uint8_t val = 0;
+    _cmd_sock.send(val);
+}
+
+bool TCUBackend::recv_command() {
+    uint8_t val = 0;
+    return _cmd_sock.receive(val, false);
+}
+
+void TCUBackend::send_ack() {
+    uint8_t val = 0;
+    _ack_sock.send(val);
+}
+
+bool TCUBackend::recv_ack() {
+    uint8_t val = 0;
+    // block until the ACK for the command arrived
+    return _ack_sock.receive(val, true);
 }
 
 bool TCUBackend::send(peid_t pe, epid_t ep, const TCU::Buffer *buf) {

@@ -115,6 +115,8 @@ public:
 #if !defined(__host__)
         else if(env()->platform != Platform::HW)
             TCU::get().wait_for_msg(TCU::INVALID_EP);
+#else
+            TCU::get().wait_for_msg(TCU::INVALID_EP);
 #endif
     }
 
@@ -127,6 +129,8 @@ public:
 #if !defined(__host__)
         else if(env()->platform != Platform::HW)
             TCU::get().wait_for_msg(ep);
+#else
+            TCU::get().wait_for_msg(TCU::INVALID_EP);
 #endif
     }
 

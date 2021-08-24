@@ -18,14 +18,38 @@
 
 #include <base/Config.h>
 #include <base/TCU.h>
+#include <base/log/Lib.h>
 
 #include <sys/un.h>
+#include <sys/socket.h>
 #include <poll.h>
+#include <errno.h>
 
 namespace m3 {
 
 class TCUBackend {
 public:
+    struct UnixSocket {
+        explicit UnixSocket(const char *name, bool pe);
+
+        void bind();
+
+        template<typename T>
+        void send(const T &data) {
+            int res = sendto(fd, &data, sizeof(data), 0, (struct sockaddr*)(&addr), sizeof(addr));
+            if(res == -1)
+                LLOG(TCUERR, "send failed: " << strerror(errno));
+        }
+
+        template<typename T>
+        bool receive(T &data, bool block) {
+            return recvfrom(fd, &data, sizeof(data), block ? 0 : MSG_DONTWAIT, nullptr, nullptr) > 0;
+        }
+
+        int fd;
+        sockaddr_un addr;
+    };
+
     struct KNotifyData {
         pid_t pid;
         int status;
@@ -43,10 +67,18 @@ public:
     void notify_kernel(pid_t pid, int status);
     bool receive_knotify(pid_t *pid, int *status);
 
+    void wait_for_work();
+
+    void send_command();
+    bool recv_command();
+    void send_ack();
+    bool recv_ack();
+
 private:
     int _sock;
-    int _knotify_sock;
-    sockaddr_un _knotify_addr;
+    UnixSocket _cmd_sock;
+    UnixSocket _ack_sock;
+    UnixSocket _knotify_sock;
     int _localsocks[TOTAL_EPS];
     sockaddr_un _endpoints[PE_COUNT * TOTAL_EPS];
 };

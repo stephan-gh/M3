@@ -56,6 +56,8 @@ void TCU::start() {
 
 void TCU::stop() {
     _run = false;
+    // wakeup the thread, if necessary
+    _backend->send_command();
 }
 
 void TCU::reset() {
@@ -231,6 +233,7 @@ Errors::Code TCU::prepare_ackmsg(epid_t ep) {
         set_bit(unread, idx, false);
         set_ep(ep, EP_BUF_UNREAD, unread);
         set_ep(ep, EP_BUF_MSGCNT, get_ep(ep, EP_BUF_MSGCNT) - 1);
+        fetched_msg();
     }
     set_ep(ep, EP_BUF_OCCUPIED, occupied);
 
@@ -280,7 +283,43 @@ found:
 
     set_cmd(CMD_OFFSET, i * (1UL << msgord));
 
+    fetched_msg();
+
     return Errors::NONE;
+}
+
+void TCU::received_msg() {
+    _unread_msgs++;
+    LLOG(TCU, "TCU: received message");
+    if(_sleeping)
+        stop_sleep();
+}
+
+void TCU::fetched_msg() {
+    _unread_msgs--;
+    LLOG(TCU, "TCU: fetched message");
+}
+
+void TCU::start_sleep() {
+    if(_unread_msgs == 0) {
+        LLOG(TCU, "TCU: sleep started");
+        _sleeping = true;
+    }
+    else {
+        // still unread messages -> no sleep. ack is sent if command is ready
+        set_cmd(CMD_ERROR, Errors::NONE);
+        set_cmd(CMD_CTRL, 0);
+    }
+}
+
+void TCU::stop_sleep() {
+    assert(_unread_msgs > 0);
+    LLOG(TCU, "TCU: sleep stopped (messages: " << _unread_msgs << ")");
+    _sleeping = false;
+    // provide feedback to SW
+    set_cmd(CMD_ERROR, Errors::NONE);
+    set_cmd(CMD_CTRL, 0);
+    _backend->send_ack();
 }
 
 void TCU::handle_command(peid_t pe) {
@@ -329,6 +368,9 @@ void TCU::handle_command(peid_t pe) {
         case ACKMSG:
             res = prepare_ackmsg(ep);
             goto done;
+        case SLEEP:
+            start_sleep();
+            return;
     }
     if(res != Errors::NONE)
         goto done;
@@ -421,6 +463,7 @@ void TCU::handle_resp_cmd() {
     }
     /* provide feedback to SW */
     set_cmd(CMD_CTRL, resp);
+    _backend->send_ack();
 }
 
 void TCU::handle_msg(size_t len, epid_t ep) {
@@ -471,6 +514,8 @@ found:
 
     auto msg = const_cast<Message*>(offset_to_msg(get_ep(ep, EP_BUF_ADDR), i * (1UL << msgord)));
     memcpy(msg, &_buf, len);
+
+    received_msg();
 }
 
 bool TCU::handle_receive(epid_t ep) {
@@ -534,8 +579,10 @@ Errors::Code TCU::perform_transfer(epid_t ep, uintptr_t data_addr, size_t size,
 }
 
 Errors::Code TCU::exec_command() {
-    while(!is_ready())
+    _backend->send_command();
+    while(!_backend->recv_ack())
         sleep();
+    assert(is_ready());
     return static_cast<Errors::Code>(get_cmd(CMD_ERROR));
 }
 
@@ -570,14 +617,18 @@ void *TCU::thread(void *arg) {
         }
 
         // should we send something?
-        if(dma->get_cmd(CMD_CTRL) & CTRL_START)
+        if(dma->_backend->recv_command()) {
+            assert((dma->get_cmd(CMD_CTRL) & CTRL_START) != 0);
             dma->handle_command(pe);
+            if(dma->is_ready())
+                dma->_backend->send_ack();
+        }
 
         // have we received a message?
         for(epid_t ep = 0; ep < TOTAL_EPS; ++ep)
             dma->handle_receive(ep);
 
-        dma->sleep();
+        dma->_backend->wait_for_work();
     }
 
     // deny further receives

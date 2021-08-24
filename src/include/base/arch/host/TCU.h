@@ -140,6 +140,7 @@ public:
         RESP                                    = 5,
         FETCHMSG                                = 6,
         ACKMSG                                  = 7,
+        SLEEP                                   = 8,
     };
 
     static const epid_t PEXUP_REP               = 0;    // unused
@@ -288,8 +289,9 @@ public:
     void sleep() const {
         usleep(1);
     }
-    void wait_for_msg(epid_t) const {
-        sleep();
+    void wait_for_msg(epid_t) {
+        set_cmd(CMD_CTRL, static_cast<word_t>(SLEEP << OPCODE_SHIFT) | CTRL_START);
+        exec_command();
     }
 
     void drop_msgs(size_t buf_addr, epid_t ep, label_t label) {
@@ -345,6 +347,11 @@ private:
     void handle_msg(size_t len, epid_t ep);
     bool handle_receive(epid_t ep);
 
+    void received_msg();
+    void fetched_msg();
+    void start_sleep();
+    void stop_sleep();
+
     Errors::Code perform_transfer(epid_t ep, uintptr_t data_addr, size_t size,
                                   goff_t off, int cmd);
 
@@ -355,6 +362,8 @@ private:
     volatile bool _run;
     volatile word_t _cmdregs[CMDS_RCNT];
     volatile word_t *_epregs;
+    size_t _unread_msgs;
+    bool _sleeping;
     TCUBackend *_backend;
     pthread_t _tid;
     static Buffer _buf;
