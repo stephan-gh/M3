@@ -129,6 +129,7 @@ int_enum! {
         const RESP          = 5;
         const FETCH_MSG     = 6;
         const ACK_MSG       = 7;
+        const SLEEP         = 8;
     }
 }
 
@@ -337,7 +338,11 @@ impl TCU {
     }
 
     pub fn wait_for_msg(_ep: EpId) -> Result<(), Error> {
-        Self::sleep()
+        Self::set_cmd(
+            CmdReg::CTRL,
+            (Command::SLEEP.val << 3) | Control::START.bits,
+        );
+        Self::get_command_result()
     }
 
     pub fn configure(
@@ -436,9 +441,11 @@ impl TCU {
     }
 
     fn get_command_result() -> Result<(), Error> {
-        while !Self::is_ready() {
+        thread::get_backend().send_command();
+        while !thread::get_backend().recv_ack() {
             Self::sleep().unwrap();
         }
+        assert!(Self::is_ready());
 
         Self::get_result()
     }

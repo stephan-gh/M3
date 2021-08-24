@@ -19,14 +19,91 @@ use core::ptr;
 use libc;
 
 use crate::arch::envdata;
-use crate::arch::tcu::{thread, EpId, Header, PEId, TOTAL_EPS, PE_COUNT};
+use crate::arch::tcu::{thread, EpId, Header, PEId, PE_COUNT, TOTAL_EPS};
 use crate::col::Vec;
 use crate::mem;
 
+pub struct FdSet {
+    set: libc::fd_set,
+    max: i32,
+}
+
+impl FdSet {
+    pub fn new() -> FdSet {
+        unsafe {
+            let mut raw_fd_set = mem::MaybeUninit::<libc::fd_set>::uninit();
+            libc::FD_ZERO(raw_fd_set.as_mut_ptr());
+            FdSet {
+                set: raw_fd_set.assume_init(),
+                max: 0,
+            }
+        }
+    }
+
+    pub fn set(&mut self, fd: i32) {
+        unsafe {
+            libc::FD_SET(fd, &mut self.set)
+        }
+        self.max = core::cmp::max(self.max, fd);
+    }
+}
+
+struct UnixSocket {
+    fd: i32,
+    addr: libc::sockaddr_un,
+}
+
+impl UnixSocket {
+    fn new(fd: i32, addr: libc::sockaddr_un) -> Self {
+        Self { fd, addr }
+    }
+
+    fn bind(&self) {
+        unsafe {
+            assert!(
+                libc::bind(
+                    self.fd,
+                    &self.addr as *const _ as *const libc::sockaddr,
+                    mem::size_of::<libc::sockaddr_un>() as u32
+                ) != -1
+            );
+        }
+    }
+
+    fn send<T>(&self, data: T) {
+        unsafe {
+            let res = libc::sendto(
+                self.fd,
+                &data as *const _ as *const libc::c_void,
+                mem::size_of_val(&data),
+                0,
+                &self.addr as *const _ as *const libc::sockaddr,
+                mem::size_of::<libc::sockaddr_un>() as u32,
+            );
+            assert!(res != -1);
+        }
+    }
+
+    fn receive<T>(&self, data: &mut T, block: bool) -> bool {
+        let res = unsafe {
+            libc::recvfrom(
+                self.fd,
+                data as *mut _ as *mut libc::c_void,
+                mem::size_of_val(data),
+                if block { 0 } else { libc::MSG_DONTWAIT },
+                ptr::null_mut(),
+                ptr::null_mut(),
+            )
+        };
+        res > 0
+    }
+}
+
 pub(crate) struct SocketBackend {
     sock: i32,
-    knotify_sock: i32,
-    knotify_addr: libc::sockaddr_un,
+    cmd_sock: UnixSocket,
+    ack_sock: UnixSocket,
+    knotify_sock: UnixSocket,
     localsock: Vec<i32>,
     eps: Vec<libc::sockaddr_un>,
 }
@@ -49,6 +126,16 @@ impl SocketBackend {
         sockaddr
     }
 
+    fn create_sock(name: &str) -> UnixSocket {
+        let sock = unsafe { libc::socket(libc::AF_UNIX, libc::SOCK_DGRAM, 0) };
+        assert!(sock != -1);
+        unsafe {
+            assert!(libc::fcntl(sock, libc::F_SETFD, libc::FD_CLOEXEC) == 0);
+        }
+        let sock_name = format!("\0{}/{}\0", envdata::tmp_dir(), name);
+        UnixSocket::new(sock, Self::get_sock_addr(&sock_name))
+    }
+
     fn ep_idx(pe: PEId, ep: EpId) -> usize {
         pe as usize * TOTAL_EPS as usize + ep as usize
     }
@@ -57,13 +144,12 @@ impl SocketBackend {
         let sock = unsafe { libc::socket(libc::AF_UNIX, libc::SOCK_DGRAM, 0) };
         assert!(sock != -1);
 
-        let knotify_sock = unsafe { libc::socket(libc::AF_UNIX, libc::SOCK_DGRAM, 0) };
-        assert!(knotify_sock != -1);
-        unsafe {
-            assert!(libc::fcntl(knotify_sock, libc::F_SETFD, libc::FD_CLOEXEC) == 0);
-        }
-        let knotify_name = format!("\0{}/knotify\0", envdata::tmp_dir());
-        let knotify_addr = Self::get_sock_addr(&knotify_name);
+        let pe = envdata::get().pe_id as PEId;
+        let cmd_sock = Self::create_sock(&format!("pe{}-cmd", pe));
+        cmd_sock.bind();
+        let ack_sock = Self::create_sock(&format!("pe{}-ack", pe));
+        ack_sock.bind();
+        let knotify_sock = Self::create_sock("knotify");
 
         let mut eps = vec![];
         for pe in 0..PE_COUNT {
@@ -73,7 +159,6 @@ impl SocketBackend {
             }
         }
 
-        let pe = envdata::get().pe_id as PEId;
         let mut localsock = vec![];
         for ep in 0..TOTAL_EPS {
             unsafe {
@@ -97,8 +182,9 @@ impl SocketBackend {
 
         SocketBackend {
             sock,
+            cmd_sock,
+            ack_sock,
             knotify_sock,
-            knotify_addr,
             localsock,
             eps,
         }
@@ -130,65 +216,74 @@ impl SocketBackend {
                 ptr::null_mut(),
             )
         };
-        if res <= 0 {
-            None
+        if res <= 0 { None } else { Some(res as usize) }
+    }
+
+    pub fn wait_for_work(&self) {
+        let mut fds = [FdSet::new(), FdSet::new()];
+        for f in &mut fds {
+            f.set(self.sock);
+            f.set(self.cmd_sock.fd);
+            f.set(self.ack_sock.fd);
+            f.set(self.knotify_sock.fd);
+            for fd in &self.localsock {
+                f.set(*fd);
+            }
         }
-        else {
-            Some(res as usize)
-        }
+
+        let res = unsafe {
+            libc::select(
+                fds[0].max + 1,
+                &mut fds[0].set as *mut _,
+                ptr::null_mut(),
+                &mut fds[1].set as *mut _,
+                ptr::null_mut(),
+            )
+        };
+        assert!(res != -1);
+    }
+
+    pub fn send_command(&self) {
+        self.cmd_sock.send(0u8);
+    }
+
+    pub fn recv_command(&self) -> bool {
+        self.cmd_sock.receive(&mut 0u8, false)
+    }
+
+    pub fn send_ack(&self) {
+        self.ack_sock.send(0u8)
+    }
+
+    pub fn recv_ack(&self) -> bool {
+        // block until the ACK for the command arrived
+        self.ack_sock.receive(&mut 0u8, true)
+    }
+
+    pub fn bind_knotify(&self) {
+        self.knotify_sock.bind();
     }
 
     pub fn notify_kernel(&self, pid: libc::pid_t, status: i32) {
         let data = KNotifyData { pid, status };
-        unsafe {
-            let res = libc::sendto(
-                self.knotify_sock,
-                &data as *const KNotifyData as *const libc::c_void,
-                mem::size_of::<KNotifyData>(),
-                0,
-                &self.knotify_addr as *const libc::sockaddr_un as *const libc::sockaddr,
-                mem::size_of::<libc::sockaddr_un>() as u32,
-            );
-            assert!(res != -1);
-        }
-    }
-
-    pub fn bind_knotify(&self) {
-        unsafe {
-            assert!(
-                libc::bind(
-                    self.knotify_sock,
-                    &self.knotify_addr as *const libc::sockaddr_un as *const libc::sockaddr,
-                    mem::size_of::<libc::sockaddr_un>() as u32
-                ) != -1
-            );
-        }
+        self.knotify_sock.send(data);
     }
 
     pub fn receive_knotify(&self) -> Option<(libc::pid_t, i32)> {
         let mut data = KNotifyData::default();
-
-        let res = unsafe {
-            libc::recvfrom(
-                self.knotify_sock,
-                &mut data as *mut KNotifyData as *mut libc::c_void,
-                mem::size_of::<KNotifyData>(),
-                libc::MSG_DONTWAIT,
-                ptr::null_mut(),
-                ptr::null_mut(),
-            )
-        };
-        if res <= 0 {
-            None
+        if self.knotify_sock.receive(&mut data, false) {
+            Some((data.pid, data.status))
         }
         else {
-            Some((data.pid, data.status))
+            None
         }
     }
 
     pub fn shutdown(&self) {
         for ep in 0..TOTAL_EPS {
-            unsafe { libc::shutdown(self.localsock[ep as usize], libc::SHUT_RD) };
+            unsafe {
+                libc::shutdown(self.localsock[ep as usize], libc::SHUT_RD)
+            };
         }
     }
 }
@@ -196,7 +291,9 @@ impl SocketBackend {
 impl Drop for SocketBackend {
     fn drop(&mut self) {
         for ep in 0..TOTAL_EPS {
-            unsafe { libc::close(self.localsock[ep as usize]) };
+            unsafe {
+                libc::close(self.localsock[ep as usize])
+            };
         }
     }
 }

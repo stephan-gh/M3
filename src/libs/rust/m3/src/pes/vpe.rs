@@ -142,13 +142,13 @@ impl VPE {
     /// passed.
     #[inline(always)]
     pub fn sleep_for(nanos: u64) -> Result<(), Error> {
-        if envdata::get().platform != envdata::Platform::HOST.val {
-            if arch::env::get().shared() || nanos != 0 {
-                return pexif::wait(None, None, Some(nanos));
-            }
-            if envdata::get().platform == envdata::Platform::GEM5.val {
-                return TCU::wait_for_msg(INVALID_EP);
-            }
+        if envdata::get().platform != envdata::Platform::HOST.val
+            && (arch::env::get().shared() || nanos != 0)
+        {
+            return pexif::wait(None, None, Some(nanos));
+        }
+        if envdata::get().platform != envdata::Platform::HW.val {
+            return TCU::wait_for_msg(INVALID_EP);
         }
         Ok(())
     }

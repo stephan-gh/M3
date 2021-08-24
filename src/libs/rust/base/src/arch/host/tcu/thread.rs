@@ -63,6 +63,8 @@ impl Buffer {
 
 static LOG: LazyStaticCell<io::log::Log> = LazyStaticCell::default();
 static BUFFER: StaticCell<Buffer> = StaticCell::new(Buffer::new());
+static MSG_CNT: StaticCell<usize> = StaticCell::new(0);
+static SLEEPING: StaticCell<bool> = StaticCell::new(false);
 
 fn buffer() -> &'static mut Buffer {
     BUFFER.get_mut()
@@ -316,6 +318,7 @@ fn prepare_ack(ep: EpId) -> Result<(PEId, EpId), Error> {
             EpReg::BUF_MSG_CNT,
             TCU::get_ep(ep, EpReg::BUF_MSG_CNT) - 1,
         );
+        fetched_msg();
     }
     TCU::set_ep(ep, EpReg::BUF_OCCUPIED, occupied);
 
@@ -352,6 +355,8 @@ fn prepare_fetch(ep: EpId) -> Result<(PEId, EpId), Error> {
 
         TCU::set_cmd(CmdReg::OFFSET, idx * (1 << msg_ord));
 
+        fetched_msg();
+
         Ok((0, TOTAL_EPS))
     };
 
@@ -367,6 +372,39 @@ fn prepare_fetch(ep: EpId) -> Result<(PEId, EpId), Error> {
     }
 
     unreachable!();
+}
+
+fn received_msg() {
+    *MSG_CNT.get_mut() += 1;
+    log_tcu!("TCU: received message");
+    if *SLEEPING {
+        stop_sleep();
+    }
+}
+
+fn fetched_msg() {
+    *MSG_CNT.get_mut() -= 1;
+    log_tcu!("TCU: fetched message");
+}
+
+fn start_sleep() {
+    if *MSG_CNT == 0 {
+        log_tcu!("TCU: sleep started");
+        *SLEEPING.get_mut() = true;
+    }
+    else {
+        // still unread messages -> no sleep. ack is sent if command is ready
+        TCU::set_cmd(CmdReg::CTRL, 0);
+    }
+}
+
+fn stop_sleep() {
+    assert!(*MSG_CNT > 0);
+    log_tcu!("TCU: sleep stopped (messages: {})", *MSG_CNT);
+    *SLEEPING.get_mut() = false;
+    // provide feedback to SW
+    TCU::set_cmd(CmdReg::CTRL, 0);
+    get_backend().send_ack();
 }
 
 fn handle_msg(ep: EpId, len: usize) {
@@ -408,6 +446,8 @@ fn handle_msg(ep: EpId, len: usize) {
         unsafe {
             util::slice_for_mut(dst, len).copy_from_slice(util::slice_for(src, len));
         }
+
+        received_msg();
     };
 
     for i in woff..size {
@@ -505,7 +545,7 @@ fn handle_read_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Err
     send_msg(backend, ep, dst_pe, dst_ep)
 }
 
-fn handle_resp_cmd() {
+fn handle_resp_cmd(backend: &backend::SocketBackend) {
     let buf = buffer();
     let data = buf.as_words();
     let base = buf.header.label;
@@ -538,6 +578,7 @@ fn handle_resp_cmd() {
 
     // provide feedback to SW
     TCU::set_cmd(CmdReg::CTRL, resp << 16);
+    backend.send_ack();
 }
 
 #[rustfmt::skip]
@@ -590,6 +631,7 @@ fn handle_command(backend: &backend::SocketBackend) {
             Command::WRITE => prepare_write(ep),
             Command::FETCH_MSG => prepare_fetch(ep),
             Command::ACK_MSG => prepare_ack(ep),
+            Command::SLEEP => return start_sleep(),
             _ => Err(Error::new(Code::NotSup)),
         };
 
@@ -638,7 +680,7 @@ fn handle_receive(backend: &backend::SocketBackend, ep: EpId) -> bool {
             Command::SEND | Command::REPLY => handle_msg(ep, size),
             Command::READ => handle_read_cmd(backend, ep).unwrap(),
             Command::WRITE => handle_write_cmd(backend, ep).unwrap(),
-            Command::RESP => handle_resp_cmd(),
+            Command::RESP => handle_resp_cmd(backend),
             _ => panic!("Not supported!"),
         }
 
@@ -680,7 +722,7 @@ static BACKEND: StaticCell<Option<backend::SocketBackend>> = StaticCell::new(Non
 static RUN: atomic::AtomicUsize = atomic::AtomicUsize::new(1);
 static mut TID: libc::pthread_t = 0;
 
-fn get_backend() -> &'static mut backend::SocketBackend {
+pub(crate) fn get_backend() -> &'static mut backend::SocketBackend {
     BACKEND.get_mut().as_mut().unwrap()
 }
 
@@ -713,15 +755,20 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
     }
 
     while RUN.load(atomic::Ordering::Relaxed) == 1 {
-        if (TCU::get_cmd(CmdReg::CTRL) & Control::START.bits()) != 0 {
+        if backend.recv_command() {
+            assert!((TCU::get_cmd(CmdReg::CTRL) & Control::START.bits()) != 0);
             handle_command(&backend);
+            // for read and write, we get a response later
+            if TCU::is_ready() {
+                backend.send_ack();
+            }
         }
 
         for ep in 0..TOTAL_EPS {
             handle_receive(&backend, ep);
         }
 
-        TCU::sleep().unwrap();
+        backend.wait_for_work();
     }
 
     // deny further receives
@@ -737,7 +784,7 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
             break;
         }
 
-        TCU::sleep().unwrap();
+        backend.wait_for_work();
     }
 
     ptr::null_mut()
@@ -757,6 +804,8 @@ pub fn init() {
 
 pub fn deinit() {
     RUN.store(0, atomic::Ordering::Relaxed);
+    // wakeup the thread, if necessary
+    get_backend().send_command();
 
     unsafe {
         // libc::pthread_kill(TID, libc::SIGUSR1);
