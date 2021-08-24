@@ -66,7 +66,7 @@ extern "C" {
     static mut heap_end: *const HeapArea;
 }
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 fn heap_bounds() -> (usize, usize) {
     use crate::arch;
     use crate::kif::PEDesc;
@@ -89,7 +89,7 @@ fn heap_bounds() -> (usize, usize) {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(target_vendor = "host")]
 fn heap_bounds() -> (usize, usize) {
     use crate::arch::envdata;
 

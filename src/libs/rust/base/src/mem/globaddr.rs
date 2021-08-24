@@ -28,7 +28,7 @@ pub struct GlobAddr {
 }
 
 cfg_if! {
-    if #[cfg(target_os = "none")] {
+    if #[cfg(not(target_vendor = "host"))] {
         const PE_SHIFT: u64 = 56;
         const PE_OFFSET: u64 = 0x80;
     }

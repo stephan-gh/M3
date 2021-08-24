@@ -31,7 +31,7 @@ pub const KSYS_EP: EpId = PMEM_PROT_EPS as EpId + 0;
 pub const KSRV_EP: EpId = PMEM_PROT_EPS as EpId + 1;
 pub const KTMP_EP: EpId = PMEM_PROT_EPS as EpId + 2;
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 static BUF: StaticCell<[u8; 8192]> = StaticCell::new([0u8; 8192]);
 static RBUFS: StaticCell<[usize; 8]> = StaticCell::new([0usize; 8]);
 
@@ -112,12 +112,12 @@ pub fn reply(ep: EpId, reply: &mem::MsgBuf, msg: &Message) -> Result<(), Error> 
     TCU::reply(ep, reply, msg_off)
 }
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 pub fn read_obj<T>(pe: PEId, addr: goff) -> T {
     try_read_obj(pe, addr).unwrap()
 }
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 pub fn try_read_obj<T>(pe: PEId, addr: goff) -> Result<T, Error> {
     use base::mem::MaybeUninit;
 
@@ -128,12 +128,12 @@ pub fn try_read_obj<T>(pe: PEId, addr: goff) -> Result<T, Error> {
     Ok(obj)
 }
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 pub fn read_slice<T>(pe: PEId, addr: goff, data: &mut [T]) {
     try_read_slice(pe, addr, data).unwrap();
 }
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 pub fn try_read_slice<T>(pe: PEId, addr: goff, data: &mut [T]) -> Result<(), Error> {
     try_read_mem(
         pe,
@@ -143,7 +143,7 @@ pub fn try_read_slice<T>(pe: PEId, addr: goff, data: &mut [T]) -> Result<(), Err
     )
 }
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 pub fn try_read_mem(pe: PEId, addr: goff, data: *mut u8, size: usize) -> Result<(), Error> {
     config_local_ep(KTMP_EP, |regs| {
         config_mem(regs, KERNEL_ID, pe, addr, size, kif::Perm::R);
@@ -152,19 +152,19 @@ pub fn try_read_mem(pe: PEId, addr: goff, data: *mut u8, size: usize) -> Result<
     TCU::read(KTMP_EP, data, size, 0)
 }
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 pub fn write_slice<T>(pe: PEId, addr: goff, sl: &[T]) {
     let sl_addr = sl.as_ptr() as *const u8;
     write_mem(pe, addr, sl_addr, sl.len() * mem::size_of::<T>());
 }
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 pub fn try_write_slice<T>(pe: PEId, addr: goff, sl: &[T]) -> Result<(), Error> {
     let sl_addr = sl.as_ptr() as *const u8;
     try_write_mem(pe, addr, sl_addr, sl.len() * mem::size_of::<T>())
 }
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 pub fn write_mem(pe: PEId, addr: goff, data: *const u8, size: usize) {
     try_write_mem(pe, addr, data, size).unwrap();
 }
@@ -177,7 +177,7 @@ pub fn try_write_mem(pe: PEId, addr: goff, data: *const u8, size: usize) -> Resu
     TCU::write(KTMP_EP, data, size, 0)
 }
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 pub fn clear(dst_pe: PEId, mut dst_addr: goff, size: usize) -> Result<(), Error> {
     use base::libc;
 
@@ -196,7 +196,7 @@ pub fn clear(dst_pe: PEId, mut dst_addr: goff, size: usize) -> Result<(), Error>
     Ok(())
 }
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 pub fn copy(
     dst_pe: PEId,
     mut dst_addr: goff,

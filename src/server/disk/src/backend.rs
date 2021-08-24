@@ -39,11 +39,11 @@ pub trait BlockDeviceTrait {
     ) -> Result<(), Error>;
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(target_vendor = "host")]
 #[path = "host/mod.rs"]
 mod backend_impl;
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 #[path = "gem5/mod.rs"]
 mod backend_impl;
 

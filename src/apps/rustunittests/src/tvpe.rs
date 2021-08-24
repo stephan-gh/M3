@@ -26,7 +26,7 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, run_stop);
     wv_run_test!(t, run_arguments);
     wv_run_test!(t, run_send_receive);
-    #[cfg(target_os = "none")]
+    #[cfg(not(target_vendor = "host"))]
     wv_run_test!(t, exec_fail);
     wv_run_test!(t, exec_hello);
     wv_run_test!(t, exec_rust_hello);
@@ -117,7 +117,7 @@ fn run_send_receive() {
     wv_assert_eq!(act.wait(), Ok(42 + 23));
 }
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 fn exec_fail() {
     use m3::errors::Code;
 

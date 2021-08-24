@@ -23,9 +23,9 @@
 extern crate heap;
 
 // init stuff
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 pub use arch::init::{env_run, exit};
-#[cfg(target_os = "linux")]
+#[cfg(target_vendor = "host")]
 pub use arch::init::{exit, rust_deinit, rust_init};
 
 #[macro_use]

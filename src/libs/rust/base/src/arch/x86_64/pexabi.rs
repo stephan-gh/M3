@@ -21,7 +21,7 @@ pub fn call1(op: Operation, arg1: usize) -> Result<usize, Error> {
     call2(op, arg1, 0)
 }
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
     let mut res = op.val;
     unsafe {
@@ -35,12 +35,12 @@ pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
     crate::pexif::get_result(res)
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(target_vendor = "host")]
 pub fn call2(_op: Operation, _arg1: usize, _arg2: usize) -> Result<usize, Error> {
     Ok(0)
 }
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 pub fn call3(op: Operation, arg1: usize, arg2: usize, arg3: usize) -> Result<usize, Error> {
     let mut res = op.val;
     unsafe {
@@ -54,12 +54,12 @@ pub fn call3(op: Operation, arg1: usize, arg2: usize, arg3: usize) -> Result<usi
     crate::pexif::get_result(res)
 }
 
-#[cfg(not(target_os = "none"))]
+#[cfg(target_vendor = "host")]
 pub fn call3(_op: Operation, _arg1: usize, _arg2: usize, _arg3: usize) -> Result<usize, Error> {
     Ok(0)
 }
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 pub fn call4(
     op: Operation,
     arg1: usize,
@@ -79,7 +79,7 @@ pub fn call4(
     crate::pexif::get_result(res)
 }
 
-#[cfg(not(target_os = "none"))]
+#[cfg(target_vendor = "host")]
 pub fn call4(
     _op: Operation,
     _arg1: usize,

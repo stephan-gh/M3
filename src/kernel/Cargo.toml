@@ -12,6 +12,6 @@ base = { path = "../libs/rust/base" }
 bitflags = "*"
 thread = { path = "../libs/rust/thread" }
 
-[target.'cfg(target_os = "none")'.dependencies]
+[target.'cfg(not(target_vendor = "host"))'.dependencies]
 isr = { path = "../libs/rust/isr" }
 paging = { path = "../libs/rust/paging" }

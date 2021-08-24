@@ -23,7 +23,7 @@ use core::iter;
 
 use crate::arch;
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 pub use arch::platform::rbuf_pemux;
 
 pub struct KEnv {
@@ -101,7 +101,7 @@ pub fn info_size() -> usize {
 pub fn kernel_pe() -> PEId {
     arch::platform::kernel_pe()
 }
-#[cfg(target_os = "linux")]
+#[cfg(target_vendor = "host")]
 pub fn pes() -> &'static [PEDesc] {
     &get().pes
 }

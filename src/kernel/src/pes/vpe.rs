@@ -19,8 +19,8 @@ use base::col::{String, ToString, Vec};
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{self, CapRngDesc, CapSel, CapType, PEDesc};
-use base::rc::{Rc, SRc};
 use base::mem::MsgBuf;
+use base::rc::{Rc, SRc};
 use base::tcu::Label;
 use base::tcu::{EpId, PEId, VPEId, STD_EPS_COUNT, UPCALL_REP_OFF};
 use bitflags::bitflags;
@@ -134,7 +134,7 @@ impl VPE {
     }
 
     pub fn init_async(&self) -> Result<(), Error> {
-        #[cfg(target_os = "none")]
+        #[cfg(not(target_vendor = "host"))]
         {
             let loader = Loader::get();
             loader.init_memory_async(self)?;
@@ -146,11 +146,11 @@ impl VPE {
             }
         }
 
-        #[cfg(target_os = "linux")]
+        #[cfg(target_vendor = "host")]
         Ok(())
     }
 
-    #[cfg(target_os = "none")]
+    #[cfg(not(target_vendor = "host"))]
     fn init_eps_async(&self) -> Result<(), Error> {
         use crate::cap::{RGateObject, SGateObject};
         use base::cfg;
@@ -436,13 +436,13 @@ impl VPE {
     }
 
     fn exit_app_async(&self, exit_code: i32, stop: bool) {
-        #[cfg(target_os = "linux")]
+        #[cfg(target_vendor = "host")]
         if let Some(pid) = self.pid() {
             // first kill the process to ensure that it cannot use EPs anymore
             ktcu::reset_pe(self.pe_id(), pid).unwrap();
         }
 
-        #[cfg(target_os = "none")]
+        #[cfg(not(target_vendor = "host"))]
         {
             let pemux = PEMng::get().pemux(self.pe_id());
             // force-invalidate standard EPs

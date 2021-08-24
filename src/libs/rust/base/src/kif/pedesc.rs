@@ -229,7 +229,7 @@ impl PEDesc {
 
     fn rbuf_base(self) -> usize {
         cfg_if! {
-            if #[cfg(target_os = "linux")] {
+            if #[cfg(target_vendor = "host")] {
                 cfg::RBUF_STD_ADDR
             }
             else {

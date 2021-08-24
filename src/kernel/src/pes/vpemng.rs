@@ -211,7 +211,7 @@ impl VPEMng {
         }
 
         // memory
-        #[cfg(target_os = "none")]
+        #[cfg(not(target_vendor = "host"))]
         let mut mem_ep = 1;
 
         for m in mem::get().mods() {
@@ -219,7 +219,7 @@ impl VPEMng {
                 let alloc = Allocation::new(m.addr(), m.capacity());
                 let mgate_obj = MGateObject::new(alloc, kif::Perm::RWX, false);
 
-                #[cfg(target_os = "none")]
+                #[cfg(not(target_vendor = "host"))]
                 {
                     // we currently assume that we have enough protection EPs for all user memory regions
                     assert!(mem_ep < tcu::PMEM_PROT_EPS as tcu::EpId);
@@ -269,7 +269,7 @@ impl VPEMng {
         };
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(target_vendor = "host")]
     pub fn find_vpe<P>(&self, pred: P) -> Option<Rc<VPE>>
     where
         P: Fn(&Rc<VPE>) -> bool,
@@ -288,7 +288,7 @@ impl VPEMng {
 impl Drop for VPEMng {
     fn drop(&mut self) {
         for _vpe in self.vpes.drain(0..).flatten() {
-            #[cfg(target_os = "linux")]
+            #[cfg(target_vendor = "host")]
             if let Some(pid) = _vpe.pid() {
                 crate::arch::childs::kill_child(pid);
             }

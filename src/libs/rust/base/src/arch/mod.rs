@@ -14,11 +14,11 @@
  * General Public License version 2 for more details.
  */
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 #[path = "kachel/mod.rs"]
 mod inner;
 
-#[cfg(target_os = "linux")]
+#[cfg(target_vendor = "host")]
 #[path = "host/mod.rs"]
 mod inner;
 

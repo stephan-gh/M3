@@ -18,7 +18,7 @@
 #![feature(ptr_internals)]
 #![no_std]
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 extern crate paging;
 
 #[macro_use]

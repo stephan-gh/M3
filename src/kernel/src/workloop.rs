@@ -54,7 +54,7 @@ pub fn workloop() {
             }
         }
 
-        #[cfg(target_os = "none")]
+        #[cfg(not(target_vendor = "host"))]
         if let Some(msg) = ktcu::fetch_msg(ktcu::KPEX_EP) {
             let pe = msg.header.label as tcu::PEId;
             crate::pes::PEMng::get().pemux(pe).handle_call_async(msg);
@@ -62,9 +62,9 @@ pub fn workloop() {
 
         thmng.try_yield();
 
-        #[cfg(target_os = "linux")]
+        #[cfg(target_vendor = "host")]
         crate::arch::childs::check_childs_async();
-        #[cfg(target_os = "linux")]
+        #[cfg(target_vendor = "host")]
         crate::arch::net::check();
     }
 }

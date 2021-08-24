@@ -432,7 +432,7 @@ impl VPE {
     ///
     /// The method returns the [`ClosureActivity`] on success that can be used to wait for the
     /// functions completeness or to stop it.
-    #[cfg(target_os = "none")]
+    #[cfg(not(target_vendor = "host"))]
     pub fn run<F>(self, func: Box<F>) -> Result<ClosureActivity, Error>
     where
         F: FnOnce() -> i32 + Send + 'static,
@@ -504,7 +504,7 @@ impl VPE {
     ///
     /// The method returns the [`ClosureActivity`] on success that can be used to wait for the
     /// functions completeness or to stop it.
-    #[cfg(target_os = "linux")]
+    #[cfg(target_vendor = "host")]
     pub fn run<F>(self, func: Box<F>) -> Result<ClosureActivity, Error>
     where
         F: FnOnce() -> i32 + Send + 'static,
@@ -571,7 +571,7 @@ impl VPE {
     ///
     /// The method returns the [`ExecActivity`] on success that can be used to wait for the
     /// program completeness or to stop it.
-    #[cfg(target_os = "none")]
+    #[cfg(not(target_vendor = "host"))]
     #[allow(unused_mut)]
     pub fn exec_file<S: AsRef<str>>(
         mut self,
@@ -659,7 +659,7 @@ impl VPE {
     ///
     /// The method returns the [`ExecActivity`] on success that can be used to wait for the
     /// program completeness or to stop it.
-    #[cfg(target_os = "linux")]
+    #[cfg(target_vendor = "host")]
     pub fn exec_file<S: AsRef<str>>(
         self,
         _mapper: &dyn Mapper,

@@ -363,7 +363,7 @@ pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
     try_kmem_quota!(vpe.obj_caps().borrow_mut().insert(cap));
 
     // activate pager EPs
-    #[cfg(target_os = "none")]
+    #[cfg(not(target_vendor = "host"))]
     {
         use crate::cap::EPObject;
 

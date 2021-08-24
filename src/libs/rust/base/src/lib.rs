@@ -29,13 +29,13 @@ pub extern crate core as _core;
 use cfg_if::cfg_if;
 
 cfg_if! {
-    if #[cfg(target_os = "none")] {
+    if #[cfg(not(target_vendor = "host"))] {
         /// The C library
         pub mod libc {
             pub use crate::arch::libc::*;
         }
     }
-    else if #[cfg(target_os = "linux")] {
+    else {
         /// The C library
         pub extern crate libc;
     }
@@ -89,7 +89,7 @@ mod arch;
 pub type goff = u64;
 
 /// Machine-specific functions
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 pub mod machine {
     pub use crate::arch::machine::*;
 }

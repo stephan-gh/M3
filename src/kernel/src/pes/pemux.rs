@@ -32,7 +32,7 @@ use crate::platform;
 pub struct PEMux {
     pe: SRc<PEObject>,
     vpes: Vec<VPEId>,
-    #[cfg(target_os = "none")]
+    #[cfg(not(target_vendor = "host"))]
     queue: crate::com::SendQueue,
     pmp: Vec<Rc<EPObject>>,
     eps: BitVec,
@@ -53,21 +53,21 @@ impl PEMux {
         let mut pemux = PEMux {
             pe: pe_obj,
             vpes: Vec::new(),
-            #[cfg(target_os = "none")]
+            #[cfg(not(target_vendor = "host"))]
             queue: crate::com::SendQueue::new(pe as u64, pe),
             pmp,
             eps: BitVec::new(tcu::AVAIL_EPS as usize),
             mem_base: 0,
         };
 
-        #[cfg(target_os = "none")]
+        #[cfg(not(target_vendor = "host"))]
         pemux.eps.set(0); // first EP is reserved for PEMux's memory region
 
         for ep in tcu::PMEM_PROT_EPS as EpId..tcu::FIRST_USER_EP {
             pemux.eps.set(ep as usize);
         }
 
-        #[cfg(target_os = "none")]
+        #[cfg(not(target_vendor = "host"))]
         if platform::pe_desc(pe).supports_pemux() {
             pemux.init();
         }
@@ -88,7 +88,7 @@ impl PEMux {
         self.vpes.retain(|id| *id != vpe);
     }
 
-    #[cfg(target_os = "none")]
+    #[cfg(not(target_vendor = "host"))]
     fn init(&mut self) {
         use base::cfg;
 
@@ -143,7 +143,7 @@ impl PEMux {
         self.pe.pe()
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(target_vendor = "host")]
     pub fn eps_base(&mut self) -> goff {
         self.mem_base
     }
@@ -352,7 +352,7 @@ impl PEMux {
     }
 }
 
-#[cfg(target_os = "none")]
+#[cfg(not(target_vendor = "host"))]
 impl PEMux {
     pub fn handle_call_async(&mut self, msg: &tcu::Message) {
         use crate::pes::VPEMng;
@@ -494,7 +494,7 @@ impl PEMux {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(target_vendor = "host")]
 impl PEMux {
     pub fn update_eps(&mut self) -> Result<(), Error> {
         ktcu::update_eps(self.pe_id(), self.mem_base)

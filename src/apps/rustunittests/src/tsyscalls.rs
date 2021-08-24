@@ -176,7 +176,7 @@ fn create_mgate() {
     }
 
     // the TCU region is off limits
-    #[cfg(target_os = "none")]
+    #[cfg(not(target_vendor = "host"))]
     wv_assert_err!(
         syscalls::create_mgate(
             sel,
