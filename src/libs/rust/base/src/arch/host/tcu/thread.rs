@@ -68,7 +68,7 @@ enum SleepState {
     UntilTimeout(u64),
 }
 
-static LOG: LazyStaticCell<io::log::Log> = LazyStaticCell::default();
+pub(crate) static LOG: LazyStaticCell<io::log::Log> = LazyStaticCell::default();
 static BUFFER: StaticCell<Buffer> = StaticCell::new(Buffer::new());
 static MSG_CNT: StaticCell<usize> = StaticCell::new(0);
 static SLEEP: StaticCell<SleepState> = StaticCell::new(SleepState::None);
@@ -77,16 +77,19 @@ fn buffer() -> &'static mut Buffer {
     BUFFER.get_mut()
 }
 
+#[macro_export]
 macro_rules! log_tcu {
-    ($fmt:expr)              => (log_tcu_impl!(TCU, concat!($fmt, "\n")));
-    ($fmt:expr, $($arg:tt)*) => (log_tcu_impl!(TCU, concat!($fmt, "\n"), $($arg)*));
+    ($fmt:expr)              => (crate::log_tcu_impl!(TCU, concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => (crate::log_tcu_impl!(TCU, concat!($fmt, "\n"), $($arg)*));
 }
 
+#[macro_export]
 macro_rules! log_tcu_critical {
-    ($fmt:expr)              => (log_tcu_impl!(TCU_ERR, concat!($fmt, "\n")));
-    ($fmt:expr, $($arg:tt)*) => (log_tcu_impl!(TCU_ERR, concat!($fmt, "\n"), $($arg)*));
+    ($fmt:expr)              => (crate::log_tcu_impl!(TCU_ERR, concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => (crate::log_tcu_impl!(TCU_ERR, concat!($fmt, "\n"), $($arg)*));
 }
 
+#[macro_export]
 macro_rules! log_tcu_impl {
     ($flag:tt, $($args:tt)*) => ({
         if $crate::io::log::$flag {
