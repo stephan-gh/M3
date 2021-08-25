@@ -61,10 +61,17 @@ impl Buffer {
     }
 }
 
+#[derive(Debug)]
+enum SleepState {
+    None,
+    UntilMsg,
+    UntilTimeout(u64),
+}
+
 static LOG: LazyStaticCell<io::log::Log> = LazyStaticCell::default();
 static BUFFER: StaticCell<Buffer> = StaticCell::new(Buffer::new());
 static MSG_CNT: StaticCell<usize> = StaticCell::new(0);
-static SLEEPING: StaticCell<bool> = StaticCell::new(false);
+static SLEEP: StaticCell<SleepState> = StaticCell::new(SleepState::None);
 
 fn buffer() -> &'static mut Buffer {
     BUFFER.get_mut()
@@ -377,7 +384,7 @@ fn prepare_fetch(ep: EpId) -> Result<(PEId, EpId), Error> {
 fn received_msg() {
     *MSG_CNT.get_mut() += 1;
     log_tcu!("TCU: received message");
-    if *SLEEPING {
+    if !matches!(*SLEEP, SleepState::None) {
         stop_sleep();
     }
 }
@@ -388,9 +395,13 @@ fn fetched_msg() {
 }
 
 fn start_sleep() {
+    let timeout = TCU::get_cmd(CmdReg::OFFSET);
     if *MSG_CNT == 0 {
-        log_tcu!("TCU: sleep started");
-        *SLEEPING.get_mut() = true;
+        *SLEEP.get_mut() = match timeout {
+            0 => SleepState::UntilMsg,
+            t => SleepState::UntilTimeout(TCU::nanotime() + t),
+        };
+        log_tcu!("TCU: sleep started ({:?})", *SLEEP);
     }
     else {
         // still unread messages -> no sleep. ack is sent if command is ready
@@ -399,9 +410,8 @@ fn start_sleep() {
 }
 
 fn stop_sleep() {
-    assert!(*MSG_CNT > 0);
     log_tcu!("TCU: sleep stopped (messages: {})", *MSG_CNT);
-    *SLEEPING.get_mut() = false;
+    *SLEEP.get_mut() = SleepState::None;
     // provide feedback to SW
     TCU::set_cmd(CmdReg::CTRL, 0);
     get_backend().send_ack();
@@ -768,7 +778,23 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
             handle_receive(&backend, ep);
         }
 
-        backend.wait_for_work();
+        let now = TCU::nanotime();
+        if let SleepState::UntilTimeout(end) = *SLEEP {
+            if now >= end {
+                stop_sleep();
+            }
+        }
+
+        let timeout = match *SLEEP {
+            SleepState::UntilTimeout(end) => Some(end.saturating_sub(now)),
+            _ => None,
+        };
+        if backend.wait_for_work(timeout) {
+            // if an additional fd is ready and the CPU is sleeping, wake it up
+            if !matches!(*SLEEP, SleepState::None) {
+                stop_sleep();
+            }
+        }
     }
 
     // deny further receives
@@ -784,7 +810,7 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
             break;
         }
 
-        backend.wait_for_work();
+        backend.wait_for_work(None);
     }
 
     ptr::null_mut()

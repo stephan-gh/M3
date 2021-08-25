@@ -46,6 +46,10 @@ impl FdSet {
         }
         self.max = core::cmp::max(self.max, fd);
     }
+
+    pub fn is_set(&mut self, fd: i32) -> bool {
+        unsafe { libc::FD_ISSET(fd, &mut self.set) }
+    }
 }
 
 struct UnixSocket {
@@ -106,6 +110,7 @@ pub(crate) struct SocketBackend {
     knotify_sock: UnixSocket,
     localsock: Vec<i32>,
     eps: Vec<libc::sockaddr_un>,
+    add_fds: Vec<i32>,
 }
 
 #[repr(C, packed)]
@@ -187,7 +192,12 @@ impl SocketBackend {
             knotify_sock,
             localsock,
             eps,
+            add_fds: Vec::new(),
         }
+    }
+
+    pub fn add_wait_fd(&mut self, fd: i32) {
+        self.add_fds.push(fd);
     }
 
     pub fn send(&self, pe: PEId, ep: EpId, buf: &thread::Buffer) -> bool {
@@ -219,28 +229,50 @@ impl SocketBackend {
         if res <= 0 { None } else { Some(res as usize) }
     }
 
-    pub fn wait_for_work(&self) {
+    pub fn wait_for_work(&self, timeout: Option<u64>) -> bool {
+        // build fd sets; one for reading, one for error
         let mut fds = [FdSet::new(), FdSet::new()];
         for f in &mut fds {
-            f.set(self.sock);
             f.set(self.cmd_sock.fd);
-            f.set(self.ack_sock.fd);
             f.set(self.knotify_sock.fd);
             for fd in &self.localsock {
                 f.set(*fd);
             }
+            for fd in &self.add_fds {
+                f.set(*fd);
+            }
         }
 
+        // build timeout
+        let mut timeout_spec = timeout.map(|to| libc::timespec {
+            tv_nsec: (to % 1_000_000_000) as i64,
+            tv_sec: (to / 1_000_000_000) as i64,
+        });
+
         let res = unsafe {
-            libc::select(
+            libc::pselect(
                 fds[0].max + 1,
                 &mut fds[0].set as *mut _,
                 ptr::null_mut(),
                 &mut fds[1].set as *mut _,
+                match timeout_spec {
+                    Some(ref mut p) => p as *mut _,
+                    None => ptr::null_mut(),
+                },
                 ptr::null_mut(),
             )
         };
-        assert!(res != -1);
+
+        // check whether any additional fd became ready
+        let mut add_ready = false;
+        if res != -1 {
+            for fd in &self.add_fds {
+                if fds[0].is_set(*fd) {
+                    add_ready = true;
+                }
+            }
+        }
+        add_ready
     }
 
     pub fn send_command(&self) {

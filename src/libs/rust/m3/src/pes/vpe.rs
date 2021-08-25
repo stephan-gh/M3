@@ -148,7 +148,7 @@ impl VPE {
             return pexif::wait(None, None, Some(nanos));
         }
         if envdata::get().platform != envdata::Platform::HW.val {
-            return TCU::wait_for_msg(INVALID_EP);
+            return TCU::wait_for_msg(INVALID_EP, nanos);
         }
         Ok(())
     }
@@ -164,7 +164,7 @@ impl VPE {
         }
         if envdata::get().platform != envdata::Platform::HW.val {
             if let Some(ep) = ep {
-                return TCU::wait_for_msg(ep);
+                return TCU::wait_for_msg(ep, timeout.unwrap_or(0));
             }
         }
         Ok(())

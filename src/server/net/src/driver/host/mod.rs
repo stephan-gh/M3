@@ -25,6 +25,7 @@ use libc::{c_char, c_int, sockaddr_un};
 use m3::col::Vec;
 use m3::libc;
 use m3::rc::Rc;
+use m3::tcu::TCU;
 use m3::{format, log, vec};
 
 use smoltcp::phy::{Device, DeviceCapabilities};
@@ -97,6 +98,9 @@ impl RawSocketDesc {
                 );
             }
         }
+
+        // if we wait, wake up if there is something to read from `in_fd`
+        TCU::add_wait_fd(in_fd);
 
         let out_socket = get_socket(name, "out");
         RawSocketDesc {

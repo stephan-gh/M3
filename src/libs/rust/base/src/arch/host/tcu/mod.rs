@@ -337,12 +337,17 @@ impl TCU {
         Ok(())
     }
 
-    pub fn wait_for_msg(_ep: EpId) -> Result<(), Error> {
+    pub fn wait_for_msg(_ep: EpId, timeout: u64) -> Result<(), Error> {
+        Self::set_cmd(CmdReg::OFFSET, timeout as Reg);
         Self::set_cmd(
             CmdReg::CTRL,
             (Command::SLEEP.val << 3) | Control::START.bits,
         );
         Self::get_command_result()
+    }
+
+    pub fn add_wait_fd(fd: i32) {
+        thread::get_backend().add_wait_fd(fd);
     }
 
     pub fn configure(
