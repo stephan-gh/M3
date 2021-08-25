@@ -21,6 +21,7 @@ use m3::{wv_assert_err, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, create);
+    #[cfg(not(target_vendor = "host"))]
     wv_run_test!(t, destroy);
 }
 
@@ -32,6 +33,8 @@ fn create() {
     );
 }
 
+// requires a PEMux with notification support
+#[cfg(not(target_vendor = "host"))]
 fn destroy() {
     use m3::boxed::Box;
     use m3::com::{recv_msg, SGateArgs, SendGate};

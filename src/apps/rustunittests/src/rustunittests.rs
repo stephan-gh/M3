@@ -35,6 +35,8 @@ mod trgate;
 mod tsems;
 mod tserver;
 mod tsgate;
+#[cfg(not(target_vendor = "host"))]
+mod tsrvmsgs;
 mod tsyscalls;
 mod ttreap;
 mod tvpe;
@@ -81,6 +83,9 @@ pub fn main() -> i32 {
     wv_run_suite!(tester, tsgate::run);
     wv_run_suite!(tester, tsems::run);
     wv_run_suite!(tester, tserver::run);
+    // requires a PEMux with notification support
+    #[cfg(not(target_vendor = "host"))]
+    wv_run_suite!(tester, tsrvmsgs::run);
     wv_run_suite!(tester, tsyscalls::run);
     wv_run_suite!(tester, ttreap::run);
     wv_run_suite!(tester, tvpe::run);
