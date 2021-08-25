@@ -39,7 +39,7 @@ pub fn workloop() {
     }
 
     while vpemng.count() > 0 {
-        if envdata::get().platform == envdata::Platform::GEM5.val {
+        if envdata::get().platform != envdata::Platform::HW.val {
             tcu::TCU::sleep().unwrap();
         }
 

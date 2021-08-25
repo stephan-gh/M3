@@ -266,6 +266,10 @@ impl SocketBackend {
         // check whether any additional fd became ready
         let mut add_ready = false;
         if res != -1 {
+            // for the kernel: wake up if a notification was received
+            if fds[0].is_set(self.knotify_sock.fd) {
+                add_ready = true;
+            }
             for fd in &self.add_fds {
                 if fds[0].is_set(*fd) {
                     add_ready = true;

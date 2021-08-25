@@ -19,6 +19,7 @@ use base::col::{String, ToString, Vec};
 use base::format;
 use base::libc;
 use base::mem;
+use base::tcu::TCU;
 use core::ptr;
 
 static BUF: StaticCell<[u8; 2048]> = StaticCell::new([0u8; 2048]);
@@ -58,7 +59,8 @@ impl Bridge {
                     &src_sock as *const _ as *const libc::sockaddr,
                     mem::size_of::<libc::sockaddr_un>() as u32
                 ) == 0,
-                "Failed to bind socket: errno={}", (*libc::__errno_location()) as i32
+                "Failed to bind socket: errno={}",
+                (*libc::__errno_location()) as i32
             );
         }
 
@@ -111,6 +113,10 @@ pub fn create_bridge(names: &str) {
         parts[1].to_string() + "_out",
         parts[0].to_string() + "_in",
     ));
+
+    // wake up if there is anything to read
+    TCU::add_wait_fd(BR1.src_fd);
+    TCU::add_wait_fd(BR2.src_fd);
 }
 
 pub fn check() {
