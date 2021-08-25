@@ -637,6 +637,8 @@ fn handle_command(backend: &backend::SocketBackend) {
         let ctrl = TCU::get_cmd(CmdReg::CTRL);
         let op: Command = Command::from((ctrl >> 3) & 0xF);
 
+        log_tcu!("TCU: handling command {}", op);
+
         let res = match op {
             Command::SEND => prepare_send(ep),
             Command::REPLY => prepare_reply(ep),
