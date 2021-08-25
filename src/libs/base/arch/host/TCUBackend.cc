@@ -133,7 +133,7 @@ static inline void add_fd(fd_set *set, int fd, int *max_fd) {
     *max_fd = Math::max(*max_fd, fd);
 }
 
-void TCUBackend::wait_for_work() {
+void TCUBackend::wait_for_work(uint64_t timeout) {
     int max_fd = 0;
     fd_set fds[2];
     for(size_t i = 0; i < 2; ++i) {
@@ -144,8 +144,14 @@ void TCUBackend::wait_for_work() {
             add_fd(&fds[i], _localsocks[ep], &max_fd);
     }
 
-    UNUSED auto res = ::select(100, &fds[0], nullptr, &fds[1], nullptr);
-    assert(res != -1);
+    if(timeout != 0) {
+        struct timespec to;
+        to.tv_sec = static_cast<time_t>(timeout / 1000000000ULL);
+        to.tv_nsec = static_cast<long>(timeout % 1000000000ULL);
+        ::pselect(max_fd + 1, &fds[0], nullptr, &fds[1], &to, nullptr);
+    }
+    else
+        ::pselect(max_fd + 1, &fds[0], nullptr, &fds[1], nullptr, nullptr);
 }
 
 void TCUBackend::send_command() {

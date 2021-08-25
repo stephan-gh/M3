@@ -289,7 +289,8 @@ public:
     void sleep() const {
         usleep(1);
     }
-    void wait_for_msg(epid_t) {
+    void wait_for_msg(epid_t, uint64_t timeout) {
+        set_cmd(CMD_OFFSET, timeout);
         set_cmd(CMD_CTRL, static_cast<word_t>(SLEEP << OPCODE_SHIFT) | CTRL_START);
         exec_command();
     }
@@ -364,6 +365,7 @@ private:
     volatile word_t *_epregs;
     size_t _unread_msgs;
     bool _sleeping;
+    uint64_t _sleep_end;
     TCUBackend *_backend;
     pthread_t _tid;
     static Buffer _buf;

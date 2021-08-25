@@ -301,9 +301,14 @@ void TCU::fetched_msg() {
 }
 
 void TCU::start_sleep() {
+    uint64_t timeout = get_cmd(CMD_OFFSET);
     if(_unread_msgs == 0) {
-        LLOG(TCU, "TCU: sleep started");
+        if(timeout != 0)
+            _sleep_end = nanotime() + timeout;
+        else
+            _sleep_end = 0;
         _sleeping = true;
+        LLOG(TCU, "TCU: sleep started until " << _sleep_end);
     }
     else {
         // still unread messages -> no sleep. ack is sent if command is ready
@@ -628,7 +633,14 @@ void *TCU::thread(void *arg) {
         for(epid_t ep = 0; ep < TOTAL_EPS; ++ep)
             dma->handle_receive(ep);
 
-        dma->_backend->wait_for_work();
+        auto now = dma->nanotime();
+        if(dma->_sleeping && dma->_sleep_end != 0 && now >= dma->_sleep_end)
+            dma->stop_sleep();
+
+        uint64_t timeout = 0;
+        if(dma->_sleeping && dma->_sleep_end != 0)
+            timeout = dma->_sleep_end - now;
+        dma->_backend->wait_for_work(timeout);
     }
 
     // deny further receives

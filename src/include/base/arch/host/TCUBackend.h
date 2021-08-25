@@ -67,7 +67,7 @@ public:
     void notify_kernel(pid_t pid, int status);
     bool receive_knotify(pid_t *pid, int *status);
 
-    void wait_for_work();
+    void wait_for_work(uint64_t timeout);
 
     void send_command();
     bool recv_command();

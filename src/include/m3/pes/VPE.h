@@ -116,7 +116,7 @@ public:
         else if(env()->platform != Platform::HW)
             TCU::get().wait_for_msg(TCU::INVALID_EP);
 #else
-            TCU::get().wait_for_msg(TCU::INVALID_EP);
+            TCU::get().wait_for_msg(TCU::INVALID_EP, nanos);
 #endif
     }
 
@@ -130,7 +130,7 @@ public:
         else if(env()->platform != Platform::HW)
             TCU::get().wait_for_msg(ep);
 #else
-            TCU::get().wait_for_msg(TCU::INVALID_EP);
+            TCU::get().wait_for_msg(TCU::INVALID_EP, 0);
 #endif
     }
 
