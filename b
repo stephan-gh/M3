@@ -322,6 +322,7 @@ case "$cmd" in
 
             prog="${cmd#dbg=}"
             M3_WAIT="$prog" ./src/tools/execute.sh $script --debug=${cmd#dbg=} &
+            shpid=$!
             M3_KERNEL=${M3_KERNEL:-kernel}
 
             pid=`pgrep -x $M3_KERNEL`
@@ -344,6 +345,7 @@ case "$cmd" in
             echo "set var wait_for_debugger = 0" >> $tmp
             rust-gdb --tui $build/bin/$prog $pid --command=$tmp
 
+            kill $shpid
             rm $tmp
         elif [ "$M3_TARGET" = "gem5" ] || [ "$M3_RUN_GEM5" = "1" ]; then
             truncate --size 0 $M3_OUT/log.txt

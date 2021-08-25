@@ -234,12 +234,14 @@ if [ "$M3_TARGET" = "host" ]; then
     export M3_HOST_TMP=$dir
     trap "rm -rf $dir" EXIT ERR INT TERM
 
-    set -m
-
     params=$(build_params_host $script) || exit 1
 
     if [[ $params == *disk* ]] && [ "$M3_HDD" = "" ]; then
         ./src/tools/disk.py create $M3_HDD_PATH $build/$M3_FS
+    fi
+
+    if [ "$debug" = "" ]; then
+        set -m
     fi
 
     if [ "$M3_VALGRIND" != "" ]; then
@@ -252,7 +254,11 @@ if [ "$M3_TARGET" = "host" ]; then
     kernelpid=$!
     trap "/bin/kill -- -$kernelpid 2>/dev/null" EXIT ERR INT TERM
 
-    fg
+    if [ "$debug" = "" ]; then
+        fg
+    else
+        wait
+    fi
 elif [ "$M3_TARGET" = "gem5" ] || [ "$M3_RUN_GEM5" = "1" ]; then
     build_params_gem5 $script
 elif [ "$M3_TARGET" = "hw" ]; then
