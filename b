@@ -250,6 +250,8 @@ case "$cmd" in
     rungem5)
         if [ "$M3_TARGET" = "gem5" ] || [ "$M3_TARGET" = "hw" ]; then
             M3_RUN_GEM5=1 ./src/tools/execute.sh $script 2>&1 | tee $M3_OUT/log.txt
+        else
+            echo "Not supported"
         fi
         ;;
 
