@@ -21,11 +21,11 @@ use crate::pes::VPE;
 use crate::rc::Rc;
 use crate::vfs::{BufReader, BufWriter, Fd, FileRef};
 
-/// The file descriptor for the stanard input stream
+/// The file descriptor for the standard input stream
 pub const STDIN_FILENO: Fd = 0;
-/// The file descriptor for the stanard output stream
+/// The file descriptor for the standard output stream
 pub const STDOUT_FILENO: Fd = 1;
-/// The file descriptor for the stanard error stream
+/// The file descriptor for the standard error stream
 pub const STDERR_FILENO: Fd = 2;
 
 static STDIN: LazyStaticCell<BufReader<FileRef>> = LazyStaticCell::default();
