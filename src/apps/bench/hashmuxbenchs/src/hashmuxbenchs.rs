@@ -16,6 +16,7 @@
 
 #![no_std]
 
+mod bclients;
 mod bhash;
 mod util;
 
@@ -52,5 +53,6 @@ pub fn main() -> i32 {
         suites: m3::env::args().skip(1).collect(), // Skip program name
     };
     wv_run_suite!(tester, bhash::run);
+    wv_run_suite!(tester, bclients::run);
     0
 }

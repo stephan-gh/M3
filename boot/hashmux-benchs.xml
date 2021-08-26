@@ -23,6 +23,15 @@
                             <mount fs="m3fs" path="/" />
                             <sess lname="hash-prepare" gname="hash" />
                             <sess lname="hash-bench" gname="hash" />
+                            <sess lname="hash-client0" gname="hash" />
+                            <sess lname="hash-client1" gname="hash" />
+                            <sess lname="hash-client2" gname="hash" />
+                            <sess lname="hash-client3" gname="hash" />
+                            <sess lname="hash-client4" gname="hash" />
+                            <sess lname="hash-client5" gname="hash" />
+                            <sess lname="hash-client6" gname="hash" />
+                            <sess lname="hash-client7" gname="hash" />
+                            <pes type="core" count="8" />
                         </app>
                     </dom>
                 </app>
