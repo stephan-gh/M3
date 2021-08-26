@@ -1,0 +1,32 @@
+<config>
+    <kernel args="kernel -f $fs.path" />
+    <dom>
+        <app args="root">
+            <dom>
+                <app args="m3fs mem $fs.size" daemon="1">
+                    <serv name="m3fs" />
+                    <physmem addr="0" size="$fs.size" />
+                </app>
+            </dom>
+            <dom pe="imem+kecacc|core">
+                <app args="hashmux" daemon="1">
+                    <serv name="hash"/>
+                </app>
+            </dom>
+            <dom>
+                <app args="pager $fs.size">
+                    <sess name="m3fs" />
+                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <pes type="core" count="1" />
+                    <dom>
+                        <app args="/bin/hashmuxbenchs">
+                            <mount fs="m3fs" path="/" />
+                            <sess lname="hash-prepare" gname="hash" />
+                            <sess lname="hash-bench" gname="hash" />
+                        </app>
+                    </dom>
+                </app>
+            </dom>
+        </app>
+    </dom>
+</config>

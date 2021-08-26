@@ -69,6 +69,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "hashmuxbenchs"
+version = "0.1.0"
+dependencies = [
+ "m3",
+]
+
+[[package]]
 name = "hashsum"
 version = "0.1.0"
 dependencies = [

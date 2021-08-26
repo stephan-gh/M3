@@ -5,6 +5,7 @@ dirs = [
     'cppnetbenchs',
     'fs',
     'fstrace',
+    'hashmuxbenchs',
     'imgproc',
     'ipc',
     'loadgen',
