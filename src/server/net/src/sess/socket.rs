@@ -487,7 +487,8 @@ impl SocketSession {
         queued_events
     }
 
-    pub fn process_outgoing(&mut self, socket_set: &mut SocketSet<'static>) {
+    pub fn process_outgoing(&mut self, socket_set: &mut SocketSet<'static>) -> bool {
+        let mut needs_recheck = false;
         // iterate over all sockets and try to receive
         for socket in self.sockets.iter().flatten() {
             let socket_sd = socket.borrow().sd();
@@ -500,6 +501,7 @@ impl SocketSession {
                 // to one of our earlier events and get credits back with this, so that we'll wake
                 // up from a potential sleep and call receive again.
                 if !chan.can_send().unwrap() {
+                    needs_recheck = true;
                     break;
                 }
 
@@ -522,6 +524,7 @@ impl SocketSession {
                 }
 
                 if !chan.can_send().unwrap() {
+                    needs_recheck = true;
                     break;
                 }
 
@@ -552,5 +555,6 @@ impl SocketSession {
                 }
             }
         }
+        needs_recheck
     }
 }

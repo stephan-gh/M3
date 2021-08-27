@@ -102,13 +102,15 @@ impl NetHandler {
     }
 
     // processes outgoing events to clients
-    fn process_outgoing(&mut self) {
+    fn process_outgoing(&mut self) -> bool {
         let socks = &mut self.socket_set;
+        let mut res = false;
         self.sessions.for_each(|s| {
             if let NetworkSession::SocketSession(ss) = s {
-                ss.process_outgoing(socks)
+                res |= ss.process_outgoing(socks)
             }
         });
+        res
     }
 
     // processes incoming events from clients and returns whether there is still work to do
@@ -350,9 +352,9 @@ pub fn main() -> i32 {
             }
 
             // check for outgoing events we have to send to clients
-            handler.process_outgoing();
+            let recvs_pending = handler.process_outgoing();
 
-            if !sends_pending {
+            if !sends_pending && !recvs_pending {
                 // ask smoltcp how long we can sleep
                 match iface.poll_delay(&handler.socket_set, cur_time) {
                     // we need to call it again immediately => continue the loop
