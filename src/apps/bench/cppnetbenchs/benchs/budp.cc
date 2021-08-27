@@ -58,7 +58,7 @@ NOINLINE static void latency() {
     const size_t packet_size[] = {8, 16, 32, 64, 128, 256, 512, 1024};
 
     for(auto pkt_size : packet_size) {
-        Results<MicroResult> res(samples);
+        Results<MilliFloatResult> res(samples);
 
         while(res.runs() < samples) {
             uint64_t start = TCU::get().nanotime();

@@ -28,8 +28,10 @@ namespace m3 {
 
 class Profile;
 
+// expects cycles and yields cycles as integer
 struct CycleResult {
     using time_t = cycles_t;
+    using avg_t = time_t;
 
     const char *name() const {
         return "cycles";
@@ -39,8 +41,10 @@ struct CycleResult {
     }
 };
 
+// expects nanoseconds and yields nanoseconds as integer
 struct NanoResult {
     using time_t = uint64_t;
+    using avg_t = time_t;
 
     const char *name() const {
         return "ns";
@@ -50,8 +54,10 @@ struct NanoResult {
     }
 };
 
+// expects nanoseconds and yields microseconds as integer
 struct MicroResult {
     using time_t = uint64_t;
+    using avg_t = time_t;
 
     const char *name() const {
         return "us";
@@ -61,12 +67,26 @@ struct MicroResult {
     }
 };
 
+// expects nanoseconds and yields milliseconds as float
+struct MilliFloatResult {
+    using time_t = uint64_t;
+    using avg_t = float;
+
+    const char *name() const {
+        return "ms";
+    }
+    float get_result(time_t time) const {
+        return time / 1000000.;
+    }
+};
+
 template<typename T = CycleResult>
 class Results : public T {
     friend class Profile;
 
 public:
     using time_t = typename T::time_t;
+    using avg_t = typename T::avg_t;
 
     explicit Results(size_t runs)
         : _runs(0),
@@ -77,7 +97,7 @@ public:
         return _runs;
     }
 
-    time_t avg() const {
+    avg_t avg() const {
         time_t sum = 0;
         for(size_t i = 0; i < _runs; ++i)
             sum += _times[i];
@@ -85,11 +105,11 @@ public:
     }
 
     float stddev() const {
-        time_t sum = 0;
-        time_t average = avg();
+        avg_t sum = 0;
+        avg_t average = avg();
         for(size_t i = 0; i < _runs; ++i) {
             size_t val;
-            time_t time_i = this->get_result(_times[i]);
+            avg_t time_i = this->get_result(_times[i]);
             if(time_i < average)
                 val = average - time_i;
             else
