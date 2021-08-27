@@ -139,15 +139,12 @@ impl Handler<NetworkSession> for NetHandler {
     ) -> Result<(Selector, SessId), Error> {
         let rgate = self.rgate.clone();
 
-        let res = self.sessions.add_next(crt, srv_sel, false, |sess| {
+        self.sessions.add_next(crt, srv_sel, false, |sess| {
             log!(LOG_SESS, "[{}] net::open(sel={})", sess.ident(), sess.sel());
             Ok(NetworkSession::SocketSession(sess::SocketSession::new(
                 crt, arg, sess, rgate,
             )?))
-        });
-
-        assert!(res.is_ok());
-        res
+        })
     }
 
     fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
