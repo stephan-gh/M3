@@ -493,56 +493,64 @@ impl SocketSession {
             let socket_sd = socket.borrow().sd();
             let chan = socket.borrow().channel().clone();
 
-            chan.fetch_replies();
+            loop {
+                chan.fetch_replies();
 
-            // if we don't have credits anymore to send events, stop here. we'll get a reply
-            // to one of our earlier events and get credits back with this, so that we'll wake
-            // up from a potential sleep and call receive again.
-            if !chan.can_send().unwrap() {
-                break;
-            }
+                // if we don't have credits anymore to send events, stop here. we'll get a reply
+                // to one of our earlier events and get credits back with this, so that we'll wake
+                // up from a potential sleep and call receive again.
+                if !chan.can_send().unwrap() {
+                    break;
+                }
 
-            if let Some(event) = socket.borrow_mut().fetch_event(socket_set) {
-                log!(
-                    crate::LOG_DATA,
-                    "[{}] socket {}: received event {:?}",
-                    socket_sd,
-                    self.server_session.ident(),
-                    event,
-                );
+                if let Some(event) = socket.borrow_mut().fetch_event(socket_set) {
+                    log!(
+                        crate::LOG_DATA,
+                        "[{}] socket {}: received event {:?}",
+                        socket_sd,
+                        self.server_session.ident(),
+                        event,
+                    );
 
-                // the match is needed, because we don't want to send the enum, but the
-                // contained event struct
-                match event {
-                    SendNetEvent::Connected(e) => chan.send_event(e).unwrap(),
-                    SendNetEvent::Closed(e) => chan.send_event(e).unwrap(),
-                    SendNetEvent::CloseReq(e) => chan.send_event(e).unwrap(),
+                    // the match is needed, because we don't want to send the enum, but the
+                    // contained event struct
+                    match event {
+                        SendNetEvent::Connected(e) => chan.send_event(e).unwrap(),
+                        SendNetEvent::Closed(e) => chan.send_event(e).unwrap(),
+                        SendNetEvent::CloseReq(e) => chan.send_event(e).unwrap(),
+                    }
+                }
+
+                if !chan.can_send().unwrap() {
+                    break;
+                }
+
+                let mut received = false;
+                socket.borrow_mut().receive(socket_set, |data, addr| {
+                    let ep = to_m3_ep(addr);
+                    let amount = cmp::min(event::MTU, data.len());
+
+                    log!(
+                        crate::LOG_DATA,
+                        "[{}] socket {}: received packet with {}b from {}",
+                        socket_sd,
+                        self.server_session.ident(),
+                        amount,
+                        ep
+                    );
+
+                    chan.send_data(ep, amount, |buf| {
+                        buf[0..amount].copy_from_slice(&data[0..amount]);
+                    })
+                    .unwrap();
+                    received = true;
+                    amount
+                });
+
+                if !received {
+                    break;
                 }
             }
-
-            if !chan.can_send().unwrap() {
-                break;
-            }
-
-            socket.borrow_mut().receive(socket_set, |data, addr| {
-                let ep = to_m3_ep(addr);
-                let amount = cmp::min(event::MTU, data.len());
-
-                log!(
-                    crate::LOG_DATA,
-                    "[{}] socket {}: received packet with {}b from {}",
-                    socket_sd,
-                    self.server_session.ident(),
-                    amount,
-                    ep
-                );
-
-                chan.send_data(ep, amount, |buf| {
-                    buf[0..amount].copy_from_slice(&data[0..amount]);
-                })
-                .unwrap();
-                amount
-            });
         }
     }
 }
