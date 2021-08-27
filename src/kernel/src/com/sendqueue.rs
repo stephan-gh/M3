@@ -158,6 +158,11 @@ impl SendQueue {
     pub fn received_reply(&mut self, msg: &'static tcu::Message) {
         klog!(SQUEUE, "SendQueue[{:?}]: received reply", self.id);
 
+        // ignore the message if we we're not waiting
+        if self.state != QState::Waiting {
+            return;
+        }
+
         self.state = QState::Idle;
 
         thread::ThreadManager::get().notify(self.cur_event, Some(msg));
