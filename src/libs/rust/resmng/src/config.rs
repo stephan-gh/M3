@@ -495,14 +495,14 @@ impl AppConfig {
         let idx = self
             .pes
             .iter()
-            .position(|pe| pe.pe_type().matches(desc))
+            .position(|pe| pe.count.get() > 0 && pe.pe_type().matches(desc))
             .ok_or_else(|| Error::new(Code::InvArgs))?;
 
         if self.pes[idx].count.get() > 0 {
             Ok(idx)
         }
         else {
-            Err(Error::new(Code::NoPerm))
+            Err(Error::new(Code::NoSpace))
         }
     }
 
