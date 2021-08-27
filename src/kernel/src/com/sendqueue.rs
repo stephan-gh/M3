@@ -178,11 +178,14 @@ impl SendQueue {
     pub fn abort(&mut self) {
         klog!(SQUEUE, "SendQueue[{:?}]: aborting", self.id);
 
+        remove_queue(self);
         if self.state == QState::Waiting {
             thread::ThreadManager::get().notify(self.cur_event, None);
+            // we were waiting for a message and won't receive it
+            *PENDING_MSGS.get_mut() -= 1;
+            resume_queue();
         }
         self.state = QState::Idle;
-        remove_queue(self);
     }
 
     fn send_pending(&mut self) {
