@@ -21,7 +21,7 @@ use core::fmt;
 use crate::cap::Selector;
 use crate::cell::RefCell;
 use crate::col::Vec;
-use crate::com::{recv_reply, RecvGate, SendGate};
+use crate::com::{recv_result, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::goff;
 use crate::kif;
@@ -113,7 +113,7 @@ impl FileSystem for M3FS {
 
     fn stat(&self, path: &str) -> Result<FileInfo, Error> {
         send_vmsg!(&self.sgate, RecvGate::def(), FSOperation::STAT, path)?;
-        let reply = recv_reply(RecvGate::def(), Some(&self.sgate))?;
+        let reply = recv_result(RecvGate::def(), Some(&self.sgate))?;
         let resp = reply.msg().get_data::<StatResponse>();
         FileInfo::from_response(resp)
     }
