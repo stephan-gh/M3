@@ -25,6 +25,7 @@
 #include <m3/net/UdpSocket.h>
 #include <m3/stream/Standard.h>
 #include <m3/Syscalls.h>
+#include <m3/Test.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -128,7 +129,7 @@ int main(int argc, char **argv) {
     Results<NanoResult> res(static_cast<size_t>(repeats));
     for(int i = 0; i < repeats; ++i)
         res.push(forward_audio(vamic, hdl, mem, out, compute));
-    m3::cout << "Runtime: " << res.avg() << " " << res.stddev() << "\n";
+    WVPERF("VoiceAssistant with " << proto, res);
 
     free(out);
     free(mem);
