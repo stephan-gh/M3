@@ -28,7 +28,7 @@ use core::fmt;
 
 use crate::arch::loader::Loader;
 use crate::cap::{CapTable, Capability, EPObject, KMemObject, KObject, PEObject};
-use crate::com::SendQueue;
+use crate::com::{QueueId, SendQueue};
 use crate::ktcu;
 use crate::pes::{PEMng, VPEMng};
 use crate::platform;
@@ -97,7 +97,7 @@ impl VPE {
             map_caps: RefCell::from(CapTable::default()),
             eps: RefCell::from(Vec::new()),
             rbuf_phys: Cell::from(0),
-            upcalls: RefCell::from(SendQueue::new(id as u64, pe.pe())),
+            upcalls: RefCell::from(SendQueue::new(QueueId::VPE(id), pe.pe())),
             wait_sels: RefCell::from(Vec::new()),
             pe,
         });

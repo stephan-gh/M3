@@ -50,6 +50,7 @@ pub extern "C" fn env_run() {
     paging::init();
     exceptions::init();
     mem::init();
+    crate::com::init_queues();
 
     args::parse();
 
@@ -74,7 +75,7 @@ pub extern "C" fn env_run() {
     .expect("Unable to config syscall REP");
 
     let serv_slot_size = 8;
-    let serv_rbuf_size = math::next_log2(4) + serv_slot_size;
+    let serv_rbuf_size = math::next_log2(crate::com::MAX_PENDING_MSGS) + serv_slot_size;
     let serv_rbuf = vec![0u8; 1 << serv_rbuf_size];
     ktcu::recv_msgs(
         ktcu::KSRV_EP,

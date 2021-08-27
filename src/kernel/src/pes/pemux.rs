@@ -54,7 +54,7 @@ impl PEMux {
             pe: pe_obj,
             vpes: Vec::new(),
             #[cfg(not(target_vendor = "host"))]
-            queue: crate::com::SendQueue::new(pe as u64, pe),
+            queue: crate::com::SendQueue::new(crate::com::QueueId::PEMux(pe), pe),
             pmp,
             eps: BitVec::new(tcu::AVAIL_EPS as usize),
             mem_base: 0,

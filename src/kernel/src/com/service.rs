@@ -17,13 +17,13 @@
 use base::cell::RefCell;
 use base::col::String;
 use base::errors::Error;
-use base::rc::{Rc, SRc, Weak};
 use base::mem::{MsgBuf, MsgBufRef};
+use base::rc::{Rc, SRc, Weak};
 use base::tcu;
 use core::fmt;
 
 use crate::cap::RGateObject;
-use crate::com::SendQueue;
+use crate::com::{QueueId, SendQueue};
 use crate::pes::VPE;
 
 pub struct Service {
@@ -39,7 +39,7 @@ impl Service {
             vpe: Rc::downgrade(vpe),
             name,
             rgate,
-            queue: RefCell::from(SendQueue::new(vpe.id() as u64, vpe.pe_id())),
+            queue: RefCell::from(SendQueue::new(QueueId::Serv(vpe.id()), vpe.pe_id())),
         })
     }
 

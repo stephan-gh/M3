@@ -14,12 +14,14 @@
  * General Public License version 2 for more details.
  */
 
+use base::cfg;
 use base::env;
 use base::envdata;
 use base::goff;
 use base::io;
 use base::kif;
 use base::libc;
+use base::math;
 use base::mem::heap;
 use base::tcu;
 use base::vec;
@@ -66,6 +68,7 @@ pub fn main() -> i32 {
     let builddir = kernel.rsplitn(2, '/').nth(1).unwrap();
     loader::init(&builddir);
     crate::arch::childs::init();
+    crate::com::init_queues();
 
     thread::init();
     for _ in 0..8 {
@@ -84,13 +87,27 @@ pub fn main() -> i32 {
         net::create_bridge(bname);
     }
 
-    let sysc_rbuf = vec![0u8; 512 * 32];
-    ktcu::recv_msgs(ktcu::KSYS_EP, sysc_rbuf.as_ptr() as goff, 14, 9)
-        .expect("Unable to config syscall REP");
+    let sysc_slot_size = 9;
+    let sysc_rbuf_size = math::next_log2(cfg::MAX_VPES) + sysc_slot_size;
+    let sysc_rbuf = vec![0u8; 1 << sysc_rbuf_size];
+    ktcu::recv_msgs(
+        ktcu::KSYS_EP,
+        sysc_rbuf.as_ptr() as goff,
+        sysc_rbuf_size,
+        sysc_slot_size,
+    )
+    .expect("Unable to config syscall REP");
 
-    let serv_rbuf = vec![0u8; 1024];
-    ktcu::recv_msgs(ktcu::KSRV_EP, serv_rbuf.as_ptr() as goff, 10, 8)
-        .expect("Unable to config service REP");
+    let serv_slot_size = 8;
+    let serv_rbuf_size = math::next_log2(crate::com::MAX_PENDING_MSGS) + serv_slot_size;
+    let serv_rbuf = vec![0u8; 1 << serv_rbuf_size];
+    ktcu::recv_msgs(
+        ktcu::KSRV_EP,
+        serv_rbuf.as_ptr() as goff,
+        serv_rbuf_size,
+        serv_slot_size,
+    )
+    .expect("Unable to config service REP");
 
     klog!(DEF, "Kernel is ready!");
 
