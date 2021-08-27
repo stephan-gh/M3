@@ -549,7 +549,8 @@ pub fn reset_stats(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verb
     sysc_log!(vpe, "reset_stats()",);
 
     for pe in platform::user_pes() {
-        PEMng::get().pemux(pe).reset_stats().unwrap();
+        // ignore errors here; don't unwrap because it will do nothing on host
+        PEMng::get().pemux(pe).reset_stats().ok();
     }
 
     reply_success(msg);
