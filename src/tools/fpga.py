@@ -281,6 +281,7 @@ def main():
             except:
                 continue
 
+            msg = ""
             try:
                 msg = bytes.decode()
                 sys.stdout.write(msg)
