@@ -258,19 +258,19 @@ fn workloop(serv: &Server) {
     .expect("Unable to run workloop");
 }
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Debug)]
 pub struct PagerSettings {
     fs_size: usize,
 }
 
 fn parse_args() -> Result<PagerSettings, String> {
-    let mut settings = PagerSettings::default();
-    settings.fs_size = env::args()
-        .last()
-        .ok_or("File system size missing")?
-        .parse::<usize>()
-        .map_err(|_| String::from("Failed to parse FS size"))?;
-    Ok(settings)
+    Ok(PagerSettings {
+        fs_size: env::args()
+            .last()
+            .ok_or("File system size missing")?
+            .parse::<usize>()
+            .map_err(|_| String::from("Failed to parse FS size"))?,
+    })
 }
 
 #[no_mangle]

@@ -56,7 +56,7 @@ impl WvTester for MyTester {
 
 fn parse_ip(ip: &str) -> IpAddr {
     ip.parse::<IpAddr>()
-        .expect(&m3::format!("Invalid IP address: {}", ip))
+        .unwrap_or_else(|_| panic!("{}", m3::format!("Invalid IP address: {}", ip)))
 }
 
 #[no_mangle]

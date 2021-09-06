@@ -186,8 +186,10 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
     }
     else if nc == '>' {
         // put all apps that belong to the same domain as `app` into a pseudo domain
-        let mut pseudo_dom = config::Domain::default();
-        pseudo_dom.pseudo = true;
+        let mut pseudo_dom = config::Domain {
+            pseudo: true,
+            ..Default::default()
+        };
 
         let mut app_start = p.pos;
         while let Some(tag) = p.parse_tag_name()? {

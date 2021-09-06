@@ -49,11 +49,9 @@ pub fn wait(cur: &vpe::VPE, irq: Option<pexif::IRQId>) -> Option<vpe::Event> {
     }
     else {
         for (i, cnt) in IRQS.get_mut().iter_mut().flatten().enumerate() {
-            if cnt.vpe == cur.id() {
-                if cnt.counter > 0 {
-                    cnt.counter -= 1;
-                    return Some(vpe::Event::Interrupt(i as pexif::IRQId));
-                }
+            if cnt.vpe == cur.id() && cnt.counter > 0 {
+                cnt.counter -= 1;
+                return Some(vpe::Event::Interrupt(i as pexif::IRQId));
             }
         }
     }

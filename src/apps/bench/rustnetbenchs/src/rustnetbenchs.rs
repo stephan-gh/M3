@@ -63,7 +63,7 @@ pub fn main() -> i32 {
     DST_IP.set(
         args[1]
             .parse::<IpAddr>()
-            .expect(&m3::format!("Invalid IP address: {}", args[1])),
+            .unwrap_or_else(|_| panic!("{}", m3::format!("Invalid IP address: {}", args[1]))),
     );
 
     let mut tester = MyTester {};

@@ -280,7 +280,8 @@ case "$cmd" in
                 -A clippy::identity_op \
                 -A clippy::manual_range_contains \
                 -A clippy::assertions_on_constants \
-                -A clippy::upper_case_acronyms )
+                -A clippy::upper_case_acronyms \
+                -A clippy::empty_loop )
         done
         ;;
 

@@ -51,10 +51,8 @@ fn pexcall_wait(state: &mut arch::State) -> Result<(), Error> {
         Some(irq)
     };
 
-    if wait_ep.is_none() || wait_irq.is_some() {
-        if irqs::wait(cur, wait_irq).is_some() {
-            return Ok(());
-        }
+    if (wait_ep.is_none() || wait_irq.is_some()) && irqs::wait(cur, wait_irq).is_some() {
+        return Ok(());
     }
 
     let timeout = if timeout == 0 {
@@ -177,7 +175,7 @@ fn pexcall_read_serial(state: &mut arch::State) -> Result<isize, Error> {
     // build slice to read into the message buffer
     let tmp_slice: &mut [u8] = unsafe {
         core::slice::from_raw_parts_mut(
-            core::intrinsics::transmute(msgbuf.words_mut().as_mut_ptr()),
+            msgbuf.words_mut().as_mut_ptr() as *mut u8,
             msgbuf.words_mut().len() * 8,
         )
     };

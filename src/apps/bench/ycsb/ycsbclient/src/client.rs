@@ -76,7 +76,7 @@ fn tcp_sender(nm: &NetworkManager, ip: IpAddr, port: Port, wl: &str, repeats: u3
     Semaphore::attach("net").unwrap().down().unwrap();
     socket
         .connect(Endpoint::new(ip, port))
-        .expect(&format!("Unable to connect to {}:{}", ip, port));
+        .unwrap_or_else(|_| panic!("{}", format!("Unable to connect to {}:{}", ip, port)));
 
     for _ in 0..repeats {
         // open workload file

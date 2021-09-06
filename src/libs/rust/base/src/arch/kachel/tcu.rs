@@ -882,6 +882,7 @@ impl TCU {
     pub fn init_pe_ids() {
         let pes = PE_IDS.get_mut();
         if arch::envdata::get().platform == crate::envdata::Platform::GEM5.val {
+            #[allow(clippy::needless_range_loop)]
             for i in 0..cfg::MAX_PES {
                 pes[i] = i as PEId;
             }

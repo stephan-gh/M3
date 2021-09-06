@@ -56,12 +56,12 @@ pub fn main() -> i32 {
     DST_IP.set(
         args[1]
             .parse::<IpAddr>()
-            .expect(&m3::format!("Invalid IP address: {}", args[1])),
+            .unwrap_or_else(|_| panic!("{}", m3::format!("Invalid IP address: {}", args[1]))),
     );
     DST_PORT.set(
         args[2]
             .parse::<Port>()
-            .expect(&m3::format!("Invalid port number: {}", args[2])),
+            .unwrap_or_else(|_| panic!("{}", m3::format!("Invalid port number: {}", args[2]))),
     );
 
     let mut tester = MyTester {};

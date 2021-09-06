@@ -80,14 +80,14 @@ impl core::str::FromStr for IpAddr {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parse_part = |s: &mut core::str::Split<&str>| {
+        let parse_part = |s: &mut core::str::Split<char>| {
             s.next()
-                .ok_or(Error::new(Code::InvArgs))?
+                .ok_or_else(|| Error::new(Code::InvArgs))?
                 .parse::<u8>()
                 .map_err(|_| Error::new(Code::InvArgs))
         };
 
-        let mut parts = s.split(".");
+        let mut parts = s.split('.');
         let p0 = parse_part(&mut parts)?;
         let p1 = parse_part(&mut parts)?;
         let p2 = parse_part(&mut parts)?;

@@ -122,7 +122,7 @@ fn recv_reply(mut buf: &mut [u8], sock: &RawSocket) -> Result<(), VerboseError> 
         let icmp = unsafe {
             &*buf
                 .as_mut_ptr()
-                .offset(mem::size_of::<IPv4Header>() as isize)
+                .add(mem::size_of::<IPv4Header>())
                 .cast::<ICMP>()
         };
         if icmp.ty != ICMP_CMD_ECHO_REPLY {

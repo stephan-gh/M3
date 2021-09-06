@@ -44,11 +44,11 @@ pub struct WorkloadHeader {
 impl WorkloadHeader {
     #[allow(dead_code)]
     pub fn load_from_file<R: Read>(reader: &mut BufReader<R>) -> Self {
-        let mut number_of_preinserts = [0 as u8; 4];
+        let mut number_of_preinserts = [0u8; 4];
         reader.read(&mut number_of_preinserts).unwrap();
         let number_of_preinserts = u32::from_be_bytes(number_of_preinserts);
 
-        let mut number_of_operations = [0 as u8; 4];
+        let mut number_of_operations = [0u8; 4];
         reader.read(&mut number_of_operations).unwrap();
         let number_of_operations = u32::from_be_bytes(number_of_operations);
         WorkloadHeader {
@@ -98,14 +98,14 @@ impl Package {
     /// assumes that the cursor is on the start of an header
     #[allow(dead_code)]
     fn load<R: Read>(reader: &mut BufReader<R>) -> Self {
-        let mut header = [0 as u8; 19];
+        let mut header = [0u8; 19];
         reader.read_exact(&mut header).unwrap();
 
-        let mut u64_buf = [0 as u8; 8];
+        let mut u64_buf = [0u8; 8];
         u64_buf.copy_from_slice(&header[3..11]);
         let key = u64::from_be_bytes(u64_buf);
 
-        let mut u64_buf = [0 as u8; 8];
+        let mut u64_buf = [0u8; 8];
         u64_buf.copy_from_slice(&header[11..19]);
         let scan_length = u64::from_be_bytes(u64_buf);
 
@@ -114,7 +114,7 @@ impl Package {
         let mut kv_pairs = Vec::with_capacity(num_kvs);
         // Now read all key_value_pairs
         for _ in 0..num_kvs {
-            let mut length = [0 as u8; 2];
+            let mut length = [0u8; 2];
             reader.read_exact(&mut length).unwrap();
 
             let key = reader.read_string(length[0] as usize).unwrap();
@@ -145,7 +145,7 @@ impl Package {
         reader.read_exact(&mut bytes).unwrap();
 
         for _i in 0..(bytes[2] as usize) {
-            let mut length = [0 as u8; 2];
+            let mut length = [0u8; 2];
             reader.read_exact(&mut length).unwrap();
 
             bytes.push(length[0]);
@@ -173,11 +173,11 @@ impl Package {
         if data.len() < 19 {
             return Err(false);
         }
-        let mut u64_buf = [0 as u8; 8];
+        let mut u64_buf = [0u8; 8];
         u64_buf.copy_from_slice(&data[3..11]);
         let key = u64::from_be_bytes(u64_buf);
 
-        let mut u64_buf = [0 as u8; 8];
+        let mut u64_buf = [0u8; 8];
         u64_buf.copy_from_slice(&data[11..19]);
         let scan_length = u64::from_be_bytes(u64_buf);
 

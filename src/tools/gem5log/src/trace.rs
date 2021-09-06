@@ -39,8 +39,8 @@ fn repl_instr_line(
     let addr = parts.nth(2)?;
     let mut addr_parts = addr.splitn(2, '.');
     let hex_begin = addr_parts.next()?;
-    let addr_int = if hex_begin.starts_with("0x") {
-        usize::from_str_radix(&hex_begin[2..], 16).ok()?
+    let addr_int = if let Some(hex_num) = hex_begin.strip_prefix("0x") {
+        usize::from_str_radix(hex_num, 16).ok()?
     }
     else {
         usize::from_str_radix(hex_begin, 16).ok()?
