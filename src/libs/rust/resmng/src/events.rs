@@ -29,7 +29,7 @@ pub fn alloc_event() -> thread::Event {
     0x8000_0000_0000_0000 | *NEXT_ID
 }
 
-pub fn wait_for(child: Id, event: thread::Event) -> Result<&'static tcu::Message, Error> {
+pub fn wait_for_async(child: Id, event: thread::Event) -> Result<&'static tcu::Message, Error> {
     // remember that the child waits for this event in case we remove it in the meantime
     CHILD_EVENTS.get_mut().set(child, Some(event));
 

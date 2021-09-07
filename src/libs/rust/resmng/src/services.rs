@@ -95,7 +95,7 @@ impl Service {
             event,
         )?;
 
-        let reply = events::wait_for(child, event)?;
+        let reply = events::wait_for_async(child, event)?;
         let reply = reply.get_data::<kif::upcalls::DeriveSrv>();
         Result::from(Code::from(reply.error as u32))?;
 
@@ -126,7 +126,7 @@ impl Service {
 
         if let Ok(ev) = event {
             // ignore errors here
-            events::wait_for(self.child, ev).ok();
+            events::wait_for_async(self.child, ev).ok();
         }
     }
 }
@@ -150,7 +150,7 @@ impl Session {
         drop(smsg_buf);
 
         event.and_then(|event| {
-            let reply = events::wait_for(child, event)?;
+            let reply = events::wait_for_async(child, event)?;
             let reply = reply.get_data::<kif::service::OpenReply>();
 
             let res = Code::from(reply.res as u32);
@@ -187,7 +187,7 @@ impl Session {
 
         if let Ok(ev) = event {
             // ignore errors
-            events::wait_for(child, ev).ok();
+            events::wait_for_async(child, ev).ok();
         }
         Ok(())
     }
