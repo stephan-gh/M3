@@ -73,7 +73,7 @@ def parse_file(file):
                     funcs.append(func)
                     in_func = False
             else:
-                m = re.match(r'\b([a-zA-Z0-9_]+)\s*\(', bytes[pos:])
+                m = re.match(r'\b([a-zA-Z0-9_]+)\s*(?:::<.*?>\s*)?\(', bytes[pos:])
                 if m:
                     line += bytes[pos:pos + m.span()[1]].count('\n')
                     pos += m.span()[1]
