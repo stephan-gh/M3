@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::{Cell, RefCell};
+use base::cell::{Cell, RefCell, StaticCell};
 use base::col::{String, ToString, Vec};
 use base::errors::{Code, Error};
 use base::goff;
@@ -46,10 +46,17 @@ pub enum State {
     DEAD,
 }
 
+struct ExitWait {
+    id: VPEId,
+    event: u64,
+    sels: Vec<u64>,
+}
+
 pub const KERNEL_ID: VPEId = 0xFFFF;
 pub const INVAL_ID: VPEId = 0xFFFF;
 
 static EXIT_EVENT: i32 = 0;
+static EXIT_LISTENERS: StaticCell<Vec<ExitWait>> = StaticCell::new(Vec::new());
 
 pub struct VPE {
     id: VPEId,
@@ -71,7 +78,6 @@ pub struct VPE {
     eps: RefCell<Vec<Rc<EPObject>>>,
     rbuf_phys: Cell<goff>,
     upcalls: RefCell<SendQueue>,
-    wait_sels: RefCell<Vec<u64>>,
 }
 
 impl VPE {
@@ -98,7 +104,6 @@ impl VPE {
             eps: RefCell::from(Vec::new()),
             rbuf_phys: Cell::from(0),
             upcalls: RefCell::from(SendQueue::new(QueueId::VPE(id), pe.pe())),
-            wait_sels: RefCell::from(Vec::new()),
             pe,
         });
 
@@ -296,22 +301,8 @@ impl VPE {
         self.eps.borrow_mut().retain(|e| e.ep() != ep.ep());
     }
 
-    pub fn wait_async() {
-        let event = &EXIT_EVENT as *const _ as thread::Event;
-        thread::ThreadManager::get().wait_for(event);
-    }
-
-    pub fn start_wait(&self, sels: &[u64]) -> bool {
-        let was_empty = self.wait_sels.borrow().len() == 0;
-
-        self.wait_sels.borrow_mut().clear();
-        self.wait_sels.borrow_mut().extend_from_slice(sels);
-
-        was_empty
-    }
-
-    fn fetch_exit(&self) -> Option<(CapSel, i32)> {
-        for sel in &*self.wait_sels.borrow() {
+    fn fetch_exit(&self, sels: &[u64]) -> Option<(CapSel, i32)> {
+        for sel in sels {
             let wvpe = self
                 .obj_caps()
                 .borrow()
@@ -335,23 +326,71 @@ impl VPE {
         None
     }
 
-    pub fn wait_exit_async(&self) -> Option<(CapSel, i32)> {
-        assert!(self.wait_sels.borrow().len() > 0);
-
+    pub fn wait_exit_async(&self, event: u64, sels: &[u64]) -> Option<(CapSel, i32)> {
         let res = loop {
-            if let Some(res) = self.fetch_exit() {
-                break Some(res);
+            // independent of how we notify the VPE, check for exits in case the VPE we wait for
+            // already exited.
+            if let Some((sel, code)) = self.fetch_exit(sels) {
+                // if we want to be notified by upcall, do that
+                if event != 0 {
+                    self.upcall_vpe_wait(event, sel, code);
+                    // we never report the result via syscall reply, but we need Some for below.
+                    break Some((kif::INVALID_SEL, 0));
+                }
+                else {
+                    break Some((sel, code));
+                }
             }
 
-            if self.state() != State::RUNNING {
+            // if we want to be notified by upcall, don't wait, just stop here
+            if event != 0 || self.state() != State::RUNNING {
                 break None;
             }
 
-            Self::wait_async();
+            // wait until someone exits
+            let event = &EXIT_EVENT as *const _ as thread::Event;
+            thread::ThreadManager::get().wait_for(event);
         };
 
-        self.wait_sels.borrow_mut().clear();
-        res
+        // ensure that we are removed from the list in any case. we might have started to wait
+        // earlier and are now waiting again with a different selector list.
+        EXIT_LISTENERS.get_mut().retain(|l| l.id != self.id());
+        match event {
+            // sync wait
+            0 => res,
+            // async wait
+            _ => {
+                // if no one exited yet, remember us
+                if res.is_none() {
+                    EXIT_LISTENERS.get_mut().push(ExitWait {
+                        id: self.id(),
+                        event,
+                        sels: sels.to_vec(),
+                    });
+                }
+                // in any case, the syscall replies "no result"
+                None
+            },
+        }
+    }
+
+    fn send_exit_notify() {
+        // notify all that wait without upcall
+        let event = &EXIT_EVENT as *const _ as thread::Event;
+        thread::ThreadManager::get().notify(event, None);
+
+        // send upcalls for the others
+        EXIT_LISTENERS.get_mut().retain(|l| {
+            let vpe = VPEMng::get().vpe(l.id).unwrap();
+            if let Some((sel, code)) = vpe.fetch_exit(&l.sels) {
+                vpe.upcall_vpe_wait(l.event, sel, code);
+                // remove us from the list since a VPE exited
+                false
+            }
+            else {
+                true
+            }
+        });
     }
 
     pub fn upcall_vpe_wait(&self, event: u64, vpe_sel: CapSel, exitcode: i32) {
@@ -466,8 +505,9 @@ impl VPE {
 
         self.force_stop_async(stop);
 
-        let event = &EXIT_EVENT as *const _ as thread::Event;
-        thread::ThreadManager::get().notify(event, None);
+        EXIT_LISTENERS.get_mut().retain(|l| l.id != self.id());
+
+        Self::send_exit_notify();
 
         // if it's root, there is nobody waiting for it; just remove it
         if self.is_root() {

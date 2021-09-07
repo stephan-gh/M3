@@ -509,38 +509,24 @@ pub fn vpe_wait_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
 
     sysc_log!(vpe, "vpe_wait(vpes={}, event={})", count, event);
 
-    // copy the message to the VPE to ensure that we can still access it after reply
-    if !vpe.start_wait(&sels[0..count]) && event == 0 {
-        sysc_err!(Code::InvArgs, "Sync wait while async wait in progress");
-    }
+    let mut reply_msg = kif::syscalls::VPEWaitReply {
+        error: 0,
+        vpe_sel: kif::INVALID_SEL as u64,
+        exitcode: 0,
+    };
 
-    if event != 0 {
-        let mut reply = MsgBuf::borrow_def();
-        reply.set(kif::syscalls::VPEWaitReply {
-            error: 0,
-            vpe_sel: kif::INVALID_SEL as u64,
-            exitcode: 0,
-        });
-        // early-reply to the application; we'll notify it later via upcall
-        send_reply(msg, &reply);
-    }
-
-    if let Some((sel, code)) = vpe.wait_exit_async() {
+    // In any case, check whether a VPE already exited. If event == 0, wait until that happened.
+    // For event != 0, remember that we want to get notified and send an upcall on a VPE's exit.
+    if let Some((sel, code)) = vpe.wait_exit_async(event, &sels[0..count]) {
         sysc_log!(vpe, "vpe_wait-cont(vpe={}, exitcode={})", sel, code);
 
-        if event != 0 {
-            vpe.upcall_vpe_wait(event, sel, code);
-        }
-        else {
-            let mut reply = MsgBuf::borrow_def();
-            reply.set(kif::syscalls::VPEWaitReply {
-                error: 0,
-                vpe_sel: sel as u64,
-                exitcode: code as u64,
-            });
-            send_reply(msg, &reply);
-        }
+        reply_msg.vpe_sel = sel as u64;
+        reply_msg.exitcode = code as u64;
     }
+
+    let mut reply = MsgBuf::borrow_def();
+    reply.set(reply_msg);
+    send_reply(msg, &reply);
 
     Ok(())
 }
