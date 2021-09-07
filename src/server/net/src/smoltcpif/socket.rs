@@ -468,7 +468,7 @@ impl Socket {
             })
             .is_some()
         {}
-        !self.send_queue.has_data()
+        self.send_queue.has_data()
     }
 
     pub fn process_event(
@@ -515,7 +515,7 @@ impl Socket {
                         port,
                     );
                     self.send_queue.append(event, res);
-                    return false;
+                    return true;
                 }
             },
 
@@ -528,6 +528,6 @@ impl Socket {
 
             m => log!(crate::LOG_ERR, "Unexpected message from client: {}", m),
         }
-        true
+        false
     }
 }

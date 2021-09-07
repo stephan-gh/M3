@@ -459,7 +459,7 @@ impl SocketSession {
 
     pub fn process_incoming(&mut self, socket_set: &mut SocketSet<'static>) -> bool {
         let sess = self.server_session.ident();
-        let mut queued_events = false;
+        let mut needs_recheck = false;
 
         // iterate over all sockets and check for events
         'outer_loop: for idx in 0..self.sockets.len() {
@@ -469,22 +469,22 @@ impl SocketSession {
 
                 chan.fetch_replies();
 
-                if !sock.process_queued_events(sess, socket_set) {
-                    queued_events = true;
+                if sock.process_queued_events(sess, socket_set) {
+                    needs_recheck = true;
                     continue 'outer_loop;
                 }
 
                 // receive everything in the channel
                 while let Some(event) = chan.receive_event() {
-                    if !sock.process_event(sess, socket_set, event) {
-                        queued_events = true;
+                    if sock.process_event(sess, socket_set, event) {
+                        needs_recheck = true;
                         continue 'outer_loop;
                     }
                 }
             }
         }
 
-        queued_events
+        needs_recheck
     }
 
     pub fn process_outgoing(&mut self, socket_set: &mut SocketSet<'static>) -> bool {
