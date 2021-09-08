@@ -32,6 +32,7 @@ use crate::com::{QueueId, SendQueue};
 use crate::ktcu;
 use crate::pes::{PEMng, VPEMng};
 use crate::platform;
+use crate::workloop::thread_startup;
 
 bitflags! {
     pub struct VPEFlags : u32 {
@@ -134,6 +135,10 @@ impl VPE {
             // add us to PE
             vpe.pe.add_vpe();
         }
+
+        // some system calls are blocking, leading to a thread switch in the kernel. there is just
+        // one syscall per VPE at a time, thus at most one additional thread per VPE is required.
+        thread::ThreadManager::get().add_thread(thread_startup as *const () as usize, 0);
 
         Ok(vpe)
     }
@@ -551,6 +556,9 @@ impl Drop for VPE {
 
         assert!(self.obj_caps.borrow().is_empty());
         assert!(self.map_caps.borrow().is_empty());
+
+        // remove some thread from the pool as there is one VPE less now
+        thread::ThreadManager::get().remove_thread();
 
         klog!(
             VPES,

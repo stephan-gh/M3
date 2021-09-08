@@ -24,11 +24,9 @@ use crate::syscalls;
 
 pub fn thread_startup() {
     workloop();
-
-    thread::ThreadManager::get().stop();
 }
 
-pub fn workloop() {
+pub fn workloop() -> ! {
     let thmng = thread::ThreadManager::get();
     let vpemng = VPEMng::get();
 
@@ -67,4 +65,8 @@ pub fn workloop() {
         #[cfg(target_vendor = "host")]
         crate::arch::net::check();
     }
+
+    thread::ThreadManager::get().stop();
+    // if we get back here, there is no ready or sleeping thread anymore and we can shutdown
+    crate::arch::kernel::shutdown();
 }

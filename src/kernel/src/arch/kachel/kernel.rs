@@ -28,7 +28,7 @@ use crate::ktcu;
 use crate::mem;
 use crate::pes;
 use crate::platform;
-use crate::workloop::{thread_startup, workloop};
+use crate::workloop::workloop;
 
 #[no_mangle]
 pub extern "C" fn abort() -> ! {
@@ -58,9 +58,6 @@ pub extern "C" fn env_run() {
     loader::init();
 
     thread::init();
-    for _ in 0..8 {
-        thread::ThreadManager::get().add_thread(thread_startup as *const () as usize, 0);
-    }
 
     // TODO add second syscall REP
     let sysc_slot_size = 9;
@@ -101,7 +98,9 @@ pub extern "C" fn env_run() {
     klog!(DEF, "Kernel is ready!");
 
     workloop();
+}
 
+pub fn shutdown() -> ! {
     pes::deinit();
     exit(0);
 }

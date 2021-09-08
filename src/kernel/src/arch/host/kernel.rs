@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::cell::StaticCell;
 use base::cfg;
 use base::env;
 use base::envdata;
@@ -34,7 +35,9 @@ use crate::ktcu;
 use crate::mem;
 use crate::pes;
 use crate::platform;
-use crate::workloop::{thread_startup, workloop};
+use crate::workloop::workloop;
+
+static FS_SIZE: StaticCell<usize> = StaticCell::new(0);
 
 #[no_mangle]
 pub extern "C" fn rust_init(argc: i32, argv: *const *const i8) {
@@ -71,18 +74,14 @@ pub fn main() -> i32 {
     crate::com::init_queues();
 
     thread::init();
-    for _ in 0..8 {
-        thread::ThreadManager::get().add_thread(thread_startup as *const () as usize, 0);
-    }
-
     pes::init();
 
-    let fs_size = if let Some(ref path) = args::get().fs_image {
+    FS_SIZE.set(if let Some(ref path) = args::get().fs_image {
         fs::copy_from_fs(path)
     }
     else {
         0
-    };
+    });
     if let Some(bname) = args::get().net_bridge.as_ref() {
         net::create_bridge(bname);
     }
@@ -112,12 +111,15 @@ pub fn main() -> i32 {
     klog!(DEF, "Kernel is ready!");
 
     workloop();
+}
 
+pub fn shutdown() -> ! {
     pes::deinit();
     if let Some(ref path) = args::get().fs_image {
-        fs::copy_to_fs(path, fs_size);
+        fs::copy_to_fs(path, *FS_SIZE);
     }
-
     klog!(DEF, "Shutting down");
-    0
+    unsafe {
+        libc::exit(0)
+    };
 }

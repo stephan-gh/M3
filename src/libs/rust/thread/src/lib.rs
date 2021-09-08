@@ -230,6 +230,12 @@ impl Thread {
     }
 }
 
+impl Drop for Thread {
+    fn drop(&mut self) {
+        log!(LOG_DEF, "Thread {} destroyed", self.id);
+    }
+}
+
 pub struct ThreadManager {
     current: Option<Box<Thread>>,
     ready: BoxList<Thread>,
@@ -292,6 +298,10 @@ impl ThreadManager {
         self.sleep.push_back(Thread::new(func_addr, arg));
     }
 
+    pub fn remove_thread(&mut self) {
+        self.sleep.pop_front().unwrap();
+    }
+
     pub fn alloc_event(&self) -> Event {
         static NEXT_EVENT: StaticCell<Event> = StaticCell::new(0);
         // if we have no other threads available, don't use events
@@ -306,7 +316,7 @@ impl ThreadManager {
     }
 
     pub fn wait_for(&mut self, event: Event) {
-        let next = self.get_next();
+        let next = self.get_next().unwrap();
 
         let mut cur = mem::replace(&mut self.current, Some(next)).unwrap();
         cur.subscribe(event);
@@ -364,26 +374,27 @@ impl ThreadManager {
     }
 
     pub fn stop(&mut self) {
-        let next = self.get_next();
-        let mut cur = mem::replace(&mut self.current, Some(next)).unwrap();
-        log!(
-            LOG_DEF,
-            "Stopping thread {}, switching to {}",
-            cur.id,
-            self.cur().id
-        );
+        if let Some(next) = self.get_next() {
+            let mut cur = mem::replace(&mut self.current, Some(next)).unwrap();
+            log!(
+                LOG_DEF,
+                "Stopping thread {}, switching to {}",
+                cur.id,
+                self.cur().id
+            );
 
-        unsafe {
-            thread_switch(&mut cur.regs as *mut _, &mut self.cur_mut().regs as *mut _);
+            unsafe {
+                thread_switch(&mut cur.regs as *mut _, &mut self.cur_mut().regs as *mut _);
+            }
         }
     }
 
-    fn get_next(&mut self) -> Box<Thread> {
+    fn get_next(&mut self) -> Option<Box<Thread>> {
         if !self.ready.is_empty() {
-            self.ready.pop_front().unwrap()
+            self.ready.pop_front()
         }
         else {
-            self.sleep.pop_front().unwrap()
+            self.sleep.pop_front()
         }
     }
 }
