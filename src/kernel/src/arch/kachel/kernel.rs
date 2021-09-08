@@ -92,9 +92,7 @@ pub extern "C" fn env_run() {
 
     platform::init(&[]);
     loader::init();
-
     thread::init();
-
     create_rbufs();
     pes::init();
 
