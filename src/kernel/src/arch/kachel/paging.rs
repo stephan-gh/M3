@@ -111,7 +111,13 @@ pub fn init() {
     }
 
     // map env
-    map_to_phys(&mut aspace, base, cfg::ENV_START & !cfg::PAGE_MASK, cfg::ENV_SIZE, rw);
+    map_to_phys(
+        &mut aspace,
+        base,
+        cfg::ENV_START & !cfg::PAGE_MASK,
+        cfg::ENV_SIZE,
+        rw,
+    );
 
     // map PTs
     let pages = mem_size as usize / cfg::PAGE_SIZE;
@@ -131,6 +137,23 @@ pub fn init() {
 
 pub fn translate(virt: usize, perm: PageFlags) -> PTE {
     ASPACE.translate(virt, perm.bits())
+}
+
+pub fn map_new_mem(virt: usize, pages: usize) -> GlobAddr {
+    let mut alloc = mem::get()
+        .allocate(
+            mem::MemType::KERNEL,
+            (pages * cfg::PAGE_SIZE) as goff,
+            cfg::PAGE_SIZE as goff,
+        )
+        .unwrap();
+
+    ASPACE
+        .get_mut()
+        .map_pages(virt, alloc.global(), pages, PageFlags::RW)
+        .unwrap();
+    alloc.claim();
+    alloc.global()
 }
 
 fn map_ident(aspace: &mut AddrSpace<PTAllocator>, virt: usize, size: usize, perm: PageFlags) {
@@ -173,23 +196,10 @@ extern "C" fn kernel_oom_callback(size: usize) -> bool {
         );
     }
 
-    // allocate memory
+    // allocate and map more physical memory
     let pages = cmp::max(256, math::round_up(size, cfg::PAGE_SIZE) >> cfg::PAGE_BITS);
-    let mut alloc = mem::get()
-        .allocate(
-            mem::MemType::KERNEL,
-            (pages * cfg::PAGE_SIZE) as goff,
-            cfg::PAGE_SIZE as goff,
-        )
-        .unwrap();
-
-    // map the memory
     let virt = unsafe { math::round_up(heap_end as usize, cfg::PAGE_SIZE) };
-    ASPACE
-        .get_mut()
-        .map_pages(virt, alloc.global(), pages, PageFlags::RW)
-        .unwrap();
-    alloc.claim();
+    map_new_mem(virt, pages);
 
     // append to heap
     heap::append(pages);
