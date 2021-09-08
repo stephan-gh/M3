@@ -18,72 +18,72 @@ use cfg_if::cfg_if;
 
 cfg_if! {
     if #[cfg(target_vendor = "gem5")] {
-        pub const MAX_PES: usize                    = 64;
-        pub const MAX_VPES: usize                   = 32;
+        pub const MAX_PES: usize = 64;
+        pub const MAX_VPES: usize = 32;
     }
     else {
-        pub const MAX_PES: usize                    = 9;
-        pub const MAX_VPES: usize                   = 16;
+        pub const MAX_PES: usize = 9;
+        pub const MAX_VPES: usize = 16;
     }
 }
 
-pub const PAGE_BITS: usize                  = 12;
-pub const PAGE_SIZE: usize                  = 1 << PAGE_BITS;
-pub const PAGE_MASK: usize                  = PAGE_SIZE - 1;
+pub const PAGE_BITS: usize = 12;
+pub const PAGE_SIZE: usize = 1 << PAGE_BITS;
+pub const PAGE_MASK: usize = PAGE_SIZE - 1;
 
-pub const LPAGE_BITS: usize                 = 21;
-pub const LPAGE_SIZE: usize                 = 1 << LPAGE_BITS;
-pub const LPAGE_MASK: usize                 = LPAGE_SIZE - 1;
+pub const LPAGE_BITS: usize = 21;
+pub const LPAGE_SIZE: usize = 1 << LPAGE_BITS;
+pub const LPAGE_MASK: usize = LPAGE_SIZE - 1;
 
-pub const RBUF_STD_ADDR: usize              = 0xD000_0000;
-pub const RBUF_STD_SIZE: usize              = PAGE_SIZE;
-pub const RBUF_ADDR: usize                  = RBUF_STD_ADDR + RBUF_STD_SIZE;
-pub const RBUF_SIZE: usize                  = 0x1000_0000 - RBUF_STD_SIZE;
-pub const RBUF_SIZE_SPM: usize              = 0xE000;
-pub const MAX_RB_SIZE: usize                = 32;
+pub const RBUF_STD_ADDR: usize = 0xD000_0000;
+pub const RBUF_STD_SIZE: usize = PAGE_SIZE;
+pub const RBUF_ADDR: usize = RBUF_STD_ADDR + RBUF_STD_SIZE;
+pub const RBUF_SIZE: usize = 0x1000_0000 - RBUF_STD_SIZE;
+pub const RBUF_SIZE_SPM: usize = 0xE000;
+pub const MAX_RB_SIZE: usize = 32;
 
 #[cfg(target_arch = "riscv64")]
-pub const MEM_OFFSET: usize                 = 0x1000_0000;
+pub const MEM_OFFSET: usize = 0x1000_0000;
 #[cfg(not(target_arch = "riscv64"))]
-pub const MEM_OFFSET: usize                 = 0;
+pub const MEM_OFFSET: usize = 0;
 
-pub const PEMUX_RBUF_SIZE: usize            = 1 * PAGE_SIZE;
+pub const PEMUX_RBUF_SIZE: usize = 1 * PAGE_SIZE;
 
-pub const PE_MEM_BASE: usize                = 0xE000_0000;
+pub const PE_MEM_BASE: usize = 0xE000_0000;
 
-pub const MEM_CAP_END: usize                = RBUF_STD_ADDR;
+pub const MEM_CAP_END: usize = RBUF_STD_ADDR;
 
 #[cfg(any(target_vendor = "hw", target_arch = "riscv64"))]
-pub const ENV_START: usize                  = MEM_OFFSET + 0x8;
+pub const ENV_START: usize = MEM_OFFSET + 0x8;
 #[cfg(all(target_vendor = "gem5", not(target_arch = "riscv64")))]
-pub const ENV_START: usize                  = MEM_OFFSET + 0x10_0000;
-pub const ENV_SIZE: usize                   = PAGE_SIZE;
+pub const ENV_START: usize = MEM_OFFSET + 0x10_0000;
+pub const ENV_SIZE: usize = PAGE_SIZE;
 
-pub const STACK_SIZE: usize                 = 0x10000;
+pub const STACK_SIZE: usize = 0x10000;
 
-pub const FIXED_KMEM: usize                 = 2 * 1024 * 1024;
-pub const FIXED_ROOT_MEM: usize             = MOD_HEAP_SIZE + 2 * 1024 * 1024;
+pub const FIXED_KMEM: usize = 2 * 1024 * 1024;
+pub const FIXED_ROOT_MEM: usize = MOD_HEAP_SIZE + 2 * 1024 * 1024;
 
 #[cfg(target_vendor = "hw")]
-pub const PEMUX_START: usize                = MEM_OFFSET;
+pub const PEMUX_START: usize = MEM_OFFSET;
 #[cfg(target_vendor = "gem5")]
-pub const PEMUX_START: usize                = MEM_OFFSET + 0x20_0000;
+pub const PEMUX_START: usize = MEM_OFFSET + 0x20_0000;
 
-pub const PEMUX_RBUF_SPACE: usize           = PEMUX_START + 0x1F_F000;
+pub const PEMUX_RBUF_SPACE: usize = PEMUX_START + 0x1F_F000;
 
-pub const APP_HEAP_SIZE: usize              = 64 * 1024 * 1024;
-pub const MOD_HEAP_SIZE: usize              = 4 * 1024 * 1024;
+pub const APP_HEAP_SIZE: usize = 64 * 1024 * 1024;
+pub const MOD_HEAP_SIZE: usize = 4 * 1024 * 1024;
 
-pub const KPEX_RBUF_ORD: u32                = 6;
-pub const PEXUP_RBUF_ORD: u32               = 6;
-pub const SYSC_RBUF_ORD: u32                = 9;
-pub const UPCALL_RBUF_ORD: u32              = 6;
-pub const DEF_RBUF_ORD: u32                 = 8;
-pub const VMA_RBUF_ORD: u32                 = 6;
+pub const KPEX_RBUF_ORD: u32 = 6;
+pub const PEXUP_RBUF_ORD: u32 = 6;
+pub const SYSC_RBUF_ORD: u32 = 9;
+pub const UPCALL_RBUF_ORD: u32 = 6;
+pub const DEF_RBUF_ORD: u32 = 8;
+pub const VMA_RBUF_ORD: u32 = 6;
 
-pub const KPEX_RBUF_SIZE: usize             = 1 << KPEX_RBUF_ORD;
-pub const PEXUP_RBUF_SIZE: usize            = 1 << PEXUP_RBUF_ORD;
-pub const SYSC_RBUF_SIZE: usize             = 1 << SYSC_RBUF_ORD;
-pub const UPCALL_RBUF_SIZE: usize           = 1 << UPCALL_RBUF_ORD;
-pub const DEF_RBUF_SIZE: usize              = 1 << DEF_RBUF_ORD;
-pub const VMA_RBUF_SIZE: usize              = 1 << VMA_RBUF_ORD;
+pub const KPEX_RBUF_SIZE: usize = 1 << KPEX_RBUF_ORD;
+pub const PEXUP_RBUF_SIZE: usize = 1 << PEXUP_RBUF_ORD;
+pub const SYSC_RBUF_SIZE: usize = 1 << SYSC_RBUF_ORD;
+pub const UPCALL_RBUF_SIZE: usize = 1 << UPCALL_RBUF_ORD;
+pub const DEF_RBUF_SIZE: usize = 1 << DEF_RBUF_ORD;
+pub const VMA_RBUF_SIZE: usize = 1 << VMA_RBUF_ORD;
