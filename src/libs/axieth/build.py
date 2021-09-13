@@ -5,7 +5,7 @@ def build(gen, env):
         env = env.clone()
 
         pwd = str(env.glob('')[0])
-        env['CPPPATH'] += [pwd  + 'common', pwd + 'llfifo', pwd + 'axiethernet']
+        env['CPPPATH'] += [pwd  + 'common', pwd + 'llfifo', pwd + 'axidma', pwd + 'axiethernet']
         
         if os.environ.get('M3_BUILD') == 'debug':
             env['CXXFLAGS'] += ['-DDEBUG', '-UNDEBUG']
@@ -25,7 +25,7 @@ def build(gen, env):
         ]
 
         env_obj = env.cxx(gen, out = 'env.o', ins = ['env.cc'])
-        files = [env_obj, 'axieth.cc'] + env.glob('common/*.cc') + env.glob('llfifo/*.cc') + env.glob('axiethernet/*.cc')
+        files = [env_obj, 'axieth.cc'] + env.glob('common/*.cc') + env.glob('llfifo/*.cc') + env.glob('axidma/*.cc') + env.glob('axiethernet/*.cc')
         lib = env.static_lib(gen, out = 'libaxieth', ins = files)
         env.install(gen, env['LIBDIR'], lib)
 
@@ -35,7 +35,8 @@ def build(gen, env):
             ins = [
                 'axi_ethernet_driver.cc', 'xaxiethernet_example_util.cc',
                 'xaxiethernet_example_polled.cc', 'xaxiethernet_example_intr_fifo.cc',
-                'xaxiethernet_fifo_ping_req_example.cc'
+                'xaxiethernet_fifo_ping_req_example.cc',
+                'xaxiethernet_example_sgdma_poll.cc'
             ],
             NoSup = True,
             ldscript = 'baremetal',

@@ -21,6 +21,7 @@ using namespace m3;
 extern int main_example_polled();
 extern int main_example_intr_fifo();
 extern int main_fifo_ping_req_example();
+extern int main_example_dma_polled();
 
 
 int main() {
@@ -28,7 +29,8 @@ int main() {
 
     //int error = main_example_polled();
     // int error = main_example_intr_fifo();
-    int error = main_fifo_ping_req_example();
+    //int error = main_fifo_ping_req_example();
+    int error = main_example_dma_polled();
     if (error){
         Serial::get() << "Error: " << error << "\n";
     } else {
