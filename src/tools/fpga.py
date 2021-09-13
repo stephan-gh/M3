@@ -203,9 +203,7 @@ def main():
     args = parser.parse_args()
 
     # connect to FPGA
-    fpga_inst = fpga_top.FPGA_TOP(args.fpga)
-    if args.reset:
-        fpga_inst.eth_rf.system_reset()
+    fpga_inst = fpga_top.FPGA_TOP(args.fpga, args.reset)
 
     # stop all PEs
     for pe in fpga_inst.pms:
