@@ -14,18 +14,12 @@
  * General Public License version 2 for more details.
  */
 
-use cfg_if::cfg_if;
+pub const MAX_PES: usize = 64;
 
-cfg_if! {
-    if #[cfg(target_vendor = "gem5")] {
-        pub const MAX_PES: usize = 64;
-        pub const MAX_VPES: usize = 32;
-    }
-    else {
-        pub const MAX_PES: usize = 9;
-        pub const MAX_VPES: usize = 16;
-    }
-}
+#[cfg(target_vendor = "gem5")]
+pub const MAX_VPES: usize = 32;
+#[cfg(target_vendor = "hw")]
+pub const MAX_VPES: usize = 16;
 
 pub const PAGE_BITS: usize = 12;
 pub const PAGE_SIZE: usize = 1 << PAGE_BITS;
