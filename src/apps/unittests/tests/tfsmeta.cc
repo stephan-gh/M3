@@ -74,10 +74,13 @@ static void meta_operations() {
         f << "test\n";
     }
 
-    {
+    try {
         VFS::mount("/fs/", "m3fs", "m3fs-clone");
         WVASSERTERR(Errors::XFS_LINK, [] { VFS::link("/example/myfile", "/fs/foo"); });
         VFS::unmount("/fs");
+    }
+    catch(const Exception &e) {
+        cerr << "Mount test failed: " << e.what() << "\n";
     }
 
     WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::rmdir("/example/foo/bar"); });

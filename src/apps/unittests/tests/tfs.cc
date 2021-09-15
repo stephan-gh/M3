@@ -243,42 +243,47 @@ static void pipe_mux() {
     const size_t DATA_SIZE = 1024;
     const size_t PIPE_SIZE = 256;
 
-    Pipes pipesrv("pipes");
-    MemGate *mems[NUM];
-    IndirectPipe *pipes[NUM];
-    Reference<File> reader[NUM];
-    Reference<File> writer[NUM];
-    for(size_t i = 0; i < NUM; ++i) {
-        mems[i] = new MemGate(MemGate::create_global(PIPE_SIZE, MemGate::RW));
-        pipes[i] = new IndirectPipe(pipesrv, *mems[i], PIPE_SIZE);
-        reader[i] = VPE::self().fds()->get(pipes[i]->reader_fd());
-        writer[i] = VPE::self().fds()->get(pipes[i]->writer_fd());
-    }
-
-    char src_buf[STEP_SIZE];
-    for(size_t i = 0; i < STEP_SIZE; ++i)
-        src_buf[i] = 'a' + i;
-
-    for(size_t pos = 0; pos < DATA_SIZE; pos += STEP_SIZE) {
+    try {
+        Pipes pipesrv("pipes");
+        MemGate *mems[NUM];
+        IndirectPipe *pipes[NUM];
+        Reference<File> reader[NUM];
+        Reference<File> writer[NUM];
         for(size_t i = 0; i < NUM; ++i) {
-            writer[i]->write(src_buf, STEP_SIZE);
-            writer[i]->flush();
+            mems[i] = new MemGate(MemGate::create_global(PIPE_SIZE, MemGate::RW));
+            pipes[i] = new IndirectPipe(pipesrv, *mems[i], PIPE_SIZE);
+            reader[i] = VPE::self().fds()->get(pipes[i]->reader_fd());
+            writer[i] = VPE::self().fds()->get(pipes[i]->writer_fd());
+        }
+
+        char src_buf[STEP_SIZE];
+        for(size_t i = 0; i < STEP_SIZE; ++i)
+            src_buf[i] = 'a' + i;
+
+        for(size_t pos = 0; pos < DATA_SIZE; pos += STEP_SIZE) {
+            for(size_t i = 0; i < NUM; ++i) {
+                writer[i]->write(src_buf, STEP_SIZE);
+                writer[i]->flush();
+            }
+
+            for(size_t i = 0; i < NUM; ++i) {
+                char dst_buf[STEP_SIZE];
+                memset(dst_buf, 0, STEP_SIZE);
+
+                reader[i]->read(dst_buf, STEP_SIZE);
+
+                WVASSERTEQ(memcmp(src_buf, dst_buf, STEP_SIZE), 0);
+            }
+            pos += STEP_SIZE;
         }
 
         for(size_t i = 0; i < NUM; ++i) {
-            char dst_buf[STEP_SIZE];
-            memset(dst_buf, 0, STEP_SIZE);
-
-            reader[i]->read(dst_buf, STEP_SIZE);
-
-            WVASSERTEQ(memcmp(src_buf, dst_buf, STEP_SIZE), 0);
+            delete pipes[i];
+            delete mems[i];
         }
-        pos += STEP_SIZE;
     }
-
-    for(size_t i = 0; i < NUM; ++i) {
-        delete pipes[i];
-        delete mems[i];
+    catch(const Exception &e) {
+        cerr << "pipes test failed: " << e.what() << "\n";
     }
 }
 
