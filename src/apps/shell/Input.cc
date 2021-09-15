@@ -25,6 +25,9 @@
 
 using namespace m3;
 
+static std::vector<std::string> history;
+static size_t history_pos;
+
 static std::vector<std::string> get_completions(const char *line, size_t len, size_t *prefix_len) {
     // determine prefix
     size_t prefix_start = len;
@@ -129,8 +132,47 @@ static void handle_backspace(char *, size_t &o) {
     }
 }
 
+static void handle_escape(char *buffer, size_t &o) {
+    char c2 = cin.read();
+    char c3 = cin.read();
+
+    ssize_t idx = -1;
+    // cursor up
+    if(c2 == '[' && c3 == 'A') {
+        if(history.size() > 0)
+            idx = static_cast<ssize_t>((--history_pos) % history.size());
+    }
+    // cursor down
+    else if(c2 == '[' && c3 == 'B') {
+        if(history.size() > 0)
+            idx = static_cast<ssize_t>((++history_pos) % history.size());
+    }
+    // just print the escape code
+    else {
+        buffer[o++] = '^';
+        buffer[o++] = c2;
+        buffer[o++] = c3;
+        cout << "^" << c2 << c3;
+        cout.flush();
+    }
+
+    if(idx != -1) {
+        auto &history_item = history[static_cast<size_t>(idx)];
+        cout << "\r";
+        // overwrite all including "$ "
+        for(size_t i = 0; i < o + 2; ++i)
+            cout << " ";
+        // replace with item from history
+        cout << "\r$ " << history_item.c_str();
+        o = history_item.size();
+        memcpy(buffer, history_item.c_str(), o);
+    }
+}
+
 ssize_t Input::readline(char *buffer, size_t max) {
     size_t o = 0;
+
+    history_pos = history.size();
 
     // ensure that the line is empty
     buffer[o] = '\0';
@@ -156,11 +198,11 @@ ssize_t Input::readline(char *buffer, size_t max) {
             case 0x7F:
                 handle_backspace(buffer, o);
                 break;
+            case 0x1b:
+                handle_escape(buffer, o);
+                break;
 
             default: {
-                if(c == 27)
-                    c = '^';
-
                 // echo
                 if(isprint(c) || c == '\n') {
                     cout.write(c);
@@ -178,5 +220,7 @@ ssize_t Input::readline(char *buffer, size_t max) {
     }
 
     buffer[o] = '\0';
+    history.push_back(buffer);
+
     return static_cast<ssize_t>(o);
 }
