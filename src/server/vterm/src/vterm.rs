@@ -22,6 +22,7 @@ use m3::col::Vec;
 use m3::com::{GateIStream, MemGate, Perm, SGateArgs, SendGate, EP};
 use m3::errors::{Code, Error};
 use m3::goff;
+use m3::int_enum;
 use m3::io::{Serial, Write};
 use m3::kif;
 use m3::log;
@@ -35,14 +36,24 @@ use m3::server::{
 };
 use m3::session::ServerSession;
 use m3::tcu::{Label, Message};
+use m3::vec;
 use m3::vfs::GenFileOp;
 
 pub const LOG_DEF: bool = false;
 
 const BUF_SIZE: usize = 256;
 
+int_enum! {
+    struct Mode : u64 {
+        const RAW       = 0;
+        const COOKED    = 1;
+    }
+}
+
 static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
+static BUFFER: StaticCell<Vec<u8>> = StaticCell::new(Vec::new());
 static INPUT: StaticCell<Vec<u8>> = StaticCell::new(Vec::new());
+static MODE: StaticCell<Mode> = StaticCell::new(Mode::COOKED);
 
 macro_rules! reply_vmsg_late {
     ( $msg:expr, $( $args:expr ),* ) => ({
@@ -114,6 +125,21 @@ impl Channel {
             self.active = true;
         }
         Ok(())
+    }
+
+    fn set_tmode(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+        let mode = is.pop::<Mode>()?;
+
+        log!(
+            crate::LOG_DEF,
+            "[{}] vterm::set_tmode(mode={})",
+            self.id,
+            mode
+        );
+        MODE.set(mode);
+        INPUT.get_mut().clear();
+
+        is.reply_error(Code::None)
     }
 
     fn next_in(&mut self, is: &mut GateIStream) -> Result<(), Error> {
@@ -305,16 +331,52 @@ impl Handler<VTermSession> for VTermHandler {
 }
 
 fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
-    // TODO later we should support different modes like "raw" and "cooked"
     let bytes =
         unsafe { core::slice::from_raw_parts(msg.data.as_ptr(), msg.header.length as usize) };
-    for b in bytes {
-        INPUT.get_mut().push(*b);
+    let mut flush = false;
+    if *MODE == Mode::RAW {
+        INPUT.get_mut().extend_from_slice(bytes);
+    }
+    else {
+        let mut output = vec![];
+        for b in bytes {
+            match b {
+                // ^D
+                0x04 => flush = true,
+                // ^C (ignore)
+                0x03 => {},
+                // backspace
+                0x7f => {
+                    output.push(*b);
+                    output.push(b' ');
+                    output.push(*b);
+                    BUFFER.get_mut().pop();
+                },
+                b => {
+                    if *b == b'\n' {
+                        flush = true;
+                    }
+                    if *b == b'\n' || !b.is_ascii_control() {
+                        BUFFER.get_mut().push(*b);
+                    }
+                },
+            }
+
+            if *b == b'\n' || !b.is_ascii_control() {
+                output.push(*b);
+            }
+        }
+
+        if flush {
+            INPUT.get_mut().extend_from_slice(&BUFFER);
+            BUFFER.get_mut().clear();
+        }
+        Serial::default().write(&output).unwrap();
     }
 
     // pass to first session that wants input
     hdl.sessions.for_each(|s| {
-        if !INPUT.is_empty() {
+        if flush || !INPUT.is_empty() {
             match &mut s.data {
                 SessionData::Chan(c) => {
                     if let Some(msg) = c.pending_nextin.take() {
@@ -322,7 +384,15 @@ fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
                         c.len = INPUT.len();
                         c.pos = 0;
                         INPUT.get_mut().clear();
+                        log!(
+                            crate::LOG_DEF,
+                            "[{}] vterm::next_in() -> ({}, {})",
+                            c.id,
+                            c.pos,
+                            c.len - c.pos
+                        );
                         reply_vmsg_late!(msg, Code::None as u32, c.pos, c.len - c.pos).unwrap();
+                        flush = false;
                     }
                 },
                 _ => {},
@@ -380,6 +450,7 @@ pub fn main() -> i32 {
                 },
                 GenFileOp::STAT => Err(Error::new(Code::NotSup)),
                 GenFileOp::SEEK => Err(Error::new(Code::NotSup)),
+                GenFileOp::SET_TMODE => hdl.with_chan(&mut is, |c, is| c.set_tmode(is)),
                 _ => Err(Error::new(Code::InvArgs)),
             }
         })

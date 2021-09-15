@@ -209,6 +209,11 @@ void GenericFile::sync() {
     reply.pull_result();
 }
 
+void GenericFile::set_tmode(TMode mode) {
+    GateIStream reply = send_receive_vmsg(_sg, Operation::SET_TMODE, mode);
+    reply.pull_result();
+}
+
 void GenericFile::map(Reference<Pager> &pager, goff_t *virt, size_t fileoff, size_t len,
                       int prot, int flags) const {
     pager->map_ds(virt, len, prot, flags, _sess, fileoff);

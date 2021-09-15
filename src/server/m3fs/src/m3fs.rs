@@ -82,6 +82,7 @@ int_enum! {
         const COMMIT    = GenFileOp::COMMIT.val;
         const SYNC      = GenFileOp::SYNC.val;
         const CLOSE     = GenFileOp::CLOSE.val;
+        const SET_TMODE = GenFileOp::SET_TMODE.val;
         const FSTAT     = FSOperation::STAT.val;
         const MKDIR     = FSOperation::MKDIR.val;
         const RMDIR     = FSOperation::RMDIR.val;

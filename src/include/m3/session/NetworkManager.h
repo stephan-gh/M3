@@ -48,13 +48,14 @@ class NetworkManager : public ClientSession {
     friend class RawSocket;
 
     enum Operation {
-        STAT     = GenericFile::STAT,
-        SEEK     = GenericFile::SEEK,
-        NEXT_IN  = GenericFile::NEXT_IN,
-        NEXT_OUT = GenericFile::NEXT_OUT,
-        COMMIT   = GenericFile::COMMIT,
-        CLOSE    = GenericFile::CLOSE,
-        BIND     = 6,
+        STAT        = GenericFile::STAT,
+        SEEK        = GenericFile::SEEK,
+        NEXT_IN     = GenericFile::NEXT_IN,
+        NEXT_OUT    = GenericFile::NEXT_OUT,
+        COMMIT      = GenericFile::COMMIT,
+        CLOSE       = GenericFile::CLOSE,
+        SET_TMODE   = GenericFile::SET_TMODE,
+        BIND,
         LISTEN,
         CONNECT,
         ABORT,

@@ -44,6 +44,11 @@ protected:
     }
 
 public:
+    enum class TMode {
+        RAW = 0,
+        COOKED = 1,
+    };
+
     /**
      * The default buffer implementation
      */
@@ -228,6 +233,13 @@ public:
      * @return the unique character for serialization
      */
     virtual char type() const noexcept = 0;
+
+    /**
+     * Sets the terminal mode in case the server is a terminal
+     */
+    virtual void set_tmode(TMode) {
+        throw Exception(Errors::NOT_SUP);
+    }
 
     /**
      * Obtains a new file session from the server

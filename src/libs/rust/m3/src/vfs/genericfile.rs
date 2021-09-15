@@ -45,6 +45,7 @@ int_enum! {
         const COMMIT    = 4;
         const SYNC      = 5;
         const CLOSE     = 6;
+        const SET_TMODE = 7;
     }
 }
 

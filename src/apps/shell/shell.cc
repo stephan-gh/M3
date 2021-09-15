@@ -241,11 +241,13 @@ static void execute(Pipes &pipesrv, CmdList *list) {
 int main(int argc, char **argv) {
     Pipes pipesrv("pipes");
 
+    bool have_vterm = false;
     try {
         VTerm vterm("vterm");
         const fd_t fds[] = {STDIN_FD, STDOUT_FD, STDERR_FD};
         for(fd_t fd : fds)
             VPE::self().fds()->set(fd, vterm.create_channel(fd == STDIN_FD));
+        have_vterm = true;
     }
     catch(const Exception &e) {
         errmsg("Unable to open vterm: " << e.what());
@@ -279,9 +281,14 @@ int main(int argc, char **argv) {
         cout << "$ ";
         cout.flush();
 
+        if(have_vterm)
+            cin.file()->set_tmode(GenericFile::TMode::RAW);
         ssize_t len = Input::readline(buffer, sizeof(buffer));
+        if(have_vterm)
+            cin.file()->set_tmode(GenericFile::TMode::COOKED);
         if(len < 0)
             break;
+
         CmdList *list = parse_command(buffer);
         if(!list)
             continue;

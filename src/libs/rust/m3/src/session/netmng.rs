@@ -27,26 +27,27 @@ use crate::pes::VPE;
 use crate::rc::Rc;
 use crate::session::ClientSession;
 use crate::tcu::TCU;
+use crate::vfs::GenFileOp;
 
 int_enum! {
     /// The operations for the network service
     pub struct NetworkOp : u64 {
-        const STAT          = 0;
-        const SEEK          = 1;
+        const STAT          = GenFileOp::STAT.val;
+        const SEEK          = GenFileOp::SEEK.val;
         #[allow(non_camel_case_types)]
-        const NEXT_IN       = 2;
+        const NEXT_IN       = GenFileOp::NEXT_IN.val;
         #[allow(non_camel_case_types)]
-        const NEXT_OUT      = 3;
-        const COMMIT        = 4;
+        const NEXT_OUT      = GenFileOp::NEXT_OUT.val;
+        const COMMIT        = GenFileOp::COMMIT.val;
         // TODO what about GenericFile::CLOSE?
-        const BIND          = 6;
-        const LISTEN        = 7;
-        const CONNECT       = 8;
-        const ABORT         = 9;
-        const CREATE        = 10;
-        const GET_IP        = 11;
-        const GET_SGATE     = 12;
-        const OPEN_FILE     = 13;
+        const BIND          = 7;
+        const LISTEN        = 8;
+        const CONNECT       = 9;
+        const ABORT         = 10;
+        const CREATE        = 11;
+        const GET_IP        = 12;
+        const GET_SGATE     = 13;
+        const OPEN_FILE     = 14;
     }
 }
 

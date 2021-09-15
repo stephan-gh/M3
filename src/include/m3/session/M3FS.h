@@ -43,6 +43,7 @@ public:
         COMMIT = GenericFile::COMMIT,
         SYNC = GenericFile::SYNC,
         CLOSE = GenericFile::CLOSE,
+        SET_TMODE = GenericFile::SET_TMODE,
         STAT,
         MKDIR,
         RMDIR,
