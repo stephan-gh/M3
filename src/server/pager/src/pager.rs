@@ -185,7 +185,6 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
         let fs_mem = MemGate::new_with(MGateArgs::new(SETTINGS.fs_size, kif::Perm::R).addr(0))?;
         child
             .our_pe()
-            .unwrap()
             .add_mem_region(fs_mem, SETTINGS.fs_size, true)?;
         PMP_PES.get_mut().push(pe_usage.pe_id());
     }

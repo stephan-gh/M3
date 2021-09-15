@@ -111,7 +111,7 @@ pub trait Child {
     fn daemon(&self) -> bool;
     fn foreign(&self) -> bool;
 
-    fn our_pe(&self) -> Option<Rc<pes::PEUsage>>;
+    fn our_pe(&self) -> Rc<pes::PEUsage>;
     fn child_pe(&self) -> Option<Rc<pes::PEUsage>>;
     fn vpe_sel(&self) -> Selector;
     fn resmng_sgate_sel(&self) -> Selector;
@@ -166,6 +166,11 @@ pub trait Child {
         let child = Box::new(ForeignChild::new(
             id,
             child_name,
+            // actually, we don't know the PE it's running on. But the PEUsage is only used to set
+            // the PMP EPs and currently, no child can actually influence these. For that reason,
+            // all childs get the same PMP EPs, so that we can also give the same PMP EPs to childs
+            // of childs.
+            self.our_pe(),
             our_sel,
             sgate,
             self.cfg(),
@@ -560,7 +565,7 @@ pub trait Child {
 
         // give this PE access to the same memory regions the child's PE has access to
         // TODO later we could allow childs to customize that
-        pe_usage.inherit_mem_regions(&self.our_pe().unwrap())?;
+        pe_usage.inherit_mem_regions(&self.our_pe())?;
 
         self.delegate(pe_usage.pe_obj().sel(), sel)?;
 
@@ -727,8 +732,8 @@ impl Child for OwnChild {
         false
     }
 
-    fn our_pe(&self) -> Option<Rc<pes::PEUsage>> {
-        Some(self.our_pe.clone())
+    fn our_pe(&self) -> Rc<pes::PEUsage> {
+        self.our_pe.clone()
     }
 
     fn child_pe(&self) -> Option<Rc<pes::PEUsage>> {
@@ -785,6 +790,7 @@ impl fmt::Debug for OwnChild {
 pub struct ForeignChild {
     id: Id,
     name: String,
+    parent_pe: Rc<pes::PEUsage>,
     cfg: Rc<AppConfig>,
     mem: Rc<ChildMem>,
     res: Resources,
@@ -796,6 +802,7 @@ impl ForeignChild {
     pub fn new(
         id: Id,
         name: String,
+        parent_pe: Rc<pes::PEUsage>,
         vpe: Selector,
         sgate: SendGate,
         cfg: Rc<AppConfig>,
@@ -804,6 +811,7 @@ impl ForeignChild {
         ForeignChild {
             id,
             name,
+            parent_pe,
             cfg,
             mem,
             res: Resources::default(),
@@ -830,8 +838,8 @@ impl Child for ForeignChild {
         true
     }
 
-    fn our_pe(&self) -> Option<Rc<pes::PEUsage>> {
-        None
+    fn our_pe(&self) -> Rc<pes::PEUsage> {
+        self.parent_pe.clone()
     }
 
     fn child_pe(&self) -> Option<Rc<pes::PEUsage>> {
