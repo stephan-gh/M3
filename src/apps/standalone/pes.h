@@ -60,7 +60,7 @@ enum class PE {
 
 static uint PE_IDS[][9] = {
     // platform = gem5
-    { 0, 1, 2, 3, 4, 5, 6, 7, 8 },
+    { 0, 1, 2, 3, 4, 5, 6, 7, 9 },
     // platform = hw
     { MODID_PM0, MODID_PM1, MODID_PM2, MODID_PM3,
       MODID_PM4, MODID_PM5, MODID_PM6, MODID_PM7,
