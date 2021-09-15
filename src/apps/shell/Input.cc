@@ -27,6 +27,7 @@ using namespace m3;
 
 static std::vector<std::string> history;
 static size_t history_pos;
+static size_t tab_count;
 
 static std::vector<std::string> get_completions(const char *line, size_t len, size_t *prefix_len) {
     // determine prefix
@@ -47,37 +48,36 @@ static std::vector<std::string> get_completions(const char *line, size_t len, si
     const char *prefix = line + prefix_start;
     *prefix_len = len - prefix_start;
     std::vector<std::string> matches;
+    Dir::Entry e;
 
-    if(*prefix) {
-        Dir::Entry e;
-
-        if(complete_bins) {
-            try {
-                // we have no PATH, binary directory is hardcoded for now
-                Dir bin("/bin");
-                while(bin.readdir(e)) {
-                    if(strcmp(e.name, ".") == 0 || strcmp(e.name, "..") == 0)
-                        continue;
-                    if(strncmp(e.name, prefix, strlen(prefix)) == 0)
-                        matches.push_back(e.name);
-                }
-            }
-            catch(const Exception &) {
-                // ignore failures
+    if((*prefix || tab_count > 1) && complete_bins) {
+        try {
+            // we have no PATH, binary directory is hardcoded for now
+            Dir bin("/bin");
+            while(bin.readdir(e)) {
+                if(strcmp(e.name, ".") == 0 || strcmp(e.name, "..") == 0)
+                    continue;
+                if(!*prefix || strncmp(e.name, prefix, strlen(prefix)) == 0)
+                    matches.push_back(e.name);
             }
         }
+        catch(const Exception &) {
+            // ignore failures
+        }
+    }
 
-        // since we have no CWD yet, paths have to start with /
-        if(*prefix == '/') {
-            const char *lastdir = strrchr(prefix, '/');
-            const char *filename = lastdir + 1;
+    // since we have no CWD yet, paths have to start with /
+    if(*prefix == '/') {
+        const char *lastdir = strrchr(prefix, '/');
+        const char *filename = lastdir + 1;
+        if(*filename || tab_count > 1) {
             std::string dirname(prefix, 0, 1 + static_cast<size_t>(lastdir - prefix));
             try {
                 Dir dir(dirname.c_str());
                 while(dir.readdir(e)) {
                     if(strcmp(e.name, ".") == 0 || strcmp(e.name, "..") == 0)
                         continue;
-                    if(strncmp(e.name, filename, strlen(filename)) == 0)
+                    if(!*filename || strncmp(e.name, filename, strlen(filename)) == 0)
                         matches.push_back(dirname + e.name);
                 }
             }
@@ -172,7 +172,9 @@ static void handle_escape(char *buffer, size_t &o) {
 ssize_t Input::readline(char *buffer, size_t max) {
     size_t o = 0;
 
+    // reset state
     history_pos = history.size();
+    tab_count = 0;
 
     // ensure that the line is empty
     buffer[o] = '\0';
@@ -187,6 +189,11 @@ ssize_t Input::readline(char *buffer, size_t max) {
         // TODO ^C
         if(c == 0x03)
             continue;
+
+        if(c == '\t')
+            tab_count += 1;
+        else
+            tab_count = 0;
 
         switch(c) {
             case '\t':
