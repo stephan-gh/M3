@@ -188,9 +188,12 @@ ssize_t Input::readline(char *buffer, size_t max) {
         // EOF?
         if(c == 0x04)
             return -1;
-        // TODO ^C
-        if(c == 0x03)
+        // ^C
+        if(c == 0x03) {
+            cout << "\n$ ";
+            o = 0;
             continue;
+        }
 
         if(c == '\t')
             tab_count += 1;
