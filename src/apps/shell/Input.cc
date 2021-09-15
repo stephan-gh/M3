@@ -134,21 +134,42 @@ static void handle_backspace(char *, size_t &o) {
     }
 }
 
+static void reset_command(char *buffer, size_t &o, const std::string &new_cmd) {
+    cout << "\r";
+    // overwrite all including "$ "
+    for(size_t i = 0; i < o + 2; ++i)
+        cout << " ";
+    // replace with item from history
+    cout << "\r$ " << new_cmd.c_str();
+    cout.flush();
+    o = new_cmd.size();
+    memcpy(buffer, new_cmd.c_str(), o);
+}
+
+static void handle_cmd_up(char *buffer, size_t &o) {
+    if(history.size() > 0) {
+        size_t idx = (--history_pos) % history.size();
+        reset_command(buffer, o, history[idx]);
+    }
+}
+
+static void handle_cmd_down(char *buffer, size_t &o) {
+    if(history.size() > 0) {
+        size_t idx = (++history_pos) % history.size();
+        reset_command(buffer, o, history[idx]);
+    }
+}
+
 static void handle_escape(char *buffer, size_t &o) {
     char c2 = cin.read();
     char c3 = cin.read();
 
-    ssize_t idx = -1;
     // cursor up
-    if(c2 == '[' && c3 == 'A') {
-        if(history.size() > 0)
-            idx = static_cast<ssize_t>((--history_pos) % history.size());
-    }
+    if(c2 == '[' && c3 == 'A')
+        handle_cmd_up(buffer, o);
     // cursor down
-    else if(c2 == '[' && c3 == 'B') {
-        if(history.size() > 0)
-            idx = static_cast<ssize_t>((++history_pos) % history.size());
-    }
+    else if(c2 == '[' && c3 == 'B')
+        handle_cmd_down(buffer, o);
     // just print the escape code
     else {
         buffer[o++] = '^';
@@ -156,18 +177,6 @@ static void handle_escape(char *buffer, size_t &o) {
         buffer[o++] = c3;
         cout << "^" << c2 << c3;
         cout.flush();
-    }
-
-    if(idx != -1) {
-        auto &history_item = history[static_cast<size_t>(idx)];
-        cout << "\r";
-        // overwrite all including "$ "
-        for(size_t i = 0; i < o + 2; ++i)
-            cout << " ";
-        // replace with item from history
-        cout << "\r$ " << history_item.c_str();
-        o = history_item.size();
-        memcpy(buffer, history_item.c_str(), o);
     }
 }
 
@@ -204,13 +213,19 @@ ssize_t Input::readline(char *buffer, size_t max) {
             case '\t':
                 handle_tab(buffer, o);
                 break;
-            case 0x17:
+            case 0x17: // ^W
                 handle_worddel(buffer, o);
                 break;
-            case 0x7F:
+            case 0x7F: // ^?
                 handle_backspace(buffer, o);
                 break;
-            case 0x1b:
+            case 0x10: // ^P
+                handle_cmd_up(buffer, o);
+                break;
+            case 0x0e: // ^N
+                handle_cmd_down(buffer, o);
+                break;
+            case 0x1b: // ^[
                 handle_escape(buffer, o);
                 break;
 
