@@ -15,7 +15,7 @@
                     <pes type="rocket|core" count="1" />
                     <pes type="boom|core" count="3" />
                     <dom pe="boom|core">
-                        <app args="/bin/net -d lo -m 2 net 127.0.0.1" daemon="1">
+                        <app args="/sbin/net -d lo -m 2 net 127.0.0.1" daemon="1">
                             <serv name="net" />
                         </app>
                     </dom>

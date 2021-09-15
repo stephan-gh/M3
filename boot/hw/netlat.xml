@@ -15,7 +15,7 @@
                     <pes type="boom+nic" count="1" />
                     <pes type="boom" count="1" />
                     <dom pe="boom+nic">
-                        <app args="/bin/net net 192.168.42.242" daemon="1">
+                        <app args="/sbin/net net 192.168.42.242" daemon="1">
                             <serv name="net" />
                         </app>
                     </dom>

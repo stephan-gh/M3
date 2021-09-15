@@ -11,6 +11,7 @@ def build(gen, env):
             gen,
             out = 'pemux',
             libs = ['isr'],
+            dir = None,
             ldscript = 'pemux',
             startup = entry,
             varAddr = False

@@ -177,7 +177,11 @@ build_params_hw() {
     for mod in $mods; do
         args="$args --mod '$mod'"
         # use the stripped binary from the default fs
-        files="$files $build/src/fs/default/bin/$(basename $mod)"
+        if [ -f $build/src/fs/default/bin/$(basename $mod) ]; then
+            files="$files $build/src/fs/default/bin/$(basename $mod)"
+        else
+            files="$files $build/src/fs/default/sbin/$(basename $mod)"
+        fi
     done
     while [ $c -lt 8 ]; do
         args="$args --pe pemux"

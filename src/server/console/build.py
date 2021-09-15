@@ -7,5 +7,6 @@ def build(gen, env):
             gen,
             out = 'console',
             ins = ['console.cc', 'Scancodes.cc', 'VGAConsole.cc'],
-            libs = ['X11', 'rt']
+            libs = ['X11', 'rt'],
+            dir = 'sbin',
         )

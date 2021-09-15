@@ -38,6 +38,7 @@ def build(gen, env):
                 'xaxiethernet_fifo_ping_req_example.cc',
                 'xaxiethernet_example_sgdma_poll.cc'
             ],
+            dir = None,
             NoSup = True,
             ldscript = 'baremetal',
             varAddr = False,

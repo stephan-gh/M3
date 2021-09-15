@@ -13,11 +13,11 @@
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
                     <pes type="core" count="1" />
-                    <app args="/bin/m3fs -m 2 mem $fs.size" daemon="1">
+                    <app args="/sbin/m3fs -m 2 mem $fs.size" daemon="1">
                         <serv lname="m3fs" gname="app_m3fs" />
                         <physmem addr="0" size="$fs.size" />
                     </app>
-                    <app args="/bin/net -m 2 -d lo net 127.0.0.1" daemon="1">
+                    <app args="/sbin/net -m 2 -d lo net 127.0.0.1" daemon="1">
                         <serv name="net" />
                     </app>
                     <app args="/bin/lvldbserver /tmp/foo 4 udp 127.0.0.1 1337 /data/small-workload.wl">

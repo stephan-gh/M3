@@ -52,7 +52,10 @@ if cross != '':
             sys.exit('Please update the ' + isa + ' cross compiler from ' \
                 + ver + ' to ' + crossver + ' (cd cross && ./build.sh ' + isa + ' --rebuild).')
 
-bins = []
+bins = {
+    'bin': [],
+    'sbin': [],
+}
 rustcrates = []
 ldscripts = {}
 if isa == 'riscv':
@@ -79,7 +82,8 @@ class M3Env(ninjagen.Env):
         ))
         return out
 
-    def m3_exe(self, gen, out, ins, libs = [], NoSup = False, ldscript = 'default', varAddr = True):
+    def m3_exe(self, gen, out, ins, libs = [], dir = 'bin', NoSup = False,
+               ldscript = 'default', varAddr = True):
         env = self.clone()
 
         m3libs = ['base', 'm3', 'thread']
@@ -120,14 +124,16 @@ class M3Env(ninjagen.Env):
             bin = env.cxx_exe(gen, out, ins, libs)
 
         env.install(gen, env['BINDIR'], bin)
-        bins.append(bin)
+        if not dir is None:
+            bins[dir].append(bin)
         return bin
 
     def m3_rust_lib(self, gen):
         global rustcrates
         rustcrates += [env.cwd.path]
 
-    def m3_rust_exe(self, gen, out, libs = [], startup = None, ldscript = 'default', varAddr = True):
+    def m3_rust_exe(self, gen, out, libs = [], dir = 'bin', startup = None,
+                    ldscript = 'default', varAddr = True):
         global rustcrates
         rustcrates += [self.cwd.path]
 
@@ -146,7 +152,7 @@ class M3Env(ninjagen.Env):
             # ensure that the host library gets linked in
             env['LINKFLAGS'] += ['-Wl,--whole-archive', '-lhost', '-Wl,--no-whole-archive']
 
-        return env.m3_exe(gen, out, ins, libs, True, ldscript, varAddr)
+        return env.m3_exe(gen, out, ins, libs, dir, True, ldscript, varAddr)
 
     def cargo_ws(self, gen):
         global rustcrates
@@ -182,10 +188,11 @@ class M3Env(ninjagen.Env):
         deps = [ninjagen.BuildPath(env['TOOLDIR'] + '/mkm3fs')]
 
         global bins
-        for b in bins:
-            dst = ninjagen.BuildPath.new(self, 'bin/' + os.path.basename(b))
-            self.strip(gen, out = dst, input = b)
-            deps += [dst]
+        for dirname, dirbins in bins.items():
+            for b in dirbins:
+                dst = ninjagen.BuildPath.new(self, dirname + '/' + os.path.basename(b))
+                self.strip(gen, out = dst, input = b)
+                deps += [dst]
         for f in glob(ninjagen.SourcePath.new(self, dir + '/**/*'), recursive = True):
             src = ninjagen.SourcePath(f)
             dst = ninjagen.BuildPath.new(self, src)

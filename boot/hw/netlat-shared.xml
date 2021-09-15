@@ -12,7 +12,7 @@
                 <app args="pager maxcli=3 $fs.size" usermem="768M">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <app args="/bin/net net 192.168.42.242" daemon="1">
+                    <app args="/sbin/net net 192.168.42.242" daemon="1">
                         <serv name="net" />
                     </app>
                     <app args="/bin/netlat 192.168.42.232 1338">
