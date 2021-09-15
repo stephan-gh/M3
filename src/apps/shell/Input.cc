@@ -17,6 +17,7 @@
 #include <m3/stream/Standard.h>
 #include <m3/vfs/Dir.h>
 
+#include <algorithm>
 #include <ctype.h>
 #include <string>
 #include <vector>
@@ -94,6 +95,7 @@ static void handle_tab(char *buffer, size_t &o) {
     buffer[o] = '\0';
     size_t prefix_len;
     std::vector<std::string> matches = get_completions(buffer, o, &prefix_len);
+    std::sort(matches.begin(), matches.end());
     if(matches.size() == 1) {
         // accept the completion
         for(char c : matches[0].substr(prefix_len)) {
