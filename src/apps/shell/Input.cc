@@ -87,6 +87,48 @@ static std::vector<std::string> get_completions(const char *line, size_t len, si
     return matches;
 }
 
+static void handle_tab(char *buffer, size_t &o) {
+    buffer[o] = '\0';
+    size_t prefix_len;
+    std::vector<std::string> matches = get_completions(buffer, o, &prefix_len);
+    if(matches.size() == 1) {
+        // accept the completion
+        for(char c : matches[0].substr(prefix_len)) {
+            buffer[o++] = c;
+            cout.write(c);
+        }
+        cout.flush();
+    }
+    else if(matches.size() > 0) {
+        // print all completions
+        cout << "\n";
+        for(auto &s : matches)
+            cout << s.c_str() << " ";
+        // and the shell prompt with the current buffer again
+        cout << "\n$ " << buffer;
+        cout.flush();
+    }
+}
+
+static void handle_worddel(char *buffer, size_t &o) {
+    // walk to the last word end
+    for(; o > 0 && isspace(buffer[o - 1]); --o)
+        cout.write_all("\b \b", 3);
+    // delete this word
+    for(; o > 0 && !isspace(buffer[o - 1]); --o)
+        cout.write_all("\b \b", 3);
+    cout.flush();
+}
+
+static void handle_backspace(char *, size_t &o) {
+    if(o > 0) {
+        // overwrite last byte with a space and delete it
+        cout.write_all("\b \b", 3);
+        cout.flush();
+        o--;
+    }
+}
+
 ssize_t Input::readline(char *buffer, size_t max) {
     size_t o = 0;
 
@@ -105,46 +147,15 @@ ssize_t Input::readline(char *buffer, size_t max) {
             continue;
 
         switch(c) {
-            case '\t': {
-                buffer[o] = '\0';
-                size_t prefix_len;
-                std::vector<std::string> matches = get_completions(buffer, o, &prefix_len);
-                if(matches.size() == 1) {
-                    for(char c : matches[0].substr(prefix_len)) {
-                        buffer[o++] = c;
-                        cout.write(c);
-                    }
-                    cout.flush();
-                }
-                else if(matches.size() > 0) {
-                    cout << "\n";
-                    for(auto &s : matches)
-                        cout << s.c_str() << " ";
-                    cout << "\n$ " << buffer;
-                    cout.flush();
-                }
+            case '\t':
+                handle_tab(buffer, o);
                 break;
-            }
-
-            // ^W
-            case 0x17: {
-                for(; o > 0 && isspace(buffer[o - 1]); --o)
-                    cout.write_all("\b \b", 3);
-                for(; o > 0 && !isspace(buffer[o - 1]); --o)
-                    cout.write_all("\b \b", 3);
-                cout.flush();
+            case 0x17:
+                handle_worddel(buffer, o);
                 break;
-            }
-
-            // backspace
-            case 0x7F: {
-                if(o > 0) {
-                    cout.write_all("\b \b", 3);
-                    cout.flush();
-                    o--;
-                }
+            case 0x7F:
+                handle_backspace(buffer, o);
                 break;
-            }
 
             default: {
                 if(c == 27)
