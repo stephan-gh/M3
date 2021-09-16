@@ -283,6 +283,9 @@ impl Handler<VTermSession> for VTermHandler {
     }
 
     fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+        let op: GenFileOp = xchg.in_args().pop()?;
+        log!(LOG_DEF, "[{}] vterm::obtain(crt={}, op={})", sid, crt, op);
+
         if xchg.in_caps() != 2 {
             return Err(Error::new(Code::InvArgs));
         }
@@ -292,11 +295,17 @@ impl Handler<VTermSession> for VTermHandler {
             let nsid = sessions.next_id()?;
             let sess = sessions.get(sid).unwrap();
             match &sess.data {
-                SessionData::Meta => self
-                    .new_chan(crt, nsid, xchg.in_args().pop_word()? == 1)
-                    .map(|s| (nsid, s)),
+                SessionData::Meta => match op {
+                    GenFileOp::CLONE => self
+                        .new_chan(crt, nsid, xchg.in_args().pop_word()? == 1)
+                        .map(|s| (nsid, s)),
+                    _ => return Err(Error::new(Code::InvArgs)),
+                },
 
-                SessionData::Chan(c) => self.new_chan(crt, nsid, c.writing).map(|s| (nsid, s)),
+                SessionData::Chan(c) => match op {
+                    GenFileOp::CLONE => self.new_chan(crt, nsid, c.writing).map(|s| (nsid, s)),
+                    _ => return Err(Error::new(Code::InvArgs)),
+                },
             }
         }?;
 
@@ -308,6 +317,9 @@ impl Handler<VTermSession> for VTermHandler {
     }
 
     fn delegate(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+        let op: GenFileOp = xchg.in_args().pop()?;
+        log!(LOG_DEF, "[{}] vterm::delegate(op={})", sid, op);
+
         if xchg.in_caps() != 1 {
             return Err(Error::new(Code::InvArgs));
         }
@@ -316,11 +328,14 @@ impl Handler<VTermSession> for VTermHandler {
         let sess = sessions.get_mut(sid).unwrap();
         match &mut sess.data {
             SessionData::Meta => Err(Error::new(Code::InvArgs)),
-            SessionData::Chan(c) => {
-                let sel = VPE::cur().alloc_sel();
-                c.ep = Some(sel);
-                xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
-                Ok(())
+            SessionData::Chan(c) => match op {
+                GenFileOp::SET_DEST => {
+                    let sel = VPE::cur().alloc_sel();
+                    c.ep = Some(sel);
+                    xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
+                    Ok(())
+                },
+                _ => return Err(Error::new(Code::InvArgs)),
             },
         }
     }

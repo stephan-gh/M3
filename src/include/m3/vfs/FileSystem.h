@@ -22,6 +22,7 @@
 
 #include <fs/internal.h>
 
+#include <m3/vfs/GenericFile.h>
 #include <m3/Exception.h>
 
 namespace m3 {
@@ -34,6 +35,28 @@ class Marshaller;
  */
 class FileSystem : public RefCounted {
 public:
+    enum Operation {
+        FSTAT = GenericFile::STAT,
+        SEEK = GenericFile::SEEK,
+        NEXT_IN = GenericFile::NEXT_IN,
+        NEXT_OUT = GenericFile::NEXT_OUT,
+        COMMIT = GenericFile::COMMIT,
+        SYNC = GenericFile::SYNC,
+        CLOSE = GenericFile::CLOSE,
+        CLONE = GenericFile::CLONE,
+        SET_TMODE = GenericFile::SET_TMODE,
+        SET_DEST = GenericFile::SET_DEST,
+        STAT,
+        MKDIR,
+        RMDIR,
+        LINK,
+        UNLINK,
+        RENAME,
+        OPEN,
+        GET_SGATE,
+        GET_MEM,
+    };
+
     explicit FileSystem() noexcept
         : RefCounted() {
     }

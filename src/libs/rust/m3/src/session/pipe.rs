@@ -18,6 +18,8 @@ use crate::cap::Selector;
 use crate::cell::RefCell;
 use crate::com::MemGate;
 use crate::errors::Error;
+use crate::int_enum;
+use crate::kif::{CapRngDesc, CapType};
 use crate::rc::Rc;
 use crate::session::ClientSession;
 use crate::vfs::{FileHandle, GenericFile, OpenFlags};
@@ -25,6 +27,15 @@ use crate::vfs::{FileHandle, GenericFile, OpenFlags};
 /// Represents a session at the pipes server.
 pub struct Pipes {
     sess: ClientSession,
+}
+
+int_enum! {
+    /// The pipe operations.
+    pub struct PipeOperation : u64 {
+        const OPEN_PIPE     = 11;
+        const OPEN_CHAN     = 12;
+        const SET_MEM       = 13;
+    }
 }
 
 impl Pipes {
@@ -39,6 +50,7 @@ impl Pipes {
         let crd = self.sess.obtain(
             2,
             |os| {
+                os.push_word(PipeOperation::OPEN_PIPE.val);
                 os.push_word(mem_size as u64);
             },
             |_| Ok(()),
@@ -55,7 +67,13 @@ pub struct Pipe {
 impl Pipe {
     fn new(mem: &MemGate, sel: Selector) -> Result<Self, Error> {
         let sess = ClientSession::new_bind(sel);
-        sess.delegate_obj(mem.sel())?;
+        sess.delegate(
+            CapRngDesc::new(CapType::OBJECT, mem.sel(), 1),
+            |os| {
+                os.push_word(PipeOperation::SET_MEM.val);
+            },
+            |_| Ok(()),
+        )?;
         Ok(Pipe { sess })
     }
 
@@ -70,6 +88,7 @@ impl Pipe {
         let crd = self.sess.obtain(
             2,
             |os| {
+                os.push_word(PipeOperation::OPEN_CHAN.val);
                 os.push_word(read as u64);
             },
             |_| Ok(()),

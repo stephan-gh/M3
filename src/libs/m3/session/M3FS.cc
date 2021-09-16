@@ -24,7 +24,7 @@ namespace m3 {
 Reference<File> M3FS::open(const char *path, int perms) {
     KIF::ExchangeArgs args;
     ExchangeOStream os(args);
-    os << perms << String(path);
+    os << OPEN << perms << String(path);
     args.bytes = os.total();
     KIF::CapRngDesc crd = obtain(2, &args);
     return Reference<File>(new GenericFile(perms, crd.start()));
@@ -78,7 +78,11 @@ Errors::Code M3FS::try_rename(const char *oldpath, const char *newpath) {
 void M3FS::delegate(VPE &vpe) {
     vpe.delegate_obj(sel());
     // TODO what if it fails?
-    obtain_for(vpe, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel() + 1, 1));
+    KIF::ExchangeArgs args;
+    ExchangeOStream os(args);
+    os << GET_SGATE;
+    args.bytes = os.total();
+    obtain_for(vpe, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel() + 1, 1), &args);
 }
 
 void M3FS::serialize(Marshaller &m) {

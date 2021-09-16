@@ -82,13 +82,18 @@ int_enum! {
         const COMMIT    = GenFileOp::COMMIT.val;
         const SYNC      = GenFileOp::SYNC.val;
         const CLOSE     = GenFileOp::CLOSE.val;
+        const CLONE     = GenFileOp::CLONE.val;
         const SET_TMODE = GenFileOp::SET_TMODE.val;
+        const SET_DEST  = GenFileOp::SET_DEST.val;
+        const OPEN      = FSOperation::OPEN.val;
         const FSTAT     = FSOperation::STAT.val;
         const MKDIR     = FSOperation::MKDIR.val;
         const RMDIR     = FSOperation::RMDIR.val;
         const LINK      = FSOperation::LINK.val;
         const UNLINK    = FSOperation::UNLINK.val;
         const RENAME    = FSOperation::RENAME.val;
+        const GET_MEM   = FSOperation::GET_MEM.val;
+        const GET_SGATE = FSOperation::GET_SGATE.val;
     }
 }
 
@@ -249,84 +254,75 @@ impl Handler<FSSession> for M3FSRequestHandler {
 
     /// Let's the client obtain a capability from the server
     fn obtain(&mut self, crt: usize, sid: SessId, data: &mut CapExchange) -> Result<(), Error> {
-        log!(LOG_DEF, "[{}] fs::obtain(crt={})", sid, crt);
+        // get some values now, because we cannot borrow self while holding the session reference
+        let next_sess_id = self.sessions.next_id()?;
+        let sel: Selector = self.sel;
+
+        let op: M3FSOperation = data.in_args().pop()?;
+        log!(LOG_DEF, "[{}] fs::obtain(crt={}, op={})", sid, crt, op);
 
         if !self.sessions.can_add(crt) {
             return Err(Error::new(Code::NoSpace));
         }
-
-        // get some values now, because we cannot borrow self while holding the session reference
-        let next_sess_id = self.sessions.next_id()?;
-        let sel: Selector = self.sel;
 
         let session = self
             .sessions
             .get_mut(sid)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
         match session {
-            FSSession::Meta(meta) => {
-                if data.in_args().size() == 0 {
-                    log!(crate::LOG_DEF, "[{}] fs::get_sgate()", sid);
-                    meta.get_sgate(data)
-                }
-                else {
-                    log!(crate::LOG_DEF, "[{}] fs::open_file()", sid);
+            FSSession::Meta(meta) => match op {
+                M3FSOperation::GET_SGATE => meta.get_sgate(data),
+                M3FSOperation::OPEN => {
                     let file_session = meta.open_file(sel, crt, data, next_sess_id)?;
 
                     self.sessions
                         .add(crt, next_sess_id, FSSession::File(file_session))
-                }
+                },
+                _ => return Err(Error::new(Code::InvArgs)),
             },
 
-            FSSession::File(file) => {
-                if data.in_args().size() == 0 {
-                    log!(crate::LOG_DEF, "[{}] fs::clone()", sid);
-
+            FSSession::File(file) => match op {
+                M3FSOperation::CLONE => {
                     let nfile_session = file.clone(sel, crt, next_sess_id, data)?;
 
                     self.sessions
                         .add(crt, next_sess_id, FSSession::File(nfile_session))
-                }
-                else {
-                    log!(crate::LOG_DEF, "[{}] fs::get_mem()", sid);
-                    file.get_mem(data)
-                }
+                },
+                M3FSOperation::GET_MEM => file.get_mem(data),
+                _ => return Err(Error::new(Code::InvArgs)),
             },
         }
     }
 
     /// Let's the client delegate a capability to the server
     fn delegate(&mut self, _crt: usize, sid: SessId, data: &mut CapExchange) -> Result<(), Error> {
-        log!(LOG_DEF, "[{}] fs::delegate()", sid);
+        let op: M3FSOperation = data.in_args().pop()?;
+        log!(LOG_DEF, "[{}] fs::delegate(op={})", sid, op);
 
         let session = self
             .sessions
             .get_mut(sid)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
-
-        if data.in_caps() != 1 || !session.is_file_session() {
-            return Err(Error::new(Code::NotSup));
-        }
-
         if let FSSession::File(fs) = session {
-            let new_sel: Selector = VPE::cur().alloc_sel();
+            match op {
+                M3FSOperation::SET_DEST => {
+                    if data.in_caps() != 1 {
+                        return Err(Error::new(Code::NotSup));
+                    }
 
-            log!(
-                LOG_DEF,
-                "[{}] fs::delegate(): set_ep(sel: {})",
-                sid,
-                new_sel,
-            );
-
-            fs.set_ep(new_sel);
-            data.out_caps(m3::kif::CapRngDesc::new(
-                m3::kif::CapType::OBJECT,
-                new_sel,
-                1,
-            ));
+                    let new_sel: Selector = VPE::cur().alloc_sel();
+                    fs.set_ep(new_sel);
+                    data.out_caps(m3::kif::CapRngDesc::new(
+                        m3::kif::CapType::OBJECT,
+                        new_sel,
+                        1,
+                    ));
+                },
+                _ => return Err(Error::new(Code::InvArgs)),
+            }
         }
         else {
-            panic!("delegate on none FileSession, should not happen!");
+            return Err(Error::new(Code::InvArgs));
         }
 
         Ok(())

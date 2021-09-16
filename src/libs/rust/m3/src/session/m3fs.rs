@@ -58,7 +58,12 @@ impl M3FS {
         let sess = ClientSession::new_with_sel(name, sels + 0)?;
 
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, sels + 1, 1);
-        sess.obtain_for(VPE::cur().sel(), crd, |_| {}, |_| Ok(()))?;
+        sess.obtain_for(
+            VPE::cur().sel(),
+            crd,
+            |os| os.push_word(FSOperation::GET_SGATE.val),
+            |_| Ok(()),
+        )?;
         let sgate = SendGate::new_bind(sels + 1);
         Ok(Self::create(sess, sgate))
     }
@@ -82,6 +87,7 @@ impl M3FS {
         let crd = sess.obtain(
             1,
             |os| {
+                os.push_word(FSOperation::GET_MEM.val);
                 os.push_word(off as u64);
             },
             |is| {
@@ -103,6 +109,7 @@ impl FileSystem for M3FS {
         let crd = self.sess.obtain(
             2,
             |os| {
+                os.push_word(FSOperation::OPEN.val);
                 os.push_word(u64::from(flags.bits()));
                 os.push_str(path);
             },
@@ -165,7 +172,12 @@ impl FileSystem for M3FS {
         dels.push(self.sess.sel());
 
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, self.sess.sel() + 1, 1);
-        self.sess.obtain_for(vpe, crd, |_| {}, |_| Ok(()))?;
+        self.sess.obtain_for(
+            vpe,
+            crd,
+            |os| os.push_word(FSOperation::GET_SGATE.val),
+            |_| Ok(()),
+        )?;
         *max_sel = cmp::max(*max_sel, self.sess.sel() + 2);
         Ok(())
     }

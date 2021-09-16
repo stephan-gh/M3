@@ -24,12 +24,22 @@
 namespace m3 {
 
 class Pipes : public ClientSession {
+    enum {
+        OPEN_PIPE     = 11,
+        OPEN_CHAN     = 12,
+        SET_MEM       = 13,
+    };
+
 public:
     class Pipe : public ClientSession {
     public:
         explicit Pipe(capsel_t sel, MemGate &memory)
             : ClientSession(sel) {
-            delegate_obj(memory.sel());
+            KIF::ExchangeArgs args;
+            ExchangeOStream os(args);
+            os << SET_MEM;
+            args.bytes = os.total();
+            delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, memory.sel(), 1), &args);
         }
         Pipe(Pipe &&p) noexcept
             : ClientSession(std::move(p)) {
@@ -38,7 +48,7 @@ public:
         Reference<File> create_channel(bool read, int flags = 0) {
             KIF::ExchangeArgs args;
             ExchangeOStream os(args);
-            os << read;
+            os << OPEN_CHAN << read;
             args.bytes = os.total();
             KIF::CapRngDesc desc = obtain(2, &args);
             return Reference<File>(new GenericFile(flags | (read ? FILE_R : FILE_W), desc.start()));
@@ -52,7 +62,7 @@ public:
     Pipe create_pipe(MemGate &memory, size_t memsize) {
         KIF::ExchangeArgs args;
         ExchangeOStream os(args);
-        os << memsize;
+        os << OPEN_PIPE << memsize;
         args.bytes = os.total();
         KIF::CapRngDesc desc = obtain(2, &args);
         return Pipe(desc.start(), memory);

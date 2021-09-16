@@ -31,12 +31,6 @@ pub enum FSSession {
     File(file_session::FileSession),
 }
 
-impl FSSession {
-    pub fn is_file_session(&self) -> bool {
-        matches!(self, FSSession::File(_))
-    }
-}
-
 impl M3FSSession for FSSession {
     fn creator(&self) -> usize {
         match self {

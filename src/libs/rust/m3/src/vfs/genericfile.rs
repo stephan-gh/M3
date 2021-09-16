@@ -45,7 +45,9 @@ int_enum! {
         const COMMIT    = 4;
         const SYNC      = 5;
         const CLOSE     = 6;
-        const SET_TMODE = 7;
+        const CLONE     = 7;
+        const SET_TMODE = 8;
+        const SET_DEST  = 9;
     }
 }
 
@@ -105,7 +107,9 @@ impl GenericFile {
     fn delegate_ep(&mut self) -> Result<(), Error> {
         if self.mgate.ep().is_none() {
             let ep = self.mgate.activate()?;
-            self.sess.delegate_obj(ep.sel())
+            let crd = CapRngDesc::new(CapType::OBJECT, ep.sel(), 1);
+            self.sess
+                .delegate(crd, |s| s.push_word(GenFileOp::SET_DEST.val), |_| Ok(()))
         }
         else {
             Ok(())
@@ -159,7 +163,8 @@ impl File for GenericFile {
         max_sel: &mut Selector,
     ) -> Result<(), Error> {
         let crd = CapRngDesc::new(CapType::OBJECT, self.sess.sel(), 2);
-        self.sess.obtain_for(vpe, crd, |_| {}, |_| Ok(()))?;
+        self.sess
+            .obtain_for(vpe, crd, |s| s.push_word(GenFileOp::CLONE.val), |_| Ok(()))?;
         *max_sel = cmp::max(*max_sel, self.sess.sel() + 2);
         Ok(())
     }

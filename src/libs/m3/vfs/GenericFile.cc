@@ -219,12 +219,30 @@ void GenericFile::map(Reference<Pager> &pager, goff_t *virt, size_t fileoff, siz
     pager->map_ds(virt, len, prot, flags, _sess, fileoff);
 }
 
+void GenericFile::do_clone(VPE &vpe, KIF::CapRngDesc &crd) const {
+    KIF::ExchangeArgs args;
+    ExchangeOStream os(args);
+    os << Operation::CLONE;
+    args.bytes = os.total();
+    _sess.obtain_for(vpe, crd, &args);
+}
+
 void GenericFile::delegate_ep() {
     if(!_mg.ep()) {
         const EP &ep = _mg.acquire_ep();
-        LLOG(FS, "GenFile[" << fd() << "]::delegate_ep(" << ep.id() << ")");
-        _sess.delegate_obj(ep.sel());
+        do_delegate_ep(ep);
     }
+}
+
+void GenericFile::do_delegate_ep(const EP &ep) const {
+    LLOG(FS, "GenFile[" << fd() << "]::delegate_ep(" << ep.id() << ")");
+
+    KIF::ExchangeArgs args;
+    ExchangeOStream os(args);
+    os << Operation::SET_DEST;
+    args.bytes = os.total();
+    KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, ep.sel(), 1);
+    _sess.delegate_for(VPE::self(), crd, &args);
 }
 
 }

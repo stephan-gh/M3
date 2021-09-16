@@ -35,24 +35,6 @@ class M3FS : public ClientSession, public FileSystem {
 public:
     friend class GenericFile;
 
-    enum Operation {
-        FSTAT = GenericFile::STAT,
-        SEEK = GenericFile::SEEK,
-        NEXT_IN = GenericFile::NEXT_IN,
-        NEXT_OUT = GenericFile::NEXT_OUT,
-        COMMIT = GenericFile::COMMIT,
-        SYNC = GenericFile::SYNC,
-        CLOSE = GenericFile::CLOSE,
-        SET_TMODE = GenericFile::SET_TMODE,
-        STAT,
-        MKDIR,
-        RMDIR,
-        LINK,
-        UNLINK,
-        RENAME,
-        COUNT
-    };
-
     explicit M3FS(const String &service)
         : ClientSession(service, VPE::self().alloc_sels(2)),
           FileSystem(),

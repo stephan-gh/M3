@@ -41,8 +41,9 @@ public:
         COMMIT,
         SYNC,
         CLOSE,
+        CLONE,
         SET_TMODE,
-        COUNT,
+        SET_DEST,
     };
 
     explicit GenericFile(int flags, capsel_t caps);
@@ -79,17 +80,18 @@ public:
 
     void connect(EP &sep, EP &mep) const {
         _sg.activate_on(sep);
-        _sess.delegate_obj(mep.sel());
+        do_delegate_ep(mep);
     }
 
     virtual Reference<File> clone() const override {
-        KIF::CapRngDesc crd = _sess.obtain(2);
+        KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, VPE::self().alloc_sels(2), 2);
+        do_clone(VPE::self(), crd);
         return Reference<File>(new GenericFile(flags(), crd.start()));
     }
 
     virtual void delegate(VPE &vpe) override {
         KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, _sess.sel(), 2);
-        _sess.obtain_for(vpe, crd);
+        do_clone(vpe, crd);
     }
 
     virtual void serialize(Marshaller &m) override {
@@ -106,6 +108,8 @@ public:
 private:
     virtual void close() noexcept override;
 
+    void do_clone(VPE &vpe, KIF::CapRngDesc &crd) const;
+    void do_delegate_ep(const EP &ep) const;
     void commit();
     void delegate_ep();
 

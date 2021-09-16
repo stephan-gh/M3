@@ -24,6 +24,7 @@ use m3::col::{String, Vec};
 use m3::com::GateIStream;
 use m3::env;
 use m3::errors::{Code, Error};
+use m3::int_enum;
 use m3::kif;
 use m3::log;
 use m3::pes::VPE;
@@ -32,7 +33,7 @@ use m3::server::{
     server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
     DEF_MAX_CLIENTS, DEF_MSG_SIZE,
 };
-use m3::session::ServerSession;
+use m3::session::{PipeOperation, ServerSession};
 use m3::tcu::Label;
 use m3::vec;
 use m3::vfs::GenFileOp;
@@ -42,6 +43,24 @@ use sess::{ChanType, Channel, Meta, PipesSession, SessionData};
 pub const LOG_DEF: bool = false;
 
 static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
+
+int_enum! {
+    pub struct Operation : u64 {
+        const STAT      = GenFileOp::STAT.val;
+        const SEEK      = GenFileOp::SEEK.val;
+        const NEXT_IN   = GenFileOp::NEXT_IN.val;
+        const NEXT_OUT  = GenFileOp::NEXT_OUT.val;
+        const COMMIT    = GenFileOp::COMMIT.val;
+        const SYNC      = GenFileOp::SYNC.val;
+        const CLOSE     = GenFileOp::CLOSE.val;
+        const CLONE     = GenFileOp::CLONE.val;
+        const SET_TMODE = GenFileOp::SET_TMODE.val;
+        const SET_DEST  = GenFileOp::SET_DEST.val;
+        const OPEN_PIPE = PipeOperation::OPEN_PIPE.val;
+        const OPEN_CHAN = PipeOperation::OPEN_CHAN.val;
+        const SET_MEM   = PipeOperation::SET_MEM.val;
+    }
+}
 
 struct PipesHandler {
     sel: Selector,
@@ -122,6 +141,15 @@ impl Handler<PipesSession> for PipesHandler {
     }
 
     fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+        let op: Operation = xchg.in_args().pop().unwrap();
+        log!(
+            crate::LOG_DEF,
+            "[{}] pipes::obtain(crt={}, op={})",
+            sid,
+            crt,
+            op
+        );
+
         if xchg.in_caps() != 2 {
             return Err(Error::new(Code::InvArgs));
         }
@@ -135,11 +163,15 @@ impl Handler<PipesSession> for PipesHandler {
             match &mut osess.data_mut() {
                 // meta sessions allow to create new pipes
                 SessionData::Meta(ref mut m) => {
+                    if op != Operation::OPEN_PIPE {
+                        return Err(Error::new(Code::InvArgs));
+                    }
+
                     let sel = VPE::cur().alloc_sel();
                     let msize = xchg.in_args().pop_word()?;
                     log!(
                         crate::LOG_DEF,
-                        "[{}] pipes::new_pipe(sid={}, sel={}, size={:#x})",
+                        "[{}] pipes::open_pipe(sid={}, sel={}, size={:#x})",
                         sid,
                         nsid,
                         sel,
@@ -152,6 +184,10 @@ impl Handler<PipesSession> for PipesHandler {
 
                 // pipe sessions allow to create new channels
                 SessionData::Pipe(ref mut p) => {
+                    if op != Operation::OPEN_CHAN {
+                        return Err(Error::new(Code::InvArgs));
+                    }
+
                     let sel = VPE::cur().alloc_sels(2);
                     let ty = match xchg.in_args().pop_word()? {
                         1 => ChanType::READ,
@@ -159,7 +195,7 @@ impl Handler<PipesSession> for PipesHandler {
                     };
                     log!(
                         crate::LOG_DEF,
-                        "[{}] pipes::new_chan(sid={}, sel={}, ty={:?})",
+                        "[{}] pipes::open_chan(sid={}, sel={}, ty={:?})",
                         sid,
                         nsid,
                         sel,
@@ -173,6 +209,10 @@ impl Handler<PipesSession> for PipesHandler {
 
                 // channel sessions can be cloned
                 SessionData::Chan(ref mut c) => {
+                    if op != Operation::CLONE {
+                        return Err(Error::new(Code::InvArgs));
+                    }
+
                     let sel = VPE::cur().alloc_sels(2);
                     log!(
                         crate::LOG_DEF,
@@ -215,10 +255,13 @@ impl Handler<PipesSession> for PipesHandler {
 
     fn delegate(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
         let sess = self.sessions.get_mut(sid).unwrap();
+        let op: Operation = xchg.in_args().pop()?;
+        log!(crate::LOG_DEF, "[{}] pipes::delegate(op={})", sid, op);
+
         match &mut sess.data_mut() {
             // pipe sessions expect a memory cap for the shared memory of the pipe
             SessionData::Pipe(ref mut p) => {
-                if xchg.in_caps() != 1 || p.has_mem() {
+                if xchg.in_caps() != 1 || p.has_mem() || op != Operation::SET_MEM {
                     return Err(Error::new(Code::InvArgs));
                 }
 
@@ -232,7 +275,7 @@ impl Handler<PipesSession> for PipesHandler {
 
             // channel sessions expect an EP cap to get access to the data
             SessionData::Chan(ref mut c) => {
-                if xchg.in_caps() != 1 {
+                if xchg.in_caps() != 1 || op != Operation::SET_DEST {
                     return Err(Error::new(Code::InvArgs));
                 }
 
