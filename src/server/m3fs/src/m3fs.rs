@@ -173,36 +173,45 @@ impl M3FSRequestHandler {
     }
 
     fn close_session(&mut self, sid: SessId) -> Result<(), Error> {
-        log!(LOG_SESSION, "[{}] closing session", sid);
+        // close this and all child sessions
+        let mut sids = vec![sid];
+        while let Some(id) = sids.pop() {
+            if let Ok(sess) = self.remove_session(id) {
+                log!(crate::LOG_DEF, "[{}] fs::close(): closing {}", sid, id);
 
-        {
-            let session = self.remove_session(sid)?;
-            match session {
-                FSSession::Meta(ref meta) => {
-                    // remove contained file sessions
-                    for fsid in meta.file_sessions() {
-                        self.remove_session(*fsid)?;
+                match sess {
+                    FSSession::Meta(ref meta) => {
+                        // remove contained file sessions
+                        sids.extend_from_slice(meta.file_sessions());
+                    },
 
-                        // see below
-                        REQHDL.recv_gate().drop_msgs_with(*fsid as Label);
-                    }
-                },
+                    FSSession::File(ref file) => {
+                        // remove file session from parent meta session
+                        let parent_meta_session = self.sessions.get_mut(file.meta_sess()).unwrap();
+                        match parent_meta_session {
+                            FSSession::Meta(ref mut pms) => pms.remove_file(id),
+                            _ => panic!("FileSession's parent is not a MetaSession!?"),
+                        }
 
-                FSSession::File(ref file) => {
-                    // remove file session from parent meta session
-                    let parent_meta_session = self.sessions.get_mut(file.meta_sess()).unwrap();
-                    match parent_meta_session {
-                        FSSession::Meta(ref mut pms) => pms.remove_file(sid),
-                        _ => panic!("FileSession's parent is not a MetaSession!?"),
-                    }
-                },
+                        // remove file session from parent file session
+                        if let Some(psid) = file.parent_sess() {
+                            if let Some(parent_file_session) = self.sessions.get_mut(psid) {
+                                match parent_file_session {
+                                    FSSession::File(ref mut pfs) => pfs.remove_child(id),
+                                    _ => panic!("Parent FileSession is not a FileSession!?"),
+                                }
+                            }
+                        }
+
+                        // remove child file sessions
+                        sids.extend_from_slice(file.child_sessions());
+                    },
+                }
+
+                // ignore all potentially outstanding messages of this session
+                REQHDL.recv_gate().drop_msgs_with(id as Label);
             }
         }
-
-        // now that the session has been dropped and thus the SendGate revoked, drop remaining
-        // messages for this session
-        REQHDL.recv_gate().drop_msgs_with(sid as Label);
-
         Ok(())
     }
 

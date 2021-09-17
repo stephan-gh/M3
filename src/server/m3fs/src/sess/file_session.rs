@@ -91,6 +91,8 @@ pub struct FileSession {
     sess_creator: usize,
     session_id: SessId,
     meta_sess_id: SessId,
+    parent_sess_id: Option<SessId>,
+    child_sessions: Vec<SessId>,
 
     _server_session: ServerSession, // keep the server session alive
 }
@@ -99,6 +101,7 @@ impl FileSession {
     pub fn new(
         srv_sel: Selector,
         crt: usize,
+        parent_sess_id: Option<SessId>,
         file_sess_id: SessId,
         meta_sess_id: SessId,
         filename: &str,
@@ -155,6 +158,8 @@ impl FileSession {
             sess_creator: crt,
             session_id: file_sess_id,
             meta_sess_id,
+            parent_sess_id,
+            child_sessions: Vec::new(),
 
             _server_session,
         };
@@ -181,12 +186,15 @@ impl FileSession {
         let nsess = Self::new(
             srv_sel,
             crt,
+            Some(self.session_id),
             sid,
             self.meta_sess_id,
             &self.filename,
             self.oflags,
             self.ino,
         )?;
+
+        self.child_sessions.push(sid);
 
         data.out_caps(CapRngDesc::new(CapType::OBJECT, nsess.sess_sel, 2));
 
@@ -246,6 +254,18 @@ impl FileSession {
 
     pub fn meta_sess(&self) -> SessId {
         self.meta_sess_id
+    }
+
+    pub fn child_sessions(&self) -> &[SessId] {
+        &self.child_sessions
+    }
+
+    pub fn parent_sess(&self) -> Option<SessId> {
+        self.parent_sess_id
+    }
+
+    pub fn remove_child(&mut self, id: SessId) {
+        self.child_sessions.retain(|s| *s != id);
     }
 
     pub fn caps(&self) -> CapRngDesc {

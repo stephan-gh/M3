@@ -162,6 +162,7 @@ impl MetaSession {
         FileSession::new(
             srv,
             crt,
+            None,
             file_session_id,
             self.session_id,
             path,
