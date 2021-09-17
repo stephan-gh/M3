@@ -44,6 +44,7 @@ public:
         CLONE,
         SET_TMODE,
         SET_DEST,
+        SET_SIG,
     };
 
     explicit GenericFile(int flags, capsel_t caps);
@@ -73,6 +74,7 @@ public:
                      int prot, int flags) const override;
 
     virtual void set_tmode(TMode mode) override;
+    virtual void set_signal_gate(SendGate &sg) override;
 
     virtual char type() const noexcept override {
         return 'F';

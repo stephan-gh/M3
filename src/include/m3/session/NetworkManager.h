@@ -57,6 +57,7 @@ class NetworkManager : public ClientSession {
         CLONE       = GenericFile::CLONE,
         SET_TMODE   = GenericFile::SET_TMODE,
         SET_DEST    = GenericFile::SET_DEST,
+        SET_SIG     = GenericFile::SET_SIG,
         BIND,
         LISTEN,
         CONNECT,

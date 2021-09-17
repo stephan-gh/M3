@@ -20,6 +20,7 @@
 #include <base/util/Reference.h>
 
 #include <m3/com/Marshalling.h>
+#include <m3/com/SendGate.h>
 
 #include <fs/internal.h>
 
@@ -238,6 +239,13 @@ public:
      * Sets the terminal mode in case the server is a terminal
      */
     virtual void set_tmode(TMode) {
+        throw Exception(Errors::NOT_SUP);
+    }
+
+    /**
+     * Delegates the given send gate to the server to receive signals
+     */
+    virtual void set_signal_gate(SendGate &) {
         throw Exception(Errors::NOT_SUP);
     }
 

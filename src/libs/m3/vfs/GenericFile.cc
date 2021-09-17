@@ -214,6 +214,15 @@ void GenericFile::set_tmode(TMode mode) {
     reply.pull_result();
 }
 
+void GenericFile::set_signal_gate(SendGate &sg) {
+    KIF::ExchangeArgs args;
+    ExchangeOStream os(args);
+    os << Operation::SET_SIG;
+    args.bytes = os.total();
+    KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, sg.sel(), 1);
+    _sess.delegate_for(VPE::self(), crd, &args);
+}
+
 void GenericFile::map(Reference<Pager> &pager, goff_t *virt, size_t fileoff, size_t len,
                       int prot, int flags) const {
     pager->map_ds(virt, len, prot, flags, _sess, fileoff);

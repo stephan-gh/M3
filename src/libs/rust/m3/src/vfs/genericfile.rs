@@ -48,6 +48,7 @@ int_enum! {
         const CLONE     = 7;
         const SET_TMODE = 8;
         const SET_DEST  = 9;
+        const SET_SIG   = 10;
     }
 }
 

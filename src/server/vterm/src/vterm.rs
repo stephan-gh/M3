@@ -19,9 +19,8 @@
 use m3::cap::Selector;
 use m3::cell::{LazyStaticCell, StaticCell};
 use m3::col::Vec;
-use m3::com::{GateIStream, MemGate, Perm, SGateArgs, SendGate, EP};
+use m3::com::{GateIStream, MemGate, Perm, RGateArgs, RecvGate, SGateArgs, SendGate, EP};
 use m3::errors::{Code, Error};
-use m3::goff;
 use m3::int_enum;
 use m3::io::{Serial, Write};
 use m3::kif;
@@ -38,6 +37,7 @@ use m3::session::ServerSession;
 use m3::tcu::{Label, Message};
 use m3::vec;
 use m3::vfs::GenFileOp;
+use m3::{goff, send_vmsg};
 
 pub const LOG_DEF: bool = false;
 
@@ -51,6 +51,7 @@ int_enum! {
 }
 
 static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
+static SIGRGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
 static BUFFER: StaticCell<Vec<u8>> = StaticCell::new(Vec::new());
 static INPUT: StaticCell<Vec<u8>> = StaticCell::new(Vec::new());
 static MODE: StaticCell<Mode> = StaticCell::new(Mode::COOKED);
@@ -335,6 +336,16 @@ impl Handler<VTermSession> for VTermHandler {
                     xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
                     Ok(())
                 },
+                GenFileOp::SET_SIG => {
+                    if c.sig_gate.is_some() {
+                        return Err(Error::new(Code::Exists));
+                    }
+
+                    let sel = VPE::cur().alloc_sel();
+                    c.sig_gate = Some(SendGate::new_bind(sel));
+                    xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
+                    Ok(())
+                },
                 _ => return Err(Error::new(Code::InvArgs)),
             },
         }
@@ -343,6 +354,19 @@ impl Handler<VTermSession> for VTermHandler {
     fn close(&mut self, _crt: usize, sid: SessId) {
         self.close_sess(sid).ok();
     }
+}
+
+fn send_signal(hdl: &mut VTermHandler) {
+    hdl.sessions.for_each(|s| match &s.data {
+        SessionData::Chan(c) => {
+            if let Some(sg) = c.sig_gate.as_ref() {
+                log!(crate::LOG_DEF, "[{}] sending SIGINT", c.id);
+                // ignore errors
+                send_vmsg!(sg, &SIGRGATE, 0).ok();
+            }
+        },
+        SessionData::Meta => {},
+    });
 }
 
 fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
@@ -358,8 +382,8 @@ fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
             match b {
                 // ^D
                 0x04 => flush = true,
-                // ^C (ignore)
-                0x03 => {},
+                // ^C
+                0x03 => send_signal(hdl),
                 // backspace
                 0x7f => {
                     output.push(*b);
@@ -431,6 +455,13 @@ pub fn main() -> i32 {
 
     REQHDL.set(RequestHandler::default().expect("Unable to create request handler"));
 
+    let mut rgate = RecvGate::new_with(RGateArgs::default().order(5).msg_order(5))
+        .expect("Unable to create signal receive gate");
+    rgate
+        .activate()
+        .expect("Unable to activate signal receive gate");
+    SIGRGATE.set(rgate);
+
     let sel = VPE::cur().alloc_sel();
     let mut serial_gate = VPE::cur()
         .resmng()
@@ -447,6 +478,10 @@ pub fn main() -> i32 {
         if let Some(msg) = serial_gate.fetch() {
             handle_input(&mut hdl, msg);
             serial_gate.ack_msg(msg).unwrap();
+        }
+
+        if let Some(msg) = SIGRGATE.fetch() {
+            SIGRGATE.ack_msg(msg).unwrap();
         }
 
         REQHDL.get_mut().handle(|op, mut is| {

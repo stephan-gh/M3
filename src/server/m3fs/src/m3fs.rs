@@ -85,6 +85,7 @@ int_enum! {
         const CLONE     = GenFileOp::CLONE.val;
         const SET_TMODE = GenFileOp::SET_TMODE.val;
         const SET_DEST  = GenFileOp::SET_DEST.val;
+        const SET_SIG   = GenFileOp::SET_SIG.val;
         const OPEN      = FSOperation::OPEN.val;
         const FSTAT     = FSOperation::STAT.val;
         const MKDIR     = FSOperation::MKDIR.val;

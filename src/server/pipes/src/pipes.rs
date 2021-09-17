@@ -46,19 +46,20 @@ static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
 
 int_enum! {
     pub struct Operation : u64 {
-        const STAT      = GenFileOp::STAT.val;
-        const SEEK      = GenFileOp::SEEK.val;
-        const NEXT_IN   = GenFileOp::NEXT_IN.val;
-        const NEXT_OUT  = GenFileOp::NEXT_OUT.val;
-        const COMMIT    = GenFileOp::COMMIT.val;
-        const SYNC      = GenFileOp::SYNC.val;
-        const CLOSE     = GenFileOp::CLOSE.val;
-        const CLONE     = GenFileOp::CLONE.val;
-        const SET_TMODE = GenFileOp::SET_TMODE.val;
-        const SET_DEST  = GenFileOp::SET_DEST.val;
-        const OPEN_PIPE = PipeOperation::OPEN_PIPE.val;
-        const OPEN_CHAN = PipeOperation::OPEN_CHAN.val;
-        const SET_MEM   = PipeOperation::SET_MEM.val;
+        const STAT          = GenFileOp::STAT.val;
+        const SEEK          = GenFileOp::SEEK.val;
+        const NEXT_IN       = GenFileOp::NEXT_IN.val;
+        const NEXT_OUT      = GenFileOp::NEXT_OUT.val;
+        const COMMIT        = GenFileOp::COMMIT.val;
+        const SYNC          = GenFileOp::SYNC.val;
+        const CLOSE         = GenFileOp::CLOSE.val;
+        const CLONE         = GenFileOp::CLONE.val;
+        const SET_TMODE     = GenFileOp::SET_TMODE.val;
+        const SET_DEST      = GenFileOp::SET_DEST.val;
+        const SET_SIG       = GenFileOp::SET_SIG.val;
+        const OPEN_PIPE     = PipeOperation::OPEN_PIPE.val;
+        const OPEN_CHAN     = PipeOperation::OPEN_CHAN.val;
+        const SET_MEM       = PipeOperation::SET_MEM.val;
     }
 }
 

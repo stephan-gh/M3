@@ -40,6 +40,9 @@ static const size_t ACOMP_TIME = 4096;
 
 static const size_t PIPE_SHM_SIZE   = 512 * 1024;
 
+static VTerm *vterm;
+static RecvGate *signal_rgate;
+
 static char **build_args(Command *cmd) {
     char **res = new char*[cmd->args->count + 1];
     for(size_t i = 0; i < cmd->args->count; ++i)
@@ -100,8 +103,8 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
     }
 
     size_t vpe_count = 0;
-    fd_t infd = STDIN_FD;
-    fd_t outfd = STDOUT_FD;
+    fd_t infd = -1;
+    fd_t outfd = -1;
     for(size_t i = 0; i < list->count; ++i) {
         Command *cmd = list->cmds[i];
 
@@ -118,6 +121,8 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
         if(i == 0) {
             if(cmd->redirs->fds[STDIN_FD])
                 infd = VFS::open(cmd->redirs->fds[STDIN_FD], FILE_R);
+            else
+                infd = VPE::self().fds()->alloc(vterm->create_channel(true));
             vpes[i]->fds()->set(STDIN_FD, VPE::self().fds()->get(infd));
         }
         else if(pes[i - 1]->desc().is_programmable() || pes[i]->desc().is_programmable())
@@ -126,6 +131,8 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
         if(i + 1 == list->count) {
             if(cmd->redirs->fds[STDOUT_FD])
                 outfd = VFS::open(cmd->redirs->fds[STDOUT_FD], FILE_W | FILE_CREATE | FILE_TRUNC);
+            else
+                outfd = VPE::self().fds()->alloc(vterm->create_channel(false));
             vpes[i]->fds()->set(STDOUT_FD, VPE::self().fds()->get(outfd));
         }
         else if(pes[i]->desc().is_programmable() || pes[i + 1]->desc().is_programmable()) {
@@ -190,21 +197,49 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                 vpes[i]->start();
         }
 
-        for(size_t rem = vpe_count; rem > 0; --rem) {
+        for(size_t rem = vpe_count; rem > 0; ) {
             capsel_t sels[vpe_count];
             for(size_t x = 0, i = 0; i < vpe_count; ++i) {
                 if(vpes[i])
                     sels[x++] = vpes[i]->sel();
             }
 
-            capsel_t vpe;
-            int exitcode = Syscalls::vpe_wait(sels, rem, 0, &vpe);
+            Syscalls::vpe_wait(sels, rem, 1, nullptr);
+
+            bool signal = false;
+            capsel_t vpe = KIF::INV_SEL;
+            int exitcode = 0;
+
+            while(true) {
+                const TCU::Message *msg;
+                if((msg = RecvGate::upcall().fetch())) {
+                    GateIStream is(RecvGate::upcall(), msg);
+                    auto upcall = reinterpret_cast<const KIF::Upcall::VPEWait*>(msg->data);
+                    vpe = upcall->vpe_sel;
+                    exitcode = upcall->exitcode;
+                    reply_vmsg(is, 0);
+                    break;
+                }
+                else if((msg = signal_rgate->fetch())) {
+                    GateIStream is(*signal_rgate, msg);
+                    signal = true;
+                    reply_vmsg(is, 0);
+                    Syscalls::vpe_wait(sels, 0, 1, nullptr);
+                    break;
+                }
+
+                VPE::sleep();
+            }
 
             for(size_t i = 0; i < vpe_count; ++i) {
-                if(vpes[i] && vpes[i]->sel() == vpe) {
+                if(vpes[i] && (signal || vpes[i]->sel() == vpe)) {
                     if(exitcode != 0) {
                         cerr << expr_value(list->cmds[i]->args->args[0])
                              << " terminated with exit code " << exitcode << "\n";
+                    }
+                    else if(signal) {
+                        cerr << expr_value(list->cmds[i]->args->args[0])
+                             << " terminated by signal\n";
                     }
                     if(!vpes[i]->pe_desc().is_programmable()) {
                         if(pipes[i])
@@ -214,10 +249,14 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                     }
                     delete vpes[i].release();
                     vpes[i] = nullptr;
-                    break;
+                    rem--;
                 }
             }
         }
+
+        // close our input/output file; the server will recursively close all clones
+        VPE::self().fds()->remove(outfd);
+        VPE::self().fds()->remove(infd);
     }
 }
 
@@ -243,10 +282,20 @@ int main(int argc, char **argv) {
 
     bool have_vterm = false;
     try {
-        VTerm vterm("vterm");
+        vterm = new VTerm("vterm");
+
+        // change stdin, stdout, and stderr to vterm
         const fd_t fds[] = {STDIN_FD, STDOUT_FD, STDERR_FD};
         for(fd_t fd : fds)
-            VPE::self().fds()->set(fd, vterm.create_channel(fd == STDIN_FD));
+            VPE::self().fds()->set(fd, vterm->create_channel(fd == STDIN_FD));
+
+        // register SendGate for signals from vterm
+        signal_rgate = new RecvGate(RecvGate::create(5, 5));
+        signal_rgate->activate();
+        // create on the heap to keep it around
+        SendGate *signal_sgate = new SendGate(SendGate::create(signal_rgate));
+        cin.file()->set_signal_gate(*signal_sgate);
+
         have_vterm = true;
     }
     catch(const Exception &e) {
