@@ -18,6 +18,7 @@
 
 mod bclients;
 mod bhash;
+mod blatency;
 mod util;
 
 use m3::col::Vec;
@@ -54,5 +55,6 @@ pub fn main() -> i32 {
     };
     wv_run_suite!(tester, bhash::run);
     wv_run_suite!(tester, bclients::run);
+    wv_run_suite!(tester, blatency::run);
     0
 }

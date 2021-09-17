@@ -14,7 +14,7 @@
                 </app>
             </dom>
             <dom>
-                <app args="pager $fs.size">
+                <app args="pager $fs.size" usermem="768M">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
                     <pes type="core" count="1" />
@@ -31,6 +31,7 @@
                             <sess lname="hash-client5" gname="hash" />
                             <sess lname="hash-client6" gname="hash" />
                             <sess lname="hash-client7" gname="hash" />
+                            <sess lname="hash-latency" gname="hash" />
                             <pes type="core" count="8" />
                         </app>
                     </dom>
