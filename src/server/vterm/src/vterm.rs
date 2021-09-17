@@ -69,6 +69,8 @@ struct VTermSession {
     crt: usize,
     sess: ServerSession,
     data: SessionData,
+    parent: Option<SessId>,
+    childs: Vec<SessId>,
 }
 
 #[derive(Debug)]
@@ -85,6 +87,7 @@ struct Channel {
     ep: Option<Selector>,
     sgate: SendGate,
     our_mem: Rc<MemGate>,
+    sig_gate: Option<SendGate>,
     pending_nextin: Option<&'static Message>,
     mem: MemGate,
     pos: usize,
@@ -112,6 +115,7 @@ impl Channel {
             ep: None,
             sgate,
             our_mem: mem,
+            sig_gate: None,
             pending_nextin: None,
             mem: cmem,
             pos: 0,
@@ -236,23 +240,48 @@ impl VTermHandler {
             crt,
             sess,
             data: SessionData::Meta,
+            parent: None,
+            childs: Vec::new(),
         }
     }
 
-    fn new_chan(&self, crt: usize, sid: SessId, writing: bool) -> Result<VTermSession, Error> {
+    fn new_chan(
+        &self,
+        parent: SessId,
+        crt: usize,
+        sid: SessId,
+        writing: bool,
+    ) -> Result<VTermSession, Error> {
         log!(crate::LOG_DEF, "[{}] vterm::new_chan()", sid);
         let sels = VPE::cur().alloc_sels(2);
         Ok(VTermSession {
             crt,
             sess: ServerSession::new_with_sel(self.sel, sels, crt, sid as u64, false)?,
             data: SessionData::Chan(Channel::new(sid, self.mem.clone(), sels, writing)?),
+            parent: Some(parent),
+            childs: Vec::new(),
         })
     }
 
     fn close_sess(&mut self, sid: SessId) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "[{}] vterm::close()", sid);
-        let crt = self.sessions.get(sid).unwrap().crt;
-        self.sessions.remove(crt, sid);
+        // close this and all child sessions
+        let mut sids = vec![sid];
+        while let Some(id) = sids.pop() {
+            if let Some(sess) = self.sessions.get_mut(id) {
+                log!(crate::LOG_DEF, "[{}] vterm::close(): closing {}", sid, id);
+
+                // close child sessions as well
+                sids.extend_from_slice(&sess.childs);
+
+                // remove session
+                let crt = sess.crt;
+                drop(sess);
+                self.sessions.remove(crt, id);
+
+                // ignore all potentially outstanding messages of this session
+                REQHDL.recv_gate().drop_msgs_with(id as Label);
+            }
+        }
         Ok(())
     }
 
@@ -290,6 +319,9 @@ impl Handler<VTermSession> for VTermHandler {
         if xchg.in_caps() != 2 {
             return Err(Error::new(Code::InvArgs));
         }
+        if !self.sessions.can_add(crt) {
+            return Err(Error::new(Code::NoSpace));
+        }
 
         let (nsid, nsess) = {
             let sessions = &self.sessions;
@@ -298,20 +330,22 @@ impl Handler<VTermSession> for VTermHandler {
             match &sess.data {
                 SessionData::Meta => match op {
                     GenFileOp::CLONE => self
-                        .new_chan(crt, nsid, xchg.in_args().pop_word()? == 1)
+                        .new_chan(sid, crt, nsid, xchg.in_args().pop_word()? == 1)
                         .map(|s| (nsid, s)),
-                    _ => return Err(Error::new(Code::InvArgs)),
+                    _ => Err(Error::new(Code::InvArgs)),
                 },
 
                 SessionData::Chan(c) => match op {
-                    GenFileOp::CLONE => self.new_chan(crt, nsid, c.writing).map(|s| (nsid, s)),
-                    _ => return Err(Error::new(Code::InvArgs)),
+                    GenFileOp::CLONE => self.new_chan(sid, crt, nsid, c.writing).map(|s| (nsid, s)),
+                    _ => Err(Error::new(Code::InvArgs)),
                 },
             }
         }?;
 
         let sel = nsess.sess.sel();
-        self.sessions.add(crt, nsid, nsess)?;
+        self.sessions.add(crt, nsid, nsess).unwrap();
+        // remember that the new session is a child of the current one
+        self.sessions.get_mut(sid).unwrap().childs.push(nsid);
 
         xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 2));
         Ok(())
