@@ -44,7 +44,6 @@ pub fn run(t: &mut dyn test::WvTester) {
 
     wv_run_test!(t, activate);
     wv_run_test!(t, vpe_ctrl);
-    wv_run_test!(t, vpe_wait);
     wv_run_test!(t, derive_mem);
     wv_run_test!(t, derive_kmem);
     wv_run_test!(t, derive_pe);
@@ -689,10 +688,6 @@ fn vpe_ctrl() {
         syscalls::vpe_ctrl(VPE::cur().sel(), VPEOp::START, 0),
         Code::InvArgs
     );
-}
-
-fn vpe_wait() {
-    wv_assert_err!(syscalls::vpe_wait(&[], 0), Code::InvArgs);
 }
 
 fn exchange() {

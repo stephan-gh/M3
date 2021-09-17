@@ -503,7 +503,7 @@ pub fn vpe_wait_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
     let event = req.event;
     let sels = &{ req.sels };
 
-    if count == 0 || count > sels.len() {
+    if count > sels.len() {
         sysc_err!(Code::InvArgs, "VPE count is invalid");
     }
 
