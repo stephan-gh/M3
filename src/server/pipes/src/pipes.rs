@@ -60,6 +60,7 @@ int_enum! {
         const OPEN_PIPE     = PipeOperation::OPEN_PIPE.val;
         const OPEN_CHAN     = PipeOperation::OPEN_CHAN.val;
         const SET_MEM       = PipeOperation::SET_MEM.val;
+        const CLOSE_PIPE    = PipeOperation::CLOSE_PIPE.val;
     }
 }
 
@@ -168,7 +169,7 @@ impl Handler<PipesSession> for PipesHandler {
                         return Err(Error::new(Code::InvArgs));
                     }
 
-                    let sel = VPE::cur().alloc_sel();
+                    let sel = VPE::cur().alloc_sels(2);
                     let msize = xchg.in_args().pop_word()?;
                     log!(
                         crate::LOG_DEF,
@@ -178,7 +179,7 @@ impl Handler<PipesSession> for PipesHandler {
                         sel,
                         msize
                     );
-                    let pipe = m.create_pipe(nsid, msize as usize);
+                    let pipe = m.create_pipe(sel, nsid, msize as usize)?;
                     let nsess = self.new_sub_sess(crt, sel, nsid, SessionData::Pipe(pipe))?;
                     Ok((nsid, nsess, false))
                 },
@@ -241,6 +242,9 @@ impl Handler<PipesSession> for PipesHandler {
             }
 
             c.crd()
+        }
+        else if let SessionData::Pipe(_) = nsess.data() {
+            kif::CapRngDesc::new(kif::CapType::OBJECT, nsess.sel(), 2)
         }
         else {
             kif::CapRngDesc::new(kif::CapType::OBJECT, nsess.sel(), 1)
@@ -361,10 +365,10 @@ pub fn main() -> i32 {
 
         REQHDL.get_mut().handle(|op, mut is| {
             match op {
-                GenFileOp::NEXT_IN => hdl.with_chan(&mut is, |c, is| c.next_in(is)),
-                GenFileOp::NEXT_OUT => hdl.with_chan(&mut is, |c, is| c.next_out(is)),
-                GenFileOp::COMMIT => hdl.with_chan(&mut is, |c, is| c.commit(is)),
-                GenFileOp::CLOSE => {
+                Operation::NEXT_IN => hdl.with_chan(&mut is, |c, is| c.next_in(is)),
+                Operation::NEXT_OUT => hdl.with_chan(&mut is, |c, is| c.next_out(is)),
+                Operation::COMMIT => hdl.with_chan(&mut is, |c, is| c.commit(is)),
+                Operation::CLOSE | Operation::CLOSE_PIPE => {
                     let sid = is.label() as SessId;
                     // reply before we destroy the client's sgate. otherwise the client might
                     // notice the invalidated sgate before getting the reply and therefore give
@@ -373,8 +377,8 @@ pub fn main() -> i32 {
                     is.reply_error(Code::None).ok();
                     hdl.close_sess(sid)
                 },
-                GenFileOp::STAT => Err(Error::new(Code::NotSup)),
-                GenFileOp::SEEK => Err(Error::new(Code::NotSup)),
+                Operation::STAT => Err(Error::new(Code::NotSup)),
+                Operation::SEEK => Err(Error::new(Code::NotSup)),
                 _ => Err(Error::new(Code::InvArgs)),
             }
         })

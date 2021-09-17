@@ -28,13 +28,15 @@ class Pipes : public ClientSession {
         OPEN_PIPE     = 11,
         OPEN_CHAN     = 12,
         SET_MEM       = 13,
+        CLOSE_PIPE    = 14,
     };
 
 public:
     class Pipe : public ClientSession {
     public:
         explicit Pipe(capsel_t sel, MemGate &memory)
-            : ClientSession(sel) {
+            : ClientSession(sel),
+              _sgate(SendGate::bind(sel + 1)) {
             KIF::ExchangeArgs args;
             ExchangeOStream os(args);
             os << SET_MEM;
@@ -42,7 +44,10 @@ public:
             delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, memory.sel(), 1), &args);
         }
         Pipe(Pipe &&p) noexcept
-            : ClientSession(std::move(p)) {
+            : ClientSession(std::move(p)), _sgate(std::move(p._sgate)) {
+        }
+        virtual ~Pipe() {
+            send_receive_vmsg(_sgate, CLOSE_PIPE);
         }
 
         Reference<File> create_channel(bool read, int flags = 0) {
@@ -53,6 +58,9 @@ public:
             KIF::CapRngDesc desc = obtain(2, &args);
             return Reference<File>(new GenericFile(flags | (read ? FILE_R : FILE_W), desc.start()));
         }
+
+    private:
+        SendGate _sgate;
     };
 
     explicit Pipes(const String &service)

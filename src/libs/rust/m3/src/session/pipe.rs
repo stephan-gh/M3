@@ -16,7 +16,7 @@
 
 use crate::cap::Selector;
 use crate::cell::RefCell;
-use crate::com::MemGate;
+use crate::com::{MemGate, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::int_enum;
 use crate::kif::{CapRngDesc, CapType};
@@ -35,6 +35,7 @@ int_enum! {
         const OPEN_PIPE     = 11;
         const OPEN_CHAN     = 12;
         const SET_MEM       = 13;
+        const CLOSE_PIPE    = 14;
     }
 }
 
@@ -62,6 +63,7 @@ impl Pipes {
 /// Represents a pipe.
 pub struct Pipe {
     sess: ClientSession,
+    sgate: SendGate,
 }
 
 impl Pipe {
@@ -74,7 +76,10 @@ impl Pipe {
             },
             |_| Ok(()),
         )?;
-        Ok(Pipe { sess })
+        Ok(Pipe {
+            sess,
+            sgate: SendGate::new_bind(sel + 1),
+        })
     }
 
     /// Returns the session's capability selector.
@@ -95,5 +100,11 @@ impl Pipe {
         )?;
         let flags = if read { OpenFlags::R } else { OpenFlags::W };
         Ok(Rc::new(RefCell::new(GenericFile::new(flags, crd.start()))))
+    }
+}
+
+impl Drop for Pipe {
+    fn drop(&mut self) {
+        send_recv_res!(&self.sgate, RecvGate::def(), PipeOperation::CLOSE_PIPE).unwrap();
     }
 }

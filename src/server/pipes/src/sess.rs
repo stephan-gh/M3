@@ -76,9 +76,14 @@ pub struct Meta {
 }
 
 impl Meta {
-    pub fn create_pipe(&mut self, sid: SessId, mem_size: usize) -> Pipe {
+    pub fn create_pipe(
+        &mut self,
+        sel: Selector,
+        sid: SessId,
+        mem_size: usize,
+    ) -> Result<Pipe, Error> {
         self.pipes.push(sid);
-        Pipe::new(sid, mem_size)
+        Pipe::new(sel, sid, mem_size)
     }
 
     pub fn close(&mut self, sids: &mut Vec<SessId>) -> Result<(), Error> {
@@ -246,15 +251,23 @@ impl State {
 
 pub struct Pipe {
     id: SessId,
+    _sgate: SendGate,
     state: Rc<RefCell<State>>,
 }
 
 impl Pipe {
-    pub fn new(id: SessId, mem_size: usize) -> Self {
-        Pipe {
+    pub fn new(sel: Selector, id: SessId, mem_size: usize) -> Result<Self, Error> {
+        let sgate = SendGate::new_with(
+            SGateArgs::new(crate::REQHDL.recv_gate())
+                .label(id as Label)
+                .credits(1)
+                .sel(sel + 1),
+        )?;
+        Ok(Pipe {
             id,
+            _sgate: sgate,
             state: Rc::new(RefCell::new(State::new(mem_size))),
-        }
+        })
     }
 
     pub fn has_mem(&self) -> bool {
