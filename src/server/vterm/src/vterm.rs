@@ -420,9 +420,9 @@ fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
                 0x03 => send_signal(hdl),
                 // backspace
                 0x7f => {
-                    output.push(*b);
+                    output.push(0x08);
                     output.push(b' ');
-                    output.push(*b);
+                    output.push(0x08);
                     BUFFER.get_mut().pop();
                 },
                 b => {
