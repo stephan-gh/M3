@@ -426,7 +426,11 @@ fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
                     BUFFER.get_mut().pop();
                 },
                 b => {
-                    if *b == b'\n' {
+                    if *b == 27 {
+                        BUFFER.get_mut().push(b'^');
+                        output.push(b'^');
+                    }
+                    else if *b == b'\n' {
                         flush = true;
                     }
                     if *b == b'\n' || !b.is_ascii_control() {
