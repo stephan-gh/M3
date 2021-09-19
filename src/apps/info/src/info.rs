@@ -16,33 +16,8 @@
 
 #![no_std]
 
-use core::fmt::Display;
-
 use m3::pes::VPE;
 use m3::println;
-
-struct MemQuota {
-    total: usize,
-    avail: usize,
-}
-
-impl Display for MemQuota {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let total = self.total / 1024;
-        write!(f, "{:7}K/{:7}K", self.avail / 1024, total,)
-    }
-}
-
-struct EPQuota {
-    total: u32,
-    avail: u32,
-}
-
-impl Display for EPQuota {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{:3}/{:3}", self.avail, self.total,)
-    }
-}
 
 #[no_mangle]
 pub fn main() -> i32 {
@@ -57,26 +32,17 @@ pub fn main() -> i32 {
     );
     for i in 0..num {
         if let Ok(vpe) = VPE::cur().resmng().unwrap().get_vpe_info(i) {
-            let umem = MemQuota {
-                total: vpe.total_umem,
-                avail: vpe.avail_umem,
-            };
-            let kmem = MemQuota {
-                total: vpe.total_kmem,
-                avail: vpe.avail_kmem,
-            };
-            let eps = EPQuota {
-                total: vpe.total_eps,
-                avail: vpe.avail_eps,
-            };
             println!(
-                "{:2} {:2} {} {:2}:{} {} {:0l$}{}",
+                "{:2} {:2} {:3}/{:3} {:2}:{:7}K/{:7}K {:7}K/{:7}K {:0l$}{}",
                 vpe.id,
                 vpe.pe,
-                eps,
+                vpe.avail_eps,
+                vpe.total_eps,
                 vpe.mem_pool,
-                umem,
-                kmem,
+                vpe.avail_umem / 1024,
+                vpe.total_umem / 1024,
+                vpe.avail_kmem / 1024,
+                vpe.total_kmem / 1024,
                 "",
                 vpe.name,
                 l = vpe.layer as usize * 2,
