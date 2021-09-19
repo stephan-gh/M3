@@ -20,12 +20,12 @@
                 </app>
             </dom>
             <dom>
-                <app args="pager $fs.size" usermem="256M">
+                <app args="pager $fs.size" usermem="256M" getinfo="1">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
                     <pes type="core" count="1" />
                     <dom>
-                        <app args="/bin/shell">
+                        <app args="/bin/shell" getinfo="1">
                             <mount fs="m3fs" path="/" />
                             <sess name="pipes" />
                             <sess name="vterm" />

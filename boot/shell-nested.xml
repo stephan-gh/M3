@@ -18,18 +18,18 @@
                 </app>
             </dom>
             <dom>
-                <app args="pager $fs.size" usermem="512M">
+                <app args="pager $fs.size" usermem="512M" getinfo="1">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
                     <sesscrt name="m3fs" count="24" />
                     <pes type="core" count="1" />
                     <dom>
-                        <app args="/sbin/pager $fs.size">
+                        <app args="/sbin/pager $fs.size" getinfo="1">
                             <sess name="m3fs" />
                             <physmem addr="0" size="$fs.size" perm="r" />
                             <pes type="core" count="2" />
                             <dom>
-                                <app args="/bin/shell">
+                                <app args="/bin/shell" getinfo="1">
                                     <mount fs="m3fs" path="/" />
                                     <sess name="pipes" />
                                     <sess name="vterm" />

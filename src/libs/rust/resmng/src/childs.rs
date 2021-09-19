@@ -554,8 +554,16 @@ pub trait Child {
     }
 
     fn get_info(&mut self, idx: Option<usize>) -> Result<ResMngVPEInfoResult, Error> {
+        if !self.cfg().can_get_info() {
+            return Err(Error::new(Code::NoPerm));
+        }
+
         let (parent_num, parent_layer) = if let Some(presmng) = VPE::cur().resmng() {
-            presmng.get_vpe_count()?
+            match presmng.get_vpe_count() {
+                Err(e) if e.code() == Code::NoPerm => (0, 0),
+                Err(e) => return Err(e),
+                Ok(res) => res,
+            }
         }
         else {
             (0, 0)

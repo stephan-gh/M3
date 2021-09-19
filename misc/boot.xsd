@@ -96,6 +96,7 @@
         <xs:attribute name="usermem" type="xs:string"/>
         <xs:attribute name="kernmem" type="xs:string"/>
         <xs:attribute name="eps" type="xs:int"/>
+        <xs:attribute name="getinfo" type="xs:int"/>
     </xs:complexType>
 
     <xs:element name="config">

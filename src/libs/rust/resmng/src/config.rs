@@ -367,6 +367,7 @@ pub struct AppConfig {
     pub(crate) args: Vec<String>,
     pub(crate) cfg_range: (usize, usize),
     pub(crate) daemon: bool,
+    pub(crate) getinfo: bool,
     pub(crate) eps: Option<u32>,
     pub(crate) user_mem: Option<usize>,
     pub(crate) kern_mem: Option<usize>,
@@ -403,6 +404,10 @@ impl AppConfig {
 
     pub fn daemon(&self) -> bool {
         self.daemon
+    }
+
+    pub fn can_get_info(&self) -> bool {
+        self.getinfo
     }
 
     pub fn eps(&self) -> Option<u32> {
@@ -790,6 +795,9 @@ impl AppConfig {
         }
         if self.serial.is_some() {
             writeln!(f, "{:0w$}Serial[],", "", w = layer + 2)?;
+        }
+        if self.can_get_info() {
+            writeln!(f, "{:0w$}GetInfo[],", "", w = layer + 2)?;
         }
         for d in &self.domains {
             let mut sub_layer = layer;
