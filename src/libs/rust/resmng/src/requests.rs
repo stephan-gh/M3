@@ -25,6 +25,7 @@ use m3::log;
 use m3::pes::VPE;
 use m3::reply_vmsg;
 use m3::session::ResMngOperation;
+use m3::tcu::VPEId;
 
 use crate::childs::{self, Child, Id};
 use crate::sendqueue;
@@ -162,11 +163,12 @@ fn close_session_async(is: &mut GateIStream, child: &mut dyn Child) -> Result<()
 }
 
 fn add_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+    let vpe_id: VPEId = is.pop()?;
     let vpe_sel: Selector = is.pop()?;
     let sgate_sel: Selector = is.pop()?;
     let name: String = is.pop()?;
 
-    child.add_child(vpe_sel, &RGATE, sgate_sel, name)
+    child.add_child(vpe_id, vpe_sel, &RGATE, sgate_sel, name)
 }
 
 fn rem_child_async(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {

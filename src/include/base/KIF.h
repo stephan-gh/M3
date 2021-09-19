@@ -264,6 +264,7 @@ struct KIF {
         } PACKED;
 
         struct CreateVPEReply : public DefaultReply {
+            xfer_t id;
             xfer_t eps_start;
         } PACKED;
 

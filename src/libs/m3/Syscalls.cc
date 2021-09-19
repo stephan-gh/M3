@@ -127,7 +127,8 @@ void Syscalls::create_map(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t f
 }
 
 epid_t Syscalls::create_vpe(capsel_t dst, capsel_t pg_sg, capsel_t pg_rg,
-                            const String &name, capsel_t pe, capsel_t kmem) {
+                            const String &name, capsel_t pe, capsel_t kmem,
+                            vpeid_t *id) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::CreateVPE>();
     req.opcode = KIF::Syscall::CREATE_VPE;
@@ -144,6 +145,7 @@ epid_t Syscalls::create_vpe(capsel_t dst, capsel_t pg_sg, capsel_t pg_rg,
     Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::CREATE_VPE);
+    *id = reply->id;
     return reply->eps_start;
 }
 

@@ -27,7 +27,7 @@ use crate::libc;
 use crate::pes::VPE;
 use crate::serialize::Source;
 use crate::session::{Pager, ResMng};
-use crate::tcu::{EpId, Label};
+use crate::tcu::{EpId, Label, VPEId};
 use crate::vfs::{FileTable, MountTable};
 
 pub struct EnvData {
@@ -46,6 +46,10 @@ impl EnvData {
 
     pub fn platform(&self) -> base::envdata::Platform {
         base::envdata::Platform::from(self.base().platform)
+    }
+
+    pub fn vpe_id(&self) -> VPEId {
+        self.sysc_lbl as VPEId
     }
 
     pub fn pe_id(&self) -> u64 {

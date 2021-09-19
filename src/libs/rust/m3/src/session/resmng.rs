@@ -25,7 +25,7 @@ use crate::goff;
 use crate::int_enum;
 use crate::kif;
 use crate::pes::VPE;
-use crate::tcu::PEId;
+use crate::tcu::{PEId, VPEId};
 
 int_enum! {
     /// The resource manager calls
@@ -58,7 +58,7 @@ int_enum! {
 
 #[derive(Debug)]
 pub struct ResMngVPEInfo {
-    pub id: u32,
+    pub id: VPEId,
     pub layer: u32,
     pub name: String,
     pub daemon: bool,
@@ -143,6 +143,7 @@ impl ResMng {
             &self.sgate,
             RecvGate::def(),
             ResMngOperation::ADD_CHILD,
+            vpe.id(),
             vpe.sel(),
             sgate_sel,
             name

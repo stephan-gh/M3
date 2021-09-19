@@ -47,6 +47,7 @@ VPEArgs &VPEArgs::pager(Reference<Pager> pager) noexcept {
 // don't revoke these. they kernel does so on exit
 VPE::VPE()
     : ObjCap(VIRTPE, KIF::SEL_VPE, KEEP_CAP),
+      _id(),
       _pe(PE::bind(KIF::SEL_PE, PEDesc(env()->pe_desc))),
       _kmem(new KMem(KIF::SEL_KMEM)),
       _next_sel(KIF::FIRST_FREE_SEL),
@@ -71,6 +72,7 @@ VPE::VPE()
 
 VPE::VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args)
     : ObjCap(VIRTPE, VPE::self().alloc_sel()),
+      _id(),
       _pe(pe),
       _kmem(args._kmem ? args._kmem : VPE::self().kmem()),
       _next_sel(KIF::FIRST_FREE_SEL),
@@ -96,7 +98,7 @@ VPE::VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args)
         // now create VPE, which implicitly obtains the gate cap from us
         _eps_start = Syscalls::create_vpe(sel(), _pager->child_sgate().sel(),
                                           _pager->child_rgate().sel(),
-                                          name, pe->sel(), _kmem->sel());
+                                          name, pe->sel(), _kmem->sel(), &_id);
         // mark the send gate cap allocated
         _next_sel = Math::max(_pager->child_sgate().sel() + 1, _next_sel);
         // delegate VPE cap to pager
@@ -106,7 +108,7 @@ VPE::VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args)
     }
     else {
         _eps_start = Syscalls::create_vpe(sel(), ObjCap::INVALID, ObjCap::INVALID,
-                                          name, pe->sel(), _kmem->sel());
+                                          name, pe->sel(), _kmem->sel(), &_id);
     }
     _next_sel = Math::max(_kmem->sel() + 1, _next_sel);
 

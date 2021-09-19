@@ -138,6 +138,13 @@ public:
     virtual ~VPE();
 
     /**
+     * @return the VPE id (for debugging purposes)
+     */
+    vpeid_t id() const noexcept {
+        return _id;
+    }
+
+    /**
      * @return the PE this VPE has been assigned to
      */
     const Reference<class PE> &pe() const noexcept {
@@ -359,6 +366,7 @@ private:
     static bool skip_section(ElfPh *ph);
     void copy_sections();
 
+    vpeid_t _id;
     Reference<class PE> _pe;
     Reference<KMem> _kmem;
     capsel_t _next_sel;

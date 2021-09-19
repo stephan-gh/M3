@@ -119,6 +119,7 @@ pub trait Child {
     fn our_pe(&self) -> Rc<pes::PEUsage>;
     fn child_pe(&self) -> Option<Rc<pes::PEUsage>>;
     fn vpe_sel(&self) -> Selector;
+    fn vpe_id(&self) -> tcu::VPEId;
     fn resmng_sgate_sel(&self) -> Selector;
 
     fn subsys(&mut self) -> Option<&mut SubsystemBuilder>;
@@ -138,6 +139,7 @@ pub trait Child {
 
     fn add_child(
         &mut self,
+        vpe_id: tcu::VPEId,
         vpe_sel: Selector,
         rgate: &RecvGate,
         sgate_sel: Selector,
@@ -178,6 +180,7 @@ pub trait Child {
             // all childs get the same PMP EPs, so that we can also give the same PMP EPs to childs
             // of childs.
             self.our_pe(),
+            vpe_id,
             our_sel,
             sgate,
             self.cfg(),
@@ -591,7 +594,7 @@ pub trait Child {
                 // the first is always us
                 if idx == 0 {
                     return Ok(ResMngVPEInfoResult::Info(ResMngVPEInfo {
-                        id: 0,
+                        id: VPE::cur().id(),
                         layer: parent_layer + 0,
                         name: env::args().next().unwrap().to_string(),
                         daemon: true,
@@ -612,7 +615,7 @@ pub trait Child {
                 };
 
                 Ok(ResMngVPEInfoResult::Info(ResMngVPEInfo {
-                    id: vpe.id(),
+                    id: vpe.vpe_id(),
                     layer: parent_layer + vpe.layer(),
                     name: vpe.name().to_string(),
                     daemon: vpe.daemon(),
@@ -822,6 +825,10 @@ impl Child for OwnChild {
         Some(self.child_pe.clone())
     }
 
+    fn vpe_id(&self) -> tcu::VPEId {
+        self.activity.as_ref().unwrap().vpe().id()
+    }
+
     fn vpe_sel(&self) -> Selector {
         self.activity.as_ref().unwrap().vpe().sel()
     }
@@ -875,13 +882,14 @@ impl fmt::Debug for OwnChild {
 
 pub struct ForeignChild {
     id: Id,
+    vpe_id: tcu::VPEId,
     layer: u32,
     name: String,
     parent_pe: Rc<pes::PEUsage>,
     cfg: Rc<AppConfig>,
     mem: Rc<ChildMem>,
     res: Resources,
-    vpe: Selector,
+    vpe_sel: Selector,
     _sgate: SendGate,
 }
 
@@ -891,7 +899,8 @@ impl ForeignChild {
         layer: u32,
         name: String,
         parent_pe: Rc<pes::PEUsage>,
-        vpe: Selector,
+        vpe_id: tcu::VPEId,
+        vpe_sel: Selector,
         sgate: SendGate,
         cfg: Rc<AppConfig>,
         mem: Rc<ChildMem>,
@@ -904,7 +913,8 @@ impl ForeignChild {
             cfg,
             mem,
             res: Resources::default(),
-            vpe,
+            vpe_id,
+            vpe_sel,
             _sgate: sgate,
         }
     }
@@ -939,8 +949,12 @@ impl Child for ForeignChild {
         None
     }
 
+    fn vpe_id(&self) -> tcu::VPEId {
+        self.vpe_id
+    }
+
     fn vpe_sel(&self) -> Selector {
-        self.vpe
+        self.vpe_sel
     }
 
     fn subsys(&mut self) -> Option<&mut SubsystemBuilder> {

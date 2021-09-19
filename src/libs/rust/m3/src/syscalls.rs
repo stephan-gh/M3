@@ -26,7 +26,7 @@ use crate::errors::{Code, Error};
 use crate::goff;
 use crate::mem::MsgBuf;
 use crate::serialize::{Sink, Source};
-use crate::tcu::{EpId, Label, Message, SYSC_SEP_OFF};
+use crate::tcu::{EpId, Label, Message, VPEId, SYSC_SEP_OFF};
 
 static SGATE: LazyStaticCell<SendGate> = LazyStaticCell::default();
 // use a separate message buffer here, because the default buffer could be in use for a message over
@@ -194,7 +194,8 @@ pub fn create_map(
 /// The argument `sgate` denotes the selector of the `SendGate` to the pager. `kmem` defines the
 /// kernel memory to assign to the VPE.
 ///
-/// On success, the function returns the EP id of the first standard EP.
+/// On success, the function returns the VPE id (for debugging purposes) and EP id of the first
+/// standard EP.
 #[allow(clippy::too_many_arguments)]
 pub fn create_vpe(
     dst: Selector,
@@ -203,12 +204,12 @@ pub fn create_vpe(
     name: &str,
     pe: Selector,
     kmem: Selector,
-) -> Result<EpId, Error> {
+) -> Result<(VPEId, EpId), Error> {
     let buf = SYSC_BUF.get_mut();
     syscalls::CreateVPE::fill_msgbuf(buf, dst, pg_sg, pg_rg, name, pe, kmem);
 
     let reply: Reply<syscalls::CreateVPEReply> = send_receive(&buf)?;
-    Ok(reply.data.eps_start as EpId)
+    Ok((reply.data.id as VPEId, reply.data.eps_start as EpId))
 }
 
 /// Creates a new semaphore at selector `dst` using `value` as the initial value.

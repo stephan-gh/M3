@@ -16,6 +16,8 @@
 
 use core::cmp;
 
+use base::tcu::VPEId;
+
 use crate::cap::Selector;
 use crate::cfg;
 use crate::com::SendGate;
@@ -98,6 +100,14 @@ impl EnvData {
 
     pub fn set_first_std_ep(&mut self, start: tcu::EpId) {
         self.base.first_std_ep = start as u64;
+    }
+
+    pub fn vpe_id(&self) -> VPEId {
+        self.base.vpe_id as VPEId
+    }
+
+    pub fn set_vpe_id(&mut self, id: VPEId) {
+        self.base.vpe_id = id as u64;
     }
 
     pub fn has_vpe(&self) -> bool {

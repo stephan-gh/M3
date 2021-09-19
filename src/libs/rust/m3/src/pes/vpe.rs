@@ -38,12 +38,13 @@ use crate::pexif;
 use crate::rc::Rc;
 use crate::session::{Pager, ResMng};
 use crate::syscalls;
-use crate::tcu::{EpId, PEId, INVALID_EP, TCU};
+use crate::tcu::{EpId, PEId, VPEId, INVALID_EP, TCU};
 use crate::vfs::{BufReader, FileRef, OpenFlags, VFS};
 use crate::vfs::{FileTable, MountTable};
 
 /// A virtual processing element is used to run an activity on a PE.
 pub struct VPE {
+    id: VPEId,
     cap: Capability,
     rmng: Option<ResMng>, // close the connection resource manager at last
     pe: Rc<PE>,
@@ -102,6 +103,7 @@ static CUR: LazyStaticCell<VPE> = LazyStaticCell::default();
 impl VPE {
     fn new_cur() -> Self {
         VPE {
+            id: 0,
             cap: Capability::new(kif::SEL_VPE, CapFlags::KEEP_CAP),
             pe: Rc::new(PE::new_bind(0, PEDesc::new_from(0), kif::SEL_PE)),
             rmng: None,
@@ -117,6 +119,7 @@ impl VPE {
 
     fn init(&mut self) {
         let env = arch::env::get();
+        self.id = env.vpe_id();
         self.pe = Rc::new(PE::new_bind(
             env.pe_id() as PEId,
             env.pe_desc(),
@@ -192,6 +195,7 @@ impl VPE {
         let sel = VPE::cur().alloc_sel();
 
         let mut vpe = VPE {
+            id: 0,
             cap: Capability::new(sel, CapFlags::empty()),
             pe: pe.clone(),
             kmem: args.kmem.unwrap_or_else(|| VPE::cur().kmem.clone()),
@@ -224,7 +228,7 @@ impl VPE {
             let rgate_sel = pg.child_rgate().sel();
 
             // now create VPE, which implicitly obtains the gate cap from us
-            vpe.eps_start = syscalls::create_vpe(
+            let (id, eps_start) = syscalls::create_vpe(
                 sel,
                 sgate_sel,
                 rgate_sel,
@@ -232,6 +236,8 @@ impl VPE {
                 pe.sel(),
                 vpe.kmem.sel(),
             )?;
+            vpe.id = id;
+            vpe.eps_start = eps_start;
 
             // mark the pager caps allocated
             vpe.next_sel = cmp::max(sgate_sel + 1, vpe.next_sel);
@@ -242,7 +248,7 @@ impl VPE {
             Some(pg)
         }
         else {
-            vpe.eps_start = syscalls::create_vpe(
+            let (id, eps_start) = syscalls::create_vpe(
                 sel,
                 INVALID_SEL,
                 INVALID_SEL,
@@ -250,6 +256,8 @@ impl VPE {
                 pe.sel(),
                 vpe.kmem.sel(),
             )?;
+            vpe.id = id;
+            vpe.eps_start = eps_start;
             None
         };
         vpe.next_sel = cmp::max(vpe.kmem.sel() + 1, vpe.next_sel);
@@ -273,6 +281,11 @@ impl VPE {
     /// Returns the capability selector.
     pub fn sel(&self) -> Selector {
         self.cap.sel()
+    }
+
+    /// Returns the ID of the VPE (for debugging purposes)
+    pub fn id(&self) -> VPEId {
+        self.id
     }
 
     /// Returns the description of the PE the VPE has been assigned to.
@@ -487,6 +500,7 @@ impl VPE {
 
             senv.set_first_std_ep(self.eps_start);
             senv.set_pedesc(self.pe_desc());
+            senv.set_vpe_id(self.id());
 
             // write start env to PE
             mem.write_obj(&senv, cfg::ENV_START as goff - env_page_off)?;
@@ -632,6 +646,7 @@ impl VPE {
             senv.set_rmng(self.resmng().unwrap().sel());
             senv.set_first_sel(self.next_sel);
             senv.set_pedesc(self.pe_desc());
+            senv.set_vpe_id(self.id());
 
             if let Some(ref pg) = self.pager {
                 senv.set_pager(pg);

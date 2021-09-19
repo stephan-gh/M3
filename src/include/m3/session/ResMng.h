@@ -108,7 +108,7 @@ public:
 
     std::unique_ptr<ResMng> clone(VPE &vpe, const String &name) {
         capsel_t sgate_sel = vpe.alloc_sel();
-        clone(vpe.sel(), sgate_sel, name);
+        clone(vpe.id(), vpe.sel(), sgate_sel, name);
         return std::unique_ptr<ResMng>(new ResMng(sgate_sel, vpe.sel()));
     }
 
@@ -175,8 +175,8 @@ public:
     }
 
 private:
-    void clone(capsel_t vpe_sel, capsel_t sgate_sel, const String &name) {
-        GateIStream reply = send_receive_vmsg(_sgate, ADD_CHILD, vpe_sel, sgate_sel, name);
+    void clone(vpeid_t vpe_id, capsel_t vpe_sel, capsel_t sgate_sel, const String &name) {
+        GateIStream reply = send_receive_vmsg(_sgate, ADD_CHILD, vpe_id, vpe_sel, sgate_sel, name);
         retrieve_result(ADD_CHILD, reply);
     }
 

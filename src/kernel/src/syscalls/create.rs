@@ -410,6 +410,7 @@ pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
     let mut kreply = MsgBuf::borrow_def();
     kreply.set(syscalls::CreateVPEReply {
         error: 0,
+        id: nvpe.id() as u64,
         eps_start: eps as u64,
     });
     send_reply(msg, &kreply);

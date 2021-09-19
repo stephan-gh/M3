@@ -218,6 +218,7 @@ impl CreateVPE {
 #[repr(C)]
 pub struct CreateVPEReply {
     pub error: u64,
+    pub id: u64,
     pub eps_start: u64,
 }
 

@@ -73,6 +73,7 @@ public:
     uint64_t fds_addr;
     uint64_t fds_len;
 
+    uint64_t vpe_id;
     uint64_t vpe_addr;
     uint64_t backend_addr;
 
