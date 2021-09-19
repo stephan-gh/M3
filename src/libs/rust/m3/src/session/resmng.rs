@@ -63,8 +63,12 @@ pub struct ResMngVPEInfo {
     pub name: String,
     pub daemon: bool,
     pub mem_pool: u64,
-    pub total_mem: goff,
-    pub avail_mem: goff,
+    pub total_umem: usize,
+    pub avail_umem: usize,
+    pub total_kmem: usize,
+    pub avail_kmem: usize,
+    pub total_eps: u32,
+    pub avail_eps: u32,
     pub pe: PEId,
 }
 
@@ -83,8 +87,12 @@ impl Marshallable for ResMngVPEInfoResult {
                 s.push(&i.name);
                 s.push(&i.daemon);
                 s.push(&i.mem_pool);
-                s.push(&i.total_mem);
-                s.push(&i.avail_mem);
+                s.push(&i.total_umem);
+                s.push(&i.avail_umem);
+                s.push(&i.total_kmem);
+                s.push(&i.avail_kmem);
+                s.push(&i.total_eps);
+                s.push(&i.avail_eps);
                 s.push(&i.pe);
             },
             ResMngVPEInfoResult::Count((num, layer)) => {
@@ -106,8 +114,12 @@ impl Unmarshallable for ResMngVPEInfoResult {
                 name: s.pop()?,
                 daemon: s.pop()?,
                 mem_pool: s.pop()?,
-                total_mem: s.pop()?,
-                avail_mem: s.pop()?,
+                total_umem: s.pop()?,
+                avail_umem: s.pop()?,
+                total_kmem: s.pop()?,
+                avail_kmem: s.pop()?,
+                total_eps: s.pop()?,
+                avail_eps: s.pop()?,
                 pe: s.pop()?,
             })),
             _ => Ok(Self::Count((s.pop()?, s.pop()?))),

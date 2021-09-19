@@ -596,14 +596,20 @@ pub trait Child {
 
                 // the first is always us
                 if idx == 0 {
+                    let (total_kmem, avail_kmem) = VPE::cur().kmem().quota()?;
+                    let (total_eps, avail_eps) = VPE::cur().pe().quota()?;
                     return Ok(ResMngVPEInfoResult::Info(ResMngVPEInfo {
                         id: VPE::cur().id(),
                         layer: parent_layer + 0,
                         name: env::args().next().unwrap().to_string(),
                         daemon: true,
                         mem_pool: parent_num as u64,
-                        total_mem: memory::container().capacity(),
-                        avail_mem: memory::container().available(),
+                        total_umem: memory::container().capacity() as usize,
+                        avail_umem: memory::container().available() as usize,
+                        total_kmem,
+                        avail_kmem,
+                        total_eps,
+                        avail_eps,
                         pe: VPE::cur().pe_id(),
                     }));
                 }
@@ -618,14 +624,26 @@ pub trait Child {
                     idx += 1;
                 };
 
+                let (total_kmem, avail_kmem) = vpe
+                    .kmem()
+                    .map(|km| km.quota())
+                    .unwrap_or_else(|| Ok((0, 0)))?;
+                let (total_eps, avail_eps) = vpe
+                    .child_pe()
+                    .map(|pe| pe.pe_obj().quota())
+                    .unwrap_or_else(|| Ok((0, 0)))?;
                 Ok(ResMngVPEInfoResult::Info(ResMngVPEInfo {
                     id: vpe.vpe_id(),
                     layer: parent_layer + vpe.layer(),
                     name: vpe.name().to_string(),
                     daemon: vpe.daemon(),
                     mem_pool: parent_num as u64 + vpe.mem().id as u64,
-                    total_mem: vpe.mem().total,
-                    avail_mem: vpe.mem().quota.get(),
+                    total_umem: vpe.mem().total as usize,
+                    avail_umem: vpe.mem().quota.get() as usize,
+                    total_kmem,
+                    avail_kmem,
+                    total_eps,
+                    avail_eps,
                     pe: vpe.our_pe().pe_id(),
                 }))
             }

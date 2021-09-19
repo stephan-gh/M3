@@ -16,17 +16,32 @@
 
 #![no_std]
 
-use m3::goff;
+use core::fmt::Display;
+
 use m3::pes::VPE;
 use m3::println;
 
-fn count_digits(mut i: goff) -> usize {
-    let mut digits = 1;
-    while i >= 10 {
-        i /= 10;
-        digits += 1;
+struct MemQuota {
+    total: usize,
+    avail: usize,
+}
+
+impl Display for MemQuota {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let total = self.total / 1024;
+        write!(f, "{:7}K/{:7}K", self.avail / 1024, total,)
     }
-    digits
+}
+
+struct EPQuota {
+    total: u32,
+    avail: u32,
+}
+
+impl Display for EPQuota {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:3}/{:3}", self.avail, self.total,)
+    }
 }
 
 #[no_mangle]
@@ -36,22 +51,34 @@ pub fn main() -> i32 {
         .unwrap()
         .get_vpe_count()
         .expect("Unable to get VPE count");
-    println!("{:2} {:2} {:14} {}", "ID", "PE", "MemoryPool", "Name");
+    println!(
+        "{:2} {:2} {:>7} {:>20} {:>17} {}",
+        "ID", "PE", "EPs", "UserMem", "KernelMem", "Name"
+    );
     for i in 0..num {
         if let Ok(vpe) = VPE::cur().resmng().unwrap().get_vpe_info(i) {
-            let avail_mem = vpe.avail_mem / (1024 * 1024);
-            let total_mem = vpe.total_mem / (1024 * 1024);
+            let umem = MemQuota {
+                total: vpe.total_umem,
+                avail: vpe.avail_umem,
+            };
+            let kmem = MemQuota {
+                total: vpe.total_kmem,
+                avail: vpe.avail_kmem,
+            };
+            let eps = EPQuota {
+                total: vpe.total_eps,
+                avail: vpe.avail_eps,
+            };
             println!(
-                "{:2} {:2} {:2}:{:-4}M/{}M{:0m$} {:0l$}{}",
+                "{:2} {:2} {} {:2}:{} {} {:0l$}{}",
                 vpe.id,
                 vpe.pe,
+                eps,
                 vpe.mem_pool,
-                avail_mem,
-                total_mem,
-                "",
+                umem,
+                kmem,
                 "",
                 vpe.name,
-                m = 4 - count_digits(total_mem),
                 l = vpe.layer as usize * 2,
             );
         }
