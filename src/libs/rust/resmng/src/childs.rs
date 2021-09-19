@@ -49,14 +49,16 @@ use crate::{events, subsys};
 pub type Id = u32;
 
 pub struct ChildMem {
+    id: Id,
     pool: Rc<RefCell<MemPool>>,
     total: goff,
     quota: Cell<goff>,
 }
 
 impl ChildMem {
-    pub fn new(pool: Rc<RefCell<MemPool>>, quota: goff) -> Rc<Self> {
+    pub fn new(id: Id, pool: Rc<RefCell<MemPool>>, quota: goff) -> Rc<Self> {
         Rc::new(Self {
+            id,
             pool,
             total: quota,
             quota: Cell::new(quota),
@@ -598,6 +600,7 @@ pub trait Child {
                         layer: parent_layer + 0,
                         name: env::args().next().unwrap().to_string(),
                         daemon: true,
+                        mem_pool: parent_num as u64,
                         total_mem: memory::container().capacity(),
                         avail_mem: memory::container().available(),
                         pe: VPE::cur().pe_id(),
@@ -619,6 +622,7 @@ pub trait Child {
                     layer: parent_layer + vpe.layer(),
                     name: vpe.name().to_string(),
                     daemon: vpe.daemon(),
+                    mem_pool: parent_num as u64 + vpe.mem().id as u64,
                     total_mem: vpe.mem().total,
                     avail_mem: vpe.mem().quota.get(),
                     pe: vpe.our_pe().pe_id(),

@@ -453,6 +453,8 @@ impl Subsystem {
                     def_pe_usage.as_ref().unwrap().clone()
                 };
 
+                let child_id = childs::get().alloc_id();
+
                 // kernel memory for child
                 let kmem = if cfg.kernel_mem().is_none() && args.share_kmem {
                     VPE::cur().kmem().clone()
@@ -470,7 +472,7 @@ impl Subsystem {
                 // determine user and child memory
                 let mut user_mem = cfg.user_mem().unwrap_or(def_umem as usize) as goff;
                 let sub_mem = cfg.split_child_mem(&mut user_mem);
-                let child_mem = childs::ChildMem::new(mem_pool.clone(), user_mem);
+                let child_mem = childs::ChildMem::new(child_id + 1, mem_pool.clone(), user_mem);
 
                 let sub = if !cfg.domains().is_empty() {
                     // TODO currently, we don't support PE sharing of a resource manager and another
@@ -530,7 +532,7 @@ impl Subsystem {
                 };
 
                 let mut child = Box::new(childs::OwnChild::new(
-                    childs::get().alloc_id(),
+                    child_id,
                     pe_usage.clone(),
                     child_pe_usage,
                     // TODO either remove args and daemon from config or remove the clones from OwnChild

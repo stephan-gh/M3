@@ -62,6 +62,7 @@ pub struct ResMngVPEInfo {
     pub layer: u32,
     pub name: String,
     pub daemon: bool,
+    pub mem_pool: u64,
     pub total_mem: goff,
     pub avail_mem: goff,
     pub pe: PEId,
@@ -81,6 +82,7 @@ impl Marshallable for ResMngVPEInfoResult {
                 s.push(&i.layer);
                 s.push(&i.name);
                 s.push(&i.daemon);
+                s.push(&i.mem_pool);
                 s.push(&i.total_mem);
                 s.push(&i.avail_mem);
                 s.push(&i.pe);
@@ -103,6 +105,7 @@ impl Unmarshallable for ResMngVPEInfoResult {
                 layer: s.pop()?,
                 name: s.pop()?,
                 daemon: s.pop()?,
+                mem_pool: s.pop()?,
                 total_mem: s.pop()?,
                 avail_mem: s.pop()?,
                 pe: s.pop()?,

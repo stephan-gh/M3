@@ -36,21 +36,22 @@ pub fn main() -> i32 {
         .unwrap()
         .get_vpe_count()
         .expect("Unable to get VPE count");
-    println!("{:2} {:2} {:15} {}", "ID", "PE", "Free/Avail Mem", "Name");
+    println!("{:2} {:2} {:14} {}", "ID", "PE", "MemoryPool", "Name");
     for i in 0..num {
         if let Ok(vpe) = VPE::cur().resmng().unwrap().get_vpe_info(i) {
             let avail_mem = vpe.avail_mem / (1024 * 1024);
             let total_mem = vpe.total_mem / (1024 * 1024);
             println!(
-                "{:2} {:2} {:-6}M/{}M{:0m$} {:0l$}{}",
+                "{:2} {:2} {:2}:{:-4}M/{}M{:0m$} {:0l$}{}",
                 vpe.id,
                 vpe.pe,
+                vpe.mem_pool,
                 avail_mem,
                 total_mem,
                 "",
                 "",
                 vpe.name,
-                m = 6 - count_digits(total_mem),
+                m = 4 - count_digits(total_mem),
                 l = vpe.layer as usize * 2,
             );
         }
