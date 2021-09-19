@@ -288,7 +288,7 @@ void Syscalls::get_sess(capsel_t srv, capsel_t vpe, capsel_t dst, word_t sid) {
     send_receive_throw(req_buf);
 }
 
-size_t Syscalls::kmem_quota(capsel_t kmem) {
+size_t Syscalls::kmem_quota(capsel_t kmem, size_t *total) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::KMemQuota>();
     req.opcode = KIF::Syscall::KMEM_QUOTA;
@@ -299,10 +299,12 @@ size_t Syscalls::kmem_quota(capsel_t kmem) {
     Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::KMEM_QUOTA);
+    if(total)
+        *total = reply->total;
     return reply->amount;
 }
 
-uint Syscalls::pe_quota(capsel_t pe) {
+uint Syscalls::pe_quota(capsel_t pe, uint *total) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::PEQuota>();
     req.opcode = KIF::Syscall::PE_QUOTA;
@@ -313,6 +315,8 @@ uint Syscalls::pe_quota(capsel_t pe) {
     Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::PE_QUOTA);
+    if(total)
+        *total = reply->total;
     return reply->amount;
 }
 

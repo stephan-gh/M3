@@ -129,6 +129,7 @@ pub trait Child {
     fn cfg(&self) -> Rc<AppConfig>;
     fn res(&self) -> &Resources;
     fn res_mut(&mut self) -> &mut Resources;
+    fn kmem(&self) -> Option<Rc<KMem>>;
 
     fn child_mut(&mut self, vpe_sel: Selector) -> Option<&mut (dyn Child + 'static)> {
         if let Some((id, _)) = self.res_mut().childs.iter().find(|c| c.1 == vpe_sel) {
@@ -767,10 +768,6 @@ impl OwnChild {
         }
     }
 
-    pub fn kmem(&self) -> &Rc<KMem> {
-        &self.kmem
-    }
-
     pub fn start(&mut self, vpe: VPE, mapper: &mut dyn Mapper, file: FileRef) -> Result<(), Error> {
         log!(
             crate::LOG_DEF,
@@ -867,6 +864,10 @@ impl Child for OwnChild {
     fn res_mut(&mut self) -> &mut Resources {
         &mut self.res
     }
+
+    fn kmem(&self) -> Option<Rc<KMem>> {
+        Some(self.kmem.clone())
+    }
 }
 
 impl fmt::Debug for OwnChild {
@@ -878,7 +879,7 @@ impl fmt::Debug for OwnChild {
             self.child_pe.pe_id(),
             self.args,
             self.kmem.sel(),
-            self.kmem.quota().unwrap(),
+            self.kmem.quota().unwrap().1,
             self.mem,
         )
     }
@@ -983,6 +984,10 @@ impl Child for ForeignChild {
 
     fn res_mut(&mut self) -> &mut Resources {
         &mut self.res
+    }
+
+    fn kmem(&self) -> Option<Rc<KMem>> {
+        None
     }
 }
 

@@ -121,7 +121,7 @@ Reference<PE> PE::derive(uint eps) {
 }
 
 uint PE::quota() const {
-    return Syscalls::pe_quota(sel());
+    return Syscalls::pe_quota(sel(), nullptr);
 }
 
 }

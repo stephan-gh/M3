@@ -379,6 +379,7 @@ pub struct KMemQuota {
 #[repr(C)]
 pub struct KMemQuotaReply {
     pub error: u64,
+    pub total: u64,
     pub amount: u64,
 }
 
@@ -393,6 +394,7 @@ pub struct PEQuota {
 #[repr(C)]
 pub struct PEQuotaReply {
     pub error: u64,
+    pub total: u64,
     pub amount: u64,
 }
 

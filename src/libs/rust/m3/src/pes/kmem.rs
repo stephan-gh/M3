@@ -37,8 +37,8 @@ impl KMem {
         self.cap.sel()
     }
 
-    /// Returns the remaining quota of the kernel memory.
-    pub fn quota(&self) -> Result<usize, Error> {
+    /// Returns the total and remaining quota of the kernel memory.
+    pub fn quota(&self) -> Result<(usize, usize), Error> {
         syscalls::kmem_quota(self.sel())
     }
 

@@ -121,8 +121,8 @@ impl PE {
         self.desc
     }
 
-    /// Returns the remaining EP quota
-    pub fn quota(&self) -> Result<u32, Error> {
+    /// Returns the total and remaining EP quota
+    pub fn quota(&self) -> Result<(u32, u32), Error> {
         syscalls::pe_quota(self.sel())
     }
 

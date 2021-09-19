@@ -21,7 +21,7 @@
 namespace m3 {
 
 size_t KMem::quota() const {
-    return Syscalls::kmem_quota(sel());
+    return Syscalls::kmem_quota(sel(), nullptr);
 }
 
 Reference<KMem> KMem::derive(const KMem &base, size_t quota) {

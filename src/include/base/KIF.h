@@ -354,6 +354,7 @@ struct KIF {
         } PACKED;
 
         struct KMemQuotaReply : public DefaultReply {
+            xfer_t total;
             xfer_t amount;
         } PACKED;
 
@@ -362,6 +363,7 @@ struct KIF {
         } PACKED;
 
         struct PEQuotaReply : public DefaultReply {
+            xfer_t total;
             xfer_t amount;
         } PACKED;
 

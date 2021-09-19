@@ -66,7 +66,7 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
         child.child_pe().unwrap().pe_obj().clone(),
         VPEArgs::new(child.name())
             .resmng(ResMng::new(sgate))
-            .kmem(child.kmem().clone()),
+            .kmem(child.kmem().unwrap()),
     )
     .map_err(|e| VerboseError::new(e.code(), "Unable to create VPE".to_string()))?;
 

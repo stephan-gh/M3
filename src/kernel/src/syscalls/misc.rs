@@ -183,6 +183,7 @@ pub fn kmem_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verbo
     let mut kreply = MsgBuf::borrow_def();
     kreply.set(kif::syscalls::KMemQuotaReply {
         error: 0,
+        total: kmem.quota() as u64,
         amount: kmem.left() as u64,
     });
     send_reply(msg, &kreply);
@@ -203,6 +204,7 @@ pub fn pe_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verbose
     let mut kreply = MsgBuf::borrow_def();
     kreply.set(kif::syscalls::PEQuotaReply {
         error: 0,
+        total: pe.quota() as u64,
         amount: pe.eps() as u64,
     });
     send_reply(msg, &kreply);

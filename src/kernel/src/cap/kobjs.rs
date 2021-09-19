@@ -544,6 +544,10 @@ impl PEObject {
         self.cur_vpes.get()
     }
 
+    pub fn quota(&self) -> u32 {
+        self.total_eps
+    }
+
     pub fn has_quota(&self, eps: u32) -> bool {
         self.eps() >= eps
     }

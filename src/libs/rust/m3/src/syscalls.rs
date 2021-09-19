@@ -334,8 +334,8 @@ pub fn get_sess(srv: Selector, vpe: Selector, dst: Selector, sid: Label) -> Resu
     send_receive_result(&buf)
 }
 
-/// Returns the remaining quota in bytes for the kernel memory object at `kmem`.
-pub fn kmem_quota(kmem: Selector) -> Result<usize, Error> {
+/// Returns the total and remaining quota in bytes for the kernel memory object at `kmem`.
+pub fn kmem_quota(kmem: Selector) -> Result<(usize, usize), Error> {
     let buf = SYSC_BUF.get_mut();
     buf.set(syscalls::KMemQuota {
         opcode: syscalls::Operation::KMEM_QUOTA.val,
@@ -343,11 +343,11 @@ pub fn kmem_quota(kmem: Selector) -> Result<usize, Error> {
     });
 
     let reply: Reply<syscalls::KMemQuotaReply> = send_receive(&buf)?;
-    Ok(reply.data.amount as usize)
+    Ok((reply.data.total as usize, reply.data.amount as usize))
 }
 
 /// Returns the remaining quota (free endpoints) for the PE object at `pe`.
-pub fn pe_quota(pe: Selector) -> Result<u32, Error> {
+pub fn pe_quota(pe: Selector) -> Result<(u32, u32), Error> {
     let buf = SYSC_BUF.get_mut();
     buf.set(syscalls::PEQuota {
         opcode: syscalls::Operation::PE_QUOTA.val,
@@ -355,7 +355,7 @@ pub fn pe_quota(pe: Selector) -> Result<u32, Error> {
     });
 
     let reply: Reply<syscalls::PEQuotaReply> = send_receive(&buf)?;
-    Ok(reply.data.amount as u32)
+    Ok((reply.data.total as u32, reply.data.amount as u32))
 }
 
 /// Performs the VPE operation `op` with the given VPE.

@@ -324,7 +324,7 @@ impl Subsystem {
                 Rc::new(pes::PEUsage::new_obj(child_pe))
             };
 
-            let total_eps = pe_usage.pe_obj().quota()?;
+            let total_eps = pe_usage.pe_obj().quota()?.1;
             let rem_eps = split_eps(total_eps, &d);
 
             // memory pool for the domain
@@ -798,7 +798,7 @@ fn pass_down_mem(sub: &mut SubsystemBuilder, app: &config::AppConfig) -> Result<
 
 fn split_mem(cfg: &config::AppConfig) -> Result<(usize, goff), VerboseError> {
     let mut total_umem = memory::container().capacity();
-    let mut total_kmem = VPE::cur().kmem().quota()?;
+    let mut total_kmem = VPE::cur().kmem().quota()?.1;
 
     let mut total_kparties = cfg.count_apps() + 1;
     let mut total_mparties = total_kparties;

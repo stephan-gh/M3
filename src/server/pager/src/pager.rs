@@ -176,7 +176,7 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
         VPEArgs::new(child.name())
             .resmng(ResMng::new(resmng_sgate))
             .pager(Pager::new(sess, pager_sgate)?)
-            .kmem(child.kmem().clone()),
+            .kmem(child.kmem().unwrap()),
     )?;
 
     // TODO make that more flexible

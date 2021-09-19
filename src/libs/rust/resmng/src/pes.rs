@@ -104,7 +104,7 @@ impl PEUsage {
             crate::LOG_PES,
             "Deriving PE{}: (eps={})",
             self.pe_id(),
-            pe.quota().unwrap(),
+            pe.quota().unwrap().1,
         );
         Ok(PEUsage {
             idx: self.idx,
@@ -214,7 +214,7 @@ impl PEManager {
             "Allocating PE{}: {:?} (eps={})",
             self.pes[idx].id,
             self.pes[idx].pe.desc(),
-            self.get(idx).quota().unwrap(),
+            self.get(idx).quota().unwrap().1,
         );
         self.pes[idx].users += 1;
     }
