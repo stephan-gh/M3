@@ -10,6 +10,7 @@ dirs = [
     'faulter',
     'filterchain',
     'hello',
+    'info',
     'jpegtest',
     'libctest',
     'msgchan',

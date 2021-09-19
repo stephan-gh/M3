@@ -117,6 +117,8 @@ fn handle_request_async(mut is: GateIStream) {
 
         Ok(ResMngOperation::GET_SERIAL) => get_serial(&mut is, child),
 
+        Ok(ResMngOperation::GET_INFO) => get_info(&mut is, child),
+
         _ => Err(Error::new(Code::InvArgs)),
     };
 
@@ -235,4 +237,18 @@ fn get_serial(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> 
     let sel: Selector = is.pop()?;
 
     child.get_serial(sel)
+}
+
+fn get_info(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+    let vpe_idx: usize = is.pop()?;
+
+    let idx = if vpe_idx == usize::MAX {
+        None
+    }
+    else {
+        Some(vpe_idx)
+    };
+    child
+        .get_info(idx)
+        .and_then(|info| reply_vmsg!(is, Code::None as u32, info))
 }

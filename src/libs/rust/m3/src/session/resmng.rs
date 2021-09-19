@@ -14,8 +14,11 @@
  * General Public License version 2 for more details.
  */
 
+use base::serialize::{Marshallable, Unmarshallable};
+
 use crate::cap::Selector;
 use crate::cfg;
+use crate::col::String;
 use crate::com::{GateIStream, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::goff;
@@ -48,6 +51,64 @@ int_enum! {
         const USE_SEM       = 0xC;
 
         const GET_SERIAL    = 0xD;
+
+        const GET_INFO      = 0xE;
+    }
+}
+
+#[derive(Debug)]
+pub struct ResMngVPEInfo {
+    pub id: u32,
+    pub layer: u32,
+    pub name: String,
+    pub daemon: bool,
+    pub total_mem: goff,
+    pub avail_mem: goff,
+    pub pe: PEId,
+}
+
+pub enum ResMngVPEInfoResult {
+    Info(ResMngVPEInfo),
+    Count((usize, u32)),
+}
+
+impl Marshallable for ResMngVPEInfoResult {
+    fn marshall(&self, s: &mut base::serialize::Sink) {
+        match self {
+            ResMngVPEInfoResult::Info(i) => {
+                s.push(&0);
+                s.push(&i.id);
+                s.push(&i.layer);
+                s.push(&i.name);
+                s.push(&i.daemon);
+                s.push(&i.total_mem);
+                s.push(&i.avail_mem);
+                s.push(&i.pe);
+            },
+            ResMngVPEInfoResult::Count((num, layer)) => {
+                s.push(&1);
+                s.push(num);
+                s.push(layer);
+            },
+        }
+    }
+}
+
+impl Unmarshallable for ResMngVPEInfoResult {
+    fn unmarshall(s: &mut base::serialize::Source) -> Result<Self, Error> {
+        let ty = s.pop::<u64>()?;
+        match ty {
+            0 => Ok(Self::Info(ResMngVPEInfo {
+                id: s.pop()?,
+                layer: s.pop()?,
+                name: s.pop()?,
+                daemon: s.pop()?,
+                total_mem: s.pop()?,
+                avail_mem: s.pop()?,
+                pe: s.pop()?,
+            })),
+            _ => Ok(Self::Count((s.pop()?, s.pop()?))),
+        }
     }
 }
 
@@ -222,6 +283,34 @@ impl ResMng {
             sel
         )
         .map(|_| RecvGate::new_bind(sel, cfg::SERIAL_BUF_ORD, cfg::SERIAL_BUF_ORD))
+    }
+
+    /// Gets the number of available VPEs for `get_vpe_info` and the starting layer.
+    pub fn get_vpe_count(&self) -> Result<(usize, u32), Error> {
+        match self.vpe_info(None) {
+            Ok(ResMngVPEInfoResult::Count((num, layer))) => Ok((num, layer)),
+            Err(e) => Err(e),
+            _ => panic!("unexpected info type"),
+        }
+    }
+
+    /// Retrieves information about the VPE with given index.
+    pub fn get_vpe_info(&self, vpe_idx: usize) -> Result<ResMngVPEInfo, Error> {
+        match self.vpe_info(Some(vpe_idx)) {
+            Ok(ResMngVPEInfoResult::Info(i)) => Ok(i),
+            Err(e) => Err(e),
+            _ => panic!("unexpected info type"),
+        }
+    }
+
+    fn vpe_info(&self, vpe_idx: Option<usize>) -> Result<ResMngVPEInfoResult, Error> {
+        send_recv_res!(
+            &self.sgate,
+            RecvGate::def(),
+            ResMngOperation::GET_INFO,
+            vpe_idx.unwrap_or(usize::MAX)
+        )
+        .and_then(|mut is| is.pop())
     }
 
     fn use_op(&self, op: ResMngOperation, sel: Selector, name: &str) -> Result<GateIStream, Error> {

@@ -76,6 +76,7 @@ impl fmt::Debug for MemMod {
 
 pub struct MemModCon {
     mods: Vec<Rc<MemMod>>,
+    available: goff,
     cur_mod: usize,
     cur_off: goff,
 }
@@ -84,6 +85,7 @@ impl MemModCon {
     const fn default() -> Self {
         Self {
             mods: Vec::new(),
+            available: 0,
             cur_mod: 0,
             cur_off: 0,
         }
@@ -94,6 +96,9 @@ impl MemModCon {
     }
 
     pub fn add(&mut self, m: Rc<MemMod>) {
+        if !m.reserved {
+            self.available += m.capacity();
+        }
         self.mods.push(m);
     }
 
@@ -106,6 +111,10 @@ impl MemModCon {
                 total
             }
         })
+    }
+
+    pub fn available(&self) -> goff {
+        self.available
     }
 
     pub fn find_mem(&mut self, phys: goff, size: goff, perm: Perm) -> Result<MemSlice, Error> {
@@ -126,6 +135,7 @@ impl MemModCon {
         while self.cur_mod < self.mods.len() {
             if let Some(sl) = self.get_slice(size) {
                 self.cur_off += sl.size;
+                self.available -= sl.size;
                 return Ok(sl);
             }
         }
@@ -139,6 +149,7 @@ impl MemModCon {
             if let Some(sl) = self.get_slice(size) {
                 size -= sl.size;
                 self.cur_off += sl.size;
+                self.available -= sl.size;
                 res.add(sl);
             }
         }

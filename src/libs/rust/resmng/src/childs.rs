@@ -21,6 +21,7 @@ use m3::cap::Selector;
 use m3::cell::{Cell, RefCell, StaticCell};
 use m3::col::{String, ToString, Treap, Vec};
 use m3::com::{MemGate, RecvGate, SGateArgs, SendGate};
+use m3::env;
 use m3::errors::{Code, Error};
 use m3::format;
 use m3::goff;
@@ -31,13 +32,14 @@ use m3::mem::MsgBuf;
 use m3::pes::{Activity, ExecActivity, KMem, Mapper, VPE};
 use m3::println;
 use m3::rc::Rc;
+use m3::session::{ResMngVPEInfo, ResMngVPEInfoResult};
 use m3::syscalls;
 use m3::tcu;
 use m3::vfs::FileRef;
 
 use crate::config::AppConfig;
 use crate::gates;
-use crate::memory::{Allocation, MemPool};
+use crate::memory::{self, Allocation, MemPool};
 use crate::pes;
 use crate::sems;
 use crate::services::{self, Session};
@@ -48,6 +50,7 @@ pub type Id = u32;
 
 pub struct ChildMem {
     pool: Rc<RefCell<MemPool>>,
+    total: goff,
     quota: Cell<goff>,
 }
 
@@ -55,6 +58,7 @@ impl ChildMem {
     pub fn new(pool: Rc<RefCell<MemPool>>, quota: goff) -> Rc<Self> {
         Rc::new(Self {
             pool,
+            total: quota,
             quota: Cell::new(quota),
         })
     }
@@ -107,6 +111,7 @@ impl Default for Resources {
 
 pub trait Child {
     fn id(&self) -> Id;
+    fn layer(&self) -> u32;
     fn name(&self) -> &String;
     fn daemon(&self) -> bool;
     fn foreign(&self) -> bool;
@@ -116,6 +121,7 @@ pub trait Child {
     fn vpe_sel(&self) -> Selector;
     fn resmng_sgate_sel(&self) -> Selector;
 
+    fn subsys(&mut self) -> Option<&mut SubsystemBuilder>;
     fn mem(&self) -> &Rc<ChildMem>;
     fn cfg(&self) -> Rc<AppConfig>;
     fn res(&self) -> &Resources;
@@ -165,6 +171,7 @@ pub trait Child {
         let our_sg_sel = sgate.sel();
         let child = Box::new(ForeignChild::new(
             id,
+            self.layer() + 1,
             child_name,
             // actually, we don't know the PE it's running on. But the PEUsage is only used to set
             // the PMP EPs and currently, no child can actually influence these. For that reason,
@@ -546,6 +553,73 @@ pub trait Child {
         }
     }
 
+    fn get_info(&mut self, idx: Option<usize>) -> Result<ResMngVPEInfoResult, Error> {
+        let (parent_num, parent_layer) = if let Some(presmng) = VPE::cur().resmng() {
+            presmng.get_vpe_count()?
+        }
+        else {
+            (0, 0)
+        };
+
+        let mut own_num = get().ids.len() + 1;
+        for id in &get().ids {
+            if get().child_by_id_mut(*id).unwrap().subsys().is_some() {
+                own_num -= 1;
+            }
+        }
+
+        if let Some(mut idx) = idx {
+            if idx < parent_num {
+                Ok(ResMngVPEInfoResult::Info(
+                    VPE::cur().resmng().unwrap().get_vpe_info(idx)?,
+                ))
+            }
+            else if idx - parent_num >= own_num {
+                Err(Error::new(Code::NotFound))
+            }
+            else {
+                idx -= parent_num;
+
+                // the first is always us
+                if idx == 0 {
+                    return Ok(ResMngVPEInfoResult::Info(ResMngVPEInfo {
+                        id: 0,
+                        layer: parent_layer + 0,
+                        name: env::args().next().unwrap().to_string(),
+                        daemon: true,
+                        total_mem: memory::container().capacity(),
+                        avail_mem: memory::container().available(),
+                        pe: VPE::cur().pe_id(),
+                    }));
+                }
+                idx -= 1;
+
+                // find the next non-subsystem child
+                let vpe = loop {
+                    let vpe = get().child_by_id_mut(get().ids[idx]).unwrap();
+                    if vpe.subsys().is_none() {
+                        break vpe;
+                    }
+                    idx += 1;
+                };
+
+                Ok(ResMngVPEInfoResult::Info(ResMngVPEInfo {
+                    id: vpe.id(),
+                    layer: parent_layer + vpe.layer(),
+                    name: vpe.name().to_string(),
+                    daemon: vpe.daemon(),
+                    total_mem: vpe.mem().total,
+                    avail_mem: vpe.mem().quota.get(),
+                    pe: vpe.our_pe().pe_id(),
+                }))
+            }
+        }
+        else {
+            let total = own_num + parent_num;
+            Ok(ResMngVPEInfoResult::Count((total, self.layer())))
+        }
+    }
+
     fn alloc_pe(
         &mut self,
         sel: Selector,
@@ -682,10 +756,6 @@ impl OwnChild {
         &self.kmem
     }
 
-    pub fn subsys(&mut self) -> Option<&mut SubsystemBuilder> {
-        self.sub.as_mut()
-    }
-
     pub fn start(&mut self, vpe: VPE, mapper: &mut dyn Mapper, file: FileRef) -> Result<(), Error> {
         log!(
             crate::LOG_DEF,
@@ -720,6 +790,10 @@ impl Child for OwnChild {
         self.id
     }
 
+    fn layer(&self) -> u32 {
+        1
+    }
+
     fn name(&self) -> &String {
         &self.name
     }
@@ -742,6 +816,10 @@ impl Child for OwnChild {
 
     fn vpe_sel(&self) -> Selector {
         self.activity.as_ref().unwrap().vpe().sel()
+    }
+
+    fn subsys(&mut self) -> Option<&mut SubsystemBuilder> {
+        self.sub.as_mut()
     }
 
     fn resmng_sgate_sel(&self) -> Selector {
@@ -789,6 +867,7 @@ impl fmt::Debug for OwnChild {
 
 pub struct ForeignChild {
     id: Id,
+    layer: u32,
     name: String,
     parent_pe: Rc<pes::PEUsage>,
     cfg: Rc<AppConfig>,
@@ -801,6 +880,7 @@ pub struct ForeignChild {
 impl ForeignChild {
     pub fn new(
         id: Id,
+        layer: u32,
         name: String,
         parent_pe: Rc<pes::PEUsage>,
         vpe: Selector,
@@ -810,6 +890,7 @@ impl ForeignChild {
     ) -> Self {
         ForeignChild {
             id,
+            layer,
             name,
             parent_pe,
             cfg,
@@ -824,6 +905,10 @@ impl ForeignChild {
 impl Child for ForeignChild {
     fn id(&self) -> Id {
         self.id
+    }
+
+    fn layer(&self) -> u32 {
+        self.layer
     }
 
     fn name(&self) -> &String {
@@ -848,6 +933,10 @@ impl Child for ForeignChild {
 
     fn vpe_sel(&self) -> Selector {
         self.vpe
+    }
+
+    fn subsys(&mut self) -> Option<&mut SubsystemBuilder> {
+        None
     }
 
     fn resmng_sgate_sel(&self) -> Selector {

@@ -69,6 +69,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "info"
+version = "0.1.0"
+dependencies = [
+ "m3",
+]
+
+[[package]]
 name = "ipc"
 version = "0.1.0"
 dependencies = [
