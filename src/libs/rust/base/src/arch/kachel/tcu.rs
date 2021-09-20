@@ -53,7 +53,7 @@ cfg_if! {
         /// The total number of endpoints in each TCU
         pub const TOTAL_EPS: EpId = 128;
         /// The number of available endpoints in each TCU
-        pub const AVAIL_EPS: EpId = TOTAL_EPS - 1;
+        pub const AVAIL_EPS: EpId = TOTAL_EPS;
     }
 }
 
