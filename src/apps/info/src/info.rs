@@ -31,25 +31,29 @@ pub fn main() -> i32 {
         "ID", "PE", "EPs", "UserMem", "KernelMem", "Name"
     );
     for i in 0..num {
-        if let Ok(vpe) = VPE::cur().resmng().unwrap().get_vpe_info(i) {
-            println!(
-                "{:2} {:2} {:3}/{:3} {:2}:{:7}K/{:7}K {:7}K/{:7}K {:0l$}{}",
-                vpe.id,
-                vpe.pe,
-                vpe.avail_eps,
-                vpe.total_eps,
-                vpe.mem_pool,
-                vpe.avail_umem / 1024,
-                vpe.total_umem / 1024,
-                vpe.avail_kmem / 1024,
-                vpe.total_kmem / 1024,
-                "",
-                vpe.name,
-                l = vpe.layer as usize * 2,
-            );
-        }
-        else {
-            println!("Unable to get info about VPE with idx {}", i);
+        match VPE::cur().resmng().unwrap().get_vpe_info(i) {
+            Ok(vpe) => {
+                println!(
+                    "{:2} {:2} {:3}/{:3} {:2}:{:7}K/{:7}K {:7}K/{:7}K {:0l$}{}",
+                    vpe.id,
+                    vpe.pe,
+                    vpe.avail_eps,
+                    vpe.total_eps,
+                    vpe.mem_pool,
+                    vpe.avail_umem / 1024,
+                    vpe.total_umem / 1024,
+                    vpe.avail_kmem / 1024,
+                    vpe.total_kmem / 1024,
+                    "",
+                    vpe.name,
+                    l = vpe.layer as usize * 2,
+                );
+            },
+            Err(e) => println!(
+                "Unable to get info about VPE with idx {}: {:?}",
+                i,
+                e.code()
+            ),
         }
     }
     0
