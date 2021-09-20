@@ -16,8 +16,6 @@
 
 #pragma once
 
-#define FS_IMG_OFFSET       0x0
-
 #define PAGE_BITS           12
 #ifndef PAGE_SIZE
 #   define PAGE_SIZE        (static_cast<size_t>(1) << PAGE_BITS)
@@ -28,10 +26,7 @@
 #define LPAGE_SIZE          (static_cast<size_t>(1) << LPAGE_BITS)
 #define LPAGE_MASK          (LPAGE_SIZE - 1)
 
-#define FIXED_KMEM          (2 * 1024 * 1024)
-
 #define APP_HEAP_SIZE       (64 * 1024 * 1024)
-#define ROOT_HEAP_SIZE      (2 * 1024 * 1024)
 #define EPMEM_SIZE          0
 
 #if defined(__hw__)
@@ -111,8 +106,6 @@
 #define RBUF_SIZE           (0x10000000 - RBUF_STD_SIZE)
 #define RBUF_SIZE_SPM       0xE000
 
-#define PE_MEM_BASE         0xE0000000
-
 #if defined(__hw__)
 #   define PEMUX_CODE_START (MEM_OFFSET + 0x1000)
 #   define ENV_START        (MEM_OFFSET + 0x8)
@@ -124,8 +117,6 @@
 #       define ENV_START    (MEM_OFFSET + 0x100000)
 #   endif
 #endif
-
-#define MAX_RB_SIZE         32
 
 #define PEMUX_RBUF_SIZE     0x1000
 
@@ -146,5 +137,3 @@
 
 #define VMA_RBUF_ORDER      6
 #define VMA_RBUF_SIZE       (1 << VMA_RBUF_ORDER)
-
-#define MEMCAP_END          RBUF_STD_ADDR

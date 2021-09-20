@@ -21,13 +21,10 @@
 
 #define TOTAL_MEM_SIZE      (1024 * 1024 * 1024)
 #define FS_MAX_SIZE         (640 * 1024 * 1024)
-#define FS_IMG_OFFSET       0
 
 #define PAGE_BITS           12
 #define PAGE_SIZE           (static_cast<size_t>(4096))
 #define PAGE_MASK           (PAGE_SIZE - 1)
-
-#define FIXED_KMEM          (2 * 1024 * 1024)
 
 #define LOCAL_MEM_SIZE      (512 * 1024 * 1024)
 #define EPMEM_SIZE          (1 * 1024 * 1024)
@@ -45,10 +42,6 @@
 
 #define MAX_RB_SIZE         32
 
-#define PEMUX_YIELD         0   // unused
-#define PEMUX_FLAGS         0   // unused
-
-// this has to be large enough for forwarded memory reads
 #define SYSC_RBUF_ORDER     9
 #define SYSC_RBUF_SIZE      (1 << SYSC_RBUF_ORDER)
 
@@ -57,5 +50,3 @@
 
 #define DEF_RBUF_ORDER      8
 #define DEF_RBUF_SIZE       (1 << DEF_RBUF_ORDER)
-
-#define MEMCAP_END          (~0UL)
