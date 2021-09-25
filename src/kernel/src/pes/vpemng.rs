@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::StaticCell;
+use base::cell::StaticUnsafeCell;
 use base::cfg;
 use base::col::Vec;
 use base::errors::{Code, Error};
@@ -39,7 +39,8 @@ pub struct VPEMng {
     next_id: tcu::VPEId,
 }
 
-static INST: StaticCell<Option<VPEMng>> = StaticCell::new(None);
+// TODO can we use a safe cell here?
+static INST: StaticUnsafeCell<Option<VPEMng>> = StaticUnsafeCell::new(None);
 
 pub fn init() {
     INST.set(Some(VPEMng {

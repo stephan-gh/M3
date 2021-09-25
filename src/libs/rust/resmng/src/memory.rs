@@ -17,7 +17,7 @@
 use core::cmp;
 use core::fmt;
 use m3::cap::Selector;
-use m3::cell::StaticCell;
+use m3::cell::{RefMut, StaticRefCell};
 use m3::cfg;
 use m3::col::Vec;
 use m3::com::MemGate;
@@ -29,10 +29,10 @@ use m3::math;
 use m3::mem::{GlobAddr, MemMap};
 use m3::rc::Rc;
 
-static CON: StaticCell<MemModCon> = StaticCell::new(MemModCon::default());
+static CON: StaticRefCell<MemModCon> = StaticRefCell::new(MemModCon::default());
 
-pub fn container() -> &'static mut MemModCon {
-    CON.get_mut()
+pub fn container() -> RefMut<'static, MemModCon> {
+    CON.borrow_mut()
 }
 
 pub struct MemMod {

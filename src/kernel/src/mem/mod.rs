@@ -20,10 +20,6 @@ mod module;
 pub use self::main::{Allocation, MainMemory};
 pub use self::module::*;
 
-pub fn init() {
-    main::init()
-}
-
 pub fn get() -> &'static mut MainMemory {
     main::get()
 }

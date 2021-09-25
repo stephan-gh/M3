@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::cell::StaticCell;
+use m3::cell::{RefMut, StaticRefCell};
 use m3::col::{String, Vec};
 use m3::com::{RGateArgs, RecvGate};
 use m3::errors::Error;
@@ -25,10 +25,10 @@ pub struct GateManager {
     gates: Vec<(String, RecvGate)>,
 }
 
-static MNG: StaticCell<GateManager> = StaticCell::new(GateManager::new());
+static MNG: StaticRefCell<GateManager> = StaticRefCell::new(GateManager::new());
 
-pub fn get() -> &'static mut GateManager {
-    MNG.get_mut()
+pub fn get() -> RefMut<'static, GateManager> {
+    MNG.borrow_mut()
 }
 
 impl GateManager {

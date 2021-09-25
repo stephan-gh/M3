@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::cell::StaticCell;
+use m3::cell::StaticRefCell;
 use m3::com::MemGate;
 use m3::kif;
 use m3::mem::AlignedBuf;
@@ -24,7 +24,7 @@ use m3::{wv_perf, wv_run_test};
 
 const SIZE: usize = 2 * 1024 * 1024;
 
-static BUF: StaticCell<AlignedBuf<{ 8192 + 64 }>> = StaticCell::new(AlignedBuf::new_zeroed());
+static BUF: StaticRefCell<AlignedBuf<{ 8192 + 64 }>> = StaticRefCell::new(AlignedBuf::new_zeroed());
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, read);
@@ -34,7 +34,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn read() {
-    let mut buf = &mut BUF.get_mut()[..8192];
+    let mut buf = &mut BUF.borrow_mut()[..8192];
     let mgate = MemGate::new(8192, kif::Perm::R).expect("Unable to create mgate");
 
     let mut prof = profile::Profiler::default().repeats(2).warmup(1);
@@ -55,7 +55,7 @@ fn read() {
 }
 
 fn read_unaligned() {
-    let mut buf = &mut BUF.get_mut()[64..];
+    let mut buf = &mut BUF.borrow_mut()[64..];
     let mgate = MemGate::new(8192, kif::Perm::R).expect("Unable to create mgate");
 
     let mut prof = profile::Profiler::default().repeats(2).warmup(1);
@@ -76,7 +76,7 @@ fn read_unaligned() {
 }
 
 fn write() {
-    let buf = &BUF[..8192];
+    let buf = &BUF.borrow()[..8192];
     let mgate = MemGate::new(8192, kif::Perm::W).expect("Unable to create mgate");
 
     let mut prof = profile::Profiler::default().repeats(2).warmup(1);
@@ -97,7 +97,7 @@ fn write() {
 }
 
 fn write_unaligned() {
-    let buf = &BUF[64..];
+    let buf = &BUF.borrow()[64..];
     let mgate = MemGate::new(8192, kif::Perm::W).expect("Unable to create mgate");
 
     let mut prof = profile::Profiler::default().repeats(2).warmup(1);

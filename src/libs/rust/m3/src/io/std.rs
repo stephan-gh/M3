@@ -50,7 +50,7 @@ pub(crate) fn init() {
         if VPE::cur().files().get(fd).is_none() {
             VPE::cur()
                 .files()
-                .set(fd, Rc::new(RefCell::new(Serial::default())));
+                .set(fd, Rc::new(RefCell::new(Serial::new())));
         }
     }
 

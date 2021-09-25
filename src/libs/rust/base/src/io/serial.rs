@@ -23,8 +23,13 @@ use crate::errors::Error;
 use crate::io;
 
 /// The serial line
-#[derive(Default)]
 pub struct Serial {}
+
+impl Serial {
+    pub const fn new() -> Self {
+        Self {}
+    }
+}
 
 impl io::Read for Serial {
     fn read(&mut self, _buf: &mut [u8]) -> Result<usize, Error> {

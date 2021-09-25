@@ -93,7 +93,7 @@ fn create_mgate() {
     impl profile::Runner for Tester {
         fn run(&mut self) {
             wv_assert_ok!(syscalls::create_mgate(
-                *SEL,
+                SEL.get(),
                 VPE::cur().sel(),
                 self.0 as goff,
                 cfg::PAGE_SIZE as goff,
@@ -104,7 +104,7 @@ fn create_mgate() {
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
                 VPE::cur().sel(),
-                kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
+                kif::CapRngDesc::new(kif::CapType::OBJECT, SEL.get(), 1),
                 true
             ));
         }
@@ -122,13 +122,13 @@ fn create_rgate() {
 
     impl profile::Runner for Tester {
         fn run(&mut self) {
-            wv_assert_ok!(syscalls::create_rgate(*SEL, 10, 10));
+            wv_assert_ok!(syscalls::create_rgate(SEL.get(), 10, 10));
         }
 
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
                 VPE::cur().sel(),
-                kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
+                kif::CapRngDesc::new(kif::CapType::OBJECT, SEL.get(), 1),
                 true
             ));
         }
@@ -155,7 +155,7 @@ fn create_sgate() {
 
         fn run(&mut self) {
             wv_assert_ok!(syscalls::create_sgate(
-                *SEL,
+                SEL.get(),
                 self.0.as_ref().unwrap().sel(),
                 0x1234,
                 1024
@@ -165,7 +165,7 @@ fn create_sgate() {
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
                 VPE::cur().sel(),
-                kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
+                kif::CapRngDesc::new(kif::CapType::OBJECT, SEL.get(), 1),
                 true
             ));
         }
@@ -244,7 +244,7 @@ fn create_srv() {
 
         fn run(&mut self) {
             wv_assert_ok!(syscalls::create_srv(
-                *SEL,
+                SEL.get(),
                 self.0.as_ref().unwrap().sel(),
                 "test",
                 0
@@ -254,7 +254,7 @@ fn create_srv() {
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
                 VPE::cur().sel(),
-                kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
+                kif::CapRngDesc::new(kif::CapType::OBJECT, SEL.get(), 1),
                 true
             ));
         }
@@ -282,7 +282,7 @@ fn derive_mem() {
         fn run(&mut self) {
             wv_assert_ok!(syscalls::derive_mem(
                 VPE::cur().sel(),
-                *SEL,
+                SEL.get(),
                 self.0.as_ref().unwrap().sel(),
                 0,
                 0x1000,
@@ -293,7 +293,7 @@ fn derive_mem() {
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
                 VPE::cur().sel(),
-                kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
+                kif::CapRngDesc::new(kif::CapType::OBJECT, SEL.get(), 1),
                 true
             ));
         }
@@ -327,7 +327,7 @@ fn exchange() {
             wv_assert_ok!(syscalls::exchange(
                 self.vpe.as_ref().unwrap().sel(),
                 kif::CapRngDesc::new(kif::CapType::OBJECT, kif::SEL_VPE, 1),
-                *SEL,
+                SEL.get(),
                 false,
             ));
         }
@@ -335,7 +335,7 @@ fn exchange() {
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
                 self.vpe.as_ref().unwrap().sel(),
-                kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
+                kif::CapRngDesc::new(kif::CapType::OBJECT, SEL.get(), 1),
                 true
             ));
         }
@@ -388,13 +388,13 @@ fn revoke_recv_gate() {
 
     impl profile::Runner for Tester {
         fn pre(&mut self) {
-            wv_assert_ok!(syscalls::create_rgate(*SEL, 10, 10));
+            wv_assert_ok!(syscalls::create_rgate(SEL.get(), 10, 10));
         }
 
         fn run(&mut self) {
             wv_assert_ok!(syscalls::revoke(
                 VPE::cur().sel(),
-                kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
+                kif::CapRngDesc::new(kif::CapType::OBJECT, SEL.get(), 1),
                 true
             ));
         }
@@ -416,7 +416,7 @@ fn revoke_send_gate() {
         fn pre(&mut self) {
             self.0 = Some(wv_assert_ok!(RecvGate::new(10, 10)));
             wv_assert_ok!(syscalls::create_sgate(
-                *SEL,
+                SEL.get(),
                 self.0.as_ref().unwrap().sel(),
                 0x1234,
                 1024
@@ -426,7 +426,7 @@ fn revoke_send_gate() {
         fn run(&mut self) {
             wv_assert_ok!(syscalls::revoke(
                 VPE::cur().sel(),
-                kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
+                kif::CapRngDesc::new(kif::CapType::OBJECT, SEL.get(), 1),
                 true
             ));
         }

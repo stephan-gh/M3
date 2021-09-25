@@ -99,8 +99,8 @@ pub fn init_queues() {
 
 fn alloc_qid() -> u64 {
     static NEXT_ID: StaticCell<u64> = StaticCell::new(0);
-    NEXT_ID.set(*NEXT_ID + 1);
-    *NEXT_ID
+    NEXT_ID.set(NEXT_ID.get() + 1);
+    NEXT_ID.get()
 }
 
 fn get_event(id: u64) -> thread::Event {
@@ -133,7 +133,7 @@ impl SendQueue {
 
         let qid = alloc_qid();
 
-        if *PENDING_MSGS < MAX_PENDING_MSGS && self.state == QState::Idle {
+        if PENDING_MSGS.get() < MAX_PENDING_MSGS && self.state == QState::Idle {
             return self.do_send(rep, lbl, qid, msg);
         }
 
@@ -170,7 +170,7 @@ impl SendQueue {
         // now that we've copied the message, we can mark it read
         ktcu::ack_msg(ktcu::KSRV_EP, msg);
 
-        *PENDING_MSGS.get_mut() -= 1;
+        PENDING_MSGS.set(PENDING_MSGS.get() - 1);
 
         if self.queue.is_empty() {
             resume_queue();
@@ -187,7 +187,7 @@ impl SendQueue {
         if self.state == QState::Waiting {
             thread::ThreadManager::get().notify(self.cur_event, None);
             // we were waiting for a message and won't receive it
-            *PENDING_MSGS.get_mut() -= 1;
+            PENDING_MSGS.set(PENDING_MSGS.get() - 1);
             resume_queue();
         }
         self.state = QState::Idle;
@@ -226,7 +226,7 @@ impl SendQueue {
         let rpl_lbl = self as *mut Self as tcu::Label;
         ktcu::send_to(self.pe, rep, lbl, msg, rpl_lbl, ktcu::KSRV_EP)?;
 
-        *PENDING_MSGS.get_mut() += 1;
+        PENDING_MSGS.set(PENDING_MSGS.get() + 1);
 
         Ok(self.cur_event)
     }

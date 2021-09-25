@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::StaticCell;
+use base::cell::StaticRefCell;
 use base::col::Vec;
 use base::kif;
 use base::log;
@@ -30,7 +30,7 @@ struct Timeout {
     vpe: vpe::Id,
 }
 
-static LIST: StaticCell<Vec<Timeout>> = StaticCell::new(Vec::new());
+static LIST: StaticRefCell<Vec<Timeout>> = StaticRefCell::new(Vec::new());
 
 pub fn add(vpe: vpe::Id, duration: Nanos) {
     let timeout = Timeout {
@@ -47,18 +47,20 @@ pub fn add(vpe: vpe::Id, duration: Nanos) {
     );
 
     // insert new timeout in descending order of timeouts
-    if let Some(idx) = LIST.iter().position(|t| t.time < timeout.time) {
-        LIST.get_mut().insert(idx, timeout);
+    let mut list = LIST.borrow_mut();
+    if let Some(idx) = list.iter().position(|t| t.time < timeout.time) {
+        list.insert(idx, timeout);
     }
     else {
-        LIST.get_mut().push(timeout);
+        list.push(timeout);
+        drop(list);
         reprogram();
     }
 }
 
 pub fn remove(vpe: vpe::Id) {
     log!(crate::LOG_TIMER, "timer: removing VPE {}", vpe);
-    LIST.get_mut().retain(|t| t.vpe != vpe);
+    LIST.borrow_mut().retain(|t| t.vpe != vpe);
     reprogram();
 }
 
@@ -75,7 +77,8 @@ pub fn reprogram() {
     });
 
     // determine timeout to program
-    let timeout = match (LIST.is_empty(), budget) {
+    let list = LIST.borrow();
+    let timeout = match (list.is_empty(), budget) {
         // no timeout programmed: use the budget
         (true, Some(b)) => b,
         // no timeout and no budget: disable timer
@@ -83,7 +86,7 @@ pub fn reprogram() {
         // timeout: program the earlier point in time
         (false, _) => {
             let now = tcu::TCU::nanotime();
-            let next_timeout = LIST[LIST.len() - 1].time;
+            let next_timeout = list[list.len() - 1].time;
             // if the timeout is in the future, program the timer for the difference
             let timeout = if next_timeout > now {
                 next_timeout - now
@@ -101,14 +104,15 @@ pub fn reprogram() {
 }
 
 pub fn trigger() {
-    if LIST.is_empty() {
+    let mut list = LIST.borrow_mut();
+    if list.is_empty() {
         return;
     }
 
     // unblock all VPEs whose timeouts are due
     let now = tcu::TCU::nanotime();
-    while !LIST.is_empty() && now >= LIST[LIST.len() - 1].time {
-        let timeout = LIST.get_mut().pop().unwrap();
+    while !list.is_empty() && now >= list[list.len() - 1].time {
+        let timeout = list.pop().unwrap();
         log!(
             crate::LOG_TIMER,
             "timer: unblocking VPE {} @ {}",
@@ -119,6 +123,7 @@ pub fn trigger() {
             .unwrap()
             .unblock(vpe::Event::Timeout);
     }
+    drop(list);
 
     // if a scheduling is pending, we can skip this step here, because we'll do it later anyway
     if !crate::scheduling_pending() {

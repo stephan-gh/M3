@@ -104,7 +104,7 @@ fn read_write(wr_addr: usize, rd_addr: usize, size: usize) {
 }
 
 fn test_mem(area_begin: usize, area_size: usize) {
-    *helper::XLATES.get_mut() = 0;
+    helper::XLATES.set(0);
     let mut count = 0;
 
     let rd_area = area_begin;
@@ -114,35 +114,35 @@ fn test_mem(area_begin: usize, area_size: usize) {
     {
         read_write(wr_area, wr_area + 16, 16);
         count += 1;
-        assert_eq!(*helper::XLATES, count);
+        assert_eq!(helper::XLATES.get(), count);
     }
 
     // different pages, one page each
     {
         read_write(wr_area, rd_area, 16);
         count += 2;
-        assert_eq!(*helper::XLATES, count);
+        assert_eq!(helper::XLATES.get(), count);
     }
 
     // unaligned
     {
         read_write(wr_area + 1, rd_area, 3);
         count += 2;
-        assert_eq!(*helper::XLATES, count);
+        assert_eq!(helper::XLATES.get(), count);
     }
 
     // unaligned write with page boundary
     {
         read_write(wr_area + 1, rd_area, cfg::PAGE_SIZE);
         count += 3;
-        assert_eq!(*helper::XLATES, count);
+        assert_eq!(helper::XLATES.get(), count);
     }
 
     // unaligned read with page boundary
     {
         read_write(wr_area, rd_area + 1, cfg::PAGE_SIZE);
         count += 3;
-        assert_eq!(*helper::XLATES, count);
+        assert_eq!(helper::XLATES.get(), count);
     }
 }
 
@@ -228,7 +228,7 @@ struct LargeAlignedBuf {
 }
 
 fn test_msgs(area_begin: usize, _area_size: usize) {
-    *helper::XLATES.get_mut() = 0;
+    helper::XLATES.set(0);
     let mut count = 0;
 
     let (_rbuf1_virt, rbuf1_phys) = helper::virt_to_phys(RBUF1.as_ptr() as usize);
@@ -281,14 +281,14 @@ fn test_msgs(area_begin: usize, _area_size: usize) {
     {
         send_recv(area_begin, 1);
         count += 1;
-        assert_eq!(*helper::XLATES, count);
+        assert_eq!(helper::XLATES.get(), count);
     }
 
     // large
     {
         send_recv(area_begin, 16);
         count += 1;
-        assert_eq!(*helper::XLATES, count);
+        assert_eq!(helper::XLATES.get(), count);
     }
 }
 
@@ -303,13 +303,13 @@ pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
     assert_eq!(req.vpe, 0xDEAD);
     assert_eq!(req.ep, 1);
 
-    *FOREIGN_MSGS.get_mut() += 1;
+    FOREIGN_MSGS.set(FOREIGN_MSGS.get() + 1);
 
     state as *mut _ as *mut libc::c_void
 }
 
 fn test_foreign_msg() {
-    *FOREIGN_MSGS.get_mut() = 0;
+    FOREIGN_MSGS.set(0);
 
     let (rbuf1_virt, rbuf1_phys) = helper::virt_to_phys(RBUF1.as_ptr() as usize);
 
@@ -328,8 +328,8 @@ fn test_foreign_msg() {
     assert_eq!(TCU::send(2, &buf, 0x1111, tcu::NO_REPLIES), Ok(()));
 
     // wait for core request
-    while unsafe { core::ptr::read_volatile(&*FOREIGN_MSGS) } == 0 {}
-    assert_eq!(*FOREIGN_MSGS, 1);
+    while FOREIGN_MSGS.get() == 0 {}
+    assert_eq!(FOREIGN_MSGS.get(), 1);
 
     // switch to foreign VPE (we have received a message)
     let old = TCU::xchg_vpe((1 << 16) | 0xDEAD).unwrap();
@@ -351,7 +351,7 @@ fn test_foreign_msg() {
 }
 
 fn test_own_msg() {
-    *FOREIGN_MSGS.get_mut() = 0;
+    FOREIGN_MSGS.set(0);
 
     let (rbuf1_virt, rbuf1_phys) = helper::virt_to_phys(RBUF1.as_ptr() as usize);
 
@@ -385,7 +385,7 @@ fn test_own_msg() {
     tcu::TCU::ack_msg(1, tcu::TCU::msg_to_offset(rbuf1_virt, msg)).unwrap();
 
     // no foreign message core requests here
-    assert_eq!(*FOREIGN_MSGS, 0);
+    assert_eq!(FOREIGN_MSGS.get(), 0);
 }
 
 #[no_mangle]

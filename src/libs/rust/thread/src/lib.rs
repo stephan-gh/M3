@@ -123,8 +123,8 @@ fn thread_init(thread: &mut Thread, func_addr: usize, arg: usize) {
 
 fn alloc_id() -> u32 {
     static NEXT_ID: StaticCell<u32> = StaticCell::new(0);
-    NEXT_ID.set(*NEXT_ID + 1);
-    *NEXT_ID
+    NEXT_ID.set(NEXT_ID.get() + 1);
+    NEXT_ID.get()
 }
 
 pub struct Thread {
@@ -311,7 +311,7 @@ impl ThreadManager {
         // otherwise, use a unique number
         else {
             NEXT_EVENT.set(NEXT_EVENT.get() + 1);
-            *NEXT_EVENT.get()
+            NEXT_EVENT.get()
         }
     }
 

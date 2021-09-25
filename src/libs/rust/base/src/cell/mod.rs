@@ -18,7 +18,11 @@
 
 mod lazy;
 mod stat;
+mod statref;
+mod statunsafe;
 
 pub use self::lazy::LazyStaticCell;
 pub use self::stat::StaticCell;
+pub use self::statref::StaticRefCell;
+pub use self::statunsafe::StaticUnsafeCell;
 pub use core::cell::{Cell, Ref, RefCell, RefMut, UnsafeCell};

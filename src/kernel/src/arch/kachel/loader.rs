@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::{Cell, StaticCell};
+use base::cell::{Cell, StaticUnsafeCell};
 use base::cfg::{ENV_START, MOD_HEAP_SIZE, PAGE_BITS, PAGE_MASK, PAGE_SIZE};
 use base::col::Vec;
 use base::elf;
@@ -37,7 +37,8 @@ pub struct Loader {
     loaded: Cell<u64>,
 }
 
-static LOADER: StaticCell<Option<Loader>> = StaticCell::new(None);
+// TODO get rid of this cell
+static LOADER: StaticUnsafeCell<Option<Loader>> = StaticUnsafeCell::new(None);
 
 pub fn init() {
     LOADER.set(Some(Loader {

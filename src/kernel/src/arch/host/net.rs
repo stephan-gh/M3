@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::{LazyStaticCell, StaticCell};
+use base::cell::{LazyStaticCell, StaticRefCell};
 use base::col::{String, ToString, Vec};
 use base::format;
 use base::libc;
@@ -22,7 +22,7 @@ use base::mem;
 use base::tcu::TCU;
 use core::ptr;
 
-static BUF: StaticCell<[u8; 2048]> = StaticCell::new([0u8; 2048]);
+static BUF: StaticRefCell<[u8; 2048]> = StaticRefCell::new([0u8; 2048]);
 static BR1: LazyStaticCell<Bridge> = LazyStaticCell::default();
 static BR2: LazyStaticCell<Bridge> = LazyStaticCell::default();
 
@@ -72,11 +72,13 @@ impl Bridge {
     }
 
     fn check(&self) {
+        let mut buf = BUF.borrow_mut();
+
         let res = unsafe {
             libc::recvfrom(
                 self.src_fd,
-                BUF.get_mut() as *mut _ as *mut libc::c_void,
-                BUF.len(),
+                buf.as_mut_ptr() as *mut libc::c_void,
+                buf.len(),
                 libc::MSG_DONTWAIT,
                 ptr::null_mut(),
                 ptr::null_mut(),
@@ -90,7 +92,7 @@ impl Bridge {
             assert!(
                 libc::sendto(
                     self.dst_fd,
-                    BUF.get() as *const _ as *const libc::c_void,
+                    buf.as_ptr() as *const libc::c_void,
                     res as usize,
                     0,
                     &self.dst_sock as *const _ as *const libc::sockaddr,

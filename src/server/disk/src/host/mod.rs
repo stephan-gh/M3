@@ -15,19 +15,19 @@
  */
 
 use core::cmp;
-use m3::cell::StaticCell;
+use m3::cell::StaticRefCell;
 use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::libc;
-use m3::mem::MaybeUninit;
 use m3::log;
+use m3::mem::MaybeUninit;
 
 use crate::backend::BlockDeviceTrait;
 use crate::partition::{parse_partitions, Partition};
 
-static TMP_BUF: StaticCell<[u8; 4096]> = StaticCell::new([0; 4096]);
+static TMP_BUF: StaticRefCell<[u8; 4096]> = StaticRefCell::new([0; 4096]);
 
 pub struct BlockDevice {
     disk_fd: i32,
@@ -65,15 +65,11 @@ impl BlockDevice {
             log!(crate::LOG_DEF, "Found disk device ({} MiB)", disk_size);
 
             // read partition table
-            libc::pread(
-                disk_fd,
-                TMP_BUF.get_mut().as_mut() as *mut _ as *mut libc::c_void,
-                512,
-                0,
-            );
+            let mut buf = TMP_BUF.borrow_mut();
+            libc::pread(disk_fd, buf.as_mut() as *mut _ as *mut libc::c_void, 512, 0);
 
             // parse partitions
-            (disk_fd, parse_partitions(TMP_BUF.get()))
+            (disk_fd, parse_partitions(&buf[..]))
         };
 
         for (i, p) in parts.iter().enumerate() {
@@ -160,17 +156,18 @@ impl BlockDeviceTrait for BlockDevice {
             disk_off,
             bytes,
             |disk_off, buf_off, bytes| {
-                let amount = cmp::min(bytes, TMP_BUF.len());
+                let mut buffer = TMP_BUF.borrow_mut();
+                let amount = cmp::min(bytes, buffer.len());
                 let res = unsafe {
                     libc::pread(
                         self.disk_fd,
-                        TMP_BUF.get_mut().as_mut() as *mut _ as *mut libc::c_void,
+                        buffer.as_mut_ptr() as *mut libc::c_void,
                         amount,
                         disk_off as i64,
                     )
                 };
                 assert!(res != -1);
-                buf.write(&TMP_BUF[0..amount], buf_off as goff)?;
+                buf.write(&buffer[0..amount], buf_off as goff)?;
                 Ok(amount)
             },
         )
@@ -192,12 +189,13 @@ impl BlockDeviceTrait for BlockDevice {
             disk_off,
             bytes,
             |disk_off, buf_off, bytes| {
-                let amount = cmp::min(bytes, TMP_BUF.len());
-                buf.read(&mut TMP_BUF.get_mut()[0..amount], buf_off as goff)?;
+                let mut buffer = TMP_BUF.borrow_mut();
+                let amount = cmp::min(bytes, buffer.len());
+                buf.read(&mut buffer[0..amount], buf_off as goff)?;
                 let res = unsafe {
                     libc::pwrite(
                         self.disk_fd,
-                        TMP_BUF.as_ref() as *const _ as *const libc::c_void,
+                        buffer.as_ptr() as *const libc::c_void,
                         amount,
                         disk_off as i64,
                     )

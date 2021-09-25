@@ -51,7 +51,7 @@ pub extern "C" fn pexcall(state: &mut isr::State) -> *mut libc::c_void {
         access
     );
 
-    XLATES.set(*XLATES + 1);
+    XLATES.set(XLATES.get() + 1);
 
     let pte = paging::translate(virt, flags);
     // no page faults supported

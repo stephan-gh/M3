@@ -33,7 +33,7 @@ static FAILED: StaticCell<u32> = StaticCell::new(0);
 pub static DST_IP: LazyStaticCell<IpAddr> = LazyStaticCell::default();
 
 extern "C" fn wvtest_failed() {
-    FAILED.set(*FAILED + 1);
+    FAILED.set(FAILED.get() + 1);
 }
 
 struct MyTester {}
@@ -70,8 +70,8 @@ pub fn main() -> i32 {
     wv_run_suite!(tester, budp::run);
     wv_run_suite!(tester, btcp::run);
 
-    if *FAILED > 0 {
-        println!("\x1B[1;31m{} tests failed\x1B[0;m", *FAILED);
+    if FAILED.get() > 0 {
+        println!("\x1B[1;31m{} tests failed\x1B[0;m", FAILED.get());
     }
     else {
         println!("\x1B[1;32mAll tests successful!\x1B[0;m");

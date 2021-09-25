@@ -53,7 +53,7 @@ where
         if let Some(msg) = RGATE.fetch() {
             let is = GateIStream::new(msg, &RGATE);
             handle_request_async(is);
-            subsys::start_delayed(&mut spawn)?;
+            subsys::start_delayed_async(&mut spawn)?;
         }
 
         if let Some(msg) = upcall_rg.fetch() {

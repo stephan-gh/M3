@@ -56,16 +56,17 @@ fn write_bytes_checked(
     // on hw, validate whether the data has been written correctly by reading it again
     #[cfg(target_vendor = "hw")]
     {
-        use crate::cell::StaticCell;
+        use crate::cell::StaticRefCell;
 
-        static BUF: StaticCell<[u8; cfg::PAGE_SIZE]> = StaticCell::new([0u8; cfg::PAGE_SIZE]);
+        static BUF: StaticRefCell<[u8; cfg::PAGE_SIZE]> = StaticRefCell::new([0u8; cfg::PAGE_SIZE]);
 
         let mut off = offset;
         let mut data_slice = unsafe { core::slice::from_raw_parts(data, size) };
+        let mut buf = BUF.borrow_mut();
         while !data_slice.is_empty() {
             let amount = cmp::min(data_slice.len(), cfg::PAGE_SIZE);
-            mem.read_bytes(BUF.get_mut().as_mut_ptr(), amount, off)?;
-            assert_eq!(BUF[0..amount], data_slice[0..amount]);
+            mem.read_bytes(buf.as_mut_ptr(), amount, off)?;
+            assert_eq!(buf[0..amount], data_slice[0..amount]);
 
             off += amount as goff;
             data_slice = &data_slice[amount..];

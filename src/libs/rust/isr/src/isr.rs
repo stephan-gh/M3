@@ -36,13 +36,13 @@ cfg_if! {
 
 pub use self::isa::*;
 
-use base::cell::StaticCell;
+use base::cell::StaticRefCell;
 use base::pexif;
 use base::tcu;
 
 pub type IsrFunc = extern "C" fn(state: &mut State) -> *mut base::libc::c_void;
 
-static ISRS: StaticCell<[IsrFunc; ISR_COUNT]> = StaticCell::new([unexpected_irq; ISR_COUNT]);
+static ISRS: StaticRefCell<[IsrFunc; ISR_COUNT]> = StaticRefCell::new([unexpected_irq; ISR_COUNT]);
 
 #[derive(Debug)]
 pub enum IRQSource {
@@ -55,5 +55,5 @@ pub extern "C" fn unexpected_irq(state: &mut State) -> *mut base::libc::c_void {
 }
 
 pub fn reg(idx: usize, func: IsrFunc) {
-    ISRS.get_mut()[idx] = func;
+    ISRS.borrow_mut()[idx] = func;
 }

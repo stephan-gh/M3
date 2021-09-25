@@ -550,12 +550,12 @@ fn print_childs(cap: NonNull<Capability>, f: &mut fmt::Formatter) -> fmt::Result
             None => return Ok(()),
             Some(n) => unsafe {
                 f.write_char('\n')?;
-                for _ in 0..*LAYER {
+                for _ in 0..LAYER.get() {
                     f.write_char(' ')?;
                 }
-                LAYER.set(*LAYER + 1);
+                LAYER.set(LAYER.get() + 1);
                 write!(f, "=> {:?}", *n.as_ptr())?;
-                LAYER.set(*LAYER - 1);
+                LAYER.set(LAYER.get() - 1);
 
                 next = (*n.as_ptr()).next;
             },

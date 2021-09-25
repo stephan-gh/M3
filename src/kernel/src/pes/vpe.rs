@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::{Cell, RefCell, StaticCell};
+use base::cell::{Cell, RefCell, StaticRefCell};
 use base::col::{String, ToString, Vec};
 use base::errors::{Code, Error};
 use base::goff;
@@ -57,7 +57,7 @@ pub const KERNEL_ID: VPEId = 0xFFFF;
 pub const INVAL_ID: VPEId = 0xFFFF;
 
 static EXIT_EVENT: i32 = 0;
-static EXIT_LISTENERS: StaticCell<Vec<ExitWait>> = StaticCell::new(Vec::new());
+static EXIT_LISTENERS: StaticRefCell<Vec<ExitWait>> = StaticRefCell::new(Vec::new());
 
 pub struct VPE {
     id: VPEId,
@@ -359,7 +359,7 @@ impl VPE {
 
         // ensure that we are removed from the list in any case. we might have started to wait
         // earlier and are now waiting again with a different selector list.
-        EXIT_LISTENERS.get_mut().retain(|l| l.id != self.id());
+        EXIT_LISTENERS.borrow_mut().retain(|l| l.id != self.id());
         match event {
             // sync wait
             0 => res,
@@ -367,7 +367,7 @@ impl VPE {
             _ => {
                 // if no one exited yet, remember us
                 if sels.len() > 0 && res.is_none() {
-                    EXIT_LISTENERS.get_mut().push(ExitWait {
+                    EXIT_LISTENERS.borrow_mut().push(ExitWait {
                         id: self.id(),
                         event,
                         sels: sels.to_vec(),
@@ -385,7 +385,7 @@ impl VPE {
         thread::ThreadManager::get().notify(event, None);
 
         // send upcalls for the others
-        EXIT_LISTENERS.get_mut().retain(|l| {
+        EXIT_LISTENERS.borrow_mut().retain(|l| {
             let vpe = VPEMng::get().vpe(l.id).unwrap();
             if let Some((sel, code)) = vpe.fetch_exit(&l.sels) {
                 vpe.upcall_vpe_wait(l.event, sel, code);
@@ -510,7 +510,7 @@ impl VPE {
 
         self.force_stop_async(stop);
 
-        EXIT_LISTENERS.get_mut().retain(|l| l.id != self.id());
+        EXIT_LISTENERS.borrow_mut().retain(|l| l.id != self.id());
 
         Self::send_exit_notify();
 

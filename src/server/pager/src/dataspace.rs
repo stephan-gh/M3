@@ -36,7 +36,7 @@ const MAX_EXT_PAGES: usize = 8;
 static NEXT_ID: StaticCell<u64> = StaticCell::new(0);
 
 fn alloc_id() -> u64 {
-    let id = *NEXT_ID;
+    let id = NEXT_ID.get();
     NEXT_ID.set(id + 1);
     id
 }

@@ -21,7 +21,7 @@ use crate::arch::tcu::{
     backend, CmdReg, Command, Control, EpId, EpReg, Header, PEId, Reg, MAX_MSG_SIZE, TCU,
     TOTAL_EPS, UNLIM_CREDITS,
 };
-use crate::cell::{LazyStaticCell, StaticCell};
+use crate::cell::{LazyStaticCell, RefMut, StaticCell, StaticRefCell, StaticUnsafeCell};
 use crate::errors::{Code, Error};
 use crate::io;
 use crate::mem;
@@ -61,7 +61,7 @@ impl Buffer {
     }
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 enum SleepState {
     None,
     UntilMsg,
@@ -69,13 +69,9 @@ enum SleepState {
 }
 
 pub(crate) static LOG: LazyStaticCell<io::log::Log> = LazyStaticCell::default();
-static BUFFER: StaticCell<Buffer> = StaticCell::new(Buffer::new());
+static BUFFER: StaticRefCell<Buffer> = StaticRefCell::new(Buffer::new());
 static MSG_CNT: StaticCell<usize> = StaticCell::new(0);
 static SLEEP: StaticCell<SleepState> = StaticCell::new(SleepState::None);
-
-fn buffer() -> &'static mut Buffer {
-    BUFFER.get_mut()
-}
 
 #[macro_export]
 macro_rules! log_tcu {
@@ -152,7 +148,7 @@ fn prepare_send(ep: EpId) -> Result<(PEId, EpId), Error> {
         return Err(Error::new(Code::OutOfBounds));
     }
 
-    let buf = buffer();
+    let mut buf = BUFFER.borrow_mut();
     buf.header.credits = 0;
     buf.header.label = TCU::get_ep(ep, EpReg::LABEL);
 
@@ -207,7 +203,7 @@ fn prepare_reply(ep: EpId) -> Result<(PEId, EpId), Error> {
     TCU::set_ep(ep, EpReg::BUF_OCCUPIED, occupied);
     log_tcu!("EP{}: acked message at index {}", ep, idx);
 
-    let buf = buffer();
+    let mut buf = BUFFER.borrow_mut();
     buf.header.label = reply_msg.header.reply_label;
     buf.header.credits = 1;
     buf.header.crd_ep = reply_msg.header.snd_ep;
@@ -260,7 +256,7 @@ fn check_rdwr(ep: EpId, read: bool) -> Result<(), Error> {
 fn prepare_read(ep: EpId) -> Result<(PEId, EpId), Error> {
     check_rdwr(ep, true)?;
 
-    let buf = buffer();
+    let mut buf = BUFFER.borrow_mut();
 
     buf.header.credits = 0;
     buf.header.label = TCU::get_ep(ep, EpReg::LABEL);
@@ -280,7 +276,7 @@ fn prepare_read(ep: EpId) -> Result<(PEId, EpId), Error> {
 fn prepare_write(ep: EpId) -> Result<(PEId, EpId), Error> {
     check_rdwr(ep, false)?;
 
-    let buf = buffer();
+    let mut buf = BUFFER.borrow_mut();
     let src = TCU::get_cmd(CmdReg::ADDR);
     let size = TCU::get_cmd(CmdReg::SIZE) as usize;
 
@@ -385,26 +381,26 @@ fn prepare_fetch(ep: EpId) -> Result<(PEId, EpId), Error> {
 }
 
 fn received_msg() {
-    *MSG_CNT.get_mut() += 1;
+    MSG_CNT.set(MSG_CNT.get() + 1);
     log_tcu!("TCU: received message");
-    if !matches!(*SLEEP, SleepState::None) {
+    if !matches!(SLEEP.get(), SleepState::None) {
         stop_sleep();
     }
 }
 
 fn fetched_msg() {
-    *MSG_CNT.get_mut() -= 1;
+    MSG_CNT.set(MSG_CNT.get() - 1);
     log_tcu!("TCU: fetched message");
 }
 
 fn start_sleep() {
     let timeout = TCU::get_cmd(CmdReg::OFFSET);
-    if *MSG_CNT == 0 {
-        *SLEEP.get_mut() = match timeout {
+    if MSG_CNT.get() == 0 {
+        SLEEP.set(match timeout {
             0 => SleepState::UntilMsg,
             t => SleepState::UntilTimeout(TCU::nanotime() + t),
-        };
-        log_tcu!("TCU: sleep started ({:?})", *SLEEP);
+        });
+        log_tcu!("TCU: sleep started ({:?})", SLEEP.get());
     }
     else {
         // still unread messages -> no sleep. ack is sent if command is ready
@@ -413,14 +409,14 @@ fn start_sleep() {
 }
 
 fn stop_sleep() {
-    log_tcu!("TCU: sleep stopped (messages: {})", *MSG_CNT);
-    *SLEEP.get_mut() = SleepState::None;
+    log_tcu!("TCU: sleep stopped (messages: {})", MSG_CNT.get());
+    SLEEP.set(SleepState::None);
     // provide feedback to SW
     TCU::set_cmd(CmdReg::CTRL, 0);
     get_backend().send_ack();
 }
 
-fn handle_msg(ep: EpId, len: usize) {
+fn handle_msg(buf: &RefMut<'_, Buffer>, ep: EpId, len: usize) {
     let msg_ord = TCU::get_ep(ep, EpReg::BUF_MSGORDER);
     let msg_size = 1 << msg_ord;
     if len > msg_size {
@@ -455,7 +451,7 @@ fn handle_msg(ep: EpId, len: usize) {
 
         let addr = TCU::get_ep(ep, EpReg::BUF_ADDR);
         let dst = (envdata::rbuf_start() as u64 + addr + idx * (1 << msg_ord)) as *mut u8;
-        let src = &buffer().header as *const Header as *const u8;
+        let src = &buf.header as *const Header as *const u8;
         unsafe {
             util::slice_for_mut(dst, len).copy_from_slice(util::slice_for(src, len));
         }
@@ -479,8 +475,11 @@ fn handle_msg(ep: EpId, len: usize) {
     log_tcu_critical!("TCU-error: EP{}: dropping msg because no slot is free", ep);
 }
 
-fn handle_write_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Error> {
-    let buf = buffer();
+fn handle_write_cmd(
+    backend: &backend::SocketBackend,
+    buf: &mut RefMut<'_, Buffer>,
+    ep: EpId,
+) -> Result<(), Error> {
     let base = buf.header.label;
 
     {
@@ -513,11 +512,14 @@ fn handle_write_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Er
     buf.header.label = 0;
     buf.header.length = 0;
 
-    send_msg(backend, ep, dst_pe, dst_ep)
+    send_msg(backend, buf, ep, dst_pe, dst_ep)
 }
 
-fn handle_read_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Error> {
-    let buf = buffer();
+fn handle_read_cmd(
+    backend: &backend::SocketBackend,
+    buf: &mut RefMut<'_, Buffer>,
+    ep: EpId,
+) -> Result<(), Error> {
     let base = buf.header.label;
 
     let (offset, length, dest) = {
@@ -555,11 +557,10 @@ fn handle_read_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Err
         );
     }
 
-    send_msg(backend, ep, dst_pe, dst_ep)
+    send_msg(backend, buf, ep, dst_pe, dst_ep)
 }
 
-fn handle_resp_cmd(backend: &backend::SocketBackend) {
-    let buf = buffer();
+fn handle_resp_cmd(backend: &backend::SocketBackend, buf: &RefMut<'_, Buffer>) {
     let data = buf.as_words();
     let base = buf.header.label;
     let resp = if buf.header.length > 0 {
@@ -597,12 +598,11 @@ fn handle_resp_cmd(backend: &backend::SocketBackend) {
 #[rustfmt::skip]
 fn send_msg(
     backend: &backend::SocketBackend,
+    buf: &RefMut<'_, Buffer>,
     ep: EpId,
     dst_pe: PEId,
     dst_ep: EpId,
 ) -> Result<(), Error> {
-    let buf = buffer();
-
     log_tcu!(
         "{} {:3}b lbl={:#016x} over {} to pe:ep={}:{} (crd={:#x} rep={})",
         if buf.header.opcode == Command::REPLY.val as u8 { ">>" } else { "->" },
@@ -615,7 +615,7 @@ fn send_msg(
         buf.header.rpl_ep
     );
 
-    if backend.send(dst_pe, dst_ep, buf) {
+    if backend.send(dst_pe, dst_ep, &buf) {
         Ok(())
     }
     else {
@@ -652,7 +652,7 @@ fn handle_command(backend: &backend::SocketBackend) {
 
         match res {
             Ok((dst_pe, dst_ep)) if dst_ep < TOTAL_EPS => {
-                let buf = buffer();
+                let mut buf = BUFFER.borrow_mut();
                 buf.header.opcode = op.val as u8;
 
                 if op != Command::REPLY {
@@ -664,7 +664,7 @@ fn handle_command(backend: &backend::SocketBackend) {
                     buf.header.reply_label = TCU::get_cmd(CmdReg::REPLY_LBL);
                 }
 
-                match send_msg(backend, ep, dst_pe, dst_ep) {
+                match send_msg(backend, &buf, ep, dst_pe, dst_ep) {
                     Err(e) => Err(e),
                     Ok(_) => {
                         if op == Command::READ || op == Command::WRITE {
@@ -689,13 +689,13 @@ fn handle_command(backend: &backend::SocketBackend) {
 }
 
 fn handle_receive(backend: &backend::SocketBackend, ep: EpId) -> bool {
-    let buf = buffer();
-    if let Some(size) = backend.receive(ep, buf) {
+    let mut buf = BUFFER.borrow_mut();
+    if let Some(size) = backend.receive(ep, &mut buf) {
         match Command::from(buf.header.opcode as Reg) {
-            Command::SEND | Command::REPLY => handle_msg(ep, size),
-            Command::READ => handle_read_cmd(backend, ep).unwrap(),
-            Command::WRITE => handle_write_cmd(backend, ep).unwrap(),
-            Command::RESP => handle_resp_cmd(backend),
+            Command::SEND | Command::REPLY => handle_msg(&buf, ep, size),
+            Command::READ => handle_read_cmd(backend, &mut buf, ep).unwrap(),
+            Command::WRITE => handle_write_cmd(backend, &mut buf, ep).unwrap(),
+            Command::RESP => handle_resp_cmd(backend, &buf),
             _ => panic!("Not supported!"),
         }
 
@@ -733,7 +733,7 @@ fn handle_receive(backend: &backend::SocketBackend, ep: EpId) -> bool {
     }
 }
 
-static BACKEND: StaticCell<Option<backend::SocketBackend>> = StaticCell::new(None);
+static BACKEND: StaticUnsafeCell<Option<backend::SocketBackend>> = StaticUnsafeCell::new(None);
 static RUN: atomic::AtomicUsize = atomic::AtomicUsize::new(1);
 static mut TID: libc::pthread_t = 0;
 
@@ -784,19 +784,19 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
         }
 
         let now = TCU::nanotime();
-        if let SleepState::UntilTimeout(end) = *SLEEP {
+        if let SleepState::UntilTimeout(end) = SLEEP.get() {
             if now >= end {
                 stop_sleep();
             }
         }
 
-        let timeout = match *SLEEP {
+        let timeout = match SLEEP.get() {
             SleepState::UntilTimeout(end) => Some(end.saturating_sub(now)),
             _ => None,
         };
         if backend.wait_for_work(timeout) {
             // if an additional fd is ready and the CPU is sleeping, wake it up
-            if !matches!(*SLEEP, SleepState::None) {
+            if !matches!(SLEEP.get(), SleepState::None) {
                 stop_sleep();
             }
         }
@@ -822,7 +822,7 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
 }
 
 pub fn init() {
-    LOG.set(io::log::Log::default());
+    LOG.set(io::log::Log::new());
     LOG.get_mut().init(envdata::get().pe_id, "TCU");
 
     BACKEND.set(Some(backend::SocketBackend::new()));

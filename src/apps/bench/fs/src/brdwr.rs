@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::cell::StaticCell;
+use m3::cell::StaticRefCell;
 use m3::io::Read;
 use m3::mem::AlignedBuf;
 use m3::profile;
@@ -22,7 +22,7 @@ use m3::test;
 use m3::vfs::{OpenFlags, VFS};
 use m3::{wv_assert_ok, wv_perf, wv_run_test};
 
-static BUF: StaticCell<AlignedBuf<4096>> = StaticCell::new(AlignedBuf::new_zeroed());
+static BUF: StaticRefCell<AlignedBuf<4096>> = StaticRefCell::new(AlignedBuf::new_zeroed());
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, read);
@@ -30,7 +30,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn read() {
-    let buf = &mut BUF.get_mut()[..];
+    let buf = &mut BUF.borrow_mut()[..];
 
     let mut prof = profile::Profiler::default().repeats(10).warmup(4);
 
@@ -53,7 +53,7 @@ fn read() {
 
 fn write() {
     const SIZE: usize = 2 * 1024 * 1024;
-    let buf = &BUF[..];
+    let buf = &BUF.borrow()[..];
 
     let mut prof = profile::Profiler::default().repeats(10).warmup(4);
 

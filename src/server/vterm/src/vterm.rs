@@ -17,7 +17,7 @@
 #![no_std]
 
 use m3::cap::Selector;
-use m3::cell::{LazyStaticCell, StaticCell};
+use m3::cell::{LazyStaticCell, StaticCell, StaticRefCell};
 use m3::col::Vec;
 use m3::com::{GateIStream, MemGate, Perm, RGateArgs, RecvGate, SGateArgs, SendGate, EP};
 use m3::errors::{Code, Error};
@@ -52,8 +52,8 @@ int_enum! {
 
 static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
 static SIGRGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
-static BUFFER: StaticCell<Vec<u8>> = StaticCell::new(Vec::new());
-static INPUT: StaticCell<Vec<u8>> = StaticCell::new(Vec::new());
+static BUFFER: StaticRefCell<Vec<u8>> = StaticRefCell::new(Vec::new());
+static INPUT: StaticRefCell<Vec<u8>> = StaticRefCell::new(Vec::new());
 static MODE: StaticCell<Mode> = StaticCell::new(Mode::COOKED);
 
 macro_rules! reply_vmsg_late {
@@ -142,7 +142,7 @@ impl Channel {
             mode
         );
         MODE.set(mode);
-        INPUT.get_mut().clear();
+        INPUT.borrow_mut().clear();
 
         is.reply_error(Code::None)
     }
@@ -159,16 +159,17 @@ impl Channel {
         self.activate()?;
 
         if self.pos == self.len {
-            if INPUT.is_empty() {
+            let mut input = INPUT.borrow_mut();
+            if input.is_empty() {
                 assert!(self.pending_nextin.is_none());
                 self.pending_nextin = Some(is.take_msg());
                 return Ok(());
             }
 
-            self.our_mem.write(&INPUT, mem_off(self.id))?;
-            self.len = INPUT.len();
+            self.our_mem.write(&input, mem_off(self.id))?;
+            self.len = input.len();
             self.pos = 0;
-            INPUT.get_mut().clear();
+            input.clear();
         }
 
         reply_vmsg!(is, Code::None as u32, self.pos, self.len - self.pos)
@@ -220,7 +221,7 @@ impl Channel {
             #[allow(clippy::uninit_assumed_init)]
             let mut buf: [u8; BUF_SIZE] = unsafe { MaybeUninit::uninit().assume_init() };
             self.our_mem.read(&mut buf[0..nbytes], mem_off(self.id))?;
-            Serial::default().write(&buf[0..nbytes])?;
+            Serial::new().write(&buf[0..nbytes])?;
         }
         self.len = 0;
         Ok(())
@@ -404,11 +405,14 @@ fn send_signal(hdl: &mut VTermHandler) {
 }
 
 fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
+    let mut input = INPUT.borrow_mut();
+    let mut buffer = BUFFER.borrow_mut();
+
     let bytes =
         unsafe { core::slice::from_raw_parts(msg.data.as_ptr(), msg.header.length as usize) };
     let mut flush = false;
-    if *MODE == Mode::RAW {
-        INPUT.get_mut().extend_from_slice(bytes);
+    if MODE.get() == Mode::RAW {
+        input.extend_from_slice(bytes);
     }
     else {
         let mut output = vec![];
@@ -423,18 +427,18 @@ fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
                     output.push(0x08);
                     output.push(b' ');
                     output.push(0x08);
-                    BUFFER.get_mut().pop();
+                    buffer.pop();
                 },
                 b => {
                     if *b == 27 {
-                        BUFFER.get_mut().push(b'^');
+                        buffer.push(b'^');
                         output.push(b'^');
                     }
                     else if *b == b'\n' {
                         flush = true;
                     }
                     if *b == b'\n' || !b.is_ascii_control() {
-                        BUFFER.get_mut().push(*b);
+                        buffer.push(*b);
                     }
                 },
             }
@@ -445,22 +449,22 @@ fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
         }
 
         if flush {
-            INPUT.get_mut().extend_from_slice(&BUFFER);
-            BUFFER.get_mut().clear();
+            input.extend_from_slice(&buffer);
+            buffer.clear();
         }
-        Serial::default().write(&output).unwrap();
+        Serial::new().write(&output).unwrap();
     }
 
     // pass to first session that wants input
     hdl.sessions.for_each(|s| {
-        if flush || !INPUT.is_empty() {
+        if flush || !input.is_empty() {
             match &mut s.data {
                 SessionData::Chan(c) => {
                     if let Some(msg) = c.pending_nextin.take() {
-                        c.our_mem.write(&INPUT, mem_off(c.id)).unwrap();
-                        c.len = INPUT.len();
+                        c.our_mem.write(&input, mem_off(c.id)).unwrap();
+                        c.len = input.len();
                         c.pos = 0;
-                        INPUT.get_mut().clear();
+                        input.clear();
                         log!(
                             crate::LOG_DEF,
                             "[{}] vterm::next_in() -> ({}, {})",

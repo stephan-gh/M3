@@ -26,7 +26,6 @@ use base::mem::heap;
 use crate::arch::{exceptions, loader, paging};
 use crate::args;
 use crate::ktcu;
-use crate::mem;
 use crate::pes;
 use crate::platform;
 use crate::workloop::workloop;
@@ -85,7 +84,6 @@ pub extern "C" fn env_run() {
     crate::slab::init();
     paging::init();
     exceptions::init();
-    mem::init();
     crate::com::init_queues();
 
     klog!(DEF, "Entered raw mode; Quit via Ctrl+]");

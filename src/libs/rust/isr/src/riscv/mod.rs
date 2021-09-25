@@ -183,7 +183,7 @@ pub extern "C" fn isr_handler(state: &mut State) -> *mut libc::c_void {
         state.epc += 4;
     }
 
-    crate::ISRS[vec](state)
+    crate::ISRS.borrow()[vec](state)
 }
 
 pub fn init(state: &mut State) {

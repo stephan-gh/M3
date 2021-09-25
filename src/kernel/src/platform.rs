@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::StaticCell;
+use base::cell::StaticUnsafeCell;
 use base::col::{String, Vec};
 use base::kif::{boot, PEDesc};
 use base::mem::{size_of, GlobAddr};
@@ -74,7 +74,8 @@ impl iter::Iterator for PEIterator {
     }
 }
 
-static KENV: StaticCell<Option<KEnv>> = StaticCell::new(None);
+// TODO can we use a safe cell here?
+static KENV: StaticUnsafeCell<Option<KEnv>> = StaticUnsafeCell::new(None);
 
 pub fn init(args: &[String]) {
     KENV.set(Some(arch::platform::init(args)));

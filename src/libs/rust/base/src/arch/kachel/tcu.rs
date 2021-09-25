@@ -21,7 +21,7 @@ use core::intrinsics;
 use core::sync::atomic;
 
 use crate::arch;
-use crate::cell::StaticCell;
+use crate::cell::StaticRefCell;
 use crate::cfg;
 use crate::errors::{Code, Error};
 use crate::goff;
@@ -876,11 +876,11 @@ impl TCU {
     }
 }
 
-static PE_IDS: StaticCell<[PEId; cfg::MAX_PES]> = StaticCell::new([0; cfg::MAX_PES]);
+static PE_IDS: StaticRefCell<[PEId; cfg::MAX_PES]> = StaticRefCell::new([0; cfg::MAX_PES]);
 
 impl TCU {
     pub fn init_pe_ids() {
-        let pes = PE_IDS.get_mut();
+        let mut pes = PE_IDS.borrow_mut();
         if arch::envdata::get().platform == crate::envdata::Platform::GEM5.val {
             #[allow(clippy::needless_range_loop)]
             for i in 0..cfg::MAX_PES {
@@ -896,7 +896,7 @@ impl TCU {
     }
 
     pub fn peid_to_nocid(pe: PEId) -> u8 {
-        PE_IDS[pe as usize]
+        PE_IDS.borrow()[pe as usize]
     }
 
     pub fn nocid_to_peid(pe: u8) -> PEId {
@@ -904,7 +904,7 @@ impl TCU {
             pe
         }
         else {
-            for (i, id) in PE_IDS.iter().enumerate() {
+            for (i, id) in PE_IDS.borrow().iter().enumerate() {
                 if *id == pe {
                     return i as u8;
                 }
@@ -944,7 +944,7 @@ impl TCU {
             | ((credits as Reg) << 19)
             | ((credits as Reg) << 25)
             | ((msg_order as Reg) << 31);
-        regs[1] = ((PE_IDS[pe as usize] as Reg) << 16) | (dst_ep as Reg);
+        regs[1] = ((Self::peid_to_nocid(pe) as Reg) << 16) | (dst_ep as Reg);
         regs[2] = lbl as Reg;
     }
 
@@ -952,7 +952,7 @@ impl TCU {
         regs[0] = EpType::MEMORY.val
             | ((vpe as Reg) << 3)
             | ((perm.bits() as Reg) << 19)
-            | ((PE_IDS[pe as usize] as Reg) << 23);
+            | ((Self::peid_to_nocid(pe) as Reg) << 23);
         regs[1] = addr as Reg;
         regs[2] = size as Reg;
     }

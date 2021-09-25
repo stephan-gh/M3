@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::StaticCell;
+use base::cell::StaticUnsafeCell;
 use base::col::Vec;
 use base::kif;
 use base::tcu::PEId;
@@ -27,7 +27,8 @@ pub struct PEMng {
     muxes: Vec<PEMux>,
 }
 
-static INST: StaticCell<Option<PEMng>> = StaticCell::new(None);
+// TODO use a safe cell here
+static INST: StaticUnsafeCell<Option<PEMng>> = StaticUnsafeCell::new(None);
 
 pub fn init() {
     INST.set(Some(PEMng::new()));

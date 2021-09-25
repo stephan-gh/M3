@@ -122,14 +122,14 @@ pub fn init_state(state: &mut State, entry: usize, sp: usize) {
 }
 
 pub fn forget_fpu(vpe_id: vpe::Id) {
-    if *FPU_OWNER == vpe_id {
+    if FPU_OWNER.get() == vpe_id {
         FPU_OWNER.set(pemux::VPE_ID);
     }
 }
 
 pub fn disable_fpu() {
     let cur = vpe::cur();
-    if cur.id() != *FPU_OWNER {
+    if cur.id() != FPU_OWNER.get() {
         cur.user_state().status = set_fpu_mode(cur.user_state().status, FSMode::OFF);
     }
 }
@@ -151,7 +151,7 @@ pub fn handle_fpu_ex(state: &mut State) {
     // enable FPU
     state.status = set_fpu_mode(state.status, FSMode::CLEAN);
 
-    let old_id = *FPU_OWNER & 0xFFFF;
+    let old_id = FPU_OWNER.get() & 0xFFFF;
     if old_id != cur.id() {
         // enable FPU so that we can save/restore the FPU registers
         write_csr!("sstatus", set_fpu_mode(read_csr!("sstatus"), FSMode::CLEAN));

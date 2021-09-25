@@ -15,7 +15,7 @@
  */
 
 use base::backtrace;
-use base::cell::StaticCell;
+use base::cell::StaticRefCell;
 use base::cfg;
 use base::cpu;
 use base::int_enum;
@@ -23,6 +23,7 @@ use base::libc;
 use base::mem;
 use base::tcu;
 use core::fmt;
+use core::ops::Deref;
 
 use crate::IRQSource;
 
@@ -361,13 +362,13 @@ extern "C" {
     fn isr_null();
 }
 
-static GDT: StaticCell<GDT> = StaticCell::new(GDT::default());
-static IDT: StaticCell<IDT> = StaticCell::new(IDT::default());
-static TSS: StaticCell<TSS> = StaticCell::new(TSS::new(0));
+static GDT: StaticRefCell<GDT> = StaticRefCell::new(GDT::default());
+static IDT: StaticRefCell<IDT> = StaticRefCell::new(IDT::default());
+static TSS: StaticRefCell<TSS> = StaticRefCell::new(TSS::new(0));
 
 #[no_mangle]
 pub extern "C" fn isr_handler(state: &mut State) -> *mut libc::c_void {
-    crate::ISRS[state.irq](state)
+    crate::ISRS.borrow()[state.irq](state)
 }
 
 pub fn init(state: &mut State) {
@@ -375,68 +376,73 @@ pub fn init(state: &mut State) {
     set_entry_sp(state_top);
 
     // initialize GDT
-    let gdt = &mut GDT.get_mut().inner;
-    gdt.kcode = Desc::new_flat(Granularity::PAGES, DescType::CODE_XR, DPL::KERNEL);
-    gdt.kdata = Desc::new_flat(Granularity::PAGES, DescType::DATA_RW, DPL::KERNEL);
-    gdt.ucode = Desc::new_flat(Granularity::PAGES, DescType::CODE_XR, DPL::USER);
-    gdt.udata = Desc::new_flat(Granularity::PAGES, DescType::DATA_RW, DPL::USER);
-    gdt.tss = Desc64::new_tss(
-        TSS.get() as *const _ as *const u8 as usize,
-        mem::size_of::<TSSInner>() - 1,
-        Granularity::BYTES,
-        DPL::KERNEL,
-    );
+    {
+        let gdt = &mut GDT.borrow_mut().inner;
+        gdt.kcode = Desc::new_flat(Granularity::PAGES, DescType::CODE_XR, DPL::KERNEL);
+        gdt.kdata = Desc::new_flat(Granularity::PAGES, DescType::DATA_RW, DPL::KERNEL);
+        gdt.ucode = Desc::new_flat(Granularity::PAGES, DescType::CODE_XR, DPL::USER);
+        gdt.udata = Desc::new_flat(Granularity::PAGES, DescType::DATA_RW, DPL::USER);
+        let tss = TSS.borrow();
+        gdt.tss = Desc64::new_tss(
+            tss.deref() as *const _ as *const u8 as usize,
+            mem::size_of::<TSSInner>() - 1,
+            Granularity::BYTES,
+            DPL::KERNEL,
+        );
 
-    // load GDT and TSS
-    let gdt_tbl = DescTable {
-        size: (mem::size_of::<GDT>() - 1) as u16,
-        offset: gdt as *const _ as *const u8 as u64,
-    };
-    let tss_off = Segment::TSS.val as usize * mem::size_of::<Desc>();
-    unsafe {
-        llvm_asm!("lgdt ($0)" : : "r"(&gdt_tbl) : : "volatile");
-        llvm_asm!("ltr $0" : : "m"(tss_off) : : "volatile");
+        // load GDT and TSS
+        let gdt_tbl = DescTable {
+            size: (mem::size_of::<GDT>() - 1) as u16,
+            offset: gdt as *const _ as *const u8 as u64,
+        };
+        let tss_off = Segment::TSS.val as usize * mem::size_of::<Desc>();
+        unsafe {
+            llvm_asm!("lgdt ($0)" : : "r"(&gdt_tbl) : : "volatile");
+            llvm_asm!("ltr $0" : : "m"(tss_off) : : "volatile");
+        }
     }
 
     // setup the idt
-    let idt = IDT.get_mut();
-    idt.set(0, isr_0, DPL::KERNEL);
-    idt.set(1, isr_1, DPL::KERNEL);
-    idt.set(2, isr_2, DPL::KERNEL);
-    idt.set(3, isr_3, DPL::KERNEL);
-    idt.set(4, isr_4, DPL::KERNEL);
-    idt.set(5, isr_5, DPL::KERNEL);
-    idt.set(6, isr_6, DPL::KERNEL);
-    idt.set(7, isr_7, DPL::KERNEL);
-    idt.set(8, isr_8, DPL::KERNEL);
-    idt.set(9, isr_9, DPL::KERNEL);
-    idt.set(10, isr_10, DPL::KERNEL);
-    idt.set(11, isr_11, DPL::KERNEL);
-    idt.set(12, isr_12, DPL::KERNEL);
-    idt.set(13, isr_13, DPL::KERNEL);
-    idt.set(14, isr_14, DPL::KERNEL);
-    idt.set(15, isr_15, DPL::KERNEL);
-    idt.set(16, isr_16, DPL::KERNEL);
+    {
+        let mut idt = IDT.borrow_mut();
+        idt.set(0, isr_0, DPL::KERNEL);
+        idt.set(1, isr_1, DPL::KERNEL);
+        idt.set(2, isr_2, DPL::KERNEL);
+        idt.set(3, isr_3, DPL::KERNEL);
+        idt.set(4, isr_4, DPL::KERNEL);
+        idt.set(5, isr_5, DPL::KERNEL);
+        idt.set(6, isr_6, DPL::KERNEL);
+        idt.set(7, isr_7, DPL::KERNEL);
+        idt.set(8, isr_8, DPL::KERNEL);
+        idt.set(9, isr_9, DPL::KERNEL);
+        idt.set(10, isr_10, DPL::KERNEL);
+        idt.set(11, isr_11, DPL::KERNEL);
+        idt.set(12, isr_12, DPL::KERNEL);
+        idt.set(13, isr_13, DPL::KERNEL);
+        idt.set(14, isr_14, DPL::KERNEL);
+        idt.set(15, isr_15, DPL::KERNEL);
+        idt.set(16, isr_16, DPL::KERNEL);
 
-    // all other interrupts
-    for i in 17..=62 {
-        idt.set(i, isr_null, DPL::KERNEL);
-    }
+        // all other interrupts
+        for i in 17..=62 {
+            idt.set(i, isr_null, DPL::KERNEL);
+        }
 
-    // PEMux calls
-    idt.set(PEX_ISR, isr_63, DPL::USER);
-    // TCU interrupts
-    idt.set(TCU_ISR, isr_64, DPL::KERNEL);
-    // Timer interrupts
-    idt.set(TIMER_ISR, isr_65, DPL::KERNEL);
+        // PEMux calls
+        idt.set(PEX_ISR, isr_63, DPL::USER);
+        // TCU interrupts
+        idt.set(TCU_ISR, isr_64, DPL::KERNEL);
+        // Timer interrupts
+        idt.set(TIMER_ISR, isr_65, DPL::KERNEL);
 
-    // now we can use our idt
-    let idt_tbl = DescTable {
-        size: (ISR_COUNT * mem::size_of::<Desc64>() - 1) as u16,
-        offset: IDT.entries.as_ptr() as *const _ as *const u8 as u64,
-    };
-    unsafe {
-        llvm_asm!("lidt ($0)" : : "r"(&idt_tbl) : : "volatile");
+        // now we can use our idt
+        let idt_tbl = DescTable {
+            size: (ISR_COUNT * mem::size_of::<Desc64>() - 1) as u16,
+            offset: idt.entries.as_ptr() as *const _ as *const u8 as u64,
+        };
+        unsafe {
+            llvm_asm!("lidt ($0)" : : "r"(&idt_tbl) : : "volatile");
+        }
     }
 }
 
@@ -445,7 +451,7 @@ pub fn init_pexcalls(handler: crate::IsrFunc) {
 }
 
 pub fn set_entry_sp(sp: usize) {
-    TSS.get_mut().inner.rsp0 = sp as u64;
+    TSS.borrow_mut().inner.rsp0 = sp as u64;
 }
 
 pub fn enable_irqs() {

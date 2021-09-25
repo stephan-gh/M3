@@ -32,7 +32,6 @@ use super::{fs, net};
 use crate::arch::loader;
 use crate::args;
 use crate::ktcu;
-use crate::mem;
 use crate::pes;
 use crate::platform;
 use crate::workloop::workloop;
@@ -64,7 +63,6 @@ pub extern "C" fn rust_deinit(_status: i32, _arg: *const libc::c_void) {
 pub fn main() -> i32 {
     args::parse();
 
-    mem::init();
     ktcu::init();
     platform::init(&args::get().free);
     let kernel = env::args().next().unwrap();
@@ -117,7 +115,7 @@ pub fn main() -> i32 {
 pub fn shutdown() -> ! {
     pes::deinit();
     if let Some(ref path) = args::get().fs_image {
-        fs::copy_to_fs(path, *FS_SIZE);
+        fs::copy_to_fs(path, FS_SIZE.get());
     }
     klog!(DEF, "Shutting down");
     unsafe {

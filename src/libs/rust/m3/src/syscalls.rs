@@ -20,7 +20,7 @@ use base::kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL};
 
 use crate::arch;
 use crate::cap::Selector;
-use crate::cell::{LazyStaticCell, StaticCell};
+use crate::cell::{LazyStaticCell, StaticRefCell};
 use crate::com::{RecvGate, SendGate};
 use crate::errors::{Code, Error};
 use crate::goff;
@@ -31,7 +31,7 @@ use crate::tcu::{EpId, Label, Message, VPEId, SYSC_SEP_OFF};
 static SGATE: LazyStaticCell<SendGate> = LazyStaticCell::default();
 // use a separate message buffer here, because the default buffer could be in use for a message over
 // a SendGate, which might have to be activated first using a syscall.
-static SYSC_BUF: StaticCell<MsgBuf> = StaticCell::new(MsgBuf::new_initialized());
+static SYSC_BUF: StaticRefCell<MsgBuf> = StaticRefCell::new(MsgBuf::new_initialized());
 
 struct Reply<R: 'static> {
     msg: &'static Message,
@@ -72,8 +72,8 @@ pub fn send_gate() -> &'static SendGate {
 /// Creates a new service named `name` at selector `dst`. The receive gate `rgate` will be used for
 /// service calls from the kernel to the server.
 pub fn create_srv(dst: Selector, rgate: Selector, name: &str, creator: Label) -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
-    syscalls::CreateSrv::fill_msgbuf(buf, dst, rgate, name, creator);
+    let mut buf = SYSC_BUF.borrow_mut();
+    syscalls::CreateSrv::fill_msgbuf(&mut buf, dst, rgate, name, creator);
     send_receive_result(&buf)
 }
 
@@ -87,7 +87,7 @@ pub fn create_mgate(
     size: goff,
     perms: Perm,
 ) -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::CreateMGate {
         opcode: syscalls::Operation::CREATE_MGATE.val,
         dst_sel: dst,
@@ -107,7 +107,7 @@ pub fn create_sgate(
     label: Label,
     credits: u32,
 ) -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::CreateSGate {
         opcode: syscalls::Operation::CREATE_SGATE.val,
         dst_sel: dst,
@@ -121,7 +121,7 @@ pub fn create_sgate(
 /// Creates a new receive gate at selector `dst` with a `2^order` bytes receive buffer and
 /// `2^msg_order` bytes message slots.
 pub fn create_rgate(dst: Selector, order: u32, msgorder: u32) -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::CreateRGate {
         opcode: syscalls::Operation::CREATE_RGATE.val,
         dst_sel: dst,
@@ -141,7 +141,7 @@ pub fn create_sess(
     ident: u64,
     auto_close: bool,
 ) -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::CreateSess {
         opcode: syscalls::Operation::CREATE_SESS.val,
         dst_sel: dst,
@@ -176,7 +176,7 @@ pub fn create_map(
     pages: usize,
     perms: Perm,
 ) -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::CreateMap {
         opcode: syscalls::Operation::CREATE_MAP.val,
         dst_sel: dst,
@@ -205,8 +205,8 @@ pub fn create_vpe(
     pe: Selector,
     kmem: Selector,
 ) -> Result<(VPEId, EpId), Error> {
-    let buf = SYSC_BUF.get_mut();
-    syscalls::CreateVPE::fill_msgbuf(buf, dst, pg_sg, pg_rg, name, pe, kmem);
+    let mut buf = SYSC_BUF.borrow_mut();
+    syscalls::CreateVPE::fill_msgbuf(&mut buf, dst, pg_sg, pg_rg, name, pe, kmem);
 
     let reply: Reply<syscalls::CreateVPEReply> = send_receive(&buf)?;
     Ok((reply.data.id as VPEId, reply.data.eps_start as EpId))
@@ -214,7 +214,7 @@ pub fn create_vpe(
 
 /// Creates a new semaphore at selector `dst` using `value` as the initial value.
 pub fn create_sem(dst: Selector, value: u32) -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::CreateSem {
         opcode: syscalls::Operation::CREATE_SEM.val,
         dst_sel: dst,
@@ -226,7 +226,7 @@ pub fn create_sem(dst: Selector, value: u32) -> Result<(), Error> {
 /// Allocates a new endpoint for the given VPE at selector `dst`. Optionally, it can have `replies`
 /// reply slots attached to it (for receive gate activations).
 pub fn alloc_ep(dst: Selector, vpe: Selector, epid: EpId, replies: u32) -> Result<EpId, Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::AllocEP {
         opcode: syscalls::Operation::ALLOC_EP.val,
         dst_sel: dst,
@@ -245,7 +245,7 @@ pub fn alloc_ep(dst: Selector, vpe: Selector, epid: EpId, replies: u32) -> Resul
 /// The EP has to be between 1 and `crate::tcu::PMEM_PROT_EPS` - 1 and will be overwritten with the
 /// new memory region.
 pub fn set_pmp(pe: Selector, mgate: Selector, ep: EpId) -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::SetPMP {
         opcode: syscalls::Operation::SET_PMP.val,
         pe_sel: pe,
@@ -267,7 +267,7 @@ pub fn derive_mem(
     size: usize,
     perms: Perm,
 ) -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::DeriveMem {
         opcode: syscalls::Operation::DERIVE_MEM.val,
         vpe_sel: vpe,
@@ -283,7 +283,7 @@ pub fn derive_mem(
 /// Derives a new kernel memory object at `dst` from `kmem`, transferring `quota` bytes to the new
 /// kernel memory object.
 pub fn derive_kmem(kmem: Selector, dst: Selector, quota: usize) -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::DeriveKMem {
         opcode: syscalls::Operation::DERIVE_KMEM.val,
         kmem_sel: kmem,
@@ -295,7 +295,7 @@ pub fn derive_kmem(kmem: Selector, dst: Selector, quota: usize) -> Result<(), Er
 
 /// Derives a new PE object at `dst` from `pe`, transferring `eps` EPs to the new PE object.
 pub fn derive_pe(pe: Selector, dst: Selector, eps: u32) -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::DerivePE {
         opcode: syscalls::Operation::DERIVE_PE.val,
         pe_sel: pe,
@@ -310,7 +310,7 @@ pub fn derive_pe(pe: Selector, dst: Selector, eps: u32) -> Result<(), Error> {
 /// A non-error reply just acknowledges that the request has been sent to the service. Upon the
 /// completion of the request, you will receive an upcall containing `event`.
 pub fn derive_srv(srv: Selector, dst: CapRngDesc, sessions: u32, event: u64) -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::DeriveSrv {
         opcode: syscalls::Operation::DERIVE_SRV.val,
         dst_sel: dst.start(),
@@ -323,7 +323,7 @@ pub fn derive_srv(srv: Selector, dst: CapRngDesc, sessions: u32, event: u64) -> 
 
 /// Obtains the session capability from service `srv` with session id `sid` to the given VPE.
 pub fn get_sess(srv: Selector, vpe: Selector, dst: Selector, sid: Label) -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::GetSession {
         opcode: syscalls::Operation::GET_SESS.val,
         dst_sel: dst,
@@ -336,7 +336,7 @@ pub fn get_sess(srv: Selector, vpe: Selector, dst: Selector, sid: Label) -> Resu
 
 /// Returns the total and remaining quota in bytes for the kernel memory object at `kmem`.
 pub fn kmem_quota(kmem: Selector) -> Result<(usize, usize), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::KMemQuota {
         opcode: syscalls::Operation::KMEM_QUOTA.val,
         kmem_sel: kmem,
@@ -348,7 +348,7 @@ pub fn kmem_quota(kmem: Selector) -> Result<(usize, usize), Error> {
 
 /// Returns the remaining quota (free endpoints) for the PE object at `pe`.
 pub fn pe_quota(pe: Selector) -> Result<(u32, u32), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::PEQuota {
         opcode: syscalls::Operation::PE_QUOTA.val,
         pe_sel: pe,
@@ -360,7 +360,7 @@ pub fn pe_quota(pe: Selector) -> Result<(u32, u32), Error> {
 
 /// Performs the VPE operation `op` with the given VPE.
 pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::VPECtrl {
         opcode: syscalls::Operation::VPE_CTRL.val,
         vpe_sel: vpe,
@@ -383,8 +383,8 @@ pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Erro
 /// as a VPE exists. In both cases, the kernel returns the selector of the VPE that exited and the
 /// exitcode given by the VPE.
 pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error> {
-    let buf = SYSC_BUF.get_mut();
-    syscalls::VPEWait::fill_msgbuf(buf, vpes, event);
+    let mut buf = SYSC_BUF.borrow_mut();
+    syscalls::VPEWait::fill_msgbuf(&mut buf, vpes, event);
 
     let reply: Reply<syscalls::VPEWaitReply> = send_receive(&buf)?;
     if event != 0 {
@@ -397,7 +397,7 @@ pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error>
 
 /// Performs the semaphore operation `op` with the given semaphore.
 pub fn sem_ctrl(sem: Selector, op: syscalls::SemOp) -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::SemCtrl {
         opcode: syscalls::Operation::SEM_CTRL.val,
         sem_sel: sem,
@@ -416,7 +416,7 @@ pub fn exchange(
     other: Selector,
     obtain: bool,
 ) -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::Exchange {
         opcode: syscalls::Operation::EXCHANGE.val,
         vpe_sel: vpe,
@@ -479,7 +479,7 @@ where
     PRE: Fn(&mut Sink),
     POST: FnMut(&mut Source) -> Result<(), Error>,
 {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     let req = buf.set(syscalls::ExchangeSess {
         opcode: op.val,
         vpe_sel: vpe,
@@ -515,7 +515,7 @@ pub fn activate(
     rbuf_mem: Selector,
     rbuf_off: usize,
 ) -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::Activate {
         opcode: syscalls::Operation::ACTIVATE.val,
         ep_sel: ep,
@@ -531,7 +531,7 @@ pub fn activate(
 /// If `own` is true, they are also revoked from the given VPE. Otherwise, only the delegations of
 /// the capabilities are revoked.
 pub fn revoke(vpe: Selector, crd: CapRngDesc, own: bool) -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::Revoke {
         opcode: syscalls::Operation::REVOKE.val,
         vpe_sel: vpe,
@@ -545,7 +545,7 @@ pub fn revoke(vpe: Selector, crd: CapRngDesc, own: bool) -> Result<(), Error> {
 ///
 /// Resets the statistics for all VPEs in the system
 pub fn reset_stats() -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::ResetStats {
         opcode: syscalls::Operation::RESET_STATS.val,
     });
@@ -554,7 +554,7 @@ pub fn reset_stats() -> Result<(), Error> {
 
 /// The noop system call for benchmarking
 pub fn noop() -> Result<(), Error> {
-    let buf = SYSC_BUF.get_mut();
+    let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::Noop {
         opcode: syscalls::Operation::NOOP.val,
     });

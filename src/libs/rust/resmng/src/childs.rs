@@ -18,7 +18,7 @@ use bitflags::bitflags;
 use core::fmt;
 use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::{Cell, RefCell, StaticCell};
+use m3::cell::{Cell, RefCell, StaticUnsafeCell};
 use m3::col::{String, ToString, Treap, Vec};
 use m3::com::{MemGate, RecvGate, SGateArgs, SendGate};
 use m3::env;
@@ -487,7 +487,8 @@ pub trait Child {
             .get_rgate(name)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
 
-        let rgate = gates::get().get(rdesc.name().global()).unwrap();
+        let gates = gates::get();
+        let rgate = gates.get(rdesc.name().global()).unwrap();
         self.delegate(rgate.sel(), sel)?;
         Ok((
             math::next_log2(rgate.size()),
@@ -511,7 +512,8 @@ pub trait Child {
             return Err(Error::new(Code::Exists));
         }
 
-        let rgate = gates::get().get(sdesc.name().global()).unwrap();
+        let gates = gates::get();
+        let rgate = gates.get(sdesc.name().global()).unwrap();
 
         let sgate = SendGate::new_with(
             SGateArgs::new(rgate)
@@ -536,7 +538,8 @@ pub trait Child {
         let cfg = self.cfg();
         let sdesc = cfg.get_sem(name).ok_or_else(|| Error::new(Code::InvArgs))?;
 
-        let sem = sems::get()
+        let sems = sems::get();
+        let sem = sems
             .get(sdesc.name().global())
             .ok_or_else(|| Error::new(Code::NotFound))?;
         self.delegate(sem.sel(), sel)
@@ -598,14 +601,15 @@ pub trait Child {
                 if idx == 0 {
                     let (total_kmem, avail_kmem) = VPE::cur().kmem().quota()?;
                     let (total_eps, avail_eps) = VPE::cur().pe().quota()?;
+                    let mem = memory::container();
                     return Ok(ResMngVPEInfoResult::Info(ResMngVPEInfo {
                         id: VPE::cur().id(),
                         layer: parent_layer + 0,
                         name: env::args().next().unwrap().to_string(),
                         daemon: true,
                         mem_pool: parent_num as u64,
-                        total_umem: memory::container().capacity() as usize,
-                        avail_umem: memory::container().available() as usize,
+                        total_umem: mem.capacity() as usize,
+                        avail_umem: mem.available() as usize,
                         total_kmem,
                         avail_kmem,
                         total_eps,
@@ -1031,7 +1035,8 @@ pub struct ChildManager {
     foreigns: usize,
 }
 
-static MNG: StaticCell<ChildManager> = StaticCell::new(ChildManager::new());
+// TODO can we use a safe cell here?
+static MNG: StaticUnsafeCell<ChildManager> = StaticUnsafeCell::new(ChildManager::new());
 
 pub fn get() -> &'static mut ChildManager {
     MNG.get_mut()

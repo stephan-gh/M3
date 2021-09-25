@@ -23,7 +23,7 @@ mod physmem;
 mod regions;
 
 use m3::cap::Selector;
-use m3::cell::{LazyStaticCell, StaticCell};
+use m3::cell::{LazyStaticCell, StaticUnsafeCell};
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, MGateArgs, MemGate, RecvGate, SGateArgs, SendGate};
 use m3::env;
@@ -50,7 +50,8 @@ pub const LOG_DEF: bool = false;
 static PGHDL: LazyStaticCell<PagerReqHandler> = LazyStaticCell::default();
 static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
 static MOUNTS: LazyStaticCell<Vec<(String, vfs::FSHandle)>> = LazyStaticCell::default();
-static PMP_PES: StaticCell<Vec<PEId>> = StaticCell::new(Vec::new());
+// TODO can we use a safe cell here?
+static PMP_PES: StaticUnsafeCell<Vec<PEId>> = StaticUnsafeCell::new(Vec::new());
 static SETTINGS: LazyStaticCell<PagerSettings> = LazyStaticCell::default();
 
 struct PagerReqHandler {

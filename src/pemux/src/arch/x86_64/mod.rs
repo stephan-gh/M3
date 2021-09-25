@@ -74,13 +74,13 @@ pub fn init_state(state: &mut State, entry: usize, sp: usize) {
 }
 
 pub fn forget_fpu(vpe_id: vpe::Id) {
-    if *FPU_OWNER == vpe_id {
+    if FPU_OWNER.get() == vpe_id {
         FPU_OWNER.set(pemux::VPE_ID);
     }
 }
 
 pub fn disable_fpu() {
-    if vpe::cur().id() != *FPU_OWNER {
+    if vpe::cur().id() != FPU_OWNER.get() {
         cpu::write_cr0(cpu::read_cr0() | CR0_TASK_SWITCHED);
     }
 }
@@ -90,7 +90,7 @@ pub fn handle_fpu_ex(_state: &mut State) {
 
     cpu::write_cr0(cpu::read_cr0() & !CR0_TASK_SWITCHED);
 
-    let old_id = *FPU_OWNER & 0xFFFF;
+    let old_id = FPU_OWNER.get() & 0xFFFF;
     if old_id != cur.id() {
         // need to save old state?
         if old_id != pemux::VPE_ID {

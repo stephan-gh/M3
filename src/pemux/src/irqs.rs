@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::StaticCell;
+use base::cell::StaticRefCell;
 use base::log;
 use base::pexif;
 
@@ -28,11 +28,12 @@ struct IRQCounter {
 
 const MAX_IRQS: usize = 5;
 
-static IRQS: StaticCell<[Option<IRQCounter>; MAX_IRQS]> = StaticCell::new([None; MAX_IRQS]);
+static IRQS: StaticRefCell<[Option<IRQCounter>; MAX_IRQS]> = StaticRefCell::new([None; MAX_IRQS]);
 
 pub fn register(vpe: &mut vpe::VPE, irq: pexif::IRQId) {
-    assert!(IRQS[irq as usize].is_none());
-    IRQS.get_mut()[irq as usize] = Some(IRQCounter {
+    let mut irqs = IRQS.borrow_mut();
+    assert!(irqs[irq as usize].is_none());
+    irqs[irq as usize] = Some(IRQCounter {
         vpe: vpe.id(),
         counter: 0,
     });
@@ -40,15 +41,16 @@ pub fn register(vpe: &mut vpe::VPE, irq: pexif::IRQId) {
 }
 
 pub fn wait(cur: &vpe::VPE, irq: Option<pexif::IRQId>) -> Option<vpe::Event> {
+    let mut irqs = IRQS.borrow_mut();
     if let Some(i) = irq {
-        let cnt = &mut IRQS.get_mut()[i as usize]?;
+        let cnt = &mut irqs[i as usize]?;
         if cnt.vpe == cur.id() && cnt.counter > 0 {
             cnt.counter -= 1;
             return Some(vpe::Event::Interrupt(i));
         }
     }
     else {
-        for (i, cnt) in IRQS.get_mut().iter_mut().flatten().enumerate() {
+        for (i, cnt) in irqs.iter_mut().flatten().enumerate() {
             if cnt.vpe == cur.id() && cnt.counter > 0 {
                 cnt.counter -= 1;
                 return Some(vpe::Event::Interrupt(i as pexif::IRQId));
@@ -62,7 +64,8 @@ pub fn wait(cur: &vpe::VPE, irq: Option<pexif::IRQId>) -> Option<vpe::Event> {
 }
 
 pub fn signal(irq: pexif::IRQId) {
-    if let Some(ref mut cnt) = IRQS.get_mut()[irq as usize] {
+    let mut irqs = IRQS.borrow_mut();
+    if let Some(ref mut cnt) = irqs[irq as usize] {
         let vpe = vpe::get_mut(cnt.vpe).unwrap();
         if !vpe.unblock(vpe::Event::Interrupt(irq)) {
             cnt.counter += 1;
@@ -76,8 +79,9 @@ pub fn signal(irq: pexif::IRQId) {
 
 pub fn remove(vpe: &vpe::VPE) {
     if vpe.irq_mask() != 0 {
+        let mut irqs = IRQS.borrow_mut();
         for i in 0..MAX_IRQS {
-            let irq = &mut IRQS.get_mut()[i];
+            let irq = &mut irqs[i];
             if let Some(ref cnt) = irq {
                 if cnt.vpe == vpe.id() {
                     *irq = None;

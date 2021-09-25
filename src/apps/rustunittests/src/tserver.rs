@@ -203,7 +203,7 @@ impl Handler<EmptySession> for NotSupHandler {
         self.calls += 1;
         // stop the service after 5 calls
         if self.calls == 5 {
-            *STOP.get_mut() = true;
+            STOP.set(true);
         }
         Err(Error::new(Code::NotSup))
     }
@@ -211,7 +211,7 @@ impl Handler<EmptySession> for NotSupHandler {
     fn delegate(&mut self, _: usize, _: SessId, _: &mut CapExchange) -> Result<(), Error> {
         self.calls += 1;
         if self.calls == 5 {
-            *STOP.get_mut() = true;
+            STOP.set(true);
         }
         Err(Error::new(Code::NotSup))
     }
@@ -223,7 +223,7 @@ impl Handler<EmptySession> for NotSupHandler {
 
 fn server_notsup_main() -> i32 {
     for _ in 0..5 {
-        *STOP.get_mut() = false;
+        STOP.set(false);
 
         let mut hdl = NotSupHandler {
             sessions: SessionContainer::new(1),
@@ -232,7 +232,7 @@ fn server_notsup_main() -> i32 {
         let s = wv_assert_ok!(Server::new("test", &mut hdl));
 
         let res = server_loop(|| {
-            if *STOP {
+            if STOP.get() {
                 return Err(Error::new(Code::VPEGone));
             }
             s.handle_ctrl_chan(&mut hdl)

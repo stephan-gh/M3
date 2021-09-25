@@ -74,7 +74,7 @@ pub fn init(_args: &[String]) -> platform::KEnv {
 
     // register memory modules
     let mut kmem_idx = 0;
-    let mem: &mut mem::MainMemory = mem::get();
+    let mem = mem::get();
     for (i, pe) in pes.iter().enumerate() {
         if pe.pe_type() == PEType::MEM {
             // the first memory module hosts the FS image and other stuff
@@ -193,7 +193,7 @@ pub fn kernel_pe() -> PEId {
     envdata::get().pe_id as PEId
 }
 pub fn user_pes() -> platform::PEIterator {
-    platform::PEIterator::new(kernel_pe() + 1, *LAST_PE)
+    platform::PEIterator::new(kernel_pe() + 1, LAST_PE.get())
 }
 
 pub fn is_shared(pe: PEId) -> bool {

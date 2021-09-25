@@ -34,7 +34,7 @@ use crate::sess::{FSSession, M3FSSession, MetaSession};
 
 use m3::{
     cap::Selector,
-    cell::{LazyStaticCell, StaticCell},
+    cell::{LazyStaticCell, StaticUnsafeCell},
     col::{String, ToString, Vec},
     com::GateIStream,
     env,
@@ -67,7 +67,8 @@ const MSG_SIZE: usize = 128;
 static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
 
 // The global file handle in this process
-static FSHANDLE: StaticCell<Option<M3FSHandle>> = StaticCell::new(None);
+// TODO can we use a safe cell here?
+static FSHANDLE: StaticUnsafeCell<Option<M3FSHandle>> = StaticUnsafeCell::new(None);
 
 fn hdl() -> &'static mut M3FSHandle {
     FSHANDLE.get_mut().as_mut().unwrap()

@@ -15,7 +15,7 @@
  */
 
 use bitflags::bitflags;
-use m3::cell::StaticCell;
+use m3::cell::StaticRefCell;
 use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
@@ -41,7 +41,7 @@ const DMA_XFER_SLEEPTIME: Time = 20 * 1000; // cycles
 
 const SLEEP_TIME: Time = 20 * 1000; // cycles
 
-static BUF: StaticCell<[u16; 1024]> = StaticCell::new([0; 1024]);
+static BUF: StaticRefCell<[u16; 1024]> = StaticRefCell::new([0; 1024]);
 
 int_enum! {
     /// ATA I/O ports as offsets from base
@@ -319,6 +319,7 @@ impl Device {
         sec_count: usize,
         wait_first: bool,
     ) -> Result<(), Error> {
+        let mut buffer = BUF.borrow_mut();
         for i in 0..sec_count {
             if i > 0 || wait_first {
                 if op == DevOp::READ {
@@ -334,15 +335,12 @@ impl Device {
 
             match op {
                 DevOp::READ => {
-                    chan.read_pio_words(ATAReg::DATA, &mut BUF.get_mut()[0..sec_size / 2])?;
-                    buf.write(&BUF[0..sec_size / 2], (off + i * sec_size) as goff)?;
+                    chan.read_pio_words(ATAReg::DATA, &mut buffer[0..sec_size / 2])?;
+                    buf.write(&buffer[0..sec_size / 2], (off + i * sec_size) as goff)?;
                 },
                 _ => {
-                    buf.read(
-                        &mut BUF.get_mut()[0..sec_size / 2],
-                        (off + i * sec_size) as goff,
-                    )?;
-                    chan.write_pio_words(ATAReg::DATA, &BUF[0..sec_size / 2])?;
+                    buf.read(&mut buffer[0..sec_size / 2], (off + i * sec_size) as goff)?;
+                    chan.write_pio_words(ATAReg::DATA, &buffer[0..sec_size / 2])?;
                 },
             }
         }

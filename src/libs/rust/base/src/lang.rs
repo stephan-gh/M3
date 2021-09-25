@@ -32,7 +32,7 @@ fn panic(info: &PanicInfo) -> ! {
         crate::tcu::TCU::set_trace_instrs(false);
     }
 
-    if let Some(l) = log::Log::get() {
+    if let Some(mut l) = log::Log::get() {
         if let Some(loc) = info.location() {
             l.write_fmt(format_args!(
                 "PANIC at {}:{}:{}: ",

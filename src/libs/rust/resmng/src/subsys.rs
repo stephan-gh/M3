@@ -16,7 +16,7 @@
 
 use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::{RefCell, StaticCell};
+use m3::cell::{RefCell, StaticRefCell};
 use m3::cfg::PAGE_SIZE;
 use m3::col::{String, ToString, Vec};
 use m3::com::MemGate;
@@ -51,10 +51,10 @@ const SUBSYS_SELS: Selector = FIRST_FREE_SEL;
 
 pub(crate) const SERIAL_RGATE_SEL: Selector = SUBSYS_SELS + 1;
 
-static OUR_PE: StaticCell<Option<Rc<pes::PEUsage>>> = StaticCell::new(None);
+static OUR_PE: StaticRefCell<Option<Rc<pes::PEUsage>>> = StaticRefCell::new(None);
 // use Box here, because we also store them in the ChildManager, which expects them to be boxed
 #[allow(clippy::vec_box)]
-static DELAYED: StaticCell<Vec<Box<childs::OwnChild>>> = StaticCell::new(Vec::new());
+static DELAYED: StaticRefCell<Vec<Box<childs::OwnChild>>> = StaticRefCell::new(Vec::new());
 
 pub struct Arguments {
     pub share_kmem: bool,
@@ -292,7 +292,7 @@ impl Subsystem {
         // keep our own PE to make sure that we allocate a different one for the next domain in case
         // our domain contains just ourself.
         if !root.domains().first().unwrap().pseudo {
-            OUR_PE.set(Some(Rc::new(
+            OUR_PE.replace(Some(Rc::new(
                 pes::get()
                     .find_and_alloc(VPE::cur().pe_desc())
                     .map_err(|e| {
@@ -546,7 +546,7 @@ impl Subsystem {
                 log!(crate::LOG_CHILD, "Created {:?}", child);
 
                 if child.has_unmet_reqs() {
-                    DELAYED.get_mut().push(child);
+                    DELAYED.borrow_mut().push(child);
                 }
                 else {
                     spawn(&mut child)?;
@@ -715,21 +715,20 @@ impl SubsystemBuilder {
     }
 }
 
-pub(crate) fn start_delayed<S>(mut spawn: S) -> Result<(), VerboseError>
+pub(crate) fn start_delayed_async<S>(mut spawn_async: S) -> Result<(), VerboseError>
 where
     S: FnMut(&mut childs::OwnChild) -> Result<(), VerboseError>,
 {
     let mut new_wait = false;
     let mut idx = 0;
-    let delayed = DELAYED.get_mut();
-    while idx < delayed.len() {
-        if delayed[idx].has_unmet_reqs() {
+    while idx < DELAYED.borrow().len() {
+        if DELAYED.borrow()[idx].has_unmet_reqs() {
             idx += 1;
             continue;
         }
 
-        let mut child = delayed.remove(idx);
-        spawn(&mut child)?;
+        let mut child = DELAYED.borrow_mut().remove(idx);
+        spawn_async(&mut child)?;
         childs::get().add(child);
         new_wait = true;
     }

@@ -17,13 +17,13 @@
 use core::intrinsics;
 use core::ops::{Deref, DerefMut};
 
-use crate::cell::StaticCell;
+use crate::cell::StaticUnsafeCell;
 use crate::mem;
 use crate::util;
 
 pub const MAX_MSG_SIZE: usize = 512;
 
-static DEF_MSG_BUF: StaticCell<MsgBuf> = StaticCell::new(MsgBuf {
+static DEF_MSG_BUF: StaticUnsafeCell<MsgBuf> = StaticUnsafeCell::new(MsgBuf {
     bytes: [0u8; MAX_MSG_SIZE],
     pos: 0,
     used: false,

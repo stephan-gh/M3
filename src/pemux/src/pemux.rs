@@ -31,7 +31,7 @@ mod timer;
 mod vma;
 mod vpe;
 
-use base::cell::StaticCell;
+use base::cell::{Ref, StaticCell, StaticRefCell};
 use base::cfg;
 use base::envdata;
 use base::io;
@@ -79,14 +79,14 @@ pub struct PEXEnv {
     platform: u64,
 }
 
-static PEX_ENV: StaticCell<PEXEnv> = StaticCell::new(PEXEnv {
+static PEX_ENV: StaticRefCell<PEXEnv> = StaticRefCell::new(PEXEnv {
     pe_id: 0,
     pe_desc: kif::PEDesc::new_from(0),
     platform: 0,
 });
 
-pub fn pex_env() -> &'static PEXEnv {
-    PEX_ENV.get()
+pub fn pex_env() -> Ref<'static, PEXEnv> {
+    PEX_ENV.borrow()
 }
 
 pub fn app_env() -> &'static mut envdata::EnvData {
@@ -115,7 +115,7 @@ static SCHED: StaticCell<Option<vpe::ScheduleAction>> = StaticCell::new(None);
 fn leave(state: &mut arch::State) -> *mut libc::c_void {
     sidecalls::check();
 
-    if let Some(action) = SCHED.set(None) {
+    if let Some(action) = SCHED.replace(None) {
         vpe::schedule(action) as *mut libc::c_void
     }
     else {
@@ -128,7 +128,7 @@ pub fn reg_scheduling(action: vpe::ScheduleAction) {
 }
 
 pub fn scheduling_pending() -> bool {
-    SCHED.is_some()
+    SCHED.get().is_some()
 }
 
 pub extern "C" fn unexpected_irq(state: &mut arch::State) -> *mut libc::c_void {
@@ -192,9 +192,12 @@ pub extern "C" fn init() -> usize {
 
     // init our own environment; at this point we can still access app_env, because it is mapped by
     // the gem5 loader for us. afterwards, our address space does not contain that anymore.s
-    PEX_ENV.get_mut().pe_id = app_env().pe_id;
-    PEX_ENV.get_mut().pe_desc = kif::PEDesc::new_from(app_env().pe_desc);
-    PEX_ENV.get_mut().platform = app_env().platform;
+    {
+        let mut env = PEX_ENV.borrow_mut();
+        env.pe_id = app_env().pe_id;
+        env.pe_desc = kif::PEDesc::new_from(app_env().pe_desc);
+        env.platform = app_env().platform;
+    }
 
     unsafe {
         heap_init(
@@ -214,7 +217,7 @@ pub extern "C" fn init() -> usize {
     let state_top = state as *const _ as usize + mem::size_of::<arch::State>();
     arch::init(state);
     // store platform already in app env, because we need it for logging
-    app_env().platform = PEX_ENV.get_mut().platform;
+    app_env().platform = pex_env().platform;
 
     state_top
 }

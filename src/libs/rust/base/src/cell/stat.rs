@@ -14,58 +14,45 @@
  * General Public License version 2 for more details.
  */
 
-use core::cell::UnsafeCell;
+use core::cell::Cell;
 use core::fmt;
 use core::marker::Sync;
-use core::ops::Deref;
 
-use crate::mem;
-
-/// A cell that allows to mutate a static immutable object in single threaded environments
+/// A cell that can be used as a static object in single threaded environments
 ///
-/// Since M3 does not support multiple threads within one address space, mutable static objects
-/// are perfectly fine. Thus, use this wrapper to convince rust of that.
-pub struct StaticCell<T: Sized> {
-    inner: UnsafeCell<T>,
+/// Since M3 does not support multiple threads within one address space, a static cell is fine.
+pub struct StaticCell<T: Copy + Sized> {
+    inner: Cell<T>,
 }
 
-unsafe impl<T: Sized> Sync for StaticCell<T> {
+unsafe impl<T: Copy + Sized> Sync for StaticCell<T> {
 }
 
-impl<T: Sized> StaticCell<T> {
+impl<T: Copy + Sized> StaticCell<T> {
     /// Creates a new static cell with given value
     pub const fn new(val: T) -> Self {
         StaticCell {
-            inner: UnsafeCell::new(val),
+            inner: Cell::new(val),
         }
     }
 
-    /// Returns a reference to the inner value
-    pub fn get(&self) -> &T {
-        unsafe { &*self.inner.get() }
+    /// Returns the inner value
+    pub fn get(&self) -> T {
+        self.inner.get()
     }
 
-    /// Returns a mutable reference to the inner value
-    #[allow(clippy::mut_from_ref)]
-    pub fn get_mut(&self) -> &mut T {
-        unsafe { &mut *self.inner.get() }
+    /// Sets the inner value
+    pub fn set(&self, val: T) {
+        self.inner.set(val);
     }
 
     /// Sets the inner value to `val` and returns the old value
-    pub fn set(&self, val: T) -> T {
-        mem::replace(self.get_mut(), val)
+    pub fn replace(&self, val: T) -> T {
+        self.inner.replace(val)
     }
 }
 
-impl<T: Sized> Deref for StaticCell<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        self.get()
-    }
-}
-
-impl<T: fmt::Debug> fmt::Debug for StaticCell<T> {
+impl<T: Copy + fmt::Debug> fmt::Debug for StaticCell<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.get().fmt(f)
     }

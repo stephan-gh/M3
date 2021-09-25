@@ -15,7 +15,7 @@
  */
 
 use m3::boxed::Box;
-use m3::cell::StaticCell;
+use m3::cell::StaticRefCell;
 use m3::com::MemGate;
 use m3::io;
 use m3::kif;
@@ -30,7 +30,7 @@ use m3::{format, wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test};
 const DATA_SIZE: usize = 2 * 1024 * 1024;
 const BUF_SIZE: usize = 8 * 1024;
 
-static BUF: StaticCell<AlignedBuf<BUF_SIZE>> = StaticCell::new(AlignedBuf::new_zeroed());
+static BUF: StaticRefCell<AlignedBuf<BUF_SIZE>> = StaticRefCell::new(AlignedBuf::new_zeroed());
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, child_to_parent);
@@ -62,9 +62,10 @@ fn child_to_parent() {
 
                 let act = wv_assert_ok!(vpe.run(Box::new(|| {
                     let output = VPE::cur().files().get(io::STDOUT_FILENO).unwrap();
+                    let buf = BUF.borrow();
                     let mut rem = DATA_SIZE;
                     while rem > 0 {
-                        wv_assert_ok!(output.borrow_mut().write(&BUF[..]));
+                        wv_assert_ok!(output.borrow_mut().write(&buf[..]));
                         rem -= BUF_SIZE;
                     }
                     0
@@ -73,7 +74,8 @@ fn child_to_parent() {
                 pipe.close_writer();
 
                 let input = VPE::cur().files().get(pipe.reader_fd()).unwrap();
-                while wv_assert_ok!(input.borrow_mut().read(&mut BUF.get_mut()[..])) > 0 {}
+                let mut buf = BUF.borrow_mut();
+                while wv_assert_ok!(input.borrow_mut().read(&mut buf[..])) > 0 {}
 
                 wv_assert_eq!(act.wait(), Ok(0));
             },
@@ -107,16 +109,18 @@ fn parent_to_child() {
 
                 let act = wv_assert_ok!(vpe.run(Box::new(|| {
                     let input = VPE::cur().files().get(io::STDIN_FILENO).unwrap();
-                    while wv_assert_ok!(input.borrow_mut().read(&mut BUF.get_mut()[..])) > 0 {}
+                    let mut buf = BUF.borrow_mut();
+                    while wv_assert_ok!(input.borrow_mut().read(&mut buf[..])) > 0 {}
                     0
                 })));
 
                 pipe.close_reader();
 
                 let output = VPE::cur().files().get(pipe.writer_fd()).unwrap();
+                let buf = BUF.borrow();
                 let mut rem = DATA_SIZE;
                 while rem > 0 {
-                    wv_assert_ok!(output.borrow_mut().write(&BUF[..]));
+                    wv_assert_ok!(output.borrow_mut().write(&buf[..]));
                     rem -= BUF_SIZE;
                 }
 

@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::StaticCell;
+use base::cell::StaticUnsafeCell;
 use base::col::Vec;
 use base::goff;
 use base::mem::GlobAddr;
@@ -64,7 +64,7 @@ impl Drop for Allocation {
 }
 
 impl MainMemory {
-    fn new() -> Self {
+    const fn new() -> Self {
         MainMemory { mods: Vec::new() }
     }
 
@@ -139,12 +139,8 @@ impl fmt::Debug for MainMemory {
     }
 }
 
-static MEM: StaticCell<Option<MainMemory>> = StaticCell::new(None);
-
-pub fn init() {
-    MEM.set(Some(MainMemory::new()));
-}
+static MEM: StaticUnsafeCell<MainMemory> = StaticUnsafeCell::new(MainMemory::new());
 
 pub fn get() -> &'static mut MainMemory {
-    MEM.get_mut().as_mut().unwrap()
+    MEM.get_mut()
 }

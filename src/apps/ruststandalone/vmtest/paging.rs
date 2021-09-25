@@ -44,7 +44,7 @@ impl Allocator for PTAllocator {
     }
 
     fn translate_pt(&self, phys: Phys) -> usize {
-        if *BOOTSTRAP {
+        if BOOTSTRAP.get() {
             phys as usize
         }
         else {

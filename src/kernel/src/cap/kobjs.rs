@@ -747,8 +747,8 @@ pub struct KMemObject {
 
 impl KMemObject {
     pub fn new(quota: usize) -> SRc<Self> {
-        let id = *NEXT_KMEM_ID;
-        *NEXT_KMEM_ID.get_mut() += 1;
+        let id = NEXT_KMEM_ID.get();
+        NEXT_KMEM_ID.set(id + 1);
 
         let kmem = SRc::new(Self {
             id,

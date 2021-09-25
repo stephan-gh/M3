@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::cell::{RefCell, StaticCell};
+use m3::cell::{RefCell, StaticUnsafeCell};
 use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
@@ -126,7 +126,8 @@ pub struct PEManager {
     pes: Vec<ManagedPE>,
 }
 
-static MNG: StaticCell<PEManager> = StaticCell::new(PEManager::new());
+// TODO can we use a safe cell here?
+static MNG: StaticUnsafeCell<PEManager> = StaticUnsafeCell::new(PEManager::new());
 
 pub fn get() -> &'static mut PEManager {
     MNG.get_mut()

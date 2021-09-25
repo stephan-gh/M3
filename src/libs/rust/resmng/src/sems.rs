@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::cell::StaticCell;
+use m3::cell::{RefMut, StaticRefCell};
 use m3::col::{String, Vec};
 use m3::com::Semaphore;
 use m3::errors::{Code, Error};
@@ -24,10 +24,10 @@ pub struct SemManager {
     sems: Vec<(String, Semaphore)>,
 }
 
-static MNG: StaticCell<SemManager> = StaticCell::new(SemManager::new());
+static MNG: StaticRefCell<SemManager> = StaticRefCell::new(SemManager::new());
 
-pub fn get() -> &'static mut SemManager {
-    MNG.get_mut()
+pub fn get() -> RefMut<'static, SemManager> {
+    MNG.borrow_mut()
 }
 
 impl SemManager {

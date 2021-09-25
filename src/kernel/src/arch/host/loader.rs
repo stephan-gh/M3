@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::StaticCell;
+use base::cell::StaticUnsafeCell;
 use base::cfg;
 use base::col::{String, ToString, Vec};
 use base::envdata;
@@ -31,7 +31,8 @@ pub fn init(build_dir: &str) {
     LOADER.set(Some(Loader::new(build_dir)));
 }
 
-static LOADER: StaticCell<Option<Loader>> = StaticCell::new(None);
+// TODO get rid of this cell
+static LOADER: StaticUnsafeCell<Option<Loader>> = StaticUnsafeCell::new(None);
 
 pub struct Loader {
     build_dir: String,

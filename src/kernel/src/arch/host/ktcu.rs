@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::StaticCell;
+use base::cell::StaticRefCell;
 use base::cfg::PE_COUNT;
 use base::col::Vec;
 use base::envdata;
@@ -22,7 +22,7 @@ use base::errors::Error;
 use base::goff;
 use base::kif::{PageFlags, Perm};
 use base::libc;
-use base::mem::{GlobAddr, size_of};
+use base::mem::{size_of, GlobAddr};
 use base::rc::Rc;
 use base::tcu::*;
 
@@ -131,16 +131,17 @@ impl EP {
     }
 }
 
-static ALL_EPS: StaticCell<Vec<EP>> = StaticCell::new(Vec::new());
+static ALL_EPS: StaticRefCell<Vec<EP>> = StaticRefCell::new(Vec::new());
 
 fn ep_idx(pe: PEId, ep: EpId) -> usize {
     pe as usize * TOTAL_EPS as usize + ep as usize
 }
 
 pub fn init() {
+    let mut all_eps = ALL_EPS.borrow_mut();
     for _ in 0..PE_COUNT {
         for _ in 0..TOTAL_EPS {
-            ALL_EPS.get_mut().push(EP::new(&[0; EP_REGS], false));
+            all_eps.push(EP::new(&[0; EP_REGS], false));
         }
     }
 }
@@ -156,14 +157,15 @@ pub fn write_ep_remote(pe: PEId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
         ktcu::try_write_mem(pe, addr as goff, regs.as_ptr() as *const u8, bytes)
     }
     else {
-        ALL_EPS.get_mut()[ep_idx(pe, ep)] = EP::new(regs, true);
+        ALL_EPS.borrow_mut()[ep_idx(pe, ep)] = EP::new(regs, true);
         Ok(())
     }
 }
 
 pub fn update_eps(pe: PEId, base: goff) -> Result<(), Error> {
+    let mut all_eps = ALL_EPS.borrow_mut();
     for ep in FIRST_USER_EP..TOTAL_EPS {
-        let mut ep_obj = &mut ALL_EPS.get_mut()[ep_idx(pe, ep)];
+        let mut ep_obj = &mut all_eps[ep_idx(pe, ep)];
         if ep_obj.dirty {
             ep_obj.regs[EpReg::BUF_ADDR.val as usize] += base;
             write_ep_remote(pe, ep, &ep_obj.regs)?;

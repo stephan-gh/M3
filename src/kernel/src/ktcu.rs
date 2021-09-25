@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::StaticCell;
+use base::cell::{StaticCell, StaticRefCell};
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif;
@@ -32,8 +32,8 @@ pub const KSRV_EP: EpId = PMEM_PROT_EPS as EpId + 1;
 pub const KTMP_EP: EpId = PMEM_PROT_EPS as EpId + 2;
 
 #[cfg(not(target_vendor = "host"))]
-static BUF: StaticCell<[u8; 8192]> = StaticCell::new([0u8; 8192]);
-static RBUFS: StaticCell<[usize; 8]> = StaticCell::new([0usize; 8]);
+static BUF: StaticRefCell<[u8; 8192]> = StaticRefCell::new([0u8; 8192]);
+static RBUFS: StaticRefCell<[usize; 8]> = StaticRefCell::new([0usize; 8]);
 
 pub fn config_local_ep<CFG>(ep: EpId, cfg: CFG)
 where
@@ -56,29 +56,29 @@ where
 pub fn recv_msgs(ep: EpId, buf: goff, ord: u32, msg_ord: u32) -> Result<(), Error> {
     static REPS: StaticCell<EpId> = StaticCell::new(8);
 
-    if *REPS + (1 << (ord - msg_ord)) > AVAIL_EPS {
+    if REPS.get() + (1 << (ord - msg_ord)) > AVAIL_EPS {
         return Err(Error::new(Code::NoSpace));
     }
 
     let (buf, phys) = rbuf_addrs(buf);
     config_local_ep(ep, |regs| {
-        config_recv(regs, KERNEL_ID, phys, ord, msg_ord, Some(*REPS));
-        *REPS.get_mut() += 1 << (ord - msg_ord);
+        config_recv(regs, KERNEL_ID, phys, ord, msg_ord, Some(REPS.get()));
+        REPS.set(REPS.get() + (1 << (ord - msg_ord)));
     });
-    RBUFS.get_mut()[ep as usize] = buf as usize;
+    RBUFS.borrow_mut()[ep as usize] = buf as usize;
     Ok(())
 }
 
 pub fn drop_msgs(rep: EpId, label: Label) {
-    TCU::drop_msgs_with(RBUFS[rep as usize], rep, label);
+    TCU::drop_msgs_with(RBUFS.borrow()[rep as usize], rep, label);
 }
 
 pub fn fetch_msg(rep: EpId) -> Option<&'static Message> {
-    TCU::fetch_msg(rep).map(|off| TCU::offset_to_msg(RBUFS[rep as usize], off))
+    TCU::fetch_msg(rep).map(|off| TCU::offset_to_msg(RBUFS.borrow()[rep as usize], off))
 }
 
 pub fn ack_msg(rep: EpId, msg: &Message) {
-    let off = TCU::msg_to_offset(RBUFS[rep as usize], msg);
+    let off = TCU::msg_to_offset(RBUFS.borrow()[rep as usize], msg);
     TCU::ack_msg(rep, off).unwrap();
 }
 
@@ -108,7 +108,7 @@ pub fn send_to(
 }
 
 pub fn reply(ep: EpId, reply: &mem::MsgBuf, msg: &Message) -> Result<(), Error> {
-    let msg_off = TCU::msg_to_offset(RBUFS[ep as usize], msg);
+    let msg_off = TCU::msg_to_offset(RBUFS.borrow()[ep as usize], msg);
     TCU::reply(ep, reply, msg_off)
 }
 
@@ -181,15 +181,16 @@ pub fn try_write_mem(pe: PEId, addr: goff, data: *const u8, size: usize) -> Resu
 pub fn clear(dst_pe: PEId, mut dst_addr: goff, size: usize) -> Result<(), Error> {
     use base::libc;
 
-    let clear_size = core::cmp::min(size, BUF.len());
+    let mut buf = BUF.borrow_mut();
+    let clear_size = core::cmp::min(size, buf.len());
     unsafe {
-        libc::memset(BUF.get_mut() as *mut _ as *mut libc::c_void, 0, clear_size);
+        libc::memset(buf.as_mut_ptr() as *mut libc::c_void, 0, clear_size);
     }
 
     let mut rem = size;
     while rem > 0 {
-        let amount = core::cmp::min(rem, BUF.len());
-        try_write_slice(dst_pe, dst_addr, &BUF[0..amount])?;
+        let amount = core::cmp::min(rem, buf.len());
+        try_write_slice(dst_pe, dst_addr, &buf[0..amount])?;
         dst_addr += amount as goff;
         rem -= amount;
     }
@@ -204,11 +205,12 @@ pub fn copy(
     mut src_addr: goff,
     size: usize,
 ) -> Result<(), Error> {
+    let mut buf = BUF.borrow_mut();
     let mut rem = size;
     while rem > 0 {
-        let amount = core::cmp::min(rem, BUF.len());
-        try_read_slice(src_pe, src_addr, &mut BUF.get_mut()[0..amount])?;
-        try_write_slice(dst_pe, dst_addr, &BUF[0..amount])?;
+        let amount = core::cmp::min(rem, buf.len());
+        try_read_slice(src_pe, src_addr, &mut buf[0..amount])?;
+        try_write_slice(dst_pe, dst_addr, &buf[0..amount])?;
         src_addr += amount as goff;
         dst_addr += amount as goff;
         rem -= amount;

@@ -15,7 +15,7 @@
  */
 
 use base::boxed::Box;
-use base::cell::{LazyStaticCell, StaticCell};
+use base::cell::{LazyStaticCell, StaticUnsafeCell};
 use base::cfg;
 use base::col::{BoxList, Vec};
 use base::errors::{Code, Error};
@@ -80,7 +80,7 @@ enum VPEState {
     Blocked,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ScheduleAction {
     Block,
     Yield,
@@ -132,17 +132,18 @@ pub struct VPE {
 
 impl_boxitem!(VPE);
 
-static VPES: StaticCell<[Option<NonNull<VPE>>; 64]> = StaticCell::new([None; 64]);
+// TODO can we use safe cells here?
+static VPES: StaticUnsafeCell<[Option<NonNull<VPE>>; 64]> = StaticUnsafeCell::new([None; 64]);
 
 static IDLE: LazyStaticCell<Box<VPE>> = LazyStaticCell::default();
 static OUR: LazyStaticCell<Box<VPE>> = LazyStaticCell::default();
 
-static CUR: StaticCell<Option<Box<VPE>>> = StaticCell::new(None);
-static RDY: StaticCell<BoxList<VPE>> = StaticCell::new(BoxList::new());
-static BLK: StaticCell<BoxList<VPE>> = StaticCell::new(BoxList::new());
+static CUR: StaticUnsafeCell<Option<Box<VPE>>> = StaticUnsafeCell::new(None);
+static RDY: StaticUnsafeCell<BoxList<VPE>> = StaticUnsafeCell::new(BoxList::new());
+static BLK: StaticUnsafeCell<BoxList<VPE>> = StaticUnsafeCell::new(BoxList::new());
 
-static BOOTSTRAP: StaticCell<bool> = StaticCell::new(true);
-static PTS: StaticCell<Vec<Phys>> = StaticCell::new(Vec::new());
+static BOOTSTRAP: StaticUnsafeCell<bool> = StaticUnsafeCell::new(true);
+static PTS: StaticUnsafeCell<Vec<Phys>> = StaticUnsafeCell::new(Vec::new());
 
 pub fn init() {
     extern "C" {

@@ -15,7 +15,7 @@
  */
 
 use m3::cap::Selector;
-use m3::cell::StaticCell;
+use m3::cell::StaticRefCell;
 use m3::cfg;
 use m3::com::MemGate;
 use m3::errors::Error;
@@ -23,15 +23,16 @@ use m3::goff;
 use m3::mem;
 
 static ZEROS: mem::AlignedBuf<{ cfg::PAGE_SIZE }> = mem::AlignedBuf::new_zeroed();
-static BUF: StaticCell<mem::AlignedBuf<{ cfg::PAGE_SIZE }>> =
-    StaticCell::new(mem::AlignedBuf::new_zeroed());
+static BUF: StaticRefCell<mem::AlignedBuf<{ cfg::PAGE_SIZE }>> =
+    StaticRefCell::new(mem::AlignedBuf::new_zeroed());
 
 pub fn copy_block(src: &MemGate, dst: &MemGate, src_off: goff, size: goff) {
+    let mut buf = BUF.borrow_mut();
     let pages = size / cfg::PAGE_SIZE as goff;
     for i in 0..pages {
-        src.read(&mut BUF.get_mut()[..], src_off + i * cfg::PAGE_SIZE as goff)
+        src.read(&mut buf[..], src_off + i * cfg::PAGE_SIZE as goff)
             .unwrap();
-        dst.write(&BUF[..], i * cfg::PAGE_SIZE as goff).unwrap();
+        dst.write(&buf[..], i * cfg::PAGE_SIZE as goff).unwrap();
     }
 }
 

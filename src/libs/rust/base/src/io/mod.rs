@@ -63,7 +63,7 @@ macro_rules! llog {
         if $type {
             #[allow(unused_imports)]
             use $crate::io::Write;
-            if let Some(l) = $crate::io::log::Log::get() {
+            if let Some(mut l) = $crate::io::log::Log::get() {
                 l.write_fmt(format_args!($($args)*)).unwrap();
             }
         }
@@ -76,14 +76,14 @@ macro_rules! llog {
 ///
 /// The address range needs to be readable
 pub unsafe fn log_bytes(addr: *const u8, len: usize) {
-    if let Some(l) = log::Log::get() {
+    if let Some(mut l) = log::Log::get() {
         l.dump_bytes(addr, len).unwrap();
     }
 }
 
 /// Writes the given slice to the log, showing `addr` as a prefix.
 pub fn log_slice(slice: &[u8], addr: usize) {
-    if let Some(l) = log::Log::get() {
+    if let Some(mut l) = log::Log::get() {
         l.dump_slice(slice, addr).unwrap();
     }
 }

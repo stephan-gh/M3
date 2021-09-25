@@ -110,6 +110,6 @@ pub fn mem_start() -> usize {
             MEM.set(Some(addr as usize));
             addr as usize
         },
-        Some(m) => *m,
+        Some(m) => m,
     }
 }

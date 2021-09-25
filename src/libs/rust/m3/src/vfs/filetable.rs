@@ -143,7 +143,7 @@ impl FileTable {
             let file_type: u8 = s.pop().unwrap();
             ft.set(fd, match file_type {
                 b'F' => GenericFile::unserialize(s),
-                b'S' => Rc::new(RefCell::new(Serial::default())),
+                b'S' => Rc::new(RefCell::new(Serial::new())),
                 _ => panic!("Unexpected file type {}", file_type),
             });
         }

@@ -18,7 +18,7 @@
 
 use core::cmp;
 
-use crate::cell::StaticCell;
+use crate::cell::{RefMut, StaticCell, StaticRefCell};
 use crate::errors::Error;
 use crate::io::{Serial, Write};
 use crate::tcu::TCU;
@@ -41,7 +41,8 @@ pub const NET: bool = false;
 const MAX_LINE_LEN: usize = 180;
 const SUFFIX: &[u8] = b"\x1B[0m";
 
-static LOG: StaticCell<Option<Log>> = StaticCell::new(None);
+static LOG_READY: StaticCell<bool> = StaticCell::new(false);
+static LOG: StaticRefCell<Log> = StaticRefCell::new(Log::new());
 
 /// A buffered logger that writes to the serial line
 pub struct Log {
@@ -54,8 +55,21 @@ pub struct Log {
 
 impl Log {
     /// Returns the logger
-    pub fn get() -> Option<&'static mut Log> {
-        LOG.get_mut().as_mut()
+    pub fn get() -> Option<RefMut<'static, Log>> {
+        match LOG_READY.get() {
+            true => Some(LOG.borrow_mut()),
+            false => None,
+        }
+    }
+
+    pub(crate) const fn new() -> Self {
+        Log {
+            serial: Serial::new(),
+            buf: [0; MAX_LINE_LEN],
+            pos: 0,
+            time_pos: 0,
+            start_pos: 0,
+        }
     }
 
     fn write_bytes(&mut self, bytes: &[u8]) {
@@ -104,18 +118,6 @@ impl Log {
     }
 }
 
-impl Default for Log {
-    fn default() -> Self {
-        Log {
-            serial: Serial::default(),
-            buf: [0; MAX_LINE_LEN],
-            pos: 0,
-            time_pos: 0,
-            start_pos: 0,
-        }
-    }
-}
-
 impl Write for Log {
     fn flush(&mut self) -> Result<(), Error> {
         let length = self.pos;
@@ -142,7 +144,7 @@ impl Write for Log {
 
 /// Initializes the logger
 pub fn init(pe_id: u64, name: &str) {
-    LOG.set(Some(Log::default()));
+    LOG_READY.set(true);
     reinit(pe_id, name);
 }
 

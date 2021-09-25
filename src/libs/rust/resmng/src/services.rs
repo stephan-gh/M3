@@ -15,7 +15,7 @@
  */
 
 use m3::cap::{CapFlags, Capability, Selector};
-use m3::cell::StaticCell;
+use m3::cell::StaticUnsafeCell;
 use m3::col::{String, Vec};
 use m3::com::SendGate;
 use m3::errors::{Code, Error};
@@ -198,7 +198,8 @@ pub struct ServiceManager {
     next_id: Id,
 }
 
-static MNG: StaticCell<ServiceManager> = StaticCell::new(ServiceManager::new());
+// TODO can we use a safe cell here?
+static MNG: StaticUnsafeCell<ServiceManager> = StaticUnsafeCell::new(ServiceManager::new());
 
 pub fn get() -> &'static mut ServiceManager {
     MNG.get_mut()
