@@ -15,7 +15,7 @@
  */
 
 use base::boxed::Box;
-use base::cell::{LazyStaticCell, StaticUnsafeCell};
+use base::cell::{LazyStaticUnsafeCell, StaticUnsafeCell};
 use base::cfg;
 use base::col::{BoxList, Vec};
 use base::errors::{Code, Error};
@@ -135,8 +135,8 @@ impl_boxitem!(VPE);
 // TODO can we use safe cells here?
 static VPES: StaticUnsafeCell<[Option<NonNull<VPE>>; 64]> = StaticUnsafeCell::new([None; 64]);
 
-static IDLE: LazyStaticCell<Box<VPE>> = LazyStaticCell::default();
-static OUR: LazyStaticCell<Box<VPE>> = LazyStaticCell::default();
+static IDLE: LazyStaticUnsafeCell<Box<VPE>> = LazyStaticUnsafeCell::default();
+static OUR: LazyStaticUnsafeCell<Box<VPE>> = LazyStaticUnsafeCell::default();
 
 static CUR: StaticUnsafeCell<Option<Box<VPE>>> = StaticUnsafeCell::new(None);
 static RDY: StaticUnsafeCell<BoxList<VPE>> = StaticUnsafeCell::new(BoxList::new());

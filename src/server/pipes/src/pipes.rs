@@ -19,7 +19,7 @@
 mod sess;
 
 use m3::cap::Selector;
-use m3::cell::LazyStaticCell;
+use m3::cell::LazyStaticUnsafeCell;
 use m3::col::{String, Vec};
 use m3::com::GateIStream;
 use m3::env;
@@ -42,7 +42,7 @@ use sess::{ChanType, Channel, Meta, PipesSession, SessionData};
 
 pub const LOG_DEF: bool = false;
 
-static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
+static REQHDL: LazyStaticUnsafeCell<RequestHandler> = LazyStaticUnsafeCell::default();
 
 int_enum! {
     pub struct Operation : u64 {

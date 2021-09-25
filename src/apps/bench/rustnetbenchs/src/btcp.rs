@@ -37,7 +37,7 @@ fn latency() {
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
-    wv_assert_ok!(socket.connect(Endpoint::new(*crate::DST_IP, 1338)));
+    wv_assert_ok!(socket.connect(Endpoint::new(crate::DST_IP.get(), 1338)));
 
     let samples = 5;
 
@@ -98,7 +98,7 @@ fn bandwidth() {
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
-    wv_assert_ok!(socket.connect(Endpoint::new(*crate::DST_IP, 1338)));
+    wv_assert_ok!(socket.connect(Endpoint::new(crate::DST_IP.get(), 1338)));
 
     let mut buf = [0u8; 1024];
 

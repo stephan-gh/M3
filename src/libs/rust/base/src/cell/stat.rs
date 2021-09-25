@@ -41,7 +41,7 @@ impl<T: Copy + Sized> StaticCell<T> {
         self.inner.get()
     }
 
-    /// Sets the inner value
+    /// Sets the inner value to `val`
     pub fn set(&self, val: T) {
         self.inner.set(val);
     }

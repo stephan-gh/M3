@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use crate::cell::{LazyStaticCell, RefCell};
+use crate::cell::{LazyStaticUnsafeCell, RefCell};
 use crate::io::Serial;
 use crate::mem;
 use crate::pes::VPE;
@@ -28,9 +28,9 @@ pub const STDOUT_FILENO: Fd = 1;
 /// The file descriptor for the standard error stream
 pub const STDERR_FILENO: Fd = 2;
 
-static STDIN: LazyStaticCell<BufReader<FileRef>> = LazyStaticCell::default();
-static STDOUT: LazyStaticCell<BufWriter<FileRef>> = LazyStaticCell::default();
-static STDERR: LazyStaticCell<BufWriter<FileRef>> = LazyStaticCell::default();
+static STDIN: LazyStaticUnsafeCell<BufReader<FileRef>> = LazyStaticUnsafeCell::default();
+static STDOUT: LazyStaticUnsafeCell<BufWriter<FileRef>> = LazyStaticUnsafeCell::default();
+static STDERR: LazyStaticUnsafeCell<BufWriter<FileRef>> = LazyStaticUnsafeCell::default();
 
 /// The standard input stream
 pub fn stdin() -> &'static mut BufReader<FileRef> {

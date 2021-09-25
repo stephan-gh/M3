@@ -19,7 +19,7 @@ use base::format;
 
 use crate::arch;
 use crate::cap::Selector;
-use crate::cell::LazyStaticCell;
+use crate::cell::LazyStaticUnsafeCell;
 use crate::col::{String, Vec};
 use crate::com::SendGate;
 use crate::kif::{self, PEDesc, PEType, PEISA};
@@ -151,7 +151,7 @@ fn read_line(fd: i32) -> String {
     unsafe { String::from_utf8_unchecked(vec) }
 }
 
-static ENV_DATA: LazyStaticCell<EnvData> = LazyStaticCell::default();
+static ENV_DATA: LazyStaticUnsafeCell<EnvData> = LazyStaticUnsafeCell::default();
 
 pub fn get() -> &'static mut EnvData {
     ENV_DATA.get_mut()

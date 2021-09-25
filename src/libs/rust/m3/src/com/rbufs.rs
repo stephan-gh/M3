@@ -17,7 +17,7 @@
 use core::fmt;
 
 use crate::cap::Selector;
-use crate::cell::LazyStaticCell;
+use crate::cell::LazyStaticRefCell;
 use crate::cfg;
 use crate::com::MemGate;
 use crate::errors::Error;
@@ -27,7 +27,7 @@ use crate::mem::MemMap;
 use crate::pes::VPE;
 use crate::syscalls;
 
-static BUFS: LazyStaticCell<MemMap> = LazyStaticCell::default();
+static BUFS: LazyStaticRefCell<MemMap> = LazyStaticRefCell::default();
 
 /// A buffer to receive messages from a [`RecvGate`](crate::com::RecvGate).
 ///
@@ -80,13 +80,13 @@ impl fmt::Debug for RecvBuf {
 pub fn alloc_rbuf(size: usize) -> Result<RecvBuf, Error> {
     let vm = VPE::cur().pe_desc().has_virtmem();
     let align = if vm { cfg::PAGE_SIZE as u64 } else { 1 };
-    let addr = BUFS.get_mut().allocate(size as u64, align)? as usize;
+    let addr = BUFS.borrow_mut().allocate(size as u64, align)? as usize;
 
     let mgate = if vm {
         match map_rbuf(addr, size) {
             Ok(mgate) => Some(mgate),
             Err(e) => {
-                BUFS.get_mut().free(addr as u64, size as u64);
+                BUFS.borrow_mut().free(addr as u64, size as u64);
                 return Err(e);
             },
         }
@@ -114,7 +114,7 @@ fn map_rbuf(addr: usize, size: usize) -> Result<MemGate, Error> {
 
 /// Frees the given receive buffer
 pub fn free_rbuf(rbuf: RecvBuf) {
-    BUFS.get_mut().free(rbuf.addr as u64, rbuf.size as u64);
+    BUFS.borrow_mut().free(rbuf.addr as u64, rbuf.size as u64);
 }
 
 pub(crate) fn init() {

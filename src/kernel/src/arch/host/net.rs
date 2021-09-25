@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::{LazyStaticCell, StaticRefCell};
+use base::cell::{LazyStaticRefCell, StaticRefCell};
 use base::col::{String, ToString, Vec};
 use base::format;
 use base::libc;
@@ -23,8 +23,8 @@ use base::tcu::TCU;
 use core::ptr;
 
 static BUF: StaticRefCell<[u8; 2048]> = StaticRefCell::new([0u8; 2048]);
-static BR1: LazyStaticCell<Bridge> = LazyStaticCell::default();
-static BR2: LazyStaticCell<Bridge> = LazyStaticCell::default();
+static BR1: LazyStaticRefCell<Bridge> = LazyStaticRefCell::default();
+static BR2: LazyStaticRefCell<Bridge> = LazyStaticRefCell::default();
 
 struct Bridge {
     src_fd: i32,
@@ -117,13 +117,13 @@ pub fn create_bridge(names: &str) {
     ));
 
     // wake up if there is anything to read
-    TCU::add_wait_fd(BR1.src_fd);
-    TCU::add_wait_fd(BR2.src_fd);
+    TCU::add_wait_fd(BR1.borrow().src_fd);
+    TCU::add_wait_fd(BR2.borrow().src_fd);
 }
 
 pub fn check() {
     if BR1.is_some() {
-        BR1.check();
-        BR2.check();
+        BR1.borrow().check();
+        BR2.borrow().check();
     }
 }

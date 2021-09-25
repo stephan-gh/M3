@@ -41,7 +41,7 @@ fn latency() {
     wv_assert_ok!(socket.bind(2000));
 
     let samples = 5;
-    let dest = Endpoint::new(*crate::DST_IP, 1337);
+    let dest = Endpoint::new(crate::DST_IP.get(), 1337);
 
     let mut buf = [0u8; 1024];
 
@@ -95,7 +95,7 @@ fn bandwidth() {
 
     wv_assert_ok!(socket.bind(2001));
 
-    let dest = Endpoint::new(*crate::DST_IP, 1337);
+    let dest = Endpoint::new(crate::DST_IP.get(), 1337);
 
     let mut buf = [0u8; 1024];
 

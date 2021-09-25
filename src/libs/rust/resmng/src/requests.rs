@@ -15,7 +15,7 @@
  */
 
 use m3::cap::Selector;
-use m3::cell::LazyStaticCell;
+use m3::cell::{LazyStaticRefCell, Ref};
 use m3::col::String;
 use m3::com::{GateIStream, RecvGate};
 use m3::errors::{Code, Error, VerboseError};
@@ -31,14 +31,14 @@ use crate::childs::{self, Child, Id};
 use crate::sendqueue;
 use crate::subsys;
 
-static RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
+static RGATE: LazyStaticRefCell<RecvGate> = LazyStaticRefCell::default();
 
 pub fn init(rgate: RecvGate) {
     RGATE.set(rgate);
 }
 
-pub fn rgate() -> &'static RecvGate {
-    &RGATE
+pub fn rgate() -> Ref<'static, RecvGate> {
+    RGATE.borrow()
 }
 
 pub fn workloop<F, S>(mut func: F, mut spawn: S) -> Result<(), VerboseError>
@@ -46,14 +46,16 @@ where
     F: FnMut(),
     S: FnMut(&mut childs::OwnChild) -> Result<(), VerboseError>,
 {
-    let thmng = thread::ThreadManager::get();
     let upcall_rg = RecvGate::upcall();
 
     loop {
-        if let Some(msg) = RGATE.fetch() {
-            let is = GateIStream::new(msg, &RGATE);
-            handle_request_async(is);
-            subsys::start_delayed_async(&mut spawn)?;
+        {
+            let rgate = RGATE.borrow();
+            if let Some(msg) = rgate.fetch() {
+                let is = GateIStream::new(msg, &rgate);
+                handle_request_async(is);
+                subsys::start_delayed_async(&mut spawn)?;
+            }
         }
 
         if let Some(msg) = upcall_rg.fetch() {
@@ -64,8 +66,11 @@ where
 
         func();
 
-        if thmng.ready_count() > 0 {
-            thmng.try_yield();
+        {
+            let thmng = thread::ThreadManager::get();
+            if thmng.ready_count() > 0 {
+                thmng.try_yield();
+            }
         }
 
         if childs::get().should_stop() {
@@ -75,6 +80,7 @@ where
         VPE::sleep().ok();
     }
 
+    let thmng = thread::ThreadManager::get();
     if !thmng.cur().is_main() {
         thmng.stop();
         // just in case there is no ready thread
@@ -168,7 +174,7 @@ fn add_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let sgate_sel: Selector = is.pop()?;
     let name: String = is.pop()?;
 
-    child.add_child(vpe_id, vpe_sel, &RGATE, sgate_sel, name)
+    child.add_child(vpe_id, vpe_sel, &RGATE.borrow(), sgate_sel, name)
 }
 
 fn rem_child_async(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {

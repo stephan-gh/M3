@@ -46,12 +46,12 @@ fn basics() {
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
     wv_assert_err!(socket.send(&[0]), Code::NotConnected);
-    wv_assert_ok!(socket.connect(Endpoint::new(*crate::DST_IP, 1338)));
+    wv_assert_ok!(socket.connect(Endpoint::new(crate::DST_IP.get(), 1338)));
     wv_assert_eq!(socket.state(), State::Connected);
-    wv_assert_eq!(socket.local_endpoint().unwrap().addr, *crate::NET0_IP);
+    wv_assert_eq!(socket.local_endpoint().unwrap().addr, crate::NET0_IP.get());
     wv_assert_eq!(
         socket.remote_endpoint(),
-        Some(Endpoint::new(*crate::DST_IP, 1338))
+        Some(Endpoint::new(crate::DST_IP.get(), 1338))
     );
 
     let mut buf = [0u8; 32];
@@ -59,10 +59,10 @@ fn basics() {
     wv_assert_ok!(socket.recv(&mut buf));
 
     // connecting to the same remote endpoint is okay
-    wv_assert_ok!(socket.connect(Endpoint::new(*crate::DST_IP, 1338)));
+    wv_assert_ok!(socket.connect(Endpoint::new(crate::DST_IP.get(), 1338)));
     // if anything differs, it's an error
     wv_assert_err!(
-        socket.connect(Endpoint::new(*crate::DST_IP, 1339)),
+        socket.connect(Endpoint::new(crate::DST_IP.get(), 1339)),
         Code::IsConnected
     );
     wv_assert_err!(
@@ -97,13 +97,13 @@ fn nonblocking_client() {
     socket.set_blocking(false);
 
     wv_assert_err!(
-        socket.connect(Endpoint::new(*crate::DST_IP, 1338)),
+        socket.connect(Endpoint::new(crate::DST_IP.get(), 1338)),
         Code::InProgress
     );
     while socket.state() != State::Connected {
         wv_assert_eq!(socket.state(), State::Connecting);
         wv_assert_err!(
-            socket.connect(Endpoint::new(*crate::DST_IP, 1338)),
+            socket.connect(Endpoint::new(crate::DST_IP.get(), 1338)),
             Code::AlreadyInProgress
         );
         nm.wait(NetworkDirection::INPUT);
@@ -180,9 +180,9 @@ fn nonblocking_server() {
 
         wv_assert_eq!(
             socket.local_endpoint(),
-            Some(Endpoint::new(*crate::NET1_IP, 3000))
+            Some(Endpoint::new(crate::NET1_IP.get(), 3000))
         );
-        wv_assert_eq!(socket.remote_endpoint().unwrap().addr, *crate::NET0_IP);
+        wv_assert_eq!(socket.remote_endpoint().unwrap().addr, crate::NET0_IP.get());
 
         socket.set_blocking(true);
         wv_assert_ok!(socket.close());
@@ -196,7 +196,7 @@ fn nonblocking_server() {
 
     wv_assert_ok!(sem.down());
 
-    wv_assert_ok!(socket.connect(Endpoint::new(*crate::NET1_IP, 3000)));
+    wv_assert_ok!(socket.connect(Endpoint::new(crate::NET1_IP.get(), 3000)));
 
     wv_assert_ok!(socket.close());
 
@@ -210,7 +210,7 @@ fn open_close() {
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
-    wv_assert_ok!(socket.connect(Endpoint::new(*crate::DST_IP, 1338)));
+    wv_assert_ok!(socket.connect(Endpoint::new(crate::DST_IP.get(), 1338)));
     wv_assert_eq!(socket.state(), State::Connected);
 
     wv_assert_ok!(socket.close());
@@ -243,7 +243,7 @@ fn receive_after_close() {
         wv_assert_ok!(sem.up());
 
         let ep = wv_assert_ok!(socket.accept());
-        wv_assert_eq!(ep.addr, *crate::NET0_IP);
+        wv_assert_eq!(ep.addr, crate::NET0_IP.get());
         wv_assert_eq!(socket.state(), State::Connected);
 
         let mut buf = [0u8; 32];
@@ -262,7 +262,7 @@ fn receive_after_close() {
 
     wv_assert_ok!(sem.down());
 
-    wv_assert_ok!(socket.connect(Endpoint::new(*crate::DST_IP, 3000)));
+    wv_assert_ok!(socket.connect(Endpoint::new(crate::DST_IP.get(), 3000)));
 
     let mut buf = [0u8; 32];
     wv_assert_ok!(socket.send(&buf));
@@ -287,7 +287,7 @@ fn data() {
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
-    wv_assert_ok!(socket.connect(Endpoint::new(*crate::DST_IP, 1338)));
+    wv_assert_ok!(socket.connect(Endpoint::new(crate::DST_IP.get(), 1338)));
 
     // disable 256 to workaround the bug in gem5's E1000 model
     let packet_sizes = [8, 16, 32, 64, 128, /*256,*/ 512, 934, 1024];

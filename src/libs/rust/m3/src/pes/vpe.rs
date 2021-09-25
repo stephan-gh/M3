@@ -25,7 +25,7 @@ use core::ops::FnOnce;
 use crate::arch;
 use crate::boxed::Box;
 use crate::cap::{CapFlags, Capability, Selector};
-use crate::cell::LazyStaticCell;
+use crate::cell::LazyStaticUnsafeCell;
 use crate::col::Vec;
 use crate::com::{EpMng, MemGate};
 use crate::env;
@@ -98,7 +98,7 @@ impl<'n> VPEArgs<'n> {
     }
 }
 
-static CUR: LazyStaticCell<VPE> = LazyStaticCell::default();
+static CUR: LazyStaticUnsafeCell<VPE> = LazyStaticUnsafeCell::default();
 
 impl VPE {
     fn new_cur() -> Self {

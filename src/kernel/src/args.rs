@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::LazyStaticCell;
+use base::cell::{LazyStaticRefCell, Ref};
 use base::cfg;
 use base::col::{String, ToString, Vec};
 use base::env;
@@ -28,10 +28,10 @@ pub struct Args {
     pub free: Vec<String>,
 }
 
-static ARGS: LazyStaticCell<Args> = LazyStaticCell::default();
+static ARGS: LazyStaticRefCell<Args> = LazyStaticRefCell::default();
 
-pub fn get() -> &'static Args {
-    &ARGS
+pub fn get() -> Ref<'static, Args> {
+    ARGS.borrow()
 }
 
 pub fn parse() {

@@ -17,7 +17,7 @@
 #![no_std]
 
 use m3::cap::Selector;
-use m3::cell::{LazyStaticCell, StaticCell, StaticRefCell};
+use m3::cell::{LazyStaticRefCell, LazyStaticUnsafeCell, StaticCell, StaticRefCell};
 use m3::col::Vec;
 use m3::com::{GateIStream, MemGate, Perm, RGateArgs, RecvGate, SGateArgs, SendGate, EP};
 use m3::errors::{Code, Error};
@@ -50,8 +50,8 @@ int_enum! {
     }
 }
 
-static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
-static SIGRGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
+static REQHDL: LazyStaticUnsafeCell<RequestHandler> = LazyStaticUnsafeCell::default();
+static SIGRGATE: LazyStaticRefCell<RecvGate> = LazyStaticRefCell::default();
 static BUFFER: StaticRefCell<Vec<u8>> = StaticRefCell::new(Vec::new());
 static INPUT: StaticRefCell<Vec<u8>> = StaticRefCell::new(Vec::new());
 static MODE: StaticCell<Mode> = StaticCell::new(Mode::COOKED);
@@ -397,7 +397,7 @@ fn send_signal(hdl: &mut VTermHandler) {
             if let Some(sg) = c.sig_gate.as_ref() {
                 log!(crate::LOG_DEF, "[{}] sending SIGINT", c.id);
                 // ignore errors
-                send_vmsg!(sg, &SIGRGATE, 0).ok();
+                send_vmsg!(sg, &SIGRGATE.borrow(), 0).ok();
             }
         },
         SessionData::Meta => {},
@@ -522,8 +522,11 @@ pub fn main() -> i32 {
             serial_gate.ack_msg(msg).unwrap();
         }
 
-        if let Some(msg) = SIGRGATE.fetch() {
-            SIGRGATE.ack_msg(msg).unwrap();
+        {
+            let sigrgate = SIGRGATE.borrow();
+            if let Some(msg) = sigrgate.fetch() {
+                sigrgate.ack_msg(msg).unwrap();
+            }
         }
 
         REQHDL.get_mut().handle(|op, mut is| {

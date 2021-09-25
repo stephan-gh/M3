@@ -34,7 +34,7 @@ use crate::sess::{FSSession, M3FSSession, MetaSession};
 
 use m3::{
     cap::Selector,
-    cell::{LazyStaticCell, StaticUnsafeCell},
+    cell::{LazyStaticUnsafeCell, StaticUnsafeCell},
     col::{String, ToString, Vec},
     com::GateIStream,
     env,
@@ -64,7 +64,7 @@ const FS_IMG_OFFSET: goff = 0;
 const MSG_SIZE: usize = 128;
 
 // The global request handler
-static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
+static REQHDL: LazyStaticUnsafeCell<RequestHandler> = LazyStaticUnsafeCell::default();
 
 // The global file handle in this process
 // TODO can we use a safe cell here?
@@ -210,7 +210,7 @@ impl M3FSRequestHandler {
                 }
 
                 // ignore all potentially outstanding messages of this session
-                REQHDL.recv_gate().drop_msgs_with(id as Label);
+                REQHDL.get().recv_gate().drop_msgs_with(id as Label);
             }
         }
         Ok(())

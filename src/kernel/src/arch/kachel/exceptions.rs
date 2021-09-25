@@ -14,21 +14,21 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::LazyStaticCell;
-use base::libc;
-use base::tcu;
-use base::kif::{Perm, PageFlags};
-use base::pexif;
+use base::cell::LazyStaticRefCell;
 use base::cfg;
+use base::kif::{PageFlags, Perm};
+use base::libc;
+use base::pexif;
+use base::tcu;
 
 use crate::arch::paging;
 use crate::pes;
 
-static STATE: LazyStaticCell<isr::State> = LazyStaticCell::default();
+static STATE: LazyStaticRefCell<isr::State> = LazyStaticRefCell::default();
 
 pub fn init() {
     STATE.set(isr::State::default());
-    isr::init(STATE.get_mut());
+    isr::init(&mut STATE.borrow_mut());
     isr::init_pexcalls(pexcall);
     isr::enable_irqs();
 }
@@ -42,10 +42,7 @@ pub extern "C" fn pexcall(state: &mut isr::State) -> *mut libc::c_void {
 
     let pte = paging::translate(virt, flags);
     if (!(pte & 0xF) & flags.bits()) != 0 {
-        panic!(
-            "Pagefault during PT walk for {:#x} (PTE={:#x})",
-            virt, pte
-        );
+        panic!("Pagefault during PT walk for {:#x} (PTE={:#x})", virt, pte);
     }
 
     let phys = pte & !(cfg::PAGE_MASK as u64);

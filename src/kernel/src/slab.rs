@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::LazyStaticCell;
+use base::cell::LazyStaticRefCell;
 use base::libc;
 use base::mem;
 use core::ptr::NonNull;
@@ -122,7 +122,7 @@ impl Slab {
         match self.size {
             Some(_) => {
                 let nptr = heap_alloc(new_size + HEADER_SIZE);
-                let narea = SLAB_ALL.get_mut().heap_to_area(nptr);
+                let narea = SLAB_ALL.borrow_mut().heap_to_area(nptr);
                 let res = Self::user_addr(narea);
                 libc::memcpy(res, Self::user_addr(area), old_size);
                 self.free(area);
@@ -137,9 +137,9 @@ impl Slab {
     }
 }
 
-static SLAB_64: LazyStaticCell<Slab> = LazyStaticCell::default();
-static SLAB_128: LazyStaticCell<Slab> = LazyStaticCell::default();
-static SLAB_ALL: LazyStaticCell<Slab> = LazyStaticCell::default();
+static SLAB_64: LazyStaticRefCell<Slab> = LazyStaticRefCell::default();
+static SLAB_128: LazyStaticRefCell<Slab> = LazyStaticRefCell::default();
+static SLAB_ALL: LazyStaticRefCell<Slab> = LazyStaticRefCell::default();
 
 pub fn init() {
     SLAB_64.set(Slab::new(Some(64)));
@@ -153,14 +153,14 @@ unsafe fn get_area(ptr: *mut libc::c_void) -> *mut Area {
 
 #[no_mangle]
 extern "C" fn __rdl_alloc(size: usize, _align: usize, _err: *mut u8) -> *mut libc::c_void {
-    let slab = if size <= 64 {
-        SLAB_64.get_mut()
+    let mut slab = if size <= 64 {
+        SLAB_64.borrow_mut()
     }
     else if size <= 128 {
-        SLAB_128.get_mut()
+        SLAB_128.borrow_mut()
     }
     else {
-        SLAB_ALL.get_mut()
+        SLAB_ALL.borrow_mut()
     };
     let res = unsafe { slab.alloc(size) };
     klog!(
@@ -198,12 +198,12 @@ unsafe extern "C" fn __rdl_realloc(
 
 #[no_mangle]
 extern "C" fn __rdl_alloc_zeroed(size: usize, _align: usize, _err: *mut u8) -> *mut libc::c_void {
-    let res = unsafe { SLAB_ALL.get_mut().calloc(size) };
+    let res = unsafe { SLAB_ALL.borrow_mut().calloc(size) };
     klog!(
         SLAB,
         "calloc(sz={}, s={:?}) -> {:#x}",
         size,
-        SLAB_ALL.size,
+        SLAB_ALL.borrow().size,
         res as usize
     );
     res

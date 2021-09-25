@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::{LazyStaticCell, StaticCell};
+use base::cell::{LazyStaticRefCell, StaticCell};
 use base::col::{DList, Vec, VecDeque};
 use base::errors::{Code, Error};
 use base::mem::MsgBuf;
@@ -24,19 +24,19 @@ use crate::ktcu;
 
 pub const MAX_PENDING_MSGS: usize = 4;
 
-static PENDING_QUEUES: LazyStaticCell<VecDeque<*mut SendQueue>> = LazyStaticCell::default();
+static PENDING_QUEUES: LazyStaticRefCell<VecDeque<*mut SendQueue>> = LazyStaticRefCell::default();
 static PENDING_MSGS: StaticCell<usize> = StaticCell::new(0);
 
 fn delay_queue(queue: &mut SendQueue) {
     if !queue.pending {
         queue.pending = true;
         klog!(SQUEUE, "SendQueue[{:?}]: delaying", queue.id);
-        PENDING_QUEUES.get_mut().push_back(queue as *mut _);
+        PENDING_QUEUES.borrow_mut().push_back(queue as *mut _);
     }
 }
 
 fn resume_queue() {
-    if let Some(q) = PENDING_QUEUES.get_mut().pop_front() {
+    if let Some(q) = PENDING_QUEUES.borrow_mut().pop_front() {
         // safety: as soon as a queue is aborted/dropped, we remove it from the PENDING_QUEUES.
         // thus, whenever a queue is found here, it is still alive (and has messages pending) and
         // therefore safe to access
@@ -51,7 +51,9 @@ fn resume_queue() {
 fn remove_queue(queue: &mut SendQueue) {
     if queue.pending {
         klog!(SQUEUE, "SendQueue[{:?}]: removing", queue.id);
-        PENDING_QUEUES.get_mut().retain(|q| *q != queue as *mut _);
+        PENDING_QUEUES
+            .borrow_mut()
+            .retain(|q| *q != queue as *mut _);
         queue.pending = false;
     }
 }

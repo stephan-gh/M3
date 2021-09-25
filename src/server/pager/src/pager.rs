@@ -23,7 +23,7 @@ mod physmem;
 mod regions;
 
 use m3::cap::Selector;
-use m3::cell::{LazyStaticCell, StaticUnsafeCell};
+use m3::cell::{LazyStaticRefCell, LazyStaticUnsafeCell, StaticUnsafeCell};
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, MGateArgs, MemGate, RecvGate, SGateArgs, SendGate};
 use m3::env;
@@ -47,12 +47,12 @@ use resmng::{requests, sendqueue, subsys};
 
 pub const LOG_DEF: bool = false;
 
-static PGHDL: LazyStaticCell<PagerReqHandler> = LazyStaticCell::default();
-static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
-static MOUNTS: LazyStaticCell<Vec<(String, vfs::FSHandle)>> = LazyStaticCell::default();
+static PGHDL: LazyStaticUnsafeCell<PagerReqHandler> = LazyStaticUnsafeCell::default();
+static REQHDL: LazyStaticUnsafeCell<RequestHandler> = LazyStaticUnsafeCell::default();
+static MOUNTS: LazyStaticRefCell<Vec<(String, vfs::FSHandle)>> = LazyStaticRefCell::default();
 // TODO can we use a safe cell here?
 static PMP_PES: StaticUnsafeCell<Vec<PEId>> = StaticUnsafeCell::new(Vec::new());
-static SETTINGS: LazyStaticCell<PagerSettings> = LazyStaticCell::default();
+static SETTINGS: LazyStaticRefCell<PagerSettings> = LazyStaticRefCell::default();
 
 struct PagerReqHandler {
     sel: Selector,
@@ -138,7 +138,7 @@ impl Handler<AddrSpace> for PagerReqHandler {
 }
 
 fn get_mount(name: &str) -> Result<vfs::FSHandle, VerboseError> {
-    for (n, fs) in MOUNTS.iter() {
+    for (n, fs) in MOUNTS.borrow().iter() {
         if n == name {
             return Ok(fs.clone());
         }
@@ -147,7 +147,7 @@ fn get_mount(name: &str) -> Result<vfs::FSHandle, VerboseError> {
     let fs = M3FS::new(name).map_err(|e| {
         VerboseError::new(e.code(), format!("Unable to open m3fs session {}", name))
     })?;
-    MOUNTS.get_mut().push((name.to_string(), fs.clone()));
+    MOUNTS.borrow_mut().push((name.to_string(), fs.clone()));
     Ok(fs)
 }
 
@@ -155,7 +155,7 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
     // send gate for resmng
     #[allow(clippy::useless_conversion)]
     let resmng_sgate = SendGate::new_with(
-        SGateArgs::new(requests::rgate())
+        SGateArgs::new(&requests::rgate())
             .credits(1)
             .label(Label::from(child.id())),
     )?;
@@ -183,10 +183,9 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
     // TODO make that more flexible
     // add PMP EP for file system
     if !PMP_PES.iter().any(|id| *id == pe_usage.pe_id()) {
-        let fs_mem = MemGate::new_with(MGateArgs::new(SETTINGS.fs_size, kif::Perm::R).addr(0))?;
-        child
-            .our_pe()
-            .add_mem_region(fs_mem, SETTINGS.fs_size, true)?;
+        let size = SETTINGS.borrow().fs_size;
+        let fs_mem = MemGate::new_with(MGateArgs::new(size, kif::Perm::R).addr(0))?;
+        child.our_pe().add_mem_region(fs_mem, size, true)?;
         PMP_PES.get_mut().push(pe_usage.pe_id());
     }
 
@@ -289,7 +288,7 @@ pub fn main() -> i32 {
     if vfs::VFS::stat("/").is_err() {
         vfs::VFS::mount("/", "m3fs", "m3fs").expect("Unable to mount root filesystem");
     }
-    MOUNTS.get_mut().push((
+    MOUNTS.borrow_mut().push((
         "m3fs".to_string(),
         VPE::cur().mounts().get_by_path("/").unwrap(),
     ));

@@ -21,7 +21,7 @@ use crate::arch::tcu::{
     backend, CmdReg, Command, Control, EpId, EpReg, Header, PEId, Reg, MAX_MSG_SIZE, TCU,
     TOTAL_EPS, UNLIM_CREDITS,
 };
-use crate::cell::{LazyStaticCell, RefMut, StaticCell, StaticRefCell, StaticUnsafeCell};
+use crate::cell::{LazyStaticRefCell, RefMut, StaticCell, StaticRefCell, StaticUnsafeCell};
 use crate::errors::{Code, Error};
 use crate::io;
 use crate::mem;
@@ -68,7 +68,7 @@ enum SleepState {
     UntilTimeout(u64),
 }
 
-pub(crate) static LOG: LazyStaticCell<io::log::Log> = LazyStaticCell::default();
+pub(crate) static LOG: LazyStaticRefCell<io::log::Log> = LazyStaticRefCell::default();
 static BUFFER: StaticRefCell<Buffer> = StaticRefCell::new(Buffer::new());
 static MSG_CNT: StaticCell<usize> = StaticCell::new(0);
 static SLEEP: StaticCell<SleepState> = StaticCell::new(SleepState::None);
@@ -91,7 +91,7 @@ macro_rules! log_tcu_impl {
         if $crate::io::log::$flag {
             #[allow(unused_imports)]
             use $crate::io::Write;
-            $crate::arch::tcu::thread::LOG.get_mut().write_fmt(format_args!($($args)*)).unwrap();
+            $crate::arch::tcu::thread::LOG.borrow_mut().write_fmt(format_args!($($args)*)).unwrap();
         }
     });
 }
@@ -823,7 +823,7 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
 
 pub fn init() {
     LOG.set(io::log::Log::new());
-    LOG.get_mut().init(envdata::get().pe_id, "TCU");
+    LOG.borrow_mut().init(envdata::get().pe_id, "TCU");
 
     BACKEND.set(Some(backend::SocketBackend::new()));
 

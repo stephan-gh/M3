@@ -16,7 +16,7 @@
 
 use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::LazyStaticCell;
+use m3::cell::LazyStaticRefCell;
 use m3::col::String;
 use m3::com::{GateIStream, RecvGate, SendGate};
 use m3::errors::{Code, Error};
@@ -42,7 +42,7 @@ struct MsgHandler {
     calls: u32,
 }
 
-static RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
+static RGATE: LazyStaticRefCell<RecvGate> = LazyStaticRefCell::default();
 
 impl Handler<MsgSession> for MsgHandler {
     fn sessions(&mut self) -> &mut SessionContainer<MsgSession> {
@@ -57,7 +57,7 @@ impl Handler<MsgSession> for MsgHandler {
     ) -> Result<(Selector, SessId), Error> {
         let sess = ServerSession::new(srv_sel, crt, 0, false)?;
         let sel = sess.sel();
-        let sgate = wv_assert_ok!(SendGate::new(&RGATE));
+        let sgate = wv_assert_ok!(SendGate::new(&RGATE.borrow()));
         self.sessions
             .add(crt, 0, MsgSession { _sess: sess, sgate })
             .map(|_| (sel, 0))
@@ -110,8 +110,9 @@ fn server_msgs_main() -> i32 {
     server_loop(|| {
         s.handle_ctrl_chan(&mut hdl)?;
 
-        if let Some(msg) = RGATE.fetch() {
-            let mut is = GateIStream::new(msg, &RGATE);
+        let rgate = RGATE.borrow();
+        if let Some(msg) = rgate.fetch() {
+            let mut is = GateIStream::new(msg, &rgate);
             if let Err(e) = hdl.handle_msg(&mut is) {
                 is.reply_error(e.code()).ok();
             }

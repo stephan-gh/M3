@@ -19,7 +19,7 @@ use core::ops;
 
 use crate::arch;
 use crate::cap::{CapFlags, Selector};
-use crate::cell::LazyStaticCell;
+use crate::cell::LazyStaticUnsafeCell;
 use crate::cfg;
 use crate::com::rbufs::{alloc_rbuf, free_rbuf};
 use crate::com::{gate::Gate, RecvBuf, SendGate};
@@ -33,9 +33,9 @@ use crate::tcu;
 
 const DEF_MSG_ORD: u32 = 6;
 
-static SYS_RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
-static UPC_RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
-static DEF_RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
+static SYS_RGATE: LazyStaticUnsafeCell<RecvGate> = LazyStaticUnsafeCell::default();
+static UPC_RGATE: LazyStaticUnsafeCell<RecvGate> = LazyStaticUnsafeCell::default();
+static DEF_RGATE: LazyStaticUnsafeCell<RecvGate> = LazyStaticUnsafeCell::default();
 
 /// A receive gate (`RecvGate`) can receive messages via TCU from connected [`SendGate`]s and can
 /// reply on the received messages.

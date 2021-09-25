@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::{LazyStaticCell, StaticCell};
+use base::cell::{LazyStaticCell, LazyStaticRefCell, StaticCell};
 use base::cfg;
 use base::envdata;
 use base::errors::Error;
@@ -47,8 +47,8 @@ struct PTAllocator {}
 
 impl Allocator for PTAllocator {
     fn allocate_pt(&mut self) -> Result<Phys, Error> {
-        PT_POS.set(*PT_POS + cfg::PAGE_SIZE as goff);
-        Ok(*PT_POS - cfg::PAGE_SIZE as goff)
+        PT_POS.set(PT_POS.get() + cfg::PAGE_SIZE as goff);
+        Ok(PT_POS.get() - cfg::PAGE_SIZE as goff)
     }
 
     fn translate_pt(&self, phys: Phys) -> usize {
@@ -67,7 +67,7 @@ impl Allocator for PTAllocator {
 
 static BOOTSTRAP: StaticCell<bool> = StaticCell::new(true);
 static PT_POS: LazyStaticCell<goff> = LazyStaticCell::default();
-static ASPACE: LazyStaticCell<AddrSpace<PTAllocator>> = LazyStaticCell::default();
+static ASPACE: LazyStaticRefCell<AddrSpace<PTAllocator>> = LazyStaticRefCell::default();
 
 pub fn init() {
     unsafe {
@@ -136,7 +136,7 @@ pub fn init() {
 }
 
 pub fn translate(virt: usize, perm: PageFlags) -> PTE {
-    ASPACE.translate(virt, perm.bits())
+    ASPACE.borrow().translate(virt, perm.bits())
 }
 
 pub fn map_new_mem(virt: usize, pages: usize) -> GlobAddr {
@@ -149,7 +149,7 @@ pub fn map_new_mem(virt: usize, pages: usize) -> GlobAddr {
         .unwrap();
 
     ASPACE
-        .get_mut()
+        .borrow_mut()
         .map_pages(virt, alloc.global(), pages, PageFlags::RW)
         .unwrap();
     alloc.claim();

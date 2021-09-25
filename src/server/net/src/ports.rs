@@ -16,12 +16,12 @@
 
 use core::fmt;
 
-use m3::cell::LazyStaticCell;
+use m3::cell::LazyStaticRefCell;
 use m3::col::BitVec;
 use m3::log;
 use m3::net::Port;
 
-static PORTS: LazyStaticCell<BitVec> = LazyStaticCell::default();
+static PORTS: LazyStaticRefCell<BitVec> = LazyStaticRefCell::default();
 
 // ephemeral port range is from 49152 to 65535
 const FIRST_PORT: Port = 49152;
@@ -63,8 +63,9 @@ pub fn init(sockets: usize) {
 }
 
 pub fn alloc() -> EphemeralPort {
-    let idx = PORTS.first_clear();
-    PORTS.get_mut().set(idx);
+    let mut ports = PORTS.borrow_mut();
+    let idx = ports.first_clear();
+    ports.set(idx);
     EphemeralPort::new(FIRST_PORT + idx as Port)
 }
 
@@ -74,5 +75,5 @@ pub fn is_ephemeral(port: Port) -> bool {
 
 fn free(port: Port) {
     let idx = (port - FIRST_PORT) as usize;
-    PORTS.get_mut().clear(idx);
+    PORTS.borrow_mut().clear(idx);
 }

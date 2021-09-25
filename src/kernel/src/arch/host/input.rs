@@ -85,7 +85,7 @@ pub fn check() {
 
         if DEST.is_some() {
             // send to defined receive EP; ignore failures (e.g., no space)
-            let (dest_pe, dest_ep) = *DEST;
+            let (dest_pe, dest_ep) = DEST.get();
             let mut msg_buf = mem::MsgBuf::new();
             msg_buf.set_from_slice(&buf[0..res as usize]);
             ktcu::send_to(dest_pe, dest_ep, 0, &msg_buf, 0, INVALID_EP).ok();

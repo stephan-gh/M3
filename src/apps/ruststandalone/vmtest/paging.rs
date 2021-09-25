@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::{LazyStaticCell, StaticCell};
+use base::cell::{LazyStaticCell, LazyStaticRefCell, StaticCell};
 use base::cfg;
 use base::envdata;
 use base::errors::Error;
@@ -39,8 +39,8 @@ struct PTAllocator {}
 
 impl Allocator for PTAllocator {
     fn allocate_pt(&mut self) -> Result<Phys, Error> {
-        PT_POS.set(*PT_POS + cfg::PAGE_SIZE as goff);
-        Ok(*PT_POS - cfg::PAGE_SIZE as goff)
+        PT_POS.set(PT_POS.get() + cfg::PAGE_SIZE as goff);
+        Ok(PT_POS.get() - cfg::PAGE_SIZE as goff)
     }
 
     fn translate_pt(&self, phys: Phys) -> usize {
@@ -59,7 +59,7 @@ impl Allocator for PTAllocator {
 
 static BOOTSTRAP: StaticCell<bool> = StaticCell::new(true);
 static PT_POS: LazyStaticCell<goff> = LazyStaticCell::default();
-static ASPACE: LazyStaticCell<AddrSpace<PTAllocator>> = LazyStaticCell::default();
+static ASPACE: LazyStaticRefCell<AddrSpace<PTAllocator>> = LazyStaticRefCell::default();
 
 pub fn init() {
     assert!(PEDesc::new_from(envdata::get().pe_desc).has_virtmem());
@@ -97,7 +97,7 @@ pub fn init() {
     // map PTs
     let pages = mem_size as usize / cfg::PAGE_SIZE;
     ASPACE
-        .get_mut()
+        .borrow_mut()
         .map_pages(cfg::PE_MEM_BASE, base, pages, rw)
         .unwrap();
 
@@ -107,7 +107,7 @@ pub fn init() {
     map_ident(0x0C20_0000, 0x1000, PageFlags::RW);
 
     // switch to that address space
-    ASPACE.get_mut().switch_to();
+    ASPACE.borrow_mut().switch_to();
     paging::enable_paging();
 
     BOOTSTRAP.set(false);
@@ -115,7 +115,7 @@ pub fn init() {
 
 #[allow(unused)]
 pub fn translate(virt: usize, perm: PageFlags) -> PTE {
-    ASPACE.translate(virt, perm.bits())
+    ASPACE.borrow().translate(virt, perm.bits())
 }
 
 #[allow(unused)]
@@ -124,8 +124,8 @@ pub fn map_anon(virt: usize, size: usize, perm: PageFlags) -> Result<(), Error> 
     let base = GlobAddr::new_with(mem_pe, mem_base);
 
     for i in 0..(size / cfg::PAGE_SIZE) {
-        let frame = ASPACE.get_mut().allocator_mut().allocate_pt()?;
-        ASPACE.get_mut().map_pages(
+        let frame = ASPACE.borrow_mut().allocator_mut().allocate_pt()?;
+        ASPACE.borrow_mut().map_pages(
             virt + i * cfg::PAGE_SIZE,
             base + (frame - cfg::MEM_OFFSET as Phys),
             1,
@@ -138,7 +138,7 @@ pub fn map_anon(virt: usize, size: usize, perm: PageFlags) -> Result<(), Error> 
 pub fn map_ident(virt: usize, size: usize, perm: PageFlags) {
     let glob = GlobAddr::new(virt as goff);
     ASPACE
-        .get_mut()
+        .borrow_mut()
         .map_pages(virt, glob, size / cfg::PAGE_SIZE, perm)
         .unwrap();
 }

@@ -187,7 +187,7 @@ impl Handler<NetworkSession> for NetHandler {
 }
 
 pub fn own_ip() -> IpAddress {
-    *OWN_IP
+    OWN_IP.get()
 }
 
 #[derive(Clone, Debug)]

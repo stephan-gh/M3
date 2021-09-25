@@ -18,7 +18,7 @@
 #![no_std]
 
 use base::boxed::Box;
-use base::cell::{LazyStaticCell, StaticCell};
+use base::cell::{LazyStaticUnsafeCell, StaticCell};
 use base::col::{BoxList, Vec};
 use base::impl_boxitem;
 use base::libc;
@@ -243,7 +243,7 @@ pub struct ThreadManager {
     sleep: BoxList<Thread>,
 }
 
-static TMNG: LazyStaticCell<ThreadManager> = LazyStaticCell::default();
+static TMNG: LazyStaticUnsafeCell<ThreadManager> = LazyStaticUnsafeCell::default();
 
 pub fn init() {
     TMNG.set(ThreadManager::new());

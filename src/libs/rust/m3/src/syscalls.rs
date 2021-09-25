@@ -20,7 +20,7 @@ use base::kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL};
 
 use crate::arch;
 use crate::cap::Selector;
-use crate::cell::{LazyStaticCell, StaticRefCell};
+use crate::cell::{LazyStaticRefCell, Ref, StaticRefCell};
 use crate::com::{RecvGate, SendGate};
 use crate::errors::{Code, Error};
 use crate::goff;
@@ -28,7 +28,7 @@ use crate::mem::MsgBuf;
 use crate::serialize::{Sink, Source};
 use crate::tcu::{EpId, Label, Message, VPEId, SYSC_SEP_OFF};
 
-static SGATE: LazyStaticCell<SendGate> = LazyStaticCell::default();
+static SGATE: LazyStaticRefCell<SendGate> = LazyStaticRefCell::default();
 // use a separate message buffer here, because the default buffer could be in use for a message over
 // a SendGate, which might have to be activated first using a syscall.
 static SYSC_BUF: StaticRefCell<MsgBuf> = StaticRefCell::new(MsgBuf::new_initialized());
@@ -45,7 +45,7 @@ impl<R: 'static> Drop for Reply<R> {
 }
 
 fn send_receive<R>(buf: &MsgBuf) -> Result<Reply<R>, Error> {
-    let reply_raw = SGATE.call(buf, RecvGate::syscall())?;
+    let reply_raw = SGATE.borrow().call(buf, RecvGate::syscall())?;
 
     let reply = reply_raw.get_data::<kif::DefaultReply>();
     let res = Code::from(reply.error as u32);
@@ -65,8 +65,8 @@ fn send_receive_result(buf: &MsgBuf) -> Result<(), Error> {
 }
 
 #[doc(hidden)]
-pub fn send_gate() -> &'static SendGate {
-    SGATE.get()
+pub fn send_gate() -> Ref<'static, SendGate> {
+    SGATE.borrow()
 }
 
 /// Creates a new service named `name` at selector `dst`. The receive gate `rgate` will be used for
@@ -369,7 +369,7 @@ pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Erro
     });
 
     if vpe == kif::SEL_VPE && op == syscalls::VPEOp::STOP {
-        SGATE.send(&buf, RecvGate::syscall())
+        SGATE.borrow().send(&buf, RecvGate::syscall())
     }
     else {
         send_receive_result(&buf)

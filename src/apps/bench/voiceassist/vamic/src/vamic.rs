@@ -17,7 +17,7 @@
 #![no_std]
 
 use m3::cap::Selector;
-use m3::cell::LazyStaticCell;
+use m3::cell::{LazyStaticCell, LazyStaticRefCell};
 use m3::cfg;
 use m3::col::Vec;
 use m3::com::MemGate;
@@ -40,7 +40,7 @@ use m3::vfs::VFS;
 
 pub const LOG_DEF: bool = false;
 
-static AUDIO_DATA: LazyStaticCell<MemGate> = LazyStaticCell::default();
+static AUDIO_DATA: LazyStaticRefCell<MemGate> = LazyStaticRefCell::default();
 static AUDIO_SIZE: LazyStaticCell<usize> = LazyStaticCell::default();
 
 int_enum! {
@@ -109,8 +109,8 @@ impl Handler<MicSession> for MicHandler {
 
         // derive a read-only memory cap for the client. this revokes the previous memory cap, if
         // there was any.
-        sess.img = Some(AUDIO_DATA.derive(0, *AUDIO_SIZE, Perm::R)?);
-        xchg.out_args().push_word(*AUDIO_SIZE as u64);
+        sess.img = Some(AUDIO_DATA.borrow().derive(0, AUDIO_SIZE.get(), Perm::R)?);
+        xchg.out_args().push_word(AUDIO_SIZE.get() as u64);
         xchg.out_caps(kif::CapRngDesc::new(
             kif::CapType::OBJECT,
             sess.img.as_ref().unwrap().sel(),
@@ -162,6 +162,7 @@ pub fn main() -> i32 {
             break;
         }
         AUDIO_DATA
+            .borrow_mut()
             .write(&local[..amount], off)
             .expect("write failed");
         off += amount as goff;

@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::{LazyStaticCell, StaticCell};
+use base::cell::{LazyStaticRefCell, StaticCell};
 use base::cfg;
 use base::envdata;
 use base::io;
@@ -26,7 +26,7 @@ use base::tcu::{EpId, Message, Reg, EP_REGS, TCU};
 
 use crate::paging;
 
-static STATE: LazyStaticCell<isr::State> = LazyStaticCell::default();
+static STATE: LazyStaticRefCell<isr::State> = LazyStaticRefCell::default();
 pub static XLATES: StaticCell<u64> = StaticCell::new(0);
 
 #[no_mangle]
@@ -81,7 +81,7 @@ pub fn init(name: &str) {
 
     log!(crate::LOG_DEF, "Setting up interrupts...");
     STATE.set(isr::State::default());
-    isr::init(STATE.get_mut());
+    isr::init(&mut STATE.borrow_mut());
     isr::init_pexcalls(pexcall);
     isr::enable_irqs();
 }

@@ -20,13 +20,14 @@ mod backend;
 mod partition;
 
 use m3::cap::Selector;
-use m3::cell::LazyStaticCell;
+use m3::cell::LazyStaticRefCell;
 use m3::col::Treap;
 use m3::col::Vec;
 use m3::com::{GateIStream, MemGate, SGateArgs, SendGate};
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::kif;
+use m3::log;
 use m3::pes::VPE;
 use m3::server::{
     server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
@@ -34,7 +35,6 @@ use m3::server::{
 };
 use m3::session::{BlockNo, BlockRange, DiskOperation, ServerSession};
 use m3::tcu::Label;
-use m3::log;
 
 use backend::BlockDevice;
 use backend::BlockDeviceTrait;
@@ -48,8 +48,8 @@ const MAX_DMA_SIZE: usize = 0x10000;
 
 const MIN_SEC_SIZE: usize = 512;
 
-static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
-static DEVICE: LazyStaticCell<BlockDevice> = LazyStaticCell::default();
+static REQHDL: LazyStaticRefCell<RequestHandler> = LazyStaticRefCell::default();
+static DEVICE: LazyStaticRefCell<BlockDevice> = LazyStaticRefCell::default();
 
 struct DiskSession {
     sess: ServerSession,
@@ -61,13 +61,13 @@ struct DiskSession {
 impl DiskSession {
     fn read(&mut self, is: &mut GateIStream) -> Result<(), Error> {
         self.read_write(is, "read", |part, mgate, off, start, count| {
-            DEVICE.get_mut().read(part, &mgate, off, start, count)
+            DEVICE.borrow_mut().read(part, &mgate, off, start, count)
         })
     }
 
     fn write(&mut self, is: &mut GateIStream) -> Result<(), Error> {
         self.read_write(is, "write", |part, mgate, off, start, count| {
-            DEVICE.get_mut().write(part, &mgate, off, start, count)
+            DEVICE.borrow_mut().write(part, &mgate, off, start, count)
         })
     }
 
@@ -141,7 +141,7 @@ impl Handler<DiskSession> for DiskHandler {
         let dev = arg
             .parse::<usize>()
             .map_err(|_| Error::new(Code::InvArgs))?;
-        if !DEVICE.partition_exists(dev) {
+        if !DEVICE.borrow().partition_exists(dev) {
             return Err(Error::new(Code::InvArgs));
         }
 
@@ -165,7 +165,7 @@ impl Handler<DiskSession> for DiskHandler {
 
         let sess = self.sessions.get_mut(sid).unwrap();
         let sgate = SendGate::new_with(
-            SGateArgs::new(REQHDL.recv_gate())
+            SGateArgs::new(REQHDL.borrow().recv_gate())
                 .label(sid as Label)
                 .credits(1),
         )?;
@@ -223,7 +223,7 @@ pub fn main() -> i32 {
     server_loop(|| {
         s.handle_ctrl_chan(&mut hdl)?;
 
-        REQHDL.get_mut().handle(|op, is| {
+        REQHDL.borrow_mut().handle(|op, is| {
             let sess = hdl
                 .sessions
                 .get_mut(is.label() as usize)

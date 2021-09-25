@@ -166,7 +166,7 @@ pub fn set_root_pt(id: crate::VPEId, root: Phys) {
     // TODO we could do better here by assigning each VPE to an ASID within 0..MAX_ASID and flush
     // whenever we don't change the ASID. however, the Rocket Core has MAX_ASID=0, so that it's not
     // worth it right now.
-    if *MAX_ASID != 0xFFFF {
+    if MAX_ASID.get() != 0xFFFF {
         invalidate_tlb();
     }
 }

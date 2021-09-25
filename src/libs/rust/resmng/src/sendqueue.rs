@@ -15,7 +15,7 @@
  */
 
 use m3::cap::Selector;
-use m3::cell::LazyStaticCell;
+use m3::cell::LazyStaticRefCell;
 use m3::col::{DList, String, Vec};
 use m3::com::{RecvGate, SendGate};
 use m3::errors::Error;
@@ -56,19 +56,20 @@ pub struct SendQueue {
     state: QState,
 }
 
-static RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
+static RGATE: LazyStaticRefCell<RecvGate> = LazyStaticRefCell::default();
 
 pub fn init(rgate: RecvGate) {
     RGATE.set(rgate);
 }
 
 pub fn check_replies() {
-    if let Some(msg) = RGATE.fetch() {
+    let rgate = RGATE.borrow();
+    if let Some(msg) = rgate.fetch() {
         if let Ok(serv) = services::get().get_by_id(msg.header.label as Id) {
-            serv.queue().received_reply(&RGATE, msg);
+            serv.queue().received_reply(&rgate, msg);
         }
         else {
-            RGATE.ack_msg(msg).unwrap();
+            rgate.ack_msg(msg).unwrap();
         }
     }
 }
@@ -169,7 +170,7 @@ impl SendQueue {
 
         #[allow(clippy::useless_conversion)]
         self.sgate
-            .send_with_rlabel(msg, &RGATE, tcu::Label::from(self.sid))?;
+            .send_with_rlabel(msg, &RGATE.borrow(), tcu::Label::from(self.sid))?;
 
         Ok(self.cur_event)
     }

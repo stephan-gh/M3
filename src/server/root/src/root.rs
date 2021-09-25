@@ -19,7 +19,7 @@
 mod loader;
 
 use m3::cap::Selector;
-use m3::cell::{LazyStaticCell, RefCell, StaticCell};
+use m3::cell::{LazyStaticUnsafeCell, RefCell, StaticCell};
 use m3::cfg;
 use m3::col::ToString;
 use m3::com::{MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
@@ -37,7 +37,7 @@ use m3::tcu;
 use resmng::childs::{self, Child, OwnChild};
 use resmng::{memory, requests, sendqueue, subsys};
 
-static SUBSYS: LazyStaticCell<subsys::Subsystem> = LazyStaticCell::default();
+static SUBSYS: LazyStaticUnsafeCell<subsys::Subsystem> = LazyStaticUnsafeCell::default();
 static BMODS: StaticCell<u64> = StaticCell::new(0);
 
 fn find_mod(name: &str) -> Option<(MemGate, usize)> {
@@ -57,7 +57,7 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
 
     #[allow(clippy::useless_conversion)]
     let sgate = SendGate::new_with(
-        SGateArgs::new(requests::rgate())
+        SGateArgs::new(&requests::rgate())
             .credits(1)
             .label(tcu::Label::from(child.id())),
     )?;
