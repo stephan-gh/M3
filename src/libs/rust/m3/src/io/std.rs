@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use crate::cell::{LazyStaticUnsafeCell, RefCell};
+use crate::cell::{LazyStaticRefCell, RefCell, RefMut};
 use crate::io::Serial;
 use crate::mem;
 use crate::pes::VPE;
@@ -28,21 +28,21 @@ pub const STDOUT_FILENO: Fd = 1;
 /// The file descriptor for the standard error stream
 pub const STDERR_FILENO: Fd = 2;
 
-static STDIN: LazyStaticUnsafeCell<BufReader<FileRef>> = LazyStaticUnsafeCell::default();
-static STDOUT: LazyStaticUnsafeCell<BufWriter<FileRef>> = LazyStaticUnsafeCell::default();
-static STDERR: LazyStaticUnsafeCell<BufWriter<FileRef>> = LazyStaticUnsafeCell::default();
+static STDIN: LazyStaticRefCell<BufReader<FileRef>> = LazyStaticRefCell::default();
+static STDOUT: LazyStaticRefCell<BufWriter<FileRef>> = LazyStaticRefCell::default();
+static STDERR: LazyStaticRefCell<BufWriter<FileRef>> = LazyStaticRefCell::default();
 
 /// The standard input stream
-pub fn stdin() -> &'static mut BufReader<FileRef> {
-    STDIN.get_mut()
+pub fn stdin() -> RefMut<'static, BufReader<FileRef>> {
+    STDIN.borrow_mut()
 }
 /// The standard output stream
-pub fn stdout() -> &'static mut BufWriter<FileRef> {
-    STDOUT.get_mut()
+pub fn stdout() -> RefMut<'static, BufWriter<FileRef>> {
+    STDOUT.borrow_mut()
 }
 /// The standard error stream
-pub fn stderr() -> &'static mut BufWriter<FileRef> {
-    STDERR.get_mut()
+pub fn stderr() -> RefMut<'static, BufWriter<FileRef>> {
+    STDERR.borrow_mut()
 }
 
 pub(crate) fn init() {
