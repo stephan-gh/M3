@@ -121,9 +121,10 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
         if(i == 0) {
             if(cmd->redirs->fds[STDIN_FD])
                 infd = VFS::open(cmd->redirs->fds[STDIN_FD], FILE_R);
-            else
+            else if(vterm)
                 infd = VPE::self().fds()->alloc(vterm->create_channel(true));
-            vpes[i]->fds()->set(STDIN_FD, VPE::self().fds()->get(infd));
+            if(infd != -1)
+                vpes[i]->fds()->set(STDIN_FD, VPE::self().fds()->get(infd));
         }
         else if(pes[i - 1]->desc().is_programmable() || pes[i]->desc().is_programmable())
             vpes[i]->fds()->set(STDIN_FD, VPE::self().fds()->get(pipes[i - 1]->reader_fd()));
@@ -131,9 +132,10 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
         if(i + 1 == list->count) {
             if(cmd->redirs->fds[STDOUT_FD])
                 outfd = VFS::open(cmd->redirs->fds[STDOUT_FD], FILE_W | FILE_CREATE | FILE_TRUNC);
-            else
+            else if(vterm)
                 outfd = VPE::self().fds()->alloc(vterm->create_channel(false));
-            vpes[i]->fds()->set(STDOUT_FD, VPE::self().fds()->get(outfd));
+            if(outfd != -1)
+                vpes[i]->fds()->set(STDOUT_FD, VPE::self().fds()->get(outfd));
         }
         else if(pes[i]->desc().is_programmable() || pes[i + 1]->desc().is_programmable()) {
             mems[i] = std::make_unique<MemGate>(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
@@ -255,8 +257,10 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
         }
 
         // close our input/output file; the server will recursively close all clones
-        VPE::self().fds()->remove(outfd);
-        VPE::self().fds()->remove(infd);
+        if(outfd != -1)
+            VPE::self().fds()->remove(outfd);
+        if(infd != -1)
+            VPE::self().fds()->remove(infd);
     }
 }
 
