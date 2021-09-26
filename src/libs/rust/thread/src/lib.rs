@@ -18,13 +18,13 @@
 #![no_std]
 
 use base::boxed::Box;
-use base::cell::{LazyStaticUnsafeCell, StaticCell};
+use base::cell::{LazyStaticRefCell, Ref, StaticCell};
 use base::col::{BoxList, Vec};
 use base::impl_boxitem;
 use base::libc;
 use base::log;
 use base::mem;
-use base::tcu;
+use base::tcu::{self, Message};
 use base::vec;
 use core::intrinsics;
 use core::ptr::NonNull;
@@ -236,14 +236,14 @@ impl Drop for Thread {
     }
 }
 
-pub struct ThreadManager {
+struct ThreadManager {
     current: Option<Box<Thread>>,
     ready: BoxList<Thread>,
     block: BoxList<Thread>,
     sleep: BoxList<Thread>,
 }
 
-static TMNG: LazyStaticUnsafeCell<ThreadManager> = LazyStaticUnsafeCell::default();
+static TMNG: LazyStaticRefCell<ThreadManager> = LazyStaticRefCell::default();
 
 pub fn init() {
     TMNG.set(ThreadManager::new());
@@ -259,107 +259,7 @@ impl ThreadManager {
         }
     }
 
-    pub fn get() -> &'static mut ThreadManager {
-        TMNG.get_mut()
-    }
-
-    pub fn cur(&self) -> &Thread {
-        self.current.as_ref().unwrap()
-    }
-
-    fn cur_mut(&mut self) -> &mut Thread {
-        self.current.as_mut().unwrap()
-    }
-
-    pub fn thread_count(&self) -> usize {
-        self.ready.len() + self.block.len() + self.sleep.len()
-    }
-
-    pub fn ready_count(&self) -> usize {
-        self.ready.len()
-    }
-
-    pub fn blocked_count(&self) -> usize {
-        self.block.len()
-    }
-
-    pub fn sleeping_count(&self) -> usize {
-        self.sleep.len()
-    }
-
-    pub fn fetch_msg(&mut self) -> Option<&'static tcu::Message> {
-        match self.current {
-            Some(ref mut t) => t.fetch_msg(),
-            None => None,
-        }
-    }
-
-    pub fn add_thread(&mut self, func_addr: usize, arg: usize) {
-        self.sleep.push_back(Thread::new(func_addr, arg));
-    }
-
-    pub fn remove_thread(&mut self) {
-        self.sleep.pop_front().unwrap();
-    }
-
-    pub fn alloc_event(&self) -> Event {
-        static NEXT_EVENT: StaticCell<Event> = StaticCell::new(0);
-        // if we have no other threads available, don't use events
-        if self.sleeping_count() == 0 {
-            0
-        }
-        // otherwise, use a unique number
-        else {
-            NEXT_EVENT.set(NEXT_EVENT.get() + 1);
-            NEXT_EVENT.get()
-        }
-    }
-
-    pub fn wait_for(&mut self, event: Event) {
-        let next = self.get_next().unwrap();
-
-        let mut cur = mem::replace(&mut self.current, Some(next)).unwrap();
-        cur.subscribe(event);
-        log!(
-            LOG_DEF,
-            "Thread {} waits for {:#x}, switching to {}",
-            cur.id,
-            event,
-            self.cur().id
-        );
-
-        // safety: moving between two lists is fine
-        unsafe {
-            let old = Box::into_raw(cur);
-            self.block.push_back(Box::from_raw(old));
-            thread_switch(
-                &mut (*old).regs as *mut _,
-                &mut self.cur_mut().regs as *mut _,
-            );
-        }
-    }
-
-    pub fn try_yield(&mut self) {
-        match self.ready.pop_front() {
-            None => {},
-            Some(next) => {
-                let cur = mem::replace(&mut self.current, Some(next)).unwrap();
-                log!(LOG_DEF, "Yielding from {} to {}", cur.id, self.cur().id);
-
-                // safety: moving between two lists is fine
-                unsafe {
-                    let old = Box::into_raw(cur);
-                    self.sleep.push_back(Box::from_raw(old));
-                    thread_switch(
-                        &mut (*old).regs as *mut _,
-                        &mut self.cur_mut().regs as *mut _,
-                    );
-                }
-            },
-        }
-    }
-
-    pub fn notify(&mut self, event: Event, msg: Option<&'static tcu::Message>) {
+    fn notify(&mut self, event: Event, msg: Option<&'static tcu::Message>) {
         let mut it = self.block.iter_mut();
         while let Some(t) = it.next() {
             if t.trigger_event(event) {
@@ -373,28 +273,141 @@ impl ThreadManager {
         }
     }
 
-    pub fn stop(&mut self) {
-        if let Some(next) = self.get_next() {
-            let mut cur = mem::replace(&mut self.current, Some(next)).unwrap();
-            log!(
-                LOG_DEF,
-                "Stopping thread {}, switching to {}",
-                cur.id,
-                self.cur().id
-            );
-
-            unsafe {
-                thread_switch(&mut cur.regs as *mut _, &mut self.cur_mut().regs as *mut _);
-            }
-        }
-    }
-
     fn get_next(&mut self) -> Option<Box<Thread>> {
         if !self.ready.is_empty() {
             self.ready.pop_front()
         }
         else {
             self.sleep.pop_front()
+        }
+    }
+}
+
+pub fn cur() -> Ref<'static, Box<Thread>> {
+    Ref::map(TMNG.borrow(), |tmng| tmng.current.as_ref().unwrap())
+}
+
+pub fn thread_count() -> usize {
+    let tmng = TMNG.borrow();
+    tmng.ready.len() + tmng.block.len() + tmng.sleep.len()
+}
+
+pub fn ready_count() -> usize {
+    TMNG.borrow().ready.len()
+}
+
+pub fn blocked_count() -> usize {
+    TMNG.borrow().block.len()
+}
+
+pub fn sleeping_count() -> usize {
+    TMNG.borrow().sleep.len()
+}
+
+pub fn fetch_msg() -> Option<&'static tcu::Message> {
+    match TMNG.borrow_mut().current {
+        Some(ref mut t) => t.fetch_msg(),
+        None => None,
+    }
+}
+
+pub fn add_thread(func_addr: usize, arg: usize) {
+    TMNG.borrow_mut()
+        .sleep
+        .push_back(Thread::new(func_addr, arg));
+}
+
+pub fn remove_thread() {
+    TMNG.borrow_mut().sleep.pop_front().unwrap();
+}
+
+pub fn alloc_event() -> Event {
+    static NEXT_EVENT: StaticCell<Event> = StaticCell::new(0);
+    // if we have no other threads available, don't use events
+    if sleeping_count() == 0 {
+        0
+    }
+    // otherwise, use a unique number
+    else {
+        NEXT_EVENT.set(NEXT_EVENT.get() + 1);
+        NEXT_EVENT.get()
+    }
+}
+
+pub fn wait_for(event: Event) {
+    let mut tmng = TMNG.borrow_mut();
+    let next = tmng.get_next().unwrap();
+
+    log!(
+        LOG_DEF,
+        "Thread {} waits for {:#x}, switching to {}",
+        tmng.current.as_ref().unwrap().id,
+        event,
+        next.id
+    );
+
+    let mut cur = mem::replace(&mut tmng.current, Some(next)).unwrap();
+    cur.subscribe(event);
+
+    // safety: moving between two lists is fine
+    unsafe {
+        let old = Box::into_raw(cur);
+        tmng.block.push_back(Box::from_raw(old));
+        let next_ptr = &mut tmng.current.as_mut().unwrap().regs as *mut _;
+        drop(tmng);
+
+        thread_switch(&mut (*old).regs as *mut _, next_ptr);
+    }
+}
+
+pub fn notify(event: Event, msg: Option<&'static Message>) {
+    TMNG.borrow_mut().notify(event, msg)
+}
+
+pub fn try_yield() {
+    let mut tmng = TMNG.borrow_mut();
+    match tmng.ready.pop_front() {
+        None => {},
+        Some(next) => {
+            log!(
+                LOG_DEF,
+                "Yielding from {} to {}",
+                tmng.current.as_ref().unwrap().id,
+                next.id
+            );
+
+            let cur = mem::replace(&mut tmng.current, Some(next)).unwrap();
+
+            // safety: moving between two lists is fine
+            unsafe {
+                let old = Box::into_raw(cur);
+                tmng.sleep.push_back(Box::from_raw(old));
+                let next_ptr = &mut tmng.current.as_mut().unwrap().regs as *mut _;
+                drop(tmng);
+
+                thread_switch(&mut (*old).regs as *mut _, next_ptr);
+            }
+        },
+    }
+}
+
+pub fn stop() {
+    let mut tmng = TMNG.borrow_mut();
+    if let Some(next) = tmng.get_next() {
+        log!(
+            LOG_DEF,
+            "Stopping thread {}, switching to {}",
+            tmng.current.as_ref().unwrap().id,
+            next.id
+        );
+
+        let mut cur = mem::replace(&mut tmng.current, Some(next)).unwrap();
+
+        let next_ptr = &mut tmng.current.as_mut().unwrap().regs as *mut _;
+        drop(tmng);
+
+        unsafe {
+            thread_switch(&mut cur.regs as *mut _, next_ptr);
         }
     }
 }

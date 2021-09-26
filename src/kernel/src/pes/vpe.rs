@@ -138,7 +138,7 @@ impl VPE {
 
         // some system calls are blocking, leading to a thread switch in the kernel. there is just
         // one syscall per VPE at a time, thus at most one additional thread per VPE is required.
-        thread::ThreadManager::get().add_thread(thread_startup as *const () as usize, 0);
+        thread::add_thread(thread_startup as *const () as usize, 0);
 
         Ok(vpe)
     }
@@ -354,7 +354,7 @@ impl VPE {
 
             // wait until someone exits
             let event = &EXIT_EVENT as *const _ as thread::Event;
-            thread::ThreadManager::get().wait_for(event);
+            thread::wait_for(event);
         };
 
         // ensure that we are removed from the list in any case. we might have started to wait
@@ -382,7 +382,7 @@ impl VPE {
     fn send_exit_notify() {
         // notify all that wait without upcall
         let event = &EXIT_EVENT as *const _ as thread::Event;
-        thread::ThreadManager::get().notify(event, None);
+        thread::notify(event, None);
 
         // send upcalls for the others
         EXIT_LISTENERS.borrow_mut().retain(|l| {
@@ -558,7 +558,7 @@ impl Drop for VPE {
         assert!(self.map_caps.borrow().is_empty());
 
         // remove some thread from the pool as there is one VPE less now
-        thread::ThreadManager::get().remove_thread();
+        thread::remove_thread();
 
         klog!(
             VPES,

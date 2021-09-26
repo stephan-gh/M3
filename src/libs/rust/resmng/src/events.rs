@@ -33,20 +33,18 @@ pub fn wait_for_async(child: Id, event: thread::Event) -> Result<&'static tcu::M
     // remember that the child waits for this event in case we remove it in the meantime
     CHILD_EVENTS.borrow_mut().set(child, Some(event));
 
-    thread::ThreadManager::get().wait_for(event);
+    thread::wait_for(event);
 
     // waiting done, remove it again (this potentially adds an entry into the Treap again)
     CHILD_EVENTS.borrow_mut().set(child, None);
 
     // fetch message for caller
-    thread::ThreadManager::get()
-        .fetch_msg()
-        .ok_or_else(|| Error::new(Code::RecvGone))
+    thread::fetch_msg().ok_or_else(|| Error::new(Code::RecvGone))
 }
 
 pub fn remove_child(child: Id) {
     // if the child is currently waiting for an event, let this fail by delivering a None message
     if let Some(Some(event)) = CHILD_EVENTS.borrow_mut().remove(&child) {
-        thread::ThreadManager::get().notify(event, None);
+        thread::notify(event, None);
     }
 }

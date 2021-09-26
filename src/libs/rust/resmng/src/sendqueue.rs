@@ -128,7 +128,7 @@ impl SendQueue {
         assert!(self.state == QState::Waiting);
         self.state = QState::Idle;
 
-        thread::ThreadManager::get().notify(self.cur_event, Some(msg));
+        thread::notify(self.cur_event, Some(msg));
 
         // now that we've copied the message, we can mark it read
         rg.ack_msg(msg).unwrap();
@@ -179,7 +179,7 @@ impl SendQueue {
 impl Drop for SendQueue {
     fn drop(&mut self) {
         if self.state == QState::Waiting {
-            thread::ThreadManager::get().notify(self.cur_event, None);
+            thread::notify(self.cur_event, None);
         }
 
         while !self.queue.is_empty() {

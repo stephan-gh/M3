@@ -66,11 +66,8 @@ where
 
         func();
 
-        {
-            let thmng = thread::ThreadManager::get();
-            if thmng.ready_count() > 0 {
-                thmng.try_yield();
-            }
+        if thread::ready_count() > 0 {
+            thread::try_yield();
         }
 
         if childs::get().should_stop() {
@@ -80,9 +77,8 @@ where
         VPE::sleep().ok();
     }
 
-    let thmng = thread::ThreadManager::get();
-    if !thmng.cur().is_main() {
-        thmng.stop();
+    if !thread::cur().is_main() {
+        thread::stop();
         // just in case there is no ready thread
         m3::exit(0);
     }

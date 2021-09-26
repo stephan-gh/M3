@@ -460,7 +460,7 @@ impl SemObject {
         while unsafe { ptr::read_volatile(sem.counter.as_ptr()) } == 0 {
             sem.waiters.set(sem.waiters.get() + 1);
             let event = sem.get_event();
-            thread::ThreadManager::get().wait_for(event);
+            thread::wait_for(event);
             if unsafe { ptr::read_volatile(sem.waiters.as_ptr()) } == -1 {
                 return Err(Error::new(Code::RecvGone));
             }
@@ -472,14 +472,14 @@ impl SemObject {
 
     pub fn up(&self) {
         if self.waiters.get() > 0 {
-            thread::ThreadManager::get().notify(self.get_event(), None);
+            thread::notify(self.get_event(), None);
         }
         self.counter.set(self.counter.get() + 1);
     }
 
     pub fn revoke(&self) {
         if self.waiters.get() > 0 {
-            thread::ThreadManager::get().notify(self.get_event(), None);
+            thread::notify(self.get_event(), None);
         }
         self.waiters.set(-1);
     }

@@ -59,7 +59,7 @@ impl FileBufferEntry {
 
             locked: true,
             dirty: false,
-            unlock: thread::ThreadManager::get().alloc_event(),
+            unlock: thread::alloc_event(),
         })
     }
 
@@ -171,7 +171,7 @@ impl FileBuffer {
                         "filebuffer: waiting for cached blocks <{:?}>",
                         head.blocks,
                     );
-                    thread::ThreadManager::get().wait_for(head.unlock);
+                    thread::wait_for(head.unlock);
                 }
                 else {
                     // move element to back since it was touched
@@ -225,7 +225,7 @@ impl FileBuffer {
                     "filebuffer: waiting for eviction of blocks <{:?}>",
                     head.blocks,
                 );
-                thread::ThreadManager::get().wait_for(head.unlock);
+                thread::wait_for(head.unlock);
             }
             else {
                 // remove from treap

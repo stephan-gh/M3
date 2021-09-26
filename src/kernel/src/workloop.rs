@@ -27,10 +27,9 @@ pub fn thread_startup() {
 }
 
 pub fn workloop() -> ! {
-    let thmng = thread::ThreadManager::get();
     let vpemng = VPEMng::get();
 
-    if thmng.cur().is_main() {
+    if thread::cur().is_main() {
         VPEMng::get()
             .start_root_async()
             .expect("starting root failed");
@@ -58,7 +57,7 @@ pub fn workloop() -> ! {
             crate::pes::PEMng::get().pemux(pe).handle_call_async(msg);
         }
 
-        thmng.try_yield();
+        thread::try_yield();
 
         #[cfg(target_vendor = "host")]
         crate::arch::childs::check_childs_async();
@@ -68,7 +67,7 @@ pub fn workloop() -> ! {
         crate::arch::input::check();
     }
 
-    thread::ThreadManager::get().stop();
+    thread::stop();
     // if we get back here, there is no ready or sleeping thread anymore and we can shutdown
     crate::arch::kernel::shutdown();
 }

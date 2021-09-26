@@ -59,7 +59,7 @@ impl MetaBufferBlock {
             locked: true,
             dirty: false,
             links: 0,
-            unlock: thread::ThreadManager::get().alloc_event(),
+            unlock: thread::alloc_event(),
 
             data: vec![0; blocksize as usize],
         }
@@ -203,7 +203,7 @@ impl MetaBuffer {
             let block = unsafe { &mut (*self.blocks[id].as_ptr()) };
 
             if block.locked {
-                thread::ThreadManager::get().wait_for(block.unlock);
+                thread::wait_for(block.unlock);
             }
             else {
                 // move element to back since it was touched

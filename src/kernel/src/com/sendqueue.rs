@@ -151,10 +151,8 @@ impl SendQueue {
     }
 
     pub fn receive_async(event: thread::Event) -> Result<&'static tcu::Message, Error> {
-        thread::ThreadManager::get().wait_for(event);
-        thread::ThreadManager::get()
-            .fetch_msg()
-            .ok_or_else(|| Error::new(Code::RecvGone))
+        thread::wait_for(event);
+        thread::fetch_msg().ok_or_else(|| Error::new(Code::RecvGone))
     }
 
     pub fn received_reply(&mut self, msg: &'static tcu::Message) {
@@ -167,7 +165,7 @@ impl SendQueue {
 
         self.state = QState::Idle;
 
-        thread::ThreadManager::get().notify(self.cur_event, Some(msg));
+        thread::notify(self.cur_event, Some(msg));
 
         // now that we've copied the message, we can mark it read
         ktcu::ack_msg(ktcu::KSRV_EP, msg);
@@ -187,7 +185,7 @@ impl SendQueue {
 
         remove_queue(self);
         if self.state == QState::Waiting {
-            thread::ThreadManager::get().notify(self.cur_event, None);
+            thread::notify(self.cur_event, None);
             // we were waiting for a message and won't receive it
             PENDING_MSGS.set(PENDING_MSGS.get() - 1);
             resume_queue();

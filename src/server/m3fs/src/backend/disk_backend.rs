@@ -62,7 +62,7 @@ impl Backend for DiskBackend {
             .read(0, BlockRange::new(bno), self.blocksize, Some(off as u64))?;
         self.metabuf
             .read_bytes(dst.data_mut().as_mut_ptr(), self.blocksize, off as u64)?;
-        thread::ThreadManager::get().notify(unlock, None);
+        thread::notify(unlock, None);
         Ok(())
     }
 
@@ -77,7 +77,7 @@ impl Backend for DiskBackend {
         if init {
             self.disk.read(blocks.start, blocks, self.blocksize, None)?;
         }
-        thread::ThreadManager::get().notify(unlock, None);
+        thread::notify(unlock, None);
         Ok(())
     }
 
@@ -93,14 +93,14 @@ impl Backend for DiskBackend {
             .write_bytes(src.data().as_ptr(), self.blocksize, off as u64)?;
         self.disk
             .write(0, BlockRange::new(bno), self.blocksize, Some(off as u64))?;
-        thread::ThreadManager::get().notify(unlock, None);
+        thread::notify(unlock, None);
         Ok(())
     }
 
     fn store_data(&self, blocks: BlockRange, unlock: Event) -> Result<(), Error> {
         self.disk
             .write(blocks.start, blocks, self.blocksize, None)?;
-        thread::ThreadManager::get().notify(unlock, None);
+        thread::notify(unlock, None);
         Ok(())
     }
 

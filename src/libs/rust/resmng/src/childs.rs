@@ -1154,7 +1154,7 @@ impl ChildManager {
     fn upcall_derive_srv(&mut self, msg: &'static tcu::Message) {
         let upcall = msg.get_data::<kif::upcalls::DeriveSrv>();
 
-        thread::ThreadManager::get().notify(upcall.def.event, Some(msg));
+        thread::notify(upcall.def.event, Some(msg));
     }
 
     pub fn kill_child_async(&mut self, sel: Selector, exitcode: i32) {

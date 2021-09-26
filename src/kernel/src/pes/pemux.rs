@@ -266,7 +266,7 @@ impl PEMux {
             );
         })?;
 
-        thread::ThreadManager::get().notify(obj.get_event(), None);
+        thread::notify(obj.get_event(), None);
         Ok(())
     }
 

@@ -343,7 +343,7 @@ pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
                     sysc_log!(vpe, "activate: waiting for rgate {:?}", rgate);
 
                     let event = rgate.get_event();
-                    thread::ThreadManager::get().wait_for(event);
+                    thread::wait_for(event);
 
                     sysc_log!(vpe, "activate: rgate {:?} is activated", rgate);
                 }
