@@ -258,7 +258,7 @@ pub trait Child {
 
         let our_srv = self.obtain(srv_sel)?;
         let our_sgate = self.obtain(sgate_sel)?;
-        let id = services::get().add_service(
+        let id = services::add_service(
             self.id(),
             our_srv,
             our_sgate,
@@ -284,7 +284,7 @@ pub trait Child {
                 .map(|idx| serv.remove(idx).0)
         }?;
 
-        let serv = services::get().remove_service_async(id, notify);
+        let serv = services::remove_service_async(id, notify);
         self.cfg().unreg_service(serv.name());
 
         Ok(())
@@ -307,14 +307,15 @@ pub trait Child {
             return Err(Error::new(Code::Exists));
         }
 
-        let serv = services::get().get(sdesc.name().global())?;
+        let serv = services::get_mut_by_name(sdesc.name().global())?;
+        let serv_sel = serv.sel();
         let sess = Session::new_async(self.id(), dst_sel, serv, sdesc.arg())?;
         // check again if it's still unused, because of the async call above
         if sdesc.is_used() {
             return Err(Error::new(Code::Exists));
         }
 
-        syscalls::get_sess(serv.sel(), self.vpe_sel(), dst_sel, sess.ident())?;
+        syscalls::get_sess(serv_sel, self.vpe_sel(), dst_sel, sess.ident())?;
 
         sdesc.mark_used();
         self.res_mut().sessions.push((idx, sess));
@@ -731,7 +732,7 @@ pub trait Child {
 
         while !self.res().services.is_empty() {
             let (id, _) = self.res_mut().services.remove(0);
-            let serv = services::get().remove_service_async(id, false);
+            let serv = services::remove_service_async(id, false);
             self.cfg().unreg_service(serv.name());
         }
 
@@ -806,12 +807,12 @@ impl OwnChild {
 
     pub fn has_unmet_reqs(&self) -> bool {
         for sess in self.cfg().sessions() {
-            if sess.is_dep() && services::get().get(sess.name().global()).is_err() {
+            if sess.is_dep() && services::get_mut_by_name(sess.name().global()).is_err() {
                 return true;
             }
         }
         for scrt in self.cfg().sess_creators() {
-            if services::get().get(scrt.serv_name()).is_err() {
+            if services::get_mut_by_name(scrt.serv_name()).is_err() {
                 return true;
             }
         }
@@ -1144,7 +1145,7 @@ impl ChildManager {
         if !self.flags.contains(Flags::SHUTDOWN) && self.children() == no_wait_childs {
             self.flags.set(Flags::SHUTDOWN, true);
             self.kill_daemons_async();
-            services::get().shutdown_async();
+            services::shutdown_async();
         }
         if !self.should_stop() {
             self.start_waiting(1);

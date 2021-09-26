@@ -152,16 +152,15 @@ impl Subsystem {
                     s.name(),
                     s.sessions()
                 );
-                services::get()
-                    .add_service(
-                        childs::Id::MAX,
-                        sel,
-                        sel + 1,
-                        s.name().to_string(),
-                        s.sessions(),
-                        false,
-                    )
-                    .unwrap();
+                services::add_service(
+                    childs::Id::MAX,
+                    sel,
+                    sel + 1,
+                    s.name().to_string(),
+                    s.sessions(),
+                    false,
+                )
+                .unwrap();
             }
         }
 
@@ -670,7 +669,7 @@ impl SubsystemBuilder {
 
         // services
         for (name, sess_frac, sess_fixed, sess_quota) in &self.servs {
-            let serv = services::get().get(name).unwrap();
+            let serv = services::get_by_name(name).unwrap();
             let sessions = if let Some(quota) = sess_quota {
                 *quota
             }
@@ -688,7 +687,7 @@ impl SubsystemBuilder {
                 }
                 (serv.sessions() - sess_fixed) / sess_frac
             };
-            let subserv = serv.derive_async(child, sessions).map_err(|e| {
+            let subserv = services::Service::derive_async(serv, child, sessions).map_err(|e| {
                 VerboseError::new(e.code(), format!("Unable to derive from service {}", name))
             })?;
             let boot_serv = boot::Service::new(name, sessions);

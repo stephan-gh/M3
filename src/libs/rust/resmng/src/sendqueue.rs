@@ -16,7 +16,7 @@
 
 use m3::cap::Selector;
 use m3::cell::LazyStaticRefCell;
-use m3::col::{DList, String, Vec};
+use m3::col::{DList, String, ToString, Vec};
 use m3::com::{RecvGate, SendGate};
 use m3::errors::Error;
 use m3::log;
@@ -65,7 +65,7 @@ pub fn init(rgate: RecvGate) {
 pub fn check_replies() {
     let rgate = RGATE.borrow();
     if let Some(msg) = rgate.fetch() {
-        if let Ok(serv) = services::get().get_by_id(msg.header.label as Id) {
+        if let Ok(mut serv) = services::get_mut_by_id(msg.header.label as Id) {
             serv.queue().received_reply(&rgate, msg);
         }
         else {
@@ -114,8 +114,8 @@ impl SendQueue {
         Ok(event)
     }
 
-    fn serv_name(&self) -> &String {
-        services::get().get_by_id(self.sid).unwrap().name()
+    fn serv_name(&self) -> String {
+        services::get_by_id(self.sid).unwrap().name().to_string()
     }
 
     fn received_reply(&mut self, rg: &RecvGate, msg: &'static tcu::Message) {
