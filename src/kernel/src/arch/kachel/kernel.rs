@@ -23,7 +23,7 @@ use base::machine;
 use base::math;
 use base::mem::heap;
 
-use crate::arch::{exceptions, loader, paging};
+use crate::arch::{exceptions, paging};
 use crate::args;
 use crate::ktcu;
 use crate::pes;
@@ -91,7 +91,6 @@ pub extern "C" fn env_run() {
     args::parse();
 
     platform::init(&[]);
-    loader::init();
     thread::init();
     create_rbufs();
     pes::init();

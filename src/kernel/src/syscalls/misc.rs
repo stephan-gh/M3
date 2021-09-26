@@ -22,7 +22,7 @@ use base::mem::MsgBuf;
 use base::rc::Rc;
 use base::tcu;
 
-use crate::arch::loader::Loader;
+use crate::arch::loader;
 use crate::cap::{Capability, KObject};
 use crate::cap::{EPObject, SemObject};
 use crate::ktcu;
@@ -467,7 +467,7 @@ pub fn vpe_ctrl_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
     match op {
         kif::syscalls::VPEOp::INIT => {
             vpecap.set_mem_base(arg as goff);
-            if let Err(e) = Loader::get().finish_start(&vpecap) {
+            if let Err(e) = loader::finish_start(&vpecap) {
                 sysc_err!(e.code(), "Unable to finish init");
             }
         },

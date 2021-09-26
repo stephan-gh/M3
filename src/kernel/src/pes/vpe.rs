@@ -26,7 +26,7 @@ use base::tcu::{EpId, PEId, VPEId, STD_EPS_COUNT, UPCALL_REP_OFF};
 use bitflags::bitflags;
 use core::fmt;
 
-use crate::arch::loader::Loader;
+use crate::arch::loader;
 use crate::cap::{CapTable, Capability, EPObject, KMemObject, KObject, PEObject};
 use crate::com::{QueueId, SendQueue};
 use crate::ktcu;
@@ -146,8 +146,7 @@ impl VPE {
     pub fn init_async(&self) -> Result<(), Error> {
         #[cfg(not(target_vendor = "host"))]
         {
-            let loader = Loader::get();
-            loader.init_memory_async(self)?;
+            loader::init_memory_async(self)?;
             if !platform::pe_desc(self.pe_id()).is_device() {
                 self.init_eps_async()
             }
@@ -450,8 +449,7 @@ impl VPE {
 
         VPEMng::get().start_vpe_async(self)?;
 
-        let loader = Loader::get();
-        let pid = loader.start(self)?;
+        let pid = loader::start(self)?;
         self.pid.set(Some(pid));
 
         Ok(())

@@ -16,7 +16,6 @@
 
 use base::cell::StaticCell;
 use base::cfg;
-use base::env;
 use base::envdata;
 use base::goff;
 use base::io;
@@ -29,7 +28,6 @@ use base::vec;
 use thread;
 
 use super::{fs, net};
-use crate::arch::loader;
 use crate::args;
 use crate::ktcu;
 use crate::pes;
@@ -65,9 +63,6 @@ pub fn main() -> i32 {
 
     ktcu::init();
     platform::init(&args::get().free);
-    let kernel = env::args().next().unwrap();
-    let builddir = kernel.rsplitn(2, '/').nth(1).unwrap();
-    loader::init(&builddir);
     crate::arch::childs::init();
     crate::arch::input::init();
     crate::com::init_queues();
