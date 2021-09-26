@@ -19,7 +19,7 @@ use core::ops;
 
 use crate::arch;
 use crate::cap::{CapFlags, Selector};
-use crate::cell::LazyStaticUnsafeCell;
+use crate::cell::LazyReadOnlyCell;
 use crate::cfg;
 use crate::com::rbufs::{alloc_rbuf, free_rbuf};
 use crate::com::{gate::Gate, RecvBuf, SendGate};
@@ -33,10 +33,9 @@ use crate::tcu;
 
 const DEF_MSG_ORD: u32 = 6;
 
-// an unsafe cell is fine here, because we only hand out immutable references
-static SYS_RGATE: LazyStaticUnsafeCell<RecvGate> = LazyStaticUnsafeCell::default();
-static UPC_RGATE: LazyStaticUnsafeCell<RecvGate> = LazyStaticUnsafeCell::default();
-static DEF_RGATE: LazyStaticUnsafeCell<RecvGate> = LazyStaticUnsafeCell::default();
+static SYS_RGATE: LazyReadOnlyCell<RecvGate> = LazyReadOnlyCell::default();
+static UPC_RGATE: LazyReadOnlyCell<RecvGate> = LazyReadOnlyCell::default();
+static DEF_RGATE: LazyReadOnlyCell<RecvGate> = LazyReadOnlyCell::default();
 
 /// A receive gate (`RecvGate`) can receive messages via TCU from connected [`SendGate`]s and can
 /// reply on the received messages.
@@ -311,28 +310,33 @@ impl RecvGate {
 pub(crate) fn pre_init() {
     let eps_start = arch::env::get().first_std_ep();
     let mut rbuf = arch::env::get().pe_desc().rbuf_std_space().0;
-    SYS_RGATE.set(RecvGate::new_def(
-        INVALID_SEL,
-        eps_start + tcu::SYSC_REP_OFF,
-        rbuf,
-        math::next_log2(cfg::SYSC_RBUF_SIZE),
-    ));
-    rbuf += cfg::SYSC_RBUF_SIZE;
+    // safety: we only do that during (re-)initialization so that there are no outstanding
+    // references to the old value. note that we need to use reset() here, because we also use it
+    // for VPE::run() to reinitialize everything.
+    unsafe {
+        SYS_RGATE.reset(RecvGate::new_def(
+            INVALID_SEL,
+            eps_start + tcu::SYSC_REP_OFF,
+            rbuf,
+            math::next_log2(cfg::SYSC_RBUF_SIZE),
+        ));
+        rbuf += cfg::SYSC_RBUF_SIZE;
 
-    UPC_RGATE.set(RecvGate::new_def(
-        INVALID_SEL,
-        eps_start + tcu::UPCALL_REP_OFF,
-        rbuf,
-        math::next_log2(cfg::UPCALL_RBUF_SIZE),
-    ));
-    rbuf += cfg::UPCALL_RBUF_SIZE;
+        UPC_RGATE.reset(RecvGate::new_def(
+            INVALID_SEL,
+            eps_start + tcu::UPCALL_REP_OFF,
+            rbuf,
+            math::next_log2(cfg::UPCALL_RBUF_SIZE),
+        ));
+        rbuf += cfg::UPCALL_RBUF_SIZE;
 
-    DEF_RGATE.set(RecvGate::new_def(
-        INVALID_SEL,
-        eps_start + tcu::DEF_REP_OFF,
-        rbuf,
-        math::next_log2(cfg::DEF_RBUF_SIZE),
-    ));
+        DEF_RGATE.reset(RecvGate::new_def(
+            INVALID_SEL,
+            eps_start + tcu::DEF_REP_OFF,
+            rbuf,
+            math::next_log2(cfg::DEF_RBUF_SIZE),
+        ));
+    }
 }
 
 impl ops::Drop for RecvGate {

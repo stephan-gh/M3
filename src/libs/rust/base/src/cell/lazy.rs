@@ -16,7 +16,8 @@
 
 use core::ops::Deref;
 
-use crate::cell::{Ref, RefMut, StaticCell, StaticRefCell, StaticUnsafeCell};
+use crate::cell::{Ref, RefMut, StaticCell, StaticRefCell, StaticUnsafeCell, UnsafeCell};
+use crate::mem;
 
 /// A `LazyStaticCell` is the same as the [`StaticCell`](super::StaticCell), but contains an
 /// [`Option<T>`](Option). At construction, the value is `None` and it needs to be set before other
@@ -95,6 +96,48 @@ impl<T: Sized> LazyStaticRefCell<T> {
     /// Removes the inner value and returns the old value
     pub fn unset(&self) -> Option<T> {
         self.inner.replace(None)
+    }
+}
+
+/// A `LazyReadOnlyCell` is a cell that can be used for a static variable. It has to be initialized
+/// (once) lazily and can afterwards only be read.
+pub struct LazyReadOnlyCell<T: Sized> {
+    inner: UnsafeCell<Option<T>>,
+}
+
+unsafe impl<T: Sized> Sync for LazyReadOnlyCell<T> {
+}
+
+impl<T: Sized> LazyReadOnlyCell<T> {
+    /// Creates a new static cell with given value
+    pub const fn default() -> Self {
+        Self {
+            inner: UnsafeCell::new(None),
+        }
+    }
+
+    /// Returns a reference to the inner value
+    pub fn get(&self) -> &T {
+        // safety: since the value can only be set once and cannot be mutated afterwards, we can
+        // hand out normal (immutable) references without runtime checks
+        unsafe { (*self.inner.get()).as_ref().unwrap() }
+    }
+
+    /// Sets the inner value to `val`. Can only be called once.
+    pub fn set(&self, val: T) {
+        // safety: since the value can only be set once and cannot be used before it was set, nobody
+        // can already have a reference to the value
+        let old = unsafe { self.reset(val) };
+        assert!(old.is_none());
+    }
+
+    /// Resets the inner value to `val` and returns the old value.
+    ///
+    /// # Safety
+    ///
+    /// The caller needs to make sure that there are no references left to the old value.
+    pub unsafe fn reset(&self, val: T) -> Option<T> {
+        mem::replace(&mut *self.inner.get(), Some(val))
     }
 }
 

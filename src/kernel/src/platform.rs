@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::StaticUnsafeCell;
+use base::cell::LazyReadOnlyCell;
 use base::col::{String, Vec};
 use base::kif::{boot, PEDesc};
 use base::mem::{size_of, GlobAddr};
@@ -74,15 +74,14 @@ impl iter::Iterator for PEIterator {
     }
 }
 
-// TODO can we use a safe cell here?
-static KENV: StaticUnsafeCell<Option<KEnv>> = StaticUnsafeCell::new(None);
+static KENV: LazyReadOnlyCell<KEnv> = LazyReadOnlyCell::default();
 
 pub fn init(args: &[String]) {
-    KENV.set(Some(arch::platform::init(args)));
+    KENV.set(arch::platform::init(args));
 }
 
-fn get() -> &'static mut KEnv {
-    KENV.get_mut().as_mut().unwrap()
+fn get() -> &'static KEnv {
+    KENV.get()
 }
 
 pub fn info() -> &'static boot::Info {

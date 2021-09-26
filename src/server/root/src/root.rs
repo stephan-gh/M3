@@ -19,7 +19,7 @@
 mod loader;
 
 use m3::cap::Selector;
-use m3::cell::{LazyStaticUnsafeCell, RefCell, StaticCell};
+use m3::cell::{LazyReadOnlyCell, RefCell, StaticCell};
 use m3::cfg;
 use m3::col::ToString;
 use m3::com::{MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
@@ -37,18 +37,22 @@ use m3::tcu;
 use resmng::childs::{self, Child, OwnChild};
 use resmng::{memory, requests, sendqueue, subsys};
 
-static SUBSYS: LazyStaticUnsafeCell<subsys::Subsystem> = LazyStaticUnsafeCell::default();
+static SUBSYS: LazyReadOnlyCell<subsys::Subsystem> = LazyReadOnlyCell::default();
 static BMODS: StaticCell<u64> = StaticCell::new(0);
 
 fn find_mod(name: &str) -> Option<(MemGate, usize)> {
     SUBSYS
+        .get()
         .mods()
         .iter()
         .enumerate()
         .position(|(idx, m)| (BMODS.get() & (1 << idx)) == 0 && m.name() == name)
         .map(|idx| {
             BMODS.set(BMODS.get() | 1 << idx);
-            (SUBSYS.get_mod(idx), SUBSYS.mods()[idx].size as usize)
+            (
+                SUBSYS.get().get_mod(idx),
+                SUBSYS.get().mods()[idx].size as usize,
+            )
         })
 }
 
@@ -122,9 +126,9 @@ fn workloop() {
 
 #[no_mangle]
 pub fn main() -> i32 {
-    SUBSYS.set(subsys::Subsystem::new().expect("Unable to read subsystem info"));
-
-    let args = SUBSYS.parse_args();
+    let sub = subsys::Subsystem::new().expect("Unable to read subsystem info");
+    let args = sub.parse_args();
+    SUBSYS.set(sub);
 
     let max_msg_size = 1 << 8;
     let buf_size = max_msg_size * args.max_clients;
@@ -174,6 +178,7 @@ pub fn main() -> i32 {
     }
 
     SUBSYS
+        .get()
         .start(start_child_async)
         .expect("Unable to start subsystem");
 
