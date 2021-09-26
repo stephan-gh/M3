@@ -33,6 +33,7 @@ use crate::tcu;
 
 const DEF_MSG_ORD: u32 = 6;
 
+// an unsafe cell is fine here, because we only hand out immutable references
 static SYS_RGATE: LazyStaticUnsafeCell<RecvGate> = LazyStaticUnsafeCell::default();
 static UPC_RGATE: LazyStaticUnsafeCell<RecvGate> = LazyStaticUnsafeCell::default();
 static DEF_RGATE: LazyStaticUnsafeCell<RecvGate> = LazyStaticUnsafeCell::default();
@@ -110,18 +111,18 @@ impl RGateArgs {
 
 impl RecvGate {
     /// Returns the receive gate to receive system call replies
-    pub fn syscall() -> &'static mut RecvGate {
-        SYS_RGATE.get_mut()
+    pub fn syscall() -> &'static RecvGate {
+        SYS_RGATE.get()
     }
 
     /// Returns the receive gate to receive upcalls from the kernel
-    pub fn upcall() -> &'static mut RecvGate {
-        UPC_RGATE.get_mut()
+    pub fn upcall() -> &'static RecvGate {
+        UPC_RGATE.get()
     }
 
     /// Returns the default receive gate
-    pub fn def() -> &'static mut RecvGate {
-        DEF_RGATE.get_mut()
+    pub fn def() -> &'static RecvGate {
+        DEF_RGATE.get()
     }
 
     const fn new_def(sel: Selector, ep: tcu::EpId, addr: usize, order: u32) -> Self {
