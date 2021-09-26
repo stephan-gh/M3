@@ -23,7 +23,7 @@ mod physmem;
 mod regions;
 
 use m3::cap::Selector;
-use m3::cell::{LazyStaticRefCell, LazyStaticUnsafeCell, StaticUnsafeCell};
+use m3::cell::{LazyStaticRefCell, LazyStaticUnsafeCell, StaticRefCell};
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, MGateArgs, MemGate, RecvGate, SGateArgs, SendGate};
 use m3::env;
@@ -47,16 +47,26 @@ use resmng::{requests, sendqueue, subsys};
 
 pub const LOG_DEF: bool = false;
 
+// TODO how to get rid of this unsafe cell?
 static PGHDL: LazyStaticUnsafeCell<PagerReqHandler> = LazyStaticUnsafeCell::default();
-static REQHDL: LazyStaticUnsafeCell<RequestHandler> = LazyStaticUnsafeCell::default();
+static REQHDL: LazyStaticRefCell<RequestHandler> = LazyStaticRefCell::default();
 static MOUNTS: LazyStaticRefCell<Vec<(String, vfs::FSHandle)>> = LazyStaticRefCell::default();
-// TODO can we use a safe cell here?
-static PMP_PES: StaticUnsafeCell<Vec<PEId>> = StaticUnsafeCell::new(Vec::new());
+static PMP_PES: StaticRefCell<Vec<PEId>> = StaticRefCell::new(Vec::new());
 static SETTINGS: LazyStaticRefCell<PagerSettings> = LazyStaticRefCell::default();
 
 struct PagerReqHandler {
     sel: Selector,
     sessions: SessionContainer<AddrSpace>,
+}
+
+impl PagerReqHandler {
+    fn close_sess(&mut self, _crt: usize, sid: SessId, rgate: &RecvGate) {
+        log!(crate::LOG_DEF, "[{}] pager::close()", sid);
+        let crt = self.sessions.get(sid).unwrap().creator();
+        self.sessions.remove(crt, sid);
+        // ignore all potentially outstanding messages of this session
+        rgate.drop_msgs_with(sid as Label);
+    }
 }
 
 impl Handler<AddrSpace> for PagerReqHandler {
@@ -96,7 +106,7 @@ impl Handler<AddrSpace> for PagerReqHandler {
                     })
                     .map(|(sel, _)| sel)
             },
-            PagerOp::ADD_SGATE => aspace.add_sgate(REQHDL.recv_gate()),
+            PagerOp::ADD_SGATE => aspace.add_sgate(REQHDL.borrow().recv_gate()),
             _ => Err(Error::new(Code::InvArgs)),
         }?;
 
@@ -129,11 +139,7 @@ impl Handler<AddrSpace> for PagerReqHandler {
     }
 
     fn close(&mut self, _crt: usize, sid: SessId) {
-        log!(crate::LOG_DEF, "[{}] pager::close()", sid);
-        let crt = self.sessions.get(sid).unwrap().creator();
-        self.sessions.remove(crt, sid);
-        // ignore all potentially outstanding messages of this session
-        REQHDL.recv_gate().drop_msgs_with(sid as Label);
+        self.close_sess(_crt, sid, REQHDL.borrow().recv_gate());
     }
 }
 
@@ -161,11 +167,14 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
     )?;
 
     // create pager session for child (creator=0 here because we create all sessions ourself)
-    let (sel, sid) = PGHDL.get_mut().open(0, PGHDL.sel, "")?;
+    let (sel, sid) = {
+        let hdl = PGHDL.get_mut();
+        hdl.open(0, hdl.sel, "")?
+    };
     let sess = ClientSession::new_bind(sel);
     #[allow(clippy::useless_conversion)]
     let pager_sgate = SendGate::new_with(
-        SGateArgs::new(REQHDL.recv_gate())
+        SGateArgs::new(REQHDL.borrow().recv_gate())
             .credits(1)
             .label(Label::from(sid as u32)),
     )?;
@@ -182,11 +191,14 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
 
     // TODO make that more flexible
     // add PMP EP for file system
-    if !PMP_PES.iter().any(|id| *id == pe_usage.pe_id()) {
-        let size = SETTINGS.borrow().fs_size;
-        let fs_mem = MemGate::new_with(MGateArgs::new(size, kif::Perm::R).addr(0))?;
-        child.our_pe().add_mem_region(fs_mem, size, true)?;
-        PMP_PES.get_mut().push(pe_usage.pe_id());
+    {
+        let mut pmp_pes = PMP_PES.borrow_mut();
+        if !pmp_pes.iter().any(|id| *id == pe_usage.pe_id()) {
+            let size = SETTINGS.borrow().fs_size;
+            let fs_mem = MemGate::new_with(MGateArgs::new(size, kif::Perm::R).addr(0))?;
+            child.our_pe().add_mem_region(fs_mem, size, true)?;
+            pmp_pes.push(pe_usage.pe_id());
+        }
     }
 
     // pass subsystem info to child, if it's a subsystem
@@ -216,13 +228,14 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
 }
 
 fn handle_request(op: PagerOp, is: &mut GateIStream) -> Result<(), Error> {
+    let hdl = PGHDL.get_mut();
     let sid = is.label() as SessId;
 
     // clone is special, because we need two sessions
     if op == PagerOp::CLONE {
-        let pid = PGHDL.sessions.get(sid).unwrap().parent();
+        let pid = hdl.sessions.get(sid).unwrap().parent();
         if let Some(pid) = pid {
-            let (sess, psess) = PGHDL.get_mut().sessions.get_two_mut(sid, pid);
+            let (sess, psess) = hdl.sessions.get_two_mut(sid, pid);
             let sess = sess.unwrap();
             sess.clone(is, psess.unwrap())
         }
@@ -231,7 +244,7 @@ fn handle_request(op: PagerOp, is: &mut GateIStream) -> Result<(), Error> {
         }
     }
     else {
-        let aspace = PGHDL.get_mut().sessions.get_mut(sid).unwrap();
+        let aspace = hdl.sessions.get_mut(sid).unwrap();
 
         match op {
             PagerOp::PAGEFAULT => aspace.pagefault(is),
@@ -239,7 +252,7 @@ fn handle_request(op: PagerOp, is: &mut GateIStream) -> Result<(), Error> {
             PagerOp::UNMAP => aspace.unmap(is),
             PagerOp::CLOSE => aspace
                 .close(is)
-                .map(|_| PGHDL.get_mut().close(0, is.label() as SessId)),
+                .map(|_| hdl.close_sess(0, is.label() as SessId, is.rgate())),
             _ => Err(Error::new(Code::InvArgs)),
         }
     }
@@ -250,7 +263,7 @@ fn workloop(serv: &Server) {
         || {
             serv.handle_ctrl_chan(PGHDL.get_mut()).ok();
 
-            REQHDL.get_mut().handle(handle_request).ok();
+            REQHDL.borrow_mut().handle(handle_request).ok();
         },
         start_child_async,
     )
@@ -294,12 +307,14 @@ pub fn main() -> i32 {
     ));
 
     // create server
-    PGHDL.set(PagerReqHandler {
+    let mut hdl = PagerReqHandler {
         sel: 0,
         sessions: SessionContainer::new(args.max_clients),
-    });
-    let serv = Server::new_private("pager", PGHDL.get_mut()).expect("Unable to create service");
-    PGHDL.get_mut().sel = serv.sel();
+    };
+    let serv = Server::new_private("pager", &mut hdl).expect("Unable to create service");
+    hdl.sel = serv.sel();
+    PGHDL.set(hdl);
+
     REQHDL.set(
         RequestHandler::new_with(args.max_clients, DEF_MSG_SIZE)
             .expect("Unable to create request handler"),

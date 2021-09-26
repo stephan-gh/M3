@@ -22,7 +22,7 @@ use crate::sess::{FileSession, M3FSSession};
 use m3::{
     cap::Selector,
     col::Vec,
-    com::{GateIStream, SendGate},
+    com::{GateIStream, RecvGate, SendGate},
     errors::{Code, Error},
     server::CapExchange,
     server::SessId,
@@ -56,12 +56,12 @@ impl MetaSession {
         }
     }
 
-    pub fn get_sgate(&mut self, data: &mut CapExchange) -> Result<(), Error> {
+    pub fn get_sgate(&mut self, data: &mut CapExchange, rgate: &RecvGate) -> Result<(), Error> {
         if data.in_caps() != 1 {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let sgate = SendGate::new(crate::REQHDL.recv_gate())?;
+        let sgate = SendGate::new(rgate)?;
         let sgate_selector = sgate.sel();
         self.sgates.push(sgate);
 
@@ -89,6 +89,7 @@ impl MetaSession {
         crt: usize,
         data: &mut CapExchange,
         file_session_id: SessId,
+        rgate: &RecvGate,
     ) -> Result<FileSession, Error> {
         if self.files.len() == self.max_files {
             return Err(Error::new(Code::NoSpace));
@@ -105,7 +106,7 @@ impl MetaSession {
             flags
         );
 
-        let session = self.do_open(selector, crt, path, flags, file_session_id)?;
+        let session = self.do_open(selector, crt, path, flags, file_session_id, rgate)?;
 
         self.files.push(file_session_id);
 
@@ -131,6 +132,7 @@ impl MetaSession {
         path: &str,
         flags: OpenFlags,
         file_session_id: SessId,
+        rgate: &RecvGate,
     ) -> Result<FileSession, Error> {
         let ino = dirs::search(&path, flags.contains(OpenFlags::CREATE))?;
         let inode = inodes::get(ino)?;
@@ -168,6 +170,7 @@ impl MetaSession {
             path,
             flags,
             inode.inode,
+            rgate,
         )
     }
 }

@@ -34,9 +34,9 @@ use crate::sess::{FSSession, M3FSSession, MetaSession};
 
 use m3::{
     cap::Selector,
-    cell::{LazyStaticUnsafeCell, StaticUnsafeCell},
+    cell::{LazyStaticRefCell, StaticUnsafeCell},
     col::{String, ToString, Vec},
-    com::GateIStream,
+    com::{GateIStream, RecvGate},
     env,
     errors::{Code, Error},
     goff,
@@ -64,7 +64,7 @@ const FS_IMG_OFFSET: goff = 0;
 const MSG_SIZE: usize = 128;
 
 // The global request handler
-static REQHDL: LazyStaticUnsafeCell<RequestHandler> = LazyStaticUnsafeCell::default();
+static REQHDL: LazyStaticRefCell<RequestHandler> = LazyStaticRefCell::default();
 
 // The global file handle in this process
 // TODO can we use a safe cell here?
@@ -132,7 +132,7 @@ impl M3FSRequestHandler {
                 // get session id, then notify caller that we closed, finally close self
                 let sid = input.label() as SessId;
                 input.reply_error(Code::None).ok();
-                self.close_session(sid)
+                self.close_session(sid, input.rgate())
             },
             M3FSOperation::STAT => self.execute_on_session(input, |sess, is| sess.stat(is)),
             M3FSOperation::SEEK => self.execute_on_session(input, |sess, is| sess.seek(is)),
@@ -173,7 +173,7 @@ impl M3FSRequestHandler {
         }
     }
 
-    fn close_session(&mut self, sid: SessId) -> Result<(), Error> {
+    fn close_session(&mut self, sid: SessId, rgate: &RecvGate) -> Result<(), Error> {
         // close this and all child sessions
         let mut sids = vec![sid];
         while let Some(id) = sids.pop() {
@@ -210,7 +210,7 @@ impl M3FSRequestHandler {
                 }
 
                 // ignore all potentially outstanding messages of this session
-                REQHDL.get().recv_gate().drop_msgs_with(id as Label);
+                rgate.drop_msgs_with(id as Label);
             }
         }
         Ok(())
@@ -282,9 +282,10 @@ impl Handler<FSSession> for M3FSRequestHandler {
             .ok_or_else(|| Error::new(Code::InvArgs))?;
         match session {
             FSSession::Meta(meta) => match op {
-                M3FSOperation::GET_SGATE => meta.get_sgate(data),
+                M3FSOperation::GET_SGATE => meta.get_sgate(data, REQHDL.borrow().recv_gate()),
                 M3FSOperation::OPEN => {
-                    let file_session = meta.open_file(sel, crt, data, next_sess_id)?;
+                    let file_session =
+                        meta.open_file(sel, crt, data, next_sess_id, REQHDL.borrow().recv_gate())?;
 
                     self.sessions
                         .add(crt, next_sess_id, FSSession::File(file_session))
@@ -294,7 +295,8 @@ impl Handler<FSSession> for M3FSRequestHandler {
 
             FSSession::File(file) => match op {
                 M3FSOperation::CLONE => {
-                    let nfile_session = file.clone(sel, crt, next_sess_id, data)?;
+                    let nfile_session =
+                        file.clone(sel, crt, next_sess_id, data, REQHDL.borrow().recv_gate())?;
 
                     self.sessions
                         .add(crt, next_sess_id, FSSession::File(nfile_session))
@@ -340,7 +342,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
     }
 
     fn close(&mut self, _crt: usize, sid: SessId) {
-        self.close_session(sid).ok();
+        self.close_session(sid, REQHDL.borrow().recv_gate()).ok();
     }
 
     fn shutdown(&mut self) {
@@ -490,7 +492,7 @@ pub fn main() -> i32 {
         // handle message that is given to the server
         serv.handle_ctrl_chan(&mut hdl)?;
         REQHDL
-            .get_mut()
+            .borrow_mut()
             .handle(|op, mut is| hdl.handle(op, &mut is))
     })
     .ok();

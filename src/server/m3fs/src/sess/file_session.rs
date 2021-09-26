@@ -24,7 +24,7 @@ use crate::sess::M3FSSession;
 use m3::{
     cap::Selector,
     col::{String, ToString, Vec},
-    com::{GateIStream, SendGate},
+    com::{GateIStream, RecvGate, SendGate},
     errors::{Code, Error},
     kif::{CapRngDesc, CapType, Perm, INVALID_SEL},
     server::{CapExchange, SessId},
@@ -107,6 +107,7 @@ impl FileSession {
         filename: &str,
         oflags: OpenFlags,
         ino: InodeNo,
+        rgate: &RecvGate,
     ) -> Result<Self, Error> {
         // the server session for this file
         let sess_sel = if srv_sel == m3::kif::INVALID_SEL {
@@ -124,7 +125,7 @@ impl FileSession {
         }
         else {
             Some(m3::com::SendGate::new_with(
-                m3::com::SGateArgs::new(crate::REQHDL.recv_gate())
+                m3::com::SGateArgs::new(rgate)
                     // use the session id as identifier
                     .label(file_sess_id as tcu::Label)
                     .credits(1)
@@ -175,6 +176,7 @@ impl FileSession {
         crt: usize,
         sid: SessId,
         data: &mut CapExchange,
+        rgate: &RecvGate,
     ) -> Result<Self, Error> {
         log!(
             crate::LOG_SESSION,
@@ -192,6 +194,7 @@ impl FileSession {
             &self.filename,
             self.oflags,
             self.ino,
+            rgate,
         )?;
 
         self.child_sessions.push(sid);

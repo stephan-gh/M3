@@ -17,7 +17,7 @@
 #![no_std]
 
 use m3::cap::Selector;
-use m3::cell::{LazyStaticRefCell, LazyStaticUnsafeCell, StaticCell, StaticRefCell};
+use m3::cell::{LazyStaticRefCell, StaticCell, StaticRefCell};
 use m3::col::Vec;
 use m3::com::{GateIStream, MemGate, Perm, RGateArgs, RecvGate, SGateArgs, SendGate, EP};
 use m3::errors::{Code, Error};
@@ -50,7 +50,7 @@ int_enum! {
     }
 }
 
-static REQHDL: LazyStaticUnsafeCell<RequestHandler> = LazyStaticUnsafeCell::default();
+static REQHDL: LazyStaticRefCell<RequestHandler> = LazyStaticRefCell::default();
 static SIGRGATE: LazyStaticRefCell<RecvGate> = LazyStaticRefCell::default();
 static BUFFER: StaticRefCell<Vec<u8>> = StaticRefCell::new(Vec::new());
 static INPUT: StaticRefCell<Vec<u8>> = StaticRefCell::new(Vec::new());
@@ -60,7 +60,7 @@ macro_rules! reply_vmsg_late {
     ( $msg:expr, $( $args:expr ),* ) => ({
         let mut msg = m3::mem::MsgBuf::borrow_def();
         m3::build_vmsg!(&mut msg, $( $args ),*);
-        crate::REQHDL.recv_gate().reply(&msg, $msg)
+        crate::REQHDL.borrow().recv_gate().reply(&msg, $msg)
     });
 }
 
@@ -101,7 +101,7 @@ fn mem_off(id: SessId) -> goff {
 impl Channel {
     fn new(id: SessId, mem: Rc<MemGate>, caps: Selector, writing: bool) -> Result<Self, Error> {
         let sgate = SendGate::new_with(
-            SGateArgs::new(REQHDL.recv_gate())
+            SGateArgs::new(REQHDL.borrow().recv_gate())
                 .label(id as Label)
                 .credits(1)
                 .sel(caps + 1),
@@ -264,7 +264,7 @@ impl VTermHandler {
         })
     }
 
-    fn close_sess(&mut self, sid: SessId) -> Result<(), Error> {
+    fn close_sess(&mut self, sid: SessId, rgate: &RecvGate) -> Result<(), Error> {
         // close this and all child sessions
         let mut sids = vec![sid];
         while let Some(id) = sids.pop() {
@@ -280,7 +280,7 @@ impl VTermHandler {
                 self.sessions.remove(crt, id);
 
                 // ignore all potentially outstanding messages of this session
-                REQHDL.recv_gate().drop_msgs_with(id as Label);
+                rgate.drop_msgs_with(id as Label);
             }
         }
         Ok(())
@@ -387,7 +387,7 @@ impl Handler<VTermSession> for VTermHandler {
     }
 
     fn close(&mut self, _crt: usize, sid: SessId) {
-        self.close_sess(sid).ok();
+        self.close_sess(sid, &REQHDL.borrow().recv_gate()).ok();
     }
 }
 
@@ -529,7 +529,7 @@ pub fn main() -> i32 {
             }
         }
 
-        REQHDL.get_mut().handle(|op, mut is| {
+        REQHDL.borrow_mut().handle(|op, mut is| {
             match op {
                 GenFileOp::NEXT_IN => hdl.with_chan(&mut is, |c, is| c.next_in(is)),
                 GenFileOp::NEXT_OUT => hdl.with_chan(&mut is, |c, is| c.next_out(is)),
@@ -541,7 +541,7 @@ pub fn main() -> i32 {
                     // up before receiving the reply a bit later anyway. this in turn causes
                     // trouble if the receive gate (with the reply) is reused for something else.
                     is.reply_error(Code::None).ok();
-                    hdl.close_sess(sid)
+                    hdl.close_sess(sid, is.rgate())
                 },
                 GenFileOp::STAT => Err(Error::new(Code::NotSup)),
                 GenFileOp::SEEK => Err(Error::new(Code::NotSup)),

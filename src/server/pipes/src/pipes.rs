@@ -19,9 +19,9 @@
 mod sess;
 
 use m3::cap::Selector;
-use m3::cell::LazyStaticUnsafeCell;
+use m3::cell::LazyStaticRefCell;
 use m3::col::{String, Vec};
-use m3::com::GateIStream;
+use m3::com::{GateIStream, RecvGate};
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::int_enum;
@@ -42,7 +42,7 @@ use sess::{ChanType, Channel, Meta, PipesSession, SessionData};
 
 pub const LOG_DEF: bool = false;
 
-static REQHDL: LazyStaticUnsafeCell<RequestHandler> = LazyStaticUnsafeCell::default();
+static REQHDL: LazyStaticRefCell<RequestHandler> = LazyStaticRefCell::default();
 
 int_enum! {
     pub struct Operation : u64 {
@@ -86,7 +86,7 @@ impl PipesHandler {
         ))
     }
 
-    fn close_sess(&mut self, sid: SessId) -> Result<(), Error> {
+    fn close_sess(&mut self, sid: SessId, rgate: &RecvGate) -> Result<(), Error> {
         // close this and all child sessions
         let mut sids = vec![sid];
         while let Some(id) = sids.pop() {
@@ -97,13 +97,13 @@ impl PipesHandler {
                 let _ = match &mut sess.data_mut() {
                     SessionData::Meta(ref mut m) => m.close(&mut sids),
                     SessionData::Pipe(ref mut p) => p.close(&mut sids),
-                    SessionData::Chan(ref mut c) => c.close(&mut sids),
+                    SessionData::Chan(ref mut c) => c.close(&mut sids, rgate),
                 };
 
                 let crt = sess.creator();
                 self.sessions.remove(crt, id);
                 // ignore all potentially outstanding messages of this session
-                REQHDL.recv_gate().drop_msgs_with(id as Label);
+                rgate.drop_msgs_with(id as Label);
             }
         }
         Ok(())
@@ -179,7 +179,8 @@ impl Handler<PipesSession> for PipesHandler {
                         sel,
                         msize
                     );
-                    let pipe = m.create_pipe(sel, nsid, msize as usize)?;
+                    let pipe =
+                        m.create_pipe(sel, nsid, msize as usize, REQHDL.borrow().recv_gate())?;
                     let nsess = self.new_sub_sess(crt, sel, nsid, SessionData::Pipe(pipe))?;
                     Ok((nsid, nsess, false))
                 },
@@ -203,7 +204,7 @@ impl Handler<PipesSession> for PipesHandler {
                         sel,
                         ty
                     );
-                    let chan = p.new_chan(nsid, sel, ty)?;
+                    let chan = p.new_chan(nsid, sel, ty, REQHDL.borrow().recv_gate())?;
                     p.attach(&chan);
                     let nsess = self.new_sub_sess(crt, sel, nsid, SessionData::Chan(chan))?;
                     Ok((nsid, nsess, false))
@@ -224,7 +225,7 @@ impl Handler<PipesSession> for PipesHandler {
                         sel
                     );
 
-                    let chan = c.clone(nsid, sel)?;
+                    let chan = c.clone(nsid, sel, REQHDL.borrow().recv_gate())?;
                     let nsess = self.new_sub_sess(crt, sel, nsid, SessionData::Chan(chan))?;
                     Ok((nsid, nsess, true))
                 },
@@ -297,7 +298,7 @@ impl Handler<PipesSession> for PipesHandler {
     }
 
     fn close(&mut self, _crt: usize, sid: SessId) {
-        self.close_sess(sid).ok();
+        self.close_sess(sid, REQHDL.borrow().recv_gate()).ok();
     }
 }
 
@@ -363,7 +364,7 @@ pub fn main() -> i32 {
     server_loop(|| {
         s.handle_ctrl_chan(&mut hdl)?;
 
-        REQHDL.get_mut().handle(|op, mut is| {
+        REQHDL.borrow_mut().handle(|op, mut is| {
             match op {
                 Operation::NEXT_IN => hdl.with_chan(&mut is, |c, is| c.next_in(is)),
                 Operation::NEXT_OUT => hdl.with_chan(&mut is, |c, is| c.next_out(is)),
@@ -375,7 +376,7 @@ pub fn main() -> i32 {
                     // up before receiving the reply a bit later anyway. this in turn causes
                     // trouble if the receive gate (with the reply) is reused for something else.
                     is.reply_error(Code::None).ok();
-                    hdl.close_sess(sid)
+                    hdl.close_sess(sid, is.rgate())
                 },
                 Operation::STAT => Err(Error::new(Code::NotSup)),
                 Operation::SEEK => Err(Error::new(Code::NotSup)),

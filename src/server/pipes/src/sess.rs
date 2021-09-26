@@ -18,7 +18,7 @@ use bitflags::bitflags;
 use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::col::{VarRingBuf, Vec};
-use m3::com::{GateIStream, MemGate, SGateArgs, SendGate, EP};
+use m3::com::{GateIStream, MemGate, RecvGate, SGateArgs, SendGate, EP};
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::log;
@@ -29,10 +29,10 @@ use m3::session::ServerSession;
 use m3::tcu::{Label, Message};
 
 macro_rules! reply_vmsg_late {
-    ( $msg:expr, $( $args:expr ),* ) => ({
+    ( $rgate:expr, $msg:expr, $( $args:expr ),* ) => ({
         let mut msg = m3::mem::MsgBuf::borrow_def();
         m3::build_vmsg!(&mut msg, $( $args ),*);
-        crate::REQHDL.recv_gate().reply(&msg, $msg)
+        $rgate.reply(&msg, $msg)
     });
 }
 
@@ -81,9 +81,10 @@ impl Meta {
         sel: Selector,
         sid: SessId,
         mem_size: usize,
+        rgate: &RecvGate,
     ) -> Result<Pipe, Error> {
         self.pipes.push(sid);
-        Pipe::new(sel, sid, mem_size)
+        Pipe::new(sel, sid, mem_size, rgate)
     }
 
     pub fn close(&mut self, sids: &mut Vec<SessId>) -> Result<(), Error> {
@@ -161,7 +162,7 @@ impl State {
         }
     }
 
-    fn handle_pending_reads(&mut self) {
+    fn handle_pending_reads(&mut self, rgate: &RecvGate) {
         // if a read is still in progress, we cannot start other reads
         if self.last_read.is_some() {
             return;
@@ -181,7 +182,7 @@ impl State {
                     amount,
                     pos
                 );
-                reply_vmsg_late!(req.msg, Code::None as u32, pos, amount).ok();
+                reply_vmsg_late!(rgate, req.msg, Code::None as u32, pos, amount).ok();
 
                 // remove write request
                 self.pending_reads.pop();
@@ -191,7 +192,7 @@ impl State {
             else if self.flags.contains(Flags::WRITE_EOF) {
                 // report EOF
                 log!(crate::LOG_DEF, "[{}] pipes::late_read(): EOF", req.chan);
-                reply_vmsg_late!(req.msg, Code::None as u32, 0usize, 0usize).ok();
+                reply_vmsg_late!(rgate, req.msg, Code::None as u32, 0usize, 0usize).ok();
 
                 // remove write request
                 self.pending_reads.pop();
@@ -203,7 +204,7 @@ impl State {
         }
     }
 
-    fn handle_pending_writes(&mut self) {
+    fn handle_pending_writes(&mut self, rgate: &RecvGate) {
         // if a write is still in progress, we cannot start other writes
         if self.last_write.is_some() {
             return;
@@ -213,7 +214,7 @@ impl State {
         if self.flags.contains(Flags::READ_EOF) {
             while let Some(req) = self.pending_writes.pop() {
                 log!(crate::LOG_DEF, "[{}] pipes::late_write(): EOF", req.chan);
-                reply_vmsg_late!(req.msg, Code::EndOfFile as u32).ok();
+                reply_vmsg_late!(rgate, req.msg, Code::EndOfFile as u32).ok();
             }
         }
         // is there a pending write request?
@@ -230,7 +231,7 @@ impl State {
                     amount,
                     pos
                 );
-                reply_vmsg_late!(req.msg, Code::None as u32, pos, amount).ok();
+                reply_vmsg_late!(rgate, req.msg, Code::None as u32, pos, amount).ok();
 
                 // remove write request
                 self.pending_writes.pop();
@@ -256,9 +257,14 @@ pub struct Pipe {
 }
 
 impl Pipe {
-    pub fn new(sel: Selector, id: SessId, mem_size: usize) -> Result<Self, Error> {
+    pub fn new(
+        sel: Selector,
+        id: SessId,
+        mem_size: usize,
+        rgate: &RecvGate,
+    ) -> Result<Self, Error> {
         let sgate = SendGate::new_with(
-            SGateArgs::new(crate::REQHDL.recv_gate())
+            SGateArgs::new(rgate)
                 .label(id as Label)
                 .credits(1)
                 .sel(sel + 1),
@@ -278,8 +284,14 @@ impl Pipe {
         self.state.borrow_mut().mem = Some(MemGate::new_bind(sel));
     }
 
-    pub fn new_chan(&self, sid: SessId, sel: Selector, ty: ChanType) -> Result<Channel, Error> {
-        Channel::new(sid, sel, ty, self.id, self.state.clone())
+    pub fn new_chan(
+        &self,
+        sid: SessId,
+        sel: Selector,
+        ty: ChanType,
+        rgate: &RecvGate,
+    ) -> Result<Channel, Error> {
+        Channel::new(sid, sel, ty, self.id, self.state.clone(), rgate)
     }
 
     pub fn attach(&mut self, chan: &Channel) {
@@ -321,9 +333,10 @@ impl Channel {
         ty: ChanType,
         pipe: SessId,
         state: Rc<RefCell<State>>,
+        rgate: &RecvGate,
     ) -> Result<Self, Error> {
         let sgate = SendGate::new_with(
-            SGateArgs::new(crate::REQHDL.recv_gate())
+            SGateArgs::new(rgate)
                 .label(id as Label)
                 .credits(1)
                 .sel(sel + 1),
@@ -347,8 +360,8 @@ impl Channel {
         kif::CapRngDesc::new(kif::CapType::OBJECT, self.sgate.sel() - 1, 2)
     }
 
-    pub fn clone(&self, id: SessId, sel: Selector) -> Result<Channel, Error> {
-        Channel::new(id, sel, self.ty, self.pipe, self.state.clone())
+    pub fn clone(&self, id: SessId, sel: Selector, rgate: &RecvGate) -> Result<Channel, Error> {
+        Channel::new(id, sel, self.ty, self.pipe, self.state.clone(), rgate)
     }
 
     pub fn set_ep(&mut self, ep: Selector) {
@@ -363,7 +376,7 @@ impl Channel {
             ChanType::WRITE => Err(Error::new(Code::InvArgs)),
         };
 
-        self.state.borrow_mut().handle_pending_writes();
+        self.state.borrow_mut().handle_pending_writes(is.rgate());
         res
     }
 
@@ -375,7 +388,7 @@ impl Channel {
             ChanType::WRITE => self.write(is, 0),
         };
 
-        self.state.borrow_mut().handle_pending_reads();
+        self.state.borrow_mut().handle_pending_reads(is.rgate());
         res
     }
 
@@ -394,24 +407,24 @@ impl Channel {
             ChanType::WRITE => self.write(is, nbytes),
         };
 
-        self.handle_pending();
+        self.handle_pending(is.rgate());
         res
     }
 
-    pub fn close(&mut self, _sids: &mut Vec<SessId>) -> Result<(), Error> {
+    pub fn close(&mut self, _sids: &mut Vec<SessId>, rgate: &RecvGate) -> Result<(), Error> {
         let res = match self.ty {
             ChanType::READ => self.close_reader(),
             ChanType::WRITE => self.close_writer(),
         };
 
-        self.handle_pending();
+        self.handle_pending(rgate);
         res
     }
 
-    fn handle_pending(&mut self) {
+    fn handle_pending(&mut self, rgate: &RecvGate) {
         match self.ty {
-            ChanType::READ => self.state.borrow_mut().handle_pending_writes(),
-            ChanType::WRITE => self.state.borrow_mut().handle_pending_reads(),
+            ChanType::READ => self.state.borrow_mut().handle_pending_writes(rgate),
+            ChanType::WRITE => self.state.borrow_mut().handle_pending_reads(rgate),
         }
     }
 
