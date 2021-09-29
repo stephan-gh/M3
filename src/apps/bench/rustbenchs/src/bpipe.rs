@@ -42,45 +42,47 @@ fn child_to_parent() {
     let mut prof = profile::Profiler::default().repeats(2).warmup(1);
 
     let pe = wv_assert_ok!(PE::get("clone|own"));
+    let res = prof.run_with_id(
+        || {
+            let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
+            let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
+
+            let mut vpe = wv_assert_ok!(VPE::new_with(pe.clone(), VPEArgs::new("writer")));
+            vpe.files().set(
+                io::STDOUT_FILENO,
+                VPE::cur().files().get(pipe.writer_fd()).unwrap(),
+            );
+            wv_assert_ok!(vpe.obtain_fds());
+
+            let act = wv_assert_ok!(vpe.run(Box::new(|| {
+                let output = VPE::cur().files().get(io::STDOUT_FILENO).unwrap();
+                let buf = BUF.borrow();
+                let mut rem = DATA_SIZE;
+                while rem > 0 {
+                    wv_assert_ok!(output.borrow_mut().write(&buf[..]));
+                    rem -= BUF_SIZE;
+                }
+                0
+            })));
+
+            pipe.close_writer();
+
+            let input = VPE::cur().files().get(pipe.reader_fd()).unwrap();
+            let mut buf = BUF.borrow_mut();
+            while wv_assert_ok!(input.borrow_mut().read(&mut buf[..])) > 0 {}
+
+            wv_assert_eq!(act.wait(), Ok(0));
+        },
+        0x90,
+    );
+
     wv_perf!(
         format!(
             "c->p: {} KiB transfer with {} KiB buf",
             DATA_SIZE / 1024,
             BUF_SIZE / 1024
         ),
-        prof.run_with_id(
-            || {
-                let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
-                let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
-
-                let mut vpe = wv_assert_ok!(VPE::new_with(pe.clone(), VPEArgs::new("writer")));
-                vpe.files().set(
-                    io::STDOUT_FILENO,
-                    VPE::cur().files().get(pipe.writer_fd()).unwrap(),
-                );
-                wv_assert_ok!(vpe.obtain_fds());
-
-                let act = wv_assert_ok!(vpe.run(Box::new(|| {
-                    let output = VPE::cur().files().get(io::STDOUT_FILENO).unwrap();
-                    let buf = BUF.borrow();
-                    let mut rem = DATA_SIZE;
-                    while rem > 0 {
-                        wv_assert_ok!(output.borrow_mut().write(&buf[..]));
-                        rem -= BUF_SIZE;
-                    }
-                    0
-                })));
-
-                pipe.close_writer();
-
-                let input = VPE::cur().files().get(pipe.reader_fd()).unwrap();
-                let mut buf = BUF.borrow_mut();
-                while wv_assert_ok!(input.borrow_mut().read(&mut buf[..])) > 0 {}
-
-                wv_assert_eq!(act.wait(), Ok(0));
-            },
-            0x90
-        )
+        res
     );
 }
 
@@ -89,46 +91,48 @@ fn parent_to_child() {
     let mut prof = profile::Profiler::default().repeats(2).warmup(1);
 
     let pe = wv_assert_ok!(PE::get("clone|own"));
+    let res = prof.run_with_id(
+        || {
+            let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
+            let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
+
+            let mut vpe = wv_assert_ok!(VPE::new_with(pe.clone(), VPEArgs::new("reader")));
+            vpe.files().set(
+                io::STDIN_FILENO,
+                VPE::cur().files().get(pipe.reader_fd()).unwrap(),
+            );
+            wv_assert_ok!(vpe.obtain_fds());
+
+            let act = wv_assert_ok!(vpe.run(Box::new(|| {
+                let input = VPE::cur().files().get(io::STDIN_FILENO).unwrap();
+                let mut buf = BUF.borrow_mut();
+                while wv_assert_ok!(input.borrow_mut().read(&mut buf[..])) > 0 {}
+                0
+            })));
+
+            pipe.close_reader();
+
+            let output = VPE::cur().files().get(pipe.writer_fd()).unwrap();
+            let buf = BUF.borrow();
+            let mut rem = DATA_SIZE;
+            while rem > 0 {
+                wv_assert_ok!(output.borrow_mut().write(&buf[..]));
+                rem -= BUF_SIZE;
+            }
+
+            pipe.close_writer();
+
+            wv_assert_eq!(act.wait(), Ok(0));
+        },
+        0x91,
+    );
+
     wv_perf!(
         format!(
             "p->c: {} KiB transfer with {} KiB buf",
             DATA_SIZE / 1024,
             BUF_SIZE / 1024
         ),
-        prof.run_with_id(
-            || {
-                let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
-                let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
-
-                let mut vpe = wv_assert_ok!(VPE::new_with(pe.clone(), VPEArgs::new("reader")));
-                vpe.files().set(
-                    io::STDIN_FILENO,
-                    VPE::cur().files().get(pipe.reader_fd()).unwrap(),
-                );
-                wv_assert_ok!(vpe.obtain_fds());
-
-                let act = wv_assert_ok!(vpe.run(Box::new(|| {
-                    let input = VPE::cur().files().get(io::STDIN_FILENO).unwrap();
-                    let mut buf = BUF.borrow_mut();
-                    while wv_assert_ok!(input.borrow_mut().read(&mut buf[..])) > 0 {}
-                    0
-                })));
-
-                pipe.close_reader();
-
-                let output = VPE::cur().files().get(pipe.writer_fd()).unwrap();
-                let buf = BUF.borrow();
-                let mut rem = DATA_SIZE;
-                while rem > 0 {
-                    wv_assert_ok!(output.borrow_mut().write(&buf[..]));
-                    rem -= BUF_SIZE;
-                }
-
-                pipe.close_writer();
-
-                wv_assert_eq!(act.wait(), Ok(0));
-            },
-            0x91
-        )
+        res
     );
 }
