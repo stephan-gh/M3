@@ -25,7 +25,7 @@ use crate::vfs;
 
 #[no_mangle]
 pub extern "C" fn abort() -> ! {
-    exit(1);
+    pexif::exit(1);
 }
 
 #[no_mangle]

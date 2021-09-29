@@ -18,14 +18,25 @@ use core::intrinsics;
 use core::panic::PanicInfo;
 
 use crate::backtrace;
+use crate::cell::StaticCell;
 use crate::io::{log, Write};
 
 extern "C" {
+    fn abort();
     fn exit(code: i32);
 }
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
+    static PANIC: StaticCell<bool> = StaticCell::new(false);
+    if PANIC.get() {
+        unsafe {
+            abort();
+        }
+    }
+
+    PANIC.set(true);
+
     // disable instruction trace here to see the instructions that lead to the panic
     #[cfg(target_vendor = "hw")]
     if crate::envdata::get().platform == crate::envdata::Platform::HW.val {
@@ -59,8 +70,8 @@ fn panic(info: &PanicInfo) -> ! {
     }
 
     unsafe {
-        exit(1)
-    };
+        exit(1);
+    }
     intrinsics::abort();
 }
 
