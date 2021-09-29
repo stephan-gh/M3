@@ -125,10 +125,12 @@ impl Subsystem {
         }
 
         log!(crate::LOG_SUBSYS, "Available PEs:");
+        let mut pes = Vec::new();
         for (i, pe) in self.pes().iter().enumerate() {
             log!(crate::LOG_SUBSYS, "  {:?}", pe);
-            pes::get().add(pe.id as PEId, self.get_pe(i));
+            pes.push((pe.id as PEId, self.get_pe(i)));
         }
+        pes::create(pes);
 
         log!(crate::LOG_SUBSYS, "Available memory:");
         for (i, mem) in self.mems().iter().enumerate() {

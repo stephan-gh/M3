@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::cell::{RefCell, StaticUnsafeCell};
+use m3::cell::{Cell, LazyReadOnlyCell, RefCell};
 use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
@@ -28,7 +28,17 @@ use m3::tcu::{EpId, PEId, PMEM_PROT_EPS, TCU};
 struct ManagedPE {
     id: PEId,
     pe: Rc<PE>,
-    users: u32,
+    users: Cell<u32>,
+}
+
+impl ManagedPE {
+    fn add_user(&self) {
+        self.users.set(self.users.get() + 1);
+    }
+
+    fn remove_user(&self) -> u32 {
+        self.users.replace(self.users.get() - 1)
+    }
 }
 
 struct PMP {
@@ -98,7 +108,7 @@ impl PEUsage {
     pub fn derive(&self, eps: u32) -> Result<PEUsage, Error> {
         let pe = self.pe_obj().derive(eps)?;
         if let Some(idx) = self.idx {
-            get().pes[idx].users += 1;
+            get().pes[idx].add_user();
         }
         log!(
             crate::LOG_PES,
@@ -126,20 +136,29 @@ pub struct PEManager {
     pes: Vec<ManagedPE>,
 }
 
-// TODO can we use a safe cell here?
-static MNG: StaticUnsafeCell<PEManager> = StaticUnsafeCell::new(PEManager::new());
+static MNG: LazyReadOnlyCell<PEManager> = LazyReadOnlyCell::default();
 
-pub fn get() -> &'static mut PEManager {
-    MNG.get_mut()
+pub fn create(pes: Vec<(PEId, Rc<PE>)>) {
+    let mut mng = PEManager {
+        pes: Vec::with_capacity(pes.len()),
+    };
+    for (id, pe) in pes {
+        mng.pes.push(ManagedPE {
+            id,
+            pe,
+            users: Cell::from(0),
+        });
+    }
+    MNG.set(mng);
+}
+
+pub fn get() -> &'static PEManager {
+    MNG.get()
 }
 
 impl PEManager {
     pub const fn new() -> Self {
         PEManager { pes: Vec::new() }
-    }
-
-    pub fn add(&mut self, id: PEId, pe: Rc<PE>) {
-        self.pes.push(ManagedPE { id, pe, users: 0 });
     }
 
     pub fn count(&self) -> usize {
@@ -154,7 +173,7 @@ impl PEManager {
         self.pes[idx].pe.clone()
     }
 
-    pub fn find_with_desc(&mut self, desc: &str) -> Option<usize> {
+    pub fn find_with_desc(&self, desc: &str) -> Option<usize> {
         let own = VPE::cur().pe().desc();
         for props in desc.split('|') {
             let base = PEDesc::new(own.pe_type(), own.isa(), 0);
@@ -166,7 +185,7 @@ impl PEManager {
         None
     }
 
-    pub fn find_and_alloc_with_desc(&mut self, desc: &str) -> Result<PEUsage, Error> {
+    pub fn find_and_alloc_with_desc(&self, desc: &str) -> Result<PEUsage, Error> {
         let own = VPE::cur().pe().desc();
         for props in desc.split('|') {
             let base = PEDesc::new(own.pe_type(), own.isa(), 0);
@@ -178,7 +197,7 @@ impl PEManager {
         Err(Error::new(Code::NotFound))
     }
 
-    pub fn find_and_alloc(&mut self, desc: PEDesc) -> Result<PEUsage, Error> {
+    pub fn find_and_alloc(&self, desc: PEDesc) -> Result<PEUsage, Error> {
         self.find(desc).map(|idx| {
             let usage = PEUsage::new(idx);
             if self.pes[idx].id == VPE::cur().pe_id() {
@@ -196,9 +215,9 @@ impl PEManager {
         })
     }
 
-    fn find(&mut self, desc: PEDesc) -> Result<usize, Error> {
+    fn find(&self, desc: PEDesc) -> Result<usize, Error> {
         for (id, pe) in self.pes.iter().enumerate() {
-            if pe.users == 0
+            if pe.users.get() == 0
                 && pe.pe.desc().isa() == desc.isa()
                 && pe.pe.desc().pe_type() == desc.pe_type()
                 && (desc.attr().is_empty() || pe.pe.desc().attr() == desc.attr())
@@ -209,7 +228,7 @@ impl PEManager {
         Err(Error::new(Code::NotFound))
     }
 
-    pub fn alloc(&mut self, idx: usize) {
+    pub fn alloc(&self, idx: usize) {
         log!(
             crate::LOG_PES,
             "Allocating PE{}: {:?} (eps={})",
@@ -217,13 +236,12 @@ impl PEManager {
             self.pes[idx].pe.desc(),
             self.get(idx).quota().unwrap().1,
         );
-        self.pes[idx].users += 1;
+        self.pes[idx].add_user();
     }
 
-    fn free(&mut self, idx: usize) {
-        let mut pe = &mut self.pes[idx];
-        pe.users -= 1;
-        if pe.users == 0 {
+    fn free(&self, idx: usize) {
+        let pe = &self.pes[idx];
+        if pe.remove_user() == 1 {
             log!(crate::LOG_PES, "Freeing PE{}: {:?}", pe.id, pe.pe.desc());
         }
     }
