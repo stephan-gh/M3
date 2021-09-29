@@ -38,7 +38,7 @@ public:
     explicit M3FS(const String &service)
         : ClientSession(service, VPE::self().alloc_sels(2)),
           FileSystem(),
-          _gate(obtain_sgate()) {
+          _gate(SendGate::bind(get_sgate(VPE::self()))) {
     }
     explicit M3FS(capsel_t caps) noexcept
         : ClientSession(caps + 0),
@@ -65,27 +65,14 @@ public:
     virtual void serialize(Marshaller &m) override;
     static FileSystem *unserialize(Unmarshaller &um);
 
-    // TODO wrong place. we should have a DataSpace session or something
-    static size_t get_mem(ClientSession &sess, size_t *off, capsel_t *sel) {
+private:
+    capsel_t get_sgate(VPE &vpe) {
         KIF::ExchangeArgs args;
         ExchangeOStream os(args);
-        os << *off;
+        os << GET_SGATE;
         args.bytes = os.total();
-
-        KIF::CapRngDesc crd = sess.obtain(1, &args);
-
-        size_t size;
-        ExchangeIStream is(args);
-        is >> *off >> size;
-        *sel = crd.start();
-        return size;
-    }
-
-private:
-    SendGate obtain_sgate() {
-        KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, sel() + 1);
-        obtain_for(VPE::self(), crd);
-        return SendGate::bind(crd.start());
+        obtain_for(vpe, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel() + 1, 1), &args);
+        return sel() + 1;
     }
 
     SendGate _gate;

@@ -78,11 +78,7 @@ Errors::Code M3FS::try_rename(const char *oldpath, const char *newpath) {
 void M3FS::delegate(VPE &vpe) {
     vpe.delegate_obj(sel());
     // TODO what if it fails?
-    KIF::ExchangeArgs args;
-    ExchangeOStream os(args);
-    os << GET_SGATE;
-    args.bytes = os.total();
-    obtain_for(vpe, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel() + 1, 1), &args);
+    get_sgate(vpe);
 }
 
 void M3FS::serialize(Marshaller &m) {
