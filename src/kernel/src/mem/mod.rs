@@ -20,6 +20,6 @@ mod module;
 pub use self::main::{Allocation, MainMemory};
 pub use self::module::*;
 
-pub fn get() -> &'static mut MainMemory {
-    main::get()
+pub fn borrow_mut() -> base::cell::RefMut<'static, MainMemory> {
+    main::borrow_mut()
 }

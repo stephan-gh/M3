@@ -229,10 +229,11 @@ impl VPEMng {
         #[cfg(not(target_vendor = "host"))]
         let mut mem_ep = 1;
 
-        for m in mem::get().mods() {
+        for m in mem::borrow_mut().mods() {
             if m.mem_type() != mem::MemType::KERNEL {
                 let alloc = Allocation::new(m.addr(), m.capacity());
-                let mgate_obj = MGateObject::new(alloc, kif::Perm::RWX, false);
+                // create a derive MGateObject to prevent freeing the memory if it's of type ROOT
+                let mgate_obj = MGateObject::new(alloc, kif::Perm::RWX, true);
 
                 #[cfg(not(target_vendor = "host"))]
                 {

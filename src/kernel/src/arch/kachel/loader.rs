@@ -68,9 +68,9 @@ fn load_root_async(env_phys: goff, vpe: &VPE) -> Result<(), Error> {
     // map stack
     if vpe.pe_desc().has_virtmem() {
         let (virt, size) = vpe.pe_desc().stack_space();
-        let mut phys = mem::get().allocate(mem::MemType::ROOT, size as goff, PAGE_SIZE as goff)?;
+        let phys =
+            mem::borrow_mut().allocate(mem::MemType::ROOT, size as goff, PAGE_SIZE as goff)?;
         load_segment_async(vpe, phys.global(), virt as goff, size, PageFlags::RW, true)?;
-        phys.claim();
     }
 
     let entry: usize = {
@@ -193,10 +193,12 @@ fn load_mod_async(vpe: &VPE, bm: &kif::boot::Mod) -> Result<usize, Error> {
             let size = math::round_up((phdr.vaddr & PAGE_MASK) + phdr.memsz as usize, PAGE_SIZE);
 
             let phys = if vpe.pe_desc().has_virtmem() {
-                let mut mem =
-                    mem::get().allocate(mem::MemType::ROOT, size as goff, PAGE_SIZE as goff)?;
+                let mem = mem::borrow_mut().allocate(
+                    mem::MemType::ROOT,
+                    size as goff,
+                    PAGE_SIZE as goff,
+                )?;
                 load_segment_async(vpe, mem.global(), virt as goff, size, flags, true)?;
-                mem.claim();
                 ktcu::glob_to_phys_remote(vpe.pe_id(), mem.global(), flags)?
             }
             else {
@@ -224,8 +226,11 @@ fn load_mod_async(vpe: &VPE, bm: &kif::boot::Mod) -> Result<usize, Error> {
     if vpe.pe_desc().has_virtmem() {
         // create initial heap
         let end = math::round_up(end, PAGE_SIZE);
-        let mut phys =
-            mem::get().allocate(mem::MemType::ROOT, MOD_HEAP_SIZE as goff, PAGE_SIZE as goff)?;
+        let phys = mem::borrow_mut().allocate(
+            mem::MemType::ROOT,
+            MOD_HEAP_SIZE as goff,
+            PAGE_SIZE as goff,
+        )?;
         load_segment_async(
             vpe,
             phys.global(),
@@ -234,7 +239,6 @@ fn load_mod_async(vpe: &VPE, bm: &kif::boot::Mod) -> Result<usize, Error> {
             PageFlags::RW,
             true,
         )?;
-        phys.claim();
     }
 
     Ok(hdr.entry)

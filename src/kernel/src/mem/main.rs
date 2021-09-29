@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::StaticUnsafeCell;
+use base::cell::{RefMut, StaticRefCell};
 use base::col::Vec;
 use base::goff;
 use base::mem::GlobAddr;
@@ -36,10 +36,6 @@ impl Allocation {
         Allocation { gaddr, size }
     }
 
-    pub fn claim(&mut self) {
-        self.size = 0;
-    }
-
     pub fn global(&self) -> GlobAddr {
         self.gaddr
     }
@@ -52,14 +48,6 @@ impl Allocation {
 impl fmt::Debug for Allocation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Alloc[addr={:?}, size={:#x}]", self.gaddr, self.size)
-    }
-}
-
-impl Drop for Allocation {
-    fn drop(&mut self) {
-        if self.size > 0 {
-            get().free(self);
-        }
     }
 }
 
@@ -139,8 +127,8 @@ impl fmt::Debug for MainMemory {
     }
 }
 
-static MEM: StaticUnsafeCell<MainMemory> = StaticUnsafeCell::new(MainMemory::new());
+static MEM: StaticRefCell<MainMemory> = StaticRefCell::new(MainMemory::new());
 
-pub fn get() -> &'static mut MainMemory {
-    MEM.get_mut()
+pub fn borrow_mut() -> RefMut<'static, MainMemory> {
+    MEM.borrow_mut()
 }

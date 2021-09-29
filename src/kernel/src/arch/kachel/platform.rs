@@ -74,7 +74,7 @@ pub fn init(_args: &[String]) -> platform::KEnv {
 
     // register memory modules
     let mut kmem_idx = 0;
-    let mem = mem::get();
+    let mut mem = mem::borrow_mut();
     for (i, pe) in pes.iter().enumerate() {
         if pe.pe_type() == PEType::MEM {
             // the first memory module hosts the FS image and other stuff

@@ -350,8 +350,8 @@ impl MGateObject {
 impl Drop for MGateObject {
     fn drop(&mut self) {
         // if it's not derived, it's always memory from mem-PEs
-        if self.derived {
-            self.mem.claim();
+        if !self.derived {
+            mem::borrow_mut().free(&self.mem);
         }
     }
 }

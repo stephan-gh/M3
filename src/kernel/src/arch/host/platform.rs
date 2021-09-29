@@ -61,7 +61,7 @@ pub fn init(args: &[String]) -> platform::KEnv {
         + info.mod_count as usize * size_of::<boot::Mod>()
         + info.pe_count as usize * size_of::<boot::PE>()
         + info.mem_count as usize * size_of::<boot::Mem>();
-    let mut binfo_mem = mem::get()
+    let binfo_mem = mem::borrow_mut()
         .allocate(mem::MemType::KERNEL, bsize as goff, 1)
         .expect("Unable to allocate mem for boot info");
 
@@ -98,7 +98,6 @@ pub fn init(args: &[String]) -> platform::KEnv {
             mems.len() * size_of::<boot::Mem>(),
         );
     }
-    binfo_mem.claim();
 
     platform::KEnv::new(info, binfo_mem.global(), mods, pes)
 }
@@ -119,7 +118,7 @@ fn build_mems() -> Vec<boot::Mem> {
     let mut off = base as goff;
 
     // fs image
-    mem::get().add(mem::MemMod::new(
+    mem::borrow_mut().add(mem::MemMod::new(
         mem::MemType::OCCUPIED,
         kernel_pe(),
         off,
@@ -128,7 +127,7 @@ fn build_mems() -> Vec<boot::Mem> {
     off += cfg::FS_MAX_SIZE as goff;
 
     // kernel memory
-    mem::get().add(mem::MemMod::new(
+    mem::borrow_mut().add(mem::MemMod::new(
         mem::MemType::KERNEL,
         kernel_pe(),
         off,
@@ -138,7 +137,7 @@ fn build_mems() -> Vec<boot::Mem> {
 
     // boot module memory
     let boot_off = off;
-    mem::get().add(mem::MemMod::new(
+    mem::borrow_mut().add(mem::MemMod::new(
         mem::MemType::BOOT,
         kernel_pe(),
         off,
@@ -149,7 +148,7 @@ fn build_mems() -> Vec<boot::Mem> {
     // user memory
     let user_size =
         cfg::TOTAL_MEM_SIZE - (cfg::FS_MAX_SIZE + args::get().kmem + cfg::FIXED_ROOT_MEM);
-    mem::get().add(mem::MemMod::new(
+    mem::borrow_mut().add(mem::MemMod::new(
         mem::MemType::USER,
         kernel_pe(),
         off,
@@ -192,7 +191,7 @@ fn build_modules(args: &[String]) -> Vec<boot::Mod> {
                 panic!("Stat for {} failed", arg);
             }
 
-            let mut alloc = mem::get()
+            let alloc = mem::borrow_mut()
                 .allocate(mem::MemType::BOOT, finfo.st_size as goff, 1)
                 .expect("Unable to alloc mem for boot module");
             let dest = alloc.global().offset() as *mut u8 as *mut libc::c_void;
@@ -203,9 +202,6 @@ fn build_modules(args: &[String]) -> Vec<boot::Mod> {
 
             let mod_name = arg.rsplitn(2, '/').next().unwrap();
             mods.push(boot::Mod::new(alloc.global(), alloc.size(), mod_name));
-
-            // don't free mem
-            alloc.claim();
         }
     }
 

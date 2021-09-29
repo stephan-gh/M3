@@ -140,7 +140,7 @@ pub fn translate(virt: usize, perm: PageFlags) -> PTE {
 }
 
 pub fn map_new_mem(virt: usize, pages: usize) -> GlobAddr {
-    let mut alloc = mem::get()
+    let alloc = mem::borrow_mut()
         .allocate(
             mem::MemType::KERNEL,
             (pages * cfg::PAGE_SIZE) as goff,
@@ -152,7 +152,6 @@ pub fn map_new_mem(virt: usize, pages: usize) -> GlobAddr {
         .borrow_mut()
         .map_pages(virt, alloc.global(), pages, PageFlags::RW)
         .unwrap();
-    alloc.claim();
     alloc.global()
 }
 
