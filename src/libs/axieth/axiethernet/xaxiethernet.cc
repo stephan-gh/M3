@@ -1228,7 +1228,7 @@ int XAxiEthernet_ClearOptions(XAxiEthernet *InstancePtr, u32 Options)
 	if ((DepOptions & XAE_MULTICAST_OPTION) &&
 		(DepOptions & XAE_EXT_MULTICAST_OPTION)) {
 		xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_ClearOptions:disabling multicast mode\n");
+		"XAxiEthernet_ClearOptions: disabling multicast mode\n");
 		Reg = XAxiEthernet_ReadReg(InstancePtr->Config.BaseAddress,
 							XAE_RAF_OFFSET);
 		Reg |= XAE_RAF_MCSTREJ_MASK;
@@ -1239,7 +1239,7 @@ int XAxiEthernet_ClearOptions(XAxiEthernet *InstancePtr, u32 Options)
 	/* Disable extended multicast option */
 	if (DepOptions & XAE_EXT_MULTICAST_OPTION) {
 		xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_ClearOptions:disabling extended multicast mode\n");
+		"XAxiEthernet_ClearOptions: disabling extended multicast mode\n");
 		regread_value = XAxiEthernet_ReadReg((InstancePtr)->Config.BaseAddress,
 			XAE_RAF_OFFSET) & ~XAE_RAF_EMULTIFLTRENBL_MASK;
 		XAxiEthernet_WriteReg((InstancePtr)->Config.BaseAddress,
@@ -1250,7 +1250,7 @@ int XAxiEthernet_ClearOptions(XAxiEthernet *InstancePtr, u32 Options)
 	/* Disable extended transmit VLAN tag option */
 	if (DepOptions & XAE_EXT_TXVLAN_TAG_OPTION) {
 		xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_ClearOptions:disabling extended TX VLAN tag mode\n");
+		"XAxiEthernet_ClearOptions: disabling extended TX VLAN tag mode\n");
 		regread_value = XAxiEthernet_ReadReg((InstancePtr)->Config.BaseAddress,
 			XAE_RAF_OFFSET) & ~XAE_RAF_TXVTAGMODE_MASK;
 		XAxiEthernet_WriteReg((InstancePtr)->Config.BaseAddress,
@@ -1261,7 +1261,7 @@ int XAxiEthernet_ClearOptions(XAxiEthernet *InstancePtr, u32 Options)
 	/* Disable extended receive VLAN tag option */
 	if (DepOptions & XAE_EXT_RXVLAN_TAG_OPTION) {
 		xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_ClearOptions:disabling extended RX VLAN tag mode\n");
+		"XAxiEthernet_ClearOptions: disabling extended RX VLAN tag mode\n");
 		regread_value = XAxiEthernet_ReadReg((InstancePtr)->Config.BaseAddress,
 			XAE_RAF_OFFSET) & ~XAE_RAF_RXVTAGMODE_MASK;
 		XAxiEthernet_WriteReg((InstancePtr)->Config.BaseAddress,
@@ -1272,7 +1272,7 @@ int XAxiEthernet_ClearOptions(XAxiEthernet *InstancePtr, u32 Options)
 	/* Disable extended transmit VLAN strip option */
 	if (DepOptions & XAE_EXT_TXVLAN_STRP_OPTION) {
 		xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_ClearOptions:disabling extended TX VLAN strip mode\n");
+		"XAxiEthernet_ClearOptions: disabling extended TX VLAN strip mode\n");
 		regread_value = XAxiEthernet_ReadReg((InstancePtr)->Config.BaseAddress,
 			XAE_RAF_OFFSET) & ~XAE_RAF_TXVSTRPMODE_MASK;
 		XAxiEthernet_WriteReg((InstancePtr)->Config.BaseAddress,
@@ -1283,7 +1283,7 @@ int XAxiEthernet_ClearOptions(XAxiEthernet *InstancePtr, u32 Options)
 	/* Disable extended receive VLAN strip option */
 	if (DepOptions & XAE_EXT_RXVLAN_STRP_OPTION) {
 		xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_ClearOptions:disabling extended RX VLAN strip mode\n");
+		"XAxiEthernet_ClearOptions: disabling extended RX VLAN strip mode\n");
 		regread_value = XAxiEthernet_ReadReg((InstancePtr)->Config.BaseAddress,
 			XAE_RAF_OFFSET) & ~XAE_RAF_RXVSTRPMODE_MASK;
 		XAxiEthernet_WriteReg((InstancePtr)->Config.BaseAddress,

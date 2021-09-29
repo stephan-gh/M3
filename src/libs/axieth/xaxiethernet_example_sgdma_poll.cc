@@ -625,7 +625,7 @@ static int CheckDmaResult(XAxiDma * AxiDmaInstPtr)
 	}
 
 	/* Free all processed RX BDs for future transmission */
-	xdbg_printf(XDBG_DEBUG_GENERAL, "Wait until the data has been received by the Rx channel\n");
+	xdbg_printf(XDBG_DEBUG_GENERAL, "Free all processed RX BDs for future transmission\n");
 	Status = XAxiDma_BdRingFree(RxRingPtr, ProcessedBdCount, BdPtr);
 	if (Status != XST_SUCCESS) {
 		xdbg_printf(XDBG_DEBUG_ERROR, "Failed to free " << ProcessedBdCount << " tx BDs " << Status << "\r\n");

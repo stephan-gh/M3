@@ -1277,7 +1277,6 @@ int XAxiDma_BdRingFromHw(XAxiDma_BdRing * RingPtr, int BdLimit,
 	/* If BdCount is non-zero then BDs were found to return. Set return
 	 * parameters, update pointers and counters, return success
 	 */
-	xdbg_printf(XDBG_DEBUG_GENERAL, "XAxiDma_BdRingFromHw: final BdCount " << BdCount << "\n");
 	if (BdCount) {
 		*BdSetPtr = RingPtr->HwHead;
 		if (!RingPtr->Cyclic) {
