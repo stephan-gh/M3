@@ -535,7 +535,8 @@ u32 AxiEthernetDetectPHY(XAxiEthernet * AxiEthernetInstancePtr)
 #define PHY_REG21_2_10       0x0000
 #define PHY_REG21_2_100      0x2000 //bit 13
 #define PHY_REG21_2_1000     0x0040 //bit 6
-#define PHY_REG21_2_RXTX_DLY 0x0030 //bits 4 and 5
+#define PHY_REG21_2_TX_DLY   0x0010 //bit 4
+#define PHY_REG21_2_RX_DLY   0x0020 //bit 5
 
 /* Marvel PHY flags */
 #define MARVEL_PHY_88E1111_MODEL	0xC0
@@ -686,9 +687,10 @@ int AxiEthernetUtilEnterLoopback(XAxiEthernet *AxiEthernetInstancePtr,
 			PhyReg21_2 |= PhyReg21_2_read;
 
 			/*
-			 * Adding Tx and Rx delay. Configuring loopback speed.
+			 * Enable Rx delay, disable Tx delay. Configuring loopback speed.
 			 */
-			PhyReg21_2 |= PHY_REG21_2_RXTX_DLY;
+			PhyReg21_2 |= PHY_REG21_2_RX_DLY;
+			PhyReg21_2 &= (~PHY_REG21_2_TX_DLY);
 			XAxiEthernet_PhyWrite(AxiEthernetInstancePtr,
 						PhyAddr,
 						PHY_R21_2_MAC_CTRL_REG, PhyReg21_2);
