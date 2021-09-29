@@ -169,7 +169,11 @@ pub fn exchange_over_sess_async(
     );
 
     if reply.res != 0 {
-        sysc_err!(Code::from(reply.res as u32), "Server denied cap exchange");
+        sysc_err!(
+            Code::from(reply.res as u32),
+            "Server {} denied cap exchange",
+            serv.service().name()
+        );
     }
     else {
         do_exchange(&vpecap, &serv.service().vpe(), &crd, &srv_crd, obtain)?;
