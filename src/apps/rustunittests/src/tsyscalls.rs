@@ -49,6 +49,7 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, derive_pe);
     wv_run_test!(t, derive_srv);
     wv_run_test!(t, get_sess);
+    wv_run_test!(t, mgate_region);
     wv_run_test!(t, kmem_quota);
     wv_run_test!(t, pe_quota);
     wv_run_test!(t, sem_ctrl);
@@ -654,6 +655,19 @@ fn get_sess() {
 
     // success
     wv_assert_ok!(syscalls::get_sess(srv.sel(), vpe.sel(), sel, 0xDEAD_BEEF));
+}
+
+fn mgate_region() {
+    // invalid selector
+    wv_assert_err!(syscalls::mgate_region(SEL_VPE), Code::InvArgs);
+    wv_assert_err!(
+        syscalls::mgate_region(VPE::cur().alloc_sel()),
+        Code::InvArgs
+    );
+
+    let mgate = wv_assert_ok!(MemGate::new(0x2000, Perm::RW));
+    let (_global, size) = wv_assert_ok!(mgate.region());
+    wv_assert_eq!(size, 0x2000);
 }
 
 fn kmem_quota() {

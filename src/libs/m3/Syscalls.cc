@@ -288,6 +288,22 @@ void Syscalls::get_sess(capsel_t srv, capsel_t vpe, capsel_t dst, word_t sid) {
     send_receive_throw(req_buf);
 }
 
+GlobAddr Syscalls::mgate_region(capsel_t mgate, size_t *size) {
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::MGateRegion>();
+    req.opcode = KIF::Syscall::MGATE_REGION;
+    req.mgate_sel = mgate;
+
+    auto reply = send_receive<KIF::Syscall::MGateRegionReply>(req_buf);
+
+    Errors::Code res = static_cast<Errors::Code>(reply.error());
+    if(res != Errors::NONE)
+        throw SyscallException(res, KIF::Syscall::MGATE_REGION);
+    if(size)
+        *size = reply->size;
+    return GlobAddr(reply->global);
+}
+
 size_t Syscalls::kmem_quota(capsel_t kmem, size_t *total) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::KMemQuota>();

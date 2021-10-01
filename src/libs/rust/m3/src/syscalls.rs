@@ -24,7 +24,7 @@ use crate::cell::{LazyStaticRefCell, Ref, StaticRefCell};
 use crate::com::{RecvGate, SendGate};
 use crate::errors::{Code, Error};
 use crate::goff;
-use crate::mem::MsgBuf;
+use crate::mem::{GlobAddr, MsgBuf};
 use crate::serialize::{Sink, Source};
 use crate::tcu::{EpId, Label, Message, VPEId, SYSC_SEP_OFF};
 
@@ -332,6 +332,18 @@ pub fn get_sess(srv: Selector, vpe: Selector, dst: Selector, sid: Label) -> Resu
         sid: sid as u64,
     });
     send_receive_result(&buf)
+}
+
+/// Returns the global address and size of the MemGate at `mgate`
+pub fn mgate_region(mgate: Selector) -> Result<(GlobAddr, goff), Error> {
+    let mut buf = SYSC_BUF.borrow_mut();
+    buf.set(syscalls::MGateRegion {
+        opcode: syscalls::Operation::MGATE_REGION.val,
+        mgate_sel: mgate,
+    });
+
+    let reply: Reply<syscalls::MGateRegionReply> = send_receive(&buf)?;
+    Ok((GlobAddr::new(reply.data.global), reply.data.size as goff))
 }
 
 /// Returns the total and remaining quota in bytes for the kernel memory object at `kmem`.

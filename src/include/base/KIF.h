@@ -179,6 +179,7 @@ struct KIF {
             DERIVE_PE,
             DERIVE_SRV,
             GET_SESS,
+            MGATE_REGION,
             KMEM_QUOTA,
             PE_QUOTA,
             SEM_CTRL,
@@ -347,6 +348,15 @@ struct KIF {
             xfer_t srv_sel;
             xfer_t vpe_sel;
             xfer_t sid;
+        } PACKED;
+
+        struct MGateRegion : public DefaultRequest {
+            xfer_t mgate_sel;
+        } PACKED;
+
+        struct MGateRegionReply : public DefaultReply {
+            xfer_t global;
+            xfer_t size;
         } PACKED;
 
         struct KMemQuota : public DefaultRequest {

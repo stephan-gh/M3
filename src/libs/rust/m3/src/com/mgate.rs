@@ -16,6 +16,8 @@
 
 use core::fmt;
 
+use base::mem::GlobAddr;
+
 use crate::cap::{CapFlags, Selector};
 use crate::col::Vec;
 use crate::com::ep::EP;
@@ -130,6 +132,11 @@ impl MemGate {
         self.gate.ep()
     }
 
+    /// Returns the memory region (global address and size) this MemGate references.
+    pub fn region(&self) -> Result<(GlobAddr, goff), Error> {
+        syscalls::mgate_region(self.sel())
+    }
+
     /// Derives a new `MemGate` from `self` that has access to a subset of `self`'s the memory
     /// region and has a subset of `self`'s permissions. The subset of the memory region is defined
     /// by `offset` and `size` and the permissions by `perm`.
@@ -164,7 +171,9 @@ impl MemGate {
     pub fn read_into_vec<T>(&self, items: usize, off: goff) -> Result<Vec<T>, Error> {
         let mut vec = Vec::<T>::with_capacity(items);
         // safety: will be initialized by read below
-        unsafe { vec.set_len(items) };
+        unsafe {
+            vec.set_len(items)
+        };
         self.read(&mut vec, off)?;
         Ok(vec)
     }

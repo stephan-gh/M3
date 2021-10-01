@@ -53,19 +53,20 @@ int_enum! {
         const DERIVE_PE         = 15;
         const DERIVE_SRV        = 16;
         const GET_SESS          = 17;
-        const KMEM_QUOTA        = 18;
-        const PE_QUOTA          = 19;
-        const SEM_CTRL          = 20;
+        const MGATE_REGION      = 18;
+        const KMEM_QUOTA        = 19;
+        const PE_QUOTA          = 20;
+        const SEM_CTRL          = 21;
 
         // capability exchange
-        const DELEGATE          = 21;
-        const OBTAIN            = 22;
-        const EXCHANGE          = 23;
-        const REVOKE            = 24;
+        const DELEGATE          = 22;
+        const OBTAIN            = 23;
+        const EXCHANGE          = 24;
+        const REVOKE            = 25;
 
         // misc
-        const RESET_STATS       = 25;
-        const NOOP              = 26;
+        const RESET_STATS       = 26;
+        const NOOP              = 27;
     }
 }
 
@@ -366,6 +367,21 @@ pub struct GetSession {
     pub srv_sel: u64,
     pub vpe_sel: u64,
     pub sid: u64,
+}
+
+/// The memory gate region request message
+#[repr(C)]
+pub struct MGateRegion {
+    pub opcode: u64,
+    pub mgate_sel: u64,
+}
+
+/// The kernel gate region reply message
+#[repr(C)]
+pub struct MGateRegionReply {
+    pub error: u64,
+    pub global: u64,
+    pub size: u64,
 }
 
 /// The kernel memory quota request message

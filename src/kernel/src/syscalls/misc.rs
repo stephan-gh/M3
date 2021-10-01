@@ -171,6 +171,27 @@ pub fn set_pmp(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseE
 }
 
 #[inline(never)]
+pub fn mgate_region(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+    let req: &kif::syscalls::MGateRegion = get_request(msg)?;
+    let mgate_sel = req.mgate_sel as CapSel;
+
+    sysc_log!(vpe, "mgate_addr(mgate={})", mgate_sel);
+
+    let vpe_caps = vpe.obj_caps().borrow();
+    let mgate = get_kobj_ref!(vpe_caps, mgate_sel, MGate);
+
+    let mut kreply = MsgBuf::borrow_def();
+    kreply.set(kif::syscalls::MGateRegionReply {
+        error: 0,
+        global: mgate.addr().raw() as u64,
+        size: mgate.size() as u64,
+    });
+    send_reply(msg, &kreply);
+
+    Ok(())
+}
+
+#[inline(never)]
 pub fn kmem_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &kif::syscalls::KMemQuota = get_request(msg)?;
     let kmem_sel = req.kmem_sel as CapSel;

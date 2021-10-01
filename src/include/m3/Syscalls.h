@@ -18,6 +18,7 @@
 
 #include <base/util/String.h>
 #include <base/Env.h>
+#include <base/GlobAddr.h>
 #include <base/KIF.h>
 #include <base/PEDesc.h>
 
@@ -80,6 +81,7 @@ public:
     static void derive_pe(capsel_t pe, capsel_t dst, uint eps);
     static void derive_srv(capsel_t srv, const KIF::CapRngDesc &dst, uint sessions, event_t event);
     static void get_sess(capsel_t srv, capsel_t vpe, capsel_t dst, word_t sid);
+    static GlobAddr mgate_region(capsel_t mgate, size_t *size);
     static size_t kmem_quota(capsel_t kmem, size_t *total);
     static uint pe_quota(capsel_t pe, uint *total);
     static void sem_ctrl(capsel_t sem, KIF::Syscall::SemOp);
