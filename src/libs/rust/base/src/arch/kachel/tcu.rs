@@ -21,7 +21,6 @@ use core::intrinsics;
 use core::sync::atomic;
 
 use crate::arch;
-use crate::cell::StaticRefCell;
 use crate::cfg;
 use crate::errors::{Code, Error};
 use crate::goff;
@@ -876,27 +875,16 @@ impl TCU {
     }
 }
 
-static PE_IDS: StaticRefCell<[PEId; cfg::MAX_PES]> = StaticRefCell::new([0; cfg::MAX_PES]);
+static PE_IDS: [PEId; 9] = [0x06, 0x25, 0x26, 0x00, 0x01, 0x02, 0x20, 0x21, 0x24];
 
 impl TCU {
-    pub fn init_pe_ids() {
-        let mut pes = PE_IDS.borrow_mut();
+    pub fn peid_to_nocid(pe: PEId) -> u8 {
         if arch::envdata::get().platform == crate::envdata::Platform::GEM5.val {
-            #[allow(clippy::needless_range_loop)]
-            for i in 0..cfg::MAX_PES {
-                pes[i] = i as PEId;
-            }
+            pe
         }
         else {
-            let pe_ids = [0x06, 0x25, 0x26, 0x00, 0x01, 0x02, 0x20, 0x21, 0x24];
-            for (i, pe) in pe_ids.iter().enumerate() {
-                pes[i] = *pe;
-            }
+            PE_IDS[pe as usize]
         }
-    }
-
-    pub fn peid_to_nocid(pe: PEId) -> u8 {
-        PE_IDS.borrow()[pe as usize]
     }
 
     pub fn nocid_to_peid(pe: u8) -> PEId {
@@ -904,7 +892,7 @@ impl TCU {
             pe
         }
         else {
-            for (i, id) in PE_IDS.borrow().iter().enumerate() {
+            for (i, id) in PE_IDS.iter().enumerate() {
                 if *id == pe {
                     return i as u8;
                 }

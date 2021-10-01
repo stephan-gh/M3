@@ -79,7 +79,6 @@ fn create_rbufs() {
 #[no_mangle]
 pub extern "C" fn env_run() {
     io::init(0, "kernel");
-    ktcu::init();
     heap::init();
     crate::slab::init();
     paging::init();

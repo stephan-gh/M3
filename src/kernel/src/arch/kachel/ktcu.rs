@@ -27,10 +27,6 @@ use crate::platform;
 
 pub const KPEX_EP: EpId = PMEM_PROT_EPS as EpId + 3;
 
-pub fn init() {
-    TCU::init_pe_ids();
-}
-
 pub fn rbuf_addrs(virt: goff) -> (goff, goff) {
     if platform::pe_desc(platform::kernel_pe()).has_virtmem() {
         let pte = arch::paging::translate(virt as usize, PageFlags::R);

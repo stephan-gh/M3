@@ -68,7 +68,6 @@ pub extern "C" fn pexcall(state: &mut isr::State) -> *mut libc::c_void {
 
 pub fn init(name: &str) {
     io::init(envdata::get().pe_id, name);
-    TCU::init_pe_ids();
 
     if !PEDesc::new_from(envdata::get().pe_desc).has_virtmem() {
         log!(crate::LOG_DEF, "Disabling paging...");
