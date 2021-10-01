@@ -37,6 +37,8 @@ pub const TCU: bool = false;
 pub const TCU_ERR: bool = true;
 /// Logs networking events
 pub const NET: bool = false;
+/// Logs global<->phys address translations
+pub const TRANSLATE: bool = false;
 
 const MAX_LINE_LEN: usize = 180;
 const SUFFIX: &[u8] = b"\x1B[0m";

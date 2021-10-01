@@ -79,7 +79,7 @@ pub fn config_mem(regs: &mut [Reg], vpe: VPEId, pe: PEId, addr: goff, size: usiz
 }
 
 pub fn glob_to_phys_remote(pe: PEId, glob: GlobAddr, flags: PageFlags) -> Result<goff, Error> {
-    paging::glob_to_phys_with(glob, flags, |ep| {
+    glob.to_phys_with(flags, |ep| {
         let mut regs = [0; 3];
         if ktcu::read_ep_remote(pe, ep, &mut regs).is_ok() {
             TCU::unpack_mem_regs(&regs)

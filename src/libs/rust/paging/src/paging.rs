@@ -33,14 +33,14 @@ cfg_if::cfg_if! {
 }
 
 use base::cfg;
-use base::errors::{Code, Error};
+use base::errors::Error;
 use base::goff;
-use base::kif::{PageFlags, Perm, PTE};
+use base::kif::{PageFlags, PTE};
 use base::libc;
 use base::log;
 use base::math;
 use base::mem::{size_of, GlobAddr};
-use base::tcu::{EpId, PEId, PMEM_PROT_EPS, TCU};
+use base::tcu::TCU;
 use core::fmt;
 
 use arch::{LEVEL_BITS, LEVEL_CNT, LEVEL_MASK};
@@ -55,60 +55,6 @@ pub use arch::{
 pub const LOG_MAP: bool = false;
 /// Logs detailed mapping operations
 pub const LOG_MAP_DETAIL: bool = false;
-/// Logs global to physical and vice versa translations
-pub const LOG_TRANSLATE: bool = false;
-
-pub fn glob_to_phys(global: GlobAddr, access: PageFlags) -> Result<Phys, Error> {
-    glob_to_phys_with(global, access, TCU::unpack_mem_ep)
-}
-
-pub fn glob_to_phys_with<F>(global: GlobAddr, access: PageFlags, get_ep: F) -> Result<Phys, Error>
-where
-    F: Fn(EpId) -> Option<(PEId, u64, u64, Perm)>,
-{
-    // find memory EP that contains the address
-    for ep in 0..PMEM_PROT_EPS as EpId {
-        if let Some((pe, addr, size, perm)) = get_ep(ep) {
-            log!(
-                LOG_TRANSLATE,
-                "Translating {:?}: considering EP{} with pe={}, addr={:#x}, size={:#x}",
-                global,
-                ep,
-                pe,
-                addr,
-                size
-            );
-
-            // does the EP contain this address?
-            if global.pe() == pe && global.offset() >= addr && global.offset() < addr + size {
-                let flags = PageFlags::from(perm);
-
-                // check access permissions
-                if access.contains(PageFlags::R) && !flags.contains(PageFlags::R) {
-                    return Err(Error::new(Code::NoPerm));
-                }
-                if access.contains(PageFlags::W) && !flags.contains(PageFlags::W) {
-                    return Err(Error::new(Code::NoPerm));
-                }
-
-                let phys =
-                    cfg::MEM_OFFSET as Phys + ((ep as Phys) << 30 | (global.offset() - addr));
-                log!(LOG_TRANSLATE, "Translated {:?} to {:#x}", global, phys);
-                return Ok(phys);
-            }
-        }
-    }
-    Err(Error::new(Code::InvArgs))
-}
-
-pub fn phys_to_glob(phys: Phys) -> Option<GlobAddr> {
-    let phys = phys - cfg::MEM_OFFSET as Phys;
-    let epid = ((phys >> 30) & 0x3) as EpId;
-    let off = phys & 0x3FFF_FFFF;
-    let res = TCU::unpack_mem_ep(epid).map(|(pe, addr, _, _)| GlobAddr::new_with(pe, addr + off));
-    log!(LOG_TRANSLATE, "Translated {:#x} to {:?}", phys, res);
-    res
-}
 
 pub trait Allocator {
     /// Allocates a new page table and returns its physical address
@@ -129,7 +75,7 @@ pub struct AddrSpace<A: Allocator> {
 
 impl<A: Allocator> AddrSpace<A> {
     pub fn new(id: VPEId, root: GlobAddr, alloc: A) -> Self {
-        let phys = glob_to_phys(root, PageFlags::RW).unwrap();
+        let phys = root.to_phys(PageFlags::RW).unwrap();
         AddrSpace {
             id,
             root: build_pte(phys, MMUFlags::empty(), LEVEL_CNT, false),
@@ -193,7 +139,7 @@ impl<A: Allocator> AddrSpace<A> {
         perm: PageFlags,
     ) -> Result<(), Error> {
         let mut phys = if global.has_pe() {
-            glob_to_phys(global, perm)?
+            global.to_phys(perm)?
         }
         else {
             global.raw()
