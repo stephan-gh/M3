@@ -54,7 +54,7 @@ pub fn workloop() -> ! {
         #[cfg(not(target_vendor = "host"))]
         if let Some(msg) = ktcu::fetch_msg(ktcu::KPEX_EP) {
             let pe = msg.header.label as tcu::PEId;
-            crate::pes::PEMng::get().pemux(pe).handle_call_async(msg);
+            crate::pes::PEMux::handle_call_async(crate::pes::pemng::pemux(pe), msg);
         }
 
         thread::try_yield();

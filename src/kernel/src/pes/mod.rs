@@ -14,12 +14,11 @@
  * General Public License version 2 for more details.
  */
 
-mod pemng;
+pub mod pemng;
 mod pemux;
 mod vpe;
 mod vpemng;
 
-pub use self::pemng::PEMng;
 pub use self::pemux::PEMux;
 pub use self::vpe::{State, VPEFlags, INVAL_ID, KERNEL_ID, VPE};
 pub use self::vpemng::VPEMng;

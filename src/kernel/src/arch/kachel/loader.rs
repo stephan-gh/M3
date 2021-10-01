@@ -28,15 +28,19 @@ use base::tcu;
 use crate::cap::{Capability, KObject, MapObject, SelRange};
 use crate::ktcu;
 use crate::mem;
-use crate::pes::{PEMng, VPE};
+use crate::pes::{pemng, PEMux, VPE};
 
 use crate::platform;
 
 pub fn init_memory_async(vpe: &VPE) -> Result<i32, Error> {
     // put mapping for env into cap table (so that we can access it in create_mgate later)
     let env_phys = if platform::pe_desc(vpe.pe_id()).has_virtmem() {
-        let pemux = PEMng::get().pemux(vpe.pe_id());
-        let mut env_addr = pemux.translate_async(vpe.id(), ENV_START as goff, kif::Perm::RW)?;
+        let mut env_addr = PEMux::translate_async(
+            pemng::pemux(vpe.pe_id()),
+            vpe.id(),
+            ENV_START as goff,
+            kif::Perm::RW,
+        )?;
         env_addr = env_addr + (ENV_START & PAGE_MASK) as goff;
 
         let flags = PageFlags::from(kif::Perm::RW);

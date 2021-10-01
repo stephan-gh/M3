@@ -26,7 +26,7 @@ use core::ptr;
 
 use crate::com::Service;
 use crate::mem;
-use crate::pes::{PEMng, State, VPE};
+use crate::pes::{pemng, PEMux, State, VPE};
 
 #[derive(Clone)]
 pub enum KObject {
@@ -284,7 +284,7 @@ impl SGateObject {
         if let Some(sep) = self.gate_ep().get_ep() {
             // is the associated receive gate activated?
             if let Some((recv_pe, recv_ep)) = self.rgate().location() {
-                let pemux = PEMng::get().pemux(sep.pe_id());
+                let pemux = pemng::pemux(sep.pe_id());
                 pemux
                     .invalidate_reply_eps(recv_pe, recv_ep, sep.ep())
                     .unwrap();
@@ -687,12 +687,16 @@ impl EPObject {
         let mut invalidated = false;
         if let Some(ref gate) = &*self.gate.borrow() {
             let pe_id = self.pe_id();
-            let pemux = PEMng::get().pemux(pe_id);
 
             // invalidate receive and send EPs
             match gate {
                 GateObject::RGate(_) | GateObject::SGate(_) => {
-                    pemux.invalidate_ep(self.vpe().unwrap().id(), self.ep, force, true)?;
+                    pemng::pemux(pe_id).invalidate_ep(
+                        self.vpe().unwrap().id(),
+                        self.ep,
+                        force,
+                        true,
+                    )?;
                     invalidated = true;
                 },
                 _ => {},
@@ -716,8 +720,7 @@ impl EPObject {
 impl Drop for EPObject {
     fn drop(&mut self) {
         if !self.is_std {
-            let pemux = PEMng::get().pemux(self.pe.pe);
-            pemux.free_eps(self.ep, 1 + self.replies);
+            pemng::pemux(self.pe.pe).free_eps(self.ep, 1 + self.replies);
 
             self.pe.free(1 + self.replies);
         }
@@ -867,22 +870,26 @@ impl MapObject {
         pages: usize,
         flags: kif::PageFlags,
     ) -> Result<(), Error> {
-        let pemux = PEMng::get().pemux(vpe.pe_id());
-        pemux
-            .map_async(vpe.id(), virt, glob, pages, flags)
-            .map(|_| {
-                self.glob.replace(glob);
-                self.flags.replace(flags);
-                self.mapped.set(true);
-            })
+        PEMux::map_async(
+            pemng::pemux(vpe.pe_id()),
+            vpe.id(),
+            virt,
+            glob,
+            pages,
+            flags,
+        )
+        .map(|_| {
+            self.glob.replace(glob);
+            self.flags.replace(flags);
+            self.mapped.set(true);
+        })
     }
 
     pub fn unmap_async(&self, vpe: &VPE, virt: goff, pages: usize) {
         // TODO currently, it can happen that we've already stopped the VPE, but still
         // accept/continue a syscall that inserts something into the VPE's table.
         if vpe.state() != State::DEAD {
-            let pemux = PEMng::get().pemux(vpe.pe_id());
-            pemux.unmap_async(vpe.id(), virt, pages).ok();
+            PEMux::unmap_async(pemng::pemux(vpe.pe_id()), vpe.id(), virt, pages).ok();
         }
     }
 }

@@ -26,7 +26,7 @@ use crate::arch::loader;
 use crate::cap::{Capability, KObject};
 use crate::cap::{EPObject, SemObject};
 use crate::ktcu;
-use crate::pes::{PEMng, INVAL_ID, VPE};
+use crate::pes::{pemng, INVAL_ID, VPE};
 use crate::platform;
 use crate::syscalls::{get_request, reply_success, send_reply};
 
@@ -65,7 +65,7 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verbose
         );
     }
 
-    let pemux = PEMng::get().pemux(dst_vpe.pe_id());
+    let mut pemux = pemng::pemux(dst_vpe.pe_id());
     let epid = if epid == tcu::TOTAL_EPS {
         match pemux.find_eps(ep_count) {
             Ok(epid) => epid,
@@ -152,7 +152,7 @@ pub fn set_pmp(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseE
         .get();
     match kobj {
         KObject::MGate(mg) => {
-            let pemux = PEMng::get().pemux(pe.pe());
+            let mut pemux = pemng::pemux(pe.pe());
 
             if let Err(e) = pemux.config_mem_ep(epid, INVAL_ID, &mg, mg.pe_id()) {
                 sysc_err!(e.code(), "Unable to configure PMP EP");
@@ -294,7 +294,6 @@ pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
 
     let epid = ep.ep();
     let dst_pe = ep.pe_id();
-    let pemux = PEMng::get().pemux(dst_pe);
 
     let invalidated = match ep.deconfigure(false) {
         Ok(inv) => inv,
@@ -327,7 +326,7 @@ pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
                 }
 
                 let pe_id = m.pe_id();
-                if let Err(e) = pemux.config_mem_ep(epid, ep_vpe.id(), &m, pe_id) {
+                if let Err(e) = pemng::pemux(dst_pe).config_mem_ep(epid, ep_vpe.id(), &m, pe_id) {
                     sysc_err!(e.code(), "Unable to configure mem EP");
                 }
             },
@@ -348,7 +347,7 @@ pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
                     sysc_log!(vpe, "activate: rgate {:?} is activated", rgate);
                 }
 
-                if let Err(e) = pemux.config_snd_ep(epid, ep_vpe.id(), &s) {
+                if let Err(e) = pemng::pemux(dst_pe).config_snd_ep(epid, ep_vpe.id(), &s) {
                     sysc_err!(e.code(), "Unable to configure send EP");
                 }
             },
@@ -396,7 +395,7 @@ pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
 
                 r.activate(ep_vpe.pe_id(), epid, rbuf_addr);
 
-                if let Err(e) = pemux.config_rcv_ep(epid, ep_vpe.id(), replies, r) {
+                if let Err(e) = pemng::pemux(dst_pe).config_rcv_ep(epid, ep_vpe.id(), replies, r) {
                     r.deactivate();
                     sysc_err!(e.code(), "Unable to configure recv EP");
                 }
@@ -408,7 +407,8 @@ pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
         EPObject::configure(&ep, &kobj);
     }
     else if !invalidated {
-        if let Err(e) = pemux.invalidate_ep(ep_vpe.id(), epid, !ep.is_rgate(), true) {
+        if let Err(e) = pemng::pemux(dst_pe).invalidate_ep(ep_vpe.id(), epid, !ep.is_rgate(), true)
+        {
             sysc_err!(e.code(), "Invalidation of EP {}:{} failed", dst_pe, epid);
         }
     }
@@ -466,7 +466,8 @@ pub fn vpe_ctrl_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
 
     match op {
         kif::syscalls::VPEOp::INIT => {
-            vpecap.set_mem_base(arg as goff);
+            #[cfg(target_vendor = "host")]
+            ktcu::set_mem_base(vpecap.pe_id(), arg as usize);
             if let Err(e) = loader::finish_start(&vpecap) {
                 sysc_err!(e.code(), "Unable to finish init");
             }
@@ -538,7 +539,7 @@ pub fn reset_stats(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verb
 
     for pe in platform::user_pes() {
         // ignore errors here; don't unwrap because it will do nothing on host
-        PEMng::get().pemux(pe).reset_stats().ok();
+        pemng::pemux(pe).reset_stats().ok();
     }
 
     reply_success(msg);

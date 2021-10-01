@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::StaticUnsafeCell;
+use base::cell::{LazyStaticRefCell, RefMut};
 use base::col::Vec;
 use base::kif;
 use base::tcu::PEId;
@@ -23,52 +23,37 @@ use crate::arch::ktcu;
 use crate::pes::PEMux;
 use crate::platform;
 
-pub struct PEMng {
-    muxes: Vec<PEMux>,
-}
-
-// TODO use a safe cell here
-static INST: StaticUnsafeCell<Option<PEMng>> = StaticUnsafeCell::new(None);
+static INST: LazyStaticRefCell<Vec<PEMux>> = LazyStaticRefCell::default();
 
 pub fn init() {
-    INST.set(Some(PEMng::new()));
+    deprivilege_pes();
+
+    let mut muxes = Vec::new();
+    for pe in platform::user_pes() {
+        muxes.push(PEMux::new(pe));
+    }
+    INST.set(muxes);
 }
 
-impl PEMng {
-    fn new() -> Self {
-        Self::deprivilege_pes();
+pub fn pemux(pe: PEId) -> RefMut<'static, PEMux> {
+    assert!(pe > 0);
+    RefMut::map(INST.borrow_mut(), |pes| &mut pes[pe as usize - 1])
+}
 
-        let mut muxes = Vec::new();
-        for pe in platform::user_pes() {
-            muxes.push(PEMux::new(pe));
+pub fn find_pe(pedesc: &kif::PEDesc) -> Option<PEId> {
+    for pe in platform::user_pes() {
+        if platform::pe_desc(pe).isa() == pedesc.isa()
+            || platform::pe_desc(pe).pe_type() == pedesc.pe_type()
+        {
+            return Some(pe);
         }
-        PEMng { muxes }
     }
 
-    pub fn get() -> &'static mut Self {
-        INST.get_mut().as_mut().unwrap()
-    }
+    None
+}
 
-    pub fn pemux(&mut self, pe: PEId) -> &mut PEMux {
-        assert!(pe > 0);
-        &mut self.muxes[pe as usize - 1]
-    }
-
-    pub fn find_pe(&mut self, pedesc: &kif::PEDesc) -> Option<PEId> {
-        for pe in platform::user_pes() {
-            if platform::pe_desc(pe).isa() == pedesc.isa()
-                || platform::pe_desc(pe).pe_type() == pedesc.pe_type()
-            {
-                return Some(pe);
-            }
-        }
-
-        None
-    }
-
-    fn deprivilege_pes() {
-        for pe in platform::user_pes() {
-            ktcu::deprivilege_pe(pe).expect("Unable to deprivilege PE");
-        }
+fn deprivilege_pes() {
+    for pe in platform::user_pes() {
+        ktcu::deprivilege_pe(pe).expect("Unable to deprivilege PE");
     }
 }

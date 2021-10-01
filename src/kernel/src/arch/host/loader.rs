@@ -25,7 +25,7 @@ use base::libc;
 use base::tcu::{PEId, VPEId};
 
 use crate::ktcu;
-use crate::pes::{PEMng, VPE};
+use crate::pes::{pemng, VPE};
 
 pub fn start(vpe: &VPE) -> Result<i32, Error> {
     if let Some(pid) = vpe.pid() {
@@ -65,10 +65,9 @@ pub fn start(vpe: &VPE) -> Result<i32, Error> {
 }
 
 pub fn finish_start(vpe: &VPE) -> Result<(), Error> {
-    let pemux = PEMng::get().pemux(vpe.pe_id());
     // update all EPs (e.g., to allow parents to activate EPs for their childs)
     // set base for all receive EPs (do it for all, but it's just unused for the other types)
-    pemux.update_eps()
+    pemng::pemux(vpe.pe_id()).update_eps()
 }
 
 fn write_env_file(pid: i32, id: VPEId, pe: PEId, first_sel: kif::CapSel) {

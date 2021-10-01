@@ -30,7 +30,7 @@ use crate::arch::loader;
 use crate::cap::{CapTable, Capability, EPObject, KMemObject, KObject, PEObject};
 use crate::com::{QueueId, SendQueue};
 use crate::ktcu;
-use crate::pes::{PEMng, VPEMng};
+use crate::pes::{pemng, VPEMng};
 use crate::platform;
 use crate::workloop::thread_startup;
 
@@ -128,8 +128,7 @@ impl VPE {
             ))?;
 
             // alloc standard EPs
-            let pemux = PEMng::get().pemux(vpe.pe_id());
-            pemux.alloc_eps(eps_start, STD_EPS_COUNT as u32);
+            pemng::pemux(vpe.pe_id()).alloc_eps(eps_start, STD_EPS_COUNT as u32);
             vpe.pe.alloc(STD_EPS_COUNT as u32);
 
             // add us to PE
@@ -166,7 +165,6 @@ impl VPE {
         use base::kif::Perm;
         use base::tcu;
 
-        let pemux = PEMng::get().pemux(self.pe_id());
         let vpe = if platform::is_shared(self.pe_id()) {
             self.id()
         }
@@ -178,12 +176,19 @@ impl VPE {
         let rbuf_virt = platform::pe_desc(self.pe_id()).rbuf_std_space().0;
         self.rbuf_phys
             .set(if platform::pe_desc(self.pe_id()).has_virtmem() {
-                let glob = pemux.translate_async(self.id(), rbuf_virt as goff, Perm::RW)?;
+                let glob = crate::pes::PEMux::translate_async(
+                    pemng::pemux(self.pe_id()),
+                    self.id(),
+                    rbuf_virt as goff,
+                    Perm::RW,
+                )?;
                 ktcu::glob_to_phys_remote(self.pe_id(), glob, base::kif::PageFlags::RW).unwrap()
             }
             else {
                 rbuf_virt as goff
             });
+
+        let mut pemux = pemng::pemux(self.pe_id());
 
         // attach syscall send endpoint
         {
@@ -275,10 +280,6 @@ impl VPE {
 
     pub fn is_root(&self) -> bool {
         self.flags.contains(VPEFlags::IS_ROOT)
-    }
-
-    pub fn set_mem_base(&self, addr: goff) {
-        PEMng::get().pemux(self.pe_id()).set_mem_base(addr);
     }
 
     pub fn first_sel(&self) -> CapSel {
@@ -486,12 +487,13 @@ impl VPE {
 
         #[cfg(not(target_vendor = "host"))]
         {
-            let pemux = PEMng::get().pemux(self.pe_id());
+            let mut pemux = pemng::pemux(self.pe_id());
             // force-invalidate standard EPs
             for ep in self.eps_start..self.eps_start + STD_EPS_COUNT as EpId {
                 // ignore failures
                 pemux.invalidate_ep(self.id(), ep, true, false).ok();
             }
+            drop(pemux);
 
             // force-invalidate all other EPs of this VPE
             for ep in &*self.eps.borrow_mut() {
@@ -545,8 +547,7 @@ impl Drop for VPE {
         self.state.set(State::DEAD);
 
         // free standard EPs
-        let pemux = PEMng::get().pemux(self.pe_id());
-        pemux.free_eps(self.eps_start, STD_EPS_COUNT as u32);
+        pemng::pemux(self.pe_id()).free_eps(self.eps_start, STD_EPS_COUNT as u32);
         self.pe.free(STD_EPS_COUNT as u32);
 
         // remove us from PE

@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::cell::RefMut;
 use base::col::{BitVec, Vec};
 use base::errors::{Code, Error};
 use base::goff;
@@ -36,8 +37,6 @@ pub struct PEMux {
     queue: crate::com::SendQueue,
     pmp: Vec<Rc<EPObject>>,
     eps: BitVec,
-    #[allow(dead_code)]
-    mem_base: goff,
 }
 
 impl PEMux {
@@ -57,7 +56,6 @@ impl PEMux {
             queue: crate::com::SendQueue::new(crate::com::QueueId::PEMux(pe), pe),
             pmp,
             eps: BitVec::new(tcu::AVAIL_EPS as usize),
-            mem_base: 0,
         };
 
         #[cfg(not(target_vendor = "host"))]
@@ -141,15 +139,6 @@ impl PEMux {
 
     pub fn pe_id(&self) -> PEId {
         self.pe.pe()
-    }
-
-    #[cfg(target_vendor = "host")]
-    pub fn eps_base(&mut self) -> goff {
-        self.mem_base
-    }
-
-    pub fn set_mem_base(&mut self, addr: goff) {
-        self.mem_base = addr;
     }
 
     pub fn pmp_ep(&self, ep: EpId) -> &Rc<EPObject> {
@@ -354,16 +343,19 @@ impl PEMux {
 
 #[cfg(not(target_vendor = "host"))]
 impl PEMux {
-    pub fn handle_call_async(&mut self, msg: &tcu::Message) {
+    pub fn handle_call_async(pemux: RefMut<'_, Self>, msg: &tcu::Message) {
         use crate::pes::VPEMng;
 
         let req = msg.get_data::<kif::pemux::Exit>();
         let vpe_id = req.vpe_sel as VPEId;
         let exitcode = req.code as i32;
 
-        klog!(PEXC, "PEMux[{}] received {:?}", self.pe_id(), req);
+        klog!(PEXC, "PEMux[{}] received {:?}", pemux.pe_id(), req);
 
-        if self.vpes.contains(&vpe_id) {
+        let has_vpe = pemux.vpes.contains(&vpe_id);
+        drop(pemux);
+
+        if has_vpe {
             let vpe = VPEMng::get().vpe(vpe_id).unwrap();
             vpe.stop_app_async(exitcode, true);
         }
@@ -374,7 +366,7 @@ impl PEMux {
     }
 
     pub fn vpe_ctrl_async(
-        &mut self,
+        pemux: RefMut<'_, Self>,
         vpe: VPEId,
         eps_start: EpId,
         ctrl: base::kif::pemux::VPEOp,
@@ -387,12 +379,11 @@ impl PEMux {
             eps_start: eps_start as u64,
         });
 
-        self.send_receive_sidecall_async::<kif::pemux::VPECtrl>(None, msg)
-            .map(|_| ())
+        Self::send_receive_sidecall_async::<kif::pemux::VPECtrl>(pemux, None, msg).map(|_| ())
     }
 
     pub fn map_async(
-        &mut self,
+        pemux: RefMut<'_, Self>,
         vpe: VPEId,
         virt: goff,
         glob: GlobAddr,
@@ -409,16 +400,27 @@ impl PEMux {
             perm: perm.bits() as u64,
         });
 
-        self.send_receive_sidecall_async::<kif::pemux::Map>(Some(vpe), msg)
-            .map(|_| ())
+        Self::send_receive_sidecall_async::<kif::pemux::Map>(pemux, Some(vpe), msg).map(|_| ())
     }
 
-    pub fn unmap_async(&mut self, vpe: VPEId, virt: goff, pages: usize) -> Result<(), Error> {
-        self.map_async(vpe, virt, GlobAddr::new(0), pages, kif::PageFlags::empty())
+    pub fn unmap_async(
+        pemux: RefMut<'_, Self>,
+        vpe: VPEId,
+        virt: goff,
+        pages: usize,
+    ) -> Result<(), Error> {
+        Self::map_async(
+            pemux,
+            vpe,
+            virt,
+            GlobAddr::new(0),
+            pages,
+            kif::PageFlags::empty(),
+        )
     }
 
     pub fn translate_async(
-        &mut self,
+        pemux: RefMut<'_, Self>,
         vpe: VPEId,
         virt: goff,
         perm: kif::Perm,
@@ -433,7 +435,7 @@ impl PEMux {
             perm: perm.bits() as u64,
         });
 
-        self.send_receive_sidecall_async::<kif::pemux::Translate>(Some(vpe), msg)
+        Self::send_receive_sidecall_async::<kif::pemux::Translate>(pemux, Some(vpe), msg)
             .map(|reply| GlobAddr::new(reply.val & !(PAGE_MASK as goff)))
     }
 
@@ -473,14 +475,15 @@ impl PEMux {
     }
 
     fn send_receive_sidecall_async<R: core::fmt::Debug>(
-        &mut self,
+        mut pemux: RefMut<'_, Self>,
         vpe: Option<VPEId>,
         req: base::mem::MsgBufRef<'_>,
     ) -> Result<&'static kif::pemux::Response, Error> {
         use crate::com::SendQueue;
 
-        let event = self.send_sidecall::<R>(vpe, &req)?;
+        let event = pemux.send_sidecall::<R>(vpe, &req)?;
         drop(req);
+        drop(pemux);
 
         let reply = SendQueue::receive_async(event)?;
 
@@ -497,11 +500,11 @@ impl PEMux {
 #[cfg(target_vendor = "host")]
 impl PEMux {
     pub fn update_eps(&mut self) -> Result<(), Error> {
-        ktcu::update_eps(self.pe_id(), self.mem_base)
+        ktcu::update_eps(self.pe_id())
     }
 
     pub fn vpe_ctrl_async(
-        &mut self,
+        _pemux: RefMut<'_, Self>,
         _vpe: VPEId,
         _eps_start: EpId,
         _ctrl: base::kif::pemux::VPEOp,
@@ -510,7 +513,7 @@ impl PEMux {
     }
 
     pub fn map_async(
-        &mut self,
+        _pemux: RefMut<'_, Self>,
         _vpe: VPEId,
         _virt: goff,
         _glob: GlobAddr,
@@ -520,7 +523,12 @@ impl PEMux {
         Ok(())
     }
 
-    pub fn unmap_async(&mut self, _vpe: VPEId, _virt: goff, _pages: usize) -> Result<(), Error> {
+    pub fn unmap_async(
+        _pemux: RefMut<'_, Self>,
+        _vpe: VPEId,
+        _virt: goff,
+        _pages: usize,
+    ) -> Result<(), Error> {
         Ok(())
     }
 

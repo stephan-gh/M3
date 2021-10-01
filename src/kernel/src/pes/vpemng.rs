@@ -30,7 +30,7 @@ use crate::args;
 use crate::cap::{Capability, KMemObject, KObject, MGateObject, PEObject, RGateObject};
 use crate::ktcu;
 use crate::mem::{self, Allocation};
-use crate::pes::{PEMng, State, VPEFlags, VPE};
+use crate::pes::{pemng, PEMux, State, VPEFlags, VPE};
 use crate::platform;
 
 pub struct VPEMng {
@@ -104,7 +104,7 @@ impl VPEMng {
         self.vpes[id as usize] = Some(vpe);
         self.count += 1;
 
-        PEMng::get().pemux(pe_id).add_vpe(id);
+        pemng::pemux(pe_id).add_vpe(id);
         if flags.is_empty() {
             self.init_vpe_async(&clone).unwrap();
         }
@@ -114,7 +114,8 @@ impl VPEMng {
 
     fn init_vpe_async(&mut self, vpe: &VPE) -> Result<(), Error> {
         if platform::pe_desc(vpe.pe_id()).supports_pemux() {
-            PEMng::get().pemux(vpe.pe_id()).vpe_ctrl_async(
+            PEMux::vpe_ctrl_async(
+                pemng::pemux(vpe.pe_id()),
                 vpe.id(),
                 vpe.eps_start(),
                 kif::pemux::VPEOp::INIT,
@@ -126,7 +127,8 @@ impl VPEMng {
 
     pub fn start_vpe_async(&mut self, vpe: &VPE) -> Result<(), Error> {
         if platform::pe_desc(vpe.pe_id()).supports_pemux() {
-            PEMng::get().pemux(vpe.pe_id()).vpe_ctrl_async(
+            PEMux::vpe_ctrl_async(
+                pemng::pemux(vpe.pe_id()),
                 vpe.id(),
                 vpe.eps_start(),
                 kif::pemux::VPEOp::START,
@@ -139,7 +141,8 @@ impl VPEMng {
 
     pub fn stop_vpe_async(&mut self, vpe: &VPE, stop: bool, reset: bool) -> Result<(), Error> {
         if stop && platform::pe_desc(vpe.pe_id()).supports_pemux() {
-            PEMng::get().pemux(vpe.pe_id()).vpe_ctrl_async(
+            PEMux::vpe_ctrl_async(
+                pemng::pemux(vpe.pe_id()),
                 vpe.id(),
                 vpe.eps_start(),
                 kif::pemux::VPEOp::STOP,
@@ -160,20 +163,12 @@ impl VPEMng {
         let pe_emem = kif::PEDesc::new(kif::PEType::COMP_EMEM, isa, 0);
         let pe_imem = kif::PEDesc::new(kif::PEType::COMP_IMEM, isa, 0);
 
-        let pe_id = PEMng::get()
-            .find_pe(&pe_emem)
-            .unwrap_or_else(|| PEMng::get().find_pe(&pe_imem).unwrap());
-        let pemux = PEMng::get().pemux(pe_id);
+        let pe_id = pemng::find_pe(&pe_emem).unwrap_or_else(|| pemng::find_pe(&pe_imem).unwrap());
+        let pe = pemng::pemux(pe_id).pe().clone();
 
         let kmem = KMemObject::new(args::get().kmem - cfg::FIXED_KMEM);
         let vpe = self
-            .create_vpe_async(
-                "root",
-                pemux.pe().clone(),
-                tcu::FIRST_USER_EP,
-                kmem,
-                VPEFlags::IS_ROOT,
-            )
+            .create_vpe_async("root", pe, tcu::FIRST_USER_EP, kmem, VPEFlags::IS_ROOT)
             .expect("Unable to create VPE for root");
 
         let mut sel = kif::FIRST_FREE_SEL;
@@ -219,7 +214,7 @@ impl VPEMng {
 
         // PES
         for pe in platform::user_pes() {
-            let pe_obj = PEMng::get().pemux(pe).pe().clone();
+            let pe_obj = pemng::pemux(pe).pe().clone();
             let cap = Capability::new(sel, KObject::PE(pe_obj));
             vpe.obj_caps().borrow_mut().insert(cap).unwrap();
             sel += 1;
@@ -241,7 +236,7 @@ impl VPEMng {
                     assert!(mem_ep < tcu::PMEM_PROT_EPS as tcu::EpId);
 
                     // configure physical memory protection EP
-                    pemux
+                    pemng::pemux(pe_id)
                         .config_mem_ep(
                             mem_ep,
                             kif::pemux::VPE_ID as tcu::VPEId,
@@ -276,8 +271,7 @@ impl VPEMng {
 
         match vpe {
             Some(ref v) => {
-                let pemux = PEMng::get().pemux(v.pe_id());
-                pemux.rem_vpe(v.id());
+                pemng::pemux(v.pe_id()).rem_vpe(v.id());
                 v.force_stop_async(v.state() != State::DEAD);
                 self.count -= 1;
             },

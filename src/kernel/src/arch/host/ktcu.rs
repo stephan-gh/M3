@@ -27,7 +27,7 @@ use base::rc::Rc;
 use base::tcu::*;
 
 use crate::ktcu;
-use crate::pes::{PEMng, State, VPEMng, VPE};
+use crate::pes::{State, VPEMng, VPE};
 
 pub fn rbuf_addrs(virt: goff) -> (goff, goff) {
     let off = virt - envdata::rbuf_start() as goff;
@@ -132,6 +132,7 @@ impl EP {
 }
 
 static ALL_EPS: StaticRefCell<Vec<EP>> = StaticRefCell::new(Vec::new());
+static MEM_BASE: StaticRefCell<[usize; PE_COUNT]> = StaticRefCell::new([0; PE_COUNT]);
 
 fn ep_idx(pe: PEId, ep: EpId) -> usize {
     pe as usize * TOTAL_EPS as usize + ep as usize
@@ -146,12 +147,16 @@ pub fn init() {
     }
 }
 
+pub fn set_mem_base(pe: PEId, base: usize) {
+    MEM_BASE.borrow_mut()[pe as usize] = base;
+}
+
 pub fn write_ep_remote(pe: PEId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
     let vpe = VPEMng::get()
         .find_vpe(|v: &Rc<VPE>| v.pe_id() == pe)
         .unwrap();
     if vpe.state() == State::RUNNING {
-        let eps = PEMng::get().pemux(pe).eps_base() as usize;
+        let eps = MEM_BASE.borrow()[pe as usize] as usize;
         let addr = eps + ep as usize * EP_REGS * size_of::<Reg>();
         let bytes = EP_REGS * size_of::<Reg>();
         ktcu::try_write_mem(pe, addr as goff, regs.as_ptr() as *const u8, bytes)
@@ -162,12 +167,13 @@ pub fn write_ep_remote(pe: PEId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
     }
 }
 
-pub fn update_eps(pe: PEId, base: goff) -> Result<(), Error> {
+pub fn update_eps(pe: PEId) -> Result<(), Error> {
+    let base = MEM_BASE.borrow()[pe as usize];
     let mut all_eps = ALL_EPS.borrow_mut();
     for ep in FIRST_USER_EP..TOTAL_EPS {
         let mut ep_obj = &mut all_eps[ep_idx(pe, ep)];
         if ep_obj.dirty {
-            ep_obj.regs[EpReg::BUF_ADDR.val as usize] += base;
+            ep_obj.regs[EpReg::BUF_ADDR.val as usize] += base as goff;
             write_ep_remote(pe, ep, &ep_obj.regs)?;
             ep_obj.dirty = false;
         }

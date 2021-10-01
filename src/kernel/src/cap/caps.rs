@@ -28,7 +28,7 @@ use core::ptr::{NonNull, Unique};
 
 use crate::cap::{EPObject, GateEP, KObject};
 use crate::ktcu;
-use crate::pes::{PEMng, VPEMng, VPE};
+use crate::pes::{pemng, VPEMng, VPE};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct SelRange {
@@ -418,7 +418,7 @@ impl Capability {
 
     fn invalidate_ep(mut cgp: RefMut<'_, GateEP>, foreign: bool) {
         if let Some(ep) = cgp.get_ep() {
-            let pemux = PEMng::get().pemux(ep.pe_id());
+            let mut pemux = pemng::pemux(ep.pe_id());
             if let Some(vpe) = ep.vpe() {
                 // if that fails, just ignore it
                 pemux

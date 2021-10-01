@@ -29,7 +29,7 @@ use crate::cap::{
 };
 use crate::com::Service;
 use crate::mem;
-use crate::pes::{PEMng, VPEFlags, VPEMng, VPE};
+use crate::pes::{pemng, VPEFlags, VPEMng, VPE};
 use crate::platform;
 use crate::syscalls::{get_request, reply_success, send_reply};
 
@@ -343,7 +343,8 @@ pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
     // TODO kmem quota stuff
 
     // find contiguous space for standard EPs
-    let pemux = PEMng::get().pemux(pe.pe());
+    let pe_id = pe.pe();
+    let pemux = pemng::pemux(pe_id);
     let eps = match pemux.find_eps(tcu::STD_EPS_COUNT as u32) {
         Ok(eps) => eps,
         Err(e) => sysc_err!(e.code(), "No free range for standard EPs"),
@@ -351,6 +352,7 @@ pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
     if pemux.has_vpes() && !pe_desc.has_virtmem() {
         sysc_err!(Code::NotSup, "Virtual memory is required for PE sharing");
     }
+    drop(pemux);
 
     // create VPE
     let nvpe = match VPEMng::get().create_vpe_async(name, pe, eps, kmem, VPEFlags::empty()) {
@@ -367,6 +369,7 @@ pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
     {
         use crate::cap::EPObject;
 
+        let mut pemux = pemng::pemux(pe_id);
         if let Some(sg) = _sgate {
             pemux
                 .config_snd_ep(eps + tcu::PG_SEP_OFF, nvpe.id(), &sg)
