@@ -1674,7 +1674,8 @@ void XAxiEthernet_PhyRead(XAxiEthernet *InstancePtr, u32 PhyAddress,
 	Xil_AssertVoid(RegisterNum <= XAE_PHY_REG_NUM_LIMIT);
 
 	xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_PhyRead: BaseAddress: " << fmt(InstancePtr->Config.BaseAddress, "#x") << "\n");
+		"XAxiEthernet_PhyRead: BaseAddress: " << fmt(InstancePtr->Config.BaseAddress, "#x")
+			<< ", RegisterNum: " << RegisterNum << "\n");
 
 	/*
 	 * Wait till MDIO interface is ready to accept a new transaction.
@@ -1766,7 +1767,9 @@ void XAxiEthernet_PhyWrite(XAxiEthernet *InstancePtr, u32 PhyAddress,
 	Xil_AssertVoid(RegisterNum <= XAE_PHY_REG_NUM_LIMIT);
 
 
-	xdbg_printf(XDBG_DEBUG_GENERAL, "XAxiEthernet_PhyWrite\n");
+	xdbg_printf(XDBG_DEBUG_GENERAL,
+		"XAxiEthernet_PhyWrite: BaseAddress: " << fmt(InstancePtr->Config.BaseAddress, "#x")
+		<< ", RegisterNum: " << RegisterNum << "\n");
 
 	/*
 	 * Wait till the MDIO interface is ready to accept a new transaction.
@@ -1801,5 +1804,6 @@ void XAxiEthernet_PhyWrite(XAxiEthernet *InstancePtr, u32 PhyAddress,
 		Xil_AssertVoidAlways();
 	}
 
+	xdbg_printf(XDBG_DEBUG_GENERAL, "XAxiEthernet_PhyWrite: Done\n");
 }
 /** @} */
