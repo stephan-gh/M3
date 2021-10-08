@@ -38,7 +38,6 @@
 #include "xaxiethernet.h"	/* defines Axi Ethernet APIs */
 #include "xllfifo.h"
 #include "xil_assert.h"
-//#include "stdio.h"		/* stdio */
 
 /************************** Constant Definitions ****************************/
 #define AXIETHERNET_LOOPBACK_SPEED	100	/* 100Mb/s for Mii */

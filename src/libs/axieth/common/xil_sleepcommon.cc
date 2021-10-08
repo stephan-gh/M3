@@ -43,8 +43,8 @@ using namespace m3;
 * @note             none
 *
 *****************************************************************************/
- void sleep(unsigned int seconds)
- {
+void sleep(unsigned int seconds)
+{
 #if defined (ARMR5)
 	sleep_R5(seconds);
 #elif defined (__aarch64__) || defined (ARMA53_32)
@@ -57,8 +57,7 @@ using namespace m3;
 #else
 	sleep_A9(seconds);
 #endif
-
- }
+}
 
 /****************************************************************************/
 /**
@@ -72,8 +71,8 @@ using namespace m3;
 * @note             none
 *
 *****************************************************************************/
- void usleep(unsigned long useconds)
- {
+void usleep(unsigned long useconds)
+{
 #if defined (ARMR5)
 	usleep_R5(useconds);
 #elif defined (__aarch64__) || defined (ARMA53_32)
@@ -86,5 +85,4 @@ using namespace m3;
 #else
 	usleep_A9(useconds);
 #endif
-
- }
+}
