@@ -138,6 +138,10 @@ int main_example_dma_polled(void)
 	XAxiDma_Config *DmaConfigPtr;
 	int LoopbackSpeed;
 
+#ifndef NDEBUG
+	Xil_AssertSetCallback(axi_ethernet_assert_callback);
+#endif
+
 	xdbg_printf(XDBG_DEBUG_GENERAL, "--- Entering main() --- \r\n");
 
 	/* Get the configuration of AxiEthernet hardware */
@@ -225,6 +229,21 @@ int main_example_dma_polled(void)
 	AxiEthernetUtilPhyDelay(2);
 
 
+	/*
+	 * Make sure Tx and Rx are enabled
+	 */
+	Status = XAxiEthernet_SetOptions(&AxiEthernetInstance,
+				         XAE_RECEIVER_ENABLE_OPTION | XAE_TRANSMITTER_ENABLE_OPTION);
+	if (Status != XST_SUCCESS) {
+		xdbg_printf(XDBG_DEBUG_ERROR, "Error setting options");
+		return XST_FAILURE;
+	}
+
+
+	/*
+	 * Start the Axi Ethernet and enable its ERROR interrupts
+	 */
+	XAxiEthernet_Start(&AxiEthernetInstance);
 
 
 	/* Send a packet */
