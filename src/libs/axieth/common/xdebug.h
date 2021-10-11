@@ -36,7 +36,9 @@ using namespace m3;
 #define XDBG_DEBUG_TEMAC_ADPT_MISC   0x00000803U    /* debug msg for other routines */
 #define XDBG_DEBUG_TEMAC_ADPT_ALL    0x0000080FU    /* all temac adapter debug messages */
 
-#define xdbg_current_types (XDBG_DEBUG_GENERAL | XDBG_DEBUG_ERROR)// | XDBG_DEBUG_TEMAC_REG | XDBG_DEBUG_FIFO_RX | XDBG_DEBUG_FIFO_TX | XDBG_DEBUG_FIFO_REG)
+#define XDBG_DEBUG_DMA_ALL           0x00001000U
+
+#define xdbg_current_types (XDBG_DEBUG_GENERAL | XDBG_DEBUG_ERROR | XDBG_DEBUG_DMA_ALL)// | XDBG_DEBUG_TEMAC_REG | XDBG_DEBUG_FIFO_RX | XDBG_DEBUG_FIFO_TX | XDBG_DEBUG_FIFO_REG)
 
 #define xdbg_stmnt(x)  x
 

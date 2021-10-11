@@ -16,27 +16,52 @@
  * General Public License version 2 for more details.
  */
 
+use core::slice;
+
 use m3::col::Vec;
+use m3::com::MemGate;
 use m3::errors::{Code, Error};
+use m3::goff;
+use m3::kif::{PageFlags, Perm};
+use m3::pes::VPE;
 use m3::vec;
 
 use smoltcp::time::Instant;
 
 extern "C" {
-    pub fn axieth_init() -> i32;
+    pub fn axieth_init(virt: goff, phys: goff, size: usize) -> isize;
     pub fn axieth_send(packet: *const u8, len: usize) -> i32;
     pub fn axieth_recv(buffer: *mut u8, len: usize) -> usize;
     #[allow(dead_code)]
     pub fn axieth_reset() -> i32;
 }
 
-pub struct AXIEthDevice;
+const BUF_SIZE: usize = 2 * 1024 * 1024;
+const BUF_VIRT_ADDR: goff = 0x3000_0000;
+
+pub struct AXIEthDevice {
+    _bufs: MemGate,
+    tx_buf: usize,
+}
 
 impl AXIEthDevice {
     pub fn new() -> Result<Self, Error> {
-        match unsafe { axieth_init() } {
-            0 => Ok(Self {}),
-            _ => Err(Error::new(Code::NotFound)),
+        let bufs = MemGate::new(BUF_SIZE, Perm::RW)?;
+        VPE::cur()
+            .pager()
+            .unwrap()
+            .map_mem(BUF_VIRT_ADDR, &bufs, BUF_SIZE, Perm::RW)?;
+        let phys = bufs.region()?.0.to_phys(PageFlags::RW)?;
+
+        let res = unsafe { axieth_init(BUF_VIRT_ADDR, phys, BUF_SIZE) };
+        if res < 0 {
+            Err(Error::new(Code::NotFound))
+        }
+        else {
+            Ok(Self {
+                _bufs: bufs,
+                tx_buf: res as usize,
+            })
         }
     }
 }
@@ -64,13 +89,17 @@ impl<'a> smoltcp::phy::Device<'a> for AXIEthDevice {
         else {
             buffer.resize(res, 0);
             let rx = RxToken { buffer };
-            let tx = TxToken {};
+            let tx = TxToken {
+                tx_buf: self.tx_buf,
+            };
             Some((rx, tx))
         }
     }
 
     fn transmit(&'a mut self) -> Option<Self::TxToken> {
-        Some(TxToken {})
+        Some(TxToken {
+            tx_buf: self.tx_buf,
+        })
     }
 }
 
@@ -87,19 +116,18 @@ impl smoltcp::phy::RxToken for RxToken {
     }
 }
 
-pub struct TxToken;
+pub struct TxToken {
+    tx_buf: usize,
+}
 
 impl smoltcp::phy::TxToken for TxToken {
     fn consume<R, F>(self, _timestamp: Instant, len: usize, f: F) -> smoltcp::Result<R>
     where
         F: FnOnce(&mut [u8]) -> smoltcp::Result<R>,
     {
-        let mut buffer = Vec::<u8>::with_capacity(len);
-        // safety: we initialize it below
-        unsafe {
-            buffer.set_len(len);
-        }
-
+        assert!(len <= 4096);
+        // safety: we know that tx_buf is properly aligned and one page large
+        let mut buffer = unsafe { slice::from_raw_parts_mut(self.tx_buf as *mut u8, len) };
         // fill buffer with "to be send" data
         let res = f(&mut buffer)?;
 
