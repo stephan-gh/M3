@@ -36,7 +36,8 @@ def build(gen, env):
                 'axi_ethernet_driver.cc', 'xaxiethernet_example_util.cc',
                 'xaxiethernet_example_polled.cc', 'xaxiethernet_example_intr_fifo.cc',
                 'xaxiethernet_fifo_ping_req_example.cc',
-                'xaxiethernet_example_sgdma_poll.cc'
+                'xaxiethernet_example_sgdma_poll.cc',
+                'xaxidma_example_sg_intr.cc',
             ],
             dir = None,
             NoSup = True,
