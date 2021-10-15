@@ -64,15 +64,18 @@
  */
 /***************************** Include Files *********************************/
 #include "xaxidma.h"
+#include "xaxiethernet.h"
 #include "xparameters.h"
 // #include "xil_exception.h"
 #include "xdebug.h"
+#include "xaxiethernet_example.h"
 
 /******************** Constant Definitions **********************************/
 /*
  * Device hardware build related constants.
  */
 
+#define AXIETHERNET_DEVICE_ID   XPAR_AXIETHERNET_0_DEVICE_ID
 #define DMA_DEV_ID		XPAR_AXI_DMA_0_DEVICE_ID
 
 #define MEM_BASE_ADDR       0x101F0000   //todo
@@ -122,6 +125,9 @@
 #define COALESCING_COUNT		NUMBER_OF_PKTS_TO_TRANSFER
 #define DELAY_TIMER_COUNT		100
 
+#define AXIETHERNET_LOOPBACK_SPEED  100 /* 100Mb/s for Mii */
+#define AXIETHERNET_LOOPBACK_SPEED_1G   1000    /* 1000Mb/s for GMii */
+
 /**************************** Type Definitions *******************************/
 
 
@@ -150,6 +156,7 @@ static int SendPacket(XAxiDma * AxiDmaInstPtr);
  */
 static XAxiDma AxiDma;
 
+static u8 LocalMacAddr[6] = {0x00, 0x0A, 0x35, 0x03, 0x02, 0x03};
 
 /*
  * Flags interrupt handlers use to notify the application context the events.
@@ -162,6 +169,64 @@ volatile int Error;
  * Buffer for transmit packet. Must be 32-bit aligned to be used by DMA.
  */
 static u32 *Packet = (u32 *) TX_BUFFER_BASE;
+
+static int init_mac(XAxiEthernet_Config *MacCfgPtr) {
+    int Status;
+    int LoopbackSpeed;
+
+    /* Initialize AxiEthernet hardware */
+    Status = XAxiEthernet_CfgInitialize(&AxiEthernetInstance, MacCfgPtr, MacCfgPtr->BaseAddress);
+    if (Status != 0) {
+        xdbg_printf(XDBG_DEBUG_ERROR, "AXI Ethernet initialization failed " << Status << "\n");
+        return 1;
+    }
+
+    /* Set the MAC  address */
+    Status = XAxiEthernet_SetMacAddress(&AxiEthernetInstance, (u8*)LocalMacAddr);
+    if (Status != 0) {
+        xdbg_printf(XDBG_DEBUG_ERROR, "Error setting MAC address\n");
+        return 1;
+    }
+
+	/*
+	 * Set PHY to loopback, speed depends on phy type.
+	 * MII is 100 and all others are 1000.
+	 */
+	if (XAxiEthernet_GetPhysicalInterface(&AxiEthernetInstance) ==
+							XAE_PHY_TYPE_MII) {
+		LoopbackSpeed = AXIETHERNET_LOOPBACK_SPEED;
+	} else {
+		LoopbackSpeed = AXIETHERNET_LOOPBACK_SPEED_1G;
+	}
+	Status = AxiEthernetUtilEnterLoopback(&AxiEthernetInstance,
+							LoopbackSpeed);
+	if (Status != XST_SUCCESS) {
+		xdbg_printf(XDBG_DEBUG_ERROR, "Error setting the PHY loopback");
+		return XST_FAILURE;
+	}
+
+	/*
+	 * Set PHY<-->MAC data clock
+	 */
+	Status = XAxiEthernet_SetOperatingSpeed(&AxiEthernetInstance,
+					(u16)LoopbackSpeed);
+	if (Status != XST_SUCCESS) {
+		return XST_FAILURE;
+	}
+
+    xdbg_printf(XDBG_DEBUG_GENERAL, "MAC initialized, waiting 2sec...\n");
+
+	/*
+	 * Setting the operating speed of the MAC needs a delay.  There
+	 * doesn't seem to be register to poll, so please consider this
+	 * during your application design.
+	 */
+	AxiEthernetUtilPhyDelay(2);
+
+    xdbg_printf(XDBG_DEBUG_GENERAL, "MAC initialization done\n");
+
+    return 0;
+}
 
 /*****************************************************************************/
 /**
@@ -192,6 +257,7 @@ int main_example_dma_intr(void)
 {
 	int Status;
 	XAxiDma_Config *Config;
+    XAxiEthernet_Config *MacCfgPtr;
 
 	xdbg_printf(XDBG_DEBUG_GENERAL, "\n--- Entering main() --- \n");
 
@@ -201,6 +267,15 @@ int main_example_dma_intr(void)
 
 		return XST_FAILURE;
 	}
+
+    /* Get the configuration of AxiEthernet hardware */
+    MacCfgPtr = XAxiEthernet_LookupConfig(AXIETHERNET_DEVICE_ID);
+
+    /* Check whether AXI DMA is present or not */
+    if(MacCfgPtr->AxiDevType != XPAR_AXI_DMA) {
+        xdbg_printf(XDBG_DEBUG_ERROR, "Device HW not configured for DMA mode\n");
+        return XST_FAILURE;
+    }
 
 	xdbg_printf(XDBG_DEBUG_GENERAL, "initializing DMA engine\n");
 
@@ -231,6 +306,25 @@ int main_example_dma_intr(void)
 		xdbg_printf(XDBG_DEBUG_GENERAL, "Failed RX setup\n");
 		return XST_FAILURE;
 	}
+
+	init_mac(MacCfgPtr);
+
+	xdbg_printf(XDBG_DEBUG_GENERAL, "Enable Rx and Tx\n");
+
+    /*
+     * Make sure Tx and Rx are enabled
+     */
+    Status = XAxiEthernet_SetOptions(&AxiEthernetInstance,
+                         XAE_RECEIVER_ENABLE_OPTION | XAE_TRANSMITTER_ENABLE_OPTION);
+    if (Status != XST_SUCCESS) {
+        xdbg_printf(XDBG_DEBUG_ERROR, "Error setting options");
+        return XST_FAILURE;
+    }
+
+    /*
+     * Start the Axi Ethernet and enable its ERROR interrupts
+     */
+    XAxiEthernet_Start(&AxiEthernetInstance);
 
 	xdbg_printf(XDBG_DEBUG_GENERAL, "Setup interrupts\n");
 
@@ -416,8 +510,11 @@ static void TxCallBack(XAxiDma_BdRing * TxRingPtr)
 	}
 
 	if(!Error) {
-
+		xdbg_printf(XDBG_DEBUG_GENERAL, "Transmitted " << BdCount << " packets\n");
 		TxDone += BdCount;
+	}
+	else {
+		xdbg_printf(XDBG_DEBUG_GENERAL, "Error during transmission\n");
 	}
 }
 
@@ -539,6 +636,7 @@ static void RxCallBack(XAxiDma_BdRing * RxRingPtr)
 		/* Find the next processed BD */
 		BdCurPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(RxRingPtr, BdCurPtr);
 		RxDone += 1;
+		xdbg_printf(XDBG_DEBUG_GENERAL, "Received packet\n");
 	}
 
 }
