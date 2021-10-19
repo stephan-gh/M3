@@ -24,22 +24,31 @@ pub const IDLE_ID: u64 = 0xFFFE;
 int_enum! {
     /// The sidecalls from the kernel to PEMux
     pub struct Sidecalls : u64 {
-        const VPE_CTRL       = 0x0;
-        const MAP            = 0x1;
-        const TRANSLATE      = 0x2;
-        const REM_MSGS       = 0x3;
-        const EP_INVAL       = 0x4;
-        const RESET_STATS    = 0x5;
+        const VPE_INIT       = 0x0;
+        const VPE_CTRL       = 0x1;
+        const MAP            = 0x2;
+        const TRANSLATE      = 0x3;
+        const REM_MSGS       = 0x4;
+        const EP_INVAL       = 0x5;
+        const RESET_STATS    = 0x6;
     }
 }
 
 int_enum! {
     /// The operations for the `vpe_ctrl` sidecall
     pub struct VPEOp : u64 {
-        const INIT  = 0x0;
-        const START = 0x1;
-        const STOP  = 0x2;
+        const START = 0x0;
+        const STOP  = 0x1;
     }
+}
+
+/// The VPE init sidecall
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct VPEInit {
+    pub op: u64,
+    pub vpe_sel: u64,
+    pub eps_start: u64,
 }
 
 /// The VPE control sidecall
@@ -49,7 +58,6 @@ pub struct VPECtrl {
     pub op: u64,
     pub vpe_sel: u64,
     pub vpe_op: u64,
-    pub eps_start: u64,
 }
 
 /// The map sidecall

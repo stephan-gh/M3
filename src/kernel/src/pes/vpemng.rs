@@ -114,12 +114,7 @@ impl VPEMng {
 
     fn init_vpe_async(&mut self, vpe: &VPE) -> Result<(), Error> {
         if platform::pe_desc(vpe.pe_id()).supports_pemux() {
-            PEMux::vpe_ctrl_async(
-                pemng::pemux(vpe.pe_id()),
-                vpe.id(),
-                vpe.eps_start(),
-                kif::pemux::VPEOp::INIT,
-            )?;
+            PEMux::vpe_init_async(pemng::pemux(vpe.pe_id()), vpe.id(), vpe.eps_start())?;
         }
 
         vpe.init_async()
@@ -130,7 +125,6 @@ impl VPEMng {
             PEMux::vpe_ctrl_async(
                 pemng::pemux(vpe.pe_id()),
                 vpe.id(),
-                vpe.eps_start(),
                 kif::pemux::VPEOp::START,
             )
         }
@@ -141,12 +135,7 @@ impl VPEMng {
 
     pub fn stop_vpe_async(&mut self, vpe: &VPE, stop: bool, reset: bool) -> Result<(), Error> {
         if stop && platform::pe_desc(vpe.pe_id()).supports_pemux() {
-            PEMux::vpe_ctrl_async(
-                pemng::pemux(vpe.pe_id()),
-                vpe.id(),
-                vpe.eps_start(),
-                kif::pemux::VPEOp::STOP,
-            )?;
+            PEMux::vpe_ctrl_async(pemng::pemux(vpe.pe_id()), vpe.id(), kif::pemux::VPEOp::STOP)?;
         }
 
         if reset && !platform::pe_desc(vpe.pe_id()).is_programmable() {

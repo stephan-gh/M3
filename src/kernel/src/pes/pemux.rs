@@ -365,10 +365,24 @@ impl PEMux {
         ktcu::reply(ktcu::KPEX_EP, &reply, msg).unwrap();
     }
 
-    pub fn vpe_ctrl_async(
+    pub fn vpe_init_async(
         pemux: RefMut<'_, Self>,
         vpe: VPEId,
         eps_start: EpId,
+    ) -> Result<(), Error> {
+        let mut msg = MsgBuf::borrow_def();
+        msg.set(kif::pemux::VPEInit {
+            op: kif::pemux::Sidecalls::VPE_INIT.val as u64,
+            vpe_sel: vpe as u64,
+            eps_start: eps_start as u64,
+        });
+
+        Self::send_receive_sidecall_async::<kif::pemux::VPEInit>(pemux, None, msg).map(|_| ())
+    }
+
+    pub fn vpe_ctrl_async(
+        pemux: RefMut<'_, Self>,
+        vpe: VPEId,
         ctrl: base::kif::pemux::VPEOp,
     ) -> Result<(), Error> {
         let mut msg = MsgBuf::borrow_def();
@@ -376,7 +390,6 @@ impl PEMux {
             op: kif::pemux::Sidecalls::VPE_CTRL.val as u64,
             vpe_sel: vpe as u64,
             vpe_op: ctrl.val as u64,
-            eps_start: eps_start as u64,
         });
 
         Self::send_receive_sidecall_async::<kif::pemux::VPECtrl>(pemux, None, msg).map(|_| ())
@@ -503,10 +516,17 @@ impl PEMux {
         ktcu::update_eps(self.pe_id())
     }
 
-    pub fn vpe_ctrl_async(
+    pub fn vpe_init_async(
         _pemux: RefMut<'_, Self>,
         _vpe: VPEId,
         _eps_start: EpId,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+
+    pub fn vpe_ctrl_async(
+        _pemux: RefMut<'_, Self>,
+        _vpe: VPEId,
         _ctrl: base::kif::pemux::VPEOp,
     ) -> Result<(), Error> {
         Ok(())

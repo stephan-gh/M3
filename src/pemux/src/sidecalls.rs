@@ -31,24 +31,36 @@ fn reply_msg(msg: &'static tcu::Message, reply: &MsgBuf) {
     tcu::TCU::reply(tcu::PEXSIDE_REP, reply, msg_off).unwrap();
 }
 
+fn vpe_init(msg: &'static tcu::Message) -> Result<(), Error> {
+    let req = msg.get_data::<kif::pemux::VPEInit>();
+
+    let vpe_id = req.vpe_sel as vpe::Id;
+    let eps_start = req.eps_start as tcu::EpId;
+
+    log!(
+        crate::LOG_SIDECALLS,
+        "sidecall::vpe_init(vpe={}, eps_start={})",
+        vpe_id,
+        eps_start
+    );
+
+    vpe::add(vpe_id, eps_start)
+}
+
 fn vpe_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
     let req = msg.get_data::<kif::pemux::VPECtrl>();
 
     let vpe_id = req.vpe_sel as vpe::Id;
     let op = kif::pemux::VPEOp::from(req.vpe_op);
-    let eps_start = req.eps_start as tcu::EpId;
 
     log!(
         crate::LOG_SIDECALLS,
-        "sidecall::vpe_ctrl(vpe={}, op={:?}, eps_start={})",
+        "sidecall::vpe_ctrl(vpe={}, op={:?})",
         vpe_id,
         op,
-        eps_start
     );
 
     match op {
-        kif::pemux::VPEOp::INIT => vpe::add(vpe_id, eps_start),
-
         kif::pemux::VPEOp::START => {
             let cur = vpe::cur();
             let vpe = vpe::get_mut(vpe_id).unwrap();
@@ -198,6 +210,7 @@ fn handle_sidecall(msg: &'static tcu::Message) {
     let mut val = 0;
     let op = kif::pemux::Sidecalls::from(req.opcode);
     let res = match op {
+        kif::pemux::Sidecalls::VPE_INIT => vpe_init(msg),
         kif::pemux::Sidecalls::VPE_CTRL => vpe_ctrl(msg),
         kif::pemux::Sidecalls::MAP => map(msg),
         kif::pemux::Sidecalls::TRANSLATE => translate(msg).map(|pte| val = pte),
