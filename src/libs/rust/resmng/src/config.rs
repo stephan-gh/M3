@@ -539,29 +539,6 @@ impl AppConfig {
         self.domains.iter().fold(0, |total, d| total + d.apps.len())
     }
 
-    pub fn split_child_mem(&self, user_mem: &mut goff) -> goff {
-        if !self.domains().is_empty() {
-            let old_user_mem = *user_mem;
-            let mut def_childs = 0;
-            for d in self.domains() {
-                for a in d.apps() {
-                    if let Some(cmem) = a.user_mem() {
-                        *user_mem -= cmem as goff;
-                    }
-                    else {
-                        def_childs += 1;
-                    }
-                }
-            }
-            let per_child = *user_mem / (def_childs + 1);
-            *user_mem -= per_child * def_childs;
-            old_user_mem - *user_mem
-        }
-        else {
-            0
-        }
-    }
-
     pub fn check(&self) {
         self.check_services(&BTreeSet::new());
         self.check_gates();

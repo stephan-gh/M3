@@ -57,7 +57,6 @@ static OUR_PE: StaticRefCell<Option<Rc<pes::PEUsage>>> = StaticRefCell::new(None
 static DELAYED: StaticRefCell<Vec<Box<childs::OwnChild>>> = StaticRefCell::new(Vec::new());
 
 pub struct Arguments {
-    pub share_kmem: bool,
     pub max_clients: usize,
     sems: Vec<String>,
 }
@@ -65,7 +64,6 @@ pub struct Arguments {
 impl Default for Arguments {
     fn default() -> Self {
         Self {
-            share_kmem: false,
             max_clients: DEF_MAX_CLIENTS,
             sems: Vec::new(),
         }
@@ -211,10 +209,7 @@ impl Subsystem {
     pub fn parse_args(&self) -> Arguments {
         let mut args = Arguments::default();
         for arg in self.cfg().args() {
-            if arg == "sharekmem" {
-                args.share_kmem = true;
-            }
-            else if let Some(clients) = arg.strip_prefix("maxcli=") {
+            if let Some(clients) = arg.strip_prefix("maxcli=") {
                 args.max_clients = clients
                     .parse::<usize>()
                     .expect("Failed to parse client count");
@@ -308,6 +303,8 @@ impl Subsystem {
         // determine default mem and kmem per child
         let (def_kmem, def_umem) = split_mem(&root)?;
 
+        let mut mem_id = 1;
+
         for (idx, d) in root.domains().iter().enumerate() {
             // allocate new PE; root allocates from its own set, others ask their resmng
             let pe_usage = if d.pseudo || VPE::cur().resmng().is_none() {
@@ -396,8 +393,11 @@ impl Subsystem {
                 }
             }
 
-            // add requested physical memory regions to pool
+            let mut domain_kmem_bytes = 0;
             for cfg in d.apps() {
+                domain_kmem_bytes += cfg.kern_mem.unwrap_or(def_kmem);
+
+                // add requested physical memory regions to pool
                 for mem in cfg.phys_mems() {
                     let mslice = memory::container()
                         .find_mem(mem.phys(), mem.size(), mem.perm())
@@ -416,9 +416,21 @@ impl Subsystem {
                 }
             }
 
-            // all apps that did not specify an EP quota will share one quota. Derive a new PE
-            // object for them to ensure that they cannot change the PMP EPs.
-            let def_pe_usage = if let Some(mut rem) = rem_eps {
+            // derive kmem for the entire domain. All apps that did not specify a kmem quota will
+            // share this domain kmem.
+            let domain_kmem = VPE::cur().kmem().derive(domain_kmem_bytes).map_err(|e| {
+                VerboseError::new(
+                    e.code(),
+                    format!("Unable to derive {}b of kernel memory", domain_kmem_bytes),
+                )
+            })?;
+
+            // create user mem pool for entire domain
+            let domain_umem = childs::ChildMem::new(mem_id, mem_pool.clone(), def_umem);
+            mem_id += 1;
+
+            // derive a new PE object for the entire domain (so that they cannot change the PMP EPs)
+            let domain_pe_usage = if let Some(mut rem) = rem_eps {
                 // if it's our PE, leave some EPs for us
                 if pe_usage.pe_id() == VPE::cur().pe_id() {
                     assert!(rem > 16);
@@ -451,18 +463,16 @@ impl Subsystem {
                 }
                 else {
                     // without a specific number of EPs, childs share the remaining EP quota
-                    def_pe_usage.as_ref().unwrap().clone()
+                    domain_pe_usage.as_ref().unwrap().clone()
                 };
 
-                let child_id = childs::get().alloc_id();
-
                 // kernel memory for child
-                let kmem = if cfg.kernel_mem().is_none() && args.share_kmem {
-                    VPE::cur().kmem().clone()
+                let kmem = if cfg.kernel_mem().is_none() {
+                    domain_kmem.clone()
                 }
                 else {
                     let kmem_bytes = cfg.kernel_mem().unwrap_or(def_kmem);
-                    VPE::cur().kmem().derive(kmem_bytes).map_err(|e| {
+                    domain_kmem.derive(kmem_bytes).map_err(|e| {
                         VerboseError::new(
                             e.code(),
                             format!("Unable to derive {}b of kernel memory", kmem_bytes),
@@ -470,10 +480,14 @@ impl Subsystem {
                     })?
                 };
 
-                // determine user and child memory
-                let mut user_mem = cfg.user_mem().unwrap_or(def_umem as usize) as goff;
-                let sub_mem = cfg.split_child_mem(&mut user_mem);
-                let child_mem = childs::ChildMem::new(child_id + 1, mem_pool.clone(), user_mem);
+                // determine user memory for child
+                let child_mem = if let Some(umem) = cfg.user_mem() {
+                    mem_id += 1;
+                    childs::ChildMem::new(mem_id - 1, domain_umem.pool().clone(), umem as goff)
+                }
+                else {
+                    domain_umem.clone()
+                };
 
                 let sub = if !cfg.domains().is_empty() {
                     // TODO currently, we don't support PE sharing of a resource manager and another
@@ -505,6 +519,12 @@ impl Subsystem {
                     // serial rgate
                     pass_down_serial(&mut sub, &cfg);
 
+                    // split off the grandchild memories; allocate them from the child quota
+                    let old_umem_quota = child_mem.quota();
+                    split_child_mem(cfg, &child_mem);
+                    // determine memory size for the entire subsystem
+                    let sub_mem = old_umem_quota - child_mem.quota();
+
                     // add memory
                     let sub_slice = mem_pool.borrow_mut().allocate_slice(sub_mem).map_err(|e| {
                         VerboseError::new(
@@ -532,6 +552,7 @@ impl Subsystem {
                     None
                 };
 
+                let child_id = childs::get().alloc_id();
                 let mut child = Box::new(childs::OwnChild::new(
                     child_id,
                     pe_usage.clone(),
@@ -796,6 +817,22 @@ fn pass_down_mem(sub: &mut SubsystemBuilder, app: &config::AppConfig) -> Result<
     Ok(())
 }
 
+fn split_child_mem(cfg: &config::AppConfig, mem: &Rc<childs::ChildMem>) {
+    let mut def_childs = 0;
+    for d in cfg.domains() {
+        for a in d.apps() {
+            if let Some(cmem) = a.user_mem() {
+                mem.alloc_mem(cmem as goff);
+            }
+            else {
+                def_childs += 1;
+            }
+        }
+    }
+    let per_child = mem.quota() / (def_childs + 1);
+    mem.alloc_mem(per_child * def_childs);
+}
+
 fn split_mem(cfg: &config::AppConfig) -> Result<(usize, goff), VerboseError> {
     let mut total_umem = memory::container().capacity();
     let mut total_kmem = VPE::cur().kmem().quota()?.1;
@@ -875,5 +912,10 @@ fn split_eps(mut total_eps: u32, d: &config::Domain) -> Option<u32> {
         }
     }
 
-    if !need_def { None } else { Some(total_eps) }
+    if !need_def {
+        None
+    }
+    else {
+        Some(total_eps)
+    }
 }

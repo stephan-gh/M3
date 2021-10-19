@@ -1,7 +1,7 @@
 <config>
     <kernel args="kernel -m 4m" />
     <dom>
-        <app args="root sharekmem">
+        <app args="root">
             <dom>
                 <app args="dosattack" kernmem="128K" />
                 <app args="dosattack" eps="8" />

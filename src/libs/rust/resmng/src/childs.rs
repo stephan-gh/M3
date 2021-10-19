@@ -69,16 +69,20 @@ impl ChildMem {
         &self.pool
     }
 
-    fn have_quota(&self, size: goff) -> bool {
+    pub(crate) fn quota(&self) -> goff {
+        self.quota.get()
+    }
+
+    pub(crate) fn have_quota(&self, size: goff) -> bool {
         self.quota.get() > size
     }
 
-    fn alloc_mem(&self, size: goff) {
+    pub(crate) fn alloc_mem(&self, size: goff) {
         assert!(self.have_quota(size));
         self.quota.replace(self.quota.get() - size);
     }
 
-    fn free_mem(&self, size: goff) {
+    pub(crate) fn free_mem(&self, size: goff) {
         self.quota.replace(self.quota.get() + size);
     }
 }
