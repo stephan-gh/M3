@@ -488,7 +488,7 @@ impl Capability {
                     if let Some(parent) = self.parent {
                         let parent = unsafe { &(*parent.as_ptr()) };
                         if let KObject::PE(p) = parent.get() {
-                            pe.revoke(p);
+                            pe.revoke_async(p);
                         }
                     }
                 }

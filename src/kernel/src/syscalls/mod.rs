@@ -125,7 +125,7 @@ pub fn handle_async(msg: &'static tcu::Message) {
         kif::syscalls::Operation::CREATE_SEM => create::create_sem(&vpe, msg),
         kif::syscalls::Operation::CREATE_MAP => create::create_map_async(&vpe, msg),
 
-        kif::syscalls::Operation::DERIVE_PE => derive::derive_pe(&vpe, msg),
+        kif::syscalls::Operation::DERIVE_PE => derive::derive_pe_async(&vpe, msg),
         kif::syscalls::Operation::DERIVE_MEM => derive::derive_mem(&vpe, msg),
         kif::syscalls::Operation::DERIVE_KMEM => derive::derive_kmem(&vpe, msg),
         kif::syscalls::Operation::DERIVE_SRV => derive::derive_srv_async(&vpe, msg),
@@ -140,7 +140,8 @@ pub fn handle_async(msg: &'static tcu::Message) {
         kif::syscalls::Operation::ACTIVATE => misc::activate_async(&vpe, msg),
         kif::syscalls::Operation::MGATE_REGION => misc::mgate_region(&vpe, msg),
         kif::syscalls::Operation::KMEM_QUOTA => misc::kmem_quota(&vpe, msg),
-        kif::syscalls::Operation::PE_QUOTA => misc::pe_quota(&vpe, msg),
+        kif::syscalls::Operation::PE_QUOTA => misc::pe_quota_async(&vpe, msg),
+        kif::syscalls::Operation::PE_SET_QUOTA => misc::pe_set_quota_async(&vpe, msg),
         kif::syscalls::Operation::GET_SESS => misc::get_sess(&vpe, msg),
         kif::syscalls::Operation::SEM_CTRL => misc::sem_ctrl_async(&vpe, msg),
         kif::syscalls::Operation::VPE_CTRL => misc::vpe_ctrl_async(&vpe, msg),

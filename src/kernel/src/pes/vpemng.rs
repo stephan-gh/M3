@@ -114,7 +114,13 @@ impl VPEMng {
 
     fn init_vpe_async(&mut self, vpe: &VPE) -> Result<(), Error> {
         if platform::pe_desc(vpe.pe_id()).supports_pemux() {
-            PEMux::vpe_init_async(pemng::pemux(vpe.pe_id()), vpe.id(), vpe.eps_start())?;
+            PEMux::vpe_init_async(
+                pemng::pemux(vpe.pe_id()),
+                vpe.id(),
+                vpe.pe().time_quota_id(),
+                vpe.pe().pt_quota_id(),
+                vpe.eps_start(),
+            )?;
         }
 
         vpe.init_async()

@@ -16,7 +16,7 @@
 
 //! Contains the system call wrapper functions
 
-use base::kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL};
+use base::kif::{self, syscalls, CapRngDesc, OptionalValue, Perm, INVALID_SEL};
 
 use crate::arch;
 use crate::cap::Selector;
@@ -293,14 +293,27 @@ pub fn derive_kmem(kmem: Selector, dst: Selector, quota: usize) -> Result<(), Er
     send_receive_result(&buf)
 }
 
-/// Derives a new PE object at `dst` from `pe`, transferring `eps` EPs to the new PE object.
-pub fn derive_pe(pe: Selector, dst: Selector, eps: u32) -> Result<(), Error> {
+/// Derives a new PE object at `dst` from `pe`, transferring a subset of the resources to the new PE
+/// object.
+///
+/// If a value is not `None`, the corresponding amount is substracted from the current quota (and
+/// therefore, needs to be available). If a value is `None`, the quota will be shared with the
+/// current PE object.
+pub fn derive_pe(
+    pe: Selector,
+    dst: Selector,
+    eps: Option<u32>,
+    time: Option<u64>,
+    pts: Option<u64>,
+) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::DerivePE {
         opcode: syscalls::Operation::DERIVE_PE.val,
         pe_sel: pe,
         dst_sel: dst,
-        eps: eps as u64,
+        eps: OptionalValue::new(eps),
+        time: OptionalValue::new(time),
+        pts: OptionalValue::new(pts),
     });
     send_receive_result(&buf)
 }
@@ -359,7 +372,7 @@ pub fn kmem_quota(kmem: Selector) -> Result<(usize, usize), Error> {
 }
 
 /// Returns the remaining quota (free endpoints) for the PE object at `pe`.
-pub fn pe_quota(pe: Selector) -> Result<(u32, u32), Error> {
+pub fn pe_quota(pe: Selector) -> Result<(u32, u32, u64, u64, usize, usize), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::PEQuota {
         opcode: syscalls::Operation::PE_QUOTA.val,
@@ -367,7 +380,27 @@ pub fn pe_quota(pe: Selector) -> Result<(u32, u32), Error> {
     });
 
     let reply: Reply<syscalls::PEQuotaReply> = send_receive(&buf)?;
-    Ok((reply.data.total as u32, reply.data.amount as u32))
+    Ok((
+        reply.data.eps_total as u32,
+        reply.data.eps_left as u32,
+        reply.data.time_total,
+        reply.data.time_left,
+        reply.data.pts_total as usize,
+        reply.data.pts_left as usize,
+    ))
+}
+
+/// Sets the quota of the PE with given selector to specified initial values (given time slice
+/// length and number of page tables). This call is only permitted for root PE capabilities.
+pub fn pe_set_quota(pe: Selector, time: u64, pts: u64) -> Result<(), Error> {
+    let mut buf = SYSC_BUF.borrow_mut();
+    buf.set(syscalls::PESetQuota {
+        opcode: syscalls::Operation::PE_SET_QUOTA.val,
+        pe_sel: pe,
+        time,
+        pts,
+    });
+    send_receive_result(&buf)
 }
 
 /// Performs the VPE operation `op` with the given VPE.

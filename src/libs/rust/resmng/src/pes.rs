@@ -105,16 +105,24 @@ impl PEUsage {
         Ok(())
     }
 
-    pub fn derive(&self, eps: u32) -> Result<PEUsage, Error> {
-        let pe = self.pe_obj().derive(eps)?;
+    pub fn derive(
+        &self,
+        eps: Option<u32>,
+        time: Option<u64>,
+        pts: Option<u64>,
+    ) -> Result<PEUsage, Error> {
+        let pe = self.pe_obj().derive(eps, time, pts)?;
         if let Some(idx) = self.idx {
             get().pes[idx].add_user();
         }
+        let _quota = pe.quota().unwrap();
         log!(
             crate::LOG_PES,
-            "Deriving PE{}: (eps={})",
+            "Deriving PE{}: (eps={}, time={}, pts={})",
             self.pe_id(),
-            pe.quota().unwrap().1,
+            _quota.0,
+            _quota.1,
+            _quota.2,
         );
         Ok(PEUsage {
             idx: self.idx,

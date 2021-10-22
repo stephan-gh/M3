@@ -256,13 +256,15 @@ void Syscalls::derive_kmem(capsel_t kmem, capsel_t dst, size_t quota) {
     send_receive_throw(req_buf);
 }
 
-void Syscalls::derive_pe(capsel_t pe, capsel_t dst, uint eps) {
+void Syscalls::derive_pe(capsel_t pe, capsel_t dst, uint eps, uint64_t time, uint64_t pts) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::DerivePE>();
     req.opcode = KIF::Syscall::DERIVE_PE;
     req.pe_sel = pe;
     req.dst_sel = dst;
     req.eps = eps;
+    req.time = time;
+    req.pts = pts;
     send_receive_throw(req_buf);
 }
 
@@ -320,7 +322,10 @@ size_t Syscalls::kmem_quota(capsel_t kmem, size_t *total) {
     return reply->amount;
 }
 
-uint Syscalls::pe_quota(capsel_t pe, uint *total) {
+void Syscalls::pe_quota(capsel_t pe,
+                        uint *eps_total, uint *eps_left,
+                        uint64_t *time_total, uint64_t *time_left,
+                        size_t *pts_total, size_t *pts_left) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::PEQuota>();
     req.opcode = KIF::Syscall::PE_QUOTA;
@@ -331,9 +336,28 @@ uint Syscalls::pe_quota(capsel_t pe, uint *total) {
     Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::PE_QUOTA);
-    if(total)
-        *total = reply->total;
-    return reply->amount;
+    if(eps_total)
+        *eps_total = reply->eps_total;
+    if(eps_left)
+        *eps_left = reply->eps_left;
+    if(time_total)
+        *time_total = reply->time_total;
+    if(time_left)
+        *time_left = reply->time_left;
+    if(pts_total)
+        *pts_total = reply->pts_total;
+    if(pts_left)
+        *pts_left = reply->pts_left;
+}
+
+void Syscalls::pe_set_quota(capsel_t pe, uint64_t time, uint64_t pts) {
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::PESetQuota>();
+    req.opcode = KIF::Syscall::PE_SET_QUOTA;
+    req.pe_sel = pe;
+    req.time = time;
+    req.pts = pts;
+    send_receive_throw(req_buf);
 }
 
 void Syscalls::sem_ctrl(capsel_t sel, KIF::Syscall::SemOp op) {

@@ -22,6 +22,8 @@ use base::mem::{GlobAddr, MsgBuf};
 use base::tcu;
 
 use crate::helper;
+use crate::quota;
+use crate::timer::Nanos;
 use crate::vpe;
 
 const SIDE_RBUF_ADDR: usize = cfg::PEMUX_RBUF_SPACE + cfg::KPEX_RBUF_SIZE;
@@ -35,16 +37,20 @@ fn vpe_init(msg: &'static tcu::Message) -> Result<(), Error> {
     let req = msg.get_data::<kif::pemux::VPEInit>();
 
     let vpe_id = req.vpe_sel as vpe::Id;
+    let time_quota = req.time_quota as quota::Id;
+    let pt_quota = req.pt_quota as quota::Id;
     let eps_start = req.eps_start as tcu::EpId;
 
     log!(
         crate::LOG_SIDECALLS,
-        "sidecall::vpe_init(vpe={}, eps_start={})",
+        "sidecall::vpe_init(vpe={}, time={}, pt={}, eps_start={})",
         vpe_id,
+        time_quota,
+        pt_quota,
         eps_start
     );
 
-    vpe::add(vpe_id, eps_start)
+    vpe::add(vpe_id, time_quota, pt_quota, eps_start)
 }
 
 fn vpe_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
@@ -192,6 +198,76 @@ fn ep_inval(msg: &'static tcu::Message) -> Result<(), Error> {
     Ok(())
 }
 
+fn derive_quota(msg: &'static tcu::Message) -> Result<(u64, u64), Error> {
+    let req = msg.get_data::<kif::pemux::DeriveQuota>();
+
+    let parent_time = req.parent_time as quota::Id;
+    let parent_pts = req.parent_pts as quota::Id;
+    let time = req.time.get();
+    let pts = req.pts.get();
+
+    log!(
+        crate::LOG_SIDECALLS,
+        "sidecall::derive_quota(ptime={}, ppts={}, time={:?}, pts={:?})",
+        parent_time,
+        parent_pts,
+        time,
+        pts
+    );
+
+    quota::derive(parent_time, parent_pts, time, pts)
+}
+
+fn get_quota(msg: &'static tcu::Message) -> Result<(u64, u64, usize, usize), Error> {
+    let req = msg.get_data::<kif::pemux::GetQuota>();
+
+    let time = req.time as quota::Id;
+    let pts = req.pts as quota::Id;
+
+    log!(
+        crate::LOG_SIDECALLS,
+        "sidecall::get_quota(time={}, pts={})",
+        time,
+        pts
+    );
+
+    quota::get(time, pts)
+}
+
+fn set_quota(msg: &'static tcu::Message) -> Result<(), Error> {
+    let req = msg.get_data::<kif::pemux::SetQuota>();
+
+    let id = req.id as quota::Id;
+    let time = req.time as Nanos;
+    let pts = req.pts as usize;
+
+    log!(
+        crate::LOG_SIDECALLS,
+        "sidecall::set_quota(id={}, time={}, pts={})",
+        id,
+        time,
+        pts
+    );
+
+    quota::set(id, time, pts)
+}
+
+fn remove_quotas(msg: &'static tcu::Message) -> Result<(), Error> {
+    let req = msg.get_data::<kif::pemux::RemoveQuotas>();
+
+    let time = req.time.get();
+    let pts = req.pts.get();
+
+    log!(
+        crate::LOG_SIDECALLS,
+        "sidecall::remove_quotas(time={:?}, pts={:?})",
+        time,
+        pts
+    );
+
+    quota::remove(time, pts)
+}
+
 fn reset_stats(_msg: &'static tcu::Message) -> Result<(), Error> {
     log!(crate::LOG_SIDECALLS, "sidecall::reset_stats()",);
 
@@ -207,15 +283,28 @@ fn reset_stats(_msg: &'static tcu::Message) -> Result<(), Error> {
 fn handle_sidecall(msg: &'static tcu::Message) {
     let req = msg.get_data::<kif::DefaultRequest>();
 
-    let mut val = 0;
+    let mut val1 = 0;
+    let mut val2 = 0;
     let op = kif::pemux::Sidecalls::from(req.opcode);
     let res = match op {
         kif::pemux::Sidecalls::VPE_INIT => vpe_init(msg),
         kif::pemux::Sidecalls::VPE_CTRL => vpe_ctrl(msg),
         kif::pemux::Sidecalls::MAP => map(msg),
-        kif::pemux::Sidecalls::TRANSLATE => translate(msg).map(|pte| val = pte),
+        kif::pemux::Sidecalls::TRANSLATE => translate(msg).map(|pte| val1 = pte),
         kif::pemux::Sidecalls::REM_MSGS => rem_msgs(msg),
         kif::pemux::Sidecalls::EP_INVAL => ep_inval(msg),
+        kif::pemux::Sidecalls::DERIVE_QUOTA => derive_quota(msg).map(|(time, pts)| {
+            val1 = time;
+            val2 = pts;
+        }),
+        kif::pemux::Sidecalls::GET_QUOTA => {
+            get_quota(msg).map(|(t_total, t_left, p_total, p_left)| {
+                val1 = t_total << 32 | t_left;
+                val2 = (p_total as u64) << 32 | (p_left as u64);
+            })
+        },
+        kif::pemux::Sidecalls::SET_QUOTA => set_quota(msg),
+        kif::pemux::Sidecalls::REMOVE_QUOTAS => remove_quotas(msg),
         kif::pemux::Sidecalls::RESET_STATS => reset_stats(msg),
         _ => Err(Error::new(Code::NotSup)),
     };
@@ -229,7 +318,8 @@ fn handle_sidecall(msg: &'static tcu::Message) {
                 e.code() as u64
             },
         },
-        val,
+        val1,
+        val2,
     });
     reply_msg(msg, &reply_buf);
 }

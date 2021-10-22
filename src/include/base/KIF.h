@@ -182,6 +182,7 @@ struct KIF {
             MGATE_REGION,
             KMEM_QUOTA,
             PE_QUOTA,
+            PE_SET_QUOTA,
             SEM_CTRL,
 
             // capability exchange
@@ -334,6 +335,8 @@ struct KIF {
             xfer_t pe_sel;
             xfer_t dst_sel;
             xfer_t eps;
+            xfer_t time;
+            xfer_t pts;
         } PACKED;
 
         struct DeriveSrv : public DefaultRequest {
@@ -373,8 +376,18 @@ struct KIF {
         } PACKED;
 
         struct PEQuotaReply : public DefaultReply {
-            xfer_t total;
-            xfer_t amount;
+            xfer_t eps_total;
+            xfer_t eps_left;
+            xfer_t time_total;
+            xfer_t time_left;
+            xfer_t pts_total;
+            xfer_t pts_left;
+        } PACKED;
+
+        struct PESetQuota : public DefaultRequest {
+            xfer_t pe_sel;
+            xfer_t time;
+            xfer_t pts;
         } PACKED;
 
         struct SemCtrl : public DefaultRequest {

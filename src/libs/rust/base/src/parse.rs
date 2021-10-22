@@ -49,6 +49,32 @@ pub fn size(s: &str) -> Result<usize, Error> {
     })
 }
 
+/// Parses a time from the given string
+///
+/// The suffixes ns, µs, ms, and s can be used to denote nanoseconds, microseconds, milliseconds and
+/// seconds.
+pub fn time(s: &str) -> Result<u64, Error> {
+    let (width, mul) = if s.ends_with("ns") {
+        (2, 1)
+    }
+    else if s.ends_with("µs") {
+        (2, 1_000)
+    }
+    else if s.ends_with("ms") {
+        (2, 1_000_000)
+    }
+    else if s.ends_with("s") {
+        (1, 1_000_000_000)
+    }
+    else {
+        return Err(Error::new(Code::InvArgs));
+    };
+    Ok(match mul {
+        1 => int(s)?,
+        m => m * int(&s[0..s.len() - width])?,
+    })
+}
+
 /// Parses a u64 from the given string
 pub fn int(s: &str) -> Result<u64, Error> {
     s.parse::<u64>().map_err(|_| Error::new(Code::InvArgs))

@@ -24,6 +24,18 @@ use crate::rc::Rc;
 use crate::syscalls;
 use crate::tcu::PEId;
 
+#[derive(Default)]
+pub struct Quota<T> {
+    pub total: T,
+    pub left: T,
+}
+
+impl<T: fmt::Display> fmt::Display for Quota<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Q[{} of {}]", self.left, self.total)
+    }
+}
+
 /// Represents a processing element.
 pub struct PE {
     cap: Capability,
@@ -94,10 +106,18 @@ impl PE {
         Err(Error::new(Code::NotFound))
     }
 
-    /// Derives a new PE object from `self` with `eps` EPs, removing them from `self`
-    pub fn derive(&self, eps: u32) -> Result<Rc<Self>, Error> {
+    /// Derives a new PE object from `self` with a subset of the resources, removing them from `self`
+    ///
+    /// The three resources are the number of EPs, the time slice length in nanoseconds, and the
+    /// number of page tables.
+    pub fn derive(
+        &self,
+        eps: Option<u32>,
+        time: Option<u64>,
+        pts: Option<u64>,
+    ) -> Result<Rc<Self>, Error> {
         let sel = VPE::cur().alloc_sel();
-        syscalls::derive_pe(self.sel(), sel, eps)?;
+        syscalls::derive_pe(self.sel(), sel, eps, time, pts)?;
         Ok(Rc::new(PE {
             cap: Capability::new(sel, CapFlags::empty()),
             desc: self.desc(),
@@ -121,9 +141,34 @@ impl PE {
         self.desc
     }
 
-    /// Returns the total and remaining EP quota
-    pub fn quota(&self) -> Result<(u32, u32), Error> {
-        syscalls::pe_quota(self.sel())
+    /// Returns the EP, time, and page table quota
+    pub fn quota(&self) -> Result<(Quota<u32>, Quota<u64>, Quota<usize>), Error> {
+        syscalls::pe_quota(self.sel()).map(
+            |(eps_total, eps_left, time_total, time_left, pts_total, pts_left)| {
+                (
+                    Quota {
+                        total: eps_total,
+                        left: eps_left,
+                    },
+                    Quota {
+                        total: time_total,
+                        left: time_left,
+                    },
+                    Quota {
+                        total: pts_total,
+                        left: pts_left,
+                    },
+                )
+            },
+        )
+    }
+
+    /// Sets the quota of the PE with given selector to specified initial values (given time slice
+    /// length and number of page tables).
+    ///
+    /// This call requires a root PE capability.
+    pub fn set_quota(&self, time: u64, pts: u64) -> Result<(), Error> {
+        syscalls::pe_set_quota(self.sel(), time, pts)
     }
 
     pub(crate) fn set_sel(&self, sel: Selector) {

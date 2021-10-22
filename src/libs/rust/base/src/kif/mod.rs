@@ -30,6 +30,8 @@ pub use self::cap::*;
 pub use self::pedesc::*;
 pub use self::perm::*;
 
+use num_traits::PrimInt;
+
 use crate::tcu;
 
 /// Represents an invalid capability selector
@@ -58,4 +60,27 @@ pub struct DefaultRequest {
 #[repr(C)]
 pub struct DefaultReply {
     pub error: u64,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct OptionalValue(u64);
+
+impl OptionalValue {
+    pub fn new<T: PrimInt>(val: Option<T>) -> Self
+    where
+        u64: From<T>,
+    {
+        match val {
+            Some(v) => Self(v.into()),
+            None => Self(!0),
+        }
+    }
+
+    pub fn get<T: PrimInt>(&self) -> Option<T> {
+        match self.0 {
+            v if v == !0 => None,
+            v => T::from(v),
+        }
+    }
 }

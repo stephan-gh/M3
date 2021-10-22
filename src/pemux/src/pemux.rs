@@ -26,6 +26,7 @@ mod corereq;
 mod helper;
 mod irqs;
 mod pexcalls;
+mod quota;
 mod sidecalls;
 mod timer;
 mod vma;

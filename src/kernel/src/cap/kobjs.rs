@@ -17,10 +17,11 @@
 use base::cell::{Cell, Ref, RefCell, RefMut, StaticCell};
 use base::errors::{Code, Error};
 use base::goff;
-use base::kif;
+use base::kif::{self, pemux::QuotaId};
 use base::mem::{size_of, GlobAddr};
 use base::rc::{Rc, SRc, Weak};
 use base::tcu::{EpId, Label, PEId};
+
 use core::fmt;
 use core::ptr;
 
@@ -67,7 +68,8 @@ static KOBJ_SIZES: [usize; 11] = [
     kobj_size::<VPE>(),
     kobj_size::<SemObject>(),
     kobj_size::<KMemObject>(),
-    kobj_size::<PEObject>(),
+    // assume pessimistically that each PEObject has its own EPQuota
+    kobj_size::<PEObject>() + kobj_size::<EPQuota>(),
     kobj_size::<EPObject>(),
 ];
 
@@ -500,30 +502,62 @@ impl fmt::Debug for SemObject {
     }
 }
 
+pub struct EPQuota {
+    total: u32,
+    left: Cell<u32>,
+}
+
+impl EPQuota {
+    pub fn new(eps: u32) -> Rc<Self> {
+        Rc::new(Self {
+            total: eps,
+            left: Cell::from(eps),
+        })
+    }
+
+    pub fn total(&self) -> u32 {
+        self.total
+    }
+
+    pub fn left(&self) -> u32 {
+        self.left.get()
+    }
+}
+
 pub struct PEObject {
     pe: PEId,
-    total_eps: u32,
-    cur_eps: Cell<u32>,
     cur_vpes: Cell<u32>,
+    ep_quota: Rc<EPQuota>,
+    time_quota: QuotaId,
+    pt_quota: QuotaId,
     derived: bool,
 }
 
 impl PEObject {
-    pub fn new(pe: PEId, eps: u32, derived: bool) -> SRc<Self> {
+    pub fn new(
+        pe: PEId,
+        ep_quota: Rc<EPQuota>,
+        time_quota: QuotaId,
+        pt_quota: QuotaId,
+        derived: bool,
+    ) -> SRc<Self> {
         let res = SRc::new(Self {
             pe,
-            total_eps: eps,
-            cur_eps: Cell::from(eps),
             cur_vpes: Cell::from(0),
+            ep_quota: ep_quota.clone(),
+            time_quota,
+            pt_quota,
             derived,
         });
         klog!(
             PES,
-            "PE[{}, {:#x}]: {} new PEObject with {} EPs",
+            "PE[{}, {:#x}]: {} new PEObject with EPs={}, time={}, pts={}",
             pe,
             &*res as *const _ as usize,
             if derived { "derived" } else { "created" },
-            eps,
+            ep_quota.total,
+            time_quota,
+            pt_quota,
         );
         res
     }
@@ -536,20 +570,24 @@ impl PEObject {
         self.derived
     }
 
-    pub fn eps(&self) -> u32 {
-        self.cur_eps.get()
-    }
-
     pub fn vpes(&self) -> u32 {
         self.cur_vpes.get()
     }
 
-    pub fn quota(&self) -> u32 {
-        self.total_eps
+    pub fn ep_quota(&self) -> &Rc<EPQuota> {
+        &self.ep_quota
+    }
+
+    pub fn time_quota_id(&self) -> QuotaId {
+        self.time_quota
+    }
+
+    pub fn pt_quota_id(&self) -> QuotaId {
+        self.pt_quota
     }
 
     pub fn has_quota(&self, eps: u32) -> bool {
-        self.eps() >= eps
+        self.ep_quota.left() >= eps
     }
 
     pub fn add_vpe(&self) {
@@ -568,29 +606,50 @@ impl PEObject {
             self.pe,
             self as *const _ as usize,
             eps,
-            self.eps()
+            self.ep_quota.left()
         );
-        assert!(self.eps() >= eps);
-        self.cur_eps.set(self.eps() - eps);
+        assert!(self.ep_quota.left() >= eps);
+        self.ep_quota.left.set(self.ep_quota.left() - eps);
     }
 
     pub fn free(&self, eps: u32) {
-        assert!(self.eps() + eps <= self.total_eps);
-        self.cur_eps.set(self.eps() + eps);
+        assert!(self.ep_quota.left() + eps <= self.ep_quota.total);
+        self.ep_quota.left.set(self.ep_quota.left() + eps);
         klog!(
             PES,
             "PE[{}, {:#x}]: freed {} EPs ({} left)",
             self.pe,
             self as *const _ as usize,
             eps,
-            self.eps()
+            self.ep_quota.left()
         );
     }
 
-    pub fn revoke(&self, parent: &PEObject) {
-        // grant the EPs back to our parent
-        parent.free(self.eps());
-        assert!(self.eps() == self.total_eps);
+    pub fn revoke_async(&self, parent: &PEObject) {
+        // we free the EP quota if it's different from our parent's quota (only our own childs can
+        // have the same EP quota, but they are already gone).
+        if !Rc::ptr_eq(&self.ep_quota, &parent.ep_quota) {
+            // grant the EPs back to our parent
+            parent.free(self.ep_quota.left());
+            assert!(self.ep_quota.left() == self.ep_quota.total);
+        }
+
+        // same for time and pts: free the ones that are different
+        let time = if self.time_quota != parent.time_quota {
+            Some(self.time_quota)
+        }
+        else {
+            None
+        };
+        let pts = if self.pt_quota != parent.pt_quota {
+            Some(self.pt_quota)
+        }
+        else {
+            None
+        };
+        if time.is_some() || pts.is_some() {
+            PEMux::remove_quotas_async(pemng::pemux(self.pe), time, pts).ok();
+        }
     }
 }
 
@@ -600,7 +659,7 @@ impl fmt::Debug for PEObject {
             f,
             "PE[id={}, eps={}, vpes={}, derived={}]",
             self.pe,
-            self.eps(),
+            self.ep_quota.left(),
             self.vpes(),
             self.derived,
         )

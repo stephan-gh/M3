@@ -20,6 +20,8 @@ use crate::kif::CapSel;
 use crate::mem::{MaybeUninit, MsgBuf};
 use crate::tcu::Label;
 
+use super::OptionalValue;
+
 /// The maximum size of strings in system calls
 pub const MAX_STR_SIZE: usize = 64;
 
@@ -56,17 +58,18 @@ int_enum! {
         const MGATE_REGION      = 18;
         const KMEM_QUOTA        = 19;
         const PE_QUOTA          = 20;
-        const SEM_CTRL          = 21;
+        const PE_SET_QUOTA      = 21;
+        const SEM_CTRL          = 22;
 
         // capability exchange
-        const DELEGATE          = 22;
-        const OBTAIN            = 23;
-        const EXCHANGE          = 24;
-        const REVOKE            = 25;
+        const DELEGATE          = 23;
+        const OBTAIN            = 24;
+        const EXCHANGE          = 25;
+        const REVOKE            = 26;
 
         // misc
-        const RESET_STATS       = 26;
-        const NOOP              = 27;
+        const RESET_STATS       = 27;
+        const NOOP              = 28;
     }
 }
 
@@ -346,7 +349,9 @@ pub struct DerivePE {
     pub opcode: u64,
     pub pe_sel: u64,
     pub dst_sel: u64,
-    pub eps: u64,
+    pub eps: OptionalValue,
+    pub time: OptionalValue,
+    pub pts: OptionalValue,
 }
 
 /// The derive service request message
@@ -410,8 +415,21 @@ pub struct PEQuota {
 #[repr(C)]
 pub struct PEQuotaReply {
     pub error: u64,
-    pub total: u64,
-    pub amount: u64,
+    pub eps_total: u64,
+    pub eps_left: u64,
+    pub time_total: u64,
+    pub time_left: u64,
+    pub pts_total: u64,
+    pub pts_left: u64,
+}
+
+/// The PE set quota request message
+#[repr(C)]
+pub struct PESetQuota {
+    pub opcode: u64,
+    pub pe_sel: u64,
+    pub time: u64,
+    pub pts: u64,
 }
 
 int_enum! {

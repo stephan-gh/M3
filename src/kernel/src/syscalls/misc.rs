@@ -26,7 +26,7 @@ use crate::arch::loader;
 use crate::cap::{Capability, KObject};
 use crate::cap::{EPObject, SemObject};
 use crate::ktcu;
-use crate::pes::{pemng, INVAL_ID, VPE};
+use crate::pes::{pemng, PEMux, INVAL_ID, VPE};
 use crate::platform;
 use crate::syscalls::{get_request, reply_success, send_reply};
 
@@ -60,7 +60,7 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verbose
         sysc_err!(
             Code::NoSpace,
             "PE cap has insufficient EPs (have {}, need {})",
-            dst_vpe.pe().eps(),
+            dst_vpe.pe().ep_quota().left(),
             ep_count
         );
     }
@@ -213,7 +213,7 @@ pub fn kmem_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verbo
 }
 
 #[inline(never)]
-pub fn pe_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+pub fn pe_quota_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &kif::syscalls::PEQuota = get_request(msg)?;
     let pe_sel = req.pe_sel as CapSel;
 
@@ -222,14 +222,70 @@ pub fn pe_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verbose
     let vpe_caps = vpe.obj_caps().borrow();
     let pe = get_kobj_ref!(vpe_caps, pe_sel, PE);
 
+    let (time_total, time_left, pts_total, pts_left) =
+        PEMux::get_quota_async(pemng::pemux(pe.pe()), pe.time_quota_id(), pe.pt_quota_id())
+            .map_err(|e| {
+                VerboseError::new(
+                    e.code(),
+                    base::format!(
+                        "Unable to get quota for time={}, pts={}",
+                        pe.time_quota_id(),
+                        pe.pt_quota_id()
+                    ),
+                )
+            })?;
+
     let mut kreply = MsgBuf::borrow_def();
     kreply.set(kif::syscalls::PEQuotaReply {
         error: 0,
-        total: pe.quota() as u64,
-        amount: pe.eps() as u64,
+        eps_total: pe.ep_quota().total() as u64,
+        eps_left: pe.ep_quota().left() as u64,
+        time_total,
+        time_left,
+        pts_total: pts_total as u64,
+        pts_left: pts_left as u64,
     });
     send_reply(msg, &kreply);
 
+    Ok(())
+}
+
+#[inline(never)]
+pub fn pe_set_quota_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+    let req: &kif::syscalls::PESetQuota = get_request(msg)?;
+    let pe_sel = req.pe_sel as CapSel;
+    let time = req.time;
+    let pts = req.pts;
+
+    sysc_log!(
+        vpe,
+        "pe_set_quota(pe={}, time={}, pts={})",
+        pe_sel,
+        time,
+        pts
+    );
+
+    let vpe_caps = vpe.obj_caps().borrow();
+    let pe = get_kobj_ref!(vpe_caps, pe_sel, PE);
+
+    if pe.derived() {
+        sysc_err!(
+            Code::NoPerm,
+            "Cannot set PE quota with derived PE capability"
+        );
+    }
+    if pe.vpes() > 1 {
+        sysc_err!(
+            Code::InvArgs,
+            "Cannot set PE quota with more than one VPE on the PE"
+        );
+    }
+
+    let pemux = pemng::pemux(pe.pe());
+    // the root PE object has always the same id for the time quota and the pts quota
+    PEMux::set_quota_async(pemux, pe.time_quota_id(), time, pts)?;
+
+    reply_success(msg);
     Ok(())
 }
 
@@ -276,12 +332,10 @@ pub fn get_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verbose
             sysc_err!(Code::NoPerm, "Cannot get access to foreign session");
         }
 
-        try_kmem_quota!(
-            vpecap
-                .obj_caps()
-                .borrow_mut()
-                .obtain(dst_sel, csess.unwrap(), true)
-        );
+        try_kmem_quota!(vpecap
+            .obj_caps()
+            .borrow_mut()
+            .obtain(dst_sel, csess.unwrap(), true));
     }
     else {
         sysc_err!(Code::InvArgs, "Unknown session id {}", sid);

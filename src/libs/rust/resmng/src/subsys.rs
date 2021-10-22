@@ -49,6 +49,9 @@ use crate::services;
 //
 const SUBSYS_SELS: Selector = FIRST_FREE_SEL;
 
+const DEF_TIME_SLICE: u64 = 1_000_000; // 1ms
+const OUR_EPS: u32 = 16;
+
 pub(crate) const SERIAL_RGATE_SEL: Selector = SUBSYS_SELS + 1;
 
 static OUR_PE: StaticRefCell<Option<Rc<pes::PEUsage>>> = StaticRefCell::new(None);
@@ -322,9 +325,6 @@ impl Subsystem {
                 Rc::new(pes::PEUsage::new_obj(child_pe))
             };
 
-            let total_eps = pe_usage.pe_obj().quota()?.1;
-            let rem_eps = split_eps(total_eps, &d);
-
             // memory pool for the domain
             let dom_mem = d.apps().iter().fold(0, |sum, a| {
                 sum + a.user_mem().unwrap_or(def_umem as usize) as goff
@@ -393,8 +393,27 @@ impl Subsystem {
                 }
             }
 
+            // split available PTs according to the config
+            let (ep_quota, _, pt_quota) = pe_usage.pe_obj().quota()?;
+            let (mut pt_sharer, shared_pts) = split_pts(pt_quota.left as u64, &d);
+
+            let mut domain_total_eps = ep_quota.left;
+            let mut domain_total_time = 0;
+            let mut domain_total_pts = 0;
             let mut domain_kmem_bytes = 0;
+
+            // account for ourself, if we share this PE
+            if pe_usage.pe_id() == VPE::cur().pe_id() {
+                domain_total_time += DEF_TIME_SLICE;
+                pt_sharer += 1;
+                domain_total_pts += shared_pts / pt_sharer;
+                domain_total_eps -= OUR_EPS;
+            }
+
             for cfg in d.apps() {
+                // accumulate child time, pts, and kmem
+                domain_total_time += cfg.time.unwrap_or(DEF_TIME_SLICE);
+                domain_total_pts += cfg.pts.unwrap_or(shared_pts / pt_sharer);
                 domain_kmem_bytes += cfg.kern_mem.unwrap_or(def_kmem);
 
                 // add requested physical memory regions to pool
@@ -429,19 +448,39 @@ impl Subsystem {
             let domain_umem = childs::ChildMem::new(mem_id, mem_pool.clone(), def_umem);
             mem_id += 1;
 
-            // derive a new PE object for the entire domain (so that they cannot change the PMP EPs)
-            let domain_pe_usage = if let Some(mut rem) = rem_eps {
-                // if it's our PE, leave some EPs for us
-                if pe_usage.pe_id() == VPE::cur().pe_id() {
-                    assert!(rem > 16);
-                    rem -= 16;
-                }
-                Some(Rc::new(pe_usage.derive(rem).map_err(|e| {
+            // set initial quota for this PE
+            pe_usage
+                .pe_obj()
+                .set_quota(domain_total_time, pt_quota.total as u64)
+                .map_err(|e| {
                     VerboseError::new(
                         e.code(),
-                        format!("Unable to derive new PE with {} EPs", rem),
+                        format!(
+                            "Unable to set quota for PE to time={}, pts={}",
+                            domain_total_time, pt_quota.total
+                        ),
                     )
-                })?))
+                })?;
+
+            // derive a new PE object for the entire domain (so that they cannot change the PMP EPs)
+            let domain_pe_usage = if d.apps().iter().next().unwrap().domains().is_empty() {
+                let domain_eps = Some(domain_total_eps);
+                let domain_time = Some(domain_total_time);
+                let domain_pts = Some(domain_total_pts);
+
+                Some(Rc::new(
+                    pe_usage
+                        .derive(domain_eps, domain_time, domain_pts)
+                        .map_err(|e| {
+                            VerboseError::new(
+                                e.code(),
+                                format!(
+                                    "Unable to derive new PE with eps={:?}, time={:?}, pts={:?}",
+                                    domain_eps, domain_time, domain_pts,
+                                ),
+                            )
+                        })?,
+                ))
             }
             else {
                 None
@@ -453,16 +492,21 @@ impl Subsystem {
                     // a resource manager has to be able to set PMPs and thus needs the root PE
                     pe_usage.clone()
                 }
-                else if let Some(eps) = cfg.eps() {
-                    Rc::new(pe_usage.derive(eps).map_err(|e| {
+                else if cfg.eps.is_some() || cfg.time.is_some() || cfg.pts.is_some() {
+                    // if the child wants any specific quota, derive from the base PE object
+                    let base = domain_pe_usage.as_ref().unwrap();
+                    Rc::new(base.derive(cfg.eps, cfg.time, cfg.pts).map_err(|e| {
                         VerboseError::new(
                             e.code(),
-                            format!("Unable to derive new PE with {} EPs", eps),
+                            format!(
+                                "Unable to derive new PE with {:?} EPs, {:?} time, {:?} pts",
+                                cfg.eps, cfg.time, cfg.pts,
+                            ),
                         )
                     })?)
                 }
                 else {
-                    // without a specific number of EPs, childs share the remaining EP quota
+                    // without specified restrictions, childs share their resource quota
                     domain_pe_usage.as_ref().unwrap().clone()
                 };
 
@@ -901,21 +945,17 @@ fn split_sessions(cfg: &config::AppConfig, name: &str) -> (u32, u32) {
     (frac, fixed)
 }
 
-fn split_eps(mut total_eps: u32, d: &config::Domain) -> Option<u32> {
-    let mut need_def = false;
+fn split_pts(total_pts: u64, d: &config::Domain) -> (u64, u64) {
+    let mut pt_sharer = 0;
+    let mut rem_pts = total_pts;
     for cfg in d.apps() {
-        if let Some(eps) = cfg.eps() {
-            total_eps -= eps;
+        match cfg.pts {
+            Some(n) => {
+                assert!(rem_pts >= n);
+                rem_pts -= n;
+            },
+            None => pt_sharer += 1,
         }
-        else if cfg.domains().is_empty() {
-            need_def = true;
-        }
     }
-
-    if !need_def {
-        None
-    }
-    else {
-        Some(total_eps)
-    }
+    (pt_sharer, rem_pts)
 }

@@ -78,12 +78,19 @@ public:
     static void derive_mem(capsel_t vpe, capsel_t dst, capsel_t src, goff_t offset,
                            size_t size, int perms);
     static void derive_kmem(capsel_t kmem, capsel_t dst, size_t quota);
-    static void derive_pe(capsel_t pe, capsel_t dst, uint eps);
+    static void derive_pe(capsel_t pe, capsel_t dst,
+                          uint eps = static_cast<uint>(-1),
+                          uint64_t time = static_cast<uint64_t>(-1),
+                          uint64_t pts = static_cast<uint64_t>(-1));
     static void derive_srv(capsel_t srv, const KIF::CapRngDesc &dst, uint sessions, event_t event);
     static void get_sess(capsel_t srv, capsel_t vpe, capsel_t dst, word_t sid);
     static GlobAddr mgate_region(capsel_t mgate, size_t *size);
     static size_t kmem_quota(capsel_t kmem, size_t *total);
-    static uint pe_quota(capsel_t pe, uint *total);
+    static void pe_quota(capsel_t pe,
+                         uint *eps_total, uint *eps_left,
+                         uint64_t *time_total, uint64_t *time_left,
+                         size_t *pts_total, size_t *pts_left);
+    static void pe_set_quota(capsel_t pe, uint64_t time, uint64_t pts);
     static void sem_ctrl(capsel_t sem, KIF::Syscall::SemOp);
 
     static void delegate(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,

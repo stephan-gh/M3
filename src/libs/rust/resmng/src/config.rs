@@ -371,6 +371,8 @@ pub struct AppConfig {
     pub(crate) eps: Option<u32>,
     pub(crate) user_mem: Option<usize>,
     pub(crate) kern_mem: Option<usize>,
+    pub(crate) time: Option<u64>,
+    pub(crate) pts: Option<u64>,
     pub(crate) serial: Option<SerialDesc>,
     pub(crate) domains: Vec<Domain>,
     pub(crate) mounts: Vec<MountDesc>,
@@ -673,6 +675,12 @@ impl AppConfig {
         }
         if let Some(eps) = self.eps {
             writeln!(f, "{:0w$}Endpoints[count={}],", "", eps, w = layer + 2)?;
+        }
+        if let Some(t) = self.time {
+            writeln!(f, "{:0w$}TimeSlice[{} ns],", "", t, w = layer + 2)?;
+        }
+        if let Some(n) = self.pts {
+            writeln!(f, "{:0w$}PageTables[{}],", "", n, w = layer + 2)?;
         }
         if let Some(umem) = self.user_mem {
             writeln!(

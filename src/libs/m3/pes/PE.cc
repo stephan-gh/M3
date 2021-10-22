@@ -114,14 +114,21 @@ Reference<PE> PE::get(const char *desc) {
     VTHROW(Errors::NOT_FOUND, "Unable to find PE with " << desc);
 }
 
-Reference<PE> PE::derive(uint eps) {
+Reference<PE> PE::derive(uint eps, uint64_t time, uint64_t pts) {
     capsel_t sel = VPE::self().alloc_sel();
-    Syscalls::derive_pe(this->sel(), sel, eps);
+    Syscalls::derive_pe(this->sel(), sel, eps, time, pts);
     return Reference<PE>(new PE(sel, desc(), 0, false));
 }
 
-uint PE::quota() const {
-    return Syscalls::pe_quota(sel(), nullptr);
+void PE::quota(Quota<uint> *eps, Quota<uint64_t> *time, Quota<size_t> *pts) const {
+    Syscalls::pe_quota(sel(),
+                       &eps->total, &eps->left,
+                       &time->total, &time->left,
+                       &pts->total, &pts->left);
+}
+
+void PE::set_quota(uint64_t time, uint64_t pts) {
+    Syscalls::pe_set_quota(sel(), time, pts);
 }
 
 }

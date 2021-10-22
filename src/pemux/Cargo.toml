@@ -12,3 +12,7 @@ base = { path = "../libs/rust/base" }
 heap = { path = "../libs/rust/heap" }
 isr = { path = "../libs/rust/isr" }
 paging = { path = "../libs/rust/paging" }
+
+[dependencies.num-traits]
+version = "0.2"
+default-features = false

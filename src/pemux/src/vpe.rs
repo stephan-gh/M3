@@ -26,6 +26,7 @@ use base::log;
 use base::math;
 use base::mem::{size_of, GlobAddr, MsgBuf};
 use base::pexif;
+use base::rc::Rc;
 use base::tcu;
 use core::cmp;
 use core::ptr::NonNull;
@@ -35,22 +36,33 @@ use crate::arch;
 use crate::helper;
 use crate::irqs;
 use crate::pex_env;
+use crate::quota::{self, PTQuota, Quota, TimeQuota};
 use crate::timer::{self, Nanos};
 use crate::vma::PfState;
 
 pub type Id = paging::VPEId;
 
-const TIME_SLICE: Nanos = 1_000_000;
-
 struct PTAllocator {
     vpe: Id,
+    quota: Rc<PTQuota>,
 }
 
 impl Allocator for PTAllocator {
     fn allocate_pt(&mut self) -> Result<Phys, Error> {
         assert!(self.vpe != kif::pemux::IDLE_ID);
+        if self.quota.left() == 0 {
+            return Err(Error::new(Code::NoSpace));
+        }
+
         if let Some(pt) = PTS.get_mut().pop() {
-            log!(crate::LOG_PTS, "Alloc PT {:#x} (free: {})", pt, PTS.len());
+            self.quota.set_left(self.quota.left() - 1);
+            log!(
+                crate::LOG_PTS,
+                "Alloc PT {:#x} (quota: {}, total: {})",
+                pt,
+                self.quota.left(),
+                PTS.len()
+            );
             Ok(pt)
         }
         else {
@@ -68,8 +80,15 @@ impl Allocator for PTAllocator {
     }
 
     fn free_pt(&mut self, phys: Phys) {
-        log!(crate::LOG_PTS, "Free PT {:#x} (free: {})", phys, PTS.len());
+        log!(
+            crate::LOG_PTS,
+            "Free PT {:#x} (quota: {}, free: {})",
+            phys,
+            self.quota.left(),
+            PTS.len()
+        );
         PTS.get_mut().push(phys);
+        self.quota.set_left(self.quota.left() + 1);
     }
 }
 
@@ -115,8 +134,7 @@ pub struct VPE {
     user_state: arch::State,
     user_state_addr: usize,
     scheduled: Nanos,
-    budget_total: Nanos,
-    budget_left: Nanos,
+    time_quota: Rc<TimeQuota>,
     cpu_time: Nanos,
     ctxsws: u64,
     wait_timeout: bool,
@@ -169,6 +187,7 @@ pub fn init() {
 
         let mut allocator = PTAllocator {
             vpe: kif::pemux::VPE_ID,
+            quota: Quota::new(0, None, PTS.len()),
         };
         let frame = allocator.allocate_pt().unwrap();
         (frame, Some(base + (frame - cfg::MEM_OFFSET as Phys)))
@@ -177,8 +196,22 @@ pub fn init() {
         (0, None)
     };
 
-    IDLE.set(Box::new(VPE::new(kif::pemux::IDLE_ID, 0, root_pt)));
-    OUR.set(Box::new(VPE::new(kif::pemux::VPE_ID, 0, root_pt)));
+    quota::init(PTS.get().len());
+
+    IDLE.set(Box::new(VPE::new(
+        kif::pemux::IDLE_ID,
+        quota::IDLE_ID,
+        quota::get_pt(quota::IDLE_ID).unwrap(),
+        0,
+        root_pt,
+    )));
+    OUR.set(Box::new(VPE::new(
+        kif::pemux::VPE_ID,
+        quota::IDLE_ID,
+        quota::get_pt(quota::IDLE_ID).unwrap(),
+        0,
+        root_pt,
+    )));
 
     if pex_env().pe_desc.has_virtmem() {
         our().frames.push(frame);
@@ -190,24 +223,37 @@ pub fn init() {
         paging::disable_paging();
     }
 
+    // add default quota, now that initialization is done and we know how many PTs are left
+    quota::add_def(quota::DEF_TIME_SLICE, PTS.get().len());
+
     BOOTSTRAP.set(false);
 }
 
-pub fn add(id: Id, eps_start: tcu::EpId) -> Result<(), Error> {
+pub fn add(
+    id: Id,
+    time_quota: quota::Id,
+    pt_quota: quota::Id,
+    eps_start: tcu::EpId,
+) -> Result<(), Error> {
     log!(crate::LOG_VPES, "Created VPE {}", id);
 
+    let pt_quota = quota::get_pt(pt_quota).unwrap();
     let (frame, root_pt) = if pex_env().pe_desc.has_virtmem() {
         let (mem_pe, mem_base, _, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
         let base = GlobAddr::new_with(mem_pe, mem_base);
 
-        let frame = PTAllocator { vpe: id }.allocate_pt()?;
+        let frame = PTAllocator {
+            vpe: id,
+            quota: pt_quota.clone(),
+        }
+        .allocate_pt()?;
         (frame, Some(base + (frame - cfg::MEM_OFFSET as Phys)))
     }
     else {
         (0, None)
     };
 
-    let mut vpe = Box::new(VPE::new(id, eps_start, root_pt));
+    let mut vpe = Box::new(VPE::new(id, time_quota, pt_quota, eps_start, root_pt));
 
     if pex_env().pe_desc.has_virtmem() {
         vpe.frames.push(frame);
@@ -295,9 +341,10 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
         .pop_front()
         .unwrap_or_else(|| unsafe { Box::from_raw(idle()) });
 
-    if let Some(old) = try_cur() {
+    let old_time = if let Some(old) = try_cur() {
         // reduce budget now in case we decide not to switch below
-        old.budget_left = old.budget_left.saturating_sub(now - old.scheduled);
+        old.time_quota
+            .set_left(old.time_quota.left().saturating_sub(now - old.scheduled));
 
         // save TCU command registers; do that first while still running with that VPE
         old.cmd.save();
@@ -308,11 +355,12 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
         // are there messages left we care about?
         if action == ScheduleAction::Block && !old.can_block((old_id >> 16) as u16) {
             // if the VPE has budget left (or there is no one else ready), continue with it
-            if old.budget_left > 0 || next.id() == kif::pemux::IDLE_ID {
+            if old.time_quota.left() > 0 || next.id() == kif::pemux::IDLE_ID {
                 let next_id = tcu::TCU::xchg_vpe(old_id).unwrap();
                 next.set_vpe_reg(next_id);
                 if next.id() != kif::pemux::IDLE_ID {
-                    make_ready(next);
+                    let next_budget = next.time_quota.left();
+                    make_ready(next, next_budget);
                 }
                 else {
                     Box::into_raw(next);
@@ -328,10 +376,15 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
         }
 
         old.set_vpe_reg(old_id);
+        // pass the old budget from here to make_ready below, because we might share the budget with
+        // the next VPE (which prevented others from running, because we would just switch between
+        // these two)
+        old.time_quota.left()
     }
     else {
         tcu::TCU::xchg_vpe(next.vpe_reg()).unwrap();
-    }
+        0
+    };
 
     // change address space
     next.switch_to();
@@ -344,10 +397,14 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
 
     next.scheduled = now;
     // budget is immediately refilled but we prefer other VPEs while a budget is 0 (see make_ready)
-    if next.budget_left == 0 {
-        next.budget_left = next.budget_total;
+    if next.time_quota.left() == 0 {
+        // to keep it simple, we divide the time slice by the number of users to ensure that VPEs
+        // that share a time slice don't receive more than their share in total. the better approach
+        // might be to actually schedule quotas and not VPEs, but that seems like overkill here.
+        next.time_quota
+            .set_left(next.time_quota.total() / next.time_quota.users());
     }
-    let next_budget = next.budget_left;
+    let next_budget = next.time_quota.left();
 
     // restore TCU command registers
     next.cmd.restore();
@@ -358,7 +415,7 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
             crate::LOG_CTXSWS,
             "Switching from {} (budget {}) to {} (budget {}): {:?} old VPE",
             old.id(),
-            old.budget_left,
+            old.time_quota.left(),
             next_id,
             next_budget,
             action
@@ -374,7 +431,7 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
                     make_blocked(old);
                 },
                 ScheduleAction::Preempt | ScheduleAction::Yield => {
-                    make_ready(old);
+                    make_ready(old, old_time);
                 },
                 ScheduleAction::Kill => {
                     VPES.get_mut()[old.id() as usize] = None;
@@ -404,10 +461,10 @@ fn make_blocked(mut vpe: Box<VPE>) {
     BLK.get_mut().push_back(vpe);
 }
 
-fn make_ready(mut vpe: Box<VPE>) {
+fn make_ready(mut vpe: Box<VPE>, budget: Nanos) {
     vpe.state = VPEState::Ready;
     // prefer VPEs with budget
-    if vpe.budget_left > 0 {
+    if budget > 0 {
         RDY.get_mut().push_front(vpe);
     }
     else {
@@ -464,8 +521,23 @@ pub fn remove(id: Id, status: u32, notify: bool, sched: bool) {
 }
 
 impl VPE {
-    pub fn new(id: Id, eps_start: tcu::EpId, root_pt: Option<GlobAddr>) -> Self {
-        let aspace = root_pt.map(|r| paging::AddrSpace::new(id, r, PTAllocator { vpe: id }));
+    pub fn new(
+        id: Id,
+        time_quota: quota::Id,
+        pt_quota: Rc<PTQuota>,
+        eps_start: tcu::EpId,
+        root_pt: Option<GlobAddr>,
+    ) -> Self {
+        let aspace = root_pt.map(|r| {
+            paging::AddrSpace::new(id, r, PTAllocator {
+                vpe: id,
+                quota: pt_quota,
+            })
+        });
+
+        let time_quota = quota::get_time(time_quota).unwrap();
+        time_quota.attach();
+
         VPE {
             prev: None,
             next: None,
@@ -477,8 +549,7 @@ impl VPE {
             fpu_state: arch::FPUState::default(),
             user_state: arch::State::default(),
             user_state_addr: 0,
-            budget_total: TIME_SLICE,
-            budget_left: TIME_SLICE,
+            time_quota,
             cpu_time: 0,
             ctxsws: 0,
             scheduled: 0,
@@ -549,7 +620,7 @@ impl VPE {
     }
 
     pub fn budget_left(&self) -> Nanos {
-        self.budget_left
+        self.time_quota.left()
     }
 
     pub fn user_state(&mut self) -> &mut arch::State {
@@ -664,7 +735,8 @@ impl VPE {
                 timer::remove(vpe.id());
                 vpe.wait_timeout = false;
             }
-            make_ready(vpe);
+            let budget = vpe.time_quota.left();
+            make_ready(vpe, budget);
         }
         if self.state != VPEState::Running {
             crate::reg_scheduling(ScheduleAction::Yield);
@@ -675,8 +747,9 @@ impl VPE {
     pub fn consume_time(&mut self) {
         let now = tcu::TCU::nanotime();
         let duration = now - self.scheduled;
-        self.budget_left = self.budget_left.saturating_sub(duration);
-        if self.budget_left == 0 && has_ready() {
+        self.time_quota
+            .set_left(self.time_quota.left().saturating_sub(duration));
+        if self.time_quota.left() == 0 && has_ready() {
             crate::reg_scheduling(ScheduleAction::Preempt);
         }
     }
@@ -906,6 +979,7 @@ impl Drop for VPE {
         }
 
         // remove VPE from other modules
+        self.time_quota.detach();
         if self.wait_timeout {
             timer::remove(self.id());
         }

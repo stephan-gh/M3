@@ -29,7 +29,7 @@ use m3::kif::{self, CapRngDesc, CapType, Perm};
 use m3::log;
 use m3::math;
 use m3::mem::MsgBuf;
-use m3::pes::{Activity, ExecActivity, KMem, Mapper, VPE};
+use m3::pes::{Activity, ExecActivity, KMem, Mapper, Quota, VPE};
 use m3::println;
 use m3::rc::Rc;
 use m3::session::{ResMngVPEInfo, ResMngVPEInfoResult};
@@ -605,7 +605,8 @@ pub trait Child {
                 // the first is always us
                 if idx == 0 {
                     let (total_kmem, avail_kmem) = VPE::cur().kmem().quota()?;
-                    let (total_eps, avail_eps) = VPE::cur().pe().quota()?;
+                    // TODO
+                    let (ep_quota, _, _) = VPE::cur().pe().quota()?;
                     let mem = memory::container();
                     return Ok(ResMngVPEInfoResult::Info(ResMngVPEInfo {
                         id: VPE::cur().id(),
@@ -617,8 +618,8 @@ pub trait Child {
                         avail_umem: mem.available() as usize,
                         total_kmem,
                         avail_kmem,
-                        total_eps,
-                        avail_eps,
+                        total_eps: ep_quota.total,
+                        avail_eps: ep_quota.left,
                         pe: VPE::cur().pe_id(),
                     }));
                 }
@@ -637,10 +638,13 @@ pub trait Child {
                     .kmem()
                     .map(|km| km.quota())
                     .unwrap_or_else(|| Ok((0, 0)))?;
-                let (total_eps, avail_eps) = vpe
+                // TODO
+                let (ep_quota, _, _) = vpe
                     .child_pe()
                     .map(|pe| pe.pe_obj().quota())
-                    .unwrap_or_else(|| Ok((0, 0)))?;
+                    .unwrap_or_else(|| {
+                        Ok((Quota::default(), Quota::default(), Quota::default()))
+                    })?;
                 Ok(ResMngVPEInfoResult::Info(ResMngVPEInfo {
                     id: vpe.vpe_id(),
                     layer: parent_layer + vpe.layer(),
@@ -651,8 +655,8 @@ pub trait Child {
                     avail_umem: vpe.mem().quota.get() as usize,
                     total_kmem,
                     avail_kmem,
-                    total_eps,
-                    avail_eps,
+                    total_eps: ep_quota.total,
+                    avail_eps: ep_quota.left,
                     pe: vpe.our_pe().pe_id(),
                 }))
             }

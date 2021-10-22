@@ -37,6 +37,12 @@ class PE : public ObjCap, public RefCounted {
     }
 
 public:
+    template<typename T>
+    struct Quota {
+        T total;
+        T left;
+    };
+
     PE(PE &&pe) noexcept
         : ObjCap(std::move(pe)),
           RefCounted(std::move(pe)),
@@ -87,12 +93,16 @@ public:
     }
 
     /**
-     * Derives a new PE object from the this by transferring <eps> endpoints to the new one
+     * Derives a new PE object from the this by transferring a subset of the resources to the new one
      *
-     * @param eps the number of EPs to transfer
+     * @param eps the number of EPs to transfer (-1 = none, share the quota)
+     * @param time the time slice length in nanoseconds to transfer (-1 = none, share the quota)
+     * @param pts the number of page tables to transfer (-1 = none, share the quota)
      * @return the new PE object
      */
-    Reference<PE> derive(uint eps);
+    Reference<PE> derive(uint eps = static_cast<uint>(-1),
+                         uint64_t time = static_cast<uint64_t>(-1),
+                         uint64_t pts = static_cast<uint64_t>(-1));
 
     /**
      * @return the description of the PE
@@ -102,9 +112,22 @@ public:
     }
 
     /**
-     * @return the number of available EPs
+     * Determines the current quotas for EPs, time, and page tables.
+     *
+     * @param eps is set to the quota for EPs
+     * @param time is set to the quota for time (in nanoseconds)
+     * @param pts is set to the quota for page tables
      */
-    uint quota() const;
+    void quota(Quota<uint> *eps, Quota<uint64_t> *time, Quota<size_t> *pts) const;
+
+    /**
+     * Sets the quota of the PE with given selector to specified initial values.
+     * This call requires a root PE capability.
+     *
+     * @param time the time slice length in nanoseconds
+     * @param pts the number of page tables
+     */
+    void set_quota(uint64_t time, uint64_t pts);
 
 private:
     PEDesc _desc;

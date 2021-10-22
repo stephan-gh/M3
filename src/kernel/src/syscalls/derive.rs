@@ -23,25 +23,29 @@ use base::rc::Rc;
 use base::tcu;
 
 use crate::cap::{Capability, KObject};
-use crate::cap::{KMemObject, MGateObject, PEObject, ServObject};
+use crate::cap::{EPQuota, KMemObject, MGateObject, PEObject, ServObject};
 use crate::com::Service;
 use crate::mem;
-use crate::pes::VPE;
+use crate::pes::{pemng, PEMux, VPE};
 use crate::syscalls::{get_request, reply_success};
 
 #[inline(never)]
-pub fn derive_pe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+pub fn derive_pe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &kif::syscalls::DerivePE = get_request(msg)?;
     let pe_sel = req.pe_sel as CapSel;
     let dst_sel = req.dst_sel as CapSel;
-    let eps = req.eps as u32;
+    let eps = req.eps.get();
+    let time = req.time.get();
+    let pts = req.pts.get();
 
     sysc_log!(
         vpe,
-        "derive_pe(pe={}, dst={}, eps={})",
+        "derive_pe(pe={}, dst={}, eps={:?}, time={:?}, pts={:?})",
         pe_sel,
         dst_sel,
-        eps
+        eps,
+        time,
+        pts,
     );
 
     if !vpe.obj_caps().borrow().unused(dst_sel) {
@@ -49,13 +53,41 @@ pub fn derive_pe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verbos
     }
 
     let pe = get_kobj!(vpe, pe_sel, PE);
-    if !pe.has_quota(eps) {
-        sysc_err!(Code::NoSpace, "Insufficient EPs");
-    }
 
-    let cap = Capability::new(dst_sel, KObject::PE(PEObject::new(pe.pe(), eps, true)));
+    let ep_quota = if let Some(eps) = eps {
+        if !pe.has_quota(eps) {
+            sysc_err!(Code::NoSpace, "Insufficient EPs");
+        }
+        pe.alloc(eps);
+
+        EPQuota::new(eps)
+    }
+    else {
+        pe.ep_quota().clone()
+    };
+
+    let (time_id, pt_id) = if time.is_some() || pts.is_some() {
+        let pemux = pemng::pemux(pe.pe());
+        match PEMux::derive_quota_async(pemux, pe.time_quota_id(), pe.pt_quota_id(), time, pts) {
+            Err(e) => {
+                if let Some(eps) = eps {
+                    pe.free(eps);
+                }
+                return Err(VerboseError::from(e));
+            },
+            Ok(v) => v,
+        }
+    }
+    else {
+        (pe.time_quota_id(), pe.pt_quota_id())
+    };
+
+    let cap = Capability::new(
+        dst_sel,
+        KObject::PE(PEObject::new(pe.pe(), ep_quota, time_id, pt_id, true)),
+    );
+    // TODO we will leak the quota object in PEMux if this fails
     try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(cap, pe_sel));
-    pe.alloc(eps);
 
     reply_success(msg);
     Ok(())

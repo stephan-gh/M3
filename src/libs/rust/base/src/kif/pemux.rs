@@ -16,10 +16,16 @@
 
 //! The kernel-pemux interface
 
+use super::OptionalValue;
+
 /// The VPE id of PEMux
 pub const VPE_ID: u64 = 0xFFFF;
 /// The VPE id when PEMux is idling
 pub const IDLE_ID: u64 = 0xFFFE;
+
+pub type QuotaId = u64;
+
+pub const DEF_QUOTA_ID: QuotaId = 1;
 
 int_enum! {
     /// The sidecalls from the kernel to PEMux
@@ -30,7 +36,11 @@ int_enum! {
         const TRANSLATE      = 0x3;
         const REM_MSGS       = 0x4;
         const EP_INVAL       = 0x5;
-        const RESET_STATS    = 0x6;
+        const DERIVE_QUOTA   = 0x6;
+        const GET_QUOTA      = 0x7;
+        const SET_QUOTA      = 0x8;
+        const REMOVE_QUOTAS  = 0x9;
+        const RESET_STATS    = 0xA;
     }
 }
 
@@ -48,6 +58,8 @@ int_enum! {
 pub struct VPEInit {
     pub op: u64,
     pub vpe_sel: u64,
+    pub time_quota: u64,
+    pub pt_quota: u64,
     pub eps_start: u64,
 }
 
@@ -100,6 +112,45 @@ pub struct EpInval {
     pub ep: u64,
 }
 
+/// The derive quota sidecall
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct DeriveQuota {
+    pub op: u64,
+    pub parent_time: u64,
+    pub parent_pts: u64,
+    pub time: OptionalValue,
+    pub pts: OptionalValue,
+}
+
+/// The get quota sidecall
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct GetQuota {
+    pub op: u64,
+    pub time: u64,
+    pub pts: u64,
+}
+
+/// The set quota sidecall
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct SetQuota {
+    pub op: u64,
+    pub id: u64,
+    pub time: u64,
+    pub pts: u64,
+}
+
+/// The remove quotas sidecall
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct RemoveQuotas {
+    pub op: u64,
+    pub time: OptionalValue,
+    pub pts: OptionalValue,
+}
+
 /// The reset stats sidecall
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -111,7 +162,8 @@ pub struct ResetStats {
 #[repr(C)]
 pub struct Response {
     pub error: u64,
-    pub val: u64,
+    pub val1: u64,
+    pub val2: u64,
 }
 
 int_enum! {

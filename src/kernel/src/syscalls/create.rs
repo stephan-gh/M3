@@ -101,11 +101,10 @@ pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Ver
 
     if platform::pe_desc(tgt_vpe.pe_id()).has_virtmem() {
         let map_caps = tgt_vpe.map_caps().borrow_mut();
-        try_kmem_quota!(
-            vpe.obj_caps()
-                .borrow_mut()
-                .insert_as_child_from(cap, map_caps, sel)
-        );
+        try_kmem_quota!(vpe
+            .obj_caps()
+            .borrow_mut()
+            .insert_as_child_from(cap, map_caps, sel));
     }
     else {
         try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(cap, vpe_sel));
@@ -308,7 +307,7 @@ pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
         sysc_err!(
             Code::InvArgs,
             "PE cap has insufficient EPs (have {}, need {})",
-            pe.eps(),
+            pe.ep_quota().left(),
             tcu::STD_EPS_COUNT
         );
     }

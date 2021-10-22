@@ -535,27 +535,33 @@ fn derive_kmem() {
 fn derive_pe() {
     let sel = VPE::cur().alloc_sel();
     let pe = wv_assert_ok!(PE::get("clone"));
-    let oquota = wv_assert_ok!(pe.quota()).1;
+    let oquota = wv_assert_ok!(pe.quota()).0.total;
 
     // invalid dest selector
-    wv_assert_err!(syscalls::derive_pe(pe.sel(), SEL_VPE, 1), Code::InvArgs);
+    wv_assert_err!(
+        syscalls::derive_pe(pe.sel(), SEL_VPE, Some(1), None, None),
+        Code::InvArgs
+    );
     // invalid ep count
     wv_assert_err!(
-        syscalls::derive_pe(pe.sel(), sel, oquota + 1),
+        syscalls::derive_pe(pe.sel(), sel, Some(oquota + 1), None, None),
         Code::NoSpace
     );
     // invalid pe sel
-    wv_assert_err!(syscalls::derive_pe(SEL_VPE, sel, 1), Code::InvArgs);
+    wv_assert_err!(
+        syscalls::derive_pe(SEL_VPE, sel, Some(1), None, None),
+        Code::InvArgs
+    );
 
     // transfer EPs
     {
-        let pe2 = wv_assert_ok!(pe.derive(1));
-        let quota2 = wv_assert_ok!(pe2.quota()).1;
-        let nquota = wv_assert_ok!(pe.quota()).1;
+        let pe2 = wv_assert_ok!(pe.derive(Some(1), None, None));
+        let quota2 = wv_assert_ok!(pe2.quota()).0.total;
+        let nquota = wv_assert_ok!(pe.quota()).0.total;
         wv_assert_eq!(quota2, 1);
         wv_assert_eq!(nquota, oquota - 1);
     }
-    let nquota = wv_assert_ok!(pe.quota()).1;
+    let nquota = wv_assert_ok!(pe.quota()).0.total;
     wv_assert_eq!(nquota, oquota);
 
     {
