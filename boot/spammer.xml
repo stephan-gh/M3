@@ -1,0 +1,13 @@
+<config>
+    <kernel args="kernel" />
+    <dom>
+        <app args="root">
+            <dom>
+                <app args="spammer a" time="10ms" />
+                <app args="spammer b" time="20ms" />
+                <app args="spammer c" pagetables="64" />
+                <app args="spammer d" />
+            </dom>
+        </app>
+    </dom>
+</config>

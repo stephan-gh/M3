@@ -25,6 +25,7 @@ dirs = [
     'ruststandalone',
     'rustunittests',
     'shell',
+    'spammer',
     'standalone',
     'timertest',
     'unittests',

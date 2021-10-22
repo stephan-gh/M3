@@ -19,6 +19,7 @@ members = [
     "src/apps/ruststandalone/stdasender",
     "src/apps/ruststandalone/vmtest",
     "src/apps/rustunittests",
+    "src/apps/spammer",
     "src/kernel",
     "src/libs/rust/base",
     "src/libs/rust/heap",

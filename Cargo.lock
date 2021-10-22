@@ -228,6 +228,7 @@ dependencies = [
  "base",
  "heap",
  "isr",
+ "num-traits",
  "paging",
 ]
 
@@ -308,6 +309,13 @@ dependencies = [
  "byteorder",
  "log",
  "managed",
+]
+
+[[package]]
+name = "spammer"
+version = "0.1.0"
+dependencies = [
+ "m3",
 ]
 
 [[package]]
