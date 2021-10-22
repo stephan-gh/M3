@@ -40,6 +40,10 @@ static const size_t ACOMP_TIME = 4096;
 
 static const size_t PIPE_SHM_SIZE   = 512 * 1024;
 
+static const uint MIN_EPS = 16;
+static const uint64_t MIN_TIME = 100000; // 100µs
+static const size_t MIN_PTS = 16;
+
 static VTerm *vterm;
 static RecvGate *signal_rgate;
 
@@ -109,6 +113,19 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
         Command *cmd = list->cmds[i];
 
         pes[i] = PE::get(pe_names[i].c_str());
+        // if we share our PE with this child VPE, give it separate quotas to ensure that we get our
+        // share (we don't trust the child apps)
+        if(pes[i]->sel() == VPE::self().pe()->sel()) {
+            PE::Quota<uint> eps;
+            PE::Quota<uint64_t> time;
+            PE::Quota<size_t> pts;
+            pes[i]->quota(&eps, &time, &pts);
+            if(eps.left > MIN_EPS && pts.left > MIN_PTS)
+                pes[i] = pes[i]->derive(eps.left - MIN_EPS, time.total - MIN_TIME, pts.left - MIN_PTS);
+            else
+                pes[i] = PE::get("core");
+        }
+
         vpes[i] = std::make_unique<VPE>(pes[i], expr_value(cmd->args->args[0]));
         vpe_count++;
 
