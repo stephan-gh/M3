@@ -53,12 +53,83 @@
 #define TX_INTR_ID      XPAR_FABRIC_AXIDMA_0_MM2S_INTROUT_VEC_ID
 #endif
 
+// Marvell PHY 88E1510 Specific definitions
+#define PHY_R0_CTRL_REG		     0
+#define PHY_R21_2_MAC_CTRL_REG   21
+#define PHY_R22_PAGE_ADDR_REG    22
+
+#define PHY_R0_RESET         0x8000
+#define PHY_R0_LOOPBACK      0x4000
+#define PHY_R0_ANEG_ENABLE   0x1000
+#define PHY_R0_DFT_SPD_MASK  0x2040
+#define PHY_R0_DFT_SPD_10    0x0000
+#define PHY_R0_DFT_SPD_100   0x2000
+#define PHY_R0_DFT_SPD_1000  0x0040
+#define PHY_R0_ISOLATE       0x0400
+
+#define PHY_REG21_2_TX_DLY   0x0010 //bit 4
+#define PHY_REG21_2_RX_DLY   0x0020 //bit 5
+
 static int sends_pending = 0;
 static goff_t virt_base;
 static goff_t phys_base;
 static XAxiDma AxiDma;
 static XAxiEthernet AxiEthernetInstance;
 static u8 LocalMacAddr[6] = {0x00, 0x0A, 0x35, 0x03, 0x02, 0x03};
+
+
+static int PhySetup(XAxiEthernet *AxiEthernetInstancePtr)
+{
+    u16 PhyReg0;
+    u32 PhyAddr;
+
+    u16 PhyReg21_2 = 0; // MAC Specific Control Register 2, page 2
+    u16 PhyReg21_2_read = 0;
+
+    PhyAddr = XPAR_AXIETHERNET_0_PHYADDR;
+
+    // Switching to PAGE2
+    XAxiEthernet_PhyWrite(AxiEthernetInstancePtr,
+                PhyAddr,
+                PHY_R22_PAGE_ADDR_REG, 2);
+
+    // read reg21_2
+    XAxiEthernet_PhyRead(AxiEthernetInstancePtr, PhyAddr,
+        PHY_R21_2_MAC_CTRL_REG, &PhyReg21_2_read);
+
+    PhyReg21_2 |= PhyReg21_2_read;
+
+    // Enable Rx delay, disable Tx delay
+    PhyReg21_2 |= PHY_REG21_2_RX_DLY;
+    PhyReg21_2 &= (~PHY_REG21_2_TX_DLY);
+    XAxiEthernet_PhyWrite(AxiEthernetInstancePtr,
+                PhyAddr,
+                PHY_R21_2_MAC_CTRL_REG, PhyReg21_2);
+
+    // Switching to PAGE0
+    XAxiEthernet_PhyWrite(AxiEthernetInstancePtr,
+                PhyAddr,
+                PHY_R22_PAGE_ADDR_REG, 0);
+
+    // Clear the PHY of any existing bits by zeroing this out
+    PhyReg0 = 0;
+    XAxiEthernet_PhyRead(AxiEthernetInstancePtr, PhyAddr,
+                 PHY_R0_CTRL_REG, &PhyReg0);
+
+    PhyReg0 &= (~PHY_R0_ANEG_ENABLE);
+    PhyReg0 &= (~PHY_R0_ISOLATE);
+    PhyReg0 |= PHY_R0_DFT_SPD_1000;
+
+    XAxiEthernet_PhyWrite(AxiEthernetInstancePtr, PhyAddr,
+                PHY_R0_CTRL_REG,
+                PhyReg0 | PHY_R0_RESET);
+
+    //wait for PHY to reset
+    sleep(4);
+
+    return 0;
+}
+
 
 static int RxSetup(XAxiDma * AxiDmaInstPtr)
 {
@@ -382,6 +453,12 @@ EXTERN_C ssize_t axieth_init(goff_t virt, goff_t phys, size_t size) {
     }
 
     init_mac(MacCfgPtr);
+
+    xdbg_printf(XDBG_DEBUG_GENERAL, "Marvell PHY Setup\n");
+    Status = PhySetup(&AxiEthernetInstance);
+    if (Status != 0) {
+        return -1;
+    }
 
     /*
      * Make sure Tx and Rx are enabled
