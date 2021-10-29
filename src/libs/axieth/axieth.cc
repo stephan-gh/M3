@@ -67,8 +67,8 @@
 #define PHY_R0_DFT_SPD_1000  0x0040
 #define PHY_R0_ISOLATE       0x0400
 
-#define PHY_REG21_2_TX_DLY   0x0010 //bit 4
-#define PHY_REG21_2_RX_DLY   0x0020 //bit 5
+#define PHY_REG21_2_TX_DLY   0x0010 // bit 4
+#define PHY_REG21_2_RX_DLY   0x0020 // bit 5
 
 static int sends_pending = 0;
 static goff_t virt_base;
@@ -76,7 +76,6 @@ static goff_t phys_base;
 static XAxiDma AxiDma;
 static XAxiEthernet AxiEthernetInstance;
 static u8 LocalMacAddr[6] = {0x00, 0x0A, 0x35, 0x03, 0x02, 0x03};
-
 
 static int PhySetup(XAxiEthernet *AxiEthernetInstancePtr)
 {
@@ -124,12 +123,11 @@ static int PhySetup(XAxiEthernet *AxiEthernetInstancePtr)
                 PHY_R0_CTRL_REG,
                 PhyReg0 | PHY_R0_RESET);
 
-    //wait for PHY to reset
+    // Wait for PHY to reset
     sleep(4);
 
     return 0;
 }
-
 
 static int RxSetup(XAxiDma * AxiDmaInstPtr)
 {
@@ -295,44 +293,6 @@ static int TxSetup(XAxiDma * AxiDmaInstPtr)
         xdbg_printf(XDBG_DEBUG_DMA_ALL, "Failed bd start\n");
         return 1;
     }
-
-    return 0;
-}
-
-EXTERN_C int axieth_reset() {
-    // int Status;
-    // u8 MacSave[6];
-    // u32 Options;
-
-    // xdbg_printf(XDBG_DEBUG_GENERAL, "axieth_reset()\n");
-
-    // /*
-    //  * Stop device
-    //  */
-    // XAxiEthernet_Stop(&AxiEthernetInstance);
-
-    // /*
-    //  * Save the device state
-    //  */
-    // XAxiEthernet_GetMacAddress(&AxiEthernetInstance, MacSave);
-    // Options = XAxiEthernet_GetOptions(&AxiEthernetInstance);
-
-    // /*
-    //  * Stop and reset both the fifo and the AxiEthernet the devices
-    //  */
-    // XLlFifo_Reset(&FifoInstance);
-    // XAxiEthernet_Reset(&AxiEthernetInstance);
-
-    // /*
-    //  * Restore the state
-    //  */
-    // Status = XAxiEthernet_SetMacAddress(&AxiEthernetInstance, MacSave);
-    // Status |= XAxiEthernet_SetOptions(&AxiEthernetInstance, Options);
-    // Status |= XAxiEthernet_ClearOptions(&AxiEthernetInstance, ~Options);
-    // if (Status != 0) {
-    //     xdbg_printf(XDBG_DEBUG_ERROR, "Error restoring state after reset");
-    //     return 1;
-    // }
 
     return 0;
 }
@@ -507,9 +467,10 @@ static void wait_for_pending_sends() {
         XAxiDma_BdRingAckIrq(TxRingPtr, IrqStatus);
 
         // error?
-        if((IrqStatus & XAXIDMA_IRQ_ERROR_MASK) != 0)
+        if((IrqStatus & XAXIDMA_IRQ_ERROR_MASK) != 0) {
             xdbg_printf(XDBG_DEBUG_ERROR, "Error bit set in TxIrqStatus\n");
-        // no completion interrupt?
+        }
+        // completion interrupt?
         if(IrqStatus & (XAXIDMA_IRQ_DELAY_MASK | XAXIDMA_IRQ_IOC_MASK))
             break;
     }
@@ -540,8 +501,9 @@ static void wait_for_pending_sends() {
 
     // Free all processed BDs for future transmission
     int Status = XAxiDma_BdRingFree(TxRingPtr, BdCount, BdPtr);
-    if (Status != XST_SUCCESS)
+    if (Status != XST_SUCCESS) {
         xdbg_printf(XDBG_DEBUG_ERROR, "Unable to free transmit BDs\n");
+    }
 }
 
 EXTERN_C int axieth_send(void *packet, size_t len) {
@@ -613,8 +575,9 @@ EXTERN_C size_t axieth_recv(void *buffer, size_t len) {
     if((IrqStatus & XAXIDMA_IRQ_ALL_MASK) == 0)
         return 0;
     // error?
-    if((IrqStatus & XAXIDMA_IRQ_ERROR_MASK) != 0)
+    if((IrqStatus & XAXIDMA_IRQ_ERROR_MASK) != 0) {
         xdbg_printf(XDBG_DEBUG_ERROR, "Error bit set in RxIrqStatus\n");
+    }
     // no completion interrupt?
     if((IrqStatus & (XAXIDMA_IRQ_DELAY_MASK | XAXIDMA_IRQ_IOC_MASK)) == 0)
         return 0;

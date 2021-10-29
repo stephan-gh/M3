@@ -32,8 +32,6 @@ extern "C" {
     pub fn axieth_init(virt: goff, phys: goff, size: usize) -> isize;
     pub fn axieth_send(packet: *const u8, len: usize) -> i32;
     pub fn axieth_recv(buffer: *mut u8, len: usize) -> usize;
-    #[allow(dead_code)]
-    pub fn axieth_reset() -> i32;
 }
 
 const BUF_SIZE: usize = 2 * 1024 * 1024;
