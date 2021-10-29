@@ -439,6 +439,12 @@ EXTERN_C ssize_t axieth_init(goff_t virt, goff_t phys, size_t size) {
     return static_cast<ssize_t>(TX_BUFFER_BASE);
 }
 
+EXTERN_C void axieth_deinit() {
+    xdbg_printf(XDBG_DEBUG_GENERAL, "axieth_deinit()\n");
+
+    XAxiEthernet_Stop(&AxiEthernetInstance);
+}
+
 static void handle_pending_sends(bool wait) {
     XAxiDma_BdRing *TxRingPtr = XAxiDma_GetTxRing(&AxiDma);
 

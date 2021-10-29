@@ -30,6 +30,7 @@ use smoltcp::time::Instant;
 
 extern "C" {
     pub fn axieth_init(virt: goff, phys: goff, size: usize) -> isize;
+    pub fn axieth_deinit();
     pub fn axieth_send(packet: *const u8, len: usize) -> i32;
     pub fn axieth_recv(buffer: *mut u8, len: usize) -> usize;
 }
@@ -60,6 +61,14 @@ impl AXIEthDevice {
                 _bufs: bufs,
                 tx_buf: res as usize,
             })
+        }
+    }
+}
+
+impl Drop for AXIEthDevice {
+    fn drop(&mut self) {
+        unsafe {
+            axieth_deinit();
         }
     }
 }
