@@ -439,10 +439,7 @@ EXTERN_C ssize_t axieth_init(goff_t virt, goff_t phys, size_t size) {
     return static_cast<ssize_t>(TX_BUFFER_BASE);
 }
 
-static void wait_for_pending_sends() {
-    if(sends_pending == 0)
-        return;
-
+static void handle_pending_sends(bool wait) {
     XAxiDma_BdRing *TxRingPtr = XAxiDma_GetTxRing(&AxiDma);
 
     while(true) {
@@ -460,6 +457,8 @@ static void wait_for_pending_sends() {
         // completion interrupt?
         if(IrqStatus & (XAXIDMA_IRQ_DELAY_MASK | XAXIDMA_IRQ_IOC_MASK))
             break;
+        if(!wait)
+            return;
     }
 
     // Get all processed BDs from hardware
@@ -501,7 +500,8 @@ EXTERN_C int axieth_send(void *packet, size_t len) {
     xdbg_printf(XDBG_DEBUG_GENERAL,
         "axieth_send(packet= " << m3::fmt(packet, "p") << ", len=" << len << ")\n");
 
-    wait_for_pending_sends();
+    if(sends_pending > 0)
+        handle_pending_sends(true);
 
     // TODO is that correct?
     if (len > TxRingPtr->MaxTransferLen) {
@@ -550,6 +550,9 @@ EXTERN_C int axieth_send(void *packet, size_t len) {
 EXTERN_C size_t axieth_recv(void *buffer, size_t len) {
     XAxiDma_BdRing *RxRingPtr = XAxiDma_GetRxRing(&AxiDma);
     u32 IrqStatus;
+
+    if(sends_pending > 0)
+        handle_pending_sends(false);
 
     // Read pending interrupts
     IrqStatus = XAxiDma_BdRingGetIrq(RxRingPtr);
