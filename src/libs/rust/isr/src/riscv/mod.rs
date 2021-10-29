@@ -247,14 +247,15 @@ pub fn get_irq() -> IRQSource {
     }
 }
 
+pub fn register_ext_irq(irq: u32) {
+    if envdata::get().platform == envdata::Platform::HW.val {
+        plic::set_priority(irq, 1);
+    }
+}
+
 pub fn enable_ext_irqs(mask: u32) {
     if envdata::get().platform == envdata::Platform::HW.val {
-        for id in 1..32 {
-            if (mask >> id) & 0x1 == 1 {
-                plic::enable(id);
-                plic::set_priority(id, 1);
-            }
-        }
+        plic::enable_mask(mask);
     }
 }
 

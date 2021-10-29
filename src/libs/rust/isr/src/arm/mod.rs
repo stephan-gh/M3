@@ -124,15 +124,16 @@ pub fn set_entry_sp(_sp: usize) {
 }
 
 pub fn enable_irqs() {
-    unsafe {
-        llvm_asm!("msr cpsr, $0" : : "r"(0x53))
-    };
+    unsafe { llvm_asm!("msr cpsr, $0" : : "r"(0x53)) };
 }
 
 pub fn get_irq() -> IRQSource {
     let irq = tcu::TCU::get_irq();
     tcu::TCU::clear_irq(irq);
     IRQSource::TCU(irq)
+}
+
+pub fn register_ext_irq(_irq: u32) {
 }
 
 pub fn enable_ext_irqs(_mask: u32) {

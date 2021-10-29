@@ -37,6 +37,7 @@ pub fn register(vpe: &mut vpe::VPE, irq: pexif::IRQId) {
         vpe: vpe.id(),
         counter: 0,
     });
+    isr::register_ext_irq(irq);
     vpe.add_irq(irq);
 }
 
