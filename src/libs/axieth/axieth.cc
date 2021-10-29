@@ -45,13 +45,8 @@
 #define AXIETHERNET_LOOPBACK_SPEED  100 /* 100Mb/s for Mii */
 #define AXIETHERNET_LOOPBACK_SPEED_1G   1000    /* 1000Mb/s for GMii */
 
-#ifdef XPAR_INTC_0_DEVICE_ID
-#define RX_INTR_ID      XPAR_INTC_0_AXIDMA_0_S2MM_INTROUT_VEC_ID
-#define TX_INTR_ID      XPAR_INTC_0_AXIDMA_0_MM2S_INTROUT_VEC_ID
-#else
-#define RX_INTR_ID      XPAR_FABRIC_AXIDMA_0_S2MM_INTROUT_VEC_ID
-#define TX_INTR_ID      XPAR_FABRIC_AXIDMA_0_MM2S_INTROUT_VEC_ID
-#endif
+#define RX_INTR_ID          5
+#define TX_INTR_ID          4
 
 // Marvell PHY 88E1510 Specific definitions
 #define PHY_R0_CTRL_REG		     0
@@ -436,18 +431,10 @@ EXTERN_C ssize_t axieth_init(goff_t virt, goff_t phys, size_t size) {
     XAxiEthernet_Start(&AxiEthernetInstance);
 
     /**
-     * Enable interrupts
+     * Register interrupts
      */
-    // uint mask = XAE_INT_RXCMPIT_MASK | XAE_INT_RXRJECT_MASK | XAE_INT_RXFIFOOVR_MASK;
-    uint mask = XAE_INT_ALL_MASK;
-    // enable the interrupts only that axieth, because the FIFO does not seem to generate any
-    // interrupts. TODO on Linux it does!?
-    XAxiEthernet_IntEnable(&AxiEthernetInstance, mask);
-    // m3::PEXIF::reg_irq(XPAR_AXIETHERNET_0_INTR);
-    for(int i = 3; i < 16; ++i)
-        m3::PEXIF::reg_irq(i);
-
-    // TODO TX_INTR_ID, RX_INTR_ID
+    m3::PEXIF::reg_irq(RX_INTR_ID);
+    m3::PEXIF::reg_irq(TX_INTR_ID);
 
     return static_cast<ssize_t>(TX_BUFFER_BASE);
 }
