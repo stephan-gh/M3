@@ -26,7 +26,7 @@ struct IRQCounter {
     counter: u64,
 }
 
-const MAX_IRQS: usize = 5;
+const MAX_IRQS: usize = 6;
 
 static IRQS: StaticRefCell<[Option<IRQCounter>; MAX_IRQS]> = StaticRefCell::new([None; MAX_IRQS]);
 
