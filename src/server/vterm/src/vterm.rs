@@ -275,9 +275,19 @@ impl VTermHandler {
                 sids.extend_from_slice(&sess.childs);
 
                 // remove session
+                let parent = sess.parent.take();
                 let crt = sess.crt;
                 drop(sess);
                 self.sessions.remove(crt, id);
+
+                // remove us from parent
+                if let Some(pid) = parent {
+                    self.sessions
+                        .get_mut(pid)
+                        .unwrap()
+                        .childs
+                        .retain(|cid| *cid != id);
+                }
 
                 // ignore all potentially outstanding messages of this session
                 rgate.drop_msgs_with(id as Label);
