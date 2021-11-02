@@ -52,7 +52,7 @@ int_enum! {
 #[derive(Debug)]
 struct MicSession {
     crt: usize,
-    sess: ServerSession,
+    _sess: ServerSession,
     img: Option<MemGate>,
 }
 
@@ -65,7 +65,7 @@ impl MicHandler {
         log!(crate::LOG_DEF, "[{}] vamic::new()", sess.ident());
         MicSession {
             crt,
-            sess,
+            _sess: sess,
             img: None,
         }
     }
