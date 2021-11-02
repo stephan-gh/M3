@@ -23,7 +23,7 @@ use m3::{impl_boxitem, wv_assert_eq, wv_perf, wv_run_test};
 
 #[derive(Default, Clone)]
 struct TestItem {
-    data: u32,
+    _data: u32,
     prev: Option<BoxRef<TestItem>>,
     next: Option<BoxRef<TestItem>>,
 }
@@ -33,7 +33,7 @@ impl_boxitem!(TestItem);
 impl TestItem {
     pub fn new(data: u32) -> Self {
         TestItem {
-            data,
+            _data: data,
             prev: None,
             next: None,
         }
