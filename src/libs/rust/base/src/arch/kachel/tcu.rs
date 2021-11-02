@@ -122,18 +122,18 @@ int_enum! {
     }
 }
 
-#[allow(dead_code)]
 bitflags! {
     /// The status flag for the [`ExtReg::FEATURES`] register
+    #[allow(dead_code)]
     pub struct FeatureFlags : Reg {
         /// Whether the PE is privileged
         const PRIV          = 1 << 0;
     }
 }
 
-#[allow(dead_code)]
 int_enum! {
     /// The privileged registers
+    #[allow(dead_code)]
     pub struct PrivReg : Reg {
         /// For core requests
         const CORE_REQ      = 0x0;
@@ -148,9 +148,9 @@ int_enum! {
     }
 }
 
-#[allow(dead_code)]
 int_enum! {
     /// The unprivileged registers
+    #[allow(dead_code)]
     pub struct UnprivReg : Reg {
         /// Starts commands and signals their completion
         const COMMAND       = 0x0;
@@ -165,9 +165,9 @@ int_enum! {
     }
 }
 
-#[allow(dead_code)]
 int_enum! {
     /// The config registers (hardware only)
+    #[allow(dead_code)]
     pub struct ConfigReg : Reg {
         /// Enables/disables the instruction trace
         const INSTR_TRACE   = 0xD;
