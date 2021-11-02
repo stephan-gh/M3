@@ -45,7 +45,7 @@ use m3::{
         server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
         DEF_MAX_CLIENTS,
     },
-    tcu::{EpId, Label, TOTAL_EPS},
+    tcu::Label,
     vfs::{FSOperation, GenFileOp},
 };
 
@@ -362,7 +362,6 @@ pub struct FsSettings {
     max_clients: usize,
     clear: bool,
     selector: Option<Selector>,
-    ep: EpId,
     fs_offset: goff,
 }
 
@@ -377,7 +376,6 @@ impl core::default::Default for FsSettings {
             max_clients: DEF_MAX_CLIENTS,
             clear: false,
             selector: None,
-            ep: TOTAL_EPS,
             fs_offset: FS_IMG_OFFSET,
         }
     }
