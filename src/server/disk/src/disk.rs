@@ -20,7 +20,7 @@ mod backend;
 mod partition;
 
 use m3::cap::Selector;
-use m3::cell::LazyStaticRefCell;
+use m3::cell::{LazyReadOnlyCell, LazyStaticRefCell};
 use m3::col::Treap;
 use m3::col::Vec;
 use m3::com::{GateIStream, MemGate, SGateArgs, SendGate};
@@ -48,7 +48,7 @@ const MAX_DMA_SIZE: usize = 0x10000;
 
 const MIN_SEC_SIZE: usize = 512;
 
-static REQHDL: LazyStaticRefCell<RequestHandler> = LazyStaticRefCell::default();
+static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 static DEVICE: LazyStaticRefCell<BlockDevice> = LazyStaticRefCell::default();
 
 struct DiskSession {
@@ -165,7 +165,7 @@ impl Handler<DiskSession> for DiskHandler {
 
         let sess = self.sessions.get_mut(sid).unwrap();
         let sgate = SendGate::new_with(
-            SGateArgs::new(REQHDL.borrow().recv_gate())
+            SGateArgs::new(REQHDL.get().recv_gate())
                 .label(sid as Label)
                 .credits(1),
         )?;
@@ -223,7 +223,7 @@ pub fn main() -> i32 {
     server_loop(|| {
         s.handle_ctrl_chan(&mut hdl)?;
 
-        REQHDL.borrow_mut().handle(|op, is| {
+        REQHDL.get().handle(|op, is| {
             let sess = hdl
                 .sessions
                 .get_mut(is.label() as usize)

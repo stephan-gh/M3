@@ -23,7 +23,7 @@ mod physmem;
 mod regions;
 
 use m3::cap::Selector;
-use m3::cell::{LazyStaticRefCell, LazyStaticUnsafeCell, StaticRefCell};
+use m3::cell::{LazyReadOnlyCell, LazyStaticRefCell, LazyStaticUnsafeCell, StaticRefCell};
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, MGateArgs, MemGate, RecvGate, SGateArgs, SendGate};
 use m3::env;
@@ -49,7 +49,7 @@ pub const LOG_DEF: bool = false;
 
 // TODO how to get rid of this unsafe cell?
 static PGHDL: LazyStaticUnsafeCell<PagerReqHandler> = LazyStaticUnsafeCell::default();
-static REQHDL: LazyStaticRefCell<RequestHandler> = LazyStaticRefCell::default();
+static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 static MOUNTS: LazyStaticRefCell<Vec<(String, vfs::FSHandle)>> = LazyStaticRefCell::default();
 static PMP_PES: StaticRefCell<Vec<PEId>> = StaticRefCell::new(Vec::new());
 static SETTINGS: LazyStaticRefCell<PagerSettings> = LazyStaticRefCell::default();
@@ -106,7 +106,7 @@ impl Handler<AddrSpace> for PagerReqHandler {
                     })
                     .map(|(sel, _)| sel)
             },
-            PagerOp::ADD_SGATE => aspace.add_sgate(REQHDL.borrow().recv_gate()),
+            PagerOp::ADD_SGATE => aspace.add_sgate(REQHDL.get().recv_gate()),
             _ => Err(Error::new(Code::InvArgs)),
         }?;
 
@@ -139,7 +139,7 @@ impl Handler<AddrSpace> for PagerReqHandler {
     }
 
     fn close(&mut self, _crt: usize, sid: SessId) {
-        self.close_sess(_crt, sid, REQHDL.borrow().recv_gate());
+        self.close_sess(_crt, sid, REQHDL.get().recv_gate());
     }
 }
 
@@ -174,7 +174,7 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
     let sess = ClientSession::new_bind(sel);
     #[allow(clippy::useless_conversion)]
     let pager_sgate = SendGate::new_with(
-        SGateArgs::new(REQHDL.borrow().recv_gate())
+        SGateArgs::new(REQHDL.get().recv_gate())
             .credits(1)
             .label(Label::from(sid as u32)),
     )?;
@@ -263,7 +263,7 @@ fn workloop(serv: &Server) {
         || {
             serv.handle_ctrl_chan(PGHDL.get_mut()).ok();
 
-            REQHDL.borrow_mut().handle(handle_request).ok();
+            REQHDL.get().handle(handle_request).ok();
         },
         start_child_async,
     )

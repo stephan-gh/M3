@@ -64,7 +64,7 @@ impl RequestHandler {
     /// message, and the [`GateIStream`] for the message. The function `F` should return the result
     /// (success/failure) of the operation. In case of a failure, this function replies the error
     /// code. On success, it is expected that `func` sends the reply.
-    pub fn handle<OP, F>(&mut self, mut func: F) -> Result<(), Error>
+    pub fn handle<OP, F>(&self, mut func: F) -> Result<(), Error>
     where
         OP: Unmarshallable,
         F: FnMut(OP, &mut GateIStream) -> Result<(), Error>,

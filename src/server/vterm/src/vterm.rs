@@ -17,7 +17,7 @@
 #![no_std]
 
 use m3::cap::Selector;
-use m3::cell::{LazyStaticRefCell, StaticCell, StaticRefCell};
+use m3::cell::{LazyReadOnlyCell, LazyStaticRefCell, StaticCell, StaticRefCell};
 use m3::col::Vec;
 use m3::com::{GateIStream, MemGate, Perm, RGateArgs, RecvGate, SGateArgs, SendGate, EP};
 use m3::errors::{Code, Error};
@@ -50,7 +50,7 @@ int_enum! {
     }
 }
 
-static REQHDL: LazyStaticRefCell<RequestHandler> = LazyStaticRefCell::default();
+static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 static SIGRGATE: LazyStaticRefCell<RecvGate> = LazyStaticRefCell::default();
 static BUFFER: StaticRefCell<Vec<u8>> = StaticRefCell::new(Vec::new());
 static INPUT: StaticRefCell<Vec<u8>> = StaticRefCell::new(Vec::new());
@@ -60,7 +60,7 @@ macro_rules! reply_vmsg_late {
     ( $msg:expr, $( $args:expr ),* ) => ({
         let mut msg = m3::mem::MsgBuf::borrow_def();
         m3::build_vmsg!(&mut msg, $( $args ),*);
-        crate::REQHDL.borrow().recv_gate().reply(&msg, $msg)
+        crate::REQHDL.get().recv_gate().reply(&msg, $msg)
     });
 }
 
@@ -101,7 +101,7 @@ fn mem_off(id: SessId) -> goff {
 impl Channel {
     fn new(id: SessId, mem: Rc<MemGate>, caps: Selector, writing: bool) -> Result<Self, Error> {
         let sgate = SendGate::new_with(
-            SGateArgs::new(REQHDL.borrow().recv_gate())
+            SGateArgs::new(REQHDL.get().recv_gate())
                 .label(id as Label)
                 .credits(1)
                 .sel(caps + 1),
@@ -397,7 +397,7 @@ impl Handler<VTermSession> for VTermHandler {
     }
 
     fn close(&mut self, _crt: usize, sid: SessId) {
-        self.close_sess(sid, &REQHDL.borrow().recv_gate()).ok();
+        self.close_sess(sid, &REQHDL.get().recv_gate()).ok();
     }
 }
 
@@ -539,7 +539,7 @@ pub fn main() -> i32 {
             }
         }
 
-        REQHDL.borrow_mut().handle(|op, mut is| {
+        REQHDL.get().handle(|op, mut is| {
             match op {
                 GenFileOp::NEXT_IN => hdl.with_chan(&mut is, |c, is| c.next_in(is)),
                 GenFileOp::NEXT_OUT => hdl.with_chan(&mut is, |c, is| c.next_out(is)),

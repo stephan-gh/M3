@@ -34,7 +34,7 @@ use crate::sess::{FSSession, M3FSSession, MetaSession};
 
 use m3::{
     cap::Selector,
-    cell::{LazyStaticRefCell, StaticUnsafeCell},
+    cell::{LazyReadOnlyCell, StaticUnsafeCell},
     col::{String, ToString, Vec},
     com::{GateIStream, RecvGate},
     env,
@@ -64,7 +64,7 @@ const FS_IMG_OFFSET: goff = 0;
 const MSG_SIZE: usize = 128;
 
 // The global request handler
-static REQHDL: LazyStaticRefCell<RequestHandler> = LazyStaticRefCell::default();
+static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 
 // The global file handle in this process
 // TODO can we use a safe cell here?
@@ -283,10 +283,10 @@ impl Handler<FSSession> for M3FSRequestHandler {
             .ok_or_else(|| Error::new(Code::InvArgs))?;
         match session {
             FSSession::Meta(meta) => match op {
-                M3FSOperation::GET_SGATE => meta.get_sgate(data, REQHDL.borrow().recv_gate()),
+                M3FSOperation::GET_SGATE => meta.get_sgate(data, REQHDL.get().recv_gate()),
                 M3FSOperation::OPEN => {
                     let file_session =
-                        meta.open_file(sel, crt, data, next_sess_id, REQHDL.borrow().recv_gate())?;
+                        meta.open_file(sel, crt, data, next_sess_id, REQHDL.get().recv_gate())?;
 
                     self.sessions
                         .add(crt, next_sess_id, FSSession::File(file_session))
@@ -297,7 +297,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
             FSSession::File(file) => match op {
                 M3FSOperation::CLONE => {
                     let nfile_session =
-                        file.clone(sel, crt, next_sess_id, data, REQHDL.borrow().recv_gate())?;
+                        file.clone(sel, crt, next_sess_id, data, REQHDL.get().recv_gate())?;
 
                     self.sessions
                         .add(crt, next_sess_id, FSSession::File(nfile_session))
@@ -343,7 +343,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
     }
 
     fn close(&mut self, _crt: usize, sid: SessId) {
-        self.close_session(sid, REQHDL.borrow().recv_gate()).ok();
+        self.close_session(sid, REQHDL.get().recv_gate()).ok();
     }
 
     fn shutdown(&mut self) {
@@ -490,9 +490,7 @@ pub fn main() -> i32 {
     server_loop(|| {
         // handle message that is given to the server
         serv.handle_ctrl_chan(&mut hdl)?;
-        REQHDL
-            .borrow_mut()
-            .handle(|op, mut is| hdl.handle(op, &mut is))
+        REQHDL.get().handle(|op, mut is| hdl.handle(op, &mut is))
     })
     .ok();
 
