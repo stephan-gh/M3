@@ -57,8 +57,13 @@ static FPU_OWNER: StaticCell<vpe::Id> = StaticCell::new(pemux::VPE_ID);
 
 macro_rules! ldst_fpu_regs {
     ($ins:tt, $base:expr, $($no:tt)*) => {
+        let base = $base;
         $(
-            llvm_asm!(concat!($ins, " f", $no, ", 8*", $no, "($0)") : : "r"($base) : : "volatile");
+            asm!(
+                concat!($ins, " f", $no, ", 8*", $no, "({0})"),
+                in(reg) base,
+                options(nostack, nomem)
+            );
         )*
     };
 }

@@ -21,7 +21,13 @@ macro_rules! impl_read_reg {
         #[inline(always)]
         pub fn $func_name() -> usize {
             let res: usize;
-            unsafe { llvm_asm!(concat!("mov %", $reg_name, ", $0") : "=r"(res)) };
+            unsafe {
+                asm!(
+                    concat!("mov {0}, ", $reg_name),
+                    out(reg) res,
+                    options(nostack, nomem),
+                )
+            };
             res
         }
     };
@@ -31,7 +37,13 @@ macro_rules! impl_write_reg {
     ($func_name:tt, $reg_name:tt) => {
         #[inline(always)]
         pub fn $func_name(val: usize) {
-            unsafe { llvm_asm!(concat!("mov $0, %", $reg_name) : : "r"(val) : : "volatile") };
+            unsafe {
+                asm!(
+                    concat!("mov ", $reg_name, ", {0}"),
+                    in(reg) val,
+                    options(nostack, nomem),
+                )
+            };
         }
     };
 }
@@ -51,21 +63,22 @@ impl_read_reg!(base_pointer, "rbp");
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn read8b(addr: usize) -> u64 {
     let res: u64;
-    llvm_asm!(
-        "mov ($1), $0"
-        : "=r"(res)
-        : "r"(addr)
-        : : "volatile"
+    asm!(
+        "mov {0}, [{1}]",
+        out(reg) res,
+        in(reg) addr,
+        options(nostack),
     );
     res
 }
 
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn write8b(addr: usize, val: u64) {
-    llvm_asm!(
-        "mov $0, ($1)"
-        : : "r"(val), "r"(addr)
-        : : "volatile"
+    asm!(
+        "mov [{1}], {0}",
+        in(reg) val,
+        in(reg) addr,
+        options(nostack),
     );
 }
 
@@ -80,9 +93,11 @@ pub fn elapsed_cycles() -> time::Time {
     let u: u32;
     let l: u32;
     unsafe {
-        llvm_asm!(
-            "rdtsc"
-            : "={rax}"(l), "={rdx}"(u)
+        asm!(
+            "rdtsc",
+            out("rax") l,
+            out("rdx") u,
+            options(nostack, nomem),
         );
     }
     time::Time::from(u) << 32 | time::Time::from(l)
@@ -91,12 +106,12 @@ pub fn elapsed_cycles() -> time::Time {
 pub fn gem5_debug(msg: usize) -> time::Time {
     let res: time::Time;
     unsafe {
-        llvm_asm!(
-            ".byte 0x0F, 0x04;
-             .word 0x63"
-            : "={rax}"(res)
-            : "{rdi}"(msg)
-            : : "volatile"
+        asm!(
+            ".byte 0x0F, 0x04",
+            ".word 0x63",
+            out("rax") res,
+            in("rdi") msg,
+            options(nostack),
         );
     }
     res

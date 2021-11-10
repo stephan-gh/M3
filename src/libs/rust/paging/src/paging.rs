@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-#![feature(llvm_asm)]
+#![feature(asm)]
 #![no_std]
 
 cfg_if::cfg_if! {

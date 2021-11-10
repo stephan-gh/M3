@@ -25,11 +25,11 @@ pub fn call1(op: Operation, arg1: usize) -> Result<usize, Error> {
 pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
     let mut res = op.val;
     unsafe {
-        llvm_asm!(
-            "int $$63"
-            : "+{rax}"(res)
-            : "{rcx}"(arg1), "{rdx}"(arg2)
-            : "memory"
+        asm!(
+            "int $63",
+            inout("rax") res,
+            in("rcx") arg1,
+            in("rdx") arg2,
         );
     }
     crate::pexif::get_result(res)
@@ -44,11 +44,12 @@ pub fn call2(_op: Operation, _arg1: usize, _arg2: usize) -> Result<usize, Error>
 pub fn call3(op: Operation, arg1: usize, arg2: usize, arg3: usize) -> Result<usize, Error> {
     let mut res = op.val;
     unsafe {
-        llvm_asm!(
-            "int $$63"
-            : "+{rax}"(res)
-            : "{rcx}"(arg1), "{rdx}"(arg2), "{rdi}"(arg3)
-            : "memory"
+        asm!(
+            "int $63",
+            inout("rax") res,
+            in("rcx") arg1,
+            in("rdx") arg2,
+            in("rdi") arg3,
         );
     }
     crate::pexif::get_result(res)
@@ -69,11 +70,13 @@ pub fn call4(
 ) -> Result<usize, Error> {
     let mut res = op.val;
     unsafe {
-        llvm_asm!(
-            "int $$63"
-            : "+{rax}"(res)
-            : "{rcx}"(arg1), "{rdx}"(arg2), "{rdi}"(arg3), "{rsi}"(arg4)
-            : "memory"
+        asm!(
+            "int $63",
+            inout("rax") res,
+            in("rcx") arg1,
+            in("rdx") arg2,
+            in("rdi") arg3,
+            in("rsi") arg4,
         );
     }
     crate::pexif::get_result(res)

@@ -97,7 +97,11 @@ pub fn handle_fpu_ex(_state: &mut State) {
             let old_vpe = vpe::get_mut(old_id).unwrap();
             let fpu_state = old_vpe.fpu_state();
             unsafe {
-                llvm_asm!("fxsave ($0)" : : "r"(&fpu_state.data))
+                asm!(
+                    "fxsave [{0}]",
+                    in(reg) &fpu_state.data,
+                    options(nostack),
+                )
             };
         }
 
@@ -105,12 +109,16 @@ pub fn handle_fpu_ex(_state: &mut State) {
         let fpu_state = cur.fpu_state();
         if fpu_state.init {
             unsafe {
-                llvm_asm!("fxrstor ($0)" : : "r"(&fpu_state.data))
+                asm!(
+                    "fxrstor [{0}]",
+                    in(reg) &fpu_state.data,
+                    options(nostack),
+                )
             };
         }
         else {
             unsafe {
-                llvm_asm!("fninit")
+                asm!("fninit")
             };
             fpu_state.init = true;
         }

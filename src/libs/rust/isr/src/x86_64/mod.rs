@@ -397,8 +397,14 @@ pub fn init(state: &mut State) {
         };
         let tss_off = Segment::TSS.val as usize * mem::size_of::<Desc>();
         unsafe {
-            llvm_asm!("lgdt ($0)" : : "r"(&gdt_tbl) : : "volatile");
-            llvm_asm!("ltr $0" : : "m"(tss_off) : : "volatile");
+            asm!(
+                "lgdt [{0}]",
+                in(reg) &gdt_tbl,
+            );
+            asm!(
+                "ltr [{0}]",
+                in(reg) &tss_off,
+            );
         }
     }
 
@@ -441,7 +447,10 @@ pub fn init(state: &mut State) {
             offset: idt.entries.as_ptr() as *const _ as *const u8 as u64,
         };
         unsafe {
-            llvm_asm!("lidt ($0)" : : "r"(&idt_tbl) : : "volatile");
+            asm!(
+                "lidt [{0}]",
+                in(reg) &idt_tbl,
+            );
         }
     }
 }
@@ -455,7 +464,7 @@ pub fn set_entry_sp(sp: usize) {
 }
 
 pub fn enable_irqs() {
-    unsafe { llvm_asm!("sti") };
+    unsafe { asm!("sti") };
 }
 
 pub fn get_irq() -> IRQSource {

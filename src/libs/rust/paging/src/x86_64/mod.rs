@@ -125,10 +125,10 @@ pub fn disable_paging() {
 
 pub fn invalidate_page(_id: crate::VPEId, virt: usize) {
     unsafe {
-        llvm_asm!(
-            "invlpg ($0)"
-            : : "r"(virt)
-            : : "volatile"
+        asm!(
+            "invlpg [{0}]",
+            in(reg) virt,
+            options(nostack),
         );
     }
 }

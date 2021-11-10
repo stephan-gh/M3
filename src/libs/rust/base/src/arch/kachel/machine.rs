@@ -27,7 +27,7 @@ pub fn shutdown() -> ! {
     else {
         #[cfg(target_arch = "riscv64")]
         unsafe {
-            llvm_asm!("1: j 1b")
+            asm!("1: j 1b")
         };
     }
     unreachable!();

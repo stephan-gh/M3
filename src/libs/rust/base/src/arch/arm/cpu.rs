@@ -18,6 +18,7 @@ use crate::time;
 
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn read8b(addr: usize) -> u64 {
+    // TODO: dual registered apparently cannot be accessed with the new asm! macro
     let res: u64;
     llvm_asm!(
         "ldrd $0, [$1]"
@@ -30,6 +31,7 @@ pub unsafe fn read8b(addr: usize) -> u64 {
 
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn write8b(addr: usize, val: u64) {
+    // TODO: dual registered apparently cannot be accessed with the new asm! macro
     llvm_asm!(
         "strd $0, [$1]"
         : : "r"(val), "r"(addr)
@@ -39,26 +41,28 @@ pub unsafe fn write8b(addr: usize, val: u64) {
 
 #[inline(always)]
 pub fn stack_pointer() -> usize {
-    let res: usize;
+    let sp: usize;
     unsafe {
-        llvm_asm!(
-            "mov $0, r13;"
-            : "=r"(res)
-        );
+        asm!(
+            "mov {0}, r13",
+            out(reg) sp,
+            options(nomem, nostack),
+        )
     }
-    res
+    sp
 }
 
 #[inline(always)]
 pub fn base_pointer() -> usize {
-    let val: usize;
+    let fp: usize;
     unsafe {
-        llvm_asm!(
-            "mov $0, r11;"
-            : "=r"(val)
-        );
+        asm!(
+            "mov {0}, r11",
+            out(reg) fp,
+            options(nomem, nostack),
+        )
     }
-    val
+    fp
 }
 
 #[allow(clippy::missing_safety_doc)]
@@ -76,6 +80,7 @@ pub fn elapsed_cycles() -> time::Time {
 pub fn gem5_debug(msg: usize) -> time::Time {
     let mut res = msg as time::Time;
     unsafe {
+        // TODO: dual registered apparently cannot be accessed with the new asm! macro
         llvm_asm!(
             ".long 0xEE630110"
             : "+{r0}"(res)

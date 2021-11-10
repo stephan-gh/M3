@@ -20,7 +20,13 @@ use crate::time;
 macro_rules! read_csr {
     ($reg_name:tt) => {{
         let res: usize;
-        unsafe { llvm_asm!(concat!("csrr $0, ", $reg_name) : "=r"(res)) };
+        unsafe {
+            asm!(
+                concat!("csrr {0}, ", $reg_name),
+                out(reg) res,
+                options(nomem, nostack)
+            )
+        };
         res
     }}
 }
@@ -28,34 +34,50 @@ macro_rules! read_csr {
 #[macro_export]
 macro_rules! write_csr {
     ($reg_name:tt, $val:expr) => {{
-        unsafe { llvm_asm!(concat!("csrw ", $reg_name, ", $0") : : "r"($val) : : "volatile") };
+        unsafe {
+            let val = $val;
+            asm!(
+                concat!("csrw ", $reg_name, ", {0}"),
+                in(reg) val,
+                options(nomem, nostack)
+            )
+        };
     }};
 }
 
 #[macro_export]
 macro_rules! set_csr_bits {
     ($reg_name:tt, $bits:expr) => {{
-        unsafe { llvm_asm!(concat!("csrs ", $reg_name, ", $0") : : "r"($bits) : : "volatile") };
+        unsafe {
+            let bits = $bits;
+            asm!(
+                concat!("csrs ", $reg_name, ", {0}"),
+                in(reg) bits,
+                options(nomem, nostack)
+            )
+        };
     }};
 }
 
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn read8b(addr: usize) -> u64 {
     let res: u64;
-    llvm_asm!(
-        "ld $0, ($1)"
-        : "=r"(res)
-        : "r"(addr)
-        : : "volatile"
+    asm!(
+        "ld {0}, ({1})",
+        out(reg) res,
+        in(reg) addr,
+        options(nostack),
     );
     res
 }
 
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn write8b(addr: usize, val: u64) {
-    llvm_asm!(
-        "sd $0, ($1)"
-        : : "r"(val), "r"(addr)
+    asm!(
+        "sd {0}, ({1})",
+        in(reg) val,
+        in(reg) addr,
+        options(nostack),
     )
 }
 
@@ -63,9 +85,10 @@ pub unsafe fn write8b(addr: usize, val: u64) {
 pub fn stack_pointer() -> usize {
     let sp: usize;
     unsafe {
-        llvm_asm!(
-            "mv $0, sp"
-            : "=r"(sp)
+        asm!(
+            "mv {0}, sp",
+            out(reg) sp,
+            options(nomem, nostack),
         )
     }
     sp
@@ -75,9 +98,10 @@ pub fn stack_pointer() -> usize {
 pub fn base_pointer() -> usize {
     let fp: usize;
     unsafe {
-        llvm_asm!(
-            "mv $0, fp"
-            : "=r"(fp)
+        asm!(
+            "mv {0}, fp",
+            out(reg) fp,
+            options(nomem, nostack),
         )
     }
     fp
@@ -86,10 +110,10 @@ pub fn base_pointer() -> usize {
 pub fn elapsed_cycles() -> time::Time {
     let mut res: time::Time;
     unsafe {
-        llvm_asm!(
-            "rdcycle $0"
-            : "=r"(res)
-            : : : "volatile"
+        asm!(
+            "rdcycle {0}",
+            out(reg) res,
+            options(nomem, nostack),
         );
     }
     res
@@ -105,10 +129,10 @@ pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
 pub fn gem5_debug(msg: usize) -> time::Time {
     let mut res = msg as time::Time;
     unsafe {
-        llvm_asm!(
-            ".long 0xC600007B"
-            : "+{x10}"(res)
-            : : : "volatile"
+        asm!(
+            ".long 0xC600007B",
+            inout("x10") res,
+            options(nostack),
         );
     }
     res

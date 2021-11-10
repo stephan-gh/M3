@@ -126,19 +126,18 @@ pub fn to_mmu_perms(flags: PageFlags) -> MMUFlags {
 
 pub fn enable_paging() {
     unsafe {
-        llvm_asm!("
-            mrc     p15, 0, r0, c2, c0, 2;   // TTBCR
-            orr     r0, r0, #0x80000000;     // EAE = 1 (40-bit translation system with long table format)
-            orr     r0, r0, #0x00000500;     // ORGN0 = IRGN0 = 1 (write-back write-allocate cacheable)
-            mcr     p15, 0, r0, c2, c0, 2;
-            mrc     p15, 0, r0, c10, c2, 0;  // MAIR0
-            orr     r0, r0, #0xFF;           // normal memory, write-back, rw-alloc, cacheable
-            mcr     p15, 0, r0, c10, c2, 0;
-            mrc     p15, 0, r0, c1, c0, 0;   // SCTLR
-            orr     r0, r0, #0x00000001;     // enable MMU
-            mcr     p15, 0, r0, c1, c0, 0;
-            "
-            : : : "r0" : "volatile"
+        asm!(
+            "mrc     p15, 0, r0, c2, c0, 2",   // TTBCR
+            "orr     r0, r0, #0x80000000",     // EAE = 1 (40-bit translation system with long table format)
+            "orr     r0, r0, #0x00000500",     // ORGN0 = IRGN0 = 1 (write-back write-allocate cacheable)
+            "mcr     p15, 0, r0, c2, c0, 2",
+            "mrc     p15, 0, r0, c10, c2, 0",  // MAIR0
+            "orr     r0, r0, #0xFF",           // normal memory, write-back, rw-alloc, cacheable
+            "mcr     p15, 0, r0, c10, c2, 0",
+            "mrc     p15, 0, r0, c1, c0, 0",   // SCTLR
+            "orr     r0, r0, #0x00000001",     // enable MMU
+            "mcr     p15, 0, r0, c1, c0, 0",
+            lateout("r0") _,
         );
     }
 }
@@ -148,11 +147,12 @@ pub fn disable_paging() {
 }
 
 pub fn invalidate_page(id: crate::VPEId, virt: usize) {
+    let val = virt | (id as usize & 0xFF);
     unsafe {
-        llvm_asm!(
-            "mcr p15, 0, $0, c8, c7, 1"
-            : : "r"(virt | (id as usize & 0xFF))
-            : : "volatile"
+        asm!(
+            "mcr p15, 0, {0}, c8, c7, 1",
+            in(reg) val,
+            options(nostack),
         );
     }
 }
@@ -160,9 +160,9 @@ pub fn invalidate_page(id: crate::VPEId, virt: usize) {
 pub fn invalidate_tlb() {
     // note that r0 is ignored
     unsafe {
-        llvm_asm!(
-            "mcr p15, 0, r0, c8, c7, 0"
-            : : : : "volatile"
+        asm!(
+            "mcr p15, 0, r0, c8, c7, 0",
+            options(nostack),
         );
     }
 }
@@ -178,14 +178,14 @@ pub fn set_root_pt(id: crate::VPEId, root: Phys) {
     let ttbr0_low: u32 = (root | 0b00_1001) as u32;
     let ttbr0_high: u32 = ((id as u32 & 0xFF) << 16) | (root >> 32) as u32;
     unsafe {
-        llvm_asm!("
-             mcrr p15, 0, $0, $1, c2;
+        asm!(
+             "mcrr p15, 0, {0}, {1}, c2",
              // synchronize changes to control register
-             .arch armv7;
-             isb;
-             "
-            : : "r"(ttbr0_low), "r"(ttbr0_high)
-            : : "volatile"
+             ".arch armv7",
+             "isb",
+             in(reg) ttbr0_low,
+             in(reg) ttbr0_high,
+             options(nostack),
         );
     }
 }

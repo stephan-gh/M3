@@ -135,17 +135,21 @@ pub fn disable_paging() {
 
 pub fn invalidate_page(id: crate::VPEId, virt: usize) {
     unsafe {
-        llvm_asm!(
-            "sfence.vma $0, $1"
-            : : "r"(virt), "r"(id)
-            : : "volatile"
+        asm!(
+            "sfence.vma {0}, {1}",
+            in(reg) virt,
+            in(reg) id,
+            options(nomem, nostack),
         );
     }
 }
 
 pub fn invalidate_tlb() {
     unsafe {
-        llvm_asm!("sfence.vma" : : : : "volatile");
+        asm!(
+            "sfence.vma",
+            options(nomem, nostack),
+        );
     }
 }
 

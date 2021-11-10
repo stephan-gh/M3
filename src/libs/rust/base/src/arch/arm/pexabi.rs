@@ -24,11 +24,11 @@ pub fn call1(op: Operation, arg1: usize) -> Result<usize, Error> {
 pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
     let mut res = op.val;
     unsafe {
-        llvm_asm!(
-            "svc 0"
-            : "+{r0}"(res)
-            : "{r1}"(arg1), "{r2}"(arg2)
-            : "memory"
+        asm!(
+            "svc 0",
+            inout("r0") res,
+            in("r1") arg1,
+            in("r2") arg2,
         );
     }
     crate::pexif::get_result(res)
@@ -37,11 +37,12 @@ pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
 pub fn call3(op: Operation, arg1: usize, arg2: usize, arg3: usize) -> Result<usize, Error> {
     let mut res = op.val;
     unsafe {
-        llvm_asm!(
-            "svc 0"
-            : "+{r0}"(res)
-            : "{r1}"(arg1), "{r2}"(arg2), "{r3}"(arg3)
-            : "memory"
+        asm!(
+            "svc 0",
+            inout("r0") res,
+            in("r1") arg1,
+            in("r2") arg2,
+            in("r3") arg3,
         );
     }
     crate::pexif::get_result(res)
@@ -56,11 +57,13 @@ pub fn call4(
 ) -> Result<usize, Error> {
     let mut res = op.val;
     unsafe {
-        llvm_asm!(
-            "svc 0"
-            : "+{r0}"(res)
-            : "{r1}"(arg1), "{r2}"(arg2), "{r3}"(arg3), "{r4}"(arg4)
-            : "memory"
+        asm!(
+            "svc 0",
+            inout("r0") res,
+            in("r1") arg1,
+            in("r2") arg2,
+            in("r3") arg3,
+            in("r4") arg4,
         );
     }
     crate::pexif::get_result(res)

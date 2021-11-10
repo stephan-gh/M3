@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-#![feature(llvm_asm)]
 #![no_std]
 
 extern crate heap;

@@ -56,7 +56,13 @@ pub fn handle_mmu_pf(state: &mut State) -> Result<(), Error> {
         let dfar: usize;
         let dfsr: usize;
         unsafe {
-            llvm_asm!("mrc p15, 0, $0, c6, c0, 0; mrc p15, 0, $1, c5, c0, 0" : "=r"(dfar), "=r"(dfsr));
+            asm!(
+                "mrc p15, 0, {0}, c6, c0, 0",
+                "mrc p15, 0, {1}, c5, c0, 0",
+                out(reg) dfar,
+                out(reg) dfsr,
+                options(nostack, nomem),
+            );
         }
         (
             dfar,
@@ -71,7 +77,11 @@ pub fn handle_mmu_pf(state: &mut State) -> Result<(), Error> {
     else {
         let ifar: usize;
         unsafe {
-            llvm_asm!("mrc p15, 0, $0, c6, c0, 2" : "=r"(ifar));
+            asm!(
+                "mrc p15, 0, {0}, c6, c0, 2",
+                out(reg) ifar,
+                options(nostack, nomem),
+            );
         }
         (ifar, PageFlags::RX)
     };
