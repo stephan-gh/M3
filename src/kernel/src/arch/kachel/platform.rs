@@ -40,25 +40,19 @@ pub fn init(_args: &[String]) -> platform::KEnv {
 
     // read boot modules
     let mut mods: Vec<boot::Mod> = Vec::with_capacity(info.mod_count as usize);
-    unsafe {
-        mods.set_len(info.mod_count as usize)
-    };
+    unsafe { mods.set_len(info.mod_count as usize) };
     ktcu::read_slice(addr.pe(), offset, &mut mods);
     offset += info.mod_count as goff * size_of::<boot::Mod>() as goff;
 
     // read PEs
     let mut pes: Vec<PEDesc> = Vec::with_capacity(info.pe_count as usize);
-    unsafe {
-        pes.set_len(info.pe_count as usize)
-    };
+    unsafe { pes.set_len(info.pe_count as usize) };
     ktcu::read_slice(addr.pe(), offset, &mut pes);
     offset += info.pe_count as goff * size_of::<PEDesc>() as goff;
 
     // read memory regions
     let mut mems: Vec<boot::Mem> = Vec::with_capacity(info.mem_count as usize);
-    unsafe {
-        mems.set_len(info.mem_count as usize)
-    };
+    unsafe { mems.set_len(info.mem_count as usize) };
     ktcu::read_slice(addr.pe(), offset, &mut mems);
 
     // build new info for user PEs

@@ -54,7 +54,12 @@ impl<'s> GateOStream<'s> {
 
     /// Sends the marshalled message via `gate`, using `reply_gate` for the reply.
     #[inline(always)]
-    pub fn send(&self, buf: &mem::MsgBuf, gate: &SendGate, reply_gate: &RecvGate) -> Result<(), Error> {
+    pub fn send(
+        &self,
+        buf: &mem::MsgBuf,
+        gate: &SendGate,
+        reply_gate: &RecvGate,
+    ) -> Result<(), Error> {
         gate.send(buf, reply_gate)
     }
 

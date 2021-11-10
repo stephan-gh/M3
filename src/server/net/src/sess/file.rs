@@ -419,7 +419,10 @@ impl FileSession {
                 reply_vmsg!(late_is, Code::None as u32, pos, amount)
             }
             else {
-                log!(crate::LOG_SESS, "Failed to send late reply for pending_recv");
+                log!(
+                    crate::LOG_SESS,
+                    "Failed to send late reply for pending_recv"
+                );
                 Ok(())
             }
         }
@@ -445,7 +448,10 @@ impl FileSession {
                 reply_vmsg!(late_is, Code::None as u32, pos, amount)
             }
             else {
-                log!(crate::LOG_SESS, "Failed to send late reply for pending_send");
+                log!(
+                    crate::LOG_SESS,
+                    "Failed to send late reply for pending_send"
+                );
                 Ok(())
             }
         }

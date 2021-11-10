@@ -21,7 +21,7 @@ use crate::errors::{Code, Error};
 use crate::format;
 use crate::io::Read;
 use crate::libc;
-use crate::mem::{MaybeUninit, size_of};
+use crate::mem::{size_of, MaybeUninit};
 use crate::pes::StateSerializer;
 use crate::vec;
 use crate::vfs::FileRef;

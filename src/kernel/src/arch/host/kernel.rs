@@ -113,7 +113,5 @@ pub fn shutdown() -> ! {
         fs::copy_to_fs(path, FS_SIZE.get());
     }
     klog!(DEF, "Shutting down");
-    unsafe {
-        libc::exit(0)
-    };
+    unsafe { libc::exit(0) };
 }

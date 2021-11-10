@@ -171,9 +171,7 @@ impl MemGate {
     pub fn read_into_vec<T>(&self, items: usize, off: goff) -> Result<Vec<T>, Error> {
         let mut vec = Vec::<T>::with_capacity(items);
         // safety: will be initialized by read below
-        unsafe {
-            vec.set_len(items)
-        };
+        unsafe { vec.set_len(items) };
         self.read(&mut vec, off)?;
         Ok(vec)
     }

@@ -173,9 +173,7 @@ pub fn handle_fpu_ex(state: &mut State) {
             restore_fpu(fpu_state);
         }
         else {
-            unsafe {
-                libc::memset(fpu_state as *mut _ as *mut libc::c_void, 0, 8 * 33)
-            };
+            unsafe { libc::memset(fpu_state as *mut _ as *mut libc::c_void, 0, 8 * 33) };
             fpu_state.init = true;
         }
 

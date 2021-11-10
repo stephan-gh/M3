@@ -78,9 +78,7 @@ pub fn check() {
     if res > 0 {
         // stop on ctrl+]
         if res == 1 && buf[0] == 0x1d {
-            unsafe {
-                libc::exit(0)
-            };
+            unsafe { libc::exit(0) };
         }
 
         if DEST.is_some() {

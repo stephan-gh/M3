@@ -146,10 +146,7 @@ pub fn invalidate_page(id: crate::VPEId, virt: usize) {
 
 pub fn invalidate_tlb() {
     unsafe {
-        asm!(
-            "sfence.vma",
-            options(nomem, nostack),
-        );
+        asm!("sfence.vma", options(nomem, nostack));
     }
 }
 

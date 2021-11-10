@@ -45,9 +45,7 @@ impl<R: Read> BufReader<R> {
             cap: 0,
         };
         // safety: we will not hand out the Vec and never access anything except 0..`pos`-1 below
-        unsafe {
-            br.buf.set_len(cap)
-        };
+        unsafe { br.buf.set_len(cap) };
         br
     }
 
@@ -114,7 +112,9 @@ impl<R: Read + Seek> Seek for BufReader<R> {
             }
             // otherwise, just get the current position
             else {
-                self.reader.seek(0, SeekMode::CUR).map(|pos| pos - (self.cap - self.pos))
+                self.reader
+                    .seek(0, SeekMode::CUR)
+                    .map(|pos| pos - (self.cap - self.pos))
             };
         }
 
@@ -158,9 +158,7 @@ impl<W: Write> BufWriter<W> {
             pos: 0,
         };
         // safety: we will not hand out the Vec and never access anything except 0..`pos`-1 below
-        unsafe {
-            br.buf.set_len(cap)
-        };
+        unsafe { br.buf.set_len(cap) };
         br
     }
 

@@ -160,10 +160,7 @@ pub fn invalidate_page(id: crate::VPEId, virt: usize) {
 pub fn invalidate_tlb() {
     // note that r0 is ignored
     unsafe {
-        asm!(
-            "mcr p15, 0, r0, c8, c7, 0",
-            options(nostack),
-        );
+        asm!("mcr p15, 0, r0, c8, c7, 0", options(nostack));
     }
 }
 

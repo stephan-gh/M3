@@ -41,9 +41,7 @@ impl FdSet {
     }
 
     pub fn set(&mut self, fd: i32) {
-        unsafe {
-            libc::FD_SET(fd, &mut self.set)
-        }
+        unsafe { libc::FD_SET(fd, &mut self.set) }
         self.max = core::cmp::max(self.max, fd);
     }
 
@@ -226,7 +224,12 @@ impl SocketBackend {
                 ptr::null_mut(),
             )
         };
-        if res <= 0 { None } else { Some(res as usize) }
+        if res <= 0 {
+            None
+        }
+        else {
+            Some(res as usize)
+        }
     }
 
     pub fn wait_for_work(&self, timeout: Option<u64>) -> bool {
@@ -317,9 +320,7 @@ impl SocketBackend {
 
     pub fn shutdown(&self) {
         for ep in 0..TOTAL_EPS {
-            unsafe {
-                libc::shutdown(self.localsock[ep as usize], libc::SHUT_RD)
-            };
+            unsafe { libc::shutdown(self.localsock[ep as usize], libc::SHUT_RD) };
         }
     }
 }
@@ -327,9 +328,7 @@ impl SocketBackend {
 impl Drop for SocketBackend {
     fn drop(&mut self) {
         for ep in 0..TOTAL_EPS {
-            unsafe {
-                libc::close(self.localsock[ep as usize])
-            };
+            unsafe { libc::close(self.localsock[ep as usize]) };
         }
     }
 }

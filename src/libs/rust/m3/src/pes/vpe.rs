@@ -551,9 +551,7 @@ impl VPE {
                 c2p.signal();
 
                 let res = closure.call();
-                unsafe {
-                    libc::exit(res)
-                };
+                unsafe { libc::exit(res) };
             },
 
             pid => {

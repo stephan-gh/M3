@@ -102,7 +102,7 @@ impl EEPROM {
                 // Not read yet, therefore try again
                 continue;
             }
-            return Ok((value >> 16) as u16)
+            return Ok((value >> 16) as u16);
         }
 
         Err(Error::new(Code::Timeout))

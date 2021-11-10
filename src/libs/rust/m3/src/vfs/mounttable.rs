@@ -70,7 +70,7 @@ impl MountTable {
 
     /// Returns the mount point with index `mid`.
     pub fn get_by_index(&self, mid: usize) -> Option<FSHandle> {
-        self.mounts.get(mid).map(|mp|  mp.fs.clone())
+        self.mounts.get(mid).map(|mp| mp.fs.clone())
     }
 
     /// Returns the index of the mount point with given file system.

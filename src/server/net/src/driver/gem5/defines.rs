@@ -20,8 +20,8 @@ use base::const_assert;
 
 use bitflags::bitflags;
 
-use m3::int_enum;
 use m3::goff;
+use m3::int_enum;
 
 int_enum! {
     pub struct REG: goff {

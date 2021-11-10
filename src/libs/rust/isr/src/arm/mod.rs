@@ -124,9 +124,7 @@ pub fn set_entry_sp(_sp: usize) {
 }
 
 pub fn enable_irqs() {
-    unsafe {
-        asm!("msr cpsr, 0x53")
-    };
+    unsafe { asm!("msr cpsr, 0x53") };
 }
 
 pub fn get_irq() -> IRQSource {

@@ -287,7 +287,12 @@ impl TCU {
         }
 
         let msg = Self::get_cmd(CmdReg::OFFSET);
-        if msg != !0 { Some(msg as usize) } else { None }
+        if msg != !0 {
+            Some(msg as usize)
+        }
+        else {
+            None
+        }
     }
 
     pub fn is_valid(ep: EpId) -> bool {
