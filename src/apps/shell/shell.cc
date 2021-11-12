@@ -116,9 +116,9 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
         // if we share our PE with this child VPE, give it separate quotas to ensure that we get our
         // share (we don't trust the child apps)
         if(pes[i]->sel() == VPE::self().pe()->sel()) {
-            PE::Quota<uint> eps;
-            PE::Quota<uint64_t> time;
-            PE::Quota<size_t> pts;
+            Quota<uint> eps;
+            Quota<uint64_t> time;
+            Quota<size_t> pts;
             pes[i]->quota(&eps, &time, &pts);
             if(eps.left > MIN_EPS && pts.left > MIN_PTS)
                 pes[i] = pes[i]->derive(eps.left - MIN_EPS, time.total - MIN_TIME, pts.left - MIN_PTS);

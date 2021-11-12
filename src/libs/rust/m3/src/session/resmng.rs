@@ -25,6 +25,7 @@ use crate::goff;
 use crate::int_enum;
 use crate::kif;
 use crate::pes::VPE;
+use crate::quota::Quota;
 use crate::tcu::{PEId, VPEId};
 
 int_enum! {
@@ -62,13 +63,9 @@ pub struct ResMngVPEInfo {
     pub layer: u32,
     pub name: String,
     pub daemon: bool,
-    pub mem_pool: u64,
-    pub total_umem: usize,
-    pub avail_umem: usize,
-    pub total_kmem: usize,
-    pub avail_kmem: usize,
-    pub total_eps: u32,
-    pub avail_eps: u32,
+    pub umem: Quota<usize>,
+    pub kmem: Quota<usize>,
+    pub eps: Quota<u32>,
     pub pe: PEId,
 }
 
@@ -86,13 +83,9 @@ impl Marshallable for ResMngVPEInfoResult {
                 s.push(&i.layer);
                 s.push(&i.name);
                 s.push(&i.daemon);
-                s.push(&i.mem_pool);
-                s.push(&i.total_umem);
-                s.push(&i.avail_umem);
-                s.push(&i.total_kmem);
-                s.push(&i.avail_kmem);
-                s.push(&i.total_eps);
-                s.push(&i.avail_eps);
+                s.push(&i.umem);
+                s.push(&i.kmem);
+                s.push(&i.eps);
                 s.push(&i.pe);
             },
             ResMngVPEInfoResult::Count((num, layer)) => {
@@ -113,13 +106,9 @@ impl Unmarshallable for ResMngVPEInfoResult {
                 layer: s.pop()?,
                 name: s.pop()?,
                 daemon: s.pop()?,
-                mem_pool: s.pop()?,
-                total_umem: s.pop()?,
-                avail_umem: s.pop()?,
-                total_kmem: s.pop()?,
-                avail_kmem: s.pop()?,
-                total_eps: s.pop()?,
-                avail_eps: s.pop()?,
+                umem: s.pop()?,
+                kmem: s.pop()?,
+                eps: s.pop()?,
                 pe: s.pop()?,
             })),
             _ => Ok(Self::Count((s.pop()?, s.pop()?))),

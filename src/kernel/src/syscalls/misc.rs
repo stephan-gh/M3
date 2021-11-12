@@ -204,8 +204,9 @@ pub fn kmem_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verbo
     let mut kreply = MsgBuf::borrow_def();
     kreply.set(kif::syscalls::KMemQuotaReply {
         error: 0,
+        id: kmem.id() as u64,
         total: kmem.quota() as u64,
-        amount: kmem.left() as u64,
+        left: kmem.left() as u64,
     });
     send_reply(msg, &kreply);
 
@@ -222,7 +223,7 @@ pub fn pe_quota_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
     let vpe_caps = vpe.obj_caps().borrow();
     let pe = get_kobj_ref!(vpe_caps, pe_sel, PE);
 
-    let (time_total, time_left, pts_total, pts_left) =
+    let (time, pts) =
         PEMux::get_quota_async(pemng::pemux(pe.pe()), pe.time_quota_id(), pe.pt_quota_id())
             .map_err(|e| {
                 VerboseError::new(
@@ -238,12 +239,15 @@ pub fn pe_quota_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
     let mut kreply = MsgBuf::borrow_def();
     kreply.set(kif::syscalls::PEQuotaReply {
         error: 0,
+        eps_id: pe.ep_quota().id() as u64,
         eps_total: pe.ep_quota().total() as u64,
         eps_left: pe.ep_quota().left() as u64,
-        time_total,
-        time_left,
-        pts_total: pts_total as u64,
-        pts_left: pts_left as u64,
+        time_id: time.id(),
+        time_total: time.total(),
+        time_left: time.left(),
+        pts_id: pts.id(),
+        pts_total: pts.total() as u64,
+        pts_left: pts.left() as u64,
     });
     send_reply(msg, &kreply);
 

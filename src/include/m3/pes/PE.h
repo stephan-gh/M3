@@ -18,6 +18,7 @@
 
 #include <base/util/Reference.h>
 #include <base/PEDesc.h>
+#include <base/Quota.h>
 
 #include <m3/ObjCap.h>
 
@@ -37,12 +38,6 @@ class PE : public ObjCap, public RefCounted {
     }
 
 public:
-    template<typename T>
-    struct Quota {
-        T total;
-        T left;
-    };
-
     PE(PE &&pe) noexcept
         : ObjCap(std::move(pe)),
           RefCounted(std::move(pe)),

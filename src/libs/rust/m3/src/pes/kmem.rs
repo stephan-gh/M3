@@ -17,6 +17,7 @@
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::errors::Error;
 use crate::pes::VPE;
+use crate::quota::Quota;
 use crate::rc::Rc;
 use crate::syscalls;
 
@@ -38,7 +39,7 @@ impl KMem {
     }
 
     /// Returns the total and remaining quota of the kernel memory.
-    pub fn quota(&self) -> Result<(usize, usize), Error> {
+    pub fn quota(&self) -> Result<Quota<usize>, Error> {
         syscalls::kmem_quota(self.sel())
     }
 

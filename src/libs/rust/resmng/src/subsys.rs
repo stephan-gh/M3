@@ -395,9 +395,9 @@ impl Subsystem {
 
             // split available PTs according to the config
             let (ep_quota, _, pt_quota) = pe_usage.pe_obj().quota()?;
-            let (mut pt_sharer, shared_pts) = split_pts(pt_quota.left as u64, &d);
+            let (mut pt_sharer, shared_pts) = split_pts(pt_quota.left() as u64, &d);
 
-            let mut domain_total_eps = ep_quota.left;
+            let mut domain_total_eps = ep_quota.left();
             let mut domain_total_time = 0;
             let mut domain_total_pts = 0;
             let mut domain_kmem_bytes = 0;
@@ -451,13 +451,14 @@ impl Subsystem {
             // set initial quota for this PE
             pe_usage
                 .pe_obj()
-                .set_quota(domain_total_time, pt_quota.total as u64)
+                .set_quota(domain_total_time, pt_quota.total() as u64)
                 .map_err(|e| {
                     VerboseError::new(
                         e.code(),
                         format!(
                             "Unable to set quota for PE to time={}, pts={}",
-                            domain_total_time, pt_quota.total
+                            domain_total_time,
+                            pt_quota.total()
                         ),
                     )
                 })?;
@@ -879,7 +880,7 @@ fn split_child_mem(cfg: &config::AppConfig, mem: &Rc<childs::ChildMem>) {
 
 fn split_mem(cfg: &config::AppConfig) -> Result<(usize, goff), VerboseError> {
     let mut total_umem = memory::container().capacity();
-    let mut total_kmem = VPE::cur().kmem().quota()?.1;
+    let mut total_kmem = VPE::cur().kmem().quota()?.total();
 
     let mut total_kparties = cfg.count_apps() + 1;
     let mut total_mparties = total_kparties;

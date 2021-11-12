@@ -29,8 +29,9 @@ use m3::kif::{self, CapRngDesc, CapType, Perm};
 use m3::log;
 use m3::math;
 use m3::mem::MsgBuf;
-use m3::pes::{Activity, ExecActivity, KMem, Mapper, Quota, VPE};
+use m3::pes::{Activity, ExecActivity, KMem, Mapper, VPE};
 use m3::println;
+use m3::quota::{Id as QuotaId, Quota};
 use m3::rc::Rc;
 use m3::session::{ResMngVPEInfo, ResMngVPEInfoResult};
 use m3::syscalls;
@@ -604,7 +605,7 @@ pub trait Child {
 
                 // the first is always us
                 if idx == 0 {
-                    let (total_kmem, avail_kmem) = VPE::cur().kmem().quota()?;
+                    let kmem_quota = VPE::cur().kmem().quota()?;
                     // TODO
                     let (ep_quota, _, _) = VPE::cur().pe().quota()?;
                     let mem = memory::container();
@@ -613,13 +614,13 @@ pub trait Child {
                         layer: parent_layer + 0,
                         name: env::args().next().unwrap().to_string(),
                         daemon: true,
-                        mem_pool: parent_num as u64,
-                        total_umem: mem.capacity() as usize,
-                        avail_umem: mem.available() as usize,
-                        total_kmem,
-                        avail_kmem,
-                        total_eps: ep_quota.total,
-                        avail_eps: ep_quota.left,
+                        umem: Quota::new(
+                            parent_num as QuotaId,
+                            mem.capacity() as usize,
+                            mem.available() as usize,
+                        ),
+                        kmem: kmem_quota,
+                        eps: ep_quota,
                         pe: VPE::cur().pe_id(),
                     }));
                 }
@@ -634,10 +635,10 @@ pub trait Child {
                     idx += 1;
                 };
 
-                let (total_kmem, avail_kmem) = vpe
+                let kmem_quota = vpe
                     .kmem()
                     .map(|km| km.quota())
-                    .unwrap_or_else(|| Ok((0, 0)))?;
+                    .unwrap_or_else(|| Ok(Quota::default()))?;
                 // TODO
                 let (ep_quota, _, _) = vpe
                     .child_pe()
@@ -650,13 +651,13 @@ pub trait Child {
                     layer: parent_layer + vpe.layer(),
                     name: vpe.name().to_string(),
                     daemon: vpe.daemon(),
-                    mem_pool: parent_num as u64 + vpe.mem().id as u64,
-                    total_umem: vpe.mem().total as usize,
-                    avail_umem: vpe.mem().quota.get() as usize,
-                    total_kmem,
-                    avail_kmem,
-                    total_eps: ep_quota.total,
-                    avail_eps: ep_quota.left,
+                    umem: Quota::new(
+                        parent_num as QuotaId + vpe.mem().id as QuotaId,
+                        vpe.mem().total as usize,
+                        vpe.mem().quota.get() as usize,
+                    ),
+                    kmem: kmem_quota,
+                    eps: ep_quota,
                     pe: vpe.our_pe().pe_id(),
                 }))
             }
@@ -910,7 +911,7 @@ impl fmt::Debug for OwnChild {
             self.child_pe.pe_id(),
             self.args,
             self.kmem.sel(),
-            self.kmem.quota().unwrap().1,
+            self.kmem.quota().unwrap().total(),
             self.mem,
         )
     }

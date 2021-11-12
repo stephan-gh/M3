@@ -367,8 +367,9 @@ struct KIF {
         } PACKED;
 
         struct KMemQuotaReply : public DefaultReply {
+            xfer_t id;
             xfer_t total;
-            xfer_t amount;
+            xfer_t left;
         } PACKED;
 
         struct PEQuota : public DefaultRequest {
@@ -376,10 +377,13 @@ struct KIF {
         } PACKED;
 
         struct PEQuotaReply : public DefaultReply {
+            xfer_t eps_id;
             xfer_t eps_total;
             xfer_t eps_left;
+            xfer_t time_id;
             xfer_t time_total;
             xfer_t time_left;
+            xfer_t pts_id;
             xfer_t pts_total;
             xfer_t pts_left;
         } PACKED;

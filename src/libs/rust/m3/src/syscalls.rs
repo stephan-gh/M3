@@ -25,6 +25,7 @@ use crate::com::{RecvGate, SendGate};
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::mem::{GlobAddr, MsgBuf};
+use crate::quota::Quota;
 use crate::serialize::{Sink, Source};
 use crate::tcu::{EpId, Label, Message, VPEId, SYSC_SEP_OFF};
 
@@ -360,7 +361,7 @@ pub fn mgate_region(mgate: Selector) -> Result<(GlobAddr, goff), Error> {
 }
 
 /// Returns the total and remaining quota in bytes for the kernel memory object at `kmem`.
-pub fn kmem_quota(kmem: Selector) -> Result<(usize, usize), Error> {
+pub fn kmem_quota(kmem: Selector) -> Result<Quota<usize>, Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::KMemQuota {
         opcode: syscalls::Operation::KMEM_QUOTA.val,
@@ -368,11 +369,15 @@ pub fn kmem_quota(kmem: Selector) -> Result<(usize, usize), Error> {
     });
 
     let reply: Reply<syscalls::KMemQuotaReply> = send_receive(&buf)?;
-    Ok((reply.data.total as usize, reply.data.amount as usize))
+    Ok(Quota::new(
+        reply.data.id,
+        reply.data.total as usize,
+        reply.data.left as usize,
+    ))
 }
 
 /// Returns the remaining quota (free endpoints) for the PE object at `pe`.
-pub fn pe_quota(pe: Selector) -> Result<(u32, u32, u64, u64, usize, usize), Error> {
+pub fn pe_quota(pe: Selector) -> Result<(Quota<u32>, Quota<u64>, Quota<usize>), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::PEQuota {
         opcode: syscalls::Operation::PE_QUOTA.val,
@@ -381,12 +386,21 @@ pub fn pe_quota(pe: Selector) -> Result<(u32, u32, u64, u64, usize, usize), Erro
 
     let reply: Reply<syscalls::PEQuotaReply> = send_receive(&buf)?;
     Ok((
-        reply.data.eps_total as u32,
-        reply.data.eps_left as u32,
-        reply.data.time_total,
-        reply.data.time_left,
-        reply.data.pts_total as usize,
-        reply.data.pts_left as usize,
+        Quota::new(
+            reply.data.eps_id,
+            reply.data.eps_total as u32,
+            reply.data.eps_left as u32,
+        ),
+        Quota::new(
+            reply.data.time_id,
+            reply.data.time_total as u64,
+            reply.data.time_left as u64,
+        ),
+        Quota::new(
+            reply.data.pts_id,
+            reply.data.pts_total as usize,
+            reply.data.pts_left as usize,
+        ),
     ))
 }
 

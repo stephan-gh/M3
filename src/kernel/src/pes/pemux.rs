@@ -18,9 +18,10 @@ use base::cell::RefMut;
 use base::col::{BitVec, Vec};
 use base::errors::{Code, Error};
 use base::goff;
-use base::kif::{self, pemux::QuotaId, OptionalValue};
+use base::kif::{self, OptionalValue};
 use base::mem::GlobAddr;
 use base::mem::MsgBuf;
+use base::quota;
 use base::rc::{Rc, SRc, Weak};
 use base::tcu::{self, EpId, PEId, VPEId};
 use core::cmp;
@@ -374,8 +375,8 @@ impl PEMux {
     pub fn vpe_init_async(
         pemux: RefMut<'_, Self>,
         vpe: VPEId,
-        time_quota: QuotaId,
-        pt_quota: QuotaId,
+        time_quota: quota::Id,
+        pt_quota: quota::Id,
         eps_start: EpId,
     ) -> Result<(), Error> {
         let mut msg = MsgBuf::borrow_def();
@@ -407,11 +408,11 @@ impl PEMux {
 
     pub fn derive_quota_async(
         pemux: RefMut<'_, Self>,
-        parent_time: QuotaId,
-        parent_pts: QuotaId,
+        parent_time: quota::Id,
+        parent_pts: quota::Id,
         time: Option<u64>,
         pts: Option<u64>,
-    ) -> Result<(QuotaId, QuotaId), Error> {
+    ) -> Result<(quota::Id, quota::Id), Error> {
         let mut msg = MsgBuf::borrow_def();
         msg.set(kif::pemux::DeriveQuota {
             op: kif::pemux::Sidecalls::DERIVE_QUOTA.val as u64,
@@ -422,14 +423,14 @@ impl PEMux {
         });
 
         Self::send_receive_sidecall_async::<kif::pemux::DeriveQuota>(pemux, None, msg)
-            .map(|r| (r.val1 as QuotaId, r.val2 as QuotaId))
+            .map(|r| (r.val1 as quota::Id, r.val2 as quota::Id))
     }
 
     pub fn get_quota_async(
         pemux: RefMut<'_, Self>,
-        time: QuotaId,
-        pts: QuotaId,
-    ) -> Result<(u64, u64, usize, usize), Error> {
+        time: quota::Id,
+        pts: quota::Id,
+    ) -> Result<(quota::Quota<u64>, quota::Quota<usize>), Error> {
         let mut msg = MsgBuf::borrow_def();
         msg.set(kif::pemux::GetQuota {
             op: kif::pemux::Sidecalls::GET_QUOTA.val as u64,
@@ -437,19 +438,26 @@ impl PEMux {
             pts,
         });
 
+        let pe_id = (pemux.pe.pe() as quota::Id) << 8;
         Self::send_receive_sidecall_async::<kif::pemux::GetQuota>(pemux, None, msg).map(|r| {
             (
-                (r.val1 >> 32) as u64,
-                (r.val1 & 0xFFFF_FFFF) as u64,
-                (r.val2 >> 32) as usize,
-                (r.val2 & 0xFFFF_FFFF) as usize,
+                quota::Quota::new(
+                    pe_id | time,
+                    (r.val1 >> 32) as u64,
+                    (r.val1 & 0xFFFF_FFFF) as u64,
+                ),
+                quota::Quota::new(
+                    pe_id | pts,
+                    (r.val2 >> 32) as usize,
+                    (r.val2 & 0xFFFF_FFFF) as usize,
+                ),
             )
         })
     }
 
     pub fn set_quota_async(
         pemux: RefMut<'_, Self>,
-        id: QuotaId,
+        id: quota::Id,
         time: u64,
         pts: u64,
     ) -> Result<(), Error> {
@@ -466,8 +474,8 @@ impl PEMux {
 
     pub fn remove_quotas_async(
         pemux: RefMut<'_, Self>,
-        time: Option<QuotaId>,
-        pts: Option<QuotaId>,
+        time: Option<quota::Id>,
+        pts: Option<quota::Id>,
     ) -> Result<(), Error> {
         let mut msg = MsgBuf::borrow_def();
         msg.set(kif::pemux::RemoveQuotas {
@@ -603,8 +611,8 @@ impl PEMux {
     pub fn vpe_init_async(
         _pemux: RefMut<'_, Self>,
         _vpe: VPEId,
-        _time_quota: QuotaId,
-        _pt_quota: QuotaId,
+        _time_quota: quota::Id,
+        _pt_quota: quota::Id,
         _eps_start: EpId,
     ) -> Result<(), Error> {
         Ok(())
@@ -620,25 +628,25 @@ impl PEMux {
 
     pub fn derive_quota_async(
         _pemux: RefMut<'_, Self>,
-        _parent_time: QuotaId,
-        _parent_pts: QuotaId,
+        _parent_time: quota::Id,
+        _parent_pts: quota::Id,
         _time: Option<u64>,
         _pts: Option<u64>,
-    ) -> Result<(QuotaId, QuotaId), Error> {
+    ) -> Result<(quota::Id, quota::Id), Error> {
         Ok((0, 0))
     }
 
     pub fn get_quota_async(
         _pemux: RefMut<'_, Self>,
-        _time: QuotaId,
-        _pts: QuotaId,
+        _time: quota::Id,
+        _pts: quota::Id,
     ) -> Result<(u64, u64, usize, usize), Error> {
         Ok((0, 0, 0, 0))
     }
 
     pub fn set_quota_async(
         _pemux: RefMut<'_, Self>,
-        _id: QuotaId,
+        _id: quota::Id,
         _time: u64,
         _pts: u64,
     ) -> Result<(), Error> {
@@ -647,8 +655,8 @@ impl PEMux {
 
     pub fn remove_quotas_async(
         _pemux: RefMut<'_, Self>,
-        _time: Option<QuotaId>,
-        _pts: Option<QuotaId>,
+        _time: Option<quota::Id>,
+        _pts: Option<quota::Id>,
     ) -> Result<(), Error> {
         Ok(())
     }

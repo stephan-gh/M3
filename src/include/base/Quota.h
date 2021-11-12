@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Copyright (C) 2016, Nils Asmussen <nils@os.inf.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
  *
  * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
@@ -16,31 +16,19 @@
 
 #pragma once
 
-#include <base/util/Reference.h>
-#include <base/Quota.h>
-
-#include <m3/ObjCap.h>
+#include <base/Types.h>
 
 namespace m3 {
 
-class KMem : public ObjCap, public RefCounted {
-    friend class VPE;
-
-    explicit KMem(capsel_t sel, uint flags) noexcept
-        : ObjCap(KMEM, sel, flags) {
+template<typename T>
+struct Quota {
+    explicit Quota() = default;
+    explicit Quota(uint64_t _id, T _total, T _left) : id(_id), total(_total), left(_left) {
     }
 
-    void set_flags(uint fl) noexcept {
-        flags(fl);
-    }
-
-public:
-    explicit KMem(capsel_t sel) noexcept : KMem(sel, KEEP_CAP) {
-    }
-
-    Quota<size_t> quota() const;
-
-    Reference<KMem> derive(const KMem &base, size_t quota);
+    uint64_t id;
+    T total;
+    T left;
 };
 
 }

@@ -121,10 +121,7 @@ Reference<PE> PE::derive(uint eps, uint64_t time, uint64_t pts) {
 }
 
 void PE::quota(Quota<uint> *eps, Quota<uint64_t> *time, Quota<size_t> *pts) const {
-    Syscalls::pe_quota(sel(),
-                       &eps->total, &eps->left,
-                       &time->total, &time->left,
-                       &pts->total, &pts->left);
+    Syscalls::pe_quota(sel(), eps, time, pts);
 }
 
 void PE::set_quota(uint64_t time, uint64_t pts) {

@@ -400,8 +400,9 @@ pub struct KMemQuota {
 #[repr(C)]
 pub struct KMemQuotaReply {
     pub error: u64,
+    pub id: u64,
     pub total: u64,
-    pub amount: u64,
+    pub left: u64,
 }
 
 /// The PE quota request message
@@ -415,10 +416,13 @@ pub struct PEQuota {
 #[repr(C)]
 pub struct PEQuotaReply {
     pub error: u64,
+    pub eps_id: u64,
     pub eps_total: u64,
     pub eps_left: u64,
+    pub time_id: u64,
     pub time_total: u64,
     pub time_left: u64,
+    pub pts_id: u64,
     pub pts_total: u64,
     pub pts_left: u64,
 }

@@ -21,6 +21,7 @@
 #include <base/GlobAddr.h>
 #include <base/KIF.h>
 #include <base/PEDesc.h>
+#include <base/Quota.h>
 
 #include <m3/com/SendGate.h>
 #include <m3/com/GateStream.h>
@@ -85,11 +86,8 @@ public:
     static void derive_srv(capsel_t srv, const KIF::CapRngDesc &dst, uint sessions, event_t event);
     static void get_sess(capsel_t srv, capsel_t vpe, capsel_t dst, word_t sid);
     static GlobAddr mgate_region(capsel_t mgate, size_t *size);
-    static size_t kmem_quota(capsel_t kmem, size_t *total);
-    static void pe_quota(capsel_t pe,
-                         uint *eps_total, uint *eps_left,
-                         uint64_t *time_total, uint64_t *time_left,
-                         size_t *pts_total, size_t *pts_left);
+    static Quota<size_t> kmem_quota(capsel_t kmem);
+    static void pe_quota(capsel_t pe, Quota<uint> *eps, Quota<uint64_t> *time, Quota<size_t> *pts);
     static void pe_set_quota(capsel_t pe, uint64_t time, uint64_t pts);
     static void sem_ctrl(capsel_t sem, KIF::Syscall::SemOp);
 

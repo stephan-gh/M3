@@ -306,7 +306,7 @@ GlobAddr Syscalls::mgate_region(capsel_t mgate, size_t *size) {
     return GlobAddr(reply->global);
 }
 
-size_t Syscalls::kmem_quota(capsel_t kmem, size_t *total) {
+Quota<size_t> Syscalls::kmem_quota(capsel_t kmem) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::KMemQuota>();
     req.opcode = KIF::Syscall::KMEM_QUOTA;
@@ -317,15 +317,10 @@ size_t Syscalls::kmem_quota(capsel_t kmem, size_t *total) {
     Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::KMEM_QUOTA);
-    if(total)
-        *total = reply->total;
-    return reply->amount;
+    return Quota<size_t>(reply->id, reply->total, reply->left);
 }
 
-void Syscalls::pe_quota(capsel_t pe,
-                        uint *eps_total, uint *eps_left,
-                        uint64_t *time_total, uint64_t *time_left,
-                        size_t *pts_total, size_t *pts_left) {
+void Syscalls::pe_quota(capsel_t pe, Quota<uint> *eps, Quota<uint64_t> *time, Quota<size_t> *pts) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::PEQuota>();
     req.opcode = KIF::Syscall::PE_QUOTA;
@@ -336,18 +331,12 @@ void Syscalls::pe_quota(capsel_t pe,
     Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::PE_QUOTA);
-    if(eps_total)
-        *eps_total = reply->eps_total;
-    if(eps_left)
-        *eps_left = reply->eps_left;
-    if(time_total)
-        *time_total = reply->time_total;
-    if(time_left)
-        *time_left = reply->time_left;
-    if(pts_total)
-        *pts_total = reply->pts_total;
-    if(pts_left)
-        *pts_left = reply->pts_left;
+    if(eps)
+        *eps = Quota<uint>(reply->eps_id, reply->eps_total, reply->eps_left);
+    if(time)
+        *time = Quota<uint64_t>(reply->time_id, reply->time_total, reply->time_left);
+    if(pts)
+        *pts = Quota<size_t>(reply->pts_id, reply->pts_total, reply->pts_left);
 }
 
 void Syscalls::pe_set_quota(capsel_t pe, uint64_t time, uint64_t pts) {

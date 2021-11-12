@@ -20,21 +20,10 @@ use crate::cap::{CapFlags, Capability, Selector};
 use crate::errors::{Code, Error};
 use crate::kif::PEDesc;
 use crate::pes::VPE;
+use crate::quota::Quota;
 use crate::rc::Rc;
 use crate::syscalls;
 use crate::tcu::PEId;
-
-#[derive(Default)]
-pub struct Quota<T> {
-    pub total: T,
-    pub left: T,
-}
-
-impl<T: fmt::Display> fmt::Display for Quota<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Q[{} of {}]", self.left, self.total)
-    }
-}
 
 /// Represents a processing element.
 pub struct PE {
@@ -143,24 +132,7 @@ impl PE {
 
     /// Returns the EP, time, and page table quota
     pub fn quota(&self) -> Result<(Quota<u32>, Quota<u64>, Quota<usize>), Error> {
-        syscalls::pe_quota(self.sel()).map(
-            |(eps_total, eps_left, time_total, time_left, pts_total, pts_left)| {
-                (
-                    Quota {
-                        total: eps_total,
-                        left: eps_left,
-                    },
-                    Quota {
-                        total: time_total,
-                        left: time_left,
-                    },
-                    Quota {
-                        total: pts_total,
-                        left: pts_left,
-                    },
-                )
-            },
-        )
+        syscalls::pe_quota(self.sel())
     }
 
     /// Sets the quota of the PE with given selector to specified initial values (given time slice
