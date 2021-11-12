@@ -18,25 +18,32 @@ use crate::time;
 
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn read8b(addr: usize) -> u64 {
-    // TODO: dual registered apparently cannot be accessed with the new asm! macro
-    let res: u64;
-    llvm_asm!(
-        "ldrd $0, [$1]"
-        : "=r"(res)
-        : "r"(addr)
-        : : "volatile"
-    );
-    res
+    // dual registers are unfortunately no longer supported with the new asm! macro. thus, we work
+    // around that by hardcoding the registers here.
+    let lo: u32;
+    let hi: u32;
+    asm! {
+        "ldrd r2, r3, [{0}]",
+        in(reg) addr,
+        lateout("r2") lo,
+        out("r3") hi,
+        options(nostack),
+    }
+    ((hi as u64) << 32) | (lo as u64)
 }
 
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn write8b(addr: usize, val: u64) {
-    // TODO: dual registered apparently cannot be accessed with the new asm! macro
-    llvm_asm!(
-        "strd $0, [$1]"
-        : : "r"(val), "r"(addr)
-        : : "volatile"
-    );
+    // see `read8b`
+    let lo = val as u32;
+    let hi = (val >> 32) as u32;
+    asm! {
+        "strd r2, r3, [{0}]",
+        in(reg) addr,
+        in("r2") lo,
+        in("r3") hi,
+        options(nostack),
+    }
 }
 
 #[inline(always)]
@@ -78,14 +85,16 @@ pub fn elapsed_cycles() -> time::Time {
 }
 
 pub fn gem5_debug(msg: usize) -> time::Time {
-    let mut res = msg as time::Time;
+    // see `read8b`
+    let mut lo = msg as u32;
+    let hi: u32;
     unsafe {
-        // TODO: dual registered apparently cannot be accessed with the new asm! macro
-        llvm_asm!(
-            ".long 0xEE630110"
-            : "+{r0}"(res)
-            : : : "volatile"
+        asm!(
+            ".long 0xEE630110",
+            inout("r0") lo,
+            out("r1") hi,
+            options(nostack),
         );
     }
-    res
+    ((hi as time::Time) << 32) | (lo as time::Time)
 }
