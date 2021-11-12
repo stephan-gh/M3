@@ -606,8 +606,7 @@ pub trait Child {
                 // the first is always us
                 if idx == 0 {
                     let kmem_quota = VPE::cur().kmem().quota()?;
-                    // TODO
-                    let (ep_quota, _, _) = VPE::cur().pe().quota()?;
+                    let (ep_quota, time_quota, pts_quota) = VPE::cur().pe().quota()?;
                     let mem = memory::container();
                     return Ok(ResMngVPEInfoResult::Info(ResMngVPEInfo {
                         id: VPE::cur().id(),
@@ -621,6 +620,8 @@ pub trait Child {
                         ),
                         kmem: kmem_quota,
                         eps: ep_quota,
+                        time: time_quota,
+                        pts: pts_quota,
                         pe: VPE::cur().pe_id(),
                     }));
                 }
@@ -639,8 +640,7 @@ pub trait Child {
                     .kmem()
                     .map(|km| km.quota())
                     .unwrap_or_else(|| Ok(Quota::default()))?;
-                // TODO
-                let (ep_quota, _, _) = vpe
+                let (ep_quota, time_quota, pts_quota) = vpe
                     .child_pe()
                     .map(|pe| pe.pe_obj().quota())
                     .unwrap_or_else(|| {
@@ -658,6 +658,8 @@ pub trait Child {
                     ),
                     kmem: kmem_quota,
                     eps: ep_quota,
+                    time: time_quota,
+                    pts: pts_quota,
                     pe: vpe.our_pe().pe_id(),
                 }))
             }

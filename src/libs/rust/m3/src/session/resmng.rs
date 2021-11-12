@@ -66,6 +66,8 @@ pub struct ResMngVPEInfo {
     pub umem: Quota<usize>,
     pub kmem: Quota<usize>,
     pub eps: Quota<u32>,
+    pub time: Quota<u64>,
+    pub pts: Quota<usize>,
     pub pe: PEId,
 }
 
@@ -86,6 +88,8 @@ impl Marshallable for ResMngVPEInfoResult {
                 s.push(&i.umem);
                 s.push(&i.kmem);
                 s.push(&i.eps);
+                s.push(&i.time);
+                s.push(&i.pts);
                 s.push(&i.pe);
             },
             ResMngVPEInfoResult::Count((num, layer)) => {
@@ -109,6 +113,8 @@ impl Unmarshallable for ResMngVPEInfoResult {
                 umem: s.pop()?,
                 kmem: s.pop()?,
                 eps: s.pop()?,
+                time: s.pop()?,
+                pts: s.pop()?,
                 pe: s.pop()?,
             })),
             _ => Ok(Self::Count((s.pop()?, s.pop()?))),
