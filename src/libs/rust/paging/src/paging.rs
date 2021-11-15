@@ -214,7 +214,13 @@ impl<A: Allocator> AddrSpace<A> {
                 if invalidate {
                     // it's okay if the page is not in the TLB
                     TCU::invalidate_page(self.id as u16, *virt).ok();
-                    arch::invalidate_page(self.id, *virt);
+                    // flush single page for leaf PTEs and complete TLB for higher-level PTEs
+                    if level == 0 {
+                        arch::invalidate_page(self.id, *virt);
+                    }
+                    else {
+                        arch::invalidate_tlb();
+                    }
                 }
 
                 log!(
