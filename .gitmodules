@@ -1,18 +1,18 @@
 [submodule "hw/gem5"]
 	path = platform/gem5
-	url = git@gitlab.com:Nils-TUD/gem5-DTU.git
+	url = ../gem5-DTU.git
 [submodule "platform/hw"]
 	path = platform/hw
-	url = git@gitlab.com:Nils-TUD/tcu.git
+	url = ../tcu.git
 [submodule "src/libs/musl"]
 	path = src/libs/musl
-	url = git@gitlab.com:Nils-TUD/m3-musl.git
+	url = ../m3-musl.git
 [submodule "src/libs/leveldb"]
 	path = src/libs/leveldb
-	url = git@gitlab.com:Nils-TUD/m3-leveldb.git
+	url = ../m3-leveldb.git
 [submodule "src/libs/jpeg"]
 	path = src/libs/jpeg
-	url = git@gitlab.com:Nils-TUD/libjpeg.git
+	url = ../libjpeg.git
 [submodule "src/libs/flac"]
 	path = src/libs/flac
-	url = git@gitlab.com:Nils-TUD/libFLAC.git
+	url = ../libFLAC.git
