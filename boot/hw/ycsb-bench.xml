@@ -9,11 +9,11 @@
                 </app>
             </dom>
             <dom>
-                <app args="pager maxcli=3 $fs.size" usermem="768M">
+                <app args="pager maxcli=3 sem=net $fs.size" usermem="768M">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes type="boom" count="2" />
                     <pes type="boom+nic" count="1" />
+                    <pes type="boom" count="2" />
                     <dom pe="boom">
                         <app args="/sbin/m3fs -m 1 mem $fs.size" daemon="1">
                             <serv lname="m3fs" gname="app_m3fs" />
@@ -29,6 +29,7 @@
                         <app args="/bin/lvldbserver /tmp/foo 1 udp 192.168.42.15 1337 /data/small-workload.wl">
                             <sess name="net" args="bufs=1M socks=1 ports=2000" />
                             <sess lname="m3fs" gname="app_m3fs" />
+                            <sem name="net" />
                         </app>
                     </dom>
                 </app>
