@@ -19,7 +19,7 @@
                     <app args="/sbin/net -m 1 net 192.168.41.11" daemon="1">
                         <serv name="net" />
                     </app>
-                    <app args="/bin/lvldbserver /tmp/foo 1 udp 192.168.41.10 1337 /data/small-workload.wl">
+                    <app args="/bin/lvldbserver /tmp/foo 1 udp 192.168.41.10 1339 /data/small-workload.wl">
                         <sess name="net" args="bufs=1M socks=1 ports=2000" />
                         <sess lname="m3fs" gname="app_m3fs" />
                     </app>
