@@ -188,10 +188,11 @@ impl M3FSRequestHandler {
 
                     FSSession::File(ref file) => {
                         // remove file session from parent meta session
-                        let parent_meta_session = self.sessions.get_mut(file.meta_sess()).unwrap();
-                        match parent_meta_session {
-                            FSSession::Meta(ref mut pms) => pms.remove_file(id),
-                            _ => panic!("FileSession's parent is not a MetaSession!?"),
+                        if let Some(parent_meta_session) = self.sessions.get_mut(file.meta_sess()) {
+                            match parent_meta_session {
+                                FSSession::Meta(ref mut pms) => pms.remove_file(id),
+                                _ => panic!("FileSession's parent is not a MetaSession!?"),
+                            }
                         }
 
                         // remove file session from parent file session
