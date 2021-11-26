@@ -737,9 +737,9 @@ static void RxIntrHandler(void *Callback)
 
 static int SetupIntrSystem(XAxiDma * AxiDmaPtr, u16 TxIntrId, u16 RxIntrId)
 {
-	XAxiDma_BdRing *TxRingPtr = XAxiDma_GetTxRing(AxiDmaPtr);
-	XAxiDma_BdRing *RxRingPtr = XAxiDma_GetRxRing(AxiDmaPtr);
-	int Status;
+// XAxiDma_BdRing *TxRingPtr = XAxiDma_GetTxRing(AxiDmaPtr);
+// XAxiDma_BdRing *RxRingPtr = XAxiDma_GetRxRing(AxiDmaPtr);
+// int Status;
 
 // #ifdef XPAR_INTC_0_DEVICE_ID
 

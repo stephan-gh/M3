@@ -65,7 +65,6 @@
 #define PHY_REG21_2_TX_DLY   0x0010 // bit 4
 #define PHY_REG21_2_RX_DLY   0x0020 // bit 5
 
-static int sends_pending = 0;
 static goff_t virt_base;
 static goff_t phys_base;
 static XAxiDma AxiDma;
@@ -136,7 +135,7 @@ static int RxSetup(XAxiDma * AxiDmaInstPtr)
     UINTPTR RxBufferPtr;
     int Index;
 
-    RxRingPtr = XAxiDma_GetRxRing(&AxiDma);
+    RxRingPtr = XAxiDma_GetRxRing(AxiDmaInstPtr);
 
     /* Disable all RX interrupts before RxBD space setup */
     XAxiDma_BdRingIntDisable(RxRingPtr, XAXIDMA_IRQ_ALL_MASK);
@@ -240,7 +239,7 @@ static int RxSetup(XAxiDma * AxiDmaInstPtr)
 
 static int TxSetup(XAxiDma * AxiDmaInstPtr)
 {
-    XAxiDma_BdRing *TxRingPtr = XAxiDma_GetTxRing(&AxiDma);
+    XAxiDma_BdRing *TxRingPtr = XAxiDma_GetTxRing(AxiDmaInstPtr);
     XAxiDma_Bd BdTemplate;
     int Status;
     u32 BdCount;
