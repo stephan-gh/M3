@@ -444,7 +444,7 @@ EXTERN_C void axieth_deinit() {
     XAxiEthernet_Stop(&AxiEthernetInstance);
 }
 
-static void handle_pending_sends(bool wait) {
+static void handle_pending_sends() {
     XAxiDma_BdRing *TxRingPtr = XAxiDma_GetTxRing(&AxiDma);
 
     while(true) {
@@ -462,8 +462,6 @@ static void handle_pending_sends(bool wait) {
         // completion interrupt?
         if(IrqStatus & (XAXIDMA_IRQ_DELAY_MASK | XAXIDMA_IRQ_IOC_MASK))
             break;
-        if(!wait)
-            return;
     }
 
     // Get all processed BDs from hardware
@@ -484,8 +482,6 @@ static void handle_pending_sends(bool wait) {
             break;
         }
 
-        sends_pending -= 1;
-
         // Find the next processed BD
         BdCurPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(TxRingPtr, BdCurPtr);
     }
@@ -504,9 +500,6 @@ EXTERN_C int axieth_send(void *packet, size_t len) {
 
     xdbg_printf(XDBG_DEBUG_GENERAL,
         "axieth_send(packet= " << m3::fmt(packet, "p") << ", len=" << len << ")\n");
-
-    if(sends_pending > 0)
-        handle_pending_sends(true);
 
     // TODO is that correct?
     if (len > TxRingPtr->MaxTransferLen) {
@@ -546,8 +539,8 @@ EXTERN_C int axieth_send(void *packet, size_t len) {
         return 1;
     }
 
+    handle_pending_sends();
     xdbg_printf(XDBG_DEBUG_GENERAL, "Sending done\n");
-    sends_pending += 1;
 
     return 0;
 }
@@ -555,9 +548,6 @@ EXTERN_C int axieth_send(void *packet, size_t len) {
 EXTERN_C size_t axieth_recv(void *buffer, size_t len) {
     XAxiDma_BdRing *RxRingPtr = XAxiDma_GetRxRing(&AxiDma);
     u32 IrqStatus;
-
-    if(sends_pending > 0)
-        handle_pending_sends(false);
 
     // Read pending interrupts
     IrqStatus = XAxiDma_BdRingGetIrq(RxRingPtr);
