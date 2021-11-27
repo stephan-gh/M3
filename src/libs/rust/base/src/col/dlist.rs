@@ -214,7 +214,7 @@ pub struct DList<T> {
 
 impl<T> DList<T> {
     /// Creates an empty DList
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         DList {
             head: None,
             tail: None,
