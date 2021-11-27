@@ -27,6 +27,7 @@ mod helper;
 mod irqs;
 mod pexcalls;
 mod quota;
+mod sendqueue;
 mod sidecalls;
 mod timer;
 mod vma;
@@ -63,6 +64,8 @@ pub const LOG_PTS: bool = false;
 pub const LOG_TIMER: bool = false;
 /// Logs interrupts
 pub const LOG_IRQS: bool = false;
+/// Logs sendqueue operations
+pub const LOG_SQUEUE: bool = false;
 
 extern "C" {
     fn heap_init(begin: usize, end: usize);

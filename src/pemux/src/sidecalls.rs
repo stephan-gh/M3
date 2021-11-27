@@ -25,6 +25,7 @@ use crate::helper;
 use crate::quota;
 use crate::timer::Nanos;
 use crate::vpe;
+use crate::sendqueue;
 
 const SIDE_RBUF_ADDR: usize = cfg::PEMUX_RBUF_SPACE + cfg::KPEX_RBUF_SIZE;
 
@@ -340,10 +341,8 @@ fn handle_sidecalls(our: &mut vpe::VPE) {
             handle_sidecall(msg);
         }
 
-        // just ACK replies from the kernel; we don't care about them
-        if let Some(msg_off) = tcu::TCU::fetch_msg(tcu::KPEX_REP) {
-            tcu::TCU::ack_msg(tcu::KPEX_REP, msg_off).unwrap();
-        }
+        // check if the kernel answered a request from us
+        sendqueue::check_replies();
 
         // change back to old VPE
         let new_vpe = vpe::try_cur().map_or(old_vpe, |new| new.vpe_reg());

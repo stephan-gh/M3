@@ -37,6 +37,7 @@ use crate::helper;
 use crate::irqs;
 use crate::pex_env;
 use crate::quota::{self, PTQuota, Quota, TimeQuota};
+use crate::sendqueue;
 use crate::timer::{self, Nanos};
 use crate::vma::PfState;
 
@@ -504,8 +505,7 @@ pub fn remove(id: Id, status: u32, notify: bool, sched: bool) {
                 vpe_sel: old.id(),
                 code: status as u64,
             });
-
-            tcu::TCU::send(tcu::KPEX_SEP, &msg_buf, 0, tcu::KPEX_REP).unwrap();
+            sendqueue::send(&msg_buf).unwrap();
 
             // switch back to old VPE
             if !pex_is_running {
