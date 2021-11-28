@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::boxed::Box;
 use base::cell::RefCell;
 use base::col::String;
 use base::errors::Error;
@@ -30,7 +31,7 @@ pub struct Service {
     vpe: Weak<VPE>,
     name: String,
     rgate: SRc<RGateObject>,
-    queue: RefCell<SendQueue>,
+    queue: RefCell<Box<SendQueue>>,
 }
 
 impl Service {

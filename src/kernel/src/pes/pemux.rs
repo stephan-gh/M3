@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::boxed::Box;
 use base::cell::RefMut;
 use base::col::{BitVec, Vec};
 use base::errors::{Code, Error};
@@ -35,7 +36,7 @@ pub struct PEMux {
     pe: SRc<PEObject>,
     vpes: Vec<VPEId>,
     #[cfg(not(target_vendor = "host"))]
-    queue: crate::com::SendQueue,
+    queue: Box<crate::com::SendQueue>,
     pmp: Vec<Rc<EPObject>>,
     eps: BitVec,
 }

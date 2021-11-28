@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::boxed::Box;
 use base::cell::{Cell, RefCell, StaticRefCell};
 use base::col::{String, ToString, Vec};
 use base::errors::{Code, Error};
@@ -78,7 +79,7 @@ pub struct VPE {
 
     eps: RefCell<Vec<Rc<EPObject>>>,
     rbuf_phys: Cell<goff>,
-    upcalls: RefCell<SendQueue>,
+    upcalls: RefCell<Box<SendQueue>>,
 }
 
 impl VPE {

@@ -36,6 +36,7 @@ pub use self::rgate::{RGateArgs, RecvGate};
 pub use self::sem::Semaphore;
 pub use self::sgate::{SGateArgs, SendGate};
 pub use self::stream::*;
+pub use base::msgqueue::{MsgQueue, MsgSender};
 
 pub(crate) fn pre_init() {
     rgate::pre_init();

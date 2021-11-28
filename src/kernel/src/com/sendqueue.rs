@@ -14,10 +14,12 @@
  * General Public License version 2 for more details.
  */
 
+use base::boxed::Box;
 use base::cell::{LazyStaticRefCell, StaticCell};
-use base::col::{DList, Vec, VecDeque};
+use base::col::VecDeque;
 use base::errors::{Code, Error};
 use base::mem::MsgBuf;
+use base::msgqueue::{MsgQueue, MsgSender};
 use base::tcu::{self, PEId, VPEId};
 
 use crate::ktcu;
@@ -30,7 +32,7 @@ static PENDING_MSGS: StaticCell<usize> = StaticCell::new(0);
 fn delay_queue(queue: &mut SendQueue) {
     if !queue.pending {
         queue.pending = true;
-        klog!(SQUEUE, "SendQueue[{:?}]: delaying", queue.id);
+        klog!(SQUEUE, "SendQueue[{:?}]: delaying", queue.id());
         PENDING_QUEUES.borrow_mut().push_back(queue as *mut _);
     }
 }
@@ -41,16 +43,16 @@ fn resume_queue() {
         // thus, whenever a queue is found here, it is still alive (and has messages pending) and
         // therefore safe to access
         unsafe {
-            klog!(SQUEUE, "SendQueue[{:?}]: resuming", (*q).id);
+            klog!(SQUEUE, "SendQueue[{:?}]: resuming", (*q).id());
             (*q).pending = false;
-            (*q).send_pending();
+            (*q).queue.send_pending();
         }
     }
 }
 
 fn remove_queue(queue: &mut SendQueue) {
     if queue.pending {
-        klog!(SQUEUE, "SendQueue[{:?}]: removing", queue.id);
+        klog!(SQUEUE, "SendQueue[{:?}]: removing", queue.id());
         PENDING_QUEUES
             .borrow_mut()
             .retain(|q| *q != queue as *mut _);
@@ -58,27 +60,13 @@ fn remove_queue(queue: &mut SendQueue) {
     }
 }
 
-struct Entry {
+struct MetaData {
     id: u64,
     rep: tcu::EpId,
     lbl: tcu::Label,
-    msg: Vec<u8>,
 }
 
-impl Entry {
-    pub fn new(id: u64, rep: tcu::EpId, lbl: tcu::Label, msg: Vec<u8>) -> Self {
-        Entry { id, rep, lbl, msg }
-    }
-}
-
-#[derive(Eq, PartialEq, Debug)]
-enum QState {
-    Idle,
-    Waiting,
-    Aborted,
-}
-
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum QueueId {
     #[allow(dead_code)]
     PEMux(PEId),
@@ -86,12 +74,40 @@ pub enum QueueId {
     Serv(VPEId),
 }
 
-pub struct SendQueue {
+struct KTCUSender {
     id: QueueId,
     pe: tcu::PEId,
-    queue: DList<Entry>,
-    cur_event: thread::Event,
-    state: QState,
+    rpl_lbl: tcu::Label,
+    cur_event: Option<thread::Event>,
+}
+
+impl MsgSender<MetaData> for KTCUSender {
+    fn can_send(&self) -> bool {
+        PENDING_MSGS.get() < MAX_PENDING_MSGS && self.cur_event.is_none()
+    }
+
+    fn send(&mut self, meta: MetaData, msg: &MsgBuf) -> Result<(), Error> {
+        klog!(SQUEUE, "SendQueue[{:?}]: sending msg", self.id);
+
+        ktcu::send_to(
+            self.pe,
+            meta.rep,
+            meta.lbl,
+            msg,
+            self.rpl_lbl,
+            ktcu::KSRV_EP,
+        )?;
+
+        self.cur_event = Some(get_event(meta.id));
+        PENDING_MSGS.set(PENDING_MSGS.get() + 1);
+
+        Ok(())
+    }
+}
+
+pub struct SendQueue {
+    queue: MsgQueue<KTCUSender, MetaData>,
+    aborted: bool,
     pending: bool,
 }
 
@@ -110,15 +126,24 @@ fn get_event(id: u64) -> thread::Event {
 }
 
 impl SendQueue {
-    pub fn new(id: QueueId, pe: tcu::PEId) -> Self {
-        SendQueue {
-            id,
-            pe,
-            queue: DList::new(),
-            cur_event: 0,
-            state: QState::Idle,
+    pub fn new(id: QueueId, pe: tcu::PEId) -> Box<Self> {
+        // put the queue in a box, because we use its address for identification
+        let mut queue = Box::new(SendQueue {
+            queue: MsgQueue::new(KTCUSender {
+                id,
+                pe,
+                rpl_lbl: 0,
+                cur_event: None,
+            }),
+            aborted: false,
             pending: false,
-        }
+        });
+        queue.queue.sender_mut().rpl_lbl = &*queue as *const Self as tcu::Label;
+        queue
+    }
+
+    pub fn id(&self) -> QueueId {
+        self.queue.sender().id
     }
 
     pub fn send(
@@ -127,27 +152,22 @@ impl SendQueue {
         lbl: tcu::Label,
         msg: &MsgBuf,
     ) -> Result<thread::Event, Error> {
-        klog!(SQUEUE, "SendQueue[{:?}]: trying to send msg", self.id);
+        klog!(SQUEUE, "SendQueue[{:?}]: trying to send msg", self.id());
 
-        if self.state == QState::Aborted {
+        if self.aborted {
             return Err(Error::new(Code::RecvGone));
         }
 
-        let qid = alloc_qid();
+        let id = alloc_qid();
 
-        if PENDING_MSGS.get() < MAX_PENDING_MSGS && self.state == QState::Idle {
-            return self.do_send(rep, lbl, qid, msg);
+        if !self.queue.send(MetaData { id, rep, lbl }, msg)? {
+            klog!(SQUEUE, "SendQueue[{:?}]: queuing msg", self.id());
+            if self.queue.sender().cur_event.is_none() {
+                delay_queue(self);
+            }
         }
 
-        klog!(SQUEUE, "SendQueue[{:?}]: queuing msg", self.id);
-
-        // copy message to heap
-        let vec = msg.bytes().to_vec();
-        self.queue.push_back(Entry::new(qid, rep, lbl, vec));
-        if self.state == QState::Idle {
-            delay_queue(self);
-        }
-        Ok(get_event(qid))
+        Ok(get_event(id))
     }
 
     pub fn receive_async(event: thread::Event) -> Result<&'static tcu::Message, Error> {
@@ -156,79 +176,33 @@ impl SendQueue {
     }
 
     pub fn received_reply(&mut self, msg: &'static tcu::Message) {
-        klog!(SQUEUE, "SendQueue[{:?}]: received reply", self.id);
+        klog!(SQUEUE, "SendQueue[{:?}]: received reply", self.id());
 
-        // ignore the message if we we're not waiting
-        if self.state != QState::Waiting {
-            return;
+        if let Some(ev) = self.queue.sender_mut().cur_event.take() {
+            thread::notify(ev, Some(msg));
         }
-
-        self.state = QState::Idle;
-
-        thread::notify(self.cur_event, Some(msg));
 
         // now that we've copied the message, we can mark it read
         ktcu::ack_msg(ktcu::KSRV_EP, msg);
 
         PENDING_MSGS.set(PENDING_MSGS.get() - 1);
 
-        if self.queue.is_empty() {
+        if !self.queue.send_pending() {
             resume_queue();
-        }
-        else {
-            self.send_pending();
         }
     }
 
     pub fn abort(&mut self) {
-        klog!(SQUEUE, "SendQueue[{:?}]: aborting", self.id);
+        klog!(SQUEUE, "SendQueue[{:?}]: aborting", self.id());
 
         remove_queue(self);
-        if self.state == QState::Waiting {
-            thread::notify(self.cur_event, None);
+        if let Some(ev) = self.queue.sender_mut().cur_event.take() {
+            thread::notify(ev, None);
             // we were waiting for a message and won't receive it
             PENDING_MSGS.set(PENDING_MSGS.get() - 1);
             resume_queue();
         }
-        self.state = QState::Idle;
-    }
-
-    fn send_pending(&mut self) {
-        loop {
-            match self.queue.pop_front() {
-                None => return,
-
-                Some(e) => {
-                    klog!(SQUEUE, "SendQueue[{:?}]: found pending message", self.id);
-
-                    let mut msg_buf = MsgBuf::new();
-                    msg_buf.set_from_slice(&e.msg);
-                    if self.do_send(e.rep, e.lbl, e.id, &msg_buf).is_ok() {
-                        break;
-                    }
-                },
-            }
-        }
-    }
-
-    fn do_send(
-        &mut self,
-        rep: tcu::EpId,
-        lbl: tcu::Label,
-        id: u64,
-        msg: &MsgBuf,
-    ) -> Result<thread::Event, Error> {
-        klog!(SQUEUE, "SendQueue[{:?}]: sending msg", self.id);
-
-        self.cur_event = get_event(id);
-        self.state = QState::Waiting;
-
-        let rpl_lbl = self as *mut Self as tcu::Label;
-        ktcu::send_to(self.pe, rep, lbl, msg, rpl_lbl, ktcu::KSRV_EP)?;
-
-        PENDING_MSGS.set(PENDING_MSGS.get() + 1);
-
-        Ok(self.cur_event)
+        self.aborted = true;
     }
 }
 

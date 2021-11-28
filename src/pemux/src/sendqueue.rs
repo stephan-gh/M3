@@ -15,19 +15,27 @@
  */
 
 use base::cell::StaticRefCell;
-use base::col::{DList, Vec};
 use base::errors::Error;
 use base::log;
 use base::mem::MsgBuf;
+use base::msgqueue::{MsgQueue, MsgSender};
 use base::tcu;
 
-struct SendQueue {
-    queue: DList<Vec<u8>>,
+struct TCUSender;
+
+impl MsgSender<()> for TCUSender {
+    fn can_send(&self) -> bool {
+        tcu::TCU::credits(tcu::KPEX_SEP).unwrap() > 0
+    }
+
+    fn send(&mut self, _: (), msg: &MsgBuf) -> Result<(), Error> {
+        log!(crate::LOG_SQUEUE, "squeue: sending msg",);
+        tcu::TCU::send(tcu::KPEX_SEP, msg, 0, tcu::KPEX_REP)
+    }
 }
 
-static SQUEUE: StaticRefCell<SendQueue> = StaticRefCell::new(SendQueue {
-    queue: DList::new(),
-});
+static SQUEUE: StaticRefCell<MsgQueue<TCUSender, ()>> =
+    StaticRefCell::new(MsgQueue::new(TCUSender {}));
 
 pub fn check_replies() {
     if let Some(msg_off) = tcu::TCU::fetch_msg(tcu::KPEX_REP) {
@@ -36,44 +44,13 @@ pub fn check_replies() {
         // now that we've copied the message, we can mark it read
         tcu::TCU::ack_msg(tcu::KPEX_REP, msg_off).unwrap();
 
-        send_pending();
+        SQUEUE.borrow_mut().send_pending();
     }
 }
 
 pub fn send(msg: &MsgBuf) -> Result<(), Error> {
-    log!(crate::LOG_SQUEUE, "squeue: trying to send msg",);
-
-    if tcu::TCU::credits(tcu::KPEX_SEP).unwrap() > 0 {
-        return do_send(msg);
+    if !SQUEUE.borrow_mut().send((), msg)? {
+        log!(crate::LOG_SQUEUE, "squeue: queuing msg",);
     }
-
-    log!(crate::LOG_SQUEUE, "squeue: queuing msg",);
-
-    // copy message to heap
-    let vec = msg.bytes().to_vec();
-    SQUEUE.borrow_mut().queue.push_back(vec);
     Ok(())
-}
-
-fn send_pending() {
-    loop {
-        match SQUEUE.borrow_mut().queue.pop_front() {
-            None => return,
-
-            Some(e) => {
-                log!(crate::LOG_SQUEUE, "squeue: found pending message",);
-
-                let mut msg_buf = MsgBuf::new();
-                msg_buf.set_from_slice(&e);
-                if do_send(&msg_buf).is_ok() {
-                    break;
-                }
-            },
-        }
-    }
-}
-
-fn do_send(msg: &MsgBuf) -> Result<(), Error> {
-    log!(crate::LOG_SQUEUE, "squeue: sending msg",);
-    tcu::TCU::send(tcu::KPEX_SEP, msg, 0, tcu::KPEX_REP)
 }

@@ -16,8 +16,7 @@
 
 use m3::cap::Selector;
 use m3::cell::LazyStaticRefCell;
-use m3::col::{DList, Vec};
-use m3::com::{RecvGate, SendGate};
+use m3::com::{MsgQueue, MsgSender, RecvGate, SendGate};
 use m3::errors::Error;
 use m3::log;
 use m3::mem::MsgBuf;
@@ -31,29 +30,28 @@ use crate::services;
 pub const RBUF_MSG_SIZE: usize = 1 << 6;
 pub const RBUF_SIZE: usize = RBUF_MSG_SIZE * DEF_MAX_CLIENTS;
 
-struct Entry {
-    event: thread::Event,
-    msg: Vec<u8>,
-}
-
-impl Entry {
-    pub fn new(event: thread::Event, msg: Vec<u8>) -> Self {
-        Entry { event, msg }
-    }
-}
-
-#[derive(Eq, PartialEq)]
-enum QState {
-    Idle,
-    Waiting,
-}
-
-pub struct SendQueue {
+struct GateSender {
     sid: Id,
     sgate: SendGate,
-    queue: DList<Entry>,
-    cur_event: thread::Event,
-    state: QState,
+    cur_event: Option<thread::Event>,
+}
+
+impl MsgSender<thread::Event> for GateSender {
+    fn can_send(&self) -> bool {
+        match self.sgate.credits() {
+            Ok(crd) => crd > 0,
+            // default to true, so that we try to send, fail, and return the result
+            Err(_) => true,
+        }
+    }
+
+    fn send(&mut self, event: thread::Event, msg: &MsgBuf) -> Result<(), Error> {
+        log!(crate::LOG_SQUEUE, "{}:squeue: sending msg", self.sid);
+
+        self.cur_event = Some(event);
+        self.sgate
+            .send_with_rlabel(msg, &RGATE.borrow(), tcu::Label::from(self.sid))
+    }
 }
 
 static RGATE: LazyStaticRefCell<RecvGate> = LazyStaticRefCell::default();
@@ -74,96 +72,54 @@ pub fn check_replies() {
     }
 }
 
+pub struct SendQueue {
+    queue: MsgQueue<GateSender, thread::Event>,
+}
+
 impl SendQueue {
     pub fn new(sid: Id, sgate: SendGate) -> Self {
         SendQueue {
-            sid,
-            sgate,
-            queue: DList::new(),
-            cur_event: 0,
-            state: QState::Idle,
+            queue: MsgQueue::new(GateSender {
+                sid,
+                sgate,
+                cur_event: None,
+            }),
         }
+    }
+
+    pub fn sid(&self) -> Id {
+        self.queue.sender().sid
     }
 
     pub fn sgate_sel(&self) -> Selector {
-        self.sgate.sel()
+        self.queue.sender().sgate.sel()
     }
 
     pub fn send(&mut self, msg: &MsgBuf) -> Result<thread::Event, Error> {
-        log!(crate::LOG_SQUEUE, "{}:squeue: trying to send msg", self.sid);
-
         let event = events::alloc_event();
-
-        if self.state == QState::Idle {
-            return self.do_send(event, msg);
+        if !self.queue.send(event, msg)? {
+            log!(crate::LOG_SQUEUE, "{}:squeue: queuing msg", self.sid());
         }
-
-        log!(crate::LOG_SQUEUE, "{}:squeue: queuing msg", self.sid);
-
-        // copy message to heap
-        let vec = msg.bytes().to_vec();
-        self.queue.push_back(Entry::new(event, vec));
         Ok(event)
     }
 
     fn received_reply(&mut self, rg: &RecvGate, msg: &'static tcu::Message) {
-        log!(crate::LOG_SQUEUE, "{}:squeue: received reply", self.sid);
+        log!(crate::LOG_SQUEUE, "{}:squeue: received reply", self.sid());
 
-        assert!(self.state == QState::Waiting);
-        self.state = QState::Idle;
-
-        thread::notify(self.cur_event, Some(msg));
+        let event = self.queue.sender_mut().cur_event.take().unwrap();
+        thread::notify(event, Some(msg));
 
         // now that we've copied the message, we can mark it read
         rg.ack_msg(msg).unwrap();
 
-        self.send_pending();
-    }
-
-    fn send_pending(&mut self) {
-        loop {
-            match self.queue.pop_front() {
-                None => return,
-
-                Some(e) => {
-                    log!(
-                        crate::LOG_SQUEUE,
-                        "{}:squeue: found pending message",
-                        self.sid
-                    );
-
-                    let mut msg_buf = MsgBuf::new();
-                    msg_buf.set_from_slice(&e.msg);
-                    if self.do_send(e.event, &msg_buf).is_ok() {
-                        break;
-                    }
-                },
-            }
-        }
-    }
-
-    fn do_send(&mut self, event: thread::Event, msg: &MsgBuf) -> Result<thread::Event, Error> {
-        log!(crate::LOG_SQUEUE, "{}:squeue: sending msg", self.sid);
-
-        self.cur_event = event;
-        self.state = QState::Waiting;
-
-        #[allow(clippy::useless_conversion)]
-        self.sgate
-            .send_with_rlabel(msg, &RGATE.borrow(), tcu::Label::from(self.sid))?;
-
-        Ok(self.cur_event)
+        self.queue.send_pending();
     }
 }
 
 impl Drop for SendQueue {
     fn drop(&mut self) {
-        if self.state == QState::Waiting {
-            thread::notify(self.cur_event, None);
-        }
-
-        while !self.queue.is_empty() {
-            self.queue.pop_front();
+        if let Some(ev) = self.queue.sender_mut().cur_event.take() {
+            thread::notify(ev, None);
         }
     }
 }

@@ -23,9 +23,9 @@ use base::tcu;
 
 use crate::helper;
 use crate::quota;
+use crate::sendqueue;
 use crate::timer::Nanos;
 use crate::vpe;
-use crate::sendqueue;
 
 const SIDE_RBUF_ADDR: usize = cfg::PEMUX_RBUF_SPACE + cfg::KPEX_RBUF_SIZE;
 

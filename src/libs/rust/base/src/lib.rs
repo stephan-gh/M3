@@ -75,6 +75,7 @@ pub mod errors;
 pub mod kif;
 pub mod math;
 pub mod mem;
+pub mod msgqueue;
 pub mod parse;
 pub mod pexif;
 pub mod profile;
