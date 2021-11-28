@@ -32,6 +32,12 @@ impl MsgSender<()> for TCUSender {
         log!(crate::LOG_SQUEUE, "squeue: sending msg",);
         tcu::TCU::send(tcu::KPEX_SEP, msg, 0, tcu::KPEX_REP)
     }
+
+    fn send_bytes(&mut self, _: (), msg: &[u8]) -> Result<(), Error> {
+        let mut msg_buf = MsgBuf::borrow_def();
+        msg_buf.set_from_slice(msg);
+        self.send((), &msg_buf)
+    }
 }
 
 static SQUEUE: StaticRefCell<MsgQueue<TCUSender, ()>> =

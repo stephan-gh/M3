@@ -26,6 +26,11 @@ struct PendingMsg<M> {
 pub trait MsgSender<M> {
     fn can_send(&self) -> bool;
     fn send(&mut self, meta: M, msg: &MsgBuf) -> Result<(), Error>;
+    fn send_bytes(&mut self, meta: M, msg: &[u8]) -> Result<(), Error> {
+        let mut msg_buf = MsgBuf::new();
+        msg_buf.set_from_slice(msg);
+        self.send(meta, &msg_buf)
+    }
 }
 
 pub struct MsgQueue<S: MsgSender<M>, M> {
@@ -66,9 +71,7 @@ impl<S: MsgSender<M>, M> MsgQueue<S, M> {
                 None => break false,
 
                 Some(e) => {
-                    let mut msg_buf = MsgBuf::new();
-                    msg_buf.set_from_slice(&e.msg);
-                    if self.sender.send(e.meta, &msg_buf).is_ok() {
+                    if self.sender.send_bytes(e.meta, &e.msg).is_ok() {
                         break true;
                     }
                 },
