@@ -16,6 +16,7 @@
 
 use base::cell::StaticRefCell;
 use base::errors::Error;
+use base::kif;
 use base::log;
 use base::mem::MsgBuf;
 use base::msgqueue::{MsgQueue, MsgSender};
@@ -54,13 +55,15 @@ pub fn check_replies() {
     }
 }
 
-pub fn send(msg: &MsgBuf) -> Result<(), Error> {
+pub fn send(msg: &kif::pemux::Exit) -> Result<(), Error> {
     // check replies before we send again to ensure that we have space in the receive buffer for the
     // reply. we might otherwise call send two times in a row without calling check_replies in
     // between.
     check_replies();
 
-    if !SQUEUE.borrow_mut().send((), msg)? {
+    let mut msg_buf = MsgBuf::borrow_def();
+    msg_buf.set(*msg);
+    if !SQUEUE.borrow_mut().send((), &msg_buf)? {
         log!(crate::LOG_SQUEUE, "squeue: queuing msg",);
     }
     Ok(())

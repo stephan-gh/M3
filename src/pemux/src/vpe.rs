@@ -499,13 +499,12 @@ pub fn remove(id: Id, status: u32, notify: bool, sched: bool) {
                 tcu::TCU::xchg_vpe(our().vpe_reg()).unwrap();
             }
 
-            let mut msg_buf = MsgBuf::borrow_def();
-            msg_buf.set(kif::pemux::Exit {
+            let msg = kif::pemux::Exit {
                 op: kif::pemux::Calls::EXIT.val as u64,
                 vpe_sel: old.id(),
                 code: status as u64,
-            });
-            sendqueue::send(&msg_buf).unwrap();
+            };
+            sendqueue::send(&msg).unwrap();
 
             // switch back to old VPE
             if !pex_is_running {
