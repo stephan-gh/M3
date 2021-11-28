@@ -55,6 +55,11 @@ pub fn check_replies() {
 }
 
 pub fn send(msg: &MsgBuf) -> Result<(), Error> {
+    // check replies before we send again to ensure that we have space in the receive buffer for the
+    // reply. we might otherwise call send two times in a row without calling check_replies in
+    // between.
+    check_replies();
+
     if !SQUEUE.borrow_mut().send((), msg)? {
         log!(crate::LOG_SQUEUE, "squeue: queuing msg",);
     }
