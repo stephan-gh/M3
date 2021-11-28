@@ -16,7 +16,7 @@
 
 use m3::cap::Selector;
 use m3::cell::LazyStaticRefCell;
-use m3::col::{DList, String, ToString, Vec};
+use m3::col::{DList, Vec};
 use m3::com::{RecvGate, SendGate};
 use m3::errors::Error;
 use m3::log;
@@ -90,11 +90,7 @@ impl SendQueue {
     }
 
     pub fn send(&mut self, msg: &MsgBuf) -> Result<thread::Event, Error> {
-        log!(
-            crate::LOG_SQUEUE,
-            "{}:squeue: trying to send msg",
-            self.serv_name()
-        );
+        log!(crate::LOG_SQUEUE, "{}:squeue: trying to send msg", self.sid);
 
         let event = events::alloc_event();
 
@@ -102,11 +98,7 @@ impl SendQueue {
             return self.do_send(event, msg);
         }
 
-        log!(
-            crate::LOG_SQUEUE,
-            "{}:squeue: queuing msg",
-            self.serv_name()
-        );
+        log!(crate::LOG_SQUEUE, "{}:squeue: queuing msg", self.sid);
 
         // copy message to heap
         let vec = msg.bytes().to_vec();
@@ -114,16 +106,8 @@ impl SendQueue {
         Ok(event)
     }
 
-    fn serv_name(&self) -> String {
-        services::get_by_id(self.sid).unwrap().name().to_string()
-    }
-
     fn received_reply(&mut self, rg: &RecvGate, msg: &'static tcu::Message) {
-        log!(
-            crate::LOG_SQUEUE,
-            "{}:squeue: received reply",
-            self.serv_name()
-        );
+        log!(crate::LOG_SQUEUE, "{}:squeue: received reply", self.sid);
 
         assert!(self.state == QState::Waiting);
         self.state = QState::Idle;
@@ -145,7 +129,7 @@ impl SendQueue {
                     log!(
                         crate::LOG_SQUEUE,
                         "{}:squeue: found pending message",
-                        self.serv_name()
+                        self.sid
                     );
 
                     let mut msg_buf = MsgBuf::new();
@@ -159,11 +143,7 @@ impl SendQueue {
     }
 
     fn do_send(&mut self, event: thread::Event, msg: &MsgBuf) -> Result<thread::Event, Error> {
-        log!(
-            crate::LOG_SQUEUE,
-            "{}:squeue: sending msg",
-            self.serv_name()
-        );
+        log!(crate::LOG_SQUEUE, "{}:squeue: sending msg", self.sid);
 
         self.cur_event = event;
         self.state = QState::Waiting;

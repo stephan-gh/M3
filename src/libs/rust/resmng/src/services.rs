@@ -54,6 +54,8 @@ impl Service {
         sessions: u32,
         owned: bool,
     ) -> Self {
+        log!(crate::LOG_SERV, "Creating service {}:{}", id, name);
+
         Service {
             id,
             child,
@@ -112,7 +114,8 @@ impl Service {
     fn shutdown_async(mut serv: RefMut<'_, Self>) {
         log!(
             crate::LOG_SERV,
-            "Sending SHUTDOWN to service '{}'",
+            "Sending SHUTDOWN to service {}:{}",
+            serv.id,
             serv.name
         );
 
@@ -287,7 +290,12 @@ pub fn remove_service_async(id: Id, notify: bool) -> Service {
         let idx = mng.servs.iter().position(|s| s.id == id).unwrap();
         let serv = RefMut::map(mng, |mng| &mut mng.servs[idx]);
 
-        log!(crate::LOG_SERV, "Removing service {}", serv.name);
+        log!(
+            crate::LOG_SERV,
+            "Removing service {}:{}",
+            serv.id,
+            serv.name
+        );
 
         if notify {
             // we need to do that before we remove the service
