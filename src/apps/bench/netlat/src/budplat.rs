@@ -17,13 +17,31 @@
 use m3::format;
 use m3::net::{DgramSocketArgs, Endpoint, UdpSocket};
 use m3::profile::Results;
-use m3::session::NetworkManager;
+use m3::session::{NetworkDirection, NetworkManager};
 use m3::test;
 use m3::time;
 use m3::{wv_assert_ok, wv_perf, wv_run_test};
 
+const TIMEOUT: u64 = 30 * 1000 * 1000; // 30 ms
+
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, latency);
+}
+
+fn send_recv(nm: &NetworkManager, socket: &UdpSocket, dest: Endpoint) -> bool {
+    let mut buf = [0u8; 1];
+
+    wv_assert_ok!(socket.send_to(&buf, dest));
+
+    nm.wait_for(TIMEOUT, NetworkDirection::INPUT);
+
+    if socket.has_data() {
+        let _res = socket.recv(&mut buf);
+        true
+    }
+    else {
+        false
+    }
 }
 
 fn latency() {
@@ -32,28 +50,25 @@ fn latency() {
 
     wv_assert_ok!(socket.bind(2000));
 
-    let samples = 50;
-    let dest = Endpoint::new(crate::DST_IP.get(), crate::DST_PORT.get());
+    socket.set_blocking(false);
 
-    let mut buf = [0u8; 1];
+    let samples = 100;
+    let dest = Endpoint::new(crate::DST_IP.get(), crate::DST_PORT.get());
 
     // warmup
     for _ in 0..5 {
-        wv_assert_ok!(socket.send_to(&buf, dest));
-        let _res = socket.recv(&mut buf);
+        send_recv(&nm, &socket, dest);
     }
 
     let mut res = Results::new(samples);
 
-    for i in 0..samples {
-        let start = time::start(i);
+    while res.runs() < samples {
+        let start = time::start(0);
 
-        wv_assert_ok!(socket.send_to(&buf, dest));
-        wv_assert_ok!(socket.recv(&mut buf));
-
-        let stop = time::stop(i);
-
-        res.push(stop - start);
+        if send_recv(&nm, &socket, dest) {
+            let stop = time::stop(0);
+            res.push(stop - start);
+        }
     }
 
     wv_perf!(
