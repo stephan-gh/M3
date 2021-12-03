@@ -479,7 +479,7 @@ fn derive_mem() {
 
 fn derive_kmem() {
     let sel = VPE::cur().alloc_sel();
-    let quota = wv_assert_ok!(VPE::cur().kmem().quota()).total();
+    let quota = wv_assert_ok!(VPE::cur().kmem().quota()).left();
 
     // invalid dest selector
     wv_assert_err!(
@@ -500,19 +500,19 @@ fn derive_kmem() {
     // do that test twice, because we might cause pagefaults during the first test, changing the
     // kernel memory quota (our pager shares the kmem with us).
     for i in 0..=1 {
-        let before = wv_assert_ok!(VPE::cur().kmem().quota()).total();
+        let before = wv_assert_ok!(VPE::cur().kmem().quota()).left();
         // transfer memory
         {
             let kmem2 = wv_assert_ok!(VPE::cur().kmem().derive(before / 2));
-            let quota2 = wv_assert_ok!(kmem2.quota()).total();
-            let nquota = wv_assert_ok!(VPE::cur().kmem().quota()).total();
+            let quota2 = wv_assert_ok!(kmem2.quota()).left();
+            let nquota = wv_assert_ok!(VPE::cur().kmem().quota()).left();
             wv_assert_eq!(quota2, before / 2);
             // we don't know exactly, because we have paid for the new cap and kobject too
             wv_assert!(nquota <= before / 2);
         }
         // only do the check in the second test where no pagefaults should occur
         if i == 1 {
-            let nquota = wv_assert_ok!(VPE::cur().kmem().quota()).total();
+            let nquota = wv_assert_ok!(VPE::cur().kmem().quota()).left();
             wv_assert_eq!(nquota, before);
         }
     }
@@ -535,7 +535,7 @@ fn derive_kmem() {
 fn derive_pe() {
     let sel = VPE::cur().alloc_sel();
     let pe = wv_assert_ok!(PE::get("clone"));
-    let oquota = wv_assert_ok!(pe.quota()).0.total();
+    let oquota = wv_assert_ok!(pe.quota()).0.left();
 
     // invalid dest selector
     wv_assert_err!(
@@ -556,12 +556,12 @@ fn derive_pe() {
     // transfer EPs
     {
         let pe2 = wv_assert_ok!(pe.derive(Some(1), None, None));
-        let quota2 = wv_assert_ok!(pe2.quota()).0.total();
-        let nquota = wv_assert_ok!(pe.quota()).0.total();
+        let quota2 = wv_assert_ok!(pe2.quota()).0.left();
+        let nquota = wv_assert_ok!(pe.quota()).0.left();
         wv_assert_eq!(quota2, 1);
         wv_assert_eq!(nquota, oquota - 1);
     }
-    let nquota = wv_assert_ok!(pe.quota()).0.total();
+    let nquota = wv_assert_ok!(pe.quota()).0.left();
     wv_assert_eq!(nquota, oquota);
 
     {
