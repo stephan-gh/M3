@@ -18,9 +18,9 @@
 
 extern crate heap;
 
-#[path = "../vmtest/helper.rs"]
+#[path = "../../vmtest/src/helper.rs"]
 mod helper;
-#[path = "../vmtest/paging.rs"]
+#[path = "../../vmtest/src/paging.rs"]
 mod paging;
 
 use base::cpu;
@@ -59,7 +59,6 @@ pub extern "C" fn env_run() {
     buf.set::<u64>(0);
 
     log!(crate::LOG_DEF, "Hello World from receiver!");
-
 
     for recv in 0..SENDS * 7 {
         // wait for message

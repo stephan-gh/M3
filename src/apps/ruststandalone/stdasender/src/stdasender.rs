@@ -18,9 +18,9 @@
 
 extern crate heap;
 
-#[path = "../vmtest/helper.rs"]
+#[path = "../../vmtest/src/helper.rs"]
 mod helper;
-#[path = "../vmtest/paging.rs"]
+#[path = "../../vmtest/src/paging.rs"]
 mod paging;
 
 use base::log;
