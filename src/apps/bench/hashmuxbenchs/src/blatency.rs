@@ -67,8 +67,8 @@ fn _start_background_client(num: usize, mgate: &MemGate, sem: &Semaphore, size: 
     }
 }
 
-const WARM: usize = 10;
-const RUNS: usize = 100;
+const WARM: usize = 4;
+const RUNS: usize = 10;
 const TOTAL: usize = WARM + RUNS;
 
 // Must be power of two for simplicity
@@ -114,7 +114,7 @@ fn small_client_latency() {
     let mgate = util::prepare_shake_mem(LARGE_SIZE);
 
     // Start clients that produce background load
-    for order in 0..=3 {
+    for order in 0..=2 {
         let count = 1 << order;
         let mut clients: Vec<Client> = Vec::with_capacity(count);
 

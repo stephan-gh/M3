@@ -73,7 +73,7 @@ fn _prepare_hash_mem(size: usize) -> (MemGate, MemGate) {
 }
 
 fn hash_mem() {
-    const SIZE: usize = 4 * 1024 * 1024; // 4 MiB
+    const SIZE: usize = 512 * 1024; // 512 KiB
 
     let (_mgate, mgated) = _prepare_hash_mem(SIZE);
     let mut prof = profile::Profiler::default().warmup(2).repeats(5);
@@ -103,7 +103,7 @@ fn hash_mem() {
 const TEST_ALGO: &HashAlgorithm = &HashAlgorithm::SHA3_256;
 
 fn hash_mem_sizes() {
-    const MAX_SIZE_SHIFT: usize = 21; // 2^21 = 2 MiB
+    const MAX_SIZE_SHIFT: usize = 19; // 2^19 = 512 KiB
     const MAX_SIZE: usize = 1 << MAX_SIZE_SHIFT;
 
     let (_mgate, mgated) = _prepare_hash_mem(MAX_SIZE);
@@ -137,7 +137,7 @@ fn hash_mem_sizes() {
 }
 
 fn hash_file() {
-    const SIZE: usize = 4 * 1024 * 1024; // 4 MiB
+    const SIZE: usize = 512 * 1024; // 512 KiB
 
     {
         // Fill file with pseudo random data using SHAKE
@@ -176,7 +176,7 @@ fn _prepare_shake_mem(size: usize) -> (MemGate, MemGate) {
 }
 
 fn shake_mem() {
-    const SIZE: usize = 4 * 1024 * 1024; // 4 MiB
+    const SIZE: usize = 512 * 1024; // 512 KiB
 
     let (_mgate, mgated) = _prepare_shake_mem(SIZE);
     let mut prof = profile::Profiler::default().warmup(2).repeats(5);
@@ -210,7 +210,7 @@ fn shake_mem() {
 const SHAKE_TEST_ALGO: &HashAlgorithm = &HashAlgorithm::SHAKE128;
 
 fn shake_mem_sizes() {
-    const MAX_SIZE_SHIFT: usize = 21; // 2^21 = 2 MiB
+    const MAX_SIZE_SHIFT: usize = 19; // 2^19 = 512 KiB
     const MAX_SIZE: usize = 1 << MAX_SIZE_SHIFT;
 
     let (_mgate, mgated) = _prepare_shake_mem(MAX_SIZE);
@@ -244,7 +244,7 @@ fn shake_mem_sizes() {
 }
 
 fn shake_file() {
-    const SIZE: usize = 4 * 1024 * 1024; // 4 MiB
+    const SIZE: usize = 512 * 1024; // 512 KiB
 
     let mut prof = profile::Profiler::default().warmup(2).repeats(5);
 
