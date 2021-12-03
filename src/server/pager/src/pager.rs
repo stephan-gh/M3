@@ -22,8 +22,10 @@ mod mapper;
 mod physmem;
 mod regions;
 
+use core::ops::DerefMut;
+
 use m3::cap::Selector;
-use m3::cell::{LazyReadOnlyCell, LazyStaticRefCell, LazyStaticUnsafeCell, StaticRefCell};
+use m3::cell::{LazyReadOnlyCell, LazyStaticRefCell, StaticRefCell};
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, MGateArgs, MemGate, RecvGate, SGateArgs, SendGate};
 use m3::env;
@@ -47,8 +49,7 @@ use resmng::{requests, sendqueue, subsys};
 
 pub const LOG_DEF: bool = false;
 
-// TODO how to get rid of this unsafe cell?
-static PGHDL: LazyStaticUnsafeCell<PagerReqHandler> = LazyStaticUnsafeCell::default();
+static PGHDL: LazyStaticRefCell<PagerReqHandler> = LazyStaticRefCell::default();
 static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 static MOUNTS: LazyStaticRefCell<Vec<(String, vfs::FSHandle)>> = LazyStaticRefCell::default();
 static PMP_PES: StaticRefCell<Vec<PEId>> = StaticRefCell::new(Vec::new());
@@ -168,8 +169,9 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
 
     // create pager session for child (creator=0 here because we create all sessions ourself)
     let (sel, sid) = {
-        let hdl = PGHDL.get_mut();
-        hdl.open(0, hdl.sel, "")?
+        let mut hdl = PGHDL.borrow_mut();
+        let sel = hdl.sel;
+        hdl.open(0, sel, "")?
     };
     let sess = ClientSession::new_bind(sel);
     #[allow(clippy::useless_conversion)]
@@ -215,7 +217,8 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
     vpe.obtain_mounts().unwrap();
 
     // init address space (give it VPE and mgate selector)
-    let mut aspace = PGHDL.get_mut().sessions.get_mut(sid).unwrap();
+    let mut hdl = PGHDL.borrow_mut();
+    let mut aspace = hdl.sessions.get_mut(sid).unwrap();
     aspace.init(Some(child.id()), Some(vpe.sel())).unwrap();
 
     // start VPE
@@ -228,7 +231,7 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
 }
 
 fn handle_request(op: PagerOp, is: &mut GateIStream) -> Result<(), Error> {
-    let hdl = PGHDL.get_mut();
+    let mut hdl = PGHDL.borrow_mut();
     let sid = is.label() as SessId;
 
     // clone is special, because we need two sessions
@@ -261,7 +264,7 @@ fn handle_request(op: PagerOp, is: &mut GateIStream) -> Result<(), Error> {
 fn workloop(serv: &Server) {
     requests::workloop(
         || {
-            serv.handle_ctrl_chan(PGHDL.get_mut()).ok();
+            serv.handle_ctrl_chan(PGHDL.borrow_mut().deref_mut()).ok();
 
             REQHDL.get().handle(handle_request).ok();
         },
