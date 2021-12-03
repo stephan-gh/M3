@@ -14,12 +14,11 @@
  * General Public License version 2 for more details.
  */
 
-use base::boxed::Box;
 use base::cell::RefMut;
 use base::col::{BitVec, Vec};
 use base::errors::{Code, Error};
 use base::goff;
-use base::kif::{self, OptionalValue};
+use base::kif;
 use base::mem::GlobAddr;
 use base::mem::MsgBuf;
 use base::quota;
@@ -36,7 +35,7 @@ pub struct PEMux {
     pe: SRc<PEObject>,
     vpes: Vec<VPEId>,
     #[cfg(not(target_vendor = "host"))]
-    queue: Box<crate::com::SendQueue>,
+    queue: base::boxed::Box<crate::com::SendQueue>,
     pmp: Vec<Rc<EPObject>>,
     eps: BitVec,
 }
@@ -481,8 +480,8 @@ impl PEMux {
         let mut msg = MsgBuf::borrow_def();
         msg.set(kif::pemux::RemoveQuotas {
             op: kif::pemux::Sidecalls::REMOVE_QUOTAS.val as u64,
-            time: OptionalValue::new(time),
-            pts: OptionalValue::new(pts),
+            time: kif::OptionalValue::new(time),
+            pts: kif::OptionalValue::new(pts),
         });
 
         Self::send_receive_sidecall_async::<kif::pemux::RemoveQuotas>(pemux, None, msg).map(|_| ())
@@ -641,8 +640,8 @@ impl PEMux {
         _pemux: RefMut<'_, Self>,
         _time: quota::Id,
         _pts: quota::Id,
-    ) -> Result<(u64, u64, usize, usize), Error> {
-        Ok((0, 0, 0, 0))
+    ) -> Result<(quota::Quota<u64>, quota::Quota<usize>), Error> {
+        Ok((quota::Quota::default(), quota::Quota::default()))
     }
 
     pub fn set_quota_async(
