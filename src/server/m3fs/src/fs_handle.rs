@@ -15,34 +15,22 @@
  * General Public License version 2 for more details.
  */
 
-use crate::backend::Backend;
 use crate::buf::MetaBuffer;
 
-use m3::boxed::Box;
 use m3::errors::Error;
 
 /// Handle with global data structures needed at various places
 pub struct M3FSHandle {
-    backend: Box<dyn Backend + 'static>,
-
     meta_buffer: MetaBuffer,
 }
 
 impl M3FSHandle {
-    pub fn new<B>(backend: B) -> Self
-    where
-        B: Backend + 'static,
-    {
+    pub fn new() -> Self {
         let sb = crate::superblock();
 
         M3FSHandle {
-            backend: Box::new(backend),
             meta_buffer: MetaBuffer::new(sb.block_size as usize),
         }
-    }
-
-    pub fn backend(&self) -> &dyn Backend {
-        &*self.backend
     }
 
     pub fn flush_buffer(&mut self) -> Result<(), Error> {
@@ -56,7 +44,7 @@ impl M3FSHandle {
         let blocks = crate::blocks_mut();
         sb.update_blockbm(blocks.free_count(), blocks.first_free());
         sb.checksum = sb.get_checksum();
-        self.backend.store_sb(&*sb)
+        crate::backend_mut().store_sb(&*sb)
     }
 
     pub fn metabuffer(&mut self) -> &mut MetaBuffer {

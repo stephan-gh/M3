@@ -73,9 +73,7 @@ impl FileBufferEntry {
             );
 
             // write data of block to backend
-            crate::hdl()
-                .backend()
-                .store_data(self.blocks, self.unlock)?;
+            crate::backend_mut().store_data(self.blocks, self.unlock)?;
 
             // reset dirty and unlock
             self.dirty = false;

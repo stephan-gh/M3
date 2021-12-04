@@ -99,9 +99,7 @@ impl MetaBufferBlock {
             );
 
             // write meta block to backend
-            crate::hdl()
-                .backend()
-                .store_meta(self, self.id, self.bno, self.unlock)?;
+            crate::backend_mut().store_meta(self, self.id, self.bno, self.unlock)?;
             self.dirty = false;
             self.locked = false;
         }
@@ -248,9 +246,7 @@ impl MetaBuffer {
 
         let unlock = block.unlock;
         // now load from backend and setup everything
-        crate::hdl()
-            .backend()
-            .load_meta(block, block.id, bno, unlock)?;
+        crate::backend_mut().load_meta(block, block.id, bno, unlock)?;
         block.locked = false;
 
         log!(

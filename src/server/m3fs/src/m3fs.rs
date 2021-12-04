@@ -35,6 +35,7 @@ use crate::fs_handle::M3FSHandle;
 use crate::sess::{FSSession, M3FSSession, MetaSession, OpenFiles};
 
 use m3::{
+    boxed::Box,
     cap::Selector,
     cell::{LazyReadOnlyCell, LazyStaticRefCell, Ref, RefMut, StaticRefCell, StaticUnsafeCell},
     col::{String, ToString, Vec},
@@ -74,6 +75,7 @@ static FILES: StaticRefCell<OpenFiles> = StaticRefCell::new(OpenFiles::new());
 static BA: LazyStaticRefCell<Allocator> = LazyStaticRefCell::default();
 static IA: LazyStaticRefCell<Allocator> = LazyStaticRefCell::default();
 static SETTINGS: LazyReadOnlyCell<FsSettings> = LazyReadOnlyCell::default();
+static BACKEND: LazyStaticRefCell<Box<dyn Backend>> = LazyStaticRefCell::default();
 
 // The global file handle in this process
 // TODO can we use a safe cell here?
@@ -99,6 +101,9 @@ fn inodes_mut() -> RefMut<'static, Allocator> {
 }
 fn settings() -> &'static FsSettings {
     SETTINGS.get()
+}
+fn backend_mut() -> RefMut<'static, Box<dyn Backend>> {
+    BACKEND.borrow_mut()
 }
 
 fn hdl() -> &'static mut M3FSHandle {
@@ -136,10 +141,7 @@ struct M3FSRequestHandler {
 }
 
 impl M3FSRequestHandler {
-    fn new<B>(mut backend: B) -> Result<Self, Error>
-    where
-        B: Backend + 'static,
-    {
+    fn new(mut backend: Box<dyn Backend>) -> Result<Self, Error> {
         // init thread manager, otherwise the waiting within the file and meta buffer impl. panics.
         thread::init();
 
@@ -168,7 +170,9 @@ impl M3FSRequestHandler {
         FB.set(FileBuffer::new(sb.block_size as usize));
         SB.set(sb);
 
-        FSHANDLE.set(Some(M3FSHandle::new(backend)));
+        BACKEND.set(backend);
+
+        FSHANDLE.set(Some(M3FSHandle::new()));
 
         let container = SessionContainer::new(DEF_MAX_CLIENTS);
 
@@ -524,12 +528,15 @@ pub fn main() -> i32 {
 
     // create backend for the file system
     let mut hdl = if SETTINGS.get().backend == "mem" {
-        let backend = MemBackend::new(SETTINGS.get().fs_offset, SETTINGS.get().fs_size);
+        let backend = Box::new(MemBackend::new(
+            SETTINGS.get().fs_offset,
+            SETTINGS.get().fs_size,
+        ));
         M3FSRequestHandler::new(backend)
             .expect("Failed to create m3fs handler based on memory backend")
     }
     else {
-        let backend = DiskBackend::new().expect("Failed to initialize disk backend!");
+        let backend = Box::new(DiskBackend::new().expect("Failed to initialize disk backend!"));
         M3FSRequestHandler::new(backend)
             .expect("Failed to create m3fs handler based on disk backend")
     };

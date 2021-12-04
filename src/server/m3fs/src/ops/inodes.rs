@@ -170,10 +170,7 @@ pub fn get_extent_mem(
     let blocksize = crate::superblock().block_size;
     let mut extlen = (ext.length * blocksize) as usize;
 
-    let mut bytes =
-        crate::hdl()
-            .backend()
-            .get_filedata(*ext, start.off, perms, sel, Some(limit))?;
+    let mut bytes = crate::backend_mut().get_filedata(*ext, start.off, perms, sel, Some(limit))?;
 
     // stop at file end
     if (start.ext == (inode.extents - 1) as usize)
@@ -218,9 +215,7 @@ pub fn req_append(
         let ext = get_extent(inode, pos.ext, &mut indir, false)?;
 
         let extlen = (ext.length * crate::superblock().block_size) as usize;
-        let bytes = crate::hdl()
-            .backend()
-            .get_filedata(*ext, pos.off, perm, sel, Some(limit))?;
+        let bytes = crate::backend_mut().get_filedata(*ext, pos.off, perm, sel, Some(limit))?;
         Ok((bytes, extlen, None))
     }
     else {
@@ -235,9 +230,7 @@ pub fn req_append(
         };
 
         let extlen = (ext.length * crate::superblock().block_size) as usize;
-        let bytes = crate::hdl()
-            .backend()
-            .get_filedata(ext, 0, perm, sel, load)?;
+        let bytes = crate::backend_mut().get_filedata(ext, 0, perm, sel, load)?;
         Ok((bytes, extlen, Some(ext)))
     }
 }
@@ -500,7 +493,7 @@ pub fn create_extent(inode: Option<&INodeRef>, blocks: u32) -> Result<Extent, Er
     let blocksize = crate::superblock().block_size;
     if crate::settings().clear {
         time::start(0xaaaa);
-        crate::hdl().backend().clear_extent(ext)?;
+        crate::backend_mut().clear_extent(ext)?;
         time::stop(0xaaaa);
     }
 
