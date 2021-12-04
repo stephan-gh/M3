@@ -318,7 +318,7 @@ impl FileSession {
             // continue in last extent, if there is space
             if (self.next_pos.ext > 0)
                 && (self.next_fileoff as u64 == inode.size)
-                && ((self.next_fileoff % crate::hdl().superblock().block_size as usize) != 0)
+                && ((self.next_fileoff % crate::superblock().block_size as usize) != 0)
             {
                 let (fileoff, extpos) = inodes::get_seek_pos(&inode, 0, SeekMode::END)?;
                 self.next_fileoff = fileoff;
@@ -358,7 +358,7 @@ impl FileSession {
 
         // The mem cap covers all blocks from `self.extoff` to `self.extoff + len`. Thus, the offset
         // to start is the offset within the first of these blocks
-        let mut capoff = self.next_pos.off % crate::hdl().superblock().block_size as usize;
+        let mut capoff = self.next_pos.off % crate::superblock().block_size as usize;
         if len > 0 {
             syscalls::activate(self.epcap, sel, INVALID_SEL, 0)?;
 
@@ -426,7 +426,7 @@ impl FileSession {
 
         // add new extent?
         if let Some(ref mut append_ext) = self.append_ext.take() {
-            let blocksize = crate::hdl().superblock().block_size as usize;
+            let blocksize = crate::superblock().block_size as usize;
             let blocks = (submit + blocksize - 1) / blocksize;
             let old_len = append_ext.length;
 

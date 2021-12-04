@@ -17,7 +17,7 @@
 
 use crate::backend::Backend;
 use crate::buf::{FileBuffer, MetaBuffer};
-use crate::data::{Allocator, SuperBlock};
+use crate::data::Allocator;
 use crate::sess::OpenFiles;
 use crate::FsSettings;
 
@@ -30,7 +30,6 @@ pub struct M3FSHandle {
     backend: Box<dyn Backend + 'static>,
     settings: FsSettings,
 
-    super_block: SuperBlock,
     file_buffer: FileBuffer,
     meta_buffer: MetaBuffer,
 
@@ -41,13 +40,11 @@ pub struct M3FSHandle {
 }
 
 impl M3FSHandle {
-    pub fn new<B>(mut backend: B, settings: FsSettings) -> Self
+    pub fn new<B>(backend: B, settings: FsSettings) -> Self
     where
         B: Backend + 'static,
     {
-        let sb = backend.load_sb().expect("Unable to load super block");
-        log!(crate::LOG_DEF, "Loaded {:#?}", sb);
-
+        let sb = crate::superblock();
         let blocks_allocator = Allocator::new(
             String::from("Block"),
             sb.first_blockbm_block(),
@@ -72,7 +69,6 @@ impl M3FSHandle {
             file_buffer: FileBuffer::new(sb.block_size as usize),
             meta_buffer: MetaBuffer::new(sb.block_size as usize),
             settings,
-            super_block: sb,
 
             files: OpenFiles::new(),
 
@@ -83,10 +79,6 @@ impl M3FSHandle {
 
     pub fn backend(&self) -> &dyn Backend {
         &*self.backend
-    }
-
-    pub fn superblock(&self) -> &SuperBlock {
-        &self.super_block
     }
 
     pub fn inodes(&mut self) -> &mut Allocator {
@@ -114,12 +106,11 @@ impl M3FSHandle {
         self.file_buffer.flush()?;
 
         // update superblock and write it back to disk/memory
-        self.super_block
-            .update_inodebm(self.inodes.free_count(), self.inodes.first_free());
-        self.super_block
-            .update_blockbm(self.blocks.free_count(), self.blocks.first_free());
-        self.super_block.checksum = self.super_block.get_checksum();
-        self.backend.store_sb(&self.super_block)
+        let mut sb = crate::superblock_mut();
+        sb.update_inodebm(self.inodes.free_count(), self.inodes.first_free());
+        sb.update_blockbm(self.blocks.free_count(), self.blocks.first_free());
+        sb.checksum = sb.get_checksum();
+        self.backend.store_sb(&*sb)
     }
 
     pub fn metabuffer(&mut self) -> &mut MetaBuffer {

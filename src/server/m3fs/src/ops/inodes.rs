@@ -67,8 +67,8 @@ pub fn free(inode_no: InodeNo) -> Result<(), Error> {
 pub fn get(inode: InodeNo) -> Result<INodeRef, Error> {
     log!(crate::LOG_INODES, "inodes::get({})", inode);
 
-    let inos_per_block = crate::hdl().superblock().inodes_per_block();
-    let bno = crate::hdl().superblock().first_inode_block() + (inode / inos_per_block as u32);
+    let inos_per_block = crate::superblock().inodes_per_block();
+    let bno = crate::superblock().first_inode_block() + (inode / inos_per_block as u32);
     let block = crate::hdl().metabuffer().get_block(bno)?;
 
     let offset = (inode as usize % inos_per_block as usize) * NUM_INODE_BYTES as usize;
@@ -95,7 +95,7 @@ pub fn get_seek_pos(
 
     assert!(whence != SeekMode::CUR);
 
-    let blocksize = crate::hdl().superblock().block_size as usize;
+    let blocksize = crate::superblock().block_size as usize;
     let mut indir = None;
 
     // seeking to the end
@@ -167,7 +167,7 @@ pub fn get_extent_mem(
     }
 
     // create memory capability for extent
-    let blocksize = crate::hdl().superblock().block_size;
+    let blocksize = crate::superblock().block_size;
     let mut extlen = (ext.length * blocksize) as usize;
 
     let mut bytes =
@@ -217,7 +217,7 @@ pub fn req_append(
         let mut indir = None;
         let ext = get_extent(inode, pos.ext, &mut indir, false)?;
 
-        let extlen = (ext.length * crate::hdl().superblock().block_size) as usize;
+        let extlen = (ext.length * crate::superblock().block_size) as usize;
         let bytes = crate::hdl()
             .backend()
             .get_filedata(*ext, pos.off, perm, sel, Some(limit))?;
@@ -234,7 +234,7 @@ pub fn req_append(
             None
         };
 
-        let extlen = (ext.length * crate::hdl().superblock().block_size) as usize;
+        let extlen = (ext.length * crate::superblock().block_size) as usize;
         let bytes = crate::hdl()
             .backend()
             .get_filedata(ext, 0, perm, sel, load)?;
@@ -316,7 +316,7 @@ pub fn get_extent(
     let mb = crate::hdl().metabuffer();
 
     // indirect extent stored in the nodes indirect block?
-    if extent < crate::hdl().superblock().extents_per_block() {
+    if extent < crate::superblock().extents_per_block() {
         // create indirect block if not done yet
         if indir.is_none() {
             let mut created = false;
@@ -344,7 +344,7 @@ pub fn get_extent(
     }
 
     // double indirect extents
-    let ext_per_block = crate::hdl().superblock().extents_per_block();
+    let ext_per_block = crate::superblock().extents_per_block();
     extent -= ext_per_block;
 
     if extent < (ext_per_block * ext_per_block) {
@@ -374,7 +374,7 @@ pub fn get_extent(
         created = false;
         let ptr = ExtentRef::indir_from_buffer(
             dind_block_ref,
-            (extent / crate::hdl().superblock().extents_per_block()) * NUM_EXT_BYTES,
+            (extent / crate::superblock().extents_per_block()) * NUM_EXT_BYTES,
         );
         if ptr.length == 0 {
             ptr.as_mut().start = crate::hdl().blocks().alloc(None)?;
@@ -391,7 +391,7 @@ pub fn get_extent(
         // get extent
         let ext = ExtentRef::indir_from_buffer(
             ind_block_ref,
-            (extent % crate::hdl().superblock().extents_per_block()) * NUM_EXT_BYTES,
+            (extent % crate::superblock().extents_per_block()) * NUM_EXT_BYTES,
         );
 
         return Ok(ext);
@@ -423,7 +423,7 @@ fn change_extent(
         remove,
     );
 
-    let ext_per_block = crate::hdl().superblock().extents_per_block();
+    let ext_per_block = crate::superblock().extents_per_block();
 
     if extent < INODE_DIR_COUNT {
         return Ok(ExtentRef::dir_from_inode(&inode, extent));
@@ -497,7 +497,7 @@ pub fn create_extent(inode: Option<&INodeRef>, blocks: u32) -> Result<Extent, Er
     let start = crate::hdl().blocks().alloc(Some(&mut count))?;
     let ext = Extent::new(start, count as u32);
 
-    let blocksize = crate::hdl().superblock().block_size;
+    let blocksize = crate::superblock().block_size;
     if crate::hdl().clear_blocks() {
         time::start(0xaaaa);
         crate::hdl().backend().clear_extent(ext)?;
@@ -523,7 +523,7 @@ pub fn truncate(inode: &INodeRef, pos: &ExtPos) -> Result<(), Error> {
         pos,
     );
 
-    let blocksize = crate::hdl().superblock().block_size;
+    let blocksize = crate::superblock().block_size;
     let mut indir = None;
 
     let iextents: usize = inode.extents as usize;

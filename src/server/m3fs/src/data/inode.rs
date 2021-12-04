@@ -102,7 +102,7 @@ impl INode {
             lastaccess: self.lastaccess,
             lastmod: self.lastmod,
             extents: self.extents as u32,
-            blocksize: crate::hdl().superblock().block_size as u32,
+            blocksize: crate::superblock().block_size as u32,
             firstblock: self.direct[0].start,
         }
     }

@@ -29,12 +29,13 @@ mod ops;
 mod sess;
 
 use crate::backend::{Backend, DiskBackend, MemBackend};
+use crate::data::SuperBlock;
 use crate::fs_handle::M3FSHandle;
 use crate::sess::{FSSession, M3FSSession, MetaSession};
 
 use m3::{
     cap::Selector,
-    cell::{LazyReadOnlyCell, StaticUnsafeCell},
+    cell::{LazyReadOnlyCell, LazyStaticRefCell, Ref, RefMut, StaticUnsafeCell},
     col::{String, ToString, Vec},
     com::{GateIStream, RecvGate},
     env,
@@ -66,9 +67,17 @@ const MSG_SIZE: usize = 128;
 // The global request handler
 static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 
+static SB: LazyStaticRefCell<SuperBlock> = LazyStaticRefCell::default();
 // The global file handle in this process
 // TODO can we use a safe cell here?
 static FSHANDLE: StaticUnsafeCell<Option<M3FSHandle>> = StaticUnsafeCell::new(None);
+
+fn superblock() -> Ref<'static, SuperBlock> {
+    SB.borrow()
+}
+fn superblock_mut() -> RefMut<'static, SuperBlock> {
+    SB.borrow_mut()
+}
 
 fn hdl() -> &'static mut M3FSHandle {
     FSHANDLE.get_mut().as_mut().unwrap()
@@ -105,12 +114,17 @@ struct M3FSRequestHandler {
 }
 
 impl M3FSRequestHandler {
-    fn new<B>(backend: B, settings: FsSettings) -> Result<Self, Error>
+    fn new<B>(mut backend: B, settings: FsSettings) -> Result<Self, Error>
     where
         B: Backend + 'static,
     {
         // init thread manager, otherwise the waiting within the file and meta buffer impl. panics.
         thread::init();
+
+        let sb = backend.load_sb().expect("Unable to load super block");
+        log!(crate::LOG_DEF, "Loaded {:#?}", sb);
+        SB.set(sb);
+
         FSHANDLE.set(Some(M3FSHandle::new(backend, settings)));
 
         let container = SessionContainer::new(DEF_MAX_CLIENTS);

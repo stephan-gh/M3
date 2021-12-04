@@ -38,7 +38,7 @@ pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error>
     'search_loop: for ext in dir.extent_iter() {
         for mut block in ext.block_iter() {
             let mut off = 0;
-            let end = crate::hdl().superblock().block_size as usize;
+            let end = crate::superblock().block_size as usize;
             while off < end {
                 let entry = DirEntry::from_buffer_mut(&mut block, off);
 
@@ -80,7 +80,7 @@ pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error>
         let new_entry = DirEntry::from_buffer_mut(&mut block, 0);
         new_entry.set_name(name);
         new_entry.nodeno = inode.inode;
-        new_entry.next = crate::hdl().superblock().block_size;
+        new_entry.next = crate::superblock().block_size;
     }
 
     inode.as_mut().links += 1;
@@ -103,7 +103,7 @@ pub fn remove(dir: &INodeRef, name: &str, deny_dir: bool) -> Result<(), Error> {
         for mut block in ext.block_iter() {
             let mut prev_off = 0;
             let mut off = 0;
-            let end = crate::hdl().superblock().block_size as usize;
+            let end = crate::superblock().block_size as usize;
             while off < end {
                 // TODO marking all blocks dirty here is suboptimal
                 let entry = DirEntry::from_buffer_mut(&mut block, off);

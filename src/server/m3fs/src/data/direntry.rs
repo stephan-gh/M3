@@ -118,7 +118,7 @@ impl<'e> DirEntryIterator<'e> {
         DirEntryIterator {
             block_data,
             off: Cell::from(0),
-            end: crate::hdl().superblock().block_size as usize,
+            end: crate::superblock().block_size as usize,
         }
     }
 

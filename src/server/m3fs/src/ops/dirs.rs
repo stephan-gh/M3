@@ -336,7 +336,7 @@ pub fn rename(old_path: &str, new_path: &str) -> Result<(), Error> {
     'search_loop: for ext in new_dir_inode.extent_iter() {
         for mut block in ext.block_iter() {
             let mut off = 0;
-            let end = crate::hdl().superblock().block_size as usize;
+            let end = crate::superblock().block_size as usize;
             while off < end {
                 // TODO marking all blocks dirty here is suboptimal
                 let entry = DirEntry::from_buffer_mut(&mut block, off);

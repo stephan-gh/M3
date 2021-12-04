@@ -199,7 +199,7 @@ impl core::ops::Index<usize> for ExtentCache {
     type Output = Extent;
 
     fn index(&self, idx: usize) -> &Self::Output {
-        assert!(idx < crate::hdl().superblock().extents_per_block());
+        assert!(idx < crate::superblock().extents_per_block());
         // safety: valid because we keep a MetaBufferBlockRef
         unsafe { &*self.extents.add(idx) }
     }

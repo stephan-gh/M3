@@ -115,7 +115,7 @@ impl Backend for DiskBackend {
         let m = MemGate::new_bind(msel);
         m.write_bytes(
             block.data().as_ptr(),
-            crate::hdl().superblock().block_size as usize,
+            crate::superblock().block_size as usize,
             0,
         )?;
         Ok(())
