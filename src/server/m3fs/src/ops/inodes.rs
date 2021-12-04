@@ -224,10 +224,10 @@ pub fn req_append(
         Ok((bytes, extlen, None))
     }
     else {
-        let ext = create_extent(None, crate::hdl().extend() as u32)?;
+        let ext = create_extent(None, crate::settings().extend as u32)?;
 
         // this is a new extent we don't have to load it
-        let load = if crate::hdl().clear_blocks() {
+        let load = if crate::settings().clear {
             Some(limit)
         }
         else {
@@ -498,7 +498,7 @@ pub fn create_extent(inode: Option<&INodeRef>, blocks: u32) -> Result<Extent, Er
     let ext = Extent::new(start, count as u32);
 
     let blocksize = crate::superblock().block_size;
-    if crate::hdl().clear_blocks() {
+    if crate::settings().clear {
         time::start(0xaaaa);
         crate::hdl().backend().clear_extent(ext)?;
         time::stop(0xaaaa);

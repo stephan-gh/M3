@@ -17,7 +17,6 @@
 
 use crate::backend::Backend;
 use crate::buf::MetaBuffer;
-use crate::FsSettings;
 
 use m3::boxed::Box;
 use m3::errors::Error;
@@ -25,13 +24,12 @@ use m3::errors::Error;
 /// Handle with global data structures needed at various places
 pub struct M3FSHandle {
     backend: Box<dyn Backend + 'static>,
-    settings: FsSettings,
 
     meta_buffer: MetaBuffer,
 }
 
 impl M3FSHandle {
-    pub fn new<B>(backend: B, settings: FsSettings) -> Self
+    pub fn new<B>(backend: B) -> Self
     where
         B: Backend + 'static,
     {
@@ -40,20 +38,11 @@ impl M3FSHandle {
         M3FSHandle {
             backend: Box::new(backend),
             meta_buffer: MetaBuffer::new(sb.block_size as usize),
-            settings,
         }
     }
 
     pub fn backend(&self) -> &dyn Backend {
         &*self.backend
-    }
-
-    pub fn clear_blocks(&self) -> bool {
-        self.settings.clear
-    }
-
-    pub fn extend(&self) -> usize {
-        self.settings.extend
     }
 
     pub fn flush_buffer(&mut self) -> Result<(), Error> {

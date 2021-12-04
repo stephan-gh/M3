@@ -73,6 +73,7 @@ static FB: LazyStaticRefCell<FileBuffer> = LazyStaticRefCell::default();
 static FILES: StaticRefCell<OpenFiles> = StaticRefCell::new(OpenFiles::new());
 static BA: LazyStaticRefCell<Allocator> = LazyStaticRefCell::default();
 static IA: LazyStaticRefCell<Allocator> = LazyStaticRefCell::default();
+static SETTINGS: LazyReadOnlyCell<FsSettings> = LazyReadOnlyCell::default();
 
 // The global file handle in this process
 // TODO can we use a safe cell here?
@@ -95,6 +96,9 @@ fn blocks_mut() -> RefMut<'static, Allocator> {
 }
 fn inodes_mut() -> RefMut<'static, Allocator> {
     IA.borrow_mut()
+}
+fn settings() -> &'static FsSettings {
+    SETTINGS.get()
 }
 
 fn hdl() -> &'static mut M3FSHandle {
@@ -132,7 +136,7 @@ struct M3FSRequestHandler {
 }
 
 impl M3FSRequestHandler {
-    fn new<B>(mut backend: B, settings: FsSettings) -> Result<Self, Error>
+    fn new<B>(mut backend: B) -> Result<Self, Error>
     where
         B: Backend + 'static,
     {
@@ -164,7 +168,7 @@ impl M3FSRequestHandler {
         FB.set(FileBuffer::new(sb.block_size as usize));
         SB.set(sb);
 
-        FSHANDLE.set(Some(M3FSHandle::new(backend, settings)));
+        FSHANDLE.set(Some(M3FSHandle::new(backend)));
 
         let container = SessionContainer::new(DEF_MAX_CLIENTS);
 
@@ -512,31 +516,32 @@ fn parse_args() -> Result<FsSettings, String> {
 #[no_mangle]
 pub fn main() -> i32 {
     // parse arguments
-    let settings = parse_args().unwrap_or_else(|e| {
+    SETTINGS.set(parse_args().unwrap_or_else(|e| {
         println!("Invalid arguments: {}", e);
         usage();
-    });
-    log!(crate::LOG_DEF, "{:#?}", settings);
+    }));
+    log!(crate::LOG_DEF, "{:#?}", SETTINGS.get());
 
     // create backend for the file system
-    let mut hdl = if settings.backend == "mem" {
-        let backend = MemBackend::new(settings.fs_offset, settings.fs_size);
-        M3FSRequestHandler::new(backend, settings.clone())
+    let mut hdl = if SETTINGS.get().backend == "mem" {
+        let backend = MemBackend::new(SETTINGS.get().fs_offset, SETTINGS.get().fs_size);
+        M3FSRequestHandler::new(backend)
             .expect("Failed to create m3fs handler based on memory backend")
     }
     else {
         let backend = DiskBackend::new().expect("Failed to initialize disk backend!");
-        M3FSRequestHandler::new(backend, settings.clone())
+        M3FSRequestHandler::new(backend)
             .expect("Failed to create m3fs handler based on disk backend")
     };
 
     // create new server for file system and pass on selector to handler
-    let serv = Server::new(&settings.name, &mut hdl).expect("Could not create service 'm3fs'");
+    let serv =
+        Server::new(&SETTINGS.get().name, &mut hdl).expect("Could not create service 'm3fs'");
     hdl.sel = serv.sel();
 
     // create request handler
     REQHDL.set(
-        RequestHandler::new_with(settings.max_clients, MSG_SIZE)
+        RequestHandler::new_with(SETTINGS.get().max_clients, MSG_SIZE)
             .expect("Unable to create request handler"),
     );
 
