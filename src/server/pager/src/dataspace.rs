@@ -203,7 +203,8 @@ impl DataSpace {
                 // if it's writable and should not be shared, create a copy
                 if !self.flags.contains(MapFlags::SHARED) && self.perms.contains(kif::Perm::W) {
                     let src = MemGate::new_owned_bind(sel);
-                    let child = childs::get().child_by_id_mut(self.child).unwrap();
+                    let mut childs = childs::borrow_mut();
+                    let child = childs.child_by_id_mut(self.child).unwrap();
                     let mgate = child.alloc_local(reg.size(), kif::Perm::RWX)?;
                     let mem = Rc::new(RefCell::new(PhysMem::new((self.owner, self.virt), mgate)?));
                     reg.set_mem(mem);
@@ -245,7 +246,8 @@ impl DataSpace {
                     reg.virt() + reg.size() - 1
                 );
 
-                let child = childs::get().child_by_id_mut(self.child).unwrap();
+                let mut childs = childs::borrow_mut();
+                let child = childs.child_by_id_mut(self.child).unwrap();
                 let mgate = child.alloc_local(reg.size(), kif::Perm::RWX)?;
                 reg.set_mem(Rc::new(RefCell::new(PhysMem::new(
                     (self.owner, self.virt),

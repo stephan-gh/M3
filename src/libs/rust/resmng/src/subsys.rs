@@ -597,7 +597,7 @@ impl Subsystem {
                     None
                 };
 
-                let child_id = childs::get().alloc_id();
+                let child_id = childs::borrow_mut().alloc_id();
                 let mut child = Box::new(childs::OwnChild::new(
                     child_id,
                     pe_usage.clone(),
@@ -617,7 +617,7 @@ impl Subsystem {
                 }
                 else {
                     spawn(&mut child)?;
-                    childs::get().add(child);
+                    childs::borrow_mut().add(child);
                 }
             }
         }
@@ -796,12 +796,12 @@ where
 
         let mut child = DELAYED.borrow_mut().remove(idx);
         spawn_async(&mut child)?;
-        childs::get().add(child);
+        childs::borrow_mut().add(child);
         new_wait = true;
     }
 
     if new_wait {
-        childs::get().start_waiting(1);
+        childs::borrow_mut().start_waiting(1);
     }
     Ok(())
 }

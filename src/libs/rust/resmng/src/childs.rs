@@ -18,7 +18,7 @@ use bitflags::bitflags;
 use core::fmt;
 use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::{Cell, RefCell, StaticUnsafeCell};
+use m3::cell::{Cell, RefCell, RefMut, StaticRefCell};
 use m3::col::{String, ToString, Treap, Vec};
 use m3::com::{MemGate, RecvGate, SGateArgs, SendGate};
 use m3::env;
@@ -136,91 +136,6 @@ pub trait Child {
     fn res_mut(&mut self) -> &mut Resources;
     fn kmem(&self) -> Option<Rc<KMem>>;
 
-    fn child_mut(&mut self, vpe_sel: Selector) -> Option<&mut (dyn Child + 'static)> {
-        if let Some((id, _)) = self.res_mut().childs.iter().find(|c| c.1 == vpe_sel) {
-            get().child_by_id_mut(*id)
-        }
-        else {
-            None
-        }
-    }
-
-    fn add_child(
-        &mut self,
-        vpe_id: tcu::VPEId,
-        vpe_sel: Selector,
-        rgate: &RecvGate,
-        sgate_sel: Selector,
-        name: String,
-    ) -> Result<(), Error> {
-        let our_sel = self.obtain(vpe_sel)?;
-        let child_name = format!("{}.{}", self.name(), name);
-        let id = get().next_id();
-
-        log!(
-            crate::LOG_CHILD,
-            "{}: add_child(vpe={}, name={}, sgate_sel={}) -> child(id={}, name={})",
-            self.name(),
-            vpe_sel,
-            name,
-            sgate_sel,
-            id,
-            child_name
-        );
-
-        if self.res().childs.iter().any(|c| c.1 == vpe_sel) {
-            return Err(Error::new(Code::Exists));
-        }
-
-        #[allow(clippy::useless_conversion)]
-        let sgate = SendGate::new_with(
-            SGateArgs::new(&rgate)
-                .credits(1)
-                .label(tcu::Label::from(id)),
-        )?;
-        let our_sg_sel = sgate.sel();
-        let child = Box::new(ForeignChild::new(
-            id,
-            self.layer() + 1,
-            child_name,
-            // actually, we don't know the PE it's running on. But the PEUsage is only used to set
-            // the PMP EPs and currently, no child can actually influence these. For that reason,
-            // all childs get the same PMP EPs, so that we can also give the same PMP EPs to childs
-            // of childs.
-            self.our_pe(),
-            vpe_id,
-            our_sel,
-            sgate,
-            self.cfg(),
-            self.mem().clone(),
-        ));
-        child.delegate(our_sg_sel, sgate_sel)?;
-
-        self.res_mut().childs.push((id, vpe_sel));
-        get().add(child);
-        Ok(())
-    }
-
-    fn rem_child_async(&mut self, vpe_sel: Selector) -> Result<(), Error> {
-        log!(
-            crate::LOG_CHILD,
-            "{}: rem_child(vpe={})",
-            self.name(),
-            vpe_sel
-        );
-
-        let idx = self
-            .res()
-            .childs
-            .iter()
-            .position(|c| c.1 == vpe_sel)
-            .ok_or_else(|| Error::new(Code::InvArgs))?;
-        let id = self.res().childs[idx].0;
-        get().remove_rec_async(id);
-        self.res_mut().childs.remove(idx);
-        Ok(())
-    }
-
     fn delegate(&self, src: Selector, dst: Selector) -> Result<(), Error> {
         let crd = CapRngDesc::new(CapType::OBJECT, src, 1);
         syscalls::exchange(self.vpe_sel(), crd, dst, false)
@@ -276,72 +191,6 @@ pub trait Child {
         self.res_mut().services.push((id, srv_sel));
 
         Ok(())
-    }
-
-    fn unreg_service_async(&mut self, sel: Selector, notify: bool) -> Result<(), Error> {
-        log!(crate::LOG_SERV, "{}: unreg_serv(sel={})", self.name(), sel);
-
-        let id = {
-            let serv = &mut self.res_mut().services;
-            serv.iter()
-                .position(|t| t.1 == sel)
-                .ok_or_else(|| Error::new(Code::InvArgs))
-                .map(|idx| serv.remove(idx).0)
-        }?;
-
-        let serv = services::remove_service_async(id, notify);
-        self.cfg().unreg_service(serv.name());
-
-        Ok(())
-    }
-
-    fn open_session_async(&mut self, dst_sel: Selector, name: &str) -> Result<(), Error> {
-        log!(
-            crate::LOG_SERV,
-            "{}: open_sess(dst_sel={}, name={})",
-            self.name(),
-            dst_sel,
-            name
-        );
-
-        let cfg = self.cfg();
-        let (idx, sdesc) = cfg
-            .get_session(name)
-            .ok_or_else(|| Error::new(Code::InvArgs))?;
-        if sdesc.is_used() {
-            return Err(Error::new(Code::Exists));
-        }
-
-        let serv = services::get_mut_by_name(sdesc.name().global())?;
-        let serv_sel = serv.sel();
-        let sess = Session::new_async(self.id(), dst_sel, serv, sdesc.arg())?;
-        // check again if it's still unused, because of the async call above
-        if sdesc.is_used() {
-            return Err(Error::new(Code::Exists));
-        }
-
-        syscalls::get_sess(serv_sel, self.vpe_sel(), dst_sel, sess.ident())?;
-
-        sdesc.mark_used();
-        self.res_mut().sessions.push((idx, sess));
-
-        Ok(())
-    }
-
-    fn close_session_async(&mut self, sel: Selector) -> Result<(), Error> {
-        log!(crate::LOG_SERV, "{}: close_sess(sel={})", self.name(), sel);
-
-        let (cfg_idx, sess) = {
-            let sessions = &mut self.res_mut().sessions;
-            sessions
-                .iter()
-                .position(|(_, s)| s.sel() == sel)
-                .ok_or_else(|| Error::new(Code::InvArgs))
-                .map(|res_idx| sessions.remove(res_idx))
-        }?;
-
-        self.cfg().close_session(cfg_idx);
-        sess.close_async(self.id())
     }
 
     fn alloc_local(&mut self, size: goff, perm: Perm) -> Result<MemGate, Error> {
@@ -568,108 +417,6 @@ pub trait Child {
         }
     }
 
-    fn get_info(&mut self, idx: Option<usize>) -> Result<ResMngVPEInfoResult, Error> {
-        if !self.cfg().can_get_info() {
-            return Err(Error::new(Code::NoPerm));
-        }
-
-        let (parent_num, parent_layer) = if let Some(presmng) = VPE::cur().resmng() {
-            match presmng.get_vpe_count() {
-                Err(e) if e.code() == Code::NoPerm => (0, 0),
-                Err(e) => return Err(e),
-                Ok(res) => res,
-            }
-        }
-        else {
-            (0, 0)
-        };
-
-        let mut own_num = get().ids.len() + 1;
-        for id in &get().ids {
-            if get().child_by_id_mut(*id).unwrap().subsys().is_some() {
-                own_num -= 1;
-            }
-        }
-
-        if let Some(mut idx) = idx {
-            if idx < parent_num {
-                Ok(ResMngVPEInfoResult::Info(
-                    VPE::cur().resmng().unwrap().get_vpe_info(idx)?,
-                ))
-            }
-            else if idx - parent_num >= own_num {
-                Err(Error::new(Code::NotFound))
-            }
-            else {
-                idx -= parent_num;
-
-                // the first is always us
-                if idx == 0 {
-                    let kmem_quota = VPE::cur().kmem().quota()?;
-                    let (ep_quota, time_quota, pts_quota) = VPE::cur().pe().quota()?;
-                    let mem = memory::container();
-                    return Ok(ResMngVPEInfoResult::Info(ResMngVPEInfo {
-                        id: VPE::cur().id(),
-                        layer: parent_layer + 0,
-                        name: env::args().next().unwrap().to_string(),
-                        daemon: true,
-                        umem: Quota::new(
-                            parent_num as QuotaId,
-                            mem.capacity() as usize,
-                            mem.available() as usize,
-                        ),
-                        kmem: kmem_quota,
-                        eps: ep_quota,
-                        time: time_quota,
-                        pts: pts_quota,
-                        pe: VPE::cur().pe_id(),
-                    }));
-                }
-                idx -= 1;
-
-                // find the next non-subsystem child
-                let vpe = loop {
-                    let vpe = get().child_by_id_mut(get().ids[idx]).unwrap();
-                    if vpe.subsys().is_none() {
-                        break vpe;
-                    }
-                    idx += 1;
-                };
-
-                let kmem_quota = vpe
-                    .kmem()
-                    .map(|km| km.quota())
-                    .unwrap_or_else(|| Ok(Quota::default()))?;
-                let (ep_quota, time_quota, pts_quota) = vpe
-                    .child_pe()
-                    .map(|pe| pe.pe_obj().quota())
-                    .unwrap_or_else(|| {
-                        Ok((Quota::default(), Quota::default(), Quota::default()))
-                    })?;
-                Ok(ResMngVPEInfoResult::Info(ResMngVPEInfo {
-                    id: vpe.vpe_id(),
-                    layer: parent_layer + vpe.layer(),
-                    name: vpe.name().to_string(),
-                    daemon: vpe.daemon(),
-                    umem: Quota::new(
-                        parent_num as QuotaId + vpe.mem().id as QuotaId,
-                        vpe.mem().total as usize,
-                        vpe.mem().quota.get() as usize,
-                    ),
-                    kmem: kmem_quota,
-                    eps: ep_quota,
-                    time: time_quota,
-                    pts: pts_quota,
-                    pe: vpe.our_pe().pe_id(),
-                }))
-            }
-        }
-        else {
-            let total = own_num + parent_num;
-            Ok(ResMngVPEInfoResult::Count((total, self.layer())))
-        }
-    }
-
     fn alloc_pe(
         &mut self,
         sel: Selector,
@@ -754,6 +501,294 @@ pub trait Child {
         while !self.res().pes.is_empty() {
             self.remove_pe_by_idx(0).ok();
         }
+    }
+}
+
+pub fn add_child(
+    id: Id,
+    vpe_id: tcu::VPEId,
+    vpe_sel: Selector,
+    rgate: &RecvGate,
+    sgate_sel: Selector,
+    name: String,
+) -> Result<(), Error> {
+    let mut childs = borrow_mut();
+    let nid = childs.next_id();
+    let child = childs.child_by_id_mut(id).unwrap();
+    let our_sel = child.obtain(vpe_sel)?;
+    let child_name = format!("{}.{}", child.name(), name);
+
+    log!(
+        crate::LOG_CHILD,
+        "{}: add_child(vpe={}, name={}, sgate_sel={}) -> child(id={}, name={})",
+        child.name(),
+        vpe_sel,
+        name,
+        sgate_sel,
+        nid,
+        child_name
+    );
+
+    if child.res().childs.iter().any(|c| c.1 == vpe_sel) {
+        return Err(Error::new(Code::Exists));
+    }
+
+    #[allow(clippy::useless_conversion)]
+    let sgate = SendGate::new_with(
+        SGateArgs::new(&rgate)
+            .credits(1)
+            .label(tcu::Label::from(nid)),
+    )?;
+    let our_sg_sel = sgate.sel();
+    let nchild = Box::new(ForeignChild::new(
+        nid,
+        child.layer() + 1,
+        child_name,
+        // actually, we don't know the PE it's running on. But the PEUsage is only used to set
+        // the PMP EPs and currently, no child can actually influence these. For that reason,
+        // all childs get the same PMP EPs, so that we can also give the same PMP EPs to childs
+        // of childs.
+        child.our_pe(),
+        vpe_id,
+        our_sel,
+        sgate,
+        child.cfg(),
+        child.mem().clone(),
+    ));
+    nchild.delegate(our_sg_sel, sgate_sel)?;
+
+    child.res_mut().childs.push((nid, vpe_sel));
+    childs.add(nchild);
+    Ok(())
+}
+
+pub fn open_session_async(id: Id, dst_sel: Selector, name: &str) -> Result<(), Error> {
+    let (sname, sarg) = {
+        let mut childs = borrow_mut();
+        let child = childs.child_by_id_mut(id).unwrap();
+        log!(
+            crate::LOG_SERV,
+            "{}: open_sess(dst_sel={}, name={})",
+            child.name(),
+            dst_sel,
+            name
+        );
+
+        let cfg = child.cfg();
+        let (_idx, sdesc) = cfg
+            .get_session(name)
+            .ok_or_else(|| Error::new(Code::InvArgs))?;
+        if sdesc.is_used() {
+            return Err(Error::new(Code::Exists));
+        }
+        (sdesc.name().global().clone(), sdesc.arg().clone())
+    };
+
+    let serv = services::get_mut_by_name(&sname)?;
+    let serv_sel = serv.sel();
+    let sess = Session::new_async(id, dst_sel, serv, &sarg)?;
+
+    // get child and session desc again
+    let mut childs = borrow_mut();
+    let child = childs.child_by_id_mut(id).unwrap();
+    let cfg = child.cfg();
+    let (idx, sdesc) = cfg
+        .get_session(name)
+        .ok_or_else(|| Error::new(Code::InvArgs))?;
+
+    // check again if it's still unused, because of the async call above
+    if sdesc.is_used() {
+        return Err(Error::new(Code::Exists));
+    }
+
+    syscalls::get_sess(serv_sel, child.vpe_sel(), dst_sel, sess.ident())?;
+
+    sdesc.mark_used();
+    child.res_mut().sessions.push((idx, sess));
+
+    Ok(())
+}
+
+pub fn close_session_async(id: Id, sel: Selector) -> Result<(), Error> {
+    let sess = {
+        let mut childs = borrow_mut();
+        let child = childs.child_by_id_mut(id).unwrap();
+
+        log!(crate::LOG_SERV, "{}: close_sess(sel={})", child.name(), sel);
+
+        let (cfg_idx, sess) = {
+            let sessions = &mut child.res_mut().sessions;
+            sessions
+                .iter()
+                .position(|(_, s)| s.sel() == sel)
+                .ok_or_else(|| Error::new(Code::InvArgs))
+                .map(|res_idx| sessions.remove(res_idx))
+        }?;
+
+        child.cfg().close_session(cfg_idx);
+        sess
+    };
+
+    sess.close_async(id)
+}
+
+pub fn unreg_service_async(id: Id, sel: Selector, notify: bool) -> Result<(), Error> {
+    let sid = {
+        let mut childs = borrow_mut();
+        let child = childs.child_by_id_mut(id).unwrap();
+        log!(crate::LOG_SERV, "{}: unreg_serv(sel={})", child.name(), sel);
+
+        let serv = &mut child.res_mut().services;
+        serv.iter()
+            .position(|t| t.1 == sel)
+            .ok_or_else(|| Error::new(Code::InvArgs))
+            .map(|idx| serv.remove(idx).0)?
+    };
+
+    let serv = services::remove_service_async(sid, notify);
+
+    let mut childs = borrow_mut();
+    let child = childs.child_by_id_mut(id).unwrap();
+    child.cfg().unreg_service(serv.name());
+
+    Ok(())
+}
+
+pub fn rem_child_async(id: Id, vpe_sel: Selector) -> Result<(), Error> {
+    let cid = {
+        let mut childs = borrow_mut();
+        let child = childs.child_by_id_mut(id).unwrap();
+
+        log!(
+            crate::LOG_CHILD,
+            "{}: rem_child(vpe={})",
+            child.name(),
+            vpe_sel
+        );
+
+        let idx = child
+            .res()
+            .childs
+            .iter()
+            .position(|c| c.1 == vpe_sel)
+            .ok_or_else(|| Error::new(Code::InvArgs))?;
+        let cid = child.res().childs[idx].0;
+        child.res_mut().childs.remove(idx);
+        cid
+    };
+
+    ChildManager::remove_rec_async(cid);
+    Ok(())
+}
+
+pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngVPEInfoResult, Error> {
+    let layer = {
+        let mut childs = borrow_mut();
+        let child = childs.child_by_id_mut(id).unwrap();
+        if !child.cfg().can_get_info() {
+            return Err(Error::new(Code::NoPerm));
+        }
+        child.layer()
+    };
+
+    let (parent_num, parent_layer) = if let Some(presmng) = VPE::cur().resmng() {
+        match presmng.get_vpe_count() {
+            Err(e) if e.code() == Code::NoPerm => (0, 0),
+            Err(e) => return Err(e),
+            Ok(res) => res,
+        }
+    }
+    else {
+        (0, 0)
+    };
+
+    let own_num = {
+        let mut childs = borrow_mut();
+        let mut own_num = childs.ids.len() + 1;
+        for id in childs.ids.clone() {
+            if childs.child_by_id_mut(id).unwrap().subsys().is_some() {
+                own_num -= 1;
+            }
+        }
+        own_num
+    };
+
+    if let Some(mut idx) = idx {
+        if idx < parent_num {
+            Ok(ResMngVPEInfoResult::Info(
+                VPE::cur().resmng().unwrap().get_vpe_info(idx)?,
+            ))
+        }
+        else if idx - parent_num >= own_num {
+            Err(Error::new(Code::NotFound))
+        }
+        else {
+            idx -= parent_num;
+
+            // the first is always us
+            if idx == 0 {
+                let kmem_quota = VPE::cur().kmem().quota()?;
+                let (ep_quota, time_quota, pts_quota) = VPE::cur().pe().quota()?;
+                let mem = memory::container();
+                return Ok(ResMngVPEInfoResult::Info(ResMngVPEInfo {
+                    id: VPE::cur().id(),
+                    layer: parent_layer + 0,
+                    name: env::args().next().unwrap().to_string(),
+                    daemon: true,
+                    umem: Quota::new(
+                        parent_num as QuotaId,
+                        mem.capacity() as usize,
+                        mem.available() as usize,
+                    ),
+                    kmem: kmem_quota,
+                    eps: ep_quota,
+                    time: time_quota,
+                    pts: pts_quota,
+                    pe: VPE::cur().pe_id(),
+                }));
+            }
+            idx -= 1;
+
+            // find the next non-subsystem child
+            let mut childs = borrow_mut();
+            let vpe = loop {
+                let cid = childs.ids[idx];
+                let vpe = childs.child_by_id_mut(cid).unwrap();
+                if vpe.subsys().is_none() {
+                    break vpe;
+                }
+                idx += 1;
+            };
+
+            let kmem_quota = vpe
+                .kmem()
+                .map(|km| km.quota())
+                .unwrap_or_else(|| Ok(Quota::default()))?;
+            let (ep_quota, time_quota, pts_quota) = vpe
+                .child_pe()
+                .map(|pe| pe.pe_obj().quota())
+                .unwrap_or_else(|| Ok((Quota::default(), Quota::default(), Quota::default())))?;
+            Ok(ResMngVPEInfoResult::Info(ResMngVPEInfo {
+                id: vpe.vpe_id(),
+                layer: parent_layer + vpe.layer(),
+                name: vpe.name().to_string(),
+                daemon: vpe.daemon(),
+                umem: Quota::new(
+                    parent_num as QuotaId + vpe.mem().id as QuotaId,
+                    vpe.mem().total as usize,
+                    vpe.mem().quota.get() as usize,
+                ),
+                kmem: kmem_quota,
+                eps: ep_quota,
+                time: time_quota,
+                pts: pts_quota,
+                pe: vpe.our_pe().pe_id(),
+            }))
+        }
+    }
+    else {
+        let total = own_num + parent_num;
+        Ok(ResMngVPEInfoResult::Count((total, layer)))
     }
 }
 
@@ -1047,11 +1082,17 @@ pub struct ChildManager {
     foreigns: usize,
 }
 
-// TODO can we use a safe cell here?
-static MNG: StaticUnsafeCell<ChildManager> = StaticUnsafeCell::new(ChildManager::new());
+static MNG: StaticRefCell<ChildManager> = StaticRefCell::new(ChildManager::new());
 
-pub fn get() -> &'static mut ChildManager {
-    MNG.get_mut()
+pub fn borrow_mut() -> RefMut<'static, ChildManager> {
+    // let mut bt = [0usize; 16];
+    // let count = backtrace::collect(bt.as_mut());
+    // println!("Backtrace:");
+    // for i in 0..count {
+    //     println!("  {:#x}", bt[i]);
+    // }
+
+    MNG.borrow_mut()
 }
 
 impl ChildManager {
@@ -1130,12 +1171,12 @@ impl ChildManager {
         syscalls::vpe_wait(&sels, event).unwrap();
     }
 
-    pub fn handle_upcall_async(&mut self, msg: &'static tcu::Message) {
+    pub fn handle_upcall_async(msg: &'static tcu::Message) {
         let upcall = msg.get_data::<kif::upcalls::DefaultUpcall>();
 
         match kif::upcalls::Operation::from(upcall.opcode) {
-            kif::upcalls::Operation::VPE_WAIT => self.upcall_wait_vpe_async(msg),
-            kif::upcalls::Operation::DERIVE_SRV => self.upcall_derive_srv(msg),
+            kif::upcalls::Operation::VPE_WAIT => Self::upcall_wait_vpe_async(msg),
+            kif::upcalls::Operation::DERIVE_SRV => Self::upcall_derive_srv(msg),
             _ => panic!("Unexpected upcall {}", upcall.opcode),
         }
 
@@ -1146,32 +1187,43 @@ impl ChildManager {
             .expect("Upcall reply failed");
     }
 
-    fn upcall_wait_vpe_async(&mut self, msg: &'static tcu::Message) {
+    fn upcall_wait_vpe_async(msg: &'static tcu::Message) {
         let upcall = msg.get_data::<kif::upcalls::VPEWait>();
 
-        self.kill_child_async(upcall.vpe_sel as Selector, upcall.exitcode as i32);
+        Self::kill_child_async(upcall.vpe_sel as Selector, upcall.exitcode as i32);
 
         // wait for the next
-        let no_wait_childs = self.daemons() + self.foreigns();
-        if !self.flags.contains(Flags::SHUTDOWN) && self.children() == no_wait_childs {
-            self.flags.set(Flags::SHUTDOWN, true);
-            self.kill_daemons_async();
-            services::shutdown_async();
+        {
+            let mut childs = borrow_mut();
+            let no_wait_childs = childs.daemons() + childs.foreigns();
+            if !childs.flags.contains(Flags::SHUTDOWN) && childs.children() == no_wait_childs {
+                childs.flags.set(Flags::SHUTDOWN, true);
+                drop(childs);
+                Self::kill_daemons_async();
+                services::shutdown_async();
+            }
         }
-        if !self.should_stop() {
-            self.start_waiting(1);
+
+        let mut childs = borrow_mut();
+        if !childs.should_stop() {
+            childs.start_waiting(1);
         }
     }
 
-    fn upcall_derive_srv(&mut self, msg: &'static tcu::Message) {
+    fn upcall_derive_srv(msg: &'static tcu::Message) {
         let upcall = msg.get_data::<kif::upcalls::DeriveSrv>();
 
         thread::notify(upcall.def.event, Some(msg));
     }
 
-    pub fn kill_child_async(&mut self, sel: Selector, exitcode: i32) {
-        if let Some(id) = self.sel_to_id(sel) {
-            let child = self.remove_rec_async(id).unwrap();
+    pub fn kill_child_async(sel: Selector, exitcode: i32) {
+        let maybe_id = {
+            let childs = borrow_mut();
+            childs.sel_to_id(sel)
+        };
+
+        if let Some(id) = maybe_id {
+            let child = Self::remove_rec_async(id).unwrap();
 
             if exitcode != 0 {
                 println!("Child '{}' exited with exitcode {}", child.name(), exitcode);
@@ -1179,12 +1231,13 @@ impl ChildManager {
         }
     }
 
-    fn kill_daemons_async(&mut self) {
-        let ids = self.ids.clone();
+    fn kill_daemons_async() {
+        let ids = borrow_mut().ids.clone();
         for id in ids {
             // kill all daemons that didn't register a service
             let can_kill = {
-                let child = self.child_by_id(id).unwrap();
+                let childs = borrow_mut();
+                let child = childs.child_by_id(id).unwrap();
                 if child.daemon() && child.res().services.is_empty() {
                     log!(crate::LOG_CHILD, "Killing child '{}'", child.name());
                     true
@@ -1195,13 +1248,18 @@ impl ChildManager {
             };
 
             if can_kill {
-                self.remove_rec_async(id).unwrap();
+                Self::remove_rec_async(id).unwrap();
             }
         }
     }
 
-    fn remove_rec_async(&mut self, id: Id) -> Option<Box<dyn Child>> {
-        self.childs.remove(&id).map(|mut child| {
+    fn remove_rec_async(id: Id) -> Option<Box<dyn Child>> {
+        let maybe_child = {
+            let mut childs = borrow_mut();
+            childs.childs.remove(&id)
+        };
+
+        if let Some(mut child) = maybe_child {
             log!(crate::LOG_CHILD, "Removing child '{}'", child.name());
 
             // let a potential ongoing async. operation fail
@@ -1219,22 +1277,26 @@ impl ChildManager {
             crate::requests::rgate().drop_msgs_with(child.id().into());
 
             for csel in &child.res().childs {
-                self.remove_rec_async(csel.0);
+                Self::remove_rec_async(csel.0);
             }
             child.remove_resources_async();
 
-            self.ids.retain(|&i| i != id);
+            let mut childs = borrow_mut();
+            childs.ids.retain(|&i| i != id);
             if child.daemon() {
-                self.daemons -= 1;
+                childs.daemons -= 1;
             }
             if child.foreign() {
-                self.foreigns -= 1;
+                childs.foreigns -= 1;
             }
 
             log!(crate::LOG_CHILD, "Removed child '{}'", child.name());
 
-            child
-        })
+            Some(child)
+        }
+        else {
+            None
+        }
     }
 
     fn sel_to_id(&self, sel: Selector) -> Option<Id> {

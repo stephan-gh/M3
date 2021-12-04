@@ -353,7 +353,7 @@ pub fn main() -> i32 {
         .start(start_child_async)
         .expect("Unable to start subsystem");
 
-    childs::get().start_waiting(1);
+    childs::borrow_mut().start_waiting(1);
 
     workloop(&serv);
 

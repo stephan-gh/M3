@@ -151,7 +151,8 @@ impl Region {
                 };
 
                 // allocate new memory for our copy
-                let child = childs::get().child_by_id_mut(self.child).unwrap();
+                let mut childs = childs::borrow_mut();
+                let child = childs.child_by_id_mut(self.child).unwrap();
                 let mut ngate = child.alloc_local(self.size, Perm::RWX)?;
 
                 log!(
