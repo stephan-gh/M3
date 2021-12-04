@@ -33,7 +33,7 @@ use m3::{
 pub fn create(mode: FileMode) -> Result<INodeRef, Error> {
     log!(crate::LOG_INODES, "inodes::create(mode={:o})", mode);
 
-    let ino = crate::hdl().inodes().alloc(None)?;
+    let ino = crate::inodes_mut().alloc(None)?;
     let inode = get(ino)?;
     // reset inode
     inode.as_mut().reset();
@@ -60,7 +60,7 @@ pub fn free(inode_no: InodeNo) -> Result<(), Error> {
     let ino = get(inode_no)?;
     let inodeno = ino.inode as usize;
     truncate(&ino, &ExtPos::new(0, 0))?;
-    crate::hdl().inodes().free(inodeno, 1)
+    crate::inodes_mut().free(inodeno, 1)
 }
 
 /// Loads an INodeRef for given inode number
@@ -325,7 +325,7 @@ pub fn get_extent(
                     return Err(Error::new(Code::NotFound));
                 }
                 // alloc block for indirect extents and put in inode
-                let indirect_block = crate::hdl().blocks().alloc(None)?;
+                let indirect_block = crate::blocks_mut().alloc(None)?;
                 inode.as_mut().indirect = indirect_block;
                 created = true;
             }
@@ -354,7 +354,7 @@ pub fn get_extent(
             if !create {
                 return Err(Error::new(Code::NotFound));
             }
-            let dindirect_block = crate::hdl().blocks().alloc(None)?;
+            let dindirect_block = crate::blocks_mut().alloc(None)?;
             inode.as_mut().dindirect = dindirect_block;
             created = true;
         }
@@ -377,7 +377,7 @@ pub fn get_extent(
             (extent / crate::superblock().extents_per_block()) * NUM_EXT_BYTES,
         );
         if ptr.length == 0 {
-            ptr.as_mut().start = crate::hdl().blocks().alloc(None)?;
+            ptr.as_mut().start = crate::blocks_mut().alloc(None)?;
             ptr.as_mut().length = 1;
             created = true;
         }
@@ -444,7 +444,7 @@ fn change_extent(
         // we assume that we only delete extents at the end; thus, if its the first, we can remove
         // the indirect block as well.
         if remove && extent == 0 {
-            crate::hdl().blocks().free(inode.indirect as usize, 1)?;
+            crate::blocks_mut().free(inode.indirect as usize, 1)?;
             inode.as_mut().indirect = 0;
         }
 
@@ -468,14 +468,14 @@ fn change_extent(
         if remove {
             // Is first block in dind block
             if ext_loc == 0 {
-                crate::hdl().blocks().free(ptr.start as usize, 1)?;
+                crate::blocks_mut().free(ptr.start as usize, 1)?;
                 ptr.as_mut().start = 0;
                 ptr.as_mut().length = 0;
             }
 
             // for the double-indirect too
             if extent == 0 {
-                crate::hdl().blocks().free(inode.dindirect as usize, 1)?;
+                crate::blocks_mut().free(inode.dindirect as usize, 1)?;
                 inode.as_mut().dindirect = 0;
             }
         }
@@ -494,7 +494,7 @@ fn change_extent(
 /// Returns the created extent
 pub fn create_extent(inode: Option<&INodeRef>, blocks: u32) -> Result<Extent, Error> {
     let mut count = blocks as usize;
-    let start = crate::hdl().blocks().alloc(Some(&mut count))?;
+    let start = crate::blocks_mut().alloc(Some(&mut count))?;
     let ext = Extent::new(start, count as u32);
 
     let blocksize = crate::superblock().block_size;
@@ -533,9 +533,7 @@ pub fn truncate(inode: &INodeRef, pos: &ExtPos) -> Result<(), Error> {
         let mut i = iextents - 1;
         while i > pos.ext {
             let ext = change_extent(inode, i, &mut indir, true)?;
-            crate::hdl()
-                .blocks()
-                .free(ext.start as usize, ext.length as usize)?;
+            crate::blocks_mut().free(ext.start as usize, ext.length as usize)?;
             inode.as_mut().extents -= 1;
             inode.as_mut().size -= (ext.length * blocksize) as u64;
             ext.as_mut().start = 0;
@@ -565,9 +563,7 @@ pub fn truncate(inode: &INodeRef, pos: &ExtPos) -> Result<(), Error> {
                 let blocks = bdiff / blocksize as usize;
                 if blocks > 0 {
                     // free all of these blocks
-                    crate::hdl()
-                        .blocks()
-                        .free((ext.start + ext.length) as usize - blocks, blocks)?;
+                    crate::blocks_mut().free((ext.start + ext.length) as usize - blocks, blocks)?;
                 }
                 inode.as_mut().size -= diff as u64;
                 ext.as_mut().length = (ext.length as usize - blocks) as u32;

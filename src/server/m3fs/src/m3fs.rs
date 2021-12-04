@@ -30,7 +30,7 @@ mod sess;
 
 use crate::backend::{Backend, DiskBackend, MemBackend};
 use crate::buf::FileBuffer;
-use crate::data::SuperBlock;
+use crate::data::{Allocator, SuperBlock};
 use crate::fs_handle::M3FSHandle;
 use crate::sess::{FSSession, M3FSSession, MetaSession, OpenFiles};
 
@@ -71,6 +71,8 @@ static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 static SB: LazyStaticRefCell<SuperBlock> = LazyStaticRefCell::default();
 static FB: LazyStaticRefCell<FileBuffer> = LazyStaticRefCell::default();
 static FILES: StaticRefCell<OpenFiles> = StaticRefCell::new(OpenFiles::new());
+static BA: LazyStaticRefCell<Allocator> = LazyStaticRefCell::default();
+static IA: LazyStaticRefCell<Allocator> = LazyStaticRefCell::default();
 
 // The global file handle in this process
 // TODO can we use a safe cell here?
@@ -87,6 +89,12 @@ fn file_buffer_mut() -> RefMut<'static, FileBuffer> {
 }
 fn open_files_mut() -> RefMut<'static, OpenFiles> {
     FILES.borrow_mut()
+}
+fn blocks_mut() -> RefMut<'static, Allocator> {
+    BA.borrow_mut()
+}
+fn inodes_mut() -> RefMut<'static, Allocator> {
+    IA.borrow_mut()
 }
 
 fn hdl() -> &'static mut M3FSHandle {
@@ -133,6 +141,25 @@ impl M3FSRequestHandler {
 
         let sb = backend.load_sb().expect("Unable to load super block");
         log!(crate::LOG_DEF, "Loaded {:#?}", sb);
+
+        BA.set(Allocator::new(
+            String::from("Block"),
+            sb.first_blockbm_block(),
+            sb.first_free_block,
+            sb.free_blocks,
+            sb.total_blocks,
+            sb.blockbm_blocks(),
+            sb.block_size as usize,
+        ));
+        IA.set(Allocator::new(
+            String::from("INodes"),
+            sb.first_inodebm_block(),
+            sb.first_free_inode,
+            sb.free_inodes,
+            sb.total_inodes,
+            sb.inodebm_block(),
+            sb.block_size as usize,
+        ));
 
         FB.set(FileBuffer::new(sb.block_size as usize));
         SB.set(sb);

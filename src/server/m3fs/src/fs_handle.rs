@@ -17,11 +17,9 @@
 
 use crate::backend::Backend;
 use crate::buf::MetaBuffer;
-use crate::data::Allocator;
 use crate::FsSettings;
 
 use m3::boxed::Box;
-use m3::col::String;
 use m3::errors::Error;
 
 /// Handle with global data structures needed at various places
@@ -30,9 +28,6 @@ pub struct M3FSHandle {
     settings: FsSettings,
 
     meta_buffer: MetaBuffer,
-
-    blocks: Allocator,
-    inodes: Allocator,
 }
 
 impl M3FSHandle {
@@ -41,45 +36,16 @@ impl M3FSHandle {
         B: Backend + 'static,
     {
         let sb = crate::superblock();
-        let blocks_allocator = Allocator::new(
-            String::from("Block"),
-            sb.first_blockbm_block(),
-            sb.first_free_block,
-            sb.free_blocks,
-            sb.total_blocks,
-            sb.blockbm_blocks(),
-            sb.block_size as usize,
-        );
-        let inodes_allocator = Allocator::new(
-            String::from("INodes"),
-            sb.first_inodebm_block(),
-            sb.first_free_inode,
-            sb.free_inodes,
-            sb.total_inodes,
-            sb.inodebm_block(),
-            sb.block_size as usize,
-        );
 
         M3FSHandle {
             backend: Box::new(backend),
             meta_buffer: MetaBuffer::new(sb.block_size as usize),
             settings,
-
-            blocks: blocks_allocator,
-            inodes: inodes_allocator,
         }
     }
 
     pub fn backend(&self) -> &dyn Backend {
         &*self.backend
-    }
-
-    pub fn inodes(&mut self) -> &mut Allocator {
-        &mut self.inodes
-    }
-
-    pub fn blocks(&mut self) -> &mut Allocator {
-        &mut self.blocks
     }
 
     pub fn clear_blocks(&self) -> bool {
@@ -96,8 +62,10 @@ impl M3FSHandle {
 
         // update superblock and write it back to disk/memory
         let mut sb = crate::superblock_mut();
-        sb.update_inodebm(self.inodes.free_count(), self.inodes.first_free());
-        sb.update_blockbm(self.blocks.free_count(), self.blocks.first_free());
+        let inodes = crate::inodes_mut();
+        sb.update_inodebm(inodes.free_count(), inodes.first_free());
+        let blocks = crate::blocks_mut();
+        sb.update_blockbm(blocks.free_count(), blocks.first_free());
         sb.checksum = sb.get_checksum();
         self.backend.store_sb(&*sb)
     }

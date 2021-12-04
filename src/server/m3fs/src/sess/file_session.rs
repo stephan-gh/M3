@@ -436,7 +436,7 @@ impl FileSession {
 
             // free superfluous blocks
             if old_len as usize > blocks {
-                crate::hdl().blocks().free(
+                crate::blocks_mut().free(
                     append_ext.start as usize + blocks,
                     old_len as usize - blocks,
                 )?;
@@ -483,8 +483,7 @@ impl Drop for FileSession {
 
         // free to-be-appended blocks, if there are any
         if let Some(ext) = self.append_ext.take() {
-            crate::hdl()
-                .blocks()
+            crate::blocks_mut()
                 .free(ext.start as usize, ext.length as usize)
                 .unwrap();
         }
