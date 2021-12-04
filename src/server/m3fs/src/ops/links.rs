@@ -76,7 +76,7 @@ pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error>
 
         // put entry at the beginning of the block
         let start = ext.start;
-        let mut block = crate::hdl().metabuffer().get_block(start)?;
+        let mut block = crate::meta_buffer_mut().get_block(start)?;
         let new_entry = DirEntry::from_buffer_mut(&mut block, 0);
         new_entry.set_name(name);
         new_entry.nodeno = inode.inode;

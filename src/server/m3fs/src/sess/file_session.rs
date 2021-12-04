@@ -624,7 +624,7 @@ impl M3FSSession for FileSession {
     fn sync(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
         log!(crate::LOG_SESSION, "[{}] file::sync()", self.session_id,);
 
-        crate::hdl().flush_buffer()?;
+        crate::flush_buffer()?;
         stream.reply_error(Code::None)
     }
 }

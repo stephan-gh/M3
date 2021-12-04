@@ -77,7 +77,7 @@ impl Allocator {
         let mut i = (self.first_free as usize) % perblock;
 
         while (total == 0) && (no <= lastno) {
-            let mut block = crate::hdl().metabuffer().get_block(no)?;
+            let mut block = crate::meta_buffer_mut().get_block(no)?;
             block.mark_dirty();
 
             // take care that total_blocks might not be a multiple of perblock
@@ -203,7 +203,7 @@ impl Allocator {
         }
         self.free += count as u32;
         while count > 0 {
-            let mut block = crate::hdl().metabuffer().get_block(no as u32)?;
+            let mut block = crate::meta_buffer_mut().get_block(no as u32)?;
             block.mark_dirty();
             let mut bitmap = Bitmap::from_bytes(block.data_mut());
 

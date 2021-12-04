@@ -129,13 +129,13 @@ impl Deref for MetaBufferBlockRef {
     type Target = MetaBufferBlock;
 
     fn deref(&self) -> &Self::Target {
-        crate::hdl().metabuffer().get_block_by_id(self.id)
+        crate::meta_buffer_mut().get_block_by_id(self.id)
     }
 }
 
 impl DerefMut for MetaBufferBlockRef {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        crate::hdl().metabuffer().get_block_mut_by_id(self.id)
+        crate::meta_buffer_mut().get_block_mut_by_id(self.id)
     }
 }
 

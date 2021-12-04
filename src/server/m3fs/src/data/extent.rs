@@ -106,7 +106,7 @@ impl ExtentRef {
 
     /// Loads the indirect extent at given offset from given MetaBufferBlock
     pub fn indir_from_buffer(block_ref: MetaBufferBlockRef, off: usize) -> Self {
-        let block = crate::hdl().metabuffer().get_block_by_ref(&block_ref);
+        let block = crate::meta_buffer_mut().get_block_by_ref(&block_ref);
         debug_assert!(
             off % size_of::<Extent>() == 0,
             "Extent off is not multiple of extent size!"
@@ -165,8 +165,7 @@ impl core::iter::Iterator for BlockIterator {
     fn next(&mut self) -> Option<Self::Item> {
         if !self.range.is_empty() {
             self.range.start += 1;
-            crate::hdl()
-                .metabuffer()
+            crate::meta_buffer_mut()
                 .get_block(self.range.start - 1)
                 .ok()
         }
@@ -185,7 +184,7 @@ pub struct ExtentCache {
 
 impl ExtentCache {
     pub fn from_buffer(block_ref: MetaBufferBlockRef) -> Self {
-        let block = crate::hdl().metabuffer().get_block_by_ref(&block_ref);
+        let block = crate::meta_buffer_mut().get_block_by_ref(&block_ref);
         let extents = block.data().as_ptr().cast::<Extent>();
         Self { block_ref, extents }
     }

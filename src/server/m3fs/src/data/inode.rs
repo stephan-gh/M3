@@ -118,7 +118,7 @@ pub struct INodeRef {
 
 impl INodeRef {
     pub fn from_buffer(block_ref: MetaBufferBlockRef, off: usize) -> Self {
-        let block = crate::hdl().metabuffer().get_block_by_ref(&block_ref);
+        let block = crate::meta_buffer_mut().get_block_by_ref(&block_ref);
 
         // ensure that the offset is valid
         debug_assert!(

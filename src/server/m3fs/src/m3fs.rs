@@ -24,20 +24,19 @@ extern crate m3;
 mod backend;
 mod buf;
 mod data;
-mod fs_handle;
 mod ops;
 mod sess;
 
 use crate::backend::{Backend, DiskBackend, MemBackend};
-use crate::buf::FileBuffer;
+use crate::buf::{FileBuffer, MetaBuffer};
 use crate::data::{Allocator, SuperBlock};
-use crate::fs_handle::M3FSHandle;
 use crate::sess::{FSSession, M3FSSession, MetaSession, OpenFiles};
 
+use base::cell::LazyStaticUnsafeCell;
 use m3::{
     boxed::Box,
     cap::Selector,
-    cell::{LazyReadOnlyCell, LazyStaticRefCell, Ref, RefMut, StaticRefCell, StaticUnsafeCell},
+    cell::{LazyReadOnlyCell, LazyStaticRefCell, Ref, RefMut, StaticRefCell},
     col::{String, ToString, Vec},
     com::{GateIStream, RecvGate},
     env,
@@ -70,6 +69,8 @@ const MSG_SIZE: usize = 128;
 static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 
 static SB: LazyStaticRefCell<SuperBlock> = LazyStaticRefCell::default();
+// TODO can we use a safe cell here?
+static MB: LazyStaticUnsafeCell<MetaBuffer> = LazyStaticUnsafeCell::default();
 static FB: LazyStaticRefCell<FileBuffer> = LazyStaticRefCell::default();
 static FILES: StaticRefCell<OpenFiles> = StaticRefCell::new(OpenFiles::new());
 static BA: LazyStaticRefCell<Allocator> = LazyStaticRefCell::default();
@@ -77,15 +78,14 @@ static IA: LazyStaticRefCell<Allocator> = LazyStaticRefCell::default();
 static SETTINGS: LazyReadOnlyCell<FsSettings> = LazyReadOnlyCell::default();
 static BACKEND: LazyStaticRefCell<Box<dyn Backend>> = LazyStaticRefCell::default();
 
-// The global file handle in this process
-// TODO can we use a safe cell here?
-static FSHANDLE: StaticUnsafeCell<Option<M3FSHandle>> = StaticUnsafeCell::new(None);
-
 fn superblock() -> Ref<'static, SuperBlock> {
     SB.borrow()
 }
 fn superblock_mut() -> RefMut<'static, SuperBlock> {
     SB.borrow_mut()
+}
+fn meta_buffer_mut() -> &'static mut MetaBuffer {
+    MB.get_mut()
 }
 fn file_buffer_mut() -> RefMut<'static, FileBuffer> {
     FB.borrow_mut()
@@ -106,8 +106,18 @@ fn backend_mut() -> RefMut<'static, Box<dyn Backend>> {
     BACKEND.borrow_mut()
 }
 
-fn hdl() -> &'static mut M3FSHandle {
-    FSHANDLE.get_mut().as_mut().unwrap()
+fn flush_buffer() -> Result<(), Error> {
+    crate::meta_buffer_mut().flush()?;
+    crate::file_buffer_mut().flush()?;
+
+    // update superblock and write it back to disk/memory
+    let mut sb = crate::superblock_mut();
+    let inodes = crate::inodes_mut();
+    sb.update_inodebm(inodes.free_count(), inodes.first_free());
+    let blocks = crate::blocks_mut();
+    sb.update_blockbm(blocks.free_count(), blocks.first_free());
+    sb.checksum = sb.get_checksum();
+    crate::backend_mut().store_sb(&*sb)
 }
 
 int_enum! {
@@ -167,12 +177,11 @@ impl M3FSRequestHandler {
             sb.block_size as usize,
         ));
 
+        MB.set(MetaBuffer::new(sb.block_size as usize));
         FB.set(FileBuffer::new(sb.block_size as usize));
         SB.set(sb);
 
         BACKEND.set(backend);
-
-        FSHANDLE.set(Some(M3FSHandle::new()));
 
         let container = SessionContainer::new(DEF_MAX_CLIENTS);
 
@@ -408,9 +417,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
     }
 
     fn shutdown(&mut self) {
-        crate::hdl()
-            .flush_buffer()
-            .expect("buffer flush at shutdown failed");
+        crate::flush_buffer().expect("buffer flush at shutdown failed");
     }
 }
 

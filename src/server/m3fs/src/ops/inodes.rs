@@ -69,7 +69,7 @@ pub fn get(inode: InodeNo) -> Result<INodeRef, Error> {
 
     let inos_per_block = crate::superblock().inodes_per_block();
     let bno = crate::superblock().first_inode_block() + (inode / inos_per_block as u32);
-    let block = crate::hdl().metabuffer().get_block(bno)?;
+    let block = crate::meta_buffer_mut().get_block(bno)?;
 
     let offset = (inode as usize % inos_per_block as usize) * NUM_INODE_BYTES as usize;
     Ok(INodeRef::from_buffer(block, offset))
@@ -306,7 +306,7 @@ pub fn get_extent(
     }
     extent -= INODE_DIR_COUNT;
 
-    let mb = crate::hdl().metabuffer();
+    let mb = crate::meta_buffer_mut();
 
     // indirect extent stored in the nodes indirect block?
     if extent < crate::superblock().extents_per_block() {
@@ -422,7 +422,7 @@ fn change_extent(
         return Ok(ExtentRef::dir_from_inode(&inode, extent));
     }
 
-    let mb = crate::hdl().metabuffer();
+    let mb = crate::meta_buffer_mut();
 
     extent -= INODE_DIR_COUNT;
     if extent < ext_per_block {
