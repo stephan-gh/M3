@@ -32,11 +32,11 @@ use crate::backend::{Backend, DiskBackend, MemBackend};
 use crate::buf::FileBuffer;
 use crate::data::SuperBlock;
 use crate::fs_handle::M3FSHandle;
-use crate::sess::{FSSession, M3FSSession, MetaSession};
+use crate::sess::{FSSession, M3FSSession, MetaSession, OpenFiles};
 
 use m3::{
     cap::Selector,
-    cell::{LazyReadOnlyCell, LazyStaticRefCell, Ref, RefMut, StaticUnsafeCell},
+    cell::{LazyReadOnlyCell, LazyStaticRefCell, Ref, RefMut, StaticRefCell, StaticUnsafeCell},
     col::{String, ToString, Vec},
     com::{GateIStream, RecvGate},
     env,
@@ -70,6 +70,7 @@ static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 
 static SB: LazyStaticRefCell<SuperBlock> = LazyStaticRefCell::default();
 static FB: LazyStaticRefCell<FileBuffer> = LazyStaticRefCell::default();
+static FILES: StaticRefCell<OpenFiles> = StaticRefCell::new(OpenFiles::new());
 
 // The global file handle in this process
 // TODO can we use a safe cell here?
@@ -83,6 +84,9 @@ fn superblock_mut() -> RefMut<'static, SuperBlock> {
 }
 fn file_buffer_mut() -> RefMut<'static, FileBuffer> {
     FB.borrow_mut()
+}
+fn open_files_mut() -> RefMut<'static, OpenFiles> {
+    FILES.borrow_mut()
 }
 
 fn hdl() -> &'static mut M3FSHandle {

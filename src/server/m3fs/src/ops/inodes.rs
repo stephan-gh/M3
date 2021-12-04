@@ -48,7 +48,7 @@ pub fn decrease_links(inode: &INodeRef) -> Result<(), Error> {
     inode.as_mut().links -= 1;
     if inode.links == 0 {
         let ino = inode.inode;
-        crate::hdl().files().delete_file(ino)?;
+        crate::open_files_mut().delete_file(ino)?;
     }
     Ok(())
 }

@@ -139,7 +139,7 @@ fn do_search(mut path: &str, create: bool) -> Result<InodeNo, Error> {
         // create inode and put link into directory
         let new_inode = inodes::create(FileMode::FILE_DEF)?;
         if let Err(e) = links::create(&inode, filename, &new_inode) {
-            crate::hdl().files().delete_file(new_inode.inode).ok();
+            crate::open_files_mut().delete_file(new_inode.inode).ok();
             return Err(e);
         };
         return Ok(new_inode.inode);
@@ -176,7 +176,7 @@ fn do_create(path: &str, mode: FileMode) -> Result<(), Error> {
     if let Ok(dirino) = inodes::create(FileMode::DIR_DEF | mode) {
         // create directory itself
         if let Err(e) = links::create(&parinode, name, &dirino) {
-            crate::hdl().files().delete_file(dirino.inode).ok();
+            crate::open_files_mut().delete_file(dirino.inode).ok();
             return Err(e);
         }
 

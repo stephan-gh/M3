@@ -50,7 +50,7 @@ pub struct OpenFiles {
 }
 
 impl OpenFiles {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         OpenFiles {
             files: Treap::new(),
         }

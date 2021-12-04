@@ -18,7 +18,6 @@
 use crate::backend::Backend;
 use crate::buf::MetaBuffer;
 use crate::data::Allocator;
-use crate::sess::OpenFiles;
 use crate::FsSettings;
 
 use m3::boxed::Box;
@@ -34,8 +33,6 @@ pub struct M3FSHandle {
 
     blocks: Allocator,
     inodes: Allocator,
-
-    files: OpenFiles,
 }
 
 impl M3FSHandle {
@@ -68,8 +65,6 @@ impl M3FSHandle {
             meta_buffer: MetaBuffer::new(sb.block_size as usize),
             settings,
 
-            files: OpenFiles::new(),
-
             blocks: blocks_allocator,
             inodes: inodes_allocator,
         }
@@ -85,10 +80,6 @@ impl M3FSHandle {
 
     pub fn blocks(&mut self) -> &mut Allocator {
         &mut self.blocks
-    }
-
-    pub fn files(&mut self) -> &mut OpenFiles {
-        &mut self.files
     }
 
     pub fn clear_blocks(&self) -> bool {

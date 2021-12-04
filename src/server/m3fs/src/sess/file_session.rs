@@ -165,7 +165,7 @@ impl FileSession {
             _server_session,
         };
 
-        crate::hdl().files().add_sess(ino);
+        crate::open_files_mut().add_sess(ino);
 
         Ok(fsess)
     }
@@ -303,7 +303,7 @@ impl FileSession {
 
         // do we need to append to the file?
         let (len, extlen) = if out && (self.next_fileoff as u64 == inode.size) {
-            let files = crate::hdl().files();
+            let mut files = crate::open_files_mut();
             let open_file = files.get_file_mut(self.ino).unwrap();
 
             if open_file.appending() {
@@ -460,7 +460,7 @@ impl FileSession {
         inode.as_mut().size += submit as u64;
 
         // stop appending
-        let files = crate::hdl().files();
+        let mut files = crate::open_files_mut();
         let ofile = files.get_file_mut(self.ino).unwrap();
         assert!(ofile.appending(), "ofile should be in append mode!");
         ofile.set_appending(false);
@@ -490,7 +490,7 @@ impl Drop for FileSession {
         }
 
         // remove session from open_files and from its meta session
-        crate::hdl().files().remove_session(self.ino).unwrap();
+        crate::open_files_mut().remove_session(self.ino).unwrap();
 
         // revoke caps if needed
         if self.cur_sel != m3::kif::INVALID_SEL {
