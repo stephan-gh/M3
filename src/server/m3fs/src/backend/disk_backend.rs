@@ -107,9 +107,7 @@ impl Backend for DiskBackend {
     fn sync_meta(&self, block: &mut MetaBufferBlock) -> Result<(), Error> {
         // check if there is a filebuffer entry for it or create one
         let msel = m3::pes::VPE::cur().alloc_sel();
-        crate::hdl()
-            .filebuffer()
-            .get_extent(self, block.blockno(), 1, msel, Perm::RWX, None)?;
+        crate::file_buffer_mut().get_extent(self, block.blockno(), 1, msel, Perm::RWX, None)?;
 
         // okay, so write it from metabuffer to filebuffer
         let m = MemGate::new_bind(msel);
@@ -130,7 +128,7 @@ impl Backend for DiskBackend {
         load: Option<&mut LoadLimit>,
     ) -> Result<usize, Error> {
         let first_block = extoff / self.blocksize;
-        crate::hdl().filebuffer().get_extent(
+        crate::file_buffer_mut().get_extent(
             self,
             ext.start + first_block as u32,
             ext.length as usize - first_block,
@@ -145,7 +143,7 @@ impl Backend for DiskBackend {
         let sel = m3::pes::VPE::cur().alloc_sel();
         let mut i = 0;
         while i < ext.length {
-            let bytes = crate::hdl().filebuffer().get_extent(
+            let bytes = crate::file_buffer_mut().get_extent(
                 self,
                 ext.start + i,
                 (ext.length - i) as usize,

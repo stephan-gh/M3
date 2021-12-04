@@ -16,7 +16,7 @@
  */
 
 use crate::backend::Backend;
-use crate::buf::{FileBuffer, MetaBuffer};
+use crate::buf::MetaBuffer;
 use crate::data::Allocator;
 use crate::sess::OpenFiles;
 use crate::FsSettings;
@@ -30,7 +30,6 @@ pub struct M3FSHandle {
     backend: Box<dyn Backend + 'static>,
     settings: FsSettings,
 
-    file_buffer: FileBuffer,
     meta_buffer: MetaBuffer,
 
     blocks: Allocator,
@@ -66,7 +65,6 @@ impl M3FSHandle {
 
         M3FSHandle {
             backend: Box::new(backend),
-            file_buffer: FileBuffer::new(sb.block_size as usize),
             meta_buffer: MetaBuffer::new(sb.block_size as usize),
             settings,
 
@@ -103,7 +101,7 @@ impl M3FSHandle {
 
     pub fn flush_buffer(&mut self) -> Result<(), Error> {
         self.meta_buffer.flush()?;
-        self.file_buffer.flush()?;
+        crate::file_buffer_mut().flush()?;
 
         // update superblock and write it back to disk/memory
         let mut sb = crate::superblock_mut();
@@ -115,9 +113,5 @@ impl M3FSHandle {
 
     pub fn metabuffer(&mut self) -> &mut MetaBuffer {
         &mut self.meta_buffer
-    }
-
-    pub fn filebuffer(&mut self) -> &mut FileBuffer {
-        &mut self.file_buffer
     }
 }

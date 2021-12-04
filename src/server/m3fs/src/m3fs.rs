@@ -29,6 +29,7 @@ mod ops;
 mod sess;
 
 use crate::backend::{Backend, DiskBackend, MemBackend};
+use crate::buf::FileBuffer;
 use crate::data::SuperBlock;
 use crate::fs_handle::M3FSHandle;
 use crate::sess::{FSSession, M3FSSession, MetaSession};
@@ -68,6 +69,8 @@ const MSG_SIZE: usize = 128;
 static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 
 static SB: LazyStaticRefCell<SuperBlock> = LazyStaticRefCell::default();
+static FB: LazyStaticRefCell<FileBuffer> = LazyStaticRefCell::default();
+
 // The global file handle in this process
 // TODO can we use a safe cell here?
 static FSHANDLE: StaticUnsafeCell<Option<M3FSHandle>> = StaticUnsafeCell::new(None);
@@ -77,6 +80,9 @@ fn superblock() -> Ref<'static, SuperBlock> {
 }
 fn superblock_mut() -> RefMut<'static, SuperBlock> {
     SB.borrow_mut()
+}
+fn file_buffer_mut() -> RefMut<'static, FileBuffer> {
+    FB.borrow_mut()
 }
 
 fn hdl() -> &'static mut M3FSHandle {
@@ -123,6 +129,8 @@ impl M3FSRequestHandler {
 
         let sb = backend.load_sb().expect("Unable to load super block");
         log!(crate::LOG_DEF, "Loaded {:#?}", sb);
+
+        FB.set(FileBuffer::new(sb.block_size as usize));
         SB.set(sb);
 
         FSHANDLE.set(Some(M3FSHandle::new(backend, settings)));
