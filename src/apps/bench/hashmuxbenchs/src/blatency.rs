@@ -107,14 +107,14 @@ fn _bench_latency(mgate: &MemGate, size: usize) -> Results {
 }
 
 fn small_client_latency() {
-    const LARGE_SIZE: usize = 64 * 1024 * 1024; // 64 MiB
+    const LARGE_SIZE: usize = 16 * 1024 * 1024; // 16 MiB
     const SMALL_SIZE: usize = 512;
 
     log!(LOG_DEBUG, "Preparing {} bytes using SHAKE...", LARGE_SIZE);
     let mgate = util::prepare_shake_mem(LARGE_SIZE);
 
     // Start clients that produce background load
-    for order in 0..=2 {
+    for order in 0..=1 {
         let count = 1 << order;
         let mut clients: Vec<Client> = Vec::with_capacity(count);
 

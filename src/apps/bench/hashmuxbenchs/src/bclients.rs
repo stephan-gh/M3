@@ -244,7 +244,7 @@ fn _sync_and_wait_for_clients(rgate: &RecvGate, mut clients: Vec<Client>) {
 }
 
 fn hashmux_clients() {
-    const MAX_CLIENTS: usize = 4;
+    const MAX_CLIENTS: usize = 2;
     const MAX_SIZE: usize = 512 * 1024; // 512 KiB
 
     let mgate = util::prepare_shake_mem(MAX_SIZE);
@@ -253,8 +253,8 @@ fn hashmux_clients() {
     // is only sent once the message from all clients has arrived.
     let rgate = _create_rgate(MAX_CLIENTS);
 
-    // 2 or 4 clients that hash MAX_SIZE
-    for order in 1..=2 {
+    // 2 that hash MAX_SIZE
+    for order in 1..=1 {
         let count = 1 << order;
         let mut clients: Vec<Client> = Vec::with_capacity(count);
 
@@ -278,8 +278,8 @@ fn hashmux_clients() {
         _sync_and_wait_for_clients(&rgate, clients);
     }
 
-    // 2 or 4 clients that hash MAX_SIZE fully or in slices
-    for order in 1..=2 {
+    // 2 that hash MAX_SIZE fully or in slices
+    for order in 1..=1 {
         let count = 1 << order;
         let mut clients: Vec<Client> = Vec::with_capacity(count);
 
