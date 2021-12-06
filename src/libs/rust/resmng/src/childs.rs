@@ -193,6 +193,21 @@ pub trait Child {
         Ok(())
     }
 
+    fn unreg_service(&mut self, sel: Selector) -> Result<(), Error> {
+        log!(crate::LOG_SERV, "{}: unreg_serv(sel={})", self.name(), sel);
+
+        let services = &mut self.res_mut().services;
+        let sid = services
+            .iter()
+            .position(|t| t.1 == sel)
+            .ok_or_else(|| Error::new(Code::InvArgs))
+            .map(|idx| services.remove(idx).0)?;
+        let serv = services::remove_service(sid);
+
+        self.cfg().unreg_service(serv.name());
+        Ok(())
+    }
+
     fn alloc_local(&mut self, size: goff, perm: Perm) -> Result<MemGate, Error> {
         log!(
             crate::LOG_MEM,
@@ -490,7 +505,7 @@ pub trait Child {
 
         while !self.res().services.is_empty() {
             let (id, _) = self.res_mut().services.remove(0);
-            let serv = services::remove_service_async(id, false);
+            let serv = services::remove_service(id);
             self.cfg().unreg_service(serv.name());
         }
 
@@ -630,28 +645,6 @@ pub fn close_session_async(id: Id, sel: Selector) -> Result<(), Error> {
     };
 
     sess.close_async(id)
-}
-
-pub fn unreg_service_async(id: Id, sel: Selector) -> Result<(), Error> {
-    let sid = {
-        let mut childs = borrow_mut();
-        let child = childs.child_by_id_mut(id).unwrap();
-        log!(crate::LOG_SERV, "{}: unreg_serv(sel={})", child.name(), sel);
-
-        let serv = &mut child.res_mut().services;
-        serv.iter()
-            .position(|t| t.1 == sel)
-            .ok_or_else(|| Error::new(Code::InvArgs))
-            .map(|idx| serv.remove(idx).0)?
-    };
-
-    let serv = services::remove_service_async(sid, false);
-
-    let mut childs = borrow_mut();
-    let child = childs.child_by_id_mut(id).unwrap();
-    child.cfg().unreg_service(serv.name());
-
-    Ok(())
 }
 
 pub fn rem_child_async(id: Id, vpe_sel: Selector) -> Result<(), Error> {

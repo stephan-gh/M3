@@ -91,7 +91,7 @@ fn handle_request_async(mut is: GateIStream) {
 
     let res = match op {
         Ok(ResMngOperation::REG_SERV) => reg_serv(&mut is, id),
-        Ok(ResMngOperation::UNREG_SERV) => unreg_serv_async(&mut is, id),
+        Ok(ResMngOperation::UNREG_SERV) => unreg_serv(&mut is, id),
 
         Ok(ResMngOperation::OPEN_SESS) => open_session_async(&mut is, id),
         Ok(ResMngOperation::CLOSE_SESS) => close_session_async(&mut is, id),
@@ -148,10 +148,12 @@ fn reg_serv(is: &mut GateIStream, id: Id) -> Result<(), Error> {
     child.reg_service(dst_sel, sgate_sel, name, sessions)
 }
 
-fn unreg_serv_async(is: &mut GateIStream, id: Id) -> Result<(), Error> {
+fn unreg_serv(is: &mut GateIStream, id: Id) -> Result<(), Error> {
     let sel: Selector = is.pop()?;
 
-    childs::unreg_service_async(id, sel)
+    let mut childs = childs::borrow_mut();
+    let child = childs.child_by_id_mut(id).unwrap();
+    child.unreg_service(sel)
 }
 
 fn open_session_async(is: &mut GateIStream, id: Id) -> Result<(), Error> {

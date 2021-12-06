@@ -284,27 +284,19 @@ pub fn add_service(
     Ok(mng.next_id - 1)
 }
 
-pub fn remove_service_async(id: Id, notify: bool) -> Service {
-    let idx = {
-        let mng = mng_mut();
-        let idx = mng.servs.iter().position(|s| s.id == id).unwrap();
-        let serv = RefMut::map(mng, |mng| &mut mng.servs[idx]);
+pub fn remove_service(id: Id) -> Service {
+    let mut mng = mng_mut();
+    let idx = mng.servs.iter().position(|s| s.id == id).unwrap();
+    let serv = mng.servs.remove(idx);
 
-        log!(
-            crate::LOG_SERV,
-            "Removing service {}:{}",
-            serv.id,
-            serv.name
-        );
+    log!(
+        crate::LOG_SERV,
+        "Removing service {}:{}",
+        serv.id,
+        serv.name
+    );
 
-        if notify {
-            // we need to do that before we remove the service
-            Service::shutdown_async(serv);
-        }
-        idx
-    };
-
-    mng_mut().servs.remove(idx)
+    serv
 }
 
 pub fn shutdown_async() {
