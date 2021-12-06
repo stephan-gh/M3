@@ -150,9 +150,8 @@ fn reg_serv(is: &mut GateIStream, id: Id) -> Result<(), Error> {
 
 fn unreg_serv_async(is: &mut GateIStream, id: Id) -> Result<(), Error> {
     let sel: Selector = is.pop()?;
-    let notify: bool = is.pop()?;
 
-    childs::unreg_service_async(id, sel, notify)
+    childs::unreg_service_async(id, sel)
 }
 
 fn open_session_async(is: &mut GateIStream, id: Id) -> Result<(), Error> {

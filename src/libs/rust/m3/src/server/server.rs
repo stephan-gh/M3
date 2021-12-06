@@ -385,11 +385,7 @@ impl Server {
 impl Drop for Server {
     fn drop(&mut self) {
         if self.public {
-            VPE::cur()
-                .resmng()
-                .unwrap()
-                .unreg_service(self.sel(), false)
-                .ok();
+            VPE::cur().resmng().unwrap().unreg_service(self.sel()).ok();
         }
     }
 }

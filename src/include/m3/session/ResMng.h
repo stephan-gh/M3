@@ -117,8 +117,8 @@ public:
         retrieve_result(REG_SERV, reply);
     }
 
-    void unreg_service(capsel_t sel, bool notify) {
-        GateIStream reply = send_receive_vmsg(_sgate, UNREG_SERV, sel, notify);
+    void unreg_service(capsel_t sel) {
+        GateIStream reply = send_receive_vmsg(_sgate, UNREG_SERV, sel);
         retrieve_result(UNREG_SERV, reply);
     }
 

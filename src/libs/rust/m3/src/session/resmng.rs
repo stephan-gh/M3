@@ -185,15 +185,13 @@ impl ResMng {
         .map(|_| ())
     }
 
-    /// Unregisters the service with given selector. If `notify` is true, the server will be
-    /// notified via the `SHUTDOWN` service call.
-    pub fn unreg_service(&self, sel: Selector, notify: bool) -> Result<(), Error> {
+    /// Unregisters the service with given selector.
+    pub fn unreg_service(&self, sel: Selector) -> Result<(), Error> {
         send_recv_res!(
             &self.sgate,
             RecvGate::def(),
             ResMngOperation::UNREG_SERV,
-            sel,
-            notify
+            sel
         )
         .map(|_| ())
     }

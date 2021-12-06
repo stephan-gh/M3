@@ -69,7 +69,7 @@ public:
 
     ~Server() {
         try {
-            VPE::self().resmng()->unreg_service(sel(), false);
+            VPE::self().resmng()->unreg_service(sel());
         }
         catch(...) {
             // ignore

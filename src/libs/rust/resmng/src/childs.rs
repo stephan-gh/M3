@@ -632,7 +632,7 @@ pub fn close_session_async(id: Id, sel: Selector) -> Result<(), Error> {
     sess.close_async(id)
 }
 
-pub fn unreg_service_async(id: Id, sel: Selector, notify: bool) -> Result<(), Error> {
+pub fn unreg_service_async(id: Id, sel: Selector) -> Result<(), Error> {
     let sid = {
         let mut childs = borrow_mut();
         let child = childs.child_by_id_mut(id).unwrap();
@@ -645,7 +645,7 @@ pub fn unreg_service_async(id: Id, sel: Selector, notify: bool) -> Result<(), Er
             .map(|idx| serv.remove(idx).0)?
     };
 
-    let serv = services::remove_service_async(sid, notify);
+    let serv = services::remove_service_async(sid, false);
 
     let mut childs = borrow_mut();
     let child = childs.child_by_id_mut(id).unwrap();
