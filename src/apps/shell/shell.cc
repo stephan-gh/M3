@@ -239,7 +239,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                     reply_vmsg(is, 0);
                     break;
                 }
-                else if((msg = signal_rgate->fetch())) {
+                else if(signal_rgate && (msg = signal_rgate->fetch())) {
                     GateIStream is(*signal_rgate, msg);
                     signal = true;
                     reply_vmsg(is, 0);
