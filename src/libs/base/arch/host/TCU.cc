@@ -318,7 +318,6 @@ void TCU::start_sleep() {
 }
 
 void TCU::stop_sleep() {
-    assert(_unread_msgs > 0);
     LLOG(TCU, "TCU: sleep stopped (messages: " << _unread_msgs << ")");
     _sleeping = false;
     // provide feedback to SW
