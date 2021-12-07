@@ -38,19 +38,18 @@ struct GateSender {
 
 impl MsgSender<thread::Event> for GateSender {
     fn can_send(&self) -> bool {
-        match self.sgate.credits() {
-            Ok(crd) => crd > 0,
-            // default to true, so that we try to send, fail, and return the result
-            Err(_) => true,
-        }
+        self.cur_event.is_none()
     }
 
     fn send(&mut self, event: thread::Event, msg: &MsgBuf) -> Result<(), Error> {
         log!(crate::LOG_SQUEUE, "{}:squeue: sending msg", self.sid);
 
-        self.cur_event = Some(event);
         self.sgate
             .send_with_rlabel(msg, &RGATE.borrow(), tcu::Label::from(self.sid))
+            .and_then(|_| {
+                self.cur_event = Some(event);
+                Ok(())
+            })
     }
 }
 
