@@ -15,7 +15,7 @@
  */
 
 #include <base/Common.h>
-#include <base/util/Profile.h>
+#include <base/time/Profile.h>
 #include <base/Panic.h>
 
 #include <m3/com/Semaphore.h>
@@ -51,10 +51,10 @@ NOINLINE static void latency() {
     const size_t packet_size[] = {8, 16, 32, 64, 128, 256, 512, 1024};
 
     for(auto pkt_size : packet_size) {
-        Results<MilliFloatResult> res(samples);
+        Results<TimeDuration> res(samples);
 
         while(res.runs() < samples) {
-            uint64_t start = TCU::get().nanotime();
+            auto start = TimeInstant::now();
 
             socket->send(buffer, pkt_size);
             size_t received = 0;
@@ -65,13 +65,12 @@ NOINLINE static void latency() {
                 received += static_cast<size_t>(res);
             }
 
-            uint64_t stop = TCU::get().nanotime();
-            cout << "RTT (" << pkt_size << "b): " << ((stop - start) / 1000) << " us\n";
-
-            res.push(stop - start);
+            auto duration = TimeInstant::now().duration_since(start);
+            cout << "RTT (" << pkt_size << "b): " << duration.as_micros() << " us\n";
+            res.push(duration);
         }
 
-        WVPERF("network latency (" << pkt_size << "b)", res);
+        WVPERF("network latency (" << pkt_size << "b)", MilliFloatResultRef<TimeDuration>(res));
     }
 
     socket->close();
@@ -80,7 +79,7 @@ NOINLINE static void latency() {
 NOINLINE static void bandwidth() {
     const size_t PACKETS_TO_SEND = 105;
     const size_t BURST_SIZE = 2;
-    const uint64_t TIMEOUT = 1000000000; // 1sec
+    const TimeDuration TIMEOUT = TimeDuration::from_secs(1);
 
     NetworkManager net("net");
 
@@ -103,8 +102,8 @@ NOINLINE static void bandwidth() {
 
     socket->blocking(false);
 
-    uint64_t start              = TCU::get().nanotime();
-    uint64_t last_received      = start;
+    auto start                  = TimeInstant::now();
+    auto last_received          = start;
     size_t sent_count           = 0;
     size_t received_count       = 0;
     size_t received_bytes       = 0;
@@ -115,7 +114,7 @@ NOINLINE static void bandwidth() {
         if(failures >= 10) {
             failures = 0;
             if(sent_count >= PACKETS_TO_SEND) {
-                auto waited = TCU::get().nanotime() - last_received;
+                auto waited = TimeInstant::now().duration_since(last_received);
                 if(waited > TIMEOUT)
                     break;
                 // we are not interested in output anymore
@@ -145,7 +144,7 @@ NOINLINE static void bandwidth() {
             if(pkt_size != -1) {
                 received_bytes += static_cast<size_t>(pkt_size);
                 received_count++;
-                last_received = TCU::get().nanotime();
+                last_received = TimeInstant::now();
                 failures = 0;
             }
             else {
@@ -163,9 +162,10 @@ NOINLINE static void bandwidth() {
     cout << "Sent packets: " << sent_count << "\n";
     cout << "Received packets: " << received_count << "\n";
     cout << "Received bytes: " << received_bytes << "\n";
-    uint64_t duration = last_received - start;
+    auto duration = last_received.duration_since(start);
     cout << "Duration: " << duration << "\n";
-    float mbps = (static_cast<float>(received_bytes) / (duration / 1e9f)) / (1024 * 1024);
+    auto secs = static_cast<float>(duration.as_nanos()) / 1000000000.f;
+    float mbps = (static_cast<float>(received_bytes) / secs) / (1024 * 1024);
     WVPERF("TCP bandwidth", mbps << " MiB/s (+/- 0 with 1 runs)\n");
 
     socket->blocking(true);

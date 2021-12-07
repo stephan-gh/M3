@@ -20,7 +20,7 @@
 using namespace m3;
 
 static void timer_event(GateIStream &) {
-    cout << "Timer tick @ " << TCU::get().nanotime() << "\n";
+    cout << "Timer tick @ " << TimeInstant::now().as_nanos() << "\n";
 }
 
 int main() {

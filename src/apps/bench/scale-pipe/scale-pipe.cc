@@ -16,8 +16,7 @@
 
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
-#include <base/util/Profile.h>
-#include <base/util/Time.h>
+#include <base/time/Profile.h>
 #include <base/CmdArgs.h>
 #include <base/Panic.h>
 
@@ -92,7 +91,7 @@ int main(int argc, char **argv) {
 
     if(VERBOSE) cout << "Creating application VPEs...\n";
 
-    Results<> res(static_cast<ulong>(repeats));
+    Results<CycleDuration> res(static_cast<ulong>(repeats));
 
     int exitcode = 0;
     for(int j = 0; j < warmup + repeats; ++j) {
@@ -106,7 +105,7 @@ int main(int argc, char **argv) {
 
         if(VERBOSE) cout << "Starting VPEs...\n";
 
-        cycles_t overall_start = Time::start(0x1235);
+        auto overall_start = CycleInstant::now();
 
         constexpr size_t PIPE_SHM_SIZE   = 512 * 1024;
         MemGate *mems[instances];
@@ -160,7 +159,7 @@ int main(int argc, char **argv) {
         for(size_t i = 0; i < instances * 2; ++i)
             send_receive_vmsg(apps[i]->sgate, 1);
 
-        cycles_t start = Time::start(0x1234);
+        auto start = CycleInstant::now();
 
         for(size_t i = 0; i < instances * 2; ++i)
             send_vmsg(apps[i]->sgate, 1);
@@ -174,11 +173,12 @@ int main(int argc, char **argv) {
             if(VERBOSE) cout << apps[i]->argv[0] << " exited with " << res << "\n";
         }
 
-        cycles_t overall_end = Time::stop(0x1235);
-        cycles_t end = Time::stop(0x1234);
+        auto overall_end = CycleInstant::now();
+        auto end = CycleInstant::now();
         if(j >= warmup)
-            res.push(end - start);
-        cout << "Time: " << (end - start) << ", total: " << (overall_end - overall_start) << "\n";
+            res.push(end.duration_since(start));
+        cout << "Time: " << end.duration_since(start)
+             << ", total: " << overall_end.duration_since(overall_start) << "\n";
 
         if(VERBOSE) cout << "Deleting VPEs...\n";
 

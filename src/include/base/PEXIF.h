@@ -17,6 +17,7 @@
 #pragma once
 
 #include <base/Common.h>
+#include <base/time/Duration.h>
 
 namespace m3 {
 
@@ -50,8 +51,8 @@ enum Operation : word_t {
 namespace m3 {
 
 struct PEXIF {
-    static void wait(epid_t ep, irq_t irq, uint64_t nanos = 0xFFFFFFFFFFFFFFFF) {
-        PEXABI::call3(Operation::WAIT, ep, irq, nanos);
+    static void wait(epid_t ep, irq_t irq, TimeDuration timeout) {
+        PEXABI::call3(Operation::WAIT, ep, irq, timeout.as_nanos());
     }
 
     static void exit(int code) {

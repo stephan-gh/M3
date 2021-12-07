@@ -15,7 +15,6 @@
  */
 
 #include <base/util/Chars.h>
-#include <base/util/Time.h>
 #include <base/CPU.h>
 
 #include <m3/stream/Standard.h>
@@ -34,9 +33,7 @@ static void count(FStream &in) {
     size_t res;
     int last_space = false;
     while((res = in.read(buffer, sizeof(buffer))) > 0) {
-        Time::start(0x5555);
         count(buffer, res, &lines, &words, &last_space);
-        Time::stop(0x5555);
         bytes += static_cast<long>(res);
     }
 

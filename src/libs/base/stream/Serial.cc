@@ -15,6 +15,7 @@
  */
 
 #include <base/stream/Serial.h>
+#include <base/time/Instant.h>
 #include <string.h>
 
 namespace m3 {
@@ -73,7 +74,7 @@ void Serial::write(char c) {
 void Serial::flush() {
     char tmp[14];
     OStringStream curtime(tmp, sizeof(tmp));
-    curtime << m3::fmt((TCU::get().nanotime() / 1000) % 10000000000, 11) << "] ";
+    curtime << m3::fmt((m3::TimeInstant::now().as_nanos() / 1000) % 10000000000, 11) << "] ";
     strncpy(_outbuf + _time, curtime.str(), curtime.length());
     strcpy(_outbuf + _outpos, "\e[0m");
     _outpos += SUFFIX_LEN;

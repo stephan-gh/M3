@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/util/Time.h>
+#include <base/time/Instant.h>
 
 #include <m3/stream/Standard.h>
 #include <m3/pes/VPE.h>
@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
         exitmsg("Usage: " << argv[0] << " <file>...");
 
     int res;
-    cycles_t start = Time::start(0);
+    auto start = TimeInstant::now();
     {
         auto pe = PE::get("own|core");
         VPE child(pe, argv[1]);
@@ -43,9 +43,9 @@ int main(int argc, char **argv) {
         res = child.wait();
     }
 
-    cycles_t end = Time::stop(0);
+    auto end = TimeInstant::now();
 
     cerr << "VPE (" << argv[1] << ") terminated with exit-code " << res << "\n";
-    cerr << "Runtime: " << (end - start) << " cycles\n";
+    cerr << "Runtime: " << end.duration_since(start) << "\n";
     return 0;
 }

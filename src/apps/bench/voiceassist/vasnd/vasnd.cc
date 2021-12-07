@@ -16,7 +16,7 @@
 
 #include <base/stream/IStringStream.h>
 #include <base/util/Math.h>
-#include <base/util/Profile.h>
+#include <base/time/Profile.h>
 #include <base/CmdArgs.h>
 
 #include <m3/com/MemGate.h>
@@ -54,9 +54,9 @@ static size_t recv_audio(void *dst, ClientSession &sess) {
     return size;
 }
 
-static uint64_t forward_audio(ClientSession &vamic, OpHandler *hdl,
-                              void *mem, void *out, bool compute) {
-    uint64_t start = TCU::get().nanotime();
+static TimeDuration forward_audio(ClientSession &vamic, OpHandler *hdl,
+                                  void *mem, void *out, bool compute) {
+    auto start = TimeInstant::now();
 
     size_t size = recv_audio(mem, vamic);
 
@@ -72,9 +72,9 @@ static uint64_t forward_audio(ClientSession &vamic, OpHandler *hdl,
 
     hdl->send(out, res);
 
-    uint64_t end = TCU::get().nanotime();
-    m3::cout << "Iteration: " << (end - start) << " ns\n";
-    return end - start;
+    auto end = TimeInstant::now();
+    m3::cout << "Iteration: " << end.duration_since(start) << "\n";
+    return end.duration_since(start);
 }
 
 static void usage(const char *name) {
@@ -124,9 +124,9 @@ int main(int argc, char **argv) {
         forward_audio(vamic, hdl, mem, out, compute);
 
     Syscalls::reset_stats();
-    uint64_t wall_start = TCU::get().nanotime();
+    auto wall_start = TimeInstant::now();
 
-    Results<NanoResult> res(static_cast<size_t>(repeats));
+    Results<TimeDuration> res(static_cast<size_t>(repeats));
     for(int i = 0; i < repeats; ++i)
         res.push(forward_audio(vamic, hdl, mem, out, compute));
     WVPERF("VoiceAssistant with " << proto, res);
@@ -134,8 +134,8 @@ int main(int argc, char **argv) {
     free(out);
     free(mem);
 
-    uint64_t wall_stop = TCU::get().nanotime();
-    m3::cout << "Total Time: " << (wall_stop - wall_start) << "\n";
+    auto wall_stop = TimeInstant::now();
+    m3::cout << "Total Time: " << wall_stop.duration_since(wall_start) << "\n";
     m3::cout << "\033[1;32mAll tests successful!\033[0;m\n";
 
     Syscalls::reset_stats();

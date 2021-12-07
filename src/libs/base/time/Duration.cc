@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Copyright (C) 2016, Nils Asmussen <nils@os.inf.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
  *
  * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
@@ -14,27 +14,15 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/util/Time.h>
-
-#include <sys/time.h>
+#include <base/time/Duration.h>
 
 namespace m3 {
 
-cycles_t Time::start(unsigned u) {
-    return stop(u);
-}
-
-cycles_t Time::stop(unsigned) {
-#if defined(__i386__) or defined(__x86_64__)
-    return CPU::elapsed_cycles();
-#elif defined(__arm__)
-    struct timeval tv;
-    gettimeofday(&tv,nullptr);
-    return static_cast<cycles_t>(tv.tv_sec) * 1000000 + static_cast<cycles_t>(tv.tv_usec);
-#else
-#   warning "Cycle counter not supported"
-    return 0;
-#endif
-}
+const TimeDuration TimeDuration::NANOSECOND = TimeDuration::from_nanos(1);
+const TimeDuration TimeDuration::MICROSECOND = TimeDuration::from_nanos(1000);
+const TimeDuration TimeDuration::MILLISECOND = TimeDuration::from_nanos(1000 * 1000);
+const TimeDuration TimeDuration::SECOND = TimeDuration::from_nanos(1000 * 1000 * 1000);
+const TimeDuration TimeDuration::MAX = TimeDuration::from_nanos(0xFFFFFFFFFFFFFFFF);
+const TimeDuration TimeDuration::ZERO = TimeDuration::from_nanos(0);
 
 }

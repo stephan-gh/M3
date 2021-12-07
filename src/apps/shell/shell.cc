@@ -15,7 +15,7 @@
  */
 
 #include <base/stream/IStringStream.h>
-#include <base/util/Time.h>
+#include <base/time/Instant.h>
 
 #include <m3/accel/StreamAccel.h>
 #include <m3/pipe/IndirectPipe.h>
@@ -36,7 +36,7 @@
 
 using namespace m3;
 
-static const size_t ACOMP_TIME = 4096;
+static const CycleDuration ACOMP_TIME = CycleDuration::from_raw(4096);
 
 static const size_t PIPE_SHM_SIZE   = 512 * 1024;
 
@@ -332,12 +332,12 @@ int main(int argc, char **argv) {
         if(!list)
             exitmsg("Unable to parse command '" << os.str() << "'");
 
-        cycles_t start = Time::start(0x1234);
+        auto start = TimeInstant::now();
         execute(pipesrv, list);
-        cycles_t end = Time::stop(0x1234);
+        auto end = TimeInstant::now();
         ast_cmds_destroy(list);
 
-        cerr << "Execution took " << (end - start) << " cycles\n";
+        cerr << "Execution took " << end.duration_since(start) << "\n";
         return 0;
     }
 

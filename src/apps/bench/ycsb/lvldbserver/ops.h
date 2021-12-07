@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <base/time/Duration.h>
+
 #include <stdint.h>
 #include <string>
 #include <vector>
@@ -64,10 +66,10 @@ private:
     std::vector<std::pair<std::string, std::string>> exec_scan(Package &pkg);
     void exec_update(Package &pkg);
 
-    uint64_t _t_insert;
-    uint64_t _t_read;
-    uint64_t _t_scan;
-    uint64_t _t_update;
+    m3::TimeDuration _t_insert;
+    m3::TimeDuration _t_read;
+    m3::TimeDuration _t_scan;
+    m3::TimeDuration _t_update;
     uint64_t _n_insert;
     uint64_t _n_read;
     uint64_t _n_scan;

@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <base/time/Instant.h>
 #include <base/util/BitField.h>
 #include <base/util/Math.h>
 #include <base/util/Reference.h>
@@ -102,21 +103,21 @@ public:
      * Puts the current VPE to sleep until the next message arrives
      */
     static void sleep() noexcept {
-        sleep_for(0xFFFFFFFFFFFFFFFF);
+        sleep_for(TimeDuration::MAX);
     }
 
     /**
      * Puts the current VPE to sleep until the next message arrives or <nanos> nanoseconds have
      * passed.
      */
-    static void sleep_for(uint64_t nanos) noexcept {
-        if(env()->shared || nanos != 0xFFFFFFFFFFFFFFFF)
-            PEXIF::wait(TCU::INVALID_EP, INVALID_IRQ, nanos);
+    static void sleep_for(TimeDuration duration) noexcept {
+        if(env()->shared || duration != TimeDuration::MAX)
+            PEXIF::wait(TCU::INVALID_EP, INVALID_IRQ, duration);
 #if !defined(__host__)
         else if(env()->platform != Platform::HW)
             TCU::get().wait_for_msg(TCU::INVALID_EP);
 #else
-            TCU::get().wait_for_msg(TCU::INVALID_EP, nanos);
+            TCU::get().wait_for_msg(TCU::INVALID_EP, duration.as_nanos());
 #endif
     }
 
@@ -125,7 +126,7 @@ public:
      */
     static void wait_for_msg(epid_t ep) noexcept {
         if(env()->shared)
-            PEXIF::wait(ep, INVALID_IRQ);
+            PEXIF::wait(ep, INVALID_IRQ, TimeDuration::MAX);
 #if !defined(__host__)
         else if(env()->platform != Platform::HW)
             TCU::get().wait_for_msg(ep);

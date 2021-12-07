@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/util/Time.h>
 #include <base/log/Lib.h>
 
 #include <m3/pipe/DirectPipe.h>
@@ -107,11 +106,8 @@ ssize_t DirectPipeReader::read(void *buffer, size_t count, bool blocking) {
         _state->_eof |= DirectPipe::WRITE_EOF;
     else {
         // Skip data when no buffer is specified
-        if(buffer) {
-            Time::start(0xaaaa);
+        if(buffer)
             _state->_mgate.read(buffer, amount, _state->_pos);
-            Time::stop(0xaaaa);
-        }
         _state->_pos += amount;
         _state->_rem -= amount;
     }

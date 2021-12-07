@@ -19,7 +19,7 @@
 #include <string>
 
 #include <base/stream/IStringStream.h>
-#include <base/util/Profile.h>
+#include <base/time/Profile.h>
 
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
 
     cout << "Starting Benchmark:\n";
 
-    Results<MicroResult> res(static_cast<size_t>(repeats));
+    Results<TimeDuration> res(static_cast<size_t>(repeats));
     for(int i = 0; i < repeats; ++i) {
         uint64_t opcounter = 0;
 
@@ -72,7 +72,7 @@ int main(int argc, char** argv) {
         exec->reset_stats();
         hdl->reset();
 
-        uint64_t start = m3::TCU::get().nanotime();
+        auto start = TimeInstant::now();
 
         bool run = true;
         while(run) {
@@ -98,13 +98,13 @@ int main(int argc, char** argv) {
             opcounter += 1;
         }
 
-        uint64_t end = m3::TCU::get().nanotime();
+        auto end = TimeInstant::now();
         cout << "Systemtime: " << (__m3_sysc_systime() / 1000) << " us\n";
-        cout << "Totaltime: " << ((end - start) / 1000) << " us\n";
+        cout << "Totaltime: " << end.duration_since(start).as_micros() << " us\n";
 
         cout << "Server Side:\n";
         exec->print_stats(opcounter);
-        res.push(end - start);
+        res.push(end.duration_since(start));
     }
 
     WVPERF("YCSB with " << argv[3], res);

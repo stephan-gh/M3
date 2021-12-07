@@ -17,6 +17,7 @@
  */
 
 #include <base/log/Lib.h>
+#include <base/time/Instant.h>
 
 #include <m3/Exception.h>
 #include <m3/com/GateStream.h>
@@ -116,14 +117,15 @@ void NetworkManager::wait(uint dirs) {
     }
 }
 
-void NetworkManager::wait_for(uint64_t timeout, uint dirs) {
-    uint64_t end = TCU::get().nanotime() + timeout;
-    uint64_t now;
-    while((now = TCU::get().nanotime()) < end) {
+void NetworkManager::wait_for(TimeDuration timeout, uint dirs) {
+    auto end = TimeInstant::now() + timeout;
+    auto now = TimeInstant::now();
+    while(now < end) {
         if(tick_sockets(dirs))
             break;
 
-        VPE::sleep_for(end - now);
+        VPE::sleep_for(end.duration_since(now));
+        now = TimeInstant::now();
     }
 }
 

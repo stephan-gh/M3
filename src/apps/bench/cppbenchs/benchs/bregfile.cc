@@ -15,7 +15,7 @@
  */
 
 #include <base/Common.h>
-#include <base/util/Profile.h>
+#include <base/time/Profile.h>
 #include <base/Panic.h>
 
 #include <m3/vfs/FileRef.h>
@@ -30,55 +30,55 @@ alignas(PAGE_SIZE) static char buf[8192];
 NOINLINE static void open_close() {
     Profile pr(50, 10);
 
-    WVPERF("open-close", pr.run_with_id([] {
+    WVPERF("open-close", pr.run<CycleInstant>([] {
         FileRef file("/data/2048k.txt", FILE_R);
-    }, 0x30));
+    }));
 }
 
 NOINLINE static void stat() {
     Profile pr(50, 10);
 
-    WVPERF(__func__, pr.run_with_id([] {
+    WVPERF(__func__, pr.run<CycleInstant>([] {
         FileInfo info;
         VFS::stat("/data/2048k.txt", info);
-    }, 0x32));
+    }));
 }
 
 NOINLINE static void mkdir_rmdir() {
     Profile pr(50, 10);
 
-    WVPERF(__func__, pr.run_with_id([] {
+    WVPERF(__func__, pr.run<CycleInstant>([] {
         VFS::mkdir("/newdir", 0755);
         VFS::rmdir("/newdir");
-    }, 0x33));
+    }));
 }
 
 NOINLINE static void link_unlink() {
     Profile pr(50, 10);
 
-    WVPERF(__func__, pr.run_with_id([] {
+    WVPERF(__func__, pr.run<CycleInstant>([] {
         VFS::link("/large.txt", "/newlarge.txt");
         VFS::unlink("/newlarge.txt");
-    }, 0x34));
+    }));
 }
 
 NOINLINE static void read() {
     Profile pr(2, 1);
 
-    WVPERF("read 2 MiB file with 8K buf", pr.run_with_id([] {
+    WVPERF("read 2 MiB file with 8K buf", pr.run<CycleInstant>([] {
         FileRef file("/data/2048k.txt", FILE_R);
 
         size_t amount;
         while((amount = file->read(buf, sizeof(buf))) > 0)
             ;
-    }, 0x35));
+    }));
 }
 
 NOINLINE static void write() {
     const size_t SIZE = 2 * 1024 * 1024;
     Profile pr(2, 1);
 
-    WVPERF("write 2 MiB file with 8K buf", pr.run_with_id([] {
+    WVPERF("write 2 MiB file with 8K buf", pr.run<CycleInstant>([] {
         FileRef file("/newfile", FILE_W | FILE_TRUNC | FILE_CREATE);
 
         size_t total = 0;
@@ -86,20 +86,20 @@ NOINLINE static void write() {
             size_t amount = file->write(buf, sizeof(buf));
             total += static_cast<size_t>(amount);
         }
-    }, 0x36));
+    }));
 }
 
 NOINLINE static void copy() {
     Profile pr(2, 1);
 
-    WVPERF("copy 2 MiB file with 8K buf", pr.run_with_id([] {
+    WVPERF("copy 2 MiB file with 8K buf", pr.run<CycleInstant>([] {
         FileRef in("/data/2048k.txt", FILE_R);
         FileRef out("/newfile", FILE_W | FILE_TRUNC | FILE_CREATE);
 
         size_t count;
         while((count = in->read(buf, sizeof(buf))) > 0)
             out->write_all(buf, static_cast<size_t>(count));
-    }, 0x37));
+    }));
 }
 
 void bregfile() {

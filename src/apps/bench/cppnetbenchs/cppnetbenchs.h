@@ -14,6 +14,8 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/time/Profile.h>
+
 #define RUN_SUITE(name)                                                 \
     m3::cout << "Running benchmark suite " << #name << " ...\n";        \
     name();                                                             \
@@ -23,6 +25,22 @@
     m3::cout << "Testing \"" << #name << "\" in " << __FILE__ << ":\n"; \
     name();                                                             \
     m3::cout << "\n";
+
+template<typename T>
+class MilliFloatResultRef {
+public:
+    explicit MilliFloatResultRef(const m3::Results<T> &res) : _res(res) {
+    }
+
+    friend m3::OStream &operator<<(m3::OStream &os, const MilliFloatResultRef &r) {
+        os << (static_cast<float>(r._res.avg().as_nanos()) / 1000000.f)
+           << " ms (+/- " << (static_cast<float>(r._res.stddev().as_nanos()) / 1000000.f)
+           << " ms with " << r._res.runs() << " runs)";
+        return os;
+    }
+
+    const m3::Results<T> &_res;
+};
 
 void budp();
 void btcp();

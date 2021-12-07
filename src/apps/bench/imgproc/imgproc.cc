@@ -16,8 +16,7 @@
 
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
-#include <base/util/Profile.h>
-#include <base/util/Time.h>
+#include <base/time/Profile.h>
 #include <base/CmdArgs.h>
 
 #include <m3/stream/Standard.h>
@@ -34,10 +33,10 @@ using namespace m3;
 // 16 iterations each. we unroll both 4 times, leading to
 // (4 + 4) * 732 = 5856.
 
-const cycles_t ACCEL_TIMES[] = {
-    5856 / 2,   // FFT
-    1189 / 2,   // multiply
-    5856 / 2,   // IFFT
+const CycleDuration ACCEL_TIMES[] = {
+    CycleDuration::from_raw(5856 / 2),   // FFT
+    CycleDuration::from_raw(1189 / 2),   // multiply
+    CycleDuration::from_raw(5856 / 2),   // IFFT
 };
 
 static void usage(const char *name) {
@@ -86,9 +85,9 @@ int main(int argc, char **argv) {
 
     const char *in = argv[CmdArgs::ind];
 
-    Results<> res(repeats);
+    Results<CycleDuration> res(repeats);
     for(ulong i = 0; i < repeats + warmup; ++i) {
-        cycles_t time;
+        CycleDuration time;
         if(mode == Mode::INDIR)
             time = chain_indirect(in, num);
         else

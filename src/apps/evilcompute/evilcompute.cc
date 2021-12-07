@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
     // now try to trick PEMux to leave us running, because we have unread messages
     for(volatile int i = 0; ; ++i) {
         cout << "Hello " << i << " from " << (argc > 0 ? argv[1] : "??") << "\n";
-        VPE::sleep_for(10);
+        VPE::sleep_for(TimeDuration::from_nanos(10));
     }
     return 0;
 }

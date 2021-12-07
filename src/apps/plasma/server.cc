@@ -15,7 +15,7 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/util/Time.h>
+#include <base/time/Instant.h>
 
 #include <m3/com/GateStream.h>
 #include <m3/server/Server.h>
@@ -354,7 +354,7 @@ public:
 };
 
 static inline cycles_t tsc() {
-    return Time::start();
+    return CycleInstant::now().as_cycles();
 }
 
 static IntroAnimator<VGA::ROWS, VGA::COLS> ia;

@@ -15,6 +15,7 @@
  */
 
 #include <base/Common.h>
+#include <base/time/Duration.h>
 
 #include <m3/vfs/File.h>
 
@@ -24,7 +25,7 @@ enum Mode {
     DIR_SIMPLE  = 2,
 };
 
-extern const cycles_t ACCEL_TIMES[];
+extern const m3::CycleDuration ACCEL_TIMES[];
 
-cycles_t chain_direct(const char *in, size_t num, Mode mode);
-cycles_t chain_indirect(const char *in, size_t num);
+m3::CycleDuration chain_direct(const char *in, size_t num, Mode mode);
+m3::CycleDuration chain_indirect(const char *in, size_t num);

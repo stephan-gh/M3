@@ -16,7 +16,7 @@
 
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
-#include <base/util/Profile.h>
+#include <base/time/Profile.h>
 #include <base/Panic.h>
 #include <base/CmdArgs.h>
 
@@ -212,9 +212,9 @@ int main(int argc, char **argv) {
             player.play(trace, chan, data, stdio, keep_time, verbose);
         });
         if(wvtest)
-            WVPERF(argv[CmdArgs::ind], pr.runner_with_id(runner, 0xFFFF));
+            WVPERF(argv[CmdArgs::ind], pr.runner<CycleInstant>(runner));
         else
-            pr.runner_with_id(runner, 0xFFFF);
+            pr.runner<CycleInstant>(runner);
     }
     catch (::Exception &e) {
         cerr << "Caught exception: " << e.msg() << "\n";

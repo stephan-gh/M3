@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/util/Time.h>
 #include <base/log/Lib.h>
 
 #include <m3/com/GateStream.h>
@@ -148,9 +147,7 @@ ssize_t DirectPipeWriter::write(const void *buffer, size_t count, bool blocking)
         LLOG(DIRPIPE, "[write] send pos=" << off << ", len=" << amount);
 
         if(amount) {
-            Time::start(0xaaaa);
             _state->_mgate.write(buf, amount, static_cast<size_t>(off));
-            Time::stop(0xaaaa);
             _state->_wrpos = (static_cast<size_t>(off) + amount) % _size;
         }
         _state->_free -= amount;

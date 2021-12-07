@@ -15,7 +15,6 @@
  */
 
 #include <base/log/Lib.h>
-#include <base/util/Time.h>
 
 #include <m3/com/GateStream.h>
 #include <m3/session/M3FS.h>
@@ -129,10 +128,8 @@ size_t GenericFile::read(void *buffer, size_t count) {
     LLOG(FS, "GenFile[" << fd() << "]::read(" << count << ", pos=" << (_goff + _pos) << ")");
 
     if(_pos == _len) {
-        Time::start(0xbbbb);
         GateIStream reply = send_receive_vmsg(_sg, NEXT_IN);
         reply.pull_result();
-        Time::stop(0xbbbb);
 
         _goff += _len;
         reply >> _off >> _len;
@@ -141,14 +138,12 @@ size_t GenericFile::read(void *buffer, size_t count) {
 
     size_t amount = Math::min(count, _len - _pos);
     if(amount > 0) {
-        Time::start(0xaaaa);
         if(flags() & FILE_NODATA) {
             if(count > 2)
                 CPU::compute(count / 2);
         }
         else
             _mg.read(buffer, amount, _memoff + _off + _pos);
-        Time::stop(0xaaaa);
         _pos += amount;
     }
     return amount;
@@ -160,10 +155,8 @@ size_t GenericFile::write(const void *buffer, size_t count) {
     LLOG(FS, "GenFile[" << fd() << "]::write(" << count << ", pos=" << (_goff + _pos) << ")");
 
     if(_pos == _len) {
-        Time::start(0xbbbb);
         GateIStream reply = send_receive_vmsg(_sg, NEXT_OUT);
         reply.pull_result();
-        Time::stop(0xbbbb);
 
         _goff += _len;
         reply >> _off >> _len;
@@ -172,14 +165,12 @@ size_t GenericFile::write(const void *buffer, size_t count) {
 
     size_t amount = Math::min(count, _len - _pos);
     if(amount > 0) {
-        Time::start(0xaaaa);
         if(flags() & FILE_NODATA) {
             if(count > 4)
                 CPU::compute(count / 4);
         }
         else
             _mg.write(buffer, amount, _memoff + _off + _pos);
-        Time::stop(0xaaaa);
         _pos += amount;
     }
     _writing = true;

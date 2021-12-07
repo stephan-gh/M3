@@ -15,6 +15,7 @@
  */
 
 #include <base/Common.h>
+#include <base/time/Duration.h>
 #include <base/util/Reference.h>
 
 #include <m3/vfs/File.h>
@@ -27,8 +28,8 @@ enum Mode {
 };
 
 void chain_direct(m3::Reference<m3::File> in, m3::Reference<m3::File> out,
-                  size_t num, cycles_t comptime, Mode mode);
+                  size_t num, m3::CycleDuration comptime, Mode mode);
 void chain_direct_multi(m3::Reference<m3::File> in, m3::Reference<m3::File> out,
-                        size_t num, cycles_t comptime, Mode mode);
+                        size_t num, m3::CycleDuration comptime, Mode mode);
 void chain_indirect(m3::Reference<m3::File> in, m3::Reference<m3::File> out,
-                    size_t num, cycles_t comptime);
+                    size_t num, m3::CycleDuration comptime);

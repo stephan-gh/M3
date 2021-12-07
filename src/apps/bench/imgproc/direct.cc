@@ -15,7 +15,7 @@
  */
 
 #include <base/stream/Serial.h>
-#include <base/util/Time.h>
+#include <base/time/Instant.h>
 
 #include <m3/accel/StreamAccel.h>
 #include <m3/stream/Standard.h>
@@ -147,7 +147,7 @@ static void wait_for(std::unique_ptr<DirectChain> *chains, size_t num) {
     }
 }
 
-cycles_t chain_direct(const char *in, size_t num, Mode mode) {
+CycleDuration chain_direct(const char *in, size_t num, Mode mode) {
     Pipes pipes("pipes");
     std::unique_ptr<DirectChain> chains[num];
     fd_t infds[num];
@@ -170,7 +170,7 @@ cycles_t chain_direct(const char *in, size_t num, Mode mode) {
 
     if(VERBOSE) Serial::get() << "Starting chain...\n";
 
-    cycles_t start = Time::start(0);
+    auto start = CycleInstant::now();
 
     if(mode == Mode::DIR) {
         for(size_t i = 0; i < num; ++i)
@@ -186,7 +186,7 @@ cycles_t chain_direct(const char *in, size_t num, Mode mode) {
         wait_for(chains + num / 2, num / 2);
     }
 
-    cycles_t end = Time::stop(0);
+    auto end = CycleInstant::now();
 
     // cleanup
     for(size_t i = 0; i < num; ++i) {
@@ -194,5 +194,5 @@ cycles_t chain_direct(const char *in, size_t num, Mode mode) {
         VFS::close(outfds[i]);
     }
 
-    return end - start;
+    return end.duration_since(start);
 }

@@ -33,6 +33,7 @@ class Machine;
 class MemGate;
 class SendGate;
 class RecvGate;
+class TimeInstant;
 class VPE;
 
 class TCU {
@@ -41,6 +42,7 @@ class TCU {
     friend class MemGate;
     friend class SendGate;
     friend class RecvGate;
+    friend class TimeInstant;
     friend class VPE;
 
     explicit TCU() {
@@ -212,10 +214,6 @@ public:
         return static_cast<EpType>(r0 & 0x7) != EpType::INVALID;
     }
 
-    uint64_t nanotime() const {
-        return read_reg(UnprivRegs::CUR_TIME);
-    }
-
     size_t print(const char *str, size_t len);
 
 private:
@@ -241,6 +239,10 @@ private:
         CPU::memory_barrier();
         write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::ACK_MSG, msg_off));
         return get_error();
+    }
+
+    uint64_t nanotime() const {
+        return read_reg(UnprivRegs::CUR_TIME);
     }
 
     void sleep() {

@@ -16,7 +16,7 @@
 
 #include <base/Common.h>
 #include <base/col/Treap.h>
-#include <base/util/Profile.h>
+#include <base/time/Profile.h>
 #include <base/Panic.h>
 
 #include <m3/Test.h>
@@ -53,7 +53,7 @@ NOINLINE static void insert() {
 
     Profile pr(100, 50);
     TreapInsertRunner runner;
-    WVPERF("inserting 100-elements", pr.runner_with_id(runner, 0x03));
+    WVPERF("inserting 100-elements", pr.runner<CycleInstant>(runner));
 }
 
 NOINLINE static void find() {
@@ -82,7 +82,7 @@ NOINLINE static void find() {
 
     Profile pr(100, 50);
     TreapSearchRunner runner;
-    WVPERF("searching 100-elements", pr.runner_with_id(runner, 0x02));
+    WVPERF("searching 100-elements", pr.runner<CycleInstant>(runner));
 }
 
 NOINLINE static void clear() {
@@ -104,7 +104,7 @@ NOINLINE static void clear() {
 
     Profile pr(100, 50);
     TreapClearRunner runner;
-    WVPERF("removing 100-elements", pr.runner_with_id(runner, 0x01));
+    WVPERF("removing 100-elements", pr.runner<CycleInstant>(runner));
 }
 
 void btreap() {

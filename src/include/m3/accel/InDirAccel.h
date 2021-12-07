@@ -77,12 +77,12 @@ public:
         _mem.write(data, size, BUF_ADDR - MEM_OFFSET);
     }
 
-    void start(Operation op, size_t dataSize, cycles_t compTime, label_t reply_label) {
+    void start(Operation op, size_t dataSize, CycleDuration compTime, label_t reply_label) {
         MsgBuf msg_buf;
         auto &msg = msg_buf.cast<InvokeMsg>();
         msg.op = op;
         msg.dataSize = dataSize;
-        msg.compTime = compTime;
+        msg.compTime = compTime.as_raw();
         _sgate.send(msg_buf, reply_label);
     }
 

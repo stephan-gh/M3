@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <base/util/Time.h>
+#include <base/time/Instant.h>
 
 #include <m3/session/LoadGen.h>
 #include <m3/stream/Standard.h>
@@ -40,7 +40,7 @@ class FSAPI_M3FS : public FSAPI {
 public:
     explicit FSAPI_M3FS(bool data, bool stdio, m3::String const &prefix, m3::LoadGen::Channel *lgchan)
         : _data(data),
-          _start(),
+          _start(m3::CycleInstant::now()),
           _prefix(prefix),
           _fdMap(),
           _dirMap(),
@@ -59,11 +59,11 @@ public:
     }
 
     virtual void start() override {
-        _start = m3::Time::start(0);
+        _start = m3::CycleInstant::now();
     }
     virtual void stop() override {
-        cycles_t end = m3::Time::stop(0);
-        m3::cerr << "Total time: " << (end - _start) << " cycles\n";
+        auto end = m3::CycleInstant::now();
+        m3::cerr << "Total time: " << end.duration_since(_start) << "\n";
     }
 
     virtual void checkpoint(int, int, bool) override {
@@ -368,7 +368,7 @@ private:
 
     bool _wait;
     bool _data;
-    cycles_t _start;
+    m3::CycleInstant _start;
     const m3::String _prefix;
     fd_t _fdMap[MaxOpenFds];
     m3::Dir *_dirMap[MaxOpenFds];

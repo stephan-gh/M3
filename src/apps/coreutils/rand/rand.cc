@@ -16,7 +16,6 @@
 
 #include <base/stream/IStringStream.h>
 #include <base/util/Random.h>
-#include <base/util/Time.h>
 #include <base/CPU.h>
 
 #include <m3/stream/Standard.h>
@@ -36,10 +35,8 @@ int main(int argc, char **argv) {
     while(count > 0) {
         size_t amount = Math::min(count, ARRAY_SIZE(buffer));
 
-        Time::start(0x5555);
         CPU::compute(amount * 8);
         // generate(buffer, amount);
-        Time::stop(0x5555);
         cout.write_all(buffer, amount * sizeof(rand_type));
 
         count -= amount;

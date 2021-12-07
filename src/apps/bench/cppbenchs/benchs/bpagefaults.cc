@@ -15,7 +15,7 @@
  */
 
 #include <base/Common.h>
-#include <base/util/Profile.h>
+#include <base/time/Profile.h>
 #include <base/Panic.h>
 
 #include <m3/vfs/FileRef.h>
@@ -30,7 +30,7 @@ static const size_t PAGES = 64;
 
 NOINLINE static void anon() {
     Profile pr(4, 4);
-    WVPERF("anon mapping (64 pages)", pr.run_with_id([] {
+    WVPERF("anon mapping (64 pages)", pr.run<CycleInstant>([] {
         goff_t virt = 0x30000000;
         VPE::self().pager()->map_anon(&virt, PAGES * PAGE_SIZE, Pager::READ | Pager::WRITE, 0);
 
@@ -39,12 +39,12 @@ NOINLINE static void anon() {
             data[i * PAGE_SIZE] = i;
 
         VPE::self().pager()->unmap(virt);
-    }, 0xF0));
+    }));
 }
 
 NOINLINE static void file() {
     Profile pr(4, 4);
-    WVPERF("file mapping (64 pages)", pr.run_with_id([] {
+    WVPERF("file mapping (64 pages)", pr.run<CycleInstant>([] {
         FileRef f("/large.bin", FILE_RW);
 
         goff_t virt = 0x31000000;
@@ -55,7 +55,7 @@ NOINLINE static void file() {
             data[i * PAGE_SIZE] = i;
 
         VPE::self().pager()->unmap(virt);
-    }, 0xF1));
+    }));
 }
 
 void bpagefaults() {

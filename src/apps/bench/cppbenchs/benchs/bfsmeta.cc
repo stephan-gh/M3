@@ -15,7 +15,7 @@
  */
 
 #include <base/Common.h>
-#include <base/util/Profile.h>
+#include <base/time/Profile.h>
 #include <base/Panic.h>
 
 #include <m3/vfs/VFS.h>
@@ -28,15 +28,15 @@ using namespace m3;
 NOINLINE static void stat() {
     Profile pr(50, 20);
 
-    WVPERF("Stat in root dir", pr.run_with_id([] {
+    WVPERF("Stat in root dir", pr.run<CycleInstant>([] {
         FileInfo info;
         VFS::stat("/large.txt", info);
-    }, 0x80));
+    }));
 
-    WVPERF("Stat in sub dir", pr.run_with_id([] {
+    WVPERF("Stat in sub dir", pr.run<CycleInstant>([] {
         FileInfo info;
         VFS::stat("/finddata/dir/dir-1/32.txt", info);
-    }, 0x81));
+    }));
 }
 
 void bfsmeta() {

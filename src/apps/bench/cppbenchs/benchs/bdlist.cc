@@ -16,7 +16,7 @@
 
 #include <base/Common.h>
 #include <base/col/DList.h>
-#include <base/util/Profile.h>
+#include <base/time/Profile.h>
 #include <base/Panic.h>
 
 #include <m3/Test.h>
@@ -52,7 +52,7 @@ NOINLINE static void append() {
 
     Profile pr(30);
     DListAppendRunner runner;
-    WVPERF("Appending 100-elements", pr.runner_with_id(runner, 0x20));
+    WVPERF("Appending 100-elements", pr.runner<CycleInstant>(runner));
 }
 
 NOINLINE static void clear() {
@@ -75,7 +75,7 @@ NOINLINE static void clear() {
 
     Profile pr(30);
     DListClearRunner runner;
-    WVPERF("Removing 100-elements", pr.runner_with_id(runner, 0x21));
+    WVPERF("Removing 100-elements", pr.runner<CycleInstant>(runner));
 }
 
 void bdlist() {

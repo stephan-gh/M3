@@ -15,7 +15,7 @@
  */
 
 #include <base/Common.h>
-#include <base/util/Time.h>
+#include <base/time/Instant.h>
 #include <base/PEDesc.h>
 
 #include <m3/accel/InDirAccel.h>
@@ -75,7 +75,8 @@ struct IndirChain {
         if(idx < ACCEL_COUNT - 1 && ops[idx] == InDirAccel::Operation::COMPUTE) {
             if(ops[idx + 1] == InDirAccel::Operation::IDLE) {
                 ops[idx] = InDirAccel::Operation::FORWARD;
-                accels[idx]->start(InDirAccel::Operation::FORWARD, written, 0, idx_to_label(idx));
+                accels[idx]->start(InDirAccel::Operation::FORWARD, written,
+                                   CycleDuration::from_raw(0), idx_to_label(idx));
             }
             else
                 sizes[idx + 1] = written;
@@ -140,7 +141,7 @@ struct IndirChain {
     InDirAccel::Operation ops[ACCEL_COUNT];
 };
 
-cycles_t chain_indirect(const char *in, size_t num) {
+CycleDuration chain_indirect(const char *in, size_t num) {
     std::unique_ptr<uint8_t[]> buffer(new uint8_t[BUF_SIZE]);
 
     RecvGate reply_gate = RecvGate::create(getnextlog2(REPLY_SIZE * num * ACCEL_COUNT),
@@ -165,7 +166,8 @@ cycles_t chain_indirect(const char *in, size_t num) {
         );
     }
 
-    cycles_t end = 0, start = Time::start(0);
+    auto start = CycleInstant::now();
+    auto end = start;
 
     // start chains
     for(size_t i = 0; i < num; ++i)
@@ -198,7 +200,7 @@ cycles_t chain_indirect(const char *in, size_t num) {
             active_chains &= ~(static_cast<size_t>(1) << chain);
     }
 
-    end = Time::stop(0);
+    end = CycleInstant::now();
 
 error:
     for(size_t i = 0; i < num; ++i) {
@@ -206,5 +208,5 @@ error:
         VFS::close(outfds[i]);
     }
 
-    return end - start;
+    return end.duration_since(start);
 }

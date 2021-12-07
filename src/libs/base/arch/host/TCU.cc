@@ -303,7 +303,7 @@ void TCU::fetched_msg() {
 void TCU::start_sleep() {
     uint64_t timeout = get_cmd(CMD_OFFSET);
     if(_unread_msgs == 0) {
-        if(timeout != 0)
+        if(timeout != 0xFFFFFFFFFFFFFFFF)
             _sleep_end = nanotime() + timeout;
         else
             _sleep_end = 0;

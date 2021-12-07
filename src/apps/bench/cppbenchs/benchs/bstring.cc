@@ -15,7 +15,7 @@
  */
 
 #include <base/Common.h>
-#include <base/util/Profile.h>
+#include <base/time/Profile.h>
 #include <base/Panic.h>
 
 #include <m3/Test.h>
@@ -32,12 +32,12 @@ NOINLINE static void memcpy() {
 
     Profile pr(5, 2);
 
-    WVPERF("memcpy aligned " << (SIZE / 1024) << " KiB", pr.run_with_id([&src, &dst] {
+    WVPERF("memcpy aligned " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&src, &dst] {
         memcpy(dst.get(), src.get(), SIZE);
-    }, 0xA0));
-    WVPERF("memcpy unaligned " << (SIZE / 1024) << " KiB", pr.run_with_id([&src, &dst] {
+    }));
+    WVPERF("memcpy unaligned " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&src, &dst] {
         memcpy(reinterpret_cast<char*>(dst.get()) + 1, src.get(), SIZE - 1);
-    }, 0xA1));
+    }));
 }
 
 NOINLINE static void memset() {
@@ -45,9 +45,9 @@ NOINLINE static void memset() {
 
     Profile pr(5, 2);
 
-    WVPERF("memset " << (SIZE / 1024) << " KiB", pr.run_with_id([&dst] {
+    WVPERF("memset " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&dst] {
         memset(dst.get(), 0, SIZE);
-    }, 0xA2));
+    }));
 }
 
 NOINLINE static void memmove() {
@@ -55,18 +55,18 @@ NOINLINE static void memmove() {
 
     Profile pr(5, 2);
 
-    WVPERF("memmove backwards " << (SIZE / 1024) << " KiB", pr.run_with_id([&buf] {
+    WVPERF("memmove backwards " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&buf] {
         memmove(buf.get(), buf.get() + SIZE, SIZE);
-    }, 0xA3));
-    WVPERF("memmove overlapping unaligned " << (SIZE / 1024) << " KiB", pr.run_with_id([&buf] {
+    }));
+    WVPERF("memmove overlapping unaligned " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&buf] {
         memmove(buf.get() + 1, buf.get(), SIZE - 1);
-    }, 0xA3));
-    WVPERF("memmove overlapping aligned " << (SIZE / 1024) << " KiB", pr.run_with_id([&buf] {
+    }));
+    WVPERF("memmove overlapping aligned " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&buf] {
         memmove(buf.get() + sizeof(word_t), buf.get(), SIZE - sizeof(word_t));
-    }, 0xA3));
-    WVPERF("memmove forward " << (SIZE / 1024) << " KiB", pr.run_with_id([&buf] {
+    }));
+    WVPERF("memmove forward " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&buf] {
         memmove(buf.get() + SIZE, buf.get(), SIZE);
-    }, 0xA4));
+    }));
 }
 
 NOINLINE static void memcmp() {
@@ -78,15 +78,15 @@ NOINLINE static void memcmp() {
     memset(b1.get(), 0xAA, SIZE);
     memset(b2.get(), 0xAA, SIZE);
 
-    WVPERF("memcmp succ " << (SIZE / 1024) << " KiB", pr.run_with_id([&b1, &b2] {
+    WVPERF("memcmp succ " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&b1, &b2] {
         WVASSERTEQ(memcmp(b1.get(), b2.get(), SIZE), 0);
-    }, 0xA5));
+    }));
 
     memset(b2.get(), 0xBB, SIZE);
 
-    WVPERF("memcmp fail " << (SIZE / 1024) << " KiB", pr.run_with_id([&b1, &b2] {
+    WVPERF("memcmp fail " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&b1, &b2] {
         WVASSERT(memcmp(b1.get(), b2.get(), SIZE) < 0);
-    }, 0xA6));
+    }));
 }
 
 void bstring() {

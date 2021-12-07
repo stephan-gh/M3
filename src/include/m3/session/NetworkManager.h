@@ -110,10 +110,10 @@ public:
      * until the next TCU message arrives. Thus, calling this function can only be done if all work
      * is done.
      *
-     * @param timeout the number of nanoseconds to wait at most
+     * @param timeout the maximum time to wait
      * @param dirs the directions to check
      */
-    void wait_for(uint64_t timeout, uint dirs = Direction::INPUT | Direction::OUTPUT);
+    void wait_for(TimeDuration timeout, uint dirs = Direction::INPUT | Direction::OUTPUT);
 
     /**
      * @return the local IP address

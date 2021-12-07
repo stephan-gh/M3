@@ -16,7 +16,7 @@
 
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
-#include <base/util/Time.h>
+#include <base/time/Instant.h>
 #include <base/PEDesc.h>
 
 #include <m3/accel/InDirAccel.h>
@@ -34,7 +34,7 @@ using namespace m3;
 static const size_t BUF_SIZE    = 4096;
 static const size_t REPLY_SIZE  = 64;
 
-void chain_indirect(Reference<File> in, Reference<File> out, size_t num, cycles_t comptime) {
+void chain_indirect(Reference<File> in, Reference<File> out, size_t num, CycleDuration comptime) {
     std::unique_ptr<uint8_t> buffer(new uint8_t[BUF_SIZE]);
 
     Reference<PE> pes[num];
@@ -61,7 +61,7 @@ void chain_indirect(Reference<File> in, Reference<File> out, size_t num, cycles_
     for(size_t i = 0; i < num - 1; ++i)
         accels[i]->connect_output(accels[i + 1].get());
 
-    cycles_t end = 0, start = Time::start(0);
+    auto start = CycleInstant::now();
 
     // start VPEs
     for(size_t i = 0; i < num; ++i)
@@ -93,7 +93,8 @@ void chain_indirect(Reference<File> in, Reference<File> out, size_t num, cycles_
 
         if(ops[label] == InDirAccel::Operation::COMPUTE) {
             ops[label] = InDirAccel::Operation::FORWARD;
-            accels[label]->start(InDirAccel::Operation::FORWARD, written, 0, label + 1);
+            accels[label]->start(InDirAccel::Operation::FORWARD, written,
+                                 CycleDuration::from_raw(0), label + 1);
             continue;
         }
 
@@ -128,6 +129,6 @@ void chain_indirect(Reference<File> in, Reference<File> out, size_t num, cycles_
         // cout << seen << " / " << total << "\n";
     }
 
-    end = Time::stop(0);
-    cout << "Total time: " << (end - start) << " cycles\n";
+    auto end = CycleInstant::now();
+    cout << "Total time: " << end.duration_since(start) << "\n";
 }

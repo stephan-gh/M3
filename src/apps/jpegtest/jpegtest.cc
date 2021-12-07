@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/util/Profile.h>
+#include <base/time/Profile.h>
 
 #include <m3/stream/Standard.h>
 
@@ -143,7 +143,7 @@ int main() {
     for(size_t s = 0; s < ARRAY_SIZE(sizes); ++s) {
         for(size_t q = 0; q < ARRAY_SIZE(quali); ++q) {
             Profile pr(2, 1);
-            auto res = pr.run([quali, sizes, q, s] {
+            auto res = pr.run<CycleInstant>([quali, sizes, q, s] {
                 write_JPEG_file("/myjpeg.jpeg", quali[q], sizes[s], sizes[s]);
             });
             cout << "JPEG creation"
@@ -155,7 +155,7 @@ int main() {
         uint32_t *dst = new uint32_t[sizes[s] * sizes[s]];
 
         Profile pr(2, 1);
-        auto res = pr.run([src, dst, sizes, s] {
+        auto res = pr.run<CycleInstant>([src, dst, sizes, s] {
             memcpy(dst, src, sizes[s] * sizes[s] * sizeof(uint32_t));
         });
         cout << "memcpy"

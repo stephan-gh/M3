@@ -59,8 +59,13 @@ ALWAYS_INLINE word_t CPU::stack_pointer() {
 }
 
 inline cycles_t CPU::elapsed_cycles() {
-    // TODO implement me
-    return 0;
+    // TODO for now we use our custom instruction
+    register cycles_t r0 asm ("r0") = 0;
+    asm volatile (
+        ".long 0xEE630110"
+        : "+r"(r0)
+    );
+    return r0;
 }
 
 inline uintptr_t CPU::backtrace_step(uintptr_t bp, uintptr_t *func) {

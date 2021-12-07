@@ -16,7 +16,6 @@
 
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
-#include <base/util/Time.h>
 #include <base/CmdArgs.h>
 
 #include <m3/stream/Standard.h>
@@ -41,7 +40,7 @@ static void usage(const char *name) {
 
 int main(int argc, char **argv) {
     Mode mode = Mode::INDIR;
-    cycles_t comptime = 1000;
+    CycleDuration comptime = CycleDuration::from_raw(1000);
     size_t num = 1;
     int repeats = 1;
 
@@ -61,7 +60,11 @@ int main(int argc, char **argv) {
                     usage(argv[0]);
                 break;
             }
-            case 'c': comptime = IStringStream::read_from<cycles_t>(CmdArgs::arg); break;
+            case 'c': {
+                auto cycles = IStringStream::read_from<cycles_t>(CmdArgs::arg);
+                comptime = CycleDuration::from_raw(cycles);
+                break;
+            }
             case 'n': num = IStringStream::read_from<size_t>(CmdArgs::arg); break;
             case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
             default:

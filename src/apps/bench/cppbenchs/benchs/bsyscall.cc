@@ -16,7 +16,7 @@
 
 #include <base/Common.h>
 #include <base/col/SList.h>
-#include <base/util/Profile.h>
+#include <base/time/Profile.h>
 #include <base/KIF.h>
 #include <base/Panic.h>
 
@@ -31,9 +31,9 @@ static capsel_t selector = ObjCap::INVALID;
 
 NOINLINE static void noop() {
     Profile pr;
-    WVPERF(__func__, pr.run_with_id([] {
+    WVPERF(__func__, pr.run<CycleInstant>([] {
         Syscalls::noop();
-    }, 0x50));
+    }));
 }
 
 NOINLINE static void activate() {
@@ -41,9 +41,9 @@ NOINLINE static void activate() {
     const EP &ep = mgate.activate();
 
     Profile pr;
-    WVPERF(__func__, pr.run_with_id([&ep, &mgate] {
+    WVPERF(__func__, pr.run<CycleInstant>([&ep, &mgate] {
         Syscalls::activate(ep.sel(), mgate.sel(), KIF::INV_SEL, 0);
-    }, 0x51));
+    }));
 }
 
 NOINLINE static void create_mgate() {
@@ -61,7 +61,7 @@ NOINLINE static void create_mgate() {
 
     Profile pr;
     SyscallMGateRunner runner;
-    WVPERF(__func__, pr.runner_with_id(runner, 0x52));
+    WVPERF(__func__, pr.runner<CycleInstant>(runner));
 }
 
 NOINLINE static void create_rgate() {
@@ -77,7 +77,7 @@ NOINLINE static void create_rgate() {
 
     Profile pr;
     SyscallRGateRunner runner;
-    WVPERF(__func__, pr.runner_with_id(runner, 0x53));
+    WVPERF(__func__, pr.runner<CycleInstant>(runner));
 }
 
 NOINLINE static void create_sgate() {
@@ -97,7 +97,7 @@ NOINLINE static void create_sgate() {
 
     Profile pr;
     SyscallSGateRunner runner;
-    WVPERF(__func__, pr.runner_with_id(runner, 0x54));
+    WVPERF(__func__, pr.runner<CycleInstant>(runner));
 }
 
 NOINLINE static void create_map() {
@@ -131,7 +131,7 @@ NOINLINE static void create_map() {
 
     Profile pr;
     SyscallMapRunner runner;
-    WVPERF(__func__, pr.runner_with_id(runner, 0x55));
+    WVPERF(__func__, pr.runner<CycleInstant>(runner));
 }
 
 NOINLINE static void create_srv() {
@@ -153,7 +153,7 @@ NOINLINE static void create_srv() {
 
     Profile pr;
     SyscallSrvRunner runner;
-    WVPERF(__func__, pr.runner_with_id(runner, 0x56));
+    WVPERF(__func__, pr.runner<CycleInstant>(runner));
 }
 
 NOINLINE static void derive_mem() {
@@ -174,7 +174,7 @@ NOINLINE static void derive_mem() {
 
     Profile pr;
     SyscallDeriveRunner runner;
-    WVPERF(__func__, pr.runner_with_id(runner, 0x58));
+    WVPERF(__func__, pr.runner<CycleInstant>(runner));
 }
 
 NOINLINE static void exchange() {
@@ -198,7 +198,7 @@ NOINLINE static void exchange() {
 
     Profile pr;
     SyscallExchangeRunner runner;
-    WVPERF(__func__, pr.runner_with_id(runner, 0x59));
+    WVPERF(__func__, pr.runner<CycleInstant>(runner));
 }
 
 NOINLINE static void revoke() {
@@ -216,7 +216,7 @@ NOINLINE static void revoke() {
 
     Profile pr;
     SyscallRevokeRunner runner;
-    WVPERF(__func__, pr.runner_with_id(runner, 0x5A));
+    WVPERF(__func__, pr.runner<CycleInstant>(runner));
 }
 
 void bsyscall() {

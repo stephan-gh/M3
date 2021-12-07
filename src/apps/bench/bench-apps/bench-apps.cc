@@ -17,7 +17,7 @@
 
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
-#include <base/util/Time.h>
+#include <base/time/Instant.h>
 #include <base/CmdArgs.h>
 #include <base/Panic.h>
 
@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
 
             if(VERBOSE) cout << "Starting VPEs...\n";
 
-            cycles_t start = Time::start(0x1234);
+            auto start = CycleInstant::now();
 
             for(size_t i = 0; i < ARRAY_SIZE(apps); ++i) {
                 apps[i]->vpe.mounts(VPE::self().mounts());
@@ -107,8 +107,8 @@ int main(int argc, char **argv) {
                 if(VERBOSE) cout << apps[i]->argv[0] << " exited with " << res << "\n";
             }
 
-            cycles_t end = Time::stop(0x1234);
-            cout << "Time: " << (end - start) << "\n";
+            auto end = CycleInstant::now();
+            cout << "Time: " << end.duration_since(start) << "\n";
 
             if(VERBOSE) cout << "Deleting VPEs...\n";
         }

@@ -16,7 +16,7 @@
 
 #include <base/Common.h>
 #include <base/col/SList.h>
-#include <base/util/Profile.h>
+#include <base/time/Profile.h>
 #include <base/KIF.h>
 #include <base/Panic.h>
 
@@ -36,7 +36,7 @@ alignas(PAGE_SIZE) static char buf[BUF_SIZE];
 NOINLINE void child_to_parent() {
     Profile pr(2, 1);
 
-    auto res = pr.run_with_id([] {
+    auto res = pr.run<CycleInstant>([] {
         Pipes pipes("pipes");
         MemGate mgate = MemGate::create_global(0x10000, MemGate::RW);
         IndirectPipe pipe(pipes, mgate, 0x10000);
@@ -65,7 +65,7 @@ NOINLINE void child_to_parent() {
         pipe.close_reader();
 
         vpe.wait();
-    }, 0x60);
+    });
 
     WVPERF("c->p: " << (DATA_SIZE / 1024) << " KiB transfer with "
            << (BUF_SIZE / 1024) << " KiB buf", res);
@@ -74,7 +74,7 @@ NOINLINE void child_to_parent() {
 NOINLINE void parent_to_child() {
     Profile pr(2, 1);
 
-    auto res = pr.run_with_id([] {
+    auto res = pr.run<CycleInstant>([] {
         Pipes pipes("pipes");
         MemGate mgate = MemGate::create_global(0x10000, MemGate::RW);
         IndirectPipe pipe(pipes, mgate, 0x10000);
@@ -103,7 +103,7 @@ NOINLINE void parent_to_child() {
         pipe.close_writer();
 
         vpe.wait();
-    }, 0x60);
+    });
 
     WVPERF("p->c: " << (DATA_SIZE / 1024) << " KiB transfer with "
            << (BUF_SIZE / 1024) << " KiB buf", res);

@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/util/Time.h>
+#include <base/time/Instant.h>
 #include <base/KIF.h>
 
 #include <m3/stream/Standard.h>
@@ -34,7 +34,7 @@ int main() {
 
     MemGate mgate = MemGate::create_global(PAGES * PAGE_SIZE, MemGate::RW);
 
-    cycles_t xfer = 0;
+    CycleDuration xfer;
     for(size_t i = 0; i < COUNT; ++i) {
         Syscalls::create_map(
             virt / PAGE_SIZE, VPE::self().sel(), mgate.sel(), 0, PAGES, MemGate::RW
@@ -44,10 +44,10 @@ int main() {
 
         alignas(8) char buf[8];
         for(size_t p = 0; p < PAGES; ++p) {
-            cycles_t start = Time::start(0);
+            auto start = CycleInstant::now();
             mapped_mem.read(buf, sizeof(buf), p * PAGE_SIZE);
-            cycles_t end = Time::stop(0);
-            xfer += end - start;
+            auto end = CycleInstant::now();
+            xfer += end.duration_since(start);
         }
 
         Syscalls::revoke(

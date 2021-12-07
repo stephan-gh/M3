@@ -9,7 +9,7 @@
  */
 
 #include <base/stream/Serial.h>
-#include <base/util/Time.h>
+#include <base/time/Instant.h>
 
 #include "buffer.h"
 #include "exceptions.h"
@@ -78,16 +78,18 @@ int TracePlayer::play(Trace *trace, m3::LoadGen::Channel *chan, bool data, bool 
     FSAPI *fs = new FSAPI_M3FS(data, stdio, pathPrefix, chan);
 
     fs->start();
-    m3::Time::start(0xBBBB);
+
+    m3::CycleDuration wait_time;
+    auto wait_start = m3::CycleInstant::now();
 
     // let's play
     int lineNo = 1;
     op = trace->trace_ops;
     while (op && op->opcode != INVALID_OP) {
-        cycles_t start = m3::Time::start(static_cast<uint>(lineNo));
+        auto start = m3::CycleInstant::now();
 
         if(op->opcode != WAITUNTIL_OP)
-            m3::Time::stop(0xBBBB);
+            wait_time += m3::CycleInstant::now().duration_since(wait_start);
 
         switch (op->opcode) {
             case WAITUNTIL_OP: {
@@ -209,19 +211,20 @@ int TracePlayer::play(Trace *trace, m3::LoadGen::Channel *chan, bool data, bool 
         }
 
         if(op->opcode != WAITUNTIL_OP)
-            m3::Time::start(0xBBBB);
+            wait_start = m3::CycleInstant::now();
 
-        cycles_t end = m3::Time::stop(static_cast<uint>(lineNo));
+        auto end = m3::CycleInstant::now();
         if(verbose) {
             m3::Serial::get() << "line " << lineNo << ": opcode=" << op_names[op->opcode]
-                              << " -> " << (end - start) << " cycles\n";
+                              << " -> " << end.duration_since(start) << "\n";
         }
 
         lineNo++;
         op++;
     }
 
-    m3::Time::stop(0xBBBB);
+    wait_time += m3::CycleInstant::now().duration_since(wait_start);
+    m3::Serial::get() << "total waittime: " << wait_time << "\n";
     fs->stop();
     return 0;
 }

@@ -15,7 +15,7 @@
  */
 
 #include <base/Common.h>
-#include <base/util/Profile.h>
+#include <base/time/Profile.h>
 #include <base/Panic.h>
 
 #include <m3/com/Semaphore.h>
@@ -30,12 +30,12 @@ using namespace m3;
 
 union {
     uint8_t raw[1024];
-    cycles_t time;
+    uint64_t time;
 } request;
 
 union {
     uint8_t raw[1024];
-    cycles_t time;
+    uint64_t time;
 } response;
 
 NOINLINE static void latency() {
@@ -58,32 +58,32 @@ NOINLINE static void latency() {
     const size_t packet_size[] = {8, 16, 32, 64, 128, 256, 512, 1024};
 
     for(auto pkt_size : packet_size) {
-        Results<MilliFloatResult> res(samples);
+        Results<TimeDuration> res(samples);
 
         while(res.runs() < samples) {
-            uint64_t start = TCU::get().nanotime();
+            auto start = TimeInstant::now();
 
-            request.time = start;
+            request.time = start.as_nanos();
             ssize_t send_len = socket->send_to(request.raw, pkt_size, dest);
             ssize_t recv_len = socket->recv_from(response.raw, pkt_size, &src);
             if(recv_len == -1)
                 exitmsg("Got empty package!");
-            uint64_t stop = TCU::get().nanotime();
+            auto stop = TimeInstant::now();
 
             if(static_cast<size_t>(send_len) != pkt_size)
                 exitmsg("Send failed, expected " << pkt_size << ", got " << send_len);
 
-            if(static_cast<size_t>(recv_len) != pkt_size || start != response.time) {
-                cout << "Time should be " << start << " but was " << response.time << "\n";
+            if(static_cast<size_t>(recv_len) != pkt_size || start.as_nanos() != response.time) {
+                cout << "Time should be " << start.as_nanos() << " but was " << response.time << "\n";
                 exitmsg("Receive failed, expected " << pkt_size << ", got " << recv_len);
             }
 
-            cout << "RTT (" << pkt_size << "b): " << ((stop - start) / 1000) << " us\n";
-
-            res.push(stop - start);
+            auto duration = stop.duration_since(start);
+            cout << "RTT (" << pkt_size << "b): " << duration.as_micros() << " us\n";
+            res.push(duration);
         }
 
-        WVPERF("network latency (" << pkt_size << "b)", res);
+        WVPERF("network latency (" << pkt_size << "b)", MilliFloatResultRef<TimeDuration>(res));
     }
 }
 
@@ -104,7 +104,7 @@ NOINLINE static void bandwidth() {
     size_t packets_to_send    = 105;
     size_t packets_to_receive = 100;
     size_t burst_size         = 2;
-    uint64_t timeout          = 1000000000; // 1sec
+    TimeDuration timeout      = TimeDuration::from_secs(1);
 
     size_t packet_sent_count     = 0;
     size_t packet_received_count = 0;
@@ -117,15 +117,15 @@ NOINLINE static void bandwidth() {
 
     socket->blocking(false);
 
-    uint64_t start         = TCU::get().nanotime();
-    uint64_t last_received = start;
+    auto start             = TimeInstant::now();
+    auto last_received     = start;
     size_t failures        = 0;
     while(true) {
         // Wait for wakeup (message or credits received)
         if(failures >= 10) {
             failures = 0;
             if(packet_sent_count >= packets_to_send) {
-                auto waited = TCU::get().nanotime() - last_received;
+                auto waited = TimeInstant::now().duration_since(last_received);
                 if(waited > timeout)
                     break;
                 // we are not interested in output anymore
@@ -153,7 +153,7 @@ NOINLINE static void bandwidth() {
             if(pkt_size != -1) {
                 received_bytes += static_cast<size_t>(pkt_size);
                 packet_received_count++;
-                last_received = TCU::get().nanotime();
+                last_received = TimeInstant::now();
                 failures = 0;
             }
             else {
@@ -171,9 +171,10 @@ NOINLINE static void bandwidth() {
     cout << "Sent packets: " << packet_sent_count << "\n";
     cout << "Received packets: " << packet_received_count << "\n";
     cout << "Received bytes: " << received_bytes << "\n";
-    uint64_t duration = last_received - start;
+    auto duration = last_received.duration_since(start);
     cout << "Duration: " << duration << "\n";
-    float mbps = (static_cast<float>(received_bytes) / (duration / 1e9f)) / (1024 * 1024);
+    auto secs = static_cast<float>(duration.as_nanos()) / 1000000000.f;
+    float mbps = (static_cast<float>(received_bytes) / secs) / (1024 * 1024);
     WVPERF("network bandwidth", mbps << " MiB/s (+/- 0 with 1 runs)\n");
 }
 

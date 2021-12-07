@@ -15,7 +15,7 @@
  */
 
 #include <base/stream/Serial.h>
-#include <base/util/Time.h>
+#include <base/time/Instant.h>
 
 #include <m3/accel/StreamAccel.h>
 #include <m3/stream/Standard.h>
@@ -35,7 +35,7 @@ class Chain {
 
 public:
     explicit Chain(Pipes &pipesrv, Reference<File> in, Reference<File> out, size_t _num,
-                   cycles_t comptime, Mode _mode)
+                   CycleDuration comptime, Mode _mode)
         : num(_num),
           mode(_mode),
           vpes(),
@@ -130,13 +130,14 @@ private:
     bool running[MAX_NUM];
 };
 
-void chain_direct(Reference<File> in, Reference<File> out, size_t num, cycles_t comptime, Mode mode) {
+void chain_direct(Reference<File> in, Reference<File> out, size_t num,
+                  CycleDuration comptime, Mode mode) {
     Pipes pipes("pipes");
     Chain ch(pipes, in, out, num, comptime, mode);
 
     if(VERBOSE) Serial::get() << "Starting chain...\n";
 
-    cycles_t start = Time::start(0);
+    auto start = CycleInstant::now();
 
     ch.start();
 
@@ -151,11 +152,12 @@ void chain_direct(Reference<File> in, Reference<File> out, size_t num, cycles_t 
         ch.terminated(vpe, exitcode);
     }
 
-    cycles_t end = Time::stop(0);
-    Serial::get() << "Total time: " << (end - start) << " cycles\n";
+    auto end = CycleInstant::now();
+    Serial::get() << "Total time: " << end.duration_since(start) << "\n";
 }
 
-void chain_direct_multi(Reference<File> in, Reference<File> out, size_t num, cycles_t comptime, Mode mode) {
+void chain_direct_multi(Reference<File> in, Reference<File> out, size_t num,
+                        CycleDuration comptime, Mode mode) {
     Pipes pipes("pipes");
     Chain ch1(pipes, in, out, num, comptime, mode);
 
@@ -165,7 +167,7 @@ void chain_direct_multi(Reference<File> in, Reference<File> out, size_t num, cyc
 
     if(VERBOSE) Serial::get() << "Starting chains...\n";
 
-    cycles_t start = Time::start(0);
+    auto start = CycleInstant::now();
 
     ch1.start();
     ch2.start();
@@ -183,8 +185,8 @@ void chain_direct_multi(Reference<File> in, Reference<File> out, size_t num, cyc
         ch2.terminated(vpe, exitcode);
     }
 
-    cycles_t end = Time::stop(0);
-    Serial::get() << "Total time: " << (end - start) << " cycles\n";
+    auto end = CycleInstant::now();
+    Serial::get() << "Total time: " << end.duration_since(start) << "\n";
 
     VFS::close(outfd);
 }

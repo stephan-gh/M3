@@ -15,7 +15,7 @@
  */
 
 #include <base/Common.h>
-#include <base/util/Profile.h>
+#include <base/time/Profile.h>
 #include <base/Panic.h>
 
 #include <m3/vfs/FileRef.h>
@@ -29,9 +29,9 @@ NOINLINE static void creation() {
     Profile pr(4, 2);
 
     auto pe = PE::get("core|own");
-    WVPERF("VPE creation", pr.run_with_id([&pe] {
+    WVPERF("VPE creation", pr.run<CycleInstant>([&pe] {
         VPE vpe(pe, "hello");
-    }, 0x90));
+    }));
 }
 
 NOINLINE static void run() {
@@ -43,16 +43,16 @@ NOINLINE static void run() {
     auto sgate = SendGate::create(&rgate, SendGateArgs().credits(SendGate::UNLIMITED));
 
     auto pe = PE::get("clone|own");
-    Results<> res(warmup + repeats);
+    Results<CycleDuration> res(warmup + repeats);
     for(ulong i = 0; i < warmup + repeats; ++i) {
         VPE vpe(pe, "hello");
 
         vpe.delegate_obj(sgate.sel());
 
-        auto start = Time::start(0x91);
+        auto start = CycleInstant::now();
         vpe.run([start, &sgate]() {
-            cycles_t end = Time::stop(0x91);
-            send_vmsg(sgate, end - start);
+            auto end = CycleInstant::now();
+            send_vmsg(sgate, end.duration_since(start).as_raw());
             return 0;
         });
 
@@ -61,7 +61,7 @@ NOINLINE static void run() {
             cycles_t time;
             reply >> time;
             if(i >= warmup)
-                res.push(time);
+                res.push(CycleDuration::from_raw(time));
         }
     }
 
@@ -72,25 +72,25 @@ NOINLINE static void run_wait() {
     Profile pr(4, 2);
 
     auto pe = PE::get("clone|own");
-    WVPERF("VPE run wait", pr.run_with_id([&pe] {
+    WVPERF("VPE run wait", pr.run<CycleInstant>([&pe] {
         VPE vpe(pe, "hello");
         vpe.run([]() {
             return 0;
         });
         vpe.wait();
-    }, 0x90));
+    }));
 }
 
 NOINLINE static void exec() {
     Profile pr(4, 2);
 
     auto pe = PE::get("core|own");
-    WVPERF("VPE exec", pr.run_with_id([&pe] {
+    WVPERF("VPE exec", pr.run<CycleInstant>([&pe] {
         VPE vpe(pe, "hello");
         const char *args[] = {"/bin/noop"};
         vpe.exec(ARRAY_SIZE(args), args);
         vpe.wait();
-    }, 0x90));
+    }));
 }
 
 void bvpe() {
