@@ -20,6 +20,7 @@
 #![feature(const_maybe_uninit_as_ptr)]
 #![feature(const_raw_ptr_deref)]
 #![feature(const_ptr_offset_from)]
+#![feature(duration_constants)]
 #![no_std]
 
 use core::str::FromStr;
@@ -358,9 +359,9 @@ pub fn main() -> i32 {
                     // we need to call it again immediately => continue the loop
                     Some(Duration { millis: 0 }) => continue,
                     // we should not wait longer than `n` => sleep for `n`
-                    Some(n) => break Some(TimeDuration::from_millis(n.total_millis())),
+                    Some(n) => break TimeDuration::from_millis(n.total_millis()),
                     // smoltcp has nothing to do => sleep until the next TCU message arrives
-                    None => break None,
+                    None => break TimeDuration::MAX,
                 }
             }
         };

@@ -16,6 +16,7 @@
 
 #![feature(const_fn)]
 #![feature(core_intrinsics)]
+#![feature(duration_constants)]
 #![feature(trace_macros)]
 #![no_std]
 

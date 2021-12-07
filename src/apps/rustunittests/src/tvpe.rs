@@ -74,7 +74,7 @@ fn run_stop() {
         wv_assert_ok!(recv_msg(&rg));
 
         // wait a bit and stop VPE
-        wv_assert_ok!(VPE::sleep_for(Some(wait_time)));
+        wv_assert_ok!(VPE::sleep_for(wait_time));
         wv_assert_ok!(act.stop());
 
         // increase by one ns to attempt interrupts at many points in the instruction stream

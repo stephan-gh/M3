@@ -132,7 +132,7 @@ impl NetworkManager {
             }
 
             // ignore errors
-            VPE::sleep_for(duration).ok();
+            VPE::sleep_for(duration.unwrap()).ok();
         }
     }
 
@@ -149,7 +149,7 @@ impl NetworkManager {
             let now = TimeInstant::now();
             match end.checked_duration_since(now) {
                 // ignore errors
-                Some(d) => VPE::sleep_for(Some(d)).ok(),
+                Some(d) => VPE::sleep_for(d).ok(),
                 None => break,
             };
         }

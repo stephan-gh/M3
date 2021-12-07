@@ -32,7 +32,10 @@ use crate::{arch, helper};
 fn pexcall_wait(state: &mut arch::State) -> Result<(), Error> {
     let ep = state.r[isr::PEXC_ARG1] as EpId;
     let irq = state.r[isr::PEXC_ARG2] as pexif::IRQId;
-    let timeout = TimeDuration::from_nanos(state.r[isr::PEXC_ARG3] as u64);
+    let timeout = match state.r[isr::PEXC_ARG3] {
+        usize::MAX => None,
+        t => Some(TimeDuration::from_nanos(t as u64)),
+    };
 
     log!(
         crate::LOG_CALLS,
@@ -55,14 +58,9 @@ fn pexcall_wait(state: &mut arch::State) -> Result<(), Error> {
         return Ok(());
     }
 
-    let timeout = if timeout.is_zero() {
-        None
+    if let Some(t) = timeout {
+        timer::add(cur.id(), t);
     }
-    else {
-        timer::add(cur.id(), timeout);
-        Some(timeout)
-    };
-
     cur.block(None, wait_ep, wait_irq, timeout);
 
     Ok(())

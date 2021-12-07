@@ -102,7 +102,7 @@ public:
      * Puts the current VPE to sleep until the next message arrives
      */
     static void sleep() noexcept {
-        sleep_for(0);
+        sleep_for(0xFFFFFFFFFFFFFFFF);
     }
 
     /**
@@ -110,7 +110,7 @@ public:
      * passed.
      */
     static void sleep_for(uint64_t nanos) noexcept {
-        if(env()->shared || nanos != 0)
+        if(env()->shared || nanos != 0xFFFFFFFFFFFFFFFF)
             PEXIF::wait(TCU::INVALID_EP, INVALID_IRQ, nanos);
 #if !defined(__host__)
         else if(env()->platform != Platform::HW)
@@ -125,7 +125,7 @@ public:
      */
     static void wait_for_msg(epid_t ep) noexcept {
         if(env()->shared)
-            PEXIF::wait(ep, INVALID_IRQ, 0);
+            PEXIF::wait(ep, INVALID_IRQ);
 #if !defined(__host__)
         else if(env()->platform != Platform::HW)
             TCU::get().wait_for_msg(ep);

@@ -342,8 +342,11 @@ impl TCU {
         Ok(())
     }
 
-    pub fn wait_for_msg(_ep: EpId, timeout: u64) -> Result<(), Error> {
-        Self::set_cmd(CmdReg::OFFSET, timeout as Reg);
+    pub fn wait_for_msg(_ep: EpId, timeout: Option<u64>) -> Result<(), Error> {
+        Self::set_cmd(CmdReg::OFFSET, match timeout {
+            Some(t) => t as Reg,
+            None => 0xFFFF_FFFF_FFFF_FFFF,
+        });
         Self::set_cmd(
             CmdReg::CTRL,
             (Command::SLEEP.val << 3) | Control::START.bits,

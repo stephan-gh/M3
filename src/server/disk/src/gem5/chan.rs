@@ -238,7 +238,7 @@ impl Channel {
                 return Ok(());
             }
 
-            VPE::sleep_for(Some(sleep))?;
+            VPE::sleep_for(sleep)?;
             elapsed += sleep;
         }
 

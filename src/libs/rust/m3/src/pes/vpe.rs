@@ -139,21 +139,25 @@ impl VPE {
     /// Puts the current VPE to sleep until the next message arrives
     #[inline(always)]
     pub fn sleep() -> Result<(), Error> {
-        Self::sleep_for(None)
+        Self::sleep_for(TimeDuration::MAX)
     }
 
     /// Puts the current VPE to sleep until the next message arrives or `timeout` time has passed.
     #[inline(always)]
-    pub fn sleep_for(timeout: Option<TimeDuration>) -> Result<(), Error> {
+    pub fn sleep_for(timeout: TimeDuration) -> Result<(), Error> {
         if envdata::get().platform != envdata::Platform::HOST.val
-            && (arch::env::get().shared() || timeout.is_some())
+            && (arch::env::get().shared() || timeout != TimeDuration::MAX)
         {
+            let timeout = match timeout {
+                TimeDuration::MAX => None,
+                t => Some(t),
+            };
             return pexif::wait(None, None, timeout);
         }
         if envdata::get().platform != envdata::Platform::HW.val {
             let timeout = match timeout {
-                Some(d) => d.as_nanos() as u64,
-                None => 0,
+                TimeDuration::MAX => None,
+                t => Some(t.as_nanos() as u64),
             };
             return TCU::wait_for_msg(INVALID_EP, timeout);
         }
@@ -171,10 +175,7 @@ impl VPE {
         }
         if envdata::get().platform != envdata::Platform::HW.val {
             if let Some(ep) = ep {
-                let timeout = match timeout {
-                    Some(d) => d.as_nanos() as u64,
-                    None => 0,
-                };
+                let timeout = timeout.map(|t| t.as_nanos() as u64);
                 return TCU::wait_for_msg(ep, timeout);
             }
         }

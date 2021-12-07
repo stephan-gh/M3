@@ -620,13 +620,13 @@ impl TCU {
     /// Puts the CU to sleep until the CU is woken up (e.g., by a message reception).
     #[inline(always)]
     pub fn sleep() -> Result<(), Error> {
-        Self::wait_for_msg(INVALID_EP, 0)
+        Self::wait_for_msg(INVALID_EP, None)
     }
 
     /// Puts the CU to sleep until a message arrives at receive EP `ep`.
     #[inline(always)]
-    pub fn wait_for_msg(ep: EpId, timeout: u64) -> Result<(), Error> {
-        if timeout != 0 {
+    pub fn wait_for_msg(ep: EpId, timeout: Option<u64>) -> Result<(), Error> {
+        if timeout.is_some() {
             return Err(Error::new(Code::NotSup));
         }
 

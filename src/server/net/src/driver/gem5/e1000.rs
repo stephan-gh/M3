@@ -535,7 +535,7 @@ impl E1000 {
 
     fn sleep(&self, duration: TimeDuration) {
         log!(crate::LOG_NIC, "e1000: sleep for {:?}", duration);
-        m3::pes::VPE::sleep_for(Some(duration)).expect("Failed to sleep in NIC driver");
+        m3::pes::VPE::sleep_for(duration).expect("Failed to sleep in NIC driver");
     }
 
     fn read_mac(&self) -> MAC {

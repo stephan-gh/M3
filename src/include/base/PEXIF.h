@@ -50,7 +50,7 @@ enum Operation : word_t {
 namespace m3 {
 
 struct PEXIF {
-    static void wait(epid_t ep, irq_t irq, uint64_t nanos = 0) {
+    static void wait(epid_t ep, irq_t irq, uint64_t nanos = 0xFFFFFFFFFFFFFFFF) {
         PEXABI::call3(Operation::WAIT, ep, irq, nanos);
     }
 

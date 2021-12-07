@@ -69,7 +69,7 @@ pub fn wait(
         irq.unwrap_or(INVALID_IRQ) as usize,
         match duration {
             Some(d) => d.as_nanos() as usize,
-            None => 0,
+            None => usize::MAX,
         },
     )
     .map(|_| ())

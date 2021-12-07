@@ -532,7 +532,7 @@ impl Device {
             while elapsed < ATA_WAIT_TIMEOUT
                 && (chan.read_pio::<u8>(ATAReg::STATUS)? & CommandStatus::BUSY.bits()) != 0
             {
-                VPE::sleep_for(Some(SLEEP_TIME))?;
+                VPE::sleep_for(SLEEP_TIME)?;
                 elapsed += SLEEP_TIME;
             }
             chan.wait();

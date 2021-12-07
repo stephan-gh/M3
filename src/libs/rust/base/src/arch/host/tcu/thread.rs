@@ -397,7 +397,7 @@ fn start_sleep() {
     let timeout = TCU::get_cmd(CmdReg::OFFSET);
     if MSG_CNT.get() == 0 {
         SLEEP.set(match timeout {
-            0 => SleepState::UntilMsg,
+            0xFFFF_FFFF_FFFF_FFFF => SleepState::UntilMsg,
             t => SleepState::UntilTimeout(TCU::nanotime() + t),
         });
         log_tcu!("TCU: sleep started ({:?})", SLEEP.get());
