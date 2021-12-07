@@ -282,11 +282,9 @@ impl VTermHandler {
 
                 // remove us from parent
                 if let Some(pid) = parent {
-                    self.sessions
-                        .get_mut(pid)
-                        .unwrap()
-                        .childs
-                        .retain(|cid| *cid != id);
+                    if let Some(p) = self.sessions.get_mut(pid) {
+                        p.childs.retain(|cid| *cid != id);
+                    }
                 }
 
                 // ignore all potentially outstanding messages of this session
