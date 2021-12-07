@@ -25,6 +25,7 @@ use m3::profile;
 use m3::rc::Rc;
 use m3::syscalls;
 use m3::test;
+use m3::time::CycleInstant;
 use m3::{println, wv_assert_ok, wv_perf, wv_run_test};
 
 static SEL: StaticCell<kif::CapSel> = StaticCell::new(0);
@@ -51,12 +52,9 @@ fn noop() {
 
     wv_perf!(
         "noop",
-        prof.run_with_id(
-            || {
-                wv_assert_ok!(syscalls::noop());
-            },
-            0x10
-        )
+        prof.run::<CycleInstant, _>(|| {
+            wv_assert_ok!(syscalls::noop());
+        })
     );
 }
 
@@ -68,17 +66,14 @@ fn activate() {
 
     wv_perf!(
         "activate",
-        prof.run_with_id(
-            || {
-                wv_assert_ok!(syscalls::activate(
-                    ep.sel(),
-                    mgate.sel(),
-                    kif::INVALID_SEL,
-                    0
-                ));
-            },
-            0x11
-        )
+        prof.run::<CycleInstant, _>(|| {
+            wv_assert_ok!(syscalls::activate(
+                ep.sel(),
+                mgate.sel(),
+                kif::INVALID_SEL,
+                0
+            ));
+        })
     );
 
     VPE::cur().epmng_mut().release(ep, true);
@@ -111,7 +106,10 @@ fn create_mgate() {
     }
 
     let addr: usize = math::round_dn(&create_mgate as *const _ as usize, cfg::PAGE_SIZE);
-    wv_perf!("create_mgate", prof.runner_with_id(&mut Tester(addr), 0x12));
+    wv_perf!(
+        "create_mgate",
+        prof.runner::<CycleInstant, _>(&mut Tester(addr))
+    );
 }
 
 fn create_rgate() {
@@ -136,7 +134,7 @@ fn create_rgate() {
 
     wv_perf!(
         "create_rgate",
-        prof.runner_with_id(&mut Tester::default(), 0x12)
+        prof.runner::<CycleInstant, _>(&mut Tester::default())
     );
 }
 
@@ -173,7 +171,7 @@ fn create_sgate() {
 
     wv_perf!(
         "create_sgate",
-        prof.runner_with_id(&mut Tester::default(), 0x13)
+        prof.runner::<CycleInstant, _>(&mut Tester::default())
     );
 }
 
@@ -225,7 +223,7 @@ fn create_map() {
     let mut tester = Tester {
         0: MemGate::new(cfg::PAGE_SIZE * 2, Perm::RW).unwrap(),
     };
-    wv_perf!("create_map", prof.runner_with_id(&mut tester, 0x14));
+    wv_perf!("create_map", prof.runner::<CycleInstant, _>(&mut tester));
 }
 
 fn create_srv() {
@@ -262,7 +260,7 @@ fn create_srv() {
 
     wv_perf!(
         "create_srv",
-        prof.runner_with_id(&mut Tester::default(), 0x15)
+        prof.runner::<CycleInstant, _>(&mut Tester::default())
     );
 }
 
@@ -301,7 +299,7 @@ fn derive_mem() {
 
     wv_perf!(
         "derive_mem",
-        prof.runner_with_id(&mut Tester::default(), 0x17)
+        prof.runner::<CycleInstant, _>(&mut Tester::default())
     );
 }
 
@@ -343,13 +341,10 @@ fn exchange() {
 
     wv_perf!(
         "exchange",
-        prof.runner_with_id(
-            &mut Tester {
-                vpe: None,
-                pe: wv_assert_ok!(PE::get("clone|own")),
-            },
-            0x18
-        )
+        prof.runner::<CycleInstant, _>(&mut Tester {
+            vpe: None,
+            pe: wv_assert_ok!(PE::get("clone|own")),
+        })
     );
 }
 
@@ -377,7 +372,10 @@ fn revoke_mem_gate() {
         mgate,
         _derived: None,
     };
-    wv_perf!("revoke_mem_gate", prof.runner_with_id(&mut tester, 0x19));
+    wv_perf!(
+        "revoke_mem_gate",
+        prof.runner::<CycleInstant, _>(&mut tester)
+    );
 }
 
 fn revoke_recv_gate() {
@@ -402,7 +400,7 @@ fn revoke_recv_gate() {
 
     wv_perf!(
         "revoke_recv_gate",
-        prof.runner_with_id(&mut Tester::default(), 0x20)
+        prof.runner::<CycleInstant, _>(&mut Tester::default())
     );
 }
 
@@ -434,6 +432,6 @@ fn revoke_send_gate() {
 
     wv_perf!(
         "revoke_send_gate",
-        prof.runner_with_id(&mut Tester::default(), 0x21)
+        prof.runner::<CycleInstant, _>(&mut Tester::default())
     );
 }

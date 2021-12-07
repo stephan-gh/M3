@@ -22,6 +22,7 @@ use bitflags::bitflags;
 
 use m3::goff;
 use m3::int_enum;
+use m3::time::TimeDuration;
 
 int_enum! {
     pub struct REG: goff {
@@ -321,7 +322,7 @@ pub const UDP_CHECKSUM_OFFSET: u8 = 0x06;
 
 pub const ETH_HWADDR_LEN: usize = 6;
 
-pub const RESET_SLEEP_TIME: u64 = 20 * 1000;
+pub const RESET_SLEEP_TIME: TimeDuration = TimeDuration::from_micros(20);
 
 pub const RX_BUF_COUNT: usize = 256;
 pub const TX_BUF_COUNT: usize = 256;

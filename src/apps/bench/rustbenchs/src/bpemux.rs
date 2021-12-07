@@ -24,7 +24,7 @@ use m3::pexif;
 use m3::profile;
 use m3::session::MapFlags;
 use m3::test;
-use m3::time;
+use m3::time::{CycleDuration, CycleInstant, Duration};
 use m3::{println, wv_perf, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -36,7 +36,7 @@ fn pexcalls() {
     let mut prof = profile::Profiler::default().repeats(100).warmup(30);
     wv_perf!(
         "noop pexcall",
-        prof.run_with_id(|| pexif::noop().unwrap(), 0x30)
+        prof.run::<CycleInstant, _>(|| pexif::noop().unwrap())
     );
 }
 
@@ -91,28 +91,25 @@ fn translates() {
         }
     }
 
-    struct MyResults(profile::Results);
+    struct MyResults(profile::Results<CycleDuration>);
 
     impl fmt::Display for MyResults {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             write!(
                 f,
                 "{} cycles (+/- {} with {} runs)",
-                self.0.avg() / PAGES as time::Time,
-                self.0.stddev() / PAGES as f32,
+                self.0.avg().as_raw() / PAGES as u64,
+                self.0.stddev().as_raw() / PAGES as u64,
                 self.0.runs()
             )
         }
     }
 
     let mut prof = profile::Profiler::default().repeats(10).warmup(2);
-    let results = MyResults(prof.runner_with_id(
-        &mut Tester {
-            virt: 0,
-            mgate: MemGate::new(PAGES * cfg::PAGE_SIZE, Perm::RW).unwrap(),
-        },
-        0x90,
-    ));
+    let results = MyResults(prof.runner::<CycleInstant, _>(&mut Tester {
+        virt: 0,
+        mgate: MemGate::new(PAGES * cfg::PAGE_SIZE, Perm::RW).unwrap(),
+    }));
 
     wv_perf!("TCU read (1 byte) with translate", results);
 }

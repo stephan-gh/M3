@@ -25,7 +25,7 @@ use m3::{
     cap::Selector,
     com::Perm,
     errors::{Code, Error},
-    math, time,
+    math,
     vfs::SeekMode,
 };
 
@@ -492,9 +492,7 @@ pub fn create_extent(inode: Option<&INodeRef>, blocks: u32) -> Result<Extent, Er
 
     let blocksize = crate::superblock().block_size;
     if crate::settings().clear {
-        time::start(0xaaaa);
         crate::backend_mut().clear_extent(ext)?;
-        time::stop(0xaaaa);
     }
 
     if let Some(ino) = inode {

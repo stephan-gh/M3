@@ -14,8 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use crate::time;
-
 macro_rules! impl_read_reg {
     ($func_name:tt, $reg_name:tt) => {
         #[inline(always)]
@@ -89,7 +87,7 @@ pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
     *bp_ptr
 }
 
-pub fn elapsed_cycles() -> time::Time {
+pub fn elapsed_cycles() -> u64 {
     let u: u32;
     let l: u32;
     unsafe {
@@ -100,19 +98,5 @@ pub fn elapsed_cycles() -> time::Time {
             options(nostack, nomem),
         );
     }
-    time::Time::from(u) << 32 | time::Time::from(l)
-}
-
-pub fn gem5_debug(msg: usize) -> time::Time {
-    let res: time::Time;
-    unsafe {
-        asm!(
-            ".byte 0x0F, 0x04",
-            ".word 0x63",
-            out("rax") res,
-            in("rdi") msg,
-            options(nostack),
-        );
-    }
-    res
+    u64::from(u) << 32 | u64::from(l)
 }

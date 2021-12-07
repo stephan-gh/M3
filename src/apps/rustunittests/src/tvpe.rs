@@ -20,6 +20,8 @@ use m3::env;
 use m3::math;
 use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::test;
+use m3::time::TimeDuration;
+
 use m3::{send_vmsg, wv_assert_eq, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -44,7 +46,7 @@ fn run_stop() {
 
     let pe = wv_assert_ok!(PE::get("clone|own"));
 
-    let mut wait_time = 10000;
+    let mut wait_time = TimeDuration::from_nanos(10000);
     for _ in 1..100 {
         let mut vpe = wv_assert_ok!(VPE::new_with(pe.clone(), VPEArgs::new("test")));
 
@@ -72,11 +74,11 @@ fn run_stop() {
         wv_assert_ok!(recv_msg(&rg));
 
         // wait a bit and stop VPE
-        wv_assert_ok!(VPE::sleep_for(wait_time));
+        wv_assert_ok!(VPE::sleep_for(Some(wait_time)));
         wv_assert_ok!(act.stop());
 
-        // increase by one cycle to attempt interrupts at many points in the instruction stream
-        wait_time += 1;
+        // increase by one ns to attempt interrupts at many points in the instruction stream
+        wait_time += TimeDuration::from_nanos(1);
     }
 }
 

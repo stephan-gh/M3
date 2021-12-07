@@ -17,6 +17,7 @@
 use m3::col::BTreeMap;
 use m3::profile;
 use m3::test;
+use m3::time::CycleInstant;
 use m3::{wv_assert_eq, wv_perf, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -45,7 +46,7 @@ fn insert() {
 
     wv_perf!(
         "Inserting 100 elements",
-        prof.runner_with_id(&mut BTreeTester::default(), 0x81)
+        prof.runner::<CycleInstant, _>(&mut BTreeTester::default())
     );
 }
 
@@ -71,7 +72,7 @@ fn find() {
 
     wv_perf!(
         "Searching for 100 elements",
-        prof.runner_with_id(&mut BTreeTester::default(), 0x82)
+        prof.runner::<CycleInstant, _>(&mut BTreeTester::default())
     );
 }
 
@@ -95,6 +96,6 @@ fn clear() {
 
     wv_perf!(
         "Removing 100-element list",
-        prof.runner_with_id(&mut BTreeTester::default(), 0x83)
+        prof.runner::<CycleInstant, _>(&mut BTreeTester::default())
     );
 }

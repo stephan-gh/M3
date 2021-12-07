@@ -28,6 +28,7 @@ use base::mem::{size_of, GlobAddr, MsgBuf};
 use base::pexif;
 use base::rc::Rc;
 use base::tcu;
+use base::time::{TimeDuration, TimeInstant};
 use core::cmp;
 use core::ptr::NonNull;
 use paging::{Allocator, Phys};
@@ -38,7 +39,7 @@ use crate::irqs;
 use crate::pex_env;
 use crate::quota::{self, PTQuota, Quota, TimeQuota};
 use crate::sendqueue;
-use crate::timer::{self, Nanos};
+use crate::timer;
 use crate::vma::PfState;
 
 pub type Id = paging::VPEId;
@@ -134,9 +135,9 @@ pub struct VPE {
     fpu_state: arch::FPUState,
     user_state: arch::State,
     user_state_addr: usize,
-    scheduled: Nanos,
+    scheduled: TimeInstant,
     time_quota: Rc<TimeQuota>,
-    cpu_time: Nanos,
+    cpu_time: TimeDuration,
     ctxsws: u64,
     wait_timeout: bool,
     wait_irq: Option<pexif::IRQId>,
@@ -336,7 +337,7 @@ pub fn schedule(mut action: ScheduleAction) -> usize {
 }
 
 fn do_schedule(mut action: ScheduleAction) -> usize {
-    let now = tcu::TCU::nanotime();
+    let now = TimeInstant::now();
     let mut next = RDY
         .get_mut()
         .pop_front()
@@ -344,8 +345,11 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
 
     let old_time = if let Some(old) = try_cur() {
         // reduce budget now in case we decide not to switch below
-        old.time_quota
-            .set_left(old.time_quota.left().saturating_sub(now - old.scheduled));
+        old.time_quota.set_left(
+            old.time_quota
+                .left()
+                .saturating_sub((now - old.scheduled).as_nanos() as u64),
+        );
 
         // save TCU command registers; do that first while still running with that VPE
         old.cmd.save();
@@ -360,7 +364,7 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
                 let next_id = tcu::TCU::xchg_vpe(old_id).unwrap();
                 next.set_vpe_reg(next_id);
                 if next.id() != kif::pemux::IDLE_ID {
-                    let next_budget = next.time_quota.left();
+                    let next_budget = TimeDuration::from_nanos(next.time_quota.left());
                     make_ready(next, next_budget);
                 }
                 else {
@@ -380,11 +384,11 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
         // pass the old budget from here to make_ready below, because we might share the budget with
         // the next VPE (which prevented others from running, because we would just switch between
         // these two)
-        old.time_quota.left()
+        TimeDuration::from_nanos(old.time_quota.left())
     }
     else {
         tcu::TCU::xchg_vpe(next.vpe_reg()).unwrap();
-        0
+        TimeDuration::ZERO
     };
 
     // change address space
@@ -462,10 +466,10 @@ fn make_blocked(mut vpe: Box<VPE>) {
     BLK.get_mut().push_back(vpe);
 }
 
-fn make_ready(mut vpe: Box<VPE>, budget: Nanos) {
+fn make_ready(mut vpe: Box<VPE>, budget: TimeDuration) {
     vpe.state = VPEState::Ready;
     // prefer VPEs with budget
-    if budget > 0 {
+    if !budget.is_zero() {
         RDY.get_mut().push_front(vpe);
     }
     else {
@@ -549,9 +553,9 @@ impl VPE {
             user_state: arch::State::default(),
             user_state_addr: 0,
             time_quota,
-            cpu_time: 0,
+            cpu_time: TimeDuration::ZERO,
             ctxsws: 0,
-            scheduled: 0,
+            scheduled: TimeInstant::now(),
             wait_timeout: false,
             wait_irq: None,
             wait_ep: None,
@@ -618,16 +622,16 @@ impl VPE {
         self.vpe_reg -= (count as u64) << 16;
     }
 
-    pub fn budget_left(&self) -> Nanos {
-        self.time_quota.left()
+    pub fn budget_left(&self) -> TimeDuration {
+        TimeDuration::from_nanos(self.time_quota.left())
     }
 
     pub fn user_state(&mut self) -> &mut arch::State {
         &mut self.user_state
     }
 
-    pub fn reset_stats(&mut self) -> u64 {
-        let now = tcu::TCU::nanotime();
+    pub fn reset_stats(&mut self) -> TimeDuration {
+        let now = TimeInstant::now();
         let old_time = if self.state == VPEState::Running {
             self.cpu_time + (now - self.scheduled)
         }
@@ -636,13 +640,13 @@ impl VPE {
         };
         log!(
             crate::LOG_VPES,
-            "VPE{} consumed {}ns CPU time and was suspended {} times",
+            "VPE{} consumed {:?} CPU time and was suspended {} times",
             self.id(),
             old_time,
             self.ctxsws
         );
         self.scheduled = now;
-        self.cpu_time = 0;
+        self.cpu_time = TimeDuration::ZERO;
         self.ctxsws = 0;
         old_time
     }
@@ -669,7 +673,7 @@ impl VPE {
         cont: Option<fn() -> ContResult>,
         ep: Option<tcu::EpId>,
         irq: Option<pexif::IRQId>,
-        timeout: Option<Nanos>,
+        timeout: Option<TimeDuration>,
     ) {
         log!(
             crate::LOG_CTXSWS,
@@ -734,7 +738,7 @@ impl VPE {
                 timer::remove(vpe.id());
                 vpe.wait_timeout = false;
             }
-            let budget = vpe.time_quota.left();
+            let budget = TimeDuration::from_nanos(vpe.time_quota.left());
             make_ready(vpe, budget);
         }
         if self.state != VPEState::Running {
@@ -744,10 +748,13 @@ impl VPE {
     }
 
     pub fn consume_time(&mut self) {
-        let now = tcu::TCU::nanotime();
+        let now = TimeInstant::now();
         let duration = now - self.scheduled;
-        self.time_quota
-            .set_left(self.time_quota.left().saturating_sub(duration));
+        self.time_quota.set_left(
+            self.time_quota
+                .left()
+                .saturating_sub(duration.as_nanos() as u64),
+        );
         if self.time_quota.left() == 0 && has_ready() {
             crate::reg_scheduling(ScheduleAction::Preempt);
         }
@@ -952,13 +959,13 @@ impl VPE {
 impl Drop for VPE {
     fn drop(&mut self) {
         if self.state == VPEState::Running {
-            let now = tcu::TCU::nanotime();
+            let now = TimeInstant::now();
             self.cpu_time += now - self.scheduled;
         }
 
         log!(
             crate::LOG_VPES,
-            "Destroyed VPE {} ({}ns CPU time, {} context switches)",
+            "Destroyed VPE {} ({:?} CPU time, {} context switches)",
             self.id(),
             self.cpu_time,
             self.ctxsws,

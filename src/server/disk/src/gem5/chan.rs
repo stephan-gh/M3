@@ -24,7 +24,7 @@ use m3::mem;
 use m3::pes::VPE;
 use m3::rc::Rc;
 use m3::session::DiskOperation;
-use m3::time::Time;
+use m3::time::TimeDuration;
 
 use super::ctrl::IDE_CTRL_BAR;
 use super::device::{ATAReg, BMIReg, CommandStatus, DevOp, Device, PRD};
@@ -213,8 +213,8 @@ impl Channel {
 
     pub fn wait_until(
         &self,
-        timeout: Time,
-        sleep: Time,
+        timeout: TimeDuration,
+        sleep: TimeDuration,
         set: CommandStatus,
         unset: CommandStatus,
     ) -> Result<(), Error> {
@@ -226,7 +226,7 @@ impl Channel {
             unset
         );
 
-        let mut elapsed = 0;
+        let mut elapsed = TimeDuration::ZERO;
         while elapsed < timeout {
             let status: u8 = self.read_pio(ATAReg::STATUS)?;
             if (status & CommandStatus::ERROR.bits()) != 0 {
@@ -237,13 +237,9 @@ impl Channel {
             if (status & set.bits()) == set.bits() && (status & unset.bits()) == 0 {
                 return Ok(());
             }
-            if sleep > 0 {
-                VPE::sleep_for(sleep)?;
-                elapsed += sleep;
-            }
-            else {
-                elapsed += 1;
-            }
+
+            VPE::sleep_for(Some(sleep))?;
+            elapsed += sleep;
         }
 
         Err(Error::new(Code::Timeout))

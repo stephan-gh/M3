@@ -19,10 +19,10 @@ use m3::net::{DgramSocketArgs, Endpoint, UdpSocket};
 use m3::profile::Results;
 use m3::session::{NetworkDirection, NetworkManager};
 use m3::test;
-use m3::time;
+use m3::time::{CycleInstant, TimeDuration};
 use m3::{wv_assert_ok, wv_perf, wv_run_test};
 
-const TIMEOUT: u64 = 30 * 1000 * 1000; // 30 ms
+const TIMEOUT: TimeDuration = TimeDuration::from_millis(30);
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, latency);
@@ -63,18 +63,18 @@ fn latency() {
     let mut res = Results::new(samples);
 
     while res.runs() < samples {
-        let start = time::start(0);
+        let start = CycleInstant::now();
 
         if send_recv(&nm, &socket, dest) {
-            let stop = time::stop(0);
-            res.push(stop - start);
+            let stop = CycleInstant::now();
+            res.push(stop.duration_since(start));
         }
     }
 
     wv_perf!(
         "UDP latency",
         format!(
-            "{} cycles (+/- {} with {} runs)",
+            "{:?} (+/- {:?} with {} runs)",
             res.avg(),
             res.stddev(),
             res.runs()

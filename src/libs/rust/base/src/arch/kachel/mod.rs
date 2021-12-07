@@ -21,4 +21,3 @@ pub mod libc;
 pub mod machine;
 pub mod serial;
 pub mod tcu;
-pub mod time;

@@ -44,7 +44,8 @@ use m3::server::{
     DEF_MSG_SIZE,
 };
 use m3::session::{HashOp, ServerSession};
-use m3::tcu::{Label, Message, TCU};
+use m3::tcu::{Label, Message};
+use m3::time::{TimeDuration, TimeInstant};
 
 const LOG_DEF: bool = false;
 const LOG_ERRORS: bool = true;
@@ -58,7 +59,7 @@ const BUFFER_SIZE: usize = 8 * 1024; // 8 KiB
 const MAX_SESSIONS: usize = 32;
 
 /// The default time slice if not specified in the session arguments.
-const DEFAULT_TIME_SLICE: i64 = 100_000; // 100us in ns
+const DEFAULT_TIME_SLICE: TimeDuration = TimeDuration::from_micros(100);
 
 /// Wait until the accelerator is done before triggering a new read/write via
 /// the TCU. Enabling this effectively disables the performance benefit of the
@@ -120,8 +121,8 @@ struct HashSession {
     algo: Option<&'static HashAlgorithm>,
     state_saved: bool,
     req: Option<HashRequest>,
-    time_slice: i64,
-    remaining_time: i64,
+    time_slice: TimeDuration,
+    remaining_time: i64, // in nanoseconds
     output_bytes: usize,
 }
 
@@ -152,29 +153,33 @@ where
 /// Handles time accounting when working on a request by a client.
 struct HashMuxTimer {
     /// The time slice configured for the client, copied from the session.
-    slice: u64,
+    slice: TimeDuration,
     /// The time in TCU nano seconds when the clients time expires.
-    end: u64,
+    end: TimeInstant,
 }
 
 impl HashMuxTimer {
     fn start(sess: &HashSession) -> Self {
         HashMuxTimer {
-            slice: sess.time_slice as u64,
+            slice: sess.time_slice,
             // wrapping_add handles unsigned + signed addition here
-            end: TCU::nanotime().wrapping_add(sess.remaining_time as u64),
+            end: TimeInstant::from_nanos(
+                TimeInstant::now()
+                    .as_nanos()
+                    .wrapping_add(sess.remaining_time as u64),
+            ),
         }
     }
 
     /// Wait until the accelerator is really done and calculate remaining time.
-    fn remaining_time(&self, mut t: u64) -> i64 {
+    fn remaining_time(&self, mut t: TimeInstant) -> i64 {
         if KECACC.is_busy() {
             KECACC.poll_complete();
-            t = TCU::nanotime();
+            t = TimeInstant::now();
         }
 
-        // This might underflow (end < nanotime()), resulting in a negative number after the cast
-        self.end.wrapping_sub(t) as i64
+        // This might underflow (end < now()), resulting in a negative number after the cast
+        self.end.as_nanos().wrapping_sub(t.as_nanos()) as i64
     }
 
     /// Check if the client has run out of time. If yes, return how much additional
@@ -191,7 +196,7 @@ impl HashMuxTimer {
     /// be used to check pending messages more frequently, without adjusting
     /// the time slice of low-priority clients.
     fn try_continue(&mut self) -> Result<(), i64> {
-        let t = TCU::nanotime();
+        let t = TimeInstant::now();
         if t >= self.end {
             // Time expired, look for other clients to work on
             if !OPTIMIZE_SCHEDULING || !QUEUE.borrow().is_empty() || RECV.get().has_messages() {
@@ -199,7 +204,7 @@ impl HashMuxTimer {
             }
 
             // No one else has work ready so just keep going
-            self.end = self.end.wrapping_add(self.slice);
+            self.end += self.slice;
         }
         Ok(())
     }
@@ -207,7 +212,7 @@ impl HashMuxTimer {
     /// Calculate the remaining time the client has if work completes early
     /// (because it is done or because of an error).
     fn finish(self) -> i64 {
-        self.remaining_time(TCU::nanotime())
+        self.remaining_time(TimeInstant::now())
     }
 }
 
@@ -314,10 +319,10 @@ impl HashSession {
             if let Err(remaining_time) = timer.try_continue() {
                 // Still need to write back the last buffer - this might take a bit
                 // so measure the time and subtract it from the remaining time.
-                let t = TCU::nanotime();
+                let t = TimeInstant::now();
                 self.mgate.write_bytes(buf.as_ptr(), n, req.off as u64)?;
                 req.complete_buffer(n);
-                self.remaining_time = remaining_time - (TCU::nanotime() - t) as i64;
+                self.remaining_time = remaining_time - (TimeInstant::now() - t).as_nanos() as i64;
                 return Ok(false);
             }
 
@@ -402,10 +407,10 @@ impl HashSession {
     fn work(&mut self) -> bool {
         // Fill up time of client. Subtract time from time slice if client took too long last time
         if self.remaining_time < 0 {
-            self.remaining_time += self.time_slice;
+            self.remaining_time += self.time_slice.as_nanos() as i64;
         }
         else {
-            self.remaining_time = self.time_slice;
+            self.remaining_time = self.time_slice.as_nanos() as i64;
         }
         let req = self.req.take().unwrap();
 
@@ -605,14 +610,11 @@ impl Handler<HashSession> for HashHandler {
     ) -> Result<(Selector, SessId), Error> {
         // Use the time slice specified in the arguments or fall back to the default one
         let time_slice = if !arg.is_empty() {
-            arg.parse().map_err(|_| Error::new(Code::InvArgs))?
+            TimeDuration::from_nanos(arg.parse::<u64>().map_err(|_| Error::new(Code::InvArgs))?)
         }
         else {
             DEFAULT_TIME_SLICE
         };
-        if time_slice < 0 {
-            return Err(Error::new(Code::InvArgs));
-        }
 
         self.sessions.add_next(crt, srv_sel, false, |sess| {
             let sid = sess.ident() as SessId;

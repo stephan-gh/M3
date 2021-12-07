@@ -39,6 +39,7 @@ use crate::rc::Rc;
 use crate::session::{Pager, ResMng};
 use crate::syscalls;
 use crate::tcu::{EpId, PEId, VPEId, INVALID_EP, TCU};
+use crate::time::TimeDuration;
 use crate::vfs::{BufReader, FileRef, OpenFlags, VFS};
 use crate::vfs::{FileTable, MountTable};
 
@@ -138,20 +139,23 @@ impl VPE {
     /// Puts the current VPE to sleep until the next message arrives
     #[inline(always)]
     pub fn sleep() -> Result<(), Error> {
-        Self::sleep_for(0)
+        Self::sleep_for(None)
     }
 
-    /// Puts the current VPE to sleep until the next message arrives or `nanos` nanoseconds have
-    /// passed.
+    /// Puts the current VPE to sleep until the next message arrives or `timeout` time has passed.
     #[inline(always)]
-    pub fn sleep_for(nanos: u64) -> Result<(), Error> {
+    pub fn sleep_for(timeout: Option<TimeDuration>) -> Result<(), Error> {
         if envdata::get().platform != envdata::Platform::HOST.val
-            && (arch::env::get().shared() || nanos != 0)
+            && (arch::env::get().shared() || timeout.is_some())
         {
-            return pexif::wait(None, None, Some(nanos));
+            return pexif::wait(None, None, timeout);
         }
         if envdata::get().platform != envdata::Platform::HW.val {
-            return TCU::wait_for_msg(INVALID_EP, nanos);
+            let timeout = match timeout {
+                Some(d) => d.as_nanos() as u64,
+                None => 0,
+            };
+            return TCU::wait_for_msg(INVALID_EP, timeout);
         }
         Ok(())
     }
@@ -160,14 +164,18 @@ impl VPE {
     pub fn wait_for(
         ep: Option<EpId>,
         irq: Option<pexif::IRQId>,
-        timeout: Option<u64>,
+        timeout: Option<TimeDuration>,
     ) -> Result<(), Error> {
         if arch::env::get().shared() {
             return pexif::wait(ep, irq, timeout);
         }
         if envdata::get().platform != envdata::Platform::HW.val {
             if let Some(ep) = ep {
-                return TCU::wait_for_msg(ep, timeout.unwrap_or(0));
+                let timeout = match timeout {
+                    Some(d) => d.as_nanos() as u64,
+                    None => 0,
+                };
+                return TCU::wait_for_msg(ep, timeout);
             }
         }
         Ok(())

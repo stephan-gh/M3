@@ -25,7 +25,7 @@ use m3::net::{
     SocketArgs, SocketType,
 };
 use m3::rc::Rc;
-use m3::tcu::TCU;
+use m3::time::{TimeDuration, TimeInstant};
 use m3::vec;
 
 use smoltcp::socket::SocketSet;
@@ -40,7 +40,7 @@ use smoltcp::wire::{IpAddress, IpEndpoint, Ipv4Address};
 use crate::ports::EphemeralPort;
 use crate::sess::FileSession;
 
-const CONNECT_TIMEOUT: u64 = 6_000_000_000; /* 6s */
+const CONNECT_TIMEOUT: TimeDuration = TimeDuration::from_secs(6);
 
 pub fn to_m3_addr(addr: IpAddress) -> IpAddr {
     if addr.as_bytes().len() != 4 {
@@ -79,7 +79,7 @@ pub struct Socket {
     socket: SocketHandle,
     ty: SocketType,
     state: State,
-    connect_start: Option<u64>,
+    connect_start: Option<TimeInstant>,
     _local_port: Option<EphemeralPort>,
     buffer_space: usize,
 
@@ -201,7 +201,7 @@ impl Socket {
                     Some(SendNetEvent::Connected(event::ConnectedMessage::new(ep)))
                 }
                 else if let Some(start) = self.connect_start {
-                    if TCU::nanotime() - start > CONNECT_TIMEOUT {
+                    if TimeInstant::now() >= start + CONNECT_TIMEOUT {
                         tcp_socket.abort();
                         self._local_port = None;
                         self.state = State::Closed;
@@ -318,7 +318,7 @@ impl Socket {
         let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
         match tcp_socket.connect(remote_endpoint, local_endpoint) {
             Ok(_) => {
-                self.connect_start = Some(TCU::nanotime());
+                self.connect_start = Some(TimeInstant::now());
                 self.state = State::Connecting;
                 self._local_port = Some(local_port);
                 Ok(())

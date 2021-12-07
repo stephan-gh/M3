@@ -14,8 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use crate::time;
-
 #[macro_export]
 macro_rules! read_csr {
     ($reg_name:tt) => {{
@@ -107,8 +105,8 @@ pub fn base_pointer() -> usize {
     fp
 }
 
-pub fn elapsed_cycles() -> time::Time {
-    let mut res: time::Time;
+pub fn elapsed_cycles() -> u64 {
+    let mut res: u64;
     unsafe {
         asm!(
             "rdcycle {0}",
@@ -124,16 +122,4 @@ pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
     let bp_ptr = bp as *const usize;
     *func = *bp_ptr.offset(-1);
     *bp_ptr.offset(-2)
-}
-
-pub fn gem5_debug(msg: usize) -> time::Time {
-    let mut res = msg as time::Time;
-    unsafe {
-        asm!(
-            ".long 0xC600007B",
-            inout("x10") res,
-            options(nostack),
-        );
-    }
-    res
 }

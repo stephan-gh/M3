@@ -21,6 +21,7 @@ use base::log;
 use base::mem::GlobAddr;
 use base::pexif;
 use base::tcu::{EpId, INVALID_EP, IRQ};
+use base::time::TimeDuration;
 
 use crate::irqs;
 use crate::timer;
@@ -31,11 +32,11 @@ use crate::{arch, helper};
 fn pexcall_wait(state: &mut arch::State) -> Result<(), Error> {
     let ep = state.r[isr::PEXC_ARG1] as EpId;
     let irq = state.r[isr::PEXC_ARG2] as pexif::IRQId;
-    let timeout = state.r[isr::PEXC_ARG3] as timer::Nanos;
+    let timeout = TimeDuration::from_nanos(state.r[isr::PEXC_ARG3] as u64);
 
     log!(
         crate::LOG_CALLS,
-        "pexcall::wait(ep={}, irq={}, timeout={})",
+        "pexcall::wait(ep={}, irq={}, timeout={:?})",
         ep,
         irq,
         timeout,
@@ -54,7 +55,7 @@ fn pexcall_wait(state: &mut arch::State) -> Result<(), Error> {
         return Ok(());
     }
 
-    let timeout = if timeout == 0 {
+    let timeout = if timeout.is_zero() {
         None
     }
     else {

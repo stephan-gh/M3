@@ -19,6 +19,7 @@ use m3::io::Read;
 use m3::mem::AlignedBuf;
 use m3::profile;
 use m3::test;
+use m3::time::CycleInstant;
 use m3::vfs::{OpenFlags, VFS};
 use m3::{wv_assert_ok, wv_perf, wv_run_test};
 
@@ -39,12 +40,9 @@ fn open_close() {
 
     wv_perf!(
         "open-close",
-        prof.run_with_id(
-            || {
-                wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
-            },
-            0x20
-        )
+        prof.run::<CycleInstant, _>(|| {
+            wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
+        })
     );
 }
 
@@ -53,12 +51,9 @@ fn stat() {
 
     wv_perf!(
         "stat",
-        prof.run_with_id(
-            || {
-                wv_assert_ok!(VFS::stat("/data/2048k.txt"));
-            },
-            0x22
-        )
+        prof.run::<CycleInstant, _>(|| {
+            wv_assert_ok!(VFS::stat("/data/2048k.txt"));
+        })
     );
 }
 
@@ -67,13 +62,10 @@ fn mkdir_rmdir() {
 
     wv_perf!(
         "mkdir_rmdir",
-        prof.run_with_id(
-            || {
-                wv_assert_ok!(VFS::mkdir("/newdir", 0o755));
-                wv_assert_ok!(VFS::rmdir("/newdir"));
-            },
-            0x23
-        )
+        prof.run::<CycleInstant, _>(|| {
+            wv_assert_ok!(VFS::mkdir("/newdir", 0o755));
+            wv_assert_ok!(VFS::rmdir("/newdir"));
+        })
     );
 }
 
@@ -82,13 +74,10 @@ fn link_unlink() {
 
     wv_perf!(
         "link_unlink",
-        prof.run_with_id(
-            || {
-                wv_assert_ok!(VFS::link("/large.txt", "/newlarge.txt"));
-                wv_assert_ok!(VFS::unlink("/newlarge.txt"));
-            },
-            0x24
-        )
+        prof.run::<CycleInstant, _>(|| {
+            wv_assert_ok!(VFS::link("/large.txt", "/newlarge.txt"));
+            wv_assert_ok!(VFS::unlink("/newlarge.txt"));
+        })
     );
 }
 
@@ -99,18 +88,15 @@ fn read() {
 
     wv_perf!(
         "read 2 MiB file with 8K buf",
-        prof.run_with_id(
-            || {
-                let mut file = wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
-                loop {
-                    let amount = wv_assert_ok!(file.read(&mut buf));
-                    if amount == 0 {
-                        break;
-                    }
+        prof.run::<CycleInstant, _>(|| {
+            let mut file = wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
+            loop {
+                let amount = wv_assert_ok!(file.read(&mut buf));
+                if amount == 0 {
+                    break;
                 }
-            },
-            0x25
-        )
+            }
+        })
     );
 }
 
@@ -122,24 +108,21 @@ fn write() {
 
     wv_perf!(
         "write 2 MiB file with 8K buf",
-        prof.run_with_id(
-            || {
-                let mut file = wv_assert_ok!(VFS::open(
-                    "/newfile",
-                    OpenFlags::W | OpenFlags::CREATE | OpenFlags::TRUNC
-                ));
+        prof.run::<CycleInstant, _>(|| {
+            let mut file = wv_assert_ok!(VFS::open(
+                "/newfile",
+                OpenFlags::W | OpenFlags::CREATE | OpenFlags::TRUNC
+            ));
 
-                let mut total = 0;
-                while total < SIZE {
-                    let amount = wv_assert_ok!(file.write(&buf));
-                    if amount == 0 {
-                        break;
-                    }
-                    total += amount;
+            let mut total = 0;
+            while total < SIZE {
+                let amount = wv_assert_ok!(file.write(&buf));
+                if amount == 0 {
+                    break;
                 }
-            },
-            0x26
-        )
+                total += amount;
+            }
+        })
     );
 }
 
@@ -149,23 +132,20 @@ fn copy() {
 
     wv_perf!(
         "copy 2 MiB file with 8K buf",
-        prof.run_with_id(
-            || {
-                let mut fin = wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
-                let mut fout = wv_assert_ok!(VFS::open(
-                    "/newfile",
-                    OpenFlags::W | OpenFlags::CREATE | OpenFlags::TRUNC
-                ));
+        prof.run::<CycleInstant, _>(|| {
+            let mut fin = wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
+            let mut fout = wv_assert_ok!(VFS::open(
+                "/newfile",
+                OpenFlags::W | OpenFlags::CREATE | OpenFlags::TRUNC
+            ));
 
-                loop {
-                    let amount = wv_assert_ok!(fin.read(&mut buf));
-                    if amount == 0 {
-                        break;
-                    }
-                    wv_assert_ok!(fout.write_all(&buf[0..amount]));
+            loop {
+                let amount = wv_assert_ok!(fin.read(&mut buf));
+                if amount == 0 {
+                    break;
                 }
-            },
-            0x27
-        )
+                wv_assert_ok!(fout.write_all(&buf[0..amount]));
+            }
+        })
     );
 }

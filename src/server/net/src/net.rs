@@ -35,7 +35,7 @@ use m3::pes::VPE;
 use m3::rc::Rc;
 use m3::server::{CapExchange, Handler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS};
 use m3::session::NetworkOp;
-use m3::tcu::TCU;
+use m3::time::{TimeDuration, TimeInstant};
 use m3::{log, println};
 
 use smoltcp::iface::{InterfaceBuilder, NeighborCache};
@@ -323,6 +323,7 @@ pub fn main() -> i32 {
     );
 
     let rgatec = handler.rgate.clone();
+    let start = TimeInstant::now();
 
     'outer: loop {
         let sleep_nanos = loop {
@@ -341,7 +342,7 @@ pub fn main() -> i32 {
             // receive events from clients and push data to send into smoltcp sockets
             let sends_pending = handler.process_incoming();
 
-            let cur_time = smoltcp::time::Instant::from_millis(TCU::nanotime() as i64 / 1_000_000);
+            let cur_time = smoltcp::time::Instant::from_millis(start.elapsed().as_millis() as i64);
 
             // now poll smoltcp to send and receive packets
             if let Err(e) = iface.poll(&mut handler.socket_set, cur_time) {
@@ -357,14 +358,14 @@ pub fn main() -> i32 {
                     // we need to call it again immediately => continue the loop
                     Some(Duration { millis: 0 }) => continue,
                     // we should not wait longer than `n` => sleep for `n`
-                    Some(n) => break n.total_millis() as u64 * 1_000_000,
+                    Some(n) => break Some(TimeDuration::from_millis(n.total_millis())),
                     // smoltcp has nothing to do => sleep until the next TCU message arrives
-                    None => break 0,
+                    None => break None,
                 }
             }
         };
 
-        log!(LOG_DETAIL, "Sleeping for {} ns", sleep_nanos);
+        log!(LOG_DETAIL, "Sleeping for {:?}", sleep_nanos);
         VPE::sleep_for(sleep_nanos).ok();
     }
 

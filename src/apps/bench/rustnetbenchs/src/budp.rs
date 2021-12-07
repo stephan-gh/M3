@@ -21,9 +21,8 @@ use m3::net::{DgramSocketArgs, Endpoint, UdpSocket};
 use m3::println;
 use m3::profile::Results;
 use m3::session::{NetworkDirection, NetworkManager};
-use m3::tcu::TCU;
 use m3::test;
-use m3::time;
+use m3::time::{TimeDuration, TimeInstant};
 use m3::{wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -56,24 +55,24 @@ fn latency() {
     for pkt_size in &packet_sizes {
         let mut res = Results::new(samples);
 
-        for i in 0..samples {
-            let start = time::start(i);
+        for _ in 0..samples {
+            let start = TimeInstant::now();
 
             wv_assert_ok!(socket.send_to(&buf[0..*pkt_size], dest));
             let recv_size = wv_assert_ok!(socket.recv(&mut buf));
 
-            let stop = time::stop(i);
+            let stop = TimeInstant::now();
 
             wv_assert_eq!(*pkt_size, recv_size as usize);
-            res.push(stop - start);
+            res.push(stop.duration_since(start));
         }
 
         wv_perf!(
             format!("network latency ({}b)", pkt_size),
             format!(
-                "{:.4} ms (+/- {} with {} runs)",
-                res.avg() as f32 / 3000000.,
-                res.stddev() / 3000000.,
+                "{:.4} ms (+/- {:.4} ms with {} runs)",
+                res.avg().as_nanos() as f32 / 1e6,
+                res.stddev().as_nanos() as f32 / 1e6,
                 res.runs()
             )
         );
@@ -84,7 +83,7 @@ fn bandwidth() {
     const PACKETS_TO_SEND: usize = 105;
     const PACKETS_TO_RECEIVE: usize = 100;
     const BURST_SIZE: usize = 2;
-    const TIMEOUT: u64 = 1_000_000_000; // 1sec
+    const TIMEOUT: TimeDuration = TimeDuration::from_secs(1);
 
     let nm = wv_assert_ok!(NetworkManager::new("net"));
     let mut socket = wv_assert_ok!(UdpSocket::new(
@@ -106,8 +105,8 @@ fn bandwidth() {
 
     socket.set_blocking(false);
 
-    let start = TCU::nanotime();
-    let mut last_received = start;
+    let start = TimeInstant::now();
+    let mut timeout = start + TIMEOUT;
     let mut sent_count = 0;
     let mut receive_count = 0;
     let mut received_bytes = 0;
@@ -117,12 +116,12 @@ fn bandwidth() {
         if failures > 9 {
             failures = 0;
             if sent_count >= PACKETS_TO_SEND {
-                let waited = TCU::nanotime() - last_received;
-                if waited > TIMEOUT {
-                    break;
+                let rem = timeout.checked_duration_since(TimeInstant::now());
+                match rem {
+                    // we are not interested in output anymore
+                    Some(d) => nm.wait_for(d, NetworkDirection::INPUT),
+                    None => break,
                 }
-                // we are not interested in output anymore
-                nm.wait_for(TIMEOUT - waited, NetworkDirection::INPUT);
             }
             else {
                 nm.wait(NetworkDirection::INPUT | NetworkDirection::OUTPUT);
@@ -155,7 +154,7 @@ fn bandwidth() {
                 Ok(size) => {
                     received_bytes += size as usize;
                     receive_count += 1;
-                    last_received = TCU::nanotime();
+                    timeout = TimeInstant::now() + TIMEOUT;
                     failures = 0;
                 },
             }
@@ -169,9 +168,11 @@ fn bandwidth() {
     println!("Sent packets: {}", sent_count);
     println!("Received packets: {}", receive_count);
     println!("Received bytes: {}", received_bytes);
-    let duration = last_received - start;
-    println!("Duration: {}", duration);
-    let mbps = (received_bytes as f64 / (duration as f64 / 1e9)) / (1024f64 * 1024f64);
+    let last_received = timeout - TIMEOUT;
+    let duration = last_received.duration_since(start);
+    println!("Duration: {:?}", duration);
+    let secs = (duration.as_nanos() as f64) / 1e9;
+    let mbps = (received_bytes as f64 / secs) / (1024f64 * 1024f64);
     wv_perf!(
         "UDP bandwidth",
         format!("{} MiB/s (+/- 0 with 1 runs)", mbps)

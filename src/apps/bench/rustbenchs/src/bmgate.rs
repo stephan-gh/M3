@@ -20,6 +20,7 @@ use m3::kif;
 use m3::mem::AlignedBuf;
 use m3::profile;
 use m3::test;
+use m3::time::CycleInstant;
 use m3::{wv_perf, wv_run_test};
 
 const SIZE: usize = 2 * 1024 * 1024;
@@ -41,16 +42,13 @@ fn read() {
 
     wv_perf!(
         "read 2 MiB with 8K buf",
-        prof.run_with_id(
-            || {
-                let mut total = 0;
-                while total < SIZE {
-                    mgate.read(&mut buf, 0).expect("Reading failed");
-                    total += buf.len();
-                }
-            },
-            0x30
-        )
+        prof.run::<CycleInstant, _>(|| {
+            let mut total = 0;
+            while total < SIZE {
+                mgate.read(&mut buf, 0).expect("Reading failed");
+                total += buf.len();
+            }
+        })
     );
 }
 
@@ -62,16 +60,13 @@ fn read_unaligned() {
 
     wv_perf!(
         "read unaligned 2 MiB with 8K buf",
-        prof.run_with_id(
-            || {
-                let mut total = 0;
-                while total < SIZE {
-                    mgate.read(&mut buf, 0).expect("Reading failed");
-                    total += buf.len();
-                }
-            },
-            0x30
-        )
+        prof.run::<CycleInstant, _>(|| {
+            let mut total = 0;
+            while total < SIZE {
+                mgate.read(&mut buf, 0).expect("Reading failed");
+                total += buf.len();
+            }
+        })
     );
 }
 
@@ -83,16 +78,13 @@ fn write() {
 
     wv_perf!(
         "write 2 MiB with 8K buf",
-        prof.run_with_id(
-            || {
-                let mut total = 0;
-                while total < SIZE {
-                    mgate.write(&buf, 0).expect("Writing failed");
-                    total += buf.len();
-                }
-            },
-            0x31
-        )
+        prof.run::<CycleInstant, _>(|| {
+            let mut total = 0;
+            while total < SIZE {
+                mgate.write(&buf, 0).expect("Writing failed");
+                total += buf.len();
+            }
+        })
     );
 }
 
@@ -104,15 +96,12 @@ fn write_unaligned() {
 
     wv_perf!(
         "write unaligned 2 MiB with 8K buf",
-        prof.run_with_id(
-            || {
-                let mut total = 0;
-                while total < SIZE {
-                    mgate.write(&buf, 0).expect("Writing failed");
-                    total += buf.len();
-                }
-            },
-            0x31
-        )
+        prof.run::<CycleInstant, _>(|| {
+            let mut total = 0;
+            while total < SIZE {
+                mgate.write(&buf, 0).expect("Writing failed");
+                total += buf.len();
+            }
+        })
     );
 }

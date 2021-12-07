@@ -23,6 +23,7 @@ use m3::goff;
 use m3::kif::{Perm, PEISA};
 use m3::log;
 use m3::net::MAC;
+use m3::time::TimeDuration;
 
 use memoffset::offset_of;
 
@@ -532,9 +533,9 @@ impl E1000 {
             .expect("failed to read from EEPROM");
     }
 
-    fn sleep(&self, usec: u64) {
-        log!(crate::LOG_NIC, "e1000: sleep for {}usec", usec);
-        m3::pes::VPE::sleep_for(usec * 1000).expect("Failed to sleep in NIC driver");
+    fn sleep(&self, duration: TimeDuration) {
+        log!(crate::LOG_NIC, "e1000: sleep for {:?}", duration);
+        m3::pes::VPE::sleep_for(Some(duration)).expect("Failed to sleep in NIC driver");
     }
 
     fn read_mac(&self) -> MAC {

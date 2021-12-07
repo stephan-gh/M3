@@ -14,8 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use crate::time;
-
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn read8b(addr: usize) -> u64 {
     // dual registers are unfortunately no longer supported with the new asm! macro. thus, we work
@@ -79,14 +77,9 @@ pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
     *bp_ptr
 }
 
-pub fn elapsed_cycles() -> time::Time {
-    // TODO implement me
-    0
-}
-
-pub fn gem5_debug(msg: usize) -> time::Time {
-    // see `read8b`
-    let mut lo = msg as u32;
+pub fn elapsed_cycles() -> u64 {
+    // TODO for now we use our custom instruction
+    let mut lo = 0;
     let hi: u32;
     unsafe {
         asm!(
@@ -96,5 +89,5 @@ pub fn gem5_debug(msg: usize) -> time::Time {
             options(nostack),
         );
     }
-    ((hi as time::Time) << 32) | (lo as time::Time)
+    ((hi as u64) << 32) | (lo as u64)
 }

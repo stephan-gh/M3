@@ -20,9 +20,9 @@ use m3::crypto::HashAlgorithm;
 use m3::pes::{Activity, ClosureActivity, PE, VPE};
 use m3::profile::Results;
 use m3::session::HashSession;
-use m3::tcu::TCU;
 use m3::test;
-use m3::{format, log, println, time, wv_assert_ok, wv_perf, wv_run_test};
+use m3::time::{CycleDuration, CycleInstant, TimeDuration, TimeInstant};
+use m3::{format, log, println, wv_assert_ok, wv_perf, wv_run_test};
 
 const TEST_ALGO: &HashAlgorithm = &HashAlgorithm::SHA3_256;
 const SLOW_ALGO: &HashAlgorithm = &HashAlgorithm::SHA3_512;
@@ -72,15 +72,15 @@ const RUNS: usize = 10;
 const TOTAL: usize = WARM + RUNS;
 
 // Must be power of two for simplicity
-const WAIT_MASK: u32 = 262144 - 1;
+const WAIT_MASK: u64 = 262144 - 1;
 
-fn _bench_latency(mgate: &MemGate, size: usize) -> Results {
+fn _bench_latency(mgate: &MemGate, size: usize) -> Results<CycleDuration> {
     let hash = wv_assert_ok!(HashSession::new("hash-latency", TEST_ALGO));
     let mgated = wv_assert_ok!(mgate.derive(0, size, Perm::R));
     wv_assert_ok!(hash.ep().configure(mgated.sel()));
 
     // Read pseudo random memory from the memory region filled with SHAKE earlier
-    let mut waits: [u32; TOTAL] = wv_assert_ok!(mgate.read_obj(0));
+    let mut waits: [u64; TOTAL] = wv_assert_ok!(mgate.read_obj(0));
     for wait in &mut waits {
         // Mask out higher bits to have somewhat reasonable wait times
         *wait &= WAIT_MASK;
@@ -90,17 +90,17 @@ fn _bench_latency(mgate: &MemGate, size: usize) -> Results {
     for (i, &wait) in waits.iter().enumerate() {
         {
             // Spin for the chosen amount of time
-            let end = TCU::nanotime() + wait as u64;
+            let end = TimeInstant::now() + TimeDuration::from_nanos(wait);
             log!(LOG_DEBUG, "Waiting {} ns", wait);
-            while TCU::nanotime() < end {}
+            while TimeInstant::now() < end {}
         }
 
-        let start = time::start(0x444);
+        let start = CycleInstant::now();
         hash.input(0, size).unwrap();
-        let end = time::stop(0x444);
+        let end = CycleInstant::now();
 
         if i >= WARM {
-            res.push(end - start);
+            res.push(end.duration_since(start));
         }
     }
     res

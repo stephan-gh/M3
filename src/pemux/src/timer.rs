@@ -19,36 +19,35 @@ use base::col::Vec;
 use base::kif;
 use base::log;
 use base::tcu;
+use base::time::{TimeDuration, TimeInstant};
 use core::cmp;
 
 use crate::vpe;
 
-pub type Nanos = u64;
-
 struct Timeout {
-    time: Nanos,
+    end: TimeInstant,
     vpe: vpe::Id,
 }
 
 static LIST: StaticRefCell<Vec<Timeout>> = StaticRefCell::new(Vec::new());
 
-pub fn add(vpe: vpe::Id, duration: Nanos) {
+pub fn add(vpe: vpe::Id, duration: TimeDuration) {
     let timeout = Timeout {
-        time: tcu::TCU::nanotime() + duration,
+        end: TimeInstant::now() + duration,
         vpe,
     };
 
     log!(
         crate::LOG_TIMER,
-        "timer: blocking VPE {} for {} ns (until {} ns)",
+        "timer: blocking VPE {} for {} ns (until {:?})",
         vpe,
-        duration,
-        timeout.time
+        duration.as_nanos(),
+        timeout.end
     );
 
     // insert new timeout in descending order of timeouts
     let mut list = LIST.borrow_mut();
-    if let Some(idx) = list.iter().position(|t| t.time < timeout.time) {
+    if let Some(idx) = list.iter().position(|t| t.end < timeout.end) {
         list.insert(idx, timeout);
     }
     else {
@@ -82,25 +81,25 @@ pub fn reprogram() {
         // no timeout programmed: use the budget
         (true, Some(b)) => b,
         // no timeout and no budget: disable timer
-        (true, None) => 0,
+        (true, None) => TimeDuration::ZERO,
         // timeout: program the earlier point in time
         (false, _) => {
-            let now = tcu::TCU::nanotime();
-            let next_timeout = list[list.len() - 1].time;
+            let now = TimeInstant::now();
+            let next_timeout = list[list.len() - 1].end;
             // if the timeout is in the future, program the timer for the difference
             let timeout = if next_timeout > now {
                 next_timeout - now
             }
             // otherwise, program the timer for "the earliest point in time in the future"
             else {
-                1
+                TimeDuration::from_nanos(1)
             };
-            cmp::min(timeout, budget.unwrap_or(Nanos::max_value()))
+            cmp::min(timeout, budget.unwrap_or(TimeDuration::MAX))
         },
     };
 
-    log!(crate::LOG_TIMER, "timer: setting timer to {}", timeout);
-    tcu::TCU::set_timer(timeout).unwrap();
+    log!(crate::LOG_TIMER, "timer: setting timer to {:?}", timeout);
+    tcu::TCU::set_timer(timeout.as_nanos() as u64).unwrap();
 }
 
 pub fn trigger() {
@@ -110,12 +109,12 @@ pub fn trigger() {
     }
 
     // unblock all VPEs whose timeouts are due
-    let now = tcu::TCU::nanotime();
-    while !list.is_empty() && now >= list[list.len() - 1].time {
+    let now = TimeInstant::now();
+    while !list.is_empty() && now >= list[list.len() - 1].end {
         let timeout = list.pop().unwrap();
         log!(
             crate::LOG_TIMER,
-            "timer: unblocking VPE {} @ {}",
+            "timer: unblocking VPE {} @ {:?}",
             timeout.vpe,
             now
         );

@@ -19,6 +19,7 @@ use m3::io::Read;
 use m3::mem::AlignedBuf;
 use m3::profile;
 use m3::test;
+use m3::time::CycleInstant;
 use m3::vfs::{OpenFlags, VFS};
 use m3::{wv_assert_ok, wv_perf, wv_run_test};
 
@@ -36,18 +37,15 @@ fn read() {
 
     wv_perf!(
         "read 2 MiB file with 4K buf",
-        prof.run_with_id(
-            || {
-                let mut file = wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
-                loop {
-                    let amount = wv_assert_ok!(file.read(buf));
-                    if amount == 0 {
-                        break;
-                    }
+        prof.run::<CycleInstant, _>(|| {
+            let mut file = wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
+            loop {
+                let amount = wv_assert_ok!(file.read(buf));
+                if amount == 0 {
+                    break;
                 }
-            },
-            0x25
-        )
+            }
+        })
     );
 }
 
@@ -59,23 +57,20 @@ fn write() {
 
     wv_perf!(
         "write 2 MiB file with 4K buf",
-        prof.run_with_id(
-            || {
-                let mut file = wv_assert_ok!(VFS::open(
-                    "/newfile",
-                    OpenFlags::W | OpenFlags::CREATE | OpenFlags::TRUNC
-                ));
+        prof.run::<CycleInstant, _>(|| {
+            let mut file = wv_assert_ok!(VFS::open(
+                "/newfile",
+                OpenFlags::W | OpenFlags::CREATE | OpenFlags::TRUNC
+            ));
 
-                let mut total = 0;
-                while total < SIZE {
-                    let amount = wv_assert_ok!(file.write(buf));
-                    if amount == 0 {
-                        break;
-                    }
-                    total += amount;
+            let mut total = 0;
+            while total < SIZE {
+                let amount = wv_assert_ok!(file.write(buf));
+                if amount == 0 {
+                    break;
                 }
-            },
-            0x26
-        )
+                total += amount;
+            }
+        })
     );
 }

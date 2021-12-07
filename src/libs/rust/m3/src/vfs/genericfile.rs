@@ -30,7 +30,6 @@ use crate::pes::{StateSerializer, VPE};
 use crate::rc::Rc;
 use crate::serialize::Source;
 use crate::session::{ClientSession, HashInput, HashOutput, HashSession, MapFlags, Pager};
-use crate::time;
 use crate::vfs::{
     filetable, Fd, File, FileHandle, FileInfo, Map, OpenFlags, Seek, SeekMode, StatResponse,
 };
@@ -128,9 +127,7 @@ impl GenericFile {
             return Ok(0);
         }
         if self.pos == self.len {
-            time::start(0xbbbb);
             let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::NEXT_IN)?;
-            time::stop(0xbbbb);
             self.goff += self.len;
             self.off = reply.pop()?;
             self.len = reply.pop()?;
@@ -144,9 +141,7 @@ impl GenericFile {
             return Ok(0);
         }
         if self.pos == self.len {
-            time::start(0xbbbb);
             let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::NEXT_OUT)?;
-            time::stop(0xbbbb);
             self.goff += self.len;
             self.off = reply.pop()?;
             self.len = reply.pop()?;
@@ -249,10 +244,8 @@ impl Read for GenericFile {
 
         let amount = self.next_in(buf.len())?;
         if amount > 0 {
-            time::start(0xaaaa);
             self.mgate
                 .read(&mut buf[0..amount], (self.off + self.pos) as goff)?;
-            time::stop(0xaaaa);
             self.pos += amount;
         }
         self.writing = false;
@@ -275,10 +268,8 @@ impl Write for GenericFile {
 
         let amount = self.next_out(buf.len())?;
         if amount > 0 {
-            time::start(0xaaaa);
             self.mgate
                 .write(&buf[0..amount], (self.off + self.pos) as goff)?;
-            time::stop(0xaaaa);
             self.pos += amount;
         }
         self.writing = true;

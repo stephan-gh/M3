@@ -25,21 +25,21 @@ use m3::kif::Perm;
 use m3::log;
 use m3::mem;
 use m3::pes::VPE;
-use m3::time::Time;
+use m3::time::TimeDuration;
 
 use super::chan::Channel;
 use super::ctrl::ControlFlag;
 use crate::partition::{parse_partitions, Partition};
 
-const ATA_WAIT_TIMEOUT: Time = 500 * 1000; // cycles
+const ATA_WAIT_TIMEOUT: TimeDuration = TimeDuration::from_micros(500);
 
-const PIO_XFER_TIMEOUT: Time = 3000 * 1000; // cycles
-const PIO_XFER_SLEEPTIME: Time = 0; // cycles
+const PIO_XFER_TIMEOUT: TimeDuration = TimeDuration::from_millis(3);
+const PIO_XFER_SLEEPTIME: TimeDuration = TimeDuration::from_micros(1);
 
-const DMA_XFER_TIMEOUT: Time = 3000 * 1000; // cycles
-const DMA_XFER_SLEEPTIME: Time = 20 * 1000; // cycles
+const DMA_XFER_TIMEOUT: TimeDuration = TimeDuration::from_millis(3);
+const DMA_XFER_SLEEPTIME: TimeDuration = TimeDuration::from_micros(20);
 
-const SLEEP_TIME: Time = 20 * 1000; // cycles
+const SLEEP_TIME: TimeDuration = TimeDuration::from_micros(20);
 
 static BUF: StaticRefCell<[u16; 1024]> = StaticRefCell::new([0; 1024]);
 
@@ -528,11 +528,11 @@ impl Device {
             // this point you need to check the LBAmid and LBAhi ports (0x1F4 and 0x1F5) to see if
             // they are non-zero. If so, the drive is not ATA, and you should stop polling.
 
-            let mut elapsed = 0;
+            let mut elapsed = TimeDuration::ZERO;
             while elapsed < ATA_WAIT_TIMEOUT
                 && (chan.read_pio::<u8>(ATAReg::STATUS)? & CommandStatus::BUSY.bits()) != 0
             {
-                VPE::sleep_for(SLEEP_TIME)?;
+                VPE::sleep_for(Some(SLEEP_TIME))?;
                 elapsed += SLEEP_TIME;
             }
             chan.wait();

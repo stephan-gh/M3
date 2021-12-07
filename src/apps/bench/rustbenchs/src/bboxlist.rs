@@ -19,6 +19,7 @@ use m3::col::{BoxList, BoxRef};
 use m3::mem;
 use m3::profile;
 use m3::test;
+use m3::time::CycleInstant;
 use m3::{impl_boxitem, wv_assert_eq, wv_perf, wv_run_test};
 
 #[derive(Default, Clone)]
@@ -67,7 +68,7 @@ fn push_back() {
 
     wv_perf!(
         "Appending 100 elements",
-        prof.runner_with_id(&mut ListTester::default(), 0x60)
+        prof.runner::<CycleInstant, _>(&mut ListTester::default())
     );
 }
 
@@ -91,7 +92,7 @@ fn push_front() {
 
     wv_perf!(
         "Prepending 100 elements",
-        prof.runner_with_id(&mut ListTester::default(), 0x61)
+        prof.runner::<CycleInstant, _>(&mut ListTester::default())
     );
 }
 
@@ -119,7 +120,7 @@ fn push_pop() {
 
     wv_perf!(
         "Prepending 1 element",
-        prof.runner_with_id(&mut ListTester::default(), 0x62)
+        prof.runner::<CycleInstant, _>(&mut ListTester::default())
     );
 }
 
@@ -143,6 +144,6 @@ fn clear() {
 
     wv_perf!(
         "Clearing 100-element list",
-        prof.runner_with_id(&mut ListTester::default(), 0x63)
+        prof.runner::<CycleInstant, _>(&mut ListTester::default())
     );
 }

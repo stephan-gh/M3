@@ -19,4 +19,3 @@ pub mod cfg;
 pub mod envdata;
 pub mod serial;
 pub mod tcu;
-pub mod time;

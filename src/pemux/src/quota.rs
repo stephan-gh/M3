@@ -21,18 +21,17 @@ use base::col::Vec;
 use base::errors::{Code, Error};
 use base::kif;
 use base::rc::Rc;
+use base::time::TimeDuration;
 
 use core::fmt::Display;
 
 use num_traits::PrimInt;
 
-use crate::timer::Nanos;
-
 pub type Id = kif::pemux::QuotaId;
 
 pub const IDLE_ID: Id = 0;
 
-pub const DEF_TIME_SLICE: Nanos = 1_000_000;
+pub const DEF_TIME_SLICE: TimeDuration = TimeDuration::from_millis(1);
 
 pub struct Quota<T> {
     id: Id,
@@ -87,7 +86,7 @@ impl<T: PrimInt + Display> Quota<T> {
     }
 }
 
-pub type TimeQuota = Quota<Nanos>;
+pub type TimeQuota = Quota<u64>;
 pub type PTQuota = Quota<usize>;
 
 static NEXT_ID: StaticCell<Id> = StaticCell::new(0);
@@ -112,20 +111,22 @@ pub fn get_pt(id: Id) -> Option<Rc<PTQuota>> {
 
 pub fn init(pts: usize) {
     // for idle and ourself
-    TIME_QUOTAS
-        .borrow_mut()
-        .push(TimeQuota::new(IDLE_ID, None, DEF_TIME_SLICE));
+    TIME_QUOTAS.borrow_mut().push(TimeQuota::new(
+        IDLE_ID,
+        None,
+        DEF_TIME_SLICE.as_nanos() as u64,
+    ));
     PT_QUOTAS
         .borrow_mut()
         .push(PTQuota::new(IDLE_ID, None, pts));
 }
 
-pub fn add_def(time: Nanos, pts: usize) {
+pub fn add_def(time: TimeDuration, pts: usize) {
     // for all other VPEs
     let id = kif::pemux::DEF_QUOTA_ID;
     TIME_QUOTAS
         .borrow_mut()
-        .push(TimeQuota::new(id, None, time));
+        .push(TimeQuota::new(id, None, time.as_nanos() as u64));
     PT_QUOTAS.borrow_mut().push(PTQuota::new(id, None, pts));
     NEXT_ID.set(2);
 }
@@ -137,12 +138,12 @@ pub fn get(time: Id, pts: Id) -> Result<(u64, u64, usize, usize), Error> {
     Ok((ptime.total(), ptime.left(), ppt.total(), ppt.left()))
 }
 
-pub fn set(id: Id, time: Nanos, pts: usize) -> Result<(), Error> {
+pub fn set(id: Id, time: TimeDuration, pts: usize) -> Result<(), Error> {
     let ptime = get_time(id).ok_or_else(|| Error::new(Code::InvArgs))?;
     let ppt = get_pt(id).ok_or_else(|| Error::new(Code::InvArgs))?;
 
-    ptime.total.set(time);
-    ptime.left.set(time);
+    ptime.total.set(time.as_nanos() as u64);
+    ptime.left.set(time.as_nanos() as u64);
 
     if pts > ppt.total() {
         ppt.left.set(ppt.left() + (pts - ppt.total()));
@@ -158,21 +159,22 @@ pub fn set(id: Id, time: Nanos, pts: usize) -> Result<(), Error> {
 pub fn derive(
     parent_time: Id,
     parent_pts: Id,
-    time: Option<Nanos>,
+    time: Option<TimeDuration>,
     pts: Option<usize>,
 ) -> Result<(Id, Id), Error> {
     let ptime = get_time(parent_time).ok_or_else(|| Error::new(Code::InvArgs))?;
     let ppt = get_pt(parent_pts).ok_or_else(|| Error::new(Code::InvArgs))?;
 
     let time_id = if let Some(t) = time {
-        if ptime.total() < t {
+        let total = TimeDuration::from_nanos(ptime.total());
+        if total < t {
             return Err(Error::new(Code::NoSpace));
         }
 
-        ptime.set_total(ptime.total() - t);
-        ptime.set_left(ptime.left().saturating_sub(t));
+        ptime.set_total((total - t).as_nanos() as u64);
+        ptime.set_left(ptime.left().saturating_sub(t.as_nanos() as u64));
 
-        let ctime = ptime.derive(t)?;
+        let ctime = ptime.derive(t.as_nanos() as u64)?;
         TIME_QUOTAS.borrow_mut().push(ctime.clone());
         ctime.id
     }

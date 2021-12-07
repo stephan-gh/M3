@@ -18,7 +18,7 @@
 
 use m3::errors::{Code, Error};
 use m3::log;
-use m3::tcu::TCU;
+use m3::time::{TimeDuration, TimeInstant};
 
 use pci::Device;
 
@@ -26,7 +26,7 @@ use super::defines::*;
 use super::e1000::E1000;
 
 // TODO: Use a sensible value, the current one is chosen arbitrarily
-const MAX_WAIT_NANOS: u64 = 100000;
+const MAX_WAIT_TIME: TimeDuration = TimeDuration::from_micros(100);
 
 pub struct EEPROM {
     shift: i32,
@@ -37,9 +37,9 @@ impl EEPROM {
     pub fn new(device: &Device) -> Result<Self, Error> {
         device.write_reg(REG::EERD.val, EERD::START.bits() as u32)?;
 
-        let t = TCU::nanotime();
+        let t = TimeInstant::now();
         let mut tried_once = false;
-        while !tried_once && (TCU::nanotime() - t) < MAX_WAIT_NANOS {
+        while !tried_once && (TimeInstant::now() - t) < MAX_WAIT_TIME {
             let value: u32 = device.read_reg(REG::EERD.val)?;
 
             if (value & EERD::DONE_LARGE.bits() as u32) > 0 {
@@ -93,9 +93,9 @@ impl EEPROM {
         );
 
         // Wait for read to complete
-        let t = TCU::nanotime();
+        let t = TimeInstant::now();
         let mut done_once = false;
-        while (TCU::nanotime() - t) < MAX_WAIT_NANOS && !done_once {
+        while (TimeInstant::now() - t) < MAX_WAIT_TIME && !done_once {
             let value = dev.read_reg(REG::EERD);
             done_once = true;
             if (!value & self.done_bit) != 0 {

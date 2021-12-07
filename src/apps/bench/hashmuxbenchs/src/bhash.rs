@@ -16,6 +16,7 @@ use crate::util;
 use m3::com::{MemGate, Perm};
 use m3::crypto::HashAlgorithm;
 use m3::session::{HashInput, HashOutput, HashSession};
+use m3::time::{CycleInstant, Duration};
 use m3::vfs::{OpenFlags, VFS};
 use m3::{format, vec, wv_assert_ok, wv_perf, wv_run_test};
 use m3::{profile, test};
@@ -37,10 +38,7 @@ fn reset() {
 
     wv_perf!(
         "reset hash",
-        prof.run_with_id(
-            || wv_assert_ok!(hash.reset(&HashAlgorithm::SHA3_256)),
-            0x420
-        )
+        prof.run::<CycleInstant, _>(|| wv_assert_ok!(hash.reset(&HashAlgorithm::SHA3_256)))
     );
 }
 
@@ -55,13 +53,10 @@ fn hash_empty() {
         let mut result = vec![0u8; algo.output_bytes];
         wv_perf!(
             format!("hash reset + finish with {}", algo.name),
-            prof.run_with_id(
-                || {
-                    wv_assert_ok!(hash.reset(algo));
-                    wv_assert_ok!(hash.finish(&mut result));
-                },
-                0x421
-            )
+            prof.run::<CycleInstant, _>(|| {
+                wv_assert_ok!(hash.reset(algo));
+                wv_assert_ok!(hash.finish(&mut result));
+            })
         );
     }
 }
@@ -82,19 +77,16 @@ fn hash_mem() {
         let hash = wv_assert_ok!(HashSession::new("hash-bench", algo));
         wv_assert_ok!(hash.ep().configure(mgated.sel()));
 
-        let res = prof.run_with_id(
-            || {
-                wv_assert_ok!(hash.input(0, SIZE));
-            },
-            0x422,
-        );
+        let res = prof.run::<CycleInstant, _>(|| {
+            wv_assert_ok!(hash.input(0, SIZE));
+        });
 
         wv_perf!(
             format!("hash {} bytes with {}", SIZE, algo.name),
             format!(
                 "{}; throughput {:.8} bytes/cycle",
                 res,
-                SIZE as f32 / res.avg() as f32
+                SIZE as f32 / res.avg().as_raw() as f32
             )
         );
     }
@@ -118,19 +110,16 @@ fn hash_mem_sizes() {
             prof = prof.warmup(2).repeats(5); // 2^14 = 16 KiB
         }
 
-        let res = prof.run_with_id(
-            || {
-                wv_assert_ok!(hash.input(0, size));
-            },
-            0x423,
-        );
+        let res = prof.run::<CycleInstant, _>(|| {
+            wv_assert_ok!(hash.input(0, size));
+        });
 
         wv_perf!(
             format!("hash {} bytes with {}", size, TEST_ALGO.name),
             format!(
                 "{}; throughput {:.8} bytes/cycle",
                 res,
-                size as f32 / res.avg() as f32
+                size as f32 / res.avg().as_raw() as f32
             )
         );
     }
@@ -150,20 +139,17 @@ fn hash_file() {
 
     for algo in HashAlgorithm::ALL.iter() {
         let hash = wv_assert_ok!(HashSession::new("hash-bench", algo));
-        let res = prof.run_with_id(
-            || {
-                let mut file = wv_assert_ok!(VFS::open("/shake.bin", OpenFlags::R));
-                wv_assert_ok!(file.hash_input(&hash, usize::MAX));
-            },
-            0x422,
-        );
+        let res = prof.run::<CycleInstant, _>(|| {
+            let mut file = wv_assert_ok!(VFS::open("/shake.bin", OpenFlags::R));
+            wv_assert_ok!(file.hash_input(&hash, usize::MAX));
+        });
 
         wv_perf!(
             format!("hash file ({} bytes) with {}", SIZE, algo.name),
             format!(
                 "{}; throughput {:.8} bytes/cycle",
                 res,
-                SIZE as f32 / res.avg() as f32
+                SIZE as f32 / res.avg().as_raw() as f32
             )
         );
     }
@@ -189,19 +175,16 @@ fn shake_mem() {
         let hash = wv_assert_ok!(HashSession::new("hash-bench", algo));
         wv_assert_ok!(hash.ep().configure(mgated.sel()));
 
-        let res = prof.run_with_id(
-            || {
-                wv_assert_ok!(hash.output(0, SIZE));
-            },
-            0x422,
-        );
+        let res = prof.run::<CycleInstant, _>(|| {
+            wv_assert_ok!(hash.output(0, SIZE));
+        });
 
         wv_perf!(
             format!("shake {} bytes with {}", SIZE, algo.name),
             format!(
                 "{}; throughput {:.8} bytes/cycle",
                 res,
-                SIZE as f32 / res.avg() as f32
+                SIZE as f32 / res.avg().as_raw() as f32
             )
         );
     }
@@ -225,19 +208,16 @@ fn shake_mem_sizes() {
         let hash = wv_assert_ok!(HashSession::new("hash-bench", SHAKE_TEST_ALGO));
         wv_assert_ok!(hash.ep().configure(mgated.sel()));
 
-        let res = prof.run_with_id(
-            || {
-                wv_assert_ok!(hash.output(0, size));
-            },
-            0x423,
-        );
+        let res = prof.run::<CycleInstant, _>(|| {
+            wv_assert_ok!(hash.output(0, size));
+        });
 
         wv_perf!(
             format!("shake {} bytes with {}", size, SHAKE_TEST_ALGO.name),
             format!(
                 "{}; throughput {:.8} bytes/cycle",
                 res,
-                size as f32 / res.avg() as f32
+                size as f32 / res.avg().as_raw() as f32
             )
         );
     }
@@ -254,20 +234,17 @@ fn shake_file() {
         }
 
         let hash = wv_assert_ok!(HashSession::new("hash-bench", algo));
-        let res = prof.run_with_id(
-            || {
-                let mut file = wv_assert_ok!(VFS::open("/shake.bin", OpenFlags::W));
-                wv_assert_ok!(file.hash_output(&hash, SIZE));
-            },
-            0x422,
-        );
+        let res = prof.run::<CycleInstant, _>(|| {
+            let mut file = wv_assert_ok!(VFS::open("/shake.bin", OpenFlags::W));
+            wv_assert_ok!(file.hash_output(&hash, SIZE));
+        });
 
         wv_perf!(
             format!("shake file ({} bytes) with {}", SIZE, algo.name),
             format!(
                 "{}; throughput {:.8} bytes/cycle",
                 res,
-                SIZE as f32 / res.avg() as f32
+                SIZE as f32 / res.avg().as_raw() as f32
             )
         );
     }

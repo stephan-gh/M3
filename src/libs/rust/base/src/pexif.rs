@@ -21,6 +21,7 @@ use crate::errors::Error;
 use crate::goff;
 use crate::kif;
 use crate::tcu::{EpId, INVALID_EP};
+use crate::time::TimeDuration;
 
 pub type IRQId = u32;
 
@@ -57,12 +58,19 @@ pub(crate) fn get_result(res: isize) -> Result<usize, Error> {
 }
 
 #[inline(always)]
-pub fn wait(ep: Option<EpId>, irq: Option<IRQId>, nanos: Option<u64>) -> Result<(), Error> {
+pub fn wait(
+    ep: Option<EpId>,
+    irq: Option<IRQId>,
+    duration: Option<TimeDuration>,
+) -> Result<(), Error> {
     pexabi::call3(
         Operation::WAIT,
         ep.unwrap_or(INVALID_EP) as usize,
         irq.unwrap_or(INVALID_IRQ) as usize,
-        nanos.unwrap_or(0) as usize,
+        match duration {
+            Some(d) => d.as_nanos() as usize,
+            None => 0,
+        },
     )
     .map(|_| ())
 }

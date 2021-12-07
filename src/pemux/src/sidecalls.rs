@@ -20,11 +20,11 @@ use base::kif;
 use base::log;
 use base::mem::{GlobAddr, MsgBuf};
 use base::tcu;
+use base::time::TimeDuration;
 
 use crate::helper;
 use crate::quota;
 use crate::sendqueue;
-use crate::timer::Nanos;
 use crate::vpe;
 
 const SIDE_RBUF_ADDR: usize = cfg::PEMUX_RBUF_SPACE + cfg::KPEX_RBUF_SIZE;
@@ -204,7 +204,7 @@ fn derive_quota(msg: &'static tcu::Message) -> Result<(u64, u64), Error> {
 
     let parent_time = req.parent_time as quota::Id;
     let parent_pts = req.parent_pts as quota::Id;
-    let time = req.time.get();
+    let time = req.time.get::<u64>().map(|t| TimeDuration::from_nanos(t));
     let pts = req.pts.get();
 
     log!(
@@ -239,12 +239,12 @@ fn set_quota(msg: &'static tcu::Message) -> Result<(), Error> {
     let req = msg.get_data::<kif::pemux::SetQuota>();
 
     let id = req.id as quota::Id;
-    let time = req.time as Nanos;
+    let time = TimeDuration::from_nanos(req.time as u64);
     let pts = req.pts as usize;
 
     log!(
         crate::LOG_SIDECALLS,
-        "sidecall::set_quota(id={}, time={}, pts={})",
+        "sidecall::set_quota(id={}, time={:?}, pts={})",
         id,
         time,
         pts

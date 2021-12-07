@@ -17,6 +17,7 @@
 use m3::col::DList;
 use m3::profile;
 use m3::test;
+use m3::time::CycleInstant;
 use m3::{wv_perf, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -45,7 +46,7 @@ fn push_back() {
 
     wv_perf!(
         "Appending 100 elements",
-        prof.runner_with_id(&mut ListTester::default(), 0x50)
+        prof.runner::<CycleInstant, _>(&mut ListTester::default())
     );
 }
 
@@ -69,7 +70,7 @@ fn push_front() {
 
     wv_perf!(
         "Prepending 100 elements",
-        prof.runner_with_id(&mut ListTester::default(), 0x51)
+        prof.runner::<CycleInstant, _>(&mut ListTester::default())
     );
 }
 
@@ -93,6 +94,6 @@ fn clear() {
 
     wv_perf!(
         "Clearing 100-element list",
-        prof.runner_with_id(&mut ListTester::default(), 0x52)
+        prof.runner::<CycleInstant, _>(&mut ListTester::default())
     );
 }

@@ -26,7 +26,7 @@ use crate::net::{Endpoint, IpAddr, NetEventChannel, Port, Sd, Socket, SocketArgs
 use crate::pes::VPE;
 use crate::rc::Rc;
 use crate::session::ClientSession;
-use crate::tcu::TCU;
+use crate::time::{TimeDuration, TimeInstant};
 use crate::vfs::GenFileOp;
 
 int_enum! {
@@ -122,36 +122,36 @@ impl NetworkManager {
     /// Note also that this function uses [`VPE::sleep`] if no input/output on any socket is
     /// possible, which suspends the core until the next TCU message arrives. Thus, calling this
     /// function can only be done if all work is done.
-    pub fn wait_for(&self, timeout: u64, dirs: NetworkDirection) {
-        let end = TCU::nanotime() + timeout;
+    pub fn wait_for(&self, timeout: TimeDuration, dirs: NetworkDirection) {
+        let end = TimeInstant::now() + timeout;
         loop {
-            let now = TCU::nanotime();
-            if now >= end || self.tick_sockets(dirs) {
+            let now = TimeInstant::now();
+            let duration = end.checked_duration_since(now);
+            if duration.is_none() || self.tick_sockets(dirs) {
                 break;
             }
 
             // ignore errors
-            VPE::sleep_for(end - now).ok();
+            VPE::sleep_for(duration).ok();
         }
     }
 
-    /// Sleep for `nanos` nanoseconds, respecting messages that may arrive for sockets.
+    /// Sleep for the given duration, respecting messages that may arrive for sockets.
     ///
     /// Note that this function uses [`VPE::sleep`] if no input/output on any socket is possible,
     /// which suspends the core until the next TCU message arrives. Thus, calling this function can
     /// only be done if all work is done.
-    pub fn sleep_for(&self, nanos: u64) {
-        let end = TCU::nanotime() + nanos;
+    pub fn sleep_for(&self, duration: TimeDuration) {
+        let end = TimeInstant::now() + duration;
         loop {
             self.tick_sockets(NetworkDirection::empty());
 
-            let now = TCU::nanotime();
-            if now >= end {
-                break;
-            }
-
-            // ignore errors
-            VPE::sleep_for(end - now).ok();
+            let now = TimeInstant::now();
+            match end.checked_duration_since(now) {
+                // ignore errors
+                Some(d) => VPE::sleep_for(Some(d)).ok(),
+                None => break,
+            };
         }
     }
 

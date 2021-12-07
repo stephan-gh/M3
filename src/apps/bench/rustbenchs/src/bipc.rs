@@ -20,6 +20,7 @@ use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::profile;
 use m3::rc::Rc;
 use m3::test;
+use m3::time::CycleInstant;
 use m3::{
     format, println, reply_vmsg, send_vmsg, wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test,
 };
@@ -70,15 +71,12 @@ fn pingpong_with_pe(name: &str, pe: Rc<PE>) {
     let reply_gate = RecvGate::def();
     wv_perf!(
         format!("{} pingpong with (1 * u64) msgs", name),
-        prof.run_with_id(
-            || {
-                wv_assert_ok!(send_vmsg!(&sgate, reply_gate, 0u64));
+        prof.run::<CycleInstant, _>(|| {
+            wv_assert_ok!(send_vmsg!(&sgate, reply_gate, 0u64));
 
-                let mut reply = wv_assert_ok!(recv_msg(reply_gate));
-                wv_assert_eq!(reply.pop::<u64>(), Ok(0));
-            },
-            0x0
-        )
+            let mut reply = wv_assert_ok!(recv_msg(reply_gate));
+            wv_assert_eq!(reply.pop::<u64>(), Ok(0));
+        })
     );
 
     wv_assert_eq!(act.wait(), Ok(0));

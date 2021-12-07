@@ -24,7 +24,7 @@ use m3::mem;
 use m3::net::{self, DgramSocketArgs, IpAddr, RawSocket};
 use m3::println;
 use m3::session::NetworkManager;
-use m3::tcu::TCU;
+use m3::time::{TimeDuration, TimeInstant};
 use m3::util;
 use m3::vec;
 
@@ -113,11 +113,11 @@ fn send_echo(
 }
 
 fn recv_reply(mut buf: &mut [u8], sock: &RawSocket) -> Result<(), VerboseError> {
-    let send_time = TCU::nanotime();
+    let send_time = TimeInstant::now();
 
     loop {
         sock.recv(&mut buf)?;
-        let recv_time = TCU::nanotime();
+        let recv_time = TimeInstant::now();
 
         let icmp = unsafe {
             &*buf
@@ -142,7 +142,7 @@ fn recv_reply(mut buf: &mut [u8], sock: &RawSocket) -> Result<(), VerboseError> 
             src,
             u16::from_be(icmp.sequence),
             ttl,
-            (recv_time - send_time) / 1_000
+            recv_time.duration_since(send_time).as_micros()
         );
         break;
     }
@@ -257,7 +257,7 @@ pub fn main() -> i32 {
 
     println!("PING {} {} data bytes", settings.dest, settings.nbytes);
 
-    let start = TCU::nanotime();
+    let start = TimeInstant::now();
     for i in 1..=settings.count {
         send_echo(
             &mut buf,
@@ -274,16 +274,16 @@ pub fn main() -> i32 {
         recv_reply(&mut buf, &raw_socket).expect("Receiving ICMP echo failed");
         received += 1;
 
-        nm.sleep_for(settings.interval * 1_000_000);
+        nm.sleep_for(TimeDuration::from_secs(settings.interval));
     }
 
-    let end = TCU::nanotime();
+    let end = TimeInstant::now();
 
     println!(
         "{} packets transmitted, {} received in {} us",
         sent,
         received,
-        (end - start) / 1_000
+        end.duration_since(start).as_micros()
     );
 
     0

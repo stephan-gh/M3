@@ -613,7 +613,7 @@ impl TCU {
 
     /// Returns the time in nanoseconds since boot
     #[inline(always)]
-    pub fn nanotime() -> u64 {
+    pub(crate) fn nanotime() -> u64 {
         Self::read_unpriv_reg(UnprivReg::CUR_TIME)
     }
 
@@ -625,7 +625,11 @@ impl TCU {
 
     /// Puts the CU to sleep until a message arrives at receive EP `ep`.
     #[inline(always)]
-    pub fn wait_for_msg(ep: EpId, _timeout: u64) -> Result<(), Error> {
+    pub fn wait_for_msg(ep: EpId, timeout: u64) -> Result<(), Error> {
+        if timeout != 0 {
+            return Err(Error::new(Code::NotSup));
+        }
+
         Self::write_unpriv_reg(
             UnprivReg::COMMAND,
             Self::build_cmd(0, CmdOpCode::SLEEP, ep as u64),

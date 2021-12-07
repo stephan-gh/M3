@@ -20,14 +20,14 @@ use core::fmt;
 
 use crate::col::Vec;
 use crate::math;
-use crate::time;
+use crate::time::{Duration, Instant};
 
 /// A container for the measured execution times
-pub struct Results {
-    times: Vec<time::Time>,
+pub struct Results<T: Duration> {
+    times: Vec<T>,
 }
 
-impl Results {
+impl<T: Duration> Results<T> {
     /// Creates an empty result container for the given number of runs
     pub fn new(runs: usize) -> Self {
         Results {
@@ -36,7 +36,7 @@ impl Results {
     }
 
     /// Pushes the given time to the container
-    pub fn push(&mut self, time: time::Time) {
+    pub fn push(&mut self, time: T) {
         self.times.push(time);
     }
 
@@ -46,46 +46,46 @@ impl Results {
     }
 
     /// Returns the arithmetic mean of the runtimes
-    pub fn avg(&self) -> time::Time {
+    pub fn avg(&self) -> T {
         let mut sum = 0;
         for t in &self.times {
-            sum += t;
+            sum += t.as_raw();
         }
         if self.times.is_empty() {
-            0
+            T::from_raw(sum)
         }
         else {
-            sum / (self.times.len() as time::Time)
+            T::from_raw(sum / (self.times.len() as u64))
         }
     }
 
     /// Returns the standard deviation of the runtimes
-    pub fn stddev(&self) -> f32 {
+    pub fn stddev(&self) -> T {
         let mut sum = 0;
-        let average = self.avg();
+        let average = self.avg().as_raw();
         for t in &self.times {
-            let val = if *t < average {
-                average - t
+            let val = if t.as_raw() < average {
+                average - t.as_raw()
             }
             else {
-                t - average
+                t.as_raw() - average
             };
             sum += val * val;
         }
         if self.times.is_empty() {
-            0f32
+            T::from_raw(0)
         }
         else {
-            math::sqrt((sum as f32) / (self.times.len() as f32))
+            T::from_raw(math::sqrt((sum as f32) / (self.times.len() as f32)) as u64)
         }
     }
 }
 
-impl fmt::Display for Results {
+impl<T: Duration> fmt::Display for Results<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{} cycles (+/- {} with {} runs)",
+            "{:?} (+/- {:?} with {} runs)",
             self.avg(),
             self.stddev(),
             self.runs()
@@ -103,7 +103,7 @@ impl fmt::Display for Results {
 /// use base::profile;
 ///
 /// let mut prof = profile::Profiler::default();
-/// println!("{}", prof.run_with_id(|| /* my benchmark */, 0));
+/// println!("{}", prof.run(|| /* my benchmark */));
 /// ```
 ///
 /// Advanced usage:
@@ -124,7 +124,7 @@ impl fmt::Display for Results {
 /// }
 ///
 /// let mut prof = profile::Profiler::default().repeats(10).warmup(2);
-/// println!("{}", prof.runner_with_id(&mut Tester::default(), 0));
+/// println!("{}", prof.runner(&mut Tester::default()));
 /// ```
 pub struct Profiler {
     repeats: u64,
@@ -160,48 +160,35 @@ impl Profiler {
 
     /// Runs `func` as benchmark and returns the result
     #[inline(always)]
-    pub fn run<F: FnMut()>(&mut self, func: F) -> Results {
-        self.run_with_id(func, 0)
-    }
-
-    /// Runs `func` as benchmark using the given id when taking timestamps and returns the result
-    ///
-    /// The id is used for [`time::start`] and [`time::stop`], which allows to identify this
-    /// benchmark in the gem5 log.
-    #[inline(always)]
-    pub fn run_with_id<F: FnMut()>(&mut self, mut func: F, id: usize) -> Results {
+    pub fn run<T: Instant, F: FnMut()>(&mut self, mut func: F) -> Results<T::Duration> {
         let mut res = Results::new((self.warmup + self.repeats) as usize);
         for i in 0..self.warmup + self.repeats {
-            let start = time::start(id);
+            let start = T::now();
             func();
-            let end = time::stop(id);
+            let end = T::now();
 
             if i >= self.warmup {
-                res.push(end - start);
+                res.push(end.duration_since(start));
             }
         }
         res
     }
 
-    /// Runs the given runner as benchmark using the given id when taking timestamps and returns the
-    /// result
-    ///
-    /// The id is used for [`time::start`] and [`time::stop`], which allows to identify this
-    /// benchmark in the gem5 log.
+    /// Runs the given runner as benchmark and returns the result
     #[inline(always)]
-    pub fn runner_with_id<R: Runner>(&mut self, runner: &mut R, id: usize) -> Results {
+    pub fn runner<T: Instant, R: Runner>(&mut self, runner: &mut R) -> Results<T::Duration> {
         let mut res = Results::new((self.warmup + self.repeats) as usize);
         for i in 0..self.warmup + self.repeats {
             runner.pre();
 
-            let start = time::start(id);
+            let start = T::now();
             runner.run();
-            let end = time::stop(id);
+            let end = T::now();
 
             runner.post();
 
             if i >= self.warmup {
-                res.push(end - start);
+                res.push(end.duration_since(start));
             }
         }
         res

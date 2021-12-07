@@ -19,9 +19,9 @@
 use m3::env;
 use m3::format;
 use m3::io::{stdout, Write};
-use m3::tcu::TCU;
+use m3::time::{TimeDuration, TimeInstant};
 
-const FREQ: u64 = 1_000_000; // 1ms
+const FREQ: TimeDuration = TimeDuration::from_millis(1);
 
 #[no_mangle]
 pub fn main() -> i32 {
@@ -30,10 +30,10 @@ pub fn main() -> i32 {
         .expect(&format!("Usage: {} <str>", env::args().next().unwrap()));
 
     loop {
-        let now = TCU::nanotime();
+        let now = TimeInstant::now();
         m3::print!("{}", c);
         stdout().flush().unwrap();
 
-        while TCU::nanotime() < now + FREQ {}
+        while TimeInstant::now() < now + FREQ {}
     }
 }

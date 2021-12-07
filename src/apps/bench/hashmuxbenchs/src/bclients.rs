@@ -26,7 +26,8 @@ use m3::pes::{Activity, ClosureActivity, PE, VPE};
 use m3::profile::Results;
 use m3::session::HashSession;
 use m3::tcu::INVALID_EP;
-use m3::{format, log, println, send_recv, time, wv_assert_ok, wv_run_test};
+use m3::time::{CycleDuration, CycleInstant, Duration};
+use m3::{format, log, println, send_recv, wv_assert_ok, wv_run_test};
 use m3::{math, mem, tcu, test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -62,7 +63,11 @@ struct ClientParams {
 const SYNC_EVERY_RUN: bool = false;
 const LOG_REQUESTS: bool = false;
 
-fn _run_client_bench<F>(params: &ClientParams, sgate_sel: Selector, mut fun: F) -> Results
+fn _run_client_bench<F>(
+    params: &ClientParams,
+    sgate_sel: Selector,
+    mut fun: F,
+) -> Results<CycleDuration>
 where
     F: FnMut(&HashSession) -> Result<(), Error>,
 {
@@ -82,12 +87,12 @@ where
             // Wait until everyone is ready to start
             wv_assert_ok!(send_recv!(&sgate, &rgate, hash.ep().sel()));
 
-            let start = time::start(0x440);
+            let start = CycleInstant::now();
             fun(&hash).unwrap();
-            let end = time::stop(0x440);
+            let end = CycleInstant::now();
 
             if i >= params.warm {
-                res.push(end - start);
+                res.push(end.duration_since(start));
             }
 
             // Notify that the run is complete
@@ -111,12 +116,12 @@ where
         wv_assert_ok!(send_recv!(&sgate, &rgate, hash.ep().sel()));
 
         for i in 0..(params.warm + params.runs) {
-            let start = time::start(0x441);
+            let start = CycleInstant::now();
             fun(&hash).unwrap();
-            let end = time::stop(0x441);
+            let end = CycleInstant::now();
 
             if i >= params.warm {
-                res.push(end - start);
+                res.push(end.duration_since(start));
             }
         }
 
@@ -175,7 +180,7 @@ fn _start_client(params: ClientParams, rgate: &RecvGate, mgate: &MemGate) -> Cli
                 slice,
                 params.algo.name,
                 res,
-                params.size as f32 / res.avg() as f32
+                params.size as f32 / res.avg().as_raw() as f32
             );
             0
         }))),
