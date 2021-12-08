@@ -97,6 +97,9 @@ static inline bool operator>=(const TimeInstant &lhs, const TimeInstant &rhs) {
     return !operator< (lhs, rhs);
 }
 
+/**
+ * A measurement of cycles. Useful in combination with CycleDuration.
+ */
 class CycleInstant {
 private:
     explicit CycleInstant(uint64_t cycles) : _cycles(cycles) {

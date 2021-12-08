@@ -22,6 +22,9 @@
 
 namespace m3 {
 
+/**
+ * A duration of time, represented in nanoseconds. Used in combination with TimeInstant.
+ */
 class TimeDuration {
 public:
     using raw_t = uint64_t;
@@ -31,47 +34,103 @@ private:
     }
 
 public:
+    /**
+     * Creates a new and empty time duration (see TimeDuration::ZERO).
+     */
     explicit TimeDuration() : _nanos() {
     }
 
     TimeDuration(const TimeDuration &c) = default;
     TimeDuration &operator=(const TimeDuration &c) = default;
 
+    /**
+     * A time duration that lasts for one nanosecond.
+     */
     static const TimeDuration NANOSECOND;
+    /**
+     * A time duration that lasts for one microsecond.
+     */
     static const TimeDuration MICROSECOND;
+    /**
+     * A time duration that lasts for one millisecond.
+     */
     static const TimeDuration MILLISECOND;
+    /**
+     * A time duration that lasts for one second.
+     */
     static const TimeDuration SECOND;
+    /**
+     * The maximum representable time duration.
+     */
     static const TimeDuration MAX;
+    /**
+     * An empty time duration.
+     */
     static const TimeDuration ZERO;
 
+    /**
+     * @param raw the raw time duration (in nanoseconds)
+     * @return a new TimeDuration from given raw value
+     */
     static TimeDuration from_raw(raw_t raw) {
         return TimeDuration(raw);
     }
+    /**
+     * @param nanos the time duration
+     * @return a new TimeDuration with given number of nanoseconds
+     */
     static TimeDuration from_nanos(raw_t nanos) {
         return TimeDuration(nanos);
     }
+    /**
+     * @param micros the time duration
+     * @return a new TimeDuration with given number of microseconds
+     */
     static TimeDuration from_micros(raw_t micros) {
         return TimeDuration(micros * MICROSECOND._nanos);
     }
+    /**
+     * @param millis the time duration
+     * @return a new TimeDuration with given number of milliseconds
+     */
     static TimeDuration from_millis(raw_t millis) {
         return TimeDuration(millis * MILLISECOND._nanos);
     }
+    /**
+     * @param secs the time duration
+     * @return a new TimeDuration with given number of seconds
+     */
     static TimeDuration from_secs(raw_t secs) {
         return TimeDuration(secs * SECOND._nanos);
     }
 
+    /**
+     * @return the underlying raw value (nanoseconds)
+     */
     raw_t as_raw() const {
         return _nanos;
     }
+    /**
+     * @return the time duration as nanoseconds
+     */
     raw_t as_nanos() const {
         return _nanos;
     }
+    /**
+     * @return the time duration as microseconds
+     */
     raw_t as_micros() const {
         return _nanos / MICROSECOND._nanos;
     }
+    /**
+     * @return the time duration as milliseconds
+     */
     raw_t as_millis() const {
         return _nanos / MILLISECOND._nanos;
     }
+    /**
+     * @return the time duration as seconds
+     */
     raw_t as_secs() const {
         return _nanos / SECOND._nanos;
     }
@@ -149,6 +208,9 @@ static inline bool operator>=(const TimeDuration &lhs, const TimeDuration &rhs) 
     return !operator< (lhs, rhs);
 }
 
+/**
+ * A duration in cycles. Used in combination with CycleInstant.
+ */
 class CycleDuration {
 public:
     using raw_t = uint64_t;
@@ -158,6 +220,9 @@ private:
     }
 
 public:
+    /**
+     * Creates a new cycle duration with 0 cycles
+     */
     explicit CycleDuration() : _cycles() {
     }
 
@@ -171,6 +236,9 @@ public:
         return CycleDuration(cycles);
     }
 
+    /**
+     * @return the underlying raw value (in cycles)
+     */
     raw_t as_raw() const {
         return _cycles;
     }
