@@ -18,8 +18,8 @@ use core::ops;
 
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::cell::Cell;
-use crate::com::EP;
-use crate::errors::Error;
+use crate::com::{EpMng, EP};
+use crate::errors::{Code, Error};
 use crate::kif;
 use crate::pes::VPE;
 use crate::syscalls;
@@ -85,6 +85,24 @@ impl Gate {
         syscalls::activate(ep.sel(), self.sel(), mem.unwrap_or(kif::INVALID_SEL), addr)?;
         self.ep.replace(Some(ep));
         Ok(self.ep_id().unwrap())
+    }
+
+    /// Activates the gate on given EP.
+    #[inline(always)]
+    pub(crate) fn activate_for(
+        &self,
+        vpe: Selector,
+        epid: EpId,
+        replies: u32,
+    ) -> Result<(), Error> {
+        if self.ep().is_some() {
+            return Err(Error::new(Code::Exists));
+        }
+
+        let ep = EpMng::acquire_for(vpe, epid, replies)?;
+        syscalls::activate(ep.sel(), self.sel(), kif::INVALID_SEL, 0)?;
+        self.ep.set(Some(ep));
+        Ok(())
     }
 
     /// Activates the gate. Returns the chosen endpoint number.

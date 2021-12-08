@@ -96,20 +96,14 @@ VPE::VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args)
 
     if(_pager) {
         // now create VPE, which implicitly obtains the gate cap from us
-        _eps_start = Syscalls::create_vpe(sel(), _pager->child_sgate().sel(),
-                                          _pager->child_rgate().sel(),
-                                          name, pe->sel(), _kmem->sel(), &_id);
-        // mark the send gate cap allocated
-        _next_sel = Math::max(_pager->child_sgate().sel() + 1, _next_sel);
+        _eps_start = Syscalls::create_vpe(sel(), name, pe->sel(), _kmem->sel(), &_id);
         // delegate VPE cap to pager
-        _pager->init(*this);
+        _pager->init(*this, _eps_start);
         // and delegate the pager cap to the VPE
         delegate_obj(_pager->sel());
     }
-    else {
-        _eps_start = Syscalls::create_vpe(sel(), ObjCap::INVALID, ObjCap::INVALID,
-                                          name, pe->sel(), _kmem->sel(), &_id);
-    }
+    else
+        _eps_start = Syscalls::create_vpe(sel(), name, pe->sel(), _kmem->sel(), &_id);
     _next_sel = Math::max(_kmem->sel() + 1, _next_sel);
 
     if(_resmng == nullptr) {

@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::tcu::EpId;
 use bitflags::bitflags;
 use core::fmt;
 
@@ -25,6 +26,7 @@ use crate::int_enum;
 use crate::kif;
 use crate::pes::VPE;
 use crate::session::ClientSession;
+use crate::tcu::{PG_REP_OFF, PG_SEP_OFF};
 
 /// Represents a session at the pager.
 ///
@@ -157,7 +159,13 @@ impl Pager {
     }
 
     /// Initializes this pager session by delegating the VPE cap to the server.
-    pub fn init(&mut self, vpe: &VPE) -> Result<(), Error> {
+    pub fn init(&mut self, vpe: &VPE, first_ep: EpId) -> Result<(), Error> {
+        // activate send and receive gate for page faults
+        self.child_sgate
+            .activate_for(vpe.sel(), first_ep + PG_SEP_OFF)?;
+        self.rgate
+            .activate_for(vpe.sel(), first_ep + PG_REP_OFF, 0)?;
+
         // we only need to do that for clones
         if self.close {
             let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, vpe.sel(), 1);

@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::cfg;
 use base::col::ToString;
 use base::errors::{Code, Error, VerboseError};
 use base::goff;
@@ -437,7 +438,18 @@ pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
                 }
 
                 // determine receive buffer address
-                let rbuf_addr = if platform::pe_desc(dst_pe).has_virtmem() {
+                let rbuf_addr = if platform::pe_desc(dst_pe).has_virtmem()
+                    && epid == ep_vpe.eps_start() + tcu::PG_REP_OFF
+                {
+                    // special case for activating the pager reply rgate: there is no way to get a
+                    // memory capability to the standard receive buffer. thus, we just determine the
+                    // physical address here and remove the choice for the user.
+                    ep_vpe.rbuf_addr()
+                        + cfg::SYSC_RBUF_SIZE as goff
+                        + cfg::UPCALL_RBUF_SIZE as goff
+                        + cfg::DEF_RBUF_SIZE as goff
+                }
+                else if platform::pe_desc(dst_pe).has_virtmem() {
                     let rbuf = get_kobj!(vpe, rbuf_mem, MGate);
                     if rbuf_off >= rbuf.size() || rbuf_off + r.size() as goff > rbuf.size() {
                         sysc_err!(Code::InvArgs, "Invalid receive buffer memory");

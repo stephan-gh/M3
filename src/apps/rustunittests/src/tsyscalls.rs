@@ -16,7 +16,7 @@
 
 use m3::cap::Selector;
 use m3::cfg::PAGE_SIZE;
-use m3::com::{MemGate, RecvGate, SendGate};
+use m3::com::{MemGate, RecvGate};
 use m3::cpu;
 use m3::errors::{Code, Error};
 use m3::goff;
@@ -293,39 +293,26 @@ fn create_map() {
 #[allow(clippy::cognitive_complexity)]
 fn create_vpe() {
     let sel = VPE::cur().alloc_sel();
-    let rgate = wv_assert_ok!(RecvGate::new(10, 10));
-    let sgate = wv_assert_ok!(SendGate::new(&rgate));
     let kmem = VPE::cur().kmem().sel();
 
     let pe = wv_assert_ok!(PE::get("clone|own"));
 
     // invalid dest selector
     wv_assert_err!(
-        syscalls::create_vpe(SEL_KMEM, INVALID_SEL, INVALID_SEL, "test", pe.sel(), kmem),
+        syscalls::create_vpe(SEL_KMEM, "test", pe.sel(), kmem),
         Code::InvArgs
     );
-
-    if VPE::cur().pe_desc().has_virtmem() {
-        // invalid sgate
-        wv_assert_err!(
-            syscalls::create_vpe(sel, SEL_VPE, INVALID_SEL, "test", pe.sel(), kmem),
-            Code::InvArgs
-        );
-    }
 
     // invalid name
-    wv_assert_err!(
-        syscalls::create_vpe(sel, sgate.sel(), INVALID_SEL, "", pe.sel(), kmem),
-        Code::InvArgs
-    );
+    wv_assert_err!(syscalls::create_vpe(sel, "", pe.sel(), kmem), Code::InvArgs);
 
     // invalid kmem
     wv_assert_err!(
-        syscalls::create_vpe(sel, sgate.sel(), INVALID_SEL, "test", pe.sel(), INVALID_SEL),
+        syscalls::create_vpe(sel, "test", pe.sel(), INVALID_SEL),
         Code::InvArgs
     );
     wv_assert_err!(
-        syscalls::create_vpe(sel, sgate.sel(), INVALID_SEL, "test", pe.sel(), SEL_VPE),
+        syscalls::create_vpe(sel, "test", pe.sel(), SEL_VPE),
         Code::InvArgs
     );
 }

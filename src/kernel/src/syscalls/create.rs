@@ -18,7 +18,7 @@ use base::cfg;
 use base::col::ToString;
 use base::errors::{Code, VerboseError};
 use base::goff;
-use base::kif::{syscalls, CapRngDesc, CapSel, CapType, PageFlags, Perm, INVALID_SEL};
+use base::kif::{syscalls, CapRngDesc, CapSel, CapType, PageFlags, Perm};
 use base::mem::{GlobAddr, MsgBuf};
 use base::rc::Rc;
 use base::tcu;
@@ -277,8 +277,6 @@ pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verb
 pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &syscalls::CreateVPE = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
-    let pg_sg_sel = req.pg_sg_sel as CapSel;
-    let pg_rg_sel = req.pg_rg_sel as CapSel;
     let pe_sel = req.pe_sel as CapSel;
     let kmem_sel = req.kmem_sel as CapSel;
     let name = core::str::from_utf8(&req.name[0..req.namelen as usize])
@@ -286,10 +284,8 @@ pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
 
     sysc_log!(
         vpe,
-        "create_vpe(dst={}, pg_sg={}, pg_rg={}, name={}, pe={}, kmem={})",
+        "create_vpe(dst={}, name={}, pe={}, kmem={})",
         dst_sel,
-        pg_sg_sel,
-        pg_rg_sel,
         name,
         pe_sel,
         kmem_sel
@@ -312,32 +308,6 @@ pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
         );
     }
 
-    // on VM PEs, we need sgate/rgate caps
-    let pe_desc = platform::pe_desc(pe.pe());
-    let (_sgate, _rgate) = if pe_desc.has_virtmem() {
-        let sgate = if pg_sg_sel != INVALID_SEL {
-            Some(get_kobj!(vpe, pg_sg_sel, SGate))
-        }
-        else {
-            None
-        };
-
-        let rgate = if pg_rg_sel != INVALID_SEL {
-            let rgate = get_kobj!(vpe, pg_rg_sel, RGate);
-            if rgate.activated() {
-                sysc_err!(Code::InvArgs, "Pager rgate already activated");
-            }
-            Some(rgate)
-        }
-        else {
-            None
-        };
-        (sgate, rgate)
-    }
-    else {
-        (None, None)
-    };
-
     let kmem = get_kobj!(vpe, kmem_sel, KMem);
     // TODO kmem quota stuff
 
@@ -348,7 +318,7 @@ pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
         Ok(eps) => eps,
         Err(e) => sysc_err!(e.code(), "No free range for standard EPs"),
     };
-    if pemux.has_vpes() && !pe_desc.has_virtmem() {
+    if pemux.has_vpes() && !platform::pe_desc(pe.pe()).has_virtmem() {
         sysc_err!(Code::NotSup, "Virtual memory is required for PE sharing");
     }
     drop(pemux);
@@ -362,52 +332,6 @@ pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
     // give VPE cap to the parent
     let cap = Capability::new(dst_sel, KObject::VPE(Rc::downgrade(&nvpe)));
     try_kmem_quota!(vpe.obj_caps().borrow_mut().insert(cap));
-
-    // activate pager EPs
-    #[cfg(not(target_vendor = "host"))]
-    {
-        use crate::cap::EPObject;
-
-        let mut pemux = pemng::pemux(pe_id);
-        if let Some(sg) = _sgate {
-            pemux
-                .config_snd_ep(eps + tcu::PG_SEP_OFF, nvpe.id(), &sg)
-                .unwrap();
-
-            // remember the activation
-            let sep = EPObject::new(
-                true,
-                Rc::downgrade(&nvpe),
-                eps + tcu::PG_SEP_OFF,
-                0,
-                pemux.pe(),
-            );
-            EPObject::configure(&sep, &KObject::SGate(sg));
-            nvpe.add_ep(sep);
-        }
-        if let Some(rg) = _rgate {
-            let rbuf = nvpe.rbuf_addr()
-                + cfg::SYSC_RBUF_SIZE as goff
-                + cfg::UPCALL_RBUF_SIZE as goff
-                + cfg::DEF_RBUF_SIZE as goff;
-            rg.activate(nvpe.pe_id(), eps + tcu::PG_REP_OFF, rbuf);
-
-            pemux
-                .config_rcv_ep(eps + tcu::PG_REP_OFF, nvpe.id(), None, &rg)
-                .unwrap();
-
-            // remember the activation
-            let rep = EPObject::new(
-                true,
-                Rc::downgrade(&nvpe),
-                eps + tcu::PG_REP_OFF,
-                0,
-                pemux.pe(),
-            );
-            EPObject::configure(&rep, &KObject::RGate(rg));
-            nvpe.add_ep(rep);
-        }
-    }
 
     let mut kreply = MsgBuf::borrow_def();
     kreply.set(syscalls::CreateVPEReply {

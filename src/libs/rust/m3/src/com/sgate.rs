@@ -148,6 +148,10 @@ impl SendGate {
         self.gate.activate()
     }
 
+    pub(crate) fn activate_for(&self, vpe: Selector, ep: tcu::EpId) -> Result<(), Error> {
+        self.gate.activate_for(vpe, ep, 0)
+    }
+
     /// Deactivates this `SendGate` in case it was already activated
     pub fn deactivate(&mut self) {
         self.gate.release(false);

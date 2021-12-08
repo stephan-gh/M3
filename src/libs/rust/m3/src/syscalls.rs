@@ -192,22 +192,19 @@ pub fn create_map(
 
 /// Creates a new VPE on PE `pe` with given name at the selector range `dst`.
 ///
-/// The argument `sgate` denotes the selector of the `SendGate` to the pager. `kmem` defines the
-/// kernel memory to assign to the VPE.
+/// The argument `kmem` defines the kernel memory to assign to the VPE.
 ///
 /// On success, the function returns the VPE id (for debugging purposes) and EP id of the first
 /// standard EP.
 #[allow(clippy::too_many_arguments)]
 pub fn create_vpe(
     dst: Selector,
-    pg_sg: Selector,
-    pg_rg: Selector,
     name: &str,
     pe: Selector,
     kmem: Selector,
 ) -> Result<(VPEId, EpId), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    syscalls::CreateVPE::fill_msgbuf(&mut buf, dst, pg_sg, pg_rg, name, pe, kmem);
+    syscalls::CreateVPE::fill_msgbuf(&mut buf, dst, name, pe, kmem);
 
     let reply: Reply<syscalls::CreateVPEReply> = send_receive(&buf)?;
     Ok((reply.data.id as VPEId, reply.data.eps_start as EpId))

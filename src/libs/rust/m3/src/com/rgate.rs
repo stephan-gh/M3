@@ -240,6 +240,15 @@ impl RecvGate {
         })
     }
 
+    pub(crate) fn activate_for(
+        &self,
+        vpe: Selector,
+        ep: tcu::EpId,
+        replies: u32,
+    ) -> Result<(), Error> {
+        self.gate.activate_for(vpe, ep, replies)
+    }
+
     /// Deactivates this gate.
     pub fn deactivate(&mut self) {
         self.gate.release(true);

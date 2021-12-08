@@ -32,7 +32,7 @@ use crate::env;
 use crate::errors::Error;
 use crate::goff;
 use crate::kif;
-use crate::kif::{CapRngDesc, CapType, PEDesc, INVALID_SEL};
+use crate::kif::{CapRngDesc, CapType, PEDesc};
 use crate::pes::{ClosureActivity, DefaultMapper, DeviceActivity, ExecActivity, KMem, Mapper, PE};
 use crate::pexif;
 use crate::rc::Rc;
@@ -233,38 +233,19 @@ impl VPE {
         };
 
         vpe.pager = if let Some(mut pg) = pager {
-            let sgate_sel = pg.child_sgate().sel();
-            let rgate_sel = pg.child_rgate().sel();
-
             // now create VPE, which implicitly obtains the gate cap from us
-            let (id, eps_start) = syscalls::create_vpe(
-                sel,
-                sgate_sel,
-                rgate_sel,
-                args.name,
-                pe.sel(),
-                vpe.kmem.sel(),
-            )?;
+            let (id, eps_start) = syscalls::create_vpe(sel, args.name, pe.sel(), vpe.kmem.sel())?;
             vpe.id = id;
             vpe.eps_start = eps_start;
 
-            // mark the pager caps allocated
-            vpe.next_sel = cmp::max(sgate_sel + 1, vpe.next_sel);
             // delegate VPE cap to pager
-            pg.init(&vpe)?;
+            pg.init(&vpe, eps_start)?;
             // and delegate the pager cap to the VPE
             vpe.delegate_obj(pg.sel())?;
             Some(pg)
         }
         else {
-            let (id, eps_start) = syscalls::create_vpe(
-                sel,
-                INVALID_SEL,
-                INVALID_SEL,
-                args.name,
-                pe.sel(),
-                vpe.kmem.sel(),
-            )?;
+            let (id, eps_start) = syscalls::create_vpe(sel, args.name, pe.sel(), vpe.kmem.sel())?;
             vpe.id = id;
             vpe.eps_start = eps_start;
             None

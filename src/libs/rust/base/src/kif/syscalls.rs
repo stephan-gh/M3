@@ -180,8 +180,6 @@ pub struct CreateMap {
 pub struct CreateVPE {
     pub opcode: u64,
     pub dst_sel: u64,
-    pub pg_sg_sel: u64,
-    pub pg_rg_sel: u64,
     pub pe_sel: u64,
     pub kmem_sel: u64,
     pub namelen: u64,
@@ -190,21 +188,11 @@ pub struct CreateVPE {
 
 impl CreateVPE {
     /// Stores a new `CreateVPE` message into the given message buffer
-    pub fn fill_msgbuf(
-        buf: &mut MsgBuf,
-        dst: CapSel,
-        pg_sg: CapSel,
-        pg_rg: CapSel,
-        name: &str,
-        pe: CapSel,
-        kmem: CapSel,
-    ) {
+    pub fn fill_msgbuf(buf: &mut MsgBuf, dst: CapSel, name: &str, pe: CapSel, kmem: CapSel) {
         #[allow(clippy::uninit_assumed_init)]
         let msg = buf.set(Self {
             opcode: Operation::CREATE_VPE.val,
             dst_sel: dst,
-            pg_sg_sel: pg_sg,
-            pg_rg_sel: pg_rg,
             pe_sel: pe,
             kmem_sel: kmem,
             namelen: name.len() as u64,
