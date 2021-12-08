@@ -15,9 +15,8 @@
  */
 
 use m3::col::Treap;
-use m3::profile;
 use m3::test;
-use m3::time::CycleInstant;
+use m3::time::{CycleInstant, Profiler, Runner};
 use m3::{wv_assert_eq, wv_perf, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -27,12 +26,12 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn insert() {
-    let mut prof = profile::Profiler::default().repeats(100).warmup(50);
+    let mut prof = Profiler::default().repeats(100).warmup(50);
 
     #[derive(Default)]
     struct BTreeTester(Treap<u32, u32>);
 
-    impl profile::Runner for BTreeTester {
+    impl Runner for BTreeTester {
         fn pre(&mut self) {
             self.0.clear();
         }
@@ -51,12 +50,12 @@ fn insert() {
 }
 
 fn find() {
-    let mut prof = profile::Profiler::default().repeats(100).warmup(50);
+    let mut prof = Profiler::default().repeats(100).warmup(50);
 
     #[derive(Default)]
     struct BTreeTester(Treap<u32, u32>);
 
-    impl profile::Runner for BTreeTester {
+    impl Runner for BTreeTester {
         fn pre(&mut self) {
             for i in 0..100 {
                 self.0.insert(i, i);
@@ -82,12 +81,12 @@ fn find() {
 }
 
 fn clear() {
-    let mut prof = profile::Profiler::default().repeats(100).warmup(50);
+    let mut prof = Profiler::default().repeats(100).warmup(50);
 
     #[derive(Default)]
     struct BTreeTester(Treap<u32, u32>);
 
-    impl profile::Runner for BTreeTester {
+    impl Runner for BTreeTester {
         fn pre(&mut self) {
             for i in 0..100 {
                 self.0.insert(i, i);

@@ -23,10 +23,9 @@ use m3::crypto::HashAlgorithm;
 use m3::errors::Error;
 use m3::mem::MsgBuf;
 use m3::pes::{Activity, ClosureActivity, PE, VPE};
-use m3::profile::Results;
 use m3::session::HashSession;
 use m3::tcu::INVALID_EP;
-use m3::time::{CycleDuration, CycleInstant, Duration};
+use m3::time::{CycleDuration, CycleInstant, Duration, Results};
 use m3::{format, log, println, send_recv, wv_assert_ok, wv_run_test};
 use m3::{math, mem, tcu, test};
 

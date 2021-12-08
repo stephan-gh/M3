@@ -78,7 +78,6 @@ pub mod mem;
 pub mod msgqueue;
 pub mod parse;
 pub mod pexif;
-pub mod profile;
 pub mod quota;
 pub mod rc;
 pub mod serialize;

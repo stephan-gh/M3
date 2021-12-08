@@ -67,7 +67,6 @@ pub use base::{
     mem,
     parse,
     pexif,
-    profile,
     quota,
     rc,
     serialize,

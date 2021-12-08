@@ -21,7 +21,7 @@ use crate::goff;
 use crate::io;
 use crate::kif;
 use crate::pes::StateSerializer;
-use crate::session::{MapFlags, Pager, HashInput, HashOutput, HashSession};
+use crate::session::{HashInput, HashOutput, HashSession, MapFlags, Pager};
 use crate::vfs;
 
 impl vfs::Seek for io::Serial {

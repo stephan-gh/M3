@@ -16,10 +16,10 @@ use crate::util;
 use m3::com::{MemGate, Perm};
 use m3::crypto::HashAlgorithm;
 use m3::session::{HashInput, HashOutput, HashSession};
-use m3::time::{CycleInstant, Duration};
+use m3::test;
+use m3::time::{CycleInstant, Duration, Profiler};
 use m3::vfs::{OpenFlags, VFS};
 use m3::{format, vec, wv_assert_ok, wv_perf, wv_run_test};
-use m3::{profile, test};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, reset);
@@ -33,7 +33,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn reset() {
-    let mut prof = profile::Profiler::default();
+    let mut prof = Profiler::default();
     let mut hash = wv_assert_ok!(HashSession::new("hash-bench", &HashAlgorithm::SHA3_256));
 
     wv_perf!(
@@ -43,7 +43,7 @@ fn reset() {
 }
 
 fn hash_empty() {
-    let mut prof = profile::Profiler::default();
+    let mut prof = Profiler::default();
     for algo in HashAlgorithm::ALL.iter() {
         if algo.is_xof() {
             continue;
@@ -71,7 +71,7 @@ fn hash_mem() {
     const SIZE: usize = 512 * 1024; // 512 KiB
 
     let (_mgate, mgated) = _prepare_hash_mem(SIZE);
-    let mut prof = profile::Profiler::default().warmup(2).repeats(5);
+    let mut prof = Profiler::default().warmup(2).repeats(5);
 
     for algo in HashAlgorithm::ALL.iter() {
         let hash = wv_assert_ok!(HashSession::new("hash-bench", algo));
@@ -99,7 +99,7 @@ fn hash_mem_sizes() {
     const MAX_SIZE: usize = 1 << MAX_SIZE_SHIFT;
 
     let (_mgate, mgated) = _prepare_hash_mem(MAX_SIZE);
-    let mut prof = profile::Profiler::default().warmup(5).repeats(15);
+    let mut prof = Profiler::default().warmup(5).repeats(15);
 
     for shift in 0..=MAX_SIZE_SHIFT {
         let hash = wv_assert_ok!(HashSession::new("hash-bench", TEST_ALGO));
@@ -135,7 +135,7 @@ fn hash_file() {
         wv_assert_ok!(file.hash_output(&hash, SIZE));
     }
 
-    let mut prof = profile::Profiler::default().warmup(2).repeats(5);
+    let mut prof = Profiler::default().warmup(2).repeats(5);
 
     for algo in HashAlgorithm::ALL.iter() {
         let hash = wv_assert_ok!(HashSession::new("hash-bench", algo));
@@ -165,7 +165,7 @@ fn shake_mem() {
     const SIZE: usize = 512 * 1024; // 512 KiB
 
     let (_mgate, mgated) = _prepare_shake_mem(SIZE);
-    let mut prof = profile::Profiler::default().warmup(2).repeats(5);
+    let mut prof = Profiler::default().warmup(2).repeats(5);
 
     for algo in HashAlgorithm::ALL.iter() {
         if !algo.is_xof() {
@@ -197,7 +197,7 @@ fn shake_mem_sizes() {
     const MAX_SIZE: usize = 1 << MAX_SIZE_SHIFT;
 
     let (_mgate, mgated) = _prepare_shake_mem(MAX_SIZE);
-    let mut prof = profile::Profiler::default().warmup(5).repeats(15);
+    let mut prof = Profiler::default().warmup(5).repeats(15);
 
     for shift in 0..=MAX_SIZE_SHIFT {
         let size = 1usize << shift;
@@ -226,7 +226,7 @@ fn shake_mem_sizes() {
 fn shake_file() {
     const SIZE: usize = 512 * 1024; // 512 KiB
 
-    let mut prof = profile::Profiler::default().warmup(2).repeats(5);
+    let mut prof = Profiler::default().warmup(2).repeats(5);
 
     for algo in HashAlgorithm::ALL.iter() {
         if !algo.is_xof() {

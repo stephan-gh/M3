@@ -17,9 +17,8 @@
 use m3::cell::StaticRefCell;
 use m3::io::Read;
 use m3::mem::AlignedBuf;
-use m3::profile;
 use m3::test;
-use m3::time::CycleInstant;
+use m3::time::{CycleInstant, Profiler};
 use m3::vfs::{OpenFlags, VFS};
 use m3::{wv_assert_ok, wv_perf, wv_run_test};
 
@@ -36,7 +35,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn open_close() {
-    let mut prof = profile::Profiler::default().repeats(50).warmup(10);
+    let mut prof = Profiler::default().repeats(50).warmup(10);
 
     wv_perf!(
         "open-close",
@@ -47,7 +46,7 @@ fn open_close() {
 }
 
 fn stat() {
-    let mut prof = profile::Profiler::default().repeats(50).warmup(10);
+    let mut prof = Profiler::default().repeats(50).warmup(10);
 
     wv_perf!(
         "stat",
@@ -58,7 +57,7 @@ fn stat() {
 }
 
 fn mkdir_rmdir() {
-    let mut prof = profile::Profiler::default().repeats(50).warmup(10);
+    let mut prof = Profiler::default().repeats(50).warmup(10);
 
     wv_perf!(
         "mkdir_rmdir",
@@ -70,7 +69,7 @@ fn mkdir_rmdir() {
 }
 
 fn link_unlink() {
-    let mut prof = profile::Profiler::default().repeats(50).warmup(10);
+    let mut prof = Profiler::default().repeats(50).warmup(10);
 
     wv_perf!(
         "link_unlink",
@@ -84,7 +83,7 @@ fn link_unlink() {
 fn read() {
     let mut buf = &mut BUF.borrow_mut()[..];
 
-    let mut prof = profile::Profiler::default().repeats(2).warmup(1);
+    let mut prof = Profiler::default().repeats(2).warmup(1);
 
     wv_perf!(
         "read 2 MiB file with 8K buf",
@@ -104,7 +103,7 @@ fn write() {
     const SIZE: usize = 2 * 1024 * 1024;
     let buf = &BUF.borrow()[..];
 
-    let mut prof = profile::Profiler::default().repeats(2).warmup(1);
+    let mut prof = Profiler::default().repeats(2).warmup(1);
 
     wv_perf!(
         "write 2 MiB file with 8K buf",
@@ -128,7 +127,7 @@ fn write() {
 
 fn copy() {
     let mut buf = &mut BUF.borrow_mut()[..];
-    let mut prof = profile::Profiler::default().repeats(2).warmup(1);
+    let mut prof = Profiler::default().repeats(2).warmup(1);
 
     wv_perf!(
         "copy 2 MiB file with 8K buf",

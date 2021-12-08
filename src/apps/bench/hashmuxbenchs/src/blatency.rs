@@ -18,10 +18,9 @@ use m3::col::Vec;
 use m3::com::{MemGate, Perm, Semaphore};
 use m3::crypto::HashAlgorithm;
 use m3::pes::{Activity, ClosureActivity, PE, VPE};
-use m3::profile::Results;
 use m3::session::HashSession;
 use m3::test;
-use m3::time::{CycleDuration, CycleInstant, TimeDuration, TimeInstant};
+use m3::time::{CycleDuration, CycleInstant, Results, TimeDuration, TimeInstant};
 use m3::{format, log, println, wv_assert_ok, wv_perf, wv_run_test};
 
 const TEST_ALGO: &HashAlgorithm = &HashAlgorithm::SHA3_256;

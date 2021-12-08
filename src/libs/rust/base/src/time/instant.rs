@@ -16,13 +16,12 @@
 
 //! Contains time measurement functions
 
-pub use core::time::Duration as TimeDuration;
-
 use core::fmt;
 use core::ops::{Add, AddAssign, Sub, SubAssign};
 
 use crate::arch::cpu;
 use crate::tcu::TCU;
+use crate::time::{CycleDuration, TimeDuration};
 
 /// A generic measurement of time
 pub trait Instant {
@@ -33,15 +32,6 @@ pub trait Instant {
 
     /// Returns the amount of time elapsed from another instant to this one.
     fn duration_since(&self, earlier: Self) -> Self::Duration;
-}
-
-/// A generic duration of time
-pub trait Duration: fmt::Debug + Sized {
-    /// Creates a new duration from given raw time unit (see `as_raw`).
-    fn from_raw(raw: u64) -> Self;
-
-    /// Returns the value as a raw time unit.
-    fn as_raw(&self) -> u64;
 }
 
 /// A measurement of time, represented in nanoseconds. Useful in combination with [`TimeDuration`].
@@ -150,16 +140,6 @@ impl Instant for TimeInstant {
     }
 }
 
-impl Duration for TimeDuration {
-    fn from_raw(nanos: u64) -> Self {
-        Self::from_nanos(nanos)
-    }
-
-    fn as_raw(&self) -> u64 {
-        self.as_nanos() as u64
-    }
-}
-
 /// A measurement of cycles. Useful in combination with [`CycleDuration`].
 #[derive(Copy, Clone)]
 pub struct CycleInstant(u64);
@@ -195,17 +175,6 @@ impl CycleInstant {
     }
 }
 
-/// A duration in cycles
-#[derive(Copy, Clone)]
-pub struct CycleDuration(u64);
-
-impl CycleDuration {
-    /// Creates a new duration from given cycle count.
-    pub fn new(cycles: u64) -> Self {
-        Self(cycles)
-    }
-}
-
 impl Instant for CycleInstant {
     type Duration = CycleDuration;
 
@@ -215,21 +184,5 @@ impl Instant for CycleInstant {
 
     fn duration_since(&self, earlier: Self) -> CycleDuration {
         self.duration_since(earlier)
-    }
-}
-
-impl Duration for CycleDuration {
-    fn from_raw(cycles: u64) -> Self {
-        Self::new(cycles)
-    }
-
-    fn as_raw(&self) -> u64 {
-        self.0
-    }
-}
-
-impl fmt::Debug for CycleDuration {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} cycles", self.0)
     }
 }

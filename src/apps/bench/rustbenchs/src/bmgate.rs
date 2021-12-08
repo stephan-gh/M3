@@ -18,9 +18,8 @@ use m3::cell::StaticRefCell;
 use m3::com::MemGate;
 use m3::kif;
 use m3::mem::AlignedBuf;
-use m3::profile;
 use m3::test;
-use m3::time::CycleInstant;
+use m3::time::{CycleInstant, Profiler};
 use m3::{wv_perf, wv_run_test};
 
 const SIZE: usize = 2 * 1024 * 1024;
@@ -38,7 +37,7 @@ fn read() {
     let mut buf = &mut BUF.borrow_mut()[..8192];
     let mgate = MemGate::new(8192, kif::Perm::R).expect("Unable to create mgate");
 
-    let mut prof = profile::Profiler::default().repeats(2).warmup(1);
+    let mut prof = Profiler::default().repeats(2).warmup(1);
 
     wv_perf!(
         "read 2 MiB with 8K buf",
@@ -56,7 +55,7 @@ fn read_unaligned() {
     let mut buf = &mut BUF.borrow_mut()[64..];
     let mgate = MemGate::new(8192, kif::Perm::R).expect("Unable to create mgate");
 
-    let mut prof = profile::Profiler::default().repeats(2).warmup(1);
+    let mut prof = Profiler::default().repeats(2).warmup(1);
 
     wv_perf!(
         "read unaligned 2 MiB with 8K buf",
@@ -74,7 +73,7 @@ fn write() {
     let buf = &BUF.borrow()[..8192];
     let mgate = MemGate::new(8192, kif::Perm::W).expect("Unable to create mgate");
 
-    let mut prof = profile::Profiler::default().repeats(2).warmup(1);
+    let mut prof = Profiler::default().repeats(2).warmup(1);
 
     wv_perf!(
         "write 2 MiB with 8K buf",
@@ -92,7 +91,7 @@ fn write_unaligned() {
     let buf = &BUF.borrow()[64..];
     let mgate = MemGate::new(8192, kif::Perm::W).expect("Unable to create mgate");
 
-    let mut prof = profile::Profiler::default().repeats(2).warmup(1);
+    let mut prof = Profiler::default().repeats(2).warmup(1);
 
     wv_perf!(
         "write unaligned 2 MiB with 8K buf",

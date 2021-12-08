@@ -16,10 +16,9 @@
 
 use m3::format;
 use m3::net::{DgramSocketArgs, Endpoint, UdpSocket};
-use m3::profile::Results;
 use m3::session::{NetworkDirection, NetworkManager};
 use m3::test;
-use m3::time::{CycleInstant, TimeDuration};
+use m3::time::{CycleInstant, Results, TimeDuration};
 use m3::{wv_assert_ok, wv_perf, wv_run_test};
 
 const TIMEOUT: TimeDuration = TimeDuration::from_millis(30);

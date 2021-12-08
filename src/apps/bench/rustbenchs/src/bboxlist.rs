@@ -17,9 +17,8 @@
 use m3::boxed::Box;
 use m3::col::{BoxList, BoxRef};
 use m3::mem;
-use m3::profile;
 use m3::test;
-use m3::time::CycleInstant;
+use m3::time::{CycleInstant, Profiler, Runner};
 use m3::{impl_boxitem, wv_assert_eq, wv_perf, wv_run_test};
 
 #[derive(Default, Clone)]
@@ -49,12 +48,12 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn push_back() {
-    let mut prof = profile::Profiler::default().repeats(30);
+    let mut prof = Profiler::default().repeats(30);
 
     #[derive(Default)]
     struct ListTester(BoxList<TestItem>);
 
-    impl profile::Runner for ListTester {
+    impl Runner for ListTester {
         fn pre(&mut self) {
             self.0.clear();
         }
@@ -73,12 +72,12 @@ fn push_back() {
 }
 
 fn push_front() {
-    let mut prof = profile::Profiler::default().repeats(30);
+    let mut prof = Profiler::default().repeats(30);
 
     #[derive(Default)]
     struct ListTester(BoxList<TestItem>);
 
-    impl profile::Runner for ListTester {
+    impl Runner for ListTester {
         fn pre(&mut self) {
             self.0.clear();
         }
@@ -97,12 +96,12 @@ fn push_front() {
 }
 
 fn push_pop() {
-    let mut prof = profile::Profiler::default().repeats(30);
+    let mut prof = Profiler::default().repeats(30);
 
     #[derive(Default)]
     struct ListTester(BoxList<TestItem>, Option<Box<TestItem>>, usize);
 
-    impl profile::Runner for ListTester {
+    impl Runner for ListTester {
         fn pre(&mut self) {
             self.1 = Some(Box::new(TestItem::new(213)));
         }
@@ -125,12 +124,12 @@ fn push_pop() {
 }
 
 fn clear() {
-    let mut prof = profile::Profiler::default().repeats(30);
+    let mut prof = Profiler::default().repeats(30);
 
     #[derive(Default)]
     struct ListTester(BoxList<TestItem>);
 
-    impl profile::Runner for ListTester {
+    impl Runner for ListTester {
         fn pre(&mut self) {
             for i in 0..100 {
                 self.0.push_back(Box::new(TestItem::new(i)));

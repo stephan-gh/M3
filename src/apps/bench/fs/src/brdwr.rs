@@ -17,9 +17,8 @@
 use m3::cell::StaticRefCell;
 use m3::io::Read;
 use m3::mem::AlignedBuf;
-use m3::profile;
 use m3::test;
-use m3::time::CycleInstant;
+use m3::time::{CycleInstant, Profiler};
 use m3::vfs::{OpenFlags, VFS};
 use m3::{wv_assert_ok, wv_perf, wv_run_test};
 
@@ -33,7 +32,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 fn read() {
     let buf = &mut BUF.borrow_mut()[..];
 
-    let mut prof = profile::Profiler::default().repeats(10).warmup(4);
+    let mut prof = Profiler::default().repeats(10).warmup(4);
 
     wv_perf!(
         "read 2 MiB file with 4K buf",
@@ -53,7 +52,7 @@ fn write() {
     const SIZE: usize = 2 * 1024 * 1024;
     let buf = &BUF.borrow()[..];
 
-    let mut prof = profile::Profiler::default().repeats(10).warmup(4);
+    let mut prof = Profiler::default().repeats(10).warmup(4);
 
     wv_perf!(
         "write 2 MiB file with 4K buf",

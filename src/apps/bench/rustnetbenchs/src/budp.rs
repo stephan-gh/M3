@@ -19,10 +19,9 @@ use m3::errors::Code;
 use m3::format;
 use m3::net::{DgramSocketArgs, Endpoint, UdpSocket};
 use m3::println;
-use m3::profile::Results;
 use m3::session::{NetworkDirection, NetworkManager};
 use m3::test;
-use m3::time::{TimeDuration, TimeInstant};
+use m3::time::{Results, TimeDuration, TimeInstant};
 use m3::{wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {

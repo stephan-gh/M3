@@ -15,9 +15,8 @@
  */
 
 use m3::col::DList;
-use m3::profile;
 use m3::test;
-use m3::time::CycleInstant;
+use m3::time::{CycleInstant, Profiler, Runner};
 use m3::{wv_perf, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -27,12 +26,12 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn push_back() {
-    let mut prof = profile::Profiler::default().repeats(30);
+    let mut prof = Profiler::default().repeats(30);
 
     #[derive(Default)]
     struct ListTester(DList<u32>);
 
-    impl profile::Runner for ListTester {
+    impl Runner for ListTester {
         fn pre(&mut self) {
             self.0.clear();
         }
@@ -51,12 +50,12 @@ fn push_back() {
 }
 
 fn push_front() {
-    let mut prof = profile::Profiler::default().repeats(30);
+    let mut prof = Profiler::default().repeats(30);
 
     #[derive(Default)]
     struct ListTester(DList<u32>);
 
-    impl profile::Runner for ListTester {
+    impl Runner for ListTester {
         fn pre(&mut self) {
             self.0.clear();
         }
@@ -75,12 +74,12 @@ fn push_front() {
 }
 
 fn clear() {
-    let mut prof = profile::Profiler::default().repeats(30);
+    let mut prof = Profiler::default().repeats(30);
 
     #[derive(Default)]
     struct ListTester(DList<u32>);
 
-    impl profile::Runner for ListTester {
+    impl Runner for ListTester {
         fn pre(&mut self) {
             for i in 0..100 {
                 self.0.push_back(i);

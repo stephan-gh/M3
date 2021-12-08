@@ -21,10 +21,9 @@ use m3::io;
 use m3::kif;
 use m3::mem::AlignedBuf;
 use m3::pes::{Activity, VPEArgs, PE, VPE};
-use m3::profile;
 use m3::session::Pipes;
 use m3::test;
-use m3::time::CycleInstant;
+use m3::time::{CycleInstant, Profiler};
 use m3::vfs::IndirectPipe;
 use m3::{format, wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test};
 
@@ -40,7 +39,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 
 fn child_to_parent() {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
-    let mut prof = profile::Profiler::default().repeats(2).warmup(1);
+    let mut prof = Profiler::default().repeats(2).warmup(1);
 
     let pe = wv_assert_ok!(PE::get("clone|own"));
     let res = prof.run::<CycleInstant, _>(|| {
@@ -86,7 +85,7 @@ fn child_to_parent() {
 
 fn parent_to_child() {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
-    let mut prof = profile::Profiler::default().repeats(2).warmup(1);
+    let mut prof = Profiler::default().repeats(2).warmup(1);
 
     let pe = wv_assert_ok!(PE::get("clone|own"));
     let res = prof.run::<CycleInstant, _>(|| {

@@ -17,10 +17,9 @@
 use m3::boxed::Box;
 use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
 use m3::pes::{Activity, VPEArgs, PE, VPE};
-use m3::profile;
 use m3::rc::Rc;
 use m3::test;
-use m3::time::CycleInstant;
+use m3::time::{CycleInstant, Profiler};
 use m3::{
     format, println, reply_vmsg, send_vmsg, wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test,
 };
@@ -66,7 +65,7 @@ fn pingpong_with_pe(name: &str, pe: Rc<PE>) {
         0
     })));
 
-    let mut prof = profile::Profiler::default().repeats(RUNS).warmup(WARMUP);
+    let mut prof = Profiler::default().repeats(RUNS).warmup(WARMUP);
 
     let reply_gate = RecvGate::def();
     wv_perf!(

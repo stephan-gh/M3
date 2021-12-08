@@ -16,9 +16,8 @@
 
 use m3::col::String;
 use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
-use m3::profile;
 use m3::test;
-use m3::time::CycleInstant;
+use m3::time::{CycleInstant, Profiler};
 use m3::{reply_vmsg, send_vmsg, wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test};
 
 const MSG_ORD: u32 = 8;
@@ -37,7 +36,7 @@ fn pingpong_1u64() {
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
-    let mut prof = profile::Profiler::default();
+    let mut prof = Profiler::default();
 
     wv_perf!(
         "pingpong with (1 * u64) msgs",
@@ -60,7 +59,7 @@ fn pingpong_2u64() {
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
-    let mut prof = profile::Profiler::default();
+    let mut prof = Profiler::default();
 
     wv_perf!(
         "pingpong with (2 * u64) msgs",
@@ -85,7 +84,7 @@ fn pingpong_4u64() {
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
-    let mut prof = profile::Profiler::default();
+    let mut prof = Profiler::default();
 
     wv_perf!(
         "pingpong with (4 * u64) msgs",
@@ -114,7 +113,7 @@ fn pingpong_str() {
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
-    let mut prof = profile::Profiler::default();
+    let mut prof = Profiler::default();
 
     wv_perf!(
         "pingpong with (String) msgs",
@@ -137,7 +136,7 @@ fn pingpong_strslice() {
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
-    let mut prof = profile::Profiler::default();
+    let mut prof = Profiler::default();
 
     wv_perf!(
         "pingpong with (&str) msgs",

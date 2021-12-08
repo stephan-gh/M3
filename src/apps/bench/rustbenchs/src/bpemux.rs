@@ -21,10 +21,9 @@ use m3::goff;
 use m3::kif::Perm;
 use m3::pes::VPE;
 use m3::pexif;
-use m3::profile;
 use m3::session::MapFlags;
 use m3::test;
-use m3::time::{CycleDuration, CycleInstant, Duration};
+use m3::time::{CycleDuration, CycleInstant, Duration, Profiler, Results, Runner};
 use m3::{println, wv_perf, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -33,7 +32,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn pexcalls() {
-    let mut prof = profile::Profiler::default().repeats(100).warmup(30);
+    let mut prof = Profiler::default().repeats(100).warmup(30);
     wv_perf!(
         "noop pexcall",
         prof.run::<CycleInstant, _>(|| pexif::noop().unwrap())
@@ -54,7 +53,7 @@ fn translates() {
         mgate: MemGate,
     }
 
-    impl profile::Runner for Tester {
+    impl Runner for Tester {
         fn pre(&mut self) {
             // create new mapping
             self.virt = VPE::cur()
@@ -91,7 +90,7 @@ fn translates() {
         }
     }
 
-    struct MyResults(profile::Results<CycleDuration>);
+    struct MyResults(Results<CycleDuration>);
 
     impl fmt::Display for MyResults {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -105,7 +104,7 @@ fn translates() {
         }
     }
 
-    let mut prof = profile::Profiler::default().repeats(10).warmup(2);
+    let mut prof = Profiler::default().repeats(10).warmup(2);
     let results = MyResults(prof.runner::<CycleInstant, _>(&mut Tester {
         virt: 0,
         mgate: MemGate::new(PAGES * cfg::PAGE_SIZE, Perm::RW).unwrap(),

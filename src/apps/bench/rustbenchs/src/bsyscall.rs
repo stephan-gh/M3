@@ -21,11 +21,10 @@ use m3::goff;
 use m3::kif;
 use m3::math;
 use m3::pes::{VPEArgs, PE, VPE};
-use m3::profile;
 use m3::rc::Rc;
 use m3::syscalls;
 use m3::test;
-use m3::time::CycleInstant;
+use m3::time::{CycleInstant, Profiler, Runner};
 use m3::{println, wv_assert_ok, wv_perf, wv_run_test};
 
 static SEL: StaticCell<kif::CapSel> = StaticCell::new(0);
@@ -48,7 +47,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn noop() {
-    let mut prof = profile::Profiler::default();
+    let mut prof = Profiler::default();
 
     wv_perf!(
         "noop",
@@ -62,7 +61,7 @@ fn activate() {
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
     let ep = wv_assert_ok!(VPE::cur().epmng_mut().acquire(0));
 
-    let mut prof = profile::Profiler::default();
+    let mut prof = Profiler::default();
 
     wv_perf!(
         "activate",
@@ -80,12 +79,12 @@ fn activate() {
 }
 
 fn create_mgate() {
-    let mut prof = profile::Profiler::default().repeats(100).warmup(10);
+    let mut prof = Profiler::default().repeats(100).warmup(10);
 
     #[derive(Default)]
     struct Tester(usize);
 
-    impl profile::Runner for Tester {
+    impl Runner for Tester {
         fn run(&mut self) {
             wv_assert_ok!(syscalls::create_mgate(
                 SEL.get(),
@@ -113,12 +112,12 @@ fn create_mgate() {
 }
 
 fn create_rgate() {
-    let mut prof = profile::Profiler::default().repeats(100).warmup(10);
+    let mut prof = Profiler::default().repeats(100).warmup(10);
 
     #[derive(Default)]
     struct Tester();
 
-    impl profile::Runner for Tester {
+    impl Runner for Tester {
         fn run(&mut self) {
             wv_assert_ok!(syscalls::create_rgate(SEL.get(), 10, 10));
         }
@@ -139,12 +138,12 @@ fn create_rgate() {
 }
 
 fn create_sgate() {
-    let mut prof = profile::Profiler::default().repeats(100).warmup(10);
+    let mut prof = Profiler::default().repeats(100).warmup(10);
 
     #[derive(Default)]
     struct Tester(Option<RecvGate>);
 
-    impl profile::Runner for Tester {
+    impl Runner for Tester {
         fn pre(&mut self) {
             if self.0.is_none() {
                 self.0 = Some(wv_assert_ok!(RecvGate::new(10, 10)));
@@ -182,11 +181,11 @@ fn create_map() {
     }
 
     const DEST: kif::CapSel = 0x3000_0000 >> cfg::PAGE_BITS;
-    let mut prof = profile::Profiler::default().repeats(100).warmup(10);
+    let mut prof = Profiler::default().repeats(100).warmup(10);
 
     struct Tester(MemGate);
 
-    impl profile::Runner for Tester {
+    impl Runner for Tester {
         fn pre(&mut self) {
             // one warmup run, because the revoke leads to an unmap, which flushes and invalidates
             // all cache lines
@@ -227,12 +226,12 @@ fn create_map() {
 }
 
 fn create_srv() {
-    let mut prof = profile::Profiler::default().repeats(100).warmup(10);
+    let mut prof = Profiler::default().repeats(100).warmup(10);
 
     #[derive(Default)]
     struct Tester(Option<RecvGate>);
 
-    impl profile::Runner for Tester {
+    impl Runner for Tester {
         fn pre(&mut self) {
             if self.0.is_none() {
                 self.0 = Some(wv_assert_ok!(RecvGate::new(10, 10)));
@@ -265,12 +264,12 @@ fn create_srv() {
 }
 
 fn derive_mem() {
-    let mut prof = profile::Profiler::default().repeats(100).warmup(10);
+    let mut prof = Profiler::default().repeats(100).warmup(10);
 
     #[derive(Default)]
     struct Tester(Option<MemGate>);
 
-    impl profile::Runner for Tester {
+    impl Runner for Tester {
         fn pre(&mut self) {
             if self.0.is_none() {
                 self.0 = Some(wv_assert_ok!(MemGate::new(0x1000, Perm::RW)));
@@ -304,14 +303,14 @@ fn derive_mem() {
 }
 
 fn exchange() {
-    let mut prof = profile::Profiler::default().repeats(100).warmup(10);
+    let mut prof = Profiler::default().repeats(100).warmup(10);
 
     struct Tester {
         vpe: Option<VPE>,
         pe: Rc<PE>,
     }
 
-    impl profile::Runner for Tester {
+    impl Runner for Tester {
         fn pre(&mut self) {
             if self.vpe.is_none() {
                 self.vpe = Some(wv_assert_ok!(VPE::new_with(
@@ -349,7 +348,7 @@ fn exchange() {
 }
 
 fn revoke_mem_gate() {
-    let mut prof = profile::Profiler::default().repeats(100).warmup(10);
+    let mut prof = Profiler::default().repeats(100).warmup(10);
 
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
 
@@ -358,7 +357,7 @@ fn revoke_mem_gate() {
         _derived: Option<MemGate>,
     }
 
-    impl profile::Runner for Tester {
+    impl Runner for Tester {
         fn pre(&mut self) {
             self._derived = Some(wv_assert_ok!(self.mgate.derive(0, 0x1000, Perm::RW)));
         }
@@ -379,12 +378,12 @@ fn revoke_mem_gate() {
 }
 
 fn revoke_recv_gate() {
-    let mut prof = profile::Profiler::default().repeats(100).warmup(10);
+    let mut prof = Profiler::default().repeats(100).warmup(10);
 
     #[derive(Default)]
     struct Tester();
 
-    impl profile::Runner for Tester {
+    impl Runner for Tester {
         fn pre(&mut self) {
             wv_assert_ok!(syscalls::create_rgate(SEL.get(), 10, 10));
         }
@@ -405,12 +404,12 @@ fn revoke_recv_gate() {
 }
 
 fn revoke_send_gate() {
-    let mut prof = profile::Profiler::default().repeats(100).warmup(10);
+    let mut prof = Profiler::default().repeats(100).warmup(10);
 
     #[derive(Default)]
     struct Tester(Option<RecvGate>);
 
-    impl profile::Runner for Tester {
+    impl Runner for Tester {
         fn pre(&mut self) {
             self.0 = Some(wv_assert_ok!(RecvGate::new(10, 10)));
             wv_assert_ok!(syscalls::create_sgate(
