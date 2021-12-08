@@ -18,7 +18,7 @@
 
 use bitflags::bitflags;
 use m3::cfg;
-use m3::com::{MemGate, RecvGate, SendGate, EP};
+use m3::com::{EpMng, MemGate, RecvGate, SendGate, EP};
 use m3::errors::Error;
 use m3::goff;
 use m3::int_enum;
@@ -133,8 +133,8 @@ impl Device {
             (PCI_CFG_ADDR + REG_ADDR) + cfg::PAGE_SIZE as goff,
             Perm::RW,
         )?;
-        let sep = vpe.epmng().acquire_for(vpe_sel, EP_INT, 0)?;
-        let mep = vpe.epmng().acquire_for(vpe_sel, EP_DMA, 0)?;
+        let sep = EpMng::acquire_for(vpe_sel, EP_INT, 0)?;
+        let mep = EpMng::acquire_for(vpe_sel, EP_DMA, 0)?;
         let mut rgate = RecvGate::new(math::next_log2(BUF_SIZE), math::next_log2(MSG_SIZE))?;
         let sgate = SendGate::new(&rgate)?;
         rgate.activate()?;

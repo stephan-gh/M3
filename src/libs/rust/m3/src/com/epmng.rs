@@ -30,6 +30,11 @@ pub struct EpMng {
 }
 
 impl EpMng {
+    /// Allocates a specific endpoint for the given VPE.
+    pub fn acquire_for(vpe: Selector, ep: EpId, replies: u32) -> Result<EP, Error> {
+        EP::new_with(EPArgs::default().epid(ep).vpe(vpe).replies(replies))
+    }
+
     /// Allocates a new endpoint.
     pub fn acquire(&mut self, replies: u32) -> Result<EP, Error> {
         if replies > 0 {
@@ -41,11 +46,6 @@ impl EpMng {
         else {
             EP::new()
         }
-    }
-
-    /// Allocates a specific endpoint for the given VPE.
-    pub fn acquire_for(&self, vpe: Selector, ep: EpId, replies: u32) -> Result<EP, Error> {
-        EP::new_with(EPArgs::default().epid(ep).vpe(vpe).replies(replies))
     }
 
     /// Frees the given endpoint
