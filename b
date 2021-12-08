@@ -1,16 +1,16 @@
 #!/bin/bash
 
 # fall back to reasonable defaults
-if [ -z $M3_BUILD ]; then
+if [ -z "$M3_BUILD" ]; then
     M3_BUILD='release'
 fi
-if [ -z $M3_TARGET ]; then
+if [ -z "$M3_TARGET" ]; then
     M3_TARGET='host'
 fi
-if [ -z $M3_ISA ]; then
+if [ -z "$M3_ISA" ]; then
     M3_ISA='x86_64'
 fi
-if [ -z $M3_OUT ]; then
+if [ -z "$M3_OUT" ]; then
     M3_OUT="run"
 fi
 
@@ -22,7 +22,7 @@ if [ "$M3_TARGET" = "gem5" ]; then
 elif [ "$M3_TARGET" = "hw" ]; then
     M3_ISA="riscv"
 elif [ "$M3_TARGET" = "host" ]; then
-    M3_ISA=`uname -m`
+    M3_ISA=$(uname -m)
     if [ "$M3_ISA" = "armv7l" ]; then
         M3_ISA="arm"
     fi
@@ -53,9 +53,11 @@ else
 fi
 
 # rust env vars
+rusttoolchain=$(readlink -f src/toolchain/rust)
+rustbuild=$(readlink -f build/rust)
 export RUST_TARGET=$M3_ISA-unknown-$M3_TARGET-$rustabi
-export RUST_TARGET_PATH=`readlink -f src/toolchain/rust`
-export CARGO_TARGET_DIR=`readlink -f build/rust`
+export RUST_TARGET_PATH=$rusttoolchain
+export CARGO_TARGET_DIR=$rustbuild
 export XBUILD_SYSROOT_PATH=$CARGO_TARGET_DIR/sysroot
 
 build=build/$M3_TARGET-$M3_ISA-$M3_BUILD
@@ -147,7 +149,7 @@ help() {
 # parse arguments
 case "$1" in
     -h|-\?|--help)
-        help $0
+        help "$0"
         ;;
 esac
 
@@ -169,8 +171,9 @@ done
 
 mkdir -p $build $M3_OUT
 
+ninjaargs=()
 if [ "$M3_VERBOSE" != "" ]; then
-    ninjaargs="-v"
+    ninjaargs=("${ninjaargs[@]}" -v)
 fi
 
 if [ $skipbuild -eq 0 ]; then
@@ -186,14 +189,14 @@ fi
 
 case "$cmd" in
     ninja)
-        ninja -f $build/build.ninja $ninjaargs $script $@
+        ninja -f $build/build.ninja "${ninjaargs[@]}" "$script" "$@"
         exit $?
         ;;
 esac
 
 if [ $skipbuild -eq 0 ]; then
     echo "Building for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
-    ninja -f $build/build.ninja $ninjaargs >&2 || {
+    ninja -f $build/build.ninja "${ninjaargs[@]}" >&2 || {
         # ensure that we regenerate the build.ninja next time. Since ninja does not accept the
         # build.ninja, it will also not detect changes our build files in order to regenerate it.
         # Therefore, force ourself to regenerate it by removing our "files id".
@@ -207,29 +210,30 @@ run_on_host() {
     tail -f $M3_OUT/log.txt &
     tailpid=$!
     trap 'stty sane && kill $tailpid' INT
-    ./src/tools/execute.sh $1
+    ./src/tools/execute.sh "$1"
     kill $tailpid
 }
 
 childpids() {
     n=0
-    for pid in $(ps h -o pid --ppid $1); do
+    for pid in $(ps h -o pid --ppid "$1"); do
         if [ $n -gt 0 ]; then
             echo -n ","
         fi
-        echo -n $pid
-        list=$(childpids $pid)
+        echo -n "$pid"
+        list=$(childpids "$pid")
         if [ "$list" != "" ]; then
-            echo -n ","$list
+            echo -n ",$list"
         fi
-        n=$(($n + 1))
+        n=$((n + 1))
     done
 }
 
 findprog() {
-    pids=$(childpids $1)
+    pids=$(childpids "$1")
     if [ "$pids" != "" ]; then
-        ps hww -o pid,cmd -p $pids | grep "^\s*[[:digit:]]* [^ ]*$2\b"
+        # shellcheck disable=SC2009
+        ps hww -o pid,cmd -p "$pids" | grep "^\s*[[:digit:]]* [^ ]*$2\b"
     fi
 }
 
@@ -237,19 +241,19 @@ findprog() {
 case "$cmd" in
     run)
         if [ "$M3_TARGET" = "host" ]; then
-            run_on_host $script
+            run_on_host "$script"
         else
             if [ "$DBG_GEM5" = "1" ]; then
-                ./src/tools/execute.sh $script
+                ./src/tools/execute.sh "$script"
             else
-                ./src/tools/execute.sh $script 2>&1 | tee $M3_OUT/log.txt
+                ./src/tools/execute.sh "$script" 2>&1 | tee $M3_OUT/log.txt
             fi
         fi
         ;;
 
     rungem5)
         if [ "$M3_TARGET" = "gem5" ] || [ "$M3_TARGET" = "hw" ]; then
-            M3_RUN_GEM5=1 ./src/tools/execute.sh $script 2>&1 | tee $M3_OUT/log.txt
+            M3_RUN_GEM5=1 ./src/tools/execute.sh "$script" 2>&1 | tee $M3_OUT/log.txt
         else
             echo "Not supported"
         fi
@@ -258,53 +262,53 @@ case "$cmd" in
     runvalgrind)
         if [ "$M3_TARGET" = "host" ]; then
             export M3_VALGRIND=${M3_VALGRIND:-"--leak-check=full"}
-            run_on_host $script
+            run_on_host "$script"
         else
             echo "Not supported"
         fi
         ;;
 
     clippy)
-        for f in $(find src -mindepth 2 -name Cargo.toml); do
+        while IFS= read -r -d '' f; do
             # pemux can't be built for host
             if [ "$M3_TARGET" = "host" ] && [[ $f =~ "pemux" ]]; then
                 continue;
             fi
             # gem5log+hwitrace are always built for the host OS (not our host target)
-            target=""
+            target=()
             if [[ ! $f =~ "gem5log" ]] && [[ ! $f =~ "hwitrace" ]]; then
-                target="-Z build-std=core,alloc --target $RUST_TARGET"
+                target=("${target[@]}" -Z "build-std=core,alloc" --target "$RUST_TARGET")
             fi
-            echo "Running clippy for $(dirname $f)..."
-            ( cd $(dirname $f) && cargo clippy $target -- \
+            echo "Running clippy for $(dirname "$f")..."
+            ( cd "$(dirname "$f")" && cargo clippy "${target[@]}" -- \
                 -A clippy::identity_op \
                 -A clippy::manual_range_contains \
                 -A clippy::assertions_on_constants \
                 -A clippy::upper_case_acronyms \
                 -A clippy::empty_loop )
-        done
+        done < <(find src -mindepth 2 -name Cargo.toml -print0)
         ;;
 
     doc)
         export RUSTFLAGS="--sysroot $XBUILD_SYSROOT_PATH"
         export RUSTDOCFLAGS=$RUSTFLAGS
         for lib in src/libs/rust/*; do
-            if [ -d $lib ]; then
-                ( cd $lib && cargo doc -Z build-std=core,alloc --target $RUST_TARGET )
+            if [ -d "$lib" ]; then
+                ( cd "$lib" && cargo doc -Z build-std=core,alloc --target $RUST_TARGET )
             fi
         done
         ;;
 
     fmt)
-        for f in $(find src -mindepth 2 -name Cargo.toml); do
-            echo "Formatting $(dirname $f)..."
-            rustfmt $(dirname $f)/src/*.rs
-        done
+        while IFS= read -r -d '' f; do
+            echo "Formatting $(dirname "$f")..."
+            rustfmt "$(dirname "$f")"/src/*.rs
+        done < <(find src -mindepth 2 -name Cargo.toml -print0)
         ;;
 
     macros=*)
         export RUSTFLAGS="--sysroot $XBUILD_SYSROOT_PATH"
-        ( cd ${cmd#macros=} && \
+        ( cd "${cmd#macros=}" && \
             cargo rustc --target $RUST_TARGET --profile=check \
                 -- -Zunstable-options --pretty=expanded | less )
         ;;
@@ -318,123 +322,133 @@ case "$cmd" in
             fi
 
             # ensure that we can ptrace non-child-processes
-            if [ "`cat /proc/sys/kernel/yama/ptrace_scope`" = "1" ]; then
+            if [ "$(cat /proc/sys/kernel/yama/ptrace_scope)" = "1" ]; then
                 echo "We need to enable ptrace for non-child processes via sudo first:"
                 echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope || exit 1
             fi
 
             prog="${cmd#dbg=}"
-            M3_WAIT="$prog" ./src/tools/execute.sh $script --debug=${cmd#dbg=} &
+            M3_WAIT="$prog" ./src/tools/execute.sh "$script" "--debug=${cmd#dbg=}" &
             shpid=$!
             M3_KERNEL=${M3_KERNEL:-kernel}
 
-            pid=`pgrep -x $M3_KERNEL`
+            pid=$(pgrep -x "$M3_KERNEL")
             while [ "$pid" = "" ]; do
                 sleep 1
-                pid=`pgrep -x $M3_KERNEL`
+                pid=$(pgrep -x "$M3_KERNEL")
             done
             if [ "$prog" != "$M3_KERNEL" ]; then
-                line=$(findprog $pid $prog)
+                line=$(findprog "$pid" "$prog")
                 while [ "$line" = "" ]; do
                     sleep 1
-                    line=$(findprog $pid $prog)
+                    line=$(findprog "$pid" "$prog")
                 done
-                pid=$(findprog $pid $prog | xargs | cut -d ' ' -f 1)
+                pid=$(findprog "$pid" "$prog" | xargs | cut -d ' ' -f 1)
             fi
 
-            tmp=`mktemp`
-            echo "display/i \$pc" >> $tmp
-            echo "b main" >> $tmp
-            echo "set var wait_for_debugger = 0" >> $tmp
-            rust-gdb --tui $build/bin/$prog $pid --command=$tmp
+            tmp=$(mktemp)
+            {
+                echo "display/i \$pc"
+                echo "b main"
+                echo "set var wait_for_debugger = 0"
+            } > "$tmp"
+            rust-gdb --tui "$build/bin/$prog" "$pid" --command="$tmp"
 
             kill $shpid
-            rm $tmp
+            rm "$tmp"
         elif [ "$M3_TARGET" = "gem5" ] || [ "$M3_RUN_GEM5" = "1" ]; then
             truncate --size 0 $M3_OUT/log.txt
-            ./src/tools/execute.sh $script --debug=${cmd#dbg=} 1>$M3_OUT/log.txt 2>&1 &
+            ./src/tools/execute.sh "$script" "--debug=${cmd#dbg=}" 1>$M3_OUT/log.txt 2>&1 &
 
             # wait until it has started
-            while [ "`grep --text "Global frequency set at" $M3_OUT/log.txt`" = "" ]; do
+            while [ "$(grep --text "Global frequency set at" $M3_OUT/log.txt)" = "" ]; do
                 sleep 1
             done
 
             if [ "$M3_GEM5_PAUSE" != "" ]; then
-                port=$(($M3_GEM5_PAUSE + 7000))
+                port=$((M3_GEM5_PAUSE + 7000))
             else
                 echo "Warning: M3_GEM5_PAUSE not specified; gem5 won't wait for GDB."
-                pe=`grep --text "^PE.*$build/bin/${cmd#dbg=}" $M3_OUT/log.txt | cut -d : -f 1`
+                pe=$(grep --text "^PE.*$build/bin/${cmd#dbg=}" $M3_OUT/log.txt | cut -d : -f 1)
                 port=$((${pe#PE} + 7000))
             fi
 
-            gdbcmd=`mktemp`
-            echo "target remote localhost:$port" > $gdbcmd
-            echo "display/i \$pc" >> $gdbcmd
-            echo "b main" >> $gdbcmd
-            RUST_GDB=${crossprefix}gdb rust-gdb --tui $bindir/${cmd#dbg=} --command=$gdbcmd
+            gdbcmd=$(mktemp)
+            {
+                echo "target remote localhost:$port"
+                echo "display/i \$pc"
+                echo "b main"
+            } > "$gdbcmd"
+            RUST_GDB=${crossprefix}gdb rust-gdb --tui "$bindir/${cmd#dbg=}" "--command=$gdbcmd"
 
             killall -9 gem5.opt
-            rm $gdbcmd
+            rm "$gdbcmd"
         else
             if [ "$M3_HW_PAUSE" = "" ]; then
                 echo "Please set M3_HW_PAUSE to the PE to debug."
                 exit 1
             fi
-            ./src/tools/execute.sh $script --debug=${cmd#dbg=} &>/dev/null &
+            ./src/tools/execute.sh "$script" "--debug=${cmd#dbg=}" &>/dev/null &
 
-            port=$((3340 + $M3_HW_PAUSE))
-            ssh -N -L 30000:localhost:$port ${M3_HW_SSH:-syn} 2>/dev/null &
-            trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
+            port=$((3340 + M3_HW_PAUSE))
+            ssh -N -L 30000:localhost:$port "${M3_HW_SSH:-syn}" 2>/dev/null &
+            trap 'trap - SIGTERM && kill -- -$$' SIGINT SIGTERM EXIT
 
             echo -n "Connecting..."
             time=0
             while [ "$(telnet localhost 30000 2>/dev/null | grep '\+')" = "" ]; do
                 # after some warmup, detect if something went wrong
                 if [ $time -gt 5 ]; then
-                    ssh ${M3_HW_SSH:-syn} "test -e m3/.running" || { echo "Remote side stopped." && exit 1; }
+                    ssh "${M3_HW_SSH:-syn}" "test -e m3/.running" ||
+                        { echo "Remote side stopped." && exit 1; }
                 fi
                 echo -n "."
                 sleep 1
                 time=$((time + 1))
             done
 
-            gdbcmd=`mktemp`
-            echo "target remote localhost:30000" > $gdbcmd
-            echo "set \$t0 = 0" >> $gdbcmd          # ensure that we set the default stack pointer
-            echo "set \$pc = 0x10000000" >> $gdbcmd # go to entry point
+            gdbcmd=$(mktemp)
+            {
+                echo "target remote localhost:30000"
+                echo "set \$t0 = 0"                  # ensure that we set the default stack pointer
+                echo "set \$pc = 0x10000000"         # go to entry point
+            } > "$gdbcmd"
 
             # differentiate between baremetal components and others
-            entry=$(${crossprefix}readelf -h $bindir/${cmd#dbg=} | grep "Entry point" | awk '{ print($4) }')
+            entry=$(${crossprefix}readelf -h "$bindir/${cmd#dbg=}" | \
+                grep "Entry point" | awk '{ print($4) }')
             if [ "$entry" = "0x10000000" ]; then
-                echo "b env_run" >> $gdbcmd
+                echo "b env_run" >> "$gdbcmd"
                 symbols=$bindir/${cmd#dbg=}
             else
-                echo "tb __app_start" >> $gdbcmd
-                echo "c" >> $gdbcmd
-                echo "symbol-file $bindir/${cmd#dbg=}" >> $gdbcmd
-                echo "b main" >> $gdbcmd
+                {
+                    echo "tb __app_start"
+                    echo "c"
+                    echo "symbol-file $bindir/${cmd#dbg=}"
+                    echo "b main"
+                } >> "$gdbcmd"
                 symbols=$bindir/pemux
             fi
-            echo "display/i \$pc" >> $gdbcmd
+            echo "display/i \$pc" >> "$gdbcmd"
 
-            RUST_GDB=${crossprefix}gdb rust-gdb --tui $symbols --command=$gdbcmd
+            RUST_GDB=${crossprefix}gdb rust-gdb --tui "$symbols" "--command=$gdbcmd"
         fi
         ;;
 
     dis=*)
-        ${crossprefix}objdump -dC $bindir/${cmd#dis=} | less
+        ${crossprefix}objdump -dC "$bindir/${cmd#dis=}" | less
         ;;
 
     elf=*)
-        ${crossprefix}readelf -aW $bindir/${cmd#elf=} | c++filt | less
+        ${crossprefix}readelf -aW "$bindir/${cmd#elf=}" | c++filt | less
         ;;
 
     nms=*)
-        ${crossprefix}nm -SC --size-sort $bindir/${cmd#nms=} | less
+        ${crossprefix}nm -SC --size-sort "$bindir/${cmd#nms=}" | less
         ;;
 
     nma=*)
-        ${crossprefix}nm -SCn $bindir/${cmd#nma=} | less
+        ${crossprefix}nm -SCn "$bindir/${cmd#nma=}" | less
         ;;
 
     straddr=*)
@@ -442,99 +456,99 @@ case "$cmd" in
         str=$script
         echo "Strings containing '$str' in $binary:"
         # find base address of .rodata
-        base=`${crossprefix}readelf -S $binary | grep .rodata | \
-            xargs | cut -d ' ' -f 5`
+        base=$(${crossprefix}readelf -S "$binary" | grep .rodata | \
+            xargs | cut -d ' ' -f 5)
         # find section number of .rodata
-        section=`${crossprefix}readelf -S $binary | grep .rodata | \
-            sed -e 's/.*\[\s*\([[:digit:]]*\)\].*/\1/g'`
+        section=$(${crossprefix}readelf -S "$binary" | grep .rodata | \
+            sed -e 's/.*\[\s*\([[:digit:]]*\)\].*/\1/g')
         # grep for matching lines, prepare for better use of awk and finally add offset to base
-        ${crossprefix}readelf -p $section $binary | grep $str | \
+        ${crossprefix}readelf -p "$section" "$binary" | grep "$str" | \
             sed 's/^ *\[ *\([[:xdigit:]]*\)\] *\(.*\)$/0x\1 \2/' | \
-            awk '{ printf("0x%x: %s %s %s %s %s %s\n",0x'$base' + strtonum($1),$2,$3,$4,$5,$6,$7) }'
+            awk '{ printf("0x%x: %s %s %s %s %s %s\n",0x'"$base"' + strtonum($1),$2,$3,$4,$5,$6,$7) }'
         ;;
 
     ctors=*)
         file=$bindir/${cmd#ctors=}
-        rdelf=${crossprefix}readelf
-        pat=".ctors\|.init_array"
-        if [ "$M3_ISA" = "x86_64" ]; then
-            off=0x`$rdelf -S "$file" | grep $pat | sed -e 's/\[.*\]//g' | xargs | cut -d ' ' -f 4`
-            len=0x`$rdelf -S "$file" | grep $pat -A1 | grep '^       ' | xargs | cut -d ' ' -f 1`
+        section=$(${crossprefix}readelf -SW "$file" | \
+            grep "\.ctors\|\.init_array" | sed -e 's/\[.*\]//g' | xargs)
+        off=0x$(echo "$section" | cut -d ' ' -f 4)
+        len=0x$(echo "$section" | cut -d ' ' -f 5)
+        if [ "$M3_ISA" = "x86_64" ] || [ "$M3_ISA" = "riscv" ]; then
             bytes=8
         else
-            section=`$rdelf -S "$file" | grep $pat | sed -e 's/\[.*\]//g' | xargs`
-            echo $section
-            off=0x`echo "$section" | cut -d ' ' -f 4`
-            len=0x`echo "$section" | cut -d ' ' -f 5`
             bytes=4
         fi
         echo "Constructors in $file ($off : $len):"
         if [ "$off" != "0x" ]; then
-            od -t x$bytes "$file" -j $off -N $len -v -w$bytes | grep ' ' | while read line; do
+            od -t x$bytes "$file" -j "$off" -N "$len" -v -w$bytes | grep ' ' | while read -r line; do
                 addr=${line#* }
-                ${crossprefix}nm -C -l "$file" | grep -m 1 $addr
+                ${crossprefix}nm -C -l "$file" 2>/dev/null | grep -m 1 "$addr"
             done
         fi
         ;;
 
     hwitrace=*)
-        paths=""
-        for f in $(echo ${cmd#hwitrace=} | sed "s/,/ /g"); do
-            paths="$paths $build/bin/$f"
+        paths=()
+        names=${cmd#hwitrace=}
+        for f in ${names//,/ }; do
+            paths=("${paths[@]}" "$build/bin/$f")
         done
-        $build/tools/hwitrace $crossprefix $paths | less
+        $build/tools/hwitrace $crossprefix "${paths[@]}" | less
         ;;
 
     trace=*)
-        paths=""
-        for f in $(echo ${cmd#trace=} | sed "s/,/ /g"); do
-            paths="$paths $build/bin/$f"
+        paths=()
+        names=${cmd#trace=}
+        for f in ${names//,/ }; do
+            paths=("${paths[@]}" "$build/bin/$f")
         done
-        $build/tools/gem5log $M3_ISA trace $paths | less
+        $build/tools/gem5log $M3_ISA trace "${paths[@]}" | less
         ;;
 
     flamegraph=*)
-        paths=""
-        for f in $(echo ${cmd#flamegraph=} | sed "s/,/ /g"); do
-            paths="$paths $build/bin/$f"
+        paths=()
+        names=${cmd#flamegraph=}
+        for f in ${names//,/ }; do
+            paths=("${paths[@]}" "$build/bin/$f")
         done
         # inferno-flamegraph is available at https://github.com/jonhoo/inferno
-        $build/tools/gem5log $M3_ISA flamegraph $paths | inferno-flamegraph --countname ns
+        $build/tools/gem5log $M3_ISA flamegraph "${paths[@]}" | inferno-flamegraph --countname ns
         ;;
 
     snapshot=*)
-        paths=""
-        for f in $(echo ${cmd#snapshot=} | sed "s/,/ /g"); do
-            paths="$paths $build/bin/$f"
+        paths=()
+        names=${cmd#snapshot=}
+        for f in ${names//,/ }; do
+            paths=("${paths[@]}" "$build/bin/$f")
         done
-        $build/tools/gem5log $M3_ISA snapshot $script $paths
+        $build/tools/gem5log $M3_ISA snapshot "$script" "${paths[@]}"
         ;;
 
     mkfs=*)
-        $build/tools/mkm3fs $build/${cmd#mkfs=} $script $@
+        $build/tools/mkm3fs "$build/${cmd#mkfs=}" "$script" "$@"
         ;;
 
     shfs=*)
-        $build/tools/shm3fs $build/${cmd#shfs=} $script $@
+        $build/tools/shm3fs "$build/${cmd#shfs=}" "$script" "$@"
         ;;
 
     fsck=*)
-        $build/tools/m3fsck $build/${cmd#fsck=} $script
+        $build/tools/m3fsck "$build/${cmd#fsck=}" "$script"
         ;;
 
     exfs=*)
-        $build/tools/exm3fs $build/${cmd#exfs=} $script
+        $build/tools/exm3fs "$build/${cmd#exfs=}" "$script"
         ;;
 
     bt=*)
-        ./src/tools/backtrace.py "$crossprefix" $bindir/${cmd#bt=}
+        ./src/tools/backtrace.py "$crossprefix" "$bindir/${cmd#bt=}"
         ;;
 
     list)
         echo "Start of section .text:"
-        ls -1 $build/bin | grep -v '\.\(o\|a\)$' | while read l; do
-            ${crossprefix}readelf -S $build/bin/$l | \
+        while IFS= read -r -d '' l; do
+            ${crossprefix}readelf -S "$build/bin/$l" | \
                 grep " \.text " | awk "{ printf(\"%20s: %s\n\",\"$l\",\$5) }"
-        done
+        done < <(find $build/bin -type f \! \( -name "*.o" -o -name "*.a" \) -printf "%f\0") | sort -k 2
         ;;
 esac

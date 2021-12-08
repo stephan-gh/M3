@@ -14,7 +14,7 @@ fi
 starttsc="1ff1"
 stoptsc="1ff2"
 
-awk -v warmup=$warmup -v mhz=$mhz '
+awk -v "warmup=$warmup" -v "mhz=$mhz" '
 function handle(msg, pe, time) {
     id = substr(msg,7,4)
     idx = sprintf("%d.%s", pe, id)
