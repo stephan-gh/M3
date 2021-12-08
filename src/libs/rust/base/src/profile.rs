@@ -103,7 +103,7 @@ impl<T: Duration> fmt::Display for Results<T> {
 /// use base::profile;
 ///
 /// let mut prof = profile::Profiler::default();
-/// println!("{}", prof.run(|| /* my benchmark */));
+/// println!("{}", prof.run::<CycleInstant, _>(|| /* my benchmark */));
 /// ```
 ///
 /// Advanced usage:
@@ -124,7 +124,7 @@ impl<T: Duration> fmt::Display for Results<T> {
 /// }
 ///
 /// let mut prof = profile::Profiler::default().repeats(10).warmup(2);
-/// println!("{}", prof.runner(&mut Tester::default()));
+/// println!("{}", prof.runner::<CycleInstant, _>(&mut Tester::default()));
 /// ```
 pub struct Profiler {
     repeats: u64,
