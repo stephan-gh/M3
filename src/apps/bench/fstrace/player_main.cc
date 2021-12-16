@@ -93,7 +93,8 @@ static void cleanup() {
 
 static void usage(const char *name) {
     cerr << "Usage: " << name << " [-p <prefix>] [-n <iterations>] [-w] [-t] [-v] [-u <warmup>]"
-                              << " [-g <rgate selector>] [-l <loadgen>] [-i] [-d] <name>\n";
+                              << " [-g <rgate selector>] [-l <loadgen>] [-i] [-d]"
+                              << " [-f <mount_fs>] <name>\n";
     exit(1);
 }
 
@@ -108,10 +109,11 @@ int main(int argc, char **argv) {
     bool verbose        = false;
     const char *prefix  = "";
     const char *loadgen = "";
+    const char *mount_fs = "";
     capsel_t rgate      = ObjCap::INVALID;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "p:n:wg:l:idtu:v")) != -1) {
+    while((opt = CmdArgs::get(argc, argv, "p:n:wg:l:idtu:f:v")) != -1) {
         switch(opt) {
             case 'p': prefix = CmdArgs::arg; break;
             case 'n': iters = IStringStream::read_from<ulong>(CmdArgs::arg); break;
@@ -123,12 +125,17 @@ int main(int argc, char **argv) {
             case 'u': warmup = IStringStream::read_from<ulong>(CmdArgs::arg); break;
             case 'v': verbose = true; break;
             case 'g': rgate = IStringStream::read_from<capsel_t>(CmdArgs::arg); break;
+            case 'f': mount_fs = CmdArgs::arg; break;
             default:
                 usage(argv[0]);
         }
     }
     if(CmdArgs::ind >= argc)
         usage(argv[0]);
+
+    // mount fs, if required
+    if(*mount_fs)
+        VFS::mount("/", "m3fs", mount_fs);
 
     // connect to load generator
     if(*loadgen) {

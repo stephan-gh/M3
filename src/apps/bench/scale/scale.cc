@@ -31,10 +31,10 @@ using namespace m3;
 static constexpr bool VERBOSE = true;
 
 struct App {
-    explicit App(size_t argc, const char **argv)
+    explicit App(Reference<PE> pe, size_t argc, const char **argv)
         : argc(argc),
           argv(argv),
-          pe(PE::get("core")),
+          pe(pe),
           vpe(pe, argv[0]),
           rgate(RecvGate::create(6, 6)),
           sgate(SendGate::create(&rgate)) {
@@ -50,11 +50,12 @@ struct App {
 };
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-l] [-i <instances>] [-r <repeats>] <name>\n";
+    cerr << "Usage: " << name << " [-l] [-i <instances>] [-r <repeats>] [-f <fssize>] <name>\n";
     cerr << "  -l enables the load generator\n";
     cerr << "  <instances> specifies the number of application (<name>) instances\n";
     cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
     cerr << "  <name> specifies the name of the application trace\n";
+    cerr << "  -f <fssize> creates an own m3fs instance for every application with given size\n";
     exit(1);
 }
 
@@ -62,13 +63,20 @@ int main(int argc, char **argv) {
     bool loadgen = false;
     size_t instances = 1;
     int repeats = 1;
+    const char *fs_size_str = nullptr;
+    size_t fs_size = 0;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "li:s:r:")) != -1) {
+    while((opt = CmdArgs::get(argc, argv, "li:s:r:f:")) != -1) {
         switch(opt) {
             case 'l': loadgen = true; break;
             case 'i': instances = IStringStream::read_from<size_t>(CmdArgs::arg); break;
             case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
+            case 'f': {
+                fs_size_str = CmdArgs::arg;
+                fs_size = IStringStream::read_from<size_t>(fs_size_str);
+                break;
+            }
             default:
                 usage(argv[0]);
         }
@@ -76,61 +84,109 @@ int main(int argc, char **argv) {
     if(CmdArgs::ind >= argc)
         usage(argv[0]);
 
-    const char *name = argv[CmdArgs::ind + 0];
+    const char *name = argv[CmdArgs::ind];
 
     App *apps[instances];
+    App *fs[instances];
 
     if(VERBOSE) cout << "Creating application VPEs...\n";
 
-    const size_t ARG_COUNT = loadgen ? 9 : 7;
+    const size_t ARG_COUNT = loadgen ? 11 : 9;
+    const size_t FS_ARG_COUNT = 9;
     for(size_t i = 0; i < instances; ++i) {
-        const char **args = new const char *[ARG_COUNT];
-        args[0] = "/bin/fstrace-m3fs";
+        auto pe = PE::get("core");
 
-        apps[i] = new App(ARG_COUNT, args);
+        {
+            const char **args = new const char *[ARG_COUNT];
+            args[0] = "/bin/fstrace-m3fs";
+            apps[i] = new App(pe, ARG_COUNT, args);
+        }
+
+        if(fs_size_str) {
+            const char **args = new const char *[FS_ARG_COUNT];
+            args[0] = "/sbin/m3fs";
+            fs[i] = new App(pe, FS_ARG_COUNT, args);
+        }
     }
 
     if(VERBOSE) cout << "Starting VPEs...\n";
 
     for(size_t i = 0; i < instances; ++i) {
+        OStringStream fs_name;
+        if(fs_size_str) {
+            fs[i]->argv[1] = "-m";
+            fs[i]->argv[2] = "1";
+            fs[i]->argv[3] = "-o";
+            OStringStream fs_off;
+            fs_off << (i * fs_size);
+            fs[i]->argv[4] = fs_off.str();
+            fs[i]->argv[5] = "-n";
+            fs_name << "m3fs-" << i;
+            fs[i]->argv[6] = fs_name.str();
+            fs[i]->argv[7] = "mem";
+            fs[i]->argv[8] = fs_size_str;
+
+            fs[i]->vpe.exec(static_cast<int>(fs[i]->argc), fs[i]->argv);
+
+            // wait until the service is available
+            while(true) {
+                try {
+                    ClientSession sess(fs_name.str());
+                    break;
+                }
+                catch(...) {
+                    VPE::self().sleep_for(TimeDuration::from_micros(10));
+                }
+            }
+        }
+
         OStringStream tmpdir(new char[16], 16);
         tmpdir << "/tmp/" << i << "/";
-        const char **args = apps[i]->argv;
         if(repeats > 1) {
-            args[1] = "-n";
+            apps[i]->argv[1] = "-n";
             OStringStream num(new char[16], 16);
             num << repeats;
-            args[2] = num.str();
+            apps[i]->argv[2] = num.str();
         }
         else {
-            args[1] = "-p";
-            args[2] = tmpdir.str();
+            apps[i]->argv[1] = "-p";
+            apps[i]->argv[2] = tmpdir.str();
         }
-        args[3] = "-w";
-        args[4] = "-g";
+        apps[i]->argv[3] = "-w";
+        apps[i]->argv[4] = "-g";
 
         OStringStream rgatesel(new char[11], 11);
         rgatesel << apps[i]->rgate.sel();
-        args[5] = rgatesel.str();
+        apps[i]->argv[5] = rgatesel.str();
+        if(fs_size_str) {
+            apps[i]->argv[6] = "-f";
+            apps[i]->argv[7] = fs_name.str();
+        }
+        else {
+            apps[i]->argv[6] = "-w";
+            apps[i]->argv[7] = "-w";
+        }
         if(loadgen) {
-            args[6] = "-l";
+            apps[i]->argv[8] = "-l";
             OStringStream loadgen(new char[16], 16);
             loadgen << "loadgen" << (i % 8);
-            args[7] = loadgen.str();
-            args[8] = name;
+            apps[i]->argv[9] = loadgen.str();
+            apps[i]->argv[10] = name;
         }
         else
-            args[6] = name;
+            apps[i]->argv[8] = name;
 
         if(VERBOSE) {
             cout << "Starting ";
             for(size_t x = 0; x < ARG_COUNT; ++x)
-                cout << args[x] << " ";
+                cout << apps[i]->argv[x] << " ";
             cout << "\n";
         }
 
-        apps[i]->vpe.mounts(VPE::self().mounts());
-        apps[i]->vpe.obtain_mounts();
+        if(!fs_size_str) {
+            apps[i]->vpe.mounts(VPE::self().mounts());
+            apps[i]->vpe.obtain_mounts();
+        }
 
         apps[i]->vpe.exec(static_cast<int>(apps[i]->argc), apps[i]->argv);
     }
@@ -159,8 +215,11 @@ int main(int argc, char **argv) {
 
     if(VERBOSE) cout << "Deleting VPEs...\n";
 
-    for(size_t i = 0; i < instances; ++i)
+    for(size_t i = 0; i < instances; ++i) {
         delete apps[i];
+        if(fs_size_str)
+            delete fs[i];
+    }
 
     if(VERBOSE) cout << "Done\n";
     return exitcode;
