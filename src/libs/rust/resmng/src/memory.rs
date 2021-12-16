@@ -364,7 +364,7 @@ impl MemPool {
                     return Err(Error::new(Code::NoPerm));
                 }
 
-                let alloc = Allocation::new(id, phys, size);
+                let alloc = Allocation::new(id, phys - s.mem.addr.offset(), size);
                 log!(crate::LOG_MEM, "Allocated {:?}", alloc);
                 return Ok(alloc);
             }
