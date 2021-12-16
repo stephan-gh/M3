@@ -314,7 +314,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
     ) -> Result<(Selector, SessId), Error> {
         // get max number of files
         let mut max_files: usize = 16;
-        if arg.len() > 6 && &arg[..6] == "file=" {
+        if arg.len() > 6 && &arg[..6] == "files=" {
             max_files = arg[6..].parse().map_err(|_| Error::new(Code::InvArgs))?;
         }
 
@@ -324,9 +324,10 @@ impl Handler<FSSession> for M3FSRequestHandler {
         self.sessions.add_next(crt, srv_sel, true, |sess| {
             log!(
                 crate::LOG_SESSION,
-                "[{}] creating session(crt={})",
+                "[{}] creating session(crt={}, max_files={})",
                 sess.ident(),
-                crt
+                crt,
+                max_files
             );
             Ok(FSSession::Meta(MetaSession::new(
                 sess, sessid, crt, max_files,
