@@ -220,7 +220,8 @@ public:
 
     virtual void rename(const rename_args_t *args, int lineNo) override {
         int res = get_result_of([this, &args] {
-            m3::VFS::rename(add_prefix(args->from), add_prefix(args->to));
+            char tmpto[255];
+            m3::VFS::rename(add_prefix(args->from), add_prefix_to(args->to, tmpto, sizeof(tmpto)));
         });
         if ((res == m3::Errors::NONE) != (args->err == 0))
             throw ReturnValueException(res, args->err, lineNo);
