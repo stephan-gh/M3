@@ -206,7 +206,7 @@ impl M3FSRequestHandler {
             },
             M3FSOperation::STAT => self.execute_on_session(input, |sess, is| sess.stat(is)),
             M3FSOperation::SEEK => self.execute_on_session(input, |sess, is| sess.seek(is)),
-            M3FSOperation::FSTAT => self.execute_on_session(input, |sess, is| sess.stat(is)),
+            M3FSOperation::FSTAT => self.execute_on_session(input, |sess, is| sess.fstat(is)),
             M3FSOperation::MKDIR => self.execute_on_session(input, |sess, is| sess.mkdir(is)),
             M3FSOperation::RMDIR => self.execute_on_session(input, |sess, is| sess.rmdir(is)),
             M3FSOperation::LINK => self.execute_on_session(input, |sess, is| sess.link(is)),

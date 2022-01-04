@@ -585,7 +585,7 @@ impl M3FSSession for FileSession {
         reply_vmsg!(stream, Code::None as u32, pos - extpos.off, extpos.off)
     }
 
-    fn fstat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn stat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
         log!(
             crate::LOG_SESSION,
             "[{}] file::fstat(path={})",
@@ -601,8 +601,8 @@ impl M3FSSession for FileSession {
         stream.reply(&reply)
     }
 
-    fn stat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        self.fstat(stream)
+    fn fstat(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+        Err(Error::new(Code::NotSup))
     }
 
     fn mkdir(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
