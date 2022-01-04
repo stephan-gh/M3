@@ -58,6 +58,17 @@ public:
         }
     }
 
+    virtual ~FSAPI_M3FS() {
+        for(size_t i = 0; i < ARRAY_SIZE(_fdMap); ++i) {
+            if(_fdMap[i] != -1)
+                m3::VFS::close(_fdMap[i]);
+        }
+        for(size_t i = 0; i < ARRAY_SIZE(_dirMap); ++i) {
+            if(_dirMap[i])
+                delete _dirMap[i];
+        }
+    }
+
     virtual void start() override {
         _start = m3::CycleInstant::now();
     }

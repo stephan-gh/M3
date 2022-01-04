@@ -75,7 +75,7 @@ int TracePlayer::play(Trace *trace, m3::LoadGen::Channel *chan, bool data, bool 
     }
 
     Buffer buf(rdBufSize, wrBufSize);
-    FSAPI *fs = new FSAPI_M3FS(data, stdio, pathPrefix, chan);
+    std::unique_ptr<FSAPI> fs(new FSAPI_M3FS(data, stdio, pathPrefix, chan));
 
     fs->start();
 
