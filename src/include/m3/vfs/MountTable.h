@@ -109,6 +109,12 @@ public:
     Reference<FileSystem> try_resolve(const char *path, size_t *pos) noexcept;
 
     /**
+     * @param id the id of the filesystem
+     * @return the filesystem with given id
+     */
+    Reference<FileSystem> get_by_id(size_t id) noexcept;
+
+    /**
      * @param path the path
      * @return the index of the mountpoint at given path
      */

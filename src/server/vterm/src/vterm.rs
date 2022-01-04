@@ -133,6 +133,7 @@ impl Channel {
     }
 
     fn set_tmode(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+        let _fid: usize = is.pop()?;
         let mode = is.pop::<Mode>()?;
 
         log!(
@@ -148,6 +149,8 @@ impl Channel {
     }
 
     fn next_in(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+        let _: usize = is.pop()?;
+
         log!(crate::LOG_DEF, "[{}] vterm::next_in()", self.id);
 
         if self.writing {
@@ -176,6 +179,8 @@ impl Channel {
     }
 
     fn next_out(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+        let _: usize = is.pop()?;
+
         log!(crate::LOG_DEF, "[{}] vterm::next_out()", self.id);
 
         if !self.writing {
@@ -192,6 +197,7 @@ impl Channel {
     }
 
     fn commit(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+        let _fid: usize = is.pop()?;
         let nbytes: usize = is.pop()?;
 
         log!(

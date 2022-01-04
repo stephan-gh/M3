@@ -137,7 +137,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
 
         if(i == 0) {
             if(cmd->redirs->fds[STDIN_FD])
-                infd = VFS::open(cmd->redirs->fds[STDIN_FD], FILE_R);
+                infd = VFS::open(cmd->redirs->fds[STDIN_FD], FILE_R | FILE_NEWSESS);
             else if(vterm)
                 infd = VPE::self().fds()->alloc(vterm->create_channel(true));
             if(infd != -1)
@@ -148,7 +148,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
 
         if(i + 1 == list->count) {
             if(cmd->redirs->fds[STDOUT_FD])
-                outfd = VFS::open(cmd->redirs->fds[STDOUT_FD], FILE_W | FILE_CREATE | FILE_TRUNC);
+                outfd = VFS::open(cmd->redirs->fds[STDOUT_FD], FILE_W | FILE_CREATE | FILE_TRUNC | FILE_NEWSESS);
             else if(vterm)
                 outfd = VPE::self().fds()->alloc(vterm->create_channel(false));
             if(outfd != -1)

@@ -117,7 +117,8 @@ void VPE::exec(int argc, const char **argv) {
     Env senv;
     std::unique_ptr<char[]> buffer(new char[BUF_SIZE]);
 
-    _exec = std::make_unique<FStream>(argv[0], FILE_RWX);
+    // we need a new session to be able to get memory mappings
+    _exec = std::make_unique<FStream>(argv[0], FILE_RWX | FILE_NEWSESS);
 
     uintptr_t entry;
     size_t size;

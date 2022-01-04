@@ -94,7 +94,7 @@ pub struct FileSession {
     parent_sess_id: Option<SessId>,
     child_sessions: Vec<SessId>,
 
-    _server_session: ServerSession, // keep the server session alive
+    _server_session: Option<ServerSession>, // keep the server session alive
 }
 
 impl FileSession {
@@ -107,7 +107,7 @@ impl FileSession {
         filename: &str,
         oflags: OpenFlags,
         ino: InodeNo,
-        rgate: &RecvGate,
+        rgate: Option<&RecvGate>,
     ) -> Result<Self, Error> {
         // the server session for this file
         let sess_sel = if srv_sel == m3::kif::INVALID_SEL {
@@ -117,15 +117,25 @@ impl FileSession {
             m3::pes::VPE::cur().alloc_sels(2)
         };
 
-        let _server_session =
-            ServerSession::new_with_sel(srv_sel, sess_sel, crt, file_sess_id as u64, false)?;
+        let _server_session = if srv_sel == m3::kif::INVALID_SEL {
+            None
+        }
+        else {
+            Some(ServerSession::new_with_sel(
+                srv_sel,
+                sess_sel,
+                crt,
+                file_sess_id as u64,
+                false,
+            )?)
+        };
 
         let send_gate = if srv_sel == m3::kif::INVALID_SEL {
             None
         }
         else {
             Some(m3::com::SendGate::new_with(
-                m3::com::SGateArgs::new(rgate)
+                m3::com::SGateArgs::new(rgate.unwrap())
                     // use the session id as identifier
                     .label(file_sess_id as tcu::Label)
                     .credits(1)
@@ -194,7 +204,7 @@ impl FileSession {
             &self.filename,
             self.oflags,
             self.ino,
-            rgate,
+            Some(rgate),
         )?;
 
         self.child_sessions.push(sid);
@@ -275,7 +285,7 @@ impl FileSession {
         CapRngDesc::new(CapType::OBJECT, self.sess_sel, 2)
     }
 
-    fn next_in_out(&mut self, is: &mut GateIStream, out: bool) -> Result<(), Error> {
+    pub fn file_in_out(&mut self, is: &mut GateIStream, out: bool) -> Result<(), Error> {
         log!(
             crate::LOG_SESSION,
             "[{}] file::next_{}(); file[path={}, fileoff={}, pos={:?}]",
@@ -406,6 +416,91 @@ impl FileSession {
         Ok(())
     }
 
+    pub fn file_seek(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+        let off: usize = stream.pop()?;
+        let whence = SeekMode::from(stream.pop::<u32>()?);
+
+        log!(
+            crate::LOG_SESSION,
+            "[{}] file::seek(path={}, off={}, whence={})",
+            self.session_id,
+            self.filename,
+            off,
+            whence
+        );
+
+        if whence == SeekMode::CUR {
+            return Err(Error::new(Code::InvArgs));
+        }
+
+        let inode = inodes::get(self.ino)?;
+        let (pos, extpos) = inodes::get_seek_pos(&inode, off, whence)?;
+        self.next_pos = extpos;
+        self.next_fileoff = pos;
+
+        reply_vmsg!(stream, Code::None as u32, pos - extpos.off, extpos.off)
+    }
+
+    pub fn file_stat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+        log!(
+            crate::LOG_SESSION,
+            "[{}] file::fstat(path={})",
+            self.session_id,
+            self.filename
+        );
+
+        let inode = inodes::get(self.ino)?;
+        let info = inode.to_file_info();
+
+        let mut reply = m3::mem::MsgBuf::borrow_def();
+        reply.set(info.to_response());
+        stream.reply(&reply)
+    }
+
+    pub fn file_commit(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+        let nbytes: usize = stream.pop()?;
+
+        log!(
+            crate::LOG_SESSION,
+            "[{}] file::commit(nbytes={}); file[path={}, fileoff={}, next={:?}]",
+            self.session_id,
+            nbytes,
+            self.filename,
+            self.next_fileoff,
+            self.next_pos,
+        );
+
+        if (nbytes == 0) || (nbytes > self.cur_bytes) {
+            return Err(Error::new(Code::InvArgs));
+        }
+
+        let inode = inodes::get(self.ino)?;
+
+        let res = if self.appending {
+            self.commit_append(&inode, nbytes)
+        }
+        else {
+            if (self.next_pos.ext > self.cur_pos.ext)
+                && ((self.cur_pos.off + nbytes) < self.cur_extlen)
+            {
+                self.next_pos.ext -= 1;
+            }
+
+            if nbytes < self.cur_bytes {
+                self.next_pos.off = self.cur_pos.off + nbytes;
+            }
+            Ok(())
+        };
+
+        self.cur_bytes = 0;
+        if let Err(e) = res {
+            Err(e)
+        }
+        else {
+            stream.reply_error(Code::None)
+        }
+    }
+
     fn commit_append(&mut self, inode: &INodeRef, submit: usize) -> Result<(), Error> {
         log!(
             crate::LOG_SESSION,
@@ -470,6 +565,13 @@ impl FileSession {
 
         Ok(())
     }
+
+    pub fn file_sync(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+        log!(crate::LOG_SESSION, "[{}] file::sync()", self.session_id,);
+
+        crate::flush_buffer()?;
+        stream.reply_error(Code::None)
+    }
 }
 
 impl Drop for FileSession {
@@ -509,96 +611,28 @@ impl M3FSSession for FileSession {
     }
 
     fn next_in(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        self.next_in_out(stream, false)
+        let _: usize = stream.pop()?;
+        self.file_in_out(stream, false)
     }
 
     fn next_out(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        self.next_in_out(stream, true)
+        let _: usize = stream.pop()?;
+        self.file_in_out(stream, true)
     }
 
     fn commit(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        let nbytes: usize = stream.pop()?;
-
-        log!(
-            crate::LOG_SESSION,
-            "[{}] file::commit(nbytes={}); file[path={}, fileoff={}, next={:?}]",
-            self.session_id,
-            nbytes,
-            self.filename,
-            self.next_fileoff,
-            self.next_pos,
-        );
-
-        if (nbytes == 0) || (nbytes > self.cur_bytes) {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        let inode = inodes::get(self.ino)?;
-
-        let res = if self.appending {
-            self.commit_append(&inode, nbytes)
-        }
-        else {
-            if (self.next_pos.ext > self.cur_pos.ext)
-                && ((self.cur_pos.off + nbytes) < self.cur_extlen)
-            {
-                self.next_pos.ext -= 1;
-            }
-
-            if nbytes < self.cur_bytes {
-                self.next_pos.off = self.cur_pos.off + nbytes;
-            }
-            Ok(())
-        };
-
-        self.cur_bytes = 0;
-        if let Err(e) = res {
-            Err(e)
-        }
-        else {
-            stream.reply_error(Code::None)
-        }
+        let _fid: usize = stream.pop()?;
+        self.file_commit(stream)
     }
 
     fn seek(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        let off: usize = stream.pop()?;
-        let whence = SeekMode::from(stream.pop::<u32>()?);
-
-        log!(
-            crate::LOG_SESSION,
-            "[{}] file::seek(path={}, off={}, whence={})",
-            self.session_id,
-            self.filename,
-            off,
-            whence
-        );
-
-        if whence == SeekMode::CUR {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        let inode = inodes::get(self.ino)?;
-        let (pos, extpos) = inodes::get_seek_pos(&inode, off, whence)?;
-        self.next_pos = extpos;
-        self.next_fileoff = pos;
-
-        reply_vmsg!(stream, Code::None as u32, pos - extpos.off, extpos.off)
+        let _fid: usize = stream.pop()?;
+        self.file_seek(stream)
     }
 
     fn stat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        log!(
-            crate::LOG_SESSION,
-            "[{}] file::fstat(path={})",
-            self.session_id,
-            self.filename
-        );
-
-        let inode = inodes::get(self.ino)?;
-        let info = inode.to_file_info();
-
-        let mut reply = m3::mem::MsgBuf::borrow_def();
-        reply.set(info.to_response());
-        stream.reply(&reply)
+        let _: usize = stream.pop()?;
+        self.file_stat(stream)
     }
 
     fn fstat(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
@@ -622,9 +656,7 @@ impl M3FSSession for FileSession {
     }
 
     fn sync(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        log!(crate::LOG_SESSION, "[{}] file::sync()", self.session_id,);
-
-        crate::flush_buffer()?;
-        stream.reply_error(Code::None)
+        let _: usize = stream.pop()?;
+        self.file_sync(stream)
     }
 }

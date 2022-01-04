@@ -223,7 +223,7 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
     aspace.init(Some(child.id()), Some(vpe.sel())).unwrap();
 
     // start VPE
-    let file = vfs::VFS::open(child.name(), vfs::OpenFlags::RX)
+    let file = vfs::VFS::open(child.name(), vfs::OpenFlags::RX | vfs::OpenFlags::NEW_SESS)
         .map_err(|e| VerboseError::new(e.code(), format!("Unable to open {}", child.name())))?;
     let mut mapper = mapper::ChildMapper::new(&mut aspace, vpe.pe_desc().has_virtmem());
     child

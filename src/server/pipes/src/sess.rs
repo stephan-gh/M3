@@ -369,6 +369,8 @@ impl Channel {
     }
 
     pub fn next_in(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+        let _: usize = is.pop()?;
+
         log!(crate::LOG_DEF, "[{}] pipes::next_in()", self.id);
 
         let res = match self.ty {
@@ -381,6 +383,8 @@ impl Channel {
     }
 
     pub fn next_out(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+        let _: usize = is.pop()?;
+
         log!(crate::LOG_DEF, "[{}] pipes::next_out()", self.id);
 
         let res = match self.ty {
@@ -393,6 +397,7 @@ impl Channel {
     }
 
     pub fn commit(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+        let _fid: usize = is.pop()?;
         let nbytes: usize = is.pop()?;
 
         log!(

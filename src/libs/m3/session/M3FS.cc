@@ -22,12 +22,49 @@
 namespace m3 {
 
 Reference<File> M3FS::open(const char *path, int perms) {
-    KIF::ExchangeArgs args;
-    ExchangeOStream os(args);
-    os << OPEN << perms << String(path);
-    args.bytes = os.total();
-    KIF::CapRngDesc crd = obtain(2, &args);
-    return Reference<File>(new GenericFile(perms, crd.start()));
+    if(!(perms & FILE_NEWSESS)) {
+        size_t ep_idx = get_ep();
+
+        GateIStream reply = send_receive_vmsg(_gate, OPEN_PRIV, path, perms, _eps[ep_idx].id);
+        reply.pull_result();
+        ssize_t file_id;
+        reply >> file_id;
+
+        _eps[ep_idx].file = file_id;
+        return Reference<File>(new GenericFile(perms, sel(), id(), static_cast<size_t>(file_id),
+                                               _eps[ep_idx].ep->id(), &_gate));
+    }
+    else {
+        KIF::ExchangeArgs args;
+        ExchangeOStream os(args);
+        os << OPEN << perms << String(path);
+        args.bytes = os.total();
+        KIF::CapRngDesc crd = obtain(2, &args);
+
+        return Reference<File>(new GenericFile(perms, crd.start()));
+    }
+}
+
+void M3FS::close(size_t file_id) {
+    for(auto &ep: _eps) {
+        if(ep.file == static_cast<ssize_t>(file_id)) {
+            ep.file = -1;;
+            break;
+        }
+    }
+}
+
+size_t M3FS::get_ep() {
+    for(size_t i = 0; i < _eps.size(); ++i) {
+        if(_eps[i].file == -1)
+            return i;
+    }
+
+    auto ep = VPE::self().epmng().acquire();
+    size_t id = delegate_ep(ep->sel());
+
+    _eps.push_back(CachedEP(id, ep));
+    return _eps.size() - 1;
 }
 
 Errors::Code M3FS::try_stat(const char *path, FileInfo &info) noexcept {
@@ -73,6 +110,20 @@ Errors::Code M3FS::try_rename(const char *oldpath, const char *newpath) {
     Errors::Code res;
     reply >> res;
     return res;
+}
+
+size_t M3FS::delegate_ep(capsel_t sel) {
+    KIF::ExchangeArgs args;
+    ExchangeOStream os(args);
+    os << FileSystem::DEL_EP;
+    args.bytes = os.total();
+
+    ClientSession::delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel, 1), &args);
+
+    ExchangeIStream is(args);
+    size_t id;
+    is >> id;
+    return id;
 }
 
 void M3FS::delegate(VPE &vpe) {

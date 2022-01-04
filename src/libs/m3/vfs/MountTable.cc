@@ -112,6 +112,14 @@ Reference<FileSystem> MountTable::try_resolve(const char *path, size_t *pos) noe
     return Reference<FileSystem>();
 }
 
+Reference<FileSystem> MountTable::get_by_id(size_t id) noexcept {
+    for(size_t i = 0; i < _count; ++i) {
+        if(_mounts[i]->fs()->id() == id)
+            return _mounts[i]->fs();
+    }
+    return Reference<FileSystem>();
+}
+
 size_t MountTable::indexof_mount(const char *path) {
     for(size_t i = 0; i < _count; ++i) {
         if(strcmp(_mounts[i]->path().c_str(), path) == 0)

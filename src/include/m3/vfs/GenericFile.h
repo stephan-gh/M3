@@ -47,7 +47,10 @@ public:
         SET_SIG,
     };
 
-    explicit GenericFile(int flags, capsel_t caps);
+    explicit GenericFile(int flags, capsel_t caps,
+                         size_t fs_id = 0, size_t id = 0, epid_t mep = TCU::INVALID_EP,
+                         SendGate *sg = nullptr);
+    virtual ~GenericFile();
 
     /**
      * @return true if there is still data to read or write without contacting the server
@@ -81,44 +84,53 @@ public:
     }
 
     void connect(EP &sep, EP &mep) const {
-        _sg.activate_on(sep);
+        _sg->activate_on(sep);
         do_delegate_ep(mep);
     }
 
     virtual Reference<File> clone() const override {
+        if(!have_sess())
+            return Reference<File>();
         KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, VPE::self().alloc_sels(2), 2);
         do_clone(VPE::self(), crd);
         return Reference<File>(new GenericFile(flags(), crd.start()));
     }
 
     virtual void delegate(VPE &vpe) override {
+        if(!have_sess())
+            throw Exception(Errors::NOT_SUP);
         KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, _sess.sel(), 2);
         do_clone(vpe, crd);
     }
 
     virtual void serialize(Marshaller &m) override {
-        m << flags() << _sess.sel();
+        m << flags() << _sess.sel() << _id;
     }
 
     static File *unserialize(Unmarshaller &um) {
         int fl;
         capsel_t caps;
-        um >> fl >> caps;
-        return new GenericFile(fl, caps);
+        size_t id;
+        um >> fl >> caps >> id;
+        return new GenericFile(fl, caps, id);
     }
 
 private:
     virtual void close() noexcept override;
 
+    bool have_sess() const noexcept {
+        return (flags() & FILE_NEWSESS);
+    }
     void do_clone(VPE &vpe, KIF::CapRngDesc &crd) const;
     void do_delegate_ep(const EP &ep) const;
     void commit();
     void delegate_ep();
 
+    size_t _fs_id;
+    size_t _id;
     mutable ClientSession _sess;
-    mutable SendGate _sg;
+    mutable SendGate *_sg;
     MemGate _mg;
-    size_t _memoff;
     size_t _goff;
     size_t _off;
     size_t _pos;

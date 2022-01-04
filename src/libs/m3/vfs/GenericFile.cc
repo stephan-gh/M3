@@ -25,17 +25,31 @@
 
 namespace m3 {
 
-GenericFile::GenericFile(int flags, capsel_t caps)
+GenericFile::GenericFile(int flags, capsel_t caps,
+                         size_t fs_id, size_t id, epid_t mep, SendGate *sg)
     : File(flags),
-      _sess(caps + 0),
-      _sg(SendGate::bind(caps + 1)),
+      _fs_id(fs_id),
+      _id(id),
+      _sess(caps + 0, sg ? ObjCap::KEEP_CAP : 0),
+      _sg(sg ? sg : new SendGate(SendGate::bind(caps + 1))),
       _mg(MemGate::bind(ObjCap::INVALID)),
-      _memoff(),
       _goff(),
       _off(),
       _pos(),
       _len(),
       _writing() {
+    if(mep != TCU::INVALID_EP)
+        _mg.set_ep(new EP(EP::bind(mep)));
+}
+
+GenericFile::~GenericFile() {
+    if(have_sess())
+        delete _sg;
+    else {
+        // we never want to invalidate the EP
+        delete const_cast<EP*>(_mg.ep());
+        _mg.set_ep(nullptr);
+    }
 }
 
 void GenericFile::close() noexcept {
@@ -50,19 +64,26 @@ void GenericFile::close() noexcept {
         // ignore
     }
 
-    try {
-        const EP *ep = _mg.ep();
-        if(ep)
-            VPE::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, ep->sel()), true);
+    if(!have_sess()) {
+        auto fs = VPE::self().mounts()->get_by_id(_fs_id);
+        if(fs)
+            fs->close(_id);
     }
-    catch(...) {
-        // ignore
+    else {
+        try {
+            const EP *ep = _mg.ep();
+            if(ep)
+                VPE::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, ep->sel()), true);
+        }
+        catch(...) {
+            // ignore
+        }
     }
 
     // file sessions are not known to our resource manager; thus close them manually
     LLOG(FS, "GenFile[" << fd() << "]::close()");
     try {
-        send_receive_vmsg(_sg, M3FS::CLOSE);
+        send_receive_vmsg(*_sg, M3FS::CLOSE, _id);
     }
     catch(...) {
         // ignore
@@ -72,7 +93,7 @@ void GenericFile::close() noexcept {
 Errors::Code GenericFile::try_stat(FileInfo &info) const {
     LLOG(FS, "GenFile[" << fd() << "]::stat()");
 
-    GateIStream reply = send_receive_vmsg(_sg, STAT);
+    GateIStream reply = send_receive_vmsg(*_sg, STAT, _id);
     Errors::Code res;
     reply >> res;
     if(res == Errors::NONE)
@@ -112,7 +133,7 @@ size_t GenericFile::seek(size_t offset, int whence) {
 
     // now seek on the server side
     size_t off;
-    GateIStream reply = send_receive_vmsg(_sg, SEEK, offset, whence);
+    GateIStream reply = send_receive_vmsg(*_sg, SEEK, _id, offset, whence);
     reply.pull_result();
 
     reply >> _goff >> off;
@@ -128,7 +149,7 @@ size_t GenericFile::read(void *buffer, size_t count) {
     LLOG(FS, "GenFile[" << fd() << "]::read(" << count << ", pos=" << (_goff + _pos) << ")");
 
     if(_pos == _len) {
-        GateIStream reply = send_receive_vmsg(_sg, NEXT_IN);
+        GateIStream reply = send_receive_vmsg(*_sg, NEXT_IN, _id);
         reply.pull_result();
 
         _goff += _len;
@@ -143,7 +164,7 @@ size_t GenericFile::read(void *buffer, size_t count) {
                 CPU::compute(count / 2);
         }
         else
-            _mg.read(buffer, amount, _memoff + _off + _pos);
+            _mg.read(buffer, amount, _off + _pos);
         _pos += amount;
     }
     return amount;
@@ -155,7 +176,7 @@ size_t GenericFile::write(const void *buffer, size_t count) {
     LLOG(FS, "GenFile[" << fd() << "]::write(" << count << ", pos=" << (_goff + _pos) << ")");
 
     if(_pos == _len) {
-        GateIStream reply = send_receive_vmsg(_sg, NEXT_OUT);
+        GateIStream reply = send_receive_vmsg(*_sg, NEXT_OUT, _id);
         reply.pull_result();
 
         _goff += _len;
@@ -170,7 +191,7 @@ size_t GenericFile::write(const void *buffer, size_t count) {
                 CPU::compute(count / 4);
         }
         else
-            _mg.write(buffer, amount, _memoff + _off + _pos);
+            _mg.write(buffer, amount, _off + _pos);
         _pos += amount;
     }
     _writing = true;
@@ -182,7 +203,7 @@ void GenericFile::commit() {
         LLOG(FS, "GenFile[" << fd() << "]::commit("
             << (_writing ? "write" : "read") << ", " << _pos << ")");
 
-        GateIStream reply = send_receive_vmsg(_sg, COMMIT, _pos);
+        GateIStream reply = send_receive_vmsg(*_sg, COMMIT, _id, _pos);
         reply.pull_result();
 
         // if we append, the file was truncated
@@ -196,12 +217,12 @@ void GenericFile::sync() {
     commit();
 
     LLOG(FS, "GenFile[" << fd() << "]::sync()");
-    GateIStream reply = send_receive_vmsg(_sg, SYNC);
+    GateIStream reply = send_receive_vmsg(*_sg, SYNC, _id);
     reply.pull_result();
 }
 
 void GenericFile::set_tmode(TMode mode) {
-    GateIStream reply = send_receive_vmsg(_sg, Operation::SET_TMODE, mode);
+    GateIStream reply = send_receive_vmsg(*_sg, Operation::SET_TMODE, _id, mode);
     reply.pull_result();
 }
 

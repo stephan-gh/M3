@@ -21,7 +21,7 @@ use core::fmt;
 use crate::cap::Selector;
 use crate::cell::RefCell;
 use crate::col::Vec;
-use crate::com::{recv_result, RecvGate, SendGate};
+use crate::com::{recv_result, RecvGate, SendGate, EP};
 use crate::errors::Error;
 use crate::goff;
 use crate::kif;
@@ -34,11 +34,18 @@ use crate::vfs::{
     StatResponse,
 };
 
+struct CachedEP {
+    id: usize,
+    ep: EP,
+    file: Option<usize>,
+}
+
 /// Represents a session at m3fs.
 pub struct M3FS {
     id: usize,
     sess: ClientSession,
     sgate: Rc<SendGate>,
+    eps: Vec<CachedEP>,
 }
 
 impl M3FS {
@@ -47,6 +54,7 @@ impl M3FS {
             id,
             sess,
             sgate: Rc::new(sgate),
+            eps: Vec::new(),
         }))
     }
 
@@ -109,17 +117,52 @@ impl FileSystem for M3FS {
         self.id
     }
 
-    fn open(&self, path: &str, flags: OpenFlags) -> Result<FileHandle, Error> {
-        let crd = self.sess.obtain(
-            2,
-            |os| {
-                os.push_word(FSOperation::OPEN.val);
-                os.push_word(u64::from(flags.bits()));
-                os.push_str(path);
-            },
-            |_| Ok(()),
-        )?;
-        Ok(Rc::new(RefCell::new(GenericFile::new(flags, crd.start()))))
+    fn open(&mut self, path: &str, flags: OpenFlags) -> Result<FileHandle, Error> {
+        if !flags.contains(OpenFlags::NEW_SESS) {
+            let ep_idx = self.get_ep()?;
+
+            let mut reply = send_recv_res!(
+                &self.sgate,
+                RecvGate::def(),
+                FSOperation::OPEN_PRIV,
+                path,
+                u64::from(flags.bits()),
+                self.eps[ep_idx].id
+            )?;
+            let file_id: usize = reply.pop()?;
+
+            // mark ep as in-use
+            self.eps[ep_idx].file = Some(file_id);
+
+            Ok(Rc::new(RefCell::new(GenericFile::new_without_sess(
+                flags,
+                self.sess.sel(),
+                (self.id(), file_id),
+                self.eps[ep_idx].ep.id(),
+                self.sgate.clone(),
+            ))))
+        }
+        else {
+            let crd = self.sess.obtain(
+                2,
+                |os| {
+                    os.push_word(FSOperation::OPEN.val);
+                    os.push_word(u64::from(flags.bits()));
+                    os.push_str(path);
+                },
+                |_| Ok(()),
+            )?;
+            Ok(Rc::new(RefCell::new(GenericFile::new(flags, crd.start()))))
+        }
+    }
+
+    fn close(&mut self, file_id: usize) {
+        for ep in &mut self.eps {
+            if matches!(ep.file, Some(fid) if fid == file_id) {
+                ep.file = None;
+                break;
+            }
+        }
     }
 
     fn stat(&self, path: &str) -> Result<FileInfo, Error> {
@@ -193,6 +236,32 @@ impl FileSystem for M3FS {
 }
 
 impl M3FS {
+    fn get_ep(&mut self) -> Result<usize, Error> {
+        for (i, ep) in self.eps.iter_mut().enumerate() {
+            if ep.file.is_none() {
+                return Ok(i);
+            }
+        }
+
+        let ep = VPE::cur().epmng_mut().acquire(0)?;
+        let id = self.delegate_ep(ep.sel())?;
+        self.eps.push(CachedEP { id, ep, file: None });
+        Ok(self.eps.len() - 1)
+    }
+
+    fn delegate_ep(&self, sel: Selector) -> Result<usize, Error> {
+        let mut id = 0;
+        self.sess.delegate(
+            kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1),
+            |os| os.push_word(FSOperation::DEL_EP.val),
+            |is| {
+                id = is.pop_word()? as usize;
+                Ok(())
+            },
+        )?;
+        Ok(id)
+    }
+
     pub fn unserialize(s: &mut Source) -> FSHandle {
         let sels: Selector = s.pop().unwrap();
         let id: usize = s.pop().unwrap();

@@ -132,6 +132,11 @@ impl MemGate {
         self.gate.ep()
     }
 
+    /// Sets or unsets the endpoint.
+    pub(crate) fn set_ep(&mut self, ep: Option<EP>) {
+        self.gate.set_ep(ep);
+    }
+
     /// Returns the memory region (global address and size) this MemGate references.
     pub fn region(&self) -> Result<(GlobAddr, goff), Error> {
         syscalls::mgate_region(self.sel())
@@ -253,7 +258,7 @@ impl fmt::Debug for MemGate {
             f,
             "MemGate[sel: {}, ep: {:?}]",
             self.sel(),
-            self.gate.ep_id()
+            self.gate.ep().map(|ep| ep.id())
         )
     }
 }

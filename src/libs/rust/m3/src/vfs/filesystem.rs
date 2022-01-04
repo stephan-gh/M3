@@ -36,6 +36,8 @@ int_enum! {
         const OPEN          = 17;
         const GET_SGATE     = 18;
         const GET_MEM       = 19;
+        const DEL_EP        = 20;
+        const OPEN_PRIV     = 21;
     }
 }
 
@@ -48,7 +50,10 @@ pub trait FileSystem: fmt::Debug {
     fn id(&self) -> usize;
 
     /// Opens the file at `path` with given flags.
-    fn open(&self, path: &str, flags: OpenFlags) -> Result<FileHandle, Error>;
+    fn open(&mut self, path: &str, flags: OpenFlags) -> Result<FileHandle, Error>;
+
+    /// Closes the given file.
+    fn close(&mut self, file_id: usize);
 
     /// Retrieves the file information for the file at `path`.
     fn stat(&self, path: &str) -> Result<FileInfo, Error>;

@@ -38,7 +38,8 @@ public:
         os << GenericFile::CLONE << (read ? 0 : 1);
         args.bytes = os.total();
         obtain_for(VPE::self(), KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sels, 2), &args);
-        return Reference<File>(new GenericFile(read ? FILE_R : FILE_W, sels));
+        auto flags = FILE_NEWSESS | (read ? FILE_R : FILE_W);
+        return Reference<File>(new GenericFile(flags, sels));
     }
 };
 

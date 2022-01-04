@@ -35,7 +35,6 @@ using namespace m3;
 
 static const size_t MAX_TMP_FILES   = 128;
 static const bool VERBOSE           = 0;
-static const uint META_EPS          = 4;
 
 static m3::LoadGen::Channel *chan;
 

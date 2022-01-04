@@ -142,6 +142,8 @@ int_enum! {
         const RENAME    = FSOperation::RENAME.val;
         const GET_MEM   = FSOperation::GET_MEM.val;
         const GET_SGATE = FSOperation::GET_SGATE.val;
+        const DEL_EP   =  FSOperation::DEL_EP.val;
+        const OPEN_PRIV = FSOperation::OPEN_PRIV.val;
     }
 }
 
@@ -195,24 +197,29 @@ impl M3FSRequestHandler {
         log!(LOG_DEF, "[{}] fs::handle(op={})", input.label(), op);
 
         let res = match op {
-            M3FSOperation::NEXT_IN => self.execute_on_session(input, |sess, is| sess.next_in(is)),
-            M3FSOperation::NEXT_OUT => self.execute_on_session(input, |sess, is| sess.next_out(is)),
-            M3FSOperation::COMMIT => self.execute_on_session(input, |sess, is| sess.commit(is)),
-            M3FSOperation::CLOSE => {
-                // get session id, then notify caller that we closed, finally close self
-                let sid = input.label() as SessId;
-                input.reply_error(Code::None).ok();
-                self.close_session(sid, input.rgate())
+            M3FSOperation::NEXT_IN => self.exec_on_sess(input, |sess, is| sess.next_in(is)),
+            M3FSOperation::NEXT_OUT => self.exec_on_sess(input, |sess, is| sess.next_out(is)),
+            M3FSOperation::COMMIT => self.exec_on_sess(input, |sess, is| sess.commit(is)),
+            M3FSOperation::CLOSE => match self.exec_on_sess(input, |sess, is| sess.close(is)) {
+                Ok(true) => {
+                    // get session id, then notify caller that we closed, finally close self
+                    let sid = input.label() as SessId;
+                    input.reply_error(Code::None).ok();
+                    self.close_session(sid, input.rgate())
+                },
+                Ok(false) => Ok(()),
+                Err(e) => Err(e),
             },
-            M3FSOperation::STAT => self.execute_on_session(input, |sess, is| sess.stat(is)),
-            M3FSOperation::SEEK => self.execute_on_session(input, |sess, is| sess.seek(is)),
-            M3FSOperation::FSTAT => self.execute_on_session(input, |sess, is| sess.fstat(is)),
-            M3FSOperation::MKDIR => self.execute_on_session(input, |sess, is| sess.mkdir(is)),
-            M3FSOperation::RMDIR => self.execute_on_session(input, |sess, is| sess.rmdir(is)),
-            M3FSOperation::LINK => self.execute_on_session(input, |sess, is| sess.link(is)),
-            M3FSOperation::UNLINK => self.execute_on_session(input, |sess, is| sess.unlink(is)),
-            M3FSOperation::RENAME => self.execute_on_session(input, |sess, is| sess.rename(is)),
-            M3FSOperation::SYNC => self.execute_on_session(input, |sess, is| sess.sync(is)),
+            M3FSOperation::STAT => self.exec_on_sess(input, |sess, is| sess.stat(is)),
+            M3FSOperation::SEEK => self.exec_on_sess(input, |sess, is| sess.seek(is)),
+            M3FSOperation::FSTAT => self.exec_on_sess(input, |sess, is| sess.fstat(is)),
+            M3FSOperation::MKDIR => self.exec_on_sess(input, |sess, is| sess.mkdir(is)),
+            M3FSOperation::RMDIR => self.exec_on_sess(input, |sess, is| sess.rmdir(is)),
+            M3FSOperation::LINK => self.exec_on_sess(input, |sess, is| sess.link(is)),
+            M3FSOperation::UNLINK => self.exec_on_sess(input, |sess, is| sess.unlink(is)),
+            M3FSOperation::RENAME => self.exec_on_sess(input, |sess, is| sess.rename(is)),
+            M3FSOperation::SYNC => self.exec_on_sess(input, |sess, is| sess.sync(is)),
+            M3FSOperation::OPEN_PRIV => self.exec_on_sess(input, |sess, is| sess.open_priv(is)),
             _ => Err(Error::new(Code::InvArgs)),
         };
 
@@ -230,7 +237,7 @@ impl M3FSRequestHandler {
         Ok(())
     }
 
-    fn execute_on_session<F, R>(&mut self, is: &mut GateIStream, function: F) -> Result<R, Error>
+    fn exec_on_sess<F, R>(&mut self, is: &mut GateIStream, function: F) -> Result<R, Error>
     where
         F: Fn(&mut FSSession, &mut GateIStream) -> Result<R, Error>,
     {
@@ -388,8 +395,8 @@ impl Handler<FSSession> for M3FSRequestHandler {
             .sessions
             .get_mut(sid)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
-        if let FSSession::File(fs) = session {
-            match op {
+        match session {
+            FSSession::File(fs) => match op {
                 M3FSOperation::SET_DEST => {
                     if data.in_caps() != 1 {
                         return Err(Error::new(Code::NotSup));
@@ -404,10 +411,24 @@ impl Handler<FSSession> for M3FSRequestHandler {
                     ));
                 },
                 _ => return Err(Error::new(Code::InvArgs)),
-            }
-        }
-        else {
-            return Err(Error::new(Code::InvArgs));
+            },
+            FSSession::Meta(m) => match op {
+                M3FSOperation::DEL_EP => {
+                    if data.in_caps() != 1 {
+                        return Err(Error::new(Code::NotSup));
+                    }
+
+                    let new_sel: Selector = VPE::cur().alloc_sel();
+                    let id = m.add_ep(new_sel);
+                    data.out_caps(m3::kif::CapRngDesc::new(
+                        m3::kif::CapType::OBJECT,
+                        new_sel,
+                        1,
+                    ));
+                    data.out_args().push(&id);
+                },
+                _ => return Err(Error::new(Code::InvArgs)),
+            },
         }
 
         Ok(())

@@ -562,7 +562,7 @@ impl VPE {
     /// The method returns the [`ExecActivity`] on success that can be used to wait for the
     /// program completeness or to stop it.
     pub fn exec<S: AsRef<str>>(self, args: &[S]) -> Result<ExecActivity, Error> {
-        let file = VFS::open(args[0].as_ref(), OpenFlags::RX)?;
+        let file = VFS::open(args[0].as_ref(), OpenFlags::RX | OpenFlags::NEW_SESS)?;
         let mut mapper = DefaultMapper::new(self.pe_desc().has_virtmem());
         #[allow(clippy::unnecessary_mut_passed)] // only mutable on gem5
         self.exec_file(&mut mapper, file, args)
@@ -570,6 +570,9 @@ impl VPE {
 
     /// Executes the program given as a [`FileRef`] on `self`, using `mapper` to initiate the
     /// address space and `args` as the arguments.
+    ///
+    /// The file has to have its own file session and therefore needs to be opened with
+    /// OpenFlags::NEW_SESS.
     ///
     /// The method returns the [`ExecActivity`] on success that can be used to wait for the
     /// program completeness or to stop it.

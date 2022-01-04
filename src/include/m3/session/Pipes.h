@@ -56,7 +56,8 @@ public:
             os << OPEN_CHAN << read;
             args.bytes = os.total();
             KIF::CapRngDesc desc = obtain(2, &args);
-            return Reference<File>(new GenericFile(flags | (read ? FILE_R : FILE_W), desc.start()));
+            flags |= FILE_NEWSESS | (read ? FILE_R : FILE_W);
+            return Reference<File>(new GenericFile(flags, desc.start()));
         }
 
     private:

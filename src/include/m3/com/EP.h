@@ -27,6 +27,7 @@ namespace m3 {
 
 class EPMng;
 class Gate;
+class GenericFile;
 class RecvGate;
 
 /**
@@ -37,6 +38,7 @@ class RecvGate;
 class EP : public SListItem, public ObjCap {
     friend class EPMng;
     friend class Gate;
+    friend class GenericFile;
     friend class RecvGate;
 
     static EP alloc(uint replies = 0);

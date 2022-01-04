@@ -59,6 +59,7 @@ impl Gate {
         self.cap.flags()
     }
 
+    /// Sets the flags to given ones.
     pub(crate) fn set_flags(&mut self, flags: CapFlags) {
         self.cap.set_flags(flags);
     }
@@ -69,9 +70,9 @@ impl Gate {
         unsafe { (*self.ep.as_ptr()).as_ref() }
     }
 
-    /// Returns the endpoint. If the gate is not activated, it returns [`None`].
-    pub(crate) fn ep_id(&self) -> Option<EpId> {
-        self.ep().map(|ep| ep.id())
+    /// Sets or unsets the endpoint.
+    pub(crate) fn set_ep(&mut self, ep: Option<EP>) {
+        self.ep.set(ep);
     }
 
     /// Activates the gate. Returns the chosen endpoint number.
@@ -84,7 +85,7 @@ impl Gate {
         let ep = VPE::cur().epmng_mut().acquire(replies)?;
         syscalls::activate(ep.sel(), self.sel(), mem.unwrap_or(kif::INVALID_SEL), addr)?;
         self.ep.replace(Some(ep));
-        Ok(self.ep_id().unwrap())
+        Ok(self.ep().unwrap().id())
     }
 
     /// Activates the gate on given EP.

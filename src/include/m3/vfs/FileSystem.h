@@ -56,6 +56,8 @@ public:
         OPEN,
         GET_SGATE,
         GET_MEM,
+        DEL_EP,
+        OPEN_PRIV,
     };
 
     explicit FileSystem(size_t id) noexcept
@@ -85,6 +87,13 @@ public:
      * @return the File-instance
      */
     virtual Reference<File> open(const char *path, int perms) = 0;
+
+    /**
+     * Closes the given file.
+     *
+     * @param file_id the server-side file id
+     */
+    virtual void close(size_t file_id) = 0;
 
     /**
      * Retrieves the file information for the given path.

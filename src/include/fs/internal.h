@@ -75,15 +75,16 @@ constexpr inodeno_t INVALID_INO = static_cast<inodeno_t>(-1);
 #define M3FS_SEEK_END 2
 
 enum {
-    FILE_R      = 1,
-    FILE_W      = 2,
-    FILE_X      = 4,
-    FILE_RW     = FILE_R | FILE_W,
-    FILE_RWX    = FILE_R | FILE_W | FILE_X,
-    FILE_TRUNC  = 8,
-    FILE_APPEND = 16,
-    FILE_CREATE = 32,
-    FILE_NODATA = 64,
+    FILE_R          = 1,
+    FILE_W          = 2,
+    FILE_X          = 4,
+    FILE_RW         = FILE_R | FILE_W,
+    FILE_RWX        = FILE_R | FILE_W | FILE_X,
+    FILE_TRUNC      = 8,
+    FILE_APPEND     = 16,
+    FILE_CREATE     = 32,
+    FILE_NODATA     = 64,
+    FILE_NEWSESS    = 128,
 };
 
 static_assert(FILE_R == MemGate::R, "FILE_R is out of sync");

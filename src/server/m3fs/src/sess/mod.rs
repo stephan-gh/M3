@@ -122,6 +122,20 @@ impl M3FSSession for FSSession {
             FSSession::File(f) => f.sync(stream),
         }
     }
+
+    fn open_priv(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+        match self {
+            FSSession::Meta(m) => m.open_priv(stream),
+            FSSession::File(f) => f.open_priv(stream),
+        }
+    }
+
+    fn close(&mut self, stream: &mut GateIStream) -> Result<bool, Error> {
+        match self {
+            FSSession::Meta(m) => m.close(stream),
+            FSSession::File(_) => Ok(true),
+        }
+    }
 }
 
 /// Represents an abstract server-side M3FS Session.
@@ -162,6 +176,12 @@ pub trait M3FSSession {
         Err(Error::new(Code::NotSup))
     }
     fn sync(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+        Err(Error::new(Code::NotSup))
+    }
+    fn open_priv(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+        Err(Error::new(Code::NotSup))
+    }
+    fn close(&mut self, _stream: &mut GateIStream) -> Result<bool, Error> {
         Err(Error::new(Code::NotSup))
     }
 }

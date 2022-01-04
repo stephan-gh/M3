@@ -98,7 +98,12 @@ impl Pipe {
             },
             |_| Ok(()),
         )?;
-        let flags = if read { OpenFlags::R } else { OpenFlags::W };
+        let flags = if read {
+            OpenFlags::R | OpenFlags::NEW_SESS
+        }
+        else {
+            OpenFlags::W | OpenFlags::NEW_SESS
+        };
         Ok(Rc::new(RefCell::new(GenericFile::new(flags, crd.start()))))
     }
 }

@@ -27,23 +27,39 @@
 
 #include <fs/internal.h>
 
+#include <vector>
+
 namespace m3 {
 
 class GenericFile;
 
 class M3FS : public ClientSession, public FileSystem {
+    struct CachedEP {
+        explicit CachedEP(size_t _id, EP *_ep)
+            : id(_id),
+              ep(_ep),
+              file(-1) {
+        }
+
+        size_t id;
+        EP *ep;
+        ssize_t file;
+    };
+
 public:
     friend class GenericFile;
 
     explicit M3FS(size_t id, const String &service)
         : ClientSession(service, VPE::self().alloc_sels(2)),
           FileSystem(id),
-          _gate(SendGate::bind(get_sgate(VPE::self()))) {
+          _gate(SendGate::bind(get_sgate(VPE::self()))),
+          _eps() {
     }
     explicit M3FS(size_t id, capsel_t caps) noexcept
         : ClientSession(caps + 0),
           FileSystem(id),
-          _gate(SendGate::bind(caps + 1)) {
+          _gate(SendGate::bind(caps + 1)),
+          _eps() {
     }
 
     const SendGate &gate() const noexcept {
@@ -54,6 +70,7 @@ public:
     }
 
     virtual Reference<File> open(const char *path, int perms) override;
+    virtual void close(size_t file_id) override;
     virtual Errors::Code try_stat(const char *path, FileInfo &info) noexcept override;
     virtual Errors::Code try_mkdir(const char *path, mode_t mode) override;
     virtual Errors::Code try_rmdir(const char *path) override;
@@ -66,6 +83,8 @@ public:
     static FileSystem *unserialize(Unmarshaller &um);
 
 private:
+    size_t get_ep();
+    size_t delegate_ep(capsel_t sel);
     capsel_t get_sgate(VPE &vpe) {
         KIF::ExchangeArgs args;
         ExchangeOStream os(args);
@@ -76,6 +95,7 @@ private:
     }
 
     SendGate _gate;
+    std::vector<CachedEP> _eps;
 };
 
 template<>

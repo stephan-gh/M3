@@ -21,7 +21,8 @@ use crate::sess::{FileSession, M3FSSession};
 
 use m3::{
     cap::Selector,
-    col::Vec,
+    cell::StaticCell,
+    col::{Treap, Vec},
     com::{GateIStream, RecvGate, SendGate},
     errors::{Code, Error},
     server::CapExchange,
@@ -30,11 +31,16 @@ use m3::{
     vfs::OpenFlags,
 };
 
+static NEXT_PRIV_ID: StaticCell<SessId> = StaticCell::new(1);
+
 pub struct MetaSession {
     _server_session: ServerSession,
     sgates: Vec<SendGate>,
     max_files: usize,
     files: Vec<SessId>,
+    priv_files: Treap<SessId, FileSession>,
+    priv_file_count: usize,
+    priv_eps: Vec<Selector>,
     creator: usize,
     session_id: SessId,
 }
@@ -51,9 +57,24 @@ impl MetaSession {
             sgates: Vec::new(),
             max_files,
             files: Vec::new(),
+            priv_files: Treap::new(),
+            priv_file_count: 0,
+            priv_eps: Vec::new(),
             creator: crt,
             session_id,
         }
+    }
+
+    fn get_ep(&self, idx: usize) -> Result<Selector, Error> {
+        self.priv_eps
+            .get(idx)
+            .map(|i| *i)
+            .ok_or(Error::new(Code::InvArgs))
+    }
+
+    pub fn add_ep(&mut self, ep: Selector) -> usize {
+        self.priv_eps.push(ep);
+        self.priv_eps.len() - 1
     }
 
     pub fn get_sgate(&mut self, data: &mut CapExchange, rgate: &RecvGate) -> Result<(), Error> {
@@ -91,10 +112,6 @@ impl MetaSession {
         file_session_id: SessId,
         rgate: &RecvGate,
     ) -> Result<FileSession, Error> {
-        if self.files.len() == self.max_files {
-            return Err(Error::new(Code::NoSpace));
-        }
-
         let flags = OpenFlags::from_bits_truncate(data.in_args().pop::<u32>()?);
         let path = data.in_args().pop_str_slice()?;
 
@@ -106,7 +123,7 @@ impl MetaSession {
             flags
         );
 
-        let session = self.do_open(selector, crt, path, flags, file_session_id, rgate)?;
+        let session = self.do_open(selector, crt, path, flags, file_session_id, Some(rgate))?;
 
         self.files.push(file_session_id);
 
@@ -132,8 +149,12 @@ impl MetaSession {
         path: &str,
         flags: OpenFlags,
         file_session_id: SessId,
-        rgate: &RecvGate,
+        rgate: Option<&RecvGate>,
     ) -> Result<FileSession, Error> {
+        if self.files.len() + self.priv_file_count == self.max_files {
+            return Err(Error::new(Code::NoSpace));
+        }
+
         let ino = dirs::search(&path, flags.contains(OpenFlags::CREATE))?;
         let inode = inodes::get(ino)?;
         let inode_mode = inode.mode;
@@ -173,6 +194,17 @@ impl MetaSession {
             rgate,
         )
     }
+
+    fn with_file_sess<F>(&mut self, stream: &mut GateIStream, func: F) -> Result<(), Error>
+    where
+        F: Fn(&mut FileSession, &mut GateIStream) -> Result<(), Error>,
+    {
+        let fid: usize = stream.pop()?;
+        match self.priv_files.get_mut(&fid) {
+            Some(f) => func(f, stream),
+            None => Err(Error::new(Code::InvArgs)),
+        }
+    }
 }
 
 impl Drop for MetaSession {
@@ -188,27 +220,31 @@ impl M3FSSession for MetaSession {
         self.creator
     }
 
-    fn next_in(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
+    fn next_in(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+        self.with_file_sess(stream, |f, stream| f.file_in_out(stream, false))
     }
 
-    fn next_out(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
+    fn next_out(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+        self.with_file_sess(stream, |f, stream| f.file_in_out(stream, true))
     }
 
-    fn commit(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
+    fn commit(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+        self.with_file_sess(stream, |f, stream| f.file_commit(stream))
     }
 
-    fn seek(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
-    }
-
-    fn fstat(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
+    fn seek(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+        self.with_file_sess(stream, |f, stream| f.file_seek(stream))
     }
 
     fn stat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+        self.with_file_sess(stream, |f, stream| f.file_stat(stream))
+    }
+
+    fn sync(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+        self.with_file_sess(stream, |f, stream| f.file_sync(stream))
+    }
+
+    fn fstat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
         let path: &str = stream.pop()?;
 
         log!(
@@ -307,5 +343,55 @@ impl M3FSSession for MetaSession {
         dirs::rename(old_path, new_path)?;
 
         stream.reply_error(Code::None)
+    }
+
+    fn open_priv(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+        let path = stream.pop::<&str>()?;
+        let flags = OpenFlags::from_bits_truncate(stream.pop::<u32>()?);
+        let ep = stream.pop::<usize>()?;
+
+        log!(
+            crate::LOG_SESSION,
+            "[{}] meta::open_priv(path={}, flags={:?}, ep={})",
+            self.session_id,
+            path,
+            flags,
+            ep
+        );
+
+        let ep_sel = self.get_ep(ep)?;
+
+        let id = NEXT_PRIV_ID.get();
+        let mut session = self.do_open(m3::kif::INVALID_SEL, 0, path, flags, id, None)?;
+        session.set_ep(ep_sel);
+        NEXT_PRIV_ID.set(id + 1);
+
+        log!(
+            crate::LOG_SESSION,
+            "[{}] meta::open_priv(path={}, flags={:?}) -> inode={}, sid={}",
+            self.session_id,
+            path,
+            flags,
+            session.ino(),
+            id,
+        );
+
+        self.priv_files.insert(id, session);
+        self.priv_file_count += 1;
+
+        reply_vmsg!(stream, 0, id)
+    }
+
+    fn close(&mut self, stream: &mut GateIStream) -> Result<bool, Error> {
+        let fid = stream.pop::<SessId>()?;
+
+        if self.priv_files.remove(&fid).is_some() {
+            self.priv_file_count -= 1;
+            stream.reply_error(Code::None)?;
+        }
+        else {
+            stream.reply_error(Code::InvArgs)?;
+        }
+        Ok(false)
     }
 }

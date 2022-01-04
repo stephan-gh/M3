@@ -20,7 +20,7 @@ use core::fmt;
 use crate::cap::Selector;
 use crate::cell::RefCell;
 use crate::col::Vec;
-use crate::com::{recv_reply, MemGate, RecvGate, SendGate};
+use crate::com::{recv_reply, MemGate, RecvGate, SendGate, EP};
 use crate::errors::Error;
 use crate::goff;
 use crate::int_enum;
@@ -30,6 +30,7 @@ use crate::pes::{StateSerializer, VPE};
 use crate::rc::Rc;
 use crate::serialize::Source;
 use crate::session::{ClientSession, HashInput, HashOutput, HashSession, MapFlags, Pager};
+use crate::tcu::EpId;
 use crate::vfs::{
     filetable, Fd, File, FileHandle, FileInfo, Map, OpenFlags, Seek, SeekMode, StatResponse,
 };
@@ -56,10 +57,11 @@ int_enum! {
 /// `GenericFile` implements the file protocol and can therefore be used for m3fs files, pipes,
 /// virtual terminals, and whatever else provides file-like objects in the future.
 pub struct GenericFile {
+    id: Option<(usize, usize)>,
     fd: Fd,
     flags: OpenFlags,
     sess: ClientSession,
-    sgate: SendGate,
+    sgate: Rc<SendGate>,
     mgate: MemGate,
     delegated_ep: Selector,
     goff: usize,
@@ -72,10 +74,11 @@ pub struct GenericFile {
 impl GenericFile {
     pub(crate) fn new(flags: OpenFlags, sel: Selector) -> Self {
         GenericFile {
+            id: None,
             fd: filetable::INV_FD,
             flags,
             sess: ClientSession::new_bind(sel),
-            sgate: SendGate::new_bind(sel + 1),
+            sgate: Rc::new(SendGate::new_bind(sel + 1)),
             mgate: MemGate::new_bind(INVALID_SEL),
             delegated_ep: INVALID_SEL,
             goff: 0,
@@ -84,6 +87,35 @@ impl GenericFile {
             len: 0,
             writing: false,
         }
+    }
+
+    pub(crate) fn new_without_sess(
+        flags: OpenFlags,
+        sel: Selector,
+        id: (usize, usize),
+        mep: EpId,
+        sgate: Rc<SendGate>,
+    ) -> Self {
+        let mut mgate = MemGate::new_bind(INVALID_SEL);
+        mgate.set_ep(Some(EP::new_bind(mep, INVALID_SEL)));
+        GenericFile {
+            id: Some(id),
+            fd: filetable::INV_FD,
+            flags,
+            sess: ClientSession::new_bind(sel),
+            sgate,
+            mgate,
+            delegated_ep: INVALID_SEL,
+            goff: 0,
+            off: 0,
+            pos: 0,
+            len: 0,
+            writing: false,
+        }
+    }
+
+    fn file_id(&self) -> usize {
+        self.id.unwrap_or((0, 0)).1
     }
 
     pub(crate) fn unserialize(s: &mut Source) -> FileHandle {
@@ -96,7 +128,13 @@ impl GenericFile {
 
     fn submit(&mut self, force: bool) -> Result<(), Error> {
         if self.pos > 0 && (self.writing || force) {
-            send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::COMMIT, self.pos)?;
+            send_recv_res!(
+                &self.sgate,
+                RecvGate::def(),
+                GenFileOp::COMMIT,
+                self.file_id(),
+                self.pos
+            )?;
 
             self.goff += self.pos;
             self.pos = 0;
@@ -127,7 +165,12 @@ impl GenericFile {
             return Ok(0);
         }
         if self.pos == self.len {
-            let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::NEXT_IN)?;
+            let mut reply = send_recv_res!(
+                &self.sgate,
+                RecvGate::def(),
+                GenFileOp::NEXT_IN,
+                self.file_id()
+            )?;
             self.goff += self.len;
             self.off = reply.pop()?;
             self.len = reply.pop()?;
@@ -141,13 +184,27 @@ impl GenericFile {
             return Ok(0);
         }
         if self.pos == self.len {
-            let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::NEXT_OUT)?;
+            let mut reply = send_recv_res!(
+                &self.sgate,
+                RecvGate::def(),
+                GenFileOp::NEXT_OUT,
+                self.file_id()
+            )?;
             self.goff += self.len;
             self.off = reply.pop()?;
             self.len = reply.pop()?;
             self.pos = 0;
         }
         Ok(cmp::min(len, self.len - self.pos))
+    }
+}
+
+impl Drop for GenericFile {
+    fn drop(&mut self) {
+        if !self.flags.contains(OpenFlags::NEW_SESS) {
+            // we never want to invalidate the EP
+            self.mgate.set_ep(None);
+        }
     }
 }
 
@@ -168,19 +225,38 @@ impl File for GenericFile {
         // submit read/written data
         self.submit(false).ok();
 
-        // revoke EP cap
-        if let Some(ep) = self.mgate.ep() {
-            VPE::cur()
-                .revoke(CapRngDesc::new(CapType::OBJECT, ep.sel(), 1), true)
-                .ok();
+        if !self.flags.contains(OpenFlags::NEW_SESS) {
+            let (fs_id, file_id) = self.id.unwrap();
+            if let Some(fs) = VPE::cur().mounts().get_by_id(fs_id) {
+                fs.borrow_mut().close(file_id);
+            }
+        }
+        else {
+            // revoke EP cap
+            if let Some(ep) = self.mgate.ep() {
+                VPE::cur()
+                    .revoke(CapRngDesc::new(CapType::OBJECT, ep.sel(), 1), true)
+                    .ok();
+            }
         }
 
         // file sessions are not known to our resource manager; thus close them manually
-        send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::CLOSE).ok();
+        send_recv_res!(
+            &self.sgate,
+            RecvGate::def(),
+            GenFileOp::CLOSE,
+            self.file_id()
+        )
+        .ok();
     }
 
     fn stat(&self) -> Result<FileInfo, Error> {
-        send_vmsg!(&self.sgate, RecvGate::def(), GenFileOp::STAT)?;
+        send_vmsg!(
+            &self.sgate,
+            RecvGate::def(),
+            GenFileOp::STAT,
+            self.file_id()
+        )?;
         let reply = recv_reply(RecvGate::def(), Some(&self.sgate))?;
         let resp = reply.msg().get_data::<StatResponse>();
         FileInfo::from_response(resp)
@@ -228,7 +304,14 @@ impl Seek for GenericFile {
             return Ok(off);
         }
 
-        let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::SEEK, off, whence)?;
+        let mut reply = send_recv_res!(
+            &self.sgate,
+            RecvGate::def(),
+            GenFileOp::SEEK,
+            self.file_id(),
+            off,
+            whence
+        )?;
 
         self.goff = reply.pop()?;
         let off: usize = reply.pop()?;
@@ -259,8 +342,15 @@ impl Write for GenericFile {
     }
 
     fn sync(&mut self) -> Result<(), Error> {
-        self.flush()
-            .and_then(|_| send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::SYNC).map(|_| ()))
+        self.flush().and_then(|_| {
+            send_recv_res!(
+                &self.sgate,
+                RecvGate::def(),
+                GenFileOp::SYNC,
+                self.file_id()
+            )
+            .map(|_| ())
+        })
     }
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {

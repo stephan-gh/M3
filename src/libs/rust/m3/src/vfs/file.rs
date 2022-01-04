@@ -55,6 +55,8 @@ bitflags! {
         const CREATE    = 0b0010_0000;
         /// For benchmarking: only pretend to access the file's data.
         const NODATA    = 0b0100_0000;
+        /// Create a new file session
+        const NEW_SESS  = 0b1000_0000;
 
         /// Opens the file for reading and writing.
         const RW        = Self::R.bits | Self::W.bits;
