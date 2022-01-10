@@ -732,7 +732,7 @@ fn exchange() {
 }
 
 fn delegate() {
-    let m3fs = wv_assert_ok!(M3FS::new("m3fs-clone"));
+    let m3fs = wv_assert_ok!(M3FS::new(1, "m3fs-clone"));
     let m3fs = m3fs.borrow();
     let sess = m3fs.as_any().downcast_ref::<M3FS>().unwrap().sess();
     let crd = CapRngDesc::new(CapType::OBJECT, SEL_VPE, 1);
@@ -751,7 +751,7 @@ fn delegate() {
 }
 
 fn obtain() {
-    let m3fs = wv_assert_ok!(M3FS::new("m3fs-clone"));
+    let m3fs = wv_assert_ok!(M3FS::new(1, "m3fs-clone"));
     let m3fs = m3fs.borrow();
     let sess = m3fs.as_any().downcast_ref::<M3FS>().unwrap().sess();
     let sel = VPE::cur().alloc_sel();

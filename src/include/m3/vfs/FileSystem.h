@@ -58,10 +58,18 @@ public:
         GET_MEM,
     };
 
-    explicit FileSystem() noexcept
-        : RefCounted() {
+    explicit FileSystem(size_t id) noexcept
+        : RefCounted(),
+          _id(id) {
     }
     virtual ~FileSystem() {
+    }
+
+    /**
+     * @return the id of this file system (within all local mounts)
+     */
+    size_t id() const noexcept {
+        return _id;
     }
 
     /**
@@ -219,6 +227,9 @@ public:
      * @param m the marshaller
      */
     virtual void serialize(Marshaller &m) = 0;
+
+private:
+    size_t _id;
 };
 
 }

@@ -151,7 +151,8 @@ fn get_mount(name: &str) -> Result<vfs::FSHandle, VerboseError> {
         }
     }
 
-    let fs = M3FS::new(name).map_err(|e| {
+    let id = MOUNTS.borrow().len();
+    let fs = M3FS::new(id, name).map_err(|e| {
         VerboseError::new(e.code(), format!("Unable to open m3fs session {}", name))
     })?;
     MOUNTS.borrow_mut().push((name.to_string(), fs.clone()));

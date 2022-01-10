@@ -91,6 +91,8 @@ void MountTable::add(const char *path, FileSystem *fs) {
             _mounts[j] = _mounts[j - 1];
     }
     _mounts[i] = new MountPoint(path, fs);
+    // ensure that we don't reuse ids, even if this filesystem was added after unserialization
+    _next_id = Math::max(fs->id() + 1, _next_id);
     _count++;
 }
 

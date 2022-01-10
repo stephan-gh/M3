@@ -22,8 +22,9 @@ use crate::vfs::{FSHandle, FileInfo, FileMode, FileRef, OpenFlags};
 
 /// Mounts the file system of type `fstype` at `path`, creating a session at `service`.
 pub fn mount(path: &str, fstype: &str, service: &str) -> Result<(), Error> {
+    let id = VPE::cur().mounts().alloc_id();
     let fsobj = match fstype {
-        "m3fs" => M3FS::new(service)?,
+        "m3fs" => M3FS::new(id, service)?,
         _ => return Err(Error::new(Code::InvArgs)),
     };
     VPE::cur().mounts().add(path, fsobj)

@@ -44,6 +44,9 @@ pub trait FileSystem: fmt::Debug {
     /// Returns an [`Any`] reference to downcast to the actual implementation of [`FileSystem`].
     fn as_any(&self) -> &dyn Any;
 
+    /// Returns the id of this filesystem (within all local mounts)
+    fn id(&self) -> usize;
+
     /// Opens the file at `path` with given flags.
     fn open(&self, path: &str, flags: OpenFlags) -> Result<FileHandle, Error>;
 

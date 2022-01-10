@@ -43,9 +43,10 @@ void VFS::mount(const char *path, const char *fs, const char *options) {
     if(ms()->indexof_mount(path) != MountTable::MAX_MOUNTS)
         throw Exception(Errors::EXISTS);
 
+    auto id = ms()->alloc_id();
     FileSystem *fsobj;
     if(strcmp(fs, "m3fs") == 0)
-        fsobj = new M3FS(options ? options : fs);
+        fsobj = new M3FS(id, options ? options : fs);
     else
         VTHROW(Errors::INV_ARGS, "Unknown filesystem '" << fs << "'");
     ms()->add(path, fsobj);

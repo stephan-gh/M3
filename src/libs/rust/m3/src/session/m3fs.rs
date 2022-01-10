@@ -36,13 +36,15 @@ use crate::vfs::{
 
 /// Represents a session at m3fs.
 pub struct M3FS {
+    id: usize,
     sess: ClientSession,
     sgate: Rc<SendGate>,
 }
 
 impl M3FS {
-    fn create(sess: ClientSession, sgate: SendGate) -> FSHandle {
+    fn create(id: usize, sess: ClientSession, sgate: SendGate) -> FSHandle {
         Rc::new(RefCell::new(M3FS {
+            id,
             sess,
             sgate: Rc::new(sgate),
         }))
@@ -50,7 +52,7 @@ impl M3FS {
 
     /// Creates a new session at the m3fs server with given name.
     #[allow(clippy::new_ret_no_self)]
-    pub fn new(name: &str) -> Result<FSHandle, Error> {
+    pub fn new(id: usize, name: &str) -> Result<FSHandle, Error> {
         let sels = VPE::cur().alloc_sels(2);
         let sess = ClientSession::new_with_sel(name, sels + 0)?;
 
@@ -62,12 +64,13 @@ impl M3FS {
             |_| Ok(()),
         )?;
         let sgate = SendGate::new_bind(sels + 1);
-        Ok(Self::create(sess, sgate))
+        Ok(Self::create(id, sess, sgate))
     }
 
     /// Binds a new m3fs-session to selectors `sels`..`sels+1`.
-    pub fn new_bind(sels: Selector) -> FSHandle {
+    pub fn new_bind(id: usize, sels: Selector) -> FSHandle {
         Self::create(
+            id,
             ClientSession::new_bind(sels + 0),
             SendGate::new_bind(sels + 1),
         )
@@ -100,6 +103,10 @@ impl M3FS {
 impl FileSystem for M3FS {
     fn as_any(&self) -> &dyn Any {
         self
+    }
+
+    fn id(&self) -> usize {
+        self.id
     }
 
     fn open(&self, path: &str, flags: OpenFlags) -> Result<FileHandle, Error> {
@@ -181,18 +188,24 @@ impl FileSystem for M3FS {
 
     fn serialize(&self, s: &mut StateSerializer) {
         s.push_word(self.sess.sel() as u64);
+        s.push_word(self.id() as u64);
     }
 }
 
 impl M3FS {
     pub fn unserialize(s: &mut Source) -> FSHandle {
         let sels: Selector = s.pop().unwrap();
-        M3FS::new_bind(sels)
+        let id: usize = s.pop().unwrap();
+        M3FS::new_bind(id, sels)
     }
 }
 
 impl fmt::Debug for M3FS {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "M3FS[sess={:?}, sgate={:?}]", self.sess, self.sgate)
+        write!(
+            f,
+            "M3FS[id={}, sess={:?}, sgate={:?}]",
+            self.id, self.sess, self.sgate
+        )
     }
 }

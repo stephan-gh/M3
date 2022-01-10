@@ -49,9 +49,17 @@ impl MountPoint {
 #[derive(Default)]
 pub struct MountTable {
     mounts: Vec<MountPoint>,
+    next_id: usize,
 }
 
 impl MountTable {
+    /// Allocates a new id for the next file system
+    pub fn alloc_id(&mut self) -> usize {
+        let res = self.next_id;
+        self.next_id += 1;
+        res
+    }
+
     /// Adds a new mount point at given path and given file system to the table.
     pub fn add(&mut self, path: &str, fs: FSHandle) -> Result<(), Error> {
         if self.path_to_idx(path).is_some() {
@@ -59,6 +67,8 @@ impl MountTable {
         }
 
         let pos = self.insert_pos(path);
+        // ensure that we don't reuse ids, even if this filesystem was added after unserialization
+        self.next_id = self.next_id.max(fs.borrow().id());
         self.mounts.insert(pos, MountPoint::new(path, fs));
         Ok(())
     }
@@ -68,9 +78,12 @@ impl MountTable {
         self.path_to_idx(path).map(|i| self.mounts[i].fs.clone())
     }
 
-    /// Returns the mount point with index `mid`.
-    pub fn get_by_index(&self, mid: usize) -> Option<FSHandle> {
-        self.mounts.get(mid).map(|mp| mp.fs.clone())
+    /// Returns the mount point with id `mid`.
+    pub fn get_by_id(&self, mid: usize) -> Option<FSHandle> {
+        self.mounts
+            .iter()
+            .find(|mp| mp.fs.borrow().id() == mid)
+            .map(|mp| mp.fs.clone())
     }
 
     /// Resolves the given path to the file system image and the offset of the mount point within

@@ -35,14 +35,14 @@ class M3FS : public ClientSession, public FileSystem {
 public:
     friend class GenericFile;
 
-    explicit M3FS(const String &service)
+    explicit M3FS(size_t id, const String &service)
         : ClientSession(service, VPE::self().alloc_sels(2)),
-          FileSystem(),
+          FileSystem(id),
           _gate(SendGate::bind(get_sgate(VPE::self()))) {
     }
-    explicit M3FS(capsel_t caps) noexcept
+    explicit M3FS(size_t id, capsel_t caps) noexcept
         : ClientSession(caps + 0),
-          FileSystem(),
+          FileSystem(id),
           _gate(SendGate::bind(caps + 1)) {
     }
 

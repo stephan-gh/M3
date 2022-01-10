@@ -65,11 +65,21 @@ public:
      */
     explicit MountTable() noexcept
         : _count(),
+          _next_id(),
           _mounts() {
     }
 
     explicit MountTable(const MountTable &ms) noexcept;
     MountTable &operator=(const MountTable &ms) noexcept;
+
+    /**
+     * Allocates a new id for the next filesystem
+     *
+     * @return the next id
+     */
+    size_t alloc_id() noexcept {
+        return _next_id++;
+    }
 
     /**
      * Adds the given mountpoint
@@ -152,6 +162,7 @@ private:
     void do_remove(size_t i);
 
     size_t _count;
+    size_t _next_id;
     MountPoint *_mounts[MAX_MOUNTS];
 };
 

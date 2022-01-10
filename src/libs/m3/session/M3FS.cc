@@ -82,13 +82,14 @@ void M3FS::delegate(VPE &vpe) {
 }
 
 void M3FS::serialize(Marshaller &m) {
-    m << sel();
+    m << sel() << id();
 }
 
 FileSystem *M3FS::unserialize(Unmarshaller &um) {
     capsel_t sel;
-    um >> sel;
-    return new M3FS(sel);
+    size_t id;
+    um >> sel >> id;
+    return new M3FS(id, sel);
 }
 
 }
