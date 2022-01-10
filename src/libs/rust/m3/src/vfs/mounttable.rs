@@ -73,16 +73,6 @@ impl MountTable {
         self.mounts.get(mid).map(|mp| mp.fs.clone())
     }
 
-    /// Returns the index of the mount point with given file system.
-    pub fn index_of(&self, fs: &FSHandle) -> Option<usize> {
-        for (i, m) in self.mounts.iter().enumerate() {
-            if Rc::ptr_eq(&m.fs, fs) {
-                return Some(i);
-            }
-        }
-        None
-    }
-
     /// Resolves the given path to the file system image and the offset of the mount point within
     /// the path.
     pub fn resolve(&self, path: &str) -> Result<(FSHandle, usize), Error> {

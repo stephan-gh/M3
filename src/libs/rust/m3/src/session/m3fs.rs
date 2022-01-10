@@ -34,9 +34,6 @@ use crate::vfs::{
     StatResponse,
 };
 
-/// The type of extent ids.
-pub type ExtId = u16;
-
 /// Represents a session at m3fs.
 pub struct M3FS {
     sess: ClientSession,
