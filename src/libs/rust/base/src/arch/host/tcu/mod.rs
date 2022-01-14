@@ -53,6 +53,8 @@ pub const SYSC_SEP_OFF: EpId = 0;
 pub const SYSC_REP_OFF: EpId = 1;
 pub const UPCALL_REP_OFF: EpId = 2;
 pub const DEF_REP_OFF: EpId = 3;
+pub const PG_REP_OFF: EpId = 0; // unused
+pub const PG_SEP_OFF: EpId = 0; // unused
 
 pub const FIRST_USER_EP: EpId = 0;
 pub const STD_EPS_COUNT: usize = 4;
