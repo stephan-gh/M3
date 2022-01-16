@@ -248,6 +248,18 @@ impl VPE {
             let (id, eps_start) = syscalls::create_vpe(sel, args.name, pe.sel(), vpe.kmem.sel())?;
             vpe.id = id;
             vpe.eps_start = eps_start;
+
+            #[cfg(not(target_vendor = "host"))]
+            {
+                // reserve these EPs if we have no pager
+                // note: this is required, because these EP ids are handled differently by the kernel
+                let ep_sel = VPE::cur().alloc_sels(2);
+                syscalls::alloc_ep(ep_sel + 0, vpe.sel(), eps_start + crate::tcu::PG_SEP_OFF, 0)
+                    .unwrap();
+                syscalls::alloc_ep(ep_sel + 1, vpe.sel(), eps_start + crate::tcu::PG_REP_OFF, 0)
+                    .unwrap();
+            }
+
             None
         };
         vpe.next_sel = cmp::max(vpe.kmem.sel() + 1, vpe.next_sel);

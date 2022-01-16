@@ -102,8 +102,17 @@ VPE::VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args)
         // and delegate the pager cap to the VPE
         delegate_obj(_pager->sel());
     }
-    else
+    else {
         _eps_start = Syscalls::create_vpe(sel(), name, pe->sel(), _kmem->sel(), &_id);
+
+#if defined(__kachel__)
+        // reserve these EPs if we have no pager
+        // note: this is required, because these EP ids are handled differently by the kernel
+        capsel_t ep_sel = VPE::self().alloc_sels(2);
+        Syscalls::alloc_ep(ep_sel + 0, sel(), _eps_start + TCU::PG_SEP_OFF, 0);
+        Syscalls::alloc_ep(ep_sel + 1, sel(), _eps_start + TCU::PG_REP_OFF, 0);
+#endif
+    }
     _next_sel = Math::max(_kmem->sel() + 1, _next_sel);
 
     if(_resmng == nullptr) {
