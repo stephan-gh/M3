@@ -20,17 +20,13 @@
 
 namespace m3 {
 
-SList<Gate> Gate::_gates;
-
 Gate::~Gate() {
     release_ep(VPE::self());
 }
 
 const EP &Gate::acquire_ep() {
-    if(!_ep) {
+    if(!_ep)
         _ep = VPE::self().epmng().acquire();
-        _gates.append(this);
-    }
     return *_ep;
 }
 
@@ -44,7 +40,6 @@ const EP &Gate::activate(capsel_t rbuf_mem, goff_t rbuf_off) {
 
 void Gate::activate_on(const EP &ep, capsel_t rbuf_mem, goff_t rbuf_off) {
     Syscalls::activate(ep.sel(), sel(), rbuf_mem, rbuf_off);
-    _gates.append(this);
 }
 
 void Gate::deactivate() {
@@ -54,15 +49,8 @@ void Gate::deactivate() {
 void Gate::release_ep(VPE &vpe, bool force_inval) noexcept {
     if(_ep && !_ep->is_standard()) {
         vpe.epmng().release(_ep, force_inval || (flags() & KEEP_CAP));
-        _gates.remove(this);
         _ep = nullptr;
     }
-}
-
-void Gate::reset() {
-    for(auto g = _gates.begin(); g != _gates.end(); ++g)
-        g->_ep = nullptr;
-    _gates.clear();
 }
 
 }
