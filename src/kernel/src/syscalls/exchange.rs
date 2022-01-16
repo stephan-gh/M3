@@ -157,6 +157,15 @@ pub fn exchange_over_sess_async(
         Err(e) => sysc_err!(e.code(), "Service {} unreachable", serv.service().name()),
     };
 
+    match *get_request::<u64>(rmsg)? {
+        0 => {},
+        err => sysc_err!(
+            Code::from(err as u32),
+            "Server {} denied cap exchange",
+            serv.service().name()
+        ),
+    }
+
     let reply: &service::ExchangeReply = get_request(rmsg)?;
 
     let srv_crd = CapRngDesc::new_from(reply.data.caps);
@@ -168,16 +177,7 @@ pub fn exchange_over_sess_async(
         srv_crd
     );
 
-    if reply.res != 0 {
-        sysc_err!(
-            Code::from(reply.res as u32),
-            "Server {} denied cap exchange",
-            serv.service().name()
-        );
-    }
-    else {
-        do_exchange(&vpecap, &serv.service().vpe(), &crd, &srv_crd, obtain)?;
-    }
+    do_exchange(&vpecap, &serv.service().vpe(), &crd, &srv_crd, obtain)?;
 
     let mut kreply = MsgBuf::borrow_def();
     kreply.set(syscalls::ExchangeSessReply {

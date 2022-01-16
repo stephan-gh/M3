@@ -227,42 +227,44 @@ pub fn derive_srv_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
         },
 
         Ok(rmsg) => {
-            let reply: &kif::service::DeriveCreatorReply = get_request(rmsg)?;
-            let res = Result::from(Code::from(reply.res as u32));
-            let creator = reply.creator as usize;
-            let sgate_sel = reply.sgate_sel as CapSel;
+            match Result::from(Code::from(*get_request::<u64>(rmsg)? as u32)) {
+                Err(e) => {
+                    sysc_log!(
+                        vpe,
+                        "Server {} denied derive: {:?}",
+                        srvcap.service().name(),
+                        e.code()
+                    );
+                    Err(e)
+                },
+                Ok(_) => {
+                    let reply: &kif::service::DeriveCreatorReply = get_request(rmsg)?;
+                    let creator = reply.creator as usize;
+                    let sgate_sel = reply.sgate_sel as CapSel;
 
-            sysc_log!(
-                vpe,
-                "derive_srv continue with res={:?}, creator={}",
-                res,
-                creator
-            );
+                    sysc_log!(vpe, "derive_srv continue with creator={}", creator);
 
-            if res.is_ok() {
-                // obtain SendGate from server (do that first because it can fail)
-                let serv_vpe = srvcap.service().vpe();
-                let mut serv_caps = serv_vpe.obj_caps().borrow_mut();
-                let src_cap = serv_caps.get_mut(sgate_sel);
-                match src_cap {
-                    None => sysc_log!(vpe, "Service gave invalid SendGate cap {}", sgate_sel),
-                    Some(c) => try_kmem_quota!(vpe.obj_caps().borrow_mut().obtain(
-                        dst_crd.start() + 1,
-                        c,
-                        true
-                    )),
-                }
+                    // obtain SendGate from server (do that first because it can fail)
+                    let serv_vpe = srvcap.service().vpe();
+                    let mut serv_caps = serv_vpe.obj_caps().borrow_mut();
+                    let src_cap = serv_caps.get_mut(sgate_sel);
+                    match src_cap {
+                        None => sysc_log!(vpe, "Service gave invalid SendGate cap {}", sgate_sel),
+                        Some(c) => try_kmem_quota!(vpe.obj_caps().borrow_mut().obtain(
+                            dst_crd.start() + 1,
+                            c,
+                            true
+                        )),
+                    }
 
-                // derive new service object
-                let cap = Capability::new(
-                    dst_crd.start() + 0,
-                    KObject::Serv(ServObject::new(srvcap.service().clone(), false, creator)),
-                );
-                try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(cap, srv_sel));
-                Ok(())
-            }
-            else {
-                res
+                    // derive new service object
+                    let cap = Capability::new(
+                        dst_crd.start() + 0,
+                        KObject::Serv(ServObject::new(srvcap.service().clone(), false, creator)),
+                    );
+                    try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(cap, srv_sel));
+                    Ok(())
+                },
             }
         },
     };
