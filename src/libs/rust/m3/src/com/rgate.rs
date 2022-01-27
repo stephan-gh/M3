@@ -22,7 +22,7 @@ use crate::cap::{CapFlags, Selector};
 use crate::cell::LazyReadOnlyCell;
 use crate::cfg;
 use crate::com::rbufs::{alloc_rbuf, free_rbuf};
-use crate::com::{gate::Gate, RecvBuf, SendGate};
+use crate::com::{gate::Gate, RecvBuf, SendGate, EP};
 use crate::errors::{Code, Error};
 use crate::kif::INVALID_SEL;
 use crate::math;
@@ -192,6 +192,11 @@ impl RecvGate {
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
     pub(crate) fn ep(&self) -> Option<tcu::EpId> {
         self.gate.ep().map(|ep| ep.id())
+    }
+
+    /// Sets or unsets the endpoint.
+    pub(crate) fn set_ep(&mut self, ep: Option<EP>) {
+        self.gate.set_ep(ep);
     }
 
     /// Returns the size of the receive buffer in bytes

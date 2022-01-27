@@ -33,8 +33,8 @@ use crate::tcu::{PG_REP_OFF, PG_SEP_OFF};
 /// The pager is responsible to resolve page faults and allows to create memory mappings.
 pub struct Pager {
     sess: ClientSession,
-    rgate: RecvGate,
     parent_sgate: SendGate,
+    child_rgate: RecvGate,
     child_sgate: SendGate,
     close: bool,
 }
@@ -91,12 +91,12 @@ impl Pager {
 
     /// Creates a new session with given `SendGate` (for the pager).
     pub fn new(sess: ClientSession, sgate: SendGate) -> Result<Self, Error> {
-        let rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
+        let child_rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
 
         Ok(Pager {
             sess,
-            rgate,
             parent_sgate: SendGate::new_bind(kif::INVALID_SEL),
+            child_rgate,
             child_sgate: sgate,
             close: false,
         })
@@ -108,8 +108,8 @@ impl Pager {
         let sgate = SendGate::new_bind(Self::get_sgate(&sess)?);
         Ok(Pager {
             sess,
-            rgate: RecvGate::new_bind(kif::INVALID_SEL, 6, 6),
             parent_sgate: sgate,
+            child_rgate: RecvGate::new_bind(kif::INVALID_SEL, 6, 6),
             child_sgate: SendGate::new_bind(kif::INVALID_SEL),
             close: false,
         })
@@ -128,11 +128,11 @@ impl Pager {
         let parent_sgate = SendGate::new_bind(Self::get_sgate(&sess)?);
         let child_sgate = SendGate::new_bind(Self::get_sgate(&sess)?);
 
-        let rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
+        let child_rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
         Ok(Pager {
             sess,
-            rgate,
             parent_sgate,
+            child_rgate,
             child_sgate,
             close: true,
         })
@@ -153,9 +153,9 @@ impl Pager {
         &self.child_sgate
     }
 
-    /// Returns the [`RecvGate`] used to receive page fault replies.
+    /// Returns the [`RecvGate`] used by the child to receive page fault replies.
     pub fn child_rgate(&self) -> &RecvGate {
-        &self.rgate
+        &self.child_rgate
     }
 
     /// Initializes this pager session by delegating the VPE cap to the server.
@@ -163,7 +163,7 @@ impl Pager {
         // activate send and receive gate for page faults
         self.child_sgate
             .activate_for(vpe.sel(), first_ep + PG_SEP_OFF)?;
-        self.rgate
+        self.child_rgate
             .activate_for(vpe.sel(), first_ep + PG_REP_OFF, 0)?;
 
         // we only need to do that for clones
@@ -284,6 +284,10 @@ impl Pager {
 
 impl Drop for Pager {
     fn drop(&mut self) {
+        // don't deactivate the endpoints; the kernel takes care of that
+        self.child_sgate.set_ep(None);
+        self.child_rgate.set_ep(None);
+
         if self.close {
             send_recv_res!(&self.parent_sgate, RecvGate::def(), PagerOp::CLOSE).ok();
         }

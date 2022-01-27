@@ -144,6 +144,11 @@ impl SendGate {
         self.gate.ep()
     }
 
+    /// Sets or unsets the endpoint.
+    pub(crate) fn set_ep(&mut self, ep: Option<EP>) {
+        self.gate.set_ep(ep);
+    }
+
     pub(crate) fn activate(&self) -> Result<&EP, Error> {
         self.gate.activate()
     }
