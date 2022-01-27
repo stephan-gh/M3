@@ -154,7 +154,7 @@ void VPE::obtain_fds() {
 
 void VPE::delegate(const KIF::CapRngDesc &crd, capsel_t dest) {
     Syscalls::exchange(sel(), crd, dest, false);
-      _next_sel = Math::max(_next_sel, dest + crd.count());
+    _next_sel = Math::max(_next_sel, dest + crd.count());
 }
 
 void VPE::obtain(const KIF::CapRngDesc &crd) {
