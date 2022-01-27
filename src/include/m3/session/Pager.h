@@ -68,12 +68,12 @@ public:
     const SendGate &own_sgate() const noexcept {
         return _own_sgate;
     }
+
     const SendGate &child_sgate() const noexcept {
         return _child_sgate;
     }
-
     const RecvGate &child_rgate() const noexcept {
-        return _rgate;
+        return _child_rgate;
     }
 
     void init(VPE &vpe, epid_t eps_start);
@@ -90,8 +90,8 @@ public:
 private:
     capsel_t get_sgate();
 
-    RecvGate _rgate;
     SendGate _own_sgate;
+    RecvGate _child_rgate;
     SendGate _child_sgate;
     std::unique_ptr<EP> _child_sep;
     std::unique_ptr<EP> _child_rep;

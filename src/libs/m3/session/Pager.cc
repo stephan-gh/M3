@@ -23,8 +23,8 @@ namespace m3 {
 Pager::Pager(capsel_t sess, bool)
     : RefCounted(),
       ClientSession(sess),
-      _rgate(RecvGate::create(nextlog2<64>::val, nextlog2<64>::val)),
       _own_sgate(SendGate::bind(get_sgate())),
+      _child_rgate(RecvGate::create(nextlog2<64>::val, nextlog2<64>::val)),
       _child_sgate(SendGate::bind(get_sgate())),
       _child_sep(),
       _child_rep(),
@@ -34,8 +34,8 @@ Pager::Pager(capsel_t sess, bool)
 Pager::Pager(capsel_t sess)
     : RefCounted(),
       ClientSession(sess),
-      _rgate(RecvGate::bind(ObjCap::INVALID, nextlog2<64>::val, nextlog2<64>::val)),
       _own_sgate(SendGate::bind(get_sgate())),
+      _child_rgate(RecvGate::bind(ObjCap::INVALID, nextlog2<64>::val, nextlog2<64>::val)),
       _child_sgate(SendGate::bind(ObjCap::INVALID)),
       _child_sep(),
       _child_rep(),
@@ -120,7 +120,7 @@ void Pager::init(VPE &vpe, epid_t eps_start) {
     _child_sep.reset(vpe.epmng().acquire(eps_start + TCU::PG_SEP_OFF));
     _child_sgate.activate_on(*_child_sep);
     _child_rep.reset(vpe.epmng().acquire(eps_start + TCU::PG_REP_OFF));
-    _rgate.Gate::activate_on(*_child_rep);
+    _child_rgate.Gate::activate_on(*_child_rep);
 
     // we only need to do that for clones
     if(_close) {
