@@ -19,17 +19,15 @@ use crate::mem;
 use crate::serialize::{copy_from_str, Source};
 
 /// Serializes state into a vector.
-pub struct StateSerializer {
-    vec: Vec<u64>,
+pub struct StateSerializer<'v> {
+    vec: &'v mut Vec<u64>,
 }
 
-impl Default for StateSerializer {
-    fn default() -> Self {
-        StateSerializer { vec: Vec::new() }
+impl<'v> StateSerializer<'v> {
+    pub fn new(vec: &'v mut Vec<u64>) -> Self {
+        Self { vec }
     }
-}
 
-impl StateSerializer {
     pub fn size(&self) -> usize {
         self.vec.len() * mem::size_of::<u64>()
     }

@@ -16,7 +16,6 @@
 
 //! The different types that are used to hold the current activity running on a VPE.
 
-use crate::env;
 use crate::errors::Error;
 use crate::kif;
 use crate::pes::VPE;
@@ -74,38 +73,6 @@ impl Activity for DeviceActivity {
 }
 
 impl Drop for DeviceActivity {
-    fn drop(&mut self) {
-        self.stop().ok();
-    }
-}
-
-/// The activity for [`VPE::run`].
-pub struct ClosureActivity {
-    vpe: VPE,
-    _closure: env::Closure,
-}
-
-impl ClosureActivity {
-    /// Creates a new `ClosureActivity` for the given VPE and closure.
-    pub fn new(vpe: VPE, closure: env::Closure) -> Self {
-        Self {
-            vpe,
-            _closure: closure,
-        }
-    }
-}
-
-impl Activity for ClosureActivity {
-    fn vpe(&self) -> &VPE {
-        &self.vpe
-    }
-
-    fn vpe_mut(&mut self) -> &mut VPE {
-        &mut self.vpe
-    }
-}
-
-impl Drop for ClosureActivity {
     fn drop(&mut self) {
         self.stop().ok();
     }

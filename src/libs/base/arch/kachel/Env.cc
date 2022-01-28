@@ -46,6 +46,7 @@ OStream &operator<<(OStream &os, const Env &senv) {
     os << "shared       : " << senv.shared << "\n";
     os << "first_std_ep : " << senv.first_std_ep << "\n";
     os << "first_sel    : " << senv.first_sel << "\n";
+    os << "vpe_id       : " << senv.vpe_id << "\n";
     os << "lambda       : " << fmt(senv.lambda, "p") << "\n";
     os << "rmng_sel     : " << senv.rmng_sel << "\n";
     os << "pager_sess   : " << senv.pager_sess << "\n";
@@ -53,7 +54,8 @@ OStream &operator<<(OStream &os, const Env &senv) {
     os << "mounts_len   : " << senv.mounts_len << "\n";
     os << "fds_addr     : " << senv.fds_addr << "\n";
     os << "fds_len      : " << fmt(senv.fds_len, "p") << "\n";
-    os << "backend_addr : " << fmt(senv.backend_addr, "p") << "\n";
+    os << "data_addr    : " << senv.data_addr << "\n";
+    os << "data_len     : " << fmt(senv.data_len, "p") << "\n";
     return os;
 }
 
@@ -66,17 +68,15 @@ void Env::call_constr() {
 void Env::run() {
     Env *e = env();
 
+    __m3_init_libc();
+    Env::init();
+
     int res;
     if(e->lambda) {
-        e->backend()->reinit();
-
-        std::function<int()> *f = reinterpret_cast<std::function<int()>*>(e->lambda);
-        res = (*f)();
+        auto func = reinterpret_cast<int(*)()>(e->lambda);
+        res = (*func)();
     }
     else {
-        __m3_init_libc();
-        Env::init();
-
         char **argv = reinterpret_cast<char**>(e->argv);
         if(sizeof(char*) != sizeof(uint64_t)) {
             uint64_t *argv64 = reinterpret_cast<uint64_t*>(e->argv);

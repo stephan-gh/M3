@@ -78,9 +78,6 @@ protected:
     void set_ep(EP *ep) noexcept {
         _ep = ep;
     }
-    void reset_ep(epid_t ep) noexcept {
-        _ep->set_id(ep);
-    }
 
     const EP &acquire_ep();
     void release_ep(VPE &vpe, bool force_inval = false) noexcept;

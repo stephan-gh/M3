@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use m3::boxed::Box;
 use m3::cell::StaticRefCell;
 use m3::com::MemGate;
 use m3::io;
@@ -53,7 +52,7 @@ fn child_to_parent() {
         );
         wv_assert_ok!(vpe.obtain_fds());
 
-        let act = wv_assert_ok!(vpe.run(Box::new(|| {
+        let act = wv_assert_ok!(vpe.run(|| {
             let output = VPE::cur().files().get(io::STDOUT_FILENO).unwrap();
             let buf = BUF.borrow();
             let mut rem = DATA_SIZE;
@@ -62,7 +61,7 @@ fn child_to_parent() {
                 rem -= BUF_SIZE;
             }
             0
-        })));
+        }));
 
         pipe.close_writer();
 
@@ -99,12 +98,12 @@ fn parent_to_child() {
         );
         wv_assert_ok!(vpe.obtain_fds());
 
-        let act = wv_assert_ok!(vpe.run(Box::new(|| {
+        let act = wv_assert_ok!(vpe.run(|| {
             let input = VPE::cur().files().get(io::STDIN_FILENO).unwrap();
             let mut buf = BUF.borrow_mut();
             while wv_assert_ok!(input.borrow_mut().read(&mut buf[..])) > 0 {}
             0
-        })));
+        }));
 
         pipe.close_reader();
 

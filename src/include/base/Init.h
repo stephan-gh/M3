@@ -34,5 +34,4 @@
 #define INIT_PRIO_VPE           INIT_PRIO(108)
 #define INIT_PRIO_VFS           INIT_PRIO(109)
 #define INIT_PRIO_STREAM        INIT_PRIO(110)
-
-#define INIT_PRIO_USER(X)       INIT_PRIO(200 + (X))
+#define INIT_PRIO_LAMBDA        INIT_PRIO(111)

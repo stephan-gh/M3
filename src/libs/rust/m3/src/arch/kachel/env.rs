@@ -15,16 +15,13 @@
  */
 
 use core::cmp;
-
-use base::tcu::VPEId;
+use core::intrinsics;
 
 use crate::cap::Selector;
 use crate::cfg;
+use crate::col::Vec;
 use crate::com::SendGate;
-use crate::env;
 use crate::kif::{self, PEDesc};
-use crate::mem;
-use crate::pes::VPE;
 use crate::serialize::Source;
 use crate::session::{Pager, ResMng};
 use crate::tcu;
@@ -102,21 +99,12 @@ impl EnvData {
         self.base.first_std_ep = start as u64;
     }
 
-    pub fn vpe_id(&self) -> VPEId {
-        self.base.vpe_id as VPEId
+    pub fn vpe_id(&self) -> tcu::VPEId {
+        self.base.vpe_id as tcu::VPEId
     }
 
-    pub fn set_vpe_id(&mut self, id: VPEId) {
+    pub fn set_vpe_id(&mut self, id: tcu::VPEId) {
         self.base.vpe_id = id as u64;
-    }
-
-    pub fn has_vpe(&self) -> bool {
-        self.base.vpe_addr != 0
-    }
-
-    pub fn vpe(&self) -> &'static mut VPE {
-        // safety: we trust our loader
-        unsafe { &mut *(self.base.vpe_addr as usize as *mut _) }
     }
 
     pub fn load_pager(&self) -> Option<Pager> {
@@ -167,18 +155,40 @@ impl EnvData {
         }
     }
 
+    pub fn load_data(&self) -> Vec<u64> {
+        if self.base.data_len != 0 {
+            // safety: we trust our loader
+            let slice = unsafe {
+                util::slice_for(
+                    self.base.data_addr as *const u64,
+                    self.base.data_len as usize,
+                )
+            };
+            slice.to_vec()
+        }
+        else {
+            Vec::default()
+        }
+    }
+
     // --- gem5 specific API ---
 
-    pub fn set_vpe(&mut self, vpe: &VPE) {
-        self.base.vpe_addr = vpe as *const VPE as u64;
+    pub fn load_closure(&self) -> Option<fn() -> i32> {
+        if self.base.closure != 0 {
+            // safety: we trust our loader
+            unsafe {
+                Some(intrinsics::transmute(
+                    self.base.closure as *mut u8 as *mut _,
+                ))
+            }
+        }
+        else {
+            None
+        }
     }
 
-    pub fn has_lambda(&self) -> bool {
-        self.base.lambda == 1
-    }
-
-    pub fn set_lambda(&mut self, lambda: bool) {
-        self.base.lambda = lambda as u64;
+    pub fn set_closure(&mut self, addr: usize) {
+        self.base.closure = addr as u64;
     }
 
     pub fn set_first_sel(&mut self, sel: Selector) {
@@ -199,6 +209,11 @@ impl EnvData {
         self.base.mounts_len = len as u64;
     }
 
+    pub fn set_data(&mut self, off: usize, len: usize) {
+        self.base.data_addr = off as u64;
+        self.base.data_len = len as u64;
+    }
+
     pub fn set_pager(&mut self, pager: &Pager) {
         self.base.pager_sess = pager.sel() as u64;
     }
@@ -207,9 +222,4 @@ impl EnvData {
 pub fn get() -> &'static mut EnvData {
     // safety: we trust our loader
     unsafe { &mut *(cfg::ENV_START as *mut _) }
-}
-
-pub fn closure() -> &'static mut env::Closure {
-    // safety: we trust our loader
-    unsafe { &mut *((cfg::ENV_START + mem::size_of::<EnvData>()) as *mut _) }
 }

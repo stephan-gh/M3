@@ -248,8 +248,6 @@ public:
     void drop_msgs_with(label_t label) noexcept;
 
 private:
-    static void reinit();
-
     void set_ep(epid_t ep) {
         Gate::set_ep(new EP(EP::bind(ep)));
     }

@@ -52,67 +52,25 @@ void VPE::init_fs() {
         env()->mounts_addr), env()->mounts_len));
     _fds.reset(FileTable::unserialize(reinterpret_cast<const void*>(
         env()->fds_addr), env()->fds_len));
+    memcpy(_data, reinterpret_cast<const void*>(env()->data_addr), env()->data_len);
 }
 
-void VPE::reset() noexcept {
-    // don't free the stuff of our parent
-    _self_ptr->_fds.release();
-    _self_ptr->_ms.release();
+void VPE::run(int (*func)()) {
+    char **argv = reinterpret_cast<char**>(env()->argv);
+    if(sizeof(char*) != sizeof(uint64_t)) {
+        uint64_t *argv64 = reinterpret_cast<uint64_t*>(env()->argv);
+        argv = new char*[env()->argc];
+        for(uint64_t i = 0; i < env()->argc; ++i)
+            argv[i] = reinterpret_cast<char*>(argv64[i]);
+    }
 
-    _self_ptr = reinterpret_cast<VPE*>(env()->vpe_addr);
-    _self_ptr->_pe->sel(KIF::SEL_PE);
-    _self_ptr->_kmem->sel(KIF::SEL_KMEM);
-    _self_ptr->sel(KIF::SEL_VPE);
-    _self_ptr->epmng().reset();
+    do_exec(env()->argc, const_cast<const char**>(argv), reinterpret_cast<uintptr_t>(func));
+
+    if(sizeof(char*) != sizeof(uint64_t))
+        delete[] argv;
 }
 
-void VPE::run(void *lambda) {
-    copy_sections();
-
-    Env senv;
-    senv.platform = env()->platform;
-    senv.pe_id = 0;
-    senv.pe_desc = _pe->desc().value();
-    senv.argc = env()->argc;
-    senv.argv = ENV_SPACE_START;
-    senv.heap_size = env()->heap_size;
-
-    senv.sp = CPU::stack_pointer();
-    senv.entry = get_entry();
-    senv.first_std_ep = _eps_start;
-    senv.first_sel = 0;
-
-    senv.lambda = reinterpret_cast<uintptr_t>(lambda);
-
-    senv.rmng_sel = KIF::INV_SEL;
-    senv.pager_sess = 0;
-    senv.mounts_addr = 0;
-    senv.mounts_len = 0;
-    senv.fds_addr = 0;
-    senv.fds_len = 0;
-
-    senv.vpe_id = _id;
-    uintptr_t vpe_addr = reinterpret_cast<uintptr_t>(this);
-    senv.vpe_addr = static_cast<uint64_t>(vpe_addr);
-    senv.backend_addr = env()->backend_addr;
-
-    goff_t env_page_off = ENV_START & ~PAGE_MASK;
-    MemGate env_mem = get_mem(env_page_off, ENV_SIZE, MemGate::W);
-
-    /* write start env to PE */
-    env_mem.write(&senv, sizeof(senv), ENV_START - env_page_off);
-
-    /* write args */
-    std::unique_ptr<char[]> buffer(new char[BUF_SIZE]);
-    size_t size = store_arguments(buffer.get(), static_cast<int>(env()->argc),
-        reinterpret_cast<const char**>(env()->argv));
-    env_mem.write(buffer.get(), size, ENV_START + sizeof(m3::Env) - env_page_off);
-
-    /* go! */
-    start();
-}
-
-void VPE::exec(int argc, const char **argv) {
+void VPE::do_exec(int argc, const char **argv, uintptr_t func_addr) {
     Env senv;
     std::unique_ptr<char[]> buffer(new char[BUF_SIZE]);
 
@@ -134,39 +92,45 @@ void VPE::exec(int argc, const char **argv) {
     senv.entry = entry;
     senv.first_std_ep = _eps_start;
     senv.first_sel = _next_sel;
-
-    senv.lambda = 0;
+    senv.vpe_id = _id;
 
     senv.rmng_sel = _resmng->sel();
     senv.pager_sess = _pager ? _pager->sel() : 0;
 
+    senv.lambda = func_addr;
+
     /* add mounts, fds, caps and eps */
     /* align it because we cannot necessarily read e.g. integers from unaligned addresses */
-    size_t offset = Math::round_up(size, sizeof(word_t));
-
-    senv.mounts_addr = ENV_SPACE_START + offset;
-    senv.mounts_len = _ms->serialize(buffer.get() + offset, ENV_SPACE_SIZE - offset);
-    offset = Math::round_up(offset + static_cast<size_t>(senv.mounts_len), sizeof(word_t));
-
-    senv.fds_addr = ENV_SPACE_START + offset;
-    senv.fds_len = _fds->serialize(buffer.get() + offset, ENV_SPACE_SIZE - offset);
-    offset = Math::round_up(offset + static_cast<size_t>(senv.fds_len), sizeof(word_t));
+    size_t env_size = Math::round_up(size, sizeof(word_t));
+    env_size = serialize_state(senv, buffer.get(), env_size);
 
     goff_t env_page_off = ENV_START & ~PAGE_MASK;
     MemGate env_mem = get_mem(env_page_off, ENV_SIZE, MemGate::W);
 
     /* write entire runtime stuff */
-    env_mem.write(buffer.get(), offset, ENV_START + sizeof(senv) - env_page_off);
-
-    senv.backend_addr = 0;
-    senv.vpe_addr = 0;
-    senv.vpe_id = _id;
+    env_mem.write(buffer.get(), env_size, ENV_START + sizeof(senv) - env_page_off);
 
     /* write start env to PE */
     env_mem.write(&senv, sizeof(senv), ENV_START - env_page_off);
 
     /* go! */
     start();
+}
+
+size_t VPE::serialize_state(Env &senv, char *buffer, size_t offset) {
+    senv.mounts_addr = ENV_SPACE_START + offset;
+    senv.mounts_len = _ms->serialize(buffer + offset, ENV_SPACE_SIZE - offset);
+    offset = Math::round_up(offset + static_cast<size_t>(senv.mounts_len), sizeof(word_t));
+
+    senv.fds_addr = ENV_SPACE_START + offset;
+    senv.fds_len = _fds->serialize(buffer + offset, ENV_SPACE_SIZE - offset);
+    offset = Math::round_up(offset + static_cast<size_t>(senv.fds_len), sizeof(word_t));
+
+    senv.data_addr = ENV_SPACE_START + offset;
+    senv.data_len = sizeof(_data);
+    memcpy(buffer + offset, _data, sizeof(_data));
+    offset = Math::round_up(offset + static_cast<size_t>(senv.data_len), sizeof(word_t));
+    return offset;
 }
 
 void VPE::clear_mem(MemGate &mem, char *buffer, size_t count, uintptr_t dest) {
@@ -253,7 +217,7 @@ void VPE::load(int argc, const char **argv, uintptr_t *entry, char *buffer, size
             VTHROW(Errors::INVALID_ELF, "Unable to read pheader at " << off);
 
         /* we're only interested in non-empty load segments */
-        if(pheader.p_type != PT_LOAD || pheader.p_memsz == 0 || skip_section(&pheader))
+        if(pheader.p_type != PT_LOAD || pheader.p_memsz == 0)
             continue;
 
         load_segment(pheader, buffer);
@@ -294,59 +258,6 @@ size_t VPE::store_arguments(char *buffer, int argc, const char **argv) {
 
 uintptr_t VPE::get_entry() {
     return reinterpret_cast<uintptr_t>(&_start);
-}
-
-void VPE::copy_sections() {
-    goff_t start_addr, end_addr;
-
-    if(_pager) {
-        if(VPE::self().pager()) {
-            _pager->clone();
-            // after cloning the address space we have to make sure that we don't have dirty cache lines
-            // anymore. otherwise, if our child takes over a frame from us later and we writeback such
-            // a cacheline afterwards, things break.
-            PEXIF::flush_invalidate();
-            return;
-        }
-
-        VTHROW(Errors::NOT_SUP, "Clone requires a pager");
-    }
-
-    if(pe_desc().has_virtmem())
-        VTHROW(Errors::NOT_SUP, "Clone with VM needs a pager");
-
-    // we cannot put this MemGate on the stack and free it here, because Gate keeps a list of all
-    // activated Gates (with pointers). Since we copy this list to the child with this code, the
-    // child will get the list with this MemGate included and thus accesses a part of the stack that
-    // has already been freed and reused for other things. To work around this problem, put it on
-    // the heap and free it afterwards (here, not in the child).
-    MemGate *mem = new MemGate(get_mem(0, MEM_OFFSET + pe_desc().mem_size(), MemGate::W));
-
-    /* copy text */
-    start_addr = reinterpret_cast<uintptr_t>(&_text_start);
-    end_addr = reinterpret_cast<uintptr_t>(&_text_end);
-    mem->write(reinterpret_cast<void*>(start_addr), end_addr - start_addr, start_addr);
-
-    /* copy data and heap */
-    start_addr = reinterpret_cast<uintptr_t>(&_data_start);
-    end_addr = Heap::used_end();
-    mem->write(reinterpret_cast<void*>(start_addr), end_addr - start_addr, start_addr);
-
-    /* copy end-area of heap */
-    start_addr = Heap::end_area();
-    mem->write(reinterpret_cast<void*>(start_addr), Heap::end_area_size(), start_addr);
-
-    /* copy stack */
-    start_addr = CPU::stack_pointer();
-    end_addr = pe_desc().stack_top();
-    mem->write(reinterpret_cast<void*>(start_addr), end_addr - start_addr, start_addr);
-
-    // since we have copied our heap now to the child, it's fine to delete it for us.
-    delete mem;
-}
-
-bool VPE::skip_section(ElfPh *) {
-    return false;
 }
 
 }

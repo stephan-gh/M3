@@ -37,13 +37,6 @@ public:
         Serial::init(reinterpret_cast<char*>(argv[0]), env()->pe_id);
     }
 
-    virtual void reinit() override {
-        init();
-        Syscalls::reinit();
-        RecvGate::reinit();
-        VPE::reset();
-    }
-
     NORETURN void exit(UNUSED int code) override {
         PEXIF::exit(code);
         UNREACHED;
@@ -53,8 +46,7 @@ public:
 void Env::init() {
     m3::Heap::init();
     std::set_terminate(Exception::terminate_handler);
-    uintptr_t addr = reinterpret_cast<uintptr_t>(new EnvUserBackend());
-    env()->backend_addr = static_cast<uint64_t>(addr);
+    env()->set_backend(new EnvUserBackend());
     env()->backend()->init();
     env()->call_constr();
 }

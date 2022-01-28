@@ -47,6 +47,16 @@ public:
      */
     static Semaphore create(uint value);
 
+    /**
+     * Binds a Semaphore object to the given selector
+     *
+     * @param sel the selector of an existing semaphore
+     * @return the semaphore
+     */
+    static Semaphore bind(capsel_t sel) {
+        return Semaphore(sel, KEEP_CAP);
+    }
+
     Semaphore(Semaphore &&sem) noexcept
         : ObjCap(std::move(sem)) {
     }

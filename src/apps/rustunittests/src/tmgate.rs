@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::boxed::Box;
+use m3::cap::Selector;
 use m3::cfg;
 use m3::com::{MGateArgs, MemGate, Perm, Semaphore};
 use m3::errors::Code;
@@ -134,9 +134,17 @@ fn remote_access() {
     wv_assert_ok!(child.delegate_obj(sem1.sel()));
     wv_assert_ok!(child.delegate_obj(sem2.sel()));
 
-    let sem1_sel = sem1.sel();
-    let sem2_sel = sem2.sel();
-    let mut act = wv_assert_ok!(child.run(Box::new(move || {
+    let mut dst = child.data_sink();
+    dst.push_word(virt as u64);
+    dst.push_word(sem1.sel());
+    dst.push_word(sem2.sel());
+
+    let mut act = wv_assert_ok!(child.run(|| {
+        let mut src = VPE::cur().data_source();
+        let virt: goff = src.pop().unwrap();
+        let sem1_sel: Selector = src.pop().unwrap();
+        let sem2_sel: Selector = src.pop().unwrap();
+
         let sem1 = Semaphore::bind(sem1_sel);
         let sem2 = Semaphore::bind(sem2_sel);
         // write value to own address space
@@ -147,7 +155,7 @@ fn remote_access() {
         // wait for parent
         wv_assert_ok!(sem2.down());
         0
-    })));
+    }));
 
     // wait until child is ready
     wv_assert_ok!(sem1.down());

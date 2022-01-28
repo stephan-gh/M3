@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use m3::boxed::Box;
 use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
 use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::rc::Rc;
@@ -51,11 +50,17 @@ fn pingpong_local() {
 fn pingpong_with_pe(name: &str, pe: Rc<PE>) {
     let mut vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("sender")));
 
-    let mut rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
+    let rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
+
     wv_assert_ok!(vpe.delegate_obj(rgate.sel()));
 
-    let act = wv_assert_ok!(vpe.run(Box::new(move || {
+    let mut dst = vpe.data_sink();
+    dst.push_word(rgate.sel());
+
+    let act = wv_assert_ok!(vpe.run(|| {
+        let rgate_sel = VPE::cur().data_source().pop_word().unwrap();
+        let mut rgate = RecvGate::new_bind(rgate_sel, MSG_ORD, MSG_ORD);
         wv_assert_ok!(rgate.activate());
         for _ in 0..RUNS + WARMUP {
             let mut msg = wv_assert_ok!(recv_msg(&rgate));
@@ -63,7 +68,7 @@ fn pingpong_with_pe(name: &str, pe: Rc<PE>) {
             wv_assert_ok!(reply_vmsg!(msg, 0u64));
         }
         0
-    })));
+    }));
 
     let mut prof = Profiler::default().repeats(RUNS).warmup(WARMUP);
 

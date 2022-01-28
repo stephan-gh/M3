@@ -31,7 +31,6 @@ namespace m3 {
 
 const size_t VPE::BUF_SIZE    = 4096;
 INIT_PRIO_VPE VPE VPE::_self;
-VPE *VPE::_self_ptr = &VPE::_self;
 
 VPEArgs::VPEArgs() noexcept
     : _rmng(nullptr),
@@ -192,6 +191,10 @@ int VPE::wait_async(event_t event) {
 
 int VPE::wait() {
     return wait_async(0);
+}
+
+void VPE::exec(int argc, const char **argv) {
+    do_exec(argc, argv, 0);
 }
 
 }

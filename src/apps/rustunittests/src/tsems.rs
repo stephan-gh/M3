@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::boxed::Box;
+use m3::cap::Selector;
 use m3::com::Semaphore;
 use m3::io::{Read, Write};
 use m3::pes::{Activity, PE, VPE};
@@ -57,10 +57,15 @@ fn taking_turns() {
     set_counter("/sem0", 0);
     set_counter("/sem1", 0);
 
-    let sem0_sel = sem0.sel();
-    let sem1_sel = sem1.sel();
+    let mut dst = child.data_sink();
+    dst.push_word(sem0.sel());
+    dst.push_word(sem1.sel());
 
-    let act = wv_assert_ok!(child.run(Box::new(move || {
+    let act = wv_assert_ok!(child.run(|| {
+        let mut src = VPE::cur().data_source();
+        let sem0_sel: Selector = src.pop().unwrap();
+        let sem1_sel: Selector = src.pop().unwrap();
+
         let sem0 = Semaphore::bind(sem0_sel);
         let sem1 = Semaphore::bind(sem1_sel);
         for i in 0..10 {
@@ -70,7 +75,7 @@ fn taking_turns() {
             wv_assert_ok!(sem1.up());
         }
         0
-    })));
+    }));
 
     for i in 0..10 {
         wv_assert_ok!(sem1.down());

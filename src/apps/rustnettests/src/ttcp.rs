@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::boxed::Box;
+use m3::cap::Selector;
 use m3::com::Semaphore;
 use m3::errors::Code;
 use m3::net::{Endpoint, IpAddr, State, StreamSocketArgs, TcpSocket};
@@ -153,10 +153,19 @@ fn nonblocking_server() {
     let mut vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("tcp-server")));
 
     let sem = wv_assert_ok!(Semaphore::create(0));
-    let sem_sel = sem.sel();
-    wv_assert_ok!(vpe.delegate_obj(sem_sel));
+    wv_assert_ok!(vpe.delegate_obj(sem.sel()));
 
-    let act = wv_assert_ok!(vpe.run(Box::new(move || {
+    let mut dst = vpe.data_sink();
+    dst.push_word(sem.sel());
+    dst.push_str(&m3::format!("{}", crate::NET0_IP.get()));
+    dst.push_str(&m3::format!("{}", crate::NET1_IP.get()));
+
+    let act = wv_assert_ok!(vpe.run(|| {
+        let mut src = VPE::cur().data_source();
+        let sem_sel: Selector = src.pop().unwrap();
+        let net0_ip: IpAddr = src.pop_str_slice().unwrap().parse().unwrap();
+        let net1_ip: IpAddr = src.pop_str_slice().unwrap().parse().unwrap();
+
         let sem = Semaphore::bind(sem_sel);
 
         let nm = wv_assert_ok!(NetworkManager::new("net1"));
@@ -178,17 +187,14 @@ fn nonblocking_server() {
             nm.wait(NetworkDirection::INPUT);
         }
 
-        wv_assert_eq!(
-            socket.local_endpoint(),
-            Some(Endpoint::new(crate::NET1_IP.get(), 3000))
-        );
-        wv_assert_eq!(socket.remote_endpoint().unwrap().addr, crate::NET0_IP.get());
+        wv_assert_eq!(socket.local_endpoint(), Some(Endpoint::new(net1_ip, 3000)));
+        wv_assert_eq!(socket.remote_endpoint().unwrap().addr, net0_ip);
 
         socket.set_blocking(true);
         wv_assert_ok!(socket.close());
 
         0
-    })));
+    }));
 
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
@@ -228,10 +234,17 @@ fn receive_after_close() {
     let mut vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("tcp-server")));
 
     let sem = wv_assert_ok!(Semaphore::create(0));
-    let sem_sel = sem.sel();
-    wv_assert_ok!(vpe.delegate_obj(sem_sel));
+    wv_assert_ok!(vpe.delegate_obj(sem.sel()));
 
-    let act = wv_assert_ok!(vpe.run(Box::new(move || {
+    let mut dst = vpe.data_sink();
+    dst.push_word(sem.sel());
+    dst.push_str(&m3::format!("{}", crate::NET0_IP.get()));
+
+    let act = wv_assert_ok!(vpe.run(|| {
+        let mut src = VPE::cur().data_source();
+        let sem_sel: Selector = src.pop().unwrap();
+        let net0_ip: IpAddr = src.pop_str_slice().unwrap().parse().unwrap();
+
         let sem = Semaphore::bind(sem_sel);
 
         let nm = wv_assert_ok!(NetworkManager::new("net1"));
@@ -243,7 +256,7 @@ fn receive_after_close() {
         wv_assert_ok!(sem.up());
 
         let ep = wv_assert_ok!(socket.accept());
-        wv_assert_eq!(ep.addr, crate::NET0_IP.get());
+        wv_assert_eq!(ep.addr, net0_ip);
         wv_assert_eq!(socket.state(), State::Connected);
 
         let mut buf = [0u8; 32];
@@ -254,7 +267,7 @@ fn receive_after_close() {
         wv_assert_eq!(socket.state(), State::Closed);
 
         0
-    })));
+    }));
 
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 

@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use m3::boxed::Box;
 use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::pexif;
 use m3::rc::Rc;
@@ -48,7 +47,7 @@ const PI_MAX: f64 = 3.143;
 fn calc_pi(pe: &Rc<PE>) {
     let vpe = wv_assert_ok!(VPE::new_with(pe.clone(), VPEArgs::new("t1")));
 
-    let act = wv_assert_ok!(vpe.run(Box::new(move || {
+    let act = wv_assert_ok!(vpe.run(|| {
         let steps = 1000;
         let mut pi = 3.0;
         let mut div = 3.0;
@@ -73,7 +72,7 @@ fn calc_pi(pe: &Rc<PE>) {
         wv_assert!(pi <= PI_MAX);
         println!("PI (Somayaji) on PE{} = {}", VPE::cur().pe_id(), pi);
         0
-    })));
+    }));
 
     let steps = 1000;
     let mut res = 1.0;

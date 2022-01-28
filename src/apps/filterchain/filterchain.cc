@@ -66,7 +66,14 @@ int main(int argc, char **argv) {
     t2.fds(VPE::self().fds());
     t2.obtain_fds();
     t2.delegate_obj(rgate.sel());
-    t2.run([&rgate] {
+
+    t2.data_sink() << rgate.sel();
+
+    t2.run([] {
+        capsel_t rgate_sel;
+        VPE::self().data_source() >> rgate_sel;
+        auto rgate = RecvGate::bind(rgate_sel, nextlog2<512>::val, nextlog2<64>::val);
+
         size_t count, total = 0;
         int finished = 0;
         while(!finished) {
@@ -88,7 +95,19 @@ int main(int argc, char **argv) {
     t1.delegate_obj(mem.sel());
     t1.delegate_obj(resmem.sel());
     t1.delegate_obj(sgate.sel());
-    t1.run([buffer, &mem, &sgate, &resmem, memSize] {
+
+    t1.data_sink() << mem.sel() << sgate.sel() << resmem.sel() << memSize;
+
+    t1.run([] {
+        capsel_t mem_sel, sgate_sel, resmem_sel;
+        size_t memSize;
+        VPE::self().data_source() >> mem_sel >> sgate_sel >> resmem_sel >> memSize;
+
+        uint *buffer = new uint[BUF_SIZE / sizeof(uint)];
+        MemGate mem = MemGate::bind(mem_sel);
+        SendGate sgate = SendGate::bind(sgate_sel);
+        MemGate resmem = MemGate::bind(resmem_sel);
+
         uint *result = new uint[BUF_SIZE / sizeof(uint)];
         size_t c = 0;
 

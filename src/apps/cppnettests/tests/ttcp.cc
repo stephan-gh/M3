@@ -128,10 +128,14 @@ NOINLINE static void nonblocking_server() {
     VPE vpe(pe, "tcp-server");
 
     auto sem = Semaphore::create(0);
-    auto sem_sel = sem.sel();
-    vpe.delegate_obj(sem_sel);
+    vpe.delegate_obj(sem.sel());
 
-    vpe.run([&sem] {
+    vpe.data_sink() << sem.sel();
+
+    vpe.run([] {
+        capsel_t sem_sel;
+        VPE::self().data_source() >> sem_sel;
+
         NetworkManager net("net1");
 
         auto socket = TcpSocket::create(net);
@@ -141,6 +145,7 @@ NOINLINE static void nonblocking_server() {
         socket->listen(3000);
         WVASSERTEQ(socket->state(), Socket::Listening);
 
+        auto sem = Semaphore::bind(sem_sel);
         sem.up();
 
         Endpoint remote_ep;
@@ -201,10 +206,14 @@ NOINLINE static void receive_after_close() {
     VPE vpe(pe, "tcp-server");
 
     auto sem = Semaphore::create(0);
-    auto sem_sel = sem.sel();
-    vpe.delegate_obj(sem_sel);
+    vpe.delegate_obj(sem.sel());
 
-    vpe.run([&sem] {
+    vpe.data_sink() << sem.sel();
+
+    vpe.run([] {
+        capsel_t sem_sel;
+        VPE::self().data_source() >> sem_sel;
+
         NetworkManager net("net1");
 
         auto socket = TcpSocket::create(net);
@@ -212,6 +221,7 @@ NOINLINE static void receive_after_close() {
         socket->listen(3000);
         WVASSERTEQ(socket->state(), Socket::Listening);
 
+        auto sem = Semaphore::bind(sem_sel);
         sem.up();
 
         Endpoint remote_ep;

@@ -30,6 +30,7 @@
 #include <m3/com/EPMng.h>
 #include <m3/com/MemGate.h>
 #include <m3/com/SendGate.h>
+#include <m3/com/Marshalling.h>
 #include <m3/pes/KMem.h>
 #include <m3/pes/PE.h>
 #include <m3/session/Pager.h>
@@ -88,6 +89,7 @@ class VPE : public ObjCap {
     friend class VFS;
 
     static const size_t BUF_SIZE;
+    static constexpr size_t DATA_SIZE = 256;
 
     explicit VPE();
 
@@ -96,7 +98,7 @@ public:
      * @return your own VPE
      */
     static VPE &self() noexcept {
-        return *_self_ptr;
+        return _self;
     }
 
     /**
@@ -222,6 +224,30 @@ public:
     void obtain_fds();
 
     /**
+     * Returns a marshaller for the VPE-local data.
+     *
+     * The marshaller overwrites the VPE-local data and will be transmitted to the VPE when calling
+     * VPE::run or VPE::exec.
+     *
+     * @return a marshaller to write to the VPE-local data
+     */
+    Marshaller data_sink() noexcept {
+        return Marshaller(_data, sizeof(_data));
+    }
+
+    /**
+     * Returns an unmarshaller for the VPE-local data.
+     *
+     * The source provides access to the VPE-local data that has been transmitted to this VPE from
+     * its parent during VPE::run or VPE::exec.
+     *
+     * @return an unmarshaller to read from the VPE-local data
+     */
+    Unmarshaller data_source() noexcept {
+        return Unmarshaller(_data, sizeof(_data));
+    }
+
+    /**
      * Allocates capability selectors.
      *
      * @param count the number of selectors
@@ -339,14 +365,16 @@ public:
     void exec(int argc, const char **argv);
 
     /**
-     * Clones this program onto this VPE and executes the given function.
+     * Executes the program of VPE::self() (argv[0]) on this VPE and calls the given function
+     * instead of main.
      *
-     * @param f the function to execute
+     * This has a few requirements/limitations:
+     * 1. the current binary has to be stored in a file system
+     * 2. this file system needs to be mounted for this VPE, such that argv[0] is the current binary
+     *
+     * @param func the function to execute
      */
-    void run(std::function<int()> f) {
-        std::unique_ptr<std::function<int()>> copy(new std::function<int()>(f));
-        run(copy.get());
-    }
+    void run(int (*func)());
 
 private:
     void mark_caps_allocated(capsel_t sel, uint count) {
@@ -357,15 +385,14 @@ private:
 
     void init_state();
     void init_fs();
-    void run(void *lambda);
+    void do_exec(int argc, const char **argv, uintptr_t func_addr);
     void load_segment(ElfPh &pheader, char *buffer);
     void load(int argc, const char **argv, uintptr_t *entry, char *buffer, size_t *size);
     void clear_mem(MemGate &mem, char *buffer, size_t count, uintptr_t dest);
+    size_t serialize_state(Env &senv, char *buffer, size_t offset);
     size_t store_arguments(char *buffer, int argc, const char **argv);
 
     uintptr_t get_entry();
-    static bool skip_section(ElfPh *ph);
-    void copy_sections();
 
     vpeid_t _id;
     Reference<class PE> _pe;
@@ -378,8 +405,8 @@ private:
     std::unique_ptr<MountTable> _ms;
     std::unique_ptr<FileTable> _fds;
     std::unique_ptr<FStream> _exec;
+    unsigned char _data[DATA_SIZE];
     static VPE _self;
-    static VPE *_self_ptr;
 };
 
 }

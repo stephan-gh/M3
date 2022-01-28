@@ -56,12 +56,6 @@ INIT_PRIO_RECVGATE RecvGate RecvGate::_default (
     KEEP_CAP
 );
 
-void RecvGate::reinit() {
-    _syscall.reset_ep(env()->first_std_ep + TCU::SYSC_REP_OFF);
-    _upcall.reset_ep(env()->first_std_ep + TCU::UPCALL_REP_OFF);
-    _default.reset_ep(env()->first_std_ep + TCU::DEF_REP_OFF);
-}
-
 void RecvGate::RecvGateWorkItem::work() {
     const TCU::Message *msg = _gate->fetch();
     if(msg) {

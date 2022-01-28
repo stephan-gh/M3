@@ -36,7 +36,7 @@ fn create() {
 // requires a PEMux with notification support
 #[cfg(not(target_vendor = "host"))]
 fn destroy() {
-    use m3::boxed::Box;
+    use m3::cap::Selector;
     use m3::com::{recv_msg, SGateArgs, SendGate};
     use m3::pes::{Activity, PE, VPE};
     use m3::{reply_vmsg, send_recv, wv_assert_eq, wv_assert_ok};
@@ -54,7 +54,13 @@ fn destroy() {
 
         wv_assert_ok!(child.delegate_obj(sg.sel()));
 
-        let act = wv_assert_ok!(child.run(Box::new(move || {
+        let mut dst = child.data_sink();
+        dst.push_word(sg.sel());
+
+        let act = wv_assert_ok!(child.run(|| {
+            let sg_sel: Selector = VPE::cur().data_source().pop().unwrap();
+            let sg = SendGate::new_bind(sg_sel);
+
             let mut i = 0;
             for _ in 0..10 {
                 wv_assert_ok!(send_recv!(&sg, RecvGate::def(), i, i + 1, i + 2));
@@ -65,7 +71,7 @@ fn destroy() {
                 Code::NoSEP
             );
             0
-        })));
+        }));
 
         wv_assert_ok!(rg.activate());
 

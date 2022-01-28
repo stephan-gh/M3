@@ -42,22 +42,19 @@ extern "C" {
 
 #[no_mangle]
 pub extern "C" fn env_run() {
-    let res = if arch::env::get().has_lambda() {
-        syscalls::reinit();
-        mem::reinit();
-        com::pre_init();
-        io::reinit();
-        pes::reinit();
-        arch::env::closure().call()
+    mem::heap::init();
+    syscalls::init();
+    com::pre_init();
+    pes::init();
+    io::init();
+    com::init();
+
+    let res = if let Some(cl) = arch::env::get().load_closure() {
+        cl()
     }
     else {
-        mem::heap::init();
-        syscalls::init();
-        com::pre_init();
-        pes::init();
-        io::init();
-        com::init();
         unsafe { main() }
     };
+
     exit(res)
 }

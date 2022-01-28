@@ -24,7 +24,6 @@ use crate::col::{String, Vec};
 use crate::com::SendGate;
 use crate::kif::{self, PEDesc, PEType, PEISA};
 use crate::libc;
-use crate::pes::VPE;
 use crate::serialize::Source;
 use crate::session::{Pager, ResMng};
 use crate::tcu::{EpId, Label, VPEId};
@@ -35,8 +34,6 @@ pub struct EnvData {
     sysc_lbl: Label,
     sysc_ep: EpId,
     _shm_prefix: String,
-
-    vpe: usize,
 }
 
 impl EnvData {
@@ -72,18 +69,6 @@ impl EnvData {
         self.base().argv as *const *const i8
     }
 
-    pub fn has_vpe(&self) -> bool {
-        self.vpe != 0
-    }
-
-    pub fn vpe(&self) -> &'static mut VPE {
-        unsafe { &mut *(self.vpe as *mut _) }
-    }
-
-    pub fn set_vpe(&mut self, vpe: &VPE) {
-        self.vpe = vpe as *const VPE as usize;
-    }
-
     pub fn first_std_ep(&self) -> EpId {
         0
     }
@@ -109,21 +94,38 @@ impl EnvData {
     }
 
     pub fn load_mounts(&self) -> MountTable {
-        match arch::loader::read_env_file("ms") {
+        match arch::loader::read_env_words("ms") {
             Some(ms) => MountTable::unserialize(&mut Source::new(&ms)),
             None => MountTable::default(),
         }
     }
 
     pub fn load_fds(&self) -> FileTable {
-        match arch::loader::read_env_file("fds") {
+        match arch::loader::read_env_words("fds") {
             Some(fds) => FileTable::unserialize(&mut Source::new(&fds)),
             None => FileTable::default(),
         }
     }
 
+    pub fn load_data(&self) -> Vec<u64> {
+        match arch::loader::read_env_words("data") {
+            Some(data) => data,
+            None => Vec::default(),
+        }
+    }
+
+    pub fn load_func(&self) -> Option<fn() -> i32> {
+        if let Some(addr) = arch::loader::read_env_words("lambda") {
+            // safety: we trust our loader
+            Some(unsafe { core::intrinsics::transmute(addr[0]) })
+        }
+        else {
+            None
+        }
+    }
+
     fn load_word(name: &str, default: u64) -> u64 {
-        match arch::loader::read_env_file(name) {
+        match arch::loader::read_env_words(name) {
             Some(buf) => Source::new(&buf).pop().unwrap(),
             None => default,
         }
@@ -181,15 +183,9 @@ pub fn init(argc: i32, argv: *const *const i8) {
         sysc_ep: read_line(fd).parse::<EpId>().unwrap(),
         sysc_crd: read_line(fd).parse::<u64>().unwrap(),
         _shm_prefix: shm_prefix,
-
-        vpe: 0,
     });
 
     unsafe {
         libc::close(fd);
     }
-}
-
-pub fn reinit() {
-    init(get().argc() as i32, get().argv());
 }

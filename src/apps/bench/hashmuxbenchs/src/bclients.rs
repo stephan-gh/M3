@@ -13,16 +13,17 @@
  */
 
 use crate::util;
-use m3::boxed::Box;
+
 use m3::cap::Selector;
 use m3::col::Vec;
 use m3::com::{
     recv_msg, recv_reply, GateIStream, MemGate, Perm, RecvGate, SGateArgs, SendGate, EP,
 };
-use m3::crypto::HashAlgorithm;
+use m3::crypto::{HashAlgorithm, HashType};
 use m3::errors::Error;
 use m3::mem::MsgBuf;
-use m3::pes::{Activity, ClosureActivity, PE, VPE};
+use m3::pes::{Activity, ExecActivity, StateSerializer, PE, VPE};
+use m3::serialize::{Source, Unmarshallable};
 use m3::session::HashSession;
 use m3::tcu::INVALID_EP;
 use m3::time::{CycleDuration, CycleInstant, Duration, Results};
@@ -46,16 +47,40 @@ fn _create_rgate(max_clients: usize) -> RecvGate {
 struct Client {
     _sgate: SendGate,
     mgate: MemGate,
-    act: ClosureActivity,
+    act: ExecActivity,
 }
 
 struct ClientParams {
     num: usize,
-    algo: &'static HashAlgorithm,
+    algo: HashType,
     size: usize,
     div: usize,
     warm: u32,
     runs: u32,
+}
+
+impl ClientParams {
+    fn serialize(&self, dst: &mut StateSerializer) {
+        dst.push_word(self.num as u64);
+        dst.push_word(self.algo.val);
+        dst.push_word(self.size as u64);
+        dst.push_word(self.div as u64);
+        dst.push_word(self.warm as u64);
+        dst.push_word(self.runs as u64);
+    }
+}
+
+impl Unmarshallable for ClientParams {
+    fn unmarshall(s: &mut Source) -> Result<Self, Error> {
+        Ok(ClientParams {
+            num: s.pop()?,
+            algo: s.pop()?,
+            size: s.pop()?,
+            div: s.pop()?,
+            warm: s.pop()?,
+            runs: s.pop()?,
+        })
+    }
 }
 
 /// Synchronize clients before each benchmark run or just the first one?
@@ -77,11 +102,12 @@ where
     let rgate = _create_rgate(1);
 
     let name = format!("hash-client{}", params.num);
+    let algo = HashAlgorithm::from_type(params.algo).unwrap();
 
     let mut res = Results::new(params.runs as usize);
     if SYNC_EVERY_RUN {
         for i in 0..(params.warm + params.runs) {
-            let hash = wv_assert_ok!(HashSession::new(&name, params.algo));
+            let hash = wv_assert_ok!(HashSession::new(&name, algo));
 
             // Wait until everyone is ready to start
             wv_assert_ok!(send_recv!(&sgate, &rgate, hash.ep().sel()));
@@ -109,7 +135,7 @@ where
         }
     }
     else {
-        let hash = wv_assert_ok!(HashSession::new(&name, params.algo));
+        let hash = wv_assert_ok!(HashSession::new(&name, algo));
 
         // Wait until everyone is ready to start
         wv_assert_ok!(send_recv!(&sgate, &rgate, hash.ep().sel()));
@@ -152,18 +178,27 @@ fn _start_client(params: ClientParams, rgate: &RecvGate, mgate: &MemGate) -> Cli
             .credits(1)
             .label(params.num as tcu::Label)
     ));
-    let sgate_sel = sgate.sel();
-    wv_assert_ok!(vpe.delegate_obj(sgate_sel));
+    wv_assert_ok!(vpe.delegate_obj(sgate.sel()));
 
     let mgate = wv_assert_ok!(mgate.derive(0, params.size, Perm::R));
 
     assert_eq!(params.size % params.div, 0);
     let slice = params.size / params.div;
 
+    let mut dst = vpe.data_sink();
+    dst.push_word(sgate.sel());
+    dst.push_word(slice as u64);
+    params.serialize(&mut dst);
+
     Client {
         _sgate: sgate,
         mgate,
-        act: wv_assert_ok!(vpe.run(Box::new(move || {
+        act: wv_assert_ok!(vpe.run(|| {
+            let mut src = VPE::cur().data_source();
+            let sgate_sel: Selector = src.pop().unwrap();
+            let slice: usize = src.pop().unwrap();
+            let params: ClientParams = src.pop().unwrap();
+
             let res = _run_client_bench(&params, sgate_sel, |hash| {
                 for off in (0..params.size).step_by(slice) {
                     log!(LOG_REQUESTS, "Sending request off {} len {}", off, slice);
@@ -177,12 +212,12 @@ fn _start_client(params: ClientParams, rgate: &RecvGate, mgate: &MemGate) -> Cli
                 "PERF \"hash {} bytes (slice: {} bytes) with {}\": {}\nthroughput {:.8} bytes/cycle",
                 params.size,
                 slice,
-                params.algo.name,
+                params.algo,
                 res,
                 params.size as f32 / res.avg().as_raw() as f32
             );
             0
-        }))),
+        })),
     }
 }
 
@@ -268,7 +303,7 @@ fn hashmux_clients() {
             clients.push(_start_client(
                 ClientParams {
                     num: c,
-                    algo: &HashAlgorithm::SHA3_256,
+                    algo: HashType::SHA3_256,
                     size: MAX_SIZE,
                     div: 1,
                     warm: 2,
@@ -293,7 +328,7 @@ fn hashmux_clients() {
             clients.push(_start_client(
                 ClientParams {
                     num: c,
-                    algo: &HashAlgorithm::SHA3_512,
+                    algo: HashType::SHA3_512,
                     size: MAX_SIZE,
                     div: if count <= 2 {
                         // Two client hashing with different slice size

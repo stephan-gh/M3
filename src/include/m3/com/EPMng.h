@@ -60,13 +60,6 @@ public:
     void release(EP *ep, bool invalidate) noexcept;
 
 private:
-    /**
-     * Resets the state of the EP switcher.
-     */
-    void reset() noexcept {
-        _eps.clear();
-    }
-
     VPE &_vpe;
     SList<EP> _eps;
 };

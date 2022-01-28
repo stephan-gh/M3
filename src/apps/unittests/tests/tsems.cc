@@ -45,6 +45,9 @@ static void taking_turns() {
     Semaphore sem0 = Semaphore::create(1);
     Semaphore sem1 = Semaphore::create(0);
 
+    set_counter("/sem0", 0);
+    set_counter("/sem1", 0);
+
     auto pe = PE::get("clone|own");
     VPE child(pe, "child");
 
@@ -54,10 +57,14 @@ static void taking_turns() {
     child.mounts(VPE::self().mounts());
     child.obtain_mounts();
 
-    set_counter("/sem0", 0);
-    set_counter("/sem1", 0);
+    child.data_sink() << sem0.sel() << sem1.sel();
 
-    child.run([&sem0, &sem1] {
+    child.run([] {
+        capsel_t sem0_sel, sem1_sel;
+        VPE::self().data_source() >> sem0_sel >> sem1_sel;
+
+        Semaphore sem0 = Semaphore::bind(sem0_sel);
+        Semaphore sem1 = Semaphore::bind(sem1_sel);
         for(int i = 0; i < 10; ++i) {
             sem0.down();
             WVASSERTEQ(get_counter("/sem0"), i);

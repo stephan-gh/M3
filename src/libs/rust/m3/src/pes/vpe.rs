@@ -20,10 +20,8 @@ use base::envdata;
 
 use core::cmp;
 use core::fmt;
-use core::ops::FnOnce;
 
 use crate::arch;
-use crate::boxed::Box;
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::cell::LazyStaticUnsafeCell;
 use crate::col::Vec;
@@ -33,7 +31,10 @@ use crate::errors::Error;
 use crate::goff;
 use crate::kif;
 use crate::kif::{CapRngDesc, CapType, PEDesc};
-use crate::pes::{ClosureActivity, DefaultMapper, DeviceActivity, ExecActivity, KMem, Mapper, PE};
+use crate::pes::{
+    DefaultMapper, DeviceActivity, ExecActivity, KMem, Mapper, StateDeserializer, StateSerializer,
+    PE,
+};
 use crate::pexif;
 use crate::rc::Rc;
 use crate::session::{Pager, ResMng};
@@ -57,6 +58,7 @@ pub struct VPE {
     pager: Option<Pager>,
     files: FileTable,
     mounts: MountTable,
+    data: Vec<u64>,
 }
 
 /// The arguments for [`VPE`] creations.
@@ -115,6 +117,7 @@ impl VPE {
             kmem: Rc::new(KMem::new(kif::SEL_KMEM)),
             files: FileTable::default(),
             mounts: MountTable::default(),
+            data: Vec::default(),
         }
     }
 
@@ -133,6 +136,7 @@ impl VPE {
         // mounts first; files depend on mounts
         self.mounts = env.load_mounts();
         self.files = env.load_fds();
+        self.data = env.load_data();
         self.epmng.reset();
     }
 
@@ -184,12 +188,7 @@ impl VPE {
 
     /// Returns the currently running [`VPE`].
     pub fn cur() -> &'static mut VPE {
-        if arch::env::get().has_vpe() {
-            arch::env::get().vpe()
-        }
-        else {
-            CUR.get_mut()
-        }
+        CUR.get_mut()
     }
 
     /// Creates a new `VPE` on PE `pe` with given name and default settings. The VPE provides access
@@ -215,6 +214,7 @@ impl VPE {
             pager: None,
             files: FileTable::default(),
             mounts: MountTable::default(),
+            data: Vec::default(),
         };
 
         let pager = if vpe.pe.desc().has_virtmem() {
@@ -313,6 +313,22 @@ impl VPE {
     /// Returns a mutable reference to the mount table of this VPE.
     pub fn mounts(&mut self) -> &mut MountTable {
         &mut self.mounts
+    }
+
+    /// Returns a sink for the VPE-local data
+    ///
+    /// The sink overwrites the VPE-local data and will be transmitted to the VPE when calling
+    /// [`VPE::run`] or [`VPE::exec`].
+    pub fn data_sink(&mut self) -> StateSerializer {
+        StateSerializer::new(&mut self.data)
+    }
+
+    /// Returns a source for the VPE-local data
+    ///
+    /// The source provides access to the VPE-local data that has been transmitted to this VPE from
+    /// its parent during [`VPE::run`] or [`VPE::exec`].
+    pub fn data_source(&self) -> StateDeserializer {
+        StateDeserializer::new(&self.data)
     }
 
     /// Returns a reference to the VPE's kernel memory.
@@ -442,131 +458,22 @@ impl VPE {
         act.start().map(|_| act)
     }
 
-    /// Clones the program running on [`VPE::cur`] to `self` and lets `self` execute the given
-    /// function.
+    /// Executes the program of `VPE::cur()` (`argv[0]`) on this VPE and calls the given function
+    /// instead of main.
     ///
-    /// The method returns the [`ClosureActivity`] on success that can be used to wait for the
-    /// functions completeness or to stop it.
-    #[cfg(not(target_vendor = "host"))]
-    pub fn run<F>(self, func: Box<F>) -> Result<ClosureActivity, Error>
-    where
-        F: FnOnce() -> i32 + Send + 'static,
-    {
-        use crate::cfg;
-        use crate::cpu;
-        use crate::errors::Code;
-        use crate::mem;
-        use crate::pes::Activity;
-
-        let env = arch::env::get();
-        let mut senv = arch::env::EnvData::default();
-
-        let closure = {
-            senv.set_platform(arch::env::get().platform());
-            senv.set_sp(cpu::stack_pointer());
-            let entry = match self.pager {
-                // clone via copy-on-write
-                Some(ref pg) => arch::loader::clone_vpe(pg),
-                // copy all regions to child
-                None if self.pe_desc().has_mem() => {
-                    let mem = self.get_mem(
-                        0,
-                        (cfg::MEM_OFFSET + self.pe_desc().mem_size()) as goff,
-                        kif::Perm::RW,
-                    )?;
-                    arch::loader::copy_vpe(self.pe_desc(), senv.sp(), mem)
-                },
-                // cloning with VM, but without pager is not supported
-                None => return Err(Error::new(Code::NotSup)),
-            }?;
-            senv.set_entry(entry);
-            senv.set_heap_size(env.heap_size());
-            senv.set_lambda(true);
-
-            // store VPE address to reuse it in the child
-            senv.set_vpe(&self);
-
-            // env goes first
-            let env_page_off = (cfg::ENV_START & !cfg::PAGE_MASK) as goff;
-            let mem = self.get_mem(env_page_off, cfg::ENV_SIZE as goff, kif::Perm::RW)?;
-            let mut off = cfg::ENV_START + mem::size_of_val(&senv);
-
-            // create and write closure
-            let closure = env::Closure::new(func);
-            mem.write_obj(&closure, off as goff - env_page_off)?;
-            off += mem::size_of_val(&closure);
-
-            // write args
-            senv.set_argc(env.argc());
-            senv.set_argv(arch::loader::write_arguments(&mem, &mut off, env::args())?);
-
-            senv.set_first_std_ep(self.eps_start);
-            senv.set_pedesc(self.pe_desc());
-            senv.set_vpe_id(self.id());
-
-            // write start env to PE
-            mem.write_obj(&senv, cfg::ENV_START as goff - env_page_off)?;
-
-            closure
-        };
-
-        // go!
-        let act = ClosureActivity::new(self, closure);
-        act.start().map(|_| act)
-    }
-
-    /// Clones the program running on [`VPE::cur`] to `self` and lets `self` execute the given
-    /// function.
+    /// This has a few requirements/limitations:
+    /// 1. the current binary has to be stored in a file system
+    /// 2. this file system needs to be mounted for this VPE, such that `argv[0]` is the current binary
     ///
-    /// The method returns the [`ClosureActivity`] on success that can be used to wait for the
+    /// The method returns the [`ExecActivity`] on success that can be used to wait for the
     /// functions completeness or to stop it.
-    #[cfg(target_vendor = "host")]
-    pub fn run<F>(self, func: Box<F>) -> Result<ClosureActivity, Error>
-    where
-        F: FnOnce() -> i32 + Send + 'static,
-    {
-        use crate::errors::Code;
-        use crate::libc;
-        use crate::pes;
+    pub fn run(self, func: fn() -> i32) -> Result<ExecActivity, Error> {
+        let args = env::args().collect::<Vec<_>>();
+        let file = VFS::open(args[0].as_ref(), OpenFlags::RX | OpenFlags::NEW_SESS)?;
+        let mut mapper = DefaultMapper::new(self.pe_desc().has_virtmem());
 
-        let mut closure = env::Closure::new(func);
-
-        let mut p2c = arch::loader::Channel::new()?;
-        let mut c2p = arch::loader::Channel::new()?;
-
-        match unsafe { libc::fork() } {
-            -1 => Err(Error::new(Code::OutOfMem)),
-
-            0 => {
-                // wait until the env file has been written by the kernel
-                p2c.wait();
-
-                arch::env::reinit();
-                arch::env::get().set_vpe(&self);
-                pes::reinit();
-                syscalls::reinit();
-                crate::com::pre_init();
-                crate::com::init();
-                crate::io::reinit();
-                arch::tcu::init();
-
-                c2p.signal();
-
-                let res = closure.call();
-                unsafe { libc::exit(res) };
-            },
-
-            pid => {
-                // let the kernel create the config-file etc. for the given pid
-                syscalls::vpe_ctrl(self.sel(), kif::syscalls::VPEOp::START, pid as u64).unwrap();
-
-                p2c.signal();
-                // wait until the TCU sockets have been binded
-                c2p.wait();
-
-                Ok(ClosureActivity::new(self, closure))
-            },
-        }
+        let func_addr = func as *const () as usize;
+        self.do_exec_file(&mut mapper, file, &args, Some(func_addr))
     }
 
     /// Executes the given program and arguments on `self`.
@@ -576,7 +483,6 @@ impl VPE {
     pub fn exec<S: AsRef<str>>(self, args: &[S]) -> Result<ExecActivity, Error> {
         let file = VFS::open(args[0].as_ref(), OpenFlags::RX | OpenFlags::NEW_SESS)?;
         let mut mapper = DefaultMapper::new(self.pe_desc().has_virtmem());
-        #[allow(clippy::unnecessary_mut_passed)] // only mutable on gem5
         self.exec_file(&mut mapper, file, args)
     }
 
@@ -588,17 +494,27 @@ impl VPE {
     ///
     /// The method returns the [`ExecActivity`] on success that can be used to wait for the
     /// program completeness or to stop it.
+    pub fn exec_file<S: AsRef<str>>(
+        self,
+        mapper: &mut dyn Mapper,
+        file: FileRef,
+        args: &[S],
+    ) -> Result<ExecActivity, Error> {
+        self.do_exec_file(mapper, file, args, None)
+    }
+
     #[cfg(not(target_vendor = "host"))]
     #[allow(unused_mut)]
-    pub fn exec_file<S: AsRef<str>>(
-        mut self,
+    fn do_exec_file<S: AsRef<str>>(
+        self,
         mapper: &mut dyn Mapper,
         mut file: FileRef,
         args: &[S],
+        closure: Option<usize>,
     ) -> Result<ExecActivity, Error> {
         use crate::cfg;
         use crate::mem;
-        use crate::pes::{Activity, StateSerializer};
+        use crate::pes::Activity;
 
         let mut file = BufReader::new(file);
 
@@ -620,7 +536,8 @@ impl VPE {
 
             // write file table
             {
-                let mut fds = StateSerializer::default();
+                let mut fds_vec = Vec::new();
+                let mut fds = StateSerializer::new(&mut fds_vec);
                 self.files.serialize(&mut fds);
                 let words = fds.words();
                 mem.write_bytes(
@@ -634,7 +551,8 @@ impl VPE {
 
             // write mounts table
             {
-                let mut mounts = StateSerializer::default();
+                let mut mounts_vec = Vec::new();
+                let mut mounts = StateSerializer::new(&mut mounts_vec);
                 self.mounts.serialize(&mut mounts);
                 let words = mounts.words();
                 mem.write_bytes(
@@ -643,6 +561,23 @@ impl VPE {
                     off as goff - env_page_off,
                 )?;
                 senv.set_mounts(off, mounts.size());
+                off += mounts.size();
+            }
+
+            // write data
+            {
+                let size = self.data.len() * mem::size_of::<u64>();
+                mem.write_bytes(
+                    self.data.as_ptr() as *const u8,
+                    size,
+                    off as goff - env_page_off,
+                )?;
+                senv.set_data(off, size);
+            }
+
+            // write closure
+            if let Some(addr) = closure {
+                senv.set_closure(addr);
             }
 
             senv.set_first_std_ep(self.eps_start);
@@ -672,21 +607,16 @@ impl VPE {
         act.start().map(|_| act)
     }
 
-    /// Executes the program given as a [`FileRef`] on `self`, using `mapper` to initiate the
-    /// address space and `args` as the arguments.
-    ///
-    /// The method returns the [`ExecActivity`] on success that can be used to wait for the
-    /// program completeness or to stop it.
     #[cfg(target_vendor = "host")]
-    pub fn exec_file<S: AsRef<str>>(
+    fn do_exec_file<S: AsRef<str>>(
         self,
         _mapper: &dyn Mapper,
         mut file: FileRef,
         args: &[S],
+        closure: Option<usize>,
     ) -> Result<ExecActivity, Error> {
         use crate::errors::Code;
         use crate::libc;
-        use crate::pes::StateSerializer;
 
         let path = arch::loader::copy_file(&mut file)?;
 
@@ -703,22 +633,34 @@ impl VPE {
                 let pid = unsafe { libc::getpid() };
 
                 // tell child about fd to notify parent if TCU is ready
-                arch::loader::write_env_value(pid, "tcurdy", c2p.fds()[1] as u64);
+                arch::loader::write_env_values(pid, "tcurdy", &[c2p.fds()[1] as u64]);
 
                 // write nextsel, eps, rmng, and kmem
-                arch::loader::write_env_value(pid, "nextsel", u64::from(self.next_sel));
-                arch::loader::write_env_value(pid, "rmng", u64::from(self.resmng().unwrap().sel()));
-                arch::loader::write_env_value(pid, "kmem", u64::from(self.kmem.sel()));
+                arch::loader::write_env_values(pid, "nextsel", &[u64::from(self.next_sel)]);
+                arch::loader::write_env_values(pid, "rmng", &[u64::from(
+                    self.resmng().unwrap().sel(),
+                )]);
+                arch::loader::write_env_values(pid, "kmem", &[u64::from(self.kmem.sel())]);
+
+                // write closure
+                if let Some(addr) = closure {
+                    arch::loader::write_env_values(pid, "lambda", &[addr as u64]);
+                }
 
                 // write file table
-                let mut fds = StateSerializer::default();
+                let mut fds_vec = Vec::new();
+                let mut fds = StateSerializer::new(&mut fds_vec);
                 self.files.serialize(&mut fds);
-                arch::loader::write_env_file(pid, "fds", fds.words());
+                arch::loader::write_env_values(pid, "fds", fds.words());
 
                 // write mounts table
-                let mut mounts = StateSerializer::default();
+                let mut mounts_vec = Vec::new();
+                let mut mounts = StateSerializer::new(&mut mounts_vec);
                 self.mounts.serialize(&mut mounts);
-                arch::loader::write_env_file(pid, "ms", mounts.words());
+                arch::loader::write_env_values(pid, "ms", mounts.words());
+
+                // write data
+                arch::loader::write_env_values(pid, "data", &self.data);
 
                 arch::loader::exec(args, &path);
             },
@@ -746,13 +688,4 @@ impl fmt::Debug for VPE {
 pub(crate) fn init() {
     CUR.set(VPE::new_cur());
     VPE::cur().init();
-}
-
-pub(crate) fn reinit() {
-    VPE::cur().cap.set_flags(CapFlags::KEEP_CAP);
-    VPE::cur().cap = Capability::new(kif::SEL_VPE, CapFlags::KEEP_CAP);
-    // be careful not to destruct the object
-    VPE::cur().pe.set_sel(kif::SEL_PE);
-    VPE::cur().kmem = Rc::new(KMem::new(kif::SEL_KMEM));
-    VPE::cur().epmng_mut().reset();
 }

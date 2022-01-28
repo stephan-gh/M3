@@ -142,10 +142,6 @@ impl PE {
     pub fn set_quota(&self, time: u64, pts: u64) -> Result<(), Error> {
         syscalls::pe_set_quota(self.sel(), time, pts)
     }
-
-    pub(crate) fn set_sel(&self, sel: Selector) {
-        self.cap.set_sel(sel);
-    }
 }
 
 impl Drop for PE {

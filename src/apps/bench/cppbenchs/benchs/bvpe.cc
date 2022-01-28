@@ -47,12 +47,20 @@ NOINLINE static void run() {
     for(ulong i = 0; i < warmup + repeats; ++i) {
         VPE vpe(pe, "hello");
 
-        vpe.delegate_obj(sgate.sel());
+        capsel_t sgate_sel = sgate.sel();
+        vpe.delegate_obj(sgate_sel);
 
         auto start = CycleInstant::now();
-        vpe.run([start, &sgate]() {
+        vpe.data_sink() << start.as_cycles() << sgate_sel;
+
+        vpe.run([]() {
+            capsel_t sgate_sel;
+            uint64_t start;
+            VPE::self().data_source() >> start >> sgate_sel;
+
+            auto sgate = SendGate::bind(sgate_sel);
             auto end = CycleInstant::now();
-            send_vmsg(sgate, end.duration_since(start).as_raw());
+            send_vmsg(sgate, end.duration_since(CycleInstant::from_cycles(start)).as_raw());
             return 0;
         });
 

@@ -65,19 +65,25 @@ int main(int argc, char **argv) {
 
     // write data into memory
     for(size_t i = 0; i < vpes; ++i) {
-        MemGate &vpemem = worker[i]->submem;
-        worker[i]->vpe.run([&vpemem, SUBAREA_SIZE] {
+        worker[i]->vpe.data_sink() << worker[i]->submem.sel() << SUBAREA_SIZE;
+
+        worker[i]->vpe.run([] {
+            capsel_t mem_sel;
+            size_t mem_size;
+            VPE::self().data_source() >> mem_sel >> mem_size;
+            MemGate mem = MemGate::bind(mem_sel);
+
             uint *buffer = new uint[BUF_SIZE / sizeof(uint)];
-            size_t rem = SUBAREA_SIZE;
+            size_t rem = mem_size;
             size_t offset = 0;
             while(rem > 0) {
                 for(size_t i = 0; i < BUF_SIZE / sizeof(uint); ++i)
                     buffer[i] = i;
-                vpemem.write(buffer, BUF_SIZE, offset);
+                mem.write(buffer, BUF_SIZE, offset);
                 offset += BUF_SIZE;
                 rem -= BUF_SIZE;
             }
-            cout << "Memory initialization of " << SUBAREA_SIZE << " bytes finished\n";
+            cout << "Memory initialization of " << mem_size << " bytes finished\n";
             return 0;
         });
     }
@@ -89,16 +95,23 @@ int main(int argc, char **argv) {
     // now build the checksum
     for(size_t i = 0; i < vpes; ++i) {
         worker[i]->vpe.delegate_obj(worker[i]->sgate.sel());
-        MemGate &vpemem = worker[i]->submem;
-        SendGate &vpegate = worker[i]->sgate;
-        worker[i]->vpe.run([&vpemem, &vpegate, SUBAREA_SIZE] {
+
+        worker[i]->vpe.data_sink() << worker[i]->submem.sel() << worker[i]->sgate.sel() << SUBAREA_SIZE;
+
+        worker[i]->vpe.run([] {
+            capsel_t mem_sel, sgate_sel;
+            size_t mem_size;
+            VPE::self().data_source() >> mem_sel >> sgate_sel >> mem_size;
+            MemGate mem = MemGate::bind(mem_sel);
+            SendGate sgate = SendGate::bind(sgate_sel);
+
             uint *buffer = new uint[BUF_SIZE / sizeof(uint)];
 
             uint checksum = 0;
-            size_t rem = SUBAREA_SIZE;
+            size_t rem = mem_size;
             size_t offset = 0;
             while(rem > 0) {
-                vpemem.read(buffer, BUF_SIZE, offset);
+                mem.read(buffer, BUF_SIZE, offset);
                 for(size_t i = 0; i < BUF_SIZE / sizeof(uint); ++i)
                     checksum += buffer[i];
                 offset += BUF_SIZE;
@@ -106,7 +119,7 @@ int main(int argc, char **argv) {
             }
 
             cout << "Checksum for sub area finished\n";
-            send_vmsg(vpegate, checksum);
+            send_vmsg(sgate, checksum);
             return 0;
         });
     }

@@ -70,10 +70,6 @@ impl Capability {
         self.flags = flags;
     }
 
-    pub(crate) fn set_sel(&self, sel: Selector) {
-        self.sel.set(sel);
-    }
-
     fn release(&mut self) {
         if (self.flags & CapFlags::KEEP_CAP).is_empty() {
             let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, self.sel(), 1);

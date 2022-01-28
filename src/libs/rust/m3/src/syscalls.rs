@@ -624,7 +624,3 @@ pub(crate) fn init() {
         env.first_std_ep() + SYSC_SEP_OFF,
     ));
 }
-
-pub(crate) fn reinit() {
-    init();
-}

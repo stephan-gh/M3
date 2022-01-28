@@ -53,14 +53,6 @@ pub(crate) fn init() {
     std::init();
 }
 
-pub(crate) fn reinit() {
-    ::base::io::reinit(
-        envdata::get().pe_id,
-        env::args().next().unwrap_or("Unknown"),
-    );
-    std::reinit();
-}
-
 pub(crate) fn deinit() {
     std::deinit();
 }

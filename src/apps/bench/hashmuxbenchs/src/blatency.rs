@@ -13,11 +13,12 @@
  */
 
 use crate::util;
-use m3::boxed::Box;
+
+use m3::cap::Selector;
 use m3::col::Vec;
 use m3::com::{MemGate, Perm, Semaphore};
 use m3::crypto::HashAlgorithm;
-use m3::pes::{Activity, ClosureActivity, PE, VPE};
+use m3::pes::{Activity, ExecActivity, PE, VPE};
 use m3::session::HashSession;
 use m3::test;
 use m3::time::{CycleDuration, CycleInstant, Results, TimeDuration, TimeInstant};
@@ -33,7 +34,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 
 struct Client {
     _mgate: MemGate,
-    act: ClosureActivity,
+    act: ExecActivity,
 }
 
 fn _start_background_client(num: usize, mgate: &MemGate, sem: &Semaphore, size: usize) -> Client {
@@ -43,14 +44,24 @@ fn _start_background_client(num: usize, mgate: &MemGate, sem: &Semaphore, size: 
     let mut vpe = wv_assert_ok!(VPE::new(pe, &format!("hash-c{}", num)));
     let mgate = wv_assert_ok!(mgate.derive(0, size, Perm::R));
 
-    let sem_sel = sem.sel();
-    let mgate_sel = mgate.sel();
-    wv_assert_ok!(vpe.delegate_obj(sem_sel));
-    wv_assert_ok!(vpe.delegate_obj(mgate_sel));
+    wv_assert_ok!(vpe.delegate_obj(sem.sel()));
+    wv_assert_ok!(vpe.delegate_obj(mgate.sel()));
+
+    let mut dst = vpe.data_sink();
+    dst.push_word(sem.sel());
+    dst.push_word(mgate.sel());
+    dst.push_word(num as u64);
+    dst.push_word(size as u64);
 
     Client {
         _mgate: mgate,
-        act: wv_assert_ok!(vpe.run(Box::new(move || {
+        act: wv_assert_ok!(vpe.run(|| {
+            let mut src = VPE::cur().data_source();
+            let sem_sel: Selector = src.pop().unwrap();
+            let mgate_sel: Selector = src.pop().unwrap();
+            let num: usize = src.pop().unwrap();
+            let size: usize = src.pop().unwrap();
+
             let sem = Semaphore::bind(sem_sel);
             let hash = wv_assert_ok!(HashSession::new(&format!("hash-client{}", num), SLOW_ALGO));
             wv_assert_ok!(hash.ep().configure(mgate_sel));
@@ -62,7 +73,7 @@ fn _start_background_client(num: usize, mgate: &MemGate, sem: &Semaphore, size: 
                 log!(LOG_DEBUG, "Starting to hash {} bytes", size);
                 wv_assert_ok!(hash.input(0, size));
             }
-        }))),
+        })),
     }
 }
 

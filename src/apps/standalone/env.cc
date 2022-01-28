@@ -91,10 +91,6 @@ public:
         m3::Serial::init("standalone", m3::env()->pe_id);
     }
 
-    virtual void reinit() override {
-        // not used
-    }
-
     virtual bool extend_heap(size_t) override {
         return false;
     }
@@ -108,7 +104,7 @@ extern void *_bss_end;
 
 void m3::Env::init() {
     m3::Heap::init();
-    env()->backend_addr = reinterpret_cast<uint64_t>(new StandaloneEnvBackend());
+    env()->set_backend(new StandaloneEnvBackend());
     env()->backend()->init();
     env()->call_constr();
 }

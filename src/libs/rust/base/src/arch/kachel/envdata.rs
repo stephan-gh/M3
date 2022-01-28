@@ -27,7 +27,7 @@ pub struct EnvData {
     pub argv: u64,
     pub heap_size: u64,
     pub kenv: u64,
-    pub lambda: u64,
+    pub closure: u64,
 
     // set by PEMux
     pub shared: u64,
@@ -37,6 +37,7 @@ pub struct EnvData {
     pub entry: u64,
     pub first_std_ep: u64,
     pub first_sel: u64,
+    pub vpe_id: u64,
 
     pub rmng_sel: u64,
     pub pager_sess: u64,
@@ -47,9 +48,11 @@ pub struct EnvData {
     pub fds_addr: u64,
     pub fds_len: u64,
 
-    pub vpe_id: u64,
-    pub vpe_addr: u64,
-    pub backend_addr: u64,
+    pub data_addr: u64,
+    pub data_len: u64,
+
+    // only used in C++
+    pub _backend: u64,
 }
 
 pub fn get() -> &'static EnvData {

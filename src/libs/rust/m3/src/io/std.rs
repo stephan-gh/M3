@@ -16,7 +16,6 @@
 
 use crate::cell::{LazyStaticRefCell, RefCell, RefMut};
 use crate::io::Serial;
-use crate::mem;
 use crate::pes::VPE;
 use crate::rc::Rc;
 use crate::vfs::{BufReader, BufWriter, Fd, FileRef};
@@ -66,13 +65,6 @@ pub(crate) fn init() {
     STDIN.set(create_in(STDIN_FILENO));
     STDOUT.set(create_out(STDOUT_FILENO));
     STDERR.set(create_out(STDERR_FILENO));
-}
-
-pub(crate) fn reinit() {
-    mem::forget(STDIN.unset());
-    mem::forget(STDOUT.unset());
-    mem::forget(STDERR.unset());
-    init();
 }
 
 pub(crate) fn deinit() {

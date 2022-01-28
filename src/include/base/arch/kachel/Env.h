@@ -38,7 +38,6 @@ class Gem5EnvBackend : public EnvBackend {
 
 public:
     virtual void init() = 0;
-    virtual void reinit() = 0;
 };
 
 struct BootEnv {
@@ -63,6 +62,7 @@ public:
     uint64_t entry;
     uint64_t first_std_ep;
     uint64_t first_sel;
+    uint64_t vpe_id;
 
     uint64_t rmng_sel;
     uint64_t pager_sess;
@@ -73,12 +73,14 @@ public:
     uint64_t fds_addr;
     uint64_t fds_len;
 
-    uint64_t vpe_id;
-    uint64_t vpe_addr;
-    uint64_t backend_addr;
+    uint64_t data_addr;
+    uint64_t data_len;
 
     Gem5EnvBackend *backend() {
-        return reinterpret_cast<Gem5EnvBackend*>(backend_addr);
+        return _backend;
+    }
+    void set_backend(Gem5EnvBackend *backend) {
+        _backend = backend;
     }
 
     static void init() asm("env_init");
@@ -88,6 +90,8 @@ public:
 
 private:
     void call_constr();
+
+    Gem5EnvBackend *_backend;
 } PACKED;
 
 #define ENV_SPACE_SIZE           (ENV_SIZE - (sizeof(word_t) * 2 + sizeof(m3::Env)))

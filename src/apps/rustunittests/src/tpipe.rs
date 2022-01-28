@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use m3::boxed::Box;
 use m3::col::String;
 use m3::com::MemGate;
 use m3::errors::Code;
@@ -48,10 +47,10 @@ fn child_to_parent() {
     );
     wv_assert_ok!(vpe.obtain_fds());
 
-    let act = wv_assert_ok!(vpe.run(Box::new(|| {
+    let act = wv_assert_ok!(vpe.run(|| {
         println!("This is a test!");
         0
-    })));
+    }));
 
     pipe.close_writer();
 
@@ -75,11 +74,11 @@ fn parent_to_child() {
     );
     wv_assert_ok!(vpe.obtain_fds());
 
-    let act = wv_assert_ok!(vpe.run(Box::new(|| {
+    let act = wv_assert_ok!(vpe.run(|| {
         let s = wv_assert_ok!(io::stdin().read_to_string());
         wv_assert_eq!(s, "This is a test!\n");
         0
-    })));
+    }));
 
     pipe.close_reader();
 
@@ -111,16 +110,16 @@ fn child_to_child() {
     wv_assert_ok!(writer.obtain_fds());
     wv_assert_ok!(reader.obtain_fds());
 
-    let wr_act = wv_assert_ok!(writer.run(Box::new(|| {
+    let wr_act = wv_assert_ok!(writer.run(|| {
         println!("This is a test!");
         0
-    })));
+    }));
 
-    let rd_act = wv_assert_ok!(reader.run(Box::new(|| {
+    let rd_act = wv_assert_ok!(reader.run(|| {
         let s = wv_assert_ok!(io::stdin().read_to_string());
         wv_assert_eq!(s, "This is a test!\n");
         0
-    })));
+    }));
 
     pipe.close_reader();
     pipe.close_writer();
@@ -151,11 +150,11 @@ fn exec_child_to_child() {
 
     let wr_act = wv_assert_ok!(writer.exec(&["/bin/hello"]));
 
-    let rd_act = wv_assert_ok!(reader.run(Box::new(|| {
+    let rd_act = wv_assert_ok!(reader.run(|| {
         let s = wv_assert_ok!(io::stdin().read_to_string());
         wv_assert_eq!(s, "Hello World\n");
         0
-    })));
+    }));
 
     pipe.close_reader();
     pipe.close_writer();
@@ -177,11 +176,11 @@ fn writer_quit() {
     );
     wv_assert_ok!(vpe.obtain_fds());
 
-    let act = wv_assert_ok!(vpe.run(Box::new(|| {
+    let act = wv_assert_ok!(vpe.run(|| {
         println!("This is a test!");
         println!("This is a test!");
         0
-    })));
+    }));
 
     pipe.close_writer();
 
@@ -215,12 +214,12 @@ fn reader_quit() {
     );
     wv_assert_ok!(vpe.obtain_fds());
 
-    let act = wv_assert_ok!(vpe.run(Box::new(|| {
+    let act = wv_assert_ok!(vpe.run(|| {
         let mut s = String::new();
         wv_assert_eq!(io::stdin().read_line(&mut s), Ok(15));
         wv_assert_eq!(s, "This is a test!");
         0
-    })));
+    }));
 
     pipe.close_reader();
 

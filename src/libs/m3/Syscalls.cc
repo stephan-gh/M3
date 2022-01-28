@@ -27,10 +27,6 @@ INIT_PRIO_SYSCALLS SendGate Syscalls::_sendgate(KIF::INV_SEL, ObjCap::KEEP_CAP,
                                                 &RecvGate::syscall(),
                                                 env()->first_std_ep + TCU::SYSC_SEP_OFF);
 
-void Syscalls::reinit() {
-    _sendgate.reset_ep(env()->first_std_ep + TCU::SYSC_SEP_OFF);
-}
-
 template<class T>
 Syscalls::SyscallReply<T> Syscalls::send_receive(const MsgBuf &msg) noexcept {
     const TCU::Message *reply = _sendgate.call(msg);

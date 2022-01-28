@@ -22,7 +22,6 @@ use crate::format;
 use crate::io::Read;
 use crate::libc;
 use crate::mem::{size_of, MaybeUninit};
-use crate::pes::StateSerializer;
 use crate::vec;
 use crate::vfs::FileRef;
 
@@ -109,7 +108,18 @@ pub fn copy_file(file: &mut FileRef) -> Result<String, Error> {
     Ok(path)
 }
 
-pub fn read_env_file(suffix: &str) -> Option<Vec<u64>> {
+pub fn read_env_words(suffix: &str) -> Option<Vec<u64>> {
+    read_env_file(suffix, |fd, size| {
+        let mut res: Vec<u64> = vec![0; size as usize / 8];
+        unsafe { libc::read(fd, res.as_mut_ptr() as *mut libc::c_void, size) };
+        res
+    })
+}
+
+pub fn read_env_file<F, R>(suffix: &str, func: F) -> Option<R>
+where
+    F: FnOnce(i32, usize) -> R,
+{
     unsafe {
         let path = format!(
             "{}/{}-{}\0",
@@ -129,9 +139,7 @@ pub fn read_env_file(suffix: &str) -> Option<Vec<u64>> {
         let size = info.st_size as usize;
         assert!(size.trailing_zeros() >= 3);
 
-        let mut res: Vec<u64> = Vec::with_capacity(size / 8);
-        res.set_len(size / 8);
-        libc::read(fd, res.as_mut_ptr() as *mut libc::c_void, size);
+        let res = func(fd, size);
 
         libc::unlink(path_ptr);
 
@@ -140,13 +148,16 @@ pub fn read_env_file(suffix: &str) -> Option<Vec<u64>> {
     }
 }
 
-pub fn write_env_value(pid: i32, suffix: &str, data: u64) {
-    let mut buf = StateSerializer::default();
-    buf.push_word(data);
-    write_env_file(pid, suffix, buf.words());
+pub fn write_env_values(pid: i32, suffix: &str, data: &[u64]) {
+    write_env_file(
+        pid,
+        suffix,
+        data.as_ptr() as *const libc::c_void,
+        data.len() * size_of::<u64>(),
+    );
 }
 
-pub fn write_env_file(pid: i32, suffix: &str, data: &[u64]) {
+pub fn write_env_file(pid: i32, suffix: &str, data: *const libc::c_void, len: usize) {
     let path = format!("{}/{}-{}\0", base::envdata::tmp_dir(), pid, suffix);
     unsafe {
         let fd = libc::open(
@@ -155,11 +166,7 @@ pub fn write_env_file(pid: i32, suffix: &str, data: &[u64]) {
             0o600,
         );
         assert!(fd != -1);
-        libc::write(
-            fd,
-            data.as_ptr() as *const libc::c_void,
-            data.len() * size_of::<u64>(),
-        );
+        libc::write(fd, data, len);
         libc::close(fd);
     }
 }

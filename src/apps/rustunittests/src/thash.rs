@@ -13,13 +13,14 @@
  */
 
 use hex_literal::hex;
-use m3::boxed::Box;
+
+use m3::col::Vec;
 use m3::com::{MemGate, Perm};
-use m3::crypto::HashAlgorithm;
+use m3::crypto::{HashAlgorithm, HashType};
 use m3::errors::Code;
 use m3::io;
 use m3::io::{Read, Write};
-use m3::pes::{Activity, ClosureActivity, PE, VPE};
+use m3::pes::{Activity, ExecActivity, PE, VPE};
 use m3::session::{HashInput, HashOutput, HashSession, Pipes};
 use m3::vfs::{FileRef, IndirectPipe, OpenFlags, Seek, SeekMode, VFS};
 use m3::{format, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_assert_some, wv_run_test};
@@ -135,46 +136,69 @@ fn _hash_file(
     buf != expected
 }
 
+fn _to_hex_bytes(s: &str) -> Vec<u8> {
+    let mut res = Vec::with_capacity(s.len());
+    let mut i = 0;
+    while i + 1 < s.len() {
+        let c1 = s.chars().nth(i).unwrap();
+        let c2 = s.chars().nth(i + 1).unwrap();
+        let num = c1.to_digit(16).unwrap() * 16 + c2.to_digit(16).unwrap();
+        res.push(num as u8);
+        i += 2;
+    }
+    res
+}
+
 // Hash files asynchronously on separate VPEs to test context switching.
 // The time slice is also chosen quite low so that there are actually context switches happening.
 
-fn _hash_file_start(
-    algo: &'static HashAlgorithm,
-    file: &FileRef,
-    expected: &'static [u8],
-) -> ClosureActivity {
+fn _hash_file_start(algo: &'static HashAlgorithm, file: &FileRef, expected: &str) -> ExecActivity {
     let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
     let mut vpe = wv_assert_ok!(VPE::new(pe, algo.name));
+
     vpe.files().set(io::STDIN_FILENO, file.handle());
     wv_assert_ok!(vpe.obtain_fds());
-    wv_assert_ok!(vpe.run(Box::new(move || {
-        let mut hash = wv_assert_ok!(HashSession::new(&format!("hash{}", algo.ty.val), algo));
-        _hash_file(io::stdin().get_mut(), &mut hash, algo, expected) as i32
-    })))
+
+    let mut dst = vpe.data_sink();
+    dst.push_word(algo.ty.val);
+    dst.push_str(expected);
+
+    wv_assert_ok!(vpe.run(|| {
+        let mut src = VPE::cur().data_source();
+        let ty: HashType = src.pop().unwrap();
+        let expected_bytes = _to_hex_bytes(src.pop().unwrap());
+
+        let algo = HashAlgorithm::from_type(ty).unwrap();
+        let mut hash = wv_assert_ok!(HashSession::new(&format!("hash{}", ty.val), algo));
+        _hash_file(io::stdin().get_mut(), &mut hash, algo, &expected_bytes) as i32
+    }))
 }
 
 fn hash_file() {
-    let file = wv_assert_ok!(VFS::open("/movies/starwars.txt", OpenFlags::R));
+    let file = wv_assert_ok!(VFS::open(
+        "/movies/starwars.txt",
+        OpenFlags::R | OpenFlags::NEW_SESS
+    ));
     let closures = [
         _hash_file_start(
             &HashAlgorithm::SHA3_512,
             &file,
-            &hex!("7cf025af9e77e310ce912d28ae854f37aa62eb1fae81cc9b8a26dac81eb2bd6e9e277e419af033eabf8e1ffb663c06e0d2349b03f4262c4fd0a9e74d9156ca94"),
+            "7cf025af9e77e310ce912d28ae854f37aa62eb1fae81cc9b8a26dac81eb2bd6e9e277e419af033eabf8e1ffb663c06e0d2349b03f4262c4fd0a9e74d9156ca94",
         ),
         _hash_file_start(
             &HashAlgorithm::SHA3_384,
             &file,
-            &hex!("261b44d87914504a0eb6b4dbe87836856427a7e57d7e3e4a1c559d99937ef6d26f360373df9202dcafc318b6ca6c21c5"),
+            "261b44d87914504a0eb6b4dbe87836856427a7e57d7e3e4a1c559d99937ef6d26f360373df9202dcafc318b6ca6c21c5",
         ),
         _hash_file_start(
             &HashAlgorithm::SHA3_256,
             &file,
-            &hex!("a1cefebeb163af9c359039b0a75e9c88609c0f670e5d35fdc4be822b64f50f31"),
+            "a1cefebeb163af9c359039b0a75e9c88609c0f670e5d35fdc4be822b64f50f31",
         ),
         _hash_file_start(
             &HashAlgorithm::SHA3_224,
             &file,
-            &hex!("2969482b56d4a98bc46bb298b264d464d75f6a78265df3b98f6dd017"),
+            "2969482b56d4a98bc46bb298b264d464d75f6a78265df3b98f6dd017",
         ),
     ];
 
@@ -185,7 +209,10 @@ fn hash_file() {
 
 fn seek_then_hash_file() {
     let mut hash = wv_assert_ok!(HashSession::new("hash", &HashAlgorithm::SHA3_256));
-    let mut file = wv_assert_ok!(VFS::open("/movies/starwars.txt", OpenFlags::R));
+    let mut file = wv_assert_ok!(VFS::open(
+        "/movies/starwars.txt",
+        OpenFlags::R | OpenFlags::NEW_SESS
+    ));
 
     wv_assert_ok!(file.seek(1 * 1024 * 1024, SeekMode::CUR));
     _hash_file(
@@ -198,7 +225,10 @@ fn seek_then_hash_file() {
 
 fn read0_then_hash_file() {
     let mut hash = wv_assert_ok!(HashSession::new("hash", &HashAlgorithm::SHA3_256));
-    let mut file = wv_assert_ok!(VFS::open("/testfile.txt", OpenFlags::RW));
+    let mut file = wv_assert_ok!(VFS::open(
+        "/testfile.txt",
+        OpenFlags::RW | OpenFlags::NEW_SESS
+    ));
 
     // Read zero bytes
     let mut buf = [0u8; 0];
@@ -214,7 +244,10 @@ fn read0_then_hash_file() {
 
 fn write0_then_hash_file() {
     let mut hash = wv_assert_ok!(HashSession::new("hash", &HashAlgorithm::SHA3_256));
-    let mut file = wv_assert_ok!(VFS::open("/testfile.txt", OpenFlags::RW));
+    let mut file = wv_assert_ok!(VFS::open(
+        "/testfile.txt",
+        OpenFlags::RW | OpenFlags::NEW_SESS
+    ));
 
     // Write zero bytes
     let buf = [0u8; 0];
@@ -230,7 +263,10 @@ fn write0_then_hash_file() {
 
 fn read_then_hash_file() {
     let mut hash = wv_assert_ok!(HashSession::new("hash", &HashAlgorithm::SHA3_256));
-    let mut file = wv_assert_ok!(VFS::open("/testfile.txt", OpenFlags::R));
+    let mut file = wv_assert_ok!(VFS::open(
+        "/testfile.txt",
+        OpenFlags::R | OpenFlags::NEW_SESS
+    ));
 
     // Read some bytes
     let res = wv_assert_ok!(file.read_string(4));
@@ -302,12 +338,18 @@ fn _shake_and_hash_file(
 
     {
         // Absorb seed
-        let mut file = wv_assert_ok!(VFS::open("/movies/starwars.txt", OpenFlags::R));
+        let mut file = wv_assert_ok!(VFS::open(
+            "/movies/starwars.txt",
+            OpenFlags::R | OpenFlags::NEW_SESS
+        ));
         wv_assert_ok!(file.hash_input(&hash, usize::MAX));
     }
 
     // Squeeze output
-    let mut file = wv_assert_ok!(VFS::open("/shake.bin", OpenFlags::RW | OpenFlags::CREATE));
+    let mut file = wv_assert_ok!(VFS::open(
+        "/shake.bin",
+        OpenFlags::RW | OpenFlags::CREATE | OpenFlags::NEW_SESS
+    ));
     wv_assert_ok!(file.hash_output(&hash, SHAKE_SIZE));
     wv_assert_ok!(file.seek(0, SeekMode::SET));
 
@@ -365,12 +407,12 @@ fn shake_and_hash_pipe() {
         wv_assert_some!(VPE::cur().files().get(opipe.writer_fd())),
     );
     wv_assert_ok!(vpe.obtain_fds());
-    let closure = wv_assert_ok!(vpe.run(Box::new(|| {
+    let closure = wv_assert_ok!(vpe.run(|| {
         let hash = wv_assert_ok!(HashSession::new("hash2", &HashAlgorithm::SHAKE128));
         wv_assert_ok!(io::stdin().get_mut().hash_input(&hash, usize::MAX));
         wv_assert_ok!(io::stdout().get_mut().hash_output(&hash, PIPE_SHAKE_SIZE));
         0
-    })));
+    }));
 
     // Close unused parts of pipe that were delegated to VPE
     ipipe.close_reader();

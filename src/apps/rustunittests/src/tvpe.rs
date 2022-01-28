@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::boxed::Box;
+use m3::cap::Selector;
 use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
 use m3::env;
 use m3::math;
@@ -59,8 +59,15 @@ fn run_stop() {
         wv_assert_ok!(vpe.mounts().add("/", rootmnt));
         wv_assert_ok!(vpe.obtain_mounts());
 
-        let act = wv_assert_ok!(vpe.run(Box::new(move || {
+        let mut dst = vpe.data_sink();
+        dst.push_word(sg.sel());
+
+        let act = wv_assert_ok!(vpe.run(|| {
+            let mut src = VPE::cur().data_source();
+            let sg_sel: Selector = src.pop().unwrap();
+
             // notify parent that we're running
+            let sg = SendGate::new_bind(sg_sel);
             wv_assert_ok!(send_vmsg!(&sg, RecvGate::def(), 1));
             let mut _n = 0;
             loop {
@@ -68,7 +75,7 @@ fn run_stop() {
                 // just to execute more interesting instructions than arithmetic or jumps
                 vfs::VFS::stat("/").ok();
             }
-        })));
+        }));
 
         // wait for child
         wv_assert_ok!(recv_msg(&rg));
@@ -86,12 +93,12 @@ fn run_arguments() {
     let pe = wv_assert_ok!(PE::get("clone|own"));
     let vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("test")));
 
-    let act = wv_assert_ok!(vpe.run(Box::new(|| {
+    let act = wv_assert_ok!(vpe.run(|| {
         wv_assert_eq!(env::args().count(), 1);
         assert!(env::args().next().is_some());
         assert!(env::args().next().unwrap().ends_with("rustunittests"));
         0
-    })));
+    }));
 
     wv_assert_eq!(act.wait(), Ok(0));
 }
@@ -100,19 +107,26 @@ fn run_send_receive() {
     let pe = wv_assert_ok!(PE::get("clone|own"));
     let mut vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("test")));
 
-    let mut rgate = wv_assert_ok!(RecvGate::new(math::next_log2(256), math::next_log2(256)));
+    let rgate = wv_assert_ok!(RecvGate::new(math::next_log2(256), math::next_log2(256)));
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
     wv_assert_ok!(vpe.delegate_obj(rgate.sel()));
 
-    let act = wv_assert_ok!(vpe.run(Box::new(move || {
+    let mut dst = vpe.data_sink();
+    dst.push_word(rgate.sel());
+
+    let act = wv_assert_ok!(vpe.run(|| {
+        let mut src = VPE::cur().data_source();
+        let rg_sel: Selector = src.pop().unwrap();
+
+        let mut rgate = RecvGate::new_bind(rg_sel, math::next_log2(256), math::next_log2(256));
         wv_assert_ok!(rgate.activate());
         let mut res = wv_assert_ok!(recv_msg(&rgate));
         let i1 = wv_assert_ok!(res.pop::<u32>());
         let i2 = wv_assert_ok!(res.pop::<u32>());
         wv_assert_eq!((i1, i2), (42, 23));
         (i1 + i2) as i32
-    })));
+    }));
 
     wv_assert_ok!(send_vmsg!(&sgate, RecvGate::def(), 42, 23));
 

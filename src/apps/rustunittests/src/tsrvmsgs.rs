@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cell::LazyStaticRefCell;
 use m3::col::String;
@@ -129,7 +128,7 @@ pub fn testmsgs() {
 
     let server_pe = wv_assert_ok!(PE::get("clone|own"));
     let serv = wv_assert_ok!(VPE::new_with(server_pe, VPEArgs::new("server")));
-    let sact = wv_assert_ok!(serv.run(Box::new(&server_msgs_main)));
+    let sact = wv_assert_ok!(serv.run(server_msgs_main));
 
     {
         let sess = crate::tserver::connect("test");

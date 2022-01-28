@@ -62,7 +62,7 @@ pub fn init() {
     let addr = envdata::mem_start();
     syscalls::vpe_ctrl(VPE::cur().sel(), kif::syscalls::VPEOp::INIT, addr as u64).unwrap();
 
-    if let Some(vec) = loader::read_env_file("tcurdy") {
+    if let Some(vec) = loader::read_env_words("tcurdy") {
         let fd = vec[0] as i32;
         unsafe {
             // notify parent; we are ready for communication now

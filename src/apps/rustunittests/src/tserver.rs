@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cell::StaticCell;
 use m3::com::{recv_msg, RGateArgs, RecvGate, SGateArgs, SendGate};
@@ -97,13 +96,13 @@ pub fn testnoresp() {
     let cact = {
         let serv = wv_assert_ok!(VPE::new_with(server_pe, VPEArgs::new("server")));
 
-        let sact = wv_assert_ok!(serv.run(Box::new(&server_crash_main)));
+        let sact = wv_assert_ok!(serv.run(server_crash_main));
 
-        let cact = wv_assert_ok!(client.run(Box::new(|| {
+        let cact = wv_assert_ok!(client.run(|| {
             let sess = connect("test");
             wv_assert_err!(sess.obtain_obj(), Code::RecvGone);
             0
-        })));
+        }));
 
         wv_assert_eq!(sact.wait(), Ok(1));
         cact
@@ -122,7 +121,7 @@ pub fn testcliexit() {
     let server_pe = wv_assert_ok!(PE::get("clone|own"));
     let serv = wv_assert_ok!(VPE::new_with(server_pe, VPEArgs::new("server")));
 
-    let sact = wv_assert_ok!(serv.run(Box::new(&server_crash_main)));
+    let sact = wv_assert_ok!(serv.run(server_crash_main));
 
     let mut rg = wv_assert_ok!(RecvGate::new_with(
         RGateArgs::default().order(7).msg_order(6)
@@ -132,7 +131,13 @@ pub fn testcliexit() {
     let sg = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rg).credits(2)));
     wv_assert_ok!(client.delegate_obj(sg.sel()));
 
-    let cact = wv_assert_ok!(client.run(Box::new(move || {
+    let mut dst = client.data_sink();
+    dst.push_word(sg.sel());
+
+    let cact = wv_assert_ok!(client.run(|| {
+        let mut src = VPE::cur().data_source();
+        let sg_sel: Selector = src.pop().unwrap();
+
         let sess = loop {
             if let Ok(s) = ClientSession::new("test") {
                 break s;
@@ -140,6 +145,7 @@ pub fn testcliexit() {
         };
 
         // first send to activate the gate
+        let sg = SendGate::new_bind(sg_sel);
         wv_assert_ok!(send_vmsg!(&sg, RecvGate::def(), 1));
 
         // ensure that we drop MsgBuf before using send_vmsg below
@@ -162,7 +168,7 @@ pub fn testcliexit() {
         // wait here; don't exit (we don't have credits anymore)
         #[allow(clippy::empty_loop)]
         loop {}
-    })));
+    }));
 
     // wait until the child is ready to be killed
     wv_assert_ok!(recv_msg(&rg));
@@ -250,7 +256,7 @@ fn server_notsup_main() -> i32 {
 pub fn testcaps() {
     let server_pe = wv_assert_ok!(PE::get("clone|own"));
     let serv = wv_assert_ok!(VPE::new_with(server_pe, VPEArgs::new("server")));
-    let sact = wv_assert_ok!(serv.run(Box::new(&server_notsup_main)));
+    let sact = wv_assert_ok!(serv.run(server_notsup_main));
 
     for i in 0..5 {
         let sess = connect("test");

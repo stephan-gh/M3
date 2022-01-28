@@ -17,6 +17,7 @@
 #include <base/ELF.h>
 #include <base/Env.h>
 #include <base/Panic.h>
+#include <base/Init.h>
 
 #include <m3/session/ResMng.h>
 #include <m3/stream/FStream.h>
@@ -128,20 +129,22 @@ static bool read_from(const char *suffix, T *val) {
     return false;
 }
 
-static void write_state(pid_t pid, capsel_t nextsel, capsel_t rmng,
-                        FileTable &files, MountTable &mounts) {
-    size_t len = STATE_BUF_SIZE;
-    std::unique_ptr<unsigned char[]> buf(new unsigned char[len]);
+struct LambdaCaller {
+    LambdaCaller() {
+        uintptr_t func_addr = 0;
+        if(read_from("lambda", &func_addr)) {
+            if(func_addr != 0) {
+                auto func = reinterpret_cast<int(*)()>(func_addr);
+                // call lambda and exit right away
+                int res = (*func)();
+                ::exit(res);
+            }
+        }
+    }
+};
 
-    write_file(pid, "nextsel", nextsel);
-    write_file(pid, "rmng", rmng);
-
-    len = mounts.serialize(buf.get(), STATE_BUF_SIZE);
-    write_file(pid, "ms", buf.get(), len);
-
-    len = files.serialize(buf.get(), STATE_BUF_SIZE);
-    write_file(pid, "fds", buf.get(), len);
-}
+// this constructor runs last and calls a lambda, if present, instead of main.
+INIT_PRIO_LAMBDA static LambdaCaller lambda_caller;
 
 void VPE::init_state() {
     if(env()->first_sel() != 0)
@@ -154,8 +157,6 @@ void VPE::init_state() {
         _resmng.reset(new ResMng(rmng_sel));
     else if(_resmng == nullptr)
         _resmng.reset(new ResMng(ObjCap::INVALID));
-
-    _epmng.reset();
 }
 
 void VPE::init_fs() {
@@ -175,6 +176,9 @@ void VPE::init_fs() {
     if(read_from("fds", buf.get(), len))
         _fds.reset(FileTable::unserialize(buf.get(), len));
 
+    len = sizeof(_data);
+    read_from("data", _data, len);
+
     // TCU is ready now; notify parent
     int pipefd;
     if(read_from("tcurdy", &pipefd)) {
@@ -184,39 +188,25 @@ void VPE::init_fs() {
     }
 }
 
-void VPE::run(void *lambda) {
-    Chan p2c, c2p;
+// get argc and argv for later use
+static int argc_copy;
+static char **argv_copy;
+int get_args(int argc, char **argv, char **) {
+    argc_copy = argc;
+    argv_copy = argv;
+    return 0;
+}
+__attribute__((section(".init_array"))) void *get_args_constr = (void*)&get_args;
 
-    int pid = fork();
-    if(pid == -1)
-        throw Exception(Errors::OUT_OF_MEM);
-    else if(pid == 0) {
-        p2c.wait();
-
-        env()->reset();
-        VPE::self().init_state();
-        VPE::self().init_fs();
-
-        c2p.signal();
-
-        std::function<int()> *func = reinterpret_cast<std::function<int()>*>(lambda);
-        (*func)();
-        exit(0);
-    }
-    else {
-        // let the kernel create the config-file etc. for the given pid
-        xfer_t arg = static_cast<xfer_t>(pid);
-        Syscalls::vpe_ctrl(sel(), KIF::Syscall::VCTRL_START, arg);
-
-        write_state(pid, _next_sel, _resmng->sel(), *_fds, *_ms);
-
-        p2c.signal();
-        // wait until the TCU sockets have been binded
-        c2p.wait();
-    }
+void VPE::run(int (*func)()) {
+    // prevent the compiler from optimizing away above init call
+    size_t dummy;
+    memcpy(&dummy, get_args_constr, sizeof(dummy));
+    // execute ourself in this VPE using the previously saved argc/argv
+    do_exec(argc_copy, const_cast<const char**>(argv_copy), reinterpret_cast<uintptr_t>(func));
 }
 
-void VPE::exec(int argc, const char **argv) {
+void VPE::do_exec(int argc, const char **argv, uintptr_t func_addr) {
     static char buffer[8192];
     int tmp, pid;
     size_t res;
@@ -274,7 +264,22 @@ void VPE::exec(int argc, const char **argv) {
         xfer_t arg = static_cast<xfer_t>(pid);
         Syscalls::vpe_ctrl(sel(), KIF::Syscall::VCTRL_START, arg);
 
-        write_state(pid, _next_sel, _resmng->sel(), *_fds, *_ms);
+        // write state to files
+        size_t len = STATE_BUF_SIZE;
+        std::unique_ptr<unsigned char[]> buf(new unsigned char[len]);
+
+        write_file(pid, "lambda", func_addr);
+
+        write_file(pid, "nextsel", _next_sel);
+        write_file(pid, "rmng", _resmng->sel());
+
+        len = _ms->serialize(buf.get(), STATE_BUF_SIZE);
+        write_file(pid, "ms", buf.get(), len);
+
+        len = _fds->serialize(buf.get(), STATE_BUF_SIZE);
+        write_file(pid, "fds", buf.get(), len);
+
+        write_file(pid, "data", _data, sizeof(_data));
 
         p2c.signal();
         // wait until the TCU sockets have been binded

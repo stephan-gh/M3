@@ -25,10 +25,9 @@ use crate::goff;
 use crate::io::{read_object, Read};
 use crate::kif;
 use crate::math;
-use crate::mem::{heap, size_of};
+use crate::mem::size_of;
 use crate::pes::{Mapper, VPE};
-use crate::pexif;
-use crate::session::{MapFlags, Pager};
+use crate::session::MapFlags;
 use crate::vec;
 use crate::vfs::{BufReader, FileRef, Seek, SeekMode};
 
@@ -38,10 +37,6 @@ extern "C" {
     static _text_end: u8;
     static _data_start: u8;
     static _bss_end: u8;
-}
-
-fn sym_addr<T>(sym: &T) -> usize {
-    sym as *const _ as usize
 }
 
 fn write_bytes_checked(
@@ -74,59 +69,6 @@ fn write_bytes_checked(
     }
 
     Ok(())
-}
-
-pub fn copy_vpe(pedesc: kif::PEDesc, sp: usize, mem: MemGate) -> Result<usize, Error> {
-    unsafe {
-        // copy text
-        let text_start = sym_addr(&_text_start);
-        let text_end = sym_addr(&_text_end);
-        write_bytes_checked(
-            &mem,
-            text_start,
-            &_text_start,
-            text_end - text_start,
-            text_start as goff,
-        )?;
-
-        // copy data and heap (no checking, because data contains the buffer for the check)
-        let data_start = sym_addr(&_data_start);
-        mem.write_bytes(
-            &_data_start,
-            heap::used_end() - data_start,
-            data_start as goff,
-        )?;
-
-        // copy end-area of heap
-        let heap_area_size = size_of::<heap::HeapArea>();
-        write_bytes_checked(
-            &mem,
-            heap::end(),
-            heap::end() as *const u8,
-            heap_area_size,
-            heap::end() as goff,
-        )?;
-
-        // copy stack
-        let stack_top = pedesc.stack_top();
-        write_bytes_checked(&mem, sp, sp as *const u8, stack_top - sp, sp as goff)?;
-
-        Ok(sym_addr(&_start))
-    }
-}
-
-pub fn clone_vpe(pager: &Pager) -> Result<usize, Error> {
-    if VPE::cur().pager().is_some() {
-        let entry = pager.clone().map(|_| unsafe { sym_addr(&_start) })?;
-        // after cloning the address space we have to make sure that we don't have dirty cache lines
-        // anymore. otherwise, if our child takes over a frame from us later and we writeback such
-        // a cacheline afterwards, things break.
-        pexif::flush_invalidate()?;
-        return Ok(entry);
-    }
-
-    // TODO handle that case
-    unimplemented!();
 }
 
 pub fn load_program(
