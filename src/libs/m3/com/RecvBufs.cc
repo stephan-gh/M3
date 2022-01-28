@@ -22,7 +22,7 @@
 
 namespace m3 {
 
-INIT_PRIO_VFS RecvBufs RecvBufs::_inst;
+INIT_PRIO_RECVBUF RecvBufs RecvBufs::_inst;
 
 RecvBuf *RecvBufs::alloc(size_t size) {
     bool vm = VPE::self().pe_desc().has_virtmem();

@@ -55,7 +55,7 @@ private:
 };
 
 class RecvBufs {
-    explicit RecvBufs() : _bufs(VPE::self().pe_desc().rbuf_space()) {
+    explicit RecvBufs() : _bufs(PEDesc(env()->pe_desc).rbuf_space()) {
     }
 
 public:

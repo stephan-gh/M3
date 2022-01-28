@@ -29,7 +29,7 @@
 
 namespace m3 {
 
-INIT_PRIO_RECVBUF RecvGate RecvGate::_syscall (
+INIT_PRIO_RECVGATE RecvGate RecvGate::_syscall (
     KIF::INV_SEL,
     PEDesc(env()->pe_desc).rbuf_std_space().first,
     env()->first_std_ep + TCU::SYSC_REP_OFF,
@@ -38,7 +38,7 @@ INIT_PRIO_RECVBUF RecvGate RecvGate::_syscall (
     KEEP_CAP
 );
 
-INIT_PRIO_RECVBUF RecvGate RecvGate::_upcall (
+INIT_PRIO_RECVGATE RecvGate RecvGate::_upcall (
     KIF::INV_SEL,
     PEDesc(env()->pe_desc).rbuf_std_space().first + SYSC_RBUF_SIZE,
     env()->first_std_ep + TCU::UPCALL_REP_OFF,
@@ -47,7 +47,7 @@ INIT_PRIO_RECVBUF RecvGate RecvGate::_upcall (
     KEEP_CAP
 );
 
-INIT_PRIO_RECVBUF RecvGate RecvGate::_default (
+INIT_PRIO_RECVGATE RecvGate RecvGate::_default (
     KIF::INV_SEL,
     PEDesc(env()->pe_desc).rbuf_std_space().first + SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE,
     env()->first_std_ep + TCU::DEF_REP_OFF,
