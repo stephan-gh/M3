@@ -28,7 +28,7 @@ RecvBuf *RecvBufs::alloc(size_t size) {
     bool vm = VPE::self().pe_desc().has_virtmem();
     // page align the receive buffers so that we can map them
     uintptr_t addr = _bufs.allocate(size, vm ? PAGE_SIZE : 1);
-    if(addr == 0)
+    if(addr == static_cast<uintptr_t>(-1))
         VTHROW(Errors::NO_SPACE, "Insufficient rbuf space for " << size << "b");
 
     std::unique_ptr<MemGate> mgate;
