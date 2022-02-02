@@ -164,6 +164,7 @@ impl<'r> ops::Drop for GateIStream<'r> {
         }
     }
 }
+
 /// Marshalls a message from `$args` and returns the `MsgBuf`.
 #[macro_export]
 macro_rules! build_vmsg {
