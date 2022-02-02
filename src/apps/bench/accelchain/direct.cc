@@ -161,7 +161,7 @@ void chain_direct_multi(Reference<File> in, Reference<File> out, size_t num,
     Pipes pipes("pipes");
     Chain ch1(pipes, in, out, num, comptime, mode);
 
-    fd_t outfd = VFS::open("/tmp/out2.txt", FILE_W | FILE_TRUNC | FILE_CREATE);
+    fd_t outfd = VFS::open("/tmp/out2.txt", FILE_W | FILE_TRUNC | FILE_CREATE | FILE_NEWSESS);
     auto in2 = in->clone();
     Chain ch2(pipes, in2, VPE::self().fds()->get(outfd), num, comptime, mode);
 

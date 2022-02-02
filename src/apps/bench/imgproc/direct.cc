@@ -158,8 +158,8 @@ CycleDuration chain_direct(const char *in, size_t num, Mode mode) {
         OStringStream outpath;
         outpath << "/tmp/res-" << i;
 
-        infds[i] = VFS::open(in, FILE_R);
-        outfds[i] = VFS::open(outpath.str(), FILE_W | FILE_TRUNC | FILE_CREATE);
+        infds[i] = VFS::open(in, FILE_R | FILE_NEWSESS);
+        outfds[i] = VFS::open(outpath.str(), FILE_W | FILE_TRUNC | FILE_CREATE | FILE_NEWSESS);
 
         chains[i] = std::make_unique<DirectChain>(pipes,
                                                   i,
