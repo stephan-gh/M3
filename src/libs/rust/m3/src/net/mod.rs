@@ -72,7 +72,7 @@ impl IpAddr {
 impl core::fmt::Display for IpAddr {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let [b0, b1, b2, b3] = self.0.to_be_bytes();
-        write!(f, "Ipv4[{}.{}.{}.{}]", b0, b1, b2, b3)
+        write!(f, "{}.{}.{}.{}", b0, b1, b2, b3)
     }
 }
 
