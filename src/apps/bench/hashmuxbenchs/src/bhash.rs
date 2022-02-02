@@ -131,7 +131,10 @@ fn hash_file() {
     {
         // Fill file with pseudo random data using SHAKE
         let hash = wv_assert_ok!(HashSession::new("hash-prepare", &HashAlgorithm::SHAKE128));
-        let mut file = wv_assert_ok!(VFS::open("/shake.bin", OpenFlags::W | OpenFlags::CREATE));
+        let mut file = wv_assert_ok!(VFS::open(
+            "/shake.bin",
+            OpenFlags::W | OpenFlags::CREATE | OpenFlags::NEW_SESS
+        ));
         wv_assert_ok!(file.hash_output(&hash, SIZE));
     }
 
@@ -140,7 +143,8 @@ fn hash_file() {
     for algo in HashAlgorithm::ALL.iter() {
         let hash = wv_assert_ok!(HashSession::new("hash-bench", algo));
         let res = prof.run::<CycleInstant, _>(|| {
-            let mut file = wv_assert_ok!(VFS::open("/shake.bin", OpenFlags::R));
+            let mut file =
+                wv_assert_ok!(VFS::open("/shake.bin", OpenFlags::R | OpenFlags::NEW_SESS));
             wv_assert_ok!(file.hash_input(&hash, usize::MAX));
         });
 
@@ -235,7 +239,8 @@ fn shake_file() {
 
         let hash = wv_assert_ok!(HashSession::new("hash-bench", algo));
         let res = prof.run::<CycleInstant, _>(|| {
-            let mut file = wv_assert_ok!(VFS::open("/shake.bin", OpenFlags::W));
+            let mut file =
+                wv_assert_ok!(VFS::open("/shake.bin", OpenFlags::W | OpenFlags::NEW_SESS));
             wv_assert_ok!(file.hash_output(&hash, SIZE));
         });
 
