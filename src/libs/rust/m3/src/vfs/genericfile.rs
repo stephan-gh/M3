@@ -120,9 +120,11 @@ impl GenericFile {
 
     pub(crate) fn unserialize(s: &mut Source) -> FileHandle {
         let flags: u32 = s.pop().unwrap();
+        let sel: Selector = s.pop().unwrap();
+        let _id: usize = s.pop().unwrap();
         Rc::new(RefCell::new(GenericFile::new(
             OpenFlags::from_bits_truncate(flags),
-            s.pop().unwrap(),
+            sel,
         )))
     }
 
@@ -280,9 +282,9 @@ impl File for GenericFile {
     }
 
     fn serialize(&self, s: &mut StateSerializer) {
-        s.push_word(0); // flags
+        s.push_word(self.flags.bits() as u64);
         s.push_word(self.sess.sel());
-        s.push_word(0); // id
+        s.push_word(self.file_id() as u64);
     }
 }
 
