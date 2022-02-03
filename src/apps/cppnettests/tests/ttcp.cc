@@ -150,13 +150,13 @@ NOINLINE static void nonblocking_server() {
 
         Endpoint remote_ep;
         WVASSERTEQ(socket->accept(&remote_ep), false);
-        while(socket->state() != Socket::Connected) {
-            WVASSERTEQ(socket->state(), Socket::Connecting);
+        while(socket->state() == Socket::Connecting) {
             WVASSERTERR(Errors::ALREADY_IN_PROGRESS, [&socket, &remote_ep] {
                 socket->accept(&remote_ep);
             });
             net.wait(NetworkManager::INPUT);
         }
+        WVASSERT(socket->state() == Socket::Connected || socket->state() == Socket::RemoteClosed);
 
         WVASSERTEQ(socket->local_endpoint(), Endpoint(IpAddr(192, 168, 112, 1), 3000));
         WVASSERTEQ(socket->remote_endpoint().addr, IpAddr(192, 168, 112, 2));

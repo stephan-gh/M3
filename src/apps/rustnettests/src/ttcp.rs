@@ -181,11 +181,11 @@ fn nonblocking_server() {
         wv_assert_ok!(sem.up());
 
         wv_assert_err!(socket.accept(), Code::InProgress);
-        while socket.state() != State::Connected {
-            wv_assert_eq!(socket.state(), State::Connecting);
+        while socket.state() == State::Connecting {
             wv_assert_err!(socket.accept(), Code::AlreadyInProgress);
             nm.wait(NetworkDirection::INPUT);
         }
+        assert!(socket.state() == State::Connected || socket.state() == State::RemoteClosed);
 
         wv_assert_eq!(socket.local_endpoint(), Some(Endpoint::new(net1_ip, 3000)));
         wv_assert_eq!(socket.remote_endpoint().unwrap().addr, net0_ip);
