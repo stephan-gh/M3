@@ -200,7 +200,7 @@ impl VPE {
     /// Creates a new `VPE` on PE `pe` with given arguments. The VPE provides access to the PE and
     /// allows to run an activity on the PE.
     pub fn new_with(pe: Rc<PE>, args: VPEArgs) -> Result<Self, Error> {
-        let sel = VPE::cur().alloc_sel();
+        let sel = VPE::cur().alloc_sels(3);
 
         let mut vpe = VPE {
             id: 0,
@@ -239,7 +239,7 @@ impl VPE {
             vpe.eps_start = eps_start;
 
             // delegate VPE cap to pager
-            pg.init(&vpe, eps_start)?;
+            pg.init(&vpe)?;
             // and delegate the pager cap to the VPE
             vpe.delegate_obj(pg.sel())?;
             Some(pg)
@@ -248,18 +248,6 @@ impl VPE {
             let (id, eps_start) = syscalls::create_vpe(sel, args.name, pe.sel(), vpe.kmem.sel())?;
             vpe.id = id;
             vpe.eps_start = eps_start;
-
-            #[cfg(not(target_vendor = "host"))]
-            {
-                // reserve these EPs if we have no pager
-                // note: this is required, because these EP ids are handled differently by the kernel
-                let ep_sel = VPE::cur().alloc_sels(2);
-                syscalls::alloc_ep(ep_sel + 0, vpe.sel(), eps_start + crate::tcu::PG_SEP_OFF, 0)
-                    .unwrap();
-                syscalls::alloc_ep(ep_sel + 1, vpe.sel(), eps_start + crate::tcu::PG_REP_OFF, 0)
-                    .unwrap();
-            }
-
             None
         };
         vpe.next_sel = cmp::max(vpe.kmem.sel() + 1, vpe.next_sel);

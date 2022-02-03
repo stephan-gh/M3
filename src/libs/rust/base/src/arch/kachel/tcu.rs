@@ -85,7 +85,7 @@ pub const PG_REP_OFF: EpId = 6;
 /// The offset of the first user EP
 pub const FIRST_USER_EP: EpId = PMEM_PROT_EPS as EpId + 4;
 /// The number of standard EPs
-pub const STD_EPS_COUNT: usize = 5;
+pub const STD_EPS_COUNT: usize = 7;
 
 /// An invalid endpoint ID
 pub const INVALID_EP: EpId = 0xFFFF;

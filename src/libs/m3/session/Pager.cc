@@ -17,6 +17,7 @@
 #include <m3/com/GateStream.h>
 #include <m3/session/Pager.h>
 #include <m3/pes/VPE.h>
+#include <m3/Syscalls.h>
 
 namespace m3 {
 
@@ -26,8 +27,6 @@ Pager::Pager(capsel_t sess, bool)
       _own_sgate(SendGate::bind(get_sgate())),
       _child_rgate(RecvGate::create(nextlog2<64>::val, nextlog2<64>::val)),
       _child_sgate(SendGate::bind(get_sgate())),
-      _child_sep(),
-      _child_rep(),
       _close(true) {
 }
 
@@ -37,8 +36,6 @@ Pager::Pager(capsel_t sess)
       _own_sgate(SendGate::bind(get_sgate())),
       _child_rgate(RecvGate::bind(ObjCap::INVALID, nextlog2<64>::val, nextlog2<64>::val)),
       _child_sgate(SendGate::bind(ObjCap::INVALID)),
-      _child_sep(),
-      _child_rep(),
       _close(false) {
 }
 
@@ -115,12 +112,10 @@ Reference<Pager> Pager::create_clone() {
     return Reference<Pager>(new Pager(caps.start(), true));
 }
 
-void Pager::init(VPE &vpe, epid_t eps_start) {
+void Pager::init(VPE &vpe) {
     // activate send and receive gate for page faults
-    _child_sep.reset(vpe.epmng().acquire(eps_start + TCU::PG_SEP_OFF));
-    _child_sgate.activate_on(*_child_sep);
-    _child_rep.reset(vpe.epmng().acquire(eps_start + TCU::PG_REP_OFF));
-    _child_rgate.Gate::activate_on(*_child_rep);
+    Syscalls::activate(vpe.sel() + 1, _child_sgate.sel(), KIF::INV_SEL, 0);
+    Syscalls::activate(vpe.sel() + 2, _child_rgate.sel(), KIF::INV_SEL, 0);
 
     // we only need to do that for clones
     if(_close) {

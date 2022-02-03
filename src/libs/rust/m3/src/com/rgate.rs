@@ -22,7 +22,7 @@ use crate::cap::{CapFlags, Selector};
 use crate::cell::LazyReadOnlyCell;
 use crate::cfg;
 use crate::com::rbufs::{alloc_rbuf, free_rbuf};
-use crate::com::{gate::Gate, RecvBuf, SendGate, EP};
+use crate::com::{gate::Gate, RecvBuf, SendGate};
 use crate::errors::{Code, Error};
 use crate::kif::INVALID_SEL;
 use crate::math;
@@ -194,11 +194,6 @@ impl RecvGate {
         self.gate.ep().map(|ep| ep.id())
     }
 
-    /// Sets or unsets the endpoint.
-    pub(crate) fn set_ep(&mut self, ep: Option<EP>) {
-        self.gate.set_ep(ep);
-    }
-
     /// Returns the size of the receive buffer in bytes
     pub fn size(&self) -> usize {
         1 << self.order
@@ -243,15 +238,6 @@ impl RecvGate {
         self.gate.activate_rgate(mem, off, replies).map(|_| {
             self.buf_addr = Some(addr);
         })
-    }
-
-    pub(crate) fn activate_for(
-        &self,
-        vpe: Selector,
-        ep: tcu::EpId,
-        replies: u32,
-    ) -> Result<(), Error> {
-        self.gate.activate_for(vpe, ep, replies)
     }
 
     /// Deactivates this gate.

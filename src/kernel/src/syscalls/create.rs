@@ -25,7 +25,7 @@ use base::tcu;
 
 use crate::cap::{Capability, KObject, SelRange};
 use crate::cap::{
-    MGateObject, MapObject, RGateObject, SGateObject, SemObject, ServObject, SessObject,
+    EPObject, MGateObject, MapObject, RGateObject, SGateObject, SemObject, ServObject, SessObject,
 };
 use crate::com::Service;
 use crate::mem;
@@ -291,8 +291,17 @@ pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
         kmem_sel
     );
 
-    if !vpe.obj_caps().borrow().unused(dst_sel) {
-        sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
+    if !vpe
+        .obj_caps()
+        .borrow()
+        .range_unused(&CapRngDesc::new(CapType::OBJECT, dst_sel, 3))
+    {
+        sysc_err!(
+            Code::InvArgs,
+            "Selectors {}..{} already in use",
+            dst_sel,
+            dst_sel + 2
+        );
     }
     if name.is_empty() {
         sysc_err!(Code::InvArgs, "Invalid name");
@@ -332,6 +341,21 @@ pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
     // give VPE cap to the parent
     let cap = Capability::new(dst_sel, KObject::VPE(Rc::downgrade(&nvpe)));
     try_kmem_quota!(vpe.obj_caps().borrow_mut().insert(cap));
+
+    // create EP caps for the pager EPs
+    if nvpe.pe_desc().has_virtmem() {
+        let nvpe_rc = Rc::downgrade(&nvpe);
+        for (i, ep) in [eps + tcu::PG_SEP_OFF, eps + tcu::PG_REP_OFF]
+            .iter()
+            .enumerate()
+        {
+            let scap = Capability::new(
+                dst_sel + 1 + i as CapSel,
+                KObject::EP(EPObject::new(true, nvpe_rc.clone(), *ep, 0, nvpe.pe())),
+            );
+            try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(scap, dst_sel));
+        }
+    }
 
     let mut kreply = MsgBuf::borrow_def();
     kreply.set(syscalls::CreateVPEReply {

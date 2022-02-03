@@ -76,7 +76,7 @@ public:
         return _child_rgate;
     }
 
-    void init(VPE &vpe, epid_t eps_start);
+    void init(VPE &vpe);
 
     Reference<Pager> create_clone();
     void clone();
@@ -93,8 +93,6 @@ private:
     SendGate _own_sgate;
     RecvGate _child_rgate;
     SendGate _child_sgate;
-    std::unique_ptr<EP> _child_sep;
-    std::unique_ptr<EP> _child_rep;
     bool _close;
 };
 

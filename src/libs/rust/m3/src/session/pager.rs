@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use base::tcu::EpId;
 use bitflags::bitflags;
 use core::fmt;
 
@@ -26,7 +25,7 @@ use crate::int_enum;
 use crate::kif;
 use crate::pes::VPE;
 use crate::session::ClientSession;
-use crate::tcu::{PG_REP_OFF, PG_SEP_OFF};
+use crate::syscalls;
 
 /// Represents a session at the pager.
 ///
@@ -159,12 +158,10 @@ impl Pager {
     }
 
     /// Initializes this pager session by delegating the VPE cap to the server.
-    pub fn init(&mut self, vpe: &VPE, first_ep: EpId) -> Result<(), Error> {
+    pub fn init(&mut self, vpe: &VPE) -> Result<(), Error> {
         // activate send and receive gate for page faults
-        self.child_sgate
-            .activate_for(vpe.sel(), first_ep + PG_SEP_OFF)?;
-        self.child_rgate
-            .activate_for(vpe.sel(), first_ep + PG_REP_OFF, 0)?;
+        syscalls::activate(vpe.sel() + 1, self.child_sgate.sel(), kif::INVALID_SEL, 0)?;
+        syscalls::activate(vpe.sel() + 2, self.child_rgate.sel(), kif::INVALID_SEL, 0)?;
 
         // we only need to do that for clones
         if self.close {
@@ -284,10 +281,6 @@ impl Pager {
 
 impl Drop for Pager {
     fn drop(&mut self) {
-        // don't deactivate the endpoints; the kernel takes care of that
-        self.child_sgate.set_ep(None);
-        self.child_rgate.set_ep(None);
-
         if self.close {
             send_recv_res!(&self.parent_sgate, RecvGate::def(), PagerOp::CLOSE).ok();
         }

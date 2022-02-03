@@ -70,7 +70,7 @@ VPE::VPE()
 }
 
 VPE::VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args)
-    : ObjCap(VIRTPE, VPE::self().alloc_sel()),
+    : ObjCap(VIRTPE, VPE::self().alloc_sels(3)),
       _id(),
       _pe(pe),
       _kmem(args._kmem ? args._kmem : VPE::self().kmem()),
@@ -97,21 +97,12 @@ VPE::VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args)
         // now create VPE, which implicitly obtains the gate cap from us
         _eps_start = Syscalls::create_vpe(sel(), name, pe->sel(), _kmem->sel(), &_id);
         // delegate VPE cap to pager
-        _pager->init(*this, _eps_start);
+        _pager->init(*this);
         // and delegate the pager cap to the VPE
         delegate_obj(_pager->sel());
     }
-    else {
+    else
         _eps_start = Syscalls::create_vpe(sel(), name, pe->sel(), _kmem->sel(), &_id);
-
-#if defined(__kachel__)
-        // reserve these EPs if we have no pager
-        // note: this is required, because these EP ids are handled differently by the kernel
-        capsel_t ep_sel = VPE::self().alloc_sels(2);
-        Syscalls::alloc_ep(ep_sel + 0, sel(), _eps_start + TCU::PG_SEP_OFF, 0);
-        Syscalls::alloc_ep(ep_sel + 1, sel(), _eps_start + TCU::PG_REP_OFF, 0);
-#endif
-    }
     _next_sel = Math::max(_kmem->sel() + 1, _next_sel);
 
     if(_resmng == nullptr) {
