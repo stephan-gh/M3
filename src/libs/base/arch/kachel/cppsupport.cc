@@ -49,15 +49,6 @@ EXTERN_C void *__libc_calloc(size_t n, size_t size) __attribute__((__weak__, __a
 EXTERN_C void *__libc_realloc(void *p, size_t size) __attribute__((__weak__, __alias__("realloc")));
 EXTERN_C void __libc_free(void *p) __attribute__((__weak__, __alias__("free")));
 
-#ifndef NDEBUG
-void __assert_fail(const char *expr, const char *file, int line, const char *func) {
-    m3::Serial::get() << "assertion \"" << expr << "\" failed in " << func << " in "
-                      << file << ":" << line << "\n";
-    exit(1);
-    /* NOTREACHED */
-}
-#endif
-
 #if defined(__arm__)
 EXTERN_C void __sync_synchronize() {
 }

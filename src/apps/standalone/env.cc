@@ -74,7 +74,7 @@ EXTERN_C int fputc(int c, void *) {
     return -1;
 }
 EXTERN_C size_t fwrite(const void *str, UNUSED size_t size, size_t nmemb, void *) {
-    assert(size == 1);
+    // assert(size == 1);
     const char *s = reinterpret_cast<const char*>(str);
     auto &ser = m3::Serial::get();
     while(nmemb-- > 0)

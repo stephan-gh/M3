@@ -32,7 +32,7 @@ void Heap::init_arch() {
     if(PEDesc(env()->pe_desc).has_memory())
         end = PEDesc(env()->pe_desc).stack_space().first;
     else {
-        assert(env()->heap_size != 0);
+        // assert(env()->heap_size != 0);
         end = begin + env()->heap_size;
     }
 
