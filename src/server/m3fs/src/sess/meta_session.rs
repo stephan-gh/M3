@@ -23,11 +23,12 @@ use m3::{
     cap::Selector,
     cell::StaticCell,
     col::{Treap, Vec},
-    com::{GateIStream, RecvGate, SendGate},
+    com::{GateIStream, RecvGate, SGateArgs, SendGate},
     errors::{Code, Error},
     server::CapExchange,
     server::SessId,
     session::ServerSession,
+    tcu::Label,
     vfs::OpenFlags,
 };
 
@@ -82,7 +83,7 @@ impl MetaSession {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let sgate = SendGate::new(rgate)?;
+        let sgate = SendGate::new_with(SGateArgs::new(rgate).label(self.session_id as Label))?;
         let sgate_selector = sgate.sel();
         self.sgates.push(sgate);
 
