@@ -102,7 +102,7 @@ fn read_write_object() {
 }
 
 fn remote_access() {
-    let mut _obj: u64 = 0;
+    static mut _OBJ: u64 = 0;
     let sem1 = wv_assert_ok!(Semaphore::create(0));
     let sem2 = wv_assert_ok!(Semaphore::create(0));
 
@@ -128,7 +128,7 @@ fn remote_access() {
         virt
     }
     else {
-        &_obj as *const _ as goff
+        unsafe { &_OBJ as *const _ as goff }
     };
 
     wv_assert_ok!(child.delegate_obj(sem1.sel()));

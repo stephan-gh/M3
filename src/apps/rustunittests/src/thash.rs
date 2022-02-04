@@ -179,31 +179,29 @@ fn hash_file() {
         "/movies/starwars.txt",
         OpenFlags::R | OpenFlags::NEW_SESS
     ));
-    let closures = [
-        _hash_file_start(
+
+    let hashes = [
+        (
             &HashAlgorithm::SHA3_512,
-            &file,
-            "7cf025af9e77e310ce912d28ae854f37aa62eb1fae81cc9b8a26dac81eb2bd6e9e277e419af033eabf8e1ffb663c06e0d2349b03f4262c4fd0a9e74d9156ca94",
+            "7cf025af9e77e310ce912d28ae854f37aa62eb1fae81cc9b8a26dac81eb2bd6e9e277e419af033eabf8e1ffb663c06e0d2349b03f4262c4fd0a9e74d9156ca94"
         ),
-        _hash_file_start(
+        (
             &HashAlgorithm::SHA3_384,
-            &file,
-            "261b44d87914504a0eb6b4dbe87836856427a7e57d7e3e4a1c559d99937ef6d26f360373df9202dcafc318b6ca6c21c5",
+            "261b44d87914504a0eb6b4dbe87836856427a7e57d7e3e4a1c559d99937ef6d26f360373df9202dcafc318b6ca6c21c5"
         ),
-        _hash_file_start(
+        (
             &HashAlgorithm::SHA3_256,
-            &file,
-            "a1cefebeb163af9c359039b0a75e9c88609c0f670e5d35fdc4be822b64f50f31",
+            "a1cefebeb163af9c359039b0a75e9c88609c0f670e5d35fdc4be822b64f50f31"
         ),
-        _hash_file_start(
+        (
             &HashAlgorithm::SHA3_224,
-            &file,
-            "2969482b56d4a98bc46bb298b264d464d75f6a78265df3b98f6dd017",
+            "2969482b56d4a98bc46bb298b264d464d75f6a78265df3b98f6dd017"
         ),
     ];
 
-    for c in closures.iter() {
-        wv_assert_eq!(c.wait(), Ok(0));
+    for (algo, hash) in &hashes {
+        let closure = _hash_file_start(algo, &file, hash);
+        wv_assert_eq!(closure.wait(), Ok(0));
     }
 }
 
