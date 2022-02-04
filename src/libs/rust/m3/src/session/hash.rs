@@ -64,7 +64,7 @@ impl HashSession {
         self.algo
     }
 
-    /// Returns the [`EP`] that should be configured with [`MemGate`]s for the
+    /// Returns the [`EP`] that should be configured with [`MemGate`](crate::com::MemGate)s for the
     /// input() and output() operation.
     pub fn ep(&self) -> &EP {
         &self.ep
@@ -79,16 +79,18 @@ impl HashSession {
     }
 
     /// Input new data into the state of the hash session.
-    /// Before this is called, the [`ep()`] should be configured with a valid
-    /// [`MemGate`] so that the hash multiplexer can successfully read `len`
+    ///
+    /// Before this is called, the [`ep`](HashSession::ep) should be configured with a valid
+    /// [`MemGate`](crate::com::MemGate) so that the hash multiplexer can successfully read `len`
     /// bytes with offset `off`.
     pub fn input(&self, off: usize, len: usize) -> Result<(), Error> {
         send_recv_res!(&self.sgate, RecvGate::def(), HashOp::INPUT, off, len).map(|_| ())
     }
 
     /// Output new data from the state of the hash session.
-    /// Before this is called, the [`ep()`] should be configured with a valid
-    /// [`MemGate`] so that the hash multiplexer can successfully write `len`
+    ///
+    /// Before this is called, the [`ep`](HashSession::ep) should be configured with a valid
+    /// [`MemGate`](crate::com::MemGate) so that the hash multiplexer can successfully write `len`
     /// bytes with offset `off`.
     ///
     /// Note that this operation does not allow output of more bytes than
@@ -102,10 +104,10 @@ impl HashSession {
         send_recv_res!(&self.sgate, RecvGate::def(), HashOp::OUTPUT, off, len).map(|_| ())
     }
 
-    /// Finish the hash for previous [`input()`] data. If successful, the hash
-    /// is written to the `result` slice. Note that the ´result` slice must have
-    /// exactly the size of `algo().output_bytes`, so this function cannot be
-    /// used for XOFs (extendable output functions).
+    /// Finish the hash for previous [`input`](HashSession::input) data. If successful, the hash is
+    /// written to the `result` slice. Note that the ´result` slice must have exactly the size of
+    /// `algo().output_bytes`, so this function cannot be used for XOFs (extendable output
+    /// functions).
     pub fn finish(&self, result: &mut [u8]) -> Result<(), Error> {
         assert_eq!(result.len(), self.algo.output_bytes);
         send_recv!(self.sgate, RecvGate::def(), HashOp::OUTPUT).and_then(|mut reply| {

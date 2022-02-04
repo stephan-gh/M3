@@ -35,7 +35,7 @@ impl<'n> RawSocket<'n> {
     /// Creates a new raw IP socket with given arguments.
     ///
     /// By default, the socket is in blocking mode, that is, all functions
-    /// ([`send_to`](RawSocket::send), [`recv_from`](RawSocket::recv), ...) do not return until the
+    /// ([`send`](RawSocket::send), [`recv`](RawSocket::recv), ...) do not return until the
     /// operation is complete. This can be changed via [`set_blocking`](RawSocket::set_blocking).
     pub fn new(args: DgramSocketArgs<'n>, protocol: Option<u8>) -> Result<Self, Error> {
         Ok(RawSocket {
@@ -56,10 +56,10 @@ impl<'n> RawSocket<'n> {
 
     /// Sets whether the socket is using blocking mode.
     ///
-    /// In blocking mode, all functions ([`send_to`](RawSocket::send_to),
-    /// [`recv_from`](RawSocket::recv_from), ...) do not return until the operation is complete. In
-    /// non-blocking mode, all functions return in case they would need to block, that is, wait
-    /// until an event is received or further data can be sent.
+    /// In blocking mode, all functions ([`send`](RawSocket::send), [`recv`](RawSocket::recv), ...)
+    /// do not return until the operation is complete. In non-blocking mode, all functions return in
+    /// case they would need to block, that is, wait until an event is received or further data can
+    /// be sent.
     pub fn set_blocking(&mut self, blocking: bool) {
         self.socket.set_blocking(blocking);
     }

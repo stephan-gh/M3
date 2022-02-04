@@ -85,8 +85,9 @@ impl<'n> TcpSocket<'n> {
 
     /// Returns the local endpoint
     ///
-    /// The local endpoint is only `Some` if the socket has been put into listen mode via [`listen`]
-    /// or was connected to a remote endpoint via [`connect`].
+    /// The local endpoint is only `Some` if the socket has been put into listen mode via
+    /// [`listen`](TcpSocket::listen) or was connected to a remote endpoint via
+    /// [`connect`](TcpSocket::connect).
     pub fn local_endpoint(&self) -> Option<Endpoint> {
         self.socket.local_ep.get()
     }
@@ -94,7 +95,8 @@ impl<'n> TcpSocket<'n> {
     /// Returns the remote endpoint
     ///
     /// The remote endpoint is only `Some`, if the socket is currently connected (achieved either
-    /// via [`connect`] or [`accept`]). Otherwise, the remote endpoint is `None`.
+    /// via [`connect`](TcpSocket::connect) or [`accept`](TcpSocket::accept)). Otherwise, the remote
+    /// endpoint is `None`.
     pub fn remote_endpoint(&self) -> Option<Endpoint> {
         self.socket.remote_ep.get()
     }

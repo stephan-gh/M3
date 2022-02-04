@@ -86,7 +86,8 @@ impl<'n> UdpSocket<'n> {
 
     /// Returns the local endpoint
     ///
-    /// The local endpoint is only `Some` if the socket has been bound via [`bind`].
+    /// The local endpoint is only `Some` if the socket has been bound via
+    /// [`bind`](UdpSocket::bind).
     pub fn local_endpoint(&self) -> Option<Endpoint> {
         self.socket.local_ep.get()
     }
