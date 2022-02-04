@@ -10,9 +10,6 @@
 [submodule "src/libs/leveldb"]
 	path = src/libs/leveldb
 	url = ../m3-leveldb.git
-[submodule "src/libs/jpeg"]
-	path = src/libs/jpeg
-	url = ../libjpeg.git
 [submodule "src/libs/flac"]
 	path = src/libs/flac
 	url = ../libFLAC.git

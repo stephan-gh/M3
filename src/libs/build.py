@@ -7,7 +7,6 @@ dirs = [
     'gem5',
     'heap',
     'host',
-    'jpeg',
     'leveldb',
     'm3',
     'memory',

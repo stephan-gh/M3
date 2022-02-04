@@ -11,7 +11,6 @@ dirs = [
     'filterchain',
     'hello',
     'info',
-    'jpegtest',
     'libctest',
     'msgchan',
     'netechoserver',
