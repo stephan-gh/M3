@@ -65,7 +65,7 @@ MountTable &MountTable::operator=(const MountTable &ms) noexcept {
     return *this;
 }
 
-void MountTable::add(const char *path, FileSystem *fs) {
+void MountTable::add(const char *path, Reference<FileSystem> fs) {
     if(_count == MAX_MOUNTS)
         throw MessageException("No free slot in mount table", Errors::NO_SPACE);
 
@@ -188,7 +188,7 @@ MountTable *MountTable::unserialize(const void *buffer, size_t size) {
         um >> path >> type;
         switch(type) {
             case 'M':
-                ms->add(path.c_str(), M3FS::unserialize(um));
+                ms->add(path.c_str(), Reference<FileSystem>(M3FS::unserialize(um)));
                 break;
         }
     }

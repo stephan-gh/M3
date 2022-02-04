@@ -29,7 +29,7 @@ namespace m3 {
 
 void FileTable::remove_all() noexcept {
     for(fd_t i = 0; i < FileTable::MAX_FDS; ++i)
-        VPE::self().fds()->remove(i);
+        VPE::self().files()->remove(i);
 }
 
 fd_t FileTable::alloc(Reference<File> file) {

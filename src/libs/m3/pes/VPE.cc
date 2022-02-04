@@ -126,16 +126,8 @@ VPE::~VPE() {
     }
 }
 
-void VPE::mounts(const std::unique_ptr<MountTable> &ms) noexcept {
-    _ms.reset(new MountTable(*ms.get()));
-}
-
 void VPE::obtain_mounts() {
     _ms->delegate(*this);
-}
-
-void VPE::fds(const std::unique_ptr<FileTable> &fds) noexcept {
-    _fds.reset(new FileTable(*fds.get()));
 }
 
 void VPE::obtain_fds() {

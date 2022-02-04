@@ -137,14 +137,12 @@ int main(int argc, char **argv) {
             if(i % 2 == 0) {
                 mems[i / 2] = new MemGate(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
                 pipes[i / 2] = new IndirectPipe(pipesrv, *mems[i / 2], PIPE_SHM_SIZE, data ? 0 : FILE_NODATA);
-                apps[i]->vpe.fds()->set(STDOUT_FD, VPE::self().fds()->get(pipes[i / 2]->writer_fd()));
+                apps[i]->vpe.files()->set(STDOUT_FD, VPE::self().files()->get(pipes[i / 2]->writer_fd()));
             }
             else
-                apps[i]->vpe.fds()->set(STDIN_FD, VPE::self().fds()->get(pipes[i / 2]->reader_fd()));
-            apps[i]->vpe.obtain_fds();
+                apps[i]->vpe.files()->set(STDIN_FD, VPE::self().files()->get(pipes[i / 2]->reader_fd()));
 
-            apps[i]->vpe.mounts(VPE::self().mounts());
-            apps[i]->vpe.obtain_mounts();
+            apps[i]->vpe.mounts()->add("/", VPE::self().mounts()->get("/"));
 
             apps[i]->vpe.exec(apps[i]->argc, apps[i]->argv);
 

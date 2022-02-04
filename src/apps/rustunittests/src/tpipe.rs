@@ -45,7 +45,6 @@ fn child_to_parent() {
         io::STDOUT_FILENO,
         VPE::cur().files().get(pipe.writer_fd()).unwrap(),
     );
-    wv_assert_ok!(vpe.obtain_fds());
 
     let act = wv_assert_ok!(vpe.run(|| {
         println!("This is a test!");
@@ -72,7 +71,6 @@ fn parent_to_child() {
         io::STDIN_FILENO,
         VPE::cur().files().get(pipe.reader_fd()).unwrap(),
     );
-    wv_assert_ok!(vpe.obtain_fds());
 
     let act = wv_assert_ok!(vpe.run(|| {
         let s = wv_assert_ok!(io::stdin().read_to_string());
@@ -107,8 +105,6 @@ fn child_to_child() {
         io::STDIN_FILENO,
         VPE::cur().files().get(pipe.reader_fd()).unwrap(),
     );
-    wv_assert_ok!(writer.obtain_fds());
-    wv_assert_ok!(reader.obtain_fds());
 
     let wr_act = wv_assert_ok!(writer.run(|| {
         println!("This is a test!");
@@ -145,8 +141,6 @@ fn exec_child_to_child() {
         io::STDIN_FILENO,
         VPE::cur().files().get(pipe.reader_fd()).unwrap(),
     );
-    wv_assert_ok!(writer.obtain_fds());
-    wv_assert_ok!(reader.obtain_fds());
 
     let wr_act = wv_assert_ok!(writer.exec(&["/bin/hello"]));
 
@@ -174,7 +168,6 @@ fn writer_quit() {
         io::STDOUT_FILENO,
         VPE::cur().files().get(pipe.writer_fd()).unwrap(),
     );
-    wv_assert_ok!(vpe.obtain_fds());
 
     let act = wv_assert_ok!(vpe.run(|| {
         println!("This is a test!");
@@ -212,7 +205,6 @@ fn reader_quit() {
         io::STDIN_FILENO,
         VPE::cur().files().get(pipe.reader_fd()).unwrap(),
     );
-    wv_assert_ok!(vpe.obtain_fds());
 
     let act = wv_assert_ok!(vpe.run(|| {
         let mut s = String::new();

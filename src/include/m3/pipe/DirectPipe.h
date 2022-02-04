@@ -46,8 +46,7 @@ namespace m3 {
  *   Pipe pipe(reader, VPE::self(), 0x1000);
  *
  *   // bind the read-end to stdin of the child
- *   reader.fds()->set(STDIN_FD, VPE::self().fds()->get(pipe.reader_fd()));
- *   reader.obtain_fds();
+ *   reader.files()->set(STDIN_FD, VPE::self().files()->get(pipe.reader_fd()));
  *
  *   reader.run([] {
  *       // read from cin
@@ -57,7 +56,7 @@ namespace m3 {
  *   // we are done with reading
  *   pipe.close_reader();
  *
- *   File *out = VPE::self().fds()->get(pipe.writer_fd());
+ *   File *out = VPE::self().files()->get(pipe.writer_fd());
  *   // write into out
  *
  *   // we are done with writing

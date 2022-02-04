@@ -70,7 +70,7 @@ public:
         for(size_t i = 0; i < num; ++i) {
             if(i > 0) {
                 if(mode == Mode::DIR_SIMPLE) {
-                    Reference<File> rd = VPE::self().fds()->get(pipes[i - 1]->reader_fd());
+                    Reference<File> rd = VPE::self().files()->get(pipes[i - 1]->reader_fd());
                     accels[i]->connect_input(static_cast<GenericFile*>(rd.get()));
                 }
                 else
@@ -78,7 +78,7 @@ public:
             }
             if(i + 1 < num) {
                 if(mode == Mode::DIR_SIMPLE) {
-                    Reference<File> wr = VPE::self().fds()->get(pipes[i]->writer_fd());
+                    Reference<File> wr = VPE::self().files()->get(pipes[i]->writer_fd());
                     accels[i]->connect_output(static_cast<GenericFile*>(wr.get()));
                 }
                 else
@@ -163,7 +163,7 @@ void chain_direct_multi(Reference<File> in, Reference<File> out, size_t num,
 
     fd_t outfd = VFS::open("/tmp/out2.txt", FILE_W | FILE_TRUNC | FILE_CREATE | FILE_NEWSESS);
     auto in2 = in->clone();
-    Chain ch2(pipes, in2, VPE::self().fds()->get(outfd), num, comptime, mode);
+    Chain ch2(pipes, in2, VPE::self().files()->get(outfd), num, comptime, mode);
 
     if(VERBOSE) Serial::get() << "Starting chains...\n";
 

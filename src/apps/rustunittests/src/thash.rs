@@ -157,7 +157,6 @@ fn _hash_file_start(algo: &'static HashAlgorithm, file: &FileRef, expected: &str
     let mut vpe = wv_assert_ok!(VPE::new(pe, algo.name));
 
     vpe.files().set(io::STDIN_FILENO, file.handle());
-    wv_assert_ok!(vpe.obtain_fds());
 
     let mut dst = vpe.data_sink();
     dst.push_word(algo.ty.val);
@@ -404,7 +403,6 @@ fn shake_and_hash_pipe() {
         io::STDOUT_FILENO,
         wv_assert_some!(VPE::cur().files().get(opipe.writer_fd())),
     );
-    wv_assert_ok!(vpe.obtain_fds());
     let closure = wv_assert_ok!(vpe.run(|| {
         let hash = wv_assert_ok!(HashSession::new("hash2", &HashAlgorithm::SHAKE128));
         wv_assert_ok!(io::stdin().get_mut().hash_input(&hash, usize::MAX));

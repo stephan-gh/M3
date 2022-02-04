@@ -81,7 +81,7 @@ public:
      * @return the File instance
      */
     Reference<File> file() const {
-        return VPE::self().fds()->get(_fd);
+        return VPE::self().files()->get(_fd);
     }
 
     /**

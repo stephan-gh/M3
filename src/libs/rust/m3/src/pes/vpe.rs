@@ -294,11 +294,27 @@ impl VPE {
     }
 
     /// Returns a mutable reference to the file table of this VPE.
+    ///
+    /// Files that are added to child VPEs are automatically delegated to the child upon
+    /// [`VPE::run`] and [`VPE::exec`]. For example, you can connect the child's STDOUT to one of
+    /// your files in the following way:
+    /// ```
+    /// child.files().set(
+    ///   STDOUT_FILENO,
+    ///   VPE::cur().files().get(4).unwrap(),
+    /// );
+    /// ```
     pub fn files(&mut self) -> &mut FileTable {
         &mut self.files
     }
 
     /// Returns a mutable reference to the mount table of this VPE.
+    ///
+    /// Mounts that are added to child VPEs are automatically delegated to the child upon
+    /// [`VPE::run`] and [`VPE::exec`]. For example:
+    /// ```
+    /// child.mounts().add("/", VPE::cur().mounts().get_by_path("/").unwrap());
+    /// ```
     pub fn mounts(&mut self) -> &mut MountTable {
         &mut self.mounts
     }
@@ -401,35 +417,6 @@ impl VPE {
         syscalls::revoke(self.sel(), crd, !del_only)
     }
 
-    /// Performs the required capability exchanges to pass the files set for `self` to the VPE.
-    ///
-    /// Before calling this method, you should adjust the file table of `self` via [`VPE::files`]
-    /// by copying files from [`VPE::cur`].
-    pub fn obtain_fds(&mut self) -> Result<(), Error> {
-        // TODO that's really bad. but how to improve that? :/
-        let mut dels = Vec::new();
-        self.files
-            .collect_caps(self.sel(), &mut dels, &mut self.next_sel)?;
-        for c in dels {
-            self.delegate_obj(c)?;
-        }
-        Ok(())
-    }
-
-    /// Performs the required capability exchanges to pass the mounts set for `self` to the VPE.
-    ///
-    /// Before calling this method, you should adjust the mount table of `self` via [`VPE::mounts`]
-    /// by copying mounts from [`VPE::cur`].
-    pub fn obtain_mounts(&mut self) -> Result<(), Error> {
-        let mut dels = Vec::new();
-        self.mounts
-            .collect_caps(self.sel(), &mut dels, &mut self.next_sel)?;
-        for c in dels {
-            self.delegate_obj(c)?;
-        }
-        Ok(())
-    }
-
     /// Creates a new memory gate that refers to the address region `addr`..`addr`+`size` in the
     /// address space of this VPE. The region must be physically contiguous and page aligned.
     pub fn get_mem(&self, addr: goff, size: goff, perms: kif::Perm) -> Result<MemGate, Error> {
@@ -494,7 +481,7 @@ impl VPE {
     #[cfg(not(target_vendor = "host"))]
     #[allow(unused_mut)]
     fn do_exec_file<S: AsRef<str>>(
-        self,
+        mut self,
         mapper: &mut dyn Mapper,
         mut file: FileRef,
         args: &[S],
@@ -503,6 +490,9 @@ impl VPE {
         use crate::cfg;
         use crate::mem;
         use crate::pes::Activity;
+
+        self.obtain_mounts()?;
+        self.obtain_fds()?;
 
         let mut file = BufReader::new(file);
 
@@ -597,7 +587,7 @@ impl VPE {
 
     #[cfg(target_vendor = "host")]
     fn do_exec_file<S: AsRef<str>>(
-        self,
+        mut self,
         _mapper: &dyn Mapper,
         mut file: FileRef,
         args: &[S],
@@ -605,6 +595,9 @@ impl VPE {
     ) -> Result<ExecActivity, Error> {
         use crate::errors::Code;
         use crate::libc;
+
+        self.obtain_mounts()?;
+        self.obtain_fds()?;
 
         let path = arch::loader::copy_file(&mut file)?;
 
@@ -664,6 +657,27 @@ impl VPE {
                 Ok(ExecActivity::new(self, BufReader::new(file)))
             },
         }
+    }
+
+    fn obtain_fds(&mut self) -> Result<(), Error> {
+        // TODO that's really bad. but how to improve that? :/
+        let mut dels = Vec::new();
+        self.files
+            .collect_caps(self.sel(), &mut dels, &mut self.next_sel)?;
+        for c in dels {
+            self.delegate_obj(c)?;
+        }
+        Ok(())
+    }
+
+    fn obtain_mounts(&mut self) -> Result<(), Error> {
+        let mut dels = Vec::new();
+        self.mounts
+            .collect_caps(self.sel(), &mut dels, &mut self.next_sel)?;
+        for c in dels {
+            self.delegate_obj(c)?;
+        }
+        Ok(())
     }
 }
 

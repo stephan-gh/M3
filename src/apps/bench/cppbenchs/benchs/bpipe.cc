@@ -43,11 +43,10 @@ NOINLINE void child_to_parent() {
 
         Reference<PE> pe = PE::get("clone|own");
         VPE vpe(pe, "writer");
-        vpe.fds()->set(STDOUT_FD, VPE::self().fds()->get(pipe.writer_fd()));
-        vpe.obtain_fds();
+        vpe.files()->set(STDOUT_FD, VPE::self().files()->get(pipe.writer_fd()));
 
         vpe.run([] {
-            auto output = VPE::self().fds()->get(STDOUT_FD);
+            auto output = VPE::self().files()->get(STDOUT_FD);
             auto rem = DATA_SIZE;
             while(rem > 0) {
                 output->write(buf, sizeof(buf));
@@ -58,7 +57,7 @@ NOINLINE void child_to_parent() {
 
         pipe.close_writer();
 
-        auto input = VPE::self().fds()->get(pipe.reader_fd());
+        auto input = VPE::self().files()->get(pipe.reader_fd());
         while(input->read(buf, sizeof(buf)) > 0)
             ;
 
@@ -81,11 +80,10 @@ NOINLINE void parent_to_child() {
 
         Reference<PE> pe(PE::get("clone|own"));
         VPE vpe(pe, "writer");
-        vpe.fds()->set(STDIN_FD, VPE::self().fds()->get(pipe.reader_fd()));
-        vpe.obtain_fds();
+        vpe.files()->set(STDIN_FD, VPE::self().files()->get(pipe.reader_fd()));
 
         vpe.run([] {
-            auto input = VPE::self().fds()->get(STDIN_FD);
+            auto input = VPE::self().files()->get(STDIN_FD);
             while(input->read(buf, sizeof(buf)) > 0)
                 ;
             return 0;
@@ -93,7 +91,7 @@ NOINLINE void parent_to_child() {
 
         pipe.close_reader();
 
-        auto output = VPE::self().fds()->get(pipe.writer_fd());
+        auto output = VPE::self().files()->get(pipe.writer_fd());
         auto rem = DATA_SIZE;
         while(rem > 0) {
             output->write(buf, sizeof(buf));

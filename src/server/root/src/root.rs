@@ -76,7 +76,6 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
 
     if let Some(fs) = VPE::cur().mounts().get_by_path("/") {
         vpe.mounts().add("/", fs)?;
-        vpe.obtain_mounts()?;
     }
 
     let id = child.id();

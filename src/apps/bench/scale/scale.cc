@@ -183,10 +183,8 @@ int main(int argc, char **argv) {
             cout << "\n";
         }
 
-        if(!fs_size_str) {
-            apps[i]->vpe.mounts(VPE::self().mounts());
-            apps[i]->vpe.obtain_mounts();
-        }
+        if(!fs_size_str)
+            apps[i]->vpe.mounts()->add("/", VPE::self().mounts()->get("/"));
 
         apps[i]->vpe.exec(static_cast<int>(apps[i]->argc), apps[i]->argv);
     }

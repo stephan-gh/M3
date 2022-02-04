@@ -176,13 +176,6 @@ public:
     }
 
     /**
-     * @return the mount table
-     */
-    std::unique_ptr<MountTable> &mounts() noexcept {
-        return _ms;
-    }
-
-    /**
      * @return the kernel memory quota
      */
     const Reference<KMem> &kmem() const noexcept {
@@ -190,38 +183,35 @@ public:
     }
 
     /**
-     * Clones the given mount table into this VPE.
+     * Returns the mounts of this VPE.
      *
-     * @param ms the mount table
+     * Mounts that are added to child VPEs are automatically delegated to the child upon
+     * VPE::run and VPE::exec. For example:
+     * <code>
+     * child.mounts().add("/", VPE::cur().mounts().get_by_path("/").unwrap()));
+     * </code>
+     *
+     * @return the mount table
      */
-    void mounts(const std::unique_ptr<MountTable> &ms) noexcept;
-
-    /**
-     * Lets this VPE obtain all mount points in its mount table, i.e., the required capability
-     * exchanges are performed.
-     */
-    void obtain_mounts();
-
-    /**
-     * @return the file descriptors
-     */
-    std::unique_ptr<FileTable> &fds() noexcept {
-        return _fds;
+    std::unique_ptr<MountTable> &mounts() noexcept {
+        return _ms;
     }
 
     /**
-     * Clones the given file descriptors into this VPE. Note that the file descriptors depend
-     * on the mount table, so that you should always prepare the mount table first.
+     * Returns the files of this VPE.
      *
-     * @param fds the file descriptors
+     * Files that are added to child VPEs are automatically delegated to the child upon VPE::run and
+     * VPE::exec. For example, you can connect the child's STDOUT to one of your files in the
+     * following way:
+     * <code>
+     * child.files()->set(STDOUT_FD, VPE::self().fds()->get(4));
+     * </code>
+     *
+     * @return the files
      */
-    void fds(const std::unique_ptr<FileTable> &fds) noexcept;
-
-    /**
-     * Lets this VPE obtain all files in its file table, i.e., the required capability exchanges
-     * are performed.
-     */
-    void obtain_fds();
+    std::unique_ptr<FileTable> &files() noexcept {
+        return _fds;
+    }
 
     /**
      * Returns a marshaller for the VPE-local data.
@@ -382,6 +372,9 @@ private:
     }
 
     static void reset() noexcept;
+
+    void obtain_mounts();
+    void obtain_fds();
 
     void init_state();
     void init_fs();

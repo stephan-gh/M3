@@ -40,7 +40,7 @@ class VPE;
 class MountTable {
     class MountPoint {
     public:
-        explicit MountPoint(const char *path, FileSystem *fs) noexcept
+        explicit MountPoint(const char *path, Reference<FileSystem> fs) noexcept
             : _path(path),
               _fs(fs) {
         }
@@ -87,7 +87,18 @@ public:
      * @param path the path
      * @param fs the filesystem instance
      */
-    void add(const char *path, FileSystem *fs);
+    void add(const char *path, Reference<FileSystem> fs);
+
+    /**
+     * Returns the filesystem at the given path
+     *
+     * @param path the path
+     * @return the filesystem
+     */
+    Reference<FileSystem> get(const char *path) {
+        size_t pos = 0;
+        return resolve(path, &pos);
+    }
 
     /**
      * Resolves the given path to a mounted filesystem.

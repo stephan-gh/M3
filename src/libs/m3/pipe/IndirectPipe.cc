@@ -22,8 +22,8 @@ namespace m3 {
 
 IndirectPipe::IndirectPipe(Pipes &pipes, MemGate &mem, size_t memsize, int flags)
     : _pipe(pipes.create_pipe(mem, memsize)),
-      _rdfd(VPE::self().fds()->alloc(_pipe.create_channel(true, flags))),
-      _wrfd(VPE::self().fds()->alloc(_pipe.create_channel(false, flags))) {
+      _rdfd(VPE::self().files()->alloc(_pipe.create_channel(true, flags))),
+      _wrfd(VPE::self().files()->alloc(_pipe.create_channel(false, flags))) {
 }
 
 IndirectPipe::~IndirectPipe() {
@@ -43,11 +43,11 @@ IndirectPipe::~IndirectPipe() {
 }
 
 void IndirectPipe::close_reader() {
-    VPE::self().fds()->remove(_rdfd);
+    VPE::self().files()->remove(_rdfd);
 }
 
 void IndirectPipe::close_writer() {
-    VPE::self().fds()->remove(_wrfd);
+    VPE::self().files()->remove(_wrfd);
 }
 
 }

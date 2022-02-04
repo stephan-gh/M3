@@ -63,8 +63,6 @@ int main(int argc, char **argv) {
     SendGate sgate = SendGate::create(&rgate, SendGateArgs().credits(1));
     MemGate resmem = MemGate::create_global(BUF_SIZE, MemGate::RW);
 
-    t2.fds(VPE::self().fds());
-    t2.obtain_fds();
     t2.delegate_obj(rgate.sel());
 
     t2.data_sink() << rgate.sel();
@@ -90,8 +88,6 @@ int main(int argc, char **argv) {
 
     auto pe1 = PE::get("clone|own");
     VPE t1(pe1, "sender");
-    t1.fds(VPE::self().fds());
-    t1.obtain_fds();
     t1.delegate_obj(mem.sel());
     t1.delegate_obj(resmem.sel());
     t1.delegate_obj(sgate.sel());

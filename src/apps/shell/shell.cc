@@ -139,33 +139,31 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
             if(cmd->redirs->fds[STDIN_FD])
                 infd = VFS::open(cmd->redirs->fds[STDIN_FD], FILE_R | FILE_NEWSESS);
             else if(vterm)
-                infd = VPE::self().fds()->alloc(vterm->create_channel(true));
+                infd = VPE::self().files()->alloc(vterm->create_channel(true));
             if(infd != -1)
-                vpes[i]->fds()->set(STDIN_FD, VPE::self().fds()->get(infd));
+                vpes[i]->files()->set(STDIN_FD, VPE::self().files()->get(infd));
         }
         else if(pes[i - 1]->desc().is_programmable() || pes[i]->desc().is_programmable())
-            vpes[i]->fds()->set(STDIN_FD, VPE::self().fds()->get(pipes[i - 1]->reader_fd()));
+            vpes[i]->files()->set(STDIN_FD, VPE::self().files()->get(pipes[i - 1]->reader_fd()));
 
         if(i + 1 == list->count) {
             if(cmd->redirs->fds[STDOUT_FD])
                 outfd = VFS::open(cmd->redirs->fds[STDOUT_FD], FILE_W | FILE_CREATE | FILE_TRUNC | FILE_NEWSESS);
             else if(vterm)
-                outfd = VPE::self().fds()->alloc(vterm->create_channel(false));
+                outfd = VPE::self().files()->alloc(vterm->create_channel(false));
             if(outfd != -1)
-                vpes[i]->fds()->set(STDOUT_FD, VPE::self().fds()->get(outfd));
+                vpes[i]->files()->set(STDOUT_FD, VPE::self().files()->get(outfd));
         }
         else if(pes[i]->desc().is_programmable() || pes[i + 1]->desc().is_programmable()) {
             mems[i] = std::make_unique<MemGate>(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
             pipes[i] = std::make_unique<IndirectPipe>(pipesrv, *mems[i], PIPE_SHM_SIZE);
-            vpes[i]->fds()->set(STDOUT_FD, VPE::self().fds()->get(pipes[i]->writer_fd()));
+            vpes[i]->files()->set(STDOUT_FD, VPE::self().files()->get(pipes[i]->writer_fd()));
         }
 
         if(pes[i]->desc().is_programmable()) {
-            vpes[i]->fds()->set(STDERR_FD, VPE::self().fds()->get(STDERR_FD));
-            vpes[i]->obtain_fds();
+            vpes[i]->files()->set(STDERR_FD, VPE::self().files()->get(STDERR_FD));
 
-            vpes[i]->mounts(VPE::self().mounts());
-            vpes[i]->obtain_mounts();
+            vpes[i]->mounts()->add("/", VPE::self().mounts()->get("/"));
 
             char **args = build_args(cmd);
             vpes[i]->exec(static_cast<int>(cmd->args->count), const_cast<const char**>(args));
@@ -188,9 +186,9 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
         size_t c = 0;
         for(size_t i = 0; i < vpe_count; ++i) {
             if(accels[i]) {
-                auto in = vpes[i]->fds()->get(STDIN_FD);
+                auto in = vpes[i]->files()->get(STDIN_FD);
                 if(in) {
-                    auto ain = in.get() == VPE::self().fds()->get(STDIN_FD).get() ? in->clone() : in;
+                    auto ain = in.get() == VPE::self().files()->get(STDIN_FD).get() ? in->clone() : in;
                     accels[i]->connect_input(static_cast<GenericFile*>(ain.get()));
                     if(ain.get() != in.get())
                         clones[c++] = ain;
@@ -198,9 +196,9 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                 else if(accels[i - 1])
                     accels[i]->connect_input(accels[i - 1].get());
 
-                auto out = vpes[i]->fds()->get(STDOUT_FD);
+                auto out = vpes[i]->files()->get(STDOUT_FD);
                 if(out) {
-                    auto aout = out.get() == VPE::self().fds()->get(STDOUT_FD).get() ? out->clone() : out;
+                    auto aout = out.get() == VPE::self().files()->get(STDOUT_FD).get() ? out->clone() : out;
                     accels[i]->connect_output(static_cast<GenericFile*>(aout.get()));
                     if(aout.get() != out.get())
                         clones[c++] = aout;
@@ -275,9 +273,9 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
 
         // close our input/output file; the server will recursively close all clones
         if(outfd != -1)
-            VPE::self().fds()->remove(outfd);
+            VPE::self().files()->remove(outfd);
         if(infd != -1)
-            VPE::self().fds()->remove(infd);
+            VPE::self().files()->remove(infd);
     }
 }
 
@@ -308,7 +306,7 @@ int main(int argc, char **argv) {
         // change stdin, stdout, and stderr to vterm
         const fd_t fds[] = {STDIN_FD, STDOUT_FD, STDERR_FD};
         for(fd_t fd : fds)
-            VPE::self().fds()->set(fd, vterm->create_channel(fd == STDIN_FD));
+            VPE::self().files()->set(fd, vterm->create_channel(fd == STDIN_FD));
 
         // register SendGate for signals from vterm
         signal_rgate = new RecvGate(RecvGate::create(5, 5));

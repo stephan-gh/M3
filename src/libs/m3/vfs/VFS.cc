@@ -31,7 +31,7 @@ namespace m3 {
 INIT_PRIO_VFS VFS::Cleanup VFS::_cleanup;
 
 VFS::Cleanup::~Cleanup() {
-    VPE::self().fds()->remove_all();
+    VPE::self().files()->remove_all();
     VPE::self().mounts()->remove_all();
 }
 
@@ -49,7 +49,7 @@ void VFS::mount(const char *path, const char *fs, const char *options) {
         fsobj = new M3FS(id, options ? options : fs);
     else
         VTHROW(Errors::INV_ARGS, "Unknown filesystem '" << fs << "'");
-    ms()->add(path, fsobj);
+    ms()->add(path, Reference<FileSystem>(fsobj));
 }
 
 void VFS::unmount(const char *path) {
@@ -61,7 +61,7 @@ fd_t VFS::open(const char *path, int flags) {
         size_t pos;
         Reference<FileSystem> fs = ms()->resolve(path, &pos);
         Reference<File> file = fs->open(path + pos, flags);
-        fd_t fd = VPE::self().fds()->alloc(file);
+        fd_t fd = VPE::self().files()->alloc(file);
         LLOG(FS, "GenFile[" << fd << "]::open(" << path << ", " << flags << ")");
         if(flags & FILE_APPEND)
             file->seek(0, M3FS_SEEK_END);
@@ -73,7 +73,7 @@ fd_t VFS::open(const char *path, int flags) {
 }
 
 void VFS::close(fd_t fd) noexcept {
-    VPE::self().fds()->remove(fd);
+    VPE::self().files()->remove(fd);
 }
 
 void VFS::stat(const char *path, FileInfo &info) {

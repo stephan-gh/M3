@@ -82,8 +82,8 @@ int main(int argc, char **argv) {
         fd_t infd = VFS::open(in, FILE_R);
         fd_t outfd = VFS::open(out, FILE_W | FILE_TRUNC | FILE_CREATE);
 
-        auto fin = VPE::self().fds()->get(infd);
-        auto fout = VPE::self().fds()->get(outfd);
+        auto fin = VPE::self().files()->get(infd);
+        auto fout = VPE::self().files()->get(outfd);
 
         if(mode == Mode::INDIR)
             chain_indirect(fin, fout, num, comptime);

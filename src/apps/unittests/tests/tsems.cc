@@ -54,8 +54,7 @@ static void taking_turns() {
     child.delegate_obj(sem0.sel());
     child.delegate_obj(sem1.sel());
 
-    child.mounts(VPE::self().mounts());
-    child.obtain_mounts();
+    child.mounts()->add("/", VPE::self().mounts()->get("/"));
 
     child.data_sink() << sem0.sel() << sem1.sel();
 

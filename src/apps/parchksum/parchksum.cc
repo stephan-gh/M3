@@ -37,8 +37,6 @@ struct Worker {
           pe(PE::get("clone|own")),
           vpe(pe, "worker") {
         vpe.delegate_obj(submem.sel());
-        vpe.fds(VPE::self().fds());
-        vpe.obtain_fds();
     }
 };
 

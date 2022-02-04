@@ -74,6 +74,9 @@ void VPE::do_exec(int argc, const char **argv, uintptr_t func_addr) {
     Env senv;
     std::unique_ptr<char[]> buffer(new char[BUF_SIZE]);
 
+    obtain_fds();
+    obtain_mounts();
+
     // we need a new session to be able to get memory mappings
     _exec = std::make_unique<FStream>(argv[0], FILE_RWX | FILE_NEWSESS);
 

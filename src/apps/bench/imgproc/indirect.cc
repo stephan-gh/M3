@@ -161,8 +161,8 @@ CycleDuration chain_indirect(const char *in, size_t num) {
         outfds[i] = VFS::open(outpath.str(), FILE_W | FILE_TRUNC | FILE_CREATE);
 
         chains[i] = std::unique_ptr<IndirChain>(
-            new IndirChain(i, reply_gate, VPE::self().fds()->get(infds[i]),
-                                          VPE::self().fds()->get(outfds[i]))
+            new IndirChain(i, reply_gate, VPE::self().files()->get(infds[i]),
+                                          VPE::self().files()->get(outfds[i]))
         );
     }
 

@@ -50,7 +50,6 @@ fn child_to_parent() {
             io::STDOUT_FILENO,
             VPE::cur().files().get(pipe.writer_fd()).unwrap(),
         );
-        wv_assert_ok!(vpe.obtain_fds());
 
         let act = wv_assert_ok!(vpe.run(|| {
             let output = VPE::cur().files().get(io::STDOUT_FILENO).unwrap();
@@ -96,7 +95,6 @@ fn parent_to_child() {
             io::STDIN_FILENO,
             VPE::cur().files().get(pipe.reader_fd()).unwrap(),
         );
-        wv_assert_ok!(vpe.obtain_fds());
 
         let act = wv_assert_ok!(vpe.run(|| {
             let input = VPE::cur().files().get(io::STDIN_FILENO).unwrap();

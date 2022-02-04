@@ -74,7 +74,7 @@ public:
         for(size_t i = 0; i < ACCEL_COUNT; ++i) {
             if(i > 0) {
                 if(mode == Mode::DIR_SIMPLE) {
-                    auto rd = VPE::self().fds()->get(pipes[i - 1]->reader_fd());
+                    auto rd = VPE::self().files()->get(pipes[i - 1]->reader_fd());
                     accels[i]->connect_input(static_cast<GenericFile*>(rd.get()));
                 }
                 else
@@ -82,7 +82,7 @@ public:
             }
             if(i + 1 < ACCEL_COUNT) {
                 if(mode == Mode::DIR_SIMPLE) {
-                    auto wr = VPE::self().fds()->get(pipes[i]->writer_fd());
+                    auto wr = VPE::self().files()->get(pipes[i]->writer_fd());
                     accels[i]->connect_output(static_cast<GenericFile*>(wr.get()));
                 }
                 else
@@ -163,8 +163,8 @@ CycleDuration chain_direct(const char *in, size_t num, Mode mode) {
 
         chains[i] = std::make_unique<DirectChain>(pipes,
                                                   i,
-                                                  VPE::self().fds()->get(infds[i]),
-                                                  VPE::self().fds()->get(outfds[i]),
+                                                  VPE::self().files()->get(infds[i]),
+                                                  VPE::self().files()->get(outfds[i]),
                                                   mode);
     }
 

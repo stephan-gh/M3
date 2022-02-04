@@ -97,8 +97,7 @@ int main(int argc, char **argv) {
             auto start = CycleInstant::now();
 
             for(size_t i = 0; i < ARRAY_SIZE(apps); ++i) {
-                apps[i]->vpe.mounts(VPE::self().mounts());
-                apps[i]->vpe.obtain_mounts();
+                apps[i]->vpe.mounts()->add("/", VPE::self().mounts()->get("/"));
                 apps[i]->vpe.exec(apps[i]->argc, apps[i]->argv);
 
                 if(VERBOSE) cout << "Waiting for VPE " << apps[i]->argv[0] << " ...\n";

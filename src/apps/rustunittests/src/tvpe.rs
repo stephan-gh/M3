@@ -57,7 +57,6 @@ fn run_stop() {
         // pass root fs to child
         let rootmnt = wv_assert_some!(VPE::cur().mounts().get_by_path("/"));
         wv_assert_ok!(vpe.mounts().add("/", rootmnt));
-        wv_assert_ok!(vpe.obtain_mounts());
 
         let mut dst = vpe.data_sink();
         dst.push_word(sg.sel());

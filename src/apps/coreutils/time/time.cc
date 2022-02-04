@@ -18,6 +18,7 @@
 
 #include <m3/stream/Standard.h>
 #include <m3/pes/VPE.h>
+#include <m3/vfs/MountTable.h>
 
 using namespace m3;
 
@@ -30,13 +31,10 @@ int main(int argc, char **argv) {
     {
         auto pe = PE::get("own|core");
         VPE child(pe, argv[1]);
-        child.fds()->set(STDIN_FD, VPE::self().fds()->get(STDIN_FD));
-        child.fds()->set(STDOUT_FD, VPE::self().fds()->get(STDOUT_FD));
-        child.fds()->set(STDERR_FD, VPE::self().fds()->get(STDERR_FD));
-        child.obtain_fds();
-
-        child.mounts(VPE::self().mounts());
-        child.obtain_mounts();
+        child.files()->set(STDIN_FD, VPE::self().files()->get(STDIN_FD));
+        child.files()->set(STDOUT_FD, VPE::self().files()->get(STDOUT_FD));
+        child.files()->set(STDERR_FD, VPE::self().files()->get(STDERR_FD));
+        child.mounts()->add("/", VPE::self().mounts()->get("/"));
 
         child.exec(argc - 1, const_cast<const char**>(argv) + 1);
 

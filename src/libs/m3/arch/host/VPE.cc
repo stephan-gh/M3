@@ -212,6 +212,9 @@ void VPE::do_exec(int argc, const char **argv, uintptr_t func_addr) {
     size_t res;
     Chan p2c, c2p;
 
+    obtain_fds();
+    obtain_mounts();
+
     char templ[256];
     snprintf(templ, sizeof(templ), "%s/exec-XXXXXX", Env::tmp_dir());
 

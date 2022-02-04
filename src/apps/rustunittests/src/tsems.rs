@@ -52,7 +52,6 @@ fn taking_turns() {
 
     let rootmnt = wv_assert_some!(VPE::cur().mounts().get_by_path("/"));
     wv_assert_ok!(child.mounts().add("/", rootmnt));
-    wv_assert_ok!(child.obtain_mounts());
 
     set_counter("/sem0", 0);
     set_counter("/sem1", 0);

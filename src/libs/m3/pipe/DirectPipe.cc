@@ -33,12 +33,12 @@ DirectPipe::DirectPipe(VPE &rd, VPE &wr, MemGate &mem, size_t size)
       _wrfd() {
     std::unique_ptr<DirectPipeReader::State> rstate(
         &rd == &VPE::self() ? new DirectPipeReader::State(caps()) : nullptr);
-    _rdfd = VPE::self().fds()->alloc(Reference<File>(
+    _rdfd = VPE::self().files()->alloc(Reference<File>(
         new DirectPipeReader(caps(), std::move(rstate))));
 
     std::unique_ptr<DirectPipeWriter::State> wstate(
         &wr == &VPE::self() ? new DirectPipeWriter::State(caps() + 2, _size) : nullptr);
-    _wrfd = VPE::self().fds()->alloc(Reference<File>(
+    _wrfd = VPE::self().files()->alloc(Reference<File>(
         new DirectPipeWriter(caps() + 2, _size, std::move(wstate))));
 }
 
@@ -59,25 +59,25 @@ DirectPipe::~DirectPipe() {
 }
 
 void DirectPipe::close_reader() {
-    Reference<File> frd = VPE::self().fds()->get(_rdfd);
+    Reference<File> frd = VPE::self().files()->get(_rdfd);
     DirectPipeReader *rd = static_cast<DirectPipeReader*>(frd.get());
     if(rd) {
         // don't send EOF, if we are not reading
         if(&_rd != &VPE::self())
             rd->_noeof = true;
     }
-    VPE::self().fds()->remove(_rdfd);
+    VPE::self().files()->remove(_rdfd);
 }
 
 void DirectPipe::close_writer() {
-    Reference<File> fwr = VPE::self().fds()->get(_wrfd);
+    Reference<File> fwr = VPE::self().files()->get(_wrfd);
     DirectPipeWriter *wr = static_cast<DirectPipeWriter*>(fwr.get());
     if(wr) {
         // don't send EOF, if we are not writing
         if(&_wr != &VPE::self())
             wr->_noeof = true;
     }
-    VPE::self().fds()->remove(_wrfd);
+    VPE::self().files()->remove(_wrfd);
 }
 
 }

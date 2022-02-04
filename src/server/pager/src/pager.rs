@@ -215,7 +215,6 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
         let fs = get_mount(m.fs())?;
         vpe.mounts().add(m.path(), fs)?;
     }
-    vpe.obtain_mounts().unwrap();
 
     // init address space (give it VPE and mgate selector)
     let mut hdl = PGHDL.borrow_mut();

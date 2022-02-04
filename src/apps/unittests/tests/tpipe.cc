@@ -33,12 +33,11 @@ static void reader_quit() {
     MemGate mem = MemGate::create_global(0x1000, MemGate::RW);
     DirectPipe pipe(VPE::self(), writer, mem, 0x1000);
 
-    writer.fds()->set(STDIN_FD, VPE::self().fds()->get(STDIN_FD));
-    writer.fds()->set(STDOUT_FD, VPE::self().fds()->get(pipe.writer_fd()));
-    writer.obtain_fds();
+    writer.files()->set(STDIN_FD, VPE::self().files()->get(STDIN_FD));
+    writer.files()->set(STDOUT_FD, VPE::self().files()->get(pipe.writer_fd()));
 
     writer.run([] {
-        auto out = VPE::self().fds()->get(STDOUT_FD);
+        auto out = VPE::self().files()->get(STDOUT_FD);
         while(1) {
             OStringStream os(buffer, sizeof(buffer));
             os << "Hello World!\n";
@@ -72,9 +71,8 @@ static void writer_quit() {
     MemGate mem = MemGate::create_global(64, MemGate::RW);
     DirectPipe pipe(reader, VPE::self(), mem, 64);
 
-    reader.fds()->set(STDIN_FD, VPE::self().fds()->get(pipe.reader_fd()));
-    reader.fds()->set(STDOUT_FD, VPE::self().fds()->get(STDOUT_FD));
-    reader.obtain_fds();
+    reader.files()->set(STDIN_FD, VPE::self().files()->get(pipe.reader_fd()));
+    reader.files()->set(STDOUT_FD, VPE::self().files()->get(STDOUT_FD));
 
     reader.run([] {
         size_t count = cin.getline(buffer, sizeof(buffer));
@@ -109,9 +107,8 @@ static void child_to_child() {
     MemGate mem = MemGate::create_global(0x1000, MemGate::RW);
     DirectPipe pipe(reader, writer, mem, 0x1000);
 
-    reader.fds()->set(STDIN_FD, VPE::self().fds()->get(pipe.reader_fd()));
-    reader.fds()->set(STDOUT_FD, VPE::self().fds()->get(STDOUT_FD));
-    reader.obtain_fds();
+    reader.files()->set(STDIN_FD, VPE::self().files()->get(pipe.reader_fd()));
+    reader.files()->set(STDOUT_FD, VPE::self().files()->get(STDOUT_FD));
 
     reader.run([] {
         for(int i = 0; i < 10; ++i) {
@@ -124,12 +121,11 @@ static void child_to_child() {
         return failed ? 1 : 0;
     });
 
-    writer.fds()->set(STDIN_FD, VPE::self().fds()->get(STDIN_FD));
-    writer.fds()->set(STDOUT_FD, VPE::self().fds()->get(pipe.writer_fd()));
-    writer.obtain_fds();
+    writer.files()->set(STDIN_FD, VPE::self().files()->get(STDIN_FD));
+    writer.files()->set(STDOUT_FD, VPE::self().files()->get(pipe.writer_fd()));
 
     writer.run([] {
-        auto out = VPE::self().fds()->get(STDOUT_FD);
+        auto out = VPE::self().files()->get(STDOUT_FD);
         for(int i = 0; i < 10; ++i) {
             OStringStream os(buffer, sizeof(buffer));
             os << "Hello World!\n";
