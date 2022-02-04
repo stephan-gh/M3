@@ -170,6 +170,9 @@ pub fn derive(
         if total < t {
             return Err(Error::new(Code::NoSpace));
         }
+        if ptime.users() > 0 && total == t {
+            return Err(Error::new(Code::InvArgs));
+        }
 
         ptime.set_total((total - t).as_nanos() as u64);
         ptime.set_left(ptime.left().saturating_sub(t.as_nanos() as u64));

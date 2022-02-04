@@ -200,16 +200,21 @@ pub fn init() {
 
     quota::init(PTS.get().len());
 
+    let idle_quota = quota::get_time(quota::IDLE_ID).unwrap();
+    idle_quota.attach();
+    let our_quota = quota::get_time(quota::IDLE_ID).unwrap();
+    our_quota.attach();
+
     IDLE.set(Box::new(VPE::new(
         kif::pemux::IDLE_ID,
-        quota::IDLE_ID,
+        idle_quota,
         quota::get_pt(quota::IDLE_ID).unwrap(),
         0,
         root_pt,
     )));
     OUR.set(Box::new(VPE::new(
         kif::pemux::VPE_ID,
-        quota::IDLE_ID,
+        our_quota,
         quota::get_pt(quota::IDLE_ID).unwrap(),
         0,
         root_pt,
@@ -238,6 +243,12 @@ pub fn add(
     eps_start: tcu::EpId,
 ) -> Result<(), Error> {
     log!(crate::LOG_VPES, "Created VPE {}", id);
+
+    let time_quota = quota::get_time(time_quota).unwrap();
+    if time_quota.total() == 0 {
+        return Err(Error::new(Code::NoSpace));
+    }
+    time_quota.attach();
 
     let pt_quota = quota::get_pt(pt_quota).unwrap();
     let (frame, root_pt) = if pex_env().pe_desc.has_virtmem() {
@@ -526,7 +537,7 @@ pub fn remove(id: Id, status: u32, notify: bool, sched: bool) {
 impl VPE {
     pub fn new(
         id: Id,
-        time_quota: quota::Id,
+        time_quota: Rc<Quota<u64>>,
         pt_quota: Rc<PTQuota>,
         eps_start: tcu::EpId,
         root_pt: Option<GlobAddr>,
@@ -537,9 +548,6 @@ impl VPE {
                 quota: pt_quota,
             })
         });
-
-        let time_quota = quota::get_time(time_quota).unwrap();
-        time_quota.attach();
 
         VPE {
             prev: None,
