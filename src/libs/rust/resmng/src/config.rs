@@ -24,7 +24,7 @@ use m3::rc::Rc;
 use m3::tcu::Label;
 
 use crate::parser;
-use crate::pes;
+use crate::tiles;
 
 #[derive(Default)]
 pub struct DualName {
@@ -246,10 +246,10 @@ impl SGateDesc {
 }
 
 #[derive(Default)]
-pub struct PEType(pub String);
+pub struct TileType(pub String);
 
-impl PEType {
-    pub fn matches(&self, desc: kif::PEDesc) -> bool {
+impl TileType {
+    pub fn matches(&self, desc: kif::TileDesc) -> bool {
         for attrs in self.0.split('|') {
             if self.attrs_match(desc, attrs) {
                 return true;
@@ -258,30 +258,30 @@ impl PEType {
         false
     }
 
-    fn attrs_match(&self, desc: kif::PEDesc, attrs: &str) -> bool {
+    fn attrs_match(&self, desc: kif::TileDesc, attrs: &str) -> bool {
         for attr in attrs.split('+') {
             let matches = match attr {
                 "core" => desc.is_programmable(),
 
-                "imem" => desc.pe_type() == kif::PEType::COMP_IMEM,
-                "emem" => desc.pe_type() == kif::PEType::COMP_EMEM,
+                "imem" => desc.tile_type() == kif::TileType::COMP_IMEM,
+                "emem" => desc.tile_type() == kif::TileType::COMP_EMEM,
                 "vm" => desc.has_virtmem(),
 
-                "arm" => desc.isa() == kif::PEISA::ARM,
-                "x86" => desc.isa() == kif::PEISA::X86,
-                "riscv" => desc.isa() == kif::PEISA::RISCV,
+                "arm" => desc.isa() == kif::TileISA::ARM,
+                "x86" => desc.isa() == kif::TileISA::X86,
+                "riscv" => desc.isa() == kif::TileISA::RISCV,
 
-                "nic" => desc.attr().contains(kif::PEAttr::NIC),
-                "boom" => desc.attr().contains(kif::PEAttr::BOOM),
-                "rocket" => desc.attr().contains(kif::PEAttr::ROCKET),
-                "kecacc" => desc.attr().contains(kif::PEAttr::KECACC),
+                "nic" => desc.attr().contains(kif::TileAttr::NIC),
+                "boom" => desc.attr().contains(kif::TileAttr::BOOM),
+                "rocket" => desc.attr().contains(kif::TileAttr::ROCKET),
+                "kecacc" => desc.attr().contains(kif::TileAttr::KECACC),
 
-                "indir" => desc.isa() == kif::PEISA::ACCEL_INDIR,
-                "copy" => desc.isa() == kif::PEISA::ACCEL_COPY,
-                "rot13" => desc.isa() == kif::PEISA::ACCEL_ROT13,
+                "indir" => desc.isa() == kif::TileISA::ACCEL_INDIR,
+                "copy" => desc.isa() == kif::TileISA::ACCEL_COPY,
+                "rot13" => desc.isa() == kif::TileISA::ACCEL_ROT13,
 
-                "idedev" => desc.isa() == kif::PEISA::IDE_DEV,
-                "nicdev" => desc.isa() == kif::PEISA::NIC_DEV,
+                "idedev" => desc.isa() == kif::TileISA::IDE_DEV,
+                "nicdev" => desc.isa() == kif::TileISA::NIC_DEV,
                 _ => false,
             };
             if !matches {
@@ -293,22 +293,22 @@ impl PEType {
 }
 
 #[derive(Default)]
-pub struct PEDesc {
-    ty: PEType,
+pub struct TileDesc {
+    ty: TileType,
     count: Cell<u32>,
     optional: bool,
 }
 
-impl PEDesc {
+impl TileDesc {
     pub(crate) fn new(ty: String, count: u32, optional: bool) -> Self {
         Self {
-            ty: PEType(ty),
+            ty: TileType(ty),
             count: Cell::new(count),
             optional,
         }
     }
 
-    pub fn pe_type(&self) -> &PEType {
+    pub fn tile_type(&self) -> &TileType {
         &self.ty
     }
 
@@ -348,7 +348,7 @@ pub struct SerialDesc {
 #[derive(Default)]
 pub struct Domain {
     pub(crate) pseudo: bool,
-    pub(crate) pe: PEType,
+    pub(crate) tile: TileType,
     pub(crate) apps: Vec<Rc<AppConfig>>,
 }
 
@@ -357,8 +357,8 @@ impl Domain {
         &self.apps
     }
 
-    pub fn pe(&self) -> &PEType {
-        &self.pe
+    pub fn tile(&self) -> &TileType {
+        &self.tile
     }
 }
 
@@ -384,7 +384,7 @@ pub struct AppConfig {
     pub(crate) rgates: Vec<RGateDesc>,
     pub(crate) sgates: Vec<SGateDesc>,
     pub(crate) sems: Vec<SemDesc>,
-    pub(crate) pes: Vec<PEDesc>,
+    pub(crate) tiles: Vec<TileDesc>,
 }
 
 impl AppConfig {
@@ -453,8 +453,8 @@ impl AppConfig {
         &self.sessions
     }
 
-    pub fn pes(&self) -> &Vec<PEDesc> {
-        &self.pes
+    pub fn tiles(&self) -> &Vec<TileDesc> {
+        &self.tiles
     }
 
     pub fn sess_creators(&self) -> &Vec<SessCrtDesc> {
@@ -505,14 +505,14 @@ impl AppConfig {
         self.sessions[idx].used.replace(false);
     }
 
-    pub fn get_pe_idx(&self, desc: kif::PEDesc) -> Result<usize, Error> {
+    pub fn get_pe_idx(&self, desc: kif::TileDesc) -> Result<usize, Error> {
         let idx = self
-            .pes
+            .tiles
             .iter()
-            .position(|pe| pe.count.get() > 0 && pe.pe_type().matches(desc))
+            .position(|tile| tile.count.get() > 0 && tile.tile_type().matches(desc))
             .ok_or_else(|| Error::new(Code::InvArgs))?;
 
-        if self.pes[idx].count.get() > 0 {
+        if self.tiles[idx].count.get() > 0 {
             Ok(idx)
         }
         else {
@@ -530,12 +530,12 @@ impl AppConfig {
         }
     }
 
-    pub fn alloc_pe(&self, idx: usize) {
-        self.pes[idx].alloc();
+    pub fn alloc_tile(&self, idx: usize) {
+        self.tiles[idx].alloc();
     }
 
-    pub fn free_pe(&self, idx: usize) {
-        self.pes[idx].free();
+    pub fn free_tile(&self, idx: usize) {
+        self.tiles[idx].free();
     }
 
     pub fn count_apps(&self) -> usize {
@@ -545,35 +545,35 @@ impl AppConfig {
     pub fn check(&self) {
         self.check_services(&BTreeSet::new());
         self.check_gates();
-        self.check_pes();
+        self.check_tiles();
     }
 
-    fn count_pes(pe: &PEDesc) -> u32 {
+    fn count_tiles(tile: &TileDesc) -> u32 {
         let mut count = 0;
-        for i in 0..pes::get().count() {
-            if pe.pe_type().matches(pes::get().get(i).desc()) {
+        for i in 0..tiles::get().count() {
+            if tile.tile_type().matches(tiles::get().get(i).desc()) {
                 count += 1;
             }
         }
         count
     }
 
-    fn check_pes(&self) {
+    fn check_tiles(&self) {
         for d in &self.domains {
             for a in &d.apps {
-                a.check_pes();
+                a.check_tiles();
             }
         }
 
-        for pe in &self.pes {
-            if !pe.optional {
-                let available = Self::count_pes(&pe);
-                if available < pe.count.get() {
+        for tile in &self.tiles {
+            if !tile.optional {
+                let available = Self::count_tiles(&tile);
+                if available < tile.count.get() {
                     panic!(
-                        "AppConfig '{}' needs PE type '{}' {} times, but {} are available",
+                        "AppConfig '{}' needs tile type '{}' {} times, but {} are available",
                         self.name(),
-                        pe.pe_type().0,
-                        pe.count.get(),
+                        tile.tile_type().0,
+                        tile.count.get(),
                         available
                     );
                 }
@@ -768,14 +768,14 @@ impl AppConfig {
                 w = layer + 2
             )?;
         }
-        for pe in &self.pes {
+        for tile in &self.tiles {
             writeln!(
                 f,
-                "{:0w$}PE[type={}, count={}, optional={}],",
+                "{:0w$}Tile[type={}, count={}, optional={}],",
                 "",
-                pe.pe_type().0,
-                pe.count.get(),
-                pe.optional,
+                tile.tile_type().0,
+                tile.count.get(),
+                tile.optional,
                 w = layer + 2
             )?;
         }
@@ -788,7 +788,7 @@ impl AppConfig {
         for d in &self.domains {
             let mut sub_layer = layer;
             if !d.pseudo {
-                writeln!(f, "{:0w$}Domain on {} [", "", d.pe.0, w = layer + 2)?;
+                writeln!(f, "{:0w$}Domain on {} [", "", d.tile.0, w = layer + 2)?;
                 sub_layer += 2;
             }
             for a in &d.apps {

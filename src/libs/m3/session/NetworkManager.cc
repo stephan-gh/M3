@@ -113,7 +113,7 @@ void NetworkManager::wait(uint dirs) {
         if(tick_sockets(dirs))
             break;
 
-        VPE::sleep();
+        Activity::sleep();
     }
 }
 
@@ -124,7 +124,7 @@ void NetworkManager::wait_for(TimeDuration timeout, uint dirs) {
         if(tick_sockets(dirs))
             break;
 
-        VPE::sleep_for(end.duration_since(now));
+        Activity::sleep_for(end.duration_since(now));
         now = TimeInstant::now();
     }
 }

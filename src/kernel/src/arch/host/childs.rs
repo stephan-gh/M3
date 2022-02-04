@@ -21,7 +21,7 @@ use base::tcu::TCU;
 use core::ptr;
 use core::sync::atomic;
 
-use crate::pes::{State, VPEMng, VPE};
+use crate::tiles::{Activity, ActivityMng, State};
 
 static mut SIGCHLDS: atomic::AtomicUsize = atomic::AtomicUsize::new(0);
 
@@ -42,7 +42,7 @@ pub fn kill_child(pid: i32) {
 
 pub fn check_childs_async() {
     if let Some((pid, status)) = TCU::receive_knotify() {
-        kill_vpe_async(pid, status);
+        kill_activity_async(pid, status);
     }
 
     unsafe {
@@ -52,44 +52,45 @@ pub fn check_childs_async() {
             let mut status = 0;
             let pid = libc::wait(&mut status);
             if pid != -1 {
-                kill_vpe_async(pid, status);
+                kill_activity_async(pid, status);
             }
         }
     }
 }
 
-fn kill_vpe_async(pid: libc::pid_t, status: i32) {
-    let (vpe, vpe_name) = match VPEMng::get().find_vpe(|v: &Rc<VPE>| v.pid().unwrap_or(0) == pid) {
-        Some(v) => {
-            let id = v.id();
-            let name = format!("{}:{}", id, v.name());
-            (Some(v), name)
-        },
-        None => (None, format!("??")),
-    };
+fn kill_activity_async(pid: libc::pid_t, status: i32) {
+    let (act, act_name) =
+        match ActivityMng::get().find_activity(|v: &Rc<Activity>| v.pid().unwrap_or(0) == pid) {
+            Some(v) => {
+                let id = v.id();
+                let name = format!("{}:{}", id, v.name());
+                (Some(v), name)
+            },
+            None => (None, format!("??")),
+        };
 
     if libc::WIFEXITED(status) {
         klog!(
-            VPES,
+            ACTIVITIES,
             "Child {} exited with status {}",
-            vpe_name,
+            act_name,
             libc::WEXITSTATUS(status)
         );
     }
     else if libc::WIFSIGNALED(status) {
         klog!(
-            VPES,
+            ACTIVITIES,
             "Child {} was killed by signal {}",
-            vpe_name,
+            act_name,
             libc::WTERMSIG(status)
         );
     }
 
     if libc::WIFSIGNALED(status) || libc::WEXITSTATUS(status) == 255 {
-        if let Some(v) = vpe {
-            // only remove the VPE if it has an app; otherwise the kernel sent the signal
+        if let Some(v) = act {
+            // only remove the activity if it has an app; otherwise the kernel sent the signal
             if v.state() == State::RUNNING {
-                VPEMng::get().remove_vpe_async(v.id());
+                ActivityMng::get().remove_activity_async(v.id());
             }
         }
     }

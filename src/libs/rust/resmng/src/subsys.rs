@@ -27,23 +27,23 @@ use m3::kif::{boot, CapRngDesc, CapType, Perm, FIRST_FREE_SEL};
 use m3::log;
 use m3::math;
 use m3::mem::{size_of, GlobAddr};
-use m3::pes::{PE, VPE};
 use m3::rc::Rc;
 use m3::server::DEF_MAX_CLIENTS;
-use m3::tcu::PEId;
+use m3::tcu::TileId;
+use m3::tiles::{Activity, Tile};
 
 use crate::childs;
 use crate::config;
 use crate::gates;
 use crate::memory;
-use crate::pes;
 use crate::sems;
 use crate::services;
+use crate::tiles;
 
 //
 // Our parent/kernel initializes our cap space as follows:
 // +-----------+--------+-------+-----+-----------+------+-----+----------+-------+-----+-----------+
-// | boot info | serial | mod_0 | ... | mod_{n-1} | pe_0 | ... | pe_{n-1} | mem_0 | ... | mem_{n-1} |
+// | boot info | serial | mod_0 | ... | mod_{n-1} | tile_0 | ... | tile_{n-1} | mem_0 | ... | mem_{n-1} |
 // +-----------+--------+-------+-----+-----------+------+-----+----------+-------+-----+-----------+
 // ^-- FIRST_FREE_SEL
 //
@@ -54,7 +54,7 @@ const OUR_EPS: u32 = 16;
 
 pub(crate) const SERIAL_RGATE_SEL: Selector = SUBSYS_SELS + 1;
 
-static OUR_PE: StaticRefCell<Option<Rc<pes::PEUsage>>> = StaticRefCell::new(None);
+static OUR_TILE: StaticRefCell<Option<Rc<tiles::TileUsage>>> = StaticRefCell::new(None);
 // use Box here, because we also store them in the ChildManager, which expects them to be boxed
 #[allow(clippy::vec_box)]
 static DELAYED: StaticRefCell<Vec<Box<childs::OwnChild>>> = StaticRefCell::new(Vec::new());
@@ -76,7 +76,7 @@ impl Default for Arguments {
 pub struct Subsystem {
     info: boot::Info,
     mods: Vec<boot::Mod>,
-    pes: Vec<boot::PE>,
+    tiles: Vec<boot::Tile>,
     mems: Vec<boot::Mem>,
     servs: Vec<boot::Service>,
     cfg_str: String,
@@ -94,8 +94,8 @@ impl Subsystem {
         let mods = mgate.read_into_vec::<boot::Mod>(info.mod_count as usize, off)?;
         off += size_of::<boot::Mod>() as goff * info.mod_count;
 
-        let pes = mgate.read_into_vec::<boot::PE>(info.pe_count as usize, off)?;
-        off += size_of::<boot::PE>() as goff * info.pe_count;
+        let tiles = mgate.read_into_vec::<boot::Tile>(info.tile_count as usize, off)?;
+        off += size_of::<boot::Tile>() as goff * info.tile_count;
 
         let mems = mgate.read_into_vec::<boot::Mem>(info.mem_count as usize, off)?;
         off += size_of::<boot::Mem>() as goff * info.mem_count;
@@ -109,7 +109,7 @@ impl Subsystem {
         let sub = Self {
             info,
             mods,
-            pes,
+            tiles,
             mems,
             servs,
             cfg_str: cfg.0,
@@ -125,13 +125,13 @@ impl Subsystem {
             log!(crate::LOG_SUBSYS, "  {:?}", m);
         }
 
-        log!(crate::LOG_SUBSYS, "Available PEs:");
-        let mut pes = Vec::new();
-        for (i, pe) in self.pes().iter().enumerate() {
-            log!(crate::LOG_SUBSYS, "  {:?}", pe);
-            pes.push((pe.id as PEId, self.get_pe(i)));
+        log!(crate::LOG_SUBSYS, "Available tiles:");
+        let mut tiles = Vec::new();
+        for (i, tile) in self.tiles().iter().enumerate() {
+            log!(crate::LOG_SUBSYS, "  {:?}", tile);
+            tiles.push((tile.id as TileId, self.get_tile(i)));
         }
-        pes::create(pes);
+        tiles::create(tiles);
 
         log!(crate::LOG_SUBSYS, "Available memory:");
         for (i, mem) in self.mems().iter().enumerate() {
@@ -167,7 +167,7 @@ impl Subsystem {
             }
         }
 
-        if VPE::cur().resmng().is_none() {
+        if Activity::cur().resmng().is_none() {
             log!(crate::LOG_CFG, "Parsed {:?}", self.cfg);
         }
     }
@@ -240,8 +240,8 @@ impl Subsystem {
         &self.mods
     }
 
-    pub fn pes(&self) -> &Vec<boot::PE> {
-        &self.pes
+    pub fn tiles(&self) -> &Vec<boot::Tile> {
+        &self.tiles
     }
 
     pub fn mems(&self) -> &Vec<boot::Mem> {
@@ -256,20 +256,22 @@ impl Subsystem {
         MemGate::new_bind(SUBSYS_SELS + 2 + idx as Selector)
     }
 
-    pub fn get_pe(&self, idx: usize) -> Rc<PE> {
-        Rc::new(PE::new_bind(
-            self.pes[idx].id as PEId,
-            self.pes[idx].desc,
+    pub fn get_tile(&self, idx: usize) -> Rc<Tile> {
+        Rc::new(Tile::new_bind(
+            self.tiles[idx].id as TileId,
+            self.tiles[idx].desc,
             SUBSYS_SELS + 2 + (self.mods.len() + idx) as Selector,
         ))
     }
 
     pub fn get_mem(&self, idx: usize) -> MemGate {
-        MemGate::new_bind(SUBSYS_SELS + 2 + (self.mods.len() + self.pes.len() + idx) as Selector)
+        MemGate::new_bind(SUBSYS_SELS + 2 + (self.mods.len() + self.tiles.len() + idx) as Selector)
     }
 
     pub fn get_service(&self, idx: usize) -> Selector {
-        SUBSYS_SELS + 2 + (self.mods.len() + self.pes.len() + self.mems.len() + idx * 2) as Selector
+        SUBSYS_SELS
+            + 2
+            + (self.mods.len() + self.tiles.len() + self.mems.len() + idx * 2) as Selector
     }
 
     pub fn start<S>(&self, mut spawn: S) -> Result<(), VerboseError>
@@ -277,7 +279,7 @@ impl Subsystem {
         S: FnMut(&mut childs::OwnChild) -> Result<(), VerboseError>,
     {
         let root = self.cfg();
-        if VPE::cur().resmng().is_none() {
+        if Activity::cur().resmng().is_none() {
             root.check();
         }
 
@@ -288,19 +290,19 @@ impl Subsystem {
                 .expect("Unable to add semaphore");
         }
 
-        // keep our own PE to make sure that we allocate a different one for the next domain in case
+        // keep our own tile to make sure that we allocate a different one for the next domain in case
         // our domain contains just ourself.
         if !root.domains().first().unwrap().pseudo {
-            OUR_PE.replace(Some(Rc::new(
-                pes::get()
-                    .find_and_alloc(VPE::cur().pe_desc())
+            OUR_TILE.replace(Some(Rc::new(
+                tiles::get()
+                    .find_and_alloc(Activity::cur().tile_desc())
                     .map_err(|e| {
-                        VerboseError::new(e.code(), "Unable to allocate own PE".to_string())
+                        VerboseError::new(e.code(), "Unable to allocate own tile".to_string())
                     })?,
             )));
         }
-        else if !VPE::cur().pe_desc().has_virtmem() {
-            panic!("Can't share PE without VM support");
+        else if !Activity::cur().tile_desc().has_virtmem() {
+            panic!("Can't share tile without VM support");
         }
 
         // determine default mem and kmem per child
@@ -309,20 +311,27 @@ impl Subsystem {
         let mut mem_id = 1;
 
         for (idx, d) in root.domains().iter().enumerate() {
-            // allocate new PE; root allocates from its own set, others ask their resmng
-            let pe_usage = if d.pseudo || VPE::cur().resmng().is_none() {
-                Rc::new(pes::get().find_and_alloc_with_desc(&d.pe.0).map_err(|e| {
-                    VerboseError::new(
-                        e.code(),
-                        format!("Unable to allocate PE for domain {} with {}", idx, d.pe.0),
-                    )
-                })?)
+            // allocate new tile; root allocates from its own set, others ask their resmng
+            let tile_usage = if d.pseudo || Activity::cur().resmng().is_none() {
+                Rc::new(
+                    tiles::get()
+                        .find_and_alloc_with_desc(&d.tile.0)
+                        .map_err(|e| {
+                            VerboseError::new(
+                                e.code(),
+                                format!(
+                                    "Unable to allocate tile for domain {} with {}",
+                                    idx, d.tile.0
+                                ),
+                            )
+                        })?,
+                )
             }
             else {
-                let child_pe = PE::get(&d.pe.0).map_err(|e| {
-                    VerboseError::new(e.code(), format!("Unable to get PE {}", d.pe.0))
+                let child_tile = Tile::get(&d.tile.0).map_err(|e| {
+                    VerboseError::new(e.code(), format!("Unable to get tile {}", d.tile.0))
                 })?;
-                Rc::new(pes::PEUsage::new_obj(child_pe))
+                Rc::new(tiles::TileUsage::new_obj(child_tile))
             };
 
             // memory pool for the domain
@@ -338,24 +347,24 @@ impl Subsystem {
                 })?,
             ));
 
-            // if the VPEs should run on our own PE, all PMP EPs are already installed
-            if pe_usage.pe_id() != VPE::cur().pe_id() {
+            // if the activities should run on our own tile, all PMP EPs are already installed
+            if tile_usage.tile_id() != Activity::cur().tile_id() {
                 // add regions to PMP
                 for slice in mem_pool.borrow().slices() {
-                    pe_usage
+                    tile_usage
                         .add_mem_region(slice.derive()?, slice.capacity() as usize, true)
                         .map_err(|e| {
                             VerboseError::new(e.code(), "Unable to add PMP region".to_string())
                         })?;
                 }
 
-                // if we're root, we need to provide the PE access to boot modules as well
-                if VPE::cur().resmng().is_none() {
+                // if we're root, we need to provide the tile access to boot modules as well
+                if Activity::cur().resmng().is_none() {
                     let start_addr = self.mods[0].addr();
                     let last_mod = &self.mods[self.mods.len() - 1];
                     let end_addr = last_mod.addr() + last_mod.size;
                     let mod_size = end_addr.offset() - start_addr.offset();
-                    // boot modules need RW for data segment (every VPE gets its own module)
+                    // boot modules need RW for data segment (every activity gets its own module)
                     let mod_slice = memory::container()
                         .find_mem(start_addr.offset(), mod_size, Perm::RW)
                         .map_err(|e| {
@@ -368,7 +377,7 @@ impl Subsystem {
                                 ),
                             )
                         })?;
-                    pe_usage
+                    tile_usage
                         .add_mem_region(mod_slice.derive()?, mod_size as usize, true)
                         .map_err(|e| {
                             VerboseError::new(
@@ -380,10 +389,10 @@ impl Subsystem {
             }
             else {
                 // don't install new PMP EPs, but remember our whole memory areas to inherit them
-                // later to allocated PEs. TODO we could improve that by only providing them access
-                // to the memory pool of the child that allocates the PE, though.
+                // later to allocated tiles. TODO we could improve that by only providing them access
+                // to the memory pool of the child that allocates the tile, though.
                 for m in memory::container().mods() {
-                    pe_usage
+                    tile_usage
                         .add_mem_region(
                             m.mgate().derive(0, m.capacity() as usize, Perm::RWX)?,
                             m.capacity() as usize,
@@ -394,7 +403,7 @@ impl Subsystem {
             }
 
             // split available PTs according to the config
-            let (ep_quota, _, pt_quota) = pe_usage.pe_obj().quota()?;
+            let (ep_quota, _, pt_quota) = tile_usage.tile_obj().quota()?;
             let (mut pt_sharer, shared_pts) = split_pts(pt_quota.left() as u64, &d);
 
             let mut domain_total_eps = ep_quota.left();
@@ -402,8 +411,8 @@ impl Subsystem {
             let mut domain_total_pts = 0;
             let mut domain_kmem_bytes = 0;
 
-            // account for ourself, if we share this PE
-            if pe_usage.pe_id() == VPE::cur().pe_id() {
+            // account for ourself, if we share this tile
+            if tile_usage.tile_id() == Activity::cur().tile_id() {
                 pt_sharer += 1;
                 domain_total_eps -= OUR_EPS;
             }
@@ -435,54 +444,57 @@ impl Subsystem {
 
             // derive kmem for the entire domain. All apps that did not specify a kmem quota will
             // share this domain kmem.
-            let domain_kmem = VPE::cur().kmem().derive(domain_kmem_bytes).map_err(|e| {
-                VerboseError::new(
-                    e.code(),
-                    format!("Unable to derive {}b of kernel memory", domain_kmem_bytes),
-                )
-            })?;
+            let domain_kmem = Activity::cur()
+                .kmem()
+                .derive(domain_kmem_bytes)
+                .map_err(|e| {
+                    VerboseError::new(
+                        e.code(),
+                        format!("Unable to derive {}b of kernel memory", domain_kmem_bytes),
+                    )
+                })?;
 
             // create user mem pool for entire domain
             let domain_umem = childs::ChildMem::new(mem_id, mem_pool.clone(), def_umem);
             mem_id += 1;
 
-            // account for ourself, if we share this PE
-            let child_total_time = if pe_usage.pe_id() == VPE::cur().pe_id() {
+            // account for ourself, if we share this tile
+            let child_total_time = if tile_usage.tile_id() == Activity::cur().tile_id() {
                 domain_total_time + DEF_TIME_SLICE
             }
             else {
                 domain_total_time
             };
 
-            // set initial quota for this PE
-            pe_usage
-                .pe_obj()
+            // set initial quota for this tile
+            tile_usage
+                .tile_obj()
                 .set_quota(child_total_time, pt_quota.total() as u64)
                 .map_err(|e| {
                     VerboseError::new(
                         e.code(),
                         format!(
-                            "Unable to set quota for PE to time={}, pts={}",
+                            "Unable to set quota for tile to time={}, pts={}",
                             child_total_time,
                             pt_quota.total()
                         ),
                     )
                 })?;
 
-            // derive a new PE object for the entire domain (so that they cannot change the PMP EPs)
+            // derive a new tile object for the entire domain (so that they cannot change the PMP EPs)
             let domain_pe_usage = if d.apps().iter().next().unwrap().domains().is_empty() {
                 let domain_eps = Some(domain_total_eps);
                 let domain_time = Some(domain_total_time);
                 let domain_pts = Some(domain_total_pts);
 
                 Some(Rc::new(
-                    pe_usage
+                    tile_usage
                         .derive(domain_eps, domain_time, domain_pts)
                         .map_err(|e| {
                             VerboseError::new(
                                 e.code(),
                                 format!(
-                                    "Unable to derive new PE with eps={:?}, time={:?}, pts={:?}",
+                                    "Unable to derive new tile with eps={:?}, time={:?}, pts={:?}",
                                     domain_eps, domain_time, domain_pts,
                                 ),
                             )
@@ -494,19 +506,19 @@ impl Subsystem {
             };
 
             for cfg in d.apps() {
-                // determine PE object with potentially reduced number of EPs
+                // determine tile object with potentially reduced number of EPs
                 let child_pe_usage = if !cfg.domains().is_empty() {
-                    // a resource manager has to be able to set PMPs and thus needs the root PE
-                    pe_usage.clone()
+                    // a resource manager has to be able to set PMPs and thus needs the root tile
+                    tile_usage.clone()
                 }
                 else if cfg.eps.is_some() || cfg.time.is_some() || cfg.pts.is_some() {
-                    // if the child wants any specific quota, derive from the base PE object
+                    // if the child wants any specific quota, derive from the base tile object
                     let base = domain_pe_usage.as_ref().unwrap();
                     Rc::new(base.derive(cfg.eps, cfg.time, cfg.pts).map_err(|e| {
                         VerboseError::new(
                             e.code(),
                             format!(
-                                "Unable to derive new PE with {:?} EPs, {:?} time, {:?} pts",
+                                "Unable to derive new tile with {:?} EPs, {:?} time, {:?} pts",
                                 cfg.eps, cfg.time, cfg.pts,
                             ),
                         )
@@ -541,10 +553,13 @@ impl Subsystem {
                 };
 
                 let sub = if !cfg.domains().is_empty() {
-                    // TODO currently, we don't support PE sharing of a resource manager and another
-                    // VPEs on the same level. The resource manager needs to set PMP EPs and might
-                    // thus interfere with the other VPEs.
-                    assert!(child_pe_usage.pe_id() != VPE::cur().pe_id() && d.apps().len() == 1);
+                    // TODO currently, we don't support tile sharing of a resource manager and another
+                    // activities on the same level. The resource manager needs to set PMP EPs and might
+                    // thus interfere with the other activities.
+                    assert!(
+                        child_pe_usage.tile_id() != Activity::cur().tile_id()
+                            && d.apps().len() == 1
+                    );
 
                     // create MemGate for config substring
                     let cfg_range = cfg.cfg_range();
@@ -563,9 +578,9 @@ impl Subsystem {
 
                     let mut sub = SubsystemBuilder::new((cfg_mem, cfg_slice.addr(), cfg_len));
 
-                    // add PEs
-                    sub.add_pe(child_pe_usage.pe_id(), child_pe_usage.pe_obj().clone());
-                    pass_down_pes(&mut sub, &cfg);
+                    // add tiles
+                    sub.add_tile(child_pe_usage.tile_id(), child_pe_usage.tile_obj().clone());
+                    pass_down_tiles(&mut sub, &cfg);
 
                     // serial rgate
                     pass_down_serial(&mut sub, &cfg);
@@ -606,7 +621,7 @@ impl Subsystem {
                 let child_id = childs::borrow_mut().alloc_id();
                 let mut child = Box::new(childs::OwnChild::new(
                     child_id,
-                    pe_usage.clone(),
+                    tile_usage.clone(),
                     child_pe_usage,
                     // TODO either remove args and daemon from config or remove the clones from OwnChild
                     cfg.args().clone(),
@@ -634,7 +649,7 @@ impl Subsystem {
 pub struct SubsystemBuilder {
     _desc: Option<MemGate>,
     cfg: (MemGate, GlobAddr, usize),
-    pes: Vec<(PEId, Rc<PE>)>,
+    tiles: Vec<(TileId, Rc<Tile>)>,
     mems: Vec<(MemGate, GlobAddr, goff, bool)>,
     servs: Vec<(String, u32, u32, Option<u32>)>,
     serv_objs: Vec<services::Service>,
@@ -646,7 +661,7 @@ impl SubsystemBuilder {
         Self {
             _desc: None,
             cfg,
-            pes: Vec::new(),
+            tiles: Vec::new(),
             mems: Vec::new(),
             servs: Vec::new(),
             serv_objs: Vec::new(),
@@ -654,8 +669,8 @@ impl SubsystemBuilder {
         }
     }
 
-    pub fn add_pe(&mut self, id: PEId, pe: Rc<PE>) {
-        self.pes.push((id, pe));
+    pub fn add_tile(&mut self, id: TileId, tile: Rc<Tile>) {
+        self.tiles.push((id, tile));
     }
 
     pub fn add_mem(&mut self, mem: MemGate, addr: GlobAddr, size: goff, reserved: bool) {
@@ -675,12 +690,16 @@ impl SubsystemBuilder {
     pub fn desc_size(&self) -> usize {
         size_of::<boot::Info>()
             + size_of::<boot::Mod>() * 1
-            + size_of::<boot::PE>() * self.pes.len()
+            + size_of::<boot::Tile>() * self.tiles.len()
             + size_of::<boot::Mem>() * self.mems.len()
             + size_of::<boot::Service>() * self.servs.len()
     }
 
-    pub fn finalize_async(&mut self, child: childs::Id, vpe: &mut VPE) -> Result<(), VerboseError> {
+    pub fn finalize_async(
+        &mut self,
+        child: childs::Id,
+        act: &mut Activity,
+    ) -> Result<(), VerboseError> {
         let mut sel = SUBSYS_SELS;
         let mut off: goff = 0;
 
@@ -697,36 +716,36 @@ impl SubsystemBuilder {
         // boot info
         let info = boot::Info {
             mod_count: 1,
-            pe_count: self.pes.len() as u64,
+            tile_count: self.tiles.len() as u64,
             mem_count: self.mems.len() as u64,
             serv_count: self.servs.len() as u64,
         };
         mem.write_obj(&info, off)?;
-        vpe.delegate_to(CapRngDesc::new(CapType::OBJECT, mem.sel(), 1), sel)?;
+        act.delegate_to(CapRngDesc::new(CapType::OBJECT, mem.sel(), 1), sel)?;
         off += size_of::<boot::Info>() as goff;
         sel += 1;
 
         // serial rgate
         if self.serial {
-            vpe.delegate_to(CapRngDesc::new(CapType::OBJECT, SERIAL_RGATE_SEL, 1), sel)?;
+            act.delegate_to(CapRngDesc::new(CapType::OBJECT, SERIAL_RGATE_SEL, 1), sel)?;
         }
         sel += 1;
 
         // boot module for config
         let m = boot::Mod::new(self.cfg.1, self.cfg.2 as u64, "boot.xml");
         mem.write_obj(&m, off)?;
-        vpe.delegate_to(CapRngDesc::new(CapType::OBJECT, self.cfg.0.sel(), 1), sel)?;
+        act.delegate_to(CapRngDesc::new(CapType::OBJECT, self.cfg.0.sel(), 1), sel)?;
         off += size_of::<boot::Mod>() as goff;
         sel += 1;
 
-        // PEs
-        for (id, pe) in &self.pes {
-            let boot_pe = boot::PE::new(*id as u32, pe.desc());
-            mem.write_obj(&boot_pe, off)?;
+        // tiles
+        for (id, tile) in &self.tiles {
+            let boot_tile = boot::Tile::new(*id as u32, tile.desc());
+            mem.write_obj(&boot_tile, off)?;
 
-            vpe.delegate_to(CapRngDesc::new(CapType::OBJECT, pe.sel(), 1), sel)?;
+            act.delegate_to(CapRngDesc::new(CapType::OBJECT, tile.sel(), 1), sel)?;
 
-            off += size_of::<boot::PE>() as goff;
+            off += size_of::<boot::Tile>() as goff;
             sel += 1;
         }
 
@@ -735,7 +754,7 @@ impl SubsystemBuilder {
             let boot_mem = boot::Mem::new(*addr, *size, *reserved);
             mem.write_obj(&boot_mem, off)?;
 
-            vpe.delegate_to(CapRngDesc::new(CapType::OBJECT, mgate.sel(), 1), sel)?;
+            act.delegate_to(CapRngDesc::new(CapType::OBJECT, mgate.sel(), 1), sel)?;
 
             off += size_of::<boot::Mem>() as goff;
             sel += 1;
@@ -767,8 +786,8 @@ impl SubsystemBuilder {
             let boot_serv = boot::Service::new(name, sessions);
             mem.write_obj(&boot_serv, off)?;
 
-            vpe.delegate_to(CapRngDesc::new(CapType::OBJECT, subserv.sel(), 1), sel)?;
-            vpe.delegate_to(
+            act.delegate_to(CapRngDesc::new(CapType::OBJECT, subserv.sel(), 1), sel)?;
+            act.delegate_to(
                 CapRngDesc::new(CapType::OBJECT, subserv.sgate_sel(), 1),
                 sel + 1,
             )?;
@@ -812,19 +831,19 @@ where
     Ok(())
 }
 
-fn pass_down_pes(sub: &mut SubsystemBuilder, app: &config::AppConfig) {
+fn pass_down_tiles(sub: &mut SubsystemBuilder, app: &config::AppConfig) {
     for d in app.domains() {
         for child in d.apps() {
-            for pe in child.pes() {
-                for _ in 0..pe.count() {
-                    if let Some(idx) = pes::get().find_with_desc(&pe.pe_type().0) {
-                        pes::get().alloc(idx);
-                        sub.add_pe(pes::get().id(idx), pes::get().get(idx));
+            for tile in child.tiles() {
+                for _ in 0..tile.count() {
+                    if let Some(idx) = tiles::get().find_with_desc(&tile.tile_type().0) {
+                        tiles::get().alloc(idx);
+                        sub.add_tile(tiles::get().id(idx), tiles::get().get(idx));
                     }
                 }
             }
 
-            pass_down_pes(sub, child);
+            pass_down_tiles(sub, child);
         }
     }
 }
@@ -886,7 +905,7 @@ fn split_child_mem(cfg: &config::AppConfig, mem: &Rc<childs::ChildMem>) {
 
 fn split_mem(cfg: &config::AppConfig) -> Result<(usize, goff), VerboseError> {
     let mut total_umem = memory::container().capacity();
-    let mut total_kmem = VPE::cur().kmem().quota()?.total();
+    let mut total_kmem = Activity::cur().kmem().quota()?.total();
 
     let mut total_kparties = cfg.count_apps() + 1;
     let mut total_mparties = total_kparties;

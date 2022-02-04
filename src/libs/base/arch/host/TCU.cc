@@ -100,7 +100,7 @@ Errors::Code TCU::check_cmd(epid_t ep, int op, word_t perms, word_t credits, siz
     return Errors::NONE;
 }
 
-Errors::Code TCU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
+Errors::Code TCU::prepare_reply(epid_t ep, tileid_t &dstpe, epid_t &dstep) {
     const void *src = reinterpret_cast<const void*>(get_cmd(CMD_ADDR));
     const size_t size = get_cmd(CMD_SIZE);
     const size_t reply_off = get_cmd(CMD_OFFSET);
@@ -132,7 +132,7 @@ Errors::Code TCU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     set_ep(ep, EP_BUF_OCCUPIED, occupied);
     LLOG(TCU, "EP" << ep << ": acked message at index " << idx);
 
-    dstpe = buf->pe;
+    dstpe = buf->tile;
     dstep = buf->rpl_ep;
     _buf.label = buf->replylabel;
     _buf.credits = 1;
@@ -145,7 +145,7 @@ Errors::Code TCU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     return Errors::NONE;
 }
 
-Errors::Code TCU::prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep) {
+Errors::Code TCU::prepare_send(epid_t ep, tileid_t &dstpe, epid_t &dstep) {
     const void *src = reinterpret_cast<const void*>(get_cmd(CMD_ADDR));
     const word_t credits = get_ep(ep, EP_CREDITS);
     const word_t msg_order = get_ep(ep, EP_MSGORDER);
@@ -180,7 +180,7 @@ Errors::Code TCU::prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     return Errors::NONE;
 }
 
-Errors::Code TCU::prepare_read(epid_t ep, peid_t &dstpe, epid_t &dstep) {
+Errors::Code TCU::prepare_read(epid_t ep, tileid_t &dstpe, epid_t &dstep) {
     dstpe = get_ep(ep, EP_PEID);
     dstep = get_ep(ep, EP_EPID);
 
@@ -193,7 +193,7 @@ Errors::Code TCU::prepare_read(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     return Errors::NONE;
 }
 
-Errors::Code TCU::prepare_write(epid_t ep, peid_t &dstpe, epid_t &dstep) {
+Errors::Code TCU::prepare_write(epid_t ep, tileid_t &dstpe, epid_t &dstep) {
     const void *src = reinterpret_cast<const void*>(get_cmd(CMD_ADDR));
     const size_t size = get_cmd(CMD_SIZE);
     dstpe = get_ep(ep, EP_PEID);
@@ -326,10 +326,10 @@ void TCU::stop_sleep() {
     _backend->send_ack();
 }
 
-void TCU::handle_command(peid_t pe) {
+void TCU::handle_command(tileid_t tile) {
     Errors::Code res = Errors::NONE;
     word_t newctrl = 0;
-    peid_t dstpe;
+    tileid_t dstpe;
     epid_t dstep;
 
     // get regs
@@ -383,7 +383,7 @@ void TCU::handle_command(peid_t pe) {
     _buf.opcode = op;
     if(ctrl & CTRL_DEL_REPLY_CAP) {
         _buf.has_replycap = 1;
-        _buf.pe = pe;
+        _buf.tile = tile;
         _buf.snd_ep = ep;
         _buf.rpl_ep = reply_ep;
         _buf.replylabel = get_cmd(CMD_REPLYLBL);
@@ -402,10 +402,10 @@ done:
     set_cmd(CMD_CTRL, newctrl);
 }
 
-bool TCU::send_msg(epid_t ep, peid_t dstpe, epid_t dstep, bool isreply) {
+bool TCU::send_msg(epid_t ep, tileid_t dstpe, epid_t dstep, bool isreply) {
     LLOG(TCU, (isreply ? ">> " : "-> ") << fmt(_buf.length, 3) << "b"
             << " lbl=" << fmt(_buf.label, "#0x", sizeof(label_t) * 2)
-            << " over " << ep << " to pe:ep=" << dstpe << ":" << dstep
+            << " over " << ep << " to tile:ep=" << dstpe << ":" << dstep
             << " (crd=#" << fmt(get_ep(ep, EP_CREDITS), "x")
             << " rep=" << _buf.rpl_ep << ")");
 
@@ -419,7 +419,7 @@ void TCU::handle_read_cmd(epid_t ep) {
     word_t dest = reinterpret_cast<word_t*>(_buf.data)[2];
     LLOG(TCU, "(read) " << length << " bytes from #" << fmt(base, "x")
             << "+#" << fmt(offset - base, "x") << " -> " << fmt(dest, "p"));
-    peid_t dstpe = _buf.pe;
+    tileid_t dstpe = _buf.tile;
     epid_t dstep = _buf.rpl_ep;
     assert(length <= sizeof(_buf.data));
 
@@ -442,7 +442,7 @@ void TCU::handle_write_cmd(epid_t ep) {
     LLOG(TCU, "(write) " << length << " bytes to #" << fmt(base, "x")
             << "+#" << fmt(offset - base, "x"));
     assert(length <= sizeof(_buf.data));
-    peid_t dstpe = _buf.pe;
+    tileid_t dstpe = _buf.tile;
     epid_t dstep = _buf.rpl_ep;
     memcpy(reinterpret_cast<void*>(offset), _buf.data + sizeof(word_t) * 2, length);
 
@@ -603,9 +603,9 @@ static void sigchild(int) {
 
 void *TCU::thread(void *arg) {
     TCU *dma = static_cast<TCU*>(arg);
-    peid_t pe = env()->pe_id;
+    tileid_t tile = env()->tile_id;
 
-    if(pe != 0)
+    if(tile != 0)
         signal(SIGCLD, sigchild);
     else
         dma->_backend->bind_knotify();
@@ -623,7 +623,7 @@ void *TCU::thread(void *arg) {
         // should we send something?
         if(dma->_backend->recv_command()) {
             assert((dma->get_cmd(CMD_CTRL) & CTRL_START) != 0);
-            dma->handle_command(pe);
+            dma->handle_command(tile);
             if(dma->is_ready())
                 dma->_backend->send_ack();
         }

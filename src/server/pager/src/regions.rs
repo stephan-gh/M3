@@ -143,8 +143,8 @@ impl Region {
                 let mut mem = mem.borrow_mut();
 
                 // either copy from owner memory or the physical memory
-                let (off, osel) = if let Some((ovpe, ovirt)) = mem.owner_mem() {
-                    (ovirt + self.off, ovpe)
+                let (off, osel) = if let Some((oact, ovirt)) = mem.owner_mem() {
+                    (ovirt + self.off, oact)
                 }
                 else {
                     (self.mem_off, INVALID_SEL)

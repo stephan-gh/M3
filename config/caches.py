@@ -10,11 +10,11 @@ cmd_list = options.cmd.split(",")
 
 num_eps = 128 if os.environ.get('M3_TARGET') == 'hw' else 192
 num_mem = 1
-num_pes = int(os.environ.get('M3_GEM5_PES'))
+num_tiles = int(os.environ.get('M3_GEM5_TILES'))
 fsimg = os.environ.get('M3_GEM5_FS')
 fsimgnum = os.environ.get('M3_GEM5_FSNUM', '1')
 tcupos = int(os.environ.get('M3_GEM5_TCUPOS', 0))
-mem_pe = num_pes + 1
+mem_tile = num_tiles + 1
 
 # Memory watch example:
 # options.mem_watches = {
@@ -24,38 +24,38 @@ mem_pe = num_pes + 1
 #     ],
 # }
 
-pes = []
+tiles = []
 
-# create the core PEs
-for i in range(0, num_pes):
-    pe = createCorePE(noc=root.noc,
-                      options=options,
-                      no=i,
-                      cmdline=cmd_list[i],
-                      memPE=mem_pe,
-                      l1size='32kB',
-                      l2size='256kB',
-                      tcupos=tcupos,
-                      epCount=num_eps)
-    pes.append(pe)
+# create the core tiles
+for i in range(0, num_tiles):
+    tile = createCoreTile(noc=root.noc,
+                          options=options,
+                          no=i,
+                          cmdline=cmd_list[i],
+                          memTile=mem_tile,
+                          l1size='32kB',
+                          l2size='256kB',
+                          tcupos=tcupos,
+                          epCount=num_eps)
+    tiles.append(tile)
 
-# create PE for serial input
-pe = createSerialPE(noc=root.noc,
-                    options=options,
-                    no=num_pes,
-                    memPE=mem_pe,
-                    epCount=num_eps)
-pes.append(pe)
+# create tile for serial input
+tile = createSerialTile(noc=root.noc,
+                        options=options,
+                        no=num_tiles,
+                        memTile=mem_tile,
+                        epCount=num_eps)
+tiles.append(tile)
 
-# create the memory PEs
+# create the memory tiles
 for i in range(0, num_mem):
-    pe = createMemPE(noc=root.noc,
-                     options=options,
-                     no=num_pes + 1 + i,
-                     size='3072MB',
-                     image=fsimg if i == 0 else None,
-                     imageNum=int(fsimgnum),
-                     epCount=num_eps)
-    pes.append(pe)
+    tile = createMemTile(noc=root.noc,
+                         options=options,
+                         no=num_tiles + 1 + i,
+                         size='3072MB',
+                         image=fsimg if i == 0 else None,
+                         imageNum=int(fsimgnum),
+                         epCount=num_eps)
+    tiles.append(tile)
 
-runSimulation(root, options, pes)
+runSimulation(root, options, tiles)

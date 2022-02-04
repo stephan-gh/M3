@@ -25,8 +25,8 @@ use crate::goff;
 use crate::int_enum;
 use crate::io::{Read, Write};
 use crate::kif;
-use crate::pes::StateSerializer;
 use crate::session::{HashInput, HashOutput, MapFlags, Pager};
+use crate::tiles::StateSerializer;
 use crate::vfs::{BlockId, DevId, Fd, FileMode, INodeId};
 
 int_enum! {
@@ -167,10 +167,10 @@ pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
 
     /// Returns the type of the file implementation used for serialization.
     fn file_type(&self) -> u8;
-    /// Exchanges the capabilities to provide `vpe` access to the file.
+    /// Exchanges the capabilities to provide `act` access to the file.
     fn exchange_caps(
         &self,
-        vpe: Selector,
+        act: Selector,
         dels: &mut Vec<Selector>,
         max_sel: &mut Selector,
     ) -> Result<(), Error>;

@@ -78,7 +78,7 @@ public:
     virtual char type() const noexcept override {
         return 'Q';
     }
-    virtual void delegate(VPE &vpe) override;
+    virtual void delegate(Activity &act) override;
     virtual void serialize(Marshaller &m) override;
     static File *unserialize(Unmarshaller &um);
 

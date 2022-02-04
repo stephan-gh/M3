@@ -19,13 +19,13 @@
 #include <m3/com/GateStream.h>
 #include <m3/session/ClientSession.h>
 #include <m3/stream/Standard.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 using namespace m3;
 
 static void received_data(GateIStream &is) {
     auto data = reinterpret_cast<const uint64_t*>(is.buffer());
-    cout << env()->pe_id << ": received " << fmt(*data, "x") << "\n";
+    cout << env()->tile_id << ": received " << fmt(*data, "x") << "\n";
 }
 
 int main() {

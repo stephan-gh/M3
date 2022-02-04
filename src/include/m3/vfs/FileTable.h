@@ -29,17 +29,17 @@ namespace m3 {
 
 class File;
 class GenericFile;
-class VPE;
+class Activity;
 
 /**
  * The file descriptor table.
  *
  * The file table itself does not create or delete files. Instead, it only works with
  * pointers. The creation and deletion is done in VFS. The rational is, that VFS is used to
- * work with files, while FileTable is used to prepare the files for created VPEs. Thus, one
- * can simply add a file or remove a file from VPE::self() to a different VPE by passing a pointer
- * around. If the file table of a child VPE is completely setup, it is serialized and transferred
- * to the child VPE.
+ * work with files, while FileTable is used to prepare the files for created activities. Thus, one
+ * can simply add a file or remove a file from activity::self() to a different activity by passing a pointer
+ * around. If the file table of a child activity is completely setup, it is serialized and transferred
+ * to the child activity.
  */
 class FileTable {
     friend class GenericFile;
@@ -116,11 +116,11 @@ public:
     void remove_all() noexcept;
 
     /**
-     * Delegates all files to <vpe>.
+     * Delegates all files to <act>.
      *
-     * @param vpe the VPE to delegate the files to
+     * @param act the activity to delegate the files to
      */
-    void delegate(VPE &vpe) const;
+    void delegate(Activity &act) const;
 
     /**
      * Serializes the current files into the given buffer

@@ -21,7 +21,7 @@ use crate::cap::Selector;
 use crate::cfg;
 use crate::col::Vec;
 use crate::com::SendGate;
-use crate::kif::{self, PEDesc};
+use crate::kif::{self, TileDesc};
 use crate::serialize::Source;
 use crate::session::{Pager, ResMng};
 use crate::tcu;
@@ -43,20 +43,20 @@ impl EnvData {
         self.base.platform = platform.val as u64
     }
 
-    pub fn pe_id(&self) -> u64 {
-        self.base.pe_id
+    pub fn tile_id(&self) -> u64 {
+        self.base.tile_id
     }
 
     pub fn shared(&self) -> bool {
         self.base.shared != 0
     }
 
-    pub fn pe_desc(&self) -> PEDesc {
-        PEDesc::new_from(self.base.pe_desc)
+    pub fn tile_desc(&self) -> TileDesc {
+        TileDesc::new_from(self.base.tile_desc)
     }
 
-    pub fn set_pedesc(&mut self, pe: PEDesc) {
-        self.base.pe_desc = pe.value();
+    pub fn set_pedesc(&mut self, tile: TileDesc) {
+        self.base.tile_desc = tile.value();
     }
 
     pub fn set_argc(&mut self, argc: usize) {
@@ -87,12 +87,12 @@ impl EnvData {
         self.base.first_std_ep = start as u64;
     }
 
-    pub fn vpe_id(&self) -> tcu::VPEId {
-        self.base.vpe_id as tcu::VPEId
+    pub fn activity_id(&self) -> tcu::ActId {
+        self.base.act_id as tcu::ActId
     }
 
-    pub fn set_vpe_id(&mut self, id: tcu::VPEId) {
-        self.base.vpe_id = id as u64;
+    pub fn set_activity_id(&mut self, id: tcu::ActId) {
+        self.base.act_id = id as u64;
     }
 
     pub fn load_pager(&self) -> Option<Pager> {

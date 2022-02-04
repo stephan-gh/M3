@@ -23,9 +23,9 @@ use crate::errors::Error;
 use crate::goff;
 use crate::int_enum;
 use crate::kif;
-use crate::pes::VPE;
 use crate::session::ClientSession;
 use crate::syscalls;
+use crate::tiles::Activity;
 
 /// Represents a session at the pager.
 ///
@@ -45,11 +45,11 @@ int_enum! {
         const PAGEFAULT = 0x0;
         /// Initializes the pager session
         const INIT      = 0x1;
-        /// Adds a child VPE to the pager session
+        /// Adds a child activity to the pager session
         const ADD_CHILD = 0x2;
         /// Adds a new send gate to the pager session
         const ADD_SGATE = 0x3;
-        /// Clone the address space of a child VPE (see `ADD_CHILD`) from the parent
+        /// Clone the address space of a child activity (see `ADD_CHILD`) from the parent
         const CLONE     = 0x4;
         /// Add a new mapping with anonymous memory
         const MAP_ANON  = 0x5;
@@ -114,7 +114,7 @@ impl Pager {
         })
     }
 
-    /// Clones the session to be shared with the given VPE.
+    /// Clones the session to be shared with the given activity.
     pub fn new_clone(&self) -> Result<Self, Error> {
         let res = self.sess.obtain(
             1,
@@ -157,15 +157,15 @@ impl Pager {
         &self.child_rgate
     }
 
-    /// Initializes this pager session by delegating the VPE cap to the server.
-    pub fn init(&mut self, vpe: &VPE) -> Result<(), Error> {
+    /// Initializes this pager session by delegating the activity cap to the server.
+    pub fn init(&mut self, act: &Activity) -> Result<(), Error> {
         // activate send and receive gate for page faults
-        syscalls::activate(vpe.sel() + 1, self.child_sgate.sel(), kif::INVALID_SEL, 0)?;
-        syscalls::activate(vpe.sel() + 2, self.child_rgate.sel(), kif::INVALID_SEL, 0)?;
+        syscalls::activate(act.sel() + 1, self.child_sgate.sel(), kif::INVALID_SEL, 0)?;
+        syscalls::activate(act.sel() + 2, self.child_rgate.sel(), kif::INVALID_SEL, 0)?;
 
         // we only need to do that for clones
         if self.close {
-            let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, vpe.sel(), 1);
+            let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, act.sel(), 1);
             self.sess.delegate(
                 crd,
                 |os| os.push_word(u64::from(PagerOp::INIT.val)),

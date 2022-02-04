@@ -18,7 +18,7 @@ use base::cfg;
 use base::envdata;
 use base::goff;
 use base::io;
-use base::kif::PEDesc;
+use base::kif::TileDesc;
 use base::machine;
 use base::math;
 use base::mem::heap;
@@ -26,8 +26,8 @@ use base::mem::heap;
 use crate::arch::{exceptions, paging};
 use crate::args;
 use crate::ktcu;
-use crate::pes;
 use crate::platform;
+use crate::tiles;
 use crate::workloop::workloop;
 
 #[no_mangle]
@@ -43,15 +43,15 @@ pub extern "C" fn exit(_code: i32) -> ! {
 
 fn create_rbufs() {
     let sysc_slot_size = 9;
-    let sysc_rbuf_size = math::next_log2(cfg::MAX_VPES) + sysc_slot_size;
+    let sysc_rbuf_size = math::next_log2(cfg::MAX_ACTS) + sysc_slot_size;
     let serv_slot_size = 8;
     let serv_rbuf_size = math::next_log2(crate::com::MAX_PENDING_MSGS) + serv_slot_size;
-    let pex_slot_size = 7;
-    let pex_rbuf_size = math::next_log2(cfg::MAX_VPES) + pex_slot_size;
-    let total_size = (1 << sysc_rbuf_size) + (1 << serv_rbuf_size) + (1 << pex_rbuf_size);
+    let tm_slot_size = 7;
+    let tm_rbuf_size = math::next_log2(cfg::MAX_ACTS) + tm_slot_size;
+    let total_size = (1 << sysc_rbuf_size) + (1 << serv_rbuf_size) + (1 << tm_rbuf_size);
 
-    let pedesc = PEDesc::new_from(envdata::get().pe_desc);
-    let mut rbuf = if pedesc.has_virtmem() {
+    let tiledesc = TileDesc::new_from(envdata::get().tile_desc);
+    let mut rbuf = if tiledesc.has_virtmem() {
         // we need to make sure that receive buffers are physically contiguous. thus, allocate a new
         // chunk of physical memory and map it somewhere.
         let total_size = math::round_up(total_size, cfg::PAGE_SIZE);
@@ -60,7 +60,7 @@ fn create_rbufs() {
         rbuf
     }
     else {
-        pedesc.rbuf_space().0
+        tiledesc.rbuf_space().0
     };
 
     // TODO add second syscall REP
@@ -72,8 +72,8 @@ fn create_rbufs() {
         .expect("Unable to config service REP");
     rbuf += 1 << serv_rbuf_size as usize;
 
-    ktcu::recv_msgs(ktcu::KPEX_EP, rbuf as goff, pex_rbuf_size, pex_slot_size)
-        .expect("Unable to config pemux REP");
+    ktcu::recv_msgs(ktcu::KPEX_EP, rbuf as goff, tm_rbuf_size, tm_slot_size)
+        .expect("Unable to config tilemux REP");
 }
 
 #[no_mangle]
@@ -92,7 +92,7 @@ pub extern "C" fn env_run() {
     platform::init(&[]);
     thread::init();
     create_rbufs();
-    pes::init();
+    tiles::init();
 
     klog!(DEF, "Kernel is ready!");
 
@@ -100,6 +100,6 @@ pub extern "C" fn env_run() {
 }
 
 pub fn shutdown() -> ! {
-    pes::deinit();
+    tiles::deinit();
     exit(0);
 }

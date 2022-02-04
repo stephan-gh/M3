@@ -49,7 +49,7 @@ int main() {
         reply.cast<uint64_t>() += 1;
     }
 
-    // give the other PEs some time
+    // give the other tiles some time
     for(volatile int i = 0; i < 1000000; ++i)
         ;
 

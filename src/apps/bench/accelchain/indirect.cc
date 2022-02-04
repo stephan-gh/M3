@@ -17,7 +17,7 @@
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
 #include <base/time/Instant.h>
-#include <base/PEDesc.h>
+#include <base/TileDesc.h>
 
 #include <m3/accel/InDirAccel.h>
 #include <m3/stream/Standard.h>
@@ -37,24 +37,24 @@ static const size_t REPLY_SIZE  = 64;
 void chain_indirect(Reference<File> in, Reference<File> out, size_t num, CycleDuration comptime) {
     std::unique_ptr<uint8_t> buffer(new uint8_t[BUF_SIZE]);
 
-    Reference<PE> pes[num];
-    std::unique_ptr<VPE> vpes[num];
+    Reference<Tile> tiles[num];
+    std::unique_ptr<Activity> acts[num];
     std::unique_ptr<InDirAccel> accels[num];
     InDirAccel::Operation ops[num];
 
     RecvGate reply_gate = RecvGate::create(getnextlog2(REPLY_SIZE * num), nextlog2<REPLY_SIZE>::val);
     reply_gate.activate();
 
-    // create VPEs
+    // create activities
     for(size_t i = 0; i < num; ++i) {
         OStringStream name;
         name << "chain" << i;
 
 
-        pes[i] = PE::get("indir");
-        vpes[i] = std::make_unique<VPE>(pes[i], name.str());
+        tiles[i] = Tile::get("indir");
+        acts[i] = std::make_unique<Activity>(tiles[i], name.str());
 
-        accels[i] = std::make_unique<InDirAccel>(vpes[i], reply_gate);
+        accels[i] = std::make_unique<InDirAccel>(acts[i], reply_gate);
     }
 
     // connect outputs
@@ -63,9 +63,9 @@ void chain_indirect(Reference<File> in, Reference<File> out, size_t num, CycleDu
 
     auto start = CycleInstant::now();
 
-    // start VPEs
+    // start activities
     for(size_t i = 0; i < num; ++i)
-        vpes[i]->start();
+        acts[i]->start();
 
     size_t total = 0, seen = 0;
     size_t count = in->read(buffer.get(), BUF_SIZE);

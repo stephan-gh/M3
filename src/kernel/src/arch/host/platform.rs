@@ -18,10 +18,10 @@ use base::cfg;
 use base::col::{String, Vec};
 use base::format;
 use base::goff;
-use base::kif::{boot, PEDesc, PEType, PEISA};
+use base::kif::{boot, TileDesc, TileISA, TileType};
 use base::libc;
 use base::mem::{size_of, GlobAddr, MaybeUninit};
-use base::tcu::{EpId, PEId};
+use base::tcu::{EpId, TileId};
 use core::ptr;
 
 use crate::arch;
@@ -32,23 +32,27 @@ use crate::platform;
 pub fn init(args: &[String]) -> platform::KEnv {
     let mut info = boot::Info::default();
 
-    // PEs
-    let mut pes = Vec::new();
-    for _ in 0..cfg::PE_COUNT {
-        pes.push(PEDesc::new(PEType::COMP_IMEM, PEISA::X86, 1024 * 1024));
+    // tiles
+    let mut tiles = Vec::new();
+    for _ in 0..cfg::TILE_COUNT {
+        tiles.push(TileDesc::new(
+            TileType::COMP_IMEM,
+            TileISA::X86,
+            1024 * 1024,
+        ));
     }
     if args::get().disk {
-        pes.push(PEDesc::new(PEType::COMP_IMEM, PEISA::IDE_DEV, 0));
+        tiles.push(TileDesc::new(TileType::COMP_IMEM, TileISA::IDE_DEV, 0));
     }
     if args::get().net_bridge.is_some() {
-        pes.push(PEDesc::new(PEType::COMP_IMEM, PEISA::NIC_DEV, 0));
-        pes.push(PEDesc::new(PEType::COMP_IMEM, PEISA::NIC_DEV, 0));
+        tiles.push(TileDesc::new(TileType::COMP_IMEM, TileISA::NIC_DEV, 0));
+        tiles.push(TileDesc::new(TileType::COMP_IMEM, TileISA::NIC_DEV, 0));
     }
-    let mut upes = Vec::new();
-    for (i, pe) in pes[1..].iter().enumerate() {
-        upes.push(boot::PE::new((i + 1) as u32, *pe));
+    let mut utiles = Vec::new();
+    for (i, tile) in tiles[1..].iter().enumerate() {
+        utiles.push(boot::Tile::new((i + 1) as u32, *tile));
     }
-    info.pe_count = upes.len() as u64;
+    info.tile_count = utiles.len() as u64;
 
     let mems = build_mems();
     info.mem_count = mems.len() as u64;
@@ -59,7 +63,7 @@ pub fn init(args: &[String]) -> platform::KEnv {
     // build kinfo page
     let bsize = size_of::<boot::Info>()
         + info.mod_count as usize * size_of::<boot::Mod>()
-        + info.pe_count as usize * size_of::<boot::PE>()
+        + info.tile_count as usize * size_of::<boot::Tile>()
         + info.mem_count as usize * size_of::<boot::Mem>();
     let binfo_mem = mem::borrow_mut()
         .allocate(mem::MemType::KERNEL, bsize as goff, 1)
@@ -83,13 +87,13 @@ pub fn init(args: &[String]) -> platform::KEnv {
         );
         dest += (mods.len() * size_of::<boot::Mod>()) as goff;
 
-        // PEs
+        // tiles
         libc::memcpy(
             dest as *mut u8 as *mut libc::c_void,
-            upes.as_ptr() as *const libc::c_void,
-            upes.len() * size_of::<boot::PE>(),
+            utiles.as_ptr() as *const libc::c_void,
+            utiles.len() * size_of::<boot::Tile>(),
         );
-        dest += (upes.len() * size_of::<boot::PE>()) as goff;
+        dest += (utiles.len() * size_of::<boot::Tile>()) as goff;
 
         // memories
         libc::memcpy(
@@ -99,7 +103,7 @@ pub fn init(args: &[String]) -> platform::KEnv {
         );
     }
 
-    platform::KEnv::new(info, binfo_mem.global(), mods, pes)
+    platform::KEnv::new(info, binfo_mem.global(), mods, tiles)
 }
 
 fn build_mems() -> Vec<boot::Mem> {
@@ -120,7 +124,7 @@ fn build_mems() -> Vec<boot::Mem> {
     // fs image
     mem::borrow_mut().add(mem::MemMod::new(
         mem::MemType::OCCUPIED,
-        kernel_pe(),
+        kernel_tile(),
         off,
         cfg::FS_MAX_SIZE as goff,
     ));
@@ -129,7 +133,7 @@ fn build_mems() -> Vec<boot::Mem> {
     // kernel memory
     mem::borrow_mut().add(mem::MemMod::new(
         mem::MemType::KERNEL,
-        kernel_pe(),
+        kernel_tile(),
         off,
         args::get().kmem as goff,
     ));
@@ -139,7 +143,7 @@ fn build_mems() -> Vec<boot::Mem> {
     let boot_off = off;
     mem::borrow_mut().add(mem::MemMod::new(
         mem::MemType::BOOT,
-        kernel_pe(),
+        kernel_tile(),
         off,
         cfg::FIXED_ROOT_MEM as goff,
     ));
@@ -150,7 +154,7 @@ fn build_mems() -> Vec<boot::Mem> {
         cfg::TOTAL_MEM_SIZE - (cfg::FS_MAX_SIZE + args::get().kmem + cfg::FIXED_ROOT_MEM);
     mem::borrow_mut().add(mem::MemMod::new(
         mem::MemType::USER,
-        kernel_pe(),
+        kernel_tile(),
         off,
         user_size as goff,
     ));
@@ -158,17 +162,17 @@ fn build_mems() -> Vec<boot::Mem> {
     // set memories
     let mut mems = Vec::new();
     mems.push(boot::Mem::new(
-        GlobAddr::new_with(kernel_pe(), 0),
+        GlobAddr::new_with(kernel_tile(), 0),
         cfg::FS_MAX_SIZE as goff,
         true,
     ));
     mems.push(boot::Mem::new(
-        GlobAddr::new_with(kernel_pe(), boot_off),
+        GlobAddr::new_with(kernel_tile(), boot_off),
         cfg::FIXED_ROOT_MEM as goff,
         true,
     ));
     mems.push(boot::Mem::new(
-        GlobAddr::new_with(kernel_pe(), off),
+        GlobAddr::new_with(kernel_tile(), off),
         user_size as goff,
         false,
     ));
@@ -208,21 +212,21 @@ fn build_modules(args: &[String]) -> Vec<boot::Mod> {
     mods
 }
 
-pub fn init_serial(dest: Option<(PEId, EpId)>) {
+pub fn init_serial(dest: Option<(TileId, EpId)>) {
     arch::input::start(dest);
 }
 
-pub fn kernel_pe() -> PEId {
+pub fn kernel_tile() -> TileId {
     0
 }
-pub fn user_pes() -> platform::PEIterator {
-    platform::PEIterator::new(1, (platform::pes().len() - 1) as PEId)
+pub fn user_tiles() -> platform::TileIterator {
+    platform::TileIterator::new(1, (platform::tiles().len() - 1) as TileId)
 }
 
-pub fn is_shared(_pe: PEId) -> bool {
+pub fn is_shared(_tile: TileId) -> bool {
     false
 }
 
-pub fn rbuf_pemux(_pe: PEId) -> goff {
+pub fn rbuf_tilemux(_tile: TileId) -> goff {
     0
 }

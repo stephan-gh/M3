@@ -20,7 +20,7 @@ use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
-use m3::kif::{Perm, PEISA};
+use m3::kif::{Perm, TileISA};
 use m3::log;
 use m3::net::MAC;
 use m3::time::TimeDuration;
@@ -55,7 +55,7 @@ static ZEROS: [u8; 4096] = [0; 4096];
 
 impl E1000 {
     pub fn new() -> Result<Self, Error> {
-        let nic = Device::new("nic", PEISA::NIC_DEV)?;
+        let nic = Device::new("nic", TileISA::NIC_DEV)?;
 
         let bufs = MemGate::new(core::mem::size_of::<Buffers>(), Perm::RW)?;
         let devbufs = bufs.derive(0, core::mem::size_of::<Buffers>(), Perm::RW)?;
@@ -535,7 +535,7 @@ impl E1000 {
 
     fn sleep(&self, duration: TimeDuration) {
         log!(crate::LOG_NIC, "e1000: sleep for {:?}", duration);
-        m3::pes::VPE::sleep_for(duration).expect("Failed to sleep in NIC driver");
+        m3::tiles::Activity::sleep_for(duration).expect("Failed to sleep in NIC driver");
     }
 
     fn read_mac(&self) -> MAC {

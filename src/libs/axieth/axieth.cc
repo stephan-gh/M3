@@ -15,7 +15,7 @@
  */
 
 #include <base/stream/Serial.h>
-#include <base/PEXIF.h>
+#include <base/TMIF.h>
 #include <base/KIF.h>
 
 #include "xaxidma.h"
@@ -347,7 +347,7 @@ EXTERN_C ssize_t axieth_init(goff_t virt, goff_t phys, size_t size) {
     XAxiEthernet_Config *MacCfgPtr;
     XAxiDma_Config *Config;
 
-    m3::Serial::init("net", m3::env()->pe_id);
+    m3::Serial::init("net", m3::env()->tile_id);
 
     xdbg_printf(XDBG_DEBUG_GENERAL, "axieth_init(virt="
         << m3::fmt(virt, "#x") << ", phys="
@@ -365,7 +365,7 @@ EXTERN_C ssize_t axieth_init(goff_t virt, goff_t phys, size_t size) {
     MacCfgPtr = XAxiEthernet_LookupConfig(AXIETHERNET_DEVICE_ID);
 
     // map AxiEthernet MMIO region
-    m3::PEXIF::map(MacCfgPtr->BaseAddress, MacCfgPtr->BaseAddress, 1, m3::KIF::Perm::RW);
+    m3::TMIF::map(MacCfgPtr->BaseAddress, MacCfgPtr->BaseAddress, 1, m3::KIF::Perm::RW);
 
     /* Check whether AXI DMA is present or not */
     if(MacCfgPtr->AxiDevType != XPAR_AXI_DMA) {
@@ -380,7 +380,7 @@ EXTERN_C ssize_t axieth_init(goff_t virt, goff_t phys, size_t size) {
     }
 
     // map AxiDMA MMIO region
-    m3::PEXIF::map(Config->BaseAddr, Config->BaseAddr, 1, m3::KIF::Perm::RW);
+    m3::TMIF::map(Config->BaseAddr, Config->BaseAddr, 1, m3::KIF::Perm::RW);
 
     /* Initialize DMA engine */
     Status = XAxiDma_CfgInitialize(&AxiDma, Config);
@@ -432,8 +432,8 @@ EXTERN_C ssize_t axieth_init(goff_t virt, goff_t phys, size_t size) {
     /**
      * Register interrupts
      */
-    m3::PEXIF::reg_irq(RX_INTR_ID);
-    m3::PEXIF::reg_irq(TX_INTR_ID);
+    m3::TMIF::reg_irq(RX_INTR_ID);
+    m3::TMIF::reg_irq(TX_INTR_ID);
 
     return static_cast<ssize_t>(TX_BUFFER_BASE);
 }

@@ -29,15 +29,15 @@ use crate::IRQSource;
 
 pub const ISR_COUNT: usize = 66;
 
-pub const PEX_ISR: usize = 63;
+pub const TMC_ISR: usize = 63;
 pub const TCU_ISR: usize = 64;
 pub const TIMER_ISR: usize = 65;
 
-pub const PEXC_ARG0: usize = 14; // rax
-pub const PEXC_ARG1: usize = 12; // rcx
-pub const PEXC_ARG2: usize = 11; // rdx
-pub const PEXC_ARG3: usize = 10; // rdi
-pub const PEXC_ARG4: usize = 9; // rsi
+pub const TMC_ARG0: usize = 14; // rax
+pub const TMC_ARG1: usize = 12; // rcx
+pub const TMC_ARG2: usize = 11; // rdx
+pub const TMC_ARG3: usize = 10; // rdi
+pub const TMC_ARG4: usize = 9; // rsi
 
 int_enum! {
     pub struct DPL : u8 {
@@ -434,8 +434,8 @@ pub fn init(state: &mut State) {
             idt.set(i, isr_null, DPL::KERNEL);
         }
 
-        // PEMux calls
-        idt.set(PEX_ISR, isr_63, DPL::USER);
+        // TileMux calls
+        idt.set(TMC_ISR, isr_63, DPL::USER);
         // TCU interrupts
         idt.set(TCU_ISR, isr_64, DPL::KERNEL);
         // Timer interrupts
@@ -455,8 +455,8 @@ pub fn init(state: &mut State) {
     }
 }
 
-pub fn init_pexcalls(handler: crate::IsrFunc) {
-    crate::reg(PEX_ISR, handler);
+pub fn init_tmcalls(handler: crate::IsrFunc) {
+    crate::reg(TMC_ISR, handler);
 }
 
 pub fn set_entry_sp(sp: usize) {

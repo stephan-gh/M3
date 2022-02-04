@@ -18,12 +18,12 @@
 #include <base/stream/Serial.h>
 #include <base/Backtrace.h>
 #include <base/Env.h>
-#include <base/PEXIF.h>
+#include <base/TMIF.h>
 
 #include <m3/com/RecvGate.h>
 #include <m3/stream/Standard.h>
 #include <m3/Syscalls.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 namespace m3 {
 
@@ -34,11 +34,11 @@ public:
 
     virtual void init() override {
         uint64_t *argv = reinterpret_cast<uint64_t*>(env()->argv);
-        Serial::init(reinterpret_cast<char*>(argv[0]), env()->pe_id);
+        Serial::init(reinterpret_cast<char*>(argv[0]), env()->tile_id);
     }
 
     NORETURN void exit(UNUSED int code) override {
-        PEXIF::exit(code);
+        TMIF::exit(code);
         UNREACHED;
     }
 };

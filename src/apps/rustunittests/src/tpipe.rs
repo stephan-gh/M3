@@ -19,9 +19,9 @@ use m3::com::MemGate;
 use m3::errors::Code;
 use m3::io::{self, Read};
 use m3::kif;
-use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::session::Pipes;
 use m3::test;
+use m3::tiles::{Activity, ActivityArgs, RunningActivity, Tile};
 use m3::vfs::{BufReader, IndirectPipe};
 use m3::{println, wv_assert_eq, wv_assert_ok, wv_run_test};
 
@@ -39,21 +39,21 @@ fn child_to_parent() {
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
-    let pe = wv_assert_ok!(PE::get("clone|own"));
-    let mut vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("writer")));
-    vpe.files().set(
+    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let mut act = wv_assert_ok!(Activity::new_with(tile, ActivityArgs::new("writer")));
+    act.files().set(
         io::STDOUT_FILENO,
-        VPE::cur().files().get(pipe.writer_fd()).unwrap(),
+        Activity::cur().files().get(pipe.writer_fd()).unwrap(),
     );
 
-    let act = wv_assert_ok!(vpe.run(|| {
+    let act = wv_assert_ok!(act.run(|| {
         println!("This is a test!");
         0
     }));
 
     pipe.close_writer();
 
-    let input = VPE::cur().files().get(pipe.reader_fd()).unwrap();
+    let input = Activity::cur().files().get(pipe.reader_fd()).unwrap();
     let s = wv_assert_ok!(input.borrow_mut().read_to_string());
     wv_assert_eq!(s, "This is a test!\n");
 
@@ -65,14 +65,14 @@ fn parent_to_child() {
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
-    let pe = wv_assert_ok!(PE::get("clone|own"));
-    let mut vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("reader")));
-    vpe.files().set(
+    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let mut act = wv_assert_ok!(Activity::new_with(tile, ActivityArgs::new("reader")));
+    act.files().set(
         io::STDIN_FILENO,
-        VPE::cur().files().get(pipe.reader_fd()).unwrap(),
+        Activity::cur().files().get(pipe.reader_fd()).unwrap(),
     );
 
-    let act = wv_assert_ok!(vpe.run(|| {
+    let act = wv_assert_ok!(act.run(|| {
         let s = wv_assert_ok!(io::stdin().read_to_string());
         wv_assert_eq!(s, "This is a test!\n");
         0
@@ -80,7 +80,7 @@ fn parent_to_child() {
 
     pipe.close_reader();
 
-    let output = VPE::cur().files().get(pipe.writer_fd()).unwrap();
+    let output = Activity::cur().files().get(pipe.writer_fd()).unwrap();
     wv_assert_eq!(output.borrow_mut().write(b"This is a test!\n"), Ok(16));
 
     pipe.close_writer();
@@ -93,17 +93,17 @@ fn child_to_child() {
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
-    let pe1 = wv_assert_ok!(PE::get("clone|own"));
-    let pe2 = wv_assert_ok!(PE::get("clone|own"));
-    let mut writer = wv_assert_ok!(VPE::new_with(pe1, VPEArgs::new("writer")));
-    let mut reader = wv_assert_ok!(VPE::new_with(pe2, VPEArgs::new("reader")));
+    let tile1 = wv_assert_ok!(Tile::get("clone|own"));
+    let tile2 = wv_assert_ok!(Tile::get("clone|own"));
+    let mut writer = wv_assert_ok!(Activity::new_with(tile1, ActivityArgs::new("writer")));
+    let mut reader = wv_assert_ok!(Activity::new_with(tile2, ActivityArgs::new("reader")));
     writer.files().set(
         io::STDOUT_FILENO,
-        VPE::cur().files().get(pipe.writer_fd()).unwrap(),
+        Activity::cur().files().get(pipe.writer_fd()).unwrap(),
     );
     reader.files().set(
         io::STDIN_FILENO,
-        VPE::cur().files().get(pipe.reader_fd()).unwrap(),
+        Activity::cur().files().get(pipe.reader_fd()).unwrap(),
     );
 
     let wr_act = wv_assert_ok!(writer.run(|| {
@@ -129,17 +129,17 @@ fn exec_child_to_child() {
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
-    let pe1 = wv_assert_ok!(PE::get("clone|own"));
-    let pe2 = wv_assert_ok!(PE::get("clone|own"));
-    let mut writer = wv_assert_ok!(VPE::new_with(pe1, VPEArgs::new("writer")));
-    let mut reader = wv_assert_ok!(VPE::new_with(pe2, VPEArgs::new("reader")));
+    let tile1 = wv_assert_ok!(Tile::get("clone|own"));
+    let tile2 = wv_assert_ok!(Tile::get("clone|own"));
+    let mut writer = wv_assert_ok!(Activity::new_with(tile1, ActivityArgs::new("writer")));
+    let mut reader = wv_assert_ok!(Activity::new_with(tile2, ActivityArgs::new("reader")));
     writer.files().set(
         io::STDOUT_FILENO,
-        VPE::cur().files().get(pipe.writer_fd()).unwrap(),
+        Activity::cur().files().get(pipe.writer_fd()).unwrap(),
     );
     reader.files().set(
         io::STDIN_FILENO,
-        VPE::cur().files().get(pipe.reader_fd()).unwrap(),
+        Activity::cur().files().get(pipe.reader_fd()).unwrap(),
     );
 
     let wr_act = wv_assert_ok!(writer.exec(&["/bin/hello"]));
@@ -162,14 +162,14 @@ fn writer_quit() {
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
-    let pe = wv_assert_ok!(PE::get("clone|own"));
-    let mut vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("writer")));
-    vpe.files().set(
+    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let mut act = wv_assert_ok!(Activity::new_with(tile, ActivityArgs::new("writer")));
+    act.files().set(
         io::STDOUT_FILENO,
-        VPE::cur().files().get(pipe.writer_fd()).unwrap(),
+        Activity::cur().files().get(pipe.writer_fd()).unwrap(),
     );
 
-    let act = wv_assert_ok!(vpe.run(|| {
+    let act = wv_assert_ok!(act.run(|| {
         println!("This is a test!");
         println!("This is a test!");
         0
@@ -178,7 +178,7 @@ fn writer_quit() {
     pipe.close_writer();
 
     {
-        let input = VPE::cur().files().get_ref(pipe.reader_fd()).unwrap();
+        let input = Activity::cur().files().get_ref(pipe.reader_fd()).unwrap();
         let mut reader = BufReader::new(input);
         let mut s = String::new();
         wv_assert_eq!(reader.read_line(&mut s), Ok(15));
@@ -199,14 +199,14 @@ fn reader_quit() {
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
-    let pe = wv_assert_ok!(PE::get("clone|own"));
-    let mut vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("reader")));
-    vpe.files().set(
+    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let mut act = wv_assert_ok!(Activity::new_with(tile, ActivityArgs::new("reader")));
+    act.files().set(
         io::STDIN_FILENO,
-        VPE::cur().files().get(pipe.reader_fd()).unwrap(),
+        Activity::cur().files().get(pipe.reader_fd()).unwrap(),
     );
 
-    let act = wv_assert_ok!(vpe.run(|| {
+    let act = wv_assert_ok!(act.run(|| {
         let mut s = String::new();
         wv_assert_eq!(io::stdin().read_line(&mut s), Ok(15));
         wv_assert_eq!(s, "This is a test!");
@@ -215,7 +215,7 @@ fn reader_quit() {
 
     pipe.close_reader();
 
-    let output = VPE::cur().files().get(pipe.writer_fd()).unwrap();
+    let output = Activity::cur().files().get(pipe.writer_fd()).unwrap();
     loop {
         let res = output.borrow_mut().write(b"This is a test!\n");
         match res {

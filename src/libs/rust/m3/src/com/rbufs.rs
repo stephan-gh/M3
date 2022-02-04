@@ -24,15 +24,15 @@ use crate::errors::Error;
 use crate::kif::Perm;
 use crate::math;
 use crate::mem::MemMap;
-use crate::pes::VPE;
 use crate::syscalls;
+use crate::tiles::Activity;
 
 static BUFS: LazyStaticRefCell<MemMap> = LazyStaticRefCell::default();
 
 /// A buffer to receive messages from a [`RecvGate`](crate::com::RecvGate).
 ///
-/// For SPM PEs, the receive buffer will always be in the local SPM and thus there is no [`MemGate`]
-/// used. For cache PEs, we allocate physical memory and map it into our address space.
+/// For SPM tiles, the receive buffer will always be in the local SPM and thus there is no [`MemGate`]
+/// used. For cache tiles, we allocate physical memory and map it into our address space.
 pub struct RecvBuf {
     addr: usize,
     size: usize,
@@ -78,7 +78,7 @@ impl fmt::Debug for RecvBuf {
 
 /// Allocates a new receive buffer with given size
 pub fn alloc_rbuf(size: usize) -> Result<RecvBuf, Error> {
-    let vm = VPE::cur().pe_desc().has_virtmem();
+    let vm = Activity::cur().tile_desc().has_virtmem();
     let align = if vm { cfg::PAGE_SIZE as u64 } else { 1 };
     let addr = BUFS.borrow_mut().allocate(size as u64, align)? as usize;
 
@@ -103,7 +103,7 @@ fn map_rbuf(addr: usize, size: usize) -> Result<MemGate, Error> {
     let mgate = MemGate::new(size, Perm::R)?;
     syscalls::create_map(
         (addr / cfg::PAGE_SIZE) as Selector,
-        VPE::cur().sel(),
+        Activity::cur().sel(),
         mgate.sel(),
         0,
         size / cfg::PAGE_SIZE,
@@ -118,6 +118,6 @@ pub fn free_rbuf(rbuf: RecvBuf) {
 }
 
 pub(crate) fn init() {
-    let (addr, size) = VPE::cur().pe_desc().rbuf_space();
+    let (addr, size) = Activity::cur().tile_desc().rbuf_space();
     BUFS.set(MemMap::new(addr as u64, size as u64));
 }

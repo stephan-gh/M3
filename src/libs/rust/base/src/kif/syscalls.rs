@@ -28,8 +28,8 @@ pub const MAX_STR_SIZE: usize = 64;
 /// The maximum number of arguments for the exchange syscalls
 pub const MAX_EXCHG_ARGS: usize = 8;
 
-/// The maximum number of VPEs one can wait for
-pub const MAX_WAIT_VPES: usize = 48;
+/// The maximum number of activities one can wait for
+pub const MAX_WAIT_ACTS: usize = 48;
 
 int_enum! {
     /// The system calls
@@ -41,24 +41,24 @@ int_enum! {
         const CREATE_RGATE      = 3;
         const CREATE_SGATE      = 4;
         const CREATE_MAP        = 5;
-        const CREATE_VPE        = 6;
+        const CREATE_ACT        = 6;
         const CREATE_SEM        = 7;
         const ALLOC_EP          = 8;
 
         // capability operations
         const ACTIVATE          = 9;
         const SET_PMP           = 10;
-        const VPE_CTRL          = 11;
-        const VPE_WAIT          = 12;
+        const ACT_CTRL          = 11;
+        const ACT_WAIT          = 12;
         const DERIVE_MEM        = 13;
         const DERIVE_KMEM       = 14;
-        const DERIVE_PE         = 15;
+        const DERIVE_TILE       = 15;
         const DERIVE_SRV        = 16;
         const GET_SESS          = 17;
         const MGATE_REGION      = 18;
         const KMEM_QUOTA        = 19;
-        const PE_QUOTA          = 20;
-        const PE_SET_QUOTA      = 21;
+        const TILE_QUOTA        = 20;
+        const TILE_SET_QUOTA    = 21;
         const SEM_CTRL          = 22;
 
         // capability exchange
@@ -138,7 +138,7 @@ pub struct CreateSess {
 pub struct CreateMGate {
     pub opcode: u64,
     pub dst_sel: u64,
-    pub vpe_sel: u64,
+    pub act_sel: u64,
     pub addr: u64,
     pub size: u64,
     pub perms: u64,
@@ -168,32 +168,32 @@ pub struct CreateSGate {
 pub struct CreateMap {
     pub opcode: u64,
     pub dst_sel: u64,
-    pub vpe_sel: u64,
+    pub act_sel: u64,
     pub mgate_sel: u64,
     pub first: u64,
     pub pages: u64,
     pub perms: u64,
 }
 
-/// The create VPE request message
+/// The create activity request message
 #[repr(C)]
-pub struct CreateVPE {
+pub struct CreateActivity {
     pub opcode: u64,
     pub dst_sel: u64,
-    pub pe_sel: u64,
+    pub tile_sel: u64,
     pub kmem_sel: u64,
     pub namelen: u64,
     pub name: [u8; MAX_STR_SIZE],
 }
 
-impl CreateVPE {
-    /// Stores a new `CreateVPE` message into the given message buffer
-    pub fn fill_msgbuf(buf: &mut MsgBuf, dst: CapSel, name: &str, pe: CapSel, kmem: CapSel) {
+impl CreateActivity {
+    /// Stores a new `CreateActivity` message into the given message buffer
+    pub fn fill_msgbuf(buf: &mut MsgBuf, dst: CapSel, name: &str, tile: CapSel, kmem: CapSel) {
         #[allow(clippy::uninit_assumed_init)]
         let msg = buf.set(Self {
-            opcode: Operation::CREATE_VPE.val,
+            opcode: Operation::CREATE_ACT.val,
             dst_sel: dst,
-            pe_sel: pe,
+            tile_sel: tile,
             kmem_sel: kmem,
             namelen: name.len() as u64,
             // safety: will be initialized below
@@ -206,9 +206,9 @@ impl CreateVPE {
     }
 }
 
-/// The create VPE reply message
+/// The create activity reply message
 #[repr(C)]
-pub struct CreateVPEReply {
+pub struct CreateActivityReply {
     pub error: u64,
     pub id: u64,
     pub eps_start: u64,
@@ -227,7 +227,7 @@ pub struct CreateSem {
 pub struct AllocEP {
     pub opcode: u64,
     pub dst_sel: u64,
-    pub vpe_sel: u64,
+    pub act_sel: u64,
     pub epid: u64,
     pub replies: u64,
 }
@@ -253,60 +253,60 @@ pub struct Activate {
 #[repr(C)]
 pub struct SetPMP {
     pub opcode: u64,
-    pub pe_sel: u64,
+    pub tile_sel: u64,
     pub mgate_sel: u64,
     pub epid: u64,
 }
 
 int_enum! {
-    /// The operations for the `vpe_ctrl` system call
-    pub struct VPEOp : u64 {
+    /// The operations for the `act_ctrl` system call
+    pub struct ActivityOp : u64 {
         const INIT  = 0x0;
         const START = 0x1;
         const STOP  = 0x2;
     }
 }
 
-/// The VPE control request message
+/// The activity control request message
 #[repr(C)]
-pub struct VPECtrl {
+pub struct ActivityCtrl {
     pub opcode: u64,
-    pub vpe_sel: u64,
+    pub act_sel: u64,
     pub op: u64,
     pub arg: u64,
 }
 
-/// The VPE wait request message
+/// The activity wait request message
 #[repr(C)]
-pub struct VPEWait {
+pub struct ActivityWait {
     pub opcode: u64,
-    pub vpe_count: u64,
+    pub act_count: u64,
     pub event: u64,
-    pub sels: [u64; MAX_WAIT_VPES],
+    pub sels: [u64; MAX_WAIT_ACTS],
 }
 
-impl VPEWait {
-    /// Stores a new `VPEWait` message into given message buffer
-    pub fn fill_msgbuf(buf: &mut MsgBuf, vpes: &[CapSel], event: u64) {
+impl ActivityWait {
+    /// Stores a new `ActivityWait` message into given message buffer
+    pub fn fill_msgbuf(buf: &mut MsgBuf, acts: &[CapSel], event: u64) {
         #[allow(clippy::uninit_assumed_init)]
         let msg = buf.set(Self {
-            opcode: Operation::VPE_WAIT.val,
+            opcode: Operation::ACT_WAIT.val,
             event,
-            vpe_count: vpes.len() as u64,
+            act_count: acts.len() as u64,
             // safety: will be initialized below
             sels: unsafe { MaybeUninit::uninit().assume_init() },
         });
-        for (i, sel) in vpes.iter().enumerate() {
+        for (i, sel) in acts.iter().enumerate() {
             msg.sels[i] = *sel;
         }
     }
 }
 
-/// The VPE wait reply message
+/// The activity wait reply message
 #[repr(C)]
-pub struct VPEWaitReply {
+pub struct ActivityWaitReply {
     pub error: u64,
-    pub vpe_sel: u64,
+    pub act_sel: u64,
     pub exitcode: u64,
 }
 
@@ -314,7 +314,7 @@ pub struct VPEWaitReply {
 #[repr(C)]
 pub struct DeriveMem {
     pub opcode: u64,
-    pub vpe_sel: u64,
+    pub act_sel: u64,
     pub dst_sel: u64,
     pub src_sel: u64,
     pub offset: u64,
@@ -331,11 +331,11 @@ pub struct DeriveKMem {
     pub quota: u64,
 }
 
-/// The derive PE request message
+/// The derive tile request message
 #[repr(C)]
-pub struct DerivePE {
+pub struct DeriveTile {
     pub opcode: u64,
-    pub pe_sel: u64,
+    pub tile_sel: u64,
     pub dst_sel: u64,
     pub eps: OptionalValue,
     pub time: OptionalValue,
@@ -358,7 +358,7 @@ pub struct GetSession {
     pub opcode: u64,
     pub dst_sel: u64,
     pub srv_sel: u64,
-    pub vpe_sel: u64,
+    pub act_sel: u64,
     pub sid: u64,
 }
 
@@ -393,16 +393,16 @@ pub struct KMemQuotaReply {
     pub left: u64,
 }
 
-/// The PE quota request message
+/// The tile quota request message
 #[repr(C)]
-pub struct PEQuota {
+pub struct TileQuota {
     pub opcode: u64,
-    pub pe_sel: u64,
+    pub tile_sel: u64,
 }
 
-/// The PE quota reply message
+/// The tile quota reply message
 #[repr(C)]
-pub struct PEQuotaReply {
+pub struct TileQuotaReply {
     pub error: u64,
     pub eps_id: u64,
     pub eps_total: u64,
@@ -415,11 +415,11 @@ pub struct PEQuotaReply {
     pub pts_left: u64,
 }
 
-/// The PE set quota request message
+/// The tile set quota request message
 #[repr(C)]
-pub struct PESetQuota {
+pub struct TileSetQuota {
     pub opcode: u64,
-    pub pe_sel: u64,
+    pub tile_sel: u64,
     pub time: u64,
     pub pts: u64,
 }
@@ -444,7 +444,7 @@ pub struct SemCtrl {
 #[repr(C)]
 pub struct Exchange {
     pub opcode: u64,
-    pub vpe_sel: u64,
+    pub act_sel: u64,
     pub own_caps: [u64; 2],
     pub other_sel: u64,
     pub obtain: u64,
@@ -454,7 +454,7 @@ pub struct Exchange {
 #[repr(C)]
 pub struct ExchangeSess {
     pub opcode: u64,
-    pub vpe_sel: u64,
+    pub act_sel: u64,
     pub sess_sel: u64,
     pub caps: [u64; 2],
     pub args: ExchangeArgs,
@@ -471,7 +471,7 @@ pub struct ExchangeSessReply {
 #[repr(C)]
 pub struct Revoke {
     pub opcode: u64,
-    pub vpe_sel: u64,
+    pub act_sel: u64,
     pub caps: [u64; 2],
     pub own: u64,
 }

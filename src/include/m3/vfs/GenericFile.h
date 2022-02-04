@@ -23,7 +23,7 @@
 #include <m3/session/ClientSession.h>
 #include <m3/vfs/File.h>
 #include <m3/Exception.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 namespace m3 {
 
@@ -91,16 +91,16 @@ public:
     virtual Reference<File> clone() const override {
         if(!have_sess())
             return Reference<File>();
-        KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, VPE::self().alloc_sels(2), 2);
-        do_clone(VPE::self(), crd);
+        KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, Activity::self().alloc_sels(2), 2);
+        do_clone(Activity::self(), crd);
         return Reference<File>(new GenericFile(flags(), crd.start()));
     }
 
-    virtual void delegate(VPE &vpe) override {
+    virtual void delegate(Activity &act) override {
         if(!have_sess())
             throw Exception(Errors::NOT_SUP);
         KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, _sess.sel(), 2);
-        do_clone(vpe, crd);
+        do_clone(act, crd);
     }
 
     virtual void serialize(Marshaller &m) override {
@@ -121,7 +121,7 @@ private:
     bool have_sess() const noexcept {
         return (flags() & FILE_NEWSESS);
     }
-    void do_clone(VPE &vpe, KIF::CapRngDesc &crd) const;
+    void do_clone(Activity &act, KIF::CapRngDesc &crd) const;
     void do_delegate_ep(const EP &ep) const;
     void commit();
     void delegate_ep();

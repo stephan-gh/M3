@@ -22,14 +22,14 @@ use base::errors::{Code, Error};
 use base::format;
 use base::kif;
 use base::libc;
-use base::tcu::{PEId, VPEId};
+use base::tcu::{ActId, TileId};
 
 use crate::ktcu;
-use crate::pes::{pemng, VPE};
+use crate::tiles::{tilemng, Activity};
 
-pub fn start(vpe: &VPE) -> Result<i32, Error> {
-    if let Some(pid) = vpe.pid() {
-        write_env_file(pid, vpe.id(), vpe.pe_id(), 0);
+pub fn start(act: &Activity) -> Result<i32, Error> {
+    if let Some(pid) = act.pid() {
+        write_env_file(pid, act.id(), act.tile_id(), 0);
         return Ok(pid);
     }
 
@@ -38,25 +38,25 @@ pub fn start(vpe: &VPE) -> Result<i32, Error> {
         -1 => Err(Error::new(Code::OutOfMem)),
         0 => {
             let pid = unsafe { libc::getpid() };
-            write_env_file(pid, vpe.id(), vpe.pe_id(), vpe.first_sel());
+            write_env_file(pid, act.id(), act.tile_id(), act.first_sel());
 
             let kernel = env::args().next().unwrap();
             let builddir = kernel.rsplitn(2, '/').nth(1).unwrap();
 
             let mut arg = builddir.to_string();
             arg.push('/');
-            arg.push_str(vpe.name());
+            arg.push_str(act.name());
             arg.push('\0');
 
             let mut argv: Vec<*const i8> = Vec::new();
             argv.push(arg.as_ptr() as *const i8);
             argv.push(0 as *const i8);
 
-            klog!(VPES, "Loading mod '{}':", vpe.name());
+            klog!(ACTIVITIES, "Loading mod '{}':", act.name());
 
             unsafe {
                 libc::execv(argv[0], argv.as_ptr());
-                // special error code to let the WorkLoop delete the VPE
+                // special error code to let the WorkLoop delete the activity
                 libc::exit(255);
             }
         },
@@ -64,18 +64,18 @@ pub fn start(vpe: &VPE) -> Result<i32, Error> {
     }
 }
 
-pub fn finish_start(vpe: &VPE) -> Result<(), Error> {
+pub fn finish_start(act: &Activity) -> Result<(), Error> {
     // update all EPs (e.g., to allow parents to activate EPs for their childs)
     // set base for all receive EPs (do it for all, but it's just unused for the other types)
-    pemng::pemux(vpe.pe_id()).update_eps()
+    tilemng::tilemux(act.tile_id()).update_eps()
 }
 
-fn write_env_file(pid: i32, id: VPEId, pe: PEId, first_sel: kif::CapSel) {
+fn write_env_file(pid: i32, id: ActId, tile: TileId, first_sel: kif::CapSel) {
     let path = format!("{}/{}\0", envdata::tmp_dir(), pid);
     let data = format!(
         "{}\n{}\n{}\n{}\n{}\n{}\n{}\n",
         "foo", // TODO SHM prefix
-        pe,
+        tile,
         first_sel,
         kif::FIRST_FREE_SEL,
         id,

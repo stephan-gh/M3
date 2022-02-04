@@ -24,27 +24,27 @@
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 using namespace m3;
 
 static constexpr bool VERBOSE = true;
 
 struct App {
-    explicit App(Reference<PE> pe, size_t argc, const char **argv)
+    explicit App(Reference<Tile> tile, size_t argc, const char **argv)
         : argc(argc),
           argv(argv),
-          pe(pe),
-          vpe(pe, argv[0]),
+          tile(tile),
+          act(tile, argv[0]),
           rgate(RecvGate::create(6, 6)),
           sgate(SendGate::create(&rgate)) {
-        vpe.delegate_obj(rgate.sel());
+        act.delegate_obj(rgate.sel());
     }
 
     size_t argc;
     const char **argv;
-    Reference<PE> pe;
-    VPE vpe;
+    Reference<Tile> tile;
+    Activity act;
     RecvGate rgate;
     SendGate sgate;
 };
@@ -89,27 +89,27 @@ int main(int argc, char **argv) {
     App *apps[instances];
     App *fs[instances];
 
-    if(VERBOSE) cout << "Creating application VPEs...\n";
+    if(VERBOSE) cout << "Creating application activities...\n";
 
     const size_t ARG_COUNT = loadgen ? 11 : 9;
     const size_t FS_ARG_COUNT = 9;
     for(size_t i = 0; i < instances; ++i) {
-        auto pe = PE::get("core");
+        auto tile = Tile::get("core");
 
         {
             const char **args = new const char *[ARG_COUNT];
             args[0] = "/bin/fstrace-m3fs";
-            apps[i] = new App(pe, ARG_COUNT, args);
+            apps[i] = new App(tile, ARG_COUNT, args);
         }
 
         if(fs_size_str) {
             const char **args = new const char *[FS_ARG_COUNT];
             args[0] = "/sbin/m3fs";
-            fs[i] = new App(pe, FS_ARG_COUNT, args);
+            fs[i] = new App(tile, FS_ARG_COUNT, args);
         }
     }
 
-    if(VERBOSE) cout << "Starting VPEs...\n";
+    if(VERBOSE) cout << "Starting activities...\n";
 
     for(size_t i = 0; i < instances; ++i) {
         OStringStream fs_name;
@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
             fs[i]->argv[7] = "mem";
             fs[i]->argv[8] = fs_size_str;
 
-            fs[i]->vpe.exec(static_cast<int>(fs[i]->argc), fs[i]->argv);
+            fs[i]->act.exec(static_cast<int>(fs[i]->argc), fs[i]->argv);
 
             // wait until the service is available
             while(true) {
@@ -135,7 +135,7 @@ int main(int argc, char **argv) {
                     break;
                 }
                 catch(...) {
-                    VPE::self().sleep_for(TimeDuration::from_micros(10));
+                    Activity::self().sleep_for(TimeDuration::from_micros(10));
                 }
             }
         }
@@ -184,12 +184,12 @@ int main(int argc, char **argv) {
         }
 
         if(!fs_size_str)
-            apps[i]->vpe.mounts()->add("/", VPE::self().mounts()->get("/"));
+            apps[i]->act.mounts()->add("/", Activity::self().mounts()->get("/"));
 
-        apps[i]->vpe.exec(static_cast<int>(apps[i]->argc), apps[i]->argv);
+        apps[i]->act.exec(static_cast<int>(apps[i]->argc), apps[i]->argv);
     }
 
-    if(VERBOSE) cout << "Signaling VPEs...\n";
+    if(VERBOSE) cout << "Signaling activities...\n";
 
     for(size_t i = 0; i < instances; ++i)
         send_receive_vmsg(apps[i]->sgate, 1);
@@ -198,11 +198,11 @@ int main(int argc, char **argv) {
 
     auto start = CycleInstant::now();
 
-    if(VERBOSE) cout << "Waiting for VPEs...\n";
+    if(VERBOSE) cout << "Waiting for activities...\n";
 
     int exitcode = 0;
     for(size_t i = 0; i < instances; ++i) {
-        int res = apps[i]->vpe.wait();
+        int res = apps[i]->act.wait();
         if(res != 0)
             exitcode = 1;
         if(VERBOSE) cout << apps[i]->argv[0] << " exited with " << res << "\n";
@@ -211,7 +211,7 @@ int main(int argc, char **argv) {
     auto end = CycleInstant::now();
     cout << "Time: " << end.duration_since(start) << "\n";
 
-    if(VERBOSE) cout << "Deleting VPEs...\n";
+    if(VERBOSE) cout << "Deleting activities...\n";
 
     for(size_t i = 0; i < instances; ++i) {
         delete apps[i];

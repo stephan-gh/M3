@@ -7,31 +7,31 @@ options = getOptions()
 root = createRoot(options)
 
 num_eps = 128 if os.environ.get('M3_TARGET') == 'hw' else 192
-num_pes = 1
-mem_pe = num_pes
-pes = []
+num_tiles = 1
+mem_tile = num_tiles
+tiles = []
 
-for i in range(0, num_pes):
-    pe = createAbortTestPE(noc=root.noc,
-                           options=options,
-                           no=i,
-                           memPE=mem_pe,
-                           spmsize='32MB',
-                           epCount=num_eps)
+for i in range(0, num_tiles):
+    tile = createAbortTestTile(noc=root.noc,
+                               options=options,
+                               no=i,
+                               memTile=mem_tile,
+                               spmsize='32MB',
+                               epCount=num_eps)
     # use 64 bytes as the block size here to test whether it works with multiple memory accesses
-    pe.tcu.block_size = "64B"
-    pes.append(pe)
+    tile.tcu.block_size = "64B"
+    tiles.append(tile)
 
-pe = createMemPE(noc=root.noc,
-                 options=options,
-                 no=num_pes,
-                 size='3072MB',
-                 epCount=num_eps)
+tile = createMemTile(noc=root.noc,
+                     options=options,
+                     no=num_tiles,
+                     size='3072MB',
+                     epCount=num_eps)
 
-pes.append(pe)
+tiles.append(tile)
 
 # this is required in order to not occupy the noc xbar for a
 # longer amount of time as we need to handle the request on the remote side
 root.noc.width = 64
 
-runSimulation(root, options, pes)
+runSimulation(root, options, tiles)

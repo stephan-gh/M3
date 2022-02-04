@@ -19,7 +19,7 @@
                     <serial />
                 </app>
             </dom>
-            <dom pe="imem+kecacc|core">
+            <dom tile="imem+kecacc|core">
                 <app args="hashmux" daemon="1">
                     <serv name="hash" />
                 </app>
@@ -28,15 +28,15 @@
                 <app args="pager $fs.size" usermem="256M" getinfo="1">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes type="core" count="1" />
+                    <tiles type="core" count="1" />
                     <dom>
                         <app args="/bin/shell" getinfo="1">
                             <mount fs="m3fs" path="/" />
                             <sess name="pipes" />
                             <sess name="vterm" />
                             <sess name="hash" />
-                            <pes type="core" count="2" optional="1" />
-                            <pes type="rot13" count="2" optional="1" />
+                            <tiles type="core" count="2" optional="1" />
+                            <tiles type="rot13" count="2" optional="1" />
                         </app>
                     </dom>
                 </app>

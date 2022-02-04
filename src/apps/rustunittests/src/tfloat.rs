@@ -14,10 +14,10 @@
  * General Public License version 2 for more details.
  */
 
-use m3::pes::{Activity, VPEArgs, PE, VPE};
-use m3::pexif;
 use m3::rc::Rc;
 use m3::test;
+use m3::tiles::{Activity, ActivityArgs, RunningActivity, Tile};
+use m3::tmif;
 use m3::{println, wv_assert, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -26,17 +26,17 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn calc_pi_local() {
-    if !VPE::cur().pe_desc().has_virtmem() {
+    if !Activity::cur().tile_desc().has_virtmem() {
         println!("No virtual memory; skipping calc_pi_local test");
         return;
     }
 
-    calc_pi(VPE::cur().pe());
+    calc_pi(Activity::cur().tile());
 }
 
 fn calc_pi_remote() {
-    let pe = wv_assert_ok!(PE::get("clone"));
-    calc_pi(&pe);
+    let tile = wv_assert_ok!(Tile::get("clone"));
+    calc_pi(&tile);
 }
 
 #[allow(clippy::approx_constant)]
@@ -44,10 +44,10 @@ const PI_MIN: f64 = 3.141;
 #[allow(clippy::approx_constant)]
 const PI_MAX: f64 = 3.143;
 
-fn calc_pi(pe: &Rc<PE>) {
-    let vpe = wv_assert_ok!(VPE::new_with(pe.clone(), VPEArgs::new("t1")));
+fn calc_pi(tile: &Rc<Tile>) {
+    let act = wv_assert_ok!(Activity::new_with(tile.clone(), ActivityArgs::new("t1")));
 
-    let act = wv_assert_ok!(vpe.run(|| {
+    let act = wv_assert_ok!(act.run(|| {
         let steps = 1000;
         let mut pi = 3.0;
         let mut div = 3.0;
@@ -62,7 +62,7 @@ fn calc_pi(pe: &Rc<PE>) {
 
             // yield every now and then to test if the FPU registers are saved/restored correctly
             if i % 10 == 0 {
-                wv_assert_ok!(pexif::switch_vpe());
+                wv_assert_ok!(tmif::switch_activity());
             }
 
             div += 2.0;
@@ -70,7 +70,11 @@ fn calc_pi(pe: &Rc<PE>) {
 
         wv_assert!(pi >= PI_MIN);
         wv_assert!(pi <= PI_MAX);
-        println!("PI (Somayaji) on PE{} = {}", VPE::cur().pe_id(), pi);
+        println!(
+            "PI (Somayaji) on Tile{} = {}",
+            Activity::cur().tile_id(),
+            pi
+        );
         0
     }));
 
@@ -86,7 +90,7 @@ fn calc_pi(pe: &Rc<PE>) {
         }
 
         if i % 10 == 0 {
-            wv_assert_ok!(pexif::switch_vpe());
+            wv_assert_ok!(tmif::switch_activity());
         }
 
         div += 2.0;
@@ -95,7 +99,7 @@ fn calc_pi(pe: &Rc<PE>) {
     let pi = res * 4.0;
     wv_assert!(pi >= PI_MIN);
     wv_assert!(pi <= PI_MAX);
-    println!("PI (Leibniz) on PE{} = {}", VPE::cur().pe_id(), pi);
+    println!("PI (Leibniz) on Tile{} = {}", Activity::cur().tile_id(), pi);
 
     wv_assert_ok!(act.wait());
 }

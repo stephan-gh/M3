@@ -27,28 +27,28 @@ use crate::arch::loader;
 use crate::cap::{Capability, KObject};
 use crate::cap::{EPObject, SemObject};
 use crate::ktcu;
-use crate::pes::{pemng, PEMux, INVAL_ID, VPE};
 use crate::platform;
 use crate::syscalls::{get_request, reply_success, send_reply};
+use crate::tiles::{tilemng, Activity, TileMux, INVAL_ID};
 
 #[inline(never)]
-pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+pub fn alloc_ep(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &kif::syscalls::AllocEP = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
-    let vpe_sel = req.vpe_sel as CapSel;
+    let act_sel = req.act_sel as CapSel;
     let epid = req.epid as tcu::EpId;
     let replies = req.replies as u32;
 
     sysc_log!(
-        vpe,
-        "alloc_ep(dst={}, vpe={}, epid={}, replies={})",
+        act,
+        "alloc_ep(dst={}, act={}, epid={}, replies={})",
         dst_sel,
-        vpe_sel,
+        act_sel,
         epid,
         replies
     );
 
-    if !vpe.obj_caps().borrow().unused(dst_sel) {
+    if !act.obj_caps().borrow().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
     if replies >= tcu::AVAIL_EPS as u32 {
@@ -56,19 +56,19 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verbose
     }
 
     let ep_count = 1 + replies;
-    let dst_vpe = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
-    if !dst_vpe.pe().has_quota(ep_count) {
+    let dst_act = get_kobj!(act, act_sel, Activity).upgrade().unwrap();
+    if !dst_act.tile().has_quota(ep_count) {
         sysc_err!(
             Code::NoSpace,
-            "PE cap has insufficient EPs (have {}, need {})",
-            dst_vpe.pe().ep_quota().left(),
+            "Tile cap has insufficient EPs (have {}, need {})",
+            dst_act.tile().ep_quota().left(),
             ep_count
         );
     }
 
-    let mut pemux = pemng::pemux(dst_vpe.pe_id());
+    let mut tilemux = tilemng::tilemux(dst_act.tile_id());
     let epid = if epid == tcu::TOTAL_EPS {
-        match pemux.find_eps(ep_count) {
+        match tilemux.find_eps(ep_count) {
             Ok(epid) => epid,
             Err(e) => sysc_err!(e.code(), "No free EP range for {} EPs", ep_count),
         }
@@ -77,7 +77,7 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verbose
         if epid > tcu::AVAIL_EPS || epid as u32 + ep_count > tcu::AVAIL_EPS as u32 {
             sysc_err!(Code::InvArgs, "Invalid endpoint id ({}:{})", epid, ep_count);
         }
-        if !pemux.eps_free(epid, ep_count) {
+        if !tilemux.eps_free(epid, ep_count) {
             sysc_err!(
                 Code::InvArgs,
                 "Endpoints {}..{} not free",
@@ -92,16 +92,16 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verbose
         dst_sel,
         KObject::EP(EPObject::new(
             false,
-            Rc::downgrade(&dst_vpe),
+            Rc::downgrade(&dst_act),
             epid,
             replies,
-            dst_vpe.pe(),
+            dst_act.tile(),
         )),
     );
-    try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(cap, vpe_sel));
+    try_kmem_quota!(act.obj_caps().borrow_mut().insert_as_child(cap, act_sel));
 
-    dst_vpe.pe().alloc(ep_count);
-    pemux.alloc_eps(epid, ep_count);
+    dst_act.tile().alloc(ep_count);
+    tilemux.alloc_eps(epid, ep_count);
 
     let mut kreply = MsgBuf::borrow_def();
     kreply.set(kif::syscalls::AllocEPReply {
@@ -114,24 +114,24 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verbose
 }
 
 #[inline(never)]
-pub fn set_pmp(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+pub fn set_pmp(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &kif::syscalls::SetPMP = get_request(msg)?;
-    let pe_sel = req.pe_sel as CapSel;
+    let tile_sel = req.tile_sel as CapSel;
     let mgate_sel = req.mgate_sel as CapSel;
     let epid = req.epid as tcu::EpId;
 
     sysc_log!(
-        vpe,
-        "set_pmp(pe={}, mgate={}, ep={})",
-        pe_sel,
+        act,
+        "set_pmp(tile={}, mgate={}, ep={})",
+        tile_sel,
         mgate_sel,
         epid
     );
 
-    let vpe_caps = vpe.obj_caps().borrow();
-    let pe = get_kobj_ref!(vpe_caps, pe_sel, PE);
-    if pe.derived() {
-        sysc_err!(Code::NoPerm, "Cannot set PMP EPs for derived PE objects");
+    let act_caps = act.obj_caps().borrow();
+    let tile = get_kobj_ref!(act_caps, tile_sel, Tile);
+    if tile.derived() {
+        sysc_err!(Code::NoPerm, "Cannot set PMP EPs for derived tile objects");
     }
 
     // for host: just pretend that we installed it
@@ -147,21 +147,21 @@ pub fn set_pmp(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseE
         );
     }
 
-    let kobj = vpe_caps
+    let kobj = act_caps
         .get(mgate_sel)
         .ok_or_else(|| Error::new(Code::InvArgs))?
         .get();
     match kobj {
         KObject::MGate(mg) => {
-            let mut pemux = pemng::pemux(pe.pe());
+            let mut tilemux = tilemng::tilemux(tile.tile());
 
-            if let Err(e) = pemux.config_mem_ep(epid, INVAL_ID, &mg, mg.pe_id()) {
+            if let Err(e) = tilemux.config_mem_ep(epid, INVAL_ID, &mg, mg.tile_id()) {
                 sysc_err!(e.code(), "Unable to configure PMP EP");
             }
 
             // remember that the MemGate is activated on this EP for the case that the MemGate gets
             // revoked. If so, the EP is automatically invalidated.
-            let ep = pemux.pmp_ep(epid);
+            let ep = tilemux.pmp_ep(epid);
             EPObject::configure(ep, &kobj);
         },
         _ => sysc_err!(Code::InvArgs, "Expected MemGate"),
@@ -172,14 +172,14 @@ pub fn set_pmp(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseE
 }
 
 #[inline(never)]
-pub fn mgate_region(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+pub fn mgate_region(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &kif::syscalls::MGateRegion = get_request(msg)?;
     let mgate_sel = req.mgate_sel as CapSel;
 
-    sysc_log!(vpe, "mgate_addr(mgate={})", mgate_sel);
+    sysc_log!(act, "mgate_addr(mgate={})", mgate_sel);
 
-    let vpe_caps = vpe.obj_caps().borrow();
-    let mgate = get_kobj_ref!(vpe_caps, mgate_sel, MGate);
+    let act_caps = act.obj_caps().borrow();
+    let mgate = get_kobj_ref!(act_caps, mgate_sel, MGate);
 
     let mut kreply = MsgBuf::borrow_def();
     kreply.set(kif::syscalls::MGateRegionReply {
@@ -193,14 +193,14 @@ pub fn mgate_region(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Ver
 }
 
 #[inline(never)]
-pub fn kmem_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+pub fn kmem_quota(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &kif::syscalls::KMemQuota = get_request(msg)?;
     let kmem_sel = req.kmem_sel as CapSel;
 
-    sysc_log!(vpe, "kmem_quota(kmem={})", kmem_sel);
+    sysc_log!(act, "kmem_quota(kmem={})", kmem_sel);
 
-    let vpe_caps = vpe.obj_caps().borrow();
-    let kmem = get_kobj_ref!(vpe_caps, kmem_sel, KMem);
+    let act_caps = act.obj_caps().borrow();
+    let kmem = get_kobj_ref!(act_caps, kmem_sel, KMem);
 
     let mut kreply = MsgBuf::borrow_def();
     kreply.set(kif::syscalls::KMemQuotaReply {
@@ -215,34 +215,40 @@ pub fn kmem_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verbo
 }
 
 #[inline(never)]
-pub fn pe_quota_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
-    let req: &kif::syscalls::PEQuota = get_request(msg)?;
-    let pe_sel = req.pe_sel as CapSel;
+pub fn tile_quota_async(
+    act: &Rc<Activity>,
+    msg: &'static tcu::Message,
+) -> Result<(), VerboseError> {
+    let req: &kif::syscalls::TileQuota = get_request(msg)?;
+    let tile_sel = req.tile_sel as CapSel;
 
-    sysc_log!(vpe, "pe_quota(pe={})", pe_sel);
+    sysc_log!(act, "tile_quota(tile={})", tile_sel);
 
-    let vpe_caps = vpe.obj_caps().borrow();
-    let pe = get_kobj_ref!(vpe_caps, pe_sel, PE);
+    let act_caps = act.obj_caps().borrow();
+    let tile = get_kobj_ref!(act_caps, tile_sel, Tile);
 
-    let (time, pts) =
-        PEMux::get_quota_async(pemng::pemux(pe.pe()), pe.time_quota_id(), pe.pt_quota_id())
-            .map_err(|e| {
-                VerboseError::new(
-                    e.code(),
-                    base::format!(
-                        "Unable to get quota for time={}, pts={}",
-                        pe.time_quota_id(),
-                        pe.pt_quota_id()
-                    ),
-                )
-            })?;
+    let (time, pts) = TileMux::get_quota_async(
+        tilemng::tilemux(tile.tile()),
+        tile.time_quota_id(),
+        tile.pt_quota_id(),
+    )
+    .map_err(|e| {
+        VerboseError::new(
+            e.code(),
+            base::format!(
+                "Unable to get quota for time={}, pts={}",
+                tile.time_quota_id(),
+                tile.pt_quota_id()
+            ),
+        )
+    })?;
 
     let mut kreply = MsgBuf::borrow_def();
-    kreply.set(kif::syscalls::PEQuotaReply {
+    kreply.set(kif::syscalls::TileQuotaReply {
         error: 0,
-        eps_id: pe.ep_quota().id() as u64,
-        eps_total: pe.ep_quota().total() as u64,
-        eps_left: pe.ep_quota().left() as u64,
+        eps_id: tile.ep_quota().id() as u64,
+        eps_total: tile.ep_quota().total() as u64,
+        eps_left: tile.ep_quota().left() as u64,
         time_id: time.id(),
         time_total: time.total(),
         time_left: time.left(),
@@ -256,72 +262,75 @@ pub fn pe_quota_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
 }
 
 #[inline(never)]
-pub fn pe_set_quota_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
-    let req: &kif::syscalls::PESetQuota = get_request(msg)?;
-    let pe_sel = req.pe_sel as CapSel;
+pub fn tile_set_quota_async(
+    act: &Rc<Activity>,
+    msg: &'static tcu::Message,
+) -> Result<(), VerboseError> {
+    let req: &kif::syscalls::TileSetQuota = get_request(msg)?;
+    let tile_sel = req.tile_sel as CapSel;
     let time = req.time;
     let pts = req.pts;
 
     sysc_log!(
-        vpe,
-        "pe_set_quota(pe={}, time={}, pts={})",
-        pe_sel,
+        act,
+        "tile_set_quota(tile={}, time={}, pts={})",
+        tile_sel,
         time,
         pts
     );
 
-    let vpe_caps = vpe.obj_caps().borrow();
-    let pe = get_kobj_ref!(vpe_caps, pe_sel, PE);
+    let act_caps = act.obj_caps().borrow();
+    let tile = get_kobj_ref!(act_caps, tile_sel, Tile);
 
-    if pe.derived() {
+    if tile.derived() {
         sysc_err!(
             Code::NoPerm,
-            "Cannot set PE quota with derived PE capability"
+            "Cannot set tile quota with derived tile capability"
         );
     }
-    if pe.vpes() > 1 {
+    if tile.activities() > 1 {
         sysc_err!(
             Code::InvArgs,
-            "Cannot set PE quota with more than one VPE on the PE"
+            "Cannot set tile quota with more than one Activity on the tile"
         );
     }
 
-    let pemux = pemng::pemux(pe.pe());
-    // the root PE object has always the same id for the time quota and the pts quota
-    PEMux::set_quota_async(pemux, pe.time_quota_id(), time, pts)?;
+    let tilemux = tilemng::tilemux(tile.tile());
+    // the root tile object has always the same id for the time quota and the pts quota
+    TileMux::set_quota_async(tilemux, tile.time_quota_id(), time, pts)?;
 
     reply_success(msg);
     Ok(())
 }
 
 #[inline(never)]
-pub fn get_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+pub fn get_sess(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &kif::syscalls::GetSession = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let srv_sel = req.srv_sel as CapSel;
-    let vpe_sel = req.vpe_sel as CapSel;
+    let act_sel = req.act_sel as CapSel;
     let sid = req.sid;
 
     sysc_log!(
-        vpe,
-        "get_sess(dst={}, srv={}, vpe={}, sid={})",
+        act,
+        "get_sess(dst={}, srv={}, act={}, sid={})",
         dst_sel,
         srv_sel,
-        vpe_sel,
+        act_sel,
         sid
     );
 
-    let vpecap = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
-    if !vpecap.obj_caps().borrow().unused(dst_sel) {
+    let actcap = get_kobj!(act, act_sel, Activity).upgrade().unwrap();
+    if !actcap.obj_caps().borrow().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
-    if Rc::ptr_eq(vpe, &vpecap) {
-        sysc_err!(Code::InvArgs, "Cannot get session for own VPE");
+    if Rc::ptr_eq(act, &actcap) {
+        sysc_err!(Code::InvArgs, "Cannot get session for own Activity");
     }
 
     // get service cap
-    let mut vpe_caps = vpe.obj_caps().borrow_mut();
-    let srvcap = vpe_caps
+    let mut act_caps = act.obj_caps().borrow_mut();
+    let srvcap = act_caps
         .get_mut(srv_sel)
         .ok_or_else(|| VerboseError::new(Code::InvArgs, "Invalid capability".to_string()))?;
     let creator = as_obj!(srvcap.get(), Serv).creator();
@@ -337,7 +346,7 @@ pub fn get_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verbose
             sysc_err!(Code::NoPerm, "Cannot get access to foreign session");
         }
 
-        try_kmem_quota!(vpecap
+        try_kmem_quota!(actcap
             .obj_caps()
             .borrow_mut()
             .obtain(dst_sel, csess.unwrap(), true));
@@ -351,7 +360,7 @@ pub fn get_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verbose
 }
 
 #[inline(never)]
-pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+pub fn activate_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &kif::syscalls::Activate = get_request(msg)?;
     let ep_sel = req.ep_sel as CapSel;
     let gate_sel = req.gate_sel as CapSel;
@@ -359,7 +368,7 @@ pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
     let rbuf_off = req.rbuf_off as goff;
 
     sysc_log!(
-        vpe,
+        act,
         "activate(ep={}, gate={}, rbuf_mem={}, rbuf_off={:#x})",
         ep_sel,
         gate_sel,
@@ -367,20 +376,20 @@ pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
         rbuf_off,
     );
 
-    let ep = get_kobj!(vpe, ep_sel, EP);
+    let ep = get_kobj!(act, ep_sel, EP);
 
-    // VPE that is currently active on the endpoint
-    let ep_vpe = ep.vpe().unwrap();
+    // activity that is currently active on the endpoint
+    let ep_act = ep.activity().unwrap();
 
     let epid = ep.ep();
-    let dst_pe = ep.pe_id();
+    let dst_tile = ep.tile_id();
 
     let invalidated = match ep.deconfigure(false) {
         Ok(inv) => inv,
-        Err(e) => sysc_err!(e.code(), "Invalidation of EP {}:{} failed", dst_pe, epid),
+        Err(e) => sysc_err!(e.code(), "Invalidation of EP {}:{} failed", dst_tile, epid),
     };
 
-    let maybe_kobj = vpe
+    let maybe_kobj = act
         .obj_caps()
         .borrow()
         .get(gate_sel)
@@ -405,8 +414,10 @@ pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
                     sysc_err!(Code::Exists, "MemGate is already activated");
                 }
 
-                let pe_id = m.pe_id();
-                if let Err(e) = pemng::pemux(dst_pe).config_mem_ep(epid, ep_vpe.id(), &m, pe_id) {
+                let tile_id = m.tile_id();
+                if let Err(e) =
+                    tilemng::tilemux(dst_tile).config_mem_ep(epid, ep_act.id(), &m, tile_id)
+                {
                     sysc_err!(e.code(), "Unable to configure mem EP");
                 }
             },
@@ -419,15 +430,15 @@ pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
                 let rgate = s.rgate().clone();
 
                 if !rgate.activated() {
-                    sysc_log!(vpe, "activate: waiting for rgate {:?}", rgate);
+                    sysc_log!(act, "activate: waiting for rgate {:?}", rgate);
 
                     let event = rgate.get_event();
                     thread::wait_for(event);
 
-                    sysc_log!(vpe, "activate: rgate {:?} is activated", rgate);
+                    sysc_log!(act, "activate: rgate {:?} is activated", rgate);
                 }
 
-                if let Err(e) = pemng::pemux(dst_pe).config_snd_ep(epid, ep_vpe.id(), &s) {
+                if let Err(e) = tilemng::tilemux(dst_tile).config_snd_ep(epid, ep_act.id(), &s) {
                     sysc_err!(e.code(), "Unable to configure send EP");
                 }
             },
@@ -438,32 +449,33 @@ pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
                 }
 
                 // determine receive buffer address
-                let rbuf_addr = if platform::pe_desc(dst_pe).has_virtmem()
-                    && epid == ep_vpe.eps_start() + tcu::PG_REP_OFF
+                let rbuf_addr = if platform::tile_desc(dst_tile).has_virtmem()
+                    && epid == ep_act.eps_start() + tcu::PG_REP_OFF
                 {
                     // special case for activating the pager reply rgate: there is no way to get a
                     // memory capability to the standard receive buffer. thus, we just determine the
                     // physical address here and remove the choice for the user.
-                    ep_vpe.rbuf_addr()
+                    ep_act.rbuf_addr()
                         + cfg::SYSC_RBUF_SIZE as goff
                         + cfg::UPCALL_RBUF_SIZE as goff
                         + cfg::DEF_RBUF_SIZE as goff
                 }
-                else if platform::pe_desc(dst_pe).has_virtmem() {
-                    let rbuf = get_kobj!(vpe, rbuf_mem, MGate);
+                else if platform::tile_desc(dst_tile).has_virtmem() {
+                    let rbuf = get_kobj!(act, rbuf_mem, MGate);
                     if rbuf_off >= rbuf.size() || rbuf_off + r.size() as goff > rbuf.size() {
                         sysc_err!(Code::InvArgs, "Invalid receive buffer memory");
                     }
-                    if platform::pe_desc(rbuf.pe_id()).pe_type() != kif::PEType::MEM {
+                    if platform::tile_desc(rbuf.tile_id()).tile_type() != kif::TileType::MEM {
                         sysc_err!(Code::InvArgs, "rbuffer not in physical memory");
                     }
                     let rbuf_phys =
-                        ktcu::glob_to_phys_remote(dst_pe, rbuf.addr(), kif::PageFlags::RW).unwrap();
+                        ktcu::glob_to_phys_remote(dst_tile, rbuf.addr(), kif::PageFlags::RW)
+                            .unwrap();
                     rbuf_phys + rbuf_off
                 }
                 else {
                     if rbuf_mem != kif::INVALID_SEL {
-                        sysc_err!(Code::InvArgs, "rbuffer mem cap given for SPM PE");
+                        sysc_err!(Code::InvArgs, "rbuffer mem cap given for SPM tile");
                     }
                     rbuf_off
                 };
@@ -484,9 +496,11 @@ pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
                     None
                 };
 
-                r.activate(ep_vpe.pe_id(), epid, rbuf_addr);
+                r.activate(ep_act.tile_id(), epid, rbuf_addr);
 
-                if let Err(e) = pemng::pemux(dst_pe).config_rcv_ep(epid, ep_vpe.id(), replies, r) {
+                if let Err(e) =
+                    tilemng::tilemux(dst_tile).config_rcv_ep(epid, ep_act.id(), replies, r)
+                {
                     r.deactivate();
                     sysc_err!(e.code(), "Unable to configure recv EP");
                 }
@@ -498,9 +512,10 @@ pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
         EPObject::configure(&ep, &kobj);
     }
     else if !invalidated {
-        if let Err(e) = pemng::pemux(dst_pe).invalidate_ep(ep_vpe.id(), epid, !ep.is_rgate(), true)
+        if let Err(e) =
+            tilemng::tilemux(dst_tile).invalidate_ep(ep_act.id(), epid, !ep.is_rgate(), true)
         {
-            sysc_err!(e.code(), "Invalidation of EP {}:{} failed", dst_pe, epid);
+            sysc_err!(e.code(), "Invalidation of EP {}:{} failed", dst_tile, epid);
         }
     }
 
@@ -509,14 +524,14 @@ pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
 }
 
 #[inline(never)]
-pub fn sem_ctrl_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+pub fn sem_ctrl_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &kif::syscalls::SemCtrl = get_request(msg)?;
     let sem_sel = req.sem_sel as CapSel;
     let op = kif::syscalls::SemOp::from(req.op);
 
-    sysc_log!(vpe, "sem_ctrl(sem={}, op={})", sem_sel, op);
+    sysc_log!(act, "sem_ctrl(sem={}, op={})", sem_sel, op);
 
-    let sem = get_kobj!(vpe, sem_sel, Sem);
+    let sem = get_kobj!(act, sem_sel, Sem);
 
     match op {
         kif::syscalls::SemOp::UP => {
@@ -525,13 +540,13 @@ pub fn sem_ctrl_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
 
         kif::syscalls::SemOp::DOWN => {
             let res = SemObject::down_async(&sem);
-            sysc_log!(vpe, "sem_ctrl-cont(res={:?})", res);
+            sysc_log!(act, "sem_ctrl-cont(res={:?})", res);
             if let Err(e) = res {
                 sysc_err!(e.code(), "Semaphore operation failed");
             }
         },
 
-        _ => sysc_err!(Code::InvArgs, "VPEOp unsupported: {:?}", op),
+        _ => sysc_err!(Code::InvArgs, "ActivityOp unsupported: {:?}", op),
     }
 
     reply_success(msg);
@@ -539,51 +554,54 @@ pub fn sem_ctrl_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
 }
 
 #[inline(never)]
-pub fn vpe_ctrl_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
-    let req: &kif::syscalls::VPECtrl = get_request(msg)?;
-    let vpe_sel = req.vpe_sel as CapSel;
-    let op = kif::syscalls::VPEOp::from(req.op);
+pub fn activity_ctrl_async(
+    act: &Rc<Activity>,
+    msg: &'static tcu::Message,
+) -> Result<(), VerboseError> {
+    let req: &kif::syscalls::ActivityCtrl = get_request(msg)?;
+    let act_sel = req.act_sel as CapSel;
+    let op = kif::syscalls::ActivityOp::from(req.op);
     let arg = req.arg;
 
     sysc_log!(
-        vpe,
-        "vpe_ctrl(vpe={}, op={:?}, arg={:#x})",
-        vpe_sel,
+        act,
+        "activity_ctrl(act={}, op={:?}, arg={:#x})",
+        act_sel,
         op,
         arg
     );
 
-    let vpecap = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
+    let actcap = get_kobj!(act, act_sel, Activity).upgrade().unwrap();
 
     match op {
-        kif::syscalls::VPEOp::INIT => {
+        kif::syscalls::ActivityOp::INIT => {
             #[cfg(target_vendor = "host")]
-            ktcu::set_mem_base(vpecap.pe_id(), arg as usize);
-            if let Err(e) = loader::finish_start(&vpecap) {
+            ktcu::set_mem_base(actcap.tile_id(), arg as usize);
+            if let Err(e) = loader::finish_start(&actcap) {
                 sysc_err!(e.code(), "Unable to finish init");
             }
         },
 
-        kif::syscalls::VPEOp::START => {
-            if Rc::ptr_eq(&vpe, &vpecap) {
-                sysc_err!(Code::InvArgs, "VPE can't start itself");
+        kif::syscalls::ActivityOp::START => {
+            if Rc::ptr_eq(&act, &actcap) {
+                sysc_err!(Code::InvArgs, "Activity can't start itself");
             }
 
-            if let Err(e) = vpecap.start_app_async(Some(arg as i32)) {
-                sysc_err!(e.code(), "Unable to start VPE");
+            if let Err(e) = actcap.start_app_async(Some(arg as i32)) {
+                sysc_err!(e.code(), "Unable to start Activity");
             }
         },
 
-        kif::syscalls::VPEOp::STOP => {
-            let is_self = vpe_sel == kif::SEL_VPE;
-            vpecap.stop_app_async(arg as i32, is_self);
+        kif::syscalls::ActivityOp::STOP => {
+            let is_self = act_sel == kif::SEL_ACT;
+            actcap.stop_app_async(arg as i32, is_self);
             if is_self {
                 ktcu::ack_msg(ktcu::KSYS_EP, msg);
                 return Ok(());
             }
         },
 
-        _ => sysc_err!(Code::InvArgs, "VPEOp unsupported: {:?}", op),
+        _ => sysc_err!(Code::InvArgs, "ActivityOp unsupported: {:?}", op),
     };
 
     reply_success(msg);
@@ -591,30 +609,33 @@ pub fn vpe_ctrl_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
 }
 
 #[inline(never)]
-pub fn vpe_wait_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
-    let req: &kif::syscalls::VPEWait = get_request(msg)?;
-    let count = req.vpe_count as usize;
+pub fn activity_wait_async(
+    act: &Rc<Activity>,
+    msg: &'static tcu::Message,
+) -> Result<(), VerboseError> {
+    let req: &kif::syscalls::ActivityWait = get_request(msg)?;
+    let count = req.act_count as usize;
     let event = req.event;
     let sels = &{ req.sels };
 
     if count > sels.len() {
-        sysc_err!(Code::InvArgs, "VPE count is invalid");
+        sysc_err!(Code::InvArgs, "Activity count is invalid");
     }
 
-    sysc_log!(vpe, "vpe_wait(vpes={}, event={})", count, event);
+    sysc_log!(act, "activity_wait(activities={}, event={})", count, event);
 
-    let mut reply_msg = kif::syscalls::VPEWaitReply {
+    let mut reply_msg = kif::syscalls::ActivityWaitReply {
         error: 0,
-        vpe_sel: kif::INVALID_SEL as u64,
+        act_sel: kif::INVALID_SEL as u64,
         exitcode: 0,
     };
 
-    // In any case, check whether a VPE already exited. If event == 0, wait until that happened.
-    // For event != 0, remember that we want to get notified and send an upcall on a VPE's exit.
-    if let Some((sel, code)) = vpe.wait_exit_async(event, &sels[0..count]) {
-        sysc_log!(vpe, "vpe_wait-cont(vpe={}, exitcode={})", sel, code);
+    // In any case, check whether a activity already exited. If event == 0, wait until that happened.
+    // For event != 0, remember that we want to get notified and send an upcall on a activity's exit.
+    if let Some((sel, code)) = act.wait_exit_async(event, &sels[0..count]) {
+        sysc_log!(act, "act_wait-cont(act={}, exitcode={})", sel, code);
 
-        reply_msg.vpe_sel = sel as u64;
+        reply_msg.act_sel = sel as u64;
         reply_msg.exitcode = code as u64;
     }
 
@@ -625,20 +646,20 @@ pub fn vpe_wait_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), V
     Ok(())
 }
 
-pub fn reset_stats(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
-    sysc_log!(vpe, "reset_stats()",);
+pub fn reset_stats(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+    sysc_log!(act, "reset_stats()",);
 
-    for pe in platform::user_pes() {
+    for tile in platform::user_tiles() {
         // ignore errors here; don't unwrap because it will do nothing on host
-        pemng::pemux(pe).reset_stats().ok();
+        tilemng::tilemux(tile).reset_stats().ok();
     }
 
     reply_success(msg);
     Ok(())
 }
 
-pub fn noop(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
-    sysc_log!(vpe, "noop()",);
+pub fn noop(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+    sysc_log!(act, "noop()",);
 
     reply_success(msg);
     Ok(())

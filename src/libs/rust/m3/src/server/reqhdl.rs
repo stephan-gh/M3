@@ -21,8 +21,8 @@ use crate::math;
 use crate::serialize::Unmarshallable;
 
 /// The default maximum number of clients a service supports
-pub const DEF_MAX_CLIENTS: usize = if cfg::MAX_VPES < 32 {
-    cfg::MAX_VPES
+pub const DEF_MAX_CLIENTS: usize = if cfg::MAX_ACTS < 32 {
+    cfg::MAX_ACTS
 }
 else {
     32

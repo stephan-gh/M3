@@ -41,12 +41,12 @@ NOINLINE void child_to_parent() {
         MemGate mgate = MemGate::create_global(0x10000, MemGate::RW);
         IndirectPipe pipe(pipes, mgate, 0x10000);
 
-        Reference<PE> pe = PE::get("clone|own");
-        VPE vpe(pe, "writer");
-        vpe.files()->set(STDOUT_FD, VPE::self().files()->get(pipe.writer_fd()));
+        Reference<Tile> tile = Tile::get("clone|own");
+        Activity act(tile, "writer");
+        act.files()->set(STDOUT_FD, Activity::self().files()->get(pipe.writer_fd()));
 
-        vpe.run([] {
-            auto output = VPE::self().files()->get(STDOUT_FD);
+        act.run([] {
+            auto output = Activity::self().files()->get(STDOUT_FD);
             auto rem = DATA_SIZE;
             while(rem > 0) {
                 output->write(buf, sizeof(buf));
@@ -57,13 +57,13 @@ NOINLINE void child_to_parent() {
 
         pipe.close_writer();
 
-        auto input = VPE::self().files()->get(pipe.reader_fd());
+        auto input = Activity::self().files()->get(pipe.reader_fd());
         while(input->read(buf, sizeof(buf)) > 0)
             ;
 
         pipe.close_reader();
 
-        vpe.wait();
+        act.wait();
     });
 
     WVPERF("c->p: " << (DATA_SIZE / 1024) << " KiB transfer with "
@@ -78,12 +78,12 @@ NOINLINE void parent_to_child() {
         MemGate mgate = MemGate::create_global(0x10000, MemGate::RW);
         IndirectPipe pipe(pipes, mgate, 0x10000);
 
-        Reference<PE> pe(PE::get("clone|own"));
-        VPE vpe(pe, "writer");
-        vpe.files()->set(STDIN_FD, VPE::self().files()->get(pipe.reader_fd()));
+        Reference<Tile> tile(Tile::get("clone|own"));
+        Activity act(tile, "writer");
+        act.files()->set(STDIN_FD, Activity::self().files()->get(pipe.reader_fd()));
 
-        vpe.run([] {
-            auto input = VPE::self().files()->get(STDIN_FD);
+        act.run([] {
+            auto input = Activity::self().files()->get(STDIN_FD);
             while(input->read(buf, sizeof(buf)) > 0)
                 ;
             return 0;
@@ -91,7 +91,7 @@ NOINLINE void parent_to_child() {
 
         pipe.close_reader();
 
-        auto output = VPE::self().files()->get(pipe.writer_fd());
+        auto output = Activity::self().files()->get(pipe.writer_fd());
         auto rem = DATA_SIZE;
         while(rem > 0) {
             output->write(buf, sizeof(buf));
@@ -100,7 +100,7 @@ NOINLINE void parent_to_child() {
 
         pipe.close_writer();
 
-        vpe.wait();
+        act.wait();
     });
 
     WVPERF("p->c: " << (DATA_SIZE / 1024) << " KiB transfer with "

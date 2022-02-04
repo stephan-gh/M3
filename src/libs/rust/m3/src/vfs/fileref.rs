@@ -21,8 +21,8 @@ use crate::errors::Error;
 use crate::goff;
 use crate::io::{Read, Write};
 use crate::kif;
-use crate::pes::VPE;
 use crate::session::{HashInput, HashOutput, HashSession, MapFlags, Pager};
+use crate::tiles::Activity;
 use crate::vfs::filetable::Fd;
 use crate::vfs::{FileHandle, Map, Seek, SeekMode};
 
@@ -52,7 +52,7 @@ impl FileRef {
 
 impl Drop for FileRef {
     fn drop(&mut self) {
-        VPE::cur().files().remove(self.fd);
+        Activity::cur().files().remove(self.fd);
     }
 }
 

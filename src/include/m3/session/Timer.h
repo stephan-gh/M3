@@ -19,7 +19,7 @@
 #include <m3/com/Gate.h>
 #include <m3/com/RecvGate.h>
 #include <m3/session/ClientSession.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 namespace m3 {
 

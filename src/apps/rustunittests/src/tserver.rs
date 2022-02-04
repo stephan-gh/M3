@@ -20,11 +20,11 @@ use m3::com::{recv_msg, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::mem::MsgBuf;
-use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::{ClientSession, ServerSession};
 use m3::syscalls;
 use m3::test;
+use m3::tiles::{Activity, ActivityArgs, RunningActivity, Tile};
 use m3::{send_vmsg, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -89,12 +89,12 @@ pub fn connect(name: &str) -> ClientSession {
 }
 
 pub fn testnoresp() {
-    let client_pe = wv_assert_ok!(PE::get("clone|own"));
-    let client = wv_assert_ok!(VPE::new_with(client_pe, VPEArgs::new("client")));
+    let client_tile = wv_assert_ok!(Tile::get("clone|own"));
+    let client = wv_assert_ok!(Activity::new_with(client_tile, ActivityArgs::new("client")));
 
-    let server_pe = wv_assert_ok!(PE::get("clone|own"));
+    let server_tile = wv_assert_ok!(Tile::get("clone|own"));
     let cact = {
-        let serv = wv_assert_ok!(VPE::new_with(server_pe, VPEArgs::new("server")));
+        let serv = wv_assert_ok!(Activity::new_with(server_tile, ActivityArgs::new("server")));
 
         let sact = wv_assert_ok!(serv.run(server_crash_main));
 
@@ -107,7 +107,7 @@ pub fn testnoresp() {
         wv_assert_eq!(sact.wait(), Ok(1));
         cact
 
-        // destroy server VPE to let the client request fail
+        // destroy server activity to let the client request fail
     };
 
     // now wait for client
@@ -115,11 +115,11 @@ pub fn testnoresp() {
 }
 
 pub fn testcliexit() {
-    let client_pe = wv_assert_ok!(PE::get("clone|own"));
-    let mut client = wv_assert_ok!(VPE::new_with(client_pe, VPEArgs::new("client")));
+    let client_tile = wv_assert_ok!(Tile::get("clone|own"));
+    let mut client = wv_assert_ok!(Activity::new_with(client_tile, ActivityArgs::new("client")));
 
-    let server_pe = wv_assert_ok!(PE::get("clone|own"));
-    let serv = wv_assert_ok!(VPE::new_with(server_pe, VPEArgs::new("server")));
+    let server_tile = wv_assert_ok!(Tile::get("clone|own"));
+    let serv = wv_assert_ok!(Activity::new_with(server_tile, ActivityArgs::new("server")));
 
     let sact = wv_assert_ok!(serv.run(server_crash_main));
 
@@ -135,7 +135,7 @@ pub fn testcliexit() {
     dst.push_word(sg.sel());
 
     let cact = wv_assert_ok!(client.run(|| {
-        let mut src = VPE::cur().data_source();
+        let mut src = Activity::cur().data_source();
         let sg_sel: Selector = src.pop().unwrap();
 
         let sess = loop {
@@ -154,7 +154,7 @@ pub fn testcliexit() {
             let mut req_buf = MsgBuf::borrow_def();
             req_buf.set(kif::syscalls::ExchangeSess {
                 opcode: kif::syscalls::Operation::OBTAIN.val,
-                vpe_sel: VPE::cur().sel(),
+                act_sel: Activity::cur().sel(),
                 sess_sel: sess.sel(),
                 caps: [0; 2],
                 args: kif::syscalls::ExchangeArgs::default(),
@@ -239,13 +239,13 @@ fn server_notsup_main() -> i32 {
 
         let res = server_loop(|| {
             if STOP.get() {
-                return Err(Error::new(Code::VPEGone));
+                return Err(Error::new(Code::ActivityGone));
             }
             s.handle_ctrl_chan(&mut hdl)
         });
         match res {
             // if there is any other error than our own stop signal, break
-            Err(e) if e.code() != Code::VPEGone => break,
+            Err(e) if e.code() != Code::ActivityGone => break,
             _ => {},
         }
     }
@@ -254,8 +254,8 @@ fn server_notsup_main() -> i32 {
 }
 
 pub fn testcaps() {
-    let server_pe = wv_assert_ok!(PE::get("clone|own"));
-    let serv = wv_assert_ok!(VPE::new_with(server_pe, VPEArgs::new("server")));
+    let server_tile = wv_assert_ok!(Tile::get("clone|own"));
+    let serv = wv_assert_ok!(Activity::new_with(server_tile, ActivityArgs::new("server")));
     let sact = wv_assert_ok!(serv.run(server_notsup_main));
 
     for i in 0..5 {

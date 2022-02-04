@@ -25,7 +25,7 @@
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 #include <vector>
 
@@ -38,14 +38,14 @@ struct App {
     explicit App(int argc, const char *argv[])
         : argc(argc),
           argv(argv),
-          pe(PE::get("core")),
-          vpe(pe, argv[0]) {
+          tile(Tile::get("core")),
+          act(tile, argv[0]) {
     }
 
     int argc;
     const char **argv;
-    Reference<PE> pe;
-    VPE vpe;
+    Reference<Tile> tile;
+    Activity act;
 };
 
 static void usage(const char *name) {
@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
     size_t appcount = static_cast<size_t>(argc - (CmdArgs::ind + 1)) / argcount;
 
     for(int j = 0; j < repeats; ++j) {
-        if(VERBOSE) cout << "Creating VPEs...\n";
+        if(VERBOSE) cout << "Creating activities...\n";
 
         {
             size_t idx = 0;
@@ -92,24 +92,24 @@ int main(int argc, char **argv) {
                 apps[idx++] = std::make_unique<App>(argcount, args);
             }
 
-            if(VERBOSE) cout << "Starting VPEs...\n";
+            if(VERBOSE) cout << "Starting activities...\n";
 
             auto start = CycleInstant::now();
 
             for(size_t i = 0; i < ARRAY_SIZE(apps); ++i) {
-                apps[i]->vpe.mounts()->add("/", VPE::self().mounts()->get("/"));
-                apps[i]->vpe.exec(apps[i]->argc, apps[i]->argv);
+                apps[i]->act.mounts()->add("/", Activity::self().mounts()->get("/"));
+                apps[i]->act.exec(apps[i]->argc, apps[i]->argv);
 
-                if(VERBOSE) cout << "Waiting for VPE " << apps[i]->argv[0] << " ...\n";
+                if(VERBOSE) cout << "Waiting for Activity " << apps[i]->argv[0] << " ...\n";
 
-                UNUSED int res = apps[i]->vpe.wait();
+                UNUSED int res = apps[i]->act.wait();
                 if(VERBOSE) cout << apps[i]->argv[0] << " exited with " << res << "\n";
             }
 
             auto end = CycleInstant::now();
             cout << "Time: " << end.duration_since(start) << "\n";
 
-            if(VERBOSE) cout << "Deleting VPEs...\n";
+            if(VERBOSE) cout << "Deleting activities...\n";
         }
 
         if(VERBOSE) cout << "Cleaning up /tmp...\n";

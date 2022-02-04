@@ -17,8 +17,8 @@
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::errors::Error;
 use crate::kif;
-use crate::pes::VPE;
 use crate::syscalls;
+use crate::tiles::Activity;
 
 /// A syscall-based semaphore.
 #[derive(Debug)]
@@ -29,8 +29,8 @@ pub struct Semaphore {
 impl Semaphore {
     /// Creates a new object that is attached to the global semaphore `name`.
     pub fn attach(name: &str) -> Result<Self, Error> {
-        let sel = VPE::cur().alloc_sel();
-        VPE::cur().resmng().unwrap().use_sem(sel, name)?;
+        let sel = Activity::cur().alloc_sel();
+        Activity::cur().resmng().unwrap().use_sem(sel, name)?;
 
         Ok(Semaphore {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
@@ -39,7 +39,7 @@ impl Semaphore {
 
     /// Creates a new semaphore with the initial value `value`.
     pub fn create(value: u32) -> Result<Self, Error> {
-        let sel = VPE::cur().alloc_sel();
+        let sel = Activity::cur().alloc_sel();
         syscalls::create_sem(sel, value)?;
 
         Ok(Semaphore {

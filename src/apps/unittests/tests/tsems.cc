@@ -48,19 +48,19 @@ static void taking_turns() {
     set_counter("/sem0", 0);
     set_counter("/sem1", 0);
 
-    auto pe = PE::get("clone|own");
-    VPE child(pe, "child");
+    auto tile = Tile::get("clone|own");
+    Activity child(tile, "child");
 
     child.delegate_obj(sem0.sel());
     child.delegate_obj(sem1.sel());
 
-    child.mounts()->add("/", VPE::self().mounts()->get("/"));
+    child.mounts()->add("/", Activity::self().mounts()->get("/"));
 
     child.data_sink() << sem0.sel() << sem1.sel();
 
     child.run([] {
         capsel_t sem0_sel, sem1_sel;
-        VPE::self().data_source() >> sem0_sel >> sem1_sel;
+        Activity::self().data_source() >> sem0_sel >> sem1_sel;
 
         Semaphore sem0 = Semaphore::bind(sem0_sel);
         Semaphore sem1 = Semaphore::bind(sem1_sel);

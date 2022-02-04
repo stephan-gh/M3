@@ -363,9 +363,9 @@ if env['PLATF'] == 'kachel':
     isr_env['CPPFLAGS'] += ['-D__baremetal__=1', '-D__isr__=1']
     ldscripts['isr'] = isr_env.cpp(gen, out = 'ld-isr.conf', ins = [ldscript])
 
-    pemux_env = env.clone()
-    pemux_env['CPPFLAGS'] += ['-D__isr__=1', '-D__pemux__=1']
-    ldscripts['pemux'] = pemux_env.cpp(gen, out = 'ld-pemux.conf', ins = [ldscript])
+    tilemux_env = env.clone()
+    tilemux_env['CPPFLAGS'] += ['-D__isr__=1', '-D__tilemux__=1']
+    ldscripts['tilemux'] = tilemux_env.cpp(gen, out = 'ld-tilemux.conf', ins = [ldscript])
 
 # generate build edges first
 env.sub_build(gen, 'src')

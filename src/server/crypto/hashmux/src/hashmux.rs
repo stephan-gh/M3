@@ -38,13 +38,13 @@ use m3::errors::{Code, Error};
 use m3::kif::{CapRngDesc, CapType, INVALID_SEL};
 use m3::log;
 use m3::mem::{size_of, AlignedBuf, MsgBuf, MsgBufRef};
-use m3::pes::VPE;
 use m3::server::{
     server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
     DEF_MSG_SIZE,
 };
 use m3::session::{HashOp, ServerSession};
 use m3::tcu::{Label, Message};
+use m3::tiles::Activity;
 use m3::time::{TimeDuration, TimeInstant};
 
 const LOG_DEF: bool = false;
@@ -621,7 +621,7 @@ impl Handler<HashSession> for HashHandler {
             log!(LOG_DEF, "[{}] hash::open()", sid);
             assert!(sid < MAX_SESSIONS);
 
-            let sel = VPE::cur().alloc_sels(2);
+            let sel = Activity::cur().alloc_sels(2);
             Ok(HashSession {
                 sess,
                 sgate: SendGate::new_with(
@@ -675,7 +675,9 @@ impl Handler<HashSession> for HashHandler {
 
         // Revoke EP capability that was delegated for memory accesses
         if let Some(ep) = sess.mgate.ep() {
-            if let Err(e) = VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, ep.sel(), 1), true) {
+            if let Err(e) =
+                Activity::cur().revoke(CapRngDesc::new(CapType::OBJECT, ep.sel(), 1), true)
+            {
                 log!(LOG_ERRORS, "[{}] Failed to revoke EP cap: {}", sid, e)
             }
         }

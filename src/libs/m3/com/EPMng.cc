@@ -16,7 +16,7 @@
 
 #include <m3/com/EPMng.h>
 #include <m3/Syscalls.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 namespace m3 {
 
@@ -25,7 +25,7 @@ EP *EPMng::acquire(epid_t ep, uint replies) {
     if(ep == TOTAL_EPS && replies == 0)
         e = _eps.remove_first();
     if(!e)
-        e = new EP(EP::alloc_for(_vpe, ep, replies));
+        e = new EP(EP::alloc_for(_act, ep, replies));
     return e;
 }
 

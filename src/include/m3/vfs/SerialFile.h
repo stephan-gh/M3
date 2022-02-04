@@ -20,7 +20,7 @@
 
 #include <m3/vfs/File.h>
 #include <m3/Exception.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 namespace m3 {
 
@@ -65,7 +65,7 @@ public:
     virtual char type() const noexcept override {
         return 'S';
     }
-    virtual void delegate(VPE &) override {
+    virtual void delegate(Activity &) override {
         // nothing to do
     }
     virtual void serialize(Marshaller &) override {

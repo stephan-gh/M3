@@ -24,9 +24,9 @@ use crate::errors::Error;
 use crate::goff;
 use crate::int_enum;
 use crate::kif;
-use crate::pes::VPE;
 use crate::quota::Quota;
-use crate::tcu::{PEId, VPEId};
+use crate::tcu::{ActId, TileId};
+use crate::tiles::Activity;
 
 int_enum! {
     /// The resource manager calls
@@ -43,8 +43,8 @@ int_enum! {
         const ALLOC_MEM     = 0x6;
         const FREE_MEM      = 0x7;
 
-        const ALLOC_PE      = 0x8;
-        const FREE_PE       = 0x9;
+        const ALLOC_TILE      = 0x8;
+        const FREE_TILE       = 0x9;
 
         const USE_RGATE     = 0xA;
         const USE_SGATE     = 0xB;
@@ -58,8 +58,8 @@ int_enum! {
 }
 
 #[derive(Debug)]
-pub struct ResMngVPEInfo {
-    pub id: VPEId,
+pub struct ResMngActInfo {
+    pub id: ActId,
     pub layer: u32,
     pub name: String,
     pub daemon: bool,
@@ -68,18 +68,18 @@ pub struct ResMngVPEInfo {
     pub eps: Quota<u32>,
     pub time: Quota<u64>,
     pub pts: Quota<usize>,
-    pub pe: PEId,
+    pub tile: TileId,
 }
 
-pub enum ResMngVPEInfoResult {
-    Info(ResMngVPEInfo),
+pub enum ResMngActInfoResult {
+    Info(ResMngActInfo),
     Count((usize, u32)),
 }
 
-impl Marshallable for ResMngVPEInfoResult {
+impl Marshallable for ResMngActInfoResult {
     fn marshall(&self, s: &mut base::serialize::Sink) {
         match self {
-            ResMngVPEInfoResult::Info(i) => {
+            ResMngActInfoResult::Info(i) => {
                 s.push(&0);
                 s.push(&i.id);
                 s.push(&i.layer);
@@ -90,9 +90,9 @@ impl Marshallable for ResMngVPEInfoResult {
                 s.push(&i.eps);
                 s.push(&i.time);
                 s.push(&i.pts);
-                s.push(&i.pe);
+                s.push(&i.tile);
             },
-            ResMngVPEInfoResult::Count((num, layer)) => {
+            ResMngActInfoResult::Count((num, layer)) => {
                 s.push(&1);
                 s.push(num);
                 s.push(layer);
@@ -101,11 +101,11 @@ impl Marshallable for ResMngVPEInfoResult {
     }
 }
 
-impl Unmarshallable for ResMngVPEInfoResult {
+impl Unmarshallable for ResMngActInfoResult {
     fn unmarshall(s: &mut base::serialize::Source) -> Result<Self, Error> {
         let ty = s.pop::<u64>()?;
         match ty {
-            0 => Ok(Self::Info(ResMngVPEInfo {
+            0 => Ok(Self::Info(ResMngActInfo {
                 id: s.pop()?,
                 layer: s.pop()?,
                 name: s.pop()?,
@@ -115,7 +115,7 @@ impl Unmarshallable for ResMngVPEInfoResult {
                 eps: s.pop()?,
                 time: s.pop()?,
                 pts: s.pop()?,
-                pe: s.pop()?,
+                tile: s.pop()?,
             })),
             _ => Ok(Self::Count((s.pop()?, s.pop()?))),
         }
@@ -125,10 +125,10 @@ impl Unmarshallable for ResMngVPEInfoResult {
 /// Represents a connection to the resource manager.
 ///
 /// The resource manager is used to request access to resources like memory and services and is
-/// provided by any of the parent VPEs.
+/// provided by any of the parent activities.
 pub struct ResMng {
     sgate: SendGate,
-    vpe_sel: Selector,
+    act_sel: Selector,
 }
 
 impl ResMng {
@@ -136,7 +136,7 @@ impl ResMng {
     pub fn new(sgate: SendGate) -> Self {
         ResMng {
             sgate,
-            vpe_sel: kif::INVALID_SEL,
+            act_sel: kif::INVALID_SEL,
         }
     }
 
@@ -145,23 +145,23 @@ impl ResMng {
         self.sgate.sel()
     }
 
-    /// Clones this connection to be used by the given VPE as well. `name` specifies the name of the
-    /// VPE.
-    pub fn clone(&self, vpe: &mut VPE, name: &str) -> Result<Self, Error> {
-        let sgate_sel = vpe.alloc_sel();
+    /// Clones this connection to be used by the given activity as well. `name` specifies the name of the
+    /// activity.
+    pub fn clone(&self, act: &mut Activity, name: &str) -> Result<Self, Error> {
+        let sgate_sel = act.alloc_sel();
         send_recv_res!(
             &self.sgate,
             RecvGate::def(),
             ResMngOperation::ADD_CHILD,
-            vpe.id(),
-            vpe.sel(),
+            act.id(),
+            act.sel(),
             sgate_sel,
             name
         )?;
 
         Ok(ResMng {
             sgate: SendGate::new_bind(sgate_sel),
-            vpe_sel: vpe.sel(),
+            act_sel: act.sel(),
         })
     }
 
@@ -246,22 +246,32 @@ impl ResMng {
     }
 
     /// Allocates a new processing element of given type and assigns it to selector `sel`.
-    pub fn alloc_pe(&self, sel: Selector, desc: kif::PEDesc) -> Result<(PEId, kif::PEDesc), Error> {
+    pub fn alloc_tile(
+        &self,
+        sel: Selector,
+        desc: kif::TileDesc,
+    ) -> Result<(TileId, kif::TileDesc), Error> {
         let mut reply = send_recv_res!(
             &self.sgate,
             RecvGate::def(),
-            ResMngOperation::ALLOC_PE,
+            ResMngOperation::ALLOC_TILE,
             sel,
             desc.value()
         )?;
-        let pe_id: PEId = reply.pop()?;
-        let raw: kif::PEDescRaw = reply.pop()?;
-        Ok((pe_id, kif::PEDesc::new_from(raw)))
+        let tile_id: TileId = reply.pop()?;
+        let raw: kif::TileDescRaw = reply.pop()?;
+        Ok((tile_id, kif::TileDesc::new_from(raw)))
     }
 
     /// Free's the processing element with given selector
-    pub fn free_pe(&self, sel: Selector) -> Result<(), Error> {
-        send_recv_res!(&self.sgate, RecvGate::def(), ResMngOperation::FREE_PE, sel).map(|_| ())
+    pub fn free_tile(&self, sel: Selector) -> Result<(), Error> {
+        send_recv_res!(
+            &self.sgate,
+            RecvGate::def(),
+            ResMngOperation::FREE_TILE,
+            sel
+        )
+        .map(|_| ())
     }
 
     /// Attaches to the RecvGate with given name using selector `sel`.
@@ -294,30 +304,30 @@ impl ResMng {
         .map(|_| RecvGate::new_bind(sel, cfg::SERIAL_BUF_ORD, cfg::SERIAL_BUF_ORD))
     }
 
-    /// Gets the number of available VPEs for `get_vpe_info` and the starting layer.
-    pub fn get_vpe_count(&self) -> Result<(usize, u32), Error> {
-        match self.vpe_info(None) {
-            Ok(ResMngVPEInfoResult::Count((num, layer))) => Ok((num, layer)),
+    /// Gets the number of available activities for `get_activity_info` and the starting layer.
+    pub fn get_activity_count(&self) -> Result<(usize, u32), Error> {
+        match self.activity_info(None) {
+            Ok(ResMngActInfoResult::Count((num, layer))) => Ok((num, layer)),
             Err(e) => Err(e),
             _ => panic!("unexpected info type"),
         }
     }
 
-    /// Retrieves information about the VPE with given index.
-    pub fn get_vpe_info(&self, vpe_idx: usize) -> Result<ResMngVPEInfo, Error> {
-        match self.vpe_info(Some(vpe_idx)) {
-            Ok(ResMngVPEInfoResult::Info(i)) => Ok(i),
+    /// Retrieves information about the activity with given index.
+    pub fn get_activity_info(&self, act_idx: usize) -> Result<ResMngActInfo, Error> {
+        match self.activity_info(Some(act_idx)) {
+            Ok(ResMngActInfoResult::Info(i)) => Ok(i),
             Err(e) => Err(e),
             _ => panic!("unexpected info type"),
         }
     }
 
-    fn vpe_info(&self, vpe_idx: Option<usize>) -> Result<ResMngVPEInfoResult, Error> {
+    fn activity_info(&self, act_idx: Option<usize>) -> Result<ResMngActInfoResult, Error> {
         send_recv_res!(
             &self.sgate,
             RecvGate::def(),
             ResMngOperation::GET_INFO,
-            vpe_idx.unwrap_or(usize::MAX)
+            act_idx.unwrap_or(usize::MAX)
         )
         .and_then(|mut is| is.pop())
     }
@@ -329,12 +339,12 @@ impl ResMng {
 
 impl Drop for ResMng {
     fn drop(&mut self) {
-        if self.vpe_sel != kif::INVALID_SEL {
+        if self.act_sel != kif::INVALID_SEL {
             send_recv_res!(
-                &VPE::cur().resmng().unwrap().sgate,
+                &Activity::cur().resmng().unwrap().sgate,
                 RecvGate::def(),
                 ResMngOperation::REM_CHILD,
-                self.vpe_sel
+                self.act_sel
             )
             .ok();
         }

@@ -25,7 +25,7 @@
                     <sess name="vga" />
                     <sess name="keyb" />
                     <sess name="m3fs" />
-                    <pes type="core" />
+                    <tiles type="core" />
                 </app>
             </dom>
         </app>

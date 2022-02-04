@@ -52,9 +52,9 @@ public:
      * Initializes everything. Should only be called at the beginning.
      *
      * @param path the path of the program
-     * @param pe the PE id
+     * @param tile the tile id
      */
-    static void init(const char *path, peid_t pe);
+    static void init(const char *path, tileid_t tile);
 
     /**
      * Flushes the output

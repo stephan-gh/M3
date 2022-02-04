@@ -11,20 +11,20 @@
             <dom>
                 <app args="net net0 192.168.112.2" daemon="1">
                     <serv name="net0" />
-                    <pes type="nicdev" />
+                    <tiles type="nicdev" />
                 </app>
             </dom>
             <dom>
                 <app args="net net1 192.168.112.1" daemon="1">
                     <serv name="net1" />
-                    <pes type="nicdev" />
+                    <tiles type="nicdev" />
                 </app>
             </dom>
             <dom>
                 <app args="pager sem=net-udp sem=net-tcp $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes type="core" count="2" />
+                    <tiles type="core" count="2" />
                     <dom>
                         <app args="/bin/netechoserver" daemon="1">
                             <sess lname="net" gname="net1" args="bufs=1M socks=2 ports=1337,1338" />
@@ -37,7 +37,7 @@
                             <mount fs="m3fs" path="/" />
                             <sess name="net0" args="bufs=64K socks=2 ports=2000-2001" />
                             <sess name="net1" args="bufs=64K socks=2 ports=3000" />
-                            <pes type="core" count="1" />
+                            <tiles type="core" count="1" />
                             <sem name="net-udp" />
                             <sem name="net-tcp" />
                         </app>

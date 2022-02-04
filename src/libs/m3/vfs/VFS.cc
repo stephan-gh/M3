@@ -23,7 +23,7 @@
 #include <m3/vfs/FileTable.h>
 #include <m3/vfs/MountTable.h>
 #include <m3/vfs/VFS.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 namespace m3 {
 
@@ -31,12 +31,12 @@ namespace m3 {
 INIT_PRIO_VFS VFS::Cleanup VFS::_cleanup;
 
 VFS::Cleanup::~Cleanup() {
-    VPE::self().files()->remove_all();
-    VPE::self().mounts()->remove_all();
+    Activity::self().files()->remove_all();
+    Activity::self().mounts()->remove_all();
 }
 
 std::unique_ptr<MountTable> &VFS::ms() {
-    return VPE::self().mounts();
+    return Activity::self().mounts();
 }
 
 void VFS::mount(const char *path, const char *fs, const char *options) {
@@ -61,7 +61,7 @@ fd_t VFS::open(const char *path, int flags) {
         size_t pos;
         Reference<FileSystem> fs = ms()->resolve(path, &pos);
         Reference<File> file = fs->open(path + pos, flags);
-        fd_t fd = VPE::self().files()->alloc(file);
+        fd_t fd = Activity::self().files()->alloc(file);
         LLOG(FS, "GenFile[" << fd << "]::open(" << path << ", " << flags << ")");
         if(flags & FILE_APPEND)
             file->seek(0, M3FS_SEEK_END);
@@ -73,7 +73,7 @@ fd_t VFS::open(const char *path, int flags) {
 }
 
 void VFS::close(fd_t fd) noexcept {
-    VPE::self().files()->remove(fd);
+    Activity::self().files()->remove(fd);
 }
 
 void VFS::stat(const char *path, FileInfo &info) {
@@ -167,7 +167,7 @@ Errors::Code VFS::try_rename(const char *oldpath, const char *newpath) {
 }
 
 void VFS::print(OStream &os) noexcept {
-    VPE::self().mounts()->print(os);
+    Activity::self().mounts()->print(os);
 }
 
 }

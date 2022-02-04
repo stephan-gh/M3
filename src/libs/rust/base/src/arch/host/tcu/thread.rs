@@ -18,7 +18,7 @@ use core::{ptr, sync::atomic};
 
 use crate::arch::envdata;
 use crate::arch::tcu::{
-    backend, CmdReg, Command, Control, EpId, EpReg, Header, PEId, Reg, MAX_MSG_SIZE, TCU,
+    backend, CmdReg, Command, Control, EpId, EpReg, Header, Reg, TileId, MAX_MSG_SIZE, TCU,
     TOTAL_EPS, UNLIM_CREDITS,
 };
 use crate::cell::{LazyStaticRefCell, RefMut, StaticCell, StaticRefCell, StaticUnsafeCell};
@@ -109,7 +109,7 @@ fn set_bit(mask: Reg, idx: u64, val: bool) -> Reg {
     }
 }
 
-fn prepare_send(ep: EpId) -> Result<(PEId, EpId), Error> {
+fn prepare_send(ep: EpId) -> Result<(TileId, EpId), Error> {
     let msg = TCU::get_cmd(CmdReg::ADDR);
     let msg_size = TCU::get_cmd(CmdReg::SIZE) as usize;
     let credits = TCU::get_ep(ep, EpReg::CREDITS) as usize;
@@ -159,12 +159,12 @@ fn prepare_send(ep: EpId) -> Result<(PEId, EpId), Error> {
     }
 
     Ok((
-        TCU::get_ep(ep, EpReg::PE_ID) as PEId,
+        TCU::get_ep(ep, EpReg::TILE_ID) as TileId,
         TCU::get_ep(ep, EpReg::EP_ID) as EpId,
     ))
 }
 
-fn prepare_reply(ep: EpId) -> Result<(PEId, EpId), Error> {
+fn prepare_reply(ep: EpId) -> Result<(TileId, EpId), Error> {
     let src = TCU::get_cmd(CmdReg::ADDR);
     let size = TCU::get_cmd(CmdReg::SIZE) as usize;
     let reply_off = TCU::get_cmd(CmdReg::OFFSET) as usize;
@@ -216,7 +216,10 @@ fn prepare_reply(ep: EpId) -> Result<(PEId, EpId), Error> {
         buf.data[0..size].copy_from_slice(util::slice_for(src as *const u8, size));
     }
 
-    Ok((reply_msg.header.pe as PEId, reply_msg.header.rpl_ep as EpId))
+    Ok((
+        reply_msg.header.tile as TileId,
+        reply_msg.header.rpl_ep as EpId,
+    ))
 }
 
 fn check_rdwr(ep: EpId, read: bool) -> Result<(), Error> {
@@ -253,7 +256,7 @@ fn check_rdwr(ep: EpId, read: bool) -> Result<(), Error> {
     }
 }
 
-fn prepare_read(ep: EpId) -> Result<(PEId, EpId), Error> {
+fn prepare_read(ep: EpId) -> Result<(TileId, EpId), Error> {
     check_rdwr(ep, true)?;
 
     let mut buf = BUFFER.borrow_mut();
@@ -268,12 +271,12 @@ fn prepare_read(ep: EpId) -> Result<(PEId, EpId), Error> {
     data[2] = TCU::get_cmd(CmdReg::ADDR);
 
     Ok((
-        TCU::get_ep(ep, EpReg::PE_ID) as PEId,
+        TCU::get_ep(ep, EpReg::TILE_ID) as TileId,
         TCU::get_ep(ep, EpReg::EP_ID) as EpId,
     ))
 }
 
-fn prepare_write(ep: EpId) -> Result<(PEId, EpId), Error> {
+fn prepare_write(ep: EpId) -> Result<(TileId, EpId), Error> {
     check_rdwr(ep, false)?;
 
     let mut buf = BUFFER.borrow_mut();
@@ -297,12 +300,12 @@ fn prepare_write(ep: EpId) -> Result<(PEId, EpId), Error> {
     }
 
     Ok((
-        TCU::get_ep(ep, EpReg::PE_ID) as PEId,
+        TCU::get_ep(ep, EpReg::TILE_ID) as TileId,
         TCU::get_ep(ep, EpReg::EP_ID) as EpId,
     ))
 }
 
-fn prepare_ack(ep: EpId) -> Result<(PEId, EpId), Error> {
+fn prepare_ack(ep: EpId) -> Result<(TileId, EpId), Error> {
     let msg_off = TCU::get_cmd(CmdReg::OFFSET);
     let msg_ord = TCU::get_ep(ep, EpReg::BUF_MSGORDER);
     let ord = TCU::get_ep(ep, EpReg::BUF_ORDER);
@@ -333,7 +336,7 @@ fn prepare_ack(ep: EpId) -> Result<(PEId, EpId), Error> {
     Ok((0, TOTAL_EPS))
 }
 
-fn prepare_fetch(ep: EpId) -> Result<(PEId, EpId), Error> {
+fn prepare_fetch(ep: EpId) -> Result<(TileId, EpId), Error> {
     let msgs = TCU::get_ep(ep, EpReg::BUF_MSG_CNT);
     if msgs == 0 {
         TCU::set_cmd(CmdReg::OFFSET, !0);
@@ -504,7 +507,7 @@ fn handle_write_cmd(
         }
     }
 
-    let dst_pe = buf.header.pe as PEId;
+    let dst_tile = buf.header.tile as TileId;
     let dst_ep = buf.header.rpl_ep as EpId;
 
     buf.header.opcode = Command::RESP.val as u8;
@@ -512,7 +515,7 @@ fn handle_write_cmd(
     buf.header.label = 0;
     buf.header.length = 0;
 
-    send_msg(backend, buf, ep, dst_pe, dst_ep)
+    send_msg(backend, buf, ep, dst_tile, dst_ep)
 }
 
 fn handle_read_cmd(
@@ -536,7 +539,7 @@ fn handle_read_cmd(
     );
     assert!(length as usize <= MAX_MSG_SIZE - 3 * mem::size_of::<u64>());
 
-    let dst_pe = buf.header.pe as PEId;
+    let dst_tile = buf.header.tile as TileId;
     let dst_ep = buf.header.rpl_ep as EpId;
 
     buf.header.opcode = Command::RESP.val as u8;
@@ -557,7 +560,7 @@ fn handle_read_cmd(
         );
     }
 
-    send_msg(backend, buf, ep, dst_pe, dst_ep)
+    send_msg(backend, buf, ep, dst_tile, dst_ep)
 }
 
 fn handle_resp_cmd(backend: &backend::SocketBackend, buf: &RefMut<'_, Buffer>) {
@@ -600,22 +603,22 @@ fn send_msg(
     backend: &backend::SocketBackend,
     buf: &RefMut<'_, Buffer>,
     ep: EpId,
-    dst_pe: PEId,
+    dst_tile: TileId,
     dst_ep: EpId,
 ) -> Result<(), Error> {
     log_tcu!(
-        "{} {:3}b lbl={:#016x} over {} to pe:ep={}:{} (crd={:#x} rep={})",
+        "{} {:3}b lbl={:#016x} over {} to tile:ep={}:{} (crd={:#x} rep={})",
         if buf.header.opcode == Command::REPLY.val as u8 { ">>" } else { "->" },
         { buf.header.length },
         { buf.header.label },
         buf.header.snd_ep,
-        dst_pe,
+        dst_tile,
         dst_ep,
         TCU::get_ep(ep, EpReg::CREDITS),
         buf.header.rpl_ep
     );
 
-    if backend.send(dst_pe, dst_ep, &buf) {
+    if backend.send(dst_tile, dst_ep, &buf) {
         Ok(())
     }
     else {
@@ -651,20 +654,20 @@ fn handle_command(backend: &backend::SocketBackend) {
         };
 
         match res {
-            Ok((dst_pe, dst_ep)) if dst_ep < TOTAL_EPS => {
+            Ok((dst_tile, dst_ep)) if dst_ep < TOTAL_EPS => {
                 let mut buf = BUFFER.borrow_mut();
                 buf.header.opcode = op.val as u8;
 
                 if op != Command::REPLY {
                     // reply cap
                     buf.header.has_replycap = 1;
-                    buf.header.pe = envdata::get().pe_id as u16;
+                    buf.header.tile = envdata::get().tile_id as u16;
                     buf.header.snd_ep = ep as u8;
                     buf.header.rpl_ep = TCU::get_cmd(CmdReg::REPLY_EPID) as u8;
                     buf.header.reply_label = TCU::get_cmd(CmdReg::REPLY_LBL);
                 }
 
-                match send_msg(backend, &buf, ep, dst_pe, dst_ep) {
+                match send_msg(backend, &buf, ep, dst_tile, dst_ep) {
                     Err(e) => Err(e),
                     Ok(_) => {
                         if op == Command::READ || op == Command::WRITE {
@@ -823,7 +826,7 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
 
 pub fn init() {
     LOG.set(io::log::Log::new());
-    LOG.borrow_mut().init(envdata::get().pe_id, "TCU");
+    LOG.borrow_mut().init(envdata::get().tile_id, "TCU");
 
     BACKEND.set(Some(backend::SocketBackend::new()));
 

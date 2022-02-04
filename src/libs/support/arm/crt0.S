@@ -21,7 +21,7 @@
 .extern env_run
 
 BEGIN_FUNC(_start)
-    // have we been started by pemux?
+    // have we been started by tilemux?
     ldr     r0, =#0xDEADBEEF
     cmp     r1, r0
     beq     1f

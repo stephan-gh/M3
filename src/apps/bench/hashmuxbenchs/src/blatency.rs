@@ -18,9 +18,9 @@ use m3::cap::Selector;
 use m3::col::Vec;
 use m3::com::{MemGate, Perm, Semaphore};
 use m3::crypto::HashAlgorithm;
-use m3::pes::{Activity, ExecActivity, PE, VPE};
 use m3::session::HashSession;
 use m3::test;
+use m3::tiles::{Activity, RunningActivity, RunningProgramActivity, Tile};
 use m3::time::{CycleDuration, CycleInstant, Results, TimeDuration, TimeInstant};
 use m3::{format, log, println, wv_assert_ok, wv_perf, wv_run_test};
 
@@ -34,20 +34,20 @@ pub fn run(t: &mut dyn test::WvTester) {
 
 struct Client {
     _mgate: MemGate,
-    act: ExecActivity,
+    act: RunningProgramActivity,
 }
 
 fn _start_background_client(num: usize, mgate: &MemGate, sem: &Semaphore, size: usize) -> Client {
     log!(LOG_DEBUG, "Starting client {}", num);
 
-    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
-    let mut vpe = wv_assert_ok!(VPE::new(pe, &format!("hash-c{}", num)));
+    let tile = wv_assert_ok!(Tile::new(Activity::cur().tile_desc()));
+    let mut act = wv_assert_ok!(Activity::new(tile, &format!("hash-c{}", num)));
     let mgate = wv_assert_ok!(mgate.derive(0, size, Perm::R));
 
-    wv_assert_ok!(vpe.delegate_obj(sem.sel()));
-    wv_assert_ok!(vpe.delegate_obj(mgate.sel()));
+    wv_assert_ok!(act.delegate_obj(sem.sel()));
+    wv_assert_ok!(act.delegate_obj(mgate.sel()));
 
-    let mut dst = vpe.data_sink();
+    let mut dst = act.data_sink();
     dst.push_word(sem.sel());
     dst.push_word(mgate.sel());
     dst.push_word(num as u64);
@@ -55,8 +55,8 @@ fn _start_background_client(num: usize, mgate: &MemGate, sem: &Semaphore, size: 
 
     Client {
         _mgate: mgate,
-        act: wv_assert_ok!(vpe.run(|| {
-            let mut src = VPE::cur().data_source();
+        act: wv_assert_ok!(act.run(|| {
+            let mut src = Activity::cur().data_source();
             let sem_sel: Selector = src.pop().unwrap();
             let mgate_sel: Selector = src.pop().unwrap();
             let num: usize = src.pop().unwrap();
@@ -66,7 +66,7 @@ fn _start_background_client(num: usize, mgate: &MemGate, sem: &Semaphore, size: 
             let hash = wv_assert_ok!(HashSession::new(&format!("hash-client{}", num), SLOW_ALGO));
             wv_assert_ok!(hash.ep().configure(mgate_sel));
 
-            // Notify main PE that client is ready
+            // Notify main Tile that client is ready
             wv_assert_ok!(sem.up());
 
             loop {

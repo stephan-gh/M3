@@ -19,7 +19,7 @@
 #include <base/TCU.h>
 #include <base/Init.h>
 #include <base/KIF.h>
-#include <base/PEXIF.h>
+#include <base/TMIF.h>
 
 namespace m3 {
 
@@ -83,7 +83,7 @@ Errors::Code TCU::perform_send_reply(uintptr_t addr, reg_t cmd) {
 
         auto res = get_error();
         if(res == Errors::TRANSLATION_FAULT) {
-            PEXABI::call2(Operation::TRANSL_FAULT, addr, KIF::Perm::R);
+            TMABI::call2(Operation::TRANSL_FAULT, addr, KIF::Perm::R);
             continue;
         }
         return res;
@@ -115,7 +115,7 @@ Errors::Code TCU::perform_transfer(epid_t ep, uintptr_t data_addr, size_t size,
         auto res = get_error();
         if(res == Errors::TRANSLATION_FAULT) {
             auto perm = cmd == CmdOpCode::READ ? KIF::Perm::W : KIF::Perm::R;
-            PEXABI::call2(Operation::TRANSL_FAULT, data_addr, perm);
+            TMABI::call2(Operation::TRANSL_FAULT, data_addr, perm);
             continue;
         }
         if(res != Errors::NONE)

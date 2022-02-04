@@ -92,7 +92,7 @@ public:
      *
      * Note that Direction::INPUT has to be specified to process events (state changes and data).
      *
-     * Note: this function uses VPE::sleep if tick_sockets returns false, which suspends the core
+     * Note: this function uses Activity::sleep if tick_sockets returns false, which suspends the core
      * until the next TCU message arrives. Thus, calling this function can only be done if all work
      * is done.
      *
@@ -106,7 +106,7 @@ public:
      *
      * Note that Direction::INPUT has to be specified to process events (state changes and data).
      *
-     * Note: this function uses VPE::sleep if tick_sockets returns false, which suspends the core
+     * Note: this function uses Activity::sleep if tick_sockets returns false, which suspends the core
      * until the next TCU message arrives. Thus, calling this function can only be done if all work
      * is done.
      *

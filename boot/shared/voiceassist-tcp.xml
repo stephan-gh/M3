@@ -12,7 +12,7 @@
                 <app args="pager maxcli=4 $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes type="core" count="2" />
+                    <tiles type="core" count="2" />
                     <app args="/sbin/net -d lo -m 2 net 127.0.0.1" daemon="1">
                         <serv name="net" />
                     </app>

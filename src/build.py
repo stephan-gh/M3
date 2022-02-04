@@ -3,7 +3,7 @@ dirs = [
     "tools",
     "kernel",
     "libs",
-    "pemux",
+    "tilemux",
     "server",
     "fs", # generate the file systems last
 ]

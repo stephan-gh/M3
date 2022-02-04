@@ -17,17 +17,17 @@
 use base::cell::{Cell, Ref, RefCell, RefMut, StaticCell};
 use base::errors::{Code, Error};
 use base::goff;
-use base::kif::{self, pemux::QuotaId};
+use base::kif::{self, tilemux::QuotaId};
 use base::mem::{size_of, GlobAddr};
 use base::rc::{Rc, SRc, Weak};
-use base::tcu::{EpId, Label, PEId};
+use base::tcu::{EpId, Label, TileId};
 
 use core::fmt;
 use core::ptr;
 
 use crate::com::Service;
 use crate::mem;
-use crate::pes::{pemng, PEMux, State, VPE};
+use crate::tiles::{tilemng, Activity, State, TileMux};
 
 #[derive(Clone)]
 pub enum KObject {
@@ -38,10 +38,10 @@ pub enum KObject {
     Serv(SRc<ServObject>),
     Sess(SRc<SessObject>),
     Sem(SRc<SemObject>),
-    // Only VPEManager owns a VPE (Rc<VPE>). Break cycle here by using Weak
-    VPE(Weak<VPE>),
+    // Only ActManager owns a activity (Rc<Activity>). Break cycle here by using Weak
+    Activity(Weak<Activity>),
     KMem(SRc<KMemObject>),
-    PE(SRc<PEObject>),
+    Tile(SRc<TileObject>),
     EP(Rc<EPObject>),
 }
 
@@ -65,11 +65,11 @@ static KOBJ_SIZES: [usize; 11] = [
     kobj_size::<MapObject>(),
     kobj_size::<ServObject>(),
     kobj_size::<SessObject>(),
-    kobj_size::<VPE>(),
+    kobj_size::<Activity>(),
     kobj_size::<SemObject>(),
     kobj_size::<KMemObject>(),
-    // assume pessimistically that each PEObject has its own EPQuota
-    kobj_size::<PEObject>() + kobj_size::<EPQuota>(),
+    // assume pessimistically that each TileObject has its own EPQuota
+    kobj_size::<TileObject>() + kobj_size::<EPQuota>(),
     kobj_size::<EPObject>(),
 ];
 
@@ -90,10 +90,10 @@ impl fmt::Debug for KObject {
             KObject::Map(m) => write!(f, "{:?}", m),
             KObject::Serv(s) => write!(f, "{:?}", s),
             KObject::Sess(s) => write!(f, "{:?}", s),
-            KObject::VPE(v) => write!(f, "{:?}", v),
+            KObject::Activity(v) => write!(f, "{:?}", v),
             KObject::Sem(s) => write!(f, "{:?}", s),
             KObject::KMem(k) => write!(f, "{:?}", k),
-            KObject::PE(p) => write!(f, "{:?}", p),
+            KObject::Tile(p) => write!(f, "{:?}", p),
             KObject::EP(e) => write!(f, "{:?}", e),
         }
     }
@@ -147,7 +147,7 @@ impl GateObject {
 
 pub struct RGateObject {
     gep: RefCell<GateEP>,
-    loc: Cell<Option<(PEId, EpId)>>,
+    loc: Cell<Option<(TileId, EpId)>>,
     addr: Cell<goff>,
     order: u32,
     msg_order: u32,
@@ -174,7 +174,7 @@ impl RGateObject {
         self.gep.borrow_mut()
     }
 
-    pub fn location(&self) -> Option<(PEId, EpId)> {
+    pub fn location(&self) -> Option<(TileId, EpId)> {
         self.loc.get()
     }
 
@@ -202,11 +202,11 @@ impl RGateObject {
         self.addr.get() != 0
     }
 
-    pub fn activate(&self, pe: PEId, ep: EpId, addr: goff) {
-        self.loc.replace(Some((pe, ep)));
+    pub fn activate(&self, tile: TileId, ep: EpId, addr: goff) {
+        self.loc.replace(Some((tile, ep)));
         self.addr.replace(addr);
         if self.serial {
-            crate::platform::init_serial(Some((pe, ep)));
+            crate::platform::init_serial(Some((tile, ep)));
         }
     }
 
@@ -224,7 +224,7 @@ impl RGateObject {
 
     pub fn print_loc(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.loc.get() {
-            Some((pe, ep)) => write!(f, "PE{}:EP{}", pe, ep),
+            Some((tile, ep)) => write!(f, "Tile{}:EP{}", tile, ep),
             None => write!(f, "?"),
         }
     }
@@ -285,10 +285,10 @@ impl SGateObject {
         // is the send gate activated?
         if let Some(sep) = self.gate_ep().get_ep() {
             // is the associated receive gate activated?
-            if let Some((recv_pe, recv_ep)) = self.rgate().location() {
-                let pemux = pemng::pemux(sep.pe_id());
-                pemux
-                    .invalidate_reply_eps(recv_pe, recv_ep, sep.ep())
+            if let Some((recv_tile, recv_ep)) = self.rgate().location() {
+                let tilemux = tilemng::tilemux(sep.tile_id());
+                tilemux
+                    .invalidate_reply_eps(recv_tile, recv_ep, sep.ep())
                     .unwrap();
             }
         }
@@ -328,8 +328,8 @@ impl MGateObject {
         self.gep.borrow_mut()
     }
 
-    pub fn pe_id(&self) -> PEId {
-        self.mem.global().pe()
+    pub fn tile_id(&self) -> TileId {
+        self.mem.global().tile()
     }
 
     pub fn offset(&self) -> goff {
@@ -351,7 +351,7 @@ impl MGateObject {
 
 impl Drop for MGateObject {
     fn drop(&mut self) {
-        // if it's not derived, it's always memory from mem-PEs
+        // if it's not derived, it's always memory from mem-tiles
         if !self.derived {
             mem::borrow_mut().free(&self.mem);
         }
@@ -362,8 +362,8 @@ impl fmt::Debug for MGateObject {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "MGate[pe={}, addr={:?}, size={:#x}, perm={:?}, der={}]",
-            self.pe_id(),
+            "MGate[tile={}, addr={:?}, size={:#x}, perm={:?}, der={}]",
+            self.tile_id(),
             self.addr(),
             self.size(),
             self.perms,
@@ -534,35 +534,35 @@ impl EPQuota {
     }
 }
 
-pub struct PEObject {
-    pe: PEId,
-    cur_vpes: Cell<u32>,
+pub struct TileObject {
+    tile: TileId,
+    cur_acts: Cell<u32>,
     ep_quota: Rc<EPQuota>,
     time_quota: QuotaId,
     pt_quota: QuotaId,
     derived: bool,
 }
 
-impl PEObject {
+impl TileObject {
     pub fn new(
-        pe: PEId,
+        tile: TileId,
         ep_quota: Rc<EPQuota>,
         time_quota: QuotaId,
         pt_quota: QuotaId,
         derived: bool,
     ) -> SRc<Self> {
         let res = SRc::new(Self {
-            pe,
-            cur_vpes: Cell::from(0),
+            tile,
+            cur_acts: Cell::from(0),
             ep_quota: ep_quota.clone(),
             time_quota,
             pt_quota,
             derived,
         });
         klog!(
-            PES,
-            "PE[{}, {:#x}]: {} new PEObject with EPs={}, time={}, pts={}",
-            pe,
+            TILES,
+            "Tile[{}, {:#x}]: {} new TileObject with EPs={}, time={}, pts={}",
+            tile,
             &*res as *const _ as usize,
             if derived { "derived" } else { "created" },
             ep_quota.total,
@@ -572,16 +572,16 @@ impl PEObject {
         res
     }
 
-    pub fn pe(&self) -> PEId {
-        self.pe
+    pub fn tile(&self) -> TileId {
+        self.tile
     }
 
     pub fn derived(&self) -> bool {
         self.derived
     }
 
-    pub fn vpes(&self) -> u32 {
-        self.cur_vpes.get()
+    pub fn activities(&self) -> u32 {
+        self.cur_acts.get()
     }
 
     pub fn ep_quota(&self) -> &Rc<EPQuota> {
@@ -600,20 +600,20 @@ impl PEObject {
         self.ep_quota.left() >= eps
     }
 
-    pub fn add_vpe(&self) {
-        self.cur_vpes.set(self.vpes() + 1);
+    pub fn add_activity(&self) {
+        self.cur_acts.set(self.activities() + 1);
     }
 
-    pub fn rem_vpe(&self) {
-        assert!(self.vpes() > 0);
-        self.cur_vpes.set(self.vpes() - 1);
+    pub fn rem_activity(&self) {
+        assert!(self.activities() > 0);
+        self.cur_acts.set(self.activities() - 1);
     }
 
     pub fn alloc(&self, eps: u32) {
         klog!(
-            PES,
-            "PE[{}, {:#x}]: allocating {} EPs ({} left)",
-            self.pe,
+            TILES,
+            "Tile[{}, {:#x}]: allocating {} EPs ({} left)",
+            self.tile,
             self as *const _ as usize,
             eps,
             self.ep_quota.left()
@@ -626,16 +626,16 @@ impl PEObject {
         assert!(self.ep_quota.left() + eps <= self.ep_quota.total);
         self.ep_quota.left.set(self.ep_quota.left() + eps);
         klog!(
-            PES,
-            "PE[{}, {:#x}]: freed {} EPs ({} left)",
-            self.pe,
+            TILES,
+            "Tile[{}, {:#x}]: freed {} EPs ({} left)",
+            self.tile,
             self as *const _ as usize,
             eps,
             self.ep_quota.left()
         );
     }
 
-    pub fn revoke_async(&self, parent: &PEObject) {
+    pub fn revoke_async(&self, parent: &TileObject) {
         // we free the EP quota if it's different from our parent's quota (only our own childs can
         // have the same EP quota, but they are already gone).
         if !Rc::ptr_eq(&self.ep_quota, &parent.ep_quota) {
@@ -658,19 +658,19 @@ impl PEObject {
             None
         };
         if time.is_some() || pts.is_some() {
-            PEMux::remove_quotas_async(pemng::pemux(self.pe), time, pts).ok();
+            TileMux::remove_quotas_async(tilemng::tilemux(self.tile), time, pts).ok();
         }
     }
 }
 
-impl fmt::Debug for PEObject {
+impl fmt::Debug for TileObject {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "PE[id={}, eps={}, vpes={}, derived={}]",
-            self.pe,
+            "Tile[id={}, eps={}, actitivies={}, derived={}]",
+            self.tile,
             self.ep_quota.left(),
-            self.vpes(),
+            self.activities(),
             self.derived,
         )
     }
@@ -679,41 +679,41 @@ impl fmt::Debug for PEObject {
 pub struct EPObject {
     is_std: bool,
     gate: RefCell<Option<GateObject>>,
-    vpe: Weak<VPE>,
+    act: Weak<Activity>,
     ep: EpId,
     replies: u32,
-    pe: SRc<PEObject>,
+    tile: SRc<TileObject>,
 }
 
 impl EPObject {
     pub fn new(
         is_std: bool,
-        vpe: Weak<VPE>,
+        act: Weak<Activity>,
         ep: EpId,
         replies: u32,
-        pe: &SRc<PEObject>,
+        tile: &SRc<TileObject>,
     ) -> Rc<Self> {
-        let maybe_vpe = vpe.upgrade();
+        let maybe_act = act.upgrade();
         let ep = Rc::new(Self {
             is_std,
             gate: RefCell::from(None),
-            vpe,
+            act,
             ep,
             replies,
-            pe: pe.clone(),
+            tile: tile.clone(),
         });
-        if let Some(v) = maybe_vpe {
+        if let Some(v) = maybe_act {
             v.add_ep(ep.clone());
         }
         ep
     }
 
-    pub fn pe_id(&self) -> PEId {
-        self.pe.pe()
+    pub fn tile_id(&self) -> TileId {
+        self.tile.tile()
     }
 
-    pub fn vpe(&self) -> Option<Rc<VPE>> {
-        self.vpe.upgrade()
+    pub fn activity(&self) -> Option<Rc<Activity>> {
+        self.act.upgrade()
     }
 
     pub fn ep(&self) -> EpId {
@@ -733,7 +733,7 @@ impl EPObject {
     }
 
     pub fn revoke(ep: &Rc<Self>) {
-        if let Some(v) = ep.vpe.upgrade() {
+        if let Some(v) = ep.act.upgrade() {
             v.rem_ep(ep);
         }
     }
@@ -755,13 +755,13 @@ impl EPObject {
     pub fn deconfigure(&self, force: bool) -> Result<bool, Error> {
         let mut invalidated = false;
         if let Some(ref gate) = &*self.gate.borrow() {
-            let pe_id = self.pe_id();
+            let tile_id = self.tile_id();
 
             // invalidate receive and send EPs
             match gate {
                 GateObject::RGate(_) | GateObject::SGate(_) => {
-                    pemng::pemux(pe_id).invalidate_ep(
-                        self.vpe().unwrap().id(),
+                    tilemng::tilemux(tile_id).invalidate_ep(
+                        self.activity().unwrap().id(),
                         self.ep,
                         force,
                         true,
@@ -789,9 +789,9 @@ impl EPObject {
 impl Drop for EPObject {
     fn drop(&mut self) {
         if !self.is_std {
-            pemng::pemux(self.pe.pe).free_eps(self.ep, 1 + self.replies);
+            tilemng::tilemux(self.tile.tile).free_eps(self.ep, 1 + self.replies);
 
-            self.pe.free(1 + self.replies);
+            self.tile.free(1 + self.replies);
         }
     }
 }
@@ -800,11 +800,11 @@ impl fmt::Debug for EPObject {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "EP[vpe={}, ep={}, replies={}, pe={:?}]",
-            self.vpe().unwrap().id(),
+            "EP[act={}, ep={}, replies={}, tile={:?}]",
+            self.activity().unwrap().id(),
             self.ep,
             self.replies,
-            self.pe
+            self.tile
         )
     }
 }
@@ -846,13 +846,13 @@ impl KMemObject {
         self.left.get() >= size
     }
 
-    pub fn alloc(&self, vpe: &VPE, sel: kif::CapSel, size: usize) -> bool {
+    pub fn alloc(&self, act: &Activity, sel: kif::CapSel, size: usize) -> bool {
         klog!(
             KMEM,
-            "{:?} VPE{}:{} allocates {}b (sel={})",
+            "{:?} Activity{}:{} allocates {}b (sel={})",
             self,
-            vpe.id(),
-            vpe.name(),
+            act.id(),
+            act.name(),
             size,
             sel,
         );
@@ -866,24 +866,24 @@ impl KMemObject {
         }
     }
 
-    pub fn free(&self, vpe: &VPE, sel: kif::CapSel, size: usize) {
+    pub fn free(&self, act: &Activity, sel: kif::CapSel, size: usize) {
         assert!(self.left() + size <= self.quota);
         self.left.set(self.left() + size);
 
         klog!(
             KMEM,
-            "{:?} VPE{}:{} freed {}b (sel={})",
+            "{:?} Activity{}:{} freed {}b (sel={})",
             self,
-            vpe.id(),
-            vpe.name(),
+            act.id(),
+            act.name(),
             size,
             sel
         );
     }
 
-    pub fn revoke(&self, vpe: &VPE, sel: kif::CapSel, parent: &KMemObject) {
+    pub fn revoke(&self, act: &Activity, sel: kif::CapSel, parent: &KMemObject) {
         // grant the kernel memory back to our parent
-        parent.free(vpe, sel, self.left());
+        parent.free(act, sel, self.left());
         assert!(self.left() == self.quota);
     }
 }
@@ -936,15 +936,15 @@ impl MapObject {
 
     pub fn map_async(
         &self,
-        vpe: &VPE,
+        act: &Activity,
         virt: goff,
         glob: GlobAddr,
         pages: usize,
         flags: kif::PageFlags,
     ) -> Result<(), Error> {
-        PEMux::map_async(
-            pemng::pemux(vpe.pe_id()),
-            vpe.id(),
+        TileMux::map_async(
+            tilemng::tilemux(act.tile_id()),
+            act.id(),
             virt,
             glob,
             pages,
@@ -957,11 +957,11 @@ impl MapObject {
         })
     }
 
-    pub fn unmap_async(&self, vpe: &VPE, virt: goff, pages: usize) {
-        // TODO currently, it can happen that we've already stopped the VPE, but still
-        // accept/continue a syscall that inserts something into the VPE's table.
-        if vpe.state() != State::DEAD {
-            PEMux::unmap_async(pemng::pemux(vpe.pe_id()), vpe.id(), virt, pages).ok();
+    pub fn unmap_async(&self, act: &Activity, virt: goff, pages: usize) {
+        // TODO currently, it can happen that we've already stopped the activity, but still
+        // accept/continue a syscall that inserts something into the activity's table.
+        if act.state() != State::DEAD {
+            TileMux::unmap_async(tilemng::tilemux(act.tile_id()), act.id(), virt, pages).ok();
         }
     }
 }

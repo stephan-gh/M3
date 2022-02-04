@@ -30,7 +30,7 @@ int main() {
     RUN_SUITE(bsyscall);
     RUN_SUITE(bpipe);
     RUN_SUITE(bfsmeta);
-    RUN_SUITE(bvpe);
+    RUN_SUITE(bactivity);
     RUN_SUITE(bpagefaults);
     RUN_SUITE(bstring);
 

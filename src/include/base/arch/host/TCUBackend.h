@@ -30,7 +30,7 @@ namespace m3 {
 class TCUBackend {
 public:
     struct UnixSocket {
-        explicit UnixSocket(const char *name, bool pe);
+        explicit UnixSocket(const char *name, bool tile);
 
         void bind();
 
@@ -60,7 +60,7 @@ public:
 
     void shutdown();
 
-    bool send(peid_t pe, epid_t ep, const TCU::Buffer *buf);
+    bool send(tileid_t tile, epid_t ep, const TCU::Buffer *buf);
     ssize_t recv(epid_t ep, TCU::Buffer *buf);
 
     void bind_knotify();
@@ -80,7 +80,7 @@ private:
     UnixSocket _ack_sock;
     UnixSocket _knotify_sock;
     int _localsocks[TOTAL_EPS];
-    sockaddr_un _endpoints[PE_COUNT * TOTAL_EPS];
+    sockaddr_un _endpoints[TILE_COUNT * TOTAL_EPS];
 };
 
 }

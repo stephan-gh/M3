@@ -21,7 +21,7 @@
 
 namespace m3 {
 
-// create them after VPE::self() has finished, because otherwise the file objects are not available
+// create them after activity::self() has finished, because otherwise the file objects are not available
 INIT_PRIO_STREAM FStream cerr(STDERR_FD, FILE_W, 256, FStream::FL_LINE_BUF);
 INIT_PRIO_STREAM FStream cout(STDOUT_FD, FILE_W, 256, FStream::FL_LINE_BUF);
 INIT_PRIO_STREAM FStream cin(STDIN_FD, FILE_R, 128);

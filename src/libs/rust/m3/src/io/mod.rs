@@ -47,7 +47,7 @@ macro_rules! println {
 
 pub(crate) fn init() {
     ::base::io::init(
-        envdata::get().pe_id,
+        envdata::get().tile_id,
         env::args().next().unwrap_or("Unknown"),
     );
     std::init();

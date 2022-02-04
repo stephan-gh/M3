@@ -28,11 +28,11 @@ use m3::goff;
 use m3::kif;
 use m3::log;
 use m3::math;
-use m3::pes::{VPEArgs, VPE};
 use m3::rc::Rc;
 use m3::session::ResMng;
 use m3::syscalls;
 use m3::tcu;
+use m3::tiles::{Activity, ActivityArgs};
 
 use resmng::childs::{self, Child, OwnChild};
 use resmng::{memory, requests, sendqueue, subsys};
@@ -66,35 +66,35 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
             .label(tcu::Label::from(child.id())),
     )?;
 
-    let mut vpe = VPE::new_with(
-        child.child_pe().unwrap().pe_obj().clone(),
-        VPEArgs::new(child.name())
+    let mut act = Activity::new_with(
+        child.child_tile().unwrap().tile_obj().clone(),
+        ActivityArgs::new(child.name())
             .resmng(ResMng::new(sgate))
             .kmem(child.kmem().unwrap()),
     )
-    .map_err(|e| VerboseError::new(e.code(), "Unable to create VPE".to_string()))?;
+    .map_err(|e| VerboseError::new(e.code(), "Unable to create Activity".to_string()))?;
 
-    if let Some(fs) = VPE::cur().mounts().get_by_path("/") {
-        vpe.mounts().add("/", fs)?;
+    if let Some(fs) = Activity::cur().mounts().get_by_path("/") {
+        act.mounts().add("/", fs)?;
     }
 
     let id = child.id();
     if let Some(sub) = child.subsys() {
-        sub.finalize_async(id, &mut vpe)
+        sub.finalize_async(id, &mut act)
             .expect("Unable to finalize subsystem");
     }
 
     let mut bmapper = loader::BootMapper::new(
-        vpe.sel(),
+        act.sel(),
         bmod.0.sel(),
-        vpe.pe_desc().has_virtmem(),
+        act.tile_desc().has_virtmem(),
         child.mem().pool().clone(),
     );
     let bfile = loader::BootFile::new(bmod.0, bmod.1);
-    let bfileref = VPE::cur().files().add(Rc::new(RefCell::new(bfile)))?;
+    let bfileref = Activity::cur().files().add(Rc::new(RefCell::new(bfile)))?;
     child
-        .start(vpe, &mut bmapper, bfileref)
-        .map_err(|e| VerboseError::new(e.code(), "Unable to start VPE".to_string()))?;
+        .start(act, &mut bmapper, bfileref)
+        .map_err(|e| VerboseError::new(e.code(), "Unable to start Activity".to_string()))?;
 
     for a in bmapper.fetch_allocs() {
         child.add_mem(a, None);
@@ -135,15 +135,15 @@ pub fn main() -> i32 {
     // allocate and map memory for receive buffer. note that we need to do that manually here,
     // because RecvBufs allocate new physical memory via the resource manager and root does not have
     // a resource manager.
-    let (rbuf_addr, _) = VPE::cur().pe_desc().rbuf_space();
-    let (rbuf_off, rbuf_mem) = if VPE::cur().pe_desc().has_virtmem() {
+    let (rbuf_addr, _) = Activity::cur().tile_desc().rbuf_space();
+    let (rbuf_off, rbuf_mem) = if Activity::cur().tile_desc().has_virtmem() {
         let buf_mem = memory::container()
             .alloc_mem((buf_size + sendqueue::RBUF_SIZE) as goff)
             .expect("Unable to allocate memory for receive buffers");
         let pages = (buf_mem.capacity() as usize + cfg::PAGE_SIZE - 1) / cfg::PAGE_SIZE;
         syscalls::create_map(
             (rbuf_addr / cfg::PAGE_SIZE) as Selector,
-            VPE::cur().sel(),
+            Activity::cur().sel(),
             buf_mem.sel(),
             0,
             pages,

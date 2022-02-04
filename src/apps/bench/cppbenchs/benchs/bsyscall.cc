@@ -51,10 +51,10 @@ NOINLINE static void create_mgate() {
 
     struct SyscallMGateRunner : public Runner {
         void run() override {
-            Syscalls::create_mgate(selector, VPE::self().sel(), addr, PAGE_SIZE, KIF::Perm::R);
+            Syscalls::create_mgate(selector, Activity::self().sel(), addr, PAGE_SIZE, KIF::Perm::R);
         }
         void post() override {
-            Syscalls::revoke(VPE::self().sel(),
+            Syscalls::revoke(Activity::self().sel(),
                 KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
     };
@@ -70,7 +70,7 @@ NOINLINE static void create_rgate() {
             Syscalls::create_rgate(selector, 10, 10);
         }
         void post() override {
-            Syscalls::revoke(VPE::self().sel(),
+            Syscalls::revoke(Activity::self().sel(),
                 KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
     };
@@ -88,7 +88,7 @@ NOINLINE static void create_sgate() {
             Syscalls::create_sgate(selector, rgate.sel(), 0x1234, 1024);
         }
         void post() override {
-            Syscalls::revoke(VPE::self().sel(),
+            Syscalls::revoke(Activity::self().sel(),
                 KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
 
@@ -101,8 +101,8 @@ NOINLINE static void create_sgate() {
 }
 
 NOINLINE static void create_map() {
-    if(!VPE::self().pe_desc().has_virtmem()) {
-        cout << "PE has no virtual memory support; skipping\n";
+    if(!Activity::self().tile_desc().has_virtmem()) {
+        cout << "Tile has no virtual memory support; skipping\n";
         return;
     }
 
@@ -115,14 +115,14 @@ NOINLINE static void create_map() {
         void pre() override {
             // one warmup run, because the revoke leads to an unmap, which flushes and invalidates
             // all cache lines
-            Syscalls::create_map(DEST, VPE::self().sel(), mgate.sel(), 0, 1, MemGate::RW);
+            Syscalls::create_map(DEST, Activity::self().sel(), mgate.sel(), 0, 1, MemGate::RW);
         }
 
         void run() override {
-            Syscalls::create_map(DEST + 1, VPE::self().sel(), mgate.sel(), 1, 1, MemGate::RW);
+            Syscalls::create_map(DEST + 1, Activity::self().sel(), mgate.sel(), 1, 1, MemGate::RW);
         }
         void post() override {
-            Syscalls::revoke(VPE::self().sel(),
+            Syscalls::revoke(Activity::self().sel(),
                 KIF::CapRngDesc(KIF::CapRngDesc::MAP, DEST, 2), true);
         }
 
@@ -144,7 +144,7 @@ NOINLINE static void create_srv() {
             Syscalls::create_srv(selector, rgate.sel(), "test", 0);
         }
         void post() override {
-            Syscalls::revoke(VPE::self().sel(),
+            Syscalls::revoke(Activity::self().sel(),
                 KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
 
@@ -162,10 +162,10 @@ NOINLINE static void derive_mem() {
         }
 
         void run() override {
-            Syscalls::derive_mem(VPE::self().sel(), selector, mgate.sel(), 0, 0x1000, MemGate::RW);
+            Syscalls::derive_mem(Activity::self().sel(), selector, mgate.sel(), 0, 0x1000, MemGate::RW);
         }
         void post() override {
-            Syscalls::revoke(VPE::self().sel(),
+            Syscalls::revoke(Activity::self().sel(),
                 KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
 
@@ -180,20 +180,20 @@ NOINLINE static void derive_mem() {
 NOINLINE static void exchange() {
     struct SyscallExchangeRunner : public Runner {
         explicit SyscallExchangeRunner()
-            : pe(PE::get("own|core")),
-              vpe(pe, "test") {
+            : tile(Tile::get("own|core")),
+              act(tile, "test") {
         }
 
         void run() override {
-            Syscalls::exchange(vpe.sel(),
-                KIF::CapRngDesc(KIF::CapRngDesc::OBJ, KIF::SEL_VPE, 1), selector, false);
+            Syscalls::exchange(act.sel(),
+                KIF::CapRngDesc(KIF::CapRngDesc::OBJ, KIF::SEL_ACT, 1), selector, false);
         }
         void post() override {
-            Syscalls::revoke(vpe.sel(), KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
+            Syscalls::revoke(act.sel(), KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
 
-        Reference<PE> pe;
-        VPE vpe;
+        Reference<Tile> tile;
+        Activity act;
     };
 
     Profile pr;
@@ -220,7 +220,7 @@ NOINLINE static void revoke() {
 }
 
 void bsyscall() {
-    selector = VPE::self().alloc_sel();
+    selector = Activity::self().alloc_sel();
 
     RUN_BENCH(noop);
     RUN_BENCH(activate);

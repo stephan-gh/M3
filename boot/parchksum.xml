@@ -12,11 +12,11 @@
                 <app args="pager $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes type="core" count="1" />
+                    <tiles type="core" count="1" />
                     <dom>
                         <app args="/bin/parchksum 4 131072">
                             <mount fs="m3fs" path="/" />
-                            <pes type="core" count="4" />
+                            <tiles type="core" count="4" />
                         </app>
                     </dom>
                 </app>

@@ -18,8 +18,8 @@ use core::fmt;
 
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::errors::Error;
-use crate::pes::VPE;
 use crate::syscalls;
+use crate::tiles::Activity;
 
 /// Represents a session at the server-side.
 pub struct ServerSession {
@@ -32,7 +32,7 @@ impl ServerSession {
     /// specifies whether the CLOSE message should be sent to the server as soon as all derived
     /// session capabilities have been revoked.
     pub fn new(srv: Selector, creator: usize, ident: u64, auto_close: bool) -> Result<Self, Error> {
-        let sel = VPE::cur().alloc_sel();
+        let sel = Activity::cur().alloc_sel();
         Self::new_with_sel(srv, sel, creator, ident, auto_close)
     }
 

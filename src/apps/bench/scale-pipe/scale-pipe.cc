@@ -26,7 +26,7 @@
 #include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
 #include <m3/Test.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 using namespace m3;
 
@@ -36,17 +36,17 @@ struct App {
     explicit App(int argc, const char **argv)
         : argc(argc),
           argv(argv),
-          pe(PE::get("core")),
-          vpe(pe, argv[0]),
+          tile(Tile::get("core")),
+          act(tile, argv[0]),
           rgate(RecvGate::create(6, 6)),
           sgate(SendGate::create(&rgate)) {
-        vpe.delegate_obj(rgate.sel());
+        act.delegate_obj(rgate.sel());
     }
 
     int argc;
     const char **argv;
-    Reference<PE> pe;
-    VPE vpe;
+    Reference<Tile> tile;
+    Activity act;
     RecvGate rgate;
     SendGate sgate;
 };
@@ -86,10 +86,10 @@ int main(int argc, char **argv) {
     const char *rd_name = argv[CmdArgs::ind + 1];
 
     App *apps[instances * 2];
-    Reference<PE> srv_pes[2];
+    Reference<Tile> srv_tiles[2];
     Pipes pipesrv("pipes");
 
-    if(VERBOSE) cout << "Creating application VPEs...\n";
+    if(VERBOSE) cout << "Creating application activities...\n";
 
     Results<CycleDuration> res(static_cast<ulong>(repeats));
 
@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
             apps[i] = new App(ARG_COUNT, args);
         }
 
-        if(VERBOSE) cout << "Starting VPEs...\n";
+        if(VERBOSE) cout << "Starting activities...\n";
 
         auto overall_start = CycleInstant::now();
 
@@ -137,14 +137,14 @@ int main(int argc, char **argv) {
             if(i % 2 == 0) {
                 mems[i / 2] = new MemGate(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
                 pipes[i / 2] = new IndirectPipe(pipesrv, *mems[i / 2], PIPE_SHM_SIZE, data ? 0 : FILE_NODATA);
-                apps[i]->vpe.files()->set(STDOUT_FD, VPE::self().files()->get(pipes[i / 2]->writer_fd()));
+                apps[i]->act.files()->set(STDOUT_FD, Activity::self().files()->get(pipes[i / 2]->writer_fd()));
             }
             else
-                apps[i]->vpe.files()->set(STDIN_FD, VPE::self().files()->get(pipes[i / 2]->reader_fd()));
+                apps[i]->act.files()->set(STDIN_FD, Activity::self().files()->get(pipes[i / 2]->reader_fd()));
 
-            apps[i]->vpe.mounts()->add("/", VPE::self().mounts()->get("/"));
+            apps[i]->act.mounts()->add("/", Activity::self().mounts()->get("/"));
 
-            apps[i]->vpe.exec(apps[i]->argc, apps[i]->argv);
+            apps[i]->act.exec(apps[i]->argc, apps[i]->argv);
 
             if(i % 2 == 1) {
                 pipes[i / 2]->close_writer();
@@ -152,7 +152,7 @@ int main(int argc, char **argv) {
             }
         }
 
-        if(VERBOSE) cout << "Signaling VPEs...\n";
+        if(VERBOSE) cout << "Signaling activities...\n";
 
         for(size_t i = 0; i < instances * 2; ++i)
             send_receive_vmsg(apps[i]->sgate, 1);
@@ -162,10 +162,10 @@ int main(int argc, char **argv) {
         for(size_t i = 0; i < instances * 2; ++i)
             send_vmsg(apps[i]->sgate, 1);
 
-        if(VERBOSE) cout << "Waiting for VPEs...\n";
+        if(VERBOSE) cout << "Waiting for activities...\n";
 
         for(size_t i = 0; i < instances * 2; ++i) {
-            int res = apps[i]->vpe.wait();
+            int res = apps[i]->act.wait();
             if(res != 0)
                 exitcode = 1;
             if(VERBOSE) cout << apps[i]->argv[0] << " exited with " << res << "\n";
@@ -178,7 +178,7 @@ int main(int argc, char **argv) {
         cout << "Time: " << end.duration_since(start)
              << ", total: " << overall_end.duration_since(overall_start) << "\n";
 
-        if(VERBOSE) cout << "Deleting VPEs...\n";
+        if(VERBOSE) cout << "Deleting activities...\n";
 
         for(size_t i = 0; i < instances * 2; ++i) {
             delete pipes[i / 2];

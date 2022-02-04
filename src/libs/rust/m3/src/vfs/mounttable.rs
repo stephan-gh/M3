@@ -20,10 +20,10 @@ use crate::cap::Selector;
 use crate::cell::RefCell;
 use crate::col::{String, ToString, Vec};
 use crate::errors::{Code, Error};
-use crate::pes::StateSerializer;
 use crate::rc::Rc;
 use crate::serialize::Source;
 use crate::session::M3FS;
+use crate::tiles::StateSerializer;
 use crate::vfs::FileSystem;
 
 /// A reference to a file system.
@@ -110,12 +110,12 @@ impl MountTable {
 
     pub(crate) fn collect_caps(
         &self,
-        vpe: Selector,
+        act: Selector,
         dels: &mut Vec<Selector>,
         max_sel: &mut Selector,
     ) -> Result<(), Error> {
         for m in &self.mounts {
-            m.fs.borrow().exchange_caps(vpe, dels, max_sel)?;
+            m.fs.borrow().exchange_caps(act, dels, max_sel)?;
         }
         Ok(())
     }

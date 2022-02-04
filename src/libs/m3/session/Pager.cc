@@ -16,7 +16,7 @@
 
 #include <m3/com/GateStream.h>
 #include <m3/session/Pager.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 #include <m3/Syscalls.h>
 
 namespace m3 {
@@ -112,10 +112,10 @@ Reference<Pager> Pager::create_clone() {
     return Reference<Pager>(new Pager(caps.start(), true));
 }
 
-void Pager::init(VPE &vpe) {
+void Pager::init(Activity &act) {
     // activate send and receive gate for page faults
-    Syscalls::activate(vpe.sel() + 1, _child_sgate.sel(), KIF::INV_SEL, 0);
-    Syscalls::activate(vpe.sel() + 2, _child_rgate.sel(), KIF::INV_SEL, 0);
+    Syscalls::activate(act.sel() + 1, _child_sgate.sel(), KIF::INV_SEL, 0);
+    Syscalls::activate(act.sel() + 2, _child_rgate.sel(), KIF::INV_SEL, 0);
 
     // we only need to do that for clones
     if(_close) {
@@ -123,7 +123,7 @@ void Pager::init(VPE &vpe) {
         ExchangeOStream os(args);
         os << Operation::INIT;
         args.bytes = os.total();
-        delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, vpe.sel()), &args);
+        delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, act.sel()), &args);
     }
 }
 

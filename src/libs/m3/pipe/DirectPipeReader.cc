@@ -114,12 +114,12 @@ ssize_t DirectPipeReader::read(void *buffer, size_t count, bool blocking) {
     return static_cast<ssize_t>(amount);
 }
 
-void DirectPipeReader::delegate(VPE &vpe) {
-    vpe.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _caps, 2));
+void DirectPipeReader::delegate(Activity &act) {
+    act.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _caps, 2));
 }
 
 void DirectPipeReader::serialize(Marshaller &m) {
-    // we can't share the reader between two VPEs atm anyway, so don't serialize the current state
+    // we can't share the reader between two activities atm anyway, so don't serialize the current state
     m << _caps;
 }
 

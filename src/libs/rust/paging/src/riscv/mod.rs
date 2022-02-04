@@ -133,7 +133,7 @@ pub fn disable_paging() {
     write_csr!("satp", MODE_BARE);
 }
 
-pub fn invalidate_page(id: crate::VPEId, virt: usize) {
+pub fn invalidate_page(id: crate::ActId, virt: usize) {
     unsafe {
         asm!(
             "sfence.vma {0}, {1}",
@@ -150,21 +150,21 @@ pub fn invalidate_tlb() {
     }
 }
 
-pub fn set_root_pt(id: crate::VPEId, root: Phys) {
-    static MAX_ASID: LazyStaticCell<crate::VPEId> = LazyStaticCell::default();
+pub fn set_root_pt(id: crate::ActId, root: Phys) {
+    static MAX_ASID: LazyStaticCell<crate::ActId> = LazyStaticCell::default();
     if !MAX_ASID.is_some() {
         // determine how many ASID bits are supported (see 4.1.12)
         let satp = MODE_SV39 << 60 | 0xFFFF << 44;
         write_csr!("satp", satp);
         let actual_satp = read_csr!("satp");
-        MAX_ASID.set(((actual_satp >> 44) & 0xFFFF) as crate::VPEId);
+        MAX_ASID.set(((actual_satp >> 44) & 0xFFFF) as crate::ActId);
     }
 
     let satp: u64 = MODE_SV39 << 60 | id << 44 | (root >> cfg::PAGE_BITS);
     write_csr!("satp", satp);
 
     // if there are not enough ASIDs, always flush the TLB
-    // TODO we could do better here by assigning each VPE to an ASID within 0..MAX_ASID and flush
+    // TODO we could do better here by assigning each activity to an ASID within 0..MAX_ASID and flush
     // whenever we don't change the ASID. however, the Rocket Core has MAX_ASID=0, so that it's not
     // worth it right now.
     if MAX_ASID.get() != 0xFFFF {

@@ -20,7 +20,7 @@
 #include <m3/com/MemGate.h>
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 #include <memory>
 
@@ -49,15 +49,15 @@ public:
         uint64_t compTime;
     } PACKED;
 
-    explicit InDirAccel(std::unique_ptr<VPE> &vpe, RecvGate &reply_gate)
+    explicit InDirAccel(std::unique_ptr<Activity> &act, RecvGate &reply_gate)
         : _mgate(),
           _rgate(RecvGate::create(getnextlog2(MSG_SIZE), getnextlog2(MSG_SIZE))),
           _sgate(SendGate::create(&_rgate, SendGateArgs().credits(1)
                                                          .reply_gate(&reply_gate))),
-          _rep(vpe->epmng().acquire(EP_RECV, _rgate.slots())),
-          _mep(vpe->epmng().acquire(EP_OUT)),
-          _vpe(vpe),
-          _mem(_vpe->get_mem(MEM_OFFSET, vpe->pe_desc().mem_size(), MemGate::RW)) {
+          _rep(act->epmng().acquire(EP_RECV, _rgate.slots())),
+          _mep(act->epmng().acquire(EP_OUT)),
+          _act(act),
+          _mem(_act->get_mem(MEM_OFFSET, act->tile_desc().mem_size(), MemGate::RW)) {
         // activate EP
         _rgate.activate_on(*_rep, nullptr, RECV_ADDR);
     }
@@ -92,7 +92,7 @@ private:
     SendGate _sgate;
     std::unique_ptr<EP> _rep;
     std::unique_ptr<EP> _mep;
-    std::unique_ptr<VPE> &_vpe;
+    std::unique_ptr<Activity> &_act;
     MemGate _mem;
 };
 

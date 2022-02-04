@@ -4,7 +4,7 @@
         <app args="root">
             <app args="disk -d -i -f $hd.path" daemon="1">
                 <serv name="disk" />
-                <pes type="idedev" />
+                <tiles type="idedev" />
             </app>
             <dom>
                 <app args="m3fs -b 2 disk" daemon="1">

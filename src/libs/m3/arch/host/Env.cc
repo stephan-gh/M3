@@ -25,7 +25,7 @@
 #include <m3/stream/Standard.h>
 #include <m3/Syscalls.h>
 #include <m3/WorkLoop.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 #include <sys/mman.h>
 #include <fstream>
@@ -47,15 +47,15 @@ static void stop_tcu() {
 
 static void init_syscall() {
     word_t arg = Env::eps_start();
-    Syscalls::vpe_ctrl(KIF::SEL_VPE, KIF::Syscall::VCTRL_INIT, arg);
+    Syscalls::activity_ctrl(KIF::SEL_ACT, KIF::Syscall::VCTRL_INIT, arg);
 }
 
 void Env::on_exit_func(int status, void *) {
     // don't use Syscalls here, because Syscalls::_sendgate might already have been destroyed
     MsgBuf req_buf;
-    auto &req = req_buf.cast<KIF::Syscall::VPECtrl>();
-    req.opcode = KIF::Syscall::VPE_CTRL;
-    req.vpe_sel = KIF::SEL_VPE;
+    auto &req = req_buf.cast<KIF::Syscall::ActivityCtrl>();
+    req.opcode = KIF::Syscall::ACT_CTRL;
+    req.act_sel = KIF::SEL_ACT;
     req.op = static_cast<xfer_t>(KIF::Syscall::VCTRL_STOP);
     req.arg = static_cast<xfer_t>(status);
     TCU::get().send(env()->first_std_ep + TCU::SYSC_SEP_OFF, req_buf, 0, TCU::INVALID_EP);
@@ -73,16 +73,16 @@ static void load_params(Env *e) {
     if(!in.good())
         PANIC("Unable to read " << path);
 
-    peid_t pe;
+    tileid_t tile;
     epid_t ep;
     word_t credits;
     capsel_t first_sel;
     capsel_t kmem_sel;
     label_t lbl;
     std::string shm_prefix;
-    in >> shm_prefix >> pe >> first_sel >> kmem_sel >> lbl >> ep >> credits;
+    in >> shm_prefix >> tile >> first_sel >> kmem_sel >> lbl >> ep >> credits;
 
-    e->set_params(pe, shm_prefix, lbl, ep, credits, first_sel, kmem_sel);
+    e->set_params(tile, shm_prefix, lbl, ep, credits, first_sel, kmem_sel);
 }
 
 WEAK void Env::init() {
@@ -123,13 +123,13 @@ void Env::init_tcu() {
 void Env::reset() {
     load_params(this);
 
-    Serial::init(executable(), env()->pe_id);
+    Serial::init(executable(), env()->tile_id);
 
     TCU::get().reset();
 
     init_tcu();
 
-    // we have to call init for this VPE in case we hadn't done that yet
+    // we have to call init for this activity in case we hadn't done that yet
     init_syscall();
 }
 

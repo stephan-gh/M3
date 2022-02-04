@@ -29,8 +29,8 @@ void Heap::init_arch() {
     uintptr_t begin = Math::round_up<uintptr_t>(reinterpret_cast<uintptr_t>(&_bss_end), PAGE_SIZE);
 
     uintptr_t end;
-    if(PEDesc(env()->pe_desc).has_memory())
-        end = PEDesc(env()->pe_desc).stack_space().first;
+    if(TileDesc(env()->tile_desc).has_memory())
+        end = TileDesc(env()->tile_desc).stack_space().first;
     else {
         // assert(env()->heap_size != 0);
         end = begin + env()->heap_size;

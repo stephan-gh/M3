@@ -25,7 +25,7 @@ use crate::symbols;
 
 const STACK_SIZE: u64 = 0x4000;
 
-struct PE<'n> {
+struct Tile<'n> {
     id: usize,
     bins: BTreeMap<&'n str, Binary<'n>>,
     last_bin: &'n str,
@@ -78,12 +78,12 @@ impl<'n> fmt::Display for ThreadId<'n> {
 
 fn get_func_addr(line: &str) -> Option<(u64, usize, Option<usize>)> {
     // get the first parts:
-    // 7802000: pe00.cpu: T0 : 0x226f3a @ heap_init+26    : mov rcx, DS:[rip + 0x295a7]
-    // ^------^ ^-------^ ^^ ^ ^------^ ^---------------------------------------------^
+    // 7802000: T00.cpu: T0 : 0x226f3a @ heap_init+26    : mov rcx, DS:[rip + 0x295a7]
+    // ^------^ ^------^ ^^ ^ ^------^ ^---------------------------------------------^
     let mut parts = line.trim_start().splitn(6, ' ');
     let time = parts.next()?;
     let cpu = parts.next()?;
-    if !cpu.starts_with("pe") {
+    if !cpu.starts_with("tile") {
         return None;
     }
 
@@ -101,12 +101,12 @@ fn get_func_addr(line: &str) -> Option<(u64, usize, Option<usize>)> {
     Some((time_int, cpu_int, addr_int))
 }
 
-impl<'n> PE<'n> {
+impl<'n> Tile<'n> {
     fn new(bin: Binary<'n>, id: usize) -> Self {
         let mut bins = BTreeMap::new();
         let name = bin.name;
         bins.insert(bin.name, bin);
-        PE {
+        Tile {
             id,
             bins,
             last_bin: name,
@@ -128,12 +128,12 @@ impl<'n> PE<'n> {
 
     fn suspend(&mut self, now: u64) {
         self.susp_start = now;
-        debug!("{}: PE{}: sleep begin", now, self.id);
+        debug!("{}: tile{}: sleep begin", now, self.id);
     }
 
     fn resume(&mut self, now: u64) {
         let duration = now - self.susp_start;
-        debug!("{}: PE{}: sleep end ({})", now, self.id, duration);
+        debug!("{}: tile{}: sleep end ({})", now, self.id, duration);
 
         if self.susp_start > 0 {
             for bin in self.bins.values_mut() {
@@ -151,7 +151,7 @@ impl<'n> PE<'n> {
     }
 
     fn snapshot(&self) {
-        println!("PE{}:", self.id);
+        println!("Tile{}:", self.id);
         for bin in self.bins.values() {
             for (tid, thread) in &bin.stacks {
                 // ignore empty threads
@@ -302,7 +302,7 @@ fn handle_return(
     mode: crate::Mode,
     wr: &mut StdoutLock,
     time: u64,
-    pe: usize,
+    tile: usize,
     sym: &symbols::Symbol,
     thread: &mut Thread,
     tid: &ThreadId,
@@ -311,7 +311,7 @@ fn handle_return(
     if !thread.stack.is_empty() {
         // generate stack
         let stack = if mode == crate::Mode::FlameGraph {
-            let mut stack: String = format!("PE{}", pe);
+            let mut stack: String = format!("Tile{}", tile);
             stack.push(';');
             stack.push_str(&format!("{}", tid));
             for f in thread.stack.iter() {
@@ -349,8 +349,8 @@ pub fn generate(
     syms: &BTreeMap<usize, symbols::Symbol>,
 ) -> Result<(), Error> {
     let mut last_time = 0;
-    let mut max_peid = 0;
-    let mut pes: HashMap<usize, PE> = HashMap::new();
+    let mut max_tileid = 0;
+    let mut tiles: HashMap<usize, Tile> = HashMap::new();
 
     let stdin = io::stdin();
     let mut reader = io::BufReader::new(stdin.lock());
@@ -360,12 +360,12 @@ pub fn generate(
 
     let mut line = String::new();
     while reader.read_line(&mut line)? != 0 {
-        if let Some((time, pe, maybe_addr)) = get_func_addr(&line) {
+        if let Some((time, tile, maybe_addr)) = get_func_addr(&line) {
             if mode == crate::Mode::Snapshot && time >= snapshot_time {
                 println!("Snapshot at timestamp {}:", time);
-                for id in 0..=max_peid {
-                    if let Some(pe) = pes.get(&id) {
-                        pe.snapshot();
+                for id in 0..=max_tileid {
+                    if let Some(tile) = tiles.get(&id) {
+                        tile.snapshot();
                     }
                 }
                 break;
@@ -375,12 +375,12 @@ pub fn generate(
             last_time = time;
 
             if maybe_addr.is_none() {
-                if let Some(cur_pe) = pes.get_mut(&pe) {
+                if let Some(cur_tile) = tiles.get_mut(&tile) {
                     if line.contains("tcu.connector: Suspending core") {
-                        cur_pe.suspend(time);
+                        cur_tile.suspend(time);
                     }
                     else if line.contains("tcu.connector: Waking up core") {
-                        cur_pe.resume(time);
+                        cur_tile.resume(time);
                     }
                 }
 
@@ -390,28 +390,37 @@ pub fn generate(
 
             let addr = maybe_addr.unwrap();
             if let Some(sym) = symbols::resolve(syms, addr) {
-                // detect PEs
-                if pes.get(&pe).is_none() {
-                    max_peid = cmp::max(max_peid, pe);
-                    pes.insert(pe, PE::new(Binary::new(&sym.name), pe));
+                // detect tiles
+                if tiles.get(&tile).is_none() {
+                    max_tileid = cmp::max(max_tileid, tile);
+                    tiles.insert(tile, Tile::new(Binary::new(&sym.name), tile));
                 }
-                let cur_pe = pes.get_mut(&pe).unwrap();
+                let cur_tile = tiles.get_mut(&tile).unwrap();
 
-                // detect binary changes (e.g., pemux to app)
-                let bin_switch = sym.bin != cur_pe.last_bin;
+                // detect binary changes (e.g., tilemux to app)
+                let bin_switch = sym.bin != cur_tile.last_bin;
                 let mut isr_exit = false;
                 if bin_switch {
                     // detect ISR exits
-                    if cur_pe.last_isr_exit {
-                        let obin = cur_pe.bins.get_mut::<str>(&cur_pe.last_bin).unwrap();
+                    if cur_tile.last_isr_exit {
+                        let obin = cur_tile.bins.get_mut::<str>(&cur_tile.last_bin).unwrap();
                         let othread = obin.stacks.get_mut(&obin.cur_tid).unwrap();
-                        handle_return(mode, &mut wr, time, pe, sym, othread, &obin.cur_tid, false)?;
+                        handle_return(
+                            mode,
+                            &mut wr,
+                            time,
+                            tile,
+                            sym,
+                            othread,
+                            &obin.cur_tid,
+                            false,
+                        )?;
                         isr_exit = true;
                     }
-                    cur_pe.binary_switch(&sym, time);
+                    cur_tile.binary_switch(&sym, time);
                 }
 
-                let cur_bin = cur_pe.bins.get_mut::<str>(&sym.bin).unwrap();
+                let cur_bin = cur_tile.bins.get_mut::<str>(&sym.bin).unwrap();
 
                 // detect the stack pointer
                 if cur_bin.cur_tid.stack == 0 && instr_is_sp_assign(isa, &line) {
@@ -447,11 +456,11 @@ pub fn generate(
                         warn!("{}: return with empty stack", time);
                     }
                     else {
-                        handle_return(mode, &mut wr, time, pe, sym, cur_thread, cur_tid, true)?;
+                        handle_return(mode, &mut wr, time, tile, sym, cur_thread, cur_tid, true)?;
                     }
                 }
 
-                cur_pe.last_isr_exit = is_isr_exit(isa, &line);
+                cur_tile.last_isr_exit = is_isr_exit(isa, &line);
                 cur_thread.last_func = sym.addr;
             }
             else {

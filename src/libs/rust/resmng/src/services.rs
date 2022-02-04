@@ -22,9 +22,9 @@ use m3::errors::{Code, Error};
 use m3::kif;
 use m3::log;
 use m3::mem::MsgBuf;
-use m3::pes::VPE;
 use m3::syscalls;
 use m3::tcu::Label;
+use m3::tiles::Activity;
 
 use core::cmp::Reverse;
 
@@ -92,7 +92,7 @@ impl Service {
         child: childs::Id,
         sessions: u32,
     ) -> Result<Self, Error> {
-        let dst = VPE::cur().alloc_sels(2);
+        let dst = Activity::cur().alloc_sels(2);
         let event = events::alloc_event();
         let id = serv.id;
         let name = serv.name.clone();

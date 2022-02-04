@@ -29,30 +29,30 @@ use crate::cap::{
 };
 use crate::com::Service;
 use crate::mem;
-use crate::pes::{pemng, VPEFlags, VPEMng, VPE};
 use crate::platform;
 use crate::syscalls::{get_request, reply_success, send_reply};
+use crate::tiles::{tilemng, Activity, ActivityFlags, ActivityMng};
 
 #[inline(never)]
-pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+pub fn create_mgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &syscalls::CreateMGate = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
-    let vpe_sel = req.vpe_sel as CapSel;
+    let act_sel = req.act_sel as CapSel;
     let addr = req.addr as goff;
     let size = req.size as goff;
     let perms = Perm::from_bits_truncate(req.perms as u32);
 
     sysc_log!(
-        vpe,
-        "create_mgate(dst={}, vpe={}, addr={:#x}, size={:#x}, perms={:?})",
+        act,
+        "create_mgate(dst={}, act={}, addr={:#x}, size={:#x}, perms={:?})",
         dst_sel,
-        vpe_sel,
+        act_sel,
         addr,
         size,
         perms,
     );
 
-    if !vpe.obj_caps().borrow().unused(dst_sel) {
+    if !act.obj_caps().borrow().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
     if (addr & cfg::PAGE_MASK as goff) != 0 || (size & cfg::PAGE_MASK as goff) != 0 {
@@ -62,11 +62,11 @@ pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Ver
         );
     }
 
-    let tgt_vpe = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
+    let tgt_act = get_kobj!(act, act_sel, Activity).upgrade().unwrap();
 
     let sel = (addr / cfg::PAGE_SIZE as goff) as CapSel;
-    let glob = if platform::pe_desc(tgt_vpe.pe_id()).has_virtmem() {
-        let map_caps = tgt_vpe.map_caps().borrow();
+    let glob = if platform::tile_desc(tgt_act.tile_id()).has_virtmem() {
+        let map_caps = tgt_act.map_caps().borrow();
         let map_cap = map_caps
             .get(sel)
             .ok_or_else(|| VerboseError::new(Code::InvArgs, "Invalid capability".to_string()))?;
@@ -85,29 +85,29 @@ pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Ver
         }
 
         let off =
-            crate::ktcu::glob_to_phys_remote(tgt_vpe.pe_id(), map_obj.global(), map_obj.flags())?;
-        GlobAddr::new_with(tgt_vpe.pe_id(), off)
+            crate::ktcu::glob_to_phys_remote(tgt_act.tile_id(), map_obj.global(), map_obj.flags())?;
+        GlobAddr::new_with(tgt_act.tile_id(), off)
     }
     else {
         if size == 0 || addr + size >= cfg::MEM_CAP_END as goff {
             sysc_err!(Code::InvArgs, "Region empty or out of bounds");
         }
 
-        GlobAddr::new_with(tgt_vpe.pe_id(), addr)
+        GlobAddr::new_with(tgt_act.tile_id(), addr)
     };
 
     let mem = mem::Allocation::new(glob, size);
     let cap = Capability::new(dst_sel, KObject::MGate(MGateObject::new(mem, perms, true)));
 
-    if platform::pe_desc(tgt_vpe.pe_id()).has_virtmem() {
-        let map_caps = tgt_vpe.map_caps().borrow_mut();
-        try_kmem_quota!(vpe
+    if platform::tile_desc(tgt_act.tile_id()).has_virtmem() {
+        let map_caps = tgt_act.map_caps().borrow_mut();
+        try_kmem_quota!(act
             .obj_caps()
             .borrow_mut()
             .insert_as_child_from(cap, map_caps, sel));
     }
     else {
-        try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(cap, vpe_sel));
+        try_kmem_quota!(act.obj_caps().borrow_mut().insert_as_child(cap, act_sel));
     }
 
     reply_success(msg);
@@ -115,23 +115,23 @@ pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Ver
 }
 
 #[inline(never)]
-pub fn create_rgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+pub fn create_rgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &syscalls::CreateRGate = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let order = req.order as u32;
     let msg_order = req.msgorder as u32;
 
     sysc_log!(
-        vpe,
+        act,
         "create_rgate(dst={}, size={:#x}, msg_size={:#x})",
         dst_sel,
         1u32.checked_shl(order).unwrap_or(0),
         1u32.checked_shl(msg_order).unwrap_or(0)
     );
 
-    let mut vpe_caps = vpe.obj_caps().borrow_mut();
+    let mut act_caps = act.obj_caps().borrow_mut();
 
-    if !vpe_caps.unused(dst_sel) {
+    if !act_caps.unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
     if msg_order.checked_add(order).is_none()
@@ -142,7 +142,7 @@ pub fn create_rgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Ver
         sysc_err!(Code::InvArgs, "Invalid size");
     }
 
-    try_kmem_quota!(vpe_caps.insert(Capability::new(
+    try_kmem_quota!(act_caps.insert(Capability::new(
         dst_sel,
         KObject::RGate(RGateObject::new(order, msg_order, false)),
     )));
@@ -152,7 +152,7 @@ pub fn create_rgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Ver
 }
 
 #[inline(never)]
-pub fn create_sgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+pub fn create_sgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &syscalls::CreateSGate = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let rgate_sel = req.rgate_sel as CapSel;
@@ -160,7 +160,7 @@ pub fn create_sgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Ver
     let credits = req.credits as u32;
 
     sysc_log!(
-        vpe,
+        act,
         "create_sgate(dst={}, rgate={}, label={:#x}, credits={})",
         dst_sel,
         rgate_sel,
@@ -168,28 +168,28 @@ pub fn create_sgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Ver
         credits
     );
 
-    let mut vpe_caps = vpe.obj_caps().borrow_mut();
+    let mut act_caps = act.obj_caps().borrow_mut();
 
-    if !vpe_caps.unused(dst_sel) {
+    if !act_caps.unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
 
     let cap = {
-        let rgate = get_kobj_ref!(vpe_caps, rgate_sel, RGate);
+        let rgate = get_kobj_ref!(act_caps, rgate_sel, RGate);
         Capability::new(
             dst_sel,
             KObject::SGate(SGateObject::new(&rgate, label, credits)),
         )
     };
 
-    try_kmem_quota!(vpe_caps.insert_as_child(cap, rgate_sel));
+    try_kmem_quota!(act_caps.insert_as_child(cap, rgate_sel));
 
     reply_success(msg);
     Ok(())
 }
 
 #[inline(never)]
-pub fn create_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+pub fn create_srv(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &syscalls::CreateSrv = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let rgate_sel = req.rgate_sel as CapSel;
@@ -198,7 +198,7 @@ pub fn create_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verbo
         .map_err(|_| VerboseError::new(Code::InvArgs, "Invalid name".to_string()))?;
 
     sysc_log!(
-        vpe,
+        act,
         "create_srv(dst={}, rgate={}, creator={}, name={})",
         dst_sel,
         rgate_sel,
@@ -206,33 +206,33 @@ pub fn create_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verbo
         name
     );
 
-    if !vpe.obj_caps().borrow().unused(dst_sel) {
+    if !act.obj_caps().borrow().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
     if name.is_empty() {
         sysc_err!(Code::InvArgs, "Invalid server name");
     }
 
-    let mut vpe_caps = vpe.obj_caps().borrow_mut();
+    let mut act_caps = act.obj_caps().borrow_mut();
 
     let cap = {
-        let rgate = get_kobj_ref!(vpe_caps, rgate_sel, RGate);
+        let rgate = get_kobj_ref!(act_caps, rgate_sel, RGate);
         if !rgate.activated() {
             sysc_err!(Code::InvArgs, "RGate is not activated");
         }
 
-        let serv = Service::new(vpe, name.to_string(), rgate.clone());
+        let serv = Service::new(act, name.to_string(), rgate.clone());
         Capability::new(dst_sel, KObject::Serv(ServObject::new(serv, true, creator)))
     };
 
-    try_kmem_quota!(vpe_caps.insert(cap));
+    try_kmem_quota!(act_caps.insert(cap));
 
     reply_success(msg);
     Ok(())
 }
 
 #[inline(never)]
-pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+pub fn create_sess(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &syscalls::CreateSess = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let srv_sel = req.srv_sel as CapSel;
@@ -241,7 +241,7 @@ pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verb
     let auto_close = req.auto_close != 0;
 
     sysc_log!(
-        vpe,
+        act,
         "create_sess(dst={}, srv={}, creator={}, ident={:#x}, auto_close={})",
         dst_sel,
         srv_sel,
@@ -250,7 +250,7 @@ pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verb
         auto_close
     );
 
-    let mut obj_caps = vpe.obj_caps().borrow_mut();
+    let mut obj_caps = act.obj_caps().borrow_mut();
     if !obj_caps.unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
@@ -274,24 +274,27 @@ pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verb
 }
 
 #[inline(never)]
-pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
-    let req: &syscalls::CreateVPE = get_request(msg)?;
+pub fn create_activity_async(
+    act: &Rc<Activity>,
+    msg: &'static tcu::Message,
+) -> Result<(), VerboseError> {
+    let req: &syscalls::CreateActivity = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
-    let pe_sel = req.pe_sel as CapSel;
+    let tile_sel = req.tile_sel as CapSel;
     let kmem_sel = req.kmem_sel as CapSel;
     let name = core::str::from_utf8(&req.name[0..req.namelen as usize])
         .map_err(|_| VerboseError::new(Code::InvArgs, "Invalid name".to_string()))?;
 
     sysc_log!(
-        vpe,
-        "create_vpe(dst={}, name={}, pe={}, kmem={})",
+        act,
+        "create_activity(dst={}, name={}, tile={}, kmem={})",
         dst_sel,
         name,
-        pe_sel,
+        tile_sel,
         kmem_sel
     );
 
-    if !vpe
+    if !act
         .obj_caps()
         .borrow()
         .range_unused(&CapRngDesc::new(CapType::OBJECT, dst_sel, 3))
@@ -307,60 +310,66 @@ pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
         sysc_err!(Code::InvArgs, "Invalid name");
     }
 
-    let pe = get_kobj!(vpe, pe_sel, PE);
-    if !pe.has_quota(tcu::STD_EPS_COUNT as u32) {
+    let tile = get_kobj!(act, tile_sel, Tile);
+    if !tile.has_quota(tcu::STD_EPS_COUNT as u32) {
         sysc_err!(
             Code::InvArgs,
-            "PE cap has insufficient EPs (have {}, need {})",
-            pe.ep_quota().left(),
+            "Tile cap has insufficient EPs (have {}, need {})",
+            tile.ep_quota().left(),
             tcu::STD_EPS_COUNT
         );
     }
 
-    let kmem = get_kobj!(vpe, kmem_sel, KMem);
+    let kmem = get_kobj!(act, kmem_sel, KMem);
     // TODO kmem quota stuff
 
     // find contiguous space for standard EPs
-    let pe_id = pe.pe();
-    let pemux = pemng::pemux(pe_id);
-    let eps = match pemux.find_eps(tcu::STD_EPS_COUNT as u32) {
+    let tile_id = tile.tile();
+    let tilemux = tilemng::tilemux(tile_id);
+    let eps = match tilemux.find_eps(tcu::STD_EPS_COUNT as u32) {
         Ok(eps) => eps,
         Err(e) => sysc_err!(e.code(), "No free range for standard EPs"),
     };
-    if pemux.has_vpes() && !platform::pe_desc(pe.pe()).has_virtmem() {
-        sysc_err!(Code::NotSup, "Virtual memory is required for PE sharing");
+    if tilemux.has_activities() && !platform::tile_desc(tile.tile()).has_virtmem() {
+        sysc_err!(Code::NotSup, "Virtual memory is required for tile sharing");
     }
-    drop(pemux);
+    drop(tilemux);
 
-    // create VPE
-    let nvpe = match VPEMng::get().create_vpe_async(name, pe, eps, kmem, VPEFlags::empty()) {
-        Ok(nvpe) => nvpe,
-        Err(e) => sysc_err!(e.code(), "Unable to create VPE"),
+    // create activity
+    let nact = match ActivityMng::get().create_activity_async(
+        name,
+        tile,
+        eps,
+        kmem,
+        ActivityFlags::empty(),
+    ) {
+        Ok(nact) => nact,
+        Err(e) => sysc_err!(e.code(), "Unable to create Activity"),
     };
 
-    // give VPE cap to the parent
-    let cap = Capability::new(dst_sel, KObject::VPE(Rc::downgrade(&nvpe)));
-    try_kmem_quota!(vpe.obj_caps().borrow_mut().insert(cap));
+    // give activity cap to the parent
+    let cap = Capability::new(dst_sel, KObject::Activity(Rc::downgrade(&nact)));
+    try_kmem_quota!(act.obj_caps().borrow_mut().insert(cap));
 
     // create EP caps for the pager EPs
-    if nvpe.pe_desc().has_virtmem() {
-        let nvpe_rc = Rc::downgrade(&nvpe);
+    if nact.tile_desc().has_virtmem() {
+        let nact_rc = Rc::downgrade(&nact);
         for (i, ep) in [eps + tcu::PG_SEP_OFF, eps + tcu::PG_REP_OFF]
             .iter()
             .enumerate()
         {
             let scap = Capability::new(
                 dst_sel + 1 + i as CapSel,
-                KObject::EP(EPObject::new(true, nvpe_rc.clone(), *ep, 0, nvpe.pe())),
+                KObject::EP(EPObject::new(true, nact_rc.clone(), *ep, 0, nact.tile())),
             );
-            try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(scap, dst_sel));
+            try_kmem_quota!(act.obj_caps().borrow_mut().insert_as_child(scap, dst_sel));
         }
     }
 
     let mut kreply = MsgBuf::borrow_def();
-    kreply.set(syscalls::CreateVPEReply {
+    kreply.set(syscalls::CreateActivityReply {
         error: 0,
-        id: nvpe.id() as u64,
+        id: nact.id() as u64,
         eps_start: eps as u64,
     });
     send_reply(msg, &kreply);
@@ -369,51 +378,54 @@ pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
 }
 
 #[inline(never)]
-pub fn create_sem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+pub fn create_sem(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &syscalls::CreateSem = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let value = req.value as u32;
 
-    sysc_log!(vpe, "create_sem(dst={}, value={})", dst_sel, value);
+    sysc_log!(act, "create_sem(dst={}, value={})", dst_sel, value);
 
-    if !vpe.obj_caps().borrow().unused(dst_sel) {
+    if !act.obj_caps().borrow().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
 
     let cap = Capability::new(dst_sel, KObject::Sem(SemObject::new(value)));
-    try_kmem_quota!(vpe.obj_caps().borrow_mut().insert(cap));
+    try_kmem_quota!(act.obj_caps().borrow_mut().insert(cap));
 
     reply_success(msg);
     Ok(())
 }
 
 #[inline(never)]
-pub fn create_map_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+pub fn create_map_async(
+    act: &Rc<Activity>,
+    msg: &'static tcu::Message,
+) -> Result<(), VerboseError> {
     let req: &syscalls::CreateMap = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let mgate_sel = req.mgate_sel as CapSel;
-    let vpe_sel = req.vpe_sel as CapSel;
+    let act_sel = req.act_sel as CapSel;
     let first = req.first as CapSel;
     let pages = req.pages as CapSel;
     let perms = Perm::from_bits_truncate(req.perms as u32);
 
     sysc_log!(
-        vpe,
-        "create_map(dst={}, vpe={}, mgate={}, first={}, pages={}, perms={:?})",
+        act,
+        "create_map(dst={}, act={}, mgate={}, first={}, pages={}, perms={:?})",
         dst_sel,
-        vpe_sel,
+        act_sel,
         mgate_sel,
         first,
         pages,
         perms
     );
 
-    let dst_vpe = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
-    if !platform::pe_desc(dst_vpe.pe_id()).has_virtmem() {
-        sysc_err!(Code::InvArgs, "PE has no virtual-memory support");
+    let dst_act = get_kobj!(act, act_sel, Activity).upgrade().unwrap();
+    if !platform::tile_desc(dst_act.tile_id()).has_virtmem() {
+        sysc_err!(Code::InvArgs, "Tile has no virtual-memory support");
     }
 
-    let mgate = get_kobj!(vpe, mgate_sel, MGate);
+    let mgate = get_kobj!(act, mgate_sel, MGate);
     if (mgate.addr().raw() & cfg::PAGE_MASK as goff) != 0
         || (mgate.size() & cfg::PAGE_MASK as goff) != 0
     {
@@ -443,7 +455,7 @@ pub fn create_map_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
 
     // retrieve/create map object
     let (map_obj, exists) = {
-        let map_caps = dst_vpe.map_caps().borrow();
+        let map_caps = dst_act.map_caps().borrow();
         let map_cap: Option<&Capability> = map_caps.get(dst_sel);
         match map_cap {
             Some(c) => {
@@ -469,7 +481,7 @@ pub fn create_map_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
 
     // create/update the PTEs
     if let KObject::Map(m) = &map_obj {
-        if let Err(e) = m.map_async(&dst_vpe, virt, phys, pages as usize, PageFlags::from(perms)) {
+        if let Err(e) = m.map_async(&dst_act, virt, phys, pages as usize, PageFlags::from(perms)) {
             sysc_err!(e.code(), "Unable to map memory");
         }
     }
@@ -477,9 +489,9 @@ pub fn create_map_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
     // create map cap, if not yet existing
     if !exists {
         let cap = Capability::new_range(SelRange::new_range(dst_sel, pages), map_obj);
-        try_kmem_quota!(dst_vpe.map_caps().borrow_mut().insert_as_child_from(
+        try_kmem_quota!(dst_act.map_caps().borrow_mut().insert_as_child_from(
             cap,
-            vpe.obj_caps().borrow_mut(),
+            act.obj_caps().borrow_mut(),
             mgate_sel,
         ));
     }

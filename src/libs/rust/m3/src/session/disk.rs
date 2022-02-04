@@ -20,8 +20,8 @@ use crate::com::{MemGate, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::int_enum;
 use crate::kif::{CapRngDesc, CapType};
-use crate::pes::VPE;
 use crate::session::ClientSession;
+use crate::tiles::Activity;
 use crate::{goff, math};
 
 use core::{cmp, fmt};
@@ -99,9 +99,9 @@ impl Disk {
         rgate.activate()?;
 
         // get send gate for our requests
-        let crd = CapRngDesc::new(CapType::OBJECT, VPE::cur().alloc_sel(), 1);
+        let crd = CapRngDesc::new(CapType::OBJECT, Activity::cur().alloc_sel(), 1);
         sess.obtain_for(
-            VPE::cur().sel(),
+            Activity::cur().sel(),
             crd,
             |_slice_sink| {},
             |_slice_source| Ok(()),

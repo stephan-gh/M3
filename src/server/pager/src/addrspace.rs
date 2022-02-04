@@ -23,12 +23,12 @@ use m3::goff;
 use m3::kif::{PageFlags, Perm};
 use m3::log;
 use m3::math;
-use m3::pes::VPE;
 use m3::reply_vmsg;
 use m3::serialize::Source;
 use m3::server::SessId;
 use m3::session::{MapFlags, ServerSession};
 use m3::tcu::Label;
+use m3::tiles::Activity;
 use resmng::childs;
 
 use crate::dataspace::DataSpace;
@@ -86,19 +86,19 @@ impl AddrSpace {
     pub fn init(
         &mut self,
         child: Option<childs::Id>,
-        vpe: Option<Selector>,
+        act: Option<Selector>,
     ) -> Result<Selector, Error> {
         if self.owner.is_some() {
             Err(Error::new(Code::InvArgs))
         }
         else {
-            let vpe = vpe.unwrap_or_else(|| VPE::cur().alloc_sel());
+            let act = act.unwrap_or_else(|| Activity::cur().alloc_sel());
             log!(
                 crate::LOG_DEF,
-                "[{}] pager::init(child={:?}, vpe={})",
+                "[{}] pager::init(child={:?}, act={})",
                 self.id(),
                 child,
-                vpe
+                act
             );
             if let Some(c) = child {
                 assert!(self.child.is_none());
@@ -107,8 +107,8 @@ impl AddrSpace {
             else {
                 assert!(self.child.is_some());
             }
-            self.owner = Some(vpe);
-            Ok(vpe)
+            self.owner = Some(act);
+            Ok(act)
         }
     }
 
@@ -212,7 +212,7 @@ impl AddrSpace {
         let flags = MapFlags::from_bits_truncate(args.pop_word()? as u32);
         let off = args.pop_word()? as goff;
 
-        let sel = VPE::cur().alloc_sel();
+        let sel = Activity::cur().alloc_sel();
         self.map_ds_with(virt, len, off, perm, flags, sel)
             .map(|virt| (sel, virt))
     }
@@ -331,7 +331,7 @@ impl AddrSpace {
         );
 
         // immediately insert a region, so that we don't allocate new memory on PFs
-        let sel = VPE::cur().alloc_sel();
+        let sel = Activity::cur().alloc_sel();
         ds.populate(sel);
 
         self.ds.push(ds);
@@ -409,7 +409,7 @@ impl AddrSpace {
 impl Drop for AddrSpace {
     fn drop(&mut self) {
         // mark all regions in all dataspaces as not-mapped so that we don't needlessly revoke them.
-        // the VPE is destroyed anyway, therefore we don't need to do that.
+        // the activity is destroyed anyway, therefore we don't need to do that.
         for ds in &mut self.ds {
             ds.kill();
         }

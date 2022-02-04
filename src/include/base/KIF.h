@@ -51,19 +51,19 @@ struct KIF {
      */
     static const size_t MAX_STR_SIZE    = 64;
 
-    static const capsel_t SEL_PE        = 0;
+    static const capsel_t SEL_TILE        = 0;
     static const capsel_t SEL_KMEM      = 1;
-    static const capsel_t SEL_VPE       = 2;
+    static const capsel_t SEL_ACT       = 2;
 
     /**
      * The first selector for the endpoint capabilities
      */
-    static const uint FIRST_FREE_SEL    = SEL_VPE + 1;
+    static const uint FIRST_FREE_SEL    = SEL_ACT + 1;
 
     /**
-     * The VPE id of PEMux
+     * The activity id of TileMux
      */
-    static const uint PEMUX_VPE_ID      = 0xFFFF;
+    static const uint TILEMUX_ACT_ID    = 0xFFFF;
 
     /**
      * The permissions for MemGate
@@ -88,10 +88,10 @@ struct KIF {
         static const uint RWX = R | W | X;
     };
 
-    enum VPEFlags {
-        // whether the PE can be shared with others
+    enum ActivityFlags {
+        // whether the Tile can be shared with others
         MUXABLE     = 1,
-        // whether this VPE gets pinned on one PE
+        // whether this activity gets pinned on one Tile
         PINNED      = 2,
     };
 
@@ -165,24 +165,24 @@ struct KIF {
             CREATE_RGATE,
             CREATE_SGATE,
             CREATE_MAP,
-            CREATE_VPE,
+            CREATE_ACT,
             CREATE_SEM,
             ALLOC_EPS,
 
             // capability operations
             ACTIVATE,
             SET_PMP,
-            VPE_CTRL,
-            VPE_WAIT,
+            ACT_CTRL,
+            ACT_WAIT,
             DERIVE_MEM,
             DERIVE_KMEM,
-            DERIVE_PE,
+            DERIVE_TILE,
             DERIVE_SRV,
             GET_SESS,
             MGATE_REGION,
             KMEM_QUOTA,
-            PE_QUOTA,
-            PE_SET_QUOTA,
+            TILE_QUOTA,
+            TILE_SET_QUOTA,
             SEM_CTRL,
 
             // capability exchange
@@ -198,7 +198,7 @@ struct KIF {
             COUNT
         };
 
-        enum VPEOp {
+        enum ActivityOp {
             VCTRL_INIT,
             VCTRL_START,
             VCTRL_STOP,
@@ -227,7 +227,7 @@ struct KIF {
 
         struct CreateMGate : public DefaultRequest {
             xfer_t dst_sel;
-            xfer_t vpe_sel;
+            xfer_t act_sel;
             xfer_t addr;
             xfer_t size;
             xfer_t perms;
@@ -248,22 +248,22 @@ struct KIF {
 
         struct CreateMap : public DefaultRequest {
             xfer_t dst_sel;
-            xfer_t vpe_sel;
+            xfer_t act_sel;
             xfer_t mgate_sel;
             xfer_t first;
             xfer_t pages;
             xfer_t perms;
         } PACKED;
 
-        struct CreateVPE : public DefaultRequest {
+        struct CreateActivity : public DefaultRequest {
             xfer_t dst_sel;
-            xfer_t pe_sel;
+            xfer_t tile_sel;
             xfer_t kmem_sel;
             xfer_t namelen;
             char name[MAX_STR_SIZE];
         } PACKED;
 
-        struct CreateVPEReply : public DefaultReply {
+        struct CreateActivityReply : public DefaultReply {
             xfer_t id;
             xfer_t eps_start;
         } PACKED;
@@ -275,7 +275,7 @@ struct KIF {
 
         struct AllocEP : public DefaultRequest {
             xfer_t dst_sel;
-            xfer_t vpe_sel;
+            xfer_t act_sel;
             xfer_t epid;
             xfer_t replies;
         } PACKED;
@@ -292,30 +292,30 @@ struct KIF {
         } PACKED;
 
         struct SetPMP : public DefaultRequest {
-            xfer_t pe_sel;
+            xfer_t tile_sel;
             xfer_t mgate_sel;
             xfer_t epid;
         } PACKED;
 
-        struct VPECtrl : public DefaultRequest {
-            xfer_t vpe_sel;
+        struct ActivityCtrl : public DefaultRequest {
+            xfer_t act_sel;
             xfer_t op;
             xfer_t arg;
         } PACKED;
 
-        struct VPEWait : public DefaultRequest {
-            xfer_t vpe_count;
+        struct ActivityWait : public DefaultRequest {
+            xfer_t act_count;
             xfer_t event;
             xfer_t sels[48];
         } PACKED;
 
-        struct VPEWaitReply : public DefaultReply {
-            xfer_t vpe_sel;
+        struct ActivityWaitReply : public DefaultReply {
+            xfer_t act_sel;
             xfer_t exitcode;
         } PACKED;
 
         struct DeriveMem : public DefaultRequest {
-            xfer_t vpe_sel;
+            xfer_t act_sel;
             xfer_t dst_sel;
             xfer_t src_sel;
             xfer_t offset;
@@ -329,8 +329,8 @@ struct KIF {
             xfer_t quota;
         } PACKED;
 
-        struct DerivePE : public DefaultRequest {
-            xfer_t pe_sel;
+        struct DeriveTile : public DefaultRequest {
+            xfer_t tile_sel;
             xfer_t dst_sel;
             xfer_t eps;
             xfer_t time;
@@ -347,7 +347,7 @@ struct KIF {
         struct GetSession : public DefaultRequest {
             xfer_t dst_sel;
             xfer_t srv_sel;
-            xfer_t vpe_sel;
+            xfer_t act_sel;
             xfer_t sid;
         } PACKED;
 
@@ -370,11 +370,11 @@ struct KIF {
             xfer_t left;
         } PACKED;
 
-        struct PEQuota : public DefaultRequest {
-            xfer_t pe_sel;
+        struct TileQuota : public DefaultRequest {
+            xfer_t tile_sel;
         } PACKED;
 
-        struct PEQuotaReply : public DefaultReply {
+        struct TileQuotaReply : public DefaultReply {
             xfer_t eps_id;
             xfer_t eps_total;
             xfer_t eps_left;
@@ -386,8 +386,8 @@ struct KIF {
             xfer_t pts_left;
         } PACKED;
 
-        struct PESetQuota : public DefaultRequest {
-            xfer_t pe_sel;
+        struct TileSetQuota : public DefaultRequest {
+            xfer_t tile_sel;
             xfer_t time;
             xfer_t pts;
         } PACKED;
@@ -398,14 +398,14 @@ struct KIF {
         } PACKED;
 
         struct Exchange : public DefaultRequest {
-            xfer_t vpe_sel;
+            xfer_t act_sel;
             xfer_t own_caps[2];
             xfer_t other_sel;
             xfer_t obtain;
         } PACKED;
 
         struct ExchangeSess : public DefaultRequest {
-            xfer_t vpe_sel;
+            xfer_t act_sel;
             xfer_t sess_sel;
             xfer_t caps[2];
             ExchangeArgs args;
@@ -416,7 +416,7 @@ struct KIF {
         } PACKED;
 
         struct Revoke : public DefaultRequest {
-            xfer_t vpe_sel;
+            xfer_t act_sel;
             xfer_t caps[2];
             xfer_t own;
         } PACKED;
@@ -488,16 +488,16 @@ struct KIF {
     struct Upcall {
         enum Operation {
             DERIVE_SRV,
-            VPEWAIT,
+            ACTIVITY_WAIT,
         };
 
         struct DefaultUpcall : public DefaultRequest {
             xfer_t event;
         } PACKED;
 
-        struct VPEWait : public DefaultUpcall {
+        struct ActivityWait : public DefaultUpcall {
             xfer_t error;
-            xfer_t vpe_sel;
+            xfer_t act_sel;
             xfer_t exitcode;
         } PACKED;
     };

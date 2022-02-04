@@ -19,7 +19,7 @@
 #include <base/mem/AreaManager.h>
 
 #include <m3/com/MemGate.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 #include <memory>
 #include <utility>
@@ -55,7 +55,7 @@ private:
 };
 
 class RecvBufs {
-    explicit RecvBufs() : _bufs(PEDesc(env()->pe_desc).rbuf_space()) {
+    explicit RecvBufs() : _bufs(TileDesc(env()->tile_desc).rbuf_space()) {
     }
 
 public:

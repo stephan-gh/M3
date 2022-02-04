@@ -38,21 +38,21 @@ public:
                    CycleDuration comptime, Mode _mode)
         : num(_num),
           mode(_mode),
-          vpes(),
+          acts(),
           accels(),
           pipes(),
           mems() {
-        // create VPEs
+        // create activities
         for(size_t i = 0; i < num; ++i) {
             OStringStream name;
             name << "chain" << i;
 
-            if(VERBOSE) Serial::get() << "Creating VPE " << name.str() << "\n";
+            if(VERBOSE) Serial::get() << "Creating Activity " << name.str() << "\n";
 
-            pes[i] = PE::get("copy");
-            vpes[i] = std::make_unique<VPE>(pes[i], name.str());
+            tiles[i] = Tile::get("copy");
+            acts[i] = std::make_unique<Activity>(tiles[i], name.str());
 
-            accels[i] = std::make_unique<StreamAccel>(vpes[i], comptime);
+            accels[i] = std::make_unique<StreamAccel>(acts[i], comptime);
 
             if(mode == Mode::DIR_SIMPLE && i + 1 < num) {
                 mems[i] = std::make_unique<MemGate>(
@@ -70,7 +70,7 @@ public:
         for(size_t i = 0; i < num; ++i) {
             if(i > 0) {
                 if(mode == Mode::DIR_SIMPLE) {
-                    Reference<File> rd = VPE::self().files()->get(pipes[i - 1]->reader_fd());
+                    Reference<File> rd = Activity::self().files()->get(pipes[i - 1]->reader_fd());
                     accels[i]->connect_input(static_cast<GenericFile*>(rd.get()));
                 }
                 else
@@ -78,7 +78,7 @@ public:
             }
             if(i + 1 < num) {
                 if(mode == Mode::DIR_SIMPLE) {
-                    Reference<File> wr = VPE::self().files()->get(pipes[i]->writer_fd());
+                    Reference<File> wr = Activity::self().files()->get(pipes[i]->writer_fd());
                     accels[i]->connect_output(static_cast<GenericFile*>(wr.get()));
                 }
                 else
@@ -89,7 +89,7 @@ public:
 
     void start() {
         for(size_t i = 0; i < num; ++i) {
-            vpes[i]->start();
+            acts[i]->start();
             running[i] = true;
         }
     }
@@ -97,12 +97,12 @@ public:
     void add_running(capsel_t *sels, size_t *count) {
         for(size_t i = 0; i < num; ++i) {
             if(running[i])
-                sels[(*count)++] = vpes[i]->sel();
+                sels[(*count)++] = acts[i]->sel();
         }
     }
-    void terminated(capsel_t vpe, int exitcode) {
+    void terminated(capsel_t act, int exitcode) {
         for(size_t i = 0; i < num; ++i) {
-            if(running[i] && vpes[i]->sel() == vpe) {
+            if(running[i] && acts[i]->sel() == act) {
                 if(exitcode != 0) {
                     cerr << "chain" << i
                          << " terminated with exit code " << exitcode << "\n";
@@ -122,8 +122,8 @@ public:
 private:
     size_t num;
     Mode mode;
-    Reference<PE> pes[MAX_NUM];
-    std::unique_ptr<VPE> vpes[MAX_NUM];
+    Reference<Tile> tiles[MAX_NUM];
+    std::unique_ptr<Activity> acts[MAX_NUM];
     std::unique_ptr<StreamAccel> accels[MAX_NUM];
     std::unique_ptr<IndirectPipe> pipes[MAX_NUM];
     std::unique_ptr<MemGate> mems[MAX_NUM];
@@ -147,9 +147,9 @@ void chain_direct(Reference<File> in, Reference<File> out, size_t num,
         capsel_t sels[num];
         ch.add_running(sels, &count);
 
-        capsel_t vpe;
-        int exitcode = Syscalls::vpe_wait(sels, rem, 0, &vpe);
-        ch.terminated(vpe, exitcode);
+        capsel_t act;
+        int exitcode = Syscalls::activity_wait(sels, rem, 0, &act);
+        ch.terminated(act, exitcode);
     }
 
     auto end = CycleInstant::now();
@@ -163,7 +163,7 @@ void chain_direct_multi(Reference<File> in, Reference<File> out, size_t num,
 
     fd_t outfd = VFS::open("/tmp/out2.txt", FILE_W | FILE_TRUNC | FILE_CREATE | FILE_NEWSESS);
     auto in2 = in->clone();
-    Chain ch2(pipes, in2, VPE::self().files()->get(outfd), num, comptime, mode);
+    Chain ch2(pipes, in2, Activity::self().files()->get(outfd), num, comptime, mode);
 
     if(VERBOSE) Serial::get() << "Starting chains...\n";
 
@@ -179,10 +179,10 @@ void chain_direct_multi(Reference<File> in, Reference<File> out, size_t num,
         ch1.add_running(sels, &count);
         ch2.add_running(sels, &count);
 
-        capsel_t vpe;
-        int exitcode = Syscalls::vpe_wait(sels, rem, 0, &vpe);
-        ch1.terminated(vpe, exitcode);
-        ch2.terminated(vpe, exitcode);
+        capsel_t act;
+        int exitcode = Syscalls::activity_wait(sels, rem, 0, &act);
+        ch1.terminated(act, exitcode);
+        ch2.terminated(act, exitcode);
     }
 
     auto end = CycleInstant::now();

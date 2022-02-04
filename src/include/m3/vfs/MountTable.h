@@ -25,17 +25,17 @@
 
 namespace m3 {
 
-class VPE;
+class Activity;
 
 /**
  * Contains a list of mount points and offers operations to manage them.
  *
  * The mount table itself does not create or delete mount points. Instead, it only works with
  * pointers. The creation and deletion is done in VFS. The rational is, that VFS is used to
- * manipulate the mounts of the own VPE, while MountTable is used to manipulate the mounts of
- * created VPEs. Thus, one can simply add a mointpoint from VPE::self() to a different VPE by
- * passing a pointer around. If the mount table of a child VPE is completely setup, it is serialized
- * and transferred to the child VPE.
+ * manipulate the mounts of the own activity, while MountTable is used to manipulate the mounts of
+ * created activities. Thus, one can simply add a mointpoint from Activity::self() to a different activity by
+ * passing a pointer around. If the mount table of a child activity is completely setup, it is serialized
+ * and transferred to the child activity.
  */
 class MountTable {
     class MountPoint {
@@ -144,11 +144,11 @@ public:
     void remove_all() noexcept;
 
     /**
-     * Delegates the mount points to <vpe>.
+     * Delegates the mount points to <act>.
      *
-     * @param vpe the VPE to delegate the caps to
+     * @param act the activity to delegate the caps to
      */
-    void delegate(VPE &vpe) const;
+    void delegate(Activity &act) const;
 
     /**
      * Serializes the current mounts into the given buffer

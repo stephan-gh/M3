@@ -23,9 +23,9 @@ use crate::col::Vec;
 use crate::com::{RecvGate, SendGate};
 use crate::errors::Error;
 use crate::net::{Endpoint, IpAddr, NetEventChannel, Port, Sd, Socket, SocketArgs, SocketType};
-use crate::pes::VPE;
 use crate::rc::Rc;
 use crate::session::ClientSession;
+use crate::tiles::Activity;
 use crate::time::{TimeDuration, TimeInstant};
 use crate::vfs::GenFileOp;
 
@@ -99,7 +99,7 @@ impl NetworkManager {
     /// Note that [`NetworkDirection::INPUT`] has to be specified to process events (state changes
     /// and data).
     ///
-    /// Note also that this function uses [`VPE::sleep`] if no input/output on any socket is
+    /// Note also that this function uses [`Activity::sleep`] if no input/output on any socket is
     /// possible, which suspends the core until the next TCU message arrives. Thus, calling this
     /// function can only be done if all work is done.
     pub fn wait(&self, dirs: NetworkDirection) {
@@ -109,7 +109,7 @@ impl NetworkManager {
             }
 
             // ignore errors
-            VPE::sleep().ok();
+            Activity::sleep().ok();
         }
     }
 
@@ -119,7 +119,7 @@ impl NetworkManager {
     /// Note that [`NetworkDirection::INPUT`] has to be specified to process events (state changes
     /// and data).
     ///
-    /// Note also that this function uses [`VPE::sleep`] if no input/output on any socket is
+    /// Note also that this function uses [`Activity::sleep`] if no input/output on any socket is
     /// possible, which suspends the core until the next TCU message arrives. Thus, calling this
     /// function can only be done if all work is done.
     pub fn wait_for(&self, timeout: TimeDuration, dirs: NetworkDirection) {
@@ -132,13 +132,13 @@ impl NetworkManager {
             }
 
             // ignore errors
-            VPE::sleep_for(duration.unwrap()).ok();
+            Activity::sleep_for(duration.unwrap()).ok();
         }
     }
 
     /// Sleep for the given duration, respecting messages that may arrive for sockets.
     ///
-    /// Note that this function uses [`VPE::sleep`] if no input/output on any socket is possible,
+    /// Note that this function uses [`Activity::sleep`] if no input/output on any socket is possible,
     /// which suspends the core until the next TCU message arrives. Thus, calling this function can
     /// only be done if all work is done.
     pub fn sleep_for(&self, duration: TimeDuration) {
@@ -149,7 +149,7 @@ impl NetworkManager {
             let now = TimeInstant::now();
             match end.checked_duration_since(now) {
                 // ignore errors
-                Some(d) => VPE::sleep_for(d).ok(),
+                Some(d) => Activity::sleep_for(d).ok(),
                 None => break,
             };
         }

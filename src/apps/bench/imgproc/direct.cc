@@ -42,21 +42,21 @@ public:
 
     explicit DirectChain(Pipes &pipesrv, size_t id, Reference<File> in, Reference<File> out, Mode _mode)
         : mode(_mode),
-          vpes(),
+          acts(),
           accels(),
           pipes(),
           mems() {
-        // create VPEs
+        // create activities
         for(size_t i = 0; i < ACCEL_COUNT; ++i) {
             OStringStream name;
             name << names[i] << id;
 
-            if(VERBOSE) Serial::get() << "Creating VPE " << name.str() << "\n";
+            if(VERBOSE) Serial::get() << "Creating Activity " << name.str() << "\n";
 
-            pes[i] = PE::get("copy");
-            vpes[i] = std::make_unique<VPE>(pes[i], name.str());
+            tiles[i] = Tile::get("copy");
+            acts[i] = std::make_unique<Activity>(tiles[i], name.str());
 
-            accels[i] = std::make_unique<StreamAccel>(vpes[i], ACCEL_TIMES[i]);
+            accels[i] = std::make_unique<StreamAccel>(acts[i], ACCEL_TIMES[i]);
 
             if(mode == Mode::DIR_SIMPLE && i + 1 < ACCEL_COUNT) {
                 mems[i] = std::make_unique<MemGate>(
@@ -74,7 +74,7 @@ public:
         for(size_t i = 0; i < ACCEL_COUNT; ++i) {
             if(i > 0) {
                 if(mode == Mode::DIR_SIMPLE) {
-                    auto rd = VPE::self().files()->get(pipes[i - 1]->reader_fd());
+                    auto rd = Activity::self().files()->get(pipes[i - 1]->reader_fd());
                     accels[i]->connect_input(static_cast<GenericFile*>(rd.get()));
                 }
                 else
@@ -82,7 +82,7 @@ public:
             }
             if(i + 1 < ACCEL_COUNT) {
                 if(mode == Mode::DIR_SIMPLE) {
-                    auto wr = VPE::self().files()->get(pipes[i]->writer_fd());
+                    auto wr = Activity::self().files()->get(pipes[i]->writer_fd());
                     accels[i]->connect_output(static_cast<GenericFile*>(wr.get()));
                 }
                 else
@@ -93,7 +93,7 @@ public:
 
     void start() {
         for(size_t i = 0; i < ACCEL_COUNT; ++i) {
-            vpes[i]->start();
+            acts[i]->start();
             running[i] = true;
         }
     }
@@ -101,12 +101,12 @@ public:
     void add_running(capsel_t *sels, size_t *count) {
         for(size_t i = 0; i < ACCEL_COUNT; ++i) {
             if(running[i])
-                sels[(*count)++] = vpes[i]->sel();
+                sels[(*count)++] = acts[i]->sel();
         }
     }
-    void terminated(capsel_t vpe, int exitcode) {
+    void terminated(capsel_t act, int exitcode) {
         for(size_t i = 0; i < ACCEL_COUNT; ++i) {
-            if(running[i] && vpes[i]->sel() == vpe) {
+            if(running[i] && acts[i]->sel() == act) {
                 if(exitcode != 0) {
                     cerr << "chain" << i
                          << " terminated with exit code " << exitcode << "\n";
@@ -125,8 +125,8 @@ public:
 
 private:
     Mode mode;
-    Reference<PE> pes[ACCEL_COUNT];
-    std::unique_ptr<VPE> vpes[ACCEL_COUNT];
+    Reference<Tile> tiles[ACCEL_COUNT];
+    std::unique_ptr<Activity> acts[ACCEL_COUNT];
     std::unique_ptr<StreamAccel> accels[ACCEL_COUNT];
     std::unique_ptr<IndirectPipe> pipes[ACCEL_COUNT];
     std::unique_ptr<MemGate> mems[ACCEL_COUNT];
@@ -140,10 +140,10 @@ static void wait_for(std::unique_ptr<DirectChain> *chains, size_t num) {
         for(size_t i = 0; i < num; ++i)
             chains[i]->add_running(sels, &count);
 
-        capsel_t vpe;
-        int exitcode = Syscalls::vpe_wait(sels, rem, 0, &vpe);
+        capsel_t act;
+        int exitcode = Syscalls::activity_wait(sels, rem, 0, &act);
         for(size_t i = 0; i < num; ++i)
-            chains[i]->terminated(vpe, exitcode);
+            chains[i]->terminated(act, exitcode);
     }
 }
 
@@ -163,8 +163,8 @@ CycleDuration chain_direct(const char *in, size_t num, Mode mode) {
 
         chains[i] = std::make_unique<DirectChain>(pipes,
                                                   i,
-                                                  VPE::self().files()->get(infds[i]),
-                                                  VPE::self().files()->get(outfds[i]),
+                                                  Activity::self().files()->get(infds[i]),
+                                                  Activity::self().files()->get(outfds[i]),
                                                   mode);
     }
 

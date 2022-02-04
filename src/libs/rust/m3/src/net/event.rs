@@ -25,9 +25,9 @@ use crate::kif::{CapRngDesc, CapType};
 use crate::math;
 use crate::mem::{self, MaybeUninit, MsgBuf};
 use crate::net::{Endpoint, IpAddr, Port};
-use crate::pes::VPE;
 use crate::rc::Rc;
 use crate::tcu::{Header, Message};
+use crate::tiles::Activity;
 
 const MSG_SIZE: usize = 2048;
 const MSG_CREDITS: usize = 4;
@@ -200,12 +200,12 @@ impl NetEventChannel {
 
     pub fn wait_for_events(&self) {
         // ignore errors
-        VPE::wait_for(Some(self.rgate.ep().unwrap()), None, None).ok();
+        Activity::wait_for(Some(self.rgate.ep().unwrap()), None, None).ok();
     }
 
     pub fn wait_for_credits(&self) {
         // ignore errors
-        VPE::wait_for(Some(self.rpl_gate.ep().unwrap()), None, None).ok();
+        Activity::wait_for(Some(self.rpl_gate.ep().unwrap()), None, None).ok();
     }
 
     pub fn can_send(&self) -> Result<bool, Error> {
@@ -269,7 +269,7 @@ impl Drop for NetEventChannel {
     fn drop(&mut self) {
         if self.side == NetEventSide::Server {
             // revoke client caps
-            VPE::cur()
+            Activity::cur()
                 .revoke(
                     CapRngDesc::new(CapType::OBJECT, self.rgate.sel() + 2, 2),
                     false,

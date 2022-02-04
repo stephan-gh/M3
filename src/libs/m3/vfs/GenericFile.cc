@@ -65,7 +65,7 @@ void GenericFile::close() noexcept {
     }
 
     if(!have_sess()) {
-        auto fs = VPE::self().mounts()->get_by_id(_fs_id);
+        auto fs = Activity::self().mounts()->get_by_id(_fs_id);
         if(fs)
             fs->close(_id);
     }
@@ -73,7 +73,7 @@ void GenericFile::close() noexcept {
         try {
             const EP *ep = _mg.ep();
             if(ep)
-                VPE::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, ep->sel()), true);
+                Activity::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, ep->sel()), true);
         }
         catch(...) {
             // ignore
@@ -232,7 +232,7 @@ void GenericFile::set_signal_gate(SendGate &sg) {
     os << Operation::SET_SIG;
     args.bytes = os.total();
     KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, sg.sel(), 1);
-    _sess.delegate_for(VPE::self(), crd, &args);
+    _sess.delegate_for(Activity::self(), crd, &args);
 }
 
 void GenericFile::map(Reference<Pager> &pager, goff_t *virt, size_t fileoff, size_t len,
@@ -240,12 +240,12 @@ void GenericFile::map(Reference<Pager> &pager, goff_t *virt, size_t fileoff, siz
     pager->map_ds(virt, len, prot, flags, _sess, fileoff);
 }
 
-void GenericFile::do_clone(VPE &vpe, KIF::CapRngDesc &crd) const {
+void GenericFile::do_clone(Activity &act, KIF::CapRngDesc &crd) const {
     KIF::ExchangeArgs args;
     ExchangeOStream os(args);
     os << Operation::CLONE;
     args.bytes = os.total();
-    _sess.obtain_for(vpe, crd, &args);
+    _sess.obtain_for(act, crd, &args);
 }
 
 void GenericFile::delegate_ep() {
@@ -263,7 +263,7 @@ void GenericFile::do_delegate_ep(const EP &ep) const {
     os << Operation::SET_DEST;
     args.bytes = os.total();
     KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, ep.sel(), 1);
-    _sess.delegate_for(VPE::self(), crd, &args);
+    _sess.delegate_for(Activity::self(), crd, &args);
 }
 
 }

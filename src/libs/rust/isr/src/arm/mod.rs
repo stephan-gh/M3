@@ -25,11 +25,11 @@ use crate::IRQSource;
 pub const ISR_COUNT: usize = 8;
 pub const TCU_ISR: usize = Vector::IRQ.val;
 
-pub const PEXC_ARG0: usize = 0; // r0
-pub const PEXC_ARG1: usize = 1; // r1
-pub const PEXC_ARG2: usize = 2; // r2
-pub const PEXC_ARG3: usize = 3; // r3
-pub const PEXC_ARG4: usize = 4; // r4
+pub const TMC_ARG0: usize = 0; // r0
+pub const TMC_ARG1: usize = 1; // r1
+pub const TMC_ARG2: usize = 2; // r2
+pub const TMC_ARG3: usize = 3; // r3
+pub const TMC_ARG4: usize = 4; // r4
 
 #[derive(Default)]
 // for some reason, we need to specify the alignment here. actually, this struct needs to be packed,
@@ -115,7 +115,7 @@ pub fn init(_state: &mut State) {
     // nothing to do
 }
 
-pub fn init_pexcalls(handler: crate::IsrFunc) {
+pub fn init_tmcalls(handler: crate::IsrFunc) {
     crate::reg(Vector::SWI.val, handler);
 }
 

@@ -20,11 +20,11 @@ use m3::crypto::{HashAlgorithm, HashType};
 use m3::errors::Code;
 use m3::io;
 use m3::io::{Read, Write};
-use m3::pes::{Activity, ExecActivity, PE, VPE};
 use m3::session::{HashInput, HashOutput, HashSession, Pipes};
+use m3::tiles::{Activity, RunningActivity, RunningProgramActivity, Tile};
 use m3::vfs::{FileRef, IndirectPipe, OpenFlags, Seek, SeekMode, VFS};
 use m3::{format, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_assert_some, wv_run_test};
-use m3::{goff, pexif, println, test, util, vec};
+use m3::{goff, println, test, tmif, util, vec};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, hash_empty);
@@ -75,7 +75,7 @@ fn hash_empty() {
 }
 
 fn hash_mapped_mem() {
-    if !VPE::cur().pe_desc().has_virtmem() {
+    if !Activity::cur().tile_desc().has_virtmem() {
         println!("No virtual memory; skipping hash_mapped_mem test");
         return;
     }
@@ -89,7 +89,7 @@ fn hash_mapped_mem() {
     wv_assert_ok!(hash.ep().configure(mgate.sel()));
 
     // Map memory
-    wv_assert_ok!(VPE::cur()
+    wv_assert_ok!(Activity::cur()
         .pager()
         .unwrap()
         .map_mem(ADDR, &mgate, SIZE, Perm::RW));
@@ -104,8 +104,8 @@ fn hash_mapped_mem() {
 
     // Flush the cache, otherwise the writes above might not have ended up in
     // physical memory yet. It should be enough to flush the memory for the buffer
-    // but the PEMux does not seem to provide that functionality at the moment.
-    wv_assert_ok!(pexif::flush_invalidate());
+    // but the TileMux does not seem to provide that functionality at the moment.
+    wv_assert_ok!(tmif::flush_invalidate());
 
     // Check resulting hash
     let mut buf = [0u8; HashAlgorithm::SHA3_256.output_bytes];
@@ -116,8 +116,8 @@ fn hash_mapped_mem() {
         &hex!("3d69687d744b35b2c3a757240c5dc0f05a99f2402737cd776b8dfca8b6ecc667")
     );
 
-    // Unmap the memory again. This is important otherwise vpe.run(...) will fail below
-    wv_assert_ok!(VPE::cur().pager().unwrap().unmap(ADDR));
+    // Unmap the memory again. This is important otherwise act.run(...) will fail below
+    wv_assert_ok!(Activity::cur().pager().unwrap().unmap(ADDR));
 }
 
 fn _hash_file(
@@ -149,21 +149,25 @@ fn _to_hex_bytes(s: &str) -> Vec<u8> {
     res
 }
 
-// Hash files asynchronously on separate VPEs to test context switching.
+// Hash files asynchronously on separate activities to test context switching.
 // The time slice is also chosen quite low so that there are actually context switches happening.
 
-fn _hash_file_start(algo: &'static HashAlgorithm, file: &FileRef, expected: &str) -> ExecActivity {
-    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
-    let mut vpe = wv_assert_ok!(VPE::new(pe, algo.name));
+fn _hash_file_start(
+    algo: &'static HashAlgorithm,
+    file: &FileRef,
+    expected: &str,
+) -> RunningProgramActivity {
+    let tile = wv_assert_ok!(Tile::new(Activity::cur().tile_desc()));
+    let mut act = wv_assert_ok!(Activity::new(tile, algo.name));
 
-    vpe.files().set(io::STDIN_FILENO, file.handle());
+    act.files().set(io::STDIN_FILENO, file.handle());
 
-    let mut dst = vpe.data_sink();
+    let mut dst = act.data_sink();
     dst.push_word(algo.ty.val);
     dst.push_str(expected);
 
-    wv_assert_ok!(vpe.run(|| {
-        let mut src = VPE::cur().data_source();
+    wv_assert_ok!(act.run(|| {
+        let mut src = Activity::cur().data_source();
         let ty: HashType = src.pop().unwrap();
         let expected_bytes = _to_hex_bytes(src.pop().unwrap());
 
@@ -392,37 +396,37 @@ fn shake_and_hash_pipe() {
     let omgate = wv_assert_ok!(MemGate::new(0x10000, Perm::RW));
     let opipe = wv_assert_ok!(IndirectPipe::new(&pipes, &omgate, 0x10000));
 
-    // Setup child VPE that runs "hashsum shake128 -O 262144 -o -"
-    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
-    let mut vpe = wv_assert_ok!(VPE::new(pe, "shaker"));
-    vpe.files().set(
+    // Setup child activity that runs "hashsum shake128 -O 262144 -o -"
+    let tile = wv_assert_ok!(Tile::new(Activity::cur().tile_desc()));
+    let mut act = wv_assert_ok!(Activity::new(tile, "shaker"));
+    act.files().set(
         io::STDIN_FILENO,
-        wv_assert_some!(VPE::cur().files().get(ipipe.reader_fd())),
+        wv_assert_some!(Activity::cur().files().get(ipipe.reader_fd())),
     );
-    vpe.files().set(
+    act.files().set(
         io::STDOUT_FILENO,
-        wv_assert_some!(VPE::cur().files().get(opipe.writer_fd())),
+        wv_assert_some!(Activity::cur().files().get(opipe.writer_fd())),
     );
-    let closure = wv_assert_ok!(vpe.run(|| {
+    let closure = wv_assert_ok!(act.run(|| {
         let hash = wv_assert_ok!(HashSession::new("hash2", &HashAlgorithm::SHAKE128));
         wv_assert_ok!(io::stdin().get_mut().hash_input(&hash, usize::MAX));
         wv_assert_ok!(io::stdout().get_mut().hash_output(&hash, PIPE_SHAKE_SIZE));
         0
     }));
 
-    // Close unused parts of pipe that were delegated to VPE
+    // Close unused parts of pipe that were delegated to activity
     ipipe.close_reader();
     opipe.close_writer();
 
     let hash = wv_assert_ok!(HashSession::new("hash1", &HashAlgorithm::SHA3_256));
     {
         // echo "Pipe!"
-        let mut ifile = wv_assert_some!(VPE::cur().files().get_ref(ipipe.writer_fd()));
+        let mut ifile = wv_assert_some!(Activity::cur().files().get_ref(ipipe.writer_fd()));
         wv_assert_ok!(writeln!(ifile, "Pipe!"));
     }
     {
         // hashsum sha3-224
-        let mut ofile = wv_assert_some!(VPE::cur().files().get_ref(opipe.reader_fd()));
+        let mut ofile = wv_assert_some!(Activity::cur().files().get_ref(opipe.reader_fd()));
         wv_assert_ok!(ofile.hash_input(&hash, usize::MAX));
     }
 

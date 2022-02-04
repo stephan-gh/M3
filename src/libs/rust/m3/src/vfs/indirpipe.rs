@@ -16,9 +16,9 @@
 
 use crate::com::MemGate;
 use crate::errors::Error;
-use crate::pes::VPE;
 use crate::rc::Rc;
 use crate::session::{Pipe, Pipes};
+use crate::tiles::Activity;
 use crate::vfs::Fd;
 
 /// A uni-directional channel between potentially multiple readers and writers.
@@ -34,8 +34,8 @@ impl IndirectPipe {
     pub fn new(pipes: &Pipes, mem: &MemGate, mem_size: usize) -> Result<Self, Error> {
         let pipe = Rc::new(pipes.create_pipe(mem, mem_size)?);
         Ok(IndirectPipe {
-            rd_fd: VPE::cur().files().alloc(pipe.create_chan(true)?)?,
-            wr_fd: VPE::cur().files().alloc(pipe.create_chan(false)?)?,
+            rd_fd: Activity::cur().files().alloc(pipe.create_chan(true)?)?,
+            wr_fd: Activity::cur().files().alloc(pipe.create_chan(false)?)?,
             _pipe: pipe,
         })
     }
@@ -47,7 +47,7 @@ impl IndirectPipe {
 
     /// Closes the reading side.
     pub fn close_reader(&self) {
-        VPE::cur().files().remove(self.rd_fd);
+        Activity::cur().files().remove(self.rd_fd);
     }
 
     /// Returns the file descriptor of the writing side.
@@ -57,7 +57,7 @@ impl IndirectPipe {
 
     /// Closes the writing side.
     pub fn close_writer(&self) {
-        VPE::cur().files().remove(self.wr_fd);
+        Activity::cur().files().remove(self.wr_fd);
     }
 }
 

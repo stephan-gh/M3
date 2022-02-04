@@ -50,9 +50,9 @@ public:
     friend class GenericFile;
 
     explicit M3FS(size_t id, const String &service)
-        : ClientSession(service, VPE::self().alloc_sels(2)),
+        : ClientSession(service, Activity::self().alloc_sels(2)),
           FileSystem(id),
-          _gate(SendGate::bind(get_sgate(VPE::self()))),
+          _gate(SendGate::bind(get_sgate(Activity::self()))),
           _eps() {
     }
     explicit M3FS(size_t id, capsel_t caps) noexcept
@@ -78,19 +78,19 @@ public:
     virtual Errors::Code try_unlink(const char *path) override;
     virtual Errors::Code try_rename(const char *oldpath, const char *newpath) override;
 
-    virtual void delegate(VPE &vpe) override;
+    virtual void delegate(Activity &act) override;
     virtual void serialize(Marshaller &m) override;
     static FileSystem *unserialize(Unmarshaller &um);
 
 private:
     size_t get_ep();
     size_t delegate_ep(capsel_t sel);
-    capsel_t get_sgate(VPE &vpe) {
+    capsel_t get_sgate(Activity &act) {
         KIF::ExchangeArgs args;
         ExchangeOStream os(args);
         os << GET_SGATE;
         args.bytes = os.total();
-        obtain_for(vpe, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel() + 1, 1), &args);
+        obtain_for(act, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel() + 1, 1), &args);
         return sel() + 1;
     }
 

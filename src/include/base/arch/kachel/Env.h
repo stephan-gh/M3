@@ -19,7 +19,7 @@
 #include <base/Common.h>
 #include <base/Config.h>
 #include <base/EnvBackend.h>
-#include <base/PEDesc.h>
+#include <base/TileDesc.h>
 
 namespace m3 {
 
@@ -42,8 +42,8 @@ public:
 
 struct BootEnv {
     uint64_t platform;
-    uint64_t pe_id;
-    uint64_t pe_desc;
+    uint64_t tile_id;
+    uint64_t tile_desc;
     uint64_t argc;
     uint64_t argv;
     uint64_t heap_size;
@@ -55,14 +55,14 @@ class Env : public BootEnv {
     friend OStream &operator<<(OStream &, const Env &senv);
 
 public:
-    // set by PEMux
+    // set by TileMux
     uint64_t shared;
 
     uint64_t sp;
     uint64_t entry;
     uint64_t first_std_ep;
     uint64_t first_sel;
-    uint64_t vpe_id;
+    uint64_t act_id;
 
     uint64_t rmng_sel;
     uint64_t pager_sess;

@@ -166,12 +166,12 @@ size_t MountTable::serialize(void *buffer, size_t size) const {
     return m.total();
 }
 
-void MountTable::delegate(VPE &vpe) const {
+void MountTable::delegate(Activity &act) const {
     for(size_t i = 0; i < _count; ++i) {
         char type = _mounts[i]->fs()->type();
         switch(type) {
             case 'M':
-                _mounts[i]->fs()->delegate(vpe);
+                _mounts[i]->fs()->delegate(act);
                 break;
         }
     }

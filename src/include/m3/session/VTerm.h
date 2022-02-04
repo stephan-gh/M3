@@ -22,7 +22,7 @@
 #include <m3/com/GateStream.h>
 #include <m3/vfs/GenericFile.h>
 #include <m3/ObjCap.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 namespace m3 {
 
@@ -32,12 +32,12 @@ public:
     }
 
     Reference<File> create_channel(bool read) {
-        capsel_t sels = VPE::self().alloc_sels(2);
+        capsel_t sels = Activity::self().alloc_sels(2);
         KIF::ExchangeArgs args;
         ExchangeOStream os(args);
         os << GenericFile::CLONE << (read ? 0 : 1);
         args.bytes = os.total();
-        obtain_for(VPE::self(), KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sels, 2), &args);
+        obtain_for(Activity::self(), KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sels, 2), &args);
         auto flags = FILE_NEWSESS | (read ? FILE_R : FILE_W);
         return Reference<File>(new GenericFile(flags, sels));
     }

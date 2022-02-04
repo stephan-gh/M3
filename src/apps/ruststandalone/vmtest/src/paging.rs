@@ -19,7 +19,7 @@ use base::cfg;
 use base::envdata;
 use base::errors::Error;
 use base::goff;
-use base::kif::{PEDesc, PageFlags, PTE};
+use base::kif::{PageFlags, TileDesc, PTE};
 use base::math;
 use base::mem::GlobAddr;
 use base::tcu;
@@ -48,7 +48,7 @@ impl Allocator for PTAllocator {
             phys as usize
         }
         else {
-            cfg::PE_MEM_BASE + (phys as usize - cfg::MEM_OFFSET)
+            cfg::TILE_MEM_BASE + (phys as usize - cfg::MEM_OFFSET)
         }
     }
 
@@ -62,11 +62,11 @@ static PT_POS: LazyStaticCell<goff> = LazyStaticCell::default();
 static ASPACE: LazyStaticRefCell<AddrSpace<PTAllocator>> = LazyStaticRefCell::default();
 
 pub fn init() {
-    assert!(PEDesc::new_from(envdata::get().pe_desc).has_virtmem());
+    assert!(TileDesc::new_from(envdata::get().tile_desc).has_virtmem());
 
-    let (mem_pe, mem_base, mem_size, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
+    let (mem_tile, mem_base, mem_size, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
 
-    let base = GlobAddr::new_with(mem_pe, mem_base);
+    let base = GlobAddr::new_with(mem_tile, mem_base);
     let root = base + mem_size / 2 + mem_size / 4;
     let pts_phys = cfg::MEM_OFFSET as goff + mem_size / 2 + mem_size / 4;
     PT_POS.set(pts_phys + cfg::PAGE_SIZE as goff);
@@ -98,7 +98,7 @@ pub fn init() {
     let pages = mem_size as usize / cfg::PAGE_SIZE;
     ASPACE
         .borrow_mut()
-        .map_pages(cfg::PE_MEM_BASE, base, pages, rw)
+        .map_pages(cfg::TILE_MEM_BASE, base, pages, rw)
         .unwrap();
 
     // map PLIC
@@ -120,8 +120,8 @@ pub fn translate(virt: usize, perm: PageFlags) -> PTE {
 
 #[allow(unused)]
 pub fn map_anon(virt: usize, size: usize, perm: PageFlags) -> Result<(), Error> {
-    let (mem_pe, mem_base, _, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
-    let base = GlobAddr::new_with(mem_pe, mem_base);
+    let (mem_tile, mem_base, _, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
+    let base = GlobAddr::new_with(mem_tile, mem_base);
 
     for i in 0..(size / cfg::PAGE_SIZE) {
         let frame = ASPACE.borrow_mut().allocator_mut().allocate_pt()?;

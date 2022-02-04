@@ -26,15 +26,15 @@ mod paging;
 use base::log;
 use base::math;
 use base::mem::MsgBuf;
-use base::tcu::{EpId, PEId, FIRST_USER_EP, TCU};
+use base::tcu::{EpId, TileId, FIRST_USER_EP, TCU};
 
 const LOG_DEF: bool = true;
 const LOG_DETAIL: bool = false;
-const LOG_PEXCALLS: bool = false;
+const LOG_TMCALLS: bool = false;
 
-const OWN_VPE: u16 = 0xFFFF;
+const OWN_ACT: u16 = 0xFFFF;
 
-const DST_PE: PEId = 0;
+const DST_TILE: TileId = 0;
 const DST_EP: EpId = FIRST_USER_EP;
 
 const REP: EpId = FIRST_USER_EP;
@@ -52,14 +52,14 @@ pub extern "C" fn env_run() {
 
     let msg_size = math::next_log2(MSG_SIZE);
     helper::config_local_ep(SEP, |regs| {
-        TCU::config_send(regs, OWN_VPE, 0x1234, DST_PE, DST_EP, msg_size, CREDITS);
+        TCU::config_send(regs, OWN_ACT, 0x1234, DST_TILE, DST_EP, msg_size, CREDITS);
     });
 
     let buf_ord = math::next_log2(RBUF.len());
     let msg_ord = math::next_log2(MSG_SIZE);
     let (rbuf_virt, rbuf_phys) = helper::virt_to_phys(RBUF.as_ptr() as usize);
     helper::config_local_ep(REP, |regs| {
-        TCU::config_recv(regs, OWN_VPE, rbuf_phys, buf_ord, msg_ord, None);
+        TCU::config_recv(regs, OWN_ACT, rbuf_phys, buf_ord, msg_ord, None);
     });
 
     let mut msg = MsgBuf::new();
@@ -73,7 +73,7 @@ pub extern "C" fn env_run() {
         log!(crate::LOG_DEF, "send failed: {}", e);
         // get credits back
         helper::config_local_ep(SEP, |regs| {
-            TCU::config_send(regs, OWN_VPE, 0x1234, DST_PE, DST_EP, 6, CREDITS);
+            TCU::config_send(regs, OWN_ACT, 0x1234, DST_TILE, DST_EP, 6, CREDITS);
         });
     }
 

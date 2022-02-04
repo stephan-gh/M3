@@ -36,8 +36,8 @@ EXTERN_C int main(int argc, char **argv);
 namespace m3 {
 
 OStream &operator<<(OStream &os, const Env &senv) {
-    os << "pe_id        : " << senv.pe_id << "\n";
-    os << "pe_desc      : " << fmt(senv.pe_desc, "#x") << "\n";
+    os << "tile_id        : " << senv.tile_id << "\n";
+    os << "tile_desc      : " << fmt(senv.tile_desc, "#x") << "\n";
     os << "argc         : " << senv.argc << "\n";
     os << "argv         : " << fmt(senv.argv, "p") << "\n";
     os << "heap_size    : " << fmt(senv.heap_size, "#x") << "\n";
@@ -46,7 +46,7 @@ OStream &operator<<(OStream &os, const Env &senv) {
     os << "shared       : " << senv.shared << "\n";
     os << "first_std_ep : " << senv.first_std_ep << "\n";
     os << "first_sel    : " << senv.first_sel << "\n";
-    os << "vpe_id       : " << senv.vpe_id << "\n";
+    os << "act_id       : " << senv.act_id << "\n";
     os << "lambda       : " << fmt(senv.lambda, "p") << "\n";
     os << "rmng_sel     : " << senv.rmng_sel << "\n";
     os << "pager_sess   : " << senv.pager_sess << "\n";

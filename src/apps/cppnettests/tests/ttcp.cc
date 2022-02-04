@@ -124,17 +124,17 @@ NOINLINE static void nonblocking_client() {
 }
 
 NOINLINE static void nonblocking_server() {
-    auto pe = PE::get("clone|own");
-    VPE vpe(pe, "tcp-server");
+    auto tile = Tile::get("clone|own");
+    Activity act(tile, "tcp-server");
 
     auto sem = Semaphore::create(0);
-    vpe.delegate_obj(sem.sel());
+    act.delegate_obj(sem.sel());
 
-    vpe.data_sink() << sem.sel();
+    act.data_sink() << sem.sel();
 
-    vpe.run([] {
+    act.run([] {
         capsel_t sem_sel;
-        VPE::self().data_source() >> sem_sel;
+        Activity::self().data_source() >> sem_sel;
 
         NetworkManager net("net1");
 
@@ -177,7 +177,7 @@ NOINLINE static void nonblocking_server() {
 
     socket->close();
 
-    WVASSERTEQ(vpe.wait(), 0);
+    WVASSERTEQ(act.wait(), 0);
 }
 
 NOINLINE static void open_close() {
@@ -202,17 +202,17 @@ NOINLINE static void open_close() {
 }
 
 NOINLINE static void receive_after_close() {
-    auto pe = PE::get("clone|own");
-    VPE vpe(pe, "tcp-server");
+    auto tile = Tile::get("clone|own");
+    Activity act(tile, "tcp-server");
 
     auto sem = Semaphore::create(0);
-    vpe.delegate_obj(sem.sel());
+    act.delegate_obj(sem.sel());
 
-    vpe.data_sink() << sem.sel();
+    act.data_sink() << sem.sel();
 
-    vpe.run([] {
+    act.run([] {
         capsel_t sem_sel;
-        VPE::self().data_source() >> sem_sel;
+        Activity::self().data_source() >> sem_sel;
 
         NetworkManager net("net1");
 
@@ -257,7 +257,7 @@ NOINLINE static void receive_after_close() {
 
     socket->close();
 
-    WVASSERTEQ(vpe.wait(), 0);
+    WVASSERTEQ(act.wait(), 0);
 }
 
 NOINLINE static void data() {

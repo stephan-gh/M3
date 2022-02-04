@@ -21,54 +21,54 @@
 #include <m3/com/RecvGate.h>
 #include <m3/com/GateStream.h>
 #include <m3/stream/Standard.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 using namespace m3;
 
 struct Worker {
     MemGate submem;
     SendGate sgate;
-    Reference<PE> pe;
-    VPE vpe;
+    Reference<Tile> tile;
+    Activity act;
 
     Worker(RecvGate &rgate, MemGate &mem, size_t offset, size_t size)
         : submem(mem.derive(offset, size)),
           sgate(SendGate::create(&rgate, SendGateArgs().credits(1))),
-          pe(PE::get("clone|own")),
-          vpe(pe, "worker") {
-        vpe.delegate_obj(submem.sel());
+          tile(Tile::get("clone|own")),
+          act(tile, "worker") {
+        act.delegate_obj(submem.sel());
     }
 };
 
 static const size_t BUF_SIZE    = 4096;
 
 int main(int argc, char **argv) {
-    size_t memPerVPE = 1024 * 1024;
-    size_t vpes = 2;
+    size_t memPerAct = 1024 * 1024;
+    size_t acts = 2;
     if(argc > 1)
-        vpes = IStringStream::read_from<size_t>(argv[1]);
+        acts = IStringStream::read_from<size_t>(argv[1]);
     if(argc > 2)
-        memPerVPE = IStringStream::read_from<size_t>(argv[2]);
+        memPerAct = IStringStream::read_from<size_t>(argv[2]);
 
-    const size_t AREA_SIZE    = vpes * memPerVPE;
-    const size_t SUBAREA_SIZE = AREA_SIZE / vpes;
+    const size_t AREA_SIZE    = acts * memPerAct;
+    const size_t SUBAREA_SIZE = AREA_SIZE / acts;
 
-    RecvGate rgate = RecvGate::create(getnextlog2(vpes * 64), nextlog2<64>::val);
+    RecvGate rgate = RecvGate::create(getnextlog2(acts * 64), nextlog2<64>::val);
     MemGate mem = MemGate::create_global(AREA_SIZE, MemGate::RW);
 
     // create worker
-    Worker **worker = new Worker*[vpes];
-    for(size_t i = 0; i < vpes; ++i)
+    Worker **worker = new Worker*[acts];
+    for(size_t i = 0; i < acts; ++i)
         worker[i] = new Worker(rgate, mem, static_cast<size_t>(i) * SUBAREA_SIZE, SUBAREA_SIZE);
 
     // write data into memory
-    for(size_t i = 0; i < vpes; ++i) {
-        worker[i]->vpe.data_sink() << worker[i]->submem.sel() << SUBAREA_SIZE;
+    for(size_t i = 0; i < acts; ++i) {
+        worker[i]->act.data_sink() << worker[i]->submem.sel() << SUBAREA_SIZE;
 
-        worker[i]->vpe.run([] {
+        worker[i]->act.run([] {
             capsel_t mem_sel;
             size_t mem_size;
-            VPE::self().data_source() >> mem_sel >> mem_size;
+            Activity::self().data_source() >> mem_sel >> mem_size;
             MemGate mem = MemGate::bind(mem_sel);
 
             uint *buffer = new uint[BUF_SIZE / sizeof(uint)];
@@ -87,19 +87,19 @@ int main(int argc, char **argv) {
     }
 
     // wait for all workers
-    for(size_t i = 0; i < vpes; ++i)
-        worker[i]->vpe.wait();
+    for(size_t i = 0; i < acts; ++i)
+        worker[i]->act.wait();
 
     // now build the checksum
-    for(size_t i = 0; i < vpes; ++i) {
-        worker[i]->vpe.delegate_obj(worker[i]->sgate.sel());
+    for(size_t i = 0; i < acts; ++i) {
+        worker[i]->act.delegate_obj(worker[i]->sgate.sel());
 
-        worker[i]->vpe.data_sink() << worker[i]->submem.sel() << worker[i]->sgate.sel() << SUBAREA_SIZE;
+        worker[i]->act.data_sink() << worker[i]->submem.sel() << worker[i]->sgate.sel() << SUBAREA_SIZE;
 
-        worker[i]->vpe.run([] {
+        worker[i]->act.run([] {
             capsel_t mem_sel, sgate_sel;
             size_t mem_size;
-            VPE::self().data_source() >> mem_sel >> sgate_sel >> mem_size;
+            Activity::self().data_source() >> mem_sel >> sgate_sel >> mem_size;
             MemGate mem = MemGate::bind(mem_sel);
             SendGate sgate = SendGate::bind(sgate_sel);
 
@@ -124,16 +124,16 @@ int main(int argc, char **argv) {
 
     // reduce
     uint checksum = 0;
-    for(size_t i = 0; i < vpes; ++i) {
-        uint vpechksum;
-        receive_vmsg(rgate, vpechksum);
-        checksum += vpechksum;
+    for(size_t i = 0; i < acts; ++i) {
+        uint actchksum;
+        receive_vmsg(rgate, actchksum);
+        checksum += actchksum;
     }
 
     cout << "Checksum: " << checksum << "\n";
 
-    for(size_t i = 0; i < vpes; ++i) {
-        worker[i]->vpe.wait();
+    for(size_t i = 0; i < acts; ++i) {
+        worker[i]->act.wait();
         delete worker[i];
     }
     return 0;

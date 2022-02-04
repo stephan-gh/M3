@@ -31,8 +31,8 @@ const MAX_SERVNAME_LEN: usize = 32;
 pub struct Info {
     /// The number of boot modules
     pub mod_count: u64,
-    /// The number of PEs
-    pub pe_count: u64,
+    /// The number of tiles
+    pub tile_count: u64,
     /// The number of memory regions
     pub mem_count: u64,
     /// The number of services
@@ -93,24 +93,24 @@ impl fmt::Debug for Mod {
 /// A processing element
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
-pub struct PE {
+pub struct Tile {
     pub id: u32,
-    pub desc: kif::PEDesc,
+    pub desc: kif::TileDesc,
 }
 
-impl PE {
-    pub fn new(id: u32, desc: kif::PEDesc) -> Self {
+impl Tile {
+    pub fn new(id: u32, desc: kif::TileDesc) -> Self {
         Self { id, desc }
     }
 }
 
-impl fmt::Debug for PE {
+impl fmt::Debug for Tile {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(
             f,
-            "PE{:02}: {} {} {:?} {} KiB memory",
+            "Tile{:02}: {} {} {:?} {} KiB memory",
             { self.id },
-            self.desc.pe_type(),
+            self.desc.tile_type(),
             self.desc.isa(),
             self.desc.attr(),
             self.desc.mem_size() / 1024

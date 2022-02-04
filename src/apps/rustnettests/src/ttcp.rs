@@ -18,9 +18,9 @@ use m3::cap::Selector;
 use m3::com::Semaphore;
 use m3::errors::Code;
 use m3::net::{Endpoint, IpAddr, State, StreamSocketArgs, TcpSocket};
-use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::session::{NetworkDirection, NetworkManager};
 use m3::test;
+use m3::tiles::{Activity, ActivityArgs, RunningActivity, Tile};
 use m3::vec::Vec;
 use m3::{vec, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
@@ -149,19 +149,19 @@ fn nonblocking_client() {
 }
 
 fn nonblocking_server() {
-    let pe = wv_assert_ok!(PE::get("clone|own"));
-    let mut vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("tcp-server")));
+    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let mut act = wv_assert_ok!(Activity::new_with(tile, ActivityArgs::new("tcp-server")));
 
     let sem = wv_assert_ok!(Semaphore::create(0));
-    wv_assert_ok!(vpe.delegate_obj(sem.sel()));
+    wv_assert_ok!(act.delegate_obj(sem.sel()));
 
-    let mut dst = vpe.data_sink();
+    let mut dst = act.data_sink();
     dst.push_word(sem.sel());
     dst.push_str(&m3::format!("{}", crate::NET0_IP.get()));
     dst.push_str(&m3::format!("{}", crate::NET1_IP.get()));
 
-    let act = wv_assert_ok!(vpe.run(|| {
-        let mut src = VPE::cur().data_source();
+    let act = wv_assert_ok!(act.run(|| {
+        let mut src = Activity::cur().data_source();
         let sem_sel: Selector = src.pop().unwrap();
         let net0_ip: IpAddr = src.pop_str_slice().unwrap().parse().unwrap();
         let net1_ip: IpAddr = src.pop_str_slice().unwrap().parse().unwrap();
@@ -230,18 +230,18 @@ fn open_close() {
 }
 
 fn receive_after_close() {
-    let pe = wv_assert_ok!(PE::get("clone|own"));
-    let mut vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("tcp-server")));
+    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let mut act = wv_assert_ok!(Activity::new_with(tile, ActivityArgs::new("tcp-server")));
 
     let sem = wv_assert_ok!(Semaphore::create(0));
-    wv_assert_ok!(vpe.delegate_obj(sem.sel()));
+    wv_assert_ok!(act.delegate_obj(sem.sel()));
 
-    let mut dst = vpe.data_sink();
+    let mut dst = act.data_sink();
     dst.push_word(sem.sel());
     dst.push_str(&m3::format!("{}", crate::NET0_IP.get()));
 
-    let act = wv_assert_ok!(vpe.run(|| {
-        let mut src = VPE::cur().data_source();
+    let act = wv_assert_ok!(act.run(|| {
+        let mut src = Activity::cur().data_source();
         let sem_sel: Selector = src.pop().unwrap();
         let net0_ip: IpAddr = src.pop_str_slice().unwrap().parse().unwrap();
 

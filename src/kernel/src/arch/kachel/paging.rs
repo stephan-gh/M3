@@ -19,7 +19,7 @@ use base::cfg;
 use base::envdata;
 use base::errors::Error;
 use base::goff;
-use base::kif::{PEDesc, PageFlags, PTE};
+use base::kif::{PageFlags, TileDesc, PTE};
 use base::math;
 use base::mem::{heap, GlobAddr};
 use base::tcu;
@@ -27,8 +27,8 @@ use core::cmp;
 
 use crate::mem;
 use crate::paging::{self, AddrSpace, Allocator, Phys};
-use crate::pes;
 use crate::platform;
+use crate::tiles;
 
 extern "C" {
     fn heap_set_oom_callback(cb: extern "C" fn(size: usize) -> bool);
@@ -56,7 +56,7 @@ impl Allocator for PTAllocator {
             phys as usize
         }
         else {
-            cfg::PE_MEM_BASE + (phys as usize - cfg::MEM_OFFSET)
+            cfg::TILE_MEM_BASE + (phys as usize - cfg::MEM_OFFSET)
         }
     }
 
@@ -74,18 +74,18 @@ pub fn init() {
         heap_set_oom_callback(kernel_oom_callback);
     }
 
-    if !PEDesc::new_from(envdata::get().pe_desc).has_virtmem() {
+    if !TileDesc::new_from(envdata::get().tile_desc).has_virtmem() {
         paging::disable_paging();
         return;
     }
 
-    let (mem_pe, mem_base, mem_size, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
+    let (mem_tile, mem_base, mem_size, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
 
-    let base = GlobAddr::new_with(mem_pe, mem_base);
+    let base = GlobAddr::new_with(mem_tile, mem_base);
     let root = base + mem_size / 2;
     let pts_phys = cfg::MEM_OFFSET as goff + mem_size / 2;
     PT_POS.set(pts_phys + cfg::PAGE_SIZE as goff);
-    let mut aspace = AddrSpace::new(pes::KERNEL_ID as u64, root, PTAllocator {});
+    let mut aspace = AddrSpace::new(tiles::KERNEL_ID as u64, root, PTAllocator {});
     aspace.init();
 
     // map TCU
@@ -121,7 +121,9 @@ pub fn init() {
 
     // map PTs
     let pages = mem_size as usize / cfg::PAGE_SIZE;
-    aspace.map_pages(cfg::PE_MEM_BASE, base, pages, rw).unwrap();
+    aspace
+        .map_pages(cfg::TILE_MEM_BASE, base, pages, rw)
+        .unwrap();
 
     // map vectors
     #[cfg(target_arch = "arm")]
@@ -188,7 +190,7 @@ fn map_segment(
 }
 
 extern "C" fn kernel_oom_callback(size: usize) -> bool {
-    if !platform::pe_desc(platform::kernel_pe()).has_virtmem() {
+    if !platform::tile_desc(platform::kernel_tile()).has_virtmem() {
         panic!(
             "Unable to allocate {} bytes on the heap: out of memory",
             size

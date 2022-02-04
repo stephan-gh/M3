@@ -204,7 +204,7 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
                 "sesscrt" => app.sesscrt.push(parse_sesscrt(p)?),
                 "serv" => app.services.push(parse_service(p)?),
                 "physmem" => app.phys_mems.push(parse_physmem(p)?),
-                "pes" => app.pes.push(parse_pe(p)?),
+                "tiles" => app.tiles.push(parse_tile(p)?),
                 "rgate" => app.rgates.push(parse_rgate(p)?),
                 "sgate" => app.sgates.push(parse_sgate(p)?),
                 "sem" => app.sems.push(parse_sem(p)?),
@@ -289,14 +289,14 @@ fn parse_domain(p: &mut ConfigParser) -> Result<config::Domain, Error> {
         match p.parse_arg()? {
             None => break,
             Some((n, v)) => match n.as_ref() {
-                "pe" => dom.pe = config::PEType(v),
+                "tile" => dom.tile = config::TileType(v),
                 _ => return Err(Error::new(Code::InvArgs)),
             },
         }
     }
 
-    if dom.pe.0.is_empty() {
-        dom.pe = config::PEType("core".to_string());
+    if dom.tile.0.is_empty() {
+        dom.tile = config::TileType("core".to_string());
     }
 
     p.consume('>')?;
@@ -401,7 +401,7 @@ fn parse_session(p: &mut ConfigParser) -> Result<config::SessionDesc, Error> {
     Ok(config::SessionDesc::new(name, arg, dep))
 }
 
-fn parse_pe(p: &mut ConfigParser) -> Result<config::PEDesc, Error> {
+fn parse_tile(p: &mut ConfigParser) -> Result<config::TileDesc, Error> {
     let mut ty = String::new();
     let mut count = 1;
     let mut optional = false;
@@ -416,7 +416,7 @@ fn parse_pe(p: &mut ConfigParser) -> Result<config::PEDesc, Error> {
             },
         }
     }
-    Ok(config::PEDesc::new(ty, count, optional))
+    Ok(config::TileDesc::new(ty, count, optional))
 }
 
 fn parse_rgate(p: &mut ConfigParser) -> Result<config::RGateDesc, Error> {

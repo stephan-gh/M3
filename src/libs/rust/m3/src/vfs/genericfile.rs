@@ -26,11 +26,11 @@ use crate::goff;
 use crate::int_enum;
 use crate::io::{Read, Write};
 use crate::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
-use crate::pes::{StateSerializer, VPE};
 use crate::rc::Rc;
 use crate::serialize::Source;
 use crate::session::{ClientSession, HashInput, HashOutput, HashSession, MapFlags, Pager};
 use crate::tcu::EpId;
+use crate::tiles::{Activity, StateSerializer};
 use crate::vfs::{
     filetable, Fd, File, FileHandle, FileInfo, Map, OpenFlags, Seek, SeekMode, StatResponse,
 };
@@ -229,14 +229,14 @@ impl File for GenericFile {
 
         if !self.flags.contains(OpenFlags::NEW_SESS) {
             let (fs_id, file_id) = self.id.unwrap();
-            if let Some(fs) = VPE::cur().mounts().get_by_id(fs_id) {
+            if let Some(fs) = Activity::cur().mounts().get_by_id(fs_id) {
                 fs.borrow_mut().close(file_id);
             }
         }
         else {
             // revoke EP cap
             if let Some(ep) = self.mgate.ep() {
-                VPE::cur()
+                Activity::cur()
                     .revoke(CapRngDesc::new(CapType::OBJECT, ep.sel(), 1), true)
                     .ok();
             }
@@ -270,13 +270,13 @@ impl File for GenericFile {
 
     fn exchange_caps(
         &self,
-        vpe: Selector,
+        act: Selector,
         _dels: &mut Vec<Selector>,
         max_sel: &mut Selector,
     ) -> Result<(), Error> {
         let crd = CapRngDesc::new(CapType::OBJECT, self.sess.sel(), 2);
         self.sess
-            .obtain_for(vpe, crd, |s| s.push_word(GenFileOp::CLONE.val), |_| Ok(()))?;
+            .obtain_for(act, crd, |s| s.push_word(GenFileOp::CLONE.val), |_| Ok(()))?;
         *max_sel = cmp::max(*max_sel, self.sess.sel() + 2);
         Ok(())
     }

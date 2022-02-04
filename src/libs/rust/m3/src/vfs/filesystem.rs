@@ -21,7 +21,7 @@ use crate::cap::Selector;
 use crate::col::Vec;
 use crate::errors::Error;
 use crate::int_enum;
-use crate::pes::StateSerializer;
+use crate::tiles::StateSerializer;
 use crate::vfs::{FileHandle, FileInfo, FileMode, OpenFlags};
 
 int_enum! {
@@ -72,10 +72,10 @@ pub trait FileSystem: fmt::Debug {
 
     /// Returns the type of the file system implementation used for serialization.
     fn fs_type(&self) -> u8;
-    /// Exchanges the capabilities to provide `vpe` access to the file system.
+    /// Exchanges the capabilities to provide `act` access to the file system.
     fn exchange_caps(
         &self,
-        vpe: Selector,
+        act: Selector,
         dels: &mut Vec<Selector>,
         max_sel: &mut Selector,
     ) -> Result<(), Error>;

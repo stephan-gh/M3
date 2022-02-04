@@ -100,7 +100,7 @@ impl Backend for MemBackend {
         let bytes: usize = (ext.length as usize - first_block) * self.blocksize as usize;
         let size = ((ext.start as usize + first_block) * self.blocksize) as u64;
         derive_mem(
-            m3::pes::VPE::cur().sel(),
+            m3::tiles::Activity::cur().sel(),
             sel,
             self.mem.sel(),
             size,

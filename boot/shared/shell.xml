@@ -22,14 +22,14 @@
                 <app args="pager maxcli=4 $fs.size" usermem="256M" getinfo="1">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes type="core" count="1" />
+                    <tiles type="core" count="1" />
                     <app args="/bin/shell" getinfo="1">
                         <mount fs="m3fs" path="/" />
                         <sess name="pipes" />
                         <sess name="vterm" />
                         <sess name="net" args="bufs=256K" />
-                        <pes type="core" count="3" />
-                        <pes type="rot13" count="2" optional="1" />
+                        <tiles type="core" count="3" />
+                        <tiles type="rot13" count="2" optional="1" />
                     </app>
                 </app>
             </dom>

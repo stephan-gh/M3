@@ -26,12 +26,12 @@ pub use self::server::{CapExchange, Handler, Server};
 pub use self::sesscon::{SessId, SessionContainer};
 
 use crate::errors::Error;
-use crate::pes::VPE;
+use crate::tiles::Activity;
 
 /// Executes the server loop, calling `func` in every iteration.
 pub fn server_loop<F: FnMut() -> Result<(), Error>>(mut func: F) -> Result<(), Error> {
     loop {
-        VPE::sleep().ok();
+        Activity::sleep().ok();
 
         func()?;
     }

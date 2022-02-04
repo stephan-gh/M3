@@ -15,4 +15,4 @@
  */
 
 pub mod cpu;
-pub mod pexabi;
+pub mod tmabi;

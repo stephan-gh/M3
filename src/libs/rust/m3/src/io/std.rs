@@ -16,8 +16,8 @@
 
 use crate::cell::{LazyStaticRefCell, RefCell, RefMut};
 use crate::io::Serial;
-use crate::pes::VPE;
 use crate::rc::Rc;
+use crate::tiles::Activity;
 use crate::vfs::{BufReader, BufWriter, Fd, FileRef};
 
 /// The file descriptor for the standard input stream
@@ -46,19 +46,19 @@ pub fn stderr() -> RefMut<'static, BufWriter<FileRef>> {
 
 pub(crate) fn init() {
     for fd in 0..3 {
-        if VPE::cur().files().get(fd).is_none() {
-            VPE::cur()
+        if Activity::cur().files().get(fd).is_none() {
+            Activity::cur()
                 .files()
                 .set(fd, Rc::new(RefCell::new(Serial::new())));
         }
     }
 
     let create_in = |fd| {
-        let f = VPE::cur().files().get(fd).unwrap();
+        let f = Activity::cur().files().get(fd).unwrap();
         BufReader::new(FileRef::new(f, fd))
     };
     let create_out = |fd| {
-        let f = VPE::cur().files().get(fd).unwrap();
+        let f = Activity::cur().files().get(fd).unwrap();
         BufWriter::new(FileRef::new(f, fd))
     };
 

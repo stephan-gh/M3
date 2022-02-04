@@ -166,12 +166,12 @@ ssize_t DirectPipeWriter::write(const void *buffer, size_t count, bool blocking)
     return buf - reinterpret_cast<const char*>(buffer);
 }
 
-void DirectPipeWriter::delegate(VPE &vpe) {
-    vpe.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _caps, 2));
+void DirectPipeWriter::delegate(Activity &act) {
+    act.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _caps, 2));
 }
 
 void DirectPipeWriter::serialize(Marshaller &m) {
-    // we can't share the writer between two VPEs atm anyway, so don't serialize the current state
+    // we can't share the writer between two activities atm anyway, so don't serialize the current state
     m << _caps << _size;
 }
 

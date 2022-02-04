@@ -23,7 +23,7 @@
 #include <m3/vfs/File.h>
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 #include "exceptions.h"
 #include "fsapi.h"
@@ -128,7 +128,7 @@ public:
     virtual ssize_t read(int fd, void *buffer, size_t size) override {
         checkFd(fd);
         try {
-            auto file = m3::VPE::self().files()->get(_fdMap[fd]);
+            auto file = m3::Activity::self().files()->get(_fdMap[fd]);
             char *buf = reinterpret_cast<char*>(buffer);
             while(size > 0) {
                 size_t res = file->read(buf, size);
@@ -146,7 +146,7 @@ public:
 
     virtual ssize_t write(int fd, const void *buffer, size_t size) override {
         checkFd(fd);
-        auto file = m3::VPE::self().files()->get(_fdMap[fd]);
+        auto file = m3::Activity::self().files()->get(_fdMap[fd]);
         return write_file(file, buffer, size);
     }
 
@@ -162,20 +162,20 @@ public:
 
     virtual ssize_t pread(int fd, void *buffer, size_t size, off_t offset) override {
         checkFd(fd);
-        m3::VPE::self().files()->get(_fdMap[fd])->seek(static_cast<size_t>(offset), M3FS_SEEK_SET);
+        m3::Activity::self().files()->get(_fdMap[fd])->seek(static_cast<size_t>(offset), M3FS_SEEK_SET);
         return read(fd, buffer, size);
     }
 
     virtual ssize_t pwrite(int fd, const void *buffer, size_t size, off_t offset) override {
         checkFd(fd);
-        m3::VPE::self().files()->get(_fdMap[fd])->seek(static_cast<size_t>(offset), M3FS_SEEK_SET);
+        m3::Activity::self().files()->get(_fdMap[fd])->seek(static_cast<size_t>(offset), M3FS_SEEK_SET);
         return write(fd, buffer, size);
     }
 
     virtual void lseek(const lseek_args_t *args, UNUSED int lineNo) override {
         checkFd(args->fd);
         try {
-            auto file = m3::VPE::self().files()->get(_fdMap[args->fd]);
+            auto file = m3::Activity::self().files()->get(_fdMap[args->fd]);
             file->seek(static_cast<size_t>(args->offset), args->whence);
         }
         catch(...) {
@@ -204,7 +204,7 @@ public:
         int res = get_result_of([this, &args] {
             m3::FileInfo info;
             if(_fdMap[args->fd] != -1)
-                m3::VPE::self().files()->get(_fdMap[args->fd])->stat(info);
+                m3::Activity::self().files()->get(_fdMap[args->fd])->stat(info);
             else if(_dirMap[args->fd])
                 _dirMap[args->fd]->stat(info);
             else
@@ -272,8 +272,8 @@ public:
 
         checkFd(args->in_fd);
         checkFd(args->out_fd);
-        auto in = m3::VPE::self().files()->get(_fdMap[args->in_fd]);
-        auto out = m3::VPE::self().files()->get(_fdMap[args->out_fd]);
+        auto in = m3::Activity::self().files()->get(_fdMap[args->in_fd]);
+        auto out = m3::Activity::self().files()->get(_fdMap[args->out_fd]);
         char *rbuf = buf.readBuffer(Buffer::MaxBufferSize);
         size_t rem = args->count;
         while(rem > 0) {
@@ -346,7 +346,7 @@ public:
             throw NotSupportedException(lineNo);
 
         checkFd(args->in_fd);
-        auto in = m3::VPE::self().files()->get(_fdMap[args->in_fd]);
+        auto in = m3::Activity::self().files()->get(_fdMap[args->in_fd]);
 
         char *rbuf = buf.readBuffer(Buffer::MaxBufferSize);
         size_t rem = args->count;

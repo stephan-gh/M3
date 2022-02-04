@@ -21,10 +21,10 @@ use m3::com::{GateIStream, RecvGate, SendGate};
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::math::next_log2;
-use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::ServerSession;
 use m3::test;
+use m3::tiles::{Activity, ActivityArgs, RunningActivity, Tile};
 use m3::{reply_vmsg, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -126,8 +126,8 @@ fn server_msgs_main() -> i32 {
 pub fn testmsgs() {
     use m3::send_recv;
 
-    let server_pe = wv_assert_ok!(PE::get("clone|own"));
-    let serv = wv_assert_ok!(VPE::new_with(server_pe, VPEArgs::new("server")));
+    let server_tile = wv_assert_ok!(Tile::get("clone|own"));
+    let serv = wv_assert_ok!(Activity::new_with(server_tile, ActivityArgs::new("server")));
     let sact = wv_assert_ok!(serv.run(server_msgs_main));
 
     {

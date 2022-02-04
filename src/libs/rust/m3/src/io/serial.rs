@@ -20,8 +20,8 @@ use crate::errors::{Code, Error};
 use crate::goff;
 use crate::io;
 use crate::kif;
-use crate::pes::StateSerializer;
 use crate::session::{HashInput, HashOutput, HashSession, MapFlags, Pager};
+use crate::tiles::StateSerializer;
 use crate::vfs;
 
 impl vfs::Seek for io::Serial {
@@ -69,7 +69,7 @@ impl vfs::File for io::Serial {
 
     fn exchange_caps(
         &self,
-        _vpe: Selector,
+        _act: Selector,
         _dels: &mut Vec<Selector>,
         _max_sel: &mut Selector,
     ) -> Result<(), Error> {

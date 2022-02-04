@@ -18,7 +18,7 @@
 #include <base/mem/Heap.h>
 #include <base/stream/Serial.h>
 #include <base/Env.h>
-#include <base/PEDesc.h>
+#include <base/TileDesc.h>
 #include <string.h>
 
 // EXTERN_C void gem5_writefile(const char *str, uint64_t len, uint64_t offset, uint64_t file);
@@ -88,7 +88,7 @@ public:
     }
 
     virtual void init() override {
-        m3::Serial::init("standalone", m3::env()->pe_id);
+        m3::Serial::init("standalone", m3::env()->tile_id);
     }
 
     virtual bool extend_heap(size_t) override {

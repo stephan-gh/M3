@@ -69,16 +69,16 @@ extern "C" {
 #[cfg(not(target_vendor = "host"))]
 fn heap_bounds() -> (usize, usize) {
     use crate::arch;
-    use crate::kif::PEDesc;
+    use crate::kif::TileDesc;
     use crate::math;
 
     unsafe {
         let begin = math::round_up(&_bss_end as *const u8 as usize, cfg::PAGE_SIZE);
 
         let env = arch::envdata::get();
-        let pe_desc = PEDesc::new_from(env.pe_desc);
-        let end = if pe_desc.has_mem() {
-            pe_desc.stack_space().0
+        let tile_desc = TileDesc::new_from(env.tile_desc);
+        let end = if tile_desc.has_mem() {
+            tile_desc.stack_space().0
         }
         else {
             assert!(env.heap_size != 0);

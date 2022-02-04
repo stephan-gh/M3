@@ -21,13 +21,13 @@
 #include <m3/com/GateStream.h>
 #include <m3/com/SendGate.h>
 #include <m3/Exception.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 namespace m3 {
 
 class ResMng {
-    explicit ResMng(capsel_t resmng, capsel_t vpe)
-        : _sgate(SendGate::bind(resmng)), _vpe(vpe) {
+    explicit ResMng(capsel_t resmng, capsel_t act)
+        : _sgate(SendGate::bind(resmng)), _act(act) {
     }
 
 public:
@@ -44,8 +44,8 @@ public:
         ALLOC_MEM,
         FREE_MEM,
 
-        ALLOC_PE,
-        FREE_PE,
+        ALLOC_TILE,
+        FREE_TILE,
 
         USE_RGATE,
         USE_SGATE,
@@ -73,8 +73,8 @@ public:
                 "REM_CHILD",
                 "ALLOC_MEM",
                 "FREE_MEM",
-                "ALLOC_PE",
-                "FREE_PE",
+                "ALLOC_TILE",
+                "FREE_TILE",
                 "USE_SEM",
             };
 
@@ -89,12 +89,12 @@ public:
     };
 
     explicit ResMng(capsel_t resmng) noexcept
-        : _sgate(SendGate::bind(resmng)), _vpe(ObjCap::INVALID) {
+        : _sgate(SendGate::bind(resmng)), _act(ObjCap::INVALID) {
     }
     ~ResMng() {
-        if(_vpe != ObjCap::INVALID) {
+        if(_act != ObjCap::INVALID) {
             try {
-                send_receive_vmsg(VPE::self().resmng()->_sgate, REM_CHILD, _vpe);
+                send_receive_vmsg(Activity::self().resmng()->_sgate, REM_CHILD, _act);
             }
             catch(...) {
                 // ignore
@@ -106,10 +106,10 @@ public:
         return _sgate.sel();
     }
 
-    std::unique_ptr<ResMng> clone(VPE &vpe, const String &name) {
-        capsel_t sgate_sel = vpe.alloc_sel();
-        clone(vpe.id(), vpe.sel(), sgate_sel, name);
-        return std::unique_ptr<ResMng>(new ResMng(sgate_sel, vpe.sel()));
+    std::unique_ptr<ResMng> clone(Activity &act, const String &name) {
+        capsel_t sgate_sel = act.alloc_sel();
+        clone(act.id(), act.sel(), sgate_sel, name);
+        return std::unique_ptr<ResMng>(new ResMng(sgate_sel, act.sel()));
     }
 
     void reg_service(capsel_t dst, capsel_t sgate, const String &name, size_t sessions) {
@@ -142,18 +142,18 @@ public:
         retrieve_result(FREE_MEM, reply);
     }
 
-    PEDesc alloc_pe(capsel_t sel, const PEDesc &desc) {
-        GateIStream reply = send_receive_vmsg(_sgate, ALLOC_PE, sel, desc.value());
-        retrieve_result(ALLOC_PE, reply);
-        PEDesc::value_t res;
-        peid_t peid;
-        reply >> peid >> res;
-        return PEDesc(res);
+    TileDesc alloc_tile(capsel_t sel, const TileDesc &desc) {
+        GateIStream reply = send_receive_vmsg(_sgate, ALLOC_TILE, sel, desc.value());
+        retrieve_result(ALLOC_TILE, reply);
+        TileDesc::value_t res;
+        tileid_t tileid;
+        reply >> tileid >> res;
+        return TileDesc(res);
     }
 
-    void free_pe(capsel_t sel) {
-        GateIStream reply = send_receive_vmsg(_sgate, FREE_PE, sel);
-        retrieve_result(FREE_PE, reply);
+    void free_tile(capsel_t sel) {
+        GateIStream reply = send_receive_vmsg(_sgate, FREE_TILE, sel);
+        retrieve_result(FREE_TILE, reply);
     }
 
     std::pair<uint, uint> use_rgate(capsel_t sel, const char *name) {
@@ -175,8 +175,8 @@ public:
     }
 
 private:
-    void clone(vpeid_t vpe_id, capsel_t vpe_sel, capsel_t sgate_sel, const String &name) {
-        GateIStream reply = send_receive_vmsg(_sgate, ADD_CHILD, vpe_id, vpe_sel, sgate_sel, name);
+    void clone(actid_t act_id, capsel_t act_sel, capsel_t sgate_sel, const String &name) {
+        GateIStream reply = send_receive_vmsg(_sgate, ADD_CHILD, act_id, act_sel, sgate_sel, name);
         retrieve_result(ADD_CHILD, reply);
     }
 
@@ -188,7 +188,7 @@ private:
     }
 
     SendGate _sgate;
-    capsel_t _vpe;
+    capsel_t _act;
 };
 
 }

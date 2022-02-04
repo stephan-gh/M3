@@ -22,8 +22,8 @@ int_enum! {
         /// completions of the derive-srv syscall
         const DERIVE_SRV        = 0;
 
-        /// waits for VPE exits
-        const VPE_WAIT          = 1;
+        /// waits for activity exits
+        const ACT_WAIT          = 1;
     }
 }
 
@@ -35,13 +35,13 @@ pub struct DefaultUpcall {
     pub event: u64,
 }
 
-/// The VPE-wait upcall that is sent upon a VPE-exit
+/// The activity-wait upcall that is sent upon a activity-exit
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
-pub struct VPEWait {
+pub struct ActivityWait {
     pub def: DefaultUpcall,
     pub error: u64,
-    pub vpe_sel: u64,
+    pub act_sel: u64,
     pub exitcode: u64,
 }
 

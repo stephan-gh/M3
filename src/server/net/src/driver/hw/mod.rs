@@ -23,7 +23,7 @@ use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{PageFlags, Perm};
-use m3::pes::VPE;
+use m3::tiles::Activity;
 use m3::vec;
 
 use smoltcp::time::Instant;
@@ -46,7 +46,7 @@ pub struct AXIEthDevice {
 impl AXIEthDevice {
     pub fn new() -> Result<Self, Error> {
         let bufs = MemGate::new(BUF_SIZE, Perm::RW)?;
-        VPE::cur()
+        Activity::cur()
             .pager()
             .unwrap()
             .map_mem(BUF_VIRT_ADDR, &bufs, BUF_SIZE, Perm::RW)?;

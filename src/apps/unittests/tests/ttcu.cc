@@ -56,8 +56,8 @@ static void dmacmd(const void *data, size_t len, epid_t ep, size_t offset, size_
 }
 
 static void cmds_read() {
-    EP *rcvep = VPE::self().epmng().acquire();
-    EP *sndep = VPE::self().epmng().acquire();
+    EP *rcvep = Activity::self().epmng().acquire();
+    EP *sndep = Activity::self().epmng().acquire();
     TCU &tcu = TCU::get();
 
     void *addr = map_page();
@@ -73,7 +73,7 @@ static void cmds_read() {
 
     cout << "-- Test errors --\n";
     {
-        tcu.configure(sndep->id(), reinterpret_cast<word_t>(data), MemGate::R, env()->pe_id,
+        tcu.configure(sndep->id(), reinterpret_cast<word_t>(data), MemGate::R, env()->tile_id,
             rcvep->id(), datasize, 0);
 
         dmacmd(nullptr, 0, sndep->id(), 0, datasize, TCU::WRITE);
@@ -91,7 +91,7 @@ static void cmds_read() {
 
     cout << "-- Test reading --\n";
     {
-        tcu.configure(sndep->id(), reinterpret_cast<word_t>(data), MemGate::R, env()->pe_id,
+        tcu.configure(sndep->id(), reinterpret_cast<word_t>(data), MemGate::R, env()->tile_id,
             rcvep->id(), datasize, 0);
 
         word_t buf[datasize / sizeof(word_t)];
@@ -105,13 +105,13 @@ static void cmds_read() {
     unmap_page(addr);
     tcu.configure(sndep->id(), 0, 0, 0, 0, 0, 0);
 
-    VPE::self().epmng().release(sndep, true);
-    VPE::self().epmng().release(rcvep, true);
+    Activity::self().epmng().release(sndep, true);
+    Activity::self().epmng().release(rcvep, true);
 }
 
 static void cmds_write() {
-    EP *rcvep = VPE::self().epmng().acquire();
-    EP *sndep = VPE::self().epmng().acquire();
+    EP *rcvep = Activity::self().epmng().acquire();
+    EP *sndep = Activity::self().epmng().acquire();
     TCU &tcu = TCU::get();
 
     void *addr = map_page();
@@ -121,7 +121,7 @@ static void cmds_write() {
     cout << "-- Test errors --\n";
     {
         word_t data[] = {1234, 5678, 1122, 3344};
-        tcu.configure(sndep->id(), reinterpret_cast<word_t>(addr), MemGate::W, env()->pe_id,
+        tcu.configure(sndep->id(), reinterpret_cast<word_t>(addr), MemGate::W, env()->tile_id,
             rcvep->id(), sizeof(data), 0);
 
         dmacmd(nullptr, 0, sndep->id(), 0, sizeof(data), TCU::READ);
@@ -131,7 +131,7 @@ static void cmds_write() {
     cout << "-- Test writing --\n";
     {
         word_t data[] = {1234, 5678, 1122, 3344};
-        tcu.configure(sndep->id(), reinterpret_cast<word_t>(addr), MemGate::W, env()->pe_id,
+        tcu.configure(sndep->id(), reinterpret_cast<word_t>(addr), MemGate::W, env()->tile_id,
             rcvep->id(), sizeof(data), 0);
 
         dmacmd(data, sizeof(data), sndep->id(), 0, sizeof(data), TCU::WRITE);
@@ -144,8 +144,8 @@ static void cmds_write() {
     unmap_page(addr);
     tcu.configure(sndep->id(), 0, 0, 0, 0, 0, 0);
 
-    VPE::self().epmng().release(sndep, true);
-    VPE::self().epmng().release(rcvep, true);
+    Activity::self().epmng().release(sndep, true);
+    Activity::self().epmng().release(rcvep, true);
 }
 
 static void mem_sync() {

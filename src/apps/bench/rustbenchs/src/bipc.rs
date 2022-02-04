@@ -15,9 +15,9 @@
  */
 
 use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
-use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::rc::Rc;
 use m3::test;
+use m3::tiles::{Activity, ActivityArgs, RunningActivity, Tile};
 use m3::time::{CycleInstant, Profiler};
 use m3::{
     format, println, reply_vmsg, send_vmsg, wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test,
@@ -34,32 +34,32 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn pingpong_remote() {
-    let pe = wv_assert_ok!(PE::get("clone"));
-    pingpong_with_pe("remote", pe);
+    let tile = wv_assert_ok!(Tile::get("clone"));
+    pingpong_with_tile("remote", tile);
 }
 
 fn pingpong_local() {
-    if !VPE::cur().pe_desc().has_virtmem() {
+    if !Activity::cur().tile_desc().has_virtmem() {
         println!("No virtual memory; skipping local IPC test");
         return;
     }
 
-    pingpong_with_pe("local", VPE::cur().pe().clone());
+    pingpong_with_tile("local", Activity::cur().tile().clone());
 }
 
-fn pingpong_with_pe(name: &str, pe: Rc<PE>) {
-    let mut vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("sender")));
+fn pingpong_with_tile(name: &str, tile: Rc<Tile>) {
+    let mut act = wv_assert_ok!(Activity::new_with(tile, ActivityArgs::new("sender")));
 
     let rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
-    wv_assert_ok!(vpe.delegate_obj(rgate.sel()));
+    wv_assert_ok!(act.delegate_obj(rgate.sel()));
 
-    let mut dst = vpe.data_sink();
+    let mut dst = act.data_sink();
     dst.push_word(rgate.sel());
 
-    let act = wv_assert_ok!(vpe.run(|| {
-        let rgate_sel = VPE::cur().data_source().pop_word().unwrap();
+    let act = wv_assert_ok!(act.run(|| {
+        let rgate_sel = Activity::cur().data_source().pop_word().unwrap();
         let mut rgate = RecvGate::new_bind(rgate_sel, MSG_ORD, MSG_ORD);
         wv_assert_ok!(rgate.activate());
         for _ in 0..RUNS + WARMUP {

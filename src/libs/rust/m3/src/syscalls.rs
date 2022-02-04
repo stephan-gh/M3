@@ -27,7 +27,7 @@ use crate::goff;
 use crate::mem::{GlobAddr, MsgBuf};
 use crate::quota::Quota;
 use crate::serialize::{Sink, Source};
-use crate::tcu::{EpId, Label, Message, VPEId, SYSC_SEP_OFF};
+use crate::tcu::{ActId, EpId, Label, Message, SYSC_SEP_OFF};
 
 static SGATE: LazyStaticRefCell<SendGate> = LazyStaticRefCell::default();
 // use a separate message buffer here, because the default buffer could be in use for a message over
@@ -79,11 +79,11 @@ pub fn create_srv(dst: Selector, rgate: Selector, name: &str, creator: Label) ->
 }
 
 /// Creates a new memory gate at selector `dst` that refers to the address region
-/// `addr`..`addr`+`size` in the address space of `vpe`. The `addr` and `size` needs to be page
+/// `addr`..`addr`+`size` in the address space of `act`. The `addr` and `size` needs to be page
 /// aligned.
 pub fn create_mgate(
     dst: Selector,
-    vpe: Selector,
+    act: Selector,
     addr: goff,
     size: goff,
     perms: Perm,
@@ -92,7 +92,7 @@ pub fn create_mgate(
     buf.set(syscalls::CreateMGate {
         opcode: syscalls::Operation::CREATE_MGATE.val,
         dst_sel: dst,
-        vpe_sel: vpe,
+        act_sel: act,
         addr: addr as u64,
         size: size as u64,
         perms: u64::from(perms.bits()),
@@ -154,7 +154,7 @@ pub fn create_sess(
     send_receive_result(&buf)
 }
 
-/// Creates a new mapping at page `dst` for the given VPE. The syscall maps `pages` pages to the
+/// Creates a new mapping at page `dst` for the given activity. The syscall maps `pages` pages to the
 /// physical memory given by `mgate`, starting at the page `first` within the physical memory using
 /// the given permissions.
 ///
@@ -167,11 +167,11 @@ pub fn create_sess(
 ///
 /// ```
 /// let mem = MemGate::new(0x2000, MemGate::RW).expect("Unable to alloc mem");
-/// syscalls::create_map(10, VPE::cur().sel(), mem.sel(), 0, 2, MemGate::RW);
+/// syscalls::create_map(10, activity::cur().sel(), mem.sel(), 0, 2, MemGate::RW);
 /// ```
 pub fn create_map(
     dst: Selector,
-    vpe: Selector,
+    act: Selector,
     mgate: Selector,
     first: Selector,
     pages: usize,
@@ -181,7 +181,7 @@ pub fn create_map(
     buf.set(syscalls::CreateMap {
         opcode: syscalls::Operation::CREATE_MAP.val,
         dst_sel: dst,
-        vpe_sel: vpe,
+        act_sel: act,
         mgate_sel: mgate,
         first,
         pages: pages as u64,
@@ -190,24 +190,24 @@ pub fn create_map(
     send_receive_result(&buf)
 }
 
-/// Creates a new VPE on PE `pe` with given name at the selector range `dst`.
+/// Creates a new activity on tile `tile` with given name at the selector range `dst`.
 ///
-/// The argument `kmem` defines the kernel memory to assign to the VPE.
+/// The argument `kmem` defines the kernel memory to assign to the activity.
 ///
-/// On success, the function returns the VPE id (for debugging purposes) and EP id of the first
+/// On success, the function returns the activity id (for debugging purposes) and EP id of the first
 /// standard EP.
 #[allow(clippy::too_many_arguments)]
-pub fn create_vpe(
+pub fn create_activity(
     dst: Selector,
     name: &str,
-    pe: Selector,
+    tile: Selector,
     kmem: Selector,
-) -> Result<(VPEId, EpId), Error> {
+) -> Result<(ActId, EpId), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    syscalls::CreateVPE::fill_msgbuf(&mut buf, dst, name, pe, kmem);
+    syscalls::CreateActivity::fill_msgbuf(&mut buf, dst, name, tile, kmem);
 
-    let reply: Reply<syscalls::CreateVPEReply> = send_receive(&buf)?;
-    Ok((reply.data.id as VPEId, reply.data.eps_start as EpId))
+    let reply: Reply<syscalls::CreateActivityReply> = send_receive(&buf)?;
+    Ok((reply.data.id as ActId, reply.data.eps_start as EpId))
 }
 
 /// Creates a new semaphore at selector `dst` using `value` as the initial value.
@@ -221,14 +221,14 @@ pub fn create_sem(dst: Selector, value: u32) -> Result<(), Error> {
     send_receive_result(&buf)
 }
 
-/// Allocates a new endpoint for the given VPE at selector `dst`. Optionally, it can have `replies`
+/// Allocates a new endpoint for the given activity at selector `dst`. Optionally, it can have `replies`
 /// reply slots attached to it (for receive gate activations).
-pub fn alloc_ep(dst: Selector, vpe: Selector, epid: EpId, replies: u32) -> Result<EpId, Error> {
+pub fn alloc_ep(dst: Selector, act: Selector, epid: EpId, replies: u32) -> Result<EpId, Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::AllocEP {
         opcode: syscalls::Operation::ALLOC_EP.val,
         dst_sel: dst,
-        vpe_sel: vpe,
+        act_sel: act,
         epid: epid as u64,
         replies: u64::from(replies),
     });
@@ -238,27 +238,27 @@ pub fn alloc_ep(dst: Selector, vpe: Selector, epid: EpId, replies: u32) -> Resul
 }
 
 /// Sets the given physical-memory-protection EP to the memory region as defined by the `MemGate`
-/// on the given PE.
+/// on the given tile.
 ///
 /// The EP has to be between 1 and `crate::tcu::PMEM_PROT_EPS` - 1 and will be overwritten with the
 /// new memory region.
-pub fn set_pmp(pe: Selector, mgate: Selector, ep: EpId) -> Result<(), Error> {
+pub fn set_pmp(tile: Selector, mgate: Selector, ep: EpId) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::SetPMP {
         opcode: syscalls::Operation::SET_PMP.val,
-        pe_sel: pe,
+        tile_sel: tile,
         mgate_sel: mgate,
         epid: u64::from(ep),
     });
     send_receive_result(&buf)
 }
 
-/// Derives a new memory gate for given VPE at selector `dst` based on memory gate `sel`.
+/// Derives a new memory gate for given activity at selector `dst` based on memory gate `sel`.
 ///
 /// The subset of the region is given by `offset` and `size`, whereas the subset of the permissions
 /// are given by `perm`.
 pub fn derive_mem(
-    vpe: Selector,
+    act: Selector,
     dst: Selector,
     src: Selector,
     offset: goff,
@@ -268,7 +268,7 @@ pub fn derive_mem(
     let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::DeriveMem {
         opcode: syscalls::Operation::DERIVE_MEM.val,
-        vpe_sel: vpe,
+        act_sel: act,
         dst_sel: dst,
         src_sel: src,
         offset,
@@ -291,23 +291,23 @@ pub fn derive_kmem(kmem: Selector, dst: Selector, quota: usize) -> Result<(), Er
     send_receive_result(&buf)
 }
 
-/// Derives a new PE object at `dst` from `pe`, transferring a subset of the resources to the new PE
+/// Derives a new tile object at `dst` from `tile`, transferring a subset of the resources to the new tile
 /// object.
 ///
 /// If a value is not `None`, the corresponding amount is substracted from the current quota (and
 /// therefore, needs to be available). If a value is `None`, the quota will be shared with the
-/// current PE object.
-pub fn derive_pe(
-    pe: Selector,
+/// current tile object.
+pub fn derive_tile(
+    tile: Selector,
     dst: Selector,
     eps: Option<u32>,
     time: Option<u64>,
     pts: Option<u64>,
 ) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::DerivePE {
-        opcode: syscalls::Operation::DERIVE_PE.val,
-        pe_sel: pe,
+    buf.set(syscalls::DeriveTile {
+        opcode: syscalls::Operation::DERIVE_TILE.val,
+        tile_sel: tile,
         dst_sel: dst,
         eps: OptionalValue::new(eps),
         time: OptionalValue::new(time),
@@ -332,14 +332,14 @@ pub fn derive_srv(srv: Selector, dst: CapRngDesc, sessions: u32, event: u64) -> 
     send_receive_result(&buf)
 }
 
-/// Obtains the session capability from service `srv` with session id `sid` to the given VPE.
-pub fn get_sess(srv: Selector, vpe: Selector, dst: Selector, sid: Label) -> Result<(), Error> {
+/// Obtains the session capability from service `srv` with session id `sid` to the given activity.
+pub fn get_sess(srv: Selector, act: Selector, dst: Selector, sid: Label) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::GetSession {
         opcode: syscalls::Operation::GET_SESS.val,
         dst_sel: dst,
         srv_sel: srv,
-        vpe_sel: vpe,
+        act_sel: act,
         sid: sid as u64,
     });
     send_receive_result(&buf)
@@ -373,15 +373,15 @@ pub fn kmem_quota(kmem: Selector) -> Result<Quota<usize>, Error> {
     ))
 }
 
-/// Returns the remaining quota (free endpoints) for the PE object at `pe`.
-pub fn pe_quota(pe: Selector) -> Result<(Quota<u32>, Quota<u64>, Quota<usize>), Error> {
+/// Returns the remaining quota (free endpoints) for the tile object at `tile`.
+pub fn tile_quota(tile: Selector) -> Result<(Quota<u32>, Quota<u64>, Quota<usize>), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::PEQuota {
-        opcode: syscalls::Operation::PE_QUOTA.val,
-        pe_sel: pe,
+    buf.set(syscalls::TileQuota {
+        opcode: syscalls::Operation::TILE_QUOTA.val,
+        tile_sel: tile,
     });
 
-    let reply: Reply<syscalls::PEQuotaReply> = send_receive(&buf)?;
+    let reply: Reply<syscalls::TileQuotaReply> = send_receive(&buf)?;
     Ok((
         Quota::new(
             reply.data.eps_id,
@@ -401,30 +401,30 @@ pub fn pe_quota(pe: Selector) -> Result<(Quota<u32>, Quota<u64>, Quota<usize>), 
     ))
 }
 
-/// Sets the quota of the PE with given selector to specified initial values (given time slice
-/// length and number of page tables). This call is only permitted for root PE capabilities.
-pub fn pe_set_quota(pe: Selector, time: u64, pts: u64) -> Result<(), Error> {
+/// Sets the quota of the tile with given selector to specified initial values (given time slice
+/// length and number of page tables). This call is only permitted for root tile capabilities.
+pub fn tile_set_quota(tile: Selector, time: u64, pts: u64) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::PESetQuota {
-        opcode: syscalls::Operation::PE_SET_QUOTA.val,
-        pe_sel: pe,
+    buf.set(syscalls::TileSetQuota {
+        opcode: syscalls::Operation::TILE_SET_QUOTA.val,
+        tile_sel: tile,
         time,
         pts,
     });
     send_receive_result(&buf)
 }
 
-/// Performs the VPE operation `op` with the given VPE.
-pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Error> {
+/// Performs the activity operation `op` with the given activity.
+pub fn activity_ctrl(act: Selector, op: syscalls::ActivityOp, arg: u64) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::VPECtrl {
-        opcode: syscalls::Operation::VPE_CTRL.val,
-        vpe_sel: vpe,
+    buf.set(syscalls::ActivityCtrl {
+        opcode: syscalls::Operation::ACT_CTRL.val,
+        act_sel: act,
         op: op.val,
         arg,
     });
 
-    if vpe == kif::SEL_VPE && op == syscalls::VPEOp::STOP {
+    if act == kif::SEL_ACT && op == syscalls::ActivityOp::STOP {
         SGATE.borrow().send(&buf, RecvGate::syscall())
     }
     else {
@@ -432,22 +432,22 @@ pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Erro
     }
 }
 
-/// Waits until any of the given VPEs exits.
+/// Waits until any of the given activities exits.
 ///
 /// If `event` is non-zero, the kernel replies immediately and acknowledges the validity of the
-/// request and sends an upcall as soon as a VPE exists. Otherwise, the kernel replies only as soon
-/// as a VPE exists. In both cases, the kernel returns the selector of the VPE that exited and the
-/// exitcode given by the VPE.
-pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error> {
+/// request and sends an upcall as soon as a activity exists. Otherwise, the kernel replies only as soon
+/// as a activity exists. In both cases, the kernel returns the selector of the activity that exited and the
+/// exitcode given by the activity.
+pub fn activity_wait(acts: &[Selector], event: u64) -> Result<(Selector, i32), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    syscalls::VPEWait::fill_msgbuf(&mut buf, vpes, event);
+    syscalls::ActivityWait::fill_msgbuf(&mut buf, acts, event);
 
-    let reply: Reply<syscalls::VPEWaitReply> = send_receive(&buf)?;
+    let reply: Reply<syscalls::ActivityWaitReply> = send_receive(&buf)?;
     if event != 0 {
         Ok((0, 0))
     }
     else {
-        Ok((reply.data.vpe_sel as Selector, reply.data.exitcode as i32))
+        Ok((reply.data.act_sel as Selector, reply.data.exitcode as i32))
     }
 }
 
@@ -462,12 +462,12 @@ pub fn sem_ctrl(sem: Selector, op: syscalls::SemOp) -> Result<(), Error> {
     send_receive_result(&buf)
 }
 
-/// Exchanges capabilities between your VPE and the VPE `vpe`.
+/// Exchanges capabilities between your activity and the activity `act`.
 ///
 /// If `obtain` is true, the capabilities `other`..`own.count()` and copied to `own`. If `obtain` is
 /// false, the capabilities `own` are copied to `other`..`own.count()`.
 pub fn exchange(
-    vpe: Selector,
+    act: Selector,
     own: CapRngDesc,
     other: Selector,
     obtain: bool,
@@ -475,7 +475,7 @@ pub fn exchange(
     let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::Exchange {
         opcode: syscalls::Operation::EXCHANGE.val,
-        vpe_sel: vpe,
+        act_sel: act,
         own_caps: own.raw(),
         other_sel: other,
         obtain: u64::from(obtain),
@@ -483,14 +483,14 @@ pub fn exchange(
     send_receive_result(&buf)
 }
 
-/// Delegates the capabilities `crd` of VPE `vpe` via the session `sess` to the server managing the
+/// Delegates the capabilities `crd` of activity `act` via the session `sess` to the server managing the
 /// session.
 ///
 /// `pre` and `post` are called before and after the system call, respectively. `pre` is called with
 /// [`Sink`], allowing to pass arguments to the server, whereas `post` is called with [`Source`],
 /// allowing to get arguments from the server.
 pub fn delegate<PRE, POST>(
-    vpe: Selector,
+    act: Selector,
     sess: Selector,
     crd: CapRngDesc,
     pre: PRE,
@@ -500,17 +500,17 @@ where
     PRE: Fn(&mut Sink),
     POST: FnMut(&mut Source) -> Result<(), Error>,
 {
-    exchange_sess(vpe, syscalls::Operation::DELEGATE, sess, crd, pre, post)
+    exchange_sess(act, syscalls::Operation::DELEGATE, sess, crd, pre, post)
 }
 
 /// Obtains `crd.count` capabilities via the session `sess` from the server managing the session
-/// into `crd` of VPE `vpe`.
+/// into `crd` of activity `act`.
 ///
 /// `pre` and `post` are called before and after the system call, respectively. `pre` is called with
 /// [`Sink`], allowing to pass arguments to the server, whereas `post` is called with [`Source`],
 /// allowing to get arguments from the server.
 pub fn obtain<PRE, POST>(
-    vpe: Selector,
+    act: Selector,
     sess: Selector,
     crd: CapRngDesc,
     pre: PRE,
@@ -520,11 +520,11 @@ where
     PRE: Fn(&mut Sink),
     POST: FnMut(&mut Source) -> Result<(), Error>,
 {
-    exchange_sess(vpe, syscalls::Operation::OBTAIN, sess, crd, pre, post)
+    exchange_sess(act, syscalls::Operation::OBTAIN, sess, crd, pre, post)
 }
 
 fn exchange_sess<PRE, POST>(
-    vpe: Selector,
+    act: Selector,
     op: syscalls::Operation,
     sess: Selector,
     crd: CapRngDesc,
@@ -538,7 +538,7 @@ where
     let mut buf = SYSC_BUF.borrow_mut();
     let req = buf.set(syscalls::ExchangeSess {
         opcode: op.val,
-        vpe_sel: vpe,
+        act_sel: act,
         sess_sel: sess,
         caps: crd.raw(),
         args: syscalls::ExchangeArgs::default(),
@@ -582,15 +582,15 @@ pub fn activate(
     send_receive_result(&buf)
 }
 
-/// Revokes the given capabilities from given VPE.
+/// Revokes the given capabilities from given activity.
 ///
-/// If `own` is true, they are also revoked from the given VPE. Otherwise, only the delegations of
+/// If `own` is true, they are also revoked from the given activity. Otherwise, only the delegations of
 /// the capabilities are revoked.
-pub fn revoke(vpe: Selector, crd: CapRngDesc, own: bool) -> Result<(), Error> {
+pub fn revoke(act: Selector, crd: CapRngDesc, own: bool) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::Revoke {
         opcode: syscalls::Operation::REVOKE.val,
-        vpe_sel: vpe,
+        act_sel: act,
         caps: crd.raw(),
         own: u64::from(own),
     });
@@ -599,7 +599,7 @@ pub fn revoke(vpe: Selector, crd: CapRngDesc, own: bool) -> Result<(), Error> {
 
 /// The reset stats system call for benchmarking
 ///
-/// Resets the statistics for all VPEs in the system
+/// Resets the statistics for all activities in the system
 pub fn reset_stats() -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::ResetStats {

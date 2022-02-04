@@ -30,7 +30,7 @@ namespace m3 {
 class GateIStream;
 class MemGate;
 class SendGate;
-class VPE;
+class Activity;
 template<class HDL>
 class Server;
 class RecvBuf;
@@ -205,7 +205,7 @@ public:
     bool has_msgs() const;
 
     /**
-     * Suspend the VPE until a message arrives on this RecvGate.
+     * Suspend the activity until a message arrives on this RecvGate.
      */
     void wait_for_msg() const;
 

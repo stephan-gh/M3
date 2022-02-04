@@ -28,7 +28,7 @@
 namespace m3 {
 
 /**
- * A VPE-local virtual file system. It allows to mount filesystems at a given path and directs
+ * An activity-local virtual file system. It allows to mount filesystems at a given path and directs
  * filesystem operations like open, mkdir, ... to the corresponding filesystem.
  */
 class VFS {

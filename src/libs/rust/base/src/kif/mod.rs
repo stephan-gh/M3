@@ -17,18 +17,18 @@
 //! Contains the kernel interface definitions
 
 mod cap;
-mod pedesc;
 mod perm;
+mod tiledesc;
 
 pub mod boot;
-pub mod pemux;
 pub mod service;
 pub mod syscalls;
+pub mod tilemux;
 pub mod upcalls;
 
 pub use self::cap::*;
-pub use self::pedesc::*;
 pub use self::perm::*;
+pub use self::tiledesc::*;
 
 use num_traits::PrimInt;
 
@@ -40,15 +40,15 @@ pub const INVALID_SEL: CapSel = 0xFFFF;
 /// Represents unlimited credits for a SendGate
 pub const UNLIM_CREDITS: u32 = tcu::UNLIM_CREDITS;
 
-/// The selector for the own PE capability
-pub const SEL_PE: CapSel = 0;
+/// The selector for the own tile capability
+pub const SEL_TILE: CapSel = 0;
 /// The selector for the own kernel memory capability
 pub const SEL_KMEM: CapSel = 1;
-/// The selector for the own VPE
-pub const SEL_VPE: CapSel = 2;
+/// The selector for the own activity
+pub const SEL_ACT: CapSel = 2;
 
 /// The first free selector
-pub const FIRST_FREE_SEL: CapSel = SEL_VPE + 1;
+pub const FIRST_FREE_SEL: CapSel = SEL_ACT + 1;
 
 /// The default request message that only contains the opcode
 #[repr(C)]

@@ -19,7 +19,7 @@ use core::ptr;
 use libc;
 
 use crate::arch::envdata;
-use crate::arch::tcu::{thread, EpId, Header, PEId, PE_COUNT, TOTAL_EPS};
+use crate::arch::tcu::{thread, EpId, Header, TileId, TILE_COUNT, TOTAL_EPS};
 use crate::col::Vec;
 use crate::mem;
 
@@ -139,25 +139,25 @@ impl SocketBackend {
         UnixSocket::new(sock, Self::get_sock_addr(&sock_name))
     }
 
-    fn ep_idx(pe: PEId, ep: EpId) -> usize {
-        pe as usize * TOTAL_EPS as usize + ep as usize
+    fn ep_idx(tile: TileId, ep: EpId) -> usize {
+        tile as usize * TOTAL_EPS as usize + ep as usize
     }
 
     pub fn new() -> SocketBackend {
         let sock = unsafe { libc::socket(libc::AF_UNIX, libc::SOCK_DGRAM, 0) };
         assert!(sock != -1);
 
-        let pe = envdata::get().pe_id as PEId;
-        let cmd_sock = Self::create_sock(&format!("pe{}-cmd", pe));
+        let tile = envdata::get().tile_id as TileId;
+        let cmd_sock = Self::create_sock(&format!("tile{}-cmd", tile));
         cmd_sock.bind();
-        let ack_sock = Self::create_sock(&format!("pe{}-ack", pe));
+        let ack_sock = Self::create_sock(&format!("tile{}-ack", tile));
         ack_sock.bind();
         let knotify_sock = Self::create_sock("knotify");
 
         let mut eps = vec![];
-        for pe in 0..PE_COUNT {
+        for tile in 0..TILE_COUNT {
             for ep in 0..TOTAL_EPS {
-                let addr = format!("\0{}/ep_{}.{}\0", envdata::tmp_dir(), pe, ep);
+                let addr = format!("\0{}/ep_{}.{}\0", envdata::tmp_dir(), tile, ep);
                 eps.push(Self::get_sock_addr(&addr));
             }
         }
@@ -173,7 +173,7 @@ impl SocketBackend {
                 assert!(
                     libc::bind(
                         epsock,
-                        &eps[Self::ep_idx(pe, ep)] as *const libc::sockaddr_un
+                        &eps[Self::ep_idx(tile, ep)] as *const libc::sockaddr_un
                             as *const libc::sockaddr,
                         mem::size_of::<libc::sockaddr_un>() as u32
                     ) == 0
@@ -198,8 +198,8 @@ impl SocketBackend {
         self.add_fds.push(fd);
     }
 
-    pub fn send(&self, pe: PEId, ep: EpId, buf: &thread::Buffer) -> bool {
-        let sock = &self.eps[Self::ep_idx(pe, ep)];
+    pub fn send(&self, tile: TileId, ep: EpId, buf: &thread::Buffer) -> bool {
+        let sock = &self.eps[Self::ep_idx(tile, ep)];
         let res = unsafe {
             libc::sendto(
                 self.sock,

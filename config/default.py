@@ -11,9 +11,9 @@ cmd_list = options.cmd.split(",")
 
 num_eps = 128 if os.environ.get('M3_TARGET') == 'hw' else 192
 num_mem = 1
-num_sto = 1 # Number of PEs for IDE storage
-num_pes = int(os.environ.get('M3_GEM5_PES'))
-num_spm = 4 if num_pes >= 4 else 4 - num_pes
+num_sto = 1 # Number of tiles for IDE storage
+num_tiles = int(os.environ.get('M3_GEM5_TILES'))
+num_spm = 4 if num_tiles >= 4 else 4 - num_tiles
 
 fsimg = os.environ.get('M3_GEM5_FS')
 fsimgnum = os.environ.get('M3_GEM5_FSNUM', '1')
@@ -25,99 +25,99 @@ if not os.path.isfile(hard_disk0):
 
 num_rot13 = 2
 num_kecacc = 1
-mem_pe = num_pes + num_sto + 2 + num_rot13 + num_kecacc + 1
+mem_tile = num_tiles + num_sto + 2 + num_rot13 + num_kecacc + 1
 
 tcupos = int(os.environ.get('M3_GEM5_TCUPOS', 0))
 
-pes = []
+tiles = []
 
-# create the core PEs
-for i in range(0, num_pes - num_spm):
-    pe = createCorePE(noc=root.noc,
-                      options=options,
-                      no=i,
-                      cmdline=cmd_list[i],
-                      memPE=mem_pe,
-                      l1size='32kB',
-                      l2size='256kB',
-                      tcupos=tcupos,
-                      epCount=num_eps)
-    pes.append(pe)
+# create the core tiles
+for i in range(0, num_tiles - num_spm):
+    tile = createCoreTile(noc=root.noc,
+                          options=options,
+                          no=i,
+                          cmdline=cmd_list[i],
+                          memTile=mem_tile,
+                          l1size='32kB',
+                          l2size='256kB',
+                          tcupos=tcupos,
+                          epCount=num_eps)
+    tiles.append(tile)
 
-for i in range(num_pes - num_spm, num_pes):
-    pe = createCorePE(noc=root.noc,
-                      options=options,
-                      no=i,
-                      cmdline=cmd_list[i],
-                      memPE=mem_pe,
-                      spmsize='32MB',
-                      epCount=num_eps)
-    pes.append(pe)
+for i in range(num_tiles - num_spm, num_tiles):
+    tile = createCoreTile(noc=root.noc,
+                          options=options,
+                          no=i,
+                          cmdline=cmd_list[i],
+                          memTile=mem_tile,
+                          spmsize='32MB',
+                          epCount=num_eps)
+    tiles.append(tile)
 
-# create the persistent storage PEs
+# create the persistent storage tiles
 for i in range(0, num_sto):
-    pe = createStoragePE(noc=root.noc,
+    tile = createStorageTile(noc=root.noc,
+                             options=options,
+                             no=num_tiles + i,
+                             memTile=mem_tile,
+                             img0=hard_disk0,
+                             epCount=num_eps)
+    tiles.append(tile)
+
+# create ether tiles
+ether0 = createEtherTile(noc=root.noc,
                          options=options,
-                         no=num_pes + i,
-                         memPE=mem_pe,
-                         img0=hard_disk0,
+                         no=num_tiles + num_sto + 0,
+                         memTile=mem_tile,
                          epCount=num_eps)
-    pes.append(pe)
+tiles.append(ether0)
 
-# create ether PEs
-ether0 = createEtherPE(noc=root.noc,
-                       options=options,
-                       no=num_pes + num_sto + 0,
-                       memPE=mem_pe,
-                       epCount=num_eps)
-pes.append(ether0)
-
-ether1 = createEtherPE(noc=root.noc,
-                       options=options,
-                       no=num_pes + num_sto + 1,
-                       memPE=mem_pe,
-                       epCount=num_eps)
-pes.append(ether1)
+ether1 = createEtherTile(noc=root.noc,
+                         options=options,
+                         no=num_tiles + num_sto + 1,
+                         memTile=mem_tile,
+                         epCount=num_eps)
+tiles.append(ether1)
 
 linkEtherPEs(ether0, ether1)
 
 for i in range(0, num_rot13):
-    rpe = createAccelPE(noc=root.noc,
-                        options=options,
-                        no=num_pes + num_sto + 2 + i,
-                        accel='rot13',
-                        memPE=mem_pe,
-                        spmsize='2MB',
-                        epCount=num_eps)
-    pes.append(rpe)
+    rpe = createAccelTile(noc=root.noc,
+                          options=options,
+                          no=num_tiles + num_sto + 2 + i,
+                          accel='rot13',
+                          memTile=mem_tile,
+                          spmsize='2MB',
+                          epCount=num_eps)
+    tiles.append(rpe)
 
 for i in range(0, num_kecacc):
-    pe = createKecAccPE(noc=root.noc,
+    tile = createKecAccTile(noc=root.noc,
+                            options=options,
+                            no=num_tiles + num_sto + 2 + num_rot13 + i,
+                            cmdline=cmd_list[1],  # FIXME
+                            memTile=mem_tile,
+                            spmsize='32MB',
+                            epCount=num_eps)
+    tiles.append(tile)
+
+# create tile for serial input
+tile = createSerialTile(noc=root.noc,
                         options=options,
-                        no=num_pes + num_sto + 2 + num_rot13 + i,
-                        cmdline=cmd_list[1],  # FIXME
-                        memPE=mem_pe,
-                        spmsize='32MB',
+                        no=num_tiles + num_sto + 2 + num_rot13 + num_kecacc,
+                        memTile=mem_tile,
                         epCount=num_eps)
-    pes.append(pe)
+tiles.append(tile)
 
-# create PE for serial input
-pe = createSerialPE(noc=root.noc,
-                    options=options,
-                    no=num_pes + num_sto + 2 + num_rot13 + num_kecacc,
-                    memPE=mem_pe,
-                    epCount=num_eps)
-pes.append(pe)
-
-# create the memory PEs
+# create the memory tiles
 for i in range(0, num_mem):
-    pe = createMemPE(noc=root.noc,
-                     options=options,
-                     no=num_pes + num_sto + 2 + num_rot13  + num_kecacc + 1 + i,
-                     size='3072MB',
-                     image=fsimg if i == 0 else None,
-                     imageNum=int(fsimgnum),
-                     epCount=num_eps)
-    pes.append(pe)
+    tile = createMemTile(noc=root.noc,
+                         options=options,
+                         no=num_tiles + num_sto + 2 + num_rot13  + num_kecacc + 1 + i,
+                         size='3072MB',
+                         image=fsimg if i == 0 else None,
+                         imageNum=int(fsimgnum),
+                         epCount=num_eps)
+    tiles.append(tile)
 
-runSimulation(root, options, pes)
+runSimulation(root, options, tiles)

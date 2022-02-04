@@ -26,7 +26,6 @@ use m3::io::{Serial, Write};
 use m3::kif;
 use m3::log;
 use m3::mem::MaybeUninit;
-use m3::pes::VPE;
 use m3::rc::Rc;
 use m3::reply_vmsg;
 use m3::server::{
@@ -35,6 +34,7 @@ use m3::server::{
 };
 use m3::session::ServerSession;
 use m3::tcu::{Label, Message};
+use m3::tiles::Activity;
 use m3::vec;
 use m3::vfs::GenFileOp;
 use m3::{goff, send_vmsg};
@@ -260,7 +260,7 @@ impl VTermHandler {
         writing: bool,
     ) -> Result<VTermSession, Error> {
         log!(crate::LOG_DEF, "[{}] vterm::new_chan()", sid);
-        let sels = VPE::cur().alloc_sels(2);
+        let sels = Activity::cur().alloc_sels(2);
         Ok(VTermSession {
             crt,
             sess: ServerSession::new_with_sel(self.sel, sels, crt, sid as u64, false)?,
@@ -380,7 +380,7 @@ impl Handler<VTermSession> for VTermHandler {
             SessionData::Meta => Err(Error::new(Code::InvArgs)),
             SessionData::Chan(c) => match op {
                 GenFileOp::SET_DEST => {
-                    let sel = VPE::cur().alloc_sel();
+                    let sel = Activity::cur().alloc_sel();
                     c.ep = Some(sel);
                     xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
                     Ok(())
@@ -390,7 +390,7 @@ impl Handler<VTermSession> for VTermHandler {
                         return Err(Error::new(Code::Exists));
                     }
 
-                    let sel = VPE::cur().alloc_sel();
+                    let sel = Activity::cur().alloc_sel();
                     c.sig_gate = Some(SendGate::new_bind(sel));
                     xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
                     Ok(())
@@ -518,8 +518,8 @@ pub fn main() -> i32 {
         .expect("Unable to activate signal receive gate");
     SIGRGATE.set(rgate);
 
-    let sel = VPE::cur().alloc_sel();
-    let mut serial_gate = VPE::cur()
+    let sel = Activity::cur().alloc_sel();
+    let mut serial_gate = Activity::cur()
         .resmng()
         .unwrap()
         .get_serial(sel)

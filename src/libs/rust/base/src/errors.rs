@@ -54,11 +54,11 @@ pub enum Code {
     TLBFull,
     // SW Errors
     InvArgs,
-    VPEGone,
+    ActivityGone,
     OutOfMem,
     NoSuchFile,
     NotSup,
-    NoFreePE,
+    NoFreeTile,
     InvalidElf,
     NoSpace,
     Exists,

@@ -22,12 +22,12 @@ mod bdlist;
 mod bipc;
 mod bmemmap;
 mod bmgate;
-#[cfg(not(target_vendor = "host"))]
-mod bpemux;
 mod bpipe;
 mod bregfile;
 mod bstream;
 mod bsyscall;
+#[cfg(not(target_vendor = "host"))]
+mod btilemux;
 mod btreap;
 mod btreemap;
 
@@ -68,7 +68,7 @@ pub fn main() -> i32 {
     wv_run_suite!(tester, bmgate::run);
     wv_run_suite!(tester, bipc::run);
     #[cfg(not(target_vendor = "host"))]
-    wv_run_suite!(tester, bpemux::run);
+    wv_run_suite!(tester, btilemux::run);
     wv_run_suite!(tester, bpipe::run);
     wv_run_suite!(tester, bregfile::run);
     wv_run_suite!(tester, bstream::run);

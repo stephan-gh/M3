@@ -21,9 +21,9 @@ use crate::cell::Cell;
 use crate::com::EP;
 use crate::errors::Error;
 use crate::kif;
-use crate::pes::VPE;
 use crate::syscalls;
 use crate::tcu::EpId;
+use crate::tiles::Activity;
 
 /// A gate is one side of a TCU-based communication channel and exists in the variants [`MemGate`],
 /// [`SendGate`], and [`RecvGate`].
@@ -82,7 +82,7 @@ impl Gate {
         addr: usize,
         replies: u32,
     ) -> Result<EpId, Error> {
-        let ep = VPE::cur().epmng_mut().acquire(replies)?;
+        let ep = Activity::cur().epmng_mut().acquire(replies)?;
         syscalls::activate(ep.sel(), self.sel(), mem.unwrap_or(kif::INVALID_SEL), addr)?;
         self.ep.replace(Some(ep));
         Ok(self.ep().unwrap().id())
@@ -99,7 +99,7 @@ impl Gate {
     }
 
     fn do_activate(&self) -> Result<&EP, Error> {
-        let ep = VPE::cur().epmng_mut().activate(self)?;
+        let ep = Activity::cur().epmng_mut().activate(self)?;
         self.ep.replace(Some(ep));
         Ok(self.ep().unwrap())
     }
@@ -107,7 +107,7 @@ impl Gate {
     /// Releases the EP that is used by this gate
     pub(crate) fn release(&mut self, force_inval: bool) {
         if let Some(ep) = self.ep.replace(None) {
-            VPE::cur().epmng_mut().release(
+            Activity::cur().epmng_mut().release(
                 ep,
                 force_inval || self.cap.flags().contains(CapFlags::KEEP_CAP),
             );

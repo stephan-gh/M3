@@ -26,7 +26,7 @@
 
 namespace m3 {
 
-class VPE;
+class Activity;
 
 class Pager : public RefCounted, public ClientSession {
 private:
@@ -76,7 +76,7 @@ public:
         return _child_rgate;
     }
 
-    void init(VPE &vpe);
+    void init(Activity &act);
 
     Reference<Pager> create_clone();
     void clone();

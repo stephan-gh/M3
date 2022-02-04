@@ -38,17 +38,17 @@ pub mod net;
 
 pub use base::{
     backtrace, boxed, cell, cfg, col, cpu, elf, env, errors, format, function, goff, impl_boxitem,
-    int_enum, kif, libc, llog, log, math, mem, parse, pexif, quota, rc, serialize, sync, tcu, test,
-    time, util, vec, wv_assert, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_assert_some, wv_perf,
+    int_enum, kif, libc, llog, log, math, mem, parse, quota, rc, serialize, sync, tcu, test, time,
+    tmif, util, vec, wv_assert, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_assert_some, wv_perf,
     wv_run_suite, wv_run_test,
 };
 
 pub mod cap;
 pub mod crypto;
-pub mod pes;
 pub mod server;
 pub mod session;
 pub mod syscalls;
+pub mod tiles;
 pub mod vfs;
 
 mod arch;

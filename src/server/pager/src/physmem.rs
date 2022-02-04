@@ -86,8 +86,8 @@ impl PhysMem {
         self.owner_mem
     }
 
-    pub fn set_owner(&mut self, vpe: Selector, virt: goff) {
-        self.owner_mem = Some((vpe, virt));
+    pub fn set_owner(&mut self, act: Selector, virt: goff) {
+        self.owner_mem = Some((act, virt));
     }
 
     pub fn remove_owner(&mut self) {

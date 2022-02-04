@@ -123,7 +123,7 @@ pub fn disable_paging() {
     // not possible/necessary
 }
 
-pub fn invalidate_page(_id: crate::VPEId, virt: usize) {
+pub fn invalidate_page(_id: crate::ActId, virt: usize) {
     unsafe {
         asm!(
             "invlpg [{0}]",
@@ -137,6 +137,6 @@ pub fn invalidate_tlb() {
     // nothing to do
 }
 
-pub fn set_root_pt(_id: crate::VPEId, root: Phys) {
+pub fn set_root_pt(_id: crate::ActId, root: Phys) {
     cpu::write_cr3(root as usize);
 }

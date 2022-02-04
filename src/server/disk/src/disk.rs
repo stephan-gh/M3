@@ -28,13 +28,13 @@ use m3::env;
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::log;
-use m3::pes::VPE;
 use m3::server::{
     server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
     DEF_MAX_CLIENTS,
 };
 use m3::session::{BlockNo, BlockRange, DiskOperation, ServerSession};
 use m3::tcu::Label;
+use m3::tiles::Activity;
 
 use backend::BlockDevice;
 use backend::BlockDeviceTrait;
@@ -193,7 +193,7 @@ impl Handler<DiskSession> for DiskHandler {
         );
 
         let sess = self.sessions.get_mut(sid).unwrap();
-        let sel = VPE::cur().alloc_sel();
+        let sel = Activity::cur().alloc_sel();
         let range = BlockRange::new_range(bno, len);
         sess.blocks.remove(&range);
         sess.blocks.insert(range, sel);

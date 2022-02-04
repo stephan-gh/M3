@@ -14,12 +14,12 @@
  * General Public License version 2 for more details.
  */
 
-pub const MAX_PES: usize = 64;
+pub const MAX_TILES: usize = 64;
 
 #[cfg(target_vendor = "gem5")]
-pub const MAX_VPES: usize = 32;
+pub const MAX_ACTS: usize = 32;
 #[cfg(target_vendor = "hw")]
-pub const MAX_VPES: usize = 16;
+pub const MAX_ACTS: usize = 16;
 
 pub const PAGE_BITS: usize = 12;
 pub const PAGE_SIZE: usize = 1 << PAGE_BITS;
@@ -41,9 +41,9 @@ pub const MEM_OFFSET: usize = 0x1000_0000;
 #[cfg(not(target_arch = "riscv64"))]
 pub const MEM_OFFSET: usize = 0;
 
-pub const PEMUX_RBUF_SIZE: usize = 1 * PAGE_SIZE;
+pub const TILEMUX_RBUF_SIZE: usize = 1 * PAGE_SIZE;
 
-pub const PE_MEM_BASE: usize = 0xE000_0000;
+pub const TILE_MEM_BASE: usize = 0xE000_0000;
 
 pub const MEM_CAP_END: usize = RBUF_STD_ADDR;
 
@@ -59,11 +59,11 @@ pub const FIXED_KMEM: usize = 2 * 1024 * 1024;
 pub const FIXED_ROOT_MEM: usize = MOD_HEAP_SIZE + 2 * 1024 * 1024;
 
 #[cfg(target_vendor = "hw")]
-pub const PEMUX_START: usize = MEM_OFFSET;
+pub const TILEMUX_START: usize = MEM_OFFSET;
 #[cfg(target_vendor = "gem5")]
-pub const PEMUX_START: usize = MEM_OFFSET + 0x20_0000;
+pub const TILEMUX_START: usize = MEM_OFFSET + 0x20_0000;
 
-pub const PEMUX_RBUF_SPACE: usize = PEMUX_START + 0x1F_F000;
+pub const TILEMUX_RBUF_SPACE: usize = TILEMUX_START + 0x1F_F000;
 
 pub const APP_HEAP_SIZE: usize = 64 * 1024 * 1024;
 pub const MOD_HEAP_SIZE: usize = 4 * 1024 * 1024;
@@ -71,14 +71,14 @@ pub const MOD_HEAP_SIZE: usize = 4 * 1024 * 1024;
 pub const SERIAL_BUF_ORD: u32 = 6;
 
 pub const KPEX_RBUF_ORD: u32 = 6;
-pub const PEXUP_RBUF_ORD: u32 = 6;
+pub const TMUP_RBUF_ORD: u32 = 6;
 pub const SYSC_RBUF_ORD: u32 = 9;
 pub const UPCALL_RBUF_ORD: u32 = 6;
 pub const DEF_RBUF_ORD: u32 = 8;
 pub const VMA_RBUF_ORD: u32 = 6;
 
 pub const KPEX_RBUF_SIZE: usize = 1 << KPEX_RBUF_ORD;
-pub const PEXUP_RBUF_SIZE: usize = 1 << PEXUP_RBUF_ORD;
+pub const TMUP_RBUF_SIZE: usize = 1 << TMUP_RBUF_ORD;
 pub const SYSC_RBUF_SIZE: usize = 1 << SYSC_RBUF_ORD;
 pub const UPCALL_RBUF_SIZE: usize = 1 << UPCALL_RBUF_ORD;
 pub const DEF_RBUF_SIZE: usize = 1 << DEF_RBUF_ORD;

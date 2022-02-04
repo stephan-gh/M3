@@ -21,7 +21,7 @@
 
 namespace m3 {
 
-class VPE;
+class Activity;
 
 /**
  * The base class for all object-capabilities. Manages the selector and capability.
@@ -32,7 +32,7 @@ class VPE;
  * increases performance, it's worth it, I think.
  */
 class ObjCap {
-    friend class VPE;
+    friend class Activity;
 
 public:
     static const capsel_t INVALID   = KIF::INV_SEL;
@@ -48,10 +48,9 @@ public:
         RECV_GATE,
         SERVICE,
         SESSION,
-        VPEGRP,
-        VIRTPE,
+        ACTIVITY,
         ENDPOINT,
-        PE,
+        Tile,
         KMEM,
         SEM,
     };

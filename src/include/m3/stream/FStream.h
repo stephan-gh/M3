@@ -23,7 +23,7 @@
 #include <m3/vfs/File.h>
 #include <m3/vfs/FileTable.h>
 #include <m3/Exception.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 namespace m3 {
 
@@ -81,7 +81,7 @@ public:
      * @return the File instance
      */
     Reference<File> file() const {
-        return VPE::self().files()->get(_fd);
+        return Activity::self().files()->get(_fd);
     }
 
     /**

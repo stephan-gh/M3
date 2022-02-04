@@ -23,9 +23,9 @@ use crate::com::RecvGate;
 use crate::errors::Error;
 use crate::kif::{INVALID_SEL, UNLIM_CREDITS};
 use crate::mem::MsgBuf;
-use crate::pes::VPE;
 use crate::syscalls;
 use crate::tcu;
+use crate::tiles::Activity;
 
 /// A send gate (`SendGate`) can send message via TCU to an associated `RecvGate`.
 pub struct SendGate {
@@ -66,7 +66,7 @@ impl SGateArgs {
     }
 
     /// Sets the capability selector to use for the [`SendGate`]. Otherwise and by default,
-    /// [`VPE::alloc_sel`] will be used.
+    /// [`Activity::alloc_sel`] will be used.
     pub fn sel(mut self, sel: Selector) -> Self {
         self.sel = sel;
         self
@@ -94,7 +94,7 @@ impl SendGate {
     /// Creates a new `SendGate` with given arguments.
     pub fn new_with(args: SGateArgs) -> Result<Self, Error> {
         let sel = if args.sel == INVALID_SEL {
-            VPE::cur().alloc_sel()
+            Activity::cur().alloc_sel()
         }
         else {
             args.sel
@@ -108,8 +108,8 @@ impl SendGate {
 
     /// Creates the `SendGate` with given name as defined in the application's configuration
     pub fn new_named(name: &str) -> Result<Self, Error> {
-        let sel = VPE::cur().alloc_sel();
-        VPE::cur().resmng().unwrap().use_sgate(sel, name)?;
+        let sel = Activity::cur().alloc_sel();
+        Activity::cur().resmng().unwrap().use_sgate(sel, name)?;
         Ok(SendGate {
             gate: Gate::new(sel, CapFlags::empty()),
         })

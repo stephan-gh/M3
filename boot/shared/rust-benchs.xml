@@ -15,11 +15,11 @@
                 <app args="pager maxcli=2 $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes type="core" count="1" />
+                    <tiles type="core" count="1" />
                     <app args="/bin/rustbenchs">
                         <mount fs="m3fs" path="/" />
                         <sess name="pipes" />
-                        <pes type="core" count="1" />
+                        <tiles type="core" count="1" />
                     </app>
                 </app>
             </dom>

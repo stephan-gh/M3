@@ -30,7 +30,7 @@ namespace m3 {
 class EnvUserBackend;
 class SendGate;
 class Syscalls;
-class VPE;
+class Activity;
 
 /**
  * The optional arguments for SendGate::create()

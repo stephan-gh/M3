@@ -26,11 +26,11 @@ class ProxiedPciDevice;
 
 namespace m3 {
 
-class VPE;
+class Activity;
 
 /**
- * A memory gate is used to access PE-external memory via the TCU. You can either create a MemGate
- * by requesting PE-external memory from the kernel or bind a MemGate to an existing capability.
+ * A memory gate is used to access tile-external memory via the TCU. You can either create a MemGate
+ * by requesting tile-external memory from the kernel or bind a MemGate to an existing capability.
  */
 class MemGate : public Gate {
     friend class AladdinAccel;
@@ -108,10 +108,10 @@ public:
     MemGate derive(goff_t offset, size_t size, int perms = RWX) const;
 
     /**
-     * Derives memory from this memory gate for <vpe> and uses <sel> for it. That is, it creates
+     * Derives memory from this memory gate for <act> and uses <sel> for it. That is, it creates
      * a new memory capability that is bound to a subset of this memory (in space or permissions).
      *
-     * @param vpe the VPE to delegate the derived cap to
+     * @param act the activity to delegate the derived cap to
      * @param sel the capability selector to use
      * @param offset the offset inside this memory capability
      * @param size the size of the memory area
@@ -119,7 +119,7 @@ public:
      * @param flags the capability flags
      * @return the new memory gate
      */
-    MemGate derive_for(capsel_t vpe, capsel_t sel, goff_t offset, size_t size, int perms = RWX, uint flags = 0) const;
+    MemGate derive_for(capsel_t act, capsel_t sel, goff_t offset, size_t size, int perms = RWX, uint flags = 0) const;
 
     /**
      * Writes the <len> bytes at <data> to <offset>.

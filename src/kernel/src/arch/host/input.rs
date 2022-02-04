@@ -17,11 +17,11 @@
 use base::cell::LazyStaticCell;
 use base::libc;
 use base::mem;
-use base::tcu::{EpId, PEId, INVALID_EP, TCU};
+use base::tcu::{EpId, TileId, INVALID_EP, TCU};
 
 use crate::ktcu;
 
-static DEST: LazyStaticCell<(PEId, EpId)> = LazyStaticCell::default();
+static DEST: LazyStaticCell<(TileId, EpId)> = LazyStaticCell::default();
 
 pub fn init() {
     // don't configure stdin if it's no terminal
@@ -55,9 +55,9 @@ pub fn init() {
     TCU::add_wait_fd(libc::STDIN_FILENO);
 }
 
-pub fn start(dest: Option<(PEId, EpId)>) {
-    if let Some((pe, ep)) = dest {
-        DEST.set((pe, ep));
+pub fn start(dest: Option<(TileId, EpId)>) {
+    if let Some((tile, ep)) = dest {
+        DEST.set((tile, ep));
     }
 }
 
@@ -83,10 +83,10 @@ pub fn check() {
 
         if DEST.is_some() {
             // send to defined receive EP; ignore failures (e.g., no space)
-            let (dest_pe, dest_ep) = DEST.get();
+            let (dest_tile, dest_ep) = DEST.get();
             let mut msg_buf = mem::MsgBuf::new();
             msg_buf.set_from_slice(&buf[0..res as usize]);
-            ktcu::send_to(dest_pe, dest_ep, 0, &msg_buf, 0, INVALID_EP).ok();
+            ktcu::send_to(dest_tile, dest_ep, 0, &msg_buf, 0, INVALID_EP).ok();
         }
     }
 }

@@ -16,21 +16,21 @@
 
 use base::cell::LazyReadOnlyCell;
 use base::col::{String, Vec};
-use base::kif::{boot, PEDesc};
+use base::kif::{boot, TileDesc};
 use base::mem::{size_of, GlobAddr};
-use base::tcu::{EpId, PEId};
+use base::tcu::{EpId, TileId};
 use core::iter;
 
 use crate::arch;
 
 #[cfg(not(target_vendor = "host"))]
-pub use arch::platform::rbuf_pemux;
+pub use arch::platform::rbuf_tilemux;
 
 pub struct KEnv {
     info: boot::Info,
     info_addr: GlobAddr,
     mods: Vec<boot::Mod>,
-    pes: Vec<PEDesc>,
+    tiles: Vec<TileDesc>,
 }
 
 impl KEnv {
@@ -38,30 +38,30 @@ impl KEnv {
         info: boot::Info,
         info_addr: GlobAddr,
         mods: Vec<boot::Mod>,
-        pes: Vec<PEDesc>,
+        tiles: Vec<TileDesc>,
     ) -> Self {
         KEnv {
             info,
             info_addr,
             mods,
-            pes,
+            tiles,
         }
     }
 }
 
-pub struct PEIterator {
-    id: PEId,
-    last: PEId,
+pub struct TileIterator {
+    id: TileId,
+    last: TileId,
 }
 
-impl PEIterator {
-    pub fn new(id: PEId, last: PEId) -> Self {
+impl TileIterator {
+    pub fn new(id: TileId, last: TileId) -> Self {
         Self { id, last }
     }
 }
 
-impl iter::Iterator for PEIterator {
-    type Item = PEId;
+impl iter::Iterator for TileIterator {
+    type Item = TileId;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.id <= self.last {
@@ -94,30 +94,30 @@ pub fn info_addr() -> GlobAddr {
 pub fn info_size() -> usize {
     size_of::<boot::Info>()
         + info().mod_count as usize * size_of::<boot::Mod>()
-        + info().pe_count as usize * size_of::<boot::PE>()
+        + info().tile_count as usize * size_of::<boot::Tile>()
         + info().mem_count as usize * size_of::<boot::Mem>()
 }
 
-pub fn kernel_pe() -> PEId {
-    arch::platform::kernel_pe()
+pub fn kernel_tile() -> TileId {
+    arch::platform::kernel_tile()
 }
 #[cfg(target_vendor = "host")]
-pub fn pes() -> &'static [PEDesc] {
-    &get().pes
+pub fn tiles() -> &'static [TileDesc] {
+    &get().tiles
 }
-pub fn user_pes() -> PEIterator {
-    arch::platform::user_pes()
-}
-
-pub fn pe_desc(pe: PEId) -> PEDesc {
-    get().pes[pe as usize]
+pub fn user_tiles() -> TileIterator {
+    arch::platform::user_tiles()
 }
 
-pub fn is_shared(pe: PEId) -> bool {
-    arch::platform::is_shared(pe)
+pub fn tile_desc(tile: TileId) -> TileDesc {
+    get().tiles[tile as usize]
 }
 
-pub fn init_serial(dest: Option<(PEId, EpId)>) {
+pub fn is_shared(tile: TileId) -> bool {
+    arch::platform::is_shared(tile)
+}
+
+pub fn init_serial(dest: Option<(TileId, EpId)>) {
     arch::platform::init_serial(dest);
 }
 

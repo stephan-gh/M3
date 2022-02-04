@@ -20,7 +20,7 @@
 #include <base/util/BitField.h>
 #include <base/Config.h>
 #include <base/EnvBackend.h>
-#include <base/PEDesc.h>
+#include <base/TileDesc.h>
 
 #include <pthread.h>
 #include <assert.h>
@@ -108,11 +108,11 @@ public:
     void print() const;
 
     void init_tcu();
-    void set_params(peid_t _pe, const std::string &shmprefix, label_t sysc_label,
+    void set_params(tileid_t _tile, const std::string &shmprefix, label_t sysc_label,
                     epid_t sysc_ep, word_t sysc_credits, capsel_t first_sel, capsel_t kmem_sel) {
-        vpe_id = sysc_label;
-        pe_id = _pe;
-        pe_desc = PEDesc(PEType::COMP_IMEM, m3::PEISA::X86, 1024 * 1024).value();
+        act_id = sysc_label;
+        tile_id = _tile;
+        tile_desc = TileDesc(TileType::COMP_IMEM, m3::TileISA::X86, 1024 * 1024).value();
         _shm_prefix = shmprefix.c_str();
         _sysc_label = sysc_label;
         _sysc_epid = sysc_ep;
@@ -128,18 +128,18 @@ public:
 private:
     static void on_exit_func(int status, void *);
     static void *mem();
-    static peid_t set_inst(Env *e) {
+    static tileid_t set_inst(Env *e) {
         _inst = e;
-        // pe id
+        // tile id
         return 0;
     }
     static void init_executable();
 
 public:
-    vpeid_t vpe_id;
-    peid_t pe_id;
+    actid_t act_id;
+    tileid_t tile_id;
     bool shared;
-    uint32_t pe_desc;
+    uint32_t tile_desc;
     epid_t first_std_ep;
 
 private:

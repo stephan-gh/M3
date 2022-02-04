@@ -28,81 +28,81 @@ use base::tcu;
 use crate::cap::{Capability, KObject, MapObject, SelRange};
 use crate::ktcu;
 use crate::mem;
-use crate::pes::{pemng, PEMux, VPE};
+use crate::tiles::{tilemng, Activity, TileMux};
 
 use crate::platform;
 
-pub fn init_memory_async(vpe: &VPE) -> Result<i32, Error> {
+pub fn init_memory_async(act: &Activity) -> Result<i32, Error> {
     // put mapping for env into cap table (so that we can access it in create_mgate later)
-    let env_phys = if platform::pe_desc(vpe.pe_id()).has_virtmem() {
-        let mut env_addr = PEMux::translate_async(
-            pemng::pemux(vpe.pe_id()),
-            vpe.id(),
+    let env_phys = if platform::tile_desc(act.tile_id()).has_virtmem() {
+        let mut env_addr = TileMux::translate_async(
+            tilemng::tilemux(act.tile_id()),
+            act.id(),
             ENV_START as goff,
             kif::Perm::RW,
         )?;
         env_addr = env_addr + (ENV_START & PAGE_MASK) as goff;
 
         let flags = PageFlags::from(kif::Perm::RW);
-        load_segment_async(vpe, env_addr, ENV_START as goff, PAGE_SIZE, flags, false)?;
+        load_segment_async(act, env_addr, ENV_START as goff, PAGE_SIZE, flags, false)?;
 
-        ktcu::glob_to_phys_remote(vpe.pe_id(), env_addr, flags)?
+        ktcu::glob_to_phys_remote(act.tile_id(), env_addr, flags)?
     }
     else {
         ENV_START as goff
     };
 
-    if vpe.is_root() {
-        load_root_async(env_phys, vpe)?;
+    if act.is_root() {
+        load_root_async(env_phys, act)?;
     }
     Ok(0)
 }
 
-pub fn start(_vpe: &VPE) -> Result<i32, Error> {
+pub fn start(_act: &Activity) -> Result<i32, Error> {
     // nothing to do
     Ok(0)
 }
 
-pub fn finish_start(_vpe: &VPE) -> Result<(), Error> {
+pub fn finish_start(_act: &Activity) -> Result<(), Error> {
     // nothing to do
     Ok(())
 }
 
-fn load_root_async(env_phys: goff, vpe: &VPE) -> Result<(), Error> {
+fn load_root_async(env_phys: goff, act: &Activity) -> Result<(), Error> {
     // map stack
-    if vpe.pe_desc().has_virtmem() {
-        let (virt, size) = vpe.pe_desc().stack_space();
+    if act.tile_desc().has_virtmem() {
+        let (virt, size) = act.tile_desc().stack_space();
         let phys =
             mem::borrow_mut().allocate(mem::MemType::ROOT, size as goff, PAGE_SIZE as goff)?;
-        load_segment_async(vpe, phys.global(), virt as goff, size, PageFlags::RW, true)?;
+        load_segment_async(act, phys.global(), virt as goff, size, PageFlags::RW, true)?;
     }
 
     let entry: usize = {
         let app = get_mod("root").ok_or_else(|| Error::new(Code::NoSuchFile))?;
-        klog!(VPES, "Loading mod '{}':", app.name());
-        load_mod_async(vpe, app)?
+        klog!(ACTIVITIES, "Loading mod '{}':", app.name());
+        load_mod_async(act, app)?
     };
 
-    let argv_addr = write_arguments(env_phys, vpe.pe_id(), &["root"]);
+    let argv_addr = write_arguments(env_phys, act.tile_id(), &["root"]);
 
     // build env
     let senv = envdata::EnvData {
         platform: envdata::get().platform,
         argc: 1,
         argv: argv_addr as u64,
-        sp: vpe.pe_desc().stack_top() as u64,
+        sp: act.tile_desc().stack_top() as u64,
         entry: entry as u64,
-        pe_id: vpe.pe_id() as u64,
-        pe_desc: vpe.pe_desc().value(),
+        tile_id: act.tile_id() as u64,
+        tile_desc: act.tile_desc().value(),
         heap_size: MOD_HEAP_SIZE as u64,
         rmng_sel: kif::INVALID_SEL as u64,
-        first_sel: vpe.first_sel() as u64,
-        first_std_ep: vpe.eps_start() as u64,
+        first_sel: act.first_sel() as u64,
+        first_std_ep: act.eps_start() as u64,
         ..Default::default()
     };
 
-    // write env to target PE
-    ktcu::write_slice(vpe.pe_id(), env_phys, &[senv]);
+    // write env to target tile
+    ktcu::write_slice(act.tile_id(), env_phys, &[senv]);
     Ok(())
 }
 
@@ -124,28 +124,28 @@ fn read_from_mod<T>(bm: &kif::boot::Mod, off: goff) -> Result<T, Error> {
     }
 
     let gaddr = GlobAddr::new(bm.addr);
-    Ok(ktcu::read_obj(gaddr.pe(), gaddr.offset() + off))
+    Ok(ktcu::read_obj(gaddr.tile(), gaddr.offset() + off))
 }
 
 fn load_segment_async(
-    vpe: &VPE,
+    act: &Activity,
     phys: GlobAddr,
     virt: goff,
     size: usize,
     flags: PageFlags,
     map: bool,
 ) -> Result<(), Error> {
-    if vpe.pe_desc().has_virtmem() {
+    if act.tile_desc().has_virtmem() {
         let dst_sel = virt >> PAGE_BITS;
         let pages = math::round_up(size, PAGE_SIZE) >> PAGE_BITS;
 
-        let phys_align = GlobAddr::new_with(phys.pe(), phys.offset() & !PAGE_MASK as goff);
+        let phys_align = GlobAddr::new_with(phys.tile(), phys.offset() & !PAGE_MASK as goff);
         let map_obj = MapObject::new(phys_align, flags);
         if map {
-            map_obj.map_async(vpe, virt & !PAGE_MASK as goff, phys_align, pages, flags)?;
+            map_obj.map_async(act, virt & !PAGE_MASK as goff, phys_align, pages, flags)?;
         }
 
-        vpe.map_caps().borrow_mut().insert(Capability::new_range(
+        act.map_caps().borrow_mut().insert(Capability::new_range(
             SelRange::new_range(dst_sel as kif::CapSel, pages as kif::CapSel),
             KObject::Map(map_obj),
         ))
@@ -153,17 +153,17 @@ fn load_segment_async(
     else {
         ktcu::copy(
             // destination
-            vpe.pe_id(),
+            act.tile_id(),
             virt as goff,
             // source
-            phys.pe(),
+            phys.tile(),
             phys.offset(),
             size,
         )
     }
 }
 
-fn load_mod_async(vpe: &VPE, bm: &kif::boot::Mod) -> Result<usize, Error> {
+fn load_mod_async(act: &Activity, bm: &kif::boot::Mod) -> Result<usize, Error> {
     let mod_addr = GlobAddr::new(bm.addr);
     let hdr: elf::Ehdr = read_from_mod(bm, 0)?;
 
@@ -175,7 +175,7 @@ fn load_mod_async(vpe: &VPE, bm: &kif::boot::Mod) -> Result<usize, Error> {
         return Err(Error::new(Code::InvalidElf));
     }
 
-    // copy load segments to destination PE
+    // copy load segments to destination tile
     let mut end = 0;
     let mut off = hdr.phoff;
     for _ in 0..hdr.phnum {
@@ -196,27 +196,27 @@ fn load_mod_async(vpe: &VPE, bm: &kif::boot::Mod) -> Result<usize, Error> {
         if phdr.filesz == 0 {
             let size = math::round_up((phdr.vaddr & PAGE_MASK) + phdr.memsz as usize, PAGE_SIZE);
 
-            let phys = if vpe.pe_desc().has_virtmem() {
+            let phys = if act.tile_desc().has_virtmem() {
                 let mem = mem::borrow_mut().allocate(
                     mem::MemType::ROOT,
                     size as goff,
                     PAGE_SIZE as goff,
                 )?;
-                load_segment_async(vpe, mem.global(), virt as goff, size, flags, true)?;
-                ktcu::glob_to_phys_remote(vpe.pe_id(), mem.global(), flags)?
+                load_segment_async(act, mem.global(), virt as goff, size, flags, true)?;
+                ktcu::glob_to_phys_remote(act.tile_id(), mem.global(), flags)?
             }
             else {
                 virt as goff
             };
 
-            ktcu::clear(vpe.pe_id(), phys, size)?;
+            ktcu::clear(act.tile_id(), phys, size)?;
             end = virt + size;
         }
         else {
             assert!(phdr.memsz == phdr.filesz);
             let size = (phdr.offset as usize & PAGE_MASK) + phdr.filesz as usize;
             load_segment_async(
-                vpe,
+                act,
                 mod_addr + offset as goff,
                 virt as goff,
                 size,
@@ -227,7 +227,7 @@ fn load_mod_async(vpe: &VPE, bm: &kif::boot::Mod) -> Result<usize, Error> {
         }
     }
 
-    if vpe.pe_desc().has_virtmem() {
+    if act.tile_desc().has_virtmem() {
         // create initial heap
         let end = math::round_up(end, PAGE_SIZE);
         let phys = mem::borrow_mut().allocate(
@@ -236,7 +236,7 @@ fn load_mod_async(vpe: &VPE, bm: &kif::boot::Mod) -> Result<usize, Error> {
             PAGE_SIZE as goff,
         )?;
         load_segment_async(
-            vpe,
+            act,
             phys.global(),
             end as goff,
             MOD_HEAP_SIZE,
@@ -248,7 +248,7 @@ fn load_mod_async(vpe: &VPE, bm: &kif::boot::Mod) -> Result<usize, Error> {
     Ok(hdr.entry)
 }
 
-fn write_arguments(addr: goff, pe: tcu::PEId, args: &[&str]) -> usize {
+fn write_arguments(addr: goff, tile: tcu::TileId, args: &[&str]) -> usize {
     let mut argptr: Vec<u64> = Vec::new();
     let mut argbuf: Vec<u8> = Vec::new();
 
@@ -268,11 +268,16 @@ fn write_arguments(addr: goff, pe: tcu::PEId, args: &[&str]) -> usize {
         argoff += arg.len() + 1;
     }
 
-    ktcu::write_mem(pe, off as goff, argbuf.as_ptr() as *const u8, argbuf.len());
+    ktcu::write_mem(
+        tile,
+        off as goff,
+        argbuf.as_ptr() as *const u8,
+        argbuf.len(),
+    );
     let argv_size = argptr.len() * size_of::<u64>();
     argoff = math::round_up(argoff, size_of::<u64>());
     ktcu::write_mem(
-        pe,
+        tile,
         addr + (argoff - ENV_START) as goff,
         argptr.as_ptr() as *const u8,
         argv_size,

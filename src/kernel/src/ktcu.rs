@@ -20,10 +20,11 @@ use base::goff;
 use base::kif;
 use base::mem;
 use base::tcu::{
-    EpId, Header, Label, Message, PEId, Reg, AVAIL_EPS, EP_REGS, PMEM_PROT_EPS, TCU, UNLIM_CREDITS,
+    EpId, Header, Label, Message, Reg, TileId, AVAIL_EPS, EP_REGS, PMEM_PROT_EPS, TCU,
+    UNLIM_CREDITS,
 };
 
-use crate::pes::KERNEL_ID;
+use crate::tiles::KERNEL_ID;
 
 pub use crate::arch::ktcu::*;
 
@@ -44,13 +45,13 @@ where
     TCU::set_ep_regs(ep, &regs);
 }
 
-pub fn config_remote_ep<CFG>(pe: PEId, ep: EpId, cfg: CFG) -> Result<(), Error>
+pub fn config_remote_ep<CFG>(tile: TileId, ep: EpId, cfg: CFG) -> Result<(), Error>
 where
     CFG: FnOnce(&mut [Reg]),
 {
     let mut regs = [0; EP_REGS];
     cfg(&mut regs);
-    write_ep_remote(pe, ep, &regs)
+    write_ep_remote(tile, ep, &regs)
 }
 
 pub fn recv_msgs(ep: EpId, buf: goff, ord: u32, msg_ord: u32) -> Result<(), Error> {
@@ -83,7 +84,7 @@ pub fn ack_msg(rep: EpId, msg: &Message) {
 }
 
 pub fn send_to(
-    pe: PEId,
+    tile: TileId,
     ep: EpId,
     lbl: Label,
     msg: &mem::MsgBuf,
@@ -94,14 +95,14 @@ pub fn send_to(
         // don't calculate the msg order here, because it can take some time and it doesn't really
         // matter what we set here assuming that it's large enough.
         assert!(msg.size() + mem::size_of::<Header>() <= 1 << 8);
-        config_send(regs, KERNEL_ID, lbl, pe, ep, 8, UNLIM_CREDITS);
+        config_send(regs, KERNEL_ID, lbl, tile, ep, 8, UNLIM_CREDITS);
     });
     klog!(
         KTCU,
         "sending {}-bytes from {:#x} to {}:{}",
         msg.size(),
         msg.bytes().as_ptr() as usize,
-        pe,
+        tile,
         ep
     );
     TCU::send(KTMP_EP, msg, rpl_lbl, rpl_ep)
@@ -113,30 +114,30 @@ pub fn reply(ep: EpId, reply: &mem::MsgBuf, msg: &Message) -> Result<(), Error> 
 }
 
 #[cfg(not(target_vendor = "host"))]
-pub fn read_obj<T>(pe: PEId, addr: goff) -> T {
-    try_read_obj(pe, addr).unwrap()
+pub fn read_obj<T>(tile: TileId, addr: goff) -> T {
+    try_read_obj(tile, addr).unwrap()
 }
 
 #[cfg(not(target_vendor = "host"))]
-pub fn try_read_obj<T>(pe: PEId, addr: goff) -> Result<T, Error> {
+pub fn try_read_obj<T>(tile: TileId, addr: goff) -> Result<T, Error> {
     use base::mem::MaybeUninit;
 
     #[allow(clippy::uninit_assumed_init)]
     let mut obj: T = unsafe { MaybeUninit::uninit().assume_init() };
     let obj_addr = &mut obj as *mut T as *mut u8;
-    try_read_mem(pe, addr, obj_addr, mem::size_of::<T>())?;
+    try_read_mem(tile, addr, obj_addr, mem::size_of::<T>())?;
     Ok(obj)
 }
 
 #[cfg(not(target_vendor = "host"))]
-pub fn read_slice<T>(pe: PEId, addr: goff, data: &mut [T]) {
-    try_read_slice(pe, addr, data).unwrap();
+pub fn read_slice<T>(tile: TileId, addr: goff, data: &mut [T]) {
+    try_read_slice(tile, addr, data).unwrap();
 }
 
 #[cfg(not(target_vendor = "host"))]
-pub fn try_read_slice<T>(pe: PEId, addr: goff, data: &mut [T]) -> Result<(), Error> {
+pub fn try_read_slice<T>(tile: TileId, addr: goff, data: &mut [T]) -> Result<(), Error> {
     try_read_mem(
-        pe,
+        tile,
         addr,
         data.as_mut_ptr() as *mut _ as *mut u8,
         data.len() * mem::size_of::<T>(),
@@ -144,41 +145,41 @@ pub fn try_read_slice<T>(pe: PEId, addr: goff, data: &mut [T]) -> Result<(), Err
 }
 
 #[cfg(not(target_vendor = "host"))]
-pub fn try_read_mem(pe: PEId, addr: goff, data: *mut u8, size: usize) -> Result<(), Error> {
+pub fn try_read_mem(tile: TileId, addr: goff, data: *mut u8, size: usize) -> Result<(), Error> {
     config_local_ep(KTMP_EP, |regs| {
-        config_mem(regs, KERNEL_ID, pe, addr, size, kif::Perm::R);
+        config_mem(regs, KERNEL_ID, tile, addr, size, kif::Perm::R);
     });
-    klog!(KTCU, "reading {} bytes from {}:{:#x}", size, pe, addr);
+    klog!(KTCU, "reading {} bytes from {}:{:#x}", size, tile, addr);
     TCU::read(KTMP_EP, data, size, 0)
 }
 
 #[cfg(not(target_vendor = "host"))]
-pub fn write_slice<T>(pe: PEId, addr: goff, sl: &[T]) {
+pub fn write_slice<T>(tile: TileId, addr: goff, sl: &[T]) {
     let sl_addr = sl.as_ptr() as *const u8;
-    write_mem(pe, addr, sl_addr, sl.len() * mem::size_of::<T>());
+    write_mem(tile, addr, sl_addr, sl.len() * mem::size_of::<T>());
 }
 
 #[cfg(not(target_vendor = "host"))]
-pub fn try_write_slice<T>(pe: PEId, addr: goff, sl: &[T]) -> Result<(), Error> {
+pub fn try_write_slice<T>(tile: TileId, addr: goff, sl: &[T]) -> Result<(), Error> {
     let sl_addr = sl.as_ptr() as *const u8;
-    try_write_mem(pe, addr, sl_addr, sl.len() * mem::size_of::<T>())
+    try_write_mem(tile, addr, sl_addr, sl.len() * mem::size_of::<T>())
 }
 
 #[cfg(not(target_vendor = "host"))]
-pub fn write_mem(pe: PEId, addr: goff, data: *const u8, size: usize) {
-    try_write_mem(pe, addr, data, size).unwrap();
+pub fn write_mem(tile: TileId, addr: goff, data: *const u8, size: usize) {
+    try_write_mem(tile, addr, data, size).unwrap();
 }
 
-pub fn try_write_mem(pe: PEId, addr: goff, data: *const u8, size: usize) -> Result<(), Error> {
+pub fn try_write_mem(tile: TileId, addr: goff, data: *const u8, size: usize) -> Result<(), Error> {
     config_local_ep(KTMP_EP, |regs| {
-        config_mem(regs, KERNEL_ID, pe, addr, size, kif::Perm::W);
+        config_mem(regs, KERNEL_ID, tile, addr, size, kif::Perm::W);
     });
-    klog!(KTCU, "writing {} bytes to {}:{:#x}", size, pe, addr);
+    klog!(KTCU, "writing {} bytes to {}:{:#x}", size, tile, addr);
     TCU::write(KTMP_EP, data, size, 0)
 }
 
 #[cfg(not(target_vendor = "host"))]
-pub fn clear(dst_pe: PEId, mut dst_addr: goff, size: usize) -> Result<(), Error> {
+pub fn clear(dst_tile: TileId, mut dst_addr: goff, size: usize) -> Result<(), Error> {
     use base::libc;
 
     let mut buf = BUF.borrow_mut();
@@ -190,7 +191,7 @@ pub fn clear(dst_pe: PEId, mut dst_addr: goff, size: usize) -> Result<(), Error>
     let mut rem = size;
     while rem > 0 {
         let amount = core::cmp::min(rem, buf.len());
-        try_write_slice(dst_pe, dst_addr, &buf[0..amount])?;
+        try_write_slice(dst_tile, dst_addr, &buf[0..amount])?;
         dst_addr += amount as goff;
         rem -= amount;
     }
@@ -199,9 +200,9 @@ pub fn clear(dst_pe: PEId, mut dst_addr: goff, size: usize) -> Result<(), Error>
 
 #[cfg(not(target_vendor = "host"))]
 pub fn copy(
-    dst_pe: PEId,
+    dst_tile: TileId,
     mut dst_addr: goff,
-    src_pe: PEId,
+    src_tile: TileId,
     mut src_addr: goff,
     size: usize,
 ) -> Result<(), Error> {
@@ -209,8 +210,8 @@ pub fn copy(
     let mut rem = size;
     while rem > 0 {
         let amount = core::cmp::min(rem, buf.len());
-        try_read_slice(src_pe, src_addr, &mut buf[0..amount])?;
-        try_write_slice(dst_pe, dst_addr, &buf[0..amount])?;
+        try_read_slice(src_tile, src_addr, &mut buf[0..amount])?;
+        try_write_slice(dst_tile, dst_addr, &buf[0..amount])?;
         src_addr += amount as goff;
         dst_addr += amount as goff;
         rem -= amount;

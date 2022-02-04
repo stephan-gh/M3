@@ -1,9 +1,9 @@
 <config>
-    <kernel args="pemux" />
-    <kernel args="pemux" />
-    <kernel args="pemux" />
-    <kernel args="pemux" />
-    <kernel args="pemux" />
-    <kernel args="pemux" />
+    <kernel args="tilemux" />
+    <kernel args="tilemux" />
+    <kernel args="tilemux" />
+    <kernel args="tilemux" />
+    <kernel args="tilemux" />
+    <kernel args="tilemux" />
     <kernel args="axi_ethernet_driver" />
 </config>

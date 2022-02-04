@@ -20,7 +20,7 @@
 #include <m3/com/SendGate.h>
 #include <m3/com/RecvGate.h>
 #include <m3/vfs/GenericFile.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 #include <memory>
 
@@ -67,18 +67,18 @@ public:
     static const size_t BUF_SIZE    = 8192;
     static const size_t RECV_ADDR   = MEM_OFFSET + 0x3FFF00;
 
-    explicit StreamAccel(std::unique_ptr<VPE> &vpe, CycleDuration /* TODO */)
+    explicit StreamAccel(std::unique_ptr<Activity> &act, CycleDuration /* TODO */)
         : _sgate_in(),
           _sgate_out(),
           _mgate_out(),
           _rgate(RecvGate::create(getnextlog2(RB_SIZE), getnextlog2(MSG_SIZE))),
-          _in_sep(vpe->epmng().acquire(EP_IN_SEND)),
-          _in_mep(vpe->epmng().acquire(EP_IN_MEM)),
-          _out_sep(vpe->epmng().acquire(EP_OUT_SEND)),
-          _out_mep(vpe->epmng().acquire(EP_OUT_MEM)),
-          _rep(vpe->epmng().acquire(EP_RECV, _rgate.slots())),
-          _vpe(vpe),
-          _mem(_vpe->get_mem(MEM_OFFSET, vpe->pe_desc().mem_size(), MemGate::RW)) {
+          _in_sep(act->epmng().acquire(EP_IN_SEND)),
+          _in_mep(act->epmng().acquire(EP_IN_MEM)),
+          _out_sep(act->epmng().acquire(EP_OUT_SEND)),
+          _out_mep(act->epmng().acquire(EP_OUT_MEM)),
+          _rep(act->epmng().acquire(EP_RECV, _rgate.slots())),
+          _act(act),
+          _mem(_act->get_mem(MEM_OFFSET, act->tile_desc().mem_size(), MemGate::RW)) {
         // activate EPs
         _rgate.activate_on(*_rep, nullptr, RECV_ADDR);
     }
@@ -117,7 +117,7 @@ private:
     std::unique_ptr<EP> _out_sep;
     std::unique_ptr<EP> _out_mep;
     std::unique_ptr<EP> _rep;
-    std::unique_ptr<VPE> &_vpe;
+    std::unique_ptr<Activity> &_act;
     MemGate _mem;
 };
 

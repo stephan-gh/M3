@@ -20,8 +20,8 @@ use crate::io;
 use crate::kif;
 use crate::libc;
 use crate::mem;
-use crate::pes;
 use crate::syscalls;
+use crate::tiles;
 use crate::vfs;
 
 pub fn exit(code: i32) -> ! {
@@ -37,7 +37,7 @@ pub extern "C" fn rust_init(argc: i32, argv: *const *const i8) {
     arch::env::init(argc, argv);
     com::pre_init();
     syscalls::init();
-    pes::init();
+    tiles::init();
     com::init();
     io::init();
     arch::tcu::init();
@@ -52,9 +52,9 @@ pub extern "C" fn rust_init(argc: i32, argv: *const *const i8) {
 pub extern "C" fn rust_deinit(status: i32, _arg: *const libc::c_void) {
     io::deinit();
     vfs::deinit();
-    syscalls::vpe_ctrl(
-        pes::VPE::cur().sel(),
-        kif::syscalls::VPEOp::STOP,
+    syscalls::activity_ctrl(
+        tiles::Activity::cur().sel(),
+        kif::syscalls::ActivityOp::STOP,
         status as u64,
     )
     .unwrap();

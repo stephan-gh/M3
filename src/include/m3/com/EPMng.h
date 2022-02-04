@@ -25,7 +25,7 @@ namespace m3 {
 
 class Gate;
 class RecvGate;
-class VPE;
+class Activity;
 
 /**
  * The endpoint manager allows us to have more gates than endpoints by multiplexing
@@ -34,11 +34,11 @@ class VPE;
 class EPMng {
     friend class Gate;
     friend class RecvGate;
-    friend class VPE;
+    friend class Activity;
 
 public:
-    explicit EPMng(VPE &vpe)
-        : _vpe(vpe),
+    explicit EPMng(Activity &act)
+        : _act(act),
           _eps() {
     }
 
@@ -60,7 +60,7 @@ public:
     void release(EP *ep, bool invalidate) noexcept;
 
 private:
-    VPE &_vpe;
+    Activity &_act;
     SList<EP> _eps;
 };
 

@@ -252,8 +252,8 @@ static void pipe_mux() {
         for(size_t i = 0; i < NUM; ++i) {
             mems[i] = new MemGate(MemGate::create_global(PIPE_SIZE, MemGate::RW));
             pipes[i] = new IndirectPipe(pipesrv, *mems[i], PIPE_SIZE);
-            reader[i] = VPE::self().files()->get(pipes[i]->reader_fd());
-            writer[i] = VPE::self().files()->get(pipes[i]->writer_fd());
+            reader[i] = Activity::self().files()->get(pipes[i]->reader_fd());
+            writer[i] = Activity::self().files()->get(pipes[i]->writer_fd());
         }
 
         char src_buf[STEP_SIZE];

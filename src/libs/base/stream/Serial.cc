@@ -25,7 +25,7 @@ const char *Serial::_colors[] = {
 };
 Serial *Serial::_inst USED;
 
-void Serial::init(const char *path, peid_t pe) {
+void Serial::init(const char *path, tileid_t tile) {
     if(_inst == nullptr)
         _inst = new Serial();
 
@@ -39,14 +39,13 @@ void Serial::init(const char *path, peid_t pe) {
     size_t i = 0;
     strcpy(_inst->_outbuf + i, "\e[0;");
     i += 4;
-    ulong col = pe % ARRAY_SIZE(_colors);
+    ulong col = tile % ARRAY_SIZE(_colors);
     strcpy(_inst->_outbuf + i, _colors[col]);
     i += 2;
     _inst->_outbuf[i++] = 'm';
     _inst->_outbuf[i++] = '[';
-    _inst->_outbuf[i++] = 'P';
-    _inst->_outbuf[i++] = 'E';
-    _inst->_outbuf[i++] = pe <= 9 ? '0' + pe : 'A' + (pe - 10);
+    _inst->_outbuf[i++] = 'T';
+    _inst->_outbuf[i++] = tile <= 9 ? '0' + tile : 'A' + (tile - 10);
     _inst->_outbuf[i++] = ':';
     size_t x = 0;
     for(; x < 8 && name[x]; ++x)

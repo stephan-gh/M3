@@ -28,7 +28,7 @@ use crate::io::log::TCU;
 use crate::kif::{PageFlags, Perm};
 use crate::math;
 use crate::mem;
-use crate::pexif;
+use crate::tmif;
 
 /// A TCU register
 pub type Reg = u64;
@@ -36,10 +36,10 @@ pub type Reg = u64;
 pub type EpId = u16;
 /// A TCU label used in send EPs
 pub type Label = u32;
-/// A PE id
-pub type PEId = u8;
-/// A VPE id
-pub type VPEId = u16;
+/// A tile id
+pub type TileId = u8;
+/// A activity id
+pub type ActId = u16;
 
 cfg_if! {
     if #[cfg(target_vendor = "gem5")] {
@@ -58,14 +58,14 @@ cfg_if! {
 
 pub const PMEM_PROT_EPS: usize = 4;
 
-/// The send EP for kernel calls from PEMux
+/// The send EP for kernel calls from TileMux
 pub const KPEX_SEP: EpId = PMEM_PROT_EPS as EpId + 0;
-/// The receive EP for kernel calls from PEMux
+/// The receive EP for kernel calls from TileMux
 pub const KPEX_REP: EpId = PMEM_PROT_EPS as EpId + 1;
-/// The receive EP for sidecalls from the kernel for PEMux
-pub const PEXSIDE_REP: EpId = PMEM_PROT_EPS as EpId + 2;
-/// The reply EP for sidecalls from the kernel for PEMux
-pub const PEXSIDE_RPLEP: EpId = PMEM_PROT_EPS as EpId + 3;
+/// The receive EP for sidecalls from the kernel for TileMux
+pub const TMSIDE_REP: EpId = PMEM_PROT_EPS as EpId + 2;
+/// The reply EP for sidecalls from the kernel for TileMux
+pub const TMSIDE_RPLEP: EpId = PMEM_PROT_EPS as EpId + 3;
 
 /// The send EP offset for system calls
 pub const SYSC_SEP_OFF: EpId = 0;
@@ -126,7 +126,7 @@ bitflags! {
     /// The status flag for the [`ExtReg::FEATURES`] register
     #[allow(dead_code)]
     pub struct FeatureFlags : Reg {
-        /// Whether the PE is privileged
+        /// Whether the tile is privileged
         const PRIV          = 1 << 0;
     }
 }
@@ -141,8 +141,8 @@ int_enum! {
         const PRIV_CMD      = 0x1;
         /// The argument for privileged commands
         const PRIV_CMD_ARG  = 0x2;
-        /// The current VPE
-        const CUR_VPE       = 0x3;
+        /// The current activity
+        const CUR_ACT       = 0x3;
         /// Used to ack IRQ requests
         const CLEAR_IRQ     = 0x4;
     }
@@ -221,8 +221,8 @@ int_enum! {
         const INV_TLB     = 2;
         /// Insert an entry into the TLB
         const INS_TLB     = 3;
-        /// Changes the VPE
-        const XCHG_VPE    = 4;
+        /// Changes the activity
+        const XCHG_ACT    = 4;
         /// Sets the timer
         const SET_TIMER   = 5;
         /// Abort the current command
@@ -254,10 +254,10 @@ int_enum! {
     }
 }
 
-/// A foreign-msg core request, that is sent by the TCU if a message was received for another VPE
+/// A foreign-msg core request, that is sent by the TCU if a message was received for another activity
 #[derive(Debug)]
 pub struct CoreForeignReq {
-    pub vpe: u16,
+    pub act: u16,
     pub ep: EpId,
 }
 
@@ -265,7 +265,7 @@ impl CoreForeignReq {
     /// Decodes the given value from `CORE_REQ` into a `CoreForeignReq`
     pub fn new(req: Reg) -> Self {
         Self {
-            vpe: (req >> 48) as u16,
+            act: (req >> 48) as u16,
             ep: ((req >> 2) & 0xFFFF) as EpId,
         }
     }
@@ -276,7 +276,7 @@ impl CoreForeignReq {
 #[derive(Copy, Clone, Default, Debug)]
 pub struct Header {
     pub flags_reply_size: u8,
-    pub sender_pe: u8,
+    pub sender_tile: u8,
     pub sender_ep: u16,
     pub reply_ep: u16,
 
@@ -505,9 +505,9 @@ impl TCU {
 
     #[cold]
     fn handle_xlate_fault(addr: usize, perm: Perm) {
-        // report translation fault to PEMux or whoever handles the call; ignore errors, we won't
-        // get back here if PEMux cannot resolve the fault.
-        arch::pexabi::call2(pexif::Operation::TRANSL_FAULT, addr, perm.bits() as usize).ok();
+        // report translation fault to TileMux or whoever handles the call; ignore errors, we won't
+        // get back here if TileMux cannot resolve the fault.
+        arch::tmabi::call2(tmif::Operation::TRANSL_FAULT, addr, perm.bits() as usize).ok();
     }
 
     /// Tries to fetch a new message from the given endpoint.
@@ -562,29 +562,29 @@ impl TCU {
         cur < max
     }
 
-    /// Unpacks the given memory EP into the PE id, address, size, and permissions.
+    /// Unpacks the given memory EP into the tile id, address, size, and permissions.
     ///
-    /// Returns `Some((<pe>, <address>, <size>, <perm>))` if the given EP is a memory EP, or `None`
+    /// Returns `Some((<tile>, <address>, <size>, <perm>))` if the given EP is a memory EP, or `None`
     /// otherwise.
-    pub fn unpack_mem_ep(ep: EpId) -> Option<(PEId, u64, u64, Perm)> {
+    pub fn unpack_mem_ep(ep: EpId) -> Option<(TileId, u64, u64, Perm)> {
         let r0 = Self::read_ep_reg(ep, 0);
         let r1 = Self::read_ep_reg(ep, 1);
         let r2 = Self::read_ep_reg(ep, 2);
         Self::unpack_mem_regs(&[r0, r1, r2])
     }
 
-    /// Unpacks the given memory EP registers into the PE id, address, size, and permissions.
+    /// Unpacks the given memory EP registers into the tile id, address, size, and permissions.
     ///
-    /// Returns `Some((<pe>, <address>, <size>, <perm>))` if the given registers represent a memory
+    /// Returns `Some((<tile>, <address>, <size>, <perm>))` if the given registers represent a memory
     /// EP, or `None` otherwise.
-    pub fn unpack_mem_regs(regs: &[Reg]) -> Option<(PEId, u64, u64, Perm)> {
+    pub fn unpack_mem_regs(regs: &[Reg]) -> Option<(TileId, u64, u64, Perm)> {
         if (regs[0] & 0x7) != EpType::MEMORY.val {
             return None;
         }
 
-        let peid = Self::nocid_to_peid(((regs[0] >> 23) & 0xFF) as PEId);
+        let tileid = Self::nocid_to_tileid(((regs[0] >> 23) & 0xFF) as TileId);
         let perm = Perm::from_bits_truncate((regs[0] as u32 >> 19) & 0x3);
-        Some((peid, regs[1], regs[2], perm))
+        Some((tileid, regs[1], regs[2], perm))
     }
 
     /// Marks the given message for receive endpoint `ep` as read
@@ -730,12 +730,12 @@ impl TCU {
         Self::write_priv_reg(PrivReg::CORE_REQ, 0x1)
     }
 
-    /// Returns the current VPE with its id and message count
-    pub fn get_cur_vpe() -> Reg {
-        Self::read_priv_reg(PrivReg::CUR_VPE)
+    /// Returns the current activity with its id and message count
+    pub fn get_cur_activity() -> Reg {
+        Self::read_priv_reg(PrivReg::CUR_ACT)
     }
 
-    /// Aborts the current command or VPE, specified in `req`, and returns the command register to
+    /// Aborts the current command or activity, specified in `req`, and returns the command register to
     /// use for a retry later.
     pub fn abort_cmd() -> Result<Reg, Error> {
         // save the old value before aborting
@@ -764,9 +764,9 @@ impl TCU {
         }
     }
 
-    /// Switches to the given VPE and returns the old VPE
-    pub fn xchg_vpe(nvpe: Reg) -> Result<Reg, Error> {
-        Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::XCHG_VPE.val | (nvpe << 9));
+    /// Switches to the given activity and returns the old activity
+    pub fn xchg_activity(nact: Reg) -> Result<Reg, Error> {
+        Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::XCHG_ACT.val | (nact << 9));
         Self::get_priv_error()?;
         Ok(Self::read_priv_reg(PrivReg::PRIV_CMD_ARG))
     }
@@ -880,25 +880,25 @@ impl TCU {
     }
 }
 
-static PE_IDS: [PEId; 9] = [0x06, 0x25, 0x26, 0x00, 0x01, 0x02, 0x20, 0x21, 0x24];
+static TILE_IDS: [TileId; 9] = [0x06, 0x25, 0x26, 0x00, 0x01, 0x02, 0x20, 0x21, 0x24];
 
 impl TCU {
-    pub fn peid_to_nocid(pe: PEId) -> u8 {
+    pub fn tileid_to_nocid(tile: TileId) -> u8 {
         if arch::envdata::get().platform == crate::envdata::Platform::GEM5.val {
-            pe
+            tile
         }
         else {
-            PE_IDS[pe as usize]
+            TILE_IDS[tile as usize]
         }
     }
 
-    pub fn nocid_to_peid(pe: u8) -> PEId {
+    pub fn nocid_to_tileid(tile: u8) -> TileId {
         if arch::envdata::get().platform == crate::envdata::Platform::GEM5.val {
-            pe
+            tile
         }
         else {
-            for (i, id) in PE_IDS.iter().enumerate() {
-                if *id == pe {
+            for (i, id) in TILE_IDS.iter().enumerate() {
+                if *id == tile {
                     return i as u8;
                 }
             }
@@ -908,14 +908,14 @@ impl TCU {
 
     pub fn config_recv(
         regs: &mut [Reg],
-        vpe: VPEId,
+        act: ActId,
         buf: goff,
         buf_ord: u32,
         msg_ord: u32,
         reply_eps: Option<EpId>,
     ) {
         regs[0] = EpType::RECEIVE.val
-            | ((vpe as Reg) << 3)
+            | ((act as Reg) << 3)
             | ((reply_eps.unwrap_or(NO_REPLIES) as Reg) << 19)
             | (((buf_ord - msg_ord) as Reg) << 35)
             | ((msg_ord as Reg) << 41);
@@ -925,27 +925,34 @@ impl TCU {
 
     pub fn config_send(
         regs: &mut [Reg],
-        vpe: VPEId,
+        act: ActId,
         lbl: Label,
-        pe: PEId,
+        tile: TileId,
         dst_ep: EpId,
         msg_order: u32,
         credits: u32,
     ) {
         regs[0] = EpType::SEND.val
-            | ((vpe as Reg) << 3)
+            | ((act as Reg) << 3)
             | ((credits as Reg) << 19)
             | ((credits as Reg) << 25)
             | ((msg_order as Reg) << 31);
-        regs[1] = ((Self::peid_to_nocid(pe) as Reg) << 16) | (dst_ep as Reg);
+        regs[1] = ((Self::tileid_to_nocid(tile) as Reg) << 16) | (dst_ep as Reg);
         regs[2] = lbl as Reg;
     }
 
-    pub fn config_mem(regs: &mut [Reg], vpe: VPEId, pe: PEId, addr: goff, size: usize, perm: Perm) {
+    pub fn config_mem(
+        regs: &mut [Reg],
+        act: ActId,
+        tile: TileId,
+        addr: goff,
+        size: usize,
+        perm: Perm,
+    ) {
         regs[0] = EpType::MEMORY.val
-            | ((vpe as Reg) << 3)
+            | ((act as Reg) << 3)
             | ((perm.bits() as Reg) << 19)
-            | ((Self::peid_to_nocid(pe) as Reg) << 23);
+            | ((Self::tileid_to_nocid(tile) as Reg) << 23);
         regs[1] = addr as Reg;
         regs[2] = size as Reg;
     }

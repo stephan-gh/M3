@@ -63,7 +63,7 @@ Env::Init::Init() {
     m3::Heap::init();
     Env::init();
 
-    Serial::init(executable(), env()->pe_id);
+    Serial::init(executable(), env()->tile_id);
 }
 
 Env::Init::~Init() {
@@ -78,7 +78,7 @@ const char *Env::out_dir() {
 }
 
 Env::Env(EnvBackend *backend, int logfd)
-    : pe_id(set_inst(this)),
+    : tile_id(set_inst(this)),
       shared(false),
       first_std_ep(0),
       _backend(backend),

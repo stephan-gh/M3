@@ -90,17 +90,12 @@ pub fn log_slice(slice: &[u8], addr: usize) {
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn init_rust_io(pe_id: u32, name: *const i8) {
-    init(pe_id as u64, util::cstr_to_str(name));
+pub unsafe extern "C" fn init_rust_io(tile_id: u32, name: *const i8) {
+    init(tile_id as u64, util::cstr_to_str(name));
 }
 
 /// Initializes the I/O module
-pub fn init(pe_id: u64, name: &str) {
+pub fn init(tile_id: u64, name: &str) {
     arch::serial::init();
-    log::init(pe_id, name);
-}
-
-/// Reinitializes the I/O module (for VPE::run)
-pub fn reinit(pe_id: u64, name: &str) {
-    log::reinit(pe_id, name);
+    log::init(tile_id, name);
 }

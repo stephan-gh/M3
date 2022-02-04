@@ -24,8 +24,8 @@
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
-#include <m3/pes/PE.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Tile.h>
+#include <m3/tiles/Activity.h>
 
 #include <memory>
 
@@ -68,10 +68,10 @@ static String get_pe_name(size_t no, const VarList &vars, const char *path) {
     }
 
     for(size_t i = 0; i < vars.count; ++i) {
-        if(strcmp(vars.vars[i].name, "PE") == 0)
+        if(strcmp(vars.vars[i].name, "TILE") == 0)
             return expr_value(vars.vars[i].value);
     }
-    // for the first program, prefer the same PE
+    // for the first program, prefer the same tile
     if(no == 0)
         return "own|core";
     // for the second, prefer another one
@@ -88,46 +88,46 @@ static void execute_assignment(CmdList *list) {
 }
 
 static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
-    String pe_names[MAX_CMDS];
+    String tile_names[MAX_CMDS];
     std::unique_ptr<IndirectPipe> pipes[MAX_CMDS] = {nullptr};
     std::unique_ptr<MemGate> mems[MAX_CMDS] = {nullptr};
-    // destroy the VPEs first to prevent errors due to destroyed communication channels
+    // destroy the activities first to prevent errors due to destroyed communication channels
     std::unique_ptr<StreamAccel> accels[MAX_CMDS] = {nullptr};
-    Reference<PE> pes[MAX_CMDS];
-    std::unique_ptr<VPE> vpes[MAX_CMDS] = {nullptr};
+    Reference<Tile> tiles[MAX_CMDS];
+    std::unique_ptr<Activity> acts[MAX_CMDS] = {nullptr};
 
-    // get PE types
+    // get tile types
     for(size_t i = 0; i < list->count; ++i) {
         if(list->cmds[i]->args->count == 0) {
             errmsg("Command has no arguments");
             return;
         }
 
-        pe_names[i] = get_pe_name(i, *list->cmds[i]->vars, expr_value(list->cmds[i]->args->args[0]));
+        tile_names[i] = get_pe_name(i, *list->cmds[i]->vars, expr_value(list->cmds[i]->args->args[0]));
     }
 
-    size_t vpe_count = 0;
+    size_t act_count = 0;
     fd_t infd = -1;
     fd_t outfd = -1;
     for(size_t i = 0; i < list->count; ++i) {
         Command *cmd = list->cmds[i];
 
-        pes[i] = PE::get(pe_names[i].c_str());
-        // if we share our PE with this child VPE, give it separate quotas to ensure that we get our
+        tiles[i] = Tile::get(tile_names[i].c_str());
+        // if we share our tile with this child activity, give it separate quotas to ensure that we get our
         // share (we don't trust the child apps)
-        if(pes[i]->sel() == VPE::self().pe()->sel()) {
+        if(tiles[i]->sel() == Activity::self().tile()->sel()) {
             Quota<uint> eps;
             Quota<uint64_t> time;
             Quota<size_t> pts;
-            pes[i]->quota(&eps, &time, &pts);
+            tiles[i]->quota(&eps, &time, &pts);
             if(eps.left > MIN_EPS && pts.left > MIN_PTS)
-                pes[i] = pes[i]->derive(eps.left - MIN_EPS, time.total - MIN_TIME, pts.left - MIN_PTS);
+                tiles[i] = tiles[i]->derive(eps.left - MIN_EPS, time.total - MIN_TIME, pts.left - MIN_PTS);
             else
-                pes[i] = PE::get("core");
+                tiles[i] = Tile::get("core");
         }
 
-        vpes[i] = std::make_unique<VPE>(pes[i], expr_value(cmd->args->args[0]));
-        vpe_count++;
+        acts[i] = std::make_unique<Activity>(tiles[i], expr_value(cmd->args->args[0]));
+        act_count++;
 
         // I/O redirection is only supported at the beginning and end
         if((i + 1 < list->count && cmd->redirs->fds[STDOUT_FD]) ||
@@ -139,56 +139,56 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
             if(cmd->redirs->fds[STDIN_FD])
                 infd = VFS::open(cmd->redirs->fds[STDIN_FD], FILE_R | FILE_NEWSESS);
             else if(vterm)
-                infd = VPE::self().files()->alloc(vterm->create_channel(true));
+                infd = Activity::self().files()->alloc(vterm->create_channel(true));
             if(infd != -1)
-                vpes[i]->files()->set(STDIN_FD, VPE::self().files()->get(infd));
+                acts[i]->files()->set(STDIN_FD, Activity::self().files()->get(infd));
         }
-        else if(pes[i - 1]->desc().is_programmable() || pes[i]->desc().is_programmable())
-            vpes[i]->files()->set(STDIN_FD, VPE::self().files()->get(pipes[i - 1]->reader_fd()));
+        else if(tiles[i - 1]->desc().is_programmable() || tiles[i]->desc().is_programmable())
+            acts[i]->files()->set(STDIN_FD, Activity::self().files()->get(pipes[i - 1]->reader_fd()));
 
         if(i + 1 == list->count) {
             if(cmd->redirs->fds[STDOUT_FD])
                 outfd = VFS::open(cmd->redirs->fds[STDOUT_FD], FILE_W | FILE_CREATE | FILE_TRUNC | FILE_NEWSESS);
             else if(vterm)
-                outfd = VPE::self().files()->alloc(vterm->create_channel(false));
+                outfd = Activity::self().files()->alloc(vterm->create_channel(false));
             if(outfd != -1)
-                vpes[i]->files()->set(STDOUT_FD, VPE::self().files()->get(outfd));
+                acts[i]->files()->set(STDOUT_FD, Activity::self().files()->get(outfd));
         }
-        else if(pes[i]->desc().is_programmable() || pes[i + 1]->desc().is_programmable()) {
+        else if(tiles[i]->desc().is_programmable() || tiles[i + 1]->desc().is_programmable()) {
             mems[i] = std::make_unique<MemGate>(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
             pipes[i] = std::make_unique<IndirectPipe>(pipesrv, *mems[i], PIPE_SHM_SIZE);
-            vpes[i]->files()->set(STDOUT_FD, VPE::self().files()->get(pipes[i]->writer_fd()));
+            acts[i]->files()->set(STDOUT_FD, Activity::self().files()->get(pipes[i]->writer_fd()));
         }
 
-        if(pes[i]->desc().is_programmable()) {
-            vpes[i]->files()->set(STDERR_FD, VPE::self().files()->get(STDERR_FD));
+        if(tiles[i]->desc().is_programmable()) {
+            acts[i]->files()->set(STDERR_FD, Activity::self().files()->get(STDERR_FD));
 
-            vpes[i]->mounts()->add("/", VPE::self().mounts()->get("/"));
+            acts[i]->mounts()->add("/", Activity::self().mounts()->get("/"));
 
             char **args = build_args(cmd);
-            vpes[i]->exec(static_cast<int>(cmd->args->count), const_cast<const char**>(args));
+            acts[i]->exec(static_cast<int>(cmd->args->count), const_cast<const char**>(args));
             delete[] args;
         }
         else
-            accels[i] = std::make_unique<StreamAccel>(vpes[i], ACOMP_TIME);
+            accels[i] = std::make_unique<StreamAccel>(acts[i], ACOMP_TIME);
 
         if(i > 0 && pipes[i - 1]) {
-            if(vpes[i]->pe_desc().is_programmable())
+            if(acts[i]->tile_desc().is_programmable())
                 pipes[i - 1]->close_reader();
-            if(vpes[i - 1]->pe_desc().is_programmable())
+            if(acts[i - 1]->tile_desc().is_programmable())
                 pipes[i - 1]->close_writer();
         }
     }
 
     // connect input/output of accelerators
     {
-        Reference<File> clones[vpe_count * 2];
+        Reference<File> clones[act_count * 2];
         size_t c = 0;
-        for(size_t i = 0; i < vpe_count; ++i) {
+        for(size_t i = 0; i < act_count; ++i) {
             if(accels[i]) {
-                auto in = vpes[i]->files()->get(STDIN_FD);
+                auto in = acts[i]->files()->get(STDIN_FD);
                 if(in) {
-                    auto ain = in.get() == VPE::self().files()->get(STDIN_FD).get() ? in->clone() : in;
+                    auto ain = in.get() == Activity::self().files()->get(STDIN_FD).get() ? in->clone() : in;
                     accels[i]->connect_input(static_cast<GenericFile*>(ain.get()));
                     if(ain.get() != in.get())
                         clones[c++] = ain;
@@ -196,9 +196,9 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                 else if(accels[i - 1])
                     accels[i]->connect_input(accels[i - 1].get());
 
-                auto out = vpes[i]->files()->get(STDOUT_FD);
+                auto out = acts[i]->files()->get(STDOUT_FD);
                 if(out) {
-                    auto aout = out.get() == VPE::self().files()->get(STDOUT_FD).get() ? out->clone() : out;
+                    auto aout = out.get() == Activity::self().files()->get(STDOUT_FD).get() ? out->clone() : out;
                     accels[i]->connect_output(static_cast<GenericFile*>(aout.get()));
                     if(aout.get() != out.get())
                         clones[c++] = aout;
@@ -208,31 +208,31 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
             }
         }
 
-        // start accelerator VPEs
-        for(size_t i = 0; i < vpe_count; ++i) {
+        // start accelerator activities
+        for(size_t i = 0; i < act_count; ++i) {
             if(accels[i])
-                vpes[i]->start();
+                acts[i]->start();
         }
 
-        for(size_t rem = vpe_count; rem > 0; ) {
-            capsel_t sels[vpe_count];
-            for(size_t x = 0, i = 0; i < vpe_count; ++i) {
-                if(vpes[i])
-                    sels[x++] = vpes[i]->sel();
+        for(size_t rem = act_count; rem > 0; ) {
+            capsel_t sels[act_count];
+            for(size_t x = 0, i = 0; i < act_count; ++i) {
+                if(acts[i])
+                    sels[x++] = acts[i]->sel();
             }
 
-            Syscalls::vpe_wait(sels, rem, 1, nullptr);
+            Syscalls::activity_wait(sels, rem, 1, nullptr);
 
             bool signal = false;
-            capsel_t vpe = KIF::INV_SEL;
+            capsel_t act = KIF::INV_SEL;
             int exitcode = 0;
 
             while(true) {
                 const TCU::Message *msg;
                 if((msg = RecvGate::upcall().fetch())) {
                     GateIStream is(RecvGate::upcall(), msg);
-                    auto upcall = reinterpret_cast<const KIF::Upcall::VPEWait*>(msg->data);
-                    vpe = upcall->vpe_sel;
+                    auto upcall = reinterpret_cast<const KIF::Upcall::ActivityWait*>(msg->data);
+                    act = upcall->act_sel;
                     exitcode = upcall->exitcode;
                     reply_vmsg(is, 0);
                     break;
@@ -241,15 +241,15 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                     GateIStream is(*signal_rgate, msg);
                     signal = true;
                     reply_vmsg(is, 0);
-                    Syscalls::vpe_wait(sels, 0, 1, nullptr);
+                    Syscalls::activity_wait(sels, 0, 1, nullptr);
                     break;
                 }
 
-                VPE::sleep();
+                Activity::sleep();
             }
 
-            for(size_t i = 0; i < vpe_count; ++i) {
-                if(vpes[i] && (signal || vpes[i]->sel() == vpe)) {
+            for(size_t i = 0; i < act_count; ++i) {
+                if(acts[i] && (signal || acts[i]->sel() == act)) {
                     if(exitcode != 0) {
                         cerr << expr_value(list->cmds[i]->args->args[0])
                              << " terminated with exit code " << exitcode << "\n";
@@ -258,14 +258,14 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                         cerr << expr_value(list->cmds[i]->args->args[0])
                              << " terminated by signal\n";
                     }
-                    if(!vpes[i]->pe_desc().is_programmable()) {
+                    if(!acts[i]->tile_desc().is_programmable()) {
                         if(pipes[i])
                             pipes[i]->close_writer();
                         if(i > 0 && pipes[i - 1])
                             pipes[i - 1]->close_reader();
                     }
-                    delete vpes[i].release();
-                    vpes[i] = nullptr;
+                    delete acts[i].release();
+                    acts[i] = nullptr;
                     rem--;
                 }
             }
@@ -273,9 +273,9 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
 
         // close our input/output file; the server will recursively close all clones
         if(outfd != -1)
-            VPE::self().files()->remove(outfd);
+            Activity::self().files()->remove(outfd);
         if(infd != -1)
-            VPE::self().files()->remove(infd);
+            Activity::self().files()->remove(infd);
     }
 }
 
@@ -306,7 +306,7 @@ int main(int argc, char **argv) {
         // change stdin, stdout, and stderr to vterm
         const fd_t fds[] = {STDIN_FD, STDOUT_FD, STDERR_FD};
         for(fd_t fd : fds)
-            VPE::self().files()->set(fd, vterm->create_channel(fd == STDIN_FD));
+            Activity::self().files()->set(fd, vterm->create_channel(fd == STDIN_FD));
 
         // register SendGate for signals from vterm
         signal_rgate = new RecvGate(RecvGate::create(5, 5));

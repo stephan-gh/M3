@@ -16,12 +16,12 @@
 
 #pragma once
 
-#include <base/PEDesc.h>
+#include <base/TileDesc.h>
 
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
 #include <m3/com/MemGate.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 #include <m3/WorkLoop.h>
 
 namespace pci {
@@ -36,7 +36,7 @@ public:
     static const size_t REG_ADDR        = 0x4000;
     static const size_t PCI_CFG_ADDR    = 0xF000000;
 
-    explicit ProxiedPciDevice(const char *name, m3::PEISA isa);
+    explicit ProxiedPciDevice(const char *name, m3::TileISA isa);
 
     template<typename T>
     T readReg(size_t offset) {
@@ -71,17 +71,17 @@ public:
     }
 
     /**
-     * @return the VPE for the proxied pci device
+     * @return the activity for the proxied pci device
      */
-    m3::VPE &vpe() {
-        return _vpe;
+    m3::Activity &act() {
+        return _act;
     }
 
 private:
     static void receiveInterrupt(ProxiedPciDevice *nic, m3::GateIStream &is);
 
-    m3::Reference<m3::PE> _pe;
-    m3::VPE _vpe;
+    m3::Reference<m3::Tile> _tile;
+    m3::Activity _act;
     m3::MemGate _mem;
     std::unique_ptr<m3::EP> _sep;
     std::unique_ptr<m3::EP> _mep;

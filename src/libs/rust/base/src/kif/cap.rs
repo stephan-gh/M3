@@ -29,7 +29,7 @@ pub struct CapRngDesc {
 int_enum! {
     /// The capability types
     pub struct CapType : u64 {
-        /// Object capabilities are used for kernel objects (SendGate, VPE, ...)
+        /// Object capabilities are used for kernel objects (SendGate, Activity, ...)
         const OBJECT        = 0x0;
         /// Mapping capabilities are used for page table entries
         const MAPPING       = 0x1;

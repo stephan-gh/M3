@@ -19,7 +19,7 @@ use base::cfg;
 use base::col::Treap;
 use base::errors::{Code, Error};
 use base::goff;
-use base::kif::{CapRngDesc, CapSel, SEL_KMEM, SEL_PE, SEL_VPE};
+use base::kif::{CapRngDesc, CapSel, SEL_ACT, SEL_KMEM, SEL_TILE};
 use base::mem::size_of;
 use base::rc::Rc;
 use core::cmp;
@@ -28,7 +28,7 @@ use core::ptr::{NonNull, Unique};
 
 use crate::cap::{EPObject, GateEP, KObject};
 use crate::ktcu;
-use crate::pes::{pemng, VPEMng, VPE};
+use crate::tiles::{tilemng, Activity, ActivityMng};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct SelRange {
@@ -74,7 +74,7 @@ impl cmp::Ord for SelRange {
 
 pub struct CapTable {
     caps: Treap<SelRange, Capability>,
-    vpe: Option<NonNull<VPE>>,
+    act: Option<NonNull<Activity>>,
 }
 
 unsafe fn as_shared<T>(obj: &mut T) -> NonNull<T> {
@@ -85,19 +85,19 @@ impl Default for CapTable {
     fn default() -> Self {
         Self {
             caps: Treap::new(),
-            vpe: None,
+            act: None,
         }
     }
 }
 
 impl CapTable {
-    fn vpe(&self) -> &VPE {
-        unsafe { &(*self.vpe.unwrap().as_ptr()) }
+    fn activity(&self) -> &Activity {
+        unsafe { &(*self.act.unwrap().as_ptr()) }
     }
 
-    pub fn set_vpe(&mut self, vpe: &Rc<VPE>) {
-        let vpe_ptr = unsafe { NonNull::new_unchecked(Rc::as_ptr(vpe) as *mut _) };
-        self.vpe = Some(vpe_ptr);
+    pub fn set_activity(&mut self, act: &Rc<Activity>) {
+        let act_ptr = unsafe { NonNull::new_unchecked(Rc::as_ptr(act) as *mut _) };
+        self.act = Some(act_ptr);
     }
 
     pub fn is_empty(&self) -> bool {
@@ -164,10 +164,10 @@ impl CapTable {
         cap: Capability,
         parent: Option<NonNull<Capability>>,
     ) -> Result<(), Error> {
-        let vpe = self.vpe();
-        if !vpe
+        let act = self.activity();
+        if !act
             .kmem()
-            .alloc(&vpe, cap.sel(), cap.obj.size() + Capability::size())
+            .alloc(&act, cap.sel(), cap.obj.size() + Capability::size())
         {
             return Err(Error::new(Code::NoSpace));
         }
@@ -183,8 +183,8 @@ impl CapTable {
     }
 
     pub fn obtain(&mut self, sel: CapSel, cap: &mut Capability, child: bool) -> Result<(), Error> {
-        let vpe = self.vpe();
-        if !vpe.kmem().alloc(&vpe, sel, Capability::size()) {
+        let act = self.activity();
+        if !act.kmem().alloc(&act, sel, Capability::size()) {
             return Err(Error::new(Code::NoSpace));
         }
 
@@ -412,30 +412,30 @@ impl Capability {
         unsafe { &mut *self.table.unwrap().as_ptr() }
     }
 
-    fn vpe(&self) -> &VPE {
-        self.table().vpe()
+    fn activity(&self) -> &Activity {
+        self.table().activity()
     }
 
     fn invalidate_ep(mut cgp: RefMut<'_, GateEP>, foreign: bool) {
         if let Some(ep) = cgp.get_ep() {
-            let mut pemux = pemng::pemux(ep.pe_id());
-            if let Some(vpe) = ep.vpe() {
+            let mut tilemux = tilemng::tilemux(ep.tile_id());
+            if let Some(act) = ep.activity() {
                 // if that fails, just ignore it
-                pemux
-                    .invalidate_ep(vpe.id(), ep.ep(), !ep.is_rgate(), true)
+                tilemux
+                    .invalidate_ep(act.id(), ep.ep(), !ep.is_rgate(), true)
                     .ok();
 
-                // notify PEMux about the invalidation if it's not a self-invalidation (technically,
+                // notify TileMux about the invalidation if it's not a self-invalidation (technically,
                 // `foreign` indicates whether we're in the first level of revoke, but since it is
                 // just a notification, we can ignore the case that someone delegated a cap to
                 // itself).
                 if foreign {
-                    pemux.notify_invalidate(vpe.id(), ep.ep()).ok();
+                    tilemux.notify_invalidate(act.id(), ep.ep()).ok();
                 }
             }
             else {
-                // force invalidate without VPE (no notification etc.)
-                ktcu::invalidate_ep_remote(ep.pe_id(), ep.ep(), true).ok();
+                // force invalidate without activity (no notification etc.)
+                ktcu::invalidate_ep_remote(ep.tile_id(), ep.ep(), true).ok();
             }
 
             EPObject::revoke(&ep);
@@ -447,7 +447,7 @@ impl Capability {
     fn can_revoke(&self) -> bool {
         match self.obj {
             KObject::KMem(ref k) => k.left() == k.quota(),
-            KObject::PE(ref pe) => pe.vpes() == 0,
+            KObject::Tile(ref tile) => tile.activities() == 0,
             _ => true,
         }
     }
@@ -455,24 +455,24 @@ impl Capability {
     fn release_async(&mut self, foreign: bool) {
         klog!(CAPS, "Freeing cap {:?}", self);
 
-        let vpe = self.vpe();
+        let act = self.activity();
         let sel = self.sel();
         if !self.derived {
             // if it's not derived, we created the cap and thus will also free the kobject
-            vpe.kmem()
-                .free(&vpe, sel, Capability::size() + self.obj.size());
+            act.kmem()
+                .free(&act, sel, Capability::size() + self.obj.size());
         }
         else {
             // give quota for cap back in every case
-            vpe.kmem().free(&vpe, sel, Capability::size());
+            act.kmem().free(&act, sel, Capability::size());
         }
 
         match self.obj {
-            KObject::VPE(ref v) => {
-                // remove VPE if we revoked the root capability and if it's not the own VPE
+            KObject::Activity(ref v) => {
+                // remove activity if we revoked the root capability and if it's not the own activity
                 if let Some(v) = v.upgrade() {
-                    if sel != SEL_VPE && self.parent.is_none() && !v.is_root() {
-                        VPEMng::get().remove_vpe_async(v.id());
+                    if sel != SEL_ACT && self.parent.is_none() && !v.is_root() {
+                        ActivityMng::get().remove_activity_async(v.id());
                     }
                 }
             },
@@ -481,14 +481,14 @@ impl Capability {
                 EPObject::revoke(e);
             },
 
-            KObject::PE(ref mut pe) => {
-                // if the cap is derived, it doesn't own the kobj. if it's the VPE's own PE, the
+            KObject::Tile(ref mut tile) => {
+                // if the cap is derived, it doesn't own the kobj. if it's the activity's own Tile, the
                 // kobj always belongs to the parent (but derived is false).
-                if !self.derived && sel != SEL_PE {
+                if !self.derived && sel != SEL_TILE {
                     if let Some(parent) = self.parent {
                         let parent = unsafe { &(*parent.as_ptr()) };
-                        if let KObject::PE(p) = parent.get() {
-                            pe.revoke_async(p);
+                        if let KObject::Tile(p) = parent.get() {
+                            tile.revoke_async(p);
                         }
                     }
                 }
@@ -500,7 +500,7 @@ impl Capability {
                     if let Some(parent) = self.parent {
                         let parent = unsafe { &(*parent.as_ptr()) };
                         if let KObject::KMem(p) = parent.get() {
-                            k.revoke(parent.vpe(), parent.sel(), p);
+                            k.revoke(parent.activity(), parent.sel(), p);
                         }
                     }
                 }
@@ -530,7 +530,7 @@ impl Capability {
             KObject::Map(ref m) => {
                 if m.mapped() {
                     let virt = (self.sel() as goff) << cfg::PAGE_BITS;
-                    m.unmap_async(vpe, virt, self.len() as usize);
+                    m.unmap_async(act, virt, self.len() as usize);
                 }
             },
 
@@ -567,8 +567,8 @@ impl fmt::Debug for Capability {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Cap[vpe={}, sel={}, len={}, obj={:?}]",
-            self.vpe().id(),
+            "Cap[act={}, sel={}, len={}, obj={:?}]",
+            self.activity().id(),
             self.sel(),
             self.len(),
             self.obj

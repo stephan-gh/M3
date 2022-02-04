@@ -4,6 +4,6 @@ def build(gen, env):
         out = 'stdareceiver',
         libs = ['isr'],
         dir = None,
-        ldscript = 'pemux',
+        ldscript = 'tilemux',
         varAddr = False
     )

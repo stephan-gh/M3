@@ -104,28 +104,28 @@ public:
         m3::TCU::config_recv(ep, buf, order, msgorder, reply_eps, occupied, unread);
     }
 
-    static void config_send(epid_t ep, label_t lbl, peid_t pe, epid_t dstep,
+    static void config_send(epid_t ep, label_t lbl, tileid_t tile, epid_t dstep,
                             unsigned msgorder, unsigned credits,
                             bool reply = false, epid_t crd_ep = m3::TCU::INVALID_EP) {
-        m3::TCU::config_send(ep, lbl, pe, dstep, msgorder, credits, reply, crd_ep);
+        m3::TCU::config_send(ep, lbl, tile, dstep, msgorder, credits, reply, crd_ep);
     }
 
-    static void config_mem(epid_t ep, peid_t pe, goff_t addr, size_t size, int perm) {
-        m3::TCU::config_mem(ep, pe, addr, size, perm);
+    static void config_mem(epid_t ep, tileid_t tile, goff_t addr, size_t size, int perm) {
+        m3::TCU::config_mem(ep, tile, addr, size, perm);
     }
 
-    static m3::Errors::Code invalidate_ep_remote(peid_t pe, epid_t ep, bool force,
+    static m3::Errors::Code invalidate_ep_remote(tileid_t tile, epid_t ep, bool force,
                                                  uint32_t *unread = nullptr) {
         reg_t cmd = static_cast<reg_t>(m3::TCU::ExtCmdOpCode::INV_EP) |
             (static_cast<reg_t>(ep) << 9) |
             (static_cast<reg_t>(force) << 25);
-        return perform_ext_cmd(pe, cmd, unread);
+        return perform_ext_cmd(tile, cmd, unread);
     }
 
 private:
-    static m3::Errors::Code perform_ext_cmd(peid_t pe, reg_t cmd, uint32_t *unread = nullptr) {
+    static m3::Errors::Code perform_ext_cmd(tileid_t tile, reg_t cmd, uint32_t *unread = nullptr) {
         size_t addr = m3::TCU::ext_reg_addr(m3::TCU::ExtRegs::EXT_CMD);
-        config_mem(TMP_EP, pe, addr, sizeof(reg_t), m3::TCU::R | m3::TCU::W);
+        config_mem(TMP_EP, tile, addr, sizeof(reg_t), m3::TCU::R | m3::TCU::W);
         m3::Errors::Code err = write(TMP_EP, &cmd, sizeof(cmd), 0);
         if(err != m3::Errors::NONE)
             return err;

@@ -16,14 +16,14 @@
 
 #include <m3/pipe/IndirectPipe.h>
 #include <m3/vfs/FileTable.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 namespace m3 {
 
 IndirectPipe::IndirectPipe(Pipes &pipes, MemGate &mem, size_t memsize, int flags)
     : _pipe(pipes.create_pipe(mem, memsize)),
-      _rdfd(VPE::self().files()->alloc(_pipe.create_channel(true, flags))),
-      _wrfd(VPE::self().files()->alloc(_pipe.create_channel(false, flags))) {
+      _rdfd(Activity::self().files()->alloc(_pipe.create_channel(true, flags))),
+      _wrfd(Activity::self().files()->alloc(_pipe.create_channel(false, flags))) {
 }
 
 IndirectPipe::~IndirectPipe() {
@@ -43,11 +43,11 @@ IndirectPipe::~IndirectPipe() {
 }
 
 void IndirectPipe::close_reader() {
-    VPE::self().files()->remove(_rdfd);
+    Activity::self().files()->remove(_rdfd);
 }
 
 void IndirectPipe::close_writer() {
-    VPE::self().files()->remove(_wrfd);
+    Activity::self().files()->remove(_wrfd);
 }
 
 }

@@ -54,11 +54,11 @@ struct Errors {
         TLB_FULL,
         // SW errors
         INV_ARGS,
-        VPE_GONE,
+        ACT_GONE,
         OUT_OF_MEM,
         NO_SUCH_FILE,
         NOT_SUP,
-        NO_FREE_PE,
+        NO_FREE_TILE,
         INVALID_ELF,
         NO_SPACE,
         EXISTS,

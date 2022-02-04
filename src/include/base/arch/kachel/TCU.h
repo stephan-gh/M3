@@ -34,7 +34,7 @@ class MemGate;
 class SendGate;
 class RecvGate;
 class TimeInstant;
-class VPE;
+class Activity;
 
 class TCU {
     friend class kernel::TCU;
@@ -43,7 +43,7 @@ class TCU {
     friend class SendGate;
     friend class RecvGate;
     friend class TimeInstant;
-    friend class VPE;
+    friend class Activity;
 
     explicit TCU() {
     }
@@ -57,7 +57,7 @@ public:
     static const size_t MMIO_PRIV_SIZE      = PAGE_SIZE;
 
     static const reg_t INVALID_EP           = 0xFFFF;
-    static const reg_t INVALID_VPE          = 0xFFFF;
+    static const reg_t INVALID_ACT          = 0xFFFF;
     static const reg_t NO_REPLIES           = INVALID_EP;
     static const reg_t UNLIM_CREDITS        = 0x3F;
 
@@ -80,7 +80,7 @@ private:
         CORE_REQ            = 0,
         PRIV_CMD            = 1,
         PRIV_CMD_ARG        = 2,
-        CUR_VPE             = 3,
+        CUR_ACT             = 3,
         CLEAR_IRQ           = 4,
     };
 
@@ -119,7 +119,7 @@ private:
         INV_PAGE            = 1,
         INV_TLB             = 2,
         INS_TLB             = 3,
-        XCHG_VPE            = 4,
+        XCHG_ACT            = 4,
         SET_TIMER           = 5,
         ABORT_CMD           = 6,
         FLUSH_CACHE         = 7,
@@ -173,8 +173,8 @@ public:
 
     static const epid_t KPEX_SEP            = 4;
     static const epid_t KPEX_REP            = 5;
-    static const epid_t PEXUP_REP           = 6;
-    static const epid_t PEXUP_RPLEP         = 7;
+    static const epid_t TMUP_REP            = 6;
+    static const epid_t TMUP_RPLEP          = 7;
 
     static const epid_t SYSC_SEP_OFF        = 0;
     static const epid_t SYSC_REP_OFF        = 1;
@@ -354,7 +354,7 @@ private:
         reg_t bufSize = static_cast<reg_t>(order - msgorder);
         reg_t msgSize = static_cast<reg_t>(msgorder);
         write_reg(ep, 0, static_cast<reg_t>(m3::TCU::EpType::RECEIVE) |
-                        (static_cast<reg_t>(INVALID_VPE) << 3) |
+                        (static_cast<reg_t>(INVALID_ACT) << 3) |
                         (static_cast<reg_t>(reply_eps) << 19) |
                         (static_cast<reg_t>(bufSize) << 35) |
                         (static_cast<reg_t>(msgSize) << 41));
@@ -362,26 +362,26 @@ private:
         write_reg(ep, 2, static_cast<reg_t>(unread) << 32 | occupied);
     }
 
-    static void config_send(epid_t ep, label_t lbl, peid_t pe, epid_t dstep,
+    static void config_send(epid_t ep, label_t lbl, tileid_t tile, epid_t dstep,
                             unsigned msgorder, unsigned credits,
                             bool reply = false, epid_t crd_ep = INVALID_EP) {
         write_reg(ep, 0, static_cast<reg_t>(m3::TCU::EpType::SEND) |
-                        (static_cast<reg_t>(INVALID_VPE) << 3) |
+                        (static_cast<reg_t>(INVALID_ACT) << 3) |
                         (static_cast<reg_t>(credits) << 19) |
                         (static_cast<reg_t>(credits) << 25) |
                         (static_cast<reg_t>(msgorder) << 31) |
                         (static_cast<reg_t>(crd_ep) << 37) |
                         (static_cast<reg_t>(reply) << 53));
-        write_reg(ep, 1, (static_cast<reg_t>(pe) << 16) |
+        write_reg(ep, 1, (static_cast<reg_t>(tile) << 16) |
                          (static_cast<reg_t>(dstep) << 0));
         write_reg(ep, 2, lbl);
     }
 
-    static void config_mem(epid_t ep, peid_t pe, goff_t addr, size_t size, int perm) {
+    static void config_mem(epid_t ep, tileid_t tile, goff_t addr, size_t size, int perm) {
         write_reg(ep, 0, static_cast<reg_t>(m3::TCU::EpType::MEMORY) |
-                        (static_cast<reg_t>(INVALID_VPE) << 3) |
+                        (static_cast<reg_t>(INVALID_ACT) << 3) |
                         (static_cast<reg_t>(perm) << 19) |
-                        (static_cast<reg_t>(pe) << 23));
+                        (static_cast<reg_t>(tile) << 23));
         write_reg(ep, 1, addr);
         write_reg(ep, 2, size);
     }

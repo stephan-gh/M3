@@ -17,8 +17,8 @@
 use m3::cap::Selector;
 use m3::com::Semaphore;
 use m3::io::{Read, Write};
-use m3::pes::{Activity, PE, VPE};
 use m3::test;
+use m3::tiles::{Activity, RunningActivity, Tile};
 use m3::vfs::{OpenFlags, VFS};
 use m3::{wv_assert_eq, wv_assert_ok, wv_assert_some, wv_run_test};
 
@@ -45,12 +45,12 @@ fn taking_turns() {
     let sem0 = wv_assert_ok!(Semaphore::create(1));
     let sem1 = wv_assert_ok!(Semaphore::create(0));
 
-    let pe = wv_assert_ok!(PE::get("clone|own"));
-    let mut child = wv_assert_ok!(VPE::new(pe, "child"));
+    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let mut child = wv_assert_ok!(Activity::new(tile, "child"));
     wv_assert_ok!(child.delegate_obj(sem0.sel()));
     wv_assert_ok!(child.delegate_obj(sem1.sel()));
 
-    let rootmnt = wv_assert_some!(VPE::cur().mounts().get_by_path("/"));
+    let rootmnt = wv_assert_some!(Activity::cur().mounts().get_by_path("/"));
     wv_assert_ok!(child.mounts().add("/", rootmnt));
 
     set_counter("/sem0", 0);
@@ -61,7 +61,7 @@ fn taking_turns() {
     dst.push_word(sem1.sel());
 
     let act = wv_assert_ok!(child.run(|| {
-        let mut src = VPE::cur().data_source();
+        let mut src = Activity::cur().data_source();
         let sem0_sel: Selector = src.pop().unwrap();
         let sem1_sel: Selector = src.pop().unwrap();
 

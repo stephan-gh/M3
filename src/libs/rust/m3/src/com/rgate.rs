@@ -27,9 +27,9 @@ use crate::errors::{Code, Error};
 use crate::kif::INVALID_SEL;
 use crate::math;
 use crate::mem::MsgBuf;
-use crate::pes::VPE;
 use crate::syscalls;
 use crate::tcu;
+use crate::tiles::Activity;
 
 const DEF_MSG_ORD: u32 = 6;
 
@@ -95,7 +95,7 @@ impl RGateArgs {
     }
 
     /// Sets the capability selector to use for the `RecvGate`. Otherwise and by default,
-    /// [`VPE::alloc_sel`] will be used.
+    /// [`Activity::alloc_sel`] will be used.
     pub fn sel(mut self, sel: Selector) -> Self {
         self.sel = sel;
         self
@@ -143,7 +143,7 @@ impl RecvGate {
     /// Creates a new `RecvGate` with given arguments.
     pub fn new_with(args: RGateArgs) -> Result<Self, Error> {
         let sel = if args.sel == INVALID_SEL {
-            VPE::cur().alloc_sel()
+            Activity::cur().alloc_sel()
         }
         else {
             args.sel
@@ -161,8 +161,8 @@ impl RecvGate {
 
     /// Creates the `RecvGate` with given name as defined in the application's configuration
     pub fn new_named(name: &str) -> Result<Self, Error> {
-        let sel = VPE::cur().alloc_sel();
-        let (order, msg_order) = VPE::cur().resmng().unwrap().use_rgate(sel, name)?;
+        let sel = Activity::cur().alloc_sel();
+        let (order, msg_order) = Activity::cur().resmng().unwrap().use_rgate(sel, name)?;
         Ok(RecvGate {
             gate: Gate::new(sel, CapFlags::empty()),
             buf: None,
@@ -279,7 +279,7 @@ impl RecvGate {
     #[inline(always)]
     pub fn receive(&self, sgate: Option<&SendGate>) -> Result<&'static tcu::Message, Error> {
         let rep = self.ep().unwrap();
-        // if the PE is shared with someone else that wants to run, poll a couple of times to
+        // if the tile is shared with someone else that wants to run, poll a couple of times to
         // prevent too frequent/unnecessary switches.
         let polling = if arch::env::get().shared() { 200 } else { 1 };
         loop {
@@ -297,7 +297,7 @@ impl RecvGate {
                 }
             }
 
-            VPE::wait_for(Some(rep), None, None)?;
+            Activity::wait_for(Some(rep), None, None)?;
         }
     }
 
@@ -309,10 +309,10 @@ impl RecvGate {
 
 pub(crate) fn pre_init() {
     let eps_start = arch::env::get().first_std_ep();
-    let mut rbuf = arch::env::get().pe_desc().rbuf_std_space().0;
+    let mut rbuf = arch::env::get().tile_desc().rbuf_std_space().0;
     // safety: we only do that during (re-)initialization so that there are no outstanding
     // references to the old value. note that we need to use reset() here, because we also use it
-    // for VPE::run() to reinitialize everything.
+    // for activity::run() to reinitialize everything.
     unsafe {
         SYS_RGATE.reset(RecvGate::new_def(
             INVALID_SEL,

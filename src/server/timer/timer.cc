@@ -18,7 +18,7 @@
 
 #include <m3/server/Server.h>
 #include <m3/server/EventHandler.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 using namespace m3;
 
@@ -50,7 +50,7 @@ int main() {
     while(wl.has_items()) {
         auto now = TimeInstant::now();
         if(now > next_tick)
-            VPE::sleep_for(next_tick.duration_since(now));
+            Activity::sleep_for(next_tick.duration_since(now));
 
         wl.tick();
     }

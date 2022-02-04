@@ -15,7 +15,7 @@
  */
 
 use base::cfg;
-use base::kif::{pemux, PageFlags};
+use base::kif::{tilemux, PageFlags};
 use bitflags::bitflags;
 
 pub type MMUPTE = u64;
@@ -146,7 +146,7 @@ pub fn disable_paging() {
     // not necessary
 }
 
-pub fn invalidate_page(id: crate::VPEId, virt: usize) {
+pub fn invalidate_page(id: crate::ActId, virt: usize) {
     let val = virt | (id as usize & 0xFF);
     unsafe {
         asm!(
@@ -164,12 +164,12 @@ pub fn invalidate_tlb() {
     }
 }
 
-pub fn set_root_pt(id: crate::VPEId, root: Phys) {
+pub fn set_root_pt(id: crate::ActId, root: Phys) {
     // the ASID is 8 bit; make sure that we stay in that space
     assert!(
-        id == pemux::VPE_ID
-            || id == pemux::IDLE_ID
-            || (id != pemux::VPE_ID & 0xFF && id != pemux::IDLE_ID & 0xFF)
+        id == tilemux::ACT_ID
+            || id == tilemux::IDLE_ID
+            || (id != tilemux::ACT_ID & 0xFF && id != tilemux::IDLE_ID & 0xFF)
     );
     // cacheable table walk, non-shareable, outer write-back write-allocate cacheable
     let ttbr0_low: u32 = (root | 0b00_1001) as u32;

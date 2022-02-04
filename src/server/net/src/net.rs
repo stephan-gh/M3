@@ -32,10 +32,10 @@ use m3::com::{GateIStream, RecvGate};
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::math;
-use m3::pes::VPE;
 use m3::rc::Rc;
 use m3::server::{CapExchange, Handler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS};
 use m3::session::NetworkOp;
+use m3::tiles::Activity;
 use m3::time::{TimeDuration, TimeInstant};
 use m3::{log, println};
 
@@ -367,7 +367,7 @@ pub fn main() -> i32 {
         };
 
         log!(LOG_DETAIL, "Sleeping for {:?}", sleep_nanos);
-        VPE::sleep_for(sleep_nanos).ok();
+        Activity::sleep_for(sleep_nanos).ok();
     }
 
     0

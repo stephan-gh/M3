@@ -20,9 +20,9 @@ use crate::arch::{env, loader};
 use crate::cfg;
 use crate::kif;
 use crate::libc;
-use crate::pes::VPE;
 use crate::syscalls;
 use crate::tcu;
+use crate::tiles::Activity;
 
 pub fn init() {
     {
@@ -60,7 +60,12 @@ pub fn init() {
     tcu::init();
 
     let addr = envdata::mem_start();
-    syscalls::vpe_ctrl(VPE::cur().sel(), kif::syscalls::VPEOp::INIT, addr as u64).unwrap();
+    syscalls::activity_ctrl(
+        Activity::cur().sel(),
+        kif::syscalls::ActivityOp::INIT,
+        addr as u64,
+    )
+    .unwrap();
 
     if let Some(vec) = loader::read_env_words("tcurdy") {
         let fd = vec[0] as i32;

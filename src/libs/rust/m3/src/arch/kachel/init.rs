@@ -18,14 +18,14 @@ use crate::arch;
 use crate::com;
 use crate::io;
 use crate::mem;
-use crate::pes;
-use crate::pexif;
 use crate::syscalls;
+use crate::tiles;
+use crate::tmif;
 use crate::vfs;
 
 #[no_mangle]
 pub extern "C" fn abort() -> ! {
-    pexif::exit(1);
+    tmif::exit(1);
 }
 
 #[no_mangle]
@@ -33,7 +33,7 @@ pub extern "C" fn exit(_code: i32) -> ! {
     io::deinit();
     vfs::deinit();
 
-    pexif::exit(_code);
+    tmif::exit(_code);
 }
 
 extern "C" {
@@ -45,7 +45,7 @@ pub extern "C" fn env_run() {
     mem::heap::init();
     syscalls::init();
     com::pre_init();
-    pes::init();
+    tiles::init();
     io::init();
     com::init();
 

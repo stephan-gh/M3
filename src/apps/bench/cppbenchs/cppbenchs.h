@@ -33,6 +33,6 @@ void bmemgate();
 void bstream();
 void bsyscall();
 void bpipe();
-void bvpe();
+void bactivity();
 void bpagefaults();
 void bstring();

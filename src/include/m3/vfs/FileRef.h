@@ -48,7 +48,7 @@ public:
     }
 
     File *get() {
-        return VPE::self().files()->get(_fd).get();
+        return Activity::self().files()->get(_fd).get();
     }
 
     File *operator->() noexcept {

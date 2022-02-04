@@ -17,12 +17,12 @@
 //! Contains the quota type that is passed around for info purposes
 
 use crate::errors::Error;
-use crate::kif::pemux;
+use crate::kif::tilemux;
 use crate::serialize::{Marshallable, Sink, Source, Unmarshallable};
 
 use core::fmt;
 
-pub type Id = pemux::QuotaId;
+pub type Id = tilemux::QuotaId;
 
 #[derive(Debug, Default)]
 pub struct Quota<T> {

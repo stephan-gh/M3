@@ -21,24 +21,24 @@
 
 namespace m3 {
 
-DirectPipe::DirectPipe(VPE &rd, VPE &wr, MemGate &mem, size_t size)
+DirectPipe::DirectPipe(Activity &rd, Activity &wr, MemGate &mem, size_t size)
     : _rd(rd),
       _wr(wr),
       _size(size),
-      _rgate(RecvGate::create(VPE::self().alloc_sels(4), nextlog2<MSG_BUF_SIZE>::val, nextlog2<MSG_SIZE>::val)),
-      _rmem(mem.derive_for(VPE::self().sel(), _rgate.sel() + 1, 0, size, MemGate::R)),
-      _wmem(mem.derive_for(VPE::self().sel(), _rgate.sel() + 2, 0, size, MemGate::W)),
+      _rgate(RecvGate::create(Activity::self().alloc_sels(4), nextlog2<MSG_BUF_SIZE>::val, nextlog2<MSG_SIZE>::val)),
+      _rmem(mem.derive_for(Activity::self().sel(), _rgate.sel() + 1, 0, size, MemGate::R)),
+      _wmem(mem.derive_for(Activity::self().sel(), _rgate.sel() + 2, 0, size, MemGate::W)),
       _sgate(SendGate::create(&_rgate, SendGateArgs().credits(CREDITS).sel(_rgate.sel() + 3))),
       _rdfd(),
       _wrfd() {
     std::unique_ptr<DirectPipeReader::State> rstate(
-        &rd == &VPE::self() ? new DirectPipeReader::State(caps()) : nullptr);
-    _rdfd = VPE::self().files()->alloc(Reference<File>(
+        &rd == &Activity::self() ? new DirectPipeReader::State(caps()) : nullptr);
+    _rdfd = Activity::self().files()->alloc(Reference<File>(
         new DirectPipeReader(caps(), std::move(rstate))));
 
     std::unique_ptr<DirectPipeWriter::State> wstate(
-        &wr == &VPE::self() ? new DirectPipeWriter::State(caps() + 2, _size) : nullptr);
-    _wrfd = VPE::self().files()->alloc(Reference<File>(
+        &wr == &Activity::self() ? new DirectPipeWriter::State(caps() + 2, _size) : nullptr);
+    _wrfd = Activity::self().files()->alloc(Reference<File>(
         new DirectPipeWriter(caps() + 2, _size, std::move(wstate))));
 }
 
@@ -59,25 +59,25 @@ DirectPipe::~DirectPipe() {
 }
 
 void DirectPipe::close_reader() {
-    Reference<File> frd = VPE::self().files()->get(_rdfd);
+    Reference<File> frd = Activity::self().files()->get(_rdfd);
     DirectPipeReader *rd = static_cast<DirectPipeReader*>(frd.get());
     if(rd) {
         // don't send EOF, if we are not reading
-        if(&_rd != &VPE::self())
+        if(&_rd != &Activity::self())
             rd->_noeof = true;
     }
-    VPE::self().files()->remove(_rdfd);
+    Activity::self().files()->remove(_rdfd);
 }
 
 void DirectPipe::close_writer() {
-    Reference<File> fwr = VPE::self().files()->get(_wrfd);
+    Reference<File> fwr = Activity::self().files()->get(_wrfd);
     DirectPipeWriter *wr = static_cast<DirectPipeWriter*>(fwr.get());
     if(wr) {
         // don't send EOF, if we are not writing
-        if(&_wr != &VPE::self())
+        if(&_wr != &Activity::self())
             wr->_noeof = true;
     }
-    VPE::self().files()->remove(_wrfd);
+    Activity::self().files()->remove(_wrfd);
 }
 
 }

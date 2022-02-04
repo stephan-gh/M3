@@ -18,7 +18,7 @@
 #include <m3/com/SendGate.h>
 #include <m3/com/GateStream.h>
 #include <m3/stream/Standard.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 using namespace m3;
 
@@ -29,10 +29,10 @@ int main(int argc, char **argv) {
     SendGate sgate = SendGate::create(&rgate);
     send_vmsg(sgate, 1, 2, 3);
 
-    // now try to trick PEMux to leave us running, because we have unread messages
+    // now try to trick TileMux to leave us running, because we have unread messages
     for(volatile int i = 0; ; ++i) {
         cout << "Hello " << i << " from " << (argc > 0 ? argv[1] : "??") << "\n";
-        VPE::sleep_for(TimeDuration::from_nanos(10));
+        Activity::sleep_for(TimeDuration::from_nanos(10));
     }
     return 0;
 }

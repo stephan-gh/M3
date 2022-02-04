@@ -25,10 +25,10 @@ use m3::errors::{Code, Error};
 use m3::goff;
 use m3::io::{Read, Write};
 use m3::kif::Perm;
-use m3::pes::{Mapper, StateSerializer};
 use m3::rc::Rc;
 use m3::session::{HashInput, HashOutput, HashSession, MapFlags, Pager};
 use m3::syscalls;
+use m3::tiles::{Mapper, StateSerializer};
 use m3::vfs;
 
 use crate::memory;
@@ -86,7 +86,7 @@ impl vfs::File for BootFile {
 
     fn exchange_caps(
         &self,
-        _vpe: Selector,
+        _act: Selector,
         _dels: &mut Vec<Selector>,
         _max_sel: &mut Selector,
     ) -> Result<(), Error> {
@@ -180,7 +180,7 @@ impl fmt::Debug for BootFile {
 }
 
 pub struct BootMapper {
-    vpe_sel: Selector,
+    act_sel: Selector,
     mem_sel: Selector,
     has_virtmem: bool,
     mem_pool: Rc<RefCell<memory::MemPool>>,
@@ -189,13 +189,13 @@ pub struct BootMapper {
 
 impl BootMapper {
     pub fn new(
-        vpe_sel: Selector,
+        act_sel: Selector,
         mem_sel: Selector,
         has_virtmem: bool,
         mem_pool: Rc<RefCell<memory::MemPool>>,
     ) -> Self {
         BootMapper {
-            vpe_sel,
+            act_sel,
             mem_sel,
             has_virtmem,
             mem_pool,
@@ -227,7 +227,7 @@ impl Mapper for BootMapper {
             // map the memory of the boot module directly; therefore no initialization necessary
             syscalls::create_map(
                 (virt >> PAGE_BITS) as Selector,
-                self.vpe_sel,
+                self.act_sel,
                 self.mem_sel,
                 (foff >> PAGE_BITS) as Selector,
                 len >> PAGE_BITS,
@@ -254,7 +254,7 @@ impl Mapper for BootMapper {
 
             syscalls::create_map(
                 (virt >> PAGE_BITS) as Selector,
-                self.vpe_sel,
+                self.act_sel,
                 msel,
                 (alloc.addr() >> PAGE_BITS) as Selector,
                 len >> PAGE_BITS,

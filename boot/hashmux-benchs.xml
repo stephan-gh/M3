@@ -8,7 +8,7 @@
                     <physmem addr="0" size="$fs.size" />
                 </app>
             </dom>
-            <dom pe="imem+kecacc|core">
+            <dom tile="imem+kecacc|core">
                 <app args="hashmux" daemon="1">
                     <serv name="hash"/>
                 </app>
@@ -17,7 +17,7 @@
                 <app args="pager $fs.size" usermem="768M">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes type="core" count="1" />
+                    <tiles type="core" count="1" />
                     <dom>
                         <app args="/bin/hashmuxbenchs">
                             <mount fs="m3fs" path="/" />
@@ -32,7 +32,7 @@
                             <sess lname="hash-client6" gname="hash" />
                             <sess lname="hash-client7" gname="hash" />
                             <sess lname="hash-latency" gname="hash" />
-                            <pes type="core" count="8" />
+                            <tiles type="core" count="8" />
                         </app>
                     </dom>
                 </app>

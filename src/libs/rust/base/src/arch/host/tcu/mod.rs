@@ -33,10 +33,10 @@ mod thread;
 pub type Reg = u64;
 pub type EpId = u16;
 pub type Label = u64;
-pub type PEId = u8;
-pub type VPEId = u16;
+pub type TileId = u8;
+pub type ActId = u16;
 
-const PE_COUNT: usize = 16;
+const TILE_COUNT: usize = 16;
 const MAX_MSG_SIZE: usize = 16 * 1024;
 
 pub const HEADER_COUNT: usize = usize::max_value();
@@ -88,7 +88,7 @@ int_enum! {
         const BUF_OCCUPIED  = 9;
 
         // for sending message and accessing memory
-        const PE_ID         = 10;
+        const TILE_ID         = 10;
         const EP_ID         = 11;
         const LABEL         = 12;
         const CREDITS       = 13;
@@ -156,7 +156,7 @@ pub struct Header {
     pub opcode: u8,
     pub label: Label,
     pub has_replycap: u8,
-    pub pe: u16,
+    pub tile: u16,
     pub rpl_ep: u8,
     pub snd_ep: u8,
     pub reply_label: Label,
@@ -171,7 +171,7 @@ impl Header {
             opcode: 0,
             label: 0,
             has_replycap: 0,
-            pe: 0,
+            tile: 0,
             rpl_ep: 0,
             snd_ep: 0,
             reply_label: 0,
@@ -364,14 +364,14 @@ impl TCU {
         ep: EpId,
         lbl: Label,
         perm: kif::Perm,
-        pe: PEId,
+        tile: TileId,
         dst_ep: EpId,
         crd: u64,
         msg_order: i32,
     ) {
         Self::set_ep(ep, EpReg::VALID, 1);
         Self::set_ep(ep, EpReg::LABEL, lbl);
-        Self::set_ep(ep, EpReg::PE_ID, pe as Reg);
+        Self::set_ep(ep, EpReg::TILE_ID, tile as Reg);
         Self::set_ep(ep, EpReg::EP_ID, dst_ep as Reg);
         Self::set_ep(ep, EpReg::CREDITS, crd);
         Self::set_ep(ep, EpReg::MSGORDER, msg_order as Reg);

@@ -33,16 +33,16 @@ fn create() {
     );
 }
 
-// requires a PEMux with notification support
+// requires a TileMux with notification support
 #[cfg(not(target_vendor = "host"))]
 fn destroy() {
     use m3::cap::Selector;
     use m3::com::{recv_msg, SGateArgs, SendGate};
-    use m3::pes::{Activity, PE, VPE};
+    use m3::tiles::{Activity, RunningActivity, Tile};
     use m3::{reply_vmsg, send_recv, wv_assert_eq, wv_assert_ok};
 
-    let pe = wv_assert_ok!(PE::get("clone|own"));
-    let mut child = wv_assert_ok!(VPE::new(pe, "test"));
+    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let mut child = wv_assert_ok!(Activity::new(tile, "test"));
 
     let act = {
         let mut rg = wv_assert_ok!(RecvGate::new_with(
@@ -58,7 +58,7 @@ fn destroy() {
         dst.push_word(sg.sel());
 
         let act = wv_assert_ok!(child.run(|| {
-            let sg_sel: Selector = VPE::cur().data_source().pop().unwrap();
+            let sg_sel: Selector = Activity::cur().data_source().pop().unwrap();
             let sg = SendGate::new_bind(sg_sel);
 
             let mut i = 0;

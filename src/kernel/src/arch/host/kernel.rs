@@ -30,8 +30,8 @@ use thread;
 use super::{fs, net};
 use crate::args;
 use crate::ktcu;
-use crate::pes;
 use crate::platform;
+use crate::tiles;
 use crate::workloop::workloop;
 
 static FS_SIZE: StaticCell<usize> = StaticCell::new(0);
@@ -40,7 +40,7 @@ static FS_SIZE: StaticCell<usize> = StaticCell::new(0);
 pub extern "C" fn rust_init(argc: i32, argv: *const *const i8) {
     envdata::set(envdata::EnvData::new(
         0,
-        kif::PEDesc::new(kif::PEType::COMP_IMEM, kif::PEISA::X86, 1024 * 1024),
+        kif::TileDesc::new(kif::TileType::COMP_IMEM, kif::TileISA::X86, 1024 * 1024),
         argc,
         argv,
         0,
@@ -68,7 +68,7 @@ pub fn main() -> i32 {
     crate::com::init_queues();
 
     thread::init();
-    pes::init();
+    tiles::init();
 
     FS_SIZE.set(if let Some(ref path) = args::get().fs_image {
         fs::copy_from_fs(path)
@@ -81,7 +81,7 @@ pub fn main() -> i32 {
     }
 
     let sysc_slot_size = 9;
-    let sysc_rbuf_size = math::next_log2(cfg::MAX_VPES) + sysc_slot_size;
+    let sysc_rbuf_size = math::next_log2(cfg::MAX_ACTS) + sysc_slot_size;
     let sysc_rbuf = vec![0u8; 1 << sysc_rbuf_size];
     ktcu::recv_msgs(
         ktcu::KSYS_EP,
@@ -108,7 +108,7 @@ pub fn main() -> i32 {
 }
 
 pub fn shutdown() -> ! {
-    pes::deinit();
+    tiles::deinit();
     if let Some(ref path) = args::get().fs_image {
         fs::copy_to_fs(path, FS_SIZE.get());
     }

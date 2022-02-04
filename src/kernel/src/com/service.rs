@@ -25,27 +25,27 @@ use core::fmt;
 
 use crate::cap::RGateObject;
 use crate::com::{QueueId, SendQueue};
-use crate::pes::VPE;
+use crate::tiles::Activity;
 
 pub struct Service {
-    vpe: Weak<VPE>,
+    act: Weak<Activity>,
     name: String,
     rgate: SRc<RGateObject>,
     queue: RefCell<Box<SendQueue>>,
 }
 
 impl Service {
-    pub fn new(vpe: &Rc<VPE>, name: String, rgate: SRc<RGateObject>) -> SRc<Self> {
+    pub fn new(act: &Rc<Activity>, name: String, rgate: SRc<RGateObject>) -> SRc<Self> {
         SRc::new(Service {
-            vpe: Rc::downgrade(vpe),
+            act: Rc::downgrade(act),
             name,
             rgate,
-            queue: RefCell::from(SendQueue::new(QueueId::Serv(vpe.id()), vpe.pe_id())),
+            queue: RefCell::from(SendQueue::new(QueueId::Serv(act.id()), act.tile_id())),
         })
     }
 
-    pub fn vpe(&self) -> Rc<VPE> {
-        self.vpe.upgrade().unwrap()
+    pub fn activity(&self) -> Rc<Activity> {
+        self.act.upgrade().unwrap()
     }
 
     pub fn name(&self) -> &str {

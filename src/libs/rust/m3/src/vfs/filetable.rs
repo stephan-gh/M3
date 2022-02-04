@@ -21,9 +21,9 @@ use crate::cell::RefCell;
 use crate::col::Vec;
 use crate::errors::Error;
 use crate::io::Serial;
-use crate::pes::{StateSerializer, VPE};
 use crate::rc::Rc;
 use crate::serialize::Source;
+use crate::tiles::{Activity, StateSerializer};
 use crate::vfs::{File, FileRef, GenericFile};
 
 /// A file descriptor
@@ -110,12 +110,12 @@ impl FileTable {
 
     pub(crate) fn collect_caps(
         &self,
-        vpe: Selector,
+        act: Selector,
         dels: &mut Vec<Selector>,
         max_sel: &mut Selector,
     ) -> Result<(), Error> {
         for file in self.files.iter().flatten() {
-            file.borrow().exchange_caps(vpe, dels, max_sel)?;
+            file.borrow().exchange_caps(act, dels, max_sel)?;
         }
         Ok(())
     }
@@ -165,7 +165,7 @@ impl fmt::Debug for FileTable {
 }
 
 pub(crate) fn deinit() {
-    let ft = VPE::cur().files();
+    let ft = Activity::cur().files();
     for fd in 0..ft.files.len() {
         ft.remove(fd);
     }

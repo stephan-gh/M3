@@ -17,9 +17,9 @@
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::errors::Error;
 use crate::kif;
-use crate::pes::VPE;
 use crate::syscalls;
 use crate::tcu::{EpId, TOTAL_EPS};
+use crate::tiles::Activity;
 
 /// Represents a TCU endpoint that can be used for communication. This class only serves the purpose
 /// to allocate a EP capability and revoke it on destruction. In the meantime, the EP capability can
@@ -35,7 +35,7 @@ pub struct EP {
 /// The arguments for [`EP`] creations.
 pub struct EPArgs {
     epid: EpId,
-    vpe: Selector,
+    act: Selector,
     replies: u32,
 }
 
@@ -44,7 +44,7 @@ impl Default for EPArgs {
     fn default() -> Self {
         Self {
             epid: TOTAL_EPS,
-            vpe: VPE::cur().sel(),
+            act: Activity::cur().sel(),
             replies: 0,
         }
     }
@@ -57,9 +57,9 @@ impl EPArgs {
         self
     }
 
-    /// Sets the VPE to allocate the EP for.
-    pub fn vpe(mut self, vpe: Selector) -> Self {
-        self.vpe = vpe;
+    /// Sets the activity to allocate the EP for.
+    pub fn activity(mut self, act: Selector) -> Self {
+        self.act = act;
         self
     }
 
@@ -87,7 +87,7 @@ impl EP {
 
     /// Allocates a new endpoint with custom arguments
     pub(crate) fn new_with(args: EPArgs) -> Result<Self, Error> {
-        let (sel, id) = Self::alloc_cap(args.epid, args.vpe, args.replies)?;
+        let (sel, id) = Self::alloc_cap(args.epid, args.act, args.replies)?;
         Ok(Self::create(
             sel,
             id,
@@ -126,7 +126,7 @@ impl EP {
         self.std
     }
 
-    /// Configures this endpoint for the given gate for a different VPE. Note that this call
+    /// Configures this endpoint for the given gate for a different activity. Note that this call
     /// deliberately bypasses the gate object.
     pub fn configure(&self, gate: Selector) -> Result<(), Error> {
         syscalls::activate(self.sel(), gate, kif::INVALID_SEL, 0)
@@ -137,9 +137,9 @@ impl EP {
         syscalls::activate(self.sel(), kif::INVALID_SEL, kif::INVALID_SEL, 0)
     }
 
-    fn alloc_cap(epid: EpId, vpe: Selector, replies: u32) -> Result<(Selector, EpId), Error> {
-        let sel = VPE::cur().alloc_sel();
-        let id = syscalls::alloc_ep(sel, vpe, epid, replies)?;
+    fn alloc_cap(epid: EpId, act: Selector, replies: u32) -> Result<(Selector, EpId), Error> {
+        let sel = Activity::cur().alloc_sel();
+        let id = syscalls::alloc_ep(sel, act, epid, replies)?;
         Ok((sel, id))
     }
 }

@@ -21,15 +21,15 @@ use crate::cfg;
 pub struct EnvData {
     // boot env
     pub platform: u64,
-    pub pe_id: u64,
-    pub pe_desc: u64,
+    pub tile_id: u64,
+    pub tile_desc: u64,
     pub argc: u64,
     pub argv: u64,
     pub heap_size: u64,
     pub kenv: u64,
     pub closure: u64,
 
-    // set by PEMux
+    // set by TileMux
     pub shared: u64,
 
     // m3 env
@@ -37,7 +37,7 @@ pub struct EnvData {
     pub entry: u64,
     pub first_std_ep: u64,
     pub first_sel: u64,
-    pub vpe_id: u64,
+    pub act_id: u64,
 
     pub rmng_sel: u64,
     pub pager_sess: u64,

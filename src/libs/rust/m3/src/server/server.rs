@@ -23,10 +23,10 @@ use crate::kif::{service, CapRngDesc};
 use crate::llog;
 use crate::math;
 use crate::mem::MsgBuf;
-use crate::pes::VPE;
 use crate::serialize::{Sink, Source};
 use crate::server::{SessId, SessionContainer};
 use crate::syscalls;
+use crate::tiles::Activity;
 
 /// Represents a server that provides a service for clients.
 pub struct Server {
@@ -141,7 +141,7 @@ impl Server {
     }
 
     fn create<S>(name: &str, hdl: &mut dyn Handler<S>, public: bool) -> Result<Self, Error> {
-        let sel = VPE::cur().alloc_sel();
+        let sel = Activity::cur().alloc_sel();
         let mut rgate = RecvGate::new(math::next_log2(BUF_SIZE), math::next_log2(MSG_SIZE))?;
         rgate.activate()?;
 
@@ -151,7 +151,7 @@ impl Server {
         let (_, sgate) = hdl.sessions().add_creator(&rgate, max)?;
 
         if public {
-            VPE::cur()
+            Activity::cur()
                 .resmng()
                 .unwrap()
                 .reg_service(sel, sgate, name, max)?;
@@ -385,7 +385,11 @@ impl Server {
 impl Drop for Server {
     fn drop(&mut self) {
         if self.public {
-            VPE::cur().resmng().unwrap().unreg_service(self.sel()).ok();
+            Activity::cur()
+                .resmng()
+                .unwrap()
+                .unreg_service(self.sel())
+                .ok();
         }
     }
 }

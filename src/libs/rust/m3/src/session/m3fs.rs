@@ -25,10 +25,10 @@ use crate::com::{recv_result, RecvGate, SendGate, EP};
 use crate::errors::Error;
 use crate::goff;
 use crate::kif;
-use crate::pes::{StateSerializer, VPE};
 use crate::rc::Rc;
 use crate::serialize::Source;
 use crate::session::ClientSession;
+use crate::tiles::{Activity, StateSerializer};
 use crate::vfs::{
     FSHandle, FSOperation, FileHandle, FileInfo, FileMode, FileSystem, GenericFile, OpenFlags,
     StatResponse,
@@ -61,12 +61,12 @@ impl M3FS {
     /// Creates a new session at the m3fs server with given name.
     #[allow(clippy::new_ret_no_self)]
     pub fn new(id: usize, name: &str) -> Result<FSHandle, Error> {
-        let sels = VPE::cur().alloc_sels(2);
+        let sels = Activity::cur().alloc_sels(2);
         let sess = ClientSession::new_with_sel(name, sels + 0)?;
 
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, sels + 1, 1);
         sess.obtain_for(
-            VPE::cur().sel(),
+            Activity::cur().sel(),
             crd,
             |os| os.push_word(FSOperation::GET_SGATE.val),
             |_| Ok(()),
@@ -212,7 +212,7 @@ impl FileSystem for M3FS {
 
     fn exchange_caps(
         &self,
-        vpe: Selector,
+        act: Selector,
         dels: &mut Vec<Selector>,
         max_sel: &mut Selector,
     ) -> Result<(), Error> {
@@ -220,7 +220,7 @@ impl FileSystem for M3FS {
 
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, self.sess.sel() + 1, 1);
         self.sess.obtain_for(
-            vpe,
+            act,
             crd,
             |os| os.push_word(FSOperation::GET_SGATE.val),
             |_| Ok(()),
@@ -243,7 +243,7 @@ impl M3FS {
             }
         }
 
-        let ep = VPE::cur().epmng_mut().acquire(0)?;
+        let ep = Activity::cur().epmng_mut().acquire(0)?;
         let id = self.delegate_ep(ep.sel())?;
         self.eps.push(CachedEP { id, ep, file: None });
         Ok(self.eps.len() - 1)

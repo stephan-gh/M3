@@ -26,7 +26,7 @@
 
 namespace m3 {
 
-class VPE;
+class Activity;
 
 /**
  * A client session represents a connection between client and the server for the client. Over the
@@ -88,14 +88,14 @@ public:
     void delegate(const KIF::CapRngDesc &caps, KIF::ExchangeArgs *args = nullptr);
 
     /**
-     * Delegates the given capability range of <vpe> to the server with additional arguments and
+     * Delegates the given capability range of <act> to the server with additional arguments and
      * puts the arguments from the server again into argcount and args.
      *
-     * @param vpe the vpe to do the delegate for
+     * @param act the act to do the delegate for
      * @param caps the capabilities
      * @param args the arguments to pass to the server
      */
-    void delegate_for(VPE &vpe, const KIF::CapRngDesc &caps, KIF::ExchangeArgs *args = nullptr);
+    void delegate_for(Activity &act, const KIF::CapRngDesc &caps, KIF::ExchangeArgs *args = nullptr);
 
     /**
      * Obtains up to <count> capabilities from the server with additional arguments and puts the
@@ -108,26 +108,26 @@ public:
     KIF::CapRngDesc obtain(uint count, KIF::ExchangeArgs *args = nullptr);
 
     /**
-     * Obtains up to <count> capabilities from the server for <vpe> with additional arguments and
+     * Obtains up to <count> capabilities from the server for <act> with additional arguments and
      * puts the arguments from the server again into argcount and args.
      *
-     * @param vpe the vpe to do the obtain for
+     * @param act the act to do the obtain for
      * @param count the number of capabilities
      * @param args the arguments to pass to the server
      * @return the received capabilities
      */
-    KIF::CapRngDesc obtain_for(VPE &vpe, uint count, KIF::ExchangeArgs *args = nullptr);
+    KIF::CapRngDesc obtain_for(Activity &act, uint count, KIF::ExchangeArgs *args = nullptr);
 
     /**
-     * Obtains up to <crd>.count() capabilities from the server for <vpe> with additional arguments and
+     * Obtains up to <crd>.count() capabilities from the server for <act> with additional arguments and
      * puts the arguments from the server again into argcount and args.
      *
-     * @param vpe the vpe to do the obtain for
+     * @param act the act to do the obtain for
      * @param crd the selectors to use
      * @param argcount the number of arguments
      * @param args the arguments to pass to the server
      */
-    void obtain_for(VPE &vpe, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args = nullptr);
+    void obtain_for(Activity &act, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args = nullptr);
 
 private:
     void connect(const String &name, capsel_t sel);

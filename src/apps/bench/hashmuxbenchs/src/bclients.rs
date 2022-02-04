@@ -22,10 +22,10 @@ use m3::com::{
 use m3::crypto::{HashAlgorithm, HashType};
 use m3::errors::Error;
 use m3::mem::MsgBuf;
-use m3::pes::{Activity, ExecActivity, StateSerializer, PE, VPE};
 use m3::serialize::{Source, Unmarshallable};
 use m3::session::HashSession;
 use m3::tcu::INVALID_EP;
+use m3::tiles::{Activity, RunningActivity, RunningProgramActivity, StateSerializer, Tile};
 use m3::time::{CycleDuration, CycleInstant, Duration, Results};
 use m3::{format, log, println, send_recv, wv_assert_ok, wv_run_test};
 use m3::{math, mem, tcu, test};
@@ -47,7 +47,7 @@ fn _create_rgate(max_clients: usize) -> RecvGate {
 struct Client {
     _sgate: SendGate,
     mgate: MemGate,
-    act: ExecActivity,
+    act: RunningProgramActivity,
 }
 
 struct ClientParams {
@@ -170,22 +170,22 @@ where
 }
 
 fn _start_client(params: ClientParams, rgate: &RecvGate, mgate: &MemGate) -> Client {
-    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
-    let mut vpe = wv_assert_ok!(VPE::new(pe, &format!("hash-c{}", params.num)));
+    let tile = wv_assert_ok!(Tile::new(Activity::cur().tile_desc()));
+    let mut act = wv_assert_ok!(Activity::new(tile, &format!("hash-c{}", params.num)));
 
     let sgate = wv_assert_ok!(SendGate::new_with(
         SGateArgs::new(rgate)
             .credits(1)
             .label(params.num as tcu::Label)
     ));
-    wv_assert_ok!(vpe.delegate_obj(sgate.sel()));
+    wv_assert_ok!(act.delegate_obj(sgate.sel()));
 
     let mgate = wv_assert_ok!(mgate.derive(0, params.size, Perm::R));
 
     assert_eq!(params.size % params.div, 0);
     let slice = params.size / params.div;
 
-    let mut dst = vpe.data_sink();
+    let mut dst = act.data_sink();
     dst.push_word(sgate.sel());
     dst.push_word(slice as u64);
     params.serialize(&mut dst);
@@ -193,8 +193,8 @@ fn _start_client(params: ClientParams, rgate: &RecvGate, mgate: &MemGate) -> Cli
     Client {
         _sgate: sgate,
         mgate,
-        act: wv_assert_ok!(vpe.run(|| {
-            let mut src = VPE::cur().data_source();
+        act: wv_assert_ok!(act.run(|| {
+            let mut src = Activity::cur().data_source();
             let sgate_sel: Selector = src.pop().unwrap();
             let slice: usize = src.pop().unwrap();
             let params: ClientParams = src.pop().unwrap();
@@ -254,8 +254,8 @@ fn _sync_and_wait_for_clients(rgate: &RecvGate, mut clients: Vec<Client>) {
                     return false; // No EP sent, benchmark completed
                 }
 
-                // Obtain EP from VPE and configure it with the MemGate
-                let sel = wv_assert_ok!(clients[i].act.vpe_mut().obtain_obj(sel));
+                // Obtain EP from activity and configure it with the MemGate
+                let sel = wv_assert_ok!(clients[i].act.activity_mut().obtain_obj(sel));
                 let ep = EP::new_bind(INVALID_EP, sel);
                 wv_assert_ok!(ep.configure(clients[i].mgate.sel()));
                 eps.push(ep);

@@ -20,6 +20,7 @@ use m3::cell::StaticCell;
 use m3::test::WvTester;
 use m3::{println, wv_run_suite};
 
+mod tactivity;
 mod tboxlist;
 mod tbufio;
 mod tdir;
@@ -40,7 +41,6 @@ mod tsgate;
 mod tsrvmsgs;
 mod tsyscalls;
 mod ttreap;
-mod tvpe;
 
 // TODO that's hacky, but the only alternative I can see is to pass the WvTester to every single
 // test case and every single wv_assert_* call, which is quite inconvenient.
@@ -85,12 +85,12 @@ pub fn main() -> i32 {
     wv_run_suite!(tester, tsgate::run);
     wv_run_suite!(tester, tsems::run);
     wv_run_suite!(tester, tserver::run);
-    // requires a PEMux with notification support
+    // requires a TileMux with notification support
     #[cfg(not(target_vendor = "host"))]
     wv_run_suite!(tester, tsrvmsgs::run);
     wv_run_suite!(tester, tsyscalls::run);
     wv_run_suite!(tester, ttreap::run);
-    wv_run_suite!(tester, tvpe::run);
+    wv_run_suite!(tester, tactivity::run);
 
     if FAILED.get() > 0 {
         println!("\x1B[1;31m{} tests failed\x1B[0;m", FAILED.get());

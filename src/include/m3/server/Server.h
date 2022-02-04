@@ -25,7 +25,7 @@
 #include <m3/session/ResMng.h>
 #include <m3/stream/Standard.h>
 #include <m3/Syscalls.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 #include <memory>
 
@@ -50,10 +50,10 @@ class Server : public ObjCap {
     };
 
 public:
-    static constexpr size_t MAX_SESSIONS = Math::min(MAX_VPES, 32);
+    static constexpr size_t MAX_SESSIONS = Math::min(MAX_ACTS, 32);
 
     explicit Server(const String &name, WorkLoop *wl, std::unique_ptr<HDL> &&handler)
-        : ObjCap(SERVICE, VPE::self().alloc_sel()),
+        : ObjCap(SERVICE, Activity::self().alloc_sel()),
           _handler(std::move(handler)),
           _ctrl_handler(),
           _creators(),
@@ -64,12 +64,12 @@ public:
         LLOG(SERV, "create(name=" << name << ")");
         size_t crt = add_creator(MAX_SESSIONS);
         Syscalls::create_srv(sel(), _rgate.sel(), name, crt);
-        VPE::self().resmng()->reg_service(sel(), _creators[crt]->sgate.sel(), name, MAX_SESSIONS);
+        Activity::self().resmng()->reg_service(sel(), _creators[crt]->sgate.sel(), name, MAX_SESSIONS);
     }
 
     ~Server() {
         try {
-            VPE::self().resmng()->unreg_service(sel());
+            Activity::self().resmng()->unreg_service(sel());
         }
         catch(...) {
             // ignore

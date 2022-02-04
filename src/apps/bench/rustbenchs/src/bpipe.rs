@@ -19,9 +19,9 @@ use m3::com::MemGate;
 use m3::io;
 use m3::kif;
 use m3::mem::AlignedBuf;
-use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::session::Pipes;
 use m3::test;
+use m3::tiles::{Activity, ActivityArgs, RunningActivity, Tile};
 use m3::time::{CycleInstant, Profiler};
 use m3::vfs::IndirectPipe;
 use m3::{format, wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test};
@@ -40,19 +40,22 @@ fn child_to_parent() {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let mut prof = Profiler::default().repeats(2).warmup(1);
 
-    let pe = wv_assert_ok!(PE::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("clone|own"));
     let res = prof.run::<CycleInstant, _>(|| {
         let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
         let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
-        let mut vpe = wv_assert_ok!(VPE::new_with(pe.clone(), VPEArgs::new("writer")));
-        vpe.files().set(
+        let mut act = wv_assert_ok!(Activity::new_with(
+            tile.clone(),
+            ActivityArgs::new("writer")
+        ));
+        act.files().set(
             io::STDOUT_FILENO,
-            VPE::cur().files().get(pipe.writer_fd()).unwrap(),
+            Activity::cur().files().get(pipe.writer_fd()).unwrap(),
         );
 
-        let act = wv_assert_ok!(vpe.run(|| {
-            let output = VPE::cur().files().get(io::STDOUT_FILENO).unwrap();
+        let act = wv_assert_ok!(act.run(|| {
+            let output = Activity::cur().files().get(io::STDOUT_FILENO).unwrap();
             let buf = BUF.borrow();
             let mut rem = DATA_SIZE;
             while rem > 0 {
@@ -64,7 +67,7 @@ fn child_to_parent() {
 
         pipe.close_writer();
 
-        let input = VPE::cur().files().get(pipe.reader_fd()).unwrap();
+        let input = Activity::cur().files().get(pipe.reader_fd()).unwrap();
         let mut buf = BUF.borrow_mut();
         while wv_assert_ok!(input.borrow_mut().read(&mut buf[..])) > 0 {}
 
@@ -85,19 +88,22 @@ fn parent_to_child() {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let mut prof = Profiler::default().repeats(2).warmup(1);
 
-    let pe = wv_assert_ok!(PE::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("clone|own"));
     let res = prof.run::<CycleInstant, _>(|| {
         let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
         let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
-        let mut vpe = wv_assert_ok!(VPE::new_with(pe.clone(), VPEArgs::new("reader")));
-        vpe.files().set(
+        let mut act = wv_assert_ok!(Activity::new_with(
+            tile.clone(),
+            ActivityArgs::new("reader")
+        ));
+        act.files().set(
             io::STDIN_FILENO,
-            VPE::cur().files().get(pipe.reader_fd()).unwrap(),
+            Activity::cur().files().get(pipe.reader_fd()).unwrap(),
         );
 
-        let act = wv_assert_ok!(vpe.run(|| {
-            let input = VPE::cur().files().get(io::STDIN_FILENO).unwrap();
+        let act = wv_assert_ok!(act.run(|| {
+            let input = Activity::cur().files().get(io::STDIN_FILENO).unwrap();
             let mut buf = BUF.borrow_mut();
             while wv_assert_ok!(input.borrow_mut().read(&mut buf[..])) > 0 {}
             0
@@ -105,7 +111,7 @@ fn parent_to_child() {
 
         pipe.close_reader();
 
-        let output = VPE::cur().files().get(pipe.writer_fd()).unwrap();
+        let output = Activity::cur().files().get(pipe.writer_fd()).unwrap();
         let buf = BUF.borrow();
         let mut rem = DATA_SIZE;
         while rem > 0 {

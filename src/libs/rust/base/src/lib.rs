@@ -77,11 +77,11 @@ pub mod math;
 pub mod mem;
 pub mod msgqueue;
 pub mod parse;
-pub mod pexif;
 pub mod quota;
 pub mod rc;
 pub mod serialize;
 pub mod time;
+pub mod tmif;
 
 mod arch;
 

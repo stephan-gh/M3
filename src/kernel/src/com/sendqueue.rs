@@ -20,7 +20,7 @@ use base::col::VecDeque;
 use base::errors::{Code, Error};
 use base::mem::MsgBuf;
 use base::msgqueue::{MsgQueue, MsgSender};
-use base::tcu::{self, PEId, VPEId};
+use base::tcu::{self, ActId, TileId};
 
 use crate::ktcu;
 
@@ -69,14 +69,14 @@ struct MetaData {
 #[derive(Copy, Clone, Debug)]
 pub enum QueueId {
     #[allow(dead_code)]
-    PEMux(PEId),
-    VPE(VPEId),
-    Serv(VPEId),
+    TileMux(TileId),
+    Activity(ActId),
+    Serv(ActId),
 }
 
 struct KTCUSender {
     id: QueueId,
-    pe: tcu::PEId,
+    tile: tcu::TileId,
     rpl_lbl: tcu::Label,
     cur_event: Option<thread::Event>,
 }
@@ -90,7 +90,7 @@ impl MsgSender<MetaData> for KTCUSender {
         klog!(SQUEUE, "SendQueue[{:?}]: sending msg", self.id);
 
         ktcu::send_to(
-            self.pe,
+            self.tile,
             meta.rep,
             meta.lbl,
             msg,
@@ -126,12 +126,12 @@ fn get_event(id: u64) -> thread::Event {
 }
 
 impl SendQueue {
-    pub fn new(id: QueueId, pe: tcu::PEId) -> Box<Self> {
+    pub fn new(id: QueueId, tile: tcu::TileId) -> Box<Self> {
         // put the queue in a box, because we use its address for identification
         let mut queue = Box::new(SendQueue {
             queue: MsgQueue::new(KTCUSender {
                 id,
-                pe,
+                tile,
                 rpl_lbl: 0,
                 cur_event: None,
             }),

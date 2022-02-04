@@ -18,7 +18,7 @@
 #include <base/stream/Serial.h>
 
 #include "../assert.h"
-#include "../pes.h"
+#include "../tiles.h"
 #include "../tcuif.h"
 
 using namespace m3;
@@ -31,7 +31,7 @@ static constexpr epid_t REP = TCU::FIRST_USER_EP + 1;
 static uint8_t rbuf[64];
 
 int main() {
-    kernel::TCU::config_send(SEP, 0x1234, pe_id(PE::PE0), DSTEP, nextlog2<MSG_SIZE>::val, 1);
+    kernel::TCU::config_send(SEP, 0x1234, tile_id(Tile::T0), DSTEP, nextlog2<MSG_SIZE>::val, 1);
     size_t size = nextlog2<sizeof(rbuf)>::val;
     uintptr_t rbuf_addr = reinterpret_cast<uintptr_t>(rbuf);
     kernel::TCU::config_recv(REP, rbuf_addr, size, size, TCU::NO_REPLIES);
@@ -46,7 +46,7 @@ int main() {
     while((res = kernel::TCU::send(SEP, msg, 0x2222, REP)) != Errors::NONE) {
         Serial::get() << "send failed: " << res << "\n";
         // get credits back
-        kernel::TCU::config_send(SEP, 0x1234, pe_id(PE::PE0), DSTEP, nextlog2<MSG_SIZE>::val, 1);
+        kernel::TCU::config_send(SEP, 0x1234, tile_id(Tile::T0), DSTEP, nextlog2<MSG_SIZE>::val, 1);
     }
 
     for(int count = 0; count < 100000; ++count) {

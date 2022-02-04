@@ -18,13 +18,13 @@ use core::ptr;
 
 use crate::cell::{LazyStaticUnsafeCell, StaticCell};
 use crate::cfg;
-use crate::kif::{CapSel, PEDesc, PEDescRaw};
+use crate::kif::{CapSel, TileDesc, TileDescRaw};
 use crate::util;
 
 pub struct EnvData {
-    pub pe_id: u64,
+    pub tile_id: u64,
     pub shared: u32,
-    pub pe_desc: PEDescRaw,
+    pub tile_desc: TileDescRaw,
     pub argc: u32,
     pub argv: u64,
     pub first_sel: u32,
@@ -34,17 +34,17 @@ pub struct EnvData {
 
 impl EnvData {
     pub fn new(
-        pe_id: u64,
-        pe_desc: PEDesc,
+        tile_id: u64,
+        tile_desc: TileDesc,
         argc: i32,
         argv: *const *const i8,
         first_sel: CapSel,
         kmem_sel: CapSel,
     ) -> Self {
         EnvData {
-            pe_id,
+            tile_id,
             shared: 0,
-            pe_desc: pe_desc.value(),
+            tile_desc: tile_desc.value(),
             argc: argc as u32,
             argv: argv as u64,
             first_sel: first_sel as u32,

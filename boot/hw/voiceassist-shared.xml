@@ -8,15 +8,15 @@
                     <physmem addr="0" size="$fs.size" />
                 </app>
             </dom>
-            <dom pe="boom+nic">
+            <dom tile="boom+nic">
                 <app args="pager maxcli=3 $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes type="rocket" count="1" />
+                    <tiles type="rocket" count="1" />
                     <app args="/sbin/net -m 1 net 192.168.41.11" daemon="1">
                         <serv name="net" />
                     </app>
-                    <dom pe="rocket">
+                    <dom tile="rocket">
                         <app args="/bin/vamic /testcase1.wav" daemon="1">
                             <mount fs="m3fs" path="/" />
                             <serv name="vamic" />

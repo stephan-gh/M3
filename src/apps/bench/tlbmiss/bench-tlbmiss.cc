@@ -19,7 +19,7 @@
 
 #include <m3/stream/Standard.h>
 #include <m3/Syscalls.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 using namespace m3;
 
@@ -27,8 +27,8 @@ static const size_t COUNT       = 9;
 static const size_t PAGES       = 16;
 
 int main() {
-    if(!VPE::self().pe_desc().has_virtmem())
-        exitmsg("PE has no virtual memory support");
+    if(!Activity::self().tile_desc().has_virtmem())
+        exitmsg("Tile has no virtual memory support");
 
     const uintptr_t virt = 0x30000000;
 
@@ -37,10 +37,10 @@ int main() {
     CycleDuration xfer;
     for(size_t i = 0; i < COUNT; ++i) {
         Syscalls::create_map(
-            virt / PAGE_SIZE, VPE::self().sel(), mgate.sel(), 0, PAGES, MemGate::RW
+            virt / PAGE_SIZE, Activity::self().sel(), mgate.sel(), 0, PAGES, MemGate::RW
         );
 
-        MemGate mapped_mem = VPE::self().get_mem(virt, PAGES * PAGE_SIZE, MemGate::R);
+        MemGate mapped_mem = Activity::self().get_mem(virt, PAGES * PAGE_SIZE, MemGate::R);
 
         alignas(8) char buf[8];
         for(size_t p = 0; p < PAGES; ++p) {
@@ -51,7 +51,7 @@ int main() {
         }
 
         Syscalls::revoke(
-            VPE::self().sel(), KIF::CapRngDesc(KIF::CapRngDesc::MAP, virt / PAGE_SIZE, PAGES), true
+            Activity::self().sel(), KIF::CapRngDesc(KIF::CapRngDesc::MAP, virt / PAGE_SIZE, PAGES), true
         );
     }
 

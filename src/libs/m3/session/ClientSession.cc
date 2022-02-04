@@ -17,14 +17,14 @@
 #include <m3/session/ClientSession.h>
 #include <m3/session/ResMng.h>
 #include <m3/Syscalls.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 namespace m3 {
 
 ClientSession::~ClientSession() {
     if(_close && sel() != INVALID) {
         try {
-            VPE::self().resmng()->close_sess(sel());
+            Activity::self().resmng()->close_sess(sel());
         }
         catch(...) {
             // ignore
@@ -35,33 +35,33 @@ ClientSession::~ClientSession() {
 
 void ClientSession::connect(const String &service, capsel_t selector) {
     if(selector == INVALID)
-        selector = VPE::self().alloc_sel();
+        selector = Activity::self().alloc_sel();
 
-    VPE::self().resmng()->open_sess(selector, service);
+    Activity::self().resmng()->open_sess(selector, service);
     sel(selector);
 }
 
 void ClientSession::delegate(const KIF::CapRngDesc &caps, KIF::ExchangeArgs *args) {
-    delegate_for(VPE::self(), caps, args);
+    delegate_for(Activity::self(), caps, args);
 }
 
-void ClientSession::delegate_for(VPE &vpe, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args) {
-    Syscalls::delegate(vpe.sel(), sel(), crd, args);
+void ClientSession::delegate_for(Activity &act, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args) {
+    Syscalls::delegate(act.sel(), sel(), crd, args);
 }
 
 KIF::CapRngDesc ClientSession::obtain(uint count, KIF::ExchangeArgs *args) {
-    return obtain_for(VPE::self(), count, args);
+    return obtain_for(Activity::self(), count, args);
 }
 
-KIF::CapRngDesc ClientSession::obtain_for(VPE &vpe, uint count, KIF::ExchangeArgs *args) {
-    KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, vpe.alloc_sels(count), count);
-    obtain_for(vpe, crd, args);
+KIF::CapRngDesc ClientSession::obtain_for(Activity &act, uint count, KIF::ExchangeArgs *args) {
+    KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, act.alloc_sels(count), count);
+    obtain_for(act, crd, args);
     return crd;
 }
 
-void ClientSession::obtain_for(VPE &vpe, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args) {
-    vpe.mark_caps_allocated(crd.start(), crd.count());
-    Syscalls::obtain(vpe.sel(), sel(), crd, args);
+void ClientSession::obtain_for(Activity &act, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args) {
+    act.mark_caps_allocated(crd.start(), crd.count());
+    Syscalls::obtain(act.sel(), sel(), crd, args);
 }
 
 }

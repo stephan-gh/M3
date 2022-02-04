@@ -18,9 +18,9 @@ use crate::cap::Selector;
 use crate::col::Vec;
 use crate::com::{RecvGate, SGateArgs, SendGate};
 use crate::errors::{Code, Error};
-use crate::pes::VPE;
 use crate::session::ServerSession;
 use crate::tcu::Label;
+use crate::tiles::Activity;
 
 pub(crate) const MAX_CREATORS: usize = 3;
 
@@ -180,7 +180,7 @@ impl<S> SessionContainer<S> {
         Ok(())
     }
 
-    /// Adds a new session with the next available id and a selector allocated from [`VPE::cur()`].
+    /// Adds a new session with the next available id and a selector allocated from [`Activity::cur()`].
     /// The session is created by `create_sess`, which takes a new [`ServerSession`] object for the
     /// service denoted by `srv_sel`. The parameter `auto_close` is passed to [`ServerSession`] on
     /// creation.
@@ -195,7 +195,7 @@ impl<S> SessionContainer<S> {
         F: FnOnce(ServerSession) -> Result<S, Error>,
     {
         let sid = self.next_id()?;
-        let sel = VPE::cur().alloc_sel();
+        let sel = Activity::cur().alloc_sel();
         let sess = create_sess(ServerSession::new_with_sel(
             srv_sel, sel, crt, sid as u64, auto_close,
         )?)?;

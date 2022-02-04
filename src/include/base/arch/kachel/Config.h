@@ -32,11 +32,11 @@
 #if defined(__hw__)
 #   define TOTAL_EPS        128
 #   define AVAIL_EPS        TOTAL_EPS
-#   define MAX_VPES         8
+#   define MAX_ACTS         8
 #else
 #   define TOTAL_EPS        192
 #   define AVAIL_EPS        TOTAL_EPS
-#   define MAX_VPES         32
+#   define MAX_ACTS         32
 #endif
 
 #if defined(__riscv)
@@ -49,11 +49,11 @@
 // +----------------------------+ 0x0
 // |         devices etc.       |
 // +----------------------------+ 0x10000000
-// |          PEMux code        |
+// |        TileMux code        |
 // +----------------------------+ 0x10060000
 // |           app code         |
 // +----------------------------+ 0x10100000
-// |       env + PEMux data     |
+// |     env + TileMux data     |
 // +----------------------------+ 0x10160000
 // |          app data          |
 // +----------------------------+ 0x101E0000
@@ -61,7 +61,7 @@
 // +----------------------------+ 0x101F0000
 // |      app recv buffers      |
 // +----------------------------+ 0x101FF000
-// |     PEMux recv buffers     |
+// |    TileMux recv buffers    |
 // +----------------------------+ 0x10200000
 // |            ...             |
 // +----------------------------+ 0xF0000000
@@ -76,9 +76,9 @@
 // +----------------------------+ 0x10101000
 // |            ...             |
 // +----------------------------+ 0x10200000
-// |      PEMux code+data       |
+// |     TileMux code+data      |
 // +----------------------------+ 0x103FF000
-// |     PEMux recv buffers     |
+// |    TileMux recv buffers    |
 // +----------------------------+ 0x10400000
 // |       app code+data        |
 // |            ...             |
@@ -90,7 +90,7 @@
 // |        recv buffers        |
 // |            ...             |
 // +----------------------------+ 0xE0000000
-// |      PE's own phys mem     |
+// |     Tile's own phys mem    |
 // +----------------------------+ 0xF0000000
 // |          TCU MMIO          |
 // +----------------------------+ 0xF0002000
@@ -107,10 +107,10 @@
 #define RBUF_SIZE_SPM       0xE000
 
 #if defined(__hw__)
-#   define PEMUX_CODE_START (MEM_OFFSET + 0x1000)
+#   define TILEMUX_CODE_START (MEM_OFFSET + 0x1000)
 #   define ENV_START        (MEM_OFFSET + 0x8)
 #else
-#   define PEMUX_CODE_START (MEM_OFFSET + 0x200000)
+#   define TILEMUX_CODE_START (MEM_OFFSET + 0x200000)
 #   if defined(__riscv)
 #       define ENV_START    (MEM_OFFSET + 0x8)
 #   else
@@ -118,13 +118,13 @@
 #   endif
 #endif
 
-#define PEMUX_RBUF_SIZE     0x1000
+#define TILEMUX_RBUF_SIZE   0x1000
 
 #define KPEX_RBUF_ORDER     6
 #define KPEX_RBUF_SIZE      (1 << KPEX_RBUF_ORDER)
 
-#define PEXUP_RBUF_ORDER    6
-#define PEXUP_RBUF_SIZE     (1 << PEXUP_RBUF_ORDER)
+#define TMUP_RBUF_ORDER     6
+#define TMUP_RBUF_SIZE      (1 << TMUP_RBUF_ORDER)
 
 #define SYSC_RBUF_ORDER     9
 #define SYSC_RBUF_SIZE      (1 << SYSC_RBUF_ORDER)

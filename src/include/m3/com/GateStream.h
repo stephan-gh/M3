@@ -28,7 +28,7 @@ namespace m3 {
 
 /**
  * The gate stream classes provide an easy abstraction to marshall or unmarshall data when
- * communicating between VPEs. Therefore, if you want to combine multiple values into a single
+ * communicating between activities. Therefore, if you want to combine multiple values into a single
  * message or extract multiple values from a message, this is the abstraction you might want to use.
  * If you already have the data to send, you should directly use the send method of SendGate. If
  * you don't want to extract values from a message but directly access the message, use the

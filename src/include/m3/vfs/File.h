@@ -257,11 +257,11 @@ public:
     virtual Reference<File> clone() const = 0;
 
     /**
-     * Delegates this file to the given VPE.
+     * Delegates this file to the given activity.
      *
-     * @param vpe the VPE
+     * @param act the activity
      */
-    virtual void delegate(VPE &vpe) = 0;
+    virtual void delegate(Activity &act) = 0;
 
     /**
      * Serializes this object to the given marshaller.

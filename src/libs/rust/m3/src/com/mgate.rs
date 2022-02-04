@@ -26,9 +26,9 @@ use crate::errors::Error;
 use crate::goff;
 use crate::kif::INVALID_SEL;
 use crate::mem::{self, MaybeUninit};
-use crate::pes::VPE;
 use crate::syscalls;
 use crate::tcu;
+use crate::tiles::Activity;
 
 pub use crate::kif::Perm;
 
@@ -66,7 +66,7 @@ impl MGateArgs {
     }
 
     /// Sets the capability selector that should be used for this [`MemGate`]. Otherwise and by
-    /// default, [`VPE::alloc_sel`] will be used to choose a free selector.
+    /// default, [`Activity::alloc_sel`] will be used to choose a free selector.
     pub fn sel(mut self, sel: Selector) -> Self {
         self.sel = sel;
         self
@@ -82,13 +82,13 @@ impl MemGate {
     /// Creates a new `MemGate` with given arguments.
     pub fn new_with(args: MGateArgs) -> Result<Self, Error> {
         let sel = if args.sel == INVALID_SEL {
-            VPE::cur().alloc_sel()
+            Activity::cur().alloc_sel()
         }
         else {
             args.sel
         };
 
-        VPE::cur()
+        Activity::cur()
             .resmng()
             .unwrap()
             .alloc_mem(sel, args.addr, args.size, args.perm)?;
@@ -99,10 +99,10 @@ impl MemGate {
     }
 
     /// Creates a new `MemGate` for the region `off`..`off`+`size` in the address space of the given
-    /// VPE. The region must be physically contiguous and page aligned.
-    pub fn new_foreign(vpe: Selector, off: goff, size: goff, perm: Perm) -> Result<Self, Error> {
-        let sel = VPE::cur().alloc_sel();
-        syscalls::create_mgate(sel, vpe, off, size, perm)?;
+    /// activity. The region must be physically contiguous and page aligned.
+    pub fn new_foreign(act: Selector, off: goff, size: goff, perm: Perm) -> Result<Self, Error> {
+        let sel = Activity::cur().alloc_sel();
+        syscalls::create_mgate(sel, act, off, size, perm)?;
         Ok(MemGate::new_owned_bind(sel))
     }
 
@@ -149,21 +149,21 @@ impl MemGate {
     /// Note that kernel makes sure that only owned permissions can be passed on to the derived
     /// `MemGate`.
     pub fn derive(&self, offset: goff, size: usize, perm: Perm) -> Result<Self, Error> {
-        let sel = VPE::cur().alloc_sel();
-        self.derive_for(VPE::cur().sel(), sel, offset, size, perm)
+        let sel = Activity::cur().alloc_sel();
+        self.derive_for(Activity::cur().sel(), sel, offset, size, perm)
     }
 
-    /// Like [`MemGate::derive`], but assigns the new `MemGate` to the given VPE and uses given
+    /// Like [`MemGate::derive`], but assigns the new `MemGate` to the given activity and uses given
     /// selector.
     pub fn derive_for(
         &self,
-        vpe: Selector,
+        act: Selector,
         sel: Selector,
         offset: goff,
         size: usize,
         perm: Perm,
     ) -> Result<Self, Error> {
-        syscalls::derive_mem(vpe, sel, self.sel(), offset, size, perm)?;
+        syscalls::derive_mem(act, sel, self.sel(), offset, size, perm)?;
         Ok(MemGate {
             gate: Gate::new(sel, CapFlags::empty()),
             resmng: false,
@@ -231,7 +231,7 @@ impl MemGate {
 
     /// Activates the gate. Returns the chosen endpoint number.
     /// The endpoint can be delegated to other services (e.g. M3FS) to let them
-    /// remotely configure it to point to memory in another PE.
+    /// remotely configure it to point to memory in another tile.
     #[inline(always)]
     pub fn activate(&self) -> Result<&EP, Error> {
         self.gate.activate()
@@ -246,7 +246,7 @@ impl MemGate {
 impl Drop for MemGate {
     fn drop(&mut self) {
         if !self.gate.flags().contains(CapFlags::KEEP_CAP) && self.resmng {
-            VPE::cur().resmng().unwrap().free_mem(self.sel()).ok();
+            Activity::cur().resmng().unwrap().free_mem(self.sel()).ok();
             self.gate.set_flags(CapFlags::KEEP_CAP);
         }
     }

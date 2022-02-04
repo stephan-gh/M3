@@ -22,12 +22,12 @@
 
 #include <m3/com/MemGate.h>
 #include <m3/com/SendGate.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 namespace m3 {
 
 /**
- * A uni-directional pipe between two VPEs. An object of this class holds the state of the pipe,
+ * A uni-directional pipe between two activities. An object of this class holds the state of the pipe,
  * i.e. the memory capability and the gate capability for communication. That means that the object
  * should stay alive as long as the pipe communication takes place.
  *
@@ -35,18 +35,18 @@ namespace m3 {
  * being done with reading/writing, you need to close the file descriptor to notify the other
  * end. This is also required for the part that you do not use.
  *
- * Caution: the current implementation does only support the communication between the two VPEs
+ * Caution: the current implementation does only support the communication between the two activities
  *          specified on construction.
  *
  * A usage example looks like the following:
  * <code>
- *   VPE reader("reader");
+ *   Activity reader("reader");
  *
- *   // construct the pipe for VPE::self -> reader
- *   Pipe pipe(reader, VPE::self(), 0x1000);
+ *   // construct the pipe for activity::self -> reader
+ *   Pipe pipe(reader, Activity::self(), 0x1000);
  *
  *   // bind the read-end to stdin of the child
- *   reader.files()->set(STDIN_FD, VPE::self().files()->get(pipe.reader_fd()));
+ *   reader.files()->set(STDIN_FD, Activity::self().files()->get(pipe.reader_fd()));
  *
  *   reader.run([] {
  *       // read from cin
@@ -56,7 +56,7 @@ namespace m3 {
  *   // we are done with reading
  *   pipe.close_reader();
  *
- *   File *out = VPE::self().files()->get(pipe.writer_fd());
+ *   File *out = Activity::self().files()->get(pipe.writer_fd());
  *   // write into out
  *
  *   // we are done with writing
@@ -78,7 +78,7 @@ public:
     };
 
     /**
-     * Creates a pipe with VPE <rd> as the reader and <wr> as the writer, using a shared memory
+     * Creates a pipe with activity <rd> as the reader and <wr> as the writer, using a shared memory
      * area of <size> bytes.
      *
      * @param rd the reader of the pipe
@@ -86,7 +86,7 @@ public:
      * @param mem the shared memory area
      * @param size the size of the shared memory area
      */
-    explicit DirectPipe(VPE &rd, VPE &wr, MemGate &mem, size_t size);
+    explicit DirectPipe(Activity &rd, Activity &wr, MemGate &mem, size_t size);
     DirectPipe(const DirectPipe&) = delete;
     DirectPipe &operator=(const DirectPipe&) = delete;
     ~DirectPipe();
@@ -127,8 +127,8 @@ public:
     void close_writer();
 
 private:
-    VPE &_rd;
-    VPE &_wr;
+    Activity &_rd;
+    Activity &_wr;
     size_t _size;
     RecvGate _rgate;
     MemGate _rmem;

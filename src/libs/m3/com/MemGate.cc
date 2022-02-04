@@ -21,7 +21,7 @@
 #include <m3/session/ResMng.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 #include <thread/ThreadManager.h>
 
@@ -32,7 +32,7 @@ namespace m3 {
 MemGate::~MemGate() {
     if(!(flags() & KEEP_CAP) && !_revoke) {
         try {
-            VPE::self().resmng()->free_mem(sel());
+            Activity::self().resmng()->free_mem(sel());
         }
         catch(...) {
             // ignore
@@ -43,19 +43,19 @@ MemGate::~MemGate() {
 
 MemGate MemGate::create_global_for(goff_t addr, size_t size, int perms, capsel_t sel, uint flags) {
     if(sel == INVALID)
-        sel = VPE::self().alloc_sel();
-    VPE::self().resmng()->alloc_mem(sel, addr, size, perms);
+        sel = Activity::self().alloc_sel();
+    Activity::self().resmng()->alloc_mem(sel, addr, size, perms);
     return MemGate(flags, sel, false);
 }
 
 MemGate MemGate::derive(goff_t offset, size_t size, int perms) const {
-    capsel_t nsel = VPE::self().alloc_sel();
-    Syscalls::derive_mem(VPE::self().sel(), nsel, sel(), offset, size, perms);
+    capsel_t nsel = Activity::self().alloc_sel();
+    Syscalls::derive_mem(Activity::self().sel(), nsel, sel(), offset, size, perms);
     return MemGate(0, nsel, true);
 }
 
-MemGate MemGate::derive_for(capsel_t vpe, capsel_t cap, goff_t offset, size_t size, int perms, uint flags) const {
-    Syscalls::derive_mem(vpe, cap, sel(), offset, size, perms);
+MemGate MemGate::derive_for(capsel_t act, capsel_t cap, goff_t offset, size_t size, int perms, uint flags) const {
+    Syscalls::derive_mem(act, cap, sel(), offset, size, perms);
     return MemGate(flags, cap, true);
 }
 

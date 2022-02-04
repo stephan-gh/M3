@@ -17,18 +17,18 @@
 #include <m3/com/Semaphore.h>
 #include <m3/session/ResMng.h>
 #include <m3/Syscalls.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 namespace m3 {
 
 Semaphore Semaphore::attach(const char *name) {
-    capsel_t nsel = VPE::self().alloc_sel();
-    VPE::self().resmng()->use_sem(nsel, name);
+    capsel_t nsel = Activity::self().alloc_sel();
+    Activity::self().resmng()->use_sem(nsel, name);
     return Semaphore(nsel, KEEP_CAP);
 }
 
 Semaphore Semaphore::create(uint value) {
-    capsel_t nsel = VPE::self().alloc_sel();
+    capsel_t nsel = Activity::self().alloc_sel();
     Syscalls::create_sem(nsel, value);
     return Semaphore(nsel, 0);
 }

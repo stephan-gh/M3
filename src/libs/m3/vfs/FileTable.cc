@@ -29,7 +29,7 @@ namespace m3 {
 
 void FileTable::remove_all() noexcept {
     for(fd_t i = 0; i < FileTable::MAX_FDS; ++i)
-        VPE::self().files()->remove(i);
+        Activity::self().files()->remove(i);
 }
 
 fd_t FileTable::alloc(Reference<File> file) {
@@ -59,11 +59,11 @@ void FileTable::remove(fd_t fd) noexcept {
     }
 }
 
-void FileTable::delegate(VPE &vpe) const {
+void FileTable::delegate(Activity &act) const {
     for(fd_t i = 0; i < MAX_FDS; ++i) {
         if(_fds[i]) {
             LLOG(FILES, "FileTable[" << i << "] = delegate");
-            _fds[i]->delegate(vpe);
+            _fds[i]->delegate(act);
         }
     }
 }

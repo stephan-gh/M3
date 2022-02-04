@@ -16,7 +16,7 @@
 
 #include <base/Machine.h>
 #include <base/TCU.h>
-#include <base/PEXIF.h>
+#include <base/TMIF.h>
 #include <string.h>
 
 EXTERN_C void gem5_shutdown(uint64_t delay);

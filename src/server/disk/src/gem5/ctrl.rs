@@ -66,7 +66,7 @@ pub struct IDEController {
 impl IDEController {
     pub fn new(use_irq: bool, use_dma: bool) -> Result<Self, Error> {
         // find IDE controller via PCI
-        let pci_dev = Rc::new(pci::Device::new("idectrl", kif::PEISA::IDE_DEV)?);
+        let pci_dev = Rc::new(pci::Device::new("idectrl", kif::TileISA::IDE_DEV)?);
         let mut ide_ctrl = pci_dev.get_info()?;
         assert!(ide_ctrl.base_class == IDE_CTRL_CLASS);
         assert!(ide_ctrl.sub_class == IDE_CTRL_SUBCLASS);

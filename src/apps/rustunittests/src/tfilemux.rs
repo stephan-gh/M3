@@ -18,9 +18,9 @@ use core::cmp;
 use m3::com::MemGate;
 use m3::io::Read;
 use m3::kif;
-use m3::pes::VPE;
 use m3::session::Pipes;
 use m3::test;
+use m3::tiles::Activity;
 use m3::vfs::{BufReader, FileHandle, IndirectPipe, OpenFlags, VFS};
 use m3::{vec, wv_assert_eq, wv_assert_ok, wv_run_test};
 
@@ -74,8 +74,8 @@ fn pipe_mux() {
         let mgate = wv_assert_ok!(MemGate::new(PIPE_SIZE, kif::Perm::RW));
         let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &mgate, PIPE_SIZE));
         pipes.push(Pipe {
-            reader: VPE::cur().files().get(pipe.reader_fd()).unwrap(),
-            writer: VPE::cur().files().get(pipe.writer_fd()).unwrap(),
+            reader: Activity::cur().files().get(pipe.reader_fd()).unwrap(),
+            writer: Activity::cur().files().get(pipe.writer_fd()).unwrap(),
             _pipe: pipe,
             _mgate: mgate,
         });

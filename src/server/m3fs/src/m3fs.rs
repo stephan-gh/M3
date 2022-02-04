@@ -42,12 +42,12 @@ use m3::{
     env,
     errors::{Code, Error},
     goff,
-    pes::VPE,
     server::{
         server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
         DEF_MAX_CLIENTS,
     },
     tcu::Label,
+    tiles::Activity,
     vfs::{FSOperation, GenFileOp},
 };
 
@@ -402,7 +402,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
                         return Err(Error::new(Code::NotSup));
                     }
 
-                    let new_sel: Selector = VPE::cur().alloc_sel();
+                    let new_sel: Selector = Activity::cur().alloc_sel();
                     fs.set_ep(new_sel);
                     data.out_caps(m3::kif::CapRngDesc::new(
                         m3::kif::CapType::OBJECT,
@@ -418,7 +418,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
                         return Err(Error::new(Code::NotSup));
                     }
 
-                    let new_sel: Selector = VPE::cur().alloc_sel();
+                    let new_sel: Selector = Activity::cur().alloc_sel();
                     let id = m.add_ep(new_sel);
                     data.out_caps(m3::kif::CapRngDesc::new(
                         m3::kif::CapType::OBJECT,

@@ -257,17 +257,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pemux"
-version = "0.1.0"
-dependencies = [
- "base",
- "heap",
- "isr",
- "num-traits",
- "paging",
-]
-
-[[package]]
 name = "ping"
 version = "0.1.0"
 dependencies = [
@@ -386,6 +375,17 @@ version = "0.1.0"
 dependencies = [
  "base",
  "bitflags",
+]
+
+[[package]]
+name = "tilemux"
+version = "0.1.0"
+dependencies = [
+ "base",
+ "heap",
+ "isr",
+ "num-traits",
+ "paging",
 ]
 
 [[package]]

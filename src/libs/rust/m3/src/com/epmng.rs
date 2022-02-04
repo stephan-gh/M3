@@ -30,9 +30,9 @@ pub struct EpMng {
 }
 
 impl EpMng {
-    /// Allocates a specific endpoint for the given VPE.
-    pub fn acquire_for(vpe: Selector, ep: EpId, replies: u32) -> Result<EP, Error> {
-        EP::new_with(EPArgs::default().epid(ep).vpe(vpe).replies(replies))
+    /// Allocates a specific endpoint for the given activity.
+    pub fn acquire_for(act: Selector, ep: EpId, replies: u32) -> Result<EP, Error> {
+        EP::new_with(EPArgs::default().epid(ep).activity(act).replies(replies))
     }
 
     /// Allocates a new endpoint.

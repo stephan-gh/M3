@@ -26,8 +26,8 @@ use crate::io::{read_object, Read};
 use crate::kif;
 use crate::math;
 use crate::mem::size_of;
-use crate::pes::{Mapper, VPE};
 use crate::session::MapFlags;
+use crate::tiles::{Activity, Mapper};
 use crate::vec;
 use crate::vfs::{BufReader, FileRef, Seek, SeekMode};
 
@@ -72,7 +72,7 @@ fn write_bytes_checked(
 }
 
 pub fn load_program(
-    vpe: &VPE,
+    act: &Activity,
     mapper: &mut dyn Mapper,
     file: &mut BufReader<FileRef>,
 ) -> Result<usize, Error> {
@@ -87,7 +87,7 @@ pub fn load_program(
         return Err(Error::new(Code::InvalidElf));
     }
 
-    // copy load segments to destination PE
+    // copy load segments to destination tile
     let mut end = 0;
     let mut off = hdr.phoff;
     for _ in 0..hdr.phnum {
@@ -101,15 +101,15 @@ pub fn load_program(
             continue;
         }
 
-        load_segment(vpe, mapper, file, &phdr, &mut *buf)?;
+        load_segment(act, mapper, file, &phdr, &mut *buf)?;
 
         end = phdr.vaddr + phdr.memsz as usize;
     }
 
     // create area for stack
-    let (stack_addr, stack_size) = vpe.pe_desc().stack_space();
+    let (stack_addr, stack_size) = act.tile_desc().stack_space();
     mapper.map_anon(
-        vpe.pager(),
+        act.pager(),
         stack_addr as goff,
         stack_size,
         kif::Perm::RW,
@@ -118,14 +118,14 @@ pub fn load_program(
 
     // create heap
     let heap_begin = math::round_up(end, cfg::PAGE_SIZE);
-    let (heap_size, flags) = if vpe.pager().is_some() {
+    let (heap_size, flags) = if act.pager().is_some() {
         (cfg::APP_HEAP_SIZE, MapFlags::NOLPAGE)
     }
     else {
         (cfg::MOD_HEAP_SIZE, MapFlags::empty())
     };
     mapper.map_anon(
-        vpe.pager(),
+        act.pager(),
         heap_begin as goff,
         heap_size,
         kif::Perm::RW,
@@ -181,7 +181,7 @@ where
 }
 
 fn load_segment(
-    vpe: &VPE,
+    act: &Activity,
     mapper: &mut dyn Mapper,
     file: &mut BufReader<FileRef>,
     phdr: &elf::Phdr,
@@ -192,7 +192,7 @@ fn load_segment(
 
     let needs_init = if phdr.memsz == phdr.filesz {
         mapper.map_file(
-            vpe.pager(),
+            act.pager(),
             file,
             phdr.offset as usize,
             phdr.vaddr as goff,
@@ -204,7 +204,7 @@ fn load_segment(
     else {
         assert!(phdr.filesz == 0);
         mapper.map_anon(
-            vpe.pager(),
+            act.pager(),
             phdr.vaddr as goff,
             size,
             prot,
@@ -213,7 +213,7 @@ fn load_segment(
     }?;
 
     if needs_init {
-        let mem = vpe.get_mem(
+        let mem = act.get_mem(
             phdr.vaddr as goff,
             math::round_up(size, cfg::PAGE_SIZE) as goff,
             kif::Perm::RW,

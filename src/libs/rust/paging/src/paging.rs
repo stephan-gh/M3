@@ -45,7 +45,7 @@ use core::fmt;
 
 use arch::{LEVEL_BITS, LEVEL_CNT, LEVEL_MASK};
 
-pub type VPEId = u64;
+pub type ActId = u64;
 
 pub use arch::{
     build_pte, disable_paging, enable_paging, pte_to_phys, to_page_flags, MMUFlags, Phys, MMUPTE,
@@ -68,13 +68,13 @@ pub trait Allocator {
 }
 
 pub struct AddrSpace<A: Allocator> {
-    id: VPEId,
+    id: ActId,
     root: Phys,
     alloc: A,
 }
 
 impl<A: Allocator> AddrSpace<A> {
-    pub fn new(id: VPEId, root: GlobAddr, alloc: A) -> Self {
+    pub fn new(id: ActId, root: GlobAddr, alloc: A) -> Self {
         let phys = root.to_phys(PageFlags::RW).unwrap();
         AddrSpace {
             id,
@@ -83,7 +83,7 @@ impl<A: Allocator> AddrSpace<A> {
         }
     }
 
-    pub fn id(&self) -> VPEId {
+    pub fn id(&self) -> ActId {
         self.id
     }
 
@@ -138,7 +138,7 @@ impl<A: Allocator> AddrSpace<A> {
         mut pages: usize,
         perm: PageFlags,
     ) -> Result<(), Error> {
-        let mut phys = if global.has_pe() {
+        let mut phys = if global.has_tile() {
             global.to_phys(perm)?
         }
         else {
@@ -147,7 +147,7 @@ impl<A: Allocator> AddrSpace<A> {
 
         log!(
             crate::LOG_MAP,
-            "VPE{}: mapping 0x{:0>16x}..0x{:0>16x} to {:?}..{:?} (phys={:#x}) with {:?}",
+            "Activity{}: mapping 0x{:0>16x}..0x{:0>16x} to {:?}..{:?} (phys={:#x}) with {:?}",
             self.id,
             virt,
             virt + pages * cfg::PAGE_SIZE - 1,
@@ -225,7 +225,7 @@ impl<A: Allocator> AddrSpace<A> {
 
                 log!(
                     crate::LOG_MAP_DETAIL,
-                    "VPE{}: lvl {} PTE for 0x{:0>16x}: 0x{:0>16x} (inv={}) @ {:#x}",
+                    "Activity{}: lvl {} PTE for 0x{:0>16x}: 0x{:0>16x} (inv={}) @ {:#x}",
                     self.id,
                     level,
                     virt,
@@ -268,7 +268,7 @@ impl<A: Allocator> AddrSpace<A> {
         let virt_base = virt as usize & !(pt_size - 1);
         log!(
             crate::LOG_MAP_DETAIL,
-            "VPE{}: lvl {} PTE for 0x{:0>16x}: 0x{:0>16x} @ {:#x}",
+            "Activity{}: lvl {} PTE for 0x{:0>16x}: 0x{:0>16x} @ {:#x}",
             self.id,
             level,
             virt_base,
@@ -334,7 +334,7 @@ impl<A: Allocator> Drop for AddrSpace<A> {
         if pte_to_phys(self.root) != 0 {
             self.free_pts_rec(self.root, LEVEL_CNT - 1);
 
-            // invalidate entire TLB to allow us to reuse the VPE id
+            // invalidate entire TLB to allow us to reuse the activity id
             arch::invalidate_tlb();
             TCU::invalidate_tlb().unwrap();
         }

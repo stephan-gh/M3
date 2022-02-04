@@ -20,9 +20,9 @@ use m3::com::{MGateArgs, MemGate, Perm, Semaphore};
 use m3::errors::Code;
 use m3::goff;
 use m3::math;
-use m3::pes::{Activity, PE, VPE};
 use m3::session::MapFlags;
 use m3::test;
+use m3::tiles::{Activity, RunningActivity, Tile};
 use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -106,10 +106,10 @@ fn remote_access() {
     let sem1 = wv_assert_ok!(Semaphore::create(0));
     let sem2 = wv_assert_ok!(Semaphore::create(0));
 
-    let pe = wv_assert_ok!(PE::get("clone"));
-    let mut child = wv_assert_ok!(VPE::new(pe, "child"));
+    let tile = wv_assert_ok!(Tile::get("clone"));
+    let mut child = wv_assert_ok!(Activity::new(tile, "child"));
 
-    let virt = if child.pe_desc().has_virtmem() {
+    let virt = if child.tile_desc().has_virtmem() {
         let virt: goff = 0x3000_0000;
         // creating mapping in the child
         wv_assert_ok!(child.pager().unwrap().map_anon(
@@ -140,7 +140,7 @@ fn remote_access() {
     dst.push_word(sem2.sel());
 
     let mut act = wv_assert_ok!(child.run(|| {
-        let mut src = VPE::cur().data_source();
+        let mut src = Activity::cur().data_source();
         let virt: goff = src.pop().unwrap();
         let sem1_sel: Selector = src.pop().unwrap();
         let sem2_sel: Selector = src.pop().unwrap();
@@ -161,7 +161,7 @@ fn remote_access() {
     wv_assert_ok!(sem1.down());
 
     // read object from his address space
-    let obj_mem = wv_assert_ok!(act.vpe_mut().get_mem(
+    let obj_mem = wv_assert_ok!(act.activity_mut().get_mem(
         math::round_dn(virt, cfg::PAGE_SIZE as goff),
         cfg::PAGE_SIZE as goff,
         Perm::R

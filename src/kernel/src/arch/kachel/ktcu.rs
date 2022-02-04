@@ -28,7 +28,7 @@ use crate::platform;
 pub const KPEX_EP: EpId = PMEM_PROT_EPS as EpId + 3;
 
 pub fn rbuf_addrs(virt: goff) -> (goff, goff) {
-    if platform::pe_desc(platform::kernel_pe()).has_virtmem() {
+    if platform::tile_desc(platform::kernel_tile()).has_virtmem() {
         let pte = arch::paging::translate(virt as usize, PageFlags::R);
         (
             virt,
@@ -40,48 +40,50 @@ pub fn rbuf_addrs(virt: goff) -> (goff, goff) {
     }
 }
 
-pub fn deprivilege_pe(pe: PEId) -> Result<(), Error> {
-    let mut features: u64 = ktcu::try_read_obj(pe, TCU::ext_reg_addr(ExtReg::FEATURES) as goff)?;
+pub fn deprivilege_tile(tile: TileId) -> Result<(), Error> {
+    let mut features: u64 = ktcu::try_read_obj(tile, TCU::ext_reg_addr(ExtReg::FEATURES) as goff)?;
     features &= !1;
-    ktcu::try_write_slice(pe, TCU::ext_reg_addr(ExtReg::FEATURES) as goff, &[features])
+    ktcu::try_write_slice(tile, TCU::ext_reg_addr(ExtReg::FEATURES) as goff, &[
+        features,
+    ])
 }
 
-pub fn reset_pe(pe: PEId, _pid: i32) -> Result<(), Error> {
+pub fn reset_tile(tile: TileId, _pid: i32) -> Result<(), Error> {
     let value = ExtCmdOpCode::RESET.val as Reg;
-    do_ext_cmd(pe, value).map(|_| ())
+    do_ext_cmd(tile, value).map(|_| ())
 }
 
 pub fn config_recv(
     regs: &mut [Reg],
-    vpe: VPEId,
+    act: ActId,
     buf: goff,
     buf_ord: u32,
     msg_ord: u32,
     reply_eps: Option<EpId>,
 ) {
-    TCU::config_recv(regs, vpe, buf, buf_ord, msg_ord, reply_eps);
+    TCU::config_recv(regs, act, buf, buf_ord, msg_ord, reply_eps);
 }
 
 pub fn config_send(
     regs: &mut [Reg],
-    vpe: VPEId,
+    act: ActId,
     lbl: Label,
-    pe: PEId,
+    tile: TileId,
     dst_ep: EpId,
     msg_order: u32,
     credits: u32,
 ) {
-    TCU::config_send(regs, vpe, lbl, pe, dst_ep, msg_order, credits);
+    TCU::config_send(regs, act, lbl, tile, dst_ep, msg_order, credits);
 }
 
-pub fn config_mem(regs: &mut [Reg], vpe: VPEId, pe: PEId, addr: goff, size: usize, perm: Perm) {
-    TCU::config_mem(regs, vpe, pe, addr, size, perm);
+pub fn config_mem(regs: &mut [Reg], act: ActId, tile: TileId, addr: goff, size: usize, perm: Perm) {
+    TCU::config_mem(regs, act, tile, addr, size, perm);
 }
 
-pub fn glob_to_phys_remote(pe: PEId, glob: GlobAddr, flags: PageFlags) -> Result<goff, Error> {
+pub fn glob_to_phys_remote(tile: TileId, glob: GlobAddr, flags: PageFlags) -> Result<goff, Error> {
     glob.to_phys_with(flags, |ep| {
         let mut regs = [0; 3];
-        if ktcu::read_ep_remote(pe, ep, &mut regs).is_ok() {
+        if ktcu::read_ep_remote(tile, ep, &mut regs).is_ok() {
             TCU::unpack_mem_regs(&regs)
         }
         else {
@@ -90,10 +92,10 @@ pub fn glob_to_phys_remote(pe: PEId, glob: GlobAddr, flags: PageFlags) -> Result
     })
 }
 
-pub fn read_ep_remote(pe: PEId, ep: EpId, regs: &mut [Reg]) -> Result<(), Error> {
+pub fn read_ep_remote(tile: TileId, ep: EpId, regs: &mut [Reg]) -> Result<(), Error> {
     for i in 0..regs.len() {
         ktcu::try_read_slice(
-            pe,
+            tile,
             (TCU::ep_regs_addr(ep) + i * 8) as goff,
             &mut regs[i..i + 1],
         )?;
@@ -101,26 +103,26 @@ pub fn read_ep_remote(pe: PEId, ep: EpId, regs: &mut [Reg]) -> Result<(), Error>
     Ok(())
 }
 
-pub fn write_ep_remote(pe: PEId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
+pub fn write_ep_remote(tile: TileId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
     for (i, r) in regs.iter().enumerate() {
-        ktcu::try_write_slice(pe, (TCU::ep_regs_addr(ep) + i * 8) as goff, &[*r])?;
+        ktcu::try_write_slice(tile, (TCU::ep_regs_addr(ep) + i * 8) as goff, &[*r])?;
     }
     Ok(())
 }
 
-pub fn invalidate_ep_remote(pe: PEId, ep: EpId, force: bool) -> Result<u32, Error> {
+pub fn invalidate_ep_remote(tile: TileId, ep: EpId, force: bool) -> Result<u32, Error> {
     let reg = ExtCmdOpCode::INV_EP.val | ((ep as Reg) << 9) as Reg | ((force as Reg) << 25);
-    do_ext_cmd(pe, reg).map(|unread| unread as u32)
+    do_ext_cmd(tile, reg).map(|unread| unread as u32)
 }
 
 pub fn inv_reply_remote(
-    recv_pe: PEId,
+    recv_tile: TileId,
     recv_ep: EpId,
-    send_pe: PEId,
+    send_tile: TileId,
     send_ep: EpId,
 ) -> Result<(), Error> {
     let mut regs = [0; EP_REGS];
-    read_ep_remote(recv_pe, recv_ep, &mut regs)?;
+    read_ep_remote(recv_tile, recv_ep, &mut regs)?;
 
     // if there is no occupied slot, there can't be any reply EP we have to invalidate
     let occupied = regs[2] & 0xFFFF_FFFF;
@@ -133,13 +135,13 @@ pub fn inv_reply_remote(
     for i in 0..buf_size {
         if (occupied & (1 << i)) != 0 {
             // load the reply EP
-            read_ep_remote(recv_pe, reply_eps + i, &mut regs)?;
+            read_ep_remote(recv_tile, reply_eps + i, &mut regs)?;
 
             // is that replying to the sender?
-            let tgt_pe = ((regs[1] >> 16) & 0xFFFF) as PEId;
+            let tgt_tile = ((regs[1] >> 16) & 0xFFFF) as TileId;
             let crd_ep = ((regs[0] >> 37) & 0xFFFF) as EpId;
-            if crd_ep == send_ep && tgt_pe == send_pe {
-                ktcu::invalidate_ep_remote(recv_pe, reply_eps + i, true)?;
+            if crd_ep == send_ep && tgt_tile == send_tile {
+                ktcu::invalidate_ep_remote(recv_tile, reply_eps + i, true)?;
             }
         }
     }
@@ -147,12 +149,12 @@ pub fn inv_reply_remote(
     Ok(())
 }
 
-fn do_ext_cmd(pe: PEId, cmd: Reg) -> Result<Reg, Error> {
+fn do_ext_cmd(tile: TileId, cmd: Reg) -> Result<Reg, Error> {
     let addr = TCU::ext_reg_addr(ExtReg::EXT_CMD) as goff;
-    ktcu::try_write_slice(pe, addr, &[cmd])?;
+    ktcu::try_write_slice(tile, addr, &[cmd])?;
 
     let res = loop {
-        let res: Reg = ktcu::try_read_obj(pe, addr)?;
+        let res: Reg = ktcu::try_read_obj(tile, addr)?;
         if (res & 0xF) == ExtCmdOpCode::IDLE.val {
             break res;
         }

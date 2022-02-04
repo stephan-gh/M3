@@ -17,7 +17,7 @@
 
 #include <base/log/Lib.h>
 #include <m3/net/NetEventChannel.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 namespace m3 {
 

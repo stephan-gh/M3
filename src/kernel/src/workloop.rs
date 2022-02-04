@@ -19,23 +19,23 @@ use base::tcu;
 
 use crate::com;
 use crate::ktcu;
-use crate::pes::VPEMng;
 use crate::syscalls;
+use crate::tiles::ActivityMng;
 
 pub fn thread_startup() {
     workloop();
 }
 
 pub fn workloop() -> ! {
-    let vpemng = VPEMng::get();
+    let actmng = ActivityMng::get();
 
     if thread::cur().is_main() {
-        VPEMng::get()
+        ActivityMng::get()
             .start_root_async()
             .expect("starting root failed");
     }
 
-    while vpemng.count() > 0 {
+    while actmng.count() > 0 {
         if envdata::get().platform != envdata::Platform::HW.val {
             tcu::TCU::sleep().unwrap();
         }
@@ -53,8 +53,8 @@ pub fn workloop() -> ! {
 
         #[cfg(not(target_vendor = "host"))]
         if let Some(msg) = ktcu::fetch_msg(ktcu::KPEX_EP) {
-            let pe = msg.header.label as tcu::PEId;
-            crate::pes::PEMux::handle_call_async(crate::pes::pemng::pemux(pe), msg);
+            let tile = msg.header.label as tcu::TileId;
+            crate::tiles::TileMux::handle_call_async(crate::tiles::tilemng::tilemux(tile), msg);
         }
 
         thread::try_yield();

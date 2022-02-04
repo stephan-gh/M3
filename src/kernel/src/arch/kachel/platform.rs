@@ -19,58 +19,58 @@ use base::cfg;
 use base::col::{String, Vec};
 use base::envdata;
 use base::goff;
-use base::kif::{self, boot, PEDesc, PEType, Perm, PEISA};
+use base::kif::{self, boot, Perm, TileDesc, TileISA, TileType};
 use base::mem::{size_of, GlobAddr};
-use base::tcu::{EpId, PEId, VPEId, TCU, UNLIM_CREDITS};
+use base::tcu::{ActId, EpId, TileId, TCU, UNLIM_CREDITS};
 
 use crate::args;
 use crate::ktcu;
 use crate::mem::{self, MemMod, MemType};
-use crate::pes::KERNEL_ID;
-use crate::platform::{self, pe_desc};
+use crate::platform::{self, tile_desc};
+use crate::tiles::KERNEL_ID;
 
-static LAST_PE: StaticCell<PEId> = StaticCell::new(0);
+static LAST_TILE: StaticCell<TileId> = StaticCell::new(0);
 
 pub fn init(_args: &[String]) -> platform::KEnv {
     // read kernel env
     let addr = GlobAddr::new(envdata::get().kenv);
     let mut offset = addr.offset();
-    let info: boot::Info = ktcu::read_obj(addr.pe(), offset);
+    let info: boot::Info = ktcu::read_obj(addr.tile(), offset);
     offset += size_of::<boot::Info>() as goff;
 
     // read boot modules
     let mut mods: Vec<boot::Mod> = Vec::with_capacity(info.mod_count as usize);
     unsafe { mods.set_len(info.mod_count as usize) };
-    ktcu::read_slice(addr.pe(), offset, &mut mods);
+    ktcu::read_slice(addr.tile(), offset, &mut mods);
     offset += info.mod_count as goff * size_of::<boot::Mod>() as goff;
 
-    // read PEs
-    let mut pes: Vec<PEDesc> = Vec::with_capacity(info.pe_count as usize);
-    unsafe { pes.set_len(info.pe_count as usize) };
-    ktcu::read_slice(addr.pe(), offset, &mut pes);
-    offset += info.pe_count as goff * size_of::<PEDesc>() as goff;
+    // read tiles
+    let mut tiles: Vec<TileDesc> = Vec::with_capacity(info.tile_count as usize);
+    unsafe { tiles.set_len(info.tile_count as usize) };
+    ktcu::read_slice(addr.tile(), offset, &mut tiles);
+    offset += info.tile_count as goff * size_of::<TileDesc>() as goff;
 
     // read memory regions
     let mut mems: Vec<boot::Mem> = Vec::with_capacity(info.mem_count as usize);
     unsafe { mems.set_len(info.mem_count as usize) };
-    ktcu::read_slice(addr.pe(), offset, &mut mems);
+    ktcu::read_slice(addr.tile(), offset, &mut mems);
 
-    // build new info for user PEs
+    // build new info for user tiles
     let mut uinfo = boot::Info {
         mod_count: info.mod_count,
-        pe_count: info.pe_count,
+        tile_count: info.tile_count,
         mem_count: info.mem_count,
         serv_count: 0,
     };
 
     let mut umems = Vec::new();
-    let mut upes = Vec::new();
+    let mut utiles = Vec::new();
 
     // register memory modules
     let mut kmem_idx = 0;
     let mut mem = mem::borrow_mut();
-    for (i, pe) in pes.iter().enumerate() {
-        if pe.pe_type() == PEType::MEM {
+    for (i, tile) in tiles.iter().enumerate() {
+        if tile.tile_type() == TileType::MEM {
             // the first memory module hosts the FS image and other stuff
             if kmem_idx == 0 {
                 let avail = mems[kmem_idx].size();
@@ -79,19 +79,24 @@ pub fn init(_args: &[String]) -> platform::KEnv {
                 }
 
                 // file system image
-                let mut used = pe.mem_size() as goff - avail;
-                mem.add(MemMod::new(MemType::OCCUPIED, i as PEId, 0, used));
-                umems.push(boot::Mem::new(GlobAddr::new_with(i as PEId, 0), used, true));
+                let mut used = tile.mem_size() as goff - avail;
+                mem.add(MemMod::new(MemType::OCCUPIED, i as TileId, 0, used));
+                umems.push(boot::Mem::new(
+                    GlobAddr::new_with(i as TileId, 0),
+                    used,
+                    true,
+                ));
 
                 // kernel memory
-                let kmem = MemMod::new(MemType::KERNEL, i as PEId, used, args::get().kmem as goff);
+                let kmem =
+                    MemMod::new(MemType::KERNEL, i as TileId, used, args::get().kmem as goff);
                 used += args::get().kmem as goff;
                 // configure EP to give us access to this range of physical memory
                 ktcu::config_local_ep(1, |regs| {
                     ktcu::config_mem(
                         regs,
                         KERNEL_ID,
-                        kmem.addr().pe(),
+                        kmem.addr().tile(),
                         kmem.addr().offset(),
                         kmem.capacity() as usize,
                         Perm::RW,
@@ -102,7 +107,7 @@ pub fn init(_args: &[String]) -> platform::KEnv {
                 // root memory
                 mem.add(MemMod::new(
                     MemType::ROOT,
-                    i as PEId,
+                    i as TileId,
                     used,
                     cfg::FIXED_ROOT_MEM as goff,
                 ));
@@ -110,18 +115,24 @@ pub fn init(_args: &[String]) -> platform::KEnv {
 
                 // user memory
                 let user_size = core::cmp::min((1 << 30) - cfg::PAGE_SIZE as goff, avail);
-                mem.add(MemMod::new(MemType::USER, i as PEId, used, user_size));
+                mem.add(MemMod::new(MemType::USER, i as TileId, used, user_size));
                 umems.push(boot::Mem::new(
-                    GlobAddr::new_with(i as PEId, used),
+                    GlobAddr::new_with(i as TileId, used),
                     user_size - args::get().kmem as goff,
                     false,
                 ));
             }
             else {
-                let user_size = core::cmp::min((1 << 30) - cfg::PAGE_SIZE as usize, pe.mem_size());
-                mem.add(MemMod::new(MemType::USER, i as PEId, 0, user_size as goff));
+                let user_size =
+                    core::cmp::min((1 << 30) - cfg::PAGE_SIZE as usize, tile.mem_size());
+                mem.add(MemMod::new(
+                    MemType::USER,
+                    i as TileId,
+                    0,
+                    user_size as goff,
+                ));
                 umems.push(boot::Mem::new(
-                    GlobAddr::new_with(i as PEId, 0),
+                    GlobAddr::new_with(i as TileId, 0),
                     user_size as goff,
                     false,
                 ));
@@ -130,70 +141,73 @@ pub fn init(_args: &[String]) -> platform::KEnv {
         }
         else {
             if kmem_idx > 0 {
-                panic!("All memory PEs have to be last");
+                panic!("All memory tiles have to be last");
             }
 
-            LAST_PE.set(i as PEId);
+            LAST_TILE.set(i as TileId);
 
             if i > 0 {
-                assert!(kernel_pe() == 0);
-                upes.push(boot::PE::new(i as u32, *pe));
+                assert!(kernel_tile() == 0);
+                utiles.push(boot::Tile::new(i as u32, *tile));
             }
         }
     }
 
     // write-back boot info
     let mut uoffset = addr.offset();
-    uinfo.pe_count = upes.len() as u64;
+    uinfo.tile_count = utiles.len() as u64;
     uinfo.mem_count = umems.len() as u64;
-    ktcu::write_slice(addr.pe(), uoffset, &[uinfo]);
+    ktcu::write_slice(addr.tile(), uoffset, &[uinfo]);
     uoffset += size_of::<boot::Info>() as goff;
     uoffset += info.mod_count as goff * size_of::<boot::Mod>() as goff;
 
-    // write-back user PEs
-    ktcu::write_slice(addr.pe(), uoffset, &upes);
-    uoffset += uinfo.pe_count as goff * size_of::<boot::PE>() as goff;
+    // write-back user tiles
+    ktcu::write_slice(addr.tile(), uoffset, &utiles);
+    uoffset += uinfo.tile_count as goff * size_of::<boot::Tile>() as goff;
 
     // write-back user memory regions
-    ktcu::write_slice(addr.pe(), uoffset, &umems);
+    ktcu::write_slice(addr.tile(), uoffset, &umems);
 
-    platform::KEnv::new(info, addr, mods, pes)
+    platform::KEnv::new(info, addr, mods, tiles)
 }
 
-pub fn init_serial(dest: Option<(PEId, EpId)>) {
+pub fn init_serial(dest: Option<(TileId, EpId)>) {
     if envdata::get().platform == envdata::Platform::HW.val {
-        let (pe, ep) = dest.unwrap_or((0, 0));
+        let (tile, ep) = dest.unwrap_or((0, 0));
         let serial = GlobAddr::new(envdata::get().kenv + 16 * 1024 * 1024);
-        let pe_modid = TCU::peid_to_nocid(pe);
-        ktcu::write_slice(serial.pe(), serial.offset(), &[pe_modid as u64, ep as u64]);
+        let tile_modid = TCU::tileid_to_nocid(tile);
+        ktcu::write_slice(serial.tile(), serial.offset(), &[
+            tile_modid as u64,
+            ep as u64,
+        ]);
     }
     else {
-        if let Some(ser_pe) = user_pes().find(|i| pe_desc(*i).isa() == PEISA::SERIAL_DEV) {
-            if let Some((pe, ep)) = dest {
-                ktcu::config_remote_ep(ser_pe, 4, |regs| {
-                    let vpe = kif::pemux::VPE_ID as VPEId;
-                    ktcu::config_send(regs, vpe, 0, pe, ep, cfg::SERIAL_BUF_ORD, UNLIM_CREDITS);
+        if let Some(ser_tile) = user_tiles().find(|i| tile_desc(*i).isa() == TileISA::SERIAL_DEV) {
+            if let Some((tile, ep)) = dest {
+                ktcu::config_remote_ep(ser_tile, 4, |regs| {
+                    let act = kif::tilemux::ACT_ID as ActId;
+                    ktcu::config_send(regs, act, 0, tile, ep, cfg::SERIAL_BUF_ORD, UNLIM_CREDITS);
                 })
                 .unwrap();
             }
             else {
-                ktcu::invalidate_ep_remote(ser_pe, 4, true).unwrap();
+                ktcu::invalidate_ep_remote(ser_tile, 4, true).unwrap();
             }
         }
     }
 }
 
-pub fn kernel_pe() -> PEId {
-    envdata::get().pe_id as PEId
+pub fn kernel_tile() -> TileId {
+    envdata::get().tile_id as TileId
 }
-pub fn user_pes() -> platform::PEIterator {
-    platform::PEIterator::new(kernel_pe() + 1, LAST_PE.get())
-}
-
-pub fn is_shared(pe: PEId) -> bool {
-    platform::pe_desc(pe).is_programmable()
+pub fn user_tiles() -> platform::TileIterator {
+    platform::TileIterator::new(kernel_tile() + 1, LAST_TILE.get())
 }
 
-pub fn rbuf_pemux(_pe: PEId) -> goff {
-    cfg::PEMUX_RBUF_SPACE as goff
+pub fn is_shared(tile: TileId) -> bool {
+    platform::tile_desc(tile).is_programmable()
+}
+
+pub fn rbuf_tilemux(_tile: TileId) -> goff {
+    cfg::TILEMUX_RBUF_SPACE as goff
 }

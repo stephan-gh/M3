@@ -72,7 +72,7 @@ impl FileSession {
         smemsize: usize,
     ) -> Result<Rc<RefCell<Self>>, Error> {
         // Alloc selector for self,
-        let sels = m3::pes::VPE::cur().alloc_sels(2);
+        let sels = m3::tiles::Activity::cur().alloc_sels(2);
 
         let new_sgate = SendGate::new_with(
             m3::com::SGateArgs::new(rgate)
@@ -121,13 +121,13 @@ impl FileSession {
     pub fn delegate(&mut self, xchg: &mut CapExchange) -> Result<(), Error> {
         // Client delegates shared memory to us
         if xchg.in_caps() == 1 && xchg.in_args().size() > 0 {
-            let sel = m3::pes::VPE::cur().alloc_sel();
+            let sel = m3::tiles::Activity::cur().alloc_sel();
             self.memory = Some(MemGate::new_bind(sel));
             xchg.out_caps(m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, sel, 1));
         // Client delegates a memory endpoint to us for configuration
         }
         else if xchg.in_caps() == 1 && xchg.in_args().size() == 0 {
-            let sel = m3::pes::VPE::cur().alloc_sel();
+            let sel = m3::tiles::Activity::cur().alloc_sel();
             self.client_memep = sel;
             xchg.out_caps(m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, sel, 1));
         }

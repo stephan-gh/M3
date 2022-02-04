@@ -16,7 +16,7 @@
 
 #include <base/Common.h>
 #include <base/time/Instant.h>
-#include <base/PEDesc.h>
+#include <base/TileDesc.h>
 
 #include <m3/accel/InDirAccel.h>
 #include <m3/stream/Standard.h>
@@ -43,17 +43,17 @@ struct IndirChain {
           seen(),
           reply_gate(_reply_gate),
           sizes(),
-          vpes(),
+          acts(),
           accels(),
           ops() {
         for(size_t i = 0; i < ACCEL_COUNT; ++i) {
             OStringStream name;
             name << "chain" << id << "-" << i;
 
-            pes[i] = PE::get("indir");
-            vpes[i] = std::make_unique<VPE>(pes[i], name.str());
+            tiles[i] = Tile::get("indir");
+            acts[i] = std::make_unique<Activity>(tiles[i], name.str());
 
-            accels[i] = std::make_unique<InDirAccel>(vpes[i], reply_gate);
+            accels[i] = std::make_unique<InDirAccel>(acts[i], reply_gate);
             ops[i] = InDirAccel::Operation::IDLE;
         }
 
@@ -68,7 +68,7 @@ struct IndirChain {
 
     void start() {
         for(size_t i = 0; i < ACCEL_COUNT; ++i)
-            vpes[i]->start();
+            acts[i]->start();
     }
 
     bool handle_msg(void *buffer, size_t idx, size_t written) {
@@ -135,8 +135,8 @@ struct IndirChain {
     size_t seen;
     RecvGate &reply_gate;
     size_t sizes[ACCEL_COUNT];
-    Reference<PE> pes[ACCEL_COUNT];
-    std::unique_ptr<VPE> vpes[ACCEL_COUNT];
+    Reference<Tile> tiles[ACCEL_COUNT];
+    std::unique_ptr<Activity> acts[ACCEL_COUNT];
     std::unique_ptr<InDirAccel> accels[ACCEL_COUNT];
     InDirAccel::Operation ops[ACCEL_COUNT];
 };
@@ -161,8 +161,8 @@ CycleDuration chain_indirect(const char *in, size_t num) {
         outfds[i] = VFS::open(outpath.str(), FILE_W | FILE_TRUNC | FILE_CREATE);
 
         chains[i] = std::unique_ptr<IndirChain>(
-            new IndirChain(i, reply_gate, VPE::self().files()->get(infds[i]),
-                                          VPE::self().files()->get(outfds[i]))
+            new IndirChain(i, reply_gate, Activity::self().files()->get(infds[i]),
+                                          Activity::self().files()->get(outfds[i]))
         );
     }
 

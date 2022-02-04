@@ -60,7 +60,7 @@ size_t M3FS::get_ep() {
             return i;
     }
 
-    auto ep = VPE::self().epmng().acquire();
+    auto ep = Activity::self().epmng().acquire();
     size_t id = delegate_ep(ep->sel());
 
     _eps.push_back(CachedEP(id, ep));
@@ -126,10 +126,10 @@ size_t M3FS::delegate_ep(capsel_t sel) {
     return id;
 }
 
-void M3FS::delegate(VPE &vpe) {
-    vpe.delegate_obj(sel());
+void M3FS::delegate(Activity &act) {
+    act.delegate_obj(sel());
     // TODO what if it fails?
-    get_sgate(vpe);
+    get_sgate(act);
 }
 
 void M3FS::serialize(Marshaller &m) {

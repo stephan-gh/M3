@@ -17,12 +17,12 @@
                 <app args="pager $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes type="boom|core" count="1" />
-                    <dom pe="boom|core">
+                    <tiles type="boom|core" count="1" />
+                    <dom tile="boom|core">
                         <app args="/bin/shell cat /test.txt | wc">
                             <mount fs="m3fs" path="/" />
                             <sess name="pipes" />
-                            <pes type="boom|core" count="2" />
+                            <tiles type="boom|core" count="2" />
                         </app>
                     </dom>
                 </app>

@@ -23,7 +23,7 @@
 namespace m3 {
 
 /**
- * A semaphore allows synchronization of different VPEs, based on system calls
+ * A semaphore allows synchronization of different activities, based on system calls
  */
 class Semaphore : public ObjCap {
     Semaphore(capsel_t sel, uint flags) noexcept

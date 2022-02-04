@@ -89,7 +89,7 @@ build_params_gem5() {
     cmd=$kargs
     c=$(echo -n "$cmd" | sed 's/[^,]//g' | wc -c)
     while [ "$c" -lt "$M3_CORES" ]; do
-        cmd="$cmd$bindir/pemux,"
+        cmd="$cmd$bindir/tilemux,"
         c=$((c + 1))
     done
 
@@ -100,7 +100,7 @@ build_params_gem5() {
     M3_GEM5_CPUFREQ=${M3_GEM5_CPUFREQ:-1GHz}
     M3_GEM5_MEMFREQ=${M3_GEM5_MEMFREQ:-333MHz}
     M3_GEM5_CFG=${M3_GEM5_CFG:-config/default.py}
-    export M3_GEM5_PES=$M3_CORES
+    export M3_GEM5_TILES=$M3_CORES
     export M3_GEM5_FS=$build/$M3_FS
     export M3_GEM5_IDE_DRIVE=$M3_HDD_PATH
 
@@ -119,7 +119,7 @@ build_params_gem5() {
         echo -n " --cmd \"$cmd\" --mods \"$mods\""
         echo -n " --cpu-clock=$M3_GEM5_CPUFREQ --sys-clock=$M3_GEM5_MEMFREQ"
         if [ "$M3_GEM5_PAUSE" != "" ]; then
-            echo -n " --pausepe=$M3_GEM5_PAUSE"
+            echo -n " --pausetile=$M3_GEM5_PAUSE"
         fi
     } > "$params"
 
@@ -171,11 +171,11 @@ build_params_hw() {
         args="$args --vm"
     fi
 
-    files=("$M3_OUT/boot.xml" "$bindir/pemux")
+    files=("$M3_OUT/boot.xml" "$bindir/tilemux")
     IFS=';'
     c=0
     for karg in $kargs; do
-        args="$args --pe '$karg'"
+        args="$args --tile '$karg'"
         files=("${files[@]}" "$bindir/${karg%% *}")
         c=$((c + 1))
     done
@@ -190,7 +190,7 @@ build_params_hw() {
         fi
     done
     while [ $c -lt 8 ]; do
-        args="$args --pe pemux"
+        args="$args --tile tilemux"
         c=$((c + 1))
     done
     unset IFS

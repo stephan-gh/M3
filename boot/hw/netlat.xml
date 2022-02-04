@@ -12,14 +12,14 @@
                 <app args="pager maxcli=2 $fs.size" usermem="768M">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes type="boom+nic" count="1" />
-                    <pes type="boom" count="1" />
-                    <dom pe="boom+nic">
+                    <tiles type="boom+nic" count="1" />
+                    <tiles type="boom" count="1" />
+                    <dom tile="boom+nic">
                         <app args="/sbin/net net 192.168.41.11" daemon="1">
                             <serv name="net" />
                         </app>
                     </dom>
-                    <dom pe="boom">
+                    <dom tile="boom">
                         <app args="/bin/netlat 192.168.41.10 1338">
                             <sess name="net" args="bufs=1M socks=1 ports=2000" />
                         </app>

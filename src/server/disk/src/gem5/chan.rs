@@ -21,9 +21,9 @@ use m3::goff;
 use m3::kif::Perm;
 use m3::log;
 use m3::mem;
-use m3::pes::VPE;
 use m3::rc::Rc;
 use m3::session::DiskOperation;
+use m3::tiles::Activity;
 use m3::time::TimeDuration;
 
 use super::ctrl::IDE_CTRL_BAR;
@@ -238,7 +238,7 @@ impl Channel {
                 return Ok(());
             }
 
-            VPE::sleep_for(sleep)?;
+            Activity::sleep_for(sleep)?;
             elapsed += sleep;
         }
 

@@ -224,11 +224,11 @@ public:
     virtual Errors::Code try_rename(const char *oldpath, const char *newpath) = 0;
 
     /**
-     * Delegates all this filesystem to the given VPE.
+     * Delegates all this filesystem to the given activity.
      *
-     * @param vpe the VPE
+     * @param act the activity
      */
-    virtual void delegate(VPE &vpe) = 0;
+    virtual void delegate(Activity &act) = 0;
 
     /**
      * Serializes this object to the given marshaller.

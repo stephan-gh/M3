@@ -17,32 +17,32 @@
 use base::col::ToString;
 use base::errors::{Code, VerboseError};
 use base::format;
-use base::kif::{service, syscalls, CapRngDesc, CapSel, CapType, SEL_VPE};
+use base::kif::{service, syscalls, CapRngDesc, CapSel, CapType, SEL_ACT};
 use base::mem::MsgBuf;
 use base::rc::Rc;
 use base::tcu;
 
 use crate::cap::KObject;
 use crate::com::Service;
-use crate::pes::VPE;
 use crate::syscalls::{get_request, reply_success, send_reply};
+use crate::tiles::Activity;
 
 fn do_exchange(
-    vpe1: &Rc<VPE>,
-    vpe2: &Rc<VPE>,
+    act1: &Rc<Activity>,
+    act2: &Rc<Activity>,
     c1: &CapRngDesc,
     c2: &CapRngDesc,
     obtain: bool,
 ) -> Result<(), VerboseError> {
-    let src = if obtain { vpe2 } else { vpe1 };
-    let dst = if obtain { vpe1 } else { vpe2 };
+    let src = if obtain { act2 } else { act1 };
+    let dst = if obtain { act1 } else { act2 };
     let src_rng = if obtain { c2 } else { c1 };
     let dst_rng = if obtain { c1 } else { c2 };
 
-    if vpe1.id() == vpe2.id() {
+    if act1.id() == act2.id() {
         return Err(VerboseError::new(
             Code::InvArgs,
-            "Cannot exchange with same VPE".to_string(),
+            "Cannot exchange with same Activity".to_string(),
         ));
     }
     if c1.cap_type() != c2.cap_type() {
@@ -76,24 +76,24 @@ fn do_exchange(
 }
 
 #[inline(never)]
-pub fn exchange(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+pub fn exchange(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &syscalls::Exchange = get_request(msg)?;
-    let vpe_sel = req.vpe_sel as CapSel;
+    let act_sel = req.act_sel as CapSel;
     let own_crd = CapRngDesc::new_from(req.own_caps);
     let other_crd = CapRngDesc::new(own_crd.cap_type(), req.other_sel as CapSel, own_crd.count());
     let obtain = req.obtain == 1;
 
     sysc_log!(
-        vpe,
-        "exchange(vpe={}, own={}, other={}, obtain={})",
-        vpe_sel,
+        act,
+        "exchange(act={}, own={}, other={}, obtain={})",
+        act_sel,
         own_crd,
         other_crd,
         obtain
     );
 
-    let vpecap = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
-    do_exchange(vpe, &vpecap, &own_crd, &other_crd, obtain)?;
+    let actcap = get_kobj!(act, act_sel, Activity).upgrade().unwrap();
+    do_exchange(act, &actcap, &own_crd, &other_crd, obtain)?;
 
     reply_success(msg);
     Ok(())
@@ -101,12 +101,12 @@ pub fn exchange(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Verbose
 
 #[inline(never)]
 pub fn exchange_over_sess_async(
-    vpe: &Rc<VPE>,
+    act: &Rc<Activity>,
     msg: &'static tcu::Message,
     obtain: bool,
 ) -> Result<(), VerboseError> {
     let req: &syscalls::ExchangeSess = get_request(msg)?;
-    let vpe_sel = req.vpe_sel as CapSel;
+    let act_sel = req.act_sel as CapSel;
     let sess_sel = req.sess_sel as CapSel;
     let crd = CapRngDesc::new_from(req.caps);
 
@@ -118,16 +118,16 @@ pub fn exchange_over_sess_async(
     };
 
     sysc_log!(
-        vpe,
-        "{}(vpe={}, sess={}, crd={})",
+        act,
+        "{}(act={}, sess={}, crd={})",
         name,
-        vpe_sel,
+        act_sel,
         sess_sel,
         crd
     );
 
-    let vpecap = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
-    let sess = get_kobj!(vpe, sess_sel, Sess);
+    let actcap = get_kobj!(act, act_sel, Activity).upgrade().unwrap();
+    let sess = get_kobj!(act, sess_sel, Sess);
 
     let mut smsg = MsgBuf::borrow_def();
     smsg.set(service::Exchange {
@@ -170,14 +170,14 @@ pub fn exchange_over_sess_async(
 
     let srv_crd = CapRngDesc::new_from(reply.data.caps);
     sysc_log!(
-        vpe,
+        act,
         "{} continue with res={}, srv_crd={}",
         name,
         { reply.res },
         srv_crd
     );
 
-    do_exchange(&vpecap, &serv.service().vpe(), &crd, &srv_crd, obtain)?;
+    do_exchange(&actcap, &serv.service().activity(), &crd, &srv_crd, obtain)?;
 
     let mut kreply = MsgBuf::borrow_def();
     kreply.set(syscalls::ExchangeSessReply {
@@ -190,21 +190,26 @@ pub fn exchange_over_sess_async(
 }
 
 #[inline(never)]
-pub fn revoke_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+pub fn revoke_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let req: &syscalls::Revoke = get_request(msg)?;
-    let vpe_sel = req.vpe_sel as CapSel;
+    let act_sel = req.act_sel as CapSel;
     let crd = CapRngDesc::new_from(req.caps);
     let own = req.own == 1;
 
-    sysc_log!(vpe, "revoke(vpe={}, crd={}, own={})", vpe_sel, crd, own);
+    sysc_log!(act, "revoke(act={}, crd={}, own={})", act_sel, crd, own);
 
-    if crd.cap_type() == CapType::OBJECT && crd.start() <= SEL_VPE {
+    if crd.cap_type() == CapType::OBJECT && crd.start() <= SEL_ACT {
         sysc_err!(Code::InvArgs, "Cap 0, 1, and 2 are not revokeable");
     }
 
-    let vpecap = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
-    if let Err(e) = vpecap.revoke_async(crd, own) {
-        sysc_err!(e.code(), "Revoke of {} with VPE {} failed", crd, vpe.id());
+    let actcap = get_kobj!(act, act_sel, Activity).upgrade().unwrap();
+    if let Err(e) = actcap.revoke_async(crd, own) {
+        sysc_err!(
+            e.code(),
+            "Revoke of {} with Activity {} failed",
+            crd,
+            act.id()
+        );
     }
 
     reply_success(msg);

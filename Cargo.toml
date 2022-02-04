@@ -31,7 +31,7 @@ members = [
     "src/libs/rust/pci",
     "src/libs/rust/resmng",
     "src/libs/rust/thread",
-    "src/pemux",
+    "src/tilemux",
     "src/server/crypto/hashmux",
     "src/server/disk",
     "src/server/m3fs",

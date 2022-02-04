@@ -21,16 +21,16 @@ use base::rc::Rc;
 use base::tcu;
 
 use crate::ktcu;
-use crate::pes::VPEMng;
-use crate::pes::VPE;
+use crate::tiles::Activity;
+use crate::tiles::ActivityMng;
 
 #[macro_export]
 macro_rules! sysc_log {
-    ($vpe:expr, $fmt:tt, $($args:tt)*) => (
+    ($act:expr, $fmt:tt, $($args:tt)*) => (
         klog!(
             SYSC,
             concat!("{}:{}@{}: syscall::", $fmt),
-            $vpe.id(), $vpe.name(), $vpe.pe_id(), $($args)*
+            $act.id(), $act.name(), $act.tile_id(), $($args)*
         )
     )
 }
@@ -71,8 +71,8 @@ macro_rules! get_cap {
     }};
 }
 macro_rules! get_kobj {
-    ($vpe:expr, $sel:expr, $ty:ident) => {{
-        let kobj = get_cap!($vpe.obj_caps().borrow(), $sel).get().clone();
+    ($act:expr, $sel:expr, $ty:ident) => {{
+        let kobj = get_cap!($act.obj_caps().borrow(), $sel).get().clone();
         as_obj!(kobj, $ty)
     }};
 }
@@ -112,43 +112,45 @@ fn get_request<R>(msg: &tcu::Message) -> Result<&R, Error> {
 }
 
 pub fn handle_async(msg: &'static tcu::Message) {
-    let vpe: Rc<VPE> = VPEMng::get().vpe(msg.header.label as tcu::VPEId).unwrap();
+    let act: Rc<Activity> = ActivityMng::get()
+        .activity(msg.header.label as tcu::ActId)
+        .unwrap();
     let req = msg.get_data::<kif::DefaultRequest>();
 
     let res = match kif::syscalls::Operation::from(req.opcode) {
-        kif::syscalls::Operation::CREATE_MGATE => create::create_mgate(&vpe, msg),
-        kif::syscalls::Operation::CREATE_RGATE => create::create_rgate(&vpe, msg),
-        kif::syscalls::Operation::CREATE_SGATE => create::create_sgate(&vpe, msg),
-        kif::syscalls::Operation::CREATE_SRV => create::create_srv(&vpe, msg),
-        kif::syscalls::Operation::CREATE_SESS => create::create_sess(&vpe, msg),
-        kif::syscalls::Operation::CREATE_VPE => create::create_vpe_async(&vpe, msg),
-        kif::syscalls::Operation::CREATE_SEM => create::create_sem(&vpe, msg),
-        kif::syscalls::Operation::CREATE_MAP => create::create_map_async(&vpe, msg),
+        kif::syscalls::Operation::CREATE_MGATE => create::create_mgate(&act, msg),
+        kif::syscalls::Operation::CREATE_RGATE => create::create_rgate(&act, msg),
+        kif::syscalls::Operation::CREATE_SGATE => create::create_sgate(&act, msg),
+        kif::syscalls::Operation::CREATE_SRV => create::create_srv(&act, msg),
+        kif::syscalls::Operation::CREATE_SESS => create::create_sess(&act, msg),
+        kif::syscalls::Operation::CREATE_ACT => create::create_activity_async(&act, msg),
+        kif::syscalls::Operation::CREATE_SEM => create::create_sem(&act, msg),
+        kif::syscalls::Operation::CREATE_MAP => create::create_map_async(&act, msg),
 
-        kif::syscalls::Operation::DERIVE_PE => derive::derive_pe_async(&vpe, msg),
-        kif::syscalls::Operation::DERIVE_MEM => derive::derive_mem(&vpe, msg),
-        kif::syscalls::Operation::DERIVE_KMEM => derive::derive_kmem(&vpe, msg),
-        kif::syscalls::Operation::DERIVE_SRV => derive::derive_srv_async(&vpe, msg),
+        kif::syscalls::Operation::DERIVE_TILE => derive::derive_tile_async(&act, msg),
+        kif::syscalls::Operation::DERIVE_MEM => derive::derive_mem(&act, msg),
+        kif::syscalls::Operation::DERIVE_KMEM => derive::derive_kmem(&act, msg),
+        kif::syscalls::Operation::DERIVE_SRV => derive::derive_srv_async(&act, msg),
 
-        kif::syscalls::Operation::EXCHANGE => exchange::exchange(&vpe, msg),
-        kif::syscalls::Operation::DELEGATE => exchange::exchange_over_sess_async(&vpe, msg, false),
-        kif::syscalls::Operation::OBTAIN => exchange::exchange_over_sess_async(&vpe, msg, true),
-        kif::syscalls::Operation::REVOKE => exchange::revoke_async(&vpe, msg),
+        kif::syscalls::Operation::EXCHANGE => exchange::exchange(&act, msg),
+        kif::syscalls::Operation::DELEGATE => exchange::exchange_over_sess_async(&act, msg, false),
+        kif::syscalls::Operation::OBTAIN => exchange::exchange_over_sess_async(&act, msg, true),
+        kif::syscalls::Operation::REVOKE => exchange::revoke_async(&act, msg),
 
-        kif::syscalls::Operation::ALLOC_EP => misc::alloc_ep(&vpe, msg),
-        kif::syscalls::Operation::SET_PMP => misc::set_pmp(&vpe, msg),
-        kif::syscalls::Operation::ACTIVATE => misc::activate_async(&vpe, msg),
-        kif::syscalls::Operation::MGATE_REGION => misc::mgate_region(&vpe, msg),
-        kif::syscalls::Operation::KMEM_QUOTA => misc::kmem_quota(&vpe, msg),
-        kif::syscalls::Operation::PE_QUOTA => misc::pe_quota_async(&vpe, msg),
-        kif::syscalls::Operation::PE_SET_QUOTA => misc::pe_set_quota_async(&vpe, msg),
-        kif::syscalls::Operation::GET_SESS => misc::get_sess(&vpe, msg),
-        kif::syscalls::Operation::SEM_CTRL => misc::sem_ctrl_async(&vpe, msg),
-        kif::syscalls::Operation::VPE_CTRL => misc::vpe_ctrl_async(&vpe, msg),
-        kif::syscalls::Operation::VPE_WAIT => misc::vpe_wait_async(&vpe, msg),
+        kif::syscalls::Operation::ALLOC_EP => misc::alloc_ep(&act, msg),
+        kif::syscalls::Operation::SET_PMP => misc::set_pmp(&act, msg),
+        kif::syscalls::Operation::ACTIVATE => misc::activate_async(&act, msg),
+        kif::syscalls::Operation::MGATE_REGION => misc::mgate_region(&act, msg),
+        kif::syscalls::Operation::KMEM_QUOTA => misc::kmem_quota(&act, msg),
+        kif::syscalls::Operation::TILE_QUOTA => misc::tile_quota_async(&act, msg),
+        kif::syscalls::Operation::TILE_SET_QUOTA => misc::tile_set_quota_async(&act, msg),
+        kif::syscalls::Operation::GET_SESS => misc::get_sess(&act, msg),
+        kif::syscalls::Operation::SEM_CTRL => misc::sem_ctrl_async(&act, msg),
+        kif::syscalls::Operation::ACT_CTRL => misc::activity_ctrl_async(&act, msg),
+        kif::syscalls::Operation::ACT_WAIT => misc::activity_wait_async(&act, msg),
 
-        kif::syscalls::Operation::RESET_STATS => misc::reset_stats(&vpe, msg),
-        kif::syscalls::Operation::NOOP => misc::noop(&vpe, msg),
+        kif::syscalls::Operation::RESET_STATS => misc::reset_stats(&act, msg),
+        kif::syscalls::Operation::NOOP => misc::noop(&act, msg),
 
         _ => panic!("Unexpected operation: {}", { req.opcode }),
     };
@@ -157,9 +159,9 @@ pub fn handle_async(msg: &'static tcu::Message) {
         klog!(
             ERR,
             "\x1B[37;41m{}:{}@{}: {:?} failed: {} ({:?})\x1B[0m",
-            vpe.id(),
-            vpe.name(),
-            vpe.pe_id(),
+            act.id(),
+            act.name(),
+            act.tile_id(),
             kif::syscalls::Operation::from(req.opcode),
             e.msg(),
             e.code()

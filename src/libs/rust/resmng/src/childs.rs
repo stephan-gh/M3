@@ -29,22 +29,22 @@ use m3::kif::{self, CapRngDesc, CapType, Perm};
 use m3::log;
 use m3::math;
 use m3::mem::MsgBuf;
-use m3::pes::{Activity, ExecActivity, KMem, Mapper, VPE};
 use m3::println;
 use m3::quota::{Id as QuotaId, Quota};
 use m3::rc::Rc;
-use m3::session::{ResMngVPEInfo, ResMngVPEInfoResult};
+use m3::session::{ResMngActInfo, ResMngActInfoResult};
 use m3::syscalls;
 use m3::tcu;
+use m3::tiles::{Activity, KMem, Mapper, RunningActivity, RunningProgramActivity};
 use m3::vfs::FileRef;
 
 use crate::config::AppConfig;
 use crate::gates;
 use crate::memory::{self, Allocation, MemPool};
-use crate::pes;
 use crate::sems;
 use crate::services::{self, Session};
 use crate::subsys::SubsystemBuilder;
+use crate::tiles;
 use crate::{events, subsys};
 
 pub type Id = u32;
@@ -99,7 +99,7 @@ pub struct Resources {
     services: Vec<(Id, Selector)>,
     sessions: Vec<(usize, Session)>,
     mem: Vec<(Option<Selector>, Allocation)>,
-    pes: Vec<(pes::PEUsage, usize, Selector)>,
+    tiles: Vec<(tiles::TileUsage, usize, Selector)>,
     sgates: Vec<SendGate>,
 }
 
@@ -110,7 +110,7 @@ impl Default for Resources {
             services: Vec::new(),
             sessions: Vec::new(),
             mem: Vec::new(),
-            pes: Vec::new(),
+            tiles: Vec::new(),
             sgates: Vec::new(),
         }
     }
@@ -123,10 +123,10 @@ pub trait Child {
     fn daemon(&self) -> bool;
     fn foreign(&self) -> bool;
 
-    fn our_pe(&self) -> Rc<pes::PEUsage>;
-    fn child_pe(&self) -> Option<Rc<pes::PEUsage>>;
-    fn vpe_sel(&self) -> Selector;
-    fn vpe_id(&self) -> tcu::VPEId;
+    fn our_tile(&self) -> Rc<tiles::TileUsage>;
+    fn child_tile(&self) -> Option<Rc<tiles::TileUsage>>;
+    fn activity_sel(&self) -> Selector;
+    fn activity_id(&self) -> tcu::ActId;
     fn resmng_sgate_sel(&self) -> Selector;
 
     fn subsys(&mut self) -> Option<&mut SubsystemBuilder>;
@@ -138,12 +138,12 @@ pub trait Child {
 
     fn delegate(&self, src: Selector, dst: Selector) -> Result<(), Error> {
         let crd = CapRngDesc::new(CapType::OBJECT, src, 1);
-        syscalls::exchange(self.vpe_sel(), crd, dst, false)
+        syscalls::exchange(self.activity_sel(), crd, dst, false)
     }
     fn obtain(&self, src: Selector) -> Result<Selector, Error> {
-        let dst = VPE::cur().alloc_sels(1);
+        let dst = Activity::cur().alloc_sels(1);
         let own = CapRngDesc::new(CapType::OBJECT, dst, 1);
-        syscalls::exchange(self.vpe_sel(), own, src, true)?;
+        syscalls::exchange(self.activity_sel(), own, src, true)?;
         Ok(dst)
     }
 
@@ -280,7 +280,7 @@ pub trait Child {
         perm: Perm,
     ) -> Result<(), Error> {
         syscalls::derive_mem(
-            self.vpe_sel(),
+            self.activity_sel(),
             dst_sel,
             mem_sel,
             alloc.addr(),
@@ -326,8 +326,8 @@ pub trait Child {
         let (sel, alloc) = self.res_mut().mem.remove(idx);
         if let Some(s) = sel {
             let crd = CapRngDesc::new(CapType::OBJECT, s, 1);
-            // ignore failures here; maybe the VPE is already gone
-            syscalls::revoke(self.vpe_sel(), crd, true).ok();
+            // ignore failures here; maybe the activity is already gone
+            syscalls::revoke(self.activity_sel(), crd, true).ok();
         }
 
         log!(
@@ -432,14 +432,14 @@ pub trait Child {
         }
     }
 
-    fn alloc_pe(
+    fn alloc_tile(
         &mut self,
         sel: Selector,
-        desc: kif::PEDesc,
-    ) -> Result<(tcu::PEId, kif::PEDesc), Error> {
+        desc: kif::TileDesc,
+    ) -> Result<(tcu::TileId, kif::TileDesc), Error> {
         log!(
-            crate::LOG_PES,
-            "{}: alloc_pe(sel={}, desc={:?})",
+            crate::LOG_TILES,
+            "{}: alloc_tile(sel={}, desc={:?})",
             self.name(),
             sel,
             desc
@@ -447,28 +447,28 @@ pub trait Child {
 
         let cfg = self.cfg();
         let idx = cfg.get_pe_idx(desc)?;
-        let pe_usage = pes::get().find_and_alloc(desc)?;
+        let tile_usage = tiles::get().find_and_alloc(desc)?;
 
-        // give this PE access to the same memory regions the child's PE has access to
+        // give this tile access to the same memory regions the child's tile has access to
         // TODO later we could allow childs to customize that
-        pe_usage.inherit_mem_regions(&self.our_pe())?;
+        tile_usage.inherit_mem_regions(&self.our_tile())?;
 
-        self.delegate(pe_usage.pe_obj().sel(), sel)?;
+        self.delegate(tile_usage.tile_obj().sel(), sel)?;
 
-        let pe_id = pe_usage.pe_id();
-        let desc = pe_usage.pe_obj().desc();
-        self.res_mut().pes.push((pe_usage, idx, sel));
-        cfg.alloc_pe(idx);
+        let tile_id = tile_usage.tile_id();
+        let desc = tile_usage.tile_obj().desc();
+        self.res_mut().tiles.push((tile_usage, idx, sel));
+        cfg.alloc_tile(idx);
 
-        Ok((pe_id, desc))
+        Ok((tile_id, desc))
     }
 
-    fn free_pe(&mut self, sel: Selector) -> Result<(), Error> {
-        log!(crate::LOG_PES, "{}: free_pe(sel={})", self.name(), sel);
+    fn free_tile(&mut self, sel: Selector) -> Result<(), Error> {
+        log!(crate::LOG_TILES, "{}: free_tile(sel={})", self.name(), sel);
 
         let idx = self
             .res_mut()
-            .pes
+            .tiles
             .iter()
             .position(|(_, _, psel)| *psel == sel)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
@@ -478,20 +478,20 @@ pub trait Child {
     }
 
     fn remove_pe_by_idx(&mut self, idx: usize) -> Result<(), Error> {
-        let (pe_usage, idx, ep_sel) = self.res_mut().pes.remove(idx);
+        let (tile_usage, idx, ep_sel) = self.res_mut().tiles.remove(idx);
         log!(
-            crate::LOG_PES,
-            "{}: removed PE (id={}, sel={})",
+            crate::LOG_TILES,
+            "{}: removed tile (id={}, sel={})",
             self.name(),
-            pe_usage.pe_id(),
+            tile_usage.tile_id(),
             ep_sel
         );
 
         let cfg = self.cfg();
         let crd = CapRngDesc::new(CapType::OBJECT, ep_sel, 1);
-        // TODO if that fails, we need to kill this child because otherwise we don't get the PE back
-        syscalls::revoke(self.vpe_sel(), crd, true).ok();
-        cfg.free_pe(idx);
+        // TODO if that fails, we need to kill this child because otherwise we don't get the tile back
+        syscalls::revoke(self.activity_sel(), crd, true).ok();
+        cfg.free_tile(idx);
 
         Ok(())
     }
@@ -513,7 +513,7 @@ pub trait Child {
             self.remove_mem_by_idx(0);
         }
 
-        while !self.res().pes.is_empty() {
+        while !self.res().tiles.is_empty() {
             self.remove_pe_by_idx(0).ok();
         }
     }
@@ -521,8 +521,8 @@ pub trait Child {
 
 pub fn add_child(
     id: Id,
-    vpe_id: tcu::VPEId,
-    vpe_sel: Selector,
+    act_id: tcu::ActId,
+    act_sel: Selector,
     rgate: &RecvGate,
     sgate_sel: Selector,
     name: String,
@@ -530,21 +530,21 @@ pub fn add_child(
     let mut childs = borrow_mut();
     let nid = childs.next_id();
     let child = childs.child_by_id_mut(id).unwrap();
-    let our_sel = child.obtain(vpe_sel)?;
+    let our_sel = child.obtain(act_sel)?;
     let child_name = format!("{}.{}", child.name(), name);
 
     log!(
         crate::LOG_CHILD,
-        "{}: add_child(vpe={}, name={}, sgate_sel={}) -> child(id={}, name={})",
+        "{}: add_child(act={}, name={}, sgate_sel={}) -> child(id={}, name={})",
         child.name(),
-        vpe_sel,
+        act_sel,
         name,
         sgate_sel,
         nid,
         child_name
     );
 
-    if child.res().childs.iter().any(|c| c.1 == vpe_sel) {
+    if child.res().childs.iter().any(|c| c.1 == act_sel) {
         return Err(Error::new(Code::Exists));
     }
 
@@ -559,12 +559,12 @@ pub fn add_child(
         nid,
         child.layer() + 1,
         child_name,
-        // actually, we don't know the PE it's running on. But the PEUsage is only used to set
+        // actually, we don't know the tile it's running on. But the TileUsage is only used to set
         // the PMP EPs and currently, no child can actually influence these. For that reason,
         // all childs get the same PMP EPs, so that we can also give the same PMP EPs to childs
         // of childs.
-        child.our_pe(),
-        vpe_id,
+        child.our_tile(),
+        act_id,
         our_sel,
         sgate,
         child.cfg(),
@@ -572,7 +572,7 @@ pub fn add_child(
     ));
     nchild.delegate(our_sg_sel, sgate_sel)?;
 
-    child.res_mut().childs.push((nid, vpe_sel));
+    child.res_mut().childs.push((nid, act_sel));
     childs.add(nchild);
     Ok(())
 }
@@ -616,7 +616,7 @@ pub fn open_session_async(id: Id, dst_sel: Selector, name: &str) -> Result<(), E
         return Err(Error::new(Code::Exists));
     }
 
-    syscalls::get_sess(serv_sel, child.vpe_sel(), dst_sel, sess.ident())?;
+    syscalls::get_sess(serv_sel, child.activity_sel(), dst_sel, sess.ident())?;
 
     sdesc.mark_used();
     child.res_mut().sessions.push((idx, sess));
@@ -647,23 +647,23 @@ pub fn close_session_async(id: Id, sel: Selector) -> Result<(), Error> {
     sess.close_async(id)
 }
 
-pub fn rem_child_async(id: Id, vpe_sel: Selector) -> Result<(), Error> {
+pub fn rem_child_async(id: Id, act_sel: Selector) -> Result<(), Error> {
     let cid = {
         let mut childs = borrow_mut();
         let child = childs.child_by_id_mut(id).unwrap();
 
         log!(
             crate::LOG_CHILD,
-            "{}: rem_child(vpe={})",
+            "{}: rem_child(act={})",
             child.name(),
-            vpe_sel
+            act_sel
         );
 
         let idx = child
             .res()
             .childs
             .iter()
-            .position(|c| c.1 == vpe_sel)
+            .position(|c| c.1 == act_sel)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
         let cid = child.res().childs[idx].0;
         child.res_mut().childs.remove(idx);
@@ -674,7 +674,7 @@ pub fn rem_child_async(id: Id, vpe_sel: Selector) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngVPEInfoResult, Error> {
+pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngActInfoResult, Error> {
     let layer = {
         let mut childs = borrow_mut();
         let child = childs.child_by_id_mut(id).unwrap();
@@ -684,8 +684,8 @@ pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngVPEInfoResult, Error
         child.layer()
     };
 
-    let (parent_num, parent_layer) = if let Some(presmng) = VPE::cur().resmng() {
-        match presmng.get_vpe_count() {
+    let (parent_num, parent_layer) = if let Some(presmng) = Activity::cur().resmng() {
+        match presmng.get_activity_count() {
             Err(e) if e.code() == Code::NoPerm => (0, 0),
             Err(e) => return Err(e),
             Ok(res) => res,
@@ -708,8 +708,8 @@ pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngVPEInfoResult, Error
 
     if let Some(mut idx) = idx {
         if idx < parent_num {
-            Ok(ResMngVPEInfoResult::Info(
-                VPE::cur().resmng().unwrap().get_vpe_info(idx)?,
+            Ok(ResMngActInfoResult::Info(
+                Activity::cur().resmng().unwrap().get_activity_info(idx)?,
             ))
         }
         else if idx - parent_num >= own_num {
@@ -720,11 +720,11 @@ pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngVPEInfoResult, Error
 
             // the first is always us
             if idx == 0 {
-                let kmem_quota = VPE::cur().kmem().quota()?;
-                let (ep_quota, time_quota, pts_quota) = VPE::cur().pe().quota()?;
+                let kmem_quota = Activity::cur().kmem().quota()?;
+                let (ep_quota, time_quota, pts_quota) = Activity::cur().tile().quota()?;
                 let mem = memory::container();
-                return Ok(ResMngVPEInfoResult::Info(ResMngVPEInfo {
-                    id: VPE::cur().id(),
+                return Ok(ResMngActInfoResult::Info(ResMngActInfo {
+                    id: Activity::cur().id(),
                     layer: parent_layer + 0,
                     name: env::args().next().unwrap().to_string(),
                     daemon: true,
@@ -737,60 +737,60 @@ pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngVPEInfoResult, Error
                     eps: ep_quota,
                     time: time_quota,
                     pts: pts_quota,
-                    pe: VPE::cur().pe_id(),
+                    tile: Activity::cur().tile_id(),
                 }));
             }
             idx -= 1;
 
             // find the next non-subsystem child
             let mut childs = borrow_mut();
-            let vpe = loop {
+            let act = loop {
                 let cid = childs.ids[idx];
-                let vpe = childs.child_by_id_mut(cid).unwrap();
-                if vpe.subsys().is_none() {
-                    break vpe;
+                let act = childs.child_by_id_mut(cid).unwrap();
+                if act.subsys().is_none() {
+                    break act;
                 }
                 idx += 1;
             };
 
-            let kmem_quota = vpe
+            let kmem_quota = act
                 .kmem()
                 .map(|km| km.quota())
                 .unwrap_or_else(|| Ok(Quota::default()))?;
-            let (ep_quota, time_quota, pts_quota) = vpe
-                .child_pe()
-                .map(|pe| pe.pe_obj().quota())
+            let (ep_quota, time_quota, pts_quota) = act
+                .child_tile()
+                .map(|tile| tile.tile_obj().quota())
                 .unwrap_or_else(|| Ok((Quota::default(), Quota::default(), Quota::default())))?;
-            Ok(ResMngVPEInfoResult::Info(ResMngVPEInfo {
-                id: vpe.vpe_id(),
-                layer: parent_layer + vpe.layer(),
-                name: vpe.name().to_string(),
-                daemon: vpe.daemon(),
+            Ok(ResMngActInfoResult::Info(ResMngActInfo {
+                id: act.activity_id(),
+                layer: parent_layer + act.layer(),
+                name: act.name().to_string(),
+                daemon: act.daemon(),
                 umem: Quota::new(
-                    parent_num as QuotaId + vpe.mem().id as QuotaId,
-                    vpe.mem().total as usize,
-                    vpe.mem().quota.get() as usize,
+                    parent_num as QuotaId + act.mem().id as QuotaId,
+                    act.mem().total as usize,
+                    act.mem().quota.get() as usize,
                 ),
                 kmem: kmem_quota,
                 eps: ep_quota,
                 time: time_quota,
                 pts: pts_quota,
-                pe: vpe.our_pe().pe_id(),
+                tile: act.our_tile().tile_id(),
             }))
         }
     }
     else {
         let total = own_num + parent_num;
-        Ok(ResMngVPEInfoResult::Count((total, layer)))
+        Ok(ResMngActInfoResult::Count((total, layer)))
     }
 }
 
 pub struct OwnChild {
     id: Id,
-    // the activity has to be dropped before we drop the PE
-    activity: Option<ExecActivity>,
-    our_pe: Rc<pes::PEUsage>,
-    child_pe: Rc<pes::PEUsage>,
+    // the activity has to be dropped before we drop the tile
+    activity: Option<RunningProgramActivity>,
+    our_tile: Rc<tiles::TileUsage>,
+    child_tile: Rc<tiles::TileUsage>,
     name: String,
     args: Vec<String>,
     cfg: Rc<AppConfig>,
@@ -805,8 +805,8 @@ impl OwnChild {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: Id,
-        our_pe: Rc<pes::PEUsage>,
-        child_pe: Rc<pes::PEUsage>,
+        our_tile: Rc<tiles::TileUsage>,
+        child_tile: Rc<tiles::TileUsage>,
         args: Vec<String>,
         daemon: bool,
         kmem: Rc<KMem>,
@@ -816,8 +816,8 @@ impl OwnChild {
     ) -> Self {
         OwnChild {
             id,
-            our_pe,
-            child_pe,
+            our_tile,
+            child_tile,
             name: cfg.name().to_string(),
             args,
             cfg,
@@ -830,16 +830,21 @@ impl OwnChild {
         }
     }
 
-    pub fn start(&mut self, vpe: VPE, mapper: &mut dyn Mapper, file: FileRef) -> Result<(), Error> {
+    pub fn start(
+        &mut self,
+        act: Activity,
+        mapper: &mut dyn Mapper,
+        file: FileRef,
+    ) -> Result<(), Error> {
         log!(
             crate::LOG_DEF,
-            "Starting boot module '{}' on PE{} with arguments {:?}",
+            "Starting boot module '{}' on tile{} with arguments {:?}",
             self.name(),
-            self.child_pe().unwrap().pe_id(),
+            self.child_tile().unwrap().tile_id(),
             &self.args[1..]
         );
 
-        self.activity = Some(vpe.exec_file(mapper, file, &self.args)?);
+        self.activity = Some(act.exec_file(mapper, file, &self.args)?);
 
         Ok(())
     }
@@ -880,20 +885,20 @@ impl Child for OwnChild {
         false
     }
 
-    fn our_pe(&self) -> Rc<pes::PEUsage> {
-        self.our_pe.clone()
+    fn our_tile(&self) -> Rc<tiles::TileUsage> {
+        self.our_tile.clone()
     }
 
-    fn child_pe(&self) -> Option<Rc<pes::PEUsage>> {
-        Some(self.child_pe.clone())
+    fn child_tile(&self) -> Option<Rc<tiles::TileUsage>> {
+        Some(self.child_tile.clone())
     }
 
-    fn vpe_id(&self) -> tcu::VPEId {
-        self.activity.as_ref().unwrap().vpe().id()
+    fn activity_id(&self) -> tcu::ActId {
+        self.activity.as_ref().unwrap().activity().id()
     }
 
-    fn vpe_sel(&self) -> Selector {
-        self.activity.as_ref().unwrap().vpe().sel()
+    fn activity_sel(&self) -> Selector {
+        self.activity.as_ref().unwrap().activity().sel()
     }
 
     fn subsys(&mut self) -> Option<&mut SubsystemBuilder> {
@@ -904,7 +909,7 @@ impl Child for OwnChild {
         self.activity
             .as_ref()
             .unwrap()
-            .vpe()
+            .activity()
             .resmng()
             .as_ref()
             .unwrap()
@@ -936,9 +941,9 @@ impl fmt::Debug for OwnChild {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(
             f,
-            "OwnChild[id={}, pe={}, args={:?}, kmem=KMem[sel={}, quota={}], mem={:?}]",
+            "OwnChild[id={}, tile={}, args={:?}, kmem=KMem[sel={}, quota={}], mem={:?}]",
             self.id,
-            self.child_pe.pe_id(),
+            self.child_tile.tile_id(),
             self.args,
             self.kmem.sel(),
             self.kmem.quota().unwrap().total(),
@@ -949,14 +954,14 @@ impl fmt::Debug for OwnChild {
 
 pub struct ForeignChild {
     id: Id,
-    vpe_id: tcu::VPEId,
+    act_id: tcu::ActId,
     layer: u32,
     name: String,
-    parent_pe: Rc<pes::PEUsage>,
+    parent_tile: Rc<tiles::TileUsage>,
     cfg: Rc<AppConfig>,
     mem: Rc<ChildMem>,
     res: Resources,
-    vpe_sel: Selector,
+    act_sel: Selector,
     _sgate: SendGate,
 }
 
@@ -965,9 +970,9 @@ impl ForeignChild {
         id: Id,
         layer: u32,
         name: String,
-        parent_pe: Rc<pes::PEUsage>,
-        vpe_id: tcu::VPEId,
-        vpe_sel: Selector,
+        parent_tile: Rc<tiles::TileUsage>,
+        act_id: tcu::ActId,
+        act_sel: Selector,
         sgate: SendGate,
         cfg: Rc<AppConfig>,
         mem: Rc<ChildMem>,
@@ -976,12 +981,12 @@ impl ForeignChild {
             id,
             layer,
             name,
-            parent_pe,
+            parent_tile,
             cfg,
             mem,
             res: Resources::default(),
-            vpe_id,
-            vpe_sel,
+            act_id,
+            act_sel,
             _sgate: sgate,
         }
     }
@@ -1008,20 +1013,20 @@ impl Child for ForeignChild {
         true
     }
 
-    fn our_pe(&self) -> Rc<pes::PEUsage> {
-        self.parent_pe.clone()
+    fn our_tile(&self) -> Rc<tiles::TileUsage> {
+        self.parent_tile.clone()
     }
 
-    fn child_pe(&self) -> Option<Rc<pes::PEUsage>> {
+    fn child_tile(&self) -> Option<Rc<tiles::TileUsage>> {
         None
     }
 
-    fn vpe_id(&self) -> tcu::VPEId {
-        self.vpe_id
+    fn activity_id(&self) -> tcu::ActId {
+        self.act_id
     }
 
-    fn vpe_sel(&self) -> Selector {
-        self.vpe_sel
+    fn activity_sel(&self) -> Selector {
+        self.act_sel
     }
 
     fn subsys(&mut self) -> Option<&mut SubsystemBuilder> {
@@ -1157,18 +1162,18 @@ impl ChildManager {
             let child = self.child_by_id(*id).unwrap();
             // don't wait for foreign childs, because that's the responsibility of its parent
             if !child.foreign() {
-                sels.push(child.vpe_sel());
+                sels.push(child.activity_sel());
             }
         }
 
-        syscalls::vpe_wait(&sels, event).unwrap();
+        syscalls::activity_wait(&sels, event).unwrap();
     }
 
     pub fn handle_upcall_async(msg: &'static tcu::Message) {
         let upcall = msg.get_data::<kif::upcalls::DefaultUpcall>();
 
         match kif::upcalls::Operation::from(upcall.opcode) {
-            kif::upcalls::Operation::VPE_WAIT => Self::upcall_wait_vpe_async(msg),
+            kif::upcalls::Operation::ACT_WAIT => Self::upcall_wait_act_async(msg),
             kif::upcalls::Operation::DERIVE_SRV => Self::upcall_derive_srv(msg),
             _ => panic!("Unexpected upcall {}", upcall.opcode),
         }
@@ -1180,10 +1185,10 @@ impl ChildManager {
             .expect("Upcall reply failed");
     }
 
-    fn upcall_wait_vpe_async(msg: &'static tcu::Message) {
-        let upcall = msg.get_data::<kif::upcalls::VPEWait>();
+    fn upcall_wait_act_async(msg: &'static tcu::Message) {
+        let upcall = msg.get_data::<kif::upcalls::ActivityWait>();
 
-        Self::kill_child_async(upcall.vpe_sel as Selector, upcall.exitcode as i32);
+        Self::kill_child_async(upcall.act_sel as Selector, upcall.exitcode as i32);
 
         // wait for the next
         {
@@ -1260,7 +1265,7 @@ impl ChildManager {
 
             // first, revoke the child's SendGate
             syscalls::revoke(
-                VPE::cur().sel(),
+                Activity::cur().sel(),
                 CapRngDesc::new(CapType::OBJECT, child.resmng_sgate_sel(), 1),
                 true,
             )
@@ -1297,7 +1302,7 @@ impl ChildManager {
             .iter()
             .find(|&&id| {
                 let child = self.child_by_id(id).unwrap();
-                child.vpe_sel() == sel
+                child.activity_sel() == sel
             })
             .copied()
     }

@@ -31,9 +31,9 @@ use base::tcu::{self, EpId, TCU};
 
 const LOG_DEF: bool = true;
 const LOG_DETAIL: bool = false;
-const LOG_PEXCALLS: bool = false;
+const LOG_TMCALLS: bool = false;
 
-const OWN_VPE: u16 = 0xFFFF;
+const OWN_ACT: u16 = 0xFFFF;
 const CREDITS: usize = 4;
 const CLIENTS: usize = 8;
 const MSG_SIZE: usize = 64;
@@ -52,7 +52,7 @@ pub extern "C" fn env_run() {
     let msg_ord = buf_ord - math::next_log2(CLIENTS * CREDITS);
     let (rbuf_virt, rbuf_phys) = helper::virt_to_phys(RBUF.as_ptr() as usize);
     helper::config_local_ep(REP, |regs| {
-        TCU::config_recv(regs, OWN_VPE, rbuf_phys, buf_ord, msg_ord, Some(RPLEPS));
+        TCU::config_recv(regs, OWN_ACT, rbuf_phys, buf_ord, msg_ord, Some(RPLEPS));
     });
 
     let mut buf = MsgBuf::new();
@@ -79,7 +79,7 @@ pub extern "C" fn env_run() {
         }
     }
 
-    // give the other PEs some time
+    // give the other tiles some time
     let begin = cpu::elapsed_cycles();
     while cpu::elapsed_cycles() < begin + 100000 {}
 

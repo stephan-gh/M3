@@ -19,7 +19,7 @@
 #include <base/util/Util.h>
 
 #include "../assert.h"
-#include "../pes.h"
+#include "../tiles.h"
 #include "../tcuif.h"
 
 using namespace m3;
@@ -31,18 +31,18 @@ static ALIGNED(8) uint8_t buf2[1024];
 static ALIGNED(8) uint8_t buf3[1024];
 
 int main() {
-    PE own_pe = static_cast<PE>(env()->pe_id);
-    PE partner_pe = static_cast<PE>((static_cast<peid_t>(own_pe) + 1) % 8);
+    Tile own_tile = static_cast<Tile>(env()->tile_id);
+    Tile partner_tile = static_cast<Tile>((static_cast<tileid_t>(own_tile) + 1) % 8);
 
-    Serial::get() << "Hello from PE" << static_cast<peid_t>(own_pe)
-                  << " (partner PE" << static_cast<peid_t>(partner_pe) << ")!\n";
+    Serial::get() << "Hello from Tile" << static_cast<tileid_t>(own_tile)
+                  << " (partner Tile" << static_cast<tileid_t>(partner_tile) << ")!\n";
 
-    kernel::TCU::config_mem(MEP, pe_id(partner_pe),
+    kernel::TCU::config_mem(MEP, tile_id(partner_tile),
                             reinterpret_cast<uintptr_t>(buf1), sizeof(buf1),
                             TCU::R | TCU::W);
 
     for(size_t i = 0; i < ARRAY_SIZE(buf2); ++i)
-        buf2[i] = static_cast<peid_t>(own_pe) + i;
+        buf2[i] = static_cast<tileid_t>(own_tile) + i;
 
     for(int i = 0; i < 10000; ++i) {
         if(i % 1000 == 0)
@@ -57,7 +57,7 @@ int main() {
 
     Serial::get() << "\x1B[1;32mAll tests successful!\x1B[0;m\n";
 
-    // give the other PEs some time
+    // give the other tiles some time
     for(volatile int i = 0; i < 1000000; ++i)
         ;
 

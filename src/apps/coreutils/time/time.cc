@@ -17,7 +17,7 @@
 #include <base/time/Instant.h>
 
 #include <m3/stream/Standard.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 #include <m3/vfs/MountTable.h>
 
 using namespace m3;
@@ -29,12 +29,12 @@ int main(int argc, char **argv) {
     int res;
     auto start = TimeInstant::now();
     {
-        auto pe = PE::get("own|core");
-        VPE child(pe, argv[1]);
-        child.files()->set(STDIN_FD, VPE::self().files()->get(STDIN_FD));
-        child.files()->set(STDOUT_FD, VPE::self().files()->get(STDOUT_FD));
-        child.files()->set(STDERR_FD, VPE::self().files()->get(STDERR_FD));
-        child.mounts()->add("/", VPE::self().mounts()->get("/"));
+        auto tile = Tile::get("own|core");
+        Activity child(tile, argv[1]);
+        child.files()->set(STDIN_FD, Activity::self().files()->get(STDIN_FD));
+        child.files()->set(STDOUT_FD, Activity::self().files()->get(STDOUT_FD));
+        child.files()->set(STDERR_FD, Activity::self().files()->get(STDERR_FD));
+        child.mounts()->add("/", Activity::self().mounts()->get("/"));
 
         child.exec(argc - 1, const_cast<const char**>(argv) + 1);
 
@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
 
     auto end = TimeInstant::now();
 
-    cerr << "VPE (" << argv[1] << ") terminated with exit-code " << res << "\n";
+    cerr << "Activity (" << argv[1] << ") terminated with exit-code " << res << "\n";
     cerr << "Runtime: " << end.duration_since(start) << "\n";
     return 0;
 }

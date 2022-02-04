@@ -8,7 +8,7 @@
                     <physmem addr="0" size="$fs.size" />
                 </app>
             </dom>
-            <dom pe="boom+nic">
+            <dom tile="boom+nic">
                 <app args="pager maxcli=3 $fs.size" usermem="768M">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />

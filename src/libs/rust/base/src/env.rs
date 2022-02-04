@@ -24,7 +24,7 @@ use crate::boxed::Box;
 use crate::mem;
 use crate::util;
 
-/// The closure used by `VPE::run`
+/// The closure used by `Activity::run`
 pub struct Closure {
     func: Option<Box<dyn FnOnce() -> i32 + Send>>,
 }

@@ -20,7 +20,7 @@
 
 #include <m3/com/RecvGate.h>
 #include <m3/com/RecvBufs.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 #include <m3/session/ResMng.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
@@ -31,7 +31,7 @@ namespace m3 {
 
 INIT_PRIO_RECVGATE RecvGate RecvGate::_syscall (
     KIF::INV_SEL,
-    PEDesc(env()->pe_desc).rbuf_std_space().first,
+    TileDesc(env()->tile_desc).rbuf_std_space().first,
     env()->first_std_ep + TCU::SYSC_REP_OFF,
     m3::nextlog2<SYSC_RBUF_SIZE>::val,
     SYSC_RBUF_ORDER,
@@ -40,7 +40,7 @@ INIT_PRIO_RECVGATE RecvGate RecvGate::_syscall (
 
 INIT_PRIO_RECVGATE RecvGate RecvGate::_upcall (
     KIF::INV_SEL,
-    PEDesc(env()->pe_desc).rbuf_std_space().first + SYSC_RBUF_SIZE,
+    TileDesc(env()->tile_desc).rbuf_std_space().first + SYSC_RBUF_SIZE,
     env()->first_std_ep + TCU::UPCALL_REP_OFF,
     m3::nextlog2<UPCALL_RBUF_SIZE>::val,
     UPCALL_RBUF_ORDER,
@@ -49,7 +49,7 @@ INIT_PRIO_RECVGATE RecvGate RecvGate::_upcall (
 
 INIT_PRIO_RECVGATE RecvGate RecvGate::_default (
     KIF::INV_SEL,
-    PEDesc(env()->pe_desc).rbuf_std_space().first + SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE,
+    TileDesc(env()->tile_desc).rbuf_std_space().first + SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE,
     env()->first_std_ep + TCU::DEF_REP_OFF,
     m3::nextlog2<DEF_RBUF_SIZE>::val,
     DEF_RBUF_ORDER,
@@ -81,7 +81,7 @@ RecvGate::RecvGate(capsel_t cap, size_t addr, epid_t ep, uint order, uint msgord
 }
 
 RecvGate RecvGate::create(uint order, uint msgorder) {
-    return RecvGate(VPE::self().alloc_sel(), 0, UNBOUND, order, msgorder, 0);
+    return RecvGate(Activity::self().alloc_sel(), 0, UNBOUND, order, msgorder, 0);
 }
 
 RecvGate RecvGate::create(capsel_t cap, uint order, uint msgorder, uint flags) {
@@ -89,8 +89,8 @@ RecvGate RecvGate::create(capsel_t cap, uint order, uint msgorder, uint flags) {
 }
 
 RecvGate RecvGate::create_named(const char *name) {
-    auto sel = VPE::self().alloc_sel();
-    auto args = VPE::self().resmng()->use_rgate(sel, name);
+    auto sel = Activity::self().alloc_sel();
+    auto args = Activity::self().resmng()->use_rgate(sel, name);
     return RecvGate(sel, 0, args.first, args.second, 0);
 }
 
@@ -115,7 +115,7 @@ void RecvGate::activate() {
             _buf_addr = _buf->addr();
         }
 
-        auto rep = VPE::self().epmng().acquire(TOTAL_EPS, slots());
+        auto rep = Activity::self().epmng().acquire(TOTAL_EPS, slots());
         Gate::activate_on(*rep, _buf->mem(), _buf->off());
         Gate::set_ep(rep);
     }
@@ -126,7 +126,7 @@ void RecvGate::activate_on(const EP &ep, MemGate *mem, size_t off) {
 }
 
 void RecvGate::deactivate() noexcept {
-    release_ep(VPE::self(), true);
+    release_ep(Activity::self(), true);
 
     stop();
 }
@@ -146,7 +146,7 @@ void RecvGate::stop() noexcept {
 }
 
 void RecvGate::wait_for_msg() const {
-    VPE::wait_for_msg(ep()->id());
+    Activity::wait_for_msg(ep()->id());
 }
 
 const TCU::Message *RecvGate::fetch() {
@@ -171,7 +171,7 @@ void RecvGate::reply(const MsgBuf &reply, const TCU::Message *msg) {
 const TCU::Message *RecvGate::receive(SendGate *sgate) {
     activate();
 
-    // if the PE is shared with someone else that wants to run, poll a couple of times to
+    // if the tile is shared with someone else that wants to run, poll a couple of times to
     // prevent too frequent/unnecessary switches.
     int polling = env()->shared ? 200 : 1;
     while(1) {
@@ -186,7 +186,7 @@ const TCU::Message *RecvGate::receive(SendGate *sgate) {
                                    Errors::EP_INVALID);
         }
 
-        VPE::wait_for_msg(ep()->id());
+        Activity::wait_for_msg(ep()->id());
     }
     UNREACHED;
 }

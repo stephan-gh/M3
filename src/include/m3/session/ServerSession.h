@@ -22,7 +22,7 @@
 #include <m3/server/Server.h>
 #include <m3/ObjCap.h>
 #include <m3/Syscalls.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 namespace m3 {
 
@@ -44,7 +44,7 @@ public:
         : ObjCap(SESSION) {
         if(srv_sel != ObjCap::INVALID) {
             if(_sel == ObjCap::INVALID)
-                _sel = VPE::self().alloc_sel();
+                _sel = Activity::self().alloc_sel();
             Syscalls::create_sess(_sel, srv_sel, crt, reinterpret_cast<word_t>(this), auto_close);
             sel(_sel);
         }

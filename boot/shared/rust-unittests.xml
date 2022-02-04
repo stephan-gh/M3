@@ -11,7 +11,7 @@
                     <physmem addr="0" size="$fs.size" />
                 </app>
             </dom>
-            <dom pe="imem+kecacc|core">
+            <dom tile="imem+kecacc|core">
                 <app args="hashmux" daemon="1">
                     <serv name="hash"/>
                 </app>
@@ -20,7 +20,7 @@
                 <app args="pager $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes type="core" count="1" />
+                    <tiles type="core" count="1" />
                     <app args="/bin/rustunittests">
                         <mount fs="m3fs" path="/" />
                         <sess lname="m3fs-clone" gname="m3fs" />
@@ -32,7 +32,7 @@
                         <sess lname="hash4" gname="hash" args="20000" />
                         <serv name="test" />
                         <sess name="test" dep="false" />
-                        <pes type="core" count="4" />
+                        <tiles type="core" count="4" />
                     </app>
                 </app>
             </dom>

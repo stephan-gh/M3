@@ -22,10 +22,10 @@ use m3::com::{EpMng, MemGate, RecvGate, SendGate, EP};
 use m3::errors::Error;
 use m3::goff;
 use m3::int_enum;
-use m3::kif::{PEDesc, PEType, Perm, PEISA};
+use m3::kif::{Perm, TileDesc, TileISA, TileType};
 use m3::math;
-use m3::pes::{DeviceActivity, PE, VPE};
 use m3::tcu::EpId;
+use m3::tiles::{Activity, RunningDeviceActivity, Tile};
 
 const EP_INT: EpId = 16;
 const EP_DMA: EpId = 17;
@@ -78,7 +78,7 @@ int_enum! {
 }
 
 pub struct Device {
-    _activity: DeviceActivity,
+    _activity: RunningDeviceActivity,
     mem: MemGate,
     _sep: EP,
     mep: EP,
@@ -124,24 +124,24 @@ pub struct Info {
 }
 
 impl Device {
-    pub fn new(name: &str, isa: PEISA) -> Result<Self, Error> {
-        let pe = PE::new(PEDesc::new(PEType::COMP_IMEM, isa, 0))?;
-        let vpe = VPE::new(pe, name)?;
-        let vpe_sel = vpe.sel();
-        let mem = vpe.get_mem(
+    pub fn new(name: &str, isa: TileISA) -> Result<Self, Error> {
+        let tile = Tile::new(TileDesc::new(TileType::COMP_IMEM, isa, 0))?;
+        let act = Activity::new(tile, name)?;
+        let act_sel = act.sel();
+        let mem = act.get_mem(
             0,
             (PCI_CFG_ADDR + REG_ADDR) + cfg::PAGE_SIZE as goff,
             Perm::RW,
         )?;
-        let sep = EpMng::acquire_for(vpe_sel, EP_INT, 0)?;
-        let mep = EpMng::acquire_for(vpe_sel, EP_DMA, 0)?;
+        let sep = EpMng::acquire_for(act_sel, EP_INT, 0)?;
+        let mep = EpMng::acquire_for(act_sel, EP_DMA, 0)?;
         let mut rgate = RecvGate::new(math::next_log2(BUF_SIZE), math::next_log2(MSG_SIZE))?;
         let sgate = SendGate::new(&rgate)?;
         rgate.activate()?;
         sep.configure(sgate.sel())?;
 
         Ok(Self {
-            _activity: vpe.start()?,
+            _activity: act.start()?,
             mem,
             _sep: sep,
             mep,
@@ -188,7 +188,7 @@ impl Device {
 
     pub fn get_info(&self) -> Result<Info, Error> {
         Ok(Info {
-            // TODO this is hardcoded atm, because the device PE contains exactly one PCI device
+            // TODO this is hardcoded atm, because the device tile contains exactly one PCI device
             bus: 0,
             dev: 0,
             func: 0,

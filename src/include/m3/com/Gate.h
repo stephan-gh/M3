@@ -34,7 +34,7 @@ class Syscalls;
  * Gate is the base class of all gates. A gate is in general the software abstraction for TCU-based
  * communication. There are three different kinds of gates: SendGate, RecvGate and MemGate.
  * SendGate and RecvGate allow to perform message-based communication, while MemGate allows to
- * read/write from/to PE-external memory.
+ * read/write from/to tile-external memory.
  *
  * Before gates can be used, they need to be activated. That is, a syscall needs to be performed to
  * let the kernel configure an endpoint for the gate. For SendGate and MemGate, this is done
@@ -48,7 +48,7 @@ class Gate : public ObjCap {
     friend class SendGate;
     friend class GenericFile;
     friend class Syscalls;
-    friend class VPE;
+    friend class Activity;
 
 public:
     static const epid_t UNBOUND     = TOTAL_EPS;
@@ -80,7 +80,7 @@ protected:
     }
 
     const EP &acquire_ep();
-    void release_ep(VPE &vpe, bool force_inval = false) noexcept;
+    void release_ep(Activity &act, bool force_inval = false) noexcept;
 
 private:
     EP *_ep;

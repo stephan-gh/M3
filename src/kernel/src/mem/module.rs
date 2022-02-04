@@ -17,7 +17,7 @@
 use base::errors::Error;
 use base::goff;
 use base::mem::{GlobAddr, MemMap};
-use base::tcu::PEId;
+use base::tcu::TileId;
 use core::fmt;
 
 #[allow(dead_code)]
@@ -38,9 +38,9 @@ pub struct MemMod {
 }
 
 impl MemMod {
-    pub fn new(ty: MemType, pe: PEId, offset: goff, size: goff) -> Self {
+    pub fn new(ty: MemType, tile: TileId, offset: goff, size: goff) -> Self {
         MemMod {
-            gaddr: GlobAddr::new_with(pe, offset),
+            gaddr: GlobAddr::new_with(tile, offset),
             size,
             map: MemMap::new(0, size),
             ty,
@@ -68,7 +68,7 @@ impl MemMod {
     }
 
     pub fn free(&mut self, addr: GlobAddr, size: goff) -> bool {
-        if addr.pe() == self.gaddr.pe() {
+        if addr.tile() == self.gaddr.tile() {
             self.map.free(addr.offset() - self.gaddr.offset(), size);
             true
         }

@@ -39,10 +39,10 @@
 
 static bool verbose = 0;
 static const uint64_t GEM5_TICKS_PER_SEC    = 1000000000;
-static const int GEM5_MAX_PES               = 64;
-static const int GEM5_MAX_VPES              = 1024 + 1;
-static const unsigned PRIV_VPEID            = 0xFFFF;
-static const unsigned IDLE_VPEID            = 0xFFFE;
+static const int GEM5_MAX_TILES               = 64;
+static const int GEM5_MAX_ACTS              = 1024 + 1;
+static const unsigned PRIV_ACTID            = 0xFFFF;
+static const unsigned IDLE_ACTID            = 0xFFFE;
 
 enum event_type {
     EVENT_FUNC_ENTER = 1,
@@ -58,7 +58,7 @@ enum event_type {
     EVENT_MEM_WRITE_DONE,
     EVENT_SUSPEND,
     EVENT_WAKEUP,
-    EVENT_SET_VPEID,
+    EVENT_SET_ACTID,
 };
 
 static const char *event_names[] = {
@@ -76,12 +76,12 @@ static const char *event_names[] = {
     "EVENT_MEM_WRITE_DONE",
     "EVENT_SUSPEND",
     "EVENT_WAKEUP",
-    "EVENT_SET_VPEID",
+    "EVENT_SET_ACTID",
 };
 
 struct Event {
     explicit Event()
-        : pe(),
+        : tile(),
           timestamp(),
           type(),
           size(),
@@ -90,8 +90,8 @@ struct Event {
           bin(static_cast<uint32_t>(-1)),
           name() {
     }
-    explicit Event(uint32_t pe, uint64_t ts, int type, size_t size, uint32_t remote, uint64_t tag)
-        : pe(pe),
+    explicit Event(uint32_t tile, uint64_t ts, int type, size_t size, uint32_t remote, uint64_t tag)
+        : tile(tile),
           timestamp(ts / 1000),
           type(type),
           size(size),
@@ -100,8 +100,8 @@ struct Event {
           bin(static_cast<uint32_t>(-1)),
           name() {
     }
-    explicit Event(uint32_t pe, uint64_t ts, int type, uint32_t bin, const char *name)
-        : pe(pe),
+    explicit Event(uint32_t tile, uint64_t ts, int type, uint32_t bin, const char *name)
+        : tile(tile),
           timestamp(ts / 1000),
           type(type),
           size(),
@@ -122,7 +122,7 @@ struct Event {
     }
 
     friend std::ostream &operator<<(std::ostream &os, const Event &ev) {
-        os << ev.pe << " " << event_names[ev.type] << ": " << ev.timestamp;
+        os << ev.tile << " " << event_names[ev.type] << ": " << ev.timestamp;
         switch(ev.type) {
             case EVENT_FUNC_ENTER:
             case EVENT_FUNC_EXIT:
@@ -143,7 +143,7 @@ struct Event {
         return os;
     }
 
-    uint32_t pe;
+    uint32_t tile;
     uint64_t timestamp;
 
     int type;
@@ -191,16 +191,16 @@ struct Stats {
 };
 
 enum Mode {
-    MODE_PES,
-    MODE_VPES,
+    MODE_TILES,
+    MODE_ACTS,
 };
 
 static Symbols syms;
 
-static Event build_event(event_type type, uint64_t timestamp, uint32_t pe,
+static Event build_event(event_type type, uint64_t timestamp, uint32_t tile,
                          const std::string &remote, const std::string &size, uint64_t tag) {
     Event ev(
-        pe,
+        tile,
         timestamp,
         type,
         strtoull(size.c_str(), nullptr, 10),
@@ -239,8 +239,8 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
     std::regex suswake_regex(
         "(Suspending|Waking up) core"
     );
-    std::regex setvpe_regex(
-        "^\\.regFile: TCU-> PRI\\[CUR_VPE     \\]: 0x([0-9a-f]+)"
+    std::regex setact_regex(
+        "^\\.regFile: TCU-> PRI\\[CUR_ACT     \\]: 0x([0-9a-f]+)"
     );
     std::regex debug_regex(
         "^: DEBUG (?:0x)([0-9a-f]+)"
@@ -255,9 +255,9 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
         "^(?:0x)([0-9a-f]+) @ .*\\.0  :   RET_NEAR"
     );
 
-    State states[GEM5_MAX_PES];
+    State states[GEM5_MAX_TILES];
 
-    uint32_t last_pe = 0;
+    uint32_t last_tile = 0;
     uint64_t tag = 1;
 
     std::smatch match;
@@ -265,25 +265,25 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
     unsigned long long timestamp;
     while(fgets(readbuf, sizeof(readbuf), fd)) {
         unsigned long addr;
-        uint32_t pe;
+        uint32_t tile;
         int numchars;
         int tid;
 
-        if(mode == MODE_VPES &&
-                sscanf(readbuf, "%Lu: pe%u.cpu T%d : %lx @", &timestamp, &pe, &tid, &addr) == 4) {
+        if(mode == MODE_ACTS &&
+                sscanf(readbuf, "%Lu: tile%u.cpu T%d : %lx @", &timestamp, &tile, &tid, &addr) == 4) {
 
-            if(states[pe].addr == addr)
+            if(states[tile].addr == addr)
                 continue;
 
-            unsigned long oldaddr = states[pe].addr;
-            states[pe].addr = addr;
+            unsigned long oldaddr = states[tile].addr;
+            states[tile].addr = addr;
 
             Symbols::symbol_t sym = syms.resolve(addr);
-            if(states[pe].sym == sym)
+            if(states[tile].sym == sym)
                 continue;
 
             if(oldaddr)
-                buf.push_back(Event(pe, timestamp, EVENT_UFUNC_EXIT, 0, ""));
+                buf.push_back(Event(tile, timestamp, EVENT_UFUNC_EXIT, 0, ""));
 
             uint32_t bin;
             char *namebuf = (char*)malloc(Symbols::MAX_FUNC_LEN + 1);
@@ -296,14 +296,14 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
                 syms.demangle(namebuf, Symbols::MAX_FUNC_LEN, sym->name.c_str());
             }
 
-            buf.push_back(Event(pe, timestamp, EVENT_UFUNC_ENTER, bin, namebuf));
+            buf.push_back(Event(tile, timestamp, EVENT_UFUNC_ENTER, bin, namebuf));
 
-            states[pe].sym = sym;
-            last_pe = std::max(pe, last_pe);
+            states[tile].sym = sym;
+            last_tile = std::max(tile, last_tile);
             continue;
         }
 
-        if(sscanf(readbuf, "%Lu: pe%d.tcu%n", &timestamp, &pe, &numchars) != 2)
+        if(sscanf(readbuf, "%Lu: tile%d.tcu%n", &timestamp, &tile, &numchars) != 2)
             continue;
 
         std::string line(readbuf + numchars);
@@ -311,44 +311,44 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
         if(strstr(line.c_str(), "rv") && std::regex_search(line, match, msg_rcv_regex)) {
             uint32_t sender = strtoul(match[1].str().c_str(), nullptr, 0);
             Event ev = build_event(EVENT_MSG_RECV,
-                timestamp, pe, match[1].str(), match[2].str(), states[sender].tag);
+                timestamp, tile, match[1].str(), match[2].str(), states[sender].tag);
             buf.push_back(ev);
 
-            last_pe = std::max(pe, std::max(last_pe, ev.remote));
+            last_tile = std::max(tile, std::max(last_tile, ev.remote));
         }
         else if(strstr(line.c_str(), "ing") && std::regex_search(line, match, suswake_regex)) {
             event_type type = match[1].str() == "Waking up" ? EVENT_WAKEUP : EVENT_SUSPEND;
-            buf.push_back(build_event(type, timestamp, pe, "", "", tag));
+            buf.push_back(build_event(type, timestamp, tile, "", "", tag));
 
-            last_pe = std::max(pe, last_pe);
-            states[pe].tag = tag++;
+            last_tile = std::max(tile, last_tile);
+            states[tile].tag = tag++;
         }
-        else if(strstr(line.c_str(), "CUR_VPE") && std::regex_search(line, match, setvpe_regex)) {
-            uint32_t vpetag = strtoul(match[1].str().c_str(), NULL, 16) & 0xFFFF;
-            buf.push_back(build_event(EVENT_SET_VPEID, timestamp, pe, "", "", vpetag));
+        else if(strstr(line.c_str(), "CUR_ACT") && std::regex_search(line, match, setact_regex)) {
+            uint32_t acttag = strtoul(match[1].str().c_str(), NULL, 16) & 0xFFFF;
+            buf.push_back(build_event(EVENT_SET_ACTID, timestamp, tile, "", "", acttag));
 
-            last_pe = std::max(pe, last_pe);
+            last_tile = std::max(tile, last_tile);
         }
-        else if(mode == MODE_VPES && std::regex_search(line, match, debug_regex)) {
+        else if(mode == MODE_ACTS && std::regex_search(line, match, debug_regex)) {
             uint64_t value = strtoul(match[1].str().c_str(), NULL, 16);
             if(value >> 48 != 0) {
                 event_type type = static_cast<event_type>(value >> 48);
-                uint64_t vpetag = value & 0xFFFFFFFFFFFF;
-                buf.push_back(build_event(type, timestamp, pe, "", "", vpetag));
+                uint64_t acttag = value & 0xFFFFFFFFFFFF;
+                buf.push_back(build_event(type, timestamp, tile, "", "", acttag));
             }
         }
-        else if (!states[pe].in_cmd) {
+        else if (!states[tile].in_cmd) {
             if(strncmp(line.c_str(), ": Starting command ", 19) == 0) {
-                states[pe].in_cmd = true;
-                states[pe].have_start = false;
+                states[tile].in_cmd = true;
+                states[tile].have_start = false;
             }
         }
         else {
             if(strncmp(line.c_str(), ": Finished command ", 19) == 0) {
-                if(states[pe].have_start) {
+                if(states[tile].have_start) {
                     int type;
-                    assert(states[pe].start_idx != State::INVALID_IDX);
-                    const Event &start_ev = buf[states[pe].start_idx];
+                    assert(states[tile].start_idx != State::INVALID_IDX);
+                    const Event &start_ev = buf[states[tile].start_idx];
                     if(start_ev.type == EVENT_MSG_SEND_START)
                         type = EVENT_MSG_SEND_DONE;
                     else if(start_ev.type == EVENT_MEM_READ_START)
@@ -356,72 +356,72 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
                     else
                         type = EVENT_MEM_WRITE_DONE;
                     uint32_t remote = start_ev.remote;
-                    Event ev(pe, timestamp, type, start_ev.size, remote, states[pe].tag);
+                    Event ev(tile, timestamp, type, start_ev.size, remote, states[tile].tag);
                     buf.push_back(ev);
 
-                    last_pe = std::max(pe, std::max(last_pe, remote));
-                    states[pe].start_idx = State::INVALID_IDX;
+                    last_tile = std::max(tile, std::max(last_tile, remote));
+                    states[tile].start_idx = State::INVALID_IDX;
                 }
 
-                states[pe].in_cmd = false;
+                states[tile].in_cmd = false;
             }
             else {
                 if ((strstr(line.c_str(), "sd") || strstr(line.c_str(), "rp")) &&
                         std::regex_search(line, match, msg_snd_regex)) {
                     Event ev = build_event(EVENT_MSG_SEND_START,
-                        timestamp, pe, match[1].str(), match[2].str(), tag);
-                    states[pe].have_start = true;
+                        timestamp, tile, match[1].str(), match[2].str(), tag);
+                    states[tile].have_start = true;
                     buf.push_back(ev);
-                    states[pe].start_idx = buf.size() - 1;
-                    states[pe].tag = tag++;
+                    states[tile].start_idx = buf.size() - 1;
+                    states[tile].tag = tag++;
                 }
                 else if((strstr(line.c_str(), "rd") || strstr(line.c_str(), "wr")) &&
                         std::regex_search(line, match, msg_rw_regex)) {
                     event_type type = match[1].str() == "rd" ? EVENT_MEM_READ_START
                                                              : EVENT_MEM_WRITE_START;
-                    if(states[pe].start_idx != State::INVALID_IDX)
-                        buf[states[pe].start_idx].size += strtoull(match[3].str().c_str(), nullptr, 10);
+                    if(states[tile].start_idx != State::INVALID_IDX)
+                        buf[states[tile].start_idx].size += strtoull(match[3].str().c_str(), nullptr, 10);
                     else {
                         Event ev = build_event(type,
-                            timestamp, pe, match[2].str(), match[3].str(), tag);
-                        states[pe].have_start = true;
+                            timestamp, tile, match[2].str(), match[3].str(), tag);
+                        states[tile].have_start = true;
                         buf.push_back(ev);
-                        states[pe].start_idx = buf.size() - 1;
-                        states[pe].tag = tag++;
+                        states[tile].start_idx = buf.size() - 1;
+                        states[tile].tag = tag++;
                     }
                 }
             }
         }
     }
 
-    for(size_t i = 0; i <= last_pe; ++i) {
+    for(size_t i = 0; i <= last_tile; ++i) {
         if(states[i].addr)
             buf.push_back(Event(i, ++timestamp, EVENT_UFUNC_EXIT, 0, ""));
     }
 
     fclose(fd);
-    return last_pe + 1;
+    return last_tile + 1;
 }
 
-static void gen_pe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> &trace_buf, uint32_t pe_count) {
+static void gen_pe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> &trace_buf, uint32_t tile_count) {
     // Processes.
     uint32_t stream = 1;
-    for(uint32_t i = 0; i < pe_count; ++i) {
+    for(uint32_t i = 0; i < tile_count; ++i) {
         char peName[8];
-        snprintf(peName, sizeof(peName), "PE%d", i);
+        snprintf(peName, sizeof(peName), "Tile%d", i);
         OTF_Writer_writeDefProcess(writer, 0, i, peName, 0);
         OTF_Writer_assignProcess(writer, i, stream);
     }
 
     // Process groups
-    uint32_t allPEs[pe_count];
-    for(uint32_t i = 0; i < pe_count; ++i)
+    uint32_t allPEs[tile_count];
+    for(uint32_t i = 0; i < tile_count; ++i)
         allPEs[i] = i;
 
     unsigned grp_mem = (1 << 20) + 1;
-    OTF_Writer_writeDefProcessGroup(writer, 0, grp_mem, "Memory Read/Write", pe_count, allPEs);
+    OTF_Writer_writeDefProcessGroup(writer, 0, grp_mem, "Memory Read/Write", tile_count, allPEs);
     unsigned grp_msg = (1 << 20) + 2;
-    OTF_Writer_writeDefProcessGroup(writer, 0, grp_msg, "Message Send/Receive", pe_count, allPEs);
+    OTF_Writer_writeDefProcessGroup(writer, 0, grp_msg, "Message Send/Receive", tile_count, allPEs);
 
     // Function groups
     unsigned grp_func_count = 0;
@@ -430,29 +430,29 @@ static void gen_pe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> &
 
     // Execution functions
     unsigned fn_exec_last = (2 << 20) + 0;
-    std::map<unsigned, unsigned> vpefuncs;
+    std::map<unsigned, unsigned> actfuncs;
 
     unsigned fn_exec_sleep = ++fn_exec_last;
     OTF_Writer_writeDefFunction(writer, 0, fn_exec_sleep, "Sleeping", grp_func_exec, 0);
 
-    unsigned fn_vpe_priv = ++fn_exec_last;
-    vpefuncs[PRIV_VPEID] = fn_vpe_priv;
-    OTF_Writer_writeDefFunction(writer, 0, fn_vpe_priv, "Priv VPE", grp_func_exec, 0);
-    unsigned fn_vpe_idle = ++fn_exec_last;
-    vpefuncs[IDLE_VPEID] = fn_vpe_idle;
-    OTF_Writer_writeDefFunction(writer, 0, fn_vpe_idle, "Idle VPE", grp_func_exec, 0);
+    unsigned fn_act_priv = ++fn_exec_last;
+    actfuncs[PRIV_ACTID] = fn_act_priv;
+    OTF_Writer_writeDefFunction(writer, 0, fn_act_priv, "Priv Activity", grp_func_exec, 0);
+    unsigned fn_act_idle = ++fn_exec_last;
+    actfuncs[IDLE_ACTID] = fn_act_idle;
+    OTF_Writer_writeDefFunction(writer, 0, fn_act_idle, "Idle Activity", grp_func_exec, 0);
 
     printf("writing OTF events\n");
 
     uint64_t timestamp = 0;
 
-    bool awake[pe_count];
-    unsigned cur_vpe[pe_count];
+    bool awake[tile_count];
+    unsigned cur_act[tile_count];
 
-    for(uint32_t i = 0; i < pe_count; ++i) {
+    for(uint32_t i = 0; i < tile_count; ++i) {
         awake[i] = true;
-        cur_vpe[i] = fn_vpe_priv;
-        OTF_Writer_writeEnter(writer, timestamp, fn_vpe_priv, i, 0);
+        cur_act[i] = fn_act_priv;
+        OTF_Writer_writeEnter(writer, timestamp, fn_act_priv, i, 0);
     }
 
     // finally loop over events and write OTF
@@ -469,13 +469,13 @@ static void gen_pe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> &
         switch(event->type) {
             case EVENT_MSG_SEND_START:
                 OTF_Writer_writeSendMsg(writer, timestamp,
-                    event->pe, event->remote, grp_msg, event->tag, event->size, 0);
+                    event->tile, event->remote, grp_msg, event->tag, event->size, 0);
                 ++stats.send;
                 break;
 
             case EVENT_MSG_RECV:
                 OTF_Writer_writeRecvMsg(writer, timestamp,
-                    event->pe, event->remote, grp_msg, event->tag, event->size, 0);
+                    event->tile, event->remote, grp_msg, event->tag, event->size, 0);
                 ++stats.recv;
                 break;
 
@@ -484,60 +484,60 @@ static void gen_pe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> &
 
             case EVENT_MEM_READ_START:
                 OTF_Writer_writeSendMsg(writer, timestamp,
-                    event->pe, event->remote, grp_mem, event->tag, event->size, 0);
+                    event->tile, event->remote, grp_mem, event->tag, event->size, 0);
                 ++stats.read;
                 break;
 
             case EVENT_MEM_READ_DONE:
                 OTF_Writer_writeRecvMsg(writer, timestamp,
-                    event->remote, event->pe, grp_mem, event->tag, event->size, 0);
+                    event->remote, event->tile, grp_mem, event->tag, event->size, 0);
                 ++stats.finish;
                 break;
 
             case EVENT_MEM_WRITE_START:
                 OTF_Writer_writeSendMsg(writer, timestamp,
-                    event->pe, event->remote, grp_mem, event->tag, event->size, 0);
+                    event->tile, event->remote, grp_mem, event->tag, event->size, 0);
                 ++stats.write;
                 break;
 
             case EVENT_MEM_WRITE_DONE:
                 OTF_Writer_writeRecvMsg(writer, timestamp,
-                    event->remote, event->pe, grp_mem, event->tag, event->size, 0);
+                    event->remote, event->tile, grp_mem, event->tag, event->size, 0);
                 ++stats.finish;
                 break;
 
             case EVENT_WAKEUP:
-                if(!awake[event->pe]) {
-                    OTF_Writer_writeLeave(writer, timestamp - 1, fn_exec_sleep, event->pe, 0);
-                    OTF_Writer_writeEnter(writer, timestamp, cur_vpe[event->pe], event->pe, 0);
-                    awake[event->pe] = true;
+                if(!awake[event->tile]) {
+                    OTF_Writer_writeLeave(writer, timestamp - 1, fn_exec_sleep, event->tile, 0);
+                    OTF_Writer_writeEnter(writer, timestamp, cur_act[event->tile], event->tile, 0);
+                    awake[event->tile] = true;
                 }
                 break;
 
             case EVENT_SUSPEND:
-                if(awake[event->pe]) {
-                    OTF_Writer_writeLeave(writer, timestamp - 1, cur_vpe[event->pe], event->pe, 0);
-                    OTF_Writer_writeEnter(writer, timestamp, fn_exec_sleep, event->pe, 0);
-                    awake[event->pe] = false;
+                if(awake[event->tile]) {
+                    OTF_Writer_writeLeave(writer, timestamp - 1, cur_act[event->tile], event->tile, 0);
+                    OTF_Writer_writeEnter(writer, timestamp, fn_exec_sleep, event->tile, 0);
+                    awake[event->tile] = false;
                 }
                 break;
 
-            case EVENT_SET_VPEID: {
-                auto fn = vpefuncs.find(event->tag);
-                if(fn == vpefuncs.end()) {
+            case EVENT_SET_ACTID: {
+                auto fn = actfuncs.find(event->tag);
+                if(fn == actfuncs.end()) {
                     char name[16];
-                    snprintf(name, sizeof(name), "VPE_%#x", (unsigned)event->tag);
-                    vpefuncs[event->tag] = ++fn_exec_last;
-                    OTF_Writer_writeDefFunction(writer, 0, vpefuncs[event->tag], name, grp_func_exec, 0);
-                    fn = vpefuncs.find(event->tag);
+                    snprintf(name, sizeof(name), "ACT_%#x", (unsigned)event->tag);
+                    actfuncs[event->tag] = ++fn_exec_last;
+                    OTF_Writer_writeDefFunction(writer, 0, actfuncs[event->tag], name, grp_func_exec, 0);
+                    fn = actfuncs.find(event->tag);
                 }
 
-                if(awake[event->pe] && cur_vpe[event->pe] != fn->second) {
-                    OTF_Writer_writeLeave(writer, timestamp - 1, cur_vpe[event->pe], event->pe, 0);
-                    OTF_Writer_writeEnter(writer, timestamp, fn->second, event->pe, 0);
+                if(awake[event->tile] && cur_act[event->tile] != fn->second) {
+                    OTF_Writer_writeLeave(writer, timestamp - 1, cur_act[event->tile], event->tile, 0);
+                    OTF_Writer_writeEnter(writer, timestamp, fn->second, event->tile, 0);
                 }
 
-                cur_vpe[event->pe] = fn->second;
+                cur_act[event->tile] = fn->second;
                 break;
             }
         }
@@ -545,44 +545,44 @@ static void gen_pe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> &
         ++stats.total;
     }
 
-    for(uint32_t i = 0; i < pe_count; ++i) {
+    for(uint32_t i = 0; i < tile_count; ++i) {
         if(awake[i])
-            OTF_Writer_writeLeave(writer, timestamp, cur_vpe[i], i, 0);
+            OTF_Writer_writeLeave(writer, timestamp, cur_act[i], i, 0);
         else
             OTF_Writer_writeLeave(writer, timestamp, fn_exec_sleep, i, 0);
     }
 }
 
-static void gen_vpe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> &trace_buf,
-        uint32_t pe_count, uint32_t binary_count, char **binaries) {
+static void gen_act_events(OTF_Writer *writer, Stats &stats, std::vector<Event> &trace_buf,
+        uint32_t tile_count, uint32_t binary_count, char **binaries) {
     // Processes
-    std::set<unsigned> vpeIds;
+    std::set<unsigned> actIds;
 
-    OTF_Writer_writeDefProcess(writer, 0, PRIV_VPEID, "Priv VPE", 0);
-    OTF_Writer_assignProcess(writer, PRIV_VPEID, 1);
-    vpeIds.insert(PRIV_VPEID);
-    vpeIds.insert(IDLE_VPEID);
+    OTF_Writer_writeDefProcess(writer, 0, PRIV_ACTID, "Priv Activity", 0);
+    OTF_Writer_assignProcess(writer, PRIV_ACTID, 1);
+    actIds.insert(PRIV_ACTID);
+    actIds.insert(IDLE_ACTID);
 
     for(auto ev = trace_buf.begin(); ev != trace_buf.end(); ++ev) {
-        if(ev->type == EVENT_SET_VPEID && vpeIds.find(ev->tag) == vpeIds.end()) {
-            char vpeName[8];
-            snprintf(vpeName, sizeof(vpeName), "VPE%u", (unsigned)ev->tag);
-            OTF_Writer_writeDefProcess(writer, 0, ev->tag, vpeName, 0);
+        if(ev->type == EVENT_SET_ACTID && actIds.find(ev->tag) == actIds.end()) {
+            char actName[8];
+            snprintf(actName, sizeof(actName), "Act%u", (unsigned)ev->tag);
+            OTF_Writer_writeDefProcess(writer, 0, ev->tag, actName, 0);
             OTF_Writer_assignProcess(writer, ev->tag, 1);
-            vpeIds.insert(ev->tag);
+            actIds.insert(ev->tag);
         }
     }
 
     // Process groups
     size_t i = 0;
-    uint32_t allVPEs[vpeIds.size()];
-    for(auto it = vpeIds.begin(); it != vpeIds.end(); ++it, ++i)
-        allVPEs[i] = *it;
+    uint32_t allActs[actIds.size()];
+    for(auto it = actIds.begin(); it != actIds.end(); ++it, ++i)
+        allActs[i] = *it;
 
     unsigned grp_mem = (1 << 20) + 1;
-    OTF_Writer_writeDefProcessGroup(writer, 0, grp_mem, "Memory Read/Write", pe_count, allVPEs);
+    OTF_Writer_writeDefProcessGroup(writer, 0, grp_mem, "Memory Read/Write", tile_count, allActs);
     unsigned grp_msg = (1 << 20) + 2;
-    OTF_Writer_writeDefProcessGroup(writer, 0, grp_msg, "Message Send/Receive", pe_count, allVPEs);
+    OTF_Writer_writeDefProcessGroup(writer, 0, grp_msg, "Message Send/Receive", tile_count, allActs);
 
     // Function groups
     unsigned grp_func_count = 0;
@@ -600,7 +600,7 @@ static void gen_vpe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
 
     // Execution functions
     unsigned fn_exec_last = (2 << 20) + 0;
-    std::map<unsigned, unsigned> vpefuncs;
+    std::map<unsigned, unsigned> actfuncs;
 
     unsigned fn_exec_sleep = ++fn_exec_last;
     OTF_Writer_writeDefFunction(writer, 0, fn_exec_sleep, "Sleeping", grp_func_exec, 0);
@@ -619,26 +619,26 @@ static void gen_vpe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
 
     printf("writing OTF events\n");
 
-    unsigned cur_vpe[pe_count];
+    unsigned cur_act[tile_count];
 
-    for(uint32_t i = 0; i < pe_count; ++i)
-        cur_vpe[i] = PRIV_VPEID;
+    for(uint32_t i = 0; i < tile_count; ++i)
+        cur_act[i] = PRIV_ACTID;
 
     uint32_t ufunc_max_id = ( 3 << 20 );
     std::map<std::pair<int, std::string>, uint32_t> ufunc_map;
 
     uint32_t func_start_id = ( 4 << 20 );
 
-    // function call stack per VPE
-    std::array<uint, GEM5_MAX_VPES> func_stack;
+    // function call stack per activity
+    std::array<uint, GEM5_MAX_ACTS> func_stack;
     func_stack.fill( 0 );
-    std::array<uint, GEM5_MAX_VPES> ufunc_stack;
+    std::array<uint, GEM5_MAX_ACTS> ufunc_stack;
     ufunc_stack.fill( 0 );
 
     uint64_t timestamp = 0;
 
     std::map<unsigned, bool> awake;
-    for(auto it = vpeIds.begin(); it != vpeIds.end(); ++it) {
+    for(auto it = actIds.begin(); it != actIds.end(); ++it) {
         awake[*it] = false;
         OTF_Writer_writeEnter(writer, timestamp, fn_exec_sleep, *it, 0);
     }
@@ -650,16 +650,16 @@ static void gen_vpe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
             event->timestamp = timestamp + 1;
 
         timestamp = event->timestamp;
-        unsigned vpe = cur_vpe[event->pe];
-        unsigned remote_vpe = cur_vpe[event->remote];
+        unsigned act = cur_act[event->tile];
+        unsigned remote_act = cur_act[event->remote];
 
         if(verbose) {
-            unsigned pe = event->pe;
+            unsigned tile = event->tile;
             unsigned remote = event->remote;
-            event->pe = vpe;
-            event->remote = remote_vpe;
-            std::cout << pe << ": " << *event << "\n";
-            event->pe = pe;
+            event->tile = act;
+            event->remote = remote_act;
+            std::cout << tile << ": " << *event << "\n";
+            event->tile = tile;
             event->remote = remote;
         }
 
@@ -667,76 +667,76 @@ static void gen_vpe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
             case EVENT_MSG_SEND_START:
                 // TODO currently, we don't display that as functions, because it interferes with
                 // the UFUNCs.
-                // OTF_Writer_writeEnter(writer, timestamp, fn_msg_send, vpe, 0);
+                // OTF_Writer_writeEnter(writer, timestamp, fn_msg_send, act, 0);
                 OTF_Writer_writeSendMsg(writer, timestamp,
-                    vpe, remote_vpe, grp_msg, event->tag, event->size, 0);
+                    act, remote_act, grp_msg, event->tag, event->size, 0);
                 ++stats.send;
                 break;
 
             case EVENT_MSG_RECV:
                 OTF_Writer_writeRecvMsg(writer, timestamp,
-                    vpe, remote_vpe, grp_msg, event->tag, event->size, 0);
+                    act, remote_act, grp_msg, event->tag, event->size, 0);
                 ++stats.recv;
                 break;
 
             case EVENT_MSG_SEND_DONE:
-                // OTF_Writer_writeLeave(writer, timestamp, fn_msg_send, vpe, 0);
+                // OTF_Writer_writeLeave(writer, timestamp, fn_msg_send, act, 0);
                 break;
 
             case EVENT_MEM_READ_START:
-                // OTF_Writer_writeEnter(writer, timestamp, fn_mem_read, vpe, 0);
+                // OTF_Writer_writeEnter(writer, timestamp, fn_mem_read, act, 0);
                 OTF_Writer_writeSendMsg(writer, timestamp,
-                    vpe, remote_vpe, grp_mem, event->tag, event->size, 0);
+                    act, remote_act, grp_mem, event->tag, event->size, 0);
                 ++stats.read;
                 break;
 
             case EVENT_MEM_READ_DONE:
-                // OTF_Writer_writeLeave(writer, timestamp, fn_mem_read, vpe, 0);
+                // OTF_Writer_writeLeave(writer, timestamp, fn_mem_read, act, 0);
                 OTF_Writer_writeRecvMsg(writer, timestamp,
-                    remote_vpe, vpe, grp_mem, event->tag, event->size, 0);
+                    remote_act, act, grp_mem, event->tag, event->size, 0);
                 ++stats.finish;
                 break;
 
             case EVENT_MEM_WRITE_START:
-                // OTF_Writer_writeEnter(writer, timestamp, fn_mem_write, vpe, 0);
+                // OTF_Writer_writeEnter(writer, timestamp, fn_mem_write, act, 0);
                 OTF_Writer_writeSendMsg(writer, timestamp,
-                    vpe, remote_vpe, grp_mem, event->tag, event->size, 0);
+                    act, remote_act, grp_mem, event->tag, event->size, 0);
                 ++stats.write;
                 break;
 
             case EVENT_MEM_WRITE_DONE:
                 if(stats.read || stats.write) {
-                    // OTF_Writer_writeLeave(writer, timestamp, fn_mem_write, vpe, 0);
+                    // OTF_Writer_writeLeave(writer, timestamp, fn_mem_write, act, 0);
                     OTF_Writer_writeRecvMsg(writer, timestamp,
-                        remote_vpe, vpe, grp_mem, event->tag, event->size, 0);
+                        remote_act, act, grp_mem, event->tag, event->size, 0);
                     ++stats.finish;
                 }
                 break;
 
             case EVENT_WAKEUP:
-                if(!awake[vpe]) {
-                    OTF_Writer_writeLeave(writer, timestamp - 1, fn_exec_sleep, vpe, 0);
-                    OTF_Writer_writeEnter(writer, timestamp, fn_exec_running, vpe, 0);
-                    awake[vpe] = true;
+                if(!awake[act]) {
+                    OTF_Writer_writeLeave(writer, timestamp - 1, fn_exec_sleep, act, 0);
+                    OTF_Writer_writeEnter(writer, timestamp, fn_exec_running, act, 0);
+                    awake[act] = true;
                 }
                 break;
 
             case EVENT_SUSPEND:
-                if(awake[vpe]) {
-                    OTF_Writer_writeLeave(writer, timestamp - 1, fn_exec_running, vpe, 0);
-                    OTF_Writer_writeEnter(writer, timestamp, fn_exec_sleep, vpe, 0);
-                    awake[vpe] = false;
+                if(awake[act]) {
+                    OTF_Writer_writeLeave(writer, timestamp - 1, fn_exec_running, act, 0);
+                    OTF_Writer_writeEnter(writer, timestamp, fn_exec_sleep, act, 0);
+                    awake[act] = false;
                 }
                 break;
 
-            case EVENT_SET_VPEID: {
-                if(awake[vpe]) {
-                    OTF_Writer_writeLeave(writer, timestamp - 1, fn_exec_running, vpe, 0);
-                    OTF_Writer_writeEnter(writer, timestamp, fn_exec_sleep, vpe, 0);
-                    awake[vpe] = false;
+            case EVENT_SET_ACTID: {
+                if(awake[act]) {
+                    OTF_Writer_writeLeave(writer, timestamp - 1, fn_exec_running, act, 0);
+                    OTF_Writer_writeEnter(writer, timestamp, fn_exec_sleep, act, 0);
+                    awake[act] = false;
                 }
 
-                cur_vpe[event->pe] = event->tag;
+                cur_act[event->tile] = event->tag;
                 break;
             }
 
@@ -753,21 +753,21 @@ static void gen_vpe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
                 }
                 else
                     id = ufunc_map_iter->second;
-                ++(ufunc_stack[vpe]);
-                OTF_Writer_writeEnter(writer, timestamp, id, vpe, 0);
+                ++(ufunc_stack[act]);
+                OTF_Writer_writeEnter(writer, timestamp, id, act, 0);
                 ++stats.ufunc_enter;
             }
             break;
 
             case EVENT_UFUNC_EXIT: {
-                if(ufunc_stack[vpe] < 1) {
-                    std::cout << vpe << " WARNING: exit at ufunc stack level "
-                              << ufunc_stack[vpe] << " dropped.\n";
+                if(ufunc_stack[act] < 1) {
+                    std::cout << act << " WARNING: exit at ufunc stack level "
+                              << ufunc_stack[act] << " dropped.\n";
                     ++stats.warnings;
                 }
                 else {
-                    --(ufunc_stack[vpe]);
-                    OTF_Writer_writeLeave(writer, timestamp, 0, vpe, 0);
+                    --(ufunc_stack[act]);
+                    OTF_Writer_writeLeave(writer, timestamp, 0, act, 0);
                 }
                 ++stats.ufunc_exit;
             }
@@ -775,21 +775,21 @@ static void gen_vpe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
 
             case EVENT_FUNC_ENTER: {
                 uint32_t id = event->tag;
-                ++(func_stack[vpe]);
-                OTF_Writer_writeEnter(writer, timestamp, func_start_id + id, vpe, 0);
+                ++(func_stack[act]);
+                OTF_Writer_writeEnter(writer, timestamp, func_start_id + id, act, 0);
                 ++stats.func_enter;
             }
             break;
 
             case EVENT_FUNC_EXIT: {
-                if(func_stack[vpe] < 1) {
-                    std::cout << vpe << " WARNING: exit at func stack level "
-                              << func_stack[vpe] << " dropped.\n";
+                if(func_stack[act] < 1) {
+                    std::cout << act << " WARNING: exit at func stack level "
+                              << func_stack[act] << " dropped.\n";
                     ++stats.warnings;
                 }
                 else {
-                    --(func_stack[vpe]);
-                    OTF_Writer_writeLeave(writer, timestamp, 0, vpe, 0);
+                    --(func_stack[act]);
+                    OTF_Writer_writeLeave(writer, timestamp, 0, act, 0);
                 }
                 ++stats.func_exit;
             }
@@ -799,7 +799,7 @@ static void gen_vpe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
         ++stats.total;
     }
 
-    for(auto it = vpeIds.begin(); it != vpeIds.end(); ++it) {
+    for(auto it = actIds.begin(); it != actIds.end(); ++it) {
         if(awake[*it])
             OTF_Writer_writeLeave(writer, timestamp, fn_exec_running, *it, 0);
         else
@@ -808,22 +808,22 @@ static void gen_vpe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
 }
 
 static void usage(const char *name) {
-    fprintf(stderr, "Usage: %s [-v] (pes|vpes) <file> [<binary>...]\n", name);
+    fprintf(stderr, "Usage: %s [-v] (tiles|acts) <file> [<binary>...]\n", name);
     fprintf(stderr, "  -v:            be verbose\n");
-    fprintf(stderr, "  (pes|vpes):    the mode\n");
+    fprintf(stderr, "  (tiles|acts):    the mode\n");
     fprintf(stderr, "  <file>:        the gem5 log file\n");
     fprintf(stderr, "  [<binary>...]: optionally a list of binaries for profiling\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "The 'pes' mode generates a PE-centric trace, i.e., the PEs are the processes");
-    fprintf(stderr, " and it is shown at which points in time which VPE was running on which PE.\n");
-    fprintf(stderr, "The 'vpes' mode generates a VPE-centric trace, i.e., the VPEs are the processes");
+    fprintf(stderr, "The 'tiles' mode generates a tile-centric trace, i.e., the tiles are the processes");
+    fprintf(stderr, " and it is shown at which points in time which Activity was running on which tile.\n");
+    fprintf(stderr, "The 'acts' mode generates a Activity-centric trace, i.e., the activities are the processes");
     fprintf(stderr, " and it is shown what they do.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "The following gem5 flags (M3_GEM5_DBG) are used:\n");
     fprintf(stderr, " - Tcu,TcuCmd    for messages and memory reads/writes\n");
     fprintf(stderr, " - TcuConnector  for suspend/wakeup\n");
-    fprintf(stderr, " - TcuRegWrite   for the running VPE\n");
-    fprintf(stderr, " - Exec,ExecPC   for profiling (only in 'vpes' mode)\n");
+    fprintf(stderr, " - TcuRegWrite   for the running Activity\n");
+    fprintf(stderr, " - Exec,ExecPC   for profiling (only in 'acts' mode)\n");
     exit(EXIT_FAILURE);
 }
 
@@ -832,27 +832,27 @@ int main(int argc,char **argv) {
         usage(argv[0]);
 
     int argstart = 1;
-    Mode mode = MODE_PES;
+    Mode mode = MODE_TILES;
     if(strcmp(argv[1], "-v") == 0) {
         verbose = 1;
         argstart++;
     }
 
-    if(strcmp(argv[argstart], "pes") == 0)
-        mode = MODE_PES;
-    else if(strcmp(argv[argstart], "vpes") == 0)
-        mode = MODE_VPES;
+    if(strcmp(argv[argstart], "tiles") == 0)
+        mode = MODE_TILES;
+    else if(strcmp(argv[argstart], "acts") == 0)
+        mode = MODE_ACTS;
     else
         usage(argv[0]);
 
-    if(mode == MODE_VPES) {
+    if(mode == MODE_ACTS) {
         for(int i = argstart + 2; i < argc; ++i)
             syms.addFile(argv[i]);
     }
 
     std::vector<Event> trace_buf;
 
-    uint32_t pe_count = read_trace_file(argv[argstart + 1], mode, trace_buf);
+    uint32_t tile_count = read_trace_file(argv[argstart + 1], mode, trace_buf);
 
     // now sort the trace buffer according to timestamps
     printf( "sorting %zu events\n", trace_buf.size());
@@ -879,10 +879,10 @@ int main(int argc,char **argv) {
 
     Stats stats;
 
-    if(mode == MODE_PES)
-        gen_pe_events(writer, stats, trace_buf, pe_count);
+    if(mode == MODE_TILES)
+        gen_pe_events(writer, stats, trace_buf, tile_count);
     else {
-        gen_vpe_events(writer, stats, trace_buf, pe_count,
+        gen_act_events(writer, stats, trace_buf, tile_count,
             static_cast<uint32_t>(argc - (argstart + 2)), argv + argstart + 2);
     }
 

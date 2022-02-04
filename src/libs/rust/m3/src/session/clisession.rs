@@ -19,9 +19,9 @@ use core::fmt;
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::errors::Error;
 use crate::kif;
-use crate::pes::VPE;
 use crate::serialize::{Sink, Source};
 use crate::syscalls;
+use crate::tiles::Activity;
 
 /// Represents an established connection to a server that can be used to exchange capabilities.
 pub struct ClientSession {
@@ -32,13 +32,13 @@ pub struct ClientSession {
 impl ClientSession {
     /// Creates a new `ClientSession` by connecting to the service with given name.
     pub fn new(name: &str) -> Result<Self, Error> {
-        Self::new_with_sel(name, VPE::cur().alloc_sel())
+        Self::new_with_sel(name, Activity::cur().alloc_sel())
     }
 
     /// Creates a new `ClientSession` by connecting to the service with given name, using the given
     /// capability selector for the session.
     pub fn new_with_sel(name: &str, sel: Selector) -> Result<Self, Error> {
-        VPE::cur().resmng().unwrap().open_sess(sel, name)?;
+        Activity::cur().resmng().unwrap().open_sess(sel, name)?;
 
         Ok(ClientSession {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
@@ -84,16 +84,16 @@ impl ClientSession {
         PRE: Fn(&mut Sink),
         POST: FnMut(&mut Source) -> Result<(), Error>,
     {
-        self.delegate_for(VPE::cur().sel(), crd, pre, post)
+        self.delegate_for(Activity::cur().sel(), crd, pre, post)
     }
 
-    /// Delegates the given capability range from `vpe` to the server, using `pre` and `post` for
+    /// Delegates the given capability range from `act` to the server, using `pre` and `post` for
     /// input and output arguments. `pre` is called with a [`Sink`] before the delegation operation,
     /// allowing to pass arguments to the server. `post` is called with a [`Source`] after the
     /// delegation operation, allowing to get arguments from the server.
     pub fn delegate_for<PRE, POST>(
         &self,
-        vpe: Selector,
+        act: Selector,
         crd: kif::CapRngDesc,
         pre: PRE,
         post: POST,
@@ -102,7 +102,7 @@ impl ClientSession {
         PRE: Fn(&mut Sink),
         POST: FnMut(&mut Source) -> Result<(), Error>,
     {
-        syscalls::delegate(vpe, self.sel(), crd, pre, post)
+        syscalls::delegate(act, self.sel(), crd, pre, post)
     }
 
     /// Obtains an object capability from the server and returns its selector.
@@ -129,19 +129,19 @@ impl ClientSession {
         PRE: Fn(&mut Sink),
         POST: FnMut(&mut Source) -> Result<(), Error>,
     {
-        let caps = VPE::cur().alloc_sels(count);
+        let caps = Activity::cur().alloc_sels(count);
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, caps, count);
-        self.obtain_for(VPE::cur().sel(), crd, pre, post)?;
+        self.obtain_for(Activity::cur().sel(), crd, pre, post)?;
         Ok(crd)
     }
 
-    /// Obtains `count` capabilities from the server for VPE `vpe`, using `pre` and `post` for input
+    /// Obtains `count` capabilities from the server for activity `act`, using `pre` and `post` for input
     /// and output arguments. `pre` is called with a [`Sink`] before the obtain operation, allowing
     /// to pass arguments to the server. `post` is called with a [`Source`] after the obtain
     /// operation, allowing to get arguments from the server.
     pub fn obtain_for<PRE, POST>(
         &self,
-        vpe: Selector,
+        act: Selector,
         crd: kif::CapRngDesc,
         pre: PRE,
         post: POST,
@@ -150,14 +150,18 @@ impl ClientSession {
         PRE: Fn(&mut Sink),
         POST: FnMut(&mut Source) -> Result<(), Error>,
     {
-        syscalls::obtain(vpe, self.sel(), crd, pre, post)
+        syscalls::obtain(act, self.sel(), crd, pre, post)
     }
 }
 
 impl Drop for ClientSession {
     fn drop(&mut self) {
         if self.close {
-            VPE::cur().resmng().unwrap().close_sess(self.sel()).ok();
+            Activity::cur()
+                .resmng()
+                .unwrap()
+                .close_sess(self.sel())
+                .ok();
         }
     }
 }

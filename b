@@ -134,14 +134,14 @@ help() {
     echo "    M3_GEM5_CPUFREQ:         The CPU frequency (1GHz by default)."
     echo "    M3_GEM5_MEMFREQ:         The memory frequency (333MHz by default)."
     echo "    M3_GEM5_FSNUM:           The number of times to load the FS image."
-    echo "    M3_GEM5_PAUSE:           Pause the PE with given number until GDB connects"
+    echo "    M3_GEM5_PAUSE:           Pause the tile with given number until GDB connects"
     echo "                             (only on gem5 and with command dbg=)."
     echo "    M3_HW_SSH:               The SSH alias for the FPGA PC (default: syn)"
     echo "    M3_HW_FPGA:              The FPGA number (default 0 = IP 192.168.42.240)"
     echo "    M3_HW_RESET:             Reset the FPGA before starting"
     echo "    M3_HW_VM:                Use virtual memory"
     echo "    M3_HW_TIMEOUT:           Stop execution after given number of seconds."
-    echo "    M3_HW_PAUSE:             Pause the PE with given number at startup"
+    echo "    M3_HW_PAUSE:             Pause the tile with given number at startup"
     echo "                             (only on hw and with command dbg=)."
     exit 0
 }
@@ -270,8 +270,8 @@ case "$cmd" in
 
     clippy)
         while IFS= read -r -d '' f; do
-            # pemux can't be built for host
-            if [ "$M3_TARGET" = "host" ] && [[ $f =~ "pemux" ]]; then
+            # tilemux can't be built for host
+            if [ "$M3_TARGET" = "host" ] && [[ $f =~ "tilemux" ]]; then
                 continue;
             fi
             # gem5log+hwitrace are always built for the host OS (not our host target)
@@ -369,8 +369,8 @@ case "$cmd" in
                 port=$((M3_GEM5_PAUSE + 7000))
             else
                 echo "Warning: M3_GEM5_PAUSE not specified; gem5 won't wait for GDB."
-                pe=$(grep --text "^PE.*$build/bin/${cmd#dbg=}" $M3_OUT/log.txt | cut -d : -f 1)
-                port=$((${pe#PE} + 7000))
+                tile=$(grep --text "^T.*$build/bin/${cmd#dbg=}" $M3_OUT/log.txt | cut -d : -f 1)
+                port=$((${tile#T} + 7000))
             fi
 
             gdbcmd=$(mktemp)
@@ -385,7 +385,7 @@ case "$cmd" in
             rm "$gdbcmd"
         else
             if [ "$M3_HW_PAUSE" = "" ]; then
-                echo "Please set M3_HW_PAUSE to the PE to debug."
+                echo "Please set M3_HW_PAUSE to the tile to debug."
                 exit 1
             fi
             ./src/tools/execute.sh "$script" "--debug=${cmd#dbg=}" &>/dev/null &
@@ -427,7 +427,7 @@ case "$cmd" in
                     echo "symbol-file $bindir/${cmd#dbg=}"
                     echo "b main"
                 } >> "$gdbcmd"
-                symbols=$bindir/pemux
+                symbols=$bindir/tilemux
             fi
             echo "display/i \$pc" >> "$gdbcmd"
 

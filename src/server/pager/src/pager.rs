@@ -34,13 +34,13 @@ use m3::format;
 use m3::kif;
 use m3::log;
 use m3::math;
-use m3::pes::{VPEArgs, VPE};
 use m3::println;
 use m3::server::{
     CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer, DEF_MSG_SIZE,
 };
 use m3::session::{ClientSession, Pager, PagerOp, ResMng, M3FS};
-use m3::tcu::{Label, PEId};
+use m3::tcu::{Label, TileId};
+use m3::tiles::{Activity, ActivityArgs};
 use m3::vfs;
 
 use addrspace::AddrSpace;
@@ -52,7 +52,7 @@ pub const LOG_DEF: bool = false;
 static PGHDL: LazyStaticRefCell<PagerReqHandler> = LazyStaticRefCell::default();
 static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 static MOUNTS: LazyStaticRefCell<Vec<(String, vfs::FSHandle)>> = LazyStaticRefCell::default();
-static PMP_PES: StaticRefCell<Vec<PEId>> = StaticRefCell::new(Vec::new());
+static PMP_TILES: StaticRefCell<Vec<TileId>> = StaticRefCell::new(Vec::new());
 static SETTINGS: LazyStaticRefCell<PagerSettings> = LazyStaticRefCell::default();
 
 struct PagerReqHandler {
@@ -182,11 +182,11 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
             .label(Label::from(sid as u32)),
     )?;
 
-    // create child VPE
-    let pe_usage = child.child_pe().unwrap();
-    let mut vpe = VPE::new_with(
-        pe_usage.pe_obj().clone(),
-        VPEArgs::new(child.name())
+    // create child activity
+    let tile_usage = child.child_tile().unwrap();
+    let mut act = Activity::new_with(
+        tile_usage.tile_obj().clone(),
+        ActivityArgs::new(child.name())
             .resmng(ResMng::new(resmng_sgate))
             .pager(Pager::new(sess, pager_sgate)?)
             .kmem(child.kmem().unwrap()),
@@ -195,39 +195,39 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
     // TODO make that more flexible
     // add PMP EP for file system
     {
-        let mut pmp_pes = PMP_PES.borrow_mut();
-        if !pmp_pes.iter().any(|id| *id == pe_usage.pe_id()) {
+        let mut pmp_tiles = PMP_TILES.borrow_mut();
+        if !pmp_tiles.iter().any(|id| *id == tile_usage.tile_id()) {
             let size = SETTINGS.borrow().fs_size;
             let fs_mem = MemGate::new_with(MGateArgs::new(size, kif::Perm::R).addr(0))?;
-            child.our_pe().add_mem_region(fs_mem, size, true)?;
-            pmp_pes.push(pe_usage.pe_id());
+            child.our_tile().add_mem_region(fs_mem, size, true)?;
+            pmp_tiles.push(tile_usage.tile_id());
         }
     }
 
     // pass subsystem info to child, if it's a subsystem
     let id = child.id();
     if let Some(sub) = child.subsys() {
-        sub.finalize_async(id, &mut vpe)?;
+        sub.finalize_async(id, &mut act)?;
     }
 
     // mount file systems for childs
     for m in child.cfg().mounts() {
         let fs = get_mount(m.fs())?;
-        vpe.mounts().add(m.path(), fs)?;
+        act.mounts().add(m.path(), fs)?;
     }
 
-    // init address space (give it VPE and mgate selector)
+    // init address space (give it activity and mgate selector)
     let mut hdl = PGHDL.borrow_mut();
     let mut aspace = hdl.sessions.get_mut(sid).unwrap();
-    aspace.init(Some(child.id()), Some(vpe.sel())).unwrap();
+    aspace.init(Some(child.id()), Some(act.sel())).unwrap();
 
-    // start VPE
+    // start activity
     let file = vfs::VFS::open(child.name(), vfs::OpenFlags::RX | vfs::OpenFlags::NEW_SESS)
         .map_err(|e| VerboseError::new(e.code(), format!("Unable to open {}", child.name())))?;
-    let mut mapper = mapper::ChildMapper::new(&mut aspace, vpe.pe_desc().has_virtmem());
+    let mut mapper = mapper::ChildMapper::new(&mut aspace, act.tile_desc().has_virtmem());
     child
-        .start(vpe, &mut mapper, file)
-        .map_err(|e| VerboseError::new(e.code(), "Unable to start VPE".to_string()))
+        .start(act, &mut mapper, file)
+        .map_err(|e| VerboseError::new(e.code(), "Unable to start Activity".to_string()))
 }
 
 fn handle_request(op: PagerOp, is: &mut GateIStream) -> Result<(), Error> {
@@ -306,7 +306,7 @@ pub fn main() -> i32 {
     }
     MOUNTS.borrow_mut().push((
         "m3fs".to_string(),
-        VPE::cur().mounts().get_by_path("/").unwrap(),
+        Activity::cur().mounts().get_by_path("/").unwrap(),
     ));
 
     // create server

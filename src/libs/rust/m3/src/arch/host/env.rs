@@ -22,11 +22,11 @@ use crate::cap::Selector;
 use crate::cell::LazyStaticUnsafeCell;
 use crate::col::{String, Vec};
 use crate::com::SendGate;
-use crate::kif::{self, PEDesc, PEType, PEISA};
+use crate::kif::{self, TileDesc, TileISA, TileType};
 use crate::libc;
 use crate::serialize::Source;
 use crate::session::{Pager, ResMng};
-use crate::tcu::{EpId, Label, VPEId};
+use crate::tcu::{ActId, EpId, Label};
 use crate::vfs::{FileTable, MountTable};
 
 pub struct EnvData {
@@ -41,20 +41,20 @@ impl EnvData {
         base::envdata::get()
     }
 
-    pub fn vpe_id(&self) -> VPEId {
-        self.sysc_lbl as VPEId
+    pub fn activity_id(&self) -> ActId {
+        self.sysc_lbl as ActId
     }
 
-    pub fn pe_id(&self) -> u64 {
-        self.base().pe_id
+    pub fn tile_id(&self) -> u64 {
+        self.base().tile_id
     }
 
     pub fn shared(&self) -> bool {
         self.base().shared != 0
     }
 
-    pub fn pe_desc(&self) -> PEDesc {
-        PEDesc::new_from(self.base().pe_desc)
+    pub fn tile_desc(&self) -> TileDesc {
+        TileDesc::new_from(self.base().tile_desc)
     }
 
     pub fn first_std_ep(&self) -> EpId {
@@ -158,7 +158,7 @@ pub fn init(argc: i32, argv: *const *const i8) {
 
     let base = base::envdata::EnvData::new(
         read_line(fd).parse::<u64>().unwrap(),
-        PEDesc::new(PEType::COMP_IMEM, PEISA::X86, 1024 * 1024),
+        TileDesc::new(TileType::COMP_IMEM, TileISA::X86, 1024 * 1024),
         argc,
         argv,
         read_line(fd).parse::<Selector>().unwrap(),

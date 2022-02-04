@@ -98,7 +98,7 @@ impl Log {
         }
     }
 
-    pub(crate) fn init(&mut self, pe_id: u64, name: &str) {
+    pub(crate) fn init(&mut self, tile_id: u64, name: &str) {
         let colors = ["31", "32", "33", "34", "35", "36"];
         let begin = match name.rfind('/') {
             Some(b) => b + 1,
@@ -108,9 +108,9 @@ impl Log {
 
         self.pos = 0;
         self.write_fmt(format_args!(
-            "\x1B[0;{}m[PE{:X}:{:<8}@",
-            colors[(pe_id as usize) % colors.len()],
-            pe_id,
+            "\x1B[0;{}m[T{:X}:{:<8}@",
+            colors[(tile_id as usize) % colors.len()],
+            tile_id,
             &name[begin..begin + len]
         ))
         .unwrap();
@@ -145,12 +145,7 @@ impl Write for Log {
 }
 
 /// Initializes the logger
-pub fn init(pe_id: u64, name: &str) {
+pub fn init(tile_id: u64, name: &str) {
     LOG_READY.set(true);
-    reinit(pe_id, name);
-}
-
-/// Reinitializes the logger (for VPE::run)
-pub fn reinit(pe_id: u64, name: &str) {
-    Log::get().unwrap().init(pe_id, name);
+    Log::get().unwrap().init(tile_id, name);
 }

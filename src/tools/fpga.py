@@ -42,11 +42,11 @@ def write_str(mod, str, addr):
     buf += b'\x00'
     mod.mem.write_bytes(addr, bytes(buf), burst=False) # TODO enable burst
 
-def glob_addr(pe, offset):
-    return (0x80 + pe) << 56 | offset
+def glob_addr(tile, offset):
+    return (0x80 + tile) << 56 | offset
 
-def send_input(fpga_inst, pe, ep, bytes):
-    fpga_inst.nocif.send_bytes((0, pe), ep, bytes)
+def send_input(fpga_inst, tile, ep, bytes):
+    fpga_inst.nocif.send_bytes((0, tile), ep, bytes)
 
 def write_file(mod, file, offset):
     print("%s: loading %u bytes to %#x" % (mod.name, os.path.getsize(file), offset))
@@ -64,23 +64,23 @@ def add_mod(dram, addr, name, offset):
     write_file(dram, name, addr)
     return size
 
-def pe_desc(i, vm):
-    pe_desc = (3 << 3) | 1 if vm else pmp_size | (3 << 3) | 0
+def tile_desc(i, vm):
+    tile_desc = (3 << 3) | 1 if vm else pmp_size | (3 << 3) | 0
     if i < 5:
-        pe_desc |= 1 << 8 # Rocket core
+        tile_desc |= 1 << 8 # Rocket core
     else:
-        pe_desc |= 1 << 7 # BOOM core
+        tile_desc |= 1 << 7 # BOOM core
     if i == 6:
-        pe_desc |= 1 << 9 # NIC
-    return pe_desc
+        tile_desc |= 1 << 9 # NIC
+    return tile_desc
 
-def load_boot_info(dram, mods, pes, vm):
-    info_start = MAX_FS_SIZE + len(pes) * pmp_size
+def load_boot_info(dram, mods, tiles, vm):
+    info_start = MAX_FS_SIZE + len(tiles) * pmp_size
 
     # boot info
     kenv_off = info_start
     write_u64(dram, kenv_off + 0 * 8, len(mods))    # mod_count
-    write_u64(dram, kenv_off + 1 * 8, len(pes) + 1) # pe_count
+    write_u64(dram, kenv_off + 1 * 8, len(tiles) + 1) # tile_count
     write_u64(dram, kenv_off + 2 * 8, 1)            # mem_count
     write_u64(dram, kenv_off + 3 * 8, 0)            # serv_count
     kenv_off += 8 * 4
@@ -92,9 +92,9 @@ def load_boot_info(dram, mods, pes, vm):
         mods_addr = (mods_addr + mod_size + 4096 - 1) & ~(4096 - 1)
         kenv_off += 80
 
-    # PEs
-    for x in range(0, len(pes)):
-        write_u64(dram, kenv_off, pe_desc(x, vm))       # PM
+    # tiles
+    for x in range(0, len(tiles)):
+        write_u64(dram, kenv_off, tile_desc(x, vm))       # PM
         kenv_off += 8
     write_u64(dram, kenv_off, DRAM_SIZE | (0 << 3) | 2) # dram
     kenv_off += 8
@@ -115,7 +115,7 @@ def load_prog(dram, pms, i, args, vm):
     # reset TCU (clear command log and reset registers except FEATURES and EPs)
     pm.tcu_reset()
 
-    # enable instruction trace for all PEs (doesn't cost anything)
+    # enable instruction trace for all tiles (doesn't cost anything)
     pm.rocket_enableTrace()
 
     # set features: privileged, vm, ctxsw
@@ -128,8 +128,8 @@ def load_prog(dram, pms, i, args, vm):
     mem_begin = MAX_FS_SIZE + i * pmp_size
     # install first PMP EP
     pmp_ep = MemEP()
-    pmp_ep.set_pe(dram.mem.nocid[1])
-    pmp_ep.set_vpe(0xFFFF)
+    pmp_ep.set_tile(dram.mem.nocid[1])
+    pmp_ep.set_act(0xFFFF)
     pmp_ep.set_flags(Flags.READ | Flags.WRITE)
     pmp_ep.set_addr(mem_begin)
     pmp_ep.set_size(pmp_size)
@@ -150,15 +150,15 @@ def load_prog(dram, pms, i, args, vm):
         heap_size = 0x10000
     else:
         heap_size = 0
-    desc = pe_desc(i, vm)
+    desc = tile_desc(i, vm)
     kenv = glob_addr(MEM_TILE, MAX_FS_SIZE + len(pms) * pmp_size) if i == 0 else 0
 
     # init environment
     dram_env = ENV + mem_begin - DRAM_OFF
     write_u64(dram, dram_env - 8, 0x0000106f)  # j _start (+0x1000)
     write_u64(dram, dram_env + 0, 1)           # platform = HW
-    write_u64(dram, dram_env + 8, i)           # pe_id
-    write_u64(dram, dram_env + 16, desc)       # pe_desc
+    write_u64(dram, dram_env + 8, i)           # tile_id
+    write_u64(dram, dram_env + 16, desc)       # tile_desc
     write_u64(dram, dram_env + 24, len(args))  # argc
     write_u64(dram, dram_env + 32, argv)       # argv
     write_u64(dram, dram_env + 40, heap_size)  # heap size
@@ -187,7 +187,7 @@ class TCUTerm:
         # get original terminal attributes to restore them later
         self.old = termios.tcgetattr(self.fd)
         self.fpga_inst = fpga_inst
-        # reset PE and EP in case they are set from a previous run
+        # reset tile and EP in case they are set from a previous run
         write_u64(fpga_inst.dram1, serial_begin + 0, 0)
         write_u64(fpga_inst.dram1, serial_begin + 8, 0)
 
@@ -211,11 +211,11 @@ class TCUTerm:
         global serial_begin
         bytes = c.encode('utf-8')
         # read desired destination
-        pe = read_u64(self.fpga_inst.dram1, serial_begin + 0)
+        tile = read_u64(self.fpga_inst.dram1, serial_begin + 0)
         ep = read_u64(self.fpga_inst.dram1, serial_begin + 8)
         # only send if it was initialized
         if ep != 0:
-            send_input(self.fpga_inst, pe, ep, bytes)
+            send_input(self.fpga_inst, tile, ep, bytes)
 
     def cleanup(self):
         termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.old)
@@ -227,7 +227,7 @@ def main():
     parser.add_argument('--fpga', type=int)
     parser.add_argument('--reset', action='store_true')
     parser.add_argument('--debug', type=int)
-    parser.add_argument('--pe', action='append')
+    parser.add_argument('--tile', action='append')
     parser.add_argument('--mod', action='append')
     parser.add_argument('--vm', action='store_true')
     parser.add_argument('--timeout', type=int)
@@ -237,13 +237,13 @@ def main():
     # connect to FPGA
     fpga_inst = fpga_top.FPGA_TOP(args.fpga, args.reset)
 
-    # stop all PEs
-    for pe in fpga_inst.pms:
-        pe.stop()
+    # stop all tiles
+    for tile in fpga_inst.pms:
+        tile.stop()
 
     # disable NoC ARQ for program upload
-    for pe in fpga_inst.pms:
-        pe.nocarq.set_arq_enable(0)
+    for tile in fpga_inst.pms:
+        tile.nocarq.set_arq_enable(0)
     fpga_inst.eth_rf.nocarq.set_arq_enable(0)
     fpga_inst.dram1.nocarq.set_arq_enable(0)
     fpga_inst.dram2.nocarq.set_arq_enable(0)
@@ -262,21 +262,21 @@ def main():
     if not args.fs is None:
         write_file(fpga_inst.dram1, args.fs, 0)
 
-    # load programs onto PEs
-    for i, peargs in enumerate(args.pe[0:len(fpga_inst.pms)], 0):
-        load_prog(fpga_inst.dram1, fpga_inst.pms, i, peargs.split(' '), args.vm)
+    # load programs onto tiles
+    for i, pargs in enumerate(args.tile[0:len(fpga_inst.pms)], 0):
+        load_prog(fpga_inst.dram1, fpga_inst.pms, i, pargs.split(' '), args.vm)
 
     # enable NoC ARQ when cores are running
-    for pe in fpga_inst.pms:
-        pe.nocarq.set_arq_enable(1)
-        pe.nocarq.set_arq_timeout(200)    #reduce timeout
+    for tile in fpga_inst.pms:
+        tile.nocarq.set_arq_enable(1)
+        tile.nocarq.set_arq_timeout(200)    #reduce timeout
     fpga_inst.dram1.nocarq.set_arq_enable(1)
     fpga_inst.dram2.nocarq.set_arq_enable(1)
 
-    # start PEs
-    debug_pe = len(fpga_inst.pms) if args.debug is None else args.debug
-    for i, pe in enumerate(fpga_inst.pms, 0):
-        if i != debug_pe:
+    # start tiles
+    debug_tile = len(fpga_inst.pms) if args.debug is None else args.debug
+    for i, tile in enumerate(fpga_inst.pms, 0):
+        if i != debug_tile:
             # start core (via interrupt 0)
             fpga_inst.pms[i].rocket_start()
 
@@ -330,23 +330,23 @@ def main():
     term.cleanup()
 
     # disable NoC ARQ again for post-processing
-    for pe in fpga_inst.pms:
-        pe.nocarq.set_arq_enable(0)
+    for tile in fpga_inst.pms:
+        tile.nocarq.set_arq_enable(0)
     fpga_inst.dram1.nocarq.set_arq_enable(0)
     fpga_inst.dram2.nocarq.set_arq_enable(0)
 
-    # stop all PEs
-    print("Stopping all PEs...")
-    for i, pe in enumerate(fpga_inst.pms, 0):
+    # stop all tiles
+    print("Stopping all tiles...")
+    for i, tile in enumerate(fpga_inst.pms, 0):
         try:
-            dropped_packets = pe.nocarq.get_arq_drop_packet_count()
-            total_packets = pe.nocarq.get_arq_packet_count()
+            dropped_packets = tile.nocarq.get_arq_drop_packet_count()
+            total_packets = tile.nocarq.get_arq_packet_count()
             print("PM{}: NoC dropped/total packets: {}/{} ({:.0f}%)".format(i, dropped_packets, total_packets, dropped_packets/total_packets*100))
         except Exception as e:
             print("PM{}: unable to read number of dropped NoC packets: {}".format(i, e))
 
         try:
-            print("PM{}: TCU dropped/error flits: {}/{}".format(i, pe.tcu_drop_flit_count(), pe.tcu_error_flit_count()))
+            print("PM{}: TCU dropped/error flits: {}/{}".format(i, tile.tcu_drop_flit_count(), tile.tcu_error_flit_count()))
         except Exception as e:
             print("PM{}: unable to read number of TCU dropped flits: {}".format(i, e))
 
@@ -355,31 +355,31 @@ def main():
             print("PM{}: reading TCU log...".format(i))
             sys.stdout.flush()
             try:
-                pe.tcu_print_log('log/pm' + str(i) + '-tcu-cmds.log')
+                tile.tcu_print_log('log/pm' + str(i) + '-tcu-cmds.log')
             except Exception as e:
                 print("PM{}: unable to read TCU log: {}".format(i, e))
                 print("PM{}: resetting TCU and reading all logs...".format(i))
                 sys.stdout.flush()
-                pe.tcu_reset()
+                tile.tcu_reset()
                 try:
-                    pe.tcu_print_log('log/pm' + str(i) + '-tcu-cmds.log', all=True)
+                    tile.tcu_print_log('log/pm' + str(i) + '-tcu-cmds.log', all=True)
                 except:
                     pass
 
         # extract instruction trace
         try:
-            pe.rocket_printTrace('log/pm' + str(i) + '-instrs.log')
+            tile.rocket_printTrace('log/pm' + str(i) + '-instrs.log')
         except Exception as e:
             print("PM{}: unable to read instruction trace: {}".format(i, e))
             print("PM{}: resetting TCU and reading all logs...".format(i))
             sys.stdout.flush()
-            pe.tcu_reset()
+            tile.tcu_reset()
             try:
-                pe.rocket_printTrace('log/pm' + str(i) + '-instrs.log', all=True)
+                tile.rocket_printTrace('log/pm' + str(i) + '-instrs.log', all=True)
             except:
                 pass
 
-        pe.stop()
+        tile.stop()
 
 try:
     main()

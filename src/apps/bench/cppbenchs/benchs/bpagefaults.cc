@@ -32,13 +32,13 @@ NOINLINE static void anon() {
     Profile pr(4, 4);
     WVPERF("anon mapping (64 pages)", pr.run<CycleInstant>([] {
         goff_t virt = 0x30000000;
-        VPE::self().pager()->map_anon(&virt, PAGES * PAGE_SIZE, Pager::READ | Pager::WRITE, 0);
+        Activity::self().pager()->map_anon(&virt, PAGES * PAGE_SIZE, Pager::READ | Pager::WRITE, 0);
 
         auto data = reinterpret_cast<char*>(virt);
         for(size_t i = 0; i < PAGES; ++i)
             data[i * PAGE_SIZE] = i;
 
-        VPE::self().pager()->unmap(virt);
+        Activity::self().pager()->unmap(virt);
     }));
 }
 
@@ -48,19 +48,19 @@ NOINLINE static void file() {
         FileRef f("/large.bin", FILE_RW | FILE_NEWSESS);
 
         goff_t virt = 0x31000000;
-        f->map(VPE::self().pager(), &virt, 0, PAGES * PAGE_SIZE, Pager::READ | Pager::WRITE, 0);
+        f->map(Activity::self().pager(), &virt, 0, PAGES * PAGE_SIZE, Pager::READ | Pager::WRITE, 0);
 
         auto data = reinterpret_cast<char*>(virt);
         for(size_t i = 0; i < PAGES; ++i)
             data[i * PAGE_SIZE] = i;
 
-        VPE::self().pager()->unmap(virt);
+        Activity::self().pager()->unmap(virt);
     }));
 }
 
 void bpagefaults() {
-    if(!VPE::self().pe_desc().has_virtmem()) {
-        cout << "PE has no virtual memory support; skipping pagefault benchmark.\n";
+    if(!Activity::self().tile_desc().has_virtmem()) {
+        cout << "Tile has no virtual memory support; skipping pagefault benchmark.\n";
         return;
     }
 

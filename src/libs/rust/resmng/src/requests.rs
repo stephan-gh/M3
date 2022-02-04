@@ -22,10 +22,10 @@ use m3::errors::{Code, Error, VerboseError};
 use m3::goff;
 use m3::kif;
 use m3::log;
-use m3::pes::VPE;
 use m3::reply_vmsg;
 use m3::session::ResMngOperation;
-use m3::tcu::VPEId;
+use m3::tcu::ActId;
+use m3::tiles::Activity;
 
 use crate::childs::{self, Id};
 use crate::sendqueue;
@@ -74,7 +74,7 @@ where
             break;
         }
 
-        VPE::sleep().ok();
+        Activity::sleep().ok();
     }
 
     if !thread::cur().is_main() {
@@ -102,12 +102,12 @@ fn handle_request_async(mut is: GateIStream) {
         Ok(ResMngOperation::ALLOC_MEM) => alloc_mem(&mut is, id),
         Ok(ResMngOperation::FREE_MEM) => free_mem(&mut is, id),
 
-        Ok(ResMngOperation::ALLOC_PE) => match alloc_pe(&mut is, id) {
+        Ok(ResMngOperation::ALLOC_TILE) => match alloc_tile(&mut is, id) {
             // reply already done
             Ok(_) => return,
             Err(e) => Err(e),
         },
-        Ok(ResMngOperation::FREE_PE) => free_pe(&mut is, id),
+        Ok(ResMngOperation::FREE_TILE) => free_tile(&mut is, id),
 
         Ok(ResMngOperation::USE_RGATE) => match use_rgate(&mut is, id) {
             // reply already done
@@ -170,18 +170,18 @@ fn close_session_async(is: &mut GateIStream, id: Id) -> Result<(), Error> {
 }
 
 fn add_child(is: &mut GateIStream, id: Id) -> Result<(), Error> {
-    let vpe_id: VPEId = is.pop()?;
-    let vpe_sel: Selector = is.pop()?;
+    let act_id: ActId = is.pop()?;
+    let act_sel: Selector = is.pop()?;
     let sgate_sel: Selector = is.pop()?;
     let name: String = is.pop()?;
 
-    childs::add_child(id, vpe_id, vpe_sel, &RGATE.borrow(), sgate_sel, name)
+    childs::add_child(id, act_id, act_sel, &RGATE.borrow(), sgate_sel, name)
 }
 
 fn rem_child_async(is: &mut GateIStream, id: Id) -> Result<(), Error> {
-    let vpe_sel: Selector = is.pop()?;
+    let act_sel: Selector = is.pop()?;
 
-    childs::rem_child_async(id, vpe_sel)
+    childs::rem_child_async(id, act_sel)
 }
 
 fn alloc_mem(is: &mut GateIStream, id: Id) -> Result<(), Error> {
@@ -208,23 +208,23 @@ fn free_mem(is: &mut GateIStream, id: Id) -> Result<(), Error> {
     child.free_mem(sel)
 }
 
-fn alloc_pe(is: &mut GateIStream, id: Id) -> Result<(), Error> {
+fn alloc_tile(is: &mut GateIStream, id: Id) -> Result<(), Error> {
     let dst_sel: Selector = is.pop()?;
-    let desc = kif::PEDesc::new_from(is.pop()?);
+    let desc = kif::TileDesc::new_from(is.pop()?);
 
     let mut childs = childs::borrow_mut();
     let child = childs.child_by_id_mut(id).unwrap();
     child
-        .alloc_pe(dst_sel, desc)
+        .alloc_tile(dst_sel, desc)
         .and_then(|(id, desc)| reply_vmsg!(is, Code::None as u32, id, desc.value()))
 }
 
-fn free_pe(is: &mut GateIStream, id: Id) -> Result<(), Error> {
+fn free_tile(is: &mut GateIStream, id: Id) -> Result<(), Error> {
     let sel: Selector = is.pop()?;
 
     let mut childs = childs::borrow_mut();
     let child = childs.child_by_id_mut(id).unwrap();
-    child.free_pe(sel)
+    child.free_tile(sel)
 }
 
 fn use_rgate(is: &mut GateIStream, id: Id) -> Result<(), Error> {
@@ -265,13 +265,13 @@ fn get_serial(is: &mut GateIStream, id: Id) -> Result<(), Error> {
 }
 
 fn get_info(is: &mut GateIStream, id: Id) -> Result<(), Error> {
-    let vpe_idx: usize = is.pop()?;
+    let act_idx: usize = is.pop()?;
 
-    let idx = if vpe_idx == usize::MAX {
+    let idx = if act_idx == usize::MAX {
         None
     }
     else {
-        Some(vpe_idx)
+        Some(act_idx)
     };
 
     childs::get_info(id, idx).and_then(|info| reply_vmsg!(is, Code::None as u32, info))

@@ -22,24 +22,24 @@
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
                     <sesscrt name="m3fs" count="24" />
-                    <pes type="core" count="1" />
+                    <tiles type="core" count="1" />
                     <dom>
                         <app args="/sbin/pager $fs.size" getinfo="1">
                             <sess name="m3fs" />
                             <physmem addr="0" size="$fs.size" perm="r" />
-                            <pes type="core" count="2" />
+                            <tiles type="core" count="2" />
                             <dom>
                                 <app args="/bin/shell" getinfo="1">
                                     <mount fs="m3fs" path="/" />
                                     <sess name="pipes" />
                                     <sess name="vterm" />
-                                    <pes type="core" count="2" />
-                                    <pes type="rot13" count="2" optional="1" />
+                                    <tiles type="core" count="2" />
+                                    <tiles type="rot13" count="2" optional="1" />
                                 </app>
                             </dom>
                             <dom>
                                 <app args="/bin/filterchain 16384">
-                                    <pes type="core" count="2" />
+                                    <tiles type="core" count="2" />
                                 </app>
                             </dom>
                         </app>

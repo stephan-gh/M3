@@ -15,31 +15,31 @@
  */
 
 use crate::errors::{Code, Error};
-use crate::pes::VPE;
 use crate::rc::Rc;
 use crate::session::M3FS;
+use crate::tiles::Activity;
 use crate::vfs::{FSHandle, FileInfo, FileMode, FileRef, OpenFlags};
 
 /// Mounts the file system of type `fstype` at `path`, creating a session at `service`.
 pub fn mount(path: &str, fstype: &str, service: &str) -> Result<(), Error> {
-    let id = VPE::cur().mounts().alloc_id();
+    let id = Activity::cur().mounts().alloc_id();
     let fsobj = match fstype {
         "m3fs" => M3FS::new(id, service)?,
         _ => return Err(Error::new(Code::InvArgs)),
     };
-    VPE::cur().mounts().add(path, fsobj)
+    Activity::cur().mounts().add(path, fsobj)
 }
 
 /// Umounts the file system mounted at `path`.
 pub fn unmount(path: &str) -> Result<(), Error> {
-    VPE::cur().mounts().remove(path)
+    Activity::cur().mounts().remove(path)
 }
 
 fn with_path<F, R>(path: &str, func: F) -> Result<R, Error>
 where
     F: Fn(&FSHandle, usize) -> Result<R, Error>,
 {
-    let (fs, pos) = VPE::cur().mounts().resolve(path)?;
+    let (fs, pos) = Activity::cur().mounts().resolve(path)?;
     func(&fs, pos)
 }
 
@@ -47,7 +47,7 @@ where
 pub fn open(path: &str, flags: OpenFlags) -> Result<FileRef, Error> {
     with_path(path, |fs, pos| {
         let file = fs.borrow_mut().open(&path[pos..], flags)?;
-        VPE::cur().files().add(file)
+        Activity::cur().files().add(file)
     })
 }
 
@@ -68,8 +68,8 @@ pub fn rmdir(path: &str) -> Result<(), Error> {
 
 /// Creates a link at `new` to `old`.
 pub fn link(old: &str, new: &str) -> Result<(), Error> {
-    let (fs1, pos1) = VPE::cur().mounts().resolve(old)?;
-    let (fs2, pos2) = VPE::cur().mounts().resolve(new)?;
+    let (fs1, pos1) = Activity::cur().mounts().resolve(old)?;
+    let (fs2, pos2) = Activity::cur().mounts().resolve(new)?;
     if !Rc::ptr_eq(&fs1, &fs2) {
         return Err(Error::new(Code::XfsLink));
     }
@@ -85,8 +85,8 @@ pub fn unlink(path: &str) -> Result<(), Error> {
 
 /// Renames `new` to `old`.
 pub fn rename(old: &str, new: &str) -> Result<(), Error> {
-    let (fs1, pos1) = VPE::cur().mounts().resolve(old)?;
-    let (fs2, pos2) = VPE::cur().mounts().resolve(new)?;
+    let (fs1, pos1) = Activity::cur().mounts().resolve(old)?;
+    let (fs2, pos2) = Activity::cur().mounts().resolve(new)?;
     if !Rc::ptr_eq(&fs1, &fs2) {
         return Err(Error::new(Code::XfsLink));
     }

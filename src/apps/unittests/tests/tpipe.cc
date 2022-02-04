@@ -28,16 +28,16 @@ using namespace m3;
 static char buffer[0x100];
 
 static void reader_quit() {
-    auto pe = PE::get("clone|own");
-    VPE writer(pe, "writer");
+    auto tile = Tile::get("clone|own");
+    Activity writer(tile, "writer");
     MemGate mem = MemGate::create_global(0x1000, MemGate::RW);
-    DirectPipe pipe(VPE::self(), writer, mem, 0x1000);
+    DirectPipe pipe(Activity::self(), writer, mem, 0x1000);
 
-    writer.files()->set(STDIN_FD, VPE::self().files()->get(STDIN_FD));
-    writer.files()->set(STDOUT_FD, VPE::self().files()->get(pipe.writer_fd()));
+    writer.files()->set(STDIN_FD, Activity::self().files()->get(STDIN_FD));
+    writer.files()->set(STDOUT_FD, Activity::self().files()->get(pipe.writer_fd()));
 
     writer.run([] {
-        auto out = VPE::self().files()->get(STDOUT_FD);
+        auto out = Activity::self().files()->get(STDOUT_FD);
         while(1) {
             OStringStream os(buffer, sizeof(buffer));
             os << "Hello World!\n";
@@ -65,14 +65,14 @@ static void reader_quit() {
 }
 
 static void writer_quit() {
-    auto pe = PE::get("clone|own");
-    VPE reader(pe, "reader");
+    auto tile = Tile::get("clone|own");
+    Activity reader(tile, "reader");
 
     MemGate mem = MemGate::create_global(64, MemGate::RW);
-    DirectPipe pipe(reader, VPE::self(), mem, 64);
+    DirectPipe pipe(reader, Activity::self(), mem, 64);
 
-    reader.files()->set(STDIN_FD, VPE::self().files()->get(pipe.reader_fd()));
-    reader.files()->set(STDOUT_FD, VPE::self().files()->get(STDOUT_FD));
+    reader.files()->set(STDIN_FD, Activity::self().files()->get(pipe.reader_fd()));
+    reader.files()->set(STDOUT_FD, Activity::self().files()->get(STDOUT_FD));
 
     reader.run([] {
         size_t count = cin.getline(buffer, sizeof(buffer));
@@ -100,15 +100,15 @@ static void writer_quit() {
 }
 
 static void child_to_child() {
-    auto pe1 = PE::get("clone|own");
-    auto pe2 = PE::get("clone|own");
-    VPE reader(pe1, "reader");
-    VPE writer(pe2, "writer");
+    auto tile1 = Tile::get("clone|own");
+    auto tile2 = Tile::get("clone|own");
+    Activity reader(tile1, "reader");
+    Activity writer(tile2, "writer");
     MemGate mem = MemGate::create_global(0x1000, MemGate::RW);
     DirectPipe pipe(reader, writer, mem, 0x1000);
 
-    reader.files()->set(STDIN_FD, VPE::self().files()->get(pipe.reader_fd()));
-    reader.files()->set(STDOUT_FD, VPE::self().files()->get(STDOUT_FD));
+    reader.files()->set(STDIN_FD, Activity::self().files()->get(pipe.reader_fd()));
+    reader.files()->set(STDOUT_FD, Activity::self().files()->get(STDOUT_FD));
 
     reader.run([] {
         for(int i = 0; i < 10; ++i) {
@@ -121,11 +121,11 @@ static void child_to_child() {
         return failed ? 1 : 0;
     });
 
-    writer.files()->set(STDIN_FD, VPE::self().files()->get(STDIN_FD));
-    writer.files()->set(STDOUT_FD, VPE::self().files()->get(pipe.writer_fd()));
+    writer.files()->set(STDIN_FD, Activity::self().files()->get(STDIN_FD));
+    writer.files()->set(STDOUT_FD, Activity::self().files()->get(pipe.writer_fd()));
 
     writer.run([] {
-        auto out = VPE::self().files()->get(STDOUT_FD);
+        auto out = Activity::self().files()->get(STDOUT_FD);
         for(int i = 0; i < 10; ++i) {
             OStringStream os(buffer, sizeof(buffer));
             os << "Hello World!\n";

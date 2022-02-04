@@ -15,12 +15,12 @@
                 <app args="pager $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <pes type="core" count="1" />
+                    <tiles type="core" count="1" />
                     <app args="/bin/unittests">
                         <mount fs="m3fs" path="/" />
                         <sess lname="m3fs-clone" gname="m3fs" />
                         <sess name="pipes" />
-                        <pes type="core" count="2" />
+                        <tiles type="core" count="2" />
                     </app>
                 </app>
             </dom>

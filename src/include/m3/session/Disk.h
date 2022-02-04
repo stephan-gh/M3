@@ -25,7 +25,7 @@
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
 #include <m3/session/ClientSession.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 #include <fs/internal.h>
 
@@ -46,7 +46,7 @@ public:
     };
 
     explicit Disk(WorkLoop *wl, const char *name)
-        : ClientSession(name, VPE::self().alloc_sels(2)),
+        : ClientSession(name, Activity::self().alloc_sels(2)),
           _rgate(RecvGate::create(nextlog2<MSG_SIZE * 8>::val, nextlog2<MSG_SIZE>::val)),
           _sgate(obtain_sgate()) {
         _rgate.activate();
@@ -75,7 +75,7 @@ public:
 private:
     SendGate obtain_sgate() {
         KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, sel() + 1);
-        obtain_for(VPE::self(), crd);
+        obtain_for(Activity::self(), crd);
         return SendGate::bind(crd.start(), &_rgate);
     }
 

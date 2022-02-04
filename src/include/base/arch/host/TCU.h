@@ -52,7 +52,7 @@ public:
         unsigned char opcode;   // should actually be part of length but causes trouble in msgsnd
         label_t label;
         uint8_t has_replycap;
-        uint16_t pe;
+        uint16_t tile;
         uint8_t rpl_ep;
         uint8_t snd_ep;
         label_t replylabel;
@@ -126,7 +126,7 @@ public:
     static constexpr size_t OPCODE_SHIFT        = 3;
 
     // register counts (cont.)
-    static constexpr size_t EP_REGS            = 1 + EP_PERM;
+    static constexpr size_t EP_REGS             = 1 + EP_PERM;
 
     enum CmdFlags {
         NOPF                                    = 1,
@@ -143,7 +143,7 @@ public:
         SLEEP                                   = 8,
     };
 
-    static const epid_t PEXUP_REP               = 0;    // unused
+    static const epid_t TMUP_REP                = 0;    // unused
 
     static const epid_t SYSC_SEP_OFF            = 0;
     static const epid_t SYSC_REP_OFF            = 1;
@@ -181,15 +181,15 @@ public:
         _epregs[ep * EP_REGS + reg] = val;
     }
 
-    void configure(epid_t ep, label_t label, uint perms, peid_t pe, epid_t dstep,
+    void configure(epid_t ep, label_t label, uint perms, tileid_t tile, epid_t dstep,
                    word_t credits, uint msgorder) {
-        configure(const_cast<word_t*>(_epregs), ep, label, perms, pe, dstep, credits, msgorder);
+        configure(const_cast<word_t*>(_epregs), ep, label, perms, tile, dstep, credits, msgorder);
     }
-    static void configure(word_t *eps, epid_t ep, label_t label, uint perms, peid_t pe,
+    static void configure(word_t *eps, epid_t ep, label_t label, uint perms, tileid_t tile,
                           epid_t dstep, word_t credits, uint msgorder) {
         eps[ep * EP_REGS + EP_VALID] = 1;
         eps[ep * EP_REGS + EP_LABEL] = label;
-        eps[ep * EP_REGS + EP_PEID] = pe;
+        eps[ep * EP_REGS + EP_PEID] = tile;
         eps[ep * EP_REGS + EP_EPID] = dstep;
         eps[ep * EP_REGS + EP_CREDITS] = credits;
         eps[ep * EP_REGS + EP_MSGORDER] = msgorder;
@@ -333,18 +333,18 @@ private:
             mask &= ~(static_cast<word_t>(1) << idx);
     }
 
-    Errors::Code prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep);
-    Errors::Code prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep);
-    Errors::Code prepare_read(epid_t ep, peid_t &dstpe, epid_t &dstep);
-    Errors::Code prepare_write(epid_t ep, peid_t &dstpe, epid_t &dstep);
+    Errors::Code prepare_reply(epid_t ep, tileid_t &dstpe, epid_t &dstep);
+    Errors::Code prepare_send(epid_t ep, tileid_t &dstpe, epid_t &dstep);
+    Errors::Code prepare_read(epid_t ep, tileid_t &dstpe, epid_t &dstep);
+    Errors::Code prepare_write(epid_t ep, tileid_t &dstpe, epid_t &dstep);
     Errors::Code prepare_fetchmsg(epid_t ep);
     Errors::Code prepare_ackmsg(epid_t ep);
 
-    bool send_msg(epid_t ep, peid_t dstpe, epid_t dstep, bool isreply);
+    bool send_msg(epid_t ep, tileid_t dstpe, epid_t dstep, bool isreply);
     void handle_read_cmd(epid_t ep);
     void handle_write_cmd(epid_t ep);
     void handle_resp_cmd();
-    void handle_command(peid_t pe);
+    void handle_command(tileid_t tile);
     void handle_msg(size_t len, epid_t ep);
     bool handle_receive(epid_t ep);
 

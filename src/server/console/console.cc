@@ -22,7 +22,7 @@
 #include <m3/session/arch/host/Keyboard.h>
 #include <m3/session/ServerSession.h>
 #include <m3/stream/Standard.h>
-#include <m3/pes/VPE.h>
+#include <m3/tiles/Activity.h>
 
 #include "Scancodes.h"
 #include "VGAConsole.h"
@@ -75,7 +75,7 @@ int main() {
 
     WorkLoop wl;
 
-    MemGate memgate = VPE::self().get_mem(reinterpret_cast<uintptr_t>(vgamem),
+    MemGate memgate = Activity::self().get_mem(reinterpret_cast<uintptr_t>(vgamem),
                                           VGA::SIZE, MemGate::RW);
     Server<VGAHandler> vgasrv("vga", &wl, std::make_unique<VGAHandler>(&memgate));
 
