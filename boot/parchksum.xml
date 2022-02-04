@@ -15,6 +15,7 @@
                     <pes type="core" count="1" />
                     <dom>
                         <app args="/bin/parchksum 4 131072">
+                            <mount fs="m3fs" path="/" />
                             <pes type="core" count="4" />
                         </app>
                     </dom>
