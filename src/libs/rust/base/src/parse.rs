@@ -14,6 +14,8 @@
  * General Public License version 2 for more details.
  */
 
+//! Contains utility functions for parsing data types from text
+
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::kif;

@@ -12,6 +12,8 @@
  * General Public License version 2 for more details.
  */
 
+//! Contains cryptographical utilities
+
 mod hash;
 
 pub use hash::{HashAlgorithm, HashType};
