@@ -41,10 +41,6 @@ impl EnvData {
         base::envdata::get()
     }
 
-    pub fn platform(&self) -> base::envdata::Platform {
-        base::envdata::Platform::from(self.base().platform)
-    }
-
     pub fn vpe_id(&self) -> VPEId {
         self.sysc_lbl as VPEId
     }
@@ -59,14 +55,6 @@ impl EnvData {
 
     pub fn pe_desc(&self) -> PEDesc {
         PEDesc::new_from(self.base().pe_desc)
-    }
-
-    pub fn argc(&self) -> usize {
-        self.base().argc as usize
-    }
-
-    pub fn argv(&self) -> *const *const i8 {
-        self.base().argv as *const *const i8
     }
 
     pub fn first_std_ep(&self) -> EpId {

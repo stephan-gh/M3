@@ -36,11 +36,6 @@ pub mod com;
 /// Netstack related structures
 pub mod net;
 
-pub mod envdata {
-    pub use crate::arch::env::*;
-    pub use base::envdata::Platform;
-}
-
 pub use base::{
     backtrace, boxed, cell, cfg, col, cpu, elf, env, errors, format, function, goff, impl_boxitem,
     int_enum, kif, libc, llog, log, math, mem, parse, pexif, quota, rc, serialize, sync, tcu, test,

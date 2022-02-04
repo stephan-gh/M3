@@ -59,10 +59,6 @@ impl EnvData {
         self.base.pe_desc = pe.value();
     }
 
-    pub fn argc(&self) -> usize {
-        self.base.argc as usize
-    }
-
     pub fn set_argc(&mut self, argc: usize) {
         self.base.argc = argc as u64;
     }
@@ -71,20 +67,12 @@ impl EnvData {
         self.base.argv = argv as u64;
     }
 
-    pub fn sp(&self) -> usize {
-        self.base.sp as usize
-    }
-
     pub fn set_sp(&mut self, sp: usize) {
         self.base.sp = sp as u64;
     }
 
     pub fn set_entry(&mut self, entry: usize) {
         self.base.entry = entry as u64;
-    }
-
-    pub fn heap_size(&self) -> usize {
-        self.base.heap_size as usize
     }
 
     pub fn set_heap_size(&mut self, size: usize) {
