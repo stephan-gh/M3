@@ -404,9 +404,7 @@ impl Subsystem {
 
             // account for ourself, if we share this PE
             if pe_usage.pe_id() == VPE::cur().pe_id() {
-                domain_total_time += DEF_TIME_SLICE;
                 pt_sharer += 1;
-                domain_total_pts += shared_pts / pt_sharer;
                 domain_total_eps -= OUR_EPS;
             }
 
@@ -448,16 +446,24 @@ impl Subsystem {
             let domain_umem = childs::ChildMem::new(mem_id, mem_pool.clone(), def_umem);
             mem_id += 1;
 
+            // account for ourself, if we share this PE
+            let child_total_time = if pe_usage.pe_id() == VPE::cur().pe_id() {
+                domain_total_time + DEF_TIME_SLICE
+            }
+            else {
+                domain_total_time
+            };
+
             // set initial quota for this PE
             pe_usage
                 .pe_obj()
-                .set_quota(domain_total_time, pt_quota.total() as u64)
+                .set_quota(child_total_time, pt_quota.total() as u64)
                 .map_err(|e| {
                     VerboseError::new(
                         e.code(),
                         format!(
                             "Unable to set quota for PE to time={}, pts={}",
-                            domain_total_time,
+                            child_total_time,
                             pt_quota.total()
                         ),
                     )
