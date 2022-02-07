@@ -1,9 +1,9 @@
 [submodule "hw/gem5"]
 	path = platform/gem5
-	url = ../gem5-DTU.git
+	url = ../gem5-TCU.git
 [submodule "platform/hw"]
 	path = platform/hw
-	url = ../tcu.git
+	url = ../tcu-if.git
 [submodule "src/libs/musl"]
 	path = src/libs/musl
 	url = ../m3-musl.git
@@ -12,4 +12,4 @@
 	url = ../m3-leveldb.git
 [submodule "src/libs/flac"]
 	path = src/libs/flac
-	url = ../libFLAC.git
+	url = ../m3-flac.git
