@@ -40,6 +40,9 @@ ssize_t Machine::write(const char *str, size_t len) {
     size_t amount = TCU::get().print(str, len);
     if(env()->platform == Platform::GEM5) {
         static const char *fileAddr = "stdout";
+        // touch the string first to cause a page fault, if required. gem5 assumes that it's mapped
+        ((volatile const char*)fileAddr)[0];
+        ((volatile const char*)fileAddr)[6];
         gem5_writefile(str, amount, 0, reinterpret_cast<uint64_t>(fileAddr));
     }
     return static_cast<ssize_t>(amount);

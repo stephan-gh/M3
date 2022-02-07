@@ -28,6 +28,9 @@ pub fn write(buf: &[u8]) -> Result<usize, Error> {
         unsafe {
             // put the string on the stack to prevent that gem5_writefile causes a pagefault
             let file: [u8; 7] = *b"stdout\0";
+            // touch the string first to cause a page fault, if required. gem5 assumes that it's mapped
+            let _b = file.as_ptr().read_volatile();
+            let _b = file.as_ptr().add(6).read_volatile();
             gem5_writefile(buf.as_ptr(), amount as u64, 0, file.as_ptr() as u64);
         }
     }
