@@ -99,6 +99,8 @@ Note that this command ensures that everything is up to date as well. For more i
 References:
 -----------
 
+**Warning:** Some papers below use the name *data transfer unit (DTU)* instead of TCU and some papers below use the name *controller* instead of kernel.
+
 [1] Nils Asmussen, Sebastian Haas, Carsten Weinhold, Till Miemietz, and Michael Roitzsch. **Efficient and Scalable Core Multiplexing with M³v**. To appear in the Proceedings of the Twenty-seventh International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS'22), February 2022.
 
 [2] Nils Asmussen, Michael Roitzsch, and Hermann Härtig. **M³x: Autonomous Accelerators via Context-Enabled Fast-Path Communication**. USENIX Annual Technical Conference (ATC'19), July 2019
