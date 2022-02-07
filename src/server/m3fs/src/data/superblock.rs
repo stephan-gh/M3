@@ -1,7 +1,6 @@
 /*
- * Copyright (C) 2015-2020, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Copyright (C) 2020 Nils Asmussen, Barkhausen Institut
  * Copyright (C) 2019-2020, Tendsin Mende <tendsin@protonmail.com>
- * Economic rights: Technische Universitaet Dresden (Germany)
  *
  * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
  *
