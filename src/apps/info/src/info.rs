@@ -26,14 +26,14 @@ pub fn main() -> i32 {
         .get_activity_count()
         .expect("Unable to get Activity count");
     println!(
-        "{:2} {:2} {:>10} {:>24} {:>20} {:>20} {:>12} {}",
+        "{:2} {:4} {:>10} {:>24} {:>20} {:>20} {:>12} {}",
         "ID", "Tile", "EPs", "Time", "UserMem", "KernelMem", "PTs", "Name"
     );
     for i in 0..num {
         match Activity::cur().resmng().unwrap().get_activity_info(i) {
             Ok(act) => {
                 println!(
-                    "{:2} {:2} {:2}:{:3}/{:3} {:4}:{:7}us/{:7}us {:2}:{:7}K/{:7}K {:2}:{:7}K/{:7}K {:4}:{:3}/{:3} {:0l$}{}",
+                    "{:2} {:4} {:2}:{:3}/{:3} {:4}:{:7}us/{:7}us {:2}:{:7}K/{:7}K {:2}:{:7}K/{:7}K {:4}:{:3}/{:3} {:0l$}{}",
                     act.id,
                     act.tile,
                     act.eps.id(),
