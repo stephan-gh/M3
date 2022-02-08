@@ -79,7 +79,7 @@ ether1 = createEtherTile(noc=root.noc,
                          epCount=num_eps)
 tiles.append(ether1)
 
-linkEtherPEs(ether0, ether1)
+linkEthertiles(ether0, ether1)
 
 for i in range(0, num_rot13):
     rpe = createAccelTile(noc=root.noc,
