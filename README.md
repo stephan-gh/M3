@@ -35,7 +35,7 @@ Afterwards, pull in the submodules:
 
     $ git submodule update --init src/libs/musl src/libs/flac src/libs/leveldb
 
-### 2. Preparations for gem5:
+### 2. Preparations for gem5
 
 The submodule in `platform/gem5` needs to be pulled in and built:
 
@@ -59,7 +59,7 @@ Finally, before starting M³ on the FPGA, you have to tell M³ on `M_m3` how `M_
 
     $ export M3_HW_SSH=ssh-alias-for-M_fpga
 
-### 4. Cross compiler:
+### 4. Cross compiler for gem5 and the hardware platform
 
 For gem5 and the hardware platform, you need to build a cross compiler for the desired ISA. Note that only gem5 supports all three ISAs; the hardware platform only supports RISC-V. You can build the cross compiler as follows:
 
@@ -76,7 +76,7 @@ M³ is primarily written in Rust and therefore you need to install Rust before b
     $ rustup default nightly-2021-04-19
     $ rustup component add rust-src
 
-### 6. Building:
+### 6. Building
 
 Before you build M³, you should choose your target platform, the build mode, and the ISA by exporting the corresponding environment variables. For example:
 
@@ -86,7 +86,7 @@ Now, M³ can be built by using the script `b`:
 
     $ ./b
 
-### 7. Running:
+### 7. Running
 
 On all platforms, scenarios can be run by starting the desired boot script in the directory `boot`, e.g.:
 
@@ -99,12 +99,12 @@ Note that this command ensures that everything is up to date as well. For more i
 References:
 -----------
 
-**Warning:** Some papers below use the name *data transfer unit (DTU)* instead of TCU and some papers below use the name *controller* instead of kernel.
+**Warning:** Some papers below use the name *data transfer unit (DTU)* instead of TCU and some use the name *controller* instead of kernel.
 
 [1] Nils Asmussen, Sebastian Haas, Carsten Weinhold, Till Miemietz, and Michael Roitzsch. **Efficient and Scalable Core Multiplexing with M³v**. To appear in the Proceedings of the Twenty-seventh International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS'22), February 2022.
 
 [2] Nils Asmussen, Michael Roitzsch, and Hermann Härtig. **M³x: Autonomous Accelerators via Context-Enabled Fast-Path Communication**. USENIX Annual Technical Conference (ATC'19), July 2019
 
-[3] Matthias Hille, Nils Asmussen, Pramod Bhatotia, Hermann Härtig, **SemperOS: A Distributed Capability System**, USENIX Annual Technical Conference (ATC'19), July 2019
+[3] Matthias Hille, Nils Asmussen, Pramod Bhatotia, and Hermann Härtig, **SemperOS: A Distributed Capability System**, USENIX Annual Technical Conference (ATC'19), July 2019
 
 [4] Nils Asmussen, Marcus Völp, Benedikt Nöthen, Hermann Härtig, and Gerhard Fettweis. **M³: A Hardware/Operating-System Co-Design to Tame Heterogeneous Manycores**. In Proceedings of the Twenty-first International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS'16), pages 189-203, April 2016.
