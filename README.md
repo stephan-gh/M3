@@ -59,6 +59,8 @@ Finally, before starting M³ on the FPGA, you have to tell M³ on `M_m3` how `M_
 
     $ export M3_HW_SSH=ssh-alias-for-M_fpga
 
+Note that the source of the hardware platform is [openly available](https://github.com/Barkhausen-Institut/M3-hardware) as well.
+
 ### 4. Cross compiler for gem5 and the hardware platform
 
 For gem5 and the hardware platform, you need to build a cross compiler for the desired ISA. Note that only gem5 supports all three ISAs; the hardware platform only supports RISC-V. You can build the cross compiler as follows:
