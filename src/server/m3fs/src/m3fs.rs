@@ -386,7 +386,12 @@ impl Handler<FSSession> for M3FSRequestHandler {
     }
 
     /// Let's the client delegate a capability to the server
-    fn delegate(&mut self, _crt: usize, sid: SessId, data: &mut CapExchange<'_>) -> Result<(), Error> {
+    fn delegate(
+        &mut self,
+        _crt: usize,
+        sid: SessId,
+        data: &mut CapExchange<'_>,
+    ) -> Result<(), Error> {
         let op: M3FSOperation = data.in_args().pop()?;
         log!(LOG_DEF, "[{}] fs::delegate(op={})", sid, op);
 

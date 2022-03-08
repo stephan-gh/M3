@@ -641,7 +641,12 @@ impl Handler<HashSession> for HashHandler {
         })
     }
 
-    fn obtain(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
+    fn obtain(
+        &mut self,
+        _crt: usize,
+        sid: SessId,
+        xchg: &mut CapExchange<'_>,
+    ) -> Result<(), Error> {
         log!(LOG_DEF, "[{}] hash::obtain()", sid);
         let hash = self
             .sessions

@@ -65,12 +65,16 @@ fn hash_empty() {
     _hash_empty(
         &mut hash,
         &HashAlgorithm::SHA3_384,
-        &hex!("0c63a75b845e4f7d01107d852e4c2485c51a50aaaa94fc61995e71bbee983a2ac3713831264adb47fb6bd1e058d5f004"),
+        &hex!(
+            "0c63a75b845e4f7d01107d852e4c2485c51a50aaaa94fc61995e71bbee983a2ac3713831264adb47fb6bd1e058d5f004"
+        ),
     );
     _hash_empty(
         &mut hash,
         &HashAlgorithm::SHA3_512,
-        &hex!("a69f73cca23a9ac5c8b567dc185a756e97c982164fe25859e0d1dcc1475c80a615b2123af1f5f94c11e3e9402c3ac558f500199d95b6d3e301758586281dcd26"),
+        &hex!(
+            "a69f73cca23a9ac5c8b567dc185a756e97c982164fe25859e0d1dcc1475c80a615b2123af1f5f94c11e3e9402c3ac558f500199d95b6d3e301758586281dcd26"
+        ),
     );
 }
 
@@ -89,10 +93,12 @@ fn hash_mapped_mem() {
     wv_assert_ok!(hash.ep().configure(mgate.sel()));
 
     // Map memory
-    wv_assert_ok!(Activity::cur()
-        .pager()
-        .unwrap()
-        .map_mem(ADDR, &mgate, SIZE, Perm::RW));
+    wv_assert_ok!(
+        Activity::cur()
+            .pager()
+            .unwrap()
+            .map_mem(ADDR, &mgate, SIZE, Perm::RW)
+    );
 
     // Fill memory with some data
     let buf = unsafe { util::slice_for_mut(ADDR as *mut u8, SIZE) };
@@ -186,19 +192,19 @@ fn hash_file() {
     let hashes = [
         (
             &HashAlgorithm::SHA3_512,
-            "7cf025af9e77e310ce912d28ae854f37aa62eb1fae81cc9b8a26dac81eb2bd6e9e277e419af033eabf8e1ffb663c06e0d2349b03f4262c4fd0a9e74d9156ca94"
+            "7cf025af9e77e310ce912d28ae854f37aa62eb1fae81cc9b8a26dac81eb2bd6e9e277e419af033eabf8e1ffb663c06e0d2349b03f4262c4fd0a9e74d9156ca94",
         ),
         (
             &HashAlgorithm::SHA3_384,
-            "261b44d87914504a0eb6b4dbe87836856427a7e57d7e3e4a1c559d99937ef6d26f360373df9202dcafc318b6ca6c21c5"
+            "261b44d87914504a0eb6b4dbe87836856427a7e57d7e3e4a1c559d99937ef6d26f360373df9202dcafc318b6ca6c21c5",
         ),
         (
             &HashAlgorithm::SHA3_256,
-            "a1cefebeb163af9c359039b0a75e9c88609c0f670e5d35fdc4be822b64f50f31"
+            "a1cefebeb163af9c359039b0a75e9c88609c0f670e5d35fdc4be822b64f50f31",
         ),
         (
             &HashAlgorithm::SHA3_224,
-            "2969482b56d4a98bc46bb298b264d464d75f6a78265df3b98f6dd017"
+            "2969482b56d4a98bc46bb298b264d464d75f6a78265df3b98f6dd017",
         ),
     ];
 

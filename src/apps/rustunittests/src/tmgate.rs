@@ -151,7 +151,9 @@ fn remote_access() {
         let sem2 = Semaphore::bind(sem2_sel);
         // write value to own address space
         let obj_addr = virt as *mut u64;
-        unsafe { *obj_addr = 0xDEAD_BEEF };
+        unsafe {
+            *obj_addr = 0xDEAD_BEEF
+        };
         //  notify parent that we're ready
         wv_assert_ok!(sem1.up());
         // wait for parent

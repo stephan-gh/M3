@@ -61,7 +61,12 @@ impl Handler<MsgSession> for MsgHandler {
             .map(|_| (sel, 0))
     }
 
-    fn obtain(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
+    fn obtain(
+        &mut self,
+        _crt: usize,
+        sid: SessId,
+        xchg: &mut CapExchange<'_>,
+    ) -> Result<(), Error> {
         let sess = self.sessions.get(sid).unwrap();
         xchg.out_caps(kif::CapRngDesc::new(
             kif::CapType::OBJECT,

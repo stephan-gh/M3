@@ -365,7 +365,12 @@ impl Handler<VTermSession> for VTermHandler {
         Ok(())
     }
 
-    fn delegate(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
+    fn delegate(
+        &mut self,
+        _crt: usize,
+        sid: SessId,
+        xchg: &mut CapExchange<'_>,
+    ) -> Result<(), Error> {
         let op: GenFileOp = xchg.in_args().pop()?;
         log!(LOG_DEF, "[{}] vterm::delegate(op={})", sid, op);
 

@@ -258,7 +258,12 @@ impl Handler<PipesSession> for PipesHandler {
         Ok(())
     }
 
-    fn delegate(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
+    fn delegate(
+        &mut self,
+        _crt: usize,
+        sid: SessId,
+        xchg: &mut CapExchange<'_>,
+    ) -> Result<(), Error> {
         let sess = self.sessions.get_mut(sid).unwrap();
         let op: Operation = xchg.in_args().pop()?;
         log!(crate::LOG_DEF, "[{}] pipes::delegate(op={})", sid, op);
