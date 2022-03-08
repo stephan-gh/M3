@@ -371,7 +371,7 @@ impl Activity {
             // async wait
             _ => {
                 // if no one exited yet, remember us
-                if sels.len() > 0 && res.is_none() {
+                if !sels.is_empty() && res.is_none() {
                     EXIT_LISTENERS.borrow_mut().push(ExitWait {
                         id: self.id(),
                         event,

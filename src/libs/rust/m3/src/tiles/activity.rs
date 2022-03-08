@@ -454,7 +454,7 @@ impl Activity {
     /// functions completeness or to stop it.
     pub fn run(self, func: fn() -> i32) -> Result<RunningProgramActivity, Error> {
         let args = env::args().collect::<Vec<_>>();
-        let file = VFS::open(args[0].as_ref(), OpenFlags::RX | OpenFlags::NEW_SESS)?;
+        let file = VFS::open(args[0], OpenFlags::RX | OpenFlags::NEW_SESS)?;
         let mut mapper = DefaultMapper::new(self.tile_desc().has_virtmem());
 
         let func_addr = func as *const () as usize;

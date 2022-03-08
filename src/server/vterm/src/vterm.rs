@@ -72,6 +72,7 @@ struct VTermSession {
     childs: Vec<SessId>,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 enum SessionData {
     Meta,
@@ -282,7 +283,6 @@ impl VTermHandler {
                 // remove session
                 let parent = sess.parent.take();
                 let crt = sess.crt;
-                drop(sess);
                 self.sessions.remove(crt, id);
 
                 // remove us from parent
@@ -394,7 +394,7 @@ impl Handler<VTermSession> for VTermHandler {
                     xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
                     Ok(())
                 },
-                _ => return Err(Error::new(Code::InvArgs)),
+                _ => Err(Error::new(Code::InvArgs)),
             },
         }
     }
@@ -471,25 +471,22 @@ fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
     // pass to first session that wants input
     hdl.sessions.for_each(|s| {
         if flush || !input.is_empty() {
-            match &mut s.data {
-                SessionData::Chan(c) => {
-                    if let Some(msg) = c.pending_nextin.take() {
-                        c.our_mem.write(&input, mem_off(c.id)).unwrap();
-                        c.len = input.len();
-                        c.pos = 0;
-                        input.clear();
-                        log!(
-                            crate::LOG_DEF,
-                            "[{}] vterm::next_in() -> ({}, {})",
-                            c.id,
-                            c.pos,
-                            c.len - c.pos
-                        );
-                        reply_vmsg_late!(msg, Code::None as u32, c.pos, c.len - c.pos).unwrap();
-                        flush = false;
-                    }
-                },
-                _ => {},
+            if let SessionData::Chan(c) = &mut s.data {
+                if let Some(msg) = c.pending_nextin.take() {
+                    c.our_mem.write(&input, mem_off(c.id)).unwrap();
+                    c.len = input.len();
+                    c.pos = 0;
+                    input.clear();
+                    log!(
+                        crate::LOG_DEF,
+                        "[{}] vterm::next_in() -> ({}, {})",
+                        c.id,
+                        c.pos,
+                        c.len - c.pos
+                    );
+                    reply_vmsg_late!(msg, Code::None as u32, c.pos, c.len - c.pos).unwrap();
+                    flush = false;
+                }
             }
         }
     });

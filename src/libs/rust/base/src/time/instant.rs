@@ -60,9 +60,7 @@ impl TimeInstant {
     /// Returns the amount of time elapsed from another instant to this one, or None if that instant
     /// is later than this one.
     pub fn checked_duration_since(&self, earlier: Self) -> Option<TimeDuration> {
-        self.0
-            .checked_sub(earlier.0)
-            .map(|d| TimeDuration::from_nanos(d))
+        self.0.checked_sub(earlier.0).map(TimeDuration::from_nanos)
     }
 
     /// Returns the amount of time elapsed from another instant to this one.

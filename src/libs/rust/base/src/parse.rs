@@ -64,7 +64,7 @@ pub fn time(s: &str) -> Result<u64, Error> {
     else if s.ends_with("ms") {
         (2, 1_000_000)
     }
-    else if s.ends_with("s") {
+    else if s.ends_with('s') {
         (1, 1_000_000_000)
     }
     else {

@@ -19,7 +19,6 @@
 #![no_std]
 
 use m3::env;
-use m3::format;
 use m3::io::{stdout, Write};
 use m3::time::{TimeDuration, TimeInstant};
 
@@ -29,7 +28,7 @@ const FREQ: TimeDuration = TimeDuration::from_millis(1);
 pub fn main() -> i32 {
     let c = env::args()
         .nth(1)
-        .expect(&format!("Usage: {} <str>", env::args().next().unwrap()));
+        .unwrap_or_else(|| panic!("Usage: {} <str>", env::args().next().unwrap()));
 
     loop {
         let now = TimeInstant::now();

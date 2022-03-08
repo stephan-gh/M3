@@ -368,7 +368,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
                     self.sessions
                         .add(crt, next_sess_id, FSSession::File(file_session))
                 },
-                _ => return Err(Error::new(Code::InvArgs)),
+                _ => Err(Error::new(Code::InvArgs)),
             },
 
             FSSession::File(file) => match op {
@@ -380,7 +380,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
                         .add(crt, next_sess_id, FSSession::File(nfile_session))
                 },
                 M3FSOperation::GET_MEM => file.get_mem(data),
-                _ => return Err(Error::new(Code::InvArgs)),
+                _ => Err(Error::new(Code::InvArgs)),
             },
         }
     }

@@ -68,8 +68,8 @@ impl MetaSession {
     fn get_ep(&self, idx: usize) -> Result<Selector, Error> {
         self.priv_eps
             .get(idx)
-            .map(|i| *i)
-            .ok_or(Error::new(Code::InvArgs))
+            .copied()
+            .ok_or_else(|| Error::new(Code::InvArgs))
     }
 
     pub fn add_ep(&mut self, ep: Selector) -> usize {

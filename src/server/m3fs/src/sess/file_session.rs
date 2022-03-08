@@ -97,6 +97,7 @@ pub struct FileSession {
 }
 
 impl FileSession {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         srv_sel: Selector,
         crt: usize,

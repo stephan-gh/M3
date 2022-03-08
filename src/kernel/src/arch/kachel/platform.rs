@@ -180,18 +180,17 @@ pub fn init_serial(dest: Option<(TileId, EpId)>) {
             ep as u64,
         ]);
     }
-    else {
-        if let Some(ser_tile) = user_tiles().find(|i| tile_desc(*i).isa() == TileISA::SERIAL_DEV) {
-            if let Some((tile, ep)) = dest {
-                ktcu::config_remote_ep(ser_tile, 4, |regs| {
-                    let act = kif::tilemux::ACT_ID as ActId;
-                    ktcu::config_send(regs, act, 0, tile, ep, cfg::SERIAL_BUF_ORD, UNLIM_CREDITS);
-                })
-                .unwrap();
-            }
-            else {
-                ktcu::invalidate_ep_remote(ser_tile, 4, true).unwrap();
-            }
+    else if let Some(ser_tile) = user_tiles().find(|i| tile_desc(*i).isa() == TileISA::SERIAL_DEV)
+    {
+        if let Some((tile, ep)) = dest {
+            ktcu::config_remote_ep(ser_tile, 4, |regs| {
+                let act = kif::tilemux::ACT_ID as ActId;
+                ktcu::config_send(regs, act, 0, tile, ep, cfg::SERIAL_BUF_ORD, UNLIM_CREDITS);
+            })
+            .unwrap();
+        }
+        else {
+            ktcu::invalidate_ep_remote(ser_tile, 4, true).unwrap();
         }
     }
 }

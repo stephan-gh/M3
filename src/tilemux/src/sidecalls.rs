@@ -205,7 +205,7 @@ fn derive_quota(msg: &'static tcu::Message) -> Result<(u64, u64), Error> {
 
     let parent_time = req.parent_time as quota::Id;
     let parent_pts = req.parent_pts as quota::Id;
-    let time = req.time.get::<u64>().map(|t| TimeDuration::from_nanos(t));
+    let time = req.time.get::<u64>().map(TimeDuration::from_nanos);
     let pts = req.pts.get();
 
     log!(

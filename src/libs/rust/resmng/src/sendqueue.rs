@@ -43,11 +43,12 @@ impl MsgSender<thread::Event> for GateSender {
     fn send(&mut self, event: thread::Event, msg: &MsgBuf) -> Result<(), Error> {
         log!(crate::LOG_SQUEUE, "{}:squeue: sending msg", self.sid);
 
+        // we need the conversion, because the size of label is target dependent
+        #[allow(clippy::useless_conversion)]
         self.sgate
             .send_with_rlabel(msg, &RGATE.borrow(), tcu::Label::from(self.sid))
-            .and_then(|_| {
+            .map(|_| {
                 self.cur_event = Some(event);
-                Ok(())
             })
     }
 }

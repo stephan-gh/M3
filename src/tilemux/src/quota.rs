@@ -93,19 +93,11 @@ static TIME_QUOTAS: StaticRefCell<Vec<Rc<TimeQuota>>> = StaticRefCell::new(Vec::
 static PT_QUOTAS: StaticRefCell<Vec<Rc<PTQuota>>> = StaticRefCell::new(Vec::new());
 
 pub fn get_time(id: Id) -> Option<Rc<TimeQuota>> {
-    TIME_QUOTAS
-        .borrow()
-        .iter()
-        .find(|q| q.id == id)
-        .map(|q| q.clone())
+    TIME_QUOTAS.borrow().iter().find(|q| q.id == id).cloned()
 }
 
 pub fn get_pt(id: Id) -> Option<Rc<PTQuota>> {
-    PT_QUOTAS
-        .borrow()
-        .iter()
-        .find(|q| q.id == id)
-        .map(|q| q.clone())
+    PT_QUOTAS.borrow().iter().find(|q| q.id == id).cloned()
 }
 
 pub fn init(pts: usize) {
