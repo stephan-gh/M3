@@ -59,7 +59,7 @@ impl Service {
     pub fn send_receive_async(
         &self,
         lbl: tcu::Label,
-        msg: MsgBufRef,
+        msg: MsgBufRef<'_>,
     ) -> Result<&'static tcu::Message, Error> {
         let event = self.send(lbl, &msg)?;
         drop(msg);
@@ -72,7 +72,7 @@ impl Service {
 }
 
 impl fmt::Debug for Service {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Service[name={}, rgate=", self.name)?;
         self.rgate.print_loc(f)?;
         write!(f, "]")

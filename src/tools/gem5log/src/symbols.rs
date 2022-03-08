@@ -30,7 +30,7 @@ pub struct Symbol {
 }
 
 impl fmt::Display for Symbol {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             fmt,
             "Symbol {{ addr: {:#x}, size: {:#x}, name: {}, bin: {} }}",

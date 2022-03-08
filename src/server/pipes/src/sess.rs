@@ -149,7 +149,7 @@ impl State {
         self.rbuf.size() / (4 * self.writer.len())
     }
 
-    fn append_request(&mut self, id: SessId, is: &mut GateIStream, read: bool) {
+    fn append_request(&mut self, id: SessId, is: &mut GateIStream<'_>, read: bool) {
         let req = PendingRequest::new(id, is.take_msg());
         if read {
             log!(crate::LOG_DEF, "[{}] pipes::read_wait()", id);
@@ -367,7 +367,7 @@ impl Channel {
         self.ep_cap = Some(ep);
     }
 
-    pub fn next_in(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+    pub fn next_in(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let _: usize = is.pop()?;
 
         log!(crate::LOG_DEF, "[{}] pipes::next_in()", self.id);
@@ -381,7 +381,7 @@ impl Channel {
         res
     }
 
-    pub fn next_out(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+    pub fn next_out(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let _: usize = is.pop()?;
 
         log!(crate::LOG_DEF, "[{}] pipes::next_out()", self.id);
@@ -395,7 +395,7 @@ impl Channel {
         res
     }
 
-    pub fn commit(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+    pub fn commit(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let _fid: usize = is.pop()?;
         let nbytes: usize = is.pop()?;
 
@@ -432,7 +432,7 @@ impl Channel {
         }
     }
 
-    fn read(&mut self, is: &mut GateIStream, commit: usize) -> Result<(), Error> {
+    fn read(&mut self, is: &mut GateIStream<'_>, commit: usize) -> Result<(), Error> {
         self.activate()?;
 
         // if a read is in progress, we have to commit it
@@ -497,7 +497,7 @@ impl Channel {
         }
     }
 
-    fn write(&mut self, is: &mut GateIStream, commit: usize) -> Result<(), Error> {
+    fn write(&mut self, is: &mut GateIStream<'_>, commit: usize) -> Result<(), Error> {
         self.activate()?;
 
         // if there are no readers left, report EOF

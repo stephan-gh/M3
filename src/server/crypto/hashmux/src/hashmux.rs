@@ -238,7 +238,7 @@ impl HashRequest {
     }
 
     /// Reply with the specified message to the original request.
-    fn reply_msg(self, msg: MsgBufRef) {
+    fn reply_msg(self, msg: MsgBufRef<'_>) {
         let rgate = RECV.get().reqhdl.recv_gate();
         rgate
             .reply(&msg, self.msg)
@@ -438,7 +438,7 @@ impl HashSession {
         self.sess.ident() as SessId
     }
 
-    fn reset(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+    fn reset(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let ty: HashType = is.pop()?;
         let algo = HashAlgorithm::from_type(ty).ok_or_else(|| Error::new(Code::InvArgs))?;
 
@@ -471,7 +471,7 @@ impl HashSession {
         Ok(())
     }
 
-    fn input(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+    fn input(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         log!(LOG_DEF, "[{}] hash::input()", self.sess.ident());
 
         // Disallow input after output for now since this is not part of the SHA-3 specification.
@@ -489,7 +489,7 @@ impl HashSession {
         })
     }
 
-    fn output(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+    fn output(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         log!(LOG_DEF, "[{}] hash::output()", self.sess.ident());
 
         let algo = self.algo.ok_or_else(|| Error::new(Code::InvState))?;
@@ -549,7 +549,7 @@ impl HashSession {
 }
 
 impl HashHandler {
-    fn handle(&mut self, op: HashOp, is: &mut GateIStream) -> Result<(), Error> {
+    fn handle(&mut self, op: HashOp, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let sid = is.label() as SessId;
         let sess = self
             .sessions
@@ -641,7 +641,7 @@ impl Handler<HashSession> for HashHandler {
         })
     }
 
-    fn obtain(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn obtain(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
         log!(LOG_DEF, "[{}] hash::obtain()", sid);
         let hash = self
             .sessions

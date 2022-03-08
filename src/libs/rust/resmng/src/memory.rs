@@ -61,7 +61,7 @@ impl MemMod {
 }
 
 impl fmt::Debug for MemMod {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "MemMod[sel: {}, res: {}, addr: {:?}, size: {} MiB]",
@@ -226,7 +226,7 @@ impl MemSlice {
 }
 
 impl fmt::Display for MemSlice {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "MemSlice[{:?} .. {:?}, {:?}]",
@@ -238,7 +238,7 @@ impl fmt::Display for MemSlice {
 }
 
 impl fmt::Debug for MemSlice {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "MemSlice[mod: {:?}, available: {} MiB, perm: {:?}, map: {:?}]",
@@ -280,7 +280,7 @@ impl Allocation {
 }
 
 impl fmt::Debug for Allocation {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "Alloc[slice={}, addr={:#x}, size={:#x}]",
@@ -381,7 +381,7 @@ impl MemPool {
 }
 
 impl fmt::Debug for MemPool {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(
             f,
             "MemPool[size: {} MiB, available: {} MiB, slices: [",

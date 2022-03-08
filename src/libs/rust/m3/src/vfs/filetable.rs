@@ -122,7 +122,7 @@ impl FileTable {
         Ok(())
     }
 
-    pub(crate) fn serialize(&self, s: &mut StateSerializer) {
+    pub(crate) fn serialize(&self, s: &mut StateSerializer<'_>) {
         let count = self.files.iter().filter(|&f| f.is_some()).count();
         s.push_word(count as u64);
 
@@ -136,7 +136,7 @@ impl FileTable {
         }
     }
 
-    pub(crate) fn unserialize(s: &mut Source) -> FileTable {
+    pub(crate) fn unserialize(s: &mut Source<'_>) -> FileTable {
         let mut ft = FileTable::default();
 
         let count = s.pop().unwrap();
@@ -155,7 +155,7 @@ impl FileTable {
 }
 
 impl fmt::Debug for FileTable {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "FileTable[")?;
         for (fd, file) in self.files.iter().enumerate() {
             if let Some(ref file_ref) = file {

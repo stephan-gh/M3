@@ -77,7 +77,7 @@ struct NetHandler {
 }
 
 impl NetHandler {
-    fn handle(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+    fn handle(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let op = is.pop::<NetworkOp>()?;
         let sess_id: SessId = is.label() as SessId;
 
@@ -147,7 +147,7 @@ impl Handler<NetworkSession> for NetHandler {
         })
     }
 
-    fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
         log!(
             LOG_SESS,
             "[{}] net::obtain(crt={}, #caps={})",
@@ -164,7 +164,7 @@ impl Handler<NetworkSession> for NetHandler {
         }
     }
 
-    fn delegate(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn delegate(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
         log!(LOG_SESS, "[{}] net::delegate(crt={})", sid, crt);
 
         if let Some(s) = self.sessions.get_mut(sid) {

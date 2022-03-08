@@ -82,5 +82,5 @@ pub trait FileSystem: fmt::Debug {
         max_sel: &mut Selector,
     ) -> Result<(), Error>;
     /// Serializes this file system into `s`.
-    fn serialize(&self, s: &mut StateSerializer);
+    fn serialize(&self, s: &mut StateSerializer<'_>);
 }

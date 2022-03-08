@@ -84,7 +84,7 @@ where
     Ok(())
 }
 
-fn handle_request_async(mut is: GateIStream) {
+fn handle_request_async(mut is: GateIStream<'_>) {
     let op: Result<ResMngOperation, Error> = is.pop();
     let id = is.label() as Id;
 
@@ -136,7 +136,7 @@ fn handle_request_async(mut is: GateIStream) {
     .ok(); // ignore errors; we might have removed the child in the meantime
 }
 
-fn reg_serv(is: &mut GateIStream, id: Id) -> Result<(), Error> {
+fn reg_serv(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
     let dst_sel: Selector = is.pop()?;
     let sgate_sel: Selector = is.pop()?;
     let sessions: u32 = is.pop()?;
@@ -147,7 +147,7 @@ fn reg_serv(is: &mut GateIStream, id: Id) -> Result<(), Error> {
     child.reg_service(dst_sel, sgate_sel, name, sessions)
 }
 
-fn unreg_serv(is: &mut GateIStream, id: Id) -> Result<(), Error> {
+fn unreg_serv(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
     let sel: Selector = is.pop()?;
 
     let mut childs = childs::borrow_mut();
@@ -155,20 +155,20 @@ fn unreg_serv(is: &mut GateIStream, id: Id) -> Result<(), Error> {
     child.unreg_service(sel)
 }
 
-fn open_session_async(is: &mut GateIStream, id: Id) -> Result<(), Error> {
+fn open_session_async(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
     let dst_sel: Selector = is.pop()?;
     let name: String = is.pop()?;
 
     childs::open_session_async(id, dst_sel, &name)
 }
 
-fn close_session_async(is: &mut GateIStream, id: Id) -> Result<(), Error> {
+fn close_session_async(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
     let sel: Selector = is.pop()?;
 
     childs::close_session_async(id, sel)
 }
 
-fn add_child(is: &mut GateIStream, id: Id) -> Result<(), Error> {
+fn add_child(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
     let act_id: ActId = is.pop()?;
     let act_sel: Selector = is.pop()?;
     let sgate_sel: Selector = is.pop()?;
@@ -177,13 +177,13 @@ fn add_child(is: &mut GateIStream, id: Id) -> Result<(), Error> {
     childs::add_child(id, act_id, act_sel, &RGATE.borrow(), sgate_sel, name)
 }
 
-fn rem_child_async(is: &mut GateIStream, id: Id) -> Result<(), Error> {
+fn rem_child_async(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
     let act_sel: Selector = is.pop()?;
 
     childs::rem_child_async(id, act_sel)
 }
 
-fn alloc_mem(is: &mut GateIStream, id: Id) -> Result<(), Error> {
+fn alloc_mem(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
     let dst_sel: Selector = is.pop()?;
     let addr: goff = is.pop()?;
     let size: goff = is.pop()?;
@@ -199,7 +199,7 @@ fn alloc_mem(is: &mut GateIStream, id: Id) -> Result<(), Error> {
     }
 }
 
-fn free_mem(is: &mut GateIStream, id: Id) -> Result<(), Error> {
+fn free_mem(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
     let sel: Selector = is.pop()?;
 
     let mut childs = childs::borrow_mut();
@@ -207,7 +207,7 @@ fn free_mem(is: &mut GateIStream, id: Id) -> Result<(), Error> {
     child.free_mem(sel)
 }
 
-fn alloc_tile(is: &mut GateIStream, id: Id) -> Result<(), Error> {
+fn alloc_tile(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
     let dst_sel: Selector = is.pop()?;
     let desc = kif::TileDesc::new_from(is.pop()?);
 
@@ -218,7 +218,7 @@ fn alloc_tile(is: &mut GateIStream, id: Id) -> Result<(), Error> {
         .and_then(|(id, desc)| reply_vmsg!(is, Code::None as u32, id, desc.value()))
 }
 
-fn free_tile(is: &mut GateIStream, id: Id) -> Result<(), Error> {
+fn free_tile(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
     let sel: Selector = is.pop()?;
 
     let mut childs = childs::borrow_mut();
@@ -226,7 +226,7 @@ fn free_tile(is: &mut GateIStream, id: Id) -> Result<(), Error> {
     child.free_tile(sel)
 }
 
-fn use_rgate(is: &mut GateIStream, id: Id) -> Result<(), Error> {
+fn use_rgate(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
     let sel: Selector = is.pop()?;
     let name: String = is.pop()?;
 
@@ -237,7 +237,7 @@ fn use_rgate(is: &mut GateIStream, id: Id) -> Result<(), Error> {
         .and_then(|(order, msg_order)| reply_vmsg!(is, Code::None as u32, order, msg_order))
 }
 
-fn use_sgate(is: &mut GateIStream, id: Id) -> Result<(), Error> {
+fn use_sgate(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
     let sel: Selector = is.pop()?;
     let name: String = is.pop()?;
 
@@ -246,7 +246,7 @@ fn use_sgate(is: &mut GateIStream, id: Id) -> Result<(), Error> {
     child.use_sgate(&name, sel)
 }
 
-fn use_sem(is: &mut GateIStream, id: Id) -> Result<(), Error> {
+fn use_sem(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
     let sel: Selector = is.pop()?;
     let name: String = is.pop()?;
 
@@ -255,7 +255,7 @@ fn use_sem(is: &mut GateIStream, id: Id) -> Result<(), Error> {
     child.use_sem(&name, sel)
 }
 
-fn get_serial(is: &mut GateIStream, id: Id) -> Result<(), Error> {
+fn get_serial(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
     let sel: Selector = is.pop()?;
 
     let mut childs = childs::borrow_mut();
@@ -263,7 +263,7 @@ fn get_serial(is: &mut GateIStream, id: Id) -> Result<(), Error> {
     child.get_serial(sel)
 }
 
-fn get_info(is: &mut GateIStream, id: Id) -> Result<(), Error> {
+fn get_info(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
     let act_idx: usize = is.pop()?;
 
     let idx = if act_idx == usize::MAX {

@@ -62,7 +62,7 @@ const ICMP_CMD_ECHO_REPLY: u8 = 0x00;
 
 fn send_echo(
     buf: &mut [u8],
-    sock: &RawSocket,
+    sock: &RawSocket<'_>,
     src: IpAddr,
     dest: IpAddr,
     nbytes: usize,
@@ -112,7 +112,7 @@ fn send_echo(
     sock.send(&buf[0..total as usize])
 }
 
-fn recv_reply(mut buf: &mut [u8], sock: &RawSocket) -> Result<(), VerboseError> {
+fn recv_reply(mut buf: &mut [u8], sock: &RawSocket<'_>) -> Result<(), VerboseError> {
     let send_time = TimeInstant::now();
 
     loop {

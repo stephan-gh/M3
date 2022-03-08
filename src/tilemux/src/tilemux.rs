@@ -19,6 +19,7 @@
 #![feature(duration_constants)]
 #![no_std]
 
+#[allow(unused_extern_crates)]
 extern crate heap;
 
 mod activities;

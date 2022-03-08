@@ -78,7 +78,7 @@ impl Mod {
 }
 
 impl fmt::Debug for Mod {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
             "Mod[addr: {:?}, size: {:#x}, name: {}]",
@@ -104,7 +104,7 @@ impl Tile {
 }
 
 impl fmt::Debug for Tile {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
             "Tile{:02}: {} {} {:?} {} KiB memory",
@@ -152,7 +152,7 @@ impl Mem {
 }
 
 impl fmt::Debug for Mem {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
             "Mem[addr: {:?}, size: {:#x}, res={}]",
@@ -199,7 +199,7 @@ impl Service {
 }
 
 impl fmt::Debug for Service {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "Serv[name: {}]", self.name(),)
     }
 }

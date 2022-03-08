@@ -130,7 +130,7 @@ impl<R: Read + Seek> Seek for BufReader<R> {
 }
 
 impl<R: Read + fmt::Debug> fmt::Debug for BufReader<R> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "BufReader[reader={:?}, pos={}, cap={}]",
@@ -238,7 +238,7 @@ impl<W: Write> Drop for BufWriter<W> {
 }
 
 impl<W: Write + fmt::Debug> fmt::Debug for BufWriter<W> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "BufWriter[writer={:?}, pos={}]", self.writer, self.pos)
     }
 }

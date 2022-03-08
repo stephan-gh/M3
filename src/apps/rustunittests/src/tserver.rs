@@ -63,7 +63,7 @@ impl Handler<EmptySession> for CrashHandler {
             .map(|_| (sel, 0))
     }
 
-    fn obtain(&mut self, _: usize, _: SessId, _: &mut CapExchange) -> Result<(), Error> {
+    fn obtain(&mut self, _: usize, _: SessId, _: &mut CapExchange<'_>) -> Result<(), Error> {
         // don't respond, just exit
         m3::exit(1);
     }
@@ -207,7 +207,7 @@ impl Handler<EmptySession> for NotSupHandler {
             .map(|_| (sel, 0))
     }
 
-    fn obtain(&mut self, _: usize, _: SessId, _: &mut CapExchange) -> Result<(), Error> {
+    fn obtain(&mut self, _: usize, _: SessId, _: &mut CapExchange<'_>) -> Result<(), Error> {
         self.calls += 1;
         // stop the service after 5 calls
         if self.calls == 5 {
@@ -216,7 +216,7 @@ impl Handler<EmptySession> for NotSupHandler {
         Err(Error::new(Code::NotSup))
     }
 
-    fn delegate(&mut self, _: usize, _: SessId, _: &mut CapExchange) -> Result<(), Error> {
+    fn delegate(&mut self, _: usize, _: SessId, _: &mut CapExchange<'_>) -> Result<(), Error> {
         self.calls += 1;
         if self.calls == 5 {
             STOP.set(true);

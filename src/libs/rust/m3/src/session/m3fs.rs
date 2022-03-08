@@ -231,7 +231,7 @@ impl FileSystem for M3FS {
         Ok(())
     }
 
-    fn serialize(&self, s: &mut StateSerializer) {
+    fn serialize(&self, s: &mut StateSerializer<'_>) {
         s.push_word(self.sess.sel() as u64);
         s.push_word(self.id() as u64);
     }
@@ -264,7 +264,7 @@ impl M3FS {
         Ok(id)
     }
 
-    pub fn unserialize(s: &mut Source) -> FSHandle {
+    pub fn unserialize(s: &mut Source<'_>) -> FSHandle {
         let sels: Selector = s.pop().unwrap();
         let id: usize = s.pop().unwrap();
         M3FS::new_bind(id, sels)
@@ -272,7 +272,7 @@ impl M3FS {
 }
 
 impl fmt::Debug for M3FS {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "M3FS[id={}, sess={:?}, sgate={:?}]",

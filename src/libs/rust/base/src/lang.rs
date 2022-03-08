@@ -29,7 +29,7 @@ extern "C" {
 }
 
 #[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo<'_>) -> ! {
     static PANIC: StaticCell<bool> = StaticCell::new(false);
     if PANIC.get() {
         unsafe {

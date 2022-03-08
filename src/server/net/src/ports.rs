@@ -52,7 +52,7 @@ impl core::ops::Deref for EphemeralPort {
 }
 
 impl fmt::Display for EphemeralPort {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "{}", self.port)
     }
 }

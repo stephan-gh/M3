@@ -84,7 +84,7 @@ impl<T: Duration> Results<T> {
 }
 
 impl<T: Duration> fmt::Display for Results<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{:?} (+/- {:?} with {} runs)",

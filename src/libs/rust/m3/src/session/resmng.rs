@@ -76,7 +76,7 @@ pub enum ResMngActInfoResult {
 }
 
 impl Marshallable for ResMngActInfoResult {
-    fn marshall(&self, s: &mut base::serialize::Sink) {
+    fn marshall(&self, s: &mut base::serialize::Sink<'_>) {
         match self {
             ResMngActInfoResult::Info(i) => {
                 s.push(&0);
@@ -101,7 +101,7 @@ impl Marshallable for ResMngActInfoResult {
 }
 
 impl Unmarshallable for ResMngActInfoResult {
-    fn unmarshall(s: &mut base::serialize::Source) -> Result<Self, Error> {
+    fn unmarshall(s: &mut base::serialize::Source<'_>) -> Result<Self, Error> {
         let ty = s.pop::<u64>()?;
         match ty {
             0 => Ok(Self::Info(ResMngActInfo {
@@ -331,7 +331,7 @@ impl ResMng {
         .and_then(|mut is| is.pop())
     }
 
-    fn use_op(&self, op: ResMngOperation, sel: Selector, name: &str) -> Result<GateIStream, Error> {
+    fn use_op(&self, op: ResMngOperation, sel: Selector, name: &str) -> Result<GateIStream<'_>, Error> {
         send_recv_res!(&self.sgate, RecvGate::def(), op, sel, name)
     }
 }

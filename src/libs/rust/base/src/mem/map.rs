@@ -35,7 +35,7 @@ impl Area {
 }
 
 impl fmt::Debug for Area {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Area[addr={:#x}, size={:#x}]", self.addr, self.size)
     }
 }
@@ -157,7 +157,7 @@ impl MemMap {
 }
 
 impl fmt::Debug for MemMap {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "[")?;
         for a in &self.areas {
             writeln!(f, "    {:?}", a)?;

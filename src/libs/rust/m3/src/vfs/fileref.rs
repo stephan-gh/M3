@@ -119,7 +119,7 @@ impl HashOutput for FileRef {
 }
 
 impl fmt::Debug for FileRef {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "FileRef[fd={}, file={:?}]", self.fd, self.file.borrow())
     }
 }

@@ -81,7 +81,7 @@ impl KObject {
 }
 
 impl fmt::Debug for KObject {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             KObject::SGate(s) => write!(f, "{:?}", s),
             KObject::RGate(r) => write!(f, "{:?}", r),
@@ -165,11 +165,11 @@ impl RGateObject {
         })
     }
 
-    pub fn gate_ep(&self) -> Ref<GateEP> {
+    pub fn gate_ep(&self) -> Ref<'_, GateEP> {
         self.gep.borrow()
     }
 
-    pub fn gate_ep_mut(&self) -> RefMut<GateEP> {
+    pub fn gate_ep_mut(&self) -> RefMut<'_, GateEP> {
         self.gep.borrow_mut()
     }
 
@@ -221,7 +221,7 @@ impl RGateObject {
         self as *const Self as thread::Event
     }
 
-    pub fn print_loc(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    pub fn print_loc(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.loc.get() {
             Some((tile, ep)) => write!(f, "Tile{}:EP{}", tile, ep),
             None => write!(f, "?"),
@@ -230,7 +230,7 @@ impl RGateObject {
 }
 
 impl fmt::Debug for RGateObject {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "RGate[loc=")?;
         self.print_loc(f)?;
         write!(
@@ -260,11 +260,11 @@ impl SGateObject {
         })
     }
 
-    pub fn gate_ep(&self) -> Ref<GateEP> {
+    pub fn gate_ep(&self) -> Ref<'_, GateEP> {
         self.gep.borrow()
     }
 
-    pub fn gate_ep_mut(&self) -> RefMut<GateEP> {
+    pub fn gate_ep_mut(&self) -> RefMut<'_, GateEP> {
         self.gep.borrow_mut()
     }
 
@@ -295,7 +295,7 @@ impl SGateObject {
 }
 
 impl fmt::Debug for SGateObject {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "SGate[rgate=")?;
         self.rgate.print_loc(f)?;
         write!(f, ", lbl={:#x}, crd={}]", self.label, self.credits)
@@ -319,11 +319,11 @@ impl MGateObject {
         })
     }
 
-    pub fn gate_ep(&self) -> Ref<GateEP> {
+    pub fn gate_ep(&self) -> Ref<'_, GateEP> {
         self.gep.borrow()
     }
 
-    pub fn gate_ep_mut(&self) -> RefMut<GateEP> {
+    pub fn gate_ep_mut(&self) -> RefMut<'_, GateEP> {
         self.gep.borrow_mut()
     }
 
@@ -358,7 +358,7 @@ impl Drop for MGateObject {
 }
 
 impl fmt::Debug for MGateObject {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "MGate[tile={}, addr={:?}, size={:#x}, perm={:?}, der={}]",
@@ -396,7 +396,7 @@ impl ServObject {
 }
 
 impl fmt::Debug for ServObject {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "Serv[srv={:?}, owner={}, creator={}]",
@@ -434,7 +434,7 @@ impl SessObject {
 }
 
 impl fmt::Debug for SessObject {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "Sess[service={}, ident={:#x}]",
@@ -491,7 +491,7 @@ impl SemObject {
 }
 
 impl fmt::Debug for SemObject {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "Sem[counter={}, waiters={}]",
@@ -663,7 +663,7 @@ impl TileObject {
 }
 
 impl fmt::Debug for TileObject {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "Tile[id={}, eps={}, actitivies={}, derived={}]",
@@ -796,7 +796,7 @@ impl Drop for EPObject {
 }
 
 impl fmt::Debug for EPObject {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "EP[act={}, ep={}, replies={}, tile={:?}]",
@@ -888,7 +888,7 @@ impl KMemObject {
 }
 
 impl fmt::Debug for KMemObject {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "KMem[id={}, quota={}, left={}]",
@@ -966,7 +966,7 @@ impl MapObject {
 }
 
 impl fmt::Debug for MapObject {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "Map[glob={:?}, flags={:#x}]",

@@ -53,7 +53,7 @@ impl<T: Copy> Quota<T> {
 }
 
 impl<T: Copy + Marshallable> Marshallable for Quota<T> {
-    fn marshall(&self, s: &mut Sink) {
+    fn marshall(&self, s: &mut Sink<'_>) {
         s.push(&self.id);
         s.push(&self.total);
         s.push(&self.left);
@@ -61,7 +61,7 @@ impl<T: Copy + Marshallable> Marshallable for Quota<T> {
 }
 
 impl<T: Copy + Unmarshallable> Unmarshallable for Quota<T> {
-    fn unmarshall(s: &mut Source) -> Result<Self, Error> {
+    fn unmarshall(s: &mut Source<'_>) -> Result<Self, Error> {
         Ok(Self::new(s.pop()?, s.pop()?, s.pop()?))
     }
 }

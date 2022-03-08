@@ -38,7 +38,7 @@ impl PartialEq for TestItem {
 }
 
 impl fmt::Debug for TestItem {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "data={}", self.data)
     }
 }

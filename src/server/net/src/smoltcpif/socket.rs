@@ -98,10 +98,10 @@ impl Socket {
             + args.sbuf_size
             + match ty {
                 SocketType::Dgram => {
-                    (args.sbuf_slots + args.rbuf_slots) * size_of::<UdpSocketBuffer>()
+                    (args.sbuf_slots + args.rbuf_slots) * size_of::<UdpSocketBuffer<'_>>()
                 },
                 SocketType::Raw => {
-                    (args.sbuf_slots + args.rbuf_slots) * size_of::<RawSocketBuffer>()
+                    (args.sbuf_slots + args.rbuf_slots) * size_of::<RawSocketBuffer<'_>>()
                 },
                 _ => 0,
             }
@@ -193,7 +193,7 @@ impl Socket {
     pub fn fetch_event(&mut self, socket_set: &mut SocketSet<'static>) -> Option<SendNetEvent> {
         match (self.ty, self.state) {
             (SocketType::Stream, State::Connecting) => {
-                let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
+                let mut tcp_socket = socket_set.get::<TcpSocket<'_>>(self.socket);
                 if tcp_socket.state() == TcpState::Established {
                     self.state = State::Connected;
                     let ep = to_m3_ep(tcp_socket.remote_endpoint());
@@ -217,7 +217,7 @@ impl Socket {
             },
 
             (SocketType::Stream, State::Connected) => {
-                let tcp_socket = socket_set.get::<TcpSocket>(self.socket);
+                let tcp_socket = socket_set.get::<TcpSocket<'_>>(self.socket);
                 if !tcp_socket.is_open() {
                     self._local_port = None;
                     self.state = State::Closed;
@@ -251,7 +251,7 @@ impl Socket {
         }
 
         let endpoint = IpEndpoint::new(addr, port);
-        let mut udp_socket = socket_set.get::<UdpSocket>(self.socket);
+        let mut udp_socket = socket_set.get::<UdpSocket<'_>>(self.socket);
         match udp_socket.bind(endpoint) {
             Ok(_) => {
                 self.state = State::Bound;
@@ -279,7 +279,7 @@ impl Socket {
         }
 
         let endpoint = IpEndpoint::new(addr, port);
-        let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
+        let mut tcp_socket = socket_set.get::<TcpSocket<'_>>(self.socket);
         match tcp_socket.listen(endpoint) {
             Ok(_) => {
                 self.connect_start = None;
@@ -314,7 +314,7 @@ impl Socket {
         );
         let local_endpoint = IpEndpoint::from(*local_port);
 
-        let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
+        let mut tcp_socket = socket_set.get::<TcpSocket<'_>>(self.socket);
         match tcp_socket.connect(remote_endpoint, local_endpoint) {
             Ok(_) => {
                 self.connect_start = Some(TimeInstant::now());
@@ -335,14 +335,14 @@ impl Socket {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
+        let mut tcp_socket = socket_set.get::<TcpSocket<'_>>(self.socket);
         tcp_socket.close();
         Ok(())
     }
 
     pub fn abort(&mut self, socket_set: &mut SocketSet<'static>) {
         if self.ty == SocketType::Stream {
-            let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
+            let mut tcp_socket = socket_set.get::<TcpSocket<'_>>(self.socket);
             tcp_socket.abort();
         }
 
@@ -356,7 +356,7 @@ impl Socket {
     {
         match self.ty {
             SocketType::Stream => {
-                let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
+                let mut tcp_socket = socket_set.get::<TcpSocket<'_>>(self.socket);
                 if self.state == State::Connected {
                     let addr = tcp_socket.remote_endpoint();
                     // don't even log errors here, since they occur often and are uninteresting
@@ -374,14 +374,14 @@ impl Socket {
             },
 
             SocketType::Dgram => {
-                let mut udp_socket = socket_set.get::<UdpSocket>(self.socket);
+                let mut udp_socket = socket_set.get::<UdpSocket<'_>>(self.socket);
                 if let Ok((data, remote_endpoint)) = udp_socket.recv() {
                     func(data, remote_endpoint);
                 }
             },
 
             SocketType::Raw => {
-                let mut raw_socket = socket_set.get::<RawSocket>(self.socket);
+                let mut raw_socket = socket_set.get::<RawSocket<'_>>(self.socket);
                 if let Ok(data) = raw_socket.recv() {
                     func(data, IpEndpoint::UNSPECIFIED);
                 }
@@ -401,7 +401,7 @@ impl Socket {
     ) -> usize {
         match ty {
             SocketType::Stream => {
-                let mut tcp_socket = socket_set.get::<TcpSocket>(socket);
+                let mut tcp_socket = socket_set.get::<TcpSocket<'_>>(socket);
                 if tcp_socket.can_send() {
                     tcp_socket.send_slice(data).unwrap()
                 }
@@ -411,7 +411,7 @@ impl Socket {
             },
 
             SocketType::Dgram => {
-                let mut udp_socket = socket_set.get::<UdpSocket>(socket);
+                let mut udp_socket = socket_set.get::<UdpSocket<'_>>(socket);
                 if udp_socket.can_send() {
                     let rend = IpEndpoint::new(
                         IpAddress::Ipv4(Ipv4Address::from_bytes(&dest_addr.0.to_be_bytes())),
@@ -427,7 +427,7 @@ impl Socket {
             },
 
             SocketType::Raw => {
-                let mut raw_socket = socket_set.get::<RawSocket>(socket);
+                let mut raw_socket = socket_set.get::<RawSocket<'_>>(socket);
                 if raw_socket.can_send() {
                     raw_socket.send_slice(data).unwrap();
                     data.len()

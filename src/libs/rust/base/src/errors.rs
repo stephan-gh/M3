@@ -165,7 +165,7 @@ impl Error {
         self.info.bt.as_ref()
     }
 
-    fn debug(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn debug(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "{:?} at:", self.code())?;
         for i in 0..self.info.bt_len {
             writeln!(f, "  {:#x}", self.info.bt[i as usize])?;
@@ -195,7 +195,7 @@ impl Error {
         self.code
     }
 
-    fn debug(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn debug(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.code())
     }
 }
@@ -240,13 +240,13 @@ impl PartialEq for Error {
 }
 
 impl fmt::Debug for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.debug(f)
     }
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.debug(f)
     }
 }
@@ -273,7 +273,7 @@ impl VerboseError {
         &self.msg
     }
 
-    fn debug(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn debug(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} ({:?})", self.msg, self.code)
     }
 }
@@ -285,13 +285,13 @@ impl From<Error> for VerboseError {
 }
 
 impl fmt::Debug for VerboseError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.debug(f)
     }
 }
 
 impl fmt::Display for VerboseError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.debug(f)
     }
 }

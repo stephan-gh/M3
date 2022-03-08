@@ -60,7 +60,7 @@ struct ClientParams {
 }
 
 impl ClientParams {
-    fn serialize(&self, dst: &mut StateSerializer) {
+    fn serialize(&self, dst: &mut StateSerializer<'_>) {
         dst.push_word(self.num as u64);
         dst.push_word(self.algo.val);
         dst.push_word(self.size as u64);
@@ -71,7 +71,7 @@ impl ClientParams {
 }
 
 impl Unmarshallable for ClientParams {
-    fn unmarshall(s: &mut Source) -> Result<Self, Error> {
+    fn unmarshall(s: &mut Source<'_>) -> Result<Self, Error> {
         Ok(ClientParams {
             num: s.pop()?,
             algo: s.pop()?,
@@ -223,10 +223,10 @@ fn _start_client(params: ClientParams, rgate: &RecvGate, mgate: &MemGate) -> Cli
 
 fn _sync_clients<F, R>(rgate: &RecvGate, num: usize, action: F) -> R
 where
-    F: FnOnce(&mut [GateIStream]) -> R,
+    F: FnOnce(&mut [GateIStream<'_>]) -> R,
 {
     // Collect messages from all clients
-    let mut msgs: Vec<GateIStream> = Vec::with_capacity(num);
+    let mut msgs: Vec<GateIStream<'_>> = Vec::with_capacity(num);
     while msgs.len() != num {
         msgs.push(wv_assert_ok!(recv_msg(&rgate)));
     }

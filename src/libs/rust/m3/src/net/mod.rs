@@ -79,7 +79,7 @@ impl core::str::FromStr for IpAddr {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parse_part = |s: &mut core::str::Split<char>| {
+        let parse_part = |s: &mut core::str::Split<'_, char>| {
             s.next()
                 .ok_or_else(|| Error::new(Code::InvArgs))?
                 .parse::<u8>()

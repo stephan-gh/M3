@@ -80,7 +80,7 @@ impl<'d> CapExchange<'d> {
 }
 
 impl<'d> fmt::Debug for CapExchange<'d> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             fmt,
             "CapExchange[in_caps={}, out_crd={}]",
@@ -106,7 +106,7 @@ pub trait Handler<S> {
     ) -> Result<(Selector, SessId), Error>;
 
     /// Let's the client obtain a capability from the server
-    fn obtain(&mut self, _crt: usize, _sid: SessId, _xchg: &mut CapExchange) -> Result<(), Error> {
+    fn obtain(&mut self, _crt: usize, _sid: SessId, _xchg: &mut CapExchange<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
     /// Let's the client delegate a capability to the server
@@ -114,7 +114,7 @@ pub trait Handler<S> {
         &mut self,
         _crt: usize,
         _sid: SessId,
-        _xchg: &mut CapExchange,
+        _xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
@@ -198,7 +198,7 @@ impl Server {
     fn handle_ctrl_msg<S>(
         &self,
         hdl: &mut dyn Handler<S>,
-        is: &mut GateIStream,
+        is: &mut GateIStream<'_>,
     ) -> Result<bool, Error> {
         let op: service::Operation = is.pop()?;
         match op {
@@ -219,7 +219,7 @@ impl Server {
     fn handle_open<S>(
         hdl: &mut dyn Handler<S>,
         sel: Selector,
-        is: &mut GateIStream,
+        is: &mut GateIStream<'_>,
     ) -> Result<(), Error> {
         let arg: &str = is.pop()?;
 
@@ -250,7 +250,7 @@ impl Server {
         }
     }
 
-    fn handle_derive_crt<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream) -> Result<(), Error> {
+    fn handle_derive_crt<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let msg = is.msg().get_data::<service::DeriveCreator>();
 
         let crt = is.label() as usize;
@@ -274,7 +274,7 @@ impl Server {
         is.reply(&buf)
     }
 
-    fn handle_obtain<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream) -> Result<(), Error> {
+    fn handle_obtain<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let msg = is.msg().get_data::<service::Exchange>();
         let sid = msg.sess as SessId;
         let crt = is.label() as usize;
@@ -314,7 +314,7 @@ impl Server {
         is.reply(&buf)
     }
 
-    fn handle_delegate<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream) -> Result<(), Error> {
+    fn handle_delegate<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let msg = is.msg().get_data::<service::Exchange>();
         let sid = msg.sess as SessId;
         let crt = is.label() as usize;
@@ -354,7 +354,7 @@ impl Server {
         is.reply(&buf)
     }
 
-    fn handle_close<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream) -> Result<(), Error> {
+    fn handle_close<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let sid = is.pop::<SessId>()?;
         let crt = is.label() as usize;
 
@@ -369,7 +369,7 @@ impl Server {
         is.reply_error(Code::None)
     }
 
-    fn handle_shutdown<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream) -> Result<(), Error> {
+    fn handle_shutdown<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream<'_>) -> Result<(), Error> {
         llog!(SERV, "server::shutdown()");
 
         // only the first creator is allowed to shut us down

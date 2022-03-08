@@ -33,7 +33,7 @@ pub struct Instruction {
 }
 
 impl fmt::Display for Instruction {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             fmt,
             "Instr {{ addr: {:#x}, opcode: {:#x}, symbol: \x1B[1m{}\x1B[0m {}, disasm: {} }}",

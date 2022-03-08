@@ -204,7 +204,7 @@ impl Activity {
 
     /// Creates a new `Activity` on tile `tile` with given arguments. The activity provides access
     /// to the tile and allows to run an activity on the tile.
-    pub fn new_with(tile: Rc<Tile>, args: ActivityArgs) -> Result<Self, Error> {
+    pub fn new_with(tile: Rc<Tile>, args: ActivityArgs<'_>) -> Result<Self, Error> {
         let sel = Activity::cur().alloc_sels(3);
 
         let mut act = Activity {
@@ -333,7 +333,7 @@ impl Activity {
     ///
     /// The sink overwrites the activity-local data and will be transmitted to the activity when calling
     /// [`Activity::run`] or [`Activity::exec`].
-    pub fn data_sink(&mut self) -> StateSerializer {
+    pub fn data_sink(&mut self) -> StateSerializer<'_> {
         StateSerializer::new(&mut self.data)
     }
 
@@ -341,7 +341,7 @@ impl Activity {
     ///
     /// The source provides access to the activity-local data that has been transmitted to this activity from
     /// its parent during [`Activity::run`] or [`Activity::exec`].
-    pub fn data_source(&self) -> StateDeserializer {
+    pub fn data_source(&self) -> StateDeserializer<'_> {
         StateDeserializer::new(&self.data)
     }
 
@@ -693,7 +693,7 @@ impl Activity {
 }
 
 impl fmt::Debug for Activity {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "Activity[sel: {}, tile: {:?}]", self.sel(), self.tile())
     }
 }

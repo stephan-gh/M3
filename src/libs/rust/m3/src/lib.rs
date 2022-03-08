@@ -22,6 +22,7 @@
 #![feature(trace_macros)]
 #![no_std]
 
+#[allow(unused_extern_crates)]
 extern crate heap;
 
 // init stuff

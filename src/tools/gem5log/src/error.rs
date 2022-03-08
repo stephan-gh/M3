@@ -42,7 +42,7 @@ impl_err!(log::ParseLevelError, LogLevelError);
 impl_err!(log::SetLoggerError, SetLogError);
 
 impl fmt::Debug for Error {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         match self {
             Error::IoError(e) => write!(fmt, "I/O error occurred: {}", e),
             Error::NumError(e) => write!(fmt, "Unable to parse number: {}", e),

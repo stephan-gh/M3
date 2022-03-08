@@ -42,7 +42,7 @@ impl DualName {
 }
 
 impl fmt::Debug for DualName {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "lname='{}', gname='{}'", self.local, self.global)
     }
 }
@@ -664,7 +664,7 @@ impl AppConfig {
         }
     }
 
-    fn print_rec(&self, f: &mut fmt::Formatter, layer: usize) -> Result<(), fmt::Error> {
+    fn print_rec(&self, f: &mut fmt::Formatter<'_>, layer: usize) -> Result<(), fmt::Error> {
         write!(f, "{:0w$}", "", w = layer)?;
         for a in &self.args {
             write!(f, "{} ", a)?;
@@ -802,7 +802,7 @@ impl AppConfig {
 }
 
 impl fmt::Debug for AppConfig {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         writeln!(f, "Config [")?;
         self.print_rec(f, 2)?;
         writeln!(f, "]")

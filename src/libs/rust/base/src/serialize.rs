@@ -26,13 +26,13 @@ use crate::mem;
 /// For types that can be marshalled into a [`Sink`].
 pub trait Marshallable {
     /// Writes this object into the given sink
-    fn marshall(&self, s: &mut Sink);
+    fn marshall(&self, s: &mut Sink<'_>);
 }
 
 /// For types that can be unmarshalled from a [`Source`].
 pub trait Unmarshallable: Sized {
     /// Reads an object from the given source and returns it
-    fn unmarshall(s: &mut Source) -> Result<Self, Error>;
+    fn unmarshall(s: &mut Source<'_>) -> Result<Self, Error>;
 }
 
 /// A sink for marshalling into a slice
@@ -179,13 +179,13 @@ macro_rules! impl_xfer_prim {
     ( $t:ty ) => {
         impl Marshallable for $t {
             #[inline(always)]
-            fn marshall(&self, s: &mut Sink) {
+            fn marshall(&self, s: &mut Sink<'_>) {
                 s.push_word(*self as u64);
             }
         }
         impl Unmarshallable for $t {
             #[inline(always)]
-            fn unmarshall(s: &mut Source) -> Result<Self, Error> {
+            fn unmarshall(s: &mut Source<'_>) -> Result<Self, Error> {
                 s.pop_word().map(|v| v as $t)
             }
         }
@@ -205,35 +205,35 @@ impl_xfer_prim!(isize);
 
 impl Marshallable for bool {
     #[inline(always)]
-    fn marshall(&self, s: &mut Sink) {
+    fn marshall(&self, s: &mut Sink<'_>) {
         s.push_word(*self as u64);
     }
 }
 impl Unmarshallable for bool {
     #[inline(always)]
-    fn unmarshall(s: &mut Source) -> Result<Self, Error> {
+    fn unmarshall(s: &mut Source<'_>) -> Result<Self, Error> {
         s.pop_word().map(|v| v == 1)
     }
 }
 
 impl<'a> Marshallable for &'a str {
-    fn marshall(&self, s: &mut Sink) {
+    fn marshall(&self, s: &mut Sink<'_>) {
         s.push_str(self);
     }
 }
 impl Unmarshallable for &'static str {
-    fn unmarshall(s: &mut Source) -> Result<Self, Error> {
+    fn unmarshall(s: &mut Source<'_>) -> Result<Self, Error> {
         s.pop_str_slice()
     }
 }
 
 impl Marshallable for String {
-    fn marshall(&self, s: &mut Sink) {
+    fn marshall(&self, s: &mut Sink<'_>) {
         s.push_str(self.as_str());
     }
 }
 impl Unmarshallable for String {
-    fn unmarshall(s: &mut Source) -> Result<Self, Error> {
+    fn unmarshall(s: &mut Source<'_>) -> Result<Self, Error> {
         s.pop_str()
     }
 }

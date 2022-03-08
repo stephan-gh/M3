@@ -73,7 +73,7 @@ int_enum! {
 }
 
 impl fmt::Debug for State {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         writeln!(fmt, "  lr:     {:#x}", { self.lr })?;
         writeln!(fmt, "  sp:     {:#x}", { self.sp })?;
         writeln!(

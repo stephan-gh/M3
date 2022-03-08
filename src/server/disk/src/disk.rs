@@ -58,19 +58,19 @@ struct DiskSession {
 }
 
 impl DiskSession {
-    fn read(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+    fn read(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         self.read_write(is, "read", |part, mgate, off, start, count| {
             DEVICE.borrow_mut().read(part, &mgate, off, start, count)
         })
     }
 
-    fn write(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+    fn write(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         self.read_write(is, "write", |part, mgate, off, start, count| {
             DEVICE.borrow_mut().write(part, &mgate, off, start, count)
         })
     }
 
-    fn read_write<F>(&mut self, is: &mut GateIStream, name: &str, func: F) -> Result<(), Error>
+    fn read_write<F>(&mut self, is: &mut GateIStream<'_>, name: &str, func: F) -> Result<(), Error>
     where
         F: Fn(usize, &MemGate, usize, usize, usize) -> Result<(), Error>,
     {
@@ -155,7 +155,7 @@ impl Handler<DiskSession> for DiskHandler {
         })
     }
 
-    fn obtain(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn obtain(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
         if xchg.in_caps() != 1 {
             return Err(Error::new(Code::InvArgs));
         }
@@ -175,7 +175,7 @@ impl Handler<DiskSession> for DiskHandler {
         Ok(())
     }
 
-    fn delegate(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn delegate(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
         if xchg.in_caps() != 1 {
             return Err(Error::new(Code::InvArgs));
         }

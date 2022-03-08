@@ -38,98 +38,98 @@ impl M3FSSession for FSSession {
         }
     }
 
-    fn next_in(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn next_in(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             FSSession::Meta(m) => m.next_in(stream),
             FSSession::File(f) => f.next_in(stream),
         }
     }
 
-    fn next_out(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn next_out(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             FSSession::Meta(m) => m.next_out(stream),
             FSSession::File(f) => f.next_out(stream),
         }
     }
 
-    fn commit(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn commit(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             FSSession::Meta(m) => m.commit(stream),
             FSSession::File(f) => f.commit(stream),
         }
     }
 
-    fn seek(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn seek(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             FSSession::Meta(m) => m.seek(stream),
             FSSession::File(f) => f.seek(stream),
         }
     }
 
-    fn fstat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn fstat(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             FSSession::Meta(m) => m.fstat(stream),
             FSSession::File(f) => f.fstat(stream),
         }
     }
 
-    fn stat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn stat(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             FSSession::Meta(m) => m.stat(stream),
             FSSession::File(f) => f.stat(stream),
         }
     }
 
-    fn mkdir(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn mkdir(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             FSSession::Meta(m) => m.mkdir(stream),
             FSSession::File(f) => f.mkdir(stream),
         }
     }
 
-    fn rmdir(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn rmdir(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             FSSession::Meta(m) => m.rmdir(stream),
             FSSession::File(f) => f.rmdir(stream),
         }
     }
 
-    fn link(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn link(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             FSSession::Meta(m) => m.link(stream),
             FSSession::File(f) => f.link(stream),
         }
     }
 
-    fn unlink(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn unlink(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             FSSession::Meta(m) => m.unlink(stream),
             FSSession::File(f) => f.unlink(stream),
         }
     }
 
-    fn rename(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn rename(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             FSSession::Meta(m) => m.rename(stream),
             FSSession::File(f) => f.rename(stream),
         }
     }
 
-    fn sync(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn sync(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             FSSession::Meta(m) => m.sync(stream),
             FSSession::File(f) => f.sync(stream),
         }
     }
 
-    fn open_priv(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn open_priv(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             FSSession::Meta(m) => m.open_priv(stream),
             FSSession::File(f) => f.open_priv(stream),
         }
     }
 
-    fn close(&mut self, stream: &mut GateIStream) -> Result<bool, Error> {
+    fn close(&mut self, stream: &mut GateIStream<'_>) -> Result<bool, Error> {
         match self {
             FSSession::Meta(m) => m.close(stream),
             FSSession::File(_) => Ok(true),
@@ -141,46 +141,46 @@ impl M3FSSession for FSSession {
 pub trait M3FSSession {
     fn creator(&self) -> usize;
 
-    fn next_in(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+    fn next_in(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
-    fn next_out(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+    fn next_out(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
-    fn commit(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+    fn commit(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
-    fn seek(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+    fn seek(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
-    fn fstat(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+    fn fstat(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
-    fn stat(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+    fn stat(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
-    fn mkdir(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+    fn mkdir(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
-    fn rmdir(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+    fn rmdir(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
-    fn link(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+    fn link(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
-    fn unlink(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+    fn unlink(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
-    fn rename(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+    fn rename(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
-    fn sync(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+    fn sync(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
-    fn open_priv(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+    fn open_priv(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
-    fn close(&mut self, _stream: &mut GateIStream) -> Result<bool, Error> {
+    fn close(&mut self, _stream: &mut GateIStream<'_>) -> Result<bool, Error> {
         Err(Error::new(Code::NotSup))
     }
 }

@@ -500,8 +500,8 @@ pub fn delegate<PRE, POST>(
     post: POST,
 ) -> Result<(), Error>
 where
-    PRE: Fn(&mut Sink),
-    POST: FnMut(&mut Source) -> Result<(), Error>,
+    PRE: Fn(&mut Sink<'_>),
+    POST: FnMut(&mut Source<'_>) -> Result<(), Error>,
 {
     exchange_sess(act, syscalls::Operation::DELEGATE, sess, crd, pre, post)
 }
@@ -520,8 +520,8 @@ pub fn obtain<PRE, POST>(
     post: POST,
 ) -> Result<(), Error>
 where
-    PRE: Fn(&mut Sink),
-    POST: FnMut(&mut Source) -> Result<(), Error>,
+    PRE: Fn(&mut Sink<'_>),
+    POST: FnMut(&mut Source<'_>) -> Result<(), Error>,
 {
     exchange_sess(act, syscalls::Operation::OBTAIN, sess, crd, pre, post)
 }
@@ -535,8 +535,8 @@ fn exchange_sess<PRE, POST>(
     mut post: POST,
 ) -> Result<(), Error>
 where
-    PRE: Fn(&mut Sink),
-    POST: FnMut(&mut Source) -> Result<(), Error>,
+    PRE: Fn(&mut Sink<'_>),
+    POST: FnMut(&mut Source<'_>) -> Result<(), Error>,
 {
     let mut buf = SYSC_BUF.borrow_mut();
     let req = buf.set(syscalls::ExchangeSess {

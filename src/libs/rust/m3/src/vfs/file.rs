@@ -177,7 +177,7 @@ pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
         max_sel: &mut Selector,
     ) -> Result<(), Error>;
     /// Serializes this file into `s`.
-    fn serialize(&self, s: &mut StateSerializer);
+    fn serialize(&self, s: &mut StateSerializer<'_>);
 }
 
 /// Trait for resources that are seekable.

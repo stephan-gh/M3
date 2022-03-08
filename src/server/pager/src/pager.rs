@@ -86,7 +86,7 @@ impl Handler<AddrSpace> for PagerReqHandler {
         })
     }
 
-    fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
         if xchg.in_caps() != 1 {
             return Err(Error::new(Code::InvArgs));
         }
@@ -114,7 +114,7 @@ impl Handler<AddrSpace> for PagerReqHandler {
         Ok(())
     }
 
-    fn delegate(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn delegate(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
         if xchg.in_caps() != 1 {
             return Err(Error::new(Code::InvArgs));
         }
@@ -229,7 +229,7 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
         .map_err(|e| VerboseError::new(e.code(), "Unable to start Activity".to_string()))
 }
 
-fn handle_request(op: PagerOp, is: &mut GateIStream) -> Result<(), Error> {
+fn handle_request(op: PagerOp, is: &mut GateIStream<'_>) -> Result<(), Error> {
     let mut hdl = PGHDL.borrow_mut();
     let sid = is.label() as SessId;
 

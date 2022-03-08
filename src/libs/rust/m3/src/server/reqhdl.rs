@@ -66,7 +66,7 @@ impl RequestHandler {
     pub fn handle<OP, F>(&self, mut func: F) -> Result<(), Error>
     where
         OP: Unmarshallable,
-        F: FnMut(OP, &mut GateIStream) -> Result<(), Error>,
+        F: FnMut(OP, &mut GateIStream<'_>) -> Result<(), Error>,
     {
         if let Some(msg) = self.rgate.fetch() {
             let mut is = GateIStream::new(msg, &self.rgate);

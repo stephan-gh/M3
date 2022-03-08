@@ -79,7 +79,7 @@ impl vfs::File for io::Serial {
         Ok(())
     }
 
-    fn serialize(&self, _s: &mut StateSerializer) {
+    fn serialize(&self, _s: &mut StateSerializer<'_>) {
         // nothing to do
     }
 }

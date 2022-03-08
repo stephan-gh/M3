@@ -70,7 +70,7 @@ impl<'n> ThreadId<'n> {
 }
 
 impl<'n> fmt::Display for ThreadId<'n> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(fmt, "{} [tid={:#x}]", self.bin, self.stack)
     }
 }
@@ -233,7 +233,7 @@ impl<'n> Thread<'n> {
         self.stack.len() * 2
     }
 
-    fn call(&mut self, sym: &'n symbols::Symbol, time: u64, tid: &ThreadId) {
+    fn call(&mut self, sym: &'n symbols::Symbol, time: u64, tid: &ThreadId<'_>) {
         let w = self.depth();
         trace!("{}: {} {:w$} CALL -> {}", time, tid, "", sym.name, w = w);
         self.stack.push(Call {
@@ -244,7 +244,7 @@ impl<'n> Thread<'n> {
         });
     }
 
-    fn ret(&mut self, sym: &symbols::Symbol, time: u64, tid: &ThreadId) -> Option<Call> {
+    fn ret(&mut self, sym: &symbols::Symbol, time: u64, tid: &ThreadId<'_>) -> Option<Call<'_>> {
         if !self.stack.iter().any(|s| s.func == sym.name) {
             trace!(
                 "{}: {} return to {} w/o preceeding call",
@@ -299,12 +299,12 @@ fn is_isr_exit(isa: &crate::ISA, line: &str) -> bool {
 #[allow(clippy::too_many_arguments)]
 fn handle_return(
     mode: crate::Mode,
-    wr: &mut StdoutLock,
+    wr: &mut StdoutLock<'_>,
     time: u64,
     tile: usize,
     sym: &symbols::Symbol,
-    thread: &mut Thread,
-    tid: &ThreadId,
+    thread: &mut Thread<'_>,
+    tid: &ThreadId<'_>,
     unwind: bool,
 ) -> Result<(), Error> {
     if !thread.stack.is_empty() {
@@ -349,7 +349,7 @@ pub fn generate(
 ) -> Result<(), Error> {
     let mut last_time = 0;
     let mut max_tileid = 0;
-    let mut tiles: HashMap<usize, Tile> = HashMap::new();
+    let mut tiles: HashMap<usize, Tile<'_>> = HashMap::new();
 
     let stdin = io::stdin();
     let mut reader = io::BufReader::new(stdin.lock());

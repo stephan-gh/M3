@@ -120,7 +120,7 @@ impl GenericFile {
         self.id.unwrap_or((0, 0)).1
     }
 
-    pub(crate) fn unserialize(s: &mut Source) -> FileHandle {
+    pub(crate) fn unserialize(s: &mut Source<'_>) -> FileHandle {
         let flags: u32 = s.pop().unwrap();
         let sel: Selector = s.pop().unwrap();
         let _id: usize = s.pop().unwrap();
@@ -283,7 +283,7 @@ impl File for GenericFile {
         Ok(())
     }
 
-    fn serialize(&self, s: &mut StateSerializer) {
+    fn serialize(&self, s: &mut StateSerializer<'_>) {
         s.push_word(self.flags.bits() as u64);
         s.push_word(self.sess.sel());
         s.push_word(self.file_id() as u64);
@@ -428,7 +428,7 @@ impl HashOutput for GenericFile {
 }
 
 impl fmt::Debug for GenericFile {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "GenFile[flags={:?}, sess={}, goff={:#x}, off={:#x}, pos={:#x}, len={:#x}]",

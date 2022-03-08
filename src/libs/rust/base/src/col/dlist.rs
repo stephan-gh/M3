@@ -43,7 +43,7 @@ impl<T> Node<T> {
 }
 
 /// The iterator for [`DList`]
-pub struct DListIter<'a, T: 'a> {
+pub struct DListIter<'a, T> {
     head: Option<NonNull<Node<T>>>,
     marker: PhantomData<&'a Node<T>>,
 }
@@ -61,7 +61,7 @@ impl<'a, T> Iterator for DListIter<'a, T> {
 }
 
 /// The mutable iterator for [`DList`]
-pub struct DListIterMut<'a, T: 'a> {
+pub struct DListIterMut<'a, T> {
     list: &'a mut DList<T>,
     head: Option<NonNull<Node<T>>>,
 }
@@ -358,7 +358,7 @@ impl<T> Default for DList<T> {
 }
 
 impl<T: fmt::Debug> fmt::Debug for DList<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_list().entries(self).finish()
     }
 }

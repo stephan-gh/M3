@@ -121,7 +121,7 @@ impl AddrSpace {
         Ok(sel)
     }
 
-    pub fn clone(&mut self, is: &mut GateIStream, parent: &mut AddrSpace) -> Result<(), Error> {
+    pub fn clone(&mut self, is: &mut GateIStream<'_>, parent: &mut AddrSpace) -> Result<(), Error> {
         log!(
             crate::LOG_DEF,
             "[{}] pager::clone(parent={})",
@@ -156,7 +156,7 @@ impl AddrSpace {
         is.reply_error(Code::None)
     }
 
-    pub fn pagefault(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+    pub fn pagefault(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let virt: goff = is.pop()?;
         let access = PageFlags::from_bits_truncate(is.pop()?) & !PageFlags::U;
         let access = Perm::from_bits_truncate(access.bits() as u32);
@@ -200,7 +200,7 @@ impl AddrSpace {
         }
     }
 
-    pub fn map_ds(&mut self, args: &mut Source) -> Result<(Selector, goff), Error> {
+    pub fn map_ds(&mut self, args: &mut Source<'_>) -> Result<(Selector, goff), Error> {
         if !self.has_owner() {
             return Err(Error::new(Code::InvArgs));
         }
@@ -253,7 +253,7 @@ impl AddrSpace {
         Ok(virt)
     }
 
-    pub fn map_anon(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+    pub fn map_anon(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         if !self.has_owner() {
             return Err(Error::new(Code::InvArgs));
         }
@@ -300,7 +300,7 @@ impl AddrSpace {
         Ok(())
     }
 
-    pub fn map_mem(&mut self, args: &mut Source) -> Result<(Selector, goff), Error> {
+    pub fn map_mem(&mut self, args: &mut Source<'_>) -> Result<(Selector, goff), Error> {
         if !self.has_owner() {
             return Err(Error::new(Code::InvArgs));
         }
@@ -338,7 +338,7 @@ impl AddrSpace {
         Ok((sel, virt))
     }
 
-    pub fn unmap(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+    pub fn unmap(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let virt: goff = is.pop()?;
 
         log!(
@@ -359,7 +359,7 @@ impl AddrSpace {
         is.reply_error(Code::None)
     }
 
-    pub fn close(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+    pub fn close(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         log!(crate::LOG_DEF, "[{}] pager::close()", self.id());
 
         is.reply_error(Code::None)

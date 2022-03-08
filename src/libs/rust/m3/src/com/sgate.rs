@@ -201,7 +201,7 @@ impl SendGate {
 }
 
 impl fmt::Debug for SendGate {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "SendGate[sel: {}, ep: {:?}]", self.sel(), self.gate.ep())
     }
 }

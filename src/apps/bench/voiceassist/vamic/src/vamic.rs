@@ -92,7 +92,7 @@ impl Handler<MicSession> for MicHandler {
             .add_next(crt, srv_sel, false, |sess| Ok(Self::new_sess(crt, sess)))
     }
 
-    fn obtain(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn obtain(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
         log!(crate::LOG_DEF, "[{}] vamic::recv()", sid);
 
         if xchg.in_caps() != 1 {

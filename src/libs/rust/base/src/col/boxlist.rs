@@ -80,7 +80,7 @@ macro_rules! impl_boxitem {
 }
 
 /// The iterator for BoxList
-pub struct BoxListIter<'a, T: 'a> {
+pub struct BoxListIter<'a, T> {
     head: Option<BoxRef<T>>,
     marker: PhantomData<&'a T>,
 }
@@ -98,7 +98,7 @@ impl<'a, T: BoxItem> Iterator for BoxListIter<'a, T> {
 }
 
 /// The mutable iterator for BoxList
-pub struct BoxListIterMut<'a, T: 'a + BoxItem> {
+pub struct BoxListIterMut<'a, T: BoxItem> {
     list: &'a mut BoxList<T>,
     head: Option<BoxRef<T>>,
 }
@@ -362,7 +362,7 @@ impl<T: BoxItem> Default for BoxList<T> {
 }
 
 impl<T: BoxItem + fmt::Debug> fmt::Debug for BoxList<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_list().entries(self).finish()
     }
 }

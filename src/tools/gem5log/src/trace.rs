@@ -23,7 +23,7 @@ use crate::symbols;
 
 fn repl_instr_line(
     syms: &BTreeMap<usize, symbols::Symbol>,
-    writer: &mut io::StdoutLock,
+    writer: &mut io::StdoutLock<'_>,
     line: &str,
 ) -> Option<()> {
     // get the first parts:

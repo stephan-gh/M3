@@ -92,7 +92,7 @@ impl vfs::File for BootFile {
         Err(Error::new(Code::NotSup))
     }
 
-    fn serialize(&self, _s: &mut StateSerializer) {
+    fn serialize(&self, _s: &mut StateSerializer<'_>) {
         // not serializable
     }
 }
@@ -167,7 +167,7 @@ impl HashOutput for BootFile {
 }
 
 impl fmt::Debug for BootFile {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "BootFile[sel={}, size={:#x}, pos={:#x}]",

@@ -77,7 +77,7 @@ impl MetaSession {
         self.priv_eps.len() - 1
     }
 
-    pub fn get_sgate(&mut self, data: &mut CapExchange, rgate: &RecvGate) -> Result<(), Error> {
+    pub fn get_sgate(&mut self, data: &mut CapExchange<'_>, rgate: &RecvGate) -> Result<(), Error> {
         if data.in_caps() != 1 {
             return Err(Error::new(Code::InvArgs));
         }
@@ -108,7 +108,7 @@ impl MetaSession {
         &mut self,
         selector: Selector,
         crt: usize,
-        data: &mut CapExchange,
+        data: &mut CapExchange<'_>,
         file_session_id: SessId,
         rgate: &RecvGate,
     ) -> Result<FileSession, Error> {
@@ -195,9 +195,9 @@ impl MetaSession {
         )
     }
 
-    fn with_file_sess<F>(&mut self, stream: &mut GateIStream, func: F) -> Result<(), Error>
+    fn with_file_sess<F>(&mut self, stream: &mut GateIStream<'_>, func: F) -> Result<(), Error>
     where
-        F: Fn(&mut FileSession, &mut GateIStream) -> Result<(), Error>,
+        F: Fn(&mut FileSession, &mut GateIStream<'_>) -> Result<(), Error>,
     {
         let fid: usize = stream.pop()?;
         match self.priv_files.get_mut(&fid) {
@@ -220,31 +220,31 @@ impl M3FSSession for MetaSession {
         self.creator
     }
 
-    fn next_in(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn next_in(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         self.with_file_sess(stream, |f, stream| f.file_in_out(stream, false))
     }
 
-    fn next_out(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn next_out(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         self.with_file_sess(stream, |f, stream| f.file_in_out(stream, true))
     }
 
-    fn commit(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn commit(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         self.with_file_sess(stream, |f, stream| f.file_commit(stream))
     }
 
-    fn seek(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn seek(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         self.with_file_sess(stream, |f, stream| f.file_seek(stream))
     }
 
-    fn stat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn stat(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         self.with_file_sess(stream, |f, stream| f.file_stat(stream))
     }
 
-    fn sync(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn sync(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         self.with_file_sess(stream, |f, stream| f.file_sync(stream))
     }
 
-    fn fstat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn fstat(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let path: &str = stream.pop()?;
 
         log!(
@@ -264,7 +264,7 @@ impl M3FSSession for MetaSession {
         stream.reply(&reply)
     }
 
-    fn mkdir(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn mkdir(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let path: &str = stream.pop()?;
         let mode = FileMode::from_bits_truncate(stream.pop::<u32>()?) & FileMode::PERM;
 
@@ -281,7 +281,7 @@ impl M3FSSession for MetaSession {
         stream.reply_error(Code::None)
     }
 
-    fn rmdir(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn rmdir(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let path: &str = stream.pop()?;
 
         log!(
@@ -296,7 +296,7 @@ impl M3FSSession for MetaSession {
         stream.reply_error(Code::None)
     }
 
-    fn link(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn link(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let old_path: &str = stream.pop()?;
         let new_path: &str = stream.pop()?;
 
@@ -313,7 +313,7 @@ impl M3FSSession for MetaSession {
         stream.reply_error(Code::None)
     }
 
-    fn unlink(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn unlink(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let path: &str = stream.pop()?;
 
         log!(
@@ -328,7 +328,7 @@ impl M3FSSession for MetaSession {
         stream.reply_error(Code::None)
     }
 
-    fn rename(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn rename(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let old_path: &str = stream.pop()?;
         let new_path: &str = stream.pop()?;
 
@@ -345,7 +345,7 @@ impl M3FSSession for MetaSession {
         stream.reply_error(Code::None)
     }
 
-    fn open_priv(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn open_priv(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let path = stream.pop::<&str>()?;
         let flags = OpenFlags::from_bits_truncate(stream.pop::<u32>()?);
         let ep = stream.pop::<usize>()?;
@@ -382,7 +382,7 @@ impl M3FSSession for MetaSession {
         reply_vmsg!(stream, 0, id)
     }
 
-    fn close(&mut self, stream: &mut GateIStream) -> Result<bool, Error> {
+    fn close(&mut self, stream: &mut GateIStream<'_>) -> Result<bool, Error> {
         let fid = stream.pop::<SessId>()?;
 
         if self.priv_files.remove(&fid).is_some() {

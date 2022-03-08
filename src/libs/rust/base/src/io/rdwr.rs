@@ -191,10 +191,10 @@ pub trait Write {
     }
 
     /// Writes the given formatting arguments into this sink
-    fn write_fmt(&mut self, fmt: fmt::Arguments) -> Result<(), Error> {
+    fn write_fmt(&mut self, fmt: fmt::Arguments<'_>) -> Result<(), Error> {
         // Create a shim which translates a Write to a fmt::Write and saves
         // off I/O errors. instead of discarding them
-        struct Adaptor<'a, T: ?Sized + 'a> {
+        struct Adaptor<'a, T: ?Sized> {
             inner: &'a mut T,
             error: Result<(), Error>,
         }

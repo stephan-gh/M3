@@ -255,7 +255,7 @@ impl Drop for MemGate {
 }
 
 impl fmt::Debug for MemGate {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
             "MemGate[sel: {}, ep: {:?}]",

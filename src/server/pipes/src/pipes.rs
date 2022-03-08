@@ -108,9 +108,9 @@ impl PipesHandler {
         Ok(())
     }
 
-    fn with_chan<F, R>(&mut self, is: &mut GateIStream, func: F) -> Result<R, Error>
+    fn with_chan<F, R>(&mut self, is: &mut GateIStream<'_>, func: F) -> Result<R, Error>
     where
-        F: Fn(&mut Channel, &mut GateIStream) -> Result<R, Error>,
+        F: Fn(&mut Channel, &mut GateIStream<'_>) -> Result<R, Error>,
     {
         let sess = self.sessions.get_mut(is.label() as SessId).unwrap();
         match &mut sess.data_mut() {
@@ -141,7 +141,7 @@ impl Handler<PipesSession> for PipesHandler {
         })
     }
 
-    fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
         let op: Operation = xchg.in_args().pop().unwrap();
         log!(
             crate::LOG_DEF,
@@ -258,7 +258,7 @@ impl Handler<PipesSession> for PipesHandler {
         Ok(())
     }
 
-    fn delegate(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn delegate(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
         let sess = self.sessions.get_mut(sid).unwrap();
         let op: Operation = xchg.in_args().pop()?;
         log!(crate::LOG_DEF, "[{}] pipes::delegate(op={})", sid, op);

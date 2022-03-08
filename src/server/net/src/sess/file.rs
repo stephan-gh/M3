@@ -117,7 +117,7 @@ impl FileSession {
         m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, self.sel, 2)
     }
 
-    pub fn delegate(&mut self, xchg: &mut CapExchange) -> Result<(), Error> {
+    pub fn delegate(&mut self, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
         // Client delegates shared memory to us
         if xchg.in_caps() == 1 && xchg.in_args().size() > 0 {
             let sel = m3::tiles::Activity::cur().alloc_sel();
@@ -170,7 +170,7 @@ impl FileSession {
         self.activate()
     }
 
-    pub fn next_in(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+    pub fn next_in(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         if !self.is_recv() {
             return Err(Error::new(Code::NotSup));
         }
@@ -209,7 +209,7 @@ impl FileSession {
         }
     }
 
-    pub fn next_out(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+    pub fn next_out(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         if !self.is_send() {
             log!(crate::LOG_SESS, "recv: waiting for data");
             return Err(Error::new(Code::NotSup));
@@ -247,11 +247,11 @@ impl FileSession {
         }
     }
 
-    pub fn close(&self, _is: &mut GateIStream) -> Result<(), Error> {
+    pub fn close(&self, _is: &mut GateIStream<'_>) -> Result<(), Error> {
         Ok(())
     }
 
-    pub fn commit(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+    pub fn commit(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         self.prepare()?;
 
         let amount: usize = is.pop()?;
@@ -323,7 +323,7 @@ impl FileSession {
         }
     }
 
-    fn mark_pending(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+    fn mark_pending(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         assert!(self.pending.is_none());
 
         // Since in Rust we cant just copy the pointer to the stream,

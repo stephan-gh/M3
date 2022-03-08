@@ -45,7 +45,7 @@ impl Allocation {
 }
 
 impl fmt::Debug for Allocation {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Alloc[addr={:?}, size={:#x}]", self.gaddr, self.size)
     }
 }
@@ -112,7 +112,7 @@ impl MainMemory {
 }
 
 impl fmt::Debug for MainMemory {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(
             f,
             "size: {} MiB, available: {} MiB, mods: [",

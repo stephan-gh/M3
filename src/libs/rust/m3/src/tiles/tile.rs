@@ -66,7 +66,7 @@ impl TileQuota {
 }
 
 impl fmt::Debug for TileQuota {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
             "TileQuota[eps={}, time={}, pts={}]",
@@ -197,7 +197,7 @@ impl Drop for Tile {
 }
 
 impl fmt::Debug for Tile {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
             "Tile{}[sel: {}, desc: {:?}]",

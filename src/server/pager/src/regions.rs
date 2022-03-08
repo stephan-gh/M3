@@ -279,7 +279,7 @@ impl Drop for Region {
 }
 
 impl fmt::Debug for Region {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             fmt,
             "Region[{:#x}..{:#x} with {:#x}]",

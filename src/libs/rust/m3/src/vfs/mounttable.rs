@@ -122,7 +122,7 @@ impl MountTable {
         Ok(())
     }
 
-    pub(crate) fn serialize(&self, s: &mut StateSerializer) {
+    pub(crate) fn serialize(&self, s: &mut StateSerializer<'_>) {
         let count = self.mounts.len();
         s.push_word(count as u64);
 
@@ -135,7 +135,7 @@ impl MountTable {
         }
     }
 
-    pub(crate) fn unserialize(s: &mut Source) -> MountTable {
+    pub(crate) fn unserialize(s: &mut Source<'_>) -> MountTable {
         let mut mt = MountTable::default();
 
         let count = s.pop().unwrap();
@@ -187,7 +187,7 @@ impl MountTable {
 }
 
 impl fmt::Debug for MountTable {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "MountTable[")?;
         for m in self.mounts.iter() {
             writeln!(f, "  {} -> {:?}", m.path, m.fs.borrow())?;

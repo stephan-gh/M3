@@ -88,7 +88,7 @@ impl ChildMem {
 }
 
 impl fmt::Debug for ChildMem {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "ChildMem[quota={}]", self.quota.get(),)
     }
 }
@@ -937,7 +937,7 @@ impl Child for OwnChild {
 }
 
 impl fmt::Debug for OwnChild {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
             "OwnChild[id={}, tile={}, args={:?}, kmem=KMem[sel={}, quota={}], mem={:?}]",
@@ -1059,7 +1059,7 @@ impl Child for ForeignChild {
 }
 
 impl fmt::Debug for ForeignChild {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "ForeignChild[id={}, mem={:?}]", self.id, self.mem)
     }
 }

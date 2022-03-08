@@ -46,7 +46,7 @@ impl SelRange {
 }
 
 impl fmt::Debug for SelRange {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.start)
     }
 }
@@ -141,7 +141,7 @@ impl CapTable {
     pub fn insert_as_child_from(
         &mut self,
         cap: Capability,
-        mut par_tbl: RefMut<CapTable>,
+        mut par_tbl: RefMut<'_, CapTable>,
         par_sel: CapSel,
     ) -> Result<(), Error> {
         unsafe {
@@ -244,7 +244,7 @@ impl CapTable {
 }
 
 impl fmt::Debug for CapTable {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "CapTable[\n{:?}]", self.caps)
     }
 }
@@ -540,7 +540,7 @@ impl Capability {
     }
 }
 
-fn print_childs(cap: NonNull<Capability>, f: &mut fmt::Formatter) -> fmt::Result {
+fn print_childs(cap: NonNull<Capability>, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     static LAYER: StaticCell<u32> = StaticCell::new(5);
     use core::fmt::Write;
     let mut next = Some(cap);
@@ -563,7 +563,7 @@ fn print_childs(cap: NonNull<Capability>, f: &mut fmt::Formatter) -> fmt::Result
 }
 
 impl fmt::Debug for Capability {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "Cap[act={}, sel={}, len={}, obj={:?}]",

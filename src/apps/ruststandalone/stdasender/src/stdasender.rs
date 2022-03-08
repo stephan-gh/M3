@@ -15,6 +15,7 @@
 
 #![no_std]
 
+#[allow(unused_extern_crates)]
 extern crate heap;
 
 #[path = "../../vmtest/src/helper.rs"]

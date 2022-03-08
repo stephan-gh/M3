@@ -145,7 +145,7 @@ impl INodeRef {
         }
     }
 
-    pub fn extent_iter(&self) -> ExtentIterator {
+    pub fn extent_iter(&self) -> ExtentIterator<'_> {
         ExtentIterator {
             inode: self,
             indir: None,

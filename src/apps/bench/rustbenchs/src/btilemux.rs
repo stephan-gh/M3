@@ -95,7 +95,7 @@ fn translates() {
     struct MyResults(Results<CycleDuration>);
 
     impl fmt::Display for MyResults {
-        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             write!(
                 f,
                 "{} cycles (+/- {} with {} runs)",

@@ -177,7 +177,7 @@ impl GlobAddr {
 
 impl fmt::Debug for GlobAddr {
     #[allow(clippy::absurd_extreme_comparisons)]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.has_tile() {
             write!(f, "G[Tile{}+{:#x}]", self.tile(), self.offset())
         }

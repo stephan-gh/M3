@@ -26,7 +26,7 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, latency);
 }
 
-fn send_recv(nm: &NetworkManager, socket: &UdpSocket, dest: Endpoint) -> bool {
+fn send_recv(nm: &NetworkManager, socket: &UdpSocket<'_>, dest: Endpoint) -> bool {
     let mut buf = [0u8; 1];
 
     wv_assert_ok!(socket.send_to(&buf, dest));

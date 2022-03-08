@@ -106,7 +106,7 @@ fn vec_name(vec: usize) -> &'static str {
 }
 
 impl fmt::Debug for State {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         let cr2 = cpu::read_cr2();
         writeln!(fmt, "  vec: {:#x} ({})", { self.irq }, vec_name(self.irq))?;
         writeln!(fmt, "  cr2:    {:#x}", cr2)?;

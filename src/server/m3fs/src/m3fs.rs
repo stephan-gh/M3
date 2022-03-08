@@ -192,7 +192,7 @@ impl M3FSRequestHandler {
         })
     }
 
-    pub fn handle(&mut self, op: M3FSOperation, input: &mut GateIStream) -> Result<(), Error> {
+    pub fn handle(&mut self, op: M3FSOperation, input: &mut GateIStream<'_>) -> Result<(), Error> {
         log!(LOG_DEF, "[{}] fs::handle(op={})", input.label(), op);
 
         let res = match op {
@@ -236,9 +236,9 @@ impl M3FSRequestHandler {
         Ok(())
     }
 
-    fn exec_on_sess<F, R>(&mut self, is: &mut GateIStream, function: F) -> Result<R, Error>
+    fn exec_on_sess<F, R>(&mut self, is: &mut GateIStream<'_>, function: F) -> Result<R, Error>
     where
-        F: Fn(&mut FSSession, &mut GateIStream) -> Result<R, Error>,
+        F: Fn(&mut FSSession, &mut GateIStream<'_>) -> Result<R, Error>,
     {
         let session_id: SessId = is.label() as SessId;
         if let Some(sess) = self.sessions.get_mut(session_id) {
@@ -342,7 +342,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
     }
 
     /// Let's the client obtain a capability from the server
-    fn obtain(&mut self, crt: usize, sid: SessId, data: &mut CapExchange) -> Result<(), Error> {
+    fn obtain(&mut self, crt: usize, sid: SessId, data: &mut CapExchange<'_>) -> Result<(), Error> {
         // get some values now, because we cannot borrow self while holding the session reference
         let next_sess_id = self.sessions.next_id()?;
         let sel: Selector = self.sel;
@@ -386,7 +386,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
     }
 
     /// Let's the client delegate a capability to the server
-    fn delegate(&mut self, _crt: usize, sid: SessId, data: &mut CapExchange) -> Result<(), Error> {
+    fn delegate(&mut self, _crt: usize, sid: SessId, data: &mut CapExchange<'_>) -> Result<(), Error> {
         let op: M3FSOperation = data.in_args().pop()?;
         log!(LOG_DEF, "[{}] fs::delegate(op={})", sid, op);
 

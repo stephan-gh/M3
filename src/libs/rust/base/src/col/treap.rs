@@ -287,7 +287,7 @@ impl<K: Copy + Ord, V> Drop for Treap<K, V> {
     }
 }
 
-fn print_rec<K, V>(node: NonNull<Node<K, V>>, f: &mut fmt::Formatter) -> fmt::Result
+fn print_rec<K, V>(node: NonNull<Node<K, V>>, f: &mut fmt::Formatter<'_>) -> fmt::Result
 where
     K: Copy + Ord + fmt::Debug,
     V: fmt::Debug,
@@ -306,7 +306,7 @@ where
 }
 
 impl<K: Copy + Ord + fmt::Debug, V: fmt::Debug> fmt::Debug for Treap<K, V> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.root {
             Some(r) => print_rec(r, f),
             None => Ok(()),

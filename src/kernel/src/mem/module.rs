@@ -78,7 +78,7 @@ impl MemMod {
 }
 
 impl fmt::Debug for MemMod {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "MemMod[type: {:?}, addr: {:?}, size: {} MiB, available: {} MiB, map: {:?}]",

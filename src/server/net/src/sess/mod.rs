@@ -41,7 +41,7 @@ impl NetworkSession {
         &mut self,
         crt: usize,
         server: Selector,
-        xchg: &mut CapExchange,
+        xchg: &mut CapExchange<'_>,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         match self {
@@ -50,42 +50,42 @@ impl NetworkSession {
         }
     }
 
-    pub fn delegate(&mut self, xchg: &mut CapExchange) -> Result<(), Error> {
+    pub fn delegate(&mut self, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
         match self {
             NetworkSession::FileSession(fs) => fs.delegate(xchg),
             NetworkSession::SocketSession(_ss) => Err(Error::new(Code::NotSup)),
         }
     }
 
-    pub fn stat(&mut self, _is: &mut GateIStream) -> Result<(), Error> {
+    pub fn stat(&mut self, _is: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
             NetworkSession::SocketSession(_ss) => Err(Error::new(Code::NotSup)),
         }
     }
 
-    pub fn seek(&mut self, _is: &mut GateIStream) -> Result<(), Error> {
+    pub fn seek(&mut self, _is: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
             NetworkSession::SocketSession(_ss) => Err(Error::new(Code::NotSup)),
         }
     }
 
-    pub fn next_in(&mut self, _is: &mut GateIStream) -> Result<(), Error> {
+    pub fn next_in(&mut self, _is: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
             NetworkSession::SocketSession(_ss) => Err(Error::new(Code::NotSup)),
         }
     }
 
-    pub fn next_out(&mut self, _is: &mut GateIStream) -> Result<(), Error> {
+    pub fn next_out(&mut self, _is: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
             NetworkSession::SocketSession(_ss) => Err(Error::new(Code::NotSup)),
         }
     }
 
-    pub fn commit(&mut self, _is: &mut GateIStream) -> Result<(), Error> {
+    pub fn commit(&mut self, _is: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
             NetworkSession::SocketSession(_ss) => Err(Error::new(Code::NotSup)),
@@ -94,7 +94,7 @@ impl NetworkSession {
 
     pub fn bind(
         &mut self,
-        is: &mut GateIStream,
+        is: &mut GateIStream<'_>,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         match self {
@@ -105,7 +105,7 @@ impl NetworkSession {
 
     pub fn listen(
         &mut self,
-        is: &mut GateIStream,
+        is: &mut GateIStream<'_>,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         match self {
@@ -116,7 +116,7 @@ impl NetworkSession {
 
     pub fn connect(
         &mut self,
-        is: &mut GateIStream,
+        is: &mut GateIStream<'_>,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         match self {
@@ -127,7 +127,7 @@ impl NetworkSession {
 
     pub fn abort(
         &mut self,
-        is: &mut GateIStream,
+        is: &mut GateIStream<'_>,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         match self {
@@ -136,7 +136,7 @@ impl NetworkSession {
         }
     }
 
-    pub fn get_ip(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+    pub fn get_ip(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
             NetworkSession::SocketSession(ss) => ss.get_ip(is),

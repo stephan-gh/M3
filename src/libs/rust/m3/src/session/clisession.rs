@@ -83,8 +83,8 @@ impl ClientSession {
         post: POST,
     ) -> Result<(), Error>
     where
-        PRE: Fn(&mut Sink),
-        POST: FnMut(&mut Source) -> Result<(), Error>,
+        PRE: Fn(&mut Sink<'_>),
+        POST: FnMut(&mut Source<'_>) -> Result<(), Error>,
     {
         self.delegate_for(Activity::cur().sel(), crd, pre, post)
     }
@@ -101,8 +101,8 @@ impl ClientSession {
         post: POST,
     ) -> Result<(), Error>
     where
-        PRE: Fn(&mut Sink),
-        POST: FnMut(&mut Source) -> Result<(), Error>,
+        PRE: Fn(&mut Sink<'_>),
+        POST: FnMut(&mut Source<'_>) -> Result<(), Error>,
     {
         syscalls::delegate(act, self.sel(), crd, pre, post)
     }
@@ -128,8 +128,8 @@ impl ClientSession {
         post: POST,
     ) -> Result<kif::CapRngDesc, Error>
     where
-        PRE: Fn(&mut Sink),
-        POST: FnMut(&mut Source) -> Result<(), Error>,
+        PRE: Fn(&mut Sink<'_>),
+        POST: FnMut(&mut Source<'_>) -> Result<(), Error>,
     {
         let caps = Activity::cur().alloc_sels(count);
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, caps, count);
@@ -149,8 +149,8 @@ impl ClientSession {
         post: POST,
     ) -> Result<(), Error>
     where
-        PRE: Fn(&mut Sink),
-        POST: FnMut(&mut Source) -> Result<(), Error>,
+        PRE: Fn(&mut Sink<'_>),
+        POST: FnMut(&mut Source<'_>) -> Result<(), Error>,
     {
         syscalls::obtain(act, self.sel(), crd, pre, post)
     }
@@ -169,7 +169,7 @@ impl Drop for ClientSession {
 }
 
 impl fmt::Debug for ClientSession {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "ClientSession[sel: {}]", self.sel())
     }
 }

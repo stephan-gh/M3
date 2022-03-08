@@ -65,7 +65,7 @@ impl<T: Sized> StaticRefCell<T> {
 }
 
 impl<T: fmt::Debug> fmt::Debug for StaticRefCell<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.borrow().fmt(f)
     }
 }

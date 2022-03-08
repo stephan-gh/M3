@@ -75,7 +75,7 @@ impl ConnectedMessage {
 }
 
 impl fmt::Debug for ConnectedMessage {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "remote={}",
@@ -98,7 +98,7 @@ impl Default for ClosedMessage {
 }
 
 impl fmt::Debug for ClosedMessage {
-    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Ok(())
     }
 }
@@ -117,7 +117,7 @@ impl Default for CloseReqMessage {
 }
 
 impl fmt::Debug for CloseReqMessage {
-    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Ok(())
     }
 }

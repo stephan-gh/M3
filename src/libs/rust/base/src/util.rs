@@ -167,7 +167,7 @@ macro_rules! int_enum {
                 pub const $Flag: $Name = $Name { val: $value };
             )+
 
-            pub fn print(&self, f: &mut $crate::_core::fmt::Formatter) -> $crate::_core::fmt::Result {
+            pub fn print(&self, f: &mut $crate::_core::fmt::Formatter<'_>) -> $crate::_core::fmt::Result {
                 $(
                     if self.val == $value {
                         return f.write_str(stringify!($Flag));
@@ -178,13 +178,13 @@ macro_rules! int_enum {
         }
 
         impl $crate::serialize::Marshallable for $Name {
-            fn marshall(&self, s: &mut $crate::serialize::Sink) {
+            fn marshall(&self, s: &mut $crate::serialize::Sink<'_>) {
                 s.push_word(self.val as u64);
             }
         }
 
         impl $crate::serialize::Unmarshallable for $Name {
-            fn unmarshall(s: &mut $crate::serialize::Source) -> Result<Self, $crate::errors::Error> {
+            fn unmarshall(s: &mut $crate::serialize::Source<'_>) -> Result<Self, $crate::errors::Error> {
                 let val = s.pop_word()? as $T;
                 Ok($Name { val })
             }
@@ -197,13 +197,13 @@ macro_rules! int_enum {
         }
 
         impl $crate::_core::fmt::Debug for $Name {
-            fn fmt(&self, f: &mut $crate::_core::fmt::Formatter) -> $crate::_core::fmt::Result {
+            fn fmt(&self, f: &mut $crate::_core::fmt::Formatter<'_>) -> $crate::_core::fmt::Result {
                 write!(f, "{}:", self.val)?;
                 self.print(f)
             }
         }
         impl $crate::_core::fmt::Display for $Name {
-            fn fmt(&self, f: &mut $crate::_core::fmt::Formatter) -> $crate::_core::fmt::Result {
+            fn fmt(&self, f: &mut $crate::_core::fmt::Formatter<'_>) -> $crate::_core::fmt::Result {
                 self.print(f)
             }
         }

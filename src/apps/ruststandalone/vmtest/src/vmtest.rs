@@ -16,6 +16,7 @@
 #![feature(asm)]
 #![no_std]
 
+#[allow(unused_extern_crates)]
 extern crate heap;
 
 mod helper;

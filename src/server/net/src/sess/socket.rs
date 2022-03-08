@@ -137,7 +137,7 @@ impl SocketSession {
         &mut self,
         crt: usize,
         srv_sel: Selector,
-        xchg: &mut CapExchange,
+        xchg: &mut CapExchange<'_>,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         let is = xchg.in_args();
@@ -185,7 +185,7 @@ impl SocketSession {
         &mut self,
         crt: usize,
         srv_sel: Selector,
-        is: &mut Source,
+        is: &mut Source<'_>,
     ) -> Result<CapRngDesc, Error> {
         let sd = is.pop::<Sd>().expect("Failed to get sd");
         let mode = is.pop::<u32>().expect("Failed to get mode");
@@ -284,7 +284,7 @@ impl SocketSession {
 
     fn create_socket(
         &mut self,
-        is: &mut Source,
+        is: &mut Source<'_>,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(CapRngDesc, Sd), Error> {
         let ty = SocketType::from_usize(is.pop::<usize>()?);
@@ -342,14 +342,14 @@ impl SocketSession {
         false
     }
 
-    pub fn get_ip(&self, is: &mut GateIStream) -> Result<(), Error> {
+    pub fn get_ip(&self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let addr = to_m3_addr(crate::own_ip());
         reply_vmsg!(is, Code::None as i32, addr.0)
     }
 
     pub fn bind(
         &mut self,
-        is: &mut GateIStream,
+        is: &mut GateIStream<'_>,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         let sd: Sd = is.pop()?;
@@ -376,7 +376,7 @@ impl SocketSession {
 
     pub fn listen(
         &mut self,
-        is: &mut GateIStream,
+        is: &mut GateIStream<'_>,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         let sd: Sd = is.pop()?;
@@ -405,7 +405,7 @@ impl SocketSession {
 
     pub fn connect(
         &mut self,
-        is: &mut GateIStream,
+        is: &mut GateIStream<'_>,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         let sd: Sd = is.pop()?;
@@ -434,7 +434,7 @@ impl SocketSession {
 
     pub fn abort(
         &mut self,
-        is: &mut GateIStream,
+        is: &mut GateIStream<'_>,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         let sd: Sd = is.pop()?;

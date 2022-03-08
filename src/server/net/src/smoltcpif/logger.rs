@@ -24,11 +24,11 @@ static LOGGER: SimpleLogger = SimpleLogger;
 pub struct SimpleLogger;
 
 impl log::Log for SimpleLogger {
-    fn enabled(&self, _metadata: &Metadata) -> bool {
+    fn enabled(&self, _metadata: &Metadata<'_>) -> bool {
         true
     }
 
-    fn log(&self, record: &Record) {
+    fn log(&self, record: &Record<'_>) {
         if self.enabled(record.metadata()) {
             log!(crate::LOG_SMOLTCP, "{}: {}", record.level(), record.args());
         }

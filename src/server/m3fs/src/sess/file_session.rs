@@ -185,7 +185,7 @@ impl FileSession {
         srv_sel: Selector,
         crt: usize,
         sid: SessId,
-        data: &mut CapExchange,
+        data: &mut CapExchange<'_>,
         rgate: &RecvGate,
     ) -> Result<Self, Error> {
         log!(
@@ -214,7 +214,7 @@ impl FileSession {
         Ok(nsess)
     }
 
-    pub fn get_mem(&mut self, data: &mut CapExchange) -> Result<(), Error> {
+    pub fn get_mem(&mut self, data: &mut CapExchange<'_>) -> Result<(), Error> {
         let offset: u32 = data.in_args().pop()?;
 
         log!(
@@ -285,7 +285,7 @@ impl FileSession {
         CapRngDesc::new(CapType::OBJECT, self.sess_sel, 2)
     }
 
-    pub fn file_in_out(&mut self, is: &mut GateIStream, out: bool) -> Result<(), Error> {
+    pub fn file_in_out(&mut self, is: &mut GateIStream<'_>, out: bool) -> Result<(), Error> {
         log!(
             crate::LOG_SESSION,
             "[{}] file::next_{}(); file[path={}, fileoff={}, pos={:?}]",
@@ -416,7 +416,7 @@ impl FileSession {
         Ok(())
     }
 
-    pub fn file_seek(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    pub fn file_seek(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let off: usize = stream.pop()?;
         let whence = SeekMode::from(stream.pop::<u32>()?);
 
@@ -441,7 +441,7 @@ impl FileSession {
         reply_vmsg!(stream, Code::None as u32, pos - extpos.off, extpos.off)
     }
 
-    pub fn file_stat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    pub fn file_stat(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         log!(
             crate::LOG_SESSION,
             "[{}] file::fstat(path={})",
@@ -457,7 +457,7 @@ impl FileSession {
         stream.reply(&reply)
     }
 
-    pub fn file_commit(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    pub fn file_commit(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let nbytes: usize = stream.pop()?;
 
         log!(
@@ -566,7 +566,7 @@ impl FileSession {
         Ok(())
     }
 
-    pub fn file_sync(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    pub fn file_sync(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         log!(crate::LOG_SESSION, "[{}] file::sync()", self.session_id,);
 
         crate::flush_buffer()?;
@@ -610,52 +610,52 @@ impl M3FSSession for FileSession {
         self.sess_creator
     }
 
-    fn next_in(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn next_in(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let _: usize = stream.pop()?;
         self.file_in_out(stream, false)
     }
 
-    fn next_out(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn next_out(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let _: usize = stream.pop()?;
         self.file_in_out(stream, true)
     }
 
-    fn commit(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn commit(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let _fid: usize = stream.pop()?;
         self.file_commit(stream)
     }
 
-    fn seek(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn seek(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let _fid: usize = stream.pop()?;
         self.file_seek(stream)
     }
 
-    fn stat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn stat(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let _: usize = stream.pop()?;
         self.file_stat(stream)
     }
 
-    fn fstat(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+    fn fstat(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
 
-    fn mkdir(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+    fn mkdir(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
 
-    fn rmdir(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+    fn rmdir(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
 
-    fn link(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+    fn link(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
 
-    fn unlink(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+    fn unlink(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
 
-    fn sync(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+    fn sync(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let _: usize = stream.pop()?;
         self.file_sync(stream)
     }
