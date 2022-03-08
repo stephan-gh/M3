@@ -30,7 +30,7 @@ pub use self::kmem::KMem;
 pub use self::mapper::{DefaultMapper, Mapper};
 pub use self::running::{RunningActivity, RunningDeviceActivity, RunningProgramActivity};
 pub use self::state::{StateDeserializer, StateSerializer};
-pub use self::tile::Tile;
+pub use self::tile::{Tile, TileQuota};
 
 pub(crate) fn init() {
     self::activity::init();

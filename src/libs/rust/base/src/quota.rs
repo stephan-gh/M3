@@ -23,7 +23,7 @@ use core::fmt;
 
 pub type Id = tilemux::QuotaId;
 
-#[derive(Debug, Default)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct Quota<T> {
     id: Id,
     total: T,

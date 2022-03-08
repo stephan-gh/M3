@@ -34,7 +34,7 @@ use m3::rc::Rc;
 use m3::session::{ResMngActInfo, ResMngActInfoResult};
 use m3::syscalls;
 use m3::tcu;
-use m3::tiles::{Activity, KMem, Mapper, RunningActivity, RunningProgramActivity};
+use m3::tiles::{Activity, KMem, Mapper, RunningActivity, RunningProgramActivity, TileQuota};
 use m3::vfs::FileRef;
 
 use crate::config::AppConfig;
@@ -720,7 +720,7 @@ pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngActInfoResult, Error
             // the first is always us
             if idx == 0 {
                 let kmem_quota = Activity::cur().kmem().quota()?;
-                let (ep_quota, time_quota, pts_quota) = Activity::cur().tile().quota()?;
+                let tile_quota = Activity::cur().tile().quota()?;
                 let mem = memory::container();
                 return Ok(ResMngActInfoResult::Info(ResMngActInfo {
                     id: Activity::cur().id(),
@@ -733,9 +733,9 @@ pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngActInfoResult, Error
                         mem.available() as usize,
                     ),
                     kmem: kmem_quota,
-                    eps: ep_quota,
-                    time: time_quota,
-                    pts: pts_quota,
+                    eps: *tile_quota.endpoints(),
+                    time: *tile_quota.time(),
+                    pts: *tile_quota.page_tables(),
                     tile: Activity::cur().tile_id(),
                 }));
             }
@@ -756,10 +756,10 @@ pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngActInfoResult, Error
                 .kmem()
                 .map(|km| km.quota())
                 .unwrap_or_else(|| Ok(Quota::default()))?;
-            let (ep_quota, time_quota, pts_quota) = act
+            let tile_quota = act
                 .child_tile()
                 .map(|tile| tile.tile_obj().quota())
-                .unwrap_or_else(|| Ok((Quota::default(), Quota::default(), Quota::default())))?;
+                .unwrap_or_else(|| Ok(TileQuota::default()))?;
             Ok(ResMngActInfoResult::Info(ResMngActInfo {
                 id: act.activity_id(),
                 layer: parent_layer + act.layer(),
@@ -771,9 +771,9 @@ pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngActInfoResult, Error
                     act.mem().quota.get() as usize,
                 ),
                 kmem: kmem_quota,
-                eps: ep_quota,
-                time: time_quota,
-                pts: pts_quota,
+                eps: *tile_quota.endpoints(),
+                time: *tile_quota.time(),
+                pts: *tile_quota.page_tables(),
                 tile: act.our_tile().tile_id(),
             }))
         }

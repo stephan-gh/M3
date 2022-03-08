@@ -402,10 +402,10 @@ impl Subsystem {
             }
 
             // split available PTs according to the config
-            let (ep_quota, _, pt_quota) = tile_usage.tile_obj().quota()?;
-            let (mut pt_sharer, shared_pts) = split_pts(pt_quota.left() as u64, &d);
+            let tile_quota = tile_usage.tile_obj().quota()?;
+            let (mut pt_sharer, shared_pts) = split_pts(tile_quota.page_tables().left() as u64, &d);
 
-            let mut domain_total_eps = ep_quota.left();
+            let mut domain_total_eps = tile_quota.endpoints().left();
             let mut domain_total_time = 0;
             let mut domain_total_pts = 0;
             let mut domain_kmem_bytes = 0;
@@ -468,14 +468,14 @@ impl Subsystem {
             // set initial quota for this tile
             tile_usage
                 .tile_obj()
-                .set_quota(child_total_time, pt_quota.total() as u64)
+                .set_quota(child_total_time, tile_quota.page_tables().total() as u64)
                 .map_err(|e| {
                     VerboseError::new(
                         e.code(),
                         format!(
                             "Unable to set quota for tile to time={}, pts={}",
                             child_total_time,
-                            pt_quota.total()
+                            tile_quota.page_tables().total()
                         ),
                     )
                 })?;

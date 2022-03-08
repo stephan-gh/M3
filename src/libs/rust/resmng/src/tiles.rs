@@ -119,9 +119,9 @@ impl TileUsage {
             crate::LOG_TILES,
             "Deriving Tile{}: (eps={}, time={}, pts={})",
             self.tile_id(),
-            _quota.0,
-            _quota.1,
-            _quota.2,
+            _quota.endpoints(),
+            _quota.time(),
+            _quota.page_tables(),
         );
         Ok(TileUsage {
             idx: self.idx,
@@ -241,7 +241,7 @@ impl TileManager {
             "Allocating tile{}: {:?} (eps={})",
             self.tiles[idx].id,
             self.tiles[idx].tile.desc(),
-            self.get(idx).quota().unwrap().1,
+            self.get(idx).quota().unwrap().endpoints(),
         );
         self.tiles[idx].add_user();
     }

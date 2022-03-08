@@ -538,7 +538,7 @@ fn derive_kmem() {
 fn derive_tile() {
     let sel = Activity::cur().alloc_sel();
     let tile = wv_assert_ok!(Tile::get("clone"));
-    let oquota = wv_assert_ok!(tile.quota()).0.left();
+    let oquota = wv_assert_ok!(tile.quota()).endpoints().left();
 
     // invalid dest selector
     wv_assert_err!(
@@ -559,12 +559,12 @@ fn derive_tile() {
     // transfer EPs
     {
         let tile2 = wv_assert_ok!(tile.derive(Some(1), None, None));
-        let quota2 = wv_assert_ok!(tile2.quota()).0.left();
-        let nquota = wv_assert_ok!(tile.quota()).0.left();
+        let quota2 = wv_assert_ok!(tile2.quota()).endpoints().left();
+        let nquota = wv_assert_ok!(tile.quota()).endpoints().left();
         wv_assert_eq!(quota2, 1);
         wv_assert_eq!(nquota, oquota - 1);
     }
-    let nquota = wv_assert_ok!(tile.quota()).0.left();
+    let nquota = wv_assert_ok!(tile.quota()).endpoints().left();
     wv_assert_eq!(nquota, oquota);
 
     {

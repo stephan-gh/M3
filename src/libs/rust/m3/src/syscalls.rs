@@ -30,6 +30,7 @@ use crate::mem::{GlobAddr, MsgBuf};
 use crate::quota::Quota;
 use crate::serialize::{Sink, Source};
 use crate::tcu::{ActId, EpId, Label, Message, SYSC_SEP_OFF};
+use crate::tiles::TileQuota;
 
 static SGATE: LazyStaticRefCell<SendGate> = LazyStaticRefCell::default();
 // use a separate message buffer here, because the default buffer could be in use for a message over
@@ -376,7 +377,7 @@ pub fn kmem_quota(kmem: Selector) -> Result<Quota<usize>, Error> {
 }
 
 /// Returns the remaining quota (free endpoints) for the tile object at `tile`.
-pub fn tile_quota(tile: Selector) -> Result<(Quota<u32>, Quota<u64>, Quota<usize>), Error> {
+pub fn tile_quota(tile: Selector) -> Result<TileQuota, Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::TileQuota {
         opcode: syscalls::Operation::TILE_QUOTA.val,
@@ -384,7 +385,7 @@ pub fn tile_quota(tile: Selector) -> Result<(Quota<u32>, Quota<u64>, Quota<usize
     });
 
     let reply: Reply<syscalls::TileQuotaReply> = send_receive(&buf)?;
-    Ok((
+    Ok(TileQuota::new(
         Quota::new(
             reply.data.eps_id,
             reply.data.eps_total as u32,

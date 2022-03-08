@@ -35,6 +35,48 @@ pub struct Tile {
     free: bool,
 }
 
+/// Contains the different quotas for a tile
+#[derive(Default)]
+pub struct TileQuota {
+    eps: Quota<u32>,
+    time: Quota<u64>,
+    pts: Quota<usize>,
+}
+
+impl TileQuota {
+    /// Creates a new `TileQuota` object from given quotas.
+    pub fn new(eps: Quota<u32>, time: Quota<u64>, pts: Quota<usize>) -> Self {
+        Self { eps, time, pts }
+    }
+
+    /// Returns the endpoint quota
+    pub fn endpoints(&self) -> &Quota<u32> {
+        &self.eps
+    }
+
+    /// Returns the time quota
+    pub fn time(&self) -> &Quota<u64> {
+        &self.time
+    }
+
+    /// Returns the page-table quota
+    pub fn page_tables(&self) -> &Quota<usize> {
+        &self.pts
+    }
+}
+
+impl fmt::Debug for TileQuota {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(
+            f,
+            "TileQuota[eps={}, time={}, pts={}]",
+            self.endpoints(),
+            self.time(),
+            self.page_tables()
+        )
+    }
+}
+
 impl Tile {
     /// Allocates a new tile from the resource manager with given description
     pub fn new(desc: TileDesc) -> Result<Rc<Self>, Error> {
@@ -133,7 +175,7 @@ impl Tile {
     }
 
     /// Returns the EP, time, and page table quota
-    pub fn quota(&self) -> Result<(Quota<u32>, Quota<u64>, Quota<usize>), Error> {
+    pub fn quota(&self) -> Result<TileQuota, Error> {
         syscalls::tile_quota(self.sel())
     }
 
