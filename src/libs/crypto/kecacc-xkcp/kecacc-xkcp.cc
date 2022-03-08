@@ -29,7 +29,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <cassert>
 #include <cstring>
 
 #include "kecacc-xkcp.hh"
@@ -116,7 +115,7 @@ sponge(struct KecAccState &s, B *buf, size_t nbytes)
     }
 
     // Handle many full blocks efficiently
-    assert(reinterpret_cast<uintptr_t>(buf) % alignof(uint64_t) == 0);
+    // assert(reinterpret_cast<uintptr_t>(buf) % alignof(uint64_t) == 0);
     auto n = KeccakF1600_FastLoop(s.state, s.rate_bytes / sizeof(uint64_t),
                                   buf, nbytes);
     buf += n;

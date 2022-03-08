@@ -466,7 +466,7 @@ static void handle_pending_sends() {
     // Get all processed BDs from hardware
     XAxiDma_Bd *BdPtr;
     int BdCount = XAxiDma_BdRingFromHw(TxRingPtr, XAXIDMA_ALL_BDS, &BdPtr);
-    assert(BdCount == 1);
+    // assert(BdCount == 1);
 
     // Handle the BDs
     XAxiDma_Bd *BdCurPtr = BdPtr;
