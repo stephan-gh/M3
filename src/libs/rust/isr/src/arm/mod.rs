@@ -20,6 +20,8 @@ use base::backtrace;
 use base::int_enum;
 use base::libc;
 use base::tcu;
+
+use core::arch::asm;
 use core::fmt;
 
 use crate::IRQSource;
@@ -126,7 +128,9 @@ pub fn set_entry_sp(_sp: usize) {
 }
 
 pub fn enable_irqs() {
-    unsafe { asm!("msr cpsr, 0x53") };
+    unsafe {
+        asm!("msr cpsr, 0x53")
+    };
 }
 
 pub fn get_irq() -> IRQSource {

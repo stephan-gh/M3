@@ -17,7 +17,10 @@ use base::cell::LazyStaticCell;
 use base::cfg;
 use base::kif::PageFlags;
 use base::{read_csr, set_csr_bits, write_csr};
+
 use bitflags::bitflags;
+
+use core::arch::asm;
 
 pub type MMUPTE = u64;
 pub type Phys = u64;

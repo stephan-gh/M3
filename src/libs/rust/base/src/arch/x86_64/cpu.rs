@@ -16,6 +16,8 @@
  * General Public License version 2 for more details.
  */
 
+use core::arch::asm;
+
 macro_rules! impl_read_reg {
     ($func_name:tt, $reg_name:tt) => {
         #[inline(always)]

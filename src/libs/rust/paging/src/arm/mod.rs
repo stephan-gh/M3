@@ -18,7 +18,10 @@
 
 use base::cfg;
 use base::kif::{tilemux, PageFlags};
+
 use bitflags::bitflags;
+
+use core::arch::asm;
 
 pub type MMUPTE = u64;
 pub type Phys = u64;

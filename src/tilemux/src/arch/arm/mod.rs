@@ -19,6 +19,8 @@
 use base::errors::Error;
 use base::kif::PageFlags;
 
+use core::arch::asm;
+
 use crate::activities;
 use crate::vma;
 

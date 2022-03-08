@@ -22,6 +22,8 @@ use base::errors::Error;
 use base::kif::{tilemux, PageFlags};
 use base::mem::MaybeUninit;
 
+use core::arch::asm;
+
 use crate::activities;
 use crate::vma;
 
@@ -119,7 +121,9 @@ pub fn handle_fpu_ex(_state: &mut State) {
             };
         }
         else {
-            unsafe { asm!("fninit") };
+            unsafe {
+                asm!("fninit")
+            };
             fpu_state.init = true;
         }
 

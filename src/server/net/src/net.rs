@@ -16,8 +16,6 @@
  */
 
 // for offset_of with unstable_const feature
-#![feature(const_maybe_uninit_as_ptr)]
-#![feature(const_raw_ptr_deref)]
 #![feature(const_ptr_offset_from)]
 #![feature(duration_constants)]
 #![no_std]
@@ -164,7 +162,12 @@ impl Handler<NetworkSession> for NetHandler {
         }
     }
 
-    fn delegate(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
+    fn delegate(
+        &mut self,
+        crt: usize,
+        sid: SessId,
+        xchg: &mut CapExchange<'_>,
+    ) -> Result<(), Error> {
         log!(LOG_SESS, "[{}] net::delegate(crt={})", sid, crt);
 
         if let Some(s) = self.sessions.get_mut(sid) {

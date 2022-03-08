@@ -13,6 +13,8 @@
  * General Public License version 2 for more details.
  */
 
+use core::arch::asm;
+
 use crate::errors::Error;
 use crate::tmif::Operation;
 

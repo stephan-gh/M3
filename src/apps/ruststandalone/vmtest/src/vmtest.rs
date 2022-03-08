@@ -13,7 +13,6 @@
  * General Public License version 2 for more details.
  */
 
-#![feature(asm)]
 #![no_std]
 
 #[allow(unused_extern_crates)]

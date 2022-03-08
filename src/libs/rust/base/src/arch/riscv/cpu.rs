@@ -16,12 +16,14 @@
  * General Public License version 2 for more details.
  */
 
+use core::arch::asm;
+
 #[macro_export]
 macro_rules! read_csr {
     ($reg_name:tt) => {{
         let res: usize;
         unsafe {
-            asm!(
+            core::arch::asm!(
                 concat!("csrr {0}, ", $reg_name),
                 out(reg) res,
                 options(nomem, nostack)
@@ -36,7 +38,7 @@ macro_rules! write_csr {
     ($reg_name:tt, $val:expr) => {{
         unsafe {
             let val = $val;
-            asm!(
+            core::arch::asm!(
                 concat!("csrw ", $reg_name, ", {0}"),
                 in(reg) val,
                 options(nomem, nostack)
@@ -50,7 +52,7 @@ macro_rules! set_csr_bits {
     ($reg_name:tt, $bits:expr) => {{
         unsafe {
             let bits = $bits;
-            asm!(
+            core::arch::asm!(
                 concat!("csrs ", $reg_name, ", {0}"),
                 in(reg) bits,
                 options(nomem, nostack)

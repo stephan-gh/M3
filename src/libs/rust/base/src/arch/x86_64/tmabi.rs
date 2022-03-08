@@ -24,7 +24,7 @@ pub fn call1(op: Operation, arg1: usize) -> Result<usize, Error> {
 pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
     let mut res = op.val;
     unsafe {
-        asm!(
+        core::arch::asm!(
             "int $63",
             inout("rax") res,
             in("rcx") arg1,
@@ -43,7 +43,7 @@ pub fn call2(_op: Operation, _arg1: usize, _arg2: usize) -> Result<usize, Error>
 pub fn call3(op: Operation, arg1: usize, arg2: usize, arg3: usize) -> Result<usize, Error> {
     let mut res = op.val;
     unsafe {
-        asm!(
+        core::arch::asm!(
             "int $63",
             inout("rax") res,
             in("rcx") arg1,
@@ -69,7 +69,7 @@ pub fn call4(
 ) -> Result<usize, Error> {
     let mut res = op.val;
     unsafe {
-        asm!(
+        core::arch::asm!(
             "int $63",
             inout("rax") res,
             in("rcx") arg1,

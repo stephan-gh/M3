@@ -9,7 +9,6 @@
   "target-endian": "little",
   "target-pointer-width": "64",
   "target-c-int-width": "32",
-  "target-os": "none",
   "linker-flavor": "gcc",
   "linker": "rust-lld",
   "max-atomic-width": "64",
@@ -17,6 +16,6 @@
   "features": "+m,+a,+f,+d,+c,",
   "executables": true,
   "relocation-model": "static",
-  "emit-debug-gdb-scripts": true,
-  "eliminate-frame-pointer": false
+  "frame-pointer": "always",
+  "emit-debug-gdb-scripts": true
 }

@@ -13,7 +13,6 @@
  * General Public License version 2 for more details.
  */
 
-#![feature(asm)]
 #![no_std]
 
 use cfg_if::cfg_if;

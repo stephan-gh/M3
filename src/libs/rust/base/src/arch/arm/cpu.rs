@@ -16,6 +16,8 @@
  * General Public License version 2 for more details.
  */
 
+use core::arch::asm;
+
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn read8b(addr: usize) -> u64 {
     // dual registers are unfortunately no longer supported with the new asm! macro. thus, we work

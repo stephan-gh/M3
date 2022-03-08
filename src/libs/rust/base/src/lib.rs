@@ -17,8 +17,6 @@
  */
 
 #![feature(alloc_error_handler, allocator_internals)]
-#![feature(asm)]
-#![feature(const_fn)]
 #![feature(core_intrinsics)]
 #![feature(lang_items)]
 #![feature(panic_info_message)]

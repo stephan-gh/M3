@@ -21,6 +21,8 @@ use base::int_enum;
 use base::libc;
 use base::mem;
 use base::tcu;
+
+use core::arch::asm;
 use core::fmt;
 use core::ops::Deref;
 
@@ -463,7 +465,9 @@ pub fn set_entry_sp(sp: usize) {
 }
 
 pub fn enable_irqs() {
-    unsafe { asm!("sti") };
+    unsafe {
+        asm!("sti")
+    };
 }
 
 pub fn get_irq() -> IRQSource {

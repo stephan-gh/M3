@@ -58,7 +58,7 @@ macro_rules! ldst_fpu_regs {
     ($ins:tt, $base:expr, $($no:tt)*) => {
         let base = $base;
         $(
-            asm!(
+            core::arch::asm!(
                 concat!($ins, " f", $no, ", 8*", $no, "({0})"),
                 in(reg) base,
                 options(nostack, nomem)
@@ -172,7 +172,9 @@ pub fn handle_fpu_ex(state: &mut State) {
             restore_fpu(fpu_state);
         }
         else {
-            unsafe { libc::memset(fpu_state as *mut _ as *mut libc::c_void, 0, 8 * 33) };
+            unsafe {
+                libc::memset(fpu_state as *mut _ as *mut libc::c_void, 0, 8 * 33)
+            };
             fpu_state.init = true;
         }
 

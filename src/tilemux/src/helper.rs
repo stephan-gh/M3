@@ -21,7 +21,7 @@ pub fn flush_invalidate() {
     if envdata::get().platform == envdata::Platform::HW.val {
         #[cfg(target_vendor = "hw")]
         unsafe {
-            asm!("fence.i");
+            core::arch::asm!("fence.i");
         }
     }
     else {

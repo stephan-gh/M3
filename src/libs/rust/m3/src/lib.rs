@@ -16,7 +16,6 @@
  * General Public License version 2 for more details.
  */
 
-#![feature(const_fn)]
 #![feature(core_intrinsics)]
 #![feature(duration_constants)]
 #![feature(trace_macros)]
