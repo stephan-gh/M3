@@ -18,7 +18,7 @@
 use core::fmt;
 
 use crate::kif;
-use crate::mem::{GlobAddr, MaybeUninit};
+use crate::mem::GlobAddr;
 use crate::util;
 
 const MAX_MODNAME_LEN: usize = 64;
@@ -40,6 +40,7 @@ pub struct Info {
 
 /// A boot module
 #[repr(C, packed)]
+#[derive(Clone, Copy)]
 pub struct Mod {
     /// The global address of the module
     pub addr: u64,
@@ -52,11 +53,10 @@ impl Mod {
     /// Creates a new boot module
     pub fn new(addr: GlobAddr, size: u64, name: &str) -> Self {
         assert!(name.len() < MAX_MODNAME_LEN);
-        #[allow(clippy::uninit_assumed_init)]
         let mut m = Self {
             addr: addr.raw(),
             size,
-            name: unsafe { MaybeUninit::uninit().assume_init() },
+            name: [0; MAX_MODNAME_LEN],
         };
         for (a, c) in m.name.iter_mut().zip(name.bytes()) {
             *a = c as i8;
@@ -74,6 +74,16 @@ impl Mod {
     pub fn name(&self) -> &'static str {
         // safety: we trust our loader
         unsafe { util::cstr_to_str(self.name.as_ptr()) }
+    }
+}
+
+impl Default for Mod {
+    fn default() -> Self {
+        Self {
+            addr: 0,
+            size: 0,
+            name: [0; MAX_MODNAME_LEN],
+        }
     }
 }
 
@@ -175,10 +185,9 @@ impl Service {
     /// Creates a new service
     pub fn new(name: &str, sessions: u32) -> Self {
         assert!(name.len() < MAX_SERVNAME_LEN);
-        #[allow(clippy::uninit_assumed_init)]
         let mut m = Self {
             sessions,
-            name: unsafe { MaybeUninit::uninit().assume_init() },
+            name: [0; MAX_SERVNAME_LEN],
         };
         for (a, c) in m.name.iter_mut().zip(name.bytes()) {
             *a = c as i8;

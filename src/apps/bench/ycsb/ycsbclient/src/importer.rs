@@ -136,11 +136,7 @@ impl Package {
     #[allow(dead_code)]
     pub fn load_as_bytes<R: Read>(reader: &mut BufReader<R>) -> Vec<u8> {
         // Read static sized data into bytes vec
-        let mut bytes = Vec::with_capacity(19);
-        // safety: we initialize all bytes below
-        unsafe {
-            bytes.set_len(19);
-        }
+        let mut bytes = vec![0u8; 19];
         reader.read_exact(&mut bytes).unwrap();
 
         for _i in 0..(bytes[2] as usize) {
@@ -152,11 +148,7 @@ impl Package {
 
             let off = bytes.len();
             let add = length[0] as usize + length[1] as usize;
-            bytes.reserve_exact(add);
-            // safety: we initialize all bytes below
-            unsafe {
-                bytes.set_len(off + add);
-            }
+            bytes.resize(off + add, 0);
             reader.read_exact(&mut bytes[off..]).unwrap();
         }
 

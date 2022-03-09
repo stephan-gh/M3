@@ -57,6 +57,7 @@ impl iter::Iterator for ReadDir {
     type Item = DirEntry;
 
     fn next(&mut self) -> Option<Self::Item> {
+        #[derive(Default)]
         #[repr(C, packed)]
         struct M3FSDirEntry {
             inode: INodeId,

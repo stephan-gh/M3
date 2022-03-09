@@ -117,7 +117,7 @@ fn get_mod(name: &str) -> Option<&kif::boot::Mod> {
     None
 }
 
-fn read_from_mod<T>(bm: &kif::boot::Mod, off: goff) -> Result<T, Error> {
+fn read_from_mod<T: Default>(bm: &kif::boot::Mod, off: goff) -> Result<T, Error> {
     if off + size_of::<T>() as goff > bm.size {
         return Err(Error::new(Code::InvalidElf));
     }

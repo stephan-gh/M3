@@ -175,10 +175,14 @@ impl MemGate {
     /// Uses the TCU read command to read from the memory region at offset `off` and stores the read
     /// data into a vector. The number of bytes to read is defined by the number of items and the
     /// size of `T`.
+    #[allow(clippy::uninit_vec)]
     pub fn read_into_vec<T>(&self, items: usize, off: goff) -> Result<Vec<T>, Error> {
         let mut vec = Vec::<T>::with_capacity(items);
-        // safety: will be initialized by read below
-        unsafe { vec.set_len(items) };
+        // we deliberately use uninitialize memory here, because it's performance critical
+        // safety: this is okay, because the TCU does not read from `vec`
+        unsafe {
+            vec.set_len(items)
+        };
         self.read(&mut vec, off)?;
         Ok(vec)
     }

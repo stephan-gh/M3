@@ -24,8 +24,8 @@ use core::ptr;
 
 use crate::col::{String, Vec};
 use crate::errors::{Code, Error};
-use crate::mem::MaybeUninit;
 use crate::util;
+use crate::vec;
 
 // this is inspired from std::io::{Read, Write}
 
@@ -36,13 +36,7 @@ pub trait Read {
 
     /// Reads at most `max` bytes into a string and returns it
     fn read_string(&mut self, max: usize) -> Result<String, Error> {
-        let mut buf = Vec::with_capacity(max);
-        // increase length so that we can write into the slice
-        // safety: we will initialize it below and set the length again to only cover the
-        // initialized elements
-        unsafe {
-            buf.set_len(max);
-        }
+        let mut buf = vec![0u8; max];
 
         let mut off = 0;
         while off < max {
@@ -56,11 +50,8 @@ pub trait Read {
             off += amount;
         }
 
-        // safety: we know that we have initialized `off` bytes via `self.read`
-        unsafe {
-            // set final length
-            buf.set_len(off);
-        }
+        // set final length
+        buf.resize(off, 0);
         String::from_utf8(buf).map_err(|_| Error::new(Code::Utf8Error))
     }
 
@@ -72,14 +63,9 @@ pub trait Read {
         let mut off = old_len;
 
         'outer: loop {
-            buf.reserve_exact(cap - off);
+            buf.resize(cap, 0);
 
             while off < cap {
-                // increase length so that we can write into the slice
-                // safety: as above; initialized via self.read and set again at the end
-                unsafe {
-                    buf.set_len(cap);
-                }
                 let count = self.read(&mut buf.as_mut_slice()[off..cap])?;
 
                 // stop on EOF
@@ -93,11 +79,8 @@ pub trait Read {
             cap *= 2;
         }
 
-        // safety: we know that we have initialized `off` bytes via `self.read`
-        unsafe {
-            // set final length
-            buf.set_len(off);
-        }
+        // set final length
+        buf.resize(off, 0);
         Ok(off - old_len)
     }
 
@@ -232,10 +215,8 @@ pub trait Write {
 
 /// Convenience method that reads `mem::size_of::<T>()` bytes from the given source and interprets
 /// them as a `T`
-pub fn read_object<T: Sized>(r: &mut dyn Read) -> Result<T, Error> {
-    // safety: read_exact will initialize it afterwards
-    #[allow(clippy::uninit_assumed_init)]
-    let mut obj: T = unsafe { MaybeUninit::uninit().assume_init() };
+pub fn read_object<T: Default>(r: &mut dyn Read) -> Result<T, Error> {
+    let mut obj: T = T::default();
     r.read_exact(util::object_to_bytes_mut(&mut obj))
         .map(|_| obj)
 }

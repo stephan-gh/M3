@@ -158,8 +158,11 @@ pub unsafe fn copy_from_str(words: &mut [u64], s: &str) {
 /// # Safety
 ///
 /// Assumes that `s` points to a valid string of given length
+#[allow(clippy::uninit_vec)]
 pub unsafe fn copy_str_from(s: &[u64], len: usize) -> String {
     let mut v = Vec::<u8>::with_capacity(len);
+    // we deliberately use uninitialize memory here, because it's performance critical
+    // safety: this is okay, because libc::memcpy (our implementation) does not read from `dst`
     v.set_len(len);
     let src = s.as_ptr() as *mut libc::c_void;
     let dst = v.as_mut_ptr() as *mut _ as *mut libc::c_void;

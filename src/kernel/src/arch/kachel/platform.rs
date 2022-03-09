@@ -21,6 +21,7 @@ use base::goff;
 use base::kif::{self, boot, Perm, TileDesc, TileISA, TileType};
 use base::mem::{size_of, GlobAddr};
 use base::tcu::{ActId, EpId, TileId, TCU, UNLIM_CREDITS};
+use base::vec;
 
 use crate::args;
 use crate::ktcu;
@@ -38,20 +39,17 @@ pub fn init(_args: &[String]) -> platform::KEnv {
     offset += size_of::<boot::Info>() as goff;
 
     // read boot modules
-    let mut mods: Vec<boot::Mod> = Vec::with_capacity(info.mod_count as usize);
-    unsafe { mods.set_len(info.mod_count as usize) };
+    let mut mods: Vec<boot::Mod> = vec![boot::Mod::default(); info.mod_count as usize];
     ktcu::read_slice(addr.tile(), offset, &mut mods);
     offset += info.mod_count as goff * size_of::<boot::Mod>() as goff;
 
     // read tiles
-    let mut tiles: Vec<TileDesc> = Vec::with_capacity(info.tile_count as usize);
-    unsafe { tiles.set_len(info.tile_count as usize) };
+    let mut tiles: Vec<TileDesc> = vec![TileDesc::default(); info.tile_count as usize];
     ktcu::read_slice(addr.tile(), offset, &mut tiles);
     offset += info.tile_count as goff * size_of::<TileDesc>() as goff;
 
     // read memory regions
-    let mut mems: Vec<boot::Mem> = Vec::with_capacity(info.mem_count as usize);
-    unsafe { mems.set_len(info.mem_count as usize) };
+    let mut mems: Vec<boot::Mem> = vec![boot::Mem::default(); info.mem_count as usize];
     ktcu::read_slice(addr.tile(), offset, &mut mems);
 
     // build new info for user tiles

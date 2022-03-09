@@ -23,7 +23,7 @@ use crate::util;
 pub const MAX_MSG_SIZE: usize = 512;
 
 static DEF_MSG_BUF: StaticUnsafeCell<MsgBuf> = StaticUnsafeCell::new(MsgBuf {
-    bytes: [0u8; MAX_MSG_SIZE],
+    bytes: [mem::MaybeUninit::new(0); MAX_MSG_SIZE],
     pos: 0,
     used: false,
 });
@@ -72,7 +72,7 @@ impl<'m> DerefMut for MsgBufRef<'m> {
 /// A buffer for messages that takes care of proper alignment to fulfill the alignment requirements
 /// of the TCU.
 pub struct MsgBuf {
-    bytes: [u8; MAX_MSG_SIZE],
+    bytes: [mem::MaybeUninit<u8>; MAX_MSG_SIZE],
     pos: usize,
     used: bool,
 }
@@ -90,7 +90,7 @@ impl MsgBuf {
     /// Creates a new zero'd message buffer containing an empty message
     pub const fn new_initialized() -> Self {
         Self {
-            bytes: [0u8; MAX_MSG_SIZE],
+            bytes: [mem::MaybeUninit::new(0); MAX_MSG_SIZE],
             pos: 0,
             used: false,
         }
@@ -107,7 +107,8 @@ impl MsgBuf {
 
     /// Returns the message bytes
     pub fn bytes(&self) -> &[u8] {
-        &self.bytes[0..self.pos]
+        // safety: 0..`pos` is always initialized
+        unsafe { intrinsics::transmute(&self.bytes[0..self.pos]) }
     }
 
     /// Returns the number of bytes to send
@@ -138,10 +139,14 @@ impl MsgBuf {
     pub fn get<T>(&self) -> &T {
         assert!(mem::align_of::<Self>() >= mem::align_of::<T>());
         assert!(mem::size_of::<Self>() >= mem::size_of::<T>());
+        assert!(self.pos >= mem::size_of::<T>());
 
         // safety: the checks above make sure that the size and alignment is sufficient
-        let slice = unsafe { &*(&self.bytes as *const [u8] as *const [T]) };
-        &slice[0]
+        unsafe {
+            let bytes: &[u8; MAX_MSG_SIZE] = intrinsics::transmute(&self.bytes);
+            let slice = &*(bytes as *const [u8] as *const [T]);
+            &slice[0]
+        }
     }
 
     /// Sets the message content to `msg`
@@ -150,18 +155,21 @@ impl MsgBuf {
         assert!(mem::size_of::<Self>() >= mem::size_of::<T>());
 
         let slice = util::object_to_bytes(&msg);
-        self.bytes[0..slice.len()].copy_from_slice(slice);
+        mem::MaybeUninit::write_slice(&mut self.bytes[0..slice.len()], slice);
         self.pos = mem::size_of::<T>();
 
         // safety: we just initialized these bytes and the checks above make sure that the size and
         // alignment is sufficient
-        let slice = unsafe { &mut *(&mut self.bytes as *mut [u8] as *mut [T]) };
-        &mut slice[0]
+        unsafe {
+            let bytes: &mut [u8; MAX_MSG_SIZE] = intrinsics::transmute(&mut self.bytes);
+            let slice = &mut *(bytes as *mut [u8] as *mut [T]);
+            &mut slice[0]
+        }
     }
 
     /// Sets the message to the given slice
     pub fn set_from_slice(&mut self, bytes: &[u8]) {
-        self.bytes[0..bytes.len()].copy_from_slice(bytes);
+        mem::MaybeUninit::write_slice(&mut self.bytes[0..bytes.len()], bytes);
         self.pos = bytes.len();
     }
 }
@@ -169,7 +177,7 @@ impl MsgBuf {
 impl Clone for MsgBuf {
     fn clone(&self) -> Self {
         let mut copy = Self::new();
-        copy.bytes[0..self.pos].copy_from_slice(self.bytes());
+        mem::MaybeUninit::write_slice(&mut copy.bytes[0..self.pos], self.bytes());
         copy.pos = self.pos;
         copy
     }

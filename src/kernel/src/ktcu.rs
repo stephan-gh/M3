@@ -113,16 +113,13 @@ pub fn reply(ep: EpId, reply: &mem::MsgBuf, msg: &Message) -> Result<(), Error> 
 }
 
 #[cfg(not(target_vendor = "host"))]
-pub fn read_obj<T>(tile: TileId, addr: goff) -> T {
+pub fn read_obj<T: Default>(tile: TileId, addr: goff) -> T {
     try_read_obj(tile, addr).unwrap()
 }
 
 #[cfg(not(target_vendor = "host"))]
-pub fn try_read_obj<T>(tile: TileId, addr: goff) -> Result<T, Error> {
-    use base::mem::MaybeUninit;
-
-    #[allow(clippy::uninit_assumed_init)]
-    let mut obj: T = unsafe { MaybeUninit::uninit().assume_init() };
+pub fn try_read_obj<T: Default>(tile: TileId, addr: goff) -> Result<T, Error> {
+    let mut obj: T = T::default();
     let obj_addr = &mut obj as *mut T as *mut u8;
     try_read_mem(tile, addr, obj_addr, mem::size_of::<T>())?;
     Ok(obj)

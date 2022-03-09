@@ -137,7 +137,7 @@ pub struct Thread {
     stack: Vec<usize>,
     event: Event,
     has_msg: bool,
-    msg: [u64; MAX_MSG_SIZE / 8],
+    msg: [mem::MaybeUninit<u64>; MAX_MSG_SIZE / 8],
 }
 
 impl_boxitem!(Thread);

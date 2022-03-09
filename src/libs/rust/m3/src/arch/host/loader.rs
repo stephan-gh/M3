@@ -113,7 +113,9 @@ pub fn copy_file(file: &mut FileRef) -> Result<String, Error> {
 pub fn read_env_words(suffix: &str) -> Option<Vec<u64>> {
     read_env_file(suffix, |fd, size| {
         let mut res: Vec<u64> = vec![0; size as usize / 8];
-        unsafe { libc::read(fd, res.as_mut_ptr() as *mut libc::c_void, size) };
+        unsafe {
+            libc::read(fd, res.as_mut_ptr() as *mut libc::c_void, size)
+        };
         res
     })
 }

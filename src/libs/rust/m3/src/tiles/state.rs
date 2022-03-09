@@ -45,11 +45,9 @@ impl<'v> StateSerializer<'v> {
 
         let elems = (len + 7) / 8;
         let cur = self.vec.len();
-        self.vec.reserve_exact(elems);
+        self.vec.resize(cur + elems, 0);
 
         unsafe {
-            // safety: will be initialized below
-            self.vec.set_len(cur + elems);
             // safety: we know the pointer and length are valid
             copy_from_str(&mut self.vec.as_mut_slice()[cur..cur + elems], b);
         }

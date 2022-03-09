@@ -214,7 +214,7 @@ impl E1000 {
         self.write_reg(REG::RCTL, rctl);
     }
 
-    pub fn mtu() -> usize {
+    pub const fn mtu() -> usize {
         // gem5 limits us to TX_BUF_SIZE - 1 (2047)
         TX_BUF_SIZE - 1
     }
@@ -457,7 +457,9 @@ impl E1000 {
 
         let read_size = desc[0].length.into();
         let mut buf = Vec::<u8>::with_capacity(read_size);
-        // safety: the buffer will be initialized by read_bufs below
+        // we deliberately use uninitialize memory here, because it's performance critical
+        // safety: this is okay, because the TCU does not read from `buf`
+        #[allow(clippy::uninit_vec)]
         unsafe {
             buf.set_len(read_size);
         }

@@ -43,7 +43,6 @@ impl Default for FPUState {
     fn default() -> Self {
         Self {
             // we init that lazy on the first use of the FPU
-            #[allow(clippy::uninit_assumed_init)]
             data: unsafe { MaybeUninit::uninit().assume_init() },
             init: false,
         }

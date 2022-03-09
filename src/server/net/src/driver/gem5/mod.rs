@@ -15,7 +15,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::cell::RefCell;
+use m3::cell::{RefCell, StaticRefCell};
 use m3::errors::Error;
 use m3::rc::Rc;
 use m3::vec::Vec;
@@ -89,20 +89,19 @@ pub struct TxToken {
     device: Rc<RefCell<e1000::E1000>>,
 }
 
+// use a static and initialized buffer for all packets we send
+static SEND_BUF: StaticRefCell<[u8; e1000::E1000::mtu()]> =
+    StaticRefCell::new([0u8; e1000::E1000::mtu()]);
+
 impl smoltcp::phy::TxToken for TxToken {
     fn consume<R, F>(self, _timestamp: Instant, len: usize, f: F) -> smoltcp::Result<R>
     where
         F: FnOnce(&mut [u8]) -> smoltcp::Result<R>,
     {
-        let mut buffer = Vec::<u8>::with_capacity(len);
-        // safety: we initialize it below
-        unsafe {
-            buffer.set_len(len);
-        }
-
         // fill buffer with "to be send" data
-        let res = f(&mut buffer)?;
-        match self.device.borrow_mut().send(&buffer[..]) {
+        assert!(len <= SEND_BUF.borrow().len());
+        let res = f(&mut SEND_BUF.borrow_mut()[0..len])?;
+        match self.device.borrow_mut().send(&SEND_BUF.borrow()[0..len]) {
             true => Ok(res),
             false => Err(smoltcp::Error::Exhausted),
         }

@@ -24,7 +24,6 @@ use m3::int_enum;
 use m3::io::{Serial, Write};
 use m3::kif;
 use m3::log;
-use m3::mem::MaybeUninit;
 use m3::rc::Rc;
 use m3::reply_vmsg;
 use m3::server::{
@@ -54,6 +53,7 @@ static SIGRGATE: LazyStaticRefCell<RecvGate> = LazyStaticRefCell::default();
 static BUFFER: StaticRefCell<Vec<u8>> = StaticRefCell::new(Vec::new());
 static INPUT: StaticRefCell<Vec<u8>> = StaticRefCell::new(Vec::new());
 static MODE: StaticCell<Mode> = StaticCell::new(Mode::COOKED);
+static TMP_BUF: StaticRefCell<[u8; BUF_SIZE]> = StaticRefCell::new([0u8; BUF_SIZE]);
 
 macro_rules! reply_vmsg_late {
     ( $msg:expr, $( $args:expr ),* ) => ({
@@ -223,11 +223,9 @@ impl Channel {
 
     fn flush(&mut self, nbytes: usize) -> Result<(), Error> {
         if nbytes > 0 {
-            // safety: will be initialized by read below
-            #[allow(clippy::uninit_assumed_init)]
-            let mut buf: [u8; BUF_SIZE] = unsafe { MaybeUninit::uninit().assume_init() };
-            self.our_mem.read(&mut buf[0..nbytes], mem_off(self.id))?;
-            Serial::new().write(&buf[0..nbytes])?;
+            self.our_mem
+                .read(&mut TMP_BUF.borrow_mut()[0..nbytes], mem_off(self.id))?;
+            Serial::new().write(&TMP_BUF.borrow()[0..nbytes])?;
         }
         self.len = 0;
         Ok(())

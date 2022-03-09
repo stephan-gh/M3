@@ -22,6 +22,7 @@ use core::fmt;
 use crate::col::{String, Vec};
 use crate::errors::Error;
 use crate::io::{Read, Write};
+use crate::vec;
 use crate::vfs::{Seek, SeekMode};
 
 /// A reader implementation with an internal buffer.
@@ -40,15 +41,12 @@ impl<R: Read> BufReader<R> {
 
     /// Creates a new `BufReader` with the given reader, using a buffer with `cap` bytes.
     pub fn with_capacity(reader: R, cap: usize) -> Self {
-        let mut br = BufReader {
+        Self {
             reader,
-            buf: Vec::with_capacity(cap),
+            buf: vec![0u8; cap],
             pos: 0,
             cap: 0,
-        };
-        // safety: we will not hand out the Vec and never access anything except 0..`pos`-1 below
-        unsafe { br.buf.set_len(cap) };
-        br
+        }
     }
 
     /// Returns a reference to the internal reader.
@@ -154,14 +152,11 @@ impl<W: Write> BufWriter<W> {
 
     /// Creates a new `BufWriter` with the given writer and a buffer with `cap` bytes.
     pub fn with_capacity(writer: W, cap: usize) -> Self {
-        let mut br = BufWriter {
+        Self {
             writer,
-            buf: Vec::with_capacity(cap),
+            buf: vec![0u8; cap],
             pos: 0,
-        };
-        // safety: we will not hand out the Vec and never access anything except 0..`pos`-1 below
-        unsafe { br.buf.set_len(cap) };
-        br
+        }
     }
 
     /// Returns a reference to the internal writer.
