@@ -192,7 +192,7 @@ impl<'n> Binary<'n> {
 
     fn found_stack(&mut self, tid: u64, time: u64) {
         let old = self.stacks.remove(&self.cur_tid).unwrap();
-        self.cur_tid = ThreadId::new_with_stack(&self.name, tid - STACK_SIZE);
+        self.cur_tid = ThreadId::new_with_stack(self.name, tid - STACK_SIZE);
         self.stacks.insert(self.cur_tid.clone(), old);
         debug!("{}: found stack of {}", time, self.cur_tid);
     }
@@ -202,7 +202,7 @@ impl<'n> Binary<'n> {
         self.stacks.get_mut(&self.cur_tid).unwrap().switched = time;
 
         // try to find the thread with new stack
-        let mut new_tid = ThreadId::new_with_stack(&self.name, stack);
+        let mut new_tid = ThreadId::new_with_stack(self.name, stack);
         match self.stacks.range(..=&new_tid).nth_back(0) {
             Some((tid, _)) if stack >= tid.stack && stack < tid.stack + STACK_SIZE => {
                 // we know the stack, switch to it
@@ -315,7 +315,7 @@ fn handle_return(
             stack.push_str(&format!("{}", tid));
             for f in thread.stack.iter() {
                 stack.push(';');
-                stack.push_str(&f.func);
+                stack.push_str(f.func);
             }
             Some(stack)
         }
@@ -324,7 +324,7 @@ fn handle_return(
         };
 
         let last = if unwind {
-            thread.ret(&sym, time, tid)
+            thread.ret(sym, time, tid)
         }
         else {
             thread.stack.pop().unwrap();
@@ -402,7 +402,7 @@ pub fn generate(
                 if bin_switch {
                     // detect ISR exits
                     if cur_tile.last_isr_exit {
-                        let obin = cur_tile.bins.get_mut::<str>(&cur_tile.last_bin).unwrap();
+                        let obin = cur_tile.bins.get_mut::<str>(cur_tile.last_bin).unwrap();
                         let othread = obin.stacks.get_mut(&obin.cur_tid).unwrap();
                         handle_return(
                             mode,
@@ -416,7 +416,7 @@ pub fn generate(
                         )?;
                         isr_exit = true;
                     }
-                    cur_tile.binary_switch(&sym, time);
+                    cur_tile.binary_switch(sym, time);
                 }
 
                 let cur_bin = cur_tile.bins.get_mut::<str>(&sym.bin).unwrap();
@@ -448,7 +448,7 @@ pub fn generate(
                     let cur_tid = &cur_bin.cur_tid;
                     // it's a call when we jumped to the beginning of a function
                     if addr == sym.addr {
-                        cur_thread.call(&sym, time, cur_tid);
+                        cur_thread.call(sym, time, cur_tid);
                     }
                     // otherwise it's a return
                     else if sym.name != "thread_switch" && cur_thread.stack.is_empty() {

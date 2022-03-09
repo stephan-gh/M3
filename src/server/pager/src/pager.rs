@@ -126,12 +126,12 @@ impl Handler<AddrSpace> for PagerReqHandler {
 
         let aspace = self.sessions.get_mut(sid).unwrap();
 
-        let mut args = xchg.in_args();
+        let args = xchg.in_args();
         let op = args.pop_word()? as u32;
         let (sel, virt) = match PagerOp::from(op) {
             PagerOp::INIT => aspace.init(None, None).map(|sel| (sel, 0)),
-            PagerOp::MAP_DS => aspace.map_ds(&mut args),
-            PagerOp::MAP_MEM => aspace.map_mem(&mut args),
+            PagerOp::MAP_DS => aspace.map_ds(args),
+            PagerOp::MAP_MEM => aspace.map_mem(args),
             _ => Err(Error::new(Code::InvArgs)),
         }?;
 
@@ -222,13 +222,13 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
 
     // init address space (give it activity and mgate selector)
     let mut hdl = PGHDL.borrow_mut();
-    let mut aspace = hdl.sessions.get_mut(sid).unwrap();
+    let aspace = hdl.sessions.get_mut(sid).unwrap();
     aspace.init(Some(child.id()), Some(act.sel())).unwrap();
 
     // start activity
     let file = vfs::VFS::open(child.name(), vfs::OpenFlags::RX | vfs::OpenFlags::NEW_SESS)
         .map_err(|e| VerboseError::new(e.code(), format!("Unable to open {}", child.name())))?;
-    let mut mapper = mapper::ChildMapper::new(&mut aspace, act.tile_desc().has_virtmem());
+    let mut mapper = mapper::ChildMapper::new(aspace, act.tile_desc().has_virtmem());
     child
         .start(act, &mut mapper, file)
         .map_err(|e| VerboseError::new(e.code(), "Unable to start Activity".to_string()))

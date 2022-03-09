@@ -166,15 +166,15 @@ impl CapTable {
         let act = self.activity();
         if !act
             .kmem()
-            .alloc(&act, cap.sel(), cap.obj.size() + Capability::size())
+            .alloc(act, cap.sel(), cap.obj.size() + Capability::size())
         {
             return Err(Error::new(Code::NoSpace));
         }
 
         unsafe {
-            let mut child_cap = self.do_insert(cap);
+            let child_cap = self.do_insert(cap);
             if let Some(parent) = parent {
-                (*parent.as_ptr()).inherit(&mut child_cap);
+                (*parent.as_ptr()).inherit(child_cap);
             }
             klog!(CAPS, "Creating cap {:?}", child_cap);
         }
@@ -183,7 +183,7 @@ impl CapTable {
 
     pub fn obtain(&mut self, sel: CapSel, cap: &mut Capability, child: bool) -> Result<(), Error> {
         let act = self.activity();
-        if !act.kmem().alloc(&act, sel, Capability::size()) {
+        if !act.kmem().alloc(act, sel, Capability::size()) {
             return Err(Error::new(Code::NoSpace));
         }
 
@@ -459,11 +459,11 @@ impl Capability {
         if !self.derived {
             // if it's not derived, we created the cap and thus will also free the kobject
             act.kmem()
-                .free(&act, sel, Capability::size() + self.obj.size());
+                .free(act, sel, Capability::size() + self.obj.size());
         }
         else {
             // give quota for cap back in every case
-            act.kmem().free(&act, sel, Capability::size());
+            act.kmem().free(act, sel, Capability::size());
         }
 
         match self.obj {

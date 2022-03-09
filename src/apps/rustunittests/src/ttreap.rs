@@ -71,6 +71,6 @@ fn test_add_modify_and_rem(vals: &[u32]) {
     for (i, v) in vals.iter().enumerate() {
         let val = treap.remove(v);
         wv_assert_eq!(val, Some(&plus_one[i]));
-        wv_assert_eq!(treap.get(&v), None);
+        wv_assert_eq!(treap.get(v), None);
     }
 }

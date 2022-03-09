@@ -100,10 +100,11 @@ pub fn create_mgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
 
     if platform::tile_desc(tgt_act.tile_id()).has_virtmem() {
         let map_caps = tgt_act.map_caps().borrow_mut();
-        try_kmem_quota!(act
-            .obj_caps()
-            .borrow_mut()
-            .insert_as_child_from(cap, map_caps, sel));
+        try_kmem_quota!(
+            act.obj_caps()
+                .borrow_mut()
+                .insert_as_child_from(cap, map_caps, sel)
+        );
     }
     else {
         try_kmem_quota!(act.obj_caps().borrow_mut().insert_as_child(cap, act_sel));
@@ -177,7 +178,7 @@ pub fn create_sgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
         let rgate = get_kobj_ref!(act_caps, rgate_sel, RGate);
         Capability::new(
             dst_sel,
-            KObject::SGate(SGateObject::new(&rgate, label, credits)),
+            KObject::SGate(SGateObject::new(rgate, label, credits)),
         )
     };
 
@@ -263,7 +264,7 @@ pub fn create_sess(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(),
     // TODO implement auto_close
     let cap = Capability::new(
         dst_sel,
-        KObject::Sess(SessObject::new(&serv, creator, ident)),
+        KObject::Sess(SessObject::new(serv, creator, ident)),
     );
 
     try_kmem_quota!(obj_caps.insert_as_child(cap, srv_sel));

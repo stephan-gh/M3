@@ -93,6 +93,7 @@ impl fmt::Debug for ChildMem {
     }
 }
 
+#[derive(Default)]
 pub struct Resources {
     childs: Vec<(Id, Selector)>,
     services: Vec<(Id, Selector)>,
@@ -100,19 +101,6 @@ pub struct Resources {
     mem: Vec<(Option<Selector>, Allocation)>,
     tiles: Vec<(tiles::TileUsage, usize, Selector)>,
     sgates: Vec<SendGate>,
-}
-
-impl Default for Resources {
-    fn default() -> Self {
-        Resources {
-            childs: Vec::new(),
-            services: Vec::new(),
-            sessions: Vec::new(),
-            mem: Vec::new(),
-            tiles: Vec::new(),
-            sgates: Vec::new(),
-        }
-    }
 }
 
 pub trait Child {
@@ -549,7 +537,7 @@ pub fn add_child(
 
     #[allow(clippy::useless_conversion)]
     let sgate = SendGate::new_with(
-        SGateArgs::new(&rgate)
+        SGateArgs::new(rgate)
             .credits(1)
             .label(tcu::Label::from(nid)),
     )?;

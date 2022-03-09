@@ -186,7 +186,7 @@ fn send_recv(send_addr: usize, size: usize) {
     };
 
     // send message
-    TCU::send(4, &msg_buf, 0x1111, 3).unwrap();
+    TCU::send(4, msg_buf, 0x1111, 3).unwrap();
 
     {
         // fetch message
@@ -201,7 +201,7 @@ fn send_recv(send_addr: usize, size: usize) {
         assert_eq!(msg_buf.bytes(), recv_slice);
 
         // send reply
-        TCU::reply(1, &msg_buf, tcu::TCU::msg_to_offset(rbuf1_virt, rmsg)).unwrap();
+        TCU::reply(1, msg_buf, tcu::TCU::msg_to_offset(rbuf1_virt, rmsg)).unwrap();
     }
 
     {

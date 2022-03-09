@@ -154,14 +154,14 @@ pub fn set_pmp(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ver
         KObject::MGate(mg) => {
             let mut tilemux = tilemng::tilemux(tile.tile());
 
-            if let Err(e) = tilemux.config_mem_ep(epid, INVAL_ID, &mg, mg.tile_id()) {
+            if let Err(e) = tilemux.config_mem_ep(epid, INVAL_ID, mg, mg.tile_id()) {
                 sysc_err!(e.code(), "Unable to configure PMP EP");
             }
 
             // remember that the MemGate is activated on this EP for the case that the MemGate gets
             // revoked. If so, the EP is automatically invalidated.
             let ep = tilemux.pmp_ep(epid);
-            EPObject::configure(ep, &kobj);
+            EPObject::configure(ep, kobj);
         },
         _ => sysc_err!(Code::InvArgs, "Expected MemGate"),
     }
@@ -345,10 +345,12 @@ pub fn get_sess(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ve
             sysc_err!(Code::NoPerm, "Cannot get access to foreign session");
         }
 
-        try_kmem_quota!(actcap
-            .obj_caps()
-            .borrow_mut()
-            .obtain(dst_sel, csess.unwrap(), true));
+        try_kmem_quota!(
+            actcap
+                .obj_caps()
+                .borrow_mut()
+                .obtain(dst_sel, csess.unwrap(), true)
+        );
     }
     else {
         sysc_err!(Code::InvArgs, "Unknown session id {}", sid);
@@ -415,7 +417,7 @@ pub fn activate_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<
 
                 let tile_id = m.tile_id();
                 if let Err(e) =
-                    tilemng::tilemux(dst_tile).config_mem_ep(epid, ep_act.id(), &m, tile_id)
+                    tilemng::tilemux(dst_tile).config_mem_ep(epid, ep_act.id(), m, tile_id)
                 {
                     sysc_err!(e.code(), "Unable to configure mem EP");
                 }
@@ -437,7 +439,7 @@ pub fn activate_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<
                     sysc_log!(act, "activate: rgate {:?} is activated", rgate);
                 }
 
-                if let Err(e) = tilemng::tilemux(dst_tile).config_snd_ep(epid, ep_act.id(), &s) {
+                if let Err(e) = tilemng::tilemux(dst_tile).config_snd_ep(epid, ep_act.id(), s) {
                     sysc_err!(e.code(), "Unable to configure send EP");
                 }
             },
@@ -582,7 +584,7 @@ pub fn activity_ctrl_async(
         },
 
         kif::syscalls::ActivityOp::START => {
-            if Rc::ptr_eq(&act, &actcap) {
+            if Rc::ptr_eq(act, &actcap) {
                 sysc_err!(Code::InvArgs, "Activity can't start itself");
             }
 

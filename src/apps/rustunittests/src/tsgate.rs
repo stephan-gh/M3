@@ -100,7 +100,7 @@ fn send_reply() {
     ));
     wv_assert_ok!(rgate.activate());
 
-    wv_assert_ok!(send_vmsg!(&sgate, &reply_gate, 0x123, 12, "test"));
+    wv_assert_ok!(send_vmsg!(&sgate, reply_gate, 0x123, 12, "test"));
 
     // sgate -> rgate
     {
@@ -119,7 +119,7 @@ fn send_reply() {
 
     // rgate -> reply_gate
     {
-        let mut reply = wv_assert_ok!(recv_reply(&reply_gate, Some(&sgate)));
+        let mut reply = wv_assert_ok!(recv_reply(reply_gate, Some(&sgate)));
         let (i1, i2): (i32, i32) = (wv_assert_ok!(reply.pop()), wv_assert_ok!(reply.pop()));
         wv_assert_eq!(i1, 44);
         wv_assert_eq!(i2, 3);

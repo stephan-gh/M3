@@ -36,7 +36,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn read() {
-    let mut buf = &mut BUF.borrow_mut()[..8192];
+    let buf = &mut BUF.borrow_mut()[..8192];
     let mgate = MemGate::new(8192, kif::Perm::R).expect("Unable to create mgate");
 
     let mut prof = Profiler::default().repeats(2).warmup(1);
@@ -46,7 +46,7 @@ fn read() {
         prof.run::<CycleInstant, _>(|| {
             let mut total = 0;
             while total < SIZE {
-                mgate.read(&mut buf, 0).expect("Reading failed");
+                mgate.read(buf, 0).expect("Reading failed");
                 total += buf.len();
             }
         })
@@ -54,7 +54,7 @@ fn read() {
 }
 
 fn read_unaligned() {
-    let mut buf = &mut BUF.borrow_mut()[64..];
+    let buf = &mut BUF.borrow_mut()[64..];
     let mgate = MemGate::new(8192, kif::Perm::R).expect("Unable to create mgate");
 
     let mut prof = Profiler::default().repeats(2).warmup(1);
@@ -64,7 +64,7 @@ fn read_unaligned() {
         prof.run::<CycleInstant, _>(|| {
             let mut total = 0;
             while total < SIZE {
-                mgate.read(&mut buf, 0).expect("Reading failed");
+                mgate.read(buf, 0).expect("Reading failed");
                 total += buf.len();
             }
         })
@@ -82,7 +82,7 @@ fn write() {
         prof.run::<CycleInstant, _>(|| {
             let mut total = 0;
             while total < SIZE {
-                mgate.write(&buf, 0).expect("Writing failed");
+                mgate.write(buf, 0).expect("Writing failed");
                 total += buf.len();
             }
         })
@@ -100,7 +100,7 @@ fn write_unaligned() {
         prof.run::<CycleInstant, _>(|| {
             let mut total = 0;
             while total < SIZE {
-                mgate.write(&buf, 0).expect("Writing failed");
+                mgate.write(buf, 0).expect("Writing failed");
                 total += buf.len();
             }
         })

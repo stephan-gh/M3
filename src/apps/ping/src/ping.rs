@@ -112,11 +112,11 @@ fn send_echo(
     sock.send(&buf[0..total as usize])
 }
 
-fn recv_reply(mut buf: &mut [u8], sock: &RawSocket<'_>) -> Result<(), VerboseError> {
+fn recv_reply(buf: &mut [u8], sock: &RawSocket<'_>) -> Result<(), VerboseError> {
     let send_time = TimeInstant::now();
 
     loop {
-        sock.recv(&mut buf)?;
+        sock.recv(buf)?;
         let recv_time = TimeInstant::now();
 
         let icmp = unsafe {

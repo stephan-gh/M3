@@ -566,7 +566,7 @@ impl AppConfig {
 
         for tile in &self.tiles {
             if !tile.optional {
-                let available = Self::count_tiles(&tile);
+                let available = Self::count_tiles(tile);
                 if available < tile.count.get() {
                     panic!(
                         "AppConfig '{}' needs tile type '{}' {} times, but {} are available",

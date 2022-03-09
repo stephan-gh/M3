@@ -34,7 +34,7 @@ pub fn enrich_trace(instrs: &HashMap<usize, Instruction>) -> Result<(), Error> {
         let line = line.trim_end();
 
         //   12: 0x10000b24 0x01a93023 1 0 0 0x0000000000000005 0x00000000
-        if let Some(m) = re.captures(&line) {
+        if let Some(m) = re.captures(line) {
             let addr = usize::from_str_radix(m.get(1).unwrap().as_str(), 16)?;
             let _opcode = usize::from_str_radix(m.get(2).unwrap().as_str(), 16)?;
 

@@ -83,7 +83,7 @@ fn link_unlink() {
 }
 
 fn read() {
-    let mut buf = &mut BUF.borrow_mut()[..];
+    let buf = &mut BUF.borrow_mut()[..];
 
     let mut prof = Profiler::default().repeats(2).warmup(1);
 
@@ -92,7 +92,7 @@ fn read() {
         prof.run::<CycleInstant, _>(|| {
             let mut file = wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
             loop {
-                let amount = wv_assert_ok!(file.read(&mut buf));
+                let amount = wv_assert_ok!(file.read(buf));
                 if amount == 0 {
                     break;
                 }
@@ -117,7 +117,7 @@ fn write() {
 
             let mut total = 0;
             while total < SIZE {
-                let amount = wv_assert_ok!(file.write(&buf));
+                let amount = wv_assert_ok!(file.write(buf));
                 if amount == 0 {
                     break;
                 }
@@ -128,7 +128,7 @@ fn write() {
 }
 
 fn copy() {
-    let mut buf = &mut BUF.borrow_mut()[..];
+    let buf = &mut BUF.borrow_mut()[..];
     let mut prof = Profiler::default().repeats(2).warmup(1);
 
     wv_perf!(
@@ -141,7 +141,7 @@ fn copy() {
             ));
 
             loop {
-                let amount = wv_assert_ok!(fin.read(&mut buf));
+                let amount = wv_assert_ok!(fin.read(buf));
                 if amount == 0 {
                     break;
                 }

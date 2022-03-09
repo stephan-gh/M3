@@ -42,7 +42,7 @@ fn usage() {
 
 fn udp_receiver(nm: &NetworkManager, port: Port) {
     let mut socket = UdpSocket::new(
-        DgramSocketArgs::new(&nm)
+        DgramSocketArgs::new(nm)
             .send_buffer(2, 1024)
             .recv_buffer(128, 768 * 1024),
     )
@@ -65,7 +65,7 @@ fn tcp_sender(nm: &NetworkManager, ip: IpAddr, port: Port, wl: &str, repeats: u3
 
     // Connect to server
     let mut socket = TcpSocket::new(
-        StreamSocketArgs::new(&nm)
+        StreamSocketArgs::new(nm)
             .send_buffer(64 * 1024)
             .recv_buffer(256 * 1024),
     )

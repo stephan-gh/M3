@@ -94,13 +94,11 @@ impl MainMemory {
     }
 
     pub fn capacity(&self) -> goff {
-        self.mods
-            .iter()
-            .fold(0, |total, ref m| total + m.capacity())
+        self.mods.iter().fold(0, |total, m| total + m.capacity())
     }
 
     pub fn available(&self) -> goff {
-        self.mods.iter().fold(0, |total, ref m| {
+        self.mods.iter().fold(0, |total, m| {
             if m.mem_type() != MemType::OCCUPIED {
                 total + m.available()
             }

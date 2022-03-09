@@ -50,7 +50,7 @@ fn repl_instr_line(
     let rem = if rem.starts_with('@') {
         // 7802000: T00.cpu: T0 : 0x226f3a @ heap_init+26    : mov rcx, DS:[rip + 0x295a7]
         //                                 ^---------------^   ^-------------------------^
-        rem.splitn(2, " : ").nth(1)
+        rem.split_once(" : ").map(|x| x.1)
     }
     else {
         // 7802000: T00.cpu: T0 : 0x226f3a     : mov rcx, DS:[rip + 0x295a7]
@@ -95,7 +95,7 @@ pub fn generate(syms: &BTreeMap<usize, symbols::Symbol>) -> Result<(), Error> {
         // try to replace the address with the binary and symbol
         if repl_instr_line(syms, &mut writer, &line).is_none() {
             // if that failed, just write out the line
-            writer.write_all(&line.as_bytes())?;
+            writer.write_all(line.as_bytes())?;
         }
         line.clear();
     }

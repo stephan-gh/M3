@@ -221,9 +221,7 @@ fn create_map() {
         }
     }
 
-    let mut tester = Tester {
-        0: MemGate::new(cfg::PAGE_SIZE * 2, Perm::RW).unwrap(),
-    };
+    let mut tester = Tester(MemGate::new(cfg::PAGE_SIZE * 2, Perm::RW).unwrap());
     wv_perf!("create_map", prof.runner::<CycleInstant, _>(&mut tester));
 }
 

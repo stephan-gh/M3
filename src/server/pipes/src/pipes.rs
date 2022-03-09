@@ -368,11 +368,11 @@ pub fn main() -> i32 {
     server_loop(|| {
         s.handle_ctrl_chan(&mut hdl)?;
 
-        REQHDL.get().handle(|op, mut is| {
+        REQHDL.get().handle(|op, is| {
             match op {
-                Operation::NEXT_IN => hdl.with_chan(&mut is, |c, is| c.next_in(is)),
-                Operation::NEXT_OUT => hdl.with_chan(&mut is, |c, is| c.next_out(is)),
-                Operation::COMMIT => hdl.with_chan(&mut is, |c, is| c.commit(is)),
+                Operation::NEXT_IN => hdl.with_chan(is, |c, is| c.next_in(is)),
+                Operation::NEXT_OUT => hdl.with_chan(is, |c, is| c.next_out(is)),
+                Operation::COMMIT => hdl.with_chan(is, |c, is| c.commit(is)),
                 Operation::CLOSE | Operation::CLOSE_PIPE => {
                     let sid = is.label() as SessId;
                     // reply before we destroy the client's sgate. otherwise the client might

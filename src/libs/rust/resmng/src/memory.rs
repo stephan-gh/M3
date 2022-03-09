@@ -102,7 +102,7 @@ impl MemModCon {
     }
 
     pub fn capacity(&self) -> goff {
-        self.mods.iter().fold(0, |total, ref m| {
+        self.mods.iter().fold(0, |total, m| {
             if !m.reserved {
                 total + m.capacity()
             }
@@ -300,15 +300,11 @@ impl MemPool {
     }
 
     pub fn capacity(&self) -> goff {
-        self.slices
-            .iter()
-            .fold(0, |total, ref m| total + m.capacity())
+        self.slices.iter().fold(0, |total, m| total + m.capacity())
     }
 
     pub fn available(&self) -> goff {
-        self.slices
-            .iter()
-            .fold(0, |total, ref m| total + m.available())
+        self.slices.iter().fold(0, |total, m| total + m.available())
     }
 
     pub fn mem_cap(&self, idx: usize) -> Selector {

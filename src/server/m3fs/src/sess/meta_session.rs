@@ -155,7 +155,7 @@ impl MetaSession {
             return Err(Error::new(Code::NoSpace));
         }
 
-        let ino = dirs::search(&path, flags.contains(OpenFlags::CREATE))?;
+        let ino = dirs::search(path, flags.contains(OpenFlags::CREATE))?;
         let inode = inodes::get(ino)?;
         let inode_mode = inode.mode;
 

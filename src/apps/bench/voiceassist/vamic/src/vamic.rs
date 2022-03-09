@@ -148,7 +148,7 @@ pub fn main() -> i32 {
 
     // get file size
     let info =
-        VFS::stat(&args[1]).unwrap_or_else(|_| panic!("{}", format!("unable to stat {}", args[1])));
+        VFS::stat(args[1]).unwrap_or_else(|_| panic!("{}", format!("unable to stat {}", args[1])));
     let buf_size = math::round_up(info.size, cfg::PAGE_SIZE);
 
     // create buffer
@@ -157,7 +157,7 @@ pub fn main() -> i32 {
 
     // read file into buffer
     let mut local = [0u8; 1024];
-    let mut file = VFS::open(&args[1], OpenFlags::R)
+    let mut file = VFS::open(args[1], OpenFlags::R)
         .unwrap_or_else(|_| panic!("{}", format!("unable to open {} for reading", args[1])));
     let mut off = 0;
     loop {

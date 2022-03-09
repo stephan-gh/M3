@@ -403,7 +403,7 @@ impl Handler<VTermSession> for VTermHandler {
     }
 
     fn close(&mut self, _crt: usize, sid: SessId) {
-        self.close_sess(sid, &REQHDL.get().recv_gate()).ok();
+        self.close_sess(sid, REQHDL.get().recv_gate()).ok();
     }
 }
 
@@ -542,11 +542,11 @@ pub fn main() -> i32 {
             }
         }
 
-        REQHDL.get().handle(|op, mut is| {
+        REQHDL.get().handle(|op, is| {
             match op {
-                GenFileOp::NEXT_IN => hdl.with_chan(&mut is, |c, is| c.next_in(is)),
-                GenFileOp::NEXT_OUT => hdl.with_chan(&mut is, |c, is| c.next_out(is)),
-                GenFileOp::COMMIT => hdl.with_chan(&mut is, |c, is| c.commit(is)),
+                GenFileOp::NEXT_IN => hdl.with_chan(is, |c, is| c.next_in(is)),
+                GenFileOp::NEXT_OUT => hdl.with_chan(is, |c, is| c.next_out(is)),
+                GenFileOp::COMMIT => hdl.with_chan(is, |c, is| c.commit(is)),
                 GenFileOp::CLOSE => {
                     let sid = is.label() as SessId;
                     // reply before we destroy the client's sgate. otherwise the client might
@@ -558,7 +558,7 @@ pub fn main() -> i32 {
                 },
                 GenFileOp::STAT => Err(Error::new(Code::NotSup)),
                 GenFileOp::SEEK => Err(Error::new(Code::NotSup)),
-                GenFileOp::SET_TMODE => hdl.with_chan(&mut is, |c, is| c.set_tmode(is)),
+                GenFileOp::SET_TMODE => hdl.with_chan(is, |c, is| c.set_tmode(is)),
                 _ => Err(Error::new(Code::InvArgs)),
             }
         })

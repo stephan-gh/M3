@@ -30,8 +30,8 @@ pub use socket::SocketSession;
 
 pub const MSG_SIZE: usize = 128;
 
+#[allow(dead_code, clippy::large_enum_variant)]
 pub enum NetworkSession {
-    #[allow(dead_code)]
     FileSession(FileSession),
     SocketSession(SocketSession),
 }

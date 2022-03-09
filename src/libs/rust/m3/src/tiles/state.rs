@@ -32,7 +32,7 @@ impl<'v> StateSerializer<'v> {
     }
 
     pub fn words(&self) -> &[u64] {
-        &self.vec
+        self.vec
     }
 
     pub fn push_word(&mut self, word: u64) {

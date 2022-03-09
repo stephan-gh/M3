@@ -18,10 +18,10 @@ use std::io;
 use std::num;
 
 pub enum Error {
-    IoError(io::Error),
-    NumError(num::ParseIntError),
+    Io(io::Error),
+    ParseNum(num::ParseIntError),
     ObjdumpMalformed,
-    ObjdumpError(i32),
+    ObjdumpFailed(i32),
     InvalPath,
 }
 
@@ -35,16 +35,16 @@ macro_rules! impl_err {
     };
 }
 
-impl_err!(io::Error, IoError);
-impl_err!(num::ParseIntError, NumError);
+impl_err!(io::Error, Io);
+impl_err!(num::ParseIntError, ParseNum);
 
 impl fmt::Debug for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         match self {
-            Error::IoError(e) => write!(fmt, "I/O error occurred: {}", e),
-            Error::NumError(e) => write!(fmt, "Unable to parse number: {}", e),
+            Error::Io(e) => write!(fmt, "I/O error occurred: {}", e),
+            Error::ParseNum(e) => write!(fmt, "Unable to parse number: {}", e),
             Error::ObjdumpMalformed => write!(fmt, "malformed objdump output"),
-            Error::ObjdumpError(c) => write!(fmt, "objdump -SC <bin> failed: {}", c),
+            Error::ObjdumpFailed(c) => write!(fmt, "objdump -SC <bin> failed: {}", c),
             Error::InvalPath => write!(fmt, "path is invalid"),
         }
     }

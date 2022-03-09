@@ -121,25 +121,25 @@ impl GateEP {
 }
 
 pub enum GateObject {
-    RGate(SRc<RGateObject>),
-    SGate(SRc<SGateObject>),
-    MGate(SRc<MGateObject>),
+    Recv(SRc<RGateObject>),
+    Send(SRc<SGateObject>),
+    Mem(SRc<MGateObject>),
 }
 
 impl GateObject {
     pub fn set_ep(&self, ep: &Rc<EPObject>) {
         match self {
-            Self::RGate(g) => g.gep.borrow_mut().set_ep(ep),
-            Self::SGate(g) => g.gep.borrow_mut().set_ep(ep),
-            Self::MGate(g) => g.gep.borrow_mut().set_ep(ep),
+            Self::Recv(g) => g.gep.borrow_mut().set_ep(ep),
+            Self::Send(g) => g.gep.borrow_mut().set_ep(ep),
+            Self::Mem(g) => g.gep.borrow_mut().set_ep(ep),
         }
     }
 
     pub fn remove_ep(&self) {
         match self {
-            Self::RGate(g) => g.gep.borrow_mut().remove_ep(),
-            Self::SGate(g) => g.gep.borrow_mut().remove_ep(),
-            Self::MGate(g) => g.gep.borrow_mut().remove_ep(),
+            Self::Recv(g) => g.gep.borrow_mut().remove_ep(),
+            Self::Send(g) => g.gep.borrow_mut().remove_ep(),
+            Self::Mem(g) => g.gep.borrow_mut().remove_ep(),
         }
     }
 }
@@ -724,7 +724,7 @@ impl EPObject {
     }
 
     pub fn is_rgate(&self) -> bool {
-        matches!(self.gate.borrow().as_ref(), Some(GateObject::RGate(_)))
+        matches!(self.gate.borrow().as_ref(), Some(GateObject::Recv(_)))
     }
 
     pub fn set_gate(&self, g: GateObject) {
@@ -740,9 +740,9 @@ impl EPObject {
     pub fn configure(ep: &Rc<Self>, gate: &KObject) {
         // create a gate object from the kobj
         let go = match gate {
-            KObject::MGate(g) => GateObject::MGate(g.clone()),
-            KObject::RGate(g) => GateObject::RGate(g.clone()),
-            KObject::SGate(g) => GateObject::SGate(g.clone()),
+            KObject::MGate(g) => GateObject::Mem(g.clone()),
+            KObject::RGate(g) => GateObject::Recv(g.clone()),
+            KObject::SGate(g) => GateObject::Send(g.clone()),
             _ => unreachable!(),
         };
         // we tell the gate object its gate object
@@ -758,7 +758,7 @@ impl EPObject {
 
             // invalidate receive and send EPs
             match gate {
-                GateObject::RGate(_) | GateObject::SGate(_) => {
+                GateObject::Recv(_) | GateObject::Send(_) => {
                     tilemng::tilemux(tile_id).invalidate_ep(
                         self.activity().unwrap().id(),
                         self.ep,
@@ -772,9 +772,9 @@ impl EPObject {
 
             match gate {
                 // invalidate reply EPs
-                GateObject::SGate(s) => s.invalidate_reply_eps(),
+                GateObject::Send(s) => s.invalidate_reply_eps(),
                 // deactivate receive gate
-                GateObject::RGate(r) => r.deactivate(),
+                GateObject::Recv(r) => r.deactivate(),
                 _ => {},
             }
 

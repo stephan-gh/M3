@@ -107,7 +107,7 @@ fn load_root_async(env_phys: goff, act: &Activity) -> Result<(), Error> {
 
 fn get_mod(name: &str) -> Option<&kif::boot::Mod> {
     for m in platform::mods() {
-        if let Some(bin_name) = m.name().splitn(2, ' ').next() {
+        if let Some(bin_name) = m.name().split(' ').next() {
             if bin_name == name {
                 return Some(m);
             }

@@ -196,7 +196,7 @@ pub struct Device {
 impl Device {
     pub fn new(id: u8, chan: &Channel) -> Result<Self, Error> {
         // send IDENTIFY command to device
-        let mut dev = match Self::identify(id, &chan) {
+        let mut dev = match Self::identify(id, chan) {
             Err(e) => {
                 log!(
                     crate::LOG_ALL,

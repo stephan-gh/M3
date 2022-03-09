@@ -224,7 +224,7 @@ pub fn get_with<P: Fn(&Service) -> bool>(pred: P) -> Result<Ref<'static, Service
     let idx = mng
         .servs
         .iter()
-        .position(|s| pred(s))
+        .position(pred)
         .ok_or_else(|| Error::new(Code::InvArgs))?;
     Ok(Ref::map(mng, |mng| &mng.servs[idx]))
 }
@@ -234,7 +234,7 @@ pub fn get_mut_with<P: Fn(&Service) -> bool>(pred: P) -> Result<RefMut<'static, 
     let idx = mng
         .servs
         .iter()
-        .position(|s| pred(s))
+        .position(pred)
         .ok_or_else(|| Error::new(Code::InvArgs))?;
     Ok(RefMut::map(mng, |mng| &mut mng.servs[idx]))
 }

@@ -74,7 +74,7 @@ extern "C" {
 #[repr(align(16))]
 struct Heap([u64; 8 * 1024]);
 #[used]
-static mut HEAP: Heap = Heap { 0: [0; 8 * 1024] };
+static mut HEAP: Heap = Heap([0; 8 * 1024]);
 
 pub struct TMEnv {
     tile_id: u64,

@@ -268,7 +268,7 @@ impl Activity {
             Activity::cur()
                 .resmng()
                 .unwrap()
-                .clone(&mut act, &args.name)?
+                .clone(&mut act, args.name)?
         };
         act.rmng = Some(resmng);
         // ensure that the child's cap space is not further ahead than ours

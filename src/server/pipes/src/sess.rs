@@ -415,7 +415,7 @@ impl Channel {
         res
     }
 
-    pub fn close(&mut self, _sids: &mut Vec<SessId>, rgate: &RecvGate) -> Result<(), Error> {
+    pub fn close(&mut self, _sids: &mut [SessId], rgate: &RecvGate) -> Result<(), Error> {
         let res = match self.ty {
             ChanType::READ => self.close_reader(),
             ChanType::WRITE => self.close_writer(),

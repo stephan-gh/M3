@@ -80,7 +80,7 @@ where
             symbol = Some(tline[begin + 1..end].to_string());
         }
         //     10000010:   00a28663                beq     t0,a0,1000001c <_start+0x1c>
-        else if let Some(m) = instr_re.captures(&tline) {
+        else if let Some(m) = instr_re.captures(tline) {
             let addr = usize::from_str_radix(m.get(1).unwrap().as_str(), 16)?;
             let opcode = u32::from_str_radix(m.get(2).unwrap().as_str(), 16)?;
             let disasm = m.get(3).unwrap().as_str().to_string();
@@ -98,7 +98,7 @@ where
     }
 
     match cmd.wait() {
-        Ok(status) if !status.success() => Err(Error::ObjdumpError(status.code().unwrap())),
+        Ok(status) if !status.success() => Err(Error::ObjdumpFailed(status.code().unwrap())),
         Ok(_) => Ok(()),
         Err(e) => Err(Error::from(e)),
     }

@@ -99,7 +99,7 @@ fn do_search(mut path: &str, create: bool) -> Result<InodeNo, Error> {
         let inode = inodes::get(ino)?;
 
         // find directory entry
-        let next_end = path.find('/').unwrap_or_else(|| path.len());
+        let next_end = path.find('/').unwrap_or(path.len());
         let filename = &path[..next_end];
         let next_ino = find_entry(&inode, filename);
 

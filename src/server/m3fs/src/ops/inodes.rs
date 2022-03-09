@@ -301,7 +301,7 @@ pub fn get_extent(
 
     // direct extent stored in the inode?
     if extent < INODE_DIR_COUNT {
-        return Ok(ExtentRef::dir_from_inode(&inode, extent));
+        return Ok(ExtentRef::dir_from_inode(inode, extent));
     }
     extent -= INODE_DIR_COUNT;
 
@@ -418,7 +418,7 @@ fn change_extent(
     let ext_per_block = crate::superblock().extents_per_block();
 
     if extent < INODE_DIR_COUNT {
-        return Ok(ExtentRef::dir_from_inode(&inode, extent));
+        return Ok(ExtentRef::dir_from_inode(inode, extent));
     }
 
     let mb = crate::meta_buffer_mut();

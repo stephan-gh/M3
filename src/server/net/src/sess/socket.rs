@@ -73,7 +73,7 @@ fn parse_arguments(args_str: &str) -> Result<Args, Error> {
                     args.ports.push((from, to));
                 }
                 else {
-                    let port = parse::int(&ports)? as Port;
+                    let port = parse::int(ports)? as Port;
                     args.ports.push((port, port));
                 }
             }

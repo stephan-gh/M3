@@ -305,7 +305,7 @@ impl Subsystem {
         }
 
         // determine default mem and kmem per child
-        let (def_kmem, def_umem) = split_mem(&root)?;
+        let (def_kmem, def_umem) = split_mem(root)?;
 
         let mut mem_id = 1;
 
@@ -403,7 +403,7 @@ impl Subsystem {
 
             // split available PTs according to the config
             let tile_quota = tile_usage.tile_obj().quota()?;
-            let (mut pt_sharer, shared_pts) = split_pts(tile_quota.page_tables().left() as u64, &d);
+            let (mut pt_sharer, shared_pts) = split_pts(tile_quota.page_tables().left() as u64, d);
 
             let mut domain_total_eps = tile_quota.endpoints().left();
             let mut domain_total_time = 0;
@@ -573,16 +573,16 @@ impl Subsystem {
                                 )
                             })?;
                     let cfg_mem = cfg_slice.derive()?;
-                    cfg_mem.write(&self.cfg_str()[cfg_range.0..cfg_range.1].as_bytes(), 0)?;
+                    cfg_mem.write(self.cfg_str()[cfg_range.0..cfg_range.1].as_bytes(), 0)?;
 
                     let mut sub = SubsystemBuilder::new((cfg_mem, cfg_slice.addr(), cfg_len));
 
                     // add tiles
                     sub.add_tile(child_pe_usage.tile_id(), child_pe_usage.tile_obj().clone());
-                    pass_down_tiles(&mut sub, &cfg);
+                    pass_down_tiles(&mut sub, cfg);
 
                     // serial rgate
-                    pass_down_serial(&mut sub, &cfg);
+                    pass_down_serial(&mut sub, cfg);
 
                     // split off the grandchild memories; allocate them from the child quota
                     let old_umem_quota = child_mem.quota();
@@ -603,7 +603,7 @@ impl Subsystem {
                         sub_slice.capacity(),
                         sub_slice.in_reserved_mem(),
                     );
-                    pass_down_mem(&mut sub, &cfg)?;
+                    pass_down_mem(&mut sub, cfg)?;
 
                     // add services
                     for s in cfg.sess_creators() {

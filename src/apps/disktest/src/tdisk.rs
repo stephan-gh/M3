@@ -67,10 +67,10 @@ fn write_file() {
     }
 }
 
-fn _validate_pattern_content(file: &mut FileRef, mut buf: &mut [u8]) -> usize {
+fn _validate_pattern_content(file: &mut FileRef, buf: &mut [u8]) -> usize {
     let mut pos: usize = 0;
     loop {
-        let count = wv_assert_ok!(file.read(&mut buf));
+        let count = wv_assert_ok!(file.read(buf));
         if count == 0 {
             break;
         }

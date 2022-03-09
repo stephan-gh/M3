@@ -60,13 +60,13 @@ struct DiskSession {
 impl DiskSession {
     fn read(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         self.read_write(is, "read", |part, mgate, off, start, count| {
-            DEVICE.borrow_mut().read(part, &mgate, off, start, count)
+            DEVICE.borrow_mut().read(part, mgate, off, start, count)
         })
     }
 
     fn write(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         self.read_write(is, "write", |part, mgate, off, start, count| {
-            DEVICE.borrow_mut().write(part, &mgate, off, start, count)
+            DEVICE.borrow_mut().write(part, mgate, off, start, count)
         })
     }
 

@@ -91,7 +91,7 @@ where
     }
 
     match cmd.wait() {
-        Ok(status) if !status.success() => Err(Error::NmError(status.code().unwrap())),
+        Ok(status) if !status.success() => Err(Error::Nm(status.code().unwrap())),
         Ok(_) => Ok(()),
         Err(e) => Err(Error::from(e)),
     }

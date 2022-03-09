@@ -228,7 +228,7 @@ where
     // Collect messages from all clients
     let mut msgs: Vec<GateIStream<'_>> = Vec::with_capacity(num);
     while msgs.len() != num {
-        msgs.push(wv_assert_ok!(recv_msg(&rgate)));
+        msgs.push(wv_assert_ok!(recv_msg(rgate)));
     }
     // Sort by client number
     msgs.sort_unstable_by_key(|msg| msg.label());
@@ -247,7 +247,7 @@ fn _sync_and_wait_for_clients(rgate: &RecvGate, mut clients: Vec<Client>) {
     loop {
         // Sync start of benchmark
         let mut eps: Vec<EP> = Vec::with_capacity(clients.len());
-        let done = !_sync_clients(&rgate, clients.len(), |msgs| {
+        let done = !_sync_clients(rgate, clients.len(), |msgs| {
             for (i, msg) in msgs.iter_mut().enumerate() {
                 let sel: Selector = wv_assert_ok!(msg.pop());
                 if sel == 0 {
@@ -267,7 +267,7 @@ fn _sync_and_wait_for_clients(rgate: &RecvGate, mut clients: Vec<Client>) {
         }
 
         // Sync end of benchmark
-        _sync_clients(&rgate, clients.len(), |_| {
+        _sync_clients(rgate, clients.len(), |_| {
             for ep in eps {
                 // Invalidate EP so additional runs cancel early
                 // This will cause [0] hash::work() failed with NoMEP but this is expected

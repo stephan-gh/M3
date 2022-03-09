@@ -133,7 +133,7 @@ impl Region {
                 let mem = self.mem.as_ref().unwrap();
 
                 // if we are the last one, we can just take the memory
-                if Rc::strong_count(&mem) == 1 {
+                if Rc::strong_count(mem) == 1 {
                     // we are the owner now
                     mem.borrow_mut().set_owner(self.owner, self.ds_off);
                     return Ok(());
@@ -174,7 +174,7 @@ impl Region {
                 );
 
                 if osel == INVALID_SEL {
-                    copy_block(&mem.gate(), &ngate, off, self.size);
+                    copy_block(mem.gate(), &ngate, off, self.size);
                 }
                 else {
                     let omem = MemGate::new_foreign(osel, off, self.size, Perm::R)?;

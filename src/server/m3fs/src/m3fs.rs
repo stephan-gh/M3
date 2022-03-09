@@ -588,7 +588,7 @@ pub fn main() -> i32 {
     server_loop(|| {
         // handle message that is given to the server
         serv.handle_ctrl_chan(&mut hdl)?;
-        REQHDL.get().handle(|op, mut is| hdl.handle(op, &mut is))
+        REQHDL.get().handle(|op, is| hdl.handle(op, is))
     })
     .ok();
 
