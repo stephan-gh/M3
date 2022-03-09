@@ -71,7 +71,7 @@ impl Mod {
     }
 
     /// Returns the name and arguments of the module
-    pub fn name(&self) -> &'static str {
+    pub fn name(&self) -> &str {
         // safety: we trust our loader
         unsafe { util::cstr_to_str(self.name.as_ptr()) }
     }
@@ -201,7 +201,7 @@ impl Service {
     }
 
     /// Returns the name of the service
-    pub fn name(&self) -> &'static str {
+    pub fn name(&self) -> &str {
         // safety: we trust our loader
         unsafe { util::cstr_to_str(self.name.as_ptr()) }
     }
