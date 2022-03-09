@@ -24,10 +24,19 @@ pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
     let mut res = op.val;
     unsafe {
         asm!(
+            // XXX: hack to make these calls work for the kernel. the problem is that the kernel
+            // runs in supervisor mode, but the ISR code assumes that the interrupted code runs in
+            // user mode and therefore saves the userspace lr. to work around that, we simply save
+            // and restore lr before and after the call. since we don't care about ARM too much,
+            // this seems fine for now.
+            "mov r5, lr",
             "svc 0",
+            "mov lr, r5",
             inout("r0") res,
             in("r1") arg1,
             in("r2") arg2,
+            // mark r5 as clobbered
+            out("r5") _,
         );
     }
     crate::tmif::get_result(res)
@@ -37,11 +46,15 @@ pub fn call3(op: Operation, arg1: usize, arg2: usize, arg3: usize) -> Result<usi
     let mut res = op.val;
     unsafe {
         asm!(
+            // see above
+            "mov r5, lr",
             "svc 0",
+            "mov lr, r5",
             inout("r0") res,
             in("r1") arg1,
             in("r2") arg2,
             in("r3") arg3,
+            out("r5") _,
         );
     }
     crate::tmif::get_result(res)
@@ -57,12 +70,16 @@ pub fn call4(
     let mut res = op.val;
     unsafe {
         asm!(
+            // see above
+            "mov r5, lr",
             "svc 0",
+            "mov lr, r5",
             inout("r0") res,
             in("r1") arg1,
             in("r2") arg2,
             in("r3") arg3,
             in("r4") arg4,
+            out("r5") _,
         );
     }
     crate::tmif::get_result(res)
