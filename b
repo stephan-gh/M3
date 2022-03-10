@@ -274,6 +274,10 @@ case "$cmd" in
             if [ "$M3_TARGET" = "host" ] && [[ $f =~ "tilemux" ]]; then
                 continue;
             fi
+            # vmtest only works on RISC-V
+            if [ "$M3_ISA" != "riscv" ] && [[ $f =~ "vmtest" ]]; then
+                continue;
+            fi
             # gem5log+hwitrace are always built for the host OS (not our host target)
             target=()
             if [[ ! $f =~ "gem5log" ]] && [[ ! $f =~ "hwitrace" ]]; then
