@@ -82,12 +82,12 @@ fn get_func_addr(line: &str) -> Option<(u64, usize, Option<usize>)> {
     let mut parts = line.trim_start().splitn(6, ' ');
     let time = parts.next()?;
     let cpu = parts.next()?;
-    if !cpu.starts_with("tile") {
+    if !cpu.starts_with('T') {
         return None;
     }
 
     let time_int = time[..time.len() - 1].parse::<u64>().ok()?;
-    let cpu_int = cpu[2..4].parse::<usize>().ok()?;
+    let cpu_int = cpu[1..3].parse::<usize>().ok()?;
     let addr_int = if cpu.ends_with(".cpu:") {
         let addr = parts.nth(2)?;
         let mut addr_parts = addr.splitn(2, '.');
@@ -127,12 +127,12 @@ impl<'n> Tile<'n> {
 
     fn suspend(&mut self, now: u64) {
         self.susp_start = now;
-        debug!("{}: tile{}: sleep begin", now, self.id);
+        debug!("{}: T{}: sleep begin", now, self.id);
     }
 
     fn resume(&mut self, now: u64) {
         let duration = now - self.susp_start;
-        debug!("{}: tile{}: sleep end ({})", now, self.id, duration);
+        debug!("{}: T{}: sleep end ({})", now, self.id, duration);
 
         if self.susp_start > 0 {
             for bin in self.bins.values_mut() {
@@ -150,7 +150,7 @@ impl<'n> Tile<'n> {
     }
 
     fn snapshot(&self) {
-        println!("Tile{}:", self.id);
+        println!("T{}:", self.id);
         for bin in self.bins.values() {
             for (tid, thread) in &bin.stacks {
                 // ignore empty threads
@@ -310,7 +310,7 @@ fn handle_return(
     if !thread.stack.is_empty() {
         // generate stack
         let stack = if mode == crate::Mode::FlameGraph {
-            let mut stack: String = format!("Tile{}", tile);
+            let mut stack: String = format!("T{}", tile);
             stack.push(';');
             stack.push_str(&format!("{}", tid));
             for f in thread.stack.iter() {
