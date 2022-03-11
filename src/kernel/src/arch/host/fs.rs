@@ -14,15 +14,15 @@
  */
 
 use base::cfg;
-use base::col::ToString;
 use base::libc;
 use base::mem::MaybeUninit;
 
 use crate::mem;
 
 pub fn copy_from_fs(path: &str) -> usize {
+    let in_path = base::format!("{}\0", path);
     unsafe {
-        let fd = libc::open(path.as_bytes().as_ptr() as *const i8, libc::O_RDONLY);
+        let fd = libc::open(in_path.as_bytes().as_ptr() as *const i8, libc::O_RDONLY);
         assert!(fd != -1);
 
         let mut info: libc::stat = MaybeUninit::uninit().assume_init();
@@ -36,13 +36,13 @@ pub fn copy_from_fs(path: &str) -> usize {
         libc::close(fd);
 
         let fs_size = res as usize;
-        klog!(MEM, "Copied fs-image '{}' to 0..{:#x}", path, fs_size);
+        klog!(MEM, "Copied fs-image '{}' to 0..{:#x}", in_path, fs_size);
         fs_size
     }
 }
 
 pub fn copy_to_fs(path: &str, fs_size: usize) {
-    let out_path = path.to_string() + ".out\0";
+    let out_path = base::format!("{}.out\0", path);
 
     unsafe {
         let fd = libc::open(
