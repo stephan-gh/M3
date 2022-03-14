@@ -93,6 +93,19 @@ impl MainMemory {
         }
     }
 
+    pub fn largest_contiguous(&self, mtype: MemType) -> Option<goff> {
+        let mut max = None;
+        for m in &self.mods {
+            if m.mem_type() == mtype {
+                let m_max = m.largest_contiguous();
+                if m_max.unwrap_or(0) > max.unwrap_or(0) {
+                    max = m_max;
+                }
+            }
+        }
+        max
+    }
+
     pub fn capacity(&self) -> goff {
         self.mods.iter().fold(0, |total, m| total + m.capacity())
     }

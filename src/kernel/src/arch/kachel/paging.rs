@@ -20,20 +20,15 @@ use base::errors::Error;
 use base::goff;
 use base::kif::{PageFlags, TileDesc, PTE};
 use base::math;
-use base::mem::{heap, GlobAddr};
+use base::mem::GlobAddr;
 use base::tcu;
-use core::cmp;
 
 use crate::mem;
 use crate::paging::{self, AddrSpace, Allocator, Phys};
-use crate::platform;
+
 use crate::tiles;
 
 extern "C" {
-    fn heap_set_oom_callback(cb: extern "C" fn(size: usize) -> bool);
-
-    static mut heap_end: *mut heap::HeapArea;
-
     static _text_start: u8;
     static _text_end: u8;
     static _data_start: u8;
@@ -69,10 +64,6 @@ static PT_POS: LazyStaticCell<goff> = LazyStaticCell::default();
 static ASPACE: LazyStaticRefCell<AddrSpace<PTAllocator>> = LazyStaticRefCell::default();
 
 pub fn init() {
-    unsafe {
-        heap_set_oom_callback(kernel_oom_callback);
-    }
-
     if !TileDesc::new_from(envdata::get().tile_desc).has_virtmem() {
         paging::disable_paging();
         return;
@@ -140,12 +131,12 @@ pub fn translate(virt: usize, perm: PageFlags) -> PTE {
     ASPACE.borrow().translate(virt, perm.bits())
 }
 
-pub fn map_new_mem(virt: usize, pages: usize) -> GlobAddr {
+pub fn map_new_mem(virt: usize, pages: usize, align: usize) -> GlobAddr {
     let alloc = mem::borrow_mut()
         .allocate(
             mem::MemType::KERNEL,
             (pages * cfg::PAGE_SIZE) as goff,
-            cfg::PAGE_SIZE as goff,
+            align as goff,
         )
         .unwrap();
 
@@ -186,22 +177,4 @@ fn map_segment(
     let start_addr = math::round_dn(start as usize, cfg::PAGE_SIZE);
     let end_addr = math::round_up(end as usize, cfg::PAGE_SIZE);
     map_to_phys(aspace, base, start_addr, end_addr - start_addr, perm);
-}
-
-extern "C" fn kernel_oom_callback(size: usize) -> bool {
-    if !platform::tile_desc(platform::kernel_tile()).has_virtmem() {
-        panic!(
-            "Unable to allocate {} bytes on the heap: out of memory",
-            size
-        );
-    }
-
-    // allocate and map more physical memory
-    let pages = cmp::max(256, math::round_up(size, cfg::PAGE_SIZE) >> cfg::PAGE_BITS);
-    let virt = unsafe { math::round_up(heap_end as usize, cfg::PAGE_SIZE) };
-    map_new_mem(virt, pages);
-
-    // append to heap
-    heap::append(pages);
-    true
 }

@@ -54,6 +54,10 @@ impl MemMod {
         self.gaddr
     }
 
+    pub fn largest_contiguous(&self) -> Option<goff> {
+        self.map.largest_contiguous()
+    }
+
     pub fn capacity(&self) -> goff {
         self.size
     }

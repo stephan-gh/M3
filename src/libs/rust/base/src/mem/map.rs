@@ -146,6 +146,14 @@ impl MemMap {
         }
     }
 
+    /// Returns the size of the largest contiguous free space
+    pub fn largest_contiguous(&self) -> Option<goff> {
+        self.areas
+            .iter()
+            .max_by(|a, b| a.size.cmp(&b.size))
+            .map(|a| a.size)
+    }
+
     /// Returns a pair of the remaining space and the number of areas.
     pub fn size(&self) -> (goff, usize) {
         let mut total = 0;

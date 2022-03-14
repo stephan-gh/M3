@@ -25,6 +25,7 @@ use base::mem::heap;
 use crate::arch::{exceptions, paging};
 use crate::args;
 use crate::ktcu;
+use crate::mem;
 use crate::platform;
 use crate::tiles;
 use crate::workloop::workloop;
@@ -55,7 +56,7 @@ fn create_rbufs() {
         // chunk of physical memory and map it somewhere.
         let total_size = math::round_up(total_size, cfg::PAGE_SIZE);
         let rbuf = cfg::RBUF_STD_ADDR;
-        paging::map_new_mem(rbuf, total_size / cfg::PAGE_SIZE);
+        paging::map_new_mem(rbuf, total_size / cfg::PAGE_SIZE, cfg::PAGE_SIZE);
         rbuf
     }
     else {
@@ -75,6 +76,38 @@ fn create_rbufs() {
         .expect("Unable to config tilemux REP");
 }
 
+fn extend_heap() {
+    if platform::tile_desc(platform::kernel_tile()).has_virtmem() {
+        let free_contiguous = mem::borrow_mut().largest_contiguous(mem::MemType::KERNEL);
+        if let Some(bytes) = free_contiguous {
+            extern "C" {
+                static mut heap_end: *mut heap::HeapArea;
+            }
+
+            // determine page count and virtual start address
+            let pages = (bytes as usize) >> cfg::PAGE_BITS;
+            let virt = unsafe { math::round_up(heap_end as usize, cfg::PAGE_SIZE) };
+
+            // first map small pages until the next large page
+            let virt_next_lpage = (virt + cfg::LPAGE_SIZE - 1) & !(cfg::LPAGE_SIZE - 1);
+            let small_pages = (virt_next_lpage - virt) >> cfg::PAGE_BITS;
+
+            paging::map_new_mem(virt, small_pages, cfg::PAGE_SIZE);
+            heap::append(small_pages);
+
+            // now map the rest with large pages
+            let large_pages = ((pages - small_pages) * cfg::PAGE_SIZE) / cfg::LPAGE_SIZE;
+            let pages_per_lpage = cfg::LPAGE_SIZE / cfg::PAGE_SIZE;
+            paging::map_new_mem(
+                virt_next_lpage,
+                large_pages * pages_per_lpage,
+                cfg::LPAGE_SIZE,
+            );
+            heap::append(large_pages * pages_per_lpage);
+        }
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn env_run() {
     io::init(0, "kernel");
@@ -89,8 +122,9 @@ pub extern "C" fn env_run() {
     args::parse();
 
     platform::init(&[]);
-    thread::init();
     create_rbufs();
+    extend_heap();
+    thread::init();
     tiles::init();
 
     klog!(DEF, "Kernel is ready!");
