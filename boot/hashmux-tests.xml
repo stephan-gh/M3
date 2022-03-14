@@ -13,19 +13,26 @@
                     <serv name="pipes" />
                 </app>
             </dom>
+            <dom tile="imem+kecacc|core">
+                <app args="hashmux" daemon="1">
+                    <serv name="hash"/>
+                </app>
+            </dom>
             <dom>
                 <app args="pager $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
                     <tiles type="core" count="1" />
                     <dom>
-                        <app args="/bin/rustunittests">
+                        <app args="/bin/hashmuxtests">
                             <mount fs="m3fs" path="/" />
-                            <sess lname="m3fs-clone" gname="m3fs" />
                             <sess name="pipes" />
-                            <serv name="test" />
-                            <sess name="test" dep="false" />
-                            <tiles type="core" count="2" />
+                            <sess name="hash" />
+                            <sess lname="hash1" gname="hash" args="20000" />
+                            <sess lname="hash2" gname="hash" args="20000" />
+                            <sess lname="hash3" gname="hash" args="20000" />
+                            <sess lname="hash4" gname="hash" args="20000" />
+                            <tiles type="core" count="1" />
                         </app>
                     </dom>
                 </app>

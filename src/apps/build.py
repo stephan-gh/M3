@@ -9,6 +9,7 @@ dirs = [
     'evilcompute',
     'faulter',
     'filterchain',
+    'hashmuxtests',
     'hello',
     'info',
     'libctest',

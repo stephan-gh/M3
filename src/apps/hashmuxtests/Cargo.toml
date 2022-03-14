@@ -1,11 +1,12 @@
 [package]
-name = "rustunittests"
+name = "hashmuxtests"
 version = "0.1.0"
 edition = "2018"
 
 [lib]
-path = "src/rustunittests.rs"
+path = "src/hashmuxtests.rs"
 crate-type = ["staticlib"]
 
 [dependencies]
 m3 = { path = "../../libs/rust/m3" }
+hex-literal = "0.3.3"

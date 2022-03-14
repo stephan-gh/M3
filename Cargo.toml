@@ -11,6 +11,7 @@ members = [
     "src/apps/bench/ycsb/ycsbclient",
     "src/apps/coreutils/hashsum",
     "src/apps/disktest",
+    "src/apps/hashmuxtests",
     "src/apps/info",
     "src/apps/msgchan/msgchansnd",
     "src/apps/netechoserver",
