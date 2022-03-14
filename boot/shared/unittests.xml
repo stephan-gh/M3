@@ -11,16 +11,15 @@
                     <physmem addr="0" size="$fs.size" />
                 </app>
             </dom>
-            <dom>
+            <dom tile="boom|core">
                 <app args="pager $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
-                    <tiles type="core" count="1" />
                     <app args="/bin/unittests">
                         <mount fs="m3fs" path="/" />
                         <sess lname="m3fs-clone" gname="m3fs" />
                         <sess name="pipes" />
-                        <tiles type="core" count="2" />
+                        <tiles type="boom|core" count="2" />
                     </app>
                 </app>
             </dom>
