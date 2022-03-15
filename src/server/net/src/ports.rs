@@ -25,6 +25,20 @@ static PORTS: LazyStaticRefCell<BitVec> = LazyStaticRefCell::default();
 // ephemeral port range is from 49152 to 65535
 const FIRST_PORT: Port = 49152;
 
+pub enum AnyPort {
+    Ephemeral(EphemeralPort),
+    Manual(Port),
+}
+
+impl AnyPort {
+    pub fn number(&self) -> Port {
+        match self {
+            Self::Ephemeral(e) => e.port,
+            Self::Manual(p) => *p,
+        }
+    }
+}
+
 pub struct EphemeralPort {
     port: Port,
 }

@@ -108,10 +108,14 @@ impl<'n> UdpSocket<'n> {
 
     /// Binds this socket to the given local port.
     ///
-    /// When bound, packets can be received from remote endpoints.
+    /// Note that specifying 0 for `port` will allocate an ephemeral port for this socket.
     ///
-    /// Binding requires that the used session has permission for this port. This is controlled with
-    /// the "ports=..." argument in the session argument of M³'s config files.
+    /// Receiving packets from remote endpoints requires a call to bind before. For sending packets,
+    /// bind(0) is called implicitly to bind the socket to a local ephemeral port.
+    ///
+    /// Binding to a specific (non-zero) port requires that the used session has permission for this
+    /// port. This is controlled with the "ports=..." argument in the session argument of M³'s config
+    /// files.
     ///
     /// Returns an error if the socket is not in state [`Closed`](State::Closed).
     pub fn bind(&mut self, port: Port) -> Result<(), Error> {
@@ -119,9 +123,29 @@ impl<'n> UdpSocket<'n> {
             return Err(Error::new(Code::InvState));
         }
 
-        let addr = self.nm.bind(self.socket.sd(), port)?;
+        let (addr, port) = self.nm.bind(self.socket.sd(), port)?;
         self.socket.local_ep.set(Some(Endpoint::new(addr, port)));
         self.socket.state.set(State::Bound);
+        Ok(())
+    }
+
+    /// Connects this socket to the given remote endpoint.
+    ///
+    /// Note that this merely sets the endpoint to use for subsequent send calls and therefore does
+    /// not involve the remote side in any way.
+    ///
+    /// If the socket has not been bound so far, bind(0) will be called to bind it to an unused
+    /// ephemeral port.
+    pub fn connect(&mut self, ep: Endpoint) -> Result<(), Error> {
+        if ep == Endpoint::unspecified() {
+            return Err(Error::new(Code::InvArgs));
+        }
+
+        if self.socket.state() != State::Bound {
+            self.bind(0)?;
+        }
+
+        self.socket.remote_ep.set(Some(ep));
         Ok(())
     }
 
@@ -150,8 +174,31 @@ impl<'n> UdpSocket<'n> {
         })
     }
 
+    /// Sends the given data to the remote endpoint set at connect.
+    ///
+    /// This function fails with `Code::InvState` if connect has not been called before.
+    ///
+    /// If the socket has not been bound so far, bind(0) will be called to bind it to an unused
+    /// ephemeral port.
+    pub fn send(&mut self, data: &[u8]) -> Result<(), Error> {
+        self.send_to(
+            data,
+            self.socket
+                .remote_ep
+                .get()
+                .ok_or(Error::new(Code::InvState))?,
+        )
+    }
+
     /// Sends the given data to the given remote endpoint
-    pub fn send_to(&self, data: &[u8], endpoint: Endpoint) -> Result<(), Error> {
+    ///
+    /// If the socket has not been bound so far, bind(0) will be called to bind it to an unused
+    /// ephemeral port.
+    pub fn send_to(&mut self, data: &[u8], endpoint: Endpoint) -> Result<(), Error> {
+        if self.socket.state() != State::Bound {
+            self.bind(0)?;
+        }
+
         self.socket.send(data, endpoint)
     }
 }

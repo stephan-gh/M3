@@ -36,7 +36,7 @@ use smoltcp::storage::PacketMetadata;
 use smoltcp::wire::IpVersion;
 use smoltcp::wire::{IpAddress, IpEndpoint, Ipv4Address};
 
-use crate::ports::EphemeralPort;
+use crate::ports::{AnyPort, EphemeralPort};
 use crate::sess::FileSession;
 
 const CONNECT_TIMEOUT: TimeDuration = TimeDuration::from_secs(6);
@@ -240,7 +240,7 @@ impl Socket {
     pub fn bind(
         &mut self,
         addr: IpAddress,
-        port: Port,
+        port: AnyPort,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         if self.ty != SocketType::Dgram {
@@ -250,10 +250,13 @@ impl Socket {
             return Err(Error::new(Code::InvState));
         }
 
-        let endpoint = IpEndpoint::new(addr, port);
+        let endpoint = IpEndpoint::new(addr, port.number());
         let mut udp_socket = socket_set.get::<UdpSocket<'_>>(self.socket);
         match udp_socket.bind(endpoint) {
             Ok(_) => {
+                if let AnyPort::Ephemeral(e) = port {
+                    self._local_port = Some(e);
+                }
                 self.state = State::Bound;
                 Ok(())
             },

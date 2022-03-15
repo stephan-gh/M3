@@ -210,10 +210,11 @@ impl NetworkManager {
         self.sockets.borrow_mut().retain(|s| s.sd() != sd);
     }
 
-    pub(crate) fn bind(&self, sd: Sd, port: Port) -> Result<IpAddr, Error> {
+    pub(crate) fn bind(&self, sd: Sd, port: Port) -> Result<(IpAddr, Port), Error> {
         let mut reply = send_recv_res!(&self.metagate, RecvGate::def(), NetworkOp::BIND, sd, port)?;
         let addr = IpAddr(reply.pop::<u32>()?);
-        Ok(addr)
+        let port = reply.pop::<Port>()?;
+        Ok((addr, port))
     }
 
     pub(crate) fn listen(&self, sd: Sd, port: Port) -> Result<IpAddr, Error> {

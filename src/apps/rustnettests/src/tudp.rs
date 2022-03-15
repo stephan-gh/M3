@@ -25,6 +25,7 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_assert_ok!(Semaphore::attach("net-udp").unwrap().down());
 
     wv_run_test!(t, basics);
+    wv_run_test!(t, connect);
     wv_run_test!(t, data);
 }
 
@@ -44,6 +45,18 @@ fn basics() {
     );
 
     wv_assert_err!(socket.bind(2001), Code::InvState);
+}
+
+fn connect() {
+    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+
+    let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(&nm)));
+
+    wv_assert_eq!(socket.state(), State::Closed);
+    wv_assert_eq!(socket.local_endpoint(), None);
+
+    wv_assert_ok!(socket.connect(Endpoint::new(crate::NET0_IP.get(), 2000)));
+    wv_assert_eq!(socket.state(), State::Bound);
 }
 
 fn data() {

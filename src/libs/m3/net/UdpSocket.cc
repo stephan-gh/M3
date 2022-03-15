@@ -42,18 +42,42 @@ void UdpSocket::bind(port_t port) {
     if(_state != Closed)
         throw Exception(Errors::INV_STATE);
 
-    IpAddr addr = _nm.bind(sd(), port);
+    IpAddr addr = _nm.bind(sd(), &port);
     _local_ep.addr = addr;
     _local_ep.port = port;
     _state = State::Bound;
 }
 
-ssize_t UdpSocket::recv_from(void *dst, size_t amount, Endpoint *src_ep) {
-    return Socket::do_recv(dst, amount, src_ep);
+void UdpSocket::connect(const Endpoint &ep) {
+    if(ep == Endpoint::unspecified())
+        throw Exception(Errors::INV_ARGS);
+
+    // connect implicitly calls bind, if not already done, to receive a local ephemeral port
+    if(_state != State::Bound)
+        bind(0);
+
+    _remote_ep = ep;
+}
+
+ssize_t UdpSocket::send(const void *src, size_t amount) {
+    return send_to(src, amount, _remote_ep);
 }
 
 ssize_t UdpSocket::send_to(const void *src, size_t amount, const Endpoint &dst_ep) {
+    // send_to implicitly calls bind, if not already done, to receive a local ephemeral port
+    if(_state != State::Bound)
+        bind(0);
+
     return Socket::do_send(src, amount, dst_ep);
+}
+
+ssize_t UdpSocket::recv(void *dst, size_t amount) {
+    Endpoint _dummy;
+    return recv_from(dst, amount, &_dummy);
+}
+
+ssize_t UdpSocket::recv_from(void *dst, size_t amount, Endpoint *src_ep) {
+    return Socket::do_recv(dst, amount, src_ep);
 }
 
 }

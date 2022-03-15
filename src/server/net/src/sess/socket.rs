@@ -35,7 +35,7 @@ use m3::{log, reply_vmsg, vec};
 
 use smoltcp::socket::SocketSet;
 
-use crate::ports;
+use crate::ports::{self, AnyPort};
 use crate::sess::file::FileSession;
 use crate::smoltcpif::socket::{to_m3_addr, to_m3_ep, SendNetEvent, Socket};
 
@@ -363,15 +363,23 @@ impl SocketSession {
             port
         );
 
-        if !self.can_use_port(port) {
-            return Err(Error::new(Code::NoPerm));
+        let port = if port == 0 {
+            AnyPort::Ephemeral(ports::alloc())
         }
+        else {
+            if !self.can_use_port(port) {
+                return Err(Error::new(Code::NoPerm));
+            }
 
+            AnyPort::Manual(port)
+        };
+
+        let port_no = port.number();
         let sock = self.get_socket(sd)?;
         sock.borrow_mut().bind(crate::own_ip(), port, socket_set)?;
 
         let addr = to_m3_addr(crate::own_ip());
-        reply_vmsg!(is, Code::None as i32, addr.0)
+        reply_vmsg!(is, Code::None as i32, addr.0, port_no)
     }
 
     pub fn listen(

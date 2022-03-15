@@ -26,7 +26,7 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, latency);
 }
 
-fn send_recv(nm: &NetworkManager, socket: &UdpSocket<'_>, dest: Endpoint) -> bool {
+fn send_recv(nm: &NetworkManager, socket: &mut UdpSocket<'_>, dest: Endpoint) -> bool {
     let mut buf = [0u8; 1];
 
     wv_assert_ok!(socket.send_to(&buf, dest));
@@ -55,7 +55,7 @@ fn latency() {
 
     // warmup
     for _ in 0..5 {
-        send_recv(&nm, &socket, dest);
+        send_recv(&nm, &mut socket, dest);
     }
 
     let mut res = Results::new(samples);
@@ -63,7 +63,7 @@ fn latency() {
     while res.runs() < samples {
         let start = CycleInstant::now();
 
-        if send_recv(&nm, &socket, dest) {
+        if send_recv(&nm, &mut socket, dest) {
             let stop = CycleInstant::now();
             res.push(stop.duration_since(start));
         }

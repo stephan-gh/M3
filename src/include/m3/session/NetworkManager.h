@@ -130,7 +130,7 @@ private:
     void add_socket(Socket *socket);
     void remove_socket(Socket *socket);
 
-    IpAddr bind(int32_t sd, port_t port);
+    IpAddr bind(int32_t sd, port_t *port);
     IpAddr listen(int32_t sd, port_t port);
     Endpoint connect(int32_t sd, Endpoint remote_ep);
     void abort(int32_t sd, bool remove);

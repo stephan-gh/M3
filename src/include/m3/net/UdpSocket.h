@@ -74,7 +74,7 @@ public:
      * @param args optionally additional arguments that define the buffer sizes
      */
     static Reference<UdpSocket> create(NetworkManager &nm,
-                                         const DgramSocketArgs &args = DgramSocketArgs());
+                                       const DgramSocketArgs &args = DgramSocketArgs());
 
     ~UdpSocket();
 
@@ -88,17 +88,49 @@ public:
     /**
      * Binds this socket to the given local port.
      *
-     * When bound, packets can be received from remote endpoints.
+     * Note that specifying 0 for <port> will allocate an ephemeral port for this socket.
      *
-     * Binding requires that the used session has permission for this port. This is controlled with
-     * the "ports=..." argument in the session argument of M³'s config files.
+     * Receiving packets from remote endpoints requires a call to bind before. For sending packets,
+     * bind(0) is called implicitly to bind the socket to a local ephemeral port.
      *
-     * @param port the local port to bind to
+     * Binding to a specific (non-zero) port requires that the used session has permission for this
+     * port. This is controlled with the "ports=..." argument in the session argument of M³'s config
+     * files.
+     *
+     * @param port the local port to bind to (0 = allocate ephemeral port)
      */
     void bind(port_t port);
 
     /**
+     * Connects this socket to the given remote endpoint.
+     *
+     * Note that this merely sets the endpoint to use for subsequent send calls and therefore does
+     * not involve the remote side in any way.
+     *
+     * If the socket has not been bound so far, bind(0) will be called to bind it to an unused
+     * ephemeral port.
+     *
+     * @param ep the endpoint to use for subsequent send calls
+     */
+    void connect(const Endpoint &ep);
+
+    /**
+     * Sends at most <amount> bytes from <src> to the socket defined at connect.
+     *
+     * If the socket has not been bound so far, bind(0) will be called to bind it to an unused
+     * ephemeral port.
+     *
+     * @param src the data to send
+     * @param amount the number of bytes to send
+     * @return the number of sent bytes (-1 if it would block and the socket is non-blocking)
+     */
+    ssize_t send(const void *src, size_t amount);
+
+    /**
      * Sends at most <amount> bytes from <src> to the socket at <addr>:<port>.
+     *
+     * If the socket has not been bound so far, bind(0) will be called to bind it to an unused
+     * ephemeral port.
      *
      * @param src the data to send
      * @param amount the number of bytes to send
@@ -106,6 +138,15 @@ public:
      * @return the number of sent bytes (-1 if it would block and the socket is non-blocking)
      */
     ssize_t send_to(const void *src, size_t amount, const Endpoint &dst_ep);
+
+    /**
+     * Receives <amount> or a smaller number of bytes into <dst>.
+     *
+     * @param dst the destination buffer
+     * @param amount the number of bytes to receive
+     * @return the number of received bytes (-1 if it would block and the socket is non-blocking)
+     */
+    ssize_t recv(void *dst, size_t amount);
 
     /**
      * Receives <amount> or a smaller number of bytes into <dst>.

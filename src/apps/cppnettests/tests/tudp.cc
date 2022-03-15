@@ -41,6 +41,18 @@ static void basics() {
     });
 }
 
+static void connect() {
+    NetworkManager net("net0");
+
+    auto socket = UdpSocket::create(net);
+
+    WVASSERTEQ(socket->state(), Socket::Closed);
+    WVASSERTEQ(socket->local_endpoint(), Endpoint::unspecified());
+
+    socket->connect(Endpoint(IpAddr(192, 168, 112, 1), 1337));
+    WVASSERTEQ(socket->state(), Socket::Bound);
+}
+
 NOINLINE static void data() {
     NetworkManager net("net0");
 
@@ -76,5 +88,6 @@ void tudp() {
     Semaphore::attach("net-udp").down();
 
     RUN_TEST(basics);
+    RUN_TEST(connect);
     RUN_TEST(data);
 }
