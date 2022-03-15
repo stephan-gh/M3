@@ -45,6 +45,10 @@ impl BitVec {
         }
     }
 
+    pub fn size(&self) -> usize {
+        self.bits
+    }
+
     pub fn is_set(&self, bit: usize) -> bool {
         self.words[idx(bit)] & bitpos(bit) != 0
     }

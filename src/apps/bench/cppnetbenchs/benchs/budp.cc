@@ -45,8 +45,6 @@ NOINLINE static void latency() {
 
     auto socket = UdpSocket::create(net);
 
-    socket->bind(2000);
-
     const size_t samples = 15;
     Endpoint src;
     Endpoint dest = Endpoint(IpAddr(192, 168, 112, 1), 1337);
@@ -94,8 +92,6 @@ NOINLINE static void bandwidth() {
 
     auto socket = UdpSocket::create(net, DgramSocketArgs().send_buffer(8, 64 * 1024)
                                                             .recv_buffer(32, 256 * 1024));
-
-    socket->bind(2001);
 
     constexpr size_t packet_size = 1024;
 

@@ -46,8 +46,6 @@ fn latency() {
     let nm = wv_assert_ok!(NetworkManager::new("net"));
     let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(&nm)));
 
-    wv_assert_ok!(socket.bind(2000));
-
     socket.set_blocking(false);
 
     let samples = 100;

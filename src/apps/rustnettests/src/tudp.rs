@@ -63,7 +63,6 @@ fn data() {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
     let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(&nm)));
-    wv_assert_ok!(socket.bind(2001));
 
     let dest = Endpoint::new(crate::DST_IP.get(), 1337);
 

@@ -35,8 +35,6 @@ fn latency() {
     let nm = wv_assert_ok!(NetworkManager::new("net"));
     let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(&nm)));
 
-    wv_assert_ok!(socket.bind(2000));
-
     let samples = 5;
     let dest = Endpoint::new(crate::DST_IP.get(), 1337);
 
@@ -89,8 +87,6 @@ fn bandwidth() {
             .send_buffer(8, 64 * 1024)
             .recv_buffer(32, 256 * 1024)
     ));
-
-    wv_assert_ok!(socket.bind(2001));
 
     let dest = Endpoint::new(crate::DST_IP.get(), 1337);
 
