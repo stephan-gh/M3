@@ -86,6 +86,13 @@ public:
     }
 
     /**
+     * @return the remote endpoint (only valid, if the socket is currently "connected")
+     */
+    const Endpoint &remote_endpoint() const noexcept {
+        return _remote_ep;
+    }
+
+    /**
      * Binds this socket to the given local port.
      *
      * Note that specifying 0 for <port> will allocate an ephemeral port for this socket.

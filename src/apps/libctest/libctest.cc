@@ -26,6 +26,7 @@ int failed;
 int main() {
     RUN_SUITE(tdir);
     RUN_SUITE(tfile);
+    RUN_SUITE(tsocket);
 
     if(failed > 0)
         m3::cout << "\033[1;31m" << failed << " tests failed\033[0;m\n";

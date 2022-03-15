@@ -37,3 +37,4 @@
 
 void tdir();
 void tfile();
+void tsocket();
