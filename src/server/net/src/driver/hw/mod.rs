@@ -34,7 +34,8 @@ extern "C" {
     pub fn axieth_recv(buffer: *mut u8, len: usize) -> usize;
 }
 
-const BUF_SIZE: usize = 2 * 1024 * 1024;
+const RX_BUF_SIZE: usize = 2 * 1024 * 1024;
+const ALL_BUF_SIZE: usize = RX_BUF_SIZE + 0x21000; // see axieth.cc
 const BUF_VIRT_ADDR: goff = 0x3000_0000;
 
 pub struct AXIEthDevice {
@@ -44,14 +45,14 @@ pub struct AXIEthDevice {
 
 impl AXIEthDevice {
     pub fn new() -> Result<Self, Error> {
-        let bufs = MemGate::new(BUF_SIZE, Perm::RW)?;
+        let bufs = MemGate::new(ALL_BUF_SIZE, Perm::RW)?;
         Activity::cur()
             .pager()
             .unwrap()
-            .map_mem(BUF_VIRT_ADDR, &bufs, BUF_SIZE, Perm::RW)?;
+            .map_mem(BUF_VIRT_ADDR, &bufs, ALL_BUF_SIZE, Perm::RW)?;
         let phys = bufs.region()?.0.to_phys(PageFlags::RW)?;
 
-        let res = unsafe { axieth_init(BUF_VIRT_ADDR, phys, BUF_SIZE) };
+        let res = unsafe { axieth_init(BUF_VIRT_ADDR, phys, RX_BUF_SIZE) };
         if res < 0 {
             Err(Error::new(Code::NotFound))
         }

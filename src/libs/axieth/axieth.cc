@@ -34,7 +34,7 @@
 #define TX_BD_SPACE_HIGH    (virt_base + 0x0001FFFF)
 #define TX_BUFFER_BASE      (virt_base + 0x00020000)
 #define RX_BUFFER_PHYS      (phys_base + 0x00021000)
-#define RX_BUFFER_SIZE      (0x00200000 - (RX_BUFFER_PHYS - phys_base))
+#define RX_BUFFER_SIZE      (2 * 1024 * 1024)
 
 #define MAX_PKT_LEN         0x1000
 
@@ -163,6 +163,12 @@ static int RxSetup(XAxiDma * AxiDmaInstPtr)
 
     /* Attach buffers to RxBD ring so we are ready to receive packets */
     FreeBdCount = XAxiDma_BdRingGetFreeCnt(RxRingPtr);
+    if(RX_BUFFER_SIZE < FreeBdCount * MAX_PKT_LEN) {
+        xdbg_printf(XDBG_DEBUG_DMA_ALL,
+                    "Reduced bd count from " << FreeBdCount
+                 << " to " << (RX_BUFFER_SIZE / MAX_PKT_LEN) << " to meet receive buffer size\n");
+        FreeBdCount = RX_BUFFER_SIZE / MAX_PKT_LEN;
+    }
 
     Status = XAxiDma_BdRingAlloc(RxRingPtr, FreeBdCount, &BdPtr);
     if (Status != 0) {
