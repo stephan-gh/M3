@@ -19,10 +19,11 @@ use base::cell::StaticRefCell;
 use base::col::Vec;
 use base::errors::{Code, Error};
 use base::kif;
+use base::log;
 use base::rc::Rc;
 use base::time::TimeDuration;
 
-use core::fmt::Display;
+use core::fmt;
 
 use num_traits::PrimInt;
 
@@ -40,7 +41,7 @@ pub struct Quota<T> {
     left: Cell<T>,
 }
 
-impl<T: PrimInt + Display> Quota<T> {
+impl<T: PrimInt + fmt::Display> Quota<T> {
     pub fn new(id: Id, parent: Option<Id>, amount: T) -> Rc<Self> {
         Rc::new(Self {
             id,
@@ -54,6 +55,10 @@ impl<T: PrimInt + Display> Quota<T> {
     fn derive(&self, amount: T) -> Result<Rc<Self>, Error> {
         NEXT_ID.set(NEXT_ID.get() + 1);
         Ok(Self::new(NEXT_ID.get() - 1, Some(self.id), amount))
+    }
+
+    pub fn id(&self) -> Id {
+        self.id
     }
 
     pub fn users(&self) -> u64 {
@@ -82,6 +87,20 @@ impl<T: PrimInt + Display> Quota<T> {
 
     pub fn set_left(&self, val: T) {
         self.left.set(val);
+    }
+}
+
+impl<T: fmt::Display + Copy> fmt::Debug for Quota<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Q[{}: {} of {}, users={}, parent={:?}]",
+            self.id,
+            self.left.get(),
+            self.total.get(),
+            self.users.get(),
+            self.parent
+        )
     }
 }
 
@@ -133,8 +152,17 @@ pub fn set(id: Id, time: TimeDuration, pts: usize) -> Result<(), Error> {
     let ptime = get_time(id).ok_or_else(|| Error::new(Code::InvArgs))?;
     let ppt = get_pt(id).ok_or_else(|| Error::new(Code::InvArgs))?;
 
+    log!(
+        crate::LOG_QUOTAS,
+        "quota::set(id={}, time={}, ppt={})",
+        id,
+        time.as_nanos(),
+        pts
+    );
+
     ptime.total.set(time.as_nanos() as u64);
     ptime.left.set(time.as_nanos() as u64);
+    log!(crate::LOG_QUOTAS, "time-quota: {:?}", ptime);
 
     if pts > ppt.total() {
         ppt.left.set(ppt.left() + (pts - ppt.total()));
@@ -143,6 +171,7 @@ pub fn set(id: Id, time: TimeDuration, pts: usize) -> Result<(), Error> {
         ppt.left.set(ppt.left() - (ppt.total() - pts));
     }
     ppt.total.set(pts);
+    log!(crate::LOG_QUOTAS, "pt-quota: {:?}", ppt);
 
     Ok(())
 }
@@ -155,6 +184,15 @@ pub fn derive(
 ) -> Result<(Id, Id), Error> {
     let ptime = get_time(parent_time).ok_or_else(|| Error::new(Code::InvArgs))?;
     let ppt = get_pt(parent_pts).ok_or_else(|| Error::new(Code::InvArgs))?;
+
+    log!(
+        crate::LOG_QUOTAS,
+        "quota::derive(ptime={}, ppt={}, time={:?}, pts={:?})",
+        parent_time,
+        parent_pts,
+        time,
+        pts
+    );
 
     let time_id = if let Some(t) = time {
         let total = TimeDuration::from_nanos(ptime.total());
@@ -169,6 +207,12 @@ pub fn derive(
         ptime.set_left(ptime.left().saturating_sub(t.as_nanos() as u64));
 
         let ctime = ptime.derive(t.as_nanos() as u64)?;
+        log!(
+            crate::LOG_QUOTAS,
+            "time-quota: parent={:?}, child={:?}",
+            ptime,
+            ctime
+        );
         TIME_QUOTAS.borrow_mut().push(ctime.clone());
         ctime.id
     }
@@ -185,6 +229,12 @@ pub fn derive(
         ppt.set_left(ppt.left() - p);
 
         let cpt = ppt.derive(p)?;
+        log!(
+            crate::LOG_QUOTAS,
+            "pt-quota: parent={:?}, child={:?}",
+            ppt,
+            cpt
+        );
         PT_QUOTAS.borrow_mut().push(cpt.clone());
         cpt.id
     }
@@ -196,9 +246,17 @@ pub fn derive(
 }
 
 pub fn remove(time: Option<Id>, pts: Option<Id>) -> Result<(), Error> {
+    log!(
+        crate::LOG_QUOTAS,
+        "quota::remove(time={:?}, pt={:?})",
+        time,
+        pts
+    );
+
     if let Some(id) = time {
         assert!(id > kif::tilemux::DEF_QUOTA_ID);
         let time = get_time(id).ok_or_else(|| Error::new(Code::InvArgs))?;
+        log!(crate::LOG_QUOTAS, "time-quota: removing {:?}", time);
         // give quota back to parent object
         if let Some(parent) = time.parent {
             let ptime = get_time(parent).unwrap();
@@ -210,6 +268,7 @@ pub fn remove(time: Option<Id>, pts: Option<Id>) -> Result<(), Error> {
     if let Some(id) = pts {
         assert!(id > kif::tilemux::DEF_QUOTA_ID);
         let pt = get_pt(id).ok_or_else(|| Error::new(Code::InvArgs))?;
+        log!(crate::LOG_QUOTAS, "pt-quota: removing {:?}", pt);
         if let Some(parent) = pt.parent {
             assert!(pt.left == pt.total);
             let ppt = get_pt(parent).unwrap();

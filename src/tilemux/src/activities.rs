@@ -59,8 +59,9 @@ impl Allocator for PTAllocator {
             self.quota.set_left(self.quota.left() - 1);
             log!(
                 crate::LOG_PTS,
-                "Alloc PT {:#x} (quota: {}, total: {})",
+                "Alloc PT {:#x} (quota[{}]: {}, total: {})",
                 pt,
+                self.quota.id(),
                 self.quota.left(),
                 PTS.len()
             );
@@ -83,8 +84,9 @@ impl Allocator for PTAllocator {
     fn free_pt(&mut self, phys: Phys) {
         log!(
             crate::LOG_PTS,
-            "Free PT {:#x} (quota: {}, free: {})",
+            "Free PT {:#x} (quota[{}]: {}, free: {})",
             phys,
+            self.quota.id(),
             self.quota.left(),
             PTS.len()
         );

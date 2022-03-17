@@ -65,6 +65,8 @@ pub const LOG_TIMER: bool = false;
 pub const LOG_IRQS: bool = false;
 /// Logs sendqueue operations
 pub const LOG_SQUEUE: bool = false;
+/// Logs quota operations
+pub const LOG_QUOTAS: bool = false;
 
 extern "C" {
     fn heap_init(begin: usize, end: usize);
