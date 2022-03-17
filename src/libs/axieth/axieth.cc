@@ -561,17 +561,6 @@ EXTERN_C size_t axieth_recv(void *buffer, size_t len) {
     // Acknowledge pending interrupts
     XAxiDma_BdRingAckIrq(RxRingPtr, IrqStatus);
 
-    // no interrupt?
-    if((IrqStatus & XAXIDMA_IRQ_ALL_MASK) == 0)
-        return 0;
-    // error?
-    if((IrqStatus & XAXIDMA_IRQ_ERROR_MASK) != 0) {
-        xdbg_printf(XDBG_DEBUG_ERROR, "Error bit set in RxIrqStatus\n");
-    }
-    // no completion interrupt?
-    if((IrqStatus & (XAXIDMA_IRQ_DELAY_MASK | XAXIDMA_IRQ_IOC_MASK)) == 0)
-        return 0;
-
     // Get finished BDs from hardware
     XAxiDma_Bd *BdPtr;
     int BdCount = XAxiDma_BdRingFromHw(RxRingPtr, 1, &BdPtr);
