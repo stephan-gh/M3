@@ -120,11 +120,15 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
     if let Some(act) = activities::get_mut(act_id) {
         // if we unmap these pages, flush+invalidate the cache to ensure that we read this memory
         // fresh from DRAM the next time we use it.
-        if (perm & kif::PageFlags::RWX).is_empty() {
+        let perm = if (perm & kif::PageFlags::RWX).is_empty() {
             helper::flush_invalidate();
+            perm
         }
+        else {
+            perm | kif::PageFlags::U
+        };
 
-        act.map(virt, global, pages, perm | kif::PageFlags::U)
+        act.map(virt, global, pages, perm)
     }
     else {
         Ok(())
