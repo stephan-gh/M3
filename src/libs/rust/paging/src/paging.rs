@@ -188,13 +188,19 @@ impl<A: Allocator> AddrSpace<A> {
             // safety: as above
             let mut pte = unsafe { *(pte_addr as *const MMUPTE) };
 
-            // can we use a large page?
-            if level == 0
+            let is_leaf = if perm.has_empty_perm() {
+                MMUFlags::from_bits_truncate(pte).is_leaf(level)
+            }
+            else {
+                level == 0
+                // can we use a large page?
                 || (level == 1
                     && math::is_aligned(*virt, cfg::LPAGE_SIZE)
                     && math::is_aligned(*phys, cfg::LPAGE_SIZE as MMUPTE)
                     && *pages * cfg::PAGE_SIZE >= cfg::LPAGE_SIZE)
-            {
+            };
+
+            if is_leaf {
                 let psize = if level == 1 {
                     cfg::LPAGE_SIZE
                 }
@@ -243,7 +249,7 @@ impl<A: Allocator> AddrSpace<A> {
             }
             else {
                 // unmapping non-existing PTs is a noop
-                if !(pte == 0 && perm.is_empty()) {
+                if !(pte == 0 && perm.has_empty_perm()) {
                     if pte == 0 {
                         pte = self.create_pt(*virt, pte_addr, level)?;
                     }
@@ -296,13 +302,14 @@ impl<A: Allocator> AddrSpace<A> {
             // safety: as above
             let pte = unsafe { *(ptes as *const MMUPTE) };
             if pte != 0 {
-                // refers the PTE to a PT?
-                if !MMUFlags::from_bits_truncate(pte).is_leaf(level) {
+                let pte_phys = pte_to_phys(pte);
+                // does the PTE refer to a PT?
+                if pte_phys != 0 && !MMUFlags::from_bits_truncate(pte).is_leaf(level) {
                     // there are no PTEs refering to PTs at level 0
                     if level > 1 {
                         self.free_pts_rec(pte, level - 1);
                     }
-                    self.alloc.free_pt(pte_to_phys(pte));
+                    self.alloc.free_pt(pte_phys);
                 }
             }
 

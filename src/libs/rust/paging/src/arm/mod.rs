@@ -54,6 +54,10 @@ bitflags! {
 }
 
 impl MMUFlags {
+    pub fn has_empty_perm(self) -> bool {
+        !self.contains(MMUFlags::P)
+    }
+
     pub fn is_leaf(self, level: usize) -> bool {
         level == 0 || (self.bits() & Self::TYPE.bits()) != Self::TBL.bits()
     }
@@ -68,7 +72,10 @@ impl MMUFlags {
 pub fn build_pte(phys: Phys, perm: MMUFlags, level: usize, leaf: bool) -> MMUPTE {
     let pte = phys | perm.bits();
     if leaf {
-        if level > 0 {
+        if perm.has_empty_perm() {
+            0
+        }
+        else if level > 0 {
             pte | (MMUFlags::BLK | MMUFlags::NG).bits()
         }
         else {

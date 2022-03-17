@@ -46,6 +46,10 @@ bitflags! {
 }
 
 impl MMUFlags {
+    pub fn has_empty_perm(self) -> bool {
+        !self.contains(MMUFlags::P)
+    }
+
     pub fn is_leaf(self, level: usize) -> bool {
         level == 0 || self.contains(Self::L)
     }
