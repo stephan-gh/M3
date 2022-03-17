@@ -122,13 +122,54 @@ static int PhySetup(XAxiEthernet *AxiEthernetInstancePtr)
     return 0;
 }
 
+static int alloc_buffer(XAxiDma_BdRing *RxRingPtr, uintptr_t bufPhys) {
+    XAxiDma_Bd *BdPtr;
+    int Status;
+
+    Status = XAxiDma_BdRingAlloc(RxRingPtr, 1, &BdPtr);
+    if (Status != 0) {
+        xdbg_printf(XDBG_DEBUG_DMA_ALL, "Rx bd alloc failed with " << Status << "\n");
+        return 1;
+    }
+
+    Status = XAxiDma_BdSetBufAddr(BdPtr, bufPhys);
+    if (Status != 0) {
+        xdbg_printf(XDBG_DEBUG_DMA_ALL,
+            "Rx set buffer addr " << bufPhys << " on BD "
+                << BdPtr << " failed " << Status << "\n");
+        return 1;
+    }
+
+    Status = XAxiDma_BdSetLength(BdPtr, MAX_PKT_LEN,
+                RxRingPtr->MaxTransferLen);
+    if (Status != 0) {
+        xdbg_printf(XDBG_DEBUG_DMA_ALL,
+            "Rx set length " << MAX_PKT_LEN << " on BD "
+                << BdPtr << " failed " << Status << "\n");
+        return 1;
+    }
+
+    /* Receive BDs do not need to set anything for the control
+     * The hardware will set the SOF/EOF bits per stream status
+     */
+    XAxiDma_BdSetCtrl(BdPtr, 0);
+
+    XAxiDma_BdSetId(BdPtr, bufPhys);
+
+    Status = XAxiDma_BdRingToHw(RxRingPtr, 1, BdPtr);
+    if (Status != 0) {
+        xdbg_printf(XDBG_DEBUG_DMA_ALL, "Rx ToHw failed with " << Status << "\n");
+        return 1;
+    }
+
+    return 0;
+}
+
 static int RxSetup(XAxiDma * AxiDmaInstPtr)
 {
     XAxiDma_BdRing *RxRingPtr;
     int Status;
     XAxiDma_Bd BdTemplate;
-    XAxiDma_Bd *BdPtr;
-    XAxiDma_Bd *BdCurPtr;
     int BdCount;
     int FreeBdCount;
     UINTPTR RxBufferPtr;
@@ -170,62 +211,19 @@ static int RxSetup(XAxiDma * AxiDmaInstPtr)
         FreeBdCount = RX_BUFFER_SIZE / MAX_PKT_LEN;
     }
 
-    Status = XAxiDma_BdRingAlloc(RxRingPtr, FreeBdCount, &BdPtr);
-    if (Status != 0) {
-        xdbg_printf(XDBG_DEBUG_DMA_ALL, "Rx bd alloc failed with " << Status << "\n");
-        return 1;
-    }
-
-    BdCurPtr = BdPtr;
     RxBufferPtr = RX_BUFFER_PHYS;
-
     for (Index = 0; Index < FreeBdCount; Index++) {
-
-        Status = XAxiDma_BdSetBufAddr(BdCurPtr, RxBufferPtr);
-        if (Status != 0) {
-            xdbg_printf(XDBG_DEBUG_DMA_ALL,
-                "Rx set buffer addr " << RxBufferPtr << " on BD "
-                    << BdCurPtr << " failed " << Status << "\n");
+        if(alloc_buffer(RxRingPtr, RxBufferPtr)) {
+            xdbg_printf(XDBG_DEBUG_DMA_ALL, "Unable to allocate receive buffers\n");
             return 1;
         }
-
-        Status = XAxiDma_BdSetLength(BdCurPtr, MAX_PKT_LEN,
-                    RxRingPtr->MaxTransferLen);
-        if (Status != 0) {
-            xdbg_printf(XDBG_DEBUG_DMA_ALL,
-                "Rx set length " << MAX_PKT_LEN << " on BD "
-                    << BdCurPtr << " failed " << Status << "\n");
-            return 1;
-        }
-
-        /* Receive BDs do not need to set anything for the control
-         * The hardware will set the SOF/EOF bits per stream status
-         */
-        XAxiDma_BdSetCtrl(BdCurPtr, 0);
-
-        XAxiDma_BdSetId(BdCurPtr, RxBufferPtr);
-
         RxBufferPtr += MAX_PKT_LEN;
-        BdCurPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(RxRingPtr, BdCurPtr);
     }
 
-    /*
-     * Set the coalescing threshold, so only one receive interrupt
-     * occurs for this example
-     *
-     * If you would like to have multiple interrupts to happen, change
-     * the COALESCING_COUNT to be a smaller value
-     */
     Status = XAxiDma_BdRingSetCoalesce(RxRingPtr, COALESCING_COUNT,
             DELAY_TIMER_COUNT);
     if (Status != 0) {
         xdbg_printf(XDBG_DEBUG_DMA_ALL, "Rx set coalesce failed with " << Status << "\n");
-        return 1;
-    }
-
-    Status = XAxiDma_BdRingToHw(RxRingPtr, FreeBdCount, BdPtr);
-    if (Status != 0) {
-        xdbg_printf(XDBG_DEBUG_DMA_ALL, "Rx ToHw failed with " << Status << "\n");
         return 1;
     }
 
@@ -597,6 +595,12 @@ EXTERN_C size_t axieth_recv(void *buffer, size_t len) {
     int Status = XAxiDma_BdRingFree(RxRingPtr, 1, BdPtr);
     if(Status != XST_SUCCESS) {
         xdbg_printf(XDBG_DEBUG_ERROR, "Freeing BD failed (" << Status << ")\n");
+        return 0;
+    }
+
+    // allocate new BD for the next receive
+    if(alloc_buffer(RxRingPtr, bufPhys)) {
+        xdbg_printf(XDBG_DEBUG_ERROR, "Unable to allocate new receive buffer\n");
         return 0;
     }
 
