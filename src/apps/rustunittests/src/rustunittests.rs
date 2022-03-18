@@ -33,6 +33,7 @@ mod tgenfile;
 mod tm3fs;
 mod tmemmap;
 mod tmgate;
+mod tpaging;
 mod tpipe;
 mod trgate;
 mod tsems;
@@ -80,6 +81,7 @@ pub fn main() -> i32 {
     wv_run_suite!(tester, tm3fs::run);
     wv_run_suite!(tester, tmemmap::run);
     wv_run_suite!(tester, tmgate::run);
+    wv_run_suite!(tester, tpaging::run);
     wv_run_suite!(tester, tpipe::run);
     wv_run_suite!(tester, trgate::run);
     wv_run_suite!(tester, tsgate::run);
