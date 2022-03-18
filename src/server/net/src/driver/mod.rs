@@ -29,8 +29,8 @@ mod inner;
 
 pub use inner::*;
 
-use smoltcp::iface::Interface;
-use smoltcp::socket::SocketSet;
+use smoltcp::iface::{Context, Interface, SocketHandle};
+use smoltcp::socket::AnySocket;
 use smoltcp::time::{Duration, Instant};
 
 pub enum DriverInterface<'a> {
@@ -44,21 +44,41 @@ pub enum DriverInterface<'a> {
 }
 
 impl<'a> DriverInterface<'a> {
-    pub fn poll(
-        &mut self,
-        sockets: &mut SocketSet<'_>,
-        timestamp: Instant,
-    ) -> smoltcp::Result<bool> {
+    pub fn add_socket<T: AnySocket<'a>>(&mut self, socket: T) -> SocketHandle {
         match self {
-            Self::Lo(l) => l.poll(sockets, timestamp),
-            Self::Eth(e) => e.poll(sockets, timestamp),
+            Self::Lo(l) => l.add_socket(socket),
+            Self::Eth(e) => e.add_socket(socket),
         }
     }
 
-    pub fn poll_delay(&self, sockets: &SocketSet<'_>, timestamp: Instant) -> Option<Duration> {
+    pub fn get_socket<T: AnySocket<'a>>(&mut self, handle: SocketHandle) -> &mut T {
         match self {
-            Self::Lo(l) => l.poll_delay(sockets, timestamp),
-            Self::Eth(e) => e.poll_delay(sockets, timestamp),
+            Self::Lo(l) => l.get_socket(handle),
+            Self::Eth(e) => e.get_socket(handle),
+        }
+    }
+
+    pub fn get_socket_and_context<T: AnySocket<'a>>(
+        &mut self,
+        handle: SocketHandle,
+    ) -> (&mut T, &mut Context<'a>) {
+        match self {
+            Self::Lo(l) => l.get_socket_and_context(handle),
+            Self::Eth(e) => e.get_socket_and_context(handle),
+        }
+    }
+
+    pub fn poll(&mut self, timestamp: Instant) -> smoltcp::Result<bool> {
+        match self {
+            Self::Lo(l) => l.poll(timestamp),
+            Self::Eth(e) => e.poll(timestamp),
+        }
+    }
+
+    pub fn poll_delay(&mut self, timestamp: Instant) -> Option<Duration> {
+        match self {
+            Self::Lo(l) => l.poll_delay(timestamp),
+            Self::Eth(e) => e.poll_delay(timestamp),
         }
     }
 }

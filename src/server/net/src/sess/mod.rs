@@ -20,7 +20,7 @@ use m3::com::GateIStream;
 use m3::errors::{Code, Error};
 use m3::server::CapExchange;
 
-use smoltcp::socket::SocketSet;
+use crate::driver::DriverInterface;
 
 pub mod file;
 pub mod socket;
@@ -42,11 +42,11 @@ impl NetworkSession {
         crt: usize,
         server: Selector,
         xchg: &mut CapExchange<'_>,
-        socket_set: &mut SocketSet<'static>,
+        iface: &mut DriverInterface<'_>,
     ) -> Result<(), Error> {
         match self {
             NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
-            NetworkSession::SocketSession(ss) => ss.obtain(crt, server, xchg, socket_set),
+            NetworkSession::SocketSession(ss) => ss.obtain(crt, server, xchg, iface),
         }
     }
 
@@ -95,44 +95,44 @@ impl NetworkSession {
     pub fn bind(
         &mut self,
         is: &mut GateIStream<'_>,
-        socket_set: &mut SocketSet<'static>,
+        iface: &mut DriverInterface<'_>,
     ) -> Result<(), Error> {
         match self {
             NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
-            NetworkSession::SocketSession(ss) => ss.bind(is, socket_set),
+            NetworkSession::SocketSession(ss) => ss.bind(is, iface),
         }
     }
 
     pub fn listen(
         &mut self,
         is: &mut GateIStream<'_>,
-        socket_set: &mut SocketSet<'static>,
+        iface: &mut DriverInterface<'_>,
     ) -> Result<(), Error> {
         match self {
             NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
-            NetworkSession::SocketSession(ss) => ss.listen(is, socket_set),
+            NetworkSession::SocketSession(ss) => ss.listen(is, iface),
         }
     }
 
     pub fn connect(
         &mut self,
         is: &mut GateIStream<'_>,
-        socket_set: &mut SocketSet<'static>,
+        iface: &mut DriverInterface<'_>,
     ) -> Result<(), Error> {
         match self {
             NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
-            NetworkSession::SocketSession(ss) => ss.connect(is, socket_set),
+            NetworkSession::SocketSession(ss) => ss.connect(is, iface),
         }
     }
 
     pub fn abort(
         &mut self,
         is: &mut GateIStream<'_>,
-        socket_set: &mut SocketSet<'static>,
+        iface: &mut DriverInterface<'_>,
     ) -> Result<(), Error> {
         match self {
             NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
-            NetworkSession::SocketSession(ss) => ss.abort(is, socket_set),
+            NetworkSession::SocketSession(ss) => ss.abort(is, iface),
         }
     }
 

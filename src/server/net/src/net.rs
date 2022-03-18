@@ -37,10 +37,9 @@ use m3::time::{TimeDuration, TimeInstant};
 use m3::{log, println};
 
 use smoltcp::iface::{InterfaceBuilder, NeighborCache};
-use smoltcp::socket::SocketSet;
-use smoltcp::time::Duration;
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 
+use crate::driver::DriverInterface;
 use crate::sess::NetworkSession;
 
 mod driver;
@@ -63,18 +62,18 @@ const MAX_SOCKETS: usize = 64;
 static OWN_IP: LazyStaticCell<IpAddress> = LazyStaticCell::default();
 static OWN_MAC: [u8; 6] = [0x00, 0x0A, 0x35, 0x03, 0x02, 0x03];
 
-struct NetHandler {
+struct NetHandler<'a> {
     // our service selector
     sel: Selector,
     // our sessions
     sessions: SessionContainer<NetworkSession>,
     // holds all the actual smoltcp sockets. Used for polling events on them.
-    socket_set: SocketSet<'static>,
+    iface: DriverInterface<'a>,
     // the receive gates for requests from clients
     rgate: Rc<RecvGate>,
 }
 
-impl NetHandler {
+impl NetHandler<'_> {
     fn handle(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let op = is.pop::<NetworkOp>()?;
         let sess_id: SessId = is.label() as SessId;
@@ -86,10 +85,10 @@ impl NetHandler {
                 NetworkOp::NEXT_IN => sess.next_in(is),
                 NetworkOp::NEXT_OUT => sess.next_out(is),
                 NetworkOp::COMMIT => sess.commit(is),
-                NetworkOp::BIND => sess.bind(is, &mut self.socket_set),
-                NetworkOp::LISTEN => sess.listen(is, &mut self.socket_set),
-                NetworkOp::CONNECT => sess.connect(is, &mut self.socket_set),
-                NetworkOp::ABORT => sess.abort(is, &mut self.socket_set),
+                NetworkOp::BIND => sess.bind(is, &mut self.iface),
+                NetworkOp::LISTEN => sess.listen(is, &mut self.iface),
+                NetworkOp::CONNECT => sess.connect(is, &mut self.iface),
+                NetworkOp::ABORT => sess.abort(is, &mut self.iface),
                 NetworkOp::GET_IP => sess.get_ip(is),
                 _ => Err(Error::new(Code::InvArgs)),
             }
@@ -101,11 +100,11 @@ impl NetHandler {
 
     // processes outgoing events to clients
     fn process_outgoing(&mut self) -> bool {
-        let socks = &mut self.socket_set;
+        let iface = &mut self.iface;
         let mut res = false;
         self.sessions.for_each(|s| {
             if let NetworkSession::SocketSession(ss) = s {
-                res |= ss.process_outgoing(socks)
+                res |= ss.process_outgoing(iface)
             }
         });
         res
@@ -113,18 +112,18 @@ impl NetHandler {
 
     // processes incoming events from clients and returns whether there is still work to do
     fn process_incoming(&mut self) -> bool {
-        let socks = &mut self.socket_set;
+        let iface = &mut self.iface;
         let mut res = false;
         self.sessions.for_each(|s| {
             if let NetworkSession::SocketSession(ss) = s {
-                res |= ss.process_incoming(socks)
+                res |= ss.process_incoming(iface)
             }
         });
         res
     }
 }
 
-impl Handler<NetworkSession> for NetHandler {
+impl Handler<NetworkSession> for NetHandler<'_> {
     fn sessions(&mut self) -> &mut SessionContainer<NetworkSession> {
         &mut self.sessions
     }
@@ -155,7 +154,7 @@ impl Handler<NetworkSession> for NetHandler {
         );
 
         if let Some(s) = self.sessions.get_mut(sid) {
-            s.obtain(crt, self.sel, xchg, &mut self.socket_set)
+            s.obtain(crt, self.sel, xchg, &mut self.iface)
         }
         else {
             Err(Error::new(Code::InvArgs))
@@ -280,13 +279,16 @@ pub fn main() -> i32 {
     OWN_IP.set(ip_addr.address());
     ports::init(MAX_SOCKETS);
 
-    let mut iface = if settings.driver == "lo" {
+    let iface = if settings.driver == "lo" {
         driver::DriverInterface::Lo(
-            InterfaceBuilder::new(smoltcp::phy::Loopback::new(smoltcp::phy::Medium::Ethernet))
-                .ethernet_addr(EthernetAddress::from_bytes(&OWN_MAC))
-                .neighbor_cache(neighbor_cache)
-                .ip_addrs([ip_addr])
-                .finalize(),
+            InterfaceBuilder::new(
+                smoltcp::phy::Loopback::new(smoltcp::phy::Medium::Ethernet),
+                Vec::with_capacity(MAX_SOCKETS),
+            )
+            .hardware_addr(EthernetAddress::from_bytes(&OWN_MAC).into())
+            .neighbor_cache(neighbor_cache)
+            .ip_addrs([ip_addr])
+            .finalize(),
         )
     }
     else {
@@ -297,20 +299,18 @@ pub fn main() -> i32 {
         #[cfg(target_vendor = "host")]
         let device = driver::DevFifo::new(&settings.name);
         driver::DriverInterface::Eth(
-            InterfaceBuilder::new(device)
-                .ethernet_addr(EthernetAddress::from_bytes(&OWN_MAC))
+            InterfaceBuilder::new(device, Vec::with_capacity(MAX_SOCKETS))
+                .hardware_addr(EthernetAddress::from_bytes(&OWN_MAC).into())
                 .neighbor_cache(neighbor_cache)
                 .ip_addrs([ip_addr])
                 .finalize(),
         )
     };
 
-    let socket_set = SocketSet::new(Vec::with_capacity(MAX_SOCKETS));
-
     let mut handler = NetHandler {
         sel: 0,
         sessions: SessionContainer::new(settings.max_clients),
-        socket_set,
+        iface,
         rgate: Rc::new(rgate),
     };
 
@@ -348,7 +348,7 @@ pub fn main() -> i32 {
             let cur_time = smoltcp::time::Instant::from_millis(start.elapsed().as_millis() as i64);
 
             // now poll smoltcp to send and receive packets
-            if let Err(e) = iface.poll(&mut handler.socket_set, cur_time) {
+            if let Err(e) = handler.iface.poll(cur_time) {
                 log!(LOG_DETAIL, "netrs: poll failed: {}", e);
             }
 
@@ -357,9 +357,9 @@ pub fn main() -> i32 {
 
             if !sends_pending && !recvs_pending {
                 // ask smoltcp how long we can sleep
-                match iface.poll_delay(&handler.socket_set, cur_time) {
+                match handler.iface.poll_delay(cur_time) {
                     // we need to call it again immediately => continue the loop
-                    Some(Duration { millis: 0 }) => continue,
+                    Some(d) if d.total_millis() == 0 => continue,
                     // we should not wait longer than `n` => sleep for `n`
                     Some(n) => break TimeDuration::from_millis(n.total_millis()),
                     // smoltcp has nothing to do => sleep until the next TCU message arrives

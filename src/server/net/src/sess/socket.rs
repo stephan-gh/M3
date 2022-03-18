@@ -33,8 +33,7 @@ use m3::tcu;
 use m3::vfs::OpenFlags;
 use m3::{log, reply_vmsg, vec};
 
-use smoltcp::socket::SocketSet;
-
+use crate::driver::DriverInterface;
 use crate::ports::{self, AnyPort};
 use crate::sess::file::FileSession;
 use crate::smoltcpif::socket::{to_m3_addr, to_m3_ep, SendNetEvent, Socket};
@@ -138,7 +137,7 @@ impl SocketSession {
         crt: usize,
         srv_sel: Selector,
         xchg: &mut CapExchange<'_>,
-        socket_set: &mut SocketSet<'static>,
+        iface: &mut DriverInterface<'_>,
     ) -> Result<(), Error> {
         let is = xchg.in_args();
         let op = is.pop::<NetworkOp>()?;
@@ -150,7 +149,7 @@ impl SocketSession {
                 Ok(())
             },
             NetworkOp::CREATE => {
-                let (caps, sd) = self.create_socket(is, socket_set)?;
+                let (caps, sd) = self.create_socket(is, iface)?;
                 xchg.out_caps(caps);
                 xchg.out_args().push_word(sd as u64);
                 Ok(())
@@ -257,7 +256,7 @@ impl SocketSession {
         protocol: u8,
         args: &SocketArgs,
         caps: Selector,
-        socket_set: &mut SocketSet<'static>,
+        iface: &mut DriverInterface<'_>,
     ) -> Result<Sd, Error> {
         let total_space = Socket::required_space(ty, args);
         if self.buf_quota < total_space {
@@ -267,7 +266,7 @@ impl SocketSession {
         for (i, s) in self.sockets.iter_mut().enumerate() {
             if s.is_none() {
                 *s = Some(Rc::new(RefCell::new(Socket::new(
-                    i, ty, protocol, args, caps, socket_set,
+                    i, ty, protocol, args, caps, iface,
                 )?)));
                 self.buf_quota -= total_space;
                 return Ok(i);
@@ -285,7 +284,7 @@ impl SocketSession {
     fn create_socket(
         &mut self,
         is: &mut Source<'_>,
-        socket_set: &mut SocketSet<'static>,
+        iface: &mut DriverInterface<'_>,
     ) -> Result<(CapRngDesc, Sd), Error> {
         let ty = SocketType::from_usize(is.pop::<usize>()?);
         let protocol: u8 = is.pop()?;
@@ -307,7 +306,7 @@ impl SocketSession {
                 sbuf_size,
             },
             caps,
-            socket_set,
+            iface,
         );
 
         log!(
@@ -350,7 +349,7 @@ impl SocketSession {
     pub fn bind(
         &mut self,
         is: &mut GateIStream<'_>,
-        socket_set: &mut SocketSet<'static>,
+        iface: &mut DriverInterface<'_>,
     ) -> Result<(), Error> {
         let sd: Sd = is.pop()?;
         let port: Port = is.pop()?;
@@ -376,7 +375,7 @@ impl SocketSession {
 
         let port_no = port.number();
         let sock = self.get_socket(sd)?;
-        sock.borrow_mut().bind(crate::own_ip(), port, socket_set)?;
+        sock.borrow_mut().bind(crate::own_ip(), port, iface)?;
 
         let addr = to_m3_addr(crate::own_ip());
         reply_vmsg!(is, Code::None as i32, addr.0, port_no)
@@ -385,7 +384,7 @@ impl SocketSession {
     pub fn listen(
         &mut self,
         is: &mut GateIStream<'_>,
-        socket_set: &mut SocketSet<'static>,
+        iface: &mut DriverInterface<'_>,
     ) -> Result<(), Error> {
         let sd: Sd = is.pop()?;
         let port: Port = is.pop()?;
@@ -403,9 +402,7 @@ impl SocketSession {
         }
 
         let socket = self.get_socket(sd)?;
-        socket
-            .borrow_mut()
-            .listen(socket_set, crate::own_ip(), port)?;
+        socket.borrow_mut().listen(iface, crate::own_ip(), port)?;
 
         let addr = to_m3_addr(crate::own_ip());
         reply_vmsg!(is, Code::None as i32, addr.0)
@@ -414,7 +411,7 @@ impl SocketSession {
     pub fn connect(
         &mut self,
         is: &mut GateIStream<'_>,
-        socket_set: &mut SocketSet<'static>,
+        iface: &mut DriverInterface<'_>,
     ) -> Result<(), Error> {
         let sd: Sd = is.pop()?;
         let remote_addr = IpAddr(is.pop::<u32>()?);
@@ -434,7 +431,7 @@ impl SocketSession {
         let sock = self.get_socket(sd)?;
         let port_no = *local_port;
         sock.borrow_mut()
-            .connect(remote_addr, remote_port, local_port, socket_set)?;
+            .connect(remote_addr, remote_port, local_port, iface)?;
 
         let addr = to_m3_addr(crate::own_ip());
         reply_vmsg!(is, Code::None as i32, addr.0, port_no)
@@ -443,7 +440,7 @@ impl SocketSession {
     pub fn abort(
         &mut self,
         is: &mut GateIStream<'_>,
-        socket_set: &mut SocketSet<'static>,
+        iface: &mut DriverInterface<'_>,
     ) -> Result<(), Error> {
         let sd: Sd = is.pop()?;
         let remove: bool = is.pop()?;
@@ -457,14 +454,14 @@ impl SocketSession {
         );
 
         let socket = self.get_socket(sd)?;
-        socket.borrow_mut().abort(socket_set);
+        socket.borrow_mut().abort(iface);
         if remove {
             self.remove_socket(sd);
         }
         is.reply_error(Code::None)
     }
 
-    pub fn process_incoming(&mut self, socket_set: &mut SocketSet<'static>) -> bool {
+    pub fn process_incoming(&mut self, iface: &mut DriverInterface<'_>) -> bool {
         let sess = self.server_session.ident();
         let mut needs_recheck = false;
 
@@ -476,14 +473,14 @@ impl SocketSession {
 
                 chan.fetch_replies();
 
-                if sock.process_queued_events(sess, socket_set) {
+                if sock.process_queued_events(sess, iface) {
                     needs_recheck = true;
                     continue 'outer_loop;
                 }
 
                 // receive everything in the channel
                 while let Some(event) = chan.receive_event() {
-                    if sock.process_event(sess, socket_set, event) {
+                    if sock.process_event(sess, iface, event) {
                         needs_recheck = true;
                         continue 'outer_loop;
                     }
@@ -494,7 +491,7 @@ impl SocketSession {
         needs_recheck
     }
 
-    pub fn process_outgoing(&mut self, socket_set: &mut SocketSet<'static>) -> bool {
+    pub fn process_outgoing(&mut self, iface: &mut DriverInterface<'_>) -> bool {
         let mut needs_recheck = false;
         // iterate over all sockets and try to receive
         for socket in self.sockets.iter().flatten() {
@@ -512,7 +509,7 @@ impl SocketSession {
                     break;
                 }
 
-                if let Some(event) = socket.borrow_mut().fetch_event(socket_set) {
+                if let Some(event) = socket.borrow_mut().fetch_event(iface) {
                     log!(
                         crate::LOG_DATA,
                         "[{}] socket {}: received event {:?}",
@@ -536,7 +533,7 @@ impl SocketSession {
                 }
 
                 let mut received = false;
-                socket.borrow_mut().receive(socket_set, |data, addr| {
+                socket.borrow_mut().receive(iface, |data, addr| {
                     let ep = to_m3_ep(addr);
                     let amount = cmp::min(event::MTU, data.len());
 

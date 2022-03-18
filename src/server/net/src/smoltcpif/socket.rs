@@ -27,15 +27,15 @@ use m3::rc::Rc;
 use m3::time::{TimeDuration, TimeInstant};
 use m3::vec;
 
-use smoltcp::socket::SocketSet;
+use smoltcp::iface::SocketHandle;
 use smoltcp::socket::{
-    RawSocket, RawSocketBuffer, SocketHandle, TcpSocket, TcpSocketBuffer, TcpState, UdpSocket,
-    UdpSocketBuffer,
+    RawSocket, RawSocketBuffer, TcpSocket, TcpSocketBuffer, TcpState, UdpSocket, UdpSocketBuffer,
 };
 use smoltcp::storage::PacketMetadata;
 use smoltcp::wire::IpVersion;
 use smoltcp::wire::{IpAddress, IpEndpoint, Ipv4Address};
 
+use crate::driver::DriverInterface;
 use crate::ports::{AnyPort, EphemeralPort};
 use crate::sess::FileSession;
 
@@ -113,14 +113,14 @@ impl Socket {
         protocol: u8,
         args: &SocketArgs,
         caps: Selector,
-        socket_set: &mut SocketSet<'static>,
+        iface: &mut DriverInterface<'_>,
     ) -> Result<Self, Error> {
         let socket = match ty {
-            SocketType::Stream => socket_set.add(TcpSocket::new(
+            SocketType::Stream => iface.add_socket(TcpSocket::new(
                 TcpSocketBuffer::new(vec![0u8; args.rbuf_size]),
                 TcpSocketBuffer::new(vec![0u8; args.sbuf_size]),
             )),
-            SocketType::Dgram => socket_set.add(UdpSocket::new(
+            SocketType::Dgram => iface.add_socket(UdpSocket::new(
                 UdpSocketBuffer::new(vec![PacketMetadata::EMPTY; args.rbuf_slots], vec![
                     0u8;
                     args.rbuf_size
@@ -130,7 +130,7 @@ impl Socket {
                     args.sbuf_size
                 ]),
             )),
-            SocketType::Raw => socket_set.add(RawSocket::new(
+            SocketType::Raw => iface.add_socket(RawSocket::new(
                 IpVersion::Ipv4,
                 protocol.into(),
                 RawSocketBuffer::new(vec![PacketMetadata::EMPTY; args.rbuf_slots], vec![
@@ -190,10 +190,10 @@ impl Socket {
         self.sfile = file;
     }
 
-    pub fn fetch_event(&mut self, socket_set: &mut SocketSet<'static>) -> Option<SendNetEvent> {
+    pub fn fetch_event(&mut self, iface: &mut DriverInterface<'_>) -> Option<SendNetEvent> {
         match (self.ty, self.state) {
             (SocketType::Stream, State::Connecting) => {
-                let mut tcp_socket = socket_set.get::<TcpSocket<'_>>(self.socket);
+                let tcp_socket = iface.get_socket::<TcpSocket<'_>>(self.socket);
                 if tcp_socket.state() == TcpState::Established {
                     self.state = State::Connected;
                     let ep = to_m3_ep(tcp_socket.remote_endpoint());
@@ -217,7 +217,7 @@ impl Socket {
             },
 
             (SocketType::Stream, State::Connected) => {
-                let tcp_socket = socket_set.get::<TcpSocket<'_>>(self.socket);
+                let tcp_socket = iface.get_socket::<TcpSocket<'_>>(self.socket);
                 if !tcp_socket.is_open() {
                     self._local_port = None;
                     self.state = State::Closed;
@@ -241,7 +241,7 @@ impl Socket {
         &mut self,
         addr: IpAddress,
         port: AnyPort,
-        socket_set: &mut SocketSet<'static>,
+        iface: &mut DriverInterface<'_>,
     ) -> Result<(), Error> {
         if self.ty != SocketType::Dgram {
             return Err(Error::new(Code::InvArgs));
@@ -251,7 +251,7 @@ impl Socket {
         }
 
         let endpoint = IpEndpoint::new(addr, port.number());
-        let mut udp_socket = socket_set.get::<UdpSocket<'_>>(self.socket);
+        let udp_socket = iface.get_socket::<UdpSocket<'_>>(self.socket);
         match udp_socket.bind(endpoint) {
             Ok(_) => {
                 if let AnyPort::Ephemeral(e) = port {
@@ -270,7 +270,7 @@ impl Socket {
 
     pub fn listen(
         &mut self,
-        socket_set: &mut SocketSet<'static>,
+        iface: &mut DriverInterface<'_>,
         addr: IpAddress,
         port: Port,
     ) -> Result<(), Error> {
@@ -282,7 +282,7 @@ impl Socket {
         }
 
         let endpoint = IpEndpoint::new(addr, port);
-        let mut tcp_socket = socket_set.get::<TcpSocket<'_>>(self.socket);
+        let tcp_socket = iface.get_socket::<TcpSocket<'_>>(self.socket);
         match tcp_socket.listen(endpoint) {
             Ok(_) => {
                 self.connect_start = None;
@@ -302,7 +302,7 @@ impl Socket {
         remote_addr: IpAddr,
         remote_port: Port,
         local_port: EphemeralPort,
-        socket_set: &mut SocketSet<'static>,
+        iface: &mut DriverInterface<'_>,
     ) -> Result<(), Error> {
         if self.ty != SocketType::Stream {
             return Err(Error::new(Code::InvArgs));
@@ -317,8 +317,8 @@ impl Socket {
         );
         let local_endpoint = IpEndpoint::from(*local_port);
 
-        let mut tcp_socket = socket_set.get::<TcpSocket<'_>>(self.socket);
-        match tcp_socket.connect(remote_endpoint, local_endpoint) {
+        let (tcp_socket, cx) = iface.get_socket_and_context::<TcpSocket<'_>>(self.socket);
+        match tcp_socket.connect(cx, remote_endpoint, local_endpoint) {
             Ok(_) => {
                 self.connect_start = Some(TimeInstant::now());
                 self.state = State::Connecting;
@@ -333,19 +333,19 @@ impl Socket {
         }
     }
 
-    pub fn close(&mut self, socket_set: &mut SocketSet<'static>) -> Result<(), Error> {
+    pub fn close(&mut self, iface: &mut DriverInterface<'_>) -> Result<(), Error> {
         if self.ty != SocketType::Stream {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let mut tcp_socket = socket_set.get::<TcpSocket<'_>>(self.socket);
+        let tcp_socket = iface.get_socket::<TcpSocket<'_>>(self.socket);
         tcp_socket.close();
         Ok(())
     }
 
-    pub fn abort(&mut self, socket_set: &mut SocketSet<'static>) {
+    pub fn abort(&mut self, iface: &mut DriverInterface<'_>) {
         if self.ty == SocketType::Stream {
-            let mut tcp_socket = socket_set.get::<TcpSocket<'_>>(self.socket);
+            let tcp_socket = iface.get_socket::<TcpSocket<'_>>(self.socket);
             tcp_socket.abort();
         }
 
@@ -353,13 +353,13 @@ impl Socket {
         self.state = State::Closed;
     }
 
-    pub fn receive<F>(&mut self, socket_set: &mut SocketSet<'static>, func: F)
+    pub fn receive<F>(&mut self, iface: &mut DriverInterface<'_>, func: F)
     where
         F: FnOnce(&[u8], IpEndpoint) -> usize,
     {
         match self.ty {
             SocketType::Stream => {
-                let mut tcp_socket = socket_set.get::<TcpSocket<'_>>(self.socket);
+                let tcp_socket = iface.get_socket::<TcpSocket<'_>>(self.socket);
                 if self.state == State::Connected {
                     let addr = tcp_socket.remote_endpoint();
                     // don't even log errors here, since they occur often and are uninteresting
@@ -377,14 +377,14 @@ impl Socket {
             },
 
             SocketType::Dgram => {
-                let mut udp_socket = socket_set.get::<UdpSocket<'_>>(self.socket);
+                let udp_socket = iface.get_socket::<UdpSocket<'_>>(self.socket);
                 if let Ok((data, remote_endpoint)) = udp_socket.recv() {
                     func(data, remote_endpoint);
                 }
             },
 
             SocketType::Raw => {
-                let mut raw_socket = socket_set.get::<RawSocket<'_>>(self.socket);
+                let raw_socket = iface.get_socket::<RawSocket<'_>>(self.socket);
                 if let Ok(data) = raw_socket.recv() {
                     func(data, IpEndpoint::UNSPECIFIED);
                 }
@@ -400,11 +400,11 @@ impl Socket {
         data: &[u8],
         dest_addr: IpAddr,
         dest_port: Port,
-        socket_set: &mut SocketSet<'static>,
+        iface: &mut DriverInterface<'_>,
     ) -> usize {
         match ty {
             SocketType::Stream => {
-                let mut tcp_socket = socket_set.get::<TcpSocket<'_>>(socket);
+                let tcp_socket = iface.get_socket::<TcpSocket<'_>>(socket);
                 if tcp_socket.can_send() {
                     tcp_socket.send_slice(data).unwrap()
                 }
@@ -414,7 +414,7 @@ impl Socket {
             },
 
             SocketType::Dgram => {
-                let mut udp_socket = socket_set.get::<UdpSocket<'_>>(socket);
+                let udp_socket = iface.get_socket::<UdpSocket<'_>>(socket);
                 if udp_socket.can_send() {
                     let rend = IpEndpoint::new(
                         IpAddress::Ipv4(Ipv4Address::from_bytes(&dest_addr.0.to_be_bytes())),
@@ -430,7 +430,7 @@ impl Socket {
             },
 
             SocketType::Raw => {
-                let mut raw_socket = socket_set.get::<RawSocket<'_>>(socket);
+                let raw_socket = iface.get_socket::<RawSocket<'_>>(socket);
                 if raw_socket.can_send() {
                     raw_socket.send_slice(data).unwrap();
                     data.len()
@@ -444,11 +444,7 @@ impl Socket {
         }
     }
 
-    pub fn process_queued_events(
-        &mut self,
-        sess: u64,
-        socket_set: &mut SocketSet<'static>,
-    ) -> bool {
+    pub fn process_queued_events(&mut self, sess: u64, iface: &mut DriverInterface<'_>) -> bool {
         let socket = self.socket;
         let ty = self.ty;
         let sd = self.sd;
@@ -456,7 +452,7 @@ impl Socket {
         while self
             .send_queue
             .next_data(usize::MAX, &mut |data, ep: Endpoint| {
-                let amount = Self::send(ty, socket, data, ep.addr, ep.port, socket_set);
+                let amount = Self::send(ty, socket, data, ep.addr, ep.port, iface);
                 if amount > 0 {
                     log!(
                         crate::LOG_DATA,
@@ -477,7 +473,7 @@ impl Socket {
     pub fn process_event(
         &mut self,
         sess: u64,
-        socket_set: &mut SocketSet<'static>,
+        iface: &mut DriverInterface<'_>,
         event: NetEvent,
     ) -> bool {
         match event.msg_type() {
@@ -492,7 +488,7 @@ impl Socket {
                     &data.data[0..data.size as usize],
                     ip,
                     port,
-                    socket_set,
+                    iface,
                 );
                 if res > 0 {
                     log!(
@@ -526,7 +522,7 @@ impl Socket {
                 log!(crate::LOG_SESS, "[{}] net::close_req(sd={})", sess, self.sd);
 
                 // ignore error
-                self.close(socket_set).ok();
+                self.close(iface).ok();
             },
 
             m => log!(crate::LOG_ERR, "Unexpected message from client: {}", m),
