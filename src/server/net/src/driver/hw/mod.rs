@@ -37,9 +37,11 @@ extern "C" {
 const RX_BUF_SIZE: usize = 2 * 1024 * 1024;
 const ALL_BUF_SIZE: usize = RX_BUF_SIZE + 0x21000; // see axieth.cc
 const BUF_VIRT_ADDR: goff = 0x3000_0000;
+const MTU: usize = 1500;
 
 pub struct AXIEthDevice {
     _bufs: MemGate,
+    rx_buf: Option<Vec<u8>>,
     tx_buf: usize,
 }
 
@@ -59,6 +61,7 @@ impl AXIEthDevice {
         else {
             Ok(Self {
                 _bufs: bufs,
+                rx_buf: None,
                 tx_buf: res as usize,
             })
         }
@@ -79,7 +82,7 @@ impl<'a> smoltcp::phy::Device<'a> for AXIEthDevice {
 
     fn capabilities(&self) -> smoltcp::phy::DeviceCapabilities {
         let mut caps = smoltcp::phy::DeviceCapabilities::default();
-        caps.max_transmission_unit = 1500;
+        caps.max_transmission_unit = MTU;
         // TODO use checksum offloading
         caps.checksum.ipv4 = smoltcp::phy::Checksum::Both;
         caps.checksum.udp = smoltcp::phy::Checksum::Both;
@@ -88,12 +91,17 @@ impl<'a> smoltcp::phy::Device<'a> for AXIEthDevice {
     }
 
     fn receive(&'a mut self) -> Option<(Self::RxToken, Self::TxToken)> {
-        let mut buffer = vec![0u8; 1500];
-        let res = unsafe { axieth_recv((&mut buffer[..]).as_mut_ptr(), buffer.len()) };
+        if self.rx_buf.is_none() {
+            self.rx_buf = Some(vec![0u8; MTU]);
+        }
+
+        let buf = self.rx_buf.as_mut().unwrap();
+        let res = unsafe { axieth_recv((&mut buf[..]).as_mut_ptr(), buf.len()) };
         if res == 0 {
             None
         }
         else {
+            let mut buffer = self.rx_buf.take().unwrap();
             buffer.resize(res, 0);
             let rx = RxToken { buffer };
             let tx = TxToken {
