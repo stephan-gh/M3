@@ -14,11 +14,14 @@
  */
 
 use m3::com::Semaphore;
-use m3::errors::Code;
+use m3::errors::{Code, Error};
 use m3::net::{DgramSocketArgs, Endpoint, State, UdpSocket};
-use m3::session::NetworkManager;
+use m3::session::{NetworkDirection, NetworkManager};
 use m3::test;
+use m3::time::TimeDuration;
 use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
+
+const TIMEOUT: TimeDuration = TimeDuration::from_secs(1);
 
 pub fn run(t: &mut dyn test::WvTester) {
     // wait once for UDP, because it's connection-less
@@ -59,10 +62,32 @@ fn connect() {
     wv_assert_eq!(socket.state(), State::Bound);
 }
 
+fn send_recv(
+    nm: &NetworkManager,
+    socket: &mut UdpSocket<'_>,
+    dest: Endpoint,
+    send_buf: &[u8],
+    recv_buf: &mut [u8],
+    timeout: TimeDuration,
+) -> Result<(usize, Endpoint), Error> {
+    wv_assert_ok!(socket.send_to(send_buf, dest));
+
+    nm.wait_for(timeout, NetworkDirection::INPUT);
+
+    if socket.has_data() {
+        socket.recv_from(recv_buf)
+    }
+    else {
+        Err(Error::new(Code::Timeout))
+    }
+}
+
 fn data() {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
     let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(&nm)));
+
+    socket.set_blocking(false);
 
     let dest = Endpoint::new(crate::DST_IP.get(), 1337);
 
@@ -73,16 +98,33 @@ fn data() {
 
     let mut recv_buf = [0u8; 1024];
 
+    // do one initial send-receive with a higher timeout than the smoltcp-internal timeout to
+    // workaround the high ARP-request delay with the loopback device.
+    wv_assert_ok!(send_recv(
+        &nm,
+        &mut socket,
+        dest,
+        &send_buf[0..1],
+        &mut recv_buf,
+        TimeDuration::from_secs(6)
+    ));
+
     let packet_sizes = [8, 16, 32, 64, 128, 256, 512, 1024];
-
     for pkt_size in &packet_sizes {
-        wv_assert_ok!(socket.send_to(&send_buf[0..*pkt_size], dest));
-
-        let (recv_size, src) = wv_assert_ok!(socket.recv_from(&mut recv_buf));
-
-        wv_assert_eq!(*pkt_size, recv_size as usize);
-        wv_assert_eq!(src, dest);
-
-        wv_assert_eq!(&recv_buf[0..recv_size], &send_buf[0..recv_size]);
+        loop {
+            if let Ok((recv_size, src)) = send_recv(
+                &nm,
+                &mut socket,
+                dest,
+                &send_buf[0..*pkt_size],
+                &mut recv_buf,
+                TIMEOUT,
+            ) {
+                wv_assert_eq!(*pkt_size, recv_size as usize);
+                wv_assert_eq!(src, dest);
+                wv_assert_eq!(&recv_buf[0..recv_size], &send_buf[0..recv_size]);
+                break;
+            }
+        }
     }
 }

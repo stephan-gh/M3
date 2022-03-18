@@ -53,10 +53,25 @@ static void connect() {
     WVASSERTEQ(socket->state(), Socket::Bound);
 }
 
+static ssize_t send_recv(NetworkManager &net, Reference<UdpSocket> socket, const Endpoint &dest,
+                         const uint8_t *send_buf, size_t sbuf_size, TimeDuration timeout,
+                         uint8_t *recv_buf, size_t rbuf_size, Endpoint *src) {
+    socket->send_to(send_buf, sbuf_size, dest);
+
+    net.wait_for(timeout, NetworkManager::Direction::INPUT);
+
+    if(socket->has_data())
+        return socket->recv_from(recv_buf, rbuf_size, src);
+    return 0;
+}
+
 NOINLINE static void data() {
+    const TimeDuration TIMEOUT = TimeDuration::from_secs(1);
+
     NetworkManager net("net0");
 
     auto socket = UdpSocket::create(net);
+    socket->blocking(false);
 
     Endpoint src;
     Endpoint dest = Endpoint(IpAddr(192, 168, 112, 1), 1337);
@@ -67,18 +82,26 @@ NOINLINE static void data() {
 
     uint8_t recv_buf[1024];
 
+    // do one initial send-receive with a higher timeout than the smoltcp-internal timeout to
+    // workaround the high ARP-request delay with the loopback device.
+    send_recv(net, socket, dest, send_buf, 1, TimeDuration::from_secs(6),
+              recv_buf, sizeof(recv_buf), &src);
+
     size_t packet_sizes[] = {8, 16, 32, 64, 128, 256, 512, 1024};
 
     for(auto pkt_size : packet_sizes) {
-        socket->send_to(send_buf, pkt_size, dest);
+        while(true) {
+            ssize_t recv_size = send_recv(net, socket, dest, send_buf, pkt_size, TIMEOUT,
+                                          recv_buf, sizeof(recv_buf), &src);
+            if(recv_size != 0) {
+                WVASSERTEQ(static_cast<ssize_t>(pkt_size), recv_size);
+                WVASSERTEQ(src, dest);
 
-        ssize_t recv_size = socket->recv_from(recv_buf, sizeof(recv_buf), &src);
-
-        WVASSERTEQ(static_cast<ssize_t>(pkt_size), recv_size);
-        WVASSERTEQ(src, dest);
-
-        for(ssize_t i = 0; i < recv_size; ++i)
-            WVASSERTEQ(recv_buf[i], send_buf[i]);
+                for(ssize_t i = 0; i < recv_size; ++i)
+                    WVASSERTEQ(recv_buf[i], send_buf[i]);
+                break;
+            }
+        }
     }
 }
 

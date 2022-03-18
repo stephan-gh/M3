@@ -30,29 +30,42 @@
 
 using namespace m3;
 
-union {
-    uint8_t raw[1024];
-    uint64_t time;
-} request;
+static ssize_t send_recv(NetworkManager &net, Reference<UdpSocket> socket, const Endpoint &dest,
+                         const uint8_t *send_buf, size_t sbuf_size, TimeDuration timeout,
+                         uint8_t *recv_buf, size_t rbuf_size, Endpoint *src) {
+    socket->send_to(send_buf, sbuf_size, dest);
 
-union {
-    uint8_t raw[1024];
-    uint64_t time;
-} response;
+    net.wait_for(timeout, NetworkManager::Direction::INPUT);
+
+    if(socket->has_data())
+        return socket->recv_from(recv_buf, rbuf_size, src);
+    return 0;
+}
 
 NOINLINE static void latency() {
+    const TimeDuration TIMEOUT = TimeDuration::from_secs(1);
+
     NetworkManager net("net");
 
+    uint8_t request[1024];
+    uint8_t response[1024];
+
     auto socket = UdpSocket::create(net);
+    socket->blocking(false);
 
     const size_t samples = 15;
     Endpoint src;
     Endpoint dest = Endpoint(IpAddr(192, 168, 112, 1), 1337);
 
+    // do one initial send-receive with a higher timeout than the smoltcp-internal timeout to
+    // workaround the high ARP-request delay with the loopback device.
+    send_recv(net, socket, dest, request, 1, TimeDuration::from_secs(6),
+              response, sizeof(response), &src);
+
     size_t warmup = 5;
     while(warmup--) {
-        socket->send_to(request.raw, 8, dest);
-        socket->recv_from(response.raw, 8, &src);
+        send_recv(net, socket, dest, request, 8, TIMEOUT,
+                  response, sizeof(response), &src);
     }
 
     const size_t packet_size[] = {8, 16, 32, 64, 128, 256, 512, 1024};
@@ -63,20 +76,13 @@ NOINLINE static void latency() {
         while(res.runs() < samples) {
             auto start = TimeInstant::now();
 
-            request.time = start.as_nanos();
-            ssize_t send_len = socket->send_to(request.raw, pkt_size, dest);
-            ssize_t recv_len = socket->recv_from(response.raw, pkt_size, &src);
-            if(recv_len == -1)
-                exitmsg("Got empty package!");
+            ssize_t recv_len = send_recv(net, socket, dest, request, pkt_size, TIMEOUT,
+                                         response, sizeof(response), &src);
+            if(recv_len == 0)
+                continue;
             auto stop = TimeInstant::now();
 
-            if(static_cast<size_t>(send_len) != pkt_size)
-                exitmsg("Send failed, expected " << pkt_size << ", got " << send_len);
-
-            if(static_cast<size_t>(recv_len) != pkt_size || start.as_nanos() != response.time) {
-                cout << "Time should be " << start.as_nanos() << " but was " << response.time << "\n";
-                exitmsg("Receive failed, expected " << pkt_size << ", got " << recv_len);
-            }
+            WVASSERTEQ(static_cast<size_t>(recv_len), pkt_size);
 
             auto duration = stop.duration_since(start);
             cout << "RTT (" << pkt_size << "b): " << duration.as_micros() << " us\n";
@@ -95,6 +101,9 @@ NOINLINE static void bandwidth() {
 
     constexpr size_t packet_size = 1024;
 
+    uint8_t request[1024];
+    uint8_t response[1024];
+
     Endpoint src;
     Endpoint dest = Endpoint(IpAddr(192, 168, 112, 1), 1337);
 
@@ -109,8 +118,8 @@ NOINLINE static void bandwidth() {
     size_t received_bytes        = 0;
 
     while(warmup--) {
-        socket->send_to(request.raw, 8, dest);
-        socket->recv_from(response.raw, sizeof(response.raw), &src);
+        socket->send_to(request, 8, dest);
+        socket->recv_from(response, sizeof(response), &src);
     }
 
     socket->blocking(false);
@@ -135,7 +144,7 @@ NOINLINE static void bandwidth() {
 
         size_t send_count = burst_size;
         while(send_count-- && packet_sent_count < packets_to_send) {
-            if(socket->send_to(request.raw, packet_size, dest) > 0) {
+            if(socket->send_to(request, packet_size, dest) > 0) {
                 packet_sent_count++;
                 failures = 0;
             } else {
@@ -146,7 +155,7 @@ NOINLINE static void bandwidth() {
 
         size_t receive_count = burst_size;
         while(receive_count--) {
-            ssize_t pkt_size = socket->recv_from(response.raw, sizeof(response.raw), &src);
+            ssize_t pkt_size = socket->recv_from(response, sizeof(response), &src);
 
             if(pkt_size != -1) {
                 received_bytes += static_cast<size_t>(pkt_size);

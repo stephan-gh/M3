@@ -109,6 +109,18 @@ public:
         _blocking = blocking;
     }
 
+    /**
+     * Checks whether there is data to receive.
+     *
+     * Note that this function does not process events. To receive data, any receive function on
+     * this socket or [`NetworkManager::wait`] has to be called.
+     *
+     * @return true if data can currently be received from the socket
+     */
+    bool has_data() const noexcept {
+        return _recv_queue.has_data();
+    }
+
 protected:
     explicit Socket(int sd, capsel_t caps, NetworkManager &nm);
 
