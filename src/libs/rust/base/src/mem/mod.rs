@@ -27,8 +27,3 @@ pub use self::buffer::{AlignedBuf, MsgBuf, MsgBufRef};
 pub use self::globaddr::GlobAddr;
 pub use self::map::MemMap;
 pub use core::mem::{align_of, align_of_val, forget, replace, size_of, size_of_val, MaybeUninit};
-
-/// Reinitializes the memory module (for activity::run)
-pub fn reinit() {
-    buffer::reinit();
-}

@@ -28,11 +28,6 @@ static DEF_MSG_BUF: StaticUnsafeCell<MsgBuf> = StaticUnsafeCell::new(MsgBuf {
     used: false,
 });
 
-pub(crate) fn reinit() {
-    DEF_MSG_BUF.get_mut().used = false;
-    DEF_MSG_BUF.get_mut().pos = 0;
-}
-
 /// A reference to a `MsgBuf` that makes sure that each `MsgBuf` is used at most once at a time.
 pub struct MsgBufRef<'m> {
     buf: &'m mut MsgBuf,
