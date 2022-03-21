@@ -209,7 +209,7 @@ impl EnvData {
     }
 }
 
-pub fn get() -> &'static mut EnvData {
+pub fn get() -> &'static EnvData {
     // safety: we trust our loader
-    unsafe { &mut *(cfg::ENV_START as *mut _) }
+    unsafe { &*(cfg::ENV_START as *const _) }
 }

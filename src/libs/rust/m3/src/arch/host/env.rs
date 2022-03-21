@@ -21,7 +21,7 @@ use base::format;
 
 use crate::arch;
 use crate::cap::Selector;
-use crate::cell::LazyStaticUnsafeCell;
+use crate::cell::LazyReadOnlyCell;
 use crate::col::{String, Vec};
 use crate::com::SendGate;
 use crate::kif::{self, TileDesc, TileISA, TileType};
@@ -143,10 +143,10 @@ fn read_line(fd: i32) -> String {
     unsafe { String::from_utf8_unchecked(vec) }
 }
 
-static ENV_DATA: LazyStaticUnsafeCell<EnvData> = LazyStaticUnsafeCell::default();
+static ENV_DATA: LazyReadOnlyCell<EnvData> = LazyReadOnlyCell::default();
 
-pub fn get() -> &'static mut EnvData {
-    ENV_DATA.get_mut()
+pub fn get() -> &'static EnvData {
+    ENV_DATA.get()
 }
 
 pub fn init(argc: i32, argv: *const *const i8) {

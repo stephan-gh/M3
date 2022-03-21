@@ -18,7 +18,7 @@
 
 use core::ptr;
 
-use crate::cell::{LazyStaticUnsafeCell, StaticCell};
+use crate::cell::{LazyReadOnlyCell, StaticCell};
 use crate::cfg;
 use crate::kif::{CapSel, TileDesc, TileDescRaw};
 use crate::util;
@@ -56,11 +56,11 @@ impl EnvData {
     }
 }
 
-static ENV_DATA: LazyStaticUnsafeCell<EnvData> = LazyStaticUnsafeCell::default();
+static ENV_DATA: LazyReadOnlyCell<EnvData> = LazyReadOnlyCell::default();
 static MEM: StaticCell<Option<usize>> = StaticCell::new(None);
 
-pub fn get() -> &'static mut EnvData {
-    ENV_DATA.get_mut()
+pub fn get() -> &'static EnvData {
+    ENV_DATA.get()
 }
 
 pub fn set(data: EnvData) {
