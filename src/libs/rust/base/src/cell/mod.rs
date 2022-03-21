@@ -23,8 +23,8 @@ mod stat;
 mod statref;
 mod statunsafe;
 
-pub use self::lazy::{LazyReadOnlyCell, LazyStaticCell, LazyStaticRefCell, LazyStaticUnsafeCell};
+pub use self::lazy::{LazyReadOnlyCell, LazyStaticCell, LazyStaticRefCell};
 pub use self::stat::StaticCell;
 pub use self::statref::StaticRefCell;
-pub use self::statunsafe::StaticUnsafeCell;
+pub use self::statunsafe::{LazyStaticUnsafeCell, StaticUnsafeCell};
 pub use core::cell::{Cell, Ref, RefCell, RefMut, UnsafeCell};

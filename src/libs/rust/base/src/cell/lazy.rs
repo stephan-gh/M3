@@ -16,9 +16,7 @@
  * General Public License version 2 for more details.
  */
 
-use core::ops::Deref;
-
-use crate::cell::{Ref, RefMut, StaticCell, StaticRefCell, StaticUnsafeCell, UnsafeCell};
+use crate::cell::{Ref, RefMut, StaticCell, StaticRefCell, UnsafeCell};
 use crate::mem;
 
 /// A `LazyStaticCell` is the same as the [`StaticCell`](super::StaticCell), but contains an
@@ -140,55 +138,5 @@ impl<T: Sized> LazyReadOnlyCell<T> {
     /// The caller needs to make sure that there are no references left to the old value.
     pub unsafe fn reset(&self, val: T) -> Option<T> {
         mem::replace(&mut *self.inner.get(), Some(val))
-    }
-}
-
-/// A `LazyStaticUnsafeCell` is the same as the [`StaticUnsafeCell`](super::StaticUnsafeCell), but
-/// contains an [`Option<T>`](Option). At construction, the value is `None` and it needs to be set
-/// before other functions can be used. That is, all access functions assume that the value has been
-/// set before.
-pub struct LazyStaticUnsafeCell<T: Sized> {
-    inner: StaticUnsafeCell<Option<T>>,
-}
-
-impl<T> LazyStaticUnsafeCell<T> {
-    pub const fn default() -> Self {
-        Self {
-            inner: StaticUnsafeCell::new(None),
-        }
-    }
-
-    /// Returns true if the value has been set
-    pub fn is_some(&self) -> bool {
-        self.inner.is_some()
-    }
-
-    /// Returns a reference to the inner value
-    pub fn get(&self) -> &T {
-        self.inner.get().as_ref().unwrap()
-    }
-
-    /// Returns a mutable reference to the inner value
-    #[allow(clippy::mut_from_ref)]
-    pub fn get_mut(&self) -> &mut T {
-        self.inner.get_mut().as_mut().unwrap()
-    }
-
-    /// Sets the inner value to `val` and returns the old value
-    pub fn set(&self, val: T) -> Option<T> {
-        self.inner.set(Some(val))
-    }
-
-    /// Removes the inner value and returns the old value
-    pub fn unset(&self) -> Option<T> {
-        self.inner.set(None)
-    }
-}
-
-impl<T: Sized> Deref for LazyStaticUnsafeCell<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        self.get()
     }
 }

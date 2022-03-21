@@ -738,12 +738,15 @@ fn handle_receive(backend: &backend::SocketBackend, ep: EpId) -> bool {
     }
 }
 
+// TODO unfortunately, we have to use an unsafe cell here, because it's used from multiple threads
+// and we don't have a standard library. we therefore manually take care that this is correct.
 static BACKEND: StaticUnsafeCell<Option<backend::SocketBackend>> = StaticUnsafeCell::new(None);
 static RUN: atomic::AtomicUsize = atomic::AtomicUsize::new(1);
 static mut TID: libc::pthread_t = 0;
 
 pub(crate) fn get_backend() -> &'static mut backend::SocketBackend {
-    BACKEND.get_mut().as_mut().unwrap()
+    // safety: see comment for BACKEND
+    unsafe { BACKEND.get_mut().as_mut().unwrap() }
 }
 
 extern "C" fn sigchild(_: i32) {
@@ -830,7 +833,10 @@ pub fn init() {
     LOG.set(io::log::Log::new());
     LOG.borrow_mut().init(envdata::get().tile_id, "TCU");
 
-    BACKEND.set(Some(backend::SocketBackend::new()));
+    // safety: we pass in a newly constructed SocketBackend and have not initialized BACKEND before.
+    unsafe {
+        BACKEND.set(Some(backend::SocketBackend::new()));
+    }
 
     unsafe {
         let res = libc::pthread_create(&mut TID, ptr::null(), run, ptr::null_mut());
@@ -848,5 +854,8 @@ pub fn deinit() {
         assert!(libc::pthread_join(TID, ptr::null_mut()) == 0);
     }
 
-    BACKEND.set(None);
+    // safety: the thread is killed, so there are no other references left
+    unsafe {
+        BACKEND.set(None);
+    }
 }

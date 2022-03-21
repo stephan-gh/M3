@@ -68,7 +68,8 @@ const MSG_SIZE: usize = 128;
 static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 
 static SB: LazyStaticRefCell<SuperBlock> = LazyStaticRefCell::default();
-// TODO can we use a safe cell here?
+// TODO we unfortunately need to use an unsafe cell here at the moment, because the meta buffer is
+// basicalled used in all modules, making it really hard to use something like a RefCell here.
 static MB: LazyStaticUnsafeCell<MetaBuffer> = LazyStaticUnsafeCell::default();
 static FB: LazyStaticRefCell<FileBuffer> = LazyStaticRefCell::default();
 static FILES: StaticRefCell<OpenFiles> = StaticRefCell::new(OpenFiles::new());
@@ -84,7 +85,8 @@ fn superblock_mut() -> RefMut<'static, SuperBlock> {
     SB.borrow_mut()
 }
 fn meta_buffer_mut() -> &'static mut MetaBuffer {
-    MB.get_mut()
+    // safety: see comment for MB
+    unsafe { MB.get_mut() }
 }
 fn file_buffer_mut() -> RefMut<'static, FileBuffer> {
     FB.borrow_mut()
@@ -178,7 +180,10 @@ impl M3FSRequestHandler {
             sb.block_size as usize,
         ));
 
-        MB.set(MetaBuffer::new(sb.block_size as usize));
+        // safety: we pass in a newly constructed MetaBuffer and have not initialized MB before
+        unsafe {
+            MB.set(MetaBuffer::new(sb.block_size as usize));
+        }
         FB.set(FileBuffer::new(sb.block_size as usize));
         SB.set(sb);
 

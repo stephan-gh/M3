@@ -153,7 +153,10 @@ pub struct Activity {
 
 impl_boxitem!(Activity);
 
-// TODO can we use safe cells here?
+// safety: we do the trade-off here to manually sign off that we never obtain two mutable references
+// to the same activity. This is because this code is highly performance critical and it is really
+// hard to use StaticRefCell or similar here instead. For example, the scheduler needs access to two
+// different activities at the same time.
 static ACTIVITIES: StaticUnsafeCell<[Option<NonNull<Activity>>; 64]> =
     StaticUnsafeCell::new([None; 64]);
 
@@ -207,20 +210,23 @@ pub fn init() {
     let our_quota = quota::get_time(quota::IDLE_ID).unwrap();
     our_quota.attach();
 
-    IDLE.set(Box::new(Activity::new(
-        kif::tilemux::IDLE_ID,
-        idle_quota,
-        quota::get_pt(quota::IDLE_ID).unwrap(),
-        0,
-        root_pt,
-    )));
-    OUR.set(Box::new(Activity::new(
-        kif::tilemux::ACT_ID,
-        our_quota,
-        quota::get_pt(quota::IDLE_ID).unwrap(),
-        0,
-        root_pt,
-    )));
+    // safety: there are no other references to IDLE or OUR yet
+    unsafe {
+        IDLE.set(Box::new(Activity::new(
+            kif::tilemux::IDLE_ID,
+            idle_quota,
+            quota::get_pt(quota::IDLE_ID).unwrap(),
+            0,
+            root_pt,
+        )));
+        OUR.set(Box::new(Activity::new(
+            kif::tilemux::ACT_ID,
+            our_quota,
+            quota::get_pt(quota::IDLE_ID).unwrap(),
+            0,
+            root_pt,
+        )));
+    }
 
     if pex_env().tile_desc.has_virtmem() {
         our().frames.push(frame);
@@ -275,6 +281,7 @@ pub fn add(
         act.init();
     }
 
+    // safety: we obtained act from a Box
     unsafe {
         ACTIVITIES.get_mut()[id as usize] = Some(NonNull::new_unchecked(act.as_mut()));
     }
@@ -288,23 +295,29 @@ pub fn get_mut(id: Id) -> Option<&'static mut Activity> {
         Some(our())
     }
     else {
-        ACTIVITIES.get_mut()[id as usize]
-            .as_mut()
-            .map(|v| unsafe { v.as_mut() })
+        // safety: see comment for ACTIVITIES
+        unsafe {
+            ACTIVITIES.get_mut()[id as usize]
+                .as_mut()
+                .map(|v| v.as_mut())
+        }
     }
 }
 
 pub fn our() -> &'static mut Activity {
-    OUR.get_mut()
+    // safety: see comment for ACTIVITIES
+    unsafe { OUR.get_mut() }
 }
 
 pub fn idle() -> &'static mut Activity {
-    IDLE.get_mut()
+    // safety: see comment for ACTIVITIES
+    unsafe { IDLE.get_mut() }
 }
 
 #[allow(clippy::borrowed_box)]
 pub fn try_cur() -> Option<&'static mut Box<Activity>> {
-    CUR.get_mut().as_mut()
+    // safety: see comment for ACTIVITIES
+    unsafe { CUR.get_mut().as_mut() }
 }
 
 pub fn cur() -> &'static mut Activity {
@@ -428,7 +441,8 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
     next.cmd.restore();
 
     // exchange CUR
-    if let Some(mut old) = CUR.set(Some(next)) {
+    // safety: see comment for ACTIVITIES above
+    if let Some(mut old) = unsafe { CUR.set(Some(next)) } {
         log!(
             crate::LOG_CTXSWS,
             "Switching from {} (budget {}) to {} (budget {}): {:?} old Activity",
@@ -451,7 +465,8 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
                 ScheduleAction::Preempt | ScheduleAction::Yield => {
                     make_ready(old, old_time);
                 },
-                ScheduleAction::Kill => {
+                // safety: see comment for ACTIVITIES above
+                ScheduleAction::Kill => unsafe {
                     ACTIVITIES.get_mut()[old.id() as usize] = None;
                 },
             }
@@ -495,9 +510,10 @@ pub fn remove_cur(status: u32) {
 }
 
 pub fn remove(id: Id, status: u32, notify: bool, sched: bool) {
-    if let Some(v) = ACTIVITIES.get_mut()[id as usize].take() {
+    // safety: see comment for ACTIVITIES above
+    if let Some(v) = unsafe { ACTIVITIES.get_mut()[id as usize].take() } {
         let old = match unsafe { &v.as_ref().state } {
-            ActState::Running => CUR.set(None).unwrap(),
+            ActState::Running => unsafe { CUR.set(None).unwrap() },
             ActState::Ready => RDY.get_mut().remove_if(|v| v.id() == id).unwrap(),
             ActState::Blocked => BLK.get_mut().remove_if(|v| v.id() == id).unwrap(),
         };

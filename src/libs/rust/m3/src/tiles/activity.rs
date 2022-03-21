@@ -106,6 +106,10 @@ impl<'n> ActivityArgs<'n> {
     }
 }
 
+// TODO: unfortunately, we need to use the unsafe cell here at the moment, because libm3 accesses
+// CUR at several places itself, making it impossible to use a RefCell, because an application might
+// also already hold a reference to CUR. Therefore, it seems that we need to redesign libm3 in order
+// to fix this problem.
 static CUR: LazyStaticUnsafeCell<Activity> = LazyStaticUnsafeCell::default();
 
 impl Activity {
@@ -192,8 +196,14 @@ impl Activity {
     }
 
     /// Returns the currently running [`Activity`].
+    ///
+    /// # Safety:
+    ///
+    /// The caller needs to make sure to not call `cur` multiple times and thereby obtain multiple
+    /// mutable references to the current activity
     pub fn cur() -> &'static mut Activity {
-        CUR.get_mut()
+        // safety: see comment for CUR
+        unsafe { CUR.get_mut() }
     }
 
     /// Creates a new `Activity` on tile `tile` with given name and default settings. The activity
@@ -699,6 +709,7 @@ impl fmt::Debug for Activity {
 }
 
 pub(crate) fn init() {
-    CUR.set(Activity::new_cur());
+    // safety: we just constructed the activity and CUR was None before
+    unsafe { CUR.set(Activity::new_cur()) };
     Activity::cur().init();
 }

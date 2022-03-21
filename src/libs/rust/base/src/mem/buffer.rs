@@ -84,7 +84,8 @@ impl MsgBuf {
     /// that the returned `MsgBufRef` is dropped before the next call to `borrow_ref`.
     /// Alternatively, `MsgBuf::new` can be used to allocate a new buffer.
     pub fn borrow_def() -> MsgBufRef<'static> {
-        MsgBufRef::new(DEF_MSG_BUF.get_mut())
+        // safety: MsgBufRef takes care that there is no other user of DEF_MSG_BUF
+        MsgBufRef::new(unsafe { DEF_MSG_BUF.get_mut() })
     }
 
     /// Creates a new zero'd message buffer containing an empty message
