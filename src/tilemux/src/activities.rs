@@ -14,7 +14,7 @@
  */
 
 use base::boxed::Box;
-use base::cell::{LazyStaticUnsafeCell, StaticUnsafeCell};
+use base::cell::{LazyStaticUnsafeCell, StaticCell, StaticRefCell, StaticUnsafeCell};
 use base::cfg;
 use base::col::{BoxList, Vec};
 use base::errors::{Code, Error};
@@ -55,7 +55,7 @@ impl Allocator for PTAllocator {
             return Err(Error::new(Code::NoSpace));
         }
 
-        if let Some(pt) = PTS.get_mut().pop() {
+        if let Some(pt) = PTS.borrow_mut().pop() {
             self.quota.set_left(self.quota.left() - 1);
             log!(
                 crate::LOG_PTS,
@@ -63,7 +63,7 @@ impl Allocator for PTAllocator {
                 pt,
                 self.quota.id(),
                 self.quota.left(),
-                PTS.len()
+                PTS.borrow().len()
             );
             Ok(pt)
         }
@@ -73,7 +73,7 @@ impl Allocator for PTAllocator {
     }
 
     fn translate_pt(&self, phys: Phys) -> usize {
-        if *BOOTSTRAP {
+        if BOOTSTRAP.get() {
             phys as usize
         }
         else {
@@ -88,9 +88,9 @@ impl Allocator for PTAllocator {
             phys,
             self.quota.id(),
             self.quota.left(),
-            PTS.len()
+            PTS.borrow().len()
         );
-        PTS.get_mut().push(phys);
+        PTS.borrow_mut().push(phys);
         self.quota.set_left(self.quota.left() + 1);
     }
 }
@@ -162,13 +162,13 @@ static ACTIVITIES: StaticUnsafeCell<[Option<NonNull<Activity>>; 64]> =
 
 static IDLE: LazyStaticUnsafeCell<Box<Activity>> = LazyStaticUnsafeCell::default();
 static OUR: LazyStaticUnsafeCell<Box<Activity>> = LazyStaticUnsafeCell::default();
-
 static CUR: StaticUnsafeCell<Option<Box<Activity>>> = StaticUnsafeCell::new(None);
-static RDY: StaticUnsafeCell<BoxList<Activity>> = StaticUnsafeCell::new(BoxList::new());
-static BLK: StaticUnsafeCell<BoxList<Activity>> = StaticUnsafeCell::new(BoxList::new());
 
-static BOOTSTRAP: StaticUnsafeCell<bool> = StaticUnsafeCell::new(true);
-static PTS: StaticUnsafeCell<Vec<Phys>> = StaticUnsafeCell::new(Vec::new());
+static RDY: StaticRefCell<BoxList<Activity>> = StaticRefCell::new(BoxList::new());
+static BLK: StaticRefCell<BoxList<Activity>> = StaticRefCell::new(BoxList::new());
+
+static BOOTSTRAP: StaticCell<bool> = StaticCell::new(true);
+static PTS: StaticRefCell<Vec<Phys>> = StaticRefCell::new(Vec::new());
 
 pub fn init() {
     extern "C" {
@@ -186,15 +186,17 @@ pub fn init() {
         let first_pt = 1 + first_pt as Phys - (cfg::MEM_OFFSET / cfg::PAGE_SIZE) as Phys;
         // we don't need that many PTs here; 512 are enough for now
         let pt_count = cmp::min(first_pt + 512, (mem_size as usize / cfg::PAGE_SIZE) as Phys);
-        PTS.get_mut().reserve((pt_count - first_pt) as usize);
-        for i in first_pt..pt_count {
-            PTS.get_mut()
-                .push(cfg::MEM_OFFSET as Phys + i * cfg::PAGE_SIZE as Phys);
+        {
+            let mut pts = PTS.borrow_mut();
+            pts.reserve((pt_count - first_pt) as usize);
+            for i in first_pt..pt_count {
+                pts.push(cfg::MEM_OFFSET as Phys + i * cfg::PAGE_SIZE as Phys);
+            }
         }
 
         let mut allocator = PTAllocator {
             act: kif::tilemux::ACT_ID,
-            quota: Quota::new(0, None, PTS.len()),
+            quota: Quota::new(0, None, PTS.borrow().len()),
         };
         let frame = allocator.allocate_pt().unwrap();
         (frame, Some(base + (frame - cfg::MEM_OFFSET as Phys)))
@@ -203,7 +205,7 @@ pub fn init() {
         (0, None)
     };
 
-    quota::init(PTS.get().len());
+    quota::init(PTS.borrow().len());
 
     let idle_quota = quota::get_time(quota::IDLE_ID).unwrap();
     idle_quota.attach();
@@ -239,7 +241,7 @@ pub fn init() {
     }
 
     // add default quota, now that initialization is done and we know how many PTs are left
-    quota::add_def(quota::DEF_TIME_SLICE, PTS.get().len());
+    quota::add_def(quota::DEF_TIME_SLICE, PTS.borrow().len());
 
     BOOTSTRAP.set(false);
 }
@@ -325,7 +327,7 @@ pub fn cur() -> &'static mut Activity {
 }
 
 pub fn has_ready() -> bool {
-    !RDY.is_empty()
+    !RDY.borrow().is_empty()
 }
 
 pub fn schedule(mut action: ScheduleAction) -> usize {
@@ -365,8 +367,9 @@ pub fn schedule(mut action: ScheduleAction) -> usize {
 fn do_schedule(mut action: ScheduleAction) -> usize {
     let now = TimeInstant::now();
     let mut next = RDY
-        .get_mut()
+        .borrow_mut()
         .pop_front()
+        // safety: we know that idle is stored in a Box
         .unwrap_or_else(|| unsafe { Box::from_raw(idle()) });
 
     let old_time = if let Some(old) = try_cur() {
@@ -491,17 +494,17 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
 
 fn make_blocked(mut act: Box<Activity>) {
     act.state = ActState::Blocked;
-    BLK.get_mut().push_back(act);
+    BLK.borrow_mut().push_back(act);
 }
 
 fn make_ready(mut act: Box<Activity>, budget: TimeDuration) {
     act.state = ActState::Ready;
     // prefer activities with budget
     if !budget.is_zero() {
-        RDY.get_mut().push_front(act);
+        RDY.borrow_mut().push_front(act);
     }
     else {
-        RDY.get_mut().push_back(act);
+        RDY.borrow_mut().push_back(act);
     }
 }
 
@@ -514,8 +517,8 @@ pub fn remove(id: Id, status: u32, notify: bool, sched: bool) {
     if let Some(v) = unsafe { ACTIVITIES.get_mut()[id as usize].take() } {
         let old = match unsafe { &v.as_ref().state } {
             ActState::Running => unsafe { CUR.set(None).unwrap() },
-            ActState::Ready => RDY.get_mut().remove_if(|v| v.id() == id).unwrap(),
-            ActState::Blocked => BLK.get_mut().remove_if(|v| v.id() == id).unwrap(),
+            ActState::Ready => RDY.borrow_mut().remove_if(|v| v.id() == id).unwrap(),
+            ActState::Blocked => BLK.borrow_mut().remove_if(|v| v.id() == id).unwrap(),
         };
 
         log!(
@@ -759,7 +762,7 @@ impl Activity {
         }
 
         if self.state == ActState::Blocked {
-            let mut act = BLK.get_mut().remove_if(|v| v.id() == self.id()).unwrap();
+            let mut act = BLK.borrow_mut().remove_if(|v| v.id() == self.id()).unwrap();
             if !matches!(event, Event::Timeout) && act.wait_timeout {
                 timer::remove(act.id());
                 act.wait_timeout = false;
