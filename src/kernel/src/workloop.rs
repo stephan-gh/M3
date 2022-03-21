@@ -26,15 +26,11 @@ pub fn thread_startup() {
 }
 
 pub fn workloop() -> ! {
-    let actmng = ActivityMng::get();
-
     if thread::cur().is_main() {
-        ActivityMng::get()
-            .start_root_async()
-            .expect("starting root failed");
+        ActivityMng::start_root_async().expect("starting root failed");
     }
 
-    while actmng.count() > 0 {
+    while ActivityMng::count() > 0 {
         if envdata::get().platform != envdata::Platform::HW.val {
             tcu::TCU::sleep().unwrap();
         }

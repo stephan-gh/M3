@@ -391,7 +391,7 @@ impl Activity {
 
         // send upcalls for the others
         EXIT_LISTENERS.borrow_mut().retain(|l| {
-            let act = ActivityMng::get().activity(l.id).unwrap();
+            let act = ActivityMng::activity(l.id).unwrap();
             if let Some((sel, code)) = act.fetch_exit(&l.sels) {
                 act.upcall_activity_wait(l.event, sel, code);
                 // remove us from the list since a activity exited
@@ -453,7 +453,7 @@ impl Activity {
         self.pid.set(pid);
         self.state.set(State::RUNNING);
 
-        ActivityMng::get().start_activity_async(self)?;
+        ActivityMng::start_activity_async(self)?;
 
         let pid = loader::start(self)?;
         self.pid.set(Some(pid));
@@ -483,9 +483,7 @@ impl Activity {
         }
         else {
             self.state.set(State::DEAD);
-            ActivityMng::get()
-                .stop_activity_async(self, true, true)
-                .unwrap();
+            ActivityMng::stop_activity_async(self, true, true).unwrap();
             ktcu::drop_msgs(ktcu::KSYS_EP, self.id() as Label);
         }
     }
@@ -528,7 +526,7 @@ impl Activity {
 
         // if it's root, there is nobody waiting for it; just remove it
         if self.is_root() {
-            ActivityMng::get().remove_activity_async(self.id());
+            ActivityMng::remove_activity_async(self.id());
         }
     }
 
@@ -548,9 +546,7 @@ impl Activity {
     }
 
     pub fn force_stop_async(&self, stop: bool) {
-        ActivityMng::get()
-            .stop_activity_async(self, stop, true)
-            .unwrap();
+        ActivityMng::stop_activity_async(self, stop, true).unwrap();
 
         self.revoke_caps_async();
     }

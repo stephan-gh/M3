@@ -59,7 +59,7 @@ pub fn check_childs_async() {
 
 fn kill_activity_async(pid: libc::pid_t, status: i32) {
     let (act, act_name) =
-        match ActivityMng::get().find_activity(|v: &Rc<Activity>| v.pid().unwrap_or(0) == pid) {
+        match ActivityMng::find_activity(|v: &Rc<Activity>| v.pid().unwrap_or(0) == pid) {
             Some(v) => {
                 let id = v.id();
                 let name = format!("{}:{}", id, v.name());
@@ -89,7 +89,7 @@ fn kill_activity_async(pid: libc::pid_t, status: i32) {
         if let Some(v) = act {
             // only remove the activity if it has an app; otherwise the kernel sent the signal
             if v.state() == State::RUNNING {
-                ActivityMng::get().remove_activity_async(v.id());
+                ActivityMng::remove_activity_async(v.id());
             }
         }
     }

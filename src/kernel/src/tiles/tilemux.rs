@@ -362,7 +362,7 @@ impl TileMux {
         drop(tilemux);
 
         if has_act {
-            let act = ActivityMng::get().activity(act_id).unwrap();
+            let act = ActivityMng::activity(act_id).unwrap();
             act.stop_app_async(exitcode, true);
         }
 
@@ -566,8 +566,7 @@ impl TileMux {
 
         // if the activity has no app anymore, don't send the notify
         if let Some(id) = act {
-            if !ActivityMng::get()
-                .activity(id)
+            if !ActivityMng::activity(id)
                 .map(|v| v.state() != State::DEAD)
                 .unwrap_or(false)
             {

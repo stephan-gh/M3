@@ -111,9 +111,7 @@ fn get_request<R>(msg: &tcu::Message) -> Result<&R, Error> {
 }
 
 pub fn handle_async(msg: &'static tcu::Message) {
-    let act: Rc<Activity> = ActivityMng::get()
-        .activity(msg.header.label as tcu::ActId)
-        .unwrap();
+    let act: Rc<Activity> = ActivityMng::activity(msg.header.label as tcu::ActId).unwrap();
     let req = msg.get_data::<kif::DefaultRequest>();
 
     let res = match kif::syscalls::Operation::from(req.opcode) {

@@ -471,7 +471,7 @@ impl Capability {
                 // remove activity if we revoked the root capability and if it's not the own activity
                 if let Some(v) = v.upgrade() {
                     if sel != SEL_ACT && self.parent.is_none() && !v.is_root() {
-                        ActivityMng::get().remove_activity_async(v.id());
+                        ActivityMng::remove_activity_async(v.id());
                     }
                 }
             },

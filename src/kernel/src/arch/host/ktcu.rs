@@ -162,9 +162,7 @@ pub fn set_mem_base(tile: TileId, base: usize) {
 }
 
 pub fn write_ep_remote(tile: TileId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
-    let act = ActivityMng::get()
-        .find_activity(|v: &Rc<Activity>| v.tile_id() == tile)
-        .unwrap();
+    let act = ActivityMng::find_activity(|v: &Rc<Activity>| v.tile_id() == tile).unwrap();
     if act.state() == State::RUNNING {
         let eps = MEM_BASE.borrow()[tile as usize] as usize;
         let addr = eps + ep as usize * EP_REGS * size_of::<Reg>();

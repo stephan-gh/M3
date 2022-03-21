@@ -100,11 +100,10 @@ pub fn create_mgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
 
     if platform::tile_desc(tgt_act.tile_id()).has_virtmem() {
         let map_caps = tgt_act.map_caps().borrow_mut();
-        try_kmem_quota!(
-            act.obj_caps()
-                .borrow_mut()
-                .insert_as_child_from(cap, map_caps, sel)
-        );
+        try_kmem_quota!(act
+            .obj_caps()
+            .borrow_mut()
+            .insert_as_child_from(cap, map_caps, sel));
     }
     else {
         try_kmem_quota!(act.obj_caps().borrow_mut().insert_as_child(cap, act_sel));
@@ -336,16 +335,11 @@ pub fn create_activity_async(
     drop(tilemux);
 
     // create activity
-    let nact = match ActivityMng::get().create_activity_async(
-        name,
-        tile,
-        eps,
-        kmem,
-        ActivityFlags::empty(),
-    ) {
-        Ok(nact) => nact,
-        Err(e) => sysc_err!(e.code(), "Unable to create Activity"),
-    };
+    let nact =
+        match ActivityMng::create_activity_async(name, tile, eps, kmem, ActivityFlags::empty()) {
+            Ok(nact) => nact,
+            Err(e) => sysc_err!(e.code(), "Unable to create Activity"),
+        };
 
     // give activity cap to the parent
     let cap = Capability::new(dst_sel, KObject::Activity(Rc::downgrade(&nact)));

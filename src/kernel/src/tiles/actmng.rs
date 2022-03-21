@@ -13,7 +13,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::StaticUnsafeCell;
+use base::cell::LazyStaticRefCell;
 use base::cfg;
 use base::col::Vec;
 use base::errors::{Code, Error};
@@ -38,45 +38,41 @@ pub struct ActivityMng {
     next_id: tcu::ActId,
 }
 
-// TODO can we use a safe cell here?
-static INST: StaticUnsafeCell<Option<ActivityMng>> = StaticUnsafeCell::new(None);
+static INST: LazyStaticRefCell<ActivityMng> = LazyStaticRefCell::default();
 
 pub fn init() {
-    INST.set(Some(ActivityMng {
+    INST.set(ActivityMng {
         acts: vec![None; cfg::MAX_ACTS],
         count: 0,
         next_id: 0,
-    }));
+    });
 }
 
 pub fn deinit() {
-    INST.set(None);
+    INST.unset();
 }
 
 impl ActivityMng {
-    pub fn get() -> &'static mut Self {
-        INST.get_mut().as_mut().unwrap()
+    pub fn count() -> usize {
+        INST.borrow().count
     }
 
-    pub fn count(&self) -> usize {
-        self.count
+    pub fn activity(id: tcu::ActId) -> Option<Rc<Activity>> {
+        INST.borrow().acts[id as usize].as_ref().cloned()
     }
 
-    pub fn activity(&self, id: tcu::ActId) -> Option<Rc<Activity>> {
-        self.acts[id as usize].as_ref().cloned()
-    }
-
-    fn get_id(&mut self) -> Result<tcu::ActId, Error> {
-        for id in self.next_id..cfg::MAX_ACTS as tcu::ActId {
-            if self.acts[id as usize].is_none() {
-                self.next_id = id + 1;
+    fn get_id() -> Result<tcu::ActId, Error> {
+        let mut actmng = INST.borrow_mut();
+        for id in actmng.next_id..cfg::MAX_ACTS as tcu::ActId {
+            if actmng.acts[id as usize].is_none() {
+                actmng.next_id = id + 1;
                 return Ok(id);
             }
         }
 
-        for id in 0..self.next_id {
-            if self.acts[id as usize].is_none() {
-                self.next_id = id + 1;
+        for id in 0..actmng.next_id {
+            if actmng.acts[id as usize].is_none() {
+                actmng.next_id = id + 1;
                 return Ok(id);
             }
         }
@@ -85,14 +81,13 @@ impl ActivityMng {
     }
 
     pub fn create_activity_async(
-        &mut self,
         name: &str,
         tile: SRc<TileObject>,
         eps_start: tcu::EpId,
         kmem: SRc<KMemObject>,
         flags: ActivityFlags,
     ) -> Result<Rc<Activity>, Error> {
-        let id: tcu::ActId = self.get_id()?;
+        let id: tcu::ActId = Self::get_id()?;
         let tile_id = tile.tile();
 
         let act = Activity::new(name, id, tile, eps_start, kmem, flags)?;
@@ -106,18 +101,21 @@ impl ActivityMng {
         );
 
         let clone = act.clone();
-        self.acts[id as usize] = Some(act);
-        self.count += 1;
+        {
+            let mut actmng = INST.borrow_mut();
+            actmng.acts[id as usize] = Some(act);
+            actmng.count += 1;
+        }
 
         tilemng::tilemux(tile_id).add_activity(id);
         if flags.is_empty() {
-            self.init_activity_async(&clone).unwrap();
+            Self::init_activity_async(&clone).unwrap();
         }
 
         Ok(clone)
     }
 
-    fn init_activity_async(&mut self, act: &Activity) -> Result<(), Error> {
+    fn init_activity_async(act: &Activity) -> Result<(), Error> {
         if platform::tile_desc(act.tile_id()).supports_tilemux() {
             TileMux::activity_init_async(
                 tilemng::tilemux(act.tile_id()),
@@ -131,7 +129,7 @@ impl ActivityMng {
         act.init_async()
     }
 
-    pub fn start_activity_async(&mut self, act: &Activity) -> Result<(), Error> {
+    pub fn start_activity_async(act: &Activity) -> Result<(), Error> {
         if platform::tile_desc(act.tile_id()).supports_tilemux() {
             TileMux::activity_ctrl_async(
                 tilemng::tilemux(act.tile_id()),
@@ -144,12 +142,7 @@ impl ActivityMng {
         }
     }
 
-    pub fn stop_activity_async(
-        &mut self,
-        act: &Activity,
-        stop: bool,
-        reset: bool,
-    ) -> Result<(), Error> {
+    pub fn stop_activity_async(act: &Activity, stop: bool, reset: bool) -> Result<(), Error> {
         if stop && platform::tile_desc(act.tile_id()).supports_tilemux() {
             TileMux::activity_ctrl_async(
                 tilemng::tilemux(act.tile_id()),
@@ -166,7 +159,7 @@ impl ActivityMng {
         }
     }
 
-    pub fn start_root_async(&mut self) -> Result<(), Error> {
+    pub fn start_root_async() -> Result<(), Error> {
         // TODO temporary
         let isa = platform::tile_desc(platform::kernel_tile()).isa();
         let tile_emem = kif::TileDesc::new(kif::TileType::COMP_EMEM, isa, 0);
@@ -177,15 +170,14 @@ impl ActivityMng {
         let tile = tilemng::tilemux(tile_id).tile().clone();
 
         let kmem = KMemObject::new(args::get().kmem - cfg::FIXED_KMEM);
-        let act = self
-            .create_activity_async(
-                "root",
-                tile,
-                tcu::FIRST_USER_EP,
-                kmem,
-                ActivityFlags::IS_ROOT,
-            )
-            .expect("Unable to create Activity for root");
+        let act = Self::create_activity_async(
+            "root",
+            tile,
+            tcu::FIRST_USER_EP,
+            kmem,
+            ActivityFlags::IS_ROOT,
+        )
+        .expect("Unable to create Activity for root");
 
         let mut sel = kif::FIRST_FREE_SEL;
 
@@ -276,31 +268,34 @@ impl ActivityMng {
         act.set_first_sel(sel);
 
         // go!
-        self.init_activity_async(&act)?;
+        Self::init_activity_async(&act)?;
         act.start_app_async(None)
     }
 
-    pub fn remove_activity_async(&mut self, id: tcu::ActId) {
+    pub fn remove_activity_async(id: tcu::ActId) {
+        let mut actmng = INST.borrow_mut();
         // Replace item at position
         // https://stackoverflow.com/questions/33204273/how-can-i-take-ownership-of-a-vec-element-and-replace-it-with-something-else
-        let act: Option<Rc<Activity>> = base::mem::replace(&mut self.acts[id as usize], None);
+        let act: Option<Rc<Activity>> = base::mem::replace(&mut actmng.acts[id as usize], None);
 
         match act {
             Some(ref v) => {
+                actmng.count -= 1;
+                drop(actmng);
                 tilemng::tilemux(v.tile_id()).rem_activity(v.id());
                 v.force_stop_async(v.state() != State::DEAD);
-                self.count -= 1;
             },
             None => panic!("Removing nonexisting Activity with id {}", id),
         };
     }
 
     #[cfg(target_vendor = "host")]
-    pub fn find_activity<P>(&self, pred: P) -> Option<Rc<Activity>>
+    pub fn find_activity<P>(pred: P) -> Option<Rc<Activity>>
     where
         P: Fn(&Rc<Activity>) -> bool,
     {
-        for v in &self.acts {
+        let actmng = INST.borrow();
+        for v in &actmng.acts {
             if let Some(act) = v.as_ref() {
                 if pred(&act) {
                     return Some(act.clone());
