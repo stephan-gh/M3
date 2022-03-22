@@ -72,11 +72,7 @@ The cross compiler will be installed to ``<m3-root>/build/cross-<ISA>``.
 
 ### 5. Rust
 
-M³ is primarily written in Rust and therefore you need to install Rust before building M³. Since M³ requires some nightly features of Rust, you need the nightly version as follows:
-
-    $ rustup install nightly-2022-03-08
-    $ rustup default nightly-2022-03-08
-    $ rustup component add rust-src
+M³ is primarily written in Rust and requires some nightly features of Rust. The nightly toolchain will be installed automatically, but you need to install `rustup` manually first. Visit [rustup.rs](https://rustup.rs/) for further information.
 
 ### 6. Building
 
