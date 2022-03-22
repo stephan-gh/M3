@@ -195,6 +195,10 @@ impl Socket {
             (SocketType::Stream, State::Connecting) => {
                 let tcp_socket = iface.get_socket::<TcpSocket<'_>>(self.socket);
                 if tcp_socket.state() == TcpState::Established {
+                    // disable Nagle's algorithm, because it delays sends, which at least for us
+                    // reduces the achieved bandwidth in our benchmarks dramatically (factor 10).
+                    // Maybe we don't transfer enough data?
+                    tcp_socket.set_nagle_enabled(false);
                     self.state = State::Connected;
                     let ep = to_m3_ep(tcp_socket.remote_endpoint());
                     Some(SendNetEvent::Connected(event::ConnectedMessage::new(ep)))
