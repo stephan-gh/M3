@@ -29,13 +29,17 @@ pub struct PfState {
     perm: PageFlags,
 }
 
-fn send_pf(act: &mut activities::Activity, virt: usize, perm: PageFlags) -> Result<(), Error> {
+fn send_pf(
+    mut act: activities::ActivityRef<'_>,
+    virt: usize,
+    perm: PageFlags,
+) -> Result<(), Error> {
     // save command registers to be able to send a message
     let _cmd_saved = helper::TCUGuard::new();
 
     // change to the activity, if required
-    let cur = activities::cur();
-    if cur.id() != act.id() {
+    if act.state() != activities::ActState::Running {
+        let mut cur = activities::cur();
         let old_act = tcu::TCU::xchg_activity(act.activity_reg()).unwrap();
         cur.set_activity_reg(old_act);
     }
@@ -67,18 +71,18 @@ fn send_pf(act: &mut activities::Activity, virt: usize, perm: PageFlags) -> Resu
         );
     });
 
-    if cur.id() != act.id() {
+    if act.state() != activities::ActState::Running {
+        let cur = activities::cur();
         act.set_activity_reg(tcu::TCU::xchg_activity(cur.activity_reg()).unwrap());
     }
     res
 }
 
-fn recv_pf_resp() -> activities::ContResult {
+fn recv_pf_resp(cur: &mut activities::Activity) -> activities::ContResult {
     // save command registers to be able to send a message
     let _cmd_saved = helper::TCUGuard::new();
 
-    let act = activities::cur();
-    let eps_start = act.eps_start();
+    let eps_start = cur.eps_start();
 
     if let Some(msg_off) = tcu::TCU::fetch_msg(eps_start + tcu::PG_REP_OFF) {
         let rbuf_space = crate::pex_env().tile_desc.rbuf_std_space();
@@ -90,14 +94,14 @@ fn recv_pf_resp() -> activities::ContResult {
         // deliberately ignore errors here; the kernel can invalidate the pager EPs at any time
         tcu::TCU::ack_msg(eps_start + tcu::PG_REP_OFF, msg_off).ok();
 
-        let pf_state = act.finish_pf();
+        let pf_state = cur.finish_pf();
         if err != 0 {
             log!(
                 crate::LOG_ERR,
                 "Pagefault for {:#x} (perm: {:?}) with user state:\n{:?}",
                 pf_state.virt,
                 pf_state.perm,
-                act.user_state()
+                cur.user_state()
             );
             activities::ContResult::Failure
         }

@@ -89,7 +89,7 @@ pub fn disable_fpu() {
 }
 
 pub fn handle_fpu_ex(_state: &mut State) {
-    let cur = activities::cur();
+    let mut cur = activities::cur();
 
     cpu::write_cr0(cpu::read_cr0() & !CR0_TASK_SWITCHED);
 
@@ -97,7 +97,7 @@ pub fn handle_fpu_ex(_state: &mut State) {
     if old_id != cur.id() {
         // need to save old state?
         if old_id != tilemux::ACT_ID {
-            let old_act = activities::get_mut(old_id).unwrap();
+            let mut old_act = activities::get_mut(old_id).unwrap();
             let fpu_state = old_act.fpu_state();
             unsafe {
                 asm!(
@@ -120,9 +120,7 @@ pub fn handle_fpu_ex(_state: &mut State) {
             };
         }
         else {
-            unsafe {
-                asm!("fninit")
-            };
+            unsafe { asm!("fninit") };
             fpu_state.init = true;
         }
 

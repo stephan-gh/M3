@@ -29,7 +29,7 @@ const MAX_IRQS: usize = 6;
 
 static IRQS: StaticRefCell<[Option<IRQCounter>; MAX_IRQS]> = StaticRefCell::new([None; MAX_IRQS]);
 
-pub fn register(act: &mut activities::Activity, irq: tmif::IRQId) {
+pub fn register(act: &mut activities::ActivityRef<'_>, irq: tmif::IRQId) {
     let mut irqs = IRQS.borrow_mut();
     assert!(irqs[irq as usize].is_none());
     irqs[irq as usize] = Some(IRQCounter {
@@ -40,7 +40,10 @@ pub fn register(act: &mut activities::Activity, irq: tmif::IRQId) {
     act.add_irq(irq);
 }
 
-pub fn wait(cur: &activities::Activity, irq: Option<tmif::IRQId>) -> Option<activities::Event> {
+pub fn wait(
+    cur: &activities::ActivityRef<'_>,
+    irq: Option<tmif::IRQId>,
+) -> Option<activities::Event> {
     let mut irqs = IRQS.borrow_mut();
     if let Some(i) = irq {
         let cnt = &mut irqs[i as usize]?;
@@ -66,7 +69,7 @@ pub fn wait(cur: &activities::Activity, irq: Option<tmif::IRQId>) -> Option<acti
 pub fn signal(irq: tmif::IRQId) {
     let mut irqs = IRQS.borrow_mut();
     if let Some(ref mut cnt) = irqs[irq as usize] {
-        let act = activities::get_mut(cnt.act).unwrap();
+        let mut act = activities::get_mut(cnt.act).unwrap();
         if !act.unblock(activities::Event::Interrupt(irq)) {
             cnt.counter += 1;
             log!(crate::LOG_IRQS, "irqs[{}] signal -> {}", irq, cnt.counter);

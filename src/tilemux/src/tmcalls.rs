@@ -44,7 +44,7 @@ fn tmcall_wait(state: &mut arch::State) -> Result<(), Error> {
         timeout,
     );
 
-    let cur = activities::cur();
+    let mut cur = activities::cur();
     let wait_ep = if ep == INVALID_EP { None } else { Some(ep) };
     let wait_irq = if irq <= IRQ::TIMER.val as tmif::IRQId || irq == tmif::INVALID_IRQ {
         None
@@ -53,7 +53,7 @@ fn tmcall_wait(state: &mut arch::State) -> Result<(), Error> {
         Some(irq)
     };
 
-    if (wait_ep.is_none() || wait_irq.is_some()) && irqs::wait(cur, wait_irq).is_some() {
+    if (wait_ep.is_none() || wait_irq.is_some()) && irqs::wait(&cur, wait_irq).is_some() {
         return Ok(());
     }
 
@@ -117,7 +117,7 @@ fn tmcall_reg_irq(state: &mut arch::State) -> Result<(), Error> {
 
     // TODO validate whether the activity is allowed to use these IRQs
 
-    irqs::register(activities::cur(), irq);
+    irqs::register(&mut activities::cur(), irq);
 
     Ok(())
 }

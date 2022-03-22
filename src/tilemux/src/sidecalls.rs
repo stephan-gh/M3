@@ -69,8 +69,8 @@ fn activity_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
     match op {
         kif::tilemux::ActivityOp::START => {
             let cur = activities::cur();
-            let act = activities::get_mut(act_id).unwrap();
-            assert!(cur.id() != act.id());
+            assert!(cur.id() != act_id);
+            let mut act = activities::get_mut(act_id).unwrap();
             // temporary switch to the activity to access the environment
             act.switch_to();
             act.start();
@@ -117,7 +117,7 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
         return Err(Error::new(Code::InvArgs));
     }
 
-    if let Some(act) = activities::get_mut(act_id) {
+    if let Some(mut act) = activities::get_mut(act_id) {
         // if we unmap these pages, flush+invalidate the cache to ensure that we read this memory
         // fresh from DRAM the next time we use it.
         let perm = if (perm & kif::PageFlags::RWX).is_empty() {
@@ -176,7 +176,7 @@ fn rem_msgs(msg: &'static tcu::Message) -> Result<(), Error> {
 
     // we know that this activity is not currently running, because we changed the current activity to ourself
     // in check() below.
-    if let Some(act) = activities::get_mut(act_id) {
+    if let Some(mut act) = activities::get_mut(act_id) {
         act.rem_msgs(unread.count_ones() as u16);
     }
 
@@ -197,7 +197,7 @@ fn ep_inval(msg: &'static tcu::Message) -> Result<(), Error> {
     );
 
     // just unblock the activity in case it wants to do something on invalidated EPs
-    if let Some(act) = activities::get_mut(act_id) {
+    if let Some(mut act) = activities::get_mut(act_id) {
         act.unblock(activities::Event::EpInvalid);
     }
 
@@ -278,7 +278,7 @@ fn reset_stats(_msg: &'static tcu::Message) -> Result<(), Error> {
     log!(crate::LOG_SIDECALLS, "sidecall::reset_stats()",);
 
     for id in 0..64 {
-        if let Some(act) = activities::get_mut(id) {
+        if let Some(mut act) = activities::get_mut(id) {
             act.reset_stats();
         }
     }
@@ -331,13 +331,13 @@ fn handle_sidecall(msg: &'static tcu::Message) {
 }
 
 #[inline(never)]
-fn handle_sidecalls(our: &mut activities::Activity) {
+fn handle_sidecalls(mut our: activities::ActivityRef<'_>) {
     let _cmd_saved = helper::TCUGuard::new();
 
     loop {
         // change to our activity
         let old_act = tcu::TCU::xchg_activity(our.activity_reg()).unwrap();
-        if let Some(old) = activities::try_cur() {
+        if let Some(mut old) = activities::try_cur() {
             old.set_activity_reg(old_act);
         }
 

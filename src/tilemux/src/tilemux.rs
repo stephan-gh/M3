@@ -114,26 +114,37 @@ pub extern "C" fn exit(_code: i32) {
     machine::shutdown();
 }
 
-static SCHED: StaticCell<Option<activities::ScheduleAction>> = StaticCell::new(None);
+static NEED_SCHED: StaticCell<Option<activities::ScheduleAction>> = StaticCell::new(None);
+static NEED_TIMER: StaticCell<bool> = StaticCell::new(false);
 
 #[inline]
 fn leave(state: &mut arch::State) -> *mut libc::c_void {
     sidecalls::check();
 
-    if let Some(action) = SCHED.replace(None) {
+    let addr = if let Some(action) = NEED_SCHED.replace(None) {
         activities::schedule(action) as *mut libc::c_void
     }
     else {
         state as *mut _ as *mut libc::c_void
+    };
+
+    if NEED_TIMER.replace(false) {
+        timer::reprogram();
     }
+
+    addr
 }
 
 pub fn reg_scheduling(action: activities::ScheduleAction) {
-    SCHED.set(Some(action));
+    NEED_SCHED.set(Some(action));
 }
 
 pub fn scheduling_pending() -> bool {
-    SCHED.get().is_some()
+    NEED_SCHED.get().is_some()
+}
+
+pub fn reg_timer_reprogram() {
+    NEED_TIMER.set(true);
 }
 
 pub extern "C" fn unexpected_irq(state: &mut arch::State) -> *mut libc::c_void {
@@ -212,11 +223,13 @@ pub extern "C" fn init() -> usize {
     io::init(pex_env().tile_id, "tilemux");
     activities::init();
 
-    // switch to idle
+    // switch to idle; we don't want to keep the reference here, because activities::schedule()
+    // below will also take a reference to idle.
     activities::idle().start();
     activities::schedule(activities::ScheduleAction::Yield);
 
-    let state = activities::idle().user_state();
+    let mut idle = activities::idle();
+    let state = idle.user_state();
     let state_top = state as *const _ as usize + mem::size_of::<arch::State>();
     arch::init(state);
     // store platform already in app env, because we need it for logging

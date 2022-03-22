@@ -21,7 +21,7 @@ use crate::activities;
 
 pub fn handle_recv(req: tcu::CoreForeignReq) {
     // add message to activity
-    if let Some(v) = activities::get_mut(req.act as activities::Id) {
+    if let Some(mut v) = activities::get_mut(req.act as activities::Id) {
         // if this activity is currently running, we have to update the CUR_ACT register
         if (tcu::TCU::get_cur_activity() & 0xFFFF) == req.act as activities::Id {
             // temporary switch to idle

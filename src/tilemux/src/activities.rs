@@ -29,6 +29,7 @@ use base::tcu;
 use base::time::{TimeDuration, TimeInstant};
 use base::tmif;
 use core::cmp;
+use core::ops::{Deref, DerefMut};
 use core::ptr::NonNull;
 use paging::{Allocator, Phys};
 
@@ -95,8 +96,8 @@ impl Allocator for PTAllocator {
     }
 }
 
-#[derive(PartialEq, Eq)]
-enum ActState {
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum ActState {
     Running,
     Ready,
     Blocked,
@@ -148,15 +149,50 @@ pub struct Activity {
     eps_start: tcu::EpId,
     cmd: helper::TCUCmdState,
     pf_state: Option<PfState>,
-    cont: Option<fn() -> ContResult>,
+    cont: Option<fn(&mut Activity) -> ContResult>,
+    has_refs: bool,
+}
+
+/// A reference to an activity that ensures at runtime that there is always just one reference to
+/// each activity at a time.
+pub struct ActivityRef<'a> {
+    act: &'a mut Activity,
+}
+
+impl<'m> ActivityRef<'m> {
+    fn new(act: &'m mut Activity) -> Self {
+        assert!(!act.has_refs);
+        act.has_refs = true;
+        Self { act }
+    }
+}
+
+impl<'m> Drop for ActivityRef<'m> {
+    fn drop(&mut self) {
+        self.act.has_refs = false;
+    }
+}
+
+impl<'m> Deref for ActivityRef<'m> {
+    type Target = Activity;
+
+    fn deref(&self) -> &Self::Target {
+        self.act
+    }
+}
+
+impl<'m> DerefMut for ActivityRef<'m> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.act
+    }
 }
 
 impl_boxitem!(Activity);
 
-// safety: we do the trade-off here to manually sign off that we never obtain two mutable references
-// to the same activity. This is because this code is highly performance critical and it is really
-// hard to use StaticRefCell or similar here instead. For example, the scheduler needs access to two
-// different activities at the same time.
+// safety: we use the unsafe cell here, because it's not really possible to use a StaticRefCell or
+// similar since we sometimes require access to two activities at a time. Therefore, we use an
+// unsafe cell, but track the references per activity at runtime to ensure that there are never two
+// mutable references to the same activity at the same time.
 static ACTIVITIES: StaticUnsafeCell<[Option<NonNull<Activity>>; 64]> =
     StaticUnsafeCell::new([None; 64]);
 
@@ -231,9 +267,10 @@ pub fn init() {
     }
 
     if pex_env().tile_desc.has_virtmem() {
-        our().frames.push(frame);
-        our().init();
-        our().switch_to();
+        let mut our_ref = our();
+        our_ref.frames.push(frame);
+        our_ref.init();
+        our_ref.switch_to();
         paging::enable_paging();
     }
     else {
@@ -292,37 +329,39 @@ pub fn add(
     Ok(())
 }
 
-pub fn get_mut(id: Id) -> Option<&'static mut Activity> {
+pub fn get_mut(id: Id) -> Option<ActivityRef<'static>> {
     if id == kif::tilemux::ACT_ID {
         Some(our())
     }
     else {
-        // safety: see comment for ACTIVITIES
+        // safety: we check at runtime whether a reference to this activity already exists
         unsafe {
             ACTIVITIES.get_mut()[id as usize]
                 .as_mut()
-                .map(|v| v.as_mut())
+                .map(|v| ActivityRef::new(v.as_mut()))
         }
     }
 }
 
-pub fn our() -> &'static mut Activity {
-    // safety: see comment for ACTIVITIES
-    unsafe { OUR.get_mut() }
+pub fn our() -> ActivityRef<'static> {
+    // safety: we check at runtime whether a reference to this activity already exists
+    ActivityRef::new(unsafe { OUR.get_mut() })
 }
 
-pub fn idle() -> &'static mut Activity {
-    // safety: see comment for ACTIVITIES
-    unsafe { IDLE.get_mut() }
+pub fn idle() -> ActivityRef<'static> {
+    // safety: we check at runtime whether a reference to this activity already exists
+    ActivityRef::new(unsafe { IDLE.get_mut() })
 }
 
 #[allow(clippy::borrowed_box)]
-pub fn try_cur() -> Option<&'static mut Box<Activity>> {
-    // safety: see comment for ACTIVITIES
-    unsafe { CUR.get_mut().as_mut() }
+pub fn try_cur() -> Option<ActivityRef<'static>> {
+    // safety: we check at runtime whether a reference to this activity already exists
+    unsafe { CUR.get_mut() }
+        .as_mut()
+        .map(|a| ActivityRef::new(a))
 }
 
-pub fn cur() -> &'static mut Activity {
+pub fn cur() -> ActivityRef<'static> {
     try_cur().unwrap()
 }
 
@@ -334,7 +373,7 @@ pub fn schedule(mut action: ScheduleAction) -> usize {
     let res = loop {
         let new_state = do_schedule(action);
 
-        let act = cur();
+        let mut act = cur();
         if let Some(new_act) = act.exec_cont() {
             action = new_act;
             continue;
@@ -359,7 +398,7 @@ pub fn schedule(mut action: ScheduleAction) -> usize {
     arch::disable_fpu();
 
     // reprogram timer to consider budget_left of current activity
-    timer::reprogram();
+    crate::reg_timer_reprogram();
 
     res
 }
@@ -370,9 +409,9 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
         .borrow_mut()
         .pop_front()
         // safety: we know that idle is stored in a Box
-        .unwrap_or_else(|| unsafe { Box::from_raw(idle()) });
+        .unwrap_or_else(|| unsafe { Box::from_raw(IDLE.get_mut().as_mut()) });
 
-    let old_time = if let Some(old) = try_cur() {
+    let old_time = if let Some(mut old) = try_cur() {
         // reduce budget now in case we decide not to switch below
         old.time_quota.set_left(
             old.time_quota
@@ -399,7 +438,8 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
                 else {
                     Box::into_raw(next);
                 }
-                old.cpu_time += now - old.scheduled;
+                let last_sched = old.scheduled;
+                old.cpu_time += now - last_sched;
                 old.scheduled = now;
                 return old.user_state_addr;
             }
@@ -444,7 +484,7 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
     next.cmd.restore();
 
     // exchange CUR
-    // safety: see comment for ACTIVITIES above
+    // safety: we do no longer hold a reference to `cur`
     if let Some(mut old) = unsafe { CUR.set(Some(next)) } {
         log!(
             crate::LOG_CTXSWS,
@@ -468,9 +508,12 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
                 ScheduleAction::Preempt | ScheduleAction::Yield => {
                     make_ready(old, old_time);
                 },
-                // safety: see comment for ACTIVITIES above
-                ScheduleAction::Kill => unsafe {
-                    ACTIVITIES.get_mut()[old.id() as usize] = None;
+                ScheduleAction::Kill => {
+                    let old_id = old.id();
+                    // safety: we do not access `old` afterwards
+                    unsafe {
+                        ACTIVITIES.get_mut()[old_id as usize] = None;
+                    }
                 },
             }
         }
@@ -509,17 +552,22 @@ fn make_ready(mut act: Box<Activity>, budget: TimeDuration) {
 }
 
 pub fn remove_cur(status: u32) {
-    remove(cur().id(), status, true, true);
+    let cur_id = cur().id();
+    remove(cur_id, status, true, true);
 }
 
 pub fn remove(id: Id, status: u32, notify: bool, sched: bool) {
-    // safety: see comment for ACTIVITIES above
+    // safety: we don't hold a reference to an activity yet
     if let Some(v) = unsafe { ACTIVITIES.get_mut()[id as usize].take() } {
+        // safety: the activity reference `v` is still valid here
         let old = match unsafe { &v.as_ref().state } {
+            // safety: we don't access `v` afterwards
             ActState::Running => unsafe { CUR.set(None).unwrap() },
             ActState::Ready => RDY.borrow_mut().remove_if(|v| v.id() == id).unwrap(),
             ActState::Blocked => BLK.borrow_mut().remove_if(|v| v.id() == id).unwrap(),
         };
+        // ensure that we don't access `v` anymore
+        drop(v);
 
         log!(
             crate::LOG_ACTS,
@@ -593,6 +641,7 @@ impl Activity {
             cmd: helper::TCUCmdState::new(),
             pf_state: None,
             cont: None,
+            has_refs: false,
         }
     }
 
@@ -615,6 +664,10 @@ impl Activity {
 
     pub fn id(&self) -> Id {
         self.act_reg & 0xFFFF
+    }
+
+    pub fn state(&self) -> ActState {
+        self.state
     }
 
     pub fn activity_reg(&self) -> tcu::Reg {
@@ -699,7 +752,7 @@ impl Activity {
 
     pub fn block(
         &mut self,
-        cont: Option<fn() -> ContResult>,
+        cont: Option<fn(&mut Activity) -> ContResult>,
         ep: Option<tcu::EpId>,
         irq: Option<tmif::IRQId>,
         timeout: Option<TimeDuration>,
@@ -824,7 +877,7 @@ impl Activity {
 
     fn exec_cont(&mut self) -> Option<ScheduleAction> {
         self.cont.take().and_then(|cont| {
-            let result = cont();
+            let result = cont(self);
             match result {
                 // only resume this activity if it has been initialized
                 ContResult::Success if self.user_state_addr != 0 => None,

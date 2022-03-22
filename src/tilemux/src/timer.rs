@@ -52,16 +52,18 @@ pub fn add(act: activities::Id, duration: TimeDuration) {
     else {
         list.push(timeout);
         drop(list);
-        reprogram();
+        crate::reg_timer_reprogram();
     }
 }
 
 pub fn remove(act: activities::Id) {
     log!(crate::LOG_TIMER, "timer: removing Activity {}", act);
     LIST.borrow_mut().retain(|t| t.act != act);
-    reprogram();
+    crate::reg_timer_reprogram();
 }
 
+// this function should only be called from the root module; others can request it by calling
+// crate::reg_timer_reprogram().
 pub fn reprogram() {
     // determine the remaining budget of the current activity, if there is any
     let budget = activities::try_cur().and_then(|cur| {
@@ -123,8 +125,5 @@ pub fn trigger() {
     }
     drop(list);
 
-    // if a scheduling is pending, we can skip this step here, because we'll do it later anyway
-    if !crate::scheduling_pending() {
-        reprogram();
-    }
+    crate::reg_timer_reprogram();
 }
