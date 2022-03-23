@@ -15,17 +15,18 @@
 
 use bitflags::bitflags;
 use m3::cap::Selector;
-use m3::cell::RefCell;
+use m3::cell::{Cell, RefCell};
 use m3::col::{VarRingBuf, Vec};
-use m3::com::{GateIStream, MemGate, RecvGate, SGateArgs, SendGate, EP};
+use m3::com::{GateIStream, MemGate, RGateArgs, RecvGate, SGateArgs, SendGate, EP};
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::log;
 use m3::rc::Rc;
-use m3::reply_vmsg;
 use m3::server::SessId;
 use m3::session::ServerSession;
 use m3::tcu::{Label, Message};
+use m3::vfs::FileEvent;
+use m3::{reply_vmsg, send_vmsg};
 
 macro_rules! reply_vmsg_late {
     ( $rgate:expr, $msg:expr, $( $args:expr ),* ) => ({
@@ -110,6 +111,52 @@ impl PendingRequest {
     }
 }
 
+struct NotifyGate {
+    sess: SessId,
+    rgate: RecvGate,
+    sgate: SendGate,
+    notify_events: FileEvent,
+    pending_events: FileEvent,
+    promised_events: Rc<Cell<FileEvent>>,
+}
+
+impl NotifyGate {
+    fn new(
+        sess: SessId,
+        rgate: RecvGate,
+        sgate: SendGate,
+        promised_events: Rc<Cell<FileEvent>>,
+    ) -> Self {
+        Self {
+            sess,
+            rgate,
+            sgate,
+            notify_events: FileEvent::empty(),
+            pending_events: FileEvent::empty(),
+            promised_events,
+        }
+    }
+
+    fn send_events(&mut self) {
+        if !self.pending_events.is_empty() {
+            if self.sgate.credits().unwrap() > 0 {
+                log!(
+                    crate::LOG_DEF,
+                    "[{}] pipes::notify({:?})",
+                    self.sess,
+                    self.pending_events
+                );
+                // ignore errors
+                send_vmsg!(&self.sgate, &self.rgate, self.pending_events.bits()).ok();
+                // we promise the client that these operations will not block on the next call
+                self.promised_events.set(self.pending_events);
+                self.notify_events &= !self.pending_events;
+                self.pending_events = FileEvent::empty();
+            }
+        }
+    }
+}
+
 struct State {
     flags: Flags,
     mem: Option<MemGate>,
@@ -119,6 +166,7 @@ struct State {
     last_write: Option<(SessId, usize)>,
     pending_reads: Vec<PendingRequest>,
     pending_writes: Vec<PendingRequest>,
+    notify_gates: Vec<NotifyGate>,
     reader: Vec<SessId>,
     writer: Vec<SessId>,
 }
@@ -134,6 +182,7 @@ impl State {
             last_write: None,
             pending_reads: Vec::new(),
             pending_writes: Vec::new(),
+            notify_gates: Vec::new(),
             reader: Vec::new(),
             writer: Vec::new(),
         }
@@ -149,6 +198,29 @@ impl State {
         self.rbuf.size() / (4 * self.writer.len())
     }
 
+    fn get_notify_gate(&mut self, sess: SessId) -> Option<&mut NotifyGate> {
+        self.notify_gates.iter_mut().find(|n| n.sess == sess)
+    }
+
+    fn receive_acks(&mut self) {
+        for n in &mut self.notify_gates {
+            if let Some(msg) = n.rgate.fetch() {
+                n.rgate.ack_msg(msg).unwrap();
+                // try again to send events, if there are some
+                n.send_events();
+            }
+        }
+    }
+
+    fn add_event(&mut self, event: FileEvent) {
+        for n in &mut self.notify_gates {
+            if n.notify_events.contains(event) {
+                n.pending_events |= event;
+                n.send_events();
+            }
+        }
+    }
+
     fn append_request(&mut self, id: SessId, is: &mut GateIStream<'_>, read: bool) {
         let req = PendingRequest::new(id, is.take_msg());
         if read {
@@ -162,6 +234,8 @@ impl State {
     }
 
     fn handle_pending_reads(&mut self, rgate: &RecvGate) {
+        self.receive_acks();
+
         // if a read is still in progress, we cannot start other reads
         if self.last_read.is_some() {
             return;
@@ -201,9 +275,16 @@ impl State {
                 break;
             }
         }
+
+        // if there is any chance to read something, notify all that are waiting for this event
+        if self.notify_gates.len() > 0 && self.rbuf.get_read_pos(1).is_some() {
+            self.add_event(FileEvent::INPUT);
+        }
     }
 
     fn handle_pending_writes(&mut self, rgate: &RecvGate) {
+        self.receive_acks();
+
         // if a write is still in progress, we cannot start other writes
         if self.last_write.is_some() {
             return;
@@ -235,6 +316,11 @@ impl State {
                 // remove write request
                 self.pending_writes.pop();
             }
+        }
+
+        // if there is any chance to write something, notify all that are waiting for this event
+        if self.notify_gates.len() > 0 && self.rbuf.get_write_pos(1).is_some() {
+            self.add_event(FileEvent::OUTPUT);
         }
     }
 
@@ -323,6 +409,7 @@ pub struct Channel {
     mem: Option<MemGate>,
     sgate: SendGate,
     ep_cap: Option<Selector>,
+    promised_events: Rc<Cell<FileEvent>>,
 }
 
 impl Channel {
@@ -348,6 +435,7 @@ impl Channel {
             mem: None,
             sgate,
             ep_cap: None,
+            promised_events: Rc::new(Cell::from(FileEvent::empty())),
         })
     }
 
@@ -365,6 +453,56 @@ impl Channel {
 
     pub fn set_ep(&mut self, ep: Selector) {
         self.ep_cap = Some(ep);
+    }
+
+    pub fn enable_notify(&mut self, sgate: Selector) -> Result<(), Error> {
+        if self.state.borrow_mut().get_notify_gate(self.id).is_some() {
+            return Err(Error::new(Code::Exists));
+        }
+
+        let mut rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
+        rgate.activate()?;
+        self.state.borrow_mut().notify_gates.push(NotifyGate::new(
+            self.id,
+            rgate,
+            SendGate::new_bind(sgate),
+            self.promised_events.clone(),
+        ));
+        Ok(())
+    }
+
+    pub fn request_notify(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
+        let _: usize = is.pop()?;
+        let events: FileEvent = FileEvent::from_bits_truncate(is.pop()?);
+
+        log!(
+            crate::LOG_DEF,
+            "[{}] pipes::request_notify(events={:?})",
+            self.id,
+            events
+        );
+
+        let mut state = self.state.borrow_mut();
+        // we don't support multiple readers/writers in combination with notifications
+        assert!(state.reader.len() <= 1 && state.writer.len() <= 1);
+        let can_read = state.rbuf.get_read_pos(1).is_some();
+        let can_write = state.rbuf.get_write_pos(1).is_some();
+        let ng = state
+            .get_notify_gate(self.id)
+            .ok_or(Error::new(Code::NotSup))?;
+
+        ng.notify_events |= events;
+        // remove from promised events, because we need to notify the client about them again first
+        ng.promised_events.set(ng.promised_events.get() & !events);
+        if events.contains(FileEvent::INPUT) && can_read {
+            ng.pending_events |= FileEvent::INPUT;
+        }
+        if events.contains(FileEvent::OUTPUT) && can_write {
+            ng.pending_events |= FileEvent::OUTPUT;
+        }
+        ng.send_events();
+
+        is.reply_error(Code::None)
     }
 
     pub fn next_in(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -474,6 +612,9 @@ impl Channel {
         if let Some((pos, amount)) = state.rbuf.get_read_pos(amount) {
             // there is something to read; give client the position and size
             state.last_read = Some((self.id, amount));
+            // okay, input is available, so we fulfilled our promise
+            self.promised_events
+                .set(self.promised_events.get() & !FileEvent::INPUT);
             log!(
                 crate::LOG_DEF,
                 "[{}] pipes::read(): {} @ {}",
@@ -489,8 +630,14 @@ impl Channel {
                 log!(crate::LOG_DEF, "[{}] pipes::read(): EOF", self.id);
                 reply_vmsg!(is, Code::None as u32, 0usize, 0usize)
             }
-            // otherwise queue the request
             else {
+                // if we promised the client that input would be available, report WouldBlock
+                // instead of delaying the response.
+                if self.promised_events.get().contains(FileEvent::INPUT) {
+                    return Err(Error::new(Code::WouldBlock));
+                }
+
+                // otherwise queue the request
                 state.append_request(self.id, is, true);
                 Ok(())
             }
@@ -547,6 +694,9 @@ impl Channel {
         if let Some(pos) = state.rbuf.get_write_pos(amount) {
             // there is space to write; give client the position and size
             state.last_write = Some((self.id, amount));
+            // okay, input is available, so we fulfilled our promise
+            self.promised_events
+                .set(self.promised_events.get() & !FileEvent::OUTPUT);
             log!(
                 crate::LOG_DEF,
                 "[{}] pipes::write(): {} @ {}",
@@ -557,6 +707,12 @@ impl Channel {
             reply_vmsg!(is, Code::None as u32, pos, amount)
         }
         else {
+            // if we promised the client that input would be available, report WouldBlock
+            // instead of delaying the response.
+            if self.promised_events.get().contains(FileEvent::OUTPUT) {
+                return Err(Error::new(Code::WouldBlock));
+            }
+
             // nothing to write, so queue the request
             state.append_request(self.id, is, false);
             Ok(())

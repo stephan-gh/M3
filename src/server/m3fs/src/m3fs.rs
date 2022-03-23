@@ -123,28 +123,29 @@ fn flush_buffer() -> Result<(), Error> {
 
 int_enum! {
     pub struct M3FSOperation : u64 {
-        const STAT      = GenFileOp::STAT.val;
-        const SEEK      = GenFileOp::SEEK.val;
-        const NEXT_IN   = GenFileOp::NEXT_IN.val;
-        const NEXT_OUT  = GenFileOp::NEXT_OUT.val;
-        const COMMIT    = GenFileOp::COMMIT.val;
-        const SYNC      = GenFileOp::SYNC.val;
-        const CLOSE     = GenFileOp::CLOSE.val;
-        const CLONE     = GenFileOp::CLONE.val;
-        const SET_TMODE = GenFileOp::SET_TMODE.val;
-        const SET_DEST  = GenFileOp::SET_DEST.val;
-        const SET_SIG   = GenFileOp::SET_SIG.val;
-        const OPEN      = FSOperation::OPEN.val;
-        const FSTAT     = FSOperation::STAT.val;
-        const MKDIR     = FSOperation::MKDIR.val;
-        const RMDIR     = FSOperation::RMDIR.val;
-        const LINK      = FSOperation::LINK.val;
-        const UNLINK    = FSOperation::UNLINK.val;
-        const RENAME    = FSOperation::RENAME.val;
-        const GET_MEM   = FSOperation::GET_MEM.val;
-        const GET_SGATE = FSOperation::GET_SGATE.val;
-        const DEL_EP   =  FSOperation::DEL_EP.val;
-        const OPEN_PRIV = FSOperation::OPEN_PRIV.val;
+        const STAT          = GenFileOp::STAT.val;
+        const SEEK          = GenFileOp::SEEK.val;
+        const NEXT_IN       = GenFileOp::NEXT_IN.val;
+        const NEXT_OUT      = GenFileOp::NEXT_OUT.val;
+        const COMMIT        = GenFileOp::COMMIT.val;
+        const SYNC          = GenFileOp::SYNC.val;
+        const CLOSE         = GenFileOp::CLOSE.val;
+        const CLONE         = GenFileOp::CLONE.val;
+        const SET_TMODE     = GenFileOp::SET_TMODE.val;
+        const SET_DEST      = GenFileOp::SET_DEST.val;
+        const ENABLE_NOTIFY = GenFileOp::ENABLE_NOTIFY.val;
+        const REQ_NOTIFY    = GenFileOp::REQ_NOTIFY.val;
+        const OPEN          = FSOperation::OPEN.val;
+        const FSTAT         = FSOperation::STAT.val;
+        const MKDIR         = FSOperation::MKDIR.val;
+        const RMDIR         = FSOperation::RMDIR.val;
+        const LINK          = FSOperation::LINK.val;
+        const UNLINK        = FSOperation::UNLINK.val;
+        const RENAME        = FSOperation::RENAME.val;
+        const GET_MEM       = FSOperation::GET_MEM.val;
+        const GET_SGATE     = FSOperation::GET_SGATE.val;
+        const DEL_EP        = FSOperation::DEL_EP.val;
+        const OPEN_PRIV     = FSOperation::OPEN_PRIV.val;
     }
 }
 

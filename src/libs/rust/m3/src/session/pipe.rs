@@ -24,7 +24,7 @@ use crate::int_enum;
 use crate::kif::{CapRngDesc, CapType};
 use crate::rc::Rc;
 use crate::session::ClientSession;
-use crate::vfs::{FileHandle, GenericFile, OpenFlags};
+use crate::vfs::{FileHandle, GenFileOp, GenericFile, OpenFlags};
 
 /// Represents a session at the pipes server.
 pub struct Pipes {
@@ -34,10 +34,10 @@ pub struct Pipes {
 int_enum! {
     /// The pipe operations.
     pub struct PipeOperation : u64 {
-        const OPEN_PIPE     = 11;
-        const OPEN_CHAN     = 12;
-        const SET_MEM       = 13;
-        const CLOSE_PIPE    = 14;
+        const OPEN_PIPE     = GenFileOp::REQ_NOTIFY.val + 1;
+        const OPEN_CHAN     = Self::OPEN_PIPE.val + 1;
+        const SET_MEM       = Self::OPEN_CHAN.val + 1;
+        const CLOSE_PIPE    = Self::SET_MEM.val + 1;
     }
 }
 

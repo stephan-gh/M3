@@ -46,7 +46,8 @@ public:
         CLONE,
         SET_TMODE,
         SET_DEST,
-        SET_SIG,
+        ENABLE_NOTIFY,
+        REQ_NOTIFY,
     };
 
     explicit GenericFile(int flags, capsel_t caps,
@@ -65,8 +66,8 @@ public:
 
     virtual size_t seek(size_t offset, int whence) override;
 
-    virtual size_t read(void *buffer, size_t count) override;
-    virtual size_t write(const void *buffer, size_t count) override;
+    virtual ssize_t read(void *buffer, size_t count) override;
+    virtual ssize_t write(const void *buffer, size_t count) override;
 
     virtual void flush() override {
         if(_writing)
@@ -79,7 +80,8 @@ public:
                      int prot, int flags) const override;
 
     virtual void set_tmode(TMode mode) override;
-    virtual void set_signal_gate(SendGate &sg) override;
+
+    virtual bool fetch_signal() override;
 
     virtual char type() const noexcept override {
         return 'F';
@@ -127,11 +129,18 @@ private:
     void do_delegate_ep(const EP &ep) const;
     void commit();
     void delegate_ep();
+    virtual void enable_notifications() override;
+    void request_notification(uint events);
+    bool receive_notify(uint event);
 
     size_t _fs_id;
     size_t _id;
     mutable ClientSession _sess;
     mutable SendGate *_sg;
+    std::unique_ptr<RecvGate> _notify_rgate;
+    std::unique_ptr<SendGate> _notify_sgate;
+    uint8_t _notify_received;
+    uint8_t _notify_requested;
     MemGate _mg;
     size_t _goff;
     size_t _off;

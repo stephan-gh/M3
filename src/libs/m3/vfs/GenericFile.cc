@@ -34,6 +34,10 @@ GenericFile::GenericFile(int flags, capsel_t caps,
       _id(id),
       _sess(caps + 0, sg ? ObjCap::KEEP_CAP : 0),
       _sg(sg ? sg : new SendGate(SendGate::bind(caps + 1))),
+      _notify_rgate(),
+      _notify_sgate(),
+      _notify_received(),
+      _notify_requested(),
       _mg(MemGate::bind(ObjCap::INVALID)),
       _goff(),
       _off(),
@@ -143,7 +147,39 @@ size_t GenericFile::seek(size_t offset, int whence) {
     return _goff + off;
 }
 
-size_t GenericFile::read(void *buffer, size_t count) {
+NOINLINE bool GenericFile::receive_notify(uint event) {
+    // if we did not request a notification for this event yet, do that now
+    if((_notify_requested & event) == 0)
+        request_notification(event);
+
+    // if we did not receive the given event, check if there is a message
+    if((_notify_received & event) == 0) {
+        const TCU::Message *msg;
+        // if there is a message, add it to the received events
+        if((msg = _notify_rgate->fetch()) != nullptr) {
+            uint events;
+            GateIStream imsg(*_notify_rgate, msg);
+            imsg >> events;
+            _notify_received |= events;
+            _notify_requested &= ~events;
+            LLOG(FS, "GenFile[" << fd() << "]::receive_notify() -> received " << fmt(events, "x"));
+            // give credits back to sender
+            reply_vmsg(imsg, 0);
+        }
+    }
+
+    // now check again if we have received this event; if not, we would block
+    if((_notify_received & event) == 0)
+        return false;
+
+    // okay, event received; remove it and continue
+    LLOG(FS, "GenFile[" << fd() << "]::receive_notify() -> fetched " << fmt(event, "x"));
+    _notify_received &= ~event;
+
+    return true;
+}
+
+ssize_t GenericFile::read(void *buffer, size_t count) {
     delegate_ep();
     if(_writing)
         commit();
@@ -151,8 +187,18 @@ size_t GenericFile::read(void *buffer, size_t count) {
     LLOG(FS, "GenFile[" << fd() << "]::read(" << count << ", pos=" << (_goff + _pos) << ")");
 
     if(_pos == _len) {
+        if(!_blocking && !receive_notify(Event::INPUT))
+            return -1;
+
         GateIStream reply = send_receive_vmsg(*_sg, NEXT_IN, _id);
-        reply.pull_result();
+        Errors::Code res;
+        reply >> res;
+        // if the server promised that we can call NEXT_IN without being blocked, but would still
+        // have to block us, it returns Errors::WOULD_BLOCK instead.
+        if(res == Errors::WOULD_BLOCK)
+            return -1;
+        if(res != Errors::NONE)
+            throw Exception(res);
 
         _goff += _len;
         reply >> _off >> _len;
@@ -169,17 +215,27 @@ size_t GenericFile::read(void *buffer, size_t count) {
             _mg.read(buffer, amount, _off + _pos);
         _pos += amount;
     }
-    return amount;
+    return static_cast<ssize_t>(amount);
 }
 
-size_t GenericFile::write(const void *buffer, size_t count) {
+ssize_t GenericFile::write(const void *buffer, size_t count) {
     delegate_ep();
 
     LLOG(FS, "GenFile[" << fd() << "]::write(" << count << ", pos=" << (_goff + _pos) << ")");
 
     if(_pos == _len) {
+        if(!_blocking && !receive_notify(Event::OUTPUT))
+            return -1;
+
         GateIStream reply = send_receive_vmsg(*_sg, NEXT_OUT, _id);
-        reply.pull_result();
+        Errors::Code res;
+        reply >> res;
+        // if the server promised that we can call NEXT_OUT without being blocked, but would still
+        // have to block us, it returns Errors::WOULD_BLOCK instead.
+        if(res == Errors::WOULD_BLOCK)
+            return -1;
+        if(res != Errors::NONE)
+            throw Exception(res);
 
         _goff += _len;
         reply >> _off >> _len;
@@ -197,7 +253,7 @@ size_t GenericFile::write(const void *buffer, size_t count) {
         _pos += amount;
     }
     _writing = true;
-    return amount;
+    return static_cast<ssize_t>(amount);
 }
 
 void GenericFile::commit() {
@@ -228,13 +284,46 @@ void GenericFile::set_tmode(TMode mode) {
     reply.pull_result();
 }
 
-void GenericFile::set_signal_gate(SendGate &sg) {
+NOINLINE void GenericFile::enable_notifications() {
+    if(_notify_rgate)
+        return;
+
+    std::unique_ptr<RecvGate> notify_rgate(new RecvGate(
+        RecvGate::create(nextlog2<NOTIFY_MSG_SIZE>::val, nextlog2<NOTIFY_MSG_SIZE>::val)));
+    notify_rgate->activate();
+
+    std::unique_ptr<SendGate> notify_sgate(new SendGate(SendGate::create(&*notify_rgate)));
+
     KIF::ExchangeArgs args;
     ExchangeOStream os(args);
-    os << Operation::SET_SIG;
+    os << Operation::ENABLE_NOTIFY;
     args.bytes = os.total();
-    KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, sg.sel(), 1);
+    KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, notify_sgate->sel(), 1);
     _sess.delegate_for(Activity::self(), crd, &args);
+
+    LLOG(FS, "GenFile[" << fd() << "]::enable_notifications()");
+
+    // now that it succeeded, store the gates
+    _notify_rgate.swap(notify_rgate);
+    _notify_sgate.swap(notify_sgate);
+}
+
+void GenericFile::request_notification(uint events) {
+    LLOG(FS, "GenFile[" << fd() << "]::request_notification(want="
+        << fmt(events, "x") << ", have=" << fmt(_notify_requested, "x") << ")");
+
+    if((_notify_requested & events) != events) {
+        GateIStream reply = send_receive_vmsg(*_sg, Operation::REQ_NOTIFY, _id, events);
+        reply.pull_result();
+        _notify_requested |= events;
+    }
+}
+
+bool GenericFile::fetch_signal() {
+    if(!_notify_rgate)
+        enable_notifications();
+
+    return receive_notify(Event::SIGNAL);
 }
 
 void GenericFile::map(Reference<Pager> &pager, goff_t *virt, size_t fileoff, size_t len,

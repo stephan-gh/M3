@@ -70,7 +70,7 @@ NOINLINE static void read() {
     WVPERF("read 2 MiB file with 8K buf", pr.run<CycleInstant>([] {
         FileRef file("/data/2048k.txt", FILE_R);
 
-        size_t amount;
+        ssize_t amount;
         while((amount = file->read(buf, sizeof(buf))) > 0)
             ;
     }));
@@ -85,7 +85,7 @@ NOINLINE static void write() {
 
         size_t total = 0;
         while(total < SIZE) {
-            size_t amount = file->write(buf, sizeof(buf));
+            ssize_t amount = file->write(buf, sizeof(buf));
             total += static_cast<size_t>(amount);
         }
     }));
@@ -98,7 +98,7 @@ NOINLINE static void copy() {
         FileRef in("/data/2048k.txt", FILE_R);
         FileRef out("/newfile", FILE_W | FILE_TRUNC | FILE_CREATE);
 
-        size_t count;
+        ssize_t count;
         while((count = in->read(buf, sizeof(buf))) > 0)
             out->write_all(buf, static_cast<size_t>(count));
     }));

@@ -117,7 +117,7 @@ static void delete_file() {
 
         WVASSERTERR(Errors::NO_SUCH_FILE, [&tmp_file] { VFS::open(tmp_file, FILE_R); });
 
-        WVASSERTEQ(file->read(buffer, sizeof(buffer)), 5u);
+        WVASSERTEQ(file->read(buffer, sizeof(buffer)), 5);
     }
 
     WVASSERTERR(Errors::NO_SUCH_FILE, [&tmp_file] { VFS::open(tmp_file, FILE_R); });

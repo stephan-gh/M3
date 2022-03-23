@@ -32,10 +32,10 @@ static void count(FStream &in) {
     long words = 0;
     long bytes = 0;
 
-    size_t res;
+    ssize_t res;
     int last_space = false;
     while((res = in.read(buffer, sizeof(buffer))) > 0) {
-        count(buffer, res, &lines, &words, &last_space);
+        count(buffer, static_cast<size_t>(res), &lines, &words, &last_space);
         bytes += static_cast<long>(res);
     }
 

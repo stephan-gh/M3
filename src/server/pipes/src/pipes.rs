@@ -55,7 +55,8 @@ int_enum! {
         const CLONE         = GenFileOp::CLONE.val;
         const SET_TMODE     = GenFileOp::SET_TMODE.val;
         const SET_DEST      = GenFileOp::SET_DEST.val;
-        const SET_SIG       = GenFileOp::SET_SIG.val;
+        const ENABLE_NOTIFY = GenFileOp::ENABLE_NOTIFY.val;
+        const REQ_NOTIFY    = GenFileOp::REQ_NOTIFY.val;
         const OPEN_PIPE     = PipeOperation::OPEN_PIPE.val;
         const OPEN_CHAN     = PipeOperation::OPEN_CHAN.val;
         const SET_MEM       = PipeOperation::SET_MEM.val;
@@ -270,31 +271,55 @@ impl Handler<PipesSession> for PipesHandler {
 
         match &mut sess.data_mut() {
             // pipe sessions expect a memory cap for the shared memory of the pipe
-            SessionData::Pipe(ref mut p) => {
-                if xchg.in_caps() != 1 || p.has_mem() || op != Operation::SET_MEM {
-                    return Err(Error::new(Code::InvArgs));
-                }
+            SessionData::Pipe(ref mut p) => match op {
+                Operation::SET_MEM => {
+                    if xchg.in_caps() != 1 || p.has_mem() {
+                        return Err(Error::new(Code::InvArgs));
+                    }
 
-                let sel = Activity::cur().alloc_sel();
-                log!(crate::LOG_DEF, "[{}] pipes::set_mem(sel={})", sid, sel);
-                p.set_mem(sel);
-                xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
+                    let sel = Activity::cur().alloc_sel();
+                    log!(crate::LOG_DEF, "[{}] pipes::set_mem(sel={})", sid, sel);
+                    p.set_mem(sel);
+                    xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
 
-                Ok(())
+                    Ok(())
+                },
+                _ => return Err(Error::new(Code::InvArgs)),
             },
 
             // channel sessions expect an EP cap to get access to the data
-            SessionData::Chan(ref mut c) => {
-                if xchg.in_caps() != 1 || op != Operation::SET_DEST {
-                    return Err(Error::new(Code::InvArgs));
-                }
+            SessionData::Chan(ref mut c) => match op {
+                Operation::SET_DEST => {
+                    if xchg.in_caps() != 1 {
+                        return Err(Error::new(Code::InvArgs));
+                    }
 
-                let sel = Activity::cur().alloc_sel();
-                log!(crate::LOG_DEF, "[{}] pipes::set_ep(sel={})", sid, sel);
-                c.set_ep(sel);
-                xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
+                    let sel = Activity::cur().alloc_sel();
+                    log!(crate::LOG_DEF, "[{}] pipes::set_ep(sel={})", sid, sel);
+                    c.set_ep(sel);
+                    xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
 
-                Ok(())
+                    Ok(())
+                },
+
+                Operation::ENABLE_NOTIFY => {
+                    if xchg.in_caps() != 1 {
+                        return Err(Error::new(Code::InvArgs));
+                    }
+
+                    let sel = Activity::cur().alloc_sel();
+                    log!(
+                        crate::LOG_DEF,
+                        "[{}] pipes::enable_notify(sel={})",
+                        sid,
+                        sel
+                    );
+                    c.enable_notify(sel)?;
+                    xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
+                    Ok(())
+                },
+
+                _ => return Err(Error::new(Code::InvArgs)),
             },
 
             SessionData::Meta(_) => Err(Error::new(Code::InvArgs)),
@@ -373,6 +398,7 @@ pub fn main() -> i32 {
                 Operation::NEXT_IN => hdl.with_chan(is, |c, is| c.next_in(is)),
                 Operation::NEXT_OUT => hdl.with_chan(is, |c, is| c.next_out(is)),
                 Operation::COMMIT => hdl.with_chan(is, |c, is| c.commit(is)),
+                Operation::REQ_NOTIFY => hdl.with_chan(is, |c, is| c.request_notify(is)),
                 Operation::CLOSE | Operation::CLOSE_PIPE => {
                     let sid = is.label() as SessId;
                     // reply before we destroy the client's sgate. otherwise the client might

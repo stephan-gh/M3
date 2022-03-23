@@ -70,10 +70,10 @@ void chain_indirect(Reference<File> in, Reference<File> out, size_t num, CycleDu
         acts[i]->start();
 
     size_t total = 0, seen = 0;
-    size_t count = in->read(buffer.get(), BUF_SIZE);
+    ssize_t count = in->read(buffer.get(), BUF_SIZE);
 
     // label 0 is special; use 1..n
-    accels[0]->write(buffer.get(), count);
+    accels[0]->write(buffer.get(), static_cast<size_t>(count));
     accels[0]->start(InDirAccel::Operation::COMPUTE, static_cast<size_t>(count), comptime, 1);
     ops[0] = InDirAccel::Operation::COMPUTE;
     total += static_cast<size_t>(count);

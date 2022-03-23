@@ -211,7 +211,7 @@ void Activity::run(int (*func)()) {
 void Activity::do_exec(int argc, const char **argv, uintptr_t func_addr) {
     static char buffer[8192];
     int tmp, pid;
-    size_t res;
+    ssize_t res;
     Chan p2c, c2p;
 
     obtain_fds();

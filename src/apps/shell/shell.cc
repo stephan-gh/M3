@@ -46,8 +46,8 @@ static const uint MIN_EPS = 16;
 static const uint64_t MIN_TIME = 100000; // 100µs
 static const size_t MIN_PTS = 16;
 
+static bool have_vterm = false;
 static VTerm *vterm;
-static RecvGate *signal_rgate;
 
 static char **build_args(Command *cmd) {
     char **res = new char*[cmd->args->count + 1];
@@ -228,6 +228,10 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
             bool signal = false;
             capsel_t act = KIF::INV_SEL;
             int exitcode = 0;
+            if(have_vterm) {
+                // fetch the signal first to ensure we don't have one from last time
+                cin.file()->fetch_signal();
+            }
 
             while(true) {
                 const TCU::Message *msg;
@@ -239,10 +243,8 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                     reply_vmsg(is, 0);
                     break;
                 }
-                else if(signal_rgate && (msg = signal_rgate->fetch())) {
-                    GateIStream is(*signal_rgate, msg);
+                else if(have_vterm && cin.file()->fetch_signal()) {
                     signal = true;
-                    reply_vmsg(is, 0);
                     Syscalls::activity_wait(sels, 0, 1, nullptr);
                     break;
                 }
@@ -301,7 +303,6 @@ static void execute(Pipes &pipesrv, CmdList *list) {
 int main(int argc, char **argv) {
     Pipes pipesrv("pipes");
 
-    bool have_vterm = false;
     try {
         vterm = new VTerm("vterm");
 
@@ -309,14 +310,6 @@ int main(int argc, char **argv) {
         const fd_t fds[] = {STDIN_FD, STDOUT_FD, STDERR_FD};
         for(fd_t fd : fds)
             Activity::self().files()->set(fd, vterm->create_channel(fd == STDIN_FD));
-
-        // register SendGate for signals from vterm
-        signal_rgate = new RecvGate(RecvGate::create(5, 5));
-        signal_rgate->activate();
-        // create on the heap to keep it around
-        SendGate *signal_sgate = new SendGate(SendGate::create(signal_rgate));
-        cin.file()->set_signal_gate(*signal_sgate);
-
         have_vterm = true;
     }
     catch(const Exception &e) {

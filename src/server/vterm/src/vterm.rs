@@ -16,7 +16,7 @@
 #![no_std]
 
 use m3::cap::Selector;
-use m3::cell::{LazyReadOnlyCell, LazyStaticRefCell, StaticCell, StaticRefCell};
+use m3::cell::{LazyReadOnlyCell, RefMut, StaticCell, StaticRefCell};
 use m3::col::Vec;
 use m3::com::{GateIStream, MemGate, Perm, RGateArgs, RecvGate, SGateArgs, SendGate, EP};
 use m3::errors::{Code, Error};
@@ -34,7 +34,7 @@ use m3::session::ServerSession;
 use m3::tcu::{Label, Message};
 use m3::tiles::Activity;
 use m3::vec;
-use m3::vfs::GenFileOp;
+use m3::vfs::{FileEvent, GenFileOp};
 use m3::{goff, send_vmsg};
 
 pub const LOG_DEF: bool = false;
@@ -49,7 +49,6 @@ int_enum! {
 }
 
 static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
-static SIGRGATE: LazyStaticRefCell<RecvGate> = LazyStaticRefCell::default();
 static BUFFER: StaticRefCell<Vec<u8>> = StaticRefCell::new(Vec::new());
 static INPUT: StaticRefCell<Vec<u8>> = StaticRefCell::new(Vec::new());
 static MODE: StaticCell<Mode> = StaticCell::new(Mode::COOKED);
@@ -87,7 +86,10 @@ struct Channel {
     ep: Option<Selector>,
     _sgate: SendGate,
     our_mem: Rc<MemGate>,
-    sig_gate: Option<SendGate>,
+    notify_gates: Option<(RecvGate, SendGate)>,
+    notify_events: FileEvent,
+    pending_events: FileEvent,
+    promised_events: FileEvent,
     pending_nextin: Option<&'static Message>,
     mem: MemGate,
     pos: usize,
@@ -115,7 +117,10 @@ impl Channel {
             ep: None,
             _sgate: sgate,
             our_mem: mem,
-            sig_gate: None,
+            notify_gates: None,
+            notify_events: FileEvent::empty(),
+            pending_events: FileEvent::empty(),
+            promised_events: FileEvent::empty(),
             pending_nextin: None,
             mem: cmem,
             pos: 0,
@@ -164,11 +169,19 @@ impl Channel {
         if self.pos == self.len {
             let mut input = INPUT.borrow_mut();
             if input.is_empty() {
+                // if we promised the client that input would be available, report WouldBlock
+                // instead of delaying the response.
+                if self.promised_events.contains(FileEvent::INPUT) {
+                    return Err(Error::new(Code::WouldBlock));
+                }
+
                 assert!(self.pending_nextin.is_none());
                 self.pending_nextin = Some(is.take_msg());
                 return Ok(());
             }
 
+            // okay, input is available, so we fulfilled our promise
+            self.promised_events &= !FileEvent::INPUT;
             self.our_mem.write(&input, mem_off(self.id))?;
             self.len = input.len();
             self.pos = 0;
@@ -229,6 +242,75 @@ impl Channel {
         }
         self.len = 0;
         Ok(())
+    }
+
+    fn request_notify(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
+        let _: usize = is.pop()?;
+        let events: FileEvent = FileEvent::from_bits_truncate(is.pop()?);
+
+        log!(
+            crate::LOG_DEF,
+            "[{}] vterm::req_notify(events={:?})",
+            self.id,
+            events
+        );
+
+        if self.notify_gates.is_none() {
+            return Err(Error::new(Code::NotSup));
+        }
+
+        self.notify_events |= events;
+        // remove from promised events, because we need to notify the client about them again first
+        self.promised_events &= !events;
+        // check whether input is available already
+        if events.contains(FileEvent::INPUT) && !INPUT.borrow().is_empty() {
+            self.pending_events |= FileEvent::INPUT;
+        }
+        // output is always possible
+        if events.contains(FileEvent::OUTPUT) {
+            self.pending_events |= FileEvent::OUTPUT;
+        }
+        // directly notify the client, if there is any input or output possible
+        self.send_events();
+
+        is.reply_error(Code::None)
+    }
+
+    fn add_event(&mut self, event: FileEvent) -> bool {
+        if self.notify_events.contains(event) {
+            log!(
+                crate::LOG_DEF,
+                "[{}] vterm::received_event({:?})",
+                self.id,
+                event
+            );
+            self.pending_events |= event;
+            self.send_events();
+            true
+        }
+        else {
+            false
+        }
+    }
+
+    fn send_events(&mut self) {
+        if !self.pending_events.is_empty() {
+            let (rg, sg) = self.notify_gates.as_ref().unwrap();
+            if sg.credits().unwrap() > 0 {
+                log!(
+                    crate::LOG_DEF,
+                    "[{}] vterm::sending_events({:?})",
+                    self.id,
+                    self.pending_events
+                );
+                // ignore errors
+                send_vmsg!(sg, rg, self.pending_events.bits()).ok();
+                // we promise the client that these operations will not block on the next call
+                self.promised_events = self.pending_events;
+                self.notify_events &= !self.pending_events;
+                self.pending_events = FileEvent::empty();
+            }
+        }
     }
 }
 
@@ -387,13 +469,15 @@ impl Handler<VTermSession> for VTermHandler {
                     xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
                     Ok(())
                 },
-                GenFileOp::SET_SIG => {
-                    if c.sig_gate.is_some() {
+                GenFileOp::ENABLE_NOTIFY => {
+                    if c.notify_gates.is_some() {
                         return Err(Error::new(Code::Exists));
                     }
 
                     let sel = Activity::cur().alloc_sel();
-                    c.sig_gate = Some(SendGate::new_bind(sel));
+                    let mut rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
+                    rgate.activate()?;
+                    c.notify_gates = Some((rgate, SendGate::new_bind(sel)));
                     xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
                     Ok(())
                 },
@@ -407,13 +491,52 @@ impl Handler<VTermSession> for VTermHandler {
     }
 }
 
-fn send_signal(hdl: &mut VTermHandler) {
-    hdl.sessions.for_each(|s| match &s.data {
+fn add_signal(hdl: &mut VTermHandler) {
+    hdl.sessions.for_each(|s| match &mut s.data {
         SessionData::Chan(c) => {
-            if let Some(sg) = c.sig_gate.as_ref() {
-                log!(crate::LOG_DEF, "[{}] sending SIGINT", c.id);
-                // ignore errors
-                send_vmsg!(sg, &SIGRGATE.borrow(), 0).ok();
+            c.add_event(FileEvent::SIGNAL);
+        },
+        SessionData::Meta => {},
+    });
+}
+
+fn add_input(hdl: &mut VTermHandler, mut flush: bool, input: &mut RefMut<'_, Vec<u8>>) {
+    // pass to first session that wants input
+    hdl.sessions.for_each(|s| {
+        if flush || !input.is_empty() {
+            if let SessionData::Chan(c) = &mut s.data {
+                if let Some(msg) = c.pending_nextin.take() {
+                    c.our_mem.write(&input, mem_off(c.id)).unwrap();
+                    c.len = input.len();
+                    c.pos = 0;
+                    input.clear();
+                    log!(
+                        crate::LOG_DEF,
+                        "[{}] vterm::next_in() -> ({}, {})",
+                        c.id,
+                        c.pos,
+                        c.len - c.pos
+                    );
+                    reply_vmsg_late!(msg, Code::None as u32, c.pos, c.len - c.pos).unwrap();
+                    flush = false;
+                }
+                else if c.add_event(FileEvent::INPUT) {
+                    flush = false;
+                }
+            }
+        }
+    });
+}
+
+fn receive_acks(hdl: &mut VTermHandler) {
+    hdl.sessions.for_each(|s| match &mut s.data {
+        SessionData::Chan(c) => {
+            if let Some((rg, _sg)) = &c.notify_gates {
+                if let Some(msg) = rg.fetch() {
+                    rg.ack_msg(msg).unwrap();
+                    // try again to send events, if there are some
+                    c.send_events();
+                }
             }
         },
         SessionData::Meta => {},
@@ -437,7 +560,7 @@ fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
                 // ^D
                 0x04 => flush = true,
                 // ^C
-                0x03 => send_signal(hdl),
+                0x03 => add_signal(hdl),
                 // backspace
                 0x7f => {
                     output.push(0x08);
@@ -471,28 +594,7 @@ fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
         Serial::new().write(&output).unwrap();
     }
 
-    // pass to first session that wants input
-    hdl.sessions.for_each(|s| {
-        if flush || !input.is_empty() {
-            if let SessionData::Chan(c) = &mut s.data {
-                if let Some(msg) = c.pending_nextin.take() {
-                    c.our_mem.write(&input, mem_off(c.id)).unwrap();
-                    c.len = input.len();
-                    c.pos = 0;
-                    input.clear();
-                    log!(
-                        crate::LOG_DEF,
-                        "[{}] vterm::next_in() -> ({}, {})",
-                        c.id,
-                        c.pos,
-                        c.len - c.pos
-                    );
-                    reply_vmsg_late!(msg, Code::None as u32, c.pos, c.len - c.pos).unwrap();
-                    flush = false;
-                }
-            }
-        }
-    });
+    add_input(hdl, flush, &mut input);
 }
 
 #[no_mangle]
@@ -509,13 +611,6 @@ pub fn main() -> i32 {
     hdl.sel = s.sel();
 
     REQHDL.set(RequestHandler::default().expect("Unable to create request handler"));
-
-    let mut rgate = RecvGate::new_with(RGateArgs::default().order(5).msg_order(5))
-        .expect("Unable to create signal receive gate");
-    rgate
-        .activate()
-        .expect("Unable to activate signal receive gate");
-    SIGRGATE.set(rgate);
 
     let sel = Activity::cur().alloc_sel();
     let mut serial_gate = Activity::cur()
@@ -535,12 +630,7 @@ pub fn main() -> i32 {
             serial_gate.ack_msg(msg).unwrap();
         }
 
-        {
-            let sigrgate = SIGRGATE.borrow();
-            if let Some(msg) = sigrgate.fetch() {
-                sigrgate.ack_msg(msg).unwrap();
-            }
-        }
+        receive_acks(&mut hdl);
 
         REQHDL.get().handle(|op, is| {
             match op {
@@ -559,6 +649,7 @@ pub fn main() -> i32 {
                 GenFileOp::STAT => Err(Error::new(Code::NotSup)),
                 GenFileOp::SEEK => Err(Error::new(Code::NotSup)),
                 GenFileOp::SET_TMODE => hdl.with_chan(is, |c, is| c.set_tmode(is)),
+                GenFileOp::REQ_NOTIFY => hdl.with_chan(is, |c, is| c.request_notify(is)),
                 _ => Err(Error::new(Code::InvArgs)),
             }
         })

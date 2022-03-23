@@ -65,7 +65,7 @@ void DirectPipeReader::close() noexcept {
     }
 }
 
-ssize_t DirectPipeReader::read(void *buffer, size_t count, bool blocking) {
+ssize_t DirectPipeReader::read(void *buffer, size_t count) {
     if(!_state)
         _state = std::make_unique<State>(_caps);
     if(_state->_eof)
@@ -85,7 +85,7 @@ ssize_t DirectPipeReader::read(void *buffer, size_t count, bool blocking) {
             _state->_pos = 0;
         }
 
-        if(blocking) {
+        if(_blocking) {
             _state->_is = std::make_unique<GateIStream>(
                 receive_vmsg(_state->_rgate, _state->_pos, _state->_pkglen));
         }

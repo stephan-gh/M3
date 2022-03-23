@@ -36,10 +36,10 @@ int main(int argc, char **argv) {
     char c1 = argv[1][0];
     char c2 = argv[2][0];
 
-    size_t res;
+    ssize_t res;
     while((res = cin.read(buffer, sizeof(buffer))) > 0) {
-        replace(buffer, res, c1, c2);
-        cout.write_all(buffer, res);
+        replace(buffer, static_cast<size_t>(res), c1, c2);
+        cout.write_all(buffer, static_cast<size_t>(res));
     }
     return 0;
 }

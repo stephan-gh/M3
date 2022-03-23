@@ -187,7 +187,7 @@ void Activity::load_segment(ElfPh &pheader, char *buffer) {
 
         while(count > 0) {
             size_t amount = std::min(count, BUF_SIZE);
-            if(_exec->read(buffer, amount) != amount)
+            if(_exec->read(buffer, amount) != static_cast<ssize_t>(amount))
                 VTHROW(Errors::INVALID_ELF, "Unable to read " << amount << " bytes");
 
             mem.write(buffer, amount, segoff);

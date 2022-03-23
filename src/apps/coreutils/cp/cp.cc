@@ -27,9 +27,9 @@ alignas(64) static char buffer[4096];
 static void copy(const char *src, const char *dst) {
     FStream out(dst, FILE_W | FILE_CREATE | FILE_TRUNC);
     FStream in(src, FILE_R);
-    size_t res;
+    ssize_t res;
     while((res = in.read(buffer, sizeof(buffer))) > 0)
-        out.write_all(buffer, res);
+        out.write_all(buffer, static_cast<size_t>(res));
 }
 
 static void add_filename(OStringStream &os, const char *path) {

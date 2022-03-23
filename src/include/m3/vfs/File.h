@@ -52,6 +52,14 @@ public:
         COOKED = 1,
     };
 
+    enum Event {
+        INPUT = 1,
+        OUTPUT = 2,
+        SIGNAL = 4,
+    };
+
+    static constexpr size_t NOTIFY_MSG_SIZE = 64;
+
     /**
      * The default buffer implementation
      */
@@ -95,9 +103,9 @@ public:
          * @param file the file backend
          * @param dst the destination buffer
          * @param amount the number of bytes to read
-         * @return the number of read bytes (0 = EOF)
+         * @return the number of read bytes (0 = EOF; -1 = would block)
          */
-        size_t read(File *file, void *dst, size_t amount);
+        ssize_t read(File *file, void *dst, size_t amount);
 
         /**
          * Writes <amount> bytes from <src> into the buffer.
@@ -105,16 +113,17 @@ public:
          * @param file the file backend
          * @param src the data to write
          * @param amount the number of bytes to write
-         * @return the number of written bytes (0 = EOF)
+         * @return the number of written bytes (0 = EOF; -1 = would block)
          */
-        size_t write(File *file, const void *src, size_t amount);
+        ssize_t write(File *file, const void *src, size_t amount);
 
         /**
-         * Flushes the buffer.
+         * Flushes the buffer. In non-blocking mode, multiple calls might be required.
          *
          * @param file the file backend
+         * @return the result of the operation (-1 = would block, retry; 0 = error, 1 = all flushed)
          */
-        void flush(File *file);
+        int flush(File *file);
 
         std::unique_ptr<char[]> buffer;
         size_t size;
@@ -123,7 +132,8 @@ public:
     };
 
     explicit File(int flags) noexcept
-        : _flags(flags),
+        : _blocking(true),
+          _flags(flags),
           _fd() {
     }
     File(const File &) = delete;
@@ -179,33 +189,31 @@ public:
      *
      * @param buffer the buffer to read into
      * @param count the number of bytes to read
-     * @return the number of read bytes
+     * @return the number of read bytes (or -1 if it would block and we are in non-blocking mode)
      */
-    virtual size_t read(void *buffer, size_t count) = 0;
+    virtual ssize_t read(void *buffer, size_t count) = 0;
 
     /**
      * Writes at most <count> bytes from <buffer> into the file.
      *
      * @param buffer the data to write
      * @param count the number of bytes to write
-     * @return the number of written bytes
+     * @return the number of written bytes (or -1 if it would block and we are in non-blocking mode)
      */
-    virtual size_t write(const void *buffer, size_t count) = 0;
+    virtual ssize_t write(const void *buffer, size_t count) = 0;
 
     /**
      * Writes <count> bytes from <buffer> into the file, if possible.
      *
+     * On errors or if it would block in non-blocking mode, the number of written bytes is returned.
+     * In the latter case without any written bytes, -1 is returned. On errors without any written
+     * bytes, 0 is returned.
+     *
      * @param buffer the data to write
      * @param count the number of bytes to write
+     * @return the number of written bytes (only less than count in non-blocking mode or on errors)
      */
-    void write_all(const void *buffer, size_t count) {
-        const char *buf = reinterpret_cast<const char*>(buffer);
-        while(count > 0) {
-            size_t res = write(buf, count);
-            count -= static_cast<size_t>(res);
-            buf += static_cast<size_t>(res);
-        }
-    }
+    ssize_t write_all(const void *buffer, size_t count);
 
     /**
      * Flush the locally written data to the file system.
@@ -245,9 +253,39 @@ public:
     }
 
     /**
-     * Delegates the given send gate to the server to receive signals
+     * @return true if this file is operating in non-blocking mode (see set_blocking())
      */
-    virtual void set_signal_gate(SendGate &) {
+    bool is_blocking() const noexcept {
+        return _blocking;
+    }
+
+    /**
+     * Sets whether this file operates in blocking or non-blocking mode. In blocking mode, read()
+     * and write() will block, whereas in non-blocking mode, they return -1 in case they would block
+     * (e.g., when the server needs to be asked to get access to the next input/output region).
+     *
+     * Note that setting the file to non-blocking might establish an additional communication
+     * channel to the server, if required and not already done.
+     *
+     * If the server or the file type does not the non-blocking mode, an exception is thrown.
+     *
+     * @param blocking whether this file should operate in blocking mode
+     */
+    virtual void set_blocking(bool blocking) {
+        if(!blocking)
+            enable_notifications();
+        _blocking = blocking;
+    }
+
+    /**
+     * Tries to fetch a signal from the file, if any. Note that this might establish an additional
+     * communication channel to the server, if required and not already done.
+     *
+     * If the server or the file type does not support signals, an exception is thrown.
+     *
+     * @return true if a signal was found
+     */
+    virtual bool fetch_signal() {
         throw Exception(Errors::NOT_SUP);
     }
 
@@ -272,13 +310,22 @@ public:
      */
     virtual void serialize(Marshaller &m) = 0;
 
-private:
+protected:
+    /**
+     * Enables notifications to work in non-blocking mode or receive signals. This might for example
+     * establishes a communication channel to the server.
+     */
+    virtual void enable_notifications() {
+        throw Exception(Errors::NOT_SUP);
+    }
+
     virtual void close() noexcept = 0;
 
     void set_fd(fd_t fd) noexcept {
         _fd = fd;
     }
 
+    bool _blocking;
     int _flags;
     fd_t _fd;
 };

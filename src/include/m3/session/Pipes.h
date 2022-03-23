@@ -27,10 +27,10 @@ namespace m3 {
 
 class Pipes : public ClientSession {
     enum {
-        OPEN_PIPE     = 11,
-        OPEN_CHAN     = 12,
-        SET_MEM       = 13,
-        CLOSE_PIPE    = 14,
+        OPEN_PIPE     = GenericFile::REQ_NOTIFY + 1,
+        OPEN_CHAN,
+        SET_MEM,
+        CLOSE_PIPE,
     };
 
 public:

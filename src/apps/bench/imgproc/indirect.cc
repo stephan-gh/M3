@@ -116,7 +116,7 @@ struct IndirChain {
     }
 
     bool read_next(void *buffer) {
-        size_t count = in->read(buffer, BUF_SIZE);
+        ssize_t count = in->read(buffer, BUF_SIZE);
         if(count == 0)
             return false;
 

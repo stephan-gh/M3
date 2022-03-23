@@ -22,7 +22,7 @@ use core::fmt::Debug;
 
 use crate::cap::Selector;
 use crate::col::Vec;
-use crate::errors::Error;
+use crate::errors::{Code, Error};
 use crate::goff;
 use crate::int_enum;
 use crate::io::{Read, Write};
@@ -178,6 +178,37 @@ pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
     ) -> Result<(), Error>;
     /// Serializes this file into `s`.
     fn serialize(&self, s: &mut StateSerializer<'_>);
+
+    /// Returns true if this file is operating in non-blocking mode (see [`set_blocking`])
+    fn is_blocking(&self) -> bool {
+        true
+    }
+
+    /// Sets whether this file operates in blocking or non-blocking mode. In blocking mode, [`read`]
+    /// and [`write`] will block, whereas in non-blocking mode, they return -1 in case they would
+    /// block (e.g., when the server needs to be asked to get access to the next input/output
+    /// region).
+    ///
+    /// Note that setting the file to non-blocking might establish an additional communication
+    /// channel to the server, if required and not already done.
+    ///
+    /// If the server or the file type does not the non-blocking mode, an exception is thrown.
+    fn set_blocking(&mut self, blocking: bool) -> Result<(), Error> {
+        match blocking {
+            true => Ok(()),
+            false => Err(Error::new(Code::NotSup)),
+        }
+    }
+
+    /// Tries to fetch a signal from the file, if any. Note that this might establish an additional
+    /// communication channel to the server, if required and not already done.
+    ///
+    /// If the server or the file type does not support signals, an exception is thrown.
+    ///
+    /// Returns true if a signal was found
+    fn fetch_signal(&mut self) -> Result<bool, Error> {
+        Err(Error::new(Code::NotSup))
+    }
 }
 
 /// Trait for resources that are seekable.

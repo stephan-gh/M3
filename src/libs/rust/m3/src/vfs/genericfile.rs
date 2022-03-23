@@ -16,18 +16,23 @@
  * General Public License version 2 for more details.
  */
 
+use bitflags::bitflags;
+
 use core::cmp;
 use core::fmt;
 
+use crate::boxed::Box;
 use crate::cap::Selector;
 use crate::cell::RefCell;
 use crate::col::Vec;
+use crate::com::GateIStream;
 use crate::com::{recv_reply, MemGate, RecvGate, SendGate, EP};
-use crate::errors::Error;
+use crate::errors::{Code, Error};
 use crate::goff;
 use crate::int_enum;
 use crate::io::{Read, Write};
 use crate::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
+use crate::math;
 use crate::rc::Rc;
 use crate::serialize::Source;
 use crate::session::{ClientSession, HashInput, HashOutput, HashSession, MapFlags, Pager};
@@ -40,18 +45,36 @@ use crate::vfs::{
 int_enum! {
     /// The operations for [`GenericFile`].
     pub struct GenFileOp : u64 {
-        const STAT      = 0;
-        const SEEK      = 1;
-        const NEXT_IN   = 2;
-        const NEXT_OUT  = 3;
-        const COMMIT    = 4;
-        const SYNC      = 5;
-        const CLOSE     = 6;
-        const CLONE     = 7;
-        const SET_TMODE = 8;
-        const SET_DEST  = 9;
-        const SET_SIG   = 10;
+        const STAT          = 0;
+        const SEEK          = 1;
+        const NEXT_IN       = 2;
+        const NEXT_OUT      = 3;
+        const COMMIT        = 4;
+        const SYNC          = 5;
+        const CLOSE         = 6;
+        const CLONE         = 7;
+        const SET_TMODE     = 8;
+        const SET_DEST      = 9;
+        const ENABLE_NOTIFY = 10;
+        const REQ_NOTIFY    = 11;
     }
+}
+
+bitflags! {
+    pub struct FileEvent : u64 {
+        const INPUT         = 1;
+        const OUTPUT        = 2;
+        const SIGNAL        = 4;
+    }
+}
+
+const NOTIFY_MSG_SIZE: usize = 64;
+
+struct NonBlocking {
+    notify_rgate: Box<RecvGate>,
+    _notify_sgate: Box<SendGate>,
+    notify_received: FileEvent,
+    notify_requested: FileEvent,
 }
 
 /// A file implementation for all file-like objects.
@@ -66,6 +89,8 @@ pub struct GenericFile {
     sgate: Rc<SendGate>,
     mgate: MemGate,
     delegated_ep: Selector,
+    blocking: bool,
+    nb_state: Option<NonBlocking>,
     goff: usize,
     off: usize,
     pos: usize,
@@ -83,6 +108,8 @@ impl GenericFile {
             sgate: Rc::new(SendGate::new_bind(sel + 1)),
             mgate: MemGate::new_bind(INVALID_SEL),
             delegated_ep: INVALID_SEL,
+            blocking: true,
+            nb_state: None,
             goff: 0,
             off: 0,
             pos: 0,
@@ -108,6 +135,8 @@ impl GenericFile {
             sgate,
             mgate,
             delegated_ep: INVALID_SEL,
+            blocking: true,
+            nb_state: None,
             goff: 0,
             off: 0,
             pos: 0,
@@ -168,7 +197,12 @@ impl GenericFile {
         if len == 0 {
             return Ok(0);
         }
+
         if self.pos == self.len {
+            if !self.blocking && !self.receive_notify(FileEvent::INPUT)? {
+                return Err(Error::new(Code::WouldBlock));
+            }
+
             let mut reply = send_recv_res!(
                 &self.sgate,
                 RecvGate::def(),
@@ -180,6 +214,7 @@ impl GenericFile {
             self.len = reply.pop()?;
             self.pos = 0;
         }
+
         Ok(cmp::min(len, self.len - self.pos))
     }
 
@@ -187,7 +222,12 @@ impl GenericFile {
         if len == 0 {
             return Ok(0);
         }
+
         if self.pos == self.len {
+            if !self.blocking && !self.receive_notify(FileEvent::OUTPUT)? {
+                return Err(Error::new(Code::WouldBlock));
+            }
+
             let mut reply = send_recv_res!(
                 &self.sgate,
                 RecvGate::def(),
@@ -199,7 +239,90 @@ impl GenericFile {
             self.len = reply.pop()?;
             self.pos = 0;
         }
+
         Ok(cmp::min(len, self.len - self.pos))
+    }
+
+    #[inline(never)]
+    fn enable_notifications(&mut self) -> Result<(), Error> {
+        if self.nb_state.is_some() {
+            return Ok(());
+        }
+
+        let mut notify_rgate = Box::new(RecvGate::new(
+            math::next_log2(NOTIFY_MSG_SIZE),
+            math::next_log2(NOTIFY_MSG_SIZE),
+        )?);
+        notify_rgate.activate()?;
+        let _notify_sgate = Box::new(SendGate::new(&notify_rgate)?);
+
+        let crd = CapRngDesc::new(CapType::OBJECT, _notify_sgate.sel(), 1);
+        self.sess.delegate(
+            crd,
+            |s| s.push_word(GenFileOp::ENABLE_NOTIFY.val),
+            |_| Ok(()),
+        )?;
+
+        self.nb_state = Some(NonBlocking {
+            notify_rgate,
+            _notify_sgate,
+            notify_received: FileEvent::empty(),
+            notify_requested: FileEvent::empty(),
+        });
+
+        Ok(())
+    }
+
+    fn request_notification(&mut self, events: FileEvent) -> Result<(), Error> {
+        let fid = self.file_id();
+        let nb = self.nb_state.as_mut().unwrap();
+        if !nb.notify_requested.contains(events) {
+            send_recv_res!(
+                &self.sgate,
+                RecvGate::def(),
+                GenFileOp::REQ_NOTIFY,
+                fid,
+                events.bits()
+            )?;
+            nb.notify_requested |= events;
+        }
+        Ok(())
+    }
+
+    #[inline(never)]
+    fn receive_notify(&mut self, event: FileEvent) -> Result<bool, Error> {
+        // if we did not request a notification for this event yet, do that now
+        if !self
+            .nb_state
+            .as_ref()
+            .unwrap()
+            .notify_requested
+            .contains(event)
+        {
+            self.request_notification(event)?;
+        }
+
+        // if we did not receive the given event, check if there is a message
+        let nb = self.nb_state.as_mut().unwrap();
+        if !nb.notify_received.contains(event) {
+            if let Some(msg) = nb.notify_rgate.fetch() {
+                let mut imsg = GateIStream::new(msg, &nb.notify_rgate);
+                let events = FileEvent::from_bits_truncate(imsg.pop::<u64>()?);
+                nb.notify_received |= events;
+                nb.notify_requested &= !events;
+                // give credits back to sender
+                imsg.reply_error(Code::None)?;
+            }
+        }
+
+        // now check again if we have received this event; if not, we would block
+        if !nb.notify_received.contains(event) {
+            return Ok(false);
+        }
+
+        // okay, event received; remove it and continue
+        nb.notify_received &= !event;
+        Ok(true)
     }
 }
 
@@ -287,6 +410,24 @@ impl File for GenericFile {
         s.push_word(self.flags.bits() as u64);
         s.push_word(self.sess.sel());
         s.push_word(self.file_id() as u64);
+    }
+
+    fn is_blocking(&self) -> bool {
+        self.blocking
+    }
+
+    fn set_blocking(&mut self, blocking: bool) -> Result<(), Error> {
+        if !blocking {
+            self.enable_notifications()?;
+        }
+        self.blocking = blocking;
+        Ok(())
+    }
+
+    fn fetch_signal(&mut self) -> Result<bool, Error> {
+        self.enable_notifications()?;
+
+        self.receive_notify(FileEvent::SIGNAL)
     }
 }
 

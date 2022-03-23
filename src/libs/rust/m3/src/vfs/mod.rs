@@ -45,7 +45,7 @@ pub use self::file::{File, FileInfo, Map, OpenFlags, Seek, SeekMode, StatRespons
 pub use self::fileref::FileRef;
 pub use self::filesystem::{FSOperation, FileSystem};
 pub use self::filetable::{Fd, FileHandle, FileTable};
-pub use self::genericfile::{GenFileOp, GenericFile};
+pub use self::genericfile::{FileEvent, GenFileOp, GenericFile};
 pub use self::indirpipe::IndirectPipe;
 pub use self::mounttable::{FSHandle, MountTable};
 

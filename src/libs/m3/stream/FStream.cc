@@ -71,12 +71,12 @@ FStream::~FStream() {
     }
 }
 
-void FStream::set_error(size_t res) {
+void FStream::set_error(ssize_t res) {
     if(res == 0)
         _state |= FL_EOF;
 }
 
-size_t FStream::read(void *dst, size_t count) {
+ssize_t FStream::read(void *dst, size_t count) {
     if(bad())
         return 0;
 
@@ -86,7 +86,7 @@ size_t FStream::read(void *dst, size_t count) {
 
     // use the unbuffered read, if the buffer is smaller
     if(_rbuf->empty() && count > _rbuf->size) {
-        size_t res = file()->read(dst, count);
+        ssize_t res = file()->read(dst, count);
         set_error(res);
         return res;
     }
@@ -96,17 +96,19 @@ size_t FStream::read(void *dst, size_t count) {
         return 0;
     }
 
-    size_t total = 0;
+    ssize_t total = 0;
     char *buf = reinterpret_cast<char*>(dst);
     Reference<File> f = file();
     while(count > 0) {
-        size_t res = _rbuf->read(f.get(), buf + total, count);
-        if(res == 0) {
+        ssize_t res = _rbuf->read(f.get(), buf + total, count);
+        if(res == -1 && total == 0)
+            return -1;
+        if(res <= 0) {
             set_error(res);
-            return total;
+            break;
         }
         total += res;
-        count -= res;
+        count -= static_cast<size_t>(res);
     }
 
     return total;
@@ -138,13 +140,13 @@ size_t FStream::seek(size_t offset, int whence) {
     return res;
 }
 
-size_t FStream::write(const void *src, size_t count) {
+ssize_t FStream::write(const void *src, size_t count) {
     if(bad())
         return 0;
 
     // use the unbuffered write, if the buffer is smaller
     if(_wbuf->empty() && count > _wbuf->size) {
-        size_t res = file()->write(src, count);
+        ssize_t res = file()->write(src, count);
         set_error(res);
         return res;
     }
@@ -155,17 +157,19 @@ size_t FStream::write(const void *src, size_t count) {
     }
 
     const char *buf = reinterpret_cast<const char*>(src);
-    size_t total = 0;
+    ssize_t total = 0;
     Reference<File> f = file();
     while(count > 0) {
-        size_t res = _wbuf->write(f.get(), buf + total, count);
-        if(res == 0) {
+        ssize_t res = _wbuf->write(f.get(), buf + total, count);
+        if(res == -1 && total == 0)
+            return -1;
+        if(res <= 0) {
             set_error(res);
-            return 0;
+            return res;
         }
 
         total += res;
-        count -= res;
+        count -= static_cast<size_t>(res);
 
         if(((_flags & FL_LINE_BUF) && buf[total - 1] == '\n'))
             flush();
@@ -173,7 +177,7 @@ size_t FStream::write(const void *src, size_t count) {
             _wbuf->flush(f.get());
     }
 
-    return total;
+    return static_cast<ssize_t>(total);
 }
 
 }

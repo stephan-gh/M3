@@ -68,15 +68,10 @@ public:
         throw Exception(Errors::NOT_SUP);
     }
 
-    virtual size_t read(void *, size_t) override {
+    virtual ssize_t read(void *, size_t) override {
         throw Exception(Errors::NOT_SUP);
     }
-    virtual size_t write(const void *buffer, size_t count) override {
-        return static_cast<size_t>(write(buffer, count, true));
-    }
-
-    // returns -1 when in non blocking mode and there is not enough space left in buffer
-    ssize_t write(const void *buffer, size_t count, bool blocking);
+    virtual ssize_t write(const void *buffer, size_t count) override;
 
     virtual Reference<File> clone() const override {
         return Reference<File>();
@@ -90,6 +85,9 @@ public:
     static File *unserialize(Unmarshaller &um);
 
 private:
+    virtual void enable_notifications() override {
+        // nothing to enable here
+    }
     virtual void close() noexcept override;
 
     capsel_t _caps;

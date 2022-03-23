@@ -62,14 +62,9 @@ public:
         throw Exception(Errors::NOT_SUP);
     }
 
-    virtual size_t read(void *buffer, size_t count) override {
-        return static_cast<size_t>(read(buffer, count, true));
-    }
+    virtual ssize_t read(void *buffer, size_t count) override;
 
-    // returns -1 when in non blocking mode and there is no data to read
-    ssize_t read(void *, size_t, bool blocking);
-
-    virtual size_t write(const void *, size_t) override {
+    virtual ssize_t write(const void *, size_t) override {
         throw Exception(Errors::NOT_SUP);
     }
 
@@ -85,6 +80,9 @@ public:
     static File *unserialize(Unmarshaller &um);
 
 private:
+    virtual void enable_notifications() override {
+        // nothing to enable here
+    }
     virtual void close() noexcept override;
 
     bool _noeof;

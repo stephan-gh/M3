@@ -133,8 +133,8 @@ public:
             auto file = m3::Activity::self().files()->get(_fdMap[fd]);
             char *buf = reinterpret_cast<char*>(buffer);
             while(size > 0) {
-                size_t res = file->read(buf, size);
-                if(res == 0)
+                ssize_t res = file->read(buf, size);
+                if(res <= 0)
                     break;
                 size -= static_cast<size_t>(res);
                 buf += res;
@@ -281,12 +281,12 @@ public:
         while(rem > 0) {
             size_t amount = m3::Math::min(static_cast<size_t>(Buffer::MaxBufferSize), rem);
 
-            size_t res = in->read(rbuf, amount);
-            if(res == 0)
+            ssize_t res = in->read(rbuf, amount);
+            if(res <= 0)
                 break;
 
             ssize_t wres = write_file(out, rbuf, static_cast<size_t>(res));
-            if(static_cast<size_t>(wres) != res)
+            if(wres != res)
                 throw ReturnValueException(static_cast<int>(wres), static_cast<int>(res), lineNo);
 
             rem -= static_cast<size_t>(res);
@@ -355,8 +355,7 @@ public:
         while(rem > 0) {
             size_t amount = m3::Math::min(static_cast<size_t>(Buffer::MaxBufferSize), rem);
 
-            size_t res = in->read(rbuf, amount);
-
+            ssize_t res = in->read(rbuf, amount);
             _lgchan->push(rbuf, static_cast<size_t>(res));
 
             rem -= static_cast<size_t>(res);

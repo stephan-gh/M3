@@ -72,14 +72,12 @@ static void parse(FStream &bin) {
             exitmsg("Invalid ELF-file");
 
         size_t count = pheader.p_filesz;
-        size_t segoff = pheader.p_vaddr;
         while(count > 0) {
             size_t amount = std::min(count, sizeof(buffer));
-            if(bin.read(buffer, amount) != amount)
+            if(bin.read(buffer, amount) != static_cast<ssize_t>(amount))
                 exitmsg("Reading failed");
 
             count -= amount;
-            segoff += amount;
         }
     }
 }

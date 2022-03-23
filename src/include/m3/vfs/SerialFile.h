@@ -44,11 +44,11 @@ public:
         throw Exception(Errors::NOT_SUP);
     }
 
-    virtual size_t read(void *, size_t) override {
+    virtual ssize_t read(void *, size_t) override {
         // there is never anything to read
         return 0;
     }
-    virtual size_t write(const void *buffer, size_t count) override {
+    virtual ssize_t write(const void *buffer, size_t count) override {
         auto buf = reinterpret_cast<const char*>(buffer);
         while(count > 0) {
             ssize_t res = Machine::write(buf, count);
@@ -57,7 +57,7 @@ public:
             count -= static_cast<size_t>(res);
             buf += res;
         }
-        return static_cast<size_t>(buf - reinterpret_cast<const char*>(buffer));
+        return static_cast<ssize_t>(buf - reinterpret_cast<const char*>(buffer));
     }
 
     virtual Reference<File> clone() const override {

@@ -113,9 +113,9 @@ public:
      *
      * @param dst the destination to read into
      * @param count the number of bytes to read
-     * @return the number of read bytes
+     * @return the number of read bytes (or -1 if it would block and we are in non-blocking mode)
      */
-    size_t read(void *dst, size_t count);
+    ssize_t read(void *dst, size_t count);
 
     /**
      * Writes at most <count> bytes from <src> into the file. If the buffer is empty, the buffer is
@@ -123,24 +123,38 @@ public:
      *
      * @param src the data to write
      * @param count the number of bytes to write
-     * @return the number of written bytes
+     * @return the number of written bytes (or -1 if it would block and we are in non-blocking mode)
      */
-    size_t write(const void *src, size_t count);
+    ssize_t write(const void *src, size_t count);
 
     /**
      * Writes all <count> bytes from <src> into the file.
+     *
+     * Note that this method works implicitly in blocking mode, regardless of the set mode.
      *
      * @param src the data to write
      * @param count the number of bytes to write
      * @return true if all bytes were written
      */
     bool write_all(const void *src, size_t count) {
-        const uint8_t *s = static_cast<const uint8_t*>(src);
-        while(!bad() && count) {
-            size_t amount = write(s, count);
-            count -= amount;
-            s += amount;
+        auto f = file();
+        auto old_blocking = f->is_blocking();
+        f->set_blocking(true);
+
+        try {
+            const uint8_t *s = static_cast<const uint8_t*>(src);
+            while(!bad() && count) {
+                ssize_t amount = write(s, count);
+                count -= static_cast<size_t>(amount);
+                s += amount;
+            }
         }
+        catch(...) {
+            f->set_blocking(old_blocking);
+            throw;
+        }
+
+        f->set_blocking(old_blocking);
         return count == 0;
     }
 
@@ -162,7 +176,7 @@ public:
     }
 
 private:
-    void set_error(size_t res);
+    void set_error(ssize_t res);
 
     fd_t _fd;
     std::unique_ptr<File::Buffer> _rbuf;

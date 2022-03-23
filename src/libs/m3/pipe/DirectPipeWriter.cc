@@ -105,7 +105,7 @@ void DirectPipeWriter::close() noexcept {
     }
 }
 
-ssize_t DirectPipeWriter::write(const void *buffer, size_t count, bool blocking) {
+ssize_t DirectPipeWriter::write(const void *buffer, size_t count) {
     if(!_state)
         _state = std::make_unique<State>(_caps, _size);
     if(_state->_eof)
@@ -118,7 +118,7 @@ ssize_t DirectPipeWriter::write(const void *buffer, size_t count, bool blocking)
         ssize_t off = _state->find_spot(&amount);
         if(_state->_capacity == 0 || off == -1) {
             size_t len;
-            if(blocking) {
+            if(_blocking) {
                 receive_vmsg(_state->_rgate, len);
             }
             else {

@@ -26,7 +26,7 @@ bool Dir::readdir(Entry &e) {
 
     // read name
     e.nodeno = fse.nodeno;
-    if(_f.read(e.name, fse.namelen) != fse.namelen)
+    if(_f.read(e.name, fse.namelen) != static_cast<ssize_t>(fse.namelen))
         return false;
 
     // 0-termination

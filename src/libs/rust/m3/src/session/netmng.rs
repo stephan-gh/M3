@@ -39,14 +39,14 @@ int_enum! {
         const NEXT_OUT      = GenFileOp::NEXT_OUT.val;
         const COMMIT        = GenFileOp::COMMIT.val;
         // TODO what about GenericFile::CLOSE?
-        const BIND          = 11;
-        const LISTEN        = 12;
-        const CONNECT       = 13;
-        const ABORT         = 14;
-        const CREATE        = 15;
-        const GET_IP        = 16;
-        const GET_SGATE     = 17;
-        const OPEN_FILE     = 18;
+        const BIND          = 12;
+        const LISTEN        = 13;
+        const CONNECT       = 14;
+        const ABORT         = 15;
+        const CREATE        = 16;
+        const GET_IP        = 17;
+        const GET_SGATE     = 18;
+        const OPEN_FILE     = 19;
     }
 }
 

@@ -37,6 +37,7 @@ int main() {
     RUN_SUITE(tfs);
     RUN_SUITE(tbitfield);
     RUN_SUITE(theap);
+    RUN_SUITE(tnonblock);
     RUN_SUITE(tstream);
     RUN_SUITE(tpipe);
     RUN_SUITE(tstring);

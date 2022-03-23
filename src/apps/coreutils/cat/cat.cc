@@ -25,9 +25,9 @@ using namespace m3;
 alignas(64) static char buffer[8192];
 
 static void copy(FStream &in, FStream &out) {
-    size_t res;
+    ssize_t res;
     while((res = in.read(buffer, sizeof(buffer))) > 0)
-        out.write_all(buffer, res);
+        out.write_all(buffer, static_cast<size_t>(res));
 }
 
 int main(int argc, char **argv) {
