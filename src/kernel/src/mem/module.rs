@@ -54,6 +54,7 @@ impl MemMod {
         self.gaddr
     }
 
+    #[cfg(not(target_vendor = "host"))]
     pub fn largest_contiguous(&self) -> Option<goff> {
         self.map.largest_contiguous()
     }

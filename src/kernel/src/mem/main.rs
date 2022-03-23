@@ -93,6 +93,7 @@ impl MainMemory {
         }
     }
 
+    #[cfg(not(target_vendor = "host"))]
     pub fn largest_contiguous(&self, mtype: MemType) -> Option<goff> {
         let mut max = None;
         for m in &self.mods {
