@@ -23,7 +23,7 @@
 use core::str::FromStr;
 
 use m3::cap::Selector;
-use m3::cell::LazyStaticCell;
+use m3::cell::{LazyStaticCell, StaticRefCell};
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, RecvGate};
 use m3::env;
@@ -36,7 +36,7 @@ use m3::tiles::Activity;
 use m3::time::{TimeDuration, TimeInstant};
 use m3::{log, println};
 
-use smoltcp::iface::{InterfaceBuilder, NeighborCache};
+use smoltcp::iface::{InterfaceBuilder, NeighborCache, SocketHandle};
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 
 use crate::driver::DriverInterface;
@@ -61,6 +61,23 @@ const MAX_SOCKETS: usize = 64;
 
 static OWN_IP: LazyStaticCell<IpAddress> = LazyStaticCell::default();
 static OWN_MAC: [u8; 6] = [0x00, 0x0A, 0x35, 0x03, 0x02, 0x03];
+static TIMEOUTS: StaticRefCell<Vec<(SocketHandle, TimeInstant)>> = StaticRefCell::new(Vec::new());
+
+pub fn add_timeout(handle: SocketHandle, timeout: TimeInstant) {
+    TIMEOUTS.borrow_mut().push((handle, timeout));
+}
+
+pub fn remove_timeout(handle: SocketHandle) {
+    TIMEOUTS.borrow_mut().retain(|t| t.0 != handle);
+}
+
+fn next_timeout() -> Option<TimeInstant> {
+    TIMEOUTS
+        .borrow()
+        .iter()
+        .min_by(|a, b| a.1.cmp(&b.1))
+        .map(|t| t.1)
+}
 
 struct NetHandler<'a> {
     // our service selector
@@ -366,6 +383,13 @@ pub fn main() -> i32 {
                     None => break TimeDuration::MAX,
                 }
             }
+        };
+
+        let sleep_nanos = match next_timeout() {
+            Some(timeout) if timeout - TimeInstant::now() < sleep_nanos => {
+                timeout - TimeInstant::now()
+            },
+            _ => sleep_nanos,
         };
 
         log!(LOG_DETAIL, "Sleeping for {:?}", sleep_nanos);

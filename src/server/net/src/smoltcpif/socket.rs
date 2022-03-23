@@ -199,6 +199,9 @@ impl Socket {
                     // reduces the achieved bandwidth in our benchmarks dramatically (factor 10).
                     // Maybe we don't transfer enough data?
                     tcp_socket.set_nagle_enabled(false);
+                    if self.connect_start.take().is_some() {
+                        crate::remove_timeout(self.socket);
+                    }
                     self.state = State::Connected;
                     let ep = to_m3_ep(tcp_socket.remote_endpoint());
                     Some(SendNetEvent::Connected(event::ConnectedMessage::new(ep)))
@@ -206,6 +209,8 @@ impl Socket {
                 else if let Some(start) = self.connect_start {
                     if TimeInstant::now() >= start + CONNECT_TIMEOUT {
                         tcp_socket.abort();
+                        self.connect_start = None;
+                        crate::remove_timeout(self.socket);
                         self._local_port = None;
                         self.state = State::Closed;
                         self.send_queue.clear();
@@ -325,6 +330,7 @@ impl Socket {
         match tcp_socket.connect(cx, remote_endpoint, local_endpoint) {
             Ok(_) => {
                 self.connect_start = Some(TimeInstant::now());
+                crate::add_timeout(self.socket, TimeInstant::now() + CONNECT_TIMEOUT);
                 self.state = State::Connecting;
                 self._local_port = Some(local_port);
                 Ok(())
