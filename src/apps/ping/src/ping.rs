@@ -274,7 +274,7 @@ pub fn main() -> i32 {
         recv_reply(&mut buf, &raw_socket).expect("Receiving ICMP echo failed");
         received += 1;
 
-        nm.sleep_for(TimeDuration::from_secs(settings.interval));
+        nm.sleep_for(TimeDuration::from_millis(settings.interval));
     }
 
     let end = TimeInstant::now();
