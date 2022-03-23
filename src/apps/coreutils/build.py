@@ -5,6 +5,7 @@ dirs = [
     'ln',
     'ls',
     'mkdir',
+    'netcat',
     'paste',
     'rand',
     'readelf',
