@@ -21,9 +21,6 @@
 #define TILE_COUNT          18
 #define MAX_ACTS            (TILE_COUNT - 1)
 
-#define TOTAL_MEM_SIZE      (1024 * 1024 * 1024)
-#define FS_MAX_SIZE         (640 * 1024 * 1024)
-
 #define PAGE_BITS           12
 #define PAGE_SIZE           (static_cast<size_t>(4096))
 #define PAGE_MASK           (PAGE_SIZE - 1)
