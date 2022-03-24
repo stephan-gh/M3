@@ -122,17 +122,4 @@ void Env::init_tcu() {
     TCU::get().start();
 }
 
-void Env::reset() {
-    load_params(this);
-
-    Serial::init(executable(), env()->tile_id);
-
-    TCU::get().reset();
-
-    init_tcu();
-
-    // we have to call init for this activity in case we hadn't done that yet
-    init_syscall();
-}
-
 }

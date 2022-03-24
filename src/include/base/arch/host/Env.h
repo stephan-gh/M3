@@ -83,7 +83,6 @@ public:
     ~Env();
 
     static void init();
-    void reset();
 
     EnvBackend *backend() {
         return _backend;
