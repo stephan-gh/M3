@@ -854,6 +854,11 @@ pub fn deinit() {
         assert!(libc::pthread_join(TID, ptr::null_mut()) == 0);
     }
 
+    // first remove the signal handler to ensure that we don't access BACKEND again
+    unsafe {
+        libc::signal(libc::SIGCHLD, libc::SIG_IGN);
+    }
+
     // safety: the thread is killed, so there are no other references left
     unsafe {
         BACKEND.set(None);
