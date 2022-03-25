@@ -491,8 +491,10 @@ impl Activity {
     fn exit_app_async(&self, exit_code: i32, stop: bool) {
         #[cfg(target_vendor = "host")]
         if let Some(pid) = self.pid() {
-            // first kill the process to ensure that it cannot use EPs anymore
-            ktcu::reset_tile(self.tile_id(), pid).unwrap();
+            if stop {
+                // first kill the process to ensure that it cannot use EPs anymore
+                ktcu::reset_tile(self.tile_id(), pid).unwrap();
+            }
         }
 
         #[cfg(not(target_vendor = "host"))]
