@@ -48,6 +48,8 @@ if [ "$M3_TARGET" = "gem5" ] || [ "$M3_TARGET" = "hw" ]; then
 fi
 if [ "$M3_TARGET" = "gem5" ] && [ "$M3_ISA" = "arm" ]; then
     rustabi='gnueabihf'
+elif [ "$M3_BUILD" = "coverage" ]; then
+    rustabi='cov'
 else
     rustabi='gnu'
 fi
@@ -59,6 +61,13 @@ export RUST_TARGET=$M3_ISA-unknown-$M3_TARGET-$rustabi
 export RUST_TARGET_PATH=$rusttoolchain
 export CARGO_TARGET_DIR=$rustbuild
 export XBUILD_SYSROOT_PATH=$CARGO_TARGET_DIR/sysroot
+if [ "$M3_BUILD" = "coverage" ]; then
+    if [ "$M3_TARGET" != "host" ]; then
+        echo "Coverage mode is only supported with M3_TARGET=host." >&2 && exit 1
+    fi
+    # we need to disable incremental compilation to use -Zprofile=yes
+    export CARGO_INCREMENTAL=0
+fi
 
 build=build/$M3_TARGET-$M3_ISA-$M3_BUILD
 bindir=$build/bin/
@@ -69,7 +78,7 @@ help() {
     echo "This is a convenience script that is responsible for building everything"
     echo "and running the specified command afterwards. The most important environment"
     echo "variables that influence its behaviour are M3_TARGET=(host|gem5|hw),"
-    echo "M3_ISA=(x86_64|arm|riscv) [on gem5 only], and M3_BUILD=(debug|release)."
+    echo "M3_ISA=(x86_64|arm|riscv) [on gem5 only], and M3_BUILD=(debug|release|coverage)."
     echo ""
     echo "The flag -n skips the build and executes the given command directly. This"
     echo "can be handy if, for example, the build is currently broken."
@@ -102,6 +111,10 @@ help() {
     echo "    snapshot=<progs> <time>: prints the stacktrace of all programs at timestamp"
     echo "                             <time>. <progs> are the binary names for the symbols."
     echo "                             stdin expects the gem5.log with Exec,ExecPC enabled."
+    echo "    coverage:                generate code-coverage report. This command is only"
+    echo "                             available in coverage mode. It requires to first run"
+    echo "                             the system to collect the information. Note that this"
+    echo "                             command relies on the grcov tool."
     echo "    mkfs=<fsimg> <dir> ...:  create m3-fs in <fsimg> with content of <dir>"
     echo "    shfs=<fsimg> ...:        show m3-fs in <fsimg>"
     echo "    fsck=<fsimg> ...:        run m3fsck on <fsimg>"
@@ -115,10 +128,12 @@ help() {
     echo "                             'host'."
     echo "    M3_ISA:                  the ISA to use. On gem5, 'arm', 'riscv', and 'x86_64'"
     echo "                             is supported. On other targets, it is ignored."
-    echo "    M3_BUILD:                the build-type. Either debug or release. In debug"
-    echo "                             mode optimizations are disabled, debug infos are"
-    echo "                             available and assertions are active. In release"
-    echo "                             mode all that is disabled. The default is release."
+    echo "    M3_BUILD:                the build-type. Either debug, coverage, or release."
+    echo "                             In debug mode optimizations are disabled, debug infos"
+    echo "                             are available and assertions are active. In coverage"
+    echo "                             mode (only available on host), code-coverage info"
+    echo "                             is generated. In release mode all that is disabled."
+    echo "                             The default is release."
     echo "    M3_KERNEL:               the kernel to use (kernel or rustkernel)."
     echo "    M3_VERBOSE:              print executed commands in detail during build."
     echo "    M3_VALGRIND:             for runvalgrind: pass arguments to valgrind."
@@ -320,8 +335,8 @@ case "$cmd" in
     dbg=*)
         if [ "$M3_TARGET" = "host" ]; then
             # does not work in release mode
-            if [ "$M3_BUILD" != "debug" ]; then
-                echo "Only supported with M3_BUILD=debug."
+            if [ "$M3_BUILD" = "release" ]; then
+                echo "Only supported with M3_BUILD=debug or M3_BUILD=coverage."
                 exit 1
             fi
 
@@ -437,6 +452,15 @@ case "$cmd" in
 
             RUST_GDB=${crossprefix}gdb rust-gdb --tui "$symbols" "--command=$gdbcmd"
         fi
+        ;;
+
+    coverage)
+        if [ "$M3_BUILD" != "coverage" ]; then
+            echo "Only support for M3_BUILD=coverage." >&2 && exit 1
+        fi
+        echo "Generating code-coverage report..."
+        grcov . -s . --binary-path build -t html --ignore="platform/*" --ignore-not-existing -o $build/coverage
+        echo "You find the results in $(readlink -f $build/coverage/index.html)"
         ;;
 
     dis=*)

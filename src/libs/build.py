@@ -8,6 +8,7 @@ dirs = [
     'heap',
     'host',
     'leveldb',
+    'llvmprofile',
     'm3',
     'memory',
     'musl',

@@ -7,7 +7,7 @@ def build(gen, env):
         pwd = str(env.glob('')[0])
         env['CPPPATH'] += [pwd  + 'common', pwd + 'llfifo', pwd + 'axidma', pwd + 'axiethernet']
         
-        if os.environ.get('M3_BUILD') == 'debug':
+        if os.environ.get('M3_BUILD') != 'release':
             env['CXXFLAGS'] += ['-DDEBUG', '-UNDEBUG']
             env['CFLAGS'] += ['-DDEBUG', '-UNDEBUG']
         # else:

@@ -34,7 +34,10 @@ else:
         isa = 'arm'
 
     target      = 'host'
-    rustabi     = 'gnu'
+    if os.environ.get('M3_BUILD') == 'coverage':
+        rustabi = 'cov'
+    else:
+        rustabi = 'gnu'
     cross       = ''
     crossdir    = ''
     crossver    = ''
@@ -151,6 +154,8 @@ class M3Env(ninjagen.Env):
             libs    = ['c', 'heap', 'host', 'gcc', 'pthread', out] + libs
             # ensure that the host library gets linked in
             env['LINKFLAGS'] += ['-Wl,--whole-archive', '-lhost', '-Wl,--no-whole-archive']
+            if env['BUILD'] == 'coverage':
+                libs += ['gcov', 'llvmprofile']
 
         return env.m3_exe(gen, out, ins, libs, dir, True, ldscript, varAddr)
 
@@ -256,10 +261,14 @@ else:
 
 # add build-dependent flags (debug/release)
 btype = os.environ.get('M3_BUILD')
-if btype == 'debug':
+if btype == 'debug' or btype == 'coverage':
     env['CXXFLAGS']         += ['-O0', '-g']
     env['CFLAGS']           += ['-O0', '-g']
-    if target == 'host':
+    if target == 'host' and btype == 'coverage':
+        env['CXXFLAGS']     += ['--coverage']
+        env['CFLAGS']       += ['--coverage']
+        env['LINKFLAGS']    += ['-lgcov']
+    elif target == 'host':
         env['CXXFLAGS']     += ['-fsanitize=address', '-fsanitize=undefined']
         env['CFLAGS']       += ['-fsanitize=address', '-fsanitize=undefined']
         env['LINKFLAGS']    += ['-fsanitize=address', '-fsanitize=undefined', '-lasan', '-lubsan']
@@ -287,11 +296,12 @@ env['TOOLDIR']      = builddir + '/tools'
 env['CROSS']        = cross
 env['CROSSDIR']     = crossdir
 env['CROSSVER']     = crossver
-env['RUSTBINS']     = 'build/rust/' + env['TRIPLE'] + '/' + btype
+rustbuild = btype if btype != 'coverage' else 'debug'
+env['RUSTBINS']     = 'build/rust/' + env['TRIPLE'] + '/' + rustbuild
 hostenv['TOOLDIR']  = env['TOOLDIR']
 hostenv['BINDIR']   = env['BINDIR']
 hostenv['BUILDDIR'] = env['BUILDDIR']
-hostenv['RUSTBINS'] = 'build/rust/' + hostenv['TRIPLE'] + '/' + btype
+hostenv['RUSTBINS'] = 'build/rust/' + hostenv['TRIPLE'] + '/' + rustbuild
 
 # add platform-dependent stuff to env
 if platform == 'kachel':
