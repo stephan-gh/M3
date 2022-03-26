@@ -26,12 +26,19 @@ int main() {
     RecvGate rgate = RecvGate::create_named("chan");
     rgate.activate();
 
+    SendGate s1 = SendGate::create_named("reply1");
+    SendGate s2 = SendGate::create_named("reply2");
+
     uint64_t val;
     while(1) {
         auto is = receive_msg(rgate);
         is >> val;
-        cout << "Got " << fmt(val, "x") << " from " << is.label<int>() << "\n";
         reply_vmsg(is, 0);
+
+        if(is.label<uint64_t>() == 1)
+            send_receive_vmsg(s1, val + 1);
+        else
+            send_receive_vmsg(s2, val + 1);
     }
     return 0;
 }

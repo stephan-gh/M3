@@ -8,14 +8,10 @@
                     <sgate name="reply1" label="1" />
                     <sgate name="reply2" label="2" />
                 </app>
-            </dom>
-            <dom>
                 <app args="msgchansnd reply1">
                     <sgate name="chan" label="1" />
                     <rgate name="reply1" msgsize="64" slots="1" />
                 </app>
-            </dom>
-            <dom>
                 <app args="msgchansnd reply2">
                     <sgate name="chan" label="2" />
                     <rgate name="reply2" msgsize="64" slots="1" />
