@@ -18,7 +18,7 @@
 
 use m3::cap::Selector;
 use m3::cfg::PAGE_SIZE;
-use m3::com::{MemGate, RecvGate};
+use m3::com::{MemGate, RecvGate, SendGate};
 use m3::cpu;
 use m3::errors::{Code, Error};
 use m3::goff;
@@ -54,6 +54,7 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, mgate_region);
     wv_run_test!(t, kmem_quota);
     wv_run_test!(t, tile_quota);
+    wv_run_test!(t, tile_set_quota);
     wv_run_test!(t, sem_ctrl);
 
     wv_run_test!(t, delegate);
@@ -102,10 +103,6 @@ fn create_sgate() {
 }
 
 fn create_mgate() {
-    if !Activity::cur().tile_desc().has_virtmem() {
-        return;
-    }
-
     let sel = Activity::cur().alloc_sel();
 
     // invalid dest selector
@@ -225,6 +222,22 @@ fn create_sess() {
         Code::InvArgs
     );
 
+    // it's a bit tricky to test the creation of a session with a non-root service cap, because all
+    // calls are implicitly done with Activity::cur() and we cannot exchange caps with ourself.
+    // thus, we create a child activity, delegate the cap to it, delegate it back to ourself and try
+    // to create a session with it afterwards.
+    let child_tile = wv_assert_ok!(Tile::get("clone"));
+    let mut child_act = wv_assert_ok!(Activity::new_with(child_tile, ActivityArgs::new("tmp")));
+
+    wv_assert_ok!(child_act.delegate_obj(srv));
+    let copy_sel = wv_assert_ok!(child_act.obtain_obj(srv));
+
+    // only possible with root cap
+    wv_assert_err!(
+        syscalls::create_sess(sel, copy_sel, 0, 0, false),
+        Code::InvArgs
+    );
+
     wv_assert_ok!(syscalls::revoke(
         Activity::cur().sel(),
         CapRngDesc::new(CapType::OBJECT, srv, 1),
@@ -294,7 +307,7 @@ fn create_map() {
 
 #[allow(clippy::cognitive_complexity)]
 fn create_activity() {
-    let sel = Activity::cur().alloc_sel();
+    let sels = Activity::cur().alloc_sels(3);
     let kmem = Activity::cur().kmem().sel();
 
     let tile = wv_assert_ok!(Tile::get("clone|own"));
@@ -307,19 +320,29 @@ fn create_activity() {
 
     // invalid name
     wv_assert_err!(
-        syscalls::create_activity(sel, "", tile.sel(), kmem),
+        syscalls::create_activity(sels, "", tile.sel(), kmem),
         Code::InvArgs
     );
 
     // invalid kmem
     wv_assert_err!(
-        syscalls::create_activity(sel, "test", tile.sel(), INVALID_SEL),
+        syscalls::create_activity(sels, "test", tile.sel(), INVALID_SEL),
         Code::InvArgs
     );
     wv_assert_err!(
-        syscalls::create_activity(sel, "test", tile.sel(), SEL_ACT),
+        syscalls::create_activity(sels, "test", tile.sel(), SEL_ACT),
         Code::InvArgs
     );
+
+    wv_assert_ok!(syscalls::create_activity(sels, "test", tile.sel(), kmem));
+    if !tile.desc().has_virtmem() {
+        let new_sels = Activity::cur().alloc_sels(3);
+        wv_assert_err!(
+            syscalls::create_activity(new_sels, "test", tile.sel(), kmem),
+            Code::NotSup
+        );
+    }
+    wv_assert_ok!(Activity::cur().revoke(CapRngDesc::new(CapType::OBJECT, sels, 1), false));
 }
 
 fn create_sem() {
@@ -387,13 +410,40 @@ fn alloc_ep() {
     ));
     wv_assert_eq!(ep, AVAIL_EPS - 2);
     wv_assert_ok!(Activity::cur().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));
+
+    // specific, but invalid EP
+    wv_assert_err!(
+        syscalls::alloc_ep(sel, Activity::cur().sel(), AVAIL_EPS + 1, 0),
+        Code::InvArgs
+    );
+    wv_assert_err!(
+        syscalls::alloc_ep(sel, Activity::cur().sel(), AVAIL_EPS - 5, 10),
+        Code::InvArgs
+    );
+
+    // EPs not free
+    wv_assert_err!(
+        syscalls::alloc_ep(sel, Activity::cur().sel(), FIRST_USER_EP, 2),
+        Code::InvArgs
+    );
+
+    // not enough quota
+    let ep_quota = Activity::cur().tile().quota().unwrap().endpoints().left();
+    wv_assert_err!(
+        syscalls::alloc_ep(sel, Activity::cur().sel(), TOTAL_EPS, ep_quota + 1),
+        Code::NoSpace
+    );
 }
 
 fn activate() {
     let ep1 = wv_assert_ok!(Activity::cur().epmng_mut().acquire(0));
     let ep2 = wv_assert_ok!(Activity::cur().epmng_mut().acquire(0));
+    let ep3 = wv_assert_ok!(Activity::cur().epmng_mut().acquire(1));
+    let ep4 = wv_assert_ok!(Activity::cur().epmng_mut().acquire(2));
     let sel = Activity::cur().alloc_sel();
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
+    let mut rgate = wv_assert_ok!(RecvGate::new(5, 5));
+    let sgate = wv_assert_ok!(SendGate::new(&rgate));
 
     // invalid EP sel
     wv_assert_err!(
@@ -409,6 +459,15 @@ fn activate() {
         syscalls::activate(ep1.sel(), SEL_ACT, INVALID_SEL, 0),
         Code::InvArgs
     );
+    // can't activate sgate/mgate with EPs that has replies attached
+    wv_assert_err!(
+        syscalls::activate(ep3.sel(), mgate.sel(), INVALID_SEL, 0),
+        Code::InvArgs
+    );
+    wv_assert_err!(
+        syscalls::activate(ep3.sel(), sgate.sel(), INVALID_SEL, 0),
+        Code::InvArgs
+    );
     // receive buffer specified for MemGate
     wv_assert_err!(
         syscalls::activate(ep1.sel(), mgate.sel(), mgate.sel(), 0),
@@ -418,13 +477,37 @@ fn activate() {
         syscalls::activate(ep1.sel(), mgate.sel(), INVALID_SEL, 1),
         Code::InvArgs
     );
+    // can't specify memory cap for rgate without VM
+    if !Activity::cur().tile_desc().has_virtmem() {
+        wv_assert_err!(
+            syscalls::activate(ep3.sel(), rgate.sel(), mgate.sel(), 0),
+            Code::InvArgs
+        );
+    }
+    // wrong number of reply slots
+    wv_assert_err!(
+        syscalls::activate(ep4.sel(), rgate.sel(), INVALID_SEL, 0),
+        Code::InvArgs
+    );
     // already activated
+    wv_assert_ok!(rgate.activate());
+    wv_assert_err!(
+        syscalls::activate(ep3.sel(), rgate.sel(), INVALID_SEL, 0),
+        Code::Exists
+    );
+    wv_assert_ok!(syscalls::activate(ep1.sel(), sgate.sel(), INVALID_SEL, 0));
+    wv_assert_err!(
+        syscalls::activate(ep2.sel(), sgate.sel(), INVALID_SEL, 0),
+        Code::Exists
+    );
+    wv_assert_ok!(syscalls::activate(ep1.sel(), INVALID_SEL, INVALID_SEL, 0));
     wv_assert_ok!(syscalls::activate(ep1.sel(), mgate.sel(), INVALID_SEL, 0));
     wv_assert_err!(
         syscalls::activate(ep2.sel(), mgate.sel(), INVALID_SEL, 0),
         Code::Exists
     );
 
+    Activity::cur().epmng_mut().release(ep3, true);
     Activity::cur().epmng_mut().release(ep2, true);
     Activity::cur().epmng_mut().release(ep1, true);
 }
@@ -538,7 +621,8 @@ fn derive_kmem() {
 fn derive_tile() {
     let sel = Activity::cur().alloc_sel();
     let tile = wv_assert_ok!(Tile::get("clone"));
-    let oquota = wv_assert_ok!(tile.quota()).endpoints().left();
+    let oquota = wv_assert_ok!(tile.quota());
+    let oquote_eps = oquota.endpoints().left();
 
     // invalid dest selector
     wv_assert_err!(
@@ -547,7 +631,7 @@ fn derive_tile() {
     );
     // invalid ep count
     wv_assert_err!(
-        syscalls::derive_tile(tile.sel(), sel, Some(oquota + 1), None, None),
+        syscalls::derive_tile(tile.sel(), sel, Some(oquote_eps + 1), None, None),
         Code::NoSpace
     );
     // invalid tile sel
@@ -558,14 +642,32 @@ fn derive_tile() {
 
     // transfer EPs
     {
-        let tile2 = wv_assert_ok!(tile.derive(Some(1), None, None));
-        let quota2 = wv_assert_ok!(tile2.quota()).endpoints().left();
+        {
+            let tile2 = wv_assert_ok!(tile.derive(Some(1), None, None));
+            let quota2 = wv_assert_ok!(tile2.quota()).endpoints().left();
+            let nquota = wv_assert_ok!(tile.quota()).endpoints().left();
+            wv_assert_eq!(quota2, 1);
+            wv_assert_eq!(nquota, oquote_eps - 1);
+        }
         let nquota = wv_assert_ok!(tile.quota()).endpoints().left();
-        wv_assert_eq!(quota2, 1);
-        wv_assert_eq!(nquota, oquota - 1);
+        wv_assert_eq!(nquota, oquote_eps);
     }
-    let nquota = wv_assert_ok!(tile.quota()).endpoints().left();
-    wv_assert_eq!(nquota, oquota);
+
+    // transfer time
+    if oquota.time().total() > 100 {
+        {
+            let tile2 = wv_assert_ok!(tile.derive(None, Some(100), None));
+            let quota2 = wv_assert_ok!(tile2.quota()).time().total();
+            let nquota = wv_assert_ok!(tile.quota()).time().total();
+            wv_assert_eq!(quota2, 100);
+            wv_assert_eq!(nquota, oquota.time().total() - 100);
+        }
+        let nquota = wv_assert_ok!(tile.quota()).time().total();
+        wv_assert_eq!(nquota, oquota.time().total());
+    }
+    else {
+        m3::println!("Skipping time transfer test due to insufficient time");
+    }
 
     {
         let _act = wv_assert_ok!(Activity::new(tile.clone(), "test"));
@@ -633,6 +735,10 @@ fn get_sess() {
 
     // invalid service selector
     wv_assert_err!(
+        syscalls::get_sess(sel, act.sel(), sel, 0xDEAD_BEEF),
+        Code::InvArgs
+    );
+    wv_assert_err!(
         syscalls::get_sess(SEL_KMEM, act.sel(), sel, 0xDEAD_BEEF),
         Code::InvArgs
     );
@@ -694,6 +800,18 @@ fn tile_quota() {
     wv_assert_err!(
         syscalls::tile_quota(Activity::cur().alloc_sel()),
         Code::InvArgs
+    );
+}
+
+fn tile_set_quota() {
+    // invalid selector
+    wv_assert_err!(syscalls::tile_set_quota(SEL_ACT, 0, 0), Code::InvArgs);
+
+    // cannot be called on derived tile caps
+    let der_tile = wv_assert_ok!(Activity::cur().tile().derive(None, None, None));
+    wv_assert_err!(
+        syscalls::tile_set_quota(der_tile.sel(), 100, 100),
+        Code::NoPerm
     );
 }
 
