@@ -70,15 +70,26 @@ static void meta_operations() {
     VFS::mkdir("/example", 0755);
     WVASSERTERR(Errors::EXISTS, [] { VFS::mkdir("/example", 0755); });
     WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::mkdir("/example/foo/bar", 0755); });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::mkdir("nomount", 0755); });
+
+    FileInfo info;
+    VFS::stat("/example", info);
+    WVASSERT(M3FS_ISDIR(info.mode));
+    WVASSERTERR(Errors::NO_SUCH_FILE, [&info] { VFS::stat("/example/foo", info); });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [&info] { VFS::stat("nomount", info); });
 
     {
         FStream f("/example/myfile", FILE_W | FILE_CREATE);
         f << "test\n";
     }
 
+    WVASSERTERR(Errors::INV_ARGS, [] { VFS::mount("/mnt", "unknownfs", "session"); });
+    WVASSERTERR(Errors::EXISTS, [] { VFS::mount("/", "m3fs", "m3fs-clone"); });
+
     try {
         VFS::mount("/fs/", "m3fs", "m3fs-clone");
         WVASSERTERR(Errors::XFS_LINK, [] { VFS::link("/example/myfile", "/fs/foo"); });
+        WVASSERTERR(Errors::XFS_LINK, [] { VFS::rename("/fs/example/myfile", "/example/myfile2"); });
         VFS::unmount("/fs");
     }
     catch(const Exception &e) {
@@ -86,15 +97,23 @@ static void meta_operations() {
     }
 
     WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::rmdir("/example/foo/bar"); });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::rmdir("nomount"); });
     WVASSERTERR(Errors::IS_NO_DIR, [] { VFS::rmdir("/example/myfile"); });
     WVASSERTERR(Errors::DIR_NOT_EMPTY, [] { VFS::rmdir("/example"); });
 
     WVASSERTERR(Errors::IS_DIR, [] { VFS::link("/example", "/newpath"); });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::link("nomount", "/newpath"); });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::link("/example", "nomount"); });
     VFS::link("/example/myfile", "/newpath");
+
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::rename("/example/myfile", "nomount"); });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::rename("nomount", "/example/myfile"); });
+    VFS::rename("/example/myfile", "/example/myfile2");
 
     WVASSERTERR(Errors::IS_DIR, [] { VFS::unlink("/example"); });
     WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::unlink("/example/foo"); });
-    VFS::unlink("/example/myfile");
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::unlink("nomount"); });
+    VFS::unlink("/example/myfile2");
 
     VFS::rmdir("/example");
     VFS::unlink("/newpath");
