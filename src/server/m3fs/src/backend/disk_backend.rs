@@ -21,6 +21,7 @@ use crate::data::{BlockNo, BlockRange, Extent};
 use m3::cap::Selector;
 use m3::com::{MemGate, Perm};
 use m3::errors::Error;
+use m3::goff;
 use m3::kif::INVALID_SEL;
 use m3::session::Disk;
 
@@ -138,7 +139,7 @@ impl Backend for DiskBackend {
     }
 
     fn clear_extent(&self, ext: Extent) -> Result<(), Error> {
-        let mut zeros = [0; crate::data::MAX_BLOCK_SIZE as usize];
+        let zeros = [0; crate::data::MAX_BLOCK_SIZE as usize];
         let sel = m3::tiles::Activity::cur().alloc_sel();
         let mut i = 0;
         while i < ext.length {
@@ -151,7 +152,12 @@ impl Backend for DiskBackend {
                 None,
             )?;
             let mem = MemGate::new_bind(sel);
-            mem.write_bytes(zeros.as_mut_ptr(), bytes, 0)?;
+            let mut off = 0;
+            while off < bytes {
+                let amount = (bytes - off).min(zeros.len());
+                mem.write_bytes(zeros.as_ptr(), amount, off as goff)?;
+                off += amount;
+            }
             i += bytes as u32 / self.blocksize as u32;
         }
         Ok(())
