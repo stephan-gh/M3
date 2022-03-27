@@ -15,18 +15,29 @@
 
 use m3::col::{String, ToString};
 use m3::com::MemGate;
+use m3::errors::Code;
 use m3::io;
 use m3::kif;
-use m3::net::MAC;
-use m3::session::Pipes;
+use m3::net::{RawSocket, RawSocketArgs, MAC};
+use m3::session::{NetworkManager, Pipes};
 use m3::test;
 use m3::tiles::{Activity, ActivityArgs, RunningActivity, Tile};
 use m3::vfs::{BufReader, IndirectPipe};
-use m3::{format, wv_assert, wv_assert_eq, wv_assert_ok, wv_run_test};
+use m3::{format, wv_assert, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
+    wv_run_test!(t, no_perm);
     wv_run_test!(t, mac_addr);
     wv_run_test!(t, exec_ping);
+}
+
+fn no_perm() {
+    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+
+    wv_assert_err!(
+        RawSocket::new(RawSocketArgs::new(&nm), None).map(|_| ()),
+        Code::NoPerm
+    );
 }
 
 fn mac_addr() {
