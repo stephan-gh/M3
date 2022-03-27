@@ -25,6 +25,7 @@ use m3::net::IpAddr;
 use m3::test::WvTester;
 use m3::{println, wv_run_suite};
 
+mod traw;
 mod ttcp;
 mod tudp;
 
@@ -74,6 +75,7 @@ pub fn main() -> i32 {
     DST_IP.set(parse_ip(args[3]));
 
     let mut tester = MyTester {};
+    wv_run_suite!(tester, traw::run);
     wv_run_suite!(tester, tudp::run);
     wv_run_suite!(tester, ttcp::run);
 

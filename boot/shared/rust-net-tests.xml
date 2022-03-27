@@ -19,6 +19,11 @@
                 </app>
             </dom>
             <dom>
+                <app args="pipes" daemon="1">
+                    <serv name="pipes" />
+                </app>
+            </dom>
+            <dom>
                 <app args="pager sem=net-udp sem=net-tcp $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
@@ -33,6 +38,8 @@
                             <mount fs="m3fs" path="/" />
                             <sess name="net0" args="bufs=64K socks=2 ports=2000-2001" />
                             <sess name="net1" args="bufs=64K socks=2 ports=3000" />
+                            <sess lname="net" gname="net0" args="bufs=256K" />
+                            <sess name="pipes" />
                             <tiles type="core" count="1" />
                             <sem name="net-udp" />
                             <sem name="net-tcp" />
