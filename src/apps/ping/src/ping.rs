@@ -21,7 +21,7 @@ use m3::env;
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::mem;
-use m3::net::{self, DgramSocketArgs, IpAddr, RawSocket};
+use m3::net::{self, IpAddr, RawSocket, RawSocketArgs};
 use m3::println;
 use m3::session::NetworkManager;
 use m3::time::{TimeDuration, TimeInstant};
@@ -241,7 +241,7 @@ pub fn main() -> i32 {
     let nm = NetworkManager::new("net").expect("connecting to net failed");
 
     let raw_socket = RawSocket::new(
-        DgramSocketArgs::new(&nm)
+        RawSocketArgs::new(&nm)
             .send_buffer(8, 64 * 1024)
             .recv_buffer(8, 64 * 1024),
         Some(IP_PROTO_ICMP),

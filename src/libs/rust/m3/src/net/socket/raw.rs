@@ -24,6 +24,8 @@ use crate::net::{
 use crate::rc::Rc;
 use crate::session::NetworkManager;
 
+pub type RawSocketArgs<'a> = DgramSocketArgs<'a>;
+
 /// Represents a raw internet protocol (IP) socket
 pub struct RawSocket<'n> {
     socket: Rc<Socket>,
@@ -36,7 +38,7 @@ impl<'n> RawSocket<'n> {
     /// By default, the socket is in blocking mode, that is, all functions
     /// ([`send`](RawSocket::send), [`recv`](RawSocket::recv), ...) do not return until the
     /// operation is complete. This can be changed via [`set_blocking`](RawSocket::set_blocking).
-    pub fn new(args: DgramSocketArgs<'n>, protocol: Option<u8>) -> Result<Self, Error> {
+    pub fn new(args: RawSocketArgs<'n>, protocol: Option<u8>) -> Result<Self, Error> {
         Ok(RawSocket {
             socket: args.nm.create(SocketType::Raw, protocol, &args.args)?,
             nm: args.nm,

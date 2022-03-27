@@ -28,7 +28,7 @@ mod raw;
 mod tcp;
 mod udp;
 
-pub use self::raw::RawSocket;
+pub use self::raw::{RawSocket, RawSocketArgs};
 pub use self::tcp::{StreamSocketArgs, TcpSocket};
 pub use self::udp::{DgramSocketArgs, UdpSocket};
 
