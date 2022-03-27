@@ -9,7 +9,7 @@
                 </app>
             </dom>
             <dom>
-                <app args="m3fs -b 2 disk" daemon="1">
+                <app args="m3fs -c -b 2 disk" daemon="1">
                     <sess name="disk" args="0" />
                     <serv name="m3fs" />
                 </app>

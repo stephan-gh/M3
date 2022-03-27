@@ -3,7 +3,7 @@
     <dom>
         <app args="root">
             <dom>
-                <app args="m3fs mem $fs.size" daemon="1">
+                <app args="m3fs -c mem $fs.size" daemon="1">
                     <serv name="m3fs" />
                     <physmem addr="0" size="$fs.size" />
                 </app>
