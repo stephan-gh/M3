@@ -161,7 +161,7 @@ impl MAC {
     }
 
     /// Returns the MAC address as a u64
-    pub fn value(&self) -> u64 {
+    pub fn raw(&self) -> u64 {
         ((self.0[5] as u64) << 40)
             | ((self.0[4] as u64) << 32)
             | ((self.0[3] as u64) << 24)
@@ -175,7 +175,7 @@ impl core::fmt::Display for MAC {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
-            "MAC[{:x}, {:x}, {:x}, {:x}, {:x}, {:x}]",
+            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
             self.0[0], self.0[1], self.0[2], self.0[3], self.0[4], self.0[5]
         )
     }

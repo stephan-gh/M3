@@ -193,7 +193,7 @@ impl E1000 {
 
         // get MAC and setup MAC filter
         self.mac = self.read_mac();
-        let macval: u64 = self.mac.value();
+        let macval: u64 = self.mac.raw();
         self.write_reg(REG::RAL, (macval & 0xFFFFFFFF) as u32);
         self.write_reg(
             REG::RAH,
@@ -555,7 +555,7 @@ impl E1000 {
         log!(crate::LOG_NIC, "e1000: got MAC: {}", mac);
 
         // if thats valid, take it
-        if mac != MAC::broadcast() && mac.value() != 0 {
+        if mac != MAC::broadcast() && mac.raw() != 0 {
             return mac;
         }
 

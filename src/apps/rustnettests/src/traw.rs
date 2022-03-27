@@ -17,6 +17,7 @@ use m3::col::{String, ToString};
 use m3::com::MemGate;
 use m3::io;
 use m3::kif;
+use m3::net::MAC;
 use m3::session::Pipes;
 use m3::test;
 use m3::tiles::{Activity, ActivityArgs, RunningActivity, Tile};
@@ -24,7 +25,14 @@ use m3::vfs::{BufReader, IndirectPipe};
 use m3::{format, wv_assert, wv_assert_eq, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
+    wv_run_test!(t, mac_addr);
     wv_run_test!(t, exec_ping);
+}
+
+fn mac_addr() {
+    let mac = MAC::new(0x01, 0x02, 0x03, 0x04, 0x05, 0x06);
+    wv_assert_eq!(mac.raw(), 0x060504030201);
+    wv_assert_eq!(format!("{}", mac), "01:02:03:04:05:06");
 }
 
 fn exec_ping() {
