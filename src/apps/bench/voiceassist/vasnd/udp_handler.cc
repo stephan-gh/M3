@@ -22,12 +22,9 @@
 
 using namespace m3;
 
-constexpr port_t LOCAL_PORT = 2000;
-
 UDPOpHandler::UDPOpHandler(NetworkManager &nm, m3::IpAddr ip, m3::port_t port)
         : _ep(ip, port),
           _socket(UdpSocket::create(nm, DgramSocketArgs().send_buffer(8, 8 * 1024))) {
-    _socket->bind(LOCAL_PORT);
 }
 
 UDPOpHandler::~UDPOpHandler() {

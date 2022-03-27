@@ -24,7 +24,6 @@
 using namespace m3;
 
 constexpr size_t MAX_FILE_SIZE = 4 * 1024 * 1024;
-constexpr port_t LOCAL_PORT = 2000;
 
 static uint8_t *wl_buffer;
 static size_t wl_pos;
@@ -46,8 +45,6 @@ UDPOpHandler::UDPOpHandler(NetworkManager &nm, const char *workload, m3::IpAddr 
           _ep(ip, port),
           _socket(UdpSocket::create(nm, DgramSocketArgs().send_buffer(4, 16 * 1024)
                                                          .recv_buffer(64, 512 * 1024))) {
-    _socket->bind(LOCAL_PORT);
-
     wl_buffer = new uint8_t[MAX_FILE_SIZE];
     wl_pos = 0;
     wl_size = 0;
