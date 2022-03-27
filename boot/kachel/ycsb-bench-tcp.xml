@@ -26,7 +26,7 @@
                     </dom>
                     <dom>
                         <app args="/bin/lvldbserver /tmp/foo 4 tcp 1337">
-                            <sess name="net" args="bufs=1M socks=1 ports=1337" />
+                            <sess name="net" args="bufs=1M socks=1 tcp=1337" />
                             <sess lname="m3fs" gname="app_m3fs" />
                             <sem name="net" />
                         </app>

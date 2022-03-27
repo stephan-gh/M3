@@ -166,6 +166,10 @@ impl Socket {
         self.sd
     }
 
+    pub fn socket_type(&self) -> SocketType {
+        self.ty
+    }
+
     pub fn channel(&self) -> &Rc<NetEventChannel> {
         &self.channel
     }

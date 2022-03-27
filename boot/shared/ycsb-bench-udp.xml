@@ -21,13 +21,13 @@
                         <serv name="net" />
                     </app>
                     <app args="/bin/lvldbserver /tmp/foo 4 udp 127.0.0.1 1337 /data/small-workload.wl">
-                        <sess name="net" args="bufs=1M socks=1 ports=2000" />
+                        <sess name="net" args="bufs=1M socks=1" />
                         <sess lname="m3fs" gname="app_m3fs" />
                         <sem name="net" />
                     </app>
                     <dom>
                         <app args="/bin/ycsbclient udp 1337" daemon="1">
-                            <sess name="net" args="bufs=1M socks=1 ports=1337" />
+                            <sess name="net" args="bufs=1M socks=1 udp=1337" />
                             <sess lname="m3fs" gname="app_m3fs" />
                             <sem name="net" />
                         </app>

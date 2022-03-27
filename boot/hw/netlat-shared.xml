@@ -16,7 +16,7 @@
                         <serv name="net" />
                     </app>
                     <app args="/bin/netlat 192.168.41.10 1338">
-                        <sess name="net" args="bufs=1M socks=1 ports=2000" />
+                        <sess name="net" args="bufs=1M socks=1" />
                     </app>
                 </app>
             </dom>

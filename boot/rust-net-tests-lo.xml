@@ -25,7 +25,7 @@
                     <tiles type="core" count="2" />
                     <dom>
                         <app args="/bin/netechoserver" daemon="1">
-                            <sess name="net" args="bufs=1M socks=2 ports=1337,1338" />
+                            <sess name="net" args="bufs=1M socks=2 udp=1337 tcp=1338" />
                             <sem name="net-udp" />
                             <sem name="net-tcp" />
                         </app>
@@ -33,9 +33,9 @@
                     <dom>
                         <app args="/bin/rustnettests 127.0.0.1 127.0.0.1 127.0.0.1">
                             <mount fs="m3fs" path="/" />
-                            <sess lname="net0" gname="net" args="bufs=64K socks=2 ports=2000-2001" />
-                            <sess lname="net1" gname="net" args="bufs=64K socks=2 ports=3000" />
-                            <sess lname="net" gname="net0" args="bufs=256K" />
+                            <sess lname="net0" gname="net" args="bufs=64K socks=2 udp=2000-2001" />
+                            <sess lname="net1" gname="net" args="bufs=64K socks=2 tcp=3000" />
+                            <sess name="net" args="bufs=256K raw=yes" />
                             <sess name="pipes" />
                             <tiles type="core" count="1" />
                             <sem name="net-udp" />

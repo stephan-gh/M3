@@ -38,24 +38,51 @@ use crate::ports::{self, AnyPort};
 use crate::sess::file::FileSession;
 use crate::smoltcpif::socket::{to_m3_addr, to_m3_ep, SendNetEvent, Socket};
 
-struct Args {
+struct Settings {
     bufs: usize,
     socks: usize,
-    ports: Vec<(Port, Port)>,
+    raw: bool,
+    tcp_ports: Vec<(Port, Port)>,
+    udp_ports: Vec<(Port, Port)>,
 }
 
-impl Default for Args {
+impl Default for Settings {
     fn default() -> Self {
         Self {
             bufs: 64 * 1024,
             socks: 4,
-            ports: Vec::new(),
+            raw: false,
+            tcp_ports: Vec::new(),
+            udp_ports: Vec::new(),
         }
     }
 }
 
-fn parse_arguments(args_str: &str) -> Result<Args, Error> {
-    let mut args = Args::default();
+fn parse_ports(port_descs: &str, ports: &mut Vec<(Port, Port)>) -> Result<(), Error> {
+    // comma separated list of "x-y" or "x"
+    for port_desc in port_descs.split(',') {
+        let range = if let Some(pos) = port_desc.find('-') {
+            let from = parse::int(&port_desc[0..pos])? as Port;
+            let to = parse::int(&port_desc[(pos + 1)..])? as Port;
+            (from, to)
+        }
+        else {
+            let port = parse::int(port_desc)? as Port;
+            (port, port)
+        };
+
+        if ports::is_ephemeral(range.0) || ports::is_ephemeral(range.1) {
+            log!(crate::LOG_ERR, "Cannot bind/listen on ephemeral ports");
+            return Err(Error::new(Code::InvArgs));
+        }
+
+        ports.push(range);
+    }
+    Ok(())
+}
+
+fn parse_arguments(args_str: &str) -> Result<Settings, Error> {
+    let mut args = Settings::default();
     for arg in args_str.split_whitespace() {
         if let Some(bufs) = arg.strip_prefix("bufs=") {
             args.bufs = parse::size(bufs)?;
@@ -63,19 +90,14 @@ fn parse_arguments(args_str: &str) -> Result<Args, Error> {
         else if let Some(socks) = arg.strip_prefix("socks=") {
             args.socks = parse::int(socks)? as usize;
         }
-        else if let Some(portdesc) = arg.strip_prefix("ports=") {
-            // comma separated list of "x-y" or "x"
-            for ports in portdesc.split(',') {
-                if let Some(pos) = ports.find('-') {
-                    let from = parse::int(&ports[0..pos])? as Port;
-                    let to = parse::int(&ports[(pos + 1)..])? as Port;
-                    args.ports.push((from, to));
-                }
-                else {
-                    let port = parse::int(ports)? as Port;
-                    args.ports.push((port, port));
-                }
-            }
+        else if arg == "raw=yes" {
+            args.raw = true;
+        }
+        else if let Some(portdesc) = arg.strip_prefix("tcp=") {
+            parse_ports(portdesc, &mut args.tcp_ports)?;
+        }
+        else if let Some(portdesc) = arg.strip_prefix("udp=") {
+            parse_ports(portdesc, &mut args.udp_ports)?;
         }
         else {
             return Err(Error::new(Code::InvArgs));
@@ -89,10 +111,8 @@ pub struct SocketSession {
     sgate: Option<SendGate>,
     // our receive gate (shared among all sessions)
     rgate: Rc<RecvGate>,
-    // the ports usable for bind and listen
-    ports: Vec<(Port, Port)>,
-    // the remaining buffer space available to this session
-    buf_quota: usize,
+    // the settings for this session
+    settings: Settings,
     // our session cap
     server_session: ServerSession,
     // sockets the client has open
@@ -106,7 +126,7 @@ impl SocketSession {
         server_session: ServerSession,
         rgate: Rc<RecvGate>,
     ) -> Result<Self, Error> {
-        let args = parse_arguments(args_str).map_err(|e| {
+        let settings = parse_arguments(args_str).map_err(|e| {
             log!(
                 crate::LOG_ERR,
                 "Unable to parse session arguments: '{}'",
@@ -115,20 +135,12 @@ impl SocketSession {
             e
         })?;
 
-        for range in &args.ports {
-            if ports::is_ephemeral(range.0) || ports::is_ephemeral(range.1) {
-                log!(crate::LOG_ERR, "Cannot bind/listen on ephemeral ports");
-                return Err(Error::new(Code::InvArgs));
-            }
-        }
-
         Ok(SocketSession {
             sgate: None,
             rgate,
-            ports: args.ports,
-            buf_quota: args.bufs,
             server_session,
-            sockets: vec![None; args.socks],
+            sockets: vec![None; settings.socks],
+            settings,
         })
     }
 
@@ -258,8 +270,12 @@ impl SocketSession {
         caps: Selector,
         iface: &mut DriverInterface<'_>,
     ) -> Result<Sd, Error> {
+        if ty == SocketType::Raw && !self.settings.raw {
+            return Err(Error::new(Code::NoPerm));
+        }
+
         let total_space = Socket::required_space(ty, args);
-        if self.buf_quota < total_space {
+        if self.settings.bufs < total_space {
             return Err(Error::new(Code::NoSpace));
         }
 
@@ -268,7 +284,7 @@ impl SocketSession {
                 *s = Some(Rc::new(RefCell::new(Socket::new(
                     i, ty, protocol, args, caps, iface,
                 )?)));
-                self.buf_quota -= total_space;
+                self.settings.bufs -= total_space;
                 return Ok(i);
             }
         }
@@ -277,7 +293,7 @@ impl SocketSession {
 
     fn remove_socket(&mut self, sd: Sd) {
         if let Some(s) = self.sockets[sd].take() {
-            self.buf_quota += s.borrow().buffer_space();
+            self.settings.bufs += s.borrow().buffer_space();
         }
     }
 
@@ -332,8 +348,13 @@ impl SocketSession {
         }
     }
 
-    fn can_use_port(&self, port: Port) -> bool {
-        for range in &self.ports {
+    fn can_use_port(&self, ty: SocketType, port: Port) -> bool {
+        let ports = match ty {
+            SocketType::Stream => &self.settings.tcp_ports,
+            SocketType::Dgram => &self.settings.udp_ports,
+            _ => return true,
+        };
+        for range in ports {
             if port >= range.0 && port <= range.1 {
                 return true;
             }
@@ -362,11 +383,12 @@ impl SocketSession {
             port
         );
 
+        let sock = self.get_socket(sd)?;
         let port = if port == 0 {
             AnyPort::Ephemeral(ports::alloc())
         }
         else {
-            if !self.can_use_port(port) {
+            if !self.can_use_port(sock.borrow().socket_type(), port) {
                 return Err(Error::new(Code::NoPerm));
             }
 
@@ -374,7 +396,6 @@ impl SocketSession {
         };
 
         let port_no = port.number();
-        let sock = self.get_socket(sd)?;
         sock.borrow_mut().bind(crate::own_ip(), port, iface)?;
 
         let addr = to_m3_addr(crate::own_ip());
@@ -397,12 +418,12 @@ impl SocketSession {
             port
         );
 
-        if !self.can_use_port(port) {
+        let sock = self.get_socket(sd)?;
+        if !self.can_use_port(sock.borrow().socket_type(), port) {
             return Err(Error::new(Code::NoPerm));
         }
 
-        let socket = self.get_socket(sd)?;
-        socket.borrow_mut().listen(iface, crate::own_ip(), port)?;
+        sock.borrow_mut().listen(iface, crate::own_ip(), port)?;
 
         let addr = to_m3_addr(crate::own_ip());
         reply_vmsg!(is, Code::None as i32, addr.0)

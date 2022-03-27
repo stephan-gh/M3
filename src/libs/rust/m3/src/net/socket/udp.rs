@@ -114,7 +114,7 @@ impl<'n> UdpSocket<'n> {
     /// bind(0) is called implicitly to bind the socket to a local ephemeral port.
     ///
     /// Binding to a specific (non-zero) port requires that the used session has permission for this
-    /// port. This is controlled with the "ports=..." argument in the session argument of M³'s config
+    /// port. This is controlled with the "udp=..." argument in the session argument of M³'s config
     /// files.
     ///
     /// Returns an error if the socket is not in state [`Closed`](State::Closed).

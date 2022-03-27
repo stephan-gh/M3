@@ -96,7 +96,7 @@ public:
      * conventional TCP/IP stacks, listen is a combination of the traditional bind and listen.
      *
      * Listing on this port requires that the used session has permission for this port. This is
-     * controlled with the "ports=..." argument in the session argument of M³'s config files.
+     * controlled with the "tcp=..." argument in the session argument of M³'s config files.
      *
      * @param port the port to listen on
      */
