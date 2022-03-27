@@ -13,9 +13,10 @@
  * General Public License version 2 for more details.
  */
 
+use m3::col::{ToString, Vec};
 use m3::io::{Read, Write};
 use m3::test::WvTester;
-use m3::vfs::{FileRef, OpenFlags, VFS};
+use m3::vfs::{read_dir, FileRef, OpenFlags, VFS};
 use m3::{vec, wv_assert_eq, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn WvTester) {
@@ -24,6 +25,7 @@ pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, text_files);
     wv_run_test!(t, pat_file);
     wv_run_test!(t, write_file);
+    wv_run_test!(t, list_dir);
 }
 
 fn text_files() {
@@ -65,6 +67,22 @@ fn write_file() {
         let s = wv_assert_ok!(file.read_to_string());
         wv_assert_eq!(s, "my content is 0x1234");
     }
+}
+
+fn list_dir() {
+    let mut vec = Vec::new();
+    for e in wv_assert_ok!(read_dir("/")) {
+        if e.file_name() != "." && e.file_name() != ".." {
+            vec.push(e.file_name().to_string());
+        }
+    }
+    vec.sort();
+
+    wv_assert_eq!(vec.len(), 4);
+    wv_assert_eq!(vec[0], "newfile");
+    wv_assert_eq!(vec[1], "pat.bin");
+    wv_assert_eq!(vec[2], "test");
+    wv_assert_eq!(vec[3], "test.txt");
 }
 
 fn _validate_pattern_content(file: &mut FileRef, buf: &mut [u8]) -> usize {
