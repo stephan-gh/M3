@@ -83,8 +83,9 @@ impl Backend for MemBackend {
         Ok(())
     }
 
-    fn sync_meta(&self, block: &mut MetaBufferBlock) -> Result<(), Error> {
-        block.flush()
+    fn sync_meta(&self, _block: &mut MetaBufferBlock) -> Result<(), Error> {
+        // nothing to do here
+        Ok(())
     }
 
     fn get_filedata(

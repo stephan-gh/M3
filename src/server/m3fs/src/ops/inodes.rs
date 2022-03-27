@@ -578,6 +578,7 @@ pub fn sync_metadata(inode: &INodeRef) -> Result<(), Error> {
 
     for ext in inode.extent_iter() {
         for mut block in ext.block_iter() {
+            crate::backend_mut().sync_meta(&mut block)?;
             block.flush()?;
         }
     }
