@@ -42,6 +42,10 @@ class M3FS : public ClientSession, public FileSystem {
               ep(_ep),
               file(-1) {
         }
+        CachedEP(CachedEP &&c) : id(c.id), ep(c.ep), file(c.file) {
+            c.ep = nullptr;
+        }
+        ~CachedEP();
 
         size_t id;
         EP *ep;

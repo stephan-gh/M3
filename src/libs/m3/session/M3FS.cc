@@ -23,6 +23,11 @@
 
 namespace m3 {
 
+M3FS::CachedEP::~CachedEP() {
+    if(ep != nullptr)
+        Activity::self().epmng().release(ep, false);
+}
+
 Reference<File> M3FS::open(const char *path, int perms) {
     if(!(perms & FILE_NEWSESS)) {
         size_t ep_idx = get_ep();
