@@ -71,8 +71,8 @@ public:
           _mounts() {
     }
 
-    explicit MountTable(const MountTable &ms) noexcept;
-    MountTable &operator=(const MountTable &ms) noexcept;
+    MountTable(const MountTable &ms) = delete;
+    MountTable &operator=(const MountTable &ms) = delete;
 
     /**
      * Allocates a new id for the next filesystem
