@@ -55,6 +55,11 @@ static size_t is_in_mount(const String &mount, const char *in) {
     return static_cast<size_t>(p2 - in);
 }
 
+MountTable::~MountTable() {
+    for(size_t i = 0; i < MAX_MOUNTS; ++i)
+        delete _mounts[i];
+}
+
 void MountTable::add(const char *path, Reference<FileSystem> fs) {
     if(_count == MAX_MOUNTS)
         throw MessageException("No free slot in mount table", Errors::NO_SPACE);

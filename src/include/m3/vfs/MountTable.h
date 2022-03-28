@@ -70,6 +70,7 @@ public:
           _next_id(),
           _mounts() {
     }
+    ~MountTable();
 
     MountTable(const MountTable &ms) = delete;
     MountTable &operator=(const MountTable &ms) = delete;
