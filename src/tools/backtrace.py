@@ -15,6 +15,7 @@ binary       = sys.argv[2]
 
 regex_symbol = re.compile(r'^([0-9a-fA-F]*)\s+([BdDdTtVvWwuU])\s+(.*)$')
 regex_btline = re.compile(r'^(?:.*?\[[^\]]+\])?\s*(?:0x)?([0-9a-f]+)\s*$')
+regex_sanbtline = re.compile(r'^\s*#\d+\s+0x([0-9a-f]+).*')
 
 def get_location(addr):
     cmd = ["addr2line", "-e", binary, "{:#x}".format(addr)]
@@ -65,5 +66,7 @@ print("Scanning binary done, reading backtrace from stdin...")
 # decode backtrace
 for line in sys.stdin:
     match = regex_btline.match(line.strip())
+    if not match:
+        match = regex_sanbtline.match(line.strip())
     if match:
         print_func(int(match.group(1), 16))
