@@ -171,6 +171,7 @@ static void append() {
             WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
                 static_cast<ssize_t>(sizeof(largebuf)));
         }
+        file->sync();
     }
 
     check_content(small_file, sizeof(largebuf) * 4);
