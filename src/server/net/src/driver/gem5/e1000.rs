@@ -393,7 +393,7 @@ impl E1000 {
                         crate::LOG_NIC,
                         "e1000: IXMS set, but checksum does not match"
                     );
-                    false
+                    true
                 }
             }
             else {
