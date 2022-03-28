@@ -97,7 +97,8 @@ NOINLINE static void bandwidth() {
     NetworkManager net("net");
 
     auto socket = UdpSocket::create(net, DgramSocketArgs().send_buffer(8, 64 * 1024)
-                                                            .recv_buffer(32, 256 * 1024));
+                                                          .recv_buffer(32, 256 * 1024));
+    socket->blocking(false);
 
     constexpr size_t packet_size = 1024;
 
@@ -118,11 +119,9 @@ NOINLINE static void bandwidth() {
     size_t received_bytes        = 0;
 
     while(warmup--) {
-        socket->send_to(request, 8, dest);
-        socket->recv_from(response, sizeof(response), &src);
+        send_recv(net, socket, dest, request, 8, timeout,
+                  response, sizeof(response), &src);
     }
-
-    socket->blocking(false);
 
     auto start             = TimeInstant::now();
     auto last_received     = start;

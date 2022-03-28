@@ -121,17 +121,16 @@ fn bandwidth() {
             .send_buffer(8, 64 * 1024)
             .recv_buffer(32, 256 * 1024)
     ));
+    socket.set_blocking(false);
 
     let dest = Endpoint::new(crate::DST_IP.get(), 1337);
 
     let mut buf = [0u8; 1024];
 
     for _ in 0..10 {
-        wv_assert_ok!(socket.send_to(&buf, dest));
-        wv_assert_ok!(socket.recv(&mut buf));
+        // ignore errors here
+        send_recv(&nm, &mut socket, dest, &mut buf, TIMEOUT).ok();
     }
-
-    socket.set_blocking(false);
 
     let start = TimeInstant::now();
     let mut timeout = start + TIMEOUT;
