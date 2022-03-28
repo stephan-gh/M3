@@ -375,12 +375,12 @@ impl E1000 {
         if (desc.status & RXDS::IXSM.bits()) == 0 {
             if (desc.status & RXDS::IPCS.bits()) != 0 {
                 if (desc.error & RXDE::IPE.bits()) != 0 {
-                    log!(crate::LOG_NIC, "e1000: IP checksum error");
+                    log!(crate::LOG_NIC_ERR, "e1000: IP checksum error");
                     false
                 }
                 else if (desc.status & (RXDS::TCPCS | RXDS::UDPCS).bits()) != 0 {
                     if (desc.error & RXDE::TCPE.bits()) != 0 {
-                        log!(crate::LOG_NIC, "e1000: TCP/UDP checksum error");
+                        log!(crate::LOG_NIC_ERR, "e1000: TCP/UDP checksum error");
                         false
                     }
                     else {
@@ -390,7 +390,7 @@ impl E1000 {
                 else {
                     // TODO: Maybe ensure that it is really not TCP/UDP?
                     log!(
-                        crate::LOG_NIC,
+                        crate::LOG_NIC_ERR,
                         "e1000: IXMS set, but checksum does not match"
                     );
                     true

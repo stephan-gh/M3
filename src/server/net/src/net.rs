@@ -53,6 +53,7 @@ pub const LOG_SESS: bool = false;
 pub const LOG_DATA: bool = false;
 pub const LOG_PORTS: bool = false;
 pub const LOG_NIC: bool = false;
+pub const LOG_NIC_ERR: bool = true;
 pub const LOG_NIC_DETAIL: bool = false;
 pub const LOG_SMOLTCP: bool = false;
 pub const LOG_DETAIL: bool = false;
