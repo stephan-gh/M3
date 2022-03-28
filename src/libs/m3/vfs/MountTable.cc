@@ -133,11 +133,11 @@ void MountTable::do_remove(size_t i) {
     assert(_mounts[i] != nullptr);
     assert(_count > 0);
     delete _mounts[i];
-    _mounts[i] = nullptr;
     // move following items backwards
     for(; i < _count - 1; ++i)
         _mounts[i] = _mounts[i + 1];
     _count--;
+    _mounts[_count] = nullptr;
 }
 
 size_t MountTable::serialize(void *buffer, size_t size) const {
