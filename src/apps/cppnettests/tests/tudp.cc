@@ -89,6 +89,16 @@ NOINLINE static void data() {
 
     size_t packet_sizes[] = {8, 16, 32, 64, 128, 256, 512, 1024};
 
+    WVASSERTERR(Errors::OUT_OF_BOUNDS, [&socket, &dest] {
+        char tmp[4096];
+        static_assert(sizeof(tmp) > NetEventChannel::MAX_PACKET_SIZE, "Packet too small");
+        socket->send_to(tmp, sizeof(tmp), dest);
+    });
+    WVASSERTERR(Errors::OUT_OF_BOUNDS, [&socket, &dest] {
+        char tmp[4096];
+        socket->send_to(tmp, NetEventChannel::MAX_PACKET_SIZE + 1, dest);
+    });
+
     for(auto pkt_size : packet_sizes) {
         while(true) {
             ssize_t recv_size = send_recv(net, socket, dest, send_buf, pkt_size, TIMEOUT,

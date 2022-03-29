@@ -242,14 +242,32 @@ impl<'n> TcpSocket<'n> {
     /// [`accept`](TcpSocket::accept)). Note that data can be received after the remote side has
     /// closed the socket (state [`RemoteClosed`](State::RemoteClosed)), but not if this side has
     /// been closed.
-    pub fn send(&mut self, data: &[u8]) -> Result<(), Error> {
-        match self.socket.state() {
-            // like for receive: still allow sending if the remote side closed the connection
-            State::Connected | State::RemoteClosed => {
-                self.socket.send(data, self.remote_endpoint().unwrap())
-            },
-            _ => Err(Error::new(Code::NotConnected)),
+    ///
+    /// Returns the number of sent bytes or an error. If an error occurs (e.g., remote side closed
+    /// the socket) and some of the data has already been sent, the number of sent bytes is
+    /// returned. Otherwise, the error is returned.
+    pub fn send(&mut self, mut data: &[u8]) -> Result<usize, Error> {
+        let mut total = 0;
+        while data.len() > 0 {
+            let amount = event::MTU.min(data.len());
+            let res = match self.socket.state() {
+                // like for receive: still allow sending if the remote side closed the connection
+                State::Connected | State::RemoteClosed => self
+                    .socket
+                    .send(&data[0..amount], self.remote_endpoint().unwrap()),
+                _ => Err(Error::new(Code::NotConnected)),
+            };
+            if let Err(e) = res {
+                return match total {
+                    0 => Err(e),
+                    t => Ok(t),
+                };
+            }
+
+            data = &data[amount..];
+            total += amount;
         }
+        Ok(total)
     }
 
     /// Closes the connection

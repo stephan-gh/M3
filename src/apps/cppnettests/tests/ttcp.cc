@@ -269,24 +269,24 @@ NOINLINE static void data() {
     socket->connect(Endpoint(IpAddr(192, 168, 112, 1), 1338));
 
     // disable 256 to workaround the bug in gem5's E1000 model
-    size_t packet_sizes[] = {8, 16, 32, 64, 128, /*256,*/ 512, 934, 1024};
+    size_t packet_sizes[] = {8, 16, 32, 64, 128, /*256,*/ 512, 934, 1024, 2048, 4096};
     for(auto pkt_size : packet_sizes) {
-        uint8_t recv_buf[pkt_size * 8];
-        uint8_t send_buf[pkt_size * 8];
-        for(size_t i = 0; i < sizeof(send_buf); ++i)
+        std::unique_ptr<uint8_t[]> recv_buf(new uint8_t[pkt_size]);
+        std::unique_ptr<uint8_t[]> send_buf(new uint8_t[pkt_size * 8]);
+        for(size_t i = 0; i < pkt_size * 8; ++i)
             send_buf[i] = i;
 
         for(size_t i = 0; i < 8; ++i)
-            WVASSERT(socket->send(send_buf + pkt_size * i, pkt_size) == static_cast<ssize_t>(pkt_size));
+            WVASSERT(socket->send(send_buf.get() + pkt_size * i, pkt_size) == static_cast<ssize_t>(pkt_size));
 
         uint8_t expected_byte = 0;
         size_t received = 0;
         while(received < pkt_size * 8) {
-            ssize_t recv_size = socket->recv(recv_buf, sizeof(recv_buf));
+            ssize_t recv_size = socket->recv(recv_buf.get(), pkt_size);
             WVASSERT(recv_size != -1);
 
             for(ssize_t i = 0; i < recv_size; ++i) {
-                WVASSERTEQ(recv_buf[i], expected_byte);
+                WVASSERTEQ(recv_buf.get()[i], expected_byte);
                 expected_byte++;
             }
             received += static_cast<size_t>(recv_size);

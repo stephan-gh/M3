@@ -15,7 +15,7 @@
 
 use m3::com::Semaphore;
 use m3::errors::{Code, Error};
-use m3::net::{DgramSocketArgs, Endpoint, State, UdpSocket};
+use m3::net::{event::MTU, DgramSocketArgs, Endpoint, State, UdpSocket};
 use m3::session::{NetworkDirection, NetworkManager};
 use m3::test;
 use m3::time::TimeDuration;
@@ -108,6 +108,15 @@ fn data() {
         &mut recv_buf,
         TimeDuration::from_secs(6)
     ));
+
+    wv_assert_err!(
+        socket.send_to(&m3::vec![0u8; 4096], dest),
+        Code::OutOfBounds
+    );
+    wv_assert_err!(
+        socket.send_to(&m3::vec![0u8; MTU + 1], dest),
+        Code::OutOfBounds
+    );
 
     let packet_sizes = [8, 16, 32, 64, 128, 256, 512, 1024];
     for pkt_size in &packet_sizes {

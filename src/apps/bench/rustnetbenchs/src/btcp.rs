@@ -42,7 +42,7 @@ fn latency() {
 
     // warmup
     for _ in 0..5 {
-        wv_assert_ok!(socket.send(&buf));
+        wv_assert_eq!(socket.send(&buf), Ok(buf.len()));
         let _res = socket.recv(&mut buf);
     }
 
@@ -54,7 +54,7 @@ fn latency() {
         for _ in 0..samples {
             let start = TimeInstant::now();
 
-            wv_assert_ok!(socket.send(&buf[0..*pkt_size]));
+            wv_assert_eq!(socket.send(&buf[0..*pkt_size]), Ok(*pkt_size));
 
             let mut recv_size = 0;
             while recv_size < *pkt_size {
@@ -100,7 +100,7 @@ fn bandwidth() {
     let mut buf = [0u8; 1024];
 
     for _ in 0..10 {
-        wv_assert_ok!(socket.send(&buf));
+        wv_assert_eq!(socket.send(&buf), Ok(buf.len()));
         wv_assert_ok!(socket.recv(&mut buf));
     }
 

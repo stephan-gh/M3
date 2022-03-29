@@ -133,11 +133,13 @@ ssize_t Socket::do_recv(void *dst, size_t amount, Endpoint *ep) {
 
 ssize_t Socket::do_send(const void *src, size_t amount, const Endpoint &ep) {
     while(true) {
-        bool succeeded = _channel.send_data(ep, amount, [src, amount](void *buf) {
+        Errors::Code res = _channel.send_data(ep, amount, [src, amount](void *buf) {
             memcpy(buf, src, amount);
         });
-        if(succeeded)
+        if(res == Errors::NONE)
             return static_cast<ssize_t>(amount);
+        if(res != Errors::NO_CREDITS)
+            throw Exception(res);
 
         if(!blocking()) {
             fetch_replies();

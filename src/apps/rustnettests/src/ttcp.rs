@@ -54,7 +54,7 @@ fn basics() {
     );
 
     let mut buf = [0u8; 32];
-    wv_assert_ok!(socket.send(&buf));
+    wv_assert_eq!(socket.send(&buf), Ok(buf.len()));
     wv_assert_ok!(socket.recv(&mut buf));
 
     // connecting to the same remote endpoint is okay
@@ -260,7 +260,7 @@ fn receive_after_close() {
 
         let mut buf = [0u8; 32];
         wv_assert_eq!(socket.recv(&mut buf), Ok(32));
-        wv_assert_ok!(socket.send(&buf));
+        wv_assert_eq!(socket.send(&buf), Ok(32));
 
         wv_assert_ok!(socket.close());
         wv_assert_eq!(socket.state(), State::Closed);
@@ -277,7 +277,7 @@ fn receive_after_close() {
     wv_assert_ok!(socket.connect(Endpoint::new(crate::DST_IP.get(), 3000)));
 
     let mut buf = [0u8; 32];
-    wv_assert_ok!(socket.send(&buf));
+    wv_assert_eq!(socket.send(&buf), Ok(32));
     wv_assert_eq!(socket.recv(&mut buf), Ok(32));
 
     // at some point, the socket should receive the closed event from the remote side
@@ -302,17 +302,18 @@ fn data() {
     wv_assert_ok!(socket.connect(Endpoint::new(crate::DST_IP.get(), 1338)));
 
     // disable 256 to workaround the bug in gem5's E1000 model
-    let packet_sizes = [8, 16, 32, 64, 128, /*256,*/ 512, 934, 1024];
+    let packet_sizes = [8, 16, 32, 64, 128, /*256,*/ 512, 934, 1024, 2048, 4096];
 
     for pkt_size in &packet_sizes {
         let mut send_buf = Vec::with_capacity(pkt_size * 8);
         for i in 0..pkt_size * 8 {
             send_buf.push(i as u8);
         }
-        let mut recv_buf = vec![0u8; pkt_size * 8];
+        let mut recv_buf = vec![0u8; *pkt_size];
 
         for i in 0..8 {
-            wv_assert_ok!(socket.send(&send_buf[pkt_size * i..pkt_size * (i + 1)]));
+            let pkt = &send_buf[pkt_size * i..pkt_size * (i + 1)];
+            wv_assert_eq!(socket.send(pkt), Ok(pkt.len()));
         }
 
         let mut received = 0;

@@ -28,9 +28,13 @@ NetEventChannel::NetEventChannel(capsel_t caps)
     _rplgate.activate();
 }
 
-bool NetEventChannel::send_data(const Endpoint &ep, size_t size, std::function<void(uchar *)> cb_data) {
+Errors::Code NetEventChannel::send_data(const Endpoint &ep, size_t size,
+                                        std::function<void(uchar *)> cb_data) {
     // make sure that the message does not contain a page boundary
     ALIGNED(2048) char msg_buf[2048];
+    if(size > sizeof(msg_buf) - sizeof(DataMessage))
+        return Errors::OUT_OF_BOUNDS;
+
     auto msg = reinterpret_cast<DataMessage*>(msg_buf);
     msg->type = Data;
     msg->addr = static_cast<uint64_t>(ep.addr.addr());
@@ -40,7 +44,7 @@ bool NetEventChannel::send_data(const Endpoint &ep, size_t size, std::function<v
 
     fetch_replies();
 
-    return _sgate.try_send_aligned(msg_buf, size + sizeof(DataMessage)) == Errors::NONE;
+    return _sgate.try_send_aligned(msg_buf, size + sizeof(DataMessage));
 }
 
 bool NetEventChannel::send_close_req() {

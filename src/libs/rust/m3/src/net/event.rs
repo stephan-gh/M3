@@ -18,7 +18,7 @@ use core::fmt;
 
 use crate::cap::{CapFlags, Selector};
 use crate::com::{RGateArgs, RecvGate, SGateArgs, SendGate};
-use crate::errors::Error;
+use crate::errors::{Code, Error};
 use crate::int_enum;
 use crate::kif::{CapRngDesc, CapType};
 use crate::math;
@@ -235,6 +235,10 @@ impl NetEventChannel {
     where
         F: FnOnce(&mut [u8]),
     {
+        if size > MTU {
+            return Err(Error::new(Code::OutOfBounds));
+        }
+
         #[allow(clippy::uninit_assumed_init)]
         let mut msg = DataMessage {
             ty: NetEventType::DATA.val,
@@ -244,7 +248,6 @@ impl NetEventChannel {
             // safety: data[0..size] will be initialized below; the rest will not be sent
             data: unsafe { MaybeUninit::uninit().assume_init() },
         };
-        assert!(size <= msg.data.len());
 
         populate(&mut msg.data[0..size]);
 

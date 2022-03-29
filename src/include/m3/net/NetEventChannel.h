@@ -65,6 +65,9 @@ public:
     struct CloseReqMessage : public ControlMessage {
     } PACKED;
 
+    static const size_t MAX_PACKET_SIZE         = MSG_SIZE - \
+        (sizeof(DataMessage) + sizeof(TCU::Message::Header));
+
     class Event {
     friend class NetEventChannel;
     public:
@@ -90,7 +93,7 @@ public:
 
     NetEventChannel(capsel_t caps);
 
-    bool send_data(const Endpoint &ep, size_t size, std::function<void(uchar *)> cb_data);
+    Errors::Code send_data(const Endpoint &ep, size_t size, std::function<void(uchar *)> cb_data);
     bool send_close_req();
 
     bool can_send() const noexcept;
