@@ -88,7 +88,7 @@ private:
     virtual void enable_notifications() override {
         // nothing to enable here
     }
-    virtual void close() noexcept override;
+    virtual void remove() noexcept override;
 
     capsel_t _caps;
     size_t _size;

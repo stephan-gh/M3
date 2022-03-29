@@ -83,7 +83,7 @@ private:
     virtual void enable_notifications() override {
         // nothing to enable here
     }
-    virtual void close() noexcept override;
+    virtual void remove() noexcept override;
 
     bool _noeof;
     capsel_t _caps;

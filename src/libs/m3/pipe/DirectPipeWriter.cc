@@ -79,7 +79,7 @@ DirectPipeWriter::DirectPipeWriter(capsel_t caps, size_t size, std::unique_ptr<S
       _noeof() {
 }
 
-void DirectPipeWriter::close() noexcept {
+void DirectPipeWriter::remove() noexcept {
     if(_noeof)
         return;
 

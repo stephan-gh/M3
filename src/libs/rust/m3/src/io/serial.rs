@@ -18,33 +18,10 @@
 
 use crate::cap::Selector;
 use crate::col::Vec;
-use crate::errors::{Code, Error};
-use crate::goff;
+use crate::errors::Error;
 use crate::io;
-use crate::kif;
-use crate::session::{HashInput, HashOutput, HashSession, MapFlags, Pager};
-use crate::tiles::StateSerializer;
+use crate::session::{HashInput, HashOutput};
 use crate::vfs;
-
-impl vfs::Seek for io::Serial {
-    fn seek(&mut self, _off: usize, _whence: vfs::SeekMode) -> Result<usize, Error> {
-        Err(Error::new(Code::NotSup))
-    }
-}
-
-impl vfs::Map for io::Serial {
-    fn map(
-        &self,
-        _pager: &Pager,
-        _virt: goff,
-        _off: usize,
-        _len: usize,
-        _prot: kif::Perm,
-        _flags: MapFlags,
-    ) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
-    }
-}
 
 impl vfs::File for io::Serial {
     fn fd(&self) -> vfs::Fd {
@@ -52,17 +29,6 @@ impl vfs::File for io::Serial {
     }
 
     fn set_fd(&mut self, _fd: vfs::Fd) {
-    }
-
-    fn session(&self) -> Option<Selector> {
-        None
-    }
-
-    fn close(&mut self) {
-    }
-
-    fn stat(&self) -> Result<vfs::FileInfo, Error> {
-        Err(Error::new(Code::NotSup))
     }
 
     fn file_type(&self) -> u8 {
@@ -78,20 +44,16 @@ impl vfs::File for io::Serial {
         // nothing to do
         Ok(())
     }
+}
 
-    fn serialize(&self, _s: &mut StateSerializer<'_>) {
-        // nothing to do
-    }
+impl vfs::Seek for io::Serial {
+}
+
+impl vfs::Map for io::Serial {
 }
 
 impl HashInput for io::Serial {
-    fn hash_input(&mut self, _: &HashSession, _: usize) -> Result<usize, Error> {
-        Err(Error::new(Code::NotSup))
-    }
 }
 
 impl HashOutput for io::Serial {
-    fn hash_output(&mut self, _: &HashSession, _: usize) -> Result<usize, Error> {
-        Err(Error::new(Code::NotSup))
-    }
 }

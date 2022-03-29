@@ -27,7 +27,7 @@ RawSocket::RawSocket(int sd, capsel_t caps, NetworkManager &nm)
 }
 
 RawSocket::~RawSocket() {
-    tear_down();
+    remove();
 }
 
 Reference<RawSocket> RawSocket::create(NetworkManager &nm, uint8_t protocol,
@@ -45,6 +45,10 @@ ssize_t RawSocket::recv(void *dst, size_t amount) {
 
 ssize_t RawSocket::send(const void *src, size_t amount) {
     return Socket::do_send(src, amount, Endpoint());
+}
+
+void RawSocket::remove() noexcept {
+    tear_down();
 }
 
 }

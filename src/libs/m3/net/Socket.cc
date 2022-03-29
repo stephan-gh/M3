@@ -25,24 +25,23 @@
 
 namespace m3 {
 
-Socket::Socket(int sd, capsel_t caps, NetworkManager &nm)
+Socket::Socket(int fd, capsel_t caps, NetworkManager &nm)
     : SListItem(),
-      RefCounted(),
-      _sd(sd),
+      File(0),
       _state(Closed),
-      _blocking(true),
       _local_ep(),
       _remote_ep(),
       _nm(nm),
       _channel(caps),
       _recv_queue() {
+    set_fd(fd);
 }
 
 Socket::~Socket() {
     _nm.remove_socket(this);
 }
 
-void Socket::tear_down() {
+void Socket::tear_down() noexcept {
     try {
         // we have no connection to tear down here, but only want to make sure that all packets we sent
         // are seen and handled by the server. thus, wait until we have got all replies to our
@@ -78,25 +77,25 @@ void Socket::process_message(const NetEventChannel::ControlMessage &message,
 }
 
 void Socket::handle_data(NetEventChannel::DataMessage const &msg, NetEventChannel::Event &event) {
-    LLOG(NET, "socket " << _sd << ": received data with " << msg.size << "b"
+    LLOG(NET, "socket " << _fd << ": received data with " << msg.size << "b"
                               << " from " << IpAddr(msg.addr) << ":" << msg.port);
     _recv_queue.append(new DataQueue::Item(&msg, std::move(event)));
 }
 
 void Socket::handle_connected(NetEventChannel::ConnectedMessage const &msg) {
-    LLOG(NET, "socket " << _sd << ": connected to " << IpAddr(msg.addr) << ":" << msg.port);
+    LLOG(NET, "socket " << _fd << ": connected to " << IpAddr(msg.addr) << ":" << msg.port);
     _state = Connected;
     _remote_ep.addr = IpAddr(msg.addr);
     _remote_ep.port = msg.port;
 }
 
 void Socket::handle_close_req(NetEventChannel::CloseReqMessage const &) {
-    LLOG(NET, "socket " << _sd << ": remote side was closed");
+    LLOG(NET, "socket " << _fd << ": remote side was closed");
     _state = RemoteClosed;
 }
 
 void Socket::handle_closed(NetEventChannel::ClosedMessage const &) {
-    LLOG(NET, "socket " << _sd << ": closed");
+    LLOG(NET, "socket " << _fd << ": closed");
     disconnect();
 }
 
@@ -141,7 +140,7 @@ ssize_t Socket::do_send(const void *src, size_t amount, const Endpoint &ep) {
         if(res != Errors::NO_CREDITS)
             throw Exception(res);
 
-        if(!blocking()) {
+        if(!is_blocking()) {
             fetch_replies();
             return -1;
         }

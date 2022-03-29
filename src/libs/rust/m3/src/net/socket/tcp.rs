@@ -15,14 +15,18 @@
  * General Public License version 2 for more details.
  */
 
+use core::fmt;
+
 use crate::errors::{Code, Error};
+use crate::io;
 use crate::net::{
     event,
     socket::{Socket, SocketArgs, State},
-    Endpoint, Port, Sd, SocketType,
+    Endpoint, Port, SocketType,
 };
 use crate::rc::Rc;
-use crate::session::NetworkManager;
+use crate::session::{HashInput, HashOutput, NetworkManager};
+use crate::vfs::{self, Fd, File};
 
 /// Configures the buffer sizes for stream sockets
 pub struct StreamSocketArgs<'n> {
@@ -72,11 +76,6 @@ impl<'n> TcpSocket<'n> {
         })
     }
 
-    /// Returns the socket descriptor used to identify this socket within the session on the server
-    pub fn sd(&self) -> Sd {
-        self.socket.sd()
-    }
-
     /// Returns the current state of the socket
     pub fn state(&self) -> State {
         self.socket.state()
@@ -98,21 +97,6 @@ impl<'n> TcpSocket<'n> {
     /// endpoint is `None`.
     pub fn remote_endpoint(&self) -> Option<Endpoint> {
         self.socket.remote_ep.get()
-    }
-
-    /// Returns whether the socket is currently in blocking mode
-    pub fn blocking(&self) -> bool {
-        self.socket.blocking()
-    }
-
-    /// Sets whether the socket is using blocking mode.
-    ///
-    /// In blocking mode, all functions ([`connect`](TcpSocket::connect), [`send`](TcpSocket::send),
-    /// [`recv`](TcpSocket::recv), ...) do not return until the operation is complete. In
-    /// non-blocking mode, all functions return in case they would need to block, that is, wait
-    /// until an event is received or further data can be sent.
-    pub fn set_blocking(&mut self, blocking: bool) {
-        self.socket.set_blocking(blocking);
     }
 
     /// Puts this socket into listen mode on the given port.
@@ -152,12 +136,12 @@ impl<'n> TcpSocket<'n> {
             return Err(Error::new(Code::AlreadyInProgress));
         }
 
-        let local_ep = self.nm.connect(self.sd(), endpoint)?;
+        let local_ep = self.nm.connect(self.fd(), endpoint)?;
         self.socket.state.set(State::Connecting);
         self.socket.remote_ep.set(Some(endpoint));
         self.socket.local_ep.set(Some(local_ep));
 
-        if !self.blocking() {
+        if !self.is_blocking() {
             return Err(Error::new(Code::InProgress));
         }
 
@@ -192,7 +176,7 @@ impl<'n> TcpSocket<'n> {
 
         self.socket.state.set(State::Connecting);
         while self.state() == State::Connecting {
-            if !self.blocking() {
+            if !self.is_blocking() {
                 return Err(Error::new(Code::InProgress));
             }
             self.socket.wait_for_events();
@@ -275,9 +259,7 @@ impl<'n> TcpSocket<'n> {
     /// In contrast to [`abort`](TcpSocket::abort), close properly closes the connection to the
     /// remote endpoint by going through the TCP protocol.
     ///
-    /// Note that [`close`](TcpSocket::close) is *not* called on drop, but has to be called
-    /// explicitly to ensure that all data is transmitted to the remote end and the connection is
-    /// properly closed.
+    /// Note that [`close`](TcpSocket::close) is also called on drop.
     pub fn close(&mut self) -> Result<(), Error> {
         if self.state() == State::Closed {
             return Ok(());
@@ -299,7 +281,7 @@ impl<'n> TcpSocket<'n> {
                 Ok(_) => break,
             }
 
-            if !self.blocking() {
+            if !self.is_blocking() {
                 return Err(Error::new(Code::WouldBlock));
             }
 
@@ -313,7 +295,7 @@ impl<'n> TcpSocket<'n> {
 
         // now wait for the response; can be non-blocking
         while self.state() != State::Closed {
-            if !self.blocking() {
+            if !self.is_blocking() {
                 return Err(Error::new(Code::InProgress));
             }
 
@@ -327,20 +309,78 @@ impl<'n> TcpSocket<'n> {
     /// In contrast to [`close`](TcpSocket::close), this is a hard abort, which does not go through
     /// the TCP protocol, but simply "forgets" this socket. Furthermore, it is *not* guaranteed that
     /// all data has already been transmitted. Use [`close`](TcpSocket::close) if that is important.
-    ///
-    /// Note also that [`abort`](TcpSocket::abort) is called automatically on drop.
     pub fn abort(&mut self) -> Result<(), Error> {
-        self.nm.abort(self.sd(), false)?;
+        self.nm.abort(self.fd(), false)?;
         self.socket.recv_queue.borrow_mut().clear();
         self.socket.disconnect();
         Ok(())
     }
 }
 
+impl File for TcpSocket<'_> {
+    fn fd(&self) -> Fd {
+        self.socket.sd()
+    }
+
+    fn set_fd(&mut self, _fd: Fd) {
+        // not used
+    }
+
+    fn file_type(&self) -> u8 {
+        // not supported
+        b'\0'
+    }
+
+    fn is_blocking(&self) -> bool {
+        self.socket.blocking()
+    }
+
+    /// Sets whether the socket is using blocking mode.
+    ///
+    /// In blocking mode, all functions ([`connect`](TcpSocket::connect), [`send`](TcpSocket::send),
+    /// [`recv`](TcpSocket::recv), ...) do not return until the operation is complete. In
+    /// non-blocking mode, all functions return in case they would need to block, that is, wait
+    /// until an event is received or further data can be sent.
+    fn set_blocking(&mut self, blocking: bool) -> Result<(), Error> {
+        self.socket.set_blocking(blocking);
+        Ok(())
+    }
+}
+
+impl io::Read for TcpSocket<'_> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
+        self.recv(buf)
+    }
+}
+
+impl io::Write for TcpSocket<'_> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
+        self.send(buf)
+    }
+}
+
+impl vfs::Seek for TcpSocket<'_> {
+}
+
+impl vfs::Map for TcpSocket<'_> {
+}
+
+impl HashInput for TcpSocket<'_> {
+}
+
+impl HashOutput for TcpSocket<'_> {
+}
+
+impl fmt::Debug for TcpSocket<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TcpSocket")
+    }
+}
+
 impl Drop for TcpSocket<'_> {
     fn drop(&mut self) {
         // use blocking mode here, because we cannot leave here until the socket is closed.
-        self.set_blocking(true);
+        self.set_blocking(true).unwrap();
         // ignore errors
         self.close().ok();
 

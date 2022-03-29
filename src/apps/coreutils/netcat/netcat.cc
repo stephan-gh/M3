@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
 
     socket->connect(Endpoint(dest, port));
 
-    socket->blocking(false);
+    socket->set_blocking(false);
 
     while(!cin.eof()) {
         try {

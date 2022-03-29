@@ -106,7 +106,7 @@ impl FileTable {
     /// Removes the file with given file descriptor from the table.
     pub fn remove(&mut self, fd: Fd) {
         if let Some(ref mut f) = mem::replace(&mut self.files[fd], None) {
-            f.borrow_mut().close();
+            f.borrow_mut().remove();
         }
     }
 

@@ -15,14 +15,17 @@
  * General Public License version 2 for more details.
  */
 
+use core::fmt;
+
 use crate::errors::Error;
-use crate::net::Endpoint;
+use crate::io;
 use crate::net::{
     socket::{DgramSocketArgs, Socket},
-    Sd, SocketType,
+    Endpoint, SocketType,
 };
 use crate::rc::Rc;
-use crate::session::NetworkManager;
+use crate::session::{HashInput, HashOutput, NetworkManager};
+use crate::vfs::{self, Fd, File};
 
 pub type RawSocketArgs<'a> = DgramSocketArgs<'a>;
 
@@ -48,26 +51,6 @@ impl<'n> RawSocket<'n> {
         })
     }
 
-    /// Returns the socket descriptor used to identify this socket within the session on the server
-    pub fn sd(&self) -> Sd {
-        self.socket.sd()
-    }
-
-    /// Returns whether the socket is currently in blocking mode
-    pub fn blocking(&self) -> bool {
-        self.socket.blocking()
-    }
-
-    /// Sets whether the socket is using blocking mode.
-    ///
-    /// In blocking mode, all functions ([`send`](RawSocket::send), [`recv`](RawSocket::recv), ...)
-    /// do not return until the operation is complete. In non-blocking mode, all functions return in
-    /// case they would need to block, that is, wait until an event is received or further data can
-    /// be sent.
-    pub fn set_blocking(&mut self, blocking: bool) {
-        self.socket.set_blocking(blocking);
-    }
-
     /// Returns whether data can currently be received from the socket
     ///
     /// Note that this function does not process events. To receive data, any receive function on
@@ -89,6 +72,66 @@ impl<'n> RawSocket<'n> {
     /// Sends the given data to the given remote endpoint
     pub fn send(&self, data: &[u8]) -> Result<(), Error> {
         self.socket.send(data, Endpoint::unspecified())
+    }
+}
+
+impl File for RawSocket<'_> {
+    fn fd(&self) -> Fd {
+        self.socket.sd()
+    }
+
+    fn set_fd(&mut self, _fd: Fd) {
+        // not used
+    }
+
+    fn file_type(&self) -> u8 {
+        // not supported
+        b'\0'
+    }
+
+    fn is_blocking(&self) -> bool {
+        self.socket.blocking()
+    }
+
+    /// Sets whether the socket is using blocking mode.
+    ///
+    /// In blocking mode, all functions ([`send`](RawSocket::send), [`recv`](RawSocket::recv), ...)
+    /// do not return until the operation is complete. In non-blocking mode, all functions return in
+    /// case they would need to block, that is, wait until an event is received or further data can
+    /// be sent.
+    fn set_blocking(&mut self, blocking: bool) -> Result<(), Error> {
+        self.socket.set_blocking(blocking);
+        Ok(())
+    }
+}
+
+impl io::Read for RawSocket<'_> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
+        self.recv(buf)
+    }
+}
+
+impl io::Write for RawSocket<'_> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
+        self.send(buf).map(|_| buf.len())
+    }
+}
+
+impl vfs::Seek for RawSocket<'_> {
+}
+
+impl vfs::Map for RawSocket<'_> {
+}
+
+impl HashInput for RawSocket<'_> {
+}
+
+impl HashOutput for RawSocket<'_> {
+}
+
+impl fmt::Debug for RawSocket<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "RawSocket")
     }
 }
 

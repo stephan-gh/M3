@@ -68,6 +68,17 @@ public:
      * @return the number of received bytes (-1 if it would block and the socket is non-blocking)
      */
     ssize_t recv(void *dst, size_t amount);
+
+    virtual ssize_t read(void *buffer, size_t count) override {
+        return recv(buffer, count);
+    }
+
+    virtual ssize_t write(const void *buffer, size_t count) override {
+        return send(buffer, count);
+    }
+
+private:
+    void remove() noexcept override;
 };
 
 }

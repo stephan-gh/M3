@@ -99,7 +99,7 @@ NOINLINE static void bandwidth() {
         socket->recv(buffer, sizeof(buffer));
     }
 
-    socket->blocking(false);
+    socket->set_blocking(false);
 
     auto start                  = TimeInstant::now();
     auto last_received          = start;
@@ -167,7 +167,7 @@ NOINLINE static void bandwidth() {
     float mbps = (static_cast<float>(received_bytes) / secs) / (1024 * 1024);
     WVPERF("TCP bandwidth", mbps << " MiB/s (+/- 0 with 1 runs)\n");
 
-    socket->blocking(true);
+    socket->set_blocking(true);
     socket->close();
 }
 

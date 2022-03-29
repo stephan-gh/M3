@@ -21,6 +21,7 @@ use m3::println;
 use m3::session::{NetworkDirection, NetworkManager};
 use m3::test;
 use m3::time::{Results, TimeDuration, TimeInstant};
+use m3::vfs::File;
 use m3::{wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test};
 
 const TIMEOUT: TimeDuration = TimeDuration::from_secs(1);
@@ -56,7 +57,7 @@ fn latency() {
     let nm = wv_assert_ok!(NetworkManager::new("net"));
     let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(&nm)));
 
-    socket.set_blocking(false);
+    wv_assert_ok!(socket.set_blocking(false));
 
     let samples = 5;
     let dest = Endpoint::new(crate::DST_IP.get(), 1337);
@@ -121,7 +122,7 @@ fn bandwidth() {
             .send_buffer(8, 64 * 1024)
             .recv_buffer(32, 256 * 1024)
     ));
-    socket.set_blocking(false);
+    wv_assert_ok!(socket.set_blocking(false));
 
     let dest = Endpoint::new(crate::DST_IP.get(), 1337);
 

@@ -41,14 +41,6 @@ impl io::Read for Serial {
 }
 
 impl io::Write for Serial {
-    fn flush(&mut self) -> Result<(), Error> {
-        Ok(())
-    }
-
-    fn sync(&mut self) -> Result<(), Error> {
-        Ok(())
-    }
-
     fn write(&mut self, mut buf: &[u8]) -> Result<usize, Error> {
         let res = buf.len();
         while !buf.is_empty() {

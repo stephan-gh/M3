@@ -77,7 +77,7 @@ public:
         return new SerialFile();
     }
 
-    virtual void close() noexcept override {
+    virtual void remove() noexcept override {
     }
 };
 

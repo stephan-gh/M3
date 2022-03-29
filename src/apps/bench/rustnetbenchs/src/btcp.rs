@@ -21,6 +21,7 @@ use m3::println;
 use m3::session::{NetworkDirection, NetworkManager};
 use m3::test;
 use m3::time::{Results, TimeDuration, TimeInstant};
+use m3::vfs::File;
 use m3::{wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -104,7 +105,7 @@ fn bandwidth() {
         wv_assert_ok!(socket.recv(&mut buf));
     }
 
-    socket.set_blocking(false);
+    wv_assert_ok!(socket.set_blocking(false));
 
     let start = TimeInstant::now();
     let mut timeout = start + TIMEOUT;
@@ -179,6 +180,6 @@ fn bandwidth() {
         format!("{} MiB/s (+/- 0 with 1 runs)", mbps)
     );
 
-    socket.set_blocking(true);
+    wv_assert_ok!(socket.set_blocking(true));
     wv_assert_ok!(socket.close());
 }

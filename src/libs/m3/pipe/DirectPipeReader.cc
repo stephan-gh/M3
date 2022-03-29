@@ -42,7 +42,7 @@ DirectPipeReader::DirectPipeReader(capsel_t caps, std::unique_ptr<State> &&state
       _state(std::move(state)) {
 }
 
-void DirectPipeReader::close() noexcept {
+void DirectPipeReader::remove() noexcept {
     if(_noeof)
         return;
 

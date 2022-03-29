@@ -120,7 +120,7 @@ public:
     }
 
 private:
-    virtual void close() noexcept override;
+    virtual void remove() noexcept override;
 
     bool have_sess() const noexcept {
         return (flags() & FILE_NEWSESS);

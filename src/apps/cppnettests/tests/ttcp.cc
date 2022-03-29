@@ -82,7 +82,7 @@ NOINLINE static void nonblocking_client() {
 
     Semaphore::attach("net-tcp").down();
 
-    socket->blocking(false);
+    socket->set_blocking(false);
 
     WVASSERT(!socket->connect(Endpoint(IpAddr(192, 168, 112, 1), 1338)));
 
@@ -139,7 +139,7 @@ NOINLINE static void nonblocking_server() {
 
         auto socket = TcpSocket::create(net);
 
-        socket->blocking(false);
+        socket->set_blocking(false);
 
         socket->listen(3000);
         WVASSERTEQ(socket->state(), Socket::Listening);
@@ -160,7 +160,7 @@ NOINLINE static void nonblocking_server() {
         WVASSERTEQ(socket->local_endpoint(), Endpoint(IpAddr(192, 168, 112, 1), 3000));
         WVASSERTEQ(socket->remote_endpoint().addr, IpAddr(192, 168, 112, 2));
 
-        socket->blocking(true);
+        socket->set_blocking(true);
         socket->close();
 
         return 0;

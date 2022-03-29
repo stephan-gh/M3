@@ -71,7 +71,7 @@ NOINLINE static void data() {
     NetworkManager net("net0");
 
     auto socket = UdpSocket::create(net);
-    socket->blocking(false);
+    socket->set_blocking(false);
 
     Endpoint src;
     Endpoint dest = Endpoint(IpAddr(192, 168, 112, 1), 1337);

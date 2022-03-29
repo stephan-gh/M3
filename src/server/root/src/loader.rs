@@ -25,9 +25,9 @@ use m3::goff;
 use m3::io::{Read, Write};
 use m3::kif::Perm;
 use m3::rc::Rc;
-use m3::session::{HashInput, HashOutput, HashSession, MapFlags, Pager};
+use m3::session::{HashInput, HashOutput, MapFlags, Pager};
 use m3::syscalls;
-use m3::tiles::{Mapper, StateSerializer};
+use m3::tiles::Mapper;
 use m3::vfs;
 
 use crate::memory;
@@ -57,13 +57,6 @@ impl vfs::File for BootFile {
     fn set_fd(&mut self, _fd: vfs::Fd) {
     }
 
-    fn session(&self) -> Option<Selector> {
-        None
-    }
-
-    fn close(&mut self) {
-    }
-
     fn stat(&self) -> Result<vfs::FileInfo, Error> {
         Ok(vfs::FileInfo {
             devno: 0,
@@ -81,19 +74,6 @@ impl vfs::File for BootFile {
 
     fn file_type(&self) -> u8 {
         b'F'
-    }
-
-    fn exchange_caps(
-        &self,
-        _act: Selector,
-        _dels: &mut Vec<Selector>,
-        _max_sel: &mut Selector,
-    ) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
-    }
-
-    fn serialize(&self, _s: &mut StateSerializer<'_>) {
-        // not serializable
     }
 }
 
@@ -124,16 +104,6 @@ impl Read for BootFile {
 }
 
 impl Write for BootFile {
-    fn flush(&mut self) -> Result<(), Error> {
-        // nothing to do
-        Ok(())
-    }
-
-    fn sync(&mut self) -> Result<(), Error> {
-        // nothing to do
-        Ok(())
-    }
-
     fn write(&mut self, _buf: &[u8]) -> Result<usize, Error> {
         Err(Error::new(Code::NotSup))
     }
@@ -155,15 +125,8 @@ impl vfs::Map for BootFile {
 }
 
 impl HashInput for BootFile {
-    fn hash_input(&mut self, _: &HashSession, _: usize) -> Result<usize, Error> {
-        Err(Error::new(Code::NotSup))
-    }
 }
-
 impl HashOutput for BootFile {
-    fn hash_output(&mut self, _: &HashSession, _: usize) -> Result<usize, Error> {
-        Err(Error::new(Code::NotSup))
-    }
 }
 
 impl fmt::Debug for BootFile {

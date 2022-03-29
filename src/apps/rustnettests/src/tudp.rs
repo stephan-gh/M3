@@ -19,6 +19,7 @@ use m3::net::{event::MTU, DgramSocketArgs, Endpoint, State, UdpSocket};
 use m3::session::{NetworkDirection, NetworkManager};
 use m3::test;
 use m3::time::TimeDuration;
+use m3::vfs::File;
 use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 const TIMEOUT: TimeDuration = TimeDuration::from_secs(1);
@@ -87,7 +88,7 @@ fn data() {
 
     let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(&nm)));
 
-    socket.set_blocking(false);
+    wv_assert_ok!(socket.set_blocking(false));
 
     let dest = Endpoint::new(crate::DST_IP.get(), 1337);
 

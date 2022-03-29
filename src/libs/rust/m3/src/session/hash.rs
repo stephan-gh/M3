@@ -130,7 +130,9 @@ impl HashSession {
 /// to let the hash multiplexer read the file contents directly.
 pub trait HashInput {
     /// Input a maximum of `len` bytes of this object into the [`HashSession`].
-    fn hash_input(&mut self, sess: &HashSession, len: usize) -> Result<usize, Error>;
+    fn hash_input(&mut self, _sess: &HashSession, _len: usize) -> Result<usize, Error> {
+        Err(Error::new(Code::NotSup))
+    }
 }
 
 /// A trait for objects that allow directly writing hash output data.
@@ -145,5 +147,7 @@ pub trait HashOutput {
     /// supported by the current hash algorithm. It is mainly intended for
     /// use with XOFs (extendable output functions) that allow arbitrarily
     /// large output, e.g. as pseudo-random number generator.
-    fn hash_output(&mut self, sess: &HashSession, len: usize) -> Result<usize, Error>;
+    fn hash_output(&mut self, _sess: &HashSession, _len: usize) -> Result<usize, Error> {
+        Err(Error::new(Code::NotSup))
+    }
 }

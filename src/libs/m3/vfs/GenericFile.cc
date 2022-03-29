@@ -58,7 +58,7 @@ GenericFile::~GenericFile() {
     }
 }
 
-void GenericFile::close() noexcept {
+void GenericFile::remove() noexcept {
     LLOG(FS, "GenFile[" << fd() << "]::evict()");
 
     // commit read/written data

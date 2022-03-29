@@ -319,7 +319,7 @@ protected:
         throw Exception(Errors::NOT_SUP);
     }
 
-    virtual void close() noexcept = 0;
+    virtual void remove() noexcept = 0;
 
     void set_fd(fd_t fd) noexcept {
         _fd = fd;

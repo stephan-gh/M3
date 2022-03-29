@@ -159,35 +159,47 @@ pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
     fn set_fd(&mut self, fd: Fd);
 
     /// Returns the session selector, if any
-    fn session(&self) -> Option<Selector>;
+    fn session(&self) -> Option<Selector> {
+        None
+    }
 
-    /// Closes the file.
-    fn close(&mut self);
+    /// Executes necessary actions on file removal.
+    ///
+    /// Implementations of [`File`] can use this to perform final actions when the file is removed
+    /// from the file table.
+    fn remove(&mut self) {
+    }
 
     /// Retrieves the file information.
-    fn stat(&self) -> Result<FileInfo, Error>;
+    fn stat(&self) -> Result<FileInfo, Error> {
+        Err(Error::new(Code::NotSup))
+    }
 
     /// Returns the type of the file implementation used for serialization.
     fn file_type(&self) -> u8;
     /// Exchanges the capabilities to provide `act` access to the file.
     fn exchange_caps(
         &self,
-        act: Selector,
-        dels: &mut Vec<Selector>,
-        max_sel: &mut Selector,
-    ) -> Result<(), Error>;
+        _act: Selector,
+        _dels: &mut Vec<Selector>,
+        _max_sel: &mut Selector,
+    ) -> Result<(), Error> {
+        Err(Error::new(Code::NotSup))
+    }
     /// Serializes this file into `s`.
-    fn serialize(&self, s: &mut StateSerializer<'_>);
+    fn serialize(&self, _s: &mut StateSerializer<'_>) {
+    }
 
-    /// Returns true if this file is operating in non-blocking mode (see [`set_blocking`])
+    /// Returns true if this file is operating in non-blocking mode (see
+    /// [`set_blocking`](Self::set_blocking))
     fn is_blocking(&self) -> bool {
         true
     }
 
-    /// Sets whether this file operates in blocking or non-blocking mode. In blocking mode, [`read`]
-    /// and [`write`] will block, whereas in non-blocking mode, they return -1 in case they would
-    /// block (e.g., when the server needs to be asked to get access to the next input/output
-    /// region).
+    /// Sets whether this file operates in blocking or non-blocking mode. In blocking mode,
+    /// [`read`](Read::read) and [`write`](Write::write) will block, whereas in non-blocking mode,
+    /// they return -1 in case they would block (e.g., when the server needs to be asked to get
+    /// access to the next input/output region).
     ///
     /// Note that setting the file to non-blocking might establish an additional communication
     /// channel to the server, if required and not already done.
@@ -218,7 +230,9 @@ pub trait Seek {
     /// If `whence` == [`SeekMode::SET`], the position is set to `off`.
     /// If `whence` == [`SeekMode::CUR`], the position is increased by `off`.
     /// If `whence` == [`SeekMode::END`], the position is set to the end of the file.
-    fn seek(&mut self, off: usize, whence: SeekMode) -> Result<usize, Error>;
+    fn seek(&mut self, _off: usize, _whence: SeekMode) -> Result<usize, Error> {
+        Err(Error::new(Code::NotSup))
+    }
 }
 
 /// Trait for resources that can be mapped into the virtual address space.
@@ -227,11 +241,13 @@ pub trait Map {
     /// permissions.
     fn map(
         &self,
-        pager: &Pager,
-        virt: goff,
-        off: usize,
-        len: usize,
-        prot: kif::Perm,
-        flags: MapFlags,
-    ) -> Result<(), Error>;
+        _pager: &Pager,
+        _virt: goff,
+        _off: usize,
+        _len: usize,
+        _prot: kif::Perm,
+        _flags: MapFlags,
+    ) -> Result<(), Error> {
+        Err(Error::new(Code::NotSup))
+    }
 }

@@ -22,6 +22,7 @@
 
 #include <m3/net/DataQueue.h>
 #include <m3/net/Net.h>
+#include <m3/vfs/File.h>
 
 namespace m3 {
 
@@ -47,7 +48,7 @@ struct SocketArgs {
 /**
  * The base class of all sockets, which provides the common functionality
  */
-class Socket : public SListItem, public RefCounted {
+class Socket : public SListItem, public File {
     friend class NetworkManager;
 
     static const int EVENT_FETCH_BATCH_SIZE = 4;
@@ -75,11 +76,28 @@ public:
 
     virtual ~Socket();
 
-    /**
-     * @return the socket descriptor used to identify this socket within the session on the server
-     */
-    int sd() const noexcept {
-        return _sd;
+    virtual Errors::Code try_stat(FileInfo &) const override {
+        return Errors::NOT_SUP;
+    }
+    virtual size_t seek(size_t, int) override {
+        throw Exception(Errors::NOT_SUP);
+    }
+    virtual void map(Reference<Pager> &, goff_t *, size_t, size_t, int, int) const override {
+        throw Exception(Errors::NOT_SUP);
+    }
+
+    virtual Reference<File> clone() const override {
+        throw Exception(Errors::NOT_SUP);
+    }
+    virtual void delegate(Activity &) override {
+        throw Exception(Errors::NOT_SUP);
+    }
+    virtual void serialize(Marshaller &) override {
+        throw Exception(Errors::NOT_SUP);
+    }
+
+    virtual char type() const noexcept override {
+        return 's';
     }
 
     /**
@@ -87,26 +105,6 @@ public:
      */
     State state() const noexcept {
         return _state;
-    }
-
-    /**
-     * @return whether the socket is currently in blocking mode
-     */
-    bool blocking() const noexcept {
-        return _blocking;
-    }
-
-    /**
-     * Sets whether the socket is using blocking mode.
-     *
-     * In blocking mode, all functions (connect, send_to, recv_from, ...) do not return until the
-     * operation is complete. In non-blocking mode, all functions return -1 in case they would need
-     * to block, that is, wait until an event is received or further data can be sent.
-     *
-     * @param blocking whether socket operates in blocking or non-block mode (default = blocking)
-     */
-    void blocking(bool blocking) noexcept {
-        _blocking = blocking;
     }
 
     /**
@@ -122,7 +120,11 @@ public:
     }
 
 protected:
-    explicit Socket(int sd, capsel_t caps, NetworkManager &nm);
+    explicit Socket(int fd, capsel_t caps, NetworkManager &nm);
+
+    virtual void enable_notifications() override {
+        // nothing to do
+    }
 
     bool get_next_data(const uchar **data, size_t *size, Endpoint *ep);
     void ack_data(size_t size);
@@ -138,7 +140,7 @@ protected:
     void handle_close_req(NetEventChannel::CloseReqMessage const &msg);
     void handle_closed(NetEventChannel::ClosedMessage const &msg);
 
-    void tear_down();
+    void tear_down() noexcept;
     void disconnect();
 
     void wait_for_events();
@@ -147,9 +149,7 @@ protected:
     void fetch_replies();
     bool can_send();
 
-    int32_t _sd;
     State _state;
-    bool _blocking;
 
     Endpoint _local_ep;
     Endpoint _remote_ep;

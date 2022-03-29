@@ -52,7 +52,7 @@ void FileTable::remove(fd_t fd) noexcept {
 
     if(file) {
         // close the file (important for, e.g., pipes)
-        file->close();
+        file->remove();
 
         // remove from file table
         _fds[fd].unref();

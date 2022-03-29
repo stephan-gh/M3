@@ -151,6 +151,14 @@ public:
      */
     ssize_t send(const void *src, size_t amount);
 
+    virtual ssize_t read(void *buffer, size_t count) override {
+        return recv(buffer, count);
+    }
+
+    virtual ssize_t write(const void *buffer, size_t count) override {
+        return send(buffer, count);
+    }
+
     /**
      * Closes the socket.
      *
@@ -173,6 +181,7 @@ public:
 
 private:
     void handle_data(NetEventChannel::DataMessage const &msg, NetEventChannel::Event &event) override;
+    void remove() noexcept override;
 };
 
 }

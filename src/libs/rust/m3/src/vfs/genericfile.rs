@@ -348,7 +348,7 @@ impl File for GenericFile {
         Some(self.sess.sel())
     }
 
-    fn close(&mut self) {
+    fn remove(&mut self) {
         // submit read/written data
         self.submit(false).ok();
 

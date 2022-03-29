@@ -22,26 +22,18 @@
 
 namespace m3 {
 
-TcpSocket::TcpSocket(int sd, capsel_t caps, NetworkManager &nm)
-    : Socket(sd, caps, nm) {
+TcpSocket::TcpSocket(int fd, capsel_t caps, NetworkManager &nm)
+    : Socket(fd, caps, nm) {
 }
 
 TcpSocket::~TcpSocket() {
-    // use blocking mode here, because we cannot leave the destructor until the socket is closed.
-    _blocking = true;
-
-    try {
-        close();
-    }
-    catch(...) {
-        // ignore errors
-    }
+    remove();
 }
 
 Reference<TcpSocket> TcpSocket::create(NetworkManager &nm, const StreamSocketArgs &args) {
     capsel_t caps;
-    int sd = nm.create(SocketType::STREAM, 0, args, &caps);
-    auto sock = new TcpSocket(sd, caps, nm);
+    int fd = nm.create(SocketType::STREAM, 0, args, &caps);
+    auto sock = new TcpSocket(fd, caps, nm);
     nm.add_socket(sock);
     return Reference<TcpSocket>(sock);
 }
@@ -50,7 +42,7 @@ void TcpSocket::listen(port_t port) {
     if(_state != State::Closed)
         throw Exception(Errors::INV_STATE);
 
-    IpAddr addr = _nm.listen(sd(), port);
+    IpAddr addr = _nm.listen(fd(), port);
     _local_ep.addr = addr;
     _local_ep.port = port;
     _state = State::Listening;
@@ -66,7 +58,7 @@ bool TcpSocket::connect(const Endpoint &endpoint) {
     if(_state == State::Connecting)
         throw Exception(Errors::ALREADY_IN_PROGRESS);
 
-    Endpoint local_ep = _nm.connect(sd(), endpoint);
+    Endpoint local_ep = _nm.connect(fd(), endpoint);
     _state = State::Connecting;
     _remote_ep = endpoint;
     _local_ep = local_ep;
@@ -95,7 +87,7 @@ bool TcpSocket::accept(Endpoint *remote_ep) {
 
     _state = State::Connecting;
     while(_state == State::Connecting) {
-        if(!_blocking)
+        if(!is_blocking())
             return false;
         wait_for_events();
     }
@@ -153,7 +145,7 @@ Errors::Code TcpSocket::close() {
 
     // send the close request; this has to be blocking
     while(!_channel.send_close_req()) {
-        if(!_blocking)
+        if(!is_blocking())
             return Errors::WOULD_BLOCK;
 
         wait_for_credits();
@@ -166,7 +158,7 @@ Errors::Code TcpSocket::close() {
 
     // now wait for the response; can be non-blocking
     while(_state != State::Closed) {
-        if(!_blocking)
+        if(!is_blocking())
             return Errors::IN_PROGRESS;
 
         wait_for_events();
@@ -178,9 +170,21 @@ void TcpSocket::abort() {
     if(_state == State::Closed)
         return;
 
-    _nm.abort(sd(), false);
+    _nm.abort(fd(), false);
     _recv_queue.clear();
     disconnect();
+}
+
+void TcpSocket::remove() noexcept {
+    // use blocking mode here, because we cannot leave the destructor until the socket is closed.
+    set_blocking(true);
+
+    try {
+        close();
+    }
+    catch(...) {
+        // ignore errors
+    }
 }
 
 }

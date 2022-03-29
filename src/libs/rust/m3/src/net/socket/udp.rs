@@ -15,13 +15,18 @@
  * General Public License version 2 for more details.
  */
 
+use core::fmt;
+
 use crate::errors::{Code, Error};
+use crate::io;
 use crate::net::{
     socket::{Socket, SocketArgs, State},
-    Endpoint, Port, Sd, SocketType,
+    Endpoint, Port, SocketType,
 };
 use crate::rc::Rc;
 use crate::session::NetworkManager;
+use crate::session::{HashInput, HashOutput};
+use crate::vfs::{self, Fd, File};
 
 /// Configures the buffer sizes for datagram sockets
 pub struct DgramSocketArgs<'n> {
@@ -73,11 +78,6 @@ impl<'n> UdpSocket<'n> {
         })
     }
 
-    /// Returns the socket descriptor used to identify this socket within the session on the server
-    pub fn sd(&self) -> Sd {
-        self.socket.sd()
-    }
-
     /// Returns the current state of the socket
     pub fn state(&self) -> State {
         self.socket.state()
@@ -89,21 +89,6 @@ impl<'n> UdpSocket<'n> {
     /// [`bind`](UdpSocket::bind).
     pub fn local_endpoint(&self) -> Option<Endpoint> {
         self.socket.local_ep.get()
-    }
-
-    /// Returns whether the socket is currently in blocking mode
-    pub fn blocking(&self) -> bool {
-        self.socket.blocking()
-    }
-
-    /// Sets whether the socket is using blocking mode.
-    ///
-    /// In blocking mode, all functions ([`send_to`](UdpSocket::send_to),
-    /// [`recv_from`](UdpSocket::recv_from), ...) do not return until the operation is complete. In
-    /// non-blocking mode, all functions return in case they would need to block, that is, wait
-    /// until an event is received or further data can be sent.
-    pub fn set_blocking(&mut self, blocking: bool) {
-        self.socket.set_blocking(blocking);
     }
 
     /// Binds this socket to the given local port.
@@ -200,6 +185,66 @@ impl<'n> UdpSocket<'n> {
         }
 
         self.socket.send(data, endpoint)
+    }
+}
+
+impl File for UdpSocket<'_> {
+    fn fd(&self) -> Fd {
+        self.socket.sd()
+    }
+
+    fn set_fd(&mut self, _fd: Fd) {
+        // not used
+    }
+
+    fn file_type(&self) -> u8 {
+        // not supported
+        b'\0'
+    }
+
+    fn is_blocking(&self) -> bool {
+        self.socket.blocking()
+    }
+
+    /// Sets whether the socket is using blocking mode.
+    ///
+    /// In blocking mode, all functions ([`send_to`](UdpSocket::send_to),
+    /// [`recv_from`](UdpSocket::recv_from), ...) do not return until the operation is complete. In
+    /// non-blocking mode, all functions return in case they would need to block, that is, wait
+    /// until an event is received or further data can be sent.
+    fn set_blocking(&mut self, blocking: bool) -> Result<(), Error> {
+        self.socket.set_blocking(blocking);
+        Ok(())
+    }
+}
+
+impl io::Read for UdpSocket<'_> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
+        self.recv(buf)
+    }
+}
+
+impl io::Write for UdpSocket<'_> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
+        self.send(buf).map(|_| buf.len())
+    }
+}
+
+impl vfs::Seek for UdpSocket<'_> {
+}
+
+impl vfs::Map for UdpSocket<'_> {
+}
+
+impl HashInput for UdpSocket<'_> {
+}
+
+impl HashOutput for UdpSocket<'_> {
+}
+
+impl fmt::Debug for UdpSocket<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "UdpSocket")
     }
 }
 

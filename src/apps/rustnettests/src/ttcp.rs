@@ -21,6 +21,7 @@ use m3::session::{NetworkDirection, NetworkManager};
 use m3::test;
 use m3::tiles::{Activity, ActivityArgs, RunningActivity, Tile};
 use m3::vec::Vec;
+use m3::vfs::File;
 use m3::{vec, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -93,7 +94,7 @@ fn nonblocking_client() {
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
-    socket.set_blocking(false);
+    wv_assert_ok!(socket.set_blocking(false));
 
     wv_assert_err!(
         socket.connect(Endpoint::new(crate::DST_IP.get(), 1338)),
@@ -170,7 +171,7 @@ fn nonblocking_server() {
         let nm = wv_assert_ok!(NetworkManager::new("net1"));
 
         let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(&nm)));
-        socket.set_blocking(false);
+        wv_assert_ok!(socket.set_blocking(false));
 
         wv_assert_eq!(socket.local_endpoint(), None);
         wv_assert_eq!(socket.remote_endpoint(), None);
@@ -189,7 +190,7 @@ fn nonblocking_server() {
         wv_assert_eq!(socket.local_endpoint(), Some(Endpoint::new(net1_ip, 3000)));
         wv_assert_eq!(socket.remote_endpoint().unwrap().addr, net0_ip);
 
-        socket.set_blocking(true);
+        wv_assert_ok!(socket.set_blocking(true));
         wv_assert_ok!(socket.close());
 
         0

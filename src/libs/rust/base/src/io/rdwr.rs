@@ -124,10 +124,14 @@ pub trait Write {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error>;
 
     /// Flushes the underlying buffer, if any
-    fn flush(&mut self) -> Result<(), Error>;
+    fn flush(&mut self) -> Result<(), Error> {
+        Ok(())
+    }
 
     /// Ensure that the file is made persistent.
-    fn sync(&mut self) -> Result<(), Error>;
+    fn sync(&mut self) -> Result<(), Error> {
+        Ok(())
+    }
 
     /// Dumps the given array of bytes to this sink
     ///
