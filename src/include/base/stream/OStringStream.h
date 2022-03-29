@@ -65,6 +65,13 @@ public:
     }
 
     /**
+     * Resets the internal position
+     */
+    void reset() {
+        _pos = 0;
+    }
+
+    /**
      * @return the length of the string
      */
     size_t length() const {
