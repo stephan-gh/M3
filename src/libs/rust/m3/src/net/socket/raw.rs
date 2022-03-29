@@ -38,6 +38,9 @@ impl<'n> RawSocket<'n> {
     /// By default, the socket is in blocking mode, that is, all functions
     /// ([`send`](RawSocket::send), [`recv`](RawSocket::recv), ...) do not return until the
     /// operation is complete. This can be changed via [`set_blocking`](RawSocket::set_blocking).
+    ///
+    /// Creation of a raw socket requires that the used session has permission to do so. This is
+    /// controlled with the "raw=yes" argument in the session argument of M³'s config files.
     pub fn new(args: RawSocketArgs<'n>, protocol: Option<u8>) -> Result<Self, Error> {
         Ok(RawSocket {
             socket: args.nm.create(SocketType::Raw, protocol, &args.args)?,

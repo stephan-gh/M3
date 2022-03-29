@@ -38,6 +38,9 @@ public:
      * By default, the socket is in blocking mode, that is, all functions (send_to, recv_from, ...)
      * do not return until the operation is complete. This can be changed via set_blocking.
      *
+     * Creation of a raw socket requires that the used session has permission to do so. This is
+     * controlled with the "raw=yes" argument in the session argument of M³'s config files.
+     *
      * @param nm the network manager
      * @param protocol the IP protocol
      * @param args optionally additional arguments that define the buffer sizes
