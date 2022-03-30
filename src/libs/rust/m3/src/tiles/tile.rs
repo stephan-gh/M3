@@ -107,7 +107,7 @@ impl Tile {
     /// - "own" to denote the own tile (provided that it has support for multiple activities)
     /// - "clone" to denote a separate tile that is identical to the own tile
     ///
-    /// For other properties, see `TileDesc::derive`.
+    /// For other properties, see [`TileDesc::with_properties`].
     ///
     /// Examples:
     /// - tile with an arbitrary ISA, but preferred the own: "own|core"
@@ -139,7 +139,8 @@ impl Tile {
         Err(Error::new(Code::NotFound))
     }
 
-    /// Derives a new tile object from `self` with a subset of the resources, removing them from `self`
+    /// Derives a new tile object from `self` with a subset of the resources, removing them from
+    /// `self`
     ///
     /// The three resources are the number of EPs, the time slice length in nanoseconds, and the
     /// number of page tables.

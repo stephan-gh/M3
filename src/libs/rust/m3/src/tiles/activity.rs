@@ -206,13 +206,13 @@ impl Activity {
         unsafe { CUR.get_mut() }
     }
 
-    /// Creates a new `Activity` on tile `tile` with given name and default settings. The activity
+    /// Creates a new [`Activity`] on tile `tile` with given name and default settings. The activity
     /// provides access to the tile and allows to run an activity on the tile.
     pub fn new(tile: Rc<Tile>, name: &str) -> Result<Self, Error> {
         Self::new_with(tile, ActivityArgs::new(name))
     }
 
-    /// Creates a new `Activity` on tile `tile` with given arguments. The activity provides access
+    /// Creates a new [`Activity`] on tile `tile` with given arguments. The activity provides access
     /// to the tile and allows to run an activity on the tile.
     pub fn new_with(tile: Rc<Tile>, args: ActivityArgs<'_>) -> Result<Self, Error> {
         let sel = Activity::cur().alloc_sels(3);
@@ -316,8 +316,8 @@ impl Activity {
     /// Returns a mutable reference to the file table of this activity.
     ///
     /// Files that are added to child activities are automatically delegated to the child upon
-    /// [`Activity::run`] and [`Activity::exec`]. For example, you can connect the child's STDOUT to
-    /// one of your files in the following way:
+    /// [`run`](Activity::run) and [`exec`](Activity::exec). For example, you can connect the
+    /// child's STDOUT to one of your files in the following way:
     /// ```
     /// child.files().set(
     ///   STDOUT_FILENO,
@@ -331,7 +331,7 @@ impl Activity {
     /// Returns a mutable reference to the mount table of this activity.
     ///
     /// Mounts that are added to child activities are automatically delegated to the child upon
-    /// [`Activity::run`] and [`Activity::exec`]. For example:
+    /// [`run`](Activity::run) and [`exec`](Activity::exec). For example:
     /// ```
     /// child.mounts().add("/", activity::cur().mounts().get_by_path("/").unwrap());
     /// ```
@@ -342,15 +342,15 @@ impl Activity {
     /// Returns a sink for the activity-local data
     ///
     /// The sink overwrites the activity-local data and will be transmitted to the activity when calling
-    /// [`Activity::run`] or [`Activity::exec`].
+    /// [`run`](Activity::run) and [`exec`](Activity::exec).
     pub fn data_sink(&mut self) -> StateSerializer<'_> {
         StateSerializer::new(&mut self.data)
     }
 
     /// Returns a source for the activity-local data
     ///
-    /// The source provides access to the activity-local data that has been transmitted to this activity from
-    /// its parent during [`Activity::run`] or [`Activity::exec`].
+    /// The source provides access to the activity-local data that has been transmitted to this
+    /// activity from its parent during [`run`](Activity::run) and [`exec`](Activity::exec).
     pub fn data_source(&self) -> StateDeserializer<'_> {
         StateDeserializer::new(&self.data)
     }
@@ -391,18 +391,18 @@ impl Activity {
         self.next_sel - count
     }
 
-    /// Delegates the object capability with selector `sel` of [`Activity::cur`] to `self`.
+    /// Delegates the object capability with selector `sel` of [`cur`](Activity::cur) to `self`.
     pub fn delegate_obj(&mut self, sel: Selector) -> Result<(), Error> {
         self.delegate(CapRngDesc::new(CapType::OBJECT, sel, 1))
     }
 
-    /// Delegates the given capability range of [`Activity::cur`] to `self`.
+    /// Delegates the given capability range of [`cur`](Activity::cur) to `self`.
     pub fn delegate(&mut self, crd: CapRngDesc) -> Result<(), Error> {
         let start = crd.start();
         self.delegate_to(crd, start)
     }
 
-    /// Delegates the given capability range of [`Activity::cur`] to `self` using selectors
+    /// Delegates the given capability range of [`cur`](Activity::cur) to `self` using selectors
     /// `dst`..`dst`+`crd.count()`.
     pub fn delegate_to(&mut self, crd: CapRngDesc, dst: Selector) -> Result<(), Error> {
         syscalls::exchange(self.sel(), crd, dst, false)?;
@@ -410,19 +410,19 @@ impl Activity {
         Ok(())
     }
 
-    /// Obtains the object capability with selector `sel` from `self` to [`Activity::cur`].
+    /// Obtains the object capability with selector `sel` from `self` to [`cur`](Activity::cur).
     pub fn obtain_obj(&mut self, sel: Selector) -> Result<Selector, Error> {
         self.obtain(CapRngDesc::new(CapType::OBJECT, sel, 1))
     }
 
-    /// Obtains the given capability range of `self` to [`Activity::cur`].
+    /// Obtains the given capability range of `self` to [`cur`](Activity::cur).
     pub fn obtain(&mut self, crd: CapRngDesc) -> Result<Selector, Error> {
         let count = crd.count();
         let start = Activity::cur().alloc_sels(count);
         self.obtain_to(crd, start).map(|_| start)
     }
 
-    /// Obtains the given capability range of `self` to [`Activity::cur`] using selectors
+    /// Obtains the given capability range of `self` to [`cur`](Activity::cur) using selectors
     /// `dst`..`dst`+`crd.count()`.
     pub fn obtain_to(&mut self, crd: CapRngDesc, dst: Selector) -> Result<(), Error> {
         let own = CapRngDesc::new(crd.cap_type(), dst, crd.count());
@@ -453,15 +453,15 @@ impl Activity {
         act.start().map(|_| act)
     }
 
-    /// Executes the program of `Activity::cur()` (`argv[0]`) with this activity and calls the given
-    /// function instead of main.
+    /// Executes the program of [`cur`](Activity::cur) (`argv[0]`) with this activity and calls the
+    /// given function instead of main.
     ///
     /// This has a few requirements/limitations:
     /// 1. the current binary has to be stored in a file system
     /// 2. this file system needs to be mounted, such that `argv[0]` is the current binary
     ///
-    /// The method returns the [`ExecActivity`] on success that can be used to wait for the
-    /// functions completeness or to stop it.
+    /// The method returns the [`RunningProgramActivity`] on success that can be used to wait for
+    /// the functions completeness or to stop it.
     pub fn run(self, func: fn() -> i32) -> Result<RunningProgramActivity, Error> {
         let args = env::args().collect::<Vec<_>>();
         let file = VFS::open(args[0], OpenFlags::RX | OpenFlags::NEW_SESS)?;
@@ -473,8 +473,8 @@ impl Activity {
 
     /// Executes the given program and arguments with `self`.
     ///
-    /// The method returns the [`ExecActivity`] on success that can be used to wait for the
-    /// program completeness or to stop it.
+    /// The method returns the [`RunningProgramActivity`] on success that can be used to wait for
+    /// the program completeness or to stop it.
     pub fn exec<S: AsRef<str>>(self, args: &[S]) -> Result<RunningProgramActivity, Error> {
         let file = VFS::open(args[0].as_ref(), OpenFlags::RX | OpenFlags::NEW_SESS)?;
         let mut mapper = DefaultMapper::new(self.tile_desc().has_virtmem());
@@ -485,10 +485,10 @@ impl Activity {
     /// address space and `args` as the arguments.
     ///
     /// The file has to have its own file session and therefore needs to be opened with
-    /// OpenFlags::NEW_SESS.
+    /// [`OpenFlags::NEW_SESS`].
     ///
-    /// The method returns the [`ExecActivity`] on success that can be used to wait for the
-    /// program completeness or to stop it.
+    /// The method returns the [`RunningProgramActivity`] on success that can be used to wait for
+    /// the program completeness or to stop it.
     pub fn exec_file<S: AsRef<str>>(
         self,
         mapper: &mut dyn Mapper,
