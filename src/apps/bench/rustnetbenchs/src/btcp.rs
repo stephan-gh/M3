@@ -18,10 +18,10 @@ use m3::errors::Code;
 use m3::format;
 use m3::net::{Endpoint, StreamSocketArgs, TcpSocket};
 use m3::println;
-use m3::session::{NetworkDirection, NetworkManager};
+use m3::session::NetworkManager;
 use m3::test;
 use m3::time::{Results, TimeDuration, TimeInstant};
-use m3::vfs::File;
+use m3::vfs::{File, FileEvent, FileWaiter};
 use m3::{wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -31,7 +31,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 
 fn latency() {
     let nm = wv_assert_ok!(NetworkManager::new("net"));
-    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(&nm)));
+    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(nm)));
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
@@ -89,7 +89,7 @@ fn bandwidth() {
 
     let nm = wv_assert_ok!(NetworkManager::new("net"));
     let mut socket = wv_assert_ok!(TcpSocket::new(
-        StreamSocketArgs::new(&nm)
+        StreamSocketArgs::new(nm)
             .send_buffer(64 * 1024)
             .recv_buffer(256 * 1024)
     ));
@@ -114,6 +114,9 @@ fn bandwidth() {
     let mut received_bytes = 0;
     let mut failures = 0;
 
+    let mut waiter = FileWaiter::default();
+    waiter.add(socket.fd());
+
     loop {
         if failures > 9 {
             failures = 0;
@@ -121,12 +124,12 @@ fn bandwidth() {
                 let rem = timeout.checked_duration_since(TimeInstant::now());
                 match rem {
                     // we are not interested in output anymore
-                    Some(d) => nm.wait_for(d, NetworkDirection::INPUT),
+                    Some(d) => waiter.wait_for(d, FileEvent::INPUT),
                     None => break,
                 }
             }
             else {
-                nm.wait(NetworkDirection::INPUT | NetworkDirection::OUTPUT);
+                waiter.wait(FileEvent::INPUT | FileEvent::OUTPUT);
             }
         }
 

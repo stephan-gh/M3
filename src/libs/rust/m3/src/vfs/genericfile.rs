@@ -16,14 +16,12 @@
  * General Public License version 2 for more details.
  */
 
-use bitflags::bitflags;
-
+use core::any::Any;
 use core::cmp;
 use core::fmt;
 
 use crate::boxed::Box;
 use crate::cap::Selector;
-use crate::cell::RefCell;
 use crate::col::Vec;
 use crate::com::GateIStream;
 use crate::com::{recv_reply, MemGate, RecvGate, SendGate, EP};
@@ -39,7 +37,7 @@ use crate::session::{ClientSession, HashInput, HashOutput, HashSession, MapFlags
 use crate::tcu::EpId;
 use crate::tiles::{Activity, StateSerializer};
 use crate::vfs::{
-    filetable, Fd, File, FileHandle, FileInfo, Map, OpenFlags, Seek, SeekMode, StatResponse,
+    filetable, Fd, File, FileEvent, FileInfo, Map, OpenFlags, Seek, SeekMode, StatResponse,
 };
 
 int_enum! {
@@ -57,14 +55,6 @@ int_enum! {
         const SET_DEST      = 9;
         const ENABLE_NOTIFY = 10;
         const REQ_NOTIFY    = 11;
-    }
-}
-
-bitflags! {
-    pub struct FileEvent : u64 {
-        const INPUT         = 1;
-        const OUTPUT        = 2;
-        const SIGNAL        = 4;
     }
 }
 
@@ -149,14 +139,11 @@ impl GenericFile {
         self.id.unwrap_or((0, 0)).1
     }
 
-    pub(crate) fn unserialize(s: &mut Source<'_>) -> FileHandle {
+    pub(crate) fn unserialize(s: &mut Source<'_>) -> Box<dyn File> {
         let flags: u32 = s.pop().unwrap();
         let sel: Selector = s.pop().unwrap();
         let _id: usize = s.pop().unwrap();
-        Rc::new(RefCell::new(GenericFile::new(
-            OpenFlags::from_bits_truncate(flags),
-            sel,
-        )))
+        Box::new(GenericFile::new(OpenFlags::from_bits_truncate(flags), sel))
     }
 
     fn submit(&mut self, force: bool) -> Result<(), Error> {
@@ -336,6 +323,14 @@ impl Drop for GenericFile {
 }
 
 impl File for GenericFile {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
     fn fd(&self) -> Fd {
         self.fd
     }

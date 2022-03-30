@@ -16,29 +16,48 @@
  * General Public License version 2 for more details.
  */
 
+use core::any::Any;
 use core::fmt;
+use core::marker::PhantomData;
 use core::ops::Deref;
+use core::ops::DerefMut;
 
+use crate::cap::Selector;
+use crate::col::Vec;
 use crate::errors::Error;
 use crate::goff;
 use crate::io::{Read, Write};
 use crate::kif;
 use crate::session::{HashInput, HashOutput, HashSession, MapFlags, Pager};
-use crate::tiles::Activity;
-use crate::vfs::filetable::Fd;
-use crate::vfs::{FileHandle, Map, Seek, SeekMode};
+use crate::tiles::{Activity, StateSerializer};
+use crate::vfs::{Fd, File, FileEvent, Map, Seek, SeekMode};
 
-/// A reference to an open file that is closed on drop.
+pub type GenFileRef = FileRef<dyn File>;
+
 #[derive(Clone)]
-pub struct FileRef {
-    file: FileHandle,
+pub struct FileRef<T: ?Sized> {
     fd: Fd,
+    close: bool,
+    phantom: PhantomData<T>,
 }
 
-impl FileRef {
-    /// Creates new file reference for given file and file descriptor.
-    pub fn new(file: FileHandle, fd: Fd) -> Self {
-        FileRef { file, fd }
+impl<T: ?Sized> FileRef<T> {
+    /// Creates new file reference for the given file descriptor. The file is not closed on drop.
+    pub fn new(fd: Fd) -> Self {
+        FileRef {
+            fd,
+            close: false,
+            phantom: PhantomData::default(),
+        }
+    }
+
+    /// Creates new file reference for the given file descriptor. On drop, the file is closed.
+    pub fn new_owned(fd: Fd) -> Self {
+        FileRef {
+            fd,
+            close: true,
+            phantom: PhantomData::default(),
+        }
     }
 
     /// Returns the file descriptor.
@@ -47,52 +66,129 @@ impl FileRef {
     }
 
     /// Returns the file.
-    pub fn handle(&self) -> FileHandle {
-        self.file.clone()
+    pub fn file(&self) -> &mut dyn File {
+        Activity::cur().files().get_raw(self.fd).unwrap()
+    }
+
+    /// Converts this file reference into a generic one
+    pub fn into_generic(mut self) -> FileRef<dyn File> {
+        self.close = false;
+        FileRef::new_owned(self.fd)
     }
 }
 
-impl Drop for FileRef {
+impl<T: ?Sized> Drop for FileRef<T> {
     fn drop(&mut self) {
-        Activity::cur().files().remove(self.fd);
+        if self.close {
+            Activity::cur().files().remove(self.fd);
+        }
     }
 }
 
-impl Deref for FileRef {
-    type Target = FileHandle;
+impl<T: 'static> Deref for FileRef<T> {
+    type Target = T;
 
-    fn deref(&self) -> &FileHandle {
-        &self.file
+    fn deref(&self) -> &T {
+        self.file().as_any().downcast_ref().unwrap()
     }
 }
 
-impl Read for FileRef {
+impl<T: 'static> DerefMut for FileRef<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        self.file().as_any_mut().downcast_mut().unwrap()
+    }
+}
+
+impl<T: ?Sized + 'static> File for FileRef<T> {
+    fn as_any(&self) -> &dyn Any {
+        self.file().as_any()
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self.file().as_any_mut()
+    }
+
+    fn fd(&self) -> Fd {
+        self.fd
+    }
+
+    fn set_fd(&mut self, fd: Fd) {
+        self.file().set_fd(fd);
+    }
+
+    fn file_type(&self) -> u8 {
+        self.file().file_type()
+    }
+
+    fn session(&self) -> Option<Selector> {
+        self.file().session()
+    }
+
+    fn remove(&mut self) {
+        self.file().remove();
+    }
+
+    fn stat(&self) -> Result<super::FileInfo, Error> {
+        self.file().stat()
+    }
+
+    fn exchange_caps(
+        &self,
+        act: Selector,
+        dels: &mut Vec<Selector>,
+        max_sel: &mut Selector,
+    ) -> Result<(), Error> {
+        self.file().exchange_caps(act, dels, max_sel)
+    }
+
+    fn serialize(&self, s: &mut StateSerializer<'_>) {
+        self.file().serialize(s);
+    }
+
+    fn is_blocking(&self) -> bool {
+        self.file().is_blocking()
+    }
+
+    fn set_blocking(&mut self, blocking: bool) -> Result<(), Error> {
+        self.file().set_blocking(blocking)
+    }
+
+    fn fetch_signal(&mut self) -> Result<bool, Error> {
+        self.file().fetch_signal()
+    }
+
+    fn check_events(&mut self, events: FileEvent) -> bool {
+        self.file().check_events(events)
+    }
+}
+
+impl<T: ?Sized> Read for FileRef<T> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-        self.file.borrow_mut().read(buf)
+        self.file().read(buf)
     }
 }
 
-impl Write for FileRef {
+impl<T: ?Sized> Write for FileRef<T> {
     fn flush(&mut self) -> Result<(), Error> {
-        self.file.borrow_mut().flush()
+        self.file().flush()
     }
 
     fn sync(&mut self) -> Result<(), Error> {
-        self.file.borrow_mut().sync()
+        self.file().sync()
     }
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
-        self.file.borrow_mut().write(buf)
+        self.file().write(buf)
     }
 }
 
-impl Seek for FileRef {
+impl<T: ?Sized> Seek for FileRef<T> {
     fn seek(&mut self, off: usize, whence: SeekMode) -> Result<usize, Error> {
-        self.file.borrow_mut().seek(off, whence)
+        self.file().seek(off, whence)
     }
 }
 
-impl Map for FileRef {
+impl<T: ?Sized> Map for FileRef<T> {
     fn map(
         &self,
         pager: &Pager,
@@ -102,24 +198,24 @@ impl Map for FileRef {
         prot: kif::Perm,
         flags: MapFlags,
     ) -> Result<(), Error> {
-        self.file.borrow().map(pager, virt, off, len, prot, flags)
+        self.file().map(pager, virt, off, len, prot, flags)
     }
 }
 
-impl HashInput for FileRef {
+impl<T: ?Sized> HashInput for FileRef<T> {
     fn hash_input(&mut self, sess: &HashSession, len: usize) -> Result<usize, Error> {
-        self.file.borrow_mut().hash_input(sess, len)
+        self.file().hash_input(sess, len)
     }
 }
 
-impl HashOutput for FileRef {
+impl<T: ?Sized> HashOutput for FileRef<T> {
     fn hash_output(&mut self, sess: &HashSession, len: usize) -> Result<usize, Error> {
-        self.file.borrow_mut().hash_output(sess, len)
+        self.file().hash_output(sess, len)
     }
 }
 
-impl fmt::Debug for FileRef {
+impl<T: ?Sized> fmt::Debug for FileRef<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "FileRef[fd={}, file={:?}]", self.fd, self.file.borrow())
+        write!(f, "FileRef[fd={}, file={:?}]", self.fd, self.file())
     }
 }

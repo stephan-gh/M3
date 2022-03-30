@@ -17,8 +17,9 @@
 
 mod loader;
 
+use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::{LazyReadOnlyCell, RefCell, StaticCell};
+use m3::cell::{LazyReadOnlyCell, StaticCell};
 use m3::cfg;
 use m3::col::ToString;
 use m3::com::{MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
@@ -27,11 +28,11 @@ use m3::goff;
 use m3::kif;
 use m3::log;
 use m3::math;
-use m3::rc::Rc;
 use m3::session::ResMng;
 use m3::syscalls;
 use m3::tcu;
 use m3::tiles::{Activity, ActivityArgs};
+use m3::vfs::FileRef;
 
 use resmng::childs::{self, Child, OwnChild};
 use resmng::{memory, requests, sendqueue, subsys};
@@ -90,9 +91,9 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
         child.mem().pool().clone(),
     );
     let bfile = loader::BootFile::new(bmod.0, bmod.1);
-    let bfileref = Activity::cur().files().add(Rc::new(RefCell::new(bfile)))?;
+    let fd = Activity::cur().files().add(Box::new(bfile))?;
     child
-        .start(act, &mut bmapper, bfileref)
+        .start(act, &mut bmapper, FileRef::new_owned(fd))
         .map_err(|e| VerboseError::new(e.code(), "Unable to start Activity".to_string()))?;
 
     for a in bmapper.fetch_allocs() {

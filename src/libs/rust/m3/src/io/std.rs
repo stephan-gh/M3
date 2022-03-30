@@ -16,11 +16,11 @@
  * General Public License version 2 for more details.
  */
 
-use crate::cell::{LazyStaticRefCell, RefCell, RefMut};
+use crate::boxed::Box;
+use crate::cell::{LazyStaticRefCell, RefMut};
 use crate::io::Serial;
-use crate::rc::Rc;
 use crate::tiles::Activity;
-use crate::vfs::{BufReader, BufWriter, Fd, FileRef};
+use crate::vfs::{BufReader, BufWriter, Fd, GenFileRef};
 
 /// The file descriptor for the standard input stream
 pub const STDIN_FILENO: Fd = 0;
@@ -29,40 +29,32 @@ pub const STDOUT_FILENO: Fd = 1;
 /// The file descriptor for the standard error stream
 pub const STDERR_FILENO: Fd = 2;
 
-static STDIN: LazyStaticRefCell<BufReader<FileRef>> = LazyStaticRefCell::default();
-static STDOUT: LazyStaticRefCell<BufWriter<FileRef>> = LazyStaticRefCell::default();
-static STDERR: LazyStaticRefCell<BufWriter<FileRef>> = LazyStaticRefCell::default();
+static STDIN: LazyStaticRefCell<BufReader<GenFileRef>> = LazyStaticRefCell::default();
+static STDOUT: LazyStaticRefCell<BufWriter<GenFileRef>> = LazyStaticRefCell::default();
+static STDERR: LazyStaticRefCell<BufWriter<GenFileRef>> = LazyStaticRefCell::default();
 
 /// The standard input stream
-pub fn stdin() -> RefMut<'static, BufReader<FileRef>> {
+pub fn stdin() -> RefMut<'static, BufReader<GenFileRef>> {
     STDIN.borrow_mut()
 }
 /// The standard output stream
-pub fn stdout() -> RefMut<'static, BufWriter<FileRef>> {
+pub fn stdout() -> RefMut<'static, BufWriter<GenFileRef>> {
     STDOUT.borrow_mut()
 }
 /// The standard error stream
-pub fn stderr() -> RefMut<'static, BufWriter<FileRef>> {
+pub fn stderr() -> RefMut<'static, BufWriter<GenFileRef>> {
     STDERR.borrow_mut()
 }
 
 pub(crate) fn init() {
     for fd in 0..3 {
-        if Activity::cur().files().get(fd).is_none() {
-            Activity::cur()
-                .files()
-                .set(fd, Rc::new(RefCell::new(Serial::new())));
+        if !Activity::cur().files().exists(fd) {
+            Activity::cur().files().set_raw(fd, Box::new(Serial::new()));
         }
     }
 
-    let create_in = |fd| {
-        let f = Activity::cur().files().get(fd).unwrap();
-        BufReader::new(FileRef::new(f, fd))
-    };
-    let create_out = |fd| {
-        let f = Activity::cur().files().get(fd).unwrap();
-        BufWriter::new(FileRef::new(f, fd))
-    };
+    let create_in = |fd| BufReader::new(GenFileRef::new_owned(fd));
+    let create_out = |fd| BufWriter::new(GenFileRef::new_owned(fd));
 
     STDIN.set(create_in(STDIN_FILENO));
     STDOUT.set(create_out(STDOUT_FILENO));

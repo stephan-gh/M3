@@ -18,6 +18,7 @@
 
 use base::const_assert;
 use bitflags::bitflags;
+use core::any::Any;
 use core::fmt::Debug;
 
 use crate::cap::Selector;
@@ -149,10 +150,21 @@ impl FileInfo {
     }
 }
 
+bitflags! {
+    pub struct FileEvent : u64 {
+        const INPUT         = 1;
+        const OUTPUT        = 2;
+        const SIGNAL        = 4;
+    }
+}
+
 /// Trait for files.
 ///
 /// All files can be read, written, seeked and mapped into memory.
 pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+
     /// Returns the file descriptor.
     fn fd(&self) -> Fd;
     /// Sets the file descriptor.
@@ -220,6 +232,20 @@ pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
     /// Returns true if a signal was found
     fn fetch_signal(&mut self) -> Result<bool, Error> {
         Err(Error::new(Code::NotSup))
+    }
+
+    /// Checks whether any of the given events has arrived.
+    ///
+    /// More specifically, if FileEvent::INPUT is given and reading from the file might result in
+    /// receiving data, the function returns true.
+    ///
+    /// This function is used by the [`FileWaiter`](vfs::FileWaiter) that waits until any of its
+    /// files can make progress. Some types of files (e.g., sockets) needs to be "ticked" in each
+    /// iteration to actually fetch such events. For other types of files, we can just retry
+    /// read/write.
+    fn check_events(&mut self, _events: FileEvent) -> bool {
+        // by default, files are in blocking mode and therefore we always want to try read/write.
+        true
     }
 }
 

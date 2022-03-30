@@ -25,6 +25,7 @@ use m3::{
     env,
     net::{DgramSocketArgs, Endpoint, IpAddr, Port, StreamSocketArgs, TcpSocket, UdpSocket},
     println,
+    rc::Rc,
     session::NetworkManager,
     vfs::{BufReader, OpenFlags},
 };
@@ -40,7 +41,7 @@ fn usage() {
     m3::exit(1);
 }
 
-fn udp_receiver(nm: &NetworkManager, port: Port) {
+fn udp_receiver(nm: Rc<NetworkManager>, port: Port) {
     let mut socket = UdpSocket::new(
         DgramSocketArgs::new(nm)
             .send_buffer(2, 1024)
@@ -59,7 +60,7 @@ fn udp_receiver(nm: &NetworkManager, port: Port) {
     }
 }
 
-fn tcp_sender(nm: &NetworkManager, ip: IpAddr, port: Port, wl: &str, repeats: u32) {
+fn tcp_sender(nm: Rc<NetworkManager>, ip: IpAddr, port: Port, wl: &str, repeats: u32) {
     // Mount fs to load binary data
     m3::vfs::VFS::mount("/", "m3fs", "m3fs").expect("Failed to mount root filesystem on server");
 
@@ -147,7 +148,7 @@ pub fn main() -> i32 {
         }
 
         let port = args[2].parse::<Port>().expect("Failed to parse port");
-        udp_receiver(&nm, port);
+        udp_receiver(nm, port);
     }
     else {
         if args.len() != 6 {
@@ -159,7 +160,7 @@ pub fn main() -> i32 {
             .expect("Failed to parse IP address");
         let port = args[3].parse::<Port>().expect("Failed to parse port");
         let repeats = args[5].parse::<u32>().expect("Failed to parse repeats");
-        tcp_sender(&nm, ip, port, args[4], repeats);
+        tcp_sender(nm, ip, port, args[4], repeats);
     }
 
     0

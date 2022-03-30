@@ -19,7 +19,7 @@ use crate::errors::Error;
 use crate::kif;
 use crate::syscalls;
 use crate::tiles::Activity;
-use crate::vfs::{BufReader, FileRef};
+use crate::vfs::{BufReader, GenFileRef};
 
 /// Represents an activity that is run on a [`Activity`].
 pub trait RunningActivity {
@@ -82,12 +82,12 @@ impl Drop for RunningDeviceActivity {
 /// The activity for [`Activity::run`] and [`Activity::exec`].
 pub struct RunningProgramActivity {
     act: Activity,
-    _file: BufReader<FileRef>,
+    _file: BufReader<GenFileRef>,
 }
 
 impl RunningProgramActivity {
     /// Creates a new `ExecActivity` for the given activity and executable.
-    pub fn new(act: Activity, file: BufReader<FileRef>) -> Self {
+    pub fn new(act: Activity, file: BufReader<GenFileRef>) -> Self {
         Self { act, _file: file }
     }
 }

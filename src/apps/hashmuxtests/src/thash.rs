@@ -22,7 +22,7 @@ use m3::io;
 use m3::io::{Read, Write};
 use m3::session::{HashInput, HashOutput, HashSession, Pipes};
 use m3::tiles::{Activity, RunningActivity, RunningProgramActivity, Tile};
-use m3::vfs::{FileRef, IndirectPipe, OpenFlags, Seek, SeekMode, VFS};
+use m3::vfs::{GenFileRef, IndirectPipe, OpenFlags, Seek, SeekMode, VFS};
 use m3::{format, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_assert_some, wv_run_test};
 use m3::{goff, println, test, tmif, util, vec};
 
@@ -93,12 +93,10 @@ fn hash_mapped_mem() {
     wv_assert_ok!(hash.ep().configure(mgate.sel()));
 
     // Map memory
-    wv_assert_ok!(
-        Activity::cur()
-            .pager()
-            .unwrap()
-            .map_mem(ADDR, &mgate, SIZE, Perm::RW)
-    );
+    wv_assert_ok!(Activity::cur()
+        .pager()
+        .unwrap()
+        .map_mem(ADDR, &mgate, SIZE, Perm::RW));
 
     // Fill memory with some data
     let buf = unsafe { util::slice_for_mut(ADDR as *mut u8, SIZE) };
@@ -127,7 +125,7 @@ fn hash_mapped_mem() {
 }
 
 fn _hash_file(
-    file: &mut FileRef,
+    file: &mut GenFileRef,
     hash: &mut HashSession,
     algo: &'static HashAlgorithm,
     expected: &[u8],
@@ -160,13 +158,13 @@ fn _to_hex_bytes(s: &str) -> Vec<u8> {
 
 fn _hash_file_start(
     algo: &'static HashAlgorithm,
-    file: &FileRef,
+    file: &GenFileRef,
     expected: &str,
 ) -> RunningProgramActivity {
     let tile = wv_assert_ok!(Tile::get("clone|own"));
     let mut act = wv_assert_ok!(Activity::new(tile, algo.name));
 
-    act.files().set(io::STDIN_FILENO, file.handle());
+    // XXX act.files().set(io::STDIN_FILENO, file.handle());
 
     let mut dst = act.data_sink();
     dst.push_word(algo.ty.val);
@@ -188,6 +186,7 @@ fn hash_file() {
         "/movies/starwars.txt",
         OpenFlags::R | OpenFlags::NEW_SESS
     ));
+    let file = file.into_generic();
 
     let hashes = [
         (
@@ -223,7 +222,7 @@ fn seek_then_hash_file() {
 
     wv_assert_ok!(file.seek(1 * 1024 * 1024, SeekMode::CUR));
     _hash_file(
-        &mut file,
+        &mut file.into_generic(),
         &mut hash,
         &HashAlgorithm::SHA3_256,
         &hex!("56ea8bb7197d843cfe0cb6e80f6b02e6e1a14b026e6628b91f09cb5f60ca4e01"),
@@ -242,7 +241,7 @@ fn read0_then_hash_file() {
     wv_assert_ok!(file.read(&mut buf));
 
     _hash_file(
-        &mut file,
+        &mut file.into_generic(),
         &mut hash,
         &HashAlgorithm::SHA3_256,
         &hex!("0e63e307beb389b2fd7ea292c3bbf2e9e6e1005d82d3620d39c41b22e6db9df8"),
@@ -261,7 +260,7 @@ fn write0_then_hash_file() {
     wv_assert_ok!(file.write(&buf));
 
     _hash_file(
-        &mut file,
+        &mut file.into_generic(),
         &mut hash,
         &HashAlgorithm::SHA3_256,
         &hex!("0e63e307beb389b2fd7ea292c3bbf2e9e6e1005d82d3620d39c41b22e6db9df8"),
@@ -281,7 +280,7 @@ fn read_then_hash_file() {
 
     // Hash rest of the file
     _hash_file(
-        &mut file,
+        &mut file.into_generic(),
         &mut hash,
         &HashAlgorithm::SHA3_256,
         &hex!("e4a0a34734c9c4bd45fb92cca0204fce0b0188e776632150d5be1083059e934f"),
@@ -427,13 +426,15 @@ fn shake_and_hash_pipe() {
     let hash = wv_assert_ok!(HashSession::new("hash1", &HashAlgorithm::SHA3_256));
     {
         // echo "Pipe!"
-        let mut ifile = wv_assert_some!(Activity::cur().files().get_ref(ipipe.writer_fd()));
+        let mut ifile = wv_assert_some!(Activity::cur().files().get(ipipe.writer_fd()));
         wv_assert_ok!(writeln!(ifile, "Pipe!"));
+        ipipe.close_writer();
     }
     {
         // hashsum sha3-224
-        let mut ofile = wv_assert_some!(Activity::cur().files().get_ref(opipe.reader_fd()));
+        let mut ofile = wv_assert_some!(Activity::cur().files().get(opipe.reader_fd()));
         wv_assert_ok!(ofile.hash_input(&hash, usize::MAX));
+        opipe.close_reader();
     }
 
     let mut buf = [0u8; HashAlgorithm::SHA3_256.output_bytes];

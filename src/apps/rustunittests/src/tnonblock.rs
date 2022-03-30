@@ -14,11 +14,12 @@
  */
 
 use m3::com::MemGate;
+use m3::io::{Read, Write};
 use m3::kif;
 use m3::session::Pipes;
 use m3::test;
 use m3::tiles::Activity;
-use m3::vfs::IndirectPipe;
+use m3::vfs::{File, IndirectPipe};
 use m3::{wv_assert_eq, wv_assert_ok, wv_assert_some, wv_run_test};
 
 const PIPE_SIZE: usize = 16;
@@ -33,10 +34,10 @@ fn pipes() {
     let pipe_mem = wv_assert_ok!(MemGate::new(PIPE_SIZE, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, PIPE_SIZE));
 
-    let fin = wv_assert_some!(Activity::cur().files().get(pipe.reader_fd()));
-    let fout = wv_assert_some!(Activity::cur().files().get(pipe.writer_fd()));
-    wv_assert_ok!(fin.borrow_mut().set_blocking(false));
-    wv_assert_ok!(fout.borrow_mut().set_blocking(false));
+    let mut fin = wv_assert_some!(Activity::cur().files().get(pipe.reader_fd()));
+    let mut fout = wv_assert_some!(Activity::cur().files().get(pipe.writer_fd()));
+    wv_assert_ok!(fin.set_blocking(false));
+    wv_assert_ok!(fout.set_blocking(false));
 
     let send_data: [u8; DATA_SIZE] = *b"test";
     let mut recv_data = [0u8; DATA_SIZE];
@@ -45,7 +46,7 @@ fn pipes() {
     while count < 100 {
         let mut progress = 0;
 
-        if let Ok(read) = fin.borrow_mut().read(&mut recv_data) {
+        if let Ok(read) = fin.read(&mut recv_data) {
             // this is actually not guaranteed, but depends on the implementation of the pipe
             // server. however, we want to ensure that the read data is correct, which is difficult
             // otherwise.
@@ -55,7 +56,7 @@ fn pipes() {
             count += read;
         }
 
-        if let Ok(written) = fout.borrow_mut().write(&send_data) {
+        if let Ok(written) = fout.write(&send_data) {
             // see above
             wv_assert_eq!(written, send_data.len());
             progress += 1;

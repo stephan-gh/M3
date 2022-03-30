@@ -18,7 +18,7 @@
 
 use m3::cell::StaticRefCell;
 use m3::com::MemGate;
-use m3::io;
+use m3::io::{self, Read, Write};
 use m3::kif;
 use m3::mem::AlignedBuf;
 use m3::session::Pipes;
@@ -57,11 +57,11 @@ fn child_to_parent() {
         );
 
         let act = wv_assert_ok!(act.run(|| {
-            let output = Activity::cur().files().get(io::STDOUT_FILENO).unwrap();
+            let mut output = Activity::cur().files().get(io::STDOUT_FILENO).unwrap();
             let buf = BUF.borrow();
             let mut rem = DATA_SIZE;
             while rem > 0 {
-                wv_assert_ok!(output.borrow_mut().write(&buf[..]));
+                wv_assert_ok!(output.write(&buf[..]));
                 rem -= BUF_SIZE;
             }
             0
@@ -69,9 +69,9 @@ fn child_to_parent() {
 
         pipe.close_writer();
 
-        let input = Activity::cur().files().get(pipe.reader_fd()).unwrap();
+        let mut input = Activity::cur().files().get(pipe.reader_fd()).unwrap();
         let mut buf = BUF.borrow_mut();
-        while wv_assert_ok!(input.borrow_mut().read(&mut buf[..])) > 0 {}
+        while wv_assert_ok!(input.read(&mut buf[..])) > 0 {}
 
         wv_assert_eq!(act.wait(), Ok(0));
     });
@@ -105,19 +105,19 @@ fn parent_to_child() {
         );
 
         let act = wv_assert_ok!(act.run(|| {
-            let input = Activity::cur().files().get(io::STDIN_FILENO).unwrap();
+            let mut input = Activity::cur().files().get(io::STDIN_FILENO).unwrap();
             let mut buf = BUF.borrow_mut();
-            while wv_assert_ok!(input.borrow_mut().read(&mut buf[..])) > 0 {}
+            while wv_assert_ok!(input.read(&mut buf[..])) > 0 {}
             0
         }));
 
         pipe.close_reader();
 
-        let output = Activity::cur().files().get(pipe.writer_fd()).unwrap();
+        let mut output = Activity::cur().files().get(pipe.writer_fd()).unwrap();
         let buf = BUF.borrow();
         let mut rem = DATA_SIZE;
         while rem > 0 {
-            wv_assert_ok!(output.borrow_mut().write(&buf[..]));
+            wv_assert_ok!(output.write(&buf[..]));
             rem -= BUF_SIZE;
         }
 

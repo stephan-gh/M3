@@ -19,7 +19,7 @@
 use m3::col::String;
 use m3::com::MemGate;
 use m3::errors::Code;
-use m3::io::{self, Read};
+use m3::io::{self, Read, Write};
 use m3::kif;
 use m3::session::Pipes;
 use m3::test;
@@ -55,8 +55,8 @@ fn child_to_parent() {
 
     pipe.close_writer();
 
-    let input = Activity::cur().files().get(pipe.reader_fd()).unwrap();
-    let s = wv_assert_ok!(input.borrow_mut().read_to_string());
+    let mut input = Activity::cur().files().get(pipe.reader_fd()).unwrap();
+    let s = wv_assert_ok!(input.read_to_string());
     wv_assert_eq!(s, "This is a test!\n");
 
     wv_assert_eq!(act.wait(), Ok(0));
@@ -82,8 +82,8 @@ fn parent_to_child() {
 
     pipe.close_reader();
 
-    let output = Activity::cur().files().get(pipe.writer_fd()).unwrap();
-    wv_assert_eq!(output.borrow_mut().write(b"This is a test!\n"), Ok(16));
+    let mut output = Activity::cur().files().get(pipe.writer_fd()).unwrap();
+    wv_assert_eq!(output.write(b"This is a test!\n"), Ok(16));
 
     pipe.close_writer();
 
@@ -179,19 +179,19 @@ fn writer_quit() {
 
     pipe.close_writer();
 
-    {
-        let input = Activity::cur().files().get_ref(pipe.reader_fd()).unwrap();
-        let mut reader = BufReader::new(input);
-        let mut s = String::new();
-        wv_assert_eq!(reader.read_line(&mut s), Ok(15));
-        wv_assert_eq!(s, "This is a test!");
-        s.clear();
-        wv_assert_eq!(reader.read_line(&mut s), Ok(15));
-        wv_assert_eq!(s, "This is a test!");
-        s.clear();
-        wv_assert_eq!(reader.read_line(&mut s), Ok(0));
-        wv_assert_eq!(s, "");
-    }
+    let input = Activity::cur().files().get(pipe.reader_fd()).unwrap();
+    let mut reader = BufReader::new(input);
+    let mut s = String::new();
+    wv_assert_eq!(reader.read_line(&mut s), Ok(15));
+    wv_assert_eq!(s, "This is a test!");
+    s.clear();
+    wv_assert_eq!(reader.read_line(&mut s), Ok(15));
+    wv_assert_eq!(s, "This is a test!");
+    s.clear();
+    wv_assert_eq!(reader.read_line(&mut s), Ok(0));
+    wv_assert_eq!(s, "");
+
+    pipe.close_reader();
 
     wv_assert_eq!(act.wait(), Ok(0));
 }
@@ -217,9 +217,9 @@ fn reader_quit() {
 
     pipe.close_reader();
 
-    let output = Activity::cur().files().get(pipe.writer_fd()).unwrap();
+    let mut output = Activity::cur().files().get(pipe.writer_fd()).unwrap();
     loop {
-        let res = output.borrow_mut().write(b"This is a test!\n");
+        let res = output.write(b"This is a test!\n");
         match res {
             Ok(count) => wv_assert_eq!(count, 16),
             Err(e) => {

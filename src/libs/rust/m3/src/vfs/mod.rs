@@ -29,6 +29,7 @@ mod indirpipe;
 mod mounttable;
 #[allow(clippy::module_inception)]
 mod vfs;
+mod waiter;
 
 /// File permissions.
 pub type FileMode = u16;
@@ -41,13 +42,15 @@ pub type BlockId = u32;
 
 pub use self::bufio::{BufReader, BufWriter};
 pub use self::dir::{read_dir, DirEntry, ReadDir};
-pub use self::file::{File, FileInfo, Map, OpenFlags, Seek, SeekMode, StatResponse};
-pub use self::fileref::FileRef;
+pub use self::file::{File, FileEvent, FileInfo, Map, OpenFlags, Seek, SeekMode, StatResponse};
+pub use self::fileref::{FileRef, GenFileRef};
 pub use self::filesystem::{FSOperation, FileSystem};
-pub use self::filetable::{Fd, FileHandle, FileTable};
-pub use self::genericfile::{FileEvent, GenFileOp, GenericFile};
+pub(crate) use self::filetable::INV_FD;
+pub use self::filetable::{Fd, FileTable};
+pub use self::genericfile::{GenFileOp, GenericFile};
 pub use self::indirpipe::IndirectPipe;
 pub use self::mounttable::{FSHandle, MountTable};
+pub use self::waiter::FileWaiter;
 
 #[allow(non_snake_case)]
 pub mod VFS {

@@ -16,15 +16,14 @@
  * General Public License version 2 for more details.
  */
 
+use crate::boxed::Box;
 use crate::cap::Selector;
-use crate::cell::RefCell;
 use crate::com::{MemGate, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::int_enum;
 use crate::kif::{CapRngDesc, CapType};
-use crate::rc::Rc;
 use crate::session::ClientSession;
-use crate::vfs::{FileHandle, GenFileOp, GenericFile, OpenFlags};
+use crate::vfs::{File, GenFileOp, GenericFile, OpenFlags};
 
 /// Represents a session at the pipes server.
 pub struct Pipes {
@@ -91,7 +90,7 @@ impl Pipe {
 
     /// Creates a new channel for this pipe. If `read` is true, it is a read-end, otherwise a
     /// write-end.
-    pub fn create_chan(&self, read: bool) -> Result<FileHandle, Error> {
+    pub fn create_chan(&self, read: bool) -> Result<Box<dyn File>, Error> {
         let crd = self.sess.obtain(
             2,
             |os| {
@@ -106,7 +105,7 @@ impl Pipe {
         else {
             OpenFlags::W | OpenFlags::NEW_SESS
         };
-        Ok(Rc::new(RefCell::new(GenericFile::new(flags, crd.start()))))
+        Ok(Box::new(GenericFile::new(flags, crd.start())))
     }
 }
 

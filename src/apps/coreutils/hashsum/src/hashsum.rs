@@ -19,17 +19,17 @@ use m3::errors::{Code, Error};
 use m3::io::{STDIN_FILENO, STDOUT_FILENO};
 use m3::session::{HashInput, HashOutput, HashSession};
 use m3::tiles::Activity;
-use m3::vfs::{Fd, FileRef, OpenFlags, VFS};
+use m3::vfs::{Fd, GenFileRef, OpenFlags, VFS};
 use m3::{env, print, println, vec};
 
-fn open_file(path: &str, flags: OpenFlags, stdfd: Fd) -> Result<FileRef, Error> {
+fn open_file(path: &str, flags: OpenFlags, stdfd: Fd) -> Result<GenFileRef, Error> {
     if path != "-" {
-        VFS::open(path, flags)
+        VFS::open(path, flags).map(|f| f.into_generic())
     }
     else {
         Activity::cur()
             .files()
-            .get_ref(stdfd)
+            .get(stdfd)
             .ok_or_else(|| Error::new(Code::NoSuchFile))
     }
 }
@@ -38,7 +38,7 @@ fn hash(
     sess: &mut HashSession,
     path: &str,
     output_bytes: usize,
-    output_file: Option<&mut FileRef>,
+    output_file: Option<&mut GenFileRef>,
 ) -> Result<(), Error> {
     let mut file = open_file(path, OpenFlags::R, STDIN_FILENO)?;
     sess.reset(sess.algo())?;

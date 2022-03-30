@@ -18,15 +18,14 @@
 
 use core::{fmt, mem};
 
+use crate::boxed::Box;
 use crate::cap::Selector;
-use crate::cell::RefCell;
 use crate::col::Vec;
 use crate::errors::Error;
 use crate::io::Serial;
-use crate::rc::Rc;
 use crate::serialize::Source;
 use crate::tiles::{Activity, StateSerializer};
-use crate::vfs::{File, FileRef, GenericFile};
+use crate::vfs::{File, FileRef, GenFileRef, GenericFile};
 
 /// A file descriptor
 pub type Fd = usize;
@@ -34,26 +33,23 @@ pub type Fd = usize;
 /// The maximum number of files per [`FileTable`].
 pub const INV_FD: usize = !0;
 
-/// A reference to a file.
-pub type FileHandle = Rc<RefCell<dyn File>>;
-
 /// The table of open files.
 #[derive(Default)]
 pub struct FileTable {
-    files: Vec<Option<FileHandle>>,
+    files: Vec<Option<Box<dyn File>>>,
 }
 
 impl FileTable {
     /// Adds the given file to this file table by allocating a new slot in the table.
-    pub fn add(&mut self, file: FileHandle) -> Result<FileRef, Error> {
-        self.alloc(file.clone()).map(|fd| FileRef::new(file, fd))
+    pub fn add(&mut self, file: Box<dyn File>) -> Result<Fd, Error> {
+        self.alloc(file)
     }
 
     /// Allocates a new slot in the file table and returns its file descriptor.
-    pub fn alloc(&mut self, file: FileHandle) -> Result<Fd, Error> {
+    pub(crate) fn alloc(&mut self, file: Box<dyn File>) -> Result<Fd, Error> {
         for (fd, cur_file) in self.files.iter().enumerate() {
             if cur_file.is_none() {
-                self.set(fd, file);
+                self.set_raw(fd, file);
                 return Ok(fd);
             }
         }
@@ -62,11 +58,20 @@ impl FileTable {
         Ok(self.files.len() - 1)
     }
 
-    /// Returns a reference to the file with given file descriptor. The file will be closed as soon
-    /// as the reference is dropped.
-    pub fn get_ref(&self, fd: Fd) -> Option<FileRef> {
+    /// Returns true if a file with given file descriptor exists
+    pub fn exists(&self, fd: Fd) -> bool {
+        fd < self.files.len() && self.files[fd].is_some()
+    }
+
+    /// Returns a reference to the file with given file descriptor.
+    pub fn get(&self, fd: Fd) -> Option<GenFileRef> {
+        self.get_as(fd)
+    }
+
+    /// Returns a reference to the file with given file descriptor.
+    pub fn get_as<T: ?Sized>(&self, fd: Fd) -> Option<FileRef<T>> {
         if fd < self.files.len() {
-            self.files[fd].as_ref().map(|f| FileRef::new(f.clone(), fd))
+            self.files[fd].as_ref().map(|_| FileRef::new(fd))
         }
         else {
             None
@@ -74,9 +79,9 @@ impl FileTable {
     }
 
     /// Returns the file with given file descriptor.
-    pub fn get(&self, fd: Fd) -> Option<FileHandle> {
+    pub(crate) fn get_raw(&mut self, fd: Fd) -> Option<&mut (dyn File + 'static)> {
         if fd < self.files.len() {
-            self.files[fd].as_ref().cloned()
+            self.files[fd].as_mut().map(|v| v.as_mut())
         }
         else {
             None
@@ -85,9 +90,9 @@ impl FileTable {
 
     /// Adds the given file to the table using the file descriptor `fd`, assuming that the file
     /// descriptor is not yet in use.
-    pub fn set(&mut self, fd: Fd, file: FileHandle) {
-        if file.borrow().fd() == INV_FD {
-            file.borrow_mut().set_fd(fd);
+    pub(crate) fn set_raw(&mut self, fd: Fd, mut file: Box<dyn File>) {
+        if file.fd() == INV_FD {
+            file.set_fd(fd);
         }
 
         if fd >= self.files.len() {
@@ -103,10 +108,16 @@ impl FileTable {
         }
     }
 
+    /// Adds the given file to the table using the file descriptor `fd`, assuming that the file
+    /// descriptor is not yet in use.
+    pub fn set(&mut self, _fd: Fd, _file: FileRef<dyn File>) {
+        todo!()
+    }
+
     /// Removes the file with given file descriptor from the table.
     pub fn remove(&mut self, fd: Fd) {
         if let Some(ref mut f) = mem::replace(&mut self.files[fd], None) {
-            f.borrow_mut().remove();
+            f.remove();
         }
     }
 
@@ -117,7 +128,7 @@ impl FileTable {
         max_sel: &mut Selector,
     ) -> Result<(), Error> {
         for file in self.files.iter().flatten() {
-            file.borrow().exchange_caps(act, dels, max_sel)?;
+            file.exchange_caps(act, dels, max_sel)?;
         }
         Ok(())
     }
@@ -127,8 +138,7 @@ impl FileTable {
         s.push_word(count as u64);
 
         for (fd, file) in self.files.iter().enumerate() {
-            if let Some(ref file_ref) = file {
-                let file_obj = file_ref.borrow();
+            if let Some(ref file_obj) = file {
                 s.push_word(fd as u64);
                 s.push_word(file_obj.file_type() as u64);
                 file_obj.serialize(s);
@@ -139,13 +149,13 @@ impl FileTable {
     pub(crate) fn unserialize(s: &mut Source<'_>) -> FileTable {
         let mut ft = FileTable::default();
 
-        let count = s.pop().unwrap();
+        let count = s.pop::<usize>().unwrap();
         for _ in 0..count {
             let fd: Fd = s.pop().unwrap();
             let file_type: u8 = s.pop().unwrap();
-            ft.set(fd, match file_type {
+            ft.set_raw(fd, match file_type {
                 b'F' => GenericFile::unserialize(s),
-                b'S' => Rc::new(RefCell::new(Serial::new())),
+                b'S' => Box::new(Serial::new()),
                 _ => panic!("Unexpected file type {}", file_type),
             });
         }

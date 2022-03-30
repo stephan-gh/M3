@@ -13,8 +13,10 @@
  * General Public License version 2 for more details.
  */
 
+use core::any::Any;
 use core::cmp;
 use core::fmt;
+
 use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::cfg::PAGE_BITS;
@@ -49,6 +51,14 @@ impl BootFile {
 }
 
 impl vfs::File for BootFile {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
     // not needed here
     fn fd(&self) -> vfs::Fd {
         0
@@ -174,7 +184,7 @@ impl Mapper for BootMapper {
     fn map_file(
         &mut self,
         pager: Option<&Pager>,
-        _file: &mut vfs::BufReader<vfs::FileRef>,
+        _file: &mut vfs::BufReader<vfs::GenFileRef>,
         foff: usize,
         virt: goff,
         len: usize,

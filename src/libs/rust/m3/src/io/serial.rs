@@ -16,6 +16,8 @@
  * General Public License version 2 for more details.
  */
 
+use core::any::Any;
+
 use crate::cap::Selector;
 use crate::col::Vec;
 use crate::errors::Error;
@@ -24,6 +26,14 @@ use crate::session::{HashInput, HashOutput};
 use crate::vfs;
 
 impl vfs::File for io::Serial {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
     fn fd(&self) -> vfs::Fd {
         0
     }

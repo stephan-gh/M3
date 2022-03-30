@@ -15,8 +15,10 @@
  * General Public License version 2 for more details.
  */
 
+use core::any::Any;
 use core::fmt;
 
+use crate::boxed::Box;
 use crate::errors::{Code, Error};
 use crate::io;
 use crate::net::{
@@ -24,19 +26,19 @@ use crate::net::{
     Endpoint, Port, SocketType,
 };
 use crate::rc::Rc;
-use crate::session::NetworkManager;
-use crate::session::{HashInput, HashOutput};
-use crate::vfs::{self, Fd, File};
+use crate::session::{HashInput, HashOutput, NetworkManager};
+use crate::tiles::Activity;
+use crate::vfs::{self, Fd, File, FileEvent, FileRef, INV_FD};
 
 /// Configures the buffer sizes for datagram sockets
-pub struct DgramSocketArgs<'n> {
-    pub(crate) nm: &'n NetworkManager,
+pub struct DgramSocketArgs {
+    pub(crate) nm: Rc<NetworkManager>,
     pub(crate) args: SocketArgs,
 }
 
-impl<'n> DgramSocketArgs<'n> {
+impl DgramSocketArgs {
     /// Creates a new [`DgramSocketArgs`] with default settings.
-    pub fn new(nm: &'n NetworkManager) -> Self {
+    pub fn new(nm: Rc<NetworkManager>) -> Self {
         Self {
             nm,
             args: SocketArgs::default(),
@@ -59,23 +61,27 @@ impl<'n> DgramSocketArgs<'n> {
 }
 
 /// Represents a datagram socket using the user datagram protocol (UDP)
-pub struct UdpSocket<'n> {
-    socket: Rc<Socket>,
-    nm: &'n NetworkManager,
+pub struct UdpSocket {
+    fd: Fd,
+    socket: Socket,
+    nm: Rc<NetworkManager>,
 }
 
-impl<'n> UdpSocket<'n> {
+impl UdpSocket {
     /// Creates a new UDP sockets with given arguments.
     ///
     /// By default, the socket is in blocking mode, that is, all functions
     /// ([`send_to`](UdpSocket::send_to), [`recv_from`](UdpSocket::recv_from), ...) do not return
     /// until the operation is complete. This can be changed via
     /// [`set_blocking`](UdpSocket::set_blocking).
-    pub fn new(args: DgramSocketArgs<'n>) -> Result<Self, Error> {
-        Ok(UdpSocket {
+    pub fn new(args: DgramSocketArgs) -> Result<FileRef<Self>, Error> {
+        let sock = Box::new(UdpSocket {
             socket: args.nm.create(SocketType::Dgram, None, &args.args)?,
             nm: args.nm,
-        })
+            fd: INV_FD,
+        });
+        let fd = Activity::cur().files().add(sock)?;
+        Ok(FileRef::new_owned(fd))
     }
 
     /// Returns the current state of the socket
@@ -88,7 +94,7 @@ impl<'n> UdpSocket<'n> {
     /// The local endpoint is only `Some` if the socket has been bound via
     /// [`bind`](UdpSocket::bind).
     pub fn local_endpoint(&self) -> Option<Endpoint> {
-        self.socket.local_ep.get()
+        self.socket.local_ep
     }
 
     /// Binds this socket to the given local port.
@@ -109,8 +115,8 @@ impl<'n> UdpSocket<'n> {
         }
 
         let (addr, port) = self.nm.bind(self.socket.sd(), port)?;
-        self.socket.local_ep.set(Some(Endpoint::new(addr, port)));
-        self.socket.state.set(State::Bound);
+        self.socket.local_ep = Some(Endpoint::new(addr, port));
+        self.socket.state = State::Bound;
         Ok(())
     }
 
@@ -130,7 +136,7 @@ impl<'n> UdpSocket<'n> {
             self.bind(0)?;
         }
 
-        self.socket.remote_ep.set(Some(ep));
+        self.socket.remote_ep = Some(ep);
         Ok(())
     }
 
@@ -145,14 +151,14 @@ impl<'n> UdpSocket<'n> {
     /// Receives data from the socket into the given buffer.
     ///
     /// Returns the number of received bytes.
-    pub fn recv(&self, data: &mut [u8]) -> Result<usize, Error> {
+    pub fn recv(&mut self, data: &mut [u8]) -> Result<usize, Error> {
         self.recv_from(data).map(|(size, _)| size)
     }
 
     /// Receives data from the socket into the given buffer.
     ///
     /// Returns the number of received bytes and the remote endpoint it was received from.
-    pub fn recv_from(&self, data: &mut [u8]) -> Result<(usize, Endpoint), Error> {
+    pub fn recv_from(&mut self, data: &mut [u8]) -> Result<(usize, Endpoint), Error> {
         self.socket.next_data(data.len(), |buf, ep| {
             data[0..buf.len()].copy_from_slice(buf);
             (buf.len(), (buf.len(), ep))
@@ -168,10 +174,7 @@ impl<'n> UdpSocket<'n> {
     pub fn send(&mut self, data: &[u8]) -> Result<(), Error> {
         self.send_to(
             data,
-            self.socket
-                .remote_ep
-                .get()
-                .ok_or(Error::new(Code::InvState))?,
+            self.socket.remote_ep.ok_or(Error::new(Code::InvState))?,
         )
     }
 
@@ -188,13 +191,21 @@ impl<'n> UdpSocket<'n> {
     }
 }
 
-impl File for UdpSocket<'_> {
-    fn fd(&self) -> Fd {
-        self.socket.sd()
+impl File for UdpSocket {
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 
-    fn set_fd(&mut self, _fd: Fd) {
-        // not used
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn fd(&self) -> Fd {
+        self.fd
+    }
+
+    fn set_fd(&mut self, fd: Fd) {
+        self.fd = fd;
     }
 
     fn file_type(&self) -> u8 {
@@ -216,41 +227,45 @@ impl File for UdpSocket<'_> {
         self.socket.set_blocking(blocking);
         Ok(())
     }
+
+    fn check_events(&mut self, events: FileEvent) -> bool {
+        self.socket.has_events(events)
+    }
 }
 
-impl io::Read for UdpSocket<'_> {
+impl io::Read for UdpSocket {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
         self.recv(buf)
     }
 }
 
-impl io::Write for UdpSocket<'_> {
+impl io::Write for UdpSocket {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
         self.send(buf).map(|_| buf.len())
     }
 }
 
-impl vfs::Seek for UdpSocket<'_> {
+impl vfs::Seek for UdpSocket {
 }
 
-impl vfs::Map for UdpSocket<'_> {
+impl vfs::Map for UdpSocket {
 }
 
-impl HashInput for UdpSocket<'_> {
+impl HashInput for UdpSocket {
 }
 
-impl HashOutput for UdpSocket<'_> {
+impl HashOutput for UdpSocket {
 }
 
-impl fmt::Debug for UdpSocket<'_> {
+impl fmt::Debug for UdpSocket {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "UdpSocket")
     }
 }
 
-impl Drop for UdpSocket<'_> {
+impl Drop for UdpSocket {
     fn drop(&mut self) {
         self.socket.tear_down();
-        self.nm.remove_socket(self.socket.sd());
+        self.nm.abort(self.socket.sd(), true).ok();
     }
 }

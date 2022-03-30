@@ -31,7 +31,7 @@ use crate::mem::size_of;
 use crate::session::MapFlags;
 use crate::tiles::{Activity, Mapper};
 use crate::vec;
-use crate::vfs::{BufReader, FileRef, Seek, SeekMode};
+use crate::vfs::{BufReader, GenFileRef, Seek, SeekMode};
 
 extern "C" {
     static _start: u8;
@@ -76,7 +76,7 @@ fn write_bytes_checked(
 pub fn load_program(
     act: &Activity,
     mapper: &mut dyn Mapper,
-    file: &mut BufReader<FileRef>,
+    file: &mut BufReader<GenFileRef>,
 ) -> Result<usize, Error> {
     let mut buf = vec![0u8; 4096];
     let hdr: elf::Ehdr = read_object(file)?;
@@ -185,7 +185,7 @@ where
 fn load_segment(
     act: &Activity,
     mapper: &mut dyn Mapper,
-    file: &mut BufReader<FileRef>,
+    file: &mut BufReader<GenFileRef>,
     phdr: &elf::Phdr,
     buf: &mut [u8],
 ) -> Result<(), Error> {
@@ -238,7 +238,7 @@ fn load_segment(
 fn init_mem(
     buf: &mut [u8],
     mem: &MemGate,
-    file: &mut BufReader<FileRef>,
+    file: &mut BufReader<GenFileRef>,
     vaddr: usize,
     foff: usize,
     fsize: usize,

@@ -20,7 +20,7 @@ use crate::errors::{Code, Error};
 use crate::rc::Rc;
 use crate::session::M3FS;
 use crate::tiles::Activity;
-use crate::vfs::{FSHandle, FileInfo, FileMode, FileRef, OpenFlags};
+use crate::vfs::{FSHandle, FileInfo, FileMode, FileRef, GenericFile, OpenFlags};
 
 /// Mounts the file system of type `fstype` at `path`, creating a session at `service`.
 pub fn mount(path: &str, fstype: &str, service: &str) -> Result<(), Error> {
@@ -46,10 +46,11 @@ where
 }
 
 /// Opens the file at `path` with given flags.
-pub fn open(path: &str, flags: OpenFlags) -> Result<FileRef, Error> {
+pub fn open(path: &str, flags: OpenFlags) -> Result<FileRef<GenericFile>, Error> {
     with_path(path, |fs, pos| {
         let file = fs.borrow_mut().open(&path[pos..], flags)?;
-        Activity::cur().files().add(file)
+        let fd = Activity::cur().files().add(file)?;
+        Ok(FileRef::new_owned(fd))
     })
 }
 

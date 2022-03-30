@@ -18,21 +18,22 @@
 
 use m3::com::Semaphore;
 use m3::net::{DgramSocketArgs, State, StreamSocketArgs, TcpSocket, UdpSocket};
-use m3::session::{NetworkDirection, NetworkManager};
+use m3::session::NetworkManager;
+use m3::vfs::{FileEvent, FileWaiter};
 
 #[no_mangle]
 pub fn main() -> i32 {
     let nm = NetworkManager::new("net").expect("connecting to net failed");
 
     let mut udp_socket = UdpSocket::new(
-        DgramSocketArgs::new(&nm)
+        DgramSocketArgs::new(nm.clone())
             .send_buffer(8, 64 * 1024)
             .recv_buffer(32, 256 * 1024),
     )
     .expect("creating UDP socket failed");
 
     let mut tcp_socket = TcpSocket::new(
-        StreamSocketArgs::new(&nm)
+        StreamSocketArgs::new(nm)
             .send_buffer(64 * 1024)
             .recv_buffer(256 * 1024),
     )
@@ -48,6 +49,10 @@ pub fn main() -> i32 {
     let sem_tcp = Semaphore::attach("net-tcp").expect("attaching to net-tcp semaphore failed");
 
     let mut buffer = [0u8; 1024];
+
+    let mut waiter = FileWaiter::default();
+    waiter.add(tcp_socket.fd());
+    waiter.add(udp_socket.fd());
 
     loop {
         if tcp_socket.state() == State::Closed {
@@ -77,7 +82,7 @@ pub fn main() -> i32 {
                 // we only care about input here, because we operate in blocking mode and only want
                 // to know if any of the sockets might return true for has_data. Sending is done in
                 // blocking mode so that we simply wait there until that's possible.
-                nm.wait(NetworkDirection::INPUT);
+                waiter.wait(FileEvent::INPUT);
             }
         }
     }

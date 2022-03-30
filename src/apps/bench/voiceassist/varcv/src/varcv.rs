@@ -49,7 +49,7 @@ pub fn main() -> i32 {
 
     if proto == "tcp" {
         let mut tcp_socket = TcpSocket::new(
-            StreamSocketArgs::new(&nm)
+            StreamSocketArgs::new(nm)
                 .send_buffer(64 * 1024)
                 .recv_buffer(768 * 1024),
         )
@@ -90,7 +90,7 @@ pub fn main() -> i32 {
     }
     else {
         let mut socket = UdpSocket::new(
-            DgramSocketArgs::new(&nm)
+            DgramSocketArgs::new(nm)
                 .send_buffer(2, 1 * 1024)
                 .recv_buffer(8, 8 * 1024),
         )

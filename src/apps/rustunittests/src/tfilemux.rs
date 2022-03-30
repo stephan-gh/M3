@@ -18,12 +18,12 @@
 
 use core::cmp;
 use m3::com::MemGate;
-use m3::io::Read;
+use m3::io::{Read, Write};
 use m3::kif;
 use m3::session::Pipes;
 use m3::test;
 use m3::tiles::Activity;
-use m3::vfs::{BufReader, FileHandle, IndirectPipe, OpenFlags, VFS};
+use m3::vfs::{BufReader, GenFileRef, IndirectPipe, OpenFlags, VFS};
 use m3::{vec, wv_assert_eq, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -66,8 +66,8 @@ fn pipe_mux() {
     struct Pipe {
         _mgate: MemGate,
         _pipe: IndirectPipe,
-        reader: FileHandle,
-        writer: FileHandle,
+        reader: GenFileRef,
+        writer: GenFileRef,
     }
 
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
@@ -91,14 +91,14 @@ fn pipe_mux() {
     let mut pos = 0;
     while pos < DATA_SIZE {
         for p in &mut pipes {
-            wv_assert_ok!(p.writer.borrow_mut().write(&src_buf));
-            wv_assert_ok!(p.writer.borrow_mut().flush());
+            wv_assert_ok!(p.writer.write(&src_buf));
+            wv_assert_ok!(p.writer.flush());
         }
 
         for p in &mut pipes {
             let mut dst_buf = [0u8; STEP_SIZE];
 
-            wv_assert_ok!(p.reader.borrow_mut().read(&mut dst_buf));
+            wv_assert_ok!(p.reader.read(&mut dst_buf));
             wv_assert_eq!(dst_buf, src_buf);
         }
 

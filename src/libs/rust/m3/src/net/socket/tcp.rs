@@ -15,8 +15,10 @@
  * General Public License version 2 for more details.
  */
 
+use core::any::Any;
 use core::fmt;
 
+use crate::boxed::Box;
 use crate::errors::{Code, Error};
 use crate::io;
 use crate::net::{
@@ -26,17 +28,18 @@ use crate::net::{
 };
 use crate::rc::Rc;
 use crate::session::{HashInput, HashOutput, NetworkManager};
-use crate::vfs::{self, Fd, File};
+use crate::tiles::Activity;
+use crate::vfs::{self, Fd, File, FileEvent, FileRef, INV_FD};
 
 /// Configures the buffer sizes for stream sockets
-pub struct StreamSocketArgs<'n> {
-    nm: &'n NetworkManager,
+pub struct StreamSocketArgs {
+    nm: Rc<NetworkManager>,
     args: SocketArgs,
 }
 
-impl<'n> StreamSocketArgs<'n> {
+impl StreamSocketArgs {
     /// Creates a new [`StreamSocketArgs`] with default settings
-    pub fn new(nm: &'n NetworkManager) -> Self {
+    pub fn new(nm: Rc<NetworkManager>) -> Self {
         Self {
             nm,
             args: SocketArgs::default(),
@@ -57,23 +60,27 @@ impl<'n> StreamSocketArgs<'n> {
 }
 
 /// Represents a stream socket using the transmission control protocol (TCP)
-pub struct TcpSocket<'n> {
-    socket: Rc<Socket>,
-    nm: &'n NetworkManager,
+pub struct TcpSocket {
+    fd: Fd,
+    socket: Socket,
+    nm: Rc<NetworkManager>,
 }
 
-impl<'n> TcpSocket<'n> {
+impl TcpSocket {
     /// Creates a new TCP sockets with given arguments.
     ///
     /// By default, the socket is in blocking mode, that is, all functions
     /// ([`connect`](TcpSocket::connect), [`send`](TcpSocket::send), [`recv`](TcpSocket::recv),
     /// ...) do not return until the operation is complete. This can be changed via
     /// [`set_blocking`](TcpSocket::set_blocking).
-    pub fn new(args: StreamSocketArgs<'n>) -> Result<Self, Error> {
-        Ok(TcpSocket {
+    pub fn new(args: StreamSocketArgs) -> Result<FileRef<Self>, Error> {
+        let sock = Box::new(TcpSocket {
             socket: args.nm.create(SocketType::Stream, None, &args.args)?,
             nm: args.nm,
-        })
+            fd: INV_FD,
+        });
+        let fd = Activity::cur().files().add(sock)?;
+        Ok(FileRef::new_owned(fd))
     }
 
     /// Returns the current state of the socket
@@ -87,7 +94,7 @@ impl<'n> TcpSocket<'n> {
     /// [`listen`](TcpSocket::listen) or was connected to a remote endpoint via
     /// [`connect`](TcpSocket::connect).
     pub fn local_endpoint(&self) -> Option<Endpoint> {
-        self.socket.local_ep.get()
+        self.socket.local_ep
     }
 
     /// Returns the remote endpoint
@@ -96,7 +103,7 @@ impl<'n> TcpSocket<'n> {
     /// via [`connect`](TcpSocket::connect) or [`accept`](TcpSocket::accept)). Otherwise, the remote
     /// endpoint is `None`.
     pub fn remote_endpoint(&self) -> Option<Endpoint> {
-        self.socket.remote_ep.get()
+        self.socket.remote_ep
     }
 
     /// Puts this socket into listen mode on the given port.
@@ -115,8 +122,8 @@ impl<'n> TcpSocket<'n> {
         }
 
         let addr = self.nm.listen(self.socket.sd(), port)?;
-        self.socket.local_ep.set(Some(Endpoint::new(addr, port)));
-        self.socket.state.set(State::Listening);
+        self.socket.local_ep = Some(Endpoint::new(addr, port));
+        self.socket.state = State::Listening;
         Ok(())
     }
 
@@ -136,10 +143,10 @@ impl<'n> TcpSocket<'n> {
             return Err(Error::new(Code::AlreadyInProgress));
         }
 
-        let local_ep = self.nm.connect(self.fd(), endpoint)?;
-        self.socket.state.set(State::Connecting);
-        self.socket.remote_ep.set(Some(endpoint));
-        self.socket.local_ep.set(Some(local_ep));
+        let local_ep = self.nm.connect(self.socket.sd(), endpoint)?;
+        self.socket.state = State::Connecting;
+        self.socket.remote_ep = Some(endpoint);
+        self.socket.local_ep = Some(local_ep);
 
         if !self.is_blocking() {
             return Err(Error::new(Code::InProgress));
@@ -174,7 +181,7 @@ impl<'n> TcpSocket<'n> {
             return Err(Error::new(Code::InvState));
         }
 
-        self.socket.state.set(State::Connecting);
+        self.socket.state = State::Connecting;
         while self.state() == State::Connecting {
             if !self.is_blocking() {
                 return Err(Error::new(Code::InProgress));
@@ -290,8 +297,8 @@ impl<'n> TcpSocket<'n> {
 
         // ensure that we don't receive more data (which could block our event channel and thus
         // prevent us from receiving the closed event)
-        self.socket.state.set(State::Closing);
-        self.socket.recv_queue.borrow_mut().clear();
+        self.socket.state = State::Closing;
+        self.socket.recv_queue.clear();
 
         // now wait for the response; can be non-blocking
         while self.state() != State::Closed {
@@ -310,20 +317,28 @@ impl<'n> TcpSocket<'n> {
     /// the TCP protocol, but simply "forgets" this socket. Furthermore, it is *not* guaranteed that
     /// all data has already been transmitted. Use [`close`](TcpSocket::close) if that is important.
     pub fn abort(&mut self) -> Result<(), Error> {
-        self.nm.abort(self.fd(), false)?;
-        self.socket.recv_queue.borrow_mut().clear();
+        self.nm.abort(self.socket.sd(), false)?;
+        self.socket.recv_queue.clear();
         self.socket.disconnect();
         Ok(())
     }
 }
 
-impl File for TcpSocket<'_> {
-    fn fd(&self) -> Fd {
-        self.socket.sd()
+impl File for TcpSocket {
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 
-    fn set_fd(&mut self, _fd: Fd) {
-        // not used
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn fd(&self) -> Fd {
+        self.fd
+    }
+
+    fn set_fd(&mut self, fd: Fd) {
+        self.fd = fd;
     }
 
     fn file_type(&self) -> u8 {
@@ -345,45 +360,49 @@ impl File for TcpSocket<'_> {
         self.socket.set_blocking(blocking);
         Ok(())
     }
+
+    fn check_events(&mut self, events: FileEvent) -> bool {
+        self.socket.has_events(events)
+    }
 }
 
-impl io::Read for TcpSocket<'_> {
+impl io::Read for TcpSocket {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
         self.recv(buf)
     }
 }
 
-impl io::Write for TcpSocket<'_> {
+impl io::Write for TcpSocket {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
         self.send(buf)
     }
 }
 
-impl vfs::Seek for TcpSocket<'_> {
+impl vfs::Seek for TcpSocket {
 }
 
-impl vfs::Map for TcpSocket<'_> {
+impl vfs::Map for TcpSocket {
 }
 
-impl HashInput for TcpSocket<'_> {
+impl HashInput for TcpSocket {
 }
 
-impl HashOutput for TcpSocket<'_> {
+impl HashOutput for TcpSocket {
 }
 
-impl fmt::Debug for TcpSocket<'_> {
+impl fmt::Debug for TcpSocket {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "TcpSocket")
     }
 }
 
-impl Drop for TcpSocket<'_> {
+impl Drop for TcpSocket {
     fn drop(&mut self) {
         // use blocking mode here, because we cannot leave here until the socket is closed.
         self.set_blocking(true).unwrap();
         // ignore errors
         self.close().ok();
 
-        self.nm.remove_socket(self.socket.sd());
+        self.nm.abort(self.socket.sd(), true).ok();
     }
 }

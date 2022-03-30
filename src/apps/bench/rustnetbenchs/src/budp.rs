@@ -18,10 +18,10 @@ use m3::errors::{Code, Error};
 use m3::format;
 use m3::net::{DgramSocketArgs, Endpoint, UdpSocket};
 use m3::println;
-use m3::session::{NetworkDirection, NetworkManager};
+use m3::session::NetworkManager;
 use m3::test;
 use m3::time::{Results, TimeDuration, TimeInstant};
-use m3::vfs::File;
+use m3::vfs::{File, FileEvent, FileRef, FileWaiter};
 use m3::{wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test};
 
 const TIMEOUT: TimeDuration = TimeDuration::from_secs(1);
@@ -35,15 +35,15 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn send_recv(
-    nm: &NetworkManager,
-    socket: &mut UdpSocket<'_>,
+    waiter: &mut FileWaiter,
+    socket: &mut FileRef<UdpSocket>,
     dest: Endpoint,
     msg: &mut [u8],
     timeout: TimeDuration,
 ) -> Result<usize, Error> {
     wv_assert_ok!(socket.send_to(msg, dest));
 
-    nm.wait_for(timeout, NetworkDirection::INPUT);
+    waiter.wait_for(timeout, FileEvent::INPUT);
 
     if socket.has_data() {
         socket.recv(msg)
@@ -55,7 +55,7 @@ fn send_recv(
 
 fn latency() {
     let nm = wv_assert_ok!(NetworkManager::new("net"));
-    let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(&nm)));
+    let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(nm)));
 
     wv_assert_ok!(socket.set_blocking(false));
 
@@ -64,10 +64,13 @@ fn latency() {
 
     let mut buf = [0u8; 1024];
 
+    let mut waiter = FileWaiter::default();
+    waiter.add(socket.fd());
+
     // do one initial send-receive with a higher timeout than the smoltcp-internal timeout to
     // workaround the high ARP-request delay with the loopback device.
     wv_assert_ok!(send_recv(
-        &nm,
+        &mut waiter,
         &mut socket,
         dest,
         &mut buf,
@@ -77,7 +80,7 @@ fn latency() {
     // warmup
     for _ in 0..5 {
         // ignore failures here
-        send_recv(&nm, &mut socket, dest, &mut buf, TIMEOUT).ok();
+        send_recv(&mut waiter, &mut socket, dest, &mut buf, TIMEOUT).ok();
     }
 
     let packet_sizes = [8, 16, 32, 64, 128, 256, 512, 1024];
@@ -88,9 +91,13 @@ fn latency() {
         for _ in 0..samples {
             let start = TimeInstant::now();
 
-            if let Ok(recv_size) =
-                send_recv(&nm, &mut socket, dest, &mut buf[0..*pkt_size], TIMEOUT)
-            {
+            if let Ok(recv_size) = send_recv(
+                &mut waiter,
+                &mut socket,
+                dest,
+                &mut buf[0..*pkt_size],
+                TIMEOUT,
+            ) {
                 let stop = TimeInstant::now();
 
                 wv_assert_eq!(*pkt_size, recv_size as usize);
@@ -118,7 +125,7 @@ fn bandwidth() {
 
     let nm = wv_assert_ok!(NetworkManager::new("net"));
     let mut socket = wv_assert_ok!(UdpSocket::new(
-        DgramSocketArgs::new(&nm)
+        DgramSocketArgs::new(nm)
             .send_buffer(8, 64 * 1024)
             .recv_buffer(32, 256 * 1024)
     ));
@@ -128,9 +135,12 @@ fn bandwidth() {
 
     let mut buf = [0u8; 1024];
 
+    let mut waiter = FileWaiter::default();
+    waiter.add(socket.fd());
+
     for _ in 0..10 {
         // ignore errors here
-        send_recv(&nm, &mut socket, dest, &mut buf, TIMEOUT).ok();
+        send_recv(&mut waiter, &mut socket, dest, &mut buf, TIMEOUT).ok();
     }
 
     let start = TimeInstant::now();
@@ -147,12 +157,12 @@ fn bandwidth() {
                 let rem = timeout.checked_duration_since(TimeInstant::now());
                 match rem {
                     // we are not interested in output anymore
-                    Some(d) => nm.wait_for(d, NetworkDirection::INPUT),
+                    Some(d) => waiter.wait_for(d, FileEvent::INPUT),
                     None => break,
                 }
             }
             else {
-                nm.wait(NetworkDirection::INPUT | NetworkDirection::OUTPUT);
+                waiter.wait(FileEvent::INPUT | FileEvent::OUTPUT);
             }
         }
 

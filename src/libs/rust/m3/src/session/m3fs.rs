@@ -20,6 +20,7 @@ use core::any::Any;
 use core::cmp;
 use core::fmt;
 
+use crate::boxed::Box;
 use crate::cap::Selector;
 use crate::cell::RefCell;
 use crate::col::Vec;
@@ -32,7 +33,7 @@ use crate::serialize::Source;
 use crate::session::ClientSession;
 use crate::tiles::{Activity, StateSerializer};
 use crate::vfs::{
-    FSHandle, FSOperation, FileHandle, FileInfo, FileMode, FileSystem, GenericFile, OpenFlags,
+    FSHandle, FSOperation, File, FileInfo, FileMode, FileSystem, GenericFile, OpenFlags,
     StatResponse,
 };
 
@@ -119,7 +120,7 @@ impl FileSystem for M3FS {
         self.id
     }
 
-    fn open(&mut self, path: &str, flags: OpenFlags) -> Result<FileHandle, Error> {
+    fn open(&mut self, path: &str, flags: OpenFlags) -> Result<Box<dyn File>, Error> {
         if !flags.contains(OpenFlags::NEW_SESS) {
             let ep_idx = self.get_ep()?;
 
@@ -136,13 +137,13 @@ impl FileSystem for M3FS {
             // mark ep as in-use
             self.eps[ep_idx].file = Some(file_id);
 
-            Ok(Rc::new(RefCell::new(GenericFile::new_without_sess(
+            Ok(Box::new(GenericFile::new_without_sess(
                 flags,
                 self.sess.sel(),
                 (self.id(), file_id),
                 self.eps[ep_idx].ep.id(),
                 self.sgate.clone(),
-            ))))
+            )))
         }
         else {
             let crd = self.sess.obtain(
@@ -154,7 +155,7 @@ impl FileSystem for M3FS {
                 },
                 |_| Ok(()),
             )?;
-            Ok(Rc::new(RefCell::new(GenericFile::new(flags, crd.start()))))
+            Ok(Box::new(GenericFile::new(flags, crd.start())))
         }
     }
 

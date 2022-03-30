@@ -43,8 +43,7 @@ use crate::tiles::{
 };
 use crate::time::TimeDuration;
 use crate::tmif;
-use crate::vfs::{BufReader, FileRef, OpenFlags, VFS};
-use crate::vfs::{FileTable, MountTable};
+use crate::vfs::{BufReader, FileTable, GenFileRef, MountTable, OpenFlags, VFS};
 
 /// Represents an activity on a tile.
 ///
@@ -468,7 +467,7 @@ impl Activity {
         let mut mapper = DefaultMapper::new(self.tile_desc().has_virtmem());
 
         let func_addr = func as *const () as usize;
-        self.do_exec_file(&mut mapper, file, &args, Some(func_addr))
+        self.do_exec_file(&mut mapper, file.into_generic(), &args, Some(func_addr))
     }
 
     /// Executes the given program and arguments with `self`.
@@ -478,7 +477,7 @@ impl Activity {
     pub fn exec<S: AsRef<str>>(self, args: &[S]) -> Result<RunningProgramActivity, Error> {
         let file = VFS::open(args[0].as_ref(), OpenFlags::RX | OpenFlags::NEW_SESS)?;
         let mut mapper = DefaultMapper::new(self.tile_desc().has_virtmem());
-        self.exec_file(&mut mapper, file, args)
+        self.exec_file(&mut mapper, file.into_generic(), args)
     }
 
     /// Executes the program given as a [`FileRef`] with `self`, using `mapper` to initiate the
@@ -492,7 +491,7 @@ impl Activity {
     pub fn exec_file<S: AsRef<str>>(
         self,
         mapper: &mut dyn Mapper,
-        file: FileRef,
+        file: GenFileRef,
         args: &[S],
     ) -> Result<RunningProgramActivity, Error> {
         self.do_exec_file(mapper, file, args, None)
@@ -503,7 +502,7 @@ impl Activity {
     fn do_exec_file<S: AsRef<str>>(
         mut self,
         mapper: &mut dyn Mapper,
-        mut file: FileRef,
+        mut file: GenFileRef,
         args: &[S],
         closure: Option<usize>,
     ) -> Result<RunningProgramActivity, Error> {
@@ -609,7 +608,7 @@ impl Activity {
     fn do_exec_file<S: AsRef<str>>(
         mut self,
         _mapper: &dyn Mapper,
-        mut file: FileRef,
+        mut file: GenFileRef,
         args: &[S],
         closure: Option<usize>,
     ) -> Result<RunningProgramActivity, Error> {

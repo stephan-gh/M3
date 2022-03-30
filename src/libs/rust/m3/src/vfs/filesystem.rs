@@ -19,12 +19,13 @@
 use core::any::Any;
 use core::fmt;
 
+use crate::boxed::Box;
 use crate::cap::Selector;
 use crate::col::Vec;
 use crate::errors::Error;
 use crate::int_enum;
 use crate::tiles::StateSerializer;
-use crate::vfs::{FileHandle, FileInfo, FileMode, OpenFlags};
+use crate::vfs::{File, FileInfo, FileMode, OpenFlags};
 
 int_enum! {
     /// The file system operations.
@@ -52,7 +53,7 @@ pub trait FileSystem: fmt::Debug {
     fn id(&self) -> usize;
 
     /// Opens the file at `path` with given flags.
-    fn open(&mut self, path: &str, flags: OpenFlags) -> Result<FileHandle, Error>;
+    fn open(&mut self, path: &str, flags: OpenFlags) -> Result<Box<dyn File>, Error>;
 
     /// Closes the given file.
     fn close(&mut self, file_id: usize);

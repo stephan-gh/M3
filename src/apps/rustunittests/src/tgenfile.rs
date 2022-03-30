@@ -20,7 +20,7 @@ use m3::col::Vec;
 use m3::errors::Code;
 use m3::io::{Read, Write};
 use m3::test;
-use m3::vfs::{FileRef, OpenFlags, Seek, SeekMode, VFS};
+use m3::vfs::{File, FileRef, GenericFile, OpenFlags, Seek, SeekMode, VFS};
 use m3::{vec, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -278,14 +278,14 @@ fn _get_pat_vector(size: usize) -> Vec<u8> {
 fn _validate_pattern_file(filename: &str, size: usize) {
     let mut file = wv_assert_ok!(VFS::open(filename, OpenFlags::R));
 
-    let info = wv_assert_ok!(file.borrow().stat());
+    let info = wv_assert_ok!(file.stat());
     wv_assert_eq!({ info.size }, size);
 
     let mut buf = [0u8; 1024];
     wv_assert_eq!(_validate_pattern_content(&mut file, &mut buf), size);
 }
 
-fn _validate_pattern_content(file: &mut FileRef, buf: &mut [u8]) -> usize {
+fn _validate_pattern_content(file: &mut FileRef<GenericFile>, buf: &mut [u8]) -> usize {
     let mut pos: usize = 0;
     loop {
         let count = wv_assert_ok!(file.read(buf));

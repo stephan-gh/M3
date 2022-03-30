@@ -14,9 +14,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * General Public License version 2 for more details.
  */
-
+use core::any::Any;
 use core::fmt;
 
+use crate::boxed::Box;
 use crate::errors::Error;
 use crate::io;
 use crate::net::{
@@ -25,17 +26,19 @@ use crate::net::{
 };
 use crate::rc::Rc;
 use crate::session::{HashInput, HashOutput, NetworkManager};
-use crate::vfs::{self, Fd, File};
+use crate::tiles::Activity;
+use crate::vfs::{self, Fd, File, FileEvent, FileRef, INV_FD};
 
-pub type RawSocketArgs<'a> = DgramSocketArgs<'a>;
+pub type RawSocketArgs = DgramSocketArgs;
 
 /// Represents a raw internet protocol (IP) socket
-pub struct RawSocket<'n> {
-    socket: Rc<Socket>,
-    nm: &'n NetworkManager,
+pub struct RawSocket {
+    fd: Fd,
+    socket: Socket,
+    nm: Rc<NetworkManager>,
 }
 
-impl<'n> RawSocket<'n> {
+impl RawSocket {
     /// Creates a new raw IP socket with given arguments.
     ///
     /// By default, the socket is in blocking mode, that is, all functions
@@ -44,11 +47,14 @@ impl<'n> RawSocket<'n> {
     ///
     /// Creation of a raw socket requires that the used session has permission to do so. This is
     /// controlled with the "raw=yes" argument in the session argument of M³'s config files.
-    pub fn new(args: RawSocketArgs<'n>, protocol: Option<u8>) -> Result<Self, Error> {
-        Ok(RawSocket {
+    pub fn new(args: RawSocketArgs, protocol: Option<u8>) -> Result<FileRef<Self>, Error> {
+        let sock = Box::new(RawSocket {
             socket: args.nm.create(SocketType::Raw, protocol, &args.args)?,
             nm: args.nm,
-        })
+            fd: INV_FD,
+        });
+        let fd = Activity::cur().files().add(sock)?;
+        Ok(FileRef::new_owned(fd))
     }
 
     /// Returns whether data can currently be received from the socket
@@ -62,7 +68,7 @@ impl<'n> RawSocket<'n> {
     /// Receives data from the socket into the given buffer.
     ///
     /// Returns the number of received bytes.
-    pub fn recv(&self, data: &mut [u8]) -> Result<usize, Error> {
+    pub fn recv(&mut self, data: &mut [u8]) -> Result<usize, Error> {
         self.socket.next_data(data.len(), |buf, _ep| {
             data[0..buf.len()].copy_from_slice(buf);
             (buf.len(), buf.len())
@@ -75,13 +81,21 @@ impl<'n> RawSocket<'n> {
     }
 }
 
-impl File for RawSocket<'_> {
-    fn fd(&self) -> Fd {
-        self.socket.sd()
+impl File for RawSocket {
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 
-    fn set_fd(&mut self, _fd: Fd) {
-        // not used
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn fd(&self) -> Fd {
+        self.fd
+    }
+
+    fn set_fd(&mut self, fd: Fd) {
+        self.fd = fd;
     }
 
     fn file_type(&self) -> u8 {
@@ -103,41 +117,45 @@ impl File for RawSocket<'_> {
         self.socket.set_blocking(blocking);
         Ok(())
     }
+
+    fn check_events(&mut self, events: FileEvent) -> bool {
+        self.socket.has_events(events)
+    }
 }
 
-impl io::Read for RawSocket<'_> {
+impl io::Read for RawSocket {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
         self.recv(buf)
     }
 }
 
-impl io::Write for RawSocket<'_> {
+impl io::Write for RawSocket {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
         self.send(buf).map(|_| buf.len())
     }
 }
 
-impl vfs::Seek for RawSocket<'_> {
+impl vfs::Seek for RawSocket {
 }
 
-impl vfs::Map for RawSocket<'_> {
+impl vfs::Map for RawSocket {
 }
 
-impl HashInput for RawSocket<'_> {
+impl HashInput for RawSocket {
 }
 
-impl HashOutput for RawSocket<'_> {
+impl HashOutput for RawSocket {
 }
 
-impl fmt::Debug for RawSocket<'_> {
+impl fmt::Debug for RawSocket {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "RawSocket")
     }
 }
 
-impl Drop for RawSocket<'_> {
+impl Drop for RawSocket {
     fn drop(&mut self) {
         self.socket.tear_down();
-        self.nm.remove_socket(self.socket.sd());
+        self.nm.abort(self.socket.sd(), true).ok();
     }
 }

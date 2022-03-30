@@ -16,7 +16,7 @@
 use m3::col::{ToString, Vec};
 use m3::io::{Read, Write};
 use m3::test::WvTester;
-use m3::vfs::{read_dir, FileRef, OpenFlags, VFS};
+use m3::vfs::{read_dir, FileRef, GenericFile, OpenFlags, VFS};
 use m3::{vec, wv_assert_eq, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn WvTester) {
@@ -43,10 +43,10 @@ fn text_files() {
 }
 
 fn pat_file() {
-    let mut file = wv_assert_ok!(VFS::open("/pat.bin", OpenFlags::R));
+    let file = wv_assert_ok!(VFS::open("/pat.bin", OpenFlags::R));
     let mut buf = vec![0u8; 8 * 1024];
 
-    wv_assert_eq!(_validate_pattern_content(&mut file, &mut buf), 64 * 1024);
+    wv_assert_eq!(_validate_pattern_content(file, &mut buf), 64 * 1024);
 }
 
 fn write_file() {
@@ -85,7 +85,7 @@ fn list_dir() {
     wv_assert_eq!(vec[3], "test.txt");
 }
 
-fn _validate_pattern_content(file: &mut FileRef, buf: &mut [u8]) -> usize {
+fn _validate_pattern_content(mut file: FileRef<GenericFile>, buf: &mut [u8]) -> usize {
     let mut pos: usize = 0;
     loop {
         let count = wv_assert_ok!(file.read(buf));

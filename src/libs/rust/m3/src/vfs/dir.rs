@@ -22,7 +22,7 @@ use crate::col::String;
 use crate::errors::Error;
 use crate::io::{read_object, Read};
 use crate::mem;
-use crate::vfs::{BufReader, FileRef, INodeId, OpenFlags, Seek, SeekMode, VFS};
+use crate::vfs::{BufReader, FileRef, GenericFile, INodeId, OpenFlags, Seek, SeekMode, VFS};
 
 /// Represents a directory entry.
 #[derive(Debug)]
@@ -50,7 +50,7 @@ impl DirEntry {
 
 /// An iterator to walk over a directory.
 pub struct ReadDir {
-    reader: BufReader<FileRef>,
+    reader: BufReader<FileRef<GenericFile>>,
 }
 
 impl iter::Iterator for ReadDir {

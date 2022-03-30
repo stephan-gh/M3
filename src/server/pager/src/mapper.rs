@@ -19,7 +19,7 @@ use m3::kif::Perm;
 use m3::session::MapFlags;
 use m3::session::Pager;
 use m3::tiles::Mapper;
-use m3::vfs;
+use m3::vfs::{self, File};
 
 use crate::AddrSpace;
 
@@ -41,7 +41,7 @@ impl<'a> Mapper for ChildMapper<'a> {
     fn map_file(
         &mut self,
         _pager: Option<&Pager>,
-        file: &mut vfs::BufReader<vfs::FileRef>,
+        file: &mut vfs::BufReader<vfs::GenFileRef>,
         foff: usize,
         virt: goff,
         len: usize,
@@ -49,7 +49,7 @@ impl<'a> Mapper for ChildMapper<'a> {
         flags: MapFlags,
     ) -> Result<bool, Error> {
         if self.has_virtmem {
-            let sess = file.get_ref().borrow().session().unwrap();
+            let sess = file.get_ref().session().unwrap();
             self.aspace
                 .map_ds_with(virt, len as goff, foff as goff, perm, flags, sess)
                 .map(|_| false)

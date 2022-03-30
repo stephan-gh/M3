@@ -15,17 +15,12 @@
  */
 
 use base::int_enum;
-use bitflags::bitflags;
 
-use crate::cell::RefCell;
-use crate::col::Vec;
 use crate::com::{RecvGate, SendGate};
 use crate::errors::Error;
 use crate::net::{Endpoint, IpAddr, NetEventChannel, Port, Sd, Socket, SocketArgs, SocketType};
 use crate::rc::Rc;
 use crate::session::ClientSession;
-use crate::tiles::Activity;
-use crate::time::{TimeDuration, TimeInstant};
 use crate::vfs::GenFileOp;
 
 int_enum! {
@@ -50,16 +45,6 @@ int_enum! {
     }
 }
 
-bitflags! {
-    /// A bitmask of directions for [`NetworkManager::wait`].
-    pub struct NetworkDirection : usize {
-        /// Data can be received or the socket state has changed
-        const INPUT         = 1;
-        /// Data can be sent
-        const OUTPUT        = 2;
-    }
-}
-
 /// Represents a session at the network service, allowing to create and use sockets
 ///
 /// To exchange events and data with the server, the [`NetEventChannel`] is used, which allows to
@@ -70,12 +55,11 @@ pub struct NetworkManager {
     #[allow(dead_code)] // Needs to keep the session alive
     client_session: ClientSession,
     metagate: SendGate,
-    sockets: RefCell<Vec<Rc<Socket>>>,
 }
 
 impl NetworkManager {
     /// Creates a new instance for `service`
-    pub fn new(service: &str) -> Result<Self, Error> {
+    pub fn new(service: &str) -> Result<Rc<Self>, Error> {
         let client_session = ClientSession::new(service)?;
 
         // Obtain meta gate for the service
@@ -85,73 +69,10 @@ impl NetworkManager {
             |_source| Ok(()),
         )?;
 
-        Ok(NetworkManager {
+        Ok(Rc::new(NetworkManager {
             client_session,
             metagate: SendGate::new_bind(sgate_crd.start()),
-            sockets: RefCell::new(Vec::new()),
-        })
-    }
-
-    /// Waits until any socket has received input (including state-change events) or can produce
-    /// output.
-    ///
-    /// Note that [`NetworkDirection::INPUT`] has to be specified to process events (state changes
-    /// and data).
-    ///
-    /// Note also that this function uses [`Activity::sleep`] if no input/output on any socket is
-    /// possible, which suspends the core until the next TCU message arrives. Thus, calling this
-    /// function can only be done if all work is done.
-    pub fn wait(&self, dirs: NetworkDirection) {
-        loop {
-            if self.tick_sockets(dirs) {
-                break;
-            }
-
-            // ignore errors
-            Activity::sleep().ok();
-        }
-    }
-
-    /// Waits until any socket has received input (including state-change events) or can produce
-    /// output or the given timeout in nanoseconds is reached.
-    ///
-    /// Note that [`NetworkDirection::INPUT`] has to be specified to process events (state changes
-    /// and data).
-    ///
-    /// Note also that this function uses [`Activity::sleep`] if no input/output on any socket is
-    /// possible, which suspends the core until the next TCU message arrives. Thus, calling this
-    /// function can only be done if all work is done.
-    pub fn wait_for(&self, timeout: TimeDuration, dirs: NetworkDirection) {
-        let end = TimeInstant::now() + timeout;
-        loop {
-            let now = TimeInstant::now();
-            let duration = end.checked_duration_since(now);
-            if duration.is_none() || self.tick_sockets(dirs) {
-                break;
-            }
-
-            // ignore errors
-            Activity::sleep_for(duration.unwrap()).ok();
-        }
-    }
-
-    /// Sleep for the given duration, respecting messages that may arrive for sockets.
-    ///
-    /// Note that this function uses [`Activity::sleep`] if no input/output on any socket is possible,
-    /// which suspends the core until the next TCU message arrives. Thus, calling this function can
-    /// only be done if all work is done.
-    pub fn sleep_for(&self, duration: TimeDuration) {
-        let end = TimeInstant::now() + duration;
-        loop {
-            self.tick_sockets(NetworkDirection::empty());
-
-            let now = TimeInstant::now();
-            match end.checked_duration_since(now) {
-                // ignore errors
-                Some(d) => Activity::sleep_for(d).ok(),
-                None => break,
-            };
-        }
+        }))
     }
 
     /// Returns the local IP address
@@ -161,25 +82,12 @@ impl NetworkManager {
         Ok(addr)
     }
 
-    fn tick_sockets(&self, dirs: NetworkDirection) -> bool {
-        let mut found = false;
-        for sock in self.sockets.borrow_mut().iter() {
-            sock.fetch_replies();
-            if (dirs.contains(NetworkDirection::INPUT) && sock.process_events())
-                || (dirs.contains(NetworkDirection::OUTPUT) && sock.can_send())
-            {
-                found = true;
-            }
-        }
-        found
-    }
-
     pub(crate) fn create(
         &self,
         ty: SocketType,
         protocol: Option<u8>,
         args: &SocketArgs,
-    ) -> Result<Rc<Socket>, Error> {
+    ) -> Result<Socket, Error> {
         let mut sd = 0;
         let crd = self.client_session.obtain(
             2,
@@ -199,15 +107,7 @@ impl NetworkManager {
         )?;
 
         let chan = NetEventChannel::new_client(crd.start())?;
-        let sock = Socket::new(sd, ty, chan);
-        self.sockets.borrow_mut().push(sock.clone());
-        Ok(sock)
-    }
-
-    pub(crate) fn remove_socket(&self, sd: Sd) {
-        // ignore errors
-        self.abort(sd, true).ok();
-        self.sockets.borrow_mut().retain(|s| s.sd() != sd);
+        Ok(Socket::new(sd, ty, chan))
     }
 
     pub(crate) fn bind(&self, sd: Sd, port: Port) -> Result<(IpAddr, Port), Error> {

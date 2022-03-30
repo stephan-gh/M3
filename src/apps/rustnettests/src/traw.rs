@@ -35,7 +35,7 @@ fn no_perm() {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
     wv_assert_err!(
-        RawSocket::new(RawSocketArgs::new(&nm), None).map(|_| ()),
+        RawSocket::new(RawSocketArgs::new(nm), None).map(|_| ()),
         Code::NoPerm
     );
 }
@@ -62,7 +62,7 @@ fn exec_ping() {
 
     pipe.close_writer();
 
-    let input = Activity::cur().files().get_ref(pipe.reader_fd()).unwrap();
+    let input = Activity::cur().files().get(pipe.reader_fd()).unwrap();
     let mut reader = BufReader::new(input);
     let mut line = String::new();
     while reader.read_line(&mut line).is_ok() {

@@ -27,6 +27,7 @@ use m3::session::NetworkManager;
 use m3::time::{TimeDuration, TimeInstant};
 use m3::util;
 use m3::vec;
+use m3::vfs::{FileRef, FileWaiter};
 
 #[repr(packed, C)]
 struct IPv4Header {
@@ -62,7 +63,7 @@ const ICMP_CMD_ECHO_REPLY: u8 = 0x00;
 
 fn send_echo(
     buf: &mut [u8],
-    sock: &RawSocket<'_>,
+    sock: &FileRef<RawSocket>,
     src: IpAddr,
     dest: IpAddr,
     nbytes: usize,
@@ -112,7 +113,7 @@ fn send_echo(
     sock.send(&buf[0..total as usize])
 }
 
-fn recv_reply(buf: &mut [u8], sock: &RawSocket<'_>) -> Result<(), VerboseError> {
+fn recv_reply(buf: &mut [u8], sock: &mut FileRef<RawSocket>) -> Result<(), VerboseError> {
     let send_time = TimeInstant::now();
 
     loop {
@@ -240,8 +241,8 @@ pub fn main() -> i32 {
 
     let nm = NetworkManager::new("net").expect("connecting to net failed");
 
-    let raw_socket = RawSocket::new(
-        RawSocketArgs::new(&nm)
+    let mut raw_socket = RawSocket::new(
+        RawSocketArgs::new(nm.clone())
             .send_buffer(8, 64 * 1024)
             .recv_buffer(8, 64 * 1024),
         Some(IP_PROTO_ICMP),
@@ -257,6 +258,9 @@ pub fn main() -> i32 {
 
     println!("PING {} {} data bytes", settings.dest, settings.nbytes);
 
+    let mut waiter = FileWaiter::default();
+    waiter.add(raw_socket.fd());
+
     let start = TimeInstant::now();
     for i in 1..=settings.count {
         send_echo(
@@ -271,10 +275,10 @@ pub fn main() -> i32 {
         .expect("Sending ICMP echo failed");
         sent += 1;
 
-        recv_reply(&mut buf, &raw_socket).expect("Receiving ICMP echo failed");
+        recv_reply(&mut buf, &mut raw_socket).expect("Receiving ICMP echo failed");
         received += 1;
 
-        nm.sleep_for(TimeDuration::from_millis(settings.interval));
+        waiter.sleep_for(TimeDuration::from_millis(settings.interval));
     }
 
     let end = TimeInstant::now();
