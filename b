@@ -313,6 +313,10 @@ case "$cmd" in
         export RUSTDOCFLAGS=$RUSTFLAGS
         for lib in src/libs/rust/*; do
             if [ -d "$lib" ]; then
+                # some crates can't be built for host
+                if [ "$M3_TARGET" = "host" ] && [[ $lib =~ "isr" ]]; then
+                    continue;
+                fi
                 ( cd "$lib" && cargo doc -Z build-std=core,alloc --target $RUST_TARGET )
             fi
         done
