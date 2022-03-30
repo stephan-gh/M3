@@ -34,7 +34,9 @@ use m3::rc::Rc;
 use m3::session::{ResMngActInfo, ResMngActInfoResult};
 use m3::syscalls;
 use m3::tcu;
-use m3::tiles::{Activity, KMem, Mapper, RunningActivity, RunningProgramActivity, TileQuota};
+use m3::tiles::{
+    Activity, ChildActivity, KMem, Mapper, RunningActivity, RunningProgramActivity, TileQuota,
+};
 use m3::vfs::GenFileRef;
 
 use crate::config::AppConfig;
@@ -819,7 +821,7 @@ impl OwnChild {
 
     pub fn start(
         &mut self,
-        act: Activity,
+        act: ChildActivity,
         mapper: &mut dyn Mapper,
         file: GenFileRef,
     ) -> Result<(), Error> {
@@ -897,10 +899,8 @@ impl Child for OwnChild {
             .as_ref()
             .unwrap()
             .activity()
-            .resmng()
-            .as_ref()
+            .resmng_sel()
             .unwrap()
-            .sel()
     }
 
     fn mem(&self) -> &Rc<ChildMem> {

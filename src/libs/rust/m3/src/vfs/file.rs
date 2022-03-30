@@ -190,12 +190,7 @@ pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
     /// Returns the type of the file implementation used for serialization.
     fn file_type(&self) -> u8;
     /// Exchanges the capabilities to provide `act` access to the file.
-    fn exchange_caps(
-        &self,
-        _act: Selector,
-        _dels: &mut Vec<Selector>,
-        _max_sel: &mut Selector,
-    ) -> Result<(), Error> {
+    fn exchange_caps(&self, _act: Selector, _dels: &mut Vec<Selector>) -> Result<Selector, Error> {
         Err(Error::new(Code::NotSup))
     }
     /// Serializes this file into `s`.

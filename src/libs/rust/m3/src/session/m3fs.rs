@@ -17,7 +17,6 @@
  */
 
 use core::any::Any;
-use core::cmp;
 use core::fmt;
 
 use crate::boxed::Box;
@@ -213,12 +212,7 @@ impl FileSystem for M3FS {
         b'M'
     }
 
-    fn exchange_caps(
-        &self,
-        act: Selector,
-        dels: &mut Vec<Selector>,
-        max_sel: &mut Selector,
-    ) -> Result<(), Error> {
+    fn exchange_caps(&self, act: Selector, dels: &mut Vec<Selector>) -> Result<Selector, Error> {
         dels.push(self.sess.sel());
 
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, self.sess.sel() + 1, 1);
@@ -228,8 +222,8 @@ impl FileSystem for M3FS {
             |os| os.push_word(FSOperation::GET_SGATE.val),
             |_| Ok(()),
         )?;
-        *max_sel = cmp::max(*max_sel, self.sess.sel() + 2);
-        Ok(())
+
+        Ok(self.sess.sel() + 2)
     }
 
     fn serialize(&self, s: &mut StateSerializer<'_>) {

@@ -21,7 +21,7 @@ use m3::errors::Code;
 use m3::io;
 use m3::io::{Read, Write};
 use m3::session::{HashInput, HashOutput, HashSession, Pipes};
-use m3::tiles::{Activity, RunningActivity, RunningProgramActivity, Tile};
+use m3::tiles::{Activity, ChildActivity, RunningActivity, RunningProgramActivity, Tile};
 use m3::vfs::{GenFileRef, IndirectPipe, OpenFlags, Seek, SeekMode, VFS};
 use m3::{format, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_assert_some, wv_run_test};
 use m3::{goff, println, test, tmif, util, vec};
@@ -162,9 +162,9 @@ fn _hash_file_start(
     expected: &str,
 ) -> RunningProgramActivity {
     let tile = wv_assert_ok!(Tile::get("clone|own"));
-    let mut act = wv_assert_ok!(Activity::new(tile, algo.name));
+    let mut act = wv_assert_ok!(ChildActivity::new(tile, algo.name));
 
-    // XXX act.files().set(io::STDIN_FILENO, file.handle());
+    act.add_file(io::STDIN_FILENO, file.fd());
 
     let mut dst = act.data_sink();
     dst.push_word(algo.ty.val);
@@ -403,15 +403,9 @@ fn shake_and_hash_pipe() {
 
     // Setup child activity that runs "hashsum shake128 -O 262144 -o -"
     let tile = wv_assert_ok!(Tile::get("clone|own"));
-    let mut act = wv_assert_ok!(Activity::new(tile, "shaker"));
-    act.files().set(
-        io::STDIN_FILENO,
-        wv_assert_some!(Activity::cur().files().get(ipipe.reader_fd())),
-    );
-    act.files().set(
-        io::STDOUT_FILENO,
-        wv_assert_some!(Activity::cur().files().get(opipe.writer_fd())),
-    );
+    let mut act = wv_assert_ok!(ChildActivity::new(tile, "shaker"));
+    act.add_file(io::STDIN_FILENO, ipipe.reader_fd());
+    act.add_file(io::STDOUT_FILENO, opipe.writer_fd());
     let closure = wv_assert_ok!(act.run(|| {
         let hash = wv_assert_ok!(HashSession::new("hash2", &HashAlgorithm::SHAKE128));
         wv_assert_ok!(io::stdin().get_mut().hash_input(&hash, usize::MAX));

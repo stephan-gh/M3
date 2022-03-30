@@ -29,7 +29,7 @@ use m3::mem::{size_of, GlobAddr};
 use m3::rc::Rc;
 use m3::server::DEF_MAX_CLIENTS;
 use m3::tcu::TileId;
-use m3::tiles::{Activity, Tile};
+use m3::tiles::{Activity, ChildActivity, Tile};
 
 use crate::childs;
 use crate::config;
@@ -697,7 +697,7 @@ impl SubsystemBuilder {
     pub fn finalize_async(
         &mut self,
         child: childs::Id,
-        act: &mut Activity,
+        act: &mut ChildActivity,
     ) -> Result<(), VerboseError> {
         let mut sel = SUBSYS_SELS;
         let mut off: goff = 0;

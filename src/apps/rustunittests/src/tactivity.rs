@@ -21,7 +21,7 @@ use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
 use m3::env;
 use m3::math;
 use m3::test;
-use m3::tiles::{Activity, ActivityArgs, RunningActivity, Tile};
+use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::time::TimeDuration;
 
 use m3::{send_vmsg, wv_assert_eq, wv_assert_ok, wv_run_test};
@@ -39,7 +39,6 @@ pub fn run(t: &mut dyn test::WvTester) {
 fn run_stop() {
     use m3::com::RGateArgs;
     use m3::vfs;
-    use m3::wv_assert_some;
 
     let mut rg = wv_assert_ok!(RecvGate::new_with(
         RGateArgs::default().order(6).msg_order(6)
@@ -50,15 +49,17 @@ fn run_stop() {
 
     let mut wait_time = TimeDuration::from_nanos(10000);
     for _ in 1..100 {
-        let mut act = wv_assert_ok!(Activity::new_with(tile.clone(), ActivityArgs::new("test")));
+        let mut act = wv_assert_ok!(ChildActivity::new_with(
+            tile.clone(),
+            ActivityArgs::new("test")
+        ));
 
         // pass sendgate to child
         let sg = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rg).credits(1)));
         wv_assert_ok!(act.delegate_obj(sg.sel()));
 
         // pass root fs to child
-        let rootmnt = wv_assert_some!(Activity::cur().mounts().get_by_path("/"));
-        wv_assert_ok!(act.mounts().add("/", rootmnt));
+        act.add_mount("/", "/");
 
         let mut dst = act.data_sink();
         dst.push_word(sg.sel());
@@ -82,7 +83,7 @@ fn run_stop() {
         wv_assert_ok!(recv_msg(&rg));
 
         // wait a bit and stop activity
-        wv_assert_ok!(Activity::sleep_for(wait_time));
+        wv_assert_ok!(Activity::cur().sleep_for(wait_time));
         wv_assert_ok!(act.stop());
 
         // increase by one ns to attempt interrupts at many points in the instruction stream
@@ -92,7 +93,7 @@ fn run_stop() {
 
 fn run_arguments() {
     let tile = wv_assert_ok!(Tile::get("clone|own"));
-    let act = wv_assert_ok!(Activity::new_with(tile, ActivityArgs::new("test")));
+    let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
     let act = wv_assert_ok!(act.run(|| {
         wv_assert_eq!(env::args().count(), 1);
@@ -106,7 +107,7 @@ fn run_arguments() {
 
 fn run_send_receive() {
     let tile = wv_assert_ok!(Tile::get("clone|own"));
-    let mut act = wv_assert_ok!(Activity::new_with(tile, ActivityArgs::new("test")));
+    let mut act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
     let rgate = wv_assert_ok!(RecvGate::new(math::next_log2(256), math::next_log2(256)));
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
@@ -141,14 +142,17 @@ fn exec_fail() {
     let tile = wv_assert_ok!(Tile::get("clone|own"));
     // file too small
     {
-        let act = wv_assert_ok!(Activity::new_with(tile.clone(), ActivityArgs::new("test")));
+        let act = wv_assert_ok!(ChildActivity::new_with(
+            tile.clone(),
+            ActivityArgs::new("test")
+        ));
         let act = act.exec(&["/testfile.txt"]);
         assert!(act.is_err() && act.err().unwrap().code() == Code::EndOfFile);
     }
 
     // not an ELF file
     {
-        let act = wv_assert_ok!(Activity::new_with(tile, ActivityArgs::new("test")));
+        let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
         let act = act.exec(&["/pat.bin"]);
         assert!(act.is_err() && act.err().unwrap().code() == Code::InvalidElf);
     }
@@ -156,7 +160,7 @@ fn exec_fail() {
 
 fn exec_hello() {
     let tile = wv_assert_ok!(Tile::get("clone|own"));
-    let act = wv_assert_ok!(Activity::new_with(tile, ActivityArgs::new("test")));
+    let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
     let act = wv_assert_ok!(act.exec(&["/bin/hello"]));
     wv_assert_eq!(act.wait(), Ok(0));
@@ -164,7 +168,7 @@ fn exec_hello() {
 
 fn exec_rust_hello() {
     let tile = wv_assert_ok!(Tile::get("clone|own"));
-    let act = wv_assert_ok!(Activity::new_with(tile, ActivityArgs::new("test")));
+    let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
     let act = wv_assert_ok!(act.exec(&["/bin/rusthello"]));
     wv_assert_eq!(act.wait(), Ok(0));

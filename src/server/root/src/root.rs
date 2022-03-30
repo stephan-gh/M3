@@ -31,7 +31,7 @@ use m3::math;
 use m3::session::ResMng;
 use m3::syscalls;
 use m3::tcu;
-use m3::tiles::{Activity, ActivityArgs};
+use m3::tiles::{Activity, ActivityArgs, ChildActivity};
 use m3::vfs::FileRef;
 
 use resmng::childs::{self, Child, OwnChild};
@@ -66,7 +66,7 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
             .label(tcu::Label::from(child.id())),
     )?;
 
-    let mut act = Activity::new_with(
+    let mut act = ChildActivity::new_with(
         child.child_tile().unwrap().tile_obj().clone(),
         ActivityArgs::new(child.name())
             .resmng(ResMng::new(sgate))
@@ -74,8 +74,8 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
     )
     .map_err(|e| VerboseError::new(e.code(), "Unable to create Activity".to_string()))?;
 
-    if let Some(fs) = Activity::cur().mounts().get_by_path("/") {
-        act.mounts().add("/", fs)?;
+    if Activity::cur().mounts().get_by_path("/").is_some() {
+        act.add_mount("/", "/");
     }
 
     let id = child.id();

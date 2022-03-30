@@ -199,12 +199,16 @@ impl NetEventChannel {
 
     pub fn wait_for_events(&self) {
         // ignore errors
-        Activity::wait_for(Some(self.rgate.ep().unwrap()), None, None).ok();
+        Activity::cur()
+            .wait_for(Some(self.rgate.ep().unwrap()), None, None)
+            .ok();
     }
 
     pub fn wait_for_credits(&self) {
         // ignore errors
-        Activity::wait_for(Some(self.rpl_gate.ep().unwrap()), None, None).ok();
+        Activity::cur()
+            .wait_for(Some(self.rpl_gate.ep().unwrap()), None, None)
+            .ok();
     }
 
     pub fn can_send(&self) -> Result<bool, Error> {

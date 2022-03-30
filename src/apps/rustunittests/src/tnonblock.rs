@@ -63,7 +63,7 @@ fn pipes() {
         }
 
         if count < 100 && progress == 0 {
-            Activity::sleep().ok();
+            Activity::cur().sleep().ok();
         }
     }
 }

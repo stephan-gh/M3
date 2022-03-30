@@ -45,14 +45,9 @@ impl vfs::File for io::Serial {
         b'S'
     }
 
-    fn exchange_caps(
-        &self,
-        _act: Selector,
-        _dels: &mut Vec<Selector>,
-        _max_sel: &mut Selector,
-    ) -> Result<(), Error> {
+    fn exchange_caps(&self, _act: Selector, _dels: &mut Vec<Selector>) -> Result<Selector, Error> {
         // nothing to do
-        Ok(())
+        Ok(0)
     }
 }
 

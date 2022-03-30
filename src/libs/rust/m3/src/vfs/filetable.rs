@@ -124,24 +124,27 @@ impl FileTable {
     pub(crate) fn collect_caps(
         &self,
         act: Selector,
+        map: &[(Fd, Fd)],
         dels: &mut Vec<Selector>,
-        max_sel: &mut Selector,
-    ) -> Result<(), Error> {
-        for file in self.files.iter().flatten() {
-            file.exchange_caps(act, dels, max_sel)?;
+    ) -> Result<Selector, Error> {
+        let mut max_sel = 0;
+        for (_c, fd) in map {
+            if let Some(file) = self.files[*fd].as_ref().map(|v| v.as_ref()) {
+                let sel = file.exchange_caps(act, dels)?;
+                max_sel = sel.max(max_sel);
+            }
         }
-        Ok(())
+        Ok(max_sel)
     }
 
-    pub(crate) fn serialize(&self, s: &mut StateSerializer<'_>) {
-        let count = self.files.iter().filter(|&f| f.is_some()).count();
-        s.push_word(count as u64);
+    pub(crate) fn serialize(&self, map: &[(Fd, Fd)], s: &mut StateSerializer<'_>) {
+        s.push_word(map.len() as u64);
 
-        for (fd, file) in self.files.iter().enumerate() {
-            if let Some(ref file_obj) = file {
-                s.push_word(fd as u64);
-                s.push_word(file_obj.file_type() as u64);
-                file_obj.serialize(s);
+        for (cfd, pfd) in map {
+            if let Some(file) = self.files[*pfd].as_ref().map(|v| v.as_ref()) {
+                s.push_word(*cfd as u64);
+                s.push_word(file.file_type() as u64);
+                file.serialize(s);
             }
         }
     }

@@ -388,17 +388,11 @@ impl File for GenericFile {
         b'F'
     }
 
-    fn exchange_caps(
-        &self,
-        act: Selector,
-        _dels: &mut Vec<Selector>,
-        max_sel: &mut Selector,
-    ) -> Result<(), Error> {
+    fn exchange_caps(&self, act: Selector, _dels: &mut Vec<Selector>) -> Result<Selector, Error> {
         let crd = CapRngDesc::new(CapType::OBJECT, self.sess.sel(), 2);
         self.sess
             .obtain_for(act, crd, |s| s.push_word(GenFileOp::CLONE.val), |_| Ok(()))?;
-        *max_sel = cmp::max(*max_sel, self.sess.sel() + 2);
-        Ok(())
+        Ok(self.sess.sel() + 2)
     }
 
     fn serialize(&self, s: &mut StateSerializer<'_>) {

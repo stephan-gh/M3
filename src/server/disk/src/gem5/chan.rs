@@ -237,7 +237,7 @@ impl Channel {
                 return Ok(());
             }
 
-            Activity::sleep_for(sleep)?;
+            Activity::cur().sleep_for(sleep)?;
             elapsed += sleep;
         }
 

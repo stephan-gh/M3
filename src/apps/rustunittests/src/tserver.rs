@@ -26,7 +26,7 @@ use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionConta
 use m3::session::{ClientSession, ServerSession};
 use m3::syscalls;
 use m3::test;
-use m3::tiles::{Activity, ActivityArgs, RunningActivity, Tile};
+use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::{send_vmsg, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -92,11 +92,17 @@ pub fn connect(name: &str) -> ClientSession {
 
 pub fn testnoresp() {
     let client_tile = wv_assert_ok!(Tile::get("clone|own"));
-    let client = wv_assert_ok!(Activity::new_with(client_tile, ActivityArgs::new("client")));
+    let client = wv_assert_ok!(ChildActivity::new_with(
+        client_tile,
+        ActivityArgs::new("client")
+    ));
 
     let server_tile = wv_assert_ok!(Tile::get("clone|own"));
     let cact = {
-        let serv = wv_assert_ok!(Activity::new_with(server_tile, ActivityArgs::new("server")));
+        let serv = wv_assert_ok!(ChildActivity::new_with(
+            server_tile,
+            ActivityArgs::new("server")
+        ));
 
         let sact = wv_assert_ok!(serv.run(server_crash_main));
 
@@ -118,10 +124,16 @@ pub fn testnoresp() {
 
 pub fn testcliexit() {
     let client_tile = wv_assert_ok!(Tile::get("clone|own"));
-    let mut client = wv_assert_ok!(Activity::new_with(client_tile, ActivityArgs::new("client")));
+    let mut client = wv_assert_ok!(ChildActivity::new_with(
+        client_tile,
+        ActivityArgs::new("client")
+    ));
 
     let server_tile = wv_assert_ok!(Tile::get("clone|own"));
-    let serv = wv_assert_ok!(Activity::new_with(server_tile, ActivityArgs::new("server")));
+    let serv = wv_assert_ok!(ChildActivity::new_with(
+        server_tile,
+        ActivityArgs::new("server")
+    ));
 
     let sact = wv_assert_ok!(serv.run(server_crash_main));
 
@@ -257,7 +269,10 @@ fn server_notsup_main() -> i32 {
 
 pub fn testcaps() {
     let server_tile = wv_assert_ok!(Tile::get("clone|own"));
-    let serv = wv_assert_ok!(Activity::new_with(server_tile, ActivityArgs::new("server")));
+    let serv = wv_assert_ok!(ChildActivity::new_with(
+        server_tile,
+        ActivityArgs::new("server")
+    ));
     let sact = wv_assert_ok!(serv.run(server_notsup_main));
 
     for i in 0..5 {

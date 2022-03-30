@@ -24,7 +24,7 @@ use m3::int_enum;
 use m3::kif::{Perm, TileDesc, TileISA, TileType};
 use m3::math;
 use m3::tcu::EpId;
-use m3::tiles::{Activity, RunningDeviceActivity, Tile};
+use m3::tiles::{ChildActivity, RunningDeviceActivity, Tile};
 
 const EP_INT: EpId = 16;
 const EP_DMA: EpId = 17;
@@ -125,7 +125,7 @@ pub struct Info {
 impl Device {
     pub fn new(name: &str, isa: TileISA) -> Result<Self, Error> {
         let tile = Tile::new(TileDesc::new(TileType::COMP_IMEM, isa, 0))?;
-        let act = Activity::new(tile, name)?;
+        let act = ChildActivity::new(tile, name)?;
         let act_sel = act.sel();
         let mem = act.get_mem(
             0,

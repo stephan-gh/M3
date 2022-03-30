@@ -146,8 +146,12 @@ impl ResMng {
 
     /// Clones this connection to be used by the given activity as well. `name` specifies the name of the
     /// activity.
-    pub fn clone(&self, act: &mut Activity, name: &str) -> Result<Self, Error> {
-        let sgate_sel = act.alloc_sel();
+    pub fn clone(
+        &self,
+        act: &mut Activity,
+        sgate_sel: Selector,
+        name: &str,
+    ) -> Result<Self, Error> {
         send_recv_res!(
             &self.sgate,
             RecvGate::def(),
@@ -331,7 +335,12 @@ impl ResMng {
         .and_then(|mut is| is.pop())
     }
 
-    fn use_op(&self, op: ResMngOperation, sel: Selector, name: &str) -> Result<GateIStream<'_>, Error> {
+    fn use_op(
+        &self,
+        op: ResMngOperation,
+        sel: Selector,
+        name: &str,
+    ) -> Result<GateIStream<'_>, Error> {
         send_recv_res!(&self.sgate, RecvGate::def(), op, sel, name)
     }
 }

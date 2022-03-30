@@ -20,7 +20,7 @@ use m3::com::{MemGate, Perm, Semaphore};
 use m3::crypto::HashAlgorithm;
 use m3::session::HashSession;
 use m3::test;
-use m3::tiles::{Activity, RunningActivity, RunningProgramActivity, Tile};
+use m3::tiles::{Activity, ChildActivity, RunningActivity, RunningProgramActivity, Tile};
 use m3::time::{CycleDuration, CycleInstant, Results, TimeDuration, TimeInstant};
 use m3::{format, log, println, wv_assert_ok, wv_perf, wv_run_test};
 
@@ -41,7 +41,7 @@ fn _start_background_client(num: usize, mgate: &MemGate, sem: &Semaphore, size: 
     log!(LOG_DEBUG, "Starting client {}", num);
 
     let tile = wv_assert_ok!(Tile::new(Activity::cur().tile_desc()));
-    let mut act = wv_assert_ok!(Activity::new(tile, &format!("hash-c{}", num)));
+    let mut act = wv_assert_ok!(ChildActivity::new(tile, &format!("hash-c{}", num)));
     let mgate = wv_assert_ok!(mgate.derive(0, size, Perm::R));
 
     wv_assert_ok!(act.delegate_obj(sem.sel()));

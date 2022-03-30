@@ -25,7 +25,9 @@ use m3::mem::MsgBuf;
 use m3::serialize::{Source, Unmarshallable};
 use m3::session::HashSession;
 use m3::tcu::INVALID_EP;
-use m3::tiles::{Activity, RunningActivity, RunningProgramActivity, StateSerializer, Tile};
+use m3::tiles::{
+    Activity, ChildActivity, RunningActivity, RunningProgramActivity, StateSerializer, Tile,
+};
 use m3::time::{CycleDuration, CycleInstant, Duration, Results};
 use m3::{format, log, println, send_recv, wv_assert_ok, wv_run_test};
 use m3::{math, mem, tcu, test};
@@ -171,7 +173,7 @@ where
 
 fn _start_client(params: ClientParams, rgate: &RecvGate, mgate: &MemGate) -> Client {
     let tile = wv_assert_ok!(Tile::new(Activity::cur().tile_desc()));
-    let mut act = wv_assert_ok!(Activity::new(tile, &format!("hash-c{}", params.num)));
+    let mut act = wv_assert_ok!(ChildActivity::new(tile, &format!("hash-c{}", params.num)));
 
     let sgate = wv_assert_ok!(SendGate::new_with(
         SGateArgs::new(rgate)

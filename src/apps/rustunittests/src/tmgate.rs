@@ -24,7 +24,7 @@ use m3::goff;
 use m3::math;
 use m3::session::MapFlags;
 use m3::test;
-use m3::tiles::{Activity, RunningActivity, Tile};
+use m3::tiles::{Activity, ChildActivity, RunningActivity, Tile};
 use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -109,7 +109,7 @@ fn remote_access() {
     let sem2 = wv_assert_ok!(Semaphore::create(0));
 
     let tile = wv_assert_ok!(Tile::get("clone"));
-    let mut child = wv_assert_ok!(Activity::new(tile, "child"));
+    let mut child = wv_assert_ok!(ChildActivity::new(tile, "child"));
 
     let virt = if child.tile_desc().has_virtmem() {
         let virt: goff = 0x3000_0000;
@@ -151,9 +151,7 @@ fn remote_access() {
         let sem2 = Semaphore::bind(sem2_sel);
         // write value to own address space
         let obj_addr = virt as *mut u64;
-        unsafe {
-            *obj_addr = 0xDEAD_BEEF
-        };
+        unsafe { *obj_addr = 0xDEAD_BEEF };
         //  notify parent that we're ready
         wv_assert_ok!(sem1.up());
         // wait for parent

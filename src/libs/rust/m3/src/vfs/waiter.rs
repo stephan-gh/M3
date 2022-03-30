@@ -46,7 +46,7 @@ impl FileWaiter {
             }
 
             // ignore errors
-            Activity::sleep().ok();
+            Activity::cur().sleep().ok();
         }
     }
 
@@ -66,7 +66,7 @@ impl FileWaiter {
             }
 
             // ignore errors
-            Activity::sleep_for(duration.unwrap()).ok();
+            Activity::cur().sleep_for(duration.unwrap()).ok();
         }
     }
 
@@ -83,7 +83,7 @@ impl FileWaiter {
             let now = TimeInstant::now();
             match end.checked_duration_since(now) {
                 // ignore errors
-                Some(d) => Activity::sleep_for(d).ok(),
+                Some(d) => Activity::cur().sleep_for(d).ok(),
                 None => break,
             };
         }

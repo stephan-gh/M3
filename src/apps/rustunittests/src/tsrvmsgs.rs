@@ -23,7 +23,7 @@ use m3::math::next_log2;
 use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::ServerSession;
 use m3::test;
-use m3::tiles::{Activity, ActivityArgs, RunningActivity, Tile};
+use m3::tiles::{ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::{reply_vmsg, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -131,7 +131,10 @@ pub fn testmsgs() {
     use m3::send_recv;
 
     let server_tile = wv_assert_ok!(Tile::get("clone|own"));
-    let serv = wv_assert_ok!(Activity::new_with(server_tile, ActivityArgs::new("server")));
+    let serv = wv_assert_ok!(ChildActivity::new_with(
+        server_tile,
+        ActivityArgs::new("server")
+    ));
     let sact = wv_assert_ok!(serv.run(server_msgs_main));
 
     {

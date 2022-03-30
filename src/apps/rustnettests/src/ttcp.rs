@@ -19,7 +19,7 @@ use m3::errors::Code;
 use m3::net::{Endpoint, IpAddr, State, StreamSocketArgs, TcpSocket};
 use m3::session::NetworkManager;
 use m3::test;
-use m3::tiles::{Activity, ActivityArgs, RunningActivity, Tile};
+use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::vec::Vec;
 use m3::vfs::{File, FileEvent, FileWaiter};
 use m3::{vec, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
@@ -153,7 +153,10 @@ fn nonblocking_client() {
 
 fn nonblocking_server() {
     let tile = wv_assert_ok!(Tile::get("clone|own"));
-    let mut act = wv_assert_ok!(Activity::new_with(tile, ActivityArgs::new("tcp-server")));
+    let mut act = wv_assert_ok!(ChildActivity::new_with(
+        tile,
+        ActivityArgs::new("tcp-server")
+    ));
 
     let sem = wv_assert_ok!(Semaphore::create(0));
     wv_assert_ok!(act.delegate_obj(sem.sel()));
@@ -237,7 +240,10 @@ fn open_close() {
 
 fn receive_after_close() {
     let tile = wv_assert_ok!(Tile::get("clone|own"));
-    let mut act = wv_assert_ok!(Activity::new_with(tile, ActivityArgs::new("tcp-server")));
+    let mut act = wv_assert_ok!(ChildActivity::new_with(
+        tile,
+        ActivityArgs::new("tcp-server")
+    ));
 
     let sem = wv_assert_ok!(Semaphore::create(0));
     wv_assert_ok!(act.delegate_obj(sem.sel()));

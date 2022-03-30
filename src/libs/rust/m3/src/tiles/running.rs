@@ -18,15 +18,15 @@
 use crate::errors::Error;
 use crate::kif;
 use crate::syscalls;
-use crate::tiles::Activity;
+use crate::tiles::ChildActivity;
 use crate::vfs::{BufReader, GenFileRef};
 
-/// Represents an activity that is run on a [`Activity`].
+/// Represents an activity that is run on a [`ChildActivity`].
 pub trait RunningActivity {
     /// Returns a reference to the activity.
-    fn activity(&self) -> &Activity;
+    fn activity(&self) -> &ChildActivity;
     /// Returns a mutable reference to the activity.
-    fn activity_mut(&mut self) -> &mut Activity;
+    fn activity_mut(&mut self) -> &mut ChildActivity;
 
     /// Starts the activity.
     fn start(&self) -> Result<(), Error> {
@@ -53,22 +53,22 @@ pub trait RunningActivity {
 
 /// The activity for [`Activity::start`].
 pub struct RunningDeviceActivity {
-    act: Activity,
+    act: ChildActivity,
 }
 
 impl RunningDeviceActivity {
     /// Creates a new `DeviceActivity` for the given activity.
-    pub fn new(act: Activity) -> Self {
+    pub fn new(act: ChildActivity) -> Self {
         Self { act }
     }
 }
 
 impl RunningActivity for RunningDeviceActivity {
-    fn activity(&self) -> &Activity {
+    fn activity(&self) -> &ChildActivity {
         &self.act
     }
 
-    fn activity_mut(&mut self) -> &mut Activity {
+    fn activity_mut(&mut self) -> &mut ChildActivity {
         &mut self.act
     }
 }
@@ -79,25 +79,25 @@ impl Drop for RunningDeviceActivity {
     }
 }
 
-/// The activity for [`Activity::run`] and [`Activity::exec`].
+/// The activity for [`ChildActivity::run`] and [`ChildActivity::exec`].
 pub struct RunningProgramActivity {
-    act: Activity,
+    act: ChildActivity,
     _file: BufReader<GenFileRef>,
 }
 
 impl RunningProgramActivity {
     /// Creates a new `ExecActivity` for the given activity and executable.
-    pub fn new(act: Activity, file: BufReader<GenFileRef>) -> Self {
+    pub fn new(act: ChildActivity, file: BufReader<GenFileRef>) -> Self {
         Self { act, _file: file }
     }
 }
 
 impl RunningActivity for RunningProgramActivity {
-    fn activity(&self) -> &Activity {
+    fn activity(&self) -> &ChildActivity {
         &self.act
     }
 
-    fn activity_mut(&mut self) -> &mut Activity {
+    fn activity_mut(&mut self) -> &mut ChildActivity {
         &mut self.act
     }
 }

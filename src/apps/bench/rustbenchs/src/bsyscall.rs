@@ -25,7 +25,7 @@ use m3::math;
 use m3::rc::Rc;
 use m3::syscalls;
 use m3::test;
-use m3::tiles::{Activity, ActivityArgs, Tile};
+use m3::tiles::{Activity, ActivityArgs, ChildActivity, Tile};
 use m3::time::{CycleInstant, Profiler, Runner};
 use m3::{println, wv_assert_ok, wv_perf, wv_run_test};
 
@@ -306,14 +306,14 @@ fn exchange() {
     let mut prof = Profiler::default().repeats(100).warmup(10);
 
     struct Tester {
-        act: Option<Activity>,
+        act: Option<ChildActivity>,
         tile: Rc<Tile>,
     }
 
     impl Runner for Tester {
         fn pre(&mut self) {
             if self.act.is_none() {
-                self.act = Some(wv_assert_ok!(Activity::new_with(
+                self.act = Some(wv_assert_ok!(ChildActivity::new_with(
                     self.tile.clone(),
                     ActivityArgs::new("test")
                 )));

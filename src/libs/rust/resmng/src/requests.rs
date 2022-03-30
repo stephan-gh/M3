@@ -73,7 +73,7 @@ where
             break;
         }
 
-        Activity::sleep().ok();
+        Activity::cur().sleep().ok();
     }
 
     if !thread::cur().is_main() {

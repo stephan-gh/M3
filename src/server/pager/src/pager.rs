@@ -39,7 +39,7 @@ use m3::server::{
 };
 use m3::session::{ClientSession, Pager, PagerOp, ResMng, M3FS};
 use m3::tcu::{Label, TileId};
-use m3::tiles::{Activity, ActivityArgs};
+use m3::tiles::{Activity, ActivityArgs, ChildActivity};
 use m3::vfs;
 
 use addrspace::AddrSpace;
@@ -50,7 +50,7 @@ pub const LOG_DEF: bool = false;
 
 static PGHDL: LazyStaticRefCell<PagerReqHandler> = LazyStaticRefCell::default();
 static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
-static MOUNTS: LazyStaticRefCell<Vec<(String, vfs::FSHandle)>> = LazyStaticRefCell::default();
+static MOUNTS: LazyStaticRefCell<Vec<(String, String)>> = LazyStaticRefCell::default();
 static PMP_TILES: StaticRefCell<Vec<TileId>> = StaticRefCell::new(Vec::new());
 static SETTINGS: LazyStaticRefCell<PagerSettings> = LazyStaticRefCell::default();
 
@@ -148,10 +148,10 @@ impl Handler<AddrSpace> for PagerReqHandler {
     }
 }
 
-fn get_mount(name: &str) -> Result<vfs::FSHandle, VerboseError> {
-    for (n, fs) in MOUNTS.borrow().iter() {
+fn get_mount(name: &str) -> Result<String, VerboseError> {
+    for (n, mpath) in MOUNTS.borrow().iter() {
         if n == name {
-            return Ok(fs.clone());
+            return Ok(mpath.clone());
         }
     }
 
@@ -159,8 +159,12 @@ fn get_mount(name: &str) -> Result<vfs::FSHandle, VerboseError> {
     let fs = M3FS::new(id, name).map_err(|e| {
         VerboseError::new(e.code(), format!("Unable to open m3fs session {}", name))
     })?;
-    MOUNTS.borrow_mut().push((name.to_string(), fs.clone()));
-    Ok(fs)
+    let our_path = format!("/child-mount-{}", name);
+    Activity::cur().mounts().add(&our_path, fs)?;
+    MOUNTS
+        .borrow_mut()
+        .push((name.to_string(), our_path.to_string()));
+    Ok(our_path.to_string())
 }
 
 fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
@@ -188,7 +192,7 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
 
     // create child activity
     let tile_usage = child.child_tile().unwrap();
-    let mut act = Activity::new_with(
+    let mut act = ChildActivity::new_with(
         tile_usage.tile_obj().clone(),
         ActivityArgs::new(child.name())
             .resmng(ResMng::new(resmng_sgate))
@@ -216,8 +220,8 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
 
     // mount file systems for childs
     for m in child.cfg().mounts() {
-        let fs = get_mount(m.fs())?;
-        act.mounts().add(m.path(), fs)?;
+        let path = get_mount(m.fs())?;
+        act.add_mount(m.path(), &path);
     }
 
     // init address space (give it activity and mgate selector)
@@ -308,10 +312,9 @@ pub fn main() -> i32 {
     if vfs::VFS::stat("/").is_err() {
         vfs::VFS::mount("/", "m3fs", "m3fs").expect("Unable to mount root filesystem");
     }
-    MOUNTS.borrow_mut().push((
-        "m3fs".to_string(),
-        Activity::cur().mounts().get_by_path("/").unwrap(),
-    ));
+    MOUNTS
+        .borrow_mut()
+        .push(("m3fs".to_string(), "/".to_string()));
 
     // create server
     let mut hdl = PagerReqHandler {

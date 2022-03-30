@@ -19,15 +19,19 @@
 //! Contains tile-related abstractions
 
 mod activity;
+mod childactivity;
 mod kmem;
 mod mapper;
+mod ownactivity;
 mod running;
 mod state;
 mod tile;
 
-pub use self::activity::{Activity, ActivityArgs};
+pub use self::activity::Activity;
+pub use self::childactivity::{ActivityArgs, ChildActivity};
 pub use self::kmem::KMem;
 pub use self::mapper::{DefaultMapper, Mapper};
+pub use self::ownactivity::OwnActivity;
 pub use self::running::{RunningActivity, RunningDeviceActivity, RunningProgramActivity};
 pub use self::state::{StateDeserializer, StateSerializer};
 pub use self::tile::{Tile, TileQuota};

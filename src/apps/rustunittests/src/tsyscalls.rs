@@ -30,7 +30,7 @@ use m3::session::{ServerSession, M3FS};
 use m3::syscalls;
 use m3::tcu::{AVAIL_EPS, FIRST_USER_EP, TOTAL_EPS};
 use m3::test;
-use m3::tiles::{Activity, ActivityArgs, Tile};
+use m3::tiles::{Activity, ActivityArgs, ChildActivity, Tile};
 use m3::{wv_assert, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -227,7 +227,10 @@ fn create_sess() {
     // thus, we create a child activity, delegate the cap to it, delegate it back to ourself and try
     // to create a session with it afterwards.
     let child_tile = wv_assert_ok!(Tile::get("clone"));
-    let mut child_act = wv_assert_ok!(Activity::new_with(child_tile, ActivityArgs::new("tmp")));
+    let mut child_act = wv_assert_ok!(ChildActivity::new_with(
+        child_tile,
+        ActivityArgs::new("tmp")
+    ));
 
     wv_assert_ok!(child_act.delegate_obj(srv));
     let copy_sel = wv_assert_ok!(child_act.obtain_obj(srv));
@@ -364,7 +367,7 @@ fn alloc_ep() {
     {
         {
             let tile = wv_assert_ok!(Tile::get("clone"));
-            let act = wv_assert_ok!(Activity::new_with(tile, ActivityArgs::new("test")));
+            let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
             wv_assert_ok!(syscalls::alloc_ep(sel, act.sel(), TOTAL_EPS, 1));
         }
 
@@ -603,7 +606,7 @@ fn derive_kmem() {
     let kmem = wv_assert_ok!(Activity::cur().kmem().derive(quota / 2));
     {
         let tile = wv_assert_ok!(Tile::get("clone"));
-        let _act = wv_assert_ok!(Activity::new_with(
+        let _act = wv_assert_ok!(ChildActivity::new_with(
             tile,
             ActivityArgs::new("test").kmem(kmem.clone())
         ));
@@ -670,7 +673,7 @@ fn derive_tile() {
     }
 
     {
-        let _act = wv_assert_ok!(Activity::new(tile.clone(), "test"));
+        let _act = wv_assert_ok!(ChildActivity::new(tile.clone(), "test"));
         // activity is still using the Tile
         wv_assert_err!(
             Activity::cur().revoke(CapRngDesc::new(CapType::OBJECT, tile.sel(), 1), false),
@@ -731,7 +734,7 @@ fn get_sess() {
 
     // dummy activity that should receive the session
     let tile = wv_assert_ok!(Tile::get("clone|own"));
-    let act = wv_assert_ok!(Activity::new(tile, "test"));
+    let act = wv_assert_ok!(ChildActivity::new(tile, "test"));
 
     // invalid service selector
     wv_assert_err!(
@@ -842,10 +845,10 @@ fn activity_ctrl() {
 
 fn exchange() {
     let tile = wv_assert_ok!(Tile::get("clone|own"));
-    let mut child = wv_assert_ok!(Activity::new(tile, "test"));
-    let csel = child.alloc_sel();
+    let child = wv_assert_ok!(ChildActivity::new(tile, "test"));
 
     let sel = Activity::cur().alloc_sel();
+    let csel = sel;
     let unused = CapRngDesc::new(CapType::OBJECT, sel, 1);
     let used = CapRngDesc::new(CapType::OBJECT, 0, 1);
 

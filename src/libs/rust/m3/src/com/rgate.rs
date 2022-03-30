@@ -299,7 +299,7 @@ impl RecvGate {
                 }
             }
 
-            Activity::wait_for(Some(rep), None, None)?;
+            Activity::cur().wait_for(Some(rep), None, None)?;
         }
     }
 

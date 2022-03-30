@@ -40,11 +40,11 @@ fn create() {
 fn destroy() {
     use m3::cap::Selector;
     use m3::com::{recv_msg, SGateArgs, SendGate};
-    use m3::tiles::{Activity, RunningActivity, Tile};
+    use m3::tiles::{Activity, ChildActivity, RunningActivity, Tile};
     use m3::{reply_vmsg, send_recv, wv_assert_eq, wv_assert_ok};
 
     let tile = wv_assert_ok!(Tile::get("clone|own"));
-    let mut child = wv_assert_ok!(Activity::new(tile, "test"));
+    let mut child = wv_assert_ok!(ChildActivity::new(tile, "test"));
 
     let act = {
         let mut rg = wv_assert_ok!(RecvGate::new_with(

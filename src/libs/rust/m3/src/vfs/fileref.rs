@@ -34,6 +34,10 @@ use crate::vfs::{Fd, File, FileEvent, Map, Seek, SeekMode};
 
 pub type GenFileRef = FileRef<dyn File>;
 
+/// A file reference provides access to a file of type `T`.
+///
+/// Depending on whether `FileRef` was created via [`FileRef::new_owned`] or [`FileRef::new`] the
+/// file is closed on drop or not, respectively.
 #[derive(Clone)]
 pub struct FileRef<T: ?Sized> {
     fd: Fd,
@@ -132,13 +136,8 @@ impl<T: ?Sized + 'static> File for FileRef<T> {
         self.file().stat()
     }
 
-    fn exchange_caps(
-        &self,
-        act: Selector,
-        dels: &mut Vec<Selector>,
-        max_sel: &mut Selector,
-    ) -> Result<(), Error> {
-        self.file().exchange_caps(act, dels, max_sel)
+    fn exchange_caps(&self, act: Selector, dels: &mut Vec<Selector>) -> Result<Selector, Error> {
+        self.file().exchange_caps(act, dels)
     }
 
     fn serialize(&self, s: &mut StateSerializer<'_>) {

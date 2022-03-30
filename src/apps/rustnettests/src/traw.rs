@@ -21,7 +21,7 @@ use m3::kif;
 use m3::net::{RawSocket, RawSocketArgs, MAC};
 use m3::session::{NetworkManager, Pipes};
 use m3::test;
-use m3::tiles::{Activity, ActivityArgs, RunningActivity, Tile};
+use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::vfs::{BufReader, IndirectPipe};
 use m3::{format, wv_assert, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
@@ -52,11 +52,8 @@ fn exec_ping() {
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
     let tile = wv_assert_ok!(Tile::get("clone|own"));
-    let mut ping = wv_assert_ok!(Activity::new_with(tile, ActivityArgs::new("ping")));
-    ping.files().set(
-        io::STDOUT_FILENO,
-        Activity::cur().files().get(pipe.writer_fd()).unwrap(),
-    );
+    let mut ping = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("ping")));
+    ping.add_file(io::STDOUT_FILENO, pipe.writer_fd());
 
     let ping_act = wv_assert_ok!(ping.exec(&["/bin/ping", &crate::NET1_IP.get().to_string()]));
 

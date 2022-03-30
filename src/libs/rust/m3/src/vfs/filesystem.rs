@@ -76,12 +76,7 @@ pub trait FileSystem: fmt::Debug {
     /// Returns the type of the file system implementation used for serialization.
     fn fs_type(&self) -> u8;
     /// Exchanges the capabilities to provide `act` access to the file system.
-    fn exchange_caps(
-        &self,
-        act: Selector,
-        dels: &mut Vec<Selector>,
-        max_sel: &mut Selector,
-    ) -> Result<(), Error>;
+    fn exchange_caps(&self, act: Selector, dels: &mut Vec<Selector>) -> Result<Selector, Error>;
     /// Serializes this file system into `s`.
     fn serialize(&self, s: &mut StateSerializer<'_>);
 }

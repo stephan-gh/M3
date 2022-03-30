@@ -15,7 +15,7 @@
 
 use m3::rc::Rc;
 use m3::test;
-use m3::tiles::{Activity, ActivityArgs, RunningActivity, Tile};
+use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::tmif;
 use m3::{println, wv_assert, wv_assert_ok, wv_run_test};
 
@@ -44,7 +44,10 @@ const PI_MIN: f64 = 3.141;
 const PI_MAX: f64 = 3.143;
 
 fn calc_pi(tile: &Rc<Tile>) {
-    let act = wv_assert_ok!(Activity::new_with(tile.clone(), ActivityArgs::new("t1")));
+    let act = wv_assert_ok!(ChildActivity::new_with(
+        tile.clone(),
+        ActivityArgs::new("t1")
+    ));
 
     let act = wv_assert_ok!(act.run(|| {
         let steps = 1000;

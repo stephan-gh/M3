@@ -113,25 +113,30 @@ impl MountTable {
     pub(crate) fn collect_caps(
         &self,
         act: Selector,
+        map: &[(String, String)],
         dels: &mut Vec<Selector>,
-        max_sel: &mut Selector,
-    ) -> Result<(), Error> {
-        for m in &self.mounts {
-            m.fs.borrow().exchange_caps(act, dels, max_sel)?;
+    ) -> Result<Selector, Error> {
+        let mut max_sel = 0;
+        for (_cpath, ppath) in map {
+            if let Some(fs) = self.get_by_path(ppath) {
+                let sel = fs.borrow().exchange_caps(act, dels)?;
+                max_sel = sel.max(max_sel);
+            }
         }
-        Ok(())
+        Ok(max_sel)
     }
 
-    pub(crate) fn serialize(&self, s: &mut StateSerializer<'_>) {
-        let count = self.mounts.len();
-        s.push_word(count as u64);
+    pub(crate) fn serialize(&self, map: &[(String, String)], s: &mut StateSerializer<'_>) {
+        s.push_word(map.len() as u64);
 
-        for m in &self.mounts {
-            let fs = m.fs.borrow();
-            let fs_type = fs.fs_type();
-            s.push_str(&m.path);
-            s.push_word(fs_type as u64);
-            fs.serialize(s);
+        for (cpath, ppath) in map {
+            if let Some(fs) = self.get_by_path(ppath) {
+                let fs = fs.borrow();
+                let fs_type = fs.fs_type();
+                s.push_str(&cpath);
+                s.push_word(fs_type as u64);
+                fs.serialize(s);
+            }
         }
     }
 

@@ -16,7 +16,7 @@
 use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
 use m3::rc::Rc;
 use m3::test;
-use m3::tiles::{Activity, ActivityArgs, RunningActivity, Tile};
+use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::time::{CycleInstant, Profiler};
 use m3::{
     format, println, reply_vmsg, send_vmsg, wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test,
@@ -47,7 +47,7 @@ fn pingpong_local() {
 }
 
 fn pingpong_with_tile(name: &str, tile: Rc<Tile>) {
-    let mut act = wv_assert_ok!(Activity::new_with(tile, ActivityArgs::new("sender")));
+    let mut act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("sender")));
 
     let rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
