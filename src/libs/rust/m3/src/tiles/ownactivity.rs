@@ -39,6 +39,7 @@ use crate::vfs::{FileTable, MountTable};
 /// Represents the own activity.
 pub struct OwnActivity {
     base: Activity,
+    pub(crate) next_sel: Selector,
     epmng: EpMng,
     files: FileTable,
     mounts: MountTable,
@@ -56,13 +57,13 @@ impl OwnActivity {
                     env.tile_desc(),
                     kif::SEL_TILE,
                 )),
-                next_sel: env.load_first_sel(),
                 eps_start: env.first_std_ep(),
                 rmng: env.load_rmng(),
                 pager: env.load_pager(),
                 data: env.load_data(),
                 kmem: Rc::new(KMem::new(kif::SEL_KMEM)),
             },
+            next_sel: env.load_first_sel(),
             epmng: EpMng::default(),
             // mounts first; files depend on mounts
             mounts: env.load_mounts(),

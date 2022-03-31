@@ -41,6 +41,7 @@ use crate::vfs::{BufReader, Fd, File, FileRef, OpenFlags, VFS};
 /// Represents a child activity.
 pub struct ChildActivity {
     base: Activity,
+    child_sel: Selector,
     files: Vec<(Fd, Fd)>,
     mounts: Vec<(String, String)>,
 }
@@ -103,6 +104,7 @@ impl ChildActivity {
                 tile.clone(),
                 args.kmem.unwrap_or_else(|| Activity::own().kmem().clone()),
             ),
+            child_sel: kif::FIRST_FREE_SEL,
             files: Vec::new(),
             mounts: Vec::new(),
         };
@@ -140,7 +142,7 @@ impl ChildActivity {
             act.eps_start = eps_start;
             None
         };
-        act.next_sel = cmp::max(act.kmem().sel() + 1, act.next_sel);
+        act.child_sel = cmp::max(act.kmem().sel() + 1, act.child_sel);
 
         // determine resource manager
         let resmng = if let Some(rmng) = args.rmng {
@@ -148,8 +150,8 @@ impl ChildActivity {
             rmng
         }
         else {
-            let sgate_sel = act.next_sel;
-            act.next_sel += 1;
+            let sgate_sel = act.child_sel;
+            act.child_sel += 1;
 
             Activity::own()
                 .resmng()
@@ -159,7 +161,7 @@ impl ChildActivity {
         act.rmng = Some(resmng);
         // ensure that the child's cap space is not further ahead than ours
         // TODO improve that
-        Activity::own().next_sel = cmp::max(act.next_sel, Activity::own().next_sel);
+        Activity::own().next_sel = cmp::max(act.child_sel, Activity::own().next_sel);
 
         Ok(act)
     }
@@ -219,7 +221,7 @@ impl ChildActivity {
     /// `dst`..`dst`+`crd.count()`.
     pub fn delegate_to(&mut self, crd: CapRngDesc, dst: Selector) -> Result<(), Error> {
         syscalls::exchange(self.sel(), crd, dst, false)?;
-        self.next_sel = cmp::max(self.next_sel, dst + crd.count());
+        self.child_sel = cmp::max(self.child_sel, dst + crd.count());
         Ok(())
     }
 
@@ -382,7 +384,7 @@ impl ChildActivity {
 
             senv.set_first_std_ep(self.eps_start);
             senv.set_rmng(self.resmng_sel().unwrap());
-            senv.set_first_sel(self.next_sel);
+            senv.set_first_sel(self.child_sel);
             senv.set_pedesc(self.tile_desc());
             senv.set_activity_id(self.id());
 
@@ -439,7 +441,7 @@ impl ChildActivity {
                 arch::loader::write_env_values(pid, "tcurdy", &[c2p.fds()[1] as u64]);
 
                 // write nextsel, eps, rmng, and kmem
-                arch::loader::write_env_values(pid, "nextsel", &[u64::from(self.next_sel)]);
+                arch::loader::write_env_values(pid, "nextsel", &[u64::from(self.child_sel)]);
                 arch::loader::write_env_values(pid, "rmng", &[u64::from(
                     self.resmng_sel().unwrap(),
                 )]);
@@ -490,7 +492,7 @@ impl ChildActivity {
         let max_sel = Activity::own()
             .files()
             .collect_caps(self.sel(), &self.files, &mut dels)?;
-        self.next_sel = self.next_sel.max(max_sel);
+        self.child_sel = self.child_sel.max(max_sel);
         for c in dels {
             self.delegate_obj(c)?;
         }
@@ -502,7 +504,7 @@ impl ChildActivity {
         let max_sel = Activity::own()
             .mounts()
             .collect_caps(self.sel(), &self.mounts, &mut dels)?;
-        self.next_sel = self.next_sel.max(max_sel);
+        self.child_sel = self.child_sel.max(max_sel);
         for c in dels {
             self.delegate_obj(c)?;
         }

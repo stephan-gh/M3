@@ -45,7 +45,6 @@ pub struct Activity {
     pub(crate) rmng: Option<ResMng>, // close the connection resource manager at last
     pub(crate) tile: Rc<Tile>,
     pub(crate) kmem: Rc<KMem>,
-    pub(crate) next_sel: Selector,
     #[allow(dead_code)]
     pub(crate) eps_start: EpId,
     pub(crate) pager: Option<Pager>,
@@ -65,7 +64,6 @@ impl Activity {
             cap,
             tile,
             rmng: None,
-            next_sel: kif::FIRST_FREE_SEL,
             eps_start: 0,
             pager: None,
             kmem,
@@ -123,7 +121,7 @@ impl Activity {
     ///
     /// If `del_only` is true, only the delegations are revoked, that is, the capability is not
     /// revoked from `self`.
-    pub fn revoke(&mut self, crd: CapRngDesc, del_only: bool) -> Result<(), Error> {
+    pub fn revoke(&self, crd: CapRngDesc, del_only: bool) -> Result<(), Error> {
         syscalls::revoke(self.sel(), crd, !del_only)
     }
 
