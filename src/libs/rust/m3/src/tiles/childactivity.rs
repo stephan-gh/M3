@@ -65,19 +65,19 @@ impl<'n> ActivityArgs<'n> {
     }
 
     /// Sets the resource manager to `rmng`. Otherwise and by default, the resource manager of the
-    /// current activity will be cloned.
+    /// own activity will be cloned.
     pub fn resmng(mut self, rmng: ResMng) -> Self {
         self.rmng = Some(rmng);
         self
     }
 
-    /// Sets the pager. By default, the current pager will be cloned.
+    /// Sets the pager. By default, the own pager will be cloned.
     pub fn pager(mut self, pager: Pager) -> Self {
         self.pager = Some(pager);
         self
     }
 
-    /// Sets the kernel memory to use for the activity. By default, the kernel memory of the current
+    /// Sets the kernel memory to use for the activity. By default, the kernel memory of the own
     /// activity will be used.
     pub fn kmem(mut self, kmem: Rc<KMem>) -> Self {
         self.kmem = Some(kmem);
@@ -95,13 +95,13 @@ impl ChildActivity {
     /// Creates a new [`ChildActivity`] on tile `tile` with given arguments. The activity provides
     /// access to the tile and allows to run an activity on the tile.
     pub fn new_with(tile: Rc<Tile>, args: ActivityArgs<'_>) -> Result<Self, Error> {
-        let sel = Activity::cur().alloc_sels(3);
+        let sel = Activity::own().alloc_sels(3);
 
         let mut act = ChildActivity {
             base: Activity::new_act(
                 Capability::new(sel, CapFlags::empty()),
                 tile.clone(),
-                args.kmem.unwrap_or_else(|| Activity::cur().kmem().clone()),
+                args.kmem.unwrap_or_else(|| Activity::own().kmem().clone()),
             ),
             files: Vec::new(),
             mounts: Vec::new(),
@@ -111,7 +111,7 @@ impl ChildActivity {
             if let Some(p) = args.pager {
                 Some(p)
             }
-            else if let Some(p) = Activity::cur().pager() {
+            else if let Some(p) = Activity::own().pager() {
                 Some(p.new_clone()?)
             }
             else {
@@ -153,7 +153,7 @@ impl ChildActivity {
             let sgate_sel = act.next_sel;
             act.next_sel += 1;
 
-            Activity::cur()
+            Activity::own()
                 .resmng()
                 .unwrap()
                 .clone(&mut act, sgate_sel, args.name)?
@@ -161,7 +161,7 @@ impl ChildActivity {
         act.rmng = Some(resmng);
         // ensure that the child's cap space is not further ahead than ours
         // TODO improve that
-        Activity::cur().next_sel = cmp::max(act.next_sel, Activity::cur().next_sel);
+        Activity::own().next_sel = cmp::max(act.next_sel, Activity::own().next_sel);
 
         Ok(act)
     }
@@ -206,18 +206,18 @@ impl ChildActivity {
         StateSerializer::new(&mut self.data)
     }
 
-    /// Delegates the object capability with selector `sel` of [`cur`](Activity::cur) to `self`.
+    /// Delegates the object capability with selector `sel` of [`own`](Activity::own) to `self`.
     pub fn delegate_obj(&mut self, sel: Selector) -> Result<(), Error> {
         self.delegate(CapRngDesc::new(CapType::OBJECT, sel, 1))
     }
 
-    /// Delegates the given capability range of [`cur`](Activity::cur) to `self`.
+    /// Delegates the given capability range of [`own`](Activity::own) to `self`.
     pub fn delegate(&mut self, crd: CapRngDesc) -> Result<(), Error> {
         let start = crd.start();
         self.delegate_to(crd, start)
     }
 
-    /// Delegates the given capability range of [`cur`](Activity::cur) to `self` using selectors
+    /// Delegates the given capability range of [`own`](Activity::own) to `self` using selectors
     /// `dst`..`dst`+`crd.count()`.
     pub fn delegate_to(&mut self, crd: CapRngDesc, dst: Selector) -> Result<(), Error> {
         syscalls::exchange(self.sel(), crd, dst, false)?;
@@ -225,19 +225,19 @@ impl ChildActivity {
         Ok(())
     }
 
-    /// Obtains the object capability with selector `sel` from `self` to [`cur`](Activity::cur).
+    /// Obtains the object capability with selector `sel` from `self` to [`own`](Activity::own).
     pub fn obtain_obj(&mut self, sel: Selector) -> Result<Selector, Error> {
         self.obtain(CapRngDesc::new(CapType::OBJECT, sel, 1))
     }
 
-    /// Obtains the given capability range of `self` to [`cur`](Activity::cur).
+    /// Obtains the given capability range of `self` to [`own`](Activity::own).
     pub fn obtain(&mut self, crd: CapRngDesc) -> Result<Selector, Error> {
         let count = crd.count();
-        let start = Activity::cur().alloc_sels(count);
+        let start = Activity::own().alloc_sels(count);
         self.obtain_to(crd, start).map(|_| start)
     }
 
-    /// Obtains the given capability range of `self` to [`cur`](Activity::cur) using selectors
+    /// Obtains the given capability range of `self` to [`own`](Activity::own) using selectors
     /// `dst`..`dst`+`crd.count()`.
     pub fn obtain_to(&mut self, crd: CapRngDesc, dst: Selector) -> Result<(), Error> {
         let own = CapRngDesc::new(crd.cap_type(), dst, crd.count());
@@ -254,7 +254,7 @@ impl ChildActivity {
         act.start().map(|_| act)
     }
 
-    /// Executes the program of [`cur`](Activity::cur) (`argv[0]`) with this activity and calls the
+    /// Executes the program of [`own`](Activity::own) (`argv[0]`) with this activity and calls the
     /// given function instead of main.
     ///
     /// This has a few requirements/limitations:
@@ -338,7 +338,7 @@ impl ChildActivity {
             {
                 let mut fds_vec = Vec::new();
                 let mut fds = StateSerializer::new(&mut fds_vec);
-                Activity::cur().files().serialize(&self.files, &mut fds);
+                Activity::own().files().serialize(&self.files, &mut fds);
                 let words = fds.words();
                 mem.write_bytes(
                     words.as_ptr() as *const u8,
@@ -353,7 +353,7 @@ impl ChildActivity {
             {
                 let mut mounts_vec = Vec::new();
                 let mut mounts = StateSerializer::new(&mut mounts_vec);
-                Activity::cur()
+                Activity::own()
                     .mounts()
                     .serialize(&self.mounts, &mut mounts);
                 let words = mounts.words();
@@ -455,13 +455,13 @@ impl ChildActivity {
                 // write file table
                 let mut fds_vec = Vec::new();
                 let mut fds = StateSerializer::new(&mut fds_vec);
-                Activity::cur().files().serialize(&self.files, &mut fds);
+                Activity::own().files().serialize(&self.files, &mut fds);
                 arch::loader::write_env_values(pid, "fds", fds.words());
 
                 // write mounts table
                 let mut mounts_vec = Vec::new();
                 let mut mounts = StateSerializer::new(&mut mounts_vec);
-                Activity::cur()
+                Activity::own()
                     .mounts()
                     .serialize(&self.mounts, &mut mounts);
                 arch::loader::write_env_values(pid, "ms", mounts.words());
@@ -489,7 +489,7 @@ impl ChildActivity {
     fn obtain_fds(&mut self) -> Result<(), Error> {
         // TODO that's really bad. but how to improve that? :/
         let mut dels = Vec::new();
-        let max_sel = Activity::cur()
+        let max_sel = Activity::own()
             .files()
             .collect_caps(self.sel(), &self.files, &mut dels)?;
         self.next_sel = self.next_sel.max(max_sel);
@@ -501,7 +501,7 @@ impl ChildActivity {
 
     fn obtain_mounts(&mut self) -> Result<(), Error> {
         let mut dels = Vec::new();
-        let max_sel = Activity::cur()
+        let max_sel = Activity::own()
             .mounts()
             .collect_caps(self.sel(), &self.mounts, &mut dels)?;
         self.next_sel = self.next_sel.max(max_sel);

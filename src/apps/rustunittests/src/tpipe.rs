@@ -52,7 +52,7 @@ fn child_to_parent() {
 
     pipe.close_writer();
 
-    let mut input = Activity::cur().files().get(pipe.reader_fd()).unwrap();
+    let mut input = Activity::own().files().get(pipe.reader_fd()).unwrap();
     let s = wv_assert_ok!(input.read_to_string());
     wv_assert_eq!(s, "This is a test!\n");
 
@@ -76,7 +76,7 @@ fn parent_to_child() {
 
     pipe.close_reader();
 
-    let mut output = Activity::cur().files().get(pipe.writer_fd()).unwrap();
+    let mut output = Activity::own().files().get(pipe.writer_fd()).unwrap();
     wv_assert_eq!(output.write(b"This is a test!\n"), Ok(16));
 
     pipe.close_writer();
@@ -158,7 +158,7 @@ fn writer_quit() {
 
     pipe.close_writer();
 
-    let input = Activity::cur().files().get(pipe.reader_fd()).unwrap();
+    let input = Activity::own().files().get(pipe.reader_fd()).unwrap();
     let mut reader = BufReader::new(input);
     let mut s = String::new();
     wv_assert_eq!(reader.read_line(&mut s), Ok(15));
@@ -193,7 +193,7 @@ fn reader_quit() {
 
     pipe.close_reader();
 
-    let mut output = Activity::cur().files().get(pipe.writer_fd()).unwrap();
+    let mut output = Activity::own().files().get(pipe.writer_fd()).unwrap();
     loop {
         let res = output.write(b"This is a test!\n");
         match res {

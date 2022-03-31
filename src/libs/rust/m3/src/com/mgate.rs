@@ -84,13 +84,13 @@ impl MemGate {
     /// Creates a new `MemGate` with given arguments.
     pub fn new_with(args: MGateArgs) -> Result<Self, Error> {
         let sel = if args.sel == INVALID_SEL {
-            Activity::cur().alloc_sel()
+            Activity::own().alloc_sel()
         }
         else {
             args.sel
         };
 
-        Activity::cur()
+        Activity::own()
             .resmng()
             .unwrap()
             .alloc_mem(sel, args.addr, args.size, args.perm)?;
@@ -103,7 +103,7 @@ impl MemGate {
     /// Creates a new `MemGate` for the region `off`..`off`+`size` in the address space of the given
     /// activity. The region must be physically contiguous and page aligned.
     pub fn new_foreign(act: Selector, off: goff, size: goff, perm: Perm) -> Result<Self, Error> {
-        let sel = Activity::cur().alloc_sel();
+        let sel = Activity::own().alloc_sel();
         syscalls::create_mgate(sel, act, off, size, perm)?;
         Ok(MemGate::new_owned_bind(sel))
     }
@@ -151,8 +151,8 @@ impl MemGate {
     /// Note that kernel makes sure that only owned permissions can be passed on to the derived
     /// `MemGate`.
     pub fn derive(&self, offset: goff, size: usize, perm: Perm) -> Result<Self, Error> {
-        let sel = Activity::cur().alloc_sel();
-        self.derive_for(Activity::cur().sel(), sel, offset, size, perm)
+        let sel = Activity::own().alloc_sel();
+        self.derive_for(Activity::own().sel(), sel, offset, size, perm)
     }
 
     /// Like [`MemGate::derive`], but assigns the new `MemGate` to the given activity and uses given
@@ -252,7 +252,7 @@ impl MemGate {
 impl Drop for MemGate {
     fn drop(&mut self) {
         if !self.gate.flags().contains(CapFlags::KEEP_CAP) && self.resmng {
-            Activity::cur().resmng().unwrap().free_mem(self.sel()).ok();
+            Activity::own().resmng().unwrap().free_mem(self.sel()).ok();
             self.gate.set_flags(CapFlags::KEEP_CAP);
         }
     }

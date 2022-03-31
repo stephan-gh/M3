@@ -180,7 +180,7 @@ impl fmt::Debug for FileTable {
 }
 
 pub(crate) fn deinit() {
-    let ft = Activity::cur().files();
+    let ft = Activity::own().files();
     for fd in 0..ft.files.len() {
         ft.remove(fd);
     }

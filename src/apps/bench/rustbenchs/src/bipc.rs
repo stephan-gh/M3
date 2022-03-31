@@ -38,12 +38,12 @@ fn pingpong_remote() {
 }
 
 fn pingpong_local() {
-    if !Activity::cur().tile_desc().has_virtmem() {
+    if !Activity::own().tile_desc().has_virtmem() {
         println!("No virtual memory; skipping local IPC test");
         return;
     }
 
-    pingpong_with_tile("local", Activity::cur().tile().clone());
+    pingpong_with_tile("local", Activity::own().tile().clone());
 }
 
 fn pingpong_with_tile(name: &str, tile: Rc<Tile>) {
@@ -58,7 +58,7 @@ fn pingpong_with_tile(name: &str, tile: Rc<Tile>) {
     dst.push_word(rgate.sel());
 
     let act = wv_assert_ok!(act.run(|| {
-        let rgate_sel = Activity::cur().data_source().pop_word().unwrap();
+        let rgate_sel = Activity::own().data_source().pop_word().unwrap();
         let mut rgate = RecvGate::new_bind(rgate_sel, MSG_ORD, MSG_ORD);
         wv_assert_ok!(rgate.activate());
         for _ in 0..RUNS + WARMUP {

@@ -45,7 +45,7 @@ pub struct OwnActivity {
 }
 
 impl OwnActivity {
-    pub(crate) fn new_cur() -> Self {
+    pub(crate) fn new_own() -> Self {
         OwnActivity {
             base: Activity::new_act(
                 Capability::new(kif::SEL_ACT, CapFlags::KEEP_CAP),
@@ -58,7 +58,7 @@ impl OwnActivity {
         }
     }
 
-    pub(crate) fn init_cur(&mut self) {
+    pub(crate) fn init_own(&mut self) {
         self.base.init_act();
         let env = arch::env::get();
         // mounts first; files depend on mounts
@@ -67,13 +67,13 @@ impl OwnActivity {
         self.epmng.reset();
     }
 
-    /// Puts the current activity to sleep until the next message arrives
+    /// Puts the own activity to sleep until the next message arrives
     #[inline(always)]
     pub fn sleep(&self) -> Result<(), Error> {
         self.sleep_for(TimeDuration::MAX)
     }
 
-    /// Puts the current activity to sleep until the next message arrives or `timeout` time has passed.
+    /// Puts the own activity to sleep until the next message arrives or `timeout` time has passed.
     #[inline(always)]
     pub fn sleep_for(&self, timeout: TimeDuration) -> Result<(), Error> {
         if envdata::get().platform != envdata::Platform::HOST.val
@@ -95,7 +95,7 @@ impl OwnActivity {
         Ok(())
     }
 
-    /// Puts the current activity to sleep until the next message arrives on the given EP
+    /// Puts the own activity to sleep until the next message arrives on the given EP
     pub fn wait_for(
         &self,
         ep: Option<EpId>,

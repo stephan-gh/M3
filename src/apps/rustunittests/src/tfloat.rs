@@ -25,12 +25,12 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn calc_pi_local() {
-    if !Activity::cur().tile_desc().has_virtmem() {
+    if !Activity::own().tile_desc().has_virtmem() {
         println!("No virtual memory; skipping calc_pi_local test");
         return;
     }
 
-    calc_pi(Activity::cur().tile());
+    calc_pi(Activity::own().tile());
 }
 
 fn calc_pi_remote() {
@@ -74,7 +74,7 @@ fn calc_pi(tile: &Rc<Tile>) {
         wv_assert!(pi <= PI_MAX);
         println!(
             "PI (Somayaji) on Tile{} = {}",
-            Activity::cur().tile_id(),
+            Activity::own().tile_id(),
             pi
         );
         0
@@ -101,7 +101,7 @@ fn calc_pi(tile: &Rc<Tile>) {
     let pi = res * 4.0;
     wv_assert!(pi >= PI_MIN);
     wv_assert!(pi <= PI_MAX);
-    println!("PI (Leibniz) on Tile{} = {}", Activity::cur().tile_id(), pi);
+    println!("PI (Leibniz) on Tile{} = {}", Activity::own().tile_id(), pi);
 
     wv_assert_ok!(act.wait());
 }

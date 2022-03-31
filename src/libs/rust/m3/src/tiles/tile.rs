@@ -80,8 +80,8 @@ impl fmt::Debug for TileQuota {
 impl Tile {
     /// Allocates a new tile from the resource manager with given description
     pub fn new(desc: TileDesc) -> Result<Rc<Self>, Error> {
-        let sel = Activity::cur().alloc_sel();
-        let (id, ndesc) = Activity::cur().resmng().unwrap().alloc_tile(sel, desc)?;
+        let sel = Activity::own().alloc_sel();
+        let (id, ndesc) = Activity::own().resmng().unwrap().alloc_tile(sel, desc)?;
         Ok(Rc::new(Tile {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
             id,
@@ -115,7 +115,7 @@ impl Tile {
     /// - BOOM core if available, otherwise any core: "boom|core"
     /// - BOOM with NIC if available, otherwise a Rocket: "boom+nic|rocket"
     pub fn get(desc: &str) -> Result<Rc<Self>, Error> {
-        let own = Activity::cur().tile();
+        let own = Activity::own().tile();
         for props in desc.split('|') {
             match props {
                 "own" => {
@@ -150,7 +150,7 @@ impl Tile {
         time: Option<u64>,
         pts: Option<u64>,
     ) -> Result<Rc<Self>, Error> {
-        let sel = Activity::cur().alloc_sel();
+        let sel = Activity::own().alloc_sel();
         syscalls::derive_tile(self.sel(), sel, eps, time, pts)?;
         Ok(Rc::new(Tile {
             cap: Capability::new(sel, CapFlags::empty()),
@@ -192,7 +192,7 @@ impl Tile {
 impl Drop for Tile {
     fn drop(&mut self) {
         if self.free {
-            Activity::cur().resmng().unwrap().free_tile(self.sel()).ok();
+            Activity::own().resmng().unwrap().free_tile(self.sel()).ok();
         }
     }
 }

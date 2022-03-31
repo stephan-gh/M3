@@ -24,7 +24,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn large_pages() {
-    if let Some(pager) = Activity::cur().pager() {
+    if let Some(pager) = Activity::own().pager() {
         const VIRT: u64 = 0x3000_0000;
         const MEM_SIZE: usize = 6 * 1024 * 1024;
         let mem = wv_assert_ok!(MemGate::new(MEM_SIZE, Perm::RW));

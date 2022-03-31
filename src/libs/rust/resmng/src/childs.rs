@@ -130,7 +130,7 @@ pub trait Child {
         syscalls::exchange(self.activity_sel(), crd, dst, false)
     }
     fn obtain(&self, src: Selector) -> Result<Selector, Error> {
-        let dst = Activity::cur().alloc_sels(1);
+        let dst = Activity::own().alloc_sels(1);
         let own = CapRngDesc::new(CapType::OBJECT, dst, 1);
         syscalls::exchange(self.activity_sel(), own, src, true)?;
         Ok(dst)
@@ -673,7 +673,7 @@ pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngActInfoResult, Error
         child.layer()
     };
 
-    let (parent_num, parent_layer) = if let Some(presmng) = Activity::cur().resmng() {
+    let (parent_num, parent_layer) = if let Some(presmng) = Activity::own().resmng() {
         match presmng.get_activity_count() {
             Err(e) if e.code() == Code::NoPerm => (0, 0),
             Err(e) => return Err(e),
@@ -698,7 +698,7 @@ pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngActInfoResult, Error
     if let Some(mut idx) = idx {
         if idx < parent_num {
             Ok(ResMngActInfoResult::Info(
-                Activity::cur().resmng().unwrap().get_activity_info(idx)?,
+                Activity::own().resmng().unwrap().get_activity_info(idx)?,
             ))
         }
         else if idx - parent_num >= own_num {
@@ -709,11 +709,11 @@ pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngActInfoResult, Error
 
             // the first is always us
             if idx == 0 {
-                let kmem_quota = Activity::cur().kmem().quota()?;
-                let tile_quota = Activity::cur().tile().quota()?;
+                let kmem_quota = Activity::own().kmem().quota()?;
+                let tile_quota = Activity::own().tile().quota()?;
                 let mem = memory::container();
                 return Ok(ResMngActInfoResult::Info(ResMngActInfo {
-                    id: Activity::cur().id(),
+                    id: Activity::own().id(),
                     layer: parent_layer + 0,
                     name: env::args().next().unwrap().to_string(),
                     daemon: true,
@@ -726,7 +726,7 @@ pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngActInfoResult, Error
                     eps: *tile_quota.endpoints(),
                     time: *tile_quota.time(),
                     pts: *tile_quota.page_tables(),
-                    tile: Activity::cur().tile_id(),
+                    tile: Activity::own().tile_id(),
                 }));
             }
             idx -= 1;
@@ -1253,7 +1253,7 @@ impl ChildManager {
 
             // first, revoke the child's SendGate
             syscalls::revoke(
-                Activity::cur().sel(),
+                Activity::own().sel(),
                 CapRngDesc::new(CapType::OBJECT, child.resmng_sgate_sel(), 1),
                 true,
             )

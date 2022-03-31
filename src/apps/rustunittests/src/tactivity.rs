@@ -65,7 +65,7 @@ fn run_stop() {
         dst.push_word(sg.sel());
 
         let act = wv_assert_ok!(act.run(|| {
-            let mut src = Activity::cur().data_source();
+            let mut src = Activity::own().data_source();
             let sg_sel: Selector = src.pop().unwrap();
 
             // notify parent that we're running
@@ -83,7 +83,7 @@ fn run_stop() {
         wv_assert_ok!(recv_msg(&rg));
 
         // wait a bit and stop activity
-        wv_assert_ok!(Activity::cur().sleep_for(wait_time));
+        wv_assert_ok!(Activity::own().sleep_for(wait_time));
         wv_assert_ok!(act.stop());
 
         // increase by one ns to attempt interrupts at many points in the instruction stream
@@ -118,7 +118,7 @@ fn run_send_receive() {
     dst.push_word(rgate.sel());
 
     let act = wv_assert_ok!(act.run(|| {
-        let mut src = Activity::cur().data_source();
+        let mut src = Activity::own().data_source();
         let rg_sel: Selector = src.pop().unwrap();
 
         let mut rgate = RecvGate::new_bind(rg_sel, math::next_log2(256), math::next_log2(256));

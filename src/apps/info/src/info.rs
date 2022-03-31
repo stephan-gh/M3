@@ -20,7 +20,7 @@ use m3::tiles::Activity;
 
 #[no_mangle]
 pub fn main() -> i32 {
-    let (num, _) = Activity::cur()
+    let (num, _) = Activity::own()
         .resmng()
         .unwrap()
         .get_activity_count()
@@ -30,7 +30,7 @@ pub fn main() -> i32 {
         "ID", "Tile", "EPs", "Time", "UserMem", "KernelMem", "PTs"
     );
     for i in 0..num {
-        match Activity::cur().resmng().unwrap().get_activity_info(i) {
+        match Activity::own().resmng().unwrap().get_activity_info(i) {
             Ok(act) => {
                 println!(
                     "{:2} {:4} {:2}:{:3}/{:3} {:4}:{:7}us/{:7}us {:2}:{:7}K/{:7}K {:2}:{:7}K/{:7}K {:4}:{:3}/{:3} {:0l$}{}",

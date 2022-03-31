@@ -143,7 +143,7 @@ impl Server {
     }
 
     fn create<S>(name: &str, hdl: &mut dyn Handler<S>, public: bool) -> Result<Self, Error> {
-        let sel = Activity::cur().alloc_sel();
+        let sel = Activity::own().alloc_sel();
         let mut rgate = RecvGate::new(math::next_log2(BUF_SIZE), math::next_log2(MSG_SIZE))?;
         rgate.activate()?;
 
@@ -153,7 +153,7 @@ impl Server {
         let (_, sgate) = hdl.sessions().add_creator(&rgate, max)?;
 
         if public {
-            Activity::cur()
+            Activity::own()
                 .resmng()
                 .unwrap()
                 .reg_service(sel, sgate, name, max)?;
@@ -387,7 +387,7 @@ impl Server {
 impl Drop for Server {
     fn drop(&mut self) {
         if self.public {
-            Activity::cur()
+            Activity::own()
                 .resmng()
                 .unwrap()
                 .unreg_service(self.sel())

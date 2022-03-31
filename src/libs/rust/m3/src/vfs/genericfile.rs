@@ -349,14 +349,14 @@ impl File for GenericFile {
 
         if !self.flags.contains(OpenFlags::NEW_SESS) {
             let (fs_id, file_id) = self.id.unwrap();
-            if let Some(fs) = Activity::cur().mounts().get_by_id(fs_id) {
+            if let Some(fs) = Activity::own().mounts().get_by_id(fs_id) {
                 fs.borrow_mut().close(file_id);
             }
         }
         else {
             // revoke EP cap
             if let Some(ep) = self.mgate.ep() {
-                Activity::cur()
+                Activity::own()
                     .revoke(CapRngDesc::new(CapType::OBJECT, ep.sel(), 1), true)
                     .ok();
             }

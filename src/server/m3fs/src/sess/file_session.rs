@@ -39,7 +39,7 @@ struct Entry {
 impl Drop for Entry {
     fn drop(&mut self) {
         // revoke all capabilities
-        m3::tiles::Activity::cur()
+        m3::tiles::Activity::own()
             .revoke(
                 m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, self.sel, 1),
                 false,
@@ -114,7 +114,7 @@ impl FileSession {
             srv_sel
         }
         else {
-            m3::tiles::Activity::cur().alloc_sels(2)
+            m3::tiles::Activity::own().alloc_sels(2)
         };
 
         let _server_session = if srv_sel == m3::kif::INVALID_SEL {
@@ -230,7 +230,7 @@ impl FileSession {
         // determine extent from byte offset
         let (_, extpos) = inodes::get_seek_pos(&inode, offset as usize, SeekMode::SET)?;
 
-        let sel = m3::tiles::Activity::cur().alloc_sel();
+        let sel = m3::tiles::Activity::own().alloc_sel();
         let (len, _) = inodes::get_extent_mem(
             &inode,
             &extpos,
@@ -309,7 +309,7 @@ impl FileSession {
             self.commit_append(&inode, self.cur_bytes)?;
         }
 
-        let mut sel = m3::tiles::Activity::cur().alloc_sel();
+        let mut sel = m3::tiles::Activity::own().alloc_sel();
 
         // do we need to append to the file?
         let (len, extlen) = if out && (self.next_fileoff as u64 == inode.size) {
@@ -404,7 +404,7 @@ impl FileSession {
         reply_vmsg!(is, Code::None as u32, capoff, self.cur_bytes)?;
 
         if self.cur_sel != m3::kif::INVALID_SEL {
-            m3::tiles::Activity::cur()
+            m3::tiles::Activity::own()
                 .revoke(
                     m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, self.cur_sel, 1),
                     false,
@@ -595,7 +595,7 @@ impl Drop for FileSession {
 
         // revoke caps if needed
         if self.cur_sel != m3::kif::INVALID_SEL {
-            m3::tiles::Activity::cur()
+            m3::tiles::Activity::own()
                 .revoke(
                     m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, self.cur_sel, 1),
                     false,

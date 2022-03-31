@@ -145,7 +145,7 @@ impl RecvGate {
     /// Creates a new `RecvGate` with given arguments.
     pub fn new_with(args: RGateArgs) -> Result<Self, Error> {
         let sel = if args.sel == INVALID_SEL {
-            Activity::cur().alloc_sel()
+            Activity::own().alloc_sel()
         }
         else {
             args.sel
@@ -163,8 +163,8 @@ impl RecvGate {
 
     /// Creates the `RecvGate` with given name as defined in the application's configuration
     pub fn new_named(name: &str) -> Result<Self, Error> {
-        let sel = Activity::cur().alloc_sel();
-        let (order, msg_order) = Activity::cur().resmng().unwrap().use_rgate(sel, name)?;
+        let sel = Activity::own().alloc_sel();
+        let (order, msg_order) = Activity::own().resmng().unwrap().use_rgate(sel, name)?;
         Ok(RecvGate {
             gate: Gate::new(sel, CapFlags::empty()),
             buf: None,
@@ -299,7 +299,7 @@ impl RecvGate {
                 }
             }
 
-            Activity::cur().wait_for(Some(rep), None, None)?;
+            Activity::own().wait_for(Some(rep), None, None)?;
         }
     }
 

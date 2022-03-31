@@ -64,7 +64,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn create_srv() {
-    let sel = Activity::cur().alloc_sel();
+    let sel = Activity::own().alloc_sel();
     let mut rgate = wv_assert_ok!(RecvGate::new(10, 10));
 
     // invalid dest selector
@@ -87,7 +87,7 @@ fn create_srv() {
 }
 
 fn create_sgate() {
-    let sel = Activity::cur().alloc_sel();
+    let sel = Activity::own().alloc_sel();
     let rgate = wv_assert_ok!(RecvGate::new(10, 10));
 
     // invalid dest selector
@@ -103,7 +103,7 @@ fn create_sgate() {
 }
 
 fn create_mgate() {
-    let sel = Activity::cur().alloc_sel();
+    let sel = Activity::own().alloc_sel();
 
     // invalid dest selector
     wv_assert_err!(
@@ -131,7 +131,7 @@ fn create_mgate() {
         Code::InvArgs
     );
 
-    if Activity::cur().tile_desc().has_virtmem() {
+    if Activity::own().tile_desc().has_virtmem() {
         // it has to be mapped
         wv_assert_err!(
             syscalls::create_mgate(sel, SEL_ACT, 0, PAGE_SIZE as goff, Perm::R),
@@ -150,7 +150,7 @@ fn create_mgate() {
         let mem = wv_assert_ok!(MemGate::new(PAGE_SIZE * 4, Perm::RW));
         wv_assert_ok!(syscalls::create_map(
             (virt / PAGE_SIZE as goff) as Selector,
-            Activity::cur().sel(),
+            Activity::own().sel(),
             mem.sel(),
             0,
             4,
@@ -189,7 +189,7 @@ fn create_mgate() {
 }
 
 fn create_rgate() {
-    let sel = Activity::cur().alloc_sel();
+    let sel = Activity::own().alloc_sel();
 
     // invalid dest selector
     wv_assert_err!(syscalls::create_rgate(SEL_ACT, 10, 10), Code::InvArgs);
@@ -204,12 +204,12 @@ fn create_rgate() {
 }
 
 fn create_sess() {
-    let srv = Activity::cur().alloc_sel();
+    let srv = Activity::own().alloc_sel();
     let mut rgate = wv_assert_ok!(RecvGate::new(10, 10));
     wv_assert_ok!(rgate.activate());
     wv_assert_ok!(syscalls::create_srv(srv, rgate.sel(), "test", 0,));
 
-    let sel = Activity::cur().alloc_sel();
+    let sel = Activity::own().alloc_sel();
 
     // invalid dest selector
     wv_assert_err!(
@@ -223,7 +223,7 @@ fn create_sess() {
     );
 
     // it's a bit tricky to test the creation of a session with a non-root service cap, because all
-    // calls are implicitly done with Activity::cur() and we cannot exchange caps with ourself.
+    // calls are implicitly done with Activity::own() and we cannot exchange caps with ourself.
     // thus, we create a child activity, delegate the cap to it, delegate it back to ourself and try
     // to create a session with it afterwards.
     let child_tile = wv_assert_ok!(Tile::get("clone"));
@@ -242,7 +242,7 @@ fn create_sess() {
     );
 
     wv_assert_ok!(syscalls::revoke(
-        Activity::cur().sel(),
+        Activity::own().sel(),
         CapRngDesc::new(CapType::OBJECT, srv, 1),
         true
     ));
@@ -250,7 +250,7 @@ fn create_sess() {
 
 #[allow(clippy::cognitive_complexity)]
 fn create_map() {
-    if !Activity::cur().tile_desc().has_virtmem() {
+    if !Activity::own().tile_desc().has_virtmem() {
         return;
     }
 
@@ -264,54 +264,54 @@ fn create_map() {
     );
     // invalid memgate selector
     wv_assert_err!(
-        syscalls::create_map(0, Activity::cur().sel(), SEL_ACT, 0, 4, Perm::RW),
+        syscalls::create_map(0, Activity::own().sel(), SEL_ACT, 0, 4, Perm::RW),
         Code::InvArgs
     );
     wv_assert_err!(
-        syscalls::create_map(0, Activity::cur().sel(), meminv.sel(), 0, 4, Perm::RW),
+        syscalls::create_map(0, Activity::own().sel(), meminv.sel(), 0, 4, Perm::RW),
         Code::InvArgs
     );
     // invalid first page
     wv_assert_err!(
-        syscalls::create_map(0, Activity::cur().sel(), mem.sel(), 4, 4, Perm::RW),
+        syscalls::create_map(0, Activity::own().sel(), mem.sel(), 4, 4, Perm::RW),
         Code::InvArgs
     );
     wv_assert_err!(
-        syscalls::create_map(0, Activity::cur().sel(), mem.sel(), !0, 4, Perm::RW),
+        syscalls::create_map(0, Activity::own().sel(), mem.sel(), !0, 4, Perm::RW),
         Code::InvArgs
     );
     // invalid page count
     wv_assert_err!(
-        syscalls::create_map(0, Activity::cur().sel(), mem.sel(), 0, 5, Perm::RW),
+        syscalls::create_map(0, Activity::own().sel(), mem.sel(), 0, 5, Perm::RW),
         Code::InvArgs
     );
     wv_assert_err!(
-        syscalls::create_map(0, Activity::cur().sel(), mem.sel(), 3, 2, Perm::RW),
+        syscalls::create_map(0, Activity::own().sel(), mem.sel(), 3, 2, Perm::RW),
         Code::InvArgs
     );
     wv_assert_err!(
-        syscalls::create_map(0, Activity::cur().sel(), mem.sel(), 4, 0, Perm::RW),
+        syscalls::create_map(0, Activity::own().sel(), mem.sel(), 4, 0, Perm::RW),
         Code::InvArgs
     );
     wv_assert_err!(
-        syscalls::create_map(0, Activity::cur().sel(), mem.sel(), !0, !0, Perm::RW),
+        syscalls::create_map(0, Activity::own().sel(), mem.sel(), !0, !0, Perm::RW),
         Code::InvArgs
     );
     // invalid permissions
     wv_assert_err!(
-        syscalls::create_map(0, Activity::cur().sel(), mem.sel(), 0, 4, Perm::X),
+        syscalls::create_map(0, Activity::own().sel(), mem.sel(), 0, 4, Perm::X),
         Code::InvArgs
     );
     wv_assert_err!(
-        syscalls::create_map(0, Activity::cur().sel(), mem.sel(), 0, 4, Perm::RWX),
+        syscalls::create_map(0, Activity::own().sel(), mem.sel(), 0, 4, Perm::RWX),
         Code::InvArgs
     );
 }
 
 #[allow(clippy::cognitive_complexity)]
 fn create_activity() {
-    let sels = Activity::cur().alloc_sels(3);
-    let kmem = Activity::cur().kmem().sel();
+    let sels = Activity::own().alloc_sels(3);
+    let kmem = Activity::own().kmem().sel();
 
     let tile = wv_assert_ok!(Tile::get("clone|own"));
 
@@ -339,17 +339,17 @@ fn create_activity() {
 
     wv_assert_ok!(syscalls::create_activity(sels, "test", tile.sel(), kmem));
     if !tile.desc().has_virtmem() {
-        let new_sels = Activity::cur().alloc_sels(3);
+        let new_sels = Activity::own().alloc_sels(3);
         wv_assert_err!(
             syscalls::create_activity(new_sels, "test", tile.sel(), kmem),
             Code::NotSup
         );
     }
-    wv_assert_ok!(Activity::cur().revoke(CapRngDesc::new(CapType::OBJECT, sels, 1), false));
+    wv_assert_ok!(Activity::own().revoke(CapRngDesc::new(CapType::OBJECT, sels, 1), false));
 }
 
 fn create_sem() {
-    let sel = Activity::cur().alloc_sel();
+    let sel = Activity::own().alloc_sel();
 
     // invalid selector
     wv_assert_err!(syscalls::create_sem(SEL_ACT, 0), Code::InvArgs);
@@ -357,11 +357,11 @@ fn create_sem() {
     // one down does not block us
     wv_assert_ok!(syscalls::sem_ctrl(sel, SemOp::DOWN));
 
-    wv_assert_ok!(Activity::cur().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));
+    wv_assert_ok!(Activity::own().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));
 }
 
 fn alloc_ep() {
-    let sel = Activity::cur().alloc_sel();
+    let sel = Activity::own().alloc_sel();
 
     // try to use the EP object after the activity we allocated it for is gone
     {
@@ -380,7 +380,7 @@ fn alloc_ep() {
 
     // invalid dest selector
     wv_assert_err!(
-        syscalls::alloc_ep(SEL_ACT, Activity::cur().tile().sel(), TOTAL_EPS, 1),
+        syscalls::alloc_ep(SEL_ACT, Activity::own().tile().sel(), TOTAL_EPS, 1),
         Code::InvArgs
     );
     // invalid activity selector
@@ -390,60 +390,60 @@ fn alloc_ep() {
     );
     // invalid reply count
     wv_assert_err!(
-        syscalls::alloc_ep(sel, Activity::cur().sel(), AVAIL_EPS - 2, !0),
+        syscalls::alloc_ep(sel, Activity::own().sel(), AVAIL_EPS - 2, !0),
         Code::InvArgs
     );
     wv_assert_err!(
-        syscalls::alloc_ep(sel, Activity::cur().sel(), AVAIL_EPS - 2, TOTAL_EPS as u32),
+        syscalls::alloc_ep(sel, Activity::own().sel(), AVAIL_EPS - 2, TOTAL_EPS as u32),
         Code::InvArgs
     );
 
     // any EP
-    let ep = wv_assert_ok!(syscalls::alloc_ep(sel, Activity::cur().sel(), TOTAL_EPS, 1));
+    let ep = wv_assert_ok!(syscalls::alloc_ep(sel, Activity::own().sel(), TOTAL_EPS, 1));
     wv_assert!(ep >= FIRST_USER_EP);
     wv_assert!(ep < TOTAL_EPS);
-    wv_assert_ok!(Activity::cur().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));
+    wv_assert_ok!(Activity::own().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));
 
     // specific EP
     let ep = wv_assert_ok!(syscalls::alloc_ep(
         sel,
-        Activity::cur().sel(),
+        Activity::own().sel(),
         AVAIL_EPS - 2,
         1
     ));
     wv_assert_eq!(ep, AVAIL_EPS - 2);
-    wv_assert_ok!(Activity::cur().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));
+    wv_assert_ok!(Activity::own().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));
 
     // specific, but invalid EP
     wv_assert_err!(
-        syscalls::alloc_ep(sel, Activity::cur().sel(), AVAIL_EPS + 1, 0),
+        syscalls::alloc_ep(sel, Activity::own().sel(), AVAIL_EPS + 1, 0),
         Code::InvArgs
     );
     wv_assert_err!(
-        syscalls::alloc_ep(sel, Activity::cur().sel(), AVAIL_EPS - 5, 10),
+        syscalls::alloc_ep(sel, Activity::own().sel(), AVAIL_EPS - 5, 10),
         Code::InvArgs
     );
 
     // EPs not free
     wv_assert_err!(
-        syscalls::alloc_ep(sel, Activity::cur().sel(), FIRST_USER_EP, 2),
+        syscalls::alloc_ep(sel, Activity::own().sel(), FIRST_USER_EP, 2),
         Code::InvArgs
     );
 
     // not enough quota
-    let ep_quota = Activity::cur().tile().quota().unwrap().endpoints().left();
+    let ep_quota = Activity::own().tile().quota().unwrap().endpoints().left();
     wv_assert_err!(
-        syscalls::alloc_ep(sel, Activity::cur().sel(), TOTAL_EPS, ep_quota + 1),
+        syscalls::alloc_ep(sel, Activity::own().sel(), TOTAL_EPS, ep_quota + 1),
         Code::NoSpace
     );
 }
 
 fn activate() {
-    let ep1 = wv_assert_ok!(Activity::cur().epmng_mut().acquire(0));
-    let ep2 = wv_assert_ok!(Activity::cur().epmng_mut().acquire(0));
-    let ep3 = wv_assert_ok!(Activity::cur().epmng_mut().acquire(1));
-    let ep4 = wv_assert_ok!(Activity::cur().epmng_mut().acquire(2));
-    let sel = Activity::cur().alloc_sel();
+    let ep1 = wv_assert_ok!(Activity::own().epmng_mut().acquire(0));
+    let ep2 = wv_assert_ok!(Activity::own().epmng_mut().acquire(0));
+    let ep3 = wv_assert_ok!(Activity::own().epmng_mut().acquire(1));
+    let ep4 = wv_assert_ok!(Activity::own().epmng_mut().acquire(2));
+    let sel = Activity::own().alloc_sel();
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
     let mut rgate = wv_assert_ok!(RecvGate::new(5, 5));
     let sgate = wv_assert_ok!(SendGate::new(&rgate));
@@ -481,7 +481,7 @@ fn activate() {
         Code::InvArgs
     );
     // can't specify memory cap for rgate without VM
-    if !Activity::cur().tile_desc().has_virtmem() {
+    if !Activity::own().tile_desc().has_virtmem() {
         wv_assert_err!(
             syscalls::activate(ep3.sel(), rgate.sel(), mgate.sel(), 0),
             Code::InvArgs
@@ -510,14 +510,14 @@ fn activate() {
         Code::Exists
     );
 
-    Activity::cur().epmng_mut().release(ep3, true);
-    Activity::cur().epmng_mut().release(ep2, true);
-    Activity::cur().epmng_mut().release(ep1, true);
+    Activity::own().epmng_mut().release(ep3, true);
+    Activity::own().epmng_mut().release(ep2, true);
+    Activity::own().epmng_mut().release(ep1, true);
 }
 
 fn derive_mem() {
-    let act = Activity::cur().sel();
-    let sel = Activity::cur().alloc_sel();
+    let act = Activity::own().sel();
+    let sel = Activity::own().alloc_sel();
     let mem = wv_assert_ok!(MemGate::new(0x4000, Perm::RW));
 
     // invalid dest selector
@@ -564,17 +564,17 @@ fn derive_mem() {
 }
 
 fn derive_kmem() {
-    let sel = Activity::cur().alloc_sel();
-    let quota = wv_assert_ok!(Activity::cur().kmem().quota()).left();
+    let sel = Activity::own().alloc_sel();
+    let quota = wv_assert_ok!(Activity::own().kmem().quota()).left();
 
     // invalid dest selector
     wv_assert_err!(
-        syscalls::derive_kmem(Activity::cur().kmem().sel(), SEL_ACT, quota / 2),
+        syscalls::derive_kmem(Activity::own().kmem().sel(), SEL_ACT, quota / 2),
         Code::InvArgs
     );
     // invalid quota
     wv_assert_err!(
-        syscalls::derive_kmem(Activity::cur().kmem().sel(), sel, quota + 1),
+        syscalls::derive_kmem(Activity::own().kmem().sel(), sel, quota + 1),
         Code::NoSpace
     );
     // invalid kmem sel
@@ -586,24 +586,24 @@ fn derive_kmem() {
     // do that test twice, because we might cause pagefaults during the first test, changing the
     // kernel memory quota (our pager shares the kmem with us).
     for i in 0..=1 {
-        let before = wv_assert_ok!(Activity::cur().kmem().quota()).left();
+        let before = wv_assert_ok!(Activity::own().kmem().quota()).left();
         // transfer memory
         {
-            let kmem2 = wv_assert_ok!(Activity::cur().kmem().derive(before / 2));
+            let kmem2 = wv_assert_ok!(Activity::own().kmem().derive(before / 2));
             let quota2 = wv_assert_ok!(kmem2.quota()).left();
-            let nquota = wv_assert_ok!(Activity::cur().kmem().quota()).left();
+            let nquota = wv_assert_ok!(Activity::own().kmem().quota()).left();
             wv_assert_eq!(quota2, before / 2);
             // we don't know exactly, because we have paid for the new cap and kobject too
             wv_assert!(nquota <= before / 2);
         }
         // only do the check in the second test where no pagefaults should occur
         if i == 1 {
-            let nquota = wv_assert_ok!(Activity::cur().kmem().quota()).left();
+            let nquota = wv_assert_ok!(Activity::own().kmem().quota()).left();
             wv_assert_eq!(nquota, before);
         }
     }
 
-    let kmem = wv_assert_ok!(Activity::cur().kmem().derive(quota / 2));
+    let kmem = wv_assert_ok!(Activity::own().kmem().derive(quota / 2));
     {
         let tile = wv_assert_ok!(Tile::get("clone"));
         let _act = wv_assert_ok!(ChildActivity::new_with(
@@ -612,17 +612,17 @@ fn derive_kmem() {
         ));
         // activity is still using the kmem
         wv_assert_err!(
-            Activity::cur().revoke(CapRngDesc::new(CapType::OBJECT, kmem.sel(), 1), false),
+            Activity::own().revoke(CapRngDesc::new(CapType::OBJECT, kmem.sel(), 1), false),
             Code::NotRevocable
         );
     }
 
     // now we can revoke it
-    wv_assert_ok!(Activity::cur().revoke(CapRngDesc::new(CapType::OBJECT, kmem.sel(), 1), false));
+    wv_assert_ok!(Activity::own().revoke(CapRngDesc::new(CapType::OBJECT, kmem.sel(), 1), false));
 }
 
 fn derive_tile() {
-    let sel = Activity::cur().alloc_sel();
+    let sel = Activity::own().alloc_sel();
     let tile = wv_assert_ok!(Tile::get("clone"));
     let oquota = wv_assert_ok!(tile.quota());
     let oquote_eps = oquota.endpoints().left();
@@ -676,13 +676,13 @@ fn derive_tile() {
         let _act = wv_assert_ok!(ChildActivity::new(tile.clone(), "test"));
         // activity is still using the Tile
         wv_assert_err!(
-            Activity::cur().revoke(CapRngDesc::new(CapType::OBJECT, tile.sel(), 1), false),
+            Activity::own().revoke(CapRngDesc::new(CapType::OBJECT, tile.sel(), 1), false),
             Code::NotRevocable
         );
     }
 
     // now we can revoke it
-    wv_assert_ok!(Activity::cur().revoke(CapRngDesc::new(CapType::OBJECT, tile.sel(), 1), false));
+    wv_assert_ok!(Activity::own().revoke(CapRngDesc::new(CapType::OBJECT, tile.sel(), 1), false));
 }
 
 struct DummyHandler {
@@ -700,7 +700,7 @@ impl Handler<()> for DummyHandler {
 }
 
 fn derive_srv() {
-    let crd = CapRngDesc::new(CapType::OBJECT, Activity::cur().alloc_sels(2), 2);
+    let crd = CapRngDesc::new(CapType::OBJECT, Activity::own().alloc_sels(2), 2);
     let mut hdl = DummyHandler {
         sessions: SessionContainer::new(16),
     };
@@ -723,7 +723,7 @@ fn derive_srv() {
 }
 
 fn get_sess() {
-    let sel = Activity::cur().alloc_sel();
+    let sel = Activity::own().alloc_sel();
     let mut hdl = DummyHandler {
         sessions: SessionContainer::new(16),
     };
@@ -752,7 +752,7 @@ fn get_sess() {
     );
     // own activity selector
     wv_assert_err!(
-        syscalls::get_sess(srv.sel(), Activity::cur().sel(), sel, 0xDEAD_BEEF),
+        syscalls::get_sess(srv.sel(), Activity::own().sel(), sel, 0xDEAD_BEEF),
         Code::InvArgs
     );
     // invalid destination selector
@@ -779,7 +779,7 @@ fn mgate_region() {
     // invalid selector
     wv_assert_err!(syscalls::mgate_region(SEL_ACT), Code::InvArgs);
     wv_assert_err!(
-        syscalls::mgate_region(Activity::cur().alloc_sel()),
+        syscalls::mgate_region(Activity::own().alloc_sel()),
         Code::InvArgs
     );
 
@@ -792,7 +792,7 @@ fn kmem_quota() {
     // invalid selector
     wv_assert_err!(syscalls::kmem_quota(SEL_ACT), Code::InvArgs);
     wv_assert_err!(
-        syscalls::kmem_quota(Activity::cur().alloc_sel()),
+        syscalls::kmem_quota(Activity::own().alloc_sel()),
         Code::InvArgs
     );
 }
@@ -801,7 +801,7 @@ fn tile_quota() {
     // invalid selector
     wv_assert_err!(syscalls::tile_quota(SEL_ACT), Code::InvArgs);
     wv_assert_err!(
-        syscalls::tile_quota(Activity::cur().alloc_sel()),
+        syscalls::tile_quota(Activity::own().alloc_sel()),
         Code::InvArgs
     );
 }
@@ -811,7 +811,7 @@ fn tile_set_quota() {
     wv_assert_err!(syscalls::tile_set_quota(SEL_ACT, 0, 0), Code::InvArgs);
 
     // cannot be called on derived tile caps
-    let der_tile = wv_assert_ok!(Activity::cur().tile().derive(None, None, None));
+    let der_tile = wv_assert_ok!(Activity::own().tile().derive(None, None, None));
     wv_assert_err!(
         syscalls::tile_set_quota(der_tile.sel(), 100, 100),
         Code::NoPerm
@@ -822,7 +822,7 @@ fn sem_ctrl() {
     // invalid selector
     wv_assert_err!(syscalls::sem_ctrl(SEL_ACT, SemOp::DOWN), Code::InvArgs);
     wv_assert_err!(
-        syscalls::sem_ctrl(Activity::cur().alloc_sel(), SemOp::DOWN),
+        syscalls::sem_ctrl(Activity::own().alloc_sel(), SemOp::DOWN),
         Code::InvArgs
     );
 }
@@ -838,7 +838,7 @@ fn activity_ctrl() {
     );
     // can't start ourself
     wv_assert_err!(
-        syscalls::activity_ctrl(Activity::cur().sel(), ActivityOp::START, 0),
+        syscalls::activity_ctrl(Activity::own().sel(), ActivityOp::START, 0),
         Code::InvArgs
     );
 }
@@ -847,7 +847,7 @@ fn exchange() {
     let tile = wv_assert_ok!(Tile::get("clone|own"));
     let child = wv_assert_ok!(ChildActivity::new(tile, "test"));
 
-    let sel = Activity::cur().alloc_sel();
+    let sel = Activity::own().alloc_sel();
     let csel = sel;
     let unused = CapRngDesc::new(CapType::OBJECT, sel, 1);
     let used = CapRngDesc::new(CapType::OBJECT, 0, 1);
@@ -859,7 +859,7 @@ fn exchange() {
     );
     // invalid own caps (source caps can be invalid)
     wv_assert_err!(
-        syscalls::exchange(Activity::cur().sel(), used, unused.start(), true),
+        syscalls::exchange(Activity::own().sel(), used, unused.start(), true),
         Code::InvArgs
     );
     wv_assert_err!(
@@ -868,7 +868,7 @@ fn exchange() {
     );
     // invalid other caps
     wv_assert_err!(
-        syscalls::exchange(Activity::cur().sel(), used, 0, false),
+        syscalls::exchange(Activity::own().sel(), used, 0, false),
         Code::InvArgs
     );
     wv_assert_err!(
@@ -890,7 +890,7 @@ fn delegate() {
     );
     // invalid sess selector
     wv_assert_err!(
-        syscalls::delegate(Activity::cur().sel(), SEL_ACT, crd, |_| {}, |_| Ok(())),
+        syscalls::delegate(Activity::own().sel(), SEL_ACT, crd, |_| {}, |_| Ok(())),
         Code::InvArgs
     );
     // CRD can be anything (depends on server)
@@ -900,7 +900,7 @@ fn obtain() {
     let m3fs = wv_assert_ok!(M3FS::new(1, "m3fs-clone"));
     let m3fs = m3fs.borrow();
     let sess = m3fs.as_any().downcast_ref::<M3FS>().unwrap().sess();
-    let sel = Activity::cur().alloc_sel();
+    let sel = Activity::own().alloc_sel();
     let crd = CapRngDesc::new(CapType::OBJECT, sel, 1);
     let inval = CapRngDesc::new(CapType::OBJECT, SEL_ACT, 1);
 
@@ -911,12 +911,12 @@ fn obtain() {
     );
     // invalid sess selector
     wv_assert_err!(
-        syscalls::obtain(Activity::cur().sel(), SEL_ACT, crd, |_| {}, |_| Ok(())),
+        syscalls::obtain(Activity::own().sel(), SEL_ACT, crd, |_| {}, |_| Ok(())),
         Code::InvArgs
     );
     // invalid CRD
     wv_assert_err!(
-        syscalls::obtain(Activity::cur().sel(), sess.sel(), inval, |_| {}, |_| Ok(())),
+        syscalls::obtain(Activity::own().sel(), sess.sel(), inval, |_| {}, |_| Ok(())),
         Code::InvArgs
     );
 }
@@ -930,15 +930,15 @@ fn revoke() {
     wv_assert_err!(syscalls::revoke(SEL_KMEM, crd_act, true), Code::InvArgs);
     // can't revoke Tile, activity, or mem cap
     wv_assert_err!(
-        syscalls::revoke(Activity::cur().sel(), crd_tile, true),
+        syscalls::revoke(Activity::own().sel(), crd_tile, true),
         Code::InvArgs
     );
     wv_assert_err!(
-        syscalls::revoke(Activity::cur().sel(), crd_act, true),
+        syscalls::revoke(Activity::own().sel(), crd_act, true),
         Code::InvArgs
     );
     wv_assert_err!(
-        syscalls::revoke(Activity::cur().sel(), crd_mem, true),
+        syscalls::revoke(Activity::own().sel(), crd_mem, true),
         Code::InvArgs
     );
 }

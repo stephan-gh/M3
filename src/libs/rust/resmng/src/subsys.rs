@@ -166,7 +166,7 @@ impl Subsystem {
             }
         }
 
-        if Activity::cur().resmng().is_none() {
+        if Activity::own().resmng().is_none() {
             log!(crate::LOG_CFG, "Parsed {:?}", self.cfg);
         }
     }
@@ -278,7 +278,7 @@ impl Subsystem {
         S: FnMut(&mut childs::OwnChild) -> Result<(), VerboseError>,
     {
         let root = self.cfg();
-        if Activity::cur().resmng().is_none() {
+        if Activity::own().resmng().is_none() {
             root.check();
         }
 
@@ -294,13 +294,13 @@ impl Subsystem {
         if !root.domains().first().unwrap().pseudo {
             OUR_TILE.replace(Some(Rc::new(
                 tiles::get()
-                    .find_and_alloc(Activity::cur().tile_desc())
+                    .find_and_alloc(Activity::own().tile_desc())
                     .map_err(|e| {
                         VerboseError::new(e.code(), "Unable to allocate own tile".to_string())
                     })?,
             )));
         }
-        else if !Activity::cur().tile_desc().has_virtmem() {
+        else if !Activity::own().tile_desc().has_virtmem() {
             panic!("Can't share tile without VM support");
         }
 
@@ -311,7 +311,7 @@ impl Subsystem {
 
         for (idx, d) in root.domains().iter().enumerate() {
             // allocate new tile; root allocates from its own set, others ask their resmng
-            let tile_usage = if d.pseudo || Activity::cur().resmng().is_none() {
+            let tile_usage = if d.pseudo || Activity::own().resmng().is_none() {
                 Rc::new(
                     tiles::get()
                         .find_and_alloc_with_desc(&d.tile.0)
@@ -347,7 +347,7 @@ impl Subsystem {
             ));
 
             // if the activities should run on our own tile, all PMP EPs are already installed
-            if tile_usage.tile_id() != Activity::cur().tile_id() {
+            if tile_usage.tile_id() != Activity::own().tile_id() {
                 // add regions to PMP
                 for slice in mem_pool.borrow().slices() {
                     tile_usage
@@ -358,7 +358,7 @@ impl Subsystem {
                 }
 
                 // if we're root, we need to provide the tile access to boot modules as well
-                if Activity::cur().resmng().is_none() {
+                if Activity::own().resmng().is_none() {
                     let start_addr = self.mods[0].addr();
                     let last_mod = &self.mods[self.mods.len() - 1];
                     let end_addr = last_mod.addr() + last_mod.size;
@@ -411,7 +411,7 @@ impl Subsystem {
             let mut domain_kmem_bytes = 0;
 
             // account for ourself, if we share this tile
-            if tile_usage.tile_id() == Activity::cur().tile_id() {
+            if tile_usage.tile_id() == Activity::own().tile_id() {
                 pt_sharer += 1;
                 domain_total_eps -= OUR_EPS;
             }
@@ -443,7 +443,7 @@ impl Subsystem {
 
             // derive kmem for the entire domain. All apps that did not specify a kmem quota will
             // share this domain kmem.
-            let domain_kmem = Activity::cur()
+            let domain_kmem = Activity::own()
                 .kmem()
                 .derive(domain_kmem_bytes)
                 .map_err(|e| {
@@ -458,7 +458,7 @@ impl Subsystem {
             mem_id += 1;
 
             // account for ourself, if we share this tile
-            let child_total_time = if tile_usage.tile_id() == Activity::cur().tile_id() {
+            let child_total_time = if tile_usage.tile_id() == Activity::own().tile_id() {
                 domain_total_time + DEF_TIME_SLICE
             }
             else {
@@ -556,7 +556,7 @@ impl Subsystem {
                     // activities on the same level. The resource manager needs to set PMP EPs and might
                     // thus interfere with the other activities.
                     assert!(
-                        child_pe_usage.tile_id() != Activity::cur().tile_id()
+                        child_pe_usage.tile_id() != Activity::own().tile_id()
                             && d.apps().len() == 1
                     );
 
@@ -904,7 +904,7 @@ fn split_child_mem(cfg: &config::AppConfig, mem: &Rc<childs::ChildMem>) {
 
 fn split_mem(cfg: &config::AppConfig) -> Result<(usize, goff), VerboseError> {
     let mut total_umem = memory::container().capacity();
-    let mut total_kmem = Activity::cur().kmem().quota()?.total();
+    let mut total_kmem = Activity::own().kmem().quota()?.total();
 
     let mut total_kparties = cfg.count_apps() + 1;
     let mut total_mparties = total_kparties;

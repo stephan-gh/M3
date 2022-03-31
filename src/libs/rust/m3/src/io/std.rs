@@ -48,8 +48,8 @@ pub fn stderr() -> RefMut<'static, BufWriter<FileRef<dyn File>>> {
 
 pub(crate) fn init() {
     for fd in 0..3 {
-        if !Activity::cur().files().exists(fd) {
-            Activity::cur().files().set_raw(fd, Box::new(Serial::new()));
+        if !Activity::own().files().exists(fd) {
+            Activity::own().files().set_raw(fd, Box::new(Serial::new()));
         }
     }
 

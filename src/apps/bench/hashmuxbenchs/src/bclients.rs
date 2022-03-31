@@ -172,7 +172,7 @@ where
 }
 
 fn _start_client(params: ClientParams, rgate: &RecvGate, mgate: &MemGate) -> Client {
-    let tile = wv_assert_ok!(Tile::new(Activity::cur().tile_desc()));
+    let tile = wv_assert_ok!(Tile::new(Activity::own().tile_desc()));
     let mut act = wv_assert_ok!(ChildActivity::new(tile, &format!("hash-c{}", params.num)));
 
     let sgate = wv_assert_ok!(SendGate::new_with(
@@ -196,7 +196,7 @@ fn _start_client(params: ClientParams, rgate: &RecvGate, mgate: &MemGate) -> Cli
         _sgate: sgate,
         mgate,
         act: wv_assert_ok!(act.run(|| {
-            let mut src = Activity::cur().data_source();
+            let mut src = Activity::own().data_source();
             let sgate_sel: Selector = src.pop().unwrap();
             let slice: usize = src.pop().unwrap();
             let params: ClientParams = src.pop().unwrap();

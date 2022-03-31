@@ -59,7 +59,7 @@ fn exec_ping() {
 
     pipe.close_writer();
 
-    let input = Activity::cur().files().get(pipe.reader_fd()).unwrap();
+    let input = Activity::own().files().get(pipe.reader_fd()).unwrap();
     let mut reader = BufReader::new(input);
     let mut line = String::new();
     while reader.read_line(&mut line).is_ok() {

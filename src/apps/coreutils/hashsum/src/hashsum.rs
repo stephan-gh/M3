@@ -27,7 +27,7 @@ fn open_file(path: &str, flags: OpenFlags, stdfd: Fd) -> Result<FileRef<dyn File
         VFS::open(path, flags).map(|f| f.into_generic())
     }
     else {
-        Activity::cur()
+        Activity::own()
             .files()
             .get(stdfd)
             .ok_or_else(|| Error::new(Code::NoSuchFile))

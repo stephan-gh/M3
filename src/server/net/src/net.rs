@@ -394,7 +394,7 @@ pub fn main() -> i32 {
         };
 
         log!(LOG_DETAIL, "Sleeping for {:?}", sleep_nanos);
-        Activity::sleep_for(sleep_nanos).ok();
+        Activity::own().sleep_for(sleep_nanos).ok();
     }
 
     0

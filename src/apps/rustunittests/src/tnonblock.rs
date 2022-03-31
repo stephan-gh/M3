@@ -34,8 +34,8 @@ fn pipes() {
     let pipe_mem = wv_assert_ok!(MemGate::new(PIPE_SIZE, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, PIPE_SIZE));
 
-    let mut fin = wv_assert_some!(Activity::cur().files().get(pipe.reader_fd()));
-    let mut fout = wv_assert_some!(Activity::cur().files().get(pipe.writer_fd()));
+    let mut fin = wv_assert_some!(Activity::own().files().get(pipe.reader_fd()));
+    let mut fout = wv_assert_some!(Activity::own().files().get(pipe.writer_fd()));
     wv_assert_ok!(fin.set_blocking(false));
     wv_assert_ok!(fout.set_blocking(false));
 
@@ -63,7 +63,7 @@ fn pipes() {
         }
 
         if count < 100 && progress == 0 {
-            Activity::cur().sleep().ok();
+            Activity::own().sleep().ok();
         }
     }
 }

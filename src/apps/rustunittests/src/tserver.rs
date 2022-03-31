@@ -149,7 +149,7 @@ pub fn testcliexit() {
     dst.push_word(sg.sel());
 
     let cact = wv_assert_ok!(client.run(|| {
-        let mut src = Activity::cur().data_source();
+        let mut src = Activity::own().data_source();
         let sg_sel: Selector = src.pop().unwrap();
 
         let sess = loop {
@@ -168,7 +168,7 @@ pub fn testcliexit() {
             let mut req_buf = MsgBuf::borrow_def();
             req_buf.set(kif::syscalls::ExchangeSess {
                 opcode: kif::syscalls::Operation::OBTAIN.val,
-                act_sel: Activity::cur().sel(),
+                act_sel: Activity::own().sel(),
                 sess_sel: sess.sel(),
                 caps: [0; 2],
                 args: kif::syscalls::ExchangeArgs::default(),

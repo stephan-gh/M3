@@ -202,7 +202,7 @@ impl Handler<DiskSession> for DiskHandler {
         );
 
         let sess = self.sessions.get_mut(sid).unwrap();
-        let sel = Activity::cur().alloc_sel();
+        let sel = Activity::own().alloc_sel();
         let range = BlockRange::new_range(bno, len);
         sess.blocks.remove(&range);
         sess.blocks.insert(range, sel);

@@ -531,7 +531,7 @@ impl Device {
             while elapsed < ATA_WAIT_TIMEOUT
                 && (chan.read_pio::<u8>(ATAReg::STATUS)? & CommandStatus::BUSY.bits()) != 0
             {
-                Activity::cur().sleep_for(SLEEP_TIME)?;
+                Activity::own().sleep_for(SLEEP_TIME)?;
                 elapsed += SLEEP_TIME;
             }
             chan.wait();

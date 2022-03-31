@@ -79,7 +79,7 @@ fn hash_empty() {
 }
 
 fn hash_mapped_mem() {
-    if !Activity::cur().tile_desc().has_virtmem() {
+    if !Activity::own().tile_desc().has_virtmem() {
         println!("No virtual memory; skipping hash_mapped_mem test");
         return;
     }
@@ -93,7 +93,7 @@ fn hash_mapped_mem() {
     wv_assert_ok!(hash.ep().configure(mgate.sel()));
 
     // Map memory
-    wv_assert_ok!(Activity::cur()
+    wv_assert_ok!(Activity::own()
         .pager()
         .unwrap()
         .map_mem(ADDR, &mgate, SIZE, Perm::RW));
@@ -121,7 +121,7 @@ fn hash_mapped_mem() {
     );
 
     // Unmap the memory again. This is important otherwise act.run(...) will fail below
-    wv_assert_ok!(Activity::cur().pager().unwrap().unmap(ADDR));
+    wv_assert_ok!(Activity::own().pager().unwrap().unmap(ADDR));
 }
 
 fn _hash_file(
@@ -171,7 +171,7 @@ fn _hash_file_start(
     dst.push_str(expected);
 
     wv_assert_ok!(act.run(|| {
-        let mut src = Activity::cur().data_source();
+        let mut src = Activity::own().data_source();
         let ty: HashType = src.pop().unwrap();
         let expected_bytes = _to_hex_bytes(src.pop().unwrap());
 
@@ -420,13 +420,13 @@ fn shake_and_hash_pipe() {
     let hash = wv_assert_ok!(HashSession::new("hash1", &HashAlgorithm::SHA3_256));
     {
         // echo "Pipe!"
-        let mut ifile = wv_assert_some!(Activity::cur().files().get(ipipe.writer_fd()));
+        let mut ifile = wv_assert_some!(Activity::own().files().get(ipipe.writer_fd()));
         wv_assert_ok!(writeln!(ifile, "Pipe!"));
         ipipe.close_writer();
     }
     {
         // hashsum sha3-224
-        let mut ofile = wv_assert_some!(Activity::cur().files().get(opipe.reader_fd()));
+        let mut ofile = wv_assert_some!(Activity::own().files().get(opipe.reader_fd()));
         wv_assert_ok!(ofile.hash_input(&hash, usize::MAX));
         opipe.close_reader();
     }

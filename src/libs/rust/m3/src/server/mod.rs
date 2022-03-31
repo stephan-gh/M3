@@ -33,7 +33,7 @@ use crate::tiles::Activity;
 /// Executes the server loop, calling `func` in every iteration.
 pub fn server_loop<F: FnMut() -> Result<(), Error>>(mut func: F) -> Result<(), Error> {
     loop {
-        Activity::cur().sleep().ok();
+        Activity::own().sleep().ok();
 
         func()?;
     }

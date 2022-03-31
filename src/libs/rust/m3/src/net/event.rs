@@ -199,14 +199,14 @@ impl NetEventChannel {
 
     pub fn wait_for_events(&self) {
         // ignore errors
-        Activity::cur()
+        Activity::own()
             .wait_for(Some(self.rgate.ep().unwrap()), None, None)
             .ok();
     }
 
     pub fn wait_for_credits(&self) {
         // ignore errors
-        Activity::cur()
+        Activity::own()
             .wait_for(Some(self.rpl_gate.ep().unwrap()), None, None)
             .ok();
     }
@@ -275,7 +275,7 @@ impl Drop for NetEventChannel {
     fn drop(&mut self) {
         if self.side == NetEventSide::Server {
             // revoke client caps
-            Activity::cur()
+            Activity::own()
                 .revoke(
                     CapRngDesc::new(CapType::OBJECT, self.rgate.sel() + 2, 2),
                     false,

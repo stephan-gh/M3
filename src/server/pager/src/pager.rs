@@ -160,7 +160,7 @@ fn get_mount(name: &str) -> Result<String, VerboseError> {
         VerboseError::new(e.code(), format!("Unable to open m3fs session {}", name))
     })?;
     let our_path = format!("/child-mount-{}", name);
-    Activity::cur().mounts().add(&our_path, fs)?;
+    Activity::own().mounts().add(&our_path, fs)?;
     MOUNTS
         .borrow_mut()
         .push((name.to_string(), our_path.to_string()));

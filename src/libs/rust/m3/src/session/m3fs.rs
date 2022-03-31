@@ -63,12 +63,12 @@ impl M3FS {
     /// Creates a new session at the m3fs server with given name.
     #[allow(clippy::new_ret_no_self)]
     pub fn new(id: usize, name: &str) -> Result<FSHandle, Error> {
-        let sels = Activity::cur().alloc_sels(2);
+        let sels = Activity::own().alloc_sels(2);
         let sess = ClientSession::new_with_sel(name, sels + 0)?;
 
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, sels + 1, 1);
         sess.obtain_for(
-            Activity::cur().sel(),
+            Activity::own().sel(),
             crd,
             |os| os.push_word(FSOperation::GET_SGATE.val),
             |_| Ok(()),
@@ -240,7 +240,7 @@ impl M3FS {
             }
         }
 
-        let ep = Activity::cur().epmng_mut().acquire(0)?;
+        let ep = Activity::own().epmng_mut().acquire(0)?;
         let id = self.delegate_ep(ep.sel())?;
         self.eps.push(CachedEP { id, ep, file: None });
         Ok(self.eps.len() - 1)

@@ -84,7 +84,7 @@ impl Gate {
         addr: usize,
         replies: u32,
     ) -> Result<EpId, Error> {
-        let ep = Activity::cur().epmng_mut().acquire(replies)?;
+        let ep = Activity::own().epmng_mut().acquire(replies)?;
         syscalls::activate(ep.sel(), self.sel(), mem.unwrap_or(kif::INVALID_SEL), addr)?;
         self.ep.replace(Some(ep));
         Ok(self.ep().unwrap().id())
@@ -101,7 +101,7 @@ impl Gate {
     }
 
     fn do_activate(&self) -> Result<&EP, Error> {
-        let ep = Activity::cur().epmng_mut().activate(self)?;
+        let ep = Activity::own().epmng_mut().activate(self)?;
         self.ep.replace(Some(ep));
         Ok(self.ep().unwrap())
     }
@@ -109,7 +109,7 @@ impl Gate {
     /// Releases the EP that is used by this gate
     pub(crate) fn release(&mut self, force_inval: bool) {
         if let Some(ep) = self.ep.replace(None) {
-            Activity::cur().epmng_mut().release(
+            Activity::own().epmng_mut().release(
                 ep,
                 force_inval || self.cap.flags().contains(CapFlags::KEEP_CAP),
             );

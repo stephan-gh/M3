@@ -181,7 +181,7 @@ impl TileManager {
     }
 
     pub fn find_with_desc(&self, desc: &str) -> Option<usize> {
-        let own = Activity::cur().tile().desc();
+        let own = Activity::own().tile().desc();
         for props in desc.split('|') {
             let base = TileDesc::new(own.tile_type(), own.isa(), 0);
             if let Ok(idx) = self.find(base.with_properties(props)) {
@@ -193,7 +193,7 @@ impl TileManager {
     }
 
     pub fn find_and_alloc_with_desc(&self, desc: &str) -> Result<TileUsage, Error> {
-        let own = Activity::cur().tile().desc();
+        let own = Activity::own().tile().desc();
         for props in desc.split('|') {
             let base = TileDesc::new(own.tile_type(), own.isa(), 0);
             if let Ok(tile) = self.find_and_alloc(base.with_properties(props)) {
@@ -207,7 +207,7 @@ impl TileManager {
     pub fn find_and_alloc(&self, desc: TileDesc) -> Result<TileUsage, Error> {
         self.find(desc).map(|idx| {
             let usage = TileUsage::new(idx);
-            if self.tiles[idx].id == Activity::cur().tile_id() {
+            if self.tiles[idx].id == Activity::own().tile_id() {
                 // if it's our own tile, set it to the first free PMP EP
                 let mut pmp = usage.pmp.borrow_mut();
                 for ep in pmp.next_ep..PMEM_PROT_EPS as EpId {

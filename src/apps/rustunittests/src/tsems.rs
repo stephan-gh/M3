@@ -59,7 +59,7 @@ fn taking_turns() {
     dst.push_word(sem1.sel());
 
     let act = wv_assert_ok!(child.run(|| {
-        let mut src = Activity::cur().data_source();
+        let mut src = Activity::own().data_source();
         let sem0_sel: Selector = src.pop().unwrap();
         let sem1_sel: Selector = src.pop().unwrap();
 

@@ -77,7 +77,7 @@ impl fmt::Debug for RecvBuf {
 
 /// Allocates a new receive buffer with given size
 pub fn alloc_rbuf(size: usize) -> Result<RecvBuf, Error> {
-    let vm = Activity::cur().tile_desc().has_virtmem();
+    let vm = Activity::own().tile_desc().has_virtmem();
     let align = if vm { cfg::PAGE_SIZE as u64 } else { 1 };
     let addr = BUFS.borrow_mut().allocate(size as u64, align)? as usize;
 
@@ -102,7 +102,7 @@ fn map_rbuf(addr: usize, size: usize) -> Result<MemGate, Error> {
     let mgate = MemGate::new(size, Perm::R)?;
     syscalls::create_map(
         (addr / cfg::PAGE_SIZE) as Selector,
-        Activity::cur().sel(),
+        Activity::own().sel(),
         mgate.sel(),
         0,
         size / cfg::PAGE_SIZE,
@@ -117,6 +117,6 @@ pub fn free_rbuf(rbuf: RecvBuf) {
 }
 
 pub(crate) fn init() {
-    let (addr, size) = Activity::cur().tile_desc().rbuf_space();
+    let (addr, size) = Activity::own().tile_desc().rbuf_space();
     BUFS.set(MemMap::new(addr as u64, size as u64));
 }

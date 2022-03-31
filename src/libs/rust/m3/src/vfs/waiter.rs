@@ -46,7 +46,7 @@ impl FileWaiter {
             }
 
             // ignore errors
-            Activity::cur().sleep().ok();
+            Activity::own().sleep().ok();
         }
     }
 
@@ -66,7 +66,7 @@ impl FileWaiter {
             }
 
             // ignore errors
-            Activity::cur().sleep_for(duration.unwrap()).ok();
+            Activity::own().sleep_for(duration.unwrap()).ok();
         }
     }
 
@@ -83,7 +83,7 @@ impl FileWaiter {
             let now = TimeInstant::now();
             match end.checked_duration_since(now) {
                 // ignore errors
-                Some(d) => Activity::cur().sleep_for(d).ok(),
+                Some(d) => Activity::own().sleep_for(d).ok(),
                 None => break,
             };
         }
@@ -92,7 +92,7 @@ impl FileWaiter {
     fn tick_files(&self, events: FileEvent) -> bool {
         let mut found = false;
         for fd in &self.files {
-            if let Some(mut file) = Activity::cur().files().get(*fd) {
+            if let Some(mut file) = Activity::own().files().get(*fd) {
                 if file.check_events(events) {
                     found = true;
                 }

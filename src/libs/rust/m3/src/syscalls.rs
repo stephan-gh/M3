@@ -170,7 +170,7 @@ pub fn create_sess(
 ///
 /// ```
 /// let mem = MemGate::new(0x2000, MemGate::RW).expect("Unable to alloc mem");
-/// syscalls::create_map(10, activity::cur().sel(), mem.sel(), 0, 2, MemGate::RW);
+/// syscalls::create_map(10, Activity::own().sel(), mem.sel(), 0, 2, MemGate::RW);
 /// ```
 pub fn create_map(
     dst: Selector,

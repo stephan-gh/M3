@@ -91,7 +91,7 @@ impl Service {
         child: childs::Id,
         sessions: u32,
     ) -> Result<Self, Error> {
-        let dst = Activity::cur().alloc_sels(2);
+        let dst = Activity::own().alloc_sels(2);
         let event = events::alloc_event();
         let id = serv.id;
         let name = serv.name.clone();

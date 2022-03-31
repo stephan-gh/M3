@@ -74,7 +74,7 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
     )
     .map_err(|e| VerboseError::new(e.code(), "Unable to create Activity".to_string()))?;
 
-    if Activity::cur().mounts().get_by_path("/").is_some() {
+    if Activity::own().mounts().get_by_path("/").is_some() {
         act.add_mount("/", "/");
     }
 
@@ -91,7 +91,7 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
         child.mem().pool().clone(),
     );
     let bfile = loader::BootFile::new(bmod.0, bmod.1);
-    let fd = Activity::cur().files().add(Box::new(bfile))?;
+    let fd = Activity::own().files().add(Box::new(bfile))?;
     child
         .start(act, &mut bmapper, FileRef::new_owned(fd))
         .map_err(|e| VerboseError::new(e.code(), "Unable to start Activity".to_string()))?;
@@ -135,15 +135,15 @@ pub fn main() -> i32 {
     // allocate and map memory for receive buffer. note that we need to do that manually here,
     // because RecvBufs allocate new physical memory via the resource manager and root does not have
     // a resource manager.
-    let (rbuf_addr, _) = Activity::cur().tile_desc().rbuf_space();
-    let (rbuf_off, rbuf_mem) = if Activity::cur().tile_desc().has_virtmem() {
+    let (rbuf_addr, _) = Activity::own().tile_desc().rbuf_space();
+    let (rbuf_off, rbuf_mem) = if Activity::own().tile_desc().has_virtmem() {
         let buf_mem = memory::container()
             .alloc_mem((buf_size + sendqueue::RBUF_SIZE) as goff)
             .expect("Unable to allocate memory for receive buffers");
         let pages = (buf_mem.capacity() as usize + cfg::PAGE_SIZE - 1) / cfg::PAGE_SIZE;
         syscalls::create_map(
             (rbuf_addr / cfg::PAGE_SIZE) as Selector,
-            Activity::cur().sel(),
+            Activity::own().sel(),
             buf_mem.sel(),
             0,
             pages,

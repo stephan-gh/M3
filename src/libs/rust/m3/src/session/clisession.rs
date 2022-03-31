@@ -34,13 +34,13 @@ pub struct ClientSession {
 impl ClientSession {
     /// Creates a new `ClientSession` by connecting to the service with given name.
     pub fn new(name: &str) -> Result<Self, Error> {
-        Self::new_with_sel(name, Activity::cur().alloc_sel())
+        Self::new_with_sel(name, Activity::own().alloc_sel())
     }
 
     /// Creates a new `ClientSession` by connecting to the service with given name, using the given
     /// capability selector for the session.
     pub fn new_with_sel(name: &str, sel: Selector) -> Result<Self, Error> {
-        Activity::cur().resmng().unwrap().open_sess(sel, name)?;
+        Activity::own().resmng().unwrap().open_sess(sel, name)?;
 
         Ok(ClientSession {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
@@ -86,7 +86,7 @@ impl ClientSession {
         PRE: Fn(&mut Sink<'_>),
         POST: FnMut(&mut Source<'_>) -> Result<(), Error>,
     {
-        self.delegate_for(Activity::cur().sel(), crd, pre, post)
+        self.delegate_for(Activity::own().sel(), crd, pre, post)
     }
 
     /// Delegates the given capability range from `act` to the server, using `pre` and `post` for
@@ -131,9 +131,9 @@ impl ClientSession {
         PRE: Fn(&mut Sink<'_>),
         POST: FnMut(&mut Source<'_>) -> Result<(), Error>,
     {
-        let caps = Activity::cur().alloc_sels(count);
+        let caps = Activity::own().alloc_sels(count);
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, caps, count);
-        self.obtain_for(Activity::cur().sel(), crd, pre, post)?;
+        self.obtain_for(Activity::own().sel(), crd, pre, post)?;
         Ok(crd)
     }
 
@@ -159,7 +159,7 @@ impl ClientSession {
 impl Drop for ClientSession {
     fn drop(&mut self) {
         if self.close {
-            Activity::cur()
+            Activity::own()
                 .resmng()
                 .unwrap()
                 .close_sess(self.sel())

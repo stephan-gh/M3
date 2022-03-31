@@ -484,7 +484,7 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
     next.cmd.restore();
 
     // exchange CUR
-    // safety: we do no longer hold a reference to `cur`
+    // safety: we do no longer hold a reference to `own`
     if let Some(mut old) = unsafe { CUR.set(Some(next)) } {
         log!(
             crate::LOG_CTXSWS,

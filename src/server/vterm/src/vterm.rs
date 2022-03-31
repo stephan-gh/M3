@@ -340,7 +340,7 @@ impl VTermHandler {
         writing: bool,
     ) -> Result<VTermSession, Error> {
         log!(crate::LOG_DEF, "[{}] vterm::new_chan()", sid);
-        let sels = Activity::cur().alloc_sels(2);
+        let sels = Activity::own().alloc_sels(2);
         Ok(VTermSession {
             crt,
             sess: ServerSession::new_with_sel(self.sel, sels, crt, sid as u64, false)?,
@@ -464,7 +464,7 @@ impl Handler<VTermSession> for VTermHandler {
             SessionData::Meta => Err(Error::new(Code::InvArgs)),
             SessionData::Chan(c) => match op {
                 GenFileOp::SET_DEST => {
-                    let sel = Activity::cur().alloc_sel();
+                    let sel = Activity::own().alloc_sel();
                     c.ep = Some(sel);
                     xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
                     Ok(())
@@ -474,7 +474,7 @@ impl Handler<VTermSession> for VTermHandler {
                         return Err(Error::new(Code::Exists));
                     }
 
-                    let sel = Activity::cur().alloc_sel();
+                    let sel = Activity::own().alloc_sel();
                     let mut rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
                     rgate.activate()?;
                     c.notify_gates = Some((rgate, SendGate::new_bind(sel)));
@@ -612,8 +612,8 @@ pub fn main() -> i32 {
 
     REQHDL.set(RequestHandler::default().expect("Unable to create request handler"));
 
-    let sel = Activity::cur().alloc_sel();
-    let mut serial_gate = Activity::cur()
+    let sel = Activity::own().alloc_sel();
+    let mut serial_gate = Activity::own()
         .resmng()
         .unwrap()
         .get_serial(sel)

@@ -96,7 +96,7 @@ impl SendGate {
     /// Creates a new `SendGate` with given arguments.
     pub fn new_with(args: SGateArgs) -> Result<Self, Error> {
         let sel = if args.sel == INVALID_SEL {
-            Activity::cur().alloc_sel()
+            Activity::own().alloc_sel()
         }
         else {
             args.sel
@@ -110,8 +110,8 @@ impl SendGate {
 
     /// Creates the `SendGate` with given name as defined in the application's configuration
     pub fn new_named(name: &str) -> Result<Self, Error> {
-        let sel = Activity::cur().alloc_sel();
-        Activity::cur().resmng().unwrap().use_sgate(sel, name)?;
+        let sel = Activity::own().alloc_sel();
+        Activity::own().resmng().unwrap().use_sgate(sel, name)?;
         Ok(SendGate {
             gate: Gate::new(sel, CapFlags::empty()),
         })

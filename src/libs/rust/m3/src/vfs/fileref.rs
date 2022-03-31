@@ -69,7 +69,7 @@ impl<T: ?Sized> FileRef<T> {
 
     /// Returns the file.
     pub fn file(&self) -> &mut dyn File {
-        Activity::cur().files().get_raw(self.fd).unwrap()
+        Activity::own().files().get_raw(self.fd).unwrap()
     }
 
     /// Converts this file reference into a generic one
@@ -82,7 +82,7 @@ impl<T: ?Sized> FileRef<T> {
 impl<T: ?Sized> Drop for FileRef<T> {
     fn drop(&mut self) {
         if self.close {
-            Activity::cur().files().remove(self.fd);
+            Activity::own().files().remove(self.fd);
         }
     }
 }

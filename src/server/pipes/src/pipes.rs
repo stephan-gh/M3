@@ -169,7 +169,7 @@ impl Handler<PipesSession> for PipesHandler {
                         return Err(Error::new(Code::InvArgs));
                     }
 
-                    let sel = Activity::cur().alloc_sels(2);
+                    let sel = Activity::own().alloc_sels(2);
                     let msize = xchg.in_args().pop_word()?;
                     log!(
                         crate::LOG_DEF,
@@ -191,7 +191,7 @@ impl Handler<PipesSession> for PipesHandler {
                         return Err(Error::new(Code::InvArgs));
                     }
 
-                    let sel = Activity::cur().alloc_sels(2);
+                    let sel = Activity::own().alloc_sels(2);
                     let ty = match xchg.in_args().pop_word()? {
                         1 => ChanType::READ,
                         _ => ChanType::WRITE,
@@ -216,7 +216,7 @@ impl Handler<PipesSession> for PipesHandler {
                         return Err(Error::new(Code::InvArgs));
                     }
 
-                    let sel = Activity::cur().alloc_sels(2);
+                    let sel = Activity::own().alloc_sels(2);
                     log!(
                         crate::LOG_DEF,
                         "[{}] pipes::clone(sid={}, sel={})",
@@ -277,7 +277,7 @@ impl Handler<PipesSession> for PipesHandler {
                         return Err(Error::new(Code::InvArgs));
                     }
 
-                    let sel = Activity::cur().alloc_sel();
+                    let sel = Activity::own().alloc_sel();
                     log!(crate::LOG_DEF, "[{}] pipes::set_mem(sel={})", sid, sel);
                     p.set_mem(sel);
                     xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
@@ -294,7 +294,7 @@ impl Handler<PipesSession> for PipesHandler {
                         return Err(Error::new(Code::InvArgs));
                     }
 
-                    let sel = Activity::cur().alloc_sel();
+                    let sel = Activity::own().alloc_sel();
                     log!(crate::LOG_DEF, "[{}] pipes::set_ep(sel={})", sid, sel);
                     c.set_ep(sel);
                     xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
@@ -307,7 +307,7 @@ impl Handler<PipesSession> for PipesHandler {
                         return Err(Error::new(Code::InvArgs));
                     }
 
-                    let sel = Activity::cur().alloc_sel();
+                    let sel = Activity::own().alloc_sel();
                     log!(
                         crate::LOG_DEF,
                         "[{}] pipes::enable_notify(sel={})",

@@ -32,7 +32,7 @@ use m3::{println, wv_assert_ok, wv_perf, wv_run_test};
 static SEL: StaticCell<kif::CapSel> = StaticCell::new(0);
 
 pub fn run(t: &mut dyn test::WvTester) {
-    SEL.set(Activity::cur().alloc_sel());
+    SEL.set(Activity::own().alloc_sel());
 
     wv_run_test!(t, noop);
     wv_run_test!(t, activate);
@@ -61,7 +61,7 @@ fn noop() {
 
 fn activate() {
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
-    let ep = wv_assert_ok!(Activity::cur().epmng_mut().acquire(0));
+    let ep = wv_assert_ok!(Activity::own().epmng_mut().acquire(0));
 
     let mut prof = Profiler::default();
 
@@ -77,7 +77,7 @@ fn activate() {
         })
     );
 
-    Activity::cur().epmng_mut().release(ep, true);
+    Activity::own().epmng_mut().release(ep, true);
 }
 
 fn create_mgate() {
@@ -90,7 +90,7 @@ fn create_mgate() {
         fn run(&mut self) {
             wv_assert_ok!(syscalls::create_mgate(
                 SEL.get(),
-                Activity::cur().sel(),
+                Activity::own().sel(),
                 self.0 as goff,
                 cfg::PAGE_SIZE as goff,
                 Perm::R
@@ -99,7 +99,7 @@ fn create_mgate() {
 
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
-                Activity::cur().sel(),
+                Activity::own().sel(),
                 kif::CapRngDesc::new(kif::CapType::OBJECT, SEL.get(), 1),
                 true
             ));
@@ -126,7 +126,7 @@ fn create_rgate() {
 
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
-                Activity::cur().sel(),
+                Activity::own().sel(),
                 kif::CapRngDesc::new(kif::CapType::OBJECT, SEL.get(), 1),
                 true
             ));
@@ -163,7 +163,7 @@ fn create_sgate() {
 
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
-                Activity::cur().sel(),
+                Activity::own().sel(),
                 kif::CapRngDesc::new(kif::CapType::OBJECT, SEL.get(), 1),
                 true
             ));
@@ -177,7 +177,7 @@ fn create_sgate() {
 }
 
 fn create_map() {
-    if !Activity::cur().tile_desc().has_virtmem() {
+    if !Activity::own().tile_desc().has_virtmem() {
         println!("Tile has no virtual memory support; skipping");
         return;
     }
@@ -193,7 +193,7 @@ fn create_map() {
             // all cache lines
             wv_assert_ok!(syscalls::create_map(
                 DEST,
-                Activity::cur().sel(),
+                Activity::own().sel(),
                 self.0.sel(),
                 0,
                 1,
@@ -204,7 +204,7 @@ fn create_map() {
         fn run(&mut self) {
             wv_assert_ok!(syscalls::create_map(
                 DEST + 1,
-                Activity::cur().sel(),
+                Activity::own().sel(),
                 self.0.sel(),
                 1,
                 1,
@@ -214,7 +214,7 @@ fn create_map() {
 
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
-                Activity::cur().sel(),
+                Activity::own().sel(),
                 kif::CapRngDesc::new(kif::CapType::MAPPING, DEST, 2),
                 true
             ));
@@ -250,7 +250,7 @@ fn create_srv() {
 
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
-                Activity::cur().sel(),
+                Activity::own().sel(),
                 kif::CapRngDesc::new(kif::CapType::OBJECT, SEL.get(), 1),
                 true
             ));
@@ -278,7 +278,7 @@ fn derive_mem() {
 
         fn run(&mut self) {
             wv_assert_ok!(syscalls::derive_mem(
-                Activity::cur().sel(),
+                Activity::own().sel(),
                 SEL.get(),
                 self.0.as_ref().unwrap().sel(),
                 0,
@@ -289,7 +289,7 @@ fn derive_mem() {
 
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
-                Activity::cur().sel(),
+                Activity::own().sel(),
                 kif::CapRngDesc::new(kif::CapType::OBJECT, SEL.get(), 1),
                 true
             ));
@@ -390,7 +390,7 @@ fn revoke_recv_gate() {
 
         fn run(&mut self) {
             wv_assert_ok!(syscalls::revoke(
-                Activity::cur().sel(),
+                Activity::own().sel(),
                 kif::CapRngDesc::new(kif::CapType::OBJECT, SEL.get(), 1),
                 true
             ));
@@ -422,7 +422,7 @@ fn revoke_send_gate() {
 
         fn run(&mut self) {
             wv_assert_ok!(syscalls::revoke(
-                Activity::cur().sel(),
+                Activity::own().sel(),
                 kif::CapRngDesc::new(kif::CapType::OBJECT, SEL.get(), 1),
                 true
             ));

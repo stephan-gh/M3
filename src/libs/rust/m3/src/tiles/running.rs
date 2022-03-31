@@ -13,7 +13,7 @@
  * General Public License version 2 for more details.
  */
 
-//! The different types that are used to hold the current activity running on a activity.
+//! The different types that are used to hold the own activity running on a activity.
 
 use crate::errors::Error;
 use crate::kif;

@@ -42,7 +42,7 @@ fn tmcalls() {
 }
 
 fn translates() {
-    if Activity::cur().pager().is_none() {
+    if Activity::own().pager().is_none() {
         println!("Tile has no virtual memory support; skipping translate benchmark");
         return;
     }
@@ -58,7 +58,7 @@ fn translates() {
     impl Runner for Tester {
         fn pre(&mut self) {
             // create new mapping
-            self.virt = Activity::cur()
+            self.virt = Activity::own()
                 .pager()
                 .unwrap()
                 .map_anon(VIRT, PAGES * cfg::PAGE_SIZE, Perm::RW, MapFlags::PRIVATE)
@@ -84,7 +84,7 @@ fn translates() {
 
         fn post(&mut self) {
             // remove mapping
-            Activity::cur()
+            Activity::own()
                 .pager()
                 .unwrap()
                 .unmap(self.virt as goff)

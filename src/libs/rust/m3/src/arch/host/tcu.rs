@@ -63,7 +63,7 @@ pub fn init() {
 
     let addr = envdata::mem_start();
     syscalls::activity_ctrl(
-        Activity::cur().sel(),
+        Activity::own().sel(),
         kif::syscalls::ActivityOp::INIT,
         addr as u64,
     )

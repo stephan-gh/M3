@@ -536,7 +536,7 @@ impl E1000 {
 
     fn sleep(&self, duration: TimeDuration) {
         log!(crate::LOG_NIC, "e1000: sleep for {:?}", duration);
-        m3::tiles::Activity::cur()
+        m3::tiles::Activity::own()
             .sleep_for(duration)
             .expect("Failed to sleep in NIC driver");
     }

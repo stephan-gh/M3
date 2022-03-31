@@ -167,7 +167,7 @@ fn nonblocking_server() {
     dst.push_str(&m3::format!("{}", crate::NET1_IP.get()));
 
     let act = wv_assert_ok!(act.run(|| {
-        let mut src = Activity::cur().data_source();
+        let mut src = Activity::own().data_source();
         let sem_sel: Selector = src.pop().unwrap();
         let net0_ip: IpAddr = src.pop_str_slice().unwrap().parse().unwrap();
         let net1_ip: IpAddr = src.pop_str_slice().unwrap().parse().unwrap();
@@ -253,7 +253,7 @@ fn receive_after_close() {
     dst.push_str(&m3::format!("{}", crate::NET0_IP.get()));
 
     let act = wv_assert_ok!(act.run(|| {
-        let mut src = Activity::cur().data_source();
+        let mut src = Activity::own().data_source();
         let sem_sel: Selector = src.pop().unwrap();
         let net0_ip: IpAddr = src.pop_str_slice().unwrap().parse().unwrap();
 

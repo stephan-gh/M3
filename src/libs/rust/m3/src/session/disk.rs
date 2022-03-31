@@ -98,9 +98,9 @@ impl Disk {
         rgate.activate()?;
 
         // get send gate for our requests
-        let crd = CapRngDesc::new(CapType::OBJECT, Activity::cur().alloc_sel(), 1);
+        let crd = CapRngDesc::new(CapType::OBJECT, Activity::own().alloc_sel(), 1);
         sess.obtain_for(
-            Activity::cur().sel(),
+            Activity::own().sel(),
             crd,
             |_slice_sink| {},
             |_slice_source| Ok(()),

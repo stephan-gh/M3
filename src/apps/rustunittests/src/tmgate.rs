@@ -142,7 +142,7 @@ fn remote_access() {
     dst.push_word(sem2.sel());
 
     let mut act = wv_assert_ok!(child.run(|| {
-        let mut src = Activity::cur().data_source();
+        let mut src = Activity::own().data_source();
         let virt: goff = src.pop().unwrap();
         let sem1_sel: Selector = src.pop().unwrap();
         let sem2_sel: Selector = src.pop().unwrap();

@@ -412,7 +412,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
                         return Err(Error::new(Code::NotSup));
                     }
 
-                    let new_sel: Selector = Activity::cur().alloc_sel();
+                    let new_sel: Selector = Activity::own().alloc_sel();
                     fs.set_ep(new_sel);
                     data.out_caps(m3::kif::CapRngDesc::new(
                         m3::kif::CapType::OBJECT,
@@ -428,7 +428,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
                         return Err(Error::new(Code::NotSup));
                     }
 
-                    let new_sel: Selector = Activity::cur().alloc_sel();
+                    let new_sel: Selector = Activity::own().alloc_sel();
                     let id = m.add_ep(new_sel);
                     data.out_caps(m3::kif::CapRngDesc::new(
                         m3::kif::CapType::OBJECT,

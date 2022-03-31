@@ -60,7 +60,7 @@ fn destroy() {
         dst.push_word(sg.sel());
 
         let act = wv_assert_ok!(child.run(|| {
-            let sg_sel: Selector = Activity::cur().data_source().pop().unwrap();
+            let sg_sel: Selector = Activity::own().data_source().pop().unwrap();
             let sg = SendGate::new_bind(sg_sel);
 
             let mut i = 0;

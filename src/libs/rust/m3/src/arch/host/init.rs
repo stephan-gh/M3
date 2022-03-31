@@ -55,7 +55,7 @@ pub extern "C" fn rust_deinit(status: i32, _arg: *const libc::c_void) {
     io::deinit();
     vfs::deinit();
     syscalls::activity_ctrl(
-        tiles::Activity::cur().sel(),
+        tiles::Activity::own().sel(),
         kif::syscalls::ActivityOp::STOP,
         status as u64,
     )

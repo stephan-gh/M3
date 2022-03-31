@@ -184,7 +184,7 @@ impl FileBuffer {
 
                     let len = size.min((head.blocks.count - (bno - start)) as usize);
                     m3::syscalls::derive_mem(
-                        m3::tiles::Activity::cur().sel(),
+                        m3::tiles::Activity::own().sel(),
                         sel,
                         head.data.sel(),
                         ((bno - start) as u64) * self.block_size as u64,
@@ -238,7 +238,7 @@ impl FileBuffer {
 
                 // revoke access from clients
                 // TODO currently, clients are not prepared for that
-                m3::tiles::Activity::cur()
+                m3::tiles::Activity::own()
                     .revoke(
                         m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, head.data.sel(), 1),
                         false,
@@ -274,7 +274,7 @@ impl FileBuffer {
         new_head.locked = false;
 
         m3::syscalls::derive_mem(
-            m3::tiles::Activity::cur().sel(),
+            m3::tiles::Activity::own().sel(),
             sel,
             new_head.data.sel(),
             0,

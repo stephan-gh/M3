@@ -24,24 +24,24 @@ use crate::vfs::{FSHandle, FileInfo, FileMode, FileRef, GenericFile, OpenFlags};
 
 /// Mounts the file system of type `fstype` at `path`, creating a session at `service`.
 pub fn mount(path: &str, fstype: &str, service: &str) -> Result<(), Error> {
-    let id = Activity::cur().mounts().alloc_id();
+    let id = Activity::own().mounts().alloc_id();
     let fsobj = match fstype {
         "m3fs" => M3FS::new(id, service)?,
         _ => return Err(Error::new(Code::InvArgs)),
     };
-    Activity::cur().mounts().add(path, fsobj)
+    Activity::own().mounts().add(path, fsobj)
 }
 
 /// Umounts the file system mounted at `path`.
 pub fn unmount(path: &str) -> Result<(), Error> {
-    Activity::cur().mounts().remove(path)
+    Activity::own().mounts().remove(path)
 }
 
 fn with_path<F, R>(path: &str, func: F) -> Result<R, Error>
 where
     F: Fn(&FSHandle, usize) -> Result<R, Error>,
 {
-    let (fs, pos) = Activity::cur().mounts().resolve(path)?;
+    let (fs, pos) = Activity::own().mounts().resolve(path)?;
     func(&fs, pos)
 }
 
@@ -49,7 +49,7 @@ where
 pub fn open(path: &str, flags: OpenFlags) -> Result<FileRef<GenericFile>, Error> {
     with_path(path, |fs, pos| {
         let file = fs.borrow_mut().open(&path[pos..], flags)?;
-        let fd = Activity::cur().files().add(file)?;
+        let fd = Activity::own().files().add(file)?;
         Ok(FileRef::new_owned(fd))
     })
 }
@@ -71,8 +71,8 @@ pub fn rmdir(path: &str) -> Result<(), Error> {
 
 /// Creates a link at `new` to `old`.
 pub fn link(old: &str, new: &str) -> Result<(), Error> {
-    let (fs1, pos1) = Activity::cur().mounts().resolve(old)?;
-    let (fs2, pos2) = Activity::cur().mounts().resolve(new)?;
+    let (fs1, pos1) = Activity::own().mounts().resolve(old)?;
+    let (fs2, pos2) = Activity::own().mounts().resolve(new)?;
     if !Rc::ptr_eq(&fs1, &fs2) {
         return Err(Error::new(Code::XfsLink));
     }
@@ -88,8 +88,8 @@ pub fn unlink(path: &str) -> Result<(), Error> {
 
 /// Renames `new` to `old`.
 pub fn rename(old: &str, new: &str) -> Result<(), Error> {
-    let (fs1, pos1) = Activity::cur().mounts().resolve(old)?;
-    let (fs2, pos2) = Activity::cur().mounts().resolve(new)?;
+    let (fs1, pos1) = Activity::own().mounts().resolve(old)?;
+    let (fs2, pos2) = Activity::own().mounts().resolve(new)?;
     if !Rc::ptr_eq(&fs1, &fs2) {
         return Err(Error::new(Code::XfsLink));
     }

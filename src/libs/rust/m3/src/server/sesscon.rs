@@ -197,7 +197,7 @@ impl<S> SessionContainer<S> {
         F: FnOnce(ServerSession) -> Result<S, Error>,
     {
         let sid = self.next_id()?;
-        let sel = Activity::cur().alloc_sel();
+        let sel = Activity::own().alloc_sel();
         let sess = create_sess(ServerSession::new_with_sel(
             srv_sel, sel, crt, sid as u64, auto_close,
         )?)?;

@@ -47,7 +47,7 @@ impl KMem {
 
     /// Creates a new kernel memory object and transfers `quota` to the new object.
     pub fn derive(&self, quota: usize) -> Result<Rc<Self>, Error> {
-        let sel = Activity::cur().alloc_sel();
+        let sel = Activity::own().alloc_sel();
 
         syscalls::derive_kmem(self.sel(), sel, quota)?;
         Ok(Rc::new(KMem {

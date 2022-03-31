@@ -91,7 +91,7 @@ impl AddrSpace {
             Err(Error::new(Code::InvArgs))
         }
         else {
-            let act = act.unwrap_or_else(|| Activity::cur().alloc_sel());
+            let act = act.unwrap_or_else(|| Activity::own().alloc_sel());
             log!(
                 crate::LOG_DEF,
                 "[{}] pager::init(child={:?}, act={})",
@@ -211,7 +211,7 @@ impl AddrSpace {
         let flags = MapFlags::from_bits_truncate(args.pop_word()? as u32);
         let off = args.pop_word()? as goff;
 
-        let sel = Activity::cur().alloc_sel();
+        let sel = Activity::own().alloc_sel();
         self.map_ds_with(virt, len, off, perm, flags, sel)
             .map(|virt| (sel, virt))
     }
@@ -330,7 +330,7 @@ impl AddrSpace {
         );
 
         // immediately insert a region, so that we don't allocate new memory on PFs
-        let sel = Activity::cur().alloc_sel();
+        let sel = Activity::own().alloc_sel();
         ds.populate(sel);
 
         self.ds.push(ds);

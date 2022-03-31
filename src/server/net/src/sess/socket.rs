@@ -310,7 +310,7 @@ impl SocketSession {
         let sbuf_slots: usize = is.pop()?;
 
         // 2 caps for us, 2 for the client
-        let caps = m3::tiles::Activity::cur().alloc_sels(4);
+        let caps = m3::tiles::Activity::own().alloc_sels(4);
 
         let res = self.add_socket(
             ty,

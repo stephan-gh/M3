@@ -53,10 +53,10 @@ pub struct Activity {
 }
 
 // TODO: unfortunately, we need to use the unsafe cell here at the moment, because libm3 accesses
-// CUR at several places itself, making it impossible to use a RefCell, because an application might
-// also already hold a reference to CUR. Therefore, it seems that we need to redesign libm3 in order
+// OWN at several places itself, making it impossible to use a RefCell, because an application might
+// also already hold a reference to OWN. Therefore, it seems that we need to redesign libm3 in order
 // to fix this problem.
-static CUR: LazyStaticUnsafeCell<OwnActivity> = LazyStaticUnsafeCell::default();
+static OWN: LazyStaticUnsafeCell<OwnActivity> = LazyStaticUnsafeCell::default();
 
 impl Activity {
     pub(crate) fn new_act(cap: Capability, tile: Rc<Tile>, kmem: Rc<KMem>) -> Self {
@@ -88,15 +88,15 @@ impl Activity {
         self.data = env.load_data();
     }
 
-    /// Returns the currently running [`OwnActivity`].
+    /// Returns the own activity
     ///
     /// # Safety:
     ///
-    /// The caller needs to make sure to not call `cur` multiple times and thereby obtain multiple
-    /// mutable references to the current activity
-    pub fn cur() -> &'static mut OwnActivity {
+    /// The caller needs to make sure to not call `own` multiple times and thereby obtain multiple
+    /// mutable references to the own activity
+    pub fn own() -> &'static mut OwnActivity {
         // safety: see comment for CUR
-        unsafe { CUR.get_mut() }
+        unsafe { OWN.get_mut() }
     }
 
     /// Returns the capability selector.
@@ -156,7 +156,7 @@ impl fmt::Debug for Activity {
 }
 
 pub(crate) fn init() {
-    // safety: we just constructed the activity and CUR was None before
-    unsafe { CUR.set(OwnActivity::new_cur()) };
-    Activity::cur().init_cur();
+    // safety: we just constructed the activity and OWN was None before
+    unsafe { OWN.set(OwnActivity::new_own()) };
+    Activity::own().init_own();
 }

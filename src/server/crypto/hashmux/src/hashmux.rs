@@ -621,7 +621,7 @@ impl Handler<HashSession> for HashHandler {
             log!(LOG_DEF, "[{}] hash::open()", sid);
             assert!(sid < MAX_SESSIONS);
 
-            let sel = Activity::cur().alloc_sels(2);
+            let sel = Activity::own().alloc_sels(2);
             Ok(HashSession {
                 sess,
                 sgate: SendGate::new_with(
@@ -681,7 +681,7 @@ impl Handler<HashSession> for HashHandler {
         // Revoke EP capability that was delegated for memory accesses
         if let Some(ep) = sess.mgate.ep() {
             if let Err(e) =
-                Activity::cur().revoke(CapRngDesc::new(CapType::OBJECT, ep.sel(), 1), true)
+                Activity::own().revoke(CapRngDesc::new(CapType::OBJECT, ep.sel(), 1), true)
             {
                 log!(LOG_ERRORS, "[{}] Failed to revoke EP cap: {}", sid, e)
             }

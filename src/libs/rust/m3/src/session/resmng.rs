@@ -349,7 +349,7 @@ impl Drop for ResMng {
     fn drop(&mut self) {
         if self.act_sel != kif::INVALID_SEL {
             send_recv_res!(
-                &Activity::cur().resmng().unwrap().sgate,
+                &Activity::own().resmng().unwrap().sgate,
                 RecvGate::def(),
                 ResMngOperation::REM_CHILD,
                 self.act_sel

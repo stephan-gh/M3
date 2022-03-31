@@ -80,7 +80,7 @@ impl UdpSocket {
             nm: args.nm,
             fd: INV_FD,
         });
-        let fd = Activity::cur().files().add(sock)?;
+        let fd = Activity::own().files().add(sock)?;
         Ok(FileRef::new_owned(fd))
     }
 

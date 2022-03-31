@@ -40,7 +40,7 @@ struct Client {
 fn _start_background_client(num: usize, mgate: &MemGate, sem: &Semaphore, size: usize) -> Client {
     log!(LOG_DEBUG, "Starting client {}", num);
 
-    let tile = wv_assert_ok!(Tile::new(Activity::cur().tile_desc()));
+    let tile = wv_assert_ok!(Tile::new(Activity::own().tile_desc()));
     let mut act = wv_assert_ok!(ChildActivity::new(tile, &format!("hash-c{}", num)));
     let mgate = wv_assert_ok!(mgate.derive(0, size, Perm::R));
 
@@ -56,7 +56,7 @@ fn _start_background_client(num: usize, mgate: &MemGate, sem: &Semaphore, size: 
     Client {
         _mgate: mgate,
         act: wv_assert_ok!(act.run(|| {
-            let mut src = Activity::cur().data_source();
+            let mut src = Activity::own().data_source();
             let sem_sel: Selector = src.pop().unwrap();
             let mgate_sel: Selector = src.pop().unwrap();
             let num: usize = src.pop().unwrap();
