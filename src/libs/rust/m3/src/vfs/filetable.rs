@@ -24,7 +24,7 @@ use crate::col::Vec;
 use crate::errors::Error;
 use crate::io::Serial;
 use crate::serialize::Source;
-use crate::tiles::{Activity, StateSerializer};
+use crate::tiles::{Activity, ChildActivity, StateSerializer};
 use crate::vfs::{File, FileRef, GenericFile};
 
 /// A file descriptor
@@ -110,26 +110,22 @@ impl FileTable {
         }
     }
 
-    pub(crate) fn collect_caps(
-        &self,
-        act: Selector,
-        map: &[(Fd, Fd)],
-        dels: &mut Vec<Selector>,
-    ) -> Result<Selector, Error> {
+    pub(crate) fn delegate(&self, act: &ChildActivity) -> Result<Selector, Error> {
         let mut max_sel = 0;
-        for (_c, fd) in map {
-            if let Some(file) = self.files[*fd].as_ref().map(|v| v.as_ref()) {
-                let sel = file.exchange_caps(act, dels)?;
+        let files = act.files().clone();
+        for (_cfd, pfd) in &files {
+            if let Some(file) = self.files[*pfd].as_ref().map(|v| v.as_ref()) {
+                let sel = file.delegate(act)?;
                 max_sel = sel.max(max_sel);
             }
         }
         Ok(max_sel)
     }
 
-    pub(crate) fn serialize(&self, map: &[(Fd, Fd)], s: &mut StateSerializer<'_>) {
-        s.push_word(map.len() as u64);
+    pub(crate) fn serialize(&self, files: &[(Fd, Fd)], s: &mut StateSerializer<'_>) {
+        s.push_word(files.len() as u64);
 
-        for (cfd, pfd) in map {
+        for (cfd, pfd) in files {
             if let Some(file) = self.files[*pfd].as_ref().map(|v| v.as_ref()) {
                 s.push_word(*cfd as u64);
                 s.push_word(file.file_type() as u64);

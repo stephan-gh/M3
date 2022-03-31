@@ -22,14 +22,13 @@ use core::any::Any;
 use core::fmt::Debug;
 
 use crate::cap::Selector;
-use crate::col::Vec;
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::int_enum;
 use crate::io::{Read, Write};
 use crate::kif;
 use crate::session::{HashInput, HashOutput, MapFlags, Pager};
-use crate::tiles::StateSerializer;
+use crate::tiles::{ChildActivity, StateSerializer};
 use crate::vfs::{BlockId, DevId, Fd, FileMode, INodeId};
 
 int_enum! {
@@ -189,8 +188,8 @@ pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
 
     /// Returns the type of the file implementation used for serialization.
     fn file_type(&self) -> u8;
-    /// Exchanges the capabilities to provide `act` access to the file.
-    fn exchange_caps(&self, _act: Selector, _dels: &mut Vec<Selector>) -> Result<Selector, Error> {
+    /// Delegates this file to `act`.
+    fn delegate(&self, _act: &ChildActivity) -> Result<Selector, Error> {
         Err(Error::new(Code::NotSup))
     }
     /// Serializes this file into `s`.

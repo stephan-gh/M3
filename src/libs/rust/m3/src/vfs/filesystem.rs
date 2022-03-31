@@ -21,10 +21,9 @@ use core::fmt;
 
 use crate::boxed::Box;
 use crate::cap::Selector;
-use crate::col::Vec;
 use crate::errors::Error;
 use crate::int_enum;
-use crate::tiles::StateSerializer;
+use crate::tiles::{ChildActivity, StateSerializer};
 use crate::vfs::{File, FileInfo, FileMode, OpenFlags};
 
 int_enum! {
@@ -75,8 +74,8 @@ pub trait FileSystem: fmt::Debug {
 
     /// Returns the type of the file system implementation used for serialization.
     fn fs_type(&self) -> u8;
-    /// Exchanges the capabilities to provide `act` access to the file system.
-    fn exchange_caps(&self, act: Selector, dels: &mut Vec<Selector>) -> Result<Selector, Error>;
+    /// Delegates this file system to `act`.
+    fn delegate(&self, act: &ChildActivity) -> Result<Selector, Error>;
     /// Serializes this file system into `s`.
     fn serialize(&self, s: &mut StateSerializer<'_>);
 }

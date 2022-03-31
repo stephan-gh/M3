@@ -24,6 +24,7 @@ use core::ops::{Deref, DerefMut};
 
 use crate::arch;
 use crate::cap::{CapFlags, Capability, Selector};
+use crate::cell::Cell;
 use crate::col::{String, ToString, Vec};
 use crate::env;
 use crate::errors::Error;
@@ -41,7 +42,7 @@ use crate::vfs::{BufReader, Fd, File, FileRef, OpenFlags, VFS};
 /// Represents a child activity.
 pub struct ChildActivity {
     base: Activity,
-    child_sel: Selector,
+    child_sel: Cell<Selector>,
     files: Vec<(Fd, Fd)>,
     mounts: Vec<(String, String)>,
 }
@@ -104,7 +105,7 @@ impl ChildActivity {
                 tile.clone(),
                 args.kmem.unwrap_or_else(|| Activity::own().kmem().clone()),
             ),
-            child_sel: kif::FIRST_FREE_SEL,
+            child_sel: Cell::from(kif::FIRST_FREE_SEL),
             files: Vec::new(),
             mounts: Vec::new(),
         };
@@ -142,7 +143,8 @@ impl ChildActivity {
             act.eps_start = eps_start;
             None
         };
-        act.child_sel = cmp::max(act.kmem().sel() + 1, act.child_sel);
+        act.child_sel
+            .set(cmp::max(act.kmem().sel() + 1, act.child_sel.get()));
 
         // determine resource manager
         let resmng = if let Some(rmng) = args.rmng {
@@ -150,8 +152,8 @@ impl ChildActivity {
             rmng
         }
         else {
-            let sgate_sel = act.child_sel;
-            act.child_sel += 1;
+            let sgate_sel = act.child_sel.get();
+            act.child_sel.set(sgate_sel + 1);
 
             Activity::own()
                 .resmng()
@@ -161,7 +163,7 @@ impl ChildActivity {
         act.rmng = Some(resmng);
         // ensure that the child's cap space is not further ahead than ours
         // TODO improve that
-        Activity::own().next_sel = cmp::max(act.child_sel, Activity::own().next_sel);
+        Activity::own().next_sel = cmp::max(act.child_sel.get(), Activity::own().next_sel);
 
         Ok(act)
     }
@@ -169,6 +171,18 @@ impl ChildActivity {
     /// Returns the selector of the resource manager
     pub fn resmng_sel(&self) -> Option<Selector> {
         self.rmng.as_ref().map(|r| r.sel())
+    }
+
+    /// Returns the map of files (destination fd, source fd) that are going to be delegated to this
+    /// child activity on [`run`](Activity::run) and [`exec`](Activity::exec).
+    pub(crate) fn files(&self) -> &Vec<(Fd, Fd)> {
+        &self.files
+    }
+
+    /// Returns the map of mounts (destination path, source path) that are going to be delegated to
+    /// this child activity on [`run`](Activity::run) and [`exec`](Activity::exec).
+    pub(crate) fn mounts(&self) -> &Vec<(String, String)> {
+        &self.mounts
     }
 
     /// Installs file `our_fd` as `child_fd` in this child activity.
@@ -207,31 +221,32 @@ impl ChildActivity {
     }
 
     /// Delegates the object capability with selector `sel` of [`own`](Activity::own) to `self`.
-    pub fn delegate_obj(&mut self, sel: Selector) -> Result<(), Error> {
+    pub fn delegate_obj(&self, sel: Selector) -> Result<(), Error> {
         self.delegate(CapRngDesc::new(CapType::OBJECT, sel, 1))
     }
 
     /// Delegates the given capability range of [`own`](Activity::own) to `self`.
-    pub fn delegate(&mut self, crd: CapRngDesc) -> Result<(), Error> {
+    pub fn delegate(&self, crd: CapRngDesc) -> Result<(), Error> {
         let start = crd.start();
         self.delegate_to(crd, start)
     }
 
     /// Delegates the given capability range of [`own`](Activity::own) to `self` using selectors
     /// `dst`..`dst`+`crd.count()`.
-    pub fn delegate_to(&mut self, crd: CapRngDesc, dst: Selector) -> Result<(), Error> {
+    pub fn delegate_to(&self, crd: CapRngDesc, dst: Selector) -> Result<(), Error> {
         syscalls::exchange(self.sel(), crd, dst, false)?;
-        self.child_sel = cmp::max(self.child_sel, dst + crd.count());
+        self.child_sel
+            .set(cmp::max(self.child_sel.get(), dst + crd.count()));
         Ok(())
     }
 
     /// Obtains the object capability with selector `sel` from `self` to [`own`](Activity::own).
-    pub fn obtain_obj(&mut self, sel: Selector) -> Result<Selector, Error> {
+    pub fn obtain_obj(&self, sel: Selector) -> Result<Selector, Error> {
         self.obtain(CapRngDesc::new(CapType::OBJECT, sel, 1))
     }
 
     /// Obtains the given capability range of `self` to [`own`](Activity::own).
-    pub fn obtain(&mut self, crd: CapRngDesc) -> Result<Selector, Error> {
+    pub fn obtain(&self, crd: CapRngDesc) -> Result<Selector, Error> {
         let count = crd.count();
         let start = Activity::own().alloc_sels(count);
         self.obtain_to(crd, start).map(|_| start)
@@ -239,7 +254,7 @@ impl ChildActivity {
 
     /// Obtains the given capability range of `self` to [`own`](Activity::own) using selectors
     /// `dst`..`dst`+`crd.count()`.
-    pub fn obtain_to(&mut self, crd: CapRngDesc, dst: Selector) -> Result<(), Error> {
+    pub fn obtain_to(&self, crd: CapRngDesc, dst: Selector) -> Result<(), Error> {
         let own = CapRngDesc::new(crd.cap_type(), dst, crd.count());
         syscalls::exchange(self.sel(), own, crd.start(), true)
     }
@@ -313,8 +328,7 @@ impl ChildActivity {
         use crate::mem;
         use crate::tiles::RunningActivity;
 
-        self.obtain_mounts()?;
-        self.obtain_fds()?;
+        self.obtain_files_and_mounts()?;
 
         let mut file = BufReader::new(file);
 
@@ -384,7 +398,7 @@ impl ChildActivity {
 
             senv.set_first_std_ep(self.eps_start);
             senv.set_rmng(self.resmng_sel().unwrap());
-            senv.set_first_sel(self.child_sel);
+            senv.set_first_sel(self.child_sel.get());
             senv.set_pedesc(self.tile_desc());
             senv.set_activity_id(self.id());
 
@@ -411,7 +425,7 @@ impl ChildActivity {
 
     #[cfg(target_vendor = "host")]
     fn do_exec_file<S: AsRef<str>>(
-        mut self,
+        self,
         _mapper: &dyn Mapper,
         mut file: FileRef<dyn File>,
         args: &[S],
@@ -420,8 +434,7 @@ impl ChildActivity {
         use crate::errors::Code;
         use crate::libc;
 
-        self.obtain_mounts()?;
-        self.obtain_fds()?;
+        self.obtain_files_and_mounts()?;
 
         let path = arch::loader::copy_file(&mut file)?;
 
@@ -441,7 +454,7 @@ impl ChildActivity {
                 arch::loader::write_env_values(pid, "tcurdy", &[c2p.fds()[1] as u64]);
 
                 // write nextsel, eps, rmng, and kmem
-                arch::loader::write_env_values(pid, "nextsel", &[u64::from(self.child_sel)]);
+                arch::loader::write_env_values(pid, "nextsel", &[u64::from(self.child_sel.get())]);
                 arch::loader::write_env_values(pid, "rmng", &[u64::from(
                     self.resmng_sel().unwrap(),
                 )]);
@@ -486,28 +499,10 @@ impl ChildActivity {
         }
     }
 
-    fn obtain_fds(&mut self) -> Result<(), Error> {
-        // TODO that's really bad. but how to improve that? :/
-        let mut dels = Vec::new();
-        let max_sel = Activity::own()
-            .files()
-            .collect_caps(self.sel(), &self.files, &mut dels)?;
-        self.child_sel = self.child_sel.max(max_sel);
-        for c in dels {
-            self.delegate_obj(c)?;
-        }
-        Ok(())
-    }
-
-    fn obtain_mounts(&mut self) -> Result<(), Error> {
-        let mut dels = Vec::new();
-        let max_sel = Activity::own()
-            .mounts()
-            .collect_caps(self.sel(), &self.mounts, &mut dels)?;
-        self.child_sel = self.child_sel.max(max_sel);
-        for c in dels {
-            self.delegate_obj(c)?;
-        }
+    fn obtain_files_and_mounts(&self) -> Result<(), Error> {
+        let fsel = Activity::own().files().delegate(self)?;
+        let msel = Activity::own().mounts().delegate(self)?;
+        self.child_sel.set(self.child_sel.get().max(msel.max(fsel)));
         Ok(())
     }
 }

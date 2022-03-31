@@ -25,7 +25,7 @@ use crate::errors::{Code, Error};
 use crate::rc::Rc;
 use crate::serialize::Source;
 use crate::session::M3FS;
-use crate::tiles::StateSerializer;
+use crate::tiles::{ChildActivity, StateSerializer};
 use crate::vfs::FileSystem;
 
 /// A reference to a file system.
@@ -110,16 +110,12 @@ impl MountTable {
         }
     }
 
-    pub(crate) fn collect_caps(
-        &self,
-        act: Selector,
-        map: &[(String, String)],
-        dels: &mut Vec<Selector>,
-    ) -> Result<Selector, Error> {
+    pub(crate) fn delegate(&self, act: &ChildActivity) -> Result<Selector, Error> {
         let mut max_sel = 0;
-        for (_cpath, ppath) in map {
+        let mounts = act.mounts().clone();
+        for (_cpath, ppath) in &mounts {
             if let Some(fs) = self.get_by_path(ppath) {
-                let sel = fs.borrow().exchange_caps(act, dels)?;
+                let sel = fs.borrow().delegate(act)?;
                 max_sel = sel.max(max_sel);
             }
         }

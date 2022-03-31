@@ -30,7 +30,7 @@ use crate::kif;
 use crate::rc::Rc;
 use crate::serialize::Source;
 use crate::session::ClientSession;
-use crate::tiles::{Activity, StateSerializer};
+use crate::tiles::{Activity, ChildActivity, StateSerializer};
 use crate::vfs::{
     FSHandle, FSOperation, File, FileInfo, FileMode, FileSystem, GenericFile, OpenFlags,
     StatResponse,
@@ -212,12 +212,12 @@ impl FileSystem for M3FS {
         b'M'
     }
 
-    fn exchange_caps(&self, act: Selector, dels: &mut Vec<Selector>) -> Result<Selector, Error> {
-        dels.push(self.sess.sel());
+    fn delegate(&self, act: &ChildActivity) -> Result<Selector, Error> {
+        act.delegate_obj(self.sess.sel())?;
 
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, self.sess.sel() + 1, 1);
         self.sess.obtain_for(
-            act,
+            act.sel(),
             crd,
             |os| os.push_word(FSOperation::GET_SGATE.val),
             |_| Ok(()),

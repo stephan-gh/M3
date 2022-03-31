@@ -23,13 +23,12 @@ use core::ops::Deref;
 use core::ops::DerefMut;
 
 use crate::cap::Selector;
-use crate::col::Vec;
 use crate::errors::Error;
 use crate::goff;
 use crate::io::{Read, Write};
 use crate::kif;
 use crate::session::{HashInput, HashOutput, HashSession, MapFlags, Pager};
-use crate::tiles::{Activity, StateSerializer};
+use crate::tiles::{Activity, ChildActivity, StateSerializer};
 use crate::vfs::{Fd, File, FileEvent, Map, Seek, SeekMode};
 
 /// A file reference provides access to a file of type `T`.
@@ -134,8 +133,8 @@ impl<T: ?Sized + 'static> File for FileRef<T> {
         self.file().stat()
     }
 
-    fn exchange_caps(&self, act: Selector, dels: &mut Vec<Selector>) -> Result<Selector, Error> {
-        self.file().exchange_caps(act, dels)
+    fn delegate(&self, act: &ChildActivity) -> Result<Selector, Error> {
+        self.file().delegate(act)
     }
 
     fn serialize(&self, s: &mut StateSerializer<'_>) {

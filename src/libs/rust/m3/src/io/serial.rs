@@ -19,10 +19,11 @@
 use core::any::Any;
 
 use crate::cap::Selector;
-use crate::col::Vec;
+
 use crate::errors::Error;
 use crate::io;
 use crate::session::{HashInput, HashOutput};
+use crate::tiles::ChildActivity;
 use crate::vfs;
 
 impl vfs::File for io::Serial {
@@ -45,7 +46,7 @@ impl vfs::File for io::Serial {
         b'S'
     }
 
-    fn exchange_caps(&self, _act: Selector, _dels: &mut Vec<Selector>) -> Result<Selector, Error> {
+    fn delegate(&self, _act: &ChildActivity) -> Result<Selector, Error> {
         // nothing to do
         Ok(0)
     }

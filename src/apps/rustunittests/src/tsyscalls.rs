@@ -227,7 +227,7 @@ fn create_sess() {
     // thus, we create a child activity, delegate the cap to it, delegate it back to ourself and try
     // to create a session with it afterwards.
     let child_tile = wv_assert_ok!(Tile::get("clone"));
-    let mut child_act = wv_assert_ok!(ChildActivity::new_with(
+    let child_act = wv_assert_ok!(ChildActivity::new_with(
         child_tile,
         ActivityArgs::new("tmp")
     ));

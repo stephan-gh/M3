@@ -22,7 +22,6 @@ use core::fmt;
 
 use crate::boxed::Box;
 use crate::cap::Selector;
-use crate::col::Vec;
 use crate::com::GateIStream;
 use crate::com::{recv_reply, MemGate, RecvGate, SendGate, EP};
 use crate::errors::{Code, Error};
@@ -35,7 +34,7 @@ use crate::rc::Rc;
 use crate::serialize::Source;
 use crate::session::{ClientSession, HashInput, HashOutput, HashSession, MapFlags, Pager};
 use crate::tcu::EpId;
-use crate::tiles::{Activity, StateSerializer};
+use crate::tiles::{Activity, ChildActivity, StateSerializer};
 use crate::vfs::{
     filetable, Fd, File, FileEvent, FileInfo, Map, OpenFlags, Seek, SeekMode, StatResponse,
 };
@@ -388,10 +387,14 @@ impl File for GenericFile {
         b'F'
     }
 
-    fn exchange_caps(&self, act: Selector, _dels: &mut Vec<Selector>) -> Result<Selector, Error> {
+    fn delegate(&self, act: &ChildActivity) -> Result<Selector, Error> {
         let crd = CapRngDesc::new(CapType::OBJECT, self.sess.sel(), 2);
-        self.sess
-            .obtain_for(act, crd, |s| s.push_word(GenFileOp::CLONE.val), |_| Ok(()))?;
+        self.sess.obtain_for(
+            act.sel(),
+            crd,
+            |s| s.push_word(GenFileOp::CLONE.val),
+            |_| Ok(()),
+        )?;
         Ok(self.sess.sel() + 2)
     }
 
