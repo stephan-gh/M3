@@ -73,21 +73,6 @@ impl Activity {
         }
     }
 
-    pub(crate) fn init_act(&mut self) {
-        let env = arch::env::get();
-        self.id = env.activity_id();
-        self.tile = Rc::new(Tile::new_bind(
-            env.tile_id() as TileId,
-            env.tile_desc(),
-            kif::SEL_TILE,
-        ));
-        self.next_sel = env.load_first_sel();
-        self.eps_start = env.first_std_ep();
-        self.rmng = env.load_rmng();
-        self.pager = env.load_pager();
-        self.data = env.load_data();
-    }
-
     /// Returns the own activity
     ///
     /// # Safety:
@@ -157,6 +142,5 @@ impl fmt::Debug for Activity {
 
 pub(crate) fn init() {
     // safety: we just constructed the activity and OWN was None before
-    unsafe { OWN.set(OwnActivity::new_own()) };
-    Activity::own().init_own();
+    unsafe { OWN.set(OwnActivity::new()) };
 }

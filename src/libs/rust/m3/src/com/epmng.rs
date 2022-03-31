@@ -70,8 +70,4 @@ impl EpMng {
         let ep = self.acquire(0)?;
         syscalls::activate(ep.sel(), gate.sel(), INVALID_SEL, 0).map(|_| ep)
     }
-
-    pub(crate) fn reset(&mut self) {
-        self.eps.clear();
-    }
 }

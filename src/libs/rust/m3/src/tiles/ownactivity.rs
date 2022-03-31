@@ -30,7 +30,7 @@ use crate::errors::Error;
 use crate::kif;
 use crate::rc::Rc;
 use crate::session::{Pager, ResMng};
-use crate::tcu::{EpId, INVALID_EP, TCU};
+use crate::tcu::{EpId, TileId, INVALID_EP, TCU};
 use crate::tiles::{Activity, KMem, StateDeserializer, Tile};
 use crate::time::TimeDuration;
 use crate::tmif;
@@ -45,26 +45,29 @@ pub struct OwnActivity {
 }
 
 impl OwnActivity {
-    pub(crate) fn new_own() -> Self {
-        OwnActivity {
-            base: Activity::new_act(
-                Capability::new(kif::SEL_ACT, CapFlags::KEEP_CAP),
-                Rc::new(Tile::new_bind(0, kif::TileDesc::new_from(0), kif::SEL_TILE)),
-                Rc::new(KMem::new(kif::SEL_KMEM)),
-            ),
-            epmng: EpMng::default(),
-            files: FileTable::default(),
-            mounts: MountTable::default(),
-        }
-    }
-
-    pub(crate) fn init_own(&mut self) {
-        self.base.init_act();
+    pub(crate) fn new() -> Self {
         let env = arch::env::get();
-        // mounts first; files depend on mounts
-        self.mounts = env.load_mounts();
-        self.files = env.load_fds();
-        self.epmng.reset();
+        OwnActivity {
+            base: Activity {
+                id: env.activity_id(),
+                cap: Capability::new(kif::SEL_ACT, CapFlags::KEEP_CAP),
+                tile: Rc::new(Tile::new_bind(
+                    env.tile_id() as TileId,
+                    env.tile_desc(),
+                    kif::SEL_TILE,
+                )),
+                next_sel: env.load_first_sel(),
+                eps_start: env.first_std_ep(),
+                rmng: env.load_rmng(),
+                pager: env.load_pager(),
+                data: env.load_data(),
+                kmem: Rc::new(KMem::new(kif::SEL_KMEM)),
+            },
+            epmng: EpMng::default(),
+            // mounts first; files depend on mounts
+            mounts: env.load_mounts(),
+            files: env.load_fds(),
+        }
     }
 
     /// Puts the own activity to sleep until the next message arrives
