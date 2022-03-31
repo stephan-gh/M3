@@ -42,11 +42,6 @@ pub struct FileTable {
 impl FileTable {
     /// Adds the given file to this file table by allocating a new slot in the table.
     pub fn add(&mut self, file: Box<dyn File>) -> Result<Fd, Error> {
-        self.alloc(file)
-    }
-
-    /// Allocates a new slot in the file table and returns its file descriptor.
-    pub(crate) fn alloc(&mut self, file: Box<dyn File>) -> Result<Fd, Error> {
         for (fd, cur_file) in self.files.iter().enumerate() {
             if cur_file.is_none() {
                 self.set_raw(fd, file);
@@ -106,12 +101,6 @@ impl FileTable {
             assert!(self.files[fd].is_none());
             self.files[fd] = Some(file);
         }
-    }
-
-    /// Adds the given file to the table using the file descriptor `fd`, assuming that the file
-    /// descriptor is not yet in use.
-    pub fn set(&mut self, _fd: Fd, _file: FileRef<dyn File>) {
-        todo!()
     }
 
     /// Removes the file with given file descriptor from the table.

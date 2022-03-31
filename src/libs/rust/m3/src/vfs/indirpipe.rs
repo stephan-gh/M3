@@ -36,8 +36,8 @@ impl IndirectPipe {
     pub fn new(pipes: &Pipes, mem: &MemGate, mem_size: usize) -> Result<Self, Error> {
         let pipe = Rc::new(pipes.create_pipe(mem, mem_size)?);
         Ok(IndirectPipe {
-            rd_fd: Activity::own().files().alloc(pipe.create_chan(true)?)?,
-            wr_fd: Activity::own().files().alloc(pipe.create_chan(false)?)?,
+            rd_fd: Activity::own().files().add(pipe.create_chan(true)?)?,
+            wr_fd: Activity::own().files().add(pipe.create_chan(false)?)?,
             _pipe: pipe,
         })
     }
