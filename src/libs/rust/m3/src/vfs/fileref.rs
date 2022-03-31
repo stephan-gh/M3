@@ -32,8 +32,6 @@ use crate::session::{HashInput, HashOutput, HashSession, MapFlags, Pager};
 use crate::tiles::{Activity, StateSerializer};
 use crate::vfs::{Fd, File, FileEvent, Map, Seek, SeekMode};
 
-pub type GenFileRef = FileRef<dyn File>;
-
 /// A file reference provides access to a file of type `T`.
 ///
 /// Depending on whether `FileRef` was created via [`FileRef::new_owned`] or [`FileRef::new`] the

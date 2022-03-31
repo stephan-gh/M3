@@ -25,7 +25,7 @@ use crate::errors::Error;
 use crate::io::Serial;
 use crate::serialize::Source;
 use crate::tiles::{Activity, StateSerializer};
-use crate::vfs::{File, FileRef, GenFileRef, GenericFile};
+use crate::vfs::{File, FileRef, GenericFile};
 
 /// A file descriptor
 pub type Fd = usize;
@@ -64,7 +64,7 @@ impl FileTable {
     }
 
     /// Returns a reference to the file with given file descriptor.
-    pub fn get(&self, fd: Fd) -> Option<GenFileRef> {
+    pub fn get(&self, fd: Fd) -> Option<FileRef<dyn File>> {
         self.get_as(fd)
     }
 

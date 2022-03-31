@@ -36,7 +36,7 @@ use crate::tiles::{
     Activity, DefaultMapper, KMem, Mapper, RunningDeviceActivity, RunningProgramActivity,
     StateSerializer, Tile,
 };
-use crate::vfs::{BufReader, Fd, GenFileRef, OpenFlags, VFS};
+use crate::vfs::{BufReader, Fd, File, FileRef, OpenFlags, VFS};
 
 /// Represents a child activity.
 pub struct ChildActivity {
@@ -293,7 +293,7 @@ impl ChildActivity {
     pub fn exec_file<S: AsRef<str>>(
         self,
         mapper: &mut dyn Mapper,
-        file: GenFileRef,
+        file: FileRef<dyn File>,
         args: &[S],
     ) -> Result<RunningProgramActivity, Error> {
         self.do_exec_file(mapper, file, args, None)
@@ -304,7 +304,7 @@ impl ChildActivity {
     fn do_exec_file<S: AsRef<str>>(
         mut self,
         mapper: &mut dyn Mapper,
-        mut file: GenFileRef,
+        mut file: FileRef<dyn File>,
         args: &[S],
         closure: Option<usize>,
     ) -> Result<RunningProgramActivity, Error> {
@@ -413,7 +413,7 @@ impl ChildActivity {
     fn do_exec_file<S: AsRef<str>>(
         mut self,
         _mapper: &dyn Mapper,
-        mut file: GenFileRef,
+        mut file: FileRef<dyn File>,
         args: &[S],
         closure: Option<usize>,
     ) -> Result<RunningProgramActivity, Error> {

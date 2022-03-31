@@ -22,7 +22,7 @@ use m3::io;
 use m3::io::{Read, Write};
 use m3::session::{HashInput, HashOutput, HashSession, Pipes};
 use m3::tiles::{Activity, ChildActivity, RunningActivity, RunningProgramActivity, Tile};
-use m3::vfs::{GenFileRef, IndirectPipe, OpenFlags, Seek, SeekMode, VFS};
+use m3::vfs::{File, FileRef, IndirectPipe, OpenFlags, Seek, SeekMode, VFS};
 use m3::{format, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_assert_some, wv_run_test};
 use m3::{goff, println, test, tmif, util, vec};
 
@@ -125,7 +125,7 @@ fn hash_mapped_mem() {
 }
 
 fn _hash_file(
-    file: &mut GenFileRef,
+    file: &mut FileRef<dyn File>,
     hash: &mut HashSession,
     algo: &'static HashAlgorithm,
     expected: &[u8],
@@ -158,7 +158,7 @@ fn _to_hex_bytes(s: &str) -> Vec<u8> {
 
 fn _hash_file_start(
     algo: &'static HashAlgorithm,
-    file: &GenFileRef,
+    file: &FileRef<dyn File>,
     expected: &str,
 ) -> RunningProgramActivity {
     let tile = wv_assert_ok!(Tile::get("clone|own"));

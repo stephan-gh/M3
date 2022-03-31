@@ -19,7 +19,7 @@ use m3::kif::Perm;
 use m3::session::MapFlags;
 use m3::session::Pager;
 use m3::tiles::Mapper;
-use m3::vfs::{self, File};
+use m3::vfs::{BufReader, File, FileRef};
 
 use crate::AddrSpace;
 
@@ -41,7 +41,7 @@ impl<'a> Mapper for ChildMapper<'a> {
     fn map_file(
         &mut self,
         _pager: Option<&Pager>,
-        file: &mut vfs::BufReader<vfs::GenFileRef>,
+        file: &mut BufReader<FileRef<dyn File>>,
         foff: usize,
         virt: goff,
         len: usize,

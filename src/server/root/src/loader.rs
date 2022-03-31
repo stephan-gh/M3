@@ -184,7 +184,7 @@ impl Mapper for BootMapper {
     fn map_file(
         &mut self,
         pager: Option<&Pager>,
-        _file: &mut vfs::BufReader<vfs::GenFileRef>,
+        _file: &mut vfs::BufReader<vfs::FileRef<dyn vfs::File>>,
         foff: usize,
         virt: goff,
         len: usize,

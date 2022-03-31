@@ -37,7 +37,7 @@ use m3::tcu;
 use m3::tiles::{
     Activity, ChildActivity, KMem, Mapper, RunningActivity, RunningProgramActivity, TileQuota,
 };
-use m3::vfs::GenFileRef;
+use m3::vfs::{File, FileRef};
 
 use crate::config::AppConfig;
 use crate::gates;
@@ -823,7 +823,7 @@ impl OwnChild {
         &mut self,
         act: ChildActivity,
         mapper: &mut dyn Mapper,
-        file: GenFileRef,
+        file: FileRef<dyn File>,
     ) -> Result<(), Error> {
         log!(
             crate::LOG_DEF,

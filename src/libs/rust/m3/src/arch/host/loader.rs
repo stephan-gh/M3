@@ -25,7 +25,7 @@ use crate::io::Read;
 use crate::libc;
 use crate::mem::{size_of, MaybeUninit};
 use crate::vec;
-use crate::vfs::GenFileRef;
+use crate::vfs::{File, FileRef};
 
 pub struct Channel {
     fds: [i32; 2],
@@ -82,7 +82,7 @@ impl Drop for Channel {
     }
 }
 
-pub fn copy_file(file: &mut GenFileRef) -> Result<String, Error> {
+pub fn copy_file(file: &mut FileRef<dyn File>) -> Result<String, Error> {
     let mut buf = vec![0u8; 8192];
 
     let mut path = format!("{}/exec-XXXXXX\0", base::envdata::tmp_dir());

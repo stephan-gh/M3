@@ -43,7 +43,7 @@ pub type BlockId = u32;
 pub use self::bufio::{BufReader, BufWriter};
 pub use self::dir::{read_dir, DirEntry, ReadDir};
 pub use self::file::{File, FileEvent, FileInfo, Map, OpenFlags, Seek, SeekMode, StatResponse};
-pub use self::fileref::{FileRef, GenFileRef};
+pub use self::fileref::FileRef;
 pub use self::filesystem::{FSOperation, FileSystem};
 pub(crate) use self::filetable::INV_FD;
 pub use self::filetable::{Fd, FileTable};

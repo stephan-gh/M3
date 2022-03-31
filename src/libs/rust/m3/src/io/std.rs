@@ -20,7 +20,7 @@ use crate::boxed::Box;
 use crate::cell::{LazyStaticRefCell, RefMut};
 use crate::io::Serial;
 use crate::tiles::Activity;
-use crate::vfs::{BufReader, BufWriter, Fd, GenFileRef};
+use crate::vfs::{BufReader, BufWriter, Fd, File, FileRef};
 
 /// The file descriptor for the standard input stream
 pub const STDIN_FILENO: Fd = 0;
@@ -29,20 +29,20 @@ pub const STDOUT_FILENO: Fd = 1;
 /// The file descriptor for the standard error stream
 pub const STDERR_FILENO: Fd = 2;
 
-static STDIN: LazyStaticRefCell<BufReader<GenFileRef>> = LazyStaticRefCell::default();
-static STDOUT: LazyStaticRefCell<BufWriter<GenFileRef>> = LazyStaticRefCell::default();
-static STDERR: LazyStaticRefCell<BufWriter<GenFileRef>> = LazyStaticRefCell::default();
+static STDIN: LazyStaticRefCell<BufReader<FileRef<dyn File>>> = LazyStaticRefCell::default();
+static STDOUT: LazyStaticRefCell<BufWriter<FileRef<dyn File>>> = LazyStaticRefCell::default();
+static STDERR: LazyStaticRefCell<BufWriter<FileRef<dyn File>>> = LazyStaticRefCell::default();
 
 /// The standard input stream
-pub fn stdin() -> RefMut<'static, BufReader<GenFileRef>> {
+pub fn stdin() -> RefMut<'static, BufReader<FileRef<dyn File>>> {
     STDIN.borrow_mut()
 }
 /// The standard output stream
-pub fn stdout() -> RefMut<'static, BufWriter<GenFileRef>> {
+pub fn stdout() -> RefMut<'static, BufWriter<FileRef<dyn File>>> {
     STDOUT.borrow_mut()
 }
 /// The standard error stream
-pub fn stderr() -> RefMut<'static, BufWriter<GenFileRef>> {
+pub fn stderr() -> RefMut<'static, BufWriter<FileRef<dyn File>>> {
     STDERR.borrow_mut()
 }
 
@@ -53,12 +53,9 @@ pub(crate) fn init() {
         }
     }
 
-    let create_in = |fd| BufReader::new(GenFileRef::new_owned(fd));
-    let create_out = |fd| BufWriter::new(GenFileRef::new_owned(fd));
-
-    STDIN.set(create_in(STDIN_FILENO));
-    STDOUT.set(create_out(STDOUT_FILENO));
-    STDERR.set(create_out(STDERR_FILENO));
+    STDIN.set(BufReader::new(FileRef::new_owned(STDIN_FILENO)));
+    STDOUT.set(BufWriter::new(FileRef::new_owned(STDOUT_FILENO)));
+    STDERR.set(BufWriter::new(FileRef::new_owned(STDERR_FILENO)));
 }
 
 pub(crate) fn deinit() {
