@@ -19,6 +19,7 @@
 use core::fmt;
 
 use crate::cap::{CapFlags, Selector};
+use crate::cell::Ref;
 use crate::com::ep::EP;
 use crate::com::gate::Gate;
 use crate::com::RecvGate;
@@ -142,11 +143,11 @@ impl SendGate {
     }
 
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
-    pub(crate) fn ep(&self) -> Option<&EP> {
+    pub(crate) fn ep(&self) -> Option<Ref<'_, EP>> {
         self.gate.ep()
     }
 
-    pub(crate) fn activate(&self) -> Result<&EP, Error> {
+    pub(crate) fn activate(&self) -> Result<Ref<'_, EP>, Error> {
         self.gate.activate()
     }
 

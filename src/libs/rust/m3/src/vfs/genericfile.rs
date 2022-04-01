@@ -175,7 +175,8 @@ impl GenericFile {
     }
 
     fn delegate_own_ep(&mut self) -> Result<(), Error> {
-        self.delegate_ep(self.mgate.activate()?.sel())
+        let ep = self.mgate.activate()?.sel();
+        self.delegate_ep(ep)
     }
 
     fn next_in(&mut self, len: usize) -> Result<usize, Error> {

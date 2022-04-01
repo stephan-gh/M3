@@ -21,6 +21,7 @@ use core::fmt;
 use base::mem::GlobAddr;
 
 use crate::cap::{CapFlags, Selector};
+use crate::cell::Ref;
 use crate::col::Vec;
 use crate::com::ep::EP;
 use crate::com::gate::Gate;
@@ -130,7 +131,7 @@ impl MemGate {
     }
 
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
-    pub fn ep(&self) -> Option<&EP> {
+    pub fn ep(&self) -> Option<Ref<'_, EP>> {
         self.gate.ep()
     }
 
@@ -180,9 +181,7 @@ impl MemGate {
         let mut vec = Vec::<T>::with_capacity(items);
         // we deliberately use uninitialize memory here, because it's performance critical
         // safety: this is okay, because the TCU does not read from `vec`
-        unsafe {
-            vec.set_len(items)
-        };
+        unsafe { vec.set_len(items) };
         self.read(&mut vec, off)?;
         Ok(vec)
     }
@@ -239,7 +238,7 @@ impl MemGate {
     /// The endpoint can be delegated to other services (e.g. M3FS) to let them
     /// remotely configure it to point to memory in another tile.
     #[inline(always)]
-    pub fn activate(&self) -> Result<&EP, Error> {
+    pub fn activate(&self) -> Result<Ref<'_, EP>, Error> {
         self.gate.activate()
     }
 

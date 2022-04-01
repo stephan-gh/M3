@@ -19,7 +19,7 @@
 use core::ops;
 
 use crate::cap::{CapFlags, Capability, Selector};
-use crate::cell::Cell;
+use crate::cell::{Ref, RefCell};
 use crate::com::EP;
 use crate::errors::Error;
 use crate::kif;
@@ -31,7 +31,7 @@ use crate::tiles::Activity;
 /// [`SendGate`], and [`RecvGate`].
 pub struct Gate {
     cap: Capability,
-    ep: Cell<Option<EP>>,
+    ep: RefCell<Option<EP>>,
 }
 
 impl Gate {
@@ -39,7 +39,7 @@ impl Gate {
     pub fn new(sel: Selector, flags: CapFlags) -> Self {
         Gate {
             cap: Capability::new(sel, flags),
-            ep: Cell::new(None),
+            ep: RefCell::new(None),
         }
     }
 
@@ -47,7 +47,7 @@ impl Gate {
     pub const fn new_with_ep(sel: Selector, flags: CapFlags, ep: EpId) -> Self {
         Gate {
             cap: Capability::new(sel, flags),
-            ep: Cell::new(Some(EP::new_def_bind(ep))),
+            ep: RefCell::new(Some(EP::new_def_bind(ep))),
         }
     }
 
@@ -67,14 +67,18 @@ impl Gate {
     }
 
     /// Returns the endpoint. If the gate is not activated, it returns [`None`].
-    pub(crate) fn ep(&self) -> Option<&EP> {
-        // why is there no method that gives us a immutable reference to the Cell's inner value?
-        unsafe { (*self.ep.as_ptr()).as_ref() }
+    pub(crate) fn ep(&self) -> Option<Ref<'_, EP>> {
+        if self.ep.borrow().is_some() {
+            Some(Ref::map(self.ep.borrow(), |ep| ep.as_ref().unwrap()))
+        }
+        else {
+            None
+        }
     }
 
     /// Sets or unsets the endpoint.
     pub(crate) fn set_ep(&mut self, ep: Option<EP>) {
-        self.ep.set(ep);
+        self.ep.replace(ep);
     }
 
     /// Activates the gate. Returns the chosen endpoint number.
@@ -92,7 +96,7 @@ impl Gate {
 
     /// Activates the gate. Returns the chosen endpoint number.
     #[inline(always)]
-    pub(crate) fn activate(&self) -> Result<&EP, Error> {
+    pub(crate) fn activate(&self) -> Result<Ref<'_, EP>, Error> {
         if let Some(ep) = self.ep() {
             return Ok(ep);
         }
@@ -100,7 +104,7 @@ impl Gate {
         self.do_activate()
     }
 
-    fn do_activate(&self) -> Result<&EP, Error> {
+    fn do_activate(&self) -> Result<Ref<'_, EP>, Error> {
         let ep = Activity::own().epmng_mut().activate(self)?;
         self.ep.replace(Some(ep));
         Ok(self.ep().unwrap())

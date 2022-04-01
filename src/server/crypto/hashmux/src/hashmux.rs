@@ -685,7 +685,7 @@ impl Handler<HashSession> for HashHandler {
             {
                 log!(LOG_ERRORS, "[{}] Failed to revoke EP cap: {}", sid, e)
             }
-        }
+        };
     }
 }
 
