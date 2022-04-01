@@ -92,7 +92,10 @@ impl FileWaiter {
     fn tick_files(&self, events: FileEvent) -> bool {
         let mut found = false;
         for fd in &self.files {
-            if let Some(mut file) = Activity::own().files().get(*fd) {
+            let files = Activity::own().files();
+            if let Some(mut file) = files.get(*fd) {
+                // accessing the file requires that we don't hold a references to the filetable
+                drop(files);
                 if file.check_events(events) {
                     found = true;
                 }

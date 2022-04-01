@@ -75,9 +75,10 @@ fn pipe_mux() {
     for _ in 0..NUM {
         let mgate = wv_assert_ok!(MemGate::new(PIPE_SIZE, kif::Perm::RW));
         let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &mgate, PIPE_SIZE));
+        let files = Activity::own().files();
         pipes.push(Pipe {
-            reader: Activity::own().files().get(pipe.reader_fd()).unwrap(),
-            writer: Activity::own().files().get(pipe.writer_fd()).unwrap(),
+            reader: files.get(pipe.reader_fd()).unwrap(),
+            writer: files.get(pipe.writer_fd()).unwrap(),
             _pipe: pipe,
             _mgate: mgate,
         });

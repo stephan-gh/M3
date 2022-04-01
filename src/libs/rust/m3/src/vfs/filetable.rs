@@ -20,6 +20,7 @@ use core::{fmt, mem};
 
 use crate::boxed::Box;
 use crate::cap::Selector;
+use crate::cell::RefMut;
 use crate::col::Vec;
 use crate::errors::Error;
 use crate::io::Serial;
@@ -74,9 +75,14 @@ impl FileTable {
     }
 
     /// Returns the file with given file descriptor.
-    pub(crate) fn get_raw(&mut self, fd: Fd) -> Option<&mut (dyn File + 'static)> {
-        if fd < self.files.len() {
-            self.files[fd].as_mut().map(|v| v.as_mut())
+    pub(crate) fn get_raw(
+        ftable: RefMut<'static, Self>,
+        fd: Fd,
+    ) -> Option<RefMut<'static, (dyn File + 'static)>> {
+        if ftable.exists(fd) {
+            Some(RefMut::map(ftable, |ft| {
+                ft.files[fd].as_mut().unwrap().as_mut()
+            }))
         }
         else {
             None
@@ -165,7 +171,7 @@ impl fmt::Debug for FileTable {
 }
 
 pub(crate) fn deinit() {
-    let ft = Activity::own().files();
+    let mut ft = Activity::own().files();
     for fd in 0..ft.files.len() {
         ft.remove(fd);
     }

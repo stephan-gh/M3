@@ -24,11 +24,15 @@ use crate::net::{
 use crate::rc::Rc;
 use crate::vfs::FileEvent;
 
+mod dgram;
 mod raw;
+mod stream;
 mod tcp;
 mod udp;
 
+pub use self::dgram::DGramSocket;
 pub use self::raw::{RawSocket, RawSocketArgs};
+pub use self::stream::StreamSocket;
 pub use self::tcp::{StreamSocketArgs, TcpSocket};
 pub use self::udp::{DgramSocketArgs, UdpSocket};
 

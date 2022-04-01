@@ -23,7 +23,7 @@ use crate::errors::{Code, Error};
 use crate::io;
 use crate::net::{
     event,
-    socket::{Socket, SocketArgs, State},
+    socket::{Socket, SocketArgs, State, StreamSocket},
     Endpoint, Port, SocketType,
 };
 use crate::rc::Rc;
@@ -82,41 +82,22 @@ impl TcpSocket {
         let fd = Activity::own().files().add(sock)?;
         Ok(FileRef::new_owned(fd))
     }
+}
 
-    /// Returns the current state of the socket
-    pub fn state(&self) -> State {
+impl StreamSocket for TcpSocket {
+    fn state(&self) -> State {
         self.socket.state()
     }
 
-    /// Returns the local endpoint
-    ///
-    /// The local endpoint is only `Some` if the socket has been put into listen mode via
-    /// [`listen`](TcpSocket::listen) or was connected to a remote endpoint via
-    /// [`connect`](TcpSocket::connect).
-    pub fn local_endpoint(&self) -> Option<Endpoint> {
+    fn local_endpoint(&self) -> Option<Endpoint> {
         self.socket.local_ep
     }
 
-    /// Returns the remote endpoint
-    ///
-    /// The remote endpoint is only `Some`, if the socket is currently connected (achieved either
-    /// via [`connect`](TcpSocket::connect) or [`accept`](TcpSocket::accept)). Otherwise, the remote
-    /// endpoint is `None`.
-    pub fn remote_endpoint(&self) -> Option<Endpoint> {
+    fn remote_endpoint(&self) -> Option<Endpoint> {
         self.socket.remote_ep
     }
 
-    /// Puts this socket into listen mode on the given port.
-    ///
-    /// In listen mode, remote connections can be accepted. See [`accept`](TcpSocket::accept). Note
-    /// that in contrast to conventional TCP/IP stacks, [`listen`](TcpSocket::listen) is a
-    /// combination of the traditional `bind` and `listen`.
-    ///
-    /// Listing on this port requires that the used session has permission for this port. This is
-    /// controlled with the "tcp=..." argument in the session argument of M³'s config files.
-    ///
-    /// Returns an error if the socket is not in state [`Closed`](State::Closed).
-    pub fn listen(&mut self, port: Port) -> Result<(), Error> {
+    fn listen(&mut self, port: Port) -> Result<(), Error> {
         if self.socket.state() != State::Closed {
             return Err(Error::new(Code::InvState));
         }
@@ -127,8 +108,7 @@ impl TcpSocket {
         Ok(())
     }
 
-    /// Connects this socket to the given remote endpoint.
-    pub fn connect(&mut self, endpoint: Endpoint) -> Result<(), Error> {
+    fn connect(&mut self, endpoint: Endpoint) -> Result<(), Error> {
         if self.state() == State::Connected {
             if self.remote_endpoint().unwrap() != endpoint {
                 return Err(Error::new(Code::IsConnected));
@@ -164,13 +144,7 @@ impl TcpSocket {
         }
     }
 
-    /// Accepts a remote connection on this socket
-    ///
-    /// The socket has to be put into listen mode first. Note that in contrast to conventional
-    /// TCP/IP stacks, accept does not yield a new socket, but uses this socket for the accepted
-    /// connection. Thus, to support multiple connections to the same port, put multiple sockets in
-    /// listen mode on this port and call accept on each of them.
-    pub fn accept(&mut self) -> Result<Endpoint, Error> {
+    fn accept(&mut self) -> Result<Endpoint, Error> {
         if self.state() == State::Connected {
             return Ok(self.remote_endpoint().unwrap());
         }
@@ -197,23 +171,11 @@ impl TcpSocket {
         }
     }
 
-    /// Returns whether data can currently be received from the socket
-    ///
-    /// Note that this function does not process events. To receive data, any receive function on
-    /// this socket or [`NetworkManager::wait`] has to be called.
-    pub fn has_data(&self) -> bool {
+    fn has_data(&self) -> bool {
         self.socket.has_data()
     }
 
-    /// Receives data from the socket into the given buffer.
-    ///
-    /// The socket has to be connected first (either via [`connect`](TcpSocket::connect) or
-    /// [`accept`](TcpSocket::accept)). Note that data can be received after the remote side has
-    /// closed the socket (state [`RemoteClosed`](State::RemoteClosed)), but not if this side has
-    /// been closed.
-    ///
-    /// Returns the number of received bytes.
-    pub fn recv(&mut self, data: &mut [u8]) -> Result<usize, Error> {
+    fn recv(&mut self, data: &mut [u8]) -> Result<usize, Error> {
         match self.socket.state() {
             // receive is possible with an established connection or a connection that that has
             // already been closed by the remote side
@@ -227,17 +189,7 @@ impl TcpSocket {
         }
     }
 
-    /// Sends the given data to this socket
-    ///
-    /// The socket has to be connected first (either via [`connect`](TcpSocket::connect) or
-    /// [`accept`](TcpSocket::accept)). Note that data can be received after the remote side has
-    /// closed the socket (state [`RemoteClosed`](State::RemoteClosed)), but not if this side has
-    /// been closed.
-    ///
-    /// Returns the number of sent bytes or an error. If an error occurs (e.g., remote side closed
-    /// the socket) and some of the data has already been sent, the number of sent bytes is
-    /// returned. Otherwise, the error is returned.
-    pub fn send(&mut self, mut data: &[u8]) -> Result<usize, Error> {
+    fn send(&mut self, mut data: &[u8]) -> Result<usize, Error> {
         let mut total = 0;
         while data.len() > 0 {
             let amount = event::MTU.min(data.len());
@@ -261,13 +213,7 @@ impl TcpSocket {
         Ok(total)
     }
 
-    /// Closes the connection
-    ///
-    /// In contrast to [`abort`](TcpSocket::abort), close properly closes the connection to the
-    /// remote endpoint by going through the TCP protocol.
-    ///
-    /// Note that [`close`](TcpSocket::close) is also called on drop.
-    pub fn close(&mut self) -> Result<(), Error> {
+    fn close(&mut self) -> Result<(), Error> {
         if self.state() == State::Closed {
             return Ok(());
         }
@@ -311,12 +257,7 @@ impl TcpSocket {
         Ok(())
     }
 
-    /// Aborts the connection
-    ///
-    /// In contrast to [`close`](TcpSocket::close), this is a hard abort, which does not go through
-    /// the TCP protocol, but simply "forgets" this socket. Furthermore, it is *not* guaranteed that
-    /// all data has already been transmitted. Use [`close`](TcpSocket::close) if that is important.
-    pub fn abort(&mut self) -> Result<(), Error> {
+    fn abort(&mut self) -> Result<(), Error> {
         self.nm.abort(self.socket.sd(), false)?;
         self.socket.recv_queue.clear();
         self.socket.disconnect();

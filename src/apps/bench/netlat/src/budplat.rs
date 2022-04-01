@@ -14,7 +14,7 @@
  */
 
 use m3::format;
-use m3::net::{DgramSocketArgs, Endpoint, UdpSocket};
+use m3::net::{DGramSocket, DgramSocketArgs, Endpoint, UdpSocket};
 use m3::session::NetworkManager;
 use m3::test;
 use m3::time::{CycleInstant, Results, TimeDuration};

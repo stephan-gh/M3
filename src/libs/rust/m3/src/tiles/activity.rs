@@ -22,7 +22,7 @@ use core::fmt;
 
 use crate::arch;
 use crate::cap::{Capability, Selector};
-use crate::cell::LazyStaticUnsafeCell;
+use crate::cell::LazyReadOnlyCell;
 use crate::col::Vec;
 use crate::com::MemGate;
 use crate::errors::Error;
@@ -51,11 +51,7 @@ pub struct Activity {
     pub(crate) data: Vec<u64>,
 }
 
-// TODO: unfortunately, we need to use the unsafe cell here at the moment, because libm3 accesses
-// OWN at several places itself, making it impossible to use a RefCell, because an application might
-// also already hold a reference to OWN. Therefore, it seems that we need to redesign libm3 in order
-// to fix this problem.
-static OWN: LazyStaticUnsafeCell<OwnActivity> = LazyStaticUnsafeCell::default();
+static OWN: LazyReadOnlyCell<OwnActivity> = LazyReadOnlyCell::default();
 
 impl Activity {
     pub(crate) fn new_act(cap: Capability, tile: Rc<Tile>, kmem: Rc<KMem>) -> Self {
@@ -72,14 +68,8 @@ impl Activity {
     }
 
     /// Returns the own activity
-    ///
-    /// # Safety:
-    ///
-    /// The caller needs to make sure to not call `own` multiple times and thereby obtain multiple
-    /// mutable references to the own activity
-    pub fn own() -> &'static mut OwnActivity {
-        // safety: see comment for CUR
-        unsafe { OWN.get_mut() }
+    pub fn own() -> &'static OwnActivity {
+        OWN.get()
     }
 
     /// Returns the capability selector.
@@ -139,6 +129,5 @@ impl fmt::Debug for Activity {
 }
 
 pub(crate) fn init() {
-    // safety: we just constructed the activity and OWN was None before
-    unsafe { OWN.set(OwnActivity::new()) };
+    OWN.set(OwnActivity::new());
 }

@@ -19,17 +19,17 @@
 use core::any::Any;
 use core::fmt;
 use core::marker::PhantomData;
-use core::ops::Deref;
-use core::ops::DerefMut;
 
 use crate::cap::Selector;
+use crate::cell::RefMut;
 use crate::errors::Error;
 use crate::goff;
 use crate::io::{Read, Write};
 use crate::kif;
+use crate::net::{DGramSocket, StreamSocket};
 use crate::session::{HashInput, HashOutput, HashSession, MapFlags, Pager};
 use crate::tiles::{Activity, ChildActivity, StateSerializer};
-use crate::vfs::{Fd, File, FileEvent, Map, Seek, SeekMode};
+use crate::vfs::{Fd, File, FileEvent, FileTable, Map, Seek, SeekMode};
 
 /// A file reference provides access to a file of type `T`.
 ///
@@ -67,14 +67,24 @@ impl<T: ?Sized> FileRef<T> {
     }
 
     /// Returns the file.
-    pub fn file(&self) -> &mut dyn File {
-        Activity::own().files().get_raw(self.fd).unwrap()
+    pub fn borrow(&self) -> RefMut<'_, dyn File> {
+        let files = Activity::own().files();
+        FileTable::get_raw(files, self.fd).unwrap()
     }
 
     /// Converts this file reference into a generic one
     pub fn into_generic(mut self) -> FileRef<dyn File> {
         self.close = false;
         FileRef::new_owned(self.fd)
+    }
+}
+
+impl<T: 'static> FileRef<T> {
+    /// Returns the file.
+    pub fn borrow_as(&self) -> RefMut<'_, T> {
+        let files = Activity::own().files();
+        let file = FileTable::get_raw(files, self.fd).unwrap();
+        RefMut::map(file, |f| f.as_any_mut().downcast_mut().unwrap())
     }
 }
 
@@ -86,27 +96,13 @@ impl<T: ?Sized> Drop for FileRef<T> {
     }
 }
 
-impl<T: 'static> Deref for FileRef<T> {
-    type Target = T;
-
-    fn deref(&self) -> &T {
-        self.file().as_any().downcast_ref().unwrap()
-    }
-}
-
-impl<T: 'static> DerefMut for FileRef<T> {
-    fn deref_mut(&mut self) -> &mut T {
-        self.file().as_any_mut().downcast_mut().unwrap()
-    }
-}
-
 impl<T: ?Sized + 'static> File for FileRef<T> {
     fn as_any(&self) -> &dyn Any {
-        self.file().as_any()
+        panic!("Cannot call as_any on a FileRef!");
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
-        self.file().as_any_mut()
+        panic!("Cannot call as_any_mut on a FileRef!");
     }
 
     fn fd(&self) -> Fd {
@@ -114,73 +110,73 @@ impl<T: ?Sized + 'static> File for FileRef<T> {
     }
 
     fn set_fd(&mut self, fd: Fd) {
-        self.file().set_fd(fd);
+        self.borrow().set_fd(fd);
     }
 
     fn file_type(&self) -> u8 {
-        self.file().file_type()
+        self.borrow().file_type()
     }
 
     fn session(&self) -> Option<Selector> {
-        self.file().session()
+        self.borrow().session()
     }
 
     fn remove(&mut self) {
-        self.file().remove();
+        self.borrow().remove();
     }
 
     fn stat(&self) -> Result<super::FileInfo, Error> {
-        self.file().stat()
+        self.borrow().stat()
     }
 
     fn delegate(&self, act: &ChildActivity) -> Result<Selector, Error> {
-        self.file().delegate(act)
+        self.borrow().delegate(act)
     }
 
     fn serialize(&self, s: &mut StateSerializer<'_>) {
-        self.file().serialize(s);
+        self.borrow().serialize(s);
     }
 
     fn is_blocking(&self) -> bool {
-        self.file().is_blocking()
+        self.borrow().is_blocking()
     }
 
     fn set_blocking(&mut self, blocking: bool) -> Result<(), Error> {
-        self.file().set_blocking(blocking)
+        self.borrow().set_blocking(blocking)
     }
 
     fn fetch_signal(&mut self) -> Result<bool, Error> {
-        self.file().fetch_signal()
+        self.borrow().fetch_signal()
     }
 
     fn check_events(&mut self, events: FileEvent) -> bool {
-        self.file().check_events(events)
+        self.borrow().check_events(events)
     }
 }
 
 impl<T: ?Sized> Read for FileRef<T> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-        self.file().read(buf)
+        self.borrow().read(buf)
     }
 }
 
 impl<T: ?Sized> Write for FileRef<T> {
     fn flush(&mut self) -> Result<(), Error> {
-        self.file().flush()
+        self.borrow().flush()
     }
 
     fn sync(&mut self) -> Result<(), Error> {
-        self.file().sync()
+        self.borrow().sync()
     }
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
-        self.file().write(buf)
+        self.borrow().write(buf)
     }
 }
 
 impl<T: ?Sized> Seek for FileRef<T> {
     fn seek(&mut self, off: usize, whence: SeekMode) -> Result<usize, Error> {
-        self.file().seek(off, whence)
+        self.borrow().seek(off, whence)
     }
 }
 
@@ -194,24 +190,108 @@ impl<T: ?Sized> Map for FileRef<T> {
         prot: kif::Perm,
         flags: MapFlags,
     ) -> Result<(), Error> {
-        self.file().map(pager, virt, off, len, prot, flags)
+        self.borrow().map(pager, virt, off, len, prot, flags)
     }
 }
 
 impl<T: ?Sized> HashInput for FileRef<T> {
     fn hash_input(&mut self, sess: &HashSession, len: usize) -> Result<usize, Error> {
-        self.file().hash_input(sess, len)
+        self.borrow().hash_input(sess, len)
     }
 }
 
 impl<T: ?Sized> HashOutput for FileRef<T> {
     fn hash_output(&mut self, sess: &HashSession, len: usize) -> Result<usize, Error> {
-        self.file().hash_output(sess, len)
+        self.borrow().hash_output(sess, len)
+    }
+}
+
+impl<T: 'static + DGramSocket> DGramSocket for FileRef<T> {
+    fn state(&self) -> crate::net::State {
+        self.borrow_as().state()
+    }
+
+    fn local_endpoint(&self) -> Option<crate::net::Endpoint> {
+        self.borrow_as().local_endpoint()
+    }
+
+    fn bind(&mut self, port: crate::net::Port) -> Result<(), Error> {
+        self.borrow_as().bind(port)
+    }
+
+    fn connect(&mut self, ep: crate::net::Endpoint) -> Result<(), Error> {
+        self.borrow_as().connect(ep)
+    }
+
+    fn has_data(&self) -> bool {
+        self.borrow_as().has_data()
+    }
+
+    fn recv(&mut self, data: &mut [u8]) -> Result<usize, Error> {
+        self.borrow_as().recv(data)
+    }
+
+    fn recv_from(&mut self, data: &mut [u8]) -> Result<(usize, crate::net::Endpoint), Error> {
+        self.borrow_as().recv_from(data)
+    }
+
+    fn send(&mut self, data: &[u8]) -> Result<(), Error> {
+        self.borrow_as().send(data)
+    }
+
+    fn send_to(&mut self, data: &[u8], endpoint: crate::net::Endpoint) -> Result<(), Error> {
+        self.borrow_as().send_to(data, endpoint)
+    }
+}
+
+impl<T: 'static + StreamSocket> StreamSocket for FileRef<T> {
+    fn state(&self) -> crate::net::State {
+        self.borrow_as().state()
+    }
+
+    fn local_endpoint(&self) -> Option<crate::net::Endpoint> {
+        self.borrow_as().local_endpoint()
+    }
+
+    fn remote_endpoint(&self) -> Option<crate::net::Endpoint> {
+        self.borrow_as().remote_endpoint()
+    }
+
+    fn listen(&mut self, port: crate::net::Port) -> Result<(), Error> {
+        self.borrow_as().listen(port)
+    }
+
+    fn connect(&mut self, endpoint: crate::net::Endpoint) -> Result<(), Error> {
+        self.borrow_as().connect(endpoint)
+    }
+
+    fn accept(&mut self) -> Result<crate::net::Endpoint, Error> {
+        self.borrow_as().accept()
+    }
+
+    fn has_data(&self) -> bool {
+        self.borrow_as().has_data()
+    }
+
+    fn recv(&mut self, data: &mut [u8]) -> Result<usize, Error> {
+        self.borrow_as().recv(data)
+    }
+
+    fn send(&mut self, data: &[u8]) -> Result<usize, Error> {
+        self.borrow_as().send(data)
+    }
+
+    fn close(&mut self) -> Result<(), Error> {
+        self.borrow_as().close()
+    }
+
+    fn abort(&mut self) -> Result<(), Error> {
+        self.borrow_as().abort()
     }
 }
 
 impl<T: ?Sized> fmt::Debug for FileRef<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "FileRef[fd={}, file={:?}]", self.fd, self.file())
+        write!(f, "FileRef[fd={}, file={:?}]", self.fd, self.borrow())
     }
 }

@@ -17,7 +17,9 @@
 #![no_std]
 
 use m3::com::Semaphore;
-use m3::net::{DgramSocketArgs, State, StreamSocketArgs, TcpSocket, UdpSocket};
+use m3::net::{
+    DGramSocket, DgramSocketArgs, State, StreamSocket, StreamSocketArgs, TcpSocket, UdpSocket,
+};
 use m3::session::NetworkManager;
 use m3::vfs::{FileEvent, FileWaiter};
 

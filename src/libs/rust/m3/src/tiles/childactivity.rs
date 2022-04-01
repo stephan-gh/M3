@@ -163,7 +163,10 @@ impl ChildActivity {
         act.rmng = Some(resmng);
         // ensure that the child's cap space is not further ahead than ours
         // TODO improve that
-        Activity::own().next_sel = cmp::max(act.child_sel.get(), Activity::own().next_sel);
+        Activity::own().next_sel.set(cmp::max(
+            act.child_sel.get(),
+            Activity::own().next_sel.get(),
+        ));
 
         Ok(act)
     }

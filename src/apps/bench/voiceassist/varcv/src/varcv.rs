@@ -20,7 +20,9 @@ use core::cmp;
 
 use m3::col::Vec;
 use m3::env;
-use m3::net::{DgramSocketArgs, Port, StreamSocketArgs, TcpSocket, UdpSocket};
+use m3::net::{
+    DGramSocket, DgramSocketArgs, Port, StreamSocket, StreamSocketArgs, TcpSocket, UdpSocket,
+};
 use m3::println;
 use m3::session::NetworkManager;
 use m3::vec;

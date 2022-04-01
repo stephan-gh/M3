@@ -23,7 +23,10 @@ use m3::{
     col::Vec,
     com::Semaphore,
     env,
-    net::{DgramSocketArgs, Endpoint, IpAddr, Port, StreamSocketArgs, TcpSocket, UdpSocket},
+    net::{
+        DGramSocket, DgramSocketArgs, Endpoint, IpAddr, Port, StreamSocket, StreamSocketArgs,
+        TcpSocket, UdpSocket,
+    },
     println,
     rc::Rc,
     session::NetworkManager,

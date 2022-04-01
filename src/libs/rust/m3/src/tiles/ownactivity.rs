@@ -21,10 +21,11 @@
 use base::envdata;
 
 use core::fmt;
-use core::ops::{Deref, DerefMut};
+use core::ops::Deref;
 
 use crate::arch;
 use crate::cap::{CapFlags, Capability, Selector};
+use crate::cell::{Cell, Ref, RefCell, RefMut};
 use crate::com::EpMng;
 use crate::errors::Error;
 use crate::kif;
@@ -39,10 +40,10 @@ use crate::vfs::{FileTable, MountTable};
 /// Represents the own activity.
 pub struct OwnActivity {
     base: Activity,
-    pub(crate) next_sel: Selector,
-    epmng: EpMng,
-    files: FileTable,
-    mounts: MountTable,
+    pub(crate) next_sel: Cell<Selector>,
+    epmng: RefCell<EpMng>,
+    files: RefCell<FileTable>,
+    mounts: RefCell<MountTable>,
 }
 
 impl OwnActivity {
@@ -63,11 +64,11 @@ impl OwnActivity {
                 data: env.load_data(),
                 kmem: Rc::new(KMem::new(kif::SEL_KMEM)),
             },
-            next_sel: env.load_first_sel(),
-            epmng: EpMng::default(),
+            next_sel: Cell::from(env.load_first_sel()),
+            epmng: RefCell::new(EpMng::default()),
             // mounts first; files depend on mounts
-            mounts: env.load_mounts(),
-            files: env.load_fds(),
+            mounts: RefCell::new(env.load_mounts()),
+            files: RefCell::new(env.load_fds()),
         }
     }
 
@@ -119,13 +120,13 @@ impl OwnActivity {
     }
 
     /// Returns a mutable reference to the file table of this activity.
-    pub fn files(&mut self) -> &mut FileTable {
-        &mut self.files
+    pub fn files(&self) -> RefMut<'_, FileTable> {
+        self.files.borrow_mut()
     }
 
     /// Returns a mutable reference to the mount table of this activity.
-    pub fn mounts(&mut self) -> &mut MountTable {
-        &mut self.mounts
+    pub fn mounts(&self) -> RefMut<'_, MountTable> {
+        self.mounts.borrow_mut()
     }
 
     /// Returns a source for the activity-local data
@@ -137,13 +138,13 @@ impl OwnActivity {
     }
 
     /// Returns a reference to the endpoint manager
-    pub fn epmng(&self) -> &EpMng {
-        &self.epmng
+    pub fn epmng(&self) -> Ref<'_, EpMng> {
+        self.epmng.borrow()
     }
 
     /// Returns a mutable reference to the endpoint manager
-    pub fn epmng_mut(&mut self) -> &mut EpMng {
-        &mut self.epmng
+    pub fn epmng_mut(&self) -> RefMut<'_, EpMng> {
+        self.epmng.borrow_mut()
     }
 
     /// Returns a reference to the activity's resource manager.
@@ -157,14 +158,15 @@ impl OwnActivity {
     }
 
     /// Allocates a new capability selector and returns it.
-    pub fn alloc_sel(&mut self) -> Selector {
+    pub fn alloc_sel(&self) -> Selector {
         self.alloc_sels(1)
     }
 
     /// Allocates `count` new and contiguous capability selectors and returns the first one.
-    pub fn alloc_sels(&mut self, count: u64) -> Selector {
-        self.next_sel += count;
-        self.next_sel - count
+    pub fn alloc_sels(&self, count: u64) -> Selector {
+        let next = self.next_sel.get();
+        self.next_sel.set(next + count);
+        next
     }
 }
 
@@ -173,12 +175,6 @@ impl Deref for OwnActivity {
 
     fn deref(&self) -> &<Self as Deref>::Target {
         &self.base
-    }
-}
-
-impl DerefMut for OwnActivity {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.base
     }
 }
 

@@ -16,7 +16,7 @@
 use m3::cap::Selector;
 use m3::com::Semaphore;
 use m3::errors::Code;
-use m3::net::{Endpoint, IpAddr, State, StreamSocketArgs, TcpSocket};
+use m3::net::{Endpoint, IpAddr, State, StreamSocket, StreamSocketArgs, TcpSocket};
 use m3::session::NetworkManager;
 use m3::test;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};

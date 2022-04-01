@@ -110,14 +110,14 @@ fn send_echo(
     // copy to buffer again
     icmp_buf[0..mem::size_of::<ICMP>()].copy_from_slice(util::object_to_bytes(&icmp));
 
-    sock.send(&buf[0..total as usize])
+    sock.borrow_as().send(&buf[0..total as usize])
 }
 
 fn recv_reply(buf: &mut [u8], sock: &mut FileRef<RawSocket>) -> Result<(), VerboseError> {
     let send_time = TimeInstant::now();
 
     loop {
-        sock.recv(buf)?;
+        sock.borrow_as().recv(buf)?;
         let recv_time = TimeInstant::now();
 
         let icmp = unsafe {
