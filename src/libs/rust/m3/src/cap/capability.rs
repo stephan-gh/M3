@@ -33,14 +33,6 @@ bitflags! {
     }
 }
 
-// TODO isn't there a better way?
-impl CapFlags {
-    /// Creates a new `CapFlags` object.
-    pub const fn const_empty() -> Self {
-        CapFlags { bits: 0 }
-    }
-}
-
 /// Represents a capability
 #[derive(Debug)]
 pub struct Capability {
