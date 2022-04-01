@@ -177,10 +177,13 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
     )?;
 
     // create pager session for child (creator=0 here because we create all sessions ourself)
-    let (sel, sid) = {
+    let (sel, sid, child_sgate) = {
         let mut hdl = PGHDL.borrow_mut();
-        let sel = hdl.sel;
-        hdl.open(0, sel, "")?
+        let srv_sel = hdl.sel;
+        let (sel, sid) = hdl.open(0, srv_sel, "")?;
+        let aspace = hdl.sessions.get_mut(sid).unwrap();
+        let child_sgate = aspace.add_sgate(REQHDL.get().recv_gate()).unwrap();
+        (sel, sid, child_sgate)
     };
     let sess = ClientSession::new_bind(sel);
     #[allow(clippy::useless_conversion)]
@@ -196,7 +199,7 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
         tile_usage.tile_obj().clone(),
         ActivityArgs::new(child.name())
             .resmng(ResMng::new(resmng_sgate))
-            .pager(Pager::new(sess, pager_sgate)?)
+            .pager(Pager::new(sess, pager_sgate, child_sgate)?)
             .kmem(child.kmem().unwrap()),
     )?;
 

@@ -23,28 +23,30 @@
 
 namespace m3 {
 
-Pager::Pager(capsel_t sess, bool)
-    : RefCounted(),
-      ClientSession(sess),
-      _own_sgate(SendGate::bind(get_sgate())),
-      _child_rgate(RecvGate::create(nextlog2<64>::val, nextlog2<64>::val)),
-      _child_sgate(SendGate::bind(get_sgate())),
-      _close(true) {
-}
-
 Pager::Pager(capsel_t sess)
     : RefCounted(),
       ClientSession(sess),
-      _own_sgate(SendGate::bind(get_sgate())),
-      _child_rgate(RecvGate::bind(ObjCap::INVALID, nextlog2<64>::val, nextlog2<64>::val)),
-      _child_sgate(SendGate::bind(ObjCap::INVALID)),
+      _req_sgate(SendGate::bind(get_sgate())),
+      _child_sgate(get_sgate()),
+      _pf_rgate(RecvGate::create(nextlog2<64>::val, nextlog2<64>::val)),
+      _pf_sgate(SendGate::bind(get_sgate())),
+      _close(true) {
+}
+
+Pager::Pager(capsel_t sess, capsel_t sgate)
+    : RefCounted(),
+      ClientSession(sess),
+      _req_sgate(SendGate::bind(sgate)),
+      _child_sgate(ObjCap::INVALID),
+      _pf_rgate(RecvGate::bind(ObjCap::INVALID, nextlog2<64>::val, nextlog2<64>::val)),
+      _pf_sgate(SendGate::bind(ObjCap::INVALID)),
       _close(false) {
 }
 
 Pager::~Pager() {
     if(_close) {
         try {
-            send_receive_vmsg(_own_sgate, CLOSE);
+            send_receive_vmsg(_req_sgate, CLOSE);
         }
         catch(...) {
             // ignore
@@ -61,12 +63,12 @@ capsel_t Pager::get_sgate() {
 }
 
 void Pager::pagefault(goff_t addr, uint access) {
-    GateIStream reply = send_receive_vmsg(_own_sgate, PAGEFAULT, addr, access);
+    GateIStream reply = send_receive_vmsg(_req_sgate, PAGEFAULT, addr, access);
     reply.pull_result();
 }
 
 void Pager::map_anon(goff_t *virt, size_t len, int prot, int flags) {
-    GateIStream reply = send_receive_vmsg(_own_sgate, MAP_ANON, *virt, len, prot, flags);
+    GateIStream reply = send_receive_vmsg(_req_sgate, MAP_ANON, *virt, len, prot, flags);
     reply.pull_result();
     reply >> *virt;
 }
@@ -97,7 +99,7 @@ void Pager::map_mem(goff_t *virt, MemGate &mem, size_t len, int prot) {
 }
 
 void Pager::unmap(goff_t virt) {
-    GateIStream reply = send_receive_vmsg(_own_sgate, UNMAP, virt);
+    GateIStream reply = send_receive_vmsg(_req_sgate, UNMAP, virt);
     reply.pull_result();
 }
 
@@ -111,13 +113,18 @@ Reference<Pager> Pager::create_clone() {
         caps = obtain(1, &args);
     }
 
-    return Reference<Pager>(new Pager(caps.start(), true));
+    return Reference<Pager>(new Pager(caps.start()));
 }
 
 void Pager::init(Activity &act) {
     // activate send and receive gate for page faults
-    Syscalls::activate(act.sel() + 1, _child_sgate.sel(), KIF::INV_SEL, 0);
-    Syscalls::activate(act.sel() + 2, _child_rgate.sel(), KIF::INV_SEL, 0);
+    Syscalls::activate(act.sel() + 1, _pf_sgate.sel(), KIF::INV_SEL, 0);
+    Syscalls::activate(act.sel() + 2, _pf_rgate.sel(), KIF::INV_SEL, 0);
+
+    // delegate the session cap
+    act.delegate_obj(sel());
+    // delegate request send gate for child
+    act.delegate_obj(_child_sgate);
 
     // we only need to do that for clones
     if(_close) {
@@ -130,7 +137,7 @@ void Pager::init(Activity &act) {
 }
 
 void Pager::clone() {
-    GateIStream reply = send_receive_vmsg(_own_sgate, CLONE);
+    GateIStream reply = send_receive_vmsg(_req_sgate, CLONE);
     reply.pull_result();
 }
 

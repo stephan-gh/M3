@@ -68,6 +68,7 @@ public:
 
     uint64_t rmng_sel;
     uint64_t pager_sess;
+    uint64_t pager_sgate;
 
     uint64_t mounts_addr;
     uint64_t mounts_len;

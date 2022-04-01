@@ -100,7 +100,7 @@ impl EnvData {
     pub fn load_pager(&self) -> Option<Pager> {
         match self.base.pager_sess {
             0 => None,
-            s => Some(Pager::new_bind(s as Selector).unwrap()),
+            s => Some(Pager::new_bind(s as Selector, self.base.pager_sgate)),
         }
     }
 
@@ -206,6 +206,7 @@ impl EnvData {
 
     pub fn set_pager(&mut self, pager: &Pager) {
         self.base.pager_sess = pager.sel() as u64;
+        self.base.pager_sgate = pager.sgate_sel() as u64;
     }
 }
 

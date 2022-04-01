@@ -131,8 +131,6 @@ impl ChildActivity {
 
             // delegate activity cap to pager
             pg.init(&act)?;
-            // and delegate the pager cap to the activity
-            act.delegate_obj(pg.sel())?;
             Some(pg)
         }
         else {

@@ -43,6 +43,7 @@ pub struct EnvData {
 
     pub rmng_sel: u64,
     pub pager_sess: u64,
+    pub pager_sgate: u64,
 
     pub mounts_addr: u64,
     pub mounts_len: u64,

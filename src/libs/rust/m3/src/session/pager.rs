@@ -27,16 +27,17 @@ use crate::int_enum;
 use crate::kif;
 use crate::session::ClientSession;
 use crate::syscalls;
-use crate::tiles::Activity;
+use crate::tiles::ChildActivity;
 
 /// Represents a session at the pager.
 ///
 /// The pager is responsible to resolve page faults and allows to create memory mappings.
 pub struct Pager {
     sess: ClientSession,
-    parent_sgate: SendGate,
-    child_rgate: RecvGate,
-    child_sgate: SendGate,
+    req_sgate: SendGate,
+    child_sgate: cap::Selector,
+    pf_rgate: RecvGate,
+    pf_sgate: SendGate,
     close: bool,
 }
 
@@ -91,33 +92,40 @@ impl Pager {
     }
 
     /// Creates a new session with given `SendGate` (for the pager).
-    pub fn new(sess: ClientSession, sgate: SendGate) -> Result<Self, Error> {
-        let child_rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
+    pub fn new(
+        sess: ClientSession,
+        pf_sgate: SendGate,
+        child_sgate: cap::Selector,
+    ) -> Result<Self, Error> {
+        let pf_rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
 
         Ok(Pager {
             sess,
-            parent_sgate: SendGate::new_bind(kif::INVALID_SEL),
-            child_rgate,
-            child_sgate: sgate,
+            req_sgate: SendGate::new_bind(kif::INVALID_SEL),
+            child_sgate,
+            pf_rgate,
+            pf_sgate,
             close: false,
         })
     }
 
     /// Binds a new pager-session to given selector (for childs).
-    pub fn new_bind(sess_sel: cap::Selector) -> Result<Self, Error> {
+    #[cfg(not(target_vendor = "host"))]
+    pub(crate) fn new_bind(sess_sel: cap::Selector, sgate_sel: cap::Selector) -> Self {
         let sess = ClientSession::new_bind(sess_sel);
-        let sgate = SendGate::new_bind(Self::get_sgate(&sess)?);
-        Ok(Pager {
+        let sgate = SendGate::new_bind(sgate_sel);
+        Pager {
             sess,
-            parent_sgate: sgate,
-            child_rgate: RecvGate::new_bind(kif::INVALID_SEL, 6, 6),
-            child_sgate: SendGate::new_bind(kif::INVALID_SEL),
+            req_sgate: sgate,
+            child_sgate: kif::INVALID_SEL,
+            pf_rgate: RecvGate::new_bind(kif::INVALID_SEL, 6, 6),
+            pf_sgate: SendGate::new_bind(kif::INVALID_SEL),
             close: false,
-        })
+        }
     }
 
     /// Clones the session to be shared with the given activity.
-    pub fn new_clone(&self) -> Result<Self, Error> {
+    pub(crate) fn new_clone(&self) -> Result<Self, Error> {
         let res = self.sess.obtain(
             1,
             |os| os.push_word(u64::from(PagerOp::ADD_CHILD.val)),
@@ -126,44 +134,30 @@ impl Pager {
         let sess = ClientSession::new_bind(res.start());
 
         // get send gates for us and our child
-        let parent_sgate = SendGate::new_bind(Self::get_sgate(&sess)?);
-        let child_sgate = SendGate::new_bind(Self::get_sgate(&sess)?);
+        let child_sgate = Self::get_sgate(&sess)?;
+        let req_sgate = SendGate::new_bind(Self::get_sgate(&sess)?);
+        let pf_sgate = SendGate::new_bind(Self::get_sgate(&sess)?);
 
-        let child_rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
+        let pf_rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
         Ok(Pager {
             sess,
-            parent_sgate,
-            child_rgate,
             child_sgate,
+            req_sgate,
+            pf_rgate,
+            pf_sgate,
             close: true,
         })
     }
 
-    /// Returns the sessions capability selector.
-    pub fn sel(&self) -> cap::Selector {
-        self.sess.sel()
-    }
-
-    /// Returns the [`SendGate`] used by the parent to send requests to the pager.
-    pub fn parent_sgate(&self) -> &SendGate {
-        &self.parent_sgate
-    }
-
-    /// Returns the [`SendGate`] used by the child to send page faults to the pager.
-    pub fn child_sgate(&self) -> &SendGate {
-        &self.child_sgate
-    }
-
-    /// Returns the [`RecvGate`] used by the child to receive page fault replies.
-    pub fn child_rgate(&self) -> &RecvGate {
-        &self.child_rgate
-    }
-
     /// Initializes this pager session by delegating the activity cap to the server.
-    pub fn init(&mut self, act: &Activity) -> Result<(), Error> {
+    pub(crate) fn init(&mut self, act: &ChildActivity) -> Result<(), Error> {
         // activate send and receive gate for page faults
-        syscalls::activate(act.sel() + 1, self.child_sgate.sel(), kif::INVALID_SEL, 0)?;
-        syscalls::activate(act.sel() + 2, self.child_rgate.sel(), kif::INVALID_SEL, 0)?;
+        syscalls::activate(act.sel() + 1, self.pf_sgate.sel(), kif::INVALID_SEL, 0)?;
+        syscalls::activate(act.sel() + 2, self.pf_rgate.sel(), kif::INVALID_SEL, 0)?;
+
+        // delegate session and sgate caps to child
+        act.delegate_obj(self.sel())?;
+        act.delegate_obj(self.sgate_sel())?;
 
         // we only need to do that for clones
         if self.close {
@@ -179,16 +173,26 @@ impl Pager {
         }
     }
 
+    /// Returns the sessions capability selector.
+    pub fn sel(&self) -> cap::Selector {
+        self.sess.sel()
+    }
+
+    /// Returns the send gate capability selector for the child.
+    pub(crate) fn sgate_sel(&self) -> cap::Selector {
+        self.child_sgate
+    }
+
     /// Performs the clone-operation on server-side using copy-on-write.
     #[allow(clippy::should_implement_trait)]
     pub fn clone(&self) -> Result<(), Error> {
-        send_recv_res!(&self.parent_sgate, RecvGate::def(), PagerOp::CLONE).map(|_| ())
+        send_recv_res!(&self.req_sgate, RecvGate::def(), PagerOp::CLONE).map(|_| ())
     }
 
     /// Sends a page fault for the virtual address `addr` for given access type to the server.
     pub fn pagefault(&self, addr: goff, access: u32) -> Result<(), Error> {
         send_recv_res!(
-            &self.parent_sgate,
+            &self.req_sgate,
             RecvGate::def(),
             PagerOp::PAGEFAULT,
             addr,
@@ -206,7 +210,7 @@ impl Pager {
         flags: MapFlags,
     ) -> Result<goff, Error> {
         let mut reply = send_recv_res!(
-            &self.parent_sgate,
+            &self.req_sgate,
             RecvGate::def(),
             PagerOp::MAP_ANON,
             addr,
@@ -277,14 +281,14 @@ impl Pager {
 
     /// Unaps the mapping at virtual address `addr`.
     pub fn unmap(&self, addr: goff) -> Result<(), Error> {
-        send_recv_res!(&self.parent_sgate, RecvGate::def(), PagerOp::UNMAP, addr).map(|_| ())
+        send_recv_res!(&self.req_sgate, RecvGate::def(), PagerOp::UNMAP, addr).map(|_| ())
     }
 }
 
 impl Drop for Pager {
     fn drop(&mut self) {
         if self.close {
-            send_recv_res!(&self.parent_sgate, RecvGate::def(), PagerOp::CLOSE).ok();
+            send_recv_res!(&self.req_sgate, RecvGate::def(), PagerOp::CLOSE).ok();
         }
     }
 }

@@ -100,8 +100,6 @@ Activity::Activity(const Reference<class Tile> &tile, const String &name, const 
         _eps_start = Syscalls::create_activity(sel(), name, tile->sel(), _kmem->sel(), &_id);
         // delegate activity cap to pager
         _pager->init(*this);
-        // and delegate the pager cap to the activity
-        delegate_obj(_pager->sel());
     }
     else
         _eps_start = Syscalls::create_activity(sel(), name, tile->sel(), _kmem->sel(), &_id);

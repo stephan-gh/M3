@@ -49,7 +49,7 @@ void Activity::init_state() {
 
 void Activity::init_fs() {
     if(env()->pager_sess)
-        _pager = Reference<Pager>(new Pager(env()->pager_sess));
+        _pager = Reference<Pager>(new Pager(env()->pager_sess, env()->pager_sgate));
     _ms.reset(MountTable::unserialize(reinterpret_cast<const void*>(
         env()->mounts_addr), env()->mounts_len));
     _fds.reset(FileTable::unserialize(reinterpret_cast<const void*>(
@@ -101,6 +101,7 @@ void Activity::do_exec(int argc, const char **argv, uintptr_t func_addr) {
 
     senv.rmng_sel = _resmng->sel();
     senv.pager_sess = _pager ? _pager->sel() : 0;
+    senv.pager_sgate = _pager ? _pager->child_sgate() : 0;
 
     senv.lambda = func_addr;
 

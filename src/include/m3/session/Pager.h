@@ -32,7 +32,7 @@ class Activity;
 
 class Pager : public RefCounted, public ClientSession {
 private:
-    explicit Pager(capsel_t sess, bool);
+    explicit Pager(capsel_t sess);
 
 public:
     enum Operation {
@@ -64,18 +64,11 @@ public:
         RWX     = READ | WRITE | EXEC,
     };
 
-    explicit Pager(capsel_t sess);
+    explicit Pager(capsel_t sess, capsel_t sgate);
     ~Pager();
 
-    const SendGate &own_sgate() const noexcept {
-        return _own_sgate;
-    }
-
-    const SendGate &child_sgate() const noexcept {
+    capsel_t child_sgate() const noexcept {
         return _child_sgate;
-    }
-    const RecvGate &child_rgate() const noexcept {
-        return _child_rgate;
     }
 
     void init(Activity &act);
@@ -92,9 +85,10 @@ public:
 private:
     capsel_t get_sgate();
 
-    SendGate _own_sgate;
-    RecvGate _child_rgate;
-    SendGate _child_sgate;
+    SendGate _req_sgate;
+    capsel_t _child_sgate;
+    RecvGate _pf_rgate;
+    SendGate _pf_sgate;
     bool _close;
 };
 
