@@ -191,7 +191,7 @@ impl ChildActivity {
     /// Installs file `our_fd` as `child_fd` in this child activity.
     ///
     /// Files that are added to child activities are automatically delegated to the child upon
-    /// [`run`](Activity::run) and [`exec`](Activity::exec).
+    /// [`run`](ChildActivity::run) and [`exec`](ChildActivity::exec).
     pub fn add_file(&mut self, child_fd: Fd, our_fd: Fd) {
         if let Some(mapping) = self.files.iter_mut().find(|(c, _p)| *c == child_fd) {
             mapping.1 = our_fd;
@@ -204,7 +204,7 @@ impl ChildActivity {
     /// Installs mount `our_path` as `child_path` in this child activity.
     ///
     /// Mounts that are added to child activities are automatically delegated to the child upon
-    /// [`run`](Activity::run) and [`exec`](Activity::exec).
+    /// [`run`](ChildActivity::run) and [`exec`](ChildActivity::exec).
     pub fn add_mount(&mut self, child_path: &str, our_path: &str) {
         if let Some(mapping) = self.mounts.iter_mut().find(|(c, _p)| c == child_path) {
             mapping.1 = our_path.to_string();
@@ -218,24 +218,25 @@ impl ChildActivity {
     /// Returns a sink for the activity-local data
     ///
     /// The sink overwrites the activity-local data and will be transmitted to the activity when calling
-    /// [`run`](Activity::run) and [`exec`](Activity::exec).
+    /// [`run`](ChildActivity::run) and [`exec`](ChildActivity::exec).
     pub fn data_sink(&mut self) -> StateSerializer<'_> {
         StateSerializer::new(&mut self.data)
     }
 
-    /// Delegates the object capability with selector `sel` of [`own`](Activity::own) to `self`.
+    /// Delegates the object capability with selector `sel` of [`Activity::own`](Activity::own) to
+    /// `self`.
     pub fn delegate_obj(&self, sel: Selector) -> Result<(), Error> {
         self.delegate(CapRngDesc::new(CapType::OBJECT, sel, 1))
     }
 
-    /// Delegates the given capability range of [`own`](Activity::own) to `self`.
+    /// Delegates the given capability range of [`Activity::own`](Activity::own) to `self`.
     pub fn delegate(&self, crd: CapRngDesc) -> Result<(), Error> {
         let start = crd.start();
         self.delegate_to(crd, start)
     }
 
-    /// Delegates the given capability range of [`own`](Activity::own) to `self` using selectors
-    /// `dst`..`dst`+`crd.count()`.
+    /// Delegates the given capability range of [`Activity::own`](Activity::own) to `self` using
+    /// selectors `dst`..`dst`+`crd.count()`.
     pub fn delegate_to(&self, crd: CapRngDesc, dst: Selector) -> Result<(), Error> {
         syscalls::exchange(self.sel(), crd, dst, false)?;
         self.child_sel
@@ -243,20 +244,21 @@ impl ChildActivity {
         Ok(())
     }
 
-    /// Obtains the object capability with selector `sel` from `self` to [`own`](Activity::own).
+    /// Obtains the object capability with selector `sel` from `self` to
+    /// [`Activity::own`](Activity::own).
     pub fn obtain_obj(&self, sel: Selector) -> Result<Selector, Error> {
         self.obtain(CapRngDesc::new(CapType::OBJECT, sel, 1))
     }
 
-    /// Obtains the given capability range of `self` to [`own`](Activity::own).
+    /// Obtains the given capability range of `self` to [`Activity::own`](Activity::own).
     pub fn obtain(&self, crd: CapRngDesc) -> Result<Selector, Error> {
         let count = crd.count();
         let start = Activity::own().alloc_sels(count);
         self.obtain_to(crd, start).map(|_| start)
     }
 
-    /// Obtains the given capability range of `self` to [`own`](Activity::own) using selectors
-    /// `dst`..`dst`+`crd.count()`.
+    /// Obtains the given capability range of `self` to [`Activity::own`](Activity::own) using
+    /// selectors `dst`..`dst`+`crd.count()`.
     pub fn obtain_to(&self, crd: CapRngDesc, dst: Selector) -> Result<(), Error> {
         let own = CapRngDesc::new(crd.cap_type(), dst, crd.count());
         syscalls::exchange(self.sel(), own, crd.start(), true)
@@ -272,8 +274,8 @@ impl ChildActivity {
         act.start().map(|_| act)
     }
 
-    /// Executes the program of [`own`](Activity::own) (`argv[0]`) with this activity and calls the
-    /// given function instead of main.
+    /// Executes the program of [`Activity::own`](Activity::own) (`argv[0]`) with this activity and
+    /// calls the given function instead of main.
     ///
     /// This has a few requirements/limitations:
     /// 1. the current binary has to be stored in a file system

@@ -51,7 +51,7 @@ pub trait RunningActivity {
     }
 }
 
-/// The activity for [`Activity::start`].
+/// The activity for [`ChildActivity::start`].
 pub struct RunningDeviceActivity {
     act: ChildActivity,
 }

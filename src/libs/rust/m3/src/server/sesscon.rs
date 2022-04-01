@@ -182,10 +182,10 @@ impl<S> SessionContainer<S> {
         Ok(())
     }
 
-    /// Adds a new session with the next available id and a selector allocated from [`Activity::cur()`].
-    /// The session is created by `create_sess`, which takes a new [`ServerSession`] object for the
-    /// service denoted by `srv_sel`. The parameter `auto_close` is passed to [`ServerSession`] on
-    /// creation.
+    /// Adds a new session with the next available id and a selector allocated from
+    /// [`Activity::own()`]. The session is created by `create_sess`, which takes a new
+    /// [`ServerSession`] object for the service denoted by `srv_sel`. The parameter `auto_close` is
+    /// passed to [`ServerSession`] on creation.
     pub fn add_next<F>(
         &mut self,
         crt: usize,

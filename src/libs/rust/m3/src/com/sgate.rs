@@ -69,7 +69,7 @@ impl SGateArgs {
     }
 
     /// Sets the capability selector to use for the [`SendGate`]. Otherwise and by default,
-    /// [`Activity::alloc_sel`] will be used.
+    /// [`Activity::own().alloc_sel`](crate::tiles::OwnActivity::alloc_sel) will be used.
     pub fn sel(mut self, sel: Selector) -> Self {
         self.sel = sel;
         self

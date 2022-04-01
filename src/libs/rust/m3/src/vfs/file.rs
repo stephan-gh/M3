@@ -233,9 +233,9 @@ pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
     /// More specifically, if FileEvent::INPUT is given and reading from the file might result in
     /// receiving data, the function returns true.
     ///
-    /// This function is used by the [`FileWaiter`](vfs::FileWaiter) that waits until any of its
-    /// files can make progress. Some types of files (e.g., sockets) needs to be "ticked" in each
-    /// iteration to actually fetch such events. For other types of files, we can just retry
+    /// This function is used by the [`FileWaiter`](crate::vfs::FileWaiter) that waits until any of
+    /// its files can make progress. Some types of files (e.g., sockets) needs to be "ticked" in
+    /// each iteration to actually fetch such events. For other types of files, we can just retry
     /// read/write.
     fn check_events(&mut self, _events: FileEvent) -> bool {
         // by default, files are in blocking mode and therefore we always want to try read/write.

@@ -61,7 +61,7 @@ pub trait StreamSocket {
     /// Returns whether data can currently be received from the socket
     ///
     /// Note that this function does not process events. To receive data, any receive function on
-    /// this socket or [`NetworkManager::wait`] has to be called.
+    /// this socket or [`FileWaiter::wait`](crate::vfs::FileWaiter::wait) has to be called.
     fn has_data(&self) -> bool;
 
     /// Receives data from the socket into the given buffer.

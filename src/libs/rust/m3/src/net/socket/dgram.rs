@@ -24,7 +24,7 @@ pub trait DGramSocket {
     /// Returns the local endpoint
     ///
     /// The local endpoint is only `Some` if the socket has been bound via
-    /// [`bind`](UdpSocket::bind).
+    /// [`bind`](DGramSocket::bind).
     fn local_endpoint(&self) -> Option<Endpoint>;
 
     /// Binds this socket to the given local port.
@@ -53,7 +53,7 @@ pub trait DGramSocket {
     /// Returns whether data can currently be received from the socket
     ///
     /// Note that this function does not process events. To receive data, any receive function on
-    /// this socket or [`NetworkManager::wait`] has to be called.
+    /// this socket or [`FileWaiter::wait`](crate::vfs::FileWaiter::wait) has to be called.
     fn has_data(&self) -> bool;
 
     /// Receives data from the socket into the given buffer.

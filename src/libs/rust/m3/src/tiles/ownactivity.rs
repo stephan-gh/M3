@@ -132,7 +132,8 @@ impl OwnActivity {
     /// Returns a source for the activity-local data
     ///
     /// The source provides access to the activity-local data that has been transmitted to this
-    /// activity from its parent during [`run`](Activity::run) and [`exec`](Activity::exec).
+    /// activity from its parent during [`ChildActivity::run`](crate::tiles::ChildActivity::run) and
+    /// [`ChildActivity::exec`](crate::tiles::ChildActivity::exec).
     pub fn data_source(&self) -> StateDeserializer<'_> {
         StateDeserializer::new(&self.data)
     }

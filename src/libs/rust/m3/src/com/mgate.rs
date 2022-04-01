@@ -69,7 +69,8 @@ impl MGateArgs {
     }
 
     /// Sets the capability selector that should be used for this [`MemGate`]. Otherwise and by
-    /// default, [`Activity::alloc_sel`] will be used to choose a free selector.
+    /// default, [`Activity::own().alloc_sel`](crate::tiles::OwnActivity::alloc_sel) will be used to
+    /// choose a free selector.
     pub fn sel(mut self, sel: Selector) -> Self {
         self.sel = sel;
         self

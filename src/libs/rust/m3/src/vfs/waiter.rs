@@ -36,7 +36,8 @@ impl FileWaiter {
 
     /// Waits until any file has received any of the given events.
     ///
-    /// Note also that this function uses [`Activity::sleep`] if no read/write on any file is
+    /// Note also that this function uses
+    /// [`Activity::own().sleep`](crate::tiles::OwnActivity::sleep) if no read/write on any file is
     /// possible, which suspends the core until the next TCU message arrives. Thus, calling this
     /// function can only be done if all work is done.
     pub fn wait(&self, events: FileEvent) {
@@ -53,7 +54,8 @@ impl FileWaiter {
     /// Waits until any file has received any of the given events or the given timeout in
     /// nanoseconds is reached.
     ///
-    /// Note also that this function uses [`Activity::sleep`] if no read/write on any file is
+    /// Note also that this function uses
+    /// [`Activity::own().sleep`](crate::tiles::OwnActivity::sleep) if no read/write on any file is
     /// possible, which suspends the core until the next TCU message arrives. Thus, calling this
     /// function can only be done if all work is done.
     pub fn wait_for(&self, timeout: TimeDuration, events: FileEvent) {
@@ -72,9 +74,9 @@ impl FileWaiter {
 
     /// Sleep for the given duration, respecting events that may arrive for files.
     ///
-    /// Note that this function uses [`Activity::sleep`] if no read/write on any file is possible,
-    /// which suspends the core until the next TCU message arrives. Thus, calling this function can
-    /// only be done if all work is done.
+    /// Note that this function uses [`Activity::own().sleep`](crate::tiles::OwnActivity::sleep) if
+    /// no read/write on any file is possible, which suspends the core until the next TCU message
+    /// arrives. Thus, calling this function can only be done if all work is done.
     pub fn sleep_for(&self, duration: TimeDuration) {
         let end = TimeInstant::now() + duration;
         loop {

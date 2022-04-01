@@ -61,7 +61,7 @@ impl RawSocket {
     /// Returns whether data can currently be received from the socket
     ///
     /// Note that this function does not process events. To receive data, any receive function on
-    /// this socket or [`NetworkManager::wait`] has to be called.
+    /// this socket or [`FileWaiter::wait`](crate::vfs::FileWaiter::wait) has to be called.
     pub fn has_data(&self) -> bool {
         self.socket.has_data()
     }
