@@ -136,7 +136,9 @@ impl DGramSocket for UdpSocket {
     fn send(&mut self, data: &[u8]) -> Result<(), Error> {
         self.send_to(
             data,
-            self.socket.remote_ep.ok_or(Error::new(Code::InvState))?,
+            self.socket
+                .remote_ep
+                .ok_or_else(|| Error::new(Code::InvState))?,
         )
     }
 

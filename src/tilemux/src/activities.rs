@@ -566,8 +566,7 @@ pub fn remove(id: Id, status: u32, notify: bool, sched: bool) {
             ActState::Ready => RDY.borrow_mut().remove_if(|v| v.id() == id).unwrap(),
             ActState::Blocked => BLK.borrow_mut().remove_if(|v| v.id() == id).unwrap(),
         };
-        // ensure that we don't access `v` anymore
-        drop(v);
+        // we now can't access `v` anymore
 
         log!(
             crate::LOG_ACTS,

@@ -164,7 +164,7 @@ fn get_mount(name: &str) -> Result<String, VerboseError> {
     MOUNTS
         .borrow_mut()
         .push((name.to_string(), our_path.to_string()));
-    Ok(our_path.to_string())
+    Ok(our_path)
 }
 
 fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {

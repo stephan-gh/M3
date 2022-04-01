@@ -64,21 +64,19 @@ impl NotifyGate {
     }
 
     pub fn send_events(&mut self) {
-        if !self.pending_events.is_empty() {
-            if self.sgate.credits().unwrap() > 0 {
-                log!(
-                    crate::LOG_DEF,
-                    "[{}] pipes::notify({:?})",
-                    self.sess,
-                    self.pending_events
-                );
-                // ignore errors
-                send_vmsg!(&self.sgate, &self.rgate, self.pending_events.bits()).ok();
-                // we promise the client that these operations will not block on the next call
-                self.promised_events.set(self.pending_events);
-                self.notify_events &= !self.pending_events;
-                self.pending_events = FileEvent::empty();
-            }
+        if !self.pending_events.is_empty() && self.sgate.credits().unwrap() > 0 {
+            log!(
+                crate::LOG_DEF,
+                "[{}] pipes::notify({:?})",
+                self.sess,
+                self.pending_events
+            );
+            // ignore errors
+            send_vmsg!(&self.sgate, &self.rgate, self.pending_events.bits()).ok();
+            // we promise the client that these operations will not block on the next call
+            self.promised_events.set(self.pending_events);
+            self.notify_events &= !self.pending_events;
+            self.pending_events = FileEvent::empty();
         }
     }
 }
@@ -204,7 +202,9 @@ impl State {
         assert!(self.reader.len() <= 1 && self.writer.len() <= 1);
         let can_read = self.rbuf.get_read_pos(1).is_some();
         let can_write = self.rbuf.get_write_pos(1).is_some();
-        let ng = self.get_notify_gate(id).ok_or(Error::new(Code::NotSup))?;
+        let ng = self
+            .get_notify_gate(id)
+            .ok_or_else(|| Error::new(Code::NotSup))?;
 
         ng.notify_events |= events;
         // remove from promised events, because we need to notify the client about them again first
@@ -300,7 +300,7 @@ impl State {
         }
 
         // if there is any chance to read something, notify all that are waiting for this event
-        if self.notify_gates.len() > 0 && self.rbuf.get_read_pos(1).is_some() {
+        if !self.notify_gates.is_empty() && self.rbuf.get_read_pos(1).is_some() {
             self.add_event(FileEvent::INPUT);
         }
     }
@@ -342,7 +342,7 @@ impl State {
         }
 
         // if there is any chance to write something, notify all that are waiting for this event
-        if self.notify_gates.len() > 0 && self.rbuf.get_write_pos(1).is_some() {
+        if !self.notify_gates.is_empty() && self.rbuf.get_write_pos(1).is_some() {
             self.add_event(FileEvent::OUTPUT);
         }
     }

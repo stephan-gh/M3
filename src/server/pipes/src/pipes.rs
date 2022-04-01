@@ -289,7 +289,7 @@ impl Handler<PipesSession> for PipesHandler {
 
                     Ok(())
                 },
-                _ => return Err(Error::new(Code::InvArgs)),
+                _ => Err(Error::new(Code::InvArgs)),
             },
 
             // channel sessions expect an EP cap to get access to the data
@@ -324,7 +324,7 @@ impl Handler<PipesSession> for PipesHandler {
                     Ok(())
                 },
 
-                _ => return Err(Error::new(Code::InvArgs)),
+                _ => Err(Error::new(Code::InvArgs)),
             },
 
             SessionData::Meta(_) => Err(Error::new(Code::InvArgs)),

@@ -506,7 +506,7 @@ fn add_input(hdl: &mut VTermHandler, mut flush: bool, input: &mut RefMut<'_, Vec
         if flush || !input.is_empty() {
             if let SessionData::Chan(c) = &mut s.data {
                 if let Some(msg) = c.pending_nextin.take() {
-                    c.our_mem.write(&input, mem_off(c.id)).unwrap();
+                    c.our_mem.write(input, mem_off(c.id)).unwrap();
                     c.len = input.len();
                     c.pos = 0;
                     input.clear();

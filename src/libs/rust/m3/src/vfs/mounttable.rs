@@ -129,7 +129,7 @@ impl MountTable {
             if let Some(fs) = self.get_by_path(ppath) {
                 let fs = fs.borrow();
                 let fs_type = fs.fs_type();
-                s.push_str(&cpath);
+                s.push_str(cpath);
                 s.push_word(fs_type as u64);
                 fs.serialize(s);
             }

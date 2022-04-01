@@ -191,7 +191,7 @@ impl StreamSocket for TcpSocket {
 
     fn send(&mut self, mut data: &[u8]) -> Result<usize, Error> {
         let mut total = 0;
-        while data.len() > 0 {
+        while !data.is_empty() {
             let amount = event::MTU.min(data.len());
             let res = match self.socket.state() {
                 // like for receive: still allow sending if the remote side closed the connection
