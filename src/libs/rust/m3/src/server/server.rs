@@ -106,7 +106,12 @@ pub trait Handler<S> {
     ) -> Result<(Selector, SessId), Error>;
 
     /// Let's the client obtain a capability from the server
-    fn obtain(&mut self, _crt: usize, _sid: SessId, _xchg: &mut CapExchange<'_>) -> Result<(), Error> {
+    fn obtain(
+        &mut self,
+        _crt: usize,
+        _sid: SessId,
+        _xchg: &mut CapExchange<'_>,
+    ) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
     /// Let's the client delegate a capability to the server
@@ -250,7 +255,10 @@ impl Server {
         }
     }
 
-    fn handle_derive_crt<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream<'_>) -> Result<(), Error> {
+    fn handle_derive_crt<S>(
+        hdl: &mut dyn Handler<S>,
+        is: &mut GateIStream<'_>,
+    ) -> Result<(), Error> {
         let msg = is.msg().get_data::<service::DeriveCreator>();
 
         let crt = is.label() as usize;

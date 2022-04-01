@@ -465,9 +465,7 @@ pub fn set_entry_sp(sp: usize) {
 }
 
 pub fn enable_irqs() {
-    unsafe {
-        asm!("sti")
-    };
+    unsafe { asm!("sti") };
 }
 
 pub fn get_irq() -> IRQSource {
