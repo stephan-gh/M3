@@ -15,6 +15,9 @@
 
 #![no_std]
 
+mod chan;
+mod meta;
+mod pipe;
 mod sess;
 
 use m3::cap::Selector;
@@ -37,7 +40,9 @@ use m3::tiles::Activity;
 use m3::vec;
 use m3::vfs::GenFileOp;
 
-use sess::{ChanType, Channel, Meta, PipesSession, SessionData};
+use chan::{ChanType, Channel};
+use meta::Meta;
+use sess::{PipesSession, SessionData};
 
 pub const LOG_DEF: bool = false;
 
@@ -236,7 +241,7 @@ impl Handler<PipesSession> for PipesHandler {
         let crd = if let SessionData::Chan(ref c) = nsess.data() {
             // workaround because we cannot borrow self.sessions again inside the above match
             if attach_pipe {
-                let psess = self.sessions.get_mut(c.pipe_sess()).unwrap();
+                let psess = self.sessions.get_mut(c.pipe()).unwrap();
                 if let SessionData::Pipe(ref mut p) = psess.data_mut() {
                     p.attach(c);
                 }
