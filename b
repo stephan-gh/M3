@@ -285,8 +285,10 @@ case "$cmd" in
 
     clippy)
         while IFS= read -r -d '' f; do
-            # tilemux can't be built for host
-            if [ "$M3_TARGET" = "host" ] && [[ $f =~ "tilemux" ]]; then
+            # some crates can't be built for host
+            if [ "$M3_TARGET" = "host" ] &&
+                ( [[ $f =~ "tilemux" ]] || [[ $f =~ "paging" ]] || [[ $f =~ "isr" ]] ||
+                  [[ $f =~ "stdareceiver" ]] || [[ $f =~ "stdasender" ]] ); then
                 continue;
             fi
             # vmtest only works on RISC-V
