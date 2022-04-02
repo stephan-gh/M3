@@ -22,8 +22,7 @@ use m3::io::{Read, Write};
 use m3::kif;
 use m3::session::Pipes;
 use m3::test;
-use m3::tiles::Activity;
-use m3::vfs::{BufReader, File, FileRef, IndirectPipe, OpenFlags, VFS};
+use m3::vfs::{BufReader, FileRef, GenericFile, IndirectPipe, OpenFlags, VFS};
 use m3::{vec, wv_assert_eq, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -66,8 +65,8 @@ fn pipe_mux() {
     struct Pipe {
         _mgate: MemGate,
         _pipe: IndirectPipe,
-        reader: FileRef<dyn File>,
-        writer: FileRef<dyn File>,
+        reader: FileRef<GenericFile>,
+        writer: FileRef<GenericFile>,
     }
 
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
@@ -75,10 +74,9 @@ fn pipe_mux() {
     for _ in 0..NUM {
         let mgate = wv_assert_ok!(MemGate::new(PIPE_SIZE, kif::Perm::RW));
         let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &mgate, PIPE_SIZE));
-        let files = Activity::own().files();
         pipes.push(Pipe {
-            reader: files.get(pipe.reader_fd()).unwrap(),
-            writer: files.get(pipe.writer_fd()).unwrap(),
+            reader: pipe.reader().unwrap(),
+            writer: pipe.writer().unwrap(),
             _pipe: pipe,
             _mgate: mgate,
         });

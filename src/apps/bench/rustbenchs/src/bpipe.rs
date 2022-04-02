@@ -51,7 +51,7 @@ fn child_to_parent() {
             tile.clone(),
             ActivityArgs::new("writer")
         ));
-        act.add_file(io::STDOUT_FILENO, pipe.writer_fd());
+        act.add_file(io::STDOUT_FILENO, pipe.writer().unwrap().fd());
 
         let act = wv_assert_ok!(act.run(|| {
             let mut output = Activity::own().files().get(io::STDOUT_FILENO).unwrap();
@@ -66,7 +66,7 @@ fn child_to_parent() {
 
         pipe.close_writer();
 
-        let mut input = Activity::own().files().get(pipe.reader_fd()).unwrap();
+        let mut input = pipe.reader().unwrap();
         let mut buf = BUF.borrow_mut();
         while wv_assert_ok!(input.read(&mut buf[..])) > 0 {}
 
@@ -96,7 +96,7 @@ fn parent_to_child() {
             tile.clone(),
             ActivityArgs::new("reader")
         ));
-        act.add_file(io::STDIN_FILENO, pipe.reader_fd());
+        act.add_file(io::STDIN_FILENO, pipe.reader().unwrap().fd());
 
         let act = wv_assert_ok!(act.run(|| {
             let mut input = Activity::own().files().get(io::STDIN_FILENO).unwrap();
@@ -107,7 +107,7 @@ fn parent_to_child() {
 
         pipe.close_reader();
 
-        let mut output = Activity::own().files().get(pipe.writer_fd()).unwrap();
+        let mut output = pipe.writer().unwrap();
         let buf = BUF.borrow();
         let mut rem = DATA_SIZE;
         while rem > 0 {

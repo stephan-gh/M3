@@ -404,8 +404,8 @@ fn shake_and_hash_pipe() {
     // Setup child activity that runs "hashsum shake128 -O 262144 -o -"
     let tile = wv_assert_ok!(Tile::get("clone|own"));
     let mut act = wv_assert_ok!(ChildActivity::new(tile, "shaker"));
-    act.add_file(io::STDIN_FILENO, ipipe.reader_fd());
-    act.add_file(io::STDOUT_FILENO, opipe.writer_fd());
+    act.add_file(io::STDIN_FILENO, ipipe.reader().unwrap().fd());
+    act.add_file(io::STDOUT_FILENO, opipe.writer().unwrap().fd());
     let closure = wv_assert_ok!(act.run(|| {
         let hash = wv_assert_ok!(HashSession::new("hash2", &HashAlgorithm::SHAKE128));
         wv_assert_ok!(io::stdin().get_mut().hash_input(&hash, usize::MAX));
@@ -420,13 +420,13 @@ fn shake_and_hash_pipe() {
     let hash = wv_assert_ok!(HashSession::new("hash1", &HashAlgorithm::SHA3_256));
     {
         // echo "Pipe!"
-        let mut ifile = wv_assert_some!(Activity::own().files().get(ipipe.writer_fd()));
+        let mut ifile = wv_assert_some!(ipipe.writer());
         wv_assert_ok!(writeln!(ifile, "Pipe!"));
         ipipe.close_writer();
     }
     {
         // hashsum sha3-224
-        let mut ofile = wv_assert_some!(Activity::own().files().get(opipe.reader_fd()));
+        let mut ofile = wv_assert_some!(opipe.reader());
         wv_assert_ok!(ofile.hash_input(&hash, usize::MAX));
         opipe.close_reader();
     }

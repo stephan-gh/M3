@@ -23,7 +23,7 @@ use m3::io::{self, Read, Write};
 use m3::kif;
 use m3::session::Pipes;
 use m3::test;
-use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
+use m3::tiles::{ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::vfs::{BufReader, IndirectPipe};
 use m3::{println, wv_assert_eq, wv_assert_ok, wv_run_test};
 
@@ -43,7 +43,7 @@ fn child_to_parent() {
 
     let tile = wv_assert_ok!(Tile::get("clone|own"));
     let mut act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("writer")));
-    act.add_file(io::STDOUT_FILENO, pipe.writer_fd());
+    act.add_file(io::STDOUT_FILENO, pipe.writer().unwrap().fd());
 
     let act = wv_assert_ok!(act.run(|| {
         println!("This is a test!");
@@ -52,9 +52,11 @@ fn child_to_parent() {
 
     pipe.close_writer();
 
-    let mut input = Activity::own().files().get(pipe.reader_fd()).unwrap();
+    let mut input = pipe.reader().unwrap();
     let s = wv_assert_ok!(input.read_to_string());
     wv_assert_eq!(s, "This is a test!\n");
+
+    pipe.close_reader();
 
     wv_assert_eq!(act.wait(), Ok(0));
 }
@@ -66,7 +68,7 @@ fn parent_to_child() {
 
     let tile = wv_assert_ok!(Tile::get("clone|own"));
     let mut act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("reader")));
-    act.add_file(io::STDIN_FILENO, pipe.reader_fd());
+    act.add_file(io::STDIN_FILENO, pipe.reader().unwrap().fd());
 
     let act = wv_assert_ok!(act.run(|| {
         let s = wv_assert_ok!(io::stdin().read_to_string());
@@ -76,7 +78,7 @@ fn parent_to_child() {
 
     pipe.close_reader();
 
-    let mut output = Activity::own().files().get(pipe.writer_fd()).unwrap();
+    let mut output = pipe.writer().unwrap();
     wv_assert_eq!(output.write(b"This is a test!\n"), Ok(16));
 
     pipe.close_writer();
@@ -93,8 +95,8 @@ fn child_to_child() {
     let tile2 = wv_assert_ok!(Tile::get("clone|own"));
     let mut writer = wv_assert_ok!(ChildActivity::new_with(tile1, ActivityArgs::new("writer")));
     let mut reader = wv_assert_ok!(ChildActivity::new_with(tile2, ActivityArgs::new("reader")));
-    writer.add_file(io::STDOUT_FILENO, pipe.writer_fd());
-    reader.add_file(io::STDIN_FILENO, pipe.reader_fd());
+    writer.add_file(io::STDOUT_FILENO, pipe.writer().unwrap().fd());
+    reader.add_file(io::STDIN_FILENO, pipe.reader().unwrap().fd());
 
     let wr_act = wv_assert_ok!(writer.run(|| {
         println!("This is a test!");
@@ -123,8 +125,8 @@ fn exec_child_to_child() {
     let tile2 = wv_assert_ok!(Tile::get("clone|own"));
     let mut writer = wv_assert_ok!(ChildActivity::new_with(tile1, ActivityArgs::new("writer")));
     let mut reader = wv_assert_ok!(ChildActivity::new_with(tile2, ActivityArgs::new("reader")));
-    writer.add_file(io::STDOUT_FILENO, pipe.writer_fd());
-    reader.add_file(io::STDIN_FILENO, pipe.reader_fd());
+    writer.add_file(io::STDOUT_FILENO, pipe.writer().unwrap().fd());
+    reader.add_file(io::STDIN_FILENO, pipe.reader().unwrap().fd());
 
     let wr_act = wv_assert_ok!(writer.exec(&["/bin/hello"]));
 
@@ -148,7 +150,7 @@ fn writer_quit() {
 
     let tile = wv_assert_ok!(Tile::get("clone|own"));
     let mut act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("writer")));
-    act.add_file(io::STDOUT_FILENO, pipe.writer_fd());
+    act.add_file(io::STDOUT_FILENO, pipe.writer().unwrap().fd());
 
     let act = wv_assert_ok!(act.run(|| {
         println!("This is a test!");
@@ -158,7 +160,7 @@ fn writer_quit() {
 
     pipe.close_writer();
 
-    let input = Activity::own().files().get(pipe.reader_fd()).unwrap();
+    let input = pipe.reader().unwrap();
     let mut reader = BufReader::new(input);
     let mut s = String::new();
     wv_assert_eq!(reader.read_line(&mut s), Ok(15));
@@ -182,7 +184,7 @@ fn reader_quit() {
 
     let tile = wv_assert_ok!(Tile::get("clone|own"));
     let mut act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("reader")));
-    act.add_file(io::STDIN_FILENO, pipe.reader_fd());
+    act.add_file(io::STDIN_FILENO, pipe.reader().unwrap().fd());
 
     let act = wv_assert_ok!(act.run(|| {
         let mut s = String::new();
@@ -193,7 +195,7 @@ fn reader_quit() {
 
     pipe.close_reader();
 
-    let mut output = Activity::own().files().get(pipe.writer_fd()).unwrap();
+    let mut output = pipe.writer().unwrap();
     loop {
         let res = output.write(b"This is a test!\n");
         match res {

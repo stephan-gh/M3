@@ -21,7 +21,7 @@ use crate::errors::Error;
 use crate::rc::Rc;
 use crate::session::{Pipe, Pipes};
 use crate::tiles::Activity;
-use crate::vfs::Fd;
+use crate::vfs::{Fd, FileRef, GenericFile};
 
 /// A uni-directional channel between potentially multiple readers and writers.
 pub struct IndirectPipe {
@@ -45,9 +45,9 @@ impl IndirectPipe {
         })
     }
 
-    /// Returns the file descriptor of the reading side.
-    pub fn reader_fd(&self) -> Fd {
-        self.rd_fd
+    /// Returns the file for the reading side.
+    pub fn reader(&self) -> Option<FileRef<GenericFile>> {
+        Activity::own().files().get_as(self.rd_fd)
     }
 
     /// Closes the reading side.
@@ -55,9 +55,9 @@ impl IndirectPipe {
         Activity::own().files().remove(self.rd_fd);
     }
 
-    /// Returns the file descriptor of the writing side.
-    pub fn writer_fd(&self) -> Fd {
-        self.wr_fd
+    /// Returns the file for the writing side.
+    pub fn writer(&self) -> Option<FileRef<GenericFile>> {
+        Activity::own().files().get_as(self.wr_fd)
     }
 
     /// Closes the writing side.
