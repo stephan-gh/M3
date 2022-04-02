@@ -107,7 +107,7 @@ pub struct CreateSrv {
 impl CreateSrv {
     /// Stores a `CreateSrv` message into the given message buffer
     pub fn fill_msgbuf(buf: &mut MsgBuf, dst: CapSel, rgate: CapSel, name: &str, creator: Label) {
-        #[allow(clippy::uninit_assumed_init)]
+        #[allow(clippy::uninit_assumed_init, clippy::useless_conversion)]
         let msg = buf.set(Self {
             opcode: Operation::CREATE_SRV.val,
             dst_sel: dst,

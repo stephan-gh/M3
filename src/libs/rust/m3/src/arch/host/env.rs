@@ -79,7 +79,7 @@ impl EnvData {
             self.base().first_sel as Selector
         }
         else {
-            Self::load_word("nextsel", u64::from(kif::FIRST_FREE_SEL)) as Selector
+            Self::load_word("nextsel", kif::FIRST_FREE_SEL) as Selector
         }
     }
 
@@ -105,13 +105,9 @@ impl EnvData {
     }
 
     pub fn load_func(&self) -> Option<fn() -> i32> {
-        if let Some(addr) = arch::loader::read_env_words("lambda") {
-            // safety: we trust our loader
-            Some(unsafe { core::intrinsics::transmute(addr[0]) })
-        }
-        else {
-            None
-        }
+        // safety: we trust our loader
+        arch::loader::read_env_words("lambda")
+            .map(|addr| unsafe { core::intrinsics::transmute(addr[0]) })
     }
 
     fn load_word(name: &str, default: u64) -> u64 {

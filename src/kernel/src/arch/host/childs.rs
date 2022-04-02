@@ -13,6 +13,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::col::ToString;
 use base::format;
 use base::libc;
 use base::rc::Rc;
@@ -65,7 +66,7 @@ fn kill_activity_async(pid: libc::pid_t, status: i32) {
                 let name = format!("{}:{}", id, v.name());
                 (Some(v), name)
             },
-            None => (None, format!("??")),
+            None => (None, "??".to_string()),
         };
 
     if libc::WIFEXITED(status) {

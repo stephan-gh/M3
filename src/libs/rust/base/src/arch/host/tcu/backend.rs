@@ -47,8 +47,8 @@ impl FdSet {
         self.max = core::cmp::max(self.max, fd);
     }
 
-    pub fn is_set(&mut self, fd: i32) -> bool {
-        unsafe { libc::FD_ISSET(fd, &mut self.set) }
+    pub fn is_set(&self, fd: i32) -> bool {
+        unsafe { libc::FD_ISSET(fd, &self.set) }
     }
 }
 

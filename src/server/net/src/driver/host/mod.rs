@@ -110,7 +110,7 @@ impl RawSocketDesc {
     }
 
     pub fn recv(&self, buffer: &mut [u8]) -> Option<usize> {
-        if buffer.len() <= 0 {
+        if buffer.is_empty() {
             return None;
         }
 
@@ -208,13 +208,13 @@ impl<'a> Device<'a> for DevFifo {
 
     fn receive(&'a mut self) -> Option<(Self::RxToken, Self::TxToken)> {
         let mut buffer = vec![0; self.mtu];
-        self.lower.recv(&mut buffer[..]).and_then(|size| {
+        self.lower.recv(&mut buffer[..]).map(|size| {
             buffer.resize(size, 0);
             let rx = RxToken { buffer };
             let tx = TxToken {
                 lower: self.lower.clone(),
             };
-            Some((rx, tx))
+            (rx, tx)
         })
     }
 

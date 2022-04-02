@@ -78,7 +78,7 @@ pub fn out_dir() -> &'static str {
 fn get_env(name: &str) -> &'static str {
     unsafe {
         let value = libc::getenv(name.as_bytes().as_ptr() as *const i8);
-        assert!(value != ptr::null_mut());
+        assert!(!value.is_null());
         util::cstr_to_str(value)
     }
 }

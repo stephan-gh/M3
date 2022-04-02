@@ -620,7 +620,7 @@ fn send_msg(
         buf.header.rpl_ep
     );
 
-    if backend.send(dst_tile, dst_ep, &buf) {
+    if backend.send(dst_tile, dst_ep, buf) {
         Ok(())
     }
     else {
@@ -780,7 +780,7 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
     while RUN.load(atomic::Ordering::Relaxed) == 1 {
         if backend.recv_command() {
             assert!((TCU::get_cmd(CmdReg::CTRL) & Control::START.bits()) != 0);
-            handle_command(&backend);
+            handle_command(backend);
             // for read and write, we get a response later
             if TCU::is_ready() {
                 backend.send_ack();
@@ -788,7 +788,7 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
         }
 
         for ep in 0..TOTAL_EPS {
-            handle_receive(&backend, ep);
+            handle_receive(backend, ep);
         }
 
         let now = TCU::nanotime();
@@ -817,7 +817,7 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
     loop {
         let mut received = false;
         for ep in 0..TOTAL_EPS {
-            received |= handle_receive(&backend, ep);
+            received |= handle_receive(backend, ep);
         }
         if !received {
             break;

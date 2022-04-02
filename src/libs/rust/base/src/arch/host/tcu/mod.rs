@@ -500,8 +500,8 @@ impl TCU {
 impl TCU {
     /// Configures the given endpoint
     pub fn set_ep_regs(ep: EpId, regs: &[Reg]) {
-        for i in 0..EP_REGS {
-            unsafe { ptr::write_volatile(Self::ep_addr(ep, i), regs[i]) }
+        for (i, r) in regs.iter().enumerate().take(EP_REGS) {
+            unsafe { ptr::write_volatile(Self::ep_addr(ep, i), *r) }
         }
     }
 

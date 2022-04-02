@@ -14,7 +14,7 @@
  */
 
 use base::cfg;
-use base::col::{ToString, Vec};
+use base::col::ToString;
 use base::env;
 use base::envdata;
 use base::errors::{Code, Error};
@@ -22,6 +22,7 @@ use base::format;
 use base::kif;
 use base::libc;
 use base::tcu::{ActId, TileId};
+use base::vec;
 
 use crate::ktcu;
 use crate::tiles::{tilemng, Activity};
@@ -40,19 +41,16 @@ pub fn start(act: &Activity) -> Result<i32, Error> {
             write_env_file(pid, act.id(), act.tile_id(), act.first_sel());
 
             let kernel = env::args().next().unwrap();
-            let builddir = kernel.rsplitn(2, '/').nth(1).unwrap();
+            let builddir = kernel.rsplit_once('/').unwrap().0;
 
             let mut arg = builddir.to_string();
             arg.push('/');
             arg.push_str(act.name());
             arg.push('\0');
 
-            let mut argv: Vec<*const i8> = Vec::new();
-            argv.push(arg.as_ptr() as *const i8);
-            argv.push(0 as *const i8);
-
             klog!(ACTIVITIES, "Loading mod '{}':", act.name());
 
+            let argv = vec![arg.as_ptr() as *const i8, core::ptr::null::<i8>()];
             unsafe {
                 libc::execv(argv[0], argv.as_ptr());
                 // special error code to let the WorkLoop delete the activity

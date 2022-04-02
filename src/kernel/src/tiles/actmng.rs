@@ -297,7 +297,7 @@ impl ActivityMng {
         let actmng = INST.borrow();
         for v in &actmng.acts {
             if let Some(act) = v.as_ref() {
-                if pred(&act) {
+                if pred(act) {
                     return Some(act.clone());
                 }
             }

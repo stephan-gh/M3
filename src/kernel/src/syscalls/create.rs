@@ -133,6 +133,7 @@ pub fn create_rgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
     if !act_caps.unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
+    #[allow(clippy::absurd_extreme_comparisons)]
     if msg_order.checked_add(order).is_none()
         || msg_order > order
         || order - msg_order >= 32

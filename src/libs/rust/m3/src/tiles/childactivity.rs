@@ -431,7 +431,7 @@ impl ChildActivity {
     #[cfg(target_vendor = "host")]
     fn do_exec_file<S: AsRef<str>>(
         self,
-        _mapper: &dyn Mapper,
+        _mapper: &mut dyn Mapper,
         mut file: FileRef<dyn File>,
         args: &[S],
         closure: Option<usize>,
@@ -459,11 +459,9 @@ impl ChildActivity {
                 arch::loader::write_env_values(pid, "tcurdy", &[c2p.fds()[1] as u64]);
 
                 // write nextsel, eps, rmng, and kmem
-                arch::loader::write_env_values(pid, "nextsel", &[u64::from(self.child_sel.get())]);
-                arch::loader::write_env_values(pid, "rmng", &[u64::from(
-                    self.resmng_sel().unwrap(),
-                )]);
-                arch::loader::write_env_values(pid, "kmem", &[u64::from(self.kmem.sel())]);
+                arch::loader::write_env_values(pid, "nextsel", &[self.child_sel.get()]);
+                arch::loader::write_env_values(pid, "rmng", &[self.resmng_sel().unwrap()]);
+                arch::loader::write_env_values(pid, "kmem", &[self.kmem.sel()]);
 
                 // write closure
                 if let Some(addr) = closure {

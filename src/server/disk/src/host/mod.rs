@@ -149,7 +149,7 @@ impl BlockDeviceTrait for BlockDevice {
     ) -> Result<(), Error> {
         let partition = &self.partitions[part];
         Self::access(
-            &partition,
+            partition,
             "Reading",
             buf_off,
             disk_off,
@@ -182,7 +182,7 @@ impl BlockDeviceTrait for BlockDevice {
     ) -> Result<(), Error> {
         let partition = &self.partitions[part];
         Self::access(
-            &partition,
+            partition,
             "Writing",
             buf_off,
             disk_off,

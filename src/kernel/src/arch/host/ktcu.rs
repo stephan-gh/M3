@@ -104,6 +104,7 @@ pub fn config_mem(
 }
 
 pub fn invalidate_ep_remote(tile: TileId, ep: EpId, _force: bool) -> Result<u32, Error> {
+    #[allow(clippy::unnecessary_cast)]
     let regs = [0 as Reg; EP_REGS];
     write_ep_remote(tile, ep, &regs).map(|_| 0)
 }

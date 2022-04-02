@@ -15,7 +15,6 @@
 
 use base::cfg;
 use base::libc;
-use base::mem::MaybeUninit;
 
 use crate::mem;
 
@@ -25,7 +24,7 @@ pub fn copy_from_fs(path: &str) -> usize {
         let fd = libc::open(in_path.as_bytes().as_ptr() as *const i8, libc::O_RDONLY);
         assert!(fd != -1);
 
-        let mut info: libc::stat = MaybeUninit::uninit().assume_init();
+        let mut info: libc::stat = core::mem::zeroed();
         assert!(libc::fstat(fd, &mut info) != -1);
         assert!(info.st_size as usize <= cfg::FS_MAX_SIZE);
 

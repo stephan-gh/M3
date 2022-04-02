@@ -19,8 +19,9 @@ use base::format;
 use base::goff;
 use base::kif::{boot, TileDesc, TileISA, TileType};
 use base::libc;
-use base::mem::{size_of, GlobAddr, MaybeUninit};
+use base::mem::{size_of, GlobAddr};
 use base::tcu::{EpId, TileId};
+use base::vec;
 use core::ptr;
 
 use crate::arch;
@@ -159,23 +160,23 @@ fn build_mems() -> Vec<boot::Mem> {
     ));
 
     // set memories
-    let mut mems = Vec::new();
-    mems.push(boot::Mem::new(
-        GlobAddr::new_with(kernel_tile(), 0),
-        cfg::FS_MAX_SIZE as goff,
-        true,
-    ));
-    mems.push(boot::Mem::new(
-        GlobAddr::new_with(kernel_tile(), boot_off),
-        cfg::FIXED_ROOT_MEM as goff,
-        true,
-    ));
-    mems.push(boot::Mem::new(
-        GlobAddr::new_with(kernel_tile(), off),
-        user_size as goff,
-        false,
-    ));
-    mems
+    vec![
+        boot::Mem::new(
+            GlobAddr::new_with(kernel_tile(), 0),
+            cfg::FS_MAX_SIZE as goff,
+            true,
+        ),
+        boot::Mem::new(
+            GlobAddr::new_with(kernel_tile(), boot_off),
+            cfg::FIXED_ROOT_MEM as goff,
+            true,
+        ),
+        boot::Mem::new(
+            GlobAddr::new_with(kernel_tile(), off),
+            user_size as goff,
+            false,
+        ),
+    ]
 }
 
 fn build_modules(args: &[String]) -> Vec<boot::Mod> {
@@ -189,7 +190,7 @@ fn build_modules(args: &[String]) -> Vec<boot::Mod> {
             if fd == -1 {
                 panic!("Opening {} for reading failed", arg);
             }
-            let mut finfo: libc::stat = MaybeUninit::uninit().assume_init();
+            let mut finfo: libc::stat = core::mem::zeroed();
             if libc::fstat(fd, &mut finfo) == -1 {
                 panic!("Stat for {} failed", arg);
             }
@@ -203,7 +204,7 @@ fn build_modules(args: &[String]) -> Vec<boot::Mod> {
             }
             libc::close(fd);
 
-            let mod_name = arg.rsplitn(2, '/').next().unwrap();
+            let mod_name = arg.rsplit('/').next().unwrap();
             mods.push(boot::Mod::new(alloc.global(), alloc.size(), mod_name));
         }
     }

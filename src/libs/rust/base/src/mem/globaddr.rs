@@ -41,7 +41,7 @@ cfg_if! {
     }
     else {
         const TILE_SHIFT: u64 = 48;
-        const TILE_OFFSET: u64 = 0x0;
+        const TILE_OFFSET: u64 = 0x80;
     }
 }
 
@@ -61,8 +61,7 @@ impl GlobAddr {
     /// The function assumes that the given physical address is accessible through a PMP EP and uses
     /// the current configuration of this PMP EP to translate the physical address into a global
     /// address.
-    #[cfg(not(target_vendor = "host"))]
-    pub fn new_from_phys(phys: Phys) -> Result<GlobAddr, Error> {
+    pub fn new_from_phys(_phys: Phys) -> Result<GlobAddr, Error> {
         cfg_if! {
             if #[cfg(target_vendor = "host")] {
                 Err(Error::new(Code::NotSup))
@@ -71,7 +70,7 @@ impl GlobAddr {
                 use crate::io::log;
                 use crate::tcu::TCU;
 
-                let phys = phys - crate::cfg::MEM_OFFSET as Phys;
+                let phys = _phys - crate::cfg::MEM_OFFSET as Phys;
                 let epid = ((phys >> 30) & 0x3) as EpId;
                 let off = phys & 0x3FFF_FFFF;
                 let res = TCU::unpack_mem_ep(epid)
@@ -176,7 +175,6 @@ impl GlobAddr {
 }
 
 impl fmt::Debug for GlobAddr {
-    #[allow(clippy::absurd_extreme_comparisons)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.has_tile() {
             write!(f, "G[Tile{}+{:#x}]", self.tile(), self.offset())
