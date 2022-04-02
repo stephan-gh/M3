@@ -179,12 +179,11 @@ impl SendQueue {
 
         if let Some(ev) = self.queue.sender_mut().cur_event.take() {
             thread::notify(ev, Some(msg));
+            PENDING_MSGS.set(PENDING_MSGS.get() - 1);
         }
 
         // now that we've copied the message, we can mark it read
         ktcu::ack_msg(ktcu::KSRV_EP, msg);
-
-        PENDING_MSGS.set(PENDING_MSGS.get() - 1);
 
         if !self.queue.send_pending() {
             resume_queue();
