@@ -133,13 +133,13 @@ impl SendGate {
     /// Returns whether the TCU EP has credits to send a message
     pub fn can_send(&self) -> Result<bool, Error> {
         let ep = self.activate()?;
-        Ok(tcu::TCU::credits(ep.id())? > 0)
+        Ok(tcu::TCU::credits(ep)? > 0)
     }
 
     /// Returns the number of available credits
     pub fn credits(&self) -> Result<u32, Error> {
         let ep = self.activate()?;
-        tcu::TCU::credits(ep.id())
+        tcu::TCU::credits(ep)
     }
 
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
@@ -147,7 +147,7 @@ impl SendGate {
         self.gate.ep()
     }
 
-    pub(crate) fn activate(&self) -> Result<Ref<'_, EP>, Error> {
+    pub(crate) fn activate(&self) -> Result<tcu::EpId, Error> {
         self.gate.activate()
     }
 
@@ -173,7 +173,7 @@ impl SendGate {
         reply_gate: &RecvGate,
     ) -> Result<(), Error> {
         let ep = self.activate()?;
-        tcu::TCU::send_aligned(ep.id(), msg, len, 0, reply_gate.ep().unwrap())
+        tcu::TCU::send_aligned(ep, msg, len, 0, reply_gate.ep().unwrap())
     }
 
     /// Sends `msg` to the associated [`RecvGate`], uses `reply_gate` to receive the reply, and lets
@@ -185,7 +185,7 @@ impl SendGate {
         rlabel: tcu::Label,
     ) -> Result<(), Error> {
         let ep = self.activate()?;
-        tcu::TCU::send(ep.id(), msg, rlabel, reply_gate.ep().unwrap())
+        tcu::TCU::send(ep, msg, rlabel, reply_gate.ep().unwrap())
     }
 
     /// Sends `msg` to the associated [`RecvGate`] and receives the reply from the set reply gate.
@@ -196,13 +196,18 @@ impl SendGate {
         reply_gate: &RecvGate,
     ) -> Result<&'static tcu::Message, Error> {
         let ep = self.activate()?;
-        tcu::TCU::send(ep.id(), msg, 0, reply_gate.ep().unwrap())?;
+        tcu::TCU::send(ep, msg, 0, reply_gate.ep().unwrap())?;
         reply_gate.receive(Some(self))
     }
 }
 
 impl fmt::Debug for SendGate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        write!(f, "SendGate[sel: {}, ep: {:?}]", self.sel(), self.gate.ep())
+        write!(
+            f,
+            "SendGate[sel: {}, ep: {:?}]",
+            self.sel(),
+            self.gate.epid()
+        )
     }
 }

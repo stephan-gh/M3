@@ -657,8 +657,9 @@ impl Handler<HashSession> for HashHandler {
         // Right now this is not possible because mgate.activate() returns an EP
         // from the EpMng which does not allow binding it to a specified capability selector.
         if xchg.in_caps() == 1 {
-            let ep = hash.mgate.activate()?;
-            xchg.out_caps(CapRngDesc::new(CapType::OBJECT, ep.sel(), 1));
+            hash.mgate.activate()?;
+            let ep_sel = hash.mgate.ep().unwrap().sel();
+            xchg.out_caps(CapRngDesc::new(CapType::OBJECT, ep_sel, 1));
             return Ok(());
         }
 

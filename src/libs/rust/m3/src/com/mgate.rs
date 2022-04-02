@@ -211,7 +211,7 @@ impl MemGate {
     /// stores the read data into `data`.
     pub fn read_bytes(&self, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
         let ep = self.activate()?;
-        tcu::TCU::read(ep.id(), data, size, off)
+        tcu::TCU::read(ep, data, size, off)
     }
 
     /// Writes `data` with the TCU write command to the memory region at offset `off`.
@@ -232,14 +232,14 @@ impl MemGate {
     /// `off`.
     pub fn write_bytes(&self, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
         let ep = self.activate()?;
-        tcu::TCU::write(ep.id(), data, size, off)
+        tcu::TCU::write(ep, data, size, off)
     }
 
     /// Activates the gate. Returns the chosen endpoint number.
     /// The endpoint can be delegated to other services (e.g. M3FS) to let them
     /// remotely configure it to point to memory in another tile.
     #[inline(always)]
-    pub fn activate(&self) -> Result<Ref<'_, EP>, Error> {
+    pub fn activate(&self) -> Result<tcu::EpId, Error> {
         self.gate.activate()
     }
 
@@ -264,7 +264,7 @@ impl fmt::Debug for MemGate {
             f,
             "MemGate[sel: {}, ep: {:?}]",
             self.sel(),
-            self.gate.ep().map(|ep| ep.id())
+            self.gate.epid()
         )
     }
 }

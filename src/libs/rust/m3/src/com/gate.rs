@@ -19,7 +19,7 @@
 use core::ops;
 
 use crate::cap::{CapFlags, Capability, Selector};
-use crate::cell::{Ref, RefCell};
+use crate::cell::{Cell, Ref, RefCell};
 use crate::com::EP;
 use crate::errors::Error;
 use crate::kif;
@@ -31,6 +31,9 @@ use crate::tiles::Activity;
 /// [`SendGate`], and [`RecvGate`].
 pub struct Gate {
     cap: Capability,
+    // keep the endpoint id separately in a Cell for a cheaper access. most of the time, we only
+    // need the EP id, so that we can avoid borrowing the RefCell.
+    epid: Cell<Option<EpId>>,
     ep: RefCell<Option<EP>>,
 }
 
@@ -39,15 +42,17 @@ impl Gate {
     pub fn new(sel: Selector, flags: CapFlags) -> Self {
         Gate {
             cap: Capability::new(sel, flags),
+            epid: Cell::new(None),
             ep: RefCell::new(None),
         }
     }
 
     /// Creates a new gate with given capability selector, flags, and endpoint
-    pub const fn new_with_ep(sel: Selector, flags: CapFlags, ep: EpId) -> Self {
+    pub const fn new_with_ep(sel: Selector, flags: CapFlags, epid: EpId) -> Self {
         Gate {
             cap: Capability::new(sel, flags),
-            ep: RefCell::new(Some(EP::new_def_bind(ep))),
+            epid: Cell::new(Some(epid)),
+            ep: RefCell::new(Some(EP::new_def_bind(epid))),
         }
     }
 
@@ -66,9 +71,14 @@ impl Gate {
         self.cap.set_flags(flags);
     }
 
+    /// Returns the endpoint id. If the gate is not activated, it returns [`None`].
+    pub(crate) fn epid(&self) -> Option<EpId> {
+        self.epid.get()
+    }
+
     /// Returns the endpoint. If the gate is not activated, it returns [`None`].
     pub(crate) fn ep(&self) -> Option<Ref<'_, EP>> {
-        if self.ep.borrow().is_some() {
+        if self.epid.get().is_some() {
             Some(Ref::map(self.ep.borrow(), |ep| ep.as_ref().unwrap()))
         }
         else {
@@ -77,7 +87,8 @@ impl Gate {
     }
 
     /// Sets or unsets the endpoint.
-    pub(crate) fn set_ep(&mut self, ep: Option<EP>) {
+    pub(crate) fn set_ep(&self, ep: Option<EP>) {
+        self.epid.replace(ep.as_ref().map(|obj| obj.id()));
         self.ep.replace(ep);
     }
 
@@ -90,24 +101,24 @@ impl Gate {
     ) -> Result<EpId, Error> {
         let ep = Activity::own().epmng_mut().acquire(replies)?;
         syscalls::activate(ep.sel(), self.sel(), mem.unwrap_or(kif::INVALID_SEL), addr)?;
-        self.ep.replace(Some(ep));
-        Ok(self.ep().unwrap().id())
+        self.set_ep(Some(ep));
+        Ok(self.epid().unwrap())
     }
 
     /// Activates the gate. Returns the chosen endpoint number.
     #[inline(always)]
-    pub(crate) fn activate(&self) -> Result<Ref<'_, EP>, Error> {
-        if let Some(ep) = self.ep() {
+    pub(crate) fn activate(&self) -> Result<EpId, Error> {
+        if let Some(ep) = self.epid() {
             return Ok(ep);
         }
 
         self.do_activate()
     }
 
-    fn do_activate(&self) -> Result<Ref<'_, EP>, Error> {
+    fn do_activate(&self) -> Result<EpId, Error> {
         let ep = Activity::own().epmng_mut().activate(self)?;
-        self.ep.replace(Some(ep));
-        Ok(self.ep().unwrap())
+        self.set_ep(Some(ep));
+        Ok(self.epid().unwrap())
     }
 
     /// Releases the EP that is used by this gate

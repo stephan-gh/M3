@@ -57,7 +57,7 @@ impl fmt::Debug for RecvGate {
             self.sel(),
             self.buf,
             1 << self.order,
-            self.gate.ep()
+            self.gate.epid()
         )
     }
 }
@@ -193,7 +193,7 @@ impl RecvGate {
 
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
     pub(crate) fn ep(&self) -> Option<tcu::EpId> {
-        self.gate.ep().map(|ep| ep.id())
+        self.gate.epid()
     }
 
     /// Returns the size of the receive buffer in bytes
