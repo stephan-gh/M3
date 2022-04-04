@@ -23,9 +23,9 @@
 
 #include <m3/session/ResMng.h>
 #include <m3/stream/FStream.h>
-#include <m3/vfs/FileRef.h>
 #include <m3/vfs/FileTable.h>
 #include <m3/vfs/MountTable.h>
+#include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
 #include <m3/tiles/Activity.h>
 
@@ -148,7 +148,7 @@ struct LambdaCaller {
 // this constructor runs last and calls a lambda, if present, instead of main.
 INIT_PRIO_LAMBDA static LambdaCaller lambda_caller;
 
-void Activity::init_state() {
+void OwnActivity::init_state() {
     if(env()->first_sel() != 0)
         _next_sel = env()->first_sel();
     else
@@ -161,7 +161,7 @@ void Activity::init_state() {
         _resmng.reset(new ResMng(ObjCap::INVALID));
 }
 
-void Activity::init_fs() {
+void OwnActivity::init_fs() {
     // don't free them; we don't want to revoke caps
     _fds = nullptr;
     _ms = nullptr;
@@ -200,7 +200,7 @@ int get_args(int argc, char **argv, char **) {
 }
 __attribute__((section(".init_array"))) void *get_args_constr = (void*)&get_args;
 
-void Activity::run(int (*func)()) {
+void ChildActivity::run(int (*func)()) {
     // prevent the compiler from optimizing away above init call
     size_t dummy;
     memcpy(&dummy, get_args_constr, sizeof(dummy));
@@ -208,19 +208,19 @@ void Activity::run(int (*func)()) {
     do_exec(argc_copy, const_cast<const char**>(argv_copy), reinterpret_cast<uintptr_t>(func));
 }
 
-void Activity::do_exec(int argc, const char **argv, uintptr_t func_addr) {
+void ChildActivity::do_exec(int argc, const char **argv, uintptr_t func_addr) {
     static char buffer[8192];
     int tmp, pid;
     ssize_t res;
     Chan p2c, c2p;
 
-    obtain_fds();
-    obtain_mounts();
+    Activity::own().files()->delegate(*this);
+    Activity::own().mounts()->delegate(*this);
 
     char templ[256];
     snprintf(templ, sizeof(templ), "%s/exec-XXXXXX", Env::tmp_dir());
 
-    FileRef bin(argv[0], FILE_R);
+    auto bin = VFS::open(argv[0], FILE_R);
     tmp = mkstemp(templ);
     if(tmp < 0)
         throw Exception(Errors::OUT_OF_MEM);
@@ -278,10 +278,10 @@ void Activity::do_exec(int argc, const char **argv, uintptr_t func_addr) {
         write_file(pid, "nextsel", _next_sel);
         write_file(pid, "rmng", _resmng->sel());
 
-        len = _ms->serialize(buf.get(), STATE_BUF_SIZE);
+        len = Activity::own().mounts()->serialize(*this, buf.get(), STATE_BUF_SIZE);
         write_file(pid, "ms", buf.get(), len);
 
-        len = _fds->serialize(buf.get(), STATE_BUF_SIZE);
+        len = Activity::own().files()->serialize(*this, buf.get(), STATE_BUF_SIZE);
         write_file(pid, "fds", buf.get(), len);
 
         write_file(pid, "data", _data, sizeof(_data));

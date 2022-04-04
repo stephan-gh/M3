@@ -20,9 +20,10 @@
 
 #include <base/Machine.h>
 
-#include <m3/vfs/File.h>
 #include <m3/Exception.h>
-#include <m3/tiles/Activity.h>
+#include <m3/tiles/OwnActivity.h>
+#include <m3/vfs/File.h>
+#include <m3/vfs/FileTable.h>
 
 namespace m3 {
 
@@ -60,14 +61,15 @@ public:
         return static_cast<ssize_t>(buf - reinterpret_cast<const char*>(buffer));
     }
 
-    virtual Reference<File> clone() const override {
-        return Reference<File>(new SerialFile());
+    virtual FileRef<File> clone() const override {
+        auto file = std::unique_ptr<File>(new SerialFile());
+        return Activity::own().files()->alloc(std::move(file));
     }
 
     virtual char type() const noexcept override {
         return 'S';
     }
-    virtual void delegate(Activity &) override {
+    virtual void delegate(ChildActivity &) override {
         // nothing to do
     }
     virtual void serialize(Marshaller &) override {

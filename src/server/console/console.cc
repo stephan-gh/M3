@@ -77,7 +77,7 @@ int main() {
 
     WorkLoop wl;
 
-    MemGate memgate = Activity::self().get_mem(reinterpret_cast<uintptr_t>(vgamem),
+    MemGate memgate = Activity::own().get_mem(reinterpret_cast<uintptr_t>(vgamem),
                                           VGA::SIZE, MemGate::RW);
     Server<VGAHandler> vgasrv("vga", &wl, std::make_unique<VGAHandler>(&memgate));
 

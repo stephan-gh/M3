@@ -22,7 +22,7 @@
 
 namespace m3 {
 
-FStream::FStream(int fd, int perms, size_t bufsize, uint flags)
+FStream::FStream(fd_t fd, int perms, size_t bufsize, uint flags)
     : IStream(),
       OStream(),
       _fd(fd),
@@ -40,7 +40,7 @@ FStream::FStream(const char *filename, int perms, size_t bufsize)
 FStream::FStream(const char *filename, size_t rsize, size_t wsize, int perms)
     : IStream(),
       OStream(),
-      _fd(VFS::open(filename, get_perms(perms))),
+      _fd(VFS::open(filename, get_perms(perms)).release()->fd()),
       _rbuf(new File::Buffer((perms & FILE_R) ? rsize : 0)),
       _wbuf(new File::Buffer((perms & FILE_W) ? wsize : 0)),
       _flags(FL_DEL_BUF | FL_DEL_FILE) {
@@ -63,7 +63,7 @@ FStream::~FStream() {
 
     if((_flags & FL_DEL_FILE)) {
         try {
-            VFS::close(_fd);
+            Activity::own().files()->remove(_fd);
         }
         catch(...) {
             // ignore
@@ -98,9 +98,9 @@ ssize_t FStream::read(void *dst, size_t count) {
 
     ssize_t total = 0;
     char *buf = reinterpret_cast<char*>(dst);
-    Reference<File> f = file();
+    File *f = file();
     while(count > 0) {
-        ssize_t res = _rbuf->read(f.get(), buf + total, count);
+        ssize_t res = _rbuf->read(f, buf + total, count);
         if(res == -1 && total == 0)
             return -1;
         if(res <= 0) {
@@ -115,9 +115,9 @@ ssize_t FStream::read(void *dst, size_t count) {
 }
 
 void FStream::flush() {
-    Reference<File> f = file();
+    File *f = file();
     if(_wbuf && f) {
-        _wbuf->flush(f.get());
+        _wbuf->flush(f);
         f->flush();
     }
 }
@@ -158,9 +158,9 @@ ssize_t FStream::write(const void *src, size_t count) {
 
     const char *buf = reinterpret_cast<const char*>(src);
     ssize_t total = 0;
-    Reference<File> f = file();
+    File *f = file();
     while(count > 0) {
-        ssize_t res = _wbuf->write(f.get(), buf + total, count);
+        ssize_t res = _wbuf->write(f, buf + total, count);
         if(res == -1 && total == 0)
             return -1;
         if(res <= 0) {
@@ -174,7 +174,7 @@ ssize_t FStream::write(const void *src, size_t count) {
         if(((_flags & FL_LINE_BUF) && buf[total - 1] == '\n'))
             flush();
         else if(count)
-            _wbuf->flush(f.get());
+            _wbuf->flush(f);
     }
 
     return static_cast<ssize_t>(total);

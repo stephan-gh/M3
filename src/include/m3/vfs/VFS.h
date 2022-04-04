@@ -24,6 +24,7 @@
 
 #include <m3/session/M3FS.h>
 #include <m3/vfs/File.h>
+#include <m3/vfs/FileRef.h>
 #include <m3/vfs/FileSystem.h>
 #include <m3/vfs/MountTable.h>
 
@@ -62,16 +63,9 @@ public:
      *
      * @param path the path to the file to open
      * @param perms the permissions (FILE_*)
-     * @return the file descriptor
+     * @return the file reference
      */
-    static fd_t open(const char *path, int perms);
-
-    /**
-     * Closes the given file
-     *
-     * @param fd the file descriptor
-     */
-    static void close(fd_t fd) noexcept;
+    static FileRef<GenericFile> open(const char *path, int perms);
 
     /**
      * Retrieves the file information for the given path.

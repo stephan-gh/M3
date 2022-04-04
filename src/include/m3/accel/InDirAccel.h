@@ -22,7 +22,7 @@
 #include <m3/com/MemGate.h>
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
-#include <m3/tiles/Activity.h>
+#include <m3/tiles/ChildActivity.h>
 
 #include <memory>
 
@@ -51,22 +51,22 @@ public:
         uint64_t compTime;
     } PACKED;
 
-    explicit InDirAccel(std::unique_ptr<Activity> &act, RecvGate &reply_gate)
+    explicit InDirAccel(std::unique_ptr<ChildActivity> &act, RecvGate &reply_gate)
         : _mgate(),
           _rgate(RecvGate::create(getnextlog2(MSG_SIZE), getnextlog2(MSG_SIZE))),
           _sgate(SendGate::create(&_rgate, SendGateArgs().credits(1)
                                                          .reply_gate(&reply_gate))),
-          _rep(act->epmng().acquire(EP_RECV, _rgate.slots())),
-          _mep(act->epmng().acquire(EP_OUT)),
+          _rep(EP::alloc_for(*act, EP_RECV, _rgate.slots())),
+          _mep(EP::alloc_for(*act, EP_OUT)),
           _act(act),
           _mem(_act->get_mem(MEM_OFFSET, act->tile_desc().mem_size(), MemGate::RW)) {
         // activate EP
-        _rgate.activate_on(*_rep, nullptr, RECV_ADDR);
+        _rgate.activate_on(_rep, nullptr, RECV_ADDR);
     }
 
     void connect_output(InDirAccel *accel) {
         _mgate = std::make_unique<MemGate>(accel->_mem.derive(BUF_ADDR - MEM_OFFSET, MAX_BUF_SIZE));
-        _mgate->activate_on(*_mep);
+        _mgate->activate_on(_mep);
     }
 
     void read(void *data, size_t size) {
@@ -92,9 +92,9 @@ private:
     std::unique_ptr<MemGate> _mgate;
     RecvGate _rgate;
     SendGate _sgate;
-    std::unique_ptr<EP> _rep;
-    std::unique_ptr<EP> _mep;
-    std::unique_ptr<Activity> &_act;
+    EP _rep;
+    EP _mep;
+    std::unique_ptr<ChildActivity> &_act;
     MemGate _mem;
 };
 

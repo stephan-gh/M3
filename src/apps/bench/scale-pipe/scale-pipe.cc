@@ -22,11 +22,11 @@
 
 #include <m3/stream/Standard.h>
 #include <m3/pipe/IndirectPipe.h>
+#include <m3/tiles/ChildActivity.h>
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
 #include <m3/Test.h>
-#include <m3/tiles/Activity.h>
 
 using namespace m3;
 
@@ -46,7 +46,7 @@ struct App {
     int argc;
     const char **argv;
     Reference<Tile> tile;
-    Activity act;
+    ChildActivity act;
     RecvGate rgate;
     SendGate sgate;
 };
@@ -137,12 +137,12 @@ int main(int argc, char **argv) {
             if(i % 2 == 0) {
                 mems[i / 2] = new MemGate(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
                 pipes[i / 2] = new IndirectPipe(pipesrv, *mems[i / 2], PIPE_SHM_SIZE, data ? 0 : FILE_NODATA);
-                apps[i]->act.files()->set(STDOUT_FD, Activity::self().files()->get(pipes[i / 2]->writer_fd()));
+                apps[i]->act.add_file(STDOUT_FD, pipes[i / 2]->writer_fd());
             }
             else
-                apps[i]->act.files()->set(STDIN_FD, Activity::self().files()->get(pipes[i / 2]->reader_fd()));
+                apps[i]->act.add_file(STDIN_FD, pipes[i / 2]->reader_fd());
 
-            apps[i]->act.mounts()->add("/", Activity::self().mounts()->get("/"));
+            apps[i]->act.add_mount("/", "/");
 
             apps[i]->act.exec(apps[i]->argc, apps[i]->argv);
 

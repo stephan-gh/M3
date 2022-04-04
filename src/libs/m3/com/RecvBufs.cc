@@ -16,6 +16,7 @@
 #include <base/Init.h>
 
 #include <m3/com/RecvBufs.h>
+#include <m3/tiles/OwnActivity.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
 
@@ -24,7 +25,7 @@ namespace m3 {
 INIT_PRIO_RECVBUF RecvBufs RecvBufs::_inst;
 
 RecvBuf *RecvBufs::alloc(size_t size) {
-    bool vm = Activity::self().tile_desc().has_virtmem();
+    bool vm = Activity::own().tile_desc().has_virtmem();
     // page align the receive buffers so that we can map them
     uintptr_t addr = _bufs.allocate(size, vm ? PAGE_SIZE : 1);
     if(addr == static_cast<uintptr_t>(-1))
@@ -40,7 +41,7 @@ RecvBuf *RecvBufs::alloc(size_t size) {
         capsel_t dst = addr / PAGE_SIZE;
         capsel_t pages = aligned_size / PAGE_SIZE;
         try {
-            Syscalls::create_map(dst, Activity::self().sel(), mgate->sel(), 0, pages, MemGate::R);
+            Syscalls::create_map(dst, Activity::own().sel(), mgate->sel(), 0, pages, MemGate::R);
         }
         catch(...) {
             // undo allocation

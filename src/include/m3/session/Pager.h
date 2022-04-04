@@ -28,7 +28,7 @@
 
 namespace m3 {
 
-class Activity;
+class ChildActivity;
 
 class Pager : public RefCounted, public ClientSession {
 private:
@@ -71,7 +71,7 @@ public:
         return _child_sgate;
     }
 
-    void init(Activity &act);
+    void init(ChildActivity &act);
 
     Reference<Pager> create_clone();
     void clone();

@@ -20,6 +20,7 @@
 
 #include <m3/pipe/DirectPipe.h>
 #include <m3/pipe/DirectPipeReader.h>
+#include <m3/tiles/ChildActivity.h>
 
 namespace m3 {
 
@@ -116,7 +117,7 @@ ssize_t DirectPipeReader::read(void *buffer, size_t count) {
     return static_cast<ssize_t>(amount);
 }
 
-void DirectPipeReader::delegate(Activity &act) {
+void DirectPipeReader::delegate(ChildActivity &act) {
     act.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _caps, 2));
 }
 

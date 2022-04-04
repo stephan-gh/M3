@@ -21,7 +21,7 @@
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
 #include <m3/com/MemGate.h>
-#include <m3/tiles/Activity.h>
+#include <m3/tiles/ChildActivity.h>
 #include <m3/WorkLoop.h>
 
 namespace pci {
@@ -81,10 +81,10 @@ private:
     static void receiveInterrupt(ProxiedPciDevice *nic, m3::GateIStream &is);
 
     m3::Reference<m3::Tile> _tile;
-    m3::Activity _act;
+    m3::ChildActivity _act;
     m3::MemGate _mem;
-    std::unique_ptr<m3::EP> _sep;
-    std::unique_ptr<m3::EP> _mep;
+    m3::EP _sep;
+    m3::EP _mep;
     m3::RecvGate _intgate;  // receives interrupts from the proxied pci device
     m3::SendGate _sintgate; // used by the proxied pci device to signal interrupts to its driver
     std::function<void()> _callback;

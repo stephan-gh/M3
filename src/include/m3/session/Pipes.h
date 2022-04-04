@@ -22,6 +22,7 @@
 #include <m3/com/GateStream.h>
 #include <m3/com/SendGate.h>
 #include <m3/vfs/GenericFile.h>
+#include <m3/vfs/FileTable.h>
 
 namespace m3 {
 
@@ -52,14 +53,15 @@ public:
             send_receive_vmsg(_sgate, CLOSE_PIPE);
         }
 
-        Reference<File> create_channel(bool read, int flags = 0) {
+        FileRef<GenericFile> create_channel(bool read, int flags = 0) {
             KIF::ExchangeArgs args;
             ExchangeOStream os(args);
             os << OPEN_CHAN << read;
             args.bytes = os.total();
             KIF::CapRngDesc desc = obtain(2, &args);
             flags |= FILE_NEWSESS | (read ? FILE_R : FILE_W);
-            return Reference<File>(new GenericFile(flags, desc.start()));
+            auto file = std::unique_ptr<GenericFile>(new GenericFile(flags, desc.start()));
+            return Activity::own().files()->alloc(std::move(file));
         }
 
     private:

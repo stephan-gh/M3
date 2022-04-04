@@ -89,7 +89,7 @@ public:
      * @param perms the permissions (FILE_*)
      * @return the File-instance
      */
-    virtual Reference<File> open(const char *path, int perms) = 0;
+    virtual std::unique_ptr<GenericFile> open(const char *path, int perms) = 0;
 
     /**
      * Closes the given file.
@@ -231,7 +231,7 @@ public:
      *
      * @param act the activity
      */
-    virtual void delegate(Activity &act) = 0;
+    virtual void delegate(ChildActivity &act) = 0;
 
     /**
      * Serializes this object to the given marshaller.

@@ -36,7 +36,7 @@ static const char *small_file = "/test.txt";
 static const char *pat_file = "/pat.bin";
 
 static void check_content(const char *filename, size_t size) {
-    FileRef file(filename, FILE_R);
+    auto file = VFS::open(filename, FILE_R);
 
     size_t pos = 0;
     ssize_t count;
@@ -61,7 +61,7 @@ static void append_bug() {
     size_t total = 0;
 
     {
-        FileRef file("/myfile1", FILE_W | FILE_CREATE | FILE_TRUNC);
+        auto file = VFS::open("/myfile1", FILE_W | FILE_CREATE | FILE_TRUNC);
         for(size_t i = 0; i < sizeof(largebuf); ++i)
             largebuf[i] = i % 100;
 
@@ -73,7 +73,7 @@ static void append_bug() {
 
         // use the following blocks for something else to force a new extent for the following write
         {
-            FileRef nfile("/myfile2", FILE_W | FILE_CREATE | FILE_TRUNC);
+            auto nfile = VFS::open("/myfile2", FILE_W | FILE_CREATE | FILE_TRUNC);
             WVASSERTEQ(nfile->write_all(largebuf, sizeof(largebuf)),
                 static_cast<ssize_t>(sizeof(largebuf)));
         }
@@ -88,7 +88,7 @@ static void append_bug() {
     }
 
     {
-        FileRef file("/myfile1", FILE_W);
+        auto file = VFS::open("/myfile1", FILE_W);
         file->seek(0, M3FS_SEEK_END);
 
         WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
@@ -101,7 +101,7 @@ static void append_bug() {
 
 static void extending_small_file() {
     {
-        FileRef file(small_file, FILE_W);
+        auto file = VFS::open(small_file, FILE_W);
         for(size_t i = 0; i < sizeof(largebuf); ++i)
             largebuf[i] = i % 100;
 
@@ -115,7 +115,7 @@ static void extending_small_file() {
 
 static void creating_in_steps() {
     {
-        FileRef file("/steps.txt", FILE_W | FILE_CREATE);
+        auto file = VFS::open("/steps.txt", FILE_W | FILE_CREATE);
         for(size_t i = 0; i < sizeof(largebuf); ++i)
             largebuf[i] = i % 100;
 
@@ -133,7 +133,7 @@ static void creating_in_steps() {
 
 static void small_write_at_begin() {
     {
-        FileRef file(small_file, FILE_W);
+        auto file = VFS::open(small_file, FILE_W);
         for(size_t i = 0; i < sizeof(largebuf); ++i)
             largebuf[i] = i % 100;
 
@@ -148,7 +148,7 @@ static void small_write_at_begin() {
 
 static void truncate() {
     {
-        FileRef file(small_file, FILE_W | FILE_TRUNC);
+        auto file = VFS::open(small_file, FILE_W | FILE_TRUNC);
         for(size_t i = 0; i < sizeof(largebuf); ++i)
             largebuf[i] = i % 100;
 
@@ -163,7 +163,7 @@ static void truncate() {
 
 static void append() {
     {
-        FileRef file(small_file, FILE_W | FILE_APPEND);
+        auto file = VFS::open(small_file, FILE_W | FILE_APPEND);
         for(size_t i = 0; i < sizeof(largebuf); ++i)
             largebuf[i] = i % 100;
 
@@ -179,7 +179,7 @@ static void append() {
 
 static void append_with_read() {
     {
-        FileRef file(small_file, FILE_RW | FILE_TRUNC | FILE_CREATE);
+        auto file = VFS::open(small_file, FILE_RW | FILE_TRUNC | FILE_CREATE);
         for(size_t i = 0; i < sizeof(largebuf); ++i)
             largebuf[i] = i % 100;
 
@@ -202,7 +202,7 @@ static void append_with_read() {
 
 static void append_with_commit() {
     {
-        FileRef file("/myfile", FILE_RW | FILE_TRUNC | FILE_CREATE);
+        auto file = VFS::open("/myfile", FILE_RW | FILE_TRUNC | FILE_CREATE);
         for(size_t i = 0; i < sizeof(largebuf); ++i)
             largebuf[i] = i % 100;
 
@@ -265,13 +265,13 @@ static void pipe_mux() {
         Pipes pipesrv("pipes");
         MemGate *mems[NUM];
         IndirectPipe *pipes[NUM];
-        Reference<File> reader[NUM];
-        Reference<File> writer[NUM];
+        File *reader[NUM];
+        File *writer[NUM];
         for(size_t i = 0; i < NUM; ++i) {
             mems[i] = new MemGate(MemGate::create_global(PIPE_SIZE, MemGate::RW));
             pipes[i] = new IndirectPipe(pipesrv, *mems[i], PIPE_SIZE);
-            reader[i] = Activity::self().files()->get(pipes[i]->reader_fd());
-            writer[i] = Activity::self().files()->get(pipes[i]->writer_fd());
+            reader[i] = Activity::own().files()->get(pipes[i]->reader_fd());
+            writer[i] = Activity::own().files()->get(pipes[i]->writer_fd());
         }
 
         char src_buf[STEP_SIZE];
@@ -310,14 +310,14 @@ static void file_errors() {
 
     char buf[8];
     {
-        FileRef file(filename, FILE_R);
+        auto file = VFS::open(filename, FILE_R);
         WVASSERTERR(Errors::NO_PERM, [&file, &buf] {
             file->write(buf, sizeof(buf));
         });
     }
 
     {
-        FileRef file(filename, FILE_W);
+        auto file = VFS::open(filename, FILE_W);
         WVASSERTERR(Errors::NO_PERM, [&file, &buf] {
             file->read(buf, sizeof(buf));
         });
@@ -329,7 +329,7 @@ static void read_file_at_once() {
     const char content[] = "This is a test!\n";
     char buf[sizeof(content)];
 
-    FileRef file(filename, FILE_R);
+    auto file = VFS::open(filename, FILE_R);
     WVASSERTEQ(file->read(buf, sizeof(buf) - 1), static_cast<ssize_t>(sizeof(buf) - 1));
     buf[sizeof(buf) - 1] = '\0';
 
@@ -337,7 +337,7 @@ static void read_file_at_once() {
 }
 
 static void read_file_in_64b_steps() {
-    FileRef file(pat_file, FILE_R);
+    auto file = VFS::open(pat_file, FILE_R);
 
     uint8_t buf[64];
     ssize_t count, pos = 0;
@@ -348,7 +348,7 @@ static void read_file_in_64b_steps() {
 }
 
 static void read_file_in_large_steps() {
-    FileRef file(pat_file, FILE_R);
+    auto file = VFS::open(pat_file, FILE_R);
 
     static uint8_t buf[1024 * 3];
     ssize_t count, pos = 0;
@@ -362,7 +362,7 @@ static void write_file_and_read_again() {
     char content[64] = "Foobar, a test and more and more and more!";
     const size_t contentsz = strlen(content) + 1;
 
-    FileRef file(pat_file, FILE_RW);
+    auto file = VFS::open(pat_file, FILE_RW);
 
     file->write_all(content, contentsz);
 
@@ -389,11 +389,11 @@ static void transactions() {
 
     {
         FileInfo info;
-        FileRef file1(tmp_file, FILE_W | FILE_CREATE);
+        auto file1 = VFS::open(tmp_file, FILE_W | FILE_CREATE);
         file1->write_all(content1, sizeof(content1) - 1);
 
         {
-            FileRef file2(tmp_file, FILE_W | FILE_CREATE);
+            auto file2 = VFS::open(tmp_file, FILE_W | FILE_CREATE);
 
             WVASSERTERR(Errors::EXISTS, [&file2, &content2] {
                 file2->write_all(content2, sizeof(content2) - 1);
@@ -419,7 +419,7 @@ static void transactions() {
     }
 
     {
-        FileRef file(tmp_file, FILE_R);
+        auto file = VFS::open(tmp_file, FILE_R);
 
         char buf[sizeof(content3)] = {0};
         WVASSERTEQ(file->read(buf, sizeof(buf)), static_cast<ssize_t>(sizeof(content3) - 1));

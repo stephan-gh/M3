@@ -25,7 +25,8 @@
 #include <m3/session/ClientSession.h>
 #include <m3/vfs/File.h>
 #include <m3/Exception.h>
-#include <m3/tiles/Activity.h>
+#include <m3/tiles/OwnActivity.h>
+#include <m3/tiles/ChildActivity.h>
 
 namespace m3 {
 
@@ -92,15 +93,9 @@ public:
         do_delegate_ep(mep);
     }
 
-    virtual Reference<File> clone() const override {
-        if(!have_sess())
-            return Reference<File>();
-        KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, Activity::self().alloc_sels(2), 2);
-        do_clone(Activity::self(), crd);
-        return Reference<File>(new GenericFile(flags(), crd.start()));
-    }
+    virtual FileRef<File> clone() const override;
 
-    virtual void delegate(Activity &act) override {
+    virtual void delegate(ChildActivity &act) override {
         if(!have_sess())
             throw Exception(Errors::NOT_SUP);
         KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, _sess.sel(), 2);

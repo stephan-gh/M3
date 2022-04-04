@@ -86,10 +86,10 @@ public:
         throw Exception(Errors::NOT_SUP);
     }
 
-    virtual Reference<File> clone() const override {
+    virtual FileRef<File> clone() const override {
         throw Exception(Errors::NOT_SUP);
     }
-    virtual void delegate(Activity &) override {
+    virtual void delegate(ChildActivity &) override {
         throw Exception(Errors::NOT_SUP);
     }
     virtual void serialize(Marshaller &) override {

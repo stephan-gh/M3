@@ -30,7 +30,7 @@ namespace m3 {
 
 SendGate SendGate::create(RecvGate *rgate, const SendGateArgs &args) {
     auto replygate = args._replygate == nullptr ? &RecvGate::def() : args._replygate;
-    auto sel = args._sel == INVALID ? Activity::self().alloc_sel() : args._sel;
+    auto sel = args._sel == INVALID ? Activity::own().alloc_sel() : args._sel;
     Syscalls::create_sgate(sel, rgate->sel(), args._label, args._credits);
     return SendGate(sel, args._flags, replygate);
 }
@@ -38,8 +38,8 @@ SendGate SendGate::create(RecvGate *rgate, const SendGateArgs &args) {
 SendGate SendGate::create_named(const char *name, RecvGate *replygate) {
     if(replygate == nullptr)
         replygate = &RecvGate::def();
-    auto sel = Activity::self().alloc_sel();
-    Activity::self().resmng()->use_sgate(sel, name);
+    auto sel = Activity::own().alloc_sel();
+    Activity::own().resmng()->use_sgate(sel, name);
     return SendGate(sel, 0, replygate);
 }
 

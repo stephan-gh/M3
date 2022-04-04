@@ -33,12 +33,12 @@ namespace m3 {
 INIT_PRIO_VFS VFS::Cleanup VFS::_cleanup;
 
 VFS::Cleanup::~Cleanup() {
-    Activity::self().files()->remove_all();
-    Activity::self().mounts()->remove_all();
+    Activity::own().files()->remove_all();
+    Activity::own().mounts()->remove_all();
 }
 
 std::unique_ptr<MountTable> &VFS::ms() {
-    return Activity::self().mounts();
+    return Activity::own().mounts();
 }
 
 void VFS::mount(const char *path, const char *fs, const char *options) {
@@ -58,24 +58,20 @@ void VFS::unmount(const char *path) {
     ms()->remove(path);
 }
 
-fd_t VFS::open(const char *path, int flags) {
+FileRef<GenericFile> VFS::open(const char *path, int flags) {
     try {
         size_t pos;
         Reference<FileSystem> fs = ms()->resolve(path, &pos);
-        Reference<File> file = fs->open(path + pos, flags);
-        fd_t fd = Activity::self().files()->alloc(file);
-        LLOG(FS, "GenFile[" << fd << "]::open(" << path << ", " << flags << ")");
+        std::unique_ptr<GenericFile> file = fs->open(path + pos, flags);
+        auto fileref = Activity::own().files()->alloc(std::move(file));
+        LLOG(FS, "GenFile[" << fileref->fd() << "]::open(" << path << ", " << flags << ")");
         if(flags & FILE_APPEND)
-            file->seek(0, M3FS_SEEK_END);
-        return fd;
+            fileref->seek(0, M3FS_SEEK_END);
+        return fileref;
     }
     catch(const Exception &e) {
         VTHROW(e.code(), "Unable to open '" << path << "' with flags=" << flags);
     }
-}
-
-void VFS::close(fd_t fd) noexcept {
-    Activity::self().files()->remove(fd);
 }
 
 void VFS::stat(const char *path, FileInfo &info) {
@@ -169,7 +165,7 @@ Errors::Code VFS::try_rename(const char *oldpath, const char *newpath) {
 }
 
 void VFS::print(OStream &os) noexcept {
-    Activity::self().mounts()->print(os);
+    Activity::own().mounts()->print(os);
 }
 
 }

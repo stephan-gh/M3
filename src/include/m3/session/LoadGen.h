@@ -27,7 +27,7 @@
 #include <m3/com/MemGate.h>
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
-#include <m3/tiles/Activity.h>
+#include <m3/tiles/OwnActivity.h>
 
 #include <memory>
 
@@ -104,7 +104,7 @@ public:
     }
 
     Channel *create_channel(size_t memsize) {
-        capsel_t sels = Activity::self().alloc_sels(2);
+        capsel_t sels = Activity::own().alloc_sels(2);
         auto chan = new Channel(sels, memsize);
         delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sels, 2));
         return chan;

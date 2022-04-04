@@ -19,7 +19,7 @@
 #include <base/time/Instant.h>
 
 #include <m3/stream/Standard.h>
-#include <m3/tiles/Activity.h>
+#include <m3/tiles/ChildActivity.h>
 #include <m3/vfs/MountTable.h>
 
 using namespace m3;
@@ -32,11 +32,11 @@ int main(int argc, char **argv) {
     auto start = TimeInstant::now();
     {
         auto tile = Tile::get("own|core");
-        Activity child(tile, argv[1]);
-        child.files()->set(STDIN_FD, Activity::self().files()->get(STDIN_FD));
-        child.files()->set(STDOUT_FD, Activity::self().files()->get(STDOUT_FD));
-        child.files()->set(STDERR_FD, Activity::self().files()->get(STDERR_FD));
-        child.mounts()->add("/", Activity::self().mounts()->get("/"));
+        ChildActivity child(tile, argv[1]);
+        child.add_file(STDIN_FD, STDIN_FD);
+        child.add_file(STDOUT_FD, STDOUT_FD);
+        child.add_file(STDERR_FD, STDERR_FD);
+        child.add_mount("/", "/");
 
         child.exec(argc - 1, const_cast<const char**>(argv) + 1);
 

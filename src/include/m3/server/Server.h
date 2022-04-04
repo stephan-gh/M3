@@ -55,7 +55,7 @@ public:
     static constexpr size_t MAX_SESSIONS = Math::min(MAX_ACTS, 32);
 
     explicit Server(const String &name, WorkLoop *wl, std::unique_ptr<HDL> &&handler)
-        : ObjCap(SERVICE, Activity::self().alloc_sel()),
+        : ObjCap(SERVICE, Activity::own().alloc_sel()),
           _handler(std::move(handler)),
           _ctrl_handler(),
           _creators(),
@@ -66,12 +66,12 @@ public:
         LLOG(SERV, "create(name=" << name << ")");
         size_t crt = add_creator(MAX_SESSIONS);
         Syscalls::create_srv(sel(), _rgate.sel(), name, crt);
-        Activity::self().resmng()->reg_service(sel(), _creators[crt]->sgate.sel(), name, MAX_SESSIONS);
+        Activity::own().resmng()->reg_service(sel(), _creators[crt]->sgate.sel(), name, MAX_SESSIONS);
     }
 
     ~Server() {
         try {
-            Activity::self().resmng()->unreg_service(sel());
+            Activity::own().resmng()->unreg_service(sel());
         }
         catch(...) {
             // ignore

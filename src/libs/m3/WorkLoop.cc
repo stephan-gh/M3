@@ -20,7 +20,7 @@
 
 #include <m3/com/GateStream.h>
 #include <m3/com/RecvGate.h>
-#include <m3/tiles/Activity.h>
+#include <m3/tiles/OwnActivity.h>
 #include <m3/WorkLoop.h>
 
 #include <thread/ThreadManager.h>

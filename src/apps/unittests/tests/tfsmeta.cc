@@ -130,7 +130,7 @@ static void delete_file() {
     {
         char buffer[32];
 
-        FileRef file(tmp_file, FILE_R);
+        auto file = VFS::open(tmp_file, FILE_R);
 
         VFS::unlink(tmp_file);
 

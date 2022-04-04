@@ -17,8 +17,8 @@
 #include <base/time/Profile.h>
 #include <base/Panic.h>
 
-#include <m3/vfs/FileRef.h>
 #include <m3/session/Pager.h>
+#include <m3/vfs/VFS.h>
 #include <m3/Test.h>
 
 #include "../cppbenchs.h"
@@ -31,34 +31,34 @@ NOINLINE static void anon() {
     Profile pr(4, 4);
     WVPERF("anon mapping (64 pages)", pr.run<CycleInstant>([] {
         goff_t virt = 0x30000000;
-        Activity::self().pager()->map_anon(&virt, PAGES * PAGE_SIZE, Pager::READ | Pager::WRITE, 0);
+        Activity::own().pager()->map_anon(&virt, PAGES * PAGE_SIZE, Pager::READ | Pager::WRITE, 0);
 
         auto data = reinterpret_cast<char*>(virt);
         for(size_t i = 0; i < PAGES; ++i)
             data[i * PAGE_SIZE] = i;
 
-        Activity::self().pager()->unmap(virt);
+        Activity::own().pager()->unmap(virt);
     }));
 }
 
 NOINLINE static void file() {
     Profile pr(4, 4);
     WVPERF("file mapping (64 pages)", pr.run<CycleInstant>([] {
-        FileRef f("/large.bin", FILE_RW | FILE_NEWSESS);
+        auto file = VFS::open("/large.bin", FILE_RW | FILE_NEWSESS);
 
         goff_t virt = 0x31000000;
-        f->map(Activity::self().pager(), &virt, 0, PAGES * PAGE_SIZE, Pager::READ | Pager::WRITE, 0);
+        file->map(Activity::own().pager(), &virt, 0, PAGES * PAGE_SIZE, Pager::READ | Pager::WRITE, 0);
 
         auto data = reinterpret_cast<char*>(virt);
         for(size_t i = 0; i < PAGES; ++i)
             data[i * PAGE_SIZE] = i;
 
-        Activity::self().pager()->unmap(virt);
+        Activity::own().pager()->unmap(virt);
     }));
 }
 
 void bpagefaults() {
-    if(!Activity::self().tile_desc().has_virtmem()) {
+    if(!Activity::own().tile_desc().has_virtmem()) {
         cout << "Tile has no virtual memory support; skipping pagefault benchmark.\n";
         return;
     }

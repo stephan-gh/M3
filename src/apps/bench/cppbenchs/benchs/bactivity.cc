@@ -20,6 +20,8 @@
 #include <base/time/Profile.h>
 #include <base/Panic.h>
 
+#include <m3/com/GateStream.h>
+#include <m3/tiles/ChildActivity.h>
 #include <m3/vfs/FileRef.h>
 #include <m3/Test.h>
 
@@ -32,7 +34,7 @@ NOINLINE static void creation() {
 
     auto tile = Tile::get("core|own");
     WVPERF("Activity creation", pr.run<CycleInstant>([&tile] {
-        Activity act(tile, "hello");
+        ChildActivity act(tile, "hello");
     }));
 }
 
@@ -47,7 +49,7 @@ NOINLINE static void run() {
     auto tile = Tile::get("clone|own");
     Results<CycleDuration> res(warmup + repeats);
     for(ulong i = 0; i < warmup + repeats; ++i) {
-        Activity act(tile, "hello");
+        ChildActivity act(tile, "hello");
 
         capsel_t sgate_sel = sgate.sel();
         act.delegate_obj(sgate_sel);
@@ -58,7 +60,7 @@ NOINLINE static void run() {
         act.run([]() {
             capsel_t sgate_sel;
             uint64_t start;
-            Activity::self().data_source() >> start >> sgate_sel;
+            Activity::own().data_source() >> start >> sgate_sel;
 
             auto sgate = SendGate::bind(sgate_sel);
             auto end = CycleInstant::now();
@@ -83,7 +85,7 @@ NOINLINE static void run_wait() {
 
     auto tile = Tile::get("clone|own");
     WVPERF("Activity run wait", pr.run<CycleInstant>([&tile] {
-        Activity act(tile, "hello");
+        ChildActivity act(tile, "hello");
         act.run([]() {
             return 0;
         });
@@ -96,7 +98,7 @@ NOINLINE static void exec() {
 
     auto tile = Tile::get("core|own");
     WVPERF("Activity exec", pr.run<CycleInstant>([&tile] {
-        Activity act(tile, "hello");
+        ChildActivity act(tile, "hello");
         const char *args[] = {"/bin/noop"};
         act.exec(ARRAY_SIZE(args), args);
         act.wait();

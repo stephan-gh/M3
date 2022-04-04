@@ -35,7 +35,7 @@ class Activity;
  * The mount table itself does not create or delete mount points. Instead, it only works with
  * pointers. The creation and deletion is done in VFS. The rational is, that VFS is used to
  * manipulate the mounts of the own activity, while MountTable is used to manipulate the mounts of
- * created activities. Thus, one can simply add a mointpoint from Activity::self() to a different activity by
+ * created activities. Thus, one can simply add a mointpoint from Activity::own() to a different activity by
  * passing a pointer around. If the mount table of a child activity is completely setup, it is serialized
  * and transferred to the child activity.
  */
@@ -151,16 +151,17 @@ public:
      *
      * @param act the activity to delegate the caps to
      */
-    void delegate(Activity &act) const;
+    void delegate(ChildActivity &act) const;
 
     /**
-     * Serializes the current mounts into the given buffer
+     * Serializes the mounts of the given child activity into the given buffer
      *
+     * @param act the child activity that should receive the mounts
      * @param buffer the buffer
      * @param size the capacity of the buffer
      * @return the space used
      */
-    size_t serialize(void *buffer, size_t size) const;
+    size_t serialize(ChildActivity &act, void *buffer, size_t size) const;
 
     /**
      * Unserializes the mounts from the buffer into a new MountTable object.

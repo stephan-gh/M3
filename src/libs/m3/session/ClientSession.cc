@@ -26,7 +26,7 @@ namespace m3 {
 ClientSession::~ClientSession() {
     if(_close && sel() != INVALID) {
         try {
-            Activity::self().resmng()->close_sess(sel());
+            Activity::own().resmng()->close_sess(sel());
         }
         catch(...) {
             // ignore
@@ -37,14 +37,14 @@ ClientSession::~ClientSession() {
 
 void ClientSession::connect(const String &service, capsel_t selector) {
     if(selector == INVALID)
-        selector = Activity::self().alloc_sel();
+        selector = Activity::own().alloc_sel();
 
-    Activity::self().resmng()->open_sess(selector, service);
+    Activity::own().resmng()->open_sess(selector, service);
     sel(selector);
 }
 
 void ClientSession::delegate(const KIF::CapRngDesc &caps, KIF::ExchangeArgs *args) {
-    delegate_for(Activity::self(), caps, args);
+    delegate_for(Activity::own(), caps, args);
 }
 
 void ClientSession::delegate_for(Activity &act, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args) {
@@ -52,7 +52,7 @@ void ClientSession::delegate_for(Activity &act, const KIF::CapRngDesc &crd, KIF:
 }
 
 KIF::CapRngDesc ClientSession::obtain(uint count, KIF::ExchangeArgs *args) {
-    return obtain_for(Activity::self(), count, args);
+    return obtain_for(Activity::own(), count, args);
 }
 
 KIF::CapRngDesc ClientSession::obtain_for(Activity &act, uint count, KIF::ExchangeArgs *args) {

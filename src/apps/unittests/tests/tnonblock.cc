@@ -32,8 +32,8 @@ static void pipes() {
     MemGate mem = MemGate::create_global(PIPE_SIZE, MemGate::RW);
     IndirectPipe pipe(pipes, mem, PIPE_SIZE);
 
-    auto fin = Activity::self().files()->get(pipe.reader_fd());
-    auto fout = Activity::self().files()->get(pipe.writer_fd());
+    auto fin = Activity::own().files()->get(pipe.reader_fd());
+    auto fout = Activity::own().files()->get(pipe.writer_fd());
     fin->set_blocking(false);
     fout->set_blocking(false);
 

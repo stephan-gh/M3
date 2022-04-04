@@ -37,10 +37,11 @@ static const size_t REPLY_SIZE      = 64;
 static constexpr size_t ACCEL_COUNT = 3;
 
 struct IndirChain {
-    explicit IndirChain(size_t _id, RecvGate &_reply_gate, Reference<File> _in, Reference<File> _out)
+    explicit IndirChain(size_t _id, RecvGate &_reply_gate,
+                        FileRef<GenericFile> _in, FileRef<GenericFile> _out)
         : id(_id),
-          in(_in),
-          out(_out),
+          in(std::move(_in)),
+          out(std::move(_out)),
           total(),
           seen(),
           reply_gate(_reply_gate),
@@ -53,7 +54,7 @@ struct IndirChain {
             name << "chain" << id << "-" << i;
 
             tiles[i] = Tile::get("indir");
-            acts[i] = std::make_unique<Activity>(tiles[i], name.str());
+            acts[i] = std::make_unique<ChildActivity>(tiles[i], name.str());
 
             accels[i] = std::make_unique<InDirAccel>(acts[i], reply_gate);
             ops[i] = InDirAccel::Operation::IDLE;
@@ -131,14 +132,14 @@ struct IndirChain {
     }
 
     size_t id;
-    Reference<File> in;
-    Reference<File> out;
+    FileRef<GenericFile> in;
+    FileRef<GenericFile> out;
     size_t total;
     size_t seen;
     RecvGate &reply_gate;
     size_t sizes[ACCEL_COUNT];
     Reference<Tile> tiles[ACCEL_COUNT];
-    std::unique_ptr<Activity> acts[ACCEL_COUNT];
+    std::unique_ptr<ChildActivity> acts[ACCEL_COUNT];
     std::unique_ptr<InDirAccel> accels[ACCEL_COUNT];
     InDirAccel::Operation ops[ACCEL_COUNT];
 };
@@ -150,8 +151,8 @@ CycleDuration chain_indirect(const char *in, size_t num) {
                                            nextlog2<REPLY_SIZE>::val);
     reply_gate.activate();
 
-    fd_t infds[num];
-    fd_t outfds[num];
+    FileRef<GenericFile> infds[num];
+    FileRef<GenericFile> outfds[num];
     std::unique_ptr<IndirChain> chains[num];
 
     // create chains
@@ -163,8 +164,8 @@ CycleDuration chain_indirect(const char *in, size_t num) {
         outfds[i] = VFS::open(outpath.str(), FILE_W | FILE_TRUNC | FILE_CREATE);
 
         chains[i] = std::unique_ptr<IndirChain>(
-            new IndirChain(i, reply_gate, Activity::self().files()->get(infds[i]),
-                                          Activity::self().files()->get(outfds[i]))
+            new IndirChain(i, reply_gate, std::move(infds[i]),
+                                          std::move(outfds[i]))
         );
     }
 
@@ -205,10 +206,5 @@ CycleDuration chain_indirect(const char *in, size_t num) {
     end = CycleInstant::now();
 
 error:
-    for(size_t i = 0; i < num; ++i) {
-        VFS::close(infds[i]);
-        VFS::close(outfds[i]);
-    }
-
     return end.duration_since(start);
 }

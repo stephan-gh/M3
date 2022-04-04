@@ -42,7 +42,8 @@ class DirectChain {
 public:
     static const size_t ACCEL_COUNT     = 3;
 
-    explicit DirectChain(Pipes &pipesrv, size_t id, Reference<File> in, Reference<File> out, Mode _mode)
+    explicit DirectChain(Pipes &pipesrv, size_t id,
+                         FileRef<GenericFile> &in, FileRef<GenericFile> &out, Mode _mode)
         : mode(_mode),
           acts(),
           accels(),
@@ -56,7 +57,7 @@ public:
             if(VERBOSE) Serial::get() << "Creating Activity " << name.str() << "\n";
 
             tiles[i] = Tile::get("copy");
-            acts[i] = std::make_unique<Activity>(tiles[i], name.str());
+            acts[i] = std::make_unique<ChildActivity>(tiles[i], name.str());
 
             accels[i] = std::make_unique<StreamAccel>(acts[i], ACCEL_TIMES[i]);
 
@@ -71,21 +72,21 @@ public:
         if(VERBOSE) Serial::get() << "Connecting input and output...\n";
 
         // connect input/output
-        accels[0]->connect_input(static_cast<GenericFile*>(in.get()));
-        accels[ACCEL_COUNT - 1]->connect_output(static_cast<GenericFile*>(out.get()));
+        accels[0]->connect_input(&*in);
+        accels[ACCEL_COUNT - 1]->connect_output(&*out);
         for(size_t i = 0; i < ACCEL_COUNT; ++i) {
             if(i > 0) {
                 if(mode == Mode::DIR_SIMPLE) {
-                    auto rd = Activity::self().files()->get(pipes[i - 1]->reader_fd());
-                    accels[i]->connect_input(static_cast<GenericFile*>(rd.get()));
+                    auto rd = Activity::own().files()->get(pipes[i - 1]->reader_fd());
+                    accels[i]->connect_input(static_cast<GenericFile*>(rd));
                 }
                 else
                     accels[i]->connect_input(accels[i - 1].get());
             }
             if(i + 1 < ACCEL_COUNT) {
                 if(mode == Mode::DIR_SIMPLE) {
-                    auto wr = Activity::self().files()->get(pipes[i]->writer_fd());
-                    accels[i]->connect_output(static_cast<GenericFile*>(wr.get()));
+                    auto wr = Activity::own().files()->get(pipes[i]->writer_fd());
+                    accels[i]->connect_output(static_cast<GenericFile*>(wr));
                 }
                 else
                     accels[i]->connect_output(accels[i + 1].get());
@@ -128,7 +129,7 @@ public:
 private:
     Mode mode;
     Reference<Tile> tiles[ACCEL_COUNT];
-    std::unique_ptr<Activity> acts[ACCEL_COUNT];
+    std::unique_ptr<ChildActivity> acts[ACCEL_COUNT];
     std::unique_ptr<StreamAccel> accels[ACCEL_COUNT];
     std::unique_ptr<IndirectPipe> pipes[ACCEL_COUNT];
     std::unique_ptr<MemGate> mems[ACCEL_COUNT];
@@ -152,8 +153,8 @@ static void wait_for(std::unique_ptr<DirectChain> *chains, size_t num) {
 CycleDuration chain_direct(const char *in, size_t num, Mode mode) {
     Pipes pipes("pipes");
     std::unique_ptr<DirectChain> chains[num];
-    fd_t infds[num];
-    fd_t outfds[num];
+    FileRef<GenericFile> infds[num];
+    FileRef<GenericFile> outfds[num];
 
     // create <num> chains
     for(size_t i = 0; i < num; ++i) {
@@ -165,8 +166,8 @@ CycleDuration chain_direct(const char *in, size_t num, Mode mode) {
 
         chains[i] = std::make_unique<DirectChain>(pipes,
                                                   i,
-                                                  Activity::self().files()->get(infds[i]),
-                                                  Activity::self().files()->get(outfds[i]),
+                                                  infds[i],
+                                                  outfds[i],
                                                   mode);
     }
 
@@ -189,12 +190,6 @@ CycleDuration chain_direct(const char *in, size_t num, Mode mode) {
     }
 
     auto end = CycleInstant::now();
-
-    // cleanup
-    for(size_t i = 0; i < num; ++i) {
-        VFS::close(infds[i]);
-        VFS::close(outfds[i]);
-    }
 
     return end.duration_since(start);
 }

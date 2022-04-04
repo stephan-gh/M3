@@ -36,8 +36,8 @@ class Chain {
     static const size_t MAX_NUM     = 8;
 
 public:
-    explicit Chain(Pipes &pipesrv, Reference<File> in, Reference<File> out, size_t _num,
-                   CycleDuration comptime, Mode _mode)
+    explicit Chain(Pipes &pipesrv, FileRef<GenericFile> &in, FileRef<GenericFile> &out,
+                   size_t _num, CycleDuration comptime, Mode _mode)
         : num(_num),
           mode(_mode),
           acts(),
@@ -52,7 +52,7 @@ public:
             if(VERBOSE) Serial::get() << "Creating Activity " << name.str() << "\n";
 
             tiles[i] = Tile::get("copy");
-            acts[i] = std::make_unique<Activity>(tiles[i], name.str());
+            acts[i] = std::make_unique<ChildActivity>(tiles[i], name.str());
 
             accels[i] = std::make_unique<StreamAccel>(acts[i], comptime);
 
@@ -67,21 +67,21 @@ public:
         if(VERBOSE) Serial::get() << "Connecting input and output...\n";
 
         // connect input/output
-        accels[0]->connect_input(static_cast<GenericFile*>(in.get()));
-        accels[num - 1]->connect_output(static_cast<GenericFile*>(out.get()));
+        accels[0]->connect_input(&*in);
+        accels[num - 1]->connect_output(&*out);
         for(size_t i = 0; i < num; ++i) {
             if(i > 0) {
                 if(mode == Mode::DIR_SIMPLE) {
-                    Reference<File> rd = Activity::self().files()->get(pipes[i - 1]->reader_fd());
-                    accels[i]->connect_input(static_cast<GenericFile*>(rd.get()));
+                    auto rd = Activity::own().files()->get(pipes[i - 1]->reader_fd());
+                    accels[i]->connect_input(static_cast<GenericFile*>(rd));
                 }
                 else
                     accels[i]->connect_input(accels[i - 1].get());
             }
             if(i + 1 < num) {
                 if(mode == Mode::DIR_SIMPLE) {
-                    Reference<File> wr = Activity::self().files()->get(pipes[i]->writer_fd());
-                    accels[i]->connect_output(static_cast<GenericFile*>(wr.get()));
+                    auto wr = Activity::own().files()->get(pipes[i]->writer_fd());
+                    accels[i]->connect_output(static_cast<GenericFile*>(wr));
                 }
                 else
                     accels[i]->connect_output(accels[i + 1].get());
@@ -125,14 +125,14 @@ private:
     size_t num;
     Mode mode;
     Reference<Tile> tiles[MAX_NUM];
-    std::unique_ptr<Activity> acts[MAX_NUM];
+    std::unique_ptr<ChildActivity> acts[MAX_NUM];
     std::unique_ptr<StreamAccel> accels[MAX_NUM];
     std::unique_ptr<IndirectPipe> pipes[MAX_NUM];
     std::unique_ptr<MemGate> mems[MAX_NUM];
     bool running[MAX_NUM];
 };
 
-void chain_direct(Reference<File> in, Reference<File> out, size_t num,
+void chain_direct(FileRef<GenericFile> &in, FileRef<GenericFile> &out, size_t num,
                   CycleDuration comptime, Mode mode) {
     Pipes pipes("pipes");
     Chain ch(pipes, in, out, num, comptime, mode);
@@ -158,14 +158,14 @@ void chain_direct(Reference<File> in, Reference<File> out, size_t num,
     Serial::get() << "Total time: " << end.duration_since(start) << "\n";
 }
 
-void chain_direct_multi(Reference<File> in, Reference<File> out, size_t num,
+void chain_direct_multi(FileRef<GenericFile> &in, FileRef<GenericFile> &out, size_t num,
                         CycleDuration comptime, Mode mode) {
     Pipes pipes("pipes");
     Chain ch1(pipes, in, out, num, comptime, mode);
 
-    fd_t outfd = VFS::open("/tmp/out2.txt", FILE_W | FILE_TRUNC | FILE_CREATE | FILE_NEWSESS);
-    auto in2 = in->clone();
-    Chain ch2(pipes, in2, Activity::self().files()->get(outfd), num, comptime, mode);
+    auto out2 = VFS::open("/tmp/out2.txt", FILE_W | FILE_TRUNC | FILE_CREATE | FILE_NEWSESS);
+    auto in2 = FileRef<GenericFile>(in->clone());
+    Chain ch2(pipes, in2, out2, num, comptime, mode);
 
     if(VERBOSE) Serial::get() << "Starting chains...\n";
 
@@ -189,6 +189,4 @@ void chain_direct_multi(Reference<File> in, Reference<File> out, size_t num,
 
     auto end = CycleInstant::now();
     Serial::get() << "Total time: " << end.duration_since(start) << "\n";
-
-    VFS::close(outfd);
 }

@@ -25,10 +25,10 @@ namespace m3 {
 
 M3FS::CachedEP::~CachedEP() {
     if(ep != nullptr)
-        Activity::self().epmng().release(ep, false);
+        Activity::own().epmng().release(ep, false);
 }
 
-Reference<File> M3FS::open(const char *path, int perms) {
+std::unique_ptr<GenericFile> M3FS::open(const char *path, int perms) {
     if(!(perms & FILE_NEWSESS)) {
         size_t ep_idx = get_ep();
 
@@ -38,8 +38,9 @@ Reference<File> M3FS::open(const char *path, int perms) {
         reply >> file_id;
 
         _eps[ep_idx].file = file_id;
-        return Reference<File>(new GenericFile(perms, sel(), id(), static_cast<size_t>(file_id),
-                                               _eps[ep_idx].ep->id(), &_gate));
+        return std::unique_ptr<GenericFile>(new GenericFile(perms, sel(), id(),
+                                                            static_cast<size_t>(file_id),
+                                                            _eps[ep_idx].ep->id(), &_gate));
     }
     else {
         KIF::ExchangeArgs args;
@@ -48,7 +49,7 @@ Reference<File> M3FS::open(const char *path, int perms) {
         args.bytes = os.total();
         KIF::CapRngDesc crd = obtain(2, &args);
 
-        return Reference<File>(new GenericFile(perms, crd.start()));
+        return std::unique_ptr<GenericFile>(new GenericFile(perms, crd.start()));
     }
 }
 
@@ -67,7 +68,7 @@ size_t M3FS::get_ep() {
             return i;
     }
 
-    auto ep = Activity::self().epmng().acquire();
+    auto ep = Activity::own().epmng().acquire();
     size_t id = delegate_ep(ep->sel());
 
     _eps.push_back(CachedEP(id, ep));
@@ -133,7 +134,7 @@ size_t M3FS::delegate_ep(capsel_t sel) {
     return id;
 }
 
-void M3FS::delegate(Activity &act) {
+void M3FS::delegate(ChildActivity &act) {
     act.delegate_obj(sel());
     // TODO what if it fails?
     get_sgate(act);

@@ -24,7 +24,7 @@
 #include <m3/com/RecvGate.h>
 #include <m3/com/GateStream.h>
 #include <m3/stream/Standard.h>
-#include <m3/tiles/Activity.h>
+#include <m3/tiles/ChildActivity.h>
 
 using namespace m3;
 
@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
 
     // create receiver
     auto tile2 = Tile::get("clone|own");
-    Activity t2(tile2, "receiver");
+    ChildActivity t2(tile2, "receiver");
 
     // create a gate the sender can send to (at the receiver)
     RecvGate rgate = RecvGate::create(nextlog2<512>::val, nextlog2<64>::val);
@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
 
     t2.run([] {
         capsel_t rgate_sel;
-        Activity::self().data_source() >> rgate_sel;
+        Activity::own().data_source() >> rgate_sel;
         auto rgate = RecvGate::bind(rgate_sel, nextlog2<512>::val, nextlog2<64>::val);
 
         size_t count, total = 0;
@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
     });
 
     auto tile1 = Tile::get("clone|own");
-    Activity t1(tile1, "sender");
+    ChildActivity t1(tile1, "sender");
     t1.delegate_obj(mem.sel());
     t1.delegate_obj(resmem.sel());
     t1.delegate_obj(sgate.sel());
@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
     t1.run([] {
         capsel_t mem_sel, sgate_sel, resmem_sel;
         size_t memSize;
-        Activity::self().data_source() >> mem_sel >> sgate_sel >> resmem_sel >> memSize;
+        Activity::own().data_source() >> mem_sel >> sgate_sel >> resmem_sel >> memSize;
 
         uint *buffer = new uint[BUF_SIZE / sizeof(uint)];
         MemGate mem = MemGate::bind(mem_sel);

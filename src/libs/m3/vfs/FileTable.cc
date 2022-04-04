@@ -31,60 +31,64 @@ namespace m3 {
 
 void FileTable::remove_all() noexcept {
     for(fd_t i = 0; i < FileTable::MAX_FDS; ++i)
-        Activity::self().files()->remove(i);
+        Activity::own().files()->remove(i);
 }
 
-fd_t FileTable::alloc(Reference<File> file) {
+File *FileTable::do_alloc(std::unique_ptr<File> file) {
     for(fd_t i = 0; i < MAX_FDS; ++i) {
         if(!_fds[i]) {
             LLOG(FILES, "FileTable[" << i << "] = file");
             file->set_fd(i);
-            _fds[i] = file;
-            return i;
+            _fds[i] = file.release();
+            return _fds[i];
         }
     }
 
     throw MessageException("No free file descriptor", Errors::NO_SPACE);
 }
 
-void FileTable::remove(fd_t fd) noexcept {
-    Reference<File> file = _fds[fd];
+void FileTable::do_set(fd_t fd, File *file) {
+    if(file->fd() == fd)
+        return;
 
-    if(file) {
+    if(_fds[fd])
+        remove(fd);
+    if(file->fd() != -1)
+        _fds[file->fd()] = nullptr;
+    file->set_fd(fd);
+    _fds[fd] = file;
+}
+
+void FileTable::remove(fd_t fd) noexcept {
+    if(_fds[fd]) {
         // close the file (important for, e.g., pipes)
-        file->remove();
+        _fds[fd]->remove();
 
         // remove from file table
-        _fds[fd].unref();
+        delete _fds[fd];
+        _fds[fd] = nullptr;
 
         LLOG(FILES, "FileTable[" << fd << "] = --");
     }
 }
 
-void FileTable::delegate(Activity &act) const {
-    for(fd_t i = 0; i < MAX_FDS; ++i) {
-        if(_fds[i]) {
-            LLOG(FILES, "FileTable[" << i << "] = delegate");
-            _fds[i]->delegate(act);
-        }
+void FileTable::delegate(ChildActivity &act) const {
+    for(auto mapping = act._files.begin(); mapping != act._files.end(); ++mapping) {
+        auto file = Activity::own().files()->get(mapping->second);
+        LLOG(FILES, "FileTable[" << mapping->second << "] = delegate");
+        file->delegate(act);
     }
 }
 
-size_t FileTable::serialize(void *buffer, size_t size) const {
+size_t FileTable::serialize(ChildActivity &act, void *buffer, size_t size) const {
     Marshaller m(static_cast<unsigned char*>(buffer), size);
 
-    size_t count = 0;
-    for(fd_t i = 0; i < MAX_FDS; ++i) {
-        if(_fds[i])
-            count++;
-    }
-
+    size_t count = act._files.size();
     m << count;
-    for(fd_t i = 0; i < MAX_FDS; ++i) {
-        if(_fds[i]) {
-            m << i << _fds[i]->type();
-            _fds[i]->serialize(m);
-        }
+    for(auto mapping = act._files.begin(); mapping != act._files.end(); ++mapping) {
+        auto file = Activity::own().files()->get(mapping->second);
+        m << mapping->first << file->type();
+        file->serialize(m);
     }
     return m.total();
 }
@@ -100,16 +104,16 @@ FileTable *FileTable::unserialize(const void *buffer, size_t size) {
         um >> fd >> type;
         switch(type) {
             case 'F':
-                obj->_fds[fd] = Reference<File>(GenericFile::unserialize(um));
+                obj->do_set(fd, GenericFile::unserialize(um));
                 break;
             case 'S':
-                obj->_fds[fd] = Reference<File>(SerialFile::unserialize(um));
+                obj->do_set(fd, SerialFile::unserialize(um));
                 break;
             case 'P':
-                obj->_fds[fd] = Reference<File>(DirectPipeWriter::unserialize(um));
+                obj->do_set(fd, DirectPipeWriter::unserialize(um));
                 break;
             case 'Q':
-                obj->_fds[fd] = Reference<File>(DirectPipeReader::unserialize(um));
+                obj->do_set(fd, DirectPipeReader::unserialize(um));
                 break;
         }
     }

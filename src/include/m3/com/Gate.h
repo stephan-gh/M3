@@ -31,6 +31,7 @@ namespace m3 {
 
 class GenericFile;
 class Syscalls;
+class OwnActivity;
 
 /**
  * Gate is the base class of all gates. A gate is in general the software abstraction for TCU-based
@@ -82,7 +83,7 @@ protected:
     }
 
     const EP &acquire_ep();
-    void release_ep(Activity &act, bool force_inval = false) noexcept;
+    void release_ep(OwnActivity &act, bool force_inval = false) noexcept;
 
 private:
     EP *_ep;

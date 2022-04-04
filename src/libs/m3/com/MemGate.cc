@@ -34,7 +34,7 @@ namespace m3 {
 MemGate::~MemGate() {
     if(!(flags() & KEEP_CAP) && !_revoke) {
         try {
-            Activity::self().resmng()->free_mem(sel());
+            Activity::own().resmng()->free_mem(sel());
         }
         catch(...) {
             // ignore
@@ -45,14 +45,14 @@ MemGate::~MemGate() {
 
 MemGate MemGate::create_global_for(goff_t addr, size_t size, int perms, capsel_t sel, uint flags) {
     if(sel == INVALID)
-        sel = Activity::self().alloc_sel();
-    Activity::self().resmng()->alloc_mem(sel, addr, size, perms);
+        sel = Activity::own().alloc_sel();
+    Activity::own().resmng()->alloc_mem(sel, addr, size, perms);
     return MemGate(flags, sel, false);
 }
 
 MemGate MemGate::derive(goff_t offset, size_t size, int perms) const {
-    capsel_t nsel = Activity::self().alloc_sel();
-    Syscalls::derive_mem(Activity::self().sel(), nsel, sel(), offset, size, perms);
+    capsel_t nsel = Activity::own().alloc_sel();
+    Syscalls::derive_mem(Activity::own().sel(), nsel, sel(), offset, size, perms);
     return MemGate(0, nsel, true);
 }
 

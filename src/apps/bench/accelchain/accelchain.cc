@@ -81,11 +81,8 @@ int main(int argc, char **argv) {
 
     for(int i = 0; i < repeats; ++i) {
         // open files
-        fd_t infd = VFS::open(in, FILE_R | FILE_NEWSESS);
-        fd_t outfd = VFS::open(out, FILE_W | FILE_TRUNC | FILE_CREATE | FILE_NEWSESS);
-
-        auto fin = Activity::self().files()->get(infd);
-        auto fout = Activity::self().files()->get(outfd);
+        auto fin = VFS::open(in, FILE_R | FILE_NEWSESS);
+        auto fout = VFS::open(out, FILE_W | FILE_TRUNC | FILE_CREATE | FILE_NEWSESS);
 
         if(mode == Mode::INDIR)
             chain_indirect(fin, fout, num, comptime);
@@ -93,9 +90,6 @@ int main(int argc, char **argv) {
             chain_direct_multi(fin, fout, num, comptime, Mode::DIR);
         else
             chain_direct(fin, fout, num, comptime, mode);
-
-        VFS::close(infd);
-        VFS::close(outfd);
     }
     return 0;
 }

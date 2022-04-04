@@ -16,31 +16,15 @@
  * General Public License version 2 for more details.
  */
 
-#include <m3/com/Semaphore.h>
-#include <m3/session/ResMng.h>
-#include <m3/Syscalls.h>
-#include <m3/tiles/Activity.h>
+#include <m3/tiles/OwnActivity.h>
+#include <m3/vfs/File.h>
+#include <m3/vfs/FileRef.h>
+#include <m3/vfs/FileTable.h>
 
 namespace m3 {
 
-Semaphore Semaphore::attach(const char *name) {
-    capsel_t nsel = Activity::own().alloc_sel();
-    Activity::own().resmng()->use_sem(nsel, name);
-    return Semaphore(nsel, KEEP_CAP);
-}
-
-Semaphore Semaphore::create(uint value) {
-    capsel_t nsel = Activity::own().alloc_sel();
-    Syscalls::create_sem(nsel, value);
-    return Semaphore(nsel, 0);
-}
-
-void Semaphore::up() const {
-    Syscalls::sem_ctrl(sel(), KIF::Syscall::SCTRL_UP);
-}
-
-void Semaphore::down() const {
-    Syscalls::sem_ctrl(sel(), KIF::Syscall::SCTRL_DOWN);
+void close_file(File *file) {
+    Activity::own().files()->remove(file->fd());
 }
 
 }

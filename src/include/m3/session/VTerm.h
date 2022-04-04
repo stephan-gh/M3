@@ -22,9 +22,11 @@
 #include <base/KIF.h>
 
 #include <m3/com/GateStream.h>
-#include <m3/vfs/GenericFile.h>
-#include <m3/ObjCap.h>
 #include <m3/tiles/Activity.h>
+#include <m3/vfs/FileRef.h>
+#include <m3/vfs/GenericFile.h>
+#include <m3/vfs/FileTable.h>
+#include <m3/ObjCap.h>
 
 namespace m3 {
 
@@ -33,15 +35,16 @@ public:
     explicit VTerm(const String &name) : ClientSession(name) {
     }
 
-    Reference<File> create_channel(bool read) {
-        capsel_t sels = Activity::self().alloc_sels(2);
+    FileRef<GenericFile> create_channel(bool read) {
+        capsel_t sels = Activity::own().alloc_sels(2);
         KIF::ExchangeArgs args;
         ExchangeOStream os(args);
         os << GenericFile::CLONE << (read ? 0 : 1);
         args.bytes = os.total();
-        obtain_for(Activity::self(), KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sels, 2), &args);
+        obtain_for(Activity::own(), KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sels, 2), &args);
         auto flags = FILE_NEWSESS | (read ? FILE_R : FILE_W);
-        return Reference<File>(new GenericFile(flags, sels));
+        auto file = std::unique_ptr<GenericFile>(new GenericFile(flags, sels));
+        return Activity::own().files()->alloc(std::move(file));
     }
 };
 

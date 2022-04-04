@@ -21,10 +21,10 @@
 #include <base/Panic.h>
 
 #include <m3/stream/Standard.h>
+#include <m3/tiles/ChildActivity.h>
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
-#include <m3/tiles/Activity.h>
 
 using namespace m3;
 
@@ -44,7 +44,7 @@ struct App {
     size_t argc;
     const char **argv;
     Reference<Tile> tile;
-    Activity act;
+    ChildActivity act;
     RecvGate rgate;
     SendGate sgate;
 };
@@ -135,7 +135,7 @@ int main(int argc, char **argv) {
                     break;
                 }
                 catch(...) {
-                    Activity::self().sleep_for(TimeDuration::from_micros(10));
+                    Activity::sleep_for(TimeDuration::from_micros(10));
                 }
             }
         }
@@ -184,7 +184,7 @@ int main(int argc, char **argv) {
         }
 
         if(!fs_size_str)
-            apps[i]->act.mounts()->add("/", Activity::self().mounts()->get("/"));
+            apps[i]->act.add_mount("/", "/");
 
         apps[i]->act.exec(static_cast<int>(apps[i]->argc), apps[i]->argv);
     }

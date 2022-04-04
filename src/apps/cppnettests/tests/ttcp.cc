@@ -18,6 +18,7 @@
 #include <m3/com/Semaphore.h>
 #include <m3/net/TcpSocket.h>
 #include <m3/session/NetworkManager.h>
+#include <m3/tiles/ChildActivity.h>
 #include <m3/Test.h>
 
 #include "../cppnettests.h"
@@ -124,7 +125,7 @@ NOINLINE static void nonblocking_client() {
 
 NOINLINE static void nonblocking_server() {
     auto tile = Tile::get("clone|own");
-    Activity act(tile, "tcp-server");
+    ChildActivity act(tile, "tcp-server");
 
     auto sem = Semaphore::create(0);
     act.delegate_obj(sem.sel());
@@ -133,7 +134,7 @@ NOINLINE static void nonblocking_server() {
 
     act.run([] {
         capsel_t sem_sel;
-        Activity::self().data_source() >> sem_sel;
+        Activity::own().data_source() >> sem_sel;
 
         NetworkManager net("net1");
 
@@ -202,7 +203,7 @@ NOINLINE static void open_close() {
 
 NOINLINE static void receive_after_close() {
     auto tile = Tile::get("clone|own");
-    Activity act(tile, "tcp-server");
+    ChildActivity act(tile, "tcp-server");
 
     auto sem = Semaphore::create(0);
     act.delegate_obj(sem.sel());
@@ -211,7 +212,7 @@ NOINLINE static void receive_after_close() {
 
     act.run([] {
         capsel_t sem_sel;
-        Activity::self().data_source() >> sem_sel;
+        Activity::own().data_source() >> sem_sel;
 
         NetworkManager net("net1");
 

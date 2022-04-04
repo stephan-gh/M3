@@ -17,24 +17,24 @@
  */
 
 #include <m3/com/Gate.h>
-#include <m3/tiles/Activity.h>
+#include <m3/tiles/OwnActivity.h>
 #include <m3/Syscalls.h>
 
 namespace m3 {
 
 Gate::~Gate() {
-    release_ep(Activity::self());
+    release_ep(Activity::own());
 }
 
 const EP &Gate::acquire_ep() {
     if(!_ep)
-        _ep = Activity::self().epmng().acquire();
+        _ep = Activity::own().epmng().acquire();
     return *_ep;
 }
 
 const EP &Gate::activate(capsel_t rbuf_mem, goff_t rbuf_off) {
     if(!_ep) {
-        _ep = Activity::self().epmng().acquire();
+        _ep = Activity::own().epmng().acquire();
         activate_on(*_ep, rbuf_mem, rbuf_off);
     }
     return *_ep;
@@ -45,10 +45,10 @@ void Gate::activate_on(const EP &ep, capsel_t rbuf_mem, goff_t rbuf_off) {
 }
 
 void Gate::deactivate() {
-    release_ep(Activity::self(), true);
+    release_ep(Activity::own(), true);
 }
 
-void Gate::release_ep(Activity &act, bool force_inval) noexcept {
+void Gate::release_ep(OwnActivity &act, bool force_inval) noexcept {
     if(_ep && !_ep->is_standard()) {
         act.epmng().release(_ep, force_inval || (flags() & KEEP_CAP));
         _ep = nullptr;

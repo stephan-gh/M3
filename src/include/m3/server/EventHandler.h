@@ -86,7 +86,7 @@ protected:
         if(sess->gate() || xchg.in_caps() != 1)
             return Errors::INV_ARGS;
 
-        sess->_sgate = std::make_unique<SendGate>(SendGate::bind(Activity::self().alloc_sel(), 0));
+        sess->_sgate = std::make_unique<SendGate>(SendGate::bind(Activity::own().alloc_sel(), 0));
         xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess->gate()->sel()));
         return Errors::NONE;
     }

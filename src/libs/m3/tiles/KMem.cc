@@ -17,7 +17,7 @@
  */
 
 #include <m3/tiles/KMem.h>
-#include <m3/tiles/Activity.h>
+#include <m3/tiles/OwnActivity.h>
 #include <m3/Syscalls.h>
 
 namespace m3 {
@@ -27,7 +27,7 @@ Quota<size_t> KMem::quota() const {
 }
 
 Reference<KMem> KMem::derive(const KMem &base, size_t quota) {
-    capsel_t sel = Activity::self().alloc_sel();
+    capsel_t sel = Activity::own().alloc_sel();
     Syscalls::derive_kmem(base.sel(), sel, quota);
     return Reference<KMem>(new KMem(sel, 0));
 }

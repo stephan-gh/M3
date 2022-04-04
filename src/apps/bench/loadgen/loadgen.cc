@@ -100,7 +100,7 @@ public:
 
         SLOG(LOADGEN, fmt((word_t)sess, "#x") << ": mem::create_chan()");
 
-        KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, Activity::self().alloc_sels(2), 2);
+        KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, Activity::own().alloc_sels(2), 2);
 
         sess->sgate.reset(new SendGate(SendGate::bind(crd.start() + 0, &_rgate)));
         sess->mgate.reset(new MemGate(MemGate::bind(crd.start() + 1)));

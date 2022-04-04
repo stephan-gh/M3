@@ -22,7 +22,7 @@
 #include <m3/com/SendGate.h>
 #include <m3/com/RecvGate.h>
 #include <m3/vfs/GenericFile.h>
-#include <m3/tiles/Activity.h>
+#include <m3/tiles/ChildActivity.h>
 
 #include <memory>
 
@@ -69,44 +69,44 @@ public:
     static const size_t BUF_SIZE    = 8192;
     static const size_t RECV_ADDR   = MEM_OFFSET + 0x3FFF00;
 
-    explicit StreamAccel(std::unique_ptr<Activity> &act, CycleDuration /* TODO */)
+    explicit StreamAccel(std::unique_ptr<ChildActivity> &act, CycleDuration /* TODO */)
         : _sgate_in(),
           _sgate_out(),
           _mgate_out(),
           _rgate(RecvGate::create(getnextlog2(RB_SIZE), getnextlog2(MSG_SIZE))),
-          _in_sep(act->epmng().acquire(EP_IN_SEND)),
-          _in_mep(act->epmng().acquire(EP_IN_MEM)),
-          _out_sep(act->epmng().acquire(EP_OUT_SEND)),
-          _out_mep(act->epmng().acquire(EP_OUT_MEM)),
-          _rep(act->epmng().acquire(EP_RECV, _rgate.slots())),
+          _in_sep(EP::alloc_for(*act, EP_IN_SEND)),
+          _in_mep(EP::alloc_for(*act, EP_IN_MEM)),
+          _out_sep(EP::alloc_for(*act, EP_OUT_SEND)),
+          _out_mep(EP::alloc_for(*act, EP_OUT_MEM)),
+          _rep(EP::alloc_for(*act, EP_RECV, _rgate.slots())),
           _act(act),
           _mem(_act->get_mem(MEM_OFFSET, act->tile_desc().mem_size(), MemGate::RW)) {
         // activate EPs
-        _rgate.activate_on(*_rep, nullptr, RECV_ADDR);
+        _rgate.activate_on(_rep, nullptr, RECV_ADDR);
     }
 
     void connect_input(GenericFile *file) {
-        file->connect(*_in_sep, *_in_mep);
+        file->connect(_in_sep, _in_mep);
     }
     void connect_input(StreamAccel *prev) {
         _sgate_in = std::make_unique<SendGate>(
             SendGate::create(&prev->_rgate, SendGateArgs().label(LBL_IN_REQ)
                                                           .credits(1))
         );
-        _sgate_in->activate_on(*_in_sep);
+        _sgate_in->activate_on(_in_sep);
     }
 
     void connect_output(GenericFile *file) {
-        file->connect(*_out_sep, *_out_mep);
+        file->connect(_out_sep, _out_mep);
     }
     void connect_output(StreamAccel *next) {
         _sgate_out = std::make_unique<SendGate>(
             SendGate::create(&next->_rgate, SendGateArgs().label(LBL_OUT_REQ)
                                                           .credits(1))
         );
-        _sgate_out->activate_on(*_out_sep);
+        _sgate_out->activate_on(_out_sep);
         _mgate_out = std::make_unique<MemGate>(next->_mem.derive(BUF_ADDR - MEM_OFFSET, BUF_SIZE));
-        _mgate_out->activate_on(*_out_mep);
+        _mgate_out->activate_on(_out_mep);
     }
 
 private:
@@ -114,12 +114,12 @@ private:
     std::unique_ptr<SendGate> _sgate_out;
     std::unique_ptr<MemGate> _mgate_out;
     RecvGate _rgate;
-    std::unique_ptr<EP> _in_sep;
-    std::unique_ptr<EP> _in_mep;
-    std::unique_ptr<EP> _out_sep;
-    std::unique_ptr<EP> _out_mep;
-    std::unique_ptr<EP> _rep;
-    std::unique_ptr<Activity> &_act;
+    EP _in_sep;
+    EP _in_mep;
+    EP _out_sep;
+    EP _out_mep;
+    EP _rep;
+    std::unique_ptr<ChildActivity> &_act;
     MemGate _mem;
 };
 

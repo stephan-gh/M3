@@ -23,6 +23,7 @@
 #include <base/Panic.h>
 
 #include <m3/pipe/IndirectPipe.h>
+#include <m3/tiles/ChildActivity.h>
 #include <m3/Syscalls.h>
 #include <m3/Test.h>
 
@@ -44,11 +45,11 @@ NOINLINE void child_to_parent() {
         IndirectPipe pipe(pipes, mgate, 0x10000);
 
         Reference<Tile> tile = Tile::get("clone|own");
-        Activity act(tile, "writer");
-        act.files()->set(STDOUT_FD, Activity::self().files()->get(pipe.writer_fd()));
+        ChildActivity act(tile, "writer");
+        act.add_file(STDOUT_FD, pipe.writer_fd());
 
         act.run([] {
-            auto output = Activity::self().files()->get(STDOUT_FD);
+            auto output = Activity::own().files()->get(STDOUT_FD);
             auto rem = DATA_SIZE;
             while(rem > 0) {
                 output->write(buf, sizeof(buf));
@@ -59,7 +60,7 @@ NOINLINE void child_to_parent() {
 
         pipe.close_writer();
 
-        auto input = Activity::self().files()->get(pipe.reader_fd());
+        auto input = Activity::own().files()->get(pipe.reader_fd());
         while(input->read(buf, sizeof(buf)) > 0)
             ;
 
@@ -81,11 +82,11 @@ NOINLINE void parent_to_child() {
         IndirectPipe pipe(pipes, mgate, 0x10000);
 
         Reference<Tile> tile(Tile::get("clone|own"));
-        Activity act(tile, "writer");
-        act.files()->set(STDIN_FD, Activity::self().files()->get(pipe.reader_fd()));
+        ChildActivity act(tile, "writer");
+        act.add_file(STDIN_FD, pipe.reader_fd());
 
         act.run([] {
-            auto input = Activity::self().files()->get(STDIN_FD);
+            auto input = Activity::own().files()->get(STDIN_FD);
             while(input->read(buf, sizeof(buf)) > 0)
                 ;
             return 0;
@@ -93,7 +94,7 @@ NOINLINE void parent_to_child() {
 
         pipe.close_reader();
 
-        auto output = Activity::self().files()->get(pipe.writer_fd());
+        auto output = Activity::own().files()->get(pipe.writer_fd());
         auto rem = DATA_SIZE;
         while(rem > 0) {
             output->write(buf, sizeof(buf));

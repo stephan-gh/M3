@@ -38,7 +38,7 @@ extern "C" void *_text_end;
 extern "C" void *_data_start;
 extern "C" void *_bss_end;
 
-void Activity::init_state() {
+void OwnActivity::init_state() {
     _resmng.reset(new ResMng(env()->rmng_sel));
 
     // it's initially 0. make sure it's at least the first usable selector
@@ -47,7 +47,7 @@ void Activity::init_state() {
     _id = env()->act_id;
 }
 
-void Activity::init_fs() {
+void OwnActivity::init_fs() {
     if(env()->pager_sess)
         _pager = Reference<Pager>(new Pager(env()->pager_sess, env()->pager_sgate));
     _ms.reset(MountTable::unserialize(reinterpret_cast<const void*>(
@@ -57,7 +57,7 @@ void Activity::init_fs() {
     memcpy(_data, reinterpret_cast<const void*>(env()->data_addr), env()->data_len);
 }
 
-void Activity::run(int (*func)()) {
+void ChildActivity::run(int (*func)()) {
     char **argv = reinterpret_cast<char**>(env()->argv);
     if(sizeof(char*) != sizeof(uint64_t)) {
         uint64_t *argv64 = reinterpret_cast<uint64_t*>(env()->argv);
@@ -72,12 +72,12 @@ void Activity::run(int (*func)()) {
         delete[] argv;
 }
 
-void Activity::do_exec(int argc, const char **argv, uintptr_t func_addr) {
+void ChildActivity::do_exec(int argc, const char **argv, uintptr_t func_addr) {
     Env senv;
     std::unique_ptr<char[]> buffer(new char[BUF_SIZE]);
 
-    obtain_fds();
-    obtain_mounts();
+    Activity::own().files()->delegate(*this);
+    Activity::own().mounts()->delegate(*this);
 
     // we need a new session to be able to get memory mappings
     _exec = std::make_unique<FStream>(argv[0], FILE_RWX | FILE_NEWSESS);
@@ -123,13 +123,13 @@ void Activity::do_exec(int argc, const char **argv, uintptr_t func_addr) {
     start();
 }
 
-size_t Activity::serialize_state(Env &senv, char *buffer, size_t offset) {
+size_t ChildActivity::serialize_state(Env &senv, char *buffer, size_t offset) {
     senv.mounts_addr = ENV_SPACE_START + offset;
-    senv.mounts_len = _ms->serialize(buffer + offset, ENV_SPACE_SIZE - offset);
+    senv.mounts_len = Activity::own().mounts()->serialize(*this, buffer + offset, ENV_SPACE_SIZE - offset);
     offset = Math::round_up(offset + static_cast<size_t>(senv.mounts_len), sizeof(word_t));
 
     senv.fds_addr = ENV_SPACE_START + offset;
-    senv.fds_len = _fds->serialize(buffer + offset, ENV_SPACE_SIZE - offset);
+    senv.fds_len = Activity::own().files()->serialize(*this, buffer + offset, ENV_SPACE_SIZE - offset);
     offset = Math::round_up(offset + static_cast<size_t>(senv.fds_len), sizeof(word_t));
 
     senv.data_addr = ENV_SPACE_START + offset;
@@ -139,7 +139,7 @@ size_t Activity::serialize_state(Env &senv, char *buffer, size_t offset) {
     return offset;
 }
 
-void Activity::clear_mem(MemGate &mem, char *buffer, size_t count, uintptr_t dest) {
+void ChildActivity::clear_mem(MemGate &mem, char *buffer, size_t count, uintptr_t dest) {
     memset(buffer, 0, BUF_SIZE);
     while(count > 0) {
         size_t amount = std::min(count, BUF_SIZE);
@@ -149,7 +149,7 @@ void Activity::clear_mem(MemGate &mem, char *buffer, size_t count, uintptr_t des
     }
 }
 
-void Activity::load_segment(ElfPh &pheader, char *buffer) {
+void ChildActivity::load_segment(ElfPh &pheader, char *buffer) {
     if(_pager) {
         int prot = 0;
         if(pheader.p_flags & PF_R)
@@ -201,7 +201,7 @@ void Activity::load_segment(ElfPh &pheader, char *buffer) {
     clear_mem(mem, buffer, pheader.p_memsz - pheader.p_filesz, segoff);
 }
 
-void Activity::load(int argc, const char **argv, uintptr_t *entry, char *buffer, size_t *size) {
+void ChildActivity::load(int argc, const char **argv, uintptr_t *entry, char *buffer, size_t *size) {
     /* load and check ELF header */
     ElfEh header;
     if(_exec->read(&header, sizeof(header)) != sizeof(header))
@@ -247,7 +247,7 @@ void Activity::load(int argc, const char **argv, uintptr_t *entry, char *buffer,
     *entry = header.e_entry;
 }
 
-size_t Activity::store_arguments(char *buffer, int argc, const char **argv) {
+size_t ChildActivity::store_arguments(char *buffer, int argc, const char **argv) {
     /* copy arguments and arg pointers to buffer */
     uint64_t *argptr = reinterpret_cast<uint64_t*>(buffer);
     char *args = buffer + static_cast<size_t>(argc) * sizeof(uint64_t);
@@ -262,7 +262,7 @@ size_t Activity::store_arguments(char *buffer, int argc, const char **argv) {
     return static_cast<size_t>(args - buffer);
 }
 
-uintptr_t Activity::get_entry() {
+uintptr_t ChildActivity::get_entry() {
     return reinterpret_cast<uintptr_t>(&_start);
 }
 

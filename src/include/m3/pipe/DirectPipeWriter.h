@@ -73,14 +73,14 @@ public:
     }
     virtual ssize_t write(const void *buffer, size_t count) override;
 
-    virtual Reference<File> clone() const override {
-        return Reference<File>();
+    virtual FileRef<File> clone() const override {
+        throw Exception(Errors::NOT_SUP);
     }
 
     virtual char type() const noexcept override {
         return 'P';
     }
-    virtual void delegate(Activity &act) override;
+    virtual void delegate(ChildActivity &act) override;
     virtual void serialize(Marshaller &m) override;
     static File *unserialize(Unmarshaller &um);
 

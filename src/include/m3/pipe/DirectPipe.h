@@ -42,13 +42,13 @@ namespace m3 {
  *
  * A usage example looks like the following:
  * <code>
- *   Activity reader("reader");
+ *   ChildActivity reader("reader");
  *
  *   // construct the pipe for activity::self -> reader
- *   Pipe pipe(reader, Activity::self(), 0x1000);
+ *   Pipe pipe(reader, Activity::own(), 0x1000);
  *
  *   // bind the read-end to stdin of the child
- *   reader.files()->set(STDIN_FD, Activity::self().files()->get(pipe.reader_fd()));
+ *   reader.add_file(STDIN_FD, pipe.reader_fd());
  *
  *   reader.run([] {
  *       // read from cin
@@ -58,7 +58,7 @@ namespace m3 {
  *   // we are done with reading
  *   pipe.close_reader();
  *
- *   File *out = Activity::self().files()->get(pipe.writer_fd());
+ *   File *out = Activity::own().files()->get(pipe.writer_fd());
  *   // write into out
  *
  *   // we are done with writing

@@ -15,7 +15,7 @@
 
 #include <m3/com/Semaphore.h>
 #include <m3/stream/Standard.h>
-#include <m3/vfs/FileRef.h>
+#include <m3/vfs/VFS.h>
 
 #include <endian.h>
 
@@ -49,7 +49,7 @@ UDPOpHandler::UDPOpHandler(NetworkManager &nm, const char *workload, m3::IpAddr 
     wl_pos = 0;
     wl_size = 0;
     {
-        FileRef wl_file(workload, FILE_R);
+        auto wl_file = VFS::open(workload, FILE_R);
         ssize_t len;
         while((len = wl_file->read(wl_buffer + wl_size, MAX_FILE_SIZE - wl_size)) > 0)
             wl_size += static_cast<size_t>(len);

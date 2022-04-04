@@ -16,7 +16,7 @@
 #include <m3/com/EP.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
-#include <m3/tiles/Activity.h>
+#include <m3/tiles/OwnActivity.h>
 
 namespace m3 {
 
@@ -35,11 +35,11 @@ EP &EP::operator=(EP &&ep) noexcept {
 }
 
 EP EP::alloc(uint replies) {
-    return alloc_for(Activity::self(), TOTAL_EPS, replies);
+    return alloc_for(Activity::own(), TOTAL_EPS, replies);
 }
 
 EP EP::alloc_for(const Activity &act, epid_t ep, uint replies) {
-    capsel_t sel = Activity::self().alloc_sel();
+    capsel_t sel = Activity::own().alloc_sel();
     epid_t id = Syscalls::alloc_ep(sel, act.sel(), ep, replies);
     return EP(sel, id, replies, 0);
 }

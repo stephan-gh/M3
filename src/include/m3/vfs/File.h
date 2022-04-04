@@ -23,6 +23,7 @@
 
 #include <m3/com/Marshalling.h>
 #include <m3/com/SendGate.h>
+#include <m3/vfs/FileRef.h>
 
 #include <fs/internal.h>
 
@@ -34,6 +35,7 @@ class VFS;
 class FStream;
 class FileTable;
 class Pager;
+class ChildActivity;
 
 /**
  * The base-class of all files. Can't be instantiated.
@@ -134,7 +136,7 @@ public:
     explicit File(int flags) noexcept
         : _blocking(true),
           _flags(flags),
-          _fd() {
+          _fd(-1) {
     }
     File(const File &) = delete;
     File &operator=(const File &) = delete;
@@ -294,14 +296,14 @@ public:
      *
      * @return the new file
      */
-    virtual Reference<File> clone() const = 0;
+    virtual FileRef<File> clone() const = 0;
 
     /**
      * Delegates this file to the given activity.
      *
      * @param act the activity
      */
-    virtual void delegate(Activity &act) = 0;
+    virtual void delegate(ChildActivity &act) = 0;
 
     /**
      * Serializes this object to the given marshaller.

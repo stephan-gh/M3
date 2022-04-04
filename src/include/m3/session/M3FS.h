@@ -56,9 +56,9 @@ public:
     friend class GenericFile;
 
     explicit M3FS(size_t id, const String &service)
-        : ClientSession(service, Activity::self().alloc_sels(2)),
+        : ClientSession(service, Activity::own().alloc_sels(2)),
           FileSystem(id),
-          _gate(SendGate::bind(get_sgate(Activity::self()))),
+          _gate(SendGate::bind(get_sgate(Activity::own()))),
           _eps() {
     }
     explicit M3FS(size_t id, capsel_t caps) noexcept
@@ -75,7 +75,7 @@ public:
         return 'M';
     }
 
-    virtual Reference<File> open(const char *path, int perms) override;
+    virtual std::unique_ptr<GenericFile> open(const char *path, int perms) override;
     virtual void close(size_t file_id) override;
     virtual Errors::Code try_stat(const char *path, FileInfo &info) noexcept override;
     virtual Errors::Code try_mkdir(const char *path, mode_t mode) override;
@@ -84,7 +84,7 @@ public:
     virtual Errors::Code try_unlink(const char *path) override;
     virtual Errors::Code try_rename(const char *oldpath, const char *newpath) override;
 
-    virtual void delegate(Activity &act) override;
+    virtual void delegate(ChildActivity &act) override;
     virtual void serialize(Marshaller &m) override;
     static FileSystem *unserialize(Unmarshaller &um);
 

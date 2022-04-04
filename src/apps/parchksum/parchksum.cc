@@ -23,7 +23,7 @@
 #include <m3/com/RecvGate.h>
 #include <m3/com/GateStream.h>
 #include <m3/stream/Standard.h>
-#include <m3/tiles/Activity.h>
+#include <m3/tiles/ChildActivity.h>
 
 using namespace m3;
 
@@ -31,7 +31,7 @@ struct Worker {
     MemGate submem;
     SendGate sgate;
     Reference<Tile> tile;
-    Activity act;
+    ChildActivity act;
 
     Worker(RecvGate &rgate, MemGate &mem, size_t offset, size_t size)
         : submem(mem.derive(offset, size)),
@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
         worker[i]->act.run([] {
             capsel_t mem_sel;
             size_t mem_size;
-            Activity::self().data_source() >> mem_sel >> mem_size;
+            Activity::own().data_source() >> mem_sel >> mem_size;
             MemGate mem = MemGate::bind(mem_sel);
 
             uint *buffer = new uint[BUF_SIZE / sizeof(uint)];
@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
         worker[i]->act.run([] {
             capsel_t mem_sel, sgate_sel;
             size_t mem_size;
-            Activity::self().data_source() >> mem_sel >> sgate_sel >> mem_size;
+            Activity::own().data_source() >> mem_sel >> sgate_sel >> mem_size;
             MemGate mem = MemGate::bind(mem_sel);
             SendGate sgate = SendGate::bind(sgate_sel);
 

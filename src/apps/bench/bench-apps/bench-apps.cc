@@ -22,10 +22,10 @@
 #include <base/Panic.h>
 
 #include <m3/stream/Standard.h>
+#include <m3/tiles/ChildActivity.h>
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
-#include <m3/tiles/Activity.h>
 
 #include <vector>
 
@@ -45,7 +45,7 @@ struct App {
     int argc;
     const char **argv;
     Reference<Tile> tile;
-    Activity act;
+    ChildActivity act;
 };
 
 static void usage(const char *name) {
@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
             auto start = CycleInstant::now();
 
             for(size_t i = 0; i < ARRAY_SIZE(apps); ++i) {
-                apps[i]->act.mounts()->add("/", Activity::self().mounts()->get("/"));
+                apps[i]->act.add_mount("/", "/");
                 apps[i]->act.exec(apps[i]->argc, apps[i]->argv);
 
                 if(VERBOSE) cout << "Waiting for Activity " << apps[i]->argv[0] << " ...\n";

@@ -27,7 +27,7 @@
 #include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
 #include <m3/tiles/Tile.h>
-#include <m3/tiles/Activity.h>
+#include <m3/tiles/ChildActivity.h>
 
 #include <memory>
 
@@ -96,7 +96,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
     // destroy the activities first to prevent errors due to destroyed communication channels
     std::unique_ptr<StreamAccel> accels[MAX_CMDS] = {nullptr};
     Reference<Tile> tiles[MAX_CMDS];
-    std::unique_ptr<Activity> acts[MAX_CMDS] = {nullptr};
+    std::unique_ptr<ChildActivity> acts[MAX_CMDS] = {nullptr};
 
     // get tile types
     for(size_t i = 0; i < list->count; ++i) {
@@ -109,15 +109,15 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
     }
 
     size_t act_count = 0;
-    fd_t infd = -1;
-    fd_t outfd = -1;
+    FileRef<File> infile;
+    FileRef<File> outfile;
     for(size_t i = 0; i < list->count; ++i) {
         Command *cmd = list->cmds[i];
 
         tiles[i] = Tile::get(tile_names[i].c_str());
         // if we share our tile with this child activity, give it separate quotas to ensure that we get our
         // share (we don't trust the child apps)
-        if(tiles[i]->sel() == Activity::self().tile()->sel()) {
+        if(tiles[i]->sel() == Activity::own().tile()->sel()) {
             Quota<uint> eps;
             Quota<uint64_t> time;
             Quota<size_t> pts;
@@ -128,7 +128,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                 tiles[i] = Tile::get("core");
         }
 
-        acts[i] = std::make_unique<Activity>(tiles[i], expr_value(cmd->args->args[0]));
+        acts[i] = std::make_unique<ChildActivity>(tiles[i], expr_value(cmd->args->args[0]));
         act_count++;
 
         // I/O redirection is only supported at the beginning and end
@@ -139,33 +139,33 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
 
         if(i == 0) {
             if(cmd->redirs->fds[STDIN_FD])
-                infd = VFS::open(cmd->redirs->fds[STDIN_FD], FILE_R | FILE_NEWSESS);
+                infile = VFS::open(cmd->redirs->fds[STDIN_FD], FILE_R | FILE_NEWSESS);
             else if(vterm)
-                infd = Activity::self().files()->alloc(vterm->create_channel(true));
-            if(infd != -1)
-                acts[i]->files()->set(STDIN_FD, Activity::self().files()->get(infd));
+                infile = vterm->create_channel(true);
+            if(infile.is_valid())
+                acts[i]->add_file(STDIN_FD, infile->fd());
         }
         else if(tiles[i - 1]->desc().is_programmable() || tiles[i]->desc().is_programmable())
-            acts[i]->files()->set(STDIN_FD, Activity::self().files()->get(pipes[i - 1]->reader_fd()));
+            acts[i]->add_file(STDIN_FD, pipes[i - 1]->reader_fd());
 
         if(i + 1 == list->count) {
             if(cmd->redirs->fds[STDOUT_FD])
-                outfd = VFS::open(cmd->redirs->fds[STDOUT_FD], FILE_W | FILE_CREATE | FILE_TRUNC | FILE_NEWSESS);
+                outfile = VFS::open(cmd->redirs->fds[STDOUT_FD], FILE_W | FILE_CREATE | FILE_TRUNC | FILE_NEWSESS);
             else if(vterm)
-                outfd = Activity::self().files()->alloc(vterm->create_channel(false));
-            if(outfd != -1)
-                acts[i]->files()->set(STDOUT_FD, Activity::self().files()->get(outfd));
+                outfile = vterm->create_channel(false);
+            if(outfile.is_valid())
+                acts[i]->add_file(STDOUT_FD, outfile->fd());
         }
         else if(tiles[i]->desc().is_programmable() || tiles[i + 1]->desc().is_programmable()) {
             mems[i] = std::make_unique<MemGate>(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
             pipes[i] = std::make_unique<IndirectPipe>(pipesrv, *mems[i], PIPE_SHM_SIZE);
-            acts[i]->files()->set(STDOUT_FD, Activity::self().files()->get(pipes[i]->writer_fd()));
+            acts[i]->add_file(STDOUT_FD, pipes[i]->writer_fd());
         }
 
         if(tiles[i]->desc().is_programmable()) {
-            acts[i]->files()->set(STDERR_FD, Activity::self().files()->get(STDERR_FD));
+            acts[i]->add_file(STDERR_FD, STDERR_FD);
 
-            acts[i]->mounts()->add("/", Activity::self().mounts()->get("/"));
+            acts[i]->add_mount("/", "/");
 
             char **args = build_args(cmd);
             acts[i]->exec(static_cast<int>(cmd->args->count), const_cast<const char**>(args));
@@ -184,26 +184,26 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
 
     // connect input/output of accelerators
     {
-        Reference<File> clones[act_count * 2];
+        FileRef<File> clones[act_count * 2];
         size_t c = 0;
         for(size_t i = 0; i < act_count; ++i) {
             if(accels[i]) {
-                auto in = acts[i]->files()->get(STDIN_FD);
-                if(in) {
-                    auto ain = in.get() == Activity::self().files()->get(STDIN_FD).get() ? in->clone() : in;
-                    accels[i]->connect_input(static_cast<GenericFile*>(ain.get()));
-                    if(ain.get() != in.get())
-                        clones[c++] = ain;
+                fd_t our_in_fd = acts[i]->get_file(STDIN_FD);
+                if(our_in_fd != FileTable::MAX_FDS) {
+                    auto our_in = Activity::own().files()->get(our_in_fd);
+                    auto ain = our_in->clone();
+                    accels[i]->connect_input(static_cast<GenericFile*>(&*ain));
+                    clones[c++] = std::move(ain);
                 }
                 else if(accels[i - 1])
                     accels[i]->connect_input(accels[i - 1].get());
 
-                auto out = acts[i]->files()->get(STDOUT_FD);
-                if(out) {
-                    auto aout = out.get() == Activity::self().files()->get(STDOUT_FD).get() ? out->clone() : out;
-                    accels[i]->connect_output(static_cast<GenericFile*>(aout.get()));
-                    if(aout.get() != out.get())
-                        clones[c++] = aout;
+                fd_t our_out_fd = acts[i]->get_file(STDOUT_FD);
+                if(our_out_fd != FileTable::MAX_FDS) {
+                    auto our_out = Activity::own().files()->get(our_out_fd);
+                    auto aout = our_out->clone();
+                    accels[i]->connect_output(static_cast<GenericFile*>(&*aout));
+                    clones[c++] = std::move(aout);
                 }
                 else if(accels[i + 1])
                     accels[i]->connect_output(accels[i + 1].get());
@@ -274,12 +274,6 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                 }
             }
         }
-
-        // close our input/output file; the server will recursively close all clones
-        if(outfd != -1)
-            Activity::self().files()->remove(outfd);
-        if(infd != -1)
-            Activity::self().files()->remove(infd);
     }
 }
 
@@ -309,7 +303,7 @@ int main(int argc, char **argv) {
         // change stdin, stdout, and stderr to vterm
         const fd_t fds[] = {STDIN_FD, STDOUT_FD, STDERR_FD};
         for(fd_t fd : fds)
-            Activity::self().files()->set(fd, vterm->create_channel(fd == STDIN_FD));
+            Activity::own().files()->set(fd, vterm->create_channel(fd == STDIN_FD));
         have_vterm = true;
     }
     catch(const Exception &e) {

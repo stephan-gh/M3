@@ -18,14 +18,14 @@
 
 #include <m3/ObjCap.h>
 #include <m3/Syscalls.h>
-#include <m3/tiles/Activity.h>
+#include <m3/tiles/OwnActivity.h>
 
 namespace m3 {
 
 void ObjCap::release() {
     if(_sel != INVALID) {
         if(~_flags & KEEP_CAP)
-            Activity::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel()));
+            Activity::own().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel()));
     }
 }
 

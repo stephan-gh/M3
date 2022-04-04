@@ -83,7 +83,7 @@ RecvGate::RecvGate(capsel_t cap, size_t addr, epid_t ep, uint order, uint msgord
 }
 
 RecvGate RecvGate::create(uint order, uint msgorder) {
-    return RecvGate(Activity::self().alloc_sel(), 0, UNBOUND, order, msgorder, 0);
+    return RecvGate(Activity::own().alloc_sel(), 0, UNBOUND, order, msgorder, 0);
 }
 
 RecvGate RecvGate::create(capsel_t cap, uint order, uint msgorder, uint flags) {
@@ -91,8 +91,8 @@ RecvGate RecvGate::create(capsel_t cap, uint order, uint msgorder, uint flags) {
 }
 
 RecvGate RecvGate::create_named(const char *name) {
-    auto sel = Activity::self().alloc_sel();
-    auto args = Activity::self().resmng()->use_rgate(sel, name);
+    auto sel = Activity::own().alloc_sel();
+    auto args = Activity::own().resmng()->use_rgate(sel, name);
     return RecvGate(sel, 0, args.first, args.second, 0);
 }
 
@@ -117,7 +117,7 @@ void RecvGate::activate() {
             _buf_addr = _buf->addr();
         }
 
-        auto rep = Activity::self().epmng().acquire(TOTAL_EPS, slots());
+        auto rep = Activity::own().epmng().acquire(TOTAL_EPS, slots());
         Gate::activate_on(*rep, _buf->mem(), _buf->off());
         Gate::set_ep(rep);
     }
@@ -128,7 +128,7 @@ void RecvGate::activate_on(const EP &ep, MemGate *mem, size_t off) {
 }
 
 void RecvGate::deactivate() noexcept {
-    release_ep(Activity::self(), true);
+    release_ep(Activity::own(), true);
 
     stop();
 }

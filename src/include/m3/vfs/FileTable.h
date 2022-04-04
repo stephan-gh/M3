@@ -19,19 +19,20 @@
 #pragma once
 
 #include <base/Common.h>
-#include <base/util/Reference.h>
 #include <base/Errors.h>
 #include <base/TCU.h>
 
 #include <m3/com/EP.h>
+#include <m3/vfs/FileRef.h>
 
+#include <memory>
 #include <assert.h>
 
 namespace m3 {
 
 class File;
 class GenericFile;
-class Activity;
+class ChildActivity;
 
 /**
  * The file descriptor table.
@@ -56,25 +57,19 @@ public:
         : _fds() {
     }
 
-    explicit FileTable(const FileTable &f) noexcept {
-        for(fd_t i = 0; i < MAX_FDS; ++i)
-            _fds[i] = f._fds[i];
-    }
-    FileTable &operator=(const FileTable &f) noexcept {
-        if(&f != this) {
-            for(fd_t i = 0; i < MAX_FDS; ++i)
-                _fds[i] = f._fds[i];
-        }
-        return *this;
-    }
+    explicit FileTable(const FileTable &f) = delete;
+    FileTable &operator=(const FileTable &f) = delete;
 
     /**
      * Allocates a new file descriptor for given file.
      *
      * @param file the file
-     * @return the file descriptor
+     * @return a FileRef to the file
      */
-    fd_t alloc(Reference<File> file);
+    template<class T>
+    FileRef<T> alloc(std::unique_ptr<T> file) {
+        return FileRef<T>(static_cast<T*>(do_alloc(std::move(file))));
+    }
 
     /**
      * Removes and closes the given file descriptor
@@ -95,7 +90,7 @@ public:
      * @param fd the file descriptor
      * @return the file for given fd
      */
-    Reference<File> get(fd_t fd) const {
+    File *get(fd_t fd) const {
         // TODO throw if not existing?
         return _fds[fd];
     }
@@ -106,10 +101,9 @@ public:
      * @param fd the file descriptor
      * @param file the file
      */
-    void set(fd_t fd, Reference<File> file) {
-        // TODO throw if existing?
-        assert(file);
-        _fds[fd] = file;
+    template<class T>
+    void set(fd_t fd, FileRef<T> file) {
+        do_set(fd, file.release());
     }
 
     /**
@@ -118,20 +112,21 @@ public:
     void remove_all() noexcept;
 
     /**
-     * Delegates all files to <act>.
+     * Delegates the files selected for the given activity to this activity.
      *
      * @param act the activity to delegate the files to
      */
-    void delegate(Activity &act) const;
+    void delegate(ChildActivity &act) const;
 
     /**
-     * Serializes the current files into the given buffer
+     * Serializes the files of the given child activity into the given buffer
      *
+     * @param act the child activity that should receive the files
      * @param buffer the buffer
      * @param size the capacity of the buffer
      * @return the space used
      */
-    size_t serialize(void *buffer, size_t size) const;
+    size_t serialize(ChildActivity &act, void *buffer, size_t size) const;
 
     /**
      * Unserializes the given buffer into a new FileTable object.
@@ -143,10 +138,13 @@ public:
     static FileTable *unserialize(const void *buffer, size_t size);
 
 private:
+    File *do_alloc(std::unique_ptr<File> file);
+    void do_set(fd_t fd, File *file);
+
     EP get_ep();
     EP request_ep(GenericFile *file);
 
-    Reference<File> _fds[MAX_FDS];
+    File *_fds[MAX_FDS];
 };
 
 }

@@ -21,6 +21,7 @@
 #include <m3/com/GateStream.h>
 #include <m3/pipe/DirectPipe.h>
 #include <m3/pipe/DirectPipeWriter.h>
+#include <m3/tiles/ChildActivity.h>
 
 namespace m3 {
 
@@ -168,7 +169,7 @@ ssize_t DirectPipeWriter::write(const void *buffer, size_t count) {
     return buf - reinterpret_cast<const char*>(buffer);
 }
 
-void DirectPipeWriter::delegate(Activity &act) {
+void DirectPipeWriter::delegate(ChildActivity &act) {
     act.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _caps, 2));
 }
 

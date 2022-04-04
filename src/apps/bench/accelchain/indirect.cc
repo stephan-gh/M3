@@ -36,11 +36,12 @@ using namespace m3;
 static const size_t BUF_SIZE    = 4096;
 static const size_t REPLY_SIZE  = 64;
 
-void chain_indirect(Reference<File> in, Reference<File> out, size_t num, CycleDuration comptime) {
+void chain_indirect(FileRef<GenericFile> &in, FileRef<GenericFile> &out,
+                    size_t num, CycleDuration comptime) {
     std::unique_ptr<uint8_t> buffer(new uint8_t[BUF_SIZE]);
 
     Reference<Tile> tiles[num];
-    std::unique_ptr<Activity> acts[num];
+    std::unique_ptr<ChildActivity> acts[num];
     std::unique_ptr<InDirAccel> accels[num];
     InDirAccel::Operation ops[num];
 
@@ -54,7 +55,7 @@ void chain_indirect(Reference<File> in, Reference<File> out, size_t num, CycleDu
 
 
         tiles[i] = Tile::get("indir");
-        acts[i] = std::make_unique<Activity>(tiles[i], name.str());
+        acts[i] = std::make_unique<ChildActivity>(tiles[i], name.str());
 
         accels[i] = std::make_unique<InDirAccel>(acts[i], reply_gate);
     }

@@ -15,8 +15,9 @@
 
 #include <base/Common.h>
 
-#include <m3/Test.h>
 #include <m3/com/Semaphore.h>
+#include <m3/tiles/ChildActivity.h>
+#include <m3/Test.h>
 
 #define _GNU_SOURCE // for NI_MAXSERV
 #include <arpa/inet.h>
@@ -183,7 +184,7 @@ static void tcp_accept() {
     Semaphore::attach("net-tcp").down();
 
     auto tile = Tile::get("clone|own");
-    Activity server(tile, "server");
+    ChildActivity server(tile, "server");
     server.run(tcp_server);
 
     Activity::sleep_for(TimeDuration::from_millis(10));

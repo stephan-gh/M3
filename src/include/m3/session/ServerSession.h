@@ -46,7 +46,7 @@ public:
         : ObjCap(SESSION) {
         if(srv_sel != ObjCap::INVALID) {
             if(_sel == ObjCap::INVALID)
-                _sel = Activity::self().alloc_sel();
+                _sel = Activity::own().alloc_sel();
             Syscalls::create_sess(_sel, srv_sel, crt, reinterpret_cast<word_t>(this), auto_close);
             sel(_sel);
         }

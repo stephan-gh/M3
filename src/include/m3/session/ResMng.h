@@ -20,7 +20,8 @@
 #include <m3/com/GateStream.h>
 #include <m3/com/SendGate.h>
 #include <m3/Exception.h>
-#include <m3/tiles/Activity.h>
+#include <m3/tiles/OwnActivity.h>
+#include <m3/tiles/ChildActivity.h>
 
 namespace m3 {
 
@@ -93,7 +94,7 @@ public:
     ~ResMng() {
         if(_act != ObjCap::INVALID) {
             try {
-                send_receive_vmsg(Activity::self().resmng()->_sgate, REM_CHILD, _act);
+                send_receive_vmsg(Activity::own().resmng()->_sgate, REM_CHILD, _act);
             }
             catch(...) {
                 // ignore
@@ -105,8 +106,7 @@ public:
         return _sgate.sel();
     }
 
-    std::unique_ptr<ResMng> clone(Activity &act, const String &name) {
-        capsel_t sgate_sel = act.alloc_sel();
+    std::unique_ptr<ResMng> clone(ChildActivity &act, capsel_t sgate_sel, const String &name) {
         clone(act.id(), act.sel(), sgate_sel, name);
         return std::unique_ptr<ResMng>(new ResMng(sgate_sel, act.sel()));
     }

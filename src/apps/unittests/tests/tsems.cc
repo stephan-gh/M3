@@ -17,7 +17,8 @@
 
 #include <m3/stream/FStream.h>
 #include <m3/com/Semaphore.h>
-#include <m3/vfs/FileRef.h>
+#include <m3/tiles/ChildActivity.h>
+#include <m3/vfs/VFS.h>
 #include <m3/Test.h>
 
 #include "../unittests.h"
@@ -26,7 +27,7 @@ using namespace m3;
 
 static int get_counter(const char *filename) {
     char buffer[8] = {0};
-    FileRef file(filename, FILE_R);
+    auto file = VFS::open(filename, FILE_R);
     file->read(buffer, sizeof(buffer));
     return IStringStream::read_from<int>(buffer);
 }
@@ -36,7 +37,7 @@ static void set_counter(const char *filename, int value) {
     OStringStream os(buffer, sizeof(buffer));
     os << value;
 
-    FileRef file(filename, FILE_W | FILE_TRUNC | FILE_CREATE);
+    auto file = VFS::open(filename, FILE_W | FILE_TRUNC | FILE_CREATE);
     file->write(os.str(), os.length());
 }
 
@@ -48,18 +49,18 @@ static void taking_turns() {
     set_counter("/sem1", 0);
 
     auto tile = Tile::get("clone|own");
-    Activity child(tile, "child");
+    ChildActivity child(tile, "child");
 
     child.delegate_obj(sem0.sel());
     child.delegate_obj(sem1.sel());
 
-    child.mounts()->add("/", Activity::self().mounts()->get("/"));
+    child.add_mount("/", "/");
 
     child.data_sink() << sem0.sel() << sem1.sel();
 
     child.run([] {
         capsel_t sem0_sel, sem1_sel;
-        Activity::self().data_source() >> sem0_sel >> sem1_sel;
+        Activity::own().data_source() >> sem0_sel >> sem1_sel;
 
         Semaphore sem0 = Semaphore::bind(sem0_sel);
         Semaphore sem1 = Semaphore::bind(sem1_sel);

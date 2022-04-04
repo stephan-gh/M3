@@ -25,7 +25,7 @@
 #include <m3/vfs/File.h>
 #include <m3/vfs/FileTable.h>
 #include <m3/Exception.h>
-#include <m3/tiles/Activity.h>
+#include <m3/tiles/OwnActivity.h>
 
 namespace m3 {
 
@@ -55,7 +55,7 @@ public:
      * @param bufsize the size of the buffer for input/output
      * @param flags the flags (FL_*)
      */
-    explicit FStream(int fd, int perms = FILE_RW, size_t bufsize = 512, uint flags = 0);
+    explicit FStream(fd_t fd, int perms = FILE_RW, size_t bufsize = 512, uint flags = 0);
 
     /**
      * Opens <filename> with given permissions and a buffer size of <bufsize>. Which buffer is
@@ -82,8 +82,11 @@ public:
     /**
      * @return the File instance
      */
-    Reference<File> file() const {
-        return Activity::self().files()->get(_fd);
+    File *file() {
+        return Activity::own().files()->get(_fd);
+    }
+    const File *file() const {
+        return const_cast<FStream*>(this)->file();
     }
 
     /**

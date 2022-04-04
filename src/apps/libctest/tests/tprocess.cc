@@ -24,7 +24,7 @@
 using namespace m3;
 
 static void basics() {
-    WVASSERTEQ(getpid(), Activity::self().id() + 1);
+    WVASSERTEQ(getpid(), Activity::own().id() + 1);
     WVASSERTEQ(getuid(), 0U);
     WVASSERTEQ(geteuid(), 0U);
     WVASSERTEQ(getgid(), 0U);

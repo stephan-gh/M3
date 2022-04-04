@@ -68,14 +68,14 @@ public:
         throw Exception(Errors::NOT_SUP);
     }
 
-    virtual Reference<File> clone() const override {
-        return Reference<File>();
+    virtual FileRef<File> clone() const override {
+        throw Exception(Errors::NOT_SUP);
     }
 
     virtual char type() const noexcept override {
         return 'Q';
     }
-    virtual void delegate(Activity &act) override;
+    virtual void delegate(ChildActivity &act) override;
     virtual void serialize(Marshaller &m) override;
     static File *unserialize(Unmarshaller &um);
 

@@ -40,10 +40,6 @@ class EP : public SListItem, public ObjCap {
     friend class GenericFile;
     friend class RecvGate;
 
-    static EP alloc(uint replies = 0);
-    static EP alloc_for(const Activity &act, epid_t ep = TOTAL_EPS, uint replies = 0);
-    static EP bind(epid_t id) noexcept;
-
     explicit EP(capsel_t sel, epid_t id, uint replies, uint flags) noexcept
         : SListItem(),
           ObjCap(ObjCap::ENDPOINT, sel, flags),
@@ -52,6 +48,10 @@ class EP : public SListItem, public ObjCap {
     }
 
 public:
+    static EP alloc(uint replies = 0);
+    static EP alloc_for(const Activity &act, epid_t ep = TOTAL_EPS, uint replies = 0);
+    static EP bind(epid_t id) noexcept;
+
     explicit EP() noexcept;
     EP &operator=(EP &&ep) noexcept;
     EP(EP &&ep) noexcept

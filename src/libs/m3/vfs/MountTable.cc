@@ -145,28 +145,30 @@ void MountTable::do_remove(size_t i) {
     _mounts[_count] = nullptr;
 }
 
-size_t MountTable::serialize(void *buffer, size_t size) const {
+size_t MountTable::serialize(ChildActivity &act, void *buffer, size_t size) const {
     Marshaller m(static_cast<unsigned char*>(buffer), size);
 
-    m << _count;
-    for(size_t i = 0; i < _count; ++i) {
-        char type = _mounts[i]->fs()->type();
-        m << _mounts[i]->path() << type;
+    m << act._mounts.size();
+    for(auto mapping = act._mounts.begin(); mapping != act._mounts.end(); ++mapping) {
+        auto mount = Activity::own().mounts()->get(mapping->second.c_str());
+        auto type = mount->type();
+        m << mapping->first << type;
         switch(type) {
             case 'M':
-                _mounts[i]->fs()->serialize(m);
+                mount->serialize(m);
                 break;
         }
     }
     return m.total();
 }
 
-void MountTable::delegate(Activity &act) const {
-    for(size_t i = 0; i < _count; ++i) {
-        char type = _mounts[i]->fs()->type();
+void MountTable::delegate(ChildActivity &act) const {
+    for(auto mapping = act._mounts.begin(); mapping != act._mounts.end(); ++mapping) {
+        auto mount = Activity::own().mounts()->get(mapping->second.c_str());
+        char type = mount->type();
         switch(type) {
             case 'M':
-                _mounts[i]->fs()->delegate(act);
+                mount->delegate(act);
                 break;
         }
     }

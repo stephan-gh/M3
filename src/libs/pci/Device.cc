@@ -29,13 +29,13 @@ ProxiedPciDevice::ProxiedPciDevice(const char *name, TileISA isa)
     : _tile(Tile::alloc(TileDesc(TileType::COMP_IMEM, isa))),
       _act(_tile, name),
       _mem(_act.get_mem(0, PCI_CFG_ADDR + REG_ADDR + PAGE_SIZE, MemGate::RW)),
-      _sep(_act.epmng().acquire(EP_INT)),
-      _mep(_act.epmng().acquire(EP_DMA)),
+      _sep(EP::alloc_for(_act, EP_INT)),
+      _mep(EP::alloc_for(_act, EP_DMA)),
       _intgate(RecvGate::create(nextlog2<256>::val, nextlog2<32>::val)),
       // TODO: Specify receive gate, grant it to nic tcu, send replies to give credits back
       _sintgate(SendGate::create(&_intgate)) {
     _intgate.activate();
-    _sintgate.activate_on(*_sep);
+    _sintgate.activate_on(_sep);
 
     _act.start();
 }
@@ -50,7 +50,7 @@ void ProxiedPciDevice::stopListing() {
 }
 
 void ProxiedPciDevice::setDmaEp(m3::MemGate &memgate) {
-    memgate.activate_on(*_mep);
+    memgate.activate_on(_mep);
 }
 
 void ProxiedPciDevice::receiveInterrupt(ProxiedPciDevice *nic, m3::GateIStream &) {

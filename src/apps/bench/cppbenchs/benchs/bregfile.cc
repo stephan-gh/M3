@@ -20,7 +20,7 @@
 #include <base/time/Profile.h>
 #include <base/Panic.h>
 
-#include <m3/vfs/FileRef.h>
+#include <m3/vfs/VFS.h>
 #include <m3/Test.h>
 
 #include "../cppbenchs.h"
@@ -33,7 +33,7 @@ NOINLINE static void open_close() {
     Profile pr(50, 10);
 
     WVPERF("open-close", pr.run<CycleInstant>([] {
-        FileRef file("/data/2048k.txt", FILE_R);
+        VFS::open("/data/2048k.txt", FILE_R);
     }));
 }
 
@@ -68,7 +68,7 @@ NOINLINE static void read() {
     Profile pr(2, 1);
 
     WVPERF("read 2 MiB file with 8K buf", pr.run<CycleInstant>([] {
-        FileRef file("/data/2048k.txt", FILE_R);
+        auto file = VFS::open("/data/2048k.txt", FILE_R);
 
         ssize_t amount;
         while((amount = file->read(buf, sizeof(buf))) > 0)
@@ -81,7 +81,7 @@ NOINLINE static void write() {
     Profile pr(2, 1);
 
     WVPERF("write 2 MiB file with 8K buf", pr.run<CycleInstant>([] {
-        FileRef file("/newfile", FILE_W | FILE_TRUNC | FILE_CREATE);
+        auto file = VFS::open("/newfile", FILE_W | FILE_TRUNC | FILE_CREATE);
 
         size_t total = 0;
         while(total < SIZE) {
@@ -95,8 +95,8 @@ NOINLINE static void copy() {
     Profile pr(2, 1);
 
     WVPERF("copy 2 MiB file with 8K buf", pr.run<CycleInstant>([] {
-        FileRef in("/data/2048k.txt", FILE_R);
-        FileRef out("/newfile", FILE_W | FILE_TRUNC | FILE_CREATE);
+        auto in = VFS::open("/data/2048k.txt", FILE_R);
+        auto out = VFS::open("/newfile", FILE_W | FILE_TRUNC | FILE_CREATE);
 
         ssize_t count;
         while((count = in->read(buf, sizeof(buf))) > 0)

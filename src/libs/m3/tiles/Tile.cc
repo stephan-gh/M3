@@ -68,7 +68,7 @@ static TileDesc desc_with_properties(TileDesc desc, const char *props) {
 Tile::~Tile() {
     if(_free) {
         try {
-            Activity::self().resmng()->free_tile(sel());
+            Activity::own().resmng()->free_tile(sel());
         }
         catch(...) {
             // ignore
@@ -77,8 +77,8 @@ Tile::~Tile() {
 }
 
 Reference<Tile> Tile::alloc(const TileDesc &desc) {
-    capsel_t sel = Activity::self().alloc_sel();
-    TileDesc res = Activity::self().resmng()->alloc_tile(sel, desc);
+    capsel_t sel = Activity::own().alloc_sel();
+    TileDesc res = Activity::own().resmng()->alloc_tile(sel, desc);
     return Reference<Tile>(new Tile(sel, res, KEEP_CAP, true));
 }
 
@@ -88,7 +88,7 @@ Reference<Tile> Tile::get(const char *desc) {
         VTHROW(Errors::NO_SPACE, "Properties description too long");
     strcpy(desc_cpy, desc);
 
-    auto own = Activity::self().tile();
+    auto own = Activity::own().tile();
     char *props = strtok(desc_cpy, "|");
     while(props != nullptr) {
         if(strcmp(props, "own") == 0) {
@@ -116,7 +116,7 @@ Reference<Tile> Tile::get(const char *desc) {
 }
 
 Reference<Tile> Tile::derive(uint eps, uint64_t time, uint64_t pts) {
-    capsel_t sel = Activity::self().alloc_sel();
+    capsel_t sel = Activity::own().alloc_sel();
     Syscalls::derive_tile(this->sel(), sel, eps, time, pts);
     return Reference<Tile>(new Tile(sel, desc(), 0, false));
 }

@@ -18,7 +18,7 @@
 
 #include <m3/com/GateStream.h>
 #include <m3/session/Pager.h>
-#include <m3/tiles/Activity.h>
+#include <m3/tiles/ChildActivity.h>
 #include <m3/Syscalls.h>
 
 namespace m3 {
@@ -116,7 +116,7 @@ Reference<Pager> Pager::create_clone() {
     return Reference<Pager>(new Pager(caps.start()));
 }
 
-void Pager::init(Activity &act) {
+void Pager::init(ChildActivity &act) {
     // activate send and receive gate for page faults
     Syscalls::activate(act.sel() + 1, _pf_sgate.sel(), KIF::INV_SEL, 0);
     Syscalls::activate(act.sel() + 2, _pf_rgate.sel(), KIF::INV_SEL, 0);

@@ -58,8 +58,8 @@ static void dmacmd(const void *data, size_t len, epid_t ep, size_t offset, size_
 }
 
 static void cmds_read() {
-    EP *rcvep = Activity::self().epmng().acquire();
-    EP *sndep = Activity::self().epmng().acquire();
+    EP *rcvep = Activity::own().epmng().acquire();
+    EP *sndep = Activity::own().epmng().acquire();
     TCU &tcu = TCU::get();
 
     void *addr = map_page();
@@ -107,13 +107,13 @@ static void cmds_read() {
     unmap_page(addr);
     tcu.configure(sndep->id(), 0, 0, 0, 0, 0, 0);
 
-    Activity::self().epmng().release(sndep, true);
-    Activity::self().epmng().release(rcvep, true);
+    Activity::own().epmng().release(sndep, true);
+    Activity::own().epmng().release(rcvep, true);
 }
 
 static void cmds_write() {
-    EP *rcvep = Activity::self().epmng().acquire();
-    EP *sndep = Activity::self().epmng().acquire();
+    EP *rcvep = Activity::own().epmng().acquire();
+    EP *sndep = Activity::own().epmng().acquire();
     TCU &tcu = TCU::get();
 
     void *addr = map_page();
@@ -146,8 +146,8 @@ static void cmds_write() {
     unmap_page(addr);
     tcu.configure(sndep->id(), 0, 0, 0, 0, 0, 0);
 
-    Activity::self().epmng().release(sndep, true);
-    Activity::self().epmng().release(rcvep, true);
+    Activity::own().epmng().release(sndep, true);
+    Activity::own().epmng().release(rcvep, true);
 }
 
 static void mem_sync() {

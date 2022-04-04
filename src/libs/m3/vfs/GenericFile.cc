@@ -71,7 +71,7 @@ void GenericFile::remove() noexcept {
     }
 
     if(!have_sess()) {
-        auto fs = Activity::self().mounts()->get_by_id(_fs_id);
+        auto fs = Activity::own().mounts()->get_by_id(_fs_id);
         if(fs)
             fs->close(_id);
     }
@@ -79,7 +79,7 @@ void GenericFile::remove() noexcept {
         try {
             const EP *ep = _mg.ep();
             if(ep)
-                Activity::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, ep->sel()), true);
+                Activity::own().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, ep->sel()), true);
         }
         catch(...) {
             // ignore
@@ -299,7 +299,7 @@ NOINLINE void GenericFile::enable_notifications() {
     os << Operation::ENABLE_NOTIFY;
     args.bytes = os.total();
     KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, notify_sgate->sel(), 1);
-    _sess.delegate_for(Activity::self(), crd, &args);
+    _sess.delegate_for(Activity::own(), crd, &args);
 
     LLOG(FS, "GenFile[" << fd() << "]::enable_notifications()");
 
@@ -331,6 +331,16 @@ void GenericFile::map(Reference<Pager> &pager, goff_t *virt, size_t fileoff, siz
     pager->map_ds(virt, len, prot, flags, _sess, fileoff);
 }
 
+FileRef<File> GenericFile::clone() const {
+    if(!have_sess())
+        throw Exception(Errors::NOT_SUP);
+
+    KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, Activity::own().alloc_sels(2), 2);
+    do_clone(Activity::own(), crd);
+    auto file = std::unique_ptr<File>(new GenericFile(flags(), crd.start()));
+    return Activity::own().files()->alloc(std::move(file));
+}
+
 void GenericFile::do_clone(Activity &act, KIF::CapRngDesc &crd) const {
     KIF::ExchangeArgs args;
     ExchangeOStream os(args);
@@ -354,7 +364,7 @@ void GenericFile::do_delegate_ep(const EP &ep) const {
     os << Operation::SET_DEST;
     args.bytes = os.total();
     KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, ep.sel(), 1);
-    _sess.delegate_for(Activity::self(), crd, &args);
+    _sess.delegate_for(Activity::own(), crd, &args);
 }
 
 }
