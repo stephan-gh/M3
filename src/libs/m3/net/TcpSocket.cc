@@ -22,8 +22,8 @@
 
 namespace m3 {
 
-TcpSocket::TcpSocket(int fd, capsel_t caps, NetworkManager &nm)
-    : Socket(fd, caps, nm) {
+TcpSocket::TcpSocket(int sd, capsel_t caps, NetworkManager &nm)
+    : Socket(sd, caps, nm) {
 }
 
 TcpSocket::~TcpSocket() {
@@ -32,8 +32,8 @@ TcpSocket::~TcpSocket() {
 
 Reference<TcpSocket> TcpSocket::create(NetworkManager &nm, const StreamSocketArgs &args) {
     capsel_t caps;
-    int fd = nm.create(SocketType::STREAM, 0, args, &caps);
-    auto sock = new TcpSocket(fd, caps, nm);
+    int sd = nm.create(SocketType::STREAM, 0, args, &caps);
+    auto sock = new TcpSocket(sd, caps, nm);
     nm.add_socket(sock);
     return Reference<TcpSocket>(sock);
 }
@@ -42,7 +42,7 @@ void TcpSocket::listen(port_t port) {
     if(_state != State::Closed)
         throw Exception(Errors::INV_STATE);
 
-    IpAddr addr = _nm.listen(fd(), port);
+    IpAddr addr = _nm.listen(sd(), port);
     _local_ep.addr = addr;
     _local_ep.port = port;
     _state = State::Listening;
@@ -58,7 +58,7 @@ bool TcpSocket::connect(const Endpoint &endpoint) {
     if(_state == State::Connecting)
         throw Exception(Errors::ALREADY_IN_PROGRESS);
 
-    Endpoint local_ep = _nm.connect(fd(), endpoint);
+    Endpoint local_ep = _nm.connect(sd(), endpoint);
     _state = State::Connecting;
     _remote_ep = endpoint;
     _local_ep = local_ep;
@@ -170,7 +170,7 @@ void TcpSocket::abort() {
     if(_state == State::Closed)
         return;
 
-    _nm.abort(fd(), false);
+    _nm.abort(sd(), false);
     _recv_queue.clear();
     disconnect();
 }

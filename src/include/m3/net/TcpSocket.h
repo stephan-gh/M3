@@ -59,7 +59,7 @@ public:
 class TcpSocket : public Socket {
     friend class Socket;
 
-    explicit TcpSocket(int sd, capsel_t caps, NetworkManager &nm);
+    explicit TcpSocket(int fd, capsel_t caps, NetworkManager &nm);
 
 public:
     /**

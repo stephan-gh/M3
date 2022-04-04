@@ -22,8 +22,8 @@
 
 namespace m3 {
 
-UdpSocket::UdpSocket(int fd, capsel_t caps, NetworkManager &nm)
-    : Socket(fd, caps, nm) {
+UdpSocket::UdpSocket(int sd, capsel_t caps, NetworkManager &nm)
+    : Socket(sd, caps, nm) {
 }
 
 UdpSocket::~UdpSocket() {
@@ -32,8 +32,8 @@ UdpSocket::~UdpSocket() {
 
 Reference<UdpSocket> UdpSocket::create(NetworkManager &nm, const DgramSocketArgs &args) {
     capsel_t caps;
-    int fd = nm.create(SocketType::DGRAM, 0, args, &caps);
-    auto sock = new UdpSocket(fd, caps, nm);
+    int sd = nm.create(SocketType::DGRAM, 0, args, &caps);
+    auto sock = new UdpSocket(sd, caps, nm);
     nm.add_socket(sock);
     return Reference<UdpSocket>(sock);
 }
@@ -42,7 +42,7 @@ void UdpSocket::bind(port_t port) {
     if(_state != Closed)
         throw Exception(Errors::INV_STATE);
 
-    IpAddr addr = _nm.bind(fd(), &port);
+    IpAddr addr = _nm.bind(sd(), &port);
     _local_ep.addr = addr;
     _local_ep.port = port;
     _state = State::Bound;

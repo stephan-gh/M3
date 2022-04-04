@@ -101,6 +101,13 @@ public:
     }
 
     /**
+     * @return the socket descriptor used on the server side
+     */
+    int sd() const noexcept {
+        return _sd;
+    }
+
+    /**
      * @return the current state of the socket
      */
     State state() const noexcept {
@@ -120,7 +127,7 @@ public:
     }
 
 protected:
-    explicit Socket(int fd, capsel_t caps, NetworkManager &nm);
+    explicit Socket(int sd, capsel_t caps, NetworkManager &nm);
 
     virtual void enable_notifications() override {
         // nothing to do
@@ -149,6 +156,7 @@ protected:
     void fetch_replies();
     bool can_send();
 
+    int _sd;
     State _state;
 
     Endpoint _local_ep;
