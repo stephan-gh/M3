@@ -19,6 +19,7 @@
 #include <m3/net/TcpSocket.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/tiles/ChildActivity.h>
+#include <m3/vfs/Waiter.h>
 #include <m3/Test.h>
 
 #include "../cppnettests.h"
@@ -87,39 +88,42 @@ NOINLINE static void nonblocking_client() {
 
     WVASSERT(!socket->connect(Endpoint(IpAddr(192, 168, 112, 1), 1338)));
 
+    FileWaiter waiter;
+    waiter.add(socket->fd());
+
     while(socket->state() != Socket::Connected) {
         WVASSERTEQ(socket->state(), Socket::Connecting);
         WVASSERTERR(Errors::ALREADY_IN_PROGRESS, [&socket] {
             socket->connect(Endpoint(IpAddr(192, 168, 112, 1), 1338));
         });
-        net.wait(NetworkManager::INPUT);
+        waiter.wait(File::INPUT);
     }
 
     uint8_t buf[32];
 
     for(int i = 0; i < 8; ++i) {
         while(socket->send(buf, sizeof(buf)) == -1)
-            net.wait(NetworkManager::OUTPUT);
+            waiter.wait(File::OUTPUT);
     }
 
     size_t total = 0;
     while(total < 8 * sizeof(buf)) {
         ssize_t res;
         while((res = socket->recv(buf, sizeof(buf))) == -1)
-            net.wait(NetworkManager::INPUT);
+            waiter.wait(File::INPUT);
         total += static_cast<size_t>(res);
     }
     WVASSERTEQ(total, 8 * sizeof(buf));
 
     while(socket->close() == Errors::WOULD_BLOCK)
-        net.wait(NetworkManager::OUTPUT);
+        waiter.wait(File::OUTPUT);
 
     while(socket->state() != Socket::Closed) {
         WVASSERTEQ(socket->state(), Socket::Closing);
         WVASSERTERR(Errors::ALREADY_IN_PROGRESS, [&socket] {
             socket->close();
         });
-        net.wait(NetworkManager::INPUT);
+        waiter.wait(File::INPUT);
     }
 }
 
@@ -148,13 +152,16 @@ NOINLINE static void nonblocking_server() {
         auto sem = Semaphore::bind(sem_sel);
         sem.up();
 
+        FileWaiter waiter;
+        waiter.add(socket->fd());
+
         Endpoint remote_ep;
         WVASSERTEQ(socket->accept(&remote_ep), false);
         while(socket->state() == Socket::Connecting) {
             WVASSERTERR(Errors::ALREADY_IN_PROGRESS, [&socket, &remote_ep] {
                 socket->accept(&remote_ep);
             });
-            net.wait(NetworkManager::INPUT);
+            waiter.wait(File::INPUT);
         }
         WVASSERT(socket->state() == Socket::Connected || socket->state() == Socket::RemoteClosed);
 
@@ -251,9 +258,12 @@ NOINLINE static void receive_after_close() {
     WVASSERT(socket->send(buf, sizeof(buf)) != -1);
     WVASSERTEQ(socket->recv(buf, sizeof(buf)), 32);
 
+    FileWaiter waiter;
+    waiter.add(socket->fd());
+
     // at some point, the socket should receive the closed event from the remote side
     while(socket->state() != Socket::RemoteClosed)
-        net.wait(NetworkManager::INPUT);
+        waiter.wait(File::INPUT);
 
     socket->close();
 

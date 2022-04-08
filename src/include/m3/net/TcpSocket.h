@@ -68,8 +68,8 @@ public:
      * By default, the socket is in blocking mode, that is, all functions (connect, send, recv, ...)
      * do not return until the operation is complete. This can be changed via set_blocking.
      */
-    static Reference<TcpSocket> create(NetworkManager &nm,
-                                       const StreamSocketArgs &args = StreamSocketArgs());
+    static FileRef<TcpSocket> create(NetworkManager &nm,
+                                     const StreamSocketArgs &args = StreamSocketArgs());
 
     ~TcpSocket();
 

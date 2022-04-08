@@ -59,15 +59,6 @@ int32_t NetworkManager::create(SocketType type, uint8_t protocol, const SocketAr
     return sd;
 }
 
-void NetworkManager::add_socket(Socket *socket) {
-    _sockets.append(socket);
-}
-
-void NetworkManager::remove_socket(Socket *socket) {
-    abort(socket->sd(), true);
-    _sockets.remove(socket);
-}
-
 IpAddr NetworkManager::ip_addr() {
     GateIStream reply = send_receive_vmsg(_metagate, GET_IP);
     reply.pull_result();
@@ -105,39 +96,6 @@ Endpoint NetworkManager::connect(int32_t sd, Endpoint remote_ep) {
 void NetworkManager::abort(int32_t sd, bool remove) {
     GateIStream reply = send_receive_vmsg(_metagate, ABORT, sd, remove);
     reply.pull_result();
-}
-
-void NetworkManager::wait(uint dirs) {
-    while(true) {
-        if(tick_sockets(dirs))
-            break;
-
-        Activity::sleep();
-    }
-}
-
-void NetworkManager::wait_for(TimeDuration timeout, uint dirs) {
-    auto end = TimeInstant::now() + timeout;
-    auto now = TimeInstant::now();
-    while(now < end) {
-        if(tick_sockets(dirs))
-            break;
-
-        Activity::sleep_for(end.duration_since(now));
-        now = TimeInstant::now();
-    }
-}
-
-bool NetworkManager::tick_sockets(uint dirs) {
-    bool found = false;
-    for(auto sock = _sockets.begin(); sock != _sockets.end(); ++sock) {
-        sock->fetch_replies();
-        if(((dirs & Direction::INPUT) && sock->process_events()) ||
-            ((dirs & Direction::OUTPUT) && sock->can_send())) {
-            found = true;
-        }
-    }
-    return found;
 }
 
 } // namespace m3

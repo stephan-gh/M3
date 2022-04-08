@@ -96,6 +96,13 @@ public:
         throw Exception(Errors::NOT_SUP);
     }
 
+    virtual bool check_events(uint events) override {
+        fetch_replies();
+
+        return ((events & File::INPUT) != 0 && process_events()) ||
+            ((events & File::OUTPUT) != 0 && can_send());
+    }
+
     virtual char type() const noexcept override {
         return 's';
     }

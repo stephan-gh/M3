@@ -19,6 +19,7 @@
 #include <m3/net/Socket.h>
 #include <m3/net/RawSocket.h>
 #include <m3/session/NetworkManager.h>
+#include <m3/vfs/FileTable.h>
 
 namespace m3 {
 
@@ -30,13 +31,12 @@ RawSocket::~RawSocket() {
     remove();
 }
 
-Reference<RawSocket> RawSocket::create(NetworkManager &nm, uint8_t protocol,
+FileRef<RawSocket> RawSocket::create(NetworkManager &nm, uint8_t protocol,
                                        const DgramSocketArgs &args) {
     capsel_t caps;
     int sd = nm.create(SocketType::RAW, protocol, args, &caps);
-    auto sock = new RawSocket(sd, caps, nm);
-    nm.add_socket(sock);
-    return Reference<RawSocket>(sock);
+    auto sock = std::unique_ptr<RawSocket>(new RawSocket(sd, caps, nm));
+    return Activity::own().files()->alloc(std::move(sock));
 }
 
 ssize_t RawSocket::recv(void *dst, size_t amount) {

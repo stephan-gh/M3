@@ -38,7 +38,7 @@ Socket::Socket(int sd, capsel_t caps, NetworkManager &nm)
 }
 
 Socket::~Socket() {
-    _nm.remove_socket(this);
+    _nm.abort(sd(), true);
 }
 
 void Socket::tear_down() noexcept {

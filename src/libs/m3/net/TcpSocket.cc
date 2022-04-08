@@ -19,6 +19,7 @@
 #include <m3/net/Socket.h>
 #include <m3/net/TcpSocket.h>
 #include <m3/session/NetworkManager.h>
+#include <m3/vfs/FileTable.h>
 
 namespace m3 {
 
@@ -30,12 +31,11 @@ TcpSocket::~TcpSocket() {
     remove();
 }
 
-Reference<TcpSocket> TcpSocket::create(NetworkManager &nm, const StreamSocketArgs &args) {
+FileRef<TcpSocket> TcpSocket::create(NetworkManager &nm, const StreamSocketArgs &args) {
     capsel_t caps;
     int sd = nm.create(SocketType::STREAM, 0, args, &caps);
-    auto sock = new TcpSocket(sd, caps, nm);
-    nm.add_socket(sock);
-    return Reference<TcpSocket>(sock);
+    auto sock = std::unique_ptr<TcpSocket>(new TcpSocket(sd, caps, nm));
+    return Activity::own().files()->alloc(std::move(sock));
 }
 
 void TcpSocket::listen(port_t port) {

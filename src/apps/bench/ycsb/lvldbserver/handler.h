@@ -59,8 +59,6 @@ public:
 class TCPOpHandler : public OpHandler {
 public:
     explicit TCPOpHandler(m3::NetworkManager &nm, m3::port_t port);
-    ~TCPOpHandler() {
-    }
 
     virtual Result receive(Package &pkg) override;
 
@@ -68,13 +66,12 @@ private:
     ssize_t send(const void *data, size_t len) override;
     ssize_t receive(void *data, size_t max);
 
-    m3::Reference<m3::TcpSocket> _socket;
+    m3::FileRef<m3::TcpSocket> _socket;
 };
 
 class UDPOpHandler : public OpHandler {
 public:
     explicit UDPOpHandler(m3::NetworkManager &nm, const char *workload, m3::IpAddr ip, m3::port_t port);
-    ~UDPOpHandler();
 
     virtual Result receive(Package &pkg) override;
     virtual void reset() override;
@@ -85,5 +82,5 @@ private:
     uint64_t _ops;
     uint64_t _total_ops;
     m3::Endpoint _ep;
-    m3::Reference<m3::UdpSocket> _socket;
+    m3::FileRef<m3::UdpSocket> _socket;
 };

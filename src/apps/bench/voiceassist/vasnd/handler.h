@@ -30,23 +30,20 @@ public:
 class TCPOpHandler : public OpHandler {
 public:
     explicit TCPOpHandler(m3::NetworkManager &nm, m3::IpAddr ip, m3::port_t port);
-    ~TCPOpHandler() {
-    }
 
     virtual void send(const void *data, size_t len) override;
 
 private:
-    m3::Reference<m3::TcpSocket> _socket;
+    m3::FileRef<m3::TcpSocket> _socket;
 };
 
 class UDPOpHandler : public OpHandler {
 public:
     explicit UDPOpHandler(m3::NetworkManager &nm, m3::IpAddr ip, m3::port_t port);
-    ~UDPOpHandler();
 
     virtual void send(const void *data, size_t len) override;
 
 private:
     m3::Endpoint _ep;
-    m3::Reference<m3::UdpSocket> _socket;
+    m3::FileRef<m3::UdpSocket> _socket;
 };

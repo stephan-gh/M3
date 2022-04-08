@@ -59,11 +59,6 @@ UDPOpHandler::UDPOpHandler(NetworkManager &nm, const char *workload, m3::IpAddr 
     _total_ops = static_cast<uint64_t>(wl_read4b());
 }
 
-UDPOpHandler::~UDPOpHandler() {
-    // TODO hack to circumvent the missing credit problem during destruction
-    _socket.forget();
-}
-
 void UDPOpHandler::reset() {
     wl_pos = 4 * 2;
     _ops = 0;

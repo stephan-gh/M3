@@ -17,8 +17,6 @@
 
 #pragma once
 
-#include <base/col/SList.h>
-
 #include <m3/com/SendGate.h>
 #include <m3/net/Net.h>
 #include <m3/net/NetEventChannel.h>
@@ -70,50 +68,11 @@ class NetworkManager : public ClientSession {
 
 public:
     /**
-     * A bitmask of directions for wait.
-     */
-    enum Direction {
-        // Data can be received or the socket state has changed
-        INPUT         = 1,
-        // Data can be sent
-        OUTPUT        = 2,
-    };
-
-    /**
      * Creates a new instance for `service`
      *
      * @param service the service name
      */
     explicit NetworkManager(const String &service);
-
-    /**
-     * Waits until any socket has received input (including state-change events) or can produce
-     * output.
-     *
-     * Note that Direction::INPUT has to be specified to process events (state changes and data).
-     *
-     * Note: this function uses Activity::sleep if tick_sockets returns false, which suspends the core
-     * until the next TCU message arrives. Thus, calling this function can only be done if all work
-     * is done.
-     *
-     * @param dirs the directions to check
-     */
-    void wait(uint dirs = Direction::INPUT | Direction::OUTPUT);
-
-    /**
-     * Waits until any socket has received input (including state-change events) or can produce
-     * output or the given timeout is reached.
-     *
-     * Note that Direction::INPUT has to be specified to process events (state changes and data).
-     *
-     * Note: this function uses Activity::sleep if tick_sockets returns false, which suspends the core
-     * until the next TCU message arrives. Thus, calling this function can only be done if all work
-     * is done.
-     *
-     * @param timeout the maximum time to wait
-     * @param dirs the directions to check
-     */
-    void wait_for(TimeDuration timeout, uint dirs = Direction::INPUT | Direction::OUTPUT);
 
     /**
      * @return the local IP address
@@ -128,18 +87,12 @@ private:
     }
 
     int32_t create(SocketType type, uint8_t protocol, const SocketArgs &args, capsel_t *caps);
-    void add_socket(Socket *socket);
-    void remove_socket(Socket *socket);
-
     IpAddr bind(int32_t sd, port_t *port);
     IpAddr listen(int32_t sd, port_t port);
     Endpoint connect(int32_t sd, Endpoint remote_ep);
     void abort(int32_t sd, bool remove);
 
-    bool tick_sockets(uint dirs = Direction::INPUT | Direction::OUTPUT);
-
     SendGate _metagate;
-    SList<Socket> _sockets;
 };
 
 }

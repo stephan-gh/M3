@@ -292,6 +292,22 @@ public:
     }
 
     /**
+     * Checks whether any of the given events has arrived.
+     *
+     * More specifically, if File::INPUT is given and reading from the file might result in
+     * receiving data, the function returns true.
+     *
+     * This function is used by the FileWaiter that waits until any of
+     * its files can make progress. Some types of files (e.g., sockets) needs to be "ticked" in
+     * each iteration to actually fetch such events. For other types of files, we can just retry
+     * read/write.
+     */
+    virtual bool check_events(UNUSED uint events) {
+        // by default, files are in blocking mode and therefore we always want to try read/write.
+        return true;
+    }
+
+    /**
      * Obtains a new file session from the server
      *
      * @return the new file

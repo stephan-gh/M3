@@ -21,6 +21,7 @@
 #include <m3/net/TcpSocket.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
+#include <m3/vfs/Waiter.h>
 #include <m3/Test.h>
 
 #include "../cppnetbenchs.h"
@@ -108,6 +109,9 @@ NOINLINE static void bandwidth() {
     size_t received_bytes       = 0;
     size_t failures             = 0;
 
+    FileWaiter waiter;
+    waiter.add(socket->fd());
+
     while(true) {
         // Wait for wakeup (message or credits received)
         if(failures >= 10) {
@@ -117,10 +121,10 @@ NOINLINE static void bandwidth() {
                 if(waited > TIMEOUT)
                     break;
                 // we are not interested in output anymore
-                net.wait_for(TIMEOUT - waited, NetworkManager::INPUT);
+                waiter.wait_for(TIMEOUT - waited, File::INPUT);
             }
             else
-                net.wait();
+                waiter.wait(File::INPUT | File::OUTPUT);
         }
 
         for(size_t i = 0; i < BURST_SIZE; ++i) {

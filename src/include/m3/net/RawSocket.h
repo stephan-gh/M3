@@ -45,9 +45,9 @@ public:
      * @param protocol the IP protocol
      * @param args optionally additional arguments that define the buffer sizes
      */
-    static Reference<RawSocket> create(NetworkManager &nm,
-                                       uint8_t protocol,
-                                       const DgramSocketArgs &args = DgramSocketArgs());
+    static FileRef<RawSocket> create(NetworkManager &nm,
+                                     uint8_t protocol,
+                                     const DgramSocketArgs &args = DgramSocketArgs());
 
     ~RawSocket();
 

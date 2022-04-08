@@ -27,11 +27,6 @@ UDPOpHandler::UDPOpHandler(NetworkManager &nm, m3::IpAddr ip, m3::port_t port)
           _socket(UdpSocket::create(nm, DgramSocketArgs().send_buffer(8, 8 * 1024))) {
 }
 
-UDPOpHandler::~UDPOpHandler() {
-    // TODO hack to circumvent the missing credit problem during destruction
-    _socket.forget();
-}
-
 void UDPOpHandler::send(const void *data, size_t len) {
     size_t rem = len;
     const char *bytes = static_cast<const char*>(data);

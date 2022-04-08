@@ -73,8 +73,8 @@ public:
      * @param nm the network manager
      * @param args optionally additional arguments that define the buffer sizes
      */
-    static Reference<UdpSocket> create(NetworkManager &nm,
-                                       const DgramSocketArgs &args = DgramSocketArgs());
+    static FileRef<UdpSocket> create(NetworkManager &nm,
+                                     const DgramSocketArgs &args = DgramSocketArgs());
 
     ~UdpSocket();
 

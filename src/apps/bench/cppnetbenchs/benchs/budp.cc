@@ -24,18 +24,19 @@
 #include <m3/net/UdpSocket.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
+#include <m3/vfs/Waiter.h>
 #include <m3/Test.h>
 
 #include "../cppnetbenchs.h"
 
 using namespace m3;
 
-static ssize_t send_recv(NetworkManager &net, Reference<UdpSocket> socket, const Endpoint &dest,
+static ssize_t send_recv(FileWaiter &waiter, FileRef<UdpSocket> &socket, const Endpoint &dest,
                          const uint8_t *send_buf, size_t sbuf_size, TimeDuration timeout,
                          uint8_t *recv_buf, size_t rbuf_size, Endpoint *src) {
     socket->send_to(send_buf, sbuf_size, dest);
 
-    net.wait_for(timeout, NetworkManager::Direction::INPUT);
+    waiter.wait_for(timeout, File::INPUT);
 
     if(socket->has_data())
         return socket->recv_from(recv_buf, rbuf_size, src);
@@ -57,14 +58,17 @@ NOINLINE static void latency() {
     Endpoint src;
     Endpoint dest = Endpoint(IpAddr(192, 168, 112, 1), 1337);
 
+    FileWaiter waiter;
+    waiter.add(socket->fd());
+
     // do one initial send-receive with a higher timeout than the smoltcp-internal timeout to
     // workaround the high ARP-request delay with the loopback device.
-    send_recv(net, socket, dest, request, 1, TimeDuration::from_secs(6),
+    send_recv(waiter, socket, dest, request, 1, TimeDuration::from_secs(6),
               response, sizeof(response), &src);
 
     size_t warmup = 5;
     while(warmup--) {
-        send_recv(net, socket, dest, request, 8, TIMEOUT,
+        send_recv(waiter, socket, dest, request, 8, TIMEOUT,
                   response, sizeof(response), &src);
     }
 
@@ -76,7 +80,7 @@ NOINLINE static void latency() {
         while(res.runs() < samples) {
             auto start = TimeInstant::now();
 
-            ssize_t recv_len = send_recv(net, socket, dest, request, pkt_size, TIMEOUT,
+            ssize_t recv_len = send_recv(waiter, socket, dest, request, pkt_size, TIMEOUT,
                                          response, sizeof(response), &src);
             if(recv_len == 0)
                 continue;
@@ -118,8 +122,11 @@ NOINLINE static void bandwidth() {
     size_t packet_received_count = 0;
     size_t received_bytes        = 0;
 
+    FileWaiter waiter;
+    waiter.add(socket->fd());
+
     while(warmup--) {
-        send_recv(net, socket, dest, request, 8, timeout,
+        send_recv(waiter, socket, dest, request, 8, timeout,
                   response, sizeof(response), &src);
     }
 
@@ -135,10 +142,10 @@ NOINLINE static void bandwidth() {
                 if(waited > timeout)
                     break;
                 // we are not interested in output anymore
-                net.wait_for(timeout - waited, NetworkManager::INPUT);
+                waiter.wait_for(timeout - waited, File::INPUT);
             }
             else
-                net.wait();
+                waiter.wait(File::INPUT | File::OUTPUT);
         }
 
         size_t send_count = burst_size;
