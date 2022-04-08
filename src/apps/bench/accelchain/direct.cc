@@ -72,16 +72,16 @@ public:
         for(size_t i = 0; i < num; ++i) {
             if(i > 0) {
                 if(mode == Mode::DIR_SIMPLE) {
-                    auto rd = Activity::own().files()->get(pipes[i - 1]->reader_fd());
-                    accels[i]->connect_input(static_cast<GenericFile*>(rd));
+                    auto &rd = pipes[i - 1]->reader();
+                    accels[i]->connect_input(&rd);
                 }
                 else
                     accels[i]->connect_input(accels[i - 1].get());
             }
             if(i + 1 < num) {
                 if(mode == Mode::DIR_SIMPLE) {
-                    auto wr = Activity::own().files()->get(pipes[i]->writer_fd());
-                    accels[i]->connect_output(static_cast<GenericFile*>(wr));
+                    auto &wr = pipes[i]->writer();
+                    accels[i]->connect_output(&wr);
                 }
                 else
                     accels[i]->connect_output(accels[i + 1].get());

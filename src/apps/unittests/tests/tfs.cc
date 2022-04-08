@@ -265,13 +265,9 @@ static void pipe_mux() {
         Pipes pipesrv("pipes");
         MemGate *mems[NUM];
         IndirectPipe *pipes[NUM];
-        File *reader[NUM];
-        File *writer[NUM];
         for(size_t i = 0; i < NUM; ++i) {
             mems[i] = new MemGate(MemGate::create_global(PIPE_SIZE, MemGate::RW));
             pipes[i] = new IndirectPipe(pipesrv, *mems[i], PIPE_SIZE);
-            reader[i] = Activity::own().files()->get(pipes[i]->reader_fd());
-            writer[i] = Activity::own().files()->get(pipes[i]->writer_fd());
         }
 
         char src_buf[STEP_SIZE];
@@ -280,15 +276,15 @@ static void pipe_mux() {
 
         for(size_t pos = 0; pos < DATA_SIZE; pos += STEP_SIZE) {
             for(size_t i = 0; i < NUM; ++i) {
-                writer[i]->write(src_buf, STEP_SIZE);
-                writer[i]->flush();
+                pipes[i]->writer().write(src_buf, STEP_SIZE);
+                pipes[i]->writer().flush();
             }
 
             for(size_t i = 0; i < NUM; ++i) {
                 char dst_buf[STEP_SIZE];
                 memset(dst_buf, 0, STEP_SIZE);
 
-                reader[i]->read(dst_buf, STEP_SIZE);
+                pipes[i]->reader().read(dst_buf, STEP_SIZE);
 
                 WVASSERTEQ(memcmp(src_buf, dst_buf, STEP_SIZE), 0);
             }

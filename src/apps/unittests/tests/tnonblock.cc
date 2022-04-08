@@ -32,10 +32,8 @@ static void pipes() {
     MemGate mem = MemGate::create_global(PIPE_SIZE, MemGate::RW);
     IndirectPipe pipe(pipes, mem, PIPE_SIZE);
 
-    auto fin = Activity::own().files()->get(pipe.reader_fd());
-    auto fout = Activity::own().files()->get(pipe.writer_fd());
-    fin->set_blocking(false);
-    fout->set_blocking(false);
+    pipe.reader().set_blocking(false);
+    pipe.writer().set_blocking(false);
 
     char send_buf[DATA_SIZE] = {'t', 'e', 's', 't'};
     char recv_buf[DATA_SIZE];
@@ -44,7 +42,7 @@ static void pipes() {
     while(count < 100) {
         int progress = 0;
 
-        ssize_t read = fin->read(recv_buf, sizeof(recv_buf));
+        ssize_t read = pipe.reader().read(recv_buf, sizeof(recv_buf));
         if(read != -1) {
             // this is actually not guaranteed, but depends on the implementation of the pipe
             // server. however, we want to ensure that the read data is correct, which is difficult
@@ -55,7 +53,7 @@ static void pipes() {
             count += static_cast<size_t>(read);
         }
 
-        ssize_t written = fout->write(send_buf, sizeof(send_buf));
+        ssize_t written = pipe.writer().write(send_buf, sizeof(send_buf));
         if(written != -1) {
             // see above
             WVASSERTEQ(written, static_cast<ssize_t>(sizeof(send_buf)));

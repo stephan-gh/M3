@@ -46,7 +46,7 @@ NOINLINE void child_to_parent() {
 
         Reference<Tile> tile = Tile::get("clone|own");
         ChildActivity act(tile, "writer");
-        act.add_file(STDOUT_FD, pipe.writer_fd());
+        act.add_file(STDOUT_FD, pipe.writer().fd());
 
         act.run([] {
             auto output = Activity::own().files()->get(STDOUT_FD);
@@ -60,7 +60,7 @@ NOINLINE void child_to_parent() {
 
         pipe.close_writer();
 
-        auto input = Activity::own().files()->get(pipe.reader_fd());
+        auto input = Activity::own().files()->get(pipe.reader().fd());
         while(input->read(buf, sizeof(buf)) > 0)
             ;
 
@@ -83,7 +83,7 @@ NOINLINE void parent_to_child() {
 
         Reference<Tile> tile(Tile::get("clone|own"));
         ChildActivity act(tile, "writer");
-        act.add_file(STDIN_FD, pipe.reader_fd());
+        act.add_file(STDIN_FD, pipe.reader().fd());
 
         act.run([] {
             auto input = Activity::own().files()->get(STDIN_FD);
@@ -94,7 +94,7 @@ NOINLINE void parent_to_child() {
 
         pipe.close_reader();
 
-        auto output = Activity::own().files()->get(pipe.writer_fd());
+        auto output = Activity::own().files()->get(pipe.writer().fd());
         auto rem = DATA_SIZE;
         while(rem > 0) {
             output->write(buf, sizeof(buf));

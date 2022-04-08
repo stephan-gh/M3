@@ -30,10 +30,10 @@ public:
     ~IndirectPipe();
 
     /**
-     * @return the file descriptor for the reader
+     * @return the file for the reader
      */
-    fd_t reader_fd() const noexcept {
-        return _rdfd;
+    GenericFile &reader() noexcept {
+        return *_reader;
     }
     /**
      * Closes the read-end
@@ -41,10 +41,10 @@ public:
     void close_reader();
 
     /**
-     * @return the file descriptor for the writer
+     * @return the file for the writer
      */
-    fd_t writer_fd() const noexcept {
-        return _wrfd;
+    GenericFile &writer() noexcept {
+        return *_writer;
     }
     /**
      * Closes the write-end
@@ -53,8 +53,8 @@ public:
 
 private:
     Pipes::Pipe _pipe;
-    fd_t _rdfd;
-    fd_t _wrfd;
+    FileRef<GenericFile> _reader;
+    FileRef<GenericFile> _writer;
 };
 
 }

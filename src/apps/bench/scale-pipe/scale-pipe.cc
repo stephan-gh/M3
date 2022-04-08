@@ -137,10 +137,10 @@ int main(int argc, char **argv) {
             if(i % 2 == 0) {
                 mems[i / 2] = new MemGate(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
                 pipes[i / 2] = new IndirectPipe(pipesrv, *mems[i / 2], PIPE_SHM_SIZE, data ? 0 : FILE_NODATA);
-                apps[i]->act.add_file(STDOUT_FD, pipes[i / 2]->writer_fd());
+                apps[i]->act.add_file(STDOUT_FD, pipes[i / 2]->writer().fd());
             }
             else
-                apps[i]->act.add_file(STDIN_FD, pipes[i / 2]->reader_fd());
+                apps[i]->act.add_file(STDIN_FD, pipes[i / 2]->reader().fd());
 
             apps[i]->act.add_mount("/", "/");
 

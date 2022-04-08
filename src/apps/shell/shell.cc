@@ -146,7 +146,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                 acts[i]->add_file(STDIN_FD, infile->fd());
         }
         else if(tiles[i - 1]->desc().is_programmable() || tiles[i]->desc().is_programmable())
-            acts[i]->add_file(STDIN_FD, pipes[i - 1]->reader_fd());
+            acts[i]->add_file(STDIN_FD, pipes[i - 1]->reader().fd());
 
         if(i + 1 == list->count) {
             if(cmd->redirs->fds[STDOUT_FD])
@@ -159,7 +159,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
         else if(tiles[i]->desc().is_programmable() || tiles[i + 1]->desc().is_programmable()) {
             mems[i] = std::make_unique<MemGate>(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
             pipes[i] = std::make_unique<IndirectPipe>(pipesrv, *mems[i], PIPE_SHM_SIZE);
-            acts[i]->add_file(STDOUT_FD, pipes[i]->writer_fd());
+            acts[i]->add_file(STDOUT_FD, pipes[i]->writer().fd());
         }
 
         if(tiles[i]->desc().is_programmable()) {
