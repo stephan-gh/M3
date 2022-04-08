@@ -311,7 +311,7 @@ void TCU::start_sleep() {
         else
             _sleep_end = 0;
         _sleeping = true;
-        LLOG(TCU, "TCU: sleep started until " << _sleep_end);
+        LLOG(TCU_SLEEP, "TCU: sleep started until " << _sleep_end);
     }
     else {
         // still unread messages -> no sleep. ack is sent if command is ready
@@ -321,7 +321,7 @@ void TCU::start_sleep() {
 }
 
 void TCU::stop_sleep() {
-    LLOG(TCU, "TCU: sleep stopped (messages: " << _unread_msgs << ")");
+    LLOG(TCU_SLEEP, "TCU: sleep stopped (messages: " << _unread_msgs << ")");
     _sleeping = false;
     // provide feedback to SW
     set_cmd(CMD_ERROR, Errors::NONE);
