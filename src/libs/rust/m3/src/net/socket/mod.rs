@@ -151,7 +151,7 @@ impl Socket {
                 return Err(Error::new(Code::WouldBlock));
             }
 
-            self.wait_for_events();
+            self.wait_for_events(true)?;
         }
     }
 
@@ -217,10 +217,14 @@ impl Socket {
         res
     }
 
-    fn wait_for_events(&mut self) {
+    fn wait_for_events(&mut self, ignore_remote_closes: bool) -> Result<(), Error> {
         while !self.process_events() {
+            if !ignore_remote_closes && self.state == State::RemoteClosed {
+                return Err(Error::new(Code::SocketClosed));
+            }
             self.channel.wait_for_events();
         }
+        Ok(())
     }
 
     fn wait_for_credits(&self) {

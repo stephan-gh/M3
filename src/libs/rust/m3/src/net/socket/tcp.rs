@@ -133,7 +133,7 @@ impl StreamSocket for TcpSocket {
         }
 
         while self.state() == State::Connecting {
-            self.socket.wait_for_events();
+            self.socket.wait_for_events(false)?;
         }
 
         if self.state() != State::Connected {
@@ -160,7 +160,7 @@ impl StreamSocket for TcpSocket {
             if !self.is_blocking() {
                 return Err(Error::new(Code::InProgress));
             }
-            self.socket.wait_for_events();
+            self.socket.wait_for_events(false)?;
         }
 
         if self.state() != State::Connected {
@@ -252,7 +252,7 @@ impl StreamSocket for TcpSocket {
                 return Err(Error::new(Code::InProgress));
             }
 
-            self.socket.wait_for_events();
+            self.socket.wait_for_events(true)?;
         }
         Ok(())
     }
