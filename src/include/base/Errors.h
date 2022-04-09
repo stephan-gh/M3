@@ -90,11 +90,6 @@ struct Errors {
         INV_CHECKSUM,
         SOCKET_CLOSED,
         CONNECTION_FAILED,
-        // lwip
-        ADDR_IN_USE,
-        NET_UNREACHABLE,
-        CONN_ABORT,
-        CONN_RESET,
         CONN_CLOSED,
     };
 

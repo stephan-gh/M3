@@ -90,12 +90,6 @@ static const char *errmsgs[] = {
     "Invalid checksum",
     "Socket is closed",
     "Connection failed",
-
-    // lwip
-    "Address/port already in use",
-    "Network is unreachable",
-    "Connection aborted",
-    "Connection reset/refused by peer",
     "Connection closed gracefully",
 };
 

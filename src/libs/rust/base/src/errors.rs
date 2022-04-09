@@ -90,12 +90,6 @@ pub enum Code {
     InvChecksum,
     SocketClosed,
     ConnectionFailed,
-    // lwip
-    AddressInUse,
-    NetworkUnreachable,
-    ConnAbort,
-    ConnReset,
-    ConnClosed,
 }
 
 // we only use this implementation in debug mode, because it adds a bit of some overhead, errors
@@ -226,7 +220,7 @@ impl From<u32> for Error {
 
 impl From<u32> for Code {
     fn from(error: u32) -> Self {
-        assert!(error <= Code::AddressInUse as u32);
+        assert!(error <= Code::ConnectionFailed as u32);
         // safety: assuming that the assert above doesn't fail, the conversion is safe
         // TODO better way?
         unsafe { intrinsics::transmute(error as u8) }
