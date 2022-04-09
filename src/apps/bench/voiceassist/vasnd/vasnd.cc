@@ -138,5 +138,6 @@ int main(int argc, char **argv) {
     m3::cout << "\033[1;32mAll tests successful!\033[0;m\n";
 
     Syscalls::reset_stats();
+    delete hdl;
     return 0;
 }
