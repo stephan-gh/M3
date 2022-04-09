@@ -190,8 +190,12 @@ impl Socket {
         // make sure that all packets we sent are seen and handled by the server. thus, wait until
         // we have got all replies to our potentially in-flight packets, in which case we also have
         // received our credits back.
-        while !self.has_all_credits() {
+        loop {
             self.wait_for_credits();
+            if self.has_all_credits() {
+                break;
+            }
+            self.channel.wait_for_credits();
         }
     }
 
