@@ -32,7 +32,7 @@
                         </app>
                     </dom>
                     <dom tile="boom|core">
-                        <app args="/bin/varcv udp 1337" daemon="1">
+                        <app args="/bin/varcv udp 1337 10" daemon="1">
                             <sess name="net" args="bufs=1M socks=1 udp=1337" />
                         </app>
                     </dom>

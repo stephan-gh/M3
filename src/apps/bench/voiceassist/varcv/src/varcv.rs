@@ -27,23 +27,23 @@ use m3::println;
 use m3::session::NetworkManager;
 use m3::vec;
 
-const REPEATS: u32 = 16;
 const VERBOSE: bool = false;
 
 fn usage(name: &str) -> ! {
-    println!("Usage: {} (udp|tcp) <port>", name);
+    println!("Usage: {} (udp|tcp) <port> <repeats>", name);
     m3::exit(1);
 }
 
 #[no_mangle]
 pub fn main() -> i32 {
     let args = env::args().collect::<Vec<&str>>();
-    if args.len() != 3 {
+    if args.len() != 4 {
         usage(args[0]);
     }
 
     let proto = args[1];
     let port = args[2].parse::<Port>().unwrap_or_else(|_| usage(args[0]));
+    let repeats = args[3].parse::<usize>().unwrap_or_else(|_| usage(args[0]));
 
     let nm = NetworkManager::new("net").expect("connecting to net failed");
 
@@ -61,7 +61,7 @@ pub fn main() -> i32 {
         let ep = tcp_socket.accept().expect("accept failed");
         println!("Accepted remote endpoint {}", ep);
 
-        for _ in 0..REPEATS {
+        for _ in 0..repeats {
             let mut length_bytes = [0u8; 8];
             let recv_len = tcp_socket
                 .recv(&mut length_bytes)
