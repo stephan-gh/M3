@@ -24,6 +24,7 @@
 
 #include <m3/com/EP.h>
 #include <m3/vfs/FileRef.h>
+#include <m3/Exception.h>
 
 #include <memory>
 #include <assert.h>
@@ -91,7 +92,8 @@ public:
      * @return the file for given fd
      */
     File *get(fd_t fd) const {
-        // TODO throw if not existing?
+        if(fd >= MAX_FDS || !_fds[fd])
+            throw Exception(Errors::BAD_FD);
         return _fds[fd];
     }
 

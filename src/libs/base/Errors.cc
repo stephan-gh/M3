@@ -79,6 +79,7 @@ static const char *errmsgs[] = {
     "Write failed",
     /* 50 */
     "UTF-8 error",
+    "Bad file descriptor",
 
     /* Socket */
     "Invalid state",

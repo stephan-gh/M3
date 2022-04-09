@@ -80,6 +80,7 @@ struct Errors {
         READ_FAILED,
         WRITE_FAILED,
         UTF8_ERROR,
+        BAD_FD,
         // networking
         INV_STATE,
         WOULD_BLOCK,

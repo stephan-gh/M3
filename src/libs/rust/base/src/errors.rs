@@ -80,6 +80,7 @@ pub enum Code {
     ReadFailed,
     WriteFailed,
     Utf8Error,
+    BadFd,
     // networking
     InvState,
     WouldBlock,
