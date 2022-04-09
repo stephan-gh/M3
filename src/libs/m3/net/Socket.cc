@@ -46,8 +46,12 @@ void Socket::tear_down() noexcept {
         // we have no connection to tear down here, but only want to make sure that all packets we sent
         // are seen and handled by the server. thus, wait until we have got all replies to our
         // potentially in-flight packets, in which case we also have received our credits back.
-        while(!_channel.has_all_credits())
+        while(true) {
             wait_for_credits();
+            if(_channel.has_all_credits())
+                break;
+            _channel.wait_for_credits();
+        }
     }
     catch(...) {
         // ignore errors
