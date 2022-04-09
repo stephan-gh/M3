@@ -51,31 +51,13 @@ public:
 
     ~RawSocket();
 
-    /**
-     * Sends <amount> bytes to the socket.
-     *
-     * @param src the data to send
-     * @param amount the number of bytes to send
-     * @return the number of sent bytes (-1 if it would block and the socket is non-blocking)
-     */
-    ssize_t send(const void *src, size_t amount);
-
-    /**
-     * Receives <amount> or a smaller number of bytes into <dst>.
-     *
-     * @param dst the destination buffer
-     * @param amount the number of bytes to receive
-     * @return the number of received bytes (-1 if it would block and the socket is non-blocking)
-     */
-    ssize_t recv(void *dst, size_t amount);
-
-    virtual ssize_t read(void *buffer, size_t count) override {
-        return recv(buffer, count);
+    virtual bool connect(const Endpoint &) override {
+        throw Exception(Errors::NOT_SUP);
     }
 
-    virtual ssize_t write(const void *buffer, size_t count) override {
-        return send(buffer, count);
-    }
+    virtual ssize_t send(const void *src, size_t amount) override;
+
+    virtual ssize_t recv(void *dst, size_t amount) override;
 
 private:
     void remove() noexcept override;

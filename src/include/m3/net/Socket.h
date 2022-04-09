@@ -76,6 +76,13 @@ public:
 
     virtual ~Socket();
 
+    virtual ssize_t read(void *buffer, size_t count) override {
+        return recv(buffer, count);
+    }
+    virtual ssize_t write(const void *buffer, size_t count) override {
+        return send(buffer, count);
+    }
+
     virtual Errors::Code try_stat(FileInfo &) const override {
         return Errors::NOT_SUP;
     }
@@ -132,6 +139,62 @@ public:
     bool has_data() const noexcept {
         return _recv_queue.has_data();
     }
+
+    /**
+     * @return the local endpoint (only valid if the socket has been bound via bind or is connected)
+     */
+    const Endpoint &local_endpoint() const noexcept {
+        return _local_ep;
+    }
+
+    /**
+     * @return the remote endpoint (only valid, if the socket is currently connected)
+     */
+    const Endpoint &remote_endpoint() const noexcept {
+        return _remote_ep;
+    }
+
+    /**
+     * Connects this socket to the given remote endpoint.
+     *
+     * For dgram sockets, this merely sets the endpoint to use for subsequent send calls and
+     * therefore does not involve the remote side in any way. Also if the socket has not been bound
+     * so far, bind(0) will be called to bind it to an unused ephemeral port.
+     *
+     * @param ep the endpoint to use for subsequent send calls
+     * @return true if the socket is connected (false if the socket is a stream socket,
+     *     non-blocking, and the connection is in progress)
+     */
+    virtual bool connect(const Endpoint &ep) = 0;
+
+    /**
+     * Sends at most <amount> bytes from <src> to the socket defined at connect.
+     *
+     * For dgram sockets that are not bound so far, bind(0) will be called to bind it to an unused
+     * ephemeral port.
+     *
+     * For stream sockets, The socket has to be connected first (either via connect or accept). Note
+     * that data can be received after the remote side has closed the socket (state RemoteClosed),
+     * but not if this side has been closed.
+     *
+     * @param src the data to send
+     * @param amount the number of bytes to send
+     * @return the number of sent bytes (-1 if it would block and the socket is non-blocking)
+     */
+    virtual ssize_t send(const void *src, size_t amount) = 0;
+
+    /**
+     * Receives <amount> or a smaller number of bytes into <dst>.
+     *
+     * For stream sockets, the socket has to be connected first (either via connect or accept). Note
+     * that data can be received after the remote side has closed the socket (state RemoteClosed),
+     * but not if this side has been closed.
+     *
+     * @param dst the destination buffer
+     * @param amount the number of bytes to receive
+     * @return the number of received bytes (-1 if it would block and the socket is non-blocking)
+     */
+    virtual ssize_t recv(void *dst, size_t amount) = 0;
 
 protected:
     explicit Socket(int sd, capsel_t caps, NetworkManager &nm);

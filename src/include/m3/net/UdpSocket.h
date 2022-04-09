@@ -79,20 +79,6 @@ public:
     ~UdpSocket();
 
     /**
-     * @return the local endpoint (only valid if the socket has been bound via bind)
-     */
-    const Endpoint &local_endpoint() const noexcept {
-        return _local_ep;
-    }
-
-    /**
-     * @return the remote endpoint (only valid, if the socket is currently "connected")
-     */
-    const Endpoint &remote_endpoint() const noexcept {
-        return _remote_ep;
-    }
-
-    /**
      * Binds this socket to the given local port.
      *
      * Note that specifying 0 for <port> will allocate an ephemeral port for this socket.
@@ -108,30 +94,9 @@ public:
      */
     void bind(port_t port);
 
-    /**
-     * Connects this socket to the given remote endpoint.
-     *
-     * Note that this merely sets the endpoint to use for subsequent send calls and therefore does
-     * not involve the remote side in any way.
-     *
-     * If the socket has not been bound so far, bind(0) will be called to bind it to an unused
-     * ephemeral port.
-     *
-     * @param ep the endpoint to use for subsequent send calls
-     */
-    void connect(const Endpoint &ep);
+    virtual bool connect(const Endpoint &ep) override;
 
-    /**
-     * Sends at most <amount> bytes from <src> to the socket defined at connect.
-     *
-     * If the socket has not been bound so far, bind(0) will be called to bind it to an unused
-     * ephemeral port.
-     *
-     * @param src the data to send
-     * @param amount the number of bytes to send
-     * @return the number of sent bytes (-1 if it would block and the socket is non-blocking)
-     */
-    ssize_t send(const void *src, size_t amount);
+    virtual ssize_t send(const void *src, size_t amount) override;
 
     /**
      * Sends at most <amount> bytes from <src> to the socket at <addr>:<port>.
@@ -146,14 +111,7 @@ public:
      */
     ssize_t send_to(const void *src, size_t amount, const Endpoint &dst_ep);
 
-    /**
-     * Receives <amount> or a smaller number of bytes into <dst>.
-     *
-     * @param dst the destination buffer
-     * @param amount the number of bytes to receive
-     * @return the number of received bytes (-1 if it would block and the socket is non-blocking)
-     */
-    ssize_t recv(void *dst, size_t amount);
+    virtual ssize_t recv(void *dst, size_t amount) override;
 
     /**
      * Receives <amount> or a smaller number of bytes into <dst>.
@@ -164,14 +122,6 @@ public:
      * @return the number of received bytes (-1 if it would block and the socket is non-blocking)
      */
     ssize_t recv_from(void *dst, size_t amount, Endpoint *src_ep);
-
-    virtual ssize_t read(void *buffer, size_t count) override {
-        return recv(buffer, count);
-    }
-
-    virtual ssize_t write(const void *buffer, size_t count) override {
-        return send(buffer, count);
-    }
 
 private:
     void remove() noexcept override;

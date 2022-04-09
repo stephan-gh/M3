@@ -74,22 +74,6 @@ public:
     ~TcpSocket();
 
     /**
-     * @return the local endpoint (only valid if the socket has been put into listen mode via listen
-     *     or was connected to a remote endpoint via connect)
-     */
-    const Endpoint &local_endpoint() const noexcept {
-        return _local_ep;
-    }
-
-    /**
-     * @return the remote endpoint (only valid, if the socket is currently connected (achieved
-     *     either via connect or accept)
-     */
-    const Endpoint &remote_endpoint() const noexcept {
-        return _remote_ep;
-    }
-
-    /**
      * Puts this socket into listen mode on the given port.
      *
      * In listen mode, remote connections can be accepted. See accept. Note that in contrast to
@@ -102,14 +86,7 @@ public:
      */
     void listen(port_t port);
 
-    /**
-     * Connect the socket to the given remote endpoint.
-     *
-     * @param endpoint the remote endpoint to connect to
-     * @return true if the socket is connected (false if the socket is non-blocking and the
-     *     connection is in progress)
-     */
-    bool connect(const Endpoint &endpoint);
+    virtual bool connect(const Endpoint &endpoint) override;
 
     /**
      * Accepts a remote connection on this socket
@@ -125,39 +102,9 @@ public:
      */
     bool accept(Endpoint *remote_ep);
 
-    /**
-     * Receives data from the socket into the given buffer.
-     *
-     * The socket has to be connected first (either via connect or accept). Note that data can be
-     * received after the remote side has closed the socket (state RemoteClosed), but not if this
-     * side has been closed.
-     *
-     * @param dst the buffer to receive into
-     * @param amount the maximum number of bytes to receive
-     * @return the number of received bytes or -1 if it failed
-     */
-    ssize_t recv(void *dst, size_t amount);
+    virtual ssize_t send(const void *src, size_t amount) override;
 
-    /**
-     * Sends the given data to this socket
-     *
-     * The socket has to be connected first (either via connect or accept). Note that data can be
-     * received after the remote side has closed the socket (state RemoteClosed), but not if this
-     * side has been closed.
-     *
-     * @param src the data to send
-     * @param amount the number of bytes to send
-     * @return the number of sent bytes or -1 if it failed
-     */
-    ssize_t send(const void *src, size_t amount);
-
-    virtual ssize_t read(void *buffer, size_t count) override {
-        return recv(buffer, count);
-    }
-
-    virtual ssize_t write(const void *buffer, size_t count) override {
-        return send(buffer, count);
-    }
+    virtual ssize_t recv(void *dst, size_t amount) override;
 
     /**
      * Closes the socket.

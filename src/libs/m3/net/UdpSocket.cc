@@ -48,7 +48,7 @@ void UdpSocket::bind(port_t port) {
     _state = State::Bound;
 }
 
-void UdpSocket::connect(const Endpoint &ep) {
+bool UdpSocket::connect(const Endpoint &ep) {
     if(ep == Endpoint::unspecified())
         throw Exception(Errors::INV_ARGS);
 
@@ -57,6 +57,7 @@ void UdpSocket::connect(const Endpoint &ep) {
         bind(0);
 
     _remote_ep = ep;
+    return true;
 }
 
 ssize_t UdpSocket::send(const void *src, size_t amount) {
