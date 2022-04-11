@@ -466,6 +466,23 @@ impl SocketSession {
         let sd: Sd = is.pop()?;
         let remove: bool = is.pop()?;
 
+        self.do_abort(sd, remove, iface)?;
+        is.reply_error(Code::None)
+    }
+
+    pub fn close(&mut self, iface: &mut DriverInterface<'_>) -> Result<(), Error> {
+        for sd in 0..self.sockets.len() {
+            self.do_abort(sd, true, iface).ok();
+        }
+        Ok(())
+    }
+
+    fn do_abort(
+        &mut self,
+        sd: Sd,
+        remove: bool,
+        iface: &mut DriverInterface<'_>,
+    ) -> Result<(), Error> {
         log!(
             crate::LOG_SESS,
             "[{}] net::abort(sd={}, remove={})",
@@ -479,7 +496,7 @@ impl SocketSession {
         if remove {
             self.remove_socket(sd);
         }
-        is.reply_error(Code::None)
+        Ok(())
     }
 
     pub fn process_incoming(&mut self, iface: &mut DriverInterface<'_>) -> bool {

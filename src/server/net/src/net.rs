@@ -198,6 +198,10 @@ impl Handler<NetworkSession> for NetHandler<'_> {
     fn close(&mut self, crt: usize, sid: SessId) {
         log!(LOG_SESS, "[{}] net::close(crt={})", sid, crt);
 
+        if let Some(s) = self.sessions.get_mut(sid) {
+            s.close(&mut self.iface).unwrap();
+        }
+
         self.sessions.remove(crt, sid);
     }
 

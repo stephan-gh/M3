@@ -27,6 +27,7 @@ use m3::vfs::OpenFlags;
 use m3::{log, reply_vmsg};
 
 use crate::smoltcpif::socket::Socket;
+use crate::DriverInterface;
 
 pub struct FileSession {
     sel: Selector,
@@ -247,7 +248,7 @@ impl FileSession {
         }
     }
 
-    pub fn close(&self, _is: &mut GateIStream<'_>) -> Result<(), Error> {
+    pub fn close(&self, _iface: &mut DriverInterface<'_>) -> Result<(), Error> {
         Ok(())
     }
 

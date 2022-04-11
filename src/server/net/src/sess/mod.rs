@@ -136,6 +136,13 @@ impl NetworkSession {
         }
     }
 
+    pub fn close(&mut self, iface: &mut DriverInterface<'_>) -> Result<(), Error> {
+        match self {
+            NetworkSession::FileSession(fs) => fs.close(iface),
+            NetworkSession::SocketSession(ss) => ss.close(iface),
+        }
+    }
+
     pub fn get_ip(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
