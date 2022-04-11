@@ -51,6 +51,7 @@ int_enum! {
 static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 static BUFFER: StaticRefCell<Vec<u8>> = StaticRefCell::new(Vec::new());
 static INPUT: StaticRefCell<Vec<u8>> = StaticRefCell::new(Vec::new());
+static EOF: StaticCell<bool> = StaticCell::new(false);
 static MODE: StaticCell<Mode> = StaticCell::new(Mode::COOKED);
 static TMP_BUF: StaticRefCell<[u8; BUF_SIZE]> = StaticRefCell::new([0u8; BUF_SIZE]);
 
@@ -168,7 +169,7 @@ impl Channel {
 
         if self.pos == self.len {
             let mut input = INPUT.borrow_mut();
-            if input.is_empty() {
+            if !EOF.get() && input.is_empty() {
                 // if we promised the client that input would be available, report WouldBlock
                 // instead of delaying the response.
                 if self.promised_events.contains(FileEvent::INPUT) {
@@ -180,15 +181,31 @@ impl Channel {
                 return Ok(());
             }
 
-            // okay, input is available, so we fulfilled our promise
-            self.promised_events &= !FileEvent::INPUT;
-            self.our_mem.write(&input, mem_off(self.id))?;
-            self.len = input.len();
-            self.pos = 0;
-            input.clear();
+            self.fetch_input(&mut input)?;
         }
 
         reply_vmsg!(is, Code::None as u32, self.pos, self.len - self.pos)
+    }
+
+    fn fetch_input(&mut self, input: &mut RefMut<'_, Vec<u8>>) -> Result<(), Error> {
+        // okay, input is available, so we fulfilled our promise
+        self.promised_events &= !FileEvent::INPUT;
+        self.our_mem.write(&input, mem_off(self.id))?;
+        self.len = input.len();
+        self.pos = 0;
+
+        log!(
+            crate::LOG_DEF,
+            "[{}] vterm::next_in() -> ({}, {})",
+            self.id,
+            self.pos,
+            self.len - self.pos
+        );
+
+        EOF.set(false);
+        input.clear();
+
+        Ok(())
     }
 
     fn next_out(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -500,23 +517,15 @@ fn add_signal(hdl: &mut VTermHandler) {
     });
 }
 
-fn add_input(hdl: &mut VTermHandler, mut flush: bool, input: &mut RefMut<'_, Vec<u8>>) {
+fn add_input(hdl: &mut VTermHandler, eof: bool, mut flush: bool, input: &mut RefMut<'_, Vec<u8>>) {
     // pass to first session that wants input
+    EOF.set(eof);
+
     hdl.sessions.for_each(|s| {
         if flush || !input.is_empty() {
             if let SessionData::Chan(c) = &mut s.data {
                 if let Some(msg) = c.pending_nextin.take() {
-                    c.our_mem.write(input, mem_off(c.id)).unwrap();
-                    c.len = input.len();
-                    c.pos = 0;
-                    input.clear();
-                    log!(
-                        crate::LOG_DEF,
-                        "[{}] vterm::next_in() -> ({}, {})",
-                        c.id,
-                        c.pos,
-                        c.len - c.pos
-                    );
+                    c.fetch_input(input).unwrap();
                     reply_vmsg_late!(msg, Code::None as u32, c.pos, c.len - c.pos).unwrap();
                     flush = false;
                 }
@@ -550,6 +559,7 @@ fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
     let bytes =
         unsafe { core::slice::from_raw_parts(msg.data.as_ptr(), msg.header.length as usize) };
     let mut flush = false;
+    let mut eof = false;
     if MODE.get() == Mode::RAW {
         input.extend_from_slice(bytes);
     }
@@ -558,7 +568,7 @@ fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
         for b in bytes {
             match b {
                 // ^D
-                0x04 => flush = true,
+                0x04 => eof = true,
                 // ^C
                 0x03 => add_signal(hdl),
                 // backspace
@@ -587,14 +597,14 @@ fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
             }
         }
 
-        if flush {
+        if eof || flush {
             input.extend_from_slice(&buffer);
             buffer.clear();
         }
         Serial::new().write(&output).unwrap();
     }
 
-    add_input(hdl, flush, &mut input);
+    add_input(hdl, eof, eof || flush, &mut input);
 }
 
 #[no_mangle]
@@ -626,6 +636,9 @@ pub fn main() -> i32 {
         s.handle_ctrl_chan(&mut hdl)?;
 
         if let Some(msg) = serial_gate.fetch() {
+            log!(crate::LOG_DEF, "Got input message with {} bytes", {
+                msg.header.length
+            });
             handle_input(&mut hdl, msg);
             serial_gate.ack_msg(msg).unwrap();
         }
