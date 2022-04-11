@@ -48,7 +48,7 @@ pub struct AXIEthDevice {
 impl AXIEthDevice {
     pub fn new() -> Result<Self, Error> {
         let bufs = MemGate::new(ALL_BUF_SIZE, Perm::RW)?;
-        Activity::cur()
+        Activity::own()
             .pager()
             .unwrap()
             .map_mem(BUF_VIRT_ADDR, &bufs, ALL_BUF_SIZE, Perm::RW)?;
