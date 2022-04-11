@@ -74,6 +74,8 @@ FStream::~FStream() {
 void FStream::set_error(ssize_t res) {
     if(res == 0)
         _state |= FL_EOF;
+    else if(res == -1)
+        _state |= FL_ERROR;
 }
 
 ssize_t FStream::read(void *dst, size_t count) {
@@ -101,12 +103,12 @@ ssize_t FStream::read(void *dst, size_t count) {
     File *f = file();
     while(count > 0) {
         ssize_t res = _rbuf->read(f, buf + total, count);
+        if(res <= 0)
+            set_error(res);
         if(res == -1 && total == 0)
             return -1;
-        if(res <= 0) {
-            set_error(res);
+        if(res <= 0)
             break;
-        }
         total += res;
         count -= static_cast<size_t>(res);
     }
@@ -161,12 +163,12 @@ ssize_t FStream::write(const void *src, size_t count) {
     File *f = file();
     while(count > 0) {
         ssize_t res = _wbuf->write(f, buf + total, count);
+        if(res <= 0)
+            set_error(res);
         if(res == -1 && total == 0)
             return -1;
-        if(res <= 0) {
-            set_error(res);
+        if(res <= 0)
             return res;
-        }
 
         total += res;
         count -= static_cast<size_t>(res);

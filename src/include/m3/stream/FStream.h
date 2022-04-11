@@ -32,6 +32,9 @@ namespace m3 {
 /**
  * FStream is an input- and output-stream for files. It uses m3::File as a backend and adds
  * buffering for the input and output.
+ *
+ * Note that if the file is in non-blocking mode, a "would block" return puts the FStream into an
+ * error state. Therefore, clear_state() should be called before retrying the operation.
  */
 class FStream : public IStream, public OStream {
     static const uint FL_DEL_BUF    = 1;
