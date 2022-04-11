@@ -110,7 +110,7 @@ NOINLINE static void bandwidth() {
     size_t failures             = 0;
 
     FileWaiter waiter;
-    waiter.add(socket->fd());
+    waiter.add(socket->fd(), File::INPUT | File::OUTPUT);
 
     while(true) {
         // Wait for wakeup (message or credits received)
@@ -121,10 +121,12 @@ NOINLINE static void bandwidth() {
                 if(waited > TIMEOUT)
                     break;
                 // we are not interested in output anymore
-                waiter.wait_for(TIMEOUT - waited, File::INPUT);
+                waiter.remove(socket->fd());
+                waiter.add(socket->fd(), File::INPUT);
+                waiter.wait_for(TIMEOUT - waited);
             }
             else
-                waiter.wait(File::INPUT | File::OUTPUT);
+                waiter.wait();
         }
 
         for(size_t i = 0; i < BURST_SIZE; ++i) {

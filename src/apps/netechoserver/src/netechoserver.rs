@@ -53,8 +53,8 @@ pub fn main() -> i32 {
     let mut buffer = [0u8; 1024];
 
     let mut waiter = FileWaiter::default();
-    waiter.add(tcp_socket.fd());
-    waiter.add(udp_socket.fd());
+    waiter.add(tcp_socket.fd(), FileEvent::INPUT);
+    waiter.add(udp_socket.fd(), FileEvent::INPUT);
 
     loop {
         if tcp_socket.state() == State::Closed {
@@ -84,7 +84,7 @@ pub fn main() -> i32 {
                 // we only care about input here, because we operate in blocking mode and only want
                 // to know if any of the sockets might return true for has_data. Sending is done in
                 // blocking mode so that we simply wait there until that's possible.
-                waiter.wait(FileEvent::INPUT);
+                waiter.wait();
             }
         }
     }

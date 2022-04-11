@@ -43,7 +43,7 @@ fn send_recv(
 ) -> Result<usize, Error> {
     wv_assert_ok!(socket.send_to(msg, dest));
 
-    waiter.wait_for(timeout, FileEvent::INPUT);
+    waiter.wait_for(timeout);
 
     if socket.has_data() {
         socket.recv(msg)
@@ -65,7 +65,7 @@ fn latency() {
     let mut buf = [0u8; 1024];
 
     let mut waiter = FileWaiter::default();
-    waiter.add(socket.fd());
+    waiter.add(socket.fd(), FileEvent::INPUT);
 
     // do one initial send-receive with a higher timeout than the smoltcp-internal timeout to
     // workaround the high ARP-request delay with the loopback device.
@@ -136,7 +136,7 @@ fn bandwidth() {
     let mut buf = [0u8; 1024];
 
     let mut waiter = FileWaiter::default();
-    waiter.add(socket.fd());
+    waiter.add(socket.fd(), FileEvent::INPUT | FileEvent::OUTPUT);
 
     for _ in 0..10 {
         // ignore errors here
@@ -156,13 +156,17 @@ fn bandwidth() {
             if sent_count >= PACKETS_TO_SEND {
                 let rem = timeout.checked_duration_since(TimeInstant::now());
                 match rem {
-                    // we are not interested in output anymore
-                    Some(d) => waiter.wait_for(d, FileEvent::INPUT),
+                    Some(d) => {
+                        // we are not interested in output anymore
+                        waiter.remove(socket.fd());
+                        waiter.add(socket.fd(), FileEvent::INPUT);
+                        waiter.wait_for(d);
+                    },
                     None => break,
                 }
             }
             else {
-                waiter.wait(FileEvent::INPUT | FileEvent::OUTPUT);
+                waiter.wait();
             }
         }
 

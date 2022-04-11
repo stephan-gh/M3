@@ -115,7 +115,7 @@ fn bandwidth() {
     let mut failures = 0;
 
     let mut waiter = FileWaiter::default();
-    waiter.add(socket.fd());
+    waiter.add(socket.fd(), FileEvent::INPUT | FileEvent::OUTPUT);
 
     loop {
         if failures > 9 {
@@ -123,13 +123,17 @@ fn bandwidth() {
             if sent_count >= PACKETS_TO_SEND {
                 let rem = timeout.checked_duration_since(TimeInstant::now());
                 match rem {
-                    // we are not interested in output anymore
-                    Some(d) => waiter.wait_for(d, FileEvent::INPUT),
+                    Some(d) => {
+                        // we are not interested in output anymore
+                        waiter.remove(socket.fd());
+                        waiter.add(socket.fd(), FileEvent::INPUT);
+                        waiter.wait_for(d);
+                    },
                     None => break,
                 }
             }
             else {
-                waiter.wait(FileEvent::INPUT | FileEvent::OUTPUT);
+                waiter.wait();
             }
         }
 

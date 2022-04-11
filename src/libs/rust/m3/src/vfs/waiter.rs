@@ -20,29 +20,30 @@ use crate::vfs::{Fd, File, FileEvent};
 
 #[derive(Default)]
 pub struct FileWaiter {
-    files: Vec<Fd>,
+    files: Vec<(Fd, FileEvent)>,
 }
 
 impl FileWaiter {
-    /// Adds the given file descriptor to the set of files that this `FileWaiter` waits for.
-    pub fn add(&mut self, fd: Fd) {
-        self.files.push(fd);
+    /// Adds the given file descriptor with given events to the set of files that this `FileWaiter`
+    /// waits for.
+    pub fn add(&mut self, fd: Fd, events: FileEvent) {
+        self.files.push((fd, events));
     }
 
     /// Removes the given file descriptor from the set of files that this `FileWaiter` waits for.
     pub fn remove(&mut self, fd: Fd) {
-        self.files.retain(|id| *id != fd);
+        self.files.retain(|(id, _)| *id != fd);
     }
 
-    /// Waits until any file has received any of the given events.
+    /// Waits until any file has received any of the desired events.
     ///
     /// Note also that this function uses
     /// [`Activity::own().sleep`](crate::tiles::OwnActivity::sleep) if no read/write on any file is
     /// possible, which suspends the core until the next TCU message arrives. Thus, calling this
     /// function can only be done if all work is done.
-    pub fn wait(&self, events: FileEvent) {
+    pub fn wait(&self) {
         loop {
-            if self.tick_files(events) {
+            if self.tick_files() {
                 break;
             }
 
@@ -51,19 +52,19 @@ impl FileWaiter {
         }
     }
 
-    /// Waits until any file has received any of the given events or the given timeout in
+    /// Waits until any file has received any of the desired events or the given timeout in
     /// nanoseconds is reached.
     ///
     /// Note also that this function uses
     /// [`Activity::own().sleep`](crate::tiles::OwnActivity::sleep) if no read/write on any file is
     /// possible, which suspends the core until the next TCU message arrives. Thus, calling this
     /// function can only be done if all work is done.
-    pub fn wait_for(&self, timeout: TimeDuration, events: FileEvent) {
+    pub fn wait_for(&self, timeout: TimeDuration) {
         let end = TimeInstant::now() + timeout;
         loop {
             let now = TimeInstant::now();
             let duration = end.checked_duration_since(now);
-            if duration.is_none() || self.tick_files(events) {
+            if duration.is_none() || self.tick_files() {
                 break;
             }
 
@@ -80,7 +81,7 @@ impl FileWaiter {
     pub fn sleep_for(&self, duration: TimeDuration) {
         let end = TimeInstant::now() + duration;
         loop {
-            self.tick_files(FileEvent::empty());
+            self.tick_files();
 
             let now = TimeInstant::now();
             match end.checked_duration_since(now) {
@@ -91,14 +92,14 @@ impl FileWaiter {
         }
     }
 
-    fn tick_files(&self, events: FileEvent) -> bool {
+    fn tick_files(&self) -> bool {
         let mut found = false;
-        for fd in &self.files {
+        for (fd, events) in &self.files {
             let files = Activity::own().files();
             if let Some(mut file) = files.get(*fd) {
                 // accessing the file requires that we don't hold a references to the filetable
                 drop(files);
-                if file.check_events(events) {
+                if file.check_events(*events) {
                     found = true;
                 }
             }

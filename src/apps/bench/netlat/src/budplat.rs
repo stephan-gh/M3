@@ -32,7 +32,7 @@ fn send_recv(waiter: &mut FileWaiter, socket: &mut FileRef<UdpSocket>, dest: End
 
     wv_assert_ok!(socket.send_to(&buf, dest));
 
-    waiter.wait_for(TIMEOUT, FileEvent::INPUT);
+    waiter.wait_for(TIMEOUT);
 
     if socket.has_data() {
         let _res = socket.recv(&mut buf);
@@ -53,7 +53,7 @@ fn latency() {
     let dest = Endpoint::new(crate::DST_IP.get(), crate::DST_PORT.get());
 
     let mut waiter = FileWaiter::default();
-    waiter.add(socket.fd());
+    waiter.add(socket.fd(), FileEvent::INPUT);
 
     // warmup
     for _ in 0..5 {

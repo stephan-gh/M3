@@ -32,9 +32,10 @@ public:
      * Adds the given file descriptor to the set of files that this FileWaiter waits for.
      *
      * @param fd the file descriptor to add
+     * @param events the events you are interested in for this file (see File::Event)
      */
-    void add(fd_t fd) {
-        _files.push_back(fd);
+    void add(fd_t fd, uint events) {
+        _files.push_back(std::make_pair(fd, events));
     }
 
     /**
@@ -43,37 +44,37 @@ public:
      * @param fd the file descriptor to remove
      */
     void remove(fd_t fd) {
-        _files.erase(std::remove(_files.begin(), _files.end(), fd));
+        _files.erase(std::remove_if(_files.begin(), _files.end(),
+            [fd](const std::pair<fd_t, uint> &f) {
+                return f.first == fd;
+            }));
     }
 
     /**
-     * Waits until any file has received any of the given events.
+     * Waits until any file has received any of the desired events.
      *
      * Note: this function uses Activity::sleep if tick_sockets returns false, which suspends the core
      * until the next TCU message arrives. Thus, calling this function can only be done if all work
      * is done.
-     *
-     * @param events the events to wait for (see File::Event)
      */
-    void wait(uint events);
+    void wait();
 
     /**
-     * Waits until any file has received any of the given events or the given timeout in nanoseconds
-     * is reached.
+     * Waits until any file has received any of the desired events or the given timeout in
+     * nanoseconds is reached.
      *
      * Note: this function uses Activity::sleep if tick_sockets returns false, which suspends the core
      * until the next TCU message arrives. Thus, calling this function can only be done if all work
      * is done.
      *
      * @param timeout the maximum time to wait
-     * @param events the events to wait for
      */
-    void wait_for(TimeDuration timeout, uint events);
+    void wait_for(TimeDuration timeout);
 
 private:
-    bool tick_sockets(uint events);
+    bool tick_sockets();
 
-    std::vector<fd_t> _files;
+    std::vector<std::pair<fd_t, uint>> _files;
 };
 
 }

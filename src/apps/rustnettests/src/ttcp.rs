@@ -96,8 +96,10 @@ fn nonblocking_client() {
 
     wv_assert_ok!(socket.set_blocking(false));
 
-    let mut waiter = FileWaiter::default();
-    waiter.add(socket.fd());
+    let mut in_waiter = FileWaiter::default();
+    in_waiter.add(socket.fd(), FileEvent::INPUT);
+    let mut out_waiter = FileWaiter::default();
+    out_waiter.add(socket.fd(), FileEvent::OUTPUT);
 
     wv_assert_err!(
         socket.connect(Endpoint::new(crate::DST_IP.get(), 1338)),
@@ -109,7 +111,7 @@ fn nonblocking_client() {
             socket.connect(Endpoint::new(crate::DST_IP.get(), 1338)),
             Code::AlreadyInProgress
         );
-        waiter.wait(FileEvent::INPUT);
+        in_waiter.wait();
     }
 
     let mut buf = [0u8; 32];
@@ -117,7 +119,7 @@ fn nonblocking_client() {
     for _ in 0..8 {
         while let Err(e) = socket.send(&buf) {
             wv_assert_eq!(e.code(), Code::WouldBlock);
-            waiter.wait(FileEvent::OUTPUT);
+            out_waiter.wait();
         }
     }
 
@@ -131,7 +133,7 @@ fn nonblocking_client() {
                     break;
                 },
             }
-            waiter.wait(FileEvent::INPUT);
+            in_waiter.wait();
         }
     }
     wv_assert_eq!(total, 8 * buf.len());
@@ -141,13 +143,13 @@ fn nonblocking_client() {
             wv_assert_eq!(e.code(), Code::InProgress);
             break;
         }
-        waiter.wait(FileEvent::OUTPUT);
+        out_waiter.wait();
     }
 
     while socket.state() != State::Closed {
         wv_assert_eq!(socket.state(), State::Closing);
         wv_assert_err!(socket.close(), Code::AlreadyInProgress);
-        waiter.wait(FileEvent::INPUT);
+        in_waiter.wait();
     }
 }
 
@@ -187,12 +189,12 @@ fn nonblocking_server() {
         wv_assert_ok!(sem.up());
 
         let mut waiter = FileWaiter::default();
-        waiter.add(socket.fd());
+        waiter.add(socket.fd(), FileEvent::INPUT);
 
         wv_assert_err!(socket.accept(), Code::InProgress);
         while socket.state() == State::Connecting {
             wv_assert_err!(socket.accept(), Code::AlreadyInProgress);
-            waiter.wait(FileEvent::INPUT);
+            waiter.wait();
         }
         assert!(socket.state() == State::Connected || socket.state() == State::RemoteClosed);
 
@@ -294,11 +296,11 @@ fn receive_after_close() {
     wv_assert_eq!(socket.recv(&mut buf), Ok(32));
 
     let mut waiter = FileWaiter::default();
-    waiter.add(socket.fd());
+    waiter.add(socket.fd(), FileEvent::INPUT);
 
     // at some point, the socket should receive the closed event from the remote side
     while socket.state() != State::RemoteClosed {
-        waiter.wait(FileEvent::INPUT);
+        waiter.wait();
     }
 
     wv_assert_ok!(socket.close());

@@ -59,7 +59,7 @@ static ssize_t send_recv(FileWaiter &waiter, FileRef<UdpSocket> &socket, const E
                          uint8_t *recv_buf, size_t rbuf_size, Endpoint *src) {
     socket->send_to(send_buf, sbuf_size, dest);
 
-    waiter.wait_for(timeout, File::INPUT);
+    waiter.wait_for(timeout);
 
     if(socket->has_data())
         return socket->recv_from(recv_buf, rbuf_size, src);
@@ -84,7 +84,7 @@ NOINLINE static void data() {
     uint8_t recv_buf[1024];
 
     FileWaiter waiter;
-    waiter.add(socket->fd());
+    waiter.add(socket->fd(), File::INPUT);
 
     // do one initial send-receive with a higher timeout than the smoltcp-internal timeout to
     // workaround the high ARP-request delay with the loopback device.

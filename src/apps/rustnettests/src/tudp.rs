@@ -73,7 +73,7 @@ fn send_recv(
 ) -> Result<(usize, Endpoint), Error> {
     wv_assert_ok!(socket.send_to(send_buf, dest));
 
-    waiter.wait_for(timeout, FileEvent::INPUT);
+    waiter.wait_for(timeout);
 
     if socket.has_data() {
         socket.recv_from(recv_buf)
@@ -100,7 +100,7 @@ fn data() {
     let mut recv_buf = [0u8; 1024];
 
     let mut waiter = FileWaiter::default();
-    waiter.add(socket.fd());
+    waiter.add(socket.fd(), FileEvent::INPUT);
 
     // do one initial send-receive with a higher timeout than the smoltcp-internal timeout to
     // workaround the high ARP-request delay with the loopback device.

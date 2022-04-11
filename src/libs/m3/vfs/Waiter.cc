@@ -20,20 +20,20 @@
 
 namespace m3 {
 
-void FileWaiter::wait(uint events) {
+void FileWaiter::wait() {
     while(true) {
-        if(tick_sockets(events))
+        if(tick_sockets())
             break;
 
         Activity::sleep();
     }
 }
 
-void FileWaiter::wait_for(TimeDuration timeout, uint dirs) {
+void FileWaiter::wait_for(TimeDuration timeout) {
     auto end = TimeInstant::now() + timeout;
     auto now = TimeInstant::now();
     while(now < end) {
-        if(tick_sockets(dirs))
+        if(tick_sockets())
             break;
 
         Activity::sleep_for(end.duration_since(now));
@@ -41,11 +41,11 @@ void FileWaiter::wait_for(TimeDuration timeout, uint dirs) {
     }
 }
 
-bool FileWaiter::tick_sockets(uint events) {
+bool FileWaiter::tick_sockets() {
     bool found = false;
-    for(auto fd = _files.begin(); fd != _files.end(); ++fd) {
-        auto file = Activity::own().files()->get(*fd);
-        if(file && file->check_events(events))
+    for(auto entry = _files.begin(); entry != _files.end(); ++entry) {
+        auto file = Activity::own().files()->get(entry->first);
+        if(file && file->check_events(entry->second))
             found = true;
     }
     return found;

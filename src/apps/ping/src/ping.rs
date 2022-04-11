@@ -27,7 +27,7 @@ use m3::session::NetworkManager;
 use m3::time::{TimeDuration, TimeInstant};
 use m3::util;
 use m3::vec;
-use m3::vfs::{FileRef, FileWaiter};
+use m3::vfs::{FileEvent, FileRef, FileWaiter};
 
 #[repr(packed, C)]
 struct IPv4Header {
@@ -259,7 +259,7 @@ pub fn main() -> i32 {
     println!("PING {} {} data bytes", settings.dest, settings.nbytes);
 
     let mut waiter = FileWaiter::default();
-    waiter.add(raw_socket.fd());
+    waiter.add(raw_socket.fd(), FileEvent::INPUT | FileEvent::OUTPUT);
 
     let start = TimeInstant::now();
     for i in 1..=settings.count {

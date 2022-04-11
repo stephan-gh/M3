@@ -36,7 +36,7 @@ static ssize_t send_recv(FileWaiter &waiter, FileRef<UdpSocket> &socket, const E
                          uint8_t *recv_buf, size_t rbuf_size, Endpoint *src) {
     socket->send_to(send_buf, sbuf_size, dest);
 
-    waiter.wait_for(timeout, File::INPUT);
+    waiter.wait_for(timeout);
 
     if(socket->has_data())
         return socket->recv_from(recv_buf, rbuf_size, src);
@@ -59,7 +59,7 @@ NOINLINE static void latency() {
     Endpoint dest = Endpoint(IpAddr(192, 168, 112, 1), 1337);
 
     FileWaiter waiter;
-    waiter.add(socket->fd());
+    waiter.add(socket->fd(), File::INPUT);
 
     // do one initial send-receive with a higher timeout than the smoltcp-internal timeout to
     // workaround the high ARP-request delay with the loopback device.
@@ -123,7 +123,7 @@ NOINLINE static void bandwidth() {
     size_t received_bytes        = 0;
 
     FileWaiter waiter;
-    waiter.add(socket->fd());
+    waiter.add(socket->fd(), File::INPUT | File::OUTPUT);
 
     while(warmup--) {
         send_recv(waiter, socket, dest, request, 8, timeout,
@@ -142,10 +142,12 @@ NOINLINE static void bandwidth() {
                 if(waited > timeout)
                     break;
                 // we are not interested in output anymore
-                waiter.wait_for(timeout - waited, File::INPUT);
+                waiter.remove(socket->fd());
+                waiter.add(socket->fd(), File::INPUT);
+                waiter.wait_for(timeout - waited);
             }
             else
-                waiter.wait(File::INPUT | File::OUTPUT);
+                waiter.wait();
         }
 
         size_t send_count = burst_size;
