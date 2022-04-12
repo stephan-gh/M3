@@ -420,6 +420,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
                         1,
                     ));
                 },
+                M3FSOperation::ENABLE_NOTIFY => return Err(Error::new(Code::NotSup)),
                 _ => return Err(Error::new(Code::InvArgs)),
             },
             FSSession::Meta(m) => match op {
@@ -437,6 +438,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
                     ));
                     data.out_args().push(&id);
                 },
+                M3FSOperation::ENABLE_NOTIFY => return Err(Error::new(Code::NotSup)),
                 _ => return Err(Error::new(Code::InvArgs)),
             },
         }
