@@ -1,0 +1,40 @@
+<config>
+    <kernel args="kernel -f $fs.path" />
+    <dom>
+        <app args="root maxcli=4">
+            <app args="vterm" daemon="1">
+                <serv name="vterm" />
+                <serial />
+            </app>
+            <app args="pipes" daemon="1">
+                <serv name="pipes" />
+            </app>
+            <dom>
+                <app args="m3fs -m 4 mem $fs.size" daemon="1">
+                    <serv name="m3fs" />
+                    <physmem addr="0" size="$fs.size" />
+                </app>
+            </dom>
+            <dom>
+                <app args="pager maxcli=5 $fs.size" usermem="256M" getinfo="1">
+                    <sess name="m3fs" />
+                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <tiles type="boom+nic" count="1" />
+                    <tiles type="core" count="1" />
+                    <dom tile="boom+nic">
+                        <app args="/sbin/net net 192.168.42.200" daemon="1">
+                            <serv name="net" />
+                        </app>
+                    </dom>
+                    <app args="/bin/shell" getinfo="1">
+                        <mount fs="m3fs" path="/" />
+                        <sess name="pipes" />
+                        <sess name="vterm" />
+                        <sess name="net" args="raw=yes bufs=256K" />
+                        <tiles type="core" count="2" />
+                    </app>
+                </app>
+            </dom>
+        </app>
+    </dom>
+</config>
