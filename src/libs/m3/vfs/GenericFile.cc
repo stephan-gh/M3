@@ -147,13 +147,13 @@ size_t GenericFile::seek(size_t offset, int whence) {
     return _goff + off;
 }
 
-NOINLINE bool GenericFile::receive_notify(uint event) {
-    // if we did not request a notification for this event yet, do that now
-    if((_notify_requested & event) == 0)
-        request_notification(event);
-
-    // if we did not receive the given event, check if there is a message
+NOINLINE bool GenericFile::receive_notify(uint event, bool fetch) {
+    // not received the event yet?
     if((_notify_received & event) == 0) {
+        // if we did not request a notification for this event yet, do that now
+        if((_notify_requested & event) == 0)
+            request_notification(event);
+
         const TCU::Message *msg;
         // if there is a message, add it to the received events
         if((msg = _notify_rgate->fetch()) != nullptr) {
@@ -172,9 +172,11 @@ NOINLINE bool GenericFile::receive_notify(uint event) {
     if((_notify_received & event) == 0)
         return false;
 
-    // okay, event received; remove it and continue
-    LLOG(FS, "GenFile[" << fd() << "]::receive_notify() -> fetched " << fmt(event, "x"));
-    _notify_received &= ~event;
+    if(fetch) {
+        // okay, event received; remove it and continue
+        LLOG(FS, "GenFile[" << fd() << "]::receive_notify() -> fetched " << fmt(event, "x"));
+        _notify_received &= ~event;
+    }
 
     return true;
 }
@@ -187,7 +189,7 @@ ssize_t GenericFile::read(void *buffer, size_t count) {
     LLOG(FS, "GenFile[" << fd() << "]::read(" << count << ", pos=" << (_goff + _pos) << ")");
 
     if(_pos == _len) {
-        if(!_blocking && !receive_notify(Event::INPUT))
+        if(!_blocking && !receive_notify(Event::INPUT, true))
             return -1;
 
         GateIStream reply = send_receive_vmsg(*_sg, NEXT_IN, _id);
@@ -224,7 +226,7 @@ ssize_t GenericFile::write(const void *buffer, size_t count) {
     LLOG(FS, "GenFile[" << fd() << "]::write(" << count << ", pos=" << (_goff + _pos) << ")");
 
     if(_pos == _len) {
-        if(!_blocking && !receive_notify(Event::OUTPUT))
+        if(!_blocking && !receive_notify(Event::OUTPUT, true))
             return -1;
 
         GateIStream reply = send_receive_vmsg(*_sg, NEXT_OUT, _id);
@@ -319,11 +321,17 @@ void GenericFile::request_notification(uint events) {
     }
 }
 
+bool GenericFile::check_events(uint events) {
+    if(_blocking)
+        return true;
+    return receive_notify(events, false);
+}
+
 bool GenericFile::fetch_signal() {
     if(!_notify_rgate)
         enable_notifications();
 
-    return receive_notify(Event::SIGNAL);
+    return receive_notify(Event::SIGNAL, true);
 }
 
 void GenericFile::map(Reference<Pager> &pager, goff_t *virt, size_t fileoff, size_t len,

@@ -116,6 +116,7 @@ public:
 
 private:
     virtual void remove() noexcept override;
+    virtual bool check_events(uint events) override;
 
     bool have_sess() const noexcept {
         return (flags() & FILE_NEWSESS);
@@ -126,7 +127,7 @@ private:
     void delegate_ep();
     virtual void enable_notifications() override;
     void request_notification(uint events);
-    bool receive_notify(uint event);
+    bool receive_notify(uint event, bool fetch);
 
     size_t _fs_id;
     size_t _id;

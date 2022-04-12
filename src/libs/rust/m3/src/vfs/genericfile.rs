@@ -187,7 +187,7 @@ impl GenericFile {
         }
 
         if self.pos == self.len {
-            if !self.blocking && !self.receive_notify(FileEvent::INPUT)? {
+            if !self.blocking && !self.receive_notify(FileEvent::INPUT, true)? {
                 return Err(Error::new(Code::WouldBlock));
             }
 
@@ -212,7 +212,7 @@ impl GenericFile {
         }
 
         if self.pos == self.len {
-            if !self.blocking && !self.receive_notify(FileEvent::OUTPUT)? {
+            if !self.blocking && !self.receive_notify(FileEvent::OUTPUT, true)? {
                 return Err(Error::new(Code::WouldBlock));
             }
 
@@ -278,7 +278,7 @@ impl GenericFile {
     }
 
     #[inline(never)]
-    fn receive_notify(&mut self, event: FileEvent) -> Result<bool, Error> {
+    fn receive_notify(&mut self, event: FileEvent, fetch: bool) -> Result<bool, Error> {
         // if we did not request a notification for this event yet, do that now
         if !self
             .nb_state
@@ -309,7 +309,9 @@ impl GenericFile {
         }
 
         // okay, event received; remove it and continue
-        nb.notify_received &= !event;
+        if fetch {
+            nb.notify_received &= !event;
+        }
         Ok(true)
     }
 }
@@ -421,7 +423,16 @@ impl File for GenericFile {
     fn fetch_signal(&mut self) -> Result<bool, Error> {
         self.enable_notifications()?;
 
-        self.receive_notify(FileEvent::SIGNAL)
+        self.receive_notify(FileEvent::SIGNAL, true)
+    }
+
+    fn check_events(&mut self, events: FileEvent) -> bool {
+        if self.blocking {
+            true
+        }
+        else {
+            self.receive_notify(events, false).unwrap()
+        }
     }
 }
 
