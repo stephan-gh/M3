@@ -144,7 +144,7 @@ impl smoltcp::phy::TxToken for TxToken {
         // safety: we know that tx_buf is properly aligned and one page large
         let mut buffer = unsafe { slice::from_raw_parts_mut(self.tx_buf as *mut u8, len) };
         // fill buffer with "to be send" data
-        let res = f(&mut buffer)?;
+        let res = f(buffer)?;
 
         match unsafe { axieth_send(buffer.as_ptr(), buffer.len()) } {
             0 => Ok(res),

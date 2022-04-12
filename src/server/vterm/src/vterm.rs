@@ -190,7 +190,7 @@ impl Channel {
     fn fetch_input(&mut self, input: &mut RefMut<'_, Vec<u8>>) -> Result<(), Error> {
         // okay, input is available, so we fulfilled our promise
         self.promised_events &= !FileEvent::INPUT;
-        self.our_mem.write(&input, mem_off(self.id))?;
+        self.our_mem.write(input, mem_off(self.id))?;
         self.len = input.len();
         self.pos = 0;
 
