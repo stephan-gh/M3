@@ -584,10 +584,18 @@ impl SocketSession {
                         ep
                     );
 
-                    chan.send_data(ep, amount, |buf| {
+                    if let Err(e) = chan.send_data(ep, amount, |buf| {
                         buf[0..amount].copy_from_slice(&data[0..amount]);
-                    })
-                    .unwrap();
+                    }) {
+                        log!(
+                            crate::LOG_ERR,
+                            "[{}] socket {}: sending received packet with {}b failed: {}",
+                            socket_sd,
+                            self.server_session.ident(),
+                            amount,
+                            e
+                        );
+                    }
                     received = true;
                     amount
                 });
