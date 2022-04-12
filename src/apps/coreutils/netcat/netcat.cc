@@ -14,40 +14,163 @@
  */
 
 #include <base/stream/IStringStream.h>
+#include <base/CmdArgs.h>
 
 #include <m3/net/TcpSocket.h>
+#include <m3/net/UdpSocket.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
+#include <m3/vfs/Waiter.h>
 
 using namespace m3;
 
-int main(int argc, char **argv) {
-    if(argc != 3) {
-        cerr << "Usage: " << argv[0] << " <ip> <port>\n";
-        return 1;
+struct Buffer {
+    explicit Buffer(size_t len) : buf(new char[len]()), pos(), total() {
     }
 
-    IpAddr dest = IStringStream::read_from<IpAddr>(argv[1]);
-    int port = IStringStream::read_from<port_t>(argv[2]);
+    size_t left() const {
+        return total - pos;
+    }
+    void push(ssize_t amount) {
+        if(amount > 0) {
+            total = static_cast<size_t>(amount);
+            pos = 0;
+        }
+    }
+    void pop(ssize_t amount) {
+        if(amount > 0)
+            pos += static_cast<size_t>(amount);
+        if(pos == total)
+            pos = total = 0;
+    }
+
+    std::unique_ptr<char[]> buf;
+    size_t pos;
+    size_t total;
+};
+
+constexpr size_t INBUF_SIZE = 1024;
+constexpr size_t OUTBUF_SIZE = 1024;
+
+static void set_nonblocking(File *file) {
+    try {
+        file->set_blocking(false);
+    }
+    catch(...) {
+        // ignore it; files without non-blocking support will always immediatly provide a response
+    }
+}
+
+static FileRef<Socket> connect(NetworkManager &net, const IpAddr &ip, port_t port, bool tcp) {
+    if(tcp) {
+        auto socket = TcpSocket::create(net);
+        socket->connect(Endpoint(ip, port));
+        return socket;
+    }
+
+    auto socket = UdpSocket::create(net);
+    socket->connect(Endpoint(ip, port));
+    return socket;
+}
+
+static void usage(const char *name) {
+    cerr << "Usage: " << name << " [-t] [-u] [-v] <ip> <port>\n";
+    exit(1);
+}
+
+int main(int argc, char **argv) {
+    bool tcp     = true;
+    bool verbose = false;
+
+    int opt;
+    while((opt = CmdArgs::get(argc, argv, "vtu")) != -1) {
+        switch(opt) {
+            case 'v': verbose = true; break;
+            case 't': tcp = true; break;
+            case 'u': tcp = false; break;
+            default:
+                usage(argv[0]);
+        }
+    }
+    if(CmdArgs::is_help(argc, argv) || CmdArgs::ind + 1 >= argc)
+        usage(argv[0]);
+
+    const char *dest_str = argv[CmdArgs::ind + 0];
+    const char *port_str = argv[CmdArgs::ind + 1];
+    IpAddr dest = IStringStream::read_from<IpAddr>(dest_str);
+    int port    = IStringStream::read_from<port_t>(port_str);
 
     NetworkManager net("net");
 
-    auto socket = TcpSocket::create(net);
+    auto socket = connect(net, dest, port, tcp);
 
-    socket->connect(Endpoint(dest, port));
+    // make all files non-blocking to work with all simultaneously
+    set_nonblocking(&*socket);
+    set_nonblocking(cin.file());
+    set_nonblocking(cout.file());
 
-    socket->set_blocking(false);
+    FileWaiter waiter;
+    waiter.add(socket->fd(), File::INPUT);
+    waiter.add(cin.file()->fd(), File::INPUT);
 
-    while(!cin.eof()) {
-        try {
-            String line;
-            cin >> line;
-            socket->send(line.c_str(), line.length());
+    Buffer input(INBUF_SIZE);
+    Buffer output(OUTBUF_SIZE);
+    bool eof = false;
+    while((!tcp || socket->state() == Socket::Connected) || socket->has_data()) {
+        // if we don't have input, try to get some
+        if(!eof && input.pos == 0) {
+            // reset state in case we got a would-block error earlier
+            cin.clear_state();
+            size_t read = cin.getline(input.buf.get(), INBUF_SIZE - 1);
+
+            // if we received EOF, simply stop reading and waiting for stdin from now on
+            eof = cin.eof();
+            if(eof)
+                waiter.remove(cin.file()->fd());
+            if(verbose) {
+                if(eof)
+                    cerr << "-- read EOF from stdin\n";
+                else
+                    cerr << "-- read " << read << "b from stdin\n";
+            }
+
+            input.push(static_cast<ssize_t>(read));
+            // getline doesn't include the newline character
+            if(input.total > 0)
+                input.buf[input.total++] = '\n';
         }
-        catch(const Exception &e) {
-            cerr << e.what() << "\n";
-            return 1;
+
+        // if we have input, try to send it
+        if(input.left() > 0) {
+            ssize_t sent = socket->send(input.buf.get() + input.pos, input.left());
+            if(verbose)
+                cerr << "-- send " << sent << "b to " << socket->remote_endpoint() << "\n";
+            input.pop(sent);
         }
+
+        // if we can receive data, do it
+        if(socket->has_data()) {
+            ssize_t recv = socket->recv(output.buf.get(), OUTBUF_SIZE);
+            if(verbose)
+                cerr << "-- received " << recv << "b from " << socket->remote_endpoint() << "\n";
+            output.push(recv);
+        }
+        // if we have received data, try to output it
+        if(output.left() > 0) {
+            cout.clear_state();
+            ssize_t written = cout.write(output.buf.get() + output.pos, output.left());
+            if(verbose)
+                cerr << "-- wrote " << written << "b to stdout\n";
+            output.pop(written);
+            cout.flush();
+
+            if(output.left() > 0)
+                waiter.set(cout.file()->fd(), File::OUTPUT);
+            else
+                waiter.remove(cout.file()->fd());
+        }
+
+        waiter.wait();
     }
     return 0;
 }
