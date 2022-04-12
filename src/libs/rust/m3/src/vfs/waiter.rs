@@ -26,8 +26,21 @@ pub struct FileWaiter {
 impl FileWaiter {
     /// Adds the given file descriptor with given events to the set of files that this `FileWaiter`
     /// waits for.
+    ///
+    /// This method assumes that the file descriptor has not been given to this waiter yet.
     pub fn add(&mut self, fd: Fd, events: FileEvent) {
         self.files.push((fd, events));
+    }
+
+    /// Adds or sets the given events for the given file descriptor. If the file descriptor already
+    /// exists, the events are updated. Otherwise, a new entry is created.
+    pub fn set(&mut self, fd: Fd, events: FileEvent) {
+        if let Some((_, ref mut cur_events)) = self.files.iter_mut().find(|(id, _)| *id == fd) {
+            *cur_events = events;
+        }
+        else {
+            self.add(fd, events);
+        }
     }
 
     /// Removes the given file descriptor from the set of files that this `FileWaiter` waits for.

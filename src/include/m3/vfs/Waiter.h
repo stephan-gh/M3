@@ -29,13 +29,32 @@ public:
     }
 
     /**
-     * Adds the given file descriptor to the set of files that this FileWaiter waits for.
+     * Adds the given file descriptor to the set of files that this FileWaiter waits for. This
+     * method assumes that the file descriptor has not been given to this waiter yet.
      *
      * @param fd the file descriptor to add
      * @param events the events you are interested in for this file (see File::Event)
      */
     void add(fd_t fd, uint events) {
         _files.push_back(std::make_pair(fd, events));
+    }
+
+    /**
+     * Adds or sets the given events for the given file descriptor. If the file descriptor already
+     * exists, the events are updated. Otherwise, a new entry is created.
+     *
+     * @param fd the file descriptor to set the events for
+     * @param events the events you are interested in for this file (see File::Event)
+     */
+    void set(fd_t fd, uint events) {
+        auto existing = std::find_if(_files.begin(), _files.end(),
+            [fd](const std::pair<fd_t, uint> &f) {
+                return f.first == fd;
+            });
+        if(existing != _files.end())
+            existing->second = events;
+        else
+            add(fd, events);
     }
 
     /**
