@@ -6,7 +6,7 @@
                 <serv name="vterm" />
                 <serial />
             </app>
-            <app args="pipes -m 8" daemon="1">
+            <app args="pipes" daemon="1">
                 <serv name="pipes" />
             </app>
             <dom>
@@ -27,7 +27,7 @@
                         <mount fs="m3fs" path="/" />
                         <sess name="pipes" />
                         <sess name="vterm" />
-                        <sess name="net" args="bufs=256K" />
+                        <sess name="net" args="raw=yes bufs=256K" />
                         <tiles type="core" count="3" />
                         <tiles type="rot13" count="2" optional="1" />
                     </app>
