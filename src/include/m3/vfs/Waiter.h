@@ -44,10 +44,13 @@ public:
      * @param fd the file descriptor to remove
      */
     void remove(fd_t fd) {
-        _files.erase(std::remove_if(_files.begin(), _files.end(),
-            [fd](const std::pair<fd_t, uint> &f) {
-                return f.first == fd;
-            }));
+        _files.erase(
+            std::remove_if(_files.begin(), _files.end(),
+                [fd](const std::pair<fd_t, uint> &f) {
+                    return f.first == fd;
+                }),
+            _files.end()
+        );
     }
 
     /**
@@ -72,7 +75,7 @@ public:
     void wait_for(TimeDuration timeout);
 
 private:
-    bool tick_sockets();
+    bool tick_files();
 
     std::vector<std::pair<fd_t, uint>> _files;
 };

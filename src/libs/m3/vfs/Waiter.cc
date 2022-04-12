@@ -22,7 +22,7 @@ namespace m3 {
 
 void FileWaiter::wait() {
     while(true) {
-        if(tick_sockets())
+        if(tick_files())
             break;
 
         Activity::sleep();
@@ -33,7 +33,7 @@ void FileWaiter::wait_for(TimeDuration timeout) {
     auto end = TimeInstant::now() + timeout;
     auto now = TimeInstant::now();
     while(now < end) {
-        if(tick_sockets())
+        if(tick_files())
             break;
 
         Activity::sleep_for(end.duration_since(now));
@@ -41,7 +41,7 @@ void FileWaiter::wait_for(TimeDuration timeout) {
     }
 }
 
-bool FileWaiter::tick_sockets() {
+bool FileWaiter::tick_files() {
     bool found = false;
     for(auto entry = _files.begin(); entry != _files.end(); ++entry) {
         auto file = Activity::own().files()->get(entry->first);
