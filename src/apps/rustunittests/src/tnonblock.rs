@@ -14,19 +14,54 @@
  */
 
 use m3::com::MemGate;
+use m3::errors::Code;
 use m3::io::{Read, Write};
 use m3::kif;
 use m3::session::Pipes;
 use m3::test;
 use m3::tiles::Activity;
-use m3::vfs::{File, IndirectPipe};
-use m3::{wv_assert_eq, wv_assert_ok, wv_assert_some, wv_run_test};
+use m3::vfs::{File, IndirectPipe, OpenFlags, VFS};
+use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_assert_some, wv_run_test};
 
 const PIPE_SIZE: usize = 16;
 const DATA_SIZE: usize = PIPE_SIZE / 4;
 
 pub fn run(t: &mut dyn test::WvTester) {
+    wv_run_test!(t, files);
     wv_run_test!(t, pipes);
+}
+
+fn files() {
+    let mut fin = wv_assert_ok!(VFS::open("/mat.txt", OpenFlags::R));
+    let mut fout = wv_assert_ok!(VFS::open(
+        "/nonblocking-res.txt",
+        OpenFlags::CREATE | OpenFlags::W
+    ));
+
+    wv_assert_err!(fin.set_blocking(false), Code::NotSup);
+    wv_assert_err!(fout.set_blocking(false), Code::NotSup);
+
+    let send_data: [u8; DATA_SIZE] = *b"test";
+    let mut recv_data = [0u8; DATA_SIZE];
+
+    loop {
+        let mut progress = 0;
+
+        if let Ok(read) = fin.read(&mut recv_data) {
+            if read == 0 {
+                break;
+            }
+            progress += 1;
+        }
+
+        if fout.write(&send_data).is_ok() {
+            progress += 1;
+        }
+
+        if progress == 0 {
+            Activity::own().sleep().ok();
+        }
+    }
 }
 
 fn pipes() {
