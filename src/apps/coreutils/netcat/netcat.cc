@@ -127,6 +127,9 @@ int main(int argc, char **argv) {
             eof = cin.eof();
             if(eof)
                 waiter.remove(cin.file()->fd());
+            // getline doesn't include the newline character
+            else if(cin.good())
+                input.buf[read++] = '\n';
             if(verbose) {
                 if(eof)
                     cerr << "-- read EOF from stdin\n";
@@ -135,9 +138,6 @@ int main(int argc, char **argv) {
             }
 
             input.push(static_cast<ssize_t>(read));
-            // getline doesn't include the newline character
-            if(input.total > 0)
-                input.buf[input.total++] = '\n';
         }
 
         // if we have input, try to send it
