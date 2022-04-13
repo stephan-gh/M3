@@ -241,6 +241,7 @@ impl Socket {
                 // remote side has closed the connection?
                 else if self.state != State::RemoteClosed
                     && tcp_socket.state() == TcpState::CloseWait
+                    && !tcp_socket.can_recv()
                 {
                     self.state = State::RemoteClosed;
                     Some(SendNetEvent::CloseReq(event::CloseReqMessage::default()))
