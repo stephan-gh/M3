@@ -70,6 +70,7 @@ pub enum State {
     Bound,
     Connecting,
     Connected,
+    RemoteClosed,
 }
 
 /// Socket abstraction that unifies the different socket types
@@ -229,7 +230,7 @@ impl Socket {
                 }
             },
 
-            (SocketType::Stream, State::Connected) => {
+            (SocketType::Stream, State::Connected | State::RemoteClosed) => {
                 let tcp_socket = iface.get_socket::<TcpSocket<'_>>(self.socket);
                 if !tcp_socket.is_open() {
                     self._local_port = None;
@@ -238,7 +239,10 @@ impl Socket {
                     Some(SendNetEvent::Closed(event::ClosedMessage::default()))
                 }
                 // remote side has closed the connection?
-                else if tcp_socket.state() == TcpState::CloseWait {
+                else if self.state != State::RemoteClosed
+                    && tcp_socket.state() == TcpState::CloseWait
+                {
+                    self.state = State::RemoteClosed;
                     Some(SendNetEvent::CloseReq(event::CloseReqMessage::default()))
                 }
                 else {
@@ -374,7 +378,7 @@ impl Socket {
         match self.ty {
             SocketType::Stream => {
                 let tcp_socket = iface.get_socket::<TcpSocket<'_>>(self.socket);
-                if self.state == State::Connected {
+                if self.state == State::Connected || self.state == State::RemoteClosed {
                     let addr = tcp_socket.remote_endpoint();
                     // don't even log errors here, since they occur often and are uninteresting
                     tcp_socket
