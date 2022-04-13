@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
     Buffer input(INBUF_SIZE);
     Buffer output(OUTBUF_SIZE);
     bool eof = false;
-    while((!tcp || socket->state() == Socket::Connected) || socket->has_data()) {
+    while(true) {
         // if we don't have input, try to get some
         if(!eof && input.pos == 0) {
             // reset state in case we got a would-block error earlier
@@ -170,7 +170,11 @@ int main(int argc, char **argv) {
                 waiter.remove(cout.file()->fd());
         }
 
-        waiter.wait();
+        // continue if the socket is connected, there is data left to receive or data left to write
+        if((!tcp || socket->state() == Socket::Connected) || socket->has_data() || output.left() > 0)
+            waiter.wait();
+        else
+            break;
     }
     return 0;
 }
