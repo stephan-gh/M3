@@ -57,7 +57,7 @@ static char **build_args(Command *cmd) {
     return res;
 }
 
-static String get_pe_name(size_t no, const VarList &vars, const char *path) {
+static String get_pe_name(const VarList &vars, const char *path) {
     FStream f(path, FILE_R | FILE_X);
     if(f.bad())
         return "";
@@ -73,10 +73,7 @@ static String get_pe_name(size_t no, const VarList &vars, const char *path) {
         if(strcmp(vars.vars[i].name, "TILE") == 0)
             return expr_value(vars.vars[i].value);
     }
-    // for the first program, prefer the same tile
-    if(no == 0)
-        return "own|core";
-    // for the second, prefer another one
+    // prefer a different tile to prevent that we run out of EPs or similar
     return "core|own";
 }
 
@@ -105,7 +102,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
             return;
         }
 
-        tile_names[i] = get_pe_name(i, *list->cmds[i]->vars, expr_value(list->cmds[i]->args->args[0]));
+        tile_names[i] = get_pe_name(*list->cmds[i]->vars, expr_value(list->cmds[i]->args->args[0]));
     }
 
     size_t act_count = 0;
