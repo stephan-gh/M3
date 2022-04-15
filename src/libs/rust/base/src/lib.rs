@@ -79,6 +79,7 @@ pub mod mem;
 pub mod msgqueue;
 pub mod parse;
 pub mod quota;
+pub mod random;
 pub mod rc;
 pub mod serialize;
 pub mod time;
