@@ -26,6 +26,9 @@ pub use self::event::{NetEvent, NetEventChannel, NetEventType};
 pub mod socket;
 pub use self::socket::*;
 
+pub mod dns;
+pub use dns::DNS;
+
 /// A socket descriptor
 pub type Sd = usize;
 /// A network port
@@ -48,7 +51,7 @@ pub const INBAND_DATA_BUF_SIZE: usize = INBAND_DATA_SIZE * INBAND_DATA_CREDITS;
 pub const MAX_NETDATA_SIZE: usize = 1024;
 
 /// Represents an internet protocol (IP) address
-#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+#[derive(Debug, Default, Eq, PartialEq, Clone, Copy)]
 pub struct IpAddr(pub u32);
 
 impl IpAddr {

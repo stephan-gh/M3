@@ -40,8 +40,9 @@ int_enum! {
         const ABORT         = 15;
         const CREATE        = 16;
         const GET_IP        = 17;
-        const GET_SGATE     = 18;
-        const OPEN_FILE     = 19;
+        const GET_NAMESRV   = 18;
+        const GET_SGATE     = 19;
+        const OPEN_FILE     = 20;
     }
 }
 
@@ -108,6 +109,12 @@ impl NetworkManager {
 
         let chan = NetEventChannel::new_client(crd.start())?;
         Ok(Socket::new(sd, ty, chan))
+    }
+
+    pub(crate) fn nameserver(&self) -> Result<IpAddr, Error> {
+        let mut reply = send_recv_res!(&self.metagate, RecvGate::def(), NetworkOp::GET_NAMESRV)?;
+        let addr = IpAddr(reply.pop::<u32>()?);
+        Ok(addr)
     }
 
     pub(crate) fn bind(&self, sd: Sd, port: Port) -> Result<(IpAddr, Port), Error> {

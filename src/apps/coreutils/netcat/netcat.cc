@@ -16,6 +16,7 @@
 #include <base/stream/IStringStream.h>
 #include <base/CmdArgs.h>
 
+#include <m3/net/DNS.h>
 #include <m3/net/TcpSocket.h>
 #include <m3/net/UdpSocket.h>
 #include <m3/session/NetworkManager.h>
@@ -97,10 +98,12 @@ int main(int argc, char **argv) {
 
     const char *dest_str = argv[CmdArgs::ind + 0];
     const char *port_str = argv[CmdArgs::ind + 1];
-    IpAddr dest = IStringStream::read_from<IpAddr>(dest_str);
-    int port    = IStringStream::read_from<port_t>(port_str);
 
     NetworkManager net("net");
+
+    DNS dns;
+    IpAddr dest = dns.get_addr(net, dest_str);
+    int port    = IStringStream::read_from<port_t>(port_str);
 
     auto socket = connect(net, dest, port, tcp);
 

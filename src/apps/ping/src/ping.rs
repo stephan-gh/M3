@@ -16,12 +16,12 @@
 
 #![no_std]
 
-use m3::col::{ToString, Vec};
+use m3::col::{String, ToString, Vec};
 use m3::env;
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::mem;
-use m3::net::{self, IpAddr, RawSocket, RawSocketArgs};
+use m3::net::{self, IpAddr, RawSocket, RawSocketArgs, DNS};
 use m3::println;
 use m3::session::NetworkManager;
 use m3::time::{TimeDuration, TimeInstant};
@@ -158,7 +158,7 @@ pub struct PingSettings {
     count: u16,
     interval: u64,
     timeout: u64,
-    dest: IpAddr,
+    dest: String,
 }
 
 impl core::default::Default for PingSettings {
@@ -169,7 +169,7 @@ impl core::default::Default for PingSettings {
             count: 5,
             interval: 1000,
             timeout: 1000,
-            dest: IpAddr::unspecified(),
+            dest: String::new(),
         }
     }
 }
@@ -219,7 +219,14 @@ fn parse_args() -> Result<PingSettings, VerboseError> {
         i += 2;
     }
 
-    settings.dest = parse_arg(args[i], "IP address")?;
+    if i >= args.len() {
+        return Err(VerboseError::new(
+            Code::InvArgs,
+            "Missing arguments".to_string(),
+        ));
+    }
+
+    settings.dest = args[i].to_string();
 
     if settings.nbytes > 1024 {
         return Err(VerboseError::new(
@@ -250,13 +257,22 @@ pub fn main() -> i32 {
     .expect("creating raw socket failed");
 
     let src_ip = nm.ip_addr().expect("Unable to get own IP address");
+
+    let mut dns = DNS::default();
+    let dest_ip = dns
+        .get_addr(nm, &settings.dest, TimeDuration::from_secs(3))
+        .expect(&format!("Unable to resolve name '{}'", settings.dest));
+
     let total = mem::size_of::<IPv4Header>() + mem::size_of::<ICMP>() + settings.nbytes;
     let mut buf = vec![0u8; total];
 
     let mut sent = 0;
     let mut received = 0;
 
-    println!("PING {} {} data bytes", settings.dest, settings.nbytes);
+    println!(
+        "PING {} ({}) {} data bytes",
+        settings.dest, dest_ip, settings.nbytes
+    );
 
     let mut waiter = FileWaiter::default();
     waiter.add(raw_socket.fd(), FileEvent::INPUT | FileEvent::OUTPUT);
@@ -267,7 +283,7 @@ pub fn main() -> i32 {
             &mut buf,
             &raw_socket,
             src_ip,
-            settings.dest,
+            dest_ip,
             settings.nbytes,
             i,
             settings.ttl,

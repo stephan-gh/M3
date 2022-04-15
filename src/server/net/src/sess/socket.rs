@@ -362,11 +362,6 @@ impl SocketSession {
         false
     }
 
-    pub fn get_ip(&self, is: &mut GateIStream<'_>) -> Result<(), Error> {
-        let addr = to_m3_addr(crate::own_ip());
-        reply_vmsg!(is, Code::None as i32, addr.0)
-    }
-
     pub fn bind(
         &mut self,
         is: &mut GateIStream<'_>,
