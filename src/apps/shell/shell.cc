@@ -108,6 +108,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
     size_t act_count = 0;
     FileRef<File> infile;
     FileRef<File> outfile;
+    FileRef<File> errfile;
     for(size_t i = 0; i < list->count; ++i) {
         Command *cmd = list->cmds[i];
 
@@ -160,7 +161,8 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
         }
 
         if(tiles[i]->desc().is_programmable()) {
-            acts[i]->add_file(STDERR_FD, STDERR_FD);
+            errfile = vterm->create_channel(false);
+            acts[i]->add_file(STDERR_FD, errfile->fd());
 
             acts[i]->add_mount("/", "/");
 
