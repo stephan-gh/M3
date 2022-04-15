@@ -113,10 +113,28 @@ fn send_echo(
     sock.borrow_as().send(&buf[0..total as usize])
 }
 
-fn recv_reply(buf: &mut [u8], sock: &mut FileRef<RawSocket>) -> Result<(), VerboseError> {
+fn recv_reply(
+    buf: &mut [u8],
+    sock: &mut FileRef<RawSocket>,
+    timeout: TimeDuration,
+) -> Result<(), VerboseError> {
     let send_time = TimeInstant::now();
 
     loop {
+        // wait for a response
+        if !timeout.is_zero() {
+            let mut waiter = FileWaiter::default();
+            waiter.add(sock.fd(), FileEvent::INPUT);
+            waiter.wait_for(timeout);
+
+            if !sock.borrow_as().has_data() {
+                return Err(VerboseError::new(
+                    Code::Timeout,
+                    "ICMP reply timed out".to_string(),
+                ));
+            }
+        }
+
         sock.borrow_as().recv(buf)?;
         let recv_time = TimeInstant::now();
 
@@ -156,8 +174,8 @@ pub struct PingSettings {
     ttl: u8,
     nbytes: usize,
     count: u16,
-    interval: u64,
-    timeout: u64,
+    interval: TimeDuration,
+    timeout: TimeDuration,
     dest: String,
 }
 
@@ -167,8 +185,8 @@ impl core::default::Default for PingSettings {
             ttl: 64,
             nbytes: 56,
             count: 5,
-            interval: 1000,
-            timeout: 1000,
+            interval: TimeDuration::from_secs(1),
+            timeout: TimeDuration::ZERO,
             dest: String::new(),
         }
     }
@@ -181,7 +199,7 @@ fn usage() -> ! {
     println!("    -s <n>        : use <n> bytes of payload (default: 56)");
     println!("    -t <ttl>      : use <ttl> as time-to-live (default: 64)");
     println!("    -i <interval> : sleep <interval> ms between pings (default: 1000)");
-    println!("    -W <timeout>  : wait <timeout> ms for each reply (default: 1000)");
+    println!("    -W <timeout>  : wait <timeout> ms for each reply (default: 0 = infinite)");
     m3::exit(1);
 }
 
@@ -208,10 +226,10 @@ fn parse_args() -> Result<PingSettings, VerboseError> {
                 settings.ttl = parse_arg(args[i + 1], "time-to-live")?;
             },
             "-i" => {
-                settings.interval = parse_arg(args[i + 1], "interval")?;
+                settings.interval = TimeDuration::from_millis(parse_arg(args[i + 1], "interval")?);
             },
             "-W" => {
-                settings.timeout = parse_arg(args[i + 1], "timeout")?;
+                settings.timeout = TimeDuration::from_millis(parse_arg(args[i + 1], "timeout")?);
             },
             _ => break,
         }
@@ -291,10 +309,11 @@ pub fn main() -> i32 {
         .expect("Sending ICMP echo failed");
         sent += 1;
 
-        recv_reply(&mut buf, &mut raw_socket).expect("Receiving ICMP echo failed");
+        recv_reply(&mut buf, &mut raw_socket, settings.timeout)
+            .expect("Receiving ICMP echo failed");
         received += 1;
 
-        waiter.sleep_for(TimeDuration::from_millis(settings.interval));
+        waiter.sleep_for(settings.interval);
     }
 
     let end = TimeInstant::now();
