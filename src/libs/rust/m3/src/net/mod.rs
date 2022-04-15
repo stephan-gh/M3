@@ -20,13 +20,20 @@ use base::errors::{Code, Error};
 mod dataqueue;
 pub use self::dataqueue::DataQueue;
 
-pub mod event;
-pub use self::event::{NetEvent, NetEventChannel, NetEventType};
+mod event;
+pub use self::event::{
+    CloseReqMessage, ClosedMessage, ConnectedMessage, DataMessage, NetEvent, NetEventChannel,
+    NetEventType, MTU,
+};
 
-pub mod socket;
-pub use self::socket::*;
+mod socket;
+pub(crate) use self::socket::Socket;
+pub use self::socket::{
+    DGramSocket, DgramSocketArgs, RawSocket, RawSocketArgs, SocketArgs, State, StreamSocket,
+    StreamSocketArgs, TcpSocket, UdpSocket,
+};
 
-pub mod dns;
+mod dns;
 pub use dns::DNS;
 
 /// A socket descriptor
