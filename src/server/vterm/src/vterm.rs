@@ -34,7 +34,7 @@ use m3::session::ServerSession;
 use m3::tcu::{Label, Message};
 use m3::tiles::Activity;
 use m3::vec;
-use m3::vfs::{FileEvent, GenFileOp};
+use m3::vfs::{FileEvent, FileInfo, FileMode, GenFileOp};
 use m3::{goff, send_vmsg};
 
 pub const LOG_DEF: bool = false;
@@ -250,6 +250,17 @@ impl Channel {
         }
 
         is.reply_error(Code::None)
+    }
+
+    fn stat(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
+        let info = FileInfo {
+            mode: FileMode::IFCHR | FileMode::IRUSR | FileMode::IWUSR,
+            ..Default::default()
+        };
+
+        let mut reply = m3::mem::MsgBuf::borrow_def();
+        reply.set(info.to_response());
+        is.reply(&reply)
     }
 
     fn flush(&mut self, nbytes: usize) -> Result<(), Error> {
@@ -660,7 +671,7 @@ pub fn main() -> i32 {
                     is.reply_error(Code::None).ok();
                     hdl.close_sess(sid, is.rgate())
                 },
-                GenFileOp::STAT => Err(Error::new(Code::NotSup)),
+                GenFileOp::STAT => hdl.with_chan(is, |c, is| c.stat(is)),
                 GenFileOp::SEEK => Err(Error::new(Code::NotSup)),
                 GenFileOp::SET_TMODE => hdl.with_chan(is, |c, is| c.set_tmode(is)),
                 GenFileOp::REQ_NOTIFY => hdl.with_chan(is, |c, is| c.request_notify(is)),
