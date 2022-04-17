@@ -250,7 +250,7 @@ void ChildActivity::load(int argc, const char **argv, uintptr_t *entry, char *bu
 size_t ChildActivity::store_arguments(char *buffer, int argc, const char **argv) {
     /* copy arguments and arg pointers to buffer */
     uint64_t *argptr = reinterpret_cast<uint64_t*>(buffer);
-    char *args = buffer + static_cast<size_t>(argc) * sizeof(uint64_t);
+    char *args = buffer + static_cast<size_t>(argc + 1) * sizeof(uint64_t);
     for(int i = 0; i < argc; ++i) {
         size_t len = strlen(argv[i]);
         if(args + len >= buffer + BUF_SIZE)
@@ -259,6 +259,7 @@ size_t ChildActivity::store_arguments(char *buffer, int argc, const char **argv)
         *argptr++ = ENV_SPACE_START + static_cast<size_t>(args - buffer);
         args += len + 1;
     }
+    *argptr++ = 0;
     return static_cast<size_t>(args - buffer);
 }
 
