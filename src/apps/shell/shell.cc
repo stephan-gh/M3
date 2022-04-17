@@ -161,8 +161,10 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
         }
 
         if(tiles[i]->desc().is_programmable()) {
-            errfile = vterm->create_channel(false);
-            acts[i]->add_file(STDERR_FD, errfile->fd());
+            if(vterm)
+                errfile = vterm->create_channel(false);
+            if(errfile.is_valid())
+                acts[i]->add_file(STDERR_FD, errfile->fd());
 
             acts[i]->add_mount("/", "/");
 
