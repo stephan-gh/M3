@@ -175,7 +175,14 @@ impl FileSystem for M3FS {
     }
 
     fn mkdir(&self, path: &str, mode: FileMode) -> Result<(), Error> {
-        send_recv_res!(&self.sgate, RecvGate::def(), FSOperation::MKDIR, path, mode).map(|_| ())
+        send_recv_res!(
+            &self.sgate,
+            RecvGate::def(),
+            FSOperation::MKDIR,
+            path,
+            mode.bits()
+        )
+        .map(|_| ())
     }
 
     fn rmdir(&self, path: &str) -> Result<(), Error> {

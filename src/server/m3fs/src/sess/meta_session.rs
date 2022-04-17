@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use crate::data::{ExtPos, FileMode};
+use crate::data::ExtPos;
 use crate::ops::{dirs, inodes};
 use crate::sess::{FileSession, M3FSSession};
 
@@ -28,7 +28,7 @@ use m3::{
     server::SessId,
     session::ServerSession,
     tcu::Label,
-    vfs::OpenFlags,
+    vfs::{FileMode, OpenFlags},
 };
 
 static NEXT_PRIV_ID: StaticCell<SessId> = StaticCell::new(1);
@@ -266,7 +266,7 @@ impl M3FSSession for MetaSession {
 
     fn mkdir(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let path: &str = stream.pop()?;
-        let mode = FileMode::from_bits_truncate(stream.pop::<u32>()?) & FileMode::PERM;
+        let mode = FileMode::from_bits_truncate(stream.pop::<u16>()?) & FileMode::PERM;
 
         log!(
             crate::LOG_SESSION,
