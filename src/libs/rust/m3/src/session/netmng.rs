@@ -33,16 +33,17 @@ int_enum! {
         #[allow(non_camel_case_types)]
         const NEXT_OUT      = GenFileOp::NEXT_OUT.val;
         const COMMIT        = GenFileOp::COMMIT.val;
+        const TRUNCATE      = GenFileOp::TRUNCATE.val;
         // TODO what about GenericFile::CLOSE?
-        const BIND          = 12;
-        const LISTEN        = 13;
-        const CONNECT       = 14;
-        const ABORT         = 15;
-        const CREATE        = 16;
-        const GET_IP        = 17;
-        const GET_NAMESRV   = 18;
-        const GET_SGATE     = 19;
-        const OPEN_FILE     = 20;
+        const BIND          = 13;
+        const LISTEN        = 14;
+        const CONNECT       = 15;
+        const ABORT         = 16;
+        const CREATE        = 17;
+        const GET_IP        = 18;
+        const GET_NAMESRV   = 19;
+        const GET_SGATE     = 20;
+        const OPEN_FILE     = 21;
     }
 }
 

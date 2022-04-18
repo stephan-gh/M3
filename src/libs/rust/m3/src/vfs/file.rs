@@ -245,6 +245,11 @@ pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
         Err(Error::new(Code::NotSup))
     }
 
+    /// Truncates the file to the given length
+    fn truncate(&mut self, _length: usize) -> Result<(), Error> {
+        Err(Error::new(Code::NotSup))
+    }
+
     /// Returns the type of the file implementation used for serialization.
     fn file_type(&self) -> u8;
     /// Delegates this file to `act`.

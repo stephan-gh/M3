@@ -147,6 +147,18 @@ size_t GenericFile::seek(size_t offset, int whence) {
     return _goff + off;
 }
 
+void GenericFile::truncate(size_t length) {
+    if(_writing)
+        commit();
+
+    GateIStream reply = send_receive_vmsg(*_sg, TRUNCATE, _id, length);
+    reply.pull_result();
+    // reset position in case we were behind the truncated position
+    reply >> _goff;
+    // we've lost access to the previous extent
+    _pos = _len = 0;
+}
+
 NOINLINE bool GenericFile::receive_notify(uint event, bool fetch) {
     // not received the event yet?
     if((_notify_received & event) == 0) {

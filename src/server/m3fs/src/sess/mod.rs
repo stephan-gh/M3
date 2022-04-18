@@ -80,6 +80,13 @@ impl M3FSSession for FSSession {
         }
     }
 
+    fn truncate(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
+        match self {
+            FSSession::Meta(m) => m.truncate(stream),
+            FSSession::File(f) => f.truncate(stream),
+        }
+    }
+
     fn mkdir(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             FSSession::Meta(m) => m.mkdir(stream),
@@ -157,6 +164,9 @@ pub trait M3FSSession {
         Err(Error::new(Code::NotSup))
     }
     fn stat(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
+        Err(Error::new(Code::NotSup))
+    }
+    fn truncate(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
     fn mkdir(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {

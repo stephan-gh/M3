@@ -47,13 +47,14 @@ int_enum! {
         const NEXT_IN       = 2;
         const NEXT_OUT      = 3;
         const COMMIT        = 4;
-        const SYNC          = 5;
-        const CLOSE         = 6;
-        const CLONE         = 7;
-        const SET_TMODE     = 8;
-        const SET_DEST      = 9;
-        const ENABLE_NOTIFY = 10;
-        const REQ_NOTIFY    = 11;
+        const TRUNCATE      = 5;
+        const SYNC          = 6;
+        const CLOSE         = 7;
+        const CLONE         = 8;
+        const SET_TMODE     = 9;
+        const SET_DEST      = 10;
+        const ENABLE_NOTIFY = 11;
+        const REQ_NOTIFY    = 12;
     }
 }
 
@@ -385,6 +386,24 @@ impl File for GenericFile {
         let reply = recv_reply(RecvGate::def(), Some(&self.sgate))?;
         let resp = reply.msg().get_data::<StatResponse>();
         FileInfo::from_response(resp)
+    }
+
+    fn truncate(&mut self, length: usize) -> Result<(), Error> {
+        self.submit(false)?;
+
+        let mut reply = send_recv_res!(
+            &self.sgate,
+            RecvGate::def(),
+            GenFileOp::TRUNCATE,
+            self.file_id(),
+            length
+        )?;
+        // reset position in case we were behind the truncated position
+        self.goff = reply.pop()?;
+        // we've lost access to the previous extent
+        self.pos = 0;
+        self.len = 0;
+        Ok(())
     }
 
     fn file_type(&self) -> u8 {

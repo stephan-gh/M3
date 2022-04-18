@@ -42,6 +42,7 @@ public:
         NEXT_IN,
         NEXT_OUT,
         COMMIT,
+        TRUNCATE,
         SYNC,
         CLOSE,
         CLONE,
@@ -69,6 +70,8 @@ public:
 
     virtual ssize_t read(void *buffer, size_t count) override;
     virtual ssize_t write(const void *buffer, size_t count) override;
+
+    virtual void truncate(size_t length) override;
 
     virtual void flush() override {
         if(_writing)

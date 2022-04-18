@@ -52,6 +52,7 @@ class NetworkManager : public ClientSession {
         NEXT_IN         = GenericFile::NEXT_IN,
         NEXT_OUT        = GenericFile::NEXT_OUT,
         COMMIT          = GenericFile::COMMIT,
+        TRUNCATE        = GenericFile::TRUNCATE,
         CLOSE           = GenericFile::CLOSE,
         CLONE           = GenericFile::CLONE,
         SET_TMODE       = GenericFile::SET_TMODE,
