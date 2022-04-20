@@ -470,10 +470,9 @@ pub fn main() -> i32 {
             }
         };
 
+        let now = TimeInstant::now();
         let sleep_nanos = match next_timeout() {
-            Some(timeout) if timeout - TimeInstant::now() < sleep_nanos => {
-                timeout - TimeInstant::now()
-            },
+            Some(timeout) if timeout > now && timeout - now < sleep_nanos => timeout - now,
             _ => sleep_nanos,
         };
 
