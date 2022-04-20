@@ -30,7 +30,7 @@ typedef void (*constr_func)();
 extern constr_func CTORS_BEGIN;
 extern constr_func CTORS_END;
 
-EXTERN_C void __m3_init_libc();
+EXTERN_C void __m3_init_libc(int argc, char **argv);
 EXTERN_C void __cxa_finalize(void *);
 EXTERN_C void _init();
 EXTERN_C int main(int argc, char **argv);
@@ -70,7 +70,16 @@ void Env::call_constr() {
 void Env::run() {
     Env *e = env();
 
-    __m3_init_libc();
+    int argc = static_cast<int>(e->argc);
+    char **argv = reinterpret_cast<char**>(e->argv);
+    if(sizeof(char*) != sizeof(uint64_t)) {
+        uint64_t *argv64 = reinterpret_cast<uint64_t*>(e->argv);
+        argv = new char*[argc];
+        for(int i = 0; i < argc; ++i)
+            argv[i] = reinterpret_cast<char*>(argv64[i]);
+    }
+
+    __m3_init_libc(argc, argv);
     Env::init();
 
     int res;
@@ -78,16 +87,8 @@ void Env::run() {
         auto func = reinterpret_cast<int(*)()>(e->lambda);
         res = (*func)();
     }
-    else {
-        char **argv = reinterpret_cast<char**>(e->argv);
-        if(sizeof(char*) != sizeof(uint64_t)) {
-            uint64_t *argv64 = reinterpret_cast<uint64_t*>(e->argv);
-            argv = new char*[e->argc];
-            for(uint64_t i = 0; i < e->argc; ++i)
-                argv[i] = reinterpret_cast<char*>(argv64[i]);
-        }
-        res = main(static_cast<int>(e->argc), argv);
-    }
+    else
+        res = main(argc, argv);
 
     ::exit(res);
     UNREACHED;
