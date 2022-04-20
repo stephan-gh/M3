@@ -16,3 +16,6 @@
 [submodule "src/libs/llvmprofile"]
 	path = src/libs/llvmprofile
 	url = ../m3-llvmprofile.git
+[submodule "src/apps/bsdutils"]
+	path = src/apps/bsdutils
+	url = ../m3-bsdcoreutils.git
