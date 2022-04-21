@@ -16,6 +16,10 @@
  * General Public License version 2 for more details.
  */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE // for setenv
+#endif
+
 #include <base/stream/IStringStream.h>
 #include <base/time/Instant.h>
 
@@ -30,6 +34,7 @@
 #include <m3/tiles/ChildActivity.h>
 
 #include <memory>
+#include <stdlib.h>
 
 #include "Args.h"
 #include "Input.h"
@@ -311,6 +316,8 @@ int main(int argc, char **argv) {
         errmsg("Unable to open vterm: " << e.what());
     }
 
+    setenv("PWD", "/", 1);
+
     if(argc > 1) {
         OStringStream os;
         for(int i = 1; i < argc; ++i)
@@ -336,7 +343,7 @@ int main(int argc, char **argv) {
 
     char buffer[256];
     while(!cin.eof()) {
-        cout << "$ ";
+        cout << getenv("PWD") << " $ ";
         cout.flush();
 
         if(have_vterm)

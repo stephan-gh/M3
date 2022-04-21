@@ -30,7 +30,7 @@ typedef void (*constr_func)();
 extern constr_func CTORS_BEGIN;
 extern constr_func CTORS_END;
 
-EXTERN_C void __m3_init_libc(int argc, char **argv);
+EXTERN_C void __m3_init_libc(int argc, char **argv, char **envp);
 EXTERN_C void __cxa_finalize(void *);
 EXTERN_C void _init();
 EXTERN_C int main(int argc, char **argv);
@@ -72,6 +72,7 @@ void Env::run() {
 
     int argc = static_cast<int>(e->argc);
     char **argv = reinterpret_cast<char**>(e->argv);
+    char **envp = reinterpret_cast<char**>(e->envp);
     if(sizeof(char*) != sizeof(uint64_t)) {
         uint64_t *argv64 = reinterpret_cast<uint64_t*>(e->argv);
         argv = new char*[argc];
@@ -79,7 +80,7 @@ void Env::run() {
             argv[i] = reinterpret_cast<char*>(argv64[i]);
     }
 
-    __m3_init_libc(argc, argv);
+    __m3_init_libc(argc, argv, envp);
     Env::init();
 
     int res;

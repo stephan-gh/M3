@@ -38,6 +38,8 @@ extern "C" void *_text_end;
 extern "C" void *_data_start;
 extern "C" void *_bss_end;
 
+extern "C" char **__environ;
+
 void OwnActivity::init_state() {
     _resmng.reset(new ResMng(env()->rmng_sel));
 
@@ -82,9 +84,7 @@ void ChildActivity::do_exec(int argc, const char **argv, uintptr_t func_addr) {
     // we need a new session to be able to get memory mappings
     _exec = std::make_unique<FStream>(argv[0], FILE_RWX | FILE_NEWSESS);
 
-    uintptr_t entry;
-    size_t size;
-    load(argc, argv, &entry, buffer.get(), &size);
+    size_t size = load(&senv, argc, argv, buffer.get());
 
     senv.platform = env()->platform;
     senv.tile_id = 0;
@@ -94,7 +94,6 @@ void ChildActivity::do_exec(int argc, const char **argv, uintptr_t func_addr) {
     senv.heap_size = _pager ? APP_HEAP_SIZE : 0;
 
     senv.sp = _tile->desc().stack_top();
-    senv.entry = entry;
     senv.first_std_ep = _eps_start;
     senv.first_sel = _next_sel;
     senv.act_id = _id;
@@ -201,7 +200,7 @@ void ChildActivity::load_segment(ElfPh &pheader, char *buffer) {
     clear_mem(mem, buffer, pheader.p_memsz - pheader.p_filesz, segoff);
 }
 
-void ChildActivity::load(int argc, const char **argv, uintptr_t *entry, char *buffer, size_t *size) {
+size_t ChildActivity::load(Env *env, int argc, const char **argv, char *buffer) {
     /* load and check ELF header */
     ElfEh header;
     if(_exec->read(&header, sizeof(header)) != sizeof(header))
@@ -242,12 +241,25 @@ void ChildActivity::load(int argc, const char **argv, uintptr_t *entry, char *bu
                          Pager::MAP_UNINIT | Pager::MAP_NOLPAGE);
     }
 
-    *size = store_arguments(buffer, argc, argv);
+    size_t env_size = store_arguments(buffer, buffer, argc, argv);
 
-    *entry = header.e_entry;
+    if(__environ) {
+        int envc = 0;
+        while(__environ[envc] != NULL)
+            envc++;
+        env_size = Math::round_up(env_size, sizeof(uint64_t));
+        char *env_buf = buffer + env_size;
+        env->envp = ENV_SPACE_START + static_cast<size_t>(env_buf - buffer);
+        env_size += store_arguments(buffer, env_buf, envc, (const char**)__environ);
+    }
+    else
+        env->envp = 0;
+
+    env->entry = header.e_entry;
+    return env_size;
 }
 
-size_t ChildActivity::store_arguments(char *buffer, int argc, const char **argv) {
+size_t ChildActivity::store_arguments(char *begin, char *buffer, int argc, const char **argv) {
     /* copy arguments and arg pointers to buffer */
     uint64_t *argptr = reinterpret_cast<uint64_t*>(buffer);
     char *args = buffer + static_cast<size_t>(argc + 1) * sizeof(uint64_t);
@@ -256,7 +268,7 @@ size_t ChildActivity::store_arguments(char *buffer, int argc, const char **argv)
         if(args + len >= buffer + BUF_SIZE)
             throw Exception(Errors::INV_ARGS);
         strcpy(args, argv[i]);
-        *argptr++ = ENV_SPACE_START + static_cast<size_t>(args - buffer);
+        *argptr++ = ENV_SPACE_START + static_cast<size_t>(args - begin);
         args += len + 1;
     }
     *argptr++ = 0;

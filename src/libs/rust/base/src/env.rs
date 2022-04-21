@@ -103,3 +103,60 @@ impl iter::Iterator for Args {
 pub fn args() -> Args {
     Args { pos: 0 }
 }
+
+/// The environment-variable iterator
+///
+/// # Examples
+///
+/// ```
+/// for (key, val) in env::vars() {
+///     println!("{}={}", key, val);
+/// }
+/// ```
+pub struct Vars {
+    ptr: *const *const i8,
+}
+
+impl Vars {
+    pub fn new() -> Self {
+        Self {
+            ptr: arch::envdata::get().envp as *const *const i8,
+        }
+    }
+}
+
+impl iter::Iterator for Vars {
+    type Item = &'static str;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // safety: we assume that our loader has put valid pointers and strings in envp
+        if !self.ptr.is_null() && !unsafe { (*self.ptr).is_null() } {
+            unsafe {
+                let var = util::cstr_to_str(*self.ptr);
+                self.ptr = self.ptr.add(1);
+                Some(var)
+            }
+        }
+        else {
+            None
+        }
+    }
+}
+
+/// Return the value of the environment variable with given name
+pub fn var(key: &str) -> Option<&'static str> {
+    for (k, v) in vars() {
+        if k == key {
+            return Some(v);
+        }
+    }
+    None
+}
+
+/// Returns the environment-variable iterator
+pub fn vars() -> impl iter::Iterator<Item = (&'static str, &'static str)> {
+    Vars::new().map(|p| {
+        let mut pair = p.splitn(2, '=');
+        (pair.next().unwrap(), pair.next().unwrap())
+    })
+}

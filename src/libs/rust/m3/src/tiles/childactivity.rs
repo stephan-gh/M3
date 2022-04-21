@@ -353,6 +353,13 @@ impl ChildActivity {
             senv.set_argc(args.len());
             senv.set_argv(arch::loader::write_arguments(&mem, &mut off, args)?);
 
+            // write env vars
+            senv.set_envp(arch::loader::write_arguments(
+                &mem,
+                &mut off,
+                env::Vars::new(),
+            )?);
+
             // write file table
             {
                 let mut fds_vec = Vec::new();
