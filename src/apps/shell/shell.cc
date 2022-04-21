@@ -300,6 +300,14 @@ static void execute(Pipes &pipesrv, CmdList *list) {
     }
 }
 
+size_t prompt_len() {
+    return strlen(getenv("PWD")) + 3;
+}
+
+void print_prompt() {
+    cout << getenv("PWD") << " $ ";
+}
+
 int main(int argc, char **argv) {
     Pipes pipesrv("pipes");
 
@@ -343,7 +351,7 @@ int main(int argc, char **argv) {
 
     char buffer[256];
     while(!cin.eof()) {
-        cout << getenv("PWD") << " $ ";
+        print_prompt();
         cout.flush();
 
         if(have_vterm)

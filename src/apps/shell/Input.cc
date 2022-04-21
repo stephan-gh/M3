@@ -29,6 +29,9 @@ static std::vector<std::string> history;
 static size_t history_pos;
 static size_t tab_count;
 
+extern void print_prompt();
+extern size_t prompt_len();
+
 static std::vector<std::string> get_completions(const char *line, size_t len, size_t *prefix_len) {
     // determine prefix
     size_t prefix_start = len;
@@ -109,7 +112,9 @@ static void handle_tab(char *buffer, size_t &o) {
         for(auto &s : matches)
             cout << s.c_str() << " ";
         // and the shell prompt with the current buffer again
-        cout << "\n$ " << buffer;
+        cout << "\n";
+        print_prompt();
+        cout << buffer;
         cout.flush();
     }
 }
@@ -135,11 +140,13 @@ static void handle_backspace(char *, size_t &o) {
 
 static void reset_command(char *buffer, size_t &o, const std::string &new_cmd) {
     cout << "\r";
-    // overwrite all including "$ "
-    for(size_t i = 0; i < o + 2; ++i)
+    // overwrite all including "<PWD> $ "
+    for(size_t i = 0; i < o + prompt_len(); ++i)
         cout << " ";
     // replace with item from history
-    cout << "\r$ " << new_cmd.c_str();
+    cout << "\r";
+    print_prompt();
+    cout << new_cmd.c_str();
     cout.flush();
     o = new_cmd.size();
     memcpy(buffer, new_cmd.c_str(), o);
@@ -198,7 +205,8 @@ ssize_t Input::readline(char *buffer, size_t max) {
             return -1;
         // ^C
         if(c == 0x03) {
-            cout << "\n$ ";
+            cout << "\n";
+            print_prompt();
             o = 0;
             continue;
         }
