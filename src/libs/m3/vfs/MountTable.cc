@@ -91,18 +91,26 @@ void MountTable::add(const char *path, Reference<FileSystem> fs) {
     _count++;
 }
 
-Reference<FileSystem> MountTable::resolve(const char *path, size_t *pos) {
-    auto res = try_resolve(path, pos);
+Reference<FileSystem> MountTable::resolve(const char **path, char *buffer, size_t bufsize) {
+    auto res = try_resolve(path, buffer, bufsize);
     if(res)
         return res;
-    VTHROW(Errors::NO_SUCH_FILE, "Unable to resolve path '" << path << "'");
+    VTHROW(Errors::NO_SUCH_FILE, "Unable to resolve path '" << *path << "'");
 }
 
-Reference<FileSystem> MountTable::try_resolve(const char *path, size_t *pos) noexcept {
+Reference<FileSystem> MountTable::try_resolve(const char **path, char *buffer, size_t bufsize) noexcept {
+    if(**path != '/') {
+        OStringStream os(buffer, bufsize);
+        os << getenv("PWD") << "/" << *path;
+        *path = buffer;
+    }
+
     for(size_t i = 0; i < _count; ++i) {
-        *pos = is_in_mount(_mounts[i]->path(), path);
-        if(*pos != 0)
+        size_t pos = is_in_mount(_mounts[i]->path(), *path);
+        if(pos != 0) {
+            *path = *path + pos;
             return _mounts[i]->fs();
+        }
     }
     return Reference<FileSystem>();
 }
@@ -113,6 +121,14 @@ Reference<FileSystem> MountTable::get_by_id(size_t id) noexcept {
             return _mounts[i]->fs();
     }
     return Reference<FileSystem>();
+}
+
+const char *MountTable::path_of_id(size_t id) noexcept {
+    for(size_t i = 0; i < _count; ++i) {
+        if(_mounts[i]->fs()->id() == id)
+            return _mounts[i]->path().c_str();
+    }
+    return nullptr;
 }
 
 size_t MountTable::indexof_mount(const char *path) {

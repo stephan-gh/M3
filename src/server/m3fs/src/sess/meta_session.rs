@@ -240,6 +240,10 @@ impl M3FSSession for MetaSession {
         self.with_file_sess(stream, |f, stream| f.file_stat(stream))
     }
 
+    fn get_path(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
+        self.with_file_sess(stream, |f, stream| f.file_path(stream))
+    }
+
     fn truncate(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         self.with_file_sess(stream, |f, stream| f.file_truncate(stream))
     }

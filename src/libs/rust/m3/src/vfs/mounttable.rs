@@ -88,6 +88,14 @@ impl MountTable {
             .map(|mp| mp.fs.clone())
     }
 
+    /// Returns the mount path of the mount with given id
+    pub fn path_of_id(&self, mid: usize) -> Option<&String> {
+        self.mounts
+            .iter()
+            .find(|mp| mp.fs.borrow().id() == mid)
+            .map(|mp| &mp.path)
+    }
+
     /// Resolves the given path to the file system image and the offset of the mount point within
     /// the path.
     pub fn resolve(&self, path: &str) -> Result<(FSHandle, usize), Error> {

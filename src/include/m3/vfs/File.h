@@ -225,6 +225,13 @@ public:
     }
 
     /**
+     * @return the absolute path for this file, including its mount point
+     */
+    virtual String path() {
+        throw Exception(Errors::NOT_SUP);
+    }
+
+    /**
      * Flush the locally written data to the file system.
      */
     virtual void flush() {

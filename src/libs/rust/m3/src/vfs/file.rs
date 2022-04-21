@@ -22,6 +22,7 @@ use core::any::Any;
 use core::fmt::Debug;
 
 use crate::cap::Selector;
+use crate::col::String;
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::int_enum;
@@ -242,6 +243,11 @@ pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
 
     /// Retrieves the file information.
     fn stat(&self) -> Result<FileInfo, Error> {
+        Err(Error::new(Code::NotSup))
+    }
+
+    /// Retrieves the absolute path for this file, including its mount point.
+    fn path(&self) -> Result<String, Error> {
         Err(Error::new(Code::NotSup))
     }
 

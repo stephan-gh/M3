@@ -462,6 +462,17 @@ impl FileSession {
         stream.reply(&reply)
     }
 
+    pub fn file_path(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
+        log!(
+            crate::LOG_SESSION,
+            "[{}] file::get_path(path={})",
+            self.session_id,
+            self.filename
+        );
+
+        reply_vmsg!(stream, Code::None as u32, self.filename)
+    }
+
     pub fn file_truncate(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let off: usize = stream.pop()?;
 
@@ -669,6 +680,11 @@ impl M3FSSession for FileSession {
 
     fn fstat(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
+    }
+
+    fn get_path(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
+        let _: usize = stream.pop()?;
+        self.file_path(stream)
     }
 
     fn truncate(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {

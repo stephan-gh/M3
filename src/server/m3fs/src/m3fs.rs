@@ -132,6 +132,7 @@ int_enum! {
         const SYNC          = GenFileOp::SYNC.val;
         const CLOSE         = GenFileOp::CLOSE.val;
         const CLONE         = GenFileOp::CLONE.val;
+        const GET_PATH      = GenFileOp::GET_PATH.val;
         const SET_TMODE     = GenFileOp::SET_TMODE.val;
         const SET_DEST      = GenFileOp::SET_DEST.val;
         const ENABLE_NOTIFY = GenFileOp::ENABLE_NOTIFY.val;
@@ -218,6 +219,7 @@ impl M3FSRequestHandler {
                 Err(e) => Err(e),
             },
             M3FSOperation::STAT => self.exec_on_sess(input, |sess, is| sess.stat(is)),
+            M3FSOperation::GET_PATH => self.exec_on_sess(input, |sess, is| sess.get_path(is)),
             M3FSOperation::SEEK => self.exec_on_sess(input, |sess, is| sess.seek(is)),
             M3FSOperation::FSTAT => self.exec_on_sess(input, |sess, is| sess.fstat(is)),
             M3FSOperation::MKDIR => self.exec_on_sess(input, |sess, is| sess.mkdir(is)),

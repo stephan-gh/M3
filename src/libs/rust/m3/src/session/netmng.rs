@@ -35,15 +35,15 @@ int_enum! {
         const COMMIT        = GenFileOp::COMMIT.val;
         const TRUNCATE      = GenFileOp::TRUNCATE.val;
         // TODO what about GenericFile::CLOSE?
-        const BIND          = 13;
-        const LISTEN        = 14;
-        const CONNECT       = 15;
-        const ABORT         = 16;
-        const CREATE        = 17;
-        const GET_IP        = 18;
-        const GET_NAMESRV   = 19;
-        const GET_SGATE     = 20;
-        const OPEN_FILE     = 21;
+        const BIND          = 14;
+        const LISTEN        = 15;
+        const CONNECT       = 16;
+        const ABORT         = 17;
+        const CREATE        = 18;
+        const GET_IP        = 19;
+        const GET_NAMESRV   = 20;
+        const GET_SGATE     = 21;
+        const OPEN_FILE     = 22;
     }
 }
 

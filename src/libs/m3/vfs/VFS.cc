@@ -29,6 +29,8 @@
 
 namespace m3 {
 
+constexpr size_t MAX_PATH_LEN = 256;
+
 // clean them up after the standard streams have been destructed
 INIT_PRIO_VFS VFS::Cleanup VFS::_cleanup;
 
@@ -60,9 +62,10 @@ void VFS::unmount(const char *path) {
 
 FileRef<GenericFile> VFS::open(const char *path, int flags) {
     try {
-        size_t pos;
-        Reference<FileSystem> fs = ms()->resolve(path, &pos);
-        std::unique_ptr<GenericFile> file = fs->open(path + pos, flags);
+        char buffer[MAX_PATH_LEN];
+        const char *fs_path = path;
+        Reference<FileSystem> fs = ms()->resolve(&fs_path, buffer, sizeof(buffer));
+        std::unique_ptr<GenericFile> file = fs->open(fs_path, flags);
         auto fileref = Activity::own().files()->alloc(std::move(file));
         LLOG(FS, "GenFile[" << fileref->fd() << "]::open(" << path << ", " << flags << ")");
         if(flags & FILE_APPEND)
@@ -81,11 +84,12 @@ void VFS::stat(const char *path, FileInfo &info) {
 }
 
 Errors::Code VFS::try_stat(const char *path, FileInfo &info) noexcept {
-    size_t pos;
-    Reference<FileSystem> fs = ms()->try_resolve(path, &pos);
+    char buffer[MAX_PATH_LEN];
+    const char *fs_path = path;
+    Reference<FileSystem> fs = ms()->try_resolve(&fs_path, buffer, sizeof(buffer));
     if(!fs)
         return Errors::NO_SUCH_FILE;
-    return fs->try_stat(path + pos, info);
+    return fs->try_stat(fs_path, info);
 }
 
 void VFS::mkdir(const char *path, mode_t mode) {
@@ -95,11 +99,12 @@ void VFS::mkdir(const char *path, mode_t mode) {
 }
 
 Errors::Code VFS::try_mkdir(const char *path, mode_t mode) {
-    size_t pos;
-    Reference<FileSystem> fs = ms()->try_resolve(path, &pos);
+    char buffer[MAX_PATH_LEN];
+    const char *fs_path = path;
+    Reference<FileSystem> fs = ms()->try_resolve(&fs_path, buffer, sizeof(buffer));
     if(!fs)
         return Errors::NO_SUCH_FILE;
-    return fs->try_mkdir(path + pos, mode);
+    return fs->try_mkdir(fs_path, mode);
 }
 
 void VFS::rmdir(const char *path) {
@@ -109,11 +114,12 @@ void VFS::rmdir(const char *path) {
 }
 
 Errors::Code VFS::try_rmdir(const char *path) {
-    size_t pos;
-    Reference<FileSystem> fs = ms()->try_resolve(path, &pos);
+    char buffer[MAX_PATH_LEN];
+    const char *fs_path = path;
+    Reference<FileSystem> fs = ms()->try_resolve(&fs_path, buffer, sizeof(buffer));
     if(!fs)
         return Errors::NO_SUCH_FILE;
-    return fs->try_rmdir(path + pos);
+    return fs->try_rmdir(fs_path);
 }
 
 void VFS::link(const char *oldpath, const char *newpath) {
@@ -123,14 +129,17 @@ void VFS::link(const char *oldpath, const char *newpath) {
 }
 
 Errors::Code VFS::try_link(const char *oldpath, const char *newpath) {
-    size_t pos1, pos2;
-    Reference<FileSystem> fs1 = ms()->try_resolve(oldpath, &pos1);
-    Reference<FileSystem> fs2 = ms()->try_resolve(newpath, &pos2);
+    char buffer1[MAX_PATH_LEN];
+    char buffer2[MAX_PATH_LEN];
+    const char *fs_path1 = oldpath;
+    const char *fs_path2 = newpath;
+    Reference<FileSystem> fs1 = ms()->try_resolve(&fs_path1, buffer1, sizeof(buffer1));
+    Reference<FileSystem> fs2 = ms()->try_resolve(&fs_path2, buffer2, sizeof(buffer2));
     if(!fs1 || !fs2)
         return Errors::NO_SUCH_FILE;
     if(fs1.get() != fs2.get())
         return Errors::XFS_LINK;
-    return fs1->try_link(oldpath + pos1, newpath + pos2);
+    return fs1->try_link(fs_path1, fs_path2);
 }
 
 void VFS::unlink(const char *path) {
@@ -140,11 +149,12 @@ void VFS::unlink(const char *path) {
 }
 
 Errors::Code VFS::try_unlink(const char *path) {
-    size_t pos;
-    Reference<FileSystem> fs = ms()->try_resolve(path, &pos);
+    char buffer[MAX_PATH_LEN];
+    const char *fs_path = path;
+    Reference<FileSystem> fs = ms()->try_resolve(&fs_path, buffer, sizeof(buffer));
     if(!fs)
         return Errors::NO_SUCH_FILE;
-    return fs->try_unlink(path + pos);
+    return fs->try_unlink(fs_path);
 }
 
 void VFS::rename(const char *oldpath, const char *newpath) {
@@ -154,14 +164,17 @@ void VFS::rename(const char *oldpath, const char *newpath) {
 }
 
 Errors::Code VFS::try_rename(const char *oldpath, const char *newpath) {
-    size_t pos1, pos2;
-    Reference<FileSystem> fs1 = ms()->try_resolve(oldpath, &pos1);
-    Reference<FileSystem> fs2 = ms()->try_resolve(newpath, &pos2);
+    char buffer1[MAX_PATH_LEN];
+    char buffer2[MAX_PATH_LEN];
+    const char *fs_path1 = oldpath;
+    const char *fs_path2 = newpath;
+    Reference<FileSystem> fs1 = ms()->try_resolve(&fs_path1, buffer1, sizeof(buffer1));
+    Reference<FileSystem> fs2 = ms()->try_resolve(&fs_path2, buffer2, sizeof(buffer2));
     if(!fs1 || !fs2)
         return Errors::NO_SUCH_FILE;
     if(fs1.get() != fs2.get())
         return Errors::XFS_LINK;
-    return fs1->try_rename(oldpath + pos1, newpath + pos2);
+    return fs1->try_rename(fs_path1, fs_path2);
 }
 
 void VFS::print(OStream &os) noexcept {

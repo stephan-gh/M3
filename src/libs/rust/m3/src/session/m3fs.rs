@@ -139,7 +139,8 @@ impl FileSystem for M3FS {
             Ok(Box::new(GenericFile::new_without_sess(
                 flags,
                 self.sess.sel(),
-                (self.id(), file_id),
+                file_id,
+                self.id(),
                 self.eps[ep_idx].ep.id(),
                 self.sgate.clone(),
             )))
@@ -154,7 +155,11 @@ impl FileSystem for M3FS {
                 },
                 |_| Ok(()),
             )?;
-            Ok(Box::new(GenericFile::new(flags, crd.start())))
+            Ok(Box::new(GenericFile::new(
+                flags,
+                crd.start(),
+                Some(self.id()),
+            )))
         }
     }
 
