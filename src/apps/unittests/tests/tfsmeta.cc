@@ -36,7 +36,7 @@ static void test_path(F func, const char *in, const char *out) {
     char dst[256];
     size_t len = func(dst, sizeof(dst), in);
     WVASSERTEQ(len, strlen(out));
-    WVASSERT(strcmp(dst, out) == 0);
+    WVASSERTSTREQ(dst, out);
 }
 
 static void paths() {
@@ -52,7 +52,7 @@ static void paths() {
     WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::set_cwd("/non-existing-dir"); });
     WVASSERTERR(Errors::IS_NO_DIR, [] { VFS::set_cwd("/test.txt"); });
     VFS::set_cwd(".././bin/./.");
-    WVASSERT(strcmp(VFS::cwd(), "/bin") == 0);
+    WVASSERTSTREQ(VFS::cwd(), "/bin");
 
     test_path(VFS::abs_path, "", "/bin");
     test_path(VFS::abs_path, ".", "/bin");
