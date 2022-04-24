@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "Args.h"
+#include "Builtin.h"
 #include "Vars.h"
 
 using namespace m3;
@@ -124,7 +125,7 @@ void Args::prefix_path(ArgList *args) {
         return;
 
     const char *first = expr_value(args->args[0]);
-    if(first[0] != '/') {
+    if(first[0] != '/' && !Builtin::is_builtin(first)) {
         size_t len = strlen(first);
         char *newstr = static_cast<char*>(malloc(len + 5 + 1));
         strcpy(newstr, "/bin/");

@@ -239,7 +239,7 @@ private:
     size_t load(Env *env, int argc, const char **argv, char *buffer);
     void clear_mem(MemGate &mem, char *buffer, size_t count, uintptr_t dest);
     size_t serialize_state(Env &senv, char *buffer, size_t offset);
-    size_t store_arguments(char *begin, char *buffer, int argc, const char **argv);
+    size_t store_arguments(char *begin, char *buffer, int argc, const char *const *argv);
 
     uintptr_t get_entry();
 

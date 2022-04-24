@@ -21,6 +21,7 @@
 #include <base/Config.h>
 #include <base/mem/Heap.h>
 
+#include <m3/EnvVars.h>
 #include <m3/session/Pager.h>
 #include <m3/session/ResMng.h>
 #include <m3/stream/FStream.h>
@@ -37,8 +38,6 @@ extern "C" void *_text_start;
 extern "C" void *_text_end;
 extern "C" void *_data_start;
 extern "C" void *_bss_end;
-
-extern "C" char **__environ;
 
 void OwnActivity::init_state() {
     _resmng.reset(new ResMng(env()->rmng_sel));
@@ -243,14 +242,12 @@ size_t ChildActivity::load(Env *env, int argc, const char **argv, char *buffer) 
 
     size_t env_size = store_arguments(buffer, buffer, argc, argv);
 
-    if(__environ) {
-        int envc = 0;
-        while(__environ[envc] != NULL)
-            envc++;
+    int var_count = static_cast<int>(EnvVars::count());
+    if(var_count > 0) {
         env_size = Math::round_up(env_size, sizeof(uint64_t));
         char *env_buf = buffer + env_size;
         env->envp = ENV_SPACE_START + static_cast<size_t>(env_buf - buffer);
-        env_size += store_arguments(buffer, env_buf, envc, (const char**)__environ);
+        env_size += store_arguments(buffer, env_buf, var_count, EnvVars::vars());
     }
     else
         env->envp = 0;
@@ -259,7 +256,7 @@ size_t ChildActivity::load(Env *env, int argc, const char **argv, char *buffer) 
     return env_size;
 }
 
-size_t ChildActivity::store_arguments(char *begin, char *buffer, int argc, const char **argv) {
+size_t ChildActivity::store_arguments(char *begin, char *buffer, int argc, const char *const *argv) {
     /* copy arguments and arg pointers to buffer */
     uint64_t *argptr = reinterpret_cast<uint64_t*>(buffer);
     char *args = buffer + static_cast<size_t>(argc + 1) * sizeof(uint64_t);

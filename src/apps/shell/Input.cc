@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "Builtin.h"
 #include "Input.h"
 
 using namespace m3;
@@ -54,14 +55,23 @@ static std::vector<std::string> get_completions(const char *line, size_t len, si
     Dir::Entry e;
 
     if((*prefix || tab_count > 1) && complete_bins) {
+        Builtin::Command *builtin = Builtin::get();
+        for(size_t i = 0; builtin[i].name != nullptr; ++i) {
+            if(!*prefix || strncmp(builtin[i].name, prefix, *prefix_len) == 0)
+                matches.push_back(builtin[i].name);
+        }
+
         try {
             // we have no PATH, binary directory is hardcoded for now
             Dir bin("/bin");
             while(bin.readdir(e)) {
                 if(strcmp(e.name, ".") == 0 || strcmp(e.name, "..") == 0)
                     continue;
-                if(!*prefix || strncmp(e.name, prefix, strlen(prefix)) == 0)
-                    matches.push_back(e.name);
+                if(!*prefix || strncmp(e.name, prefix, *prefix_len) == 0) {
+                    std::string cmd(e.name);
+                    if(std::find(matches.begin(), matches.end(), cmd) == matches.end())
+                        matches.push_back(cmd);
+                }
             }
         }
         catch(const Exception &) {
@@ -69,24 +79,22 @@ static std::vector<std::string> get_completions(const char *line, size_t len, si
         }
     }
 
-    // since we have no CWD yet, paths have to start with /
-    if(*prefix == '/') {
-        const char *lastdir = strrchr(prefix, '/');
-        const char *filename = lastdir + 1;
-        if(*filename || tab_count > 1) {
-            std::string dirname(prefix, 0, 1 + static_cast<size_t>(lastdir - prefix));
-            try {
-                Dir dir(dirname.c_str());
-                while(dir.readdir(e)) {
-                    if(strcmp(e.name, ".") == 0 || strcmp(e.name, "..") == 0)
-                        continue;
-                    if(!*filename || strncmp(e.name, filename, strlen(filename)) == 0)
-                        matches.push_back(dirname + e.name);
-                }
+    const char *lastdir = strrchr(prefix, '/');
+    const char *filename = lastdir ? lastdir + 1 : prefix;
+    if(*filename || tab_count > 1) {
+        std::string dirname = lastdir ?
+            std::string(prefix, 0, 1 + static_cast<size_t>(lastdir - prefix)) : std::string();
+        try {
+            Dir dir(dirname.c_str());
+            while(dir.readdir(e)) {
+                if(strcmp(e.name, ".") == 0 || strcmp(e.name, "..") == 0)
+                    continue;
+                if(!*filename || strncmp(e.name, filename, strlen(filename)) == 0)
+                    matches.push_back(dirname + e.name);
             }
-            catch(const Exception &) {
-                // ignore failures
-            }
+        }
+        catch(const Exception &) {
+            // ignore failures
         }
     }
 

@@ -16,10 +16,6 @@
  * General Public License version 2 for more details.
  */
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE // for setenv
-#endif
-
 #include <base/stream/IStringStream.h>
 #include <base/time/Instant.h>
 
@@ -37,6 +33,7 @@
 #include <stdlib.h>
 
 #include "Args.h"
+#include "Builtin.h"
 #include "Input.h"
 #include "Parser.h"
 #include "Vars.h"
@@ -62,7 +59,7 @@ static char **build_args(Command *cmd) {
     return res;
 }
 
-static String get_pe_name(const VarList &vars, const char *path) {
+static const char *get_pe_name(const VarList &vars, const char *path) {
     FStream f(path, FILE_R | FILE_X);
     if(f.bad())
         return "";
@@ -92,7 +89,7 @@ static void execute_assignment(CmdList *list) {
 }
 
 static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
-    String tile_names[MAX_CMDS];
+    bool builtin[MAX_CMDS];
     std::unique_ptr<IndirectPipe> pipes[MAX_CMDS] = {nullptr};
     std::unique_ptr<MemGate> mems[MAX_CMDS] = {nullptr};
     // destroy the activities first to prevent errors due to destroyed communication channels
@@ -107,7 +104,16 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
             return;
         }
 
-        tile_names[i] = get_pe_name(*list->cmds[i]->vars, expr_value(list->cmds[i]->args->args[0]));
+        const char *cmd_name = expr_value(list->cmds[i]->args->args[0]);
+        builtin[i] = Builtin::is_builtin(cmd_name);
+        if(i > 0 && builtin[i]) {
+            errmsg("Builtin command cannot read from pipe");
+            return;
+        }
+        if(!builtin[i]) {
+            const char *tile_name = get_pe_name(*list->cmds[i]->vars, cmd_name);
+            tiles[i] = Tile::get(tile_name);
+        }
     }
 
     size_t act_count = 0;
@@ -117,22 +123,23 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
     for(size_t i = 0; i < list->count; ++i) {
         Command *cmd = list->cmds[i];
 
-        tiles[i] = Tile::get(tile_names[i].c_str());
-        // if we share our tile with this child activity, give it separate quotas to ensure that we get our
-        // share (we don't trust the child apps)
-        if(tiles[i]->sel() == Activity::own().tile()->sel()) {
-            Quota<uint> eps;
-            Quota<uint64_t> time;
-            Quota<size_t> pts;
-            tiles[i]->quota(&eps, &time, &pts);
-            if(eps.left > MIN_EPS && pts.left > MIN_PTS)
-                tiles[i] = tiles[i]->derive(eps.left - MIN_EPS, time.total - MIN_TIME, pts.left - MIN_PTS);
-            else
-                tiles[i] = Tile::get("core");
-        }
+        if(!builtin[i]) {
+            // if we share our tile with this child activity, give it separate quotas to ensure that we get our
+            // share (we don't trust the child apps)
+            if(tiles[i]->sel() == Activity::own().tile()->sel()) {
+                Quota<uint> eps;
+                Quota<uint64_t> time;
+                Quota<size_t> pts;
+                tiles[i]->quota(&eps, &time, &pts);
+                if(eps.left > MIN_EPS && pts.left > MIN_PTS)
+                    tiles[i] = tiles[i]->derive(eps.left - MIN_EPS, time.total - MIN_TIME, pts.left - MIN_PTS);
+                else
+                    tiles[i] = Tile::get("core");
+            }
 
-        acts[i] = std::make_unique<ChildActivity>(tiles[i], expr_value(cmd->args->args[0]));
-        act_count++;
+            acts[i] = std::make_unique<ChildActivity>(tiles[i], expr_value(cmd->args->args[0]));
+            act_count++;
+        }
 
         // I/O redirection is only supported at the beginning and end
         if((i + 1 < list->count && cmd->redirs->fds[STDOUT_FD]) ||
@@ -140,32 +147,50 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
             throw MessageException("Invalid I/O redirection");
         }
 
+        fd_t infd = STDIN_FD;
         if(i == 0) {
             if(cmd->redirs->fds[STDIN_FD])
                 infile = VFS::open(cmd->redirs->fds[STDIN_FD], FILE_R | FILE_NEWSESS);
             else if(vterm)
                 infile = vterm->create_channel(true);
             if(infile.is_valid())
-                acts[i]->add_file(STDIN_FD, infile->fd());
+                infd = infile->fd();
         }
-        else if(tiles[i - 1]->desc().is_programmable() || tiles[i]->desc().is_programmable())
-            acts[i]->add_file(STDIN_FD, pipes[i - 1]->reader().fd());
+        else if((builtin[i - 1] || tiles[i - 1]->desc().is_programmable()) ||
+                (builtin[i] || tiles[i]->desc().is_programmable()))
+            infd = pipes[i - 1]->reader().fd();
 
+        if(acts[i] && infd != STDIN_FD)
+            acts[i]->add_file(STDIN_FD, infd);
+
+        fd_t outfd = STDOUT_FD;
         if(i + 1 == list->count) {
             if(cmd->redirs->fds[STDOUT_FD])
                 outfile = VFS::open(cmd->redirs->fds[STDOUT_FD], FILE_W | FILE_CREATE | FILE_TRUNC | FILE_NEWSESS);
             else if(vterm)
                 outfile = vterm->create_channel(false);
             if(outfile.is_valid())
-                acts[i]->add_file(STDOUT_FD, outfile->fd());
+                outfd = outfile->fd();
         }
-        else if(tiles[i]->desc().is_programmable() || tiles[i + 1]->desc().is_programmable()) {
+        else if((builtin[i] || tiles[i]->desc().is_programmable()) ||
+                (builtin[i + 1] || tiles[i + 1]->desc().is_programmable())) {
             mems[i] = std::make_unique<MemGate>(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
             pipes[i] = std::make_unique<IndirectPipe>(pipesrv, *mems[i], PIPE_SHM_SIZE);
-            acts[i]->add_file(STDOUT_FD, pipes[i]->writer().fd());
+            outfd = pipes[i]->writer().fd();
         }
 
-        if(tiles[i]->desc().is_programmable()) {
+        if(acts[i] && outfd != STDOUT_FD)
+            acts[i]->add_file(STDOUT_FD, outfd);
+
+        char **args = build_args(cmd);
+
+        if(builtin[i]) {
+            Builtin::execute(args, outfd);
+            // close stdout pipe to send EOF
+            if(pipes[i])
+                pipes[i]->close_writer();
+        }
+        else if(tiles[i]->desc().is_programmable()) {
             if(vterm)
                 errfile = vterm->create_channel(false);
             if(errfile.is_valid())
@@ -173,23 +198,23 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
 
             acts[i]->add_mount("/", "/");
 
-            char **args = build_args(cmd);
             acts[i]->exec(static_cast<int>(cmd->args->count), const_cast<const char**>(args));
-            delete[] args;
         }
         else
             accels[i] = std::make_unique<StreamAccel>(acts[i], ACOMP_TIME);
 
+        delete[] args;
+
         if(i > 0 && pipes[i - 1]) {
-            if(acts[i]->tile_desc().is_programmable())
+            if(acts[i] && acts[i]->tile_desc().is_programmable())
                 pipes[i - 1]->close_reader();
-            if(acts[i - 1]->tile_desc().is_programmable())
+            if(acts[i - 1] && acts[i - 1]->tile_desc().is_programmable())
                 pipes[i - 1]->close_writer();
         }
     }
 
     // connect input/output of accelerators
-    {
+    if(act_count > 0) {
         FileRef<File> clones[act_count * 2];
         size_t c = 0;
         for(size_t i = 0; i < act_count; ++i) {
@@ -301,11 +326,11 @@ static void execute(Pipes &pipesrv, CmdList *list) {
 }
 
 size_t prompt_len() {
-    return strlen(getenv("PWD")) + 3;
+    return strlen(VFS::cwd()) + 3;
 }
 
 void print_prompt() {
-    cout << getenv("PWD") << " $ ";
+    cout << VFS::cwd() << " $ ";
 }
 
 int main(int argc, char **argv) {
@@ -324,7 +349,7 @@ int main(int argc, char **argv) {
         errmsg("Unable to open vterm: " << e.what());
     }
 
-    setenv("PWD", "/", 1);
+    VFS::set_cwd("/");
 
     if(argc > 1) {
         OStringStream os;

@@ -68,6 +68,7 @@ pub mod util;
 pub mod test;
 
 pub mod backtrace;
+pub mod borrow;
 pub mod cell;
 pub mod col;
 pub mod elf;

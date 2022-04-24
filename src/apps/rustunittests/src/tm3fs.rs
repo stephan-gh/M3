@@ -16,13 +16,15 @@
  * General Public License version 2 for more details.
  */
 
+use m3::col::ToString;
 use m3::errors::Code;
 use m3::io::Write;
 use m3::test;
 use m3::vfs::{FileMode, OpenFlags, VFS};
-use m3::{wv_assert_err, wv_assert_ok, wv_run_test};
+use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
+    wv_run_test!(t, paths);
     wv_run_test!(t, mkdir_rmdir);
     wv_run_test!(t, link_unlink);
     wv_run_test!(t, rename);
@@ -41,6 +43,38 @@ fn setup() {
 fn teardown() {
     wv_assert_ok!(VFS::unlink("/example/myfile/"));
     wv_assert_ok!(VFS::rmdir("/example/"));
+}
+
+fn paths() {
+    wv_assert_eq!(VFS::canon_path(""), "".to_string());
+    wv_assert_eq!(VFS::canon_path("."), "".to_string());
+    wv_assert_eq!(VFS::canon_path(".."), "".to_string());
+    wv_assert_eq!(VFS::canon_path(".//foo/bar"), "foo/bar".to_string());
+    wv_assert_eq!(VFS::canon_path("./foo/..///bar"), "bar".to_string());
+    wv_assert_eq!(VFS::canon_path("..//.//..//foo/../bar/.."), "".to_string());
+    wv_assert_eq!(VFS::canon_path("../.test//foo/..///"), ".test".to_string());
+    wv_assert_eq!(VFS::canon_path("/foo/..//bar"), "/bar".to_string());
+
+    wv_assert_err!(VFS::set_cwd("/non-existing-dir"), Code::NoSuchFile);
+    wv_assert_err!(VFS::set_cwd("/test.txt"), Code::IsNoDir);
+    wv_assert_ok!(VFS::set_cwd(".././bin/./."));
+    wv_assert_eq!(VFS::cwd(), "/bin".to_string());
+
+    wv_assert_eq!(VFS::abs_path(""), "/bin".to_string());
+    wv_assert_eq!(VFS::abs_path("."), "/bin".to_string());
+    wv_assert_eq!(VFS::abs_path(".."), "/bin".to_string());
+    wv_assert_eq!(VFS::abs_path(".//foo/bar"), "/bin/foo/bar".to_string());
+    wv_assert_eq!(VFS::abs_path("./foo/..///bar"), "/bin/bar".to_string());
+    wv_assert_eq!(
+        VFS::abs_path("..//.//..//foo/../bar/.."),
+        "/bin".to_string()
+    );
+    wv_assert_eq!(
+        VFS::abs_path("../.test//foo/..///"),
+        "/bin/.test".to_string()
+    );
+
+    wv_assert_ok!(VFS::set_cwd("/"));
 }
 
 fn mkdir_rmdir() {

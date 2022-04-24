@@ -20,6 +20,7 @@
 #include <m3/com/GateStream.h>
 #include <m3/session/M3FS.h>
 #include <m3/vfs/MountTable.h>
+#include <m3/vfs/VFS.h>
 #include <m3/Exception.h>
 
 namespace m3 {
@@ -101,7 +102,11 @@ Reference<FileSystem> MountTable::resolve(const char **path, char *buffer, size_
 Reference<FileSystem> MountTable::try_resolve(const char **path, char *buffer, size_t bufsize) noexcept {
     if(**path != '/') {
         OStringStream os(buffer, bufsize);
-        os << getenv("PWD") << "/" << *path;
+        const char *cwd = VFS::cwd();
+        os << cwd;
+        if(strcmp(cwd, "/") != 0)
+            os << "/";
+        os << *path;
         *path = buffer;
     }
 
