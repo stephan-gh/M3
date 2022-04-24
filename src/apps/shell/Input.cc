@@ -89,8 +89,11 @@ static std::vector<std::string> get_completions(const char *line, size_t len, si
             while(dir.readdir(e)) {
                 if(strcmp(e.name, ".") == 0 || strcmp(e.name, "..") == 0)
                     continue;
-                if(!*filename || strncmp(e.name, filename, strlen(filename)) == 0)
-                    matches.push_back(dirname + e.name);
+                if(!*filename || strncmp(e.name, filename, strlen(filename)) == 0) {
+                    std::string cmd(dirname + e.name);
+                    if(std::find(matches.begin(), matches.end(), cmd) == matches.end())
+                        matches.push_back(cmd);
+                }
             }
         }
         catch(const Exception &) {
