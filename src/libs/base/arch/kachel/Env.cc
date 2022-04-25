@@ -67,6 +67,14 @@ void Env::call_constr() {
         (*func)();
 }
 
+static char **rewrite_args(uint64_t *args, int count) {
+    char **nargs = new char*[count + 1];
+    for(int i = 0; i < count; ++i)
+        nargs[i] = reinterpret_cast<char*>(args[i]);
+    nargs[count] = nullptr;
+    return nargs;
+}
+
 void Env::run() {
     Env *e = env();
 
@@ -77,10 +85,12 @@ void Env::run() {
     char **argv = reinterpret_cast<char**>(e->argv);
     char **envp = reinterpret_cast<char**>(e->envp);
     if(sizeof(char*) != sizeof(uint64_t)) {
-        uint64_t *argv64 = reinterpret_cast<uint64_t*>(e->argv);
-        argv = new char*[argc];
-        for(int i = 0; i < argc; ++i)
-            argv[i] = reinterpret_cast<char*>(argv64[i]);
+        uint64_t *envp64 = reinterpret_cast<uint64_t*>(e->envp);
+        int envcnt = 0;
+        for(; envp64 && *envp64; envcnt++)
+            envp64++;
+        envp = rewrite_args(reinterpret_cast<uint64_t*>(e->envp), envcnt);
+        argv = rewrite_args(reinterpret_cast<uint64_t*>(e->argv), argc);
     }
 
     __m3_init_libc(argc, argv, envp);

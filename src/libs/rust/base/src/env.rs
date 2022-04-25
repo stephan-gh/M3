@@ -117,14 +117,12 @@ pub fn args() -> Args {
 /// }
 /// ```
 pub struct Vars {
-    ptr: *const *const i8,
+    pos: isize,
 }
 
 impl Vars {
     pub fn new() -> Self {
-        Self {
-            ptr: arch::envdata::get().envp as *const *const i8,
-        }
+        Self { pos: 0 }
     }
 }
 
@@ -132,11 +130,17 @@ impl iter::Iterator for Vars {
     type Item = &'static str;
 
     fn next(&mut self) -> Option<Self::Item> {
+        let args = arch::envdata::get().envp as *const u64;
+        if args.is_null() {
+            return None;
+        }
+
         // safety: we assume that our loader has put valid pointers and strings in envp
-        if !self.ptr.is_null() && !unsafe { (*self.ptr).is_null() } {
+        let arg = unsafe { *args.offset(self.pos) } as *const i8;
+        if !arg.is_null() {
             unsafe {
-                let var = util::cstr_to_str(*self.ptr);
-                self.ptr = self.ptr.add(1);
+                let var = util::cstr_to_str(arg);
+                self.pos += 1;
                 Some(var)
             }
         }
