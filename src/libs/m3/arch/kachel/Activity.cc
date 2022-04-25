@@ -73,7 +73,7 @@ void ChildActivity::run(int (*func)()) {
         delete[] argv;
 }
 
-void ChildActivity::do_exec(int argc, const char **argv, uintptr_t func_addr) {
+void ChildActivity::do_exec(int argc, const char *const *argv, uintptr_t func_addr) {
     Env senv;
     std::unique_ptr<char[]> buffer(new char[BUF_SIZE]);
 
@@ -199,7 +199,7 @@ void ChildActivity::load_segment(ElfPh &pheader, char *buffer) {
     clear_mem(mem, buffer, pheader.p_memsz - pheader.p_filesz, segoff);
 }
 
-size_t ChildActivity::load(Env *env, int argc, const char **argv, char *buffer) {
+size_t ChildActivity::load(Env *env, int argc, const char *const *argv, char *buffer) {
     /* load and check ELF header */
     ElfEh header;
     if(_exec->read(&header, sizeof(header)) != sizeof(header))

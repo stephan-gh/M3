@@ -224,10 +224,10 @@ void ChildActivity::run(int (*func)()) {
     size_t dummy;
     memcpy(&dummy, get_args_constr, sizeof(dummy));
     // execute ourself in this activity using the previously saved argc/argv
-    do_exec(argc_copy, const_cast<const char**>(argv_copy), reinterpret_cast<uintptr_t>(func));
+    do_exec(argc_copy, const_cast<const char* const*>(argv_copy), reinterpret_cast<uintptr_t>(func));
 }
 
-void ChildActivity::do_exec(int argc, const char **argv, uintptr_t func_addr) {
+void ChildActivity::do_exec(int argc, const char *const *argv, uintptr_t func_addr) {
     static char buffer[8192];
     int tmp, pid;
     ssize_t res;
