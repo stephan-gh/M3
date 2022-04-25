@@ -70,6 +70,9 @@ void Env::call_constr() {
 void Env::run() {
     Env *e = env();
 
+    // ensure that the heap is initialized before potentially cloning argv below
+    m3::Heap::init();
+
     int argc = static_cast<int>(e->argc);
     char **argv = reinterpret_cast<char**>(e->argv);
     char **envp = reinterpret_cast<char**>(e->envp);
