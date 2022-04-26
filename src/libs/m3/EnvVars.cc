@@ -40,16 +40,15 @@ extern "C" char **__environ;
 #   define environ __environ
 #endif
 
-static char **old = nullptr;
+static bool copied = false;
 
 static void env_vars_dealloc() {
-    if(old) {
-        char **e = environ;
-        for(size_t i = 0; e && *e; ++e, ++i)
-            free(environ[i]);
-        free(environ);
-        environ = nullptr;
-    }
+    assert(copied);
+    char **e = environ;
+    for(size_t i = 0; e && *e; ++e, ++i)
+        free(environ[i]);
+    free(environ);
+    environ = nullptr;
 }
 
 void EnvVars::append(char *pair) {
@@ -62,8 +61,9 @@ void EnvVars::append(char *pair) {
 }
 
 void EnvVars::copy() {
-    if(!old) {
-        old = environ;
+    if(!copied) {
+        copied = true;
+        char **old = environ;
         // allocate array with sufficient slots
         size_t total = count();
         environ = static_cast<char**>(malloc((total + 1) * sizeof(char*)));
