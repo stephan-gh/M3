@@ -53,10 +53,11 @@ int_enum! {
         const CLOSE         = 7;
         const CLONE         = 8;
         const GET_PATH      = 9;
-        const SET_TMODE     = 10;
-        const SET_DEST      = 11;
-        const ENABLE_NOTIFY = 12;
-        const REQ_NOTIFY    = 13;
+        const GET_TMODE     = 10;
+        const SET_TMODE     = 11;
+        const SET_DEST      = 12;
+        const ENABLE_NOTIFY = 13;
+        const REQ_NOTIFY    = 14;
     }
 }
 

@@ -139,6 +139,14 @@ impl Channel {
         Ok(())
     }
 
+    fn get_tmode(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
+        let _fid: usize = is.pop()?;
+
+        log!(crate::LOG_DEF, "[{}] vterm::get_tmode()", self.id,);
+
+        reply_vmsg!(is, Code::None as u32, MODE.get())
+    }
+
     fn set_tmode(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let _fid: usize = is.pop()?;
         let mode = is.pop::<Mode>()?;
@@ -673,6 +681,7 @@ pub fn main() -> i32 {
                 },
                 GenFileOp::STAT => hdl.with_chan(is, |c, is| c.stat(is)),
                 GenFileOp::SEEK => Err(Error::new(Code::NotSup)),
+                GenFileOp::GET_TMODE => hdl.with_chan(is, |c, is| c.get_tmode(is)),
                 GenFileOp::SET_TMODE => hdl.with_chan(is, |c, is| c.set_tmode(is)),
                 GenFileOp::REQ_NOTIFY => hdl.with_chan(is, |c, is| c.request_notify(is)),
                 _ => Err(Error::new(Code::InvArgs)),

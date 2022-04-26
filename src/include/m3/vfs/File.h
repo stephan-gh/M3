@@ -262,6 +262,13 @@ public:
     virtual char type() const noexcept = 0;
 
     /**
+     * @return the current terminal mode in case the server is a terminal
+     */
+    virtual TMode get_tmode() {
+        throw Exception(Errors::NOT_SUP);
+    }
+
+    /**
      * Sets the terminal mode in case the server is a terminal
      */
     virtual void set_tmode(TMode) {
