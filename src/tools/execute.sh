@@ -236,7 +236,7 @@ build_params_hw() {
     rsync -z src/tools/fpga.py "${files[@]}" "$M3_OUT/run.sh" "$hwssh:m3"
 
     ssh -t "$hwssh" "cd m3 && sh run.sh"
-    scp "$hwssh:m3/{log.txt,log/pm*}" "$M3_OUT"
+    scp "$hwssh:m3/log.txt" "$hwssh:m3/log/pm*" "$M3_OUT"
 }
 
 if [ "$M3_TARGET" = "host" ]; then
