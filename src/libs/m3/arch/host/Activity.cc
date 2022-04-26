@@ -224,10 +224,12 @@ void ChildActivity::run(int (*func)()) {
     size_t dummy;
     memcpy(&dummy, get_args_constr, sizeof(dummy));
     // execute ourself in this activity using the previously saved argc/argv
-    do_exec(argc_copy, const_cast<const char* const*>(argv_copy), reinterpret_cast<uintptr_t>(func));
+    do_exec(argc_copy, const_cast<const char* const*>(argv_copy), nullptr,
+        reinterpret_cast<uintptr_t>(func));
 }
 
-void ChildActivity::do_exec(int argc, const char *const *argv, uintptr_t func_addr) {
+void ChildActivity::do_exec(int argc, const char *const *argv, const char *const *envp,
+                            uintptr_t func_addr) {
     static char buffer[8192];
     int tmp, pid;
     ssize_t res;
@@ -304,8 +306,13 @@ void ChildActivity::do_exec(int argc, const char *const *argv, uintptr_t func_ad
         write_file(pid, "fds", buf.get(), len);
 
         Marshaller m(buf.get(), STATE_BUF_SIZE);
-        for(size_t i = 0; i < EnvVars::count(); ++i)
-            m << EnvVars::vars()[i];
+        const char *const *envvars = envp ? envp : EnvVars::vars();
+        int var_count = 0;
+        const char *const *envvarsp = envvars;
+        while(envvarsp && *envvarsp++)
+            var_count++;
+        for(int i = 0; i < var_count; ++i)
+            m << envvars[i];
         write_file(pid, "vars", buf.get(), m.total());
 
         write_file(pid, "data", _data, sizeof(_data));

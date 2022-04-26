@@ -210,8 +210,9 @@ public:
      *
      * @param argc the number of arguments to pass to the program
      * @param argv the arguments to pass (argv[0] is the executable)
+     * @param envp the environment variables to pass (nullptr = pass EnvVars::vars())
      */
-    void exec(int argc, const char *const *argv);
+    void exec(int argc, const char *const *argv, const char *const *envp = nullptr);
 
     /**
      * Executes the program of Activity::own() (argv[0]) with this activity and calls the given
@@ -234,9 +235,9 @@ private:
         );
     }
 
-    void do_exec(int argc, const char *const *argv, uintptr_t func_addr);
+    void do_exec(int argc, const char *const *argv, const char *const *envp, uintptr_t func_addr);
     void load_segment(ElfPh &pheader, char *buffer);
-    size_t load(Env *env, int argc, const char *const *argv, char *buffer);
+    size_t load(Env *env, int argc, const char *const *argv, const char *const *envp, char *buffer);
     void clear_mem(MemGate &mem, char *buffer, size_t count, uintptr_t dest);
     size_t serialize_state(Env &senv, char *buffer, size_t offset);
     size_t store_arguments(char *begin, char *buffer, int argc, const char *const *argv);

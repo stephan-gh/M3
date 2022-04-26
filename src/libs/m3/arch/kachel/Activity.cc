@@ -67,13 +67,14 @@ void ChildActivity::run(int (*func)()) {
             argv[i] = reinterpret_cast<char*>(argv64[i]);
     }
 
-    do_exec(env()->argc, const_cast<const char**>(argv), reinterpret_cast<uintptr_t>(func));
+    do_exec(env()->argc, const_cast<const char**>(argv), nullptr, reinterpret_cast<uintptr_t>(func));
 
     if(sizeof(char*) != sizeof(uint64_t))
         delete[] argv;
 }
 
-void ChildActivity::do_exec(int argc, const char *const *argv, uintptr_t func_addr) {
+void ChildActivity::do_exec(int argc, const char *const *argv, const char *const *envp,
+                            uintptr_t func_addr) {
     Env senv;
     std::unique_ptr<char[]> buffer(new char[BUF_SIZE]);
 
@@ -83,7 +84,7 @@ void ChildActivity::do_exec(int argc, const char *const *argv, uintptr_t func_ad
     // we need a new session to be able to get memory mappings
     _exec = std::make_unique<FStream>(argv[0], FILE_RWX | FILE_NEWSESS);
 
-    size_t size = load(&senv, argc, argv, buffer.get());
+    size_t size = load(&senv, argc, argv, envp, buffer.get());
 
     senv.platform = env()->platform;
     senv.tile_id = 0;
@@ -199,7 +200,8 @@ void ChildActivity::load_segment(ElfPh &pheader, char *buffer) {
     clear_mem(mem, buffer, pheader.p_memsz - pheader.p_filesz, segoff);
 }
 
-size_t ChildActivity::load(Env *env, int argc, const char *const *argv, char *buffer) {
+size_t ChildActivity::load(Env *env, int argc, const char *const *argv, const char *const *envp,
+                           char *buffer) {
     /* load and check ELF header */
     ElfEh header;
     if(_exec->read(&header, sizeof(header)) != sizeof(header))
@@ -242,12 +244,17 @@ size_t ChildActivity::load(Env *env, int argc, const char *const *argv, char *bu
 
     size_t env_size = store_arguments(buffer, buffer, argc, argv);
 
-    int var_count = static_cast<int>(EnvVars::count());
+    const char *const *envvars = envp ? envp : EnvVars::vars();
+    int var_count = 0;
+    const char *const *envvarsp = envvars;
+    while(envvarsp && *envvarsp++)
+        var_count++;
+
     if(var_count > 0) {
         env_size = Math::round_up(env_size, sizeof(uint64_t));
         char *env_buf = buffer + env_size;
         env->envp = ENV_SPACE_START + static_cast<size_t>(env_buf - buffer);
-        env_size += store_arguments(buffer, env_buf, var_count, EnvVars::vars());
+        env_size += store_arguments(buffer, env_buf, var_count, envvars);
     }
     else
         env->envp = 0;

@@ -126,8 +126,8 @@ int ChildActivity::wait() {
     return wait_async(0);
 }
 
-void ChildActivity::exec(int argc, const char *const *argv) {
-    do_exec(argc, argv, 0);
+void ChildActivity::exec(int argc, const char *const *argv, const char *const *envp) {
+    do_exec(argc, argv, envp, 0);
 }
 
 }
