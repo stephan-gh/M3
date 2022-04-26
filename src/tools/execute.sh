@@ -167,7 +167,7 @@ build_params_hw() {
     if [ -n "$M3_HW_TIMEOUT" ]; then
         args="$args --timeout=$M3_HW_TIMEOUT"
     fi
-    if [ "$M3_HW_VM" = "1" ]; then
+    if [ "$M3_HW_VM" != "0" ]; then
         args="$args --vm"
     fi
 
