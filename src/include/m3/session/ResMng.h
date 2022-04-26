@@ -75,6 +75,8 @@ public:
                 "FREE_MEM",
                 "ALLOC_TILE",
                 "FREE_TILE",
+                "USE_RGATE",
+                "USE_SGATE",
                 "USE_SEM",
             };
 
