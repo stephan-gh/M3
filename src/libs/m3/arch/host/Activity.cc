@@ -247,8 +247,14 @@ void ChildActivity::do_exec(int argc, const char *const *argv, const char *const
         throw Exception(Errors::OUT_OF_MEM);
 
     // copy executable from M3-fs to a temp file
-    while((res = bin->read(buffer, sizeof(buffer))) > 0)
+    bool first = true;
+    while((res = bin->read(buffer, sizeof(buffer))) > 0) {
+        // check here for the ELF header to try hard that the exec after the fork does not fail
+        if(first && (buffer[0] != '\x7F' || buffer[1] != 'E' || buffer[2] != 'L' || buffer[3] != 'F'))
+            throw Exception(Errors::INVALID_ELF);
         write(tmp, buffer, static_cast<size_t>(res));
+        first = false;
+    }
 
     pid = fork();
     if(pid == -1) {
