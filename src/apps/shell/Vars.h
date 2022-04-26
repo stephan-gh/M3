@@ -17,60 +17,66 @@
 #pragma once
 
 #include <base/Common.h>
-#include <base/col/SList.h>
-#include <string.h>
+
+#include <m3/EnvVars.h>
 
 #include "Parser.h"
 
+#include <stdlib.h>
+#include <string.h>
+#include <vector>
+
 class Vars {
-    struct Var : public m3::SListItem {
-        char *name;
-        char *value;
-    };
-
-    explicit Vars() : _vars() {
-    }
-
 public:
-    static Vars &get() {
-        return _inst;
+    explicit Vars() : _vars() {
+        for(size_t i = 0; i < m3::EnvVars::count(); ++i) {
+            const char *var = m3::EnvVars::vars()[i];
+            char *copy = static_cast<char*>(malloc(strlen(var) + 1));
+            strcpy(copy, var);
+            _vars.push_back(copy);
+        }
+        _vars.push_back(nullptr);
+    }
+    ~Vars() {
+        for(auto it = _vars.begin(); *it != nullptr; ++it)
+            free(const_cast<char*>(*it));
     }
 
-    const char *get(const char *name) {
-        Var *v = get_var(name);
-        return v ? v->value : "";
+    const char *const *get() const {
+        return _vars.data();
     }
 
     void set(const char *name, const char *value) {
-        Var *v = get_var(name);
-        if(!v) {
-            v = new Var;
-            v->name = new char[strlen(name) + 1];
-            strcpy(v->name, name);
-            _vars.append(v);
+        for(auto it = _vars.begin(); *it != nullptr; ++it) {
+            size_t eq_pos = static_cast<size_t>(strchr(*it, '=') - *it);
+            if(strncmp(*it, name, eq_pos) == 0 && name[eq_pos] == '\0') {
+                free(const_cast<char*>(*it));
+                *it = build_var(name, value);
+                return;
+            }
         }
-        else
-            delete[] v->value;
 
-        v->value = new char[strlen(value) + 1];
-        strcpy(v->value, value);
+        _vars[_vars.size() - 1] = build_var(name, value);
+        _vars.push_back(nullptr);
     }
 
 private:
-    Var *get_var(const char *name) {
-        for(auto it = _vars.begin(); it != _vars.end(); ++it) {
-            if(strcmp(it->name, name) == 0)
-                return &*it;
-        }
-        return nullptr;
+    char *build_var(const char *name, const char *value) {
+        size_t name_len = strlen(name);
+        char *nvar = static_cast<char*>(malloc(name_len + strlen(value) + 2));
+        strcpy(nvar, name);
+        nvar[name_len] = '=';
+        strcpy(nvar + name_len + 1, value);
+        return nvar;
     }
 
-    m3::SList<Var> _vars;
-    static Vars _inst;
+    std::vector<const char*> _vars;
 };
 
 static inline const char *expr_value(Expr *e) {
-    if(e->is_var)
-        return Vars::get().get(e->name_val);
+    if(e->is_var) {
+        const char *eval = m3::EnvVars::get(e->name_val);
+        return eval ? eval : "";
+    }
     return e->name_val;
 }

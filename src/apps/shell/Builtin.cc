@@ -16,6 +16,7 @@
 #include <m3/stream/FStream.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/VFS.h>
+#include <m3/EnvVars.h>
 
 #include <errno.h>
 #include <unistd.h>
@@ -26,10 +27,12 @@ using namespace m3;
 
 static int execute_cd(char **args, int);
 static int execute_echo(char **args, int outfd);
+static int execute_export(char **args, int outfd);
 
 Builtin::Command Builtin::commands[] = {
     {"cd", execute_cd},
     {"echo", execute_echo},
+    {"export", execute_export},
     {nullptr, nullptr},
 };
 
@@ -71,6 +74,19 @@ static int execute_echo(char **args, int outfd) {
     catch(const Exception &e) {
         cerr << "echo failed: " << e.what() << "\n";
         return 1;
+    }
+    return 0;
+}
+
+static int execute_export(char **args, int) {
+    for(size_t i = 1; args[i] != nullptr; ++i) {
+        char *eq = strchr(args[i], '=');
+        if(eq == nullptr) {
+            cerr << "Invalid variable assignment '" << args[i] << "'\n";
+            continue;
+        }
+        *eq = '\0';
+        EnvVars::set(args[i], eq + 1);
     }
     return 0;
 }

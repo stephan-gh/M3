@@ -79,15 +79,6 @@ static const char *get_pe_name(const VarList &vars, const char *path) {
     return "core|own";
 }
 
-static void execute_assignment(CmdList *list) {
-    Command *cmd = list->cmds[0];
-
-    for(size_t i = 0; i < cmd->vars->count; ++i) {
-        Var *v = cmd->vars->vars + i;
-        Vars::get().set(v->name, expr_value(v->value));
-    }
-}
-
 static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
     bool builtin[MAX_CMDS];
     std::unique_ptr<IndirectPipe> pipes[MAX_CMDS] = {nullptr};
@@ -122,6 +113,12 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
     FileRef<File> errfile;
     for(size_t i = 0; i < list->count; ++i) {
         Command *cmd = list->cmds[i];
+
+        Vars vars;
+        for(size_t i = 0; i < cmd->vars->count; ++i) {
+            Var *v = cmd->vars->vars + i;
+            vars.set(v->name, expr_value(v->value));
+        }
 
         if(!builtin[i]) {
             // if we share our tile with this child activity, give it separate quotas to ensure that we get our
@@ -198,7 +195,8 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
 
             acts[i]->add_mount("/", "/");
 
-            acts[i]->exec(static_cast<int>(cmd->args->count), const_cast<const char**>(args));
+            acts[i]->exec(static_cast<int>(cmd->args->count),
+                          const_cast<const char**>(args), vars.get());
         }
         else
             accels[i] = std::make_unique<StreamAccel>(acts[i], ACOMP_TIME);
@@ -309,16 +307,17 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
 }
 
 static void execute(Pipes &pipesrv, CmdList *list) {
+    // ignore empty commands
+    if(list->count == 1 && list->cmds[0]->args->count == 0)
+        return;
+
     for(size_t i = 0; i < list->count; ++i) {
         Args::prefix_path(list->cmds[i]->args);
         Args::expand(list->cmds[i]->args);
     }
 
     try {
-        if(list->count == 1 && list->cmds[0]->args->count == 0)
-            execute_assignment(list);
-        else
-            execute_pipeline(pipesrv, list);
+        execute_pipeline(pipesrv, list);
     }
     catch(const Exception &e) {
         errmsg("command failed: " << e.what());

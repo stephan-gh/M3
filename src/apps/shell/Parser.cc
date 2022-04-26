@@ -27,6 +27,8 @@ using namespace m3;
 static bool eof = false;
 static const char *line;
 static size_t line_pos;
+static bool seen_eq = false;
+static bool in_vars = true;
 CmdList *curcmd;
 extern YYSTYPE yylval;
 
@@ -61,7 +63,12 @@ EXTERN_C int yylex() {
                 start = line_pos + 1;
                 in_str = true;
             }
-            else if(c == '|' || c == ';' || c == '>' || c == '<'  || c == '=' || c == '$') {
+            else if(c == '|' || c == ';' || c == '>' || c == '<' || c == '$' ||
+                    (in_vars && c == '=')) {
+                if(c == '|' || c == ';')
+                    in_vars = true;
+                else if(c == '=')
+                    seen_eq = true;
                 if(line_pos == start) {
                     line_pos++;
                     return c;
@@ -74,8 +81,12 @@ EXTERN_C int yylex() {
                 break;
             }
             if(c == ' ' || c == '\t') {
-                if(line_pos > start)
+                if(line_pos > start) {
+                    if(!seen_eq)
+                        in_vars = false;
+                    seen_eq = false;
                     break;
+                }
                 start++;
             }
             line_pos++;
@@ -212,6 +223,8 @@ CmdList *parse_command(const char *_line) {
     curcmd = nullptr;
     line = _line;
     line_pos = 0;
+    in_vars = true;
+    seen_eq = false;
     yyparse();
     return curcmd;
 }
