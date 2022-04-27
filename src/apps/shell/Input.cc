@@ -15,6 +15,7 @@
 
 #include <m3/stream/Standard.h>
 #include <m3/vfs/Dir.h>
+#include <m3/EnvVars.h>
 
 #include <algorithm>
 #include <ctype.h>
@@ -38,6 +39,29 @@ static std::vector<std::string> get_completions(const char *line, size_t len, si
     size_t prefix_start = len;
     while(prefix_start > 0 && !isspace(line[prefix_start - 1]))
         prefix_start--;
+
+    const char *prefix = line + prefix_start;
+    *prefix_len = len - prefix_start;
+    std::vector<std::string> matches;
+
+    // should we complete variables?
+    if(*prefix == '$') {
+        auto vars = EnvVars::vars();
+        for(size_t i = 0; vars[i] != nullptr; ++i) {
+            size_t name_len = static_cast<size_t>(strchr(vars[i], '=') - vars[i]);
+            size_t cmp_len = Math::min(name_len, *prefix_len - 1);
+            if(!prefix[1] || strncmp(vars[i], prefix + 1, cmp_len) == 0) {
+                char varname[128];
+                OStringStream os(varname, sizeof(varname));
+                os << '$';
+                for(size_t j = 0; j + 1 < ARRAY_SIZE(varname) && j < name_len; ++j)
+                    os << vars[i][j];
+                matches.push_back(os.str());
+            }
+        }
+        return matches;
+    }
+
     // check whether we should complete binaries or a path
     bool complete_bins = true;
     for(ssize_t i = static_cast<ssize_t>(prefix_start) - 1; i >= 0; --i) {
@@ -49,11 +73,7 @@ static std::vector<std::string> get_completions(const char *line, size_t len, si
         }
     }
 
-    const char *prefix = line + prefix_start;
-    *prefix_len = len - prefix_start;
-    std::vector<std::string> matches;
-    Dir::Entry e;
-
+    // complete binaries
     if((*prefix || tab_count > 1) && complete_bins) {
         Builtin::Command *builtin = Builtin::get();
         for(size_t i = 0; builtin[i].name != nullptr; ++i) {
@@ -62,6 +82,7 @@ static std::vector<std::string> get_completions(const char *line, size_t len, si
         }
 
         try {
+            Dir::Entry e;
             // we have no PATH, binary directory is hardcoded for now
             Dir bin("/bin");
             while(bin.readdir(e)) {
@@ -79,12 +100,14 @@ static std::vector<std::string> get_completions(const char *line, size_t len, si
         }
     }
 
+    // complete other files
     const char *lastdir = strrchr(prefix, '/');
     const char *filename = lastdir ? lastdir + 1 : prefix;
     if(*filename || tab_count > 1) {
         std::string dirname = lastdir ?
             std::string(prefix, 0, 1 + static_cast<size_t>(lastdir - prefix)) : std::string();
         try {
+            Dir::Entry e;
             Dir dir(dirname.c_str());
             while(dir.readdir(e)) {
                 if(strcmp(e.name, ".") == 0 || strcmp(e.name, "..") == 0)
