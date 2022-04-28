@@ -14,7 +14,6 @@
  */
 
 #if defined(__kachel__)
-#   define _GNU_SOURCE
 #   include <stdlib.h>
 #endif
 

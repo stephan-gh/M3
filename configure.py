@@ -249,7 +249,7 @@ env['CXXFLAGS']     += [
     '-ffreestanding', '-fno-strict-aliasing', '-gdwarf-2', '-fno-omit-frame-pointer',
     '-fno-threadsafe-statics', '-fno-stack-protector', '-Wno-address-of-packed-member'
 ]
-env['CPPFLAGS']     += ['-U_FORTIFY_SOURCE']
+env['CPPFLAGS']     += ['-U_FORTIFY_SOURCE', '-D_GNU_SOURCE']
 env['CFLAGS']       += ['-gdwarf-2', '-fno-stack-protector']
 env['ASFLAGS']      += ['-Wl,-W', '-Wall', '-Wextra']
 env['LINKFLAGS']    += ['-Wl,--no-gc-sections', '-Wno-lto-type-mismatch', '-fno-stack-protector']

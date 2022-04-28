@@ -19,7 +19,6 @@
 #include <m3/tiles/ChildActivity.h>
 #include <m3/Test.h>
 
-#define _GNU_SOURCE // for NI_MAXSERV
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>

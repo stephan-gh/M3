@@ -16,10 +16,6 @@
  * General Public License version 2 for more details.
  */
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE // for setenv
-#endif
-
 #include <base/log/Lib.h>
 #include <base/stream/Serial.h>
 #include <base/Init.h>

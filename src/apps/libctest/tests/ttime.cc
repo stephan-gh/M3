@@ -17,7 +17,6 @@
 
 #include <m3/Test.h>
 
-#define _GNU_SOURCE
 #include <sys/time.h>
 #include <time.h>
 

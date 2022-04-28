@@ -13,10 +13,6 @@
  * General Public License version 2 for more details.
  */
 
-#ifndef _GNU_SOURCE
-#   define _GNU_SOURCE // for strdup
-#endif
-
 #include <base/util/Math.h>
 #include <base/Env.h>
 
