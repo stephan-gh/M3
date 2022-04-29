@@ -24,13 +24,8 @@
 #include <base/Errors.h>
 #include <base/Env.h>
 
-#include <assert.h>
-#include <iomanip>
 #include <limits>
-#include <ostream>
 #include <pthread.h>
-#include <time.h>
-#include <unistd.h>
 
 #define TOTAL_EPS            128
 #define AVAIL_EPS            TOTAL_EPS
@@ -282,15 +277,9 @@ public:
         return _tid;
     }
 
-    uint64_t nanotime() const {
-        struct timespec ts;
-        clock_gettime(CLOCK_REALTIME, &ts);
-        return static_cast<cycles_t>(ts.tv_sec) * 1000000000 + static_cast<cycles_t>(ts.tv_nsec);
-    }
+    uint64_t nanotime() const;
 
-    void sleep() const {
-        usleep(1);
-    }
+    void sleep() const;
     void wait_for_msg(epid_t, uint64_t timeout) {
         set_cmd(CMD_OFFSET, timeout);
         set_cmd(CMD_CTRL, static_cast<word_t>(SLEEP << OPCODE_SHIFT) | CTRL_START);

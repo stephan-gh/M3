@@ -585,6 +585,16 @@ Errors::Code TCU::perform_transfer(epid_t ep, uintptr_t data_addr, size_t size,
     return Errors::NONE;
 }
 
+uint64_t TCU::nanotime() const {
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    return static_cast<cycles_t>(ts.tv_sec) * 1000000000 + static_cast<cycles_t>(ts.tv_nsec);
+}
+
+void TCU::sleep() const {
+    usleep(1);
+}
+
 Errors::Code TCU::exec_command() {
     _backend->send_command();
     while(!_backend->recv_ack())
