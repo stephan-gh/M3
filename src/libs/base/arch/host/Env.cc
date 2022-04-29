@@ -27,6 +27,7 @@
 #include <fstream>
 #include <unistd.h>
 #include <fcntl.h>
+#include <libgen.h>
 
 #ifndef NDEBUG
 volatile int wait_for_debugger = 1;
