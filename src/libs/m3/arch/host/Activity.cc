@@ -176,11 +176,15 @@ void OwnActivity::init_fs() {
     memset(buf.get(), 0, len);
     if(read_from("ms", buf.get(), len))
         _ms.reset(MountTable::unserialize(buf.get(), len));
+    else
+        _ms.reset(new MountTable());
 
     len = STATE_BUF_SIZE;
     memset(buf.get(), 0, len);
     if(read_from("fds", buf.get(), len))
         _fds.reset(FileTable::unserialize(buf.get(), len));
+    else
+        _fds.reset(new FileTable());
 
     len = sizeof(_data);
     read_from("data", _data, len);
