@@ -611,7 +611,7 @@ static volatile int childs = 0;
 
 static void sigchild(int) {
     childs++;
-    signal(SIGCLD, sigchild);
+    signal(SIGCHLD, sigchild);
 }
 
 void *TCU::thread(void *arg) {
@@ -619,7 +619,7 @@ void *TCU::thread(void *arg) {
     tileid_t tile = env()->tile_id;
 
     if(tile != 0)
-        signal(SIGCLD, sigchild);
+        signal(SIGCHLD, sigchild);
     else
         dma->_backend->bind_knotify();
 
