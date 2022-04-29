@@ -30,8 +30,8 @@
 #include <m3/vfs/MountTable.h>
 #include <m3/vfs/VFS.h>
 
-#include <sys/fcntl.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
 
