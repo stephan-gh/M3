@@ -169,7 +169,7 @@ class Env:
                 objs.append(self.cc(gen, BuildPath.with_ending(self, i, '.o'), [i]))
             elif i.endswith('.cc') or i.endswith('.cpp'):
                 objs.append(self.cxx(gen, BuildPath.with_ending(self, i, '.o'), [i]))
-            elif i.endswith('.o'):
+            elif i.endswith('.o') or i.endswith('.a'):
                 objs.append(BuildPath.new(self, i))
         return objs
 
