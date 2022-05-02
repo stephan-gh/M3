@@ -24,7 +24,7 @@ const TimeDuration TimeDuration::NANOSECOND = TimeDuration::from_nanos(1);
 const TimeDuration TimeDuration::MICROSECOND = TimeDuration::from_nanos(1000);
 const TimeDuration TimeDuration::MILLISECOND = TimeDuration::from_nanos(1000 * 1000);
 const TimeDuration TimeDuration::SECOND = TimeDuration::from_nanos(1000 * 1000 * 1000);
-const TimeDuration TimeDuration::MAX = TimeDuration::from_nanos(0xFFFFFFFFFFFFFFFF);
+const TimeDuration TimeDuration::MAX = TimeDuration::from_nanos(0xFFFF'FFFF'FFFF'FFFF);
 const TimeDuration TimeDuration::ZERO = TimeDuration::from_nanos(0);
 
 }

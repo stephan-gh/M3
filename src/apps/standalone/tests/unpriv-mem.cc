@@ -161,8 +161,8 @@ static void test_unaligned_rdwr(size_t nwords, size_t offset) {
 
     // prepare test data
     UnalignedData<PAD> msg;
-    msg.pre = 0xDEADBEEF;
-    msg.post = 0xCAFEBABE;
+    msg.pre = 0xDEAD'BEEF;
+    msg.post = 0xCAFE'BABE;
     for(size_t i = 0; i < nwords; ++i)
         msg.data[i] = i + 1;
 
@@ -171,8 +171,8 @@ static void test_unaligned_rdwr(size_t nwords, size_t offset) {
     ASSERT_EQ(kernel::TCU::write(MEP, msg.data, nwords * sizeof(uint64_t), offset), Errors::NONE);
     ASSERT_EQ(kernel::TCU::read(MEP, msg.data, nwords * sizeof(uint64_t), offset), Errors::NONE);
 
-    ASSERT_EQ(msg.pre, 0xDEADBEEF);
-    ASSERT_EQ(msg.post, 0xCAFEBABE);
+    ASSERT_EQ(msg.pre, 0xDEAD'BEEF);
+    ASSERT_EQ(msg.post, 0xCAFE'BABE);
     for(size_t i = 0; i < nwords; ++i)
         ASSERT_EQ(msg.data[i], i + 1);
 }

@@ -335,7 +335,7 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
             uint64_t value = strtoul(match[1].str().c_str(), NULL, 16);
             if(value >> 48 != 0) {
                 event_type type = static_cast<event_type>(value >> 48);
-                uint64_t acttag = value & 0xFFFFFFFFFFFF;
+                uint64_t acttag = value & 0xFFFF'FFFF'FFFF;
                 buf.push_back(build_event(type, timestamp, tile, "", "", acttag));
             }
         }

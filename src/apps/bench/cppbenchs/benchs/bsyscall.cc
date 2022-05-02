@@ -109,7 +109,7 @@ NOINLINE static void create_map() {
         return;
     }
 
-    constexpr capsel_t DEST = 0x30000000 >> PAGE_BITS;
+    constexpr capsel_t DEST = 0x3000'0000 >> PAGE_BITS;
 
     struct SyscallMapRunner : public Runner {
         explicit SyscallMapRunner() : mgate(MemGate::create_global(PAGE_SIZE * 2, MemGate::RW)) {

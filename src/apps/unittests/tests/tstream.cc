@@ -116,7 +116,7 @@ static void ostream() {
     STREAM_CHECK(1 << 2 << 3,
         "123");
 
-    STREAM_CHECK(0x12345678 << "  " << 1.2f << ' ' << '4' << "\n",
+    STREAM_CHECK(0x1234'5678 << "  " << 1.2f << ' ' << '4' << "\n",
         "305419896  1.200 4\n");
 
     STREAM_CHECK(fmt(1, 2) << ' ' << fmt(123, "0", 10) << ' ' << fmt(0xA23, "#0x", 8),
@@ -132,7 +132,7 @@ static void ostream() {
         "0X0DEAD   tes foo ");
 
     OStringStream os(str, sizeof(str));
-    os << fmt(0xdeadbeef, "p") << ", " << fmt(0x12345678, "x");
+    os << fmt(0xdead'beef, "p") << ", " << fmt(0x1234'5678, "x");
     if(sizeof(uintptr_t) == 4)
         WVASSERTEQ(str, StringRef("0xdeadbeef, 12345678"));
     else if(sizeof(uintptr_t) == 8)

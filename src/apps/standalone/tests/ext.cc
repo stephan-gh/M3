@@ -26,7 +26,7 @@ static void test_inv_ep() {
     uintptr_t buf = reinterpret_cast<uintptr_t>(&rbuffer);
 
     MsgBuf msg;
-    msg.cast<uint64_t>() = 0xDEADBEEF;
+    msg.cast<uint64_t>() = 0xDEAD'BEEF;
 
     Serial::get() << "force invalidation\n";
     {

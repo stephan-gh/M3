@@ -53,7 +53,7 @@ class TCU {
 public:
     typedef uint64_t reg_t;
 
-    static const uintptr_t MMIO_ADDR        = 0xF0000000;
+    static const uintptr_t MMIO_ADDR        = 0xF000'0000;
     static const size_t MMIO_SIZE           = PAGE_SIZE * 2;
     static const uintptr_t MMIO_PRIV_ADDR   = MMIO_ADDR + MMIO_SIZE;
     static const size_t MMIO_PRIV_SIZE      = PAGE_SIZE;

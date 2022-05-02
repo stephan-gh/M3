@@ -156,7 +156,7 @@ public:
         *q = node;
         // fibonacci hashing to spread the priorities very even in the 32-bit room
         node->_prio = _prio;
-        _prio += 0x9e3779b9;    // floor(2^32 / phi), with phi = golden ratio
+        _prio += 0x9e37'79b9;    // floor(2^32 / phi), with phi = golden ratio
 
         // At this point we want to split the binary search tree p into two parts based on the
         // given key, forming the left and right subtrees of the new node q. The effect will be

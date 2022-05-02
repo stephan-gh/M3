@@ -18,11 +18,11 @@
 EXTERN_C void gem5_writefile(const char *str, uint64_t len, uint64_t offset, uint64_t file) {
     register word_t r0 asm("r0") = reinterpret_cast<word_t>(str);
     register word_t r1 asm("r1") = 0;
-    register word_t r2 asm("r2") = len & 0xFFFFFFFF;
+    register word_t r2 asm("r2") = len & 0xFFFF'FFFF;
     register word_t r3 asm("r3") = len >> 32;
-    register word_t r4 asm("r4") = offset & 0xFFFFFFFF;
+    register word_t r4 asm("r4") = offset & 0xFFFF'FFFF;
     register word_t r5 asm("r5") = offset >> 32;
-    register word_t r6 asm("r6") = file & 0xFFFFFFFF;
+    register word_t r6 asm("r6") = file & 0xFFFF'FFFF;
     register word_t r7 asm("r7") = file >> 32;
     asm volatile(
         ".long 0xEE4F0110"
@@ -33,9 +33,9 @@ EXTERN_C void gem5_writefile(const char *str, uint64_t len, uint64_t offset, uin
 EXTERN_C ssize_t gem5_readfile(char *dst, uint64_t max, uint64_t offset) {
     register word_t r0 asm("r0") = reinterpret_cast<word_t>(dst);
     register word_t r1 asm("r1") = 0;
-    register word_t r2 asm("r2") = max & 0xFFFFFFFF;
+    register word_t r2 asm("r2") = max & 0xFFFF'FFFF;
     register word_t r3 asm("r3") = max >> 32;
-    register word_t r4 asm("r4") = offset & 0xFFFFFFFF;
+    register word_t r4 asm("r4") = offset & 0xFFFF'FFFF;
     register word_t r5 asm("r5") = offset >> 32;
     asm volatile(
         ".long 0xEE500110"

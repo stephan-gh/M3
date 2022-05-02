@@ -30,7 +30,7 @@ static const size_t PAGES = 64;
 NOINLINE static void anon() {
     Profile pr(4, 4);
     WVPERF("anon mapping (64 pages)", pr.run<CycleInstant>([] {
-        goff_t virt = 0x30000000;
+        goff_t virt = 0x3000'0000;
         Activity::own().pager()->map_anon(&virt, PAGES * PAGE_SIZE, Pager::READ | Pager::WRITE, 0);
 
         auto data = reinterpret_cast<char*>(virt);
@@ -46,7 +46,7 @@ NOINLINE static void file() {
     WVPERF("file mapping (64 pages)", pr.run<CycleInstant>([] {
         auto file = VFS::open("/large.bin", FILE_RW | FILE_NEWSESS);
 
-        goff_t virt = 0x31000000;
+        goff_t virt = 0x3100'0000;
         file->map(Activity::own().pager(), &virt, 0, PAGES * PAGE_SIZE, Pager::READ | Pager::WRITE, 0);
 
         auto data = reinterpret_cast<char*>(virt);

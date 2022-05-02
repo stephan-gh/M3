@@ -32,7 +32,7 @@ int main() {
     if(!Activity::own().tile_desc().has_virtmem())
         exitmsg("Tile has no virtual memory support");
 
-    const uintptr_t virt = 0x30000000;
+    const uintptr_t virt = 0x3000'0000;
 
     MemGate mgate = MemGate::create_global(PAGES * PAGE_SIZE, MemGate::RW);
 

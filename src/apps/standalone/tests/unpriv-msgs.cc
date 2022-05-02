@@ -547,7 +547,7 @@ static void test_msg_receive() {
     uint32_t expected_unread = 0, expected_occupied = 0;
     for(int j = 0; j < 32; ++j) {
         MsgBuf msg;
-        msg.cast<uint64_t>() = 0xDEADBEEF;
+        msg.cast<uint64_t>() = 0xDEAD'BEEF;
 
         // send all messages
         for(int i = 0; i < j; ++i) {

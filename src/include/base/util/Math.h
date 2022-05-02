@@ -86,20 +86,20 @@ public:
     }
 
     static constexpr float nan() {
-        return FloatInt(static_cast<uint32_t>(0x7FC00000)).f;
+        return FloatInt(static_cast<uint32_t>(0x7FC0'0000)).f;
     }
     static constexpr float inf() {
-        return FloatInt(static_cast<uint32_t>(0x7F800000)).f;
+        return FloatInt(static_cast<uint32_t>(0x7F80'0000)).f;
     }
 
     static constexpr bool is_neg(float x) {
-        return FloatInt(x).i & 0x80000000;
+        return FloatInt(x).i & 0x8000'0000;
     }
     static constexpr int is_nan(float x) {
-        return ((FloatInt(x).i >> 23) & 0xFF) == 0xFF && (FloatInt(x).i & 0x7FFFFF) != 0;
+        return ((FloatInt(x).i >> 23) & 0xFF) == 0xFF && (FloatInt(x).i & 0x7F'FFFF) != 0;
     }
     static constexpr int is_inf(float x) {
-        return (FloatInt(x).i & 0x7FFFFFFF) == 0x7F800000;
+        return (FloatInt(x).i & 0x7FFF'FFFF) == 0x7F80'0000;
     }
 
 private:
