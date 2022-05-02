@@ -72,6 +72,7 @@ class Env:
         self.vars['CXXFLAGS']   = []
         self.vars['LINKFLAGS']  = []
         self.vars['CRGFLAGS']   = []
+        self.vars['ARFLAGS']    = ['rc']
 
         # default paths
         self.vars['CPPPATH']    = []
@@ -207,12 +208,13 @@ class Env:
         return bin
 
     def static_lib(self, gen, out, ins):
+        flags = ' '.join(self['ARFLAGS'])
         lib = BuildPath.new(self, out + '.a')
         edge = BuildEdge(
             'ar',
             outs = [lib],
             ins = self.objs(gen, ins),
-            vars = { 'ar' : self['AR'], 'ranlib' : self['RANLIB'] }
+            vars = { 'ar' : self['AR'], 'ranlib' : self['RANLIB'], 'arflags' : flags }
         )
         gen.add_build(edge)
         return lib
@@ -311,7 +313,7 @@ class Generator:
             desc = 'CXX $out'
         ))
         self.add_rule('ar', Rule(
-            cmd = '$ar rc $out $in && $ranlib $out',
+            cmd = '$ar $arflags $out $in && $ranlib $out',
             desc = 'AR $out'
         ))
         self.add_rule('cargo', Rule(
