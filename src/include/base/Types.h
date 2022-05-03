@@ -36,7 +36,7 @@ typedef long ssize_t;
 #endif
 
 typedef unsigned long word_t;
-#if defined(__gem5__)
+#if defined(__kachel__)
 typedef uint32_t label_t;
 #else
 typedef uint64_t label_t;
