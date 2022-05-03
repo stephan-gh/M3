@@ -19,6 +19,7 @@
 #pragma once
 
 #include <base/Common.h>
+
 #include <string.h>
 
 size_t encode(const uint8_t *indata, size_t inlen, void *outbuf, size_t outmax);

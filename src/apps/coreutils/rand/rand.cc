@@ -16,9 +16,9 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/CPU.h>
 #include <base/stream/IStringStream.h>
 #include <base/util/Random.h>
-#include <base/CPU.h>
 
 #include <m3/stream/Standard.h>
 

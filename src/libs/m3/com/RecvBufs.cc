@@ -15,10 +15,10 @@
 
 #include <base/Init.h>
 
-#include <m3/com/RecvBufs.h>
-#include <m3/tiles/OwnActivity.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
+#include <m3/com/RecvBufs.h>
+#include <m3/tiles/OwnActivity.h>
 
 namespace m3 {
 

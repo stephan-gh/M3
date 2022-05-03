@@ -18,11 +18,11 @@
 
 #include <base/stream/IStringStream.h>
 
+#include <m3/Test.h>
 #include <m3/stream/FStream.h>
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/FileRef.h>
 #include <m3/vfs/VFS.h>
-#include <m3/Test.h>
 
 #include <algorithm>
 #include <vector>
@@ -49,8 +49,12 @@ static void paths() {
     test_path(VFS::canon_path, "../.test//foo/..///", ".test");
     test_path(VFS::canon_path, "/foo/..//bar", "/bar");
 
-    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::set_cwd("/non-existing-dir"); });
-    WVASSERTERR(Errors::IS_NO_DIR, [] { VFS::set_cwd("/test.txt"); });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] {
+        VFS::set_cwd("/non-existing-dir");
+    });
+    WVASSERTERR(Errors::IS_NO_DIR, [] {
+        VFS::set_cwd("/test.txt");
+    });
     VFS::set_cwd(".././bin/./.");
     WVASSERTSTREQ(VFS::cwd(), "/bin");
 
@@ -77,7 +81,7 @@ static void dir_listing() {
     WVASSERTEQ(entries.size(), 82u);
 
     // we don't know the order because it is determined by the host OS. thus, sort it first.
-    std::sort(entries.begin(), entries.end(), [] (const Dir::Entry &a, const Dir::Entry &b) -> bool {
+    std::sort(entries.begin(), entries.end(), [](const Dir::Entry &a, const Dir::Entry &b) -> bool {
         bool aspec = strcmp(a.name, ".") == 0 || strcmp(a.name, "..") == 0;
         bool bspec = strcmp(b.name, ".") == 0 || strcmp(b.name, "..") == 0;
         if(aspec && bspec)
@@ -102,46 +106,78 @@ static void dir_listing() {
 
 static void meta_operations() {
     VFS::mkdir("/example", 0755);
-    WVASSERTERR(Errors::EXISTS, [] { VFS::mkdir("/example", 0755); });
-    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::mkdir("/example/foo/bar", 0755); });
+    WVASSERTERR(Errors::EXISTS, [] {
+        VFS::mkdir("/example", 0755);
+    });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] {
+        VFS::mkdir("/example/foo/bar", 0755);
+    });
 
     FileInfo info;
     VFS::stat("/example", info);
     WVASSERT(M3FS_ISDIR(info.mode));
-    WVASSERTERR(Errors::NO_SUCH_FILE, [&info] { VFS::stat("/example/foo", info); });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [&info] {
+        VFS::stat("/example/foo", info);
+    });
 
     {
         FStream f("/example/myfile", FILE_W | FILE_CREATE);
         f << "test\n";
     }
 
-    WVASSERTERR(Errors::INV_ARGS, [] { VFS::mount("/mnt", "unknownfs", "session"); });
-    WVASSERTERR(Errors::EXISTS, [] { VFS::mount("/", "m3fs", "m3fs-clone"); });
+    WVASSERTERR(Errors::INV_ARGS, [] {
+        VFS::mount("/mnt", "unknownfs", "session");
+    });
+    WVASSERTERR(Errors::EXISTS, [] {
+        VFS::mount("/", "m3fs", "m3fs-clone");
+    });
 
     try {
         VFS::mount("/fs/", "m3fs", "m3fs-clone");
-        WVASSERTERR(Errors::XFS_LINK, [] { VFS::link("/example/myfile", "/fs/foo"); });
-        WVASSERTERR(Errors::XFS_LINK, [] { VFS::rename("/fs/example/myfile", "/example/myfile2"); });
+        WVASSERTERR(Errors::XFS_LINK, [] {
+            VFS::link("/example/myfile", "/fs/foo");
+        });
+        WVASSERTERR(Errors::XFS_LINK, [] {
+            VFS::rename("/fs/example/myfile", "/example/myfile2");
+        });
         VFS::unmount("/fs");
     }
     catch(const Exception &e) {
         cerr << "Mount test failed: " << e.what() << "\n";
     }
 
-    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::rmdir("/example/foo/bar"); });
-    WVASSERTERR(Errors::IS_NO_DIR, [] { VFS::rmdir("/example/myfile"); });
-    WVASSERTERR(Errors::DIR_NOT_EMPTY, [] { VFS::rmdir("/example"); });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] {
+        VFS::rmdir("/example/foo/bar");
+    });
+    WVASSERTERR(Errors::IS_NO_DIR, [] {
+        VFS::rmdir("/example/myfile");
+    });
+    WVASSERTERR(Errors::DIR_NOT_EMPTY, [] {
+        VFS::rmdir("/example");
+    });
 
-    WVASSERTERR(Errors::IS_DIR, [] { VFS::link("/example", "/newpath"); });
-    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::link("/example/myfile", "/foo/bar"); });
+    WVASSERTERR(Errors::IS_DIR, [] {
+        VFS::link("/example", "/newpath");
+    });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] {
+        VFS::link("/example/myfile", "/foo/bar");
+    });
     VFS::link("/example/myfile", "/newpath");
 
-    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::rename("/example/myfile", "/foo/bar"); });
-    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::rename("/foo/bar", "/example/myfile"); });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] {
+        VFS::rename("/example/myfile", "/foo/bar");
+    });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] {
+        VFS::rename("/foo/bar", "/example/myfile");
+    });
     VFS::rename("/example/myfile", "/example/myfile2");
 
-    WVASSERTERR(Errors::IS_DIR, [] { VFS::unlink("/example"); });
-    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::unlink("/example/foo"); });
+    WVASSERTERR(Errors::IS_DIR, [] {
+        VFS::unlink("/example");
+    });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] {
+        VFS::unlink("/example/foo");
+    });
     VFS::unlink("/example/myfile2");
 
     VFS::rmdir("/example");
@@ -163,41 +199,63 @@ static void delete_file() {
 
         VFS::unlink(tmp_file);
 
-        WVASSERTERR(Errors::NO_SUCH_FILE, [&tmp_file] { VFS::open(tmp_file, FILE_R); });
+        WVASSERTERR(Errors::NO_SUCH_FILE, [&tmp_file] {
+            VFS::open(tmp_file, FILE_R);
+        });
 
         WVASSERTEQ(file->read(buffer, sizeof(buffer)), 5);
     }
 
-    WVASSERTERR(Errors::NO_SUCH_FILE, [&tmp_file] { VFS::open(tmp_file, FILE_R); });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [&tmp_file] {
+        VFS::open(tmp_file, FILE_R);
+    });
 }
 
 static void relative_paths() {
     VFS::set_cwd("/");
 
     VFS::mkdir("example", 0755);
-    WVASSERTERR(Errors::EXISTS, [] { VFS::mkdir("example", 0755); });
-    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::mkdir("example/foo/bar", 0755); });
+    WVASSERTERR(Errors::EXISTS, [] {
+        VFS::mkdir("example", 0755);
+    });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] {
+        VFS::mkdir("example/foo/bar", 0755);
+    });
 
     FileInfo info;
     VFS::stat("example", info);
     WVASSERT(M3FS_ISDIR(info.mode));
-    WVASSERTERR(Errors::NO_SUCH_FILE, [&info] { VFS::stat("example/foo", info); });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [&info] {
+        VFS::stat("example/foo", info);
+    });
 
     {
         FStream f("./../example/myfile", FILE_W | FILE_CREATE);
         f << "test\n";
     }
 
-    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::rmdir("example/foo/bar"); });
-    WVASSERTERR(Errors::IS_NO_DIR, [] { VFS::rmdir("example/myfile"); });
-    WVASSERTERR(Errors::DIR_NOT_EMPTY, [] { VFS::rmdir("example"); });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] {
+        VFS::rmdir("example/foo/bar");
+    });
+    WVASSERTERR(Errors::IS_NO_DIR, [] {
+        VFS::rmdir("example/myfile");
+    });
+    WVASSERTERR(Errors::DIR_NOT_EMPTY, [] {
+        VFS::rmdir("example");
+    });
 
-    WVASSERTERR(Errors::IS_DIR, [] { VFS::link("example", "newpath"); });
+    WVASSERTERR(Errors::IS_DIR, [] {
+        VFS::link("example", "newpath");
+    });
     VFS::link("example/myfile", "./newpath");
     VFS::rename("example/myfile", "example/myfile2");
 
-    WVASSERTERR(Errors::IS_DIR, [] { VFS::unlink("example"); });
-    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::unlink("example/foo"); });
+    WVASSERTERR(Errors::IS_DIR, [] {
+        VFS::unlink("example");
+    });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] {
+        VFS::unlink("example/foo");
+    });
     VFS::unlink("./example/myfile2");
 
     VFS::rmdir("example");

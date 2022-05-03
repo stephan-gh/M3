@@ -18,9 +18,9 @@
 
 #pragma once
 
-#include <base/util/String.h>
 #include <base/Errors.h>
 #include <base/KIF.h>
+#include <base/util/String.h>
 
 #include <m3/ObjCap.h>
 
@@ -63,9 +63,7 @@ public:
           _close(false) {
     }
 
-    ClientSession(ClientSession &&s) noexcept
-        : ObjCap(std::move(s)),
-          _close(s._close) {
+    ClientSession(ClientSession &&s) noexcept : ObjCap(std::move(s)), _close(s._close) {
     }
 
     ~ClientSession();
@@ -97,7 +95,8 @@ public:
      * @param caps the capabilities
      * @param args the arguments to pass to the server
      */
-    void delegate_for(Activity &act, const KIF::CapRngDesc &caps, KIF::ExchangeArgs *args = nullptr);
+    void delegate_for(Activity &act, const KIF::CapRngDesc &caps,
+                      KIF::ExchangeArgs *args = nullptr);
 
     /**
      * Obtains up to <count> capabilities from the server with additional arguments and puts the
@@ -121,8 +120,8 @@ public:
     KIF::CapRngDesc obtain_for(Activity &act, uint count, KIF::ExchangeArgs *args = nullptr);
 
     /**
-     * Obtains up to <crd>.count() capabilities from the server for <act> with additional arguments and
-     * puts the arguments from the server again into argcount and args.
+     * Obtains up to <crd>.count() capabilities from the server for <act> with additional arguments
+     * and puts the arguments from the server again into argcount and args.
      *
      * @param act the act to do the obtain for
      * @param crd the selectors to use

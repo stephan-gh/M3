@@ -24,23 +24,25 @@
 
 namespace m3 {
 
-static const fd_t STDIN_FD      = 0;
-static const fd_t STDOUT_FD     = 1;
-static const fd_t STDERR_FD     = 2;
+static const fd_t STDIN_FD = 0;
+static const fd_t STDOUT_FD = 1;
+static const fd_t STDERR_FD = 2;
 
 extern FStream cin;
 extern FStream cout;
 extern FStream cerr;
 
-#define errmsg(expr) do {           \
-        m3::cerr << expr << "\n";   \
-    }                               \
+#define errmsg(expr)              \
+    do {                          \
+        m3::cerr << expr << "\n"; \
+    }                             \
     while(0)
 
-#define exitmsg(expr) do {          \
-        errmsg(expr);               \
-        ::exit(1);                  \
-    }                               \
+#define exitmsg(expr) \
+    do {              \
+        errmsg(expr); \
+        ::exit(1);    \
+    }                 \
     while(0)
 
 }

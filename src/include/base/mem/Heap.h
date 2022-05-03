@@ -19,6 +19,7 @@
 #pragma once
 
 #include <base/Common.h>
+
 #include <heap/heap.h>
 
 namespace kernel {
@@ -100,7 +101,7 @@ public:
      * @return true if <p> is on this heap
      */
     static bool is_on_heap(const void *p) {
-        const HeapArea *a = reinterpret_cast<const HeapArea*>(p);
+        const HeapArea *a = reinterpret_cast<const HeapArea *>(p);
         return a >= heap_begin && a < heap_end;
     }
 
@@ -166,10 +167,10 @@ private:
         return a->next & HEAP_USED_BITS;
     }
     static HeapArea *forward(HeapArea *a, size_t size) {
-        return reinterpret_cast<HeapArea*>(reinterpret_cast<uintptr_t>(a) + size);
+        return reinterpret_cast<HeapArea *>(reinterpret_cast<uintptr_t>(a) + size);
     }
     static HeapArea *backwards(HeapArea *a, size_t size) {
-        return reinterpret_cast<HeapArea*>(reinterpret_cast<uintptr_t>(a) - size);
+        return reinterpret_cast<HeapArea *>(reinterpret_cast<uintptr_t>(a) - size);
     }
 
     static void init_arch();

@@ -37,7 +37,8 @@ static void test_inv_ep() {
 
         // here everything still works
         ASSERT_EQ(kernel::TCU::read(MEP, &data, sizeof(data), 0), Errors::NONE);
-        ASSERT_EQ(kernel::TCU::ack_msg(REP, buf, reinterpret_cast<const m3::TCU::Message*>(buf)), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::ack_msg(REP, buf, reinterpret_cast<const m3::TCU::Message *>(buf)),
+                  Errors::NONE);
         ASSERT_EQ(m3::TCU::get().is_valid(SEP), true);
 
         ASSERT_EQ(kernel::TCU::invalidate_ep_remote(tile_id(Tile::T0), MEP, true), Errors::NONE);
@@ -46,7 +47,8 @@ static void test_inv_ep() {
 
         // now the EPs are invalid
         ASSERT_EQ(kernel::TCU::read(MEP, &data, sizeof(data), 0), Errors::NO_MEP);
-        ASSERT_EQ(kernel::TCU::ack_msg(REP, buf, reinterpret_cast<const m3::TCU::Message*>(buf)), Errors::NO_REP);
+        ASSERT_EQ(kernel::TCU::ack_msg(REP, buf, reinterpret_cast<const m3::TCU::Message *>(buf)),
+                  Errors::NO_REP);
         ASSERT_EQ(kernel::TCU::send(SEP, msg, 0x5678, TCU::NO_REPLIES), Errors::NO_SEP);
 
         // invalidating again should work as well
@@ -62,7 +64,8 @@ static void test_inv_ep() {
 
         // if credits are missing, we can't invalidate it (with force=0)
         ASSERT_EQ(kernel::TCU::send(SEP, msg, 0x5678, TCU::NO_REPLIES), Errors::NONE);
-        ASSERT_EQ(kernel::TCU::invalidate_ep_remote(tile_id(Tile::T0), SEP, false), Errors::NO_CREDITS);
+        ASSERT_EQ(kernel::TCU::invalidate_ep_remote(tile_id(Tile::T0), SEP, false),
+                  Errors::NO_CREDITS);
         ASSERT_EQ(kernel::TCU::send(SEP, msg, 0x5678, TCU::NO_REPLIES), Errors::NO_CREDITS);
 
         // with all credits, we can invalidate
@@ -77,11 +80,13 @@ static void test_inv_ep() {
 
         // invalidation gives us the unread mask
         uint32_t unread;
-        ASSERT_EQ(kernel::TCU::invalidate_ep_remote(tile_id(Tile::T0), REP, false, &unread), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::invalidate_ep_remote(tile_id(Tile::T0), REP, false, &unread),
+                  Errors::NONE);
         ASSERT_EQ(unread, 0x1);
 
         // EP is invalid
-        ASSERT_EQ(kernel::TCU::ack_msg(REP, buf, reinterpret_cast<const m3::TCU::Message*>(buf)), Errors::NO_REP);
+        ASSERT_EQ(kernel::TCU::ack_msg(REP, buf, reinterpret_cast<const m3::TCU::Message *>(buf)),
+                  Errors::NO_REP);
     }
 }
 

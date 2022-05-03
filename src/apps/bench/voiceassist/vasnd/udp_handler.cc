@@ -23,13 +23,13 @@
 using namespace m3;
 
 UDPOpHandler::UDPOpHandler(NetworkManager &nm, m3::IpAddr ip, m3::port_t port)
-        : _ep(ip, port),
-          _socket(UdpSocket::create(nm, DgramSocketArgs().send_buffer(8, 8 * 1024))) {
+    : _ep(ip, port),
+      _socket(UdpSocket::create(nm, DgramSocketArgs().send_buffer(8, 8 * 1024))) {
 }
 
 void UDPOpHandler::send(const void *data, size_t len) {
     size_t rem = len;
-    const char *bytes = static_cast<const char*>(data);
+    const char *bytes = static_cast<const char *>(data);
     while(rem > 0) {
         size_t amount = Math::min(rem, static_cast<size_t>(512));
         if(_socket->send_to(bytes, amount, _ep) != static_cast<ssize_t>(amount))

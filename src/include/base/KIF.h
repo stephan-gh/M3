@@ -19,9 +19,9 @@
 #pragma once
 
 #include <base/Common.h>
-#include <base/stream/OStream.h>
-#include <base/TCU.h>
 #include <base/Errors.h>
+#include <base/TCU.h>
+#include <base/stream/OStream.h>
 
 #include <utility>
 
@@ -36,36 +36,36 @@ struct KIF {
     /**
      * Represents an invalid selector
      */
-    static const capsel_t INV_SEL       = 0xFFFF;
+    static const capsel_t INV_SEL = 0xFFFF;
 
     /**
      * Represents unlimited credits
      */
-    static const uint UNLIM_CREDITS     = TCU::UNLIM_CREDITS;
+    static const uint UNLIM_CREDITS = TCU::UNLIM_CREDITS;
 
     /**
      * The maximum message length that can be used
      */
-    static const size_t MAX_MSG_SIZE    = 440;
+    static const size_t MAX_MSG_SIZE = 440;
 
     /**
      * The maximum string length in messages
      */
-    static const size_t MAX_STR_SIZE    = 64;
+    static const size_t MAX_STR_SIZE = 64;
 
-    static const capsel_t SEL_TILE        = 0;
-    static const capsel_t SEL_KMEM      = 1;
-    static const capsel_t SEL_ACT       = 2;
+    static const capsel_t SEL_TILE = 0;
+    static const capsel_t SEL_KMEM = 1;
+    static const capsel_t SEL_ACT = 2;
 
     /**
      * The first selector for the endpoint capabilities
      */
-    static const uint FIRST_FREE_SEL    = SEL_ACT + 1;
+    static const uint FIRST_FREE_SEL = SEL_ACT + 1;
 
     /**
      * The activity id of TileMux
      */
-    static const uint TILEMUX_ACT_ID    = 0xFFFF;
+    static const uint TILEMUX_ACT_ID = 0xFFFF;
 
     /**
      * The permissions for MemGate
@@ -92,9 +92,9 @@ struct KIF {
 
     enum ActivityFlags {
         // whether the Tile can be shared with others
-        MUXABLE     = 1,
+        MUXABLE = 1,
         // whether this activity gets pinned on one Tile
-        PINNED      = 2,
+        PINNED = 2,
     };
 
     struct CapRngDesc {
@@ -107,9 +107,7 @@ struct KIF {
 
         explicit CapRngDesc() : CapRngDesc(OBJ, 0, 0) {
         }
-        explicit CapRngDesc(const value_type raw[2])
-            : _start(raw[0]),
-              _count(raw[1]) {
+        explicit CapRngDesc(const value_type raw[2]) : _start(raw[0]), _count(raw[1]) {
         }
         explicit CapRngDesc(Type type, capsel_t start, capsel_t count = 1)
             : _start(start),
@@ -131,9 +129,9 @@ struct KIF {
             raw[1] = _count;
         }
 
-        friend OStream &operator <<(OStream &os, const CapRngDesc &crd) {
-            os << "CRD[" << (crd.type() == OBJ ? "OBJ" : "MAP") << ":"
-               << crd.start() << ":" << crd.count() << "]";
+        friend OStream &operator<<(OStream &os, const CapRngDesc &crd) {
+            os << "CRD[" << (crd.type() == OBJ ? "OBJ" : "MAP") << ":" << crd.start() << ":"
+               << crd.count() << "]";
             return os;
         }
 

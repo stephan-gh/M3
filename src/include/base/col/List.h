@@ -24,7 +24,7 @@ template<class T>
 class SList;
 template<class T>
 class DList;
-template<class T,class It>
+template<class T, class It>
 class ListIteratorBase;
 class DListItem;
 
@@ -35,7 +35,7 @@ class DListItem;
 class SListItem {
     template<class T>
     friend class SList;
-    template<class T,class It>
+    template<class T, class It>
     friend class ListIteratorBase;
     friend class DListItem;
 
@@ -78,9 +78,7 @@ public:
     /**
      * Constructor
      */
-    explicit DListItem()
-        : SListItem(),
-          _prev() {
+    explicit DListItem() : SListItem(), _prev() {
     }
 
     void init() {
@@ -90,7 +88,7 @@ public:
 
 private:
     DListItem *next() {
-        return static_cast<DListItem*>(SListItem::next());
+        return static_cast<DListItem *>(SListItem::next());
     }
     void next(DListItem *i) {
         SListItem::next(i);
@@ -108,34 +106,30 @@ private:
 /**
  * Generic iterator for a linked list. Expects the list node class to have a next() method.
  */
-template<class T,class It>
+template<class T, class It>
 class ListIteratorBase {
     template<class T1>
     friend class SList;
-    template<
-        template<class T1>
-        class LIST,
-        class T2
-    >
+    template<template<class T1> class LIST, class T2>
     friend class IList;
 
 public:
     explicit ListIteratorBase(T *n = nullptr) : _n(n) {
     }
 
-    It& operator++() {
-        _n = static_cast<T*>(_n->next());
-        return static_cast<It&>(*this);
+    It &operator++() {
+        _n = static_cast<T *>(_n->next());
+        return static_cast<It &>(*this);
     }
     It operator++(int) {
-        It tmp(static_cast<It&>(*this));
+        It tmp(static_cast<It &>(*this));
         operator++();
         return tmp;
     }
-    bool operator==(const It& rhs) const {
+    bool operator==(const It &rhs) const {
         return _n == rhs._n;
     }
-    bool operator!=(const It& rhs) const {
+    bool operator!=(const It &rhs) const {
         return _n != rhs._n;
     }
 
@@ -147,13 +141,12 @@ protected:
  * Default list iterator
  */
 template<class T>
-class ListIterator : public ListIteratorBase<T,ListIterator<T>> {
+class ListIterator : public ListIteratorBase<T, ListIterator<T>> {
 public:
-    explicit ListIterator(T *n = nullptr)
-            : ListIteratorBase<T,ListIterator<T>>(n) {
+    explicit ListIterator(T *n = nullptr) : ListIteratorBase<T, ListIterator<T>>(n) {
     }
 
-    T & operator*() const {
+    T &operator*() const {
         return *this->_n;
     }
     T *operator->() const {
@@ -165,13 +158,12 @@ public:
  * Default const list iterator
  */
 template<class T>
-class ListConstIterator : public ListIteratorBase<T,ListConstIterator<T>> {
+class ListConstIterator : public ListIteratorBase<T, ListConstIterator<T>> {
 public:
-    explicit ListConstIterator(T *n = nullptr)
-            : ListIteratorBase<T,ListConstIterator<T>>(n) {
+    explicit ListConstIterator(T *n = nullptr) : ListIteratorBase<T, ListConstIterator<T>>(n) {
     }
 
-    const T & operator*() const {
+    const T &operator*() const {
         return *this->_n;
     }
     const T *operator->() const {

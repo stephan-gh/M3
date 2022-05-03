@@ -20,10 +20,10 @@
 
 #include <base/Common.h>
 
+#include <m3/Exception.h>
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
 #include <m3/vfs/File.h>
-#include <m3/Exception.h>
 
 #include <memory>
 

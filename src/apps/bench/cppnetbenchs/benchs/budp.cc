@@ -17,15 +17,15 @@
  */
 
 #include <base/Common.h>
-#include <base/time/Profile.h>
 #include <base/Panic.h>
+#include <base/time/Profile.h>
 
+#include <m3/Test.h>
 #include <m3/com/Semaphore.h>
 #include <m3/net/UdpSocket.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/Waiter.h>
-#include <m3/Test.h>
 
 #include "../cppnetbenchs.h"
 
@@ -63,13 +63,12 @@ NOINLINE static void latency() {
 
     // do one initial send-receive with a higher timeout than the smoltcp-internal timeout to
     // workaround the high ARP-request delay with the loopback device.
-    send_recv(waiter, socket, dest, request, 1, TimeDuration::from_secs(6),
-              response, sizeof(response), &src);
+    send_recv(waiter, socket, dest, request, 1, TimeDuration::from_secs(6), response,
+              sizeof(response), &src);
 
     size_t warmup = 5;
     while(warmup--) {
-        send_recv(waiter, socket, dest, request, 8, TIMEOUT,
-                  response, sizeof(response), &src);
+        send_recv(waiter, socket, dest, request, 8, TIMEOUT, response, sizeof(response), &src);
     }
 
     const size_t packet_size[] = {8, 16, 32, 64, 128, 256, 512, 1024};
@@ -80,8 +79,8 @@ NOINLINE static void latency() {
         while(res.runs() < samples) {
             auto start = TimeInstant::now();
 
-            ssize_t recv_len = send_recv(waiter, socket, dest, request, pkt_size, TIMEOUT,
-                                         response, sizeof(response), &src);
+            ssize_t recv_len = send_recv(waiter, socket, dest, request, pkt_size, TIMEOUT, response,
+                                         sizeof(response), &src);
             if(recv_len == 0)
                 continue;
             auto stop = TimeInstant::now();
@@ -100,8 +99,8 @@ NOINLINE static void latency() {
 NOINLINE static void bandwidth() {
     NetworkManager net("net");
 
-    auto socket = UdpSocket::create(net, DgramSocketArgs().send_buffer(8, 64 * 1024)
-                                                          .recv_buffer(32, 256 * 1024));
+    auto socket = UdpSocket::create(
+        net, DgramSocketArgs().send_buffer(8, 64 * 1024).recv_buffer(32, 256 * 1024));
     socket->set_blocking(false);
 
     constexpr size_t packet_size = 1024;
@@ -112,27 +111,26 @@ NOINLINE static void bandwidth() {
     Endpoint src;
     Endpoint dest = Endpoint(IpAddr(192, 168, 112, 1), 1337);
 
-    size_t warmup             = 5;
-    size_t packets_to_send    = 105;
+    size_t warmup = 5;
+    size_t packets_to_send = 105;
     size_t packets_to_receive = 100;
-    size_t burst_size         = 2;
-    TimeDuration timeout      = TimeDuration::from_secs(1);
+    size_t burst_size = 2;
+    TimeDuration timeout = TimeDuration::from_secs(1);
 
-    size_t packet_sent_count     = 0;
+    size_t packet_sent_count = 0;
     size_t packet_received_count = 0;
-    size_t received_bytes        = 0;
+    size_t received_bytes = 0;
 
     FileWaiter waiter;
     waiter.add(socket->fd(), File::INPUT | File::OUTPUT);
 
     while(warmup--) {
-        send_recv(waiter, socket, dest, request, 8, timeout,
-                  response, sizeof(response), &src);
+        send_recv(waiter, socket, dest, request, 8, timeout, response, sizeof(response), &src);
     }
 
-    auto start             = TimeInstant::now();
-    auto last_received     = start;
-    size_t failures        = 0;
+    auto start = TimeInstant::now();
+    auto last_received = start;
+    size_t failures = 0;
     while(true) {
         // Wait for wakeup (message or credits received)
         if(failures >= 10) {
@@ -155,7 +153,8 @@ NOINLINE static void bandwidth() {
             if(socket->send_to(request, packet_size, dest) > 0) {
                 packet_sent_count++;
                 failures = 0;
-            } else {
+            }
+            else {
                 failures++;
                 break;
             }

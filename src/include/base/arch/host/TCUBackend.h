@@ -22,10 +22,10 @@
 #include <base/TCU.h>
 #include <base/log/Lib.h>
 
-#include <sys/un.h>
-#include <sys/socket.h>
-#include <poll.h>
 #include <errno.h>
+#include <poll.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 
 namespace m3 {
 
@@ -38,14 +38,15 @@ public:
 
         template<typename T>
         void send(const T &data) {
-            int res = sendto(fd, &data, sizeof(data), 0, (struct sockaddr*)(&addr), sizeof(addr));
+            int res = sendto(fd, &data, sizeof(data), 0, (struct sockaddr *)(&addr), sizeof(addr));
             if(res == -1)
                 LLOG(TCUERR, "send failed: " << strerror(errno));
         }
 
         template<typename T>
         bool receive(T &data, bool block) {
-            return recvfrom(fd, &data, sizeof(data), block ? 0 : MSG_DONTWAIT, nullptr, nullptr) > 0;
+            return recvfrom(fd, &data, sizeof(data), block ? 0 : MSG_DONTWAIT, nullptr, nullptr) >
+                   0;
         }
 
         int fd;

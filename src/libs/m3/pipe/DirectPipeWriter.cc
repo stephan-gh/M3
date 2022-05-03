@@ -27,7 +27,8 @@ namespace m3 {
 
 DirectPipeWriter::State::State(capsel_t caps, size_t size)
     : _mgate(MemGate::bind(caps + 0)),
-      _rgate(RecvGate::create(nextlog2<DirectPipe::MSG_BUF_SIZE>::val, nextlog2<DirectPipe::MSG_SIZE>::val)),
+      _rgate(RecvGate::create(nextlog2<DirectPipe::MSG_BUF_SIZE>::val,
+                              nextlog2<DirectPipe::MSG_SIZE>::val)),
       _sgate(SendGate::bind(caps + 1, &_rgate)),
       _size(size),
       _free(_size),
@@ -72,7 +73,8 @@ void DirectPipeWriter::State::read_replies() {
     }
 }
 
-DirectPipeWriter::DirectPipeWriter(capsel_t caps, size_t size, std::unique_ptr<State> &&state) noexcept
+DirectPipeWriter::DirectPipeWriter(capsel_t caps, size_t size,
+                                   std::unique_ptr<State> &&state) noexcept
     : File(FILE_W),
       _caps(caps),
       _size(size),
@@ -113,7 +115,7 @@ ssize_t DirectPipeWriter::write(const void *buffer, size_t count) {
         return 0;
 
     size_t rem = count;
-    const char *buf = reinterpret_cast<const char*>(buffer);
+    const char *buf = reinterpret_cast<const char *>(buffer);
     do {
         size_t amount = rem;
         ssize_t off = _state->find_spot(&amount);
@@ -166,7 +168,7 @@ ssize_t DirectPipeWriter::write(const void *buffer, size_t count) {
         buf += amount;
     }
     while(rem > 0);
-    return buf - reinterpret_cast<const char*>(buffer);
+    return buf - reinterpret_cast<const char *>(buffer);
 }
 
 void DirectPipeWriter::delegate(ChildActivity &act) {
@@ -174,7 +176,8 @@ void DirectPipeWriter::delegate(ChildActivity &act) {
 }
 
 void DirectPipeWriter::serialize(Marshaller &m) {
-    // we can't share the writer between two activities atm anyway, so don't serialize the current state
+    // we can't share the writer between two activities atm anyway, so don't serialize the current
+    // state
     m << _caps << _size;
 }
 

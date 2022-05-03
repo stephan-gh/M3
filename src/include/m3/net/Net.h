@@ -65,10 +65,8 @@ static inline bool operator!=(const IpAddr &a, const IpAddr &b) noexcept {
 }
 
 static inline OStream &operator<<(OStream &os, const IpAddr &a) noexcept {
-    os << "Ipv4[" << ((a.addr() >> 24) & 0xFF) << "."
-                  << ((a.addr() >> 16) & 0xFF) << "."
-                  << ((a.addr() >> 8) & 0xFF) << "."
-                  << ((a.addr() >> 0) & 0xFF) << "]";
+    os << "Ipv4[" << ((a.addr() >> 24) & 0xFF) << "." << ((a.addr() >> 16) & 0xFF) << "."
+       << ((a.addr() >> 8) & 0xFF) << "." << ((a.addr() >> 0) & 0xFF) << "]";
     return os;
 }
 
@@ -95,9 +93,7 @@ struct Endpoint {
 
     explicit Endpoint() : addr(), port() {
     }
-    explicit Endpoint(IpAddr addr, port_t port)
-        : addr(addr),
-          port(port) {
+    explicit Endpoint(IpAddr addr, port_t port) : addr(addr), port(port) {
     }
 
     IpAddr addr;

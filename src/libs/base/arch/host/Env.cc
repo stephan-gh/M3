@@ -16,18 +16,18 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/log/Lib.h>
 #include <base/Backtrace.h>
 #include <base/Env.h>
-#include <base/TCU.h>
 #include <base/Init.h>
 #include <base/Panic.h>
+#include <base/TCU.h>
+#include <base/log/Lib.h>
 
-#include <sys/mman.h>
-#include <fstream>
-#include <unistd.h>
 #include <fcntl.h>
+#include <fstream>
 #include <libgen.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 #ifndef NDEBUG
 volatile int wait_for_debugger = 1;
@@ -56,7 +56,7 @@ Env::Init::Init() {
         size_t vlen = strlen(val);
         size_t elen = strlen(exec);
         if(elen >= vlen && strcmp(exec + elen - vlen, val) == 0 &&
-            (elen == vlen || exec[elen - vlen - 1] == '/')) {
+           (elen == vlen || exec[elen - vlen - 1] == '/')) {
             while(wait_for_debugger)
                 usleep(20000);
         }

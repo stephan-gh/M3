@@ -16,8 +16,8 @@
  * General Public License version 2 for more details.
  */
 
-#include <m3/com/RecvGate.h>
 #include <m3/com/GateStream.h>
+#include <m3/com/RecvGate.h>
 #include <m3/stream/Standard.h>
 
 using namespace m3;

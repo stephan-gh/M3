@@ -34,9 +34,7 @@ class RequestHandler : public Handler<SESS> {
     using handler_func = void (CLS::*)(GateIStream &is);
 
 public:
-    explicit RequestHandler() noexcept
-        : Handler<SESS>(),
-        _callbacks() {
+    explicit RequestHandler() noexcept : Handler<SESS>(), _callbacks() {
     }
 
     void add_operation(OP op, handler_func func) noexcept {
@@ -48,7 +46,7 @@ public:
         msg >> op;
         if(static_cast<size_t>(op) < sizeof(_callbacks) / sizeof(_callbacks[0])) {
             try {
-                (static_cast<CLS*>(this)->*_callbacks[op])(msg);
+                (static_cast<CLS *>(this)->*_callbacks[op])(msg);
             }
             catch(const Exception &e) {
                 cerr << "exception during request: " << e.what() << "\n";

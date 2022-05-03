@@ -17,32 +17,31 @@
 #include <base/Common.h>
 #include <base/log/Services.h>
 
+#include <m3/com/MemGate.h>
+#include <m3/com/RecvGate.h>
+#include <m3/com/SendGate.h>
 #include <m3/server/RequestHandler.h>
 #include <m3/server/Server.h>
 #include <m3/session/LoadGen.h>
 #include <m3/session/ServerSession.h>
-#include <m3/com/MemGate.h>
-#include <m3/com/RecvGate.h>
-#include <m3/com/SendGate.h>
 
 using namespace m3;
 
 static char http_req[] =
-    "GET /index.html HTTP/1.0\r\n" \
-    "Host: localhost\r\n" \
-    "User-Agent: ApacheBench/2.3\r\n" \
-    "Accept: */*\r\n" \
+    "GET /index.html HTTP/1.0\r\n"
+    "Host: localhost\r\n"
+    "User-Agent: ApacheBench/2.3\r\n"
+    "Accept: */*\r\n"
     "\r\n";
 
 class LoadGenSession : public m3::ServerSession {
 public:
     explicit LoadGenSession(RecvGate *rgate, size_t crt, capsel_t srv_sel)
-       : m3::ServerSession(crt, srv_sel),
-         rem_req(),
-         clisgate(SendGate::create(rgate, SendGateArgs().label(ptr_to_label(this))
-                                                        .credits(1))),
-         sgate(),
-         mgate() {
+        : m3::ServerSession(crt, srv_sel),
+          rem_req(),
+          clisgate(SendGate::create(rgate, SendGateArgs().label(ptr_to_label(this)).credits(1))),
+          sgate(),
+          mgate() {
     }
 
     void send_request() {
@@ -78,8 +77,8 @@ public:
         _rgate.start(wl, std::bind(&ReqHandler::handle_message, this, _1));
     }
 
-    virtual Errors::Code open(LoadGenSession **sess, size_t crt,
-                              capsel_t srv_sel, const StringRef &) override {
+    virtual Errors::Code open(LoadGenSession **sess, size_t crt, capsel_t srv_sel,
+                              const StringRef &) override {
         *sess = new LoadGenSession(&_rgate, crt, srv_sel);
         return Errors::NONE;
     }
@@ -119,7 +118,7 @@ public:
     }
 
     void start(GateIStream &is) {
-        LoadGenSession *sess = is.label<LoadGenSession*>();
+        LoadGenSession *sess = is.label<LoadGenSession *>();
         uint count;
         is >> count;
         sess->rem_req = count;
@@ -131,7 +130,7 @@ public:
     }
 
     void response(GateIStream &is) {
-        LoadGenSession *sess = is.label<LoadGenSession*>();
+        LoadGenSession *sess = is.label<LoadGenSession *>();
         size_t amount;
         is >> amount;
 

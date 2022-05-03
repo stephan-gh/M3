@@ -30,14 +30,14 @@ namespace m3 {
 
 class InDirAccel {
 public:
-    static const size_t MSG_SIZE        = 64;
+    static const size_t MSG_SIZE = 64;
 
-    static const size_t EP_OUT          = 16;
-    static const size_t EP_RECV         = 17;
+    static const size_t EP_OUT = 16;
+    static const size_t EP_RECV = 17;
 
-    static const size_t BUF_ADDR        = MEM_OFFSET + 0x8000;
-    static const size_t RECV_ADDR       = MEM_OFFSET + 0x3F'FF00;
-    static const size_t MAX_BUF_SIZE    = 32768;
+    static const size_t BUF_ADDR = MEM_OFFSET + 0x8000;
+    static const size_t RECV_ADDR = MEM_OFFSET + 0x3F'FF00;
+    static const size_t MAX_BUF_SIZE = 32768;
 
     enum Operation {
         COMPUTE,
@@ -54,8 +54,7 @@ public:
     explicit InDirAccel(std::unique_ptr<ChildActivity> &act, RecvGate &reply_gate)
         : _mgate(),
           _rgate(RecvGate::create(getnextlog2(MSG_SIZE), getnextlog2(MSG_SIZE))),
-          _sgate(SendGate::create(&_rgate, SendGateArgs().credits(1)
-                                                         .reply_gate(&reply_gate))),
+          _sgate(SendGate::create(&_rgate, SendGateArgs().credits(1).reply_gate(&reply_gate))),
           _rep(EP::alloc_for(*act, EP_RECV, _rgate.slots())),
           _mep(EP::alloc_for(*act, EP_OUT)),
           _act(act),

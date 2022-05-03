@@ -17,15 +17,15 @@
  */
 
 #include <base/Common.h>
+#include <base/TileDesc.h>
 #include <base/stream/IStringStream.h>
 #include <base/time/Instant.h>
-#include <base/TileDesc.h>
 
-#include <m3/accel/InDirAccel.h>
-#include <m3/stream/Standard.h>
-#include <m3/session/Pager.h>
-#include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
+#include <m3/accel/InDirAccel.h>
+#include <m3/session/Pager.h>
+#include <m3/stream/Standard.h>
+#include <m3/vfs/VFS.h>
 
 #include <memory>
 
@@ -33,11 +33,11 @@
 
 using namespace m3;
 
-static const size_t BUF_SIZE    = 4096;
-static const size_t REPLY_SIZE  = 64;
+static const size_t BUF_SIZE = 4096;
+static const size_t REPLY_SIZE = 64;
 
-void chain_indirect(FileRef<GenericFile> &in, FileRef<GenericFile> &out,
-                    size_t num, CycleDuration comptime) {
+void chain_indirect(FileRef<GenericFile> &in, FileRef<GenericFile> &out, size_t num,
+                    CycleDuration comptime) {
     std::unique_ptr<uint8_t> buffer(new uint8_t[BUF_SIZE]);
 
     Reference<Tile> tiles[num];
@@ -45,14 +45,14 @@ void chain_indirect(FileRef<GenericFile> &in, FileRef<GenericFile> &out,
     std::unique_ptr<InDirAccel> accels[num];
     InDirAccel::Operation ops[num];
 
-    RecvGate reply_gate = RecvGate::create(getnextlog2(REPLY_SIZE * num), nextlog2<REPLY_SIZE>::val);
+    RecvGate reply_gate =
+        RecvGate::create(getnextlog2(REPLY_SIZE * num), nextlog2<REPLY_SIZE>::val);
     reply_gate.activate();
 
     // create activities
     for(size_t i = 0; i < num; ++i) {
         OStringStream name;
         name << "chain" << i;
-
 
         tiles[i] = Tile::get("indir");
         acts[i] = std::make_unique<ChildActivity>(tiles[i], name.str());
@@ -117,7 +117,8 @@ void chain_indirect(FileRef<GenericFile> &in, FileRef<GenericFile> &out,
             total += static_cast<size_t>(count);
             if(count > 0) {
                 accels[0]->write(buffer.get(), static_cast<size_t>(count));
-                accels[0]->start(InDirAccel::Operation::COMPUTE, static_cast<size_t>(count), comptime, 1);
+                accels[0]->start(InDirAccel::Operation::COMPUTE, static_cast<size_t>(count),
+                                 comptime, 1);
                 ops[0] = InDirAccel::Operation::COMPUTE;
 
                 count = in->read(buffer.get(), BUF_SIZE);
@@ -125,7 +126,8 @@ void chain_indirect(FileRef<GenericFile> &in, FileRef<GenericFile> &out,
             }
         }
         else if(label != num - 1) {
-            accels[label + 1]->start(InDirAccel::Operation::COMPUTE, written, comptime, label + 1 + 1);
+            accels[label + 1]->start(InDirAccel::Operation::COMPUTE, written, comptime,
+                                     label + 1 + 1);
             ops[label + 1] = InDirAccel::Operation::COMPUTE;
         }
 

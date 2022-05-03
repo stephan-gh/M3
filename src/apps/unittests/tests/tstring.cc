@@ -85,22 +85,22 @@ static void memmove() {
 
 static void memset() {
     {
-        char buf[]= "0123456789";
+        char buf[] = "0123456789";
         memset(buf + 0, 'a', sizeof(buf) - 0);
         WVASSERTEQ(memcmp(buf, "aaaaaaaaaa", sizeof(buf) - 1), 0);
     }
     {
-        char buf[]= "0123456789";
+        char buf[] = "0123456789";
         memset(buf + 1, 'a', sizeof(buf) - 1);
         WVASSERTEQ(memcmp(buf, "0aaaaaaaaa", sizeof(buf) - 1), 0);
     }
     {
-        char buf[]= "0123456789";
+        char buf[] = "0123456789";
         memset(buf + 3, 'a', sizeof(buf) - 3);
         WVASSERTEQ(memcmp(buf, "012aaaaaaa", sizeof(buf) - 1), 0);
     }
     {
-        char buf[]= "0123456789";
+        char buf[] = "0123456789";
         memset(buf + 9, 'a', sizeof(buf) - 9);
         WVASSERTEQ(memcmp(buf, "012345678a", sizeof(buf) - 1), 0);
     }

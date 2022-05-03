@@ -16,10 +16,10 @@
  * General Public License version 2 for more details.
  */
 
+#include <m3/Syscalls.h>
 #include <m3/com/GateStream.h>
 #include <m3/session/Pager.h>
 #include <m3/tiles/ChildActivity.h>
-#include <m3/Syscalls.h>
 
 namespace m3 {
 

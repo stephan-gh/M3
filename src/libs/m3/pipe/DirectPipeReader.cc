@@ -26,8 +26,7 @@ namespace m3 {
 
 DirectPipeReader::State::State(capsel_t caps) noexcept
     : _mgate(MemGate::bind(caps + 1)),
-      _rgate(RecvGate::bind(caps + 0,
-                            nextlog2<DirectPipe::MSG_BUF_SIZE>::val,
+      _rgate(RecvGate::bind(caps + 0, nextlog2<DirectPipe::MSG_BUF_SIZE>::val,
                             nextlog2<DirectPipe::MSG_SIZE>::val)),
       _pos(),
       _rem(),
@@ -82,7 +81,8 @@ ssize_t DirectPipeReader::read(void *buffer, size_t count) {
                 // maybe the writer stopped
             }
             _state->_is->finish();
-            // Non blocking mode: Reset pos, so that reply is not sent a second time on next invocation.
+            // Non blocking mode: Reset pos, so that reply is not sent a second time on next
+            // invocation.
             _state->_pos = 0;
         }
 
@@ -122,7 +122,8 @@ void DirectPipeReader::delegate(ChildActivity &act) {
 }
 
 void DirectPipeReader::serialize(Marshaller &m) {
-    // we can't share the reader between two activities atm anyway, so don't serialize the current state
+    // we can't share the reader between two activities atm anyway, so don't serialize the current
+    // state
     m << _caps;
 }
 

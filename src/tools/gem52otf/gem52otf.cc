@@ -18,33 +18,32 @@
  */
 
 #include <assert.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <inttypes.h>
 
 #define TRACE_FUNCS_TO_STRING
 
-#include <open-trace-format/otf.h>
-
-#include <iostream>
-#include <queue>
-#include <map>
-#include <set>
-#include <array>
-#include <vector>
 #include <algorithm>
+#include <array>
+#include <iostream>
+#include <map>
+#include <open-trace-format/otf.h>
+#include <queue>
 #include <regex>
+#include <set>
+#include <vector>
 
 #include "Symbols.h"
 
 static bool verbose = 0;
-static const uint64_t GEM5_TICKS_PER_SEC    = 1000000000;
-static const int GEM5_MAX_TILES               = 64;
-static const int GEM5_MAX_ACTS              = 1024 + 1;
-static const unsigned PRIV_ACTID            = 0xFFFF;
-static const unsigned IDLE_ACTID            = 0xFFFE;
+static const uint64_t GEM5_TICKS_PER_SEC = 1000000000;
+static const int GEM5_MAX_TILES = 64;
+static const int GEM5_MAX_ACTS = 1024 + 1;
+static const unsigned PRIV_ACTID = 0xFFFF;
+static const unsigned IDLE_ACTID = 0xFFFE;
 
 enum event_type {
     EVENT_FUNC_ENTER = 1,
@@ -117,8 +116,8 @@ struct Event {
         static char buf[5];
         buf[0] = static_cast<char>((tag >> 24) & 0xFF);
         buf[1] = static_cast<char>((tag >> 16) & 0xFF);
-        buf[2] = static_cast<char>((tag >>  8) & 0xFF);
-        buf[3] = static_cast<char>((tag >>  0) & 0xFF);
+        buf[2] = static_cast<char>((tag >> 8) & 0xFF);
+        buf[3] = static_cast<char>((tag >> 0) & 0xFF);
         buf[4] = '\0';
         return buf;
     }
@@ -127,19 +126,13 @@ struct Event {
         os << ev.tile << " " << event_names[ev.type] << ": " << ev.timestamp;
         switch(ev.type) {
             case EVENT_FUNC_ENTER:
-            case EVENT_FUNC_EXIT:
-                os << " function: unknown (" << ev.tag << ")";
-                break;
+            case EVENT_FUNC_EXIT: os << " function: unknown (" << ev.tag << ")"; break;
 
             case EVENT_UFUNC_ENTER:
-            case EVENT_UFUNC_EXIT:
-                os << " function: " << ev.name;
-                break;
+            case EVENT_UFUNC_EXIT: os << " function: " << ev.name; break;
 
             default:
-                os << "  receiver: " << ev.remote
-                   << "  size: " << ev.size
-                   << "  tag: " << ev.tag;
+                os << "  receiver: " << ev.remote << "  size: " << ev.size << "  tag: " << ev.tag;
                 break;
         }
         return os;
@@ -161,13 +154,7 @@ struct Event {
 struct State {
     static const size_t INVALID_IDX = static_cast<size_t>(-1);
 
-    explicit State()
-        : tag(),
-          addr(),
-          sym(),
-          in_cmd(),
-          have_start(),
-          start_idx(INVALID_IDX) {
+    explicit State() : tag(), addr(), sym(), in_cmd(), have_start(), start_idx(INVALID_IDX) {
     }
 
     uint64_t tag;
@@ -201,14 +188,8 @@ static Symbols syms;
 
 static Event build_event(event_type type, uint64_t timestamp, uint32_t tile,
                          const std::string &remote, const std::string &size, uint64_t tag) {
-    Event ev(
-        tile,
-        timestamp,
-        type,
-        strtoull(size.c_str(), nullptr, 10),
-        strtoull(remote.c_str(), nullptr, 10),
-        tag
-    );
+    Event ev(tile, timestamp, type, strtoull(size.c_str(), nullptr, 10),
+             strtoull(remote.c_str(), nullptr, 10), tag);
     return ev;
 }
 
@@ -229,33 +210,17 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
     }
 
     std::regex msg_snd_regex(
-        "^: \e\\[1m\\[(?:sd|rp) -> (\\d+)\\]\e\\[0m with EP\\d+ of (?:0x)?[0-9a-f]+:(\\d+)"
-    );
-    std::regex msg_rcv_regex(
-        "^: \e\\[1m\\[rv <- (\\d+)\\]\e\\[0m (\\d+) bytes on EP\\d+"
-    );
+        "^: \e\\[1m\\[(?:sd|rp) -> (\\d+)\\]\e\\[0m with EP\\d+ of (?:0x)?[0-9a-f]+:(\\d+)");
+    std::regex msg_rcv_regex("^: \e\\[1m\\[rv <- (\\d+)\\]\e\\[0m (\\d+) bytes on EP\\d+");
     std::regex msg_rw_regex(
         "^: \e\\[1m\\[(rd|wr) -> (\\d+)\\]\e\\[0m at (?:0x)?[0-9a-f]+\\+(?:0x)?[0-9a-f]+"
-        " with EP\\d+ (?:from|into) (?:0x)?[0-9a-f]+:(\\d+)"
-    );
-    std::regex suswake_regex(
-        "(Suspending|Waking up) core"
-    );
-    std::regex setact_regex(
-        "^\\.regFile: TCU-> PRI\\[CUR_ACT     \\]: 0x([0-9a-f]+)"
-    );
-    std::regex debug_regex(
-        "^: DEBUG (?:0x)([0-9a-f]+)"
-    );
-    std::regex exec_regex(
-        "^(?:0x)([0-9a-f]+) @ .*  :"
-    );
-    std::regex call_regex(
-        "^(?:0x)([0-9a-f]+) @ .*  :   CALL_NEAR"
-    );
-    std::regex ret_regex(
-        "^(?:0x)([0-9a-f]+) @ .*\\.0  :   RET_NEAR"
-    );
+        " with EP\\d+ (?:from|into) (?:0x)?[0-9a-f]+:(\\d+)");
+    std::regex suswake_regex("(Suspending|Waking up) core");
+    std::regex setact_regex("^\\.regFile: TCU-> PRI\\[CUR_ACT     \\]: 0x([0-9a-f]+)");
+    std::regex debug_regex("^: DEBUG (?:0x)([0-9a-f]+)");
+    std::regex exec_regex("^(?:0x)([0-9a-f]+) @ .*  :");
+    std::regex call_regex("^(?:0x)([0-9a-f]+) @ .*  :   CALL_NEAR");
+    std::regex ret_regex("^(?:0x)([0-9a-f]+) @ .*\\.0  :   RET_NEAR");
 
     State states[GEM5_MAX_TILES];
 
@@ -272,8 +237,7 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
         int tid;
 
         if(mode == MODE_ACTS &&
-                sscanf(readbuf, "%Lu: tile%u.cpu T%d : %lx @", &timestamp, &tile, &tid, &addr) == 4) {
-
+           sscanf(readbuf, "%Lu: tile%u.cpu T%d : %lx @", &timestamp, &tile, &tid, &addr) == 4) {
             if(states[tile].addr == addr)
                 continue;
 
@@ -288,7 +252,7 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
                 buf.push_back(Event(tile, timestamp, EVENT_UFUNC_EXIT, 0, ""));
 
             uint32_t bin;
-            char *namebuf = (char*)malloc(Symbols::MAX_FUNC_LEN + 1);
+            char *namebuf = (char *)malloc(Symbols::MAX_FUNC_LEN + 1);
             if(!syms.valid(sym)) {
                 bin = static_cast<uint32_t>(-1);
                 snprintf(namebuf, Symbols::MAX_FUNC_LEN, "%#lx", addr);
@@ -312,8 +276,8 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
 
         if(strstr(line.c_str(), "rv") && std::regex_search(line, match, msg_rcv_regex)) {
             uint32_t sender = strtoul(match[1].str().c_str(), nullptr, 0);
-            Event ev = build_event(EVENT_MSG_RECV,
-                timestamp, tile, match[1].str(), match[2].str(), states[sender].tag);
+            Event ev = build_event(EVENT_MSG_RECV, timestamp, tile, match[1].str(), match[2].str(),
+                                   states[sender].tag);
             buf.push_back(ev);
 
             last_tile = std::max(tile, std::max(last_tile, ev.remote));
@@ -339,7 +303,7 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
                 buf.push_back(build_event(type, timestamp, tile, "", "", acttag));
             }
         }
-        else if (!states[tile].in_cmd) {
+        else if(!states[tile].in_cmd) {
             if(strncmp(line.c_str(), ": Starting command ", 19) == 0) {
                 states[tile].in_cmd = true;
                 states[tile].have_start = false;
@@ -368,10 +332,10 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
                 states[tile].in_cmd = false;
             }
             else {
-                if ((strstr(line.c_str(), "sd") || strstr(line.c_str(), "rp")) &&
-                        std::regex_search(line, match, msg_snd_regex)) {
-                    Event ev = build_event(EVENT_MSG_SEND_START,
-                        timestamp, tile, match[1].str(), match[2].str(), tag);
+                if((strstr(line.c_str(), "sd") || strstr(line.c_str(), "rp")) &&
+                   std::regex_search(line, match, msg_snd_regex)) {
+                    Event ev = build_event(EVENT_MSG_SEND_START, timestamp, tile, match[1].str(),
+                                           match[2].str(), tag);
                     states[tile].have_start = true;
                     buf.push_back(ev);
                     states[tile].start_idx = buf.size() - 1;
@@ -382,10 +346,11 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
                     event_type type = match[1].str() == "rd" ? EVENT_MEM_READ_START
                                                              : EVENT_MEM_WRITE_START;
                     if(states[tile].start_idx != State::INVALID_IDX)
-                        buf[states[tile].start_idx].size += strtoull(match[3].str().c_str(), nullptr, 10);
+                        buf[states[tile].start_idx].size +=
+                            strtoull(match[3].str().c_str(), nullptr, 10);
                     else {
-                        Event ev = build_event(type,
-                            timestamp, tile, match[2].str(), match[3].str(), tag);
+                        Event ev =
+                            build_event(type, timestamp, tile, match[2].str(), match[3].str(), tag);
                         states[tile].have_start = true;
                         buf.push_back(ev);
                         states[tile].start_idx = buf.size() - 1;
@@ -405,7 +370,8 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
     return last_tile + 1;
 }
 
-static void gen_pe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> &trace_buf, uint32_t tile_count) {
+static void gen_pe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> &trace_buf,
+                          uint32_t tile_count) {
     // Processes.
     uint32_t stream = 1;
     for(uint32_t i = 0; i < tile_count; ++i) {
@@ -470,41 +436,40 @@ static void gen_pe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> &
 
         switch(event->type) {
             case EVENT_MSG_SEND_START:
-                OTF_Writer_writeSendMsg(writer, timestamp,
-                    event->tile, event->remote, grp_msg, event->tag, event->size, 0);
+                OTF_Writer_writeSendMsg(writer, timestamp, event->tile, event->remote, grp_msg,
+                                        event->tag, event->size, 0);
                 ++stats.send;
                 break;
 
             case EVENT_MSG_RECV:
-                OTF_Writer_writeRecvMsg(writer, timestamp,
-                    event->tile, event->remote, grp_msg, event->tag, event->size, 0);
+                OTF_Writer_writeRecvMsg(writer, timestamp, event->tile, event->remote, grp_msg,
+                                        event->tag, event->size, 0);
                 ++stats.recv;
                 break;
 
-            case EVENT_MSG_SEND_DONE:
-                break;
+            case EVENT_MSG_SEND_DONE: break;
 
             case EVENT_MEM_READ_START:
-                OTF_Writer_writeSendMsg(writer, timestamp,
-                    event->tile, event->remote, grp_mem, event->tag, event->size, 0);
+                OTF_Writer_writeSendMsg(writer, timestamp, event->tile, event->remote, grp_mem,
+                                        event->tag, event->size, 0);
                 ++stats.read;
                 break;
 
             case EVENT_MEM_READ_DONE:
-                OTF_Writer_writeRecvMsg(writer, timestamp,
-                    event->remote, event->tile, grp_mem, event->tag, event->size, 0);
+                OTF_Writer_writeRecvMsg(writer, timestamp, event->remote, event->tile, grp_mem,
+                                        event->tag, event->size, 0);
                 ++stats.finish;
                 break;
 
             case EVENT_MEM_WRITE_START:
-                OTF_Writer_writeSendMsg(writer, timestamp,
-                    event->tile, event->remote, grp_mem, event->tag, event->size, 0);
+                OTF_Writer_writeSendMsg(writer, timestamp, event->tile, event->remote, grp_mem,
+                                        event->tag, event->size, 0);
                 ++stats.write;
                 break;
 
             case EVENT_MEM_WRITE_DONE:
-                OTF_Writer_writeRecvMsg(writer, timestamp,
-                    event->remote, event->tile, grp_mem, event->tag, event->size, 0);
+                OTF_Writer_writeRecvMsg(writer, timestamp, event->remote, event->tile, grp_mem,
+                                        event->tag, event->size, 0);
                 ++stats.finish;
                 break;
 
@@ -518,7 +483,8 @@ static void gen_pe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> &
 
             case EVENT_SUSPEND:
                 if(awake[event->tile]) {
-                    OTF_Writer_writeLeave(writer, timestamp - 1, cur_act[event->tile], event->tile, 0);
+                    OTF_Writer_writeLeave(writer, timestamp - 1, cur_act[event->tile], event->tile,
+                                          0);
                     OTF_Writer_writeEnter(writer, timestamp, fn_exec_sleep, event->tile, 0);
                     awake[event->tile] = false;
                 }
@@ -530,12 +496,14 @@ static void gen_pe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> &
                     char name[16];
                     snprintf(name, sizeof(name), "ACT_%#x", (unsigned)event->tag);
                     actfuncs[event->tag] = ++fn_exec_last;
-                    OTF_Writer_writeDefFunction(writer, 0, actfuncs[event->tag], name, grp_func_exec, 0);
+                    OTF_Writer_writeDefFunction(writer, 0, actfuncs[event->tag], name,
+                                                grp_func_exec, 0);
                     fn = actfuncs.find(event->tag);
                 }
 
                 if(awake[event->tile] && cur_act[event->tile] != fn->second) {
-                    OTF_Writer_writeLeave(writer, timestamp - 1, cur_act[event->tile], event->tile, 0);
+                    OTF_Writer_writeLeave(writer, timestamp - 1, cur_act[event->tile], event->tile,
+                                          0);
                     OTF_Writer_writeEnter(writer, timestamp, fn->second, event->tile, 0);
                 }
 
@@ -556,7 +524,7 @@ static void gen_pe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> &
 }
 
 static void gen_act_events(OTF_Writer *writer, Stats &stats, std::vector<Event> &trace_buf,
-        uint32_t tile_count, uint32_t binary_count, char **binaries) {
+                           uint32_t tile_count, uint32_t binary_count, char **binaries) {
     // Processes
     std::set<unsigned> actIds;
 
@@ -584,7 +552,8 @@ static void gen_act_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
     unsigned grp_mem = (1 << 20) + 1;
     OTF_Writer_writeDefProcessGroup(writer, 0, grp_mem, "Memory Read/Write", tile_count, allActs);
     unsigned grp_msg = (1 << 20) + 2;
-    OTF_Writer_writeDefProcessGroup(writer, 0, grp_msg, "Message Send/Receive", tile_count, allActs);
+    OTF_Writer_writeDefProcessGroup(writer, 0, grp_msg, "Message Send/Receive", tile_count,
+                                    allActs);
 
     // Function groups
     unsigned grp_func_count = 0;
@@ -626,16 +595,16 @@ static void gen_act_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
     for(uint32_t i = 0; i < tile_count; ++i)
         cur_act[i] = PRIV_ACTID;
 
-    uint32_t ufunc_max_id = ( 3 << 20 );
+    uint32_t ufunc_max_id = (3 << 20);
     std::map<std::pair<int, std::string>, uint32_t> ufunc_map;
 
-    uint32_t func_start_id = ( 4 << 20 );
+    uint32_t func_start_id = (4 << 20);
 
     // function call stack per activity
     std::array<uint, GEM5_MAX_ACTS> func_stack;
-    func_stack.fill( 0 );
+    func_stack.fill(0);
     std::array<uint, GEM5_MAX_ACTS> ufunc_stack;
-    ufunc_stack.fill( 0 );
+    ufunc_stack.fill(0);
 
     uint64_t timestamp = 0;
 
@@ -670,14 +639,14 @@ static void gen_act_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
                 // TODO currently, we don't display that as functions, because it interferes with
                 // the UFUNCs.
                 // OTF_Writer_writeEnter(writer, timestamp, fn_msg_send, act, 0);
-                OTF_Writer_writeSendMsg(writer, timestamp,
-                    act, remote_act, grp_msg, event->tag, event->size, 0);
+                OTF_Writer_writeSendMsg(writer, timestamp, act, remote_act, grp_msg, event->tag,
+                                        event->size, 0);
                 ++stats.send;
                 break;
 
             case EVENT_MSG_RECV:
-                OTF_Writer_writeRecvMsg(writer, timestamp,
-                    act, remote_act, grp_msg, event->tag, event->size, 0);
+                OTF_Writer_writeRecvMsg(writer, timestamp, act, remote_act, grp_msg, event->tag,
+                                        event->size, 0);
                 ++stats.recv;
                 break;
 
@@ -687,30 +656,30 @@ static void gen_act_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
 
             case EVENT_MEM_READ_START:
                 // OTF_Writer_writeEnter(writer, timestamp, fn_mem_read, act, 0);
-                OTF_Writer_writeSendMsg(writer, timestamp,
-                    act, remote_act, grp_mem, event->tag, event->size, 0);
+                OTF_Writer_writeSendMsg(writer, timestamp, act, remote_act, grp_mem, event->tag,
+                                        event->size, 0);
                 ++stats.read;
                 break;
 
             case EVENT_MEM_READ_DONE:
                 // OTF_Writer_writeLeave(writer, timestamp, fn_mem_read, act, 0);
-                OTF_Writer_writeRecvMsg(writer, timestamp,
-                    remote_act, act, grp_mem, event->tag, event->size, 0);
+                OTF_Writer_writeRecvMsg(writer, timestamp, remote_act, act, grp_mem, event->tag,
+                                        event->size, 0);
                 ++stats.finish;
                 break;
 
             case EVENT_MEM_WRITE_START:
                 // OTF_Writer_writeEnter(writer, timestamp, fn_mem_write, act, 0);
-                OTF_Writer_writeSendMsg(writer, timestamp,
-                    act, remote_act, grp_mem, event->tag, event->size, 0);
+                OTF_Writer_writeSendMsg(writer, timestamp, act, remote_act, grp_mem, event->tag,
+                                        event->size, 0);
                 ++stats.write;
                 break;
 
             case EVENT_MEM_WRITE_DONE:
                 if(stats.read || stats.write) {
                     // OTF_Writer_writeLeave(writer, timestamp, fn_mem_write, act, 0);
-                    OTF_Writer_writeRecvMsg(writer, timestamp,
-                        remote_act, act, grp_mem, event->tag, event->size, 0);
+                    OTF_Writer_writeRecvMsg(writer, timestamp, remote_act, act, grp_mem, event->tag,
+                                            event->size, 0);
                     ++stats.finish;
                 }
                 break;
@@ -758,13 +727,12 @@ static void gen_act_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
                 ++(ufunc_stack[act]);
                 OTF_Writer_writeEnter(writer, timestamp, id, act, 0);
                 ++stats.ufunc_enter;
-            }
-            break;
+            } break;
 
             case EVENT_UFUNC_EXIT: {
                 if(ufunc_stack[act] < 1) {
-                    std::cout << act << " WARNING: exit at ufunc stack level "
-                              << ufunc_stack[act] << " dropped.\n";
+                    std::cout << act << " WARNING: exit at ufunc stack level " << ufunc_stack[act]
+                              << " dropped.\n";
                     ++stats.warnings;
                 }
                 else {
@@ -772,21 +740,19 @@ static void gen_act_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
                     OTF_Writer_writeLeave(writer, timestamp, 0, act, 0);
                 }
                 ++stats.ufunc_exit;
-            }
-            break;
+            } break;
 
             case EVENT_FUNC_ENTER: {
                 uint32_t id = event->tag;
                 ++(func_stack[act]);
                 OTF_Writer_writeEnter(writer, timestamp, func_start_id + id, act, 0);
                 ++stats.func_enter;
-            }
-            break;
+            } break;
 
             case EVENT_FUNC_EXIT: {
                 if(func_stack[act] < 1) {
-                    std::cout << act << " WARNING: exit at func stack level "
-                              << func_stack[act] << " dropped.\n";
+                    std::cout << act << " WARNING: exit at func stack level " << func_stack[act]
+                              << " dropped.\n";
                     ++stats.warnings;
                 }
                 else {
@@ -794,8 +760,7 @@ static void gen_act_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
                     OTF_Writer_writeLeave(writer, timestamp, 0, act, 0);
                 }
                 ++stats.func_exit;
-            }
-            break;
+            } break;
         }
 
         ++stats.total;
@@ -816,9 +781,13 @@ static void usage(const char *name) {
     fprintf(stderr, "  <file>:        the gem5 log file\n");
     fprintf(stderr, "  [<binary>...]: optionally a list of binaries for profiling\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "The 'tiles' mode generates a tile-centric trace, i.e., the tiles are the processes");
-    fprintf(stderr, " and it is shown at which points in time which Activity was running on which tile.\n");
-    fprintf(stderr, "The 'acts' mode generates a Activity-centric trace, i.e., the activities are the processes");
+    fprintf(stderr,
+            "The 'tiles' mode generates a tile-centric trace, i.e., the tiles are the processes");
+    fprintf(stderr,
+            " and it is shown at which points in time which Activity was running on which tile.\n");
+    fprintf(
+        stderr,
+        "The 'acts' mode generates a Activity-centric trace, i.e., the activities are the processes");
     fprintf(stderr, " and it is shown what they do.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "The following gem5 flags (M3_GEM5_DBG) are used:\n");
@@ -829,7 +798,7 @@ static void usage(const char *name) {
     exit(EXIT_FAILURE);
 }
 
-int main(int argc,char **argv) {
+int main(int argc, char **argv) {
     if(argc < 3)
         usage(argv[0]);
 
@@ -857,7 +826,7 @@ int main(int argc,char **argv) {
     uint32_t tile_count = read_trace_file(argv[argstart + 1], mode, trace_buf);
 
     // now sort the trace buffer according to timestamps
-    printf( "sorting %zu events\n", trace_buf.size());
+    printf("sorting %zu events\n", trace_buf.size());
 
     std::sort(trace_buf.begin(), trace_buf.end(), [](const Event &a, const Event &b) {
         return a.timestamp < b.timestamp;
@@ -885,7 +854,7 @@ int main(int argc,char **argv) {
         gen_pe_events(writer, stats, trace_buf, tile_count);
     else {
         gen_act_events(writer, stats, trace_buf, tile_count,
-            static_cast<uint32_t>(argc - (argstart + 2)), argv + argstart + 2);
+                       static_cast<uint32_t>(argc - (argstart + 2)), argv + argstart + 2);
     }
 
     if(stats.send != stats.recv) {

@@ -18,8 +18,8 @@
 
 #pragma once
 
-#include <base/stream/OStream.h>
 #include <base/mem/Heap.h>
+#include <base/stream/OStream.h>
 
 namespace m3 {
 
@@ -27,7 +27,7 @@ namespace m3 {
  * Output-stream that writes to a string
  */
 class OStringStream : public OStream {
-    static const size_t DEFAULT_SIZE    = 64;
+    static const size_t DEFAULT_SIZE = 64;
 
 public:
     /**
@@ -37,7 +37,7 @@ public:
     explicit OStringStream()
         : OStream(),
           _dynamic(true),
-          _dst(static_cast<char*>(malloc(DEFAULT_SIZE))),
+          _dst(static_cast<char *>(malloc(DEFAULT_SIZE))),
           _max(_dst ? DEFAULT_SIZE : 0),
           _pos() {
     }
@@ -88,7 +88,7 @@ public:
         // increase the buffer, if necessary
         if(_pos + 1 >= _max && _dynamic) {
             _max *= 2;
-            _dst = static_cast<char*>(realloc(_dst, _max));
+            _dst = static_cast<char *>(realloc(_dst, _max));
         }
         // write into the buffer if there is still enough room
         if(_pos + 1 < _max) {

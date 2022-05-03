@@ -13,15 +13,14 @@
  * General Public License version 2 for more details.
  */
 
-#include <m3/com/EP.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
+#include <m3/com/EP.h>
 #include <m3/tiles/OwnActivity.h>
 
 namespace m3 {
 
-EP::EP() noexcept
-    : EP(ObjCap::INVALID, Gate::UNBOUND, 0, KEEP_CAP) {
+EP::EP() noexcept : EP(ObjCap::INVALID, Gate::UNBOUND, 0, KEEP_CAP) {
 }
 
 EP &EP::operator=(EP &&ep) noexcept {

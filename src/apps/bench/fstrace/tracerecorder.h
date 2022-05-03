@@ -15,11 +15,10 @@
 #include "opdescr.h"
 
 class TraceRecorder {
-
-  public:
-    typedef std::list<OpDescr *>                  TraceList;
-    typedef std::list<OpDescr *>::const_iterator  TraceListIterator;
-    typedef std::set<std::string>                 SysCallSet;
+public:
+    typedef std::list<OpDescr *> TraceList;
+    typedef std::list<OpDescr *>::const_iterator TraceListIterator;
+    typedef std::set<std::string> SysCallSet;
     typedef std::set<std::string>::const_iterator SysCallSetIterator;
 
     /*
@@ -32,7 +31,7 @@ class TraceRecorder {
      */
     void print(const char *name);
 
-  protected:
+protected:
     /*
      * @brief Print some C code that prepares the trace description.
      */
@@ -49,6 +48,6 @@ class TraceRecorder {
      */
     void printEpilogue();
 
-    TraceList  ops;
+    TraceList ops;
     SysCallSet sysCalls;
 };

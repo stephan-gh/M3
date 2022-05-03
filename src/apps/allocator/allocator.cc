@@ -16,14 +16,14 @@
  * General Public License version 2 for more details.
  */
 
-#include <m3/stream/Standard.h>
-#include <m3/com/MemGate.h>
 #include <m3/Exception.h>
+#include <m3/com/MemGate.h>
+#include <m3/stream/Standard.h>
 
 using namespace m3;
 
 int main() {
-    for(size_t i = 0; ; ++i) {
+    for(size_t i = 0;; ++i) {
         try {
             MemGate mem = MemGate::create_global(0x1000, MemGate::RW);
             cout << "Got memory gate :)\n";

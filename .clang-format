@@ -1,0 +1,136 @@
+---
+UseTab: Never
+TabWidth: '4'
+IndentWidth: '4'
+ContinuationIndentWidth: '4'
+ColumnLimit: '100'
+
+Language: Cpp
+Standard: Cpp11
+Cpp11BracedListStyle: 'true'
+
+AccessModifierOffset: '-4'
+
+AlignAfterOpenBracket: Align
+AlignArrayOfStructures: Left
+AlignConsecutiveAssignments: None
+AlignConsecutiveBitFields: 'true'
+AlignConsecutiveDeclarations: None
+AlignConsecutiveMacros: AcrossEmptyLinesAndComments
+AlignEscapedNewlines: Left
+AlignOperands: Align
+AlignTrailingComments: 'true'
+
+AllowAllArgumentsOnNextLine: 'true'
+AllowAllParametersOfDeclarationOnNextLine: 'true'
+
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: 'true'
+AllowShortEnumsOnASingleLine: 'false'
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: 'false'
+AllowShortLambdasOnASingleLine: None
+AllowShortLoopsOnASingleLine: 'false'
+
+AlwaysBreakAfterReturnType: None
+AlwaysBreakBeforeMultilineStrings: 'true'
+AlwaysBreakTemplateDeclarations: 'true'
+
+BinPackArguments: 'true'
+BinPackParameters: 'true'
+
+BitFieldColonSpacing: Both
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: 'false'
+  AfterClass: 'false'
+  AfterEnum: 'false'
+  AfterFunction: 'false'
+  AfterNamespace: 'false'
+  AfterStruct: 'false'
+  AfterUnion: 'false'
+  AfterExternBlock: 'false'
+  BeforeCatch: 'true'
+  BeforeElse: 'true'
+  BeforeLambdaBody: 'false'
+  BeforeWhile: 'true'
+  IndentBraces: 'false'
+  SplitEmptyFunction: 'false'
+  SplitEmptyRecord: 'false'
+  SplitEmptyNamespace: 'false'
+
+BreakBeforeBinaryOperators: None
+BreakBeforeInheritanceComma: 'false'
+BreakBeforeTernaryOperators: 'true'
+BreakConstructorInitializers: BeforeColon
+BreakInheritanceList: BeforeColon
+BreakStringLiterals: 'false'
+
+CompactNamespaces: 'false'
+FixNamespaceComments: 'false'
+NamespaceIndentation: None
+
+ConstructorInitializerIndentWidth: '4'
+AllowAllConstructorInitializersOnNextLine: 'false'
+ConstructorInitializerAllOnOneLineOrOnePerLine: 'true'
+
+DisableFormat: 'false'
+
+EmptyLineAfterAccessModifier: Never
+EmptyLineBeforeAccessModifier: LogicalBlock
+
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex:    '^<base/'
+    Priority: 1
+  - Regex:    '^<m3/'
+    Priority: 2
+  - Regex:    '^<'
+    Priority: 3
+  - Regex:    '.*'
+    Priority: 4
+IncludeIsMainRegex: $
+SortIncludes: 'true'
+
+IndentAccessModifiers: 'false'
+IndentCaseLabels: 'true'
+IndentExternBlock: Indent
+IndentGotoLabels: 'false'
+IndentPPDirectives: AfterHash
+IndentWrappedFunctionNames: 'true'
+
+KeepEmptyLinesAtTheStartOfBlocks: 'false'
+LambdaBodyIndentation: Signature
+MaxEmptyLinesToKeep: '1'
+NamespaceIndentation: None
+
+PenaltyBreakAssignment: 10
+PenaltyBreakBeforeFirstCallParameter: 30
+PenaltyBreakComment: 10
+PenaltyBreakFirstLessLess: 0
+PenaltyBreakString: 10
+PenaltyExcessCharacter: 100
+PenaltyReturnTypeOnItsOwnLine: 200
+
+PointerAlignment: Right
+ReferenceAlignment: Right
+
+ReflowComments: 'true'
+
+SortIncludes: CaseSensitive
+SortUsingDeclarations: 'true'
+
+SpaceAfterCStyleCast: 'false'
+SpaceAfterTemplateKeyword: 'false'
+SpaceBeforeAssignmentOperators: 'true'
+SpaceBeforeParens: Never
+SpaceInEmptyParentheses: 'false'
+SpacesBeforeTrailingComments: '1'
+SpacesInAngles: 'false'
+SpacesInCStyleCastParentheses: 'false'
+SpacesInContainerLiterals: 'false'
+SpacesInParentheses: 'false'
+SpacesInSquareBrackets: 'false'
+
+UseCRLF: 'true'

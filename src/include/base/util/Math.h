@@ -52,13 +52,14 @@ public:
     }
 
     /**
-     * Assuming that <startx> < <endx> and <endx> is not included (that means with start=0 and end=10
-     * 0 .. 9 is used), the macro determines whether the two ranges overlap anywhere.
+     * Assuming that <startx> < <endx> and <endx> is not included (that means with start=0 and
+     * end=10 0 .. 9 is used), the macro determines whether the two ranges overlap anywhere.
      */
-    static constexpr bool overlap(uintptr_t start1, uintptr_t end1, uintptr_t start2, uintptr_t end2) {
-        return (start1 >= start2 && start1 < end2) ||   // start in range
-            (end1 > start2 && end1 <= end2) ||          // end in range
-            (start1 < start2 && end1 > end2);           // complete overlapped
+    static constexpr bool overlap(uintptr_t start1, uintptr_t end1, uintptr_t start2,
+                                  uintptr_t end2) {
+        return (start1 >= start2 && start1 < end2) || // start in range
+               (end1 > start2 && end1 <= end2) ||     // end in range
+               (start1 < start2 && end1 > end2);      // complete overlapped
     }
 
     template<typename T>
@@ -78,11 +79,11 @@ public:
 
     static float sqrt(float n) {
         // Source: https://en.wikipedia.org/wiki/Methods_of_computing_square_roots
-        uint32_t val_int = *reinterpret_cast<uint32_t*>(&n);
+        uint32_t val_int = *reinterpret_cast<uint32_t *>(&n);
         val_int -= 1 << 23; /* Subtract 2^m. */
         val_int >>= 1;      /* Divide by 2. */
         val_int += 1 << 29; /* Add ((b + 1) / 2) * 2^m. */
-        return *reinterpret_cast<float*>(&val_int);
+        return *reinterpret_cast<float *>(&val_int);
     }
 
     static constexpr float nan() {

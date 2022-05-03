@@ -14,28 +14,23 @@
  * General Public License version 2 for more details.
  */
 
+#include "Symbols.h"
+
+#include <algorithm>
+#include <cxxabi.h>
+#include <iomanip>
+#include <linux/elf.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <cxxabi.h>
-
-#include <algorithm>
-#include <iomanip>
 #include <string>
+#include <unistd.h>
 
-#include <linux/elf.h>
-
-#include "Symbols.h"
-
-Symbols::Symbols()
-    : files(),
-      last(),
-      syms() {
+Symbols::Symbols() : files(), last(), syms() {
 }
 
 void Symbols::addFile(const char *file) {
-    FILE *f = fopen(file,"r");
+    FILE *f = fopen(file, "r");
     if(!f)
         perror("fopen");
 
@@ -113,21 +108,22 @@ char *Symbols::loadShSyms(FILE *f, const Elf64_Ehdr *eheader) {
     Elf64_Shdr sheader;
     unsigned char *datPtr;
     char *shsymbols;
-    datPtr = reinterpret_cast<unsigned char*>(
+    datPtr = reinterpret_cast<unsigned char *>(
         eheader->e_shoff + static_cast<size_t>(eheader->e_shstrndx) * eheader->e_shentsize);
     readat(f, reinterpret_cast<off_t>(datPtr), &sheader, sizeof(Elf64_Shdr));
-    shsymbols = static_cast<char*>(malloc(sheader.sh_size));
+    shsymbols = static_cast<char *>(malloc(sheader.sh_size));
     if(shsymbols == NULL)
         perror("malloc");
     readat(f, static_cast<off_t>(sheader.sh_offset), shsymbols, sheader.sh_size);
     return shsymbols;
 }
 
-Elf64_Shdr *Symbols::getSecByName(FILE *f, const Elf64_Ehdr *eheader, char *syms, const char *name) {
+Elf64_Shdr *Symbols::getSecByName(FILE *f, const Elf64_Ehdr *eheader, char *syms,
+                                  const char *name) {
     static Elf64_Shdr section[1];
     int i;
-    unsigned char *datPtr = reinterpret_cast<unsigned char*>(eheader->e_shoff);
-    for(i = 0; i < eheader->e_shnum; datPtr += eheader->e_shentsize,  i++) {
+    unsigned char *datPtr = reinterpret_cast<unsigned char *>(eheader->e_shoff);
+    for(i = 0; i < eheader->e_shnum; datPtr += eheader->e_shentsize, i++) {
         readat(f, reinterpret_cast<off_t>(datPtr), section, sizeof(Elf64_Shdr));
         if(strcmp(syms + section->sh_name, name) == 0)
             return section;

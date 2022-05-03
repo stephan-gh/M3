@@ -16,16 +16,16 @@
  * General Public License version 2 for more details.
  */
 
+#include "imgproc.h"
+
+#include <base/CmdArgs.h>
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
 #include <base/time/Profile.h>
-#include <base/CmdArgs.h>
 
+#include <m3/Test.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/VFS.h>
-#include <m3/Test.h>
-
-#include "imgproc.h"
 
 using namespace m3;
 
@@ -36,9 +36,9 @@ using namespace m3;
 // (4 + 4) * 732 = 5856.
 
 const CycleDuration ACCEL_TIMES[] = {
-    CycleDuration::from_raw(5856 / 2),   // FFT
-    CycleDuration::from_raw(1189 / 2),   // multiply
-    CycleDuration::from_raw(5856 / 2),   // IFFT
+    CycleDuration::from_raw(5856 / 2), // FFT
+    CycleDuration::from_raw(1189 / 2), // multiply
+    CycleDuration::from_raw(5856 / 2), // IFFT
 };
 
 static void usage(const char *name) {
@@ -78,8 +78,7 @@ int main(int argc, char **argv) {
             case 'n': num = IStringStream::read_from<size_t>(CmdArgs::arg); break;
             case 'r': repeats = IStringStream::read_from<ulong>(CmdArgs::arg); break;
             case 'w': warmup = IStringStream::read_from<ulong>(CmdArgs::arg); break;
-            default:
-                usage(argv[0]);
+            default: usage(argv[0]);
         }
     }
     if(CmdArgs::ind >= argc)

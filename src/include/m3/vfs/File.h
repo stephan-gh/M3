@@ -26,7 +26,6 @@
 #include <m3/vfs/FileRef.h>
 
 #include <fs/internal.h>
-
 #include <memory>
 
 namespace m3 {
@@ -133,10 +132,7 @@ public:
         size_t pos;
     };
 
-    explicit File(int flags) noexcept
-        : _blocking(true),
-          _flags(flags),
-          _fd(-1) {
+    explicit File(int flags) noexcept : _blocking(true), _flags(flags), _fd(-1) {
     }
     File(const File &) = delete;
     File &operator=(const File &) = delete;
@@ -253,8 +249,8 @@ public:
      * @param prot the protection flags (see Pager::Prot::*)
      * @param flags the mapping flags (see Pager::Flags::*)
      */
-    virtual void map(Reference<Pager> &pager, goff_t *virt, size_t fileoff, size_t len,
-                     int prot, int flags) const = 0;
+    virtual void map(Reference<Pager> &pager, goff_t *virt, size_t fileoff, size_t len, int prot,
+                     int flags) const = 0;
 
     /**
      * @return the unique character for serialization

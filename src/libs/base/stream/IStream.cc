@@ -26,7 +26,7 @@ static int get_digit_val(char c) {
     return -1;
 }
 
-IStream & IStream::operator>>(String &str) {
+IStream &IStream::operator>>(String &str) {
     OStringStream os;
     char c;
     skip_whitespace();

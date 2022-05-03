@@ -24,10 +24,9 @@ EXTERN_C void gem5_writefile(const char *str, uint64_t len, uint64_t offset, uin
     register word_t r5 asm("r5") = offset >> 32;
     register word_t r6 asm("r6") = file & 0xFFFF'FFFF;
     register word_t r7 asm("r7") = file >> 32;
-    asm volatile(
-        ".long 0xEE4F0110"
-        : : "r"(r0), "r"(r1), "r"(r2), "r"(r3), "r"(r4), "r"(r5), "r"(r6), "r"(r7)
-    );
+    asm volatile(".long 0xEE4F0110"
+                 :
+                 : "r"(r0), "r"(r1), "r"(r2), "r"(r3), "r"(r4), "r"(r5), "r"(r6), "r"(r7));
 }
 
 EXTERN_C ssize_t gem5_readfile(char *dst, uint64_t max, uint64_t offset) {
@@ -37,11 +36,7 @@ EXTERN_C ssize_t gem5_readfile(char *dst, uint64_t max, uint64_t offset) {
     register word_t r3 asm("r3") = max >> 32;
     register word_t r4 asm("r4") = offset & 0xFFFF'FFFF;
     register word_t r5 asm("r5") = offset >> 32;
-    asm volatile(
-        ".long 0xEE500110"
-        : "+r"(r0)
-        : "r"(r1), "r"(r2), "r"(r3), "r"(r4), "r"(r5)
-    );
+    asm volatile(".long 0xEE500110" : "+r"(r0) : "r"(r1), "r"(r2), "r"(r3), "r"(r4), "r"(r5));
     uint64_t res = static_cast<uint64_t>(r0) | static_cast<uint64_t>(r1) << 32;
     return static_cast<ssize_t>(res);
 }

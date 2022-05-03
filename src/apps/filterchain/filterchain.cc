@@ -16,19 +16,19 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/util/Random.h>
 #include <base/stream/IStringStream.h>
+#include <base/util/Random.h>
 
-#include <m3/com/MemGate.h>
-#include <m3/com/SendGate.h>
-#include <m3/com/RecvGate.h>
 #include <m3/com/GateStream.h>
+#include <m3/com/MemGate.h>
+#include <m3/com/RecvGate.h>
+#include <m3/com/SendGate.h>
 #include <m3/stream/Standard.h>
 #include <m3/tiles/ChildActivity.h>
 
 using namespace m3;
 
-static const size_t BUF_SIZE    = 4096;
+static const size_t BUF_SIZE = 4096;
 
 int main(int argc, char **argv) {
     size_t memSize = 8 * 1024 * 1024;

@@ -34,8 +34,7 @@ static bool str_ends_with(const char *str, const char *end) {
 extern "C" __attribute__((constructor)) void host_init(int argc, char **argv) {
     char *wait;
     if((wait = getenv("M3_WAIT")) != 0 && argv[0] && str_ends_with(argv[0], wait)) {
-        while(wait_for_debugger != 0) {
-        }
+        while(wait_for_debugger != 0) {}
     }
 
     rust_init(argc, argv);

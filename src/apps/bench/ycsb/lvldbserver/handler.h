@@ -23,17 +23,22 @@
 #include "ops.h"
 
 #if defined(__kachel__)
-#   define SYSC_RECEIVE     0xFFFF
-#   define SYSC_SEND        0xFFFE
+#    define SYSC_RECEIVE 0xFFFF
+#    define SYSC_SEND    0xFFFE
 extern "C" void __m3_sysc_trace(bool enable, size_t max);
 extern "C" void __m3_sysc_trace_start(long n);
 extern "C" void __m3_sysc_trace_stop();
 extern "C" uint64_t __m3_sysc_systime();
 #else
-void __m3_sysc_trace(bool, size_t) {}
-void __m3_sysc_trace_start(long) {}
-void __m3_sysc_trace_stop() {}
-uint64_t __m3_sysc_systime() { return 0; }
+void __m3_sysc_trace(bool, size_t) {
+}
+void __m3_sysc_trace_start(long) {
+}
+void __m3_sysc_trace_stop() {
+}
+uint64_t __m3_sysc_systime() {
+    return 0;
+}
 #endif
 
 class OpHandler {
@@ -44,11 +49,13 @@ public:
         STOP,
     };
 
-    virtual ~OpHandler() {}
+    virtual ~OpHandler() {
+    }
 
     virtual Result receive(Package &pkg) = 0;
     virtual bool respond(size_t bytes);
-    virtual void reset() {}
+    virtual void reset() {
+    }
 
     virtual ssize_t send(const void *data, size_t len) = 0;
 
@@ -71,7 +78,8 @@ private:
 
 class UDPOpHandler : public OpHandler {
 public:
-    explicit UDPOpHandler(m3::NetworkManager &nm, const char *workload, m3::IpAddr ip, m3::port_t port);
+    explicit UDPOpHandler(m3::NetworkManager &nm, const char *workload, m3::IpAddr ip,
+                          m3::port_t port);
 
     virtual Result receive(Package &pkg) override;
     virtual void reset() override;

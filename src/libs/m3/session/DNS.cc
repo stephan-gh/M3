@@ -29,19 +29,17 @@ namespace m3 {
 /* based on http://tools.ietf.org/html/rfc1035 */
 
 constexpr uint16_t DNS_RECURSION_DESIRED = 0x100;
-constexpr port_t DNS_PORT                = 53;
+constexpr port_t DNS_PORT = 53;
 
 enum Type {
-    TYPE_A      = 1,    /* a host address */
-    TYPE_NS     = 2,    /* an authoritative name server */
-    TYPE_CNAME  = 5,    /* the canonical name for an alias */
-    TYPE_HINFO  = 13,   /* host information */
-    TYPE_MX     = 15,   /* mail exchange */
+    TYPE_A = 1,      /* a host address */
+    TYPE_NS = 2,     /* an authoritative name server */
+    TYPE_CNAME = 5,  /* the canonical name for an alias */
+    TYPE_HINFO = 13, /* host information */
+    TYPE_MX = 15,    /* mail exchange */
 };
 
-enum Class {
-    CLASS_IN    = 1     /* the Internet */
-};
+enum Class { CLASS_IN = 1 /* the Internet */ };
 
 struct DNSHeader {
     uint16_t id;
@@ -147,7 +145,7 @@ IpAddr DNS::resolve(NetworkManager &netmng, const char *name, TimeDuration timeo
     uint16_t txid = _rng.get();
 
     // build DNS request message
-    DNSHeader *h = reinterpret_cast<DNSHeader*>(buffer);
+    DNSHeader *h = reinterpret_cast<DNSHeader *>(buffer);
     h->id = htobe16(txid);
     h->flags = htobe16(DNS_RECURSION_DESIRED);
     h->qdCount = htobe16(1);
@@ -155,9 +153,9 @@ IpAddr DNS::resolve(NetworkManager &netmng, const char *name, TimeDuration timeo
     h->nsCount = 0;
     h->arCount = 0;
 
-    convert_hostname(reinterpret_cast<char*>(h + 1),name,nameLen);
+    convert_hostname(reinterpret_cast<char *>(h + 1), name, nameLen);
 
-    DNSQuestionEnd *qend = reinterpret_cast<DNSQuestionEnd*>(buffer + sizeof(*h) + nameLen + 2);
+    DNSQuestionEnd *qend = reinterpret_cast<DNSQuestionEnd *>(buffer + sizeof(*h) + nameLen + 2);
     qend->type = htobe16(TYPE_A);
     qend->cls = htobe16(CLASS_IN);
 
@@ -184,7 +182,7 @@ IpAddr DNS::resolve(NetworkManager &netmng, const char *name, TimeDuration timeo
     int answers = be16toh(h->anCount);
 
     // skip questions
-    uint8_t *data = reinterpret_cast<uint8_t*>(h + 1);
+    uint8_t *data = reinterpret_cast<uint8_t *>(h + 1);
     for(int i = 0; i < questions; ++i) {
         size_t len = question_length(data);
         data += len + sizeof(DNSQuestionEnd);
@@ -192,7 +190,7 @@ IpAddr DNS::resolve(NetworkManager &netmng, const char *name, TimeDuration timeo
 
     // parse answers
     for(int i = 0; i < answers; ++i) {
-        DNSAnswer *ans = reinterpret_cast<DNSAnswer*>(data);
+        DNSAnswer *ans = reinterpret_cast<DNSAnswer *>(data);
         if(be16toh(ans->type) == TYPE_A && be16toh(ans->length) == sizeof(IpAddr)) {
             uint8_t *bytes = data + sizeof(DNSAnswer);
             return IpAddr(bytes[0], bytes[1], bytes[2], bytes[3]);

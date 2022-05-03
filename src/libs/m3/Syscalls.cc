@@ -19,9 +19,9 @@
 #include <base/Errors.h>
 #include <base/Init.h>
 
-#include <m3/com/GateStream.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
+#include <m3/com/GateStream.h>
 
 namespace m3 {
 
@@ -124,7 +124,8 @@ void Syscalls::create_map(capsel_t dst, capsel_t act, capsel_t mgate, capsel_t f
     send_receive_throw(req_buf);
 }
 
-epid_t Syscalls::create_activity(capsel_t dst, const String &name, capsel_t tile, capsel_t kmem, actid_t *id) {
+epid_t Syscalls::create_activity(capsel_t dst, const String &name, capsel_t tile, capsel_t kmem,
+                                 actid_t *id) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::CreateActivity>();
     req.opcode = KIF::Syscall::CREATE_ACT;
@@ -226,8 +227,8 @@ int Syscalls::activity_wait(const capsel_t *acts, size_t count, event_t event, c
     return exitcode;
 }
 
-void Syscalls::derive_mem(capsel_t act, capsel_t dst, capsel_t src, goff_t offset,
-                          size_t size, int perms) {
+void Syscalls::derive_mem(capsel_t act, capsel_t dst, capsel_t src, goff_t offset, size_t size,
+                          int perms) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::DeriveMem>();
     req.opcode = KIF::Syscall::DERIVE_MEM;
@@ -314,7 +315,8 @@ Quota<size_t> Syscalls::kmem_quota(capsel_t kmem) {
     return Quota<size_t>(reply->id, reply->total, reply->left);
 }
 
-void Syscalls::tile_quota(capsel_t tile, Quota<uint> *eps, Quota<uint64_t> *time, Quota<size_t> *pts) {
+void Syscalls::tile_quota(capsel_t tile, Quota<uint> *eps, Quota<uint64_t> *time,
+                          Quota<size_t> *pts) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::TileQuota>();
     req.opcode = KIF::Syscall::TILE_QUOTA;

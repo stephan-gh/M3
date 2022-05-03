@@ -38,9 +38,8 @@ std::unique_ptr<GenericFile> M3FS::open(const char *path, int perms) {
         reply >> file_id;
 
         _eps[ep_idx].file = file_id;
-        return std::unique_ptr<GenericFile>(new GenericFile(perms, sel(), id(),
-                                                            static_cast<size_t>(file_id),
-                                                            _eps[ep_idx].ep->id(), &_gate));
+        return std::unique_ptr<GenericFile>(new GenericFile(
+            perms, sel(), id(), static_cast<size_t>(file_id), _eps[ep_idx].ep->id(), &_gate));
     }
     else {
         KIF::ExchangeArgs args;
@@ -54,9 +53,9 @@ std::unique_ptr<GenericFile> M3FS::open(const char *path, int perms) {
 }
 
 void M3FS::close(size_t file_id) {
-    for(auto &ep: _eps) {
+    for(auto &ep : _eps) {
         if(ep.file == static_cast<ssize_t>(file_id)) {
-            ep.file = -1;;
+            ep.file = -1;
             break;
         }
     }

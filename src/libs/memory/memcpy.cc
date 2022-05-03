@@ -16,24 +16,25 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/Common.h>
 #include <base/CPU.h>
+#include <base/Common.h>
+
 #include <string.h>
 
 /* this is necessary to prevent that gcc transforms a loop into library-calls
  * (which might lead to recursion here) */
-#pragma GCC optimize ("no-tree-loop-distribute-patterns")
+#pragma GCC optimize("no-tree-loop-distribute-patterns")
 
 void *memcpy(void *dest, const void *src, size_t len) {
-    uint8_t *bdest = reinterpret_cast<uint8_t*>(dest);
-    const uint8_t *bsrc = reinterpret_cast<const uint8_t*>(src);
+    uint8_t *bdest = reinterpret_cast<uint8_t *>(dest);
+    const uint8_t *bsrc = reinterpret_cast<const uint8_t *>(src);
 
     /* are both aligned equally? */
     size_t dalign = reinterpret_cast<uintptr_t>(bdest) % sizeof(word_t);
     size_t salign = reinterpret_cast<uintptr_t>(bsrc) % sizeof(word_t);
     if(!NEED_ALIGNED_MEMACC || (dalign == 0 && salign == 0)) {
-        word_t *ddest = reinterpret_cast<word_t*>(bdest);
-        const word_t *dsrc = reinterpret_cast<const word_t*>(bsrc);
+        word_t *ddest = reinterpret_cast<word_t *>(bdest);
+        const word_t *dsrc = reinterpret_cast<const word_t *>(bsrc);
         /* copy words with loop-unrolling */
         while(len >= sizeof(word_t) * 8) {
             ddest[0] = dsrc[0];
@@ -55,8 +56,8 @@ void *memcpy(void *dest, const void *src, size_t len) {
             len -= sizeof(word_t);
         }
 
-        bdest = reinterpret_cast<uint8_t*>(ddest);
-        bsrc = reinterpret_cast<const uint8_t*>(dsrc);
+        bdest = reinterpret_cast<uint8_t *>(ddest);
+        bsrc = reinterpret_cast<const uint8_t *>(dsrc);
     }
 
     /* copy remaining bytes */

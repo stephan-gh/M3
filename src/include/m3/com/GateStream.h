@@ -18,11 +18,11 @@
 
 #pragma once
 
+#include <m3/Exception.h>
 #include <m3/com/Marshalling.h>
-#include <m3/com/SendGate.h>
 #include <m3/com/MemGate.h>
 #include <m3/com/RecvGate.h>
-#include <m3/Exception.h>
+#include <m3/com/SendGate.h>
 
 #include <alloca.h>
 
@@ -42,8 +42,8 @@ namespace m3 {
  */
 
 /**
- * The gate stream to marshall values into a message and send it over an endpoint. Thus, it "outputs"
- * values into a message.
+ * The gate stream to marshall values into a message and send it over an endpoint. Thus, it
+ * "outputs" values into a message.
  */
 class GateOStream : public Marshaller {
 public:
@@ -69,7 +69,7 @@ public:
 class MsgGateOStream : public GateOStream {
 public:
     explicit MsgGateOStream() noexcept : GateOStream(0, MsgBuf::MAX_MSG_SIZE), _msg() {
-        _bytes = reinterpret_cast<unsigned char*>(_msg.bytes());
+        _bytes = reinterpret_cast<unsigned char *>(_msg.bytes());
     }
     MsgGateOStream(const MsgGateOStream &os) noexcept : GateOStream(os), _msg(os._msg) {
     }
@@ -93,7 +93,7 @@ private:
  * An output stream for the exchange arguments.
  */
 class ExchangeOStream : public Marshaller {
-  public:
+public:
     explicit ExchangeOStream(KIF::ExchangeArgs &args) noexcept
         : Marshaller(args.data, sizeof(args.data)) {
     }
@@ -107,7 +107,7 @@ class ExchangeOStream : public Marshaller {
  * An input stream for the exchange arguments.
  */
 class ExchangeIStream : public Unmarshaller {
-  public:
+public:
     explicit ExchangeIStream(const KIF::ExchangeArgs &args) noexcept
         : Unmarshaller(args.data, args.bytes) {
     }
@@ -187,7 +187,7 @@ public:
      */
     template<typename T>
     T label() const noexcept {
-        return (T)static_cast<word_t>(_msg->label);
+        return (T) static_cast<word_t>(_msg->label);
     }
 
     /**
@@ -238,7 +238,8 @@ private:
 
 inline void GateOStream::put(const GateIStream &is) noexcept {
     assert(fits(_bytecount, is.remaining()));
-    memcpy(const_cast<unsigned char*>(bytes()) + _bytecount, is.buffer() + is.pos(), is.remaining());
+    memcpy(const_cast<unsigned char *>(bytes()) + _bytecount, is.buffer() + is.pos(),
+           is.remaining());
     _bytecount += is.remaining();
 }
 
@@ -268,8 +269,8 @@ static inline void reply_msg(GateIStream &is, const MsgBuf &msg) {
  *
  * @return the stream
  */
-template<typename ... Args>
-static inline MsgGateOStream create_vmsg(const Args& ... args) noexcept {
+template<typename... Args>
+static inline MsgGateOStream create_vmsg(const Args &...args) noexcept {
     static_assert(ostreamsize<Args...>() <= MsgBuf::MAX_MSG_SIZE,
                   "Arguments too large for message");
     MsgGateOStream os;
@@ -286,12 +287,12 @@ static inline MsgGateOStream create_vmsg(const Args& ... args) noexcept {
  * @param args the arguments to put into the message
  */
 template<typename... Args>
-static inline void send_vmsg(SendGate &gate, const Args &... args) {
+static inline void send_vmsg(SendGate &gate, const Args &...args) {
     auto msg = create_vmsg(args...);
     gate.send(msg.finish());
 }
 template<typename... Args>
-static inline void reply_vmsg(GateIStream &is, const Args &... args) {
+static inline void reply_vmsg(GateIStream &is, const Args &...args) {
     auto reply = create_vmsg(args...);
     is.reply(reply.finish());
 }
@@ -305,7 +306,7 @@ static inline void reply_vmsg(GateIStream &is, const Args &... args) {
  * @param args the arguments to marshall
  */
 template<typename... Args>
-static inline void write_vmsg(MemGate &gate, size_t offset, const Args &... args) {
+static inline void write_vmsg(MemGate &gate, size_t offset, const Args &...args) {
     auto os = create_vmsg(args...);
     gate.write(os.bytes(), os.total(), offset);
 }
@@ -330,7 +331,7 @@ static inline GateIStream receive_msg(RecvGate &rgate) {
  * @return the GateIStream, e.g. to read further values or to reply
  */
 template<typename... Args>
-static inline GateIStream receive_vmsg(RecvGate &rgate, Args &... args) {
+static inline GateIStream receive_vmsg(RecvGate &rgate, Args &...args) {
     const TCU::Message *msg = rgate.receive(nullptr);
     GateIStream is(rgate, msg);
     is.vpull(args...);
@@ -358,7 +359,7 @@ static inline GateIStream send_receive_msg(SendGate &gate, const MsgBuf &msg) {
     return GateIStream(*gate.reply_gate(), reply);
 }
 template<typename... Args>
-static inline GateIStream send_receive_vmsg(SendGate &gate, const Args &... args) {
+static inline GateIStream send_receive_vmsg(SendGate &gate, const Args &...args) {
     auto msg = create_vmsg(args...);
     const TCU::Message *reply = gate.call(msg.finish());
     return GateIStream(*gate.reply_gate(), reply);

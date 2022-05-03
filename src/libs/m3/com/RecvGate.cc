@@ -16,52 +16,45 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/log/Lib.h>
 #include <base/Init.h>
 #include <base/Panic.h>
+#include <base/log/Lib.h>
 
-#include <m3/com/RecvGate.h>
-#include <m3/com/RecvBufs.h>
-#include <m3/tiles/Activity.h>
-#include <m3/session/ResMng.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
+#include <m3/com/RecvBufs.h>
+#include <m3/com/RecvGate.h>
+#include <m3/session/ResMng.h>
+#include <m3/tiles/Activity.h>
 
 #include <thread/ThreadManager.h>
 
 namespace m3 {
 
-INIT_PRIO_RECVGATE RecvGate RecvGate::_syscall (
-    KIF::INV_SEL,
-    TileDesc(env()->tile_desc).rbuf_std_space().first,
-    env()->first_std_ep + TCU::SYSC_REP_OFF,
-    m3::nextlog2<SYSC_RBUF_SIZE>::val,
-    SYSC_RBUF_ORDER,
-    KEEP_CAP
-);
+INIT_PRIO_RECVGATE RecvGate RecvGate::_syscall(KIF::INV_SEL,
+                                               TileDesc(env()->tile_desc).rbuf_std_space().first,
+                                               env()->first_std_ep + TCU::SYSC_REP_OFF,
+                                               m3::nextlog2<SYSC_RBUF_SIZE>::val, SYSC_RBUF_ORDER,
+                                               KEEP_CAP);
 
-INIT_PRIO_RECVGATE RecvGate RecvGate::_upcall (
-    KIF::INV_SEL,
-    TileDesc(env()->tile_desc).rbuf_std_space().first + SYSC_RBUF_SIZE,
-    env()->first_std_ep + TCU::UPCALL_REP_OFF,
-    m3::nextlog2<UPCALL_RBUF_SIZE>::val,
-    UPCALL_RBUF_ORDER,
-    KEEP_CAP
-);
+INIT_PRIO_RECVGATE RecvGate RecvGate::_upcall(KIF::INV_SEL,
+                                              TileDesc(env()->tile_desc).rbuf_std_space().first +
+                                                  SYSC_RBUF_SIZE,
+                                              env()->first_std_ep + TCU::UPCALL_REP_OFF,
+                                              m3::nextlog2<UPCALL_RBUF_SIZE>::val,
+                                              UPCALL_RBUF_ORDER, KEEP_CAP);
 
-INIT_PRIO_RECVGATE RecvGate RecvGate::_default (
-    KIF::INV_SEL,
-    TileDesc(env()->tile_desc).rbuf_std_space().first + SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE,
-    env()->first_std_ep + TCU::DEF_REP_OFF,
-    m3::nextlog2<DEF_RBUF_SIZE>::val,
-    DEF_RBUF_ORDER,
-    KEEP_CAP
-);
+INIT_PRIO_RECVGATE RecvGate RecvGate::_default(KIF::INV_SEL,
+                                               TileDesc(env()->tile_desc).rbuf_std_space().first +
+                                                   SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE,
+                                               env()->first_std_ep + TCU::DEF_REP_OFF,
+                                               m3::nextlog2<DEF_RBUF_SIZE>::val, DEF_RBUF_ORDER,
+                                               KEEP_CAP);
 
 void RecvGate::RecvGateWorkItem::work() {
     const TCU::Message *msg = _gate->fetch();
     if(msg) {
-        LLOG(IPC, "Received msg @ " << (void*)msg << " over ep " << _gate->ep());
+        LLOG(IPC, "Received msg @ " << (void *)msg << " over ep " << _gate->ep());
         GateIStream is(*_gate, msg);
         _gate->_handler(is);
     }

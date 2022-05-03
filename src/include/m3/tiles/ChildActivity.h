@@ -115,10 +115,9 @@ public:
      */
     void add_mount(const String &child_path, const String &our_path) {
         auto el = std::find_if(_mounts.begin(), _mounts.end(),
-            [child_path](std::pair<String, String> &p) {
-               return p.first == child_path;
-            }
-        );
+                               [child_path](std::pair<String, String> &p) {
+                                   return p.first == child_path;
+                               });
         if(el == _mounts.end())
             _mounts.push_back(std::make_pair(child_path, our_path));
         else
@@ -128,8 +127,8 @@ public:
     /**
      * Returns a marshaller for the activity-local data.
      *
-     * The marshaller overwrites the activity-local data and will be transmitted to the activity when calling
-     * Activity::run or Activity::exec.
+     * The marshaller overwrites the activity-local data and will be transmitted to the activity
+     * when calling Activity::run or Activity::exec.
      *
      * @return a marshaller to write to the activity-local data
      */
@@ -147,7 +146,8 @@ public:
     }
 
     /**
-     * Delegates the given range of capabilities to this activity. They are put at the same selectors.
+     * Delegates the given range of capabilities to this activity. They are put at the same
+     * selectors.
      *
      * @param crd the capabilities of your to activity to delegate to this activity
      */
@@ -164,15 +164,16 @@ public:
     void delegate(const KIF::CapRngDesc &crd, capsel_t dest);
 
     /**
-     * Obtains the given range of capabilities from this activity to your activity. The selectors are
-     * automatically chosen.
+     * Obtains the given range of capabilities from this activity to your activity. The selectors
+     * are automatically chosen.
      *
      * @param crd the capabilities of this activity to delegate to your activity
      */
     void obtain(const KIF::CapRngDesc &crd);
 
     /**
-     * Obtains the given range of capabilities from this activity to your activity at position <dest>.
+     * Obtains the given range of capabilities from this activity to your activity at position
+     * <dest>.
      *
      * @param crd the capabilities of this activity to delegate to your activity
      * @param dest the destination in your activity
@@ -228,11 +229,9 @@ public:
 
 private:
     std::vector<std::pair<fd_t, fd_t>>::iterator get_file_mapping(fd_t child_fd) {
-        return std::find_if(_files.begin(), _files.end(),
-            [child_fd](std::pair<fd_t, fd_t> &p) {
-                return p.first == child_fd;
-            }
-        );
+        return std::find_if(_files.begin(), _files.end(), [child_fd](std::pair<fd_t, fd_t> &p) {
+            return p.first == child_fd;
+        });
     }
 
     void do_exec(int argc, const char *const *argv, const char *const *envp, uintptr_t func_addr);

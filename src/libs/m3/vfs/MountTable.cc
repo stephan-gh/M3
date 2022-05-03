@@ -16,12 +16,12 @@
  * General Public License version 2 for more details.
  */
 
-#include <m3/com/Marshalling.h>
+#include <m3/Exception.h>
 #include <m3/com/GateStream.h>
+#include <m3/com/Marshalling.h>
 #include <m3/session/M3FS.h>
 #include <m3/vfs/MountTable.h>
 #include <m3/vfs/VFS.h>
-#include <m3/Exception.h>
 
 namespace m3 {
 
@@ -99,7 +99,8 @@ Reference<FileSystem> MountTable::resolve(const char **path, char *buffer, size_
     VTHROW(Errors::NO_SUCH_FILE, "Unable to resolve path '" << *path << "'");
 }
 
-Reference<FileSystem> MountTable::try_resolve(const char **path, char *buffer, size_t bufsize) noexcept {
+Reference<FileSystem> MountTable::try_resolve(const char **path, char *buffer,
+                                              size_t bufsize) noexcept {
     if(**path != '/') {
         OStringStream os(buffer, bufsize);
         const char *cwd = VFS::cwd();
@@ -167,7 +168,7 @@ void MountTable::do_remove(size_t i) {
 }
 
 size_t MountTable::serialize(ChildActivity &act, void *buffer, size_t size) const {
-    Marshaller m(static_cast<unsigned char*>(buffer), size);
+    Marshaller m(static_cast<unsigned char *>(buffer), size);
 
     m << act._mounts.size();
     for(auto mapping = act._mounts.begin(); mapping != act._mounts.end(); ++mapping) {
@@ -175,9 +176,7 @@ size_t MountTable::serialize(ChildActivity &act, void *buffer, size_t size) cons
         auto type = mount->type();
         m << mapping->first << type;
         switch(type) {
-            case 'M':
-                mount->serialize(m);
-                break;
+            case 'M': mount->serialize(m); break;
         }
     }
     return m.total();
@@ -188,16 +187,14 @@ void MountTable::delegate(ChildActivity &act) const {
         auto mount = Activity::own().mounts()->get(mapping->second.c_str());
         char type = mount->type();
         switch(type) {
-            case 'M':
-                mount->delegate(act);
-                break;
+            case 'M': mount->delegate(act); break;
         }
     }
 }
 
 MountTable *MountTable::unserialize(const void *buffer, size_t size) {
     MountTable *ms = new MountTable();
-    Unmarshaller um(static_cast<const unsigned char*>(buffer), size);
+    Unmarshaller um(static_cast<const unsigned char *>(buffer), size);
     size_t count;
     um >> count;
     while(count-- > 0) {
@@ -205,9 +202,7 @@ MountTable *MountTable::unserialize(const void *buffer, size_t size) {
         String path;
         um >> path >> type;
         switch(type) {
-            case 'M':
-                ms->add(path.c_str(), Reference<FileSystem>(M3FS::unserialize(um)));
-                break;
+            case 'M': ms->add(path.c_str(), Reference<FileSystem>(M3FS::unserialize(um))); break;
         }
     }
     return ms;

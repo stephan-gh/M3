@@ -15,12 +15,12 @@
 
 #include <base/Common.h>
 
+#include <m3/Test.h>
 #include <m3/com/Semaphore.h>
 #include <m3/net/TcpSocket.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/tiles/ChildActivity.h>
 #include <m3/vfs/Waiter.h>
-#include <m3/Test.h>
 
 #include "../cppnettests.h"
 
@@ -289,7 +289,8 @@ NOINLINE static void data() {
             send_buf[i] = i;
 
         for(size_t i = 0; i < 8; ++i)
-            WVASSERT(socket->send(send_buf.get() + pkt_size * i, pkt_size) == static_cast<ssize_t>(pkt_size));
+            WVASSERT(socket->send(send_buf.get() + pkt_size * i, pkt_size) ==
+                     static_cast<ssize_t>(pkt_size));
 
         uint8_t expected_byte = 0;
         size_t received = 0;

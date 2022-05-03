@@ -19,15 +19,14 @@
 #include <base/Common.h>
 
 #include <fs/internal.h>
-
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <inttypes.h>
-#include <unistd.h>
 #include <stdarg.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <time.h>
+#include <unistd.h>
 
 FILE *file;
 m3::SuperBlock sb;
@@ -88,8 +87,7 @@ static void print_extents(m3::blockno_t bno, int indent, int depth) {
 
     for(uint i = 0; extents[i].length && i < sb.extents_per_block(); ++i) {
         printf("%*s%3u: %4u .. %4u (%u)\n", indent * 2, "", i, extents[i].start,
-            extents[i].length ? extents[i].start + extents[i].length - 1 : 0,
-            extents[i].length);
+               extents[i].length ? extents[i].start + extents[i].length - 1 : 0, extents[i].length);
         if(extents[i].start != 0 && depth > 0)
             print_extents(extents[i].start, indent + 1, depth - 1);
     }
@@ -113,8 +111,8 @@ static void print_inode(m3::inodeno_t ino, bool all) {
     printf("  extents: %u\n", inode.extents);
     for(int i = 0; i < m3::INODE_DIR_COUNT; ++i) {
         printf("  direct[%d]: %4u .. %4u (%u)\n", i, inode.direct[i].start,
-            inode.direct[i].length ? inode.direct[i].start + inode.direct[i].length - 1 : 0,
-            inode.direct[i].length);
+               inode.direct[i].length ? inode.direct[i].start + inode.direct[i].length - 1 : 0,
+               inode.direct[i].length);
     }
     printf("  indirect: %u\n", inode.indirect);
     if(all && inode.indirect != 0)
@@ -141,21 +139,20 @@ static void print_as_dir(m3::blockno_t block) {
     char *buffer = new char[sb.blocksize];
     read_from_block(buffer, sb.blocksize, block);
 
-    m3::DirEntry *begin = reinterpret_cast<m3::DirEntry*>(buffer);
-    m3::DirEntry *end = reinterpret_cast<m3::DirEntry*>(buffer + sb.blocksize);
+    m3::DirEntry *begin = reinterpret_cast<m3::DirEntry *>(buffer);
+    m3::DirEntry *end = reinterpret_cast<m3::DirEntry *>(buffer + sb.blocksize);
     printf("Showing block %u as directory:\n", block);
     // actually next is not allowed to be 0. but to prevent endless looping here...
     m3::DirEntry *e = begin;
     while(e >= begin && e < end && e->next > 0) {
-        if(e->name + e->namelen > reinterpret_cast<char*>(end)) {
-            printf("  ino=%u len=%u next=%u name=<invalid>\n",
-                   e->nodeno, e->namelen, e->next);
+        if(e->name + e->namelen > reinterpret_cast<char *>(end)) {
+            printf("  ino=%u len=%u next=%u name=<invalid>\n", e->nodeno, e->namelen, e->next);
         }
         else {
-            printf("  ino=%u len=%u next=%u name=%.*s\n",
-                   e->nodeno, e->namelen, e->next, e->namelen, e->name);
+            printf("  ino=%u len=%u next=%u name=%.*s\n", e->nodeno, e->namelen, e->next,
+                   e->namelen, e->name);
         }
-        e = reinterpret_cast<m3::DirEntry*>(reinterpret_cast<char*>(e) + e->next);
+        e = reinterpret_cast<m3::DirEntry *>(reinterpret_cast<char *>(e) + e->next);
     }
     delete[] buffer;
 }
@@ -170,8 +167,7 @@ static void print_as_extents(m3::blockno_t block) {
     printf("Showing block %u as extents:\n", block);
     for(uint i = 0; i < sb.extents_per_block(); ++i) {
         printf("  %3u: %4u .. %4u (%u)\n", i, extents[i].start,
-               extents[i].length ? extents[i].start + extents[i].length - 1 : 0,
-               extents[i].length);
+               extents[i].length ? extents[i].start + extents[i].length - 1 : 0, extents[i].length);
     }
 
     delete[] extents;
@@ -243,23 +239,23 @@ static void print_tree(m3::inodeno_t dirno, const char *path, int level) {
         for(uint32_t i = 0; i < blockcount; ++i) {
             read_from_block(buffer, sb.blocksize, get_block_no(inode, i));
 
-            m3::DirEntry *begin = reinterpret_cast<m3::DirEntry*>(buffer);
-            m3::DirEntry *end = reinterpret_cast<m3::DirEntry*>(buffer + sb.blocksize);
+            m3::DirEntry *begin = reinterpret_cast<m3::DirEntry *>(buffer);
+            m3::DirEntry *end = reinterpret_cast<m3::DirEntry *>(buffer + sb.blocksize);
             m3::DirEntry *e = begin;
             while(e >= begin && e < end && e->next > 0) {
-                if(e->name + e->namelen <= reinterpret_cast<char*>(end)) {
-                    printf("%*sino=%u len=%u next=%u name=%.*s\n",
-                           (level + 1) * 2, "", e->nodeno, e->namelen, e->next, e->namelen, e->name);
+                if(e->name + e->namelen <= reinterpret_cast<char *>(end)) {
+                    printf("%*sino=%u len=%u next=%u name=%.*s\n", (level + 1) * 2, "", e->nodeno,
+                           e->namelen, e->next, e->namelen, e->name);
 
                     if((e->namelen != 1 || strncmp(e->name, ".", 1) != 0) &&
-                        (e->namelen != 2 || strncmp(e->name, "..", 2) != 0)) {
+                       (e->namelen != 2 || strncmp(e->name, "..", 2) != 0)) {
                         char epath[128];
                         snprintf(epath, sizeof(epath), "%s/%.*s", path, e->namelen, e->name);
                         print_tree(e->nodeno, epath, level + 1);
                     }
                 }
 
-                e = reinterpret_cast<m3::DirEntry*>(reinterpret_cast<char*>(e) + e->next);
+                e = reinterpret_cast<m3::DirEntry *>(reinterpret_cast<char *>(e) + e->next);
             }
         }
         delete[] buffer;
@@ -301,8 +297,8 @@ int main(int argc, char **argv) {
 
     fread(&sb, sizeof(sb), 1, file);
     if(sb.checksum != sb.get_checksum()) {
-        errx(1, "Superblock checksum is invalid (is %#010x, should be %#010x)",
-                sb.checksum, sb.get_checksum());
+        errx(1, "Superblock checksum is invalid (is %#010x, should be %#010x)", sb.checksum,
+             sb.get_checksum());
     }
 
     if(strcmp(argv[2], "sb") == 0)

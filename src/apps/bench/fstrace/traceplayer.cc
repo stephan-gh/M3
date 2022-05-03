@@ -8,42 +8,19 @@
  * GNU General Public License 2. Please see the COPYING-GPL-2 file for details.
  */
 
+#include "traceplayer.h"
+
 #include <base/stream/Serial.h>
 #include <base/time/Instant.h>
 
 #include "buffer.h"
 #include "exceptions.h"
-#include "traceplayer.h"
-#include "exceptions.h"
 #include "fsapi_m3fs.h"
 
 __attribute__((unused)) static const char *op_names[] = {
-    "INVALID",
-    "WAITUNTIL",
-    "OPEN",
-    "CLOSE",
-    "FSYNC",
-    "READ",
-    "WRITE",
-    "PREAD",
-    "PWRITE",
-    "LSEEK",
-    "FTRUNCATE",
-    "FSTAT",
-    "FSTATAT",
-    "STAT",
-    "RENAME",
-    "UNLINK",
-    "RMDIR",
-    "MKDIR",
-    "SENDFILE",
-    "GETDENTS",
-    "CREATEFILE",
-    "ACCEPT",
-    "RECVFROM",
-    "WRITEV"
-};
-
+    "INVALID", "WAITUNTIL", "OPEN",      "CLOSE",    "FSYNC",      "READ",   "WRITE",    "PREAD",
+    "PWRITE",  "LSEEK",     "FTRUNCATE", "FSTAT",    "FSTATAT",    "STAT",   "RENAME",   "UNLINK",
+    "RMDIR",   "MKDIR",     "SENDFILE",  "GETDENTS", "CREATEFILE", "ACCEPT", "RECVFROM", "WRITEV"};
 
 int TracePlayer::play(Trace *trace, m3::LoadGen::Channel *chan, bool data, bool stdio,
                       bool keep_time, bool verbose) {
@@ -51,7 +28,7 @@ int TracePlayer::play(Trace *trace, m3::LoadGen::Channel *chan, bool data, bool 
     size_t rdBufSize = 0;
     size_t wrBufSize = 0;
     trace_op_t *op = trace->trace_ops;
-    while (op && op->opcode != INVALID_OP) {
+    while(op && op->opcode != INVALID_OP) {
         switch(op->opcode) {
             case READ_OP:
             case PREAD_OP:
@@ -85,15 +62,15 @@ int TracePlayer::play(Trace *trace, m3::LoadGen::Channel *chan, bool data, bool 
     // let's play
     int lineNo = 1;
     op = trace->trace_ops;
-    while (op && op->opcode != INVALID_OP) {
+    while(op && op->opcode != INVALID_OP) {
         auto start = m3::CycleInstant::now();
 
         if(op->opcode != WAITUNTIL_OP)
             wait_time += m3::CycleInstant::now().duration_since(wait_start);
 
-        switch (op->opcode) {
+        switch(op->opcode) {
             case WAITUNTIL_OP: {
-                if (!keep_time)
+                if(!keep_time)
                     break;
 
                 fs->waituntil(&op->args.waituntil, lineNo);
@@ -113,35 +90,39 @@ int TracePlayer::play(Trace *trace, m3::LoadGen::Channel *chan, bool data, bool 
             }
             case READ_OP: {
                 read_args_t *args = &op->args.read;
-                size_t amount = (stdio && args->fd == 0) ? static_cast<size_t>(args->err) : args->size;
-                for (unsigned int i = 0; i < args->count; i++) {
+                size_t amount = (stdio && args->fd == 0) ? static_cast<size_t>(args->err)
+                                                         : args->size;
+                for(unsigned int i = 0; i < args->count; i++) {
                     ssize_t err = fs->read(args->fd, buf.readBuffer(amount), amount);
-                    if (err != (ssize_t)args->err)
+                    if(err != (ssize_t)args->err)
                         throw ReturnValueException(err, args->err, lineNo);
                 }
                 break;
             }
             case WRITE_OP: {
                 write_args_t *args = &op->args.write;
-                size_t amount = (stdio && args->fd == 1) ? static_cast<size_t>(args->err) : args->size;
-                for (unsigned int i = 0; i < args->count; i++) {
+                size_t amount = (stdio && args->fd == 1) ? static_cast<size_t>(args->err)
+                                                         : args->size;
+                for(unsigned int i = 0; i < args->count; i++) {
                     ssize_t err = fs->write(args->fd, buf.writeBuffer(amount), amount);
-                    if (err != (ssize_t)args->err)
+                    if(err != (ssize_t)args->err)
                         throw ReturnValueException(err, args->err, lineNo);
                 }
                 break;
             }
             case PREAD_OP: {
                 pread_args_t *args = &op->args.pread;
-                ssize_t err = fs->pread(args->fd, buf.readBuffer(args->size), args->size, args->offset);
-                if (err != (ssize_t)args->err)
+                ssize_t err =
+                    fs->pread(args->fd, buf.readBuffer(args->size), args->size, args->offset);
+                if(err != (ssize_t)args->err)
                     throw ReturnValueException(err, args->err, lineNo);
                 break;
             }
             case PWRITE_OP: {
                 pwrite_args_t *args = &op->args.pwrite;
-                ssize_t err = fs->pwrite(args->fd, buf.writeBuffer(args->size), args->size, args->offset);
-                if (err != (ssize_t)args->err)
+                ssize_t err =
+                    fs->pwrite(args->fd, buf.writeBuffer(args->size), args->size, args->offset);
+                if(err != (ssize_t)args->err)
                     throw ReturnValueException(err, args->err, lineNo);
                 break;
             }
@@ -215,8 +196,8 @@ int TracePlayer::play(Trace *trace, m3::LoadGen::Channel *chan, bool data, bool 
 
         auto end = m3::CycleInstant::now();
         if(verbose) {
-            m3::Serial::get() << "line " << lineNo << ": opcode=" << op_names[op->opcode]
-                              << " -> " << end.duration_since(start) << "\n";
+            m3::Serial::get() << "line " << lineNo << ": opcode=" << op_names[op->opcode] << " -> "
+                              << end.duration_since(start) << "\n";
         }
 
         lineNo++;

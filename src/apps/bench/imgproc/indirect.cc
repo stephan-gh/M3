@@ -17,28 +17,28 @@
  */
 
 #include <base/Common.h>
-#include <base/time/Instant.h>
 #include <base/TileDesc.h>
+#include <base/time/Instant.h>
 
-#include <m3/accel/InDirAccel.h>
-#include <m3/stream/Standard.h>
-#include <m3/session/Pager.h>
-#include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
+#include <m3/accel/InDirAccel.h>
+#include <m3/session/Pager.h>
+#include <m3/stream/Standard.h>
+#include <m3/vfs/VFS.h>
 
 using namespace m3;
 
 #include "imgproc.h"
 
-static const bool VERBOSE           = 0;
-static const size_t BUF_SIZE        = 2048;
-static const size_t REPLY_SIZE      = 64;
+static const bool VERBOSE = 0;
+static const size_t BUF_SIZE = 2048;
+static const size_t REPLY_SIZE = 64;
 
 static constexpr size_t ACCEL_COUNT = 3;
 
 struct IndirChain {
-    explicit IndirChain(size_t _id, RecvGate &_reply_gate,
-                        FileRef<GenericFile> _in, FileRef<GenericFile> _out)
+    explicit IndirChain(size_t _id, RecvGate &_reply_gate, FileRef<GenericFile> _in,
+                        FileRef<GenericFile> _out)
         : id(_id),
           in(std::move(_in)),
           out(std::move(_out)),
@@ -94,25 +94,27 @@ struct IndirChain {
             seen += written;
         }
         else if(idx == 0) {
-            accels[1]->start(InDirAccel::Operation::COMPUTE, written, ACCEL_TIMES[1], idx_to_label(1));
+            accels[1]->start(InDirAccel::Operation::COMPUTE, written, ACCEL_TIMES[1],
+                             idx_to_label(1));
             ops[1] = InDirAccel::Operation::COMPUTE;
 
             read_next(buffer);
         }
         else {
-            accels[idx + 1]->start(InDirAccel::Operation::COMPUTE, written,
-                                   ACCEL_TIMES[idx + 1], idx_to_label(idx + 1));
+            accels[idx + 1]->start(InDirAccel::Operation::COMPUTE, written, ACCEL_TIMES[idx + 1],
+                                   idx_to_label(idx + 1));
             ops[idx + 1] = InDirAccel::Operation::COMPUTE;
         }
 
         if(sizes[idx] > 0) {
-            accels[idx - 1]->start(InDirAccel::Operation::FORWARD, sizes[idx],
-                                   ACCEL_TIMES[idx - 1], idx_to_label(idx - 1));
+            accels[idx - 1]->start(InDirAccel::Operation::FORWARD, sizes[idx], ACCEL_TIMES[idx - 1],
+                                   idx_to_label(idx - 1));
             ops[idx - 1] = InDirAccel::Operation::FORWARD;
             sizes[idx] = 0;
         }
 
-        if(VERBOSE) cout << "chain" << id << ": " << seen << " / " << total << "\n";
+        if(VERBOSE)
+            cout << "chain" << id << ": " << seen << " / " << total << "\n";
         return seen < total;
     }
 
@@ -122,9 +124,7 @@ struct IndirChain {
             return false;
 
         accels[0]->write(buffer, static_cast<size_t>(count));
-        accels[0]->start(InDirAccel::Operation::COMPUTE,
-                         static_cast<size_t>(count),
-                         ACCEL_TIMES[0],
+        accels[0]->start(InDirAccel::Operation::COMPUTE, static_cast<size_t>(count), ACCEL_TIMES[0],
                          idx_to_label(0));
         ops[0] = InDirAccel::Operation::COMPUTE;
         total += static_cast<size_t>(count);
@@ -147,8 +147,8 @@ struct IndirChain {
 CycleDuration chain_indirect(const char *in, size_t num) {
     std::unique_ptr<uint8_t[]> buffer(new uint8_t[BUF_SIZE]);
 
-    RecvGate reply_gate = RecvGate::create(getnextlog2(REPLY_SIZE * num * ACCEL_COUNT),
-                                           nextlog2<REPLY_SIZE>::val);
+    RecvGate reply_gate =
+        RecvGate::create(getnextlog2(REPLY_SIZE * num * ACCEL_COUNT), nextlog2<REPLY_SIZE>::val);
     reply_gate.activate();
 
     FileRef<GenericFile> infds[num];
@@ -164,9 +164,7 @@ CycleDuration chain_indirect(const char *in, size_t num) {
         outfds[i] = VFS::open(outpath.str(), FILE_W | FILE_TRUNC | FILE_CREATE);
 
         chains[i] = std::unique_ptr<IndirChain>(
-            new IndirChain(i, reply_gate, std::move(infds[i]),
-                                          std::move(outfds[i]))
-        );
+            new IndirChain(i, reply_gate, std::move(infds[i]), std::move(outfds[i])));
     }
 
     auto start = CycleInstant::now();
@@ -197,7 +195,8 @@ CycleDuration chain_indirect(const char *in, size_t num) {
         size_t chain = (label - 1) / ACCEL_COUNT;
         size_t accel = (label - 1) % ACCEL_COUNT;
 
-        if(VERBOSE) cout << "message for chain" << chain << ", accel" << accel << "\n";
+        if(VERBOSE)
+            cout << "message for chain" << chain << ", accel" << accel << "\n";
 
         if(!chains[chain]->handle_msg(buffer.get(), accel, written))
             active_chains &= ~(static_cast<size_t>(1) << chain);

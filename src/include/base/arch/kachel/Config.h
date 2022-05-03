@@ -18,33 +18,33 @@
 
 #pragma once
 
-#define PAGE_BITS           12
+#define PAGE_BITS 12
 #ifndef PAGE_SIZE
-#   define PAGE_SIZE        (static_cast<size_t>(1) << PAGE_BITS)
+#    define PAGE_SIZE (static_cast<size_t>(1) << PAGE_BITS)
 #endif
-#define PAGE_MASK           (PAGE_SIZE - 1)
+#define PAGE_MASK     (PAGE_SIZE - 1)
 
-#define LPAGE_BITS          21
-#define LPAGE_SIZE          (static_cast<size_t>(1) << LPAGE_BITS)
-#define LPAGE_MASK          (LPAGE_SIZE - 1)
+#define LPAGE_BITS    21
+#define LPAGE_SIZE    (static_cast<size_t>(1) << LPAGE_BITS)
+#define LPAGE_MASK    (LPAGE_SIZE - 1)
 
-#define APP_HEAP_SIZE       (64 * 1024 * 1024)
-#define EPMEM_SIZE          0
+#define APP_HEAP_SIZE (64 * 1024 * 1024)
+#define EPMEM_SIZE    0
 
 #if defined(__hw__)
-#   define TOTAL_EPS        128
-#   define AVAIL_EPS        TOTAL_EPS
-#   define MAX_ACTS         8
+#    define TOTAL_EPS 128
+#    define AVAIL_EPS TOTAL_EPS
+#    define MAX_ACTS  8
 #else
-#   define TOTAL_EPS        192
-#   define AVAIL_EPS        TOTAL_EPS
-#   define MAX_ACTS         32
+#    define TOTAL_EPS 192
+#    define AVAIL_EPS TOTAL_EPS
+#    define MAX_ACTS  32
 #endif
 
 #if defined(__riscv)
-#   define MEM_OFFSET       0x10000000
+#    define MEM_OFFSET 0x10000000
 #else
-#   define MEM_OFFSET       0
+#    define MEM_OFFSET 0
 #endif
 
 // (RISC-V) physical memory layout:
@@ -97,45 +97,45 @@
 // |          TCU MMIO          |
 // +----------------------------+ 0xF0002000
 
-#define ENV_SIZE            PAGE_SIZE
-#define ENV_END             (ENV_START + ENV_SIZE)
+#define ENV_SIZE      PAGE_SIZE
+#define ENV_END       (ENV_START + ENV_SIZE)
 
-#define STACK_SIZE          0x10000
+#define STACK_SIZE    0x10000
 
-#define RBUF_STD_ADDR       0xD0000000
-#define RBUF_STD_SIZE       PAGE_SIZE
-#define RBUF_ADDR           (RBUF_STD_ADDR + RBUF_STD_SIZE)
-#define RBUF_SIZE           (0x10000000 - RBUF_STD_SIZE)
-#define RBUF_SIZE_SPM       0xE000
+#define RBUF_STD_ADDR 0xD0000000
+#define RBUF_STD_SIZE PAGE_SIZE
+#define RBUF_ADDR     (RBUF_STD_ADDR + RBUF_STD_SIZE)
+#define RBUF_SIZE     (0x10000000 - RBUF_STD_SIZE)
+#define RBUF_SIZE_SPM 0xE000
 
 #if defined(__hw__)
-#   define TILEMUX_CODE_START (MEM_OFFSET + 0x1000)
-#   define ENV_START        (MEM_OFFSET + 0x8)
+#    define TILEMUX_CODE_START (MEM_OFFSET + 0x1000)
+#    define ENV_START          (MEM_OFFSET + 0x8)
 #else
-#   define TILEMUX_CODE_START (MEM_OFFSET + 0x200000)
-#   if defined(__riscv)
-#       define ENV_START    (MEM_OFFSET + 0x8)
-#   else
-#       define ENV_START    (MEM_OFFSET + 0x100000)
-#   endif
+#    define TILEMUX_CODE_START (MEM_OFFSET + 0x200000)
+#    if defined(__riscv)
+#        define ENV_START (MEM_OFFSET + 0x8)
+#    else
+#        define ENV_START (MEM_OFFSET + 0x100000)
+#    endif
 #endif
 
-#define TILEMUX_RBUF_SIZE   0x1000
+#define TILEMUX_RBUF_SIZE 0x1000
 
-#define KPEX_RBUF_ORDER     6
-#define KPEX_RBUF_SIZE      (1 << KPEX_RBUF_ORDER)
+#define KPEX_RBUF_ORDER   6
+#define KPEX_RBUF_SIZE    (1 << KPEX_RBUF_ORDER)
 
-#define TMUP_RBUF_ORDER     6
-#define TMUP_RBUF_SIZE      (1 << TMUP_RBUF_ORDER)
+#define TMUP_RBUF_ORDER   6
+#define TMUP_RBUF_SIZE    (1 << TMUP_RBUF_ORDER)
 
-#define SYSC_RBUF_ORDER     9
-#define SYSC_RBUF_SIZE      (1 << SYSC_RBUF_ORDER)
+#define SYSC_RBUF_ORDER   9
+#define SYSC_RBUF_SIZE    (1 << SYSC_RBUF_ORDER)
 
-#define UPCALL_RBUF_ORDER   6
-#define UPCALL_RBUF_SIZE    (1 << UPCALL_RBUF_ORDER)
+#define UPCALL_RBUF_ORDER 6
+#define UPCALL_RBUF_SIZE  (1 << UPCALL_RBUF_ORDER)
 
-#define DEF_RBUF_ORDER      8
-#define DEF_RBUF_SIZE       (1 << DEF_RBUF_ORDER)
+#define DEF_RBUF_ORDER    8
+#define DEF_RBUF_SIZE     (1 << DEF_RBUF_ORDER)
 
-#define VMA_RBUF_ORDER      6
-#define VMA_RBUF_SIZE       (1 << VMA_RBUF_ORDER)
+#define VMA_RBUF_ORDER    6
+#define VMA_RBUF_SIZE     (1 << VMA_RBUF_ORDER)

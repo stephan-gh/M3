@@ -17,8 +17,8 @@
 #include <base/stream/Serial.h>
 
 #include "../assert.h"
-#include "../tiles.h"
 #include "../tcuif.h"
+#include "../tiles.h"
 
 using namespace m3;
 

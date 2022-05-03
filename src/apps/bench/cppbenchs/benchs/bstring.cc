@@ -14,8 +14,8 @@
  */
 
 #include <base/Common.h>
-#include <base/time/Profile.h>
 #include <base/Panic.h>
+#include <base/time/Profile.h>
 
 #include <m3/Test.h>
 
@@ -35,7 +35,7 @@ NOINLINE static void memcpy() {
         memcpy(dst.get(), src.get(), SIZE);
     }));
     WVPERF("memcpy unaligned " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&src, &dst] {
-        memcpy(reinterpret_cast<char*>(dst.get()) + 1, src.get(), SIZE - 1);
+        memcpy(reinterpret_cast<char *>(dst.get()) + 1, src.get(), SIZE - 1);
     }));
 }
 
@@ -57,9 +57,10 @@ NOINLINE static void memmove() {
     WVPERF("memmove backwards " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&buf] {
         memmove(buf.get(), buf.get() + SIZE, SIZE);
     }));
-    WVPERF("memmove overlapping unaligned " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&buf] {
-        memmove(buf.get() + 1, buf.get(), SIZE - 1);
-    }));
+    WVPERF("memmove overlapping unaligned " << (SIZE / 1024) << " KiB",
+           pr.run<CycleInstant>([&buf] {
+               memmove(buf.get() + 1, buf.get(), SIZE - 1);
+           }));
     WVPERF("memmove overlapping aligned " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&buf] {
         memmove(buf.get() + sizeof(word_t), buf.get(), SIZE - sizeof(word_t));
     }));

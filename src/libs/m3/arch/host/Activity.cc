@@ -18,21 +18,21 @@
 
 #include <base/ELF.h>
 #include <base/Env.h>
-#include <base/Panic.h>
 #include <base/Init.h>
+#include <base/Panic.h>
 
 #include <m3/EnvVars.h>
+#include <m3/Syscalls.h>
 #include <m3/session/ResMng.h>
 #include <m3/stream/FStream.h>
-#include <m3/Syscalls.h>
 #include <m3/tiles/Activity.h>
 #include <m3/vfs/FileTable.h>
 #include <m3/vfs/MountTable.h>
 #include <m3/vfs/VFS.h>
 
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 namespace m3 {
@@ -76,7 +76,7 @@ public:
 };
 
 // this should be enough for now
-static const size_t STATE_BUF_SIZE    = 4096;
+static const size_t STATE_BUF_SIZE = 4096;
 
 static void write_file(pid_t pid, const char *suffix, const void *data, size_t size) {
     if(data) {
@@ -140,7 +140,7 @@ struct LambdaCaller {
         uintptr_t func_addr = 0;
         if(read_from("lambda", &func_addr)) {
             if(func_addr != 0) {
-                auto func = reinterpret_cast<int(*)()>(func_addr);
+                auto func = reinterpret_cast<int (*)()>(func_addr);
                 // call lambda and exit right away
                 int res = (*func)();
                 ::exit(res);
@@ -190,12 +190,12 @@ void OwnActivity::init_fs() {
     read_from("data", _data, len);
 
     if(read_from("vars", buf.get(), len)) {
-        Unmarshaller um(reinterpret_cast<unsigned char*>(&*buf.get()), len);
+        Unmarshaller um(reinterpret_cast<unsigned char *>(&*buf.get()), len);
         while(um.remaining() > 0) {
             String s;
             um >> s;
             size_t pos = static_cast<size_t>(strchr(s.c_str(), '=') - s.c_str());
-            char *key = static_cast<char*>(malloc(pos + 1));
+            char *key = static_cast<char *>(malloc(pos + 1));
             assert(key != nullptr);
             strncpy(key, s.c_str(), pos);
             key[pos] = '\0';
@@ -221,15 +221,15 @@ int get_args(int argc, char **argv, char **) {
     argv_copy = argv;
     return 0;
 }
-__attribute__((section(".init_array"))) void *get_args_constr = (void*)&get_args;
+__attribute__((section(".init_array"))) void *get_args_constr = (void *)&get_args;
 
 void ChildActivity::run(int (*func)()) {
     // prevent the compiler from optimizing away above init call
     size_t dummy;
     memcpy(&dummy, get_args_constr, sizeof(dummy));
     // execute ourself in this activity using the previously saved argc/argv
-    do_exec(argc_copy, const_cast<const char* const*>(argv_copy), nullptr,
-        reinterpret_cast<uintptr_t>(func));
+    do_exec(argc_copy, const_cast<const char *const *>(argv_copy), nullptr,
+            reinterpret_cast<uintptr_t>(func));
 }
 
 void ChildActivity::do_exec(int argc, const char *const *argv, const char *const *envp,
@@ -254,7 +254,8 @@ void ChildActivity::do_exec(int argc, const char *const *argv, const char *const
     bool first = true;
     while((res = bin->read(buffer, sizeof(buffer))) > 0) {
         // check here for the ELF header to try hard that the exec after the fork does not fail
-        if(first && (buffer[0] != '\x7F' || buffer[1] != 'E' || buffer[2] != 'L' || buffer[3] != 'F'))
+        if(first &&
+           (buffer[0] != '\x7F' || buffer[1] != 'E' || buffer[2] != 'L' || buffer[3] != 'F'))
             throw Exception(Errors::INVALID_ELF);
         write(tmp, buffer, static_cast<size_t>(res));
         first = false;
@@ -274,9 +275,9 @@ void ChildActivity::do_exec(int argc, const char *const *argv, const char *const
         close(c2p.fds[0]);
 
         // copy args to null-terminate them
-        char **args = new char*[argc + 1];
+        char **args = new char *[argc + 1];
         for(int i = 0; i < argc; ++i)
-            args[i] = const_cast<char*>(argv[i]);
+            args[i] = const_cast<char *>(argv[i]);
         args[argc] = nullptr;
 
         // open it readonly again as fexecve requires

@@ -18,17 +18,17 @@
 
 #pragma once
 
-#include <m3/session/ClientSession.h>
 #include <m3/com/GateStream.h>
 #include <m3/com/SendGate.h>
-#include <m3/vfs/GenericFile.h>
+#include <m3/session/ClientSession.h>
 #include <m3/vfs/FileTable.h>
+#include <m3/vfs/GenericFile.h>
 
 namespace m3 {
 
 class Pipes : public ClientSession {
     enum {
-        OPEN_PIPE     = GenericFile::REQ_NOTIFY + 1,
+        OPEN_PIPE = GenericFile::REQ_NOTIFY + 1,
         OPEN_CHAN,
         SET_MEM,
         CLOSE_PIPE,
@@ -46,8 +46,7 @@ public:
             args.bytes = os.total();
             delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, memory.sel(), 1), &args);
         }
-        Pipe(Pipe &&p) noexcept
-            : ClientSession(std::move(p)), _sgate(std::move(p._sgate)) {
+        Pipe(Pipe &&p) noexcept : ClientSession(std::move(p)), _sgate(std::move(p._sgate)) {
         }
         virtual ~Pipe() {
             send_receive_vmsg(_sgate, CLOSE_PIPE);
@@ -69,8 +68,7 @@ public:
         SendGate _sgate;
     };
 
-    explicit Pipes(const String &service)
-        : ClientSession(service) {
+    explicit Pipes(const String &service) : ClientSession(service) {
     }
 
     Pipe create_pipe(MemGate &memory, size_t memsize) {

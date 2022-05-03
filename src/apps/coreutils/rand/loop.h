@@ -18,8 +18,8 @@
 
 #include <base/Common.h>
 
-#define BUFFER_SIZE     8192
-#define EL_COUNT        (BUFFER_SIZE / sizeof(rand_type))
+#define BUFFER_SIZE 8192
+#define EL_COUNT    (BUFFER_SIZE / sizeof(rand_type))
 
 typedef unsigned char rand_type;
 

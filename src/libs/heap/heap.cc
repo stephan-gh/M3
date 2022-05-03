@@ -18,8 +18,9 @@
 
 #include <base/Common.h>
 #include <base/Config.h>
-#include <base/util/Math.h>
 #include <base/TCU.h>
+#include <base/util/Math.h>
+
 #include <heap/heap.h>
 #include <string.h>
 
@@ -34,7 +35,7 @@
  * HEAP_END.
  */
 
-static const size_t ALIGN       = sizeof(HeapArea);
+static const size_t ALIGN = sizeof(HeapArea);
 
 static heap_alloc_func alloc_callback;
 static heap_free_func free_callback;
@@ -48,10 +49,10 @@ static bool is_used(HeapArea *a) {
     return a->next & HEAP_USED_BITS;
 }
 static HeapArea *forward(HeapArea *a, size_t size) {
-    return reinterpret_cast<HeapArea*>(reinterpret_cast<uintptr_t>(a) + size);
+    return reinterpret_cast<HeapArea *>(reinterpret_cast<uintptr_t>(a) + size);
 }
 static HeapArea *backwards(HeapArea *a, size_t size) {
-    return reinterpret_cast<HeapArea*>(reinterpret_cast<uintptr_t>(a) - size);
+    return reinterpret_cast<HeapArea *>(reinterpret_cast<uintptr_t>(a) - size);
 }
 
 USED void heap_set_alloc_callback(heap_alloc_func callback) {
@@ -68,8 +69,8 @@ USED void heap_set_dblfree_callback(heap_dblfree_func callback) {
 }
 
 void heap_init(uintptr_t begin, uintptr_t end) {
-    heap_begin = reinterpret_cast<HeapArea*>(begin);
-    heap_end = reinterpret_cast<HeapArea*>(end - sizeof(HeapArea));
+    heap_begin = reinterpret_cast<HeapArea *>(begin);
+    heap_end = reinterpret_cast<HeapArea *>(end - sizeof(HeapArea));
     heap_end->next = 0;
     heap_end->prev = static_cast<size_t>(heap_end - heap_begin) * sizeof(HeapArea);
     HeapArea *a = heap_begin;
@@ -150,9 +151,9 @@ USED void *heap_realloc(void *p, size_t size) {
 
     /* copy old content over and free old area */
     if(newp) {
-        HeapArea *a = backwards(reinterpret_cast<HeapArea*>(p), sizeof(HeapArea));
-        size_t cpy_size = m3::Math::min(size,
-            static_cast<size_t>((a->next & ~HEAP_USED_BITS) - sizeof(HeapArea)));
+        HeapArea *a = backwards(reinterpret_cast<HeapArea *>(p), sizeof(HeapArea));
+        size_t cpy_size = m3::Math::min(
+            size, static_cast<size_t>((a->next & ~HEAP_USED_BITS) - sizeof(HeapArea)));
         memcpy(newp, p, cpy_size);
         heap_free(p);
     }
@@ -167,7 +168,7 @@ USED void heap_free(void *p) {
         free_callback(p);
 
     /* get area and the one behind */
-    HeapArea *a = backwards(reinterpret_cast<HeapArea*>(p), sizeof(HeapArea));
+    HeapArea *a = backwards(reinterpret_cast<HeapArea *>(p), sizeof(HeapArea));
     if((a->next & HEAP_USED_BITS) != HEAP_USED_BITS) {
         if(dblfree_callback)
             dblfree_callback(p);
@@ -200,9 +201,9 @@ USED void heap_free(void *p) {
 
 void heap_append(size_t pages) {
     size_t size = pages * PAGE_SIZE;
-    uintptr_t start = (reinterpret_cast<uintptr_t>(heap_end) + PAGE_SIZE - 1)
-        & ~static_cast<size_t>(PAGE_MASK);
-    HeapArea *end = reinterpret_cast<HeapArea*>(start + size) - 1;
+    uintptr_t start = (reinterpret_cast<uintptr_t>(heap_end) + PAGE_SIZE - 1) &
+                      ~static_cast<size_t>(PAGE_MASK);
+    HeapArea *end = reinterpret_cast<HeapArea *>(start + size) - 1;
     end->next = 0;
 
     HeapArea *prev = backwards(heap_end, heap_end->prev);

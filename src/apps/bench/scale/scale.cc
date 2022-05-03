@@ -14,17 +14,17 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/CmdArgs.h>
 #include <base/Common.h>
+#include <base/Panic.h>
 #include <base/stream/IStringStream.h>
 #include <base/time/Instant.h>
-#include <base/CmdArgs.h>
-#include <base/Panic.h>
 
+#include <m3/Syscalls.h>
 #include <m3/stream/Standard.h>
 #include <m3/tiles/ChildActivity.h>
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
-#include <m3/Syscalls.h>
 
 using namespace m3;
 
@@ -77,8 +77,7 @@ int main(int argc, char **argv) {
                 fs_size = IStringStream::read_from<size_t>(fs_size_str);
                 break;
             }
-            default:
-                usage(argv[0]);
+            default: usage(argv[0]);
         }
     }
     if(CmdArgs::ind >= argc)
@@ -89,7 +88,8 @@ int main(int argc, char **argv) {
     App *apps[instances];
     App *fs[instances];
 
-    if(VERBOSE) cout << "Creating application activities...\n";
+    if(VERBOSE)
+        cout << "Creating application activities...\n";
 
     const size_t ARG_COUNT = loadgen ? 11 : 9;
     const size_t FS_ARG_COUNT = 9;
@@ -109,7 +109,8 @@ int main(int argc, char **argv) {
         }
     }
 
-    if(VERBOSE) cout << "Starting activities...\n";
+    if(VERBOSE)
+        cout << "Starting activities...\n";
 
     for(size_t i = 0; i < instances; ++i) {
         OStringStream fs_name;
@@ -189,7 +190,8 @@ int main(int argc, char **argv) {
         apps[i]->act.exec(static_cast<int>(apps[i]->argc), apps[i]->argv);
     }
 
-    if(VERBOSE) cout << "Signaling activities...\n";
+    if(VERBOSE)
+        cout << "Signaling activities...\n";
 
     for(size_t i = 0; i < instances; ++i)
         send_receive_vmsg(apps[i]->sgate, 1);
@@ -198,20 +200,23 @@ int main(int argc, char **argv) {
 
     auto start = CycleInstant::now();
 
-    if(VERBOSE) cout << "Waiting for activities...\n";
+    if(VERBOSE)
+        cout << "Waiting for activities...\n";
 
     int exitcode = 0;
     for(size_t i = 0; i < instances; ++i) {
         int res = apps[i]->act.wait();
         if(res != 0)
             exitcode = 1;
-        if(VERBOSE) cout << apps[i]->argv[0] << " exited with " << res << "\n";
+        if(VERBOSE)
+            cout << apps[i]->argv[0] << " exited with " << res << "\n";
     }
 
     auto end = CycleInstant::now();
     cout << "Time: " << end.duration_since(start) << "\n";
 
-    if(VERBOSE) cout << "Deleting activities...\n";
+    if(VERBOSE)
+        cout << "Deleting activities...\n";
 
     for(size_t i = 0; i < instances; ++i) {
         delete apps[i];
@@ -219,6 +224,7 @@ int main(int argc, char **argv) {
             delete fs[i];
     }
 
-    if(VERBOSE) cout << "Done\n";
+    if(VERBOSE)
+        cout << "Done\n";
     return exitcode;
 }

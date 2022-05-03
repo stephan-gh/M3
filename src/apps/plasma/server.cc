@@ -19,21 +19,21 @@
 
 #include <base/time/Instant.h>
 
+#include <m3/Syscalls.h>
 #include <m3/com/GateStream.h>
 #include <m3/server/Server.h>
 #include <m3/server/SimpleRequestHandler.h>
-#include <m3/session/arch/host/Plasma.h>
-#include <m3/session/arch/host/VGA.h>
 #include <m3/session/ClientSession.h>
 #include <m3/session/Timer.h>
-#include <m3/Syscalls.h>
+#include <m3/session/arch/host/Plasma.h>
+#include <m3/session/arch/host/VGA.h>
 
 #include <math.h>
 
-#define INTRO_TIME      200      // irqs
-#define SIN_LUTSIZE     (1 << 8)
-#define SQRT_LUTSIZE    (1 << 16)
-#define SQRT_PRESHIFT   (2)
+#define INTRO_TIME    200 // irqs
+#define SIN_LUTSIZE   (1 << 8)
+#define SQRT_LUTSIZE  (1 << 16)
+#define SQRT_PRESHIFT (2)
 
 using namespace m3;
 
@@ -76,6 +76,7 @@ template<unsigned ROW, unsigned COL>
 class TextBuffer {
 private:
     uint16_t _buffer[ROW * COL];
+
 public:
     uint16_t &character(unsigned row, unsigned col) {
         return _buffer[row * COL + col];
@@ -118,28 +119,22 @@ class PlasmaAnimator : public TextAnimator<ROW, COL> {
 
     void plasma_put(unsigned row, unsigned col, int8_t color) {
         static uint16_t colors[][3] = {
-             {0x0000, 0x0100, 0x0900},
-             {0x0000, 0x0200, 0x0A00},
-             {0x0000, 0x0300, 0x0B00},
-             {0x0000, 0x0400, 0x0C00},
-             {0x0000, 0x0500, 0x0D00},
-             {0x0000, 0x0600, 0x0E00},
-             {0x0000, 0x0700, 0x0F00},
-             {0x0000, 0x0800, 0x0600},
+            {0x0000, 0x0100, 0x0900},
+            {0x0000, 0x0200, 0x0A00},
+            {0x0000, 0x0300, 0x0B00},
+            {0x0000, 0x0400, 0x0C00},
+            {0x0000, 0x0500, 0x0D00},
+            {0x0000, 0x0600, 0x0E00},
+            {0x0000, 0x0700, 0x0F00},
+            {0x0000, 0x0800, 0x0600},
         };
 
         int icol = (static_cast<int>(color) + 128) >> 4;
         uint16_t *colbasetab = colors[_color];
-        uint16_t coltab[8] = {
-            (uint16_t)(' ' | colbasetab[0]),
-            (uint16_t)(' ' | colbasetab[0]),
-            (uint16_t)(':' | colbasetab[1]),
-            (uint16_t)(':' | colbasetab[2]),
-            (uint16_t)('o' | colbasetab[1]),
-            (uint16_t)('O' | colbasetab[1]),
-            (uint16_t)('O' | colbasetab[2]),
-            (uint16_t)('Q' | colbasetab[2])
-        };
+        uint16_t coltab[8] = {(uint16_t)(' ' | colbasetab[0]), (uint16_t)(' ' | colbasetab[0]),
+                              (uint16_t)(':' | colbasetab[1]), (uint16_t)(':' | colbasetab[2]),
+                              (uint16_t)('o' | colbasetab[1]), (uint16_t)('O' | colbasetab[1]),
+                              (uint16_t)('O' | colbasetab[2]), (uint16_t)('Q' | colbasetab[2])};
         uint16_t attr = coltab[(icol <= 8) ? (8 - icol) : (icol - 8)];
         if(icol <= 8)
             attr = (attr & 0x8FF) | 0x0100;
@@ -165,9 +160,11 @@ public:
         for(unsigned rc = 0; rc < ROW * 2; rc += 2) {
             for(unsigned cc = 0; cc < COL; cc++) {
                 int8_t v1 = lsin(distance(rc, cc, ROW * 2 / 2, COL / 2) * 2U + 2U * t);
-                int8_t v2 = lsin(distance(rc, cc, (lsin(t >> 5) / 2 + 60), (lcos(t >> 5) / 2 + 60)));
+                int8_t v2 =
+                    lsin(distance(rc, cc, (lsin(t >> 5) / 2 + 60), (lcos(t >> 5) / 2 + 60)));
 
-                int8_t v3 = lsin(distance(rc, cc, (lsin(-t * 3) / 2 + 64), (lcos(-t * 3) / 2 + 64)));
+                int8_t v3 =
+                    lsin(distance(rc, cc, (lsin(-t * 3) / 2 + 64), (lcos(-t * 3) / 2 + 64)));
 
                 plasma_put(rc / 2, cc, (v1 + v2 + v3) / 3);
             }
@@ -267,7 +264,8 @@ private:
         unsigned msg_len = strlen(cur_msg);
 
         if(t >= start)
-            this->put_text(ROW / 2, COL / 2 - msg_len / 2 - 1, 0x0F, cur_msg, static_cast<int>(t - start) / 10);
+            this->put_text(ROW / 2, COL / 2 - msg_len / 2 - 1, 0x0F, cur_msg,
+                           static_cast<int>(t - start) / 10);
     }
 
     void bar_in(uint16_t text_bg_attr, unsigned t, unsigned start) {
@@ -302,6 +300,7 @@ class IntroAnimator : public TextAnimator<ROW, COL> {
     bool _start_init;
     cycles_t _start;
     bool _done;
+
 public:
     bool done() const {
         return _done;
@@ -326,9 +325,9 @@ public:
                     uint16_t &chara = this->character(rc, cc);
 
                     unsigned start_row = (ROW - sizeof(intro_text) / sizeof(*intro_text)) / 2;
-                    if((rc >= start_row)
-                       && (rc - start_row < sizeof(intro_text) / sizeof(*intro_text))
-                       && (cc < strlen(intro_text[rc - start_row]))) {
+                    if((rc >= start_row) &&
+                       (rc - start_row < sizeof(intro_text) / sizeof(*intro_text)) &&
+                       (cc < strlen(intro_text[rc - start_row]))) {
                         target = intro_text[rc - start_row][cc];
                     }
                     else {
@@ -348,10 +347,7 @@ public:
         }
     }
 
-    IntroAnimator()
-        : _start_init(false),
-          _start(),
-          _done(false) {
+    IntroAnimator() : _start_init(false), _start(), _done(false) {
     }
 };
 
@@ -365,7 +361,8 @@ static QuoteAnimator<VGA::ROWS, VGA::COLS> qa(&pa);
 static unsigned irqs = 0;
 
 class PlasmaRequestHandler;
-using plasma_reqh_base_t = SimpleRequestHandler<PlasmaRequestHandler, Plasma::Operation, Plasma::COUNT>;
+using plasma_reqh_base_t =
+    SimpleRequestHandler<PlasmaRequestHandler, Plasma::Operation, Plasma::COUNT>;
 
 class PlasmaRequestHandler : public plasma_reqh_base_t {
 public:

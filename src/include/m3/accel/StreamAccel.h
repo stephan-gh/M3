@@ -19,10 +19,10 @@
 #pragma once
 
 #include <m3/com/MemGate.h>
-#include <m3/com/SendGate.h>
 #include <m3/com/RecvGate.h>
-#include <m3/vfs/GenericFile.h>
+#include <m3/com/SendGate.h>
 #include <m3/tiles/ChildActivity.h>
+#include <m3/vfs/GenericFile.h>
 
 #include <memory>
 
@@ -51,23 +51,23 @@ class StreamAccel {
     } PACKED;
 
 public:
-    static const size_t MSG_SIZE    = 64;
-    static const size_t RB_SIZE     = MSG_SIZE * 4;
+    static const size_t MSG_SIZE = 64;
+    static const size_t RB_SIZE = MSG_SIZE * 4;
 
-    static const epid_t EP_IN_SEND  = 16;
-    static const epid_t EP_IN_MEM   = 17;
+    static const epid_t EP_IN_SEND = 16;
+    static const epid_t EP_IN_MEM = 17;
     static const epid_t EP_OUT_SEND = 18;
-    static const epid_t EP_OUT_MEM  = 19;
-    static const epid_t EP_RECV     = 20;
+    static const epid_t EP_OUT_MEM = 19;
+    static const epid_t EP_RECV = 20;
 
-    static const uint64_t LBL_IN_REQ    = 1;
-    static const uint64_t LBL_IN_REPLY  = 2;
-    static const uint64_t LBL_OUT_REQ   = 3;
+    static const uint64_t LBL_IN_REQ = 1;
+    static const uint64_t LBL_IN_REPLY = 2;
+    static const uint64_t LBL_OUT_REQ = 3;
     static const uint64_t LBL_OUT_REPLY = 4;
 
-    static const size_t BUF_ADDR    = MEM_OFFSET + 0x8000;
-    static const size_t BUF_SIZE    = 8192;
-    static const size_t RECV_ADDR   = MEM_OFFSET + 0x3F'FF00;
+    static const size_t BUF_ADDR = MEM_OFFSET + 0x8000;
+    static const size_t BUF_SIZE = 8192;
+    static const size_t RECV_ADDR = MEM_OFFSET + 0x3F'FF00;
 
     explicit StreamAccel(std::unique_ptr<ChildActivity> &act, CycleDuration /* TODO */)
         : _sgate_in(),
@@ -90,9 +90,7 @@ public:
     }
     void connect_input(StreamAccel *prev) {
         _sgate_in = std::make_unique<SendGate>(
-            SendGate::create(&prev->_rgate, SendGateArgs().label(LBL_IN_REQ)
-                                                          .credits(1))
-        );
+            SendGate::create(&prev->_rgate, SendGateArgs().label(LBL_IN_REQ).credits(1)));
         _sgate_in->activate_on(_in_sep);
     }
 
@@ -101,9 +99,7 @@ public:
     }
     void connect_output(StreamAccel *next) {
         _sgate_out = std::make_unique<SendGate>(
-            SendGate::create(&next->_rgate, SendGateArgs().label(LBL_OUT_REQ)
-                                                          .credits(1))
-        );
+            SendGate::create(&next->_rgate, SendGateArgs().label(LBL_OUT_REQ).credits(1)));
         _sgate_out->activate_on(_out_sep);
         _mgate_out = std::make_unique<MemGate>(next->_mem.derive(BUF_ADDR - MEM_OFFSET, BUF_SIZE));
         _mgate_out->activate_on(_out_mep);

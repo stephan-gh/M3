@@ -25,9 +25,8 @@ using namespace m3;
 static uint8_t package_buffer[8 * 1024];
 
 TCPOpHandler::TCPOpHandler(NetworkManager &nm, m3::port_t port)
-        : _socket(TcpSocket::create(nm, StreamSocketArgs().send_buffer(64 * 1024)
-                                                          .recv_buffer(256 * 1024))) {
-
+    : _socket(TcpSocket::create(
+          nm, StreamSocketArgs().send_buffer(64 * 1024).recv_buffer(256 * 1024))) {
     _socket->listen(port);
 
     Semaphore::attach("net").up();
@@ -43,7 +42,7 @@ OpHandler::Result TCPOpHandler::receive(Package &pkg) {
         uint32_t header_word;
         uint8_t header_bytes[4];
     };
-    for(size_t i = 0; i < sizeof(header_bytes); ) {
+    for(size_t i = 0; i < sizeof(header_bytes);) {
         ssize_t res = receive(header_bytes + i, sizeof(header_bytes) - i);
         i += static_cast<size_t>(res);
     }
@@ -55,7 +54,7 @@ OpHandler::Result TCPOpHandler::receive(Package &pkg) {
     }
 
     // Receive the next package from the socket
-    for(size_t i = 0; i < package_size; ) {
+    for(size_t i = 0; i < package_size;) {
         ssize_t res = receive(package_buffer + i, package_size - i);
         i += static_cast<size_t>(res);
     }

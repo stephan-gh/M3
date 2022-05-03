@@ -17,14 +17,14 @@
  */
 
 #include <base/Common.h>
-#include <base/col/SList.h>
-#include <base/time/Profile.h>
 #include <base/KIF.h>
 #include <base/Panic.h>
+#include <base/col/SList.h>
+#include <base/time/Profile.h>
 
-#include <m3/tiles/ChildActivity.h>
 #include <m3/Syscalls.h>
 #include <m3/Test.h>
+#include <m3/tiles/ChildActivity.h>
 
 #include "../cppbenchs.h"
 
@@ -58,7 +58,7 @@ NOINLINE static void create_mgate() {
         }
         void post() override {
             Syscalls::revoke(Activity::own().sel(),
-                KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
+                             KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
     };
 
@@ -74,7 +74,7 @@ NOINLINE static void create_rgate() {
         }
         void post() override {
             Syscalls::revoke(Activity::own().sel(),
-                KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
+                             KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
     };
 
@@ -92,7 +92,7 @@ NOINLINE static void create_sgate() {
         }
         void post() override {
             Syscalls::revoke(Activity::own().sel(),
-                KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
+                             KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
 
         RecvGate rgate;
@@ -125,8 +125,8 @@ NOINLINE static void create_map() {
             Syscalls::create_map(DEST + 1, Activity::own().sel(), mgate.sel(), 1, 1, MemGate::RW);
         }
         void post() override {
-            Syscalls::revoke(Activity::own().sel(),
-                KIF::CapRngDesc(KIF::CapRngDesc::MAP, DEST, 2), true);
+            Syscalls::revoke(Activity::own().sel(), KIF::CapRngDesc(KIF::CapRngDesc::MAP, DEST, 2),
+                             true);
         }
 
         MemGate mgate;
@@ -148,7 +148,7 @@ NOINLINE static void create_srv() {
         }
         void post() override {
             Syscalls::revoke(Activity::own().sel(),
-                KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
+                             KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
 
         RecvGate rgate;
@@ -165,11 +165,12 @@ NOINLINE static void derive_mem() {
         }
 
         void run() override {
-            Syscalls::derive_mem(Activity::own().sel(), selector, mgate.sel(), 0, 0x1000, MemGate::RW);
+            Syscalls::derive_mem(Activity::own().sel(), selector, mgate.sel(), 0, 0x1000,
+                                 MemGate::RW);
         }
         void post() override {
             Syscalls::revoke(Activity::own().sel(),
-                KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
+                             KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
 
         MemGate mgate;
@@ -182,14 +183,12 @@ NOINLINE static void derive_mem() {
 
 NOINLINE static void exchange() {
     struct SyscallExchangeRunner : public Runner {
-        explicit SyscallExchangeRunner()
-            : tile(Tile::get("own|core")),
-              act(tile, "test") {
+        explicit SyscallExchangeRunner() : tile(Tile::get("own|core")), act(tile, "test") {
         }
 
         void run() override {
-            Syscalls::exchange(act.sel(),
-                KIF::CapRngDesc(KIF::CapRngDesc::OBJ, KIF::SEL_ACT, 1), selector, false);
+            Syscalls::exchange(act.sel(), KIF::CapRngDesc(KIF::CapRngDesc::OBJ, KIF::SEL_ACT, 1),
+                               selector, false);
         }
         void post() override {
             Syscalls::revoke(act.sel(), KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);

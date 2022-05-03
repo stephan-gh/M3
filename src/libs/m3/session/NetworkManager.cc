@@ -45,10 +45,8 @@ int32_t NetworkManager::create(SocketType type, uint8_t protocol, const SocketAr
                                capsel_t *caps) {
     KIF::ExchangeArgs eargs;
     ExchangeOStream os(eargs);
-    os << Operation::CREATE
-       << static_cast<uint64_t>(type) << protocol
-       << args.rbuf_size << args.rbuf_slots
-       << args.sbuf_size << args.sbuf_slots;
+    os << Operation::CREATE << static_cast<uint64_t>(type) << protocol << args.rbuf_size
+       << args.rbuf_slots << args.sbuf_size << args.sbuf_slots;
     eargs.bytes = os.total();
     KIF::CapRngDesc crd = obtain(2, &eargs);
     *caps = crd.start();
@@ -92,8 +90,8 @@ IpAddr NetworkManager::listen(int32_t sd, port_t port) {
 }
 
 Endpoint NetworkManager::connect(int32_t sd, Endpoint remote_ep) {
-    GateIStream reply = send_receive_vmsg(_metagate, CONNECT, sd,
-                                          remote_ep.addr.addr(), remote_ep.port);
+    GateIStream reply =
+        send_receive_vmsg(_metagate, CONNECT, sd, remote_ep.addr.addr(), remote_ep.port);
     reply.pull_result();
     uint32_t addr;
     port_t port;

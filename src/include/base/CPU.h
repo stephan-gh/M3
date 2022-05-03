@@ -43,7 +43,7 @@ public:
      * preceding load and store commands before load and store commands that follow this call.
      */
     static inline void compiler_barrier() {
-        asm volatile ("" : : : "memory");
+        asm volatile("" : : : "memory");
     }
 
     static inline void memory_barrier();
@@ -52,11 +52,11 @@ public:
 }
 
 #if defined(__x86_64__)
-#   include <base/arch/x86_64/CPU.h>
+#    include <base/arch/x86_64/CPU.h>
 #elif defined(__arm__)
-#   include <base/arch/arm/CPU.h>
+#    include <base/arch/arm/CPU.h>
 #elif defined(__riscv)
-#   include <base/arch/riscv/CPU.h>
+#    include <base/arch/riscv/CPU.h>
 #else
-#   error "Unsupported ISA"
+#    error "Unsupported ISA"
 #endif

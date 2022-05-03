@@ -20,9 +20,9 @@
 
 #include <base/col/SList.h>
 
+#include <m3/com/GateStream.h>
 #include <m3/server/Handler.h>
 #include <m3/session/ServerSession.h>
-#include <m3/com/GateStream.h>
 #include <m3/tiles/Activity.h>
 
 #include <memory>
@@ -57,13 +57,11 @@ class EventHandler : public Handler<SESS> {
     friend class Server;
 
 public:
-    explicit EventHandler() noexcept
-        : Handler<SESS>(),
-          _sessions() {
+    explicit EventHandler() noexcept : Handler<SESS>(), _sessions() {
     }
 
     template<typename... Args>
-    void broadcast(const Args &... args) {
+    void broadcast(const Args &...args) {
         auto msg = create_vmsg(args...);
         for(auto &h : _sessions) {
             if(h.gate())
@@ -76,7 +74,8 @@ public:
     }
 
 protected:
-    virtual Errors::Code open(SESS **sess, size_t crt, capsel_t srv_sel, const StringRef &) override {
+    virtual Errors::Code open(SESS **sess, size_t crt, capsel_t srv_sel,
+                              const StringRef &) override {
         *sess = new SESS(crt, srv_sel);
         _sessions.append(*sess);
         return Errors::NONE;

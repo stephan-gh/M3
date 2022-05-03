@@ -18,14 +18,14 @@
 
 #pragma once
 
+#include <base/Errors.h>
 #include <base/util/Reference.h>
 #include <base/util/String.h>
-#include <base/Errors.h>
+
+#include <m3/Exception.h>
+#include <m3/vfs/GenericFile.h>
 
 #include <fs/internal.h>
-
-#include <m3/vfs/GenericFile.h>
-#include <m3/Exception.h>
 
 namespace m3 {
 
@@ -38,20 +38,20 @@ class Marshaller;
 class FileSystem : public RefCounted {
 public:
     enum Operation {
-        FSTAT           = GenericFile::STAT,
-        SEEK            = GenericFile::SEEK,
-        NEXT_IN         = GenericFile::NEXT_IN,
-        NEXT_OUT        = GenericFile::NEXT_OUT,
-        COMMIT          = GenericFile::COMMIT,
-        TRUNCATE        = GenericFile::TRUNCATE,
-        SYNC            = GenericFile::SYNC,
-        CLOSE           = GenericFile::CLOSE,
-        CLONE           = GenericFile::CLONE,
-        GET_TMODE       = GenericFile::GET_TMODE,
-        SET_TMODE       = GenericFile::SET_TMODE,
-        SET_DEST        = GenericFile::SET_DEST,
-        ENABLE_NOTIFY   = GenericFile::ENABLE_NOTIFY,
-        REQ_NOTIFY      = GenericFile::REQ_NOTIFY,
+        FSTAT = GenericFile::STAT,
+        SEEK = GenericFile::SEEK,
+        NEXT_IN = GenericFile::NEXT_IN,
+        NEXT_OUT = GenericFile::NEXT_OUT,
+        COMMIT = GenericFile::COMMIT,
+        TRUNCATE = GenericFile::TRUNCATE,
+        SYNC = GenericFile::SYNC,
+        CLOSE = GenericFile::CLOSE,
+        CLONE = GenericFile::CLONE,
+        GET_TMODE = GenericFile::GET_TMODE,
+        SET_TMODE = GenericFile::SET_TMODE,
+        SET_DEST = GenericFile::SET_DEST,
+        ENABLE_NOTIFY = GenericFile::ENABLE_NOTIFY,
+        REQ_NOTIFY = GenericFile::REQ_NOTIFY,
         STAT,
         MKDIR,
         RMDIR,
@@ -65,9 +65,7 @@ public:
         OPEN_PRIV,
     };
 
-    explicit FileSystem(size_t id) noexcept
-        : RefCounted(),
-          _id(id) {
+    explicit FileSystem(size_t id) noexcept : RefCounted(), _id(id) {
     }
     virtual ~FileSystem() {
     }

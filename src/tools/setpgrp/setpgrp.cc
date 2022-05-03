@@ -17,8 +17,8 @@
  */
 
 #include <signal.h>
-#include <unistd.h>
 #include <stdio.h>
+#include <unistd.h>
 
 int main(int argc, char *argv[]) {
     setpgid(getpid(), 0);

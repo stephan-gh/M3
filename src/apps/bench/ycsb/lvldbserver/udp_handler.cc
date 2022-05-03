@@ -40,11 +40,11 @@ static uint32_t wl_read4b() {
 }
 
 UDPOpHandler::UDPOpHandler(NetworkManager &nm, const char *workload, m3::IpAddr ip, m3::port_t port)
-        : _ops(),
-          _total_ops(),
-          _ep(ip, port),
-          _socket(UdpSocket::create(nm, DgramSocketArgs().send_buffer(4, 16 * 1024)
-                                                         .recv_buffer(64, 512 * 1024))) {
+    : _ops(),
+      _total_ops(),
+      _ep(ip, port),
+      _socket(UdpSocket::create(
+          nm, DgramSocketArgs().send_buffer(4, 16 * 1024).recv_buffer(64, 512 * 1024))) {
     wl_buffer = new uint8_t[MAX_FILE_SIZE];
     wl_pos = 0;
     wl_size = 0;

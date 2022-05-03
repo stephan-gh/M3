@@ -20,12 +20,12 @@
 
 #if defined(__cplusplus) || defined(__STDC_VERSION__)
 
-#   include <base/Types.h>
-#   include <base/Compiler.h>
+#    include <base/Compiler.h>
+#    include <base/Types.h>
 
-#   define ARRAY_SIZE(a)   ((sizeof((a)) / sizeof((a)[0])))
+#    define ARRAY_SIZE(a) ((sizeof((a)) / sizeof((a)[0])))
 
-#   define _STRINGIZE(s)   #s
-#   define STRINGIZE(s)    _STRINGIZE(s)
+#    define _STRINGIZE(s) #    s
+#    define STRINGIZE(s)  _STRINGIZE(s)
 
 #endif

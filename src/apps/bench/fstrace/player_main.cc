@@ -16,18 +16,18 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/CmdArgs.h>
 #include <base/Common.h>
+#include <base/Panic.h>
 #include <base/stream/IStringStream.h>
 #include <base/time/Profile.h>
-#include <base/Panic.h>
-#include <base/CmdArgs.h>
 
+#include <m3/Test.h>
 #include <m3/session/LoadGen.h>
 #include <m3/session/M3FS.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
-#include <m3/Test.h>
 
 #include <vector>
 
@@ -35,13 +35,14 @@
 
 using namespace m3;
 
-static const size_t MAX_TMP_FILES   = 128;
-static const bool VERBOSE           = 0;
+static const size_t MAX_TMP_FILES = 128;
+static const bool VERBOSE = 0;
 
 static m3::LoadGen::Channel *chan;
 
 static void remove_rec(const char *path) {
-    if(VERBOSE) cerr << "Unlinking " << path << "\n";
+    if(VERBOSE)
+        cerr << "Unlinking " << path << "\n";
 
     try {
         VFS::unlink(path);
@@ -70,7 +71,8 @@ static void cleanup() {
 
         std::vector<String> entries;
 
-        if(VERBOSE) cerr << "Collecting files in /tmp\n";
+        if(VERBOSE)
+            cerr << "Collecting files in /tmp\n";
 
         // remove all entries; we assume here that they are files
         Dir::Entry e;
@@ -94,24 +96,24 @@ static void cleanup() {
 
 static void usage(const char *name) {
     cerr << "Usage: " << name << " [-p <prefix>] [-n <iterations>] [-w] [-t] [-v] [-u <warmup>]"
-                              << " [-g <rgate selector>] [-l <loadgen>] [-i] [-d]"
-                              << " [-f <mount_fs>] <name>\n";
+         << " [-g <rgate selector>] [-l <loadgen>] [-i] [-d]"
+         << " [-f <mount_fs>] <name>\n";
     exit(1);
 }
 
 int main(int argc, char **argv) {
     // defaults
-    ulong iters         = 1;
-    ulong warmup        = 0;
-    bool keep_time      = false;
-    bool stdio          = false;
-    bool data           = false;
-    bool wvtest         = false;
-    bool verbose        = false;
-    const char *prefix  = "";
+    ulong iters = 1;
+    ulong warmup = 0;
+    bool keep_time = false;
+    bool stdio = false;
+    bool data = false;
+    bool wvtest = false;
+    bool verbose = false;
+    const char *prefix = "";
     const char *loadgen = "";
     const char *mount_fs = "";
-    capsel_t rgate      = ObjCap::INVALID;
+    capsel_t rgate = ObjCap::INVALID;
 
     int opt;
     while((opt = CmdArgs::get(argc, argv, "p:n:wg:l:idtu:f:v")) != -1) {
@@ -127,8 +129,7 @@ int main(int argc, char **argv) {
             case 'v': verbose = true; break;
             case 'g': rgate = IStringStream::read_from<capsel_t>(CmdArgs::arg); break;
             case 'f': mount_fs = CmdArgs::arg; break;
-            default:
-                usage(argv[0]);
+            default: usage(argv[0]);
         }
     }
     if(CmdArgs::ind >= argc)
@@ -169,8 +170,8 @@ int main(int argc, char **argv) {
     // touch all operations to make sure we don't get pagefaults in trace_ops arrary
     unsigned int numTraceOps = 0;
     trace_op_t *op = trace->trace_ops;
-    while (op && op->opcode != INVALID_OP) {
-        if (op->opcode != WAITUNTIL_OP)
+    while(op && op->opcode != INVALID_OP) {
+        if(op->opcode != WAITUNTIL_OP)
             numTraceOps++;
         op++;
     }
@@ -195,16 +196,13 @@ int main(int argc, char **argv) {
          << "stdio=" << (stdio ? "yes" : "no") << ","
          << "prefix=" << prefix << ","
          << "loadgen=" << loadgen << ","
-         << "ops=" << numTraceOps
-         << "]\n";
+         << "ops=" << numTraceOps << "]\n";
 
     Profile pr(iters, warmup);
     struct FSTraceRunner : public Runner {
         std::function<void()> func;
 
-        explicit FSTraceRunner(std::function<void()> func)
-            : Runner(),
-              func(func) {
+        explicit FSTraceRunner(std::function<void()> func) : Runner(), func(func) {
         }
 
         void run() override {
@@ -224,7 +222,7 @@ int main(int argc, char **argv) {
         else
             pr.runner<CycleInstant>(runner);
     }
-    catch (::Exception &e) {
+    catch(::Exception &e) {
         cerr << "Caught exception: " << e.msg() << "\n";
         return 1;
     }

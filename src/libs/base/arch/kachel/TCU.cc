@@ -16,12 +16,12 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/util/Math.h>
 #include <base/CPU.h>
-#include <base/TCU.h>
 #include <base/Init.h>
 #include <base/KIF.h>
+#include <base/TCU.h>
 #include <base/TMIF.h>
+#include <base/util/Math.h>
 
 namespace m3 {
 
@@ -39,8 +39,8 @@ size_t TCU::print(const char *str, size_t len) {
     }
 
     uintptr_t buffer = buffer_addr();
-    const reg_t *rstr = reinterpret_cast<const reg_t*>(aligned_str);
-    const reg_t *end = reinterpret_cast<const reg_t*>(aligned_str + len);
+    const reg_t *rstr = reinterpret_cast<const reg_t *>(aligned_str);
+    const reg_t *end = reinterpret_cast<const reg_t *>(aligned_str + len);
     while(rstr < end) {
         CPU::write8b(buffer, *rstr);
         buffer += sizeof(reg_t);
@@ -58,7 +58,8 @@ Errors::Code TCU::send(epid_t ep, const MsgBuf &msg, label_t replylbl, epid_t re
     return send_aligned(ep, msg.bytes(), msg.size(), replylbl, reply_ep);
 }
 
-Errors::Code TCU::send_aligned(epid_t ep, const void *msg, size_t len, label_t replylbl, epid_t reply_ep) {
+Errors::Code TCU::send_aligned(epid_t ep, const void *msg, size_t len, label_t replylbl,
+                               epid_t reply_ep) {
     auto msg_addr = reinterpret_cast<uintptr_t>(msg);
     write_reg(UnprivRegs::DATA, static_cast<reg_t>(msg_addr) | (static_cast<reg_t>(len) << 32));
     if(replylbl)
@@ -73,8 +74,7 @@ Errors::Code TCU::reply(epid_t ep, const MsgBuf &reply, size_t msg_off) {
 
 Errors::Code TCU::reply_aligned(epid_t ep, const void *reply, size_t len, size_t msg_off) {
     auto reply_addr = reinterpret_cast<uintptr_t>(reply);
-    write_reg(UnprivRegs::DATA, static_cast<reg_t>(reply_addr) |
-                                (static_cast<reg_t>(len) << 32));
+    write_reg(UnprivRegs::DATA, static_cast<reg_t>(reply_addr) | (static_cast<reg_t>(len) << 32));
     CPU::compiler_barrier();
     return perform_send_reply(reply_addr, build_command(ep, CmdOpCode::REPLY, msg_off));
 }
@@ -105,11 +105,12 @@ Errors::Code TCU::write(epid_t ep, const void *data, size_t size, goff_t off) {
     return perform_transfer(ep, reinterpret_cast<uintptr_t>(data), size, off, CmdOpCode::WRITE);
 }
 
-Errors::Code TCU::perform_transfer(epid_t ep, uintptr_t data_addr, size_t size,
-                                   goff_t off, CmdOpCode cmd) {
+Errors::Code TCU::perform_transfer(epid_t ep, uintptr_t data_addr, size_t size, goff_t off,
+                                   CmdOpCode cmd) {
     while(size > 0) {
         size_t amount = Math::min(size, PAGE_SIZE - (data_addr & PAGE_MASK));
-        write_reg(UnprivRegs::DATA, static_cast<reg_t>(data_addr) | (static_cast<reg_t>(amount) << 32));
+        write_reg(UnprivRegs::DATA,
+                  static_cast<reg_t>(data_addr) | (static_cast<reg_t>(amount) << 32));
         write_reg(UnprivRegs::ARG1, off);
         CPU::compiler_barrier();
         write_reg(UnprivRegs::COMMAND, build_command(ep, cmd));

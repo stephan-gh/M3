@@ -18,11 +18,11 @@
 
 #include <base/log/Services.h>
 
-#include <m3/server/Server.h>
 #include <m3/server/EventHandler.h>
-#include <m3/session/arch/host/VGA.h>
-#include <m3/session/arch/host/Keyboard.h>
+#include <m3/server/Server.h>
 #include <m3/session/ServerSession.h>
+#include <m3/session/arch/host/Keyboard.h>
+#include <m3/session/arch/host/VGA.h>
 #include <m3/stream/Standard.h>
 #include <m3/tiles/Activity.h>
 
@@ -36,7 +36,8 @@ public:
     explicit VGAHandler(MemGate *vgamem) : _vgamem(vgamem) {
     }
 
-    virtual Errors::Code open(ServerSession **sess, size_t crt, capsel_t srv_sel, const StringRef &) override {
+    virtual Errors::Code open(ServerSession **sess, size_t crt, capsel_t srv_sel,
+                              const StringRef &) override {
         *sess = new ServerSession(crt, srv_sel);
         return Errors::NONE;
     }
@@ -77,8 +78,8 @@ int main() {
 
     WorkLoop wl;
 
-    MemGate memgate = Activity::own().get_mem(reinterpret_cast<uintptr_t>(vgamem),
-                                          VGA::SIZE, MemGate::RW);
+    MemGate memgate =
+        Activity::own().get_mem(reinterpret_cast<uintptr_t>(vgamem), VGA::SIZE, MemGate::RW);
     Server<VGAHandler> vgasrv("vga", &wl, std::make_unique<VGAHandler>(&memgate));
 
     kbserver = new Server<EventHandler<>>("keyb", &wl, std::make_unique<EventHandler<>>());

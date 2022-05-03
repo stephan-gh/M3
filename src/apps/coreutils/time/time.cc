@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
         child.add_file(STDERR_FD, STDERR_FD);
         child.add_mount("/", "/");
 
-        child.exec(argc - 1, const_cast<const char**>(argv) + 1);
+        child.exec(argc - 1, const_cast<const char **>(argv) + 1);
 
         res = child.wait();
     }

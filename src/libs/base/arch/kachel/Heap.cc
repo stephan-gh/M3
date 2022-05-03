@@ -17,10 +17,11 @@
  */
 
 #include <base/Common.h>
-#include <base/util/Math.h>
 #include <base/Config.h>
-#include <base/mem/Heap.h>
 #include <base/Env.h>
+#include <base/mem/Heap.h>
+#include <base/util/Math.h>
+
 #include <assert.h>
 
 extern void *_bss_end;

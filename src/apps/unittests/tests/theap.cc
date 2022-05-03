@@ -48,7 +48,7 @@ static bool test_check_content(uint *ptr, size_t count, uint value) {
 
 static void test_t1alloc() {
     for(size_t size = 0; size < ARRAY_SIZE(sizes); size++) {
-        ptrs[size] = static_cast<uint*>(Heap::alloc(sizes[size] * sizeof(uint)));
+        ptrs[size] = static_cast<uint *>(Heap::alloc(sizes[size] * sizeof(uint)));
         if(ptrs[size] == nullptr)
             cout << "Not enough mem\n";
         else {
@@ -136,10 +136,10 @@ static void allocate_then_free_in_random_direction_2() {
 
 static void allocate_and_free_with_different_sizes() {
     for(size_t size = 0; size < ARRAY_SIZE(sizes); size++) {
-        cout << "Allocate and free " << sizes[size] * sizeof(uint)<< " bytes\n";
+        cout << "Allocate and free " << sizes[size] * sizeof(uint) << " bytes\n";
         check_heap_before();
 
-        ptrs[0] = static_cast<uint*>(Heap::alloc(sizes[size] * sizeof(uint)));
+        ptrs[0] = static_cast<uint *>(Heap::alloc(sizes[size] * sizeof(uint)));
         if(ptrs[0] != nullptr) {
             /* write test */
             *(ptrs[0]) = 1;
@@ -157,7 +157,7 @@ static void allocate_single_bytes() {
     check_heap_before();
 
     for(size_t i = 0; i < SINGLE_BYTE_COUNT; i++) {
-        ptrs_single[i] = static_cast<uint*>(Heap::alloc(1));
+        ptrs_single[i] = static_cast<uint *>(Heap::alloc(1));
     }
     for(size_t i = 0; i < SINGLE_BYTE_COUNT; i++) {
         Heap::free(ptrs_single[i]);
@@ -170,20 +170,20 @@ static void allocate_3_region() {
     uint *ptr1, *ptr2, *ptr3, *ptr4, *ptr5;
     check_heap_before();
 
-    ptr1 = static_cast<uint*>(Heap::alloc(4 * sizeof(uint)));
+    ptr1 = static_cast<uint *>(Heap::alloc(4 * sizeof(uint)));
     for(size_t i = 0; i < 4; i++)
         *(ptr1 + i) = 1;
-    ptr2 = static_cast<uint*>(Heap::alloc(8 * sizeof(uint)));
+    ptr2 = static_cast<uint *>(Heap::alloc(8 * sizeof(uint)));
     for(size_t i = 0; i < 8; i++)
         *(ptr2 + i) = 2;
-    ptr3 = static_cast<uint*>(Heap::alloc(12 * sizeof(uint)));
+    ptr3 = static_cast<uint *>(Heap::alloc(12 * sizeof(uint)));
     for(size_t i = 0; i < 12; i++)
         *(ptr3 + i) = 3;
     Heap::free(ptr2);
-    ptr4 = static_cast<uint*>(Heap::alloc(6 * sizeof(uint)));
+    ptr4 = static_cast<uint *>(Heap::alloc(6 * sizeof(uint)));
     for(size_t i = 0; i < 6; i++)
         *(ptr4 + i) = 4;
-    ptr5 = static_cast<uint*>(Heap::alloc(2 * sizeof(uint)));
+    ptr5 = static_cast<uint *>(Heap::alloc(2 * sizeof(uint)));
     for(size_t i = 0; i < 2; i++)
         *(ptr5 + i) = 5;
 
@@ -206,19 +206,19 @@ static void reallocate() {
 
     check_heap_before();
 
-    ptr1 = static_cast<uint*>(Heap::alloc(10 * sizeof(uint)));
+    ptr1 = static_cast<uint *>(Heap::alloc(10 * sizeof(uint)));
     for(p = ptr1, i = 0; i < 10; i++)
         *p++ = 1;
 
-    ptr2 = static_cast<uint*>(Heap::alloc(5 * sizeof(uint)));
+    ptr2 = static_cast<uint *>(Heap::alloc(5 * sizeof(uint)));
     for(p = ptr2, i = 0; i < 5; i++)
         *p++ = 2;
 
-    ptr3 = static_cast<uint*>(Heap::alloc(2 * sizeof(uint)));
+    ptr3 = static_cast<uint *>(Heap::alloc(2 * sizeof(uint)));
     for(p = ptr3, i = 0; i < 2; i++)
         *p++ = 3;
 
-    ptr2 = static_cast<uint*>(Heap::realloc(ptr2, 10 * sizeof(uint)));
+    ptr2 = static_cast<uint *>(Heap::realloc(ptr2, 10 * sizeof(uint)));
 
     /* check content */
     WVASSERT(test_check_content(ptr1, 10, 1));
@@ -229,7 +229,7 @@ static void reallocate() {
     for(p = ptr2, i = 0; i < 10; i++)
         *p++ = 2;
 
-    ptr3 = static_cast<uint*>(Heap::realloc(ptr3, 6 * sizeof(uint)));
+    ptr3 = static_cast<uint *>(Heap::realloc(ptr3, 6 * sizeof(uint)));
 
     /* check content */
     WVASSERT(test_check_content(ptr1, 10, 1));
@@ -240,7 +240,7 @@ static void reallocate() {
     for(p = ptr3, i = 0; i < 6; i++)
         *p++ = 3;
 
-    ptr3 = static_cast<uint*>(Heap::realloc(ptr3, 7 * sizeof(uint)));
+    ptr3 = static_cast<uint *>(Heap::realloc(ptr3, 7 * sizeof(uint)));
 
     /* check content */
     WVASSERT(test_check_content(ptr1, 10, 1));
@@ -269,7 +269,7 @@ static void allocate_all_and_free_it_again() {
 
     size_t total = Heap::total_memory();
     size_t num = total / 0x4000;
-    void **ptrs = new void*[num];
+    void **ptrs = new void *[num];
 
     // free backwards
     ssize_t i;

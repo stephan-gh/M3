@@ -17,13 +17,14 @@
 #pragma once
 
 #include <base/col/SList.h>
+
 #include <functional>
 
 namespace m3 {
 
 template<typename T>
 struct Subscriber : public SListItem {
-    using callback_type = std::function<void(T,Subscriber<T>*)>;
+    using callback_type = std::function<void(T, Subscriber<T> *)>;
 
     callback_type callback;
 
@@ -35,7 +36,7 @@ template<typename T>
 class Subscriptions {
 public:
     using callback_type = typename Subscriber<T>::callback_type;
-    using iterator      = typename SList<Subscriber<T>>::iterator;
+    using iterator = typename SList<Subscriber<T>>::iterator;
 
     explicit Subscriptions() : _list() {
     }

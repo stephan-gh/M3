@@ -20,20 +20,20 @@
 
 #include <base/Compiler.h>
 
-#define INIT_PRIO_SENDQUEUE     INIT_PRIO(101)
-#define INIT_PRIO_TCU           INIT_PRIO(102)
+#define INIT_PRIO_SENDQUEUE INIT_PRIO(101)
+#define INIT_PRIO_TCU       INIT_PRIO(102)
 
-#define INIT_PRIO_RECVBUF       INIT_PRIO(104)
-#define INIT_PRIO_RECVGATE      INIT_PRIO(105)
-#define INIT_PRIO_SYSCALLS      INIT_PRIO(106)
+#define INIT_PRIO_RECVBUF   INIT_PRIO(104)
+#define INIT_PRIO_RECVGATE  INIT_PRIO(105)
+#define INIT_PRIO_SYSCALLS  INIT_PRIO(106)
 
 #if defined(__host__)
-#   define INIT_PRIO_ENV        INIT_PRIO(103)
+#    define INIT_PRIO_ENV      INIT_PRIO(103)
 // this needs to run as soon as syscalls work
-#   define INIT_PRIO_ENV_POST   INIT_PRIO(107)
+#    define INIT_PRIO_ENV_POST INIT_PRIO(107)
 #endif
 
-#define INIT_PRIO_ACT           INIT_PRIO(108)
-#define INIT_PRIO_VFS           INIT_PRIO(109)
-#define INIT_PRIO_STREAM        INIT_PRIO(110)
-#define INIT_PRIO_LAMBDA        INIT_PRIO(111)
+#define INIT_PRIO_ACT    INIT_PRIO(108)
+#define INIT_PRIO_VFS    INIT_PRIO(109)
+#define INIT_PRIO_STREAM INIT_PRIO(110)
+#define INIT_PRIO_LAMBDA INIT_PRIO(111)

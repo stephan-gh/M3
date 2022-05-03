@@ -47,8 +47,8 @@ public:
      * @param events the events you are interested in for this file (see File::Event)
      */
     void set(fd_t fd, uint events) {
-        auto existing = std::find_if(_files.begin(), _files.end(),
-            [fd](const std::pair<fd_t, uint> &f) {
+        auto existing =
+            std::find_if(_files.begin(), _files.end(), [fd](const std::pair<fd_t, uint> &f) {
                 return f.first == fd;
             });
         if(existing != _files.end())
@@ -63,21 +63,19 @@ public:
      * @param fd the file descriptor to remove
      */
     void remove(fd_t fd) {
-        _files.erase(
-            std::remove_if(_files.begin(), _files.end(),
-                [fd](const std::pair<fd_t, uint> &f) {
-                    return f.first == fd;
-                }),
-            _files.end()
-        );
+        _files.erase(std::remove_if(_files.begin(), _files.end(),
+                                    [fd](const std::pair<fd_t, uint> &f) {
+                                        return f.first == fd;
+                                    }),
+                     _files.end());
     }
 
     /**
      * Waits until any file has received any of the desired events.
      *
-     * Note: this function uses Activity::sleep if tick_sockets returns false, which suspends the core
-     * until the next TCU message arrives. Thus, calling this function can only be done if all work
-     * is done.
+     * Note: this function uses Activity::sleep if tick_sockets returns false, which suspends the
+     * core until the next TCU message arrives. Thus, calling this function can only be done if all
+     * work is done.
      */
     void wait();
 
@@ -85,9 +83,9 @@ public:
      * Waits until any file has received any of the desired events or the given timeout in
      * nanoseconds is reached.
      *
-     * Note: this function uses Activity::sleep if tick_sockets returns false, which suspends the core
-     * until the next TCU message arrives. Thus, calling this function can only be done if all work
-     * is done.
+     * Note: this function uses Activity::sleep if tick_sockets returns false, which suspends the
+     * core until the next TCU message arrives. Thus, calling this function can only be done if all
+     * work is done.
      *
      * @param timeout the maximum time to wait
      */

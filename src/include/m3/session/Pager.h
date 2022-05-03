@@ -18,13 +18,13 @@
 
 #pragma once
 
-#include <base/util/Reference.h>
 #include <base/Panic.h>
+#include <base/util/Reference.h>
 
-#include <m3/session/ClientSession.h>
 #include <m3/com/MemGate.h>
-#include <m3/com/SendGate.h>
 #include <m3/com/RecvGate.h>
+#include <m3/com/SendGate.h>
+#include <m3/session/ClientSession.h>
 
 namespace m3 {
 
@@ -51,17 +51,17 @@ public:
 
     enum Flags {
         MAP_PRIVATE = 0,
-        MAP_SHARED  = 0x2000,
-        MAP_UNINIT  = 0x4000,
+        MAP_SHARED = 0x2000,
+        MAP_UNINIT = 0x4000,
         MAP_NOLPAGE = 0x8000,
     };
 
     enum Prot {
-        READ    = MemGate::R,
-        WRITE   = MemGate::W,
-        EXEC    = MemGate::X,
-        RW      = READ | WRITE,
-        RWX     = READ | WRITE | EXEC,
+        READ = MemGate::R,
+        WRITE = MemGate::W,
+        EXEC = MemGate::X,
+        RW = READ | WRITE,
+        RWX = READ | WRITE | EXEC,
     };
 
     explicit Pager(capsel_t sess, capsel_t sgate);
@@ -77,8 +77,8 @@ public:
     void clone();
     void pagefault(goff_t addr, uint access);
     void map_anon(goff_t *virt, size_t len, int prot, int flags);
-    void map_ds(goff_t *virt, size_t len, int prot, int flags,
-                const ClientSession &sess, size_t offset);
+    void map_ds(goff_t *virt, size_t len, int prot, int flags, const ClientSession &sess,
+                size_t offset);
     void map_mem(goff_t *virt, MemGate &mem, size_t len, int prot);
     void unmap(goff_t virt);
 

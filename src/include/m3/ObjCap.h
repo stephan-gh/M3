@@ -37,11 +37,11 @@ class ObjCap {
     friend class Activity;
 
 public:
-    static const capsel_t INVALID   = KIF::INV_SEL;
+    static const capsel_t INVALID = KIF::INV_SEL;
 
     enum {
         // whether we don't want to free the capability
-        KEEP_CAP        = 1 << 0,
+        KEEP_CAP = 1 << 0,
     };
 
     enum {
@@ -72,18 +72,15 @@ public:
     }
 
     // object-caps are non-copyable, because I think there are very few usecases
-    ObjCap(const ObjCap&) = delete;
-    ObjCap& operator=(const ObjCap&) = delete;
+    ObjCap(const ObjCap &) = delete;
+    ObjCap &operator=(const ObjCap &) = delete;
 
     // but moving is allowed
-    ObjCap(ObjCap &&c) noexcept
-        : _sel(c._sel),
-          _type(c._type),
-          _flags(c._flags) {
+    ObjCap(ObjCap &&c) noexcept : _sel(c._sel), _type(c._type), _flags(c._flags) {
         // don't destroy anything with the old cap
         c._flags = KEEP_CAP;
     }
-    ObjCap& operator=(ObjCap &&c) noexcept {
+    ObjCap &operator=(ObjCap &&c) noexcept {
         if(&c != this) {
             _sel = c._sel;
             _type = c._type;

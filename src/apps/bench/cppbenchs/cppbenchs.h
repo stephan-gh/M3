@@ -16,9 +16,9 @@
  * General Public License version 2 for more details.
  */
 
-#define RUN_SUITE(name)                                                 \
-    m3::cout << "Running benchmark suite " << #name << " ...\n";        \
-    name();                                                             \
+#define RUN_SUITE(name)                                          \
+    m3::cout << "Running benchmark suite " << #name << " ...\n"; \
+    name();                                                      \
     m3::cout << "\n";
 
 #define RUN_BENCH(name)                                                 \

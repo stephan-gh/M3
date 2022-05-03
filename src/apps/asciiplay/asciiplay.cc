@@ -17,14 +17,14 @@
  */
 
 #include <base/Common.h>
-#include <base/stream/IStringStream.h>
 #include <base/Env.h>
+#include <base/stream/IStringStream.h>
 
-#include <m3/com/SendGate.h>
 #include <m3/com/GateStream.h>
+#include <m3/com/SendGate.h>
+#include <m3/session/Timer.h>
 #include <m3/session/arch/host/Keyboard.h>
 #include <m3/session/arch/host/VGA.h>
-#include <m3/session/Timer.h>
 #include <m3/stream/FStream.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/VFS.h>
@@ -98,9 +98,7 @@ static void kb_event(GateIStream &is) {
         return;
     switch(ev.keycode) {
         case Keyboard::VK_SPACE:
-        case Keyboard::VK_P:
-            status = status == PLAYING ? PAUSED : PLAYING;
-            break;
+        case Keyboard::VK_P: status = status == PLAYING ? PAUSED : PLAYING; break;
     }
 }
 

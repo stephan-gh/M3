@@ -16,10 +16,10 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/Common.h>
-#include <base/stream/Serial.h>
 #include <base/CPU.h>
+#include <base/Common.h>
 #include <base/Env.h>
+#include <base/stream/Serial.h>
 
 #include <exception>
 #include <functional>
@@ -68,9 +68,9 @@ void Env::call_constr() {
 }
 
 static char **rewrite_args(uint64_t *args, int count) {
-    char **nargs = new char*[count + 1];
+    char **nargs = new char *[count + 1];
     for(int i = 0; i < count; ++i)
-        nargs[i] = reinterpret_cast<char*>(args[i]);
+        nargs[i] = reinterpret_cast<char *>(args[i]);
     nargs[count] = nullptr;
     return nargs;
 }
@@ -82,15 +82,15 @@ void Env::run() {
     m3::Heap::init();
 
     int argc = static_cast<int>(e->argc);
-    char **argv = reinterpret_cast<char**>(e->argv);
-    char **envp = reinterpret_cast<char**>(e->envp);
-    if(sizeof(char*) != sizeof(uint64_t)) {
-        uint64_t *envp64 = reinterpret_cast<uint64_t*>(e->envp);
+    char **argv = reinterpret_cast<char **>(e->argv);
+    char **envp = reinterpret_cast<char **>(e->envp);
+    if(sizeof(char *) != sizeof(uint64_t)) {
+        uint64_t *envp64 = reinterpret_cast<uint64_t *>(e->envp);
         int envcnt = 0;
         for(; envp64 && *envp64; envcnt++)
             envp64++;
-        envp = rewrite_args(reinterpret_cast<uint64_t*>(e->envp), envcnt);
-        argv = rewrite_args(reinterpret_cast<uint64_t*>(e->argv), argc);
+        envp = rewrite_args(reinterpret_cast<uint64_t *>(e->envp), envcnt);
+        argv = rewrite_args(reinterpret_cast<uint64_t *>(e->argv), argc);
     }
 
     __m3_init_libc(argc, argv, envp);
@@ -98,7 +98,7 @@ void Env::run() {
 
     int res;
     if(e->lambda) {
-        auto func = reinterpret_cast<int(*)()>(e->lambda);
+        auto func = reinterpret_cast<int (*)()>(e->lambda);
         res = (*func)();
     }
     else

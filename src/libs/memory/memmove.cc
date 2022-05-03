@@ -16,21 +16,22 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/Common.h>
 #include <base/CPU.h>
+#include <base/Common.h>
+
 #include <string.h>
 
 /* this is necessary to prevent that gcc transforms a loop into library-calls
  * (which might lead to recursion here) */
-#pragma GCC optimize ("no-tree-loop-distribute-patterns")
+#pragma GCC optimize("no-tree-loop-distribute-patterns")
 
 void *memmove(void *dest, const void *src, size_t count) {
     /* nothing to do? */
-    if(reinterpret_cast<uint8_t*>(dest) == reinterpret_cast<const uint8_t*>(src))
+    if(reinterpret_cast<uint8_t *>(dest) == reinterpret_cast<const uint8_t *>(src))
         return dest;
 
-    const uint8_t *s = reinterpret_cast<const uint8_t*>(src);
-    uint8_t *d = reinterpret_cast<uint8_t*>(dest);
+    const uint8_t *s = reinterpret_cast<const uint8_t *>(src);
+    uint8_t *d = reinterpret_cast<uint8_t *>(dest);
 
     // move backwards if they overlap
     if(s < d && d < s + count) {
@@ -43,15 +44,15 @@ void *memmove(void *dest, const void *src, size_t count) {
             size_t salign = reinterpret_cast<uintptr_t>(s) % sizeof(word_t);
             if(!NEED_ALIGNED_MEMACC || (dalign == 0 && salign == 0)) {
                 // copy words
-                word_t *ddest = reinterpret_cast<word_t*>(d);
-                const word_t *dsrc = reinterpret_cast<const word_t*>(s);
+                word_t *ddest = reinterpret_cast<word_t *>(d);
+                const word_t *dsrc = reinterpret_cast<const word_t *>(s);
                 while(count >= sizeof(word_t)) {
                     *--ddest = *--dsrc;
                     count -= sizeof(word_t);
                 }
 
-                d = reinterpret_cast<uint8_t*>(ddest);
-                s = reinterpret_cast<const uint8_t*>(dsrc);
+                d = reinterpret_cast<uint8_t *>(ddest);
+                s = reinterpret_cast<const uint8_t *>(dsrc);
             }
         }
 

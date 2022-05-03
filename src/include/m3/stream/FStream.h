@@ -22,10 +22,10 @@
 #include <base/stream/IStream.h>
 #include <base/stream/OStream.h>
 
-#include <m3/vfs/File.h>
-#include <m3/vfs/FileTable.h>
 #include <m3/Exception.h>
 #include <m3/tiles/OwnActivity.h>
+#include <m3/vfs/File.h>
+#include <m3/vfs/FileTable.h>
 
 namespace m3 {
 
@@ -37,8 +37,8 @@ namespace m3 {
  * error state. Therefore, clear_state() should be called before retrying the operation.
  */
 class FStream : public IStream, public OStream {
-    static const uint FL_DEL_BUF    = 1;
-    static const uint FL_DEL_FILE   = 2;
+    static const uint FL_DEL_BUF = 1;
+    static const uint FL_DEL_FILE = 2;
 
     static int get_perms(int perms) {
         // if we want to write, we need read-permission to handle unaligned writes
@@ -48,7 +48,7 @@ class FStream : public IStream, public OStream {
     }
 
 public:
-    static const uint FL_LINE_BUF   = 4;
+    static const uint FL_LINE_BUF = 4;
 
     /**
      * Binds this object to the given file descriptor and uses a buffer size of <bufsize>.
@@ -89,7 +89,7 @@ public:
         return Activity::own().files()->get(_fd);
     }
     const File *file() const {
-        return const_cast<FStream*>(this)->file();
+        return const_cast<FStream *>(this)->file();
     }
 
     /**
@@ -148,7 +148,7 @@ public:
         f->set_blocking(true);
 
         try {
-            const uint8_t *s = static_cast<const uint8_t*>(src);
+            const uint8_t *s = static_cast<const uint8_t *>(src);
             while(!bad() && count) {
                 ssize_t amount = write(s, count);
                 count -= static_cast<size_t>(amount);

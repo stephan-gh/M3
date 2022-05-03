@@ -19,10 +19,10 @@
 
 #pragma once
 
-#include <thread/Thread.h>
-
-#include <base/log/Lib.h>
 #include <base/Panic.h>
+#include <base/log/Lib.h>
+
+#include <thread/Thread.h>
 
 namespace m3 {
 
@@ -88,10 +88,10 @@ public:
 
     void notify(event_t event, const void *msg = nullptr, size_t size = 0) {
         assert(size <= Thread::MAX_MSG_SIZE);
-        for(auto it = _blocked.begin(); it != _blocked.end(); ) {
+        for(auto it = _blocked.begin(); it != _blocked.end();) {
             auto old = it++;
             if(old->trigger_event(event)) {
-                Thread* t = &(*old);
+                Thread *t = &(*old);
                 t->set_msg(msg, size);
                 LLOG(THREAD, "Waking up thread " << t->id() << " for event " << fmt(event, "x"));
                 _blocked.remove(t);
@@ -109,12 +109,7 @@ public:
     }
 
 private:
-    explicit ThreadManager()
-        : _current(),
-          _ready(),
-          _blocked(),
-          _sleep(),
-          _next_id(1) {
+    explicit ThreadManager() : _current(), _ready(), _blocked(), _sleep(), _next_id(1) {
         _current = new Thread();
     }
 

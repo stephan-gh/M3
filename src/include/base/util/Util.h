@@ -24,8 +24,8 @@ namespace m3 {
 
 static constexpr uint _getnextlog2(size_t size, uint shift) {
     return size > (static_cast<size_t>(1) << shift)
-            ? shift + 1
-            : (shift == 0 ? 0 : _getnextlog2(size, shift - 1));
+               ? shift + 1
+               : (shift == 0 ? 0 : _getnextlog2(size, shift - 1));
 }
 /**
  * Converts <size> to x with 2^x >= <size>. It may be executed at compiletime or runtime,
@@ -49,7 +49,8 @@ static_assert(nextlog2<10>::val == 4, "failed");
 static_assert(nextlog2<100>::val == 7, "failed");
 static_assert(nextlog2<1UL << 31>::val == 31, "failed");
 static_assert(nextlog2<(1UL << 30) + 1>::val == 31, "failed");
-static_assert(nextlog2<(1UL << (sizeof(size_t) * 8 - 1)) + 1>::val == (sizeof(size_t) * 8 - 1), "failed");
+static_assert(nextlog2<(1UL << (sizeof(size_t) * 8 - 1)) + 1>::val == (sizeof(size_t) * 8 - 1),
+              "failed");
 
 /**
  * Converts the given pointer to a label

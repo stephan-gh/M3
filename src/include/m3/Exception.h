@@ -15,17 +15,18 @@
 
 #pragma once
 
-#include <base/stream/OStringStream.h>
-#include <base/util/String.h>
 #include <base/Errors.h>
 #include <base/KIF.h>
+#include <base/stream/OStringStream.h>
+#include <base/util/String.h>
 
 /**
  * This macro throws an exception and passes a formatted string as its message. That is, you can
  * use the stream operators to build the message. For example:
  * VTHROW(EXISTS, "My exception " << 1 << "," << 2 << " message");
  */
-#define VTHROW(error, expr) {                          \
+#define VTHROW(error, expr)                            \
+    {                                                  \
         m3::OStringStream __os;                        \
         __os << expr;                                  \
         throw m3::MessageException(__os.str(), error); \
@@ -38,7 +39,7 @@ namespace m3 {
  */
 class Exception {
     static const size_t MAX_TRACE_DEPTH = 16;
-    static const size_t MAX_MSG_SIZE    = 256;
+    static const size_t MAX_MSG_SIZE = 256;
 
 public:
     typedef const uintptr_t *backtrace_iterator;
@@ -131,8 +132,7 @@ private:
  */
 class TCUException : public Exception {
 public:
-    explicit TCUException(Errors::Code code) noexcept
-        : Exception(code) {
+    explicit TCUException(Errors::Code code) noexcept : Exception(code) {
     }
 
     const char *what() const noexcept override {
@@ -158,8 +158,8 @@ public:
 
     const char *what() const noexcept override {
         OStringStream os(msg_buf, sizeof(msg_buf));
-        os << "The system call " << _syscall << " failed: "
-           << Errors::to_string(code()) << " (" << code() << ")";
+        os << "The system call " << _syscall << " failed: " << Errors::to_string(code()) << " ("
+           << code() << ")";
         return msg_buf;
     }
 

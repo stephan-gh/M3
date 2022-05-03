@@ -23,14 +23,14 @@
 namespace m3 {
 
 enum {
-    EI_CLASS      = 4,
-    ELFCLASSNONE  = 0,
-    ELFCLASS32    = 1,
-    ELFCLASS64    = 2,
+    EI_CLASS = 4,
+    ELFCLASSNONE = 0,
+    ELFCLASS32 = 1,
+    ELFCLASS64 = 2,
 };
 
 struct Elf32_Ehdr {
-    uint8_t  e_ident[16];
+    uint8_t e_ident[16];
     uint16_t e_type;
     uint16_t e_machine;
     uint32_t e_version;
@@ -47,7 +47,7 @@ struct Elf32_Ehdr {
 };
 
 struct Elf64_Ehdr {
-    uint8_t  e_ident[16];
+    uint8_t e_ident[16];
     uint16_t e_type;
     uint16_t e_machine;
     uint32_t e_version;

@@ -15,8 +15,8 @@
 
 #include <base/log/Services.h>
 
-#include <m3/server/Server.h>
 #include <m3/server/EventHandler.h>
+#include <m3/server/Server.h>
 #include <m3/tiles/Activity.h>
 
 using namespace m3;

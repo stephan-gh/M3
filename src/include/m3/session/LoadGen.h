@@ -22,11 +22,11 @@
 #include <base/Errors.h>
 #include <base/KIF.h>
 
-#include <m3/session/ClientSession.h>
 #include <m3/com/GateStream.h>
 #include <m3/com/MemGate.h>
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
+#include <m3/session/ClientSession.h>
 #include <m3/tiles/OwnActivity.h>
 
 #include <memory>

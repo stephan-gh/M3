@@ -35,7 +35,7 @@ public:
     struct Option {
         const char *name;
         int has_arg;
-        int *flag;  /* unsupported */
+        int *flag; /* unsupported */
         int val;
     };
 
@@ -59,14 +59,15 @@ public:
     /**
      * Parses the given arguments for given options.
      *
-     * <optstring> is used for short options ("-o") and consists of the option characters. A ':' after
-     * an option character specifies that the option has an argument.
-     * If an option is found, the character is returned. If it has an argument, <optarg> points to the
-     * argument (either the text after the option character or the text of the next item in argv).
+     * <optstring> is used for short options ("-o") and consists of the option characters. A ':'
+     * after an option character specifies that the option has an argument. If an option is found,
+     * the character is returned. If it has an argument, <optarg> points to the argument (either the
+     * text after the option character or the text of the next item in argv).
      *
      * <longopts> can optionally be specified for long options ("--option"). The last array element
      * needs to consist of zeros. <name> specifies the option name ("option"), <has_arg> specifies
-     * whether it has an argument (*_argument) and <val> the value to return if that option is found.
+     * whether it has an argument (*_argument) and <val> the value to return if that option is
+     * found.
      *
      * @param argc the number of args, as received in main
      * @param argv the arguments, as received in main
@@ -75,14 +76,15 @@ public:
      * @param longindex if non-NULL, optind will be set to *longindex
      * @return the option or -1 if no option has been found
      */
-    static int get_long(int argc, char *const argv[], const char *optstring,
-                        const Option *longopts, int *longindex);
+    static int get_long(int argc, char *const argv[], const char *optstring, const Option *longopts,
+                        int *longindex);
     static int get(int argc, char *const argv[], const char *optstring) {
         return get_long(argc, argv, optstring, nullptr, nullptr);
     }
 
     /**
-     * Converts the given string to a number, supporting the suffixes K, M, and G (lower and upper case)
+     * Converts the given string to a number, supporting the suffixes K, M, and G (lower and upper
+     * case)
      *
      * @param str the string
      * @return the number

@@ -22,9 +22,9 @@
 #include <m3/vfs/File.h>
 
 enum Mode {
-    INDIR       = 0,
-    DIR         = 1,
-    DIR_SIMPLE  = 2,
+    INDIR = 0,
+    DIR = 1,
+    DIR_SIMPLE = 2,
 };
 
 extern const m3::CycleDuration ACCEL_TIMES[];

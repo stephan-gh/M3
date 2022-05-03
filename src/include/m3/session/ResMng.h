@@ -17,17 +17,16 @@
 
 #include <base/Panic.h>
 
+#include <m3/Exception.h>
 #include <m3/com/GateStream.h>
 #include <m3/com/SendGate.h>
-#include <m3/Exception.h>
-#include <m3/tiles/OwnActivity.h>
 #include <m3/tiles/ChildActivity.h>
+#include <m3/tiles/OwnActivity.h>
 
 namespace m3 {
 
 class ResMng {
-    explicit ResMng(capsel_t resmng, capsel_t act)
-        : _sgate(SendGate::bind(resmng)), _act(act) {
+    explicit ResMng(capsel_t resmng, capsel_t act) : _sgate(SendGate::bind(resmng)), _act(act) {
     }
 
 public:
@@ -65,24 +64,14 @@ public:
 
         const char *what() const noexcept override {
             static const char *names[] = {
-                "REG_SERV",
-                "UNREG_SERV",
-                "OPEN_SESS",
-                "CLOSE_SESS",
-                "ADD_CHILD",
-                "REM_CHILD",
-                "ALLOC_MEM",
-                "FREE_MEM",
-                "ALLOC_TILE",
-                "FREE_TILE",
-                "USE_RGATE",
-                "USE_SGATE",
-                "USE_SEM",
+                "REG_SERV",  "UNREG_SERV", "OPEN_SESS", "CLOSE_SESS", "ADD_CHILD",
+                "REM_CHILD", "ALLOC_MEM",  "FREE_MEM",  "ALLOC_TILE", "FREE_TILE",
+                "USE_RGATE", "USE_SGATE",  "USE_SEM",
             };
 
             OStringStream os(msg_buf, sizeof(msg_buf));
-            os << "The resource manager operation " << names[_op] << " failed: "
-               << Errors::to_string(code()) << " (" << code() << ")";
+            os << "The resource manager operation " << names[_op]
+               << " failed: " << Errors::to_string(code()) << " (" << code() << ")";
             return msg_buf;
         }
 
@@ -91,7 +80,8 @@ public:
     };
 
     explicit ResMng(capsel_t resmng) noexcept
-        : _sgate(SendGate::bind(resmng)), _act(ObjCap::INVALID) {
+        : _sgate(SendGate::bind(resmng)),
+          _act(ObjCap::INVALID) {
     }
     ~ResMng() {
         if(_act != ObjCap::INVALID) {

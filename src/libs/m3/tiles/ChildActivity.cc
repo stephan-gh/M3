@@ -16,22 +16,19 @@
  * General Public License version 2 for more details.
  */
 
+#include <m3/Syscalls.h>
 #include <m3/session/ResMng.h>
 #include <m3/stream/FStream.h>
 #include <m3/tiles/ChildActivity.h>
 #include <m3/tiles/OwnActivity.h>
 #include <m3/vfs/File.h>
 #include <m3/vfs/FileTable.h>
-#include <m3/Syscalls.h>
 
 namespace m3 {
 
-const size_t ChildActivity::BUF_SIZE    = 4096;
+const size_t ChildActivity::BUF_SIZE = 4096;
 
-ActivityArgs::ActivityArgs() noexcept
-    : _rmng(nullptr),
-      _pager(),
-      _kmem() {
+ActivityArgs::ActivityArgs() noexcept : _rmng(nullptr), _pager(), _kmem() {
 }
 
 ActivityArgs &ActivityArgs::pager(Reference<Pager> pager) noexcept {
@@ -41,8 +38,8 @@ ActivityArgs &ActivityArgs::pager(Reference<Pager> pager) noexcept {
 
 ChildActivity::ChildActivity(const Reference<class Tile> &tile, const String &name,
                              const ActivityArgs &args)
-    : Activity(Activity::own().alloc_sels(3), 0,
-               tile, args._kmem ? args._kmem : Activity::own().kmem(), args._rmng),
+    : Activity(Activity::own().alloc_sels(3), 0, tile,
+               args._kmem ? args._kmem : Activity::own().kmem(), args._rmng),
       _files(),
       _mounts(),
       _exec() {

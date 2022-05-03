@@ -42,7 +42,8 @@ static void test_msg_errors() {
         // message too large
         MsgBuf large_msg;
         large_msg.cast<uint8_t[1 + 64 - sizeof(TCU::Message::Header)]>();
-        ASSERT_EQ(kernel::TCU::send(SEP, large_msg, 0x1111, TCU::NO_REPLIES), Errors::OUT_OF_BOUNDS);
+        ASSERT_EQ(kernel::TCU::send(SEP, large_msg, 0x1111, TCU::NO_REPLIES),
+                  Errors::OUT_OF_BOUNDS);
         // invalid reply EP
         ASSERT_EQ(kernel::TCU::send(SEP, msg, 0x1111, SEP), Errors::NO_REP);
         // not a receive EP
@@ -54,7 +55,7 @@ static void test_msg_errors() {
         kernel::TCU::config_recv(REP, buf1, 6 /* 64 */, 6 /* 64 */, RPLEP);
 
         // reply on message that's out of bounds
-        const TCU::Message *rmsg = reinterpret_cast<const TCU::Message*>(buf1 + (1 << 6));
+        const TCU::Message *rmsg = reinterpret_cast<const TCU::Message *>(buf1 + (1 << 6));
         ASSERT_EQ(kernel::TCU::reply(REP, empty_msg, buf1, rmsg), Errors::INV_MSG_OFF);
         // ack message that's out of bounds
         ASSERT_EQ(kernel::TCU::ack_msg(REP, buf1, rmsg), Errors::INV_MSG_OFF);
@@ -63,7 +64,7 @@ static void test_msg_errors() {
     Serial::get() << "REPLY with disabled replies\n";
     {
         kernel::TCU::config_recv(REP, buf1, 6 /* 64 */, 6 /* 64 */, TCU::NO_REPLIES);
-        const TCU::Message *rmsg = reinterpret_cast<const TCU::Message*>(buf1);
+        const TCU::Message *rmsg = reinterpret_cast<const TCU::Message *>(buf1);
         ASSERT_EQ(kernel::TCU::reply(REP, empty_msg, buf1, rmsg), Errors::REPLIES_DISABLED);
     }
 
@@ -72,14 +73,15 @@ static void test_msg_errors() {
         kernel::TCU::config_recv(REP, buf1, 6 /* 64 */, 6 /* 64 */, RPLEP,
                                  1 /* make msg 0 (EP 2) occupied */, 0);
         kernel::TCU::config_send(RPLEP, 0x5678, tile_id(Tile::T0), REP, 4 /* 16 */, 1);
-        const TCU::Message *rmsg = reinterpret_cast<const TCU::Message*>(buf1);
+        const TCU::Message *rmsg = reinterpret_cast<const TCU::Message *>(buf1);
         ASSERT_EQ(kernel::TCU::reply(REP, empty_msg, buf1, rmsg), Errors::SEND_REPLY_EP);
     }
 
     Serial::get() << "SEND to invalid receive EP\n";
     {
         kernel::TCU::config_invalid(REP);
-        kernel::TCU::config_send(SEP, 0x5678, tile_id(Tile::T0), REP /* invalid REP */, 4 /* 16 */, 1);
+        kernel::TCU::config_send(SEP, 0x5678, tile_id(Tile::T0), REP /* invalid REP */, 4 /* 16 */,
+                                 1);
         ASSERT_EQ(kernel::TCU::send(SEP, empty_msg, 0x1111, TCU::NO_REPLIES), Errors::RECV_GONE);
     }
 
@@ -95,7 +97,8 @@ static void test_msg_errors() {
         large_msg.cast<uint64_t[6]>();
         kernel::TCU::config_recv(REP, buf1, 5 /* 32 */, 5 /* 32 */, TCU::NO_REPLIES);
         kernel::TCU::config_send(SEP, 0x5678, tile_id(Tile::T0), REP, 6 /* 64 */, 1);
-        ASSERT_EQ(kernel::TCU::send(SEP, large_msg, 0x1111, TCU::NO_REPLIES), Errors::RECV_OUT_OF_BOUNDS);
+        ASSERT_EQ(kernel::TCU::send(SEP, large_msg, 0x1111, TCU::NO_REPLIES),
+                  Errors::RECV_OUT_OF_BOUNDS);
     }
 
     Serial::get() << "SEND without 16-byte aligned message\n";
@@ -103,8 +106,9 @@ static void test_msg_errors() {
         ALIGNED(16) uint64_t words[2] = {0, 0};
         kernel::TCU::config_recv(REP, buf1, 5 /* 32 */, 5 /* 32 */, TCU::NO_REPLIES);
         kernel::TCU::config_send(SEP, 0x5678, tile_id(Tile::T0), REP, 6 /* 64 */, 1);
-        ASSERT_EQ(kernel::TCU::send_aligned(SEP, words + 1, sizeof(uint64_t), 0x1111, TCU::NO_REPLIES),
-            Errors::MSG_UNALIGNED);
+        ASSERT_EQ(kernel::TCU::send_aligned(SEP, words + 1, sizeof(uint64_t), 0x1111,
+                                            TCU::NO_REPLIES),
+                  Errors::MSG_UNALIGNED);
     }
 
     Serial::get() << "REPLY without 16-byte aligned message\n";
@@ -112,9 +116,9 @@ static void test_msg_errors() {
         ALIGNED(16) uint64_t words[2] = {0, 0};
         kernel::TCU::config_recv(REP, buf1, 5 /* 32 */, 5 /* 32 */, RPLEP, 1, 0);
         kernel::TCU::config_send(RPLEP, 0x5678, tile_id(Tile::T0), REP, 5 /* 32 */, 1, true);
-        auto rmsg = reinterpret_cast<const m3::TCU::Message*>(buffer);
+        auto rmsg = reinterpret_cast<const m3::TCU::Message *>(buffer);
         ASSERT_EQ(kernel::TCU::reply_aligned(REP, words + 1, sizeof(uint64_t), buf1, rmsg),
-            Errors::MSG_UNALIGNED);
+                  Errors::MSG_UNALIGNED);
     }
 
     Serial::get() << "SEND+ACK+REPLY with invalid reply EPs\n";
@@ -122,7 +126,7 @@ static void test_msg_errors() {
         kernel::TCU::config_recv(REP, buf1, 5 /* 32 */, 5 /* 32 */, TOTAL_EPS);
         kernel::TCU::config_send(SEP, 0x5678, tile_id(Tile::T0), REP, 5 /* 32 */, 1);
         ASSERT_EQ(kernel::TCU::send(SEP, empty_msg, 0x1111, REP), Errors::RECV_INV_RPL_EPS);
-        auto rmsg = reinterpret_cast<const m3::TCU::Message*>(buffer);
+        auto rmsg = reinterpret_cast<const m3::TCU::Message *>(buffer);
         ASSERT_EQ(kernel::TCU::ack_msg(REP, buf1, rmsg), Errors::RECV_INV_RPL_EPS);
         ASSERT_EQ(kernel::TCU::reply(REP, empty_msg, buf1, rmsg), Errors::RECV_INV_RPL_EPS);
     }
@@ -131,9 +135,10 @@ static void test_msg_errors() {
     {
         kernel::TCU::config_recv(REP, buf1, 5 /* 32 */, 5 /* 32 */, RPLEP);
         // install reply EP
-        kernel::TCU::config_send(RPLEP, 0x5678, tile_id(Tile::T0), REP, 5 /* 32 */, 1, true, TOTAL_EPS);
+        kernel::TCU::config_send(RPLEP, 0x5678, tile_id(Tile::T0), REP, 5 /* 32 */, 1, true,
+                                 TOTAL_EPS);
         // now try to reply with invalid credit EP
-        auto rmsg = reinterpret_cast<const m3::TCU::Message*>(buffer);
+        auto rmsg = reinterpret_cast<const m3::TCU::Message *>(buffer);
         ASSERT_EQ(kernel::TCU::reply(REP, empty_msg, buf1, rmsg), Errors::SEND_INV_CRD_EP);
     }
 
@@ -142,7 +147,8 @@ static void test_msg_errors() {
         MsgBuf large_msg;
         large_msg.cast<uint64_t[6]>();
         kernel::TCU::config_send(SEP, 0x5678, tile_id(Tile::T0), REP, 12 /* 4096 */, 1);
-        ASSERT_EQ(kernel::TCU::send(SEP, large_msg, 0x1111, TCU::NO_REPLIES), Errors::SEND_INV_MSG_SZ);
+        ASSERT_EQ(kernel::TCU::send(SEP, large_msg, 0x1111, TCU::NO_REPLIES),
+                  Errors::SEND_INV_MSG_SZ);
     }
 
     Serial::get() << "REPLY with invalid message size in reply EP\n";
@@ -152,7 +158,7 @@ static void test_msg_errors() {
         // install reply EP
         kernel::TCU::config_send(RPLEP, 0x5678, tile_id(Tile::T0), REP, 12 /* 4096 */, 1, true, 2);
         // now try to reply
-        auto rmsg = reinterpret_cast<const m3::TCU::Message*>(buffer);
+        auto rmsg = reinterpret_cast<const m3::TCU::Message *>(buffer);
         ASSERT_EQ(kernel::TCU::reply(REP, empty_msg, buf1, rmsg), Errors::SEND_INV_MSG_SZ);
     }
 
@@ -174,7 +180,7 @@ static void test_msg_errors() {
         kernel::TCU::config_send(RPLEP, 0x5678, tile_id(Tile::T0), REP2, 5 /* 32 */, 1, true, 2);
         kernel::TCU::config_invalid(REP2);
         // now try reply to invalid receive EP
-        auto rmsg = reinterpret_cast<const m3::TCU::Message*>(buffer);
+        auto rmsg = reinterpret_cast<const m3::TCU::Message *>(buffer);
         ASSERT_EQ(kernel::TCU::reply(REP, empty_msg, buf1, rmsg), Errors::RECV_GONE);
 
         // now we should still have credits and the msg should still be unread
@@ -312,7 +318,7 @@ static void test_msg_no_reply() {
     ASSERT_EQ(rmsg->replyEp, TCU::INVALID_EP);
     ASSERT_EQ(rmsg->senderPe, tile_id(Tile::T0));
     ASSERT_EQ(rmsg->flags, 0);
-    const uint64_t *msg_ctrl = reinterpret_cast<const uint64_t*>(rmsg->data);
+    const uint64_t *msg_ctrl = reinterpret_cast<const uint64_t *>(rmsg->data);
     ASSERT_EQ(*msg_ctrl, msg_val);
 
     // reply with data not allowed
@@ -360,7 +366,7 @@ static void test_msg_no_credits() {
     ASSERT_EQ(rmsg->replyEp, REP2);
     ASSERT_EQ(rmsg->senderPe, tile_id(Tile::T0));
     ASSERT_EQ(rmsg->flags, 0);
-    const uint64_t *msg_ctrl = reinterpret_cast<const uint64_t*>(rmsg->data);
+    const uint64_t *msg_ctrl = reinterpret_cast<const uint64_t *>(rmsg->data);
     ASSERT_EQ(*msg_ctrl, msg_val);
 
     // send empty reply
@@ -377,7 +383,7 @@ static void test_msg_no_credits() {
     ASSERT_EQ(rmsg->replyEp, TCU::INVALID_EP);
     ASSERT_EQ(rmsg->senderPe, tile_id(Tile::T0));
     ASSERT_EQ(rmsg->flags, TCU::Header::FL_REPLY);
-    const uint64_t *reply_ctrl = reinterpret_cast<const uint64_t*>(rmsg->data);
+    const uint64_t *reply_ctrl = reinterpret_cast<const uint64_t *>(rmsg->data);
     ASSERT_EQ(*reply_ctrl, reply_val);
     // free slot
     ASSERT_EQ(kernel::TCU::ack_msg(REP2, buf2, rmsg), Errors::NONE);
@@ -427,7 +433,7 @@ static void test_msg_2send_2reply() {
         ASSERT_EQ(rmsg->replyEp, REP2);
         ASSERT_EQ(rmsg->senderPe, tile_id(Tile::T0));
         ASSERT_EQ(rmsg->flags, 0);
-        const uint64_t *msg_ctrl = reinterpret_cast<const uint64_t*>(rmsg->data);
+        const uint64_t *msg_ctrl = reinterpret_cast<const uint64_t *>(rmsg->data);
         ASSERT_EQ(*msg_ctrl, msg_val);
 
         // message too large
@@ -453,7 +459,7 @@ static void test_msg_2send_2reply() {
         ASSERT_EQ(rmsg->replyEp, SEP);
         ASSERT_EQ(rmsg->senderPe, tile_id(Tile::T0));
         ASSERT_EQ(rmsg->flags, TCU::Header::FL_REPLY);
-        const uint64_t *msg_ctrl = reinterpret_cast<const uint64_t*>(rmsg->data);
+        const uint64_t *msg_ctrl = reinterpret_cast<const uint64_t *>(rmsg->data);
         ASSERT_EQ(*msg_ctrl, reply_val);
         // free slot
         ASSERT_EQ(kernel::TCU::ack_msg(REP2, buf2, rmsg), Errors::NONE);
@@ -507,7 +513,7 @@ static void test_msg(size_t msg_size_in, size_t reply_size_in) {
     ASSERT_EQ(rmsg->replyEp, REP2);
     ASSERT_EQ(rmsg->senderPe, tile_id(Tile::T0));
     ASSERT_EQ(rmsg->flags, 0);
-    const DATA *msg_ctrl = reinterpret_cast<const DATA*>(rmsg->data);
+    const DATA *msg_ctrl = reinterpret_cast<const DATA *>(rmsg->data);
     for(size_t i = 0; i < msg_size_in; ++i)
         ASSERT_EQ(msg_ctrl[i], msg_data[i]);
 
@@ -527,7 +533,7 @@ static void test_msg(size_t msg_size_in, size_t reply_size_in) {
     ASSERT_EQ(rmsg->replyEp, SEP);
     ASSERT_EQ(rmsg->senderPe, tile_id(Tile::T0));
     ASSERT_EQ(rmsg->flags, TCU::Header::FL_REPLY);
-    msg_ctrl = reinterpret_cast<const DATA*>(rmsg->data);
+    msg_ctrl = reinterpret_cast<const DATA *>(rmsg->data);
     for(size_t i = 0; i < reply_size_in; ++i)
         ASSERT_EQ(msg_ctrl[i], reply_data[i]);
     // free slot
@@ -560,8 +566,8 @@ static void test_msg_receive() {
             ASSERT_EQ(unread, expected_unread);
             ASSERT_EQ(occupied, expected_occupied);
 
-            ASSERT_EQ(kernel::TCU::send(SEP, msg, static_cast<label_t>(i + 1),
-                                        TCU::NO_REPLIES), Errors::NONE);
+            ASSERT_EQ(kernel::TCU::send(SEP, msg, static_cast<label_t>(i + 1), TCU::NO_REPLIES),
+                      Errors::NONE);
             if(wpos == 32) {
                 expected_unread |= 1 << 0;
                 expected_occupied |= 1 << 0;
@@ -624,7 +630,7 @@ static void test_unaligned_recvbuf(size_t pad, size_t msg_size_in) {
     Serial::get() << "SEND " << msg_size_in << "B with " << pad << "B padding of recv-buf\n";
 
     const size_t TOTAL_MSG_SIZE = msg_size_in + sizeof(TCU::Header);
-    char rbuffer[TOTAL_MSG_SIZE + 32];  //reserve some extra space for padding
+    char rbuffer[TOTAL_MSG_SIZE + 32]; // reserve some extra space for padding
     uintptr_t recv_buf = reinterpret_cast<uintptr_t>(&rbuffer) + pad;
 
     // prepare test data
@@ -635,7 +641,7 @@ static void test_unaligned_recvbuf(size_t pad, size_t msg_size_in) {
     msg.set_size(msg_size_in);
 
     // mark end of recv-buf, this value should not be overwritten
-    rbuffer[sizeof(TCU::Header)+msg_size_in+pad] = 0xFF;
+    rbuffer[sizeof(TCU::Header) + msg_size_in + pad] = 0xFF;
 
     TCU::reg_t slot_msgsize = m3::getnextlog2(TOTAL_MSG_SIZE);
 
@@ -656,7 +662,7 @@ static void test_unaligned_recvbuf(size_t pad, size_t msg_size_in) {
     ASSERT_EQ(rmsg->replyEp, TCU::INVALID_EP);
     ASSERT_EQ(rmsg->senderPe, tile_id(Tile::T0));
     ASSERT_EQ(rmsg->flags, 0);
-    const uint8_t *msg_ctrl = reinterpret_cast<const uint8_t*>(rmsg->data);
+    const uint8_t *msg_ctrl = reinterpret_cast<const uint8_t *>(rmsg->data);
     for(size_t i = 0; i < msg_size_in; ++i)
         ASSERT_EQ(msg_ctrl[i], msg_data[i]);
     ASSERT_EQ(msg_ctrl[msg_size_in], 0xFF);

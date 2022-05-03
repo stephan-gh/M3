@@ -22,7 +22,7 @@
 
 #include <stdlib.h>
 
-#define HEAP_USED_BITS   (0x5UL << (sizeof(word_t) * 8 - 3))
+#define HEAP_USED_BITS (0x5UL << (sizeof(word_t) * 8 - 3))
 
 typedef void (*heap_alloc_func)(void *p, size_t size);
 typedef void (*heap_free_func)(void *p);
@@ -30,7 +30,7 @@ typedef bool (*heap_oom_func)(size_t size);
 typedef void (*heap_dblfree_func)(void *p);
 
 typedef struct HeapArea {
-    word_t next;    /* HEAP_USED_BITS set = used */
+    word_t next; /* HEAP_USED_BITS set = used */
     word_t prev;
     uint8_t _pad[64 - sizeof(word_t) * 2];
 } PACKED HeapArea;

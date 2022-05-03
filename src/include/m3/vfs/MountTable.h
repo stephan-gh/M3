@@ -19,9 +19,9 @@
 #pragma once
 
 #include <base/Common.h>
+#include <base/Errors.h>
 #include <base/util/Reference.h>
 #include <base/util/String.h>
-#include <base/Errors.h>
 
 #include <m3/vfs/FileSystem.h>
 
@@ -35,9 +35,9 @@ class Activity;
  * The mount table itself does not create or delete mount points. Instead, it only works with
  * pointers. The creation and deletion is done in VFS. The rational is, that VFS is used to
  * manipulate the mounts of the own activity, while MountTable is used to manipulate the mounts of
- * created activities. Thus, one can simply add a mointpoint from Activity::own() to a different activity by
- * passing a pointer around. If the mount table of a child activity is completely setup, it is serialized
- * and transferred to the child activity.
+ * created activities. Thus, one can simply add a mointpoint from Activity::own() to a different
+ * activity by passing a pointer around. If the mount table of a child activity is completely setup,
+ * it is serialized and transferred to the child activity.
  */
 class MountTable {
     class MountPoint {
@@ -60,15 +60,12 @@ class MountTable {
     };
 
 public:
-    static const size_t MAX_MOUNTS  = 4;
+    static const size_t MAX_MOUNTS = 4;
 
     /**
      * Constructor
      */
-    explicit MountTable() noexcept
-        : _count(),
-          _next_id(),
-          _mounts() {
+    explicit MountTable() noexcept : _count(), _next_id(), _mounts() {
     }
     ~MountTable();
 

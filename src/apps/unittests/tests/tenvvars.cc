@@ -14,14 +14,14 @@
  */
 
 #if defined(__kachel__)
-#   include <stdlib.h>
+#    include <stdlib.h>
 #endif
 
 #include <base/Common.h>
 
-#include <m3/tiles/ChildActivity.h>
 #include <m3/EnvVars.h>
 #include <m3/Test.h>
+#include <m3/tiles/ChildActivity.h>
 
 #include "../unittests.h"
 

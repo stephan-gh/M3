@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
         err(1, "Unable to read ELF header");
 
     if(hdr.e_ident[0] != '\x7F' || hdr.e_ident[1] != 'E' || hdr.e_ident[2] != 'L' ||
-        hdr.e_ident[3] != 'F')
+       hdr.e_ident[3] != 'F')
         err(1, "Invalid ELF file: invalid magic number");
 
     off_t off = static_cast<off_t>(hdr.e_phoff);
@@ -66,9 +66,8 @@ int main(int argc, char **argv) {
         if(phdr.p_filesz > 0)
             dumpSection(f, phdr.p_paddr, phdr.p_offset, phdr.p_filesz);
         if(phdr.p_memsz > phdr.p_filesz)
-            printf("z%08lx:%08lx\n",
-                (phdr.p_paddr + phdr.p_filesz) / BYTES_PER_LINE,
-                (phdr.p_memsz - phdr.p_filesz + BYTES_PER_LINE - 1) / BYTES_PER_LINE);
+            printf("z%08lx:%08lx\n", (phdr.p_paddr + phdr.p_filesz) / BYTES_PER_LINE,
+                   (phdr.p_memsz - phdr.p_filesz + BYTES_PER_LINE - 1) / BYTES_PER_LINE);
     }
 
     fclose(f);

@@ -30,10 +30,8 @@
 #include <m3/tiles/Activity.h>
 
 #include <fs/internal.h>
-
-#include <thread/ThreadManager.h>
-
 #include <limits>
+#include <thread/ThreadManager.h>
 
 namespace m3 {
 
@@ -54,7 +52,8 @@ public:
         _rgate.activate();
         _rgate.start(wl, [](GateIStream &is) {
             is.pull_result();
-            ThreadManager::get().notify(is.label<event_t>() & (std::numeric_limits<event_t>::max() >> 1));
+            ThreadManager::get().notify(is.label<event_t>() &
+                                        (std::numeric_limits<event_t>::max() >> 1));
         });
     };
 
@@ -82,7 +81,7 @@ private:
     }
 
     template<typename... Args>
-    static inline void send_vmsg(SendGate &gate, blockno_t bno, const Args &... args) {
+    static inline void send_vmsg(SendGate &gate, blockno_t bno, const Args &...args) {
         auto msg = create_vmsg(args...);
         // just assume there won't be 2^31 previous wait events
         event_t label = bno | (1U << 31);

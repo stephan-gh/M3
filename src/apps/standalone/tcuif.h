@@ -50,7 +50,7 @@ public:
         size_t off = m3::TCU::get().fetch_msg(ep);
         if(off == static_cast<size_t>(-1))
             return nullptr;
-        return reinterpret_cast<const m3::TCU::Message*>(base + off);
+        return reinterpret_cast<const m3::TCU::Message *>(base + off);
     }
 
     static m3::Errors::Code ack_msg(epid_t ep, uintptr_t base, const m3::TCU::Message *msg) {
@@ -59,21 +59,25 @@ public:
         return m3::TCU::get().ack_msg(ep, off);
     }
 
-    static m3::Errors::Code send(epid_t ep, const m3::MsgBuf &msg, label_t replylbl, epid_t reply_ep) {
+    static m3::Errors::Code send(epid_t ep, const m3::MsgBuf &msg, label_t replylbl,
+                                 epid_t reply_ep) {
         return m3::TCU::get().send(ep, msg, replylbl, reply_ep);
     }
 
-    static m3::Errors::Code send_aligned(epid_t ep, const void *msg, size_t len, label_t replylbl, epid_t reply_ep) {
+    static m3::Errors::Code send_aligned(epid_t ep, const void *msg, size_t len, label_t replylbl,
+                                         epid_t reply_ep) {
         return m3::TCU::get().send_aligned(ep, msg, len, replylbl, reply_ep);
     }
 
-    static m3::Errors::Code reply(epid_t ep, const m3::MsgBuf &reply, uintptr_t base, const m3::TCU::Message *msg) {
+    static m3::Errors::Code reply(epid_t ep, const m3::MsgBuf &reply, uintptr_t base,
+                                  const m3::TCU::Message *msg) {
         uintptr_t msg_addr = reinterpret_cast<uintptr_t>(msg);
         reg_t off = static_cast<reg_t>(msg_addr) - base;
         return m3::TCU::get().reply(ep, reply, off);
     }
 
-    static m3::Errors::Code reply_aligned(epid_t ep, const void *reply, size_t len, uintptr_t base, const m3::TCU::Message *msg) {
+    static m3::Errors::Code reply_aligned(epid_t ep, const void *reply, size_t len, uintptr_t base,
+                                          const m3::TCU::Message *msg) {
         uintptr_t msg_addr = reinterpret_cast<uintptr_t>(msg);
         reg_t off = static_cast<reg_t>(msg_addr) - base;
         return m3::TCU::get().reply_aligned(ep, reply, len, off);
@@ -97,15 +101,14 @@ public:
         m3::TCU::config_invalid(ep);
     }
 
-    static void config_recv(epid_t ep, goff_t buf, unsigned order,
-                            unsigned msgorder, unsigned reply_eps,
-                            uint32_t occupied = 0, uint32_t unread = 0) {
+    static void config_recv(epid_t ep, goff_t buf, unsigned order, unsigned msgorder,
+                            unsigned reply_eps, uint32_t occupied = 0, uint32_t unread = 0) {
         m3::TCU::config_recv(ep, buf, order, msgorder, reply_eps, occupied, unread);
     }
 
-    static void config_send(epid_t ep, label_t lbl, tileid_t tile, epid_t dstep,
-                            unsigned msgorder, unsigned credits,
-                            bool reply = false, epid_t crd_ep = m3::TCU::INVALID_EP) {
+    static void config_send(epid_t ep, label_t lbl, tileid_t tile, epid_t dstep, unsigned msgorder,
+                            unsigned credits, bool reply = false,
+                            epid_t crd_ep = m3::TCU::INVALID_EP) {
         m3::TCU::config_send(ep, lbl, tile, dstep, msgorder, credits, reply, crd_ep);
     }
 
@@ -116,8 +119,7 @@ public:
     static m3::Errors::Code invalidate_ep_remote(tileid_t tile, epid_t ep, bool force,
                                                  uint32_t *unread = nullptr) {
         reg_t cmd = static_cast<reg_t>(m3::TCU::ExtCmdOpCode::INV_EP) |
-            (static_cast<reg_t>(ep) << 9) |
-            (static_cast<reg_t>(force) << 25);
+                    (static_cast<reg_t>(ep) << 9) | (static_cast<reg_t>(force) << 25);
         return perform_ext_cmd(tile, cmd, unread);
     }
 

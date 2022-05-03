@@ -20,18 +20,18 @@
 
 #include <m3/EnvVars.h>
 
-#include "Parser.h"
-
 #include <stdlib.h>
 #include <string.h>
 #include <vector>
+
+#include "Parser.h"
 
 class Vars {
 public:
     explicit Vars() : _vars() {
         for(size_t i = 0; i < m3::EnvVars::count(); ++i) {
             const char *var = m3::EnvVars::vars()[i];
-            char *copy = static_cast<char*>(malloc(strlen(var) + 1));
+            char *copy = static_cast<char *>(malloc(strlen(var) + 1));
             strcpy(copy, var);
             _vars.push_back(copy);
         }
@@ -39,7 +39,7 @@ public:
     }
     ~Vars() {
         for(auto it = _vars.begin(); *it != nullptr; ++it)
-            free(const_cast<char*>(*it));
+            free(const_cast<char *>(*it));
     }
 
     const char *const *get() const {
@@ -50,7 +50,7 @@ public:
         for(auto it = _vars.begin(); *it != nullptr; ++it) {
             size_t eq_pos = static_cast<size_t>(strchr(*it, '=') - *it);
             if(strncmp(*it, name, eq_pos) == 0 && name[eq_pos] == '\0') {
-                free(const_cast<char*>(*it));
+                free(const_cast<char *>(*it));
                 *it = build_var(name, value);
                 return;
             }
@@ -63,14 +63,14 @@ public:
 private:
     char *build_var(const char *name, const char *value) {
         size_t name_len = strlen(name);
-        char *nvar = static_cast<char*>(malloc(name_len + strlen(value) + 2));
+        char *nvar = static_cast<char *>(malloc(name_len + strlen(value) + 2));
         strcpy(nvar, name);
         nvar[name_len] = '=';
         strcpy(nvar + name_len + 1, value);
         return nvar;
     }
 
-    std::vector<const char*> _vars;
+    std::vector<const char *> _vars;
 };
 
 static inline const char *expr_value(Expr *e) {

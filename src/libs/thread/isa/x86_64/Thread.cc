@@ -27,7 +27,7 @@ void thread_init(thread_func func, void *arg, Regs *regs, word_t *stack) {
     stack[T_STACK_WORDS - 2] = reinterpret_cast<word_t>(func);
     regs->rsp = reinterpret_cast<word_t>(stack + T_STACK_WORDS - 2);
     regs->rbp = regs->rsp;
-    regs->rflags = 0x200;  // enable interrupts
+    regs->rflags = 0x200; // enable interrupts
 }
 
 }

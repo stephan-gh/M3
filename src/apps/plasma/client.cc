@@ -20,8 +20,8 @@
 
 #include <m3/com/GateStream.h>
 #include <m3/session/ClientSession.h>
-#include <m3/session/arch/host/Plasma.h>
 #include <m3/session/arch/host/Keyboard.h>
+#include <m3/session/arch/host/Plasma.h>
 
 using namespace m3;
 
@@ -31,18 +31,10 @@ static void kb_event(Plasma *plasma, GateIStream &is) {
     if(ev.isbreak)
         return;
     switch(ev.keycode) {
-        case Keyboard::VK_LEFT:
-            plasma->left();
-            break;
-        case Keyboard::VK_RIGHT:
-            plasma->right();
-            break;
-        case Keyboard::VK_UP:
-            plasma->colup();
-            break;
-        case Keyboard::VK_DOWN:
-            plasma->coldown();
-            break;
+        case Keyboard::VK_LEFT: plasma->left(); break;
+        case Keyboard::VK_RIGHT: plasma->right(); break;
+        case Keyboard::VK_UP: plasma->colup(); break;
+        case Keyboard::VK_DOWN: plasma->coldown(); break;
     }
 }
 

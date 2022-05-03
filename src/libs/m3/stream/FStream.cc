@@ -99,7 +99,7 @@ ssize_t FStream::read(void *dst, size_t count) {
     }
 
     ssize_t total = 0;
-    char *buf = reinterpret_cast<char*>(dst);
+    char *buf = reinterpret_cast<char *>(dst);
     File *f = file();
     while(count > 0) {
         ssize_t res = _rbuf->read(f, buf + total, count);
@@ -158,7 +158,7 @@ ssize_t FStream::write(const void *src, size_t count) {
         return 0;
     }
 
-    const char *buf = reinterpret_cast<const char*>(src);
+    const char *buf = reinterpret_cast<const char *>(src);
     ssize_t total = 0;
     File *f = file();
     while(count > 0) {

@@ -27,8 +27,8 @@ namespace m3 {
  */
 class DgramSocketArgs : public SocketArgs {
 public:
-    explicit DgramSocketArgs() noexcept : SocketArgs()
-    {}
+    explicit DgramSocketArgs() noexcept : SocketArgs() {
+    }
 
     /**
      * Sets the number of slots and the size in bytes of the receive buffer

@@ -16,8 +16,8 @@
 
 #include <base/Panic.h>
 
-#include <m3/stream/Standard.h>
 #include <m3/Syscalls.h>
+#include <m3/stream/Standard.h>
 
 #include <pci/Device.h>
 

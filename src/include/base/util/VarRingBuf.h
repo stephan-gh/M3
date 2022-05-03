@@ -17,19 +17,15 @@
  */
 
 #include <base/Common.h>
+#include <base/TCU.h>
 #include <base/stream/OStream.h>
 #include <base/util/Math.h>
-#include <base/TCU.h>
 
 #include <algorithm>
 
 class VarRingBuf {
 public:
-    explicit VarRingBuf(size_t size)
-        : _size(size),
-          _rdpos(),
-          _wrpos(),
-          _last(size) {
+    explicit VarRingBuf(size_t size) : _size(size), _rdpos(), _wrpos(), _last(size) {
     }
 
     bool empty() const {
@@ -43,7 +39,8 @@ public:
      * Determines the current write position.
      *
      * @param size the amount of bytes to write
-     * @return the write position of the buffer, or -1 if the buffer does not has <size> bytes of consecutive free memory
+     * @return the write position of the buffer, or -1 if the buffer does not has <size> bytes of
+     * consecutive free memory
      */
     ssize_t get_write_pos(size_t size) {
         if(_wrpos >= _rdpos) {
@@ -71,9 +68,9 @@ public:
         if(rpos == _last)
             rpos = 0;
         if(_wrpos > rpos)
-            *size = std::min(_wrpos - rpos,*size);
+            *size = std::min(_wrpos - rpos, *size);
         else
-            *size = std::min(std::min(_size, _last) - rpos,*size);
+            *size = std::min(std::min(_size, _last) - rpos, *size);
         return static_cast<ssize_t>(rpos);
     }
 

@@ -15,9 +15,9 @@
 
 #pragma once
 
-#include <base/stream/OStream.h>
 #include <base/CPU.h>
 #include <base/TCU.h>
+#include <base/stream/OStream.h>
 
 namespace m3 {
 
@@ -194,17 +194,17 @@ static inline bool operator==(const TimeDuration &lhs, const TimeDuration &rhs) 
 static inline bool operator!=(const TimeDuration &lhs, const TimeDuration &rhs) {
     return !operator==(lhs, rhs);
 }
-static inline bool operator< (const TimeDuration &lhs, const TimeDuration &rhs) {
+static inline bool operator<(const TimeDuration &lhs, const TimeDuration &rhs) {
     return lhs.as_raw() < rhs.as_raw();
 }
-static inline bool operator> (const TimeDuration &lhs, const TimeDuration &rhs) {
-    return  operator< (rhs, lhs);
+static inline bool operator>(const TimeDuration &lhs, const TimeDuration &rhs) {
+    return operator<(rhs, lhs);
 }
 static inline bool operator<=(const TimeDuration &lhs, const TimeDuration &rhs) {
-    return !operator> (lhs, rhs);
+    return !operator>(lhs, rhs);
 }
 static inline bool operator>=(const TimeDuration &lhs, const TimeDuration &rhs) {
-    return !operator< (lhs, rhs);
+    return !operator<(lhs, rhs);
 }
 
 /**
@@ -297,17 +297,17 @@ static inline bool operator==(const CycleDuration &lhs, const CycleDuration &rhs
 static inline bool operator!=(const CycleDuration &lhs, const CycleDuration &rhs) {
     return !operator==(lhs, rhs);
 }
-static inline bool operator< (const CycleDuration &lhs, const CycleDuration &rhs) {
+static inline bool operator<(const CycleDuration &lhs, const CycleDuration &rhs) {
     return lhs.as_raw() < rhs.as_raw();
 }
-static inline bool operator> (const CycleDuration &lhs, const CycleDuration &rhs) {
-    return  operator< (rhs, lhs);
+static inline bool operator>(const CycleDuration &lhs, const CycleDuration &rhs) {
+    return operator<(rhs, lhs);
 }
 static inline bool operator<=(const CycleDuration &lhs, const CycleDuration &rhs) {
-    return !operator> (lhs, rhs);
+    return !operator>(lhs, rhs);
 }
 static inline bool operator>=(const CycleDuration &lhs, const CycleDuration &rhs) {
-    return !operator< (lhs, rhs);
+    return !operator<(lhs, rhs);
 }
 
 }

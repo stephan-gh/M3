@@ -20,34 +20,33 @@
 #include <base/util/BitField.h>
 #include <base/util/Math.h>
 
-#include <fs/internal.h>
-
-#include <sys/stat.h>
-#include <sys/dir.h>
+#include <assert.h>
+#include <errno.h>
 #include <fcntl.h>
-#include <unistd.h>
+#include <fs/internal.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
-#include <errno.h>
-#include <assert.h>
+#include <sys/dir.h>
+#include <sys/stat.h>
 #include <time.h>
+#include <unistd.h>
 
 // undo stupid definition
 #undef direct
 
-#define DEBUG   0
+#define DEBUG 0
 
 #if DEBUG
-#   define PRINT(fmt, ...)   printf(fmt, ## __VA_ARGS__)
+#    define PRINT(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #else
-#   define PRINT(...)
+#    define PRINT(...)
 #endif
 
 enum {
-    MAX_BLOCKS      = 1024 * 1024,
-    MAX_INODES      = 4096,
+    MAX_BLOCKS = 1024 * 1024,
+    MAX_INODES = 4096,
 };
 
 m3::SuperBlock sb;
@@ -130,7 +129,8 @@ static bool create_indir_block(m3::INode *ino, m3::blockno_t *indir, uint i, m3:
     return res;
 }
 
-static m3::blockno_t store_blockno(const char *path, m3::INode *ino, m3::blockno_t bno, bool new_ext) {
+static m3::blockno_t store_blockno(const char *path, m3::INode *ino, m3::blockno_t bno,
+                                   bool new_ext) {
     uint i = ino->extents == 0 ? 0 : ino->extents - 1;
     // if the block number does not fit into the last extent, try the next one (this will always
     // be empty and thus we can use it)
@@ -138,18 +138,19 @@ static m3::blockno_t store_blockno(const char *path, m3::INode *ino, m3::blockno
         if(i < m3::INODE_DIR_COUNT)
             res = append_to_extent(ino, ino->direct + i, bno, new_ext);
         else if(i < m3::INODE_DIR_COUNT + sb.extents_per_block()) {
-            res = create_indir_block(ino, &ino->indirect, i - m3::INODE_DIR_COUNT, bno, 0, 1, new_ext);
+            res = create_indir_block(ino, &ino->indirect, i - m3::INODE_DIR_COUNT, bno, 0, 1,
+                                     new_ext);
         }
-        else if(i < m3::INODE_DIR_COUNT + sb.extents_per_block()
-                                        + sb.extents_per_block() * sb.extents_per_block()) {
+        else if(i < m3::INODE_DIR_COUNT + sb.extents_per_block() +
+                        sb.extents_per_block() * sb.extents_per_block()) {
             res = create_indir_block(ino, &ino->dindirect,
-                                     i - (m3::INODE_DIR_COUNT + sb.extents_per_block()),
-                                     bno, 1, sb.extents_per_block(), new_ext);
+                                     i - (m3::INODE_DIR_COUNT + sb.extents_per_block()), bno, 1,
+                                     sb.extents_per_block(), new_ext);
         }
         else {
-            errx(1, "File '%s' is too large. Max no. of extents is %u",
-                 path, m3::INODE_DIR_COUNT + sb.extents_per_block()
-                                           + sb.extents_per_block() * sb.extents_per_block());
+            errx(1, "File '%s' is too large. Max no. of extents is %u", path,
+                 m3::INODE_DIR_COUNT + sb.extents_per_block() +
+                     sb.extents_per_block() * sb.extents_per_block());
         }
     }
     ino->size += sb.blocksize;
@@ -163,7 +164,8 @@ static m3::DirEntry *write_dirent(m3::INode *dir, m3::DirEntry *prev, const char
     // all entries should be 4-byte aligned
     size_t total = sizeof(m3::DirEntry) + m3::Math::round_up(len, static_cast<size_t>(4));
     if(off + total > sb.blocksize) {
-        size_t namelen = m3::Math::round_up(static_cast<size_t>(prev->namelen), static_cast<size_t>(4));
+        size_t namelen =
+            m3::Math::round_up(static_cast<size_t>(prev->namelen), static_cast<size_t>(4));
         size_t prevlen = sizeof(m3::DirEntry) + namelen;
         prev->next += sb.blocksize - off;
         write_to_block(prev, prevlen, block, off - prevlen);
@@ -173,7 +175,7 @@ static m3::DirEntry *write_dirent(m3::INode *dir, m3::DirEntry *prev, const char
         off = 0;
     }
 
-    m3::DirEntry *entry = (m3::DirEntry*)malloc(total);
+    m3::DirEntry *entry = (m3::DirEntry *)malloc(total);
     if(!entry)
         err(1, "malloc failed");
     entry->nodeno = inode;
@@ -193,9 +195,9 @@ static m3::inodeno_t copy(const char *path, m3::inodeno_t parent, int level) {
     struct stat st;
     int fd = open(path, O_RDONLY);
     if(fd < 0)
-        err(1, "open of '%s' failed",path);
+        err(1, "open of '%s' failed", path);
     if(fstat(fd, &st) != 0)
-        err(1, "stat of '%s' failed",path);
+        err(1, "stat of '%s' failed", path);
     if(level == 0 && !S_ISDIR(st.st_mode))
         errx(1, "'%s' is no directory", path);
 
@@ -284,9 +286,10 @@ static m3::inodeno_t copy(const char *path, m3::inodeno_t parent, int level) {
     return ino.inode;
 }
 
-int main(int argc,char **argv) {
+int main(int argc, char **argv) {
     if(argc != 6 && argc != 7) {
-        fprintf(stderr, "Usage: %s <fsimage> <path> <blocks> <inodes> <blksperext> [-rand]\n", argv[0]);
+        fprintf(stderr, "Usage: %s <fsimage> <path> <blocks> <inodes> <blksperext> [-rand]\n",
+                argv[0]);
         fprintf(stderr, "  <fsimage> is the image to create\n");
         fprintf(stderr, "  <path> is the path of the host-directory to copy into the fs\n");
         fprintf(stderr, "  <blocks> is the number of blocks the fs image should have\n");
@@ -339,12 +342,12 @@ int main(int argc,char **argv) {
     sb.checksum = sb.get_checksum();
     write_to_block(&sb, sizeof(sb), 0);
 
-    PRINT("Writing inode bitmap in blocks %u..%u\n",
-          sb.first_inodebm_block(), sb.first_inodebm_block() + sb.inodebm_blocks());
+    PRINT("Writing inode bitmap in blocks %u..%u\n", sb.first_inodebm_block(),
+          sb.first_inodebm_block() + sb.inodebm_blocks());
     write_to_block(inode_bitmap->bytes(), (sb.total_inodes + 7) / 8, sb.first_inodebm_block());
 
-    PRINT("Writing block bitmap in blocks %u..%u\n",
-          sb.first_blockbm_block(), sb.first_blockbm_block() + sb.blockbm_blocks());
+    PRINT("Writing block bitmap in blocks %u..%u\n", sb.first_blockbm_block(),
+          sb.first_blockbm_block() + sb.blockbm_blocks());
     write_to_block(block_bitmap->bytes(), (sb.total_blocks + 7) / 8, sb.first_blockbm_block());
 
     fclose(file);

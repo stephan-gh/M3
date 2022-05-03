@@ -16,13 +16,12 @@
 
 #pragma once
 
+#include <linux/elf.h>
 #include <ostream>
 #include <stddef.h>
 #include <stdio.h>
 #include <string>
 #include <vector>
-
-#include <linux/elf.h>
 
 class Symbols {
     struct Symbol {
@@ -38,7 +37,7 @@ class Symbols {
     };
 
 public:
-    static const size_t MAX_FUNC_LEN    = 255;
+    static const size_t MAX_FUNC_LEN = 255;
 
     typedef std::vector<Symbols::Symbol>::const_iterator symbol_t;
 

@@ -18,23 +18,23 @@
 
 #include <base/TileDesc.h>
 
+#include <m3/WorkLoop.h>
+#include <m3/com/MemGate.h>
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
-#include <m3/com/MemGate.h>
 #include <m3/tiles/ChildActivity.h>
-#include <m3/WorkLoop.h>
 
 namespace pci {
 
 class ProxiedPciDevice {
 public:
-    static const uint EP_INT            = 16;
-    static const uint EP_DMA            = 17;
+    static const uint EP_INT = 16;
+    static const uint EP_DMA = 17;
 
     // Hardcoded for now
-    static const size_t REG_SIZE        = 128 * 1024;
-    static const size_t REG_ADDR        = 0x4000;
-    static const size_t PCI_CFG_ADDR    = 0xF00'0000;
+    static const size_t REG_SIZE = 128 * 1024;
+    static const size_t REG_ADDR = 0x4000;
+    static const size_t PCI_CFG_ADDR = 0xF00'0000;
 
     explicit ProxiedPciDevice(const char *name, m3::TileISA isa);
 

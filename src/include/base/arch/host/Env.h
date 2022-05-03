@@ -18,14 +18,14 @@
 
 #pragma once
 
-#include <base/util/String.h>
-#include <base/util/BitField.h>
 #include <base/Config.h>
 #include <base/EnvBackend.h>
 #include <base/TileDesc.h>
+#include <base/util/BitField.h>
+#include <base/util/String.h>
 
-#include <pthread.h>
 #include <assert.h>
+#include <pthread.h>
 #include <string>
 
 namespace m3 {

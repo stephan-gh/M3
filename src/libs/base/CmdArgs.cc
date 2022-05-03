@@ -14,9 +14,9 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/util/Chars.h>
 #include <base/CmdArgs.h>
 #include <base/Panic.h>
+#include <base/util/Chars.h>
 
 #include <string.h>
 
@@ -51,9 +51,8 @@ bool CmdArgs::is_help(int argc, char **argv) {
     if(argc <= 1)
         return false;
 
-    return strcmp(argv[1], "-h") == 0 ||
-        strcmp(argv[1], "--help") == 0 ||
-        strcmp(argv[1], "-?") == 0;
+    return strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0 ||
+           strcmp(argv[1], "-?") == 0;
 }
 
 size_t CmdArgs::to_size(const char *str) {
@@ -62,23 +61,17 @@ size_t CmdArgs::to_size(const char *str) {
         val = val * 10 + static_cast<size_t>(*str++ - '0');
     switch(*str) {
         case 'K':
-        case 'k':
-            val *= 1024;
-            break;
+        case 'k': val *= 1024; break;
         case 'M':
-        case 'm':
-            val *= 1024 * 1024;
-            break;
+        case 'm': val *= 1024 * 1024; break;
         case 'G':
-        case 'g':
-            val *= 1024 * 1024 * 1024;
-            break;
+        case 'g': val *= 1024 * 1024 * 1024; break;
     }
     return val;
 }
 
-int CmdArgs::get_long(int argc, char *const argv[], const char *optstring,
-                      const Option *longopts, int *longindex) {
+int CmdArgs::get_long(int argc, char *const argv[], const char *optstring, const Option *longopts,
+                      int *longindex) {
     static size_t nextchar = 0;
     arg = nullptr;
 
@@ -121,7 +114,8 @@ int CmdArgs::get_long(int argc, char *const argv[], const char *optstring,
             /* short option? */
             if(optel[1] != '-') {
                 if(err)
-                    PANIC("Unrecognized option '" << val << "' in argv[" << ind << "]=" << optel << "\n");
+                    PANIC("Unrecognized option '" << val << "' in argv[" << ind << "]=" << optel
+                                                  << "\n");
                 opt = val;
             }
             else if(err)
@@ -133,7 +127,7 @@ int CmdArgs::get_long(int argc, char *const argv[], const char *optstring,
         if(argtype == REQUIRED) {
             /* the argument is the text following the option or the next cmdline argument */
             if(*optend != '\0') {
-                arg = (char*)optend;
+                arg = (char *)optend;
                 ind++;
                 nextchar = 0;
             }

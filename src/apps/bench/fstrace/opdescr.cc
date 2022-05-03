@@ -8,36 +8,33 @@
  * GNU General Public License 2. Please see the COPYING-GPL-2 file for details.
  */
 
-#include <stdio.h>
-#include <regex.h>
-
-#include <sstream>
-
 #include "opdescr.h"
+
+#include <regex.h>
+#include <sstream>
+#include <stdio.h>
+
 #include "exceptions.h"
 
 using namespace std;
 
-
 std::string OpDescr::codeLine(unsigned int lineNo) {
-
     stringstream stream;
     string str;
 
-    stream << "    /* #" << lineNo << " = 0x" << std::hex << lineNo << std::dec << " */ " << codeLine();
+    stream << "    /* #" << lineNo << " = 0x" << std::hex << lineNo << std::dec << " */ "
+           << codeLine();
 
     return stream.str();
 }
 
-
-void OpDescr::extractValues(const string &str, size_t numArgs,
-                            ArgsVector &args, string &retVal) const {
-
+void OpDescr::extractValues(const string &str, size_t numArgs, ArgsVector &args,
+                            string &retVal) const {
     // validateString() checks, whether the string has a format that does
     // not lead to unexpected behaviour of the code below. unfortunately,
     // it is slow ...
     // if this function fails, it will throw a ParseException.
-    //validateString(str, numArgs);
+    // validateString(str, numArgs);
 
     // populate out parameter with all the extracted substrings
     args.resize(0);
@@ -48,10 +45,9 @@ void OpDescr::extractValues(const string &str, size_t numArgs,
     // extract arguments
     pos = str.find('(') + 1;
     bool foundEnd = false;
-    for (unsigned int i = 0; !foundEnd && i < numArgs; i++) {
-
+    for(unsigned int i = 0; !foundEnd && i < numArgs; i++) {
         len = argLen(str, pos, newPos, foundEnd);
-        if (len == string::npos)
+        if(len == string::npos)
             break;
 
         args.push_back(str.substr(pos, len));
@@ -65,29 +61,25 @@ void OpDescr::extractValues(const string &str, size_t numArgs,
     retVal = os.str();
 }
 
-
 size_t OpDescr::argLen(string const &str, size_t pos, size_t &newPos, bool &foundEnd) const {
-
     size_t len = str.size();
     size_t i;
-    bool   isEscaped = false;
+    bool isEscaped = false;
 
     // if argument sub string is quoted, we look for the a closing single/double quote;
     // both must not be preceded by a backslash
 
-    if (str[pos] == '"' || str[pos] == '\'') {
-
+    if(str[pos] == '"' || str[pos] == '\'') {
         char quote = str[pos];
 
-        for (i = pos + 1; i < len; i++)  {
-
-            if (str[i] == quote && !isEscaped)
+        for(i = pos + 1; i < len; i++) {
+            if(str[i] == quote && !isEscaped)
                 break;
             isEscaped = (str[i] == '\\' && !isEscaped) ? true : false;
         }
 
-        if (i >= len)
-           return string::npos;
+        if(i >= len)
+            return string::npos;
 
         // skip to the character after th closing quote
         i++;
@@ -99,26 +91,24 @@ size_t OpDescr::argLen(string const &str, size_t pos, size_t &newPos, bool &foun
 
     // look for a comma or a closing bracket
     i = str.find(',', pos);
-    if (i == string::npos)
+    if(i == string::npos)
         i = str.find(')', pos);
 
     // found a comma or bracket?
-    if (i != string::npos) {
-       foundEnd = str[i] == ')';
-       newPos = i + 2;
-       return i - pos;
+    if(i != string::npos) {
+        foundEnd = str[i] == ')';
+        newPos = i + 2;
+        return i - pos;
     }
 
     // whoops!
     return string::npos;
 }
 
-
 void OpDescr::validateString(const string &str, size_t numArgs) const {
-
     regex_t re;
-    bool    reCompiled = false;
-    int     ret        = 0;
+    bool reCompiled = false;
+    int ret = 0;
 
     try {
         unsigned int i;
@@ -127,28 +117,28 @@ void OpDescr::validateString(const string &str, size_t numArgs) const {
         // construct validation pattern for regex
         pattern.append("^.*(");
         pattern.append(".*");
-        for (i = 1; i < numArgs; i++)
+        for(i = 1; i < numArgs; i++)
             pattern.append(", .*");
         pattern.append(") *= [0123456789]*$");
 
         // compile regex
         ret = regcomp(&re, pattern.c_str(), REG_NOSUB);
-        if (ret != 0)
+        if(ret != 0)
             throw ParseException("Regex compilation failed");
         reCompiled = true;
 
         // do pattern matching
         ret = regexec(&re, str.c_str(), 0, nullptr, 0);
-        if (ret != 0)
+        if(ret != 0)
             throw ParseException("Regex evaluation failed");
 
         regfree(&re);
     }
 
-    catch (ParseException &e) {
+    catch(ParseException &e) {
         char error[1024];
 
-        if (reCompiled)
+        if(reCompiled)
             regfree(&re);
 
         regerror(ret, &re, error, sizeof(error));
@@ -156,23 +146,16 @@ void OpDescr::validateString(const string &str, size_t numArgs) const {
     }
 }
 
-
-void OpDescr::buildCodeLine(string const &opcode, string const &argsName,
-                            string const &args) {
-
-    codeStr  = "{ .opcode = " + opcode;
+void OpDescr::buildCodeLine(string const &opcode, string const &argsName, string const &args) {
+    codeStr = "{ .opcode = " + opcode;
     codeStr += ", .args." + argsName + " = { " + args + " } },";
 }
 
-
 string OpDescr::codeLine() {
-
     return codeStr;
 }
 
-
 string FoldableOpDescr::codeLine() {
-
     stringstream s;
     string repeatArg;
 
@@ -181,24 +164,21 @@ string FoldableOpDescr::codeLine() {
 
     string dummy = "@COUNT@";
     string finalizedCodeStr = codeStr;
-    size_t dummy_pos  = finalizedCodeStr.find(dummy);
+    size_t dummy_pos = finalizedCodeStr.find(dummy);
     size_t dummy_size = dummy.size();
 
     return finalizedCodeStr.replace(dummy_pos, dummy_size, repeatArg);
 }
 
-
 bool FoldableOpDescr::merge(const FoldableOpDescr &fod) {
-
-    if (fod.codeStr != codeStr)
+    if(fod.codeStr != codeStr)
         return false;
 
     repeatCount++;
     return true;
 }
 
-
-class WaitUntilOpDescr: public FoldableOpDescr {
+class WaitUntilOpDescr : public FoldableOpDescr {
 public:
     WaitUntilOpDescr(const std::string &str);
     string codeLine() {
@@ -209,7 +189,7 @@ public:
     bool merge(const FoldableOpDescr &fod) {
         // we can merge, if the previous op is also 'WAITUNTIL_OP'
         WaitUntilOpDescr const *wuod = dynamic_cast<WaitUntilOpDescr const *>(&fod);
-        if (wuod == 0)
+        if(wuod == 0)
             return false;
         // our own codestring includes an outdated timestamp, copy new one
         // from the descriptor we merge into 'this'
@@ -218,147 +198,122 @@ public:
     }
 };
 
-
-class OpenOpDescr: public OpDescr {
+class OpenOpDescr : public OpDescr {
 public:
     OpenOpDescr(const std::string &str);
 };
 
-
-class CloseOpDescr: public OpDescr {
+class CloseOpDescr : public OpDescr {
 public:
     CloseOpDescr(const std::string &str);
 };
 
-
-class FsyncOpDescr: public OpDescr {
+class FsyncOpDescr : public OpDescr {
 public:
     FsyncOpDescr(const std::string &str);
 };
 
-
-class ReadOpDescr: public FoldableOpDescr {
+class ReadOpDescr : public FoldableOpDescr {
 public:
     ReadOpDescr(const std::string &str);
 };
 
-
-class WriteOpDescr: public FoldableOpDescr {
+class WriteOpDescr : public FoldableOpDescr {
 public:
     WriteOpDescr(const std::string &str);
 };
 
-
-class PReadOpDescr: public OpDescr {
+class PReadOpDescr : public OpDescr {
 public:
     PReadOpDescr(const std::string &str);
 };
 
-
-class PWriteOpDescr: public OpDescr {
+class PWriteOpDescr : public OpDescr {
 public:
     PWriteOpDescr(const std::string &str);
 };
 
-
-class LSeekOpDescr: public OpDescr {
+class LSeekOpDescr : public OpDescr {
 public:
     LSeekOpDescr(const std::string &str);
 };
 
-
-class _LlSeekOpDescr: public OpDescr {
+class _LlSeekOpDescr : public OpDescr {
 public:
     _LlSeekOpDescr(const std::string &str);
 };
 
-
-class FTruncateOpDescr: public OpDescr {
+class FTruncateOpDescr : public OpDescr {
 public:
     FTruncateOpDescr(const std::string &str);
 };
 
-
-class FStatOpDescr: public OpDescr {
+class FStatOpDescr : public OpDescr {
 public:
     FStatOpDescr(const std::string &str);
 };
 
-
-class FStatAtOpDescr: public OpDescr {
+class FStatAtOpDescr : public OpDescr {
 public:
     FStatAtOpDescr(const std::string &str);
 };
 
-
-class StatOpDescr: public OpDescr {
+class StatOpDescr : public OpDescr {
 public:
     StatOpDescr(const std::string &str);
 };
 
-
-class RenameOpDescr: public OpDescr {
+class RenameOpDescr : public OpDescr {
 public:
     RenameOpDescr(const std::string &str);
 };
 
-
-class UnlinkOpDescr: public OpDescr {
+class UnlinkOpDescr : public OpDescr {
 public:
     UnlinkOpDescr(const std::string &str);
 };
 
-
-class RmdirOpDescr: public OpDescr {
+class RmdirOpDescr : public OpDescr {
 public:
     RmdirOpDescr(const std::string &str);
 };
 
-
-class MkdirOpDescr: public OpDescr {
+class MkdirOpDescr : public OpDescr {
 public:
     MkdirOpDescr(const std::string &str);
 };
 
-
-class SendfileOpDescr: public OpDescr {
+class SendfileOpDescr : public OpDescr {
 public:
     SendfileOpDescr(const std::string &str);
 };
 
-
-class GetDEntsOpDescr: public OpDescr {
+class GetDEntsOpDescr : public OpDescr {
 public:
     GetDEntsOpDescr(const std::string &str);
 };
 
-
-class CreateFileOpDescr: public OpDescr {
+class CreateFileOpDescr : public OpDescr {
 public:
     CreateFileOpDescr(const std::string &str);
 };
 
-
-class AcceptOpDescr: public OpDescr {
+class AcceptOpDescr : public OpDescr {
 public:
     AcceptOpDescr(const std::string &str);
 };
 
-
-class RecvFromOpDescr: public OpDescr {
+class RecvFromOpDescr : public OpDescr {
 public:
     RecvFromOpDescr(const std::string &str);
 };
 
-
-class WritevOpDescr: public OpDescr {
+class WritevOpDescr : public OpDescr {
 public:
     WritevOpDescr(const std::string &str);
 };
 
-
 WaitUntilOpDescr::WaitUntilOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(1);
 
@@ -366,21 +321,17 @@ WaitUntilOpDescr::WaitUntilOpDescr(const string &in) {
     buildCodeLine("WAITUNTIL_OP", "waituntil", retVal + ", " + args[0]);
 }
 
-
 OpenOpDescr::OpenOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(3);
 
     extractValues(in, 3, args, retVal);
     buildCodeLine("OPEN_OP", "open",
-                  retVal + ", " + args[0] + ", " + args[1] +
-                  ", " + ((args.size() > 2) ? args[2] : "0"));
+                  retVal + ", " + args[0] + ", " + args[1] + ", " +
+                      ((args.size() > 2) ? args[2] : "0"));
 }
 
-
 CloseOpDescr::CloseOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(1);
 
@@ -388,9 +339,7 @@ CloseOpDescr::CloseOpDescr(const string &in) {
     buildCodeLine("CLOSE_OP", "close", retVal + ", " + args[0]);
 }
 
-
 FsyncOpDescr::FsyncOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(1);
 
@@ -398,9 +347,7 @@ FsyncOpDescr::FsyncOpDescr(const string &in) {
     buildCodeLine("FSYNC_OP", "fsync", retVal + ", " + args[0]);
 }
 
-
 ReadOpDescr::ReadOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(3);
 
@@ -409,9 +356,7 @@ ReadOpDescr::ReadOpDescr(const string &in) {
     buildCodeLine("READ_OP", "read", argStr);
 }
 
-
 WriteOpDescr::WriteOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(3);
 
@@ -420,9 +365,7 @@ WriteOpDescr::WriteOpDescr(const string &in) {
     buildCodeLine("WRITE_OP", "write", argStr);
 }
 
-
 PReadOpDescr::PReadOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(4);
 
@@ -431,9 +374,7 @@ PReadOpDescr::PReadOpDescr(const string &in) {
     buildCodeLine("PREAD_OP", "pread", argStr);
 }
 
-
 PWriteOpDescr::PWriteOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(4);
 
@@ -442,33 +383,26 @@ PWriteOpDescr::PWriteOpDescr(const string &in) {
     buildCodeLine("PWRITE_OP", "pwrite", argStr);
 }
 
-
 LSeekOpDescr::LSeekOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(3);
 
     extractValues(in, 3, args, retVal);
-    buildCodeLine("LSEEK_OP", "lseek",
-                  retVal + ", " + args[0] + ", " + args[1] + ", " + args[2]);
+    buildCodeLine("LSEEK_OP", "lseek", retVal + ", " + args[0] + ", " + args[1] + ", " + args[2]);
 }
 
-
 _LlSeekOpDescr::_LlSeekOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(4);
 
     extractValues(in, 4, args, retVal);
     string new_pos = args[2].substr(1, args[2].size() - 2);
     buildCodeLine("LSEEK_OP", "lseek",
-                  ((retVal == "0") ? new_pos : retVal) + ", " +
-                  args[0] + ", " + args[1] + ", " + args[3]);
+                  ((retVal == "0") ? new_pos : retVal) + ", " + args[0] + ", " + args[1] + ", " +
+                      args[3]);
 }
 
-
 FTruncateOpDescr::FTruncateOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(2);
 
@@ -476,9 +410,7 @@ FTruncateOpDescr::FTruncateOpDescr(const string &in) {
     buildCodeLine("FTRUNCATE_OP", "ftruncate", retVal + ", " + args[0] + ", " + args[1]);
 }
 
-
 FStatOpDescr::FStatOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(1);
 
@@ -486,9 +418,7 @@ FStatOpDescr::FStatOpDescr(const string &in) {
     buildCodeLine("FSTAT_OP", "fstat", retVal + ", " + args[0]);
 }
 
-
 FStatAtOpDescr::FStatAtOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(4);
 
@@ -496,9 +426,7 @@ FStatAtOpDescr::FStatAtOpDescr(const string &in) {
     buildCodeLine("FSTATAT_OP", "fstatat", retVal + ", " + args[1]);
 }
 
-
 StatOpDescr::StatOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(1);
 
@@ -506,9 +434,7 @@ StatOpDescr::StatOpDescr(const string &in) {
     buildCodeLine("STAT_OP", "stat", retVal + ", " + args[0]);
 }
 
-
 RenameOpDescr::RenameOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(2);
 
@@ -516,9 +442,7 @@ RenameOpDescr::RenameOpDescr(const string &in) {
     buildCodeLine("RENAME_OP", "rename", retVal + ", " + args[0] + ", " + args[1]);
 }
 
-
 UnlinkOpDescr::UnlinkOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(1);
 
@@ -526,9 +450,7 @@ UnlinkOpDescr::UnlinkOpDescr(const string &in) {
     buildCodeLine("UNLINK_OP", "unlink", retVal + ", " + args[0]);
 }
 
-
 RmdirOpDescr::RmdirOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(1);
 
@@ -536,9 +458,7 @@ RmdirOpDescr::RmdirOpDescr(const string &in) {
     buildCodeLine("RMDIR_OP", "rmdir", retVal + ", " + args[0]);
 }
 
-
 MkdirOpDescr::MkdirOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(2);
 
@@ -546,9 +466,7 @@ MkdirOpDescr::MkdirOpDescr(const string &in) {
     buildCodeLine("MKDIR_OP", "mkdir", retVal + ", " + args[0] + ", " + args[1]);
 }
 
-
 SendfileOpDescr::SendfileOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(4);
 
@@ -558,9 +476,7 @@ SendfileOpDescr::SendfileOpDescr(const string &in) {
                   retVal + ", " + args[0] + ", " + args[1] + ", 0, " + args[3]);
 }
 
-
 GetDEntsOpDescr::GetDEntsOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(3);
 
@@ -569,9 +485,7 @@ GetDEntsOpDescr::GetDEntsOpDescr(const string &in) {
                   retVal + ", " + args[0] + ", " + args[1] + ", " + args[2]);
 }
 
-
 CreateFileOpDescr::CreateFileOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(3);
 
@@ -580,20 +494,15 @@ CreateFileOpDescr::CreateFileOpDescr(const string &in) {
                   retVal + ", " + args[0] + ", " + args[1] + ", " + args[2]);
 }
 
-
 AcceptOpDescr::AcceptOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(1);
 
     extractValues(in, 1, args, retVal);
-    buildCodeLine("ACCEPT_OP", "accept",
-                  retVal + ", " + args[0]);
+    buildCodeLine("ACCEPT_OP", "accept", retVal + ", " + args[0]);
 }
 
-
 RecvFromOpDescr::RecvFromOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(3);
 
@@ -602,9 +511,7 @@ RecvFromOpDescr::RecvFromOpDescr(const string &in) {
     buildCodeLine("RECVFROM_OP", "recvfrom", argStr);
 }
 
-
 WritevOpDescr::WritevOpDescr(const string &in) {
-
     string retVal;
     ArgsVector args(3);
 
@@ -615,82 +522,75 @@ WritevOpDescr::WritevOpDescr(const string &in) {
     buildCodeLine("WRITEV_OP", "writev", argStr);
 }
 
-
 OpDescr *OpDescrFactory::create(const string &line) {
-
-    if (OpDescrFactory::isStringHead(line, "_waituntil("))
+    if(OpDescrFactory::isStringHead(line, "_waituntil("))
         return new WaitUntilOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "open("))
+    if(OpDescrFactory::isStringHead(line, "open("))
         return new OpenOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "close("))
+    if(OpDescrFactory::isStringHead(line, "close("))
         return new CloseOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "fsync("))
+    if(OpDescrFactory::isStringHead(line, "fsync("))
         return new FsyncOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "read("))
+    if(OpDescrFactory::isStringHead(line, "read("))
         return new ReadOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "write("))
+    if(OpDescrFactory::isStringHead(line, "write("))
         return new WriteOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "pread("))
+    if(OpDescrFactory::isStringHead(line, "pread("))
         return new PReadOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "pwrite("))
+    if(OpDescrFactory::isStringHead(line, "pwrite("))
         return new PWriteOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "lseek("))
+    if(OpDescrFactory::isStringHead(line, "lseek("))
         return new LSeekOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "_llseek("))
+    if(OpDescrFactory::isStringHead(line, "_llseek("))
         return new _LlSeekOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "ftruncate("))
+    if(OpDescrFactory::isStringHead(line, "ftruncate("))
         return new FTruncateOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "fstat("))
+    if(OpDescrFactory::isStringHead(line, "fstat("))
         return new FStatOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "fstat64("))
+    if(OpDescrFactory::isStringHead(line, "fstat64("))
         return new FStatOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "stat64("))
+    if(OpDescrFactory::isStringHead(line, "stat64("))
         return new StatOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "lstat("))
+    if(OpDescrFactory::isStringHead(line, "lstat("))
         return new StatOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "lstat64("))
+    if(OpDescrFactory::isStringHead(line, "lstat64("))
         return new StatOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "stat("))
+    if(OpDescrFactory::isStringHead(line, "stat("))
         return new StatOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "newfstatat("))
+    if(OpDescrFactory::isStringHead(line, "newfstatat("))
         return new FStatAtOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "rename("))
+    if(OpDescrFactory::isStringHead(line, "rename("))
         return new RenameOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "unlink("))
+    if(OpDescrFactory::isStringHead(line, "unlink("))
         return new UnlinkOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "rmdir("))
+    if(OpDescrFactory::isStringHead(line, "rmdir("))
         return new RmdirOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "mkdir("))
+    if(OpDescrFactory::isStringHead(line, "mkdir("))
         return new MkdirOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "sendfile("))
+    if(OpDescrFactory::isStringHead(line, "sendfile("))
         return new SendfileOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "sendfile64("))
+    if(OpDescrFactory::isStringHead(line, "sendfile64("))
         return new SendfileOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "getdents64("))
+    if(OpDescrFactory::isStringHead(line, "getdents64("))
         return new GetDEntsOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "_createfile("))
+    if(OpDescrFactory::isStringHead(line, "_createfile("))
         return new CreateFileOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "accept4("))
+    if(OpDescrFactory::isStringHead(line, "accept4("))
         return new AcceptOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "recvfrom("))
+    if(OpDescrFactory::isStringHead(line, "recvfrom("))
         return new RecvFromOpDescr(line);
-    if (OpDescrFactory::isStringHead(line, "writev("))
+    if(OpDescrFactory::isStringHead(line, "writev("))
         return new WritevOpDescr(line);
 
     return 0;
 }
 
-
 string OpDescrFactory::sysCallName(const string &line) {
-
     size_t nameLen = line.find('(');
 
     return (nameLen > 0) ? line.substr(0, nameLen) : "";
 }
 
-
 inline bool OpDescrFactory::isStringHead(const string &str, const string &head) {
-
     return str.find(head) == 0;
 }
-

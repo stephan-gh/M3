@@ -17,6 +17,7 @@
  */
 
 #include <base/Common.h>
+
 #include <string.h>
 
 EXTERN_C void memzero(void *addr, size_t count) {

@@ -29,16 +29,16 @@
 namespace m3 {
 
 /**
- * A uni-directional pipe between two activities. An object of this class holds the state of the pipe,
- * i.e. the memory capability and the gate capability for communication. That means that the object
- * should stay alive as long as the pipe communication takes place.
+ * A uni-directional pipe between two activities. An object of this class holds the state of the
+ * pipe, i.e. the memory capability and the gate capability for communication. That means that the
+ * object should stay alive as long as the pipe communication takes place.
  *
  * To use the pipe, this class creates two file descriptors for the read-end and write-end. After
  * being done with reading/writing, you need to close the file descriptor to notify the other
  * end. This is also required for the part that you do not use.
  *
- * Caution: the current implementation does only support the communication between the two activities
- *          specified on construction.
+ * Caution: the current implementation does only support the communication between the two
+ * activities specified on construction.
  *
  * A usage example looks like the following:
  * <code>
@@ -70,13 +70,13 @@ namespace m3 {
  */
 class DirectPipe {
 public:
-    static const size_t MSG_SIZE        = 64;
-    static const size_t MSG_BUF_SIZE    = MSG_SIZE * 16;
-    static const size_t CREDITS         = 16;
+    static const size_t MSG_SIZE = 64;
+    static const size_t MSG_BUF_SIZE = MSG_SIZE * 16;
+    static const size_t CREDITS = 16;
 
     enum {
-        READ_EOF    = 1 << 0,
-        WRITE_EOF   = 1 << 1,
+        READ_EOF = 1 << 0,
+        WRITE_EOF = 1 << 1,
     };
 
     /**
@@ -89,8 +89,8 @@ public:
      * @param size the size of the shared memory area
      */
     explicit DirectPipe(Activity &rd, Activity &wr, MemGate &mem, size_t size);
-    DirectPipe(const DirectPipe&) = delete;
-    DirectPipe &operator=(const DirectPipe&) = delete;
+    DirectPipe(const DirectPipe &) = delete;
+    DirectPipe &operator=(const DirectPipe &) = delete;
     ~DirectPipe();
 
     /**

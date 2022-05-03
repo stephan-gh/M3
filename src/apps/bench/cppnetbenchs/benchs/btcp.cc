@@ -14,15 +14,15 @@
  */
 
 #include <base/Common.h>
-#include <base/time/Profile.h>
 #include <base/Panic.h>
+#include <base/time/Profile.h>
 
+#include <m3/Test.h>
 #include <m3/com/Semaphore.h>
 #include <m3/net/TcpSocket.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/Waiter.h>
-#include <m3/Test.h>
 
 #include "../cppnetbenchs.h"
 
@@ -83,8 +83,8 @@ NOINLINE static void bandwidth() {
 
     NetworkManager net("net");
 
-    auto socket = TcpSocket::create(net, StreamSocketArgs().send_buffer(64 * 1024)
-                                                             .recv_buffer(256 * 1024));
+    auto socket =
+        TcpSocket::create(net, StreamSocketArgs().send_buffer(64 * 1024).recv_buffer(256 * 1024));
 
     // wait for server socket to be ready
     Semaphore::attach("net-tcp").down();
@@ -102,12 +102,12 @@ NOINLINE static void bandwidth() {
 
     socket->set_blocking(false);
 
-    auto start                  = TimeInstant::now();
-    auto last_received          = start;
-    size_t sent_count           = 0;
-    size_t received_count       = 0;
-    size_t received_bytes       = 0;
-    size_t failures             = 0;
+    auto start = TimeInstant::now();
+    auto last_received = start;
+    size_t sent_count = 0;
+    size_t received_count = 0;
+    size_t received_bytes = 0;
+    size_t failures = 0;
 
     FileWaiter waiter;
     waiter.add(socket->fd(), File::INPUT | File::OUTPUT);

@@ -14,11 +14,11 @@
  */
 
 #include <base/Common.h>
-#include <base/time/Profile.h>
 #include <base/Panic.h>
+#include <base/time/Profile.h>
 
-#include <m3/com/GateStream.h>
 #include <m3/Test.h>
+#include <m3/com/GateStream.h>
 
 #include "../cppbenchs.h"
 

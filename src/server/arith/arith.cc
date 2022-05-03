@@ -18,16 +18,14 @@
 
 #include <base/stream/IStringStream.h>
 
-#include <m3/server/SimpleRequestHandler.h>
-#include <m3/server/Server.h>
-#include <m3/stream/Standard.h>
 #include <m3/com/GateStream.h>
+#include <m3/server/Server.h>
+#include <m3/server/SimpleRequestHandler.h>
+#include <m3/stream/Standard.h>
 
 using namespace m3;
 
-enum ArithOp {
-    CALC
-};
+enum ArithOp { CALC };
 
 class ArithRequestHandler;
 using base_class = SimpleRequestHandler<ArithRequestHandler, ArithOp, 1>;
@@ -42,23 +40,15 @@ public:
         String str;
         is >> str;
 
-        int a,b,res = 0;
+        int a, b, res = 0;
         char op;
         IStringStream istr(str);
         istr >> a >> op >> b;
         switch(op) {
-            case '+':
-                res = a + b;
-                break;
-            case '-':
-                res = a - b;
-                break;
-            case '*':
-                res = a * b;
-                break;
-            case '/':
-                res = a / b;
-                break;
+            case '+': res = a + b; break;
+            case '-': res = a - b; break;
+            case '*': res = a * b; break;
+            case '/': res = a / b; break;
         }
 
         OStringStream os;

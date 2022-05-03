@@ -17,14 +17,15 @@
  */
 
 #include <base/Common.h>
+
 #include <string.h>
 
 /* this is necessary to prevent that gcc transforms a loop into library-calls
  * (which might lead to recursion here) */
-#pragma GCC optimize ("no-tree-loop-distribute-patterns")
+#pragma GCC optimize("no-tree-loop-distribute-patterns")
 
 void *memset(void *addr, int value, size_t count) {
-    uint8_t *baddr = reinterpret_cast<uint8_t*>(addr);
+    uint8_t *baddr = reinterpret_cast<uint8_t *>(addr);
     /* align it */
     while(count > 0 && reinterpret_cast<uintptr_t>(baddr) % sizeof(ulong)) {
         *baddr++ = value;
@@ -36,7 +37,7 @@ void *memset(void *addr, int value, size_t count) {
     if(sizeof(word_t) == 8)
         dwval |= static_cast<uint64_t>(dwval) << 32;
 
-    word_t *waddr = reinterpret_cast<word_t*>(baddr);
+    word_t *waddr = reinterpret_cast<word_t *>(baddr);
     /* set words with loop-unrolling */
     while(count >= sizeof(word_t) * 8) {
         waddr[0] = dwval;
@@ -58,7 +59,7 @@ void *memset(void *addr, int value, size_t count) {
     }
 
     /* set remaining bytes */
-    baddr = reinterpret_cast<uint8_t*>(waddr);
+    baddr = reinterpret_cast<uint8_t *>(waddr);
     while(count-- > 0)
         *baddr++ = value;
     return addr;

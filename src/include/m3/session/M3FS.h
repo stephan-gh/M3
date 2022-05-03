@@ -20,15 +20,14 @@
 
 #include <base/util/Reference.h>
 
-#include <m3/session/ClientSession.h>
+#include <m3/com/GateStream.h>
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
-#include <m3/com/GateStream.h>
+#include <m3/session/ClientSession.h>
 #include <m3/vfs/FileSystem.h>
 #include <m3/vfs/GenericFile.h>
 
 #include <fs/internal.h>
-
 #include <vector>
 
 namespace m3 {
@@ -37,10 +36,7 @@ class GenericFile;
 
 class M3FS : public ClientSession, public FileSystem {
     struct CachedEP {
-        explicit CachedEP(size_t _id, EP *_ep)
-            : id(_id),
-              ep(_ep),
-              file(-1) {
+        explicit CachedEP(size_t _id, EP *_ep) : id(_id), ep(_ep), file(-1) {
         }
         CachedEP(CachedEP &&c) : id(c.id), ep(c.ep), file(c.file) {
             c.ep = nullptr;
@@ -110,14 +106,14 @@ struct OStreamSize<FileInfo> {
 };
 
 static inline Unmarshaller &operator>>(Unmarshaller &u, FileInfo &info) noexcept {
-    u >> info.devno >> info.inode >> info.mode >> info.links >> info.size >> info.lastaccess
-      >> info.lastmod >> info.blocksize >> info.extents >> info.firstblock;
+    u >> info.devno >> info.inode >> info.mode >> info.links >> info.size >> info.lastaccess >>
+        info.lastmod >> info.blocksize >> info.extents >> info.firstblock;
     return u;
 }
 
 static inline GateIStream &operator>>(GateIStream &is, FileInfo &info) noexcept {
-    is >> info.devno >> info.inode >> info.mode >> info.links >> info.size >> info.lastaccess
-      >> info.lastmod >> info.blocksize >> info.extents >> info.firstblock;
+    is >> info.devno >> info.inode >> info.mode >> info.links >> info.size >> info.lastaccess >>
+        info.lastmod >> info.blocksize >> info.extents >> info.firstblock;
     return is;
 }
 

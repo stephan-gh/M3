@@ -44,25 +44,25 @@ extern trace_op_t trace_ops_grep_wc_wc[];
 
 Trace Traces::traces[] = {
 #if defined(M3_TRACE_STANDALONE)
-    {"empty",           trace_ops_empty},
-    {"find",            trace_ops_find},
-    {"leveldb",         trace_ops_leveldb},
-    {"nginx",           trace_ops_nginx},
-    {"sha256sum",       trace_ops_sha256sum},
-    {"sort",            trace_ops_sort},
-    {"sqlite",          trace_ops_sqlite},
-    {"tar",             trace_ops_tar},
-    {"untar",           trace_ops_untar},
+    {"empty",         trace_ops_empty        },
+    {"find",          trace_ops_find         },
+    {"leveldb",       trace_ops_leveldb      },
+    {"nginx",         trace_ops_nginx        },
+    {"sha256sum",     trace_ops_sha256sum    },
+    {"sort",          trace_ops_sort         },
+    {"sqlite",        trace_ops_sqlite       },
+    {"tar",           trace_ops_tar          },
+    {"untar",         trace_ops_untar        },
 #endif
 #if defined(M3_TRACE_PIPE)
-    {"cat_awk_cat",     trace_ops_cat_awk_cat},
-    {"cat_awk_awk",     trace_ops_cat_awk_awk},
-    {"cat_wc_cat",      trace_ops_cat_wc_cat},
-    {"cat_wc_wc",       trace_ops_cat_wc_wc},
-    {"grep_awk_grep",   trace_ops_grep_awk_grep},
-    {"grep_awk_awk",    trace_ops_grep_awk_awk},
-    {"grep_wc_grep",    trace_ops_grep_wc_grep},
-    {"grep_wc_wc",      trace_ops_grep_wc_wc},
+    {"cat_awk_cat",   trace_ops_cat_awk_cat  },
+    {"cat_awk_awk",   trace_ops_cat_awk_awk  },
+    {"cat_wc_cat",    trace_ops_cat_wc_cat   },
+    {"cat_wc_wc",     trace_ops_cat_wc_wc    },
+    {"grep_awk_grep", trace_ops_grep_awk_grep},
+    {"grep_awk_awk",  trace_ops_grep_awk_awk },
+    {"grep_wc_grep",  trace_ops_grep_wc_grep },
+    {"grep_wc_wc",    trace_ops_grep_wc_wc   },
 #endif
 };
 

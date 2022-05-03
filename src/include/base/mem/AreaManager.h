@@ -53,15 +53,15 @@ public:
         list->next = nullptr;
     }
 
-    AreaManager(const AreaManager&) = delete;
-    AreaManager &operator=(const AreaManager&) = delete;
+    AreaManager(const AreaManager &) = delete;
+    AreaManager &operator=(const AreaManager &) = delete;
 
     /**
      * Destroys this map
      */
     ~AreaManager() {
         for(A *a = list; a != nullptr;) {
-            A *n = static_cast<A*>(a->next);
+            A *n = static_cast<A *>(a->next);
             delete a;
             a = n;
         }
@@ -79,7 +79,7 @@ public:
     std::optional<goff_t> allocate(size_t size, size_t align) {
         A *a;
         A *p = nullptr;
-        for(a = list; a != nullptr; p = a, a = static_cast<A*>(a->next)) {
+        for(a = list; a != nullptr; p = a, a = static_cast<A *>(a->next)) {
             size_t diff = m3::Math::round_up(a->addr, static_cast<goff_t>(align)) - a->addr;
             if(a->size > diff && a->size - diff >= size)
                 break;
@@ -113,7 +113,7 @@ public:
             if(p)
                 p->next = a->next;
             else
-                list = static_cast<A*>(a->next);
+                list = static_cast<A *>(a->next);
             delete a;
         }
         return res;
@@ -129,7 +129,7 @@ public:
     void free(goff_t addr, size_t size) {
         /* find the area behind ours */
         A *n, *p = nullptr;
-        for(n = list; n != nullptr && addr > n->addr; p = n, n = static_cast<A*>(n->next))
+        for(n = list; n != nullptr && addr > n->addr; p = n, n = static_cast<A *>(n->next))
             ;
 
         /* merge with prev and next */
@@ -169,7 +169,7 @@ public:
     std::pair<size_t, size_t> get_size() const {
         size_t total = 0;
         size_t areas = 0;
-        for(A *a = list; a != nullptr; a = static_cast<A*>(a->next)) {
+        for(A *a = list; a != nullptr; a = static_cast<A *>(a->next)) {
             total += a->size;
             areas++;
         }

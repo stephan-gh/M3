@@ -18,6 +18,7 @@
 
 #include <base/Common.h>
 #include <base/stream/OStream.h>
+
 #include <assert.h>
 
 namespace m3 {
@@ -29,6 +30,7 @@ template<typename N, typename KEY>
 class TreapNode {
     template<class T>
     friend class Treap;
+
 public:
     typedef KEY key_t;
 
@@ -37,11 +39,7 @@ public:
      *
      * @param key the key of the node
      */
-    explicit TreapNode(key_t key)
-        : _key(key),
-          _prio(),
-          _left(),
-          _right() {
+    explicit TreapNode(key_t key) : _key(key), _prio(), _left(), _right() {
     }
 
     /**
@@ -99,9 +97,7 @@ public:
     /**
      * Creates an empty treap
      */
-    explicit Treap()
-        : _prio(314159265),
-          _root(nullptr) {
+    explicit Treap() : _prio(314159265), _root(nullptr) {
     }
 
     /**
@@ -126,9 +122,9 @@ public:
      * @return the node or nullptr if not found
      */
     T *find(typename T::key_t key) const {
-        for(T *p = _root; p != nullptr; ) {
+        for(T *p = _root; p != nullptr;) {
             if(p->matches(key))
-                return static_cast<T*>(p);
+                return static_cast<T *>(p);
             if(key < p->key())
                 p = p->_left;
             else
@@ -156,7 +152,7 @@ public:
         *q = node;
         // fibonacci hashing to spread the priorities very even in the 32-bit room
         node->_prio = _prio;
-        _prio += 0x9e37'79b9;    // floor(2^32 / phi), with phi = golden ratio
+        _prio += 0x9e37'79b9; // floor(2^32 / phi), with phi = golden ratio
 
         // At this point we want to split the binary search tree p into two parts based on the
         // given key, forming the left and right subtrees of the new node q. The effect will be
@@ -185,7 +181,7 @@ public:
     void remove(T *node) {
         T **p;
         // find the position where reg is stored
-        for(p = &_root; *p && *p != node; ) {
+        for(p = &_root; *p && *p != node;) {
             if(node->key() < (*p)->key())
                 p = &(*p)->_left;
             else
@@ -219,8 +215,8 @@ public:
     }
 
 private:
-    Treap(const Treap&);
-    Treap& operator=(const Treap&);
+    Treap(const Treap &);
+    Treap &operator=(const Treap &);
 
     void remove_from(T **p, T *node) {
         // two childs

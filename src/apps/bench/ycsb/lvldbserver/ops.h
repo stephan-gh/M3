@@ -44,7 +44,8 @@ class Executor {
 public:
     static Executor *create(const char *db);
 
-    virtual ~Executor() {}
+    virtual ~Executor() {
+    }
     virtual size_t execute(Package &pkg) = 0;
     virtual void reset_stats() = 0;
     virtual void print_stats(size_t num_ops) = 0;

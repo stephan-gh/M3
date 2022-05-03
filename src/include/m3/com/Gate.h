@@ -18,12 +18,12 @@
 
 #pragma once
 
+#include <base/TCU.h>
 #include <base/col/SList.h>
 #include <base/util/Util.h>
-#include <base/TCU.h>
 
-#include <m3/com/EP.h>
 #include <m3/ObjCap.h>
+#include <m3/com/EP.h>
 
 #include <utility>
 
@@ -54,7 +54,7 @@ class Gate : public ObjCap {
     friend class Activity;
 
 public:
-    static const epid_t UNBOUND     = TOTAL_EPS;
+    static const epid_t UNBOUND = TOTAL_EPS;
 
 protected:
     explicit Gate(uint type, capsel_t cap, unsigned capflags, epid_t ep = UNBOUND) noexcept
@@ -63,9 +63,7 @@ protected:
     }
 
 public:
-    Gate(Gate &&g) noexcept
-        : ObjCap(std::move(g)),
-          _ep(g._ep) {
+    Gate(Gate &&g) noexcept : ObjCap(std::move(g)), _ep(g._ep) {
         g._ep = nullptr;
     }
     virtual ~Gate();

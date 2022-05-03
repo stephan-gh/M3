@@ -17,22 +17,22 @@
  */
 
 #include <base/Common.h>
-#include <base/col/SList.h>
-#include <base/time/Profile.h>
 #include <base/KIF.h>
 #include <base/Panic.h>
+#include <base/col/SList.h>
+#include <base/time/Profile.h>
 
-#include <m3/pipe/IndirectPipe.h>
-#include <m3/tiles/ChildActivity.h>
 #include <m3/Syscalls.h>
 #include <m3/Test.h>
+#include <m3/pipe/IndirectPipe.h>
+#include <m3/tiles/ChildActivity.h>
 
 #include "../cppbenchs.h"
 
 using namespace m3;
 
-const size_t DATA_SIZE  = 2 * 1024 * 1024;
-const size_t BUF_SIZE   = 8 * 1024;
+const size_t DATA_SIZE = 2 * 1024 * 1024;
+const size_t BUF_SIZE = 8 * 1024;
 
 alignas(PAGE_SIZE) static char buf[BUF_SIZE];
 
@@ -69,8 +69,9 @@ NOINLINE void child_to_parent() {
         act.wait();
     });
 
-    WVPERF("c->p: " << (DATA_SIZE / 1024) << " KiB transfer with "
-           << (BUF_SIZE / 1024) << " KiB buf", res);
+    WVPERF("c->p: " << (DATA_SIZE / 1024) << " KiB transfer with " << (BUF_SIZE / 1024)
+                    << " KiB buf",
+           res);
 }
 
 NOINLINE void parent_to_child() {
@@ -106,8 +107,9 @@ NOINLINE void parent_to_child() {
         act.wait();
     });
 
-    WVPERF("p->c: " << (DATA_SIZE / 1024) << " KiB transfer with "
-           << (BUF_SIZE / 1024) << " KiB buf", res);
+    WVPERF("p->c: " << (DATA_SIZE / 1024) << " KiB transfer with " << (BUF_SIZE / 1024)
+                    << " KiB buf",
+           res);
 }
 
 void bpipe() {

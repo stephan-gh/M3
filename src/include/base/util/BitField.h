@@ -32,7 +32,7 @@ static OStream &operator<<(OStream &os, const BitField<BITS> &bf);
 template<uint BITS>
 class BitField {
     template<uint N>
-    friend OStream & operator<<(OStream &os, const BitField<N> &bf);
+    friend OStream &operator<<(OStream &os, const BitField<N> &bf);
 
     static size_t idx(uint bit) {
         return bit / (sizeof(word_t) * 8);
@@ -45,9 +45,7 @@ public:
     /**
      * Constructor
      */
-    explicit BitField()
-        : _first_clear(0),
-          _words() {
+    explicit BitField() : _first_clear(0), _words() {
     }
 
     /**

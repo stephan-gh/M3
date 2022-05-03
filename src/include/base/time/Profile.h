@@ -16,9 +16,9 @@
 #pragma once
 
 #include <base/Common.h>
-#include <base/util/Math.h>
 #include <base/stream/OStream.h>
 #include <base/time/Instant.h>
+#include <base/util/Math.h>
 
 #include <memory>
 
@@ -35,9 +35,7 @@ public:
      *
      * @param runs the maximum number of runs that can be measured
      */
-    explicit Results(size_t runs)
-        : _runs(0),
-          _times(new T[runs]) {
+    explicit Results(size_t runs) : _runs(0), _times(new T[runs]) {
     }
 
     /**
@@ -141,9 +139,7 @@ public:
      * @param repeats the number of runs (100 by default)
      * @param warmup the number of warmup runs (10 by default)
      */
-    explicit Profile(ulong repeats = 100, ulong warmup = 10)
-        : _repeats(repeats),
-          _warmup(warmup) {
+    explicit Profile(ulong repeats = 100, ulong warmup = 10) : _repeats(repeats), _warmup(warmup) {
     }
 
     /**

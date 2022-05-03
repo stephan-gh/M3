@@ -102,13 +102,14 @@ class SendGate : public Gate {
     friend class StreamAccel;
     friend class pci::ProxiedPciDevice;
 
-    explicit SendGate(capsel_t cap, uint capflags, RecvGate *replygate, epid_t ep = UNBOUND) noexcept
+    explicit SendGate(capsel_t cap, uint capflags, RecvGate *replygate,
+                      epid_t ep = UNBOUND) noexcept
         : Gate(SEND_GATE, cap, capflags, ep),
           _replygate(replygate == nullptr ? &RecvGate::def() : replygate) {
     }
 
 public:
-    static const uint UNLIMITED   = KIF::UNLIM_CREDITS;
+    static const uint UNLIMITED = KIF::UNLIM_CREDITS;
 
     /**
      * Creates a new send gate for the given receive gate.
@@ -139,9 +140,7 @@ public:
         return SendGate(sel, ObjCap::KEEP_CAP, replygate);
     }
 
-    SendGate(SendGate &&g) noexcept
-        : Gate(std::move(g)),
-          _replygate(g._replygate) {
+    SendGate(SendGate &&g) noexcept : Gate(std::move(g)), _replygate(g._replygate) {
     }
 
     /**

@@ -20,8 +20,8 @@
 
 #include <base/col/SList.h>
 
-#include <m3/com/SendGate.h>
 #include <m3/WorkLoop.h>
+#include <m3/com/SendGate.h>
 
 namespace m3 {
 

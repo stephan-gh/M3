@@ -17,15 +17,14 @@
 
 #include <m3/Test.h>
 
-#include <sys/stat.h>
+#include <algorithm>
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <unistd.h>
-
-#include <algorithm>
 #include <string>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <vector>
 
 #include "../libctest.h"

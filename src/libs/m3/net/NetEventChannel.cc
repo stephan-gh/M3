@@ -15,6 +15,7 @@
  */
 
 #include <base/log/Lib.h>
+
 #include <m3/net/NetEventChannel.h>
 #include <m3/tiles/Activity.h>
 
@@ -35,7 +36,7 @@ Errors::Code NetEventChannel::send_data(const Endpoint &ep, size_t size,
     if(size > sizeof(msg_buf) - sizeof(DataMessage))
         return Errors::OUT_OF_BOUNDS;
 
-    auto msg = reinterpret_cast<DataMessage*>(msg_buf);
+    auto msg = reinterpret_cast<DataMessage *>(msg_buf);
     msg->type = Data;
     msg->addr = static_cast<uint64_t>(ep.addr.addr());
     msg->port = static_cast<uint64_t>(ep.port);
@@ -86,10 +87,7 @@ void NetEventChannel::fetch_replies() {
     }
 }
 
-NetEventChannel::Event::Event() noexcept
-    : _msg(nullptr),
-       _channel(nullptr),
-       _ack(false) {
+NetEventChannel::Event::Event() noexcept : _msg(nullptr), _channel(nullptr), _ack(false) {
 }
 
 NetEventChannel::Event::~Event() {
@@ -101,14 +99,14 @@ NetEventChannel::Event::~Event() {
     }
 }
 
-NetEventChannel::Event::Event(NetEventChannel::Event&& e) noexcept
+NetEventChannel::Event::Event(NetEventChannel::Event &&e) noexcept
     : _msg(e._msg),
       _channel(e._channel),
       _ack(e._ack) {
     e._ack = false;
 }
 
-NetEventChannel::Event& NetEventChannel::Event::operator =(NetEventChannel::Event&& e) noexcept {
+NetEventChannel::Event &NetEventChannel::Event::operator=(NetEventChannel::Event &&e) noexcept {
     _msg = e._msg;
     _channel = e._channel;
     _ack = e._ack;
@@ -129,7 +127,7 @@ void NetEventChannel::Event::finish() {
     }
 }
 
-const NetEventChannel::ControlMessage* NetEventChannel::Event::get_message() noexcept {
+const NetEventChannel::ControlMessage *NetEventChannel::Event::get_message() noexcept {
     return reinterpret_cast<const NetEventChannel::ControlMessage *>(_msg->data);
 }
 

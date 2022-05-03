@@ -3,11 +3,11 @@
 
 #define T_STRING 257
 #ifdef YYSTYPE
-#undef  YYSTYPE_IS_DECLARED
-#define YYSTYPE_IS_DECLARED 1
+#    undef YYSTYPE_IS_DECLARED
+#    define YYSTYPE_IS_DECLARED 1
 #endif
 #ifndef YYSTYPE_IS_DECLARED
-#define YYSTYPE_IS_DECLARED 1
+#    define YYSTYPE_IS_DECLARED 1
 typedef union {
     Expr *expr;
     ArgList *arglist;

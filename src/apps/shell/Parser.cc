@@ -16,10 +16,11 @@
  * General Public License version 2 for more details.
  */
 
+#include "Parser.h"
+
 #include <m3/stream/FStream.h>
 #include <m3/stream/Standard.h>
 
-#include "Parser.h"
 #include "parser.tab.h"
 
 using namespace m3;
@@ -95,7 +96,7 @@ EXTERN_C int yylex() {
 
     if(line_pos > start) {
         end = end ? end : line_pos;
-        char *token = static_cast<char*>(malloc(end - start + 1));
+        char *token = static_cast<char *>(malloc(end - start + 1));
         strncpy(token, line + start, end - start);
         token[end - start] = '\0';
         yylval.str = token;
@@ -112,7 +113,7 @@ Expr *ast_expr_create(const char *name, int is_var) {
 }
 
 void ast_expr_destroy(Expr *e) {
-    free(const_cast<char*>(e->name_val));
+    free(const_cast<char *>(e->name_val));
     delete e;
 }
 
@@ -164,13 +165,13 @@ RedirList *ast_redirs_create(void) {
 void ast_redirs_set(RedirList *list, int fd, const char *file) {
     assert(fd == STDIN_FD || fd == STDOUT_FD);
     if(list->fds[fd])
-        free(const_cast<char*>(list->fds[fd]));
+        free(const_cast<char *>(list->fds[fd]));
     list->fds[fd] = file;
 }
 
 void ast_redirs_destroy(RedirList *list) {
-    free(const_cast<char*>(list->fds[STDIN_FD]));
-    free(const_cast<char*>(list->fds[STDOUT_FD]));
+    free(const_cast<char *>(list->fds[STDIN_FD]));
+    free(const_cast<char *>(list->fds[STDOUT_FD]));
     delete list;
 }
 
@@ -212,7 +213,7 @@ void ast_vars_set(VarList *list, const char *name, Expr *value) {
 
 void ast_vars_destroy(VarList *list) {
     for(size_t i = 0; i < list->count; ++i) {
-        free(const_cast<char*>(list->vars[i].name));
+        free(const_cast<char *>(list->vars[i].name));
         ast_expr_destroy(list->vars[i].value);
     }
     delete list;

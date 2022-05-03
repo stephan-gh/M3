@@ -30,34 +30,34 @@ namespace m3 {
  */
 enum class TileType {
     // Compute tile with internal memory
-    COMP_IMEM   = 0,
+    COMP_IMEM = 0,
     // Compute tile with cache and external memory
-    COMP_EMEM   = 1,
+    COMP_EMEM = 1,
     // memory tile
-    MEM         = 2,
+    MEM = 2,
 };
 
 /**
  * The different ISAs
  */
 enum class TileISA {
-    NONE            = 0,
-    X86             = 1,
-    ARM             = 2,
-    RISCV           = 3,
-    ACCEL_INDIR     = 4,
-    ACCEL_COPY      = 5,
-    ACCEL_ROT13     = 6,
-    IDE_DEV         = 7,
-    NIC_DEV         = 8,
-    SERIAL_DEV      = 9,
+    NONE = 0,
+    X86 = 1,
+    ARM = 2,
+    RISCV = 3,
+    ACCEL_INDIR = 4,
+    ACCEL_COPY = 5,
+    ACCEL_ROT13 = 6,
+    IDE_DEV = 7,
+    NIC_DEV = 8,
+    SERIAL_DEV = 9,
 };
 
 enum TileAttr {
-    BOOM           = 0x1,
-    ROCKET         = 0x2,
-    NIC            = 0x4,
-    KECACC         = 0x8,
+    BOOM = 0x1,
+    ROCKET = 0x2,
+    NIC = 0x4,
+    KECACC = 0x8,
 };
 
 /**
@@ -87,10 +87,8 @@ struct TileDesc {
      * Creates a tile description of given type, ISA and memory size
      */
     explicit TileDesc(TileType type, TileISA isa, size_t memsize = 0, uint attr = 0)
-        : _value(static_cast<value_t>(type) |
-                (static_cast<value_t>(isa) << 3) |
-                (static_cast<value_t>(attr) << 7) |
-                memsize) {
+        : _value(static_cast<value_t>(type) | (static_cast<value_t>(isa) << 3) |
+                 (static_cast<value_t>(attr) << 7) | memsize) {
     }
 
     /**
@@ -128,7 +126,8 @@ struct TileDesc {
      * @return if the tile supports multiple contexts
      */
     bool is_device() const {
-        return isa() == TileISA::NIC_DEV || isa() == TileISA::IDE_DEV || isa() == TileISA::SERIAL_DEV;
+        return isa() == TileISA::NIC_DEV || isa() == TileISA::IDE_DEV ||
+               isa() == TileISA::SERIAL_DEV;
     }
 
     /**

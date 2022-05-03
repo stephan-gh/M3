@@ -16,13 +16,13 @@
  * General Public License version 2 for more details.
  */
 
+#include "cppnettests.h"
+
 #include <base/Common.h>
 
-#include <m3/vfs/VFS.h>
 #include <m3/stream/Standard.h>
 #include <m3/tiles/Activity.h>
-
-#include "cppnettests.h"
+#include <m3/vfs/VFS.h>
 
 using namespace m3;
 

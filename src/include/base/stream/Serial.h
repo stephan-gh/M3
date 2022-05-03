@@ -18,10 +18,10 @@
 
 #pragma once
 
+#include <base/Machine.h>
+#include <base/TCU.h>
 #include <base/stream/IStream.h>
 #include <base/stream/OStream.h>
-#include <base/TCU.h>
-#include <base/Machine.h>
 
 namespace m3 {
 
@@ -33,7 +33,7 @@ namespace m3 {
  */
 class Serial : public OStream {
     static const size_t OUTBUF_SIZE = 256;
-    static const size_t SUFFIX_LEN  = sizeof("\e[0m") - 1;
+    static const size_t SUFFIX_LEN = sizeof("\e[0m") - 1;
 
 public:
     /**
@@ -66,11 +66,7 @@ public:
     virtual void write(char c) override;
 
 private:
-    explicit Serial()
-        : OStream(),
-          _start(0),
-          _time(0),
-          _outpos(0) {
+    explicit Serial() : OStream(), _start(0), _time(0), _outpos(0) {
     }
 
     size_t _start;

@@ -20,6 +20,7 @@
 
 #include <base/stream/IStream.h>
 #include <base/util/String.h>
+
 #include <string.h>
 
 namespace m3 {
@@ -48,10 +49,7 @@ public:
      *
      * @param str the string
      */
-    explicit IStringStream(const StringRef &str)
-        : IStream(),
-          _str(str),
-          _pos() {
+    explicit IStringStream(const StringRef &str) : IStream(), _str(str), _pos() {
     }
 
     virtual char read() override {

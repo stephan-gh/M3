@@ -18,8 +18,8 @@
 #include <base/util/Util.h>
 
 #include "../assert.h"
-#include "../tiles.h"
 #include "../tcuif.h"
+#include "../tiles.h"
 
 using namespace m3;
 
@@ -33,12 +33,11 @@ int main() {
     Tile own_tile = static_cast<Tile>(env()->tile_id);
     Tile partner_tile = static_cast<Tile>((static_cast<tileid_t>(own_tile) + 1) % 8);
 
-    Serial::get() << "Hello from Tile" << static_cast<tileid_t>(own_tile)
-                  << " (partner Tile" << static_cast<tileid_t>(partner_tile) << ")!\n";
+    Serial::get() << "Hello from Tile" << static_cast<tileid_t>(own_tile) << " (partner Tile"
+                  << static_cast<tileid_t>(partner_tile) << ")!\n";
 
-    kernel::TCU::config_mem(MEP, tile_id(partner_tile),
-                            reinterpret_cast<uintptr_t>(buf1), sizeof(buf1),
-                            TCU::R | TCU::W);
+    kernel::TCU::config_mem(MEP, tile_id(partner_tile), reinterpret_cast<uintptr_t>(buf1),
+                            sizeof(buf1), TCU::R | TCU::W);
 
     for(size_t i = 0; i < ARRAY_SIZE(buf2); ++i)
         buf2[i] = static_cast<tileid_t>(own_tile) + i;

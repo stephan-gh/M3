@@ -15,11 +15,11 @@
 
 #include <base/Common.h>
 
+#include <m3/Test.h>
 #include <m3/com/Semaphore.h>
 #include <m3/net/UdpSocket.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/vfs/Waiter.h>
-#include <m3/Test.h>
 
 #include "../cppnettests.h"
 
@@ -88,8 +88,8 @@ NOINLINE static void data() {
 
     // do one initial send-receive with a higher timeout than the smoltcp-internal timeout to
     // workaround the high ARP-request delay with the loopback device.
-    send_recv(waiter, socket, dest, send_buf, 1, TimeDuration::from_secs(6),
-              recv_buf, sizeof(recv_buf), &src);
+    send_recv(waiter, socket, dest, send_buf, 1, TimeDuration::from_secs(6), recv_buf,
+              sizeof(recv_buf), &src);
 
     size_t packet_sizes[] = {8, 16, 32, 64, 128, 256, 512, 1024};
 

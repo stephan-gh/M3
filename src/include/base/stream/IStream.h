@@ -21,8 +21,9 @@
 #include <base/Common.h>
 #include <base/stream/IOSBase.h>
 #include <base/stream/OStringStream.h>
-#include <base/util/String.h>
 #include <base/util/Chars.h>
+#include <base/util/String.h>
+
 #include <assert.h>
 
 namespace m3 {
@@ -42,8 +43,8 @@ public:
     /**
      * No cloning
      */
-    IStream(const IStream&) = delete;
-    IStream &operator=(const IStream&) = delete;
+    IStream(const IStream &) = delete;
+    IStream &operator=(const IStream &) = delete;
 
     /**
      * Reads a value out of the stream and stores it in <val>.
@@ -51,38 +52,38 @@ public:
      * @param val the value
      * @return *this
      */
-    IStream & operator>>(char &val) {
+    IStream &operator>>(char &val) {
         val = read();
         return *this;
     }
-    IStream & operator>>(uchar &val) {
+    IStream &operator>>(uchar &val) {
         return read_unsigned(val);
     }
-    IStream & operator>>(ushort &val) {
+    IStream &operator>>(ushort &val) {
         return read_unsigned(val);
     }
-    IStream & operator>>(short &val) {
+    IStream &operator>>(short &val) {
         return read_signed(val);
     }
-    IStream & operator>>(uint &val) {
+    IStream &operator>>(uint &val) {
         return read_unsigned(val);
     }
-    IStream & operator>>(int &val) {
+    IStream &operator>>(int &val) {
         return read_signed(val);
     }
-    IStream & operator>>(ulong &val) {
+    IStream &operator>>(ulong &val) {
         return read_unsigned(val);
     }
-    IStream & operator>>(long &val) {
+    IStream &operator>>(long &val) {
         return read_signed(val);
     }
-    IStream & operator>>(ullong &val) {
+    IStream &operator>>(ullong &val) {
         return readu<ullong>(val);
     }
-    IStream & operator>>(llong &val) {
+    IStream &operator>>(llong &val) {
         return readn<llong>(val);
     }
-    IStream & operator>>(float &val) {
+    IStream &operator>>(float &val) {
         return read_float(val);
     }
 
@@ -92,7 +93,7 @@ public:
      * @param str will be set to the read string
      * @return *this
      */
-    IStream & operator>>(String &str);
+    IStream &operator>>(String &str);
 
     /**
      * Reads a string into <buffer> until <delim> is found or <max> characters have been stored

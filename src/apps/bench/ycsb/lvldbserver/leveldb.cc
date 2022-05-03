@@ -13,27 +13,26 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/stream/IStringStream.h>
+#include <base/time/Profile.h>
+
+#include <m3/Test.h>
+#include <m3/session/NetworkManager.h>
+#include <m3/stream/Standard.h>
+#include <m3/vfs/VFS.h>
+
 #include <iostream>
 #include <sstream>
 #include <string>
 
-#include <base/stream/IStringStream.h>
-#include <base/time/Profile.h>
-
-#include <m3/session/NetworkManager.h>
-#include <m3/stream/Standard.h>
-#include <m3/vfs/VFS.h>
-#include <m3/Test.h>
-
+#include "handler.h"
 #include "leveldb/db.h"
 #include "leveldb/write_batch.h"
-
 #include "ops.h"
-#include "handler.h"
 
 using namespace m3;
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     if(argc != 5 && argc != 7) {
         cerr << "Usage: " << argv[0] << " <db> <repeats> tcp <port>\n";
         cerr << "Usage: " << argv[0] << " <db> <repeats> udp <ip> <port> <workload>\n";
@@ -77,13 +76,9 @@ int main(int argc, char** argv) {
         while(run) {
             Package pkg;
             switch(hdl->receive(pkg)) {
-                case OpHandler::STOP:
-                    run = false;
-                    continue;
-                case OpHandler::INCOMPLETE:
-                    continue;
-                case OpHandler::READY:
-                    break;
+                case OpHandler::STOP: run = false; continue;
+                case OpHandler::INCOMPLETE: continue;
+                case OpHandler::READY: break;
             }
 
             if((opcounter % 100) == 0)

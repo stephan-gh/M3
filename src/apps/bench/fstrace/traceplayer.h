@@ -17,18 +17,20 @@
 #include "traces.h"
 
 class TracePlayer {
-  public:
-    typedef enum { File, Dir } File_type;
+public:
+    typedef enum {
+        File,
+        Dir
+    } File_type;
 
-    TracePlayer(char const *rootDir)
-        : pathPrefix(rootDir) { }
+    TracePlayer(char const *rootDir) : pathPrefix(rootDir) {
+    }
 
-    virtual ~TracePlayer() { };
+    virtual ~TracePlayer(){};
 
-    virtual int play(Trace *trace, m3::LoadGen::Channel *chan,
-                     bool data = true, bool stdio = false,
+    virtual int play(Trace *trace, m3::LoadGen::Channel *chan, bool data = true, bool stdio = false,
                      bool keep_time = false, bool verbose = false);
 
-  protected:
+protected:
     const char *pathPrefix;
 };

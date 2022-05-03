@@ -28,7 +28,8 @@ DirectPipe::DirectPipe(Activity &rd, Activity &wr, MemGate &mem, size_t size)
     : _rd(rd),
       _wr(wr),
       _size(size),
-      _rgate(RecvGate::create(Activity::own().alloc_sels(4), nextlog2<MSG_BUF_SIZE>::val, nextlog2<MSG_SIZE>::val)),
+      _rgate(RecvGate::create(Activity::own().alloc_sels(4), nextlog2<MSG_BUF_SIZE>::val,
+                              nextlog2<MSG_SIZE>::val)),
       _rmem(mem.derive_for(Activity::own().sel(), _rgate.sel() + 1, 0, size, MemGate::R)),
       _wmem(mem.derive_for(Activity::own().sel(), _rgate.sel() + 2, 0, size, MemGate::W)),
       _sgate(SendGate::create(&_rgate, SendGateArgs().credits(CREDITS).sel(_rgate.sel() + 3))),
@@ -36,14 +37,14 @@ DirectPipe::DirectPipe(Activity &rd, Activity &wr, MemGate &mem, size_t size)
       _wrfd() {
     std::unique_ptr<DirectPipeReader::State> rstate(
         &rd == &Activity::own() ? new DirectPipeReader::State(caps()) : nullptr);
-    auto reader = Activity::own().files()->alloc(std::unique_ptr<File>(
-        new DirectPipeReader(caps(), std::move(rstate))));
+    auto reader = Activity::own().files()->alloc(
+        std::unique_ptr<File>(new DirectPipeReader(caps(), std::move(rstate))));
     _rdfd = reader.release()->fd();
 
     std::unique_ptr<DirectPipeWriter::State> wstate(
         &wr == &Activity::own() ? new DirectPipeWriter::State(caps() + 2, _size) : nullptr);
-    auto writer = Activity::own().files()->alloc(std::unique_ptr<File>(
-        new DirectPipeWriter(caps() + 2, _size, std::move(wstate))));
+    auto writer = Activity::own().files()->alloc(
+        std::unique_ptr<File>(new DirectPipeWriter(caps() + 2, _size, std::move(wstate))));
     _wrfd = writer.release()->fd();
 }
 
@@ -65,7 +66,7 @@ DirectPipe::~DirectPipe() {
 
 void DirectPipe::close_reader() {
     File *frd = Activity::own().files()->get(_rdfd);
-    DirectPipeReader *rd = static_cast<DirectPipeReader*>(frd);
+    DirectPipeReader *rd = static_cast<DirectPipeReader *>(frd);
     if(rd) {
         // don't send EOF, if we are not reading
         if(&_rd != &Activity::own())
@@ -76,7 +77,7 @@ void DirectPipe::close_reader() {
 
 void DirectPipe::close_writer() {
     File *fwr = Activity::own().files()->get(_wrfd);
-    DirectPipeWriter *wr = static_cast<DirectPipeWriter*>(fwr);
+    DirectPipeWriter *wr = static_cast<DirectPipeWriter *>(fwr);
     if(wr) {
         // don't send EOF, if we are not writing
         if(&_wr != &Activity::own())

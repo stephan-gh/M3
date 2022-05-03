@@ -23,15 +23,15 @@
 #include <m3/vfs/FileRef.h>
 
 enum Mode {
-    INDIR       = 0,
-    DIR         = 1,
-    DIR_SIMPLE  = 2,
-    DIR_MULTI   = 3,
+    INDIR = 0,
+    DIR = 1,
+    DIR_SIMPLE = 2,
+    DIR_MULTI = 3,
 };
 
-void chain_direct(m3::FileRef<m3::GenericFile> &in, m3::FileRef<m3::GenericFile> &out,
-                  size_t num, m3::CycleDuration comptime, Mode mode);
+void chain_direct(m3::FileRef<m3::GenericFile> &in, m3::FileRef<m3::GenericFile> &out, size_t num,
+                  m3::CycleDuration comptime, Mode mode);
 void chain_direct_multi(m3::FileRef<m3::GenericFile> &in, m3::FileRef<m3::GenericFile> &out,
                         size_t num, m3::CycleDuration comptime, Mode mode);
-void chain_indirect(m3::FileRef<m3::GenericFile> &in, m3::FileRef<m3::GenericFile> &out,
-                    size_t num, m3::CycleDuration comptime);
+void chain_indirect(m3::FileRef<m3::GenericFile> &in, m3::FileRef<m3::GenericFile> &out, size_t num,
+                    m3::CycleDuration comptime);

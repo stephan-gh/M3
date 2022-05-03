@@ -77,7 +77,7 @@ int File::Buffer::flush(File *file) {
 
 ssize_t File::write_all(const void *buffer, size_t count) {
     size_t total = count;
-    const char *buf = reinterpret_cast<const char*>(buffer);
+    const char *buf = reinterpret_cast<const char *>(buffer);
     while(count > 0) {
         ssize_t written = write(buf, count);
         if(written == -1 && total == count)

@@ -20,13 +20,13 @@
 
 #include <base/Common.h>
 
-#include <m3/com/SendGate.h>
-#include <m3/com/MemGate.h>
-#include <m3/session/ClientSession.h>
-#include <m3/vfs/File.h>
 #include <m3/Exception.h>
-#include <m3/tiles/OwnActivity.h>
+#include <m3/com/MemGate.h>
+#include <m3/com/SendGate.h>
+#include <m3/session/ClientSession.h>
 #include <m3/tiles/ChildActivity.h>
+#include <m3/tiles/OwnActivity.h>
+#include <m3/vfs/File.h>
 
 namespace m3 {
 
@@ -54,9 +54,8 @@ public:
         REQ_NOTIFY,
     };
 
-    explicit GenericFile(int flags, capsel_t caps,
-                         size_t fs_id, size_t id = 0, epid_t mep = TCU::INVALID_EP,
-                         SendGate *sg = nullptr);
+    explicit GenericFile(int flags, capsel_t caps, size_t fs_id, size_t id = 0,
+                         epid_t mep = TCU::INVALID_EP, SendGate *sg = nullptr);
     virtual ~GenericFile();
 
     /**
@@ -84,8 +83,8 @@ public:
 
     virtual void sync() override;
 
-    virtual void map(Reference<Pager> &pager, goff_t *virt, size_t fileoff, size_t len,
-                     int prot, int flags) const override;
+    virtual void map(Reference<Pager> &pager, goff_t *virt, size_t fileoff, size_t len, int prot,
+                     int flags) const override;
 
     virtual TMode get_tmode() override;
     virtual void set_tmode(TMode mode) override;

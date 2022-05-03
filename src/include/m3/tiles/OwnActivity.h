@@ -63,8 +63,8 @@ public:
     /**
      * Returns an unmarshaller for the activity-local data.
      *
-     * The source provides access to the activity-local data that has been transmitted to this activity from
-     * its parent during Activity::run or Activity::exec.
+     * The source provides access to the activity-local data that has been transmitted to this
+     * activity from its parent during Activity::run or Activity::exec.
      *
      * @return an unmarshaller to read from the activity-local data
      */

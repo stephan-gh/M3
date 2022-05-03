@@ -39,9 +39,7 @@ class EPMng {
     friend class Activity;
 
 public:
-    explicit EPMng(Activity &act)
-        : _act(act),
-          _eps() {
+    explicit EPMng(Activity &act) : _act(act), _eps() {
     }
 
     /**

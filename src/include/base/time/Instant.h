@@ -83,17 +83,17 @@ static inline bool operator==(const TimeInstant &lhs, const TimeInstant &rhs) {
 static inline bool operator!=(const TimeInstant &lhs, const TimeInstant &rhs) {
     return !operator==(lhs, rhs);
 }
-static inline bool operator< (const TimeInstant &lhs, const TimeInstant &rhs) {
+static inline bool operator<(const TimeInstant &lhs, const TimeInstant &rhs) {
     return lhs.as_nanos() < rhs.as_nanos();
 }
-static inline bool operator> (const TimeInstant &lhs, const TimeInstant &rhs) {
-    return  operator< (rhs, lhs);
+static inline bool operator>(const TimeInstant &lhs, const TimeInstant &rhs) {
+    return operator<(rhs, lhs);
 }
 static inline bool operator<=(const TimeInstant &lhs, const TimeInstant &rhs) {
-    return !operator> (lhs, rhs);
+    return !operator>(lhs, rhs);
 }
 static inline bool operator>=(const TimeInstant &lhs, const TimeInstant &rhs) {
-    return !operator< (lhs, rhs);
+    return !operator<(lhs, rhs);
 }
 
 /**
@@ -160,17 +160,17 @@ static inline bool operator==(const CycleInstant &lhs, const CycleInstant &rhs) 
 static inline bool operator!=(const CycleInstant &lhs, const CycleInstant &rhs) {
     return !operator==(lhs, rhs);
 }
-static inline bool operator< (const CycleInstant &lhs, const CycleInstant &rhs) {
+static inline bool operator<(const CycleInstant &lhs, const CycleInstant &rhs) {
     return lhs.as_cycles() < rhs.as_cycles();
 }
-static inline bool operator> (const CycleInstant &lhs, const CycleInstant &rhs) {
-    return  operator< (rhs, lhs);
+static inline bool operator>(const CycleInstant &lhs, const CycleInstant &rhs) {
+    return operator<(rhs, lhs);
 }
 static inline bool operator<=(const CycleInstant &lhs, const CycleInstant &rhs) {
-    return !operator> (lhs, rhs);
+    return !operator>(lhs, rhs);
 }
 static inline bool operator>=(const CycleInstant &lhs, const CycleInstant &rhs) {
-    return !operator< (lhs, rhs);
+    return !operator<(lhs, rhs);
 }
 
 }

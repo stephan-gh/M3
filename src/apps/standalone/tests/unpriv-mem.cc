@@ -73,7 +73,8 @@ static void test_mem_short() {
 
     Serial::get() << "READ+WRITE with offset != 0\n";
     {
-        kernel::TCU::config_mem(MEP2, tile_id(Tile::MEM), 0x2000, sizeof(uint64_t) * 2, TCU::R| TCU::W);
+        kernel::TCU::config_mem(MEP2, tile_id(Tile::MEM), 0x2000, sizeof(uint64_t) * 2,
+                                TCU::R | TCU::W);
 
         uint64_t data_ctrl = 0;
         ASSERT_EQ(kernel::TCU::write(MEP2, &data, sizeof(data), 4), Errors::NONE);
@@ -83,7 +84,8 @@ static void test_mem_short() {
 
     Serial::get() << "0-byte READ+WRITE transfers\n";
     {
-        kernel::TCU::config_mem(MEP2, tile_id(Tile::MEM), 0x2000, sizeof(uint64_t) * 2, TCU::R| TCU::W);
+        kernel::TCU::config_mem(MEP2, tile_id(Tile::MEM), 0x2000, sizeof(uint64_t) * 2,
+                                TCU::R | TCU::W);
 
         ASSERT_EQ(kernel::TCU::write(MEP2, nullptr, 0, 0), Errors::NONE);
         ASSERT_EQ(kernel::TCU::read(MEP2, nullptr, 0, 0), Errors::NONE);
@@ -119,7 +121,8 @@ static void test_mem_rdwr(Tile mem_tile) {
     for(auto size : sizes) {
         memset(dst_buf, 0, sizeof(dst_buf));
 
-        Serial::get() << "READ+WRITE+READ+WRITE with " << size << " bytes with Tile" << (int)mem_tile << "\n";
+        Serial::get()
+            << "READ+WRITE+READ+WRITE with " << size << " bytes with Tile" << (int)mem_tile << "\n";
 
         // first write our data
         ASSERT_EQ(kernel::TCU::write(MEP, src_buf, size, 0), Errors::NONE);
@@ -145,7 +148,8 @@ static void test_mem(size_t size_in) {
     for(size_t i = 0; i < size_in; ++i)
         msg[i] = i + 1;
 
-    kernel::TCU::config_mem(MEP, tile_id(Tile::MEM), 0x1000, size_in * sizeof(DATA), TCU::R | TCU::W);
+    kernel::TCU::config_mem(MEP, tile_id(Tile::MEM), 0x1000, size_in * sizeof(DATA),
+                            TCU::R | TCU::W);
 
     // test write + read
     ASSERT_EQ(kernel::TCU::write(MEP, msg, size_in * sizeof(DATA), 0), Errors::NONE);
@@ -156,8 +160,8 @@ static void test_mem(size_t size_in) {
 
 template<size_t PAD>
 static void test_unaligned_rdwr(size_t nwords, size_t offset) {
-    Serial::get() << "READ+WRITE with " << PAD << "B padding and "
-                  << nwords << " words data from offset " << offset << "\n";
+    Serial::get() << "READ+WRITE with " << PAD << "B padding and " << nwords
+                  << " words data from offset " << offset << "\n";
 
     // prepare test data
     UnalignedData<PAD> msg;

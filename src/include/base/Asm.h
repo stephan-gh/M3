@@ -16,6 +16,7 @@
 
 #pragma once
 
+// clang-format off
 #define BEGIN_FUNC(name)        \
     .global name;               \
     .type   name, %function;    \

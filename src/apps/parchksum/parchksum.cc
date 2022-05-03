@@ -18,10 +18,10 @@
 
 #include <base/stream/IStringStream.h>
 
-#include <m3/com/MemGate.h>
-#include <m3/com/SendGate.h>
-#include <m3/com/RecvGate.h>
 #include <m3/com/GateStream.h>
+#include <m3/com/MemGate.h>
+#include <m3/com/RecvGate.h>
+#include <m3/com/SendGate.h>
 #include <m3/stream/Standard.h>
 #include <m3/tiles/ChildActivity.h>
 
@@ -42,7 +42,7 @@ struct Worker {
     }
 };
 
-static const size_t BUF_SIZE    = 4096;
+static const size_t BUF_SIZE = 4096;
 
 int main(int argc, char **argv) {
     size_t memPerAct = 1024 * 1024;
@@ -52,14 +52,14 @@ int main(int argc, char **argv) {
     if(argc > 2)
         memPerAct = IStringStream::read_from<size_t>(argv[2]);
 
-    const size_t AREA_SIZE    = acts * memPerAct;
+    const size_t AREA_SIZE = acts * memPerAct;
     const size_t SUBAREA_SIZE = AREA_SIZE / acts;
 
     RecvGate rgate = RecvGate::create(getnextlog2(acts * 64), nextlog2<64>::val);
     MemGate mem = MemGate::create_global(AREA_SIZE, MemGate::RW);
 
     // create worker
-    Worker **worker = new Worker*[acts];
+    Worker **worker = new Worker *[acts];
     for(size_t i = 0; i < acts; ++i)
         worker[i] = new Worker(rgate, mem, static_cast<size_t>(i) * SUBAREA_SIZE, SUBAREA_SIZE);
 
@@ -96,7 +96,8 @@ int main(int argc, char **argv) {
     for(size_t i = 0; i < acts; ++i) {
         worker[i]->act.delegate_obj(worker[i]->sgate.sel());
 
-        worker[i]->act.data_sink() << worker[i]->submem.sel() << worker[i]->sgate.sel() << SUBAREA_SIZE;
+        worker[i]->act.data_sink()
+            << worker[i]->submem.sel() << worker[i]->sgate.sel() << SUBAREA_SIZE;
 
         worker[i]->act.run([] {
             capsel_t mem_sel, sgate_sel;

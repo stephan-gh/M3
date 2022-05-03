@@ -15,11 +15,11 @@
 
 #include <base/stream/IStringStream.h>
 
-#include <m3/stream/FStream.h>
+#include <m3/Test.h>
 #include <m3/com/Semaphore.h>
+#include <m3/stream/FStream.h>
 #include <m3/tiles/ChildActivity.h>
 #include <m3/vfs/VFS.h>
-#include <m3/Test.h>
 
 #include "../unittests.h"
 

@@ -14,12 +14,12 @@
  */
 
 #include <base/Common.h>
-#include <base/time/Profile.h>
 #include <base/Panic.h>
+#include <base/time/Profile.h>
 
+#include <m3/Test.h>
 #include <m3/session/Pager.h>
 #include <m3/vfs/VFS.h>
-#include <m3/Test.h>
 
 #include "../cppbenchs.h"
 
@@ -33,7 +33,7 @@ NOINLINE static void anon() {
         goff_t virt = 0x3000'0000;
         Activity::own().pager()->map_anon(&virt, PAGES * PAGE_SIZE, Pager::READ | Pager::WRITE, 0);
 
-        auto data = reinterpret_cast<char*>(virt);
+        auto data = reinterpret_cast<char *>(virt);
         for(size_t i = 0; i < PAGES; ++i)
             data[i * PAGE_SIZE] = i;
 
@@ -47,9 +47,10 @@ NOINLINE static void file() {
         auto file = VFS::open("/large.bin", FILE_RW | FILE_NEWSESS);
 
         goff_t virt = 0x3100'0000;
-        file->map(Activity::own().pager(), &virt, 0, PAGES * PAGE_SIZE, Pager::READ | Pager::WRITE, 0);
+        file->map(Activity::own().pager(), &virt, 0, PAGES * PAGE_SIZE, Pager::READ | Pager::WRITE,
+                  0);
 
-        auto data = reinterpret_cast<char*>(virt);
+        auto data = reinterpret_cast<char *>(virt);
         for(size_t i = 0; i < PAGES; ++i)
             data[i * PAGE_SIZE] = i;
 

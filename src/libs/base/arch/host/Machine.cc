@@ -16,9 +16,9 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/stream/Serial.h>
 #include <base/Env.h>
 #include <base/Machine.h>
+#include <base/stream/Serial.h>
 
 #include <sys/file.h>
 #include <unistd.h>

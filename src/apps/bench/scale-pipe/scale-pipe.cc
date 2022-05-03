@@ -14,19 +14,19 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/CmdArgs.h>
 #include <base/Common.h>
+#include <base/Panic.h>
 #include <base/stream/IStringStream.h>
 #include <base/time/Profile.h>
-#include <base/CmdArgs.h>
-#include <base/Panic.h>
 
-#include <m3/stream/Standard.h>
+#include <m3/Syscalls.h>
+#include <m3/Test.h>
 #include <m3/pipe/IndirectPipe.h>
+#include <m3/stream/Standard.h>
 #include <m3/tiles/ChildActivity.h>
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
-#include <m3/Syscalls.h>
-#include <m3/Test.h>
 
 using namespace m3;
 
@@ -52,7 +52,8 @@ struct App {
 };
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-d] [-i <instances>] [-r <repeats>] [-w <warmup>] <wr_name> <rd_name>\n";
+    cerr << "Usage: " << name
+         << " [-d] [-i <instances>] [-r <repeats>] [-w <warmup>] <wr_name> <rd_name>\n";
     cerr << "  -d enables data transfers (otherwise the same time is spent locally)\n";
     cerr << "  <instances> specifies the number of application (<name>) instances\n";
     cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
@@ -75,8 +76,7 @@ int main(int argc, char **argv) {
             case 'i': instances = IStringStream::read_from<size_t>(CmdArgs::arg); break;
             case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
             case 'w': warmup = IStringStream::read_from<int>(CmdArgs::arg); break;
-            default:
-                usage(argv[0]);
+            default: usage(argv[0]);
         }
     }
     if(CmdArgs::ind + 1 >= argc)
@@ -89,7 +89,8 @@ int main(int argc, char **argv) {
     Reference<Tile> srv_tiles[2];
     Pipes pipesrv("pipes");
 
-    if(VERBOSE) cout << "Creating application activities...\n";
+    if(VERBOSE)
+        cout << "Creating application activities...\n";
 
     Results<CycleDuration> res(static_cast<ulong>(repeats));
 
@@ -103,11 +104,12 @@ int main(int argc, char **argv) {
             apps[i] = new App(ARG_COUNT, args);
         }
 
-        if(VERBOSE) cout << "Starting activities...\n";
+        if(VERBOSE)
+            cout << "Starting activities...\n";
 
         auto overall_start = CycleInstant::now();
 
-        constexpr size_t PIPE_SHM_SIZE   = 512 * 1024;
+        constexpr size_t PIPE_SHM_SIZE = 512 * 1024;
         MemGate *mems[instances];
         IndirectPipe *pipes[instances];
 
@@ -136,7 +138,8 @@ int main(int argc, char **argv) {
 
             if(i % 2 == 0) {
                 mems[i / 2] = new MemGate(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
-                pipes[i / 2] = new IndirectPipe(pipesrv, *mems[i / 2], PIPE_SHM_SIZE, data ? 0 : FILE_NODATA);
+                pipes[i / 2] =
+                    new IndirectPipe(pipesrv, *mems[i / 2], PIPE_SHM_SIZE, data ? 0 : FILE_NODATA);
                 apps[i]->act.add_file(STDOUT_FD, pipes[i / 2]->writer().fd());
             }
             else
@@ -152,7 +155,8 @@ int main(int argc, char **argv) {
             }
         }
 
-        if(VERBOSE) cout << "Signaling activities...\n";
+        if(VERBOSE)
+            cout << "Signaling activities...\n";
 
         for(size_t i = 0; i < instances * 2; ++i)
             send_receive_vmsg(apps[i]->sgate, 1);
@@ -162,13 +166,15 @@ int main(int argc, char **argv) {
         for(size_t i = 0; i < instances * 2; ++i)
             send_vmsg(apps[i]->sgate, 1);
 
-        if(VERBOSE) cout << "Waiting for activities...\n";
+        if(VERBOSE)
+            cout << "Waiting for activities...\n";
 
         for(size_t i = 0; i < instances * 2; ++i) {
             int res = apps[i]->act.wait();
             if(res != 0)
                 exitcode = 1;
-            if(VERBOSE) cout << apps[i]->argv[0] << " exited with " << res << "\n";
+            if(VERBOSE)
+                cout << apps[i]->argv[0] << " exited with " << res << "\n";
         }
 
         auto overall_end = CycleInstant::now();
@@ -178,7 +184,8 @@ int main(int argc, char **argv) {
         cout << "Time: " << end.duration_since(start)
              << ", total: " << overall_end.duration_since(overall_start) << "\n";
 
-        if(VERBOSE) cout << "Deleting activities...\n";
+        if(VERBOSE)
+            cout << "Deleting activities...\n";
 
         for(size_t i = 0; i < instances * 2; ++i) {
             delete pipes[i / 2];
@@ -204,6 +211,7 @@ int main(int argc, char **argv) {
     }
     WVPERF(name.str(), res);
 
-    if(VERBOSE) cout << "Done\n";
+    if(VERBOSE)
+        cout << "Done\n";
     return exitcode;
 }

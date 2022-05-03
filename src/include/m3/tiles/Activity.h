@@ -18,25 +18,25 @@
 
 #pragma once
 
+#include <base/ELF.h>
+#include <base/Errors.h>
+#include <base/KIF.h>
+#include <base/TMIF.h>
+#include <base/TileDesc.h>
 #include <base/time/Instant.h>
 #include <base/util/BitField.h>
 #include <base/util/Math.h>
 #include <base/util/Reference.h>
 #include <base/util/String.h>
-#include <base/ELF.h>
-#include <base/Errors.h>
-#include <base/KIF.h>
-#include <base/TileDesc.h>
-#include <base/TMIF.h>
 
+#include <m3/ObjCap.h>
 #include <m3/com/EPMng.h>
+#include <m3/com/Marshalling.h>
 #include <m3/com/MemGate.h>
 #include <m3/com/SendGate.h>
-#include <m3/com/Marshalling.h>
+#include <m3/session/Pager.h>
 #include <m3/tiles/KMem.h>
 #include <m3/tiles/Tile.h>
-#include <m3/session/Pager.h>
-#include <m3/ObjCap.h>
 
 #include <functional>
 #include <memory>
@@ -59,8 +59,8 @@ class Activity : public ObjCap {
     static constexpr size_t DATA_SIZE = 256;
 
 protected:
-    explicit Activity(capsel_t sel, uint flags,
-                      Reference<class Tile> tile, Reference<KMem> kmem, ResMng *resmng);
+    explicit Activity(capsel_t sel, uint flags, Reference<class Tile> tile, Reference<KMem> kmem,
+                      ResMng *resmng);
 
 public:
     /**
@@ -86,7 +86,7 @@ public:
         else if(env()->platform != Platform::HW)
             TCU::get().wait_for_msg(TCU::INVALID_EP);
 #else
-            TCU::get().wait_for_msg(TCU::INVALID_EP, duration.as_nanos());
+        TCU::get().wait_for_msg(TCU::INVALID_EP, duration.as_nanos());
 #endif
     }
 
@@ -100,7 +100,7 @@ public:
         else if(env()->platform != Platform::HW)
             TCU::get().wait_for_msg(ep);
 #else
-            TCU::get().wait_for_msg(TCU::INVALID_EP, 0);
+        TCU::get().wait_for_msg(TCU::INVALID_EP, 0);
 #endif
     }
 

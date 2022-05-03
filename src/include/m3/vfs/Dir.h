@@ -30,7 +30,7 @@ namespace m3 {
 class Dir {
 public:
     struct Entry {
-        static constexpr size_t MAX_NAME_LEN    = 28;
+        static constexpr size_t MAX_NAME_LEN = 28;
 
         inodeno_t nodeno;
         char name[MAX_NAME_LEN];

@@ -127,7 +127,8 @@ public:
     void abort();
 
 private:
-    void handle_data(NetEventChannel::DataMessage const &msg, NetEventChannel::Event &event) override;
+    void handle_data(NetEventChannel::DataMessage const &msg,
+                     NetEventChannel::Event &event) override;
     void remove() noexcept override;
 };
 

@@ -19,15 +19,15 @@
 #include <base/stream/IStringStream.h>
 #include <base/time/Instant.h>
 
+#include <m3/Syscalls.h>
 #include <m3/accel/StreamAccel.h>
 #include <m3/pipe/IndirectPipe.h>
 #include <m3/session/VTerm.h>
 #include <m3/stream/Standard.h>
+#include <m3/tiles/ChildActivity.h>
+#include <m3/tiles/Tile.h>
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
-#include <m3/Syscalls.h>
-#include <m3/tiles/Tile.h>
-#include <m3/tiles/ChildActivity.h>
 
 #include <memory>
 #include <stdlib.h>
@@ -42,7 +42,7 @@ using namespace m3;
 
 static const CycleDuration ACOMP_TIME = CycleDuration::from_raw(4096);
 
-static const size_t PIPE_SHM_SIZE   = 512 * 1024;
+static const size_t PIPE_SHM_SIZE = 512 * 1024;
 
 static const uint MIN_EPS = 16;
 static const uint64_t MIN_TIME = 100000; // 100µs
@@ -52,9 +52,9 @@ static bool have_vterm = false;
 static VTerm *vterm;
 
 static char **build_args(Command *cmd) {
-    char **res = new char*[cmd->args->count + 1];
+    char **res = new char *[cmd->args->count + 1];
     for(size_t i = 0; i < cmd->args->count; ++i)
-        res[i] = (char*)expr_value(cmd->args->args[i]);
+        res[i] = (char *)expr_value(cmd->args->args[i]);
     res[cmd->args->count] = nullptr;
     return res;
 }
@@ -121,15 +121,16 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
         }
 
         if(!builtin[i]) {
-            // if we share our tile with this child activity, give it separate quotas to ensure that we get our
-            // share (we don't trust the child apps)
+            // if we share our tile with this child activity, give it separate quotas to ensure that
+            // we get our share (we don't trust the child apps)
             if(tiles[i]->sel() == Activity::own().tile()->sel()) {
                 Quota<uint> eps;
                 Quota<uint64_t> time;
                 Quota<size_t> pts;
                 tiles[i]->quota(&eps, &time, &pts);
                 if(eps.left > MIN_EPS && pts.left > MIN_PTS)
-                    tiles[i] = tiles[i]->derive(eps.left - MIN_EPS, time.total - MIN_TIME, pts.left - MIN_PTS);
+                    tiles[i] = tiles[i]->derive(eps.left - MIN_EPS, time.total - MIN_TIME,
+                                                pts.left - MIN_PTS);
                 else
                     tiles[i] = Tile::get("core");
             }
@@ -140,7 +141,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
 
         // I/O redirection is only supported at the beginning and end
         if((i + 1 < list->count && cmd->redirs->fds[STDOUT_FD]) ||
-            (i > 0 && cmd->redirs->fds[STDIN_FD])) {
+           (i > 0 && cmd->redirs->fds[STDIN_FD])) {
             throw MessageException("Invalid I/O redirection");
         }
 
@@ -163,7 +164,8 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
         fd_t outfd = STDOUT_FD;
         if(i + 1 == list->count) {
             if(cmd->redirs->fds[STDOUT_FD])
-                outfile = VFS::open(cmd->redirs->fds[STDOUT_FD], FILE_W | FILE_CREATE | FILE_TRUNC | FILE_NEWSESS);
+                outfile = VFS::open(cmd->redirs->fds[STDOUT_FD],
+                                    FILE_W | FILE_CREATE | FILE_TRUNC | FILE_NEWSESS);
             else if(vterm)
                 outfile = vterm->create_channel(false);
             if(outfile.is_valid())
@@ -195,8 +197,8 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
 
             acts[i]->add_mount("/", "/");
 
-            acts[i]->exec(static_cast<int>(cmd->args->count),
-                          const_cast<const char**>(args), vars.get());
+            acts[i]->exec(static_cast<int>(cmd->args->count), const_cast<const char **>(args),
+                          vars.get());
         }
         else
             accels[i] = std::make_unique<StreamAccel>(acts[i], ACOMP_TIME);
@@ -221,7 +223,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                 if(our_in_fd != FileTable::MAX_FDS) {
                     auto our_in = Activity::own().files()->get(our_in_fd);
                     auto ain = our_in->clone();
-                    accels[i]->connect_input(static_cast<GenericFile*>(&*ain));
+                    accels[i]->connect_input(static_cast<GenericFile *>(&*ain));
                     clones[c++] = std::move(ain);
                 }
                 else if(accels[i - 1])
@@ -231,7 +233,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                 if(our_out_fd != FileTable::MAX_FDS) {
                     auto our_out = Activity::own().files()->get(our_out_fd);
                     auto aout = our_out->clone();
-                    accels[i]->connect_output(static_cast<GenericFile*>(&*aout));
+                    accels[i]->connect_output(static_cast<GenericFile *>(&*aout));
                     clones[c++] = std::move(aout);
                 }
                 else if(accels[i + 1])
@@ -245,7 +247,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                 acts[i]->start();
         }
 
-        for(size_t rem = act_count; rem > 0; ) {
+        for(size_t rem = act_count; rem > 0;) {
             capsel_t sels[act_count];
             for(size_t x = 0, i = 0; i < act_count; ++i) {
                 if(acts[i])
@@ -266,7 +268,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                 const TCU::Message *msg;
                 if((msg = RecvGate::upcall().fetch())) {
                     GateIStream is(RecvGate::upcall(), msg);
-                    auto upcall = reinterpret_cast<const KIF::Upcall::ActivityWait*>(msg->data);
+                    auto upcall = reinterpret_cast<const KIF::Upcall::ActivityWait *>(msg->data);
                     act = upcall->act_sel;
                     exitcode = upcall->exitcode;
                     reply_vmsg(is, 0);

@@ -17,9 +17,9 @@
  */
 
 #include <base/Common.h>
+#include <base/Panic.h>
 #include <base/col/Treap.h>
 #include <base/time/Profile.h>
-#include <base/Panic.h>
 
 #include <m3/Test.h>
 
@@ -28,9 +28,7 @@
 using namespace m3;
 
 struct MyTItem : public TreapNode<MyTItem, uint32_t> {
-    explicit MyTItem(uint32_t _val)
-        : TreapNode(_val),
-          val(_val) {
+    explicit MyTItem(uint32_t _val) : TreapNode(_val), val(_val) {
     }
 
     uint32_t val;

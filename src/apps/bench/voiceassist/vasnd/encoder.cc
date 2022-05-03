@@ -27,11 +27,14 @@ public:
     uint32_t total_samples = 0; /* can use a 32-bit number due to WAVE size limitations */
 
     OurEncoder(void *outbuf, size_t outmax)
-        : FLAC::Encoder::Stream(), outbuf(outbuf), outmax(outmax), outpos(0) {
+        : FLAC::Encoder::Stream(),
+          outbuf(outbuf),
+          outmax(outmax),
+          outpos(0) {
     }
 
-    virtual ::FLAC__StreamEncoderWriteStatus write_callback(const FLAC__byte buffer[], size_t bytes, uint32_t,
-                                                            uint32_t) {
+    virtual ::FLAC__StreamEncoderWriteStatus write_callback(const FLAC__byte buffer[], size_t bytes,
+                                                            uint32_t, uint32_t) {
         if(outpos + bytes > outmax)
             throw std::runtime_error("Output buffer exhaused");
 
@@ -42,8 +45,8 @@ public:
 
     virtual void progress_callback(FLAC__uint64 bytes_written, FLAC__uint64 samples_written,
                                    uint32_t frames_written, uint32_t total_frames_estimate) {
-        fprintf(stderr, "wrote %lu bytes, %lu/%u samples, %u/%u frames\n", bytes_written, samples_written,
-                total_samples, frames_written, total_frames_estimate);
+        fprintf(stderr, "wrote %lu bytes, %lu/%u samples, %u/%u frames\n", bytes_written,
+                samples_written, total_samples, frames_written, total_frames_estimate);
     }
 
     void *outbuf;
@@ -62,19 +65,22 @@ size_t encode(const uint8_t *indata, size_t inlen, void *outbuf, size_t outmax) 
     FLAC__StreamMetadata *metadata[2];
     FLAC__StreamMetadata_VorbisComment_Entry entry;
     uint32_t sample_rate = 0;
-    uint32_t channels    = 0;
-    uint32_t bps         = 0;
+    uint32_t channels = 0;
+    uint32_t bps = 0;
 
-    if(memcmp(indata, "RIFF", 4) || memcmp(indata + 8, "WAVEfmt \020\000\000\000\001\000\002\000", 16) ||
+    if(memcmp(indata, "RIFF", 4) ||
+       memcmp(indata + 8, "WAVEfmt \020\000\000\000\001\000\002\000", 16) ||
        memcmp(indata + 32, "\004\000\020\000data", 8)) {
-        fprintf(stderr,
-                "ERROR: invalid/unsupported WAVE file, only 16bps stereo WAVE in canonical form allowed\n");
+        fprintf(
+            stderr,
+            "ERROR: invalid/unsupported WAVE file, only 16bps stereo WAVE in canonical form allowed\n");
         return 0;
     }
 
-    sample_rate = ((((((uint32_t)indata[27] << 8) | indata[26]) << 8) | indata[25]) << 8) | indata[24];
-    channels    = 2;
-    bps         = 16;
+    sample_rate = ((((((uint32_t)indata[27] << 8) | indata[26]) << 8) | indata[25]) << 8) |
+                  indata[24];
+    channels = 2;
+    bps = 16;
     encoder.total_samples =
         (((((((uint32_t)indata[43] << 8) | indata[42]) << 8) | indata[41]) << 8) | indata[40]) / 4;
 
@@ -95,16 +101,25 @@ size_t encode(const uint8_t *indata, size_t inlen, void *outbuf, size_t outmax) 
     if(ok) {
         if((metadata[0] = FLAC__metadata_object_new(FLAC__METADATA_TYPE_VORBIS_COMMENT)) == NULL ||
            (metadata[1] = FLAC__metadata_object_new(FLAC__METADATA_TYPE_PADDING)) == NULL ||
-           /* there are many tag (vorbiscomment) functions but these are convenient for this particular use: */
-           !FLAC__metadata_object_vorbiscomment_entry_from_name_value_pair(&entry, "ARTIST", "Some Artist") ||
-           !FLAC__metadata_object_vorbiscomment_append_comment(
-               metadata[0], entry,
-               /*copy=*/false) || /* copy=false: let metadata object take control of entry's allocated string */
-           !FLAC__metadata_object_vorbiscomment_entry_from_name_value_pair(&entry, "YEAR", "1984") ||
-           !FLAC__metadata_object_vorbiscomment_append_comment(metadata[0], entry, /*copy=*/false)) {
+           /* there are many tag (vorbiscomment) functions but these are convenient for this
+              particular use: */
+           !FLAC__metadata_object_vorbiscomment_entry_from_name_value_pair(&entry, "ARTIST",
+                                                                           "Some Artist") ||
+           !FLAC__metadata_object_vorbiscomment_append_comment(metadata[0], entry,
+                                                               /*copy=*/false) || /* copy=false: let
+                                                                                     metadata object
+                                                                                     take control of
+                                                                                     entry's
+                                                                                     allocated
+                                                                                     string */
+           !FLAC__metadata_object_vorbiscomment_entry_from_name_value_pair(&entry, "YEAR",
+                                                                           "1984") ||
+           !FLAC__metadata_object_vorbiscomment_append_comment(metadata[0], entry,
+                                                               /*copy=*/false)) {
             fprintf(stderr, "ERROR: out of memory or tag error\n");
             ok = false;
-        } else {
+        }
+        else {
             metadata[1]->length = 1234; /* set the padding length */
 
             ok = encoder.set_metadata(metadata, 2);
@@ -127,7 +142,8 @@ size_t encode(const uint8_t *indata, size_t inlen, void *outbuf, size_t outmax) 
         size_t left = (size_t)encoder.total_samples;
         while(ok && left && pos < inlen) {
             size_t need = (left > READSIZE ? (size_t)READSIZE : (size_t)left);
-            /* convert the packed little-endian 16-bit PCM samples from WAVE into an interleaved FLAC__int32 buffer for libFLAC */
+            /* convert the packed little-endian 16-bit PCM samples from WAVE into an interleaved
+             * FLAC__int32 buffer for libFLAC */
             size_t i;
             for(i = 0; i < need * channels; i++) {
                 /* inefficient but simple and works on big- or little-endian machines */

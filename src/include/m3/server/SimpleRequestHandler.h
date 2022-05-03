@@ -18,10 +18,10 @@
 
 #pragma once
 
-#include <m3/com/SendGate.h>
 #include <m3/com/RecvGate.h>
-#include <m3/session/ServerSession.h>
+#include <m3/com/SendGate.h>
 #include <m3/server/RequestHandler.h>
+#include <m3/session/ServerSession.h>
 
 #include <memory>
 
@@ -48,7 +48,8 @@ public:
         _rgate.start(wl, std::bind(&SimpleRequestHandler::handle_message, this, _1));
     }
 
-    virtual Errors::Code open(SimpleSession **sess, size_t crt, capsel_t srv_sel, const StringRef&) override {
+    virtual Errors::Code open(SimpleSession **sess, size_t crt, capsel_t srv_sel,
+                              const StringRef &) override {
         *sess = new SimpleSession(crt, srv_sel);
         return Errors::NONE;
     }
@@ -59,9 +60,7 @@ public:
 
         label_t label = ptr_to_label(sess);
         sess->sgate = std::make_unique<SendGate>(
-            SendGate::create(&_rgate, SendGateArgs().label(label)
-                                                    .credits(1))
-        );
+            SendGate::create(&_rgate, SendGateArgs().label(label).credits(1)));
 
         xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess->sgate->sel()));
         return Errors::NONE;

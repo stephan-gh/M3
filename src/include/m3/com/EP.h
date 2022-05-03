@@ -15,8 +15,8 @@
 
 #pragma once
 
-#include <base/col/SList.h>
 #include <base/Env.h>
+#include <base/col/SList.h>
 
 #include <m3/ObjCap.h>
 
@@ -54,11 +54,11 @@ public:
 
     explicit EP() noexcept;
     EP &operator=(EP &&ep) noexcept;
-    EP(EP &&ep) noexcept
-        : SListItem(std::move(ep)),
-          ObjCap(std::move(ep)),
-          _id(ep._id),
-          _replies(ep._replies) {
+    EP(EP &&ep)
+    noexcept : SListItem(std::move(ep)),
+               ObjCap(std::move(ep)),
+               _id(ep._id),
+               _replies(ep._replies) {
     }
 
     /**

@@ -15,9 +15,9 @@
 
 #pragma once
 
-#include <base/util/Reference.h>
-#include <base/TileDesc.h>
 #include <base/Quota.h>
+#include <base/TileDesc.h>
+#include <base/util/Reference.h>
 
 #include <m3/ObjCap.h>
 
@@ -87,7 +87,8 @@ public:
     }
 
     /**
-     * Derives a new tile object from the this by transferring a subset of the resources to the new one
+     * Derives a new tile object from the this by transferring a subset of the resources to the new
+     * one
      *
      * @param eps the number of EPs to transfer (-1 = none, share the quota)
      * @param time the time slice length in nanoseconds to transfer (-1 = none, share the quota)
@@ -95,8 +96,8 @@ public:
      * @return the new tile object
      */
     Reference<Tile> derive(uint eps = static_cast<uint>(-1),
-                         uint64_t time = static_cast<uint64_t>(-1),
-                         uint64_t pts = static_cast<uint64_t>(-1));
+                           uint64_t time = static_cast<uint64_t>(-1),
+                           uint64_t pts = static_cast<uint64_t>(-1));
 
     /**
      * @return the description of the tile

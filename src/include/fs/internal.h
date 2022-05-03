@@ -25,49 +25,49 @@
 
 namespace m3 {
 
-#define M3FS_IFMT              0160000
-#define M3FS_IFLNK             0120000
-#define M3FS_IFPIP             0110000
-#define M3FS_IFREG             0100000
-#define M3FS_IFBLK             0060000
-#define M3FS_IFDIR             0040000
-#define M3FS_IFCHR             0020000
-#define M3FS_ISUID             0004000
-#define M3FS_ISGID             0002000
-#define M3FS_ISSTICKY          0001000
-#define M3FS_IRWXU             0000700
-#define M3FS_IRUSR             0000400
-#define M3FS_IWUSR             0000200
-#define M3FS_IXUSR             0000100
-#define M3FS_IRWXG             0000070
-#define M3FS_IRGRP             0000040
-#define M3FS_IWGRP             0000020
-#define M3FS_IXGRP             0000010
-#define M3FS_IRWXO             0000007
-#define M3FS_IROTH             0000004
-#define M3FS_IWOTH             0000002
-#define M3FS_IXOTH             0000001
+#define M3FS_IFMT        0160000
+#define M3FS_IFLNK       0120000
+#define M3FS_IFPIP       0110000
+#define M3FS_IFREG       0100000
+#define M3FS_IFBLK       0060000
+#define M3FS_IFDIR       0040000
+#define M3FS_IFCHR       0020000
+#define M3FS_ISUID       0004000
+#define M3FS_ISGID       0002000
+#define M3FS_ISSTICKY    0001000
+#define M3FS_IRWXU       0000700
+#define M3FS_IRUSR       0000400
+#define M3FS_IWUSR       0000200
+#define M3FS_IXUSR       0000100
+#define M3FS_IRWXG       0000070
+#define M3FS_IRGRP       0000040
+#define M3FS_IWGRP       0000020
+#define M3FS_IXGRP       0000010
+#define M3FS_IRWXO       0000007
+#define M3FS_IROTH       0000004
+#define M3FS_IWOTH       0000002
+#define M3FS_IXOTH       0000001
 
-#define M3FS_ISDIR(mode)       (((mode) & M3FS_IFMT) == M3FS_IFDIR)
-#define M3FS_ISREG(mode)       (((mode) & M3FS_IFMT) == M3FS_IFREG)
-#define M3FS_ISLNK(mode)       (((mode) & M3FS_IFMT) == M3FS_IFLNK)
-#define M3FS_ISCHR(mode)       (((mode) & M3FS_IFMT) == M3FS_IFCHR)
-#define M3FS_ISBLK(mode)       (((mode) & M3FS_IFMT) == M3FS_IFBLK)
-#define M3FS_ISPIP(mode)       (((mode) & M3FS_IFMT) == M3FS_IFPIP)
+#define M3FS_ISDIR(mode) (((mode)&M3FS_IFMT) == M3FS_IFDIR)
+#define M3FS_ISREG(mode) (((mode)&M3FS_IFMT) == M3FS_IFREG)
+#define M3FS_ISLNK(mode) (((mode)&M3FS_IFMT) == M3FS_IFLNK)
+#define M3FS_ISCHR(mode) (((mode)&M3FS_IFMT) == M3FS_IFCHR)
+#define M3FS_ISBLK(mode) (((mode)&M3FS_IFMT) == M3FS_IFBLK)
+#define M3FS_ISPIP(mode) (((mode)&M3FS_IFMT) == M3FS_IFPIP)
 
-#define M3FS_MODE_READ         (M3FS_IRUSR | M3FS_IRGRP | M3FS_IROTH)
-#define M3FS_MODE_WRITE        (M3FS_IWUSR | M3FS_IWGRP | M3FS_IWOTH)
-#define M3FS_MODE_EXEC         (M3FS_IXUSR | M3FS_IXGRP | M3FS_IXOTH)
+#define M3FS_MODE_READ   (M3FS_IRUSR | M3FS_IRGRP | M3FS_IROTH)
+#define M3FS_MODE_WRITE  (M3FS_IWUSR | M3FS_IWGRP | M3FS_IWOTH)
+#define M3FS_MODE_EXEC   (M3FS_IXUSR | M3FS_IXGRP | M3FS_IXOTH)
 
-using dev_t     = uint8_t;
-using mode_t    = uint32_t;
+using dev_t = uint8_t;
+using mode_t = uint32_t;
 using inodeno_t = uint32_t;
 using blockno_t = uint32_t;
-using time_t    = uint32_t;
+using time_t = uint32_t;
 
 enum {
-    INODE_DIR_COUNT     = 3,
-    MAX_BLOCK_SIZE      = 4096,
+    INODE_DIR_COUNT = 3,
+    MAX_BLOCK_SIZE = 4096,
 };
 
 constexpr inodeno_t INVALID_INO = static_cast<inodeno_t>(-1);
@@ -77,16 +77,16 @@ constexpr inodeno_t INVALID_INO = static_cast<inodeno_t>(-1);
 #define M3FS_SEEK_END 2
 
 enum {
-    FILE_R          = 1,
-    FILE_W          = 2,
-    FILE_X          = 4,
-    FILE_RW         = FILE_R | FILE_W,
-    FILE_RWX        = FILE_R | FILE_W | FILE_X,
-    FILE_TRUNC      = 8,
-    FILE_APPEND     = 16,
-    FILE_CREATE     = 32,
-    FILE_NODATA     = 64,
-    FILE_NEWSESS    = 128,
+    FILE_R = 1,
+    FILE_W = 2,
+    FILE_X = 4,
+    FILE_RW = FILE_R | FILE_W,
+    FILE_RWX = FILE_R | FILE_W | FILE_X,
+    FILE_TRUNC = 8,
+    FILE_APPEND = 16,
+    FILE_CREATE = 32,
+    FILE_NODATA = 64,
+    FILE_NEWSESS = 128,
 };
 
 static_assert(FILE_R == MemGate::R, "FILE_R is out of sync");
@@ -141,19 +141,19 @@ struct SuperBlock {
         return 1;
     }
     blockno_t inodebm_blocks() const {
-        return (((total_inodes + 7) / 8) + blocksize  - 1) / blocksize;
+        return (((total_inodes + 7) / 8) + blocksize - 1) / blocksize;
     }
     blockno_t first_blockbm_block() const {
         return first_inodebm_block() + inodebm_blocks();
     }
     blockno_t blockbm_blocks() const {
-        return (((total_blocks + 7) / 8) + blocksize  - 1) / blocksize;
+        return (((total_blocks + 7) / 8) + blocksize - 1) / blocksize;
     }
     blockno_t first_inode_block() const {
         return first_blockbm_block() + blockbm_blocks();
     }
     blockno_t inode_blocks() const {
-        return (total_inodes * sizeof(INode) + blocksize  - 1) / blocksize;
+        return (total_inodes * sizeof(INode) + blocksize - 1) / blocksize;
     }
     blockno_t first_data_block() const {
         return first_inode_block() + inode_blocks();
@@ -165,9 +165,8 @@ struct SuperBlock {
         return blocksize / sizeof(INode);
     }
     uint32_t get_checksum() const {
-        return 1 + blocksize * 2 + total_inodes * 3 +
-            total_blocks * 5 + free_inodes * 7 + free_blocks * 11 +
-            first_free_inode * 13 + first_free_block * 17;
+        return 1 + blocksize * 2 + total_inodes * 3 + total_blocks * 5 + free_inodes * 7 +
+               free_blocks * 11 + first_free_inode * 13 + first_free_block * 17;
     }
 
     uint32_t blocksize;
@@ -190,9 +189,7 @@ public:
         : _allocated(true),
           _words(new word_t[(bits + WORD_BITS - 1) / WORD_BITS]()) {
     }
-    explicit Bitmap(word_t *bytes)
-        : _allocated(false),
-          _words(bytes) {
+    explicit Bitmap(word_t *bytes) : _allocated(false), _words(bytes) {
     }
     ~Bitmap() {
         if(_allocated)
@@ -242,19 +239,19 @@ private:
 
 #if defined(__tools__)
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <stdarg.h>
-#include <err.h>
-
-#include <memory>
+#    include <err.h>
+#    include <errno.h>
+#    include <memory>
+#    include <stdarg.h>
+#    include <stdio.h>
+#    include <stdlib.h>
+#    include <string.h>
 
 extern m3::SuperBlock sb;
 extern FILE *file;
 
-static UNUSED inline void read_from_block(void *buffer, size_t len, m3::blockno_t bno, size_t off = 0) {
+static UNUSED inline void read_from_block(void *buffer, size_t len, m3::blockno_t bno,
+                                          size_t off = 0) {
     off_t offset = static_cast<off_t>(static_cast<size_t>(bno * sb.blocksize) + off);
     if(fseek(file, offset, SEEK_SET) != 0)
         err(1, "Unable to seek to block %u+%zu: %s\n", bno, off, strerror(errno));
@@ -262,7 +259,8 @@ static UNUSED inline void read_from_block(void *buffer, size_t len, m3::blockno_
         err(1, "Unable to read from block %u: %s\n", bno, strerror(errno));
 }
 
-static UNUSED inline void write_to_block(const void *buffer, size_t len, m3::blockno_t bno, size_t off = 0) {
+static UNUSED inline void write_to_block(const void *buffer, size_t len, m3::blockno_t bno,
+                                         size_t off = 0) {
     off_t offset = static_cast<off_t>(static_cast<size_t>(bno * sb.blocksize) + off);
     if(fseek(file, offset, SEEK_SET) != 0)
         err(1, "Unable to seek to block %u+%zu: %s\n", bno, off, strerror(errno));
@@ -276,7 +274,8 @@ static UNUSED m3::INode read_inode(m3::inodeno_t ino) {
     return inode;
 }
 
-static UNUSED m3::blockno_t get_block_no_rec(const m3::INode &ino, m3::blockno_t indirect, size_t &no, int layer) {
+static UNUSED m3::blockno_t get_block_no_rec(const m3::INode &ino, m3::blockno_t indirect,
+                                             size_t &no, int layer) {
     m3::blockno_t res = 0;
     std::unique_ptr<m3::Extent[]> extents(new m3::Extent[sb.extents_per_block()]);
     read_from_block(extents.get(), sb.blocksize, indirect);

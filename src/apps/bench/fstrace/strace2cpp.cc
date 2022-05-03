@@ -7,10 +7,10 @@
  * GNU General Public License 2. Please see the COPYING-GPL-2 file for details.
  */
 
-#include "tracerecorder.h"
-#include "exceptions.h"
-
 #include <fs/internal.h>
+
+#include "exceptions.h"
+#include "tracerecorder.h"
 
 FILE *file;
 m3::SuperBlock sb;
@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
         rec.import();
         rec.print(name);
     }
-    catch (Exception &e) {
+    catch(Exception &e) {
         std::cerr << "Caught exception: " << e.msg() << "\n";
         return 1;
     }

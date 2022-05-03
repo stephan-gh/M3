@@ -17,9 +17,10 @@
  */
 
 #include <base/Common.h>
-#include <base/mem/Heap.h>
 #include <base/Machine.h>
 #include <base/Panic.h>
+#include <base/mem/Heap.h>
+
 #include <functional>
 
 using namespace m3;

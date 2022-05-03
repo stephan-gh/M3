@@ -16,19 +16,20 @@
  * General Public License version 2 for more details.
  */
 
+#include "accelchain.h"
+
+#include <base/CmdArgs.h>
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
-#include <base/CmdArgs.h>
 
 #include <m3/stream/Standard.h>
 #include <m3/vfs/VFS.h>
 
-#include "accelchain.h"
-
 using namespace m3;
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-m <mode>] [-c <comptime>] [-n <num>] [-r <repeats>] <in> <out>\n";
+    cerr << "Usage: " << name
+         << " [-m <mode>] [-c <comptime>] [-n <num>] [-r <repeats>] <in> <out>\n";
     cerr << "  <mode> can be:\n";
     cerr << "    'indir'      for a single chain, assisted\n";
     cerr << "    'dir'        for a single chain, connected directly\n";
@@ -69,8 +70,7 @@ int main(int argc, char **argv) {
             }
             case 'n': num = IStringStream::read_from<size_t>(CmdArgs::arg); break;
             case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
-            default:
-                usage(argv[0]);
+            default: usage(argv[0]);
         }
     }
     if(CmdArgs::ind + 1 >= argc)

@@ -22,12 +22,12 @@
 #include <base/Errors.h>
 #include <base/TCU.h>
 
+#include <m3/Exception.h>
 #include <m3/com/EP.h>
 #include <m3/vfs/FileRef.h>
-#include <m3/Exception.h>
 
-#include <memory>
 #include <assert.h>
+#include <memory>
 
 namespace m3 {
 
@@ -41,21 +41,20 @@ class ChildActivity;
  * The file table itself does not create or delete files. Instead, it only works with
  * pointers. The creation and deletion is done in VFS. The rational is, that VFS is used to
  * work with files, while FileTable is used to prepare the files for created activities. Thus, one
- * can simply add a file or remove a file from activity::self() to a different activity by passing a pointer
- * around. If the file table of a child activity is completely setup, it is serialized and transferred
- * to the child activity.
+ * can simply add a file or remove a file from activity::self() to a different activity by passing a
+ * pointer around. If the file table of a child activity is completely setup, it is serialized and
+ * transferred to the child activity.
  */
 class FileTable {
     friend class GenericFile;
 
 public:
-    static const fd_t MAX_FDS       = 64;
+    static const fd_t MAX_FDS = 64;
 
     /**
      * Constructor
      */
-    explicit FileTable() noexcept
-        : _fds() {
+    explicit FileTable() noexcept : _fds() {
     }
 
     explicit FileTable(const FileTable &f) = delete;
@@ -69,7 +68,7 @@ public:
      */
     template<class T>
     FileRef<T> alloc(std::unique_ptr<T> file) {
-        return FileRef<T>(static_cast<T*>(do_alloc(std::move(file))));
+        return FileRef<T>(static_cast<T *>(do_alloc(std::move(file))));
     }
 
     /**

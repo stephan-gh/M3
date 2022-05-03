@@ -326,6 +326,20 @@ case "$cmd" in
 
     fmt)
         while IFS= read -r -d '' f; do
+            if [[ "$f" =~ "src/libs/musl" ]] && [[ ! "$f" =~ "src/libs/musl/m3" ]]; then
+                continue
+            fi
+            if [[ "$f" =~ "src/libs/flac" ]] || [[ "$f" =~ "src/apps/bsdutils" ]] ||
+                [[ "$f" =~ "src/libs/leveldb" ]] || [[ "$f" =~ "src/libs/llvmprofile" ]] ||
+                [[ "$f" =~ "src/libs/axieth" ]]; then
+                continue
+            fi
+
+            echo "Formatting $f..."
+            clang-format -i "$f"
+        done < <(find src \( -name "*.cc" -or -name "*.h" \) -print0)
+
+        while IFS= read -r -d '' f; do
             echo "Formatting $(dirname "$f")..."
             rustfmt "$(dirname "$f")"/src/*.rs
         done < <(find src -mindepth 2 -name Cargo.toml -print0)

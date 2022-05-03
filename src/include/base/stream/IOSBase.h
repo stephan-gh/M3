@@ -26,8 +26,8 @@ namespace m3 {
 class IOSBase {
 public:
     enum {
-        FL_EOF      = 1 << 0,
-        FL_ERROR    = 1 << 1,
+        FL_EOF = 1 << 0,
+        FL_ERROR = 1 << 1,
     };
 
     explicit IOSBase() : _state() {

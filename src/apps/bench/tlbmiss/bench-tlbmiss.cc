@@ -16,17 +16,17 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/time/Instant.h>
 #include <base/KIF.h>
+#include <base/time/Instant.h>
 
-#include <m3/stream/Standard.h>
 #include <m3/Syscalls.h>
+#include <m3/stream/Standard.h>
 #include <m3/tiles/Activity.h>
 
 using namespace m3;
 
-static const size_t COUNT       = 9;
-static const size_t PAGES       = 16;
+static const size_t COUNT = 9;
+static const size_t PAGES = 16;
 
 int main() {
     if(!Activity::own().tile_desc().has_virtmem())
@@ -38,9 +38,8 @@ int main() {
 
     CycleDuration xfer;
     for(size_t i = 0; i < COUNT; ++i) {
-        Syscalls::create_map(
-            virt / PAGE_SIZE, Activity::own().sel(), mgate.sel(), 0, PAGES, MemGate::RW
-        );
+        Syscalls::create_map(virt / PAGE_SIZE, Activity::own().sel(), mgate.sel(), 0, PAGES,
+                             MemGate::RW);
 
         MemGate mapped_mem = Activity::own().get_mem(virt, PAGES * PAGE_SIZE, MemGate::R);
 
@@ -52,9 +51,8 @@ int main() {
             xfer += end.duration_since(start);
         }
 
-        Syscalls::revoke(
-            Activity::own().sel(), KIF::CapRngDesc(KIF::CapRngDesc::MAP, virt / PAGE_SIZE, PAGES), true
-        );
+        Syscalls::revoke(Activity::own().sel(),
+                         KIF::CapRngDesc(KIF::CapRngDesc::MAP, virt / PAGE_SIZE, PAGES), true);
     }
 
     cout << "per-xfer: " << (xfer / (COUNT * PAGES)) << "\n";

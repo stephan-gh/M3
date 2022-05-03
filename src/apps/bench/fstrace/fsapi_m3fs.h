@@ -22,14 +22,14 @@
 
 #include <m3/session/LoadGen.h>
 #include <m3/stream/Standard.h>
-#include <m3/vfs/File.h>
-#include <m3/vfs/Dir.h>
-#include <m3/vfs/VFS.h>
 #include <m3/tiles/Activity.h>
+#include <m3/vfs/Dir.h>
+#include <m3/vfs/File.h>
+#include <m3/vfs/VFS.h>
 
+#include "buffer.h"
 #include "exceptions.h"
 #include "fsapi.h"
-#include "buffer.h"
 
 class FSAPI_M3FS : public FSAPI {
     enum { MaxOpenFds = 16 };
@@ -40,7 +40,8 @@ class FSAPI_M3FS : public FSAPI {
     }
 
 public:
-    explicit FSAPI_M3FS(bool data, bool stdio, m3::String const &prefix, m3::LoadGen::Channel *lgchan)
+    explicit FSAPI_M3FS(bool data, bool stdio, m3::String const &prefix,
+                        m3::LoadGen::Channel *lgchan)
         : _data(data),
           _start(m3::CycleInstant::now()),
           _prefix(prefix),
@@ -49,7 +50,7 @@ public:
           _lgchan_fd(-1),
           _lgchan(lgchan) {
         if(_lgchan) {
-            open_args_t args = { 5, "/tmp/log.txt", O_WRONLY|O_TRUNC|O_CREAT, 0644 };
+            open_args_t args = {5, "/tmp/log.txt", O_WRONLY | O_TRUNC | O_CREAT, 0644};
             open(&args, 0);
         }
         if(stdio) {
@@ -98,11 +99,11 @@ public:
         }
         catch(const m3::Exception &e) {
             if(args->fd != -1)
-               throw ReturnValueException(e.code(), args->fd, lineNo);
+                throw ReturnValueException(e.code(), args->fd, lineNo);
         }
     }
 
-    virtual void close(const close_args_t *args, int ) override {
+    virtual void close(const close_args_t *args, int) override {
         if(_fdMap[args->fd].is_valid())
             _fdMap[args->fd].reset();
         else if(_dirMap[args->fd]) {
@@ -115,14 +116,14 @@ public:
             exitmsg("Using uninitialized file @ " << args->fd);
     }
 
-    virtual void fsync(const fsync_args_t *, int ) override {
+    virtual void fsync(const fsync_args_t *, int) override {
         // TODO not implemented
     }
 
     virtual ssize_t read(int fd, void *buffer, size_t size) override {
         checkFd(fd);
         try {
-            char *buf = reinterpret_cast<char*>(buffer);
+            char *buf = reinterpret_cast<char *>(buffer);
             while(size > 0) {
                 ssize_t res = _fdMap[fd]->read(buf, size);
                 if(res <= 0)
@@ -130,7 +131,7 @@ public:
                 size -= static_cast<size_t>(res);
                 buf += res;
             }
-            return buf - reinterpret_cast<char*>(buffer);
+            return buf - reinterpret_cast<char *>(buffer);
         }
         catch(const m3::Exception &e) {
             return -e.code();
@@ -175,7 +176,7 @@ public:
         }
     }
 
-    virtual void ftruncate(const ftruncate_args_t *, int ) override {
+    virtual void ftruncate(const ftruncate_args_t *, int) override {
         // TODO not implemented
     }
 
@@ -202,21 +203,21 @@ public:
                 exitmsg("Using uninitialized file/dir @ " << args->fd);
         });
 
-        if ((res == m3::Errors::NONE) != (args->err == 0))
+        if((res == m3::Errors::NONE) != (args->err == 0))
             throw ReturnValueException(res, args->err, lineNo);
     }
 
     virtual void fstatat(const fstatat_args_t *args, UNUSED int lineNo) override {
         m3::FileInfo info;
         m3::Errors::Code res = m3::VFS::try_stat(add_prefix(args->name), info);
-        if ((res == m3::Errors::NONE) != (args->err == 0))
+        if((res == m3::Errors::NONE) != (args->err == 0))
             throw ReturnValueException(res, args->err, lineNo);
     }
 
     virtual void stat(const stat_args_t *args, UNUSED int lineNo) override {
         m3::FileInfo info;
         m3::Errors::Code res = m3::VFS::try_stat(add_prefix(args->name), info);
-        if ((res == m3::Errors::NONE) != (args->err == 0))
+        if((res == m3::Errors::NONE) != (args->err == 0))
             throw ReturnValueException(res, args->err, lineNo);
     }
 
@@ -225,7 +226,7 @@ public:
             char tmpto[255];
             m3::VFS::rename(add_prefix(args->from), add_prefix_to(args->to, tmpto, sizeof(tmpto)));
         });
-        if ((res == m3::Errors::NONE) != (args->err == 0))
+        if((res == m3::Errors::NONE) != (args->err == 0))
             throw ReturnValueException(res, args->err, lineNo);
     }
 
@@ -233,7 +234,7 @@ public:
         int res = get_result_of([this, &args] {
             m3::VFS::unlink(add_prefix(args->name));
         });
-        if ((res == m3::Errors::NONE) != (args->err == 0))
+        if((res == m3::Errors::NONE) != (args->err == 0))
             throw ReturnValueException(res, args->err, lineNo);
     }
 
@@ -241,7 +242,7 @@ public:
         int res = get_result_of([this, &args] {
             m3::VFS::rmdir(add_prefix(args->name));
         });
-        if ((res == m3::Errors::NONE) != (args->err == 0))
+        if((res == m3::Errors::NONE) != (args->err == 0))
             throw ReturnValueException(res, args->err, lineNo);
     }
 
@@ -249,7 +250,7 @@ public:
         int res = get_result_of([this, &args] {
             m3::VFS::mkdir(add_prefix(args->name), 0777 /*args->mode*/);
         });
-        if ((res == m3::Errors::NONE) != (args->err == 0))
+        if((res == m3::Errors::NONE) != (args->err == 0))
             throw ReturnValueException(res, args->err, lineNo);
     }
 
@@ -291,22 +292,22 @@ public:
         try {
             m3::Dir::Entry e;
             int i;
-            // we don't check the result here because strace is often unable to determine the number of
-            // fetched entries.
+            // we don't check the result here because strace is often unable to determine the number
+            // of fetched entries.
             if(args->count == 0 && _dirMap[args->fd]->readdir(e))
-                ; //throw ReturnValueException(1, args->count, lineNo);
+                ; // throw ReturnValueException(1, args->count, lineNo);
             else {
                 for(i = 0; i < args->count && _dirMap[args->fd]->readdir(e); ++i)
                     ;
-                //if(i != args->count)
-                //    throw ReturnValueException(i, args->count, lineNo);
+                // if(i != args->count)
+                //     throw ReturnValueException(i, args->count, lineNo);
             }
         }
         catch(...) {
         }
     }
 
-    virtual void createfile(const createfile_args_t *, int ) override {
+    virtual void createfile(const createfile_args_t *, int) override {
         // TODO not implemented
     }
 

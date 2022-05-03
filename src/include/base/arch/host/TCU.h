@@ -19,16 +19,16 @@
 #pragma once
 
 #include <base/Common.h>
+#include <base/Env.h>
+#include <base/Errors.h>
 #include <base/util/String.h>
 #include <base/util/Util.h>
-#include <base/Errors.h>
-#include <base/Env.h>
 
 #include <limits>
 #include <pthread.h>
 
-#define TOTAL_EPS            128
-#define AVAIL_EPS            TOTAL_EPS
+#define TOTAL_EPS 128
+#define AVAIL_EPS TOTAL_EPS
 
 namespace m3 {
 
@@ -40,13 +40,14 @@ class TCU {
     friend class MsgBackend;
     friend class SocketBackend;
 
-    static constexpr size_t MAX_DATA_SIZE   = 1 * 1024 * 1024;
+    static constexpr size_t MAX_DATA_SIZE = 1 * 1024 * 1024;
+
 public:
     typedef word_t reg_t;
 
     struct Header {
-        size_t length;          // = mtype -> has to be non-zero
-        unsigned char opcode;   // should actually be part of length but causes trouble in msgsnd
+        size_t length;        // = mtype -> has to be non-zero
+        unsigned char opcode; // should actually be part of length but causes trouble in msgsnd
         label_t label;
         uint8_t has_replycap;
         uint16_t tile;
@@ -72,85 +73,83 @@ public:
         unsigned char data[];
     } PACKED;
 
-    static constexpr size_t HEADER_SIZE         = sizeof(Buffer) - MAX_DATA_SIZE;
-    static const size_t HEADER_COUNT            = std::numeric_limits<size_t>::max();
+    static constexpr size_t HEADER_SIZE = sizeof(Buffer) - MAX_DATA_SIZE;
+    static const size_t HEADER_COUNT = std::numeric_limits<size_t>::max();
 
-    static constexpr size_t MAX_MSGS            = sizeof(word_t) * 8;
+    static constexpr size_t MAX_MSGS = sizeof(word_t) * 8;
 
-    static const reg_t INVALID_EP               = 0xFF;
-    static const size_t NO_REPLIES              = INVALID_EP;
-    static const reg_t UNLIM_CREDITS            = 0xFFFF'FFFF;
+    static const reg_t INVALID_EP = 0xFF;
+    static const size_t NO_REPLIES = INVALID_EP;
+    static const reg_t UNLIM_CREDITS = 0xFFFF'FFFF;
 
     // command registers
-    static constexpr size_t CMD_ADDR            = 0;
-    static constexpr size_t CMD_SIZE            = 1;
-    static constexpr size_t CMD_EPID            = 2;
-    static constexpr size_t CMD_CTRL            = 3;
-    static constexpr size_t CMD_OFFSET          = 4;
-    static constexpr size_t CMD_REPLYLBL        = 5;
-    static constexpr size_t CMD_REPLY_EPID      = 6;
-    static constexpr size_t CMD_LENGTH          = 7;
-    static constexpr size_t CMD_ERROR           = 8;
+    static constexpr size_t CMD_ADDR = 0;
+    static constexpr size_t CMD_SIZE = 1;
+    static constexpr size_t CMD_EPID = 2;
+    static constexpr size_t CMD_CTRL = 3;
+    static constexpr size_t CMD_OFFSET = 4;
+    static constexpr size_t CMD_REPLYLBL = 5;
+    static constexpr size_t CMD_REPLY_EPID = 6;
+    static constexpr size_t CMD_LENGTH = 7;
+    static constexpr size_t CMD_ERROR = 8;
 
     // register starts and counts (cont.)
-    static constexpr size_t CMDS_RCNT           = 1 + CMD_ERROR;
+    static constexpr size_t CMDS_RCNT = 1 + CMD_ERROR;
 
-    static constexpr size_t EP_VALID            = 0;
+    static constexpr size_t EP_VALID = 0;
 
     // receive buffer registers
-    static constexpr size_t EP_BUF_ADDR         = 1;
-    static constexpr size_t EP_BUF_ORDER        = 2;
-    static constexpr size_t EP_BUF_MSGORDER     = 3;
-    static constexpr size_t EP_BUF_ROFF         = 4;
-    static constexpr size_t EP_BUF_WOFF         = 5;
-    static constexpr size_t EP_BUF_MSGCNT       = 6;
-    static constexpr size_t EP_BUF_MSGQID       = 7;
-    static constexpr size_t EP_BUF_UNREAD       = 8;
-    static constexpr size_t EP_BUF_OCCUPIED     = 9;
+    static constexpr size_t EP_BUF_ADDR = 1;
+    static constexpr size_t EP_BUF_ORDER = 2;
+    static constexpr size_t EP_BUF_MSGORDER = 3;
+    static constexpr size_t EP_BUF_ROFF = 4;
+    static constexpr size_t EP_BUF_WOFF = 5;
+    static constexpr size_t EP_BUF_MSGCNT = 6;
+    static constexpr size_t EP_BUF_MSGQID = 7;
+    static constexpr size_t EP_BUF_UNREAD = 8;
+    static constexpr size_t EP_BUF_OCCUPIED = 9;
 
     // for sending message and accessing memory
-    static constexpr size_t EP_PEID             = 10;
-    static constexpr size_t EP_EPID             = 11;
-    static constexpr size_t EP_LABEL            = 12;
-    static constexpr size_t EP_CREDITS          = 13;
-    static constexpr size_t EP_MSGORDER         = 14;
-    static constexpr size_t EP_PERM             = 15;
+    static constexpr size_t EP_PEID = 10;
+    static constexpr size_t EP_EPID = 11;
+    static constexpr size_t EP_LABEL = 12;
+    static constexpr size_t EP_CREDITS = 13;
+    static constexpr size_t EP_MSGORDER = 14;
+    static constexpr size_t EP_PERM = 15;
 
     // bits in ctrl register
-    static constexpr word_t CTRL_START          = 0x1;
-    static constexpr word_t CTRL_DEL_REPLY_CAP  = 0x2;
+    static constexpr word_t CTRL_START = 0x1;
+    static constexpr word_t CTRL_DEL_REPLY_CAP = 0x2;
 
-    static constexpr size_t OPCODE_SHIFT        = 3;
+    static constexpr size_t OPCODE_SHIFT = 3;
 
     // register counts (cont.)
-    static constexpr size_t EP_REGS             = 1 + EP_PERM;
+    static constexpr size_t EP_REGS = 1 + EP_PERM;
 
-    enum CmdFlags {
-        NOPF                                    = 1,
-    };
+    enum CmdFlags { NOPF = 1, };
 
     enum Op {
-        READ                                    = 1,
-        WRITE                                   = 2,
-        SEND                                    = 3,
-        REPLY                                   = 4,
-        RESP                                    = 5,
-        FETCHMSG                                = 6,
-        ACKMSG                                  = 7,
-        SLEEP                                   = 8,
+        READ = 1,
+        WRITE = 2,
+        SEND = 3,
+        REPLY = 4,
+        RESP = 5,
+        FETCHMSG = 6,
+        ACKMSG = 7,
+        SLEEP = 8,
     };
 
-    static const epid_t TMUP_REP                = 0;    // unused
+    static const epid_t TMUP_REP = 0; // unused
 
-    static const epid_t SYSC_SEP_OFF            = 0;
-    static const epid_t SYSC_REP_OFF            = 1;
-    static const epid_t UPCALL_REP_OFF          = 2;
-    static const epid_t DEF_REP_OFF             = 3;
-    static const epid_t PG_SEP_OFF              = 0;    // unused
-    static const epid_t PG_REP_OFF              = 0;    // unused
+    static const epid_t SYSC_SEP_OFF = 0;
+    static const epid_t SYSC_REP_OFF = 1;
+    static const epid_t UPCALL_REP_OFF = 2;
+    static const epid_t DEF_REP_OFF = 3;
+    static const epid_t PG_SEP_OFF = 0; // unused
+    static const epid_t PG_REP_OFF = 0; // unused
 
-    static const epid_t FIRST_USER_EP           = 0;
-    static const epid_t STD_EPS_COUNT           = 4;
+    static const epid_t FIRST_USER_EP = 0;
+    static const epid_t STD_EPS_COUNT = 4;
 
     static TCU &get() {
         return inst;
@@ -168,7 +167,7 @@ public:
     }
 
     word_t *ep_regs() {
-        return const_cast<word_t*>(_epregs);
+        return const_cast<word_t *>(_epregs);
     }
 
     word_t get_ep(epid_t ep, size_t reg) const {
@@ -180,7 +179,7 @@ public:
 
     void configure(epid_t ep, label_t label, uint perms, tileid_t tile, epid_t dstep,
                    word_t credits, uint msgorder) {
-        configure(const_cast<word_t*>(_epregs), ep, label, perms, tile, dstep, credits, msgorder);
+        configure(const_cast<word_t *>(_epregs), ep, label, perms, tile, dstep, credits, msgorder);
     }
     static void configure(word_t *eps, epid_t ep, label_t label, uint perms, tileid_t tile,
                           epid_t dstep, word_t credits, uint msgorder) {
@@ -199,7 +198,8 @@ public:
         setup_command(ep, SEND, msg.bytes(), msg.size(), 0, 0, replylbl, replyep);
         return exec_command();
     }
-    Errors::Code send_aligned(epid_t ep, const void *msg, size_t len, label_t replylbl, epid_t replyep) {
+    Errors::Code send_aligned(epid_t ep, const void *msg, size_t len, label_t replylbl,
+                              epid_t replyep) {
         setup_command(ep, SEND, msg, len, 0, 0, replylbl, replyep);
         return exec_command();
     }
@@ -251,8 +251,8 @@ public:
         return (get_cmd(CMD_CTRL) >> OPCODE_SHIFT) == 0;
     }
 
-    void setup_command(epid_t ep, int op, const void *msg, size_t size, size_t offset,
-                       size_t len, label_t replylbl, epid_t replyep) {
+    void setup_command(epid_t ep, int op, const void *msg, size_t size, size_t offset, size_t len,
+                       label_t replylbl, epid_t replyep) {
         set_cmd(CMD_ADDR, reinterpret_cast<word_t>(msg));
         set_cmd(CMD_SIZE, size);
         set_cmd(CMD_EPID, ep);
@@ -264,7 +264,8 @@ public:
         if(op == REPLY)
             set_cmd(CMD_CTRL, static_cast<word_t>(op << OPCODE_SHIFT) | CTRL_START);
         else
-            set_cmd(CMD_CTRL, static_cast<word_t>(op << OPCODE_SHIFT) | CTRL_START | CTRL_DEL_REPLY_CAP);
+            set_cmd(CMD_CTRL,
+                    static_cast<word_t>(op << OPCODE_SHIFT) | CTRL_START | CTRL_DEL_REPLY_CAP);
     }
 
     Errors::Code exec_command();
@@ -287,8 +288,8 @@ public:
     }
 
     void drop_msgs(size_t buf_addr, epid_t ep, label_t label) {
-        // we assume that the one that used the label can no longer send messages. thus, if there are
-        // no messages yet, we are done.
+        // we assume that the one that used the label can no longer send messages. thus, if there
+        // are no messages yet, we are done.
         if(get_ep(ep, m3::TCU::EP_BUF_MSGCNT) == 0)
             return;
 
@@ -310,7 +311,7 @@ public:
         return reinterpret_cast<uintptr_t>(msg) - (base + env()->rbuf_start());
     }
     static const Message *offset_to_msg(size_t base, size_t msg_off) {
-        return reinterpret_cast<const Message*>(base + env()->rbuf_start() + msg_off);
+        return reinterpret_cast<const Message *>(base + env()->rbuf_start() + msg_off);
     }
 
 private:
@@ -344,11 +345,10 @@ private:
     void start_sleep();
     void stop_sleep();
 
-    Errors::Code perform_transfer(epid_t ep, uintptr_t data_addr, size_t size,
-                                  goff_t off, int cmd);
+    Errors::Code perform_transfer(epid_t ep, uintptr_t data_addr, size_t size, goff_t off, int cmd);
 
-    static Errors::Code check_cmd(epid_t ep, int op, word_t addr, word_t credits,
-                                  size_t offset, size_t length);
+    static Errors::Code check_cmd(epid_t ep, int op, word_t addr, word_t credits, size_t offset,
+                                  size_t length);
     static void *thread(void *arg);
 
     volatile bool _run;

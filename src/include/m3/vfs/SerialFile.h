@@ -52,7 +52,7 @@ public:
         return 0;
     }
     virtual ssize_t write(const void *buffer, size_t count) override {
-        auto buf = reinterpret_cast<const char*>(buffer);
+        auto buf = reinterpret_cast<const char *>(buffer);
         while(count > 0) {
             ssize_t res = Machine::write(buf, count);
             if(res < 0)
@@ -60,7 +60,7 @@ public:
             count -= static_cast<size_t>(res);
             buf += res;
         }
-        return static_cast<ssize_t>(buf - reinterpret_cast<const char*>(buffer));
+        return static_cast<ssize_t>(buf - reinterpret_cast<const char *>(buffer));
     }
 
     virtual FileRef<File> clone() const override {

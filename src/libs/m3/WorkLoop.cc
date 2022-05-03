@@ -18,10 +18,10 @@
 
 #include <base/Panic.h>
 
+#include <m3/WorkLoop.h>
 #include <m3/com/GateStream.h>
 #include <m3/com/RecvGate.h>
 #include <m3/tiles/OwnActivity.h>
-#include <m3/WorkLoop.h>
 
 #include <thread/ThreadManager.h>
 
@@ -40,7 +40,7 @@ WorkLoop::~WorkLoop() {
 void WorkLoop::multithreaded(UNUSED uint count) {
 #if defined(__gem5__)
     RecvGate::upcall().start(this, [](GateIStream &is) {
-        auto &msg = reinterpret_cast<const KIF::Upcall::DefaultUpcall&>(is.message().data);
+        auto &msg = reinterpret_cast<const KIF::Upcall::DefaultUpcall &>(is.message().data);
 
         ThreadManager::get().notify(msg.event, &msg, sizeof(msg));
 
@@ -56,7 +56,7 @@ void WorkLoop::multithreaded(UNUSED uint count) {
 }
 
 void WorkLoop::thread_startup(void *arg) {
-    WorkLoop *wl = reinterpret_cast<WorkLoop*>(arg);
+    WorkLoop *wl = reinterpret_cast<WorkLoop *>(arg);
     wl->run();
 
     wl->thread_shutdown();

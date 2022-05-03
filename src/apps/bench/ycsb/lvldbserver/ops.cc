@@ -13,14 +13,14 @@
  * General Public License version 2 for more details.
  */
 
+#include "ops.h"
+
 #include <base/TCU.h>
 
-#include <m3/stream/Standard.h>
 #include <m3/Exception.h>
+#include <m3/stream/Standard.h>
 
 #include <sstream>
-
-#include "ops.h"
 
 #define DEBUG 0
 
@@ -41,8 +41,8 @@ LevelDBExecutor::LevelDBExecutor(const char *db)
     options.create_if_missing = true;
     leveldb::Status status = leveldb::DB::Open(options, db, &_db);
     if(!status.ok())
-        VTHROW(m3::Errors::INV_ARGS, "Unable to open/create DB '" << db
-            << "': " << status.ToString().c_str());
+        VTHROW(m3::Errors::INV_ARGS,
+               "Unable to open/create DB '" << db << "': " << status.ToString().c_str());
 }
 
 LevelDBExecutor::~LevelDBExecutor() {
@@ -67,7 +67,7 @@ void LevelDBExecutor::print_stats(size_t num_ops) {
     avg = _n_insert > 0 ? _t_insert / _n_insert : m3::TimeDuration::ZERO;
     m3::cout << "        Insert: " << _t_insert << ",\t avg_time: " << avg << "\n",
 
-    avg = _n_read > 0 ? _t_read / _n_read : m3::TimeDuration::ZERO;
+        avg = _n_read > 0 ? _t_read / _n_read : m3::TimeDuration::ZERO;
     m3::cout << "        Read:   " << _t_read << ",\t avg_time: " << avg << "\n";
 
     avg = _n_update > 0 ? _t_update / _n_update : m3::TimeDuration::ZERO;
@@ -85,7 +85,8 @@ size_t LevelDBExecutor::execute(Package &pkg) {
 #endif
 #if DEBUG > 1
     for(auto &pair : pkg.kv_pairs)
-        m3::cout << "  key='field" << pair.first.c_str() << "' val='" << pair.second.c_str() << "'\n";
+        m3::cout << "  key='field" << pair.first.c_str() << "' val='" << pair.second.c_str()
+                 << "'\n";
 #endif
 
     switch(pkg.op) {
@@ -112,8 +113,8 @@ size_t LevelDBExecutor::execute(Package &pkg) {
             for(auto &pair : vals) {
                 bytes += pair.first.size() + pair.second.size();
 #if DEBUG > 1
-                m3::cout << "  found '" << pair.first.c_str()
-                         << "' -> '" << pair.second.c_str() << "'\n";
+                m3::cout << "  found '" << pair.first.c_str() << "' -> '" << pair.second.c_str()
+                         << "'\n";
 #endif
             }
             _t_read += m3::TimeInstant::now().duration_since(start);
@@ -128,8 +129,8 @@ size_t LevelDBExecutor::execute(Package &pkg) {
             for(auto &pair : vals) {
                 bytes += pair.first.size() + pair.second.size();
 #if DEBUG > 1
-                m3::cout << "  found '" << pair.first.c_str()
-                         << "' -> '" << pair.second.c_str() << "'\n";
+                m3::cout << "  found '" << pair.first.c_str() << "' -> '" << pair.second.c_str()
+                         << "'\n";
 #endif
             }
             _t_scan += m3::TimeInstant::now().duration_since(start);
@@ -137,9 +138,7 @@ size_t LevelDBExecutor::execute(Package &pkg) {
             return bytes;
         }
 
-        case Operation::DELETE:
-            m3::cerr << "DELETE is not supported\n";
-            return 4;
+        case Operation::DELETE: m3::cerr << "DELETE is not supported\n"; return 4;
     }
 
     return 0;
@@ -174,7 +173,7 @@ std::vector<std::pair<std::string, std::string>> LevelDBExecutor::exec_read(Pack
     // If the k,v pairs are empty, this means "all fields" should be read
     if(pkg.kv_pairs.empty()) {
         leveldb::Iterator *it = _db->NewIterator(leveldb::ReadOptions());
-        for (it->SeekToFirst(); it->Valid(); it->Next()) {
+        for(it->SeekToFirst(); it->Valid(); it->Next()) {
             std::istringstream is(it->key().ToString());
             uint64_t key;
             is >> key;
@@ -190,7 +189,7 @@ std::vector<std::pair<std::string, std::string>> LevelDBExecutor::exec_read(Pack
             auto key = pack_key(pkg.key, pair.first, "");
             std::string value;
             auto s = _db->Get(leveldb::ReadOptions(), key, &value);
-            if (s.ok())
+            if(s.ok())
                 res.push_back(std::make_pair(pair.first, value));
             else
                 m3::cerr << "Unable to find key '" << key.c_str() << "'\n";
@@ -220,7 +219,7 @@ std::vector<std::pair<std::string, std::string>> LevelDBExecutor::exec_scan(Pack
     }
     else
         it->SeekToFirst();
-    for (; rem > 0 && it->Valid(); it->Next()) {
+    for(; rem > 0 && it->Valid(); it->Next()) {
         auto pair = unpack_key(it->key().ToString());
         if(pair.first >= pkg.key) {
             if(take_field(pkg, pair.second)) {

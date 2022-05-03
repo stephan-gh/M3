@@ -13,27 +13,27 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/util/Math.h>
 #include <base/Env.h>
+#include <base/util/Math.h>
 
 #include <m3/EnvVars.h>
 
 #include <algorithm>
 #include <assert.h>
 #include <sstream>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 namespace m3 {
 
 // on host, __environ refers to the host-env-vars, not ours.
 #if defined(__host__)
-#   define environ (reinterpret_cast<char**&>(env()->envp))
+#    define environ (reinterpret_cast<char **&>(env()->envp))
 // on kachel, __environ is provided by musl and we want to compatible so that applications can use
 // setenv/EnvVars::set etc. interchangeably.
 #else
 extern "C" char **__environ;
-#   define environ __environ
+#    define environ __environ
 #endif
 
 static bool copied = false;
@@ -50,7 +50,7 @@ static void env_vars_dealloc() {
 void EnvVars::append(char *pair) {
     size_t total = count();
     // we need two more slots; the new var and null-termination
-    environ = static_cast<char**>(realloc(environ, (total + 2) * sizeof(char*)));
+    environ = static_cast<char **>(realloc(environ, (total + 2) * sizeof(char *)));
     assert(environ != nullptr);
     environ[total] = pair;
     environ[total + 1] = nullptr;
@@ -62,7 +62,7 @@ void EnvVars::copy() {
         char **old = environ;
         // allocate array with sufficient slots
         size_t total = count();
-        environ = static_cast<char**>(malloc((total + 1) * sizeof(char*)));
+        environ = static_cast<char **>(malloc((total + 1) * sizeof(char *)));
         assert(environ != nullptr);
 
         // add vars
@@ -110,7 +110,7 @@ void EnvVars::set(const char *key, const char *value) {
 
     // create new entry
     size_t key_len = strlen(key);
-    char *nvar = static_cast<char*>(malloc(key_len + strlen(value) + 2));
+    char *nvar = static_cast<char *>(malloc(key_len + strlen(value) + 2));
     assert(nvar != nullptr);
     strcpy(nvar, key);
     nvar[key_len] = '=';
@@ -137,7 +137,7 @@ void EnvVars::remove(const char *key) {
         free(*var);
         // move following backwards
         size_t following = static_cast<size_t>(var - environ);
-        memmove(var, var + 1, (total - following - 1) * sizeof(char*));
+        memmove(var, var + 1, (total - following - 1) * sizeof(char *));
         // null-termination
         environ[total - 1] = nullptr;
     }

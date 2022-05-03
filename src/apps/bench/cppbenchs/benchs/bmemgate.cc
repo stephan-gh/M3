@@ -17,11 +17,11 @@
  */
 
 #include <base/Common.h>
-#include <base/time/Profile.h>
 #include <base/Panic.h>
+#include <base/time/Profile.h>
 
-#include <m3/vfs/FileRef.h>
 #include <m3/Test.h>
+#include <m3/vfs/FileRef.h>
 
 #include "../cppbenchs.h"
 
@@ -34,7 +34,7 @@ alignas(PAGE_SIZE) static char buf[8192];
 NOINLINE static void read() {
     MemGate mgate = MemGate::create_global(8192, MemGate::R);
 
-    Profile pr(2, 1);;
+    Profile pr(2, 1);
     WVPERF("read 2 MiB with 8K buf", pr.run<CycleInstant>([&mgate] {
         size_t total = 0;
         while(total < SIZE) {

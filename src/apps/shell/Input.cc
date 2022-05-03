@@ -13,9 +13,11 @@
  * General Public License version 2 for more details.
  */
 
+#include "Input.h"
+
+#include <m3/EnvVars.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/Dir.h>
-#include <m3/EnvVars.h>
 
 #include <algorithm>
 #include <ctype.h>
@@ -23,7 +25,6 @@
 #include <vector>
 
 #include "Builtin.h"
-#include "Input.h"
 
 using namespace m3;
 
@@ -104,8 +105,9 @@ static std::vector<std::string> get_completions(const char *line, size_t len, si
     const char *lastdir = strrchr(prefix, '/');
     const char *filename = lastdir ? lastdir + 1 : prefix;
     if(*filename || tab_count > 1) {
-        std::string dirname = lastdir ?
-            std::string(prefix, 0, 1 + static_cast<size_t>(lastdir - prefix)) : std::string();
+        std::string dirname =
+            lastdir ? std::string(prefix, 0, 1 + static_cast<size_t>(lastdir - prefix))
+                    : std::string();
         try {
             Dir::Entry e;
             Dir dir(dirname.c_str());
@@ -251,9 +253,7 @@ ssize_t Input::readline(char *buffer, size_t max) {
             tab_count = 0;
 
         switch(c) {
-            case '\t':
-                handle_tab(buffer, o);
-                break;
+            case '\t': handle_tab(buffer, o); break;
             case 0x17: // ^W
                 handle_worddel(buffer, o);
                 break;

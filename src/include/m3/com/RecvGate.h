@@ -21,8 +21,8 @@
 #include <base/Common.h>
 #include <base/util/Util.h>
 
-#include <m3/com/Gate.h>
 #include <m3/WorkLoop.h>
+#include <m3/com/Gate.h>
 
 #include <functional>
 #include <memory>
@@ -79,7 +79,7 @@ class RecvGate : public Gate {
     explicit RecvGate(capsel_t cap, size_t addr, epid_t ep, uint order, uint msgorder, uint flags);
 
 public:
-    using msghandler_t = std::function<void(GateIStream&)>;
+    using msghandler_t = std::function<void(GateIStream &)>;
 
     /**
      * @return the receive gate for system call replies
@@ -139,15 +139,15 @@ public:
      */
     static RecvGate bind(capsel_t sel, uint order, uint msgorder) noexcept;
 
-    RecvGate(const RecvGate&) = delete;
-    RecvGate &operator=(const RecvGate&) = delete;
+    RecvGate(const RecvGate &) = delete;
+    RecvGate &operator=(const RecvGate &) = delete;
     RecvGate(RecvGate &&r) noexcept
-            : Gate(std::move(r)),
-              _buf(r._buf),
-              _buf_addr(r._buf_addr),
-              _order(r._order),
-              _handler(r._handler),
-              _workitem(std::move(r._workitem)) {
+        : Gate(std::move(r)),
+          _buf(r._buf),
+          _buf_addr(r._buf_addr),
+          _order(r._order),
+          _handler(r._handler),
+          _workitem(std::move(r._workitem)) {
         r._buf = nullptr;
         r._workitem = nullptr;
     }

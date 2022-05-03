@@ -20,7 +20,7 @@
 
 #include <base/log/Log.h>
 
-#define LLOG(lvl, msg)  LOG(LibLog, lvl, msg)
+#define LLOG(lvl, msg) LOG(LibLog, lvl, msg)
 
 namespace m3 {
 
@@ -29,22 +29,22 @@ class LibLog {
 
 public:
     enum Level {
-        DEF         = 1 << 0,
-        TCU         = 1 << 1,
-        TCU_SLEEP   = 1 << 2,
-        TCUERR      = 1 << 3,
-        IPC         = 1 << 4,
-        TRACE       = 1 << 5,
-        IRQS        = 1 << 6,
-        SHM         = 1 << 7,
-        HEAP        = 1 << 8,
-        FS          = 1 << 9,
-        SERV        = 1 << 10,
-        THREAD      = 1 << 11,
-        ACCEL       = 1 << 12,
-        FILES       = 1 << 13,
-        NET 		= 1 << 14,
-        DIRPIPE     = 1 << 15,
+        DEF = 1 << 0,
+        TCU = 1 << 1,
+        TCU_SLEEP = 1 << 2,
+        TCUERR = 1 << 3,
+        IPC = 1 << 4,
+        TRACE = 1 << 5,
+        IRQS = 1 << 6,
+        SHM = 1 << 7,
+        HEAP = 1 << 8,
+        FS = 1 << 9,
+        SERV = 1 << 10,
+        THREAD = 1 << 11,
+        ACCEL = 1 << 12,
+        FILES = 1 << 13,
+        NET = 1 << 14,
+        DIRPIPE = 1 << 15,
     };
 
     static const int level = DEF | TCUERR;

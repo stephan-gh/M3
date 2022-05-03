@@ -11,15 +11,14 @@
 #pragma once
 
 #include <iostream>
-#include <vector>
 #include <string>
+#include <vector>
 
 class OpDescr {
-
-  public:
+public:
     typedef std::vector<std::string> ArgsVector;
 
-    virtual ~OpDescr() { };
+    virtual ~OpDescr(){};
 
     /*
      * @brief Returns a line of C code that describes the operation to be
@@ -41,8 +40,8 @@ protected:
      *                    extracted arguments.
      * @param retVal      Extracted return value.
      */
-    virtual void extractValues(const std::string &str, size_t numArgs,
-                               ArgsVector &args, std::string &retVal) const;
+    virtual void extractValues(const std::string &str, size_t numArgs, ArgsVector &args,
+                               std::string &retVal) const;
 
     virtual size_t argLen(std::string const &str, size_t pos, size_t &newPos, bool &foundEnd) const;
     virtual void validateString(const std::string &str, size_t numArgs) const;
@@ -54,11 +53,9 @@ protected:
     std::string codeStr;
 };
 
-
-class FoldableOpDescr: public OpDescr {
-
-  public:
-    FoldableOpDescr(): repeatCount(1) { };
+class FoldableOpDescr : public OpDescr {
+public:
+    FoldableOpDescr() : repeatCount(1){};
 
     /*
      * @brief Merge another FoldableOpDescr if the operations matches described
@@ -66,16 +63,14 @@ class FoldableOpDescr: public OpDescr {
      */
     virtual bool merge(const FoldableOpDescr &fod);
 
-  protected:
+protected:
     virtual std::string codeLine();
 
     unsigned int repeatCount;
 };
 
-
 class OpDescrFactory {
-
-  public:
+public:
     /*
      * @brief Create a descendent of OpDescr representing the I/O operation
      *        that is described by the a line of strace log output.
@@ -87,6 +82,6 @@ class OpDescrFactory {
      */
     static std::string sysCallName(const std::string &line);
 
-  protected:
+protected:
     static bool isStringHead(const std::string &str, const std::string &head);
 };

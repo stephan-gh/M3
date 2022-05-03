@@ -19,9 +19,9 @@
 #pragma once
 
 #if defined(__host__)
-#   include <base/arch/host/Config.h>
+#    include <base/arch/host/Config.h>
 #elif defined(__kachel__)
-#   include <base/arch/kachel/Config.h>
+#    include <base/arch/kachel/Config.h>
 #else
-#   error "Unsupported platform"
+#    error "Unsupported platform"
 #endif

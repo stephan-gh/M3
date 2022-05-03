@@ -21,12 +21,12 @@
 #include <base/Errors.h>
 #include <base/KIF.h>
 
+#include <m3/ObjCap.h>
 #include <m3/com/GateStream.h>
 #include <m3/tiles/Activity.h>
 #include <m3/vfs/FileRef.h>
-#include <m3/vfs/GenericFile.h>
 #include <m3/vfs/FileTable.h>
-#include <m3/ObjCap.h>
+#include <m3/vfs/GenericFile.h>
 
 namespace m3 {
 
@@ -43,8 +43,8 @@ public:
         args.bytes = os.total();
         obtain_for(Activity::own(), KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sels, 2), &args);
         auto flags = FILE_NEWSESS | (read ? FILE_R : FILE_W);
-        auto file = std::unique_ptr<GenericFile>(
-            new GenericFile(flags, sels, static_cast<size_t>(-1)));
+        auto file =
+            std::unique_ptr<GenericFile>(new GenericFile(flags, sels, static_cast<size_t>(-1)));
         return Activity::own().files()->alloc(std::move(file));
     }
 };

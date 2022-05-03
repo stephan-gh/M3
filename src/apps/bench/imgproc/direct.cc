@@ -19,18 +19,18 @@
 #include <base/stream/Serial.h>
 #include <base/time/Instant.h>
 
-#include <m3/accel/StreamAccel.h>
-#include <m3/stream/Standard.h>
-#include <m3/pipe/IndirectPipe.h>
-#include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
+#include <m3/accel/StreamAccel.h>
+#include <m3/pipe/IndirectPipe.h>
+#include <m3/stream/Standard.h>
+#include <m3/vfs/VFS.h>
 
 #include "imgproc.h"
 
 using namespace m3;
 
-static constexpr bool VERBOSE           = 1;
-static constexpr size_t PIPE_SHM_SIZE   = 512 * 1024;
+static constexpr bool VERBOSE = 1;
+static constexpr size_t PIPE_SHM_SIZE = 512 * 1024;
 
 static const char *names[] = {
     "FFT",
@@ -40,10 +40,10 @@ static const char *names[] = {
 
 class DirectChain {
 public:
-    static const size_t ACCEL_COUNT     = 3;
+    static const size_t ACCEL_COUNT = 3;
 
-    explicit DirectChain(Pipes &pipesrv, size_t id,
-                         FileRef<GenericFile> &in, FileRef<GenericFile> &out, Mode _mode)
+    explicit DirectChain(Pipes &pipesrv, size_t id, FileRef<GenericFile> &in,
+                         FileRef<GenericFile> &out, Mode _mode)
         : mode(_mode),
           acts(),
           accels(),
@@ -54,7 +54,8 @@ public:
             OStringStream name;
             name << names[i] << id;
 
-            if(VERBOSE) Serial::get() << "Creating Activity " << name.str() << "\n";
+            if(VERBOSE)
+                Serial::get() << "Creating Activity " << name.str() << "\n";
 
             tiles[i] = Tile::get("copy");
             acts[i] = std::make_unique<ChildActivity>(tiles[i], name.str());
@@ -62,14 +63,14 @@ public:
             accels[i] = std::make_unique<StreamAccel>(acts[i], ACCEL_TIMES[i]);
 
             if(mode == Mode::DIR_SIMPLE && i + 1 < ACCEL_COUNT) {
-                mems[i] = std::make_unique<MemGate>(
-                    MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
-                pipes[i] = std::make_unique<IndirectPipe>(
-                    pipesrv, *mems[i], PIPE_SHM_SIZE);
+                mems[i] =
+                    std::make_unique<MemGate>(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
+                pipes[i] = std::make_unique<IndirectPipe>(pipesrv, *mems[i], PIPE_SHM_SIZE);
             }
         }
 
-        if(VERBOSE) Serial::get() << "Connecting input and output...\n";
+        if(VERBOSE)
+            Serial::get() << "Connecting input and output...\n";
 
         // connect input/output
         accels[0]->connect_input(&*in);
@@ -111,8 +112,7 @@ public:
         for(size_t i = 0; i < ACCEL_COUNT; ++i) {
             if(running[i] && acts[i]->sel() == act) {
                 if(exitcode != 0) {
-                    cerr << "chain" << i
-                         << " terminated with exit code " << exitcode << "\n";
+                    cerr << "chain" << i << " terminated with exit code " << exitcode << "\n";
                 }
                 if(mode == Mode::DIR_SIMPLE) {
                     if(pipes[i])
@@ -164,14 +164,11 @@ CycleDuration chain_direct(const char *in, size_t num, Mode mode) {
         infds[i] = VFS::open(in, FILE_R | FILE_NEWSESS);
         outfds[i] = VFS::open(outpath.str(), FILE_W | FILE_TRUNC | FILE_CREATE | FILE_NEWSESS);
 
-        chains[i] = std::make_unique<DirectChain>(pipes,
-                                                  i,
-                                                  infds[i],
-                                                  outfds[i],
-                                                  mode);
+        chains[i] = std::make_unique<DirectChain>(pipes, i, infds[i], outfds[i], mode);
     }
 
-    if(VERBOSE) Serial::get() << "Starting chain...\n";
+    if(VERBOSE)
+        Serial::get() << "Starting chain...\n";
 
     auto start = CycleInstant::now();
 

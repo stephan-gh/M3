@@ -16,9 +16,9 @@
  * General Public License version 2 for more details.
  */
 
+#include <m3/Syscalls.h>
 #include <m3/session/ClientSession.h>
 #include <m3/session/ResMng.h>
-#include <m3/Syscalls.h>
 #include <m3/tiles/Activity.h>
 
 namespace m3 {
@@ -47,7 +47,8 @@ void ClientSession::delegate(const KIF::CapRngDesc &caps, KIF::ExchangeArgs *arg
     delegate_for(Activity::own(), caps, args);
 }
 
-void ClientSession::delegate_for(Activity &act, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args) {
+void ClientSession::delegate_for(Activity &act, const KIF::CapRngDesc &crd,
+                                 KIF::ExchangeArgs *args) {
     Syscalls::delegate(act.sel(), sel(), crd, args);
 }
 

@@ -18,13 +18,12 @@
 
 #include <base/stream/Serial.h>
 #include <base/time/Instant.h>
+
 #include <string.h>
 
 namespace m3 {
 
-const char *Serial::_colors[] = {
-    "31", "32", "33", "34", "35", "36"
-};
+const char *Serial::_colors[] = {"31", "32", "33", "34", "35", "36"};
 Serial *Serial::_inst USED;
 
 void Serial::init(const char *path, tileid_t tile) {

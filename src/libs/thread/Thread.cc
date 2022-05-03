@@ -17,25 +17,22 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/Panic.h>
+#include <base/mem/Heap.h>
+
 #include <thread/Thread.h>
 #include <thread/ThreadManager.h>
-#include <base/mem/Heap.h>
-#include <base/Panic.h>
 
 namespace m3 {
 
 int Thread::_next_id = 1;
 
-Thread::Thread(thread_func func, void *arg)
-    : _id(_next_id++),
-      _regs(),
-      _stack(),
-      _event(0) {
+Thread::Thread(thread_func func, void *arg) : _id(_next_id++), _regs(), _stack(), _event(0) {
     // TODO
     // better leave one page before and behind each stack free to detect stack-under-/overflows
-    void* addr = malloc(T_STACK_SZ);
+    void *addr = malloc(T_STACK_SZ);
 
-    _stack = reinterpret_cast<word_t*>(reinterpret_cast<uintptr_t>(addr));
+    _stack = reinterpret_cast<word_t *>(reinterpret_cast<uintptr_t>(addr));
     thread_init(func, arg, &_regs, _stack);
     ThreadManager::get().add(this);
 }

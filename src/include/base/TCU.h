@@ -19,6 +19,7 @@
 #pragma once
 
 #include <base/Common.h>
+
 #include <assert.h>
 #include <string.h>
 
@@ -57,13 +58,13 @@ public:
     template<typename T>
     T &cast() noexcept {
         _pos = sizeof(T);
-        return *reinterpret_cast<T*>(_bytes);
+        return *reinterpret_cast<T *>(_bytes);
     }
 
     template<typename T>
     const T &get() const noexcept {
         assert(_pos >= sizeof(T));
-        return *reinterpret_cast<const T*>(_bytes);
+        return *reinterpret_cast<const T *>(_bytes);
     }
 
     void set_size(size_t size) noexcept {
@@ -78,9 +79,9 @@ private:
 }
 
 #if defined(__host__)
-#   include <base/arch/host/TCU.h>
+#    include <base/arch/host/TCU.h>
 #elif defined(__kachel__)
-#   include <base/arch/kachel/TCU.h>
+#    include <base/arch/kachel/TCU.h>
 #else
-#   error "Unsupported platform"
+#    error "Unsupported platform"
 #endif

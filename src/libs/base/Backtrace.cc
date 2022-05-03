@@ -16,11 +16,11 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/Backtrace.h>
+#include <base/CPU.h>
+#include <base/Config.h>
 #include <base/stream/OStream.h>
 #include <base/util/Math.h>
-#include <base/Backtrace.h>
-#include <base/Config.h>
-#include <base/CPU.h>
 
 namespace m3 {
 

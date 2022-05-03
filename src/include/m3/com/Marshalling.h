@@ -18,9 +18,9 @@
 
 #pragma once
 
-#include <base/util/String.h>
-#include <base/util/Math.h>
 #include <base/TCU.h>
+#include <base/util/Math.h>
+#include <base/util/String.h>
 
 #include <m3/Exception.h>
 
@@ -64,7 +64,7 @@ public:
      * @param args the other values
      */
     template<typename T, typename... Args>
-    void vput(const T &val, const Args &... args) noexcept {
+    void vput(const T &val, const Args &...args) noexcept {
         *this << val;
         vput(args...);
     }
@@ -76,19 +76,19 @@ public:
      * @return *this
      */
     template<typename T>
-    Marshaller & operator<<(const T& value) noexcept {
+    Marshaller &operator<<(const T &value) noexcept {
         assert(fits(_bytecount, sizeof(T)));
-        *reinterpret_cast<xfer_t*>(_bytes + _bytecount) = (xfer_t)value;
+        *reinterpret_cast<xfer_t *>(_bytes + _bytecount) = (xfer_t)value;
         _bytecount += Math::round_up(sizeof(T), sizeof(xfer_t));
         return *this;
     }
-    Marshaller & operator<<(const char *value) noexcept {
+    Marshaller &operator<<(const char *value) noexcept {
         return put_str(value, strlen(value) + 1);
     }
-    Marshaller & operator<<(const StringRef& value) noexcept {
+    Marshaller &operator<<(const StringRef &value) noexcept {
         return put_str(value.c_str(), value.length() + 1);
     }
-    Marshaller & operator<<(const String& value) noexcept {
+    Marshaller &operator<<(const String &value) noexcept {
         return put_str(value.c_str(), value.length() + 1);
     }
 
@@ -108,10 +108,10 @@ public:
     void put(const Marshaller &os) noexcept;
 
 protected:
-    Marshaller & put_str(const char *value, size_t len) noexcept {
+    Marshaller &put_str(const char *value, size_t len) noexcept {
         assert(fits(_bytecount, len + sizeof(xfer_t)));
-        unsigned char *start = const_cast<unsigned char*>(bytes());
-        *reinterpret_cast<xfer_t*>(start + _bytecount) = len;
+        unsigned char *start = const_cast<unsigned char *>(bytes());
+        *reinterpret_cast<xfer_t *>(start + _bytecount) = len;
         memcpy(start + _bytecount + sizeof(xfer_t), value, len);
         _bytecount += Math::round_up(len + sizeof(xfer_t), sizeof(xfer_t));
         return *this;
@@ -141,7 +141,9 @@ public:
      * @param length the length of the data
      */
     explicit Unmarshaller(const unsigned char *data, size_t length) noexcept
-        : _pos(0), _length(length), _data(data) {
+        : _pos(0),
+          _length(length),
+          _data(data) {
     }
 
     Unmarshaller(const Unmarshaller &) = default;
@@ -183,7 +185,7 @@ public:
      * @param args the other values to write to
      */
     template<typename T, typename... Args>
-    void vpull(T &val, Args &... args) {
+    void vpull(T &val, Args &...args) {
         *this >> val;
         vpull(args...);
     }
@@ -195,32 +197,32 @@ public:
      * @return *this
      */
     template<typename T>
-    Unmarshaller & operator>>(T &value) {
+    Unmarshaller &operator>>(T &value) {
         if(_pos + sizeof(T) > length())
             throw Exception(Errors::INV_ARGS);
-        value = (T)*reinterpret_cast<const xfer_t*>(_data + _pos);
+        value = (T) * reinterpret_cast<const xfer_t *>(_data + _pos);
         _pos += Math::round_up(sizeof(T), sizeof(xfer_t));
         return *this;
     }
-    Unmarshaller & operator>>(String &value) {
+    Unmarshaller &operator>>(String &value) {
         if(_pos + sizeof(xfer_t) > length())
             throw Exception(Errors::INV_ARGS);
-        size_t len = *reinterpret_cast<const xfer_t*>(_data + _pos);
+        size_t len = *reinterpret_cast<const xfer_t *>(_data + _pos);
         _pos += sizeof(xfer_t);
         if(len == 0 || _pos + len > length())
             throw Exception(Errors::INV_ARGS);
-        value.reset(reinterpret_cast<const char*>(_data + _pos), len - 1);
+        value.reset(reinterpret_cast<const char *>(_data + _pos), len - 1);
         _pos += Math::round_up(len, sizeof(xfer_t));
         return *this;
     }
-    Unmarshaller & operator>>(StringRef &value) {
+    Unmarshaller &operator>>(StringRef &value) {
         if(_pos + sizeof(xfer_t) > length())
             throw Exception(Errors::INV_ARGS);
-        size_t len = *reinterpret_cast<const xfer_t*>(_data + _pos);
+        size_t len = *reinterpret_cast<const xfer_t *>(_data + _pos);
         _pos += sizeof(xfer_t);
         if(len == 0 || _pos + len > length())
             throw Exception(Errors::INV_ARGS);
-        value = StringRef(reinterpret_cast<const char*>(_data + _pos), len - 1);
+        value = StringRef(reinterpret_cast<const char *>(_data + _pos), len - 1);
         _pos += Math::round_up(len, sizeof(xfer_t));
         return *this;
     }
@@ -237,12 +239,13 @@ private:
 
 inline void Marshaller::put(const Unmarshaller &is) noexcept {
     assert(fits(_bytecount, is.remaining()));
-    memcpy(const_cast<unsigned char*>(bytes()) + _bytecount, is.buffer() + is.pos(), is.remaining());
+    memcpy(const_cast<unsigned char *>(bytes()) + _bytecount, is.buffer() + is.pos(),
+           is.remaining());
     _bytecount += is.remaining();
 }
 inline void Marshaller::put(const Marshaller &os) noexcept {
     assert(fits(_bytecount, os.total()));
-    memcpy(const_cast<unsigned char*>(bytes()) + _bytecount, os.bytes(), os.total());
+    memcpy(const_cast<unsigned char *>(bytes()) + _bytecount, os.bytes(), os.total());
     _bytecount += os.total();
 }
 
@@ -264,7 +267,7 @@ struct OStreamSize<String> {
     static const size_t value = sizeof(xfer_t) + String::DEFAULT_MAX_LEN;
 };
 template<>
-struct OStreamSize<const char*> {
+struct OStreamSize<const char *> {
     static const size_t value = sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN;
 };
 template<size_t N>
@@ -301,24 +304,20 @@ constexpr size_t vostreamsize(T1 len, Args... lens) {
     return Math::round_up(len, sizeof(xfer_t)) + vostreamsize<Args...>(lens...);
 }
 
-static_assert(
-    ostreamsize<int, float, int>() == sizeof(xfer_t) * 3,
-    "failed");
+static_assert(ostreamsize<int, float, int>() == sizeof(xfer_t) * 3, "failed");
 
-static_assert(
-    ostreamsize<short, StringRef>() == sizeof(xfer_t) + sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN,
-    "failed");
+static_assert(ostreamsize<short, StringRef>() ==
+                  sizeof(xfer_t) + sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN,
+              "failed");
 
-static_assert(
-    ostreamsize<short, String>() == sizeof(xfer_t) + sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN,
-    "failed");
+static_assert(ostreamsize<short, String>() ==
+                  sizeof(xfer_t) + sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN,
+              "failed");
 
-static_assert(
-    ostreamsize<short, const char*>() == sizeof(xfer_t) + sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN,
-    "failed");
+static_assert(ostreamsize<short, const char *>() ==
+                  sizeof(xfer_t) + sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN,
+              "failed");
 
-static_assert(
-    ostreamsize<short, char[5]>() == sizeof(xfer_t) + sizeof(xfer_t) + 5,
-    "failed");
+static_assert(ostreamsize<short, char[5]>() == sizeof(xfer_t) + sizeof(xfer_t) + 5, "failed");
 
 }

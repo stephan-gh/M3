@@ -29,12 +29,12 @@ namespace m3 {
 
 class NetEventChannel : public RefCounted {
 public:
-    static const size_t MSG_SIZE                = 2048;
-    static const size_t MSG_CREDITS             = 4;
-    static const size_t MSG_BUF_SIZE            = MSG_SIZE * MSG_CREDITS;
+    static const size_t MSG_SIZE = 2048;
+    static const size_t MSG_CREDITS = 4;
+    static const size_t MSG_BUF_SIZE = MSG_SIZE * MSG_CREDITS;
 
-    static const size_t REPLY_SIZE              = 32;
-    static const size_t REPLY_BUF_SIZE          = REPLY_SIZE * MSG_CREDITS;
+    static const size_t REPLY_SIZE = 32;
+    static const size_t REPLY_BUF_SIZE = REPLY_SIZE * MSG_CREDITS;
 
     enum EventType {
         Data,
@@ -65,11 +65,12 @@ public:
     struct CloseReqMessage : public ControlMessage {
     } PACKED;
 
-    static const size_t MAX_PACKET_SIZE         = MSG_SIZE - \
-        (sizeof(DataMessage) + sizeof(TCU::Message::Header));
+    static const size_t MAX_PACKET_SIZE =
+        MSG_SIZE - (sizeof(DataMessage) + sizeof(TCU::Message::Header));
 
     class Event {
-    friend class NetEventChannel;
+        friend class NetEventChannel;
+
     public:
         Event() noexcept;
         ~Event();
@@ -83,6 +84,7 @@ public:
         void finish();
 
         const ControlMessage *get_message() noexcept;
+
     private:
         explicit Event(const TCU::Message *msg, NetEventChannel *channel) noexcept;
 

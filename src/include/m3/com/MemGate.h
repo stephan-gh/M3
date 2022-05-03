@@ -77,8 +77,8 @@ public:
      * @param flags the flags to control whether the cap is kept
      * @return the memory gate
      */
-    static MemGate create_global_for(goff_t addr, size_t size, int perms,
-                                     capsel_t sel = INVALID, uint flags = 0);
+    static MemGate create_global_for(goff_t addr, size_t size, int perms, capsel_t sel = INVALID,
+                                     uint flags = 0);
 
     /**
      * Binds this gate for read/write/cmpxchg to the given memory capability. That is, the
@@ -91,9 +91,7 @@ public:
         return MemGate(flags, sel, true);
     }
 
-    MemGate(MemGate &&m) noexcept
-        : Gate(std::move(m)),
-          _revoke(m._revoke) {
+    MemGate(MemGate &&m) noexcept : Gate(std::move(m)), _revoke(m._revoke) {
     }
 
     ~MemGate();
@@ -121,7 +119,8 @@ public:
      * @param flags the capability flags
      * @return the new memory gate
      */
-    MemGate derive_for(capsel_t act, capsel_t sel, goff_t offset, size_t size, int perms = RWX, uint flags = 0) const;
+    MemGate derive_for(capsel_t act, capsel_t sel, goff_t offset, size_t size, int perms = RWX,
+                       uint flags = 0) const;
 
     /**
      * Writes the <len> bytes at <data> to <offset>.

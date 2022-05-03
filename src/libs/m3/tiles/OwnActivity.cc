@@ -31,10 +31,8 @@ INIT_PRIO_ACT OwnActivity OwnActivity::_self;
 
 // don't revoke these. they kernel does so on exit
 OwnActivity::OwnActivity()
-    : Activity(KIF::SEL_ACT, KEEP_CAP,
-               Tile::bind(KIF::SEL_TILE, TileDesc(env()->tile_desc)),
-               Reference<KMem>(new KMem(KIF::SEL_KMEM)),
-               nullptr),
+    : Activity(KIF::SEL_ACT, KEEP_CAP, Tile::bind(KIF::SEL_TILE, TileDesc(env()->tile_desc)),
+               Reference<KMem>(new KMem(KIF::SEL_KMEM)), nullptr),
       _epmng(*this),
       _ms(),
       _fds() {

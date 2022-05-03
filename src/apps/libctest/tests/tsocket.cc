@@ -15,9 +15,9 @@
 
 #include <base/Common.h>
 
+#include <m3/Test.h>
 #include <m3/com/Semaphore.h>
 #include <m3/tiles/ChildActivity.h>
-#include <m3/Test.h>
 
 #include <arpa/inet.h>
 #include <errno.h>
@@ -39,9 +39,9 @@ constexpr size_t BUF_SIZE = 256;
 static int open_socket(const char *addr, const char *port, int type, struct addrinfo **rp) {
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family   = AF_INET;
+    hints.ai_family = AF_INET;
     hints.ai_socktype = type;
-    hints.ai_flags    = 0;
+    hints.ai_flags = 0;
     hints.ai_protocol = 0;
 
     struct addrinfo *result;
@@ -99,15 +99,15 @@ static void generic_echo(const char *addr, const char *port, int type) {
 
     struct iovec msg_data;
     msg_data.iov_base = (void *)"mytest";
-    msg_data.iov_len  = 6;
+    msg_data.iov_len = 6;
     struct msghdr msg;
     memset(&msg, 0, sizeof(msg));
-    msg.msg_iov    = &msg_data;
+    msg.msg_iov = &msg_data;
     msg.msg_iovlen = 1;
     WVASSERTEQ(sendmsg(sfd, &msg, 0), 6);
 
     msg_data.iov_base = buf;
-    msg_data.iov_len  = sizeof(buf);
+    msg_data.iov_len = sizeof(buf);
     WVASSERTEQ(recvmsg(sfd, &msg, 0), 6);
     WVASSERT(strncmp(buf, "mytest", 6) == 0);
 
@@ -131,13 +131,13 @@ static int tcp_server() {
 
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family    = AF_INET;
-    hints.ai_socktype  = SOCK_STREAM;
-    hints.ai_flags     = AI_PASSIVE;
-    hints.ai_protocol  = 0;
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
+    hints.ai_protocol = 0;
     hints.ai_canonname = NULL;
-    hints.ai_addr      = NULL;
-    hints.ai_next      = NULL;
+    hints.ai_addr = NULL;
+    hints.ai_next = NULL;
 
     struct addrinfo *result;
     WVASSERTEQ(getaddrinfo(NULL, "2000", &hints, &result), 0);
@@ -165,7 +165,8 @@ static int tcp_server() {
 
     char buf[BUF_SIZE];
     peer_addr_size = sizeof(peer_addr);
-    ssize_t nread = recvfrom(cfd, buf, sizeof(buf), 0, (struct sockaddr *)&peer_addr, &peer_addr_size);
+    ssize_t nread =
+        recvfrom(cfd, buf, sizeof(buf), 0, (struct sockaddr *)&peer_addr, &peer_addr_size);
     WVASSERT(nread > 0);
 
     WVASSERTEQ(nread, 4);

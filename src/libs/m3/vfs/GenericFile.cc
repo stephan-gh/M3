@@ -18,17 +18,17 @@
 
 #include <base/log/Lib.h>
 
+#include <m3/Syscalls.h>
 #include <m3/com/GateStream.h>
 #include <m3/session/M3FS.h>
 #include <m3/vfs/FileTable.h>
 #include <m3/vfs/GenericFile.h>
 #include <m3/vfs/VFS.h>
-#include <m3/Syscalls.h>
 
 namespace m3 {
 
-GenericFile::GenericFile(int flags, capsel_t caps,
-                         size_t fs_id, size_t id, epid_t mep, SendGate *sg)
+GenericFile::GenericFile(int flags, capsel_t caps, size_t fs_id, size_t id, epid_t mep,
+                         SendGate *sg)
     : File(flags),
       _fs_id(fs_id),
       _id(id),
@@ -53,7 +53,7 @@ GenericFile::~GenericFile() {
         delete _sg;
     else {
         // we never want to invalidate the EP
-        delete const_cast<EP*>(_mg.ep());
+        delete const_cast<EP *>(_mg.ep());
         _mg.set_ep(nullptr);
     }
 }
@@ -285,8 +285,8 @@ ssize_t GenericFile::write(const void *buffer, size_t count) {
 
 void GenericFile::commit() {
     if(_pos > 0) {
-        LLOG(FS, "GenFile[" << fd() << "]::commit("
-            << (_writing ? "write" : "read") << ", " << _pos << ")");
+        LLOG(FS, "GenFile[" << fd() << "]::commit(" << (_writing ? "write" : "read") << ", " << _pos
+                            << ")");
 
         GateIStream reply = send_receive_vmsg(*_sg, COMMIT, _id, _pos);
         reply.pull_result();
@@ -344,8 +344,8 @@ NOINLINE void GenericFile::enable_notifications() {
 }
 
 void GenericFile::request_notification(uint events) {
-    LLOG(FS, "GenFile[" << fd() << "]::request_notification(want="
-        << fmt(events, "x") << ", have=" << fmt(_notify_requested, "x") << ")");
+    LLOG(FS, "GenFile[" << fd() << "]::request_notification(want=" << fmt(events, "x")
+                        << ", have=" << fmt(_notify_requested, "x") << ")");
 
     if((_notify_requested & events) != events) {
         GateIStream reply = send_receive_vmsg(*_sg, Operation::REQ_NOTIFY, _id, events);
@@ -367,8 +367,8 @@ bool GenericFile::fetch_signal() {
     return receive_notify(Event::SIGNAL, true);
 }
 
-void GenericFile::map(Reference<Pager> &pager, goff_t *virt, size_t fileoff, size_t len,
-                      int prot, int flags) const {
+void GenericFile::map(Reference<Pager> &pager, goff_t *virt, size_t fileoff, size_t len, int prot,
+                      int flags) const {
     pager->map_ds(virt, len, prot, flags, _sess, fileoff);
 }
 

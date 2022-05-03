@@ -14,10 +14,11 @@
  */
 
 #include <base/Common.h>
-#include <base/mem/Heap.h>
-#include <base/stream/Serial.h>
 #include <base/Env.h>
 #include <base/TileDesc.h>
+#include <base/mem/Heap.h>
+#include <base/stream/Serial.h>
+
 #include <string.h>
 
 // EXTERN_C void gem5_writefile(const char *str, uint64_t len, uint64_t offset, uint64_t file);
@@ -74,7 +75,7 @@ EXTERN_C int fputc(int c, void *) {
 }
 EXTERN_C size_t fwrite(const void *str, UNUSED size_t size, size_t nmemb, void *) {
     // assert(size == 1);
-    const char *s = reinterpret_cast<const char*>(str);
+    const char *s = reinterpret_cast<const char *>(str);
     auto &ser = m3::Serial::get();
     while(nmemb-- > 0)
         ser.write(*s++);

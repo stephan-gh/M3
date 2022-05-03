@@ -43,8 +43,8 @@ Socket::~Socket() {
 
 void Socket::tear_down() noexcept {
     try {
-        // we have no connection to tear down here, but only want to make sure that all packets we sent
-        // are seen and handled by the server. thus, wait until we have got all replies to our
+        // we have no connection to tear down here, but only want to make sure that all packets we
+        // sent are seen and handled by the server. thus, wait until we have got all replies to our
         // potentially in-flight packets, in which case we also have received our credits back.
         while(true) {
             wait_for_credits();
@@ -70,19 +70,19 @@ void Socket::process_message(const NetEventChannel::ControlMessage &message,
         case NetEventChannel::Data:
             return handle_data(static_cast<NetEventChannel::DataMessage const &>(message), event);
         case NetEventChannel::Connected:
-            return handle_connected(static_cast<NetEventChannel::ConnectedMessage const &>(message));
+            return handle_connected(
+                static_cast<NetEventChannel::ConnectedMessage const &>(message));
         case NetEventChannel::Closed:
             return handle_closed(static_cast<NetEventChannel::ClosedMessage const &>(message));
         case NetEventChannel::CloseReq:
             return handle_close_req(static_cast<NetEventChannel::CloseReqMessage const &>(message));
-        default:
-            throw Exception(Errors::NOT_SUP);
+        default: throw Exception(Errors::NOT_SUP);
     }
 }
 
 void Socket::handle_data(NetEventChannel::DataMessage const &msg, NetEventChannel::Event &event) {
     LLOG(NET, "socket " << _sd << ": received data with " << msg.size << "b"
-                              << " from " << IpAddr(msg.addr) << ":" << msg.port);
+                        << " from " << IpAddr(msg.addr) << ":" << msg.port);
     _recv_queue.append(new DataQueue::Item(&msg, std::move(event)));
 }
 

@@ -23,18 +23,18 @@
 #include <base/util/String.h>
 
 #if defined(__x86_64__)
-#   include <thread/isa/x86_64/Thread.h>
+#    include <thread/isa/x86_64/Thread.h>
 #elif defined(__arm__)
-#   include <thread/isa/arm/Thread.h>
+#    include <thread/isa/arm/Thread.h>
 #elif defined(__riscv)
-#   include <thread/isa/riscv/Thread.h>
+#    include <thread/isa/riscv/Thread.h>
 #else
-#   error "Unsupported ISA"
+#    error "Unsupported ISA"
 #endif
 
 namespace m3 {
 
-typedef void (*thread_func)(void*);
+typedef void (*thread_func)(void *);
 
 void thread_init(thread_func func, void *arg, Regs *regs, word_t *stack);
 
@@ -43,21 +43,16 @@ class ThreadManager;
 class Thread : public SListItem {
     friend class ThreadManager;
 
-    static constexpr size_t T_STACK_WORDS   = m3::T_STACK_WORDS;
-    static constexpr size_t T_STACK_SZ      = T_STACK_WORDS * sizeof(word_t);
-    static constexpr size_t MAX_MSG_SIZE    = 1024;
+    static constexpr size_t T_STACK_WORDS = m3::T_STACK_WORDS;
+    static constexpr size_t T_STACK_SZ = T_STACK_WORDS * sizeof(word_t);
+    static constexpr size_t MAX_MSG_SIZE = 1024;
 
 public:
     explicit Thread(thread_func func, void *arg);
     ~Thread();
 
 private:
-    explicit Thread()
-        : _id(_next_id++),
-          _regs(),
-          _stack(),
-          _event(0),
-          _content(false) {
+    explicit Thread() : _id(_next_id++), _regs(), _stack(), _event(0), _content(false) {
     }
 
     void subscribe(event_t event) {

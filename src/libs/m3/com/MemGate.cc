@@ -16,18 +16,17 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/util/Util.h>
 #include <base/Errors.h>
+#include <base/util/Util.h>
 
-#include <m3/com/MemGate.h>
-#include <m3/session/ResMng.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
+#include <m3/com/MemGate.h>
+#include <m3/session/ResMng.h>
 #include <m3/tiles/Activity.h>
 
-#include <thread/ThreadManager.h>
-
 #include <assert.h>
+#include <thread/ThreadManager.h>
 
 namespace m3 {
 
@@ -56,7 +55,8 @@ MemGate MemGate::derive(goff_t offset, size_t size, int perms) const {
     return MemGate(0, nsel, true);
 }
 
-MemGate MemGate::derive_for(capsel_t act, capsel_t cap, goff_t offset, size_t size, int perms, uint flags) const {
+MemGate MemGate::derive_for(capsel_t act, capsel_t cap, goff_t offset, size_t size, int perms,
+                            uint flags) const {
     Syscalls::derive_mem(act, cap, sel(), offset, size, perms);
     return MemGate(flags, cap, true);
 }

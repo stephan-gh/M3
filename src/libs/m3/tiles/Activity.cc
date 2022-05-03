@@ -16,15 +16,15 @@
  * General Public License version 2 for more details.
  */
 
+#include <m3/Syscalls.h>
 #include <m3/session/ResMng.h>
 #include <m3/tiles/Activity.h>
 #include <m3/tiles/OwnActivity.h>
-#include <m3/Syscalls.h>
 
 namespace m3 {
 
-Activity::Activity(capsel_t sel, uint flags,
-                   Reference<class Tile> tile, Reference<KMem> kmem, ResMng *resmng)
+Activity::Activity(capsel_t sel, uint flags, Reference<class Tile> tile, Reference<KMem> kmem,
+                   ResMng *resmng)
     : ObjCap(ACTIVITY, sel, flags),
       _id(),
       _next_sel(KIF::FIRST_FREE_SEL),

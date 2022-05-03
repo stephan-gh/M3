@@ -18,6 +18,7 @@
 
 #include <base/Common.h>
 #include <base/stream/IOSBase.h>
+
 #include <stdarg.h>
 
 namespace m3 {
@@ -89,13 +90,13 @@ class OStream : public virtual IOSBase {
     class FormatParams {
     public:
         enum Flags {
-            PADRIGHT    = 1 << 0,
-            FORCESIGN   = 1 << 1,
-            SPACESIGN   = 1 << 2,
-            PRINTBASE   = 1 << 3,
-            PADZEROS    = 1 << 4,
-            CAPHEX      = 1 << 5,
-            POINTER     = 1 << 6,
+            PADRIGHT = 1 << 0,
+            FORCESIGN = 1 << 1,
+            SPACESIGN = 1 << 2,
+            PRINTBASE = 1 << 3,
+            PADZEROS = 1 << 4,
+            CAPHEX = 1 << 5,
+            POINTER = 1 << 6,
         };
 
         explicit FormatParams(const char *fmt);
@@ -140,8 +141,7 @@ class OStream : public virtual IOSBase {
      * type given to fmt().
      */
     template<typename T>
-    class FormatImpl {
-    };
+    class FormatImpl {};
     template<typename T>
     class FormatImplPtr {
     public:
@@ -198,9 +198,9 @@ class OStream : public virtual IOSBase {
 
 public:
     /**
-     * This class can be written into an OStream to apply formatting while using the stream operators
-     * It will be used by the freestanding fmt() function, which makes it shorter because of template
-     * parameter type inference.
+     * This class can be written into an OStream to apply formatting while using the stream
+     * operators It will be used by the freestanding fmt() function, which makes it shorter because
+     * of template parameter type inference.
      */
     template<typename T>
     class Format {
@@ -237,8 +237,8 @@ public:
     virtual ~OStream() {
     }
 
-    OStream(const OStream&) = delete;
-    OStream &operator=(const OStream&) = delete;
+    OStream(const OStream &) = delete;
+    OStream &operator=(const OStream &) = delete;
 
     /**
      * Writes a value into the stream with formatting applied. This operator should be used in
@@ -246,7 +246,7 @@ public:
      * Serial::get() << fmt(0x123, "x") << "\n";
      */
     template<typename T>
-    OStream & operator<<(const Format<T>& fmt) {
+    OStream &operator<<(const Format<T> &fmt) {
         FormatParams p(fmt.fmt());
         p.padding(fmt.padding());
         p.precision(fmt.precision());
@@ -257,42 +257,42 @@ public:
     /**
      * Writes the given character/integer into the stream, without formatting
      */
-    OStream & operator<<(char c) {
+    OStream &operator<<(char c) {
         write(c);
         return *this;
     }
-    OStream & operator<<(uchar u) {
+    OStream &operator<<(uchar u) {
         return operator<<(static_cast<ullong>(u));
     }
-    OStream & operator<<(short n) {
+    OStream &operator<<(short n) {
         return operator<<(static_cast<llong>(n));
     }
-    OStream & operator<<(ushort u) {
+    OStream &operator<<(ushort u) {
         return operator<<(static_cast<ullong>(u));
     }
-    OStream & operator<<(int n) {
+    OStream &operator<<(int n) {
         return operator<<(static_cast<llong>(n));
     }
-    OStream & operator<<(uint u) {
+    OStream &operator<<(uint u) {
         return operator<<(static_cast<ullong>(u));
     }
-    OStream & operator<<(long n) {
+    OStream &operator<<(long n) {
         printn(n);
         return *this;
     }
-    OStream & operator<<(llong n) {
+    OStream &operator<<(llong n) {
         printn(n);
         return *this;
     }
-    OStream & operator<<(ulong u) {
+    OStream &operator<<(ulong u) {
         printu(u, 10, _hexchars_small);
         return *this;
     }
-    OStream & operator<<(ullong u) {
-        printu(u,10, _hexchars_small);
+    OStream &operator<<(ullong u) {
+        printu(u, 10, _hexchars_small);
         return *this;
     }
-    OStream & operator<<(float f) {
+    OStream &operator<<(float f) {
         printfloat(f, 3);
         return *this;
     }
@@ -300,14 +300,14 @@ public:
     /**
      * Writes the given string into the stream
      */
-    OStream & operator<<(const char *str) {
+    OStream &operator<<(const char *str) {
         puts(str);
         return *this;
     }
     /**
      * Writes the given pointer into the stream (xxxx:xxxx)
      */
-    OStream & operator<<(const void *p) {
+    OStream &operator<<(const void *p) {
         printptr(reinterpret_cast<uintptr_t>(p), 0);
         return *this;
     }
@@ -344,96 +344,68 @@ private:
 };
 
 template<>
-class OStream::FormatImpl<void*> : public OStream::FormatImplPtr<const void*> {
-};
+class OStream::FormatImpl<void *> : public OStream::FormatImplPtr<const void *> {};
 template<>
-class OStream::FormatImpl<const void*> : public OStream::FormatImplPtr<const void*> {
-};
+class OStream::FormatImpl<const void *> : public OStream::FormatImplPtr<const void *> {};
 template<>
-class OStream::FormatImpl<uchar> : public OStream::FormatImplUint<uchar> {
-};
+class OStream::FormatImpl<uchar> : public OStream::FormatImplUint<uchar> {};
 template<>
-class OStream::FormatImpl<ushort> : public OStream::FormatImplUint<ushort> {
-};
+class OStream::FormatImpl<ushort> : public OStream::FormatImplUint<ushort> {};
 template<>
-class OStream::FormatImpl<uint> : public OStream::FormatImplUint<uint> {
-};
+class OStream::FormatImpl<uint> : public OStream::FormatImplUint<uint> {};
 template<>
-class OStream::FormatImpl<ulong> : public OStream::FormatImplUint<ulong> {
-};
+class OStream::FormatImpl<ulong> : public OStream::FormatImplUint<ulong> {};
 template<>
-class OStream::FormatImpl<ullong> : public OStream::FormatImplUint<ullong> {
-};
+class OStream::FormatImpl<ullong> : public OStream::FormatImplUint<ullong> {};
 template<>
-class OStream::FormatImpl<char> : public OStream::FormatImplInt<char> {
-};
+class OStream::FormatImpl<char> : public OStream::FormatImplInt<char> {};
 template<>
-class OStream::FormatImpl<short> : public OStream::FormatImplInt<short> {
-};
+class OStream::FormatImpl<short> : public OStream::FormatImplInt<short> {};
 template<>
-class OStream::FormatImpl<int> : public OStream::FormatImplInt<int> {
-};
+class OStream::FormatImpl<int> : public OStream::FormatImplInt<int> {};
 template<>
-class OStream::FormatImpl<long> : public OStream::FormatImplInt<long> {
-};
+class OStream::FormatImpl<long> : public OStream::FormatImplInt<long> {};
 template<>
-class OStream::FormatImpl<llong> : public OStream::FormatImplInt<llong> {
-};
+class OStream::FormatImpl<llong> : public OStream::FormatImplInt<llong> {};
 template<>
-class OStream::FormatImpl<float> : public OStream::FormatImplFloat<float> {
-};
+class OStream::FormatImpl<float> : public OStream::FormatImplFloat<float> {};
 template<>
-class OStream::FormatImpl<const char*> : public OStream::FormatImplStr<const char*> {
-};
+class OStream::FormatImpl<const char *> : public OStream::FormatImplStr<const char *> {};
 template<>
-class OStream::FormatImpl<char*> : public OStream::FormatImplStr<char*> {
-};
+class OStream::FormatImpl<char *> : public OStream::FormatImplStr<char *> {};
 // this is necessary to be able to pass a string literal to fmt()
 template<size_t X>
-class OStream::FormatImpl<char [X]> : public OStream::FormatImplStr<char [X]> {
-};
+class OStream::FormatImpl<char[X]> : public OStream::FormatImplStr<char[X]> {};
 
 // unfortunatly, we have to add special templates for volatile :(
 template<>
-class OStream::FormatImpl<volatile void*> : public OStream::FormatImplPtr<volatile void*> {
-};
+class OStream::FormatImpl<volatile void *> : public OStream::FormatImplPtr<volatile void *> {};
 template<>
-class OStream::FormatImpl<volatile uchar> : public OStream::FormatImplUint<volatile uchar> {
-};
+class OStream::FormatImpl<volatile uchar> : public OStream::FormatImplUint<volatile uchar> {};
 template<>
-class OStream::FormatImpl<volatile ushort> : public OStream::FormatImplUint<volatile ushort> {
-};
+class OStream::FormatImpl<volatile ushort> : public OStream::FormatImplUint<volatile ushort> {};
 template<>
-class OStream::FormatImpl<volatile uint> : public OStream::FormatImplUint<volatile uint> {
-};
+class OStream::FormatImpl<volatile uint> : public OStream::FormatImplUint<volatile uint> {};
 template<>
-class OStream::FormatImpl<volatile ulong> : public OStream::FormatImplUint<volatile ulong> {
-};
+class OStream::FormatImpl<volatile ulong> : public OStream::FormatImplUint<volatile ulong> {};
 template<>
-class OStream::FormatImpl<volatile char> : public OStream::FormatImplInt<volatile char> {
-};
+class OStream::FormatImpl<volatile char> : public OStream::FormatImplInt<volatile char> {};
 template<>
-class OStream::FormatImpl<volatile short> : public OStream::FormatImplInt<volatile short> {
-};
+class OStream::FormatImpl<volatile short> : public OStream::FormatImplInt<volatile short> {};
 template<>
-class OStream::FormatImpl<volatile int> : public OStream::FormatImplInt<volatile int> {
-};
+class OStream::FormatImpl<volatile int> : public OStream::FormatImplInt<volatile int> {};
 template<>
-class OStream::FormatImpl<volatile long> : public OStream::FormatImplInt<volatile long> {
-};
+class OStream::FormatImpl<volatile long> : public OStream::FormatImplInt<volatile long> {};
 template<>
-class OStream::FormatImpl<volatile float> : public OStream::FormatImplFloat<volatile float> {
-};
+class OStream::FormatImpl<volatile float> : public OStream::FormatImplFloat<volatile float> {};
 template<>
-class OStream::FormatImpl<volatile const char*> : public OStream::FormatImplStr<volatile const char*> {
-};
+class OStream::FormatImpl<volatile const char *>
+    : public OStream::FormatImplStr<volatile const char *> {};
 template<>
-class OStream::FormatImpl<volatile char*> : public OStream::FormatImplStr<volatile char*> {
-};
+class OStream::FormatImpl<volatile char *> : public OStream::FormatImplStr<volatile char *> {};
 // this is necessary to be able to pass a string literal to fmt()
 template<size_t X>
-class OStream::FormatImpl<volatile char [X]> : public OStream::FormatImplStr<volatile char [X]> {
-};
+class OStream::FormatImpl<volatile char[X]> : public OStream::FormatImplStr<volatile char[X]> {};
 
 /**
  * Creates a Format-object that can be written into OStream to write the given value into the
@@ -450,7 +422,8 @@ class OStream::FormatImpl<volatile char [X]> : public OStream::FormatImplStr<vol
  * @return the Format object
  */
 template<typename T>
-static inline OStream::Format<T> fmt(const T &value, const char *fmt, size_t pad = 0, size_t prec = ~0UL) {
+static inline OStream::Format<T> fmt(const T &value, const char *fmt, size_t pad = 0,
+                                     size_t prec = ~0UL) {
     return OStream::Format<T>(fmt, value, pad, prec);
 }
 template<typename T>

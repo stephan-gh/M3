@@ -18,13 +18,13 @@
 
 #include <base/Common.h>
 
+#include <m3/Test.h>
+#include <m3/pipe/IndirectPipe.h>
 #include <m3/stream/FStream.h>
 #include <m3/stream/Standard.h>
-#include <m3/pipe/IndirectPipe.h>
-#include <m3/vfs/VFS.h>
-#include <m3/vfs/FileRef.h>
 #include <m3/vfs/Dir.h>
-#include <m3/Test.h>
+#include <m3/vfs/FileRef.h>
+#include <m3/vfs/VFS.h>
 
 #include "../unittests.h"
 
@@ -43,8 +43,8 @@ static void check_content(const char *filename, size_t size) {
     while((count = file->read(largebuf, sizeof(largebuf))) > 0) {
         for(ssize_t i = 0; i < count; ++i) {
             if(largebuf[i] != pos % 100) {
-                cout << "file[" << pos << "]: expected "
-                     << (pos % 100) << ", got " << largebuf[i] << "\n";
+                cout << "file[" << pos << "]: expected " << (pos % 100) << ", got " << largebuf[i]
+                     << "\n";
                 WVASSERT(false);
             }
             pos++;
@@ -67,7 +67,7 @@ static void append_bug() {
 
         // create first extent
         WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
-            static_cast<ssize_t>(sizeof(largebuf)));
+                   static_cast<ssize_t>(sizeof(largebuf)));
         file->flush();
         total += sizeof(largebuf);
 
@@ -75,14 +75,14 @@ static void append_bug() {
         {
             auto nfile = VFS::open("/myfile2", FILE_W | FILE_CREATE | FILE_TRUNC);
             WVASSERTEQ(nfile->write_all(largebuf, sizeof(largebuf)),
-                static_cast<ssize_t>(sizeof(largebuf)));
+                       static_cast<ssize_t>(sizeof(largebuf)));
         }
 
-        // write more two blocks; this gives us a new extent and we don't stay within the first block
-        // of the new extent
+        // write more two blocks; this gives us a new extent and we don't stay within the first
+        // block of the new extent
         for(size_t i = 0; i <= 4096 * 2; i += sizeof(largebuf)) {
             WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
-                static_cast<ssize_t>(sizeof(largebuf)));
+                       static_cast<ssize_t>(sizeof(largebuf)));
             total += sizeof(largebuf);
         }
     }
@@ -92,7 +92,7 @@ static void append_bug() {
         file->seek(0, M3FS_SEEK_END);
 
         WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
-            static_cast<ssize_t>(sizeof(largebuf)));
+                   static_cast<ssize_t>(sizeof(largebuf)));
         total += sizeof(largebuf);
     }
 
@@ -107,7 +107,7 @@ static void extending_small_file() {
 
         for(int i = 0; i < 129; ++i)
             WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
-                static_cast<ssize_t>(sizeof(largebuf)));
+                       static_cast<ssize_t>(sizeof(largebuf)));
     }
 
     check_content(small_file, sizeof(largebuf) * 129);
@@ -122,7 +122,7 @@ static void creating_in_steps() {
         for(int j = 0; j < 8; ++j) {
             for(int i = 0; i < 4; ++i) {
                 WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
-                    static_cast<ssize_t>(sizeof(largebuf)));
+                           static_cast<ssize_t>(sizeof(largebuf)));
             }
             file->flush();
         }
@@ -139,7 +139,7 @@ static void small_write_at_begin() {
 
         for(int i = 0; i < 3; ++i) {
             WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
-                static_cast<ssize_t>(sizeof(largebuf)));
+                       static_cast<ssize_t>(sizeof(largebuf)));
         }
     }
 
@@ -154,7 +154,7 @@ static void truncate() {
 
         for(int i = 0; i < 2; ++i) {
             WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
-                static_cast<ssize_t>(sizeof(largebuf)));
+                       static_cast<ssize_t>(sizeof(largebuf)));
         }
     }
 
@@ -169,7 +169,7 @@ static void append() {
 
         for(int i = 0; i < 2; ++i) {
             WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
-                static_cast<ssize_t>(sizeof(largebuf)));
+                       static_cast<ssize_t>(sizeof(largebuf)));
         }
         file->sync();
     }
@@ -185,7 +185,7 @@ static void append_with_read() {
 
         for(int i = 0; i < 2; ++i) {
             WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
-                static_cast<ssize_t>(sizeof(largebuf)));
+                       static_cast<ssize_t>(sizeof(largebuf)));
         }
 
         // there is nothing to read now
@@ -525,7 +525,7 @@ static void buffered_write_with_seek() {
     buf[15] = '\0';
     WVASSERT(file.good());
 
-    char exp[] = {1,'t','e','s','t',6,7,'f','o','o','f','o','o',14,15,0};
+    char exp[] = {1, 't', 'e', 's', 't', 6, 7, 'f', 'o', 'o', 'f', 'o', 'o', 14, 15, 0};
     WVASSERTEQ(buf, StringRef(exp));
 }
 

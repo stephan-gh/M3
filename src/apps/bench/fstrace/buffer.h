@@ -12,21 +12,20 @@
 #include "exceptions.h"
 
 class Buffer {
-  public:
-    static constexpr size_t MaxBufferSize = 8*1024;
+public:
+    static constexpr size_t MaxBufferSize = 8 * 1024;
 
-    Buffer(size_t maxReadSize = MaxBufferSize,
-           size_t maxWriteSize = MaxBufferSize);
+    Buffer(size_t maxReadSize = MaxBufferSize, size_t maxWriteSize = MaxBufferSize);
     virtual ~Buffer();
 
     char *readBuffer(size_t size);
     char *writeBuffer(size_t size);
 
-  protected:
+protected:
     size_t maxReadSize;
     size_t maxWriteSize;
-    char  *readBuf;
-    char  *readBufAligned;
-    char  *writeBuf;
-    char  *writeBufAligned;
+    char *readBuf;
+    char *readBufAligned;
+    char *writeBuf;
+    char *writeBufAligned;
 };

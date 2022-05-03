@@ -18,8 +18,8 @@
 
 #pragma once
 
-#include <base/util/Reference.h>
 #include <base/Quota.h>
+#include <base/util/Reference.h>
 
 #include <m3/ObjCap.h>
 
@@ -28,8 +28,7 @@ namespace m3 {
 class KMem : public ObjCap, public RefCounted {
     friend class Activity;
 
-    explicit KMem(capsel_t sel, uint flags) noexcept
-        : ObjCap(KMEM, sel, flags) {
+    explicit KMem(capsel_t sel, uint flags) noexcept : ObjCap(KMEM, sel, flags) {
     }
 
     void set_flags(uint fl) noexcept {

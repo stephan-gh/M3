@@ -17,9 +17,9 @@
  */
 
 #include <base/Common.h>
-#include <base/util/Math.h>
 #include <base/Config.h>
 #include <base/mem/Heap.h>
+#include <base/util/Math.h>
 
 #include <m3/EnvVars.h>
 #include <m3/session/Pager.h>
@@ -51,25 +51,26 @@ void OwnActivity::init_state() {
 void OwnActivity::init_fs() {
     if(env()->pager_sess)
         _pager = Reference<Pager>(new Pager(env()->pager_sess, env()->pager_sgate));
-    _ms.reset(MountTable::unserialize(reinterpret_cast<const void*>(
-        env()->mounts_addr), env()->mounts_len));
-    _fds.reset(FileTable::unserialize(reinterpret_cast<const void*>(
-        env()->fds_addr), env()->fds_len));
-    memcpy(_data, reinterpret_cast<const void*>(env()->data_addr), env()->data_len);
+    _ms.reset(MountTable::unserialize(reinterpret_cast<const void *>(env()->mounts_addr),
+                                      env()->mounts_len));
+    _fds.reset(
+        FileTable::unserialize(reinterpret_cast<const void *>(env()->fds_addr), env()->fds_len));
+    memcpy(_data, reinterpret_cast<const void *>(env()->data_addr), env()->data_len);
 }
 
 void ChildActivity::run(int (*func)()) {
-    char **argv = reinterpret_cast<char**>(env()->argv);
-    if(sizeof(char*) != sizeof(uint64_t)) {
-        uint64_t *argv64 = reinterpret_cast<uint64_t*>(env()->argv);
-        argv = new char*[env()->argc];
+    char **argv = reinterpret_cast<char **>(env()->argv);
+    if(sizeof(char *) != sizeof(uint64_t)) {
+        uint64_t *argv64 = reinterpret_cast<uint64_t *>(env()->argv);
+        argv = new char *[env()->argc];
         for(uint64_t i = 0; i < env()->argc; ++i)
-            argv[i] = reinterpret_cast<char*>(argv64[i]);
+            argv[i] = reinterpret_cast<char *>(argv64[i]);
     }
 
-    do_exec(env()->argc, const_cast<const char**>(argv), nullptr, reinterpret_cast<uintptr_t>(func));
+    do_exec(env()->argc, const_cast<const char **>(argv), nullptr,
+            reinterpret_cast<uintptr_t>(func));
 
-    if(sizeof(char*) != sizeof(uint64_t))
+    if(sizeof(char *) != sizeof(uint64_t))
         delete[] argv;
 }
 
@@ -124,11 +125,13 @@ void ChildActivity::do_exec(int argc, const char *const *argv, const char *const
 
 size_t ChildActivity::serialize_state(Env &senv, char *buffer, size_t offset) {
     senv.mounts_addr = ENV_SPACE_START + offset;
-    senv.mounts_len = Activity::own().mounts()->serialize(*this, buffer + offset, ENV_SPACE_SIZE - offset);
+    senv.mounts_len =
+        Activity::own().mounts()->serialize(*this, buffer + offset, ENV_SPACE_SIZE - offset);
     offset = Math::round_up(offset + static_cast<size_t>(senv.mounts_len), sizeof(word_t));
 
     senv.fds_addr = ENV_SPACE_START + offset;
-    senv.fds_len = Activity::own().files()->serialize(*this, buffer + offset, ENV_SPACE_SIZE - offset);
+    senv.fds_len =
+        Activity::own().files()->serialize(*this, buffer + offset, ENV_SPACE_SIZE - offset);
     offset = Math::round_up(offset + static_cast<size_t>(senv.fds_len), sizeof(word_t));
 
     senv.data_addr = ENV_SPACE_START + offset;
@@ -159,8 +162,8 @@ void ChildActivity::load_segment(ElfPh &pheader, char *buffer) {
             prot |= Pager::EXEC;
 
         goff_t virt = pheader.p_vaddr;
-        size_t sz = Math::round_up(static_cast<size_t>(pheader.p_memsz),
-                                   static_cast<size_t>(PAGE_SIZE));
+        size_t sz =
+            Math::round_up(static_cast<size_t>(pheader.p_memsz), static_cast<size_t>(PAGE_SIZE));
         if(pheader.p_memsz == pheader.p_filesz) {
             _exec->file()->map(_pager, &virt, pheader.p_offset, sz, prot, 0);
             return;
@@ -208,7 +211,7 @@ size_t ChildActivity::load(Env *env, int argc, const char *const *argv, const ch
         throw MessageException("Unable to read header", Errors::INVALID_ELF);
 
     if(header.e_ident[0] != '\x7F' || header.e_ident[1] != 'E' || header.e_ident[2] != 'L' ||
-        header.e_ident[3] != 'F')
+       header.e_ident[3] != 'F')
         throw MessageException("Invalid magic number", Errors::INVALID_ELF);
 
     /* copy load segments to destination tile */
@@ -263,9 +266,10 @@ size_t ChildActivity::load(Env *env, int argc, const char *const *argv, const ch
     return env_size;
 }
 
-size_t ChildActivity::store_arguments(char *begin, char *buffer, int argc, const char *const *argv) {
+size_t ChildActivity::store_arguments(char *begin, char *buffer, int argc,
+                                      const char *const *argv) {
     /* copy arguments and arg pointers to buffer */
-    uint64_t *argptr = reinterpret_cast<uint64_t*>(buffer);
+    uint64_t *argptr = reinterpret_cast<uint64_t *>(buffer);
     char *args = buffer + static_cast<size_t>(argc + 1) * sizeof(uint64_t);
     for(int i = 0; i < argc; ++i) {
         size_t len = strlen(argv[i]);

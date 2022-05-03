@@ -18,6 +18,7 @@
 
 #include <base/Common.h>
 #include <base/TCU.h>
+
 #include <heap/heap.h>
 #include <string.h>
 
@@ -33,9 +34,9 @@ struct UnalignedData {
     uint64_t post;
 } PACKED ALIGNED(16);
 
-#define RUN_SUITE(name)                                                          \
-    m3::Serial::get() << "Running testsuite " << #name << " ...\n";              \
-    name();                                                                      \
+#define RUN_SUITE(name)                                             \
+    m3::Serial::get() << "Running testsuite " << #name << " ...\n"; \
+    name();                                                         \
     m3::Serial::get() << "\n";
 
 extern void test_msgs();

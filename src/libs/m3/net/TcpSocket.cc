@@ -23,8 +23,7 @@
 
 namespace m3 {
 
-TcpSocket::TcpSocket(int sd, capsel_t caps, NetworkManager &nm)
-    : Socket(sd, caps, nm) {
+TcpSocket::TcpSocket(int sd, capsel_t caps, NetworkManager &nm) : Socket(sd, caps, nm) {
 }
 
 TcpSocket::~TcpSocket() {
@@ -114,7 +113,7 @@ ssize_t TcpSocket::send(const void *src, size_t amount) {
     if(_state != Connected && _state != RemoteClosed)
         throw Exception(Errors::NOT_CONNECTED);
 
-    const uint8_t *src_bytes = reinterpret_cast<const uint8_t*>(src);
+    const uint8_t *src_bytes = reinterpret_cast<const uint8_t *>(src);
     ssize_t total = 0;
     while(amount > 0) {
         size_t now = Math::min(amount, NetEventChannel::MAX_PACKET_SIZE);
@@ -131,7 +130,8 @@ ssize_t TcpSocket::send(const void *src, size_t amount) {
     return total;
 }
 
-void TcpSocket::handle_data(NetEventChannel::DataMessage const &msg, NetEventChannel::Event &event) {
+void TcpSocket::handle_data(NetEventChannel::DataMessage const &msg,
+                            NetEventChannel::Event &event) {
     if(_state != Closed && _state != Closing)
         Socket::handle_data(msg, event);
 }

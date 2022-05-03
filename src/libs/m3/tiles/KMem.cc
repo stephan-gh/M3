@@ -16,9 +16,9 @@
  * General Public License version 2 for more details.
  */
 
+#include <m3/Syscalls.h>
 #include <m3/tiles/KMem.h>
 #include <m3/tiles/OwnActivity.h>
-#include <m3/Syscalls.h>
 
 namespace m3 {
 

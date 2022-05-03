@@ -37,8 +37,6 @@ struct Regs {
     word_t cpsr;
 } PACKED;
 
-enum {
-    T_STACK_WORDS = 4096
-};
+enum { T_STACK_WORDS = 4096 };
 
 }

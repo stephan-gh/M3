@@ -18,15 +18,15 @@
 
 #pragma once
 
-#include <base/log/Lib.h>
 #include <base/Errors.h>
 #include <base/KIF.h>
+#include <base/log/Lib.h>
 
+#include <m3/Syscalls.h>
 #include <m3/com/RecvGate.h>
 #include <m3/server/Handler.h>
 #include <m3/session/ResMng.h>
 #include <m3/stream/Standard.h>
-#include <m3/Syscalls.h>
 #include <m3/tiles/Activity.h>
 
 #include <memory>
@@ -60,13 +60,13 @@ public:
           _ctrl_handler(),
           _creators(),
           _rgate(RecvGate::create(nextlog2<BUF_SIZE>::val, nextlog2<MSG_SIZE>::val)) {
-
         init(wl);
 
         LLOG(SERV, "create(name=" << name << ")");
         size_t crt = add_creator(MAX_SESSIONS);
         Syscalls::create_srv(sel(), _rgate.sel(), name, crt);
-        Activity::own().resmng()->reg_service(sel(), _creators[crt]->sgate.sel(), name, MAX_SESSIONS);
+        Activity::own().resmng()->reg_service(sel(), _creators[crt]->sgate.sel(), name,
+                                              MAX_SESSIONS);
     }
 
     ~Server() {
@@ -101,7 +101,7 @@ private:
     }
 
     void handle_message(GateIStream &is) {
-        auto *req = reinterpret_cast<const KIF::DefaultRequest*>(is.message().data);
+        auto *req = reinterpret_cast<const KIF::DefaultRequest *>(is.message().data);
         KIF::Service::Operation op = static_cast<KIF::Service::Operation>(req->opcode);
 
         if(static_cast<size_t>(op) < ARRAY_SIZE(_ctrl_handler)) {
@@ -129,7 +129,7 @@ private:
     }
 
     void handle_open(GateIStream &is) {
-        auto *req = reinterpret_cast<const KIF::Service::Open*>(is.message().data);
+        auto *req = reinterpret_cast<const KIF::Service::Open *>(is.message().data);
 
         // check and reduce session quota
         label_t crt = is.message().label;
@@ -154,7 +154,7 @@ private:
     }
 
     void handle_derive_crt(GateIStream &is) {
-        auto *req = reinterpret_cast<const KIF::Service::DeriveCreator*>(is.message().data);
+        auto *req = reinterpret_cast<const KIF::Service::DeriveCreator *>(is.message().data);
 
         size_t crt = is.label<size_t>();
         size_t sessions = req->sessions;
@@ -179,18 +179,19 @@ private:
     }
 
     void handle_obtain(GateIStream &is) {
-        auto *req = reinterpret_cast<const KIF::Service::Exchange*>(is.message().data);
+        auto *req = reinterpret_cast<const KIF::Service::Exchange *>(is.message().data);
         // TODO isolate creators from each other
         label_t crt = is.message().label;
 
-        LLOG(SERV, fmt((word_t)req->sess, "#x") << ": obtain(caps="
-            << req->data.caps << ", args=" << req->data.args.bytes << ")");
+        LLOG(SERV, fmt((word_t)req->sess, "#x") << ": obtain(caps=" << req->data.caps
+                                                << ", args=" << req->data.args.bytes << ")");
 
         MsgBuf reply_buf;
         auto &reply = reply_buf.cast<KIF::Service::ExchangeReply>();
         CapExchange xchg(req->data, reply.data);
 
-        typename HDL::session_type *sess = reinterpret_cast<typename HDL::session_type*>(req->sess);
+        typename HDL::session_type *sess =
+            reinterpret_cast<typename HDL::session_type *>(req->sess);
         reply.error = _handler->obtain(sess, crt, xchg);
 
         reply.data.args.bytes = xchg.out_args().total();
@@ -198,17 +199,18 @@ private:
     }
 
     void handle_delegate(GateIStream &is) {
-        auto *req = reinterpret_cast<const KIF::Service::Exchange*>(is.message().data);
+        auto *req = reinterpret_cast<const KIF::Service::Exchange *>(is.message().data);
         label_t crt = is.message().label;
 
-        LLOG(SERV, fmt((word_t)req->sess, "#x") << ": delegate(caps="
-            << req->data.caps << ", args=" << req->data.args.bytes << ")");
+        LLOG(SERV, fmt((word_t)req->sess, "#x") << ": delegate(caps=" << req->data.caps
+                                                << ", args=" << req->data.args.bytes << ")");
 
         MsgBuf reply_buf;
         auto &reply = reply_buf.cast<KIF::Service::ExchangeReply>();
         CapExchange xchg(req->data, reply.data);
 
-        typename HDL::session_type *sess = reinterpret_cast<typename HDL::session_type*>(req->sess);
+        typename HDL::session_type *sess =
+            reinterpret_cast<typename HDL::session_type *>(req->sess);
         reply.error = _handler->delegate(sess, crt, xchg);
 
         reply.data.args.bytes = xchg.out_args().total();
@@ -216,7 +218,7 @@ private:
     }
 
     void handle_close(GateIStream &is) {
-        auto *req = reinterpret_cast<const KIF::Service::Close*>(is.message().data);
+        auto *req = reinterpret_cast<const KIF::Service::Close *>(is.message().data);
 
         // increase session quota
         label_t crt = is.message().label;
@@ -225,7 +227,8 @@ private:
 
         LLOG(SERV, fmt((word_t)req->sess, "#x") << ": close()");
 
-        typename HDL::session_type *sess = reinterpret_cast<typename HDL::session_type*>(req->sess);
+        typename HDL::session_type *sess =
+            reinterpret_cast<typename HDL::session_type *>(req->sess);
         Errors::Code res = _handler->close(sess, crt);
 
         reply_error(is, res);
@@ -243,9 +246,7 @@ private:
         for(size_t i = 0; i < MAX_CREATORS; ++i) {
             if(_creators[i] == nullptr) {
                 _creators[i] = std::make_unique<Creator>(
-                    SendGate::create(&_rgate, SendGateArgs().credits(1).label(i)),
-                    sessions
-                );
+                    SendGate::create(&_rgate, SendGateArgs().credits(1).label(i)), sessions);
                 return i;
             }
         }

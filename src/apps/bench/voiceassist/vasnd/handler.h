@@ -22,7 +22,8 @@
 
 class OpHandler {
 public:
-    virtual ~OpHandler() {}
+    virtual ~OpHandler() {
+    }
 
     virtual void send(const void *data, size_t len) = 0;
 };

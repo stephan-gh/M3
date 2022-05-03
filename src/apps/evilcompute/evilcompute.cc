@@ -16,9 +16,9 @@
  * General Public License version 2 for more details.
  */
 
+#include <m3/com/GateStream.h>
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
-#include <m3/com/GateStream.h>
 #include <m3/stream/Standard.h>
 #include <m3/tiles/Activity.h>
 
@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
     send_vmsg(sgate, 1, 2, 3);
 
     // now try to trick TileMux to leave us running, because we have unread messages
-    for(volatile int i = 0; ; ++i) {
+    for(volatile int i = 0;; ++i) {
         cout << "Hello " << i << " from " << (argc > 0 ? argv[1] : "??") << "\n";
         Activity::sleep_for(TimeDuration::from_nanos(10));
     }

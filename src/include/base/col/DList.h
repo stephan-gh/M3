@@ -17,6 +17,7 @@
 #pragma once
 
 #include <base/col/List.h>
+
 #include <assert.h>
 
 namespace m3 {
@@ -35,10 +36,7 @@ public:
     /**
      * Constructor. Creates an empty list
      */
-    explicit DList()
-        : _head(nullptr),
-          _tail(nullptr),
-          _len(0) {
+    explicit DList() : _head(nullptr), _tail(nullptr), _len(0) {
     }
 
     /**
@@ -140,7 +138,7 @@ public:
     T *removeFirst() {
         T *first = _head;
         if(first) {
-            _head = static_cast<T*>(first->next());
+            _head = static_cast<T *>(first->next());
             if(_head)
                 _head->prev(nullptr);
             if(first == _tail)
@@ -164,9 +162,9 @@ public:
         if(e->next())
             e->next()->prev(e->prev());
         if(e == _head)
-            _head = static_cast<T*>(e->next());
+            _head = static_cast<T *>(e->next());
         if(e == _tail)
-            _tail = static_cast<T*>(e->prev());
+            _tail = static_cast<T *>(e->prev());
         e->next(nullptr);
         e->prev(nullptr);
         _len--;
@@ -185,7 +183,7 @@ public:
         if(e->next())
             e->next()->prev(e->prev());
         if(e == _head)
-            _head = static_cast<T*>(e->next());
+            _head = static_cast<T *>(e->next());
         _tail->next(e);
         e->prev(_tail);
         e->next(nullptr);

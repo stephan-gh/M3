@@ -40,8 +40,6 @@ struct Regs {
     word_t s11;
 } PACKED;
 
-enum {
-    T_STACK_WORDS = 4096
-};
+enum { T_STACK_WORDS = 4096 };
 
 }

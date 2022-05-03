@@ -16,14 +16,14 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/log/Lib.h>
 #include <base/Panic.h>
+#include <base/log/Lib.h>
 
 #include <m3/com/Marshalling.h>
 #include <m3/pipe/DirectPipeReader.h>
 #include <m3/pipe/DirectPipeWriter.h>
-#include <m3/vfs/FileTable.h>
 #include <m3/vfs/File.h>
+#include <m3/vfs/FileTable.h>
 #include <m3/vfs/GenericFile.h>
 #include <m3/vfs/SerialFile.h>
 
@@ -81,7 +81,7 @@ void FileTable::delegate(ChildActivity &act) const {
 }
 
 size_t FileTable::serialize(ChildActivity &act, void *buffer, size_t size) const {
-    Marshaller m(static_cast<unsigned char*>(buffer), size);
+    Marshaller m(static_cast<unsigned char *>(buffer), size);
 
     size_t count = act._files.size();
     m << count;
@@ -95,7 +95,7 @@ size_t FileTable::serialize(ChildActivity &act, void *buffer, size_t size) const
 
 FileTable *FileTable::unserialize(const void *buffer, size_t size) {
     FileTable *obj = new FileTable();
-    Unmarshaller um(static_cast<const unsigned char*>(buffer), size);
+    Unmarshaller um(static_cast<const unsigned char *>(buffer), size);
     size_t count;
     um >> count;
     while(count-- > 0) {
@@ -103,18 +103,10 @@ FileTable *FileTable::unserialize(const void *buffer, size_t size) {
         char type;
         um >> fd >> type;
         switch(type) {
-            case 'F':
-                obj->do_set(fd, GenericFile::unserialize(um));
-                break;
-            case 'S':
-                obj->do_set(fd, SerialFile::unserialize(um));
-                break;
-            case 'P':
-                obj->do_set(fd, DirectPipeWriter::unserialize(um));
-                break;
-            case 'Q':
-                obj->do_set(fd, DirectPipeReader::unserialize(um));
-                break;
+            case 'F': obj->do_set(fd, GenericFile::unserialize(um)); break;
+            case 'S': obj->do_set(fd, SerialFile::unserialize(um)); break;
+            case 'P': obj->do_set(fd, DirectPipeWriter::unserialize(um)); break;
+            case 'Q': obj->do_set(fd, DirectPipeReader::unserialize(um)); break;
         }
     }
     return obj;

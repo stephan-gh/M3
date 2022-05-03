@@ -16,10 +16,12 @@
  * General Public License version 2 for more details.
  */
 
+#include "Args.h"
+
 #include <m3/vfs/Dir.h>
+
 #include <string.h>
 
-#include "Args.h"
 #include "Builtin.h"
 #include "Vars.h"
 
@@ -27,7 +29,7 @@ using namespace m3;
 
 int Args::strmatch(const char *pattern, const char *str) {
     const char *lastStar;
-    char *firstStar = const_cast<char*>(strchr(pattern, '*'));
+    char *firstStar = const_cast<char *>(strchr(pattern, '*'));
     if(firstStar == NULL)
         return strcmp(pattern, str) == 0;
     lastStar = strrchr(pattern, '*');
@@ -50,7 +52,7 @@ int Args::strmatch(const char *pattern, const char *str) {
     while(1) {
         const char *match;
         const char *start = firstStar + 1;
-        firstStar = const_cast<char*>(strchr(start, '*'));
+        firstStar = const_cast<char *>(strchr(start, '*'));
         if(firstStar == NULL)
             break;
 
@@ -98,7 +100,7 @@ void Args::glob(ArgList *list, size_t i) {
                 else
                     ast_expr_destroy(list->args[i]);
 
-                char *new_arg = static_cast<char*>(malloc(patlen + strlen(e.name) + 1));
+                char *new_arg = static_cast<char *>(malloc(patlen + strlen(e.name) + 1));
                 strcpy(new_arg, dirpath);
                 strcpy(new_arg + patlen, e.name);
                 list->args[i] = ast_expr_create(new_arg, false);
@@ -126,7 +128,7 @@ void Args::prefix_path(ArgList *args) {
     const char *first = expr_value(args->args[0]);
     if(first[0] != '/' && !Builtin::is_builtin(first)) {
         size_t len = strlen(first);
-        char *newstr = static_cast<char*>(malloc(len + 5 + 1));
+        char *newstr = static_cast<char *>(malloc(len + 5 + 1));
         strcpy(newstr, "/bin/");
         strcpy(newstr + 5, first);
         ast_expr_destroy(args->args[0]);

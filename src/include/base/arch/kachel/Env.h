@@ -98,12 +98,12 @@ private:
     Gem5EnvBackend *_backend;
 } PACKED;
 
-#define ENV_SPACE_SIZE           (ENV_SIZE - (sizeof(word_t) * 2 + sizeof(m3::Env)))
-#define ENV_SPACE_START          (ENV_START + sizeof(m3::Env))
-#define ENV_SPACE_END            (ENV_SPACE_START + ENV_SPACE_SIZE)
+#define ENV_SPACE_SIZE  (ENV_SIZE - (sizeof(word_t) * 2 + sizeof(m3::Env)))
+#define ENV_SPACE_START (ENV_START + sizeof(m3::Env))
+#define ENV_SPACE_END   (ENV_SPACE_START + ENV_SPACE_SIZE)
 
 static inline Env *env() {
-    return reinterpret_cast<Env*>(ENV_START);
+    return reinterpret_cast<Env *>(ENV_START);
 }
 
 }

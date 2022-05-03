@@ -20,7 +20,7 @@
 
 #include <base/log/Log.h>
 
-#define SLOG(lvl, msg)  LOG(ServiceLog, lvl, msg)
+#define SLOG(lvl, msg) LOG(ServiceLog, lvl, msg)
 
 namespace m3 {
 
@@ -29,14 +29,14 @@ class ServiceLog {
 
 public:
     enum Level {
-        DEF         = 1 << 0,
-        KEYB        = 1 << 1,
-        HASH        = 1 << 2,
-        LOADGEN     = 1 << 3,
-        NIC         = 1 << 4,
-        NET         = 1 << 5,
-        NET_ALL     = 1 << 6,
-        TIMER       = 1 << 7,
+        DEF = 1 << 0,
+        KEYB = 1 << 1,
+        HASH = 1 << 2,
+        LOADGEN = 1 << 3,
+        NIC = 1 << 4,
+        NET = 1 << 5,
+        NET_ALL = 1 << 6,
+        TIMER = 1 << 7,
     };
 
     static const int level = DEF;

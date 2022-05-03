@@ -19,6 +19,7 @@
 #pragma once
 
 #include <base/col/List.h>
+
 #include <assert.h>
 
 namespace m3 {
@@ -31,25 +32,19 @@ namespace m3 {
 template<class T>
 class SList {
 public:
-    using iterator          = ListIterator<T>;
-    using const_iterator    = ListConstIterator<T>;
+    using iterator = ListIterator<T>;
+    using const_iterator = ListConstIterator<T>;
 
     /**
      * Constructor. Creates an empty list
      */
-    explicit SList()
-        : _head(nullptr),
-          _tail(nullptr),
-          _len(0) {
+    explicit SList() : _head(nullptr), _tail(nullptr), _len(0) {
     }
 
     /**
      * Move-constructor
      */
-    SList(SList<T> &&l)
-        : _head(l._head),
-          _tail(l._tail),
-          _len(l._len) {
+    SList(SList<T> &&l) : _head(l._head), _tail(l._tail), _len(l._len) {
         l._head = nullptr;
         l._tail = nullptr;
         l._len = 0;
@@ -152,15 +147,15 @@ public:
         if(_len == 0)
             return 0;
         T *res = _head;
-        _head = static_cast<T*>(_head->next());
+        _head = static_cast<T *>(_head->next());
         if(_head == 0)
             _tail = 0;
         _len--;
         return res;
     }
     /**
-     * Removes the first item from the list for which <pred> returns true. This works in linear time.
-     * Does NOT expect that the item is in the list!
+     * Removes the first item from the list for which <pred> returns true. This works in linear
+     * time. Does NOT expect that the item is in the list!
      *
      * @param pred the predicate
      * @return the removed item or nullptr
@@ -170,7 +165,7 @@ public:
         T *t = _head, *p = nullptr;
         while(t && !pred(t)) {
             p = t;
-            t = static_cast<T*>(t->next());
+            t = static_cast<T *>(t->next());
         }
         if(!t)
             return nullptr;
@@ -185,7 +180,9 @@ public:
      * @return true if the item has been found and removed
      */
     bool remove(T *e) {
-        return remove_if([e](T *e2) { return e == e2; }) != nullptr;
+        return remove_if([e](T *e2) {
+                   return e == e2;
+               }) != nullptr;
     }
     /**
      * Removes <e> from the list, assuming that <p> is its predecessor.
@@ -197,7 +194,7 @@ public:
         if(p)
             p->next(e->next());
         else
-            _head = static_cast<T*>(e->next());
+            _head = static_cast<T *>(e->next());
         if(!e->next())
             _tail = p;
         _len--;

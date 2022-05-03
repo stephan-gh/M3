@@ -19,18 +19,15 @@
 #include <base/stream/OStream.h>
 #include <base/util/Digits.h>
 #include <base/util/Math.h>
+
 #include <string.h>
 
 namespace m3 {
 
-USED char OStream::_hexchars_big[]     = "0123456789ABCDEF";
-USED char OStream::_hexchars_small[]   = "0123456789abcdef";
+USED char OStream::_hexchars_big[] = "0123456789ABCDEF";
+USED char OStream::_hexchars_small[] = "0123456789abcdef";
 
-OStream::FormatParams::FormatParams(const char *fmt)
-    : _base(10),
-      _flags(0),
-      _pad(0),
-      _prec(~0UL) {
+OStream::FormatParams::FormatParams(const char *fmt) : _base(10), _flags(0), _pad(0), _prec(~0UL) {
     // read flags
     bool read_flags = true;
     while(read_flags) {
@@ -55,9 +52,7 @@ OStream::FormatParams::FormatParams(const char *fmt)
                 _flags |= PADZEROS;
                 fmt++;
                 break;
-            default:
-                read_flags = false;
-                break;
+            default: read_flags = false; break;
         }
     }
 
@@ -69,15 +64,9 @@ OStream::FormatParams::FormatParams(const char *fmt)
                 _flags |= CAPHEX;
             _base = 16;
             break;
-        case 'o':
-            _base = 8;
-            break;
-        case 'b':
-            _base = 2;
-            break;
-        case 'p':
-            _flags |= POINTER;
-            break;
+        case 'o': _base = 8; break;
+        case 'b': _base = 2; break;
+        case 'p': _flags |= POINTER; break;
     }
 }
 
@@ -99,7 +88,8 @@ size_t OStream::printsignedprefix(llong n, int flags) {
 size_t OStream::putspad(const char *s, size_t pad, size_t prec, int flags) {
     size_t count = 0;
     if(pad > 0 && !(flags & FormatParams::PADRIGHT)) {
-        size_t width = prec != static_cast<size_t>(-1) ? Math::min<size_t>(prec, strlen(s)) : strlen(s);
+        size_t width = prec != static_cast<size_t>(-1) ? Math::min<size_t>(prec, strlen(s))
+                                                       : strlen(s);
         if(pad > width)
             count += printpad(pad - width, flags);
     }
@@ -241,7 +231,7 @@ USED size_t OStream::puts(const char *str, size_t prec) {
 }
 
 void OStream::dump(const void *data, size_t size) {
-    const uint8_t *bytes = reinterpret_cast<const uint8_t*>(data);
+    const uint8_t *bytes = reinterpret_cast<const uint8_t *>(data);
     for(size_t i = 0; i < size; ++i) {
         if((i % 16) == 0) {
             if(i > 0)

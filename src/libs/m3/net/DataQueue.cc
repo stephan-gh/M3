@@ -20,7 +20,9 @@ namespace m3 {
 
 DataQueue::Item::Item(NetEventChannel::DataMessage const *msg,
                       NetEventChannel::Event &&event) noexcept
-    : _msg(msg), _event(std::move(event)), _pos(0) {
+    : _msg(msg),
+      _event(std::move(event)),
+      _pos(0) {
 }
 
 IpAddr DataQueue::Item::src_addr() const noexcept {

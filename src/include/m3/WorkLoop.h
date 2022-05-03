@@ -28,6 +28,7 @@ class WorkLoop;
 
 class WorkItem {
     friend class WorkLoop;
+
 public:
     virtual ~WorkItem();
 
@@ -38,7 +39,7 @@ private:
 };
 
 class WorkLoop {
-    static const size_t MAX_ITEMS   = 32;
+    static const size_t MAX_ITEMS = 32;
 
 public:
     explicit WorkLoop() noexcept : _permanents(0), _count(), _items() {

@@ -23,8 +23,7 @@
 
 namespace m3 {
 
-UdpSocket::UdpSocket(int sd, capsel_t caps, NetworkManager &nm)
-    : Socket(sd, caps, nm) {
+UdpSocket::UdpSocket(int sd, capsel_t caps, NetworkManager &nm) : Socket(sd, caps, nm) {
 }
 
 UdpSocket::~UdpSocket() {

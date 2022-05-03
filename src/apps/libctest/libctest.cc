@@ -16,10 +16,11 @@
  * General Public License version 2 for more details.
  */
 
-#include <m3/stream/Standard.h>
-#include <stdio.h>
-
 #include "libctest.h"
+
+#include <m3/stream/Standard.h>
+
+#include <stdio.h>
 
 int failed;
 

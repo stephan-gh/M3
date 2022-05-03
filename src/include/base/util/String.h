@@ -19,6 +19,7 @@
 #pragma once
 
 #include <base/Common.h>
+
 #include <string.h>
 
 namespace m3 {
@@ -32,9 +33,7 @@ public:
     /**
      * Constructor. Creates an empty string (without allocation on the heap)
      */
-    explicit StringRef()
-        : _str(0),
-          _len() {
+    explicit StringRef() : _str(0), _len() {
     }
     /**
      * Constructor
@@ -42,13 +41,9 @@ public:
      * @param str the string
      * @param len the length of the string
      */
-    StringRef(const char *str)
-        : _str(str),
-          _len(strlen(str)) {
+    StringRef(const char *str) : _str(str), _len(strlen(str)) {
     }
-    StringRef(const char *str, size_t len)
-        : _str(str),
-          _len(len) {
+    StringRef(const char *str, size_t len) : _str(str), _len(len) {
     }
 
     /**
@@ -103,15 +98,13 @@ public:
             init(str, len);
     }
 
-    explicit String(const String& s)
-        : StringRef() {
+    explicit String(const String &s) : StringRef() {
         init(s._str, s._len);
     }
-    String(String &&s)
-        : StringRef(s._str, s._len) {
+    String(String &&s) : StringRef(s._str, s._len) {
         s._str = nullptr;
     }
-    String & operator=(const String& s) {
+    String &operator=(const String &s) {
         if(&s != this)
             reset(s._str, s._len);
         return *this;

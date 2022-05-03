@@ -16,9 +16,9 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/log/Lib.h>
 #include <base/Init.h>
 #include <base/TCU.h>
+#include <base/log/Lib.h>
 
 #include <m3/com/SendQueue.h>
 

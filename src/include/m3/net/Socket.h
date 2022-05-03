@@ -36,8 +36,8 @@ struct SocketArgs {
         : rbuf_slots(4),
           rbuf_size(16 * 1024),
           sbuf_slots(4),
-          sbuf_size(16 * 1024)
-    {}
+          sbuf_size(16 * 1024) {
+    }
 
     size_t rbuf_slots;
     size_t rbuf_size;
@@ -107,7 +107,7 @@ public:
         fetch_replies();
 
         return ((events & File::INPUT) != 0 && (process_events() || has_data())) ||
-            ((events & File::OUTPUT) != 0 && can_send());
+               ((events & File::OUTPUT) != 0 && can_send());
     }
 
     virtual char type() const noexcept override {
@@ -212,7 +212,8 @@ protected:
     void process_message(const NetEventChannel::ControlMessage &message,
                          NetEventChannel::Event &event);
 
-    virtual void handle_data(NetEventChannel::DataMessage const &msg, NetEventChannel::Event &event);
+    virtual void handle_data(NetEventChannel::DataMessage const &msg,
+                             NetEventChannel::Event &event);
     void handle_connected(NetEventChannel::ConnectedMessage const &msg);
     void handle_close_req(NetEventChannel::CloseReqMessage const &msg);
     void handle_closed(NetEventChannel::ClosedMessage const &msg);

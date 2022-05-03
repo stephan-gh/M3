@@ -16,9 +16,9 @@
  * General Public License version 2 for more details.
  */
 
-#include <m3/stream/Standard.h>
-
 #include "cppbenchs.h"
+
+#include <m3/stream/Standard.h>
 
 int failed;
 

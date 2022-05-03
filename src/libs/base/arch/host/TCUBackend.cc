@@ -16,27 +16,25 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/Panic.h>
+#include <base/TCU.h>
 #include <base/arch/host/TCUBackend.h>
 #include <base/log/Lib.h>
 #include <base/util/Math.h>
-#include <base/TCU.h>
-#include <base/Panic.h>
 
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/msg.h>
-#include <sys/socket.h>
-#include <sys/un.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <signal.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/un.h>
 #include <unistd.h>
 
 namespace m3 {
 
-TCUBackend::UnixSocket::UnixSocket(const char *name, bool tile)
-    : fd(),
-      addr() {
+TCUBackend::UnixSocket::UnixSocket(const char *name, bool tile) : fd(), addr() {
     fd = socket(AF_UNIX, SOCK_DGRAM, 0);
     if(fd == -1)
         PANIC("Unable to open socket: " << strerror(errno));
@@ -46,17 +44,16 @@ TCUBackend::UnixSocket::UnixSocket(const char *name, bool tile)
     addr.sun_family = AF_UNIX;
     addr.sun_path[0] = '\0';
     if(tile) {
-        snprintf(addr.sun_path + 1, sizeof(addr.sun_path) - 1,
-                 "%s/%d-%s", Env::tmp_dir(), (int)env()->tile_id, name);
+        snprintf(addr.sun_path + 1, sizeof(addr.sun_path) - 1, "%s/%d-%s", Env::tmp_dir(),
+                 (int)env()->tile_id, name);
     }
     else {
-        snprintf(addr.sun_path + 1, sizeof(addr.sun_path) - 1,
-                 "%s/%s", Env::tmp_dir(), name);
+        snprintf(addr.sun_path + 1, sizeof(addr.sun_path) - 1, "%s/%s", Env::tmp_dir(), name);
     }
 }
 
 void TCUBackend::UnixSocket::bind() {
-    if(::bind(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1)
+    if(::bind(fd, (struct sockaddr *)&addr, sizeof(addr)) == -1)
         PANIC("Binding socket failed: " << strerror(errno));
 }
 
@@ -80,8 +77,8 @@ TCUBackend::TCUBackend()
             addr->sun_family = AF_UNIX;
             // we can't put that in the format string
             addr->sun_path[0] = '\0';
-            snprintf(addr->sun_path + 1, sizeof(addr->sun_path) - 1,
-                     "%s/ep_%d.%d", Env::tmp_dir(), (int)tile, (int)ep);
+            snprintf(addr->sun_path + 1, sizeof(addr->sun_path) - 1, "%s/ep_%d.%d", Env::tmp_dir(),
+                     (int)tile, (int)ep);
         }
     }
 
@@ -96,7 +93,7 @@ TCUBackend::TCUBackend()
             PANIC("Setting FD_CLOEXEC failed: " << strerror(errno));
 
         sockaddr_un *addr = _endpoints + env()->tile_id * TOTAL_EPS + ep;
-        if(bind(_localsocks[ep], (struct sockaddr*)addr, sizeof(*addr)) == -1)
+        if(bind(_localsocks[ep], (struct sockaddr *)addr, sizeof(*addr)) == -1)
             PANIC("Binding socket for ep " << ep << " failed: " << strerror(errno));
     }
 }
@@ -179,9 +176,10 @@ bool TCUBackend::recv_ack() {
 
 bool TCUBackend::send(tileid_t tile, epid_t ep, const TCU::Buffer *buf) {
     int res = sendto(_sock, buf, buf->length + TCU::HEADER_SIZE, 0,
-                     (struct sockaddr*)(_endpoints + tile * TOTAL_EPS + ep), sizeof(sockaddr_un));
+                     (struct sockaddr *)(_endpoints + tile * TOTAL_EPS + ep), sizeof(sockaddr_un));
     if(res == -1) {
-        LLOG(TCUERR, "Sending message to EP " << tile << ":" << ep << " failed: " << strerror(errno));
+        LLOG(TCUERR,
+             "Sending message to EP " << tile << ":" << ep << " failed: " << strerror(errno));
         return false;
     }
     return true;

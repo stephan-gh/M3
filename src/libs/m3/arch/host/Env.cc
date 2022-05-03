@@ -16,23 +16,23 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/log/Lib.h>
 #include <base/Backtrace.h>
 #include <base/Env.h>
-#include <base/TCU.h>
 #include <base/Init.h>
 #include <base/Panic.h>
+#include <base/TCU.h>
+#include <base/log/Lib.h>
 
-#include <m3/com/RecvGate.h>
-#include <m3/stream/Standard.h>
 #include <m3/Syscalls.h>
 #include <m3/WorkLoop.h>
+#include <m3/com/RecvGate.h>
+#include <m3/stream/Standard.h>
 #include <m3/tiles/Activity.h>
 
-#include <sys/mman.h>
-#include <fstream>
-#include <unistd.h>
 #include <fcntl.h>
+#include <fstream>
+#include <sys/mman.h>
+#include <unistd.h>
 
 namespace m3 {
 
@@ -116,8 +116,8 @@ void Env::init_tcu() {
 
     TCU::get().configure_recv(TCU::DEF_REP_OFF, addr, DEF_RBUF_ORDER, DEF_RBUF_ORDER);
 
-    TCU::get().configure(TCU::SYSC_SEP_OFF, _sysc_label, 0, 0, _sysc_epid,
-        _sysc_credits, SYSC_RBUF_ORDER);
+    TCU::get().configure(TCU::SYSC_SEP_OFF, _sysc_label, 0, 0, _sysc_epid, _sysc_credits,
+                         SYSC_RBUF_ORDER);
 
     TCU::get().start();
 }

@@ -18,81 +18,60 @@
 
 #pragma once
 
-#include <base/Common.h>
 #include <base/CPU.h>
+#include <base/Common.h>
 
-#define NEED_ALIGNED_MEMACC     0
+#define NEED_ALIGNED_MEMACC 0
 
 namespace m3 {
 
 inline uint64_t CPU::read8b(uintptr_t addr) {
     uint64_t res;
-    asm volatile (
-        "ldrd %0, [%1]"
-        : "=r"(res)
-        : "r"(addr)
-    );
+    asm volatile("ldrd %0, [%1]" : "=r"(res) : "r"(addr));
     return res;
 }
 
 inline void CPU::write8b(uintptr_t addr, uint64_t val) {
-    asm volatile (
-        "strd %0, [%1]"
-        : : "r"(val), "r"(addr)
-    );
+    asm volatile("strd %0, [%1]" : : "r"(val), "r"(addr));
 }
 
 ALWAYS_INLINE word_t CPU::base_pointer() {
     word_t val;
-    asm volatile (
-        "mov %0, r11;"
-        : "=r" (val)
-    );
+    asm volatile("mov %0, r11;" : "=r"(val));
     return val;
 }
 
 ALWAYS_INLINE word_t CPU::stack_pointer() {
     word_t val;
-    asm volatile (
-        "mov %0, r13;"
-        : "=r" (val)
-    );
+    asm volatile("mov %0, r13;" : "=r"(val));
     return val;
 }
 
 inline cycles_t CPU::elapsed_cycles() {
     // TODO for now we use our custom instruction
-    register cycles_t r0 asm ("r0") = 0;
-    asm volatile (
-        ".long 0xEE630110"
-        : "+r"(r0)
-    );
+    register cycles_t r0 asm("r0") = 0;
+    asm volatile(".long 0xEE630110" : "+r"(r0));
     return r0;
 }
 
 inline uintptr_t CPU::backtrace_step(uintptr_t bp, uintptr_t *func) {
-    *func = reinterpret_cast<uintptr_t*>(bp)[0];
-    return reinterpret_cast<uintptr_t*>(bp)[-1];
+    *func = reinterpret_cast<uintptr_t *>(bp)[0];
+    return reinterpret_cast<uintptr_t *>(bp)[-1];
 }
 
 inline void CPU::compute(cycles_t cycles) {
-    asm volatile (
+    asm volatile(
         ".align 4;"
         "1: subs %0, %0, #1;"
         "bgt     1b;"
         // let the compiler know that we change the value of cycles
         // as it seems, inputs are not expected to change
-        : "=r"(cycles) : "0"(cycles)
-    );
+        : "=r"(cycles)
+        : "0"(cycles));
 }
 
 inline void CPU::memory_barrier() {
-    asm volatile (
-        "dmb"
-        :
-        :
-        : "memory"
-    );
+    asm volatile("dmb" : : : "memory");
 }
 
 }

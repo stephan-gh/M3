@@ -17,11 +17,11 @@
  */
 
 #include <base/Common.h>
-#include <base/stream/OStream.h>
+#include <base/Panic.h>
+#include <base/TCU.h>
 #include <base/log/Lib.h>
 #include <base/mem/Heap.h>
-#include <base/TCU.h>
-#include <base/Panic.h>
+#include <base/stream/OStream.h>
 
 namespace m3 {
 
@@ -47,7 +47,7 @@ void Heap::print(OStream &os) {
     HeapArea *a = heap_begin;
     os << "Heap[free=" << free_memory() << "]\n";
     while(a < heap_end) {
-        os << "  @ " << fmt((void*)a, "p") << " " << (is_used(a) ? "u" : "-");
+        os << "  @ " << fmt((void *)a, "p") << " " << (is_used(a) ? "u" : "-");
         os << " next=" << (a->next & ~HEAP_USED_BITS);
         os << " prev=" << a->prev << "\n";
         a = forward(a, a->next & ~HEAP_USED_BITS);
@@ -70,10 +70,8 @@ void Heap::alloc_callback(void *p, size_t size) {
         uintptr_t addr[6] = {0};
         Backtrace::collect(addr, ARRAY_SIZE(addr));
         LLOG(HEAP, "Allocated " << size << "b @ " << p << ":"
-            << " " << fmt(addr[2], "0x")
-            << " " << fmt(addr[3], "0x")
-            << " " << fmt(addr[4], "0x")
-            << " " << fmt(addr[5], "0x"));
+                                << " " << fmt(addr[2], "0x") << " " << fmt(addr[3], "0x") << " "
+                                << fmt(addr[4], "0x") << " " << fmt(addr[5], "0x"));
     }
 }
 
@@ -82,17 +80,16 @@ void Heap::free_callback(void *p) {
         uintptr_t addr[6] = {0};
         Backtrace::collect(addr, ARRAY_SIZE(addr));
         LLOG(HEAP, "Freeing " << p << ":"
-            << " " << fmt(addr[2], "0x")
-            << " " << fmt(addr[3], "0x")
-            << " " << fmt(addr[4], "0x")
-            << " " << fmt(addr[5], "0x"));
+                              << " " << fmt(addr[2], "0x") << " " << fmt(addr[3], "0x") << " "
+                              << fmt(addr[4], "0x") << " " << fmt(addr[5], "0x"));
     }
 }
 
 bool Heap::oom_callback(size_t size) {
     if(!env()->backend()->extend_heap(size)) {
         if(panic)
-            PANIC("Unable to alloc " << size << " bytes on the heap (free=" << free_memory() << ")");
+            PANIC("Unable to alloc " << size << " bytes on the heap (free=" << free_memory()
+                                     << ")");
         return false;
     }
     return true;

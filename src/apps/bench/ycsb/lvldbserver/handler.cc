@@ -13,11 +13,11 @@
  * General Public License version 2 for more details.
  */
 
+#include "handler.h"
+
 #include <m3/stream/Standard.h>
 
 #include <endian.h>
-
-#include "handler.h"
 
 using namespace m3;
 
@@ -52,10 +52,10 @@ size_t OpHandler::from_bytes(uint8_t *package_buffer, size_t package_size, Packa
         if(pos + key_len + val_len > package_size)
             return 0;
 
-        std::string key((const char*)package_buffer + pos, key_len);
+        std::string key((const char *)package_buffer + pos, key_len);
         pos += key_len;
 
-        std::string val((const char*)package_buffer + pos, val_len);
+        std::string val((const char *)package_buffer + pos, val_len);
         pos += val_len;
         pkg.kv_pairs.push_back(std::make_pair(key, val));
     }

@@ -16,15 +16,14 @@
  */
 
 #include <m3/Exception.h>
-#include <m3/net/Socket.h>
 #include <m3/net/RawSocket.h>
+#include <m3/net/Socket.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/vfs/FileTable.h>
 
 namespace m3 {
 
-RawSocket::RawSocket(int sd, capsel_t caps, NetworkManager &nm)
-    : Socket(sd, caps, nm) {
+RawSocket::RawSocket(int sd, capsel_t caps, NetworkManager &nm) : Socket(sd, caps, nm) {
 }
 
 RawSocket::~RawSocket() {
@@ -32,7 +31,7 @@ RawSocket::~RawSocket() {
 }
 
 FileRef<RawSocket> RawSocket::create(NetworkManager &nm, uint8_t protocol,
-                                       const DgramSocketArgs &args) {
+                                     const DgramSocketArgs &args) {
     capsel_t caps;
     int sd = nm.create(SocketType::RAW, protocol, args, &caps);
     auto sock = std::unique_ptr<RawSocket>(new RawSocket(sd, caps, nm));

@@ -22,6 +22,7 @@ using namespace m3;
 
 bool Scancodes::is_ext = 0;
 bool Scancodes::is_break_flag = false;
+// clang-format off
 Scancodes::Entry Scancodes::table[] = {
     /* 00 */    {0,                             0},
     /* 01 */    {Keyboard::VK_F9,               0},
@@ -156,6 +157,7 @@ Scancodes::Entry Scancodes::table[] = {
     /* 82 */    {0,                             0},
     /* 83 */    {Keyboard::VK_F7,               0},
 };
+// clang-format on
 
 bool Scancodes::get_keycode(bool &is_break, unsigned char &keycode, unsigned char scancode) {
     Entry *e;

@@ -25,8 +25,7 @@ namespace m3 {
  * A semaphore allows synchronization of different activities, based on system calls
  */
 class Semaphore : public ObjCap {
-    Semaphore(capsel_t sel, uint flags) noexcept
-        : ObjCap(SEM, sel, flags) {
+    Semaphore(capsel_t sel, uint flags) noexcept : ObjCap(SEM, sel, flags) {
     }
 
 public:
@@ -56,8 +55,7 @@ public:
         return Semaphore(sel, KEEP_CAP);
     }
 
-    Semaphore(Semaphore &&sem) noexcept
-        : ObjCap(std::move(sem)) {
+    Semaphore(Semaphore &&sem) noexcept : ObjCap(std::move(sem)) {
     }
 
     /**

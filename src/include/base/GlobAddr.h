@@ -22,18 +22,17 @@ namespace m3 {
 
 class GlobAddr {
 #if defined(__gem5__)
-    static const uint64_t TILE_SHIFT  = 56;
+    static const uint64_t TILE_SHIFT = 56;
     static const uint64_t TILE_OFFSET = 0x80;
 #else
-    static const uint64_t TILE_SHIFT  = 48;
+    static const uint64_t TILE_SHIFT = 48;
     static const uint64_t TILE_OFFSET = 0;
 #endif
 
 public:
     typedef uint64_t raw_t;
 
-    explicit GlobAddr(raw_t raw = 0)
-        : _raw(raw) {
+    explicit GlobAddr(raw_t raw = 0) : _raw(raw) {
     }
     explicit GlobAddr(tileid_t tile, goff_t off)
         : _raw((static_cast<raw_t>(TILE_OFFSET + tile) << TILE_SHIFT) | off) {
@@ -57,7 +56,7 @@ public:
     }
 
     friend OStream &operator<<(OStream &os, const GlobAddr &ga) {
-        if (ga._raw >= (TILE_OFFSET << TILE_SHIFT))
+        if(ga._raw >= (TILE_OFFSET << TILE_SHIFT))
             os << "G[Tile" << ga.tile() << "+" << fmt(ga.offset(), "#x") << "]";
         // for bootstrap purposes, we need to use global addresses without Tile prefix
         else

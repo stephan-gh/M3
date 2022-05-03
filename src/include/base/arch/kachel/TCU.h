@@ -18,11 +18,12 @@
 
 #pragma once
 
-#include <base/Common.h>
-#include <base/util/Util.h>
 #include <base/CPU.h>
+#include <base/Common.h>
 #include <base/Env.h>
 #include <base/Errors.h>
+#include <base/util/Util.h>
+
 #include <assert.h>
 
 namespace kernel {
@@ -53,50 +54,48 @@ class TCU {
 public:
     typedef uint64_t reg_t;
 
-    static const uintptr_t MMIO_ADDR        = 0xF000'0000;
-    static const size_t MMIO_SIZE           = PAGE_SIZE * 2;
-    static const uintptr_t MMIO_PRIV_ADDR   = MMIO_ADDR + MMIO_SIZE;
-    static const size_t MMIO_PRIV_SIZE      = PAGE_SIZE;
+    static const uintptr_t MMIO_ADDR = 0xF000'0000;
+    static const size_t MMIO_SIZE = PAGE_SIZE * 2;
+    static const uintptr_t MMIO_PRIV_ADDR = MMIO_ADDR + MMIO_SIZE;
+    static const size_t MMIO_PRIV_SIZE = PAGE_SIZE;
 
-    static const reg_t INVALID_EP           = 0xFFFF;
-    static const reg_t INVALID_ACT          = 0xFFFF;
-    static const reg_t NO_REPLIES           = INVALID_EP;
-    static const reg_t UNLIM_CREDITS        = 0x3F;
+    static const reg_t INVALID_EP = 0xFFFF;
+    static const reg_t INVALID_ACT = 0xFFFF;
+    static const reg_t NO_REPLIES = INVALID_EP;
+    static const reg_t UNLIM_CREDITS = 0x3F;
 
 private:
-    static const size_t EXT_REGS            = 2;
-    static const size_t PRIV_REGS           = 5;
-    static const size_t UNPRIV_REGS         = 5;
-    static const size_t EP_REGS             = 3;
-    static const size_t PRINT_REGS          = 32;
+    static const size_t EXT_REGS = 2;
+    static const size_t PRIV_REGS = 5;
+    static const size_t UNPRIV_REGS = 5;
+    static const size_t EP_REGS = 3;
+    static const size_t PRINT_REGS = 32;
 
     // actual max is 64k - 1; use less for better alignment
-    static const size_t MAX_PKT_SIZE        = 60 * 1024;
+    static const size_t MAX_PKT_SIZE = 60 * 1024;
 
     enum class ExtRegs {
-        FEATURES            = 0,
-        EXT_CMD             = 1,
+        FEATURES = 0,
+        EXT_CMD = 1,
     };
 
     enum class PrivRegs {
-        CORE_REQ            = 0,
-        PRIV_CMD            = 1,
-        PRIV_CMD_ARG        = 2,
-        CUR_ACT             = 3,
-        CLEAR_IRQ           = 4,
+        CORE_REQ = 0,
+        PRIV_CMD = 1,
+        PRIV_CMD_ARG = 2,
+        CUR_ACT = 3,
+        CLEAR_IRQ = 4,
     };
 
     enum class UnprivRegs {
-        COMMAND             = EXT_REGS + 0,
-        DATA                = EXT_REGS + 1,
-        ARG1                = EXT_REGS + 2,
-        CUR_TIME            = EXT_REGS + 3,
-        PRINT               = EXT_REGS + 4,
+        COMMAND = EXT_REGS + 0,
+        DATA = EXT_REGS + 1,
+        ARG1 = EXT_REGS + 2,
+        CUR_TIME = EXT_REGS + 3,
+        PRINT = EXT_REGS + 4,
     };
 
-    enum StatusFlags : reg_t {
-        PRIV                = 1 << 0,
-    };
+    enum StatusFlags : reg_t { PRIV = 1 << 0, };
 
     enum class EpType {
         INVALID,
@@ -106,56 +105,55 @@ private:
     };
 
     enum class CmdOpCode {
-        IDLE                = 0,
-        SEND                = 1,
-        REPLY               = 2,
-        READ                = 3,
-        WRITE               = 4,
-        FETCH_MSG           = 5,
-        ACK_MSG             = 6,
-        SLEEP               = 7,
+        IDLE = 0,
+        SEND = 1,
+        REPLY = 2,
+        READ = 3,
+        WRITE = 4,
+        FETCH_MSG = 5,
+        ACK_MSG = 6,
+        SLEEP = 7,
     };
 
     enum class PrivCmdOpCode {
-        IDLE                = 0,
-        INV_PAGE            = 1,
-        INV_TLB             = 2,
-        INS_TLB             = 3,
-        XCHG_ACT            = 4,
-        SET_TIMER           = 5,
-        ABORT_CMD           = 6,
-        FLUSH_CACHE         = 7,
+        IDLE = 0,
+        INV_PAGE = 1,
+        INV_TLB = 2,
+        INS_TLB = 3,
+        XCHG_ACT = 4,
+        SET_TIMER = 5,
+        ABORT_CMD = 6,
+        FLUSH_CACHE = 7,
     };
 
     enum class ExtCmdOpCode {
-        IDLE                = 0,
-        INV_EP              = 1,
-        RESET               = 2,
+        IDLE = 0,
+        INV_EP = 1,
+        RESET = 2,
     };
 
 public:
     enum class IRQ {
-        CORE_REQ            = 0,
-        TIMER               = 1,
+        CORE_REQ = 0,
+        TIMER = 1,
     };
 
     enum MemFlags : reg_t {
-        R                   = 1 << 0,
-        W                   = 1 << 1,
+        R = 1 << 0,
+        W = 1 << 1,
     };
 
     struct Header {
         enum {
-            FL_REPLY            = 1 << 0,
-            FL_PAGEFAULT        = 1 << 1,
+            FL_REPLY = 1 << 0,
+            FL_PAGEFAULT = 1 << 1,
         };
 
-        uint8_t flags : 2,
-                replySize : 6;
+        uint8_t flags : 2, replySize : 6;
         uint8_t senderPe;
         uint16_t senderEp;
-        uint16_t replyEp;   // for a normal message this is the reply epId
-                            // for a reply this is the enpoint that receives credits
+        uint16_t replyEp; // for a normal message this is the reply epId
+                          // for a reply this is the enpoint that receives credits
         uint16_t length;
 
         uint32_t replylabel;
@@ -173,21 +171,21 @@ public:
         unsigned char data[];
     } PACKED;
 
-    static const epid_t KPEX_SEP            = 4;
-    static const epid_t KPEX_REP            = 5;
-    static const epid_t TMUP_REP            = 6;
-    static const epid_t TMUP_RPLEP          = 7;
+    static const epid_t KPEX_SEP = 4;
+    static const epid_t KPEX_REP = 5;
+    static const epid_t TMUP_REP = 6;
+    static const epid_t TMUP_RPLEP = 7;
 
-    static const epid_t SYSC_SEP_OFF        = 0;
-    static const epid_t SYSC_REP_OFF        = 1;
-    static const epid_t UPCALL_REP_OFF      = 2;
-    static const epid_t UPCALL_RPLEP_OFF    = 3;
-    static const epid_t DEF_REP_OFF         = 4;
-    static const epid_t PG_SEP_OFF          = 5;
-    static const epid_t PG_REP_OFF          = 6;
+    static const epid_t SYSC_SEP_OFF = 0;
+    static const epid_t SYSC_REP_OFF = 1;
+    static const epid_t UPCALL_REP_OFF = 2;
+    static const epid_t UPCALL_RPLEP_OFF = 3;
+    static const epid_t DEF_REP_OFF = 4;
+    static const epid_t PG_SEP_OFF = 5;
+    static const epid_t PG_REP_OFF = 6;
 
-    static const epid_t FIRST_USER_EP       = 8;
-    static const epid_t STD_EPS_COUNT       = 7;
+    static const epid_t FIRST_USER_EP = 8;
+    static const epid_t STD_EPS_COUNT = 7;
 
     static TCU &get() {
         return inst;
@@ -220,15 +218,16 @@ public:
 
 private:
     Errors::Code send(epid_t ep, const MsgBuf &msg, label_t replylbl, epid_t reply_ep);
-    Errors::Code send_aligned(epid_t ep, const void *msg, size_t len, label_t replylbl, epid_t reply_ep);
+    Errors::Code send_aligned(epid_t ep, const void *msg, size_t len, label_t replylbl,
+                              epid_t reply_ep);
     Errors::Code reply(epid_t ep, const MsgBuf &reply, size_t msg_off);
     Errors::Code reply_aligned(epid_t ep, const void *reply, size_t len, size_t msg_off);
     Errors::Code read(epid_t ep, void *msg, size_t size, goff_t off);
     Errors::Code write(epid_t ep, const void *msg, size_t size, goff_t off);
 
     Errors::Code perform_send_reply(uintptr_t addr, reg_t cmd);
-    Errors::Code perform_transfer(epid_t ep, uintptr_t data_addr, size_t size,
-                                  goff_t off, CmdOpCode cmd);
+    Errors::Code perform_transfer(epid_t ep, uintptr_t data_addr, size_t size, goff_t off,
+                                  CmdOpCode cmd);
 
     size_t fetch_msg(epid_t ep) const {
         write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::FETCH_MSG));
@@ -278,7 +277,7 @@ private:
         return reinterpret_cast<uintptr_t>(msg) - base;
     }
     static const Message *offset_to_msg(size_t base, size_t msg_off) {
-        return reinterpret_cast<const Message*>(base + msg_off);
+        return reinterpret_cast<const Message *>(base + msg_off);
     }
 
     void clear_irq(IRQ irq) {
@@ -350,40 +349,35 @@ private:
         write_reg(ep, 2, 0);
     }
 
-    static void config_recv(epid_t ep, goff_t buf, unsigned order,
-                            unsigned msgorder, unsigned reply_eps,
-                            uint32_t occupied = 0, uint32_t unread = 0) {
+    static void config_recv(epid_t ep, goff_t buf, unsigned order, unsigned msgorder,
+                            unsigned reply_eps, uint32_t occupied = 0, uint32_t unread = 0) {
         reg_t bufSize = static_cast<reg_t>(order - msgorder);
         reg_t msgSize = static_cast<reg_t>(msgorder);
-        write_reg(ep, 0, static_cast<reg_t>(m3::TCU::EpType::RECEIVE) |
-                        (static_cast<reg_t>(INVALID_ACT) << 3) |
-                        (static_cast<reg_t>(reply_eps) << 19) |
-                        (static_cast<reg_t>(bufSize) << 35) |
-                        (static_cast<reg_t>(msgSize) << 41));
+        write_reg(ep, 0,
+                  static_cast<reg_t>(m3::TCU::EpType::RECEIVE) |
+                      (static_cast<reg_t>(INVALID_ACT) << 3) |
+                      (static_cast<reg_t>(reply_eps) << 19) | (static_cast<reg_t>(bufSize) << 35) |
+                      (static_cast<reg_t>(msgSize) << 41));
         write_reg(ep, 1, buf);
         write_reg(ep, 2, static_cast<reg_t>(unread) << 32 | occupied);
     }
 
-    static void config_send(epid_t ep, label_t lbl, tileid_t tile, epid_t dstep,
-                            unsigned msgorder, unsigned credits,
-                            bool reply = false, epid_t crd_ep = INVALID_EP) {
-        write_reg(ep, 0, static_cast<reg_t>(m3::TCU::EpType::SEND) |
-                        (static_cast<reg_t>(INVALID_ACT) << 3) |
-                        (static_cast<reg_t>(credits) << 19) |
-                        (static_cast<reg_t>(credits) << 25) |
-                        (static_cast<reg_t>(msgorder) << 31) |
-                        (static_cast<reg_t>(crd_ep) << 37) |
-                        (static_cast<reg_t>(reply) << 53));
-        write_reg(ep, 1, (static_cast<reg_t>(tile) << 16) |
-                         (static_cast<reg_t>(dstep) << 0));
+    static void config_send(epid_t ep, label_t lbl, tileid_t tile, epid_t dstep, unsigned msgorder,
+                            unsigned credits, bool reply = false, epid_t crd_ep = INVALID_EP) {
+        write_reg(ep, 0,
+                  static_cast<reg_t>(m3::TCU::EpType::SEND) |
+                      (static_cast<reg_t>(INVALID_ACT) << 3) | (static_cast<reg_t>(credits) << 19) |
+                      (static_cast<reg_t>(credits) << 25) | (static_cast<reg_t>(msgorder) << 31) |
+                      (static_cast<reg_t>(crd_ep) << 37) | (static_cast<reg_t>(reply) << 53));
+        write_reg(ep, 1, (static_cast<reg_t>(tile) << 16) | (static_cast<reg_t>(dstep) << 0));
         write_reg(ep, 2, lbl);
     }
 
     static void config_mem(epid_t ep, tileid_t tile, goff_t addr, size_t size, int perm) {
-        write_reg(ep, 0, static_cast<reg_t>(m3::TCU::EpType::MEMORY) |
-                        (static_cast<reg_t>(INVALID_ACT) << 3) |
-                        (static_cast<reg_t>(perm) << 19) |
-                        (static_cast<reg_t>(tile) << 23));
+        write_reg(ep, 0,
+                  static_cast<reg_t>(m3::TCU::EpType::MEMORY) |
+                      (static_cast<reg_t>(INVALID_ACT) << 3) | (static_cast<reg_t>(perm) << 19) |
+                      (static_cast<reg_t>(tile) << 23));
         write_reg(ep, 1, addr);
         write_reg(ep, 2, size);
     }

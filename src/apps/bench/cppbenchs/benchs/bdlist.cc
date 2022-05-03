@@ -17,9 +17,9 @@
  */
 
 #include <base/Common.h>
+#include <base/Panic.h>
 #include <base/col/DList.h>
 #include <base/time/Profile.h>
-#include <base/Panic.h>
 
 #include <m3/Test.h>
 
@@ -42,7 +42,7 @@ NOINLINE static void append() {
             }
         }
         void post() override {
-            for(auto it = list.begin(); it != list.end(); ) {
+            for(auto it = list.begin(); it != list.end();) {
                 auto old = it++;
                 delete &*old;
             }
@@ -65,7 +65,7 @@ NOINLINE static void clear() {
             }
         }
         void run() override {
-            for(auto it = list.begin(); it != list.end(); ) {
+            for(auto it = list.begin(); it != list.end();) {
                 auto old = it++;
                 delete &*old;
             }

@@ -17,17 +17,17 @@
  */
 
 #if defined(__host__)
-#include <base/Env.h>
+#    include <base/Env.h>
 
-#include <m3/com/MemGate.h>
-#include <m3/com/RecvGate.h>
-#include <m3/com/GateStream.h>
-#include <m3/stream/Standard.h>
-#include <m3/Test.h>
+#    include <m3/Test.h>
+#    include <m3/com/GateStream.h>
+#    include <m3/com/MemGate.h>
+#    include <m3/com/RecvGate.h>
+#    include <m3/stream/Standard.h>
 
-#include <sys/mman.h>
+#    include <sys/mman.h>
 
-#include "../unittests.h"
+#    include "../unittests.h"
 
 using namespace m3;
 
@@ -52,8 +52,8 @@ static void dmacmd(const void *data, size_t len, epid_t ep, size_t offset, size_
     tcu.set_cmd(m3::TCU::CMD_LENGTH, length);
     tcu.set_cmd(m3::TCU::CMD_REPLYLBL, 0);
     tcu.set_cmd(m3::TCU::CMD_REPLY_EPID, 0);
-    tcu.set_cmd(m3::TCU::CMD_CTRL, static_cast<word_t>(op << 3) | m3::TCU::CTRL_START |
-                                   m3::TCU::CTRL_DEL_REPLY_CAP);
+    tcu.set_cmd(m3::TCU::CMD_CTRL,
+                static_cast<word_t>(op << 3) | m3::TCU::CTRL_START | m3::TCU::CTRL_DEL_REPLY_CAP);
     tcu.exec_command();
 }
 
@@ -67,7 +67,7 @@ static void cmds_read() {
         return;
 
     const size_t datasize = sizeof(word_t) * 4;
-    word_t *data = reinterpret_cast<word_t*>(addr);
+    word_t *data = reinterpret_cast<word_t *>(addr);
     data[0] = 1234;
     data[1] = 5678;
     data[2] = 1122;
@@ -76,7 +76,7 @@ static void cmds_read() {
     cout << "-- Test errors --\n";
     {
         tcu.configure(sndep->id(), reinterpret_cast<word_t>(data), MemGate::R, env()->tile_id,
-            rcvep->id(), datasize, 0);
+                      rcvep->id(), datasize, 0);
 
         dmacmd(nullptr, 0, sndep->id(), 0, datasize, TCU::WRITE);
         WVASSERTEQ(tcu.get_cmd(TCU::CMD_ERROR), static_cast<word_t>(Errors::NO_PERM));
@@ -94,7 +94,7 @@ static void cmds_read() {
     cout << "-- Test reading --\n";
     {
         tcu.configure(sndep->id(), reinterpret_cast<word_t>(data), MemGate::R, env()->tile_id,
-            rcvep->id(), datasize, 0);
+                      rcvep->id(), datasize, 0);
 
         word_t buf[datasize / sizeof(word_t)];
 
@@ -124,7 +124,7 @@ static void cmds_write() {
     {
         word_t data[] = {1234, 5678, 1122, 3344};
         tcu.configure(sndep->id(), reinterpret_cast<word_t>(addr), MemGate::W, env()->tile_id,
-            rcvep->id(), sizeof(data), 0);
+                      rcvep->id(), sizeof(data), 0);
 
         dmacmd(nullptr, 0, sndep->id(), 0, sizeof(data), TCU::READ);
         WVASSERTEQ(tcu.get_cmd(TCU::CMD_ERROR), static_cast<word_t>(Errors::NO_PERM));
@@ -134,11 +134,11 @@ static void cmds_write() {
     {
         word_t data[] = {1234, 5678, 1122, 3344};
         tcu.configure(sndep->id(), reinterpret_cast<word_t>(addr), MemGate::W, env()->tile_id,
-            rcvep->id(), sizeof(data), 0);
+                      rcvep->id(), sizeof(data), 0);
 
         dmacmd(data, sizeof(data), sndep->id(), 0, sizeof(data), TCU::WRITE);
         WVASSERTEQ(tcu.get_cmd(TCU::CMD_ERROR), static_cast<word_t>(Errors::NONE));
-        volatile const word_t *words = reinterpret_cast<const word_t*>(addr);
+        volatile const word_t *words = reinterpret_cast<const word_t *>(addr);
         for(size_t i = 0; i < sizeof(data) / sizeof(data[0]); ++i)
             WVASSERTEQ(static_cast<word_t>(words[i]), data[i]);
     }
@@ -201,7 +201,9 @@ static void mem_derive() {
         sub.read(test, sizeof(xfer_t), 0);
         WVASSERTEQ(test[0], 5u);
 
-        WVASSERTERR(Errors::NO_PERM, [&sub] { write_vmsg(sub, 0, 8); });
+        WVASSERTERR(Errors::NO_PERM, [&sub] {
+            write_vmsg(sub, 0, 8);
+        });
     }
 }
 

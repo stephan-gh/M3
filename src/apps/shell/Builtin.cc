@@ -13,15 +13,15 @@
  * General Public License version 2 for more details.
  */
 
+#include "Builtin.h"
+
+#include <m3/EnvVars.h>
 #include <m3/stream/FStream.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/VFS.h>
-#include <m3/EnvVars.h>
 
 #include <errno.h>
 #include <unistd.h>
-
-#include "Builtin.h"
 
 using namespace m3;
 
@@ -30,10 +30,10 @@ static int execute_echo(char **args, int outfd);
 static int execute_export(char **args, int outfd);
 
 Builtin::Command Builtin::commands[] = {
-    {"cd", execute_cd},
-    {"echo", execute_echo},
+    {"cd",     execute_cd    },
+    {"echo",   execute_echo  },
     {"export", execute_export},
-    {nullptr, nullptr},
+    {nullptr,  nullptr       },
 };
 
 bool Builtin::is_builtin(const char *name) {

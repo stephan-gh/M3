@@ -16,9 +16,9 @@
 #include <base/stream/IStringStream.h>
 #include <base/stream/OStringStream.h>
 
+#include <m3/Test.h>
 #include <m3/pipe/IndirectPipe.h>
 #include <m3/vfs/FileRef.h>
-#include <m3/Test.h>
 
 #include "../unittests.h"
 

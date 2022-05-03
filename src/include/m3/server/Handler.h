@@ -18,9 +18,9 @@
 
 #pragma once
 
-#include <base/util/String.h>
 #include <base/Errors.h>
 #include <base/KIF.h>
+#include <base/util/String.h>
 
 #include <m3/com/GateStream.h>
 
@@ -29,7 +29,10 @@ namespace m3 {
 class CapExchange {
 public:
     explicit CapExchange(const KIF::Service::ExchangeData &in, KIF::Service::ExchangeData &out)
-        : _in(in), _out(out), _is(in.args), _os(out.args) {
+        : _in(in),
+          _out(out),
+          _is(in.args),
+          _os(out.args) {
     }
 
     ExchangeIStream &in_args() {

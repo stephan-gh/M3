@@ -17,8 +17,8 @@
  */
 
 #include <m3/pipe/IndirectPipe.h>
-#include <m3/vfs/FileTable.h>
 #include <m3/tiles/Activity.h>
+#include <m3/vfs/FileTable.h>
 
 namespace m3 {
 

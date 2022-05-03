@@ -13,8 +13,8 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/stream/IStringStream.h>
 #include <base/CmdArgs.h>
+#include <base/stream/IStringStream.h>
 
 #include <m3/net/DNS.h>
 #include <m3/net/TcpSocket.h>
@@ -80,7 +80,7 @@ static void usage(const char *name) {
 }
 
 int main(int argc, char **argv) {
-    bool tcp     = true;
+    bool tcp = true;
     bool verbose = false;
 
     int opt;
@@ -89,8 +89,7 @@ int main(int argc, char **argv) {
             case 'v': verbose = true; break;
             case 't': tcp = true; break;
             case 'u': tcp = false; break;
-            default:
-                usage(argv[0]);
+            default: usage(argv[0]);
         }
     }
     if(CmdArgs::is_help(argc, argv) || CmdArgs::ind + 1 >= argc)
@@ -103,7 +102,7 @@ int main(int argc, char **argv) {
 
     DNS dns;
     IpAddr dest = dns.get_addr(net, dest_str);
-    int port    = IStringStream::read_from<port_t>(port_str);
+    int port = IStringStream::read_from<port_t>(port_str);
 
     auto socket = connect(net, dest, port, tcp);
 
@@ -174,7 +173,8 @@ int main(int argc, char **argv) {
         }
 
         // continue if the socket is connected, there is data left to receive or data left to write
-        if((!tcp || socket->state() == Socket::Connected) || socket->has_data() || output.left() > 0)
+        if((!tcp || socket->state() == Socket::Connected) || socket->has_data() ||
+           output.left() > 0)
             waiter.wait();
         else
             break;

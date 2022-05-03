@@ -16,21 +16,21 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/arch/host/TCUBackend.h>
-#include <base/log/Lib.h>
-#include <base/util/Math.h>
-#include <base/TCU.h>
 #include <base/Env.h>
 #include <base/Init.h>
 #include <base/KIF.h>
 #include <base/Panic.h>
+#include <base/TCU.h>
+#include <base/arch/host/TCUBackend.h>
+#include <base/log/Lib.h>
+#include <base/util/Math.h>
 
+#include <cstdio>
+#include <signal.h>
+#include <sstream>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <cstdio>
-#include <string.h>
-#include <sstream>
-#include <signal.h>
 #include <unistd.h>
 
 namespace m3 {
@@ -38,14 +38,10 @@ namespace m3 {
 INIT_PRIO_TCU TCU TCU::inst;
 INIT_PRIO_TCU TCU::Buffer TCU::_buf;
 
-TCU::TCU()
-    : _run(true),
-      _cmdregs(),
-      _epregs(reinterpret_cast<word_t*>(Env::eps_start())),
-      _tid() {
+TCU::TCU() : _run(true), _cmdregs(), _epregs(reinterpret_cast<word_t *>(Env::eps_start())), _tid() {
     const size_t epsize = EP_REGS * TOTAL_EPS * sizeof(word_t);
     static_assert(epsize <= EPMEM_SIZE, "Not enough space for endpoints");
-    memset(const_cast<word_t*>(_epregs), 0, epsize);
+    memset(const_cast<word_t *>(_epregs), 0, epsize);
 }
 
 void TCU::start() {
@@ -68,7 +64,7 @@ void TCU::reset() {
     // not work, because the cmpxchg fails.
     for(epid_t i = 0; i < TOTAL_EPS; ++i) {
         if(get_ep(i, EP_BUF_ADDR) == 0)
-            memset(const_cast<word_t*>(_epregs) + i * EP_REGS, 0, EP_REGS * sizeof(word_t));
+            memset(const_cast<word_t *>(_epregs) + i * EP_REGS, 0, EP_REGS * sizeof(word_t));
     }
 
     delete _backend;
@@ -86,16 +82,17 @@ void TCU::configure_recv(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
     assert((1UL << (order - msgorder)) <= sizeof(word_t) * 8);
 }
 
-Errors::Code TCU::check_cmd(epid_t ep, int op, word_t perms, word_t credits, size_t offset, size_t length) {
+Errors::Code TCU::check_cmd(epid_t ep, int op, word_t perms, word_t credits, size_t offset,
+                            size_t length) {
     if(op == READ || op == WRITE) {
         if(!(perms & (1U << (op - 1)))) {
-            LLOG(TCU, "TCU-error: operation not permitted on ep " << ep << " (perms="
-                    << perms << ", op=" << op << ")");
+            LLOG(TCU, "TCU-error: operation not permitted on ep " << ep << " (perms=" << perms
+                                                                  << ", op=" << op << ")");
             return Errors::NO_PERM;
         }
         if(offset >= credits || offset + length < offset || offset + length > credits) {
-            LLOG(TCU, "TCU-error: invalid parameters (credits=" << credits
-                    << ", offset=" << offset << ", datalen=" << length << ")");
+            LLOG(TCU, "TCU-error: invalid parameters (credits=" << credits << ", offset=" << offset
+                                                                << ", datalen=" << length << ")");
             return Errors::INV_ARGS;
         }
     }
@@ -103,7 +100,7 @@ Errors::Code TCU::check_cmd(epid_t ep, int op, word_t perms, word_t credits, siz
 }
 
 Errors::Code TCU::prepare_reply(epid_t ep, tileid_t &dstpe, epid_t &dstep) {
-    const void *src = reinterpret_cast<const void*>(get_cmd(CMD_ADDR));
+    const void *src = reinterpret_cast<const void *>(get_cmd(CMD_ADDR));
     const size_t size = get_cmd(CMD_SIZE);
     const size_t reply_off = get_cmd(CMD_OFFSET);
     const word_t bufaddr = get_ep(ep, EP_BUF_ADDR);
@@ -112,13 +109,14 @@ Errors::Code TCU::prepare_reply(epid_t ep, tileid_t &dstpe, epid_t &dstep) {
 
     size_t idx = reply_off >> msgord;
     if(idx >= (1UL << (ord - msgord))) {
-        LLOG(TCU, "TCU-error: EP" << ep << ": invalid message offset " << (void*)reply_off);
+        LLOG(TCU, "TCU-error: EP" << ep << ": invalid message offset " << (void *)reply_off);
         return Errors::INV_ARGS;
     }
 
-    Buffer *buf = reinterpret_cast<Buffer*>(const_cast<Message*>(offset_to_msg(bufaddr, reply_off)));
+    Buffer *buf =
+        reinterpret_cast<Buffer *>(const_cast<Message *>(offset_to_msg(bufaddr, reply_off)));
     if(!buf->has_replycap || buf->rpl_ep == TCU::NO_REPLIES) {
-        LLOG(TCU, "TCU-error: EP" << ep << ": double-reply for msg " << (void*)reply_off);
+        LLOG(TCU, "TCU-error: EP" << ep << ": double-reply for msg " << (void *)reply_off);
         return Errors::INV_ARGS;
     }
 
@@ -126,7 +124,7 @@ Errors::Code TCU::prepare_reply(epid_t ep, tileid_t &dstpe, epid_t &dstep) {
     word_t occupied = get_ep(ep, EP_BUF_OCCUPIED);
     // if the slot is not occupied, it's equivalent to the reply EP being invalid
     if(!bit_set(occupied, idx)) {
-        LLOG(TCU, "TCU-error: EP" << ep << ": slot not occupied " << (void*)reply_off);
+        LLOG(TCU, "TCU-error: EP" << ep << ": slot not occupied " << (void *)reply_off);
         return Errors::NO_SEP;
     }
 
@@ -148,7 +146,7 @@ Errors::Code TCU::prepare_reply(epid_t ep, tileid_t &dstpe, epid_t &dstep) {
 }
 
 Errors::Code TCU::prepare_send(epid_t ep, tileid_t &dstpe, epid_t &dstep) {
-    const void *src = reinterpret_cast<const void*>(get_cmd(CMD_ADDR));
+    const void *src = reinterpret_cast<const void *>(get_cmd(CMD_ADDR));
     const word_t credits = get_ep(ep, EP_CREDITS);
     const word_t msg_order = get_ep(ep, EP_MSGORDER);
     const size_t size = 1UL << msg_order;
@@ -156,17 +154,19 @@ Errors::Code TCU::prepare_send(epid_t ep, tileid_t &dstpe, epid_t &dstep) {
     // check if the message is small enough
     const size_t msg_size = get_cmd(CMD_SIZE) + HEADER_SIZE;
     if(msg_size > size) {
-        LLOG(TCUERR, "TCU-error: message too large for ep " << ep
-                << " (max #" << fmt(size, "x") << ", need #" << fmt(msg_size, "x")
-                << ")." << " Ignoring send-command");
+        LLOG(TCUERR, "TCU-error: message too large for ep " << ep << " (max #" << fmt(size, "x")
+                                                            << ", need #" << fmt(msg_size, "x")
+                                                            << ")."
+                                                            << " Ignoring send-command");
         return Errors::OUT_OF_BOUNDS;
     }
     // check if we have enough credits
     if(credits != UNLIM_CREDITS) {
         if(size > credits) {
-            LLOG(TCU, "TCU-error: insufficient credits on ep " << ep
-                    << " (have #" << fmt(credits, "x") << ", need #" << fmt(size, "x")
-                    << ")." << " Ignoring send-command");
+            LLOG(TCU, "TCU-error: insufficient credits on ep "
+                          << ep << " (have #" << fmt(credits, "x") << ", need #" << fmt(size, "x")
+                          << ")."
+                          << " Ignoring send-command");
             return Errors::NO_CREDITS;
         }
         set_ep(ep, EP_CREDITS, credits - size);
@@ -190,14 +190,14 @@ Errors::Code TCU::prepare_read(epid_t ep, tileid_t &dstpe, epid_t &dstep) {
     _buf.credits = 0;
     _buf.label = get_ep(ep, EP_LABEL);
     _buf.length = sizeof(word_t) * 3;
-    reinterpret_cast<word_t*>(_buf.data)[0] = get_cmd(CMD_OFFSET);
-    reinterpret_cast<word_t*>(_buf.data)[1] = get_cmd(CMD_LENGTH);
-    reinterpret_cast<word_t*>(_buf.data)[2] = get_cmd(CMD_ADDR);
+    reinterpret_cast<word_t *>(_buf.data)[0] = get_cmd(CMD_OFFSET);
+    reinterpret_cast<word_t *>(_buf.data)[1] = get_cmd(CMD_LENGTH);
+    reinterpret_cast<word_t *>(_buf.data)[2] = get_cmd(CMD_ADDR);
     return Errors::NONE;
 }
 
 Errors::Code TCU::prepare_write(epid_t ep, tileid_t &dstpe, epid_t &dstep) {
-    const void *src = reinterpret_cast<const void*>(get_cmd(CMD_ADDR));
+    const void *src = reinterpret_cast<const void *>(get_cmd(CMD_ADDR));
     const size_t size = get_cmd(CMD_SIZE);
     dstpe = get_ep(ep, EP_PEID);
     dstep = get_ep(ep, EP_EPID);
@@ -205,8 +205,8 @@ Errors::Code TCU::prepare_write(epid_t ep, tileid_t &dstpe, epid_t &dstep) {
     _buf.credits = 0;
     _buf.label = get_ep(ep, EP_LABEL);
     _buf.length = sizeof(word_t) * 2;
-    reinterpret_cast<word_t*>(_buf.data)[0] = get_cmd(CMD_OFFSET);
-    reinterpret_cast<word_t*>(_buf.data)[1] = get_cmd(CMD_LENGTH);
+    reinterpret_cast<word_t *>(_buf.data)[0] = get_cmd(CMD_OFFSET);
+    reinterpret_cast<word_t *>(_buf.data)[1] = get_cmd(CMD_LENGTH);
     memcpy(_buf.data + _buf.length, src, size);
     _buf.length += size;
     return Errors::NONE;
@@ -220,13 +220,14 @@ Errors::Code TCU::prepare_ackmsg(epid_t ep) {
 
     size_t idx = msgoff >> msgord;
     if(idx >= (1UL << (ord - msgord))) {
-        LLOG(TCU, "TCU-error: EP" << ep << ": invalid message addr " << (void*)(bufaddr + msgoff));
+        LLOG(TCU, "TCU-error: EP" << ep << ": invalid message addr " << (void *)(bufaddr + msgoff));
         return Errors::INV_ARGS;
     }
 
     word_t occupied = get_ep(ep, EP_BUF_OCCUPIED);
     if(!bit_set(occupied, idx)) {
-        LLOG(TCU, "TCU-error: EP" << ep << ": slot at " << (void*)(bufaddr + msgoff) << " not occupied");
+        LLOG(TCU, "TCU-error: EP" << ep << ": slot at " << (void *)(bufaddr + msgoff)
+                                  << " not occupied");
         return Errors::INV_ARGS;
     }
 
@@ -346,18 +347,14 @@ void TCU::handle_command(tileid_t tile) {
         goto done;
     }
 
-    res = check_cmd(ep, op, get_ep(ep, EP_PERM), get_ep(ep, EP_CREDITS),
-                    get_cmd(CMD_OFFSET), get_cmd(CMD_LENGTH));
+    res = check_cmd(ep, op, get_ep(ep, EP_PERM), get_ep(ep, EP_CREDITS), get_cmd(CMD_OFFSET),
+                    get_cmd(CMD_LENGTH));
     if(res != Errors::NONE)
         goto done;
 
     switch(op) {
-        case REPLY:
-            res = prepare_reply(ep, dstpe, dstep);
-            break;
-        case SEND:
-            res = prepare_send(ep, dstpe, dstep);
-            break;
+        case REPLY: res = prepare_reply(ep, dstpe, dstep); break;
+        case SEND: res = prepare_send(ep, dstpe, dstep); break;
         case READ:
             res = prepare_read(ep, dstpe, dstep);
             // we report the completion of the read later
@@ -369,15 +366,9 @@ void TCU::handle_command(tileid_t tile) {
             if(res == Errors::NONE)
                 newctrl = (ctrl & ~CTRL_START);
             break;
-        case FETCHMSG:
-            res = prepare_fetchmsg(ep);
-            goto done;
-        case ACKMSG:
-            res = prepare_ackmsg(ep);
-            goto done;
-        case SLEEP:
-            start_sleep();
-            return;
+        case FETCHMSG: res = prepare_fetchmsg(ep); goto done;
+        case ACKMSG: res = prepare_ackmsg(ep); goto done;
+        case SLEEP: start_sleep(); return;
     }
     if(res != Errors::NONE)
         goto done;
@@ -406,22 +397,22 @@ done:
 }
 
 bool TCU::send_msg(epid_t ep, tileid_t dstpe, epid_t dstep, bool isreply) {
-    LLOG(TCU, (isreply ? ">> " : "-> ") << fmt(_buf.length, 3) << "b"
-            << " lbl=" << fmt(_buf.label, "#0x", sizeof(label_t) * 2)
-            << " over " << ep << " to tile:ep=" << dstpe << ":" << dstep
-            << " (crd=#" << fmt(get_ep(ep, EP_CREDITS), "x")
-            << " rep=" << _buf.rpl_ep << ")");
+    LLOG(TCU, (isreply ? ">> " : "-> ")
+                  << fmt(_buf.length, 3) << "b"
+                  << " lbl=" << fmt(_buf.label, "#0x", sizeof(label_t) * 2) << " over " << ep
+                  << " to tile:ep=" << dstpe << ":" << dstep << " (crd=#"
+                  << fmt(get_ep(ep, EP_CREDITS), "x") << " rep=" << _buf.rpl_ep << ")");
 
     return _backend->send(dstpe, dstep, &_buf);
 }
 
 void TCU::handle_read_cmd(epid_t ep) {
     word_t base = _buf.label;
-    word_t offset = base + reinterpret_cast<word_t*>(_buf.data)[0];
-    word_t length = reinterpret_cast<word_t*>(_buf.data)[1];
-    word_t dest = reinterpret_cast<word_t*>(_buf.data)[2];
-    LLOG(TCU, "(read) " << length << " bytes from #" << fmt(base, "x")
-            << "+#" << fmt(offset - base, "x") << " -> " << fmt(dest, "p"));
+    word_t offset = base + reinterpret_cast<word_t *>(_buf.data)[0];
+    word_t length = reinterpret_cast<word_t *>(_buf.data)[1];
+    word_t dest = reinterpret_cast<word_t *>(_buf.data)[2];
+    LLOG(TCU, "(read) " << length << " bytes from #" << fmt(base, "x") << "+#"
+                        << fmt(offset - base, "x") << " -> " << fmt(dest, "p"));
     tileid_t dstpe = _buf.tile;
     epid_t dstep = _buf.rpl_ep;
     assert(length <= sizeof(_buf.data));
@@ -430,24 +421,24 @@ void TCU::handle_read_cmd(epid_t ep) {
     _buf.credits = 0;
     _buf.label = 0;
     _buf.length = sizeof(word_t) * 3;
-    reinterpret_cast<word_t*>(_buf.data)[0] = dest;
-    reinterpret_cast<word_t*>(_buf.data)[1] = length;
-    reinterpret_cast<word_t*>(_buf.data)[2] = 0;
-    memcpy(_buf.data + _buf.length, reinterpret_cast<void*>(offset), length);
+    reinterpret_cast<word_t *>(_buf.data)[0] = dest;
+    reinterpret_cast<word_t *>(_buf.data)[1] = length;
+    reinterpret_cast<word_t *>(_buf.data)[2] = 0;
+    memcpy(_buf.data + _buf.length, reinterpret_cast<void *>(offset), length);
     _buf.length += length;
     send_msg(ep, dstpe, dstep, true);
 }
 
 void TCU::handle_write_cmd(epid_t ep) {
     word_t base = _buf.label;
-    word_t offset = base + reinterpret_cast<word_t*>(_buf.data)[0];
-    word_t length = reinterpret_cast<word_t*>(_buf.data)[1];
-    LLOG(TCU, "(write) " << length << " bytes to #" << fmt(base, "x")
-            << "+#" << fmt(offset - base, "x"));
+    word_t offset = base + reinterpret_cast<word_t *>(_buf.data)[0];
+    word_t length = reinterpret_cast<word_t *>(_buf.data)[1];
+    LLOG(TCU, "(write) " << length << " bytes to #" << fmt(base, "x") << "+#"
+                         << fmt(offset - base, "x"));
     assert(length <= sizeof(_buf.data));
     tileid_t dstpe = _buf.tile;
     epid_t dstep = _buf.rpl_ep;
-    memcpy(reinterpret_cast<void*>(offset), _buf.data + sizeof(word_t) * 2, length);
+    memcpy(reinterpret_cast<void *>(offset), _buf.data + sizeof(word_t) * 2, length);
 
     _buf.opcode = RESP;
     _buf.credits = 0;
@@ -460,13 +451,13 @@ void TCU::handle_resp_cmd() {
     word_t base = _buf.label;
     word_t resp = 0;
     if(_buf.length > 0) {
-        word_t offset = base + reinterpret_cast<word_t*>(_buf.data)[0];
-        word_t length = reinterpret_cast<word_t*>(_buf.data)[1];
-        resp = reinterpret_cast<word_t*>(_buf.data)[2];
-        LLOG(TCU, "(resp) " << length << " bytes to #" << fmt(base, "x")
-                << "+#" << fmt(offset - base, "x") << " -> " << resp);
+        word_t offset = base + reinterpret_cast<word_t *>(_buf.data)[0];
+        word_t length = reinterpret_cast<word_t *>(_buf.data)[1];
+        resp = reinterpret_cast<word_t *>(_buf.data)[2];
+        LLOG(TCU, "(resp) " << length << " bytes to #" << fmt(base, "x") << "+#"
+                            << fmt(offset - base, "x") << " -> " << resp);
         assert(length <= sizeof(_buf.data));
-        memcpy(reinterpret_cast<void*>(offset), _buf.data + sizeof(word_t) * 3, length);
+        memcpy(reinterpret_cast<void *>(offset), _buf.data + sizeof(word_t) * 3, length);
     }
     /* provide feedback to SW */
     set_cmd(CMD_CTRL, resp);
@@ -477,9 +468,9 @@ void TCU::handle_msg(size_t len, epid_t ep) {
     const size_t msgord = get_ep(ep, EP_BUF_MSGORDER);
     const size_t msgsize = 1UL << msgord;
     if(len > msgsize) {
-        LLOG(TCUERR, "TCU-error: dropping message for EP " << ep
-                << " because space is not sufficient"
-                << " (required: " << len << ", available: " << msgsize << ")");
+        LLOG(TCUERR, "TCU-error: dropping message for EP "
+                         << ep << " because space is not sufficient"
+                         << " (required: " << len << ", available: " << msgsize << ")");
         return;
     }
 
@@ -491,14 +482,12 @@ void TCU::handle_msg(size_t len, epid_t ep) {
     size_t size = 1UL << (ord - msgord);
 
     size_t i;
-    for (i = woff; i < size; ++i)
-    {
-        if (!bit_set(occupied, i))
+    for(i = woff; i < size; ++i) {
+        if(!bit_set(occupied, i))
             goto found;
     }
-    for (i = 0; i < woff; ++i)
-    {
-        if (!bit_set(occupied, i))
+    for(i = 0; i < woff; ++i) {
+        if(!bit_set(occupied, i))
             goto found;
     }
 
@@ -519,7 +508,7 @@ found:
     set_ep(ep, EP_BUF_MSGCNT, msgs);
     set_ep(ep, EP_BUF_WOFF, woff);
 
-    auto msg = const_cast<Message*>(offset_to_msg(get_ep(ep, EP_BUF_ADDR), i * (1UL << msgord)));
+    auto msg = const_cast<Message *>(offset_to_msg(get_ep(ep, EP_BUF_ADDR), i * (1UL << msgord)));
     memcpy(msg, &_buf, len);
 
     received_msg();
@@ -532,19 +521,11 @@ bool TCU::handle_receive(epid_t ep) {
 
     const int op = _buf.opcode;
     switch(op) {
-        case READ:
-            handle_read_cmd(ep);
-            break;
-        case RESP:
-            handle_resp_cmd();
-            break;
-        case WRITE:
-            handle_write_cmd(ep);
-            break;
+        case READ: handle_read_cmd(ep); break;
+        case RESP: handle_resp_cmd(); break;
+        case WRITE: handle_write_cmd(ep); break;
         case SEND:
-        case REPLY:
-            handle_msg(static_cast<size_t>(res), ep);
-            break;
+        case REPLY: handle_msg(static_cast<size_t>(res), ep); break;
     }
 
     // refill credits
@@ -554,26 +535,26 @@ bool TCU::handle_receive(epid_t ep) {
         word_t credits = get_ep(_buf.crd_ep, EP_CREDITS);
         word_t msg_order = get_ep(_buf.crd_ep, EP_MSGORDER);
         if(_buf.credits && credits != UNLIM_CREDITS) {
-            LLOG(TCU, "Refilling credits of ep " << _buf.crd_ep
-                << " from #" << fmt(credits, "x") << " to #" << fmt(credits + (1UL << msg_order), "x"));
+            LLOG(TCU, "Refilling credits of ep " << _buf.crd_ep << " from #" << fmt(credits, "x")
+                                                 << " to #"
+                                                 << fmt(credits + (1UL << msg_order), "x"));
             set_ep(_buf.crd_ep, EP_CREDITS, credits + (1UL << msg_order));
         }
     }
 
     LLOG(TCU, "<- " << fmt(static_cast<size_t>(res) - HEADER_SIZE, 3)
-           << "b lbl=" << fmt(_buf.label, "#0x", sizeof(label_t) * 2)
-           << " ep=" << ep
-           << " (cnt=#" << fmt(get_ep(ep, EP_BUF_MSGCNT), "x") << ","
-           << "crd=#" << fmt(get_ep(ep, EP_CREDITS), "x") << ")");
+                    << "b lbl=" << fmt(_buf.label, "#0x", sizeof(label_t) * 2) << " ep=" << ep
+                    << " (cnt=#" << fmt(get_ep(ep, EP_BUF_MSGCNT), "x") << ","
+                    << "crd=#" << fmt(get_ep(ep, EP_CREDITS), "x") << ")");
     return true;
 }
 
-Errors::Code TCU::perform_transfer(epid_t ep, uintptr_t data_addr, size_t size,
-                                   goff_t off, int cmd) {
+Errors::Code TCU::perform_transfer(epid_t ep, uintptr_t data_addr, size_t size, goff_t off,
+                                   int cmd) {
     while(size > 0) {
         size_t amount = Math::min(size, PAGE_SIZE - (data_addr & PAGE_MASK));
-        setup_command(ep, cmd, reinterpret_cast<const void*>(data_addr), amount, off,
-                      amount, label_t(), 0);
+        setup_command(ep, cmd, reinterpret_cast<const void *>(data_addr), amount, off, amount,
+                      label_t(), 0);
         auto res = exec_command();
         if(res != Errors::NONE)
             return res;
@@ -615,7 +596,7 @@ static void sigchild(int) {
 }
 
 void *TCU::thread(void *arg) {
-    TCU *dma = static_cast<TCU*>(arg);
+    TCU *dma = static_cast<TCU *>(arg);
     tileid_t tile = env()->tile_id;
 
     if(tile != 0)

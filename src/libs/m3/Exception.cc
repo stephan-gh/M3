@@ -15,8 +15,8 @@
 
 #include <base/Backtrace.h>
 
-#include <m3/stream/Standard.h>
 #include <m3/Exception.h>
+#include <m3/stream/Standard.h>
 
 namespace m3 {
 
@@ -40,9 +40,7 @@ void Exception::terminate_handler() {
     abort();
 }
 
-Exception::Exception(Errors::Code code) noexcept
-    : _code(code),
-      _backtrace() {
+Exception::Exception(Errors::Code code) noexcept : _code(code), _backtrace() {
     size_t count = Backtrace::collect(_backtrace, MAX_TRACE_DEPTH - 1);
     _backtrace[count] = 0;
 }

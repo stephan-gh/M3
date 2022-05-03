@@ -46,7 +46,7 @@ public:
     explicit FileRef(T *file = nullptr) : _file(file) {
     }
     template<class U>
-    FileRef(FileRef<U> &&f) noexcept : _file(static_cast<T*>(f._file)) {
+    FileRef(FileRef<U> &&f) noexcept : _file(static_cast<T *>(f._file)) {
         f._file = nullptr;
     }
     template<class U>
@@ -55,8 +55,8 @@ public:
         f._file = nullptr;
         return *this;
     }
-    FileRef(const FileRef&) = delete;
-    FileRef &operator=(const FileRef&) = delete;
+    FileRef(const FileRef &) = delete;
+    FileRef &operator=(const FileRef &) = delete;
     ~FileRef() {
         reset();
     }

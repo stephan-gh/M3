@@ -16,29 +16,29 @@
 
 #pragma once
 
-#define PACKED                  __attribute__ ((packed))
-#define NORETURN                __attribute__ ((__noreturn__))
-#define NOINLINE                __attribute__ ((noinline))
-#define ALWAYS_INLINE           __attribute__ ((always_inline))
-#define EXPECT_FALSE(X)         __builtin_expect(!!(X), 0)
-#define EXPECT_TRUE(X)          __builtin_expect(!!(X), 1)
-#define USED                    __attribute__ ((used))
-#define UNUSED                  __attribute__ ((unused))
-#define UNREACHED               __builtin_unreachable()
-#define WEAK                    __attribute__ ((weak))
-#define INIT_PRIO(X)            __attribute__ ((init_priority((X))))
-#define ALIGNED(X)              __attribute__ ((aligned(X)))
+#define PACKED          __attribute__((packed))
+#define NORETURN        __attribute__((__noreturn__))
+#define NOINLINE        __attribute__((noinline))
+#define ALWAYS_INLINE   __attribute__((always_inline))
+#define EXPECT_FALSE(X) __builtin_expect(!!(X), 0)
+#define EXPECT_TRUE(X)  __builtin_expect(!!(X), 1)
+#define USED            __attribute__((used))
+#define UNUSED          __attribute__((unused))
+#define UNREACHED       __builtin_unreachable()
+#define WEAK            __attribute__((weak))
+#define INIT_PRIO(X)    __attribute__((init_priority((X))))
+#define ALIGNED(X)      __attribute__((aligned(X)))
 
 #ifdef __clang__
-#    define COMPILER_NAME       "clang " __VERSION__
+#    define COMPILER_NAME "clang " __VERSION__
 #elif defined(__GNUC__)
-#    define COMPILER_NAME       "gcc " __VERSION__
+#    define COMPILER_NAME "gcc " __VERSION__
 #else
 #    error "Unknown compiler"
 #endif
 
 #ifdef __cplusplus
-#    define EXTERN_C             extern "C"
+#    define EXTERN_C extern "C"
 #else
 #    define EXTERN_C
 #endif

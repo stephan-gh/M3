@@ -13,8 +13,8 @@
  * General Public License version 2 for more details.
  */
 
-#include <m3/com/EPMng.h>
 #include <m3/Syscalls.h>
+#include <m3/com/EPMng.h>
 #include <m3/tiles/Activity.h>
 
 namespace m3 {

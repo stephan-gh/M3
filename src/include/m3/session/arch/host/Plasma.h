@@ -20,9 +20,9 @@
 
 #include <base/Errors.h>
 
-#include <m3/session/ClientSession.h>
-#include <m3/com/SendGate.h>
 #include <m3/com/GateStream.h>
+#include <m3/com/SendGate.h>
+#include <m3/session/ClientSession.h>
 
 namespace m3 {
 

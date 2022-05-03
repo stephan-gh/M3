@@ -19,25 +19,25 @@
 #include <base/stream/Serial.h>
 #include <base/time/Instant.h>
 
-#include <m3/accel/StreamAccel.h>
-#include <m3/stream/Standard.h>
-#include <m3/pipe/IndirectPipe.h>
-#include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
+#include <m3/accel/StreamAccel.h>
+#include <m3/pipe/IndirectPipe.h>
+#include <m3/stream/Standard.h>
+#include <m3/vfs/VFS.h>
 
 #include "accelchain.h"
 
 using namespace m3;
 
-static constexpr bool VERBOSE           = 1;
-static constexpr size_t PIPE_SHM_SIZE   = 512 * 1024;
+static constexpr bool VERBOSE = 1;
+static constexpr size_t PIPE_SHM_SIZE = 512 * 1024;
 
 class Chain {
-    static const size_t MAX_NUM     = 8;
+    static const size_t MAX_NUM = 8;
 
 public:
-    explicit Chain(Pipes &pipesrv, FileRef<GenericFile> &in, FileRef<GenericFile> &out,
-                   size_t _num, CycleDuration comptime, Mode _mode)
+    explicit Chain(Pipes &pipesrv, FileRef<GenericFile> &in, FileRef<GenericFile> &out, size_t _num,
+                   CycleDuration comptime, Mode _mode)
         : num(_num),
           mode(_mode),
           acts(),
@@ -49,7 +49,8 @@ public:
             OStringStream name;
             name << "chain" << i;
 
-            if(VERBOSE) Serial::get() << "Creating Activity " << name.str() << "\n";
+            if(VERBOSE)
+                Serial::get() << "Creating Activity " << name.str() << "\n";
 
             tiles[i] = Tile::get("copy");
             acts[i] = std::make_unique<ChildActivity>(tiles[i], name.str());
@@ -57,14 +58,14 @@ public:
             accels[i] = std::make_unique<StreamAccel>(acts[i], comptime);
 
             if(mode == Mode::DIR_SIMPLE && i + 1 < num) {
-                mems[i] = std::make_unique<MemGate>(
-                    MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
-                pipes[i] = std::make_unique<IndirectPipe>(
-                    pipesrv, *mems[i], PIPE_SHM_SIZE);
+                mems[i] =
+                    std::make_unique<MemGate>(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
+                pipes[i] = std::make_unique<IndirectPipe>(pipesrv, *mems[i], PIPE_SHM_SIZE);
             }
         }
 
-        if(VERBOSE) Serial::get() << "Connecting input and output...\n";
+        if(VERBOSE)
+            Serial::get() << "Connecting input and output...\n";
 
         // connect input/output
         accels[0]->connect_input(&*in);
@@ -106,8 +107,7 @@ public:
         for(size_t i = 0; i < num; ++i) {
             if(running[i] && acts[i]->sel() == act) {
                 if(exitcode != 0) {
-                    cerr << "chain" << i
-                         << " terminated with exit code " << exitcode << "\n";
+                    cerr << "chain" << i << " terminated with exit code " << exitcode << "\n";
                 }
                 if(mode == Mode::DIR_SIMPLE) {
                     if(pipes[i])
@@ -137,7 +137,8 @@ void chain_direct(FileRef<GenericFile> &in, FileRef<GenericFile> &out, size_t nu
     Pipes pipes("pipes");
     Chain ch(pipes, in, out, num, comptime, mode);
 
-    if(VERBOSE) Serial::get() << "Starting chain...\n";
+    if(VERBOSE)
+        Serial::get() << "Starting chain...\n";
 
     auto start = CycleInstant::now();
 
@@ -167,7 +168,8 @@ void chain_direct_multi(FileRef<GenericFile> &in, FileRef<GenericFile> &out, siz
     auto in2 = FileRef<GenericFile>(in->clone());
     Chain ch2(pipes, in2, out2, num, comptime, mode);
 
-    if(VERBOSE) Serial::get() << "Starting chains...\n";
+    if(VERBOSE)
+        Serial::get() << "Starting chains...\n";
 
     auto start = CycleInstant::now();
 

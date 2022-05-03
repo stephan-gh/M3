@@ -20,8 +20,8 @@
 
 #include <base/Errors.h>
 
-#include <m3/session/ClientSession.h>
 #include <m3/com/GateStream.h>
+#include <m3/session/ClientSession.h>
 #include <m3/tiles/Activity.h>
 
 namespace m3 {
@@ -94,7 +94,7 @@ public:
         VK_LALT,
         VK_SPACE,
         VK_RALT,
-        VK_APPS,  /* ?? */
+        VK_APPS, /* ?? */
         VK_RCTRL,
         VK_RSUPER,
         VK_INSERT,

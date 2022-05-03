@@ -18,8 +18,8 @@
 
 #include <base/Common.h>
 #include <base/Config.h>
-#include <base/mem/Heap.h>
 #include <base/Panic.h>
+#include <base/mem/Heap.h>
 
 #include <malloc.h>
 

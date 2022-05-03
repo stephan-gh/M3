@@ -20,15 +20,15 @@
 #include <base/stream/IStringStream.h>
 #include <base/util/Math.h>
 
-#include <m3/stream/FStream.h>
 #include <m3/Test.h>
+#include <m3/stream/FStream.h>
 
 #include "../unittests.h"
 
 using namespace m3;
 
 static void istream() {
-    int a,b;
+    int a, b;
     uint d;
     float f;
 
@@ -91,11 +91,11 @@ static void istream() {
         float res;
     };
     struct TestItem tests[] = {
-        {"1234",         1234.f},
-        {" 12.34",       12.34f},
-        {".5",           .5f},
-        {"\t +6.0e2\n",  6.0e2f},
-        {"-12.35E5",     -12.35E5f},
+        {"1234",        1234.f   },
+        {" 12.34",      12.34f   },
+        {".5",          .5f      },
+        {"\t +6.0e2\n", 6.0e2f   },
+        {"-12.35E5",    -12.35E5f},
     };
     for(size_t i = 0; i < ARRAY_SIZE(tests); i++) {
         IStringStream is(tests[i].str);
@@ -104,32 +104,33 @@ static void istream() {
     }
 }
 
-#define STREAM_CHECK(expr, expstr) do {                                                     \
-        OStringStream __os(str, sizeof(str));                                               \
-        __os << expr;                                                                       \
-        WVASSERTEQ(str, StringRef(expstr));                                                 \
-    } while(0)
+#define STREAM_CHECK(expr, expstr)            \
+    do {                                      \
+        OStringStream __os(str, sizeof(str)); \
+        __os << expr;                         \
+        WVASSERTEQ(str, StringRef(expstr));   \
+    }                                         \
+    while(0)
 
 static void ostream() {
     char str[200];
 
-    STREAM_CHECK(1 << 2 << 3,
-        "123");
+    STREAM_CHECK(1 << 2 << 3, "123");
 
-    STREAM_CHECK(0x1234'5678 << "  " << 1.2f << ' ' << '4' << "\n",
-        "305419896  1.200 4\n");
+    STREAM_CHECK(0x1234'5678 << "  " << 1.2f << ' ' << '4' << "\n", "305419896  1.200 4\n");
 
     STREAM_CHECK(fmt(1, 2) << ' ' << fmt(123, "0", 10) << ' ' << fmt(0xA23, "#0x", 8),
-        " 1 0000000123 0x00000a23");
+                 " 1 0000000123 0x00000a23");
 
-    STREAM_CHECK(fmt(-123, "+") << ' ' << fmt(123, "+") << ' ' << fmt(444, " ") << ' ' << fmt(-3, " "),
-        "-123 +123  444 -3");
+    STREAM_CHECK(fmt(-123, "+")
+                     << ' ' << fmt(123, "+") << ' ' << fmt(444, " ") << ' ' << fmt(-3, " "),
+                 "-123 +123  444 -3");
 
     STREAM_CHECK(fmt(-123, "-", 5) << ' ' << fmt(0755, "0o", 5) << ' ' << fmt(0xFF0, "b"),
-        "-123  00755 111111110000");
+                 "-123  00755 111111110000");
 
     STREAM_CHECK(fmt(0xDEAD, "#0X", 5) << ' ' << fmt("test", 5, 3) << ' ' << fmt("foo", "-", 4),
-        "0X0DEAD   tes foo ");
+                 "0X0DEAD   tes foo ");
 
     OStringStream os(str, sizeof(str));
     os << fmt(0xdead'beef, "p") << ", " << fmt(0x1234'5678, "x");
@@ -145,8 +146,7 @@ static void ostream() {
     STREAM_CHECK(-1.231f << ", " << 999.999f << ", " << 1234.5678f << ", " << 10018938.f,
                  "-1.230, 999.999, 1234.567, 10018938.000");
 
-    STREAM_CHECK(Math::inf() << ", " << -Math::inf() << ", " << Math::nan(),
-        "inf, -inf, nan");
+    STREAM_CHECK(Math::inf() << ", " << -Math::inf() << ", " << Math::nan(), "inf, -inf, nan");
 }
 
 static void fstream() {

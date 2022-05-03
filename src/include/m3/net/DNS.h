@@ -34,9 +34,7 @@ public:
     /**
      * Creates a new DNS resolver
      */
-    explicit DNS()
-        : _rng(),
-          _nameserver() {
+    explicit DNS() : _rng(), _nameserver() {
     }
 
     /**
@@ -57,7 +55,8 @@ public:
      * @return the IP address
      * @throws if the operation failed
      */
-    IpAddr get_addr(NetworkManager &netmng, const char *name, TimeDuration timeout = TimeDuration::from_secs(3));
+    IpAddr get_addr(NetworkManager &netmng, const char *name,
+                    TimeDuration timeout = TimeDuration::from_secs(3));
 
     /**
      * Resolves the given hostname to an IP address. Note that this method assumes that the name is
@@ -70,7 +69,8 @@ public:
      * @return the ip address
      * @throws if the operation failed
      */
-    IpAddr resolve(NetworkManager &netmng, const char *name, TimeDuration timeout = TimeDuration::from_secs(3));
+    IpAddr resolve(NetworkManager &netmng, const char *name,
+                   TimeDuration timeout = TimeDuration::from_secs(3));
 
 private:
     Random _rng;

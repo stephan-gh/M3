@@ -18,9 +18,9 @@
 
 #include <base/time/Profile.h>
 
-#define RUN_SUITE(name)                                                 \
-    m3::cout << "Running benchmark suite " << #name << " ...\n";        \
-    name();                                                             \
+#define RUN_SUITE(name)                                          \
+    m3::cout << "Running benchmark suite " << #name << " ...\n"; \
+    name();                                                      \
     m3::cout << "\n";
 
 #define RUN_BENCH(name)                                                 \
@@ -35,9 +35,9 @@ public:
     }
 
     friend m3::OStream &operator<<(m3::OStream &os, const MilliFloatResultRef &r) {
-        os << (static_cast<float>(r._res.avg().as_nanos()) / 1000000.f)
-           << " ms (+/- " << (static_cast<float>(r._res.stddev().as_nanos()) / 1000000.f)
-           << " ms with " << r._res.runs() << " runs)";
+        os << (static_cast<float>(r._res.avg().as_nanos()) / 1000000.f) << " ms (+/- "
+           << (static_cast<float>(r._res.stddev().as_nanos()) / 1000000.f) << " ms with "
+           << r._res.runs() << " runs)";
         return os;
     }
 

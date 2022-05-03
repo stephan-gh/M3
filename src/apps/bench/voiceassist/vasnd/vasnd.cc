@@ -13,22 +13,22 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/stream/IStringStream.h>
-#include <base/util/Math.h>
-#include <base/time/Profile.h>
 #include <base/CmdArgs.h>
+#include <base/stream/IStringStream.h>
+#include <base/time/Profile.h>
+#include <base/util/Math.h>
 
-#include <m3/com/MemGate.h>
-#include <m3/session/NetworkManager.h>
-#include <m3/net/TcpSocket.h>
-#include <m3/net/UdpSocket.h>
-#include <m3/stream/Standard.h>
 #include <m3/Syscalls.h>
 #include <m3/Test.h>
+#include <m3/com/MemGate.h>
+#include <m3/net/TcpSocket.h>
+#include <m3/net/UdpSocket.h>
+#include <m3/session/NetworkManager.h>
+#include <m3/stream/Standard.h>
 
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "encoder.h"
 #include "handler.h"
@@ -53,8 +53,8 @@ static size_t recv_audio(void *dst, ClientSession &sess) {
     return size;
 }
 
-static TimeDuration forward_audio(ClientSession &vamic, OpHandler *hdl,
-                                  void *mem, void *out, bool compute) {
+static TimeDuration forward_audio(ClientSession &vamic, OpHandler *hdl, void *mem, void *out,
+                                  bool compute) {
     auto start = TimeInstant::now();
 
     size_t size = recv_audio(mem, vamic);
@@ -62,7 +62,7 @@ static TimeDuration forward_audio(ClientSession &vamic, OpHandler *hdl,
     m3::cout << "Encoding " << size << " bytes WAV\n";
     size_t res;
     if(compute)
-        res = encode((const uint8_t*)mem, size, out, 1024 * 1024);
+        res = encode((const uint8_t *)mem, size, out, 1024 * 1024);
     else {
         res = 40 * 1024;
         memset(out, 0, res);
@@ -95,8 +95,7 @@ int main(int argc, char **argv) {
             case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
             case 'w': warmup = IStringStream::read_from<int>(CmdArgs::arg); break;
             case 'p': compute = false; break;
-            default:
-                usage(argv[0]);
+            default: usage(argv[0]);
         }
     }
     if(CmdArgs::ind + 3 != argc)
