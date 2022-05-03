@@ -18,6 +18,8 @@
 #include <base/stream/OStream.h>
 #include <base/util/Math.h>
 
+#include <memory>
+#include <optional>
 #include <utility>
 
 namespace m3 {
@@ -51,6 +53,9 @@ public:
         list->next = nullptr;
     }
 
+    AreaManager(const AreaManager&) = delete;
+    AreaManager &operator=(const AreaManager&) = delete;
+
     /**
      * Destroys this map
      */
@@ -69,9 +74,9 @@ public:
      * @param map the map
      * @param size the size of the area
      * @param align the desired alignment
-     * @return the address of -1 if failed
+     * @return the address, if space was found
      */
-    goff_t allocate(size_t size, size_t align) {
+    std::optional<goff_t> allocate(size_t size, size_t align) {
         A *a;
         A *p = nullptr;
         for(a = list; a != nullptr; p = a, a = static_cast<A*>(a->next)) {
@@ -80,7 +85,7 @@ public:
                 break;
         }
         if(a == nullptr)
-            return static_cast<goff_t>(-1);
+            return std::nullopt;
 
         /* if we need to do some alignment, create a new area in front of a */
         size_t diff = m3::Math::round_up(a->addr, static_cast<goff_t>(align)) - a->addr;
@@ -159,19 +164,16 @@ public:
      * Just for debugging/testing: Determines the total number of free bytes in the map
      *
      * @param map the map
-     * @param areas will be set to the number of areas in the map
-     * @return the free bytes
+     * @return a pair of the free bytes and the number of areas
      */
-    size_t get_size(size_t *areas = nullptr) const {
+    std::pair<size_t, size_t> get_size() const {
         size_t total = 0;
-        if(areas)
-            *areas = 0;
+        size_t areas = 0;
         for(A *a = list; a != nullptr; a = static_cast<A*>(a->next)) {
             total += a->size;
-            if(areas)
-                (*areas)++;
+            areas++;
         }
-        return total;
+        return std::make_pair(total, areas);
     }
 
     friend m3::OStream &operator<<(m3::OStream &os, const AreaManager &map) {

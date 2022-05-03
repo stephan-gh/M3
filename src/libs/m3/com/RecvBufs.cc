@@ -27,10 +27,11 @@ INIT_PRIO_RECVBUF RecvBufs RecvBufs::_inst;
 RecvBuf *RecvBufs::alloc(size_t size) {
     bool vm = Activity::own().tile_desc().has_virtmem();
     // page align the receive buffers so that we can map them
-    uintptr_t addr = _bufs.allocate(size, vm ? PAGE_SIZE : 1);
-    if(addr == static_cast<uintptr_t>(-1))
+    auto maybe_addr = _bufs.allocate(size, vm ? PAGE_SIZE : 1);
+    if(!maybe_addr)
         VTHROW(Errors::NO_SPACE, "Insufficient rbuf space for " << size << "b");
 
+    auto addr = maybe_addr.value();
     std::unique_ptr<MemGate> mgate;
     if(vm) {
         // allocate memory
