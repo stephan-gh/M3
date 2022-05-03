@@ -23,6 +23,8 @@
 #include <m3/Syscalls.h>
 #include <m3/com/GateStream.h>
 
+#include <utility>
+
 namespace m3 {
 
 INIT_PRIO_SYSCALLS SendGate Syscalls::_sendgate(KIF::INV_SEL, ObjCap::KEEP_CAP,
@@ -124,8 +126,8 @@ void Syscalls::create_map(capsel_t dst, capsel_t act, capsel_t mgate, capsel_t f
     send_receive_throw(req_buf);
 }
 
-epid_t Syscalls::create_activity(capsel_t dst, const String &name, capsel_t tile, capsel_t kmem,
-                                 actid_t *id) {
+std::pair<epid_t, actid_t> Syscalls::create_activity(capsel_t dst, const String &name,
+                                                     capsel_t tile, capsel_t kmem) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::CreateActivity>();
     req.opcode = KIF::Syscall::CREATE_ACT;
@@ -140,8 +142,7 @@ epid_t Syscalls::create_activity(capsel_t dst, const String &name, capsel_t tile
     Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::CREATE_ACT);
-    *id = reply->id;
-    return reply->eps_start;
+    return std::make_pair(reply->eps_start, reply->id);
 }
 
 void Syscalls::create_sem(capsel_t dst, uint value) {
@@ -204,7 +205,8 @@ void Syscalls::activity_ctrl(capsel_t act, KIF::Syscall::ActivityOp op, xfer_t a
         send_receive_throw(req_buf);
 }
 
-int Syscalls::activity_wait(const capsel_t *acts, size_t count, event_t event, capsel_t *act) {
+std::pair<int, capsel_t> Syscalls::activity_wait(const capsel_t *acts, size_t count,
+                                                 event_t event) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::ActivityWait>();
     req.opcode = KIF::Syscall::ACT_WAIT;
@@ -216,15 +218,16 @@ int Syscalls::activity_wait(const capsel_t *acts, size_t count, event_t event, c
     auto reply = send_receive<KIF::Syscall::ActivityWaitReply>(req_buf);
 
     int exitcode = -1;
+    capsel_t act = KIF::INV_SEL;
     Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res == Errors::NONE && event == 0) {
-        *act = reply->act_sel;
+        act = reply->act_sel;
         exitcode = reply->exitcode;
     }
 
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::ACT_WAIT);
-    return exitcode;
+    return std::make_pair(exitcode, act);
 }
 
 void Syscalls::derive_mem(capsel_t act, capsel_t dst, capsel_t src, goff_t offset, size_t size,
@@ -285,7 +288,7 @@ void Syscalls::get_sess(capsel_t srv, capsel_t act, capsel_t dst, word_t sid) {
     send_receive_throw(req_buf);
 }
 
-GlobAddr Syscalls::mgate_region(capsel_t mgate, size_t *size) {
+std::pair<GlobAddr, size_t> Syscalls::mgate_region(capsel_t mgate) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::MGateRegion>();
     req.opcode = KIF::Syscall::MGATE_REGION;
@@ -296,9 +299,7 @@ GlobAddr Syscalls::mgate_region(capsel_t mgate, size_t *size) {
     Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::MGATE_REGION);
-    if(size)
-        *size = reply->size;
-    return GlobAddr(reply->global);
+    return std::make_pair(GlobAddr(reply->global), reply->size);
 }
 
 Quota<size_t> Syscalls::kmem_quota(capsel_t kmem) {
@@ -315,8 +316,7 @@ Quota<size_t> Syscalls::kmem_quota(capsel_t kmem) {
     return Quota<size_t>(reply->id, reply->total, reply->left);
 }
 
-void Syscalls::tile_quota(capsel_t tile, Quota<uint> *eps, Quota<uint64_t> *time,
-                          Quota<size_t> *pts) {
+std::tuple<Quota<uint>, Quota<uint64_t>, Quota<size_t>> Syscalls::tile_quota(capsel_t tile) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::TileQuota>();
     req.opcode = KIF::Syscall::TILE_QUOTA;
@@ -327,12 +327,10 @@ void Syscalls::tile_quota(capsel_t tile, Quota<uint> *eps, Quota<uint64_t> *time
     Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::TILE_QUOTA);
-    if(eps)
-        *eps = Quota<uint>(reply->eps_id, reply->eps_total, reply->eps_left);
-    if(time)
-        *time = Quota<uint64_t>(reply->time_id, reply->time_total, reply->time_left);
-    if(pts)
-        *pts = Quota<size_t>(reply->pts_id, reply->pts_total, reply->pts_left);
+
+    return std::make_tuple(Quota<uint>(reply->eps_id, reply->eps_total, reply->eps_left),
+                           Quota<uint64_t>(reply->time_id, reply->time_total, reply->time_left),
+                           Quota<size_t>(reply->pts_id, reply->pts_total, reply->pts_left));
 }
 
 void Syscalls::tile_set_quota(capsel_t tile, uint64_t time, uint64_t pts) {

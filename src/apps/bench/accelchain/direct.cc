@@ -150,8 +150,7 @@ void chain_direct(FileRef<GenericFile> &in, FileRef<GenericFile> &out, size_t nu
         capsel_t sels[num];
         ch.add_running(sels, &count);
 
-        capsel_t act;
-        int exitcode = Syscalls::activity_wait(sels, rem, 0, &act);
+        const auto [exitcode, act] = Syscalls::activity_wait(sels, rem, 0);
         ch.terminated(act, exitcode);
     }
 
@@ -183,8 +182,7 @@ void chain_direct_multi(FileRef<GenericFile> &in, FileRef<GenericFile> &out, siz
         ch1.add_running(sels, &count);
         ch2.add_running(sels, &count);
 
-        capsel_t act;
-        int exitcode = Syscalls::activity_wait(sels, rem, 0, &act);
+        const auto [exitcode, act] = Syscalls::activity_wait(sels, rem, 0);
         ch1.terminated(act, exitcode);
         ch2.terminated(act, exitcode);
     }

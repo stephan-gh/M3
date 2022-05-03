@@ -56,12 +56,19 @@ ChildActivity::ChildActivity(const Reference<class Tile> &tile, const String &na
 
     if(_pager) {
         // now create activity, which implicitly obtains the gate cap from us
-        _eps_start = Syscalls::create_activity(sel(), name, tile->sel(), _kmem->sel(), &_id);
+        const auto [eps_start, id] =
+            Syscalls::create_activity(sel(), name, tile->sel(), _kmem->sel());
+        _eps_start = eps_start;
+        _id = id;
         // delegate activity cap to pager
         _pager->init(*this);
     }
-    else
-        _eps_start = Syscalls::create_activity(sel(), name, tile->sel(), _kmem->sel(), &_id);
+    else {
+        const auto [eps_start, id] =
+            Syscalls::create_activity(sel(), name, tile->sel(), _kmem->sel());
+        _eps_start = eps_start;
+        _id = id;
+    }
     _next_sel = Math::max(_kmem->sel() + 1, _next_sel);
 
     if(_resmng == nullptr) {
@@ -114,9 +121,8 @@ void ChildActivity::stop() {
 }
 
 int ChildActivity::wait_async(event_t event) {
-    capsel_t _sel;
     const capsel_t sels[] = {sel()};
-    return Syscalls::activity_wait(sels, 1, event, &_sel);
+    return Syscalls::activity_wait(sels, 1, event).first;
 }
 
 int ChildActivity::wait() {

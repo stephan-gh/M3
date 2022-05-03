@@ -121,8 +121,8 @@ Reference<Tile> Tile::derive(uint eps, uint64_t time, uint64_t pts) {
     return Reference<Tile>(new Tile(sel, desc(), 0, false));
 }
 
-void Tile::quota(Quota<uint> *eps, Quota<uint64_t> *time, Quota<size_t> *pts) const {
-    Syscalls::tile_quota(sel(), eps, time, pts);
+std::tuple<Quota<uint>, Quota<uint64_t>, Quota<size_t>> Tile::quota() const {
+    return Syscalls::tile_quota(sel());
 }
 
 void Tile::set_quota(uint64_t time, uint64_t pts) {

@@ -124,10 +124,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
             // if we share our tile with this child activity, give it separate quotas to ensure that
             // we get our share (we don't trust the child apps)
             if(tiles[i]->sel() == Activity::own().tile()->sel()) {
-                Quota<uint> eps;
-                Quota<uint64_t> time;
-                Quota<size_t> pts;
-                tiles[i]->quota(&eps, &time, &pts);
+                const auto [eps, time, pts] = tiles[i]->quota();
                 if(eps.left > MIN_EPS && pts.left > MIN_PTS)
                     tiles[i] = tiles[i]->derive(eps.left - MIN_EPS, time.total - MIN_TIME,
                                                 pts.left - MIN_PTS);
@@ -254,7 +251,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                     sels[x++] = acts[i]->sel();
             }
 
-            Syscalls::activity_wait(sels, rem, 1, nullptr);
+            Syscalls::activity_wait(sels, rem, 1);
 
             bool signal = false;
             capsel_t act = KIF::INV_SEL;
@@ -276,7 +273,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                 }
                 else if(have_vterm && cin.file()->fetch_signal()) {
                     signal = true;
-                    Syscalls::activity_wait(sels, 0, 1, nullptr);
+                    Syscalls::activity_wait(sels, 0, 1);
                     break;
                 }
 

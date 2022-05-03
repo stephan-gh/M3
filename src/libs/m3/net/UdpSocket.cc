@@ -41,9 +41,9 @@ void UdpSocket::bind(port_t port) {
     if(_state != Closed)
         throw Exception(Errors::INV_STATE);
 
-    IpAddr addr = _nm.bind(sd(), &port);
+    const auto [addr, used_port] = _nm.bind(sd(), port);
     _local_ep.addr = addr;
-    _local_ep.port = port;
+    _local_ep.port = used_port;
     _state = State::Bound;
 }
 

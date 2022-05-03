@@ -107,13 +107,9 @@ public:
     }
 
     /**
-     * Determines the current quotas for EPs, time, and page tables.
-     *
-     * @param eps is set to the quota for EPs
-     * @param time is set to the quota for time (in nanoseconds)
-     * @param pts is set to the quota for page tables
+     * @return a tuple with the current EP quota, time quota and page-table quota
      */
-    void quota(Quota<uint> *eps, Quota<uint64_t> *time, Quota<size_t> *pts) const;
+    std::tuple<Quota<uint>, Quota<uint64_t>, Quota<size_t>> quota() const;
 
     /**
      * Sets the quota of the tile with given selector to specified initial values.

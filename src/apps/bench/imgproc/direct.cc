@@ -143,8 +143,7 @@ static void wait_for(std::unique_ptr<DirectChain> *chains, size_t num) {
         for(size_t i = 0; i < num; ++i)
             chains[i]->add_running(sels, &count);
 
-        capsel_t act;
-        int exitcode = Syscalls::activity_wait(sels, rem, 0, &act);
+        const auto [exitcode, act] = Syscalls::activity_wait(sels, rem, 0);
         for(size_t i = 0; i < num; ++i)
             chains[i]->terminated(act, exitcode);
     }
