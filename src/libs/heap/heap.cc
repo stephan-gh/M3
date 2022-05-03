@@ -126,6 +126,14 @@ USED void *heap_alloc(size_t size) {
     return a + 1;
 }
 
+USED void *heap_memalign(size_t alignment, size_t size) {
+    // TODO support larger alignments
+    if(alignment > ALIGN)
+        return nullptr;
+
+    return heap_alloc(size);
+}
+
 USED void *heap_calloc(size_t n, size_t size) {
     void *ptr = heap_alloc(n * size);
     if(ptr)

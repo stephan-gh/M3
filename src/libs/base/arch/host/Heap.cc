@@ -37,6 +37,10 @@ USED void *malloc(size_t size) {
     ensure_inited();
     return heap_alloc(size);
 }
+USED void *memalign(size_t alignment, size_t size) {
+    ensure_inited();
+    return heap_memalign(alignment, size);
+}
 USED void *calloc(size_t n, size_t size) {
     ensure_inited();
     return heap_calloc(n, size);
