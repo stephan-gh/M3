@@ -27,6 +27,7 @@
 
 #include <fs/internal.h>
 #include <memory>
+#include <optional>
 
 namespace m3 {
 
@@ -104,9 +105,9 @@ public:
          * @param file the file backend
          * @param dst the destination buffer
          * @param amount the number of bytes to read
-         * @return the number of read bytes (0 = EOF; -1 = would block)
+         * @return the number of read bytes (0 = EOF; std::nullopt = would block)
          */
-        ssize_t read(File *file, void *dst, size_t amount);
+        std::optional<size_t> read(File *file, void *dst, size_t amount);
 
         /**
          * Writes <amount> bytes from <src> into the buffer.
@@ -114,17 +115,18 @@ public:
          * @param file the file backend
          * @param src the data to write
          * @param amount the number of bytes to write
-         * @return the number of written bytes (0 = EOF; -1 = would block)
+         * @return the number of written bytes (0 = EOF; std::nullopt = would block)
          */
-        ssize_t write(File *file, const void *src, size_t amount);
+        std::optional<size_t> write(File *file, const void *src, size_t amount);
 
         /**
          * Flushes the buffer. In non-blocking mode, multiple calls might be required.
          *
          * @param file the file backend
-         * @return the result of the operation (-1 = would block, retry; 0 = error, 1 = all flushed)
+         * @return the result of the operation (std::nullopt = would block, retry; false = error,
+         *     true = all flushed)
          */
-        int flush(File *file);
+        std::optional<bool> flush(File *file);
 
         std::unique_ptr<char[]> buffer;
         size_t size;
@@ -187,31 +189,33 @@ public:
      *
      * @param buffer the buffer to read into
      * @param count the number of bytes to read
-     * @return the number of read bytes (or -1 if it would block and we are in non-blocking mode)
+     * @return the number of read bytes (or std::nullopt if it would block and we are in
+     *      non-blocking mode)
      */
-    virtual ssize_t read(void *buffer, size_t count) = 0;
+    virtual std::optional<size_t> read(void *buffer, size_t count) = 0;
 
     /**
      * Writes at most <count> bytes from <buffer> into the file.
      *
      * @param buffer the data to write
      * @param count the number of bytes to write
-     * @return the number of written bytes (or -1 if it would block and we are in non-blocking mode)
+     * @return the number of written bytes (or std::nullopt if it would block and we are in
+     *     non-blocking mode)
      */
-    virtual ssize_t write(const void *buffer, size_t count) = 0;
+    virtual std::optional<size_t> write(const void *buffer, size_t count) = 0;
 
     /**
      * Writes <count> bytes from <buffer> into the file, if possible.
      *
      * On errors or if it would block in non-blocking mode, the number of written bytes is returned.
-     * In the latter case without any written bytes, -1 is returned. On errors without any written
-     * bytes, 0 is returned.
+     * In the latter case without any written bytes, std::nullopt is returned. On errors without any
+     * written bytes, 0 is returned.
      *
      * @param buffer the data to write
      * @param count the number of bytes to write
      * @return the number of written bytes (only less than count in non-blocking mode or on errors)
      */
-    ssize_t write_all(const void *buffer, size_t count);
+    std::optional<size_t> write_all(const void *buffer, size_t count);
 
     /**
      * Truncates the file to given length.
@@ -280,8 +284,9 @@ public:
 
     /**
      * Sets whether this file operates in blocking or non-blocking mode. In blocking mode, read()
-     * and write() will block, whereas in non-blocking mode, they return -1 in case they would block
-     * (e.g., when the server needs to be asked to get access to the next input/output region).
+     * and write() will block, whereas in non-blocking mode, they return std::nullopt in case they
+     * would block (e.g., when the server needs to be asked to get access to the next input/output
+     * region).
      *
      * Note that setting the file to non-blocking might establish an additional communication
      * channel to the server, if required and not already done.

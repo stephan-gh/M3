@@ -119,9 +119,10 @@ public:
      *
      * @param dst the destination to read into
      * @param count the number of bytes to read
-     * @return the number of read bytes (or -1 if it would block and we are in non-blocking mode)
+     * @return the number of read bytes (or std::nullopt if it would block and we are in
+     *     non-blocking mode)
      */
-    ssize_t read(void *dst, size_t count);
+    std::optional<size_t> read(void *dst, size_t count);
 
     /**
      * Writes at most <count> bytes from <src> into the file. If the buffer is empty, the buffer is
@@ -129,9 +130,10 @@ public:
      *
      * @param src the data to write
      * @param count the number of bytes to write
-     * @return the number of written bytes (or -1 if it would block and we are in non-blocking mode)
+     * @return the number of written bytes (or std::nullopt if it would block and we are in
+     *     non-blocking mode)
      */
-    ssize_t write(const void *src, size_t count);
+    std::optional<size_t> write(const void *src, size_t count);
 
     /**
      * Writes all <count> bytes from <src> into the file.
@@ -150,7 +152,7 @@ public:
         try {
             const uint8_t *s = static_cast<const uint8_t *>(src);
             while(!bad() && count) {
-                ssize_t amount = write(s, count);
+                size_t amount = write(s, count).value();
                 count -= static_cast<size_t>(amount);
                 s += amount;
             }
@@ -182,7 +184,7 @@ public:
     }
 
 private:
-    void set_error(ssize_t res);
+    void set_error(std::optional<size_t> res);
 
     fd_t _fd;
     std::unique_ptr<File::Buffer> _rbuf;

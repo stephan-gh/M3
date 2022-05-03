@@ -119,15 +119,14 @@ struct IndirChain {
     }
 
     bool read_next(void *buffer) {
-        ssize_t count = in->read(buffer, BUF_SIZE);
+        size_t count = in->read(buffer, BUF_SIZE).value();
         if(count == 0)
             return false;
 
-        accels[0]->write(buffer, static_cast<size_t>(count));
-        accels[0]->start(InDirAccel::Operation::COMPUTE, static_cast<size_t>(count), ACCEL_TIMES[0],
-                         idx_to_label(0));
+        accels[0]->write(buffer, count);
+        accels[0]->start(InDirAccel::Operation::COMPUTE, count, ACCEL_TIMES[0], idx_to_label(0));
         ops[0] = InDirAccel::Operation::COMPUTE;
-        total += static_cast<size_t>(count);
+        total += count;
         return true;
     }
 

@@ -39,25 +39,25 @@ DirectPipeWriter::State::State(capsel_t caps, size_t size)
     _rgate.activate();
 }
 
-ssize_t DirectPipeWriter::State::find_spot(size_t *len) noexcept {
+std::optional<size_t> DirectPipeWriter::State::find_spot(size_t *len) noexcept {
     if(_free == 0)
-        return -1;
+        return std::nullopt;
     if(_wrpos >= _rdpos) {
         if(_wrpos < _size) {
             *len = Math::min(*len, _size - _wrpos);
-            return static_cast<ssize_t>(_wrpos);
+            return _wrpos;
         }
         if(_rdpos > 0) {
             *len = Math::min(*len, _rdpos);
             return 0;
         }
-        return -1;
+        return std::nullopt;
     }
     if(_rdpos - _wrpos > 0) {
         *len = Math::min(*len, _rdpos - _wrpos);
-        return static_cast<ssize_t>(_wrpos);
+        return _wrpos;
     }
-    return -1;
+    return std::nullopt;
 }
 
 void DirectPipeWriter::State::read_replies() {
@@ -108,7 +108,7 @@ void DirectPipeWriter::remove() noexcept {
     }
 }
 
-ssize_t DirectPipeWriter::write(const void *buffer, size_t count) {
+std::optional<size_t> DirectPipeWriter::write(const void *buffer, size_t count) {
     if(!_state)
         _state = std::make_unique<State>(_caps, _size);
     if(_state->_eof)
@@ -118,8 +118,8 @@ ssize_t DirectPipeWriter::write(const void *buffer, size_t count) {
     const char *buf = reinterpret_cast<const char *>(buffer);
     do {
         size_t amount = rem;
-        ssize_t off = _state->find_spot(&amount);
-        if(_state->_capacity == 0 || off == -1) {
+        auto off = _state->find_spot(&amount);
+        if(_state->_capacity == 0 || !off.has_value()) {
             size_t len;
             if(_blocking) {
                 receive_vmsg(_state->_rgate, len);
@@ -132,7 +132,7 @@ ssize_t DirectPipeWriter::write(const void *buffer, size_t count) {
                     is.vpull(len);
                 }
                 else
-                    return -1;
+                    return std::nullopt;
             }
             LLOG(DIRPIPE, "[write] got len=" << len);
             _state->_rdpos = (_state->_rdpos + len) % _state->_size;
@@ -142,23 +142,24 @@ ssize_t DirectPipeWriter::write(const void *buffer, size_t count) {
                 _state->_eof |= DirectPipe::READ_EOF;
                 return 0;
             }
-            if(_state->_capacity == 0 || off == -1) {
+            if(_state->_capacity == 0 || !off.has_value()) {
                 off = _state->find_spot(&amount);
-                if(off == -1)
+                if(!off.has_value())
                     return 0;
             }
         }
 
-        LLOG(DIRPIPE, "[write] send pos=" << off << ", len=" << amount);
+        size_t mem_off = off.value();
+        LLOG(DIRPIPE, "[write] send pos=" << mem_off << ", len=" << amount);
 
         if(amount) {
-            _state->_mgate.write(buf, amount, static_cast<size_t>(off));
-            _state->_wrpos = (static_cast<size_t>(off) + amount) % _size;
+            _state->_mgate.write(buf, amount, mem_off);
+            _state->_wrpos = (mem_off + amount) % _size;
         }
         _state->_free -= amount;
         _state->_capacity--;
         try {
-            send_vmsg(_state->_sgate, off, amount);
+            send_vmsg(_state->_sgate, mem_off, amount);
         }
         catch(...) {
             // maybe the reader stopped

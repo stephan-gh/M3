@@ -162,9 +162,9 @@ int main(int argc, char **argv) {
         // if we have received data, try to output it
         if(output.left() > 0) {
             cout.clear_state();
-            ssize_t written = cout.write(output.buf.get() + output.pos, output.left());
+            auto written = cout.write(output.buf.get() + output.pos, output.left());
             if(verbose)
-                cerr << "-- wrote " << written << "b to stdout\n";
+                cerr << "-- wrote " << written.value_or(0) << "b to stdout\n";
             output.pop(written);
             cout.flush();
 

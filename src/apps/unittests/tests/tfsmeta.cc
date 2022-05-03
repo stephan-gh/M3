@@ -203,7 +203,7 @@ static void delete_file() {
             VFS::open(tmp_file, FILE_R);
         });
 
-        WVASSERTEQ(file->read(buffer, sizeof(buffer)), 5);
+        WVASSERTEQ(file->read(buffer, sizeof(buffer)).value(), 5U);
     }
 
     WVASSERTERR(Errors::NO_SUCH_FILE, [&tmp_file] {

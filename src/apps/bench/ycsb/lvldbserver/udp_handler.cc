@@ -50,9 +50,9 @@ UDPOpHandler::UDPOpHandler(NetworkManager &nm, const char *workload, m3::IpAddr 
     wl_size = 0;
     {
         auto wl_file = VFS::open(workload, FILE_R);
-        ssize_t len;
-        while((len = wl_file->read(wl_buffer + wl_size, MAX_FILE_SIZE - wl_size)) > 0)
-            wl_size += static_cast<size_t>(len);
+        size_t len;
+        while((len = wl_file->read(wl_buffer + wl_size, MAX_FILE_SIZE - wl_size).value()) > 0)
+            wl_size += len;
     }
 
     UNUSED uint64_t total_preins = static_cast<uint64_t>(wl_read4b());

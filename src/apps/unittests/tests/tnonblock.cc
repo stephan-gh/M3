@@ -42,21 +42,19 @@ static void pipes() {
     while(count < 100) {
         int progress = 0;
 
-        ssize_t read = pipe.reader().read(recv_buf, sizeof(recv_buf));
-        if(read != -1) {
+        if(auto read = pipe.reader().read(recv_buf, sizeof(recv_buf))) {
             // this is actually not guaranteed, but depends on the implementation of the pipe
             // server. however, we want to ensure that the read data is correct, which is difficult
             // otherwise.
-            WVASSERTEQ(read, static_cast<ssize_t>(sizeof(send_buf)));
+            WVASSERTEQ(read.value(), sizeof(send_buf));
             WVASSERT(strncmp(recv_buf, send_buf, sizeof(send_buf)) == 0);
             progress++;
-            count += static_cast<size_t>(read);
+            count += read.value();
         }
 
-        ssize_t written = pipe.writer().write(send_buf, sizeof(send_buf));
-        if(written != -1) {
+        if(auto written = pipe.writer().write(send_buf, sizeof(send_buf))) {
             // see above
-            WVASSERTEQ(written, static_cast<ssize_t>(sizeof(send_buf)));
+            WVASSERTEQ(written.value(), sizeof(send_buf));
             progress++;
         }
 

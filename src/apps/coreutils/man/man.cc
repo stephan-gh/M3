@@ -39,9 +39,9 @@ int main(int argc, char **argv) {
 
     auto file = open_man(argv[1]);
 
-    ssize_t num;
+    size_t num;
     char buf[1024];
-    while((num = file->read(buf, sizeof(buf))) > 0)
-        cout.write_all(buf, static_cast<size_t>(num));
+    while((num = file->read(buf, sizeof(buf)).value()) > 0)
+        cout.write_all(buf, num);
     return 0;
 }

@@ -125,8 +125,8 @@ public:
         try {
             char *buf = reinterpret_cast<char *>(buffer);
             while(size > 0) {
-                ssize_t res = _fdMap[fd]->read(buf, size);
-                if(res <= 0)
+                size_t res = _fdMap[fd]->read(buf, size).value();
+                if(res == 0)
                     break;
                 size -= static_cast<size_t>(res);
                 buf += res;
@@ -269,15 +269,15 @@ public:
         while(rem > 0) {
             size_t amount = m3::Math::min(static_cast<size_t>(Buffer::MaxBufferSize), rem);
 
-            ssize_t res = _fdMap[args->in_fd]->read(rbuf, amount);
-            if(res <= 0)
+            size_t res = _fdMap[args->in_fd]->read(rbuf, amount).value();
+            if(res == 0)
                 break;
 
-            ssize_t wres = write_file(&*_fdMap[args->out_fd], rbuf, static_cast<size_t>(res));
-            if(wres != res)
+            ssize_t wres = write_file(&*_fdMap[args->out_fd], rbuf, res);
+            if(wres != static_cast<ssize_t>(res))
                 throw ReturnValueException(static_cast<int>(wres), static_cast<int>(res), lineNo);
 
-            rem -= static_cast<size_t>(res);
+            rem -= res;
         }
 
         int expected = static_cast<int>(args->count - rem);
@@ -342,10 +342,10 @@ public:
         while(rem > 0) {
             size_t amount = m3::Math::min(static_cast<size_t>(Buffer::MaxBufferSize), rem);
 
-            ssize_t res = _fdMap[args->in_fd]->read(rbuf, amount);
-            _lgchan->push(rbuf, static_cast<size_t>(res));
+            size_t res = _fdMap[args->in_fd]->read(rbuf, amount).value();
+            _lgchan->push(rbuf, res);
 
-            rem -= static_cast<size_t>(res);
+            rem -= res;
         }
 
         // there is always just one sendfile() call and it's the last data written to the socket

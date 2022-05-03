@@ -71,14 +71,14 @@ FStream::~FStream() {
     }
 }
 
-void FStream::set_error(ssize_t res) {
-    if(res == 0)
-        _state |= FL_EOF;
-    else if(res == -1)
+void FStream::set_error(std::optional<size_t> res) {
+    if(!res.has_value())
         _state |= FL_ERROR;
+    else if(res.value() == 0)
+        _state |= FL_EOF;
 }
 
-ssize_t FStream::read(void *dst, size_t count) {
+std::optional<size_t> FStream::read(void *dst, size_t count) {
     if(bad())
         return 0;
 
@@ -88,7 +88,7 @@ ssize_t FStream::read(void *dst, size_t count) {
 
     // use the unbuffered read, if the buffer is smaller
     if(_rbuf->empty() && count > _rbuf->size) {
-        ssize_t res = file()->read(dst, count);
+        auto res = file()->read(dst, count);
         set_error(res);
         return res;
     }
@@ -98,19 +98,20 @@ ssize_t FStream::read(void *dst, size_t count) {
         return 0;
     }
 
-    ssize_t total = 0;
+    size_t total = 0;
     char *buf = reinterpret_cast<char *>(dst);
     File *f = file();
     while(count > 0) {
-        ssize_t res = _rbuf->read(f, buf + total, count);
-        if(res <= 0)
-            set_error(res);
-        if(res == -1 && total == 0)
-            return -1;
-        if(res <= 0)
+        auto res = _rbuf->read(f, buf + total, count);
+        set_error(res);
+        if(!res.has_value())
+            return total == 0 ? std::nullopt : std::optional(total);
+
+        size_t read = res.value();
+        if(read == 0)
             break;
-        total += res;
-        count -= static_cast<size_t>(res);
+        total += read;
+        count -= read;
     }
 
     return total;
@@ -142,13 +143,13 @@ size_t FStream::seek(size_t offset, int whence) {
     return res;
 }
 
-ssize_t FStream::write(const void *src, size_t count) {
+std::optional<size_t> FStream::write(const void *src, size_t count) {
     if(bad())
         return 0;
 
     // use the unbuffered write, if the buffer is smaller
     if(_wbuf->empty() && count > _wbuf->size) {
-        ssize_t res = file()->write(src, count);
+        auto res = file()->write(src, count);
         set_error(res);
         return res;
     }
@@ -159,19 +160,20 @@ ssize_t FStream::write(const void *src, size_t count) {
     }
 
     const char *buf = reinterpret_cast<const char *>(src);
-    ssize_t total = 0;
+    size_t total = 0;
     File *f = file();
     while(count > 0) {
-        ssize_t res = _wbuf->write(f, buf + total, count);
-        if(res <= 0)
-            set_error(res);
-        if(res == -1 && total == 0)
-            return -1;
-        if(res <= 0)
-            return res;
+        auto res = _wbuf->write(f, buf + total, count);
+        set_error(res);
+        if(!res.has_value())
+            return total == 0 ? std::nullopt : std::optional(total);
 
-        total += res;
-        count -= static_cast<size_t>(res);
+        size_t written = res.value();
+        if(written == 0)
+            break;
+
+        total += written;
+        count -= written;
 
         if(((_flags & FL_LINE_BUF) && buf[total - 1] == '\n'))
             flush();

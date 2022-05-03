@@ -69,8 +69,8 @@ public:
 
     virtual size_t seek(size_t offset, int whence) override;
 
-    virtual ssize_t read(void *buffer, size_t count) override;
-    virtual ssize_t write(const void *buffer, size_t count) override;
+    virtual std::optional<size_t> read(void *buffer, size_t count) override;
+    virtual std::optional<size_t> write(const void *buffer, size_t count) override;
 
     virtual void truncate(size_t length) override;
 

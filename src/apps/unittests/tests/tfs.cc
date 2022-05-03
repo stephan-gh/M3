@@ -39,9 +39,9 @@ static void check_content(const char *filename, size_t size) {
     auto file = VFS::open(filename, FILE_R);
 
     size_t pos = 0;
-    ssize_t count;
-    while((count = file->read(largebuf, sizeof(largebuf))) > 0) {
-        for(ssize_t i = 0; i < count; ++i) {
+    size_t count;
+    while((count = file->read(largebuf, sizeof(largebuf)).value()) > 0) {
+        for(size_t i = 0; i < count; ++i) {
             if(largebuf[i] != pos % 100) {
                 cout << "file[" << pos << "]: expected " << (pos % 100) << ", got " << largebuf[i]
                      << "\n";
@@ -66,23 +66,20 @@ static void append_bug() {
             largebuf[i] = i % 100;
 
         // create first extent
-        WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
-                   static_cast<ssize_t>(sizeof(largebuf)));
+        WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)).value(), sizeof(largebuf));
         file->flush();
         total += sizeof(largebuf);
 
         // use the following blocks for something else to force a new extent for the following write
         {
             auto nfile = VFS::open("/myfile2", FILE_W | FILE_CREATE | FILE_TRUNC);
-            WVASSERTEQ(nfile->write_all(largebuf, sizeof(largebuf)),
-                       static_cast<ssize_t>(sizeof(largebuf)));
+            WVASSERTEQ(nfile->write_all(largebuf, sizeof(largebuf)).value(), sizeof(largebuf));
         }
 
         // write more two blocks; this gives us a new extent and we don't stay within the first
         // block of the new extent
         for(size_t i = 0; i <= 4096 * 2; i += sizeof(largebuf)) {
-            WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
-                       static_cast<ssize_t>(sizeof(largebuf)));
+            WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)).value(), sizeof(largebuf));
             total += sizeof(largebuf);
         }
     }
@@ -91,8 +88,7 @@ static void append_bug() {
         auto file = VFS::open("/myfile1", FILE_W);
         file->seek(0, M3FS_SEEK_END);
 
-        WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
-                   static_cast<ssize_t>(sizeof(largebuf)));
+        WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)).value(), sizeof(largebuf));
         total += sizeof(largebuf);
     }
 
@@ -106,8 +102,7 @@ static void extending_small_file() {
             largebuf[i] = i % 100;
 
         for(int i = 0; i < 129; ++i)
-            WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
-                       static_cast<ssize_t>(sizeof(largebuf)));
+            WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)).value(), sizeof(largebuf));
     }
 
     check_content(small_file, sizeof(largebuf) * 129);
@@ -120,10 +115,8 @@ static void creating_in_steps() {
             largebuf[i] = i % 100;
 
         for(int j = 0; j < 8; ++j) {
-            for(int i = 0; i < 4; ++i) {
-                WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
-                           static_cast<ssize_t>(sizeof(largebuf)));
-            }
+            for(int i = 0; i < 4; ++i)
+                WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)).value(), sizeof(largebuf));
             file->flush();
         }
     }
@@ -137,10 +130,8 @@ static void small_write_at_begin() {
         for(size_t i = 0; i < sizeof(largebuf); ++i)
             largebuf[i] = i % 100;
 
-        for(int i = 0; i < 3; ++i) {
-            WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
-                       static_cast<ssize_t>(sizeof(largebuf)));
-        }
+        for(int i = 0; i < 3; ++i)
+            WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)).value(), sizeof(largebuf));
     }
 
     check_content(small_file, sizeof(largebuf) * 129);
@@ -152,10 +143,8 @@ static void truncate() {
         for(size_t i = 0; i < sizeof(largebuf); ++i)
             largebuf[i] = i % 100;
 
-        for(int i = 0; i < 2; ++i) {
-            WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
-                       static_cast<ssize_t>(sizeof(largebuf)));
-        }
+        for(int i = 0; i < 2; ++i)
+            WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)).value(), sizeof(largebuf));
     }
 
     check_content(small_file, sizeof(largebuf) * 2);
@@ -167,10 +156,8 @@ static void append() {
         for(size_t i = 0; i < sizeof(largebuf); ++i)
             largebuf[i] = i % 100;
 
-        for(int i = 0; i < 2; ++i) {
-            WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
-                       static_cast<ssize_t>(sizeof(largebuf)));
-        }
+        for(int i = 0; i < 2; ++i)
+            WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)).value(), sizeof(largebuf));
         file->sync();
     }
 
@@ -183,18 +170,16 @@ static void append_with_read() {
         for(size_t i = 0; i < sizeof(largebuf); ++i)
             largebuf[i] = i % 100;
 
-        for(int i = 0; i < 2; ++i) {
-            WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)),
-                       static_cast<ssize_t>(sizeof(largebuf)));
-        }
+        for(int i = 0; i < 2; ++i)
+            WVASSERTEQ(file->write_all(largebuf, sizeof(largebuf)).value(), sizeof(largebuf));
 
         // there is nothing to read now
-        WVASSERTEQ(file->read(largebuf, sizeof(largebuf)), 0);
+        WVASSERTEQ(file->read(largebuf, sizeof(largebuf)).value(), 0U);
 
         // seek back
         WVASSERTEQ(file->seek(sizeof(largebuf) * 1, M3FS_SEEK_SET), sizeof(largebuf) * 1);
         // now reading should work
-        WVASSERTEQ(file->read(largebuf, sizeof(largebuf)), static_cast<ssize_t>(sizeof(largebuf)));
+        WVASSERTEQ(file->read(largebuf, sizeof(largebuf)).value(), sizeof(largebuf));
     }
 
     check_content(small_file, sizeof(largebuf) * 2);
@@ -326,7 +311,7 @@ static void read_file_at_once() {
     char buf[sizeof(content)];
 
     auto file = VFS::open(filename, FILE_R);
-    WVASSERTEQ(file->read(buf, sizeof(buf) - 1), static_cast<ssize_t>(sizeof(buf) - 1));
+    WVASSERTEQ(file->read(buf, sizeof(buf) - 1).value(), sizeof(buf) - 1);
     buf[sizeof(buf) - 1] = '\0';
 
     WVASSERTEQ(buf, StringRef(content));
@@ -336,9 +321,9 @@ static void read_file_in_64b_steps() {
     auto file = VFS::open(pat_file, FILE_R);
 
     uint8_t buf[64];
-    ssize_t count, pos = 0;
-    while((count = file->read(buf, sizeof(buf))) > 0) {
-        for(ssize_t i = 0; i < count; ++i)
+    size_t count, pos = 0;
+    while((count = file->read(buf, sizeof(buf)).value()) > 0) {
+        for(size_t i = 0; i < count; ++i)
             WVASSERTEQ(buf[i], pos++ & 0xFF);
     }
 }
@@ -347,9 +332,9 @@ static void read_file_in_large_steps() {
     auto file = VFS::open(pat_file, FILE_R);
 
     static uint8_t buf[1024 * 3];
-    ssize_t count, pos = 0;
-    while((count = file->read(buf, sizeof(buf))) > 0) {
-        for(ssize_t i = 0; i < count; ++i)
+    size_t count, pos = 0;
+    while((count = file->read(buf, sizeof(buf)).value()) > 0) {
+        for(size_t i = 0; i < count; ++i)
             WVASSERTEQ(buf[i], pos++ & 0xFF);
     }
 }
@@ -366,8 +351,8 @@ static void write_file_and_read_again() {
     WVASSERTEQ(file->seek(0, M3FS_SEEK_SET), 0u);
 
     char buf[contentsz];
-    ssize_t count = file->read(buf, sizeof(buf));
-    WVASSERTEQ(count, static_cast<ssize_t>(sizeof(buf)));
+    size_t count = file->read(buf, sizeof(buf)).value();
+    WVASSERTEQ(count, sizeof(buf));
     WVASSERTEQ(buf, StringRef(content));
 
     // undo the write
@@ -418,9 +403,9 @@ static void transactions() {
         auto file = VFS::open(tmp_file, FILE_R);
 
         char buf[sizeof(content3)] = {0};
-        WVASSERTEQ(file->read(buf, sizeof(buf)), static_cast<ssize_t>(sizeof(content3) - 1));
+        WVASSERTEQ(file->read(buf, sizeof(buf)).value(), sizeof(content3) - 1);
         WVASSERTEQ(buf, StringRef(content3));
-        WVASSERTEQ(file->read(buf, sizeof(buf)), 0);
+        WVASSERTEQ(file->read(buf, sizeof(buf)).value(), 0U);
     }
 }
 
@@ -428,9 +413,9 @@ static void buffered_read_until_end() {
     FStream file(pat_file, FILE_R, 256);
 
     uint8_t buf[16];
-    ssize_t count, pos = 0;
-    while((count = file.read(buf, sizeof(buf))) > 0) {
-        for(ssize_t i = 0; i < count; ++i)
+    size_t count, pos = 0;
+    while((count = file.read(buf, sizeof(buf)).value()) > 0) {
+        for(size_t i = 0; i < count; ++i)
             WVASSERTEQ(buf[i], pos++ & 0xFF);
     }
     WVASSERT(file.eof() && !file.error());
@@ -441,11 +426,11 @@ static void buffered_read_with_seek() {
 
     uint8_t buf[32];
     size_t pos = 0;
-    ssize_t count;
+    size_t count;
     for(int i = 0; i < 10; ++i) {
-        count = file.read(buf, sizeof(buf));
-        WVASSERTEQ(count, 32);
-        for(ssize_t i = 0; i < count; ++i)
+        count = file.read(buf, sizeof(buf)).value();
+        WVASSERTEQ(count, 32U);
+        for(size_t i = 0; i < count; ++i)
             WVASSERTEQ(buf[i], pos++ & 0xFF);
     }
 
@@ -453,16 +438,16 @@ static void buffered_read_with_seek() {
     pos = 220;
     file.seek(pos, M3FS_SEEK_SET);
 
-    count = file.read(buf, sizeof(buf));
-    WVASSERTEQ(count, 32);
-    for(ssize_t i = 0; i < count; ++i)
+    count = file.read(buf, sizeof(buf)).value();
+    WVASSERTEQ(count, 32U);
+    for(size_t i = 0; i < count; ++i)
         WVASSERTEQ(buf[i], pos++ & 0xFF);
 
     pos = 405;
     file.seek(pos, M3FS_SEEK_SET);
 
-    while((count = file.read(buf, sizeof(buf))) > 0) {
-        for(ssize_t i = 0; i < count; ++i)
+    while((count = file.read(buf, sizeof(buf)).value()) > 0) {
+        for(size_t i = 0; i < count; ++i)
             WVASSERTEQ(buf[i], pos++ & 0xFF);
     }
     WVASSERT(file.eof() && !file.error());
@@ -471,9 +456,9 @@ static void buffered_read_with_seek() {
 static void buffered_read_with_large_buf() {
     FStream file(pat_file, FILE_R, 256);
 
-    ssize_t count, pos = 0;
-    while((count = file.read(largebuf, sizeof(largebuf))) > 0) {
-        for(ssize_t i = 0; i < count; ++i)
+    size_t count, pos = 0;
+    while((count = file.read(largebuf, sizeof(largebuf)).value()) > 0) {
+        for(size_t i = 0; i < count; ++i)
             WVASSERTEQ(largebuf[i], pos++ & 0xFF);
     }
     WVASSERT(file.eof() && !file.error());
@@ -488,14 +473,14 @@ static void buffered_read_and_write() {
     // overwrite it
     uint8_t val = size - 1;
     for(size_t i = 0; i < size; ++i, --val)
-        WVASSERTEQ(file.write(&val, sizeof(val)), static_cast<ssize_t>(sizeof(val)));
+        WVASSERTEQ(file.write(&val, sizeof(val)).value(), sizeof(val));
 
     // read it again and check content
     file.seek(0, M3FS_SEEK_SET);
     val = size - 1;
     for(size_t i = 0; i < size; ++i, --val) {
         uint8_t check;
-        WVASSERTEQ(file.read(&check, sizeof(check)), static_cast<ssize_t>(sizeof(check)));
+        WVASSERTEQ(file.read(&check, sizeof(check)).value(), sizeof(check));
         WVASSERTEQ(check, val);
     }
 
@@ -503,7 +488,7 @@ static void buffered_read_and_write() {
     file.seek(0, M3FS_SEEK_SET);
     val = 0;
     for(size_t i = 0; i < size; ++i, ++val)
-        WVASSERTEQ(file.write(&val, sizeof(val)), static_cast<ssize_t>(sizeof(val)));
+        WVASSERTEQ(file.write(&val, sizeof(val)).value(), sizeof(val));
     WVASSERT(file.good());
 }
 

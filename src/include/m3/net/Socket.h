@@ -76,15 +76,11 @@ public:
 
     virtual ~Socket();
 
-    virtual ssize_t read(void *buffer, size_t count) override {
-        if(auto res = recv(buffer, count))
-            return static_cast<ssize_t>(res.value());
-        return -1;
+    virtual std::optional<size_t> read(void *buffer, size_t count) override {
+        return recv(buffer, count);
     }
-    virtual ssize_t write(const void *buffer, size_t count) override {
-        if(auto res = send(buffer, count))
-            return static_cast<ssize_t>(res.value());
-        return -1;
+    virtual std::optional<size_t> write(const void *buffer, size_t count) override {
+        return send(buffer, count);
     }
 
     virtual Errors::Code try_stat(FileInfo &) const override {

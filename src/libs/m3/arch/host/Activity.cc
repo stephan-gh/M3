@@ -236,7 +236,7 @@ void ChildActivity::do_exec(int argc, const char *const *argv, const char *const
                             uintptr_t func_addr) {
     static char buffer[8192];
     int tmp, pid;
-    ssize_t res;
+    size_t res;
     Chan p2c, c2p;
 
     Activity::own().files()->delegate(*this);
@@ -252,12 +252,12 @@ void ChildActivity::do_exec(int argc, const char *const *argv, const char *const
 
     // copy executable from M3-fs to a temp file
     bool first = true;
-    while((res = bin->read(buffer, sizeof(buffer))) > 0) {
+    while((res = bin->read(buffer, sizeof(buffer)).value()) > 0) {
         // check here for the ELF header to try hard that the exec after the fork does not fail
         if(first &&
            (buffer[0] != '\x7F' || buffer[1] != 'E' || buffer[2] != 'L' || buffer[3] != 'F'))
             throw Exception(Errors::INVALID_ELF);
-        write(tmp, buffer, static_cast<size_t>(res));
+        write(tmp, buffer, res);
         first = false;
     }
 

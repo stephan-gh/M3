@@ -65,7 +65,7 @@ void DirectPipeReader::remove() noexcept {
     }
 }
 
-ssize_t DirectPipeReader::read(void *buffer, size_t count) {
+std::optional<size_t> DirectPipeReader::read(void *buffer, size_t count) {
     if(!_state)
         _state = std::make_unique<State>(_caps);
     if(_state->_eof)
@@ -98,7 +98,7 @@ ssize_t DirectPipeReader::read(void *buffer, size_t count) {
                 _state->_is->vpull(_state->_pos, _state->_pkglen);
             }
             else
-                return -1;
+                return std::nullopt;
         }
         _state->_rem = _state->_pkglen;
     }
@@ -114,7 +114,7 @@ ssize_t DirectPipeReader::read(void *buffer, size_t count) {
         _state->_pos += amount;
         _state->_rem -= amount;
     }
-    return static_cast<ssize_t>(amount);
+    return amount;
 }
 
 void DirectPipeReader::delegate(ChildActivity &act) {
