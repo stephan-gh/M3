@@ -48,8 +48,8 @@ static void basics() {
     WVASSERTEQ(socket->remote_endpoint(), Endpoint(IpAddr(192, 168, 112, 1), 1338));
 
     uint8_t buf[32];
-    WVASSERT(socket->send(buf, sizeof(buf)) != -1);
-    WVASSERT(socket->recv(buf, sizeof(buf)) != -1);
+    WVASSERT(socket->send(buf, sizeof(buf)).has_value());
+    WVASSERT(socket->recv(buf, sizeof(buf)).has_value());
 
     // connecting to the same remote endpoint is okay
     socket->connect(Endpoint(IpAddr(192, 168, 112, 1), 1338));
@@ -103,16 +103,16 @@ NOINLINE static void nonblocking_client() {
     uint8_t buf[32];
 
     for(int i = 0; i < 8; ++i) {
-        while(socket->send(buf, sizeof(buf)) == -1)
+        while(!socket->send(buf, sizeof(buf)).has_value())
             out_waiter.wait();
     }
 
     size_t total = 0;
     while(total < 8 * sizeof(buf)) {
-        ssize_t res;
-        while((res = socket->recv(buf, sizeof(buf))) == -1)
+        std::optional<size_t> res;
+        while(!(res = socket->recv(buf, sizeof(buf))).has_value())
             in_waiter.wait();
-        total += static_cast<size_t>(res);
+        total += res.value();
     }
     WVASSERTEQ(total, 8 * sizeof(buf));
 
@@ -238,8 +238,8 @@ NOINLINE static void receive_after_close() {
         WVASSERTEQ(socket->state(), Socket::Connected);
 
         uint8_t buf[32];
-        WVASSERTEQ(socket->recv(buf, sizeof(buf)), 32);
-        WVASSERT(socket->send(buf, sizeof(buf)) != -1);
+        WVASSERTEQ(socket->recv(buf, sizeof(buf)).value_or(0), 32U);
+        WVASSERT(socket->send(buf, sizeof(buf)).has_value());
 
         socket->close();
         WVASSERTEQ(socket->state(), Socket::Closed);
@@ -256,8 +256,8 @@ NOINLINE static void receive_after_close() {
     socket->connect(Endpoint(IpAddr(192, 168, 112, 1), 3000));
 
     uint8_t buf[32];
-    WVASSERT(socket->send(buf, sizeof(buf)) != -1);
-    WVASSERTEQ(socket->recv(buf, sizeof(buf)), 32);
+    WVASSERT(socket->send(buf, sizeof(buf)).has_value());
+    WVASSERTEQ(socket->recv(buf, sizeof(buf)).value_or(0), 32U);
 
     FileWaiter waiter;
     waiter.add(socket->fd(), File::INPUT);
@@ -295,10 +295,8 @@ NOINLINE static void data() {
         uint8_t expected_byte = 0;
         size_t received = 0;
         while(received < pkt_size * 8) {
-            ssize_t recv_size = socket->recv(recv_buf.get(), pkt_size);
-            WVASSERT(recv_size != -1);
-
-            for(ssize_t i = 0; i < recv_size; ++i) {
+            size_t recv_size = socket->recv(recv_buf.get(), pkt_size).value();
+            for(size_t i = 0; i < recv_size; ++i) {
                 WVASSERTEQ(recv_buf.get()[i], expected_byte);
                 expected_byte++;
             }

@@ -20,6 +20,9 @@
 
 #include <m3/net/NetEventChannel.h>
 
+#include <optional>
+#include <tuple>
+
 namespace m3 {
 
 class DataQueue {
@@ -46,7 +49,7 @@ public:
 
     void append(Item *item) noexcept;
     bool has_data() const noexcept;
-    bool get_next_data(const uchar **data, size_t *size, Endpoint *ep) noexcept;
+    std::optional<std::tuple<const uchar *, size_t, Endpoint>> get_next_data() noexcept;
     void ack_data(size_t size) noexcept;
     void clear() noexcept;
 

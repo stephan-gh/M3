@@ -99,33 +99,35 @@ bool TcpSocket::accept(Endpoint *remote_ep) {
     return true;
 }
 
-ssize_t TcpSocket::recv(void *dst, size_t amount) {
+std::optional<size_t> TcpSocket::recv(void *dst, size_t amount) {
     // receive is possible with an established connection or a connection that that has already been
     // closed by the remote side
     if(_state != Connected && _state != RemoteClosed)
         throw Exception(Errors::NOT_CONNECTED);
 
-    return Socket::do_recv(dst, amount, nullptr);
+    if(auto res = Socket::do_recv(dst, amount))
+        return res.value().first;
+    return std::nullopt;
 }
 
-ssize_t TcpSocket::send(const void *src, size_t amount) {
+std::optional<size_t> TcpSocket::send(const void *src, size_t amount) {
     // like for receive: still allow sending if the remote side closed the connection
     if(_state != Connected && _state != RemoteClosed)
         throw Exception(Errors::NOT_CONNECTED);
 
     const uint8_t *src_bytes = reinterpret_cast<const uint8_t *>(src);
-    ssize_t total = 0;
+    size_t total = 0;
     while(amount > 0) {
         size_t now = Math::min(amount, NetEventChannel::MAX_PACKET_SIZE);
-        ssize_t sent = Socket::do_send(src_bytes, now, _remote_ep);
-        if(sent == -1 && total == 0)
-            return -1;
-        if(sent == -1)
+        if(auto sent = Socket::do_send(src_bytes, now, _remote_ep)) {
+            total += sent.value();
+            amount -= sent.value();
+            src_bytes += sent.value();
+        }
+        else if(total == 0)
+            return std::nullopt;
+        else
             return total;
-
-        total += sent;
-        amount -= static_cast<size_t>(sent);
-        src_bytes += sent;
     }
     return total;
 }

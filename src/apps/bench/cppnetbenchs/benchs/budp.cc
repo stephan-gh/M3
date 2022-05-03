@@ -31,16 +31,17 @@
 
 using namespace m3;
 
-static ssize_t send_recv(FileWaiter &waiter, FileRef<UdpSocket> &socket, const Endpoint &dest,
-                         const uint8_t *send_buf, size_t sbuf_size, TimeDuration timeout,
-                         uint8_t *recv_buf, size_t rbuf_size, Endpoint *src) {
+static std::optional<size_t> send_recv(FileWaiter &waiter, FileRef<UdpSocket> &socket,
+                                       const Endpoint &dest, const uint8_t *send_buf,
+                                       size_t sbuf_size, TimeDuration timeout, uint8_t *recv_buf,
+                                       size_t rbuf_size) {
     socket->send_to(send_buf, sbuf_size, dest);
 
     waiter.wait_for(timeout);
 
     if(socket->has_data())
-        return socket->recv_from(recv_buf, rbuf_size, src);
-    return 0;
+        return socket->recv(recv_buf, rbuf_size);
+    return std::nullopt;
 }
 
 NOINLINE static void latency() {
@@ -64,12 +65,11 @@ NOINLINE static void latency() {
     // do one initial send-receive with a higher timeout than the smoltcp-internal timeout to
     // workaround the high ARP-request delay with the loopback device.
     send_recv(waiter, socket, dest, request, 1, TimeDuration::from_secs(6), response,
-              sizeof(response), &src);
+              sizeof(response));
 
     size_t warmup = 5;
-    while(warmup--) {
-        send_recv(waiter, socket, dest, request, 8, TIMEOUT, response, sizeof(response), &src);
-    }
+    while(warmup--)
+        send_recv(waiter, socket, dest, request, 8, TIMEOUT, response, sizeof(response));
 
     const size_t packet_size[] = {8, 16, 32, 64, 128, 256, 512, 1024};
 
@@ -79,10 +79,10 @@ NOINLINE static void latency() {
         while(res.runs() < samples) {
             auto start = TimeInstant::now();
 
-            ssize_t recv_len = send_recv(waiter, socket, dest, request, pkt_size, TIMEOUT, response,
-                                         sizeof(response), &src);
-            if(recv_len == 0)
-                continue;
+            size_t recv_len = send_recv(waiter, socket, dest, request, pkt_size, TIMEOUT, response,
+                                        sizeof(response))
+                                  .value();
+
             auto stop = TimeInstant::now();
 
             WVASSERTEQ(static_cast<size_t>(recv_len), pkt_size);
@@ -108,7 +108,6 @@ NOINLINE static void bandwidth() {
     uint8_t request[1024];
     uint8_t response[1024];
 
-    Endpoint src;
     Endpoint dest = Endpoint(IpAddr(192, 168, 112, 1), 1337);
 
     size_t warmup = 5;
@@ -124,9 +123,8 @@ NOINLINE static void bandwidth() {
     FileWaiter waiter;
     waiter.add(socket->fd(), File::INPUT | File::OUTPUT);
 
-    while(warmup--) {
-        send_recv(waiter, socket, dest, request, 8, timeout, response, sizeof(response), &src);
-    }
+    while(warmup--)
+        send_recv(waiter, socket, dest, request, 8, timeout, response, sizeof(response));
 
     auto start = TimeInstant::now();
     auto last_received = start;
@@ -162,10 +160,8 @@ NOINLINE static void bandwidth() {
 
         size_t receive_count = burst_size;
         while(receive_count--) {
-            ssize_t pkt_size = socket->recv_from(response, sizeof(response), &src);
-
-            if(pkt_size != -1) {
-                received_bytes += static_cast<size_t>(pkt_size);
+            if(auto pkt_size = socket->recv(response, sizeof(response))) {
+                received_bytes += static_cast<size_t>(pkt_size.value());
                 packet_received_count++;
                 last_received = TimeInstant::now();
                 failures = 0;

@@ -172,8 +172,8 @@ IpAddr DNS::resolve(NetworkManager &netmng, const char *name, TimeDuration timeo
     waiter.wait_for(timeout);
 
     // receive response
-    ssize_t len = sock->recv(buffer, sizeof(buffer));
-    if(len < static_cast<ssize_t>(sizeof(DNSHeader)))
+    size_t len = sock->recv(buffer, sizeof(buffer)).value_or(0);
+    if(len < sizeof(DNSHeader))
         VTHROW(Errors::NOT_FOUND, "Received invalid DNS response");
     if(be16toh(h->id) != txid)
         VTHROW(Errors::NOT_FOUND, "Received DNS response with wrong transaction id");

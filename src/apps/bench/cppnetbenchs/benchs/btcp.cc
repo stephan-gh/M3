@@ -59,9 +59,7 @@ NOINLINE static void latency() {
             socket->send(buffer, pkt_size);
             size_t received = 0;
             while(received < pkt_size) {
-                ssize_t res = socket->recv(buffer, pkt_size);
-                if(res == -1)
-                    exitmsg("Got empty package!");
+                size_t res = socket->recv(buffer, pkt_size).value();
                 received += static_cast<size_t>(res);
             }
 
@@ -144,10 +142,8 @@ NOINLINE static void bandwidth() {
         }
 
         for(size_t i = 0; i < BURST_SIZE; ++i) {
-            ssize_t pkt_size = socket->recv(buffer, sizeof(buffer));
-
-            if(pkt_size != -1) {
-                received_bytes += static_cast<size_t>(pkt_size);
+            if(auto pkt_size = socket->recv(buffer, sizeof(buffer))) {
+                received_bytes += pkt_size.value();
                 received_count++;
                 last_received = TimeInstant::now();
                 failures = 0;

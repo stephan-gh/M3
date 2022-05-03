@@ -96,7 +96,7 @@ public:
 
     virtual bool connect(const Endpoint &ep) override;
 
-    virtual ssize_t send(const void *src, size_t amount) override;
+    virtual std::optional<size_t> send(const void *src, size_t amount) override;
 
     /**
      * Sends at most <amount> bytes from <src> to the socket at <addr>:<port>.
@@ -107,21 +107,22 @@ public:
      * @param src the data to send
      * @param amount the number of bytes to send
      * @param dst_ep destination endpoint
-     * @return the number of sent bytes (-1 if it would block and the socket is non-blocking)
+     * @return the number of sent bytes (std::nullopt if it would block and the socket is
+     *      non-blocking)
      */
-    ssize_t send_to(const void *src, size_t amount, const Endpoint &dst_ep);
+    std::optional<size_t> send_to(const void *src, size_t amount, const Endpoint &dst_ep);
 
-    virtual ssize_t recv(void *dst, size_t amount) override;
+    virtual std::optional<size_t> recv(void *dst, size_t amount) override;
 
     /**
      * Receives <amount> or a smaller number of bytes into <dst>.
      *
      * @param dst the destination buffer
      * @param amount the number of bytes to receive
-     * @param src_ep if not null, the source endpoint is filled in
-     * @return the number of received bytes (-1 if it would block and the socket is non-blocking)
+     * @return the number of received bytes and the endpoint of the sender (std::nullopt if it would
+     *      block and the socket is non-blocking)
      */
-    ssize_t recv_from(void *dst, size_t amount, Endpoint *src_ep);
+    std::optional<std::pair<size_t, Endpoint>> recv_from(void *dst, size_t amount);
 
 private:
     void remove() noexcept override;

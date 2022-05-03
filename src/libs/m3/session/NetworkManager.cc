@@ -73,12 +73,12 @@ IpAddr NetworkManager::get_nameserver() {
     return IpAddr(addr);
 }
 
-IpAddr NetworkManager::bind(int32_t sd, port_t *port) {
-    GateIStream reply = send_receive_vmsg(_metagate, BIND, sd, *port);
+std::pair<IpAddr, port_t> NetworkManager::bind(int32_t sd, port_t port) {
+    GateIStream reply = send_receive_vmsg(_metagate, BIND, sd, port);
     reply.pull_result();
     uint32_t addr;
-    reply >> addr >> *port;
-    return IpAddr(addr);
+    reply >> addr >> port;
+    return std::make_pair(IpAddr(addr), port);
 }
 
 IpAddr NetworkManager::listen(int32_t sd, port_t port) {

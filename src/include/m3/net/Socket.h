@@ -77,10 +77,14 @@ public:
     virtual ~Socket();
 
     virtual ssize_t read(void *buffer, size_t count) override {
-        return recv(buffer, count);
+        if(auto res = recv(buffer, count))
+            return static_cast<ssize_t>(res.value());
+        return -1;
     }
     virtual ssize_t write(const void *buffer, size_t count) override {
-        return send(buffer, count);
+        if(auto res = send(buffer, count))
+            return static_cast<ssize_t>(res.value());
+        return -1;
     }
 
     virtual Errors::Code try_stat(FileInfo &) const override {
@@ -179,9 +183,10 @@ public:
      *
      * @param src the data to send
      * @param amount the number of bytes to send
-     * @return the number of sent bytes (-1 if it would block and the socket is non-blocking)
+     * @return the number of sent bytes (std::nullopt if it would block and the socket is
+     *      non-blocking)
      */
-    virtual ssize_t send(const void *src, size_t amount) = 0;
+    virtual std::optional<size_t> send(const void *src, size_t amount) = 0;
 
     /**
      * Receives <amount> or a smaller number of bytes into <dst>.
@@ -192,9 +197,10 @@ public:
      *
      * @param dst the destination buffer
      * @param amount the number of bytes to receive
-     * @return the number of received bytes (-1 if it would block and the socket is non-blocking)
+     * @return the number of received bytes (std::nullopt if it would block and the socket is
+     *      non-blocking)
      */
-    virtual ssize_t recv(void *dst, size_t amount) = 0;
+    virtual std::optional<size_t> recv(void *dst, size_t amount) = 0;
 
 protected:
     explicit Socket(int sd, capsel_t caps, NetworkManager &nm);
@@ -203,11 +209,11 @@ protected:
         // nothing to do
     }
 
-    bool get_next_data(const uchar **data, size_t *size, Endpoint *ep);
+    std::optional<std::tuple<const uchar *, size_t, Endpoint>> get_next_data();
     void ack_data(size_t size);
 
-    ssize_t do_send(const void *src, size_t amount, const Endpoint &ep);
-    ssize_t do_recv(void *dst, size_t amount, Endpoint *ep);
+    std::optional<size_t> do_send(const void *src, size_t amount, const Endpoint &ep);
+    std::optional<std::pair<size_t, Endpoint>> do_recv(void *dst, size_t amount);
 
     void process_message(const NetEventChannel::ControlMessage &message,
                          NetEventChannel::Event &event);

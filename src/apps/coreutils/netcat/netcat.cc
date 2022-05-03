@@ -32,15 +32,15 @@ struct Buffer {
     size_t left() const {
         return total - pos;
     }
-    void push(ssize_t amount) {
-        if(amount > 0) {
-            total = static_cast<size_t>(amount);
+    void push(std::optional<size_t> amount) {
+        if(amount.has_value()) {
+            total = amount.value();
             pos = 0;
         }
     }
-    void pop(ssize_t amount) {
-        if(amount > 0)
-            pos += static_cast<size_t>(amount);
+    void pop(std::optional<size_t> amount) {
+        if(amount.has_value())
+            pos += amount.value();
         if(pos == total)
             pos = total = 0;
     }
@@ -144,17 +144,19 @@ int main(int argc, char **argv) {
 
         // if we have input, try to send it
         if(input.left() > 0) {
-            ssize_t sent = socket->send(input.buf.get() + input.pos, input.left());
+            auto sent = socket->send(input.buf.get() + input.pos, input.left());
             if(verbose)
-                cerr << "-- send " << sent << "b to " << socket->remote_endpoint() << "\n";
+                cerr << "-- send " << sent.value_or(0) << "b to " << socket->remote_endpoint()
+                     << "\n";
             input.pop(sent);
         }
 
         // if we can receive data, do it
         if(socket->has_data()) {
-            ssize_t recv = socket->recv(output.buf.get(), OUTBUF_SIZE);
+            auto recv = socket->recv(output.buf.get(), OUTBUF_SIZE);
             if(verbose)
-                cerr << "-- received " << recv << "b from " << socket->remote_endpoint() << "\n";
+                cerr << "-- received " << recv.value_or(0) << "b from " << socket->remote_endpoint()
+                     << "\n";
             output.push(recv);
         }
         // if we have received data, try to output it

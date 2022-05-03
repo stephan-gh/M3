@@ -54,9 +54,9 @@ public:
         throw Exception(Errors::NOT_SUP);
     }
 
-    virtual ssize_t send(const void *src, size_t amount) override;
+    virtual std::optional<size_t> send(const void *src, size_t amount) override;
 
-    virtual ssize_t recv(void *dst, size_t amount) override;
+    virtual std::optional<size_t> recv(void *dst, size_t amount) override;
 
 private:
     void remove() noexcept override;

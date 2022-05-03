@@ -23,6 +23,8 @@
 #include <m3/net/UdpSocket.h>
 #include <m3/session/NetworkManager.h>
 
+#include <utility>
+
 namespace m3 {
 
 Socket::Socket(int sd, capsel_t caps, NetworkManager &nm)
@@ -103,50 +105,50 @@ void Socket::handle_closed(NetEventChannel::ClosedMessage const &) {
     disconnect();
 }
 
-bool Socket::get_next_data(const uchar **data, size_t *size, Endpoint *ep) {
+std::optional<std::tuple<const uchar *, size_t, Endpoint>> Socket::get_next_data() {
     while(true) {
-        if(_recv_queue.get_next_data(data, size, ep))
-            return true;
+        if(auto next = _recv_queue.get_next_data())
+            return next;
 
         if(_state == Closed)
             throw Exception(Errors::INV_STATE);
         if(!_blocking) {
             process_events();
-            return false;
+            return std::nullopt;
         }
 
         wait_for_events();
     }
 }
 
-ssize_t Socket::do_recv(void *dst, size_t amount, Endpoint *ep) {
-    const uchar *pkt_data = nullptr;
-    size_t pkt_size = 0;
-    if(!get_next_data(&pkt_data, &pkt_size, ep))
-        return -1;
+std::optional<std::pair<size_t, Endpoint>> Socket::do_recv(void *dst, size_t amount) {
+    if(auto next = get_next_data()) {
+        const auto [pkt_data, pkt_size, ep] = next.value();
+        size_t msg_size = Math::min(pkt_size, amount);
+        memcpy(dst, pkt_data, msg_size);
 
-    size_t msg_size = Math::min(pkt_size, amount);
-    memcpy(dst, pkt_data, msg_size);
+        // ack read data and discard excess bytes that do not fit into the supplied buffer
+        ack_data(msg_size);
 
-    // ack read data and discard excess bytes that do not fit into the supplied buffer
-    ack_data(msg_size);
+        return std::make_pair(msg_size, ep);
+    }
 
-    return static_cast<ssize_t>(msg_size);
+    return std::nullopt;
 }
 
-ssize_t Socket::do_send(const void *src, size_t amount, const Endpoint &ep) {
+std::optional<size_t> Socket::do_send(const void *src, size_t amount, const Endpoint &ep) {
     while(true) {
         Errors::Code res = _channel.send_data(ep, amount, [src, amount](void *buf) {
             memcpy(buf, src, amount);
         });
         if(res == Errors::NONE)
-            return static_cast<ssize_t>(amount);
+            return amount;
         if(res != Errors::NO_CREDITS)
             throw Exception(res);
 
         if(!is_blocking()) {
             fetch_replies();
-            return -1;
+            return std::nullopt;
         }
 
         wait_for_credits();

@@ -54,16 +54,18 @@ static void connect() {
     WVASSERTEQ(socket->state(), Socket::Bound);
 }
 
-static ssize_t send_recv(FileWaiter &waiter, FileRef<UdpSocket> &socket, const Endpoint &dest,
-                         const uint8_t *send_buf, size_t sbuf_size, TimeDuration timeout,
-                         uint8_t *recv_buf, size_t rbuf_size, Endpoint *src) {
+using receive_result = std::optional<std::pair<size_t, Endpoint>>;
+
+static receive_result send_recv(FileWaiter &waiter, FileRef<UdpSocket> &socket,
+                                const Endpoint &dest, const uint8_t *send_buf, size_t sbuf_size,
+                                TimeDuration timeout, uint8_t *recv_buf, size_t rbuf_size) {
     socket->send_to(send_buf, sbuf_size, dest);
 
     waiter.wait_for(timeout);
 
     if(socket->has_data())
-        return socket->recv_from(recv_buf, rbuf_size, src);
-    return 0;
+        return socket->recv_from(recv_buf, rbuf_size);
+    return std::nullopt;
 }
 
 NOINLINE static void data() {
@@ -74,7 +76,6 @@ NOINLINE static void data() {
     auto socket = UdpSocket::create(net);
     socket->set_blocking(false);
 
-    Endpoint src;
     Endpoint dest = Endpoint(IpAddr(192, 168, 112, 1), 1337);
 
     uint8_t send_buf[1024];
@@ -89,7 +90,7 @@ NOINLINE static void data() {
     // do one initial send-receive with a higher timeout than the smoltcp-internal timeout to
     // workaround the high ARP-request delay with the loopback device.
     send_recv(waiter, socket, dest, send_buf, 1, TimeDuration::from_secs(6), recv_buf,
-              sizeof(recv_buf), &src);
+              sizeof(recv_buf));
 
     size_t packet_sizes[] = {8, 16, 32, 64, 128, 256, 512, 1024};
 
@@ -105,13 +106,14 @@ NOINLINE static void data() {
 
     for(auto pkt_size : packet_sizes) {
         while(true) {
-            ssize_t recv_size = send_recv(waiter, socket, dest, send_buf, pkt_size, TIMEOUT,
-                                          recv_buf, sizeof(recv_buf), &src);
-            if(recv_size != 0) {
-                WVASSERTEQ(static_cast<ssize_t>(pkt_size), recv_size);
-                WVASSERTEQ(src, dest);
+            auto res = send_recv(waiter, socket, dest, send_buf, pkt_size, TIMEOUT, recv_buf,
+                                 sizeof(recv_buf));
+            if(res.has_value()) {
+                const auto [recv_size, recv_src] = res.value();
+                WVASSERTEQ(pkt_size, recv_size);
+                WVASSERTEQ(dest, recv_src);
 
-                for(ssize_t i = 0; i < recv_size; ++i)
+                for(size_t i = 0; i < recv_size; ++i)
                     WVASSERTEQ(recv_buf[i], send_buf[i]);
                 break;
             }
