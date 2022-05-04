@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
     // create worker
     Worker **worker = new Worker *[acts];
     for(size_t i = 0; i < acts; ++i)
-        worker[i] = new Worker(rgate, mem, static_cast<size_t>(i) * SUBAREA_SIZE, SUBAREA_SIZE);
+        worker[i] = new Worker(rgate, mem, i * SUBAREA_SIZE, SUBAREA_SIZE);
 
     // write data into memory
     for(size_t i = 0; i < acts; ++i) {

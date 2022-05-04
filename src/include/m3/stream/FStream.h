@@ -153,7 +153,7 @@ public:
             const uint8_t *s = static_cast<const uint8_t *>(src);
             while(!bad() && count) {
                 size_t amount = write(s, count).value();
-                count -= static_cast<size_t>(amount);
+                count -= amount;
                 s += amount;
             }
         }

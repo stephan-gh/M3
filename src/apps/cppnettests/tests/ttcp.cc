@@ -300,7 +300,7 @@ NOINLINE static void data() {
                 WVASSERTEQ(recv_buf.get()[i], expected_byte);
                 expected_byte++;
             }
-            received += static_cast<size_t>(recv_size);
+            received += recv_size;
         }
     }
 }

@@ -128,7 +128,7 @@ public:
                 size_t res = _fdMap[fd]->read(buf, size).value();
                 if(res == 0)
                     break;
-                size -= static_cast<size_t>(res);
+                size -= res;
                 buf += res;
             }
             return buf - reinterpret_cast<char *>(buffer);

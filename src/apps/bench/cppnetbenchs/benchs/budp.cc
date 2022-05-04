@@ -85,7 +85,7 @@ NOINLINE static void latency() {
 
             auto stop = TimeInstant::now();
 
-            WVASSERTEQ(static_cast<size_t>(recv_len), pkt_size);
+            WVASSERTEQ(recv_len, pkt_size);
 
             auto duration = stop.duration_since(start);
             cout << "RTT (" << pkt_size << "b): " << duration.as_micros() << " us\n";
@@ -161,7 +161,7 @@ NOINLINE static void bandwidth() {
         size_t receive_count = burst_size;
         while(receive_count--) {
             if(auto pkt_size = socket->recv(response, sizeof(response))) {
-                received_bytes += static_cast<size_t>(pkt_size.value());
+                received_bytes += pkt_size.value();
                 packet_received_count++;
                 last_received = TimeInstant::now();
                 failures = 0;

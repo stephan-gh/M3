@@ -95,7 +95,7 @@ size_t OStream::putspad(const char *s, size_t pad, size_t prec, int flags) {
     }
     count += puts(s, prec);
     if((flags & FormatParams::PADRIGHT) && pad > count)
-        count += printpad(pad - static_cast<size_t>(count), flags);
+        count += printpad(pad - count, flags);
     return count;
 }
 
@@ -113,7 +113,7 @@ size_t OStream::printnpad(llong n, size_t pad, int flags) {
     count += printn(n);
     // pad right
     if((flags & FormatParams::PADRIGHT) && pad > count)
-        count += printpad(pad - static_cast<size_t>(count), flags);
+        count += printpad(pad - count, flags);
     return count;
 }
 
@@ -150,7 +150,7 @@ size_t OStream::printupad(ullong u, uint base, size_t pad, int flags) {
         count += printu(u, base, _hexchars_small);
     // pad right
     if((flags & FormatParams::PADRIGHT) && pad > count)
-        count += printpad(pad - static_cast<size_t>(count), flags);
+        count += printpad(pad - count, flags);
     return count;
 }
 

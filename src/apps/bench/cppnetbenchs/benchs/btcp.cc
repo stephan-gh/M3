@@ -58,10 +58,8 @@ NOINLINE static void latency() {
 
             socket->send(buffer, pkt_size);
             size_t received = 0;
-            while(received < pkt_size) {
-                size_t res = socket->recv(buffer, pkt_size).value();
-                received += static_cast<size_t>(res);
-            }
+            while(received < pkt_size)
+                received += socket->recv(buffer, pkt_size).value();
 
             auto duration = TimeInstant::now().duration_since(start);
             cout << "RTT (" << pkt_size << "b): " << duration.as_micros() << " us\n";
