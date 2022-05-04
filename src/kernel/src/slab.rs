@@ -19,10 +19,10 @@ use base::mem;
 use core::ptr::NonNull;
 
 extern "C" {
-    fn heap_alloc(size: usize) -> *mut libc::c_void;
-    fn heap_calloc(n: usize, size: usize) -> *mut libc::c_void;
-    fn heap_realloc(p: *mut libc::c_void, size: usize) -> *mut libc::c_void;
-    fn heap_free(p: *mut libc::c_void);
+    fn malloc(size: usize) -> *mut libc::c_void;
+    fn calloc(n: usize, size: usize) -> *mut libc::c_void;
+    fn realloc(p: *mut libc::c_void, size: usize) -> *mut libc::c_void;
+    fn free(p: *mut libc::c_void);
 }
 
 pub const HEADER_SIZE: usize = 16;
@@ -63,7 +63,7 @@ impl Slab {
     unsafe fn extend(&mut self, objsize: usize) {
         let area_size = objsize + HEADER_SIZE;
         #[allow(clippy::cast_ptr_alignment)]
-        let mut a = heap_alloc(area_size * NEW_AREA_COUNT) as *mut Area;
+        let mut a = malloc(area_size * NEW_AREA_COUNT) as *mut Area;
         for _ in 0..NEW_AREA_COUNT {
             (*a).next = self.free;
             (*a).slab = NonNull::new_unchecked(self as *mut _);
@@ -84,7 +84,7 @@ impl Slab {
                 res.as_ptr()
             },
 
-            None => self.heap_to_area(heap_alloc(size + HEADER_SIZE)),
+            None => self.heap_to_area(malloc(size + HEADER_SIZE)),
         };
 
         Self::user_addr(area)
@@ -95,7 +95,7 @@ impl Slab {
             Some(_) => unimplemented!(),
 
             None => {
-                let ptr = heap_calloc(size + HEADER_SIZE, 1);
+                let ptr = calloc(size + HEADER_SIZE, 1);
                 Self::user_addr(self.heap_to_area(ptr))
             },
         }
@@ -108,7 +108,7 @@ impl Slab {
                 self.free = NonNull::new(area);
             },
 
-            None => heap_free(area as *mut libc::c_void),
+            None => free(area as *mut libc::c_void),
         }
     }
 
@@ -120,7 +120,7 @@ impl Slab {
     ) -> *mut libc::c_void {
         match self.size {
             Some(_) => {
-                let nptr = heap_alloc(new_size + HEADER_SIZE);
+                let nptr = malloc(new_size + HEADER_SIZE);
                 let narea = SLAB_ALL.borrow_mut().heap_to_area(nptr);
                 let res = Self::user_addr(narea);
                 libc::memcpy(res, Self::user_addr(area), old_size);
@@ -129,7 +129,7 @@ impl Slab {
             },
 
             None => {
-                let ptr = heap_realloc(area as *mut libc::c_void, new_size + HEADER_SIZE);
+                let ptr = realloc(area as *mut libc::c_void, new_size + HEADER_SIZE);
                 Self::user_addr(self.heap_to_area(ptr))
             },
         }

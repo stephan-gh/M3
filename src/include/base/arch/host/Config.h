@@ -25,9 +25,8 @@
 #define PAGE_SIZE         (static_cast<size_t>(4096))
 #define PAGE_MASK         (PAGE_SIZE - 1)
 
-#define LOCAL_MEM_SIZE    (512 * 1024 * 1024)
+#define LOCAL_MEM_SIZE    (4 * 1024 * 1024)
 #define EPMEM_SIZE        (1 * 1024 * 1024)
-#define HEAP_SIZE         (LOCAL_MEM_SIZE - RBUF_SIZE - EPMEM_SIZE)
 
 #define STACK_SIZE        0x1000
 

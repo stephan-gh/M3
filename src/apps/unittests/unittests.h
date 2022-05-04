@@ -33,7 +33,6 @@ void tenvvars();
 void tfsmeta();
 void tfs();
 void tbitfield();
-void theap();
 void tnonblock();
 void tsems();
 void tstream();

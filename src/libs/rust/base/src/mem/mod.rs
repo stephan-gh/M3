@@ -20,7 +20,6 @@
 
 mod buffer;
 mod globaddr;
-pub mod heap;
 mod map;
 
 pub use self::buffer::{AlignedBuf, MsgBuf, MsgBufRef};

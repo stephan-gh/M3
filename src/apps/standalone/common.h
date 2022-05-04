@@ -19,7 +19,6 @@
 #include <base/Common.h>
 #include <base/TCU.h>
 
-#include <heap/heap.h>
 #include <string.h>
 
 #include "assert.h"

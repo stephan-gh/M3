@@ -46,7 +46,6 @@ public:
 };
 
 void Env::init() {
-    m3::Heap::init();
     std::set_terminate(Exception::terminate_handler);
     env()->set_backend(new EnvUserBackend());
     env()->backend()->init();

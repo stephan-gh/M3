@@ -93,7 +93,7 @@ class M3Env(ninjagen.Env):
 
         if env['PLATF'] == 'kachel':
             if not NoSup:
-                baselibs = ['gcc', 'c', 'gem5', 'm', 'gloss', 'stdc++', 'supc++', 'heap']
+                baselibs = ['gcc', 'c', 'gem5', 'm', 'gloss', 'stdc++', 'supc++']
                 # add the C library again, because the linker isn't able to resolve m3::Dir::readdir
                 # otherwise, even though we use "--start-group ... --end-group". I have no idea why
                 # that occurs now and why only for this symbol.
@@ -123,7 +123,7 @@ class M3Env(ninjagen.Env):
                 env.install(gen, env['MEMDIR'], hex)
         else:
             if not NoSup:
-                libs = m3libs + ['heap', 'pthread'] + libs
+                libs = m3libs + ['pthread'] + libs
             bin = env.cxx_exe(gen, out, ins, libs)
 
         env.install(gen, env['BINDIR'], bin)
@@ -146,12 +146,12 @@ class M3Env(ninjagen.Env):
 
         if env['PLATF'] == 'kachel':
             ins     = [] if startup is None else [startup]
-            libs    = ['simplec', 'gem5', 'heap', 'gcc', out] + libs
+            libs    = ['simplec', 'gem5', 'gcc', out] + libs
             env['LINKFLAGS'] += ['-nodefaultlibs']
         else:
             ins     = []
             # leave the host lib in here as well to make it a dependency
-            libs    = ['c', 'heap', 'host', 'gcc', 'pthread', out] + libs
+            libs    = ['c', 'host', 'gcc', 'pthread', out] + libs
             # ensure that the host library gets linked in
             env['LINKFLAGS'] += ['-Wl,--whole-archive', '-lhost', '-Wl,--no-whole-archive']
             if env['BUILD'] == 'coverage':

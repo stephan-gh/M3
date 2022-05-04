@@ -20,7 +20,8 @@ use base::io;
 use base::kif::TileDesc;
 use base::machine;
 use base::math;
-use base::mem::heap;
+
+use core::ptr;
 
 use crate::arch::{exceptions, paging};
 use crate::args;
@@ -29,6 +30,12 @@ use crate::mem;
 use crate::platform;
 use crate::tiles;
 use crate::workloop::workloop;
+
+extern "C" {
+    fn __m3_init_libc(argc: i32, argv: *const *const u8, envp: *const *const u8);
+    fn __m3_heap_get_end() -> usize;
+    fn __m3_heap_append(pages: usize);
+}
 
 #[no_mangle]
 pub extern "C" fn abort() -> ! {
@@ -80,20 +87,18 @@ fn extend_heap() {
     if platform::tile_desc(platform::kernel_tile()).has_virtmem() {
         let free_contiguous = mem::borrow_mut().largest_contiguous(mem::MemType::KERNEL);
         if let Some(bytes) = free_contiguous {
-            extern "C" {
-                static mut heap_end: *mut heap::HeapArea;
-            }
+            let heap_end = unsafe { __m3_heap_get_end() };
 
             // determine page count and virtual start address
             let pages = (bytes as usize) >> cfg::PAGE_BITS;
-            let virt = unsafe { math::round_up(heap_end as usize, cfg::PAGE_SIZE) };
+            let virt = math::round_up(heap_end, cfg::PAGE_SIZE);
 
             // first map small pages until the next large page
             let virt_next_lpage = (virt + cfg::LPAGE_SIZE - 1) & !(cfg::LPAGE_SIZE - 1);
             let small_pages = (virt_next_lpage - virt) >> cfg::PAGE_BITS;
 
             paging::map_new_mem(virt, small_pages, cfg::PAGE_SIZE);
-            heap::append(small_pages);
+            unsafe { __m3_heap_append(small_pages) };
 
             // now map the rest with large pages
             let large_pages = ((pages - small_pages) * cfg::PAGE_SIZE) / cfg::LPAGE_SIZE;
@@ -103,15 +108,15 @@ fn extend_heap() {
                 large_pages * pages_per_lpage,
                 cfg::LPAGE_SIZE,
             );
-            heap::append(large_pages * pages_per_lpage);
+            unsafe { __m3_heap_append(large_pages * pages_per_lpage) };
         }
     }
 }
 
 #[no_mangle]
 pub extern "C" fn env_run() {
+    unsafe { __m3_init_libc(0, ptr::null(), ptr::null()) };
     io::init(0, "kernel");
-    heap::init();
     crate::slab::init();
     paging::init();
     exceptions::init();

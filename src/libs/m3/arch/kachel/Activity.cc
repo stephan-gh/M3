@@ -18,7 +18,6 @@
 
 #include <base/Common.h>
 #include <base/Config.h>
-#include <base/mem/Heap.h>
 #include <base/util/Math.h>
 
 #include <m3/EnvVars.h>

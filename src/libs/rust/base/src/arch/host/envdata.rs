@@ -93,10 +93,6 @@ pub fn rbuf_start() -> usize {
     mem_start() + cfg::EPMEM_SIZE
 }
 
-pub fn heap_start() -> usize {
-    mem_start() + cfg::EPMEM_SIZE + cfg::RBUF_SIZE
-}
-
 pub fn mem_start() -> usize {
     match MEM.get() {
         None => {

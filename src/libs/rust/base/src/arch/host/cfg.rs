@@ -38,9 +38,8 @@ pub const RBUF_ADDR: usize = RBUF_STD_ADDR + RBUF_STD_SIZE;
 pub const RBUF_SIZE: usize = 64 * 1024;
 pub const RBUF_SIZE_SPM: usize = 64 * 1024;
 
-pub const LOCAL_MEM_SIZE: usize = 512 * 1024 * 1024;
+pub const LOCAL_MEM_SIZE: usize = 4 * 1024 * 1024;
 pub const EPMEM_SIZE: usize = 1 * 1024 * 1024;
-pub const APP_HEAP_SIZE: usize = LOCAL_MEM_SIZE - RBUF_SIZE - EPMEM_SIZE;
 
 pub const FIXED_KMEM: usize = 2 * 1024 * 1024;
 pub const FIXED_ROOT_MEM: usize = 128 * 1024 * 1024;

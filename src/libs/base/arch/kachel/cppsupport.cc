@@ -19,7 +19,6 @@
 #include <base/Common.h>
 #include <base/Machine.h>
 #include <base/Panic.h>
-#include <base/mem/Heap.h>
 
 #include <functional>
 
@@ -30,31 +29,6 @@ WEAK void __throw_bad_function_call() {
     PANIC("bad function call");
 }
 }
-
-EXTERN_C void *malloc(size_t size) {
-    return heap_alloc(size);
-}
-
-EXTERN_C void *memalign(size_t alignment, size_t size) {
-    return heap_memalign(alignment, size);
-}
-
-EXTERN_C void *calloc(size_t n, size_t size) {
-    return heap_calloc(n, size);
-}
-
-EXTERN_C void *realloc(void *p, size_t size) {
-    return heap_realloc(p, size);
-}
-
-EXTERN_C void free(void *p) {
-    return heap_free(p);
-}
-
-EXTERN_C void *__libc_malloc(size_t size) __attribute__((__weak__, __alias__("malloc")));
-EXTERN_C void *__libc_calloc(size_t n, size_t size) __attribute__((__weak__, __alias__("calloc")));
-EXTERN_C void *__libc_realloc(void *p, size_t size) __attribute__((__weak__, __alias__("realloc")));
-EXTERN_C void __libc_free(void *p) __attribute__((__weak__, __alias__("free")));
 
 #if defined(__arm__)
 EXTERN_C void __sync_synchronize() {

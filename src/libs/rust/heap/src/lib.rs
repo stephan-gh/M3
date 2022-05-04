@@ -19,29 +19,29 @@ use base::libc;
 
 extern "C" {
     /// Allocates `size` bytes on the heap
-    fn heap_alloc(size: usize) -> *mut libc::c_void;
+    fn malloc(size: usize) -> *mut libc::c_void;
 
     /// Allocates `n * size` on the heap and initializes it to 0
-    fn heap_calloc(n: usize, size: usize) -> *mut libc::c_void;
+    fn calloc(n: usize, size: usize) -> *mut libc::c_void;
 
     /// Reallocates `n` to be `size` bytes large
     ///
     /// This implementation might increase the size of the area or shink it. It might also free the
     /// current area and allocate a new area of `size` bytes.
-    fn heap_realloc(p: *mut libc::c_void, size: usize) -> *mut libc::c_void;
+    fn realloc(p: *mut libc::c_void, size: usize) -> *mut libc::c_void;
 
     /// Frees the area at `p`
-    fn heap_free(p: *mut libc::c_void);
+    fn free(p: *mut libc::c_void);
 }
 
 #[no_mangle]
 extern "C" fn __rdl_alloc(size: usize, _align: usize, _err: *mut u8) -> *mut libc::c_void {
-    unsafe { heap_alloc(size) }
+    unsafe { malloc(size) }
 }
 
 #[no_mangle]
 extern "C" fn __rdl_dealloc(ptr: *mut libc::c_void, _size: usize, _align: usize) {
-    unsafe { heap_free(ptr) };
+    unsafe { free(ptr) };
 }
 
 #[no_mangle]
@@ -53,10 +53,10 @@ extern "C" fn __rdl_realloc(
     _new_align: usize,
     _err: *mut u8,
 ) -> *mut libc::c_void {
-    unsafe { heap_realloc(ptr, new_size) }
+    unsafe { realloc(ptr, new_size) }
 }
 
 #[no_mangle]
 extern "C" fn __rdl_alloc_zeroed(size: usize, _align: usize, _err: *mut u8) -> *mut libc::c_void {
-    unsafe { heap_calloc(size, 1) }
+    unsafe { calloc(size, 1) }
 }

@@ -16,7 +16,6 @@
 #include <base/Common.h>
 #include <base/Env.h>
 #include <base/TileDesc.h>
-#include <base/mem/Heap.h>
 #include <base/stream/Serial.h>
 
 #include <string.h>
@@ -103,7 +102,6 @@ public:
 extern void *_bss_end;
 
 void m3::Env::init() {
-    m3::Heap::init();
     env()->set_backend(new StandaloneEnvBackend());
     env()->backend()->init();
     env()->call_constr();

@@ -21,7 +21,6 @@ use crate::com;
 use crate::io;
 use crate::kif;
 use crate::libc;
-use crate::mem;
 use crate::syscalls;
 use crate::tiles;
 use crate::vfs;
@@ -35,7 +34,6 @@ pub fn exit(code: i32) -> ! {
 
 #[no_mangle]
 pub extern "C" fn rust_init(argc: i32, argv: *const *const i8) {
-    mem::heap::init();
     arch::env::init(argc, argv);
     com::pre_init();
     syscalls::init();

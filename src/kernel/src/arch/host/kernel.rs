@@ -21,9 +21,7 @@ use base::io;
 use base::kif;
 use base::libc;
 use base::math;
-use base::mem::heap;
 use base::tcu;
-use base::vec;
 use thread;
 
 use super::{fs, net};
@@ -45,7 +43,6 @@ pub extern "C" fn rust_init(argc: i32, argv: *const *const i8) {
         0,
         0,
     ));
-    heap::init();
     crate::slab::init();
     io::init(0, "kernel");
     tcu::init();
@@ -79,23 +76,23 @@ pub fn main() -> i32 {
         net::create_bridge(bname);
     }
 
+    let mut rbuf_addr = envdata::rbuf_start();
     let sysc_slot_size = 9;
     let sysc_rbuf_size = math::next_log2(cfg::MAX_ACTS) + sysc_slot_size;
-    let sysc_rbuf = vec![0u8; 1 << sysc_rbuf_size];
     ktcu::recv_msgs(
         ktcu::KSYS_EP,
-        sysc_rbuf.as_ptr() as goff,
+        rbuf_addr as goff,
         sysc_rbuf_size,
         sysc_slot_size,
     )
     .expect("Unable to config syscall REP");
+    rbuf_addr += 1 << sysc_rbuf_size;
 
     let serv_slot_size = 8;
     let serv_rbuf_size = math::next_log2(crate::com::MAX_PENDING_MSGS) + serv_slot_size;
-    let serv_rbuf = vec![0u8; 1 << serv_rbuf_size];
     ktcu::recv_msgs(
         ktcu::KSRV_EP,
-        serv_rbuf.as_ptr() as goff,
+        rbuf_addr as goff,
         serv_rbuf_size,
         serv_slot_size,
     )

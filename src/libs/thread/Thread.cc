@@ -18,7 +18,6 @@
  */
 
 #include <base/Panic.h>
-#include <base/mem/Heap.h>
 
 #include <thread/Thread.h>
 #include <thread/ThreadManager.h>

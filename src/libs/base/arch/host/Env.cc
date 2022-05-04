@@ -63,7 +63,6 @@ Env::Init::Init() {
     }
 #endif
 
-    m3::Heap::init();
     Env::init();
 
     Serial::init(executable(), env()->tile_id);

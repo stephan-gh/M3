@@ -5,7 +5,6 @@ dirs = [
     'dummy',
     'flac',
     'gem5',
-    'heap',
     'host',
     'leveldb',
     'llvmprofile',

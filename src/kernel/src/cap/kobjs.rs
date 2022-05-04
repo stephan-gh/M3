@@ -53,7 +53,10 @@ const fn kobj_size<T>() -> usize {
         128 + crate::slab::HEADER_SIZE
     }
     else {
-        size + size_of::<base::mem::heap::HeapArea>()
+        // since we are using musl's heap, it's hard to say what the overhead per allocation is.
+        // that depends on whether we needed a new "group" or not, for example. as an estimate use
+        // 64 bytes.
+        size + 64
     }
 }
 
