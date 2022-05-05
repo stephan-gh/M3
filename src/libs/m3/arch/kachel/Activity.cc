@@ -34,10 +34,6 @@
 namespace m3 {
 
 extern "C" void *_start;
-extern "C" void *_text_start;
-extern "C" void *_text_end;
-extern "C" void *_data_start;
-extern "C" void *_bss_end;
 
 void OwnActivity::init_state() {
     _resmng.reset(new ResMng(env()->rmng_sel));

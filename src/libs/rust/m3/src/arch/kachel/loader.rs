@@ -33,14 +33,6 @@ use crate::tiles::{Activity, Mapper};
 use crate::vec;
 use crate::vfs::{BufReader, File, FileRef, Seek, SeekMode};
 
-extern "C" {
-    static _start: u8;
-    static _text_start: u8;
-    static _text_end: u8;
-    static _data_start: u8;
-    static _bss_end: u8;
-}
-
 fn write_bytes_checked(
     mem: &MemGate,
     _vaddr: usize,
