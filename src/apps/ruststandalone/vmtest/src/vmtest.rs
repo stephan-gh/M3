@@ -79,7 +79,7 @@ fn read_write(wr_addr: usize, rd_addr: usize, size: usize) {
         size
     );
 
-    TCU::invalidate_tlb().unwrap();
+    TCU::invalidate_tlb();
 
     let wr_slice = unsafe { util::slice_for_mut(wr_addr as *mut u8, size) };
     let rd_slice = unsafe { util::slice_for_mut(rd_addr as *mut u8, size) };
@@ -156,7 +156,7 @@ fn send_recv(send_addr: usize, size: usize) {
         size * 8
     );
 
-    TCU::invalidate_tlb().unwrap();
+    TCU::invalidate_tlb();
 
     // create receive buffers
     let (rbuf1_virt, rbuf1_phys) = helper::virt_to_phys(RBUF1.as_ptr() as usize);

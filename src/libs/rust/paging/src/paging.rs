@@ -219,8 +219,7 @@ impl<A: Allocator> AddrSpace<A> {
 
                 let invalidate = arch::needs_invalidate(new_flags, old_flags);
                 if invalidate {
-                    // it's okay if the page is not in the TLB
-                    TCU::invalidate_page(self.id as u16, *virt).ok();
+                    TCU::invalidate_page(self.id as u16, *virt);
                     // flush single page for leaf PTEs and complete TLB for higher-level PTEs
                     if level == 0 {
                         arch::invalidate_page(self.id, *virt);
@@ -344,7 +343,7 @@ impl<A: Allocator> Drop for AddrSpace<A> {
 
             // invalidate entire TLB to allow us to reuse the activity id
             arch::invalidate_tlb();
-            TCU::invalidate_tlb().unwrap();
+            TCU::invalidate_tlb();
         }
     }
 }

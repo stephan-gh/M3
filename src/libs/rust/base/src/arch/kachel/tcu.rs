@@ -774,16 +774,16 @@ impl TCU {
     }
 
     /// Invalidates the TCU's TLB
-    pub fn invalidate_tlb() -> Result<(), Error> {
+    pub fn invalidate_tlb() {
         Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::INV_TLB.val);
-        Self::get_priv_error()
+        Self::wait_priv_cmd();
     }
 
     /// Invalidates the entry with given address space id and virtual address in the TCU's TLB
-    pub fn invalidate_page(asid: u16, virt: usize) -> Result<(), Error> {
+    pub fn invalidate_page(asid: u16, virt: usize) {
         let val = ((asid as Reg) << 41) | ((virt as Reg) << 9) | PrivCmdOpCode::INV_PAGE.val;
         Self::write_priv_reg(PrivReg::PRIV_CMD, val);
-        Self::get_priv_error()
+        Self::wait_priv_cmd();
     }
 
     /// Inserts the given entry into the TCU's TLB
@@ -817,11 +817,16 @@ impl TCU {
     /// Waits until the current command is completed and returns the error, if any occurred
     #[inline(always)]
     fn get_priv_error() -> Result<(), Error> {
+        Result::from(Self::wait_priv_cmd())
+    }
+
+    /// Waits until the current command is completed and returns the error, if any occurred
+    #[inline(always)]
+    fn wait_priv_cmd() -> Code {
         loop {
             let cmd = Self::read_priv_reg(PrivReg::PRIV_CMD);
             if (cmd & 0xF) == PrivCmdOpCode::IDLE.val {
-                let err = (cmd >> 4) & 0x1F;
-                return Result::from(Code::from(err as u32));
+                return Code::from(((cmd >> 4) & 0x1F) as u32);
             }
         }
     }
