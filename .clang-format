@@ -95,7 +95,7 @@ SortIncludes: 'true'
 
 IndentAccessModifiers: 'false'
 IndentCaseLabels: 'true'
-IndentExternBlock: Indent
+IndentExternBlock: NoIndent
 IndentGotoLabels: 'false'
 IndentPPDirectives: AfterHash
 IndentWrappedFunctionNames: 'true'

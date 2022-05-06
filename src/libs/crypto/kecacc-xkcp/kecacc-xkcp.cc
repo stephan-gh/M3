@@ -49,6 +49,7 @@ struct KecAccState {
 #endif
 
 namespace {
+
 // XKCP does currently not have a KeccakF1600_FastLoop_Squeeze()
 // Use a (slightly slower) replacement for now
 size_t KeccakF1600_NotSoFastLoop_Squeeze(void *state, unsigned int laneCount, unsigned char *data,
@@ -124,45 +125,48 @@ size_t sponge(struct KecAccState &s, B *buf, size_t nbytes) {
 
     return permutations;
 }
+
 } // namespace
 
 static_assert(sizeof(KecAccState) <= KECACC_STATE_SIZE, "State too large");
 
 extern "C" {
-    uint8_t kecacc_rate_bytes(const struct KecAccState *s) {
-        // Check if state is initialized properly
-        if(!s->rate_bytes || s->rate_bytes % alignof(uint64_t) != 0)
-            return 0;
 
-        return s->rate_bytes;
-    }
+uint8_t kecacc_rate_bytes(const struct KecAccState *s) {
+    // Check if state is initialized properly
+    if(!s->rate_bytes || s->rate_bytes % alignof(uint64_t) != 0)
+        return 0;
 
-    uint8_t kecacc_alignment_offset(const struct KecAccState *s) {
-        return s->offset % alignof(uint64_t);
-    }
+    return s->rate_bytes;
+}
 
-    bool kecacc_init(struct KecAccState *s, uint8_t hash_type) {
-        if(hash_type >= HASH_TYPE_COUNT)
-            return false;
+uint8_t kecacc_alignment_offset(const struct KecAccState *s) {
+    return s->offset % alignof(uint64_t);
+}
 
-        std::memset(s, 0, KECACC_STATE_SIZE);
-        s->rate_bytes = HASH_TYPES[hash_type].rate_bytes;
-        s->pad_delim = HASH_TYPES[hash_type].pad_delim;
-        return true;
-    }
+bool kecacc_init(struct KecAccState *s, uint8_t hash_type) {
+    if(hash_type >= HASH_TYPE_COUNT)
+        return false;
 
-    size_t kecacc_absorb(struct KecAccState *s, const uint8_t *buf, size_t nbytes) {
-        return sponge<KeccakP1600_AddBytes, KeccakF1600_FastLoop_Absorb>(*s, buf, nbytes);
-    }
+    std::memset(s, 0, KECACC_STATE_SIZE);
+    s->rate_bytes = HASH_TYPES[hash_type].rate_bytes;
+    s->pad_delim = HASH_TYPES[hash_type].pad_delim;
+    return true;
+}
 
-    size_t kecacc_squeeze(struct KecAccState *s, uint8_t *buf, size_t nbytes) {
-        return sponge<KeccakP1600_ExtractBytes, KeccakF1600_NotSoFastLoop_Squeeze>(*s, buf, nbytes);
-    }
+size_t kecacc_absorb(struct KecAccState *s, const uint8_t *buf, size_t nbytes) {
+    return sponge<KeccakP1600_AddBytes, KeccakF1600_FastLoop_Absorb>(*s, buf, nbytes);
+}
 
-    void kecacc_pad(struct KecAccState *s) {
-        KeccakP1600_AddByte(s->state, s->pad_delim, s->offset);
-        KeccakP1600_AddByte(s->state, 0x80, s->rate_bytes - 1);
-        KeccakP1600_Permute_24rounds(s->state);
-        s->offset = 0;
-    }
+size_t kecacc_squeeze(struct KecAccState *s, uint8_t *buf, size_t nbytes) {
+    return sponge<KeccakP1600_ExtractBytes, KeccakF1600_NotSoFastLoop_Squeeze>(*s, buf, nbytes);
+}
+
+void kecacc_pad(struct KecAccState *s) {
+    KeccakP1600_AddByte(s->state, s->pad_delim, s->offset);
+    KeccakP1600_AddByte(s->state, 0x80, s->rate_bytes - 1);
+    KeccakP1600_Permute_24rounds(s->state);
+    s->offset = 0;
+}
+
 } // extern "C"
