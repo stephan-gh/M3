@@ -122,7 +122,7 @@ static void convert_hostname(char *dst, const char *src, size_t len) {
 static size_t question_length(const uint8_t *data) {
     size_t total = 0;
     while(*data != 0) {
-        uint8_t len = *data;
+        size_t len = static_cast<size_t>(*data);
         // skip this name-part
         total += len + 1;
         data += len + 1;
