@@ -37,7 +37,7 @@ struct MyTItem : public TreapNode<MyTItem, uint32_t> {
 NOINLINE static void insert() {
     struct TreapInsertRunner : public Runner {
         void run() override {
-            for(uint32_t i = 0; i < 100; ++i) {
+            for(uint32_t i = 0; i < 10; ++i) {
                 treap.insert(new MyTItem(i));
             }
         }
@@ -51,20 +51,20 @@ NOINLINE static void insert() {
         Treap<MyTItem> treap;
     };
 
-    Profile pr(100, 50);
+    Profile pr(100, 100);
     TreapInsertRunner runner;
-    WVPERF("inserting 100-elements", pr.runner<CycleInstant>(runner));
+    WVPERF("inserting 10-elements", pr.runner<CycleInstant>(runner));
 }
 
 NOINLINE static void find() {
     struct TreapSearchRunner : public Runner {
         void pre() override {
-            for(uint32_t i = 0; i < 100; ++i) {
+            for(uint32_t i = 0; i < 10; ++i) {
                 treap.insert(new MyTItem(i));
             }
         }
         void run() override {
-            for(uint32_t i = 0; i < 100; ++i) {
+            for(uint32_t i = 0; i < 10; ++i) {
                 MyTItem *item = treap.find(i);
                 if(!item || item->val != i)
                     PANIC("Test failed: " << (item ? item->val : 0) << " != " << i);
@@ -82,13 +82,13 @@ NOINLINE static void find() {
 
     Profile pr(100, 50);
     TreapSearchRunner runner;
-    WVPERF("searching 100-elements", pr.runner<CycleInstant>(runner));
+    WVPERF("searching 10-elements", pr.runner<CycleInstant>(runner));
 }
 
 NOINLINE static void clear() {
     struct TreapClearRunner : public Runner {
         void pre() override {
-            for(uint32_t i = 0; i < 100; ++i) {
+            for(uint32_t i = 0; i < 10; ++i) {
                 treap.insert(new MyTItem(i));
             }
         }
@@ -102,9 +102,9 @@ NOINLINE static void clear() {
         Treap<MyTItem> treap;
     };
 
-    Profile pr(100, 50);
+    Profile pr(100, 100);
     TreapClearRunner runner;
-    WVPERF("removing 100-elements", pr.runner<CycleInstant>(runner));
+    WVPERF("removing 10-elements", pr.runner<CycleInstant>(runner));
 }
 
 void btreap() {

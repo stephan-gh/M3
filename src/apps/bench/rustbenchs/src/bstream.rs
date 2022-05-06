@@ -115,7 +115,7 @@ fn pingpong_str() {
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
-    let mut prof = Profiler::default();
+    let mut prof = Profiler::default().warmup(50);
 
     wv_perf!(
         "pingpong with (String) msgs",

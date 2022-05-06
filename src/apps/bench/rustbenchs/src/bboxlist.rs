@@ -50,7 +50,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn push_back() {
-    let mut prof = Profiler::default().repeats(30);
+    let mut prof = Profiler::default().warmup(100).repeats(30);
 
     #[derive(Default)]
     struct ListTester(BoxList<TestItem>);
@@ -61,20 +61,20 @@ fn push_back() {
         }
 
         fn run(&mut self) {
-            for i in 0..100 {
+            for i in 0..10 {
                 self.0.push_back(Box::new(TestItem::new(i)));
             }
         }
     }
 
     wv_perf!(
-        "Appending 100 elements",
+        "Appending 10 elements",
         prof.runner::<CycleInstant, _>(&mut ListTester::default())
     );
 }
 
 fn push_front() {
-    let mut prof = Profiler::default().repeats(30);
+    let mut prof = Profiler::default().warmup(100).repeats(30);
 
     #[derive(Default)]
     struct ListTester(BoxList<TestItem>);
@@ -85,14 +85,14 @@ fn push_front() {
         }
 
         fn run(&mut self) {
-            for i in 0..100 {
+            for i in 0..10 {
                 self.0.push_front(Box::new(TestItem::new(i)));
             }
         }
     }
 
     wv_perf!(
-        "Prepending 100 elements",
+        "Prepending 10 elements",
         prof.runner::<CycleInstant, _>(&mut ListTester::default())
     );
 }
@@ -126,14 +126,14 @@ fn push_pop() {
 }
 
 fn clear() {
-    let mut prof = Profiler::default().repeats(30);
+    let mut prof = Profiler::default().warmup(100).repeats(30);
 
     #[derive(Default)]
     struct ListTester(BoxList<TestItem>);
 
     impl Runner for ListTester {
         fn pre(&mut self) {
-            for i in 0..100 {
+            for i in 0..10 {
                 self.0.push_back(Box::new(TestItem::new(i)));
             }
         }
@@ -144,7 +144,7 @@ fn clear() {
     }
 
     wv_perf!(
-        "Clearing 100-element list",
+        "Clearing 10-element list",
         prof.runner::<CycleInstant, _>(&mut ListTester::default())
     );
 }

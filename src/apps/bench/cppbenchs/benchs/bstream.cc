@@ -100,7 +100,7 @@ NOINLINE static void pingpong_str() {
     rgate.activate();
     auto sgate = SendGate::create(&rgate, SendGateArgs().credits(1));
 
-    Profile pr;
+    Profile pr(100, 100);
     WVPERF(__func__, pr.run<CycleInstant>([&sgate, &rgate] {
         send_vmsg(sgate, "test");
 

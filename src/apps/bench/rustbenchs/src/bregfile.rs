@@ -37,7 +37,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn open_close() {
-    let mut prof = Profiler::default().repeats(50).warmup(10);
+    let mut prof = Profiler::default().repeats(50).warmup(50);
 
     wv_perf!(
         "open-close",

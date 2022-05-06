@@ -81,7 +81,7 @@ fn activate() {
 }
 
 fn create_mgate() {
-    let mut prof = Profiler::default().repeats(100).warmup(10);
+    let mut prof = Profiler::default().repeats(100).warmup(100);
 
     #[derive(Default)]
     struct Tester(usize);
@@ -114,7 +114,7 @@ fn create_mgate() {
 }
 
 fn create_rgate() {
-    let mut prof = Profiler::default().repeats(100).warmup(10);
+    let mut prof = Profiler::default().repeats(100).warmup(100);
 
     #[derive(Default)]
     struct Tester();

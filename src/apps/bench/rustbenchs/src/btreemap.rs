@@ -39,53 +39,53 @@ fn insert() {
         }
 
         fn run(&mut self) {
-            for i in 0..100 {
+            for i in 0..10 {
                 self.0.insert(i, i);
             }
         }
     }
 
     wv_perf!(
-        "Inserting 100 elements",
+        "Inserting 10 elements",
         prof.runner::<CycleInstant, _>(&mut BTreeTester::default())
     );
 }
 
 fn find() {
-    let mut prof = Profiler::default().repeats(100).warmup(50);
+    let mut prof = Profiler::default().repeats(10).warmup(50);
 
     #[derive(Default)]
     struct BTreeTester(BTreeMap<u32, u32>);
 
     impl Runner for BTreeTester {
         fn pre(&mut self) {
-            for i in 0..100 {
+            for i in 0..10 {
                 self.0.insert(i, i);
             }
         }
 
         fn run(&mut self) {
-            for i in 0..100 {
+            for i in 0..10 {
                 wv_assert_eq!(self.0.get(&i), Some(&i));
             }
         }
     }
 
     wv_perf!(
-        "Searching for 100 elements",
+        "Searching for 10 elements",
         prof.runner::<CycleInstant, _>(&mut BTreeTester::default())
     );
 }
 
 fn clear() {
-    let mut prof = Profiler::default().repeats(100).warmup(50);
+    let mut prof = Profiler::default().repeats(100).warmup(100);
 
     #[derive(Default)]
     struct BTreeTester(BTreeMap<u32, u32>);
 
     impl Runner for BTreeTester {
         fn pre(&mut self) {
-            for i in 0..100 {
+            for i in 0..10 {
                 self.0.insert(i, i);
             }
         }
@@ -96,7 +96,7 @@ fn clear() {
     }
 
     wv_perf!(
-        "Removing 100-element list",
+        "Removing 10-element list",
         prof.runner::<CycleInstant, _>(&mut BTreeTester::default())
     );
 }

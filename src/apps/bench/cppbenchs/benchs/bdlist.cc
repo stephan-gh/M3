@@ -37,7 +37,7 @@ struct MyDItem : public DListItem {
 NOINLINE static void append() {
     struct DListAppendRunner : public Runner {
         void run() override {
-            for(uint32_t i = 0; i < 100; ++i) {
+            for(uint32_t i = 0; i < 10; ++i) {
                 list.append(new MyDItem(i));
             }
         }
@@ -52,15 +52,15 @@ NOINLINE static void append() {
         DList<MyDItem> list;
     };
 
-    Profile pr(30);
+    Profile pr(30, 100);
     DListAppendRunner runner;
-    WVPERF("Appending 100-elements", pr.runner<CycleInstant>(runner));
+    WVPERF("Appending 10-elements", pr.runner<CycleInstant>(runner));
 }
 
 NOINLINE static void clear() {
     struct DListClearRunner : public Runner {
         void pre() override {
-            for(uint32_t i = 0; i < 100; ++i) {
+            for(uint32_t i = 0; i < 10; ++i) {
                 list.append(new MyDItem(i));
             }
         }
@@ -75,9 +75,9 @@ NOINLINE static void clear() {
         DList<MyDItem> list;
     };
 
-    Profile pr(30);
+    Profile pr(30, 100);
     DListClearRunner runner;
-    WVPERF("Removing 100-elements", pr.runner<CycleInstant>(runner));
+    WVPERF("Removing 10-elements", pr.runner<CycleInstant>(runner));
 }
 
 void bdlist() {

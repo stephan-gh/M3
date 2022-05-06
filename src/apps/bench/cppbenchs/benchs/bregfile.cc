@@ -30,7 +30,7 @@ using namespace m3;
 alignas(PAGE_SIZE) static char buf[8192];
 
 NOINLINE static void open_close() {
-    Profile pr(50, 10);
+    Profile pr(50, 100);
 
     WVPERF("open-close", pr.run<CycleInstant>([] {
         VFS::open("/data/2048k.txt", FILE_R);

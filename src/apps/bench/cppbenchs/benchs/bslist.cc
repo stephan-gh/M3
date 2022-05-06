@@ -37,7 +37,7 @@ struct MySItem : public SListItem {
 NOINLINE static void append() {
     struct SListAppendRunner : public Runner {
         void run() override {
-            for(uint32_t i = 0; i < 100; ++i) {
+            for(uint32_t i = 0; i < 10; ++i) {
                 list.append(new MySItem(i));
             }
         }
@@ -52,15 +52,15 @@ NOINLINE static void append() {
         SList<MySItem> list;
     };
 
-    Profile pr(30);
+    Profile pr(30, 100);
     SListAppendRunner runner;
-    WVPERF("Appending 100-elements", pr.runner<CycleInstant>(runner));
+    WVPERF("Appending 10-elements", pr.runner<CycleInstant>(runner));
 }
 
 NOINLINE static void clear() {
     struct SListClearRunner : public Runner {
         void pre() override {
-            for(uint32_t i = 0; i < 100; ++i) {
+            for(uint32_t i = 0; i < 10; ++i) {
                 list.append(new MySItem(i));
             }
         }
@@ -75,9 +75,9 @@ NOINLINE static void clear() {
         SList<MySItem> list;
     };
 
-    Profile pr(30);
+    Profile pr(30, 100);
     SListClearRunner runner;
-    WVPERF("Removing 100-elements", pr.runner<CycleInstant>(runner));
+    WVPERF("Removing 10-elements", pr.runner<CycleInstant>(runner));
 }
 
 void bslist() {
