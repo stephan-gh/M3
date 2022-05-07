@@ -62,15 +62,15 @@ bool DataQueue::has_data() const noexcept {
     return _recv_queue.length() > 0;
 }
 
-std::optional<std::tuple<const uchar *, size_t, Endpoint>> DataQueue::get_next_data() noexcept {
+Option<std::tuple<const uchar *, size_t, Endpoint>> DataQueue::get_next_data() noexcept {
     if(!has_data())
-        return std::nullopt;
+        return None;
 
     Item &item = *_recv_queue.begin();
     auto data = item.get_data() + item.get_pos();
     auto size = item.get_size() - item.get_pos();
     auto ep = Endpoint(item.src_addr(), item.src_port());
-    return std::make_tuple(data, size, ep);
+    return Some(std::make_tuple(data, size, ep));
 }
 
 void DataQueue::ack_data(size_t size) noexcept {

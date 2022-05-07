@@ -102,9 +102,9 @@ public:
      */
     bool accept(Endpoint *remote_ep);
 
-    virtual std::optional<size_t> send(const void *src, size_t amount) override;
+    virtual Option<size_t> send(const void *src, size_t amount) override;
 
-    virtual std::optional<size_t> recv(void *dst, size_t amount) override;
+    virtual Option<size_t> recv(void *dst, size_t amount) override;
 
     /**
      * Closes the socket.

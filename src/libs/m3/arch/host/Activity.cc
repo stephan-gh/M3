@@ -252,7 +252,7 @@ void ChildActivity::do_exec(int argc, const char *const *argv, const char *const
 
     // copy executable from M3-fs to a temp file
     bool first = true;
-    while((res = bin->read(buffer, sizeof(buffer)).value()) > 0) {
+    while((res = bin->read(buffer, sizeof(buffer)).unwrap()) > 0) {
         // check here for the ELF header to try hard that the exec after the fork does not fail
         if(first &&
            (buffer[0] != '\x7F' || buffer[1] != 'E' || buffer[2] != 'L' || buffer[3] != 'F'))

@@ -68,14 +68,14 @@ bool OpHandler::respond(size_t bytes) {
     memset(buffer, 0, sizeof(buffer));
 
     uint64_t total_bytes = htobe64(bytes);
-    if(send(&total_bytes, sizeof(total_bytes)) != sizeof(total_bytes)) {
+    if(send(&total_bytes, sizeof(total_bytes)).unwrap() != sizeof(total_bytes)) {
         cerr << "send response header failed\n";
         return false;
     }
 
     while(bytes > 0) {
         size_t amount = Math::min(bytes, sizeof(buffer));
-        if(send(buffer, amount) != static_cast<ssize_t>(amount)) {
+        if(send(buffer, amount).unwrap() != amount) {
             cerr << "send response failed\n";
             return false;
         }

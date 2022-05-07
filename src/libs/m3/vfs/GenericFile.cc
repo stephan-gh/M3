@@ -206,7 +206,7 @@ NOINLINE bool GenericFile::receive_notify(uint event, bool fetch) {
     return true;
 }
 
-std::optional<size_t> GenericFile::read(void *buffer, size_t count) {
+Option<size_t> GenericFile::read(void *buffer, size_t count) {
     delegate_ep();
     if(_writing)
         commit();
@@ -215,7 +215,7 @@ std::optional<size_t> GenericFile::read(void *buffer, size_t count) {
 
     if(_pos == _len) {
         if(!_blocking && !receive_notify(Event::INPUT, true))
-            return std::nullopt;
+            return None;
 
         GateIStream reply = send_receive_vmsg(*_sg, NEXT_IN, _id);
         Errors::Code res;
@@ -223,7 +223,7 @@ std::optional<size_t> GenericFile::read(void *buffer, size_t count) {
         // if the server promised that we can call NEXT_IN without being blocked, but would still
         // have to block us, it returns Errors::WOULD_BLOCK instead.
         if(res == Errors::WOULD_BLOCK)
-            return std::nullopt;
+            return None;
         if(res != Errors::NONE)
             throw Exception(res);
 
@@ -242,17 +242,17 @@ std::optional<size_t> GenericFile::read(void *buffer, size_t count) {
             _mg.read(buffer, amount, _off + _pos);
         _pos += amount;
     }
-    return amount;
+    return Some(amount);
 }
 
-std::optional<size_t> GenericFile::write(const void *buffer, size_t count) {
+Option<size_t> GenericFile::write(const void *buffer, size_t count) {
     delegate_ep();
 
     LLOG(FS, "GenFile[" << fd() << "]::write(" << count << ", pos=" << (_goff + _pos) << ")");
 
     if(_pos == _len) {
         if(!_blocking && !receive_notify(Event::OUTPUT, true))
-            return std::nullopt;
+            return None;
 
         GateIStream reply = send_receive_vmsg(*_sg, NEXT_OUT, _id);
         Errors::Code res;
@@ -260,7 +260,7 @@ std::optional<size_t> GenericFile::write(const void *buffer, size_t count) {
         // if the server promised that we can call NEXT_OUT without being blocked, but would still
         // have to block us, it returns Errors::WOULD_BLOCK instead.
         if(res == Errors::WOULD_BLOCK)
-            return std::nullopt;
+            return None;
         if(res != Errors::NONE)
             throw Exception(res);
 
@@ -280,7 +280,7 @@ std::optional<size_t> GenericFile::write(const void *buffer, size_t count) {
         _pos += amount;
     }
     _writing = true;
-    return amount;
+    return Some(amount);
 }
 
 void GenericFile::commit() {

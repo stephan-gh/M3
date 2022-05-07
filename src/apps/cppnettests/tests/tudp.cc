@@ -54,7 +54,7 @@ static void connect() {
     WVASSERTEQ(socket->state(), Socket::Bound);
 }
 
-using receive_result = std::optional<std::pair<size_t, Endpoint>>;
+using receive_result = Option<std::pair<size_t, Endpoint>>;
 
 static receive_result send_recv(FileWaiter &waiter, FileRef<UdpSocket> &socket,
                                 const Endpoint &dest, const uint8_t *send_buf, size_t sbuf_size,
@@ -65,7 +65,7 @@ static receive_result send_recv(FileWaiter &waiter, FileRef<UdpSocket> &socket,
 
     if(socket->has_data())
         return socket->recv_from(recv_buf, rbuf_size);
-    return std::nullopt;
+    return None;
 }
 
 NOINLINE static void data() {
@@ -108,8 +108,8 @@ NOINLINE static void data() {
         while(true) {
             auto res = send_recv(waiter, socket, dest, send_buf, pkt_size, TIMEOUT, recv_buf,
                                  sizeof(recv_buf));
-            if(res.has_value()) {
-                const auto [recv_size, recv_src] = res.value();
+            if(res.is_some()) {
+                const auto [recv_size, recv_src] = res.unwrap();
                 WVASSERTEQ(pkt_size, recv_size);
                 WVASSERTEQ(dest, recv_src);
 

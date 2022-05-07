@@ -172,7 +172,7 @@ IpAddr DNS::resolve(NetworkManager &netmng, const char *name, TimeDuration timeo
     waiter.wait_for(timeout);
 
     // receive response
-    size_t len = sock->recv(buffer, sizeof(buffer)).value_or(0);
+    size_t len = sock->recv(buffer, sizeof(buffer)).unwrap_or(0);
     if(len < sizeof(DNSHeader))
         VTHROW(Errors::NOT_FOUND, "Received invalid DNS response");
     if(be16toh(h->id) != txid)

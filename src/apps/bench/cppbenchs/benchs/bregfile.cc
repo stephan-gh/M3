@@ -71,7 +71,7 @@ NOINLINE static void read() {
         auto file = VFS::open("/data/2048k.txt", FILE_R);
 
         size_t amount;
-        while((amount = file->read(buf, sizeof(buf)).value()) > 0)
+        while((amount = file->read(buf, sizeof(buf)).unwrap()) > 0)
             ;
     }));
 }
@@ -85,7 +85,7 @@ NOINLINE static void write() {
 
         size_t total = 0;
         while(total < SIZE)
-            total += file->write(buf, sizeof(buf)).value();
+            total += file->write(buf, sizeof(buf)).unwrap();
     }));
 }
 
@@ -97,7 +97,7 @@ NOINLINE static void copy() {
         auto out = VFS::open("/newfile", FILE_W | FILE_TRUNC | FILE_CREATE);
 
         size_t count;
-        while((count = in->read(buf, sizeof(buf)).value()) > 0)
+        while((count = in->read(buf, sizeof(buf)).unwrap()) > 0)
             out->write_all(buf, count);
     }));
 }

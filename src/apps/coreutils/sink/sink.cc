@@ -24,7 +24,7 @@ using namespace m3;
 alignas(64) static char buffer[8192];
 
 static void read(FStream &in) {
-    while(in.read(buffer, sizeof(buffer)) > 0)
+    while(in.read(buffer, sizeof(buffer)).unwrap() > 0)
         ;
 }
 

@@ -105,7 +105,7 @@ void Socket::handle_closed(NetEventChannel::ClosedMessage const &) {
     disconnect();
 }
 
-std::optional<std::tuple<const uchar *, size_t, Endpoint>> Socket::get_next_data() {
+Option<std::tuple<const uchar *, size_t, Endpoint>> Socket::get_next_data() {
     while(true) {
         if(auto next = _recv_queue.get_next_data())
             return next;
@@ -114,41 +114,41 @@ std::optional<std::tuple<const uchar *, size_t, Endpoint>> Socket::get_next_data
             throw Exception(Errors::INV_STATE);
         if(!_blocking) {
             process_events();
-            return std::nullopt;
+            return None;
         }
 
         wait_for_events();
     }
 }
 
-std::optional<std::pair<size_t, Endpoint>> Socket::do_recv(void *dst, size_t amount) {
+Option<std::pair<size_t, Endpoint>> Socket::do_recv(void *dst, size_t amount) {
     if(auto next = get_next_data()) {
-        const auto [pkt_data, pkt_size, ep] = next.value();
+        const auto [pkt_data, pkt_size, ep] = next.unwrap();
         size_t msg_size = Math::min(pkt_size, amount);
         memcpy(dst, pkt_data, msg_size);
 
         // ack read data and discard excess bytes that do not fit into the supplied buffer
         ack_data(msg_size);
 
-        return std::make_pair(msg_size, ep);
+        return Some(std::make_pair(msg_size, ep));
     }
 
-    return std::nullopt;
+    return None;
 }
 
-std::optional<size_t> Socket::do_send(const void *src, size_t amount, const Endpoint &ep) {
+Option<size_t> Socket::do_send(const void *src, size_t amount, const Endpoint &ep) {
     while(true) {
         Errors::Code res = _channel.send_data(ep, amount, [src, amount](void *buf) {
             memcpy(buf, src, amount);
         });
         if(res == Errors::NONE)
-            return amount;
+            return Some(amount);
         if(res != Errors::NO_CREDITS)
             throw Exception(res);
 
         if(!is_blocking()) {
             fetch_replies();
-            return std::nullopt;
+            return None;
         }
 
         wait_for_credits();

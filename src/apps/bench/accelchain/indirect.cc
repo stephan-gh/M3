@@ -71,7 +71,7 @@ void chain_indirect(FileRef<GenericFile> &in, FileRef<GenericFile> &out, size_t 
         acts[i]->start();
 
     size_t total = 0, seen = 0;
-    size_t count = in->read(buffer.get(), BUF_SIZE).value();
+    size_t count = in->read(buffer.get(), BUF_SIZE).unwrap();
 
     // label 0 is special; use 1..n
     accels[0]->write(buffer.get(), count);
@@ -79,7 +79,7 @@ void chain_indirect(FileRef<GenericFile> &in, FileRef<GenericFile> &out, size_t 
     ops[0] = InDirAccel::Operation::COMPUTE;
     total += count;
 
-    count = in->read(buffer.get(), BUF_SIZE).value();
+    count = in->read(buffer.get(), BUF_SIZE).unwrap();
 
     while(seen < total) {
         label_t label;
@@ -121,7 +121,7 @@ void chain_indirect(FileRef<GenericFile> &in, FileRef<GenericFile> &out, size_t 
                                  comptime, 1);
                 ops[0] = InDirAccel::Operation::COMPUTE;
 
-                count = in->read(buffer.get(), BUF_SIZE).value();
+                count = in->read(buffer.get(), BUF_SIZE).unwrap();
                 // cout << "read " << count << " bytes\n";
             }
         }

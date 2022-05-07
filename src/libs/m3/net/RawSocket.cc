@@ -38,13 +38,13 @@ FileRef<RawSocket> RawSocket::create(NetworkManager &nm, uint8_t protocol,
     return Activity::own().files()->alloc(std::move(sock));
 }
 
-std::optional<size_t> RawSocket::recv(void *dst, size_t amount) {
+Option<size_t> RawSocket::recv(void *dst, size_t amount) {
     if(auto res = Socket::do_recv(dst, amount))
-        return res.value().first;
-    return std::nullopt;
+        return Some(res.unwrap().first);
+    return None;
 }
 
-std::optional<size_t> RawSocket::send(const void *src, size_t amount) {
+Option<size_t> RawSocket::send(const void *src, size_t amount) {
     return Socket::do_send(src, amount, Endpoint());
 }
 

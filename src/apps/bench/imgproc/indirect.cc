@@ -119,7 +119,7 @@ struct IndirChain {
     }
 
     bool read_next(void *buffer) {
-        size_t count = in->read(buffer, BUF_SIZE).value();
+        size_t count = in->read(buffer, BUF_SIZE).unwrap();
         if(count == 0)
             return false;
 

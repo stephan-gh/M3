@@ -99,18 +99,18 @@ bool TcpSocket::accept(Endpoint *remote_ep) {
     return true;
 }
 
-std::optional<size_t> TcpSocket::recv(void *dst, size_t amount) {
+Option<size_t> TcpSocket::recv(void *dst, size_t amount) {
     // receive is possible with an established connection or a connection that that has already been
     // closed by the remote side
     if(_state != Connected && _state != RemoteClosed)
         throw Exception(Errors::NOT_CONNECTED);
 
     if(auto res = Socket::do_recv(dst, amount))
-        return res.value().first;
-    return std::nullopt;
+        return Some(res.unwrap().first);
+    return None;
 }
 
-std::optional<size_t> TcpSocket::send(const void *src, size_t amount) {
+Option<size_t> TcpSocket::send(const void *src, size_t amount) {
     // like for receive: still allow sending if the remote side closed the connection
     if(_state != Connected && _state != RemoteClosed)
         throw Exception(Errors::NOT_CONNECTED);
@@ -120,16 +120,16 @@ std::optional<size_t> TcpSocket::send(const void *src, size_t amount) {
     while(amount > 0) {
         size_t now = Math::min(amount, NetEventChannel::MAX_PACKET_SIZE);
         if(auto sent = Socket::do_send(src_bytes, now, _remote_ep)) {
-            total += sent.value();
-            amount -= sent.value();
-            src_bytes += sent.value();
+            total += sent.unwrap();
+            amount -= sent.unwrap();
+            src_bytes += sent.unwrap();
         }
         else if(total == 0)
-            return std::nullopt;
+            return None;
         else
-            return total;
+            return Some(total);
     }
-    return total;
+    return Some(total);
 }
 
 void TcpSocket::handle_data(NetEventChannel::DataMessage const &msg,

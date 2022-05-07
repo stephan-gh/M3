@@ -59,7 +59,7 @@ NOINLINE static void latency() {
             socket->send(buffer, pkt_size);
             size_t received = 0;
             while(received < pkt_size)
-                received += socket->recv(buffer, pkt_size).value();
+                received += socket->recv(buffer, pkt_size).unwrap();
 
             auto duration = TimeInstant::now().duration_since(start);
             cout << "RTT (" << pkt_size << "b): " << duration.as_micros() << " us\n";
@@ -129,7 +129,7 @@ NOINLINE static void bandwidth() {
             if(sent_count >= PACKETS_TO_SEND)
                 break;
 
-            if(socket->send(buffer, packet_size) > 0) {
+            if(socket->send(buffer, packet_size).unwrap() > 0) {
                 sent_count++;
                 failures = 0;
             }
@@ -141,7 +141,7 @@ NOINLINE static void bandwidth() {
 
         for(size_t i = 0; i < BURST_SIZE; ++i) {
             if(auto pkt_size = socket->recv(buffer, sizeof(buffer))) {
-                received_bytes += pkt_size.value();
+                received_bytes += pkt_size.unwrap();
                 received_count++;
                 last_received = TimeInstant::now();
                 failures = 0;

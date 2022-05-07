@@ -43,7 +43,7 @@ OpHandler::Result TCPOpHandler::receive(Package &pkg) {
         uint8_t header_bytes[4];
     };
     for(size_t i = 0; i < sizeof(header_bytes);)
-        i += receive(header_bytes + i, sizeof(header_bytes) - i).value();
+        i += receive(header_bytes + i, sizeof(header_bytes) - i).unwrap();
 
     uint32_t package_size = be32toh(header_word);
     if(package_size > sizeof(package_buffer)) {
@@ -53,7 +53,7 @@ OpHandler::Result TCPOpHandler::receive(Package &pkg) {
 
     // Receive the next package from the socket
     for(size_t i = 0; i < package_size;)
-        i += receive(package_buffer + i, package_size - i).value();
+        i += receive(package_buffer + i, package_size - i).unwrap();
 
     // There is an edge case where the package size is 6, If thats the case, check if we got the
     // end flag from the client. In that case its time to stop the benchmark.
@@ -65,14 +65,14 @@ OpHandler::Result TCPOpHandler::receive(Package &pkg) {
     return Result::READY;
 }
 
-std::optional<size_t> TCPOpHandler::receive(void *data, size_t max) {
+Option<size_t> TCPOpHandler::receive(void *data, size_t max) {
     __m3_sysc_trace_start(SYSC_RECEIVE);
     auto res = _socket->recv(data, max);
     __m3_sysc_trace_stop();
     return res;
 }
 
-std::optional<size_t> TCPOpHandler::send(const void *data, size_t len) {
+Option<size_t> TCPOpHandler::send(const void *data, size_t len) {
     __m3_sysc_trace_start(SYSC_SEND);
     auto res = _socket->send(data, len);
     __m3_sysc_trace_stop();

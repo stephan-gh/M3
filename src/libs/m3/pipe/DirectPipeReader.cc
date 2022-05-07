@@ -56,7 +56,7 @@ void DirectPipeReader::remove() noexcept {
                     receive_vmsg(_state->_rgate, _state->_pos, _state->_pkglen));
             }
             LLOG(DIRPIPE, "[read] replying len=0");
-            reply_vmsg(*_state->_is, static_cast<size_t>(0));
+            reply_vmsg(*_state->_is, size_t(0));
         }
         catch(...) {
             // ignore
@@ -65,11 +65,11 @@ void DirectPipeReader::remove() noexcept {
     }
 }
 
-std::optional<size_t> DirectPipeReader::read(void *buffer, size_t count) {
+Option<size_t> DirectPipeReader::read(void *buffer, size_t count) {
     if(!_state)
         _state = std::make_unique<State>(_caps);
     if(_state->_eof)
-        return 0;
+        return Some(size_t(0));
 
     if(_state->_rem == 0) {
         if(_state->_pos > 0) {
@@ -98,7 +98,7 @@ std::optional<size_t> DirectPipeReader::read(void *buffer, size_t count) {
                 _state->_is->vpull(_state->_pos, _state->_pkglen);
             }
             else
-                return std::nullopt;
+                return None;
         }
         _state->_rem = _state->_pkglen;
     }
@@ -114,7 +114,7 @@ std::optional<size_t> DirectPipeReader::read(void *buffer, size_t count) {
         _state->_pos += amount;
         _state->_rem -= amount;
     }
-    return amount;
+    return Some(amount);
 }
 
 void DirectPipeReader::delegate(ChildActivity &act) {

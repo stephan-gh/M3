@@ -46,15 +46,15 @@ static void pipes() {
             // this is actually not guaranteed, but depends on the implementation of the pipe
             // server. however, we want to ensure that the read data is correct, which is difficult
             // otherwise.
-            WVASSERTEQ(read.value(), sizeof(send_buf));
+            WVASSERTEQ(read.unwrap(), sizeof(send_buf));
             WVASSERT(strncmp(recv_buf, send_buf, sizeof(send_buf)) == 0);
             progress++;
-            count += read.value();
+            count += read.unwrap();
         }
 
         if(auto written = pipe.writer().write(send_buf, sizeof(send_buf))) {
             // see above
-            WVASSERTEQ(written.value(), sizeof(send_buf));
+            WVASSERTEQ(written.unwrap(), sizeof(send_buf));
             progress++;
         }
 

@@ -35,7 +35,7 @@ static void parse(FStream &bin) {
     bin.seek(0, M3FS_SEEK_SET);
 
     ELF_EH header;
-    if(bin.read(&header, sizeof(header)) != sizeof(header))
+    if(bin.read(&header, sizeof(header)).unwrap() != sizeof(header))
         exitmsg("Invalid ELF-file");
 
     cout << "Program Headers:\n";
@@ -46,7 +46,7 @@ static void parse(FStream &bin) {
         ELF_PH pheader;
         if(bin.seek(off, M3FS_SEEK_SET) != off)
             exitmsg("Invalid ELF-file");
-        if(bin.read(&pheader, sizeof(pheader)) != sizeof(pheader))
+        if(bin.read(&pheader, sizeof(pheader)).unwrap() != sizeof(pheader))
             exitmsg("Invalid ELF-file");
 
         cout << "  " << (pheader.p_type < ARRAY_SIZE(phtypes) ? phtypes[pheader.p_type] : "???????")
@@ -63,7 +63,7 @@ static void parse(FStream &bin) {
         size_t count = pheader.p_filesz;
         while(count > 0) {
             size_t amount = std::min(count, sizeof(buffer));
-            if(bin.read(buffer, amount) != static_cast<ssize_t>(amount))
+            if(bin.read(buffer, amount).unwrap() != amount)
                 exitmsg("Reading failed");
 
             count -= amount;
@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
 
     /* load and check ELF header */
     ElfEh header;
-    if(bin.read(&header, sizeof(header)) != sizeof(header))
+    if(bin.read(&header, sizeof(header)).unwrap() != sizeof(header))
         exitmsg("Invalid ELF-file");
 
     if(header.e_ident[0] != '\x7F' || header.e_ident[1] != 'E' || header.e_ident[2] != 'L' ||

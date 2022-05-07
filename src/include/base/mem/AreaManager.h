@@ -17,6 +17,7 @@
 
 #include <base/stream/OStream.h>
 #include <base/util/Math.h>
+#include <base/util/Option.h>
 
 #include <memory>
 #include <optional>
@@ -76,7 +77,7 @@ public:
      * @param align the desired alignment
      * @return the address, if space was found
      */
-    std::optional<goff_t> allocate(size_t size, size_t align) {
+    Option<goff_t> allocate(size_t size, size_t align) {
         A *a;
         A *p = nullptr;
         for(a = list; a != nullptr; p = a, a = static_cast<A *>(a->next)) {
@@ -85,7 +86,7 @@ public:
                 break;
         }
         if(a == nullptr)
-            return std::nullopt;
+            return None;
 
         /* if we need to do some alignment, create a new area in front of a */
         size_t diff = m3::Math::round_up(a->addr, static_cast<goff_t>(align)) - a->addr;
@@ -116,7 +117,7 @@ public:
                 list = static_cast<A *>(a->next);
             delete a;
         }
-        return res;
+        return Some(res);
     }
 
     /**

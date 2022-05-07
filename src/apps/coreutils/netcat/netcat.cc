@@ -32,15 +32,15 @@ struct Buffer {
     size_t left() const {
         return total - pos;
     }
-    void push(std::optional<size_t> amount) {
-        if(amount.has_value()) {
-            total = amount.value();
+    void push(Option<size_t> amount) {
+        if(amount.is_some()) {
+            total = amount.unwrap();
             pos = 0;
         }
     }
-    void pop(std::optional<size_t> amount) {
-        if(amount.has_value())
-            pos += amount.value();
+    void pop(Option<size_t> amount) {
+        if(amount.is_some())
+            pos += amount.unwrap();
         if(pos == total)
             pos = total = 0;
     }
@@ -139,14 +139,14 @@ int main(int argc, char **argv) {
                     cerr << "-- read " << read << "b from stdin\n";
             }
 
-            input.push(static_cast<ssize_t>(read));
+            input.push(Some(read));
         }
 
         // if we have input, try to send it
         if(input.left() > 0) {
             auto sent = socket->send(input.buf.get() + input.pos, input.left());
             if(verbose)
-                cerr << "-- send " << sent.value_or(0) << "b to " << socket->remote_endpoint()
+                cerr << "-- send " << sent.unwrap_or(0) << "b to " << socket->remote_endpoint()
                      << "\n";
             input.pop(sent);
         }
@@ -155,8 +155,8 @@ int main(int argc, char **argv) {
         if(socket->has_data()) {
             auto recv = socket->recv(output.buf.get(), OUTBUF_SIZE);
             if(verbose)
-                cerr << "-- received " << recv.value_or(0) << "b from " << socket->remote_endpoint()
-                     << "\n";
+                cerr << "-- received " << recv.unwrap_or(0) << "b from "
+                     << socket->remote_endpoint() << "\n";
             output.push(recv);
         }
         // if we have received data, try to output it
@@ -164,7 +164,7 @@ int main(int argc, char **argv) {
             cout.clear_state();
             auto written = cout.write(output.buf.get() + output.pos, output.left());
             if(verbose)
-                cerr << "-- wrote " << written.value_or(0) << "b to stdout\n";
+                cerr << "-- wrote " << written.unwrap_or(0) << "b to stdout\n";
             output.pop(written);
             cout.flush();
 

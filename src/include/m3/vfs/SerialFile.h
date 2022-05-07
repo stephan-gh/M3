@@ -47,11 +47,11 @@ public:
         throw Exception(Errors::NOT_SUP);
     }
 
-    virtual std::optional<size_t> read(void *, size_t) override {
+    virtual Option<size_t> read(void *, size_t) override {
         // there is never anything to read
-        return 0;
+        return Some(size_t(0));
     }
-    virtual std::optional<size_t> write(const void *buffer, size_t count) override {
+    virtual Option<size_t> write(const void *buffer, size_t count) override {
         auto buf = reinterpret_cast<const char *>(buffer);
         while(count > 0) {
             ssize_t res = Machine::write(buf, count);
@@ -60,7 +60,7 @@ public:
             count -= static_cast<size_t>(res);
             buf += res;
         }
-        return buf - reinterpret_cast<const char *>(buffer);
+        return Some(static_cast<size_t>(buf - reinterpret_cast<const char *>(buffer)));
     }
 
     virtual FileRef<File> clone() const override {

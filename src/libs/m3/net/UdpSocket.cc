@@ -59,11 +59,11 @@ bool UdpSocket::connect(const Endpoint &ep) {
     return true;
 }
 
-std::optional<size_t> UdpSocket::send(const void *src, size_t amount) {
+Option<size_t> UdpSocket::send(const void *src, size_t amount) {
     return send_to(src, amount, _remote_ep);
 }
 
-std::optional<size_t> UdpSocket::send_to(const void *src, size_t amount, const Endpoint &dst_ep) {
+Option<size_t> UdpSocket::send_to(const void *src, size_t amount, const Endpoint &dst_ep) {
     // send_to implicitly calls bind, if not already done, to receive a local ephemeral port
     if(_state != State::Bound)
         bind(0);
@@ -71,13 +71,13 @@ std::optional<size_t> UdpSocket::send_to(const void *src, size_t amount, const E
     return Socket::do_send(src, amount, dst_ep);
 }
 
-std::optional<size_t> UdpSocket::recv(void *dst, size_t amount) {
+Option<size_t> UdpSocket::recv(void *dst, size_t amount) {
     if(auto res = recv_from(dst, amount))
-        return res.value().first;
-    return std::nullopt;
+        return Some(res.unwrap().first);
+    return None;
 }
 
-std::optional<std::pair<size_t, Endpoint>> UdpSocket::recv_from(void *dst, size_t amount) {
+Option<std::pair<size_t, Endpoint>> UdpSocket::recv_from(void *dst, size_t amount) {
     return Socket::do_recv(dst, amount);
 }
 

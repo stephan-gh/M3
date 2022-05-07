@@ -76,10 +76,10 @@ public:
 
     virtual ~Socket();
 
-    virtual std::optional<size_t> read(void *buffer, size_t count) override {
+    virtual Option<size_t> read(void *buffer, size_t count) override {
         return recv(buffer, count);
     }
-    virtual std::optional<size_t> write(const void *buffer, size_t count) override {
+    virtual Option<size_t> write(const void *buffer, size_t count) override {
         return send(buffer, count);
     }
 
@@ -179,10 +179,9 @@ public:
      *
      * @param src the data to send
      * @param amount the number of bytes to send
-     * @return the number of sent bytes (std::nullopt if it would block and the socket is
-     *      non-blocking)
+     * @return the number of sent bytes (None if it would block and the socket is non-blocking)
      */
-    virtual std::optional<size_t> send(const void *src, size_t amount) = 0;
+    virtual Option<size_t> send(const void *src, size_t amount) = 0;
 
     /**
      * Receives <amount> or a smaller number of bytes into <dst>.
@@ -193,10 +192,9 @@ public:
      *
      * @param dst the destination buffer
      * @param amount the number of bytes to receive
-     * @return the number of received bytes (std::nullopt if it would block and the socket is
-     *      non-blocking)
+     * @return the number of received bytes (None if it would block and the socket is non-blocking)
      */
-    virtual std::optional<size_t> recv(void *dst, size_t amount) = 0;
+    virtual Option<size_t> recv(void *dst, size_t amount) = 0;
 
 protected:
     explicit Socket(int sd, capsel_t caps, NetworkManager &nm);
@@ -205,11 +203,11 @@ protected:
         // nothing to do
     }
 
-    std::optional<std::tuple<const uchar *, size_t, Endpoint>> get_next_data();
+    Option<std::tuple<const uchar *, size_t, Endpoint>> get_next_data();
     void ack_data(size_t size);
 
-    std::optional<size_t> do_send(const void *src, size_t amount, const Endpoint &ep);
-    std::optional<std::pair<size_t, Endpoint>> do_recv(void *dst, size_t amount);
+    Option<size_t> do_send(const void *src, size_t amount, const Endpoint &ep);
+    Option<std::pair<size_t, Endpoint>> do_recv(void *dst, size_t amount);
 
     void process_message(const NetEventChannel::ControlMessage &message,
                          NetEventChannel::Event &event);

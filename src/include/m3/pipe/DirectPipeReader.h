@@ -62,9 +62,9 @@ public:
         throw Exception(Errors::NOT_SUP);
     }
 
-    virtual std::optional<size_t> read(void *buffer, size_t count) override;
+    virtual Option<size_t> read(void *buffer, size_t count) override;
 
-    virtual std::optional<size_t> write(const void *, size_t) override {
+    virtual Option<size_t> write(const void *, size_t) override {
         throw Exception(Errors::NOT_SUP);
     }
 

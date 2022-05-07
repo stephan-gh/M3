@@ -41,7 +41,7 @@ public:
     struct State {
         explicit State(capsel_t caps, size_t size);
 
-        std::optional<size_t> find_spot(size_t *len) noexcept;
+        Option<size_t> find_spot(size_t *len) noexcept;
         void read_replies();
 
         MemGate _mgate;
@@ -68,10 +68,10 @@ public:
         throw Exception(Errors::NOT_SUP);
     }
 
-    virtual std::optional<size_t> read(void *, size_t) override {
+    virtual Option<size_t> read(void *, size_t) override {
         throw Exception(Errors::NOT_SUP);
     }
-    virtual std::optional<size_t> write(const void *buffer, size_t count) override;
+    virtual Option<size_t> write(const void *buffer, size_t count) override;
 
     virtual FileRef<File> clone() const override {
         throw Exception(Errors::NOT_SUP);

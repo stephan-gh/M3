@@ -51,7 +51,7 @@ UDPOpHandler::UDPOpHandler(NetworkManager &nm, const char *workload, m3::IpAddr 
     {
         auto wl_file = VFS::open(workload, FILE_R);
         size_t len;
-        while((len = wl_file->read(wl_buffer + wl_size, MAX_FILE_SIZE - wl_size).value()) > 0)
+        while((len = wl_file->read(wl_buffer + wl_size, MAX_FILE_SIZE - wl_size).unwrap()) > 0)
             wl_size += len;
     }
 
@@ -77,7 +77,7 @@ OpHandler::Result UDPOpHandler::receive(Package &pkg) {
     return Result::READY;
 }
 
-std::optional<size_t> UDPOpHandler::send(const void *data, size_t len) {
+Option<size_t> UDPOpHandler::send(const void *data, size_t len) {
     __m3_sysc_trace_start(SYSC_SEND);
     auto res = _socket->send_to(data, len, _ep);
     __m3_sysc_trace_stop();

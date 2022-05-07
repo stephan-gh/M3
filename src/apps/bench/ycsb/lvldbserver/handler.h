@@ -57,7 +57,7 @@ public:
     virtual void reset() {
     }
 
-    virtual std::optional<size_t> send(const void *data, size_t len) = 0;
+    virtual m3::Option<size_t> send(const void *data, size_t len) = 0;
 
     static uint64_t read_u64(const uint8_t *bytes);
     static size_t from_bytes(uint8_t *package_buffer, size_t package_size, Package &pkg);
@@ -70,8 +70,8 @@ public:
     virtual Result receive(Package &pkg) override;
 
 private:
-    std::optional<size_t> send(const void *data, size_t len) override;
-    std::optional<size_t> receive(void *data, size_t max);
+    m3::Option<size_t> send(const void *data, size_t len) override;
+    m3::Option<size_t> receive(void *data, size_t max);
 
     m3::FileRef<m3::TcpSocket> _socket;
 };
@@ -85,7 +85,7 @@ public:
     virtual void reset() override;
 
 private:
-    std::optional<size_t> send(const void *data, size_t len) override;
+    m3::Option<size_t> send(const void *data, size_t len) override;
 
     uint64_t _ops;
     uint64_t _total_ops;

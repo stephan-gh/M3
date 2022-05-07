@@ -61,7 +61,7 @@ NOINLINE void child_to_parent() {
         pipe.close_writer();
 
         auto input = Activity::own().files()->get(pipe.reader().fd());
-        while(input->read(buf, sizeof(buf)) > 0)
+        while(input->read(buf, sizeof(buf)).unwrap() > 0)
             ;
 
         pipe.close_reader();
@@ -88,7 +88,7 @@ NOINLINE void parent_to_child() {
 
         act.run([] {
             auto input = Activity::own().files()->get(STDIN_FD);
-            while(input->read(buf, sizeof(buf)) > 0)
+            while(input->read(buf, sizeof(buf)).unwrap() > 0)
                 ;
             return 0;
         });

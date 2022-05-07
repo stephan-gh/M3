@@ -31,17 +31,16 @@
 
 using namespace m3;
 
-static std::optional<size_t> send_recv(FileWaiter &waiter, FileRef<UdpSocket> &socket,
-                                       const Endpoint &dest, const uint8_t *send_buf,
-                                       size_t sbuf_size, TimeDuration timeout, uint8_t *recv_buf,
-                                       size_t rbuf_size) {
+static Option<size_t> send_recv(FileWaiter &waiter, FileRef<UdpSocket> &socket,
+                                const Endpoint &dest, const uint8_t *send_buf, size_t sbuf_size,
+                                TimeDuration timeout, uint8_t *recv_buf, size_t rbuf_size) {
     socket->send_to(send_buf, sbuf_size, dest);
 
     waiter.wait_for(timeout);
 
     if(socket->has_data())
         return socket->recv(recv_buf, rbuf_size);
-    return std::nullopt;
+    return None;
 }
 
 NOINLINE static void latency() {
@@ -81,7 +80,7 @@ NOINLINE static void latency() {
 
             size_t recv_len = send_recv(waiter, socket, dest, request, pkt_size, TIMEOUT, response,
                                         sizeof(response))
-                                  .value();
+                                  .unwrap();
 
             auto stop = TimeInstant::now();
 
@@ -148,7 +147,7 @@ NOINLINE static void bandwidth() {
 
         size_t send_count = burst_size;
         while(send_count-- && packet_sent_count < packets_to_send) {
-            if(socket->send_to(request, packet_size, dest) > 0) {
+            if(socket->send_to(request, packet_size, dest).unwrap() > 0) {
                 packet_sent_count++;
                 failures = 0;
             }
@@ -161,7 +160,7 @@ NOINLINE static void bandwidth() {
         size_t receive_count = burst_size;
         while(receive_count--) {
             if(auto pkt_size = socket->recv(response, sizeof(response))) {
-                received_bytes += pkt_size.value();
+                received_bytes += pkt_size.unwrap();
                 packet_received_count++;
                 last_received = TimeInstant::now();
                 failures = 0;

@@ -31,7 +31,7 @@ RecvBuf *RecvBufs::alloc(size_t size) {
     if(!maybe_addr)
         VTHROW(Errors::NO_SPACE, "Insufficient rbuf space for " << size << "b");
 
-    auto addr = maybe_addr.value();
+    auto addr = maybe_addr.unwrap();
     std::unique_ptr<MemGate> mgate;
     if(vm) {
         // allocate memory

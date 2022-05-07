@@ -41,7 +41,7 @@ static void reader_quit() {
         while(1) {
             OStringStream os(buffer, sizeof(buffer));
             os << "Hello World!\n";
-            if(out->write(buffer, os.length()) == 0)
+            if(out->write(buffer, os.length()).unwrap() == 0)
                 break;
         }
         return 0;

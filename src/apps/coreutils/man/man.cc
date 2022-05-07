@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
 
     size_t num;
     char buf[1024];
-    while((num = file->read(buf, sizeof(buf)).value()) > 0)
+    while((num = file->read(buf, sizeof(buf)).unwrap()) > 0)
         cout.write_all(buf, num);
     return 0;
 }

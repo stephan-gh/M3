@@ -19,6 +19,7 @@
 #pragma once
 
 #include <base/Common.h>
+#include <base/util/Option.h>
 #include <base/util/Reference.h>
 
 #include <m3/com/Marshalling.h>
@@ -107,7 +108,7 @@ public:
          * @param amount the number of bytes to read
          * @return the number of read bytes (0 = EOF; std::nullopt = would block)
          */
-        std::optional<size_t> read(File *file, void *dst, size_t amount);
+        Option<size_t> read(File *file, void *dst, size_t amount);
 
         /**
          * Writes <amount> bytes from <src> into the buffer.
@@ -117,7 +118,7 @@ public:
          * @param amount the number of bytes to write
          * @return the number of written bytes (0 = EOF; std::nullopt = would block)
          */
-        std::optional<size_t> write(File *file, const void *src, size_t amount);
+        Option<size_t> write(File *file, const void *src, size_t amount);
 
         /**
          * Flushes the buffer. In non-blocking mode, multiple calls might be required.
@@ -126,7 +127,7 @@ public:
          * @return the result of the operation (std::nullopt = would block, retry; false = error,
          *     true = all flushed)
          */
-        std::optional<bool> flush(File *file);
+        Option<bool> flush(File *file);
 
         std::unique_ptr<char[]> buffer;
         size_t size;
@@ -189,33 +190,31 @@ public:
      *
      * @param buffer the buffer to read into
      * @param count the number of bytes to read
-     * @return the number of read bytes (or std::nullopt if it would block and we are in
-     *      non-blocking mode)
+     * @return the number of read bytes (None if it would block and we are in non-blocking mode)
      */
-    virtual std::optional<size_t> read(void *buffer, size_t count) = 0;
+    virtual Option<size_t> read(void *buffer, size_t count) = 0;
 
     /**
      * Writes at most <count> bytes from <buffer> into the file.
      *
      * @param buffer the data to write
      * @param count the number of bytes to write
-     * @return the number of written bytes (or std::nullopt if it would block and we are in
-     *     non-blocking mode)
+     * @return the number of written bytes (None if it would block and we are in non-blocking mode)
      */
-    virtual std::optional<size_t> write(const void *buffer, size_t count) = 0;
+    virtual Option<size_t> write(const void *buffer, size_t count) = 0;
 
     /**
      * Writes <count> bytes from <buffer> into the file, if possible.
      *
      * On errors or if it would block in non-blocking mode, the number of written bytes is returned.
-     * In the latter case without any written bytes, std::nullopt is returned. On errors without any
-     * written bytes, 0 is returned.
+     * In the latter case without any written bytes, None is returned. On errors without any written
+     * bytes, 0 is returned.
      *
      * @param buffer the data to write
      * @param count the number of bytes to write
      * @return the number of written bytes (only less than count in non-blocking mode or on errors)
      */
-    std::optional<size_t> write_all(const void *buffer, size_t count);
+    Option<size_t> write_all(const void *buffer, size_t count);
 
     /**
      * Truncates the file to given length.

@@ -21,12 +21,12 @@ namespace m3 {
 bool Dir::readdir(Entry &e) {
     // read header
     DirEntry fse;
-    if(_f.read(&fse, sizeof(fse)) != sizeof(fse))
+    if(_f.read(&fse, sizeof(fse)).unwrap() != sizeof(fse))
         return false;
 
     // read name
     e.nodeno = fse.nodeno;
-    if(_f.read(e.name, fse.namelen) != static_cast<ssize_t>(fse.namelen))
+    if(_f.read(e.name, fse.namelen).unwrap() != fse.namelen)
         return false;
 
     // 0-termination

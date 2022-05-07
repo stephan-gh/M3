@@ -17,6 +17,7 @@
 #pragma once
 
 #include <base/col/SList.h>
+#include <base/util/Option.h>
 
 #include <m3/net/NetEventChannel.h>
 
@@ -49,7 +50,7 @@ public:
 
     void append(Item *item) noexcept;
     bool has_data() const noexcept;
-    std::optional<std::tuple<const uchar *, size_t, Endpoint>> get_next_data() noexcept;
+    Option<std::tuple<const uchar *, size_t, Endpoint>> get_next_data() noexcept;
     void ack_data(size_t size) noexcept;
     void clear() noexcept;
 

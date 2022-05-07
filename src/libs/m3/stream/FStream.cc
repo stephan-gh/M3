@@ -71,16 +71,16 @@ FStream::~FStream() {
     }
 }
 
-void FStream::set_error(std::optional<size_t> res) {
-    if(!res.has_value())
+void FStream::set_error(Option<size_t> res) {
+    if(res.is_none())
         _state |= FL_ERROR;
-    else if(res.value() == 0)
+    else if(res.unwrap() == 0)
         _state |= FL_EOF;
 }
 
-std::optional<size_t> FStream::read(void *dst, size_t count) {
+Option<size_t> FStream::read(void *dst, size_t count) {
     if(bad())
-        return 0;
+        return Some(size_t(0));
 
     // ensure that our write-buffer is empty
     // TODO maybe it's better to have just one buffer for both and track dirty regions?
@@ -95,7 +95,7 @@ std::optional<size_t> FStream::read(void *dst, size_t count) {
 
     if(!_rbuf->buffer) {
         _state |= FL_ERROR;
-        return 0;
+        return Some(size_t(0));
     }
 
     size_t total = 0;
@@ -104,17 +104,17 @@ std::optional<size_t> FStream::read(void *dst, size_t count) {
     while(count > 0) {
         auto res = _rbuf->read(f, buf + total, count);
         set_error(res);
-        if(!res.has_value())
-            return total == 0 ? std::nullopt : std::optional(total);
+        if(res.is_none())
+            return total == 0 ? None : Some(total);
 
-        size_t read = res.value();
+        size_t read = res.unwrap();
         if(read == 0)
             break;
         total += read;
         count -= read;
     }
 
-    return total;
+    return Some(total);
 }
 
 void FStream::flush() {
@@ -143,9 +143,9 @@ size_t FStream::seek(size_t offset, int whence) {
     return res;
 }
 
-std::optional<size_t> FStream::write(const void *src, size_t count) {
+Option<size_t> FStream::write(const void *src, size_t count) {
     if(bad())
-        return 0;
+        return Some(size_t(0));
 
     // use the unbuffered write, if the buffer is smaller
     if(_wbuf->empty() && count > _wbuf->size) {
@@ -156,7 +156,7 @@ std::optional<size_t> FStream::write(const void *src, size_t count) {
 
     if(!_wbuf->buffer) {
         _state |= FL_ERROR;
-        return 0;
+        return Some(size_t(0));
     }
 
     const char *buf = reinterpret_cast<const char *>(src);
@@ -165,10 +165,10 @@ std::optional<size_t> FStream::write(const void *src, size_t count) {
     while(count > 0) {
         auto res = _wbuf->write(f, buf + total, count);
         set_error(res);
-        if(!res.has_value())
-            return total == 0 ? std::nullopt : std::optional(total);
+        if(res.is_none())
+            return total == 0 ? None : Some(total);
 
-        size_t written = res.value();
+        size_t written = res.unwrap();
         if(written == 0)
             break;
 
@@ -181,7 +181,7 @@ std::optional<size_t> FStream::write(const void *src, size_t count) {
             _wbuf->flush(f);
     }
 
-    return static_cast<ssize_t>(total);
+    return Some(total);
 }
 
 }

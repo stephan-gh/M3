@@ -32,7 +32,7 @@ void UDPOpHandler::send(const void *data, size_t len) {
     const char *bytes = static_cast<const char *>(data);
     while(rem > 0) {
         size_t amount = Math::min(rem, static_cast<size_t>(512));
-        if(_socket->send_to(bytes, amount, _ep) != static_cast<ssize_t>(amount))
+        if(_socket->send_to(bytes, amount, _ep).unwrap() != amount)
             m3::cerr << "send failed\n";
 
         bytes += amount;

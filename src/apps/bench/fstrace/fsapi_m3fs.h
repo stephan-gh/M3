@@ -125,7 +125,7 @@ public:
         try {
             char *buf = reinterpret_cast<char *>(buffer);
             while(size > 0) {
-                size_t res = _fdMap[fd]->read(buf, size).value();
+                size_t res = _fdMap[fd]->read(buf, size).unwrap();
                 if(res == 0)
                     break;
                 size -= res;
@@ -269,7 +269,7 @@ public:
         while(rem > 0) {
             size_t amount = m3::Math::min(static_cast<size_t>(Buffer::MaxBufferSize), rem);
 
-            size_t res = _fdMap[args->in_fd]->read(rbuf, amount).value();
+            size_t res = _fdMap[args->in_fd]->read(rbuf, amount).unwrap();
             if(res == 0)
                 break;
 
@@ -342,7 +342,7 @@ public:
         while(rem > 0) {
             size_t amount = m3::Math::min(static_cast<size_t>(Buffer::MaxBufferSize), rem);
 
-            size_t res = _fdMap[args->in_fd]->read(rbuf, amount).value();
+            size_t res = _fdMap[args->in_fd]->read(rbuf, amount).unwrap();
             _lgchan->push(rbuf, res);
 
             rem -= res;

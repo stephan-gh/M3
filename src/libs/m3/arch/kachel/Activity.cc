@@ -185,7 +185,7 @@ void ChildActivity::load_segment(ElfPh &pheader, char *buffer) {
 
         while(count > 0) {
             size_t amount = std::min(count, BUF_SIZE);
-            if(_exec->read(buffer, amount) != static_cast<ssize_t>(amount))
+            if(_exec->read(buffer, amount).unwrap() != amount)
                 VTHROW(Errors::INVALID_ELF, "Unable to read " << amount << " bytes");
 
             mem.write(buffer, amount, segoff);
@@ -202,7 +202,7 @@ size_t ChildActivity::load(Env *env, int argc, const char *const *argv, const ch
                            char *buffer) {
     /* load and check ELF header */
     ElfEh header;
-    if(_exec->read(&header, sizeof(header)) != sizeof(header))
+    if(_exec->read(&header, sizeof(header)).unwrap() != sizeof(header))
         throw MessageException("Unable to read header", Errors::INVALID_ELF);
 
     if(header.e_ident[0] != '\x7F' || header.e_ident[1] != 'E' || header.e_ident[2] != 'L' ||
@@ -217,7 +217,7 @@ size_t ChildActivity::load(Env *env, int argc, const char *const *argv, const ch
         ElfPh pheader;
         if(_exec->seek(off, M3FS_SEEK_SET) != off)
             VTHROW(Errors::INVALID_ELF, "Unable to seek to pheader at " << off);
-        if(_exec->read(&pheader, sizeof(pheader)) != sizeof(pheader))
+        if(_exec->read(&pheader, sizeof(pheader)).unwrap() != sizeof(pheader))
             VTHROW(Errors::INVALID_ELF, "Unable to read pheader at " << off);
 
         /* we're only interested in non-empty load segments */
