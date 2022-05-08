@@ -49,11 +49,11 @@ static void istream() {
     }
 
     {
-        String str;
+        std::string str;
         IStringStream is("  1\tabc\n\n12.4");
         is >> d >> str >> f;
         WVASSERTEQ(d, 1u);
-        WVASSERTEQ(str.c_str(), StringRef("abc"));
+        WVASSERTSTREQ(str.c_str(), "abc");
         WVASSERTEQ(f, 12.4f);
     }
 
@@ -65,23 +65,23 @@ static void istream() {
 
         res = is.getline(buf, sizeof(buf));
         WVASSERTEQ(res, 13u);
-        WVASSERTEQ(buf, StringRef(" 1234 55 test"));
+        WVASSERTSTREQ(buf, " 1234 55 test");
 
         res = is.getline(buf, sizeof(buf));
         WVASSERTEQ(res, 0u);
-        WVASSERTEQ(buf, StringRef(""));
+        WVASSERTSTREQ(buf, "");
 
         res = is.getline(buf, sizeof(buf));
         WVASSERTEQ(res, 3u);
-        WVASSERTEQ(buf, StringRef("foo"));
+        WVASSERTSTREQ(buf, "foo");
 
         res = is.getline(buf, sizeof(buf));
         WVASSERTEQ(res, 15u);
-        WVASSERTEQ(buf, StringRef("012345678901234"));
+        WVASSERTSTREQ(buf, "012345678901234");
 
         res = is.getline(buf, sizeof(buf));
         WVASSERTEQ(res, 3u);
-        WVASSERTEQ(buf, StringRef("567"));
+        WVASSERTSTREQ(buf, "567");
 
         WVASSERT(is.eof());
     }
@@ -108,7 +108,7 @@ static void istream() {
     do {                                      \
         OStringStream __os(str, sizeof(str)); \
         __os << expr;                         \
-        WVASSERTEQ(str, StringRef(expstr));   \
+        WVASSERTSTREQ(str, expstr);           \
     }                                         \
     while(0)
 
@@ -135,9 +135,9 @@ static void ostream() {
     OStringStream os(str, sizeof(str));
     os << fmt(0xdead'beef, "p") << ", " << fmt(0x1234'5678, "x");
     if(sizeof(uintptr_t) == 4)
-        WVASSERTEQ(str, StringRef("0xdeadbeef, 12345678"));
+        WVASSERTSTREQ(str, "0xdeadbeef, 12345678");
     else if(sizeof(uintptr_t) == 8)
-        WVASSERTEQ(str, StringRef("0x00000000deadbeef, 12345678"));
+        WVASSERTSTREQ(str, "0x00000000deadbeef, 12345678");
     else
         WVASSERT(false);
 

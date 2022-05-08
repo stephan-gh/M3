@@ -19,6 +19,7 @@
 #include <base/Common.h>
 #include <base/stream/IOSBase.h>
 
+#include <string_view>
 #include <stdarg.h>
 
 namespace m3 {
@@ -302,6 +303,11 @@ public:
      */
     OStream &operator<<(const char *str) {
         puts(str);
+        return *this;
+    }
+    OStream &operator<<(const std::string_view &str) {
+        for(auto it = str.cbegin(); it != str.cend(); ++it)
+            write(*it);
         return *this;
     }
     /**

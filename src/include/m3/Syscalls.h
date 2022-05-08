@@ -23,7 +23,6 @@
 #include <base/KIF.h>
 #include <base/Quota.h>
 #include <base/TileDesc.h>
-#include <base/util/String.h>
 
 #include <m3/com/GateStream.h>
 #include <m3/com/SendGate.h>
@@ -61,12 +60,13 @@ class Syscalls {
     Syscalls() = delete;
 
 public:
-    static void create_srv(capsel_t dst, capsel_t rgate, const String &name, label_t creator);
+    static void create_srv(capsel_t dst, capsel_t rgate, const std::string_view &name,
+                           label_t creator);
     static void create_sess(capsel_t dst, capsel_t srv, size_t crt, word_t ident, bool auto_close);
     static void create_mgate(capsel_t dst, capsel_t act, goff_t addr, size_t size, int perms);
     static void create_rgate(capsel_t dst, uint order, uint msgorder);
     static void create_sgate(capsel_t dst, capsel_t rgate, label_t label, uint credits);
-    static std::pair<epid_t, actid_t> create_activity(capsel_t dst, const String &name,
+    static std::pair<epid_t, actid_t> create_activity(capsel_t dst, const std::string_view &name,
                                                       capsel_t tile, capsel_t kmem);
     static void create_map(capsel_t dst, capsel_t act, capsel_t mgate, capsel_t first,
                            capsel_t pages, int perms);

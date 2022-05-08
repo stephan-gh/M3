@@ -49,7 +49,7 @@ public:
     }
 
     virtual Errors::Code open(SimpleSession **sess, size_t crt, capsel_t srv_sel,
-                              const StringRef &) override {
+                              const std::string_view &) override {
         *sess = new SimpleSession(crt, srv_sel);
         return Errors::NONE;
     }

@@ -52,7 +52,7 @@ static void send_errors() {
         auto msg = receive_msg(rgate);
 
         try {
-            String s;
+            std::string s;
             msg >> s;
             WVASSERT(false);
         }
@@ -67,7 +67,7 @@ static void send_errors() {
         auto msg = receive_msg(rgate);
 
         try {
-            String s;
+            std::string s;
             msg >> s;
             WVASSERT(false);
         }

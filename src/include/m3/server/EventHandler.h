@@ -75,7 +75,7 @@ public:
 
 protected:
     virtual Errors::Code open(SESS **sess, size_t crt, capsel_t srv_sel,
-                              const StringRef &) override {
+                              const std::string_view &) override {
         *sess = new SESS(crt, srv_sel);
         _sessions.append(*sess);
         return Errors::NONE;

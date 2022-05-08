@@ -94,7 +94,7 @@ public:
         COUNT
     };
 
-    explicit LoadGen(const String &name)
+    explicit LoadGen(const std::string_view &name)
         : ClientSession(name),
           _sgate(SendGate::bind(obtain(1).start())) {
     }

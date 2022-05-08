@@ -27,6 +27,7 @@
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
 
+#include <string>
 #include <vector>
 
 using namespace m3;
@@ -127,7 +128,7 @@ int main(int argc, char **argv) {
             try {
                 Dir dir(os.str());
 
-                std::vector<String> entries;
+                std::vector<std::string> entries;
 
                 if(VERBOSE)
                     cout << "Collecting files in " << os.str() << "\n";
@@ -143,7 +144,7 @@ int main(int argc, char **argv) {
                     entries.push_back(file.str());
                 }
 
-                for(String &s : entries) {
+                for(std::string &s : entries) {
                     if(VERBOSE)
                         cout << "Unlinking " << s << "\n";
                     VFS::unlink(s.c_str());

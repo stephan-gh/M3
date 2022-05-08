@@ -55,7 +55,8 @@ void Syscalls::send_receive_throw(const MsgBuf &msg) {
     }
 }
 
-void Syscalls::create_srv(capsel_t dst, capsel_t rgate, const String &name, label_t creator) {
+void Syscalls::create_srv(capsel_t dst, capsel_t rgate, const std::string_view &name,
+                          label_t creator) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::CreateSrv>();
     req.opcode = KIF::Syscall::CREATE_SRV;
@@ -63,7 +64,7 @@ void Syscalls::create_srv(capsel_t dst, capsel_t rgate, const String &name, labe
     req.rgate_sel = rgate;
     req.creator = creator;
     req.namelen = Math::min(name.length(), sizeof(req.name));
-    memcpy(req.name, name.c_str(), req.namelen);
+    memcpy(req.name, name.data(), req.namelen);
     send_receive_throw(req_buf);
 }
 
@@ -126,7 +127,7 @@ void Syscalls::create_map(capsel_t dst, capsel_t act, capsel_t mgate, capsel_t f
     send_receive_throw(req_buf);
 }
 
-std::pair<epid_t, actid_t> Syscalls::create_activity(capsel_t dst, const String &name,
+std::pair<epid_t, actid_t> Syscalls::create_activity(capsel_t dst, const std::string_view &name,
                                                      capsel_t tile, capsel_t kmem) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::CreateActivity>();
@@ -135,7 +136,7 @@ std::pair<epid_t, actid_t> Syscalls::create_activity(capsel_t dst, const String 
     req.tile_sel = tile;
     req.kmem_sel = kmem;
     req.namelen = Math::min(name.length(), sizeof(req.name));
-    memcpy(req.name, name.c_str(), req.namelen);
+    memcpy(req.name, name.data(), req.namelen);
 
     auto reply = send_receive<KIF::Syscall::CreateActivityReply>(req_buf);
 

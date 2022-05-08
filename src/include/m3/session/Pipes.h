@@ -68,7 +68,7 @@ public:
         SendGate _sgate;
     };
 
-    explicit Pipes(const String &service) : ClientSession(service) {
+    explicit Pipes(const std::string_view &service) : ClientSession(service) {
     }
 
     Pipe create_pipe(MemGate &memory, size_t memsize) {

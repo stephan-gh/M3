@@ -36,7 +36,7 @@ public:
         COUNT
     };
 
-    explicit Plasma(const String &service)
+    explicit Plasma(const std::string_view &service)
         : ClientSession(service),
           _gate(SendGate::bind(obtain(1).start())) {
     }

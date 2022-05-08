@@ -20,7 +20,6 @@
 
 #include <base/Errors.h>
 #include <base/util/Reference.h>
-#include <base/util/String.h>
 
 #include <m3/Exception.h>
 #include <m3/vfs/GenericFile.h>

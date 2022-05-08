@@ -226,7 +226,7 @@ public:
     /**
      * @return the absolute path for this file, including its mount point
      */
-    virtual String path() {
+    virtual std::string path() {
         throw Exception(Errors::NOT_SUP);
     }
 

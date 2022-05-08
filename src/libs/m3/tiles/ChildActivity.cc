@@ -36,7 +36,7 @@ ActivityArgs &ActivityArgs::pager(Reference<Pager> pager) noexcept {
     return *this;
 }
 
-ChildActivity::ChildActivity(const Reference<class Tile> &tile, const String &name,
+ChildActivity::ChildActivity(const Reference<class Tile> &tile, const std::string_view &name,
                              const ActivityArgs &args)
     : Activity(Activity::own().alloc_sels(3), 0, tile,
                args._kmem ? args._kmem : Activity::own().kmem(), args._rmng),

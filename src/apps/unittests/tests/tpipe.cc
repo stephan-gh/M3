@@ -53,10 +53,10 @@ static void reader_quit() {
         FStream in(pipe.reader_fd());
         size_t count = in.getline(buffer, sizeof(buffer));
         WVASSERTEQ(count, 12u);
-        WVASSERTEQ(buffer, StringRef("Hello World!"));
+        WVASSERTSTREQ(buffer, "Hello World!");
         count = in.getline(buffer, sizeof(buffer));
         WVASSERTEQ(count, 12u);
-        WVASSERTEQ(buffer, StringRef("Hello World!"));
+        WVASSERTSTREQ(buffer, "Hello World!");
     }
 
     pipe.close_reader();
@@ -77,10 +77,10 @@ static void writer_quit() {
     reader.run([] {
         size_t count = cin.getline(buffer, sizeof(buffer));
         WVASSERTEQ(count, 12u);
-        WVASSERTEQ(buffer, StringRef("Hello World!"));
+        WVASSERTSTREQ(buffer, "Hello World!");
         count = cin.getline(buffer, sizeof(buffer));
         WVASSERTEQ(count, 12u);
-        WVASSERTEQ(buffer, StringRef("Hello World!"));
+        WVASSERTSTREQ(buffer, "Hello World!");
         count = cin.getline(buffer, sizeof(buffer));
         WVASSERTEQ(count, 0u);
         return failed ? 1 : 0;
@@ -114,7 +114,7 @@ static void child_to_child() {
         for(int i = 0; i < 10; ++i) {
             size_t count = cin.getline(buffer, sizeof(buffer));
             WVASSERTEQ(count, 12u);
-            WVASSERTEQ(buffer, StringRef("Hello World!"));
+            WVASSERTSTREQ(buffer, "Hello World!");
         }
         size_t count = cin.getline(buffer, sizeof(buffer));
         WVASSERTEQ(count, 0u);

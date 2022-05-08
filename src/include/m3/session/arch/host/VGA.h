@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <m3/com/MemGate.h>
 #include <m3/session/ClientSession.h>
 
 namespace m3 {
@@ -28,7 +29,7 @@ public:
     static constexpr int ROWS = 30;
     static constexpr size_t SIZE = ROWS * COLS * 2;
 
-    explicit VGA(const String &service)
+    explicit VGA(const std::string_view &service)
         : ClientSession(service),
           _gate(MemGate::bind(obtain(1).start())) {
     }

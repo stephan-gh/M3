@@ -40,7 +40,7 @@ static size_t charcount(const char *str, char c) {
 
 // TODO this is a very simple solution that expects "perfect" paths, i.e. with no "." or ".." and
 // no duplicate slashes (at least not just one path):
-static size_t is_in_mount(const String &mount, const char *in) {
+static size_t is_in_mount(const std::string &mount, const char *in) {
     const char *p1 = mount.c_str();
     const char *p2 = in;
     while(*p2 && *p1 == *p2) {
@@ -199,7 +199,7 @@ MountTable *MountTable::unserialize(const void *buffer, size_t size) {
     um >> count;
     while(count-- > 0) {
         char type;
-        String path;
+        std::string path;
         um >> path >> type;
         switch(type) {
             case 'M': ms->add(path.c_str(), Reference<FileSystem>(M3FS::unserialize(um))); break;

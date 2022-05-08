@@ -63,16 +63,16 @@ EXTERN_C int sprintf(char *, const char *, ...) {
     return 0;
 }
 
-void *stderr;
-EXTERN_C int fputs(const char *str, void *) {
+FILE *const stderr = NULL;
+EXTERN_C int fputs(const char *str, FILE *) {
     m3::Serial::get() << str;
     return 0;
 }
-EXTERN_C int fputc(int c, void *) {
+EXTERN_C int fputc(int c, FILE *) {
     m3::Serial::get().write(c);
     return -1;
 }
-EXTERN_C size_t fwrite(const void *str, UNUSED size_t size, size_t nmemb, void *) {
+EXTERN_C size_t fwrite(const void *str, UNUSED size_t size, size_t nmemb, FILE *) {
     // assert(size == 1);
     const char *s = reinterpret_cast<const char *>(str);
     auto &ser = m3::Serial::get();

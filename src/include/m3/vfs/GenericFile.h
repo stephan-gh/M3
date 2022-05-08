@@ -74,7 +74,7 @@ public:
 
     virtual void truncate(size_t length) override;
 
-    virtual String path() override;
+    virtual std::string path() override;
 
     virtual void flush() override {
         if(_writing)

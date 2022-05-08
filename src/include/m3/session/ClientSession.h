@@ -20,10 +20,10 @@
 
 #include <base/Errors.h>
 #include <base/KIF.h>
-#include <base/util/String.h>
 
 #include <m3/ObjCap.h>
 
+#include <string_view>
 #include <utility>
 
 namespace m3 {
@@ -46,7 +46,7 @@ public:
      * @param name the service name
      * @param sel the desired selector
      */
-    explicit ClientSession(const String &name, capsel_t sel = ObjCap::INVALID)
+    explicit ClientSession(const std::string_view &name, capsel_t sel = ObjCap::INVALID)
         : ObjCap(SESSION),
           _close(true) {
         connect(name, sel);
@@ -131,7 +131,7 @@ public:
     void obtain_for(Activity &act, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args = nullptr);
 
 private:
-    void connect(const String &name, capsel_t sel);
+    void connect(const std::string_view &name, capsel_t sel);
 
     bool _close;
 };

@@ -23,6 +23,8 @@
 #include <m3/tiles/ChildActivity.h>
 #include <m3/tiles/OwnActivity.h>
 
+#include <string_view>
+
 namespace m3 {
 
 class ResMng {
@@ -98,12 +100,13 @@ public:
         return _sgate.sel();
     }
 
-    std::unique_ptr<ResMng> clone(ChildActivity &act, capsel_t sgate_sel, const String &name) {
+    std::unique_ptr<ResMng> clone(ChildActivity &act, capsel_t sgate_sel,
+                                  const std::string_view &name) {
         clone(act.id(), act.sel(), sgate_sel, name);
         return std::unique_ptr<ResMng>(new ResMng(sgate_sel, act.sel()));
     }
 
-    void reg_service(capsel_t dst, capsel_t sgate, const String &name, size_t sessions) {
+    void reg_service(capsel_t dst, capsel_t sgate, const std::string_view &name, size_t sessions) {
         GateIStream reply = send_receive_vmsg(_sgate, REG_SERV, dst, sgate, sessions, name);
         retrieve_result(REG_SERV, reply);
     }
@@ -113,7 +116,7 @@ public:
         retrieve_result(UNREG_SERV, reply);
     }
 
-    void open_sess(capsel_t dst, const String &name) {
+    void open_sess(capsel_t dst, const std::string_view &name) {
         GateIStream reply = send_receive_vmsg(_sgate, OPEN_SESS, dst, name);
         retrieve_result(OPEN_SESS, reply);
     }
@@ -147,7 +150,7 @@ public:
         retrieve_result(FREE_TILE, reply);
     }
 
-    std::pair<uint, uint> use_rgate(capsel_t sel, const char *name) {
+    std::pair<uint, uint> use_rgate(capsel_t sel, const std::string_view &name) {
         GateIStream reply = send_receive_vmsg(_sgate, USE_RGATE, sel, name);
         retrieve_result(USE_SEM, reply);
         uint order, msg_order;
@@ -155,18 +158,18 @@ public:
         return std::make_pair(order, msg_order);
     }
 
-    void use_sgate(capsel_t sel, const char *name) {
+    void use_sgate(capsel_t sel, const std::string_view &name) {
         GateIStream reply = send_receive_vmsg(_sgate, USE_SGATE, sel, name);
         retrieve_result(USE_SEM, reply);
     }
 
-    void use_sem(capsel_t sel, const char *name) {
+    void use_sem(capsel_t sel, const std::string_view &name) {
         GateIStream reply = send_receive_vmsg(_sgate, USE_SEM, sel, name);
         retrieve_result(USE_SEM, reply);
     }
 
 private:
-    void clone(actid_t act_id, capsel_t act_sel, capsel_t sgate_sel, const String &name) {
+    void clone(actid_t act_id, capsel_t act_sel, capsel_t sgate_sel, const std::string_view &name) {
         GateIStream reply = send_receive_vmsg(_sgate, ADD_CHILD, act_id, act_sel, sgate_sel, name);
         retrieve_result(ADD_CHILD, reply);
     }

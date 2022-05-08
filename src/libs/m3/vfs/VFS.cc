@@ -153,7 +153,7 @@ void VFS::set_cwd(int fd) {
         throw Exception(Errors::IS_NO_DIR);
 
     char buf[256];
-    m3::String path = file->path();
+    std::string path = file->path();
     abs_path(buf, sizeof(buf), path.c_str());
     EnvVars::set("PWD", buf);
 }

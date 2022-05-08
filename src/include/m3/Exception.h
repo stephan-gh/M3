@@ -18,7 +18,8 @@
 #include <base/Errors.h>
 #include <base/KIF.h>
 #include <base/stream/OStringStream.h>
-#include <base/util/String.h>
+
+#include <string>
 
 /**
  * This macro throws an exception and passes a formatted string as its message. That is, you can
@@ -106,12 +107,12 @@ protected:
  */
 class MessageException : public Exception {
 public:
-    explicit MessageException(const String &msg, Errors::Code code = Errors::NONE) noexcept
+    explicit MessageException(const std::string &msg, Errors::Code code = Errors::NONE) noexcept
         : Exception(code),
           _msg(msg) {
     }
 
-    const String &msg() const {
+    const std::string &msg() const {
         return _msg;
     }
 
@@ -124,7 +125,7 @@ public:
     }
 
 private:
-    String _msg;
+    std::string _msg;
 };
 
 /**

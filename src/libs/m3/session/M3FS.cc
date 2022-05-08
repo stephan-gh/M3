@@ -44,7 +44,7 @@ std::unique_ptr<GenericFile> M3FS::open(const char *path, int perms) {
     else {
         KIF::ExchangeArgs args;
         ExchangeOStream os(args);
-        os << OPEN << perms << String(path);
+        os << OPEN << perms << path;
         args.bytes = os.total();
         KIF::CapRngDesc crd = obtain(2, &args);
 

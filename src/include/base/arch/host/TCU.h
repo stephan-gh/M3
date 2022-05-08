@@ -21,7 +21,6 @@
 #include <base/Common.h>
 #include <base/Env.h>
 #include <base/Errors.h>
-#include <base/util/String.h>
 #include <base/util/Util.h>
 
 #include <limits>

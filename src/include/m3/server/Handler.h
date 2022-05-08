@@ -20,9 +20,10 @@
 
 #include <base/Errors.h>
 #include <base/KIF.h>
-#include <base/util/String.h>
 
 #include <m3/com/GateStream.h>
+
+#include <string_view>
 
 namespace m3 {
 
@@ -64,7 +65,7 @@ public:
     virtual ~Handler() {
     }
 
-    virtual Errors::Code open(SESS **sess, size_t crt, capsel_t, const StringRef &) = 0;
+    virtual Errors::Code open(SESS **sess, size_t crt, capsel_t, const std::string_view &) = 0;
     virtual Errors::Code obtain(SESS *, size_t, CapExchange &) {
         return Errors::NOT_SUP;
     }

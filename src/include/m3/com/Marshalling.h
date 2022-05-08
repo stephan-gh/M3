@@ -20,11 +20,12 @@
 
 #include <base/TCU.h>
 #include <base/util/Math.h>
-#include <base/util/String.h>
 
 #include <m3/Exception.h>
 
 #include <assert.h>
+#include <string>
+#include <string_view>
 
 namespace m3 {
 
@@ -85,11 +86,17 @@ public:
     Marshaller &operator<<(const char *value) noexcept {
         return put_str(value, strlen(value) + 1);
     }
-    Marshaller &operator<<(const StringRef &value) noexcept {
+    Marshaller &operator<<(const std::string &value) noexcept {
         return put_str(value.c_str(), value.length() + 1);
     }
-    Marshaller &operator<<(const String &value) noexcept {
-        return put_str(value.c_str(), value.length() + 1);
+    Marshaller &operator<<(const std::string_view &value) noexcept {
+        assert(fits(_bytecount, value.length() + 1 + sizeof(xfer_t)));
+        unsigned char *start = const_cast<unsigned char *>(bytes());
+        *reinterpret_cast<xfer_t *>(start + _bytecount) = value.length() + 1;
+        memcpy(start + _bytecount + sizeof(xfer_t), value.data(), value.length());
+        *(start + _bytecount + sizeof(xfer_t) + value.length()) = '\0';
+        _bytecount += Math::round_up(value.length() + 1 + sizeof(xfer_t), sizeof(xfer_t));
+        return *this;
     }
 
     /**
@@ -204,25 +211,25 @@ public:
         _pos += Math::round_up(sizeof(T), sizeof(xfer_t));
         return *this;
     }
-    Unmarshaller &operator>>(String &value) {
+    Unmarshaller &operator>>(std::string &value) {
         if(_pos + sizeof(xfer_t) > length())
             throw Exception(Errors::INV_ARGS);
         size_t len = *reinterpret_cast<const xfer_t *>(_data + _pos);
         _pos += sizeof(xfer_t);
         if(len == 0 || _pos + len > length())
             throw Exception(Errors::INV_ARGS);
-        value.reset(reinterpret_cast<const char *>(_data + _pos), len - 1);
+        value.assign(reinterpret_cast<const char *>(_data + _pos), len - 1);
         _pos += Math::round_up(len, sizeof(xfer_t));
         return *this;
     }
-    Unmarshaller &operator>>(StringRef &value) {
+    Unmarshaller &operator>>(std::string_view &value) {
         if(_pos + sizeof(xfer_t) > length())
             throw Exception(Errors::INV_ARGS);
         size_t len = *reinterpret_cast<const xfer_t *>(_data + _pos);
         _pos += sizeof(xfer_t);
         if(len == 0 || _pos + len > length())
             throw Exception(Errors::INV_ARGS);
-        value = StringRef(reinterpret_cast<const char *>(_data + _pos), len - 1);
+        value = std::string_view(reinterpret_cast<const char *>(_data + _pos), len - 1);
         _pos += Math::round_up(len, sizeof(xfer_t));
         return *this;
     }
@@ -254,21 +261,23 @@ inline void Marshaller::put(const Marshaller &os) noexcept {
  * the size of a message.
  */
 
+constexpr size_t DEF_MAX_STRLEN = 64;
+
 template<typename T>
 struct OStreamSize {
     static const size_t value = Math::round_up(sizeof(T), sizeof(xfer_t));
 };
 template<>
-struct OStreamSize<StringRef> {
-    static const size_t value = sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN;
+struct OStreamSize<std::string_view> {
+    static const size_t value = sizeof(xfer_t) + DEF_MAX_STRLEN;
 };
 template<>
-struct OStreamSize<String> {
-    static const size_t value = sizeof(xfer_t) + String::DEFAULT_MAX_LEN;
+struct OStreamSize<std::string> {
+    static const size_t value = sizeof(xfer_t) + DEF_MAX_STRLEN;
 };
 template<>
 struct OStreamSize<const char *> {
-    static const size_t value = sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN;
+    static const size_t value = sizeof(xfer_t) + DEF_MAX_STRLEN;
 };
 template<size_t N>
 struct OStreamSize<char[N]> {
@@ -306,16 +315,15 @@ constexpr size_t vostreamsize(T1 len, Args... lens) {
 
 static_assert(ostreamsize<int, float, int>() == sizeof(xfer_t) * 3, "failed");
 
-static_assert(ostreamsize<short, StringRef>() ==
-                  sizeof(xfer_t) + sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN,
+static_assert(ostreamsize<short, std::string_view>() ==
+                  sizeof(xfer_t) + sizeof(xfer_t) + DEF_MAX_STRLEN,
               "failed");
 
-static_assert(ostreamsize<short, String>() ==
-                  sizeof(xfer_t) + sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN,
+static_assert(ostreamsize<short, std::string>() == sizeof(xfer_t) + sizeof(xfer_t) + DEF_MAX_STRLEN,
               "failed");
 
 static_assert(ostreamsize<short, const char *>() ==
-                  sizeof(xfer_t) + sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN,
+                  sizeof(xfer_t) + sizeof(xfer_t) + DEF_MAX_STRLEN,
               "failed");
 
 static_assert(ostreamsize<short, char[5]>() == sizeof(xfer_t) + sizeof(xfer_t) + 5, "failed");

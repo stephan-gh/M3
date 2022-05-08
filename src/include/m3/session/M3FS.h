@@ -51,7 +51,7 @@ class M3FS : public ClientSession, public FileSystem {
 public:
     friend class GenericFile;
 
-    explicit M3FS(size_t id, const String &service)
+    explicit M3FS(size_t id, const std::string_view &service)
         : ClientSession(service, Activity::own().alloc_sels(2)),
           FileSystem(id),
           _gate(SendGate::bind(get_sgate(Activity::own()))),

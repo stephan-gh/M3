@@ -77,7 +77,7 @@ public:
      *
      * @param service the service name
      */
-    explicit NetworkManager(const String &service);
+    explicit NetworkManager(const std::string_view &service);
 
     /**
      * @return the local IP address

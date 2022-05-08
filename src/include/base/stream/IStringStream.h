@@ -19,9 +19,9 @@
 #pragma once
 
 #include <base/stream/IStream.h>
-#include <base/util/String.h>
 
 #include <string.h>
+#include <string_view>
 
 namespace m3 {
 
@@ -37,7 +37,7 @@ public:
      * @return the read value
      */
     template<typename T>
-    static T read_from(const StringRef &str) {
+    static T read_from(const std::string_view &str) {
         IStringStream is(str);
         T t;
         is >> t;
@@ -49,12 +49,12 @@ public:
      *
      * @param str the string
      */
-    explicit IStringStream(const StringRef &str) : IStream(), _str(str), _pos() {
+    explicit IStringStream(const std::string_view &str) : IStream(), _str(str), _pos() {
     }
 
     virtual char read() override {
         if(_pos < _str.length())
-            return _str.c_str()[_pos++];
+            return _str[_pos++];
         _state |= FL_EOF;
         return '\0';
     }
@@ -66,7 +66,7 @@ public:
     }
 
 private:
-    const StringRef _str;
+    const std::string_view _str;
     size_t _pos;
 };
 

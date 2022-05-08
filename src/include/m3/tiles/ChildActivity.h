@@ -73,7 +73,7 @@ public:
      * @param name the activity name (for debugging purposes)
      * @param args additional arguments to control the creation
      */
-    explicit ChildActivity(const Reference<class Tile> &tile, const String &name,
+    explicit ChildActivity(const Reference<class Tile> &tile, const std::string_view &name,
                            const ActivityArgs &args = ActivityArgs());
     virtual ~ChildActivity();
 
@@ -113,13 +113,13 @@ public:
      * @param child_path the child's path to install the mount at
      * @oaram our_path our path to the mount to pass to the child
      */
-    void add_mount(const String &child_path, const String &our_path) {
+    void add_mount(const std::string_view &child_path, const std::string_view &our_path) {
         auto el = std::find_if(_mounts.begin(), _mounts.end(),
-                               [child_path](std::pair<String, String> &p) {
+                               [child_path](std::pair<std::string, std::string> &p) {
                                    return p.first == child_path;
                                });
         if(el == _mounts.end())
-            _mounts.push_back(std::make_pair(child_path, our_path));
+            _mounts.push_back(std::make_pair(std::string(child_path), std::string(our_path)));
         else
             el->second = our_path;
     }
@@ -244,7 +244,7 @@ private:
     uintptr_t get_entry();
 
     std::vector<std::pair<fd_t, fd_t>> _files;
-    std::vector<std::pair<String, String>> _mounts;
+    std::vector<std::pair<std::string, std::string>> _mounts;
     std::unique_ptr<FStream> _exec;
 };
 

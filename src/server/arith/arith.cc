@@ -37,7 +37,7 @@ public:
     }
 
     void calc(GateIStream &is) {
-        String str;
+        std::string str;
         is >> str;
 
         int a, b, res = 0;
@@ -53,7 +53,7 @@ public:
 
         OStringStream os;
         os << res;
-        reply_vmsg(is, String(os.str()));
+        reply_vmsg(is, os.str());
     }
 };
 

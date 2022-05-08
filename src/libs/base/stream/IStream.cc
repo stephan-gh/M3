@@ -26,7 +26,7 @@ static int get_digit_val(char c) {
     return -1;
 }
 
-IStream &IStream::operator>>(String &str) {
+IStream &IStream::operator>>(std::string &str) {
     OStringStream os;
     char c;
     skip_whitespace();
@@ -36,7 +36,7 @@ IStream &IStream::operator>>(String &str) {
             break;
         os << c;
     }
-    str.reset(os.str(), os.length());
+    str.assign(os.str(), os.length());
     return *this;
 }
 

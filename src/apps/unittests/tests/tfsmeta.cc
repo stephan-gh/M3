@@ -94,13 +94,13 @@ static void dir_listing() {
     });
 
     // now check file names
-    WVASSERTEQ(entries[0].name, StringRef("."));
-    WVASSERTEQ(entries[1].name, StringRef(".."));
+    WVASSERTSTREQ(entries[0].name, ".");
+    WVASSERTSTREQ(entries[1].name, "..");
     for(size_t i = 0; i < 80; ++i) {
         char tmp[16];
         OStringStream os(tmp, sizeof(tmp));
         os << i << ".txt";
-        WVASSERTEQ(entries[i + 2].name, StringRef(os.str()));
+        WVASSERTSTREQ(entries[i + 2].name, os.str());
     }
 }
 

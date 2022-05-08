@@ -21,7 +21,6 @@
 #include <base/Common.h>
 #include <base/Errors.h>
 #include <base/util/Reference.h>
-#include <base/util/String.h>
 
 #include <m3/vfs/FileSystem.h>
 
@@ -47,7 +46,7 @@ class MountTable {
               _fs(fs) {
         }
 
-        const String &path() const noexcept {
+        const std::string &path() const noexcept {
             return _path;
         }
         const Reference<FileSystem> &fs() const noexcept {
@@ -55,7 +54,7 @@ class MountTable {
         }
 
     private:
-        String _path;
+        std::string _path;
         Reference<FileSystem> _fs;
     };
 

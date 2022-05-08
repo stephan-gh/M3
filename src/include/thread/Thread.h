@@ -20,7 +20,8 @@
 #pragma once
 
 #include <base/col/SList.h>
-#include <base/util/String.h>
+
+#include <string.h>
 
 #if defined(__x86_64__)
 #    include <thread/isa/x86_64/Thread.h>

@@ -314,7 +314,7 @@ static void read_file_at_once() {
     WVASSERTEQ(file->read(buf, sizeof(buf) - 1).unwrap(), sizeof(buf) - 1);
     buf[sizeof(buf) - 1] = '\0';
 
-    WVASSERTEQ(buf, StringRef(content));
+    WVASSERTSTREQ(buf, content);
 }
 
 static void read_file_in_64b_steps() {
@@ -353,7 +353,7 @@ static void write_file_and_read_again() {
     char buf[contentsz];
     size_t count = file->read(buf, sizeof(buf)).unwrap();
     WVASSERTEQ(count, sizeof(buf));
-    WVASSERTEQ(buf, StringRef(content));
+    WVASSERTEQ(std::string_view(buf, count), std::string_view(content, contentsz));
 
     // undo the write
     file->seek(0, M3FS_SEEK_SET);
@@ -404,7 +404,7 @@ static void transactions() {
 
         char buf[sizeof(content3)] = {0};
         WVASSERTEQ(file->read(buf, sizeof(buf)).unwrap(), sizeof(content3) - 1);
-        WVASSERTEQ(buf, StringRef(content3));
+        WVASSERTSTREQ(buf, content3);
         WVASSERTEQ(file->read(buf, sizeof(buf)).unwrap(), 0U);
     }
 }
@@ -511,7 +511,7 @@ static void buffered_write_with_seek() {
     WVASSERT(file.good());
 
     char exp[] = {1, 't', 'e', 's', 't', 6, 7, 'f', 'o', 'o', 'f', 'o', 'o', 14, 15, 0};
-    WVASSERTEQ(buf, StringRef(exp));
+    WVASSERTSTREQ(buf, exp);
 }
 
 void tfs() {

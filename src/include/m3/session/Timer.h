@@ -27,7 +27,7 @@ namespace m3 {
 
 class Timer : public ClientSession {
 public:
-    explicit Timer(const String &service, uint buford = nextlog2<256>::val,
+    explicit Timer(const std::string_view &service, uint buford = nextlog2<256>::val,
                    uint msgord = nextlog2<64>::val)
         : ClientSession(service),
           _rgate(RecvGate::create(buford, msgord)),

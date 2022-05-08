@@ -143,7 +143,7 @@ public:
         VK_PIPE
     };
 
-    explicit Keyboard(const String &service, uint buford = nextlog2<256>::val,
+    explicit Keyboard(const std::string_view &service, uint buford = nextlog2<256>::val,
                       uint msgord = nextlog2<64>::val)
         : ClientSession(service),
           _rgate(RecvGate::create(buford, msgord)),

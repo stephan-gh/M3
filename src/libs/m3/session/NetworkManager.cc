@@ -36,7 +36,7 @@ KIF::CapRngDesc NetworkManager::get_sgate(ClientSession &sess) {
     return sess.obtain(1, &eargs);
 }
 
-NetworkManager::NetworkManager(const String &service)
+NetworkManager::NetworkManager(const std::string_view &service)
     : ClientSession(service),
       _metagate(SendGate::bind(get_sgate(*this).start())) {
 }

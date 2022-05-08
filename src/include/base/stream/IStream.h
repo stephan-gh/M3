@@ -22,9 +22,9 @@
 #include <base/stream/IOSBase.h>
 #include <base/stream/OStringStream.h>
 #include <base/util/Chars.h>
-#include <base/util/String.h>
 
 #include <assert.h>
+#include <string>
 
 namespace m3 {
 
@@ -93,7 +93,7 @@ public:
      * @param str will be set to the read string
      * @return *this
      */
-    IStream &operator>>(String &str);
+    IStream &operator>>(std::string &str);
 
     /**
      * Reads a string into <buffer> until <delim> is found or <max> characters have been stored

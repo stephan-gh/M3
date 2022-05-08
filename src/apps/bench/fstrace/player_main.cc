@@ -69,7 +69,7 @@ static void cleanup() {
     try {
         Dir dir("/tmp");
 
-        std::vector<String> entries;
+        std::vector<std::string> entries;
 
         if(VERBOSE)
             cerr << "Collecting files in /tmp\n";
@@ -86,7 +86,7 @@ static void cleanup() {
             entries.push_back(file.str());
         }
 
-        for(String &s : entries)
+        for(std::string &s : entries)
             remove_rec(s.c_str());
     }
     catch(...) {

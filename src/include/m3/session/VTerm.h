@@ -32,7 +32,7 @@ namespace m3 {
 
 class VTerm : public ClientSession {
 public:
-    explicit VTerm(const String &name) : ClientSession(name) {
+    explicit VTerm(const std::string_view &name) : ClientSession(name) {
     }
 
     FileRef<GenericFile> create_channel(bool read) {

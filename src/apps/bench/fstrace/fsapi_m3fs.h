@@ -40,7 +40,7 @@ class FSAPI_M3FS : public FSAPI {
     }
 
 public:
-    explicit FSAPI_M3FS(bool data, bool stdio, m3::String const &prefix,
+    explicit FSAPI_M3FS(bool data, bool stdio, const std::string &prefix,
                         m3::LoadGen::Channel *lgchan)
         : _data(data),
           _start(m3::CycleInstant::now()),
@@ -369,7 +369,7 @@ private:
     bool _wait;
     bool _data;
     m3::CycleInstant _start;
-    const m3::String _prefix;
+    const std::string _prefix;
     m3::FileRef<m3::File> _fdMap[MaxOpenFds];
     m3::Dir *_dirMap[MaxOpenFds];
     fd_t _lgchan_fd;

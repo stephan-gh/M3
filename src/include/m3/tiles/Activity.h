@@ -27,7 +27,6 @@
 #include <base/util/BitField.h>
 #include <base/util/Math.h>
 #include <base/util/Reference.h>
-#include <base/util/String.h>
 
 #include <m3/ObjCap.h>
 #include <m3/com/EPMng.h>

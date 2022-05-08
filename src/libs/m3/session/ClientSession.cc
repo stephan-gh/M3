@@ -35,7 +35,7 @@ ClientSession::~ClientSession() {
     }
 }
 
-void ClientSession::connect(const String &service, capsel_t selector) {
+void ClientSession::connect(const std::string_view &service, capsel_t selector) {
     if(selector == INVALID)
         selector = Activity::own().alloc_sel();
 

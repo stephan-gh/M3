@@ -22,7 +22,6 @@
 #include <base/EnvBackend.h>
 #include <base/TileDesc.h>
 #include <base/util/BitField.h>
-#include <base/util/String.h>
 
 #include <assert.h>
 #include <pthread.h>
@@ -100,7 +99,7 @@ public:
     capsel_t kmem_sel() const {
         return _kmem_sel;
     }
-    const String &shm_prefix() const {
+    const std::string &shm_prefix() const {
         return _shm_prefix;
     }
     void print() const;
@@ -144,7 +143,7 @@ public:
 private:
     EnvBackend *_backend;
     int _logfd;
-    String _shm_prefix;
+    std::string _shm_prefix;
     label_t _sysc_label;
     epid_t _sysc_epid;
     word_t _sysc_credits;

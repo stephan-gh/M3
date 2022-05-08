@@ -147,8 +147,8 @@ size_t GenericFile::seek(size_t offset, int whence) {
     return _goff + off;
 }
 
-String GenericFile::path() {
-    String path;
+std::string GenericFile::path() {
+    std::string path;
     GateIStream reply = send_receive_vmsg(*_sg, GET_PATH, _id);
     reply.pull_result();
     reply >> path;

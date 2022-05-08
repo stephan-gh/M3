@@ -9,6 +9,9 @@
 
 #include "buffer.h"
 
+#include <base/Config.h>
+#include <base/util/Math.h>
+
 Buffer::Buffer(size_t maxReadSize, size_t maxWriteSize) {
     this->maxReadSize = maxReadSize;
     this->maxWriteSize = maxWriteSize;

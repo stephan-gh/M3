@@ -20,7 +20,6 @@
 #include <base/Common.h>
 #include <base/col/SList.h>
 #include <base/log/Lib.h>
-#include <base/util/String.h>
 
 #include <m3/Exception.h>
 

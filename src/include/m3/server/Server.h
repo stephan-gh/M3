@@ -54,7 +54,7 @@ class Server : public ObjCap {
 public:
     static constexpr size_t MAX_SESSIONS = Math::min(MAX_ACTS, 32);
 
-    explicit Server(const String &name, WorkLoop *wl, std::unique_ptr<HDL> &&handler)
+    explicit Server(const std::string_view &name, WorkLoop *wl, std::unique_ptr<HDL> &&handler)
         : ObjCap(SERVICE, Activity::own().alloc_sel()),
           _handler(std::move(handler)),
           _ctrl_handler(),
@@ -143,7 +143,8 @@ private:
         auto &reply = reply_buf.cast<KIF::Service::OpenReply>();
 
         typename HDL::session_type *sess = nullptr;
-        StringRef arg(req->arg, Math::min(static_cast<size_t>(req->arglen - 1), sizeof(req->arg)));
+        std::string_view arg(req->arg,
+                             Math::min(static_cast<size_t>(req->arglen - 1), sizeof(req->arg)));
         reply.error = _handler->open(&sess, crt, sel(), arg);
         if(sess)
             LLOG(SERV, fmt((word_t)sess, "#x") << ": open()");

@@ -9,35 +9,25 @@
 
 #pragma once
 
-#if defined(__LINUX__)
-#    include <sstream>
-#    include <string>
-#    define str_t     std::string
-#    define sstream_t std::ostringstream
-#else
-#    include <base/util/String.h>
-
-#    include <m3/stream/Standard.h>
-#    define str_t     m3::String
-#    define sstream_t m3::OStringStream
-#endif
+#include <sstream>
+#include <string>
 
 class Exception {
 public:
     virtual ~Exception(){};
 
-    virtual str_t &msg() {
+    virtual std::string &msg() {
         return text;
     };
 
 protected:
-    str_t text;
+    std::string text;
 };
 
 class NotSupportedException : public Exception {
 public:
     NotSupportedException(int lineNo) {
-        sstream_t s;
+        std::ostringstream s;
         s << "Not supported in line #" << lineNo;
         text = s.str();
     };
@@ -53,7 +43,7 @@ public:
 class ReturnValueException : public Exception {
 public:
     ReturnValueException(int got, int expected, int lineNo = -1) {
-        sstream_t s;
+        std::ostringstream s;
         s << "Unexpected return value " << got << " instead of " << expected;
         if(lineNo >= 0)
             s << " in line #" << lineNo;
@@ -63,8 +53,8 @@ public:
 
 class ParseException : public Exception {
 public:
-    ParseException(const str_t &line, int lineNo = -1, int colNo = -1) {
-        sstream_t s;
+    ParseException(const std::string &line, int lineNo = -1, int colNo = -1) {
+        std::ostringstream s;
         s << "Parse error";
         if(lineNo >= 0)
             s << " in line " << lineNo;
@@ -77,8 +67,8 @@ public:
 
 class IoException : public Exception {
 public:
-    IoException(const str_t &msg, const str_t &name = "", int errorNo = 0) {
-        sstream_t s;
+    IoException(const std::string &msg, const std::string &name = "", int errorNo = 0) {
+        std::ostringstream s;
         s << "I/O error ";
         if(errorNo != 0)
             s << errorNo;

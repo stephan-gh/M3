@@ -192,7 +192,7 @@ void OwnActivity::init_fs() {
     if(read_from("vars", buf.get(), len)) {
         Unmarshaller um(reinterpret_cast<unsigned char *>(&*buf.get()), len);
         while(um.remaining() > 0) {
-            String s;
+            std::string s;
             um >> s;
             size_t pos = static_cast<size_t>(strchr(s.c_str(), '=') - s.c_str());
             char *key = static_cast<char *>(malloc(pos + 1));

@@ -104,7 +104,7 @@ NOINLINE static void pingpong_str() {
     WVPERF(__func__, pr.run<CycleInstant>([&sgate, &rgate] {
         send_vmsg(sgate, "test");
 
-        String res;
+        std::string res;
         auto msg = receive_msg(rgate);
         msg >> res;
         if(res.length() != 4)
@@ -127,7 +127,7 @@ NOINLINE static void pingpong_strref() {
     WVPERF(__func__, pr.run<CycleInstant>([&sgate, &rgate] {
         send_vmsg(sgate, "test");
 
-        StringRef res;
+        std::string_view res;
         auto msg = receive_msg(rgate);
         msg >> res;
         if(res.length() != 4)
