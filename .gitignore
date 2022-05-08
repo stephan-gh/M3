@@ -4,6 +4,7 @@
 *.sublime-workspace
 *.ninja_deps
 *.ninja_log
+/.cache
 /build
 /cross/*/build
 /cross/*/src

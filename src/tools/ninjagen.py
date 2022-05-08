@@ -1,6 +1,7 @@
 from glob import glob
 import importlib
 import os
+import re
 import subprocess
 
 class SourcePath(str):
@@ -382,6 +383,30 @@ class Generator:
         build_files = ['configure.py'] + glob('src/**/build.py', recursive = True)
         with open(dep_file, 'w') as deps:
             deps.write(build_file + ': ' + ' '.join(build_files))
+
+        # generate compile_commands.json for clangd
+        with open('build/compile_commands.json', 'w') as cmds:
+            cmds.write('[\n')
+            base_dir = os.getcwd()
+            c = 0
+            for b in self.build_edges:
+                if b.rule == 'cxx' or b.rule == 'cc':
+                    assert(len(b.ins) == 1)
+                    if c > 0:
+                        cmds.write(',\n')
+                    cmds.write('  {\n')
+                    cmds.write('    "directory": "{}",\n'.format(base_dir))
+                    cmds.write('    "file": "{}",\n'.format(b.ins[0]))
+                    cmds.write('    "command": "clang++ {}"\n'.format(self._get_clangd_flags(b)))
+                    cmds.write('  }')
+                    c += 1
+            cmds.write('\n]\n')
+
+    def _get_clangd_flags(self, bedge):
+        flags = 'ccflags' if bedge.rule == 'cc' else 'cxxflags'
+        flag_str = bedge.vars[flags].replace('"', '\\"')
+        # remove all machine specific flags, because clang does not support all ISAs, etc.
+        return re.sub(r'\s+-m\S+', '', flag_str)
 
     def _finalize_deps(self):
         libs = self._collect_libs()
