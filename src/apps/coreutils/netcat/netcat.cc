@@ -13,7 +13,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/CmdArgs.h>
 #include <base/stream/IStringStream.h>
 
 #include <m3/net/DNS.h>
@@ -22,6 +21,9 @@
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/Waiter.h>
+
+#include <stdlib.h>
+#include <unistd.h>
 
 using namespace m3;
 
@@ -84,7 +86,7 @@ int main(int argc, char **argv) {
     bool verbose = false;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "vtu")) != -1) {
+    while((opt = getopt(argc, argv, "vtu")) != -1) {
         switch(opt) {
             case 'v': verbose = true; break;
             case 't': tcp = true; break;
@@ -92,11 +94,11 @@ int main(int argc, char **argv) {
             default: usage(argv[0]);
         }
     }
-    if(CmdArgs::is_help(argc, argv) || CmdArgs::ind + 1 >= argc)
+    if(optind + 1 >= argc)
         usage(argv[0]);
 
-    const char *dest_str = argv[CmdArgs::ind + 0];
-    const char *port_str = argv[CmdArgs::ind + 1];
+    const char *dest_str = argv[optind + 0];
+    const char *port_str = argv[optind + 1];
 
     NetworkManager net("net");
 

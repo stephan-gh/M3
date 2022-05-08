@@ -13,7 +13,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/CmdArgs.h>
 #include <base/stream/IStringStream.h>
 #include <base/time/Profile.h>
 #include <base/util/Math.h>
@@ -29,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "encoder.h"
 #include "handler.h"
@@ -90,20 +90,20 @@ int main(int argc, char **argv) {
     bool compute = true;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "r:w:p")) != -1) {
+    while((opt = getopt(argc, argv, "r:w:p")) != -1) {
         switch(opt) {
-            case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
-            case 'w': warmup = IStringStream::read_from<int>(CmdArgs::arg); break;
+            case 'r': repeats = IStringStream::read_from<int>(optarg); break;
+            case 'w': warmup = IStringStream::read_from<int>(optarg); break;
             case 'p': compute = false; break;
             default: usage(argv[0]);
         }
     }
-    if(CmdArgs::ind + 3 != argc)
+    if(optind + 3 != argc)
         usage(argv[0]);
 
-    char *proto = argv[CmdArgs::ind + 0];
-    IpAddr ip = IStringStream::read_from<IpAddr>(argv[CmdArgs::ind + 1]);
-    port_t port = IStringStream::read_from<port_t>(argv[CmdArgs::ind + 2]);
+    char *proto = argv[optind + 0];
+    IpAddr ip = IStringStream::read_from<IpAddr>(argv[optind + 1]);
+    port_t port = IStringStream::read_from<port_t>(argv[optind + 2]);
 
     NetworkManager net("net");
 

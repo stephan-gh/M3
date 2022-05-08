@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/CmdArgs.h>
 #include <base/Common.h>
 #include <base/Panic.h>
 #include <base/stream/IStringStream.h>
@@ -27,6 +26,9 @@
 #include <m3/tiles/ChildActivity.h>
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
+
+#include <stdlib.h>
+#include <unistd.h>
 
 using namespace m3;
 
@@ -70,20 +72,20 @@ int main(int argc, char **argv) {
     int warmup = 0;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "di:r:w:")) != -1) {
+    while((opt = getopt(argc, argv, "di:r:w:")) != -1) {
         switch(opt) {
             case 'd': data = true; break;
-            case 'i': instances = IStringStream::read_from<size_t>(CmdArgs::arg); break;
-            case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
-            case 'w': warmup = IStringStream::read_from<int>(CmdArgs::arg); break;
+            case 'i': instances = IStringStream::read_from<size_t>(optarg); break;
+            case 'r': repeats = IStringStream::read_from<int>(optarg); break;
+            case 'w': warmup = IStringStream::read_from<int>(optarg); break;
             default: usage(argv[0]);
         }
     }
-    if(CmdArgs::ind + 1 >= argc)
+    if(optind + 1 >= argc)
         usage(argv[0]);
 
-    const char *wr_name = argv[CmdArgs::ind + 0];
-    const char *rd_name = argv[CmdArgs::ind + 1];
+    const char *wr_name = argv[optind + 0];
+    const char *rd_name = argv[optind + 1];
 
     App *apps[instances * 2];
     Reference<Tile> srv_tiles[2];

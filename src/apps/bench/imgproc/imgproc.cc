@@ -18,7 +18,6 @@
 
 #include "imgproc.h"
 
-#include <base/CmdArgs.h>
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
 #include <base/time/Profile.h>
@@ -26,6 +25,9 @@
 #include <m3/Test.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/VFS.h>
+
+#include <stdlib.h>
+#include <unistd.h>
 
 using namespace m3;
 
@@ -61,30 +63,30 @@ int main(int argc, char **argv) {
     ulong warmup = 1;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "m:n:r:w:")) != -1) {
+    while((opt = getopt(argc, argv, "m:n:r:w:")) != -1) {
         switch(opt) {
             case 'm': {
-                modename = CmdArgs::arg;
-                if(strcmp(CmdArgs::arg, "indir") == 0)
+                modename = optarg;
+                if(strcmp(optarg, "indir") == 0)
                     mode = Mode::INDIR;
-                else if(strcmp(CmdArgs::arg, "dir") == 0)
+                else if(strcmp(optarg, "dir") == 0)
                     mode = Mode::DIR;
-                else if(strcmp(CmdArgs::arg, "dir-simple") == 0)
+                else if(strcmp(optarg, "dir-simple") == 0)
                     mode = Mode::DIR_SIMPLE;
                 else
                     usage(argv[0]);
                 break;
             }
-            case 'n': num = IStringStream::read_from<size_t>(CmdArgs::arg); break;
-            case 'r': repeats = IStringStream::read_from<ulong>(CmdArgs::arg); break;
-            case 'w': warmup = IStringStream::read_from<ulong>(CmdArgs::arg); break;
+            case 'n': num = IStringStream::read_from<size_t>(optarg); break;
+            case 'r': repeats = IStringStream::read_from<ulong>(optarg); break;
+            case 'w': warmup = IStringStream::read_from<ulong>(optarg); break;
             default: usage(argv[0]);
         }
     }
-    if(CmdArgs::ind >= argc)
+    if(optind >= argc)
         usage(argv[0]);
 
-    const char *in = argv[CmdArgs::ind];
+    const char *in = argv[optind];
 
     Results<CycleDuration> res(repeats);
     for(ulong i = 0; i < repeats + warmup; ++i) {

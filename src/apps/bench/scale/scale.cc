@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/CmdArgs.h>
 #include <base/Common.h>
 #include <base/Panic.h>
 #include <base/stream/IStringStream.h>
@@ -25,6 +24,9 @@
 #include <m3/tiles/ChildActivity.h>
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
+
+#include <stdlib.h>
+#include <unistd.h>
 
 using namespace m3;
 
@@ -67,23 +69,23 @@ int main(int argc, char **argv) {
     size_t fs_size = 0;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "li:s:r:f:")) != -1) {
+    while((opt = getopt(argc, argv, "li:s:r:f:")) != -1) {
         switch(opt) {
             case 'l': loadgen = true; break;
-            case 'i': instances = IStringStream::read_from<size_t>(CmdArgs::arg); break;
-            case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
+            case 'i': instances = IStringStream::read_from<size_t>(optarg); break;
+            case 'r': repeats = IStringStream::read_from<int>(optarg); break;
             case 'f': {
-                fs_size_str = CmdArgs::arg;
+                fs_size_str = optarg;
                 fs_size = IStringStream::read_from<size_t>(fs_size_str);
                 break;
             }
             default: usage(argv[0]);
         }
     }
-    if(CmdArgs::ind >= argc)
+    if(optind >= argc)
         usage(argv[0]);
 
-    const char *name = argv[CmdArgs::ind];
+    const char *name = argv[optind];
 
     App *apps[instances];
     App *fs[instances];

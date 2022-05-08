@@ -16,7 +16,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/CmdArgs.h>
 #include <base/Common.h>
 #include <base/Panic.h>
 #include <base/stream/IStringStream.h>
@@ -30,6 +29,8 @@
 #include <m3/vfs/VFS.h>
 
 #include <vector>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "traceplayer.h"
 
@@ -116,23 +117,23 @@ int main(int argc, char **argv) {
     capsel_t rgate = ObjCap::INVALID;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "p:n:wg:l:idtu:f:v")) != -1) {
+    while((opt = getopt(argc, argv, "p:n:wg:l:idtu:f:v")) != -1) {
         switch(opt) {
-            case 'p': prefix = CmdArgs::arg; break;
-            case 'n': iters = IStringStream::read_from<ulong>(CmdArgs::arg); break;
+            case 'p': prefix = optarg; break;
+            case 'n': iters = IStringStream::read_from<ulong>(optarg); break;
             case 'w': keep_time = true; break;
-            case 'l': loadgen = CmdArgs::arg; break;
+            case 'l': loadgen = optarg; break;
             case 'i': stdio = true; break;
             case 'd': data = true; break;
             case 't': wvtest = true; break;
-            case 'u': warmup = IStringStream::read_from<ulong>(CmdArgs::arg); break;
+            case 'u': warmup = IStringStream::read_from<ulong>(optarg); break;
             case 'v': verbose = true; break;
-            case 'g': rgate = IStringStream::read_from<capsel_t>(CmdArgs::arg); break;
-            case 'f': mount_fs = CmdArgs::arg; break;
+            case 'g': rgate = IStringStream::read_from<capsel_t>(optarg); break;
+            case 'f': mount_fs = optarg; break;
             default: usage(argv[0]);
         }
     }
-    if(CmdArgs::ind >= argc)
+    if(optind >= argc)
         usage(argv[0]);
 
     // mount fs, if required
@@ -163,9 +164,9 @@ int main(int argc, char **argv) {
 
     TracePlayer player(prefix);
 
-    Trace *trace = Traces::get(argv[CmdArgs::ind]);
+    Trace *trace = Traces::get(argv[optind]);
     if(!trace)
-        PANIC("Trace '" << argv[CmdArgs::ind] << "' does not exist.");
+        PANIC("Trace '" << argv[optind] << "' does not exist.");
 
     // touch all operations to make sure we don't get pagefaults in trace_ops arrary
     unsigned int numTraceOps = 0;
@@ -189,7 +190,7 @@ int main(int argc, char **argv) {
 
     // print parameters for reference
     cerr << "VPFS trace_bench started ["
-         << "trace=" << argv[CmdArgs::ind] << ","
+         << "trace=" << argv[optind] << ","
          << "n=" << iters << ","
          << "wait=" << (keep_time ? "yes" : "no") << ","
          << "data=" << (data ? "yes" : "no") << ","
@@ -218,7 +219,7 @@ int main(int argc, char **argv) {
             player.play(trace, chan, data, stdio, keep_time, verbose);
         });
         if(wvtest)
-            WVPERF(argv[CmdArgs::ind], pr.runner<CycleInstant>(runner));
+            WVPERF(argv[optind], pr.runner<CycleInstant>(runner));
         else
             pr.runner<CycleInstant>(runner);
     }

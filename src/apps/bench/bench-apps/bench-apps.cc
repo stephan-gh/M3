@@ -15,7 +15,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/CmdArgs.h>
 #include <base/Common.h>
 #include <base/Panic.h>
 #include <base/stream/IStringStream.h>
@@ -27,7 +26,9 @@
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
 
+#include <stdlib.h>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 using namespace m3;
@@ -59,18 +60,18 @@ int main(int argc, char **argv) {
     int repeats = 1;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "r:")) != -1) {
+    while((opt = getopt(argc, argv, "r:")) != -1) {
         switch(opt) {
-            case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
+            case 'r': repeats = IStringStream::read_from<int>(optarg); break;
             default: usage(argv[0]);
         }
     }
-    if(CmdArgs::ind >= argc)
+    if(optind >= argc)
         usage(argv[0]);
 
-    size_t argcount = IStringStream::read_from<size_t>(argv[CmdArgs::ind]);
+    size_t argcount = IStringStream::read_from<size_t>(argv[optind]);
     size_t totalargs = static_cast<size_t>(argc);
-    size_t appcount = static_cast<size_t>(argc - (CmdArgs::ind + 1)) / argcount;
+    size_t appcount = static_cast<size_t>(argc - (optind + 1)) / argcount;
 
     for(int j = 0; j < repeats; ++j) {
         if(VERBOSE)
@@ -80,7 +81,7 @@ int main(int argc, char **argv) {
             size_t idx = 0;
             std::unique_ptr<App> apps[appcount];
 
-            for(size_t i = static_cast<size_t>(CmdArgs::ind + 1); i < totalargs; i += argcount) {
+            for(size_t i = static_cast<size_t>(optind + 1); i < totalargs; i += argcount) {
                 const char **args = new const char *[argcount];
                 for(size_t x = 0; x < argcount; ++x)
                     args[x] = argv[i + x];

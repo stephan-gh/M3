@@ -18,12 +18,14 @@
 
 #include "accelchain.h"
 
-#include <base/CmdArgs.h>
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
 
 #include <m3/stream/Standard.h>
 #include <m3/vfs/VFS.h>
+
+#include <stdlib.h>
+#include <unistd.h>
 
 using namespace m3;
 
@@ -48,36 +50,36 @@ int main(int argc, char **argv) {
     int repeats = 1;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "m:c:n:r:")) != -1) {
+    while((opt = getopt(argc, argv, "m:c:n:r:")) != -1) {
         switch(opt) {
             case 'm': {
-                if(strcmp(CmdArgs::arg, "indir") == 0)
+                if(strcmp(optarg, "indir") == 0)
                     mode = Mode::INDIR;
-                else if(strcmp(CmdArgs::arg, "dir") == 0)
+                else if(strcmp(optarg, "dir") == 0)
                     mode = Mode::DIR;
-                else if(strcmp(CmdArgs::arg, "dir-simple") == 0)
+                else if(strcmp(optarg, "dir-simple") == 0)
                     mode = Mode::DIR_SIMPLE;
-                else if(strcmp(CmdArgs::arg, "dir-multi") == 0)
+                else if(strcmp(optarg, "dir-multi") == 0)
                     mode = Mode::DIR_MULTI;
                 else
                     usage(argv[0]);
                 break;
             }
             case 'c': {
-                auto cycles = IStringStream::read_from<cycles_t>(CmdArgs::arg);
+                auto cycles = IStringStream::read_from<cycles_t>(optarg);
                 comptime = CycleDuration::from_raw(cycles);
                 break;
             }
-            case 'n': num = IStringStream::read_from<size_t>(CmdArgs::arg); break;
-            case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
+            case 'n': num = IStringStream::read_from<size_t>(optarg); break;
+            case 'r': repeats = IStringStream::read_from<int>(optarg); break;
             default: usage(argv[0]);
         }
     }
-    if(CmdArgs::ind + 1 >= argc)
+    if(optind + 1 >= argc)
         usage(argv[0]);
 
-    const char *in = argv[CmdArgs::ind + 0];
-    const char *out = argv[CmdArgs::ind + 1];
+    const char *in = argv[optind + 0];
+    const char *out = argv[optind + 1];
 
     for(int i = 0; i < repeats; ++i) {
         // open files
