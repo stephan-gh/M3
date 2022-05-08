@@ -33,9 +33,6 @@ public:
     virtual ~EnvBackend() {
     }
 
-    virtual bool extend_heap(size_t) {
-        return false;
-    }
     virtual void exit(int code) NORETURN = 0;
 };
 

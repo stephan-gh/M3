@@ -90,10 +90,6 @@ public:
         m3::Serial::init("standalone", m3::env()->tile_id);
     }
 
-    virtual bool extend_heap(size_t) override {
-        return false;
-    }
-
     virtual void exit(int) override {
         m3::Machine::shutdown();
     }

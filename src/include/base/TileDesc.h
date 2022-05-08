@@ -61,13 +61,6 @@ enum TileAttr {
 };
 
 /**
- * @return the number of supported ISAs
- */
-static constexpr size_t isa_count() {
-    return static_cast<size_t>(TileISA::NIC_DEV) + 1;
-}
-
-/**
  * Describes a tile
  */
 struct TileDesc {
