@@ -397,14 +397,15 @@ class Generator:
                     cmds.write('  {\n')
                     cmds.write('    "directory": "{}",\n'.format(base_dir))
                     cmds.write('    "file": "{}",\n'.format(b.ins[0]))
-                    cmds.write('    "command": "clang++ {}"\n'.format(self._get_clangd_flags(b)))
+                    cmds.write('    "command": "{}"\n'.format(self._get_clang_flags(b)))
                     cmds.write('  }')
                     c += 1
             cmds.write('\n]\n')
 
-    def _get_clangd_flags(self, bedge):
+    def _get_clang_flags(self, bedge):
         flags = 'ccflags' if bedge.rule == 'cc' else 'cxxflags'
         flag_str = bedge.vars[flags].replace('"', '\\"')
+        flag_str = 'clang ' + flag_str if bedge.rule == 'cc' else 'clang++ ' + flag_str
         # remove all machine specific flags, because clang does not support all ISAs, etc.
         return re.sub(r'\s+-m\S+', '', flag_str)
 
