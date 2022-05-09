@@ -52,7 +52,6 @@ NOINLINE static void latency() {
     uint8_t response[1024];
 
     auto socket = UdpSocket::create(net);
-    socket->set_blocking(false);
 
     const size_t samples = 15;
     Endpoint src;
@@ -100,7 +99,6 @@ NOINLINE static void bandwidth() {
 
     auto socket = UdpSocket::create(
         net, DgramSocketArgs().send_buffer(8, 64 * 1024).recv_buffer(32, 256 * 1024));
-    socket->set_blocking(false);
 
     constexpr size_t packet_size = 1024;
 
@@ -125,6 +123,8 @@ NOINLINE static void bandwidth() {
     while(warmup--)
         send_recv(waiter, socket, dest, request, 8, timeout, response, sizeof(response));
 
+    socket->set_blocking(false);
+
     auto start = TimeInstant::now();
     auto last_received = start;
     size_t failures = 0;
@@ -147,7 +147,7 @@ NOINLINE static void bandwidth() {
 
         size_t send_count = burst_size;
         while(send_count-- && packet_sent_count < packets_to_send) {
-            if(socket->send_to(request, packet_size, dest).unwrap() > 0) {
+            if(socket->send_to(request, packet_size, dest)) {
                 packet_sent_count++;
                 failures = 0;
             }

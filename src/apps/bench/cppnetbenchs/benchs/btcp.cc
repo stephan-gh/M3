@@ -101,6 +101,7 @@ NOINLINE static void bandwidth() {
     auto start = TimeInstant::now();
     auto last_received = start;
     size_t sent_count = 0;
+    size_t sent_bytes = 0;
     size_t received_count = 0;
     size_t received_bytes = 0;
     size_t failures = 0;
@@ -129,7 +130,8 @@ NOINLINE static void bandwidth() {
             if(sent_count >= PACKETS_TO_SEND)
                 break;
 
-            if(socket->send(buffer, packet_size).unwrap() > 0) {
+            if(auto sent = socket->send(buffer, packet_size)) {
+                sent_bytes += sent.unwrap();
                 sent_count++;
                 failures = 0;
             }
@@ -152,7 +154,7 @@ NOINLINE static void bandwidth() {
             }
         }
 
-        if(received_bytes >= PACKETS_TO_SEND * sizeof(buffer))
+        if(sent_count == PACKETS_TO_SEND && received_bytes == sent_bytes)
             break;
     }
 
