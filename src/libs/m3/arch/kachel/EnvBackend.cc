@@ -29,7 +29,7 @@
 
 namespace m3 {
 
-class EnvUserBackend : public Gem5EnvBackend {
+class EnvUserBackend : public KachelEnvBackend {
 public:
     explicit EnvUserBackend() {
     }

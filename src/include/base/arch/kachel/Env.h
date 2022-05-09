@@ -35,7 +35,7 @@ enum Platform {
     HW
 };
 
-class Gem5EnvBackend : public EnvBackend {
+class KachelEnvBackend : public EnvBackend {
     friend class Env;
 
 public:
@@ -80,10 +80,10 @@ public:
     uint64_t data_addr;
     uint64_t data_len;
 
-    Gem5EnvBackend *backend() {
+    KachelEnvBackend *backend() {
         return _backend;
     }
-    void set_backend(Gem5EnvBackend *backend) {
+    void set_backend(KachelEnvBackend *backend) {
         _backend = backend;
     }
 
@@ -95,7 +95,7 @@ public:
 private:
     void call_constr();
 
-    Gem5EnvBackend *_backend;
+    KachelEnvBackend *_backend;
 } PACKED;
 
 #define ENV_SPACE_SIZE  (ENV_SIZE - (sizeof(word_t) * 2 + sizeof(m3::Env)))

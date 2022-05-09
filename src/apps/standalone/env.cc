@@ -81,7 +81,7 @@ EXTERN_C size_t fwrite(const void *str, UNUSED size_t size, size_t nmemb, FILE *
     return 0;
 }
 
-class StandaloneEnvBackend : public m3::Gem5EnvBackend {
+class StandaloneEnvBackend : public m3::KachelEnvBackend {
 public:
     explicit StandaloneEnvBackend() {
     }
