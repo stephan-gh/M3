@@ -60,6 +60,10 @@ public:
     }
 
     virtual ~FSAPI_M3FS() {
+        // don't destroy stdin/stdout here; we'll do that later before exit
+        _fdMap[m3::STDIN_FD].release();
+        _fdMap[m3::STDOUT_FD].release();
+
         for(size_t i = 0; i < ARRAY_SIZE(_dirMap); ++i) {
             if(_dirMap[i])
                 delete _dirMap[i];
