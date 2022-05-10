@@ -28,9 +28,9 @@
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
 
-#include <vector>
 #include <stdlib.h>
 #include <unistd.h>
+#include <vector>
 
 #include "traceplayer.h"
 
@@ -45,24 +45,19 @@ static void remove_rec(const char *path) {
     if(VERBOSE)
         cerr << "Unlinking " << path << "\n";
 
-    try {
-        VFS::unlink(path);
-    }
-    catch(const m3::Exception &e) {
-        if(e.code() == Errors::IS_DIR) {
-            Dir::Entry e;
-            char tmp[128];
-            Dir dir(path);
-            while(dir.readdir(e)) {
-                if(strcmp(e.name, ".") == 0 || strcmp(e.name, "..") == 0)
-                    continue;
+    if(VFS::try_unlink(path) == Errors::IS_DIR) {
+        Dir::Entry e;
+        char tmp[128];
+        Dir dir(path);
+        while(dir.readdir(e)) {
+            if(strcmp(e.name, ".") == 0 || strcmp(e.name, "..") == 0)
+                continue;
 
-                OStringStream file(tmp, sizeof(tmp));
-                file << path << "/" << e.name;
-                remove_rec(file.str());
-            }
-            VFS::rmdir(path);
+            OStringStream file(tmp, sizeof(tmp));
+            file << path << "/" << e.name;
+            remove_rec(file.str());
         }
+        VFS::rmdir(path);
     }
 }
 
