@@ -427,6 +427,7 @@ impl File for GenericFile {
         )?;
         // reset position in case we were behind the truncated position
         self.goff = reply.pop()?;
+        self.off = reply.pop()?;
         // we've lost access to the previous extent
         self.pos = 0;
         self.len = 0;
@@ -487,16 +488,16 @@ impl Seek for GenericFile {
         self.submit(false)?;
 
         if whence == SeekMode::CUR {
-            off += self.goff + self.pos;
+            off += self.goff + self.off + self.pos;
             whence = SeekMode::SET;
         }
 
         if whence != SeekMode::END
             && self.pos < self.len
-            && off > self.goff
-            && off < self.goff + self.len
+            && off > self.goff + self.off
+            && off < self.goff + self.off + self.len
         {
-            self.pos = off - self.goff;
+            self.pos = off - (self.goff + self.off);
             return Ok(off);
         }
 
@@ -510,7 +511,7 @@ impl Seek for GenericFile {
         )?;
 
         self.goff = reply.pop()?;
-        let off: usize = reply.pop()?;
+        self.off = reply.pop()?;
         self.pos = 0;
         self.len = 0;
         Ok(self.goff + off)

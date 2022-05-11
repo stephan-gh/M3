@@ -504,7 +504,7 @@ impl FileSession {
         // prepared for that!
         self.revoke_cap();
 
-        reply_vmsg!(stream, Code::None as u32, fileoff - extpos.off)
+        reply_vmsg!(stream, Code::None as u32, fileoff - extpos.off, extpos.off)
     }
 
     pub fn file_commit(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {

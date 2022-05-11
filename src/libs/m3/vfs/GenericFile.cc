@@ -112,22 +112,22 @@ size_t GenericFile::seek(size_t offset, int whence) {
 
     // handle SEEK_CUR as SEEK_SET
     if(whence == M3FS_SEEK_CUR) {
-        offset = _goff + _pos + offset;
+        offset = _goff + _off + _pos + offset;
         whence = M3FS_SEEK_SET;
     }
 
     // try to seek locally first
     if(whence == M3FS_SEEK_SET) {
         // no change?
-        if(offset == _goff + _pos)
+        if(offset == _goff + _off + _pos)
             return offset;
 
         // first commit the written data
         if(_writing)
             commit();
 
-        if(offset >= _goff && offset <= _goff + _len) {
-            _pos = offset - _goff;
+        if(offset >= _goff + _off && offset <= _goff + _off + _len) {
+            _pos = offset - (_goff + _off);
             return offset;
         }
     }
@@ -138,13 +138,12 @@ size_t GenericFile::seek(size_t offset, int whence) {
     }
 
     // now seek on the server side
-    size_t off;
     GateIStream reply = send_receive_vmsg(*_sg, SEEK, _id, offset, whence);
     reply.pull_result();
 
-    reply >> _goff >> off;
+    reply >> _goff >> _off;
     _pos = _len = 0;
-    return _goff + off;
+    return _goff + _off;
 }
 
 std::string GenericFile::path() {
@@ -167,7 +166,7 @@ void GenericFile::truncate(size_t length) {
     GateIStream reply = send_receive_vmsg(*_sg, TRUNCATE, _id, length);
     reply.pull_result();
     // reset position in case we were behind the truncated position
-    reply >> _goff;
+    reply >> _goff >> _off;
     // we've lost access to the previous extent
     _pos = _len = 0;
 }
