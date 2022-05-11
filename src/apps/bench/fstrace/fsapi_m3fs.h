@@ -82,11 +82,11 @@ public:
         // TODO not implemented
     }
 
-    virtual void waituntil(UNUSED const waituntil_args_t *args, int) override {
+    NOINLINE virtual void waituntil(UNUSED const waituntil_args_t *args, int) override {
         m3::CPU::compute(args->timestamp);
     }
 
-    virtual void open(const open_args_t *args, UNUSED int lineNo) override {
+    NOINLINE virtual void open(const open_args_t *args, UNUSED int lineNo) override {
         if(args->fd != -1 && (_fdMap[args->fd].is_valid() || _dirMap[args->fd] != nullptr))
             exitmsg("Overwriting already used file/dir @ " << args->fd);
 
@@ -107,7 +107,7 @@ public:
         }
     }
 
-    virtual void close(const close_args_t *args, int) override {
+    NOINLINE virtual void close(const close_args_t *args, int) override {
         if(_fdMap[args->fd].is_valid())
             _fdMap[args->fd].reset();
         else if(_dirMap[args->fd]) {
@@ -120,11 +120,11 @@ public:
             exitmsg("Using uninitialized file @ " << args->fd);
     }
 
-    virtual void fsync(const fsync_args_t *, int) override {
+    NOINLINE virtual void fsync(const fsync_args_t *, int) override {
         // TODO not implemented
     }
 
-    virtual ssize_t read(int fd, void *buffer, size_t size) override {
+    NOINLINE virtual ssize_t read(int fd, void *buffer, size_t size) override {
         checkFd(fd);
         try {
             char *buf = reinterpret_cast<char *>(buffer);
@@ -142,7 +142,7 @@ public:
         }
     }
 
-    virtual ssize_t write(int fd, const void *buffer, size_t size) override {
+    NOINLINE virtual ssize_t write(int fd, const void *buffer, size_t size) override {
         checkFd(fd);
         return write_file(&*_fdMap[fd], buffer, size);
     }
@@ -157,19 +157,20 @@ public:
         return static_cast<ssize_t>(size);
     }
 
-    virtual ssize_t pread(int fd, void *buffer, size_t size, off_t offset) override {
+    NOINLINE virtual ssize_t pread(int fd, void *buffer, size_t size, off_t offset) override {
         checkFd(fd);
         _fdMap[fd]->seek(static_cast<size_t>(offset), M3FS_SEEK_SET);
         return read(fd, buffer, size);
     }
 
-    virtual ssize_t pwrite(int fd, const void *buffer, size_t size, off_t offset) override {
+    NOINLINE virtual ssize_t pwrite(int fd, const void *buffer, size_t size,
+                                    off_t offset) override {
         checkFd(fd);
         _fdMap[fd]->seek(static_cast<size_t>(offset), M3FS_SEEK_SET);
         return write(fd, buffer, size);
     }
 
-    virtual void lseek(const lseek_args_t *args, UNUSED int lineNo) override {
+    NOINLINE virtual void lseek(const lseek_args_t *args, UNUSED int lineNo) override {
         checkFd(args->fd);
         try {
             _fdMap[args->fd]->seek(static_cast<size_t>(args->offset), args->whence);
@@ -180,7 +181,7 @@ public:
         }
     }
 
-    virtual void ftruncate(const ftruncate_args_t *, int) override {
+    NOINLINE virtual void ftruncate(const ftruncate_args_t *, int) override {
         // TODO not implemented
     }
 
@@ -196,7 +197,7 @@ public:
         return res;
     }
 
-    virtual void fstat(const fstat_args_t *args, UNUSED int lineNo) override {
+    NOINLINE virtual void fstat(const fstat_args_t *args, UNUSED int lineNo) override {
         int res = get_result_of([this, &args] {
             m3::FileInfo info;
             if(_fdMap[args->fd].is_valid())
@@ -211,21 +212,21 @@ public:
             throw ReturnValueException(res, args->err, lineNo);
     }
 
-    virtual void fstatat(const fstatat_args_t *args, UNUSED int lineNo) override {
+    NOINLINE virtual void fstatat(const fstatat_args_t *args, UNUSED int lineNo) override {
         m3::FileInfo info;
         m3::Errors::Code res = m3::VFS::try_stat(add_prefix(args->name), info);
         if((res == m3::Errors::NONE) != (args->err == 0))
             throw ReturnValueException(res, args->err, lineNo);
     }
 
-    virtual void stat(const stat_args_t *args, UNUSED int lineNo) override {
+    NOINLINE virtual void stat(const stat_args_t *args, UNUSED int lineNo) override {
         m3::FileInfo info;
         m3::Errors::Code res = m3::VFS::try_stat(add_prefix(args->name), info);
         if((res == m3::Errors::NONE) != (args->err == 0))
             throw ReturnValueException(res, args->err, lineNo);
     }
 
-    virtual void rename(const rename_args_t *args, int lineNo) override {
+    NOINLINE virtual void rename(const rename_args_t *args, int lineNo) override {
         int res = get_result_of([this, &args] {
             char tmpto[255];
             m3::VFS::rename(add_prefix(args->from), add_prefix_to(args->to, tmpto, sizeof(tmpto)));
@@ -234,7 +235,7 @@ public:
             throw ReturnValueException(res, args->err, lineNo);
     }
 
-    virtual void unlink(const unlink_args_t *args, UNUSED int lineNo) override {
+    NOINLINE virtual void unlink(const unlink_args_t *args, UNUSED int lineNo) override {
         int res = get_result_of([this, &args] {
             m3::VFS::unlink(add_prefix(args->name));
         });
@@ -242,7 +243,7 @@ public:
             throw ReturnValueException(res, args->err, lineNo);
     }
 
-    virtual void rmdir(const rmdir_args_t *args, UNUSED int lineNo) override {
+    NOINLINE virtual void rmdir(const rmdir_args_t *args, UNUSED int lineNo) override {
         int res = get_result_of([this, &args] {
             m3::VFS::rmdir(add_prefix(args->name));
         });
@@ -250,7 +251,7 @@ public:
             throw ReturnValueException(res, args->err, lineNo);
     }
 
-    virtual void mkdir(const mkdir_args_t *args, UNUSED int lineNo) override {
+    NOINLINE virtual void mkdir(const mkdir_args_t *args, UNUSED int lineNo) override {
         int res = get_result_of([this, &args] {
             m3::VFS::mkdir(add_prefix(args->name), 0777 /*args->mode*/);
         });
@@ -258,7 +259,7 @@ public:
             throw ReturnValueException(res, args->err, lineNo);
     }
 
-    virtual void sendfile(Buffer &buf, const sendfile_args_t *args, int lineNo) override {
+    NOINLINE virtual void sendfile(Buffer &buf, const sendfile_args_t *args, int lineNo) override {
         assert(args->offset == nullptr);
 
         if(args->out_fd == _lgchan_fd) {
@@ -289,7 +290,7 @@ public:
             throw ReturnValueException(expected, args->err, lineNo);
     }
 
-    virtual void getdents(const getdents_args_t *args, UNUSED int lineNo) override {
+    NOINLINE virtual void getdents(const getdents_args_t *args, UNUSED int lineNo) override {
         if(_dirMap[args->fd] == nullptr)
             exitmsg("Using uninitialized dir @ " << args->fd);
 
@@ -311,24 +312,24 @@ public:
         }
     }
 
-    virtual void createfile(const createfile_args_t *, int) override {
+    NOINLINE virtual void createfile(const createfile_args_t *, int) override {
         // TODO not implemented
     }
 
-    virtual void accept(const accept_args_t *args, int lineNo) override {
+    NOINLINE virtual void accept(const accept_args_t *args, int lineNo) override {
         if(!_lgchan)
             throw NotSupportedException(lineNo);
         _lgchan->wait();
         _lgchan_fd = args->err;
     }
-    virtual void recvfrom(Buffer &buf, const recvfrom_args_t *args, int lineNo) override {
+    NOINLINE virtual void recvfrom(Buffer &buf, const recvfrom_args_t *args, int lineNo) override {
         if(!_lgchan)
             throw NotSupportedException(lineNo);
 
         char *rbuf = buf.readBuffer(args->size);
         _lgchan->pull(rbuf, args->size);
     }
-    virtual void writev(Buffer &buf, const writev_args_t *args, int lineNo) override {
+    NOINLINE virtual void writev(Buffer &buf, const writev_args_t *args, int lineNo) override {
         if(!_lgchan)
             throw NotSupportedException(lineNo);
 
