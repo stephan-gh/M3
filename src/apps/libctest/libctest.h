@@ -35,6 +35,7 @@
     name();                                                             \
     m3::cout << "\n";
 
+void tbsdutils();
 void tdir();
 void tepoll();
 void tfile();

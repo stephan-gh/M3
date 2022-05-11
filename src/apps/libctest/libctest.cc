@@ -25,6 +25,7 @@
 int failed;
 
 int main() {
+    RUN_SUITE(tbsdutils);
     RUN_SUITE(tdir);
     RUN_SUITE(tepoll);
     RUN_SUITE(tfile);
