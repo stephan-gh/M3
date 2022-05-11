@@ -21,6 +21,7 @@
 #include <base/stream/IStringStream.h>
 #include <base/time/Profile.h>
 
+#include <m3/Exception.h>
 #include <m3/Test.h>
 #include <m3/session/LoadGen.h>
 #include <m3/session/M3FS.h>
@@ -148,13 +149,9 @@ int main(int argc, char **argv) {
     }
 
     if(*prefix) {
-        try {
-            VFS::mkdir(prefix, 0755);
-        }
-        catch(const m3::Exception &e) {
-            if(e.code() != Errors::EXISTS)
-                throw;
-        }
+        Errors::Code res = VFS::try_mkdir(prefix, 0755);
+        if(res != Errors::NONE && res != Errors::EXISTS)
+            VTHROW(res, "Unable to create directory " << prefix);
     }
 
     TracePlayer player(prefix);
