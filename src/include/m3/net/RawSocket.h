@@ -50,12 +50,29 @@ public:
 
     ~RawSocket();
 
+    /**
+     * Connect is not supported for raw sockets and therefore throws an exception.
+     */
     virtual bool connect(const Endpoint &) override {
         throw Exception(Errors::NOT_SUP);
     }
 
+    /**
+     * Sends <amount> bytes from <src> over this socket.
+     *
+     * @param src the data to send
+     * @param amount the number of bytes to send
+     * @return the number of sent bytes (None if it would block and the socket is non-blocking)
+     */
     virtual Option<size_t> send(const void *src, size_t amount) override;
 
+    /**
+     * Receives <amount> or a smaller number of bytes into <dst>.
+     *
+     * @param dst the destination buffer
+     * @param amount the number of bytes to receive
+     * @return the number of received bytes (None if it would block and the socket is non-blocking)
+     */
     virtual Option<size_t> recv(void *dst, size_t amount) override;
 
 private:

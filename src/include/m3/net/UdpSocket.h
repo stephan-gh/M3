@@ -94,8 +94,28 @@ public:
      */
     void bind(port_t port);
 
+    /**
+     * Connects this socket to the given remote endpoint.
+     *
+     * Since this is a UDP socket, connecting merely sets the endpoint to use for subsequent send
+     * calls and therefore does not involve the remote side in any way. Also if the socket has not
+     * been bound so far, bind(0) will be called to bind it to an unused ephemeral port.
+     *
+     * @param ep the endpoint to use for subsequent send calls
+     * @return always true for UDP sockets
+     */
     virtual bool connect(const Endpoint &ep) override;
 
+    /**
+     * Sends <amount> bytes from <src> to the socket defined at connect.
+     *
+     * If the socket is not bound so far, bind(0) will be called to bind it to an unused ephemeral
+     * port.
+     *
+     * @param src the data to send
+     * @param amount the number of bytes to send
+     * @return the number of sent bytes (None if it would block and the socket is non-blocking)
+     */
     virtual Option<size_t> send(const void *src, size_t amount) override;
 
     /**
@@ -111,6 +131,13 @@ public:
      */
     Option<size_t> send_to(const void *src, size_t amount, const Endpoint &dst_ep);
 
+    /**
+     * Receives <amount> or a smaller number of bytes into <dst>.
+     *
+     * @param dst the destination buffer
+     * @param amount the number of bytes to receive
+     * @return the number of received bytes (None if it would block and the socket is non-blocking)
+     */
     virtual Option<size_t> recv(void *dst, size_t amount) override;
 
     /**

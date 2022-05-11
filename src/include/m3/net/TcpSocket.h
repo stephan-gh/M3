@@ -86,6 +86,13 @@ public:
      */
     void listen(port_t port);
 
+    /**
+     * Connects this socket to the given remote endpoint.
+     *
+     * @param ep the endpoint to use for subsequent send calls
+     * @return true if the socket is connected (false if the socket is non-blocking, and the
+     *     connection is in progress)
+     */
     virtual bool connect(const Endpoint &endpoint) override;
 
     /**
@@ -102,8 +109,30 @@ public:
      */
     bool accept(Endpoint *remote_ep);
 
+    /**
+     * Sends at most <amount> bytes from <src> to the socket defined at connect.
+     *
+     * The socket has to be connected first (either via connect or accept). Note that data can be
+     * received after the remote side has closed the socket (state RemoteClosed), but not if this
+     * side has been closed.
+     *
+     * @param src the data to send
+     * @param amount the number of bytes to send
+     * @return the number of sent bytes (None if it would block and the socket is non-blocking)
+     */
     virtual Option<size_t> send(const void *src, size_t amount) override;
 
+    /**
+     * Receives <amount> or a smaller number of bytes into <dst>.
+     *
+     * The socket has to be connected first (either via connect or accept). Note that data can be
+     * received after the remote side has closed the socket (state RemoteClosed), but not if this
+     * side has been closed.
+     *
+     * @param dst the destination buffer
+     * @param amount the number of bytes to receive
+     * @return the number of received bytes (None if it would block and the socket is non-blocking)
+     */
     virtual Option<size_t> recv(void *dst, size_t amount) override;
 
     /**
