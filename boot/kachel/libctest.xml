@@ -7,6 +7,9 @@
                     <serv name="m3fs" />
                     <physmem addr="0" size="$fs.size" />
                 </app>
+                <app args="pipes" daemon="1">
+                    <serv name="pipes" />
+                </app>
             </dom>
             <dom>
                 <app args="pager sem=net-udp sem=net-tcp $fs.size" usermem="256M">
@@ -28,6 +31,7 @@
                     <dom>
                         <app args="/bin/libctest">
                             <mount fs="m3fs" path="/" />
+                            <sess name="pipes" />
                             <sess name="net" />
                             <sess lname="netserv" gname="net" args="bufs=1M socks=2 tcp=2000" />
                             <sem name="net-udp" />

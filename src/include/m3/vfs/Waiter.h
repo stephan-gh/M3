@@ -91,7 +91,21 @@ public:
      */
     void wait_for(TimeDuration timeout);
 
+    /**
+     * Call the given function for each ready file descriptor.
+     *
+     * @param func the function to call: void(int fd, uint events)
+     */
+    template<typename F>
+    void foreach_ready(F func) {
+        for(auto entry = _files.begin(); entry != _files.end(); ++entry) {
+            if(tick_file(entry->first, entry->second))
+                func(entry->first, entry->second);
+        }
+    }
+
 private:
+    bool tick_file(fd_t fd, uint events);
     bool tick_files();
 
     std::vector<std::pair<fd_t, uint>> _files;

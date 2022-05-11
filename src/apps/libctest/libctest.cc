@@ -26,6 +26,7 @@ int failed;
 
 int main() {
     RUN_SUITE(tdir);
+    RUN_SUITE(tepoll);
     RUN_SUITE(tfile);
     RUN_SUITE(tprocess);
     RUN_SUITE(tsocket);

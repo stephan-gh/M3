@@ -41,11 +41,15 @@ void FileWaiter::wait_for(TimeDuration timeout) {
     }
 }
 
+bool FileWaiter::tick_file(fd_t fd, uint events) {
+    auto file = Activity::own().files()->get(fd);
+    return file->check_events(events);
+}
+
 bool FileWaiter::tick_files() {
     bool found = false;
     for(auto entry = _files.begin(); entry != _files.end(); ++entry) {
-        auto file = Activity::own().files()->get(entry->first);
-        if(file && file->check_events(entry->second))
+        if(tick_file(entry->first, entry->second))
             found = true;
     }
     return found;

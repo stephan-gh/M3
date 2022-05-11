@@ -36,6 +36,7 @@
     m3::cout << "\n";
 
 void tdir();
+void tepoll();
 void tfile();
 void tprocess();
 void tsocket();
