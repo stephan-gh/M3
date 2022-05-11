@@ -28,8 +28,7 @@
 namespace m3 {
 
 Socket::Socket(int sd, capsel_t caps, NetworkManager &nm)
-    : SListItem(),
-      File(0),
+    : File(0),
       _sd(sd),
       _state(Closed),
       _local_ep(),

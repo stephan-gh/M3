@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include <base/col/List.h>
 #include <base/util/Reference.h>
 
 #include <m3/net/DataQueue.h>
@@ -48,7 +47,7 @@ struct SocketArgs {
 /**
  * The base class of all sockets, which provides the common functionality
  */
-class Socket : public SListItem, public File {
+class Socket : public File {
     friend class NetworkManager;
 
     static const int EVENT_FETCH_BATCH_SIZE = 4;
