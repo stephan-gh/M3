@@ -47,11 +47,13 @@ FStream::FStream(const char *filename, size_t rsize, size_t wsize, int perms)
 }
 
 FStream::~FStream() {
-    try {
-        flush();
-    }
-    catch(...) {
-        // ignore
+    if(Activity::own().files()->exists(_fd)) {
+        try {
+            flush();
+        }
+        catch(...) {
+            // ignore
+        }
     }
 
     if(!(_flags & FL_DEL_BUF)) {
