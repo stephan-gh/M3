@@ -2,7 +2,7 @@
 
 progs="basename cat cp csplit cut date dd dirname du echo expr factor false find fmt head join ln ls"
 progs="$progs mkdir mktemp mv nl paste pathchk printenv printf pwd rm rmdir sleep split stat sync"
-progs="$progs tee test touch tr true tsort uniq wc yes"
+progs="$progs tail tee test touch tr true tsort uniq wc yes"
 
 mkdir -p src/fs/default/man
 

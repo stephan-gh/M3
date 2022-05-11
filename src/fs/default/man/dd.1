@@ -151,9 +151,9 @@ EXIT STATUS
      The dd utility exits 0 on success, and >0 if an error occurs.
 
 EXAMPLES
-     Write an OpenBSD floppy image to a floppy disk:
+     Write a bootable OpenBSD disk image to a USB flash drive attached at /dev/sd3:
 
-           # dd if=floppy67.img of=/dev/rfd0c bs=32k
+           # dd if=install68.img of=/dev/rsd3c bs=1m
 
      Create an ISO-9660 image of a CD-ROM:
 
@@ -175,4 +175,4 @@ STANDARDS
 HISTORY
      A dd utility appeared in Version 5 AT&T UNIX.
 
-BSD                                        May 17, 2020                                       BSD
+BSD                                      October 29, 2020                                     BSD

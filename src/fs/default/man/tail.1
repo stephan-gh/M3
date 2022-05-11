@@ -1,0 +1,81 @@
+TAIL(1)                            BSD General Commands Manual                            TAIL(1)
+
+NAME
+     tail -- display the last part of a file
+
+SYNOPSIS
+     tail [-f | -r] [-b number | -c number | -n number | -number] [file ...]
+
+DESCRIPTION
+     The tail utility displays the contents of file or, by default, its standard input, to the
+     standard output.
+
+     The display begins at a byte, line, or 512-byte block location in the input.  Numbers having
+     a leading plus (`+') sign are relative to the beginning of the input, for example, -c +2
+     starts the display at the second byte of the input.  Numbers having a leading minus (`-')
+     sign or no explicit sign are relative to the end of the input, for example, -n 2 displays
+     the last two lines of the input.  The default starting location is -n 10, or the last 10
+     lines of the input.
+
+     The options are as follows:
+
+     -b number
+             The location is number 512-byte blocks.
+
+     -c number
+             The location is number bytes.
+
+     -f      Do not stop when end-of-file is reached; instead, wait for additional data to be ap-
+             pended to the input.  If the file is replaced (i.e., the inode number changes), tail
+             will reopen the file and continue.  If the file is truncated, tail will reset its
+             position to the beginning.  This makes tail more useful for watching log files that
+             may get rotated.  The -f option is ignored if there are no file arguments and the
+             standard input is a pipe or a FIFO.
+
+     -n number | -number
+             The location is number lines.
+
+     -r      The -r option causes the input to be displayed in reverse order, by line.  Addition-
+             ally, this option changes the meaning of the -b, -c, and -n options.  When the -r
+             option is specified, these options specify the number of bytes, lines or 512-byte
+             blocks to display, instead of the bytes, lines, or blocks from the beginning or end
+             of the input from which to begin the display.  The default for the -r option is to
+             display all of the input.
+
+     If more than one file is specified, tail precedes the output of each file with the follow-
+     ing, in order to distinguish files:
+
+           ==> file <==
+
+EXIT STATUS
+     The tail utility exits 0 on success, and >0 if an error occurs.
+
+EXAMPLES
+     To display the last 500 lines of the file foo:
+
+           $ tail -500 foo
+
+     Keep /var/log/messages open, displaying to the standard output anything appended to the
+     file:
+
+           $ tail -f /var/log/messages
+
+SEE ALSO
+     cat(1), head(1), sed(1)
+
+STANDARDS
+     The tail utility is compliant with the IEEE Std 1003.1-2008 ("POSIX.1") specification.
+
+     The flags [-br] are extensions to that specification.
+
+     The historic command line syntax of tail is supported by this implementation.  The only dif-
+     ference between this implementation and historic versions of tail, once the command line
+     syntax translation has been done, is that the -b, -c and -n options modify the -r option,
+     i.e., -r -c 4 displays the last 4 characters of the last line of the input, while the his-
+     toric tail (using the historic syntax -4cr) would ignore the -c option and display the last
+     4 lines of the input.
+
+HISTORY
+     A tail command appeared in Version 7 AT&T UNIX.
+
+BSD                                      October 25, 2015                                     BSD

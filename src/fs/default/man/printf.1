@@ -39,6 +39,8 @@ DESCRIPTION
            \\      Write a backslash character.
            \num    Write an 8-bit character whose ASCII value is the 1-, 2-, or 3-digit octal
                    number num.
+           \xnum   Write an 8-bit character whose ASCII value is the 1- or 2-digit hexadecimal
+                   number num.
 
      Each format specification is introduced by the percent (`%') character.  The remainder of
      the format specifiers include, in the following order:
@@ -163,8 +165,8 @@ STANDARDS
      in order to produce predictable output it deliberately ignores the locale(1) and always op-
      erates as if LC_ALL=C were set.
 
-     The escape sequences \e and \', as well as omitting the leading digit 0 from \0num octal es-
-     cape sequences in %b arguments, are extensions to that specification.
+     The escape sequences \e, \x and \', as well as omitting the leading digit 0 from \0num octal
+     escape sequences in %b arguments, are extensions to that specification.
 
 HISTORY
      The printf command appeared in 4.3BSD-Reno.
@@ -182,4 +184,4 @@ BUGS
      Since arguments are translated from ASCII to floating-point, and then back again, floating-
      point precision may be lost.
 
-BSD                                      January 16, 2020                                     BSD
+BSD                                        May 7, 2021                                        BSD
