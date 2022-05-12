@@ -1,8 +1,8 @@
 #!/bin/sh
 
-progs="basename cat cp csplit cut date dd dirname du echo expr factor false find fmt head join ln ls"
-progs="$progs mkdir mktemp mv nl paste pathchk printenv printf pwd rm rmdir sleep split stat sync"
-progs="$progs tail tee test touch tr true tsort uniq wc yes"
+progs="basename cat cp cut date dd dirname du find head ln ls"
+progs="$progs mkdir mktemp mv printenv printf pwd rm rmdir sleep stat sync"
+progs="$progs tail tee test tr uniq wc"
 
 mkdir -p src/fs/default/man
 
