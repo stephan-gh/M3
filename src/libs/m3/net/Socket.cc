@@ -136,10 +136,14 @@ Option<std::pair<size_t, Endpoint>> Socket::do_recv(void *dst, size_t amount) {
 }
 
 Option<size_t> Socket::do_send(const void *src, size_t amount, const Endpoint &ep) {
+    // make sure that the message does not contain a page boundary
+    ALIGNED(2048) char msg_buf[2048];
+    Errors::Code res = _channel.build_data_message(msg_buf, sizeof(msg_buf), ep, src, amount);
+    if(res != Errors::NONE)
+        throw Exception(res);
+
     while(true) {
-        Errors::Code res = _channel.send_data(ep, amount, [src, amount](void *buf) {
-            memcpy(buf, src, amount);
-        });
+        Errors::Code res = _channel.send_data(msg_buf, amount);
         if(res == Errors::NONE)
             return Some(amount);
         if(res != Errors::NO_CREDITS)

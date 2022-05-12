@@ -579,9 +579,11 @@ impl SocketSession {
                         ep
                     );
 
-                    if let Err(e) = chan.send_data(ep, amount, |buf| {
+                    let msg = chan.build_data_message(ep, amount, |buf| {
                         buf[0..amount].copy_from_slice(&data[0..amount]);
-                    }) {
+                    });
+
+                    if let Err(e) = chan.send_data(&msg) {
                         log!(
                             crate::LOG_ERR,
                             "[{}] socket {}: sending received packet with {}b failed: {}",

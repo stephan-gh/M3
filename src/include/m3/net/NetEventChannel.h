@@ -95,7 +95,9 @@ public:
 
     NetEventChannel(capsel_t caps);
 
-    Errors::Code send_data(const Endpoint &ep, size_t size, std::function<void(uchar *)> cb_data);
+    Errors::Code build_data_message(void *buffer, size_t buf_size, const Endpoint &ep,
+                                    const void *payload, size_t payload_size);
+    Errors::Code send_data(const void *buffer, size_t payload_size);
     bool send_close_req();
 
     bool can_send() const noexcept;

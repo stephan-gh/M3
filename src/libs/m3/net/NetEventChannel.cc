@@ -29,23 +29,23 @@ NetEventChannel::NetEventChannel(capsel_t caps)
     _rplgate.activate();
 }
 
-Errors::Code NetEventChannel::send_data(const Endpoint &ep, size_t size,
-                                        std::function<void(uchar *)> cb_data) {
-    // make sure that the message does not contain a page boundary
-    ALIGNED(2048) char msg_buf[2048];
-    if(size > sizeof(msg_buf) - sizeof(DataMessage))
+Errors::Code NetEventChannel::build_data_message(void *buffer, size_t buf_size, const Endpoint &ep,
+                                                 const void *payload, size_t payload_size) {
+    if(payload_size > buf_size - sizeof(DataMessage))
         return Errors::OUT_OF_BOUNDS;
 
-    auto msg = reinterpret_cast<DataMessage *>(msg_buf);
+    auto msg = reinterpret_cast<DataMessage *>(buffer);
     msg->type = Data;
     msg->addr = static_cast<uint64_t>(ep.addr.addr());
     msg->port = static_cast<uint64_t>(ep.port);
-    msg->size = static_cast<uint64_t>(size);
-    cb_data(msg->data);
+    msg->size = static_cast<uint64_t>(payload_size);
+    memcpy(msg->data, payload, payload_size);
+    return Errors::NONE;
+}
 
+Errors::Code NetEventChannel::send_data(const void *buffer, size_t payload_size) {
     fetch_replies();
-
-    return _sgate.try_send_aligned(msg_buf, size + sizeof(DataMessage));
+    return _sgate.try_send_aligned(buffer, payload_size + sizeof(DataMessage));
 }
 
 bool NetEventChannel::send_close_req() {

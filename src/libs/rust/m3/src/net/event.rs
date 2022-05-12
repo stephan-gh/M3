@@ -18,7 +18,7 @@ use core::fmt;
 
 use crate::cap::{CapFlags, Selector};
 use crate::com::{RGateArgs, RecvGate, SGateArgs, SendGate};
-use crate::errors::{Code, Error};
+use crate::errors::Error;
 use crate::int_enum;
 use crate::kif::{CapRngDesc, CapType};
 use crate::math;
@@ -235,13 +235,11 @@ impl NetEventChannel {
         self.sgate.send(&msg_buf, &self.rpl_gate)
     }
 
-    pub fn send_data<F>(&self, endpoint: Endpoint, size: usize, populate: F) -> Result<(), Error>
+    pub fn build_data_message<F>(&self, endpoint: Endpoint, size: usize, populate: F) -> DataMessage
     where
         F: FnOnce(&mut [u8]),
     {
-        if size > MTU {
-            return Err(Error::new(Code::OutOfBounds));
-        }
+        assert!(size <= MTU);
 
         #[allow(clippy::uninit_assumed_init)]
         let mut msg = DataMessage {
@@ -254,14 +252,17 @@ impl NetEventChannel {
         };
 
         populate(&mut msg.data[0..size]);
+        msg
+    }
 
+    pub fn send_data(&self, msg: &DataMessage) -> Result<(), Error> {
         // in case the application is doing many sends in a row, make sure that we fetch and ack the
         // replies from the server. otherwise we stop getting the credits for our sgate back.
         self.fetch_replies();
 
-        let msg_size = 4 * mem::size_of::<u64>() + size;
+        let msg_size = 4 * mem::size_of::<u64>() + msg.size as usize;
         self.sgate
-            .send_aligned(&msg as *const _ as *const u8, msg_size, &self.rpl_gate)
+            .send_aligned(msg as *const _ as *const u8, msg_size, &self.rpl_gate)
     }
 
     pub fn fetch_replies(&self) {

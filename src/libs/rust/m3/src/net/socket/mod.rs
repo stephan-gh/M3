@@ -19,7 +19,7 @@ use crate::errors::{Code, Error};
 use crate::llog;
 use crate::net::dataqueue::DataQueue;
 use crate::net::{
-    event, Endpoint, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketType,
+    event, Endpoint, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketType, MTU,
 };
 use crate::rc::Rc;
 use crate::vfs::FileEvent;
@@ -156,10 +156,18 @@ impl Socket {
     }
 
     pub fn send(&self, data: &[u8], endpoint: Endpoint) -> Result<(), Error> {
-        loop {
-            let res = self.channel.send_data(endpoint, data.len(), |buf| {
+        if data.len() > MTU {
+            return Err(Error::new(Code::OutOfBounds));
+        }
+
+        let msg = self
+            .channel
+            .build_data_message(endpoint, data.len(), |buf| {
                 buf.copy_from_slice(data);
             });
+
+        loop {
+            let res = self.channel.send_data(&msg);
             match res {
                 Err(e) if e.code() != Code::NoCredits => break Err(e),
                 Ok(_) => break Ok(()),
