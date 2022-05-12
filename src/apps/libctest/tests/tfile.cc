@@ -38,24 +38,25 @@ static void basics() {
     {
         int fd = open("/test.txt", O_RDONLY);
         WVASSERT(fd >= 0);
-        WVASSERTECODE(EPERM, write(fd, nullptr, 0));
-        WVASSERTEQ(read(fd, nullptr, 0), 0);
+        WVASSERTECODE(EPERM, write(fd, buf, 1));
+        WVASSERTEQ(read(fd, buf, 1), 1);
         close(fd);
     }
 
     {
         int fd = open("/test.txt", O_WRONLY);
         WVASSERT(fd >= 0);
-        WVASSERTECODE(EPERM, read(fd, nullptr, 0));
-        WVASSERTEQ(write(fd, nullptr, 0), 0);
+        WVASSERTECODE(EPERM, read(fd, buf, 1));
+        WVASSERTEQ(write(fd, buf, 1), 1);
         close(fd);
     }
 
     {
         int fd = open("/test.txt", O_RDWR);
         WVASSERT(fd >= 0);
-        WVASSERTEQ(read(fd, nullptr, 0), 0);
-        WVASSERTEQ(write(fd, nullptr, 0), 0);
+        WVASSERTEQ(read(fd, buf, 1), 1);
+        WVASSERTEQ(lseek(fd, 0, SEEK_SET), 0);
+        WVASSERTEQ(write(fd, buf, 1), 1);
         close(fd);
     }
 
