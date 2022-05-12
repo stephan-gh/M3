@@ -56,7 +56,7 @@ public:
         return Errors::NOT_SUP;
     }
     virtual size_t seek(size_t, int) override {
-        throw Exception(Errors::NOT_SUP);
+        throw Exception(Errors::SEEK_PIPE);
     }
     virtual void map(Reference<Pager> &, goff_t *, size_t, size_t, int, int) const override {
         throw Exception(Errors::NOT_SUP);

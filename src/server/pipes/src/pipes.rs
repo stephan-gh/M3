@@ -414,7 +414,7 @@ pub fn main() -> i32 {
                     hdl.close_sess(sid, is.rgate())
                 },
                 Operation::STAT => hdl.with_chan(is, |c, is| c.stat(is)),
-                Operation::SEEK => Err(Error::new(Code::NotSup)),
+                Operation::SEEK => Err(Error::new(Code::SeekPipe)),
                 _ => Err(Error::new(Code::InvArgs)),
             }
         })

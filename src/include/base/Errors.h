@@ -81,6 +81,7 @@ struct Errors {
         WRITE_FAILED,
         UTF8_ERROR,
         BAD_FD,
+        SEEK_PIPE,
         // networking
         INV_STATE,
         WOULD_BLOCK,
