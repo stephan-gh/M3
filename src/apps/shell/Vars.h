@@ -73,10 +73,10 @@ private:
     std::vector<const char *> _vars;
 };
 
-static inline const char *expr_value(Expr *e) {
-    if(e->is_var) {
-        const char *eval = m3::EnvVars::get(e->name_val);
+static inline const char *expr_value(const Parser::Expr &e) {
+    if(e.is_var()) {
+        const char *eval = m3::EnvVars::get(e.name().c_str());
         return eval ? eval : "";
     }
-    return e->name_val;
+    return e.name().c_str();
 }

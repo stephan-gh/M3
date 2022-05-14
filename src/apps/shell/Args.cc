@@ -20,9 +20,11 @@
 
 #include <m3/vfs/Dir.h>
 
+#include <sstream>
 #include <string.h>
 
 #include "Builtin.h"
+#include "Parser.h"
 #include "Vars.h"
 
 using namespace m3;
@@ -66,10 +68,10 @@ int Args::strmatch(const char *pattern, const char *str) {
     return true;
 }
 
-void Args::glob(ArgList *list, size_t i) {
+void Args::glob(std::unique_ptr<Parser::ArgList> &list, size_t i) {
     char filepat[MAX_ARG_LEN];
     char dirpath[256];
-    const char *pat = expr_value(list->args[i]);
+    const char *pat = expr_value(*list->get(i));
     const char *slash = strrchr(pat, '/');
     if(slash) {
         strcpy(filepat, slash + 1);
@@ -91,54 +93,38 @@ void Args::glob(ArgList *list, size_t i) {
 
         if(strmatch(filepat, e.name)) {
             if(patlen + strlen(e.name) + 1 <= MAX_ARG_LEN) {
-                if(found) {
-                    // move the following args forward
-                    for(size_t x = list->count - 1; x >= i; --x)
-                        list->args[x + 1] = list->args[x];
-                    list->count++;
-                }
+                std::ostringstream os;
+                os << dirpath << e.name;
+                if(found)
+                    list->insert(i, std::make_unique<Parser::Expr>(os.str(), false));
                 else
-                    ast_expr_destroy(list->args[i]);
-
-                char *new_arg = static_cast<char *>(malloc(patlen + strlen(e.name) + 1));
-                strcpy(new_arg, dirpath);
-                strcpy(new_arg + patlen, e.name);
-                list->args[i] = ast_expr_create(new_arg, false);
+                    list->replace(i, std::make_unique<Parser::Expr>(os.str(), false));
                 i++;
                 found = true;
-                if(list->count >= ARRAY_SIZE(list->args))
-                    break;
             }
         }
     }
 
-    if(!found) {
-        // remove wildcard argument
-        ast_expr_destroy(list->args[i]);
-        for(size_t x = i; x < list->count - 1; ++x)
-            list->args[x] = list->args[x + 1];
-        list->count--;
-    }
+    // remove wildcard argument if we haven't found anything
+    if(!found)
+        list->remove(i);
 }
 
-void Args::prefix_path(ArgList *args) {
-    if(args->count == 0)
+void Args::prefix_path(std::unique_ptr<Parser::ArgList> &list) {
+    if(list->size() == 0)
         return;
 
-    const char *first = expr_value(args->args[0]);
+    const char *first = expr_value(*list->get(0));
     if(first[0] != '/' && !Builtin::is_builtin(first)) {
-        size_t len = strlen(first);
-        char *newstr = static_cast<char *>(malloc(len + 5 + 1));
-        strcpy(newstr, "/bin/");
-        strcpy(newstr + 5, first);
-        ast_expr_destroy(args->args[0]);
-        args->args[0] = ast_expr_create(newstr, false);
+        std::ostringstream os;
+        os << "/bin/" << first;
+        list->replace(0, std::make_unique<Parser::Expr>(os.str(), false));
     }
 }
 
-void Args::expand(ArgList *list) {
-    for(size_t i = 0; i < list->count; ++i) {
-        if(strchr(expr_value(list->args[i]), '*'))
+void Args::expand(std::unique_ptr<Parser::ArgList> &list) {
+    for(size_t i = 0; i < list->size(); ++i) {
+        if(strchr(expr_value(*list->get(i)), '*'))
             glob(list, i);
     }
 }

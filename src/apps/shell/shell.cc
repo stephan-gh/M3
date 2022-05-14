@@ -29,6 +29,7 @@
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
 
+#include <algorithm>
 #include <memory>
 #include <stdlib.h>
 
@@ -36,6 +37,7 @@
 #include "Builtin.h"
 #include "Input.h"
 #include "Parser.h"
+#include "Tokenizer.h"
 #include "Vars.h"
 
 using namespace m3;
@@ -48,18 +50,20 @@ static const uint MIN_EPS = 16;
 static const uint64_t MIN_TIME = 100000; // 100µs
 static const size_t MIN_PTS = 16;
 
+static constexpr size_t MAX_CMDS = 8; // TODO get rid of this limit
+
 static bool have_vterm = false;
 static VTerm *vterm;
 
-static char **build_args(Command *cmd) {
-    char **res = new char *[cmd->args->count + 1];
-    for(size_t i = 0; i < cmd->args->count; ++i)
-        res[i] = (char *)expr_value(cmd->args->args[i]);
-    res[cmd->args->count] = nullptr;
+static std::unique_ptr<char *[]> build_args(const Parser::Command &cmd) {
+    std::unique_ptr<char *[]> res(new char *[cmd.args()->size() + 1]);
+    for(size_t i = 0; i < cmd.args()->size(); ++i)
+        res[i] = (char *)expr_value(*cmd.args()->get(i));
+    res[cmd.args()->size()] = nullptr;
     return res;
 }
 
-static const char *get_pe_name(const VarList &vars, const char *path) {
+static const char *get_pe_name(const std::unique_ptr<Parser::VarList> &vars, const char *path) {
     FStream f(path, FILE_R | FILE_X);
     if(f.bad())
         return "";
@@ -71,15 +75,15 @@ static const char *get_pe_name(const VarList &vars, const char *path) {
         return line;
     }
 
-    for(size_t i = 0; i < vars.count; ++i) {
-        if(strcmp(vars.vars[i].name, "TILE") == 0)
-            return expr_value(vars.vars[i].value);
+    for(auto var = vars->cbegin(); var != vars->cend(); ++var) {
+        if((*var)->name() == "TILE")
+            return expr_value(*(*var)->value());
     }
     // prefer a different tile to prevent that we run out of EPs or similar
     return "core|own";
 }
 
-static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
+static void execute_pipeline(Pipes &pipesrv, std::unique_ptr<Parser::CmdList> &cmds) {
     bool builtin[MAX_CMDS];
     std::unique_ptr<IndirectPipe> pipes[MAX_CMDS] = {nullptr};
     std::unique_ptr<MemGate> mems[MAX_CMDS] = {nullptr};
@@ -89,20 +93,21 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
     std::unique_ptr<ChildActivity> acts[MAX_CMDS] = {nullptr};
 
     // get tile types
-    for(size_t i = 0; i < list->count; ++i) {
-        if(list->cmds[i]->args->count == 0) {
+    for(size_t i = 0; i < cmds->size(); ++i) {
+        auto &cmd = cmds->get(i);
+        if(cmd->args()->size() == 0) {
             errmsg("Command has no arguments");
             return;
         }
 
-        const char *cmd_name = expr_value(list->cmds[i]->args->args[0]);
+        const char *cmd_name = expr_value(*cmd->args()->get(0));
         builtin[i] = Builtin::is_builtin(cmd_name);
         if(i > 0 && builtin[i]) {
             errmsg("Builtin command cannot read from pipe");
             return;
         }
         if(!builtin[i]) {
-            const char *tile_name = get_pe_name(*list->cmds[i]->vars, cmd_name);
+            const char *tile_name = get_pe_name(cmd->vars(), cmd_name);
             tiles[i] = Tile::get(tile_name);
         }
     }
@@ -111,18 +116,16 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
     FileRef<File> infile;
     FileRef<File> outfile;
     FileRef<File> errfile;
-    for(size_t i = 0; i < list->count; ++i) {
-        Command *cmd = list->cmds[i];
+    for(size_t i = 0; i < cmds->size(); ++i) {
+        auto &cmd = cmds->get(i);
 
         Vars vars;
-        for(size_t i = 0; i < cmd->vars->count; ++i) {
-            Var *v = cmd->vars->vars + i;
-            vars.set(v->name, expr_value(v->value));
-        }
+        for(auto var = cmd->vars()->cbegin(); var != cmd->vars()->cend(); ++var)
+            vars.set((*var)->name().c_str(), expr_value(*(*var)->value()));
 
         if(!builtin[i]) {
-            // if we share our tile with this child activity, give it separate quotas to ensure that
-            // we get our share (we don't trust the child apps)
+            // if we share our tile with this child activity, give it separate quotas to ensure
+            // that we get our share (we don't trust the child apps)
             if(tiles[i]->sel() == Activity::own().tile()->sel()) {
                 const auto [eps, time, pts] = tiles[i]->quota();
                 if(eps.left > MIN_EPS && pts.left > MIN_PTS)
@@ -132,20 +135,21 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                     tiles[i] = Tile::get("core");
             }
 
-            acts[i] = std::make_unique<ChildActivity>(tiles[i], expr_value(cmd->args->args[0]));
+            acts[i] = std::make_unique<ChildActivity>(tiles[i], expr_value(*cmd->args()->get(0)));
             act_count++;
         }
 
         // I/O redirection is only supported at the beginning and end
-        if((i + 1 < list->count && cmd->redirs->fds[STDOUT_FD]) ||
-           (i > 0 && cmd->redirs->fds[STDIN_FD])) {
+        if((i + 1 < cmds->size() && cmd->redirections()->std_out()) ||
+           (i > 0 && cmd->redirections()->std_in())) {
             throw MessageException("Invalid I/O redirection");
         }
 
         fd_t infd = STDIN_FD;
         if(i == 0) {
-            if(cmd->redirs->fds[STDIN_FD])
-                infile = VFS::open(cmd->redirs->fds[STDIN_FD], FILE_R | FILE_NEWSESS);
+            if(cmd->redirections()->std_in())
+                infile =
+                    VFS::open(expr_value(*cmd->redirections()->std_in()), FILE_R | FILE_NEWSESS);
             else if(vterm)
                 infile = vterm->create_channel(true);
             if(infile.is_valid())
@@ -159,9 +163,9 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
             acts[i]->add_file(STDIN_FD, infd);
 
         fd_t outfd = STDOUT_FD;
-        if(i + 1 == list->count) {
-            if(cmd->redirs->fds[STDOUT_FD])
-                outfile = VFS::open(cmd->redirs->fds[STDOUT_FD],
+        if(i + 1 == cmds->size()) {
+            if(cmd->redirections()->std_out())
+                outfile = VFS::open(expr_value(*cmd->redirections()->std_out()),
                                     FILE_W | FILE_CREATE | FILE_TRUNC | FILE_NEWSESS);
             else if(vterm)
                 outfile = vterm->create_channel(false);
@@ -178,10 +182,10 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
         if(acts[i] && outfd != STDOUT_FD)
             acts[i]->add_file(STDOUT_FD, outfd);
 
-        char **args = build_args(cmd);
+        std::unique_ptr<char *[]> args = build_args(*cmd);
 
         if(builtin[i]) {
-            Builtin::execute(args, outfd);
+            Builtin::execute(args.get(), outfd);
             // close stdout pipe to send EOF
             if(pipes[i])
                 pipes[i]->close_writer();
@@ -194,13 +198,11 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
 
             acts[i]->add_mount("/", "/");
 
-            acts[i]->exec(static_cast<int>(cmd->args->count), const_cast<const char **>(args),
-                          vars.get());
+            acts[i]->exec(static_cast<int>(cmd->args()->size()),
+                          const_cast<const char **>(args.get()), vars.get());
         }
         else
             accels[i] = std::make_unique<StreamAccel>(acts[i], ACOMP_TIME);
-
-        delete[] args;
 
         if(i > 0 && pipes[i - 1]) {
             if(acts[i] && acts[i]->tile_desc().is_programmable())
@@ -283,11 +285,11 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
             for(size_t i = 0; i < act_count; ++i) {
                 if(acts[i] && (signal || acts[i]->sel() == act)) {
                     if(exitcode != 0) {
-                        cerr << expr_value(list->cmds[i]->args->args[0])
+                        cerr << expr_value(*cmds->get(i)->args()->get(0))
                              << " terminated with exit code " << exitcode << "\n";
                     }
                     else if(signal) {
-                        cerr << expr_value(list->cmds[i]->args->args[0])
+                        cerr << expr_value(*cmds->get(i)->args()->get(0))
                              << " terminated by signal\n";
                     }
                     if(!acts[i]->tile_desc().is_programmable()) {
@@ -305,14 +307,14 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
     }
 }
 
-static void execute(Pipes &pipesrv, CmdList *list) {
+static void execute(Pipes &pipesrv, std::unique_ptr<Parser::CmdList> &list) {
     // ignore empty commands
-    if(list->count == 1 && list->cmds[0]->args->count == 0)
+    if(list->size() == 0)
         return;
 
-    for(size_t i = 0; i < list->count; ++i) {
-        Args::prefix_path(list->cmds[i]->args);
-        Args::expand(list->cmds[i]->args);
+    for(auto it = list->cbegin(); it != list->cend(); ++it) {
+        Args::prefix_path((*it)->args());
+        Args::expand((*it)->args());
     }
 
     try {
@@ -354,16 +356,19 @@ int main(int argc, char **argv) {
         for(int i = 1; i < argc; ++i)
             os << argv[i] << " ";
 
-        CmdList *list = parse_command(os.str());
-        if(!list)
-            exitmsg("Unable to parse command '" << os.str() << "'");
+        try {
+            Parser parser(Tokenizer::tokenize(os.str()));
+            auto cmdlist = parser.parse();
 
-        auto start = TimeInstant::now();
-        execute(pipesrv, list);
-        auto end = TimeInstant::now();
-        ast_cmds_destroy(list);
+            auto start = TimeInstant::now();
+            execute(pipesrv, cmdlist);
+            auto end = TimeInstant::now();
 
-        cerr << "Execution took " << end.duration_since(start) << "\n";
+            cerr << "Execution took " << end.duration_since(start) << "\n";
+        }
+        catch(const Exception &e) {
+            exitmsg("Unable to execute command: " << e.what() << "\n");
+        }
         return 0;
     }
 
@@ -385,12 +390,14 @@ int main(int argc, char **argv) {
         if(len < 0)
             break;
 
-        CmdList *list = parse_command(buffer);
-        if(!list)
-            continue;
-
-        execute(pipesrv, list);
-        ast_cmds_destroy(list);
+        try {
+            Parser parser(Tokenizer::tokenize(buffer));
+            auto cmdlist = parser.parse();
+            execute(pipesrv, cmdlist);
+        }
+        catch(const Exception &e) {
+            cerr << "Unable to execute command: " << e.what() << "\n";
+        }
     }
     return 0;
 }

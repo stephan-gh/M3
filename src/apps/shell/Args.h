@@ -24,10 +24,10 @@ class Args {
     enum { MAX_ARG_LEN = 256 };
 
 public:
-    static void prefix_path(ArgList *args);
-    static void expand(ArgList *args);
+    static void prefix_path(std::unique_ptr<Parser::ArgList> &args);
+    static void expand(std::unique_ptr<Parser::ArgList> &args);
 
 private:
     static int strmatch(const char *pattern, const char *str);
-    static void glob(ArgList *list, size_t i);
+    static void glob(std::unique_ptr<Parser::ArgList> &args, size_t i);
 };

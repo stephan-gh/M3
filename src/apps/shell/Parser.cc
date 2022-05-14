@@ -18,214 +18,126 @@
 
 #include "Parser.h"
 
-#include <m3/stream/FStream.h>
 #include <m3/stream/Standard.h>
 
-#include "parser.tab.h"
+#include <algorithm>
+#include <exception>
+#include <initializer_list>
+#include <memory>
 
 using namespace m3;
 
-static bool eof = false;
-static const char *line;
-static size_t line_pos;
-static bool seen_eq = false;
-static bool in_vars = true;
-CmdList *curcmd;
-extern YYSTYPE yylval;
-
-EXTERN_C int yyparse(void);
-
-EXTERN_C void yyerror(char const *s) {
-    cerr << s << "\n";
-    cerr.flush();
+m3::OStream &operator<<(m3::OStream &os, std::initializer_list<TokenType> tokens) {
+    for(auto it = tokens.begin(); it != tokens.end(); ++it) {
+        os << *it;
+        if(it + 1 != tokens.end())
+            os << ", or ";
+    }
+    return os;
 }
 
-EXTERN_C int yylex() {
-    size_t start = line_pos;
-    size_t end = 0;
+m3::OStream &operator<<(m3::OStream &os, Parser::PrevToken t) {
+    if(t.parser->_token > 0)
+        os << " after " << t.parser->_tokens[t.parser->_token - 1];
+    return os;
+}
 
-    char c;
-    if(!eof) {
-        bool in_str = false;
-        while((c = line[line_pos]) != '\0') {
-            if(in_str) {
-                line_pos++;
-                if(c == '"') {
-                    end = line_pos - 1;
-                    in_str = false;
-                    break;
-                }
-                continue;
-            }
+const Token &Parser::expect_token(std::initializer_list<TokenType> tokens) {
+    const Token *cur = token(0);
+    if(!cur)
+        VTHROW(Errors::NONE, "Missing token" << PrevToken(this) << "; expected " << tokens);
 
-            if(c == '"') {
-                if(line_pos != start)
-                    break;
-                start = line_pos + 1;
-                in_str = true;
-            }
-            else if(c == '|' || c == ';' || c == '>' || c == '<' || c == '$' ||
-                    (in_vars && c == '=')) {
-                if(c == '|' || c == ';')
-                    in_vars = true;
-                else if(c == '=')
-                    seen_eq = true;
-                if(line_pos == start) {
-                    line_pos++;
-                    return c;
-                }
-                break;
-            }
-
-            if(c == '\n') {
-                eof = true;
-                break;
-            }
-            if(c == ' ' || c == '\t') {
-                if(line_pos > start) {
-                    if(!seen_eq)
-                        in_vars = false;
-                    seen_eq = false;
-                    break;
-                }
-                start++;
-            }
-            line_pos++;
+    for(auto it = tokens.begin(); it != tokens.end(); ++it) {
+        if(cur->type() == *it) {
+            _token++;
+            return *cur;
         }
     }
 
-    if(line_pos > start) {
-        end = end ? end : line_pos;
-        char *token = static_cast<char *>(malloc(end - start + 1));
-        strncpy(token, line + start, end - start);
-        token[end - start] = '\0';
-        yylval.str = token;
-        return T_STRING;
-    }
-    return -1;
+    VTHROW(Errors::NONE, "Unexpected token" << PrevToken(this) << "; expected " << tokens);
 }
 
-Expr *ast_expr_create(const char *name, int is_var) {
-    Expr *e = new Expr;
-    e->is_var = is_var;
-    e->name_val = name;
-    return e;
+const Token *Parser::token(size_t off) const {
+    if(_token + off >= _tokens.size())
+        return nullptr;
+    return &_tokens[_token + off];
 }
 
-void ast_expr_destroy(Expr *e) {
-    free(const_cast<char *>(e->name_val));
-    delete e;
+bool Parser::expr_follows() const {
+    const Token *cur = token(0);
+    return cur && (cur->type() == TokenType::STRING || cur->type() == TokenType::DOLLAR);
 }
 
-Command *ast_cmd_create(VarList *vars, ArgList *args, RedirList *redirs) {
-    Command *cmd = new Command;
-    cmd->vars = vars;
-    cmd->args = args;
-    cmd->redirs = redirs;
-    return cmd;
-}
-
-void ast_cmd_destroy(Command *cmd) {
-    if(cmd) {
-        ast_vars_destroy(cmd->vars);
-        ast_redirs_destroy(cmd->redirs);
-        ast_args_destroy(cmd->args);
-        delete cmd;
+std::unique_ptr<Parser::Expr> Parser::parse_expr() {
+    const Token &cur = expect_token({TokenType::DOLLAR, TokenType::STRING});
+    if(cur.type() == TokenType::STRING)
+        return std::make_unique<Expr>(cur.string(), false);
+    else {
+        const Token &var_name = expect_token({TokenType::STRING});
+        return std::make_unique<Expr>(var_name.string(), true);
     }
 }
 
-CmdList *ast_cmds_create() {
-    CmdList *list = new CmdList;
-    list->count = 0;
+std::unique_ptr<Parser::VarList> Parser::parse_vars() {
+    auto list = std::make_unique<VarList>();
+    while(1) {
+        const Token *cur = token(0);
+        const Token *next = token(1);
+        if(cur && next && cur->type() == TokenType::STRING && next->type() == TokenType::ASSIGN) {
+            _token += 2;
+            list->add(std::make_unique<Var>(cur->string(), parse_expr()));
+        }
+        else
+            break;
+    }
     return list;
 }
 
-void ast_cmds_append(CmdList *list, Command *cmd) {
-    if(list->count == MAX_CMDS)
-        return;
-
-    list->cmds[list->count++] = cmd;
-}
-
-void ast_cmds_destroy(CmdList *list) {
-    if(list) {
-        for(size_t i = 0; i < list->count; ++i)
-            ast_cmd_destroy(list->cmds[i]);
-        delete list;
-    }
-}
-
-RedirList *ast_redirs_create(void) {
-    RedirList *list = new RedirList;
-    list->fds[STDIN_FD] = nullptr;
-    list->fds[STDOUT_FD] = nullptr;
+std::unique_ptr<Parser::ArgList> Parser::parse_args() {
+    auto list = std::make_unique<ArgList>();
+    list->add(parse_expr());
+    while(expr_follows())
+        list->add(parse_expr());
     return list;
 }
 
-void ast_redirs_set(RedirList *list, int fd, const char *file) {
-    assert(fd == STDIN_FD || fd == STDOUT_FD);
-    if(list->fds[fd])
-        free(const_cast<char *>(list->fds[fd]));
-    list->fds[fd] = file;
-}
-
-void ast_redirs_destroy(RedirList *list) {
-    free(const_cast<char *>(list->fds[STDIN_FD]));
-    free(const_cast<char *>(list->fds[STDOUT_FD]));
-    delete list;
-}
-
-ArgList *ast_args_create() {
-    ArgList *list = new ArgList;
-    list->count = 0;
+std::unique_ptr<Parser::RedirList> Parser::parse_redirections() {
+    auto list = std::make_unique<RedirList>();
+    const Token *cur;
+    while(((cur = token(0))) != nullptr) {
+        switch(cur->type()) {
+            case TokenType::LESS_THAN:
+                _token++;
+                list->std_in(parse_expr());
+                break;
+            case TokenType::GREATER_THAN:
+                _token++;
+                list->std_out(parse_expr());
+                break;
+            default: goto done;
+        }
+    }
+done:
     return list;
 }
 
-void ast_args_append(ArgList *list, Expr *arg) {
-    if(list->count == MAX_ARGS)
-        return;
-
-    list->args[list->count++] = arg;
+std::unique_ptr<Parser::Command> Parser::parse_command() {
+    auto vars = parse_vars();
+    auto args = parse_args();
+    auto redirs = parse_redirections();
+    return std::make_unique<Command>(std::move(vars), std::move(args), std::move(redirs));
 }
 
-void ast_args_destroy(ArgList *list) {
-    if(list) {
-        for(size_t i = 0; i < list->count; ++i)
-            ast_expr_destroy(list->args[i]);
-        delete list;
+std::unique_ptr<Parser::CmdList> Parser::parse() {
+    auto list = std::make_unique<CmdList>();
+    while(1) {
+        std::unique_ptr<Command> cmd = parse_command();
+        list->add(std::move(cmd));
+
+        if(!token(0))
+            break;
+
+        expect_token({TokenType::PIPE});
     }
-}
-
-VarList *ast_vars_create(void) {
-    VarList *list = new VarList;
-    list->count = 0;
     return list;
-}
-
-void ast_vars_set(VarList *list, const char *name, Expr *value) {
-    if(list->count == MAX_VARS)
-        return;
-
-    list->vars[list->count].name = name;
-    list->vars[list->count].value = value;
-    list->count++;
-}
-
-void ast_vars_destroy(VarList *list) {
-    for(size_t i = 0; i < list->count; ++i) {
-        free(const_cast<char *>(list->vars[i].name));
-        ast_expr_destroy(list->vars[i].value);
-    }
-    delete list;
-}
-
-CmdList *parse_command(const char *_line) {
-    eof = false;
-    curcmd = nullptr;
-    line = _line;
-    line_pos = 0;
-    in_vars = true;
-    seen_eq = false;
-    yyparse();
-    return curcmd;
 }

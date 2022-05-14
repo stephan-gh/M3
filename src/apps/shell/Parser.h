@@ -18,69 +18,188 @@
 
 #pragma once
 
-#include <base/Compiler.h>
+#include <base/Common.h>
 
-#define MAX_CMDS 8
-#define MAX_ARGS 32
-#define MAX_VARS 4
+#include <algorithm>
+#include <memory>
+#include <string>
+#include <vector>
 
-typedef struct {
-    int is_var;
-    const char *name_val;
-} Expr;
+#include "Tokenizer.h"
 
-typedef struct {
-    unsigned count;
-    Expr *args[MAX_ARGS];
-} ArgList;
+class Parser {
+    struct PrevToken {
+        PrevToken(Parser *parser) : parser(parser) {
+        }
+        Parser *parser;
+    };
 
-typedef struct {
-    const char *fds[2];
-} RedirList;
+    friend m3::OStream &operator<<(m3::OStream &os, PrevToken t);
 
-typedef struct {
-    const char *name;
-    Expr *value;
-} Var;
+public:
+    template<typename T>
+    class List {
+    public:
+        typedef std::vector<std::unique_ptr<T>> list_type;
 
-typedef struct {
-    unsigned count;
-    Var vars[MAX_VARS];
-} VarList;
+        explicit List() : _list() {
+        }
 
-typedef struct {
-    VarList *vars;
-    ArgList *args;
-    RedirList *redirs;
-} Command;
+        size_t size() const {
+            return _list.size();
+        }
 
-typedef struct {
-    unsigned count;
-    Command *cmds[MAX_CMDS];
-} CmdList;
+        const std::unique_ptr<T> &get(size_t idx) const {
+            return _list[idx];
+        }
 
-EXTERN_C Expr *ast_expr_create(const char *name, int is_var);
-EXTERN_C void ast_expr_destroy(Expr *e);
+        const typename list_type::const_iterator cbegin() const {
+            return _list.cbegin();
+        }
+        const typename list_type::const_iterator cend() const {
+            return _list.cend();
+        }
 
-EXTERN_C Command *ast_cmd_create(VarList *vars, ArgList *args, RedirList *redirs);
-EXTERN_C void ast_cmd_destroy(Command *cmd);
+        void add(std::unique_ptr<T> &&e) {
+            _list.push_back(std::move(e));
+        }
+        void insert(size_t i, std::unique_ptr<T> &&e) {
+            auto pos = std::next(_list.begin(), static_cast<ssize_t>(i));
+            _list.insert(pos, std::move(e));
+        }
+        void replace(size_t i, std::unique_ptr<T> &&e) {
+            _list[i] = std::move(e);
+        }
+        void remove(size_t i) {
+            auto pos = std::next(_list.begin(), static_cast<ssize_t>(i));
+            _list.erase(pos);
+        }
 
-EXTERN_C RedirList *ast_redirs_create(void);
-EXTERN_C void ast_redirs_set(RedirList *list, int fd, const char *file);
-EXTERN_C void ast_redirs_destroy(RedirList *list);
+    private:
+        list_type _list;
+    };
 
-EXTERN_C CmdList *ast_cmds_create(void);
-EXTERN_C void ast_cmds_append(CmdList *list, Command *cmd);
-EXTERN_C void ast_cmds_destroy(CmdList *list);
+    class Expr {
+    public:
+        explicit Expr(const std::string &name, int is_var) : _name(name), _is_var(is_var) {
+        }
 
-EXTERN_C ArgList *ast_args_create(void);
-EXTERN_C void ast_args_append(ArgList *list, Expr *arg);
-EXTERN_C void ast_args_destroy(ArgList *list);
+        bool is_var() const {
+            return _is_var;
+        }
+        const std::string &name() const {
+            return _name;
+        }
 
-EXTERN_C VarList *ast_vars_create(void);
-EXTERN_C void ast_vars_set(VarList *list, const char *name, Expr *value);
-EXTERN_C void ast_vars_destroy(VarList *list);
+    private:
+        std::string _name;
+        bool _is_var;
+    };
 
-#if defined(__cplusplus)
-CmdList *parse_command(const char *line);
-#endif
+    class ArgList : public List<Expr> {
+    public:
+        explicit ArgList() : List() {
+        }
+    };
+
+    class RedirList {
+    public:
+        explicit RedirList() : _fds() {
+        }
+
+        const std::unique_ptr<Expr> &std_in() const {
+            return _fds[0];
+        }
+        const std::unique_ptr<Expr> &std_out() const {
+            return _fds[1];
+        }
+        void std_in(std::unique_ptr<Expr> &&path) {
+            _fds[0] = std::move(path);
+        }
+        void std_out(std::unique_ptr<Expr> &&path) {
+            _fds[1] = std::move(path);
+        }
+
+    private:
+        std::unique_ptr<Expr> _fds[2];
+    };
+
+    class Var {
+    public:
+        explicit Var(const std::string &name, std::unique_ptr<Expr> &&value)
+            : _name(name),
+              _value(std::move(value)) {
+        }
+
+        const std::string &name() const {
+            return _name;
+        }
+        const std::unique_ptr<Expr> &value() const {
+            return _value;
+        }
+
+    private:
+        std::string _name;
+        std::unique_ptr<Expr> _value;
+    };
+
+    class VarList : public List<Var> {
+    public:
+        explicit VarList() : List() {
+        }
+    };
+
+    class Command {
+    public:
+        explicit Command(std::unique_ptr<VarList> &&vars, std::unique_ptr<ArgList> &&args,
+                         std::unique_ptr<RedirList> &&redirs)
+            : _vars(std::move(vars)),
+              _args(std::move(args)),
+              _redirs(std::move(redirs)) {
+        }
+
+        std::unique_ptr<ArgList> &args() {
+            return _args;
+        }
+        const std::unique_ptr<VarList> &vars() const {
+            return _vars;
+        }
+        const std::unique_ptr<ArgList> &args() const {
+            return _args;
+        }
+        const std::unique_ptr<RedirList> &redirections() const {
+            return _redirs;
+        }
+
+    private:
+        std::unique_ptr<VarList> _vars;
+        std::unique_ptr<ArgList> _args;
+        std::unique_ptr<RedirList> _redirs;
+    };
+
+    class CmdList : public List<Command> {
+    public:
+        explicit CmdList() : List() {
+        }
+    };
+
+    explicit Parser(std::vector<Token> &&tokens) : _tokens(std::move(tokens)), _token() {
+    }
+
+    std::unique_ptr<CmdList> parse();
+
+private:
+    const Token *token(size_t off) const;
+    bool expr_follows() const;
+
+    const Token &expect_token(std::initializer_list<TokenType> tokens);
+
+    std::unique_ptr<Command> parse_command();
+    std::unique_ptr<VarList> parse_vars();
+    std::unique_ptr<ArgList> parse_args();
+    std::unique_ptr<Expr> parse_expr();
+    std::unique_ptr<RedirList> parse_redirections();
+
+    std::vector<Token> _tokens;
+    size_t _token;
+};
