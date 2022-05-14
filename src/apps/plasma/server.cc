@@ -96,7 +96,8 @@ public:
     void put_text(unsigned row, unsigned col, uint8_t attr, const char *str, int len = -1) {
         while((len-- != 0) && *str != 0) {
             if(*str != ' ')
-                character(row, col) = *str | (attr << 8);
+                character(row, col) = static_cast<uint16_t>(*str) |
+                                      (static_cast<uint16_t>(attr) << 8);
             col++;
             str++;
         }
