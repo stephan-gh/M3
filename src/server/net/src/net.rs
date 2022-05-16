@@ -28,6 +28,7 @@ use m3::col::{BTreeMap, String, ToString, Vec};
 use m3::com::{GateIStream, RecvGate};
 use m3::errors::{Code, Error};
 use m3::math;
+use m3::net::{log_net, NetLogEvent};
 use m3::rc::Rc;
 use m3::server::{CapExchange, Handler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS};
 use m3::session::NetworkOp;
@@ -476,8 +477,10 @@ pub fn main() -> i32 {
             _ => sleep_nanos,
         };
 
+        log_net(NetLogEvent::StartedWaiting, 0, 0);
         log!(LOG_DETAIL, "Sleeping for {:?}", sleep_nanos);
         Activity::own().sleep_for(sleep_nanos).ok();
+        log_net(NetLogEvent::StoppedWaiting, 0, 0);
     }
 
     0

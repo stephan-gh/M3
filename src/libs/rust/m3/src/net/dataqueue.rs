@@ -64,7 +64,7 @@ impl DataQueue {
         !self.items.is_empty()
     }
 
-    pub fn next_data<F, R>(&mut self, len: usize, consume: &mut F) -> Option<R>
+    pub fn next_data<F, R>(&mut self, len: usize, consume: &mut F) -> Option<(usize, R)>
     where
         F: FnMut(&[u8], Endpoint) -> (usize, R),
     {
@@ -82,7 +82,7 @@ impl DataQueue {
             else {
                 first.pos += amount;
             }
-            Some(res)
+            Some((amount, res))
         }
         else {
             None

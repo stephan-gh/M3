@@ -16,6 +16,7 @@
  */
 
 #include <m3/Exception.h>
+#include <m3/net/Debug.h>
 #include <m3/net/Socket.h>
 #include <m3/net/TcpSocket.h>
 #include <m3/session/NetworkManager.h>
@@ -114,6 +115,8 @@ Option<size_t> TcpSocket::send(const void *src, size_t amount) {
     // like for receive: still allow sending if the remote side closed the connection
     if(_state != Connected && _state != RemoteClosed)
         throw Exception(Errors::NOT_CONNECTED);
+
+    log_net(NetLogEvent::SubmitData, _sd, amount);
 
     const uint8_t *src_bytes = reinterpret_cast<const uint8_t *>(src);
     size_t total = 0;

@@ -22,9 +22,9 @@ use crate::boxed::Box;
 use crate::errors::{Code, Error};
 use crate::io;
 use crate::net::{
-    event,
+    event, log_net,
     socket::{Socket, SocketArgs, State, StreamSocket},
-    Endpoint, Port, SocketType,
+    Endpoint, Port, NetLogEvent, SocketType,
 };
 use crate::rc::Rc;
 use crate::session::{HashInput, HashOutput, NetworkManager};
@@ -191,6 +191,7 @@ impl StreamSocket for TcpSocket {
 
     fn send(&mut self, mut data: &[u8]) -> Result<usize, Error> {
         let mut total = 0;
+        log_net(NetLogEvent::SubmitData, self.socket.sd(), data.len());
         while !data.is_empty() {
             let amount = event::MTU.min(data.len());
             let res = match self.socket.state() {

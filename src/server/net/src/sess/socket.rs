@@ -23,7 +23,7 @@ use m3::col::Vec;
 use m3::com::{GateIStream, RecvGate, SendGate};
 use m3::errors::{Code, Error};
 use m3::kif::{CapRngDesc, CapType};
-use m3::net::{IpAddr, Port, Sd, SocketArgs, SocketType, MTU};
+use m3::net::{log_net, IpAddr, Port, Sd, NetLogEvent, SocketArgs, SocketType, MTU};
 use m3::parse;
 use m3::rc::Rc;
 use m3::serialize::Source;
@@ -554,9 +554,22 @@ impl SocketSession {
                     // the match is needed, because we don't want to send the enum, but the
                     // contained event struct
                     match event {
-                        SendNetEvent::Connected(e) => chan.send_event(e).unwrap(),
-                        SendNetEvent::Closed(e) => chan.send_event(e).unwrap(),
-                        SendNetEvent::CloseReq(e) => chan.send_event(e).unwrap(),
+                        SendNetEvent::Connected(e) => {
+                            log_net(
+                                NetLogEvent::RecvConnected,
+                                socket_sd,
+                                e.remote_port as usize,
+                            );
+                            chan.send_event(e).unwrap()
+                        },
+                        SendNetEvent::Closed(e) => {
+                            log_net(NetLogEvent::RecvClosed, socket_sd, 0);
+                            chan.send_event(e).unwrap()
+                        },
+                        SendNetEvent::CloseReq(e) => {
+                            log_net(NetLogEvent::RecvRemoteClosed, socket_sd, 0);
+                            chan.send_event(e).unwrap()
+                        },
                     }
                 }
 
@@ -570,6 +583,7 @@ impl SocketSession {
                     let ep = to_m3_ep(addr);
                     let amount = cmp::min(MTU, data.len());
 
+                    log_net(NetLogEvent::FetchData, socket_sd, amount);
                     log!(
                         crate::LOG_DATA,
                         "[{}] socket {}: received packet with {}b from {}",

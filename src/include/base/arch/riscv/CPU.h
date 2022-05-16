@@ -78,4 +78,10 @@ inline void CPU::memory_barrier() {
     asm volatile("fence" : : : "memory");
 }
 
+inline cycles_t CPU::gem5_debug(uint64_t msg) {
+    register cycles_t a0 asm("a0") = msg;
+    asm volatile(".long 0xC600007B" : "+r"(a0));
+    return a0;
+}
+
 }

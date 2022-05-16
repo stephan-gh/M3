@@ -22,8 +22,9 @@ use crate::boxed::Box;
 use crate::errors::Error;
 use crate::io;
 use crate::net::{
+    log_net,
     socket::{DgramSocketArgs, Socket},
-    Endpoint, SocketType,
+    Endpoint, NetLogEvent, SocketType,
 };
 use crate::rc::Rc;
 use crate::session::{HashInput, HashOutput, NetworkManager};
@@ -78,6 +79,7 @@ impl RawSocket {
 
     /// Sends the given data to the given remote endpoint
     pub fn send(&self, data: &[u8]) -> Result<(), Error> {
+        log_net(NetLogEvent::SubmitData, self.socket.sd(), data.len());
         self.socket.send(data, Endpoint::unspecified())
     }
 }

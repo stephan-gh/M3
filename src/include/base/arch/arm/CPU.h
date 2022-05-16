@@ -49,9 +49,7 @@ ALWAYS_INLINE word_t CPU::stack_pointer() {
 
 inline cycles_t CPU::elapsed_cycles() {
     // TODO for now we use our custom instruction
-    register cycles_t r0 asm("r0") = 0;
-    asm volatile(".long 0xEE630110" : "+r"(r0));
-    return r0;
+    return gem5_debug(0);
 }
 
 inline uintptr_t CPU::backtrace_step(uintptr_t bp, uintptr_t *func) {
@@ -72,6 +70,14 @@ inline void CPU::compute(cycles_t cycles) {
 
 inline void CPU::memory_barrier() {
     asm volatile("dmb" : : : "memory");
+}
+
+inline cycles_t CPU::gem5_debug(uint64_t msg) {
+    // TODO for now we use our custom instruction
+    register uint32_t r0 asm("r0") = msg & 0xFFFF'FFFF;
+    register uint32_t r1 asm("r1") = msg >> 32;
+    asm volatile(".long 0xEE630110" : "+r"(r0), "+r"(r1));
+    return static_cast<uint64_t>(r0) | (static_cast<uint64_t>(r1) << 32);
 }
 
 }

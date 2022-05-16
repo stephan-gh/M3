@@ -127,3 +127,15 @@ pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
     *func = *bp_ptr.offset(-1);
     *bp_ptr.offset(-2)
 }
+
+pub fn gem5_debug(msg: u64) -> u64 {
+    let mut res = msg;
+    unsafe {
+        asm!(
+            ".long 0xC600007B",
+            inout("x10") res,
+            options(nostack),
+        );
+    }
+    res
+}

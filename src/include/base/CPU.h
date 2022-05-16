@@ -47,6 +47,8 @@ public:
     }
 
     static inline void memory_barrier();
+
+    static inline cycles_t gem5_debug(uint64_t msg);
 };
 
 }

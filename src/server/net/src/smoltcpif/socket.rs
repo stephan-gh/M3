@@ -20,8 +20,8 @@ use m3::errors::{Code, Error};
 use m3::log;
 use m3::mem::size_of;
 use m3::net::{
-    CloseReqMessage, ClosedMessage, ConnectedMessage, DataMessage, DataQueue, Endpoint, IpAddr,
-    NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketArgs, SocketType,
+    log_net, CloseReqMessage, ClosedMessage, ConnectedMessage, DataMessage, DataQueue, Endpoint,
+    IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, NetLogEvent, SocketArgs, SocketType,
 };
 use m3::rc::Rc;
 use m3::time::{TimeDuration, TimeInstant};
@@ -473,6 +473,7 @@ impl Socket {
             .next_data(usize::MAX, &mut |data, ep: Endpoint| {
                 let amount = Self::send(ty, socket, data, ep.addr, ep.port, iface);
                 if amount > 0 {
+                    log_net(NetLogEvent::SubmitData, sd, amount);
                     log!(
                         crate::LOG_DATA,
                         "[{}] socket {}: sent delayed packet of {}b to {}",
@@ -510,6 +511,7 @@ impl Socket {
                     iface,
                 );
                 if res > 0 {
+                    log_net(NetLogEvent::SubmitData, self.sd, res);
                     log!(
                         crate::LOG_DATA,
                         "[{}] socket {}: sent packet of {}b to {}:{}",

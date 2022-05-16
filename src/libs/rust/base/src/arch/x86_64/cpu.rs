@@ -104,3 +104,17 @@ pub fn elapsed_cycles() -> u64 {
     }
     u64::from(u) << 32 | u64::from(l)
 }
+
+pub fn gem5_debug(msg: u64) -> u64 {
+    let res: u64;
+    unsafe {
+        asm!(
+            ".byte 0x0F, 0x04",
+            ".word 0x63",
+            out("rax") res,
+            in("rdi") msg,
+            options(nostack),
+        );
+    }
+    res
+}

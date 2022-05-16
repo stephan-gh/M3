@@ -75,4 +75,14 @@ inline void CPU::memory_barrier() {
     asm volatile("mfence" : : : "memory");
 }
 
+inline cycles_t CPU::gem5_debug(uint64_t msg) {
+    cycles_t res;
+    asm volatile(
+        ".byte 0x0F, 0x04;"
+        ".word 0x63;"
+        : "=a"(res)
+        : "D"(msg));
+    return res;
+}
+
 }

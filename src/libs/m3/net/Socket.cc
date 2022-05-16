@@ -17,6 +17,7 @@
 
 #include <base/log/Lib.h>
 
+#include <m3/net/Debug.h>
 #include <m3/net/Net.h>
 #include <m3/net/Socket.h>
 #include <m3/net/TcpSocket.h>
@@ -51,7 +52,10 @@ void Socket::tear_down() noexcept {
             wait_for_credits();
             if(_channel.has_all_credits())
                 break;
+
+            log_net(NetLogEvent::StartedWaiting, _sd, 0);
             _channel.wait_for_credits();
+            log_net(NetLogEvent::StoppedWaiting, _sd, 0);
         }
     }
     catch(...) {
@@ -82,12 +86,14 @@ void Socket::process_message(const NetEventChannel::ControlMessage &message,
 }
 
 void Socket::handle_data(NetEventChannel::DataMessage const &msg, NetEventChannel::Event &event) {
+    log_net(NetLogEvent::RecvPacket, _sd, msg.size);
     LLOG(NET, "socket " << _sd << ": received data with " << msg.size << "b"
                         << " from " << IpAddr(msg.addr) << ":" << msg.port);
     _recv_queue.append(new DataQueue::Item(&msg, std::move(event)));
 }
 
 void Socket::handle_connected(NetEventChannel::ConnectedMessage const &msg) {
+    log_net(NetLogEvent::RecvConnected, _sd, msg.port);
     LLOG(NET, "socket " << _sd << ": connected to " << IpAddr(msg.addr) << ":" << msg.port);
     _state = Connected;
     _remote_ep.addr = IpAddr(msg.addr);
@@ -95,11 +101,13 @@ void Socket::handle_connected(NetEventChannel::ConnectedMessage const &msg) {
 }
 
 void Socket::handle_close_req(NetEventChannel::CloseReqMessage const &) {
+    log_net(NetLogEvent::RecvRemoteClosed, _sd, 0);
     LLOG(NET, "socket " << _sd << ": remote side was closed");
     _state = RemoteClosed;
 }
 
 void Socket::handle_closed(NetEventChannel::ClosedMessage const &) {
+    log_net(NetLogEvent::RecvClosed, _sd, 0);
     LLOG(NET, "socket " << _sd << ": closed");
     disconnect();
 }
@@ -126,6 +134,8 @@ Option<std::pair<size_t, Endpoint>> Socket::do_recv(void *dst, size_t amount) {
         size_t msg_size = Math::min(pkt_size, amount);
         memcpy(dst, pkt_data, msg_size);
 
+        log_net(NetLogEvent::FetchData, _sd, msg_size);
+
         // ack read data and discard excess bytes that do not fit into the supplied buffer
         ack_data(msg_size);
 
@@ -144,8 +154,10 @@ Option<size_t> Socket::do_send(const void *src, size_t amount, const Endpoint &e
 
     while(true) {
         Errors::Code res = _channel.send_data(msg_buf, amount);
-        if(res == Errors::NONE)
+        if(res == Errors::NONE) {
+            log_net(NetLogEvent::SentPacket, _sd, amount);
             return Some(amount);
+        }
         if(res != Errors::NO_CREDITS)
             throw Exception(res);
 
@@ -166,8 +178,11 @@ void Socket::ack_data(size_t size) {
 }
 
 void Socket::wait_for_events() {
-    while(!process_events())
+    while(!process_events()) {
+        log_net(NetLogEvent::StartedWaiting, _sd, 0);
         _channel.wait_for_events();
+        log_net(NetLogEvent::StoppedWaiting, _sd, 0);
+    }
 }
 
 void Socket::wait_for_credits() {
@@ -175,7 +190,10 @@ void Socket::wait_for_credits() {
         fetch_replies();
         if(can_send())
             break;
+
+        log_net(NetLogEvent::StartedWaiting, _sd, 0);
         _channel.wait_for_credits();
+        log_net(NetLogEvent::StoppedWaiting, _sd, 0);
     }
 }
 

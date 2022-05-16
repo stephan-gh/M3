@@ -21,7 +21,7 @@ use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{Perm, TileISA};
 use m3::log;
-use m3::net::MAC;
+use m3::net::{log_net, NetLogEvent, MAC};
 use m3::time::TimeDuration;
 
 use memoffset::offset_of;
@@ -332,6 +332,7 @@ impl E1000 {
         let offset = TX_BUF_OFF + cur_tx_buf as usize * TX_BUF_SIZE;
         self.write_bufs(packet, offset as goff);
 
+        log_net(NetLogEvent::SentPacket, 0, packet.len());
         log!(
             crate::LOG_NIC,
             "e1000: TX {} : {:#x}..{:#x}, {}",
@@ -439,6 +440,7 @@ impl E1000 {
             return Err(Error::new(Code::NotFound));
         }
 
+        log_net(NetLogEvent::RecvPacket, 0, desc[0].length as usize);
         log!(
             crate::LOG_NIC,
             "e1000: RX {}: {:#x}..{:#x} st={:#x} er={:#x}",

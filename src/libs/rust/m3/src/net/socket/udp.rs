@@ -22,8 +22,9 @@ use crate::boxed::Box;
 use crate::errors::{Code, Error};
 use crate::io;
 use crate::net::{
+    log_net,
     socket::{DGramSocket, Socket, SocketArgs, State},
-    Endpoint, Port, SocketType,
+    Endpoint, Port, NetLogEvent, SocketType,
 };
 use crate::rc::Rc;
 use crate::session::{HashInput, HashOutput, NetworkManager};
@@ -147,6 +148,7 @@ impl DGramSocket for UdpSocket {
             self.bind(0)?;
         }
 
+        log_net(NetLogEvent::SubmitData, self.socket.sd(), data.len());
         self.socket.send(data, endpoint)
     }
 }

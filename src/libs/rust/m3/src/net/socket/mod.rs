@@ -19,7 +19,8 @@ use crate::errors::{Code, Error};
 use crate::llog;
 use crate::net::dataqueue::DataQueue;
 use crate::net::{
-    event, Endpoint, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, SocketType, MTU,
+    event, log_net, Endpoint, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd,
+    NetLogEvent, SocketType, MTU,
 };
 use crate::rc::Rc;
 use crate::vfs::FileEvent;
@@ -81,13 +82,13 @@ pub(crate) struct Socket {
     ty: SocketType,
     blocking: bool,
 
-    pub state: State,
+    state: State,
 
-    pub local_ep: Option<Endpoint>,
-    pub remote_ep: Option<Endpoint>,
+    local_ep: Option<Endpoint>,
+    remote_ep: Option<Endpoint>,
 
-    pub channel: Rc<NetEventChannel>,
-    pub recv_queue: DataQueue,
+    channel: Rc<NetEventChannel>,
+    recv_queue: DataQueue,
 }
 
 impl Socket {
@@ -142,7 +143,8 @@ impl Socket {
         F: FnMut(&[u8], Endpoint) -> (usize, R),
     {
         loop {
-            if let Some(res) = self.recv_queue.next_data(amount, &mut consume) {
+            if let Some((sent, res)) = self.recv_queue.next_data(amount, &mut consume) {
+                log_net(NetLogEvent::FetchData, self.sd, sent);
                 return Ok(res);
             }
 
@@ -170,7 +172,10 @@ impl Socket {
             let res = self.channel.send_data(&msg);
             match res {
                 Err(e) if e.code() != Code::NoCredits => break Err(e),
-                Ok(_) => break Ok(()),
+                Ok(_) => {
+                    log_net(NetLogEvent::SentPacket, self.sd, msg.size as usize);
+                    break Ok(());
+                },
                 _ => {},
             }
 
@@ -203,7 +208,10 @@ impl Socket {
             if self.has_all_credits() {
                 break;
             }
+
+            log_net(NetLogEvent::StartedWaiting, self.sd, 0);
             self.channel.wait_for_credits();
+            log_net(NetLogEvent::StoppedWaiting, self.sd, 0);
         }
     }
 
@@ -234,7 +242,10 @@ impl Socket {
             if !ignore_remote_closes && self.state == State::RemoteClosed {
                 return Err(Error::new(Code::SocketClosed));
             }
+
+            log_net(NetLogEvent::StartedWaiting, self.sd, 0);
             self.channel.wait_for_events();
+            log_net(NetLogEvent::StoppedWaiting, self.sd, 0);
         }
         Ok(())
     }
@@ -245,7 +256,10 @@ impl Socket {
             if self.can_send() {
                 break;
             }
+
+            log_net(NetLogEvent::StartedWaiting, self.sd, 0);
             self.channel.wait_for_credits();
+            log_net(NetLogEvent::StoppedWaiting, self.sd, 0);
         }
     }
 
@@ -256,6 +270,7 @@ impl Socket {
                     || (self.state != State::Closing && self.state != State::Closed)
                 {
                     let _msg = event.msg::<event::DataMessage>();
+                    log_net(NetLogEvent::RecvPacket, self.sd, _msg.size as usize);
                     llog!(
                         NET,
                         "socket {}: received data with {}b from {}",
@@ -270,17 +285,24 @@ impl Socket {
             NetEventType::CONNECTED => {
                 let msg = event.msg::<event::ConnectedMessage>();
                 let ep = Endpoint::new(IpAddr(msg.remote_addr as u32), msg.remote_port as Port);
+                log_net(
+                    NetLogEvent::RecvConnected,
+                    self.sd,
+                    msg.remote_port as usize,
+                );
                 llog!(NET, "socket {}: connected to {}", self.sd, ep);
                 self.state = State::Connected;
                 self.remote_ep = Some(ep);
             },
 
             NetEventType::CLOSED => {
+                log_net(NetLogEvent::RecvClosed, self.sd, 0);
                 llog!(NET, "socket {}: closed", self.sd);
                 self.disconnect();
             },
 
             NetEventType::CLOSE_REQ => {
+                log_net(NetLogEvent::RecvRemoteClosed, self.sd, 0);
                 llog!(NET, "socket {}: remote side was closed", self.sd);
                 self.state = State::RemoteClosed;
             },

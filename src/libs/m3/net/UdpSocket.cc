@@ -16,6 +16,7 @@
  */
 
 #include <m3/Exception.h>
+#include <m3/net/Debug.h>
 #include <m3/net/Socket.h>
 #include <m3/net/UdpSocket.h>
 #include <m3/session/NetworkManager.h>
@@ -67,6 +68,8 @@ Option<size_t> UdpSocket::send_to(const void *src, size_t amount, const Endpoint
     // send_to implicitly calls bind, if not already done, to receive a local ephemeral port
     if(_state != State::Bound)
         bind(0);
+
+    log_net(NetLogEvent::SubmitData, _sd, amount);
 
     return Socket::do_send(src, amount, dst_ep);
 }

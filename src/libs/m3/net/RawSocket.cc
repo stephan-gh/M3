@@ -16,6 +16,7 @@
  */
 
 #include <m3/Exception.h>
+#include <m3/net/Debug.h>
 #include <m3/net/RawSocket.h>
 #include <m3/net/Socket.h>
 #include <m3/session/NetworkManager.h>
@@ -45,6 +46,7 @@ Option<size_t> RawSocket::recv(void *dst, size_t amount) {
 }
 
 Option<size_t> RawSocket::send(const void *src, size_t amount) {
+    log_net(NetLogEvent::SubmitData, _sd, amount);
     return Socket::do_send(src, amount, Endpoint());
 }
 

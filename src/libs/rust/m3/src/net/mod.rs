@@ -20,6 +20,9 @@ use base::errors::{Code, Error};
 mod dataqueue;
 pub use self::dataqueue::DataQueue;
 
+mod debug;
+pub use debug::{log_net, NetLogEvent};
+
 mod event;
 pub use self::event::{
     CloseReqMessage, ClosedMessage, ConnectedMessage, DataMessage, NetEvent, NetEventChannel,

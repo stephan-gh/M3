@@ -83,13 +83,18 @@ pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
 
 pub fn elapsed_cycles() -> u64 {
     // TODO for now we use our custom instruction
-    let mut lo = 0;
-    let hi: u32;
+    gem5_debug(0)
+}
+
+pub fn gem5_debug(msg: u64) -> u64 {
+    // see `read8b`
+    let mut lo = (msg & 0xFFFF_FFFF) as u32;
+    let mut hi = (msg >> 32) as u32;
     unsafe {
         asm!(
             ".long 0xEE630110",
             inout("r0") lo,
-            out("r1") hi,
+            inout("r1") hi,
             options(nostack),
         );
     }
