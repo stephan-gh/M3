@@ -81,4 +81,11 @@ impl<'a> DriverInterface<'a> {
             Self::Eth(e) => e.poll_delay(timestamp),
         }
     }
+
+    pub fn needs_poll(&self) -> bool {
+        match self {
+            Self::Lo(_) => false,
+            Self::Eth(e) => e.device().needs_poll(),
+        }
+    }
 }

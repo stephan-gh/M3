@@ -458,7 +458,7 @@ pub fn main() -> i32 {
             // check for outgoing events we have to send to clients
             let recvs_pending = handler.process_outgoing();
 
-            if !sends_pending && !recvs_pending {
+            if !sends_pending && !recvs_pending && !handler.iface.needs_poll() {
                 // ask smoltcp how long we can sleep
                 match handler.iface.poll_delay(cur_time) {
                     // we need to call it again immediately => continue the loop

@@ -66,6 +66,10 @@ impl AXIEthDevice {
             })
         }
     }
+
+    pub fn needs_poll(&self) -> bool {
+        false
+    }
 }
 
 impl Drop for AXIEthDevice {

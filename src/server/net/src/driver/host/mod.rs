@@ -194,6 +194,10 @@ impl<'a> DevFifo {
             mtu: 2048,
         }
     }
+
+    pub fn needs_poll(&self) -> bool {
+        false
+    }
 }
 
 impl<'a> Device<'a> for DevFifo {

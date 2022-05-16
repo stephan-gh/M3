@@ -48,6 +48,8 @@ pub struct E1000 {
     devbufs: MemGate,
 
     txd_context_proto: TxoProto,
+
+    needs_poll: bool,
 }
 
 static ZEROS: [u8; 4096] = [0; 4096];
@@ -71,6 +73,8 @@ impl E1000 {
             devbufs,
 
             txd_context_proto: TxoProto::UNSUPPORTED,
+
+            needs_poll: false,
         };
 
         dev.nic.set_dma_buffer(&dev.devbufs)?;
@@ -95,6 +99,10 @@ impl E1000 {
         dev.write_reg(REG::IMS, (ICR::LSC | ICR::RXO | ICR::RXT0).bits().into());
 
         Ok(dev)
+    }
+
+    pub fn needs_poll(&self) -> bool {
+        self.needs_poll
     }
 
     fn reset(&mut self) {
@@ -437,6 +445,7 @@ impl E1000 {
         );
 
         if (desc[0].status & RXDS::DD.bits()) == 0 {
+            self.needs_poll = false;
             return Err(Error::new(Code::NotFound));
         }
 
@@ -479,6 +488,14 @@ impl E1000 {
 
         // move to next package by updating the `tail` value on the device.
         self.write_reg(REG::RDT, tail);
+
+        // check if there is another packet and remind ourself to call receive again
+        let tail: u32 = inc_rb(tail, RX_BUF_COUNT as u32);
+        self.read_bufs(
+            &mut desc,
+            (RX_DESCS_OFF + tail as usize * core::mem::size_of::<RxDesc>()) as goff,
+        );
+        self.needs_poll = (desc[0].status & RXDS::DD.bits()) != 0;
 
         Ok(buf)
     }

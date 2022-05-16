@@ -37,6 +37,10 @@ impl E1000Device {
             dev: Rc::new(RefCell::new(e1000::E1000::new()?)),
         })
     }
+
+    pub fn needs_poll(&self) -> bool {
+        self.dev.borrow().needs_poll()
+    }
 }
 
 impl<'a> smoltcp::phy::Device<'a> for E1000Device {
