@@ -27,6 +27,13 @@ fn usage(prog: &str) -> ! {
         "Usage: {} [--nic <name>] [--net <tile> <nic> <name>] [--app <tile> <net> <name>]",
         prog
     );
+    eprintln!();
+    eprintln!(concat!(
+        "The tool expects the gem5.log in stdin. To see sent/received network packets at the",
+        " NIC level, please enable the Ethernet flag. To see decoded packet dumps, please enable",
+        " the EthernetData flag. Otherwise, the tool relies on the DEBUG prints performed by the",
+        " log_net() calls in M³."
+    ));
     exit(1)
 }
 
@@ -36,6 +43,10 @@ fn main() -> Result<(), Error> {
     let mut apps = Vec::default();
 
     let args: Vec<String> = env::args().collect();
+
+    if args.len() == 1 || args[1] == "-h" || args[1] == "--help" {
+        usage(&args[0]);
+    }
 
     for i in 0..args.len() {
         let arg = &args[i];
