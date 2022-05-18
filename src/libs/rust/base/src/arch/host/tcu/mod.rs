@@ -50,6 +50,7 @@ pub const AVAIL_EPS: EpId = TOTAL_EPS;
 
 pub const INVALID_EP: EpId = 0xFF;
 pub const UNLIM_CREDITS: u32 = 0xFFFF_FFFF;
+pub const UNLIM_TIMEOUT: u64 = 0xFFFF_FFFF_FFFF_FFFF;
 
 pub const SYSC_SEP_OFF: EpId = 0;
 pub const SYSC_REP_OFF: EpId = 1;
@@ -349,7 +350,7 @@ impl TCU {
     pub fn wait_for_msg(_ep: EpId, timeout: Option<u64>) -> Result<(), Error> {
         Self::set_cmd(CmdReg::OFFSET, match timeout {
             Some(t) => t as Reg,
-            None => 0xFFFF_FFFF_FFFF_FFFF,
+            None => UNLIM_TIMEOUT,
         });
         Self::set_cmd(
             CmdReg::CTRL,

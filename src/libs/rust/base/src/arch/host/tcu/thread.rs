@@ -21,7 +21,7 @@ use core::{ptr, sync::atomic};
 use crate::arch::envdata;
 use crate::arch::tcu::{
     backend, CmdReg, Command, Control, EpId, EpReg, Header, Reg, TileId, MAX_MSG_SIZE, TCU,
-    TOTAL_EPS, UNLIM_CREDITS,
+    TOTAL_EPS, UNLIM_CREDITS, UNLIM_TIMEOUT,
 };
 use crate::cell::{LazyStaticRefCell, RefMut, StaticCell, StaticRefCell, StaticUnsafeCell};
 use crate::errors::{Code, Error};
@@ -402,7 +402,7 @@ fn start_sleep() {
     let timeout = TCU::get_cmd(CmdReg::OFFSET);
     if MSG_CNT.get() == 0 {
         SLEEP.set(match timeout {
-            0xFFFF_FFFF_FFFF_FFFF => SleepState::UntilMsg,
+            t if t == UNLIM_TIMEOUT => SleepState::UntilMsg,
             t => SleepState::UntilTimeout(TCU::nanotime() + t),
         });
         log_tcu!("TCU: sleep started ({:?})", SLEEP.get());

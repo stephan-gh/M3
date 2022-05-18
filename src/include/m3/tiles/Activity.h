@@ -99,7 +99,7 @@ public:
         else if(env()->platform != Platform::HW)
             TCU::get().wait_for_msg(ep);
 #else
-        TCU::get().wait_for_msg(TCU::INVALID_EP, 0);
+        TCU::get().wait_for_msg(TCU::INVALID_EP);
 #endif
     }
 

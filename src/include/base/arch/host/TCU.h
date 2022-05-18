@@ -80,6 +80,7 @@ public:
     static const reg_t INVALID_EP = 0xFF;
     static const size_t NO_REPLIES = INVALID_EP;
     static const reg_t UNLIM_CREDITS = 0xFFFF'FFFF;
+    static const uint64_t UNLIM_TIMEOUT = 0xFFFF'FFFF'FFFF'FFFF;
 
     // command registers
     static constexpr size_t CMD_ADDR = 0;
@@ -280,7 +281,7 @@ public:
     uint64_t nanotime() const;
 
     void sleep() const;
-    void wait_for_msg(epid_t, uint64_t timeout) {
+    void wait_for_msg(epid_t, uint64_t timeout = UNLIM_TIMEOUT) {
         set_cmd(CMD_OFFSET, timeout);
         set_cmd(CMD_CTRL, static_cast<word_t>(SLEEP << OPCODE_SHIFT) | CTRL_START);
         exec_command();
