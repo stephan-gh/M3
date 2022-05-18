@@ -211,6 +211,14 @@ impl Socket {
                     let ep = to_m3_ep(tcp_socket.remote_endpoint());
                     Some(SendNetEvent::Connected(ConnectedMessage::new(ep)))
                 }
+                // are we already trying to close the socket again?
+                else if tcp_socket.state() != TcpState::Listen
+                    && tcp_socket.state() != TcpState::SynSent
+                    && tcp_socket.state() != TcpState::SynReceived
+                {
+                    self.state = State::RemoteClosed;
+                    Some(SendNetEvent::CloseReq(CloseReqMessage::default()))
+                }
                 else if let Some(start) = self.connect_start {
                     if TimeInstant::now() >= start + CONNECT_TIMEOUT {
                         tcp_socket.abort();
