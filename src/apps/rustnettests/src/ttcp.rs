@@ -18,13 +18,13 @@ use m3::com::Semaphore;
 use m3::errors::Code;
 use m3::net::{Endpoint, IpAddr, State, StreamSocket, StreamSocketArgs, TcpSocket};
 use m3::session::NetworkManager;
-use m3::test;
+use m3::test::{DefaultWvTester, WvTester};
 use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::vec::Vec;
 use m3::vfs::{File, FileEvent, FileWaiter};
 use m3::{vec, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, basics);
     wv_run_test!(t, unreachable);
     wv_run_test!(t, nonblocking_client);
@@ -34,60 +34,68 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, data);
 }
 
-fn basics() {
+fn basics(t: &mut dyn WvTester) {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
     let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(nm)));
 
-    wv_assert_eq!(socket.state(), State::Closed);
-    wv_assert_eq!(socket.local_endpoint(), None);
-    wv_assert_eq!(socket.remote_endpoint(), None);
+    wv_assert_eq!(t, socket.state(), State::Closed);
+    wv_assert_eq!(t, socket.local_endpoint(), None);
+    wv_assert_eq!(t, socket.remote_endpoint(), None);
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
-    wv_assert_err!(socket.send(&[0]), Code::NotConnected);
+    wv_assert_err!(t, socket.send(&[0]), Code::NotConnected);
     wv_assert_ok!(socket.connect(Endpoint::new(crate::DST_IP.get(), 1338)));
-    wv_assert_eq!(socket.state(), State::Connected);
-    wv_assert_eq!(socket.local_endpoint().unwrap().addr, crate::NET0_IP.get());
+    wv_assert_eq!(t, socket.state(), State::Connected);
     wv_assert_eq!(
+        t,
+        socket.local_endpoint().unwrap().addr,
+        crate::NET0_IP.get()
+    );
+    wv_assert_eq!(
+        t,
         socket.remote_endpoint(),
         Some(Endpoint::new(crate::DST_IP.get(), 1338))
     );
 
     let mut buf = [0u8; 32];
-    wv_assert_eq!(socket.send(&buf), Ok(buf.len()));
+    wv_assert_eq!(t, socket.send(&buf), Ok(buf.len()));
     wv_assert_ok!(socket.recv(&mut buf));
 
     // connecting to the same remote endpoint is okay
     wv_assert_ok!(socket.connect(Endpoint::new(crate::DST_IP.get(), 1338)));
     // if anything differs, it's an error
     wv_assert_err!(
+        t,
         socket.connect(Endpoint::new(crate::DST_IP.get(), 1339)),
         Code::IsConnected
     );
     wv_assert_err!(
+        t,
         socket.connect(Endpoint::new(IpAddr::new(88, 87, 86, 85), 1338)),
         Code::IsConnected
     );
 
     wv_assert_ok!(socket.abort());
-    wv_assert_eq!(socket.state(), State::Closed);
-    wv_assert_eq!(socket.local_endpoint(), None);
-    wv_assert_eq!(socket.remote_endpoint(), None);
+    wv_assert_eq!(t, socket.state(), State::Closed);
+    wv_assert_eq!(t, socket.local_endpoint(), None);
+    wv_assert_eq!(t, socket.remote_endpoint(), None);
 }
 
-fn unreachable() {
+fn unreachable(t: &mut dyn WvTester) {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
     let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(nm)));
 
     wv_assert_err!(
+        t,
         socket.connect(Endpoint::new(IpAddr::new(88, 87, 86, 85), 80)),
         Code::ConnectionFailed
     );
 }
 
-fn nonblocking_client() {
+fn nonblocking_client(t: &mut dyn WvTester) {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
     let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(nm)));
@@ -102,12 +110,14 @@ fn nonblocking_client() {
     out_waiter.add(socket.fd(), FileEvent::OUTPUT);
 
     wv_assert_err!(
+        t,
         socket.connect(Endpoint::new(crate::DST_IP.get(), 1338)),
         Code::InProgress
     );
     while socket.state() != State::Connected {
-        wv_assert_eq!(socket.state(), State::Connecting);
+        wv_assert_eq!(t, socket.state(), State::Connecting);
         wv_assert_err!(
+            t,
             socket.connect(Endpoint::new(crate::DST_IP.get(), 1338)),
             Code::AlreadyInProgress
         );
@@ -118,7 +128,7 @@ fn nonblocking_client() {
 
     for _ in 0..8 {
         while let Err(e) = socket.send(&buf) {
-            wv_assert_eq!(e.code(), Code::WouldBlock);
+            wv_assert_eq!(t, e.code(), Code::WouldBlock);
             out_waiter.wait();
         }
     }
@@ -127,7 +137,7 @@ fn nonblocking_client() {
     while total < 8 * buf.len() {
         loop {
             match socket.recv(&mut buf) {
-                Err(e) => wv_assert_eq!(e.code(), Code::WouldBlock),
+                Err(e) => wv_assert_eq!(t, e.code(), Code::WouldBlock),
                 Ok(size) => {
                     total += size;
                     break;
@@ -136,24 +146,24 @@ fn nonblocking_client() {
             in_waiter.wait();
         }
     }
-    wv_assert_eq!(total, 8 * buf.len());
+    wv_assert_eq!(t, total, 8 * buf.len());
 
     while let Err(e) = socket.close() {
         if e.code() != Code::WouldBlock {
-            wv_assert_eq!(e.code(), Code::InProgress);
+            wv_assert_eq!(t, e.code(), Code::InProgress);
             break;
         }
         out_waiter.wait();
     }
 
     while socket.state() != State::Closed {
-        wv_assert_eq!(socket.state(), State::Closing);
-        wv_assert_err!(socket.close(), Code::AlreadyInProgress);
+        wv_assert_eq!(t, socket.state(), State::Closing);
+        wv_assert_err!(t, socket.close(), Code::AlreadyInProgress);
         in_waiter.wait();
     }
 }
 
-fn nonblocking_server() {
+fn nonblocking_server(t: &mut dyn WvTester) {
     let tile = wv_assert_ok!(Tile::get("clone|own"));
     let mut act = wv_assert_ok!(ChildActivity::new_with(
         tile,
@@ -169,6 +179,7 @@ fn nonblocking_server() {
     dst.push_str(&m3::format!("{}", crate::NET1_IP.get()));
 
     let act = wv_assert_ok!(act.run(|| {
+        let mut t = DefaultWvTester::default();
         let mut src = Activity::own().data_source();
         let sem_sel: Selector = src.pop().unwrap();
         let net0_ip: IpAddr = src.pop_str_slice().unwrap().parse().unwrap();
@@ -181,25 +192,29 @@ fn nonblocking_server() {
         let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(nm)));
         wv_assert_ok!(socket.set_blocking(false));
 
-        wv_assert_eq!(socket.local_endpoint(), None);
-        wv_assert_eq!(socket.remote_endpoint(), None);
+        wv_assert_eq!(t, socket.local_endpoint(), None);
+        wv_assert_eq!(t, socket.remote_endpoint(), None);
 
         wv_assert_ok!(socket.listen(3000));
-        wv_assert_eq!(socket.state(), State::Listening);
+        wv_assert_eq!(t, socket.state(), State::Listening);
         wv_assert_ok!(sem.up());
 
         let mut waiter = FileWaiter::default();
         waiter.add(socket.fd(), FileEvent::INPUT);
 
-        wv_assert_err!(socket.accept(), Code::InProgress);
+        wv_assert_err!(t, socket.accept(), Code::InProgress);
         while socket.state() == State::Connecting {
-            wv_assert_err!(socket.accept(), Code::AlreadyInProgress);
+            wv_assert_err!(t, socket.accept(), Code::AlreadyInProgress);
             waiter.wait();
         }
         assert!(socket.state() == State::Connected || socket.state() == State::RemoteClosed);
 
-        wv_assert_eq!(socket.local_endpoint(), Some(Endpoint::new(net1_ip, 3000)));
-        wv_assert_eq!(socket.remote_endpoint().unwrap().addr, net0_ip);
+        wv_assert_eq!(
+            t,
+            socket.local_endpoint(),
+            Some(Endpoint::new(net1_ip, 3000))
+        );
+        wv_assert_eq!(t, socket.remote_endpoint().unwrap().addr, net0_ip);
 
         wv_assert_ok!(socket.set_blocking(true));
         wv_assert_ok!(socket.close());
@@ -217,10 +232,10 @@ fn nonblocking_server() {
 
     wv_assert_ok!(socket.close());
 
-    wv_assert_eq!(act.wait(), Ok(0));
+    wv_assert_eq!(t, act.wait(), Ok(0));
 }
 
-fn open_close() {
+fn open_close(t: &mut dyn WvTester) {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
     let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(nm)));
@@ -228,19 +243,19 @@ fn open_close() {
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
     wv_assert_ok!(socket.connect(Endpoint::new(crate::DST_IP.get(), 1338)));
-    wv_assert_eq!(socket.state(), State::Connected);
+    wv_assert_eq!(t, socket.state(), State::Connected);
 
     wv_assert_ok!(socket.close());
-    wv_assert_eq!(socket.state(), State::Closed);
-    wv_assert_eq!(socket.local_endpoint(), None);
-    wv_assert_eq!(socket.remote_endpoint(), None);
+    wv_assert_eq!(t, socket.state(), State::Closed);
+    wv_assert_eq!(t, socket.local_endpoint(), None);
+    wv_assert_eq!(t, socket.remote_endpoint(), None);
 
     let mut buf = [0u8; 32];
-    wv_assert_err!(socket.send(&buf), Code::NotConnected);
-    wv_assert_err!(socket.recv(&mut buf), Code::NotConnected);
+    wv_assert_err!(t, socket.send(&buf), Code::NotConnected);
+    wv_assert_err!(t, socket.recv(&mut buf), Code::NotConnected);
 }
 
-fn receive_after_close() {
+fn receive_after_close(t: &mut dyn WvTester) {
     let tile = wv_assert_ok!(Tile::get("clone|own"));
     let mut act = wv_assert_ok!(ChildActivity::new_with(
         tile,
@@ -255,6 +270,7 @@ fn receive_after_close() {
     dst.push_str(&m3::format!("{}", crate::NET0_IP.get()));
 
     let act = wv_assert_ok!(act.run(|| {
+        let mut t = DefaultWvTester::default();
         let mut src = Activity::own().data_source();
         let sem_sel: Selector = src.pop().unwrap();
         let net0_ip: IpAddr = src.pop_str_slice().unwrap().parse().unwrap();
@@ -266,19 +282,19 @@ fn receive_after_close() {
         let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(nm)));
 
         wv_assert_ok!(socket.listen(3000));
-        wv_assert_eq!(socket.state(), State::Listening);
+        wv_assert_eq!(t, socket.state(), State::Listening);
         wv_assert_ok!(sem.up());
 
         let ep = wv_assert_ok!(socket.accept());
-        wv_assert_eq!(ep.addr, net0_ip);
-        wv_assert_eq!(socket.state(), State::Connected);
+        wv_assert_eq!(t, ep.addr, net0_ip);
+        wv_assert_eq!(t, socket.state(), State::Connected);
 
         let mut buf = [0u8; 32];
-        wv_assert_eq!(socket.recv(&mut buf), Ok(32));
-        wv_assert_eq!(socket.send(&buf), Ok(32));
+        wv_assert_eq!(t, socket.recv(&mut buf), Ok(32));
+        wv_assert_eq!(t, socket.send(&buf), Ok(32));
 
         wv_assert_ok!(socket.close());
-        wv_assert_eq!(socket.state(), State::Closed);
+        wv_assert_eq!(t, socket.state(), State::Closed);
 
         0
     }));
@@ -292,8 +308,8 @@ fn receive_after_close() {
     wv_assert_ok!(socket.connect(Endpoint::new(crate::DST_IP.get(), 3000)));
 
     let mut buf = [0u8; 32];
-    wv_assert_eq!(socket.send(&buf), Ok(32));
-    wv_assert_eq!(socket.recv(&mut buf), Ok(32));
+    wv_assert_eq!(t, socket.send(&buf), Ok(32));
+    wv_assert_eq!(t, socket.recv(&mut buf), Ok(32));
 
     let mut waiter = FileWaiter::default();
     waiter.add(socket.fd(), FileEvent::INPUT);
@@ -305,10 +321,10 @@ fn receive_after_close() {
 
     wv_assert_ok!(socket.close());
 
-    wv_assert_eq!(act.wait(), Ok(0));
+    wv_assert_eq!(t, act.wait(), Ok(0));
 }
 
-fn data() {
+fn data(t: &mut dyn WvTester) {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
     let mut socket = wv_assert_ok!(TcpSocket::new(
@@ -331,7 +347,7 @@ fn data() {
 
         for i in 0..8 {
             let pkt = &send_buf[pkt_size * i..pkt_size * (i + 1)];
-            wv_assert_eq!(socket.send(pkt), Ok(pkt.len()));
+            wv_assert_eq!(t, socket.send(pkt), Ok(pkt.len()));
         }
 
         let mut received = 0;
@@ -340,7 +356,7 @@ fn data() {
             let recv_size = wv_assert_ok!(socket.recv(&mut recv_buf));
 
             for bufi in recv_buf.iter().take(recv_size) {
-                wv_assert_eq!(*bufi, expected_byte);
+                wv_assert_eq!(t, *bufi, expected_byte);
                 expected_byte = expected_byte.wrapping_add(1);
             }
             received += recv_size;

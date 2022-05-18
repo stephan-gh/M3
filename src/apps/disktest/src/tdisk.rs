@@ -28,28 +28,28 @@ pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, list_dir);
 }
 
-fn text_files() {
+fn text_files(t: &mut dyn WvTester) {
     {
         let mut file = wv_assert_ok!(VFS::open("/test.txt", OpenFlags::R));
         let s = wv_assert_ok!(file.read_to_string());
-        wv_assert_eq!(s, "This is a test\n");
+        wv_assert_eq!(t, s, "This is a test\n");
     }
 
     {
         let mut file = wv_assert_ok!(VFS::open("/test/test.txt", OpenFlags::R));
         let s = wv_assert_ok!(file.read_to_string());
-        wv_assert_eq!(s, "This is a test\n");
+        wv_assert_eq!(t, s, "This is a test\n");
     }
 }
 
-fn pat_file() {
+fn pat_file(t: &mut dyn WvTester) {
     let file = wv_assert_ok!(VFS::open("/pat.bin", OpenFlags::R));
     let mut buf = vec![0u8; 8 * 1024];
 
-    wv_assert_eq!(_validate_pattern_content(file, &mut buf), 64 * 1024);
+    wv_assert_eq!(t, _validate_pattern_content(t, file, &mut buf), 64 * 1024);
 }
 
-fn write_file() {
+fn write_file(t: &mut dyn WvTester) {
     // create new file
     {
         let mut file = wv_assert_ok!(VFS::open(
@@ -65,11 +65,11 @@ fn write_file() {
     {
         let mut file = wv_assert_ok!(VFS::open("/newfile", OpenFlags::R));
         let s = wv_assert_ok!(file.read_to_string());
-        wv_assert_eq!(s, "my content is 0x1234");
+        wv_assert_eq!(t, s, "my content is 0x1234");
     }
 }
 
-fn list_dir() {
+fn list_dir(t: &mut dyn WvTester) {
     let mut vec = Vec::new();
     for e in wv_assert_ok!(read_dir("/")) {
         if e.file_name() != "." && e.file_name() != ".." {
@@ -78,14 +78,18 @@ fn list_dir() {
     }
     vec.sort();
 
-    wv_assert_eq!(vec.len(), 4);
-    wv_assert_eq!(vec[0], "newfile");
-    wv_assert_eq!(vec[1], "pat.bin");
-    wv_assert_eq!(vec[2], "test");
-    wv_assert_eq!(vec[3], "test.txt");
+    wv_assert_eq!(t, vec.len(), 4);
+    wv_assert_eq!(t, vec[0], "newfile");
+    wv_assert_eq!(t, vec[1], "pat.bin");
+    wv_assert_eq!(t, vec[2], "test");
+    wv_assert_eq!(t, vec[3], "test.txt");
 }
 
-fn _validate_pattern_content(mut file: FileRef<GenericFile>, buf: &mut [u8]) -> usize {
+fn _validate_pattern_content(
+    t: &mut dyn WvTester,
+    mut file: FileRef<GenericFile>,
+    buf: &mut [u8],
+) -> usize {
     let mut pos: usize = 0;
     loop {
         let count = wv_assert_ok!(file.read(buf));
@@ -95,6 +99,7 @@ fn _validate_pattern_content(mut file: FileRef<GenericFile>, buf: &mut [u8]) -> 
 
         for b in buf.iter().take(count) {
             wv_assert_eq!(
+                t,
                 *b,
                 (pos & 0xFF) as u8,
                 "content wrong at offset {}: {} vs. {}",

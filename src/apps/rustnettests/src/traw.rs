@@ -20,33 +20,34 @@ use m3::io;
 use m3::kif;
 use m3::net::{RawSocket, RawSocketArgs, MAC};
 use m3::session::{NetworkManager, Pipes};
-use m3::test;
+use m3::test::WvTester;
 use m3::tiles::{ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::vfs::{BufReader, IndirectPipe};
 use m3::{format, wv_assert, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, no_perm);
     wv_run_test!(t, mac_addr);
     wv_run_test!(t, exec_ping);
 }
 
-fn no_perm() {
+fn no_perm(t: &mut dyn WvTester) {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
     wv_assert_err!(
+        t,
         RawSocket::new(RawSocketArgs::new(nm), None).map(|_| ()),
         Code::NoPerm
     );
 }
 
-fn mac_addr() {
+fn mac_addr(t: &mut dyn WvTester) {
     let mac = MAC::new(0x01, 0x02, 0x03, 0x04, 0x05, 0x06);
-    wv_assert_eq!(mac.raw(), 0x060504030201);
-    wv_assert_eq!(format!("{}", mac), "01:02:03:04:05:06");
+    wv_assert_eq!(t, mac.raw(), 0x060504030201);
+    wv_assert_eq!(t, format!("{}", mac), "01:02:03:04:05:06");
 }
 
-fn exec_ping() {
+fn exec_ping(t: &mut dyn WvTester) {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
@@ -68,10 +69,13 @@ fn exec_ping() {
         }
 
         if line.contains("packets") {
-            wv_assert!(line.starts_with("5 packets transmitted, 5 received"));
+            wv_assert!(t, line.starts_with("5 packets transmitted, 5 received"));
         }
         else if line.contains("from") {
-            wv_assert!(line.starts_with(&format!("84 bytes from {}:", crate::NET1_IP.get())));
+            wv_assert!(
+                t,
+                line.starts_with(&format!("84 bytes from {}:", crate::NET1_IP.get()))
+            );
         }
 
         m3::println!("{}", line);
@@ -80,5 +84,5 @@ fn exec_ping() {
 
     pipe.close_reader();
 
-    wv_assert_eq!(ping_act.wait(), Ok(0));
+    wv_assert_eq!(t, ping_act.wait(), Ok(0));
 }

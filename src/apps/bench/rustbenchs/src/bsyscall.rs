@@ -24,14 +24,14 @@ use m3::kif;
 use m3::math;
 use m3::rc::Rc;
 use m3::syscalls;
-use m3::test;
+use m3::test::WvTester;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity, Tile};
 use m3::time::{CycleInstant, Profiler, Runner};
 use m3::{println, wv_assert_ok, wv_perf, wv_run_test};
 
 static SEL: StaticCell<kif::CapSel> = StaticCell::new(0);
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     SEL.set(Activity::own().alloc_sel());
 
     wv_run_test!(t, noop);
@@ -48,7 +48,7 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, revoke_send_gate);
 }
 
-fn noop() {
+fn noop(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default();
 
     wv_perf!(
@@ -59,7 +59,7 @@ fn noop() {
     );
 }
 
-fn activate() {
+fn activate(_t: &mut dyn WvTester) {
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
     let ep = wv_assert_ok!(Activity::own().epmng_mut().acquire(0));
 
@@ -80,7 +80,7 @@ fn activate() {
     Activity::own().epmng_mut().release(ep, true);
 }
 
-fn create_mgate() {
+fn create_mgate(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().repeats(100).warmup(100);
 
     #[derive(Default)]
@@ -113,7 +113,7 @@ fn create_mgate() {
     );
 }
 
-fn create_rgate() {
+fn create_rgate(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().repeats(100).warmup(100);
 
     #[derive(Default)]
@@ -139,7 +139,7 @@ fn create_rgate() {
     );
 }
 
-fn create_sgate() {
+fn create_sgate(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().repeats(100).warmup(10);
 
     #[derive(Default)]
@@ -176,7 +176,7 @@ fn create_sgate() {
     );
 }
 
-fn create_map() {
+fn create_map(_t: &mut dyn WvTester) {
     if !Activity::own().tile_desc().has_virtmem() {
         println!("Tile has no virtual memory support; skipping");
         return;
@@ -225,7 +225,7 @@ fn create_map() {
     wv_perf!("create_map", prof.runner::<CycleInstant, _>(&mut tester));
 }
 
-fn create_srv() {
+fn create_srv(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().repeats(100).warmup(10);
 
     #[derive(Default)]
@@ -263,7 +263,7 @@ fn create_srv() {
     );
 }
 
-fn derive_mem() {
+fn derive_mem(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().repeats(100).warmup(10);
 
     #[derive(Default)]
@@ -302,7 +302,7 @@ fn derive_mem() {
     );
 }
 
-fn exchange() {
+fn exchange(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().repeats(100).warmup(10);
 
     struct Tester {
@@ -347,7 +347,7 @@ fn exchange() {
     );
 }
 
-fn revoke_mem_gate() {
+fn revoke_mem_gate(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().repeats(100).warmup(10);
 
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
@@ -377,7 +377,7 @@ fn revoke_mem_gate() {
     );
 }
 
-fn revoke_recv_gate() {
+fn revoke_recv_gate(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().repeats(100).warmup(10);
 
     #[derive(Default)]
@@ -403,7 +403,7 @@ fn revoke_recv_gate() {
     );
 }
 
-fn revoke_send_gate() {
+fn revoke_send_gate(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().repeats(100).warmup(10);
 
     #[derive(Default)]

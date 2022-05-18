@@ -22,12 +22,12 @@ use m3::errors::Code;
 use m3::io::{self, Read, Write};
 use m3::kif;
 use m3::session::Pipes;
-use m3::test;
+use m3::test::{DefaultWvTester, WvTester};
 use m3::tiles::{ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::vfs::{BufReader, IndirectPipe};
 use m3::{println, wv_assert_eq, wv_assert_ok, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, child_to_parent);
     wv_run_test!(t, parent_to_child);
     wv_run_test!(t, child_to_child);
@@ -36,7 +36,7 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, reader_quit);
 }
 
-fn child_to_parent() {
+fn child_to_parent(t: &mut dyn WvTester) {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
@@ -54,14 +54,14 @@ fn child_to_parent() {
 
     let mut input = pipe.reader().unwrap();
     let s = wv_assert_ok!(input.read_to_string());
-    wv_assert_eq!(s, "This is a test!\n");
+    wv_assert_eq!(t, s, "This is a test!\n");
 
     pipe.close_reader();
 
-    wv_assert_eq!(act.wait(), Ok(0));
+    wv_assert_eq!(t, act.wait(), Ok(0));
 }
 
-fn parent_to_child() {
+fn parent_to_child(t: &mut dyn WvTester) {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
@@ -71,22 +71,23 @@ fn parent_to_child() {
     act.add_file(io::STDIN_FILENO, pipe.reader().unwrap().fd());
 
     let act = wv_assert_ok!(act.run(|| {
+        let mut t = DefaultWvTester::default();
         let s = wv_assert_ok!(io::stdin().read_to_string());
-        wv_assert_eq!(s, "This is a test!\n");
+        wv_assert_eq!(t, s, "This is a test!\n");
         0
     }));
 
     pipe.close_reader();
 
     let mut output = pipe.writer().unwrap();
-    wv_assert_eq!(output.write(b"This is a test!\n"), Ok(16));
+    wv_assert_eq!(t, output.write(b"This is a test!\n"), Ok(16));
 
     pipe.close_writer();
 
-    wv_assert_eq!(act.wait(), Ok(0));
+    wv_assert_eq!(t, act.wait(), Ok(0));
 }
 
-fn child_to_child() {
+fn child_to_child(t: &mut dyn WvTester) {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
@@ -104,19 +105,20 @@ fn child_to_child() {
     }));
 
     let rd_act = wv_assert_ok!(reader.run(|| {
+        let mut t = DefaultWvTester::default();
         let s = wv_assert_ok!(io::stdin().read_to_string());
-        wv_assert_eq!(s, "This is a test!\n");
+        wv_assert_eq!(t, s, "This is a test!\n");
         0
     }));
 
     pipe.close_reader();
     pipe.close_writer();
 
-    wv_assert_eq!(wr_act.wait(), Ok(0));
-    wv_assert_eq!(rd_act.wait(), Ok(0));
+    wv_assert_eq!(t, wr_act.wait(), Ok(0));
+    wv_assert_eq!(t, rd_act.wait(), Ok(0));
 }
 
-fn exec_child_to_child() {
+fn exec_child_to_child(t: &mut dyn WvTester) {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
@@ -131,19 +133,20 @@ fn exec_child_to_child() {
     let wr_act = wv_assert_ok!(writer.exec(&["/bin/hello"]));
 
     let rd_act = wv_assert_ok!(reader.run(|| {
+        let mut t = DefaultWvTester::default();
         let s = wv_assert_ok!(io::stdin().read_to_string());
-        wv_assert_eq!(s, "Hello World\n");
+        wv_assert_eq!(t, s, "Hello World\n");
         0
     }));
 
     pipe.close_reader();
     pipe.close_writer();
 
-    wv_assert_eq!(wr_act.wait(), Ok(0));
-    wv_assert_eq!(rd_act.wait(), Ok(0));
+    wv_assert_eq!(t, wr_act.wait(), Ok(0));
+    wv_assert_eq!(t, rd_act.wait(), Ok(0));
 }
 
-fn writer_quit() {
+fn writer_quit(t: &mut dyn WvTester) {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
@@ -163,21 +166,21 @@ fn writer_quit() {
     let input = pipe.reader().unwrap();
     let mut reader = BufReader::new(input);
     let mut s = String::new();
-    wv_assert_eq!(reader.read_line(&mut s), Ok(15));
-    wv_assert_eq!(s, "This is a test!");
+    wv_assert_eq!(t, reader.read_line(&mut s), Ok(15));
+    wv_assert_eq!(t, s, "This is a test!");
     s.clear();
-    wv_assert_eq!(reader.read_line(&mut s), Ok(15));
-    wv_assert_eq!(s, "This is a test!");
+    wv_assert_eq!(t, reader.read_line(&mut s), Ok(15));
+    wv_assert_eq!(t, s, "This is a test!");
     s.clear();
-    wv_assert_eq!(reader.read_line(&mut s), Ok(0));
-    wv_assert_eq!(s, "");
+    wv_assert_eq!(t, reader.read_line(&mut s), Ok(0));
+    wv_assert_eq!(t, s, "");
 
     pipe.close_reader();
 
-    wv_assert_eq!(act.wait(), Ok(0));
+    wv_assert_eq!(t, act.wait(), Ok(0));
 }
 
-fn reader_quit() {
+fn reader_quit(t: &mut dyn WvTester) {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
@@ -187,9 +190,10 @@ fn reader_quit() {
     act.add_file(io::STDIN_FILENO, pipe.reader().unwrap().fd());
 
     let act = wv_assert_ok!(act.run(|| {
+        let mut t = DefaultWvTester::default();
         let mut s = String::new();
-        wv_assert_eq!(io::stdin().read_line(&mut s), Ok(15));
-        wv_assert_eq!(s, "This is a test!");
+        wv_assert_eq!(t, io::stdin().read_line(&mut s), Ok(15));
+        wv_assert_eq!(t, s, "This is a test!");
         0
     }));
 
@@ -199,9 +203,9 @@ fn reader_quit() {
     loop {
         let res = output.write(b"This is a test!\n");
         match res {
-            Ok(count) => wv_assert_eq!(count, 16),
+            Ok(count) => wv_assert_eq!(t, count, 16),
             Err(e) => {
-                wv_assert_eq!(e.code(), Code::EndOfFile);
+                wv_assert_eq!(t, e.code(), Code::EndOfFile);
                 break;
             },
         }
@@ -209,5 +213,5 @@ fn reader_quit() {
 
     pipe.close_writer();
 
-    wv_assert_eq!(act.wait(), Ok(0));
+    wv_assert_eq!(t, act.wait(), Ok(0));
 }

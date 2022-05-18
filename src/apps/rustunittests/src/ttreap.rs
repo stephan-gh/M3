@@ -17,10 +17,10 @@
  */
 
 use m3::col::{Treap, Vec};
-use m3::test;
+use m3::test::WvTester;
 use m3::{wv_assert_eq, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, test_in_order);
     wv_run_test!(t, test_rev_order);
     wv_run_test!(t, test_rand_order);
@@ -28,22 +28,22 @@ pub fn run(t: &mut dyn test::WvTester) {
 
 const TEST_NODE_COUNT: u32 = 10;
 
-fn test_in_order() {
+fn test_in_order(t: &mut dyn WvTester) {
     let vals = (0..TEST_NODE_COUNT).collect::<Vec<u32>>();
-    test_add_modify_and_rem(&vals);
+    test_add_modify_and_rem(t, &vals);
 }
 
-fn test_rev_order() {
+fn test_rev_order(t: &mut dyn WvTester) {
     let vals = (0..TEST_NODE_COUNT).rev().collect::<Vec<u32>>();
-    test_add_modify_and_rem(&vals);
+    test_add_modify_and_rem(t, &vals);
 }
 
-fn test_rand_order() {
+fn test_rand_order(t: &mut dyn WvTester) {
     let vals = [1, 6, 2, 3, 8, 9, 7, 5, 4];
-    test_add_modify_and_rem(&vals);
+    test_add_modify_and_rem(t, &vals);
 }
 
-fn test_add_modify_and_rem(vals: &[u32]) {
+fn test_add_modify_and_rem(t: &mut dyn WvTester, vals: &[u32]) {
     let mut plus_one = Vec::new();
     for v in vals {
         plus_one.push(v + 1);
@@ -64,13 +64,13 @@ fn test_add_modify_and_rem(vals: &[u32]) {
     // find all
     for (i, v) in vals.iter().enumerate() {
         let val = treap.get(v);
-        wv_assert_eq!(val, Some(&&plus_one[i]));
+        wv_assert_eq!(t, val, Some(&&plus_one[i]));
     }
 
     // remove
     for (i, v) in vals.iter().enumerate() {
         let val = treap.remove(v);
-        wv_assert_eq!(val, Some(&plus_one[i]));
-        wv_assert_eq!(treap.get(v), None);
+        wv_assert_eq!(t, val, Some(&plus_one[i]));
+        wv_assert_eq!(t, treap.get(v), None);
     }
 }

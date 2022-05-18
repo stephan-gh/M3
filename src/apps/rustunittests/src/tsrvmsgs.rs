@@ -22,11 +22,11 @@ use m3::kif;
 use m3::math::next_log2;
 use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::ServerSession;
-use m3::test;
+use m3::test::WvTester;
 use m3::tiles::{ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::{reply_vmsg, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, testmsgs);
 }
 
@@ -127,7 +127,7 @@ fn server_msgs_main() -> i32 {
     0
 }
 
-pub fn testmsgs() {
+fn testmsgs(t: &mut dyn WvTester) {
     use m3::send_recv;
 
     let server_tile = wv_assert_ok!(Tile::get("clone|own"));
@@ -145,7 +145,7 @@ pub fn testmsgs() {
         for _ in 0..5 {
             let mut reply = wv_assert_ok!(send_recv!(&sgate, RecvGate::def(), "123456"));
             let resp: String = wv_assert_ok!(reply.pop());
-            wv_assert_eq!(resp, "654321");
+            wv_assert_eq!(t, resp, "654321");
         }
     }
 
@@ -156,14 +156,15 @@ pub fn testmsgs() {
 
         let mut reply = wv_assert_ok!(send_recv!(&sgate, RecvGate::def(), "123456"));
         let resp: String = wv_assert_ok!(reply.pop());
-        wv_assert_eq!(resp, "654321");
+        wv_assert_eq!(t, resp, "654321");
 
         wv_assert_err!(
+            t,
             send_recv!(&sgate, RecvGate::def(), "123456"),
             Code::NoSEP,
             Code::RecvGone
         );
     }
 
-    wv_assert_eq!(sact.wait(), Ok(1));
+    wv_assert_eq!(t, sact.wait(), Ok(1));
 }

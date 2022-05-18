@@ -16,12 +16,12 @@
 use m3::cap::Selector;
 use m3::com::Semaphore;
 use m3::io::{Read, Write};
-use m3::test;
+use m3::test::{DefaultWvTester, WvTester};
 use m3::tiles::{Activity, ChildActivity, RunningActivity, Tile};
 use m3::vfs::{OpenFlags, VFS};
 use m3::{wv_assert_eq, wv_assert_ok, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, taking_turns);
 }
 
@@ -40,7 +40,7 @@ fn set_counter(filename: &str, value: u32) {
     wv_assert_ok!(write!(file, "{}", value));
 }
 
-fn taking_turns() {
+fn taking_turns(t: &mut dyn WvTester) {
     let sem0 = wv_assert_ok!(Semaphore::create(1));
     let sem1 = wv_assert_ok!(Semaphore::create(0));
 
@@ -59,6 +59,7 @@ fn taking_turns() {
     dst.push_word(sem1.sel());
 
     let act = wv_assert_ok!(child.run(|| {
+        let mut t = DefaultWvTester::default();
         let mut src = Activity::own().data_source();
         let sem0_sel: Selector = src.pop().unwrap();
         let sem1_sel: Selector = src.pop().unwrap();
@@ -67,7 +68,7 @@ fn taking_turns() {
         let sem1 = Semaphore::bind(sem1_sel);
         for i in 0..10 {
             wv_assert_ok!(sem0.down());
-            wv_assert_eq!(get_counter("/sem0"), i);
+            wv_assert_eq!(t, get_counter("/sem0"), i);
             set_counter("/sem1", i);
             wv_assert_ok!(sem1.up());
         }
@@ -76,7 +77,7 @@ fn taking_turns() {
 
     for i in 0..10 {
         wv_assert_ok!(sem1.down());
-        wv_assert_eq!(get_counter("/sem1"), i);
+        wv_assert_eq!(t, get_counter("/sem1"), i);
         set_counter("/sem0", i + 1);
         wv_assert_ok!(sem0.up());
     }

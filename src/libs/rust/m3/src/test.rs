@@ -18,12 +18,62 @@
 
 //! Contains unittest utilities inspired by WvTest <https://github.com/apenwarr/wvtest>
 
+use crate::println;
+
 /// Runs the tests
 pub trait WvTester {
     /// Runs the given test suite
     fn run_suite(&mut self, name: &str, f: &dyn Fn(&mut dyn WvTester));
     /// Runs the given test
-    fn run_test(&mut self, name: &str, file: &str, f: &dyn Fn());
+    fn run_test(&mut self, name: &str, file: &str, f: &dyn Fn(&mut dyn WvTester));
+    /// Is called on succeeded failures
+    fn test_succeeded(&mut self);
+    /// Is called on test failures
+    fn test_failed(&mut self);
+}
+
+/// The default implementation for the [`WvTester`]
+#[derive(Default, Copy, Clone, Debug)]
+pub struct DefaultWvTester {
+    tests: u64,
+    fails: u64,
+}
+
+impl DefaultWvTester {
+    pub fn tests(&self) -> u64 {
+        self.tests
+    }
+
+    pub fn failures(&self) -> u64 {
+        self.fails
+    }
+
+    pub fn successes(&self) -> u64 {
+        self.tests - self.fails
+    }
+}
+
+impl WvTester for DefaultWvTester {
+    fn run_suite(&mut self, name: &str, f: &dyn Fn(&mut dyn WvTester)) {
+        println!("Running test suite {} ...\n", name);
+        f(self);
+        println!();
+    }
+
+    fn run_test(&mut self, name: &str, file: &str, f: &dyn Fn(&mut dyn WvTester)) {
+        println!("Testing \"{}\" in {}:", name, file);
+        f(self);
+        println!();
+    }
+
+    fn test_succeeded(&mut self) {
+        self.tests += 1;
+    }
+
+    fn test_failed(&mut self) {
+        self.tests += 1;
+        self.fails += 1;
+    }
 }
 
 /// Convenience macro that calls [`WvTester::run_suite`](WvTester::run_suite) and uses the function
@@ -60,12 +110,15 @@ extern "C" {
 /// Convenience macro that tests whether $a is true and reports failures
 #[macro_export]
 macro_rules! wv_assert {
-    ($a:expr) => {{
+    ($t:expr, $a:expr) => {{
         match (&$a) {
             (a_val) => {
                 if !*a_val {
                     ::m3::println!("! {}:{}  {:?} FAILED", file!(), line!(), &*a_val);
-                    crate::wvtest_failed();
+                    $t.test_failed();
+                }
+                else {
+                    $t.test_succeeded();
                 }
             },
         }
@@ -75,23 +128,29 @@ macro_rules! wv_assert {
 /// Convenience macro that tests whether $a and $b are equal and reports failures
 #[macro_export]
 macro_rules! wv_assert_eq {
-    ($a:expr, $b:expr) => ({
+    ($t:expr, $a:expr, $b:expr) => ({
         match (&$a, &$b) {
             (a_val, b_val) => {
                 if *a_val != *b_val {
                     ::m3::println!("! {}:{}  {:?} == {:?} FAILED", file!(), line!(), &*a_val, &*b_val);
-                    crate::wvtest_failed();
+                    $t.test_failed();
+                }
+                else {
+                    $t.test_succeeded();
                 }
             }
         }
     });
 
-    ($a:expr, $b:expr, $($arg:tt)+) => ({
+    ($t:expr, $a:expr, $b:expr, $($arg:tt)+) => ({
         match (&$a, &$b) {
             (a_val, b_val) => {
                 if *a_val != *b_val {
                     ::m3::println!("! {}:{}  {} FAILED", file!(), line!(), format_args!($($arg)+));
-                    crate::wvtest_failed();
+                    $t.test_failed();
+                }
+                else {
+                    $t.test_succeeded();
                 }
             }
         }
@@ -142,11 +201,11 @@ macro_rules! wv_assert_some {
 /// Convenience macro that tests whether the argument is [`Err`] with the given error code
 #[macro_export]
 macro_rules! wv_assert_err {
-    ($res:expr, $err:expr) => {{
+    ($t:expr, $res:expr, $err:expr) => {{
         match $res {
             Ok(r) => {
                 ::m3::println!("! {}:{}  received okay: {:?} FAILED", file!(), line!(), r);
-                crate::wvtest_failed();
+                $t.test_failed();
             },
             Err(ref e) if e.code() != $err => {
                 ::m3::println!(
@@ -156,16 +215,18 @@ macro_rules! wv_assert_err {
                     e,
                     $err
                 );
-                crate::wvtest_failed();
+                $t.test_failed();
             },
-            Err(_) => {},
+            Err(_) => {
+                $t.test_succeeded();
+            },
         }
     }};
-    ($res:expr, $err1:expr, $err2:expr) => {{
+    ($t:expr, $res:expr, $err1:expr, $err2:expr) => {{
         match $res {
             Ok(r) => {
                 ::m3::println!("! {}:{}  received okay: {:?} FAILED", file!(), line!(), r);
-                crate::wvtest_failed();
+                $t.test_failed();
             },
             Err(ref e) if e.code() != $err1 && e.code() != $err2 => {
                 ::m3::println!(
@@ -176,9 +237,11 @@ macro_rules! wv_assert_err {
                     $err1,
                     $err2
                 );
-                crate::wvtest_failed();
+                $t.test_failed();
             },
-            Err(_) => {},
+            Err(_) => {
+                $t.test_succeeded();
+            },
         }
     }};
 }

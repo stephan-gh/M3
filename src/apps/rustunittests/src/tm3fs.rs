@@ -19,11 +19,11 @@
 use m3::col::ToString;
 use m3::errors::Code;
 use m3::io::Write;
-use m3::test;
+use m3::test::WvTester;
 use m3::vfs::{FileMode, OpenFlags, VFS};
 use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, paths);
     wv_run_test!(t, mkdir_rmdir);
     wv_run_test!(t, link_unlink);
@@ -45,31 +45,41 @@ fn teardown() {
     wv_assert_ok!(VFS::rmdir("/example/"));
 }
 
-fn paths() {
-    wv_assert_eq!(VFS::canon_path(""), "".to_string());
-    wv_assert_eq!(VFS::canon_path("."), "".to_string());
-    wv_assert_eq!(VFS::canon_path(".."), "".to_string());
-    wv_assert_eq!(VFS::canon_path(".//foo/bar"), "foo/bar".to_string());
-    wv_assert_eq!(VFS::canon_path("./foo/..///bar"), "bar".to_string());
-    wv_assert_eq!(VFS::canon_path("..//.//..//foo/../bar/.."), "".to_string());
-    wv_assert_eq!(VFS::canon_path("../.test//foo/..///"), ".test".to_string());
-    wv_assert_eq!(VFS::canon_path("/foo/..//bar"), "/bar".to_string());
-
-    wv_assert_err!(VFS::set_cwd("/non-existing-dir"), Code::NoSuchFile);
-    wv_assert_err!(VFS::set_cwd("/test.txt"), Code::IsNoDir);
-    wv_assert_ok!(VFS::set_cwd(".././bin/./."));
-    wv_assert_eq!(VFS::cwd(), "/bin".to_string());
-
-    wv_assert_eq!(VFS::abs_path(""), "/bin".to_string());
-    wv_assert_eq!(VFS::abs_path("."), "/bin".to_string());
-    wv_assert_eq!(VFS::abs_path(".."), "/bin".to_string());
-    wv_assert_eq!(VFS::abs_path(".//foo/bar"), "/bin/foo/bar".to_string());
-    wv_assert_eq!(VFS::abs_path("./foo/..///bar"), "/bin/bar".to_string());
+fn paths(t: &mut dyn WvTester) {
+    wv_assert_eq!(t, VFS::canon_path(""), "".to_string());
+    wv_assert_eq!(t, VFS::canon_path("."), "".to_string());
+    wv_assert_eq!(t, VFS::canon_path(".."), "".to_string());
+    wv_assert_eq!(t, VFS::canon_path(".//foo/bar"), "foo/bar".to_string());
+    wv_assert_eq!(t, VFS::canon_path("./foo/..///bar"), "bar".to_string());
     wv_assert_eq!(
+        t,
+        VFS::canon_path("..//.//..//foo/../bar/.."),
+        "".to_string()
+    );
+    wv_assert_eq!(
+        t,
+        VFS::canon_path("../.test//foo/..///"),
+        ".test".to_string()
+    );
+    wv_assert_eq!(t, VFS::canon_path("/foo/..//bar"), "/bar".to_string());
+
+    wv_assert_err!(t, VFS::set_cwd("/non-existing-dir"), Code::NoSuchFile);
+    wv_assert_err!(t, VFS::set_cwd("/test.txt"), Code::IsNoDir);
+    wv_assert_ok!(VFS::set_cwd(".././bin/./."));
+    wv_assert_eq!(t, VFS::cwd(), "/bin".to_string());
+
+    wv_assert_eq!(t, VFS::abs_path(""), "/bin".to_string());
+    wv_assert_eq!(t, VFS::abs_path("."), "/bin".to_string());
+    wv_assert_eq!(t, VFS::abs_path(".."), "/bin".to_string());
+    wv_assert_eq!(t, VFS::abs_path(".//foo/bar"), "/bin/foo/bar".to_string());
+    wv_assert_eq!(t, VFS::abs_path("./foo/..///bar"), "/bin/bar".to_string());
+    wv_assert_eq!(
+        t,
         VFS::abs_path("..//.//..//foo/../bar/.."),
         "/bin".to_string()
     );
     wv_assert_eq!(
+        t,
         VFS::abs_path("../.test//foo/..///"),
         "/bin/.test".to_string()
     );
@@ -77,7 +87,7 @@ fn paths() {
     wv_assert_ok!(VFS::set_cwd("/"));
 }
 
-fn mkdir_rmdir() {
+fn mkdir_rmdir(t: &mut dyn WvTester) {
     setup();
 
     // create and remove directory within directory
@@ -91,10 +101,12 @@ fn mkdir_rmdir() {
 
     // use weird paths
     wv_assert_err!(
+        t,
         VFS::mkdir("/foo/.", FileMode::from_bits(0o755).unwrap()),
         Code::NoSuchFile
     );
     wv_assert_err!(
+        t,
         VFS::mkdir("/foo/..", FileMode::from_bits(0o755).unwrap()),
         Code::NoSuchFile
     );
@@ -102,98 +114,116 @@ fn mkdir_rmdir() {
         "/./../foo/",
         FileMode::from_bits(0o755).unwrap()
     ));
-    wv_assert_err!(VFS::rmdir("/foo/."), Code::InvArgs);
-    wv_assert_err!(VFS::rmdir("/foo/bar/.."), Code::NoSuchFile);
+    wv_assert_err!(t, VFS::rmdir("/foo/."), Code::InvArgs);
+    wv_assert_err!(t, VFS::rmdir("/foo/bar/.."), Code::NoSuchFile);
     wv_assert_ok!(VFS::rmdir("///.././foo///"));
 
     // test mkdir errors
     wv_assert_err!(
+        t,
         VFS::mkdir("/", FileMode::from_bits(0o755).unwrap()),
         Code::Exists
     );
     wv_assert_err!(
+        t,
         VFS::mkdir("/example", FileMode::from_bits(0o755).unwrap()),
         Code::Exists
     );
     wv_assert_err!(
+        t,
         VFS::mkdir("/example/foo/bar", FileMode::from_bits(0o755).unwrap()),
         Code::NoSuchFile
     );
 
     // test rmdir errors
-    wv_assert_err!(VFS::rmdir("/example/foo/bar"), Code::NoSuchFile);
-    wv_assert_err!(VFS::rmdir("/example/myfile/"), Code::IsNoDir);
-    wv_assert_err!(VFS::rmdir("/example"), Code::DirNotEmpty);
-    wv_assert_err!(VFS::rmdir("/"), Code::InvArgs);
+    wv_assert_err!(t, VFS::rmdir("/example/foo/bar"), Code::NoSuchFile);
+    wv_assert_err!(t, VFS::rmdir("/example/myfile/"), Code::IsNoDir);
+    wv_assert_err!(t, VFS::rmdir("/example"), Code::DirNotEmpty);
+    wv_assert_err!(t, VFS::rmdir("/"), Code::InvArgs);
 
     teardown();
 }
 
-fn link_unlink() {
+fn link_unlink(t: &mut dyn WvTester) {
     setup();
 
     // test link errors
-    wv_assert_err!(VFS::link("/example/", "/"), Code::IsDir);
-    wv_assert_err!(VFS::link("/example", "/newpath"), Code::IsDir);
+    wv_assert_err!(t, VFS::link("/example/", "/"), Code::IsDir);
+    wv_assert_err!(t, VFS::link("/example", "/newpath"), Code::IsDir);
     wv_assert_ok!(VFS::link("/example/myfile/", "/newpath"));
-    wv_assert_err!(VFS::link("/example/myfile", "/newpath"), Code::Exists);
+    wv_assert_err!(t, VFS::link("/example/myfile", "/newpath"), Code::Exists);
 
     // use weird paths
-    wv_assert_err!(VFS::link("/example/myfile/.", "/newtest"), Code::IsNoDir);
-    wv_assert_err!(VFS::link("/example/myfile/..", "/newtest"), Code::IsNoDir);
-    wv_assert_err!(VFS::link("/example/myfile", "/newtest/."), Code::NoSuchFile);
+    wv_assert_err!(t, VFS::link("/example/myfile/.", "/newtest"), Code::IsNoDir);
     wv_assert_err!(
+        t,
+        VFS::link("/example/myfile/..", "/newtest"),
+        Code::IsNoDir
+    );
+    wv_assert_err!(
+        t,
+        VFS::link("/example/myfile", "/newtest/."),
+        Code::NoSuchFile
+    );
+    wv_assert_err!(
+        t,
         VFS::link("/example/myfile", "/newtest/.."),
         Code::NoSuchFile
     );
     wv_assert_ok!(VFS::link("//example/./../example/myfile", "/newtest"));
-    wv_assert_err!(VFS::unlink("/example/myfile/."), Code::InvArgs);
-    wv_assert_err!(VFS::unlink("/example/myfile/.."), Code::InvArgs);
+    wv_assert_err!(t, VFS::unlink("/example/myfile/."), Code::InvArgs);
+    wv_assert_err!(t, VFS::unlink("/example/myfile/.."), Code::InvArgs);
     wv_assert_ok!(VFS::unlink("///example///../newtest"));
 
     // test unlink errors
-    wv_assert_err!(VFS::unlink("/"), Code::InvArgs);
-    wv_assert_err!(VFS::unlink("/example//"), Code::IsDir);
-    wv_assert_err!(VFS::unlink("/example/foo"), Code::NoSuchFile);
+    wv_assert_err!(t, VFS::unlink("/"), Code::InvArgs);
+    wv_assert_err!(t, VFS::unlink("/example//"), Code::IsDir);
+    wv_assert_err!(t, VFS::unlink("/example/foo"), Code::NoSuchFile);
 
     // test cross-fs link
     wv_assert_ok!(VFS::mount("/fs/", "m3fs", "m3fs-clone"));
-    wv_assert_err!(VFS::link("/example/myfile", "/fs/foo"), Code::XfsLink);
+    wv_assert_err!(t, VFS::link("/example/myfile", "/fs/foo"), Code::XfsLink);
     wv_assert_ok!(VFS::unmount("/fs/"));
 
     teardown();
 }
 
-fn rename() {
+fn rename(t: &mut dyn WvTester) {
     setup();
 
     // test errors
-    wv_assert_err!(VFS::rename("/", "/example"), Code::InvArgs);
-    wv_assert_err!(VFS::rename("/example/myfile", "/"), Code::InvArgs);
-    wv_assert_err!(VFS::rename("/example", "/example"), Code::IsDir);
+    wv_assert_err!(t, VFS::rename("/", "/example"), Code::InvArgs);
+    wv_assert_err!(t, VFS::rename("/example/myfile", "/"), Code::InvArgs);
+    wv_assert_err!(t, VFS::rename("/example", "/example"), Code::IsDir);
     wv_assert_err!(
+        t,
         VFS::rename("/example/myfiles", "/example/myfile2"),
         Code::NoSuchFile
     );
 
     // use weird paths
     wv_assert_err!(
+        t,
         VFS::rename("/example/myfile/.", "/example/myotherfile"),
         Code::InvArgs
     );
     wv_assert_err!(
+        t,
         VFS::rename("/example/myfile/..", "/example/myotherfile"),
         Code::InvArgs
     );
     wv_assert_err!(
+        t,
         VFS::rename("/example/myfile", "/example/myotherfile/."),
         Code::InvArgs
     );
     wv_assert_err!(
+        t,
         VFS::rename("/example/myfile", "/example/myotherfile/.."),
         Code::InvArgs
     );
     wv_assert_err!(
+        t,
         VFS::rename("/example/myfile/bar", "/example/myotherfile"),
         Code::IsNoDir
     );
@@ -203,7 +233,11 @@ fn rename() {
         "//example/./myfile",
         "/example/../example/myotherfile//"
     ));
-    wv_assert_err!(VFS::open("/example/myfile", OpenFlags::R), Code::NoSuchFile);
+    wv_assert_err!(
+        t,
+        VFS::open("/example/myfile", OpenFlags::R),
+        Code::NoSuchFile
+    );
     wv_assert_ok!(VFS::open("/example/myotherfile", OpenFlags::R));
 
     // if both link to the same file, rename has no effect

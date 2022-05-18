@@ -17,17 +17,17 @@
  */
 
 use m3::col::DList;
-use m3::test;
+use m3::test::WvTester;
 use m3::time::{CycleInstant, Profiler, Runner};
 use m3::{wv_perf, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, push_back);
     wv_run_test!(t, push_front);
     wv_run_test!(t, clear);
 }
 
-fn push_back() {
+fn push_back(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().warmup(100).repeats(30);
 
     #[derive(Default)]
@@ -51,7 +51,7 @@ fn push_back() {
     );
 }
 
-fn push_front() {
+fn push_front(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().warmup(100).repeats(30);
 
     #[derive(Default)]
@@ -75,7 +75,7 @@ fn push_front() {
     );
 }
 
-fn clear() {
+fn clear(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().warmup(100).repeats(30);
 
     #[derive(Default)]

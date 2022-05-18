@@ -17,10 +17,10 @@
  */
 
 use m3::col::DList;
-use m3::test;
+use m3::test::WvTester;
 use m3::{wv_assert_eq, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, create);
     wv_run_test!(t, basics);
     wv_run_test!(t, iter);
@@ -40,154 +40,154 @@ fn gen_list<T: Clone>(items: &[T]) -> DList<T> {
     l
 }
 
-fn create() {
+fn create(t: &mut dyn WvTester) {
     let l: DList<u32> = DList::new();
-    wv_assert_eq!(l.len(), 0);
-    wv_assert_eq!(l.iter().next(), None);
+    wv_assert_eq!(t, l.len(), 0);
+    wv_assert_eq!(t, l.iter().next(), None);
 }
 
-fn basics() {
+fn basics(t: &mut dyn WvTester) {
     let mut l = gen_list(&[23, 42, 57]);
 
-    wv_assert_eq!(l.front(), Some(&23));
-    wv_assert_eq!(l.back(), Some(&57));
+    wv_assert_eq!(t, l.front(), Some(&23));
+    wv_assert_eq!(t, l.back(), Some(&57));
 
-    wv_assert_eq!(l.front_mut(), Some(&mut 23));
-    wv_assert_eq!(l.back_mut(), Some(&mut 57));
+    wv_assert_eq!(t, l.front_mut(), Some(&mut 23));
+    wv_assert_eq!(t, l.back_mut(), Some(&mut 57));
 }
 
 #[allow(clippy::option_map_unit_fn)]
-fn iter() {
+fn iter(t: &mut dyn WvTester) {
     let mut l = gen_list(&[23, 42, 57]);
 
     {
         let mut it = l.iter_mut();
         let e = it.next();
-        wv_assert_eq!(e, Some(&mut 23));
-        wv_assert_eq!(it.peek_prev(), None);
+        wv_assert_eq!(t, e, Some(&mut 23));
+        wv_assert_eq!(t, it.peek_prev(), None);
         e.map(|v| *v = 32);
 
         let e = it.next();
-        wv_assert_eq!(e, Some(&mut 42));
-        wv_assert_eq!(it.peek_prev(), Some(&mut 32));
+        wv_assert_eq!(t, e, Some(&mut 42));
+        wv_assert_eq!(t, it.peek_prev(), Some(&mut 32));
         e.map(|v| *v = 24);
 
         let e = it.next();
-        wv_assert_eq!(e, Some(&mut 57));
-        wv_assert_eq!(it.peek_prev(), Some(&mut 24));
+        wv_assert_eq!(t, e, Some(&mut 57));
+        wv_assert_eq!(t, it.peek_prev(), Some(&mut 24));
         e.map(|v| *v = 75);
     }
 
-    wv_assert_eq!(l, gen_list(&[32, 24, 75]));
+    wv_assert_eq!(t, l, gen_list(&[32, 24, 75]));
 }
 
-fn iter_insert_before() {
+fn iter_insert_before(t: &mut dyn WvTester) {
     {
         let mut l = gen_list(&[23, 42, 57]);
         {
             let mut it = l.iter_mut();
             it.insert_before(21);
         }
-        wv_assert_eq!(l, gen_list(&[21, 23, 42, 57]));
+        wv_assert_eq!(t, l, gen_list(&[21, 23, 42, 57]));
     }
 
     {
         let mut l = gen_list(&[23, 42, 57]);
         {
             let mut it = l.iter_mut();
-            wv_assert_eq!(it.next(), Some(&mut 23));
+            wv_assert_eq!(t, it.next(), Some(&mut 23));
             it.insert_before(21);
         }
-        wv_assert_eq!(l, gen_list(&[21, 23, 42, 57]));
+        wv_assert_eq!(t, l, gen_list(&[21, 23, 42, 57]));
     }
 
     {
         let mut l = gen_list(&[23, 42, 57]);
         {
             let mut it = l.iter_mut();
-            wv_assert_eq!(it.next(), Some(&mut 23));
-            wv_assert_eq!(it.next(), Some(&mut 42));
+            wv_assert_eq!(t, it.next(), Some(&mut 23));
+            wv_assert_eq!(t, it.next(), Some(&mut 42));
             it.insert_before(21);
         }
-        wv_assert_eq!(l, gen_list(&[23, 21, 42, 57]));
+        wv_assert_eq!(t, l, gen_list(&[23, 21, 42, 57]));
     }
 
     {
         let mut l = gen_list(&[23, 42, 57]);
         {
             let mut it = l.iter_mut();
-            wv_assert_eq!(it.next(), Some(&mut 23));
-            wv_assert_eq!(it.next(), Some(&mut 42));
-            wv_assert_eq!(it.next(), Some(&mut 57));
+            wv_assert_eq!(t, it.next(), Some(&mut 23));
+            wv_assert_eq!(t, it.next(), Some(&mut 42));
+            wv_assert_eq!(t, it.next(), Some(&mut 57));
             it.insert_before(21);
         }
-        wv_assert_eq!(l, gen_list(&[23, 42, 21, 57]));
+        wv_assert_eq!(t, l, gen_list(&[23, 42, 21, 57]));
     }
 
     {
         let mut l = gen_list(&[23, 42, 57]);
         {
             let mut it = l.iter_mut();
-            wv_assert_eq!(it.next(), Some(&mut 23));
-            wv_assert_eq!(it.next(), Some(&mut 42));
-            wv_assert_eq!(it.next(), Some(&mut 57));
-            wv_assert_eq!(it.next(), None);
+            wv_assert_eq!(t, it.next(), Some(&mut 23));
+            wv_assert_eq!(t, it.next(), Some(&mut 42));
+            wv_assert_eq!(t, it.next(), Some(&mut 57));
+            wv_assert_eq!(t, it.next(), None);
             it.insert_before(21);
         }
-        wv_assert_eq!(l, gen_list(&[23, 42, 21, 57]));
+        wv_assert_eq!(t, l, gen_list(&[23, 42, 21, 57]));
     }
 
     {
         let mut l = gen_list(&[23, 42, 57]);
         {
             let mut it = l.iter_mut();
-            wv_assert_eq!(it.next(), Some(&mut 23));
+            wv_assert_eq!(t, it.next(), Some(&mut 23));
             it.insert_before(1);
             it.insert_before(2);
             it.insert_before(3);
         }
-        wv_assert_eq!(l, gen_list(&[1, 2, 3, 23, 42, 57]));
+        wv_assert_eq!(t, l, gen_list(&[1, 2, 3, 23, 42, 57]));
     }
 }
 
-fn iter_insert_after() {
+fn iter_insert_after(t: &mut dyn WvTester) {
     let mut l = gen_list(&[23, 42, 57]);
 
     {
         let mut it = l.iter_mut();
         let e = it.next();
-        wv_assert_eq!(e, Some(&mut 23));
+        wv_assert_eq!(t, e, Some(&mut 23));
         it.insert_after(104);
         it.insert_before(44);
         it.insert_before(45);
     }
 
-    wv_assert_eq!(l, gen_list(&[23, 44, 45, 104, 42, 57]));
+    wv_assert_eq!(t, l, gen_list(&[23, 44, 45, 104, 42, 57]));
 }
 
-fn iter_remove() {
+fn iter_remove(t: &mut dyn WvTester) {
     {
         let mut l = gen_list(&[23, 42, 57]);
 
         {
             let mut it = l.iter_mut();
-            wv_assert_eq!(it.remove(), None);
+            wv_assert_eq!(t, it.remove(), None);
 
             let e = it.next();
-            wv_assert_eq!(e, Some(&mut 23));
-            wv_assert_eq!(it.remove(), Some(23));
+            wv_assert_eq!(t, e, Some(&mut 23));
+            wv_assert_eq!(t, it.remove(), Some(23));
 
             let e = it.next();
-            wv_assert_eq!(e, Some(&mut 42));
-            wv_assert_eq!(it.remove(), Some(42));
+            wv_assert_eq!(t, e, Some(&mut 42));
+            wv_assert_eq!(t, it.remove(), Some(42));
 
             let e = it.next();
-            wv_assert_eq!(e, Some(&mut 57));
-            wv_assert_eq!(it.remove(), Some(57));
+            wv_assert_eq!(t, e, Some(&mut 57));
+            wv_assert_eq!(t, it.remove(), Some(57));
 
             let e = it.next();
-            wv_assert_eq!(e, None);
-            wv_assert_eq!(it.remove(), None);
+            wv_assert_eq!(t, e, None);
+            wv_assert_eq!(t, it.remove(), None);
         }
 
         assert!(l.is_empty());
@@ -198,19 +198,19 @@ fn iter_remove() {
 
         {
             let mut it = l.iter_mut();
-            wv_assert_eq!(it.next(), Some(&mut 1));
-            wv_assert_eq!(it.next(), Some(&mut 2));
-            wv_assert_eq!(it.remove(), Some(2));
-            wv_assert_eq!(it.remove(), Some(1));
-            wv_assert_eq!(it.remove(), None);
-            wv_assert_eq!(it.next(), Some(&mut 3));
+            wv_assert_eq!(t, it.next(), Some(&mut 1));
+            wv_assert_eq!(t, it.next(), Some(&mut 2));
+            wv_assert_eq!(t, it.remove(), Some(2));
+            wv_assert_eq!(t, it.remove(), Some(1));
+            wv_assert_eq!(t, it.remove(), None);
+            wv_assert_eq!(t, it.next(), Some(&mut 3));
         }
 
-        wv_assert_eq!(l, gen_list(&[3]));
+        wv_assert_eq!(t, l, gen_list(&[3]));
     }
 }
 
-fn objects() {
+fn objects(t: &mut dyn WvTester) {
     #[derive(Debug, Eq, PartialEq)]
     struct Foo {
         a: u32,
@@ -220,34 +220,34 @@ fn objects() {
 
     let mut l: DList<Foo> = DList::new();
     l.push_back(Foo { a: 1, b: 2, c: 3 });
-    wv_assert_eq!(l.len(), 1);
+    wv_assert_eq!(t, l.len(), 1);
 
     {
         let mut it = l.iter();
-        wv_assert_eq!(it.next(), Some(&Foo { a: 1, b: 2, c: 3 }));
-        wv_assert_eq!(it.next(), None);
+        wv_assert_eq!(t, it.next(), Some(&Foo { a: 1, b: 2, c: 3 }));
+        wv_assert_eq!(t, it.next(), None);
     }
 
-    wv_assert_eq!(l.pop_front(), Some(Foo { a: 1, b: 2, c: 3 }));
-    wv_assert_eq!(l.pop_front(), None);
+    wv_assert_eq!(t, l.pop_front(), Some(Foo { a: 1, b: 2, c: 3 }));
+    wv_assert_eq!(t, l.pop_front(), None);
 }
 
-fn push_back() {
+fn push_back(t: &mut dyn WvTester) {
     let mut l = DList::new();
 
     l.push_back(1);
     l.push_back(2);
     l.push_back(3);
 
-    wv_assert_eq!(l, gen_list(&[1, 2, 3]));
+    wv_assert_eq!(t, l, gen_list(&[1, 2, 3]));
 }
 
-fn push_front() {
+fn push_front(t: &mut dyn WvTester) {
     let mut l = DList::new();
 
     l.push_front(1);
     l.push_front(2);
     l.push_front(3);
 
-    wv_assert_eq!(l, gen_list(&[3, 2, 1]));
+    wv_assert_eq!(t, l, gen_list(&[3, 2, 1]));
 }

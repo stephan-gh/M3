@@ -22,18 +22,18 @@ use m3::com::MemGate;
 use m3::goff;
 use m3::kif::Perm;
 use m3::session::MapFlags;
-use m3::test;
+use m3::test::WvTester;
 use m3::tiles::Activity;
 use m3::time::{CycleDuration, CycleInstant, Duration, Profiler, Results, Runner};
 use m3::tmif;
 use m3::{println, wv_perf, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, tmcalls);
     wv_run_test!(t, translates);
 }
 
-fn tmcalls() {
+fn tmcalls(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().repeats(100).warmup(30);
     wv_perf!(
         "noop tmcall",
@@ -41,7 +41,7 @@ fn tmcalls() {
     );
 }
 
-fn translates() {
+fn translates(_t: &mut dyn WvTester) {
     if Activity::own().pager().is_none() {
         println!("Tile has no virtual memory support; skipping translate benchmark");
         return;

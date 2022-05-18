@@ -20,7 +20,7 @@ use m3::cell::StaticRefCell;
 use m3::com::MemGate;
 use m3::kif;
 use m3::mem::AlignedBuf;
-use m3::test;
+use m3::test::WvTester;
 use m3::time::{CycleInstant, Profiler};
 use m3::{wv_perf, wv_run_test};
 
@@ -28,14 +28,14 @@ const SIZE: usize = 2 * 1024 * 1024;
 
 static BUF: StaticRefCell<AlignedBuf<{ 8192 + 64 }>> = StaticRefCell::new(AlignedBuf::new_zeroed());
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, read);
     wv_run_test!(t, read_unaligned);
     wv_run_test!(t, write);
     wv_run_test!(t, write_unaligned);
 }
 
-fn read() {
+fn read(_t: &mut dyn WvTester) {
     let buf = &mut BUF.borrow_mut()[..8192];
     let mgate = MemGate::new(8192, kif::Perm::R).expect("Unable to create mgate");
 
@@ -53,7 +53,7 @@ fn read() {
     );
 }
 
-fn read_unaligned() {
+fn read_unaligned(_t: &mut dyn WvTester) {
     let buf = &mut BUF.borrow_mut()[64..];
     let mgate = MemGate::new(8192, kif::Perm::R).expect("Unable to create mgate");
 
@@ -71,7 +71,7 @@ fn read_unaligned() {
     );
 }
 
-fn write() {
+fn write(_t: &mut dyn WvTester) {
     let buf = &BUF.borrow()[..8192];
     let mgate = MemGate::new(8192, kif::Perm::W).expect("Unable to create mgate");
 
@@ -89,7 +89,7 @@ fn write() {
     );
 }
 
-fn write_unaligned() {
+fn write_unaligned(_t: &mut dyn WvTester) {
     let buf = &BUF.borrow()[64..];
     let mgate = MemGate::new(8192, kif::Perm::W).expect("Unable to create mgate");
 

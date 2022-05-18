@@ -16,19 +16,19 @@
 use m3::cell::StaticRefCell;
 use m3::io::Read;
 use m3::mem::AlignedBuf;
-use m3::test;
+use m3::test::WvTester;
 use m3::time::{CycleInstant, Profiler};
 use m3::vfs::{OpenFlags, VFS};
 use m3::{wv_assert_ok, wv_perf, wv_run_test};
 
 static BUF: StaticRefCell<AlignedBuf<4096>> = StaticRefCell::new(AlignedBuf::new_zeroed());
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, read);
     wv_run_test!(t, write);
 }
 
-fn read() {
+fn read(_t: &mut dyn WvTester) {
     let buf = &mut BUF.borrow_mut()[..];
 
     let mut prof = Profiler::default().repeats(10).warmup(4);
@@ -47,7 +47,7 @@ fn read() {
     );
 }
 
-fn write() {
+fn write(_t: &mut dyn WvTester) {
     const SIZE: usize = 2 * 1024 * 1024;
     let buf = &BUF.borrow()[..];
 

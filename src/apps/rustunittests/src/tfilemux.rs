@@ -21,16 +21,16 @@ use m3::com::MemGate;
 use m3::io::{Read, Write};
 use m3::kif;
 use m3::session::Pipes;
-use m3::test;
+use m3::test::WvTester;
 use m3::vfs::{BufReader, FileRef, GenericFile, IndirectPipe, OpenFlags, VFS};
 use m3::{vec, wv_assert_eq, wv_assert_ok, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, genfile_mux);
     wv_run_test!(t, pipe_mux);
 }
 
-fn genfile_mux() {
+fn genfile_mux(t: &mut dyn WvTester) {
     const NUM: usize = 2;
     const STEP_SIZE: usize = 400;
     const FILE_SIZE: usize = 12 * 1024;
@@ -47,8 +47,8 @@ fn genfile_mux() {
             let end = cmp::min(FILE_SIZE, pos + STEP_SIZE);
             for tpos in pos..end {
                 let mut buf = [0u8];
-                wv_assert_eq!(f.read(&mut buf), Ok(1));
-                wv_assert_eq!(buf[0], (tpos & 0xFF) as u8);
+                wv_assert_eq!(t, f.read(&mut buf), Ok(1));
+                wv_assert_eq!(t, buf[0], (tpos & 0xFF) as u8);
             }
         }
 
@@ -56,7 +56,7 @@ fn genfile_mux() {
     }
 }
 
-fn pipe_mux() {
+fn pipe_mux(t: &mut dyn WvTester) {
     const NUM: usize = 2;
     const STEP_SIZE: usize = 16;
     const DATA_SIZE: usize = 1024;
@@ -98,7 +98,7 @@ fn pipe_mux() {
             let mut dst_buf = [0u8; STEP_SIZE];
 
             wv_assert_ok!(p.reader.read(&mut dst_buf));
-            wv_assert_eq!(dst_buf, src_buf);
+            wv_assert_eq!(t, dst_buf, src_buf);
         }
 
         pos += STEP_SIZE;

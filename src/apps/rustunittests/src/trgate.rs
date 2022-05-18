@@ -18,18 +18,19 @@
 
 use m3::com::{RGateArgs, RecvGate};
 use m3::errors::Code;
-use m3::test;
+use m3::test::WvTester;
 use m3::{wv_assert_err, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, create);
     #[cfg(not(target_vendor = "host"))]
     wv_run_test!(t, destroy);
 }
 
-fn create() {
-    wv_assert_err!(RecvGate::new(8, 9), Code::InvArgs);
+fn create(t: &mut dyn WvTester) {
+    wv_assert_err!(t, RecvGate::new(8, 9), Code::InvArgs);
     wv_assert_err!(
+        t,
         RecvGate::new_with(RGateArgs::default().sel(1)),
         Code::InvArgs
     );
@@ -37,7 +38,7 @@ fn create() {
 
 // requires a TileMux with notification support
 #[cfg(not(target_vendor = "host"))]
-fn destroy() {
+fn destroy(t: &mut dyn WvTester) {
     use m3::cap::Selector;
     use m3::com::{recv_msg, SGateArgs, SendGate};
     use m3::tiles::{Activity, ChildActivity, RunningActivity, Tile};
@@ -60,6 +61,7 @@ fn destroy() {
         dst.push_word(sg.sel());
 
         let act = wv_assert_ok!(child.run(|| {
+            let mut t = m3::test::DefaultWvTester::default();
             let sg_sel: Selector = Activity::own().data_source().pop().unwrap();
             let sg = SendGate::new_bind(sg_sel);
 
@@ -69,6 +71,7 @@ fn destroy() {
                 i += 3;
             }
             wv_assert_err!(
+                t,
                 send_recv!(&sg, RecvGate::def(), i, i + 1, i + 2),
                 Code::NoSEP
             );
@@ -84,14 +87,14 @@ fn destroy() {
                 wv_assert_ok!(msg.pop()),
                 wv_assert_ok!(msg.pop()),
             );
-            wv_assert_eq!(a1, i * 3 + 0);
-            wv_assert_eq!(a2, i * 3 + 1);
-            wv_assert_eq!(a3, i * 3 + 2);
+            wv_assert_eq!(t, a1, i * 3 + 0);
+            wv_assert_eq!(t, a2, i * 3 + 1);
+            wv_assert_eq!(t, a3, i * 3 + 2);
             wv_assert_ok!(reply_vmsg!(msg, 0));
         }
 
         act
     };
 
-    wv_assert_eq!(act.wait(), Ok(0));
+    wv_assert_eq!(t, act.wait(), Ok(0));
 }

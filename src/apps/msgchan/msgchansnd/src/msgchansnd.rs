@@ -16,19 +16,15 @@
 
 #![no_std]
 
-use m3::cell::StaticCell;
 use m3::com::{recv_msg, RecvGate, SendGate};
 use m3::env;
+use m3::test::{DefaultWvTester, WvTester};
 use m3::{println, reply_vmsg, send_recv, wv_assert_eq, wv_assert_ok};
-
-static FAILED: StaticCell<u32> = StaticCell::new(0);
-
-extern "C" fn wvtest_failed() {
-    FAILED.set(FAILED.get() + 1);
-}
 
 #[no_mangle]
 pub fn main() -> i32 {
+    let mut tester = DefaultWvTester::default();
+
     let sgate = wv_assert_ok!(SendGate::new_named("chan"));
     let mut rgate = wv_assert_ok!(RecvGate::new_named(env::args().nth(1).unwrap()));
     wv_assert_ok!(rgate.activate());
@@ -41,14 +37,18 @@ pub fn main() -> i32 {
         let mut reply = wv_assert_ok!(recv_msg(&rgate));
         let res = reply.pop::<u64>();
         println!("Received {:?}", res);
-        wv_assert_eq!(res, Ok(val + 1));
+        wv_assert_eq!(tester, res, Ok(val + 1));
         wv_assert_ok!(reply_vmsg!(reply, 0));
 
         val += 100;
     }
 
-    if FAILED.get() > 0 {
-        println!("\x1B[1;31m{} tests failed\x1B[0;m", FAILED.get());
+    if tester.failures() > 0 {
+        println!(
+            "\x1B[1;31m{} of {} tests failed\x1B[0;m",
+            tester.failures(),
+            tester.tests()
+        );
     }
     else {
         println!("\x1B[1;32mAll tests successful!\x1B[0;m");

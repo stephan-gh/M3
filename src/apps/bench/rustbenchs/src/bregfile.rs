@@ -19,14 +19,14 @@
 use m3::cell::StaticRefCell;
 use m3::io::Read;
 use m3::mem::AlignedBuf;
-use m3::test;
+use m3::test::WvTester;
 use m3::time::{CycleInstant, Profiler};
 use m3::vfs::{FileMode, OpenFlags, VFS};
 use m3::{wv_assert_ok, wv_perf, wv_run_test};
 
 static BUF: StaticRefCell<AlignedBuf<8192>> = StaticRefCell::new(AlignedBuf::new_zeroed());
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, open_close);
     wv_run_test!(t, stat);
     wv_run_test!(t, mkdir_rmdir);
@@ -36,7 +36,7 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, copy);
 }
 
-fn open_close() {
+fn open_close(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().repeats(50).warmup(50);
 
     wv_perf!(
@@ -47,7 +47,7 @@ fn open_close() {
     );
 }
 
-fn stat() {
+fn stat(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().repeats(50).warmup(10);
 
     wv_perf!(
@@ -58,7 +58,7 @@ fn stat() {
     );
 }
 
-fn mkdir_rmdir() {
+fn mkdir_rmdir(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().repeats(50).warmup(10);
 
     wv_perf!(
@@ -70,7 +70,7 @@ fn mkdir_rmdir() {
     );
 }
 
-fn link_unlink() {
+fn link_unlink(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().repeats(50).warmup(10);
 
     wv_perf!(
@@ -82,7 +82,7 @@ fn link_unlink() {
     );
 }
 
-fn read() {
+fn read(_t: &mut dyn WvTester) {
     let buf = &mut BUF.borrow_mut()[..];
 
     let mut prof = Profiler::default().repeats(2).warmup(1);
@@ -101,7 +101,7 @@ fn read() {
     );
 }
 
-fn write() {
+fn write(_t: &mut dyn WvTester) {
     const SIZE: usize = 2 * 1024 * 1024;
     let buf = &BUF.borrow()[..];
 
@@ -127,7 +127,7 @@ fn write() {
     );
 }
 
-fn copy() {
+fn copy(_t: &mut dyn WvTester) {
     let buf = &mut BUF.borrow_mut()[..];
     let mut prof = Profiler::default().repeats(2).warmup(1);
 

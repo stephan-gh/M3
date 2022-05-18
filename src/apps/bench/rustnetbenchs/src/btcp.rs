@@ -19,17 +19,17 @@ use m3::format;
 use m3::net::{Endpoint, StreamSocket, StreamSocketArgs, TcpSocket};
 use m3::println;
 use m3::session::NetworkManager;
-use m3::test;
+use m3::test::WvTester;
 use m3::time::{Results, TimeDuration, TimeInstant};
 use m3::vfs::{File, FileEvent, FileWaiter};
 use m3::{wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, latency);
     wv_run_test!(t, bandwidth);
 }
 
-fn latency() {
+fn latency(t: &mut dyn WvTester) {
     let nm = wv_assert_ok!(NetworkManager::new("net"));
     let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(nm)));
 
@@ -43,7 +43,7 @@ fn latency() {
 
     // warmup
     for _ in 0..5 {
-        wv_assert_eq!(socket.send(&buf), Ok(buf.len()));
+        wv_assert_eq!(t, socket.send(&buf), Ok(buf.len()));
         let _res = socket.recv(&mut buf);
     }
 
@@ -55,7 +55,7 @@ fn latency() {
         for _ in 0..samples {
             let start = TimeInstant::now();
 
-            wv_assert_eq!(socket.send(&buf[0..*pkt_size]), Ok(*pkt_size));
+            wv_assert_eq!(t, socket.send(&buf[0..*pkt_size]), Ok(*pkt_size));
 
             let mut recv_size = 0;
             while recv_size < *pkt_size {
@@ -64,7 +64,7 @@ fn latency() {
 
             let stop = TimeInstant::now();
 
-            wv_assert_eq!(*pkt_size, recv_size as usize);
+            wv_assert_eq!(t, *pkt_size, recv_size as usize);
             res.push(stop.duration_since(start));
         }
 
@@ -82,7 +82,7 @@ fn latency() {
     wv_assert_ok!(socket.close());
 }
 
-fn bandwidth() {
+fn bandwidth(t: &mut dyn WvTester) {
     const PACKETS_TO_SEND: usize = 105;
     const BURST_SIZE: usize = 2;
     const TIMEOUT: TimeDuration = TimeDuration::from_secs(1);
@@ -101,7 +101,7 @@ fn bandwidth() {
     let mut buf = [0u8; 1024];
 
     for _ in 0..10 {
-        wv_assert_eq!(socket.send(&buf), Ok(buf.len()));
+        wv_assert_eq!(t, socket.send(&buf), Ok(buf.len()));
         wv_assert_ok!(socket.recv(&mut buf));
     }
 
@@ -144,7 +144,7 @@ fn bandwidth() {
 
             match socket.send(&buf) {
                 Err(e) => {
-                    wv_assert_eq!(e.code(), Code::WouldBlock);
+                    wv_assert_eq!(t, e.code(), Code::WouldBlock);
                     failures += 1;
                 },
                 Ok(_) => {
@@ -157,7 +157,7 @@ fn bandwidth() {
         for _ in 0..BURST_SIZE {
             match socket.recv(&mut buf) {
                 Err(e) => {
-                    wv_assert_eq!(e.code(), Code::WouldBlock);
+                    wv_assert_eq!(t, e.code(), Code::WouldBlock);
                     failures += 1;
                 },
                 Ok(size) => {

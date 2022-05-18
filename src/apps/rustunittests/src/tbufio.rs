@@ -17,15 +17,15 @@
  */
 
 use m3::io::{Read, Write};
-use m3::test;
+use m3::test::WvTester;
 use m3::vfs::{BufReader, BufWriter, OpenFlags, VFS};
 use m3::{wv_assert_eq, wv_assert_ok, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, read_write);
 }
 
-fn read_write() {
+fn read_write(t: &mut dyn WvTester) {
     {
         let file = wv_assert_ok!(VFS::open("/myfile", OpenFlags::CREATE | OpenFlags::W));
         let mut bfile = BufWriter::new(file);
@@ -42,6 +42,6 @@ fn read_write() {
         let mut bfile = BufReader::new(file);
 
         let s = wv_assert_ok!(bfile.read_to_string());
-        wv_assert_eq!(s, "This foo is the 42th test of 0xABCDEF!\n");
+        wv_assert_eq!(t, s, "This foo is the 42th test of 0xABCDEF!\n");
     }
 }

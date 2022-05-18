@@ -21,31 +21,15 @@
 
 mod brdwr;
 
-use m3::test::WvTester;
+use m3::test::{DefaultWvTester, WvTester};
 use m3::{println, wv_run_suite};
-
-struct MyTester {}
-
-impl WvTester for MyTester {
-    fn run_suite(&mut self, name: &str, f: &dyn Fn(&mut dyn WvTester)) {
-        println!("Running benchmark suite {} ...\n", name);
-        f(self);
-        println!();
-    }
-
-    fn run_test(&mut self, name: &str, file: &str, f: &dyn Fn()) {
-        println!("Testing \"{}\" in {}:", name, file);
-        f();
-        println!();
-    }
-}
 
 #[no_mangle]
 pub fn main() -> i32 {
     // Mount fs to load binary data
     m3::vfs::VFS::mount("/", "m3fs", "m3fs").expect("Failed to mount root filesystem on server");
 
-    let mut tester = MyTester {};
+    let mut tester = DefaultWvTester::default();
     wv_run_suite!(tester, brdwr::run);
 
     println!("\x1B[1;32mAll tests successful!\x1B[0;m");

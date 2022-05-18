@@ -17,14 +17,14 @@ use m3::com::Semaphore;
 use m3::errors::{Code, Error};
 use m3::net::{DGramSocket, DgramSocketArgs, Endpoint, State, UdpSocket, MTU};
 use m3::session::NetworkManager;
-use m3::test;
+use m3::test::WvTester;
 use m3::time::TimeDuration;
 use m3::vfs::{File, FileEvent, FileRef, FileWaiter};
 use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 const TIMEOUT: TimeDuration = TimeDuration::from_secs(1);
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     // wait once for UDP, because it's connection-less
     wv_assert_ok!(Semaphore::attach("net-udp").unwrap().down());
 
@@ -33,34 +33,35 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, data);
 }
 
-fn basics() {
+fn basics(t: &mut dyn WvTester) {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
     let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(nm)));
 
-    wv_assert_eq!(socket.state(), State::Closed);
-    wv_assert_eq!(socket.local_endpoint(), None);
+    wv_assert_eq!(t, socket.state(), State::Closed);
+    wv_assert_eq!(t, socket.local_endpoint(), None);
 
     wv_assert_ok!(socket.bind(2000));
-    wv_assert_eq!(socket.state(), State::Bound);
+    wv_assert_eq!(t, socket.state(), State::Bound);
     wv_assert_eq!(
+        t,
         socket.local_endpoint(),
         Some(Endpoint::new(crate::NET0_IP.get(), 2000))
     );
 
-    wv_assert_err!(socket.bind(2001), Code::InvState);
+    wv_assert_err!(t, socket.bind(2001), Code::InvState);
 }
 
-fn connect() {
+fn connect(t: &mut dyn WvTester) {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
     let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(nm)));
 
-    wv_assert_eq!(socket.state(), State::Closed);
-    wv_assert_eq!(socket.local_endpoint(), None);
+    wv_assert_eq!(t, socket.state(), State::Closed);
+    wv_assert_eq!(t, socket.local_endpoint(), None);
 
     wv_assert_ok!(socket.connect(Endpoint::new(crate::NET0_IP.get(), 2000)));
-    wv_assert_eq!(socket.state(), State::Bound);
+    wv_assert_eq!(t, socket.state(), State::Bound);
 }
 
 fn send_recv(
@@ -83,7 +84,7 @@ fn send_recv(
     }
 }
 
-fn data() {
+fn data(t: &mut dyn WvTester) {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
 
     let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(nm)));
@@ -114,10 +115,12 @@ fn data() {
     ));
 
     wv_assert_err!(
+        t,
         socket.send_to(&m3::vec![0u8; 4096], dest),
         Code::OutOfBounds
     );
     wv_assert_err!(
+        t,
         socket.send_to(&m3::vec![0u8; MTU + 1], dest),
         Code::OutOfBounds
     );
@@ -133,9 +136,9 @@ fn data() {
                 &mut recv_buf,
                 TIMEOUT,
             ) {
-                wv_assert_eq!(*pkt_size, recv_size as usize);
-                wv_assert_eq!(src, dest);
-                wv_assert_eq!(&recv_buf[0..recv_size], &send_buf[0..recv_size]);
+                wv_assert_eq!(t, *pkt_size, recv_size as usize);
+                wv_assert_eq!(t, src, dest);
+                wv_assert_eq!(t, &recv_buf[0..recv_size], &send_buf[0..recv_size]);
                 break;
             }
         }

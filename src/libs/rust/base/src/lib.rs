@@ -64,8 +64,6 @@ pub mod sync {
 pub mod io;
 #[macro_use]
 pub mod util;
-#[macro_use]
-pub mod test;
 
 pub mod backtrace;
 pub mod borrow;

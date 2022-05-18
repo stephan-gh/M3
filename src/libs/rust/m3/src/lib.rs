@@ -41,8 +41,7 @@ pub mod net;
 pub use base::{
     backtrace, borrow, boxed, cell, cfg, col, cpu, elf, env, errors, format, function, goff,
     impl_boxitem, int_enum, kif, libc, llog, log, math, mem, parse, quota, random, rc, serialize,
-    sync, tcu, test, time, tmif, util, vec, wv_assert, wv_assert_eq, wv_assert_err, wv_assert_ok,
-    wv_assert_some, wv_perf, wv_run_suite, wv_run_test,
+    sync, tcu, time, tmif, util, vec,
 };
 
 pub mod cap;
@@ -50,6 +49,8 @@ pub mod crypto;
 pub mod server;
 pub mod session;
 pub mod syscalls;
+#[macro_use]
+pub mod test;
 pub mod tiles;
 pub mod vfs;
 

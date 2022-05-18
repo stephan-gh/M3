@@ -17,17 +17,17 @@
  */
 
 use m3::col::Treap;
-use m3::test;
+use m3::test::WvTester;
 use m3::time::{CycleInstant, Profiler, Runner};
-use m3::{wv_assert_eq, wv_perf, wv_run_test};
+use m3::{wv_perf, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, insert);
     wv_run_test!(t, find);
     wv_run_test!(t, clear);
 }
 
-fn insert() {
+fn insert(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().repeats(100).warmup(100);
 
     #[derive(Default)]
@@ -51,7 +51,7 @@ fn insert() {
     );
 }
 
-fn find() {
+fn find(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().repeats(100).warmup(50);
 
     #[derive(Default)]
@@ -67,7 +67,7 @@ fn find() {
         fn run(&mut self) {
             for i in 0..10 {
                 let val = self.0.get(&i);
-                wv_assert_eq!(val, Some(&i));
+                assert!(val == Some(&i));
             }
         }
 
@@ -82,7 +82,7 @@ fn find() {
     );
 }
 
-fn clear() {
+fn clear(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().repeats(100).warmup(100);
 
     #[derive(Default)]

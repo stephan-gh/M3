@@ -16,14 +16,14 @@
 use m3::format;
 use m3::net::{DGramSocket, DgramSocketArgs, Endpoint, UdpSocket};
 use m3::session::NetworkManager;
-use m3::test;
+use m3::test::WvTester;
 use m3::time::{CycleInstant, Results, TimeDuration};
 use m3::vfs::{File, FileEvent, FileRef, FileWaiter};
 use m3::{wv_assert_ok, wv_perf, wv_run_test};
 
 const TIMEOUT: TimeDuration = TimeDuration::from_millis(30);
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, latency);
 }
 
@@ -43,7 +43,7 @@ fn send_recv(waiter: &mut FileWaiter, socket: &mut FileRef<UdpSocket>, dest: End
     }
 }
 
-fn latency() {
+fn latency(_t: &mut dyn WvTester) {
     let nm = wv_assert_ok!(NetworkManager::new("net"));
     let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(nm)));
 

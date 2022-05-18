@@ -20,13 +20,13 @@ use m3::cap::Selector;
 use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
 use m3::env;
 use m3::math;
-use m3::test;
+use m3::test::{DefaultWvTester, WvTester};
 use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::time::TimeDuration;
 
 use m3::{send_vmsg, wv_assert_eq, wv_assert_ok, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, run_stop);
     wv_run_test!(t, run_arguments);
     wv_run_test!(t, run_send_receive);
@@ -36,7 +36,7 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, exec_rust_hello);
 }
 
-fn run_stop() {
+fn run_stop(_t: &mut dyn WvTester) {
     use m3::com::RGateArgs;
     use m3::vfs;
 
@@ -91,21 +91,22 @@ fn run_stop() {
     }
 }
 
-fn run_arguments() {
+fn run_arguments(t: &mut dyn WvTester) {
     let tile = wv_assert_ok!(Tile::get("clone|own"));
     let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
     let act = wv_assert_ok!(act.run(|| {
-        wv_assert_eq!(env::args().count(), 1);
+        let mut t = DefaultWvTester::default();
+        wv_assert_eq!(t, env::args().count(), 1);
         assert!(env::args().next().is_some());
         assert!(env::args().next().unwrap().ends_with("rustunittests"));
         0
     }));
 
-    wv_assert_eq!(act.wait(), Ok(0));
+    wv_assert_eq!(t, act.wait(), Ok(0));
 }
 
-fn run_send_receive() {
+fn run_send_receive(t: &mut dyn WvTester) {
     let tile = wv_assert_ok!(Tile::get("clone|own"));
     let mut act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
@@ -118,6 +119,7 @@ fn run_send_receive() {
     dst.push_word(rgate.sel());
 
     let act = wv_assert_ok!(act.run(|| {
+        let mut t = DefaultWvTester::default();
         let mut src = Activity::own().data_source();
         let rg_sel: Selector = src.pop().unwrap();
 
@@ -126,17 +128,17 @@ fn run_send_receive() {
         let mut res = wv_assert_ok!(recv_msg(&rgate));
         let i1 = wv_assert_ok!(res.pop::<u32>());
         let i2 = wv_assert_ok!(res.pop::<u32>());
-        wv_assert_eq!((i1, i2), (42, 23));
+        wv_assert_eq!(t, (i1, i2), (42, 23));
         (i1 + i2) as i32
     }));
 
     wv_assert_ok!(send_vmsg!(&sgate, RecvGate::def(), 42, 23));
 
-    wv_assert_eq!(act.wait(), Ok(42 + 23));
+    wv_assert_eq!(t, act.wait(), Ok(42 + 23));
 }
 
 #[cfg(not(target_vendor = "host"))]
-fn exec_fail() {
+fn exec_fail(_t: &mut dyn WvTester) {
     use m3::errors::Code;
 
     let tile = wv_assert_ok!(Tile::get("clone|own"));
@@ -158,18 +160,18 @@ fn exec_fail() {
     }
 }
 
-fn exec_hello() {
+fn exec_hello(t: &mut dyn WvTester) {
     let tile = wv_assert_ok!(Tile::get("clone|own"));
     let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
     let act = wv_assert_ok!(act.exec(&["/bin/hello"]));
-    wv_assert_eq!(act.wait(), Ok(0));
+    wv_assert_eq!(t, act.wait(), Ok(0));
 }
 
-fn exec_rust_hello() {
+fn exec_rust_hello(t: &mut dyn WvTester) {
     let tile = wv_assert_ok!(Tile::get("clone|own"));
     let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
     let act = wv_assert_ok!(act.exec(&["/bin/rusthello"]));
-    wv_assert_eq!(act.wait(), Ok(0));
+    wv_assert_eq!(t, act.wait(), Ok(0));
 }

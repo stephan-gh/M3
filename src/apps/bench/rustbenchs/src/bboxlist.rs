@@ -19,9 +19,9 @@
 use m3::boxed::Box;
 use m3::col::{BoxList, BoxRef};
 use m3::mem;
-use m3::test;
+use m3::test::WvTester;
 use m3::time::{CycleInstant, Profiler, Runner};
-use m3::{impl_boxitem, wv_assert_eq, wv_perf, wv_run_test};
+use m3::{impl_boxitem, wv_perf, wv_run_test};
 
 #[derive(Default, Clone)]
 struct TestItem {
@@ -42,14 +42,14 @@ impl TestItem {
     }
 }
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, push_back);
     wv_run_test!(t, push_front);
     wv_run_test!(t, push_pop);
     wv_run_test!(t, clear);
 }
 
-fn push_back() {
+fn push_back(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().warmup(100).repeats(30);
 
     #[derive(Default)]
@@ -73,7 +73,7 @@ fn push_back() {
     );
 }
 
-fn push_front() {
+fn push_front(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().warmup(100).repeats(30);
 
     #[derive(Default)]
@@ -97,7 +97,7 @@ fn push_front() {
     );
 }
 
-fn push_pop() {
+fn push_pop(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().repeats(30);
 
     #[derive(Default)]
@@ -115,7 +115,7 @@ fn push_pop() {
 
         fn post(&mut self) {
             self.2 += 1;
-            wv_assert_eq!(self.0.len(), self.2);
+            assert!(self.0.len() == self.2);
         }
     }
 
@@ -125,7 +125,7 @@ fn push_pop() {
     );
 }
 
-fn clear() {
+fn clear(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default().warmup(100).repeats(30);
 
     #[derive(Default)]

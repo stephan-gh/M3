@@ -18,44 +18,20 @@
 
 #![no_std]
 
-use m3::cell::{LazyStaticCell, StaticCell};
+use m3::cell::LazyStaticCell;
 use m3::col::Vec;
 use m3::env;
 use m3::net::IpAddr;
-use m3::test::WvTester;
+use m3::test::{DefaultWvTester, WvTester};
 use m3::{println, wv_run_suite};
 
 mod traw;
 mod ttcp;
 mod tudp;
 
-// TODO that's hacky, but the only alternative I can see is to pass the WvTester to every single
-// test case and every single wv_assert_* call, which is quite inconvenient.
-static FAILED: StaticCell<u32> = StaticCell::new(0);
-
 pub static NET0_IP: LazyStaticCell<IpAddr> = LazyStaticCell::default();
 pub static NET1_IP: LazyStaticCell<IpAddr> = LazyStaticCell::default();
 pub static DST_IP: LazyStaticCell<IpAddr> = LazyStaticCell::default();
-
-extern "C" fn wvtest_failed() {
-    FAILED.set(FAILED.get() + 1);
-}
-
-struct MyTester {}
-
-impl WvTester for MyTester {
-    fn run_suite(&mut self, name: &str, f: &dyn Fn(&mut dyn WvTester)) {
-        println!("Running test suite {} ...\n", name);
-        f(self);
-        println!();
-    }
-
-    fn run_test(&mut self, name: &str, file: &str, f: &dyn Fn()) {
-        println!("Testing \"{}\" in {}:", name, file);
-        f();
-        println!();
-    }
-}
 
 fn parse_ip(ip: &str) -> IpAddr {
     ip.parse::<IpAddr>()
@@ -74,13 +50,17 @@ pub fn main() -> i32 {
     NET1_IP.set(parse_ip(args[2]));
     DST_IP.set(parse_ip(args[3]));
 
-    let mut tester = MyTester {};
+    let mut tester = DefaultWvTester::default();
     wv_run_suite!(tester, traw::run);
     wv_run_suite!(tester, tudp::run);
     wv_run_suite!(tester, ttcp::run);
 
-    if FAILED.get() > 0 {
-        println!("\x1B[1;31m{} tests failed\x1B[0;m", FAILED.get());
+    if tester.failures() > 0 {
+        println!(
+            "\x1B[1;31m{} of {} tests failed\x1B[0;m",
+            tester.failures(),
+            tester.tests()
+        );
     }
     else {
         println!("\x1B[1;32mAll tests successful!\x1B[0;m");

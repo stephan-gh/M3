@@ -19,14 +19,14 @@ use m3::format;
 use m3::net::{DGramSocket, DgramSocketArgs, Endpoint, UdpSocket};
 use m3::println;
 use m3::session::NetworkManager;
-use m3::test;
+use m3::test::WvTester;
 use m3::time::{Results, TimeDuration, TimeInstant};
 use m3::vfs::{File, FileEvent, FileRef, FileWaiter};
 use m3::{wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test};
 
 const TIMEOUT: TimeDuration = TimeDuration::from_secs(1);
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     // wait once for UDP, because it's connection-less
     wv_assert_ok!(Semaphore::attach("net-udp").unwrap().down());
 
@@ -53,7 +53,7 @@ fn send_recv(
     }
 }
 
-fn latency() {
+fn latency(t: &mut dyn WvTester) {
     let nm = wv_assert_ok!(NetworkManager::new("net"));
     let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(nm)));
 
@@ -100,7 +100,7 @@ fn latency() {
             ) {
                 let stop = TimeInstant::now();
 
-                wv_assert_eq!(*pkt_size, recv_size as usize);
+                wv_assert_eq!(t, *pkt_size, recv_size as usize);
                 res.push(stop.duration_since(start));
             }
         }
@@ -117,7 +117,7 @@ fn latency() {
     }
 }
 
-fn bandwidth() {
+fn bandwidth(t: &mut dyn WvTester) {
     const PACKETS_TO_SEND: usize = 105;
     const PACKETS_TO_RECEIVE: usize = 100;
     const BURST_SIZE: usize = 2;
@@ -177,7 +177,7 @@ fn bandwidth() {
 
             match socket.send_to(&buf, dest) {
                 Err(e) => {
-                    wv_assert_eq!(e.code(), Code::WouldBlock);
+                    wv_assert_eq!(t, e.code(), Code::WouldBlock);
                     failures += 1;
                 },
                 Ok(_) => {
@@ -190,7 +190,7 @@ fn bandwidth() {
         for _ in 0..BURST_SIZE {
             match socket.recv(&mut buf) {
                 Err(e) => {
-                    wv_assert_eq!(e.code(), Code::WouldBlock);
+                    wv_assert_eq!(t, e.code(), Code::WouldBlock);
                     failures += 1;
                 },
                 Ok(size) => {

@@ -25,14 +25,15 @@ use m3::mem::MsgBuf;
 use m3::serialize::{Source, Unmarshallable};
 use m3::session::HashSession;
 use m3::tcu::INVALID_EP;
+use m3::test::WvTester;
 use m3::tiles::{
     Activity, ChildActivity, RunningActivity, RunningProgramActivity, StateSerializer, Tile,
 };
 use m3::time::{CycleDuration, CycleInstant, Duration, Results};
 use m3::{format, log, println, send_recv, wv_assert_ok, wv_run_test};
-use m3::{math, mem, tcu, test};
+use m3::{math, mem, tcu};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, hashmux_clients);
 }
 
@@ -284,7 +285,7 @@ fn _sync_and_wait_for_clients(rgate: &RecvGate, mut clients: Vec<Client>) {
     }
 }
 
-fn hashmux_clients() {
+fn hashmux_clients(_t: &mut dyn WvTester) {
     const MAX_CLIENTS: usize = 2;
     const MAX_SIZE: usize = 512 * 1024; // 512 KiB
 

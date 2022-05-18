@@ -25,11 +25,11 @@ use m3::mem::MsgBuf;
 use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::{ClientSession, ServerSession};
 use m3::syscalls;
-use m3::test;
+use m3::test::{DefaultWvTester, WvTester};
 use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::{send_vmsg, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, testnoresp);
     wv_run_test!(t, testcliexit);
     wv_run_test!(t, testcaps);
@@ -90,7 +90,7 @@ pub fn connect(name: &str) -> ClientSession {
     }
 }
 
-pub fn testnoresp() {
+fn testnoresp(t: &mut dyn WvTester) {
     let client_tile = wv_assert_ok!(Tile::get("clone|own"));
     let client = wv_assert_ok!(ChildActivity::new_with(
         client_tile,
@@ -107,22 +107,23 @@ pub fn testnoresp() {
         let sact = wv_assert_ok!(serv.run(server_crash_main));
 
         let cact = wv_assert_ok!(client.run(|| {
+            let mut t = DefaultWvTester::default();
             let sess = connect("test");
-            wv_assert_err!(sess.obtain_obj(), Code::RecvGone);
+            wv_assert_err!(t, sess.obtain_obj(), Code::RecvGone);
             0
         }));
 
-        wv_assert_eq!(sact.wait(), Ok(1));
+        wv_assert_eq!(t, sact.wait(), Ok(1));
         cact
 
         // destroy server activity to let the client request fail
     };
 
     // now wait for client
-    wv_assert_eq!(cact.wait(), Ok(0));
+    wv_assert_eq!(t, cact.wait(), Ok(0));
 }
 
-pub fn testcliexit() {
+fn testcliexit(t: &mut dyn WvTester) {
     let client_tile = wv_assert_ok!(Tile::get("clone|own"));
     let mut client = wv_assert_ok!(ChildActivity::new_with(
         client_tile,
@@ -188,7 +189,7 @@ pub fn testcliexit() {
     wv_assert_ok!(recv_msg(&rg));
     wv_assert_ok!(recv_msg(&rg));
 
-    wv_assert_eq!(sact.wait(), Ok(1));
+    wv_assert_eq!(t, sact.wait(), Ok(1));
     wv_assert_ok!(cact.stop());
 }
 
@@ -267,7 +268,7 @@ fn server_notsup_main() -> i32 {
     0
 }
 
-pub fn testcaps() {
+fn testcaps(t: &mut dyn WvTester) {
     let server_tile = wv_assert_ok!(Tile::get("clone|own"));
     let serv = wv_assert_ok!(ChildActivity::new_with(
         server_tile,
@@ -281,18 +282,23 @@ pub fn testcaps() {
         // test both obtain and delegate
         if i % 2 == 0 {
             for _ in 0..5 {
-                wv_assert_err!(sess.obtain_obj(), Code::NotSup);
+                wv_assert_err!(t, sess.obtain_obj(), Code::NotSup);
             }
-            wv_assert_err!(sess.obtain_obj(), Code::InvArgs, Code::RecvGone);
+            wv_assert_err!(t, sess.obtain_obj(), Code::InvArgs, Code::RecvGone);
         }
         else {
             for _ in 0..5 {
-                wv_assert_err!(sess.delegate_obj(sess.sel()), Code::NotSup);
+                wv_assert_err!(t, sess.delegate_obj(sess.sel()), Code::NotSup);
             }
-            wv_assert_err!(sess.delegate_obj(sess.sel()), Code::InvArgs, Code::RecvGone);
+            wv_assert_err!(
+                t,
+                sess.delegate_obj(sess.sel()),
+                Code::InvArgs,
+                Code::RecvGone
+            );
         }
     }
 
-    wv_assert_err!(ClientSession::new("test"), Code::InvArgs);
-    wv_assert_eq!(sact.wait(), Ok(0));
+    wv_assert_err!(t, ClientSession::new("test"), Code::InvArgs);
+    wv_assert_eq!(t, sact.wait(), Ok(0));
 }

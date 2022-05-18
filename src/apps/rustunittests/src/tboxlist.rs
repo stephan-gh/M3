@@ -20,7 +20,7 @@ use core::fmt;
 
 use m3::boxed::Box;
 use m3::col::{BoxList, BoxRef};
-use m3::test;
+use m3::test::WvTester;
 use m3::{impl_boxitem, wv_assert_eq, wv_run_test};
 
 struct TestItem {
@@ -53,7 +53,7 @@ impl TestItem {
     }
 }
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, create);
     wv_run_test!(t, basics);
     wv_run_test!(t, iter);
@@ -70,68 +70,68 @@ fn gen_list(items: &[u32]) -> BoxList<TestItem> {
     l
 }
 
-fn create() {
+fn create(t: &mut dyn WvTester) {
     let l: BoxList<TestItem> = BoxList::new();
-    wv_assert_eq!(l.len(), 0);
-    wv_assert_eq!(l.iter().next(), None);
+    wv_assert_eq!(t, l.len(), 0);
+    wv_assert_eq!(t, l.iter().next(), None);
 }
 
-fn basics() {
+fn basics(t: &mut dyn WvTester) {
     let mut l = gen_list(&[23, 42, 57]);
 
-    wv_assert_eq!(l.len(), 3);
-    wv_assert_eq!(l.front().unwrap().data, 23);
-    wv_assert_eq!(l.back().unwrap().data, 57);
+    wv_assert_eq!(t, l.len(), 3);
+    wv_assert_eq!(t, l.front().unwrap().data, 23);
+    wv_assert_eq!(t, l.back().unwrap().data, 57);
 
-    wv_assert_eq!(l.front_mut().unwrap().data, 23);
-    wv_assert_eq!(l.back_mut().unwrap().data, 57);
+    wv_assert_eq!(t, l.front_mut().unwrap().data, 23);
+    wv_assert_eq!(t, l.back_mut().unwrap().data, 57);
 }
 
 #[allow(clippy::option_map_unit_fn)]
-fn iter() {
+fn iter(t: &mut dyn WvTester) {
     let mut l: BoxList<TestItem> = gen_list(&[23, 42, 57]);
 
     {
         let mut it = l.iter_mut();
         let e = it.next();
-        wv_assert_eq!(e.as_ref().unwrap().data, 23);
+        wv_assert_eq!(t, e.as_ref().unwrap().data, 23);
         e.map(|v| (*v).data = 32);
 
         let e = it.next();
-        wv_assert_eq!(e.as_ref().unwrap().data, 42);
+        wv_assert_eq!(t, e.as_ref().unwrap().data, 42);
         e.map(|v| (*v).data = 24);
 
         let e = it.next();
-        wv_assert_eq!(e.as_ref().unwrap().data, 57);
+        wv_assert_eq!(t, e.as_ref().unwrap().data, 57);
         e.map(|v| (*v).data = 75);
     }
 
-    wv_assert_eq!(l, gen_list(&[32, 24, 75]));
+    wv_assert_eq!(t, l, gen_list(&[32, 24, 75]));
 }
 
-fn iter_remove() {
+fn iter_remove(t: &mut dyn WvTester) {
     {
         let mut l = gen_list(&[23, 42, 57]);
 
         {
             let mut it = l.iter_mut();
-            wv_assert_eq!(it.remove(), None);
+            wv_assert_eq!(t, it.remove(), None);
 
             let e = it.next();
-            wv_assert_eq!(e.as_ref().unwrap().data, 23);
-            wv_assert_eq!(it.remove().unwrap().data, 23);
+            wv_assert_eq!(t, e.as_ref().unwrap().data, 23);
+            wv_assert_eq!(t, it.remove().unwrap().data, 23);
 
             let e = it.next();
-            wv_assert_eq!(e.as_ref().unwrap().data, 42);
-            wv_assert_eq!(it.remove().unwrap().data, 42);
+            wv_assert_eq!(t, e.as_ref().unwrap().data, 42);
+            wv_assert_eq!(t, it.remove().unwrap().data, 42);
 
             let e = it.next();
-            wv_assert_eq!(e.as_ref().unwrap().data, 57);
-            wv_assert_eq!(it.remove().unwrap().data, 57);
+            wv_assert_eq!(t, e.as_ref().unwrap().data, 57);
+            wv_assert_eq!(t, it.remove().unwrap().data, 57);
 
             let e = it.next();
-            wv_assert_eq!(e, None);
-            wv_assert_eq!(it.remove(), None);
+            wv_assert_eq!(t, e, None);
+            wv_assert_eq!(t, it.remove(), None);
         }
 
         assert!(l.is_empty());
@@ -142,34 +142,34 @@ fn iter_remove() {
 
         {
             let mut it = l.iter_mut();
-            wv_assert_eq!(it.next().as_ref().unwrap().data, 1);
-            wv_assert_eq!(it.next().as_ref().unwrap().data, 2);
-            wv_assert_eq!(it.remove().unwrap().data, 2);
-            wv_assert_eq!(it.remove().unwrap().data, 1);
-            wv_assert_eq!(it.remove(), None);
-            wv_assert_eq!(it.next().as_ref().unwrap().data, 3);
+            wv_assert_eq!(t, it.next().as_ref().unwrap().data, 1);
+            wv_assert_eq!(t, it.next().as_ref().unwrap().data, 2);
+            wv_assert_eq!(t, it.remove().unwrap().data, 2);
+            wv_assert_eq!(t, it.remove().unwrap().data, 1);
+            wv_assert_eq!(t, it.remove(), None);
+            wv_assert_eq!(t, it.next().as_ref().unwrap().data, 3);
         }
 
-        wv_assert_eq!(l, gen_list(&[3]));
+        wv_assert_eq!(t, l, gen_list(&[3]));
     }
 }
 
-fn push_back() {
+fn push_back(t: &mut dyn WvTester) {
     let mut l = BoxList::new();
 
     l.push_back(Box::new(TestItem::new(1)));
     l.push_back(Box::new(TestItem::new(2)));
     l.push_back(Box::new(TestItem::new(3)));
 
-    wv_assert_eq!(l, gen_list(&[1, 2, 3]));
+    wv_assert_eq!(t, l, gen_list(&[1, 2, 3]));
 }
 
-fn push_front() {
+fn push_front(t: &mut dyn WvTester) {
     let mut l = BoxList::new();
 
     l.push_front(Box::new(TestItem::new(1)));
     l.push_front(Box::new(TestItem::new(2)));
     l.push_front(Box::new(TestItem::new(3)));
 
-    wv_assert_eq!(l, gen_list(&[3, 2, 1]));
+    wv_assert_eq!(t, l, gen_list(&[3, 2, 1]));
 }

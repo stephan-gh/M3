@@ -14,28 +14,28 @@
  */
 
 use m3::rc::Rc;
-use m3::test;
+use m3::test::{DefaultWvTester, WvTester};
 use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::tmif;
 use m3::{println, wv_assert, wv_assert_ok, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, calc_pi_local);
     wv_run_test!(t, calc_pi_remote);
 }
 
-fn calc_pi_local() {
+fn calc_pi_local(t: &mut dyn WvTester) {
     if !Activity::own().tile_desc().has_virtmem() {
         println!("No virtual memory; skipping calc_pi_local test");
         return;
     }
 
-    calc_pi(Activity::own().tile());
+    calc_pi(t, Activity::own().tile());
 }
 
-fn calc_pi_remote() {
+fn calc_pi_remote(t: &mut dyn WvTester) {
     let tile = wv_assert_ok!(Tile::get("clone"));
-    calc_pi(&tile);
+    calc_pi(t, &tile);
 }
 
 #[allow(clippy::approx_constant)]
@@ -43,13 +43,14 @@ const PI_MIN: f64 = 3.141;
 #[allow(clippy::approx_constant)]
 const PI_MAX: f64 = 3.143;
 
-fn calc_pi(tile: &Rc<Tile>) {
+fn calc_pi(t: &mut dyn WvTester, tile: &Rc<Tile>) {
     let act = wv_assert_ok!(ChildActivity::new_with(
         tile.clone(),
         ActivityArgs::new("t1")
     ));
 
     let act = wv_assert_ok!(act.run(|| {
+        let mut t = DefaultWvTester::default();
         let steps = 1000;
         let mut pi = 3.0;
         let mut div = 3.0;
@@ -70,8 +71,8 @@ fn calc_pi(tile: &Rc<Tile>) {
             div += 2.0;
         }
 
-        wv_assert!(pi >= PI_MIN);
-        wv_assert!(pi <= PI_MAX);
+        wv_assert!(t, pi >= PI_MIN);
+        wv_assert!(t, pi <= PI_MAX);
         println!(
             "PI (Somayaji) on Tile{} = {}",
             Activity::own().tile_id(),
@@ -99,8 +100,8 @@ fn calc_pi(tile: &Rc<Tile>) {
     }
 
     let pi = res * 4.0;
-    wv_assert!(pi >= PI_MIN);
-    wv_assert!(pi <= PI_MAX);
+    wv_assert!(t, pi >= PI_MIN);
+    wv_assert!(t, pi <= PI_MAX);
     println!("PI (Leibniz) on Tile{} = {}", Activity::own().tile_id(), pi);
 
     wv_assert_ok!(act.wait());

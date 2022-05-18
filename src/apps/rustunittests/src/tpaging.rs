@@ -15,15 +15,15 @@
 
 use m3::com::MemGate;
 use m3::kif::Perm;
-use m3::test;
+use m3::test::WvTester;
 use m3::tiles::Activity;
 use m3::{wv_assert_ok, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, large_pages);
 }
 
-fn large_pages() {
+fn large_pages(_t: &mut dyn WvTester) {
     if let Some(pager) = Activity::own().pager() {
         const VIRT: u64 = 0x3000_0000;
         const MEM_SIZE: usize = 6 * 1024 * 1024;

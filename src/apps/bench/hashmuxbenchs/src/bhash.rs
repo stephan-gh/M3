@@ -16,12 +16,12 @@ use crate::util;
 use m3::com::{MemGate, Perm};
 use m3::crypto::HashAlgorithm;
 use m3::session::{HashInput, HashOutput, HashSession};
-use m3::test;
+use m3::test::WvTester;
 use m3::time::{CycleInstant, Duration, Profiler};
 use m3::vfs::{OpenFlags, VFS};
 use m3::{format, vec, wv_assert_ok, wv_perf, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, reset);
     wv_run_test!(t, hash_empty);
     wv_run_test!(t, hash_mem);
@@ -32,7 +32,7 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, shake_file);
 }
 
-fn reset() {
+fn reset(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default();
     let mut hash = wv_assert_ok!(HashSession::new("hash-bench", &HashAlgorithm::SHA3_256));
 
@@ -42,7 +42,7 @@ fn reset() {
     );
 }
 
-fn hash_empty() {
+fn hash_empty(_t: &mut dyn WvTester) {
     let mut prof = Profiler::default();
     for algo in HashAlgorithm::ALL.iter() {
         if algo.is_xof() {
@@ -67,7 +67,7 @@ fn _prepare_hash_mem(size: usize) -> (MemGate, MemGate) {
     (mgate, mgated)
 }
 
-fn hash_mem() {
+fn hash_mem(_t: &mut dyn WvTester) {
     const SIZE: usize = 512 * 1024; // 512 KiB
 
     let (_mgate, mgated) = _prepare_hash_mem(SIZE);
@@ -94,7 +94,7 @@ fn hash_mem() {
 
 const TEST_ALGO: &HashAlgorithm = &HashAlgorithm::SHA3_256;
 
-fn hash_mem_sizes() {
+fn hash_mem_sizes(_t: &mut dyn WvTester) {
     const MAX_SIZE_SHIFT: usize = 19; // 2^19 = 512 KiB
     const MAX_SIZE: usize = 1 << MAX_SIZE_SHIFT;
 
@@ -125,7 +125,7 @@ fn hash_mem_sizes() {
     }
 }
 
-fn hash_file() {
+fn hash_file(_t: &mut dyn WvTester) {
     const SIZE: usize = 512 * 1024; // 512 KiB
 
     {
@@ -165,7 +165,7 @@ fn _prepare_shake_mem(size: usize) -> (MemGate, MemGate) {
     (mgate, mgated)
 }
 
-fn shake_mem() {
+fn shake_mem(_t: &mut dyn WvTester) {
     const SIZE: usize = 512 * 1024; // 512 KiB
 
     let (_mgate, mgated) = _prepare_shake_mem(SIZE);
@@ -196,7 +196,7 @@ fn shake_mem() {
 
 const SHAKE_TEST_ALGO: &HashAlgorithm = &HashAlgorithm::SHAKE128;
 
-fn shake_mem_sizes() {
+fn shake_mem_sizes(_t: &mut dyn WvTester) {
     const MAX_SIZE_SHIFT: usize = 19; // 2^19 = 512 KiB
     const MAX_SIZE: usize = 1 << MAX_SIZE_SHIFT;
 
@@ -227,7 +227,7 @@ fn shake_mem_sizes() {
     }
 }
 
-fn shake_file() {
+fn shake_file(_t: &mut dyn WvTester) {
     const SIZE: usize = 512 * 1024; // 512 KiB
 
     let mut prof = Profiler::default().warmup(2).repeats(5);

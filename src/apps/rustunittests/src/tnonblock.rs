@@ -18,7 +18,7 @@ use m3::errors::Code;
 use m3::io::{Read, Write};
 use m3::kif;
 use m3::session::Pipes;
-use m3::test;
+use m3::test::WvTester;
 use m3::tiles::Activity;
 use m3::vfs::{File, IndirectPipe, OpenFlags, VFS};
 use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_assert_some, wv_run_test};
@@ -26,20 +26,20 @@ use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_assert_some, wv_run_test}
 const PIPE_SIZE: usize = 16;
 const DATA_SIZE: usize = PIPE_SIZE / 4;
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, files);
     wv_run_test!(t, pipes);
 }
 
-fn files() {
+fn files(t: &mut dyn WvTester) {
     let mut fin = wv_assert_ok!(VFS::open("/mat.txt", OpenFlags::R));
     let mut fout = wv_assert_ok!(VFS::open(
         "/nonblocking-res.txt",
         OpenFlags::CREATE | OpenFlags::W
     ));
 
-    wv_assert_err!(fin.set_blocking(false), Code::NotSup);
-    wv_assert_err!(fout.set_blocking(false), Code::NotSup);
+    wv_assert_err!(t, fin.set_blocking(false), Code::NotSup);
+    wv_assert_err!(t, fout.set_blocking(false), Code::NotSup);
 
     let send_data: [u8; DATA_SIZE] = *b"test";
     let mut recv_data = [0u8; DATA_SIZE];
@@ -64,7 +64,7 @@ fn files() {
     }
 }
 
-fn pipes() {
+fn pipes(t: &mut dyn WvTester) {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let pipe_mem = wv_assert_ok!(MemGate::new(PIPE_SIZE, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, PIPE_SIZE));
@@ -85,15 +85,15 @@ fn pipes() {
             // this is actually not guaranteed, but depends on the implementation of the pipe
             // server. however, we want to ensure that the read data is correct, which is difficult
             // otherwise.
-            wv_assert_eq!(read, send_data.len());
-            wv_assert_eq!(recv_data, send_data);
+            wv_assert_eq!(t, read, send_data.len());
+            wv_assert_eq!(t, recv_data, send_data);
             progress += 1;
             count += read;
         }
 
         if let Ok(written) = fout.write(&send_data) {
             // see above
-            wv_assert_eq!(written, send_data.len());
+            wv_assert_eq!(t, written, send_data.len());
             progress += 1;
         }
 

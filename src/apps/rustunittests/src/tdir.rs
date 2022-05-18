@@ -18,22 +18,22 @@
 
 use core::cmp;
 use m3::col::{ToString, Vec};
-use m3::test;
+use m3::test::WvTester;
 use m3::vfs::read_dir;
 use m3::{wv_assert_eq, wv_assert_ok, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, list_dir);
 }
 
-fn list_dir() {
+fn list_dir(t: &mut dyn WvTester) {
     // read a dir with known content
     let dirname = "/largedir";
     let mut vec = Vec::new();
     for e in wv_assert_ok!(read_dir(dirname)) {
         vec.push(e);
     }
-    wv_assert_eq!(vec.len(), 82);
+    wv_assert_eq!(t, vec.len(), 82);
 
     // sort the entries; keep "." and ".." at the front
     vec.sort_unstable_by(|a, b| {
@@ -55,9 +55,9 @@ fn list_dir() {
     });
 
     // now check file names
-    wv_assert_eq!(vec[0].file_name(), ".");
-    wv_assert_eq!(vec[1].file_name(), "..");
+    wv_assert_eq!(t, vec[0].file_name(), ".");
+    wv_assert_eq!(t, vec[1].file_name(), "..");
     for i in 0..80 {
-        wv_assert_eq!(i.to_string() + ".txt", vec[i + 2].file_name());
+        wv_assert_eq!(t, i.to_string() + ".txt", vec[i + 2].file_name());
     }
 }

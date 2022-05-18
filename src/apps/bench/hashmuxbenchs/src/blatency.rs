@@ -19,7 +19,7 @@ use m3::col::Vec;
 use m3::com::{MemGate, Perm, Semaphore};
 use m3::crypto::HashAlgorithm;
 use m3::session::HashSession;
-use m3::test;
+use m3::test::WvTester;
 use m3::tiles::{Activity, ChildActivity, RunningActivity, RunningProgramActivity, Tile};
 use m3::time::{CycleDuration, CycleInstant, Results, TimeDuration, TimeInstant};
 use m3::{format, log, println, wv_assert_ok, wv_perf, wv_run_test};
@@ -28,7 +28,7 @@ const TEST_ALGO: &HashAlgorithm = &HashAlgorithm::SHA3_256;
 const SLOW_ALGO: &HashAlgorithm = &HashAlgorithm::SHA3_512;
 const LOG_DEBUG: bool = true;
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, small_client_latency);
 }
 
@@ -116,7 +116,7 @@ fn _bench_latency(mgate: &MemGate, size: usize) -> Results<CycleDuration> {
     res
 }
 
-fn small_client_latency() {
+fn small_client_latency(_t: &mut dyn WvTester) {
     const LARGE_SIZE: usize = 16 * 1024 * 1024; // 16 MiB
     const SMALL_SIZE: usize = 512;
 

@@ -23,11 +23,11 @@ use m3::errors::Code;
 use m3::goff;
 use m3::math;
 use m3::session::MapFlags;
-use m3::test;
+use m3::test::WvTester;
 use m3::tiles::{Activity, ChildActivity, RunningActivity, Tile};
 use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, create);
     wv_run_test!(t, create_readonly);
     wv_run_test!(t, create_writeonly);
@@ -37,52 +37,53 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, remote_access);
 }
 
-fn create() {
+fn create(t: &mut dyn WvTester) {
     wv_assert_err!(
+        t,
         MemGate::new_with(MGateArgs::new(0x1000, Perm::R).sel(1)),
         Code::InvArgs
     );
 }
 
-fn create_readonly() {
+fn create_readonly(t: &mut dyn WvTester) {
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::R));
     let mut data = [0u8; 8];
-    wv_assert_err!(mgate.write(&data, 0), Code::NoPerm);
+    wv_assert_err!(t, mgate.write(&data, 0), Code::NoPerm);
     wv_assert_ok!(mgate.read(&mut data, 0));
 }
 
-fn create_writeonly() {
+fn create_writeonly(t: &mut dyn WvTester) {
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::W));
     let mut data = [0u8; 8];
-    wv_assert_err!(mgate.read(&mut data, 0), Code::NoPerm);
+    wv_assert_err!(t, mgate.read(&mut data, 0), Code::NoPerm);
     wv_assert_ok!(mgate.write(&data, 0));
 }
 
-fn derive() {
+fn derive(t: &mut dyn WvTester) {
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
-    wv_assert_err!(mgate.derive(0x0, 0x2000, Perm::RW), Code::InvArgs);
-    wv_assert_err!(mgate.derive(0x1000, 0x10, Perm::RW), Code::InvArgs);
-    wv_assert_err!(mgate.derive(0x800, 0x1000, Perm::RW), Code::InvArgs);
+    wv_assert_err!(t, mgate.derive(0x0, 0x2000, Perm::RW), Code::InvArgs);
+    wv_assert_err!(t, mgate.derive(0x1000, 0x10, Perm::RW), Code::InvArgs);
+    wv_assert_err!(t, mgate.derive(0x800, 0x1000, Perm::RW), Code::InvArgs);
     let dgate = wv_assert_ok!(mgate.derive(0x800, 0x800, Perm::R));
     let mut data = [0u8; 8];
-    wv_assert_err!(dgate.write(&data, 0), Code::NoPerm);
+    wv_assert_err!(t, dgate.write(&data, 0), Code::NoPerm);
     wv_assert_ok!(dgate.read(&mut data, 0));
 }
 
-fn read_write() {
+fn read_write(t: &mut dyn WvTester) {
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
     let refdata = [0u8, 1, 2, 3, 4, 5, 6, 7];
     let mut data = [0u8; 8];
     wv_assert_ok!(mgate.write(&refdata, 0));
     wv_assert_ok!(mgate.read(&mut data, 0));
-    wv_assert_eq!(data, refdata);
+    wv_assert_eq!(t, data, refdata);
 
     wv_assert_ok!(mgate.read(&mut data[0..4], 4));
-    wv_assert_eq!(&data[0..4], &refdata[4..8]);
-    wv_assert_eq!(&data[4..8], &refdata[4..8]);
+    wv_assert_eq!(t, &data[0..4], &refdata[4..8]);
+    wv_assert_eq!(t, &data[4..8], &refdata[4..8]);
 }
 
-fn read_write_object() {
+fn read_write_object(t: &mut dyn WvTester) {
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     struct Test {
         a: u32,
@@ -100,10 +101,10 @@ fn read_write_object() {
     wv_assert_ok!(mgate.write_obj(&refobj, 0));
     let obj: Test = wv_assert_ok!(mgate.read_obj(0));
 
-    wv_assert_eq!(refobj, obj);
+    wv_assert_eq!(t, refobj, obj);
 }
 
-fn remote_access() {
+fn remote_access(t: &mut dyn WvTester) {
     static mut _OBJ: u64 = 0;
     let sem1 = wv_assert_ok!(Semaphore::create(0));
     let sem2 = wv_assert_ok!(Semaphore::create(0));
@@ -170,7 +171,7 @@ fn remote_access() {
     ));
     let obj: u64 =
         wv_assert_ok!(obj_mem.read_obj(virt - math::round_dn(virt, cfg::PAGE_SIZE as goff)));
-    wv_assert_eq!(obj, 0xDEAD_BEEF);
+    wv_assert_eq!(t, obj, 0xDEAD_BEEF);
 
     // notify child that we're done
     wv_assert_ok!(sem2.up());

@@ -24,10 +24,11 @@ mod blatency;
 mod util;
 
 use m3::col::Vec;
-use m3::test::WvTester;
+use m3::test::{DefaultWvTester, WvTester};
 use m3::{println, wv_run_suite};
 
 struct MyTester {
+    def: DefaultWvTester,
     suites: Vec<&'static str>,
 }
 
@@ -38,21 +39,26 @@ impl WvTester for MyTester {
             return;
         }
 
-        println!("Running benchmark suite {} ...\n", name);
-        f(self);
-        println!();
+        self.def.run_suite(name, f);
     }
 
-    fn run_test(&mut self, name: &str, file: &str, f: &dyn Fn()) {
-        println!("Testing \"{}\" in {}:", name, file);
-        f();
-        println!();
+    fn run_test(&mut self, name: &str, file: &str, f: &dyn Fn(&mut dyn WvTester)) {
+        self.def.run_test(name, file, f);
+    }
+
+    fn test_succeeded(&mut self) {
+        self.def.test_succeeded();
+    }
+
+    fn test_failed(&mut self) {
+        self.def.test_failed();
     }
 }
 
 #[no_mangle]
 pub fn main() -> i32 {
     let mut tester = MyTester {
+        def: DefaultWvTester::default(),
         suites: m3::env::args().skip(1).collect(), // Skip program name
     };
     wv_run_suite!(tester, bhash::run);
