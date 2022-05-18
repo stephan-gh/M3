@@ -70,7 +70,7 @@ fn main() -> Result<(), Error> {
             let nic = nics
                 .iter()
                 .find(|n| n.name() == nic_name)
-                .ok_or(Error::NotFoundNIC(nic_name.to_string()))?;
+                .ok_or_else(|| Error::NotFoundNIC(nic_name.to_string()))?;
             nets.push(Net::new(tile, name.clone(), nic.name()));
         }
         else if arg == "--app" {
@@ -84,7 +84,7 @@ fn main() -> Result<(), Error> {
             let net = nets
                 .iter()
                 .find(|n| n.name() == net_name)
-                .ok_or(Error::NotFoundNet(net_name.to_string()))?;
+                .ok_or_else(|| Error::NotFoundNet(net_name.to_string()))?;
             apps.push(App::new(tile, name.clone(), net.full_name()));
         }
     }

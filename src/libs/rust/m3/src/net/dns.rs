@@ -139,10 +139,7 @@ impl DNS {
         let mut sock = UdpSocket::new(DgramSocketArgs::new(netmng))?;
 
         // send over socket
-        sock.send_to(
-            &mut buffer[0..total],
-            Endpoint::new(self.nameserver, DNS_PORT),
-        )?;
+        sock.send_to(&buffer[0..total], Endpoint::new(self.nameserver, DNS_PORT))?;
 
         // wait for the response
         sock.set_blocking(false)?;
@@ -215,7 +212,7 @@ impl DNS {
                 dst[idx] = b;
                 part_length = part_length
                     .checked_add(1)
-                    .ok_or(Error::new(Code::InvArgs))?;
+                    .ok_or_else(|| Error::new(Code::InvArgs))?;
             }
             idx -= 1;
         }

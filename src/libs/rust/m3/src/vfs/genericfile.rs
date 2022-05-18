@@ -411,7 +411,7 @@ impl File for GenericFile {
         let mounts = Activity::own().mounts();
         let mount_path = mounts
             .path_of_id(self.fs_id.unwrap())
-            .ok_or(Error::new(Code::NotFound))?;
+            .ok_or_else(|| Error::new(Code::NotFound))?;
         Ok(mount_path.to_string() + "/" + path)
     }
 

@@ -40,7 +40,7 @@ impl LCG {
     /// Returns the next pseudo random number
     pub fn get(&mut self) -> u32 {
         self.last = self.a * self.last + self.c;
-        return (self.last / 65536) % 32768;
+        (self.last / 65536) % 32768
     }
 }
 

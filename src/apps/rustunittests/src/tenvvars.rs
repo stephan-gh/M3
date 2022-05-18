@@ -30,16 +30,16 @@ fn basics() {
     env::set_var("TEST", "value");
     wv_assert_eq!(env::var("TEST"), Some("value".to_string()));
 
-    wv_assert_eq!(env::vars().iter().count(), 1);
+    wv_assert_eq!(env::vars().len(), 1);
     let vars = env::vars();
     let mut it = vars.iter();
     wv_assert_eq!(it.next(), Some(&("TEST".to_string(), "value".to_string())));
     wv_assert_eq!(it.next(), None);
 
     env::remove_var("ABC");
-    wv_assert_eq!(env::vars().iter().count(), 1);
+    wv_assert_eq!(env::vars().len(), 1);
     env::remove_var("TEST");
-    wv_assert_eq!(env::vars().iter().count(), 0);
+    wv_assert_eq!(env::vars().len(), 0);
     wv_assert_eq!(env::var("TEST"), None);
 }
 
@@ -48,7 +48,7 @@ fn multi() {
     env::set_var("V2", "val2");
     env::set_var("V2", "val3");
     env::set_var("V21", "val=with=eq");
-    wv_assert_eq!(env::vars().iter().count(), 3);
+    wv_assert_eq!(env::vars().len(), 3);
 
     let vars = env::vars();
     let mut it = vars.iter();
@@ -61,11 +61,11 @@ fn multi() {
     wv_assert_eq!(it.next(), None);
 
     env::remove_var("V2");
-    wv_assert_eq!(env::vars().iter().count(), 2);
+    wv_assert_eq!(env::vars().len(), 2);
     env::remove_var("V21");
-    wv_assert_eq!(env::vars().iter().count(), 1);
+    wv_assert_eq!(env::vars().len(), 1);
     env::remove_var("V1");
-    wv_assert_eq!(env::vars().iter().count(), 0);
+    wv_assert_eq!(env::vars().len(), 0);
 }
 
 fn to_child() {
@@ -79,7 +79,7 @@ fn to_child() {
     ));
 
     let run = wv_assert_ok!(act.run(|| {
-        wv_assert_eq!(env::vars().iter().count(), 3);
+        wv_assert_eq!(env::vars().len(), 3);
         let vars = env::vars();
         let mut it = vars.iter();
         wv_assert_eq!(it.next(), Some(&("V1".to_string(), "val1".to_string())));
@@ -88,7 +88,7 @@ fn to_child() {
         wv_assert_eq!(it.next(), None);
 
         env::remove_var("V2");
-        wv_assert_eq!(env::vars().iter().count(), 2);
+        wv_assert_eq!(env::vars().len(), 2);
         0
     }));
 
@@ -97,5 +97,5 @@ fn to_child() {
     env::remove_var("V3");
     env::remove_var("V2");
     env::remove_var("V1");
-    wv_assert_eq!(env::vars().iter().count(), 0);
+    wv_assert_eq!(env::vars().len(), 0);
 }

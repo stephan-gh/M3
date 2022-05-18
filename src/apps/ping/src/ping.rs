@@ -279,7 +279,7 @@ pub fn main() -> i32 {
     let mut dns = DNS::default();
     let dest_ip = dns
         .get_addr(nm, &settings.dest, TimeDuration::from_secs(3))
-        .expect(&format!("Unable to resolve name '{}'", settings.dest));
+        .unwrap_or_else(|_| panic!("Unable to resolve name '{}'", settings.dest));
 
     let total = mem::size_of::<IPv4Header>() + mem::size_of::<ICMP>() + settings.nbytes;
     let mut buf = vec![0u8; total];

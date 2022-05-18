@@ -116,14 +116,9 @@ pub fn args() -> Args {
 ///     println!("{}={}", key, val);
 /// }
 /// ```
+#[derive(Default)]
 pub struct Vars {
     pos: isize,
-}
-
-impl Vars {
-    pub fn new() -> Self {
-        Self { pos: 0 }
-    }
 }
 
 impl iter::Iterator for Vars {
@@ -169,7 +164,7 @@ pub fn var<K: AsRef<str>>(key: K) -> Option<String> {
         find_value(VARS.borrow().iter().map(|s| &s[..]), key.as_ref())
     }
     else {
-        find_value(Vars::new(), key.as_ref())
+        find_value(Vars::default(), key.as_ref())
     }
 }
 
@@ -189,7 +184,7 @@ pub fn vars() -> Vec<(String, String)> {
         VARS.borrow().iter().map(to_pair).collect()
     }
     else {
-        Vars::new().map(to_pair).collect()
+        Vars::default().map(to_pair).collect()
     }
 }
 
@@ -200,7 +195,7 @@ pub fn vars_raw() -> Vec<String> {
         VARS.borrow().iter().map(|p| p.to_string()).collect()
     }
     else {
-        Vars::new().map(|p| p.to_string()).collect()
+        Vars::default().map(|p| p.to_string()).collect()
     }
 }
 
@@ -210,7 +205,7 @@ pub fn set_var<K: AsRef<str>, V: AsRef<str>>(key: K, val: V) {
 
     // adding/changing a variable always requires a copy
     if !VARS.is_some() {
-        VARS.set(Vars::new().map(|s| s.to_string()).collect());
+        VARS.set(Vars::default().map(|s| s.to_string()).collect());
     }
 
     // therefore we can forget about `Vars::new()` here.
@@ -234,7 +229,7 @@ pub fn remove_var<K: AsRef<str>>(key: K) {
 
     // removing a variable always requires a copy
     if !VARS.is_some() {
-        VARS.set(Vars::new().map(|s| s.to_string()).collect());
+        VARS.set(Vars::default().map(|s| s.to_string()).collect());
     }
 
     let mut var_vec = VARS.borrow_mut();

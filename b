@@ -297,7 +297,7 @@ case "$cmd" in
             fi
             # gem5log+hwitrace are always built for the host OS (not our host target)
             target=()
-            if [[ ! $f =~ "gem5log" ]] && [[ ! $f =~ "hwitrace" ]]; then
+            if [[ ! $f =~ "gem5log" ]] && [[ ! $f =~ "hwitrace" ]] && [[ ! $f =~ "netdbg" ]]; then
                 target=("${target[@]}" -Z "build-std=core,alloc" --target "$RUST_TARGET")
             fi
             echo "Running clippy for $(dirname "$f")..."

@@ -56,9 +56,9 @@ where
 pub fn abs_path(path: &str) -> String {
     let mut canon = canon_path(path);
     // make it absolute
-    if !path.starts_with("/") {
+    if !path.starts_with('/') {
         let mut cwd = cwd();
-        if !cwd.ends_with("/") && !canon.is_empty() {
+        if !cwd.ends_with('/') && !canon.is_empty() {
             cwd.push('/');
         }
         canon.insert_str(0, &cwd);
@@ -73,7 +73,7 @@ pub fn canon_path(path: &str) -> String {
     let mut res = String::new();
     let mut begin = 0;
 
-    if path.starts_with("/") {
+    if path.starts_with('/') {
         res.push('/');
         begin += 1;
     }
@@ -84,7 +84,7 @@ pub fn canon_path(path: &str) -> String {
         }
         else if c == ".." {
             // remove last component
-            while res.len() > begin && !res.ends_with("/") {
+            while res.len() > begin && !res.ends_with('/') {
                 res.remove(res.len() - 1);
             }
             // remove last slash
@@ -106,7 +106,7 @@ pub fn canon_path(path: &str) -> String {
 
 /// Returns the current working directory
 pub fn cwd() -> String {
-    env::var("PWD").unwrap_or("/".to_string())
+    env::var("PWD").unwrap_or_else(|| "/".to_string())
 }
 
 /// Sets the current working directory to given path
