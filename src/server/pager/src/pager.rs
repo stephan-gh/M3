@@ -354,8 +354,7 @@ pub fn main() -> i32 {
     sendqueue::init(squeue_rgate);
 
     thread::init();
-    // TODO calculate the number of threads we need (one per child?)
-    for _ in 0..8 {
+    for _ in 0..args.max_clients {
         thread::add_thread(workloop as *const () as usize, &serv as *const _ as usize);
     }
 
