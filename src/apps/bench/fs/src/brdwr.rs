@@ -14,7 +14,7 @@
  */
 
 use m3::cell::StaticRefCell;
-use m3::io::Read;
+use m3::io::{Read, Write};
 use m3::mem::AlignedBuf;
 use m3::test::WvTester;
 use m3::time::{CycleInstant, Profiler};

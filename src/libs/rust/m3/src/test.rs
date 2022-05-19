@@ -98,7 +98,16 @@ macro_rules! wv_run_test {
 #[macro_export]
 macro_rules! wv_perf {
     ($name:expr, $bench:expr) => {
-        ::m3::println!("! {}:{}  PERF \"{}\": {}", file!(), line!(), $name, $bench);
+        // ensure that we evaluate the expression before println in case it contains a println
+        let name = $name;
+        let bench_result = $bench;
+        ::m3::println!(
+            "! {}:{}  PERF \"{}\": {}",
+            file!(),
+            line!(),
+            name,
+            bench_result
+        );
     };
 }
 
@@ -162,7 +171,8 @@ macro_rules! wv_assert_eq {
 #[macro_export]
 macro_rules! wv_assert_ok {
     ($res:expr) => {{
-        match $res {
+        let res = $res;
+        match res {
             Ok(r) => r,
             Err(e) => {
                 ::m3::println!(
@@ -183,7 +193,8 @@ macro_rules! wv_assert_ok {
 #[macro_export]
 macro_rules! wv_assert_some {
     ($res:expr) => {{
-        match $res {
+        let res = $res;
+        match res {
             Some(r) => r,
             None => {
                 ::m3::println!(
@@ -202,7 +213,8 @@ macro_rules! wv_assert_some {
 #[macro_export]
 macro_rules! wv_assert_err {
     ($t:expr, $res:expr, $err:expr) => {{
-        match $res {
+        let res = $res;
+        match res {
             Ok(r) => {
                 ::m3::println!("! {}:{}  received okay: {:?} FAILED", file!(), line!(), r);
                 $t.test_failed();
@@ -223,7 +235,8 @@ macro_rules! wv_assert_err {
         }
     }};
     ($t:expr, $res:expr, $err1:expr, $err2:expr) => {{
-        match $res {
+        let res = $res;
+        match res {
             Ok(r) => {
                 ::m3::println!("! {}:{}  received okay: {:?} FAILED", file!(), line!(), r);
                 $t.test_failed();
