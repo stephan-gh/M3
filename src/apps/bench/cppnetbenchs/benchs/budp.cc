@@ -132,17 +132,15 @@ NOINLINE static void bandwidth() {
         // Wait for wakeup (message or credits received)
         if(failures >= 10) {
             failures = 0;
+            auto waited = TimeInstant::now().duration_since(last_received);
+            if(waited > timeout)
+                break;
             if(packet_sent_count >= packets_to_send) {
-                auto waited = TimeInstant::now().duration_since(last_received);
-                if(waited > timeout)
-                    break;
                 // we are not interested in output anymore
                 waiter.remove(socket->fd());
                 waiter.add(socket->fd(), File::INPUT);
-                waiter.wait_for(timeout - waited);
             }
-            else
-                waiter.wait();
+            waiter.wait_for(timeout - waited);
         }
 
         size_t send_count = burst_size;

@@ -153,20 +153,17 @@ fn bandwidth(t: &mut dyn WvTester) {
     loop {
         if failures > 9 {
             failures = 0;
-            if sent_count >= PACKETS_TO_SEND {
-                let rem = timeout.checked_duration_since(TimeInstant::now());
-                match rem {
-                    Some(d) => {
+            let rem = timeout.checked_duration_since(TimeInstant::now());
+            match rem {
+                Some(d) => {
+                    if sent_count >= PACKETS_TO_SEND {
                         // we are not interested in output anymore
                         waiter.remove(socket.fd());
                         waiter.add(socket.fd(), FileEvent::INPUT);
-                        waiter.wait_for(d);
-                    },
-                    None => break,
-                }
-            }
-            else {
-                waiter.wait();
+                    }
+                    waiter.wait_for(d);
+                },
+                None => break,
             }
         }
 
