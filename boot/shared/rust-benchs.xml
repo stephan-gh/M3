@@ -12,7 +12,7 @@
                 </app>
             </dom>
             <dom>
-                <app args="pager maxcli=2 $fs.size">
+                <app args="pager maxcli=3 $fs.size">
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
                     <tiles type="core" count="1" />
