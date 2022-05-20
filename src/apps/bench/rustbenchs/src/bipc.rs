@@ -43,7 +43,11 @@ fn pingpong_local(t: &mut dyn WvTester) {
         return;
     }
 
-    pingpong_with_tile(t, "local", Activity::own().tile().clone());
+    let tile = Activity::own().tile().clone();
+    // give the child half of our time quota (minimize timer interrupts)
+    let own_quota = wv_assert_ok!(tile.quota()).time().total();
+    let tile = wv_assert_ok!(tile.derive(None, Some(own_quota / 2), None));
+    pingpong_with_tile(t, "local", tile);
 }
 
 fn pingpong_with_tile(t: &mut dyn WvTester, name: &str, tile: Rc<Tile>) {

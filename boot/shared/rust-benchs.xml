@@ -16,7 +16,7 @@
                     <sess name="m3fs" />
                     <physmem addr="0" size="$fs.size" perm="r" />
                     <tiles type="core" count="1" />
-                    <app args="/bin/rustbenchs">
+                    <app args="/bin/rustbenchs" time="1s">
                         <mount fs="m3fs" path="/" />
                         <sess name="pipes" />
                         <tiles type="core" count="1" />
