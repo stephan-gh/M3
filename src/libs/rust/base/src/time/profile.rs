@@ -37,6 +37,11 @@ impl<T: Duration> Results<T> {
         }
     }
 
+    /// Returns the vector with all measured times
+    pub fn times(&self) -> &Vec<T> {
+        &self.times
+    }
+
     /// Pushes the given time to the container
     pub fn push(&mut self, time: T) {
         self.times.push(time);
