@@ -506,26 +506,30 @@ impl Subsystem {
 
             for cfg in d.apps() {
                 // determine tile object with potentially reduced number of EPs
-                let child_pe_usage = if !cfg.domains().is_empty() {
+                let (domain_tile_usage, child_pe_usage) = if !cfg.domains().is_empty() {
                     // a resource manager has to be able to set PMPs and thus needs the root tile
-                    tile_usage.clone()
+                    (None, tile_usage.clone())
                 }
                 else if cfg.eps.is_some() || cfg.time.is_some() || cfg.pts.is_some() {
                     // if the child wants any specific quota, derive from the base tile object
                     let base = domain_pe_usage.as_ref().unwrap();
-                    Rc::new(base.derive(cfg.eps, cfg.time, cfg.pts).map_err(|e| {
-                        VerboseError::new(
-                            e.code(),
-                            format!(
-                                "Unable to derive new tile with {:?} EPs, {:?} time, {:?} pts",
-                                cfg.eps, cfg.time, cfg.pts,
-                            ),
-                        )
-                    })?)
+                    (
+                        // keep the base object around in case there are no other children using it
+                        Some(base.clone()),
+                        Rc::new(base.derive(cfg.eps, cfg.time, cfg.pts).map_err(|e| {
+                            VerboseError::new(
+                                e.code(),
+                                format!(
+                                    "Unable to derive new tile with {:?} EPs, {:?} time, {:?} pts",
+                                    cfg.eps, cfg.time, cfg.pts,
+                                ),
+                            )
+                        })?),
+                    )
                 }
                 else {
                     // without specified restrictions, childs share their resource quota
-                    domain_pe_usage.as_ref().unwrap().clone()
+                    (None, domain_pe_usage.as_ref().unwrap().clone())
                 };
 
                 // kernel memory for child
@@ -621,6 +625,7 @@ impl Subsystem {
                 let mut child = Box::new(childs::OwnChild::new(
                     child_id,
                     tile_usage.clone(),
+                    domain_tile_usage,
                     child_pe_usage,
                     // TODO either remove args and daemon from config or remove the clones from OwnChild
                     cfg.args().clone(),

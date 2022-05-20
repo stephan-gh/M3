@@ -779,6 +779,7 @@ pub struct OwnChild {
     // the activity has to be dropped before we drop the tile
     activity: Option<RunningProgramActivity>,
     our_tile: Rc<tiles::TileUsage>,
+    _domain_tile: Option<Rc<tiles::TileUsage>>,
     child_tile: Rc<tiles::TileUsage>,
     name: String,
     args: Vec<String>,
@@ -795,6 +796,7 @@ impl OwnChild {
     pub fn new(
         id: Id,
         our_tile: Rc<tiles::TileUsage>,
+        _domain_tile: Option<Rc<tiles::TileUsage>>,
         child_tile: Rc<tiles::TileUsage>,
         args: Vec<String>,
         daemon: bool,
@@ -806,6 +808,7 @@ impl OwnChild {
         OwnChild {
             id,
             our_tile,
+            _domain_tile,
             child_tile,
             name: cfg.name().to_string(),
             args,
