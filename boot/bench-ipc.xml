@@ -15,6 +15,7 @@
                     <tiles type="boom|core" count="1" />
                     <dom tile="boom|core">
                         <app args="/bin/ipc">
+                            <mount fs="m3fs" path="/" />
                             <tiles type="boom|core" count="1" />
                         </app>
                     </dom>
