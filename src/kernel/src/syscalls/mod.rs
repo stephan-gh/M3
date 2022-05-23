@@ -82,6 +82,17 @@ macro_rules! get_kobj_ref {
     }};
 }
 
+macro_rules! build_vmsg {
+    ( $msg:expr, $( $args:expr ),* ) => ({
+        // safety: we initialize these bytes below
+        let mut ser = unsafe { base::serialize::M3Serializer::new($msg.words_mut()) };
+        $( ser.push(&$args); )*
+        let bytes = ser.size();
+        // safety: we just have initialized these bytes
+        unsafe { $msg.set_size(bytes) };
+    });
+}
+
 mod create;
 mod derive;
 mod exchange;

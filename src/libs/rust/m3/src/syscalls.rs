@@ -336,7 +336,7 @@ pub fn derive_srv(srv: Selector, dst: CapRngDesc, sessions: u32, event: u64) -> 
 }
 
 /// Obtains the session capability from service `srv` with session id `sid` to the given activity.
-pub fn get_sess(srv: Selector, act: Selector, dst: Selector, sid: Label) -> Result<(), Error> {
+pub fn get_sess(srv: Selector, act: Selector, dst: Selector, sid: u64) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     buf.set(syscalls::GetSession {
         opcode: syscalls::Operation::GET_SESS.val,
@@ -550,7 +550,7 @@ where
     {
         let mut sink = M3Serializer::new(&mut req.args.data);
         pre(&mut sink);
-        req.args.bytes = sink.size() as u64;
+        req.args.bytes = sink.size();
     }
 
     let reply: Reply<syscalls::ExchangeSessReply> = send_receive(&buf)?;

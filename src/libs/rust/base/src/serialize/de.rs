@@ -364,11 +364,11 @@ impl<'de, 'a> VariantAccess<'de> for &'a mut M3Deserializer<'de> {
     fn struct_variant<V>(
         self,
         _fields: &'static [&'static str],
-        _visitor: V,
+        visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        self.deserialize_seq(visitor)
     }
 }

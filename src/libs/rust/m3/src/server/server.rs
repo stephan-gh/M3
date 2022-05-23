@@ -21,10 +21,12 @@ use core::fmt;
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::com::{GateIStream, RecvGate};
 use crate::errors::{Code, Error};
-use crate::kif::{service, CapRngDesc};
+use crate::kif::{
+    service::{DeriveCreatorReply, ExchangeData, ExchangeReply, OpenReply, Request},
+    CapRngDesc,
+};
 use crate::llog;
 use crate::math;
-use crate::mem::MsgBuf;
 use crate::serialize::{M3Deserializer, M3Serializer};
 use crate::server::{SessId, SessionContainer};
 use crate::syscalls;
@@ -41,14 +43,14 @@ pub struct Server {
 pub struct CapExchange<'d> {
     src: M3Deserializer<'d>,
     sink: M3Serializer<'d>,
-    input: &'d service::ExchangeData,
+    input: &'d ExchangeData,
     out_crd: CapRngDesc,
 }
 
 impl<'d> CapExchange<'d> {
     /// Creates a new `CapExchange` object, taking input arguments from `input` and putting output
     /// arguments into `output`.
-    pub fn new(input: &'d service::ExchangeData, output: &'d mut service::ExchangeData) -> Self {
+    pub fn new(input: &'d ExchangeData, output: &'d mut ExchangeData) -> Self {
         let len = (input.args.bytes as usize + 7) / 8;
         Self {
             src: M3Deserializer::new(&input.args.data[..len]),
@@ -70,7 +72,7 @@ impl<'d> CapExchange<'d> {
 
     /// Returns the number of input capabilities
     pub fn in_caps(&self) -> u64 {
-        CapRngDesc::new_from(self.input.caps).count()
+        self.input.caps.count()
     }
 
     /// Sets the output capabilities to given [`CapRngDesc`]
@@ -205,14 +207,15 @@ impl Server {
         hdl: &mut dyn Handler<S>,
         is: &mut GateIStream<'_>,
     ) -> Result<bool, Error> {
-        let op: service::Operation = is.pop()?;
-        match op {
-            service::Operation::OPEN => Self::handle_open(hdl, self.sel(), is),
-            service::Operation::DERIVE_CRT => Self::handle_derive_crt(hdl, is),
-            service::Operation::OBTAIN => Self::handle_obtain(hdl, is),
-            service::Operation::DELEGATE => Self::handle_delegate(hdl, is),
-            service::Operation::CLOSE => Self::handle_close(hdl, is),
-            service::Operation::SHUTDOWN => match Self::handle_shutdown(hdl, is) {
+        let req: Request<'_> = is.pop()?;
+        #[allow(unreachable_patterns)]
+        match req {
+            Request::Open { arg } => Self::handle_open(hdl, self.sel(), is, arg),
+            Request::DeriveCrt { sessions } => Self::handle_derive_crt(hdl, is, sessions),
+            Request::Obtain { sid, data } => Self::handle_obtain(hdl, is, sid as SessId, &data),
+            Request::Delegate { sid, data } => Self::handle_delegate(hdl, is, sid as SessId, &data),
+            Request::Close { sid } => Self::handle_close(hdl, is, sid as SessId),
+            Request::Shutdown => match Self::handle_shutdown(hdl, is) {
                 Ok(_) => return Ok(true),
                 Err(e) => Err(e),
             },
@@ -225,9 +228,8 @@ impl Server {
         hdl: &mut dyn Handler<S>,
         sel: Selector,
         is: &mut GateIStream<'_>,
+        arg: &str,
     ) -> Result<(), Error> {
-        let arg: &str = is.pop()?;
-
         let crt = is.label() as usize;
         let res = hdl.open(crt, sel, arg);
 
@@ -235,22 +237,18 @@ impl Server {
 
         match res {
             Ok((sel, ident)) => {
-                let mut buf = MsgBuf::borrow_def();
-                buf.set(service::OpenReply {
-                    res: 0,
-                    sess: sel,
+                reply_vmsg!(is, OpenReply {
+                    res: Code::None,
+                    sid: sel,
                     ident: ident as u64,
-                });
-                is.reply(&buf)
+                })
             },
             Err(e) => {
-                let mut buf = MsgBuf::borrow_def();
-                buf.set(service::OpenReply {
-                    res: e.code() as u64,
-                    sess: 0,
+                reply_vmsg!(is, OpenReply {
+                    res: e.code(),
+                    sid: 0,
                     ident: 0,
-                });
-                is.reply(&buf)
+                })
             },
         }
     }
@@ -258,12 +256,9 @@ impl Server {
     fn handle_derive_crt<S>(
         hdl: &mut dyn Handler<S>,
         is: &mut GateIStream<'_>,
+        sessions: usize,
     ) -> Result<(), Error> {
-        let msg = is.msg().get_data::<service::DeriveCreator>();
-
         let crt = is.label() as usize;
-        let sessions = msg.sessions as usize;
-
         llog!(
             SERV,
             "server::derive_crt(crt={}, sessions={})",
@@ -273,18 +268,19 @@ impl Server {
 
         let (nid, sgate) = hdl.sessions().derive_creator(is.rgate(), crt, sessions)?;
 
-        let mut buf = MsgBuf::borrow_def();
-        buf.set(service::DeriveCreatorReply {
-            res: 0,
-            creator: nid as u64,
-            sgate_sel: sgate as u64,
-        });
-        is.reply(&buf)
+        reply_vmsg!(is, DeriveCreatorReply {
+            res: Code::None,
+            creator: nid,
+            sgate_sel: sgate,
+        })
     }
 
-    fn handle_obtain<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream<'_>) -> Result<(), Error> {
-        let msg = is.msg().get_data::<service::Exchange>();
-        let sid = msg.sess as SessId;
+    fn handle_obtain<S>(
+        hdl: &mut dyn Handler<S>,
+        is: &mut GateIStream<'_>,
+        sid: SessId,
+        data: &ExchangeData,
+    ) -> Result<(), Error> {
         let crt = is.label() as usize;
 
         llog!(SERV, "server::obtain(crt={}, sid={})", crt, sid);
@@ -293,11 +289,10 @@ impl Server {
             return Err(Error::new(Code::NoPerm));
         }
 
-        let mut buf = MsgBuf::new();
-        let reply = buf.set(service::ExchangeReply::default());
+        let mut reply = ExchangeReply::default();
 
         let (res, args_size, crd) = {
-            let mut xchg = CapExchange::new(&msg.data, &mut reply.data);
+            let mut xchg = CapExchange::new(data, &mut reply.data);
 
             let res = hdl.obtain(crt, sid, &mut xchg);
 
@@ -313,18 +308,18 @@ impl Server {
             (res, xchg.out_args().size(), xchg.out_crd)
         };
 
-        reply.res = match res {
-            Ok(_) => 0,
-            Err(e) => e.code() as u64,
-        };
-        reply.data.args.bytes = args_size as u64;
-        reply.data.caps = crd.raw();
-        is.reply(&buf)
+        reply.res = res.err().map(|e| e.code()).unwrap_or(Code::None);
+        reply.data.args.bytes = args_size;
+        reply.data.caps = crd;
+        reply_vmsg!(is, reply)
     }
 
-    fn handle_delegate<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream<'_>) -> Result<(), Error> {
-        let msg = is.msg().get_data::<service::Exchange>();
-        let sid = msg.sess as SessId;
+    fn handle_delegate<S>(
+        hdl: &mut dyn Handler<S>,
+        is: &mut GateIStream<'_>,
+        sid: SessId,
+        data: &ExchangeData,
+    ) -> Result<(), Error> {
         let crt = is.label() as usize;
 
         llog!(SERV, "server::delegate(crt={}, sid={})", crt, sid);
@@ -333,11 +328,10 @@ impl Server {
             return Err(Error::new(Code::NoPerm));
         }
 
-        let mut buf = MsgBuf::new();
-        let reply = buf.set(service::ExchangeReply::default());
+        let mut reply = ExchangeReply::default();
 
         let (res, args_size, crd) = {
-            let mut xchg = CapExchange::new(&msg.data, &mut reply.data);
+            let mut xchg = CapExchange::new(data, &mut reply.data);
 
             let res = hdl.delegate(crt, sid, &mut xchg);
 
@@ -353,17 +347,17 @@ impl Server {
             (res, xchg.out_args().size(), xchg.out_crd)
         };
 
-        reply.res = match res {
-            Ok(_) => 0,
-            Err(e) => e.code() as u64,
-        };
-        reply.data.args.bytes = args_size as u64;
-        reply.data.caps = crd.raw();
-        is.reply(&buf)
+        reply.res = res.err().map(|e| e.code()).unwrap_or(Code::None);
+        reply.data.args.bytes = args_size;
+        reply.data.caps = crd;
+        reply_vmsg!(is, reply)
     }
 
-    fn handle_close<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream<'_>) -> Result<(), Error> {
-        let sid = is.pop::<SessId>()?;
+    fn handle_close<S>(
+        hdl: &mut dyn Handler<S>,
+        is: &mut GateIStream<'_>,
+        sid: SessId,
+    ) -> Result<(), Error> {
         let crt = is.label() as usize;
 
         llog!(SERV, "server::close(crt={}, sid={})", crt, sid);

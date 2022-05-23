@@ -109,13 +109,7 @@ pub fn exchange_over_sess_async(
     let sess_sel = req.sess_sel as CapSel;
     let crd = CapRngDesc::new_from(req.caps);
 
-    let (name, opcode) = if obtain {
-        ("obtain", service::Operation::OBTAIN.val as u64)
-    }
-    else {
-        ("delegate", service::Operation::DELEGATE.val as u64)
-    };
-
+    let name = if obtain { "obtain" } else { "delegate" };
     sysc_log!(
         act,
         "{}(act={}, sess={}, crd={})",
@@ -129,14 +123,25 @@ pub fn exchange_over_sess_async(
     let sess = get_kobj!(act, sess_sel, Sess);
 
     let mut smsg = MsgBuf::borrow_def();
-    smsg.set(service::Exchange {
-        opcode,
-        sess: sess.ident(),
-        data: service::ExchangeData {
-            caps: crd.raw(),
-            args: req.args,
-        },
-    });
+    let data = service::ExchangeData {
+        caps: crd,
+        args: req.args,
+    };
+    build_vmsg!(
+        smsg,
+        if obtain {
+            service::Request::Obtain {
+                sid: sess.ident(),
+                data,
+            }
+        }
+        else {
+            service::Request::Delegate {
+                sid: sess.ident(),
+                data,
+            }
+        }
+    );
 
     let serv = sess.service().clone();
     let label = sess.creator() as tcu::Label;
@@ -167,16 +172,21 @@ pub fn exchange_over_sess_async(
 
     let reply: &service::ExchangeReply = get_request(rmsg)?;
 
-    let srv_crd = CapRngDesc::new_from(reply.data.caps);
     sysc_log!(
         act,
-        "{} continue with res={}, srv_crd={}",
+        "{} continue with res={:?}, srv_crd={}",
         name,
-        { reply.res },
-        srv_crd
+        reply.res,
+        reply.data.caps
     );
 
-    do_exchange(&actcap, &serv.service().activity(), &crd, &srv_crd, obtain)?;
+    do_exchange(
+        &actcap,
+        &serv.service().activity(),
+        &crd,
+        &reply.data.caps,
+        obtain,
+    )?;
 
     let mut kreply = MsgBuf::borrow_def();
     kreply.set(syscalls::ExchangeSessReply {

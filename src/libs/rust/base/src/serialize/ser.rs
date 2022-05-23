@@ -162,11 +162,10 @@ impl<'s, 'a> Serializer for &'a mut M3Serializer<'s> {
     fn serialize_unit_variant(
         self,
         _name: &'static str,
-        _variant_index: u32,
-        variant: &'static str,
+        idx: u32,
+        _variant: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
-        // this could be done more efficiently. see https://serde.rs/enum-number.html
-        self.serialize_str(variant)
+        self.serialize_u32(idx)
     }
 
     fn serialize_newtype_struct<T: ?Sized>(
@@ -235,11 +234,12 @@ impl<'s, 'a> Serializer for &'a mut M3Serializer<'s> {
     fn serialize_struct_variant(
         self,
         _name: &'static str,
-        _variant_index: u32,
+        idx: u32,
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant, Self::Error> {
-        unimplemented!()
+        self.serialize_u32(idx)?;
+        Ok(self)
     }
 }
 
@@ -357,15 +357,15 @@ impl<'s, 'a> ser::SerializeStructVariant for &'a mut M3Serializer<'s> {
     fn serialize_field<T: ?Sized>(
         &mut self,
         _key: &'static str,
-        _value: &T,
+        value: &T,
     ) -> Result<(), Self::Error>
     where
         T: serde::Serialize,
     {
-        unimplemented!()
+        value.serialize(&mut **self)
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        unimplemented!()
+        Ok(())
     }
 }

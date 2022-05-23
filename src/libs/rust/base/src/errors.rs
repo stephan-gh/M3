@@ -22,9 +22,10 @@ use core::fmt;
 use core::intrinsics;
 
 use crate::col::String;
+use crate::serialize::{Deserialize, Serialize};
 
 /// The error codes
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub enum Code {
     // success
     None = 0,
@@ -92,6 +93,12 @@ pub enum Code {
     InvChecksum,
     SocketClosed,
     ConnectionFailed,
+}
+
+impl Default for Code {
+    fn default() -> Self {
+        Self::None
+    }
 }
 
 // we only use this implementation in debug mode, because it adds a bit of some overhead, errors

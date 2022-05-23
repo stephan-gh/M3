@@ -20,6 +20,7 @@
 
 use crate::kif::CapSel;
 use crate::mem::{MaybeUninit, MsgBuf};
+use crate::serialize::{Deserialize, Serialize};
 use crate::tcu::Label;
 
 use super::OptionalValue;
@@ -76,21 +77,10 @@ int_enum! {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default, Serialize, Deserialize)]
 pub struct ExchangeArgs {
-    pub bytes: u64,
+    pub bytes: usize,
     pub data: [u64; 8],
-}
-
-impl Default for ExchangeArgs {
-    fn default() -> Self {
-        #[allow(clippy::uninit_assumed_init)]
-        ExchangeArgs {
-            bytes: 0,
-            // safety: we will initialize the values between 0 and count-1
-            data: unsafe { MaybeUninit::uninit().assume_init() },
-        }
-    }
 }
 
 /// The create service request message

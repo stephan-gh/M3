@@ -18,117 +18,52 @@
 
 //! The service interface
 
-use crate::kif::syscalls;
-use crate::mem::MaybeUninit;
+use super::syscalls::ExchangeArgs;
+use crate::errors::Code;
+use crate::kif::{CapRngDesc, CapSel};
+use crate::serialize::{Deserialize, Serialize};
 
-/// The maximum size of strings in service calls
-pub const MAX_STR_SIZE: usize = super::syscalls::MAX_STR_SIZE;
-
-int_enum! {
-    /// The service calls
-    pub struct Operation : u64 {
-        const OPEN          = 0x0;
-        const DERIVE_CRT    = 0x1;
-        const OBTAIN        = 0x2;
-        const DELEGATE      = 0x3;
-        const CLOSE         = 0x4;
-        const SHUTDOWN      = 0x5;
-    }
-}
-
-/// The open request message
+/// The data part of the delegate/obtain request messages
+#[derive(Default, Serialize, Deserialize)]
 #[repr(C)]
-pub struct Open {
-    pub opcode: u64,
-    pub arglen: u64,
-    pub arg: [u8; MAX_STR_SIZE],
+pub struct ExchangeData {
+    pub caps: CapRngDesc,
+    pub args: ExchangeArgs,
 }
 
-impl Open {
-    /// Creates a new open message with given argument
-    pub fn new(arg: &str) -> Self {
-        #[allow(clippy::uninit_assumed_init)]
-        let mut msg = Self {
-            opcode: Operation::OPEN.val as u64,
-            arglen: (arg.len() + 1) as u64,
-            // safety: will be initialized below
-            arg: unsafe { MaybeUninit::uninit().assume_init() },
-        };
-        // copy arg
-        for (a, c) in msg.arg.iter_mut().zip(arg.bytes()) {
-            *a = c as u8;
-        }
-        msg.arg[arg.len()] = 0u8;
-        msg
-    }
+#[derive(Serialize, Deserialize)]
+#[repr(C)]
+pub enum Request<'s> {
+    Open { arg: &'s str },
+    DeriveCrt { sessions: usize },
+    Obtain { sid: u64, data: ExchangeData },
+    Delegate { sid: u64, data: ExchangeData },
+    Close { sid: u64 },
+    Shutdown,
 }
 
 /// The open reply message
+#[derive(Serialize, Deserialize)]
 #[repr(C)]
 pub struct OpenReply {
-    pub res: u64,
-    pub sess: u64,
+    pub res: Code,
+    pub sid: CapSel,
     pub ident: u64,
 }
 
-/// The derive-creator request message
-#[repr(C)]
-pub struct DeriveCreator {
-    pub opcode: u64,
-    pub sessions: u64,
-}
-
 /// The open reply message
+#[derive(Serialize, Deserialize)]
 #[repr(C)]
 pub struct DeriveCreatorReply {
-    pub res: u64,
-    pub creator: u64,
-    pub sgate_sel: u64,
-}
-
-/// The data part of the delegate/obtain request messages
-#[repr(C)]
-pub struct ExchangeData {
-    pub caps: [u64; 2],
-    pub args: syscalls::ExchangeArgs,
-}
-
-/// The delegate/obtain request message
-#[repr(C)]
-pub struct Exchange {
-    pub opcode: u64,
-    pub sess: u64,
-    pub data: ExchangeData,
+    pub res: Code,
+    pub creator: usize,
+    pub sgate_sel: CapSel,
 }
 
 /// The delegate/obtain reply message
+#[derive(Default, Serialize, Deserialize)]
 #[repr(C)]
 pub struct ExchangeReply {
-    pub res: u64,
+    pub res: Code,
     pub data: ExchangeData,
-}
-
-impl Default for ExchangeReply {
-    fn default() -> Self {
-        Self {
-            res: 0,
-            data: ExchangeData {
-                caps: [0; 2],
-                args: syscalls::ExchangeArgs::default(),
-            },
-        }
-    }
-}
-
-/// The close request message
-#[repr(C)]
-pub struct Close {
-    pub opcode: u64,
-    pub sess: u64,
-}
-
-/// The shutdown request message
-#[repr(C)]
-pub struct Shutdown {
-    pub opcode: u64,
 }

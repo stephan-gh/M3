@@ -18,12 +18,11 @@ use m3::cell::{Ref, RefMut, StaticRefCell};
 use m3::col::{String, Vec};
 use m3::com::SendGate;
 use m3::errors::{Code, Error};
-use m3::kif;
 use m3::log;
 use m3::mem::MsgBuf;
 use m3::syscalls;
-use m3::tcu::Label;
 use m3::tiles::Activity;
+use m3::{build_vmsg, kif};
 
 use core::cmp::Reverse;
 
@@ -120,9 +119,7 @@ impl Service {
 
         let child = serv.child;
         let mut smsg_buf = MsgBuf::borrow_def();
-        smsg_buf.set(kif::service::Shutdown {
-            opcode: kif::service::Operation::SHUTDOWN.val as u64,
-        });
+        build_vmsg!(smsg_buf, kif::service::Request::Shutdown);
         let event = serv.queue.send(&smsg_buf);
         drop(smsg_buf);
         drop(serv);
@@ -136,7 +133,7 @@ impl Service {
 
 pub struct Session {
     sel: Selector,
-    ident: Label,
+    ident: u64,
     serv: Id,
 }
 
@@ -150,7 +147,7 @@ impl Session {
         let sid = serv.id;
 
         let mut smsg_buf = MsgBuf::borrow_def();
-        smsg_buf.set(kif::service::Open::new(arg));
+        build_vmsg!(smsg_buf, kif::service::Request::Open { arg });
         let event = serv.queue.send(&smsg_buf);
         drop(smsg_buf);
         drop(serv);
@@ -166,7 +163,7 @@ impl Session {
 
             Ok(Session {
                 sel,
-                ident: reply.ident as Label,
+                ident: reply.ident,
                 serv: sid,
             })
         })
@@ -176,7 +173,7 @@ impl Session {
         self.sel
     }
 
-    pub fn ident(&self) -> Label {
+    pub fn ident(&self) -> u64 {
         self.ident
     }
 
@@ -185,10 +182,7 @@ impl Session {
             let mut serv = get_mut_by_id(self.serv)?;
 
             let mut smsg_buf = MsgBuf::borrow_def();
-            smsg_buf.set(kif::service::Close {
-                opcode: kif::service::Operation::CLOSE.val as u64,
-                sess: self.ident as u64,
-            });
+            build_vmsg!(smsg_buf, kif::service::Request::Close { sid: self.ident });
             serv.queue.send(&smsg_buf)
         };
 

@@ -186,7 +186,7 @@ pub fn derive_srv_async(
     let req: &kif::syscalls::DeriveSrv = get_request(msg)?;
     let dst_crd = CapRngDesc::new(CapType::OBJECT, req.dst_sel, 2);
     let srv_sel = req.srv_sel as CapSel;
-    let sessions = req.sessions as u32;
+    let sessions = req.sessions as usize;
     let event = req.event;
 
     sysc_log!(
@@ -211,10 +211,7 @@ pub fn derive_srv_async(
     reply_success(msg);
 
     let mut smsg = MsgBuf::borrow_def();
-    smsg.set(kif::service::DeriveCreator {
-        opcode: kif::service::Operation::DERIVE_CRT.val as u64,
-        sessions: sessions as u64,
-    });
+    build_vmsg!(smsg, kif::service::Request::DeriveCrt { sessions });
 
     let label = srvcap.creator() as tcu::Label;
     klog!(

@@ -18,11 +18,13 @@
 
 use core::fmt;
 
+use crate::serialize::{Deserialize, Serialize};
+
 /// A capability selector
 pub type CapSel = u64;
 
 /// A capability range descriptor, which describes a continuous range of capabilities
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, Serialize, Deserialize)]
 pub struct CapRngDesc {
     start: u64,
     count: u64,
@@ -49,6 +51,7 @@ impl CapRngDesc {
     }
 
     /// Creates a new capability range descriptor from the given raw value
+    // TODO remove this
     pub fn new_from(raw: [u64; 2]) -> CapRngDesc {
         CapRngDesc {
             start: raw[0],
@@ -57,6 +60,7 @@ impl CapRngDesc {
     }
 
     /// Returns the raw value
+    // TODO remove this
     pub fn raw(self) -> [u64; 2] {
         [self.start, self.count]
     }
