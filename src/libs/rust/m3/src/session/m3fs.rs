@@ -28,7 +28,7 @@ use crate::errors::Error;
 use crate::goff;
 use crate::kif;
 use crate::rc::Rc;
-use crate::serialize::Source;
+use crate::serialize::M3Deserializer;
 use crate::session::ClientSession;
 use crate::tiles::{Activity, ChildActivity, StateSerializer};
 use crate::vfs::{
@@ -151,7 +151,7 @@ impl FileSystem for M3FS {
                 |os| {
                     os.push_word(FSOperation::OPEN.val);
                     os.push_word(u64::from(flags.bits()));
-                    os.push_str(path);
+                    os.push(path);
                 },
                 |_| Ok(()),
             )?;
@@ -271,7 +271,7 @@ impl M3FS {
         Ok(id)
     }
 
-    pub fn unserialize(s: &mut Source<'_>) -> FSHandle {
+    pub fn unserialize(s: &mut M3Deserializer<'_>) -> FSHandle {
         let sels: Selector = s.pop().unwrap();
         let id: usize = s.pop().unwrap();
         M3FS::new_bind(id, sels)

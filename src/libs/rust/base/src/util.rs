@@ -98,9 +98,8 @@ macro_rules! function {
 ///
 /// Each struct member has the field `val`, which corresponds to its value. The macro implements the
 /// traits [`Debug`](core::fmt::Debug), [`Display`](core::fmt::Display),
-/// [`Marshallable`](crate::serialize::Marshallable), and
-/// [`Unmarshallable`](crate::serialize::Unmarshallable). Furthermore, it allows to convert from the
-/// underlying type (here [`u8`]) to the struct.
+/// [`Serialize`](crate::serialize::Serialize), and [`Deserialize`](crate::serialize::Deserialize).
+/// Furthermore, it allows to convert from the underlying type (here [`u8`]) to the struct.
 #[macro_export]
 macro_rules! int_enum {
     (
@@ -177,16 +176,21 @@ macro_rules! int_enum {
             }
         }
 
-        impl $crate::serialize::Marshallable for $Name {
-            fn marshall(&self, s: &mut $crate::serialize::Sink<'_>) {
-                s.push_word(self.val as u64);
+        impl $crate::serialize::Serialize for $Name {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: $crate::serialize::Serializer,
+            {
+                self.val.serialize(serializer)
             }
         }
 
-        impl $crate::serialize::Unmarshallable for $Name {
-            fn unmarshall(s: &mut $crate::serialize::Source<'_>) -> Result<Self, $crate::errors::Error> {
-                let val = s.pop_word()? as $T;
-                Ok($Name { val })
+        impl<'de> $crate::serialize::Deserialize<'de> for $Name {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: $crate::serialize::Deserializer<'de>,
+            {
+                <$T>::deserialize(deserializer).map(|val| $Name { val })
             }
         }
 

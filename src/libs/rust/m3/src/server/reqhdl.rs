@@ -17,7 +17,7 @@ use crate::cfg;
 use crate::com::{GateIStream, RecvGate};
 use crate::errors::Error;
 use crate::math;
-use crate::serialize::Unmarshallable;
+use crate::serialize::Deserialize;
 
 /// The default maximum number of clients a service supports
 pub const DEF_MAX_CLIENTS: usize = if cfg::MAX_ACTS < 32 {
@@ -65,7 +65,7 @@ impl RequestHandler {
     /// code. On success, it is expected that `func` sends the reply.
     pub fn handle<OP, F>(&self, mut func: F) -> Result<(), Error>
     where
-        OP: Unmarshallable,
+        OP: Deserialize<'static>,
         F: FnMut(OP, &mut GateIStream<'_>) -> Result<(), Error>,
     {
         if let Some(msg) = self.rgate.fetch() {

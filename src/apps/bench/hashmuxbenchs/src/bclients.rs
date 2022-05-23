@@ -22,7 +22,7 @@ use m3::com::{
 use m3::crypto::{HashAlgorithm, HashType};
 use m3::errors::Error;
 use m3::mem::MsgBuf;
-use m3::serialize::{Source, Unmarshallable};
+use m3::serialize::Deserialize;
 use m3::session::HashSession;
 use m3::tcu::INVALID_EP;
 use m3::test::WvTester;
@@ -53,6 +53,8 @@ struct Client {
     act: RunningProgramActivity,
 }
 
+#[derive(Deserialize)]
+#[serde(crate = "m3::serde")]
 struct ClientParams {
     num: usize,
     algo: HashType,
@@ -62,6 +64,7 @@ struct ClientParams {
     runs: u32,
 }
 
+// TODO get rid of this
 impl ClientParams {
     fn serialize(&self, dst: &mut StateSerializer<'_>) {
         dst.push_word(self.num as u64);
@@ -70,19 +73,6 @@ impl ClientParams {
         dst.push_word(self.div as u64);
         dst.push_word(self.warm as u64);
         dst.push_word(self.runs as u64);
-    }
-}
-
-impl Unmarshallable for ClientParams {
-    fn unmarshall(s: &mut Source<'_>) -> Result<Self, Error> {
-        Ok(ClientParams {
-            num: s.pop()?,
-            algo: s.pop()?,
-            size: s.pop()?,
-            div: s.pop()?,
-            warm: s.pop()?,
-            runs: s.pop()?,
-        })
     }
 }
 

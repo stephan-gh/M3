@@ -84,6 +84,8 @@ pub mod serialize;
 pub mod time;
 pub mod tmif;
 
+pub use serde;
+
 mod arch;
 
 /// An offset in a [`GlobAddr`](mem::GlobAddr)

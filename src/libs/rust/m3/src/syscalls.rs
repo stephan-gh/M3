@@ -28,7 +28,7 @@ use crate::errors::{Code, Error};
 use crate::goff;
 use crate::mem::{GlobAddr, MsgBuf};
 use crate::quota::Quota;
-use crate::serialize::{Sink, Source};
+use crate::serialize::{M3Deserializer, M3Serializer};
 use crate::tcu::{ActId, EpId, Label, Message, SYSC_SEP_OFF};
 use crate::tiles::TileQuota;
 
@@ -490,8 +490,8 @@ pub fn exchange(
 /// session.
 ///
 /// `pre` and `post` are called before and after the system call, respectively. `pre` is called with
-/// [`Sink`], allowing to pass arguments to the server, whereas `post` is called with [`Source`],
-/// allowing to get arguments from the server.
+/// [`M3Serializer`], allowing to pass arguments to the server, whereas `post` is called with
+/// [`M3Deserializer`], allowing to get arguments from the server.
 pub fn delegate<PRE, POST>(
     act: Selector,
     sess: Selector,
@@ -500,8 +500,8 @@ pub fn delegate<PRE, POST>(
     post: POST,
 ) -> Result<(), Error>
 where
-    PRE: Fn(&mut Sink<'_>),
-    POST: FnMut(&mut Source<'_>) -> Result<(), Error>,
+    PRE: Fn(&mut M3Serializer<'_>),
+    POST: FnMut(&mut M3Deserializer<'_>) -> Result<(), Error>,
 {
     exchange_sess(act, syscalls::Operation::DELEGATE, sess, crd, pre, post)
 }
@@ -510,8 +510,8 @@ where
 /// into `crd` of activity `act`.
 ///
 /// `pre` and `post` are called before and after the system call, respectively. `pre` is called with
-/// [`Sink`], allowing to pass arguments to the server, whereas `post` is called with [`Source`],
-/// allowing to get arguments from the server.
+/// [`M3Serializer`], allowing to pass arguments to the server, whereas `post` is called with
+/// [`M3Deserializer`], allowing to get arguments from the server.
 pub fn obtain<PRE, POST>(
     act: Selector,
     sess: Selector,
@@ -520,8 +520,8 @@ pub fn obtain<PRE, POST>(
     post: POST,
 ) -> Result<(), Error>
 where
-    PRE: Fn(&mut Sink<'_>),
-    POST: FnMut(&mut Source<'_>) -> Result<(), Error>,
+    PRE: Fn(&mut M3Serializer<'_>),
+    POST: FnMut(&mut M3Deserializer<'_>) -> Result<(), Error>,
 {
     exchange_sess(act, syscalls::Operation::OBTAIN, sess, crd, pre, post)
 }
@@ -535,8 +535,8 @@ fn exchange_sess<PRE, POST>(
     mut post: POST,
 ) -> Result<(), Error>
 where
-    PRE: Fn(&mut Sink<'_>),
-    POST: FnMut(&mut Source<'_>) -> Result<(), Error>,
+    PRE: Fn(&mut M3Serializer<'_>),
+    POST: FnMut(&mut M3Deserializer<'_>) -> Result<(), Error>,
 {
     let mut buf = SYSC_BUF.borrow_mut();
     let req = buf.set(syscalls::ExchangeSess {
@@ -548,7 +548,7 @@ where
     });
 
     {
-        let mut sink = Sink::new(&mut req.args.data);
+        let mut sink = M3Serializer::new(&mut req.args.data);
         pre(&mut sink);
         req.args.bytes = sink.size() as u64;
     }
@@ -557,7 +557,7 @@ where
 
     {
         let words = (reply.data.args.bytes as usize + 7) / 8;
-        let mut src = Source::new(&reply.data.args.data[..words]);
+        let mut src = M3Deserializer::new(&reply.data.args.data[..words]);
         post(&mut src)?;
     }
 

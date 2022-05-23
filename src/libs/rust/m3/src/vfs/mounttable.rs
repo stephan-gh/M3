@@ -24,7 +24,7 @@ use crate::cell::RefCell;
 use crate::col::{String, ToString, Vec};
 use crate::errors::{Code, Error};
 use crate::rc::Rc;
-use crate::serialize::Source;
+use crate::serialize::M3Deserializer;
 use crate::session::M3FS;
 use crate::tiles::{ChildActivity, StateSerializer};
 use crate::vfs::{FileSystem, VFS};
@@ -150,7 +150,7 @@ impl MountTable {
         }
     }
 
-    pub(crate) fn unserialize(s: &mut Source<'_>) -> MountTable {
+    pub(crate) fn unserialize(s: &mut M3Deserializer<'_>) -> MountTable {
         let mut mt = MountTable::default();
 
         let count = s.pop().unwrap();

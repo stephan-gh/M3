@@ -15,7 +15,7 @@
 
 use crate::col::Vec;
 use crate::mem;
-use crate::serialize::{copy_from_str, Source};
+use crate::serialize::{copy_from_str, M3Deserializer};
 
 /// Serializes state into a vector.
 pub struct StateSerializer<'v> {
@@ -55,4 +55,4 @@ impl<'v> StateSerializer<'v> {
 }
 
 /// Deserializes state from a slice
-pub type StateDeserializer<'s> = Source<'s>;
+pub type StateDeserializer<'s> = M3Deserializer<'s>;

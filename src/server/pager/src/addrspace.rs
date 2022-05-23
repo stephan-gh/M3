@@ -23,7 +23,7 @@ use m3::kif::{PageFlags, Perm};
 use m3::log;
 use m3::math;
 use m3::reply_vmsg;
-use m3::serialize::Source;
+use m3::serialize::M3Deserializer;
 use m3::server::SessId;
 use m3::session::{MapFlags, ServerSession};
 use m3::tcu::Label;
@@ -200,7 +200,7 @@ impl AddrSpace {
         }
     }
 
-    pub fn map_ds(&mut self, args: &mut Source<'_>) -> Result<(Selector, goff), Error> {
+    pub fn map_ds(&mut self, args: &mut M3Deserializer<'_>) -> Result<(Selector, goff), Error> {
         if !self.has_owner() {
             return Err(Error::new(Code::InvArgs));
         }
@@ -300,7 +300,7 @@ impl AddrSpace {
         Ok(())
     }
 
-    pub fn map_mem(&mut self, args: &mut Source<'_>) -> Result<(Selector, goff), Error> {
+    pub fn map_mem(&mut self, args: &mut M3Deserializer<'_>) -> Result<(Selector, goff), Error> {
         if !self.has_owner() {
             return Err(Error::new(Code::InvArgs));
         }

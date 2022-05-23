@@ -21,7 +21,7 @@ use core::fmt;
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::errors::Error;
 use crate::kif;
-use crate::serialize::{Sink, Source};
+use crate::serialize::{M3Deserializer, M3Serializer};
 use crate::syscalls;
 use crate::tiles::Activity;
 
@@ -73,9 +73,9 @@ impl ClientSession {
     }
 
     /// Delegates the given capability range to the server, using `pre` and `post` for input and
-    /// output arguments. `pre` is called with a [`Sink`] before the delegation operation, allowing
-    /// to pass arguments to the server. `post` is called with a [`Source`] after the delegation
-    /// operation, allowing to get arguments from the server.
+    /// output arguments. `pre` is called with a [`M3Serializer`] before the delegation operation,
+    /// allowing to pass arguments to the server. `post` is called with a [`M3Deserializer`] after
+    /// the delegation operation, allowing to get arguments from the server.
     pub fn delegate<PRE, POST>(
         &self,
         crd: kif::CapRngDesc,
@@ -83,16 +83,17 @@ impl ClientSession {
         post: POST,
     ) -> Result<(), Error>
     where
-        PRE: Fn(&mut Sink<'_>),
-        POST: FnMut(&mut Source<'_>) -> Result<(), Error>,
+        PRE: Fn(&mut M3Serializer<'_>),
+        POST: FnMut(&mut M3Deserializer<'_>) -> Result<(), Error>,
     {
         self.delegate_for(Activity::own().sel(), crd, pre, post)
     }
 
     /// Delegates the given capability range from `act` to the server, using `pre` and `post` for
-    /// input and output arguments. `pre` is called with a [`Sink`] before the delegation operation,
-    /// allowing to pass arguments to the server. `post` is called with a [`Source`] after the
-    /// delegation operation, allowing to get arguments from the server.
+    /// input and output arguments. `pre` is called with a [`M3Serializer`] before the delegation
+    /// operation, allowing to pass arguments to the server. `post` is called with a
+    /// [`M3Deserializer`] after the delegation operation, allowing to get arguments from the
+    /// server.
     pub fn delegate_for<PRE, POST>(
         &self,
         act: Selector,
@@ -101,8 +102,8 @@ impl ClientSession {
         post: POST,
     ) -> Result<(), Error>
     where
-        PRE: Fn(&mut Sink<'_>),
-        POST: FnMut(&mut Source<'_>) -> Result<(), Error>,
+        PRE: Fn(&mut M3Serializer<'_>),
+        POST: FnMut(&mut M3Deserializer<'_>) -> Result<(), Error>,
     {
         syscalls::delegate(act, self.sel(), crd, pre, post)
     }
@@ -118,9 +119,10 @@ impl ClientSession {
     }
 
     /// Obtains `count` capabilities from the server and returns the capability range descriptor,
-    /// using `pre` and `post` for input and output arguments. `pre` is called with a [`Sink`]
-    /// before the obtain operation, allowing to pass arguments to the server. `post` is called with
-    /// a [`Source`] after the obtain operation, allowing to get arguments from the server.
+    /// using `pre` and `post` for input and output arguments. `pre` is called with a
+    /// [`M3Serializer`] before the obtain operation, allowing to pass arguments to the server.
+    /// `post` is called with a [`M3Deserializer`] after the obtain operation, allowing to get
+    /// arguments from the server.
     pub fn obtain<PRE, POST>(
         &self,
         count: u64,
@@ -128,8 +130,8 @@ impl ClientSession {
         post: POST,
     ) -> Result<kif::CapRngDesc, Error>
     where
-        PRE: Fn(&mut Sink<'_>),
-        POST: FnMut(&mut Source<'_>) -> Result<(), Error>,
+        PRE: Fn(&mut M3Serializer<'_>),
+        POST: FnMut(&mut M3Deserializer<'_>) -> Result<(), Error>,
     {
         let caps = Activity::own().alloc_sels(count);
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, caps, count);
@@ -137,10 +139,10 @@ impl ClientSession {
         Ok(crd)
     }
 
-    /// Obtains `count` capabilities from the server for activity `act`, using `pre` and `post` for input
-    /// and output arguments. `pre` is called with a [`Sink`] before the obtain operation, allowing
-    /// to pass arguments to the server. `post` is called with a [`Source`] after the obtain
-    /// operation, allowing to get arguments from the server.
+    /// Obtains `count` capabilities from the server for activity `act`, using `pre` and `post` for
+    /// input and output arguments. `pre` is called with a [`M3Serializer`] before the obtain
+    /// operation, allowing to pass arguments to the server. `post` is called with a
+    /// [`M3Deserializer`] after the obtain operation, allowing to get arguments from the server.
     pub fn obtain_for<PRE, POST>(
         &self,
         act: Selector,
@@ -149,8 +151,8 @@ impl ClientSession {
         post: POST,
     ) -> Result<(), Error>
     where
-        PRE: Fn(&mut Sink<'_>),
-        POST: FnMut(&mut Source<'_>) -> Result<(), Error>,
+        PRE: Fn(&mut M3Serializer<'_>),
+        POST: FnMut(&mut M3Deserializer<'_>) -> Result<(), Error>,
     {
         syscalls::obtain(act, self.sel(), crd, pre, post)
     }

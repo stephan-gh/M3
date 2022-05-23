@@ -15,15 +15,14 @@
 
 //! Contains the quota type that is passed around for info purposes
 
-use crate::errors::Error;
 use crate::kif::tilemux;
-use crate::serialize::{Marshallable, Sink, Source, Unmarshallable};
+use crate::serialize::{Deserialize, Serialize};
 
 use core::fmt;
 
 pub type Id = tilemux::QuotaId;
 
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Quota<T> {
     id: Id,
     total: T,
@@ -49,20 +48,6 @@ impl<T: Copy> Quota<T> {
     /// Returns the remaining budget
     pub fn left(&self) -> T {
         self.left
-    }
-}
-
-impl<T: Copy + Marshallable> Marshallable for Quota<T> {
-    fn marshall(&self, s: &mut Sink<'_>) {
-        s.push(&self.id);
-        s.push(&self.total);
-        s.push(&self.left);
-    }
-}
-
-impl<T: Copy + Unmarshallable> Unmarshallable for Quota<T> {
-    fn unmarshall(s: &mut Source<'_>) -> Result<Self, Error> {
-        Ok(Self::new(s.pop()?, s.pop()?, s.pop()?))
     }
 }
 

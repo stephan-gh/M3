@@ -24,7 +24,7 @@ use crate::cell::RefMut;
 use crate::col::Vec;
 use crate::errors::Error;
 use crate::io::Serial;
-use crate::serialize::Source;
+use crate::serialize::M3Deserializer;
 use crate::tiles::{Activity, ChildActivity, StateSerializer};
 use crate::vfs::{File, FileRef, GenericFile};
 
@@ -140,7 +140,7 @@ impl FileTable {
         }
     }
 
-    pub(crate) fn unserialize(s: &mut Source<'_>) -> FileTable {
+    pub(crate) fn unserialize(s: &mut M3Deserializer<'_>) -> FileTable {
         let mut ft = FileTable::default();
 
         let count = s.pop::<usize>().unwrap();

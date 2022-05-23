@@ -22,18 +22,18 @@ use core::slice;
 use crate::com::{RecvGate, SendGate};
 use crate::errors::{Code, Error};
 use crate::mem;
-use crate::serialize::{Marshallable, Sink, Source, Unmarshallable};
+use crate::serialize::{Deserialize, M3Deserializer, M3Serializer, Serialize};
 use crate::tcu;
 
 /// An output stream for marshalling a TCU message and sending it via a [`SendGate`].
 pub struct GateOStream<'s> {
-    sink: Sink<'s>,
+    sink: M3Serializer<'s>,
 }
 
 impl<'s> GateOStream<'s> {
     pub fn new(slice: &'s mut [u64]) -> Self {
         GateOStream {
-            sink: Sink::new(slice),
+            sink: M3Serializer::new(slice),
         }
     }
 
@@ -50,8 +50,8 @@ impl<'s> GateOStream<'s> {
 
     /// Pushes the given object into the stream.
     #[inline(always)]
-    pub fn push<T: Marshallable>(&mut self, item: &T) {
-        item.marshall(&mut self.sink);
+    pub fn push<T: Serialize>(&mut self, item: &T) {
+        item.serialize(&mut self.sink).unwrap();
     }
 
     /// Sends the marshalled message via `gate`, using `reply_gate` for the reply.
@@ -82,7 +82,7 @@ impl<'s> GateOStream<'s> {
 #[derive(Debug)]
 pub struct GateIStream<'r> {
     msg: &'static tcu::Message,
-    source: Source<'static>,
+    source: M3Deserializer<'static>,
     rgate: &'r RecvGate,
     ack: bool,
 }
@@ -99,7 +99,7 @@ impl<'r> GateIStream<'r> {
 
         GateIStream {
             msg,
-            source: Source::new(slice),
+            source: M3Deserializer::new(slice),
             rgate,
             ack: true,
         }
@@ -135,8 +135,8 @@ impl<'r> GateIStream<'r> {
 
     /// Pops an object of type `T` from the message.
     #[inline(always)]
-    pub fn pop<T: Unmarshallable>(&mut self) -> Result<T, Error> {
-        T::unmarshall(&mut self.source)
+    pub fn pop<T: Deserialize<'static>>(&mut self) -> Result<T, Error> {
+        T::deserialize(&mut self.source)
     }
 
     /// Sends `reply` as a reply to the received message.

@@ -13,7 +13,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::serialize::{Marshallable, Unmarshallable};
+use base::serialize::{Deserialize, Serialize};
 
 use crate::cap::Selector;
 use crate::cfg;
@@ -56,7 +56,8 @@ int_enum! {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(crate = "base::serde")]
 pub struct ResMngActInfo {
     pub id: ActId,
     pub layer: u32,
@@ -70,55 +71,11 @@ pub struct ResMngActInfo {
     pub tile: TileId,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "base::serde")]
 pub enum ResMngActInfoResult {
     Info(ResMngActInfo),
     Count((usize, u32)),
-}
-
-impl Marshallable for ResMngActInfoResult {
-    fn marshall(&self, s: &mut base::serialize::Sink<'_>) {
-        match self {
-            ResMngActInfoResult::Info(i) => {
-                s.push(&0);
-                s.push(&i.id);
-                s.push(&i.layer);
-                s.push(&i.name);
-                s.push(&i.daemon);
-                s.push(&i.umem);
-                s.push(&i.kmem);
-                s.push(&i.eps);
-                s.push(&i.time);
-                s.push(&i.pts);
-                s.push(&i.tile);
-            },
-            ResMngActInfoResult::Count((num, layer)) => {
-                s.push(&1);
-                s.push(num);
-                s.push(layer);
-            },
-        }
-    }
-}
-
-impl Unmarshallable for ResMngActInfoResult {
-    fn unmarshall(s: &mut base::serialize::Source<'_>) -> Result<Self, Error> {
-        let ty = s.pop::<u64>()?;
-        match ty {
-            0 => Ok(Self::Info(ResMngActInfo {
-                id: s.pop()?,
-                layer: s.pop()?,
-                name: s.pop()?,
-                daemon: s.pop()?,
-                umem: s.pop()?,
-                kmem: s.pop()?,
-                eps: s.pop()?,
-                time: s.pop()?,
-                pts: s.pop()?,
-                tile: s.pop()?,
-            })),
-            _ => Ok(Self::Count((s.pop()?, s.pop()?))),
-        }
-    }
 }
 
 /// Represents a connection to the resource manager.

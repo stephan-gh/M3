@@ -32,7 +32,7 @@ use crate::io::{Read, Write};
 use crate::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
 use crate::math;
 use crate::rc::Rc;
-use crate::serialize::Source;
+use crate::serialize::M3Deserializer;
 use crate::session::{ClientSession, HashInput, HashOutput, HashSession, MapFlags, Pager};
 use crate::tcu::EpId;
 use crate::tiles::{Activity, ChildActivity, StateSerializer};
@@ -146,7 +146,7 @@ impl GenericFile {
         self.id.unwrap_or(0)
     }
 
-    pub(crate) fn unserialize(s: &mut Source<'_>) -> Box<dyn File> {
+    pub(crate) fn unserialize(s: &mut M3Deserializer<'_>) -> Box<dyn File> {
         let flags: u32 = s.pop().unwrap();
         let sel: Selector = s.pop().unwrap();
         let fs_id: usize = s.pop().unwrap();

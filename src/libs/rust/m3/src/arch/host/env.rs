@@ -26,7 +26,7 @@ use crate::col::{String, Vec};
 use crate::com::SendGate;
 use crate::kif::{self, TileDesc, TileISA, TileType};
 use crate::libc;
-use crate::serialize::Source;
+use crate::serialize::M3Deserializer;
 use crate::session::{Pager, ResMng};
 use crate::tcu::{ActId, EpId, Label};
 use crate::vfs::{FileTable, MountTable};
@@ -85,14 +85,14 @@ impl EnvData {
 
     pub fn load_mounts(&self) -> MountTable {
         match arch::loader::read_env_words("ms") {
-            Some(ms) => MountTable::unserialize(&mut Source::new(&ms)),
+            Some(ms) => MountTable::unserialize(&mut M3Deserializer::new(&ms)),
             None => MountTable::default(),
         }
     }
 
     pub fn load_fds(&self) -> FileTable {
         match arch::loader::read_env_words("fds") {
-            Some(fds) => FileTable::unserialize(&mut Source::new(&fds)),
+            Some(fds) => FileTable::unserialize(&mut M3Deserializer::new(&fds)),
             None => FileTable::default(),
         }
     }
@@ -112,7 +112,7 @@ impl EnvData {
 
     fn load_word(name: &str, default: u64) -> u64 {
         match arch::loader::read_env_words(name) {
-            Some(buf) => Source::new(&buf).pop().unwrap(),
+            Some(buf) => M3Deserializer::new(&buf).pop().unwrap(),
             None => default,
         }
     }
@@ -177,7 +177,7 @@ pub fn init(argc: i32, argv: *const *const i8) {
 
     // load the env vars that our parent passed to us
     if let Some(vars) = arch::loader::read_env_words("vars") {
-        let mut src = Source::new(&vars);
+        let mut src = M3Deserializer::new(&vars);
         while let Ok(var) = src.pop_str() {
             let mut parts = var.split('=');
             crate::env::set_var(parts.next().unwrap(), parts.next().unwrap());
