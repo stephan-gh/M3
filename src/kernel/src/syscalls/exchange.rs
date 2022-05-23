@@ -16,14 +16,14 @@
 use base::col::ToString;
 use base::errors::{Code, VerboseError};
 use base::format;
-use base::kif::{service, syscalls, CapRngDesc, CapSel, CapType, SEL_ACT};
+use base::kif::{service, syscalls, CapRngDesc, CapType, SEL_ACT};
 use base::mem::MsgBuf;
 use base::rc::Rc;
 use base::tcu;
 
 use crate::cap::KObject;
 use crate::com::Service;
-use crate::syscalls::{get_request, reply_success, send_reply};
+use crate::syscalls::{get_request, get_request_ref, reply_success, send_reply};
 use crate::tiles::Activity;
 
 fn do_exchange(
@@ -76,23 +76,20 @@ fn do_exchange(
 
 #[inline(never)]
 pub fn exchange(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
-    let req: &syscalls::Exchange = get_request(msg)?;
-    let act_sel = req.act_sel as CapSel;
-    let own_crd = CapRngDesc::new_from(req.own_caps);
-    let other_crd = CapRngDesc::new(own_crd.cap_type(), req.other_sel as CapSel, own_crd.count());
-    let obtain = req.obtain == 1;
+    let r: syscalls::Exchange = get_request(msg)?;
+    let other_crd = CapRngDesc::new(r.own.cap_type(), r.other, r.own.count());
 
     sysc_log!(
         act,
         "exchange(act={}, own={}, other={}, obtain={})",
-        act_sel,
-        own_crd,
+        r.act,
+        r.own,
         other_crd,
-        obtain
+        r.obtain
     );
 
-    let actcap = get_kobj!(act, act_sel, Activity).upgrade().unwrap();
-    do_exchange(act, &actcap, &own_crd, &other_crd, obtain)?;
+    let actcap = get_kobj!(act, r.act, Activity).upgrade().unwrap();
+    do_exchange(act, &actcap, &r.own, &other_crd, r.obtain)?;
 
     reply_success(msg);
     Ok(())
@@ -102,34 +99,29 @@ pub fn exchange(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ve
 pub fn exchange_over_sess_async(
     act: &Rc<Activity>,
     msg: &'static tcu::Message,
-    obtain: bool,
 ) -> Result<(), VerboseError> {
-    let req: &syscalls::ExchangeSess = get_request(msg)?;
-    let act_sel = req.act_sel as CapSel;
-    let sess_sel = req.sess_sel as CapSel;
-    let crd = CapRngDesc::new_from(req.caps);
-
-    let name = if obtain { "obtain" } else { "delegate" };
+    let r: syscalls::ExchangeSess = get_request(msg)?;
+    let name = if r.obtain { "obtain" } else { "delegate" };
     sysc_log!(
         act,
         "{}(act={}, sess={}, crd={})",
         name,
-        act_sel,
-        sess_sel,
-        crd
+        r.act,
+        r.sess,
+        r.crd
     );
 
-    let actcap = get_kobj!(act, act_sel, Activity).upgrade().unwrap();
-    let sess = get_kobj!(act, sess_sel, Sess);
+    let actcap = get_kobj!(act, r.act, Activity).upgrade().unwrap();
+    let sess = get_kobj!(act, r.sess, Sess);
 
     let mut smsg = MsgBuf::borrow_def();
     let data = service::ExchangeData {
-        caps: crd,
-        args: req.args,
+        caps: r.crd,
+        args: r.args,
     };
     build_vmsg!(
         smsg,
-        if obtain {
+        if r.obtain {
             service::Request::Obtain {
                 sid: sess.ident(),
                 data,
@@ -151,8 +143,8 @@ pub fn exchange_over_sess_async(
         "Sending {}(sess={:#x}, caps={}, args={}B) to service {} with creator {}",
         name,
         sess.ident(),
-        crd.count(),
-        { req.args.bytes },
+        r.crd.count(),
+        r.args.bytes,
         serv.service().name(),
         label,
     );
@@ -161,7 +153,7 @@ pub fn exchange_over_sess_async(
         Err(e) => sysc_err!(e.code(), "Service {} unreachable", serv.service().name()),
     };
 
-    match *get_request::<u64>(rmsg)? {
+    match *get_request_ref::<u64>(rmsg)? {
         0 => {},
         err => sysc_err!(
             Code::from(err as u32),
@@ -170,7 +162,7 @@ pub fn exchange_over_sess_async(
         ),
     }
 
-    let reply: &service::ExchangeReply = get_request(rmsg)?;
+    let reply: &service::ExchangeReply = get_request_ref(rmsg)?;
 
     sysc_log!(
         act,
@@ -183,9 +175,9 @@ pub fn exchange_over_sess_async(
     do_exchange(
         &actcap,
         &serv.service().activity(),
-        &crd,
+        &r.crd,
         &reply.data.caps,
-        obtain,
+        r.obtain,
     )?;
 
     let mut kreply = MsgBuf::borrow_def();
@@ -200,23 +192,19 @@ pub fn exchange_over_sess_async(
 
 #[inline(never)]
 pub fn revoke_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
-    let req: &syscalls::Revoke = get_request(msg)?;
-    let act_sel = req.act_sel as CapSel;
-    let crd = CapRngDesc::new_from(req.caps);
-    let own = req.own == 1;
+    let r: syscalls::Revoke = get_request(msg)?;
+    sysc_log!(act, "revoke(act={}, crd={}, own={})", r.act, r.crd, r.own);
 
-    sysc_log!(act, "revoke(act={}, crd={}, own={})", act_sel, crd, own);
-
-    if crd.cap_type() == CapType::OBJECT && crd.start() <= SEL_ACT {
+    if r.crd.cap_type() == CapType::OBJECT && r.crd.start() <= SEL_ACT {
         sysc_err!(Code::InvArgs, "Cap 0, 1, and 2 are not revokeable");
     }
 
-    let actcap = get_kobj!(act, act_sel, Activity).upgrade().unwrap();
-    if let Err(e) = actcap.revoke_async(crd, own) {
+    let actcap = get_kobj!(act, r.act, Activity).upgrade().unwrap();
+    if let Err(e) = actcap.revoke_async(r.crd, r.own) {
         sysc_err!(
             e.code(),
             "Revoke of {} with Activity {} failed",
-            crd,
+            r.crd,
             act.id()
         );
     }

@@ -18,8 +18,11 @@
 
 use bitflags::bitflags;
 
+use crate::serialize::{Deserialize, Serialize};
+
 bitflags! {
     /// The permission bitmap that is used for memory and mapping capabilities.
+    #[derive(Serialize, Deserialize)]
     pub struct Perm : u32 {
         /// Read permission
         const R = 1;

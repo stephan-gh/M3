@@ -186,8 +186,7 @@ struct KIF {
             SEM_CTRL,
 
             // capability exchange
-            DELEGATE,
-            OBTAIN,
+            EXCHANGE_SESS,
             EXCHANGE,
             REVOKE,
 
@@ -304,9 +303,9 @@ struct KIF {
         } PACKED;
 
         struct ActivityWait : public DefaultRequest {
-            xfer_t act_count;
             xfer_t event;
-            xfer_t sels[48];
+            xfer_t act_count;
+            xfer_t sels[32];
         } PACKED;
 
         struct ActivityWaitReply : public DefaultReply {
@@ -409,6 +408,7 @@ struct KIF {
             xfer_t sess_sel;
             xfer_t caps[2];
             ExchangeArgs args;
+            xfer_t obtain;
         } PACKED;
 
         struct ExchangeSessReply : public DefaultReply {

@@ -246,7 +246,7 @@ impl Region {
                 self.owner,
                 mem.borrow().gate().sel(),
                 (self.mem_off >> cfg::PAGE_BITS as goff) as Selector,
-                self.size as usize >> cfg::PAGE_BITS,
+                (self.size as usize >> cfg::PAGE_BITS) as Selector,
                 perm,
             )?;
             self.flags.insert(RegionFlags::MAPPED);

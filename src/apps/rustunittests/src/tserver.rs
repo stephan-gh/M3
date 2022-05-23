@@ -16,6 +16,7 @@
  * General Public License version 2 for more details.
  */
 
+use m3::build_vmsg;
 use m3::cap::Selector;
 use m3::cell::StaticCell;
 use m3::com::{recv_msg, RGateArgs, RecvGate, SGateArgs, SendGate};
@@ -167,13 +168,17 @@ fn testcliexit(t: &mut dyn WvTester) {
         {
             // perform the obtain syscall
             let mut req_buf = MsgBuf::borrow_def();
-            req_buf.set(kif::syscalls::ExchangeSess {
-                opcode: kif::syscalls::Operation::OBTAIN.val,
-                act_sel: Activity::own().sel(),
-                sess_sel: sess.sel(),
-                caps: [0; 2],
-                args: kif::syscalls::ExchangeArgs::default(),
-            });
+            build_vmsg!(
+                req_buf,
+                kif::syscalls::Operation::EXCHANGE_SESS,
+                kif::syscalls::ExchangeSess {
+                    act: Activity::own().sel(),
+                    sess: sess.sel(),
+                    crd: kif::CapRngDesc::new(kif::CapType::OBJECT, 0, 2),
+                    args: kif::syscalls::ExchangeArgs::default(),
+                    obtain: true,
+                }
+            );
             wv_assert_ok!(syscalls::send_gate().send(&req_buf, RecvGate::syscall()));
         }
 

@@ -57,6 +57,7 @@ impl ActivityMng {
         INST.borrow().count
     }
 
+    #[inline(always)]
     pub fn activity(id: tcu::ActId) -> Option<Rc<Activity>> {
         INST.borrow().acts[id as usize].as_ref().cloned()
     }

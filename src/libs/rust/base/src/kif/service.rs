@@ -35,7 +35,7 @@ pub struct ExchangeData {
 #[repr(C)]
 pub enum Request<'s> {
     Open { arg: &'s str },
-    DeriveCrt { sessions: usize },
+    DeriveCrt { sessions: u32 },
     Obtain { sid: u64, data: ExchangeData },
     Delegate { sid: u64, data: ExchangeData },
     Close { sid: u64 },

@@ -167,7 +167,7 @@ impl MemGate {
         size: usize,
         perm: Perm,
     ) -> Result<Self, Error> {
-        syscalls::derive_mem(act, sel, self.sel(), offset, size, perm)?;
+        syscalls::derive_mem(act, sel, self.sel(), offset, size as goff, perm)?;
         Ok(MemGate {
             gate: Gate::new(sel, CapFlags::empty()),
             resmng: false,

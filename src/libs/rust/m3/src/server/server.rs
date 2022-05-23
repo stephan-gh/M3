@@ -157,7 +157,7 @@ impl Server {
         syscalls::create_srv(sel, rgate.sel(), name, 0)?;
 
         let max = hdl.sessions().capacity();
-        let (_, sgate) = hdl.sessions().add_creator(&rgate, max)?;
+        let (_, sgate) = hdl.sessions().add_creator(&rgate, max as u32)?;
 
         if public {
             Activity::own()
@@ -256,7 +256,7 @@ impl Server {
     fn handle_derive_crt<S>(
         hdl: &mut dyn Handler<S>,
         is: &mut GateIStream<'_>,
-        sessions: usize,
+        sessions: u32,
     ) -> Result<(), Error> {
         let crt = is.label() as usize;
         llog!(

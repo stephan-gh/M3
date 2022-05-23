@@ -354,8 +354,7 @@ dependencies = [
 [[package]]
 name = "serde"
 version = "1.0.137"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61ea8d54c77f8315140a05f4c7237403bf38b72704d031543aa1d16abbf517d1"
+source = "git+https://github.com/Barkhausen-Institut/m3-serde?branch=m3#64c6cfd3524cbdadf3489179aeae761d4198d95d"
 dependencies = [
  "serde_derive",
 ]
@@ -363,8 +362,7 @@ dependencies = [
 [[package]]
 name = "serde_derive"
 version = "1.0.137"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f26faba0c3959972377d3b2d306ee9f71faee9714294e41bb777f83f88578be"
+source = "git+https://github.com/Barkhausen-Institut/m3-serde?branch=m3#64c6cfd3524cbdadf3489179aeae761d4198d95d"
 dependencies = [
  "proc-macro2",
  "quote",

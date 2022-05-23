@@ -368,9 +368,10 @@ void Syscalls::exchange_sess(capsel_t act, capsel_t sess, const KIF::CapRngDesc 
                              KIF::ExchangeArgs *args, bool obtain) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::ExchangeSess>();
-    req.opcode = obtain ? KIF::Syscall::OBTAIN : KIF::Syscall::DELEGATE;
+    req.opcode = KIF::Syscall::EXCHANGE_SESS;
     req.act_sel = act;
     req.sess_sel = sess;
+    req.obtain = obtain;
     crd.to_raw(req.caps);
     if(args)
         memcpy(&req.args, args, sizeof(*args));

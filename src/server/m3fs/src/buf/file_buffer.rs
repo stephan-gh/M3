@@ -27,6 +27,7 @@ use m3::cap::Selector;
 use m3::col::{BoxList, Treap};
 use m3::com::{MemGate, Perm};
 use m3::errors::Error;
+use m3::goff;
 
 use thread::Event;
 
@@ -188,7 +189,7 @@ impl FileBuffer {
                         sel,
                         head.data.sel(),
                         ((bno - start) as u64) * self.block_size as u64,
-                        len * self.block_size,
+                        (len * self.block_size) as goff,
                         perm,
                     )?;
 
@@ -278,7 +279,7 @@ impl FileBuffer {
             sel,
             new_head.data.sel(),
             0,
-            load_size * self.block_size,
+            (load_size * self.block_size) as goff,
             perm,
         )?;
 

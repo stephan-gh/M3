@@ -196,7 +196,7 @@ impl Mapper for BootMapper {
                 self.act_sel,
                 self.mem_sel,
                 (foff >> PAGE_BITS) as Selector,
-                len >> PAGE_BITS,
+                (len >> PAGE_BITS) as Selector,
                 perm,
             )
             .map(|_| false)
@@ -223,7 +223,7 @@ impl Mapper for BootMapper {
                 self.act_sel,
                 msel,
                 (alloc.addr() >> PAGE_BITS) as Selector,
-                len >> PAGE_BITS,
+                (len >> PAGE_BITS) as Selector,
                 perm,
             )?;
             self.allocs.push(alloc);

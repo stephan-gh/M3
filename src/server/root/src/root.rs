@@ -107,7 +107,7 @@ fn create_rgate(
     buf_size: usize,
     msg_size: usize,
     rbuf_mem: Option<Selector>,
-    rbuf_off: usize,
+    rbuf_off: goff,
     rbuf_addr: usize,
 ) -> Result<RecvGate, Error> {
     let mut rgate = RecvGate::new_with(
@@ -146,14 +146,14 @@ pub fn main() -> i32 {
             Activity::own().sel(),
             buf_mem.sel(),
             0,
-            pages,
+            pages as Selector,
             kif::Perm::R,
         )
         .expect("Unable to map receive buffers");
         (0, Some(buf_mem.sel()))
     }
     else {
-        (rbuf_addr, None)
+        (rbuf_addr as goff, None)
     };
 
     let req_rgate = create_rgate(buf_size, max_msg_size, rbuf_mem, rbuf_off, rbuf_addr)
@@ -164,7 +164,7 @@ pub fn main() -> i32 {
         sendqueue::RBUF_SIZE,
         sendqueue::RBUF_MSG_SIZE,
         rbuf_mem,
-        rbuf_off + buf_size,
+        rbuf_off + buf_size as goff,
         rbuf_addr + buf_size,
     )
     .expect("Unable to create sendqueue RecvGate");

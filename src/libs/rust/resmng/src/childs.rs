@@ -273,7 +273,7 @@ pub trait Child {
             dst_sel,
             mem_sel,
             alloc.addr(),
-            alloc.size() as usize,
+            alloc.size(),
             perm,
         )
         .map_err(|e| {

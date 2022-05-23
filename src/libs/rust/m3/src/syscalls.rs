@@ -18,7 +18,9 @@
 
 //! Contains the system call wrapper functions
 
-use base::kif::{self, syscalls, CapRngDesc, OptionalValue, Perm, INVALID_SEL};
+use base::kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL};
+
+use core::mem::MaybeUninit;
 
 use crate::arch;
 use crate::cap::Selector;
@@ -48,6 +50,7 @@ impl<R: 'static> Drop for Reply<R> {
     }
 }
 
+#[inline(always)]
 fn send_receive<R>(buf: &MsgBuf) -> Result<Reply<R>, Error> {
     let reply_raw = SGATE.borrow().call(buf, RecvGate::syscall())?;
 
@@ -64,6 +67,7 @@ fn send_receive<R>(buf: &MsgBuf) -> Result<Reply<R>, Error> {
     })
 }
 
+#[inline(always)]
 fn send_receive_result(buf: &MsgBuf) -> Result<(), Error> {
     send_receive::<kif::DefaultReply>(buf).map(|_| ())
 }
@@ -75,9 +79,14 @@ pub fn send_gate() -> Ref<'static, SendGate> {
 
 /// Creates a new service named `name` at selector `dst`. The receive gate `rgate` will be used for
 /// service calls from the kernel to the server.
-pub fn create_srv(dst: Selector, rgate: Selector, name: &str, creator: Label) -> Result<(), Error> {
+pub fn create_srv(dst: Selector, rgate: Selector, name: &str, creator: usize) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    syscalls::CreateSrv::fill_msgbuf(&mut buf, dst, rgate, name, creator);
+    build_vmsg!(buf, syscalls::Operation::CREATE_SRV, syscalls::CreateSrv {
+        dst,
+        rgate,
+        name,
+        creator
+    });
     send_receive_result(&buf)
 }
 
@@ -92,14 +101,17 @@ pub fn create_mgate(
     perms: Perm,
 ) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::CreateMGate {
-        opcode: syscalls::Operation::CREATE_MGATE.val,
-        dst_sel: dst,
-        act_sel: act,
-        addr: addr as u64,
-        size: size as u64,
-        perms: u64::from(perms.bits()),
-    });
+    build_vmsg!(
+        buf,
+        syscalls::Operation::CREATE_MGATE,
+        syscalls::CreateMGate {
+            dst,
+            act,
+            addr,
+            size,
+            perms,
+        }
+    );
     send_receive_result(&buf)
 }
 
@@ -112,26 +124,32 @@ pub fn create_sgate(
     credits: u32,
 ) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::CreateSGate {
-        opcode: syscalls::Operation::CREATE_SGATE.val,
-        dst_sel: dst,
-        rgate_sel: rgate,
-        label: label as u64,
-        credits: u64::from(credits),
-    });
+    build_vmsg!(
+        buf,
+        syscalls::Operation::CREATE_SGATE,
+        syscalls::CreateSGate {
+            dst,
+            rgate,
+            label,
+            credits,
+        }
+    );
     send_receive_result(&buf)
 }
 
 /// Creates a new receive gate at selector `dst` with a `2^order` bytes receive buffer and
 /// `2^msg_order` bytes message slots.
-pub fn create_rgate(dst: Selector, order: u32, msgorder: u32) -> Result<(), Error> {
+pub fn create_rgate(dst: Selector, order: u32, msg_order: u32) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::CreateRGate {
-        opcode: syscalls::Operation::CREATE_RGATE.val,
-        dst_sel: dst,
-        order: order as u64,
-        msgorder: msgorder as u64,
-    });
+    build_vmsg!(
+        buf,
+        syscalls::Operation::CREATE_RGATE,
+        syscalls::CreateRGate {
+            dst,
+            order,
+            msg_order,
+        }
+    );
     send_receive_result(&buf)
 }
 
@@ -146,14 +164,17 @@ pub fn create_sess(
     auto_close: bool,
 ) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::CreateSess {
-        opcode: syscalls::Operation::CREATE_SESS.val,
-        dst_sel: dst,
-        srv_sel: srv,
-        creator: creator as u64,
-        ident,
-        auto_close: u64::from(auto_close),
-    });
+    build_vmsg!(
+        buf,
+        syscalls::Operation::CREATE_SESS,
+        syscalls::CreateSess {
+            dst,
+            srv,
+            creator,
+            ident,
+            auto_close,
+        }
+    );
     send_receive_result(&buf)
 }
 
@@ -177,18 +198,17 @@ pub fn create_map(
     act: Selector,
     mgate: Selector,
     first: Selector,
-    pages: usize,
+    pages: Selector,
     perms: Perm,
 ) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::CreateMap {
-        opcode: syscalls::Operation::CREATE_MAP.val,
-        dst_sel: dst,
-        act_sel: act,
-        mgate_sel: mgate,
+    build_vmsg!(buf, syscalls::Operation::CREATE_MAP, syscalls::CreateMap {
+        dst,
+        act,
+        mgate,
         first,
-        pages: pages as u64,
-        perms: u64::from(perms.bits()),
+        pages,
+        perms,
     });
     send_receive_result(&buf)
 }
@@ -207,7 +227,16 @@ pub fn create_activity(
     kmem: Selector,
 ) -> Result<(ActId, EpId), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    syscalls::CreateActivity::fill_msgbuf(&mut buf, dst, name, tile, kmem);
+    build_vmsg!(
+        buf,
+        syscalls::Operation::CREATE_ACT,
+        syscalls::CreateActivity {
+            dst,
+            name,
+            tile,
+            kmem
+        }
+    );
 
     let reply: Reply<syscalls::CreateActivityReply> = send_receive(&buf)?;
     Ok((reply.data.id as ActId, reply.data.eps_start as EpId))
@@ -216,10 +245,9 @@ pub fn create_activity(
 /// Creates a new semaphore at selector `dst` using `value` as the initial value.
 pub fn create_sem(dst: Selector, value: u32) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::CreateSem {
-        opcode: syscalls::Operation::CREATE_SEM.val,
-        dst_sel: dst,
-        value: u64::from(value),
+    build_vmsg!(buf, syscalls::Operation::CREATE_SEM, syscalls::CreateSem {
+        dst,
+        value
     });
     send_receive_result(&buf)
 }
@@ -228,12 +256,11 @@ pub fn create_sem(dst: Selector, value: u32) -> Result<(), Error> {
 /// reply slots attached to it (for receive gate activations).
 pub fn alloc_ep(dst: Selector, act: Selector, epid: EpId, replies: u32) -> Result<EpId, Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::AllocEP {
-        opcode: syscalls::Operation::ALLOC_EP.val,
-        dst_sel: dst,
-        act_sel: act,
-        epid: epid as u64,
-        replies: u64::from(replies),
+    build_vmsg!(buf, syscalls::Operation::ALLOC_EP, syscalls::AllocEP {
+        dst,
+        act,
+        epid,
+        replies,
     });
 
     let reply: Reply<syscalls::AllocEPReply> = send_receive(&buf)?;
@@ -247,11 +274,10 @@ pub fn alloc_ep(dst: Selector, act: Selector, epid: EpId, replies: u32) -> Resul
 /// new memory region.
 pub fn set_pmp(tile: Selector, mgate: Selector, ep: EpId) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::SetPMP {
-        opcode: syscalls::Operation::SET_PMP.val,
-        tile_sel: tile,
-        mgate_sel: mgate,
-        epid: u64::from(ep),
+    build_vmsg!(buf, syscalls::Operation::SET_PMP, syscalls::SetPMP {
+        tile,
+        mgate,
+        ep
     });
     send_receive_result(&buf)
 }
@@ -265,18 +291,17 @@ pub fn derive_mem(
     dst: Selector,
     src: Selector,
     offset: goff,
-    size: usize,
+    size: goff,
     perms: Perm,
 ) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::DeriveMem {
-        opcode: syscalls::Operation::DERIVE_MEM.val,
-        act_sel: act,
-        dst_sel: dst,
-        src_sel: src,
+    build_vmsg!(buf, syscalls::Operation::DERIVE_MEM, syscalls::DeriveMem {
+        act,
+        dst,
+        src,
         offset,
-        size: size as u64,
-        perms: u64::from(perms.bits()),
+        size,
+        perms,
     });
     send_receive_result(&buf)
 }
@@ -285,12 +310,11 @@ pub fn derive_mem(
 /// kernel memory object.
 pub fn derive_kmem(kmem: Selector, dst: Selector, quota: usize) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::DeriveKMem {
-        opcode: syscalls::Operation::DERIVE_KMEM.val,
-        kmem_sel: kmem,
-        dst_sel: dst,
-        quota: quota as u64,
-    });
+    build_vmsg!(
+        buf,
+        syscalls::Operation::DERIVE_KMEM,
+        syscalls::DeriveKMem { kmem, dst, quota }
+    );
     send_receive_result(&buf)
 }
 
@@ -308,14 +332,17 @@ pub fn derive_tile(
     pts: Option<u64>,
 ) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::DeriveTile {
-        opcode: syscalls::Operation::DERIVE_TILE.val,
-        tile_sel: tile,
-        dst_sel: dst,
-        eps: OptionalValue::new(eps),
-        time: OptionalValue::new(time),
-        pts: OptionalValue::new(pts),
-    });
+    build_vmsg!(
+        buf,
+        syscalls::Operation::DERIVE_TILE,
+        syscalls::DeriveTile {
+            tile,
+            dst,
+            eps,
+            time,
+            pts,
+        }
+    );
     send_receive_result(&buf)
 }
 
@@ -325,11 +352,10 @@ pub fn derive_tile(
 /// completion of the request, you will receive an upcall containing `event`.
 pub fn derive_srv(srv: Selector, dst: CapRngDesc, sessions: u32, event: u64) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::DeriveSrv {
-        opcode: syscalls::Operation::DERIVE_SRV.val,
-        dst_sel: dst.start(),
-        srv_sel: srv,
-        sessions: sessions as u64,
+    build_vmsg!(buf, syscalls::Operation::DERIVE_SRV, syscalls::DeriveSrv {
+        dst,
+        srv,
+        sessions,
         event,
     });
     send_receive_result(&buf)
@@ -338,12 +364,11 @@ pub fn derive_srv(srv: Selector, dst: CapRngDesc, sessions: u32, event: u64) -> 
 /// Obtains the session capability from service `srv` with session id `sid` to the given activity.
 pub fn get_sess(srv: Selector, act: Selector, dst: Selector, sid: u64) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::GetSession {
-        opcode: syscalls::Operation::GET_SESS.val,
-        dst_sel: dst,
-        srv_sel: srv,
-        act_sel: act,
-        sid: sid as u64,
+    build_vmsg!(buf, syscalls::Operation::GET_SESS, syscalls::GetSess {
+        dst,
+        srv,
+        act,
+        sid
     });
     send_receive_result(&buf)
 }
@@ -351,10 +376,11 @@ pub fn get_sess(srv: Selector, act: Selector, dst: Selector, sid: u64) -> Result
 /// Returns the global address and size of the MemGate at `mgate`
 pub fn mgate_region(mgate: Selector) -> Result<(GlobAddr, goff), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::MGateRegion {
-        opcode: syscalls::Operation::MGATE_REGION.val,
-        mgate_sel: mgate,
-    });
+    build_vmsg!(
+        buf,
+        syscalls::Operation::MGATE_REGION,
+        syscalls::MGateRegion { mgate }
+    );
 
     let reply: Reply<syscalls::MGateRegionReply> = send_receive(&buf)?;
     Ok((GlobAddr::new(reply.data.global), reply.data.size as goff))
@@ -363,9 +389,8 @@ pub fn mgate_region(mgate: Selector) -> Result<(GlobAddr, goff), Error> {
 /// Returns the total and remaining quota in bytes for the kernel memory object at `kmem`.
 pub fn kmem_quota(kmem: Selector) -> Result<Quota<usize>, Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::KMemQuota {
-        opcode: syscalls::Operation::KMEM_QUOTA.val,
-        kmem_sel: kmem,
+    build_vmsg!(buf, syscalls::Operation::KMEM_QUOTA, syscalls::KMemQuota {
+        kmem
     });
 
     let reply: Reply<syscalls::KMemQuotaReply> = send_receive(&buf)?;
@@ -379,9 +404,8 @@ pub fn kmem_quota(kmem: Selector) -> Result<Quota<usize>, Error> {
 /// Returns the remaining quota (free endpoints) for the tile object at `tile`.
 pub fn tile_quota(tile: Selector) -> Result<TileQuota, Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::TileQuota {
-        opcode: syscalls::Operation::TILE_QUOTA.val,
-        tile_sel: tile,
+    build_vmsg!(buf, syscalls::Operation::TILE_QUOTA, syscalls::TileQuota {
+        tile
     });
 
     let reply: Reply<syscalls::TileQuotaReply> = send_receive(&buf)?;
@@ -408,23 +432,21 @@ pub fn tile_quota(tile: Selector) -> Result<TileQuota, Error> {
 /// length and number of page tables). This call is only permitted for root tile capabilities.
 pub fn tile_set_quota(tile: Selector, time: u64, pts: u64) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::TileSetQuota {
-        opcode: syscalls::Operation::TILE_SET_QUOTA.val,
-        tile_sel: tile,
-        time,
-        pts,
-    });
+    build_vmsg!(
+        buf,
+        syscalls::Operation::TILE_SET_QUOTA,
+        syscalls::TileSetQuota { tile, time, pts }
+    );
     send_receive_result(&buf)
 }
 
 /// Performs the activity operation `op` with the given activity.
 pub fn activity_ctrl(act: Selector, op: syscalls::ActivityOp, arg: u64) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::ActivityCtrl {
-        opcode: syscalls::Operation::ACT_CTRL.val,
-        act_sel: act,
-        op: op.val,
-        arg,
+    build_vmsg!(buf, syscalls::Operation::ACT_CTRL, syscalls::ActivityCtrl {
+        act,
+        op,
+        arg
     });
 
     if act == kif::SEL_ACT && op == syscalls::ActivityOp::STOP {
@@ -441,9 +463,21 @@ pub fn activity_ctrl(act: Selector, op: syscalls::ActivityOp, arg: u64) -> Resul
 /// request and sends an upcall as soon as a activity exists. Otherwise, the kernel replies only as soon
 /// as a activity exists. In both cases, the kernel returns the selector of the activity that exited and the
 /// exitcode given by the activity.
-pub fn activity_wait(acts: &[Selector], event: u64) -> Result<(Selector, i32), Error> {
+pub fn activity_wait(sels: &[Selector], event: u64) -> Result<(Selector, i32), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    syscalls::ActivityWait::fill_msgbuf(&mut buf, acts, event);
+
+    #[allow(clippy::uninit_assumed_init)]
+    // safety: will be initialized below
+    let mut acts: [Selector; syscalls::MAX_WAIT_ACTS] =
+        unsafe { MaybeUninit::uninit().assume_init() };
+    for (i, sel) in sels.iter().enumerate() {
+        acts[i] = *sel;
+    }
+    build_vmsg!(buf, syscalls::Operation::ACT_WAIT, syscalls::ActivityWait {
+        event,
+        act_count: sels.len(),
+        acts,
+    });
 
     let reply: Reply<syscalls::ActivityWaitReply> = send_receive(&buf)?;
     if event != 0 {
@@ -457,10 +491,9 @@ pub fn activity_wait(acts: &[Selector], event: u64) -> Result<(Selector, i32), E
 /// Performs the semaphore operation `op` with the given semaphore.
 pub fn sem_ctrl(sem: Selector, op: syscalls::SemOp) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::SemCtrl {
-        opcode: syscalls::Operation::SEM_CTRL.val,
-        sem_sel: sem,
-        op: op.val,
+    build_vmsg!(buf, syscalls::Operation::SEM_CTRL, syscalls::SemCtrl {
+        sem,
+        op
     });
     send_receive_result(&buf)
 }
@@ -476,12 +509,11 @@ pub fn exchange(
     obtain: bool,
 ) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::Exchange {
-        opcode: syscalls::Operation::EXCHANGE.val,
-        act_sel: act,
-        own_caps: own.raw(),
-        other_sel: other,
-        obtain: u64::from(obtain),
+    build_vmsg!(buf, syscalls::Operation::EXCHANGE, syscalls::Exchange {
+        act,
+        own,
+        other,
+        obtain,
     });
     send_receive_result(&buf)
 }
@@ -503,7 +535,7 @@ where
     PRE: Fn(&mut M3Serializer<'_>),
     POST: FnMut(&mut M3Deserializer<'_>) -> Result<(), Error>,
 {
-    exchange_sess(act, syscalls::Operation::DELEGATE, sess, crd, pre, post)
+    exchange_sess(act, false, sess, crd, pre, post)
 }
 
 /// Obtains `crd.count` capabilities via the session `sess` from the server managing the session
@@ -523,12 +555,12 @@ where
     PRE: Fn(&mut M3Serializer<'_>),
     POST: FnMut(&mut M3Deserializer<'_>) -> Result<(), Error>,
 {
-    exchange_sess(act, syscalls::Operation::OBTAIN, sess, crd, pre, post)
+    exchange_sess(act, true, sess, crd, pre, post)
 }
 
 fn exchange_sess<PRE, POST>(
     act: Selector,
-    op: syscalls::Operation,
+    obtain: bool,
     sess: Selector,
     crd: CapRngDesc,
     pre: PRE,
@@ -539,19 +571,25 @@ where
     POST: FnMut(&mut M3Deserializer<'_>) -> Result<(), Error>,
 {
     let mut buf = SYSC_BUF.borrow_mut();
-    let req = buf.set(syscalls::ExchangeSess {
-        opcode: op.val,
-        act_sel: act,
-        sess_sel: sess,
-        caps: crd.raw(),
-        args: syscalls::ExchangeArgs::default(),
-    });
+    let mut args = syscalls::ExchangeArgs::default();
 
     {
-        let mut sink = M3Serializer::new(&mut req.args.data);
+        let mut sink = M3Serializer::new(&mut args.data);
         pre(&mut sink);
-        req.args.bytes = sink.size();
+        args.bytes = sink.size();
     }
+
+    build_vmsg!(
+        buf,
+        syscalls::Operation::EXCHANGE_SESS,
+        syscalls::ExchangeSess {
+            act,
+            sess,
+            crd,
+            args,
+            obtain,
+        }
+    );
 
     let reply: Reply<syscalls::ExchangeSessReply> = send_receive(&buf)?;
 
@@ -572,15 +610,14 @@ pub fn activate(
     ep: Selector,
     gate: Selector,
     rbuf_mem: Selector,
-    rbuf_off: usize,
+    rbuf_off: goff,
 ) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::Activate {
-        opcode: syscalls::Operation::ACTIVATE.val,
-        ep_sel: ep,
-        gate_sel: gate,
+    build_vmsg!(buf, syscalls::Operation::ACTIVATE, syscalls::Activate {
+        ep,
+        gate,
         rbuf_mem,
-        rbuf_off: rbuf_off as u64,
+        rbuf_off,
     });
     send_receive_result(&buf)
 }
@@ -591,11 +628,10 @@ pub fn activate(
 /// the capabilities are revoked.
 pub fn revoke(act: Selector, crd: CapRngDesc, own: bool) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::Revoke {
-        opcode: syscalls::Operation::REVOKE.val,
-        act_sel: act,
-        caps: crd.raw(),
-        own: u64::from(own),
+    build_vmsg!(buf, syscalls::Operation::REVOKE, syscalls::Revoke {
+        act,
+        crd,
+        own
     });
     send_receive_result(&buf)
 }
@@ -605,18 +641,18 @@ pub fn revoke(act: Selector, crd: CapRngDesc, own: bool) -> Result<(), Error> {
 /// Resets the statistics for all activities in the system
 pub fn reset_stats() -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::ResetStats {
-        opcode: syscalls::Operation::RESET_STATS.val,
-    });
+    build_vmsg!(
+        buf,
+        syscalls::Operation::RESET_STATS,
+        syscalls::ResetStats {}
+    );
     send_receive_result(&buf)
 }
 
 /// The noop system call for benchmarking
 pub fn noop() -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
-    buf.set(syscalls::Noop {
-        opcode: syscalls::Operation::NOOP.val,
-    });
+    build_vmsg!(buf, syscalls::Operation::NOOP, syscalls::Noop {});
     send_receive_result(&buf)
 }
 

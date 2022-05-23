@@ -22,6 +22,7 @@ use crate::cap::{CapFlags, Capability, Selector};
 use crate::cell::{Cell, Ref, RefCell};
 use crate::com::EP;
 use crate::errors::Error;
+use crate::goff;
 use crate::kif;
 use crate::syscalls;
 use crate::tcu::EpId;
@@ -96,7 +97,7 @@ impl Gate {
     pub(crate) fn activate_rgate(
         &self,
         mem: Option<Selector>,
-        addr: usize,
+        addr: goff,
         replies: u32,
     ) -> Result<EpId, Error> {
         let ep = Activity::own().epmng_mut().acquire(replies)?;

@@ -26,6 +26,7 @@ use crate::cfg;
 use crate::com::rbufs::{alloc_rbuf, free_rbuf};
 use crate::com::{gate::Gate, RecvBuf, SendGate};
 use crate::errors::{Code, Error};
+use crate::goff;
 use crate::kif::INVALID_SEL;
 use crate::math;
 use crate::mem::MsgBuf;
@@ -233,7 +234,7 @@ impl RecvGate {
     pub fn activate_with(
         &mut self,
         mem: Option<Selector>,
-        off: usize,
+        off: goff,
         addr: usize,
     ) -> Result<(), Error> {
         let replies = 1 << (self.order - self.msg_order);

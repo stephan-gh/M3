@@ -104,7 +104,7 @@ impl Backend for MemBackend {
             sel,
             self.mem.sel(),
             size,
-            bytes,
+            bytes as goff,
             perms,
         )?;
         Ok(bytes)

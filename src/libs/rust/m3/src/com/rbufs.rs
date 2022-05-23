@@ -20,6 +20,7 @@ use crate::cell::LazyStaticRefCell;
 use crate::cfg;
 use crate::com::MemGate;
 use crate::errors::Error;
+use crate::goff;
 use crate::kif::Perm;
 use crate::math;
 use crate::mem::MemMap;
@@ -50,10 +51,10 @@ impl RecvBuf {
     }
 
     /// Returns the offset to specify on [`RecvGate`](crate::com::RecvGate) activation
-    pub fn off(&self) -> usize {
+    pub fn off(&self) -> goff {
         match self.mgate {
             Some(_) => 0,
-            None => self.addr,
+            None => self.addr as goff,
         }
     }
 
@@ -105,7 +106,7 @@ fn map_rbuf(addr: usize, size: usize) -> Result<MemGate, Error> {
         Activity::own().sel(),
         mgate.sel(),
         0,
-        size / cfg::PAGE_SIZE,
+        (size / cfg::PAGE_SIZE) as Selector,
         Perm::R,
     )?;
     Ok(mgate)

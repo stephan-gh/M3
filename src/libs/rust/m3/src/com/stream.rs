@@ -17,7 +17,6 @@
  */
 
 use core::ops;
-use core::slice;
 
 use crate::com::{RecvGate, SendGate};
 use crate::errors::{Code, Error};
@@ -90,16 +89,9 @@ pub struct GateIStream<'r> {
 impl<'r> GateIStream<'r> {
     /// Creates a new `GateIStream` for `msg` that has been received over `rgate`.
     pub fn new(msg: &'static tcu::Message, rgate: &'r RecvGate) -> Self {
-        // safety: we trust the TCU
-        let slice = unsafe {
-            #[allow(clippy::cast_ptr_alignment)]
-            let ptr = msg.data.as_ptr() as *const u64;
-            slice::from_raw_parts(ptr, (msg.header.length / 8) as usize)
-        };
-
         GateIStream {
             msg,
-            source: M3Deserializer::new(slice),
+            source: M3Deserializer::new(msg.as_words()),
             rgate,
             ack: true,
         }

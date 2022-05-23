@@ -31,11 +31,18 @@ pub struct M3Deserializer<'de> {
 }
 
 impl<'de> M3Deserializer<'de> {
+    #[inline(always)]
     pub fn new(slice: &'de [u64]) -> M3Deserializer<'de> {
         M3Deserializer { slice, pos: 0 }
     }
 
+    #[inline(always)]
+    pub fn skip(&mut self, words: usize) {
+        self.pos += words;
+    }
+
     // retrieves an element of type T from the message slice
+    #[inline(always)]
     pub fn pop<T: Deserialize<'de>>(&mut self) -> Result<T, Error> {
         T::deserialize(self)
     }
@@ -44,6 +51,7 @@ impl<'de> M3Deserializer<'de> {
 // Define some methods exactly as for Source above.
 impl<'de> M3Deserializer<'de> {
     // TODO make that private?
+    #[inline(always)]
     pub fn pop_word(&mut self) -> Result<u64, Error> {
         if self.pos >= self.slice.len() {
             return Err(Error::new(Code::InvArgs));
@@ -53,17 +61,20 @@ impl<'de> M3Deserializer<'de> {
         Ok(self.slice[self.pos - 1])
     }
 
+    #[inline(always)]
     pub fn size(&self) -> usize {
         self.slice.len()
     }
 
     // TODO make that private?
+    #[inline(always)]
     pub fn pop_str(&mut self) -> Result<String, Error> {
         // safety: we know that the pointer and length are okay
         self.do_pop_str(|slice, pos, len| unsafe { copy_str_from(&slice[pos..], len - 1) })
     }
 
     // TODO make that private?
+    #[inline(always)]
     pub fn pop_str_slice(&mut self) -> Result<&'static str, Error> {
         // safety: we know that the pointer and length are okay
         self.do_pop_str(|slice, pos, len| unsafe { str_slice_from(&slice[pos..], len - 1) })
@@ -89,6 +100,7 @@ impl<'de> M3Deserializer<'de> {
 impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
     type Error = Error;
 
+    #[inline(always)]
     fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -96,6 +108,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         unimplemented!()
     }
 
+    #[inline(always)]
     fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -103,6 +116,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         visitor.visit_bool(self.pop_word().map(|v| v == 1)?)
     }
 
+    #[inline(always)]
     fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -110,6 +124,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         visitor.visit_i8(self.pop_word()? as i8)
     }
 
+    #[inline(always)]
     fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -117,6 +132,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         visitor.visit_i16(self.pop_word()? as i16)
     }
 
+    #[inline(always)]
     fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -124,6 +140,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         visitor.visit_i32(self.pop_word()? as i32)
     }
 
+    #[inline(always)]
     fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -131,6 +148,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         visitor.visit_i64(self.pop_word()? as i64)
     }
 
+    #[inline(always)]
     fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -138,6 +156,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         visitor.visit_u8(self.pop_word()? as u8)
     }
 
+    #[inline(always)]
     fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -145,6 +164,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         visitor.visit_u16(self.pop_word()? as u16)
     }
 
+    #[inline(always)]
     fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -152,6 +172,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         visitor.visit_u32(self.pop_word()? as u32)
     }
 
+    #[inline(always)]
     fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -159,6 +180,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         visitor.visit_u64(self.pop_word()?)
     }
 
+    #[inline(always)]
     fn deserialize_f32<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -166,6 +188,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         unimplemented!()
     }
 
+    #[inline(always)]
     fn deserialize_f64<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -173,6 +196,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         unimplemented!()
     }
 
+    #[inline(always)]
     fn deserialize_char<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -180,6 +204,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         unimplemented!()
     }
 
+    #[inline(always)]
     fn deserialize_str<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -187,6 +212,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         visitor.visit_borrowed_str(self.pop_str_slice()?)
     }
 
+    #[inline(always)]
     fn deserialize_string<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -194,6 +220,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         visitor.visit_string(self.pop_str()?)
     }
 
+    #[inline(always)]
     fn deserialize_bytes<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -201,6 +228,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         unimplemented!()
     }
 
+    #[inline(always)]
     fn deserialize_byte_buf<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -208,20 +236,34 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         unimplemented!()
     }
 
-    fn deserialize_option<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    #[inline(always)]
+    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        if self.pos >= self.slice.len() {
+            return Err(Error::new(Code::InvArgs));
+        }
+
+        // only supported for primitive integers
+        if self.slice[self.pos] == !0 {
+            self.pos += 1;
+            visitor.visit_none()
+        }
+        else {
+            visitor.visit_some(self)
+        }
     }
 
+    #[inline(always)]
     fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        self.deserialize_seq(visitor)
+        visitor.visit_seq(self)
     }
 
+    #[inline(always)]
     fn deserialize_unit_struct<V>(
         self,
         _name: &'static str,
@@ -233,6 +275,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         unimplemented!()
     }
 
+    #[inline(always)]
     fn deserialize_newtype_struct<V>(
         self,
         _name: &'static str,
@@ -244,6 +287,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         unimplemented!()
     }
 
+    #[inline(always)]
     fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -251,13 +295,15 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         visitor.visit_seq(self)
     }
 
+    #[inline(always)]
     fn deserialize_tuple<V>(self, _len: usize, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        self.deserialize_seq(visitor)
+        visitor.visit_seq(self)
     }
 
+    #[inline(always)]
     fn deserialize_tuple_struct<V>(
         self,
         _name: &'static str,
@@ -270,6 +316,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         unimplemented!()
     }
 
+    #[inline(always)]
     fn deserialize_map<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -277,6 +324,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         unimplemented!()
     }
 
+    #[inline(always)]
     fn deserialize_struct<V>(
         self,
         _name: &'static str,
@@ -286,9 +334,10 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        self.deserialize_seq(visitor)
+        visitor.visit_seq(self)
     }
 
+    #[inline(always)]
     fn deserialize_enum<V>(
         self,
         _name: &'static str,
@@ -301,6 +350,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         visitor.visit_enum(self)
     }
 
+    #[inline(always)]
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -308,6 +358,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
         self.deserialize_u32(visitor)
     }
 
+    #[inline(always)]
     fn deserialize_ignored_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -319,6 +370,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
 impl<'de, 'a> SeqAccess<'de> for &'a mut M3Deserializer<'de> {
     type Error = Error;
 
+    #[inline(always)]
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
     where
         T: DeserializeSeed<'de>,
@@ -331,6 +383,7 @@ impl<'de, 'a> EnumAccess<'de> for &'a mut M3Deserializer<'de> {
     type Error = Error;
     type Variant = Self;
 
+    #[inline(always)]
     fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant), Self::Error>
     where
         V: DeserializeSeed<'de>,
@@ -343,10 +396,12 @@ impl<'de, 'a> EnumAccess<'de> for &'a mut M3Deserializer<'de> {
 impl<'de, 'a> VariantAccess<'de> for &'a mut M3Deserializer<'de> {
     type Error = Error;
 
+    #[inline(always)]
     fn unit_variant(self) -> Result<(), Self::Error> {
         Ok(())
     }
 
+    #[inline(always)]
     fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value, Self::Error>
     where
         T: DeserializeSeed<'de>,
@@ -354,6 +409,7 @@ impl<'de, 'a> VariantAccess<'de> for &'a mut M3Deserializer<'de> {
         seed.deserialize(self)
     }
 
+    #[inline(always)]
     fn tuple_variant<V>(self, _len: usize, _visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
@@ -361,6 +417,7 @@ impl<'de, 'a> VariantAccess<'de> for &'a mut M3Deserializer<'de> {
         unimplemented!()
     }
 
+    #[inline(always)]
     fn struct_variant<V>(
         self,
         _fields: &'static [&'static str],
@@ -369,6 +426,6 @@ impl<'de, 'a> VariantAccess<'de> for &'a mut M3Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        self.deserialize_seq(visitor)
+        visitor.visit_seq(self)
     }
 }

@@ -33,7 +33,7 @@ struct Creator {
     // the creator's `SendGate` to communicate with us
     _sgate: SendGate,
     // the remaining number of sessions that can be created
-    sessions: usize,
+    sessions: u32,
     // keep a bitmask of sessions belonging to this creator
     sids: u64,
 }
@@ -80,7 +80,7 @@ impl<S> SessionContainer<S> {
     pub fn add_creator(
         &mut self,
         rgate: &RecvGate,
-        sessions: usize,
+        sessions: u32,
     ) -> Result<(usize, Selector), Error> {
         let nid = self.creators.len();
         let _sgate = SendGate::new_with(SGateArgs::new(rgate).credits(1).label(nid as Label))?;
@@ -99,7 +99,7 @@ impl<S> SessionContainer<S> {
         &mut self,
         rgate: &RecvGate,
         crt: usize,
-        sessions: usize,
+        sessions: u32,
     ) -> Result<(usize, Selector), Error> {
         if sessions > self.creators[crt].sessions || self.creators.len() == MAX_CREATORS {
             return Err(Error::new(Code::NoSpace));

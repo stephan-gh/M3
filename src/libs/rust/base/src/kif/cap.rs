@@ -24,7 +24,7 @@ use crate::serialize::{Deserialize, Serialize};
 pub type CapSel = u64;
 
 /// A capability range descriptor, which describes a continuous range of capabilities
-#[derive(Copy, Clone, Default, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CapRngDesc {
     start: u64,
     count: u64,

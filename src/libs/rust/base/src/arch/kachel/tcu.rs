@@ -20,6 +20,7 @@ use bitflags::bitflags;
 use cfg_if::cfg_if;
 use core::cmp;
 use core::intrinsics;
+use core::slice;
 use core::sync::atomic;
 
 use crate::arch;
@@ -313,6 +314,16 @@ impl Message {
     pub unsafe fn get_data_unchecked<T>(&self) -> &T {
         let slice = &*(&self.data as *const [u8] as *const [T]);
         &slice[0]
+    }
+
+    /// Returns the message data as a slice of u64's
+    pub fn as_words(&self) -> &[u64] {
+        // safety: we trust the TCU
+        unsafe {
+            #[allow(clippy::cast_ptr_alignment)]
+            let ptr = self.data.as_ptr() as *const u64;
+            slice::from_raw_parts(ptr, (self.header.length / 8) as usize)
+        }
     }
 }
 

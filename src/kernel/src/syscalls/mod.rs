@@ -17,6 +17,7 @@ use base::errors::{Code, Error};
 use base::kif;
 use base::mem;
 use base::rc::Rc;
+use base::serialize::{Deserialize, M3Deserializer};
 use base::tcu;
 
 use crate::ktcu;
@@ -112,7 +113,7 @@ fn reply_success(msg: &'static tcu::Message) {
     reply_result(msg, 0);
 }
 
-fn get_request<R>(msg: &tcu::Message) -> Result<&R, Error> {
+fn get_request_ref<R>(msg: &'static tcu::Message) -> Result<&R, Error> {
     if msg.data.len() < mem::size_of::<R>() {
         Err(Error::new(Code::InvArgs))
     }
@@ -121,11 +122,19 @@ fn get_request<R>(msg: &tcu::Message) -> Result<&R, Error> {
     }
 }
 
+fn get_request<R: Deserialize<'static>>(msg: &'static tcu::Message) -> Result<R, Error> {
+    let mut de = M3Deserializer::new(msg.as_words());
+    de.skip(1);
+    de.pop()
+}
+
 pub fn handle_async(msg: &'static tcu::Message) {
     let act: Rc<Activity> = ActivityMng::activity(msg.header.label as tcu::ActId).unwrap();
+
     let req = msg.get_data::<kif::DefaultRequest>();
 
-    let res = match kif::syscalls::Operation::from(req.opcode) {
+    let op = kif::syscalls::Operation::from(req.opcode);
+    let res = match op {
         kif::syscalls::Operation::CREATE_MGATE => create::create_mgate(&act, msg),
         kif::syscalls::Operation::CREATE_RGATE => create::create_rgate(&act, msg),
         kif::syscalls::Operation::CREATE_SGATE => create::create_sgate(&act, msg),
@@ -141,8 +150,7 @@ pub fn handle_async(msg: &'static tcu::Message) {
         kif::syscalls::Operation::DERIVE_SRV => derive::derive_srv_async(&act, msg),
 
         kif::syscalls::Operation::EXCHANGE => exchange::exchange(&act, msg),
-        kif::syscalls::Operation::DELEGATE => exchange::exchange_over_sess_async(&act, msg, false),
-        kif::syscalls::Operation::OBTAIN => exchange::exchange_over_sess_async(&act, msg, true),
+        kif::syscalls::Operation::EXCHANGE_SESS => exchange::exchange_over_sess_async(&act, msg),
         kif::syscalls::Operation::REVOKE => exchange::revoke_async(&act, msg),
 
         kif::syscalls::Operation::ALLOC_EP => misc::alloc_ep(&act, msg),
@@ -170,7 +178,7 @@ pub fn handle_async(msg: &'static tcu::Message) {
             act.id(),
             act.name(),
             act.tile_id(),
-            kif::syscalls::Operation::from(req.opcode),
+            op,
             e.msg(),
             e.code()
         );
