@@ -26,14 +26,14 @@ pub fn main() -> i32 {
         .get_activity_count()
         .expect("Unable to get Activity count");
     println!(
-        "{:2} {:4} {:>10} {:>24} {:>20} {:>20} {:>12} Name",
-        "ID", "Tile", "EPs", "Time", "UserMem", "KernelMem", "PTs"
+        "{:2} | {:4} | {:>10} | {:>22} | {:>14} | {:>14} | {:>12} | Name",
+        "ID", "Tile", "Endpoints", "Time", "UserMem", "KernelMem", "Pagetables"
     );
     for i in 0..num {
         match Activity::own().resmng().unwrap().get_activity_info(i) {
             Ok(act) => {
                 println!(
-                    "{:2} {:4} {:2}:{:3}/{:3} {:4}:{:7}us/{:7}us {:2}:{:7}K/{:7}K {:2}:{:7}K/{:7}K {:4}:{:3}/{:3} {:0l$}{}",
+                    "{:2} | {:4} | {:2}:{:3}/{:3} | {:4}:{:6}us/{:6}us | {:2}:{:4}M/{:4}M | {:2}:{:4}M/{:4}M | {:4}:{:3}/{:3} | {:0l$}{}",
                     act.id,
                     act.tile,
                     act.eps.id(),
@@ -43,11 +43,11 @@ pub fn main() -> i32 {
                     act.time.left() / 1000,
                     act.time.total() / 1000,
                     act.umem.id(),
-                    act.umem.left() / 1024,
-                    act.umem.total() / 1024,
+                    act.umem.left() / (1024 * 1024),
+                    act.umem.total() / (1024 * 1024),
                     act.kmem.id(),
-                    act.kmem.left() / 1024,
-                    act.kmem.total() / 1024,
+                    act.kmem.left() / (1024 * 1024),
+                    act.kmem.total() / (1024 * 1024),
                     act.pts.id(),
                     act.pts.left(),
                     act.pts.total(),
