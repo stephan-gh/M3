@@ -66,7 +66,7 @@ fn tmcall_wait(state: &mut arch::State) -> Result<(), Error> {
 }
 
 fn tmcall_stop(state: &mut arch::State) -> Result<(), Error> {
-    let code = state.r[isr::TMC_ARG1] as u32;
+    let code = state.r[isr::TMC_ARG1] as i32;
 
     log!(crate::LOG_CALLS, "tmcall::stop(code={})", code);
 

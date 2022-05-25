@@ -551,12 +551,12 @@ fn make_ready(mut act: Box<Activity>, budget: TimeDuration) {
     }
 }
 
-pub fn remove_cur(status: u32) {
+pub fn remove_cur(status: i32) {
     let cur_id = cur().id();
     remove(cur_id, status, true, true);
 }
 
-pub fn remove(id: Id, status: u32, notify: bool, sched: bool) {
+pub fn remove(id: Id, status: i32, notify: bool, sched: bool) {
     // safety: we don't hold a reference to an activity yet
     if let Some(v) = unsafe { ACTIVITIES.get_mut()[id as usize].take() } {
         // safety: the activity reference `v` is still valid here
@@ -582,12 +582,12 @@ pub fn remove(id: Id, status: u32, notify: bool, sched: bool) {
                 tcu::TCU::xchg_activity(our().activity_reg()).unwrap();
             }
 
-            let msg = kif::tilemux::Exit {
-                op: kif::tilemux::Calls::EXIT.val as u64,
-                act_sel: old.id(),
-                code: status as u64,
-            };
-            sendqueue::send(&msg).unwrap();
+            let mut msg_buf = MsgBuf::borrow_def();
+            base::build_vmsg!(msg_buf, kif::tilemux::Calls::EXIT, kif::tilemux::Exit {
+                act_id: old.id() as tcu::ActId,
+                status,
+            });
+            sendqueue::send(&msg_buf).unwrap();
 
             // switch back to old activity
             if !pex_is_running {

@@ -13,6 +13,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::build_vmsg;
 use base::errors::{Code, Error};
 use base::kif;
 use base::mem;
@@ -81,18 +82,6 @@ macro_rules! get_kobj_ref {
         let cap = get_cap!($table, $sel);
         as_obj!(cap.get(), $ty)
     }};
-}
-
-#[macro_export]
-macro_rules! build_vmsg {
-    ( $msg:expr, $( $args:expr ),* ) => ({
-        // safety: we initialize these bytes below
-        let mut ser = unsafe { base::serialize::M3Serializer::new($msg.words_mut()) };
-        $( ser.push(&$args); )*
-        let bytes = ser.size();
-        // safety: we just have initialized these bytes
-        unsafe { $msg.set_size(bytes) };
-    });
 }
 
 mod create;

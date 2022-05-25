@@ -20,6 +20,7 @@ use m3::com::SendGate;
 use m3::errors::{Code, Error};
 use m3::log;
 use m3::mem::MsgBuf;
+use m3::serialize::M3Deserializer;
 use m3::syscalls;
 use m3::tiles::Activity;
 use m3::{build_vmsg, kif};
@@ -103,7 +104,9 @@ impl Service {
         drop(serv);
 
         let reply = events::wait_for_async(child, event)?;
-        let reply = reply.get_data::<kif::upcalls::DeriveSrv>();
+        let mut de = M3Deserializer::new(reply.as_words());
+        de.skip(1);
+        let reply = de.pop::<kif::upcalls::DeriveSrv>()?;
         Result::from(Code::from(reply.error as u32))?;
 
         Ok(Self::new(id, child, dst, dst + 1, name, sessions, false))

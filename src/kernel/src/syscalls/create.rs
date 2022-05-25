@@ -13,6 +13,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::build_vmsg;
 use base::cfg;
 use base::col::ToString;
 use base::errors::{Code, VerboseError};

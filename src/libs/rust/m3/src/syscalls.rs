@@ -23,6 +23,7 @@ use base::kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL};
 use core::mem::MaybeUninit;
 
 use crate::arch;
+use crate::build_vmsg;
 use crate::cap::Selector;
 use crate::cell::{LazyStaticRefCell, Ref, StaticRefCell};
 use crate::com::{RecvGate, SendGate};
@@ -332,7 +333,7 @@ pub fn derive_tile(
     dst: Selector,
     eps: Option<u32>,
     time: Option<u64>,
-    pts: Option<u64>,
+    pts: Option<usize>,
 ) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     build_vmsg!(
@@ -421,7 +422,7 @@ pub fn tile_quota(tile: Selector) -> Result<TileQuota, Error> {
 
 /// Sets the quota of the tile with given selector to specified initial values (given time slice
 /// length and number of page tables). This call is only permitted for root tile capabilities.
-pub fn tile_set_quota(tile: Selector, time: u64, pts: u64) -> Result<(), Error> {
+pub fn tile_set_quota(tile: Selector, time: u64, pts: usize) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     build_vmsg!(
         buf,

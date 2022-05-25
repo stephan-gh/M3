@@ -18,6 +18,10 @@
 
 //! The upcall interface
 
+use crate::kif::CapSel;
+
+use crate::serialize::{Deserialize, Serialize};
+
 int_enum! {
     /// The upcalls
     pub struct Operation : u64 {
@@ -29,28 +33,20 @@ int_enum! {
     }
 }
 
-/// The default upcall, containing the opcode and event
-#[repr(C)]
-#[derive(Copy, Clone, Debug)]
-pub struct DefaultUpcall {
-    pub opcode: u64,
-    pub event: u64,
-}
-
 /// The activity-wait upcall that is sent upon a activity-exit
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
 pub struct ActivityWait {
-    pub def: DefaultUpcall,
+    pub event: u64,
     pub error: u64,
-    pub act_sel: u64,
-    pub exitcode: u64,
+    pub act_sel: CapSel,
+    pub exitcode: i32,
 }
 
 /// The derive-srv upcall that is sent upon completion
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
 pub struct DeriveSrv {
-    pub def: DefaultUpcall,
+    pub event: u64,
     pub error: u64,
 }

@@ -172,7 +172,7 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
                 "usermem" => app.user_mem = Some(parse::size(&v)?),
                 "kernmem" => app.kern_mem = Some(parse::size(&v)?),
                 "time" => app.time = Some(parse::time(&v)?),
-                "pagetables" => app.pts = Some(parse::int(&v)?),
+                "pagetables" => app.pts = Some(parse::int(&v)? as usize),
                 "eps" => app.eps = Some(parse::int(&v)? as u32),
                 "daemon" => app.daemon = parse::bool(&v)?,
                 "getinfo" => app.getinfo = parse::bool(&v)?,

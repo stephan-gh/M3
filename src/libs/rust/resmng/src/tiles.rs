@@ -108,7 +108,7 @@ impl TileUsage {
         &self,
         eps: Option<u32>,
         time: Option<u64>,
-        pts: Option<u64>,
+        pts: Option<usize>,
     ) -> Result<TileUsage, Error> {
         let tile = self.tile_obj().derive(eps, time, pts)?;
         if let Some(idx) = self.idx {

@@ -18,6 +18,7 @@ use base::errors::{Code, Error};
 use base::kif;
 use base::log;
 use base::mem::{GlobAddr, MsgBuf};
+use base::serialize::{Deserialize, M3Deserializer};
 use base::tcu;
 use base::time::TimeDuration;
 
@@ -28,49 +29,47 @@ use crate::sendqueue;
 
 const SIDE_RBUF_ADDR: usize = cfg::TILEMUX_RBUF_SPACE + cfg::KPEX_RBUF_SIZE;
 
+fn get_request<'de, R: Deserialize<'de>>(msg: &'static tcu::Message) -> Result<R, Error> {
+    let mut de = M3Deserializer::new(msg.as_words());
+    de.skip(1);
+    de.pop()
+}
+
 fn reply_msg(msg: &'static tcu::Message, reply: &MsgBuf) {
     let msg_off = tcu::TCU::msg_to_offset(SIDE_RBUF_ADDR, msg);
     tcu::TCU::reply(tcu::TMSIDE_REP, reply, msg_off).unwrap();
 }
 
 fn activity_init(msg: &'static tcu::Message) -> Result<(), Error> {
-    let req = msg.get_data::<kif::tilemux::ActInit>();
-
-    let act_id = req.act_sel as activities::Id;
-    let time_quota = req.time_quota as quota::Id;
-    let pt_quota = req.pt_quota as quota::Id;
-    let eps_start = req.eps_start as tcu::EpId;
+    let r: kif::tilemux::ActInit = get_request(msg)?;
 
     log!(
         crate::LOG_SIDECALLS,
         "sidecall::activity_init(act={}, time={}, pt={}, eps_start={})",
-        act_id,
-        time_quota,
-        pt_quota,
-        eps_start
+        r.act_id,
+        r.time_quota,
+        r.pt_quota,
+        r.eps_start
     );
 
-    activities::add(act_id, time_quota, pt_quota, eps_start)
+    activities::add(r.act_id, r.time_quota, r.pt_quota, r.eps_start)
 }
 
 fn activity_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
-    let req = msg.get_data::<kif::tilemux::ActivityCtrl>();
-
-    let act_id = req.act_sel as activities::Id;
-    let op = kif::tilemux::ActivityOp::from(req.act_op);
+    let r: kif::tilemux::ActivityCtrl = get_request(msg)?;
 
     log!(
         crate::LOG_SIDECALLS,
         "sidecall::activity_ctrl(act={}, op={:?})",
-        act_id,
-        op,
+        r.act_id,
+        r.act_op,
     );
 
-    match op {
+    match r.act_op {
         kif::tilemux::ActivityOp::START => {
             let cur = activities::cur();
-            assert!(cur.id() != act_id);
-            let mut act = activities::get_mut(act_id).unwrap();
+            assert!(cur.id() != r.act_id);
+            let mut act = activities::get_mut(r.act_id).unwrap();
             // temporary switch to the activity to access the environment
             act.switch_to();
             act.start();
@@ -83,10 +82,10 @@ fn activity_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
         _ => {
             // we cannot remove the current activity here; remove it via scheduling
             match activities::try_cur() {
-                Some(cur) if cur.id() == act_id => {
+                Some(cur) if cur.id() == r.act_id => {
                     crate::reg_scheduling(activities::ScheduleAction::Kill)
                 },
-                _ => activities::remove(act_id, 0, false, true),
+                _ => activities::remove(r.act_id, 0, false, true),
             }
             Ok(())
         },
@@ -94,41 +93,37 @@ fn activity_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
 }
 
 fn map(msg: &'static tcu::Message) -> Result<(), Error> {
-    let req = msg.get_data::<kif::tilemux::Map>();
-
-    let act_id = req.act_sel as activities::Id;
-    let virt = req.virt as usize;
-    let global = GlobAddr::new(req.global);
-    let pages = req.pages as usize;
-    let perm = kif::PageFlags::from_bits_truncate(req.perm as u64);
+    let r: kif::tilemux::Map = get_request(msg)?;
 
     log!(
         crate::LOG_SIDECALLS,
         "sidecall::map(act={}, virt={:#x}, global={:?}, pages={}, perm={:?})",
-        act_id,
-        virt,
-        global,
-        pages,
-        perm
+        r.act_id,
+        r.virt,
+        r.global,
+        r.pages,
+        r.perm
     );
 
+    let virt = r.virt as usize;
+
     // ensure that we don't overmap critical areas
-    if virt < cfg::ENV_START || virt + pages * cfg::PAGE_SIZE > cfg::TILE_MEM_BASE {
+    if virt < cfg::ENV_START || virt + r.pages * cfg::PAGE_SIZE > cfg::TILE_MEM_BASE {
         return Err(Error::new(Code::InvArgs));
     }
 
-    if let Some(mut act) = activities::get_mut(act_id) {
+    if let Some(mut act) = activities::get_mut(r.act_id) {
         // if we unmap these pages, flush+invalidate the cache to ensure that we read this memory
         // fresh from DRAM the next time we use it.
-        let perm = if (perm & kif::PageFlags::RWX).is_empty() {
+        let perm = if (r.perm & kif::PageFlags::RWX).is_empty() {
             helper::flush_invalidate();
-            perm
+            r.perm
         }
         else {
-            perm | kif::PageFlags::U
+            r.perm | kif::PageFlags::U
         };
 
-        act.map(virt, global, pages, perm)
+        act.map(virt, r.global, r.pages, perm)
     }
     else {
         Ok(())
@@ -136,24 +131,20 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
 }
 
 fn translate(msg: &'static tcu::Message) -> Result<kif::PTE, Error> {
-    let req = msg.get_data::<kif::tilemux::Translate>();
-
-    let act_id = req.act_sel as activities::Id;
-    let virt = req.virt as usize;
-    let perm = kif::PageFlags::from_bits_truncate(req.perm as u64);
+    let r: kif::tilemux::Translate = get_request(msg)?;
 
     log!(
         crate::LOG_SIDECALLS,
         "sidecall::translate(act={}, virt={:#x}, perm={:?})",
-        act_id,
-        virt,
-        perm
+        r.act_id,
+        r.virt,
+        r.perm
     );
 
-    let pte = activities::get_mut(act_id)
+    let pte = activities::get_mut(r.act_id)
         .unwrap()
-        .translate(virt, perm | kif::PageFlags::U);
-    if (pte & perm.bits()) == 0 {
+        .translate(r.virt as usize, r.perm | kif::PageFlags::U);
+    if (pte & r.perm.bits()) == 0 {
         Err(Error::new(Code::NoPerm))
     }
     else {
@@ -162,42 +153,36 @@ fn translate(msg: &'static tcu::Message) -> Result<kif::PTE, Error> {
 }
 
 fn rem_msgs(msg: &'static tcu::Message) -> Result<(), Error> {
-    let req = msg.get_data::<kif::tilemux::RemMsgs>();
-
-    let act_id = req.act_sel as activities::Id;
-    let unread = req.unread_mask as u32;
+    let r: kif::tilemux::RemMsgs = get_request(msg)?;
 
     log!(
         crate::LOG_SIDECALLS,
         "sidecall::rem_msgs(act={}, unread={})",
-        act_id,
-        unread
+        r.act_id,
+        r.unread_mask
     );
 
     // we know that this activity is not currently running, because we changed the current activity to ourself
     // in check() below.
-    if let Some(mut act) = activities::get_mut(act_id) {
-        act.rem_msgs(unread.count_ones() as u16);
+    if let Some(mut act) = activities::get_mut(r.act_id) {
+        act.rem_msgs(r.unread_mask.count_ones() as u16);
     }
 
     Ok(())
 }
 
 fn ep_inval(msg: &'static tcu::Message) -> Result<(), Error> {
-    let req = msg.get_data::<kif::tilemux::EpInval>();
-
-    let act_id = req.act_sel as activities::Id;
-    let ep = req.ep as tcu::EpId;
+    let r: kif::tilemux::EpInval = get_request(msg)?;
 
     log!(
         crate::LOG_SIDECALLS,
         "sidecall::ep_inval(act={}, ep={})",
-        act_id,
-        ep
+        r.act_id,
+        r.ep
     );
 
     // just unblock the activity in case it wants to do something on invalidated EPs
-    if let Some(mut act) = activities::get_mut(act_id) {
+    if let Some(mut act) = activities::get_mut(r.act_id) {
         act.unblock(activities::Event::EpInvalid);
     }
 
@@ -205,73 +190,63 @@ fn ep_inval(msg: &'static tcu::Message) -> Result<(), Error> {
 }
 
 fn derive_quota(msg: &'static tcu::Message) -> Result<(u64, u64), Error> {
-    let req = msg.get_data::<kif::tilemux::DeriveQuota>();
-
-    let parent_time = req.parent_time as quota::Id;
-    let parent_pts = req.parent_pts as quota::Id;
-    let time = req.time.get::<u64>().map(TimeDuration::from_nanos);
-    let pts = req.pts.get();
+    let r: kif::tilemux::DeriveQuota = get_request(msg)?;
 
     log!(
         crate::LOG_SIDECALLS,
         "sidecall::derive_quota(ptime={}, ppts={}, time={:?}, pts={:?})",
-        parent_time,
-        parent_pts,
-        time,
-        pts
+        r.parent_time,
+        r.parent_pts,
+        r.time,
+        r.pts
     );
 
-    quota::derive(parent_time, parent_pts, time, pts)
+    quota::derive(
+        r.parent_time,
+        r.parent_pts,
+        r.time.map(TimeDuration::from_nanos),
+        r.pts,
+    )
 }
 
 fn get_quota(msg: &'static tcu::Message) -> Result<(u64, u64, usize, usize), Error> {
-    let req = msg.get_data::<kif::tilemux::GetQuota>();
-
-    let time = req.time as quota::Id;
-    let pts = req.pts as quota::Id;
+    let r: kif::tilemux::GetQuota = get_request(msg)?;
 
     log!(
         crate::LOG_SIDECALLS,
         "sidecall::get_quota(time={}, pts={})",
-        time,
-        pts
+        r.time,
+        r.pts
     );
 
-    quota::get(time, pts)
+    quota::get(r.time, r.pts)
 }
 
 fn set_quota(msg: &'static tcu::Message) -> Result<(), Error> {
-    let req = msg.get_data::<kif::tilemux::SetQuota>();
-
-    let id = req.id as quota::Id;
-    let time = TimeDuration::from_nanos(req.time as u64);
-    let pts = req.pts as usize;
+    let r: kif::tilemux::SetQuota = get_request(msg)?;
 
     log!(
         crate::LOG_SIDECALLS,
         "sidecall::set_quota(id={}, time={:?}, pts={})",
-        id,
-        time,
-        pts
+        r.id,
+        r.time,
+        r.pts
     );
 
-    quota::set(id, time, pts)
+    quota::set(r.id, TimeDuration::from_nanos(r.time), r.pts)
 }
 
 fn remove_quotas(msg: &'static tcu::Message) -> Result<(), Error> {
-    let req = msg.get_data::<kif::tilemux::RemoveQuotas>();
-
-    let time = req.time.get();
-    let pts = req.pts.get();
+    let r: kif::tilemux::RemoveQuotas = get_request(msg)?;
 
     log!(
         crate::LOG_SIDECALLS,
         "sidecall::remove_quotas(time={:?}, pts={:?})",
-        time,
-        pts
+        r.time,
+        r.pts
     );
 
-    quota::remove(time, pts)
+    quota::remove(r.time, r.pts)
 }
 
 fn reset_stats(_msg: &'static tcu::Message) -> Result<(), Error> {
@@ -287,11 +262,11 @@ fn reset_stats(_msg: &'static tcu::Message) -> Result<(), Error> {
 }
 
 fn handle_sidecall(msg: &'static tcu::Message) {
-    let req = msg.get_data::<kif::DefaultRequest>();
+    let mut de = M3Deserializer::new(msg.as_words());
 
     let mut val1 = 0;
     let mut val2 = 0;
-    let op = kif::tilemux::Sidecalls::from(req.opcode);
+    let op: kif::tilemux::Sidecalls = de.pop().unwrap();
     let res = match op {
         kif::tilemux::Sidecalls::ACT_INIT => activity_init(msg),
         kif::tilemux::Sidecalls::ACT_CTRL => activity_ctrl(msg),
@@ -316,17 +291,17 @@ fn handle_sidecall(msg: &'static tcu::Message) {
     };
 
     let mut reply_buf = MsgBuf::borrow_def();
-    reply_buf.set(kif::tilemux::Response {
-        error: match res {
-            Ok(_) => 0,
+    base::build_vmsg!(
+        reply_buf,
+        match res {
+            Ok(_) => Code::None,
             Err(e) => {
                 log!(crate::LOG_SIDECALLS, "sidecall {} failed: {}", op, e);
-                e.code() as u64
+                e.code()
             },
         },
-        val1,
-        val2,
-    });
+        kif::tilemux::Response { val1, val2 }
+    );
     reply_msg(msg, &reply_buf);
 }
 

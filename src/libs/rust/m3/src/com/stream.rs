@@ -159,19 +159,6 @@ impl<'r> ops::Drop for GateIStream<'r> {
     }
 }
 
-/// Marshalls a message from `$args` and returns the `MsgBuf`.
-#[macro_export]
-macro_rules! build_vmsg {
-    ( $msg:expr, $( $args:expr ),* ) => ({
-        // safety: we initialize these bytes below
-        let mut os = unsafe { $crate::com::GateOStream::new($msg.words_mut()) };
-        $( os.push(&$args); )*
-        let bytes = os.size();
-        // safety: we just have initialized these bytes
-        unsafe { $msg.set_size(bytes) };
-    });
-}
-
 /// Marshalls a message from `$args` and sends it via `$sg`, using `$rg` to receive the reply.
 #[macro_export]
 macro_rules! send_vmsg {

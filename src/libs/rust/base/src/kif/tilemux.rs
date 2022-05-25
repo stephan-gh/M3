@@ -18,7 +18,11 @@
 
 //! The kernel-tilemux interface
 
-use super::OptionalValue;
+use crate::goff;
+use crate::kif::PageFlags;
+use crate::mem::GlobAddr;
+use crate::serialize::{Deserialize, Serialize};
+use crate::tcu::{ActId, EpId};
 
 /// The activity id of TileMux
 pub const ACT_ID: u64 = 0xFFFF;
@@ -55,115 +59,103 @@ int_enum! {
 }
 
 /// The activity init sidecall
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct ActInit {
-    pub op: u64,
-    pub act_sel: u64,
-    pub time_quota: u64,
-    pub pt_quota: u64,
-    pub eps_start: u64,
+    pub act_id: u64,
+    pub time_quota: QuotaId,
+    pub pt_quota: QuotaId,
+    pub eps_start: EpId,
 }
 
 /// The activity control sidecall
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct ActivityCtrl {
-    pub op: u64,
-    pub act_sel: u64,
-    pub act_op: u64,
+    pub act_id: u64,
+    pub act_op: ActivityOp,
 }
 
 /// The map sidecall
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct Map {
-    pub op: u64,
-    pub act_sel: u64,
-    pub virt: u64,
-    pub global: u64,
-    pub pages: u64,
-    pub perm: u64,
+    pub act_id: u64,
+    pub virt: goff,
+    pub global: GlobAddr,
+    pub pages: usize,
+    pub perm: PageFlags,
 }
 
 /// The translate sidecall
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct Translate {
-    pub op: u64,
-    pub act_sel: u64,
-    pub virt: u64,
-    pub perm: u64,
+    pub act_id: u64,
+    pub virt: goff,
+    pub perm: PageFlags,
 }
 
 /// The remove messages sidecall
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct RemMsgs {
-    pub op: u64,
-    pub act_sel: u64,
-    pub unread_mask: u64,
+    pub act_id: u64,
+    pub unread_mask: u32,
 }
 
 /// The EP invalidation sidecall
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct EpInval {
-    pub op: u64,
-    pub act_sel: u64,
-    pub ep: u64,
+    pub act_id: u64,
+    pub ep: EpId,
 }
 
 /// The derive quota sidecall
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct DeriveQuota {
-    pub op: u64,
-    pub parent_time: u64,
-    pub parent_pts: u64,
-    pub time: OptionalValue,
-    pub pts: OptionalValue,
+    pub parent_time: QuotaId,
+    pub parent_pts: QuotaId,
+    pub time: Option<u64>,
+    pub pts: Option<usize>,
 }
 
 /// The get quota sidecall
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct GetQuota {
-    pub op: u64,
-    pub time: u64,
-    pub pts: u64,
+    pub time: QuotaId,
+    pub pts: QuotaId,
 }
 
 /// The set quota sidecall
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct SetQuota {
-    pub op: u64,
-    pub id: u64,
+    pub id: QuotaId,
     pub time: u64,
-    pub pts: u64,
+    pub pts: usize,
 }
 
 /// The remove quotas sidecall
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct RemoveQuotas {
-    pub op: u64,
-    pub time: OptionalValue,
-    pub pts: OptionalValue,
+    pub time: Option<QuotaId>,
+    pub pts: Option<QuotaId>,
 }
 
 /// The reset stats sidecall
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct ResetStats {
-    pub op: u64,
-}
+pub struct ResetStats {}
 
 /// The sidecall response
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Response {
-    pub error: u64,
     pub val1: u64,
     pub val2: u64,
 }
@@ -176,10 +168,9 @@ int_enum! {
 }
 
 /// The exit call
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
 pub struct Exit {
-    pub op: u64,
-    pub act_sel: u64,
-    pub code: u64,
+    pub act_id: ActId,
+    pub status: i32,
 }

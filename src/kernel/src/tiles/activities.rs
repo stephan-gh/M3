@@ -14,6 +14,7 @@
  */
 
 use base::boxed::Box;
+use base::build_vmsg;
 use base::cell::{Cell, RefCell, StaticRefCell};
 use base::col::{String, ToString, Vec};
 use base::errors::{Code, Error};
@@ -163,7 +164,7 @@ impl Activity {
     fn init_eps_async(&self) -> Result<(), Error> {
         use crate::cap::{RGateObject, SGateObject};
         use base::cfg;
-        use base::kif::Perm;
+        use base::kif::PageFlags;
         use base::tcu;
 
         let act = if platform::is_shared(self.tile_id()) {
@@ -181,7 +182,7 @@ impl Activity {
                     tilemng::tilemux(self.tile_id()),
                     self.id(),
                     rbuf_virt as goff,
-                    Perm::RW,
+                    PageFlags::RW,
                 )?;
                 ktcu::glob_to_phys_remote(self.tile_id(), glob, base::kif::PageFlags::RW).unwrap()
             }
@@ -405,28 +406,30 @@ impl Activity {
 
     pub fn upcall_activity_wait(&self, event: u64, act_sel: CapSel, exitcode: i32) {
         let mut msg = MsgBuf::borrow_def();
-        msg.set(kif::upcalls::ActivityWait {
-            def: kif::upcalls::DefaultUpcall {
-                opcode: kif::upcalls::Operation::ACT_WAIT.val,
+        build_vmsg!(
+            msg,
+            kif::upcalls::Operation::ACT_WAIT,
+            kif::upcalls::ActivityWait {
                 event,
-            },
-            error: Code::None as u64,
-            act_sel: act_sel as u64,
-            exitcode: exitcode as u64,
-        });
+                error: Code::None as u64,
+                act_sel,
+                exitcode,
+            }
+        );
 
         self.send_upcall::<kif::upcalls::ActivityWait>(&msg);
     }
 
     pub fn upcall_derive_srv(&self, event: u64, result: Result<(), Error>) {
         let mut msg = MsgBuf::borrow_def();
-        msg.set(kif::upcalls::DeriveSrv {
-            def: kif::upcalls::DefaultUpcall {
-                opcode: kif::upcalls::Operation::DERIVE_SRV.val,
+        build_vmsg!(
+            msg,
+            kif::upcalls::Operation::DERIVE_SRV,
+            kif::upcalls::DeriveSrv {
                 event,
-            },
-            error: Code::from(result) as u64,
-        });
+                error: Code::from(result) as u64
+            }
+        );
 
         self.send_upcall::<kif::upcalls::DeriveSrv>(&msg);
     }

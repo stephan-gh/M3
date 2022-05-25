@@ -221,7 +221,7 @@ pub struct DeriveTile {
     pub dst: CapSel,
     pub eps: Option<u32>,
     pub time: Option<u64>,
-    pub pts: Option<u64>,
+    pub pts: Option<usize>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -265,7 +265,7 @@ pub struct TileQuota {
 pub struct TileSetQuota {
     pub tile: CapSel,
     pub time: u64,
-    pub pts: u64,
+    pub pts: usize,
 }
 
 int_enum! {

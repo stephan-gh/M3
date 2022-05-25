@@ -31,6 +31,7 @@ use m3::mem::MsgBuf;
 use m3::println;
 use m3::quota::{Id as QuotaId, Quota};
 use m3::rc::Rc;
+use m3::serialize::M3Deserializer;
 use m3::session::{ResMngActInfo, ResMngActInfoResult};
 use m3::syscalls;
 use m3::tcu;
@@ -1161,12 +1162,13 @@ impl ChildManager {
     }
 
     pub fn handle_upcall_async(msg: &'static tcu::Message) {
-        let upcall = msg.get_data::<kif::upcalls::DefaultUpcall>();
+        let mut de = M3Deserializer::new(msg.as_words());
+        let opcode: kif::upcalls::Operation = de.pop().unwrap();
 
-        match kif::upcalls::Operation::from(upcall.opcode) {
-            kif::upcalls::Operation::ACT_WAIT => Self::upcall_wait_act_async(msg),
-            kif::upcalls::Operation::DERIVE_SRV => Self::upcall_derive_srv(msg),
-            _ => panic!("Unexpected upcall {}", upcall.opcode),
+        match opcode {
+            kif::upcalls::Operation::ACT_WAIT => Self::upcall_wait_act_async(&mut de),
+            kif::upcalls::Operation::DERIVE_SRV => Self::upcall_derive_srv(msg, &mut de),
+            _ => panic!("Unexpected upcall {}", opcode),
         }
 
         let mut reply_buf = MsgBuf::borrow_def();
@@ -1176,10 +1178,10 @@ impl ChildManager {
             .expect("Upcall reply failed");
     }
 
-    fn upcall_wait_act_async(msg: &'static tcu::Message) {
-        let upcall = msg.get_data::<kif::upcalls::ActivityWait>();
+    fn upcall_wait_act_async(de: &mut M3Deserializer<'_>) {
+        let upcall: kif::upcalls::ActivityWait = de.pop().unwrap();
 
-        Self::kill_child_async(upcall.act_sel as Selector, upcall.exitcode as i32);
+        Self::kill_child_async(upcall.act_sel, upcall.exitcode);
 
         // wait for the next
         {
@@ -1199,10 +1201,10 @@ impl ChildManager {
         }
     }
 
-    fn upcall_derive_srv(msg: &'static tcu::Message) {
-        let upcall = msg.get_data::<kif::upcalls::DeriveSrv>();
+    fn upcall_derive_srv(msg: &'static tcu::Message, de: &mut M3Deserializer<'_>) {
+        let upcall: kif::upcalls::DeriveSrv = de.pop().unwrap();
 
-        thread::notify(upcall.def.event, Some(msg));
+        thread::notify(upcall.event, Some(msg));
     }
 
     pub fn kill_child_async(sel: Selector, exitcode: i32) {

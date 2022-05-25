@@ -38,7 +38,7 @@ pub fn init_memory_async(act: &Activity) -> Result<i32, Error> {
             tilemng::tilemux(act.tile_id()),
             act.id(),
             ENV_START as goff,
-            kif::Perm::RW,
+            kif::PageFlags::RW,
         )?;
         env_addr = env_addr + (ENV_START & PAGE_MASK) as goff;
 

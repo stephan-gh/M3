@@ -403,7 +403,7 @@ impl Subsystem {
 
             // split available PTs according to the config
             let tile_quota = tile_usage.tile_obj().quota()?;
-            let (mut pt_sharer, shared_pts) = split_pts(tile_quota.page_tables().left() as u64, d);
+            let (mut pt_sharer, shared_pts) = split_pts(tile_quota.page_tables().left(), d);
 
             let mut domain_total_eps = tile_quota.endpoints().left();
             let mut domain_total_time = 0;
@@ -468,7 +468,7 @@ impl Subsystem {
             // set initial quota for this tile
             tile_usage
                 .tile_obj()
-                .set_quota(child_total_time, tile_quota.page_tables().total() as u64)
+                .set_quota(child_total_time, tile_quota.page_tables().total())
                 .map_err(|e| {
                     VerboseError::new(
                         e.code(),
@@ -975,7 +975,7 @@ fn split_sessions(cfg: &config::AppConfig, name: &str) -> (u32, u32) {
     (frac, fixed)
 }
 
-fn split_pts(total_pts: u64, d: &config::Domain) -> (u64, u64) {
+fn split_pts(total_pts: usize, d: &config::Domain) -> (usize, usize) {
     let mut pt_sharer = 0;
     let mut rem_pts = total_pts;
     for cfg in d.apps() {

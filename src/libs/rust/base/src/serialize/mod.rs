@@ -29,6 +29,18 @@ pub use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use crate::col::{String, Vec};
 use crate::libc;
 
+#[macro_export]
+macro_rules! build_vmsg {
+    ( $msg:expr, $( $args:expr ),* ) => ({
+        // safety: we initialize these bytes below
+        let mut ser = unsafe { $crate::serialize::M3Serializer::new($msg.words_mut()) };
+        $( ser.push(&$args); )*
+        let bytes = ser.size();
+        // safety: we just have initialized these bytes
+        unsafe { $msg.set_size(bytes) };
+    });
+}
+
 /// Copies the given string into the given word slice
 ///
 /// # Safety

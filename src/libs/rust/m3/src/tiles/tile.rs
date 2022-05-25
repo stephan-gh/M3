@@ -148,7 +148,7 @@ impl Tile {
         &self,
         eps: Option<u32>,
         time: Option<u64>,
-        pts: Option<u64>,
+        pts: Option<usize>,
     ) -> Result<Rc<Self>, Error> {
         let sel = Activity::own().alloc_sel();
         syscalls::derive_tile(self.sel(), sel, eps, time, pts)?;
@@ -184,7 +184,7 @@ impl Tile {
     /// length and number of page tables).
     ///
     /// This call requires a root tile capability.
-    pub fn set_quota(&self, time: u64, pts: u64) -> Result<(), Error> {
+    pub fn set_quota(&self, time: u64, pts: usize) -> Result<(), Error> {
         syscalls::tile_set_quota(self.sel(), time, pts)
     }
 }

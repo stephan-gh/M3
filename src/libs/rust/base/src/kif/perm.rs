@@ -42,6 +42,7 @@ pub type PTE = u64;
 
 bitflags! {
     /// The flags for virtual mappings
+    #[derive(Serialize, Deserialize)]
     pub struct PageFlags : u64 {
         /// Readable
         const R             = 0b0000_0001;

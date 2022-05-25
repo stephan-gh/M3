@@ -372,7 +372,7 @@ pub struct AppConfig {
     pub(crate) user_mem: Option<usize>,
     pub(crate) kern_mem: Option<usize>,
     pub(crate) time: Option<u64>,
-    pub(crate) pts: Option<u64>,
+    pub(crate) pts: Option<usize>,
     pub(crate) serial: Option<SerialDesc>,
     pub(crate) domains: Vec<Domain>,
     pub(crate) mounts: Vec<MountDesc>,
