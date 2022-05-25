@@ -181,8 +181,7 @@ pub fn exchange_over_sess_async(
     )?;
 
     let mut kreply = MsgBuf::borrow_def();
-    kreply.set(syscalls::ExchangeSessReply {
-        error: 0,
+    build_vmsg!(kreply, Code::None, syscalls::ExchangeSessReply {
         args: reply.data.args,
     });
     send_reply(msg, &kreply);

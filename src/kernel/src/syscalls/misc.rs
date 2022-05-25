@@ -103,10 +103,7 @@ pub fn alloc_ep(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ve
     tilemux.alloc_eps(epid, ep_count);
 
     let mut kreply = MsgBuf::borrow_def();
-    kreply.set(kif::syscalls::AllocEPReply {
-        error: 0,
-        ep: epid as u64,
-    });
+    build_vmsg!(kreply, Code::None, kif::syscalls::AllocEPReply { ep: epid });
     send_reply(msg, &kreply);
 
     Ok(())
@@ -175,10 +172,9 @@ pub fn mgate_region(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
     let mgate = get_kobj_ref!(act_caps, r.mgate, MGate);
 
     let mut kreply = MsgBuf::borrow_def();
-    kreply.set(kif::syscalls::MGateRegionReply {
-        error: 0,
-        global: mgate.addr().raw() as u64,
-        size: mgate.size() as u64,
+    build_vmsg!(kreply, Code::None, kif::syscalls::MGateRegionReply {
+        global: mgate.addr(),
+        size: mgate.size(),
     });
     send_reply(msg, &kreply);
 
@@ -194,11 +190,10 @@ pub fn kmem_quota(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), 
     let kmem = get_kobj_ref!(act_caps, r.kmem, KMem);
 
     let mut kreply = MsgBuf::borrow_def();
-    kreply.set(kif::syscalls::KMemQuotaReply {
-        error: 0,
-        id: kmem.id() as u64,
-        total: kmem.quota() as u64,
-        left: kmem.left() as u64,
+    build_vmsg!(kreply, Code::None, kif::syscalls::KMemQuotaReply {
+        id: kmem.id(),
+        total: kmem.quota(),
+        left: kmem.left(),
     });
     send_reply(msg, &kreply);
 
@@ -233,17 +228,16 @@ pub fn tile_quota_async(
     })?;
 
     let mut kreply = MsgBuf::borrow_def();
-    kreply.set(kif::syscalls::TileQuotaReply {
-        error: 0,
-        eps_id: tile.ep_quota().id() as u64,
-        eps_total: tile.ep_quota().total() as u64,
-        eps_left: tile.ep_quota().left() as u64,
+    build_vmsg!(kreply, Code::None, kif::syscalls::TileQuotaReply {
+        eps_id: tile.ep_quota().id(),
+        eps_total: tile.ep_quota().total(),
+        eps_left: tile.ep_quota().left(),
         time_id: time.id(),
         time_total: time.total(),
         time_left: time.left(),
         pts_id: pts.id(),
-        pts_total: pts.total() as u64,
-        pts_left: pts.left() as u64,
+        pts_total: pts.total(),
+        pts_left: pts.left(),
     });
     send_reply(msg, &kreply);
 
@@ -590,8 +584,7 @@ pub fn activity_wait_async(
     );
 
     let mut reply_msg = kif::syscalls::ActivityWaitReply {
-        error: 0,
-        act_sel: kif::INVALID_SEL as u64,
+        act_sel: kif::INVALID_SEL,
         exitcode: 0,
     };
 
@@ -600,12 +593,12 @@ pub fn activity_wait_async(
     if let Some((sel, code)) = act.wait_exit_async(r.event, &r.acts) {
         sysc_log!(act, "act_wait-cont(act={}, exitcode={})", sel, code);
 
-        reply_msg.act_sel = sel as u64;
-        reply_msg.exitcode = code as u64;
+        reply_msg.act_sel = sel;
+        reply_msg.exitcode = code;
     }
 
     let mut reply = MsgBuf::borrow_def();
-    reply.set(reply_msg);
+    build_vmsg!(reply, Code::None, reply_msg);
     send_reply(msg, &reply);
 
     Ok(())

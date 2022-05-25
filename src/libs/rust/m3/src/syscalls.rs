@@ -30,7 +30,7 @@ use crate::errors::{Code, Error};
 use crate::goff;
 use crate::mem::{GlobAddr, MsgBuf};
 use crate::quota::Quota;
-use crate::serialize::{M3Deserializer, M3Serializer};
+use crate::serialize::{Deserialize, M3Deserializer, M3Serializer};
 use crate::tcu::{ActId, EpId, Label, Message, SYSC_SEP_OFF};
 use crate::tiles::TileQuota;
 
@@ -39,23 +39,23 @@ static SGATE: LazyStaticRefCell<SendGate> = LazyStaticRefCell::default();
 // a SendGate, which might have to be activated first using a syscall.
 static SYSC_BUF: StaticRefCell<MsgBuf> = StaticRefCell::new(MsgBuf::new_initialized());
 
-struct Reply<R: 'static> {
+struct Reply<R> {
     msg: &'static Message,
-    data: &'static R,
+    data: R,
 }
 
-impl<R: 'static> Drop for Reply<R> {
+impl<R> Drop for Reply<R> {
     fn drop(&mut self) {
         RecvGate::syscall().ack_msg(self.msg).ok();
     }
 }
 
 #[inline(always)]
-fn send_receive<R>(buf: &MsgBuf) -> Result<Reply<R>, Error> {
+fn send_receive<'de, R: Deserialize<'de>>(buf: &MsgBuf) -> Result<Reply<R>, Error> {
     let reply_raw = SGATE.borrow().call(buf, RecvGate::syscall())?;
 
-    let reply = reply_raw.get_data::<kif::DefaultReply>();
-    let res = Code::from(reply.error as u32);
+    let mut de = M3Deserializer::new(reply_raw.as_words());
+    let res = Code::from(de.pop::<u32>()?);
     if res != Code::None {
         RecvGate::syscall().ack_msg(reply_raw)?;
         return Err(Error::new(res));
@@ -63,13 +63,16 @@ fn send_receive<R>(buf: &MsgBuf) -> Result<Reply<R>, Error> {
 
     Ok(Reply {
         msg: reply_raw,
-        data: reply_raw.get_data::<R>(),
+        data: de.pop()?,
     })
 }
 
 #[inline(always)]
 fn send_receive_result(buf: &MsgBuf) -> Result<(), Error> {
-    send_receive::<kif::DefaultReply>(buf).map(|_| ())
+    #[derive(Deserialize)]
+    #[serde(crate = "base::serde")]
+    struct Empty {}
+    send_receive::<Empty>(buf).map(|_| ())
 }
 
 #[doc(hidden)]
@@ -239,7 +242,7 @@ pub fn create_activity(
     );
 
     let reply: Reply<syscalls::CreateActivityReply> = send_receive(&buf)?;
-    Ok((reply.data.id as ActId, reply.data.eps_start as EpId))
+    Ok((reply.data.id, reply.data.eps_start))
 }
 
 /// Creates a new semaphore at selector `dst` using `value` as the initial value.
@@ -264,7 +267,7 @@ pub fn alloc_ep(dst: Selector, act: Selector, epid: EpId, replies: u32) -> Resul
     });
 
     let reply: Reply<syscalls::AllocEPReply> = send_receive(&buf)?;
-    Ok(reply.data.ep as EpId)
+    Ok(reply.data.ep)
 }
 
 /// Sets the given physical-memory-protection EP to the memory region as defined by the `MemGate`
@@ -383,7 +386,7 @@ pub fn mgate_region(mgate: Selector) -> Result<(GlobAddr, goff), Error> {
     );
 
     let reply: Reply<syscalls::MGateRegionReply> = send_receive(&buf)?;
-    Ok((GlobAddr::new(reply.data.global), reply.data.size as goff))
+    Ok((reply.data.global, reply.data.size))
 }
 
 /// Returns the total and remaining quota in bytes for the kernel memory object at `kmem`.
@@ -394,11 +397,7 @@ pub fn kmem_quota(kmem: Selector) -> Result<Quota<usize>, Error> {
     });
 
     let reply: Reply<syscalls::KMemQuotaReply> = send_receive(&buf)?;
-    Ok(Quota::new(
-        reply.data.id,
-        reply.data.total as usize,
-        reply.data.left as usize,
-    ))
+    Ok(Quota::new(reply.data.id, reply.data.total, reply.data.left))
 }
 
 /// Returns the remaining quota (free endpoints) for the tile object at `tile`.
@@ -410,21 +409,13 @@ pub fn tile_quota(tile: Selector) -> Result<TileQuota, Error> {
 
     let reply: Reply<syscalls::TileQuotaReply> = send_receive(&buf)?;
     Ok(TileQuota::new(
-        Quota::new(
-            reply.data.eps_id,
-            reply.data.eps_total as u32,
-            reply.data.eps_left as u32,
-        ),
+        Quota::new(reply.data.eps_id, reply.data.eps_total, reply.data.eps_left),
         Quota::new(
             reply.data.time_id,
-            reply.data.time_total as u64,
-            reply.data.time_left as u64,
+            reply.data.time_total,
+            reply.data.time_left,
         ),
-        Quota::new(
-            reply.data.pts_id,
-            reply.data.pts_total as usize,
-            reply.data.pts_left as usize,
-        ),
+        Quota::new(reply.data.pts_id, reply.data.pts_total, reply.data.pts_left),
     ))
 }
 
@@ -484,7 +475,7 @@ pub fn activity_wait(sels: &[Selector], event: u64) -> Result<(Selector, i32), E
         Ok((0, 0))
     }
     else {
-        Ok((reply.data.act_sel as Selector, reply.data.exitcode as i32))
+        Ok((reply.data.act_sel, reply.data.exitcode))
     }
 }
 
@@ -594,7 +585,7 @@ where
     let reply: Reply<syscalls::ExchangeSessReply> = send_receive(&buf)?;
 
     {
-        let words = (reply.data.args.bytes as usize + 7) / 8;
+        let words = (reply.data.args.bytes + 7) / 8;
         let mut src = M3Deserializer::new(&reply.data.args.data[..words]);
         post(&mut src)?;
     }

@@ -19,9 +19,10 @@
 //! The system call interface
 
 use crate::goff;
-use crate::kif::{CapRngDesc, CapSel, Perm};
+use crate::kif::{tilemux::QuotaId, CapRngDesc, CapSel, Perm};
+use crate::mem::GlobAddr;
 use crate::serialize::{Deserialize, Serialize};
-use crate::tcu::{EpId, Label};
+use crate::tcu::{ActId, EpId, Label};
 
 /// The maximum number of arguments for the exchange syscalls
 pub const MAX_EXCHG_ARGS: usize = 8;
@@ -169,6 +170,15 @@ pub struct SetPMP {
     pub ep: EpId,
 }
 
+int_enum! {
+    /// The operations for the `act_ctrl` system call
+    pub struct ActivityOp : u64 {
+        const INIT  = 0x0;
+        const START = 0x1;
+        const STOP  = 0x2;
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct ActivityCtrl {
@@ -258,11 +268,26 @@ pub struct TileSetQuota {
     pub pts: u64,
 }
 
+int_enum! {
+    /// The operations for the `sem_ctrl` system call
+    pub struct SemOp : u64 {
+        const UP   = 0x0;
+        const DOWN = 0x1;
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct SemCtrl {
     pub sem: CapSel,
     pub op: SemOp,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ExchangeArgs {
+    pub bytes: usize,
+    pub data: [u64; 8],
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -300,88 +325,64 @@ pub struct ResetStats {}
 #[repr(C)]
 pub struct Noop {}
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize)]
-pub struct ExchangeArgs {
-    pub bytes: usize,
-    pub data: [u64; 8],
-}
-
 /// The create activity reply message
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct CreateActivityReply {
-    pub error: u64,
-    pub id: u64,
-    pub eps_start: u64,
+    pub id: ActId,
+    pub eps_start: EpId,
 }
 
 /// The alloc endpoints reply message
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct AllocEPReply {
-    pub error: u64,
-    pub ep: u64,
-}
-
-int_enum! {
-    /// The operations for the `act_ctrl` system call
-    pub struct ActivityOp : u64 {
-        const INIT  = 0x0;
-        const START = 0x1;
-        const STOP  = 0x2;
-    }
+    pub ep: EpId,
 }
 
 /// The activity wait reply message
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct ActivityWaitReply {
-    pub error: u64,
-    pub act_sel: u64,
-    pub exitcode: u64,
+    pub act_sel: CapSel,
+    pub exitcode: i32,
 }
 
 /// The kernel gate region reply message
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct MGateRegionReply {
-    pub error: u64,
-    pub global: u64,
-    pub size: u64,
+    pub global: GlobAddr,
+    pub size: goff,
 }
 
 /// The kernel memory quota reply message
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct KMemQuotaReply {
-    pub error: u64,
-    pub id: u64,
-    pub total: u64,
-    pub left: u64,
+    pub id: QuotaId,
+    pub total: usize,
+    pub left: usize,
 }
 
 /// The tile quota reply message
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct TileQuotaReply {
-    pub error: u64,
-    pub eps_id: u64,
-    pub eps_total: u64,
-    pub eps_left: u64,
-    pub time_id: u64,
+    pub eps_id: QuotaId,
+    pub eps_total: u32,
+    pub eps_left: u32,
+    pub time_id: QuotaId,
     pub time_total: u64,
     pub time_left: u64,
-    pub pts_id: u64,
-    pub pts_total: u64,
-    pub pts_left: u64,
-}
-
-int_enum! {
-    /// The operations for the `sem_ctrl` system call
-    pub struct SemOp : u64 {
-        const UP   = 0x0;
-        const DOWN = 0x1;
-    }
+    pub pts_id: QuotaId,
+    pub pts_total: usize,
+    pub pts_left: usize,
 }
 
 /// The delegate/obtain reply message
+#[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct ExchangeSessReply {
-    pub error: u64,
     pub args: ExchangeArgs,
 }

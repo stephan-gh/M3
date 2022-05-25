@@ -1170,7 +1170,7 @@ impl ChildManager {
         }
 
         let mut reply_buf = MsgBuf::borrow_def();
-        reply_buf.set(kif::DefaultReply { error: 0 });
+        m3::build_vmsg!(reply_buf, kif::DefaultReply { error: 0 });
         RecvGate::upcall()
             .reply(&reply_buf, msg)
             .expect("Upcall reply failed");

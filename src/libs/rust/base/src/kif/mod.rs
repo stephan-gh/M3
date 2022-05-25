@@ -34,6 +34,7 @@ pub use self::tiledesc::*;
 
 use num_traits::PrimInt;
 
+use crate::serialize::{Deserialize, Serialize};
 use crate::tcu;
 
 /// Represents an invalid capability selector
@@ -59,6 +60,7 @@ pub struct DefaultRequest {
 }
 
 /// The default reply message that only contains the error code
+#[derive(Serialize, Deserialize)]
 #[repr(C)]
 pub struct DefaultReply {
     pub error: u64,

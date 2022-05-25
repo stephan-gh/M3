@@ -329,10 +329,9 @@ pub fn create_activity_async(
     }
 
     let mut kreply = MsgBuf::borrow_def();
-    kreply.set(syscalls::CreateActivityReply {
-        error: 0,
-        id: nact.id() as u64,
-        eps_start: eps as u64,
+    build_vmsg!(kreply, Code::None, syscalls::CreateActivityReply {
+        id: nact.id(),
+        eps_start: eps,
     });
     send_reply(msg, &kreply);
 

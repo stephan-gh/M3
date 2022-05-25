@@ -367,7 +367,7 @@ impl TileMux {
         }
 
         let mut reply = MsgBuf::borrow_def();
-        reply.set(kif::DefaultReply { error: 0 });
+        crate::build_vmsg!(reply, kif::DefaultReply { error: 0 });
         ktcu::reply(ktcu::KPEX_EP, &reply, msg).unwrap();
     }
 

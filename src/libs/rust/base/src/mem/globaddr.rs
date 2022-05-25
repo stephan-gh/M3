@@ -24,12 +24,13 @@ use crate::arch::tcu::TileId;
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::kif::{PageFlags, Perm};
+use crate::serialize::{Deserialize, Serialize};
 use crate::tcu::EpId;
 
 pub type Phys = u64;
 
 /// Represents a global address, which is a combination of a tile id and an offset within the tile.
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct GlobAddr {
     val: u64,
 }

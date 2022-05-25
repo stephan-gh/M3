@@ -83,6 +83,7 @@ macro_rules! get_kobj_ref {
     }};
 }
 
+#[macro_export]
 macro_rules! build_vmsg {
     ( $msg:expr, $( $args:expr ),* ) => ({
         // safety: we initialize these bytes below
@@ -103,14 +104,16 @@ fn send_reply(msg: &'static tcu::Message, rep: &mem::MsgBuf) {
     ktcu::reply(ktcu::KSYS_EP, rep, msg).ok();
 }
 
-fn reply_result(msg: &'static tcu::Message, code: u64) {
+fn reply_result(msg: &'static tcu::Message, error: Code) {
     let mut rep_buf = mem::MsgBuf::borrow_def();
-    rep_buf.set(kif::DefaultReply { error: code });
+    build_vmsg!(rep_buf, kif::DefaultReply {
+        error: error as u64
+    });
     send_reply(msg, &rep_buf);
 }
 
 fn reply_success(msg: &'static tcu::Message) {
-    reply_result(msg, 0);
+    reply_result(msg, Code::None);
 }
 
 fn get_request_ref<R>(msg: &'static tcu::Message) -> Result<&R, Error> {
@@ -131,9 +134,8 @@ fn get_request<R: Deserialize<'static>>(msg: &'static tcu::Message) -> Result<R,
 pub fn handle_async(msg: &'static tcu::Message) {
     let act: Rc<Activity> = ActivityMng::activity(msg.header.label as tcu::ActId).unwrap();
 
-    let req = msg.get_data::<kif::DefaultRequest>();
-
-    let op = kif::syscalls::Operation::from(req.opcode);
+    let opcode = msg.as_words()[0];
+    let op = kif::syscalls::Operation::from(opcode);
     let res = match op {
         kif::syscalls::Operation::CREATE_MGATE => create::create_mgate(&act, msg),
         kif::syscalls::Operation::CREATE_RGATE => create::create_rgate(&act, msg),
@@ -168,7 +170,7 @@ pub fn handle_async(msg: &'static tcu::Message) {
         kif::syscalls::Operation::RESET_STATS => misc::reset_stats(&act, msg),
         kif::syscalls::Operation::NOOP => misc::noop(&act, msg),
 
-        _ => panic!("Unexpected operation: {}", { req.opcode }),
+        _ => panic!("Unexpected operation: {}", opcode),
     };
 
     if let Err(e) = res {
@@ -183,6 +185,6 @@ pub fn handle_async(msg: &'static tcu::Message) {
             e.code()
         );
 
-        reply_result(msg, e.code() as u64);
+        reply_result(msg, e.code());
     }
 }

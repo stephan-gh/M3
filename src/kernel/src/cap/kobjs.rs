@@ -505,14 +505,14 @@ impl fmt::Debug for SemObject {
 }
 
 pub struct EPQuota {
-    id: usize,
+    id: QuotaId,
     total: u32,
     left: Cell<u32>,
 }
 
 impl EPQuota {
     pub fn new(eps: u32) -> Rc<Self> {
-        static NEXT_ID: StaticCell<usize> = StaticCell::new(0);
+        static NEXT_ID: StaticCell<QuotaId> = StaticCell::new(0);
         let id = NEXT_ID.get();
         NEXT_ID.set(id + 1);
 
@@ -523,7 +523,7 @@ impl EPQuota {
         })
     }
 
-    pub fn id(&self) -> usize {
+    pub fn id(&self) -> QuotaId {
         self.id
     }
 
@@ -812,14 +812,14 @@ impl fmt::Debug for EPObject {
 }
 
 pub struct KMemObject {
-    id: usize,
+    id: QuotaId,
     quota: usize,
     left: Cell<usize>,
 }
 
 impl KMemObject {
     pub fn new(quota: usize) -> SRc<Self> {
-        static NEXT_ID: StaticCell<usize> = StaticCell::new(0);
+        static NEXT_ID: StaticCell<QuotaId> = StaticCell::new(0);
         let id = NEXT_ID.get();
         NEXT_ID.set(id + 1);
 
@@ -832,7 +832,7 @@ impl KMemObject {
         kmem
     }
 
-    pub fn id(&self) -> usize {
+    pub fn id(&self) -> QuotaId {
         self.id
     }
 
