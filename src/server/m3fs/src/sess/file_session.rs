@@ -458,7 +458,7 @@ impl FileSession {
         let info = inode.to_file_info();
 
         let mut reply = m3::mem::MsgBuf::borrow_def();
-        reply.set(info.to_response());
+        build_vmsg!(reply, Code::None, info);
         stream.reply(&reply)
     }
 

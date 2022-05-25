@@ -33,7 +33,6 @@ use crate::session::ClientSession;
 use crate::tiles::{Activity, ChildActivity, StateSerializer};
 use crate::vfs::{
     FSHandle, FSOperation, File, FileInfo, FileMode, FileSystem, GenericFile, OpenFlags,
-    StatResponse,
 };
 
 struct CachedEP {
@@ -174,9 +173,8 @@ impl FileSystem for M3FS {
 
     fn stat(&self, path: &str) -> Result<FileInfo, Error> {
         send_vmsg!(&self.sgate, RecvGate::def(), FSOperation::STAT, path)?;
-        let reply = recv_result(RecvGate::def(), Some(&self.sgate))?;
-        let resp = reply.msg().get_data::<StatResponse>();
-        FileInfo::from_response(resp)
+        let mut reply = recv_result(RecvGate::def(), Some(&self.sgate))?;
+        Ok(reply.pop()?)
     }
 
     fn mkdir(&self, path: &str, mode: FileMode) -> Result<(), Error> {

@@ -23,8 +23,9 @@ use core::fmt;
 use crate::boxed::Box;
 use crate::cap::Selector;
 use crate::col::{String, ToString};
+use crate::com::recv_result;
 use crate::com::GateIStream;
-use crate::com::{recv_reply, MemGate, RecvGate, SendGate, EP};
+use crate::com::{MemGate, RecvGate, SendGate, EP};
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::int_enum;
@@ -36,9 +37,7 @@ use crate::serialize::M3Deserializer;
 use crate::session::{ClientSession, HashInput, HashOutput, HashSession, MapFlags, Pager};
 use crate::tcu::EpId;
 use crate::tiles::{Activity, ChildActivity, StateSerializer};
-use crate::vfs::{
-    filetable, Fd, File, FileEvent, FileInfo, Map, OpenFlags, Seek, SeekMode, StatResponse,
-};
+use crate::vfs::{filetable, Fd, File, FileEvent, FileInfo, Map, OpenFlags, Seek, SeekMode};
 
 int_enum! {
     /// The operations for [`GenericFile`].
@@ -394,9 +393,8 @@ impl File for GenericFile {
             GenFileOp::STAT,
             self.file_id()
         )?;
-        let reply = recv_reply(RecvGate::def(), Some(&self.sgate))?;
-        let resp = reply.msg().get_data::<StatResponse>();
-        FileInfo::from_response(resp)
+        let mut reply = recv_result(RecvGate::def(), Some(&self.sgate))?;
+        Ok(reply.pop()?)
     }
 
     fn path(&self) -> Result<String, Error> {

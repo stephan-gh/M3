@@ -28,6 +28,7 @@ use crate::goff;
 use crate::int_enum;
 use crate::io::{Read, Write};
 use crate::kif;
+use crate::serialize::{Deserialize, Serialize};
 use crate::session::{HashInput, HashOutput, MapFlags, Pager};
 use crate::tiles::{ChildActivity, StateSerializer};
 use crate::vfs::{BlockId, DevId, Fd, INodeId};
@@ -80,7 +81,8 @@ impl From<OpenFlags> for kif::Perm {
 }
 
 bitflags! {
-    #[derive(Default)]
+    #[derive(Default, Serialize, Deserialize)]
+    #[serde(crate = "base::serde")]
     pub struct FileMode : u16 {
         const IFMT      = 0o0160000;
         const IFLNK     = 0o0120000;
@@ -139,7 +141,8 @@ impl FileMode {
 }
 
 /// The file information that can be retrieved via [`VFS::stat`](crate::vfs::VFS::stat).
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[serde(crate = "base::serde")]
 pub struct FileInfo {
     pub devno: DevId,
     pub inode: INodeId,
@@ -152,61 +155,6 @@ pub struct FileInfo {
     // for debugging
     pub extents: u32,
     pub firstblock: BlockId,
-}
-
-/// The response for the stat call to m3fs.
-// note that this is hand optimized, because stat is quite performance critical and the compiler
-// seems to be unable to properly optimize everything with true marshalling/unmarshalling.
-#[repr(C)]
-pub struct StatResponse {
-    pub error: u64,
-    pub devno: u64,
-    pub inode: u64,
-    pub mode: u64,
-    pub links: u64,
-    pub size: u64,
-    pub lastaccess: u64,
-    pub lastmod: u64,
-    pub blocksize: u64,
-    pub extents: u64,
-    pub firstblock: u64,
-}
-
-impl FileInfo {
-    pub fn to_response(&self) -> StatResponse {
-        StatResponse {
-            error: 0,
-            devno: self.devno as u64,
-            inode: self.inode as u64,
-            mode: self.mode.bits() as u64,
-            links: self.links as u64,
-            size: self.size as u64,
-            lastaccess: self.lastaccess as u64,
-            lastmod: self.lastmod as u64,
-            blocksize: self.blocksize as u64,
-            extents: self.extents as u64,
-            firstblock: self.firstblock as u64,
-        }
-    }
-
-    pub fn from_response(resp: &StatResponse) -> Result<Self, Error> {
-        if resp.error != 0 {
-            return Err(Error::from(resp.error as u32));
-        }
-
-        Ok(Self {
-            devno: resp.devno as DevId,
-            inode: resp.inode as INodeId,
-            mode: FileMode::from_bits_truncate(resp.mode as u16),
-            links: resp.links as u32,
-            size: resp.size as usize,
-            lastaccess: resp.lastaccess as u32,
-            lastmod: resp.lastmod as u32,
-            blocksize: resp.blocksize as u32,
-            extents: resp.extents as u32,
-            firstblock: resp.firstblock as BlockId,
-        })
-    }
 }
 
 bitflags! {

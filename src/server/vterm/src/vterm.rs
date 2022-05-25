@@ -35,7 +35,7 @@ use m3::tcu::{Label, Message};
 use m3::tiles::Activity;
 use m3::vec;
 use m3::vfs::{FileEvent, FileInfo, FileMode, GenFileOp};
-use m3::{goff, send_vmsg};
+use m3::{build_vmsg, goff, send_vmsg};
 
 pub const LOG_DEF: bool = false;
 pub const LOG_INOUT: bool = false;
@@ -267,7 +267,7 @@ impl Channel {
         };
 
         let mut reply = m3::mem::MsgBuf::borrow_def();
-        reply.set(info.to_response());
+        build_vmsg!(reply, Code::None, info);
         is.reply(&reply)
     }
 

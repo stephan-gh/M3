@@ -13,6 +13,7 @@
  * General Public License version 2 for more details.
  */
 
+use m3::build_vmsg;
 use m3::cap::Selector;
 use m3::cell::{Cell, RefCell};
 use m3::com::{GateIStream, MemGate, RecvGate, SGateArgs, SendGate};
@@ -176,7 +177,7 @@ impl Channel {
         };
 
         let mut reply = m3::mem::MsgBuf::borrow_def();
-        reply.set(info.to_response());
+        build_vmsg!(reply, Code::None, info);
         is.reply(&reply)
     }
 
