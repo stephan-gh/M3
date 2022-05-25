@@ -157,13 +157,14 @@ impl Session {
 
         event.and_then(|event| {
             let reply = events::wait_for_async(child, event)?;
-            let reply = reply.get_data::<kif::service::OpenReply>();
 
-            let res = Code::from(reply.res as u32);
+            let mut de = M3Deserializer::new(reply.as_words());
+            let res = Code::from(de.pop::<u32>()?);
             if res != Code::None {
                 return Err(Error::new(res));
             }
 
+            let reply: kif::service::OpenReply = de.pop()?;
             Ok(Session {
                 sel,
                 ident: reply.ident,

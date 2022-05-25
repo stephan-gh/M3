@@ -34,15 +34,6 @@ impl<'s> M3Serializer<'s> {
         M3Serializer { slice, pos: 0 }
     }
 
-    // serializes a given value into the slice
-    #[inline(always)]
-    pub fn push<T: Serialize>(&mut self, item: T) {
-        item.serialize(self).unwrap();
-    }
-}
-
-// Implemented as for Sink above
-impl<'s> M3Serializer<'s> {
     #[inline(always)]
     pub fn size(&self) -> usize {
         self.pos * mem::size_of::<u64>()
@@ -53,7 +44,12 @@ impl<'s> M3Serializer<'s> {
         &self.slice[0..self.pos]
     }
 
-    // TODO make that private?
+    // serializes a given value into the slice
+    #[inline(always)]
+    pub fn push<T: Serialize>(&mut self, item: T) {
+        item.serialize(self).unwrap();
+    }
+
     #[inline(always)]
     pub fn push_word(&mut self, word: u64) {
         self.slice[self.pos] = word;

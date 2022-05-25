@@ -298,24 +298,6 @@ pub struct Message {
 }
 
 impl Message {
-    /// Returns the message data as a reference to `T`.
-    pub fn get_data<T>(&self) -> &T {
-        assert!(mem::align_of_val(self) >= mem::align_of::<T>());
-        assert!(self.data.len() >= mem::size_of::<T>());
-        // safety: assuming that the size and alignment checks above works, the cast below is safe
-        unsafe { self.get_data_unchecked() }
-    }
-
-    /// Returns the message data as a reference to `T`.
-    ///
-    /// # Safety
-    ///
-    /// The caller has to make sure that the message is sufficiently large and aligned for `T`.
-    pub unsafe fn get_data_unchecked<T>(&self) -> &T {
-        let slice = &*(&self.data as *const [u8] as *const [T]);
-        &slice[0]
-    }
-
     /// Returns the message data as a slice of u64's
     pub fn as_words(&self) -> &[u64] {
         // safety: we trust the TCU

@@ -20,11 +20,12 @@ use base::format;
 use base::kif::{service, syscalls, CapRngDesc, CapType, SEL_ACT};
 use base::mem::MsgBuf;
 use base::rc::Rc;
+use base::serialize::M3Deserializer;
 use base::tcu;
 
 use crate::cap::KObject;
 use crate::com::Service;
-use crate::syscalls::{get_request, get_request_ref, reply_success, send_reply};
+use crate::syscalls::{get_request, reply_success, send_reply};
 use crate::tiles::Activity;
 
 fn do_exchange(
@@ -154,7 +155,9 @@ pub fn exchange_over_sess_async(
         Err(e) => sysc_err!(e.code(), "Service {} unreachable", serv.service().name()),
     };
 
-    match *get_request_ref::<u64>(rmsg)? {
+    let mut de = M3Deserializer::new(rmsg.as_words());
+    let err = de.pop::<u32>()?;
+    match err {
         0 => {},
         err => sysc_err!(
             Code::from(err as u32),
@@ -163,13 +166,13 @@ pub fn exchange_over_sess_async(
         ),
     }
 
-    let reply: &service::ExchangeReply = get_request_ref(rmsg)?;
+    let reply: service::ExchangeReply = de.pop()?;
 
     sysc_log!(
         act,
         "{} continue with res={:?}, srv_crd={}",
         name,
-        reply.res,
+        err,
         reply.data.caps
     );
 

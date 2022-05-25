@@ -237,18 +237,13 @@ impl Server {
 
         match res {
             Ok((sel, ident)) => {
-                reply_vmsg!(is, OpenReply {
-                    res: Code::None,
+                reply_vmsg!(is, Code::None, OpenReply {
                     sid: sel,
                     ident: ident as u64,
                 })
             },
             Err(e) => {
-                reply_vmsg!(is, OpenReply {
-                    res: e.code(),
-                    sid: 0,
-                    ident: 0,
-                })
+                reply_vmsg!(is, e.code(), OpenReply { sid: 0, ident: 0 })
             },
         }
     }
@@ -268,8 +263,7 @@ impl Server {
 
         let (nid, sgate) = hdl.sessions().derive_creator(is.rgate(), crt, sessions)?;
 
-        reply_vmsg!(is, DeriveCreatorReply {
-            res: Code::None,
+        reply_vmsg!(is, Code::None, DeriveCreatorReply {
             creator: nid,
             sgate_sel: sgate,
         })
@@ -308,10 +302,10 @@ impl Server {
             (res, xchg.out_args().size(), xchg.out_crd)
         };
 
-        reply.res = res.err().map(|e| e.code()).unwrap_or(Code::None);
+        let res = res.err().map(|e| e.code()).unwrap_or(Code::None);
         reply.data.args.bytes = args_size;
         reply.data.caps = crd;
-        reply_vmsg!(is, reply)
+        reply_vmsg!(is, res, reply)
     }
 
     fn handle_delegate<S>(
@@ -347,10 +341,10 @@ impl Server {
             (res, xchg.out_args().size(), xchg.out_crd)
         };
 
-        reply.res = res.err().map(|e| e.code()).unwrap_or(Code::None);
+        let res = res.err().map(|e| e.code()).unwrap_or(Code::None);
         reply.data.args.bytes = args_size;
         reply.data.caps = crd;
-        reply_vmsg!(is, reply)
+        reply_vmsg!(is, res, reply)
     }
 
     fn handle_close<S>(

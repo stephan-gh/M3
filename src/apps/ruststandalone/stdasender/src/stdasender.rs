@@ -83,7 +83,7 @@ pub extern "C" fn env_run() {
         // received reply?
         while let Some(m) = helper::fetch_msg(REP, rbuf_virt) {
             assert_eq!({ m.header.label }, 0x2222);
-            log!(crate::LOG_DETAIL, "got reply {}", *m.get_data::<u64>());
+            log!(crate::LOG_DETAIL, "got reply {}", m.as_words()[0]);
 
             // ack reply
             TCU::ack_msg(REP, TCU::msg_to_offset(rbuf_virt, m)).unwrap();

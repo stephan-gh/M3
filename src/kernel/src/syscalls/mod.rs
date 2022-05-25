@@ -105,15 +105,6 @@ fn reply_success(msg: &'static tcu::Message) {
     reply_result(msg, Code::None);
 }
 
-fn get_request_ref<R>(msg: &'static tcu::Message) -> Result<&R, Error> {
-    if msg.data.len() < mem::size_of::<R>() {
-        Err(Error::new(Code::InvArgs))
-    }
-    else {
-        Ok(msg.get_data())
-    }
-}
-
 fn get_request<R: Deserialize<'static>>(msg: &'static tcu::Message) -> Result<R, Error> {
     let mut de = M3Deserializer::new(msg.as_words());
     de.skip(1);

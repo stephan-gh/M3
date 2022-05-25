@@ -68,7 +68,7 @@ pub extern "C" fn env_run() {
             }
         };
         assert_eq!({ rmsg.header.label }, 0x1234);
-        log!(crate::LOG_DETAIL, "got message {}", *rmsg.get_data::<u64>());
+        log!(crate::LOG_DETAIL, "got message {}", rmsg.as_words()[0]);
 
         // send reply
         TCU::reply(REP, &buf, TCU::msg_to_offset(rbuf_virt, rmsg)).unwrap();

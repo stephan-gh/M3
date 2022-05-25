@@ -37,6 +37,11 @@ impl<'de> M3Deserializer<'de> {
     }
 
     #[inline(always)]
+    pub fn size(&self) -> usize {
+        self.slice.len()
+    }
+
+    #[inline(always)]
     pub fn skip(&mut self, words: usize) {
         self.pos += words;
     }
@@ -46,11 +51,7 @@ impl<'de> M3Deserializer<'de> {
     pub fn pop<T: Deserialize<'de>>(&mut self) -> Result<T, Error> {
         T::deserialize(self)
     }
-}
 
-// Define some methods exactly as for Source above.
-impl<'de> M3Deserializer<'de> {
-    // TODO make that private?
     #[inline(always)]
     pub fn pop_word(&mut self) -> Result<u64, Error> {
         if self.pos >= self.slice.len() {
@@ -62,18 +63,11 @@ impl<'de> M3Deserializer<'de> {
     }
 
     #[inline(always)]
-    pub fn size(&self) -> usize {
-        self.slice.len()
-    }
-
-    // TODO make that private?
-    #[inline(always)]
     pub fn pop_str(&mut self) -> Result<String, Error> {
         // safety: we know that the pointer and length are okay
         self.do_pop_str(|slice, pos, len| unsafe { copy_str_from(&slice[pos..], len - 1) })
     }
 
-    // TODO make that private?
     #[inline(always)]
     pub fn pop_str_slice(&mut self) -> Result<&'static str, Error> {
         // safety: we know that the pointer and length are okay

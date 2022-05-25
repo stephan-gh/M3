@@ -16,16 +16,17 @@
 use base::build_vmsg;
 use base::col::ToString;
 use base::errors::{Code, VerboseError};
-use base::kif::{self, syscalls, CapSel};
+use base::kif::{self, syscalls};
 use base::mem::{GlobAddr, MsgBuf};
 use base::rc::Rc;
+use base::serialize::M3Deserializer;
 use base::tcu;
 
 use crate::cap::{Capability, KObject};
 use crate::cap::{EPQuota, KMemObject, MGateObject, ServObject, TileObject};
 use crate::com::Service;
 use crate::mem;
-use crate::syscalls::{get_request, get_request_ref, reply_success};
+use crate::syscalls::{get_request, reply_success};
 use crate::tiles::{tilemng, Activity, TileMux};
 
 #[inline(never)]
@@ -216,7 +217,9 @@ pub fn derive_srv_async(
         },
 
         Ok(rmsg) => {
-            match Result::from(Code::from(*get_request_ref::<u64>(rmsg)? as u32)) {
+            let mut de = M3Deserializer::new(rmsg.as_words());
+            let err = Code::from(de.pop::<u32>());
+            match Result::from(err) {
                 Err(e) => {
                     sysc_log!(
                         act,
@@ -227,18 +230,18 @@ pub fn derive_srv_async(
                     Err(e)
                 },
                 Ok(_) => {
-                    let reply: &kif::service::DeriveCreatorReply = get_request_ref(rmsg)?;
-                    let creator = reply.creator as usize;
-                    let sgate_sel = reply.sgate_sel as CapSel;
+                    let reply: kif::service::DeriveCreatorReply = de.pop()?;
 
-                    sysc_log!(act, "derive_srv continue with creator={}", creator);
+                    sysc_log!(act, "derive_srv continue with creator={}", reply.creator);
 
                     // obtain SendGate from server (do that first because it can fail)
                     let serv_act = srvcap.service().activity();
                     let mut serv_caps = serv_act.obj_caps().borrow_mut();
-                    let src_cap = serv_caps.get_mut(sgate_sel);
+                    let src_cap = serv_caps.get_mut(reply.sgate_sel);
                     match src_cap {
-                        None => sysc_log!(act, "Service gave invalid SendGate cap {}", sgate_sel),
+                        None => {
+                            sysc_log!(act, "Service gave invalid SendGate cap {}", reply.sgate_sel)
+                        },
                         Some(c) => try_kmem_quota!(act.obj_caps().borrow_mut().obtain(
                             r.dst.start() + 1,
                             c,
@@ -249,7 +252,11 @@ pub fn derive_srv_async(
                     // derive new service object
                     let cap = Capability::new(
                         r.dst.start() + 0,
-                        KObject::Serv(ServObject::new(srvcap.service().clone(), false, creator)),
+                        KObject::Serv(ServObject::new(
+                            srvcap.service().clone(),
+                            false,
+                            reply.creator,
+                        )),
                     );
                     try_kmem_quota!(act.obj_caps().borrow_mut().insert_as_child(cap, r.srv));
                     Ok(())

@@ -19,7 +19,6 @@
 //! The service interface
 
 use super::syscalls::ExchangeArgs;
-use crate::errors::Code;
 use crate::kif::{CapRngDesc, CapSel};
 use crate::serialize::{Deserialize, Serialize};
 
@@ -46,7 +45,6 @@ pub enum Request<'s> {
 #[derive(Serialize, Deserialize)]
 #[repr(C)]
 pub struct OpenReply {
-    pub res: Code,
     pub sid: CapSel,
     pub ident: u64,
 }
@@ -55,7 +53,6 @@ pub struct OpenReply {
 #[derive(Serialize, Deserialize)]
 #[repr(C)]
 pub struct DeriveCreatorReply {
-    pub res: Code,
     pub creator: usize,
     pub sgate_sel: CapSel,
 }
@@ -64,6 +61,5 @@ pub struct DeriveCreatorReply {
 #[derive(Default, Serialize, Deserialize)]
 #[repr(C)]
 pub struct ExchangeReply {
-    pub res: Code,
     pub data: ExchangeData,
 }

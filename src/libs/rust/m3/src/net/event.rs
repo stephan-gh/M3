@@ -302,12 +302,15 @@ impl NetEvent {
     }
 
     pub fn msg_type(&self) -> NetEventType {
-        NetEventType::from(*self.msg.get_data::<u64>())
+        NetEventType::from(self.msg.as_words()[0])
     }
 
     pub fn msg<T>(&self) -> &T {
         // TODO improve that
-        unsafe { self.msg.get_data_unchecked::<T>() }
+        unsafe {
+            let slice = &*(self.msg.as_words() as *const [u64] as *const [T]);
+            &slice[0]
+        }
     }
 }
 

@@ -32,8 +32,6 @@ pub use self::cap::*;
 pub use self::perm::*;
 pub use self::tiledesc::*;
 
-use num_traits::PrimInt;
-
 use crate::serialize::{Deserialize, Serialize};
 use crate::tcu;
 
@@ -53,38 +51,9 @@ pub const SEL_ACT: CapSel = 2;
 /// The first free selector
 pub const FIRST_FREE_SEL: CapSel = SEL_ACT + 1;
 
-/// The default request message that only contains the opcode
-#[repr(C)]
-pub struct DefaultRequest {
-    pub opcode: u64,
-}
-
 /// The default reply message that only contains the error code
 #[derive(Serialize, Deserialize)]
 #[repr(C)]
 pub struct DefaultReply {
     pub error: u64,
-}
-
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct OptionalValue(u64);
-
-impl OptionalValue {
-    pub fn new<T: PrimInt>(val: Option<T>) -> Self
-    where
-        u64: From<T>,
-    {
-        match val {
-            Some(v) => Self(v.into()),
-            None => Self(!0),
-        }
-    }
-
-    pub fn get<T: PrimInt>(&self) -> Option<T> {
-        match self.0 {
-            v if v == !0 => None,
-            v => T::from(v),
-        }
-    }
 }
