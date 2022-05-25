@@ -130,7 +130,7 @@ BEGIN_FUNC(isr_common)
     la      sp, isr_stack
 
     # call isr_handler (state address is already in a0)
-    jal     isr_handler
+    call    isr_handler
     mv      x1, a0
 
     # restore SSTATUS
