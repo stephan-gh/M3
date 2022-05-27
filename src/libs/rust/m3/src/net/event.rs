@@ -289,16 +289,11 @@ impl Drop for NetEventChannel {
 pub struct NetEvent {
     msg: &'static Message,
     channel: Rc<NetEventChannel>,
-    ack: bool,
 }
 
 impl NetEvent {
     fn new(msg: &'static Message, channel: Rc<NetEventChannel>) -> Self {
-        Self {
-            msg,
-            channel,
-            ack: true,
-        }
+        Self { msg, channel }
     }
 
     pub fn msg_type(&self) -> NetEventType {
@@ -316,10 +311,8 @@ impl NetEvent {
 
 impl Drop for NetEvent {
     fn drop(&mut self) {
-        if self.ack {
-            // reply empty message; ignore failures here
-            let reply = MsgBuf::borrow_def();
-            self.channel.rgate.reply(&reply, self.msg).ok();
-        }
+        // reply empty message; ignore failures here
+        let reply = MsgBuf::borrow_def();
+        self.channel.rgate.reply(&reply, self.msg).ok();
     }
 }
