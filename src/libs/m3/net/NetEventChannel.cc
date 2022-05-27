@@ -44,8 +44,19 @@ Errors::Code NetEventChannel::build_data_message(void *buffer, size_t buf_size, 
 }
 
 Errors::Code NetEventChannel::send_data(const void *buffer, size_t payload_size) {
-    fetch_replies();
-    return _sgate.try_send_aligned(buffer, payload_size + sizeof(DataMessage));
+    // we need to make sure here that we have enough space for the replies. therefore, we need to
+    // fetch&ACK all available replies before sending. but there is still a race: if we have
+    // currently 0 credits (4 msgs in flight), but no replies yet for our previous sends and if we
+    // receive one reply between fetch_replies() and the send, we have one credit (and therefore the
+    // send succeeds), but we didn't make room for the additional reply. thus, we have still 4 msgs
+    // in flight, but only room for 3 replies. we fix that by checking first whether we have credits
+    // and only then fetch&send. we might still receive one reply between fetch_replies() and send,
+    // but that is fine, because we send only one message at a time and reserved room for its reply.
+    if(can_send()) {
+        fetch_replies();
+        return _sgate.try_send_aligned(buffer, payload_size + sizeof(DataMessage));
+    }
+    return Errors::NO_CREDITS;
 }
 
 bool NetEventChannel::send_close_req() {

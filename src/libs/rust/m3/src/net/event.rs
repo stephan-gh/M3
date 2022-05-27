@@ -18,7 +18,7 @@ use core::fmt;
 
 use crate::cap::{CapFlags, Selector};
 use crate::com::{RGateArgs, RecvGate, SGateArgs, SendGate};
-use crate::errors::Error;
+use crate::errors::{Code, Error};
 use crate::int_enum;
 use crate::kif::{CapRngDesc, CapType};
 use crate::math;
@@ -256,13 +256,25 @@ impl NetEventChannel {
     }
 
     pub fn send_data(&self, msg: &DataMessage) -> Result<(), Error> {
-        // in case the application is doing many sends in a row, make sure that we fetch and ack the
-        // replies from the server. otherwise we stop getting the credits for our sgate back.
-        self.fetch_replies();
+        // we need to make sure here that we have enough space for the replies. therefore, we need
+        // to fetch&ACK all available replies before sending. but there is still a race: if we have
+        // currently 0 credits (4 msgs in flight), but no replies yet for our previous sends and if
+        // we receive one reply between fetch_replies() and the send, we have one credit (and
+        // therefore the send succeeds), but we didn't make room for the additional reply. thus, we
+        // have still 4 msgs in flight, but only room for 3 replies. we fix that by checking first
+        // whether we have credits and only then fetch&send. we might still receive one reply
+        // between fetch_replies() and send, but that is fine, because we send only one message at a
+        // time and reserved room for its reply.
+        if self.can_send()? {
+            self.fetch_replies();
 
-        let msg_size = 4 * mem::size_of::<u64>() + msg.size as usize;
-        self.sgate
-            .send_aligned(msg as *const _ as *const u8, msg_size, &self.rpl_gate)
+            let msg_size = 4 * mem::size_of::<u64>() + msg.size as usize;
+            self.sgate
+                .send_aligned(msg as *const _ as *const u8, msg_size, &self.rpl_gate)
+        }
+        else {
+            Err(Error::new(Code::NoCredits))
+        }
     }
 
     pub fn fetch_replies(&self) {
