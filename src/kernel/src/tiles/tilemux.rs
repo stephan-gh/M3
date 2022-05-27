@@ -371,7 +371,7 @@ impl TileMux {
 
         let mut reply = MsgBuf::borrow_def();
         build_vmsg!(reply, kif::DefaultReply {
-            error: res.err().map(|e| e.code()).unwrap_or(Code::None) as u64
+            error: res.err().map(|e| e.code()).unwrap_or(Code::None)
         });
         ktcu::reply(ktcu::KPEX_EP, &reply, msg).unwrap();
     }

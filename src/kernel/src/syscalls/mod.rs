@@ -95,9 +95,7 @@ fn send_reply(msg: &'static tcu::Message, rep: &mem::MsgBuf) {
 
 fn reply_result(msg: &'static tcu::Message, error: Code) {
     let mut rep_buf = mem::MsgBuf::borrow_def();
-    build_vmsg!(rep_buf, kif::DefaultReply {
-        error: error as u64
-    });
+    build_vmsg!(rep_buf, kif::DefaultReply { error });
     send_reply(msg, &rep_buf);
 }
 

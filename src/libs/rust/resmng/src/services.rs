@@ -107,7 +107,7 @@ impl Service {
         let mut de = M3Deserializer::new(reply.as_words());
         de.skip(1);
         let reply = de.pop::<kif::upcalls::DeriveSrv>()?;
-        Result::from(Code::from(reply.error as u32))?;
+        Result::from(reply.error)?;
 
         Ok(Self::new(id, child, dst, dst + 1, name, sessions, false))
     }
@@ -159,7 +159,7 @@ impl Session {
             let reply = events::wait_for_async(child, event)?;
 
             let mut de = M3Deserializer::new(reply.as_words());
-            let res = Code::from(de.pop::<u32>()?);
+            let res: Code = de.pop()?;
             if res != Code::None {
                 return Err(Error::new(res));
             }

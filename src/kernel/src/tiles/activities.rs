@@ -411,7 +411,7 @@ impl Activity {
             kif::upcalls::Operation::ACT_WAIT,
             kif::upcalls::ActivityWait {
                 event,
-                error: Code::None as u64,
+                error: Code::None,
                 act_sel,
                 exitcode,
             }
@@ -427,7 +427,7 @@ impl Activity {
             kif::upcalls::Operation::DERIVE_SRV,
             kif::upcalls::DeriveSrv {
                 event,
-                error: Code::from(result) as u64
+                error: Code::from(result)
             }
         );
 

@@ -22,10 +22,10 @@ use core::fmt;
 use core::intrinsics;
 
 use crate::col::String;
-use crate::serialize::{Deserialize, Serialize};
+use crate::serialize::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// The error codes
-#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Code {
     // success
     None = 0,
@@ -98,6 +98,26 @@ pub enum Code {
 impl Default for Code {
     fn default() -> Self {
         Self::None
+    }
+}
+
+impl Serialize for Code {
+    #[inline(always)]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        (*self as u32).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Code {
+    #[inline(always)]
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(Self::from(u32::deserialize(deserializer)?))
     }
 }
 

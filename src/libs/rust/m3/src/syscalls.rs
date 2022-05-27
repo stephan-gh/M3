@@ -56,7 +56,7 @@ fn send_receive<'de, R: Deserialize<'de>>(buf: &MsgBuf) -> Result<Reply<R>, Erro
     let reply_raw = SGATE.borrow().call(buf, RecvGate::syscall())?;
 
     let mut de = M3Deserializer::new(reply_raw.as_words());
-    let res = Code::from(de.pop::<u32>()?);
+    let res: Code = de.pop()?;
     if res != Code::None {
         RecvGate::syscall().ack_msg(reply_raw)?;
         return Err(Error::new(res));

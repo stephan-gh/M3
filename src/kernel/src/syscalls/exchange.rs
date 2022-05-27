@@ -156,14 +156,10 @@ pub fn exchange_over_sess_async(
     };
 
     let mut de = M3Deserializer::new(rmsg.as_words());
-    let err = de.pop::<u32>()?;
+    let err: Code = de.pop()?;
     match err {
-        0 => {},
-        err => sysc_err!(
-            Code::from(err as u32),
-            "Server {} denied cap exchange",
-            serv.service().name()
-        ),
+        Code::None => {},
+        err => sysc_err!(err, "Server {} denied cap exchange", serv.service().name()),
     }
 
     let reply: service::ExchangeReply = de.pop()?;

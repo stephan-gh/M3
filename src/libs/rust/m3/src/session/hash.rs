@@ -114,7 +114,7 @@ impl HashSession {
             // FIXME: Find a better way to copy out the slice?
             let msg = reply.msg();
             if msg.data.len() != self.algo.output_bytes {
-                return Err(Error::new(Code::from(reply.pop::<u32>()?)));
+                return Err(Error::new(reply.pop()?));
             }
 
             result.copy_from_slice(&msg.data);

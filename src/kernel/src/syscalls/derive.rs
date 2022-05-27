@@ -15,7 +15,7 @@
 
 use base::build_vmsg;
 use base::col::ToString;
-use base::errors::{Code, VerboseError};
+use base::errors::{Code, Error, VerboseError};
 use base::kif::{self, syscalls};
 use base::mem::{GlobAddr, MsgBuf};
 use base::rc::Rc;
@@ -218,18 +218,9 @@ pub fn derive_srv_async(
 
         Ok(rmsg) => {
             let mut de = M3Deserializer::new(rmsg.as_words());
-            let err = Code::from(de.pop::<u32>());
-            match Result::from(err) {
-                Err(e) => {
-                    sysc_log!(
-                        act,
-                        "Server {} denied derive: {:?}",
-                        srvcap.service().name(),
-                        e.code()
-                    );
-                    Err(e)
-                },
-                Ok(_) => {
+            let err: Code = de.pop()?;
+            match err {
+                Code::None => {
                     let reply: kif::service::DeriveCreatorReply = de.pop()?;
 
                     sysc_log!(act, "derive_srv continue with creator={}", reply.creator);
@@ -260,6 +251,15 @@ pub fn derive_srv_async(
                     );
                     try_kmem_quota!(act.obj_caps().borrow_mut().insert_as_child(cap, r.srv));
                     Ok(())
+                },
+                err => {
+                    sysc_log!(
+                        act,
+                        "Server {} denied derive: {:?}",
+                        srvcap.service().name(),
+                        err
+                    );
+                    Err(Error::new(err))
                 },
             }
         },

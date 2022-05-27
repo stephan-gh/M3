@@ -212,7 +212,7 @@ pub fn recv_result<'r>(
     sgate: Option<&SendGate>,
 ) -> Result<GateIStream<'r>, Error> {
     let mut reply = recv_reply(rgate, sgate)?;
-    let res = Code::from(reply.pop::<u32>()?);
+    let res: Code = reply.pop()?;
     match res {
         Code::None => Ok(reply),
         e => Err(Error::new(e)),

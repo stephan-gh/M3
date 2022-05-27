@@ -32,6 +32,7 @@ pub use self::cap::*;
 pub use self::perm::*;
 pub use self::tiledesc::*;
 
+use crate::errors::Code;
 use crate::serialize::{Deserialize, Serialize};
 use crate::tcu;
 
@@ -55,5 +56,5 @@ pub const FIRST_FREE_SEL: CapSel = SEL_ACT + 1;
 #[derive(Serialize, Deserialize)]
 #[repr(C)]
 pub struct DefaultReply {
-    pub error: u64,
+    pub error: Code,
 }

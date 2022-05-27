@@ -18,8 +18,8 @@
 
 //! The upcall interface
 
+use crate::errors::Code;
 use crate::kif::CapSel;
-
 use crate::serialize::{Deserialize, Serialize};
 
 int_enum! {
@@ -38,7 +38,7 @@ int_enum! {
 #[repr(C)]
 pub struct ActivityWait {
     pub event: u64,
-    pub error: u64,
+    pub error: Code,
     pub act_sel: CapSel,
     pub exitcode: i32,
 }
@@ -48,5 +48,5 @@ pub struct ActivityWait {
 #[repr(C)]
 pub struct DeriveSrv {
     pub event: u64,
-    pub error: u64,
+    pub error: Code,
 }
