@@ -13,8 +13,6 @@
  * General Public License version 2 for more details.
  */
 
-#![feature(core_intrinsics)]
-#![feature(duration_constants)]
 #![no_std]
 
 #[allow(unused_extern_crates)]

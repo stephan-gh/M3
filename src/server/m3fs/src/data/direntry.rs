@@ -17,7 +17,7 @@
 use crate::buf::MetaBufferBlock;
 use crate::data::{InodeNo, DIR_ENTRY_LEN};
 
-use core::intrinsics;
+use core::intrinsics::transmute;
 use core::slice;
 use core::u32;
 
@@ -40,7 +40,7 @@ macro_rules! get_entry_mut {
         // TODO ensure that name_length and next are within bounds (in case FS image is corrupt)
         let name_length = $buffer_off.add(size_of::<InodeNo>()) as *const u32;
         let slice = [$buffer_off as usize, *name_length as usize + DIR_ENTRY_LEN];
-        intrinsics::transmute(slice)
+        transmute(slice)
     }};
 }
 

@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-#![feature(core_intrinsics)]
 #![no_std]
 
 #[macro_use]

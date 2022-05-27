@@ -16,7 +16,6 @@
  * General Public License version 2 for more details.
  */
 
-#![feature(core_intrinsics)]
 #![no_std]
 
 use base::boxed::Box;
@@ -28,7 +27,7 @@ use base::log;
 use base::mem;
 use base::tcu::{self, Message};
 use base::vec;
-use core::intrinsics;
+use core::intrinsics::transmute;
 use core::ptr::NonNull;
 
 /// Logs thread switching etc.
@@ -195,7 +194,7 @@ impl Thread {
             unsafe {
                 let head = self.msg.as_ptr() as *const tcu::Header;
                 let slice = [head as usize, (*head).length as usize];
-                Some(intrinsics::transmute(slice))
+                Some(transmute(slice))
             }
         }
         else {

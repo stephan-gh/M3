@@ -17,7 +17,6 @@
  */
 
 #![no_std]
-#![feature(core_intrinsics)]
 
 pub mod childs;
 pub mod config;

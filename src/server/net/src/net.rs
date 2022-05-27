@@ -17,7 +17,6 @@
 
 // for offset_of with unstable_const feature
 #![feature(const_ptr_offset_from)]
-#![feature(duration_constants)]
 #![no_std]
 
 use core::str::FromStr;

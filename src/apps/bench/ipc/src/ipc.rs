@@ -17,7 +17,6 @@
  */
 
 #![no_std]
-#![feature(core_intrinsics)]
 
 #[path = "../../rustbenchs/src/bipc.rs"]
 mod bipc;

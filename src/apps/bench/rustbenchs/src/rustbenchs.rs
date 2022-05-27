@@ -17,7 +17,6 @@
  */
 
 #![no_std]
-#![feature(core_intrinsics)]
 
 mod bboxlist;
 mod bdlist;
