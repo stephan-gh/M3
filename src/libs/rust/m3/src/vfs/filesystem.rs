@@ -23,7 +23,8 @@ use crate::boxed::Box;
 use crate::cap::Selector;
 use crate::errors::Error;
 use crate::int_enum;
-use crate::tiles::{ChildActivity, StateSerializer};
+use crate::serialize::{M3Serializer, VecSink};
+use crate::tiles::ChildActivity;
 use crate::vfs::{File, FileInfo, FileMode, OpenFlags};
 
 int_enum! {
@@ -77,5 +78,5 @@ pub trait FileSystem: fmt::Debug {
     /// Delegates this file system to `act`.
     fn delegate(&self, act: &ChildActivity) -> Result<Selector, Error>;
     /// Serializes this file system into `s`.
-    fn serialize(&self, s: &mut StateSerializer<'_>);
+    fn serialize(&self, s: &mut M3Serializer<VecSink<'_>>);
 }

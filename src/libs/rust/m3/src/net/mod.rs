@@ -16,6 +16,7 @@
  */
 
 use base::errors::{Code, Error};
+use base::serialize::{Deserialize, Serialize};
 
 mod dataqueue;
 pub use self::dataqueue::DataQueue;
@@ -136,7 +137,8 @@ impl core::fmt::Display for Endpoint {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(crate = "base::serde")]
 pub enum SocketType {
     /// TCP socket
     Stream    = 0,

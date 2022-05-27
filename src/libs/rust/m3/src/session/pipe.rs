@@ -52,8 +52,8 @@ impl Pipes {
         let crd = self.sess.obtain(
             2,
             |os| {
-                os.push_word(PipeOperation::OPEN_PIPE.val);
-                os.push_word(mem_size as u64);
+                os.push(PipeOperation::OPEN_PIPE);
+                os.push(mem_size);
             },
             |_| Ok(()),
         )?;
@@ -73,7 +73,7 @@ impl Pipe {
         sess.delegate(
             CapRngDesc::new(CapType::OBJECT, mem.sel(), 1),
             |os| {
-                os.push_word(PipeOperation::SET_MEM.val);
+                os.push(PipeOperation::SET_MEM);
             },
             |_| Ok(()),
         )?;
@@ -94,8 +94,8 @@ impl Pipe {
         let crd = self.sess.obtain(
             2,
             |os| {
-                os.push_word(PipeOperation::OPEN_CHAN.val);
-                os.push_word(read as u64);
+                os.push(PipeOperation::OPEN_CHAN);
+                os.push(read);
             },
             |_| Ok(()),
         )?;

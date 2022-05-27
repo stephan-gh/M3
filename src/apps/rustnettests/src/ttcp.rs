@@ -174,16 +174,16 @@ fn nonblocking_server(t: &mut dyn WvTester) {
     wv_assert_ok!(act.delegate_obj(sem.sel()));
 
     let mut dst = act.data_sink();
-    dst.push_word(sem.sel());
-    dst.push_str(&m3::format!("{}", crate::NET0_IP.get()));
-    dst.push_str(&m3::format!("{}", crate::NET1_IP.get()));
+    dst.push(sem.sel());
+    dst.push(&m3::format!("{}", crate::NET0_IP.get()));
+    dst.push(&m3::format!("{}", crate::NET1_IP.get()));
 
     let act = wv_assert_ok!(act.run(|| {
         let mut t = DefaultWvTester::default();
         let mut src = Activity::own().data_source();
         let sem_sel: Selector = src.pop().unwrap();
-        let net0_ip: IpAddr = src.pop_str_slice().unwrap().parse().unwrap();
-        let net1_ip: IpAddr = src.pop_str_slice().unwrap().parse().unwrap();
+        let net0_ip: IpAddr = src.pop::<&str>().unwrap().parse().unwrap();
+        let net1_ip: IpAddr = src.pop::<&str>().unwrap().parse().unwrap();
 
         let sem = Semaphore::bind(sem_sel);
 
@@ -266,14 +266,14 @@ fn receive_after_close(t: &mut dyn WvTester) {
     wv_assert_ok!(act.delegate_obj(sem.sel()));
 
     let mut dst = act.data_sink();
-    dst.push_word(sem.sel());
-    dst.push_str(&m3::format!("{}", crate::NET0_IP.get()));
+    dst.push(sem.sel());
+    dst.push(&m3::format!("{}", crate::NET0_IP.get()));
 
     let act = wv_assert_ok!(act.run(|| {
         let mut t = DefaultWvTester::default();
         let mut src = Activity::own().data_source();
         let sem_sel: Selector = src.pop().unwrap();
-        let net0_ip: IpAddr = src.pop_str_slice().unwrap().parse().unwrap();
+        let net0_ip: IpAddr = src.pop::<&str>().unwrap().parse().unwrap();
 
         let sem = Semaphore::bind(sem_sel);
 

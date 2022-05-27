@@ -21,7 +21,7 @@ use core::fmt;
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::errors::Error;
 use crate::kif;
-use crate::serialize::{M3Deserializer, M3Serializer};
+use crate::serialize::{M3Deserializer, M3Serializer, SliceSink};
 use crate::syscalls;
 use crate::tiles::Activity;
 
@@ -83,7 +83,7 @@ impl ClientSession {
         post: POST,
     ) -> Result<(), Error>
     where
-        PRE: Fn(&mut M3Serializer<'_>),
+        PRE: Fn(&mut M3Serializer<SliceSink<'_>>),
         POST: FnMut(&mut M3Deserializer<'_>) -> Result<(), Error>,
     {
         self.delegate_for(Activity::own().sel(), crd, pre, post)
@@ -102,7 +102,7 @@ impl ClientSession {
         post: POST,
     ) -> Result<(), Error>
     where
-        PRE: Fn(&mut M3Serializer<'_>),
+        PRE: Fn(&mut M3Serializer<SliceSink<'_>>),
         POST: FnMut(&mut M3Deserializer<'_>) -> Result<(), Error>,
     {
         syscalls::delegate(act, self.sel(), crd, pre, post)
@@ -130,7 +130,7 @@ impl ClientSession {
         post: POST,
     ) -> Result<kif::CapRngDesc, Error>
     where
-        PRE: Fn(&mut M3Serializer<'_>),
+        PRE: Fn(&mut M3Serializer<SliceSink<'_>>),
         POST: FnMut(&mut M3Deserializer<'_>) -> Result<(), Error>,
     {
         let caps = Activity::own().alloc_sels(count);
@@ -151,7 +151,7 @@ impl ClientSession {
         post: POST,
     ) -> Result<(), Error>
     where
-        PRE: Fn(&mut M3Serializer<'_>),
+        PRE: Fn(&mut M3Serializer<SliceSink<'_>>),
         POST: FnMut(&mut M3Deserializer<'_>) -> Result<(), Error>,
     {
         syscalls::obtain(act, self.sel(), crd, pre, post)

@@ -17,31 +17,101 @@
  * General Public License version 2 for more details.
  */
 
+use crate::col::Vec;
 use crate::errors::{Code, Error};
 use crate::mem;
 use crate::serialize::copy_from_str;
 use serde::{ser, Serialize, Serializer};
 
-// The serializer for serializing values into the slice
-pub struct M3Serializer<'s> {
+pub trait Sink {
+    fn words(&self) -> &[u64];
+    fn push(&mut self, word: u64);
+    fn push_str(&mut self, s: &str);
+}
+
+pub struct SliceSink<'s> {
     slice: &'s mut [u64],
     pos: usize,
 }
 
-impl<'s> M3Serializer<'s> {
-    #[inline(always)]
+impl<'s> SliceSink<'s> {
     pub fn new(slice: &'s mut [u64]) -> Self {
-        M3Serializer { slice, pos: 0 }
+        Self { slice, pos: 0 }
+    }
+}
+
+impl<'s> Sink for SliceSink<'s> {
+    #[inline(always)]
+    fn words(&self) -> &[u64] {
+        &self.slice[0..self.pos]
+    }
+
+    #[inline(always)]
+    fn push(&mut self, word: u64) {
+        self.slice[self.pos] = word;
+        self.pos += 1;
+    }
+
+    #[inline(always)]
+    fn push_str(&mut self, s: &str) {
+        unsafe { copy_from_str(&mut self.slice[self.pos..], s) }
+        self.pos += (s.len() + 1 + 7) / 8;
+    }
+}
+
+pub struct VecSink<'v> {
+    vec: &'v mut Vec<u64>,
+}
+
+impl<'v> VecSink<'v> {
+    pub fn new(vec: &'v mut Vec<u64>) -> Self {
+        Self { vec }
+    }
+}
+
+impl<'v> Sink for VecSink<'v> {
+    #[inline(always)]
+    fn words(&self) -> &[u64] {
+        &self.vec[..]
+    }
+
+    #[inline(always)]
+    fn push(&mut self, word: u64) {
+        self.vec.push(word);
+    }
+
+    #[inline(always)]
+    fn push_str(&mut self, s: &str) {
+        let elems = (s.len() + 1 + 7) / 8;
+        let cur = self.vec.len();
+        self.vec.resize(cur + elems, 0);
+
+        unsafe {
+            // safety: we know the pointer and length are valid
+            copy_from_str(&mut self.vec.as_mut_slice()[cur..cur + elems], s);
+        }
+    }
+}
+
+// The serializer for serializing values into the slice
+pub struct M3Serializer<S: Sink> {
+    sink: S,
+}
+
+impl<S: Sink> M3Serializer<S> {
+    #[inline(always)]
+    pub fn new(sink: S) -> Self {
+        M3Serializer { sink }
     }
 
     #[inline(always)]
     pub fn size(&self) -> usize {
-        self.pos * mem::size_of::<u64>()
+        self.sink.words().len() * mem::size_of::<u64>()
     }
 
     #[inline(always)]
     pub fn words(&self) -> &[u64] {
-        &self.slice[0..self.pos]
+        self.sink.words()
     }
 
     // serializes a given value into the slice
@@ -51,13 +121,12 @@ impl<'s> M3Serializer<'s> {
     }
 
     #[inline(always)]
-    pub fn push_word(&mut self, word: u64) {
-        self.slice[self.pos] = word;
-        self.pos += 1;
+    fn push_word(&mut self, word: u64) {
+        self.sink.push(word);
     }
 }
 
-impl<'s, 'a> Serializer for &'a mut M3Serializer<'s> {
+impl<'a, S: Sink> Serializer for &'a mut M3Serializer<S> {
     type Error = Error;
     type Ok = ();
     type SerializeMap = Self;
@@ -141,12 +210,8 @@ impl<'s, 'a> Serializer for &'a mut M3Serializer<'s> {
 
     #[inline(always)]
     fn serialize_str(self, v: &str) -> Result<Self::Ok, Self::Error> {
-        let len = v.len() + 1;
-        self.push_word(len as u64);
-
-        unsafe { copy_from_str(&mut self.slice[self.pos..], v) }
-
-        self.pos += (len + 7) / 8;
+        self.push_word((v.len() + 1) as u64);
+        self.sink.push_str(v);
         Ok(())
     }
 
@@ -279,7 +344,7 @@ impl<'s, 'a> Serializer for &'a mut M3Serializer<'s> {
     }
 }
 
-impl<'s, 'a> ser::SerializeSeq for &'a mut M3Serializer<'s> {
+impl<'a, S: Sink> ser::SerializeSeq for &'a mut M3Serializer<S> {
     type Error = Error;
     type Ok = ();
 
@@ -297,7 +362,7 @@ impl<'s, 'a> ser::SerializeSeq for &'a mut M3Serializer<'s> {
     }
 }
 
-impl<'s, 'a> ser::SerializeTuple for &'a mut M3Serializer<'s> {
+impl<'a, S: Sink> ser::SerializeTuple for &'a mut M3Serializer<S> {
     type Error = Error;
     type Ok = ();
 
@@ -315,7 +380,7 @@ impl<'s, 'a> ser::SerializeTuple for &'a mut M3Serializer<'s> {
     }
 }
 
-impl<'s, 'a> ser::SerializeTupleStruct for &'a mut M3Serializer<'s> {
+impl<'a, S: Sink> ser::SerializeTupleStruct for &'a mut M3Serializer<S> {
     type Error = Error;
     type Ok = ();
 
@@ -333,7 +398,7 @@ impl<'s, 'a> ser::SerializeTupleStruct for &'a mut M3Serializer<'s> {
     }
 }
 
-impl<'s, 'a> ser::SerializeTupleVariant for &'a mut M3Serializer<'s> {
+impl<'a, S: Sink> ser::SerializeTupleVariant for &'a mut M3Serializer<S> {
     type Error = Error;
     type Ok = ();
 
@@ -351,7 +416,7 @@ impl<'s, 'a> ser::SerializeTupleVariant for &'a mut M3Serializer<'s> {
     }
 }
 
-impl<'s, 'a> ser::SerializeMap for &'a mut M3Serializer<'s> {
+impl<'a, S: Sink> ser::SerializeMap for &'a mut M3Serializer<S> {
     type Error = Error;
     type Ok = ();
 
@@ -377,7 +442,7 @@ impl<'s, 'a> ser::SerializeMap for &'a mut M3Serializer<'s> {
     }
 }
 
-impl<'s, 'a> ser::SerializeStruct for &'a mut M3Serializer<'s> {
+impl<'a, S: Sink> ser::SerializeStruct for &'a mut M3Serializer<S> {
     type Error = Error;
     type Ok = ();
 
@@ -399,7 +464,7 @@ impl<'s, 'a> ser::SerializeStruct for &'a mut M3Serializer<'s> {
     }
 }
 
-impl<'s, 'a> ser::SerializeStructVariant for &'a mut M3Serializer<'s> {
+impl<'a, S: Sink> ser::SerializeStructVariant for &'a mut M3Serializer<S> {
     type Error = Error;
     type Ok = ();
 

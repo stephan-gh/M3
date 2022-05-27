@@ -31,11 +31,11 @@ use crate::errors::Error;
 use crate::kif;
 use crate::kif::{CapRngDesc, CapType};
 use crate::rc::Rc;
+use crate::serialize::{M3Serializer, VecSink};
 use crate::session::{Pager, ResMng};
 use crate::syscalls;
 use crate::tiles::{
-    Activity, DefaultMapper, KMem, Mapper, RunningDeviceActivity, RunningProgramActivity,
-    StateSerializer, Tile,
+    Activity, DefaultMapper, KMem, Mapper, RunningDeviceActivity, RunningProgramActivity, Tile,
 };
 use crate::vfs::{BufReader, Fd, File, FileRef, OpenFlags, VFS};
 
@@ -219,8 +219,8 @@ impl ChildActivity {
     ///
     /// The sink overwrites the activity-local data and will be transmitted to the activity when calling
     /// [`run`](ChildActivity::run) and [`exec`](ChildActivity::exec).
-    pub fn data_sink(&mut self) -> StateSerializer<'_> {
-        StateSerializer::new(&mut self.data)
+    pub fn data_sink(&mut self) -> M3Serializer<VecSink<'_>> {
+        M3Serializer::new(VecSink::new(&mut self.data))
     }
 
     /// Delegates the object capability with selector `sel` of [`Activity::own`](Activity::own) to
@@ -363,7 +363,7 @@ impl ChildActivity {
             // write file table
             {
                 let mut fds_vec = Vec::new();
-                let mut fds = StateSerializer::new(&mut fds_vec);
+                let mut fds = M3Serializer::new(VecSink::new(&mut fds_vec));
                 Activity::own().files().serialize(&self.files, &mut fds);
                 let words = fds.words();
                 mem.write_bytes(
@@ -378,7 +378,7 @@ impl ChildActivity {
             // write mounts table
             {
                 let mut mounts_vec = Vec::new();
-                let mut mounts = StateSerializer::new(&mut mounts_vec);
+                let mut mounts = M3Serializer::new(VecSink::new(&mut mounts_vec));
                 Activity::own()
                     .mounts()
                     .serialize(&self.mounts, &mut mounts);
@@ -477,13 +477,13 @@ impl ChildActivity {
 
                 // write file table
                 let mut fds_vec = Vec::new();
-                let mut fds = StateSerializer::new(&mut fds_vec);
+                let mut fds = M3Serializer::new(VecSink::new(&mut fds_vec));
                 Activity::own().files().serialize(&self.files, &mut fds);
                 arch::loader::write_env_values(pid, "fds", fds.words());
 
                 // write mounts table
                 let mut mounts_vec = Vec::new();
-                let mut mounts = StateSerializer::new(&mut mounts_vec);
+                let mut mounts = M3Serializer::new(VecSink::new(&mut mounts_vec));
                 Activity::own()
                     .mounts()
                     .serialize(&self.mounts, &mut mounts);
@@ -491,9 +491,9 @@ impl ChildActivity {
 
                 // write env vars
                 let mut vars_vec = Vec::new();
-                let mut vars = StateSerializer::new(&mut vars_vec);
+                let mut vars = M3Serializer::new(VecSink::new(&mut vars_vec));
                 for var in env::vars_raw() {
-                    vars.push_str(&var);
+                    vars.push(&var);
                 }
                 arch::loader::write_env_values(pid, "vars", vars.words());
 

@@ -240,8 +240,8 @@ impl FileSession {
         )?;
 
         data.out_caps(m3::kif::CapRngDesc::new(CapType::OBJECT, sel, 1));
-        data.out_args().push_word(0);
-        data.out_args().push_word(len as u64);
+        data.out_args().push(0);
+        data.out_args().push(len);
 
         log!(
             crate::LOG_SESSION,

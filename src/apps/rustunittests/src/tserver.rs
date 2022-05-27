@@ -148,7 +148,7 @@ fn testcliexit(t: &mut dyn WvTester) {
     wv_assert_ok!(client.delegate_obj(sg.sel()));
 
     let mut dst = client.data_sink();
-    dst.push_word(sg.sel());
+    dst.push(sg.sel());
 
     let cact = wv_assert_ok!(client.run(|| {
         let mut src = Activity::own().data_source();

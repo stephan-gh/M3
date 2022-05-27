@@ -53,7 +53,7 @@ impl<'de> M3Deserializer<'de> {
     }
 
     #[inline(always)]
-    pub fn pop_word(&mut self) -> Result<u64, Error> {
+    fn pop_word(&mut self) -> Result<u64, Error> {
         if self.pos >= self.slice.len() {
             return Err(Error::new(Code::InvArgs));
         }
@@ -63,13 +63,13 @@ impl<'de> M3Deserializer<'de> {
     }
 
     #[inline(always)]
-    pub fn pop_str(&mut self) -> Result<String, Error> {
+    fn pop_str(&mut self) -> Result<String, Error> {
         // safety: we know that the pointer and length are okay
         self.do_pop_str(|slice, pos, len| unsafe { copy_str_from(&slice[pos..], len - 1) })
     }
 
     #[inline(always)]
-    pub fn pop_str_slice(&mut self) -> Result<&'static str, Error> {
+    fn pop_str_slice(&mut self) -> Result<&'static str, Error> {
         // safety: we know that the pointer and length are okay
         self.do_pop_str(|slice, pos, len| unsafe { str_slice_from(&slice[pos..], len - 1) })
     }

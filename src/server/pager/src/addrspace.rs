@@ -205,11 +205,11 @@ impl AddrSpace {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let virt = args.pop_word()? as goff;
-        let len = args.pop_word()? as goff;
-        let perm = Perm::from_bits_truncate(args.pop_word()? as u32);
-        let flags = MapFlags::from_bits_truncate(args.pop_word()? as u32);
-        let off = args.pop_word()? as goff;
+        let virt = args.pop()?;
+        let len = args.pop()?;
+        let perm = Perm::from_bits_truncate(args.pop()?);
+        let flags = MapFlags::from_bits_truncate(args.pop()?);
+        let off = args.pop()?;
 
         let sel = Activity::own().alloc_sel();
         self.map_ds_with(virt, len, off, perm, flags, sel)
@@ -305,9 +305,9 @@ impl AddrSpace {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let virt = args.pop_word()? as goff;
-        let len = args.pop_word()? as goff;
-        let perm = Perm::from_bits_truncate(args.pop_word()? as u32);
+        let virt: goff = args.pop()?;
+        let len: goff = args.pop()?;
+        let perm = Perm::from_bits_truncate(args.pop()?);
 
         log!(
             crate::LOG_DEF,

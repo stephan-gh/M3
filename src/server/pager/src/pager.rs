@@ -93,8 +93,8 @@ impl Handler<AddrSpace> for PagerReqHandler {
 
         let aspace = self.sessions.get_mut(sid).unwrap();
 
-        let op = xchg.in_args().pop_word()? as u32;
-        let sel = match PagerOp::from(op) {
+        let args = xchg.in_args();
+        let sel = match args.pop()? {
             PagerOp::ADD_CHILD => {
                 let sid = aspace.id();
                 let child_id = aspace.child_id();
@@ -127,8 +127,7 @@ impl Handler<AddrSpace> for PagerReqHandler {
         let aspace = self.sessions.get_mut(sid).unwrap();
 
         let args = xchg.in_args();
-        let op = args.pop_word()? as u32;
-        let (sel, virt) = match PagerOp::from(op) {
+        let (sel, virt) = match args.pop()? {
             PagerOp::INIT => aspace.init(None, None).map(|sel| (sel, 0)),
             PagerOp::MAP_DS => aspace.map_ds(args),
             PagerOp::MAP_MEM => aspace.map_mem(args),
@@ -136,7 +135,7 @@ impl Handler<AddrSpace> for PagerReqHandler {
         }?;
 
         if virt != 0 {
-            xchg.out_args().push_word(virt);
+            xchg.out_args().push(virt);
         }
 
         xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));

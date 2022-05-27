@@ -115,8 +115,8 @@ impl Disk {
         self.sess.delegate(
             crd,
             |slice_sink| {
-                slice_sink.push_word(blocks.start as u64);
-                slice_sink.push_word(blocks.count as u64);
+                slice_sink.push(blocks.start);
+                slice_sink.push(blocks.count);
             },
             |_slice_source| Ok(()),
         )

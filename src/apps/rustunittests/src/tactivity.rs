@@ -62,7 +62,7 @@ fn run_stop(_t: &mut dyn WvTester) {
         act.add_mount("/", "/");
 
         let mut dst = act.data_sink();
-        dst.push_word(sg.sel());
+        dst.push(sg.sel());
 
         let act = wv_assert_ok!(act.run(|| {
             let mut src = Activity::own().data_source();
@@ -116,7 +116,7 @@ fn run_send_receive(t: &mut dyn WvTester) {
     wv_assert_ok!(act.delegate_obj(rgate.sel()));
 
     let mut dst = act.data_sink();
-    dst.push_word(rgate.sel());
+    dst.push(rgate.sel());
 
     let act = wv_assert_ok!(act.run(|| {
         let mut t = DefaultWvTester::default();

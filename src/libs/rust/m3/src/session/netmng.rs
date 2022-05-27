@@ -65,11 +65,8 @@ impl NetworkManager {
         let client_session = ClientSession::new(service)?;
 
         // Obtain meta gate for the service
-        let sgate_crd = client_session.obtain(
-            1,
-            |sink| sink.push_word(NetworkOp::GET_SGATE.val),
-            |_source| Ok(()),
-        )?;
+        let sgate_crd =
+            client_session.obtain(1, |sink| sink.push(NetworkOp::GET_SGATE), |_source| Ok(()))?;
 
         Ok(Rc::new(NetworkManager {
             client_session,
@@ -94,16 +91,16 @@ impl NetworkManager {
         let crd = self.client_session.obtain(
             2,
             |sink| {
-                sink.push_word(NetworkOp::CREATE.val);
-                sink.push_word(ty as u64);
-                sink.push_word(protocol.unwrap_or(0) as u64);
-                sink.push_word(args.rbuf_size as u64);
-                sink.push_word(args.rbuf_slots as u64);
-                sink.push_word(args.sbuf_size as u64);
-                sink.push_word(args.sbuf_slots as u64);
+                sink.push(NetworkOp::CREATE);
+                sink.push(ty);
+                sink.push(protocol.unwrap_or(0));
+                sink.push(args.rbuf_size);
+                sink.push(args.rbuf_slots);
+                sink.push(args.sbuf_size);
+                sink.push(args.sbuf_slots);
             },
             |source| {
-                sd = source.pop_word()? as Sd;
+                sd = source.pop()?;
                 Ok(())
             },
         )?;

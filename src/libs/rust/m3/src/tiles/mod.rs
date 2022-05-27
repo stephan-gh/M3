@@ -24,7 +24,6 @@ mod kmem;
 mod mapper;
 mod ownactivity;
 mod running;
-mod state;
 mod tile;
 
 pub use self::activity::Activity;
@@ -33,7 +32,6 @@ pub use self::kmem::KMem;
 pub use self::mapper::{DefaultMapper, Mapper};
 pub use self::ownactivity::OwnActivity;
 pub use self::running::{RunningActivity, RunningDeviceActivity, RunningProgramActivity};
-pub use self::state::{StateDeserializer, StateSerializer};
 pub use self::tile::{Tile, TileQuota};
 
 pub(crate) fn init() {

@@ -28,9 +28,9 @@ use crate::errors::Error;
 use crate::goff;
 use crate::kif;
 use crate::rc::Rc;
-use crate::serialize::M3Deserializer;
+use crate::serialize::{M3Deserializer, M3Serializer, VecSink};
 use crate::session::ClientSession;
-use crate::tiles::{Activity, ChildActivity, StateSerializer};
+use crate::tiles::{Activity, ChildActivity};
 use crate::vfs::{
     FSHandle, FSOperation, File, FileInfo, FileMode, FileSystem, GenericFile, OpenFlags,
 };
@@ -69,7 +69,7 @@ impl M3FS {
         sess.obtain_for(
             Activity::own().sel(),
             crd,
-            |os| os.push_word(FSOperation::GET_SGATE.val),
+            |os| os.push(FSOperation::GET_SGATE),
             |_| Ok(()),
         )?;
         let sgate = SendGate::new_bind(sels + 1);
@@ -96,12 +96,12 @@ impl M3FS {
         let crd = sess.obtain(
             1,
             |os| {
-                os.push_word(FSOperation::GET_MEM.val);
-                os.push_word(off as u64);
+                os.push(FSOperation::GET_MEM);
+                os.push(off);
             },
             |is| {
-                offset = is.pop_word()?;
-                len = is.pop_word()?;
+                offset = is.pop()?;
+                len = is.pop()?;
                 Ok(())
             },
         )?;
@@ -148,8 +148,8 @@ impl FileSystem for M3FS {
             let crd = self.sess.obtain(
                 2,
                 |os| {
-                    os.push_word(FSOperation::OPEN.val);
-                    os.push_word(u64::from(flags.bits()));
+                    os.push(FSOperation::OPEN);
+                    os.push(flags);
                     os.push(path);
                 },
                 |_| Ok(()),
@@ -229,16 +229,16 @@ impl FileSystem for M3FS {
         self.sess.obtain_for(
             act.sel(),
             crd,
-            |os| os.push_word(FSOperation::GET_SGATE.val),
+            |os| os.push(FSOperation::GET_SGATE),
             |_| Ok(()),
         )?;
 
         Ok(self.sess.sel() + 2)
     }
 
-    fn serialize(&self, s: &mut StateSerializer<'_>) {
-        s.push_word(self.sess.sel() as u64);
-        s.push_word(self.id() as u64);
+    fn serialize(&self, s: &mut M3Serializer<VecSink<'_>>) {
+        s.push(self.sess.sel());
+        s.push(self.id);
     }
 }
 
@@ -260,9 +260,9 @@ impl M3FS {
         let mut id = 0;
         self.sess.delegate(
             kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1),
-            |os| os.push_word(FSOperation::DEL_EP.val),
+            |os| os.push(FSOperation::DEL_EP),
             |is| {
-                id = is.pop_word()? as usize;
+                id = is.pop()?;
                 Ok(())
             },
         )?;

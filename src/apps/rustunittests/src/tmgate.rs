@@ -138,9 +138,9 @@ fn remote_access(t: &mut dyn WvTester) {
     wv_assert_ok!(child.delegate_obj(sem2.sel()));
 
     let mut dst = child.data_sink();
-    dst.push_word(virt as u64);
-    dst.push_word(sem1.sel());
-    dst.push_word(sem2.sel());
+    dst.push(virt);
+    dst.push(sem1.sel());
+    dst.push(sem2.sel());
 
     let mut act = wv_assert_ok!(child.run(|| {
         let mut src = Activity::own().data_source();

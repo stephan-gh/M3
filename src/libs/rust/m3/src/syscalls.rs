@@ -31,7 +31,7 @@ use crate::errors::{Code, Error};
 use crate::goff;
 use crate::mem::{GlobAddr, MsgBuf};
 use crate::quota::Quota;
-use crate::serialize::{Deserialize, M3Deserializer, M3Serializer};
+use crate::serialize::{Deserialize, M3Deserializer, M3Serializer, SliceSink};
 use crate::tcu::{ActId, EpId, Label, Message, SYSC_SEP_OFF};
 use crate::tiles::TileQuota;
 
@@ -524,7 +524,7 @@ pub fn delegate<PRE, POST>(
     post: POST,
 ) -> Result<(), Error>
 where
-    PRE: Fn(&mut M3Serializer<'_>),
+    PRE: Fn(&mut M3Serializer<SliceSink<'_>>),
     POST: FnMut(&mut M3Deserializer<'_>) -> Result<(), Error>,
 {
     exchange_sess(act, false, sess, crd, pre, post)
@@ -544,7 +544,7 @@ pub fn obtain<PRE, POST>(
     post: POST,
 ) -> Result<(), Error>
 where
-    PRE: Fn(&mut M3Serializer<'_>),
+    PRE: Fn(&mut M3Serializer<SliceSink<'_>>),
     POST: FnMut(&mut M3Deserializer<'_>) -> Result<(), Error>,
 {
     exchange_sess(act, true, sess, crd, pre, post)
@@ -559,14 +559,14 @@ fn exchange_sess<PRE, POST>(
     mut post: POST,
 ) -> Result<(), Error>
 where
-    PRE: Fn(&mut M3Serializer<'_>),
+    PRE: Fn(&mut M3Serializer<SliceSink<'_>>),
     POST: FnMut(&mut M3Deserializer<'_>) -> Result<(), Error>,
 {
     let mut buf = SYSC_BUF.borrow_mut();
     let mut args = syscalls::ExchangeArgs::default();
 
     {
-        let mut sink = M3Serializer::new(&mut args.data);
+        let mut sink = M3Serializer::new(SliceSink::new(&mut args.data));
         pre(&mut sink);
         args.bytes = sink.size();
     }

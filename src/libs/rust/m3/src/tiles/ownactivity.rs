@@ -30,9 +30,10 @@ use crate::com::EpMng;
 use crate::errors::Error;
 use crate::kif;
 use crate::rc::Rc;
+use crate::serialize::M3Deserializer;
 use crate::session::{Pager, ResMng};
 use crate::tcu::{EpId, TileId, INVALID_EP, TCU};
-use crate::tiles::{Activity, KMem, StateDeserializer, Tile};
+use crate::tiles::{Activity, KMem, Tile};
 use crate::time::TimeDuration;
 use crate::tmif;
 use crate::vfs::{FileTable, MountTable};
@@ -134,8 +135,8 @@ impl OwnActivity {
     /// The source provides access to the activity-local data that has been transmitted to this
     /// activity from its parent during [`ChildActivity::run`](crate::tiles::ChildActivity::run) and
     /// [`ChildActivity::exec`](crate::tiles::ChildActivity::exec).
-    pub fn data_source(&self) -> StateDeserializer<'_> {
-        StateDeserializer::new(&self.data)
+    pub fn data_source(&self) -> M3Deserializer<'_> {
+        M3Deserializer::new(&self.data)
     }
 
     /// Returns a reference to the endpoint manager

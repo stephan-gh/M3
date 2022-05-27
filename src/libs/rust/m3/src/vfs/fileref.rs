@@ -27,8 +27,9 @@ use crate::goff;
 use crate::io::{Read, Write};
 use crate::kif;
 use crate::net::{DGramSocket, StreamSocket};
+use crate::serialize::{M3Serializer, VecSink};
 use crate::session::{HashInput, HashOutput, HashSession, MapFlags, Pager};
-use crate::tiles::{Activity, ChildActivity, StateSerializer};
+use crate::tiles::{Activity, ChildActivity};
 use crate::vfs::{Fd, File, FileEvent, FileTable, Map, Seek, SeekMode};
 
 /// A file reference provides access to a file of type `T`.
@@ -133,7 +134,7 @@ impl<T: ?Sized + 'static> File for FileRef<T> {
         self.borrow().delegate(act)
     }
 
-    fn serialize(&self, s: &mut StateSerializer<'_>) {
+    fn serialize(&self, s: &mut M3Serializer<VecSink<'_>>) {
         self.borrow().serialize(s);
     }
 

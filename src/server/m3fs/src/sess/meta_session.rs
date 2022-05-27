@@ -112,8 +112,9 @@ impl MetaSession {
         file_session_id: SessId,
         rgate: &RecvGate,
     ) -> Result<FileSession, Error> {
-        let flags = OpenFlags::from_bits_truncate(data.in_args().pop::<u32>()?);
-        let path = data.in_args().pop_str_slice()?;
+        let args = data.in_args();
+        let flags: OpenFlags = args.pop()?;
+        let path: &str = args.pop()?;
 
         log!(
             crate::LOG_SESSION,

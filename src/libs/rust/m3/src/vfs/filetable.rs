@@ -24,8 +24,8 @@ use crate::cell::RefMut;
 use crate::col::Vec;
 use crate::errors::Error;
 use crate::io::Serial;
-use crate::serialize::M3Deserializer;
-use crate::tiles::{Activity, ChildActivity, StateSerializer};
+use crate::serialize::{M3Deserializer, M3Serializer, VecSink};
+use crate::tiles::{Activity, ChildActivity};
 use crate::vfs::{File, FileRef, GenericFile};
 
 /// A file descriptor
@@ -128,13 +128,13 @@ impl FileTable {
         Ok(max_sel)
     }
 
-    pub(crate) fn serialize(&self, files: &[(Fd, Fd)], s: &mut StateSerializer<'_>) {
-        s.push_word(files.len() as u64);
+    pub(crate) fn serialize(&self, files: &[(Fd, Fd)], s: &mut M3Serializer<VecSink<'_>>) {
+        s.push(files.len());
 
         for (cfd, pfd) in files {
             if let Some(file) = self.files[*pfd].as_ref().map(|v| v.as_ref()) {
-                s.push_word(*cfd as u64);
-                s.push_word(file.file_type() as u64);
+                s.push(*cfd);
+                s.push(file.file_type());
                 file.serialize(s);
             }
         }

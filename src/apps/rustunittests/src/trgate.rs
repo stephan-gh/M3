@@ -58,7 +58,7 @@ fn destroy(t: &mut dyn WvTester) {
         wv_assert_ok!(child.delegate_obj(sg.sel()));
 
         let mut dst = child.data_sink();
-        dst.push_word(sg.sel());
+        dst.push(sg.sel());
 
         let act = wv_assert_ok!(child.run(|| {
             let mut t = m3::test::DefaultWvTester::default();

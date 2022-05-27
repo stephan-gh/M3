@@ -33,10 +33,10 @@ use crate::io::{Read, Write};
 use crate::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
 use crate::math;
 use crate::rc::Rc;
-use crate::serialize::M3Deserializer;
+use crate::serialize::{M3Deserializer, M3Serializer, VecSink};
 use crate::session::{ClientSession, HashInput, HashOutput, HashSession, MapFlags, Pager};
 use crate::tcu::EpId;
-use crate::tiles::{Activity, ChildActivity, StateSerializer};
+use crate::tiles::{Activity, ChildActivity};
 use crate::vfs::{filetable, Fd, File, FileEvent, FileInfo, Map, OpenFlags, Seek, SeekMode};
 
 int_enum! {
@@ -179,7 +179,7 @@ impl GenericFile {
             self.submit(true)?;
             let crd = CapRngDesc::new(CapType::OBJECT, ep_sel, 1);
             self.sess
-                .delegate(crd, |s| s.push_word(GenFileOp::SET_DEST.val), |_| Ok(()))?;
+                .delegate(crd, |s| s.push(GenFileOp::SET_DEST), |_| Ok(()))?;
             self.delegated_ep = ep_sel;
         }
         Ok(())
@@ -256,11 +256,8 @@ impl GenericFile {
         let _notify_sgate = Box::new(SendGate::new(&notify_rgate)?);
 
         let crd = CapRngDesc::new(CapType::OBJECT, _notify_sgate.sel(), 1);
-        self.sess.delegate(
-            crd,
-            |s| s.push_word(GenFileOp::ENABLE_NOTIFY.val),
-            |_| Ok(()),
-        )?;
+        self.sess
+            .delegate(crd, |s| s.push(GenFileOp::ENABLE_NOTIFY), |_| Ok(()))?;
 
         self.nb_state = Some(NonBlocking {
             notify_rgate,
@@ -438,19 +435,15 @@ impl File for GenericFile {
 
     fn delegate(&self, act: &ChildActivity) -> Result<Selector, Error> {
         let crd = CapRngDesc::new(CapType::OBJECT, self.sess.sel(), 2);
-        self.sess.obtain_for(
-            act.sel(),
-            crd,
-            |s| s.push_word(GenFileOp::CLONE.val),
-            |_| Ok(()),
-        )?;
+        self.sess
+            .obtain_for(act.sel(), crd, |s| s.push(GenFileOp::CLONE), |_| Ok(()))?;
         Ok(self.sess.sel() + 2)
     }
 
-    fn serialize(&self, s: &mut StateSerializer<'_>) {
-        s.push_word(self.flags.bits() as u64);
-        s.push_word(self.sess.sel());
-        s.push_word(self.fs_id.unwrap_or(!0) as u64);
+    fn serialize(&self, s: &mut M3Serializer<VecSink<'_>>) {
+        s.push(self.flags.bits());
+        s.push(self.sess.sel());
+        s.push(self.fs_id.unwrap_or(!0));
     }
 
     fn is_blocking(&self) -> bool {

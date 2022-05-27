@@ -179,8 +179,8 @@ fn _hash_file_start(
     act.add_file(io::STDIN_FILENO, file.fd());
 
     let mut dst = act.data_sink();
-    dst.push_word(algo.ty.val);
-    dst.push_str(expected);
+    dst.push(algo.ty.val);
+    dst.push(expected);
 
     wv_assert_ok!(act.run(|| {
         let mut t = DefaultWvTester::default();

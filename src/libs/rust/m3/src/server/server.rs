@@ -27,7 +27,7 @@ use crate::kif::{
 };
 use crate::llog;
 use crate::math;
-use crate::serialize::{M3Deserializer, M3Serializer};
+use crate::serialize::{M3Deserializer, M3Serializer, SliceSink};
 use crate::server::{SessId, SessionContainer};
 use crate::syscalls;
 use crate::tiles::Activity;
@@ -42,7 +42,7 @@ pub struct Server {
 /// The struct to exchange capabilities with a client (obtain/delegate)
 pub struct CapExchange<'d> {
     src: M3Deserializer<'d>,
-    sink: M3Serializer<'d>,
+    sink: M3Serializer<SliceSink<'d>>,
     input: &'d ExchangeData,
     out_crd: CapRngDesc,
 }
@@ -54,7 +54,7 @@ impl<'d> CapExchange<'d> {
         let len = (input.args.bytes as usize + 7) / 8;
         Self {
             src: M3Deserializer::new(&input.args.data[..len]),
-            sink: M3Serializer::new(&mut output.args.data),
+            sink: M3Serializer::new(SliceSink::new(&mut output.args.data)),
             input,
             out_crd: CapRngDesc::default(),
         }
@@ -66,7 +66,7 @@ impl<'d> CapExchange<'d> {
     }
 
     /// Returns the output arguments
-    pub fn out_args(&mut self) -> &mut M3Serializer<'d> {
+    pub fn out_args(&mut self) -> &mut M3Serializer<SliceSink<'d>> {
         &mut self.sink
     }
 

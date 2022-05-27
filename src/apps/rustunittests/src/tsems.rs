@@ -55,8 +55,8 @@ fn taking_turns(t: &mut dyn WvTester) {
     set_counter("/sem1", 0);
 
     let mut dst = child.data_sink();
-    dst.push_word(sem0.sel());
-    dst.push_word(sem1.sel());
+    dst.push(sem0.sel());
+    dst.push(sem1.sel());
 
     let act = wv_assert_ok!(child.run(|| {
         let mut t = DefaultWvTester::default();

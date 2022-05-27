@@ -23,8 +23,8 @@ mod error;
 mod ser;
 
 pub use self::de::M3Deserializer;
-pub use self::ser::M3Serializer;
-pub use serde::{Deserialize, Deserializer, Serialize, Serializer};
+pub use self::ser::{M3Serializer, Sink, SliceSink, VecSink};
+pub use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::col::{String, Vec};
 use crate::libc;
@@ -33,7 +33,8 @@ use crate::libc;
 macro_rules! build_vmsg {
     ( $msg:expr, $( $args:expr ),* ) => ({
         // safety: we initialize these bytes below
-        let mut ser = unsafe { $crate::serialize::M3Serializer::new($msg.words_mut()) };
+        let sink = unsafe { $crate::serialize::SliceSink::new($msg.words_mut()) };
+        let mut ser = $crate::serialize::M3Serializer::new(sink);
         $( ser.push(&$args); )*
         let bytes = ser.size();
         // safety: we just have initialized these bytes

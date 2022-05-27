@@ -114,7 +114,7 @@ impl Handler<MicSession> for MicHandler {
         // derive a read-only memory cap for the client. this revokes the previous memory cap, if
         // there was any.
         sess.img = Some(AUDIO_DATA.borrow().derive(0, AUDIO_SIZE.get(), Perm::R)?);
-        xchg.out_args().push_word(AUDIO_SIZE.get() as u64);
+        xchg.out_args().push(AUDIO_SIZE.get());
         xchg.out_caps(kif::CapRngDesc::new(
             kif::CapType::OBJECT,
             sess.img.as_ref().unwrap().sel(),

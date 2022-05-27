@@ -25,6 +25,7 @@ use crate::errors::Error;
 use crate::goff;
 use crate::int_enum;
 use crate::kif;
+use crate::serialize::{Deserialize, Serialize};
 use crate::session::ClientSession;
 use crate::syscalls;
 use crate::tiles::ChildActivity;
@@ -69,6 +70,8 @@ int_enum! {
 
 bitflags! {
     /// The mapping flags
+    #[derive(Serialize, Deserialize)]
+    #[serde(crate = "base::serde")]
     pub struct MapFlags : u32 {
         /// A private mapping, not shared with anyone else
         const PRIVATE = 0x0;
@@ -83,12 +86,8 @@ bitflags! {
 
 impl Pager {
     fn get_sgate(sess: &ClientSession) -> Result<cap::Selector, Error> {
-        sess.obtain(
-            1,
-            |os| os.push_word(u64::from(PagerOp::ADD_SGATE.val)),
-            |_| Ok(()),
-        )
-        .map(|crd| crd.start())
+        sess.obtain(1, |os| os.push(PagerOp::ADD_SGATE), |_| Ok(()))
+            .map(|crd| crd.start())
     }
 
     /// Creates a new session with given `SendGate` (for the pager).
@@ -126,11 +125,9 @@ impl Pager {
 
     /// Clones the session to be shared with the given activity.
     pub(crate) fn new_clone(&self) -> Result<Self, Error> {
-        let res = self.sess.obtain(
-            1,
-            |os| os.push_word(u64::from(PagerOp::ADD_CHILD.val)),
-            |_| Ok(()),
-        )?;
+        let res = self
+            .sess
+            .obtain(1, |os| os.push(PagerOp::ADD_CHILD), |_| Ok(()))?;
         let sess = ClientSession::new_bind(res.start());
 
         // get send gates for us and our child
@@ -162,11 +159,8 @@ impl Pager {
         // we only need to do that for clones
         if self.close {
             let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, act.sel(), 1);
-            self.sess.delegate(
-                crd,
-                |os| os.push_word(u64::from(PagerOp::INIT.val)),
-                |_| Ok(()),
-            )
+            self.sess
+                .delegate(crd, |os| os.push(PagerOp::INIT), |_| Ok(()))
         }
         else {
             Ok(())
@@ -237,15 +231,15 @@ impl Pager {
         self.sess.delegate(
             crd,
             |os| {
-                os.push_word(u64::from(PagerOp::MAP_DS.val));
-                os.push_word(addr as u64);
-                os.push_word(len as u64);
-                os.push_word(u64::from(prot.bits()));
-                os.push_word(u64::from(flags.bits()));
-                os.push_word(off as u64);
+                os.push(PagerOp::MAP_DS);
+                os.push(addr);
+                os.push(len);
+                os.push(prot);
+                os.push(flags);
+                os.push(off);
             },
             |is| {
-                res = is.pop_word()? as goff;
+                res = is.pop()?;
                 Ok(())
             },
         )?;
@@ -265,13 +259,13 @@ impl Pager {
         self.sess.delegate(
             crd,
             |os| {
-                os.push_word(u64::from(PagerOp::MAP_MEM.val));
-                os.push_word(addr as u64);
-                os.push_word(len as u64);
-                os.push_word(u64::from(prot.bits()));
+                os.push(PagerOp::MAP_MEM);
+                os.push(addr);
+                os.push(len);
+                os.push(prot);
             },
             |is| {
-                res = is.pop_word()? as goff;
+                res = is.pop()?;
                 Ok(())
             },
         )?;

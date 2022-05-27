@@ -48,10 +48,10 @@ fn _start_background_client(num: usize, mgate: &MemGate, sem: &Semaphore, size: 
     wv_assert_ok!(act.delegate_obj(mgate.sel()));
 
     let mut dst = act.data_sink();
-    dst.push_word(sem.sel());
-    dst.push_word(mgate.sel());
-    dst.push_word(num as u64);
-    dst.push_word(size as u64);
+    dst.push(sem.sel());
+    dst.push(mgate.sel());
+    dst.push(num);
+    dst.push(size);
 
     Client {
         _mgate: mgate,

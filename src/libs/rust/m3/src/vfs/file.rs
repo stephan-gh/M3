@@ -28,9 +28,9 @@ use crate::goff;
 use crate::int_enum;
 use crate::io::{Read, Write};
 use crate::kif;
-use crate::serialize::{Deserialize, Serialize};
+use crate::serialize::{Deserialize, M3Serializer, Serialize, VecSink};
 use crate::session::{HashInput, HashOutput, MapFlags, Pager};
-use crate::tiles::{ChildActivity, StateSerializer};
+use crate::tiles::ChildActivity;
 use crate::vfs::{BlockId, DevId, Fd, INodeId};
 
 int_enum! {
@@ -44,6 +44,8 @@ int_enum! {
 
 bitflags! {
     /// The flags to open files.
+    #[derive(Serialize, Deserialize)]
+    #[serde(crate = "base::serde")]
     pub struct OpenFlags : u32 {
         /// Opens the file for reading.
         const R         = 0b0000_0001;
@@ -211,7 +213,7 @@ pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
         Err(Error::new(Code::NotSup))
     }
     /// Serializes this file into `s`.
-    fn serialize(&self, _s: &mut StateSerializer<'_>) {
+    fn serialize(&self, _s: &mut M3Serializer<VecSink<'_>>) {
     }
 
     /// Returns true if this file is operating in non-blocking mode (see

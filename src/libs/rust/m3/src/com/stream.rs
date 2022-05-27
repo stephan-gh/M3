@@ -21,18 +21,18 @@ use core::ops;
 use crate::com::{RecvGate, SendGate};
 use crate::errors::{Code, Error};
 use crate::mem;
-use crate::serialize::{Deserialize, M3Deserializer, M3Serializer, Serialize};
+use crate::serialize::{Deserialize, M3Deserializer, M3Serializer, Serialize, SliceSink};
 use crate::tcu;
 
 /// An output stream for marshalling a TCU message and sending it via a [`SendGate`].
 pub struct GateOStream<'s> {
-    sink: M3Serializer<'s>,
+    sink: M3Serializer<SliceSink<'s>>,
 }
 
 impl<'s> GateOStream<'s> {
     pub fn new(slice: &'s mut [u64]) -> Self {
         GateOStream {
-            sink: M3Serializer::new(slice),
+            sink: M3Serializer::new(SliceSink::new(slice)),
         }
     }
 

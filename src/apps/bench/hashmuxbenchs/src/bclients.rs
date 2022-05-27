@@ -22,13 +22,11 @@ use m3::com::{
 use m3::crypto::{HashAlgorithm, HashType};
 use m3::errors::Error;
 use m3::mem::MsgBuf;
-use m3::serialize::Deserialize;
+use m3::serialize::{Deserialize, Serialize};
 use m3::session::HashSession;
 use m3::tcu::INVALID_EP;
 use m3::test::WvTester;
-use m3::tiles::{
-    Activity, ChildActivity, RunningActivity, RunningProgramActivity, StateSerializer, Tile,
-};
+use m3::tiles::{Activity, ChildActivity, RunningActivity, RunningProgramActivity, Tile};
 use m3::time::{CycleDuration, CycleInstant, Duration, Results};
 use m3::{format, log, println, send_recv, wv_assert_ok, wv_run_test};
 use m3::{math, mem, tcu};
@@ -53,7 +51,7 @@ struct Client {
     act: RunningProgramActivity,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "m3::serde")]
 struct ClientParams {
     num: usize,
@@ -62,18 +60,6 @@ struct ClientParams {
     div: usize,
     warm: u32,
     runs: u32,
-}
-
-// TODO get rid of this
-impl ClientParams {
-    fn serialize(&self, dst: &mut StateSerializer<'_>) {
-        dst.push_word(self.num as u64);
-        dst.push_word(self.algo.val);
-        dst.push_word(self.size as u64);
-        dst.push_word(self.div as u64);
-        dst.push_word(self.warm as u64);
-        dst.push_word(self.runs as u64);
-    }
 }
 
 /// Synchronize clients before each benchmark run or just the first one?
@@ -179,9 +165,9 @@ fn _start_client(params: ClientParams, rgate: &RecvGate, mgate: &MemGate) -> Cli
     let slice = params.size / params.div;
 
     let mut dst = act.data_sink();
-    dst.push_word(sgate.sel());
-    dst.push_word(slice as u64);
-    params.serialize(&mut dst);
+    dst.push(sgate.sel());
+    dst.push(slice);
+    dst.push(params);
 
     Client {
         _sgate: sgate,

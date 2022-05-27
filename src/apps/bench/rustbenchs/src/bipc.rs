@@ -13,6 +13,7 @@
  * General Public License version 2 for more details.
  */
 
+use m3::cap::Selector;
 use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
 use m3::rc::Rc;
 use m3::test::{DefaultWvTester, WvTester};
@@ -60,11 +61,11 @@ fn pingpong_with_tile(t: &mut dyn WvTester, name: &str, tile: Rc<Tile>) {
     wv_assert_ok!(act.delegate_obj(rgate.sel()));
 
     let mut dst = act.data_sink();
-    dst.push_word(rgate.sel());
+    dst.push(rgate.sel());
 
     let act = wv_assert_ok!(act.run(|| {
         let mut t = DefaultWvTester::default();
-        let rgate_sel = Activity::own().data_source().pop_word().unwrap();
+        let rgate_sel: Selector = Activity::own().data_source().pop().unwrap();
         let mut rgate = RecvGate::new_bind(rgate_sel, MSG_ORD, MSG_ORD);
         wv_assert_ok!(rgate.activate());
         for _ in 0..RUNS + WARMUP {
@@ -120,12 +121,12 @@ fn pingpong_with_multiple(t: &mut dyn WvTester) {
     wv_assert_ok!(act1.delegate_obj(rgate1.sel()));
     wv_assert_ok!(act2.delegate_obj(rgate2.sel()));
 
-    act1.data_sink().push_word(rgate1.sel());
-    act2.data_sink().push_word(rgate2.sel());
+    act1.data_sink().push(rgate1.sel());
+    act2.data_sink().push(rgate2.sel());
 
     let func = || {
         let mut t = DefaultWvTester::default();
-        let rgate_sel = Activity::own().data_source().pop_word().unwrap();
+        let rgate_sel: Selector = Activity::own().data_source().pop().unwrap();
         let mut rgate = RecvGate::new_bind(rgate_sel, MSG_ORD, MSG_ORD);
         wv_assert_ok!(rgate.activate());
         for _ in 0..(RUNS + WARMUP) / 2 {

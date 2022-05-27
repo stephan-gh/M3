@@ -24,9 +24,9 @@ use crate::cell::RefCell;
 use crate::col::{String, ToString, Vec};
 use crate::errors::{Code, Error};
 use crate::rc::Rc;
-use crate::serialize::M3Deserializer;
+use crate::serialize::{M3Deserializer, M3Serializer, VecSink};
 use crate::session::M3FS;
-use crate::tiles::{ChildActivity, StateSerializer};
+use crate::tiles::ChildActivity;
 use crate::vfs::{FileSystem, VFS};
 
 /// A reference to a file system.
@@ -136,15 +136,15 @@ impl MountTable {
         Ok(max_sel)
     }
 
-    pub(crate) fn serialize(&self, map: &[(String, String)], s: &mut StateSerializer<'_>) {
-        s.push_word(map.len() as u64);
+    pub(crate) fn serialize(&self, map: &[(String, String)], s: &mut M3Serializer<VecSink<'_>>) {
+        s.push(map.len());
 
         for (cpath, ppath) in map {
             if let Some(fs) = self.get_by_path(ppath) {
                 let fs = fs.borrow();
                 let fs_type = fs.fs_type();
-                s.push_str(cpath);
-                s.push_word(fs_type as u64);
+                s.push(cpath);
+                s.push(fs_type);
                 fs.serialize(s);
             }
         }

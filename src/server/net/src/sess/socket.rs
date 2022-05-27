@@ -163,7 +163,7 @@ impl SocketSession {
             NetworkOp::CREATE => {
                 let (caps, sd) = self.create_socket(is, iface)?;
                 xchg.out_caps(caps);
-                xchg.out_args().push_word(sd as u64);
+                xchg.out_args().push(sd);
                 Ok(())
             },
             NetworkOp::OPEN_FILE => {

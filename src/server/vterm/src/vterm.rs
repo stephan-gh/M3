@@ -461,7 +461,7 @@ impl Handler<VTermSession> for VTermHandler {
             match &sess.data {
                 SessionData::Meta => match op {
                     GenFileOp::CLONE => self
-                        .new_chan(sid, crt, nsid, xchg.in_args().pop_word()? == 1)
+                        .new_chan(sid, crt, nsid, xchg.in_args().pop::<i32>()? == 1)
                         .map(|s| (nsid, s)),
                     _ => Err(Error::new(Code::InvArgs)),
                 },

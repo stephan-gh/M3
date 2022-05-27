@@ -175,7 +175,7 @@ impl Handler<PipesSession> for PipesHandler {
                     }
 
                     let sel = Activity::own().alloc_sels(2);
-                    let msize = xchg.in_args().pop_word()?;
+                    let msize: usize = xchg.in_args().pop()?;
                     log!(
                         crate::LOG_DEF,
                         "[{}] pipes::open_pipe(sid={}, sel={}, size={:#x})",
@@ -184,8 +184,7 @@ impl Handler<PipesSession> for PipesHandler {
                         sel,
                         msize
                     );
-                    let pipe =
-                        m.create_pipe(sel, nsid, msize as usize, REQHDL.get().recv_gate())?;
+                    let pipe = m.create_pipe(sel, nsid, msize, REQHDL.get().recv_gate())?;
                     let nsess = self.new_sub_sess(crt, sel, nsid, SessionData::Pipe(pipe))?;
                     Ok((nsid, nsess, false))
                 },
@@ -197,7 +196,7 @@ impl Handler<PipesSession> for PipesHandler {
                     }
 
                     let sel = Activity::own().alloc_sels(2);
-                    let ty = match xchg.in_args().pop_word()? {
+                    let ty = match xchg.in_args().pop()? {
                         1 => ChanType::READ,
                         _ => ChanType::WRITE,
                     };
