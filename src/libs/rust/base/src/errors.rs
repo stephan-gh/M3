@@ -26,6 +26,7 @@ use crate::serialize::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// The error codes
 #[derive(Debug, PartialEq, Clone, Copy)]
+#[repr(u32)]
 pub enum Code {
     // success
     None = 0,
@@ -252,7 +253,7 @@ impl From<u32> for Code {
         assert!(error <= Code::ConnectionFailed as u32);
         // safety: assuming that the assert above doesn't fail, the conversion is safe
         // TODO better way?
-        unsafe { intrinsics::transmute(error as u8) }
+        unsafe { intrinsics::transmute(error) }
     }
 }
 
