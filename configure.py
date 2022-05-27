@@ -169,7 +169,7 @@ class M3Env(ninjagen.Env):
             crate_name = os.path.basename(cr)
             out = ninjagen.BuildPath(env['RUSTBINS'] + '/lib' + crate_name + '.a')
             outs.append(out)
-            deps += [cr + '/Cargo.toml', '.cargo/config']
+            deps += ['Cargo.toml', 'rust-toolchain.toml', cr + '/Cargo.toml', '.cargo/config']
             deps += env.glob(cr + '/**/*.rs', recursive = True)
             deps += ['src/toolchain/rust/' + env['TRIPLE'] + '.json']
             # specify crates explicitly, because some crates are only supported by some targets
