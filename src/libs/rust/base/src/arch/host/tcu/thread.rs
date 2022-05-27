@@ -77,14 +77,14 @@ static SLEEP: StaticCell<SleepState> = StaticCell::new(SleepState::None);
 
 #[macro_export]
 macro_rules! log_tcu {
-    ($fmt:expr)              => (crate::log_tcu_impl!(TCU, concat!($fmt, "\n")));
-    ($fmt:expr, $($arg:tt)*) => (crate::log_tcu_impl!(TCU, concat!($fmt, "\n"), $($arg)*));
+    ($fmt:expr)              => ($crate::log_tcu_impl!(TCU, concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => ($crate::log_tcu_impl!(TCU, concat!($fmt, "\n"), $($arg)*));
 }
 
 #[macro_export]
 macro_rules! log_tcu_critical {
-    ($fmt:expr)              => (crate::log_tcu_impl!(TCU_ERR, concat!($fmt, "\n")));
-    ($fmt:expr, $($arg:tt)*) => (crate::log_tcu_impl!(TCU_ERR, concat!($fmt, "\n"), $($arg)*));
+    ($fmt:expr)              => ($crate::log_tcu_impl!(TCU_ERR, concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => ($crate::log_tcu_impl!(TCU_ERR, concat!($fmt, "\n"), $($arg)*));
 }
 
 #[macro_export]

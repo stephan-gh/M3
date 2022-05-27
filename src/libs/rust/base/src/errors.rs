@@ -25,7 +25,7 @@ use crate::col::String;
 use crate::serialize::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// The error codes
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u32)]
 pub enum Code {
     // success

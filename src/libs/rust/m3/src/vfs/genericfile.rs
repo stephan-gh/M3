@@ -391,7 +391,7 @@ impl File for GenericFile {
             self.file_id()
         )?;
         let mut reply = recv_result(RecvGate::def(), Some(&self.sgate))?;
-        Ok(reply.pop()?)
+        reply.pop()
     }
 
     fn path(&self) -> Result<String, Error> {

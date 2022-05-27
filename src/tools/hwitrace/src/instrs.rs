@@ -74,7 +74,7 @@ where
         let tline = line.trim_end();
 
         // 0000000010000000 <_start>:
-        if tline.starts_with(|c: char| c.is_digit(16)) && tline.ends_with(">:") {
+        if tline.starts_with(|c: char| c.is_ascii_hexdigit()) && tline.ends_with(">:") {
             let begin = tline.find('<').unwrap();
             let end = tline.rfind('>').unwrap();
             symbol = Some(tline[begin + 1..end].to_string());

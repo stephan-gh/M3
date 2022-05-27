@@ -310,9 +310,10 @@ fn handle_return(
     if !thread.stack.is_empty() {
         // generate stack
         let stack = if mode == crate::Mode::FlameGraph {
+            use std::fmt::Write;
             let mut stack: String = format!("T{}", tile);
             stack.push(';');
-            stack.push_str(&format!("{}", tid));
+            write!(stack, "{}", tid).unwrap();
             for f in thread.stack.iter() {
                 stack.push(';');
                 stack.push_str(f.func);

@@ -186,7 +186,7 @@ pub struct DevFifo {
     mtu: usize,
 }
 
-impl<'a> DevFifo {
+impl DevFifo {
     pub fn new(name: &str) -> Self {
         let lower = RawSocketDesc::new(name);
         DevFifo {

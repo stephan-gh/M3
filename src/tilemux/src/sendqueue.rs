@@ -59,7 +59,7 @@ pub fn send(msg_buf: &MsgBuf) -> Result<(), Error> {
     // between.
     check_replies();
 
-    if !SQUEUE.borrow_mut().send((), &msg_buf)? {
+    if !SQUEUE.borrow_mut().send((), msg_buf)? {
         log!(crate::LOG_SQUEUE, "squeue: queuing msg",);
     }
     Ok(())
