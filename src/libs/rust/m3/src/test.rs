@@ -18,6 +18,8 @@
 
 //! Contains unittest utilities inspired by WvTest <https://github.com/apenwarr/wvtest>
 
+use core::fmt::{Display, Formatter};
+
 use crate::println;
 
 /// Runs the tests
@@ -73,6 +75,22 @@ impl WvTester for DefaultWvTester {
     fn test_failed(&mut self) {
         self.tests += 1;
         self.fails += 1;
+    }
+}
+
+impl Display for DefaultWvTester {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
+        if self.failures() > 0 {
+            write!(
+                f,
+                "\x1B[1;31m{} of {} tests failed\x1B[0;m",
+                self.failures(),
+                self.tests()
+            )
+        }
+        else {
+            write!(f, "\x1B[1;32mAll tests successful!\x1B[0;m")
+        }
     }
 }
 

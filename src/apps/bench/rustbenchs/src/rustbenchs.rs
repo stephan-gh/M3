@@ -52,16 +52,6 @@ pub fn main() -> i32 {
     wv_run_suite!(tester, bsyscall::run);
     wv_run_suite!(tester, btreap::run);
     wv_run_suite!(tester, btreemap::run);
-
-    if tester.failures() > 0 {
-        println!(
-            "\x1B[1;31m{} of {} tests failed\x1B[0;m",
-            tester.failures(),
-            tester.tests()
-        );
-    }
-    else {
-        println!("\x1B[1;32mAll tests successful!\x1B[0;m");
-    }
+    println!("{}", tester);
     0
 }

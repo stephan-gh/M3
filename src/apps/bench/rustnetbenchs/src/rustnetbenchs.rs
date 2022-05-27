@@ -47,16 +47,6 @@ pub fn main() -> i32 {
     let mut tester = DefaultWvTester::default();
     wv_run_suite!(tester, budp::run);
     wv_run_suite!(tester, btcp::run);
-
-    if tester.failures() > 0 {
-        println!(
-            "\x1B[1;31m{} of {} tests failed\x1B[0;m",
-            tester.failures(),
-            tester.tests()
-        );
-    }
-    else {
-        println!("\x1B[1;32mAll tests successful!\x1B[0;m");
-    }
+    println!("{}", tester);
     0
 }
