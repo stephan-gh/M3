@@ -19,8 +19,8 @@ use crate::errors::{Code, Error};
 use crate::llog;
 use crate::net::dataqueue::DataQueue;
 use crate::net::{
-    event, log_net, Endpoint, IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd,
-    NetLogEvent, SocketType, MTU,
+    event, log_net, Endpoint, IpAddr, NetEvent, NetEventChannel, NetEventType, NetLogEvent, Port,
+    Sd, SocketType, MTU,
 };
 use crate::rc::Rc;
 use crate::vfs::FileEvent;
@@ -204,7 +204,7 @@ impl Socket {
         // we have got all replies to our potentially in-flight packets, in which case we also have
         // received our credits back.
         loop {
-            self.wait_for_credits();
+            self.fetch_replies();
             if self.has_all_credits() {
                 break;
             }
