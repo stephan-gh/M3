@@ -4,7 +4,7 @@ def build(gen, env):
         env['CXXFLAGS']  += ['-fno-exceptions']
         env['LINKFLAGS'] += ['-fno-exceptions', '-nodefaultlibs']
 
-        libs = ['simplec', 'gem5', 'heap', 'base', 'supc++', 'gcc']
+        libs = ['simplec', 'gem5', 'base', 'supc++', 'gcc']
 
         env_obj = env.cxx(gen, out = 'env.o', ins = ['env.cc'])
         env.m3_exe(

@@ -43,5 +43,5 @@ def build(gen, env):
             NoSup = True,
             ldscript = 'baremetal',
             varAddr = False,
-            libs = ['simplec', 'gem5', 'heap', 'base', 'supc++', 'gcc', 'axieth']
+            libs = ['simplec', 'gem5', 'base', 'supc++', 'gcc', 'axieth']
         )
