@@ -30,7 +30,7 @@ BEGIN_FUNC(_start)
     la      sp, baremetal_stack
 
 1:
-    jal     env_run
+    call    env_run
 
     # just to be sure
 1:  j       1b

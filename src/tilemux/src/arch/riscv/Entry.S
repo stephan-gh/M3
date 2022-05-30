@@ -24,7 +24,7 @@
 
 BEGIN_FUNC(_start)
     la      sp, isr_stack
-    jal     init
+    call    init
 
     // return to user mode
     li      a0, 1 << 8
