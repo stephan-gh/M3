@@ -116,7 +116,7 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
         // if we unmap these pages, flush+invalidate the cache to ensure that we read this memory
         // fresh from DRAM the next time we use it.
         let perm = if (r.perm & kif::PageFlags::RWX).is_empty() {
-            helper::flush_invalidate();
+            helper::flush_cache();
             r.perm
         }
         else {

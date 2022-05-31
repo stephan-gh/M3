@@ -13,19 +13,29 @@
  * General Public License version 2 for more details.
  */
 
-use base::envdata;
+use base::cfg;
 use base::tcu;
 use core::sync::atomic;
 
-pub fn flush_invalidate() {
-    if envdata::get().platform == envdata::Platform::HW.val {
-        #[cfg(target_vendor = "hw")]
-        unsafe {
-            core::arch::asm!("fence.i");
+pub fn flush_cache() {
+    #[cfg(target_vendor = "hw")]
+    let (cacheline_size, cache_size) = (64, 512 * 1024);
+    #[cfg(target_vendor = "gem5")]
+    let (cacheline_size, cache_size) = (64, 256 * 1024);
+
+    // ensure that we replace all cachelines in cache
+    let mut addr = cfg::TILE_MEM_BASE as *const u64;
+    unsafe {
+        let end = addr.add(cache_size / 8);
+        while addr < end {
+            let _val = addr.read_volatile();
+            addr = addr.add(cacheline_size / 8);
         }
     }
-    else {
-        tcu::TCU::flush_cache().unwrap();
+
+    #[cfg(target_vendor = "hw")]
+    unsafe {
+        core::arch::asm!("fence.i");
     }
 }
 

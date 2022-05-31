@@ -575,6 +575,15 @@ pub fn remove(id: Id, status: i32, notify: bool, sched: bool) {
             status
         );
 
+        // flush+invalidate caches to ensure that we have a fresh view on memory. this is required,
+        // because we expect that the pager can just map arbitrary memory and the core sees the
+        // current state in DRAM. since the DRAM can change via the TCU as well, the core might have
+        // cachelines that reflect an older state of the memory. for that reason, we need to flush
+        // all cachelines to load everything from DRAM afterwards. note that the flush is done here,
+        // because we need to make sure that it happens *before* we invalidate the PMP-EPs
+        // (otherwise we cannot successfully writeback the cachelines).
+        helper::flush_cache();
+
         if notify {
             // change to our activity (no need to save old act_reg; activity is dead)
             let pex_is_running = (tcu::TCU::get_cur_activity() & 0xFFFF) == kif::tilemux::ACT_ID;
@@ -1051,12 +1060,6 @@ impl Drop for Activity {
             self.cpu_time,
             self.ctxsws,
         );
-
-        // flush+invalidate caches to ensure that we have a fresh view on memory. this is required
-        // because of the way the pager handles copy-on-write: it reads the current copy from the
-        // owner and updates the version in DRAM. for that reason, the cache for new activities needs to
-        // be clear, so that the cache loads the current version from DRAM.
-        helper::flush_invalidate();
 
         if let Some(ref mut aspace) = self.aspace {
             // free frames we allocated for env, receive buffers etc.

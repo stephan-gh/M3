@@ -142,7 +142,7 @@ fn tmcall_transl_fault(state: &mut arch::State) -> Result<(), Error> {
 fn tmcall_flush_inv(_state: &mut arch::State) -> Result<(), Error> {
     log!(crate::LOG_CALLS, "tmcall::flush_inv()");
 
-    helper::flush_invalidate();
+    helper::flush_cache();
 
     Ok(())
 }
