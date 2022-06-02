@@ -167,7 +167,7 @@ static void test_unaligned_rdwr(size_t nbytes, size_t loc_offset, size_t rem_off
     for(size_t i = 0; i < 16; ++i)
         msg.data[i] = i + 1;
 
-    kernel::TCU::config_mem(MEP, tile_id(Tile::MEM), 0x1000+rem_offset, 0x1000, TCU::R | TCU::W);
+    kernel::TCU::config_mem(MEP, tile_id(Tile::MEM), 0x1000 + rem_offset, 0x1000, TCU::R | TCU::W);
 
     ASSERT_EQ(kernel::TCU::write(MEP, msg.data, nbytes, loc_offset), Errors::NONE);
     ASSERT_EQ(kernel::TCU::read(MEP, msg.data, nbytes, loc_offset), Errors::NONE);
