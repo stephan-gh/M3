@@ -288,7 +288,7 @@ class Generator:
 
         # default rules
         self.add_rule('install', Rule(
-            cmd = 'install $instflags $in $out',
+            cmd = 'install $instflags $in $out && touch $out',
             desc = 'INSTALL $out'
         ))
         self.add_rule('cpp', Rule(
