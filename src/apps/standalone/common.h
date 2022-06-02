@@ -28,9 +28,9 @@
 template<size_t PAD>
 struct UnalignedData {
     uint8_t _pad[PAD];
-    uint64_t pre;
-    uint64_t data[3];
-    uint64_t post;
+    uint8_t pre;
+    uint8_t data[16];
+    uint8_t post;
 } PACKED ALIGNED(16);
 
 #define RUN_SUITE(name)                                             \

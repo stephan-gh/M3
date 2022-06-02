@@ -159,25 +159,22 @@ static void test_mem(size_t size_in) {
 }
 
 template<size_t PAD>
-static void test_unaligned_rdwr(size_t nwords, size_t offset) {
-    Serial::get() << "READ+WRITE with " << PAD << "B padding and " << nwords
-                  << " words data from offset " << offset << "\n";
-
+static void test_unaligned_rdwr(size_t nbytes, size_t loc_offset, size_t rem_offset) {
     // prepare test data
     UnalignedData<PAD> msg;
-    msg.pre = 0xDEAD'BEEF;
-    msg.post = 0xCAFE'BABE;
-    for(size_t i = 0; i < nwords; ++i)
+    msg.pre = 0xFF;
+    msg.post = 0xFF;
+    for(size_t i = 0; i < 16; ++i)
         msg.data[i] = i + 1;
 
-    kernel::TCU::config_mem(MEP, tile_id(Tile::MEM), 0x1000, 0x1000, TCU::R | TCU::W);
+    kernel::TCU::config_mem(MEP, tile_id(Tile::MEM), 0x1000 + rem_offset, 0x1000, TCU::R | TCU::W);
 
-    ASSERT_EQ(kernel::TCU::write(MEP, msg.data, nwords * sizeof(uint64_t), offset), Errors::NONE);
-    ASSERT_EQ(kernel::TCU::read(MEP, msg.data, nwords * sizeof(uint64_t), offset), Errors::NONE);
+    ASSERT_EQ(kernel::TCU::write(MEP, msg.data, nbytes, loc_offset), Errors::NONE);
+    ASSERT_EQ(kernel::TCU::read(MEP, msg.data, nbytes, loc_offset), Errors::NONE);
 
-    ASSERT_EQ(msg.pre, 0xDEAD'BEEF);
-    ASSERT_EQ(msg.post, 0xCAFE'BABE);
-    for(size_t i = 0; i < nwords; ++i)
+    ASSERT_EQ(msg.pre, 0xFF);
+    ASSERT_EQ(msg.post, 0xFF);
+    for(size_t i = 0; i < nbytes; ++i)
         ASSERT_EQ(msg.data[i], i + 1);
 }
 
@@ -196,24 +193,27 @@ void test_mem() {
     }
 
     // test different alignments
-    for(size_t i = 1; i <= 3; ++i) {
-        for(size_t off = 0; off < 16; off += 8) {
-            test_unaligned_rdwr<1>(i, off);
-            test_unaligned_rdwr<2>(i, off);
-            test_unaligned_rdwr<3>(i, off);
-            test_unaligned_rdwr<4>(i, off);
-            test_unaligned_rdwr<5>(i, off);
-            test_unaligned_rdwr<6>(i, off);
-            test_unaligned_rdwr<7>(i, off);
-            test_unaligned_rdwr<8>(i, off);
-            test_unaligned_rdwr<9>(i, off);
-            test_unaligned_rdwr<10>(i, off);
-            test_unaligned_rdwr<11>(i, off);
-            test_unaligned_rdwr<12>(i, off);
-            test_unaligned_rdwr<13>(i, off);
-            test_unaligned_rdwr<14>(i, off);
-            test_unaligned_rdwr<15>(i, off);
-            test_unaligned_rdwr<16>(i, off);
+    Serial::get() << "Test READ+WRITE with different alignments\n";
+    for(size_t nbytes = 1; nbytes < 16; ++nbytes) {
+        for(size_t loc_off = 0; loc_off < 16; ++loc_off) {
+            for(size_t rem_off = 0; rem_off < 16; ++rem_off) {
+                test_unaligned_rdwr<1>(nbytes, loc_off, rem_off);
+                test_unaligned_rdwr<2>(nbytes, loc_off, rem_off);
+                test_unaligned_rdwr<3>(nbytes, loc_off, rem_off);
+                test_unaligned_rdwr<4>(nbytes, loc_off, rem_off);
+                test_unaligned_rdwr<5>(nbytes, loc_off, rem_off);
+                test_unaligned_rdwr<6>(nbytes, loc_off, rem_off);
+                test_unaligned_rdwr<7>(nbytes, loc_off, rem_off);
+                test_unaligned_rdwr<8>(nbytes, loc_off, rem_off);
+                test_unaligned_rdwr<9>(nbytes, loc_off, rem_off);
+                test_unaligned_rdwr<10>(nbytes, loc_off, rem_off);
+                test_unaligned_rdwr<11>(nbytes, loc_off, rem_off);
+                test_unaligned_rdwr<12>(nbytes, loc_off, rem_off);
+                test_unaligned_rdwr<13>(nbytes, loc_off, rem_off);
+                test_unaligned_rdwr<14>(nbytes, loc_off, rem_off);
+                test_unaligned_rdwr<15>(nbytes, loc_off, rem_off);
+                test_unaligned_rdwr<16>(nbytes, loc_off, rem_off);
+            }
         }
     }
 }
