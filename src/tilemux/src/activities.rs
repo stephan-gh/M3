@@ -939,7 +939,7 @@ impl Activity {
             tcu::MMIO_PRIV_ADDR,
             GlobAddr::new(tcu::MMIO_PRIV_ADDR as goff),
             tcu::MMIO_PRIV_SIZE / cfg::PAGE_SIZE,
-            rw,
+            kif::PageFlags::U | rw,
         )
         .unwrap();
 
