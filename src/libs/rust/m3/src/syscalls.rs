@@ -275,7 +275,7 @@ pub fn alloc_ep(dst: Selector, act: Selector, epid: EpId, replies: u32) -> Resul
 /// on the given tile.
 ///
 /// The EP has to be between 1 and `crate::tcu::PMEM_PROT_EPS` - 1 and will be overwritten with the
-/// new memory region.
+/// new memory region. This call requires a non-derived tile capability.
 pub fn set_pmp(tile: Selector, mgate: Selector, ep: EpId) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     build_vmsg!(buf, syscalls::Operation::SET_PMP, syscalls::SetPMP {
