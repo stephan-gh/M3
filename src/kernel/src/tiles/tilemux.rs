@@ -706,6 +706,7 @@ impl TileMux {
         &mut self,
         _act: Option<ActId>,
         _req: &MsgBuf,
+        _msg: &R,
     ) -> Result<thread::Event, Error> {
         Err(Error::new(Code::NotSup))
     }
