@@ -71,9 +71,6 @@ private:
     static const size_t EP_REGS = 3;
     static const size_t PRINT_REGS = 32;
 
-    // actual max is 64k - 1; use less for better alignment
-    static const size_t MAX_PKT_SIZE = 60 * 1024;
-
     enum class ExtRegs {
         FEATURES = 0,
         EXT_CMD = 1,
