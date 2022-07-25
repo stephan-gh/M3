@@ -147,7 +147,13 @@ impl SendGate {
         self.gate.ep()
     }
 
-    pub(crate) fn activate(&self) -> Result<tcu::EpId, Error> {
+    /// Activites this `SendGate` in case it was not already activated.
+    ///
+    /// Note that the gate is automatically activated when used and does not need to be activated
+    /// explicitly.
+    ///
+    /// Returns the chosen endpoint number.
+    pub fn activate(&self) -> Result<tcu::EpId, Error> {
         self.gate.activate()
     }
 
