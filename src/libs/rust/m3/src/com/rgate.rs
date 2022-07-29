@@ -267,6 +267,19 @@ impl RecvGate {
         tcu::TCU::reply(self.ep().unwrap(), reply, off)
     }
 
+    /// Sends `reply` as a reply to the message `msg`. The message address needs to be 16-byte
+    /// aligned and `reply`..`reply` + `len` cannot contain a page boundary.
+    #[inline(always)]
+    pub fn reply_aligned(
+        &self,
+        reply: *const u8,
+        len: usize,
+        msg: &'static tcu::Message,
+    ) -> Result<(), Error> {
+        let off = tcu::TCU::msg_to_offset(self.address().unwrap(), msg);
+        tcu::TCU::reply_aligned(self.ep().unwrap(), reply, len, off)
+    }
+
     /// Marks the given message as 'read', allowing the TCU to overwrite it with a new message.
     #[inline(always)]
     pub fn ack_msg(&self, msg: &tcu::Message) -> Result<(), Error> {

@@ -131,6 +131,13 @@ impl<'r> GateIStream<'r> {
         T::deserialize(&mut self.source)
     }
 
+    /// Sends the message marshalled by the given [`GateOStream`] as a reply on the received
+    /// message.
+    #[inline(always)]
+    pub fn reply_os(&mut self, buf: &mem::MsgBuf) -> Result<(), Error> {
+        self.reply(buf)
+    }
+
     /// Sends `reply` as a reply to the received message.
     #[inline(always)]
     pub fn reply(&mut self, reply: &mem::MsgBuf) -> Result<(), Error> {
@@ -143,11 +150,17 @@ impl<'r> GateIStream<'r> {
         }
     }
 
-    /// Sends the message marshalled by the given [`GateOStream`] as a reply on the received
-    /// message.
+    /// Sends `reply` as a reply to the received message. The message address needs to be 16-byte
+    /// aligned and `reply`..`reply` + `len` cannot contain a page boundary.
     #[inline(always)]
-    pub fn reply_os(&mut self, buf: &mem::MsgBuf) -> Result<(), Error> {
-        self.reply(buf)
+    pub fn reply_aligned(&mut self, reply: *const u8, len: usize) -> Result<(), Error> {
+        match self.rgate.reply_aligned(reply, len, self.msg) {
+            Ok(_) => {
+                self.ack = false;
+                Ok(())
+            },
+            Err(e) => Err(e),
+        }
     }
 }
 

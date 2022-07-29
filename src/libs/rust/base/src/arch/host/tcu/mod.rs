@@ -232,16 +232,16 @@ impl TCU {
     }
 
     pub fn reply(ep: EpId, reply: &mem::MsgBuf, msg_off: usize) -> Result<(), Error> {
-        Self::exec_command(
-            ep,
-            Command::REPLY,
-            reply.bytes().as_ptr(),
-            reply.size(),
-            msg_off,
-            0,
-            0,
-            0,
-        )
+        Self::reply_aligned(ep, reply.bytes().as_ptr(), reply.size(), msg_off)
+    }
+
+    pub fn reply_aligned(
+        ep: EpId,
+        reply: *const u8,
+        len: usize,
+        msg_off: usize,
+    ) -> Result<(), Error> {
+        Self::exec_command(ep, Command::REPLY, reply, len, msg_off, 0, 0, 0)
     }
 
     pub fn read(ep: EpId, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
@@ -285,12 +285,7 @@ impl TCU {
         }
 
         let msg = Self::get_cmd(CmdReg::OFFSET);
-        if msg != !0 {
-            Some(msg as usize)
-        }
-        else {
-            None
-        }
+        if msg != !0 { Some(msg as usize) } else { None }
     }
 
     pub fn is_valid(ep: EpId) -> bool {
