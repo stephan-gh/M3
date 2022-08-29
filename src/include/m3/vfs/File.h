@@ -261,10 +261,25 @@ public:
     virtual char type() const noexcept = 0;
 
     /**
+     * Tries to obtain the current terminal mode. In contrast to get_tmode(), try_get_tmode() does
+     * not throw an exception in case of an error, but returns the error.
+     *
+     * @param mode will be set to the terminal mode on success
+     * @return the result
+     */
+    virtual Errors::Code try_get_tmode(UNUSED TMode *mode) noexcept {
+        return Errors::NOT_SUP;
+    }
+
+    /**
      * @return the current terminal mode in case the server is a terminal
      */
-    virtual TMode get_tmode() {
-        throw Exception(Errors::NOT_SUP);
+    TMode get_tmode() {
+        TMode mode;
+        auto res = try_get_tmode(&mode);
+        if(res != Errors::NONE)
+            throw Exception(res);
+        return mode;
     }
 
     /**

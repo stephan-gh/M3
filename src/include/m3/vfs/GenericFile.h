@@ -86,7 +86,7 @@ public:
     virtual void map(Reference<Pager> &pager, goff_t *virt, size_t fileoff, size_t len, int prot,
                      int flags) const override;
 
-    virtual TMode get_tmode() override;
+    virtual Errors::Code try_get_tmode(File::TMode *mode) noexcept override;
     virtual void set_tmode(TMode mode) override;
 
     virtual bool fetch_signal() override;

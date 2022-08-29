@@ -305,12 +305,14 @@ void GenericFile::sync() {
     reply.pull_result();
 }
 
-File::TMode GenericFile::get_tmode() {
-    TMode mode;
+Errors::Code GenericFile::try_get_tmode(File::TMode *mode) noexcept {
     GateIStream reply = send_receive_vmsg(*_sg, Operation::GET_TMODE, _id);
-    reply.pull_result();
-    reply >> mode;
-    return mode;
+    Errors::Code res;
+    reply >> res;
+    if(res != Errors::NONE)
+        return res;
+    reply >> *mode;
+    return Errors::NONE;
 }
 
 void GenericFile::set_tmode(TMode mode) {
