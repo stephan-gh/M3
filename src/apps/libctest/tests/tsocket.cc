@@ -32,7 +32,7 @@
 
 using namespace m3;
 
-EXTERN_C int __m3_init_netmng(const char *name);
+EXTERN_C m3::Errors::Code __m3c_init_netmng(const char *name);
 
 constexpr size_t BUF_SIZE = 256;
 
@@ -127,7 +127,7 @@ static void tcp_echo() {
 
 static int tcp_server() {
     // connect to netmng explicitly here to specify a different session name
-    __m3_init_netmng("netserv");
+    __m3c_init_netmng("netserv");
 
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
