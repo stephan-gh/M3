@@ -303,7 +303,7 @@ impl GenericFile {
         if !nb.notify_received.contains(event) {
             if let Some(msg) = nb.notify_rgate.fetch() {
                 let mut imsg = GateIStream::new(msg, &nb.notify_rgate);
-                let events = FileEvent::from_bits_truncate(imsg.pop::<u64>()?);
+                let events = FileEvent::from_bits_truncate(imsg.pop::<u32>()?);
                 nb.notify_received |= events;
                 nb.notify_requested &= !events;
                 // give credits back to sender

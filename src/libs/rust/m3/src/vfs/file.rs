@@ -35,6 +35,7 @@ use crate::vfs::{BlockId, DevId, Fd, INodeId};
 
 int_enum! {
     /// The different seek modes.
+    #[repr(C)]
     pub struct SeekMode : u32 {
         const SET       = 0x0;
         const CUR       = 0x1;
@@ -45,6 +46,7 @@ int_enum! {
 bitflags! {
     /// The flags to open files.
     #[derive(Serialize, Deserialize)]
+    #[repr(C)]
     #[serde(crate = "base::serde")]
     pub struct OpenFlags : u32 {
         /// Opens the file for reading.
@@ -84,6 +86,7 @@ impl From<OpenFlags> for kif::Perm {
 
 bitflags! {
     #[derive(Default, Serialize, Deserialize)]
+    #[repr(C)]
     #[serde(crate = "base::serde")]
     pub struct FileMode : u16 {
         const IFMT      = 0o0160000;
@@ -144,6 +147,7 @@ impl FileMode {
 
 /// The file information that can be retrieved via [`VFS::stat`](crate::vfs::VFS::stat).
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[repr(C)]
 #[serde(crate = "base::serde")]
 pub struct FileInfo {
     pub devno: DevId,
@@ -160,7 +164,8 @@ pub struct FileInfo {
 }
 
 bitflags! {
-    pub struct FileEvent : u64 {
+    #[repr(C)]
+    pub struct FileEvent : u32 {
         const INPUT         = 1;
         const OUTPUT        = 2;
         const SIGNAL        = 4;

@@ -224,6 +224,12 @@ impl Error {
     }
 }
 
+impl From<Error> for Code {
+    fn from(err: Error) -> Self {
+        err.code()
+    }
+}
+
 impl From<Code> for Result<(), Error> {
     fn from(code: Code) -> Self {
         match code {

@@ -44,6 +44,7 @@ pub use base::{
 };
 
 pub mod cap;
+pub mod compat;
 pub mod crypto;
 pub mod server;
 pub mod session;
