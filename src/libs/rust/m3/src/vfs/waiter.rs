@@ -105,18 +105,28 @@ impl FileWaiter {
         }
     }
 
-    fn tick_files(&self) -> bool {
-        let mut found = false;
+    /// Walks through all files and calls `func` on all ready files.
+    pub fn foreach_ready<F>(&self, mut func: F)
+    where
+        F: FnMut(usize, FileEvent),
+    {
         for (fd, events) in &self.files {
             let files = Activity::own().files();
             if let Some(mut file) = files.get(*fd) {
                 // accessing the file requires that we don't hold a references to the filetable
                 drop(files);
                 if file.check_events(*events) {
-                    found = true;
+                    func(*fd, *events);
                 }
             }
         }
+    }
+
+    fn tick_files(&self) -> bool {
+        let mut found = false;
+        self.foreach_ready(|_fd, _events| {
+            found = true;
+        });
         found
     }
 }
