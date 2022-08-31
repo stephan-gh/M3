@@ -62,6 +62,12 @@ impl<T: ?Sized> FileRef<T> {
         }
     }
 
+    /// Claims the ownership of the file in the sense that this `FileRef` does not close the file on
+    /// drop. Therefore, the caller is responsible to close the file.
+    pub fn claim(&mut self) {
+        self.close = false;
+    }
+
     /// Returns the file descriptor.
     pub fn fd(&self) -> Fd {
         self.fd
