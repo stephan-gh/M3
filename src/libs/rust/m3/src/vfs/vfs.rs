@@ -112,12 +112,22 @@ pub fn cwd() -> String {
 /// Sets the current working directory to given path
 pub fn set_cwd(path: &str) -> Result<(), Error> {
     let file = open(path, OpenFlags::R)?;
+    set_cwd_to(file.fd())
+}
+
+/// Sets the current working directory to the path given by the file descriptor
+pub fn set_cwd_to(dir_fd: usize) -> Result<(), Error> {
+    let file = Activity::own()
+        .files()
+        .get(dir_fd)
+        .ok_or_else(|| Error::new(Code::BadFd))?;
     let info = file.stat()?;
     if !info.mode.is_dir() {
         return Err(Error::new(Code::IsNoDir));
     }
 
-    env::set_var("PWD", abs_path(path));
+    let path = file.path()?;
+    env::set_var("PWD", abs_path(&path));
     Ok(())
 }
 
