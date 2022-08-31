@@ -31,10 +31,10 @@ pub use self::event::{
 };
 
 mod socket;
-pub(crate) use self::socket::Socket;
+pub(crate) use self::socket::BaseSocket;
 pub use self::socket::{
-    DGramSocket, DgramSocketArgs, RawSocket, RawSocketArgs, SocketArgs, State, StreamSocket,
-    StreamSocketArgs, TcpSocket, UdpSocket,
+    DGramSocket, DgramSocketArgs, RawSocket, RawSocketArgs, Socket, SocketArgs, State,
+    StreamSocket, StreamSocketArgs, TcpSocket, UdpSocket,
 };
 
 mod dns;

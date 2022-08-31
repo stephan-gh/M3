@@ -16,7 +16,7 @@
 use m3::com::Semaphore;
 use m3::errors::Code;
 use m3::format;
-use m3::net::{Endpoint, StreamSocket, StreamSocketArgs, TcpSocket};
+use m3::net::{Endpoint, Socket, StreamSocket, StreamSocketArgs, TcpSocket};
 use m3::println;
 use m3::session::NetworkManager;
 use m3::test::WvTester;

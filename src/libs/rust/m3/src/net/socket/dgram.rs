@@ -14,19 +14,10 @@
  */
 
 use crate::errors::Error;
-use crate::net::{socket::State, Endpoint, Port};
+use crate::net::{Endpoint, Port, Socket};
 
 /// Trait for all data-gram sockets, like UDP.
-pub trait DGramSocket {
-    /// Returns the current state of the socket
-    fn state(&self) -> State;
-
-    /// Returns the local endpoint
-    ///
-    /// The local endpoint is only `Some` if the socket has been bound via
-    /// [`bind`](DGramSocket::bind).
-    fn local_endpoint(&self) -> Option<Endpoint>;
-
+pub trait DGramSocket: Socket {
     /// Binds this socket to the given local port.
     ///
     /// Note that specifying 0 for `port` will allocate an ephemeral port for this socket.
@@ -41,38 +32,10 @@ pub trait DGramSocket {
     /// Returns an error if the socket is not in state [`Closed`](State::Closed).
     fn bind(&mut self, port: Port) -> Result<(), Error>;
 
-    /// Connects this socket to the given remote endpoint.
-    ///
-    /// Note that this merely sets the endpoint to use for subsequent send calls and therefore does
-    /// not involve the remote side in any way.
-    ///
-    /// If the socket has not been bound so far, bind(0) will be called to bind it to an unused
-    /// ephemeral port.
-    fn connect(&mut self, ep: Endpoint) -> Result<(), Error>;
-
-    /// Returns whether data can currently be received from the socket
-    ///
-    /// Note that this function does not process events. To receive data, any receive function on
-    /// this socket or [`FileWaiter::wait`](crate::vfs::FileWaiter::wait) has to be called.
-    fn has_data(&self) -> bool;
-
-    /// Receives data from the socket into the given buffer.
-    ///
-    /// Returns the number of received bytes.
-    fn recv(&mut self, data: &mut [u8]) -> Result<usize, Error>;
-
     /// Receives data from the socket into the given buffer.
     ///
     /// Returns the number of received bytes and the remote endpoint it was received from.
     fn recv_from(&mut self, data: &mut [u8]) -> Result<(usize, Endpoint), Error>;
-
-    /// Sends the given data to the remote endpoint set at connect.
-    ///
-    /// This function fails with `Code::InvState` if connect has not been called before.
-    ///
-    /// If the socket has not been bound so far, bind(0) will be called to bind it to an unused
-    /// ephemeral port.
-    fn send(&mut self, data: &[u8]) -> Result<(), Error>;
 
     /// Sends the given data to the given remote endpoint
     ///

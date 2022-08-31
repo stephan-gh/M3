@@ -23,8 +23,8 @@ use crate::errors::{Code, Error};
 use crate::io;
 use crate::net::{
     log_net,
-    socket::{DGramSocket, Socket, SocketArgs, State},
-    Endpoint, Port, NetLogEvent, SocketType,
+    socket::{BaseSocket, DGramSocket, Socket, SocketArgs, State},
+    Endpoint, NetLogEvent, Port, SocketType,
 };
 use crate::rc::Rc;
 use crate::session::{HashInput, HashOutput, NetworkManager};
@@ -64,7 +64,7 @@ impl DgramSocketArgs {
 /// Represents a datagram socket using the user datagram protocol (UDP)
 pub struct UdpSocket {
     fd: Fd,
-    socket: Socket,
+    socket: BaseSocket,
     nm: Rc<NetworkManager>,
 }
 
@@ -86,7 +86,7 @@ impl UdpSocket {
     }
 }
 
-impl DGramSocket for UdpSocket {
+impl Socket for UdpSocket {
     fn state(&self) -> State {
         self.socket.state()
     }
@@ -95,15 +95,8 @@ impl DGramSocket for UdpSocket {
         self.socket.local_ep
     }
 
-    fn bind(&mut self, port: Port) -> Result<(), Error> {
-        if self.socket.state() != State::Closed {
-            return Err(Error::new(Code::InvState));
-        }
-
-        let (addr, port) = self.nm.bind(self.socket.sd(), port)?;
-        self.socket.local_ep = Some(Endpoint::new(addr, port));
-        self.socket.state = State::Bound;
-        Ok(())
+    fn remote_endpoint(&self) -> Option<Endpoint> {
+        self.socket.remote_ep
     }
 
     fn connect(&mut self, ep: Endpoint) -> Result<(), Error> {
@@ -127,20 +120,34 @@ impl DGramSocket for UdpSocket {
         self.recv_from(data).map(|(size, _)| size)
     }
 
-    fn recv_from(&mut self, data: &mut [u8]) -> Result<(usize, Endpoint), Error> {
-        self.socket.next_data(data.len(), |buf, ep| {
-            data[0..buf.len()].copy_from_slice(buf);
-            (buf.len(), (buf.len(), ep))
-        })
-    }
-
-    fn send(&mut self, data: &[u8]) -> Result<(), Error> {
+    fn send(&mut self, data: &[u8]) -> Result<usize, Error> {
         self.send_to(
             data,
             self.socket
                 .remote_ep
                 .ok_or_else(|| Error::new(Code::InvState))?,
         )
+        .map(|_| data.len())
+    }
+}
+
+impl DGramSocket for UdpSocket {
+    fn bind(&mut self, port: Port) -> Result<(), Error> {
+        if self.socket.state() != State::Closed {
+            return Err(Error::new(Code::InvState));
+        }
+
+        let (addr, port) = self.nm.bind(self.socket.sd(), port)?;
+        self.socket.local_ep = Some(Endpoint::new(addr, port));
+        self.socket.state = State::Bound;
+        Ok(())
+    }
+
+    fn recv_from(&mut self, data: &mut [u8]) -> Result<(usize, Endpoint), Error> {
+        self.socket.next_data(data.len(), |buf, ep| {
+            data[0..buf.len()].copy_from_slice(buf);
+            (buf.len(), (buf.len(), ep))
+        })
     }
 
     fn send_to(&mut self, data: &[u8], endpoint: Endpoint) -> Result<(), Error> {

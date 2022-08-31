@@ -23,7 +23,7 @@ use base::rc::Rc;
 use base::time::TimeDuration;
 use base::vec;
 
-use crate::net::{DGramSocket, DgramSocketArgs, Endpoint, IpAddr, Port, UdpSocket};
+use crate::net::{DGramSocket, DgramSocketArgs, Endpoint, IpAddr, Port, Socket, UdpSocket};
 use crate::session::NetworkManager;
 use crate::vfs::{File, FileEvent, FileWaiter};
 

@@ -24,8 +24,8 @@ use m3::{
     com::Semaphore,
     env,
     net::{
-        DGramSocket, DgramSocketArgs, Endpoint, IpAddr, Port, StreamSocket, StreamSocketArgs,
-        TcpSocket, UdpSocket,
+        DGramSocket, DgramSocketArgs, Endpoint, IpAddr, Port, Socket, StreamSocketArgs, TcpSocket,
+        UdpSocket,
     },
     println,
     rc::Rc,

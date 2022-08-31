@@ -18,7 +18,7 @@ use base::int_enum;
 
 use crate::com::{RecvGate, SendGate};
 use crate::errors::Error;
-use crate::net::{Endpoint, IpAddr, NetEventChannel, Port, Sd, Socket, SocketArgs, SocketType};
+use crate::net::{BaseSocket, Endpoint, IpAddr, NetEventChannel, Port, Sd, SocketArgs, SocketType};
 use crate::rc::Rc;
 use crate::session::ClientSession;
 use crate::vfs::GenFileOp;
@@ -86,7 +86,7 @@ impl NetworkManager {
         ty: SocketType,
         protocol: Option<u8>,
         args: &SocketArgs,
-    ) -> Result<Socket, Error> {
+    ) -> Result<BaseSocket, Error> {
         let mut sd = 0;
         let crd = self.client_session.obtain(
             2,
@@ -106,7 +106,7 @@ impl NetworkManager {
         )?;
 
         let chan = NetEventChannel::new_client(crd.start())?;
-        Ok(Socket::new(sd, ty, chan))
+        Ok(BaseSocket::new(sd, ty, chan))
     }
 
     pub(crate) fn nameserver(&self) -> Result<IpAddr, Error> {

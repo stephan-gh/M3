@@ -23,7 +23,7 @@ use crate::errors::Error;
 use crate::io;
 use crate::net::{
     log_net,
-    socket::{DgramSocketArgs, Socket},
+    socket::{BaseSocket, DgramSocketArgs},
     Endpoint, NetLogEvent, SocketType,
 };
 use crate::rc::Rc;
@@ -36,7 +36,7 @@ pub type RawSocketArgs = DgramSocketArgs;
 /// Represents a raw internet protocol (IP) socket
 pub struct RawSocket {
     fd: Fd,
-    socket: Socket,
+    socket: BaseSocket,
     nm: Rc<NetworkManager>,
 }
 

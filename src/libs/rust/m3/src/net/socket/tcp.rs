@@ -23,8 +23,8 @@ use crate::errors::{Code, Error};
 use crate::io;
 use crate::net::{
     event, log_net,
-    socket::{Socket, SocketArgs, State, StreamSocket},
-    Endpoint, Port, NetLogEvent, SocketType,
+    socket::{BaseSocket, Socket, SocketArgs, State, StreamSocket},
+    Endpoint, NetLogEvent, Port, SocketType,
 };
 use crate::rc::Rc;
 use crate::session::{HashInput, HashOutput, NetworkManager};
@@ -62,7 +62,7 @@ impl StreamSocketArgs {
 /// Represents a stream socket using the transmission control protocol (TCP)
 pub struct TcpSocket {
     fd: Fd,
-    socket: Socket,
+    socket: BaseSocket,
     nm: Rc<NetworkManager>,
 }
 
@@ -84,7 +84,7 @@ impl TcpSocket {
     }
 }
 
-impl StreamSocket for TcpSocket {
+impl Socket for TcpSocket {
     fn state(&self) -> State {
         self.socket.state()
     }
@@ -95,17 +95,6 @@ impl StreamSocket for TcpSocket {
 
     fn remote_endpoint(&self) -> Option<Endpoint> {
         self.socket.remote_ep
-    }
-
-    fn listen(&mut self, port: Port) -> Result<(), Error> {
-        if self.socket.state() != State::Closed {
-            return Err(Error::new(Code::InvState));
-        }
-
-        let addr = self.nm.listen(self.socket.sd(), port)?;
-        self.socket.local_ep = Some(Endpoint::new(addr, port));
-        self.socket.state = State::Listening;
-        Ok(())
     }
 
     fn connect(&mut self, endpoint: Endpoint) -> Result<(), Error> {
@@ -141,33 +130,6 @@ impl StreamSocket for TcpSocket {
         }
         else {
             Ok(())
-        }
-    }
-
-    fn accept(&mut self) -> Result<Endpoint, Error> {
-        if self.state() == State::Connected {
-            return Ok(self.remote_endpoint().unwrap());
-        }
-        if self.state() == State::Connecting {
-            return Err(Error::new(Code::AlreadyInProgress));
-        }
-        if self.state() != State::Listening {
-            return Err(Error::new(Code::InvState));
-        }
-
-        self.socket.state = State::Connecting;
-        while self.state() == State::Connecting {
-            if !self.is_blocking() {
-                return Err(Error::new(Code::InProgress));
-            }
-            self.socket.wait_for_events(false)?;
-        }
-
-        if self.state() != State::Connected {
-            Err(Error::new(Code::ConnectionFailed))
-        }
-        else {
-            Ok(self.remote_endpoint().unwrap())
         }
     }
 
@@ -212,6 +174,46 @@ impl StreamSocket for TcpSocket {
             total += amount;
         }
         Ok(total)
+    }
+}
+
+impl StreamSocket for TcpSocket {
+    fn listen(&mut self, port: Port) -> Result<(), Error> {
+        if self.socket.state() != State::Closed {
+            return Err(Error::new(Code::InvState));
+        }
+
+        let addr = self.nm.listen(self.socket.sd(), port)?;
+        self.socket.local_ep = Some(Endpoint::new(addr, port));
+        self.socket.state = State::Listening;
+        Ok(())
+    }
+
+    fn accept(&mut self) -> Result<Endpoint, Error> {
+        if self.state() == State::Connected {
+            return Ok(self.remote_endpoint().unwrap());
+        }
+        if self.state() == State::Connecting {
+            return Err(Error::new(Code::AlreadyInProgress));
+        }
+        if self.state() != State::Listening {
+            return Err(Error::new(Code::InvState));
+        }
+
+        self.socket.state = State::Connecting;
+        while self.state() == State::Connecting {
+            if !self.is_blocking() {
+                return Err(Error::new(Code::InProgress));
+            }
+            self.socket.wait_for_events(false)?;
+        }
+
+        if self.state() != State::Connected {
+            Err(Error::new(Code::ConnectionFailed))
+        }
+        else {
+            Ok(self.remote_endpoint().unwrap())
+        }
     }
 
     fn close(&mut self) -> Result<(), Error> {

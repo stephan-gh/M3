@@ -26,7 +26,7 @@ use crate::errors::Error;
 use crate::goff;
 use crate::io::{Read, Write};
 use crate::kif;
-use crate::net::{DGramSocket, StreamSocket};
+use crate::net::{DGramSocket, Socket, StreamSocket};
 use crate::serialize::{M3Serializer, VecSink};
 use crate::session::{HashInput, HashOutput, HashSession, MapFlags, Pager};
 use crate::tiles::{Activity, ChildActivity};
@@ -207,7 +207,7 @@ impl<T: ?Sized> HashOutput for FileRef<T> {
     }
 }
 
-impl<T: 'static + DGramSocket> DGramSocket for FileRef<T> {
+impl<T: 'static + Socket> Socket for FileRef<T> {
     fn state(&self) -> crate::net::State {
         self.borrow_as().state()
     }
@@ -216,8 +216,8 @@ impl<T: 'static + DGramSocket> DGramSocket for FileRef<T> {
         self.borrow_as().local_endpoint()
     }
 
-    fn bind(&mut self, port: crate::net::Port) -> Result<(), Error> {
-        self.borrow_as().bind(port)
+    fn remote_endpoint(&self) -> Option<crate::net::Endpoint> {
+        self.borrow_as().remote_endpoint()
     }
 
     fn connect(&mut self, ep: crate::net::Endpoint) -> Result<(), Error> {
@@ -232,12 +232,18 @@ impl<T: 'static + DGramSocket> DGramSocket for FileRef<T> {
         self.borrow_as().recv(data)
     }
 
-    fn recv_from(&mut self, data: &mut [u8]) -> Result<(usize, crate::net::Endpoint), Error> {
-        self.borrow_as().recv_from(data)
+    fn send(&mut self, data: &[u8]) -> Result<usize, Error> {
+        self.borrow_as().send(data)
+    }
+}
+
+impl<T: 'static + DGramSocket> DGramSocket for FileRef<T> {
+    fn bind(&mut self, port: crate::net::Port) -> Result<(), Error> {
+        self.borrow_as().bind(port)
     }
 
-    fn send(&mut self, data: &[u8]) -> Result<(), Error> {
-        self.borrow_as().send(data)
+    fn recv_from(&mut self, data: &mut [u8]) -> Result<(usize, crate::net::Endpoint), Error> {
+        self.borrow_as().recv_from(data)
     }
 
     fn send_to(&mut self, data: &[u8], endpoint: crate::net::Endpoint) -> Result<(), Error> {
@@ -246,40 +252,12 @@ impl<T: 'static + DGramSocket> DGramSocket for FileRef<T> {
 }
 
 impl<T: 'static + StreamSocket> StreamSocket for FileRef<T> {
-    fn state(&self) -> crate::net::State {
-        self.borrow_as().state()
-    }
-
-    fn local_endpoint(&self) -> Option<crate::net::Endpoint> {
-        self.borrow_as().local_endpoint()
-    }
-
-    fn remote_endpoint(&self) -> Option<crate::net::Endpoint> {
-        self.borrow_as().remote_endpoint()
-    }
-
     fn listen(&mut self, port: crate::net::Port) -> Result<(), Error> {
         self.borrow_as().listen(port)
     }
 
-    fn connect(&mut self, endpoint: crate::net::Endpoint) -> Result<(), Error> {
-        self.borrow_as().connect(endpoint)
-    }
-
     fn accept(&mut self) -> Result<crate::net::Endpoint, Error> {
         self.borrow_as().accept()
-    }
-
-    fn has_data(&self) -> bool {
-        self.borrow_as().has_data()
-    }
-
-    fn recv(&mut self, data: &mut [u8]) -> Result<usize, Error> {
-        self.borrow_as().recv(data)
-    }
-
-    fn send(&mut self, data: &[u8]) -> Result<usize, Error> {
-        self.borrow_as().send(data)
     }
 
     fn close(&mut self) -> Result<(), Error> {
