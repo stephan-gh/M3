@@ -37,7 +37,7 @@ use crate::serialize::{M3Deserializer, M3Serializer, VecSink};
 use crate::session::{ClientSession, HashInput, HashOutput, HashSession, MapFlags, Pager};
 use crate::tcu::EpId;
 use crate::tiles::{Activity, ChildActivity};
-use crate::vfs::{filetable, Fd, File, FileEvent, FileInfo, Map, OpenFlags, Seek, SeekMode};
+use crate::vfs::{filetable, Fd, File, FileEvent, FileInfo, Map, OpenFlags, Seek, SeekMode, TMode};
 
 int_enum! {
     /// The operations for [`GenericFile`].
@@ -427,6 +427,16 @@ impl File for GenericFile {
         self.pos = 0;
         self.len = 0;
         Ok(())
+    }
+
+    fn get_tmode(&self) -> Result<TMode, Error> {
+        let mut reply = send_recv_res!(
+            &self.sgate,
+            RecvGate::def(),
+            GenFileOp::GET_TMODE,
+            self.file_id()
+        )?;
+        reply.pop()
     }
 
     fn file_type(&self) -> u8 {

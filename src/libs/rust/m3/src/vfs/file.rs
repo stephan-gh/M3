@@ -167,6 +167,14 @@ bitflags! {
     }
 }
 
+int_enum! {
+    #[repr(C)]
+    pub struct TMode: u32 {
+        const RAW = 0;
+        const COOKED = 1;
+    }
+}
+
 /// Trait for files.
 ///
 /// All files can be read, written, seeked and mapped into memory.
@@ -203,6 +211,11 @@ pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
 
     /// Truncates the file to the given length
     fn truncate(&mut self, _length: usize) -> Result<(), Error> {
+        Err(Error::new(Code::NotSup))
+    }
+
+    /// Returns the current terminal mode in case the server is a terminal
+    fn get_tmode(&self) -> Result<TMode, Error> {
         Err(Error::new(Code::NotSup))
     }
 
