@@ -1,0 +1,11 @@
+[package]
+name = "ruststdtest"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+path = "src/ruststdtest.rs"
+crate-type = ["staticlib"]
+
+[dependencies]
+m3impl = { path = "../../libs/rust/m3impl" }

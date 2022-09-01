@@ -2,6 +2,8 @@ dirs = [
     'base',
     'heap',
     'isr',
+    'lang',
+    'm3impl',
     'm3',
     'paging',
     'pci',

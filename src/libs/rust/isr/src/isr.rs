@@ -15,6 +15,9 @@
 
 #![no_std]
 
+#[allow(unused_extern_crates)]
+extern crate lang;
+
 use cfg_if::cfg_if;
 
 cfg_if! {

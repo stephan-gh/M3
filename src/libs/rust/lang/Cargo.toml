@@ -1,13 +1,11 @@
 [package]
-name = "isr"
+name = "lang"
 version = "0.1.0"
 edition = "2018"
 
 [lib]
-path = "src/isr.rs"
+path = "src/lib.rs"
 crate-type = ["rlib", "staticlib"]
 
 [dependencies]
 base = { path = "../base" }
-lang = { path = "../lang" }
-cfg-if = "*"

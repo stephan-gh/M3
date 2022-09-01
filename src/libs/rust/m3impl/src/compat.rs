@@ -630,7 +630,7 @@ pub extern "C" fn __m3c_print_syscall_end(
 
 #[no_mangle]
 pub extern "C" fn __m3c_print_syscall_trace(
-    idx: i32,
+    idx: usize,
     name: *const i8,
     no: isize,
     start: u64,

@@ -132,6 +132,7 @@ version = "0.1.0"
 dependencies = [
  "base",
  "cfg-if",
+ "lang",
 ]
 
 [[package]]
@@ -143,6 +144,13 @@ dependencies = [
  "isr",
  "paging",
  "thread",
+]
+
+[[package]]
+name = "lang"
+version = "0.1.0"
+dependencies = [
+ "base",
 ]
 
 [[package]]
@@ -164,9 +172,9 @@ dependencies = [
 name = "m3"
 version = "0.1.0"
 dependencies = [
- "base",
- "bitflags",
  "heap",
+ "lang",
+ "m3impl",
 ]
 
 [[package]]
@@ -177,6 +185,14 @@ dependencies = [
  "bitflags",
  "m3",
  "thread",
+]
+
+[[package]]
+name = "m3impl"
+version = "0.1.0"
+dependencies = [
+ "base",
+ "bitflags",
 ]
 
 [[package]]
@@ -342,6 +358,13 @@ name = "rustnettests"
 version = "0.1.0"
 dependencies = [
  "m3",
+]
+
+[[package]]
+name = "ruststdtest"
+version = "0.1.0"
+dependencies = [
+ "m3impl",
 ]
 
 [[package]]

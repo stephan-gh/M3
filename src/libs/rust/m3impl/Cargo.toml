@@ -1,0 +1,12 @@
+[package]
+name = "m3impl"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+name = "m3impl"
+crate-type = ["rlib"]
+
+[dependencies]
+bitflags = "*"
+base = { path = "../base" }

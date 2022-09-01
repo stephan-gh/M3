@@ -24,6 +24,7 @@ dirs = [
     'rusthello',
     'rustnettests',
     'ruststandalone',
+    'ruststdtest',
     'rustunittests',
     'shell',
     'spammer',

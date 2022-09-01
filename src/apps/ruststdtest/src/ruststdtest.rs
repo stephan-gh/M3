@@ -1,5 +1,8 @@
 /*
- * Copyright (C) 2022 Nils Asmussen, Barkhausen Institut
+ * Copyright (C) 2018 Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Economic rights: Technische Universitaet Dresden (Germany)
+ *
+ * Copyright (C) 2019-2020 Nils Asmussen, Barkhausen Institut
  *
  * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
  *
@@ -13,12 +16,17 @@
  * General Public License version 2 for more details.
  */
 
-#![no_std]
-
 #[allow(unused_extern_crates)]
-extern crate heap;
+extern crate m3impl;
 
-#[allow(unused_extern_crates)]
-extern crate lang;
+#[no_mangle]
+pub fn main() -> i32 {
+    std::println!(
+        "Hello World from std: {}!",
+        std::env::current_dir().unwrap().display()
+    );
 
-pub use m3impl::*;
+    let metadata = std::fs::metadata("test.txt").unwrap();
+    std::println!("{:?}", metadata);
+    0
+}

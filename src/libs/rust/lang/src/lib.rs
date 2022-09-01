@@ -16,12 +16,18 @@
  * General Public License version 2 for more details.
  */
 
+#![no_std]
+#![feature(alloc_error_handler)]
+#![feature(core_intrinsics)]
+#![feature(lang_items)]
+#![feature(panic_info_message)]
+
 use core::intrinsics;
 use core::panic::PanicInfo;
 
-use crate::backtrace;
-use crate::cell::StaticCell;
-use crate::io::{log, Write};
+use base::backtrace;
+use base::cell::StaticCell;
+use base::io::{log, Write};
 
 extern "C" {
     fn abort();
@@ -41,8 +47,8 @@ fn panic(info: &PanicInfo<'_>) -> ! {
 
     // disable instruction trace here to see the instructions that lead to the panic
     #[cfg(target_vendor = "hw")]
-    if crate::envdata::get().platform == crate::envdata::Platform::HW.val {
-        crate::tcu::TCU::set_trace_instrs(false);
+    if base::envdata::get().platform == base::envdata::Platform::HW.val {
+        base::tcu::TCU::set_trace_instrs(false);
     }
 
     if let Some(mut l) = log::Log::get() {
@@ -99,13 +105,13 @@ pub extern "C" fn _Unwind_Resume() -> ! {
 #[cfg(target_arch = "arm")]
 #[no_mangle]
 #[doc(hidden)]
-pub unsafe extern "C" fn __aeabi_memclr(dest: *mut crate::libc::c_void, size: usize) {
-    crate::libc::memzero(dest, size);
+pub unsafe extern "C" fn __aeabi_memclr(dest: *mut base::libc::c_void, size: usize) {
+    base::libc::memzero(dest, size);
 }
 
 #[cfg(target_arch = "arm")]
 #[no_mangle]
 #[doc(hidden)]
-pub unsafe extern "C" fn __aeabi_memclr4(dest: *mut crate::libc::c_void, size: usize) {
-    crate::libc::memzero(dest, size);
+pub unsafe extern "C" fn __aeabi_memclr4(dest: *mut base::libc::c_void, size: usize) {
+    base::libc::memzero(dest, size);
 }

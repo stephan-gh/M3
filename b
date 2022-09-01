@@ -47,17 +47,17 @@ if [ "$M3_TARGET" = "gem5" ] || [ "$M3_TARGET" = "hw" ]; then
     export PATH=$crossdir:$PATH
 fi
 if [ "$M3_TARGET" = "gem5" ] && [ "$M3_ISA" = "arm" ]; then
-    rustabi='gnueabihf'
+    rustabi='musleabi'
 elif [ "$M3_BUILD" = "coverage" ]; then
     rustabi='cov'
 else
-    rustabi='gnu'
+    rustabi='musl'
 fi
 
 # rust env vars
 rusttoolchain=$(readlink -f src/toolchain/rust)
 rustbuild=$(readlink -f build/rust)
-export RUST_TARGET=$M3_ISA-unknown-$M3_TARGET-$rustabi
+export RUST_TARGET=$M3_ISA-linux-$M3_TARGET-$rustabi
 export RUST_TARGET_PATH=$rusttoolchain
 export CARGO_TARGET_DIR=$rustbuild
 export XBUILD_SYSROOT_PATH=$CARGO_TARGET_DIR/sysroot

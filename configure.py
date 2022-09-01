@@ -13,15 +13,15 @@ if target == 'gem5' or target == 'hw':
         exit('Unsupport ISA "' + isa + '" for hw')
 
     if isa == 'arm':
-        rustabi = 'gnueabihf'
+        rustabi = 'musleabi'
         cross   = 'arm-none-eabi-'
         crts    = ['crt0.o', 'crtbegin.o', 'crtend.o', 'crtfastmath.o', 'crti.o', 'crtn.o']
     elif isa == 'riscv':
-        rustabi = 'gnu'
+        rustabi = 'musl'
         cross   = 'riscv64-unknown-elf-'
         crts    = ['crt0.o', 'crtbegin.o', 'crtend.o', 'crti.o', 'crtn.o']
     else:
-        rustabi = 'gnu'
+        rustabi = 'musl'
         cross   = 'x86_64-elf-m3-'
         crts    = ['crt0.o', 'crt1.o', 'crtbegin.o', 'crtend.o', 'crtn.o']
     crossdir    = os.path.abspath('build/cross-' + isa)
@@ -136,7 +136,7 @@ class M3Env(ninjagen.Env):
         rustcrates += [env.cwd.path]
 
     def m3_rust_exe(self, gen, out, libs = [], dir = 'bin', startup = None,
-                    ldscript = 'default', varAddr = True):
+                    ldscript = 'default', varAddr = True, std = False):
         global rustcrates
         rustcrates += [self.cwd.path]
 
@@ -146,7 +146,7 @@ class M3Env(ninjagen.Env):
 
         if env['PLATF'] == 'kachel':
             ins     = [] if startup is None else [startup]
-            libs    = ['simplec', 'gem5', 'gcc', out] + libs
+            libs    = ['c' if std else 'simplec', 'gem5', 'gcc', out] + libs
             env['LINKFLAGS'] += ['-nodefaultlibs']
         else:
             ins     = []
@@ -181,12 +181,15 @@ class M3Env(ninjagen.Env):
             cmd = 'cargo $cargoflags --color=always && touch $out',
             desc = 'CARGO Cargo.toml',
         ))
+        flags = ' -Z build-std=core,alloc,std,panic_abort'
+        flags += ' --target ' + env['TRIPLE']
+        flags += ' ' + ' '.join(env['CRGFLAGS'])
         gen.add_build(ninjagen.BuildEdge(
             'cargo_ws',
             outs = outs,
             ins = [],
             deps = deps,
-            vars = { 'cargoflags' : 'build -Z build-std=core,alloc --target ' + env['TRIPLE'] + ' ' + ' '.join(env['CRGFLAGS']) }
+            vars = { 'cargoflags' : 'build ' + flags }
         ))
 
     def build_fs(self, gen, out, dir, blocks, inodes):
@@ -253,7 +256,7 @@ env['CPPFLAGS']     += ['-U_FORTIFY_SOURCE', '-D_GNU_SOURCE']
 env['CFLAGS']       += ['-gdwarf-2', '-fno-stack-protector']
 env['ASFLAGS']      += ['-Wl,-W', '-Wall', '-Wextra']
 env['LINKFLAGS']    += ['-Wl,--no-gc-sections', '-Wno-lto-type-mismatch', '-fno-stack-protector']
-env['TRIPLE']       = isa + '-unknown-' + target + '-' + rustabi
+env['TRIPLE']       = isa + '-linux-' + target + '-' + rustabi
 if os.environ.get('M3_VERBOSE', 0) != 0:
     env['CRGFLAGS'] += ['-v']
 else:

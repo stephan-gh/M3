@@ -46,10 +46,6 @@ cfg_if! {
 pub use alloc::{format, vec};
 pub use static_assertions::const_assert;
 
-// lang stuff
-mod lang;
-pub use lang::*;
-
 /// Pointer types for heap allocation
 pub mod boxed {
     pub use alloc::boxed::Box;

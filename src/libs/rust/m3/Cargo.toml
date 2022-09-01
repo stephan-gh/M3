@@ -8,6 +8,6 @@ name = "m3"
 crate-type = ["rlib"]
 
 [dependencies]
-bitflags = "*"
-base = { path = "../base" }
 heap = { path = "../heap" }
+lang = { path = "../lang" }
+m3impl = { path = "../m3impl" }
