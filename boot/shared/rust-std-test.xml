@@ -1,0 +1,40 @@
+<config>
+    <kernel args="kernel -f $fs.path" />
+    <dom>
+        <app args="root">
+            <dom>
+                <app args="m3fs mem $fs.size" daemon="1">
+                    <serv name="m3fs" />
+                    <physmem addr="0" size="$fs.size" />
+                </app>
+            </dom>
+            <dom>
+                <app args="pager sem=net-udp sem=net-tcp $fs.size" usermem="256M">
+                    <sess name="m3fs" />
+                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <tiles type="core" count="3" />
+                    <dom>
+                        <app args="/sbin/net -m 4 -d lo net 127.0.0.1" daemon="1">
+                            <serv name="net" />
+                        </app>
+                    </dom>
+                    <app args="/bin/netechoserver" daemon="1">
+                        <sess name="net" args="bufs=1M socks=2 udp=1337 tcp=1338" />
+                        <sem name="net-udp" />
+                        <sem name="net-tcp" />
+                    </app>
+                    <dom>
+                        <app args="/bin/ruststdtest">
+                            <mount fs="m3fs" path="/" />
+                            <sess name="net" args="udp=3000" />
+                            <sess lname="netserv" gname="net" args="bufs=1M socks=2 tcp=2000" />
+                            <sem name="net-udp" />
+                            <sem name="net-tcp" />
+                            <tiles type="core" count="1" />
+                        </app>
+                    </dom>
+                </app>
+            </dom>
+        </app>
+    </dom>
+</config>
