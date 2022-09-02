@@ -23,7 +23,7 @@ use crate::errors::{Code, Error};
 use crate::rc::Rc;
 use crate::session::M3FS;
 use crate::tiles::Activity;
-use crate::vfs::{FSHandle, File, FileInfo, FileMode, FileRef, GenericFile, OpenFlags};
+use crate::vfs::{FSHandle, File, FileInfo, FileMode, FileRef, GenericFile, OpenFlags, SeekMode};
 
 /// Mounts the file system of type `fstype` at `path`, creating a session at `service`.
 pub fn mount(path: &str, fstype: &str, service: &str) -> Result<(), Error> {
@@ -134,7 +134,11 @@ pub fn set_cwd_to(dir_fd: usize) -> Result<(), Error> {
 /// Opens the file at `path` with given flags.
 pub fn open(path: &str, flags: OpenFlags) -> Result<FileRef<GenericFile>, Error> {
     with_path(path, |fs, fs_path| {
-        let file = fs.borrow_mut().open(fs_path, flags)?;
+        let mut file = fs.borrow_mut().open(fs_path, flags)?;
+        if flags.contains(OpenFlags::APPEND) {
+            file.seek(0, SeekMode::END)?;
+        }
+
         let fd = Activity::own().files().add(file)?;
         Ok(FileRef::new_owned(fd))
     })
