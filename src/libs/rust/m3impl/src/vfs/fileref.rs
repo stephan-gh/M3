@@ -22,6 +22,7 @@ use core::marker::PhantomData;
 
 use crate::cap::Selector;
 use crate::cell::RefMut;
+use crate::col::String;
 use crate::errors::Error;
 use crate::goff;
 use crate::io::{Read, Write};
@@ -30,7 +31,7 @@ use crate::net::{DGramSocket, Socket, StreamSocket};
 use crate::serialize::{M3Serializer, VecSink};
 use crate::session::{HashInput, HashOutput, HashSession, MapFlags, Pager};
 use crate::tiles::{Activity, ChildActivity};
-use crate::vfs::{Fd, File, FileEvent, FileTable, Map, Seek, SeekMode};
+use crate::vfs::{Fd, File, FileEvent, FileTable, Map, Seek, SeekMode, TMode};
 
 /// A file reference provides access to a file of type `T`.
 ///
@@ -134,6 +135,18 @@ impl<T: ?Sized + 'static> File for FileRef<T> {
 
     fn stat(&self) -> Result<super::FileInfo, Error> {
         self.borrow().stat()
+    }
+
+    fn path(&self) -> Result<String, Error> {
+        self.borrow().path()
+    }
+
+    fn truncate(&mut self, length: usize) -> Result<(), Error> {
+        self.borrow().truncate(length)
+    }
+
+    fn get_tmode(&self) -> Result<TMode, Error> {
+        self.borrow().get_tmode()
     }
 
     fn delegate(&self, act: &ChildActivity) -> Result<Selector, Error> {
