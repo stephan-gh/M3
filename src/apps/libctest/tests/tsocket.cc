@@ -76,7 +76,7 @@ static void generic_echo(const char *addr, const char *port, int type) {
     WVASSERTEQ(getpeername(sfd, (struct sockaddr *)&remote, &remote_len), 0);
     WVASSERTEQ(sizeof(remote), remote_len);
     WVASSERTSTREQ(inet_ntoa(remote.sin_addr), "127.0.0.1");
-    WVASSERTEQ(remote.sin_port, atoi(port));
+    WVASSERTEQ(ntohs(remote.sin_port), atoi(port));
 
     char buf[BUF_SIZE];
 
@@ -94,7 +94,7 @@ static void generic_echo(const char *addr, const char *port, int type) {
     WVASSERTEQ(recvfrom(sfd, buf, BUF_SIZE, 0, (struct sockaddr *)&src, &src_len), 6);
     WVASSERTEQ(sizeof(src), src_len);
     WVASSERTSTREQ(inet_ntoa(src.sin_addr), "127.0.0.1");
-    WVASSERTEQ(src.sin_port, atoi(port));
+    WVASSERTEQ(ntohs(src.sin_port), atoi(port));
     WVASSERT(strncmp(buf, "zombie", 6) == 0);
 
     struct iovec msg_data;
