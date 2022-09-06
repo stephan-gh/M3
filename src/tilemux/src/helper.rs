@@ -21,7 +21,7 @@ pub fn flush_cache() {
     #[cfg(target_vendor = "hw")]
     let (cacheline_size, cache_size) = (64, 512 * 1024);
     #[cfg(target_vendor = "gem5")]
-    let (cacheline_size, cache_size) = (64, 256 * 1024);
+    let (cacheline_size, cache_size) = (64, (32 + 256) * 1024);
 
     // ensure that we replace all cachelines in cache
     let mut addr = cfg::TILE_MEM_BASE as *const u64;
