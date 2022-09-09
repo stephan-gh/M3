@@ -18,9 +18,9 @@ use core::str::FromStr;
 
 use base::col::ToString;
 use base::errors::{Code, Error, VerboseError};
-use base::random::LCG;
 use base::rc::Rc;
 use base::time::TimeDuration;
+use base::util::random::LCG;
 use base::vec;
 
 use crate::net::{DGramSocket, DgramSocketArgs, Endpoint, IpAddr, Port, Socket, UdpSocket};

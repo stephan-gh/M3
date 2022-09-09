@@ -24,13 +24,13 @@ use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::syscalls::{ActivityOp, SemOp};
 use m3::kif::{CapRngDesc, CapType, Perm, INVALID_SEL, SEL_ACT, SEL_KMEM, SEL_TILE};
-use m3::math;
 use m3::server::{Handler, Server, SessId, SessionContainer};
 use m3::session::{ServerSession, M3FS};
 use m3::syscalls;
 use m3::tcu::{AVAIL_EPS, FIRST_USER_EP, TOTAL_EPS};
 use m3::test::WvTester;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity, Tile};
+use m3::util::math;
 use m3::{wv_assert, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn WvTester) {

@@ -21,12 +21,12 @@ use crate::com::{RGateArgs, RecvGate, SGateArgs, SendGate};
 use crate::errors::{Code, Error};
 use crate::int_enum;
 use crate::kif::{CapRngDesc, CapType};
-use crate::math;
 use crate::mem::{self, MaybeUninit, MsgBuf};
 use crate::net::{Endpoint, IpAddr, Port};
 use crate::rc::Rc;
 use crate::tcu::{Header, Message};
 use crate::tiles::Activity;
+use crate::util::math;
 
 const MSG_SIZE: usize = 2048;
 const MSG_CREDITS: usize = 4;

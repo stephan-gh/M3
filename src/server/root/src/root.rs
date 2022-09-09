@@ -27,11 +27,11 @@ use m3::errors::{Code, Error, VerboseError};
 use m3::goff;
 use m3::kif;
 use m3::log;
-use m3::math;
 use m3::session::ResMng;
 use m3::syscalls;
 use m3::tcu;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity};
+use m3::util::math;
 use m3::vfs::FileRef;
 
 use resmng::childs::{self, Child, OwnChild};

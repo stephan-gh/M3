@@ -28,7 +28,6 @@ use base::errors::{Code, Error};
 use base::kif::{PageFlags, Perm};
 use base::libc;
 use base::log;
-use base::math::next_log2;
 use base::mem::{size_of, MsgBuf};
 use base::tcu::{self, TileId, TCU};
 use base::util;
@@ -163,7 +162,7 @@ fn send_recv(send_addr: usize, size: usize) {
     let (rbuf2_virt, rbuf2_phys) = helper::virt_to_phys(RBUF2.as_ptr() as usize);
 
     // create EPs
-    let max_msg_ord = next_log2(16 + size * 8);
+    let max_msg_ord = util::math::next_log2(16 + size * 8);
     assert!(RBUF1.len() * size_of::<u64>() >= 1 << max_msg_ord);
     helper::config_local_ep(1, |regs| {
         TCU::config_recv(regs, OWN_ACT, rbuf1_phys, max_msg_ord, max_msg_ord, Some(2));

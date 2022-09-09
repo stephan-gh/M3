@@ -21,13 +21,13 @@ use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{PageFlags, Perm};
 use m3::log;
-use m3::math;
 use m3::reply_vmsg;
 use m3::serialize::M3Deserializer;
 use m3::server::SessId;
 use m3::session::{MapFlags, ServerSession};
 use m3::tcu::Label;
 use m3::tiles::Activity;
+use m3::util::math;
 use resmng::childs;
 
 use crate::dataspace::DataSpace;

@@ -28,12 +28,12 @@ use m3::int_enum;
 use m3::io::Read;
 use m3::kif::{self, Perm};
 use m3::log;
-use m3::math;
 use m3::println;
 use m3::server::{
     server_loop, CapExchange, Handler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS,
 };
 use m3::session::ServerSession;
+use m3::util::math;
 use m3::vfs::OpenFlags;
 use m3::vfs::VFS;
 

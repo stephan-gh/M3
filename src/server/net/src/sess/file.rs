@@ -23,6 +23,7 @@ use m3::errors::{Code, Error};
 use m3::kif::CapRngDesc;
 use m3::rc::Rc;
 use m3::server::CapExchange;
+use m3::util::math;
 use m3::vfs::OpenFlags;
 use m3::{log, reply_vmsg};
 
@@ -337,8 +338,8 @@ impl FileSession {
         let msg = is.take_msg();
         let cloned_gate = RecvGate::new_bind(
             is.rgate().sel(),
-            m3::math::next_log2(is.rgate().size()),
-            m3::math::next_log2(is.size()),
+            math::next_log2(is.rgate().size()),
+            math::next_log2(is.size()),
         );
 
         self.pending = Some(msg);

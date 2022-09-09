@@ -24,7 +24,7 @@ use m3::{
     cap::Selector,
     com::Perm,
     errors::{Code, Error},
-    math,
+    util::math,
     vfs::{FileMode, SeekMode},
 };
 

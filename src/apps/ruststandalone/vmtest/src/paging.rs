@@ -19,9 +19,9 @@ use base::envdata;
 use base::errors::Error;
 use base::goff;
 use base::kif::{PageFlags, TileDesc, PTE};
-use base::math;
 use base::mem::GlobAddr;
 use base::tcu;
+use base::util::math;
 
 use paging::{self, AddrSpace, Allocator, Phys};
 

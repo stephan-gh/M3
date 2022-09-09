@@ -24,9 +24,9 @@ mod helper;
 mod paging;
 
 use base::log;
-use base::math;
 use base::mem::MsgBuf;
 use base::tcu::{EpId, TileId, FIRST_USER_EP, TCU};
+use base::util::math;
 
 const LOG_DEF: bool = true;
 const LOG_DETAIL: bool = false;

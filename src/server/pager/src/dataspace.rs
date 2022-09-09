@@ -21,9 +21,9 @@ use m3::errors::Error;
 use m3::goff;
 use m3::kif;
 use m3::log;
-use m3::math;
 use m3::rc::Rc;
 use m3::session::{ClientSession, MapFlags, M3FS};
+use m3::util::math;
 use resmng::childs;
 
 use crate::physmem::PhysMem;

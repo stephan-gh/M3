@@ -19,10 +19,10 @@ use base::col::Vec;
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif;
-use base::math;
 use base::mem::GlobAddr;
 use base::rc::{Rc, SRc};
 use base::tcu;
+use base::util::math;
 use base::vec;
 
 use crate::args;

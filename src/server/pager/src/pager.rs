@@ -32,7 +32,6 @@ use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::kif;
 use m3::log;
-use m3::math;
 use m3::println;
 use m3::server::{
     CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer, DEF_MSG_SIZE,
@@ -40,6 +39,7 @@ use m3::server::{
 use m3::session::{ClientSession, Pager, PagerOp, ResMng, M3FS};
 use m3::tcu::{Label, TileId};
 use m3::tiles::{Activity, ActivityArgs, ChildActivity};
+use m3::util::math;
 use m3::vfs;
 
 use addrspace::AddrSpace;

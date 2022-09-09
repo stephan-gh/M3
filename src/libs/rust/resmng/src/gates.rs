@@ -18,7 +18,7 @@ use m3::col::{String, Vec};
 use m3::com::{RGateArgs, RecvGate};
 use m3::errors::Error;
 use m3::log;
-use m3::math;
+use m3::util::math;
 
 pub struct GateManager {
     gates: Vec<(String, RecvGate)>,

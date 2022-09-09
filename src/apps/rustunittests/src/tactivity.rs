@@ -19,10 +19,10 @@
 use m3::cap::Selector;
 use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
 use m3::env;
-use m3::math;
 use m3::test::{DefaultWvTester, WvTester};
 use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::time::TimeDuration;
+use m3::util::math;
 
 use m3::{send_vmsg, wv_assert_eq, wv_assert_ok, wv_run_test};
 

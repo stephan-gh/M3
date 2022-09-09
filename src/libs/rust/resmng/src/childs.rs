@@ -26,7 +26,6 @@ use m3::format;
 use m3::goff;
 use m3::kif::{self, CapRngDesc, CapType, Perm};
 use m3::log;
-use m3::math;
 use m3::mem::MsgBuf;
 use m3::println;
 use m3::quota::{Id as QuotaId, Quota};
@@ -38,6 +37,7 @@ use m3::tcu;
 use m3::tiles::{
     Activity, ChildActivity, KMem, Mapper, RunningActivity, RunningProgramActivity, TileQuota,
 };
+use m3::util::math;
 use m3::vfs::{File, FileRef};
 
 use crate::config::AppConfig;

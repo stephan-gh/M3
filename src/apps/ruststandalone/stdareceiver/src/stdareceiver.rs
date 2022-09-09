@@ -25,9 +25,9 @@ mod paging;
 
 use base::cpu;
 use base::log;
-use base::math;
 use base::mem::MsgBuf;
 use base::tcu::{self, EpId, TCU};
+use base::util::math;
 
 const LOG_DEF: bool = true;
 const LOG_DETAIL: bool = false;

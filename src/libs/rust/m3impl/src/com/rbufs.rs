@@ -22,10 +22,10 @@ use crate::com::MemGate;
 use crate::errors::Error;
 use crate::goff;
 use crate::kif::Perm;
-use crate::math;
 use crate::mem::MemMap;
 use crate::syscalls;
 use crate::tiles::Activity;
+use crate::util::math;
 
 static BUFS: LazyStaticRefCell<MemMap> = LazyStaticRefCell::default();
 

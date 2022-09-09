@@ -26,10 +26,10 @@ use crate::errors::{Code, Error};
 use crate::goff;
 use crate::io::{read_object, Read};
 use crate::kif;
-use crate::math;
 use crate::mem::size_of;
 use crate::session::MapFlags;
 use crate::tiles::{Activity, Mapper};
+use crate::util::math;
 use crate::vec;
 use crate::vfs::{BufReader, File, FileRef, Seek, SeekMode};
 

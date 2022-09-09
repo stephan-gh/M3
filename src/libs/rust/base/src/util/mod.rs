@@ -18,6 +18,10 @@
 
 //! Contains utilities
 
+pub mod math;
+pub mod parse;
+pub mod random;
+
 use core::slice;
 
 use crate::libc;

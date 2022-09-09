@@ -21,12 +21,12 @@ use m3::cfg;
 use m3::com::{MemGate, Perm, RecvGate};
 use m3::goff;
 use m3::kif;
-use m3::math;
 use m3::rc::Rc;
 use m3::syscalls;
 use m3::test::WvTester;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity, Tile};
 use m3::time::{CycleInstant, Profiler, Runner};
+use m3::util::math;
 use m3::{println, wv_assert_ok, wv_perf, wv_run_test};
 
 static SEL: StaticCell<kif::CapSel> = StaticCell::new(0);

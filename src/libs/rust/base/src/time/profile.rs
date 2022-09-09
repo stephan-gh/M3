@@ -21,8 +21,8 @@
 use core::fmt;
 
 use crate::col::Vec;
-use crate::math;
 use crate::time::{Duration, Instant};
+use crate::util::math;
 
 /// A container for the measured execution times
 pub struct Results<T: Duration> {

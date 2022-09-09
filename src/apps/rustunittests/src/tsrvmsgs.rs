@@ -19,11 +19,11 @@ use m3::col::String;
 use m3::com::{GateIStream, RecvGate, SendGate};
 use m3::errors::{Code, Error};
 use m3::kif;
-use m3::math::next_log2;
 use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::ServerSession;
 use m3::test::WvTester;
 use m3::tiles::{ActivityArgs, ChildActivity, RunningActivity, Tile};
+use m3::util::math::next_log2;
 use m3::{reply_vmsg, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn WvTester) {

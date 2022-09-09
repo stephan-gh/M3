@@ -39,9 +39,9 @@ use base::goff;
 use base::kif::{PageFlags, PTE};
 use base::libc;
 use base::log;
-use base::math;
 use base::mem::{size_of, GlobAddr};
 use base::tcu::TCU;
+use base::util::math;
 use core::fmt;
 
 use arch::{LEVEL_BITS, LEVEL_CNT, LEVEL_MASK};

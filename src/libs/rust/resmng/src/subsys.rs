@@ -24,12 +24,12 @@ use m3::format;
 use m3::goff;
 use m3::kif::{boot, CapRngDesc, CapType, Perm, FIRST_FREE_SEL};
 use m3::log;
-use m3::math;
 use m3::mem::{size_of, GlobAddr};
 use m3::rc::Rc;
 use m3::server::DEF_MAX_CLIENTS;
 use m3::tcu::TileId;
 use m3::tiles::{Activity, ChildActivity, Tile};
+use m3::util::math;
 
 use crate::childs;
 use crate::config;

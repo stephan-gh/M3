@@ -18,9 +18,9 @@ use m3::errors::{Code, Error};
 use m3::format;
 use m3::goff;
 use m3::kif;
-use m3::parse;
 use m3::rc::Rc;
 use m3::tcu::Label;
+use m3::util::parse;
 
 use crate::config;
 

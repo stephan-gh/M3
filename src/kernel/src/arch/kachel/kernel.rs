@@ -19,7 +19,7 @@ use base::goff;
 use base::io;
 use base::kif::TileDesc;
 use base::machine;
-use base::math;
+use base::util::math;
 
 use core::ptr;
 

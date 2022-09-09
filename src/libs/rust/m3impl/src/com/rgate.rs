@@ -28,11 +28,11 @@ use crate::com::{gate::Gate, RecvBuf, SendGate};
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::kif::INVALID_SEL;
-use crate::math;
 use crate::mem::MsgBuf;
 use crate::syscalls;
 use crate::tcu;
 use crate::tiles::Activity;
+use crate::util::math;
 
 const DEF_MSG_ORD: u32 = 6;
 

@@ -19,9 +19,9 @@
 use m3::col::String;
 use m3::com::{recv_msg, recv_reply, RecvGate, SGateArgs, SendGate};
 use m3::errors::Code;
-use m3::math;
 use m3::mem::MsgBuf;
 use m3::test::WvTester;
+use m3::util::math;
 use m3::{reply_vmsg, send_vmsg, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn WvTester) {

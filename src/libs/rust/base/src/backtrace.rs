@@ -20,7 +20,7 @@
 
 use crate::arch::cfg;
 use crate::arch::cpu;
-use crate::math;
+use crate::util::math;
 
 /// Walks up the stack and stores the return addresses into the given slice and returns the number
 /// of addresses.

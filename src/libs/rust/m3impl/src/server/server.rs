@@ -26,11 +26,11 @@ use crate::kif::{
     CapRngDesc,
 };
 use crate::llog;
-use crate::math;
 use crate::serialize::{M3Deserializer, M3Serializer, SliceSink};
 use crate::server::{SessId, SessionContainer};
 use crate::syscalls;
 use crate::tiles::Activity;
+use crate::util::math;
 
 /// Represents a server that provides a service for clients.
 pub struct Server {

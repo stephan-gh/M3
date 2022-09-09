@@ -31,12 +31,12 @@ use crate::goff;
 use crate::int_enum;
 use crate::io::{Read, Write};
 use crate::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
-use crate::math;
 use crate::rc::Rc;
 use crate::serialize::{M3Deserializer, M3Serializer, VecSink};
 use crate::session::{ClientSession, HashInput, HashOutput, HashSession, MapFlags, Pager};
 use crate::tcu::EpId;
 use crate::tiles::{Activity, ChildActivity};
+use crate::util::math;
 use crate::vfs::{filetable, Fd, File, FileEvent, FileInfo, Map, OpenFlags, Seek, SeekMode, TMode};
 
 int_enum! {

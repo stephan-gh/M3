@@ -21,7 +21,7 @@ use core::fmt;
 use crate::col::DList;
 use crate::errors::{Code, Error};
 use crate::goff;
-use crate::math;
+use crate::util::math;
 
 struct Area {
     addr: goff,

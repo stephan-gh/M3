@@ -26,13 +26,13 @@ use m3::cell::{LazyStaticCell, StaticRefCell};
 use m3::col::{BTreeMap, String, ToString, Vec};
 use m3::com::{GateIStream, RecvGate};
 use m3::errors::{Code, Error};
-use m3::math;
 use m3::net::{log_net, NetLogEvent};
 use m3::rc::Rc;
 use m3::server::{CapExchange, Handler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS};
 use m3::session::NetworkOp;
 use m3::tiles::Activity;
 use m3::time::{TimeDuration, TimeInstant};
+use m3::util::math;
 use m3::{env, reply_vmsg};
 use m3::{log, println};
 

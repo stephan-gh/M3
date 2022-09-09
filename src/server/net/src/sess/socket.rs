@@ -24,12 +24,12 @@ use m3::com::{GateIStream, RecvGate, SendGate};
 use m3::errors::{Code, Error};
 use m3::kif::{CapRngDesc, CapType};
 use m3::net::{log_net, IpAddr, NetLogEvent, Port, Sd, SocketArgs, SocketType, MTU};
-use m3::parse;
 use m3::rc::Rc;
 use m3::serialize::M3Deserializer;
 use m3::server::CapExchange;
 use m3::session::{NetworkOp, ServerSession};
 use m3::tcu;
+use m3::util::parse;
 use m3::vfs::OpenFlags;
 use m3::{log, reply_vmsg, vec};
 

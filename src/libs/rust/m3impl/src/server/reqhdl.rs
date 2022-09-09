@@ -16,8 +16,8 @@
 use crate::cfg;
 use crate::com::{GateIStream, RecvGate};
 use crate::errors::Error;
-use crate::math;
 use crate::serialize::Deserialize;
+use crate::util::math;
 
 /// The default maximum number of clients a service supports
 pub const DEF_MAX_CLIENTS: usize = if cfg::MAX_ACTS < 32 {

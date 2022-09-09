@@ -17,11 +17,12 @@
 
 use crate::com::{MemGate, RecvGate, SendGate};
 use crate::errors::Error;
+use crate::goff;
 use crate::int_enum;
 use crate::kif::{CapRngDesc, CapType};
 use crate::session::ClientSession;
 use crate::tiles::Activity;
-use crate::{goff, math};
+use crate::util::math;
 
 use core::{cmp, fmt};
 

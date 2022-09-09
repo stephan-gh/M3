@@ -29,9 +29,9 @@ use crate::errors::{Code, Error};
 use crate::goff;
 use crate::io::log::TCU;
 use crate::kif::{PageFlags, Perm};
-use crate::math;
 use crate::mem;
 use crate::tmif;
+use crate::util::math;
 
 /// A TCU register
 pub type Reg = u64;

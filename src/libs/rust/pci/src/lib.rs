@@ -22,9 +22,9 @@ use m3::errors::Error;
 use m3::goff;
 use m3::int_enum;
 use m3::kif::{Perm, TileDesc, TileISA, TileType};
-use m3::math;
 use m3::tcu::EpId;
 use m3::tiles::{ChildActivity, RunningDeviceActivity, Tile};
+use m3::util::math;
 
 const EP_INT: EpId = 16;
 const EP_DMA: EpId = 17;

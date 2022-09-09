@@ -23,8 +23,8 @@ use core::u32;
 
 use m3::cell::Cell;
 use m3::libc;
-use m3::math;
 use m3::mem::size_of;
+use m3::util::math;
 
 /// On-disk representation of directory entries.
 #[repr(align(4), C)]

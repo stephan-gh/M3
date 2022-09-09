@@ -21,10 +21,10 @@ use m3::cfg;
 use m3::com::{MGateArgs, MemGate, Perm, Semaphore};
 use m3::errors::Code;
 use m3::goff;
-use m3::math;
 use m3::session::MapFlags;
 use m3::test::WvTester;
 use m3::tiles::{Activity, ChildActivity, RunningActivity, Tile};
+use m3::util::math;
 use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn WvTester) {
