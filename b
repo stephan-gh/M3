@@ -134,7 +134,6 @@ help() {
     echo "                             mode (only available on host), code-coverage info"
     echo "                             is generated. In release mode all that is disabled."
     echo "                             The default is release."
-    echo "    M3_KERNEL:               the kernel to use (kernel or rustkernel)."
     echo "    M3_VERBOSE:              print executed commands in detail during build."
     echo "    M3_VALGRIND:             for runvalgrind: pass arguments to valgrind."
     echo "    M3_CORES:                # of cores to simulate."
@@ -369,14 +368,13 @@ case "$cmd" in
             prog="${cmd#dbg=}"
             M3_WAIT="$prog" ./src/tools/execute.sh "$script" "--debug=${cmd#dbg=}" &
             shpid=$!
-            M3_KERNEL=${M3_KERNEL:-kernel}
 
-            pid=$(pgrep -x "$M3_KERNEL")
+            pid=$(pgrep -x "kernel")
             while [ "$pid" = "" ]; do
                 sleep 1
-                pid=$(pgrep -x "$M3_KERNEL")
+                pid=$(pgrep -x "kernel")
             done
-            if [ "$prog" != "$M3_KERNEL" ]; then
+            if [ "$prog" != "kernel" ]; then
                 line=$(findprog "$pid" "$prog")
                 while [ "$line" = "" ]; do
                     sleep 1
