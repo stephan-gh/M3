@@ -20,12 +20,6 @@
 #![feature(trace_macros)]
 #![no_std]
 
-// init stuff
-#[cfg(not(target_vendor = "host"))]
-pub use arch::init::{env_run, exit};
-#[cfg(target_vendor = "host")]
-pub use arch::init::{exit, rust_deinit, rust_init};
-
 #[macro_use]
 pub mod io;
 #[macro_use]
@@ -35,14 +29,15 @@ pub mod com;
 pub mod net;
 
 pub use base::{
-    backtrace, borrow, boxed, build_vmsg, cell, cfg, col, cpu, elf, env, errors, format, function,
-    goff, impl_boxitem, int_enum, kif, libc, llog, log, mem, quota, rc, serde, serialize, sync,
-    tcu, time, tmif, util, vec,
+    backtrace, borrow, boxed, build_vmsg, cell, cfg, col, cpu, elf, errors, format, function, goff,
+    impl_boxitem, int_enum, kif, libc, llog, log, mem, quota, rc, serde, serialize, sync, tcu,
+    time, tmif, util, vec,
 };
 
 pub mod cap;
 pub mod compat;
 pub mod crypto;
+pub mod env;
 pub mod server;
 pub mod session;
 pub mod syscalls;
@@ -51,4 +46,43 @@ pub mod test;
 pub mod tiles;
 pub mod vfs;
 
-mod arch;
+use core::ptr;
+
+#[no_mangle]
+pub extern "C" fn abort() -> ! {
+    tmif::exit(1);
+}
+
+#[no_mangle]
+pub extern "C" fn exit(_code: i32) -> ! {
+    io::deinit();
+    vfs::deinit();
+
+    tmif::exit(_code);
+}
+
+extern "C" {
+    fn __m3_init_libc(argc: i32, argv: *const *const u8, envp: *const *const u8);
+    fn main() -> i32;
+}
+
+#[no_mangle]
+pub extern "C" fn env_run() {
+    unsafe {
+        __m3_init_libc(0, ptr::null(), ptr::null());
+    }
+    syscalls::init();
+    com::pre_init();
+    tiles::init();
+    io::init();
+    com::init();
+
+    let res = if let Some(cl) = env::get().load_closure() {
+        cl()
+    }
+    else {
+        unsafe { main() }
+    };
+
+    exit(res)
+}

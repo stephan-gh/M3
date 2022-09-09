@@ -15,7 +15,7 @@
 
 use base::cell::{LazyStaticRefCell, StaticCell};
 use base::cfg;
-use base::envdata;
+use base::env;
 use base::io;
 use base::kif::{PageFlags, Perm, TileDesc};
 use base::libc;
@@ -66,9 +66,9 @@ pub extern "C" fn tmcall(state: &mut isr::State) -> *mut libc::c_void {
 }
 
 pub fn init(name: &str) {
-    io::init(envdata::get().tile_id, name);
+    io::init(env::data().tile_id, name);
 
-    if !TileDesc::new_from(envdata::get().tile_desc).has_virtmem() {
+    if !TileDesc::new_from(env::data().tile_desc).has_virtmem() {
         log!(crate::LOG_DEF, "Disabling paging...");
         ::paging::disable_paging();
     }
@@ -85,7 +85,7 @@ pub fn init(name: &str) {
 }
 
 pub fn virt_to_phys(virt: usize) -> (usize, ::paging::Phys) {
-    if !TileDesc::new_from(envdata::get().tile_desc).has_virtmem() {
+    if !TileDesc::new_from(env::data().tile_desc).has_virtmem() {
         (virt, virt as u64)
     }
     else {

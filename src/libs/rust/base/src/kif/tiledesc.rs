@@ -17,7 +17,6 @@
  */
 
 use bitflags::bitflags;
-use cfg_if::cfg_if;
 use core::fmt;
 
 use crate::cfg;
@@ -253,19 +252,12 @@ impl TileDesc {
     }
 
     fn rbuf_base(self) -> usize {
-        cfg_if! {
-            if #[cfg(target_vendor = "host")] {
-                cfg::RBUF_STD_ADDR
-            }
-            else {
-                if self.has_virtmem() {
-                    cfg::RBUF_STD_ADDR
-                }
-                else {
-                    let rbufs = cfg::TILEMUX_RBUF_SIZE + cfg::RBUF_SIZE_SPM + cfg::RBUF_STD_SIZE;
-                    cfg::MEM_OFFSET + self.mem_size() - rbufs
-                }
-            }
+        if self.has_virtmem() {
+            cfg::RBUF_STD_ADDR
+        }
+        else {
+            let rbufs = cfg::TILEMUX_RBUF_SIZE + cfg::RBUF_SIZE_SPM + cfg::RBUF_STD_SIZE;
+            cfg::MEM_OFFSET + self.mem_size() - rbufs
         }
     }
 }

@@ -16,6 +16,7 @@
 #![no_std]
 
 mod backend;
+mod gem5;
 mod partition;
 
 use m3::cap::Selector;
@@ -35,8 +36,8 @@ use m3::session::{BlockNo, BlockRange, DiskOperation, ServerSession};
 use m3::tcu::Label;
 use m3::tiles::Activity;
 
-use backend::BlockDevice;
 use backend::BlockDeviceTrait;
+use gem5::BlockDevice;
 
 pub const LOG_DEF: bool = false;
 pub const LOG_ALL: bool = false;

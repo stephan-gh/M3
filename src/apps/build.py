@@ -1,6 +1,5 @@
 dirs = [
     'allocator',
-    'asciiplay',
     'bench',
     'bsdutils',
     'coreutils',
@@ -19,7 +18,6 @@ dirs = [
     'noop',
     'parchksum',
     'ping',
-    'plasma',
     'queue',
     'rusthello',
     'rustnettests',

@@ -388,8 +388,6 @@ pub fn main() -> i32 {
         let device = driver::E1000Device::new().expect("Failed to create E1000 driver");
         #[cfg(target_vendor = "hw")]
         let device = driver::AXIEthDevice::new().expect("Failed to create AXI ethernet driver");
-        #[cfg(target_vendor = "host")]
-        let device = driver::DevFifo::new(&settings.name);
         driver::DriverInterface::Eth(
             InterfaceBuilder::new(device, Vec::with_capacity(MAX_SOCKETS))
                 .hardware_addr(EthernetAddress::from_bytes(&OWN_MAC).into())

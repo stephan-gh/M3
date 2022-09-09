@@ -58,14 +58,6 @@ generate_config() {
     xmllint --xpath /config/dom/app "$2/boot-all.xml" > "$2/boot.xml" || true
 }
 
-build_params_host() {
-    generate_config "$1" "$M3_OUT" || exit 1
-
-    kargs=$(perl -ne '/<kernel\s.*args="(.*?)"/ && print $1' < "$M3_OUT/boot-all.xml")
-    mods=$(perl -ne 'printf(" '"$bindir"'/%s", $1) if /app\s.*args="([^\/"\s]+).*"/' < "$M3_OUT/boot-all.xml")
-    echo "$bindir/$kargs $M3_OUT/boot.xml$mods"
-}
-
 build_params_gem5() {
     generate_config "$1" "$M3_OUT" || exit 1
 
@@ -239,41 +231,7 @@ build_params_hw() {
     scp "$hwssh:m3/log.txt" "$hwssh:m3/log/pm*" "$M3_OUT"
 }
 
-if [ "$M3_TARGET" = "host" ]; then
-    # ensure that getopt stops on non-options
-    export POSIXLY_CORRECT=1
-
-    # use unique temp directory for this run and remove it afterwards
-    dir=$(mktemp -d)
-    export M3_HOST_TMP=$dir
-    trap 'rm -rf $dir' EXIT ERR INT TERM
-
-    params=$(build_params_host "$script") || exit 1
-
-    if [[ $params == *disk* ]] && [ "$M3_HDD" = "" ]; then
-        ./src/tools/disk.py create "$M3_HDD_PATH" "$build/$M3_FS"
-    fi
-
-    if [ "$debug" = "" ]; then
-        set -m
-    fi
-
-    if [ "$M3_VALGRIND" != "" ]; then
-        "$build/tools/setpgrp" valgrind "$M3_VALGRIND" $params &
-    else
-        "$build/tools/setpgrp" setarch "$(uname -m)" -R $params &
-    fi
-
-    # kill the whole process group on exit; just to be sure
-    kernelpid=$!
-    trap '/bin/kill -- -$kernelpid 2>/dev/null' EXIT ERR INT TERM
-
-    if [ "$debug" = "" ]; then
-        fg
-    else
-        wait
-    fi
-elif [ "$M3_TARGET" = "gem5" ] || [ "$M3_RUN_GEM5" = "1" ]; then
+if [ "$M3_TARGET" = "gem5" ] || [ "$M3_RUN_GEM5" = "1" ]; then
     build_params_gem5 "$script"
 elif [ "$M3_TARGET" = "hw" ]; then
     build_params_hw "$script"
@@ -283,7 +241,3 @@ fi
 
 # ensure that we get into cooked mode again
 stty sane
-
-if [ -f "$build/$M3_FS.out" ]; then
-    "$build/tools/m3fsck" "$build/$M3_FS.out" && echo "FS image '$build/$M3_FS.out' is valid"
-fi

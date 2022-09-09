@@ -20,7 +20,6 @@
 
 use core::fmt;
 
-use crate::arch;
 use crate::cap::{Capability, Selector};
 use crate::cell::LazyReadOnlyCell;
 use crate::col::Vec;
@@ -94,7 +93,7 @@ impl Activity {
 
     /// Returns the id of the tile the activity has been assigned to.
     pub fn tile_id(&self) -> TileId {
-        arch::env::get().tile_id() as TileId
+        crate::env::get().tile_id() as TileId
     }
 
     /// Returns a reference to the activity's kernel memory.

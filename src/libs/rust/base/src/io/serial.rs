@@ -20,9 +20,9 @@
 
 use core::fmt;
 
-use crate::arch;
 use crate::errors::Error;
 use crate::io;
+use crate::machine;
 
 /// The serial line
 pub struct Serial {}
@@ -44,7 +44,7 @@ impl io::Write for Serial {
     fn write(&mut self, mut buf: &[u8]) -> Result<usize, Error> {
         let res = buf.len();
         while !buf.is_empty() {
-            match arch::serial::write(buf) {
+            match machine::write(buf) {
                 Err(e) => return Err(e),
                 Ok(n) => buf = &buf[n..],
             }

@@ -13,15 +13,13 @@
  * General Public License version 2 for more details.
  */
 
-#if defined(__kachel__)
-#    include <stdlib.h>
-#endif
-
 #include <base/Common.h>
 
 #include <m3/EnvVars.h>
 #include <m3/Test.h>
 #include <m3/tiles/ChildActivity.h>
+
+#include <stdlib.h>
 
 #include "../unittests.h"
 
@@ -46,11 +44,7 @@ static void basics() {
 
 static void multi() {
     EnvVars::set("V1", "val1");
-#if defined(__kachel__)
     setenv("V2", "val2", 1);
-#else
-    EnvVars::set("V2", "val2");
-#endif
     EnvVars::set("V2", "val3");
     EnvVars::set("V21", "val=with=eq");
     WVASSERTEQ(EnvVars::count(), 3u);
@@ -72,11 +66,7 @@ static void multi() {
         WVASSERTSTREQ(vars[2], nullptr);
     }
 
-#if defined(__kachel__)
     unsetenv("V21");
-#else
-    EnvVars::remove("V21");
-#endif
     WVASSERTEQ(EnvVars::count(), 1u);
     {
         auto vars = EnvVars::vars();

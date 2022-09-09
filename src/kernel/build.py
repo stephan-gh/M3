@@ -4,5 +4,6 @@ def build(gen, env):
     if env['ISA'] == 'arm':
         env['LINKFLAGS'] += ['-Wl,--whole-archive', '-lisr', '-Wl,--no-whole-archive']
 
-    libs = ['isr', 'thread'] if env['PLATF'] == 'kachel' else ['thread']
-    env.m3_rust_exe(gen, out = 'kernel', libs = libs, dir = None, ldscript = 'isr', varAddr = False)
+    env.m3_rust_exe(
+        gen, out = 'kernel', libs = ['isr', 'thread'], dir = None, ldscript = 'isr', varAddr = False
+    )

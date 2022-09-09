@@ -25,7 +25,6 @@ mod serial;
 pub use self::rdwr::{read_object, Read, Write};
 pub use self::serial::Serial;
 
-use crate::arch;
 use crate::util;
 
 /// Macro for logging (includes a trailing newline)
@@ -98,6 +97,5 @@ pub unsafe extern "C" fn init_rust_io(tile_id: u32, name: *const i8) {
 
 /// Initializes the I/O module
 pub fn init(tile_id: u64, name: &str) {
-    arch::serial::init();
     log::init(tile_id, name);
 }

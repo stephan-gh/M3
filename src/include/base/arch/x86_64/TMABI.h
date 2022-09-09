@@ -29,26 +29,20 @@ public:
 
     static word_t call2(Operation op, UNUSED word_t arg1, UNUSED word_t arg2) {
         word_t res = op;
-#if defined(__gem5__)
         asm volatile("int $63" : "+a"(res) : "c"(arg1), "d"(arg2) : "memory");
-#endif
         return res;
     }
 
     static word_t call3(Operation op, UNUSED word_t arg1, UNUSED word_t arg2, UNUSED word_t arg3) {
         word_t res = op;
-#if defined(__gem5__)
         asm volatile("int $63" : "+a"(res) : "c"(arg1), "d"(arg2), "D"(arg3) : "memory");
-#endif
         return res;
     }
 
     static word_t call4(Operation op, UNUSED word_t arg1, UNUSED word_t arg2, UNUSED word_t arg3,
                         UNUSED word_t arg4) {
         word_t res = op;
-#if defined(__gem5__)
         asm volatile("int $63" : "+a"(res) : "c"(arg1), "d"(arg2), "D"(arg3), "S"(arg4) : "memory");
-#endif
         return res;
     }
 };

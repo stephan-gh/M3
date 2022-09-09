@@ -27,28 +27,20 @@
 extern crate alloc;
 pub extern crate core as _core;
 
-use cfg_if::cfg_if;
-
-cfg_if! {
-    if #[cfg(not(target_vendor = "host"))] {
-        /// The C library
-        pub mod libc {
-            pub use crate::arch::libc::*;
-        }
-    }
-    else {
-        /// The C library
-        pub extern crate libc;
-    }
-}
-
 // Macros
 pub use alloc::{format, vec};
 pub use static_assertions::const_assert;
 
+mod arch;
+
 /// Pointer types for heap allocation
 pub mod boxed {
     pub use alloc::boxed::Box;
+}
+
+/// CPU-specific functions
+pub mod cpu {
+    pub use crate::arch::cpu::*;
 }
 
 /// Thread-safe reference-counting pointers
@@ -64,55 +56,25 @@ pub mod util;
 pub mod backtrace;
 pub mod borrow;
 pub mod cell;
+pub mod cfg;
 pub mod col;
 pub mod elf;
 pub mod env;
 pub mod errors;
 pub mod kif;
+pub mod libc;
+pub mod machine;
 pub mod mem;
 pub mod msgqueue;
 pub mod quota;
 pub mod rc;
 pub mod serialize;
+pub mod tcu;
 pub mod time;
 pub mod tmif;
 
 pub use serde;
 
-mod arch;
-
 /// An offset in a [`GlobAddr`](mem::GlobAddr)
 #[allow(non_camel_case_types)]
 pub type goff = u64;
-
-/// Machine-specific functions
-#[cfg(not(target_vendor = "host"))]
-pub mod machine {
-    pub use crate::arch::machine::*;
-}
-
-/// The target-dependent configuration
-pub mod cfg {
-    pub use crate::arch::cfg::*;
-}
-/// CPU-specific functions
-pub mod cpu {
-    pub use crate::arch::cpu::*;
-}
-/// The Trusted Communication Unit interface
-pub mod tcu {
-    pub use crate::arch::tcu::*;
-}
-
-/// The environment data
-pub mod envdata {
-    int_enum! {
-        pub struct Platform : u64 {
-            const GEM5 = 0;
-            const HW = 1;
-            const HOST = 2;
-        }
-    }
-
-    pub use crate::arch::envdata::*;
-}

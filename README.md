@@ -17,7 +17,6 @@ Currently, M³ runs on the following platforms:
 
 - gem5, by adding a TCU model to gem5.
 - hw, a FPGA-based hardware platform.
-- host, on Linux by using Linux' primitives to simulate the behavior of the TCU and the envisioned system architecture.
 
 Getting Started:
 ----------------
@@ -61,9 +60,9 @@ Finally, before starting M³ on the FPGA, you have to tell M³ on `M_m3` how `M_
 
 Note that the source of the hardware platform is [openly available](https://github.com/Barkhausen-Institut/M3-hardware) as well.
 
-### 4. Cross compiler for gem5 and the hardware platform
+### 4. Cross compiler
 
-For gem5 and the hardware platform, you need to build a cross compiler for the desired ISA. Note that only gem5 supports all three ISAs; the hardware platform only supports RISC-V. You can build the cross compiler as follows:
+You need to build a cross compiler for the desired ISA. Note that only gem5 supports all three ISAs; the hardware platform only supports RISC-V. You can build the cross compiler as follows:
 
     $ cd cross
     $ ./build.sh (x86_64|arm|riscv)

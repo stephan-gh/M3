@@ -32,7 +32,7 @@ mod vma;
 
 use base::cell::{Ref, StaticCell, StaticRefCell};
 use base::cfg;
-use base::envdata;
+use base::env;
 use base::io;
 use base::kif;
 use base::libc;
@@ -95,7 +95,7 @@ pub fn pex_env() -> Ref<'static, TMEnv> {
     TM_ENV.borrow()
 }
 
-pub fn app_env() -> &'static mut envdata::EnvData {
+pub fn app_env() -> &'static mut env::EnvData {
     unsafe { &mut *(cfg::ENV_START as *mut _) }
 }
 

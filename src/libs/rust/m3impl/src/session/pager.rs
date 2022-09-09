@@ -109,7 +109,6 @@ impl Pager {
     }
 
     /// Binds a new pager-session to given selector (for childs).
-    #[cfg(not(target_vendor = "host"))]
     pub(crate) fn new_bind(sess_sel: cap::Selector, sgate_sel: cap::Selector) -> Self {
         let sess = ClientSession::new_bind(sess_sel);
         let sgate = SendGate::new_bind(sgate_sel);

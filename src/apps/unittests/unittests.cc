@@ -30,9 +30,6 @@ int failed;
 
 int main() {
     RUN_SUITE(tsems);
-#if defined(__host__)
-    RUN_SUITE(ttcu);
-#endif
     RUN_SUITE(tenvvars);
     RUN_SUITE(tfsmeta);
     RUN_SUITE(tfs);

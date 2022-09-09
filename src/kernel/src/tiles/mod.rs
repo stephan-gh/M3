@@ -18,6 +18,7 @@
 
 mod activities;
 mod actmng;
+pub mod loader;
 pub mod tilemng;
 mod tilemux;
 

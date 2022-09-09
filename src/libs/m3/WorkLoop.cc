@@ -32,13 +32,10 @@ WorkItem::~WorkItem() {
 }
 
 WorkLoop::~WorkLoop() {
-#if defined(__gem5__)
     RecvGate::upcall().stop();
-#endif
 }
 
 void WorkLoop::multithreaded(UNUSED uint count) {
-#if defined(__gem5__)
     RecvGate::upcall().start(this, [](GateIStream &is) {
         auto &msg = reinterpret_cast<const KIF::Upcall::DefaultUpcall &>(is.message().data);
 
@@ -52,7 +49,6 @@ void WorkLoop::multithreaded(UNUSED uint count) {
 
     for(uint i = 0; i < count; ++i)
         new Thread(thread_startup, this);
-#endif
 }
 
 void WorkLoop::thread_startup(void *arg) {

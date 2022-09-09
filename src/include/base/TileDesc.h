@@ -193,14 +193,10 @@ struct TileDesc {
 
 private:
     uintptr_t rbuf_base() const {
-#if defined(__host__)
-        return RBUF_STD_ADDR;
-#else
         if(has_virtmem())
             return RBUF_STD_ADDR;
         size_t rbufs = TILEMUX_RBUF_SIZE + RBUF_SIZE_SPM + RBUF_STD_SIZE;
         return MEM_OFFSET + mem_size() - rbufs;
-#endif
     }
 
     value_t _value;

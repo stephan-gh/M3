@@ -15,10 +15,6 @@
  */
 
 /// Conditional include of the driver
-#[cfg(target_vendor = "host")]
-#[path = "host/mod.rs"]
-mod inner;
-
 #[cfg(target_vendor = "gem5")]
 #[path = "gem5/mod.rs"]
 mod inner;
@@ -39,8 +35,6 @@ pub enum DriverInterface<'a> {
     Eth(Interface<'a, E1000Device>),
     #[cfg(target_vendor = "hw")]
     Eth(Interface<'a, AXIEthDevice>),
-    #[cfg(target_vendor = "host")]
-    Eth(Interface<'a, DevFifo>),
 }
 
 impl<'a> DriverInterface<'a> {

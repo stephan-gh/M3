@@ -35,8 +35,6 @@ pub const FS: bool = false;
 pub const SERV: bool = false;
 /// Logs TCU operations
 pub const TCU: bool = false;
-/// Logs critical TCU errors (only on host)
-pub const TCU_ERR: bool = true;
 /// Logs networking events
 pub const NET: bool = false;
 /// Logs global<->phys address translations

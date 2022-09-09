@@ -48,7 +48,6 @@ int_enum! {
     }
 }
 
-#[cfg(not(target_vendor = "host"))]
 pub(crate) fn get_result(res: isize) -> Result<usize, Error> {
     match res {
         e if e < 0 => Err(Error::from(-e as u32)),

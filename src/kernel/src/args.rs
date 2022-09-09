@@ -15,16 +15,12 @@
 
 use base::cell::{LazyStaticRefCell, Ref};
 use base::cfg;
-use base::col::{String, ToString, Vec};
+use base::col::Vec;
 use base::env;
 
 #[derive(Default)]
 pub struct Args {
     pub kmem: usize,
-    pub fs_image: Option<String>,
-    pub net_bridge: Option<String>,
-    pub disk: bool,
-    pub free: Vec<String>,
 }
 
 static ARGS: LazyStaticRefCell<Args> = LazyStaticRefCell::default();
@@ -45,17 +41,7 @@ pub fn parse() {
     let mut i = 1;
     let argv: Vec<&str> = env::args().collect();
     while i < argv.len() {
-        if argv[i] == "-f" {
-            let image = argv.get(i + 1).unwrap_or_else(|| usage());
-            args.fs_image = Some((*image).to_string());
-            i += 1;
-        }
-        else if argv[i] == "-b" {
-            let bridge = argv.get(i + 1).unwrap_or_else(|| usage());
-            args.net_bridge = Some((*bridge).to_string());
-            i += 1;
-        }
-        else if argv[i] == "-m" {
+        if argv[i] == "-m" {
             let size_str = argv.get(i + 1).unwrap_or_else(|| usage());
             let size = parse_size(size_str).unwrap_or_else(|| usage());
             if size <= cfg::FIXED_KMEM {
@@ -63,12 +49,6 @@ pub fn parse() {
             }
             args.kmem = size;
             i += 1;
-        }
-        else if argv[i] == "-d" {
-            args.disk = true;
-        }
-        else {
-            args.free.push(argv[i].to_string());
         }
         i += 1;
     }
@@ -78,11 +58,8 @@ pub fn parse() {
 
 fn usage() -> ! {
     panic!(
-        "\nUsage: {} [-m <kmem>] [-f <fsimg>] [-b <bridge>] [-d]
-          -m: the kernel memory size (> FIXED_KMEM)
-          -f: the file system image to load (host only)
-          -b: the network bridge to create (host only)
-          -d: enable disk device (host only)",
+        "\nUsage: {} [-m <kmem>]
+          -m: the kernel memory size (> FIXED_KMEM)",
         env::args().next().unwrap()
     );
 }

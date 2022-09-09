@@ -22,7 +22,6 @@ use base::kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL};
 
 use core::mem::MaybeUninit;
 
-use crate::arch;
 use crate::build_vmsg;
 use crate::cap::Selector;
 use crate::cell::{LazyStaticRefCell, Ref, StaticRefCell};
@@ -649,7 +648,7 @@ pub fn noop() -> Result<(), Error> {
 }
 
 pub(crate) fn init() {
-    let env = arch::env::get();
+    let env = crate::env::get();
     SGATE.set(SendGate::new_def(
         INVALID_SEL,
         env.first_std_ep() + SYSC_SEP_OFF,

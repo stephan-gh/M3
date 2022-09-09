@@ -54,4 +54,23 @@ OwnActivity::~OwnActivity() {
     _resmng.reset();
 }
 
+void OwnActivity::init_state() {
+    _resmng.reset(new ResMng(env()->rmng_sel));
+
+    // it's initially 0. make sure it's at least the first usable selector
+    _next_sel = Math::max<uint64_t>(KIF::FIRST_FREE_SEL, env()->first_sel);
+    _eps_start = env()->first_std_ep;
+    _id = env()->act_id;
+}
+
+void OwnActivity::init_fs() {
+    if(env()->pager_sess)
+        _pager = Reference<Pager>(new Pager(env()->pager_sess, env()->pager_sgate));
+    _ms.reset(MountTable::unserialize(reinterpret_cast<const void *>(env()->mounts_addr),
+                                      env()->mounts_len));
+    _fds.reset(
+        FileTable::unserialize(reinterpret_cast<const void *>(env()->fds_addr), env()->fds_len));
+    memcpy(_data, reinterpret_cast<const void *>(env()->data_addr), env()->data_len);
+}
+
 }

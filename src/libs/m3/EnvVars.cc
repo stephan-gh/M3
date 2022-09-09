@@ -26,56 +26,48 @@
 
 namespace m3 {
 
-// on host, __environ refers to the host-env-vars, not ours.
-#if defined(__host__)
-#    define environ (reinterpret_cast<char **&>(env()->envp))
-// on kachel, __environ is provided by musl and we want to compatible so that applications can use
-// setenv/EnvVars::set etc. interchangeably.
-#else
 extern "C" char **__environ;
-#    define environ __environ
-#endif
 
 static bool copied = false;
 
 static void env_vars_dealloc() {
     assert(copied);
-    char **e = environ;
+    char **e = __environ;
     for(size_t i = 0; e && *e; ++e, ++i)
-        free(environ[i]);
-    free(environ);
-    environ = nullptr;
+        free(__environ[i]);
+    free(__environ);
+    __environ = nullptr;
 }
 
 void EnvVars::append(char *pair) {
     size_t total = count();
     // we need two more slots; the new var and null-termination
-    environ = static_cast<char **>(realloc(environ, (total + 2) * sizeof(char *)));
-    assert(environ != nullptr);
-    environ[total] = pair;
-    environ[total + 1] = nullptr;
+    __environ = static_cast<char **>(realloc(__environ, (total + 2) * sizeof(char *)));
+    assert(__environ != nullptr);
+    __environ[total] = pair;
+    __environ[total + 1] = nullptr;
 }
 
 void EnvVars::copy() {
     if(!copied) {
         copied = true;
-        char **old = environ;
+        char **old = __environ;
         // allocate array with sufficient slots
         size_t total = count();
-        environ = static_cast<char **>(malloc((total + 1) * sizeof(char *)));
-        assert(environ != nullptr);
+        __environ = static_cast<char **>(malloc((total + 1) * sizeof(char *)));
+        assert(__environ != nullptr);
 
         // add vars
         char **e = old;
         for(size_t i = 0; e && *e; ++e, ++i)
-            environ[i] = strdup(*e);
-        environ[total] = nullptr;
+            __environ[i] = strdup(*e);
+        __environ[total] = nullptr;
         atexit(env_vars_dealloc);
     }
 }
 
 char **EnvVars::find_var(const char *key, size_t key_len) {
-    char **e = environ;
+    char **e = __environ;
     for(; e && *e; ++e) {
         if(strncmp(*e, key, key_len) == 0 && (*e)[key_len] == '=')
             return e;
@@ -85,14 +77,14 @@ char **EnvVars::find_var(const char *key, size_t key_len) {
 
 size_t EnvVars::count() {
     // always count them, because the musl implementation could have changed it in the meantime
-    char **e = environ;
+    char **e = __environ;
     while(e && *e)
         e++;
-    return static_cast<size_t>(e - environ);
+    return static_cast<size_t>(e - __environ);
 }
 
 const char *const *EnvVars::vars() {
-    return environ;
+    return __environ;
 }
 
 const char *EnvVars::get(const char *key) {
@@ -136,10 +128,10 @@ void EnvVars::remove(const char *key) {
         size_t total = count();
         free(*var);
         // move following backwards
-        size_t following = static_cast<size_t>(var - environ);
+        size_t following = static_cast<size_t>(var - __environ);
         memmove(var, var + 1, (total - following - 1) * sizeof(char *));
         // null-termination
-        environ[total - 1] = nullptr;
+        __environ[total - 1] = nullptr;
     }
 }
 

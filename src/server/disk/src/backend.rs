@@ -40,13 +40,3 @@ pub trait BlockDeviceTrait {
         bytes: usize,
     ) -> Result<(), Error>;
 }
-
-#[cfg(target_vendor = "host")]
-#[path = "host/mod.rs"]
-mod backend_impl;
-
-#[cfg(not(target_vendor = "host"))]
-#[path = "gem5/mod.rs"]
-mod backend_impl;
-
-pub use self::backend_impl::BlockDevice;

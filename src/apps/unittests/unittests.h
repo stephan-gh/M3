@@ -26,9 +26,6 @@
     name();                                                             \
     m3::cout << "\n";
 
-#if defined(__host__)
-void ttcu();
-#endif
 void tenvvars();
 void tfsmeta();
 void tfs();

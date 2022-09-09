@@ -5,10 +5,10 @@ if [ -z "$M3_BUILD" ]; then
     M3_BUILD='release'
 fi
 if [ -z "$M3_TARGET" ]; then
-    M3_TARGET='host'
+    M3_TARGET='gem5'
 fi
 if [ -z "$M3_ISA" ]; then
-    M3_ISA='x86_64'
+    M3_ISA='riscv'
 fi
 if [ -z "$M3_OUT" ]; then
     M3_OUT="run"
@@ -21,35 +21,29 @@ if [ "$M3_TARGET" = "gem5" ]; then
     fi
 elif [ "$M3_TARGET" = "hw" ]; then
     M3_ISA="riscv"
-elif [ "$M3_TARGET" = "host" ]; then
-    M3_ISA=$(uname -m)
-    if [ "$M3_ISA" = "armv7l" ]; then
-        M3_ISA="arm"
-    fi
 else
     echo "Target $M3_TARGET not supported." >&2 && exit 1
+fi
+
+if [ "$M3_BUILD" != "debug" ] && [ "$M3_BUILD" != "release" ]; then
+    echo "Build mode $M3_BUILD not supported." >&2 && exit 1
 fi
 
 export M3_BUILD M3_TARGET M3_ISA M3_OUT
 
 # determine cross compiler and rust ABI based on target and ISA
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$build/bin"
-crossprefix=''
-if [ "$M3_TARGET" = "gem5" ] || [ "$M3_TARGET" = "hw" ]; then
-    crossdir="./build/cross-$M3_ISA/bin"
-    if [ "$M3_ISA" = "arm" ]; then
-        crossprefix="$crossdir/arm-none-eabi-"
-    elif [ "$M3_ISA" = "riscv" ]; then
-        crossprefix="$crossdir/riscv64-unknown-elf-"
-    else
-        crossprefix="$crossdir/x86_64-elf-m3-"
-    fi
-    export PATH=$crossdir:$PATH
+crossdir="./build/cross-$M3_ISA/bin"
+if [ "$M3_ISA" = "arm" ]; then
+    crossprefix="$crossdir/arm-none-eabi-"
+elif [ "$M3_ISA" = "riscv" ]; then
+    crossprefix="$crossdir/riscv64-unknown-elf-"
+else
+    crossprefix="$crossdir/x86_64-elf-m3-"
 fi
+export PATH=$crossdir:$PATH
 if [ "$M3_TARGET" = "gem5" ] && [ "$M3_ISA" = "arm" ]; then
     rustabi='musleabi'
-elif [ "$M3_BUILD" = "coverage" ]; then
-    rustabi='cov'
 else
     rustabi='musl'
 fi
@@ -61,13 +55,6 @@ export RUST_TARGET=$M3_ISA-linux-$M3_TARGET-$rustabi
 export RUST_TARGET_PATH=$rusttoolchain
 export CARGO_TARGET_DIR=$rustbuild
 export XBUILD_SYSROOT_PATH=$CARGO_TARGET_DIR/sysroot
-if [ "$M3_BUILD" = "coverage" ]; then
-    if [ "$M3_TARGET" != "host" ]; then
-        echo "Coverage mode is only supported with M3_TARGET=host." >&2 && exit 1
-    fi
-    # we need to disable incremental compilation to use -Zprofile=yes
-    export CARGO_INCREMENTAL=0
-fi
 
 build=build/$M3_TARGET-$M3_ISA-$M3_BUILD
 bindir=$build/bin/
@@ -77,7 +64,7 @@ help() {
     echo ""
     echo "This is a convenience script that is responsible for building everything"
     echo "and running the specified command afterwards. The most important environment"
-    echo "variables that influence its behaviour are M3_TARGET=(host|gem5|hw),"
+    echo "variables that influence its behaviour are M3_TARGET=(gem5|hw),"
     echo "M3_ISA=(x86_64|arm|riscv) [on gem5 only], and M3_BUILD=(debug|release|coverage)."
     echo ""
     echo "The flag -n skips the build and executes the given command directly. This"
@@ -87,7 +74,6 @@ help() {
     echo "    ninja ...:               run ninja with given arguments."
     echo "    run <script>:            run the specified <script>. See directory boot."
     echo "    rungem5 <script>:        run the specified <script> on gem5. See directory boot."
-    echo "    runvalgrind <script>:    run the specified script in valgrind."
     echo "    clippy:                  run clippy for rust code."
     echo "    doc:                     generate rust documentation."
     echo "    fmt:                     run rustfmt for rust code."
@@ -111,10 +97,6 @@ help() {
     echo "    snapshot=<progs> <time>: prints the stacktrace of all programs at timestamp"
     echo "                             <time>. <progs> are the binary names for the symbols."
     echo "                             stdin expects the gem5.log with Exec,ExecPC enabled."
-    echo "    coverage:                generate code-coverage report. This command is only"
-    echo "                             available in coverage mode. It requires to first run"
-    echo "                             the system to collect the information. Note that this"
-    echo "                             command relies on the grcov tool."
     echo "    mkfs=<fsimg> <dir> ...:  create m3-fs in <fsimg> with content of <dir>"
     echo "    shfs=<fsimg> ...:        show m3-fs in <fsimg>"
     echo "    fsck=<fsimg> ...:        run m3fsck on <fsimg>"
@@ -123,19 +105,14 @@ help() {
     echo "    list:                    list the link-address of all programs"
     echo ""
     echo "Environment variables:"
-    echo "    M3_TARGET:               the target. Either 'host' for using the Linux-based"
-    echo "                             coarse-grained simulator, or 'gem5'. The default is"
-    echo "                             'host'."
+    echo "    M3_TARGET:               the target. Either 'gem5' or 'hw', default is 'gem5'."
     echo "    M3_ISA:                  the ISA to use. On gem5, 'arm', 'riscv', and 'x86_64'"
     echo "                             is supported. On other targets, it is ignored."
-    echo "    M3_BUILD:                the build-type. Either debug, coverage, or release."
-    echo "                             In debug mode optimizations are disabled, debug infos"
-    echo "                             are available and assertions are active. In coverage"
-    echo "                             mode (only available on host), code-coverage info"
-    echo "                             is generated. In release mode all that is disabled."
-    echo "                             The default is release."
+    echo "    M3_BUILD:                the build-type. Either debug or release. In debug mode"
+    echo "                             optimizations are disabled, debug infos are available,"
+    echo "                             and assertions are active. In release mode all that is"
+    echo "                             disabled. The default is release."
     echo "    M3_VERBOSE:              print executed commands in detail during build."
-    echo "    M3_VALGRIND:             for runvalgrind: pass arguments to valgrind."
     echo "    M3_CORES:                # of cores to simulate."
     echo "    M3_FS:                   The filesystem to use (filename only)."
     echo "    M3_HDD:                  The hard drive image to use (filename only)."
@@ -219,77 +196,22 @@ if [ $skipbuild -eq 0 ]; then
     }
 fi
 
-run_on_host() {
-    echo -n > $M3_OUT/log.txt
-    tail -f $M3_OUT/log.txt &
-    tailpid=$!
-    trap 'stty sane && kill $tailpid' INT
-    ./src/tools/execute.sh "$1"
-    kill $tailpid
-}
-
-childpids() {
-    n=0
-    for pid in $(ps h -o pid --ppid "$1"); do
-        if [ $n -gt 0 ]; then
-            echo -n ","
-        fi
-        echo -n "$pid"
-        list=$(childpids "$pid")
-        if [ "$list" != "" ]; then
-            echo -n ",$list"
-        fi
-        n=$((n + 1))
-    done
-}
-
-findprog() {
-    pids=$(childpids "$1")
-    if [ "$pids" != "" ]; then
-        # shellcheck disable=SC2009
-        ps hww -o pid,cmd -p "$pids" | grep "^\s*[[:digit:]]* [^ ]*$2\b"
-    fi
-}
-
 # run the specified command, if any
 case "$cmd" in
     run)
-        if [ "$M3_TARGET" = "host" ]; then
-            run_on_host "$script"
+        if [ "$DBG_GEM5" = "1" ]; then
+            ./src/tools/execute.sh "$script"
         else
-            if [ "$DBG_GEM5" = "1" ]; then
-                ./src/tools/execute.sh "$script"
-            else
-                ./src/tools/execute.sh "$script" 2>&1 | tee $M3_OUT/log.txt
-            fi
+            ./src/tools/execute.sh "$script" 2>&1 | tee $M3_OUT/log.txt
         fi
         ;;
 
     rungem5)
-        if [ "$M3_TARGET" = "gem5" ] || [ "$M3_TARGET" = "hw" ]; then
-            M3_RUN_GEM5=1 ./src/tools/execute.sh "$script" 2>&1 | tee $M3_OUT/log.txt
-        else
-            echo "Not supported"
-        fi
-        ;;
-
-    runvalgrind)
-        if [ "$M3_TARGET" = "host" ]; then
-            export M3_VALGRIND=${M3_VALGRIND:-"--leak-check=full"}
-            run_on_host "$script"
-        else
-            echo "Not supported"
-        fi
+        M3_RUN_GEM5=1 ./src/tools/execute.sh "$script" 2>&1 | tee $M3_OUT/log.txt
         ;;
 
     clippy)
         while IFS= read -r -d '' f; do
-            # some crates can't be built for host
-            if [ "$M3_TARGET" = "host" ] &&
-                ( [[ $f =~ "tilemux" ]] || [[ $f =~ "paging" ]] || [[ $f =~ "isr" ]] ||
-                  [[ $f =~ "stdareceiver" ]] || [[ $f =~ "stdasender" ]] ); then
-                continue;
-            fi
             # vmtest only works on RISC-V
             if [ "$M3_ISA" != "riscv" ] && [[ $f =~ "vmtest" ]]; then
                 continue;
@@ -314,10 +236,6 @@ case "$cmd" in
         export RUSTDOCFLAGS=$RUSTFLAGS
         for lib in src/libs/rust/*; do
             if [ -d "$lib" ]; then
-                # some crates can't be built for host
-                if [ "$M3_TARGET" = "host" ] && [[ $lib =~ "isr" ]]; then
-                    continue;
-                fi
                 ( cd "$lib" && cargo doc -Z build-std=core,alloc --target $RUST_TARGET )
             fi
         done
@@ -352,48 +270,7 @@ case "$cmd" in
         ;;
 
     dbg=*)
-        if [ "$M3_TARGET" = "host" ]; then
-            # does not work in release mode
-            if [ "$M3_BUILD" = "release" ]; then
-                echo "Only supported with M3_BUILD=debug or M3_BUILD=coverage."
-                exit 1
-            fi
-
-            # ensure that we can ptrace non-child-processes
-            if [ "$(cat /proc/sys/kernel/yama/ptrace_scope)" = "1" ]; then
-                echo "We need to enable ptrace for non-child processes via sudo first:"
-                echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope || exit 1
-            fi
-
-            prog="${cmd#dbg=}"
-            M3_WAIT="$prog" ./src/tools/execute.sh "$script" "--debug=${cmd#dbg=}" &
-            shpid=$!
-
-            pid=$(pgrep -x "kernel")
-            while [ "$pid" = "" ]; do
-                sleep 1
-                pid=$(pgrep -x "kernel")
-            done
-            if [ "$prog" != "kernel" ]; then
-                line=$(findprog "$pid" "$prog")
-                while [ "$line" = "" ]; do
-                    sleep 1
-                    line=$(findprog "$pid" "$prog")
-                done
-                pid=$(findprog "$pid" "$prog" | xargs | cut -d ' ' -f 1)
-            fi
-
-            tmp=$(mktemp)
-            {
-                echo "display/i \$pc"
-                echo "b main"
-                echo "set var wait_for_debugger = 0"
-            } > "$tmp"
-            rust-gdb --tui "$build/bin/$prog" "$pid" --command="$tmp"
-
-            kill $shpid
-            rm "$tmp"
-        elif [ "$M3_TARGET" = "gem5" ] || [ "$M3_RUN_GEM5" = "1" ]; then
+        if [ "$M3_TARGET" = "gem5" ] || [ "$M3_RUN_GEM5" = "1" ]; then
             truncate --size 0 $M3_OUT/log.txt
             ./src/tools/execute.sh "$script" "--debug=${cmd#dbg=}" 1>$M3_OUT/log.txt 2>&1 &
 
@@ -470,15 +347,6 @@ case "$cmd" in
 
             RUST_GDB=${crossprefix}gdb rust-gdb --tui "$symbols" "--command=$gdbcmd"
         fi
-        ;;
-
-    coverage)
-        if [ "$M3_BUILD" != "coverage" ]; then
-            echo "Only support for M3_BUILD=coverage." >&2 && exit 1
-        fi
-        echo "Generating code-coverage report..."
-        grcov . -s . --binary-path build -t html --ignore="platform/*" --ignore-not-existing -o $build/coverage
-        echo "You find the results in $(readlink -f $build/coverage/index.html)"
         ;;
 
     dis=*)

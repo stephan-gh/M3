@@ -196,7 +196,6 @@ fn create_mgate(t: &mut dyn WvTester) {
     }
 
     // the TCU region is off limits
-    #[cfg(not(target_vendor = "host"))]
     wv_assert_err!(
         t,
         syscalls::create_mgate(
@@ -446,7 +445,6 @@ fn alloc_ep(t: &mut dyn WvTester) {
 
     // any EP
     let ep = wv_assert_ok!(syscalls::alloc_ep(sel, Activity::own().sel(), TOTAL_EPS, 1));
-    #[cfg(not(target_vendor = "host"))]
     wv_assert!(t, ep >= FIRST_USER_EP);
     wv_assert!(t, ep < TOTAL_EPS);
     wv_assert_ok!(Activity::own().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));

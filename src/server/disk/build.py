@@ -1,2 +1,3 @@
 def build(gen, env):
-    env.m3_rust_exe(gen, out = 'disk', dir = 'sbin')
+    if env['TGT'] == 'gem5':
+        env.m3_rust_exe(gen, out = 'disk', dir = 'sbin')

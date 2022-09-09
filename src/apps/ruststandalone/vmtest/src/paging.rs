@@ -15,7 +15,7 @@
 
 use base::cell::{LazyStaticCell, LazyStaticRefCell, StaticCell};
 use base::cfg;
-use base::envdata;
+use base::env;
 use base::errors::Error;
 use base::goff;
 use base::kif::{PageFlags, TileDesc, PTE};
@@ -61,7 +61,7 @@ static PT_POS: LazyStaticCell<goff> = LazyStaticCell::default();
 static ASPACE: LazyStaticRefCell<AddrSpace<PTAllocator>> = LazyStaticRefCell::default();
 
 pub fn init() {
-    assert!(TileDesc::new_from(envdata::get().tile_desc).has_virtmem());
+    assert!(TileDesc::new_from(env::data().tile_desc).has_virtmem());
 
     let (mem_tile, mem_base, mem_size, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
 

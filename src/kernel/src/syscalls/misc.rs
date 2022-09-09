@@ -23,7 +23,6 @@ use base::mem::MsgBuf;
 use base::rc::Rc;
 use base::tcu;
 
-use crate::arch::loader;
 use crate::cap::{Capability, KObject};
 use crate::cap::{EPObject, SemObject};
 use crate::ktcu;
@@ -537,20 +536,12 @@ pub fn activity_ctrl_async(
     let actcap = get_kobj!(act, r.act, Activity).upgrade().unwrap();
 
     match r.op {
-        kif::syscalls::ActivityOp::INIT => {
-            #[cfg(target_vendor = "host")]
-            ktcu::set_mem_base(actcap.tile_id(), r.arg as usize);
-            if let Err(e) = loader::finish_start(&actcap) {
-                sysc_err!(e.code(), "Unable to finish init");
-            }
-        },
-
         kif::syscalls::ActivityOp::START => {
             if Rc::ptr_eq(act, &actcap) {
                 sysc_err!(Code::InvArgs, "Activity can't start itself");
             }
 
-            if let Err(e) = actcap.start_app_async(Some(r.arg as i32)) {
+            if let Err(e) = actcap.start_app_async() {
                 sysc_err!(e.code(), "Unable to start Activity");
             }
         },
@@ -609,8 +600,7 @@ pub fn reset_stats(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(),
     sysc_log!(act, "reset_stats()",);
 
     for tile in platform::user_tiles() {
-        // ignore errors here; don't unwrap because it will do nothing on host
-        tilemng::tilemux(tile).reset_stats().ok();
+        tilemng::tilemux(tile).reset_stats().unwrap();
     }
 
     reply_success(msg);

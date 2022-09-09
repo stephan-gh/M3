@@ -34,7 +34,6 @@ use crate::tiles::INVAL_ID;
 pub struct TileMux {
     tile: SRc<TileObject>,
     acts: Vec<ActId>,
-    #[cfg(not(target_vendor = "host"))]
     queue: base::boxed::Box<crate::com::SendQueue>,
     pmp: Vec<Rc<EPObject>>,
     eps: BitVec,
@@ -59,20 +58,17 @@ impl TileMux {
         let mut tilemux = TileMux {
             tile: tile_obj,
             acts: Vec::new(),
-            #[cfg(not(target_vendor = "host"))]
             queue: crate::com::SendQueue::new(crate::com::QueueId::TileMux(tile), tile),
             pmp,
             eps: BitVec::new(tcu::AVAIL_EPS as usize),
         };
 
-        #[cfg(not(target_vendor = "host"))]
         tilemux.eps.set(0); // first EP is reserved for TileMux's memory region
 
         for ep in tcu::PMEM_PROT_EPS as EpId..tcu::FIRST_USER_EP {
             tilemux.eps.set(ep as usize);
         }
 
-        #[cfg(not(target_vendor = "host"))]
         if platform::tile_desc(tile).supports_tilemux() {
             tilemux.init();
         }
@@ -93,7 +89,6 @@ impl TileMux {
         self.acts.retain(|id| *id != act);
     }
 
-    #[cfg(not(target_vendor = "host"))]
     fn init(&mut self) {
         use base::cfg;
 
@@ -112,7 +107,7 @@ impl TileMux {
         .unwrap();
 
         // configure receive EP
-        let mut rbuf = platform::rbuf_tilemux(self.tile_id());
+        let mut rbuf = cfg::TILEMUX_RBUF_SPACE as goff;
         ktcu::config_remote_ep(self.tile_id(), tcu::KPEX_REP, |regs| {
             ktcu::config_recv(
                 regs,
@@ -347,7 +342,6 @@ impl TileMux {
     }
 }
 
-#[cfg(not(target_vendor = "host"))]
 impl TileMux {
     pub fn handle_call_async(tilemux: RefMut<'_, Self>, msg: &tcu::Message) {
         use base::serialize::M3Deserializer;
@@ -616,98 +610,5 @@ impl TileMux {
         else {
             Err(Error::new(code))
         }
-    }
-}
-
-#[cfg(target_vendor = "host")]
-impl TileMux {
-    pub fn update_eps(&mut self) -> Result<(), Error> {
-        ktcu::update_eps(self.tile_id())
-    }
-
-    pub fn activity_init_async(
-        _tilemux: RefMut<'_, Self>,
-        _act: ActId,
-        _time_quota: quota::Id,
-        _pt_quota: quota::Id,
-        _eps_start: EpId,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
-
-    pub fn activity_ctrl_async(
-        _tilemux: RefMut<'_, Self>,
-        _act: ActId,
-        _ctrl: base::kif::tilemux::ActivityOp,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
-
-    pub fn derive_quota_async(
-        _tilemux: RefMut<'_, Self>,
-        _parent_time: quota::Id,
-        _parent_pts: quota::Id,
-        _time: Option<u64>,
-        _pts: Option<usize>,
-    ) -> Result<(quota::Id, quota::Id), Error> {
-        Ok((0, 0))
-    }
-
-    pub fn get_quota_async(
-        _tilemux: RefMut<'_, Self>,
-        _time: quota::Id,
-        _pts: quota::Id,
-    ) -> Result<(quota::Quota<u64>, quota::Quota<usize>), Error> {
-        Ok((quota::Quota::default(), quota::Quota::default()))
-    }
-
-    pub fn set_quota_async(
-        _tilemux: RefMut<'_, Self>,
-        _id: quota::Id,
-        _time: u64,
-        _pts: usize,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
-
-    pub fn remove_quotas_async(
-        _tilemux: RefMut<'_, Self>,
-        _time: Option<quota::Id>,
-        _pts: Option<quota::Id>,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
-
-    pub fn map_async(
-        _tilemux: RefMut<'_, Self>,
-        _act: ActId,
-        _virt: goff,
-        _glob: GlobAddr,
-        _pages: usize,
-        _perm: kif::PageFlags,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
-
-    pub fn unmap_async(
-        _tilemux: RefMut<'_, Self>,
-        _act: ActId,
-        _virt: goff,
-        _pages: usize,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
-
-    pub fn notify_invalidate(&mut self, _act: ActId, _ep: EpId) -> Result<(), Error> {
-        Ok(())
-    }
-
-    fn send_sidecall<R: core::fmt::Debug>(
-        &mut self,
-        _act: Option<ActId>,
-        _req: &MsgBuf,
-        _msg: &R,
-    ) -> Result<thread::Event, Error> {
-        Err(Error::new(Code::NotSup))
     }
 }

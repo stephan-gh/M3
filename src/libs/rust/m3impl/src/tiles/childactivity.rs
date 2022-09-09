@@ -22,11 +22,9 @@ use core::cmp;
 use core::fmt;
 use core::ops::{Deref, DerefMut};
 
-use crate::arch;
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::cell::Cell;
 use crate::col::{String, ToString, Vec};
-use crate::env;
 use crate::errors::Error;
 use crate::kif;
 use crate::kif::{CapRngDesc, CapType};
@@ -35,7 +33,8 @@ use crate::serialize::{M3Serializer, VecSink};
 use crate::session::{Pager, ResMng};
 use crate::syscalls;
 use crate::tiles::{
-    Activity, DefaultMapper, KMem, Mapper, RunningDeviceActivity, RunningProgramActivity, Tile,
+    loader, Activity, DefaultMapper, KMem, Mapper, RunningDeviceActivity, RunningProgramActivity,
+    Tile,
 };
 use crate::vfs::{BufReader, Fd, File, FileRef, OpenFlags, VFS};
 
@@ -284,7 +283,7 @@ impl ChildActivity {
     /// The method returns the [`RunningProgramActivity`] on success that can be used to wait for
     /// the functions completeness or to stop it.
     pub fn run(self, func: fn() -> i32) -> Result<RunningProgramActivity, Error> {
-        let args = env::args().collect::<Vec<_>>();
+        let args = crate::env::args().collect::<Vec<_>>();
         let file = VFS::open(args[0], OpenFlags::RX | OpenFlags::NEW_SESS)?;
         let mut mapper = DefaultMapper::new(self.tile_desc().has_virtmem());
 
@@ -319,7 +318,6 @@ impl ChildActivity {
         self.do_exec_file(mapper, file, args, None)
     }
 
-    #[cfg(not(target_vendor = "host"))]
     #[allow(unused_mut)]
     fn do_exec_file<S: AsRef<str>>(
         mut self,
@@ -337,27 +335,27 @@ impl ChildActivity {
 
         let mut file = BufReader::new(file);
 
-        let mut senv = arch::env::EnvData::default();
+        let mut senv = crate::env::EnvData::default();
 
         let env_page_off = (cfg::ENV_START & !cfg::PAGE_MASK) as goff;
         let mem = self.get_mem(env_page_off, cfg::ENV_SIZE as goff, kif::Perm::RW)?;
 
         {
             // load program segments
-            senv.set_platform(arch::env::get().platform());
+            senv.set_platform(crate::env::get().platform());
             senv.set_sp(self.tile_desc().stack_top());
-            senv.set_entry(arch::loader::load_program(&self, mapper, &mut file)?);
+            senv.set_entry(loader::load_program(&self, mapper, &mut file)?);
 
             // write args
             let mut off = cfg::ENV_START + mem::size_of_val(&senv);
             senv.set_argc(args.len());
-            senv.set_argv(arch::loader::write_arguments(&mem, &mut off, args)?);
+            senv.set_argv(loader::write_arguments(&mem, &mut off, args)?);
 
             // write env vars
-            senv.set_envp(arch::loader::write_arguments(
+            senv.set_envp(loader::write_arguments(
                 &mem,
                 &mut off,
-                env::vars_raw(),
+                crate::env::vars_raw(),
             )?);
 
             // write file table
@@ -433,88 +431,6 @@ impl ChildActivity {
         // go!
         let act = RunningProgramActivity::new(self, file);
         act.start().map(|_| act)
-    }
-
-    #[cfg(target_vendor = "host")]
-    fn do_exec_file<S: AsRef<str>>(
-        self,
-        _mapper: &mut dyn Mapper,
-        mut file: FileRef<dyn File>,
-        args: &[S],
-        closure: Option<usize>,
-    ) -> Result<RunningProgramActivity, Error> {
-        use crate::errors::Code;
-        use crate::libc;
-
-        self.obtain_files_and_mounts()?;
-
-        let path = arch::loader::copy_file(&mut file)?;
-
-        let mut p2c = arch::loader::Channel::new()?;
-        let mut c2p = arch::loader::Channel::new()?;
-
-        match unsafe { libc::fork() } {
-            -1 => Err(Error::new(Code::OutOfMem)),
-
-            0 => {
-                // wait until the env file has been written by the kernel
-                p2c.wait();
-
-                let pid = unsafe { libc::getpid() };
-
-                // tell child about fd to notify parent if TCU is ready
-                arch::loader::write_env_values(pid, "tcurdy", &[c2p.fds()[1] as u64]);
-
-                // write nextsel, eps, rmng, and kmem
-                arch::loader::write_env_values(pid, "nextsel", &[self.child_sel.get()]);
-                arch::loader::write_env_values(pid, "rmng", &[self.resmng_sel().unwrap()]);
-                arch::loader::write_env_values(pid, "kmem", &[self.kmem.sel()]);
-
-                // write closure
-                if let Some(addr) = closure {
-                    arch::loader::write_env_values(pid, "lambda", &[addr as u64]);
-                }
-
-                // write file table
-                let mut fds_vec = Vec::new();
-                let mut fds = M3Serializer::new(VecSink::new(&mut fds_vec));
-                Activity::own().files().serialize(&self.files, &mut fds);
-                arch::loader::write_env_values(pid, "fds", fds.words());
-
-                // write mounts table
-                let mut mounts_vec = Vec::new();
-                let mut mounts = M3Serializer::new(VecSink::new(&mut mounts_vec));
-                Activity::own()
-                    .mounts()
-                    .serialize(&self.mounts, &mut mounts);
-                arch::loader::write_env_values(pid, "ms", mounts.words());
-
-                // write env vars
-                let mut vars_vec = Vec::new();
-                let mut vars = M3Serializer::new(VecSink::new(&mut vars_vec));
-                for var in env::vars_raw() {
-                    vars.push(&var);
-                }
-                arch::loader::write_env_values(pid, "vars", vars.words());
-
-                // write data
-                arch::loader::write_env_values(pid, "data", &self.data);
-
-                arch::loader::exec(args, &path);
-            },
-
-            pid => {
-                // let the kernel create the config-file etc. for the given pid
-                syscalls::activity_ctrl(self.sel(), kif::syscalls::ActivityOp::START, pid as u64)
-                    .unwrap();
-
-                p2c.signal();
-                // wait until the TCU sockets have been binded
-                c2p.wait();
-
-                Ok(RunningProgramActivity::new(self, BufReader::new(file)))
-            },
-        }
     }
 
     fn obtain_files_and_mounts(&self) -> Result<(), Error> {

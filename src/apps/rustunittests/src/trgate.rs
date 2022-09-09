@@ -23,7 +23,6 @@ use m3::{wv_assert_err, wv_run_test};
 
 pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, create);
-    #[cfg(not(target_vendor = "host"))]
     wv_run_test!(t, destroy);
 }
 
@@ -36,8 +35,6 @@ fn create(t: &mut dyn WvTester) {
     );
 }
 
-// requires a TileMux with notification support
-#[cfg(not(target_vendor = "host"))]
 fn destroy(t: &mut dyn WvTester) {
     use m3::cap::Selector;
     use m3::com::{recv_msg, SGateArgs, SendGate};

@@ -18,8 +18,8 @@
 
 //! Contains the backtrace generation function
 
-use crate::arch::cfg;
 use crate::arch::cpu;
+use crate::cfg;
 use crate::util::math;
 
 /// Walks up the stack and stores the return addresses into the given slice and returns the number

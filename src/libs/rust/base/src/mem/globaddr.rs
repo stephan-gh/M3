@@ -16,16 +16,15 @@
  * General Public License version 2 for more details.
  */
 
-use cfg_if::cfg_if;
 use core::fmt;
 use core::ops;
 
-use crate::arch::tcu::TileId;
 use crate::errors::{Code, Error};
 use crate::goff;
+use crate::io::log;
 use crate::kif::{PageFlags, Perm};
 use crate::serialize::{Deserialize, Serialize};
-use crate::tcu::EpId;
+use crate::tcu::{EpId, TileId, PMEM_PROT_EPS, TCU};
 
 pub type Phys = u64;
 
@@ -35,16 +34,8 @@ pub struct GlobAddr {
     val: u64,
 }
 
-cfg_if! {
-    if #[cfg(not(target_vendor = "host"))] {
-        const TILE_SHIFT: u64 = 56;
-        const TILE_OFFSET: u64 = 0x80;
-    }
-    else {
-        const TILE_SHIFT: u64 = 48;
-        const TILE_OFFSET: u64 = 0x80;
-    }
-}
+const TILE_SHIFT: u64 = 56;
+const TILE_OFFSET: u64 = 0x80;
 
 impl GlobAddr {
     /// Creates a new global address from the given raw value
@@ -63,24 +54,14 @@ impl GlobAddr {
     /// the current configuration of this PMP EP to translate the physical address into a global
     /// address.
     pub fn new_from_phys(_phys: Phys) -> Result<GlobAddr, Error> {
-        cfg_if! {
-            if #[cfg(target_vendor = "host")] {
-                Err(Error::new(Code::NotSup))
-            }
-            else {
-                use crate::io::log;
-                use crate::tcu::TCU;
-
-                let phys = _phys - crate::cfg::MEM_OFFSET as Phys;
-                let epid = ((phys >> 30) & 0x3) as EpId;
-                let off = phys & 0x3FFF_FFFF;
-                let res = TCU::unpack_mem_ep(epid)
-                    .map(|(tile, addr, _, _)| GlobAddr::new_with(tile, addr + off))
-                    .ok_or_else(|| Error::new(Code::InvArgs));
-                log!(log::TRANSLATE, "Translated {:#x} to {:?}", phys, res);
-                res
-            }
-        }
+        let phys = _phys - crate::cfg::MEM_OFFSET as Phys;
+        let epid = ((phys >> 30) & 0x3) as EpId;
+        let off = phys & 0x3FFF_FFFF;
+        let res = TCU::unpack_mem_ep(epid)
+            .map(|(tile, addr, _, _)| GlobAddr::new_with(tile, addr + off))
+            .ok_or_else(|| Error::new(Code::InvArgs));
+        log!(log::TRANSLATE, "Translated {:#x} to {:?}", phys, res);
+        res
     }
 
     /// Returns the raw value
@@ -110,14 +91,7 @@ impl GlobAddr {
     /// check which EP provides access to the address and translates it into the corresponding
     /// physical address.
     pub fn to_phys(self, _access: PageFlags) -> Result<Phys, Error> {
-        cfg_if! {
-            if #[cfg(target_vendor = "host")] {
-                Err(Error::new(Code::NotSup))
-            }
-            else {
-                self.to_phys_with(_access, crate::tcu::TCU::unpack_mem_ep)
-            }
-        }
+        self.to_phys_with(_access, crate::tcu::TCU::unpack_mem_ep)
     }
 
     /// Translates this global address to a physical address based on the given function to retrieve
@@ -129,49 +103,39 @@ impl GlobAddr {
     where
         F: Fn(EpId) -> Option<(TileId, u64, u64, Perm)>,
     {
-        cfg_if! {
-            if #[cfg(target_vendor = "host")] {
-                Err(Error::new(Code::NotSup))
-            }
-            else {
-                use crate::io::log;
-                use crate::tcu::PMEM_PROT_EPS;
+        // find memory EP that contains the address
+        for ep in 0..PMEM_PROT_EPS as EpId {
+            if let Some((tile, addr, size, perm)) = _get_ep(ep) {
+                log!(
+                    log::TRANSLATE,
+                    "Translating {:?}: considering EP{} with tile={}, addr={:#x}, size={:#x}",
+                    self,
+                    ep,
+                    tile,
+                    addr,
+                    size
+                );
 
-                // find memory EP that contains the address
-                for ep in 0..PMEM_PROT_EPS as EpId {
-                    if let Some((tile, addr, size, perm)) = _get_ep(ep) {
-                        log!(
-                            log::TRANSLATE,
-                            "Translating {:?}: considering EP{} with tile={}, addr={:#x}, size={:#x}",
-                            self,
-                            ep,
-                            tile,
-                            addr,
-                            size
-                        );
+                // does the EP contain this address?
+                if self.tile() == tile && self.offset() >= addr && self.offset() < addr + size {
+                    let flags = PageFlags::from(perm);
 
-                        // does the EP contain this address?
-                        if self.tile() == tile && self.offset() >= addr && self.offset() < addr + size {
-                            let flags = PageFlags::from(perm);
-
-                            // check access permissions
-                            if _access.contains(PageFlags::R) && !flags.contains(PageFlags::R) {
-                                return Err(Error::new(Code::NoPerm));
-                            }
-                            if _access.contains(PageFlags::W) && !flags.contains(PageFlags::W) {
-                                return Err(Error::new(Code::NoPerm));
-                            }
-
-                            let phys = crate::cfg::MEM_OFFSET as Phys
-                                + ((ep as Phys) << 30 | (self.offset() - addr));
-                            log!(log::TRANSLATE, "Translated {:?} to {:#x}", self, phys);
-                            return Ok(phys);
-                        }
+                    // check access permissions
+                    if _access.contains(PageFlags::R) && !flags.contains(PageFlags::R) {
+                        return Err(Error::new(Code::NoPerm));
                     }
+                    if _access.contains(PageFlags::W) && !flags.contains(PageFlags::W) {
+                        return Err(Error::new(Code::NoPerm));
+                    }
+
+                    let phys = crate::cfg::MEM_OFFSET as Phys
+                        + ((ep as Phys) << 30 | (self.offset() - addr));
+                    log!(log::TRANSLATE, "Translated {:?} to {:#x}", self, phys);
+                    return Ok(phys);
                 }
-                Err(Error::new(Code::InvArgs))
             }
         }
+        Err(Error::new(Code::InvArgs))
     }
 }
 

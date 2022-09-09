@@ -16,14 +16,6 @@
  * General Public License version 2 for more details.
  */
 
-#[cfg(not(target_vendor = "host"))]
-#[path = "kachel/mod.rs"]
-mod inner;
-
-#[cfg(target_vendor = "host")]
-#[path = "host/mod.rs"]
-mod inner;
-
 #[cfg(target_arch = "x86_64")]
 #[path = "x86_64/mod.rs"]
 mod isa;
@@ -36,5 +28,4 @@ mod isa;
 #[path = "riscv/mod.rs"]
 mod isa;
 
-pub use self::inner::*;
 pub use self::isa::*;

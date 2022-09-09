@@ -21,6 +21,7 @@
 mod activity;
 mod childactivity;
 mod kmem;
+mod loader;
 mod mapper;
 mod ownactivity;
 mod running;

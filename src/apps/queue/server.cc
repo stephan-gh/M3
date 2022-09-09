@@ -24,7 +24,6 @@
 #include <m3/server/Server.h>
 #include <m3/session/ClientSession.h>
 #include <m3/session/Timer.h>
-#include <m3/session/arch/host/Keyboard.h>
 
 using namespace m3;
 

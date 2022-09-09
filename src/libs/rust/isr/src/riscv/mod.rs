@@ -14,7 +14,7 @@
  */
 
 use base::backtrace;
-use base::envdata;
+use base::env;
 use base::int_enum;
 use base::libc;
 use base::tcu;
@@ -186,7 +186,7 @@ pub extern "C" fn isr_handler(state: &mut State) -> *mut libc::c_void {
 }
 
 pub fn init(state: &mut State) {
-    if envdata::get().platform == envdata::Platform::HW.val {
+    if env::data().platform == env::Platform::HW.val {
         // configure PLIC
         plic::set_threshold(0);
         for id in &[plic::TCU_ID, plic::TIMER_ID] {
@@ -222,7 +222,7 @@ pub fn enable_irqs() {
 }
 
 pub fn get_irq() -> IRQSource {
-    if envdata::get().platform == envdata::Platform::HW.val {
+    if env::data().platform == env::Platform::HW.val {
         let irq = plic::get();
         assert!(irq != 0);
 
@@ -247,19 +247,19 @@ pub fn get_irq() -> IRQSource {
 }
 
 pub fn register_ext_irq(irq: u32) {
-    if envdata::get().platform == envdata::Platform::HW.val {
+    if env::data().platform == env::Platform::HW.val {
         plic::set_priority(irq, 1);
     }
 }
 
 pub fn enable_ext_irqs(mask: u32) {
-    if envdata::get().platform == envdata::Platform::HW.val {
+    if env::data().platform == env::Platform::HW.val {
         plic::enable_mask(mask);
     }
 }
 
 pub fn disable_ext_irqs(mask: u32) {
-    if envdata::get().platform == envdata::Platform::HW.val {
+    if env::data().platform == env::Platform::HW.val {
         plic::disable_mask(mask);
     }
 }

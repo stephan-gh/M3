@@ -18,7 +18,7 @@ use base::col::Vec;
 use base::kif;
 use base::tcu::TileId;
 
-use crate::arch::ktcu;
+use crate::ktcu;
 use crate::platform;
 use crate::tiles::TileMux;
 

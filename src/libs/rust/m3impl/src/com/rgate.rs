@@ -19,12 +19,12 @@
 use core::fmt;
 use core::ops;
 
-use crate::arch;
 use crate::cap::{CapFlags, Selector};
 use crate::cell::LazyReadOnlyCell;
 use crate::cfg;
 use crate::com::rbufs::{alloc_rbuf, free_rbuf};
 use crate::com::{gate::Gate, RecvBuf, SendGate};
+use crate::env;
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::kif::INVALID_SEL;
@@ -297,7 +297,7 @@ impl RecvGate {
         let rep = self.ep().unwrap();
         // if the tile is shared with someone else that wants to run, poll a couple of times to
         // prevent too frequent/unnecessary switches.
-        let polling = if arch::env::get().shared() { 200 } else { 1 };
+        let polling = if env::get().shared() { 200 } else { 1 };
         loop {
             for _ in 0..polling {
                 let msg_off = tcu::TCU::fetch_msg(rep);
@@ -324,8 +324,8 @@ impl RecvGate {
 }
 
 pub(crate) fn pre_init() {
-    let eps_start = arch::env::get().first_std_ep();
-    let mut rbuf = arch::env::get().tile_desc().rbuf_std_space().0;
+    let eps_start = env::get().first_std_ep();
+    let mut rbuf = env::get().tile_desc().rbuf_std_space().0;
     // safety: we only do that during (re-)initialization so that there are no outstanding
     // references to the old value. note that we need to use reset() here, because we also use it
     // for activity::run() to reinitialize everything.

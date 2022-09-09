@@ -23,7 +23,7 @@ mod paging;
 
 use base::cell::StaticCell;
 use base::cfg;
-use base::envdata;
+use base::env;
 use base::errors::{Code, Error};
 use base::kif::{PageFlags, Perm};
 use base::libc;
@@ -392,7 +392,7 @@ pub extern "C" fn env_run() {
     isr::reg(isr::Vector::LOAD_PAGEFAULT.val, mmu_pf);
     isr::reg(isr::Vector::STORE_PAGEFAULT.val, mmu_pf);
     isr::reg(isr::Vector::SUPER_SW_IRQ.val, sw_irq);
-    if envdata::get().platform == envdata::Platform::HW.val {
+    if env::data().platform == env::Platform::HW.val {
         isr::reg(isr::Vector::MACH_EXT_IRQ.val, tcu_irq);
     }
     else {

@@ -7,53 +7,35 @@ from subprocess import check_output
 from glob import glob
 
 target = os.environ.get('M3_TARGET')
-if target == 'gem5' or target == 'hw':
-    isa = os.environ.get('M3_ISA', 'x86_64')
-    if target == 'hw' and isa != 'riscv':
-        exit('Unsupport ISA "' + isa + '" for hw')
+isa = os.environ.get('M3_ISA', 'x86_64')
+if target == 'hw' and isa != 'riscv':
+    exit('Unsupport ISA "' + isa + '" for hw')
 
-    if isa == 'arm':
-        rustabi = 'musleabi'
-        cross   = 'arm-none-eabi-'
-        crts    = ['crt0.o', 'crtbegin.o', 'crtend.o', 'crtfastmath.o', 'crti.o', 'crtn.o']
-    elif isa == 'riscv':
-        rustabi = 'musl'
-        cross   = 'riscv64-unknown-elf-'
-        crts    = ['crt0.o', 'crtbegin.o', 'crtend.o', 'crti.o', 'crtn.o']
-    else:
-        rustabi = 'musl'
-        cross   = 'x86_64-elf-m3-'
-        crts    = ['crt0.o', 'crt1.o', 'crtbegin.o', 'crtend.o', 'crtn.o']
-    crossdir    = os.path.abspath('build/cross-' + isa)
-    crossver    = '10.1.0'
-    platform    = 'kachel'
+if isa == 'arm':
+    rustabi = 'musleabi'
+    cross   = 'arm-none-eabi-'
+    crts    = ['crt0.o', 'crtbegin.o', 'crtend.o', 'crtfastmath.o', 'crti.o', 'crtn.o']
+elif isa == 'riscv':
+    rustabi = 'musl'
+    cross   = 'riscv64-unknown-elf-'
+    crts    = ['crt0.o', 'crtbegin.o', 'crtend.o', 'crti.o', 'crtn.o']
 else:
-    # build for host by default
-    isa = os.popen('uname -m').read().strip()
-    if isa == 'armv7l':
-        isa = 'arm'
-
-    target      = 'host'
-    if os.environ.get('M3_BUILD') == 'coverage':
-        rustabi = 'cov'
-    else:
-        rustabi = 'gnu'
-    cross       = ''
-    crossdir    = ''
-    crossver    = ''
-    platform    = 'host'
+    rustabi = 'musl'
+    cross   = 'x86_64-elf-m3-'
+    crts    = ['crt0.o', 'crt1.o', 'crtbegin.o', 'crtend.o', 'crtn.o']
+crossdir    = os.path.abspath('build/cross-' + isa)
+crossver    = '10.1.0'
 
 # ensure that the cross compiler is installed and up to date
-if cross != '':
-    crossgcc = crossdir + '/bin/' + cross + 'g++'
-    if not os.path.isfile(crossgcc):
-        sys.exit('Please install the ' + isa + ' cross compiler first ' \
-            + '(cd cross && ./build.sh ' + isa + ').')
-    else:
-        ver = check_output([crossgcc, '-dumpversion']).decode().strip()
-        if ver != crossver:
-            sys.exit('Please update the ' + isa + ' cross compiler from ' \
-                + ver + ' to ' + crossver + ' (cd cross && ./build.sh ' + isa + ' --rebuild).')
+crossgcc = crossdir + '/bin/' + cross + 'g++'
+if not os.path.isfile(crossgcc):
+    sys.exit('Please install the ' + isa + ' cross compiler first ' \
+        + '(cd cross && ./build.sh ' + isa + ').')
+else:
+    ver = check_output([crossgcc, '-dumpversion']).decode().strip()
+    if ver != crossver:
+        sys.exit('Please update the ' + isa + ' cross compiler from ' \
+            + ver + ' to ' + crossver + ' (cd cross && ./build.sh ' + isa + ' --rebuild).')
 
 bins = {
     'bin': [],
@@ -91,40 +73,35 @@ class M3Env(ninjagen.Env):
 
         m3libs = ['base', 'm3', 'thread']
 
-        if env['PLATF'] == 'kachel':
-            if not NoSup:
-                baselibs = ['gcc', 'c', 'gem5', 'm', 'gloss', 'stdc++', 'supc++']
-                # add the C library again, because the linker isn't able to resolve m3::Dir::readdir
-                # otherwise, even though we use "--start-group ... --end-group". I have no idea why
-                # that occurs now and why only for this symbol.
-                libs = baselibs + m3libs + libs + ['c']
+        if not NoSup:
+            baselibs = ['gcc', 'c', 'gem5', 'm', 'gloss', 'stdc++', 'supc++']
+            # add the C library again, because the linker isn't able to resolve m3::Dir::readdir
+            # otherwise, even though we use "--start-group ... --end-group". I have no idea why
+            # that occurs now and why only for this symbol.
+            libs = baselibs + m3libs + libs + ['c']
 
-            global ldscripts
-            env['LINKFLAGS'] += ['-Wl,-T,' + ldscripts[ldscript]]
-            deps = [ldscripts[ldscript]] + [env['LIBDIR'] + '/' + crt for crt in crts]
+        global ldscripts
+        env['LINKFLAGS'] += ['-Wl,-T,' + ldscripts[ldscript]]
+        deps = [ldscripts[ldscript]] + [env['LIBDIR'] + '/' + crt for crt in crts]
 
-            if varAddr:
-                global link_addr
-                env['LINKFLAGS'] += ['-Wl,--section-start=.text=' + ('0x%x' % link_addr)]
-                link_addr += 0x30000
+        if varAddr:
+            global link_addr
+            env['LINKFLAGS'] += ['-Wl,--section-start=.text=' + ('0x%x' % link_addr)]
+            link_addr += 0x30000
 
-            # search for crt* in our library dir
-            env['LINKFLAGS'] += ['-B' + os.path.abspath(env['LIBDIR'])]
+        # search for crt* in our library dir
+        env['LINKFLAGS'] += ['-B' + os.path.abspath(env['LIBDIR'])]
 
-            # TODO workaround to ensure that our memcpy, etc. is used instead of the one from Rust's
-            # compiler-builtins crate (or musl), because those are poor implementations.
-            for cc in ['memcmp', 'memcpy', 'memset', 'memmove', 'memzero']:
-                src = ninjagen.SourcePath('src/libs/memory/' + cc + '.cc')
-                ins.append(ninjagen.BuildPath.with_ending(env, src, '.o'))
+        # TODO workaround to ensure that our memcpy, etc. is used instead of the one from Rust's
+        # compiler-builtins crate (or musl), because those are poor implementations.
+        for cc in ['memcmp', 'memcpy', 'memset', 'memmove', 'memzero']:
+            src = ninjagen.SourcePath('src/libs/memory/' + cc + '.cc')
+            ins.append(ninjagen.BuildPath.with_ending(env, src, '.o'))
 
-            bin = env.cxx_exe(gen, out, ins, libs, deps)
-            if env['TGT'] == 'hw':
-                hex = env.m3_hex(gen, out + '.hex', bin)
-                env.install(gen, env['MEMDIR'], hex)
-        else:
-            if not NoSup:
-                libs = m3libs + ['pthread'] + libs
-            bin = env.cxx_exe(gen, out, ins, libs)
+        bin = env.cxx_exe(gen, out, ins, libs, deps)
+        if env['TGT'] == 'hw':
+            hex = env.m3_hex(gen, out + '.hex', bin)
+            env.install(gen, env['MEMDIR'], hex)
 
         env.install(gen, env['BINDIR'], bin)
         if not dir is None:
@@ -143,19 +120,9 @@ class M3Env(ninjagen.Env):
         env = self.clone()
         env['LINKFLAGS'] += ['-Wl,-z,muldefs']
         env['LIBPATH']   += [env['RUSTBINS']]
-
-        if env['PLATF'] == 'kachel':
-            ins     = [] if startup is None else [startup]
-            libs    = ['c' if std else 'simplec', 'gem5', 'gcc', out] + libs
-            env['LINKFLAGS'] += ['-nodefaultlibs']
-        else:
-            ins     = []
-            # leave the host lib in here as well to make it a dependency
-            libs    = ['c', 'host', 'gcc', 'pthread', out] + libs
-            # ensure that the host library gets linked in
-            env['LINKFLAGS'] += ['-Wl,--whole-archive', '-lhost', '-Wl,--no-whole-archive']
-            if env['BUILD'] == 'coverage':
-                libs += ['gcov', 'llvmprofile']
+        ins     = [] if startup is None else [startup]
+        libs    = ['c' if std else 'simplec', 'gem5', 'gcc', out] + libs
+        env['LINKFLAGS'] += ['-nodefaultlibs']
 
         return env.m3_exe(gen, out, ins, libs, dir, True, ldscript, varAddr)
 
@@ -230,7 +197,7 @@ class M3Env(ninjagen.Env):
 # build basic environment
 env = M3Env()
 
-env['CPPFLAGS'] += ['-D__' + target + '__', '-D__' + platform + '__']
+env['CPPFLAGS'] += ['-D__' + target + '__']
 env['CPPPATH']  += ['src/include']
 env['CFLAGS']   += ['-std=c99', '-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
 env['CXXFLAGS'] += ['-std=c++17', '-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
@@ -267,17 +234,9 @@ else:
 
 # add build-dependent flags (debug/release)
 btype = os.environ.get('M3_BUILD')
-if btype == 'debug' or btype == 'coverage':
+if btype == 'debug':
     env['CXXFLAGS']         += ['-O0', '-g']
     env['CFLAGS']           += ['-O0', '-g']
-    if target == 'host' and btype == 'coverage':
-        env['CXXFLAGS']     += ['--coverage']
-        env['CFLAGS']       += ['--coverage']
-        env['LINKFLAGS']    += ['-lgcov']
-    elif target == 'host':
-        env['CXXFLAGS']     += ['-fsanitize=address', '-fsanitize=undefined']
-        env['CFLAGS']       += ['-fsanitize=address', '-fsanitize=undefined']
-        env['LINKFLAGS']    += ['-fsanitize=address', '-fsanitize=undefined', '-lasan', '-lubsan']
     env['ASFLAGS']          += ['-g']
     hostenv['CXXFLAGS']     += ['-O0', '-g']
     hostenv['CFLAGS']       += ['-O0', '-g']
@@ -291,7 +250,6 @@ builddir = 'build/' + target + '-' + isa + '-' + btype
 
 # add some important paths
 env['TGT']          = target
-env['PLATF']        = platform
 env['ISA']          = isa
 env['BUILD']        = btype
 env['BUILDDIR']     = builddir
@@ -302,48 +260,44 @@ env['TOOLDIR']      = builddir + '/tools'
 env['CROSS']        = cross
 env['CROSSDIR']     = crossdir
 env['CROSSVER']     = crossver
-rustbuild = btype if btype != 'coverage' else 'debug'
-env['RUSTBINS']     = 'build/rust/' + env['TRIPLE'] + '/' + rustbuild
+env['RUSTBINS']     = 'build/rust/' + env['TRIPLE'] + '/' + btype
 hostenv['TOOLDIR']  = env['TOOLDIR']
 hostenv['BINDIR']   = env['BINDIR']
 hostenv['BUILDDIR'] = env['BUILDDIR']
-hostenv['RUSTBINS'] = 'build/rust/' + hostenv['TRIPLE'] + '/' + rustbuild
+hostenv['RUSTBINS'] = 'build/rust/' + hostenv['TRIPLE'] + '/' + btype
 
-# add platform-dependent stuff to env
-if platform == 'kachel':
-    if isa == 'x86_64':
-        # disable red-zone for all applications, because we used the application's stack in rctmux's
-        # IRQ handlers since applications run in privileged mode. TODO can we enable that now?
-        env['CFLAGS']       += ['-mno-red-zone']
-        env['CXXFLAGS']     += ['-mno-red-zone']
-    elif isa == 'arm':
-        env['CFLAGS']       += ['-march=armv7-a']
-        env['CXXFLAGS']     += ['-march=armv7-a']
-        env['LINKFLAGS']    += ['-march=armv7-a']
-        env['ASFLAGS']      += ['-march=armv7-a']
-    elif isa == 'riscv':
-        env['CFLAGS']       += ['-march=rv64imafdc', '-mabi=lp64']
-        env['CXXFLAGS']     += ['-march=rv64imafdc', '-mabi=lp64']
-        env['LINKFLAGS']    += ['-march=rv64imafdc', '-mabi=lp64']
-        env['ASFLAGS']      += ['-march=rv64imafdc', '-mabi=lp64']
-    musl_isa = 'riscv64' if isa == 'riscv' else isa
-    env['CPPPATH']          += [
-        'src/libs/musl/arch/' + musl_isa,
-        'src/libs/musl/arch/generic',
-        'src/libs/musl/m3/include/' + isa,
-        'src/libs/musl/include',
-        crossdir + '/include/c++/' + crossver,
-        crossdir + '/include/c++/' + crossver + '/' + cross[:-1],
-    ]
-    # we install the crt* files to that directory
-    env['SYSGCCLIBPATH']    = crossdir + '/lib/gcc/' + cross[:-1] + '/' + crossver
-    # no build-id because it confuses gem5
-    env['LINKFLAGS']        += ['-static', '-Wl,--build-id=none']
-    # binaries get very large otherwise
-    env['LINKFLAGS']        += ['-Wl,-z,max-page-size=4096', '-Wl,-z,common-page-size=4096']
-    env['LIBPATH']          += [crossdir + '/lib', env['LIBDIR']]
-else:
-    env['LIBPATH']          += [env['LIBDIR']]
+# add arch-dependent stuff to env
+if isa == 'x86_64':
+    # disable red-zone for all applications, because we used the application's stack in rctmux's
+    # IRQ handlers since applications run in privileged mode. TODO can we enable that now?
+    env['CFLAGS']       += ['-mno-red-zone']
+    env['CXXFLAGS']     += ['-mno-red-zone']
+elif isa == 'arm':
+    env['CFLAGS']       += ['-march=armv7-a']
+    env['CXXFLAGS']     += ['-march=armv7-a']
+    env['LINKFLAGS']    += ['-march=armv7-a']
+    env['ASFLAGS']      += ['-march=armv7-a']
+elif isa == 'riscv':
+    env['CFLAGS']       += ['-march=rv64imafdc', '-mabi=lp64']
+    env['CXXFLAGS']     += ['-march=rv64imafdc', '-mabi=lp64']
+    env['LINKFLAGS']    += ['-march=rv64imafdc', '-mabi=lp64']
+    env['ASFLAGS']      += ['-march=rv64imafdc', '-mabi=lp64']
+musl_isa = 'riscv64' if isa == 'riscv' else isa
+env['CPPPATH']          += [
+    'src/libs/musl/arch/' + musl_isa,
+    'src/libs/musl/arch/generic',
+    'src/libs/musl/m3/include/' + isa,
+    'src/libs/musl/include',
+    crossdir + '/include/c++/' + crossver,
+    crossdir + '/include/c++/' + crossver + '/' + cross[:-1],
+]
+# we install the crt* files to that directory
+env['SYSGCCLIBPATH']    = crossdir + '/lib/gcc/' + cross[:-1] + '/' + crossver
+# no build-id because it confuses gem5
+env['LINKFLAGS']        += ['-static', '-Wl,--build-id=none']
+# binaries get very large otherwise
+env['LINKFLAGS']        += ['-Wl,-z,max-page-size=4096', '-Wl,-z,common-page-size=4096']
+env['LIBPATH']          += [crossdir + '/lib', env['LIBDIR']]
 
 # start the generation
 gen = ninjagen.Generator()
@@ -367,21 +321,20 @@ gen.add_var('ranlib', env['RANLIB'])
 gen.add_var('strip', env['STRIP'])
 
 # generate linker scripts
-if env['PLATF'] == 'kachel':
-    ldscript = 'src/toolchain/kachel/ld.conf'
-    ldscripts['default'] = env.cpp(gen, out = 'ld-default.conf', ins = [ldscript])
+ldscript = 'src/toolchain/ld.conf'
+ldscripts['default'] = env.cpp(gen, out = 'ld-default.conf', ins = [ldscript])
 
-    bare_env = env.clone()
-    bare_env['CPPFLAGS'] += ['-D__baremetal__=1']
-    ldscripts['baremetal'] = bare_env.cpp(gen, out = 'ld-baremetal.conf', ins = [ldscript])
+bare_env = env.clone()
+bare_env['CPPFLAGS'] += ['-D__baremetal__=1']
+ldscripts['baremetal'] = bare_env.cpp(gen, out = 'ld-baremetal.conf', ins = [ldscript])
 
-    isr_env = env.clone()
-    isr_env['CPPFLAGS'] += ['-D__baremetal__=1', '-D__isr__=1']
-    ldscripts['isr'] = isr_env.cpp(gen, out = 'ld-isr.conf', ins = [ldscript])
+isr_env = env.clone()
+isr_env['CPPFLAGS'] += ['-D__baremetal__=1', '-D__isr__=1']
+ldscripts['isr'] = isr_env.cpp(gen, out = 'ld-isr.conf', ins = [ldscript])
 
-    tilemux_env = env.clone()
-    tilemux_env['CPPFLAGS'] += ['-D__isr__=1', '-D__tilemux__=1']
-    ldscripts['tilemux'] = tilemux_env.cpp(gen, out = 'ld-tilemux.conf', ins = [ldscript])
+tilemux_env = env.clone()
+tilemux_env['CPPFLAGS'] += ['-D__isr__=1', '-D__tilemux__=1']
+ldscripts['tilemux'] = tilemux_env.cpp(gen, out = 'ld-tilemux.conf', ins = [ldscript])
 
 # generate build edges first
 env.sub_build(gen, 'src')

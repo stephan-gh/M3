@@ -26,7 +26,6 @@ pub static KMEM: bool = false;
 pub static SERV: bool = false;
 pub static SQUEUE: bool = false;
 pub static ACTIVITIES: bool = false;
-#[cfg(not(target_vendor = "host"))]
 pub static TMC: bool = false;
 pub static TILES: bool = false;
 pub static UPCALLS: bool = false;

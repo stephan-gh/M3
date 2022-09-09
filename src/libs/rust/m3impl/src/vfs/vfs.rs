@@ -18,7 +18,6 @@
 
 use crate::borrow::StringRef;
 use crate::col::{String, ToString};
-use crate::env;
 use crate::errors::{Code, Error};
 use crate::rc::Rc;
 use crate::session::M3FS;
@@ -106,7 +105,7 @@ pub fn canon_path(path: &str) -> String {
 
 /// Returns the current working directory
 pub fn cwd() -> String {
-    env::var("PWD").unwrap_or_else(|| "/".to_string())
+    crate::env::var("PWD").unwrap_or_else(|| "/".to_string())
 }
 
 /// Sets the current working directory to given path
@@ -127,7 +126,7 @@ pub fn set_cwd_to(dir_fd: usize) -> Result<(), Error> {
     }
 
     let path = file.path()?;
-    env::set_var("PWD", abs_path(&path));
+    crate::env::set_var("PWD", abs_path(&path));
     Ok(())
 }
 

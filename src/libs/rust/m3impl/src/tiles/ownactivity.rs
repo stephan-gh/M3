@@ -18,12 +18,9 @@
 
 //! Contains the activity abstraction
 
-use base::envdata;
-
 use core::fmt;
 use core::ops::Deref;
 
-use crate::arch;
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::cell::{Cell, Ref, RefCell, RefMut};
 use crate::com::EpMng;
@@ -49,7 +46,7 @@ pub struct OwnActivity {
 
 impl OwnActivity {
     pub(crate) fn new() -> Self {
-        let env = arch::env::get();
+        let env = crate::env::get();
         OwnActivity {
             base: Activity {
                 id: env.activity_id(),
@@ -82,16 +79,14 @@ impl OwnActivity {
     /// Puts the own activity to sleep until the next message arrives or `timeout` time has passed.
     #[inline(always)]
     pub fn sleep_for(&self, timeout: TimeDuration) -> Result<(), Error> {
-        if envdata::get().platform != envdata::Platform::HOST.val
-            && (arch::env::get().shared() || timeout != TimeDuration::MAX)
-        {
+        if crate::env::get().shared() || timeout != TimeDuration::MAX {
             let timeout = match timeout {
                 TimeDuration::MAX => None,
                 t => Some(t),
             };
             return tmif::wait(None, None, timeout);
         }
-        if envdata::get().platform != envdata::Platform::HW.val {
+        if crate::env::get().platform() != crate::env::Platform::HW {
             let timeout = match timeout {
                 TimeDuration::MAX => None,
                 t => Some(t.as_nanos() as u64),
@@ -108,10 +103,10 @@ impl OwnActivity {
         irq: Option<tmif::IRQId>,
         timeout: Option<TimeDuration>,
     ) -> Result<(), Error> {
-        if arch::env::get().shared() {
+        if crate::env::get().shared() {
             return tmif::wait(ep, irq, timeout);
         }
-        if envdata::get().platform != envdata::Platform::HW.val {
+        if crate::env::get().platform() != crate::env::Platform::HW {
             if let Some(ep) = ep {
                 let timeout = timeout.map(|t| t.as_nanos() as u64);
                 return TCU::wait_for_msg(ep, timeout);

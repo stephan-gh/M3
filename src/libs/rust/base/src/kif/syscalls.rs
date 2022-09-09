@@ -173,7 +173,6 @@ pub struct SetPMP {
 int_enum! {
     /// The operations for the `act_ctrl` system call
     pub struct ActivityOp : u64 {
-        const INIT  = 0x0;
         const START = 0x1;
         const STOP  = 0x2;
     }

@@ -63,10 +63,10 @@ fn get_file_as<T>(fd: i32) -> Result<FileRef<T>, Error> {
 #[no_mangle]
 pub extern "C" fn __m3c_exit(status: i32, abort: bool) -> ! {
     if abort {
-        crate::arch::init::abort();
+        crate::abort();
     }
     else {
-        crate::arch::init::exit(status)
+        crate::exit(status)
     }
 }
 

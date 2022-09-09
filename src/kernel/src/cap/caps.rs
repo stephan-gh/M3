@@ -300,10 +300,6 @@ impl Capability {
         &self.obj
     }
 
-    pub fn get_mut(&mut self) -> &mut KObject {
-        &mut self.obj
-    }
-
     pub fn has_parent(&self) -> bool {
         self.parent.is_some()
     }

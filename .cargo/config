@@ -1,6 +1,3 @@
 [build]
 rustflags = ["-Wrust-2018-idioms"]
-target = "x86_64-unknown-host-gnu"
-
-[target.'x86_64-unknown-host-cov']
-rustflags = ["-Zprofile=yes", "-Zno-profiler-runtime"]
+target = "src/toolchain/rust/riscv-linux-gem5-musl.json"

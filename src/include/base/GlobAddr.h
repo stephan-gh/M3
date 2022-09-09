@@ -21,13 +21,8 @@
 namespace m3 {
 
 class GlobAddr {
-#if defined(__gem5__)
     static const uint64_t TILE_SHIFT = 56;
     static const uint64_t TILE_OFFSET = 0x80;
-#else
-    static const uint64_t TILE_SHIFT = 48;
-    static const uint64_t TILE_OFFSET = 0;
-#endif
 
 public:
     typedef uint64_t raw_t;

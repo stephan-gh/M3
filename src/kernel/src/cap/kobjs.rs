@@ -168,10 +168,6 @@ impl RGateObject {
         })
     }
 
-    pub fn gate_ep(&self) -> Ref<'_, GateEP> {
-        self.gep.borrow()
-    }
-
     pub fn gate_ep_mut(&self) -> RefMut<'_, GateEP> {
         self.gep.borrow_mut()
     }
