@@ -12,17 +12,22 @@ if target == 'hw' and isa != 'riscv':
     exit('Unsupport ISA "' + isa + '" for hw')
 
 if isa == 'arm':
+    rustisa = isa
     rustabi = 'musleabi'
     cross   = 'arm-none-eabi-'
     crts    = ['crt0.o', 'crtbegin.o', 'crtend.o', 'crtfastmath.o', 'crti.o', 'crtn.o']
 elif isa == 'riscv':
+    rustisa = 'riscv64'
     rustabi = 'musl'
     cross   = 'riscv64-unknown-elf-'
     crts    = ['crt0.o', 'crtbegin.o', 'crtend.o', 'crti.o', 'crtn.o']
 else:
+    rustisa = isa
     rustabi = 'musl'
     cross   = 'x86_64-elf-m3-'
     crts    = ['crt0.o', 'crt1.o', 'crtbegin.o', 'crtend.o', 'crtn.o']
+if os.environ.get('M3_BUILD') == 'coverage':
+    rustabi = 'muslcov'
 crossdir    = os.path.abspath('build/cross-' + isa)
 crossver    = '10.1.0'
 
@@ -226,7 +231,7 @@ env['CPPFLAGS']     += ['-U_FORTIFY_SOURCE', '-D_GNU_SOURCE']
 env['CFLAGS']       += ['-gdwarf-2', '-fno-stack-protector']
 env['ASFLAGS']      += ['-Wl,-W', '-Wall', '-Wextra']
 env['LINKFLAGS']    += ['-Wl,--no-gc-sections', '-Wno-lto-type-mismatch', '-fno-stack-protector']
-env['TRIPLE']       = isa + '-linux-' + target + '-' + rustabi
+env['TRIPLE']       = rustisa + '-linux-' + target + '-' + rustabi
 if os.environ.get('M3_VERBOSE', 0) != 0:
     env['CRGFLAGS'] += ['-v']
 else:
@@ -260,11 +265,12 @@ env['TOOLDIR']      = builddir + '/tools'
 env['CROSS']        = cross
 env['CROSSDIR']     = crossdir
 env['CROSSVER']     = crossver
-env['RUSTBINS']     = 'build/rust/' + env['TRIPLE'] + '/' + btype
+rustbuild = btype if btype != 'coverage' else 'release'
+env['RUSTBINS']     = 'build/rust/' + env['TRIPLE'] + '/' + rustbuild
 hostenv['TOOLDIR']  = env['TOOLDIR']
 hostenv['BINDIR']   = env['BINDIR']
 hostenv['BUILDDIR'] = env['BUILDDIR']
-hostenv['RUSTBINS'] = 'build/rust/' + hostenv['TRIPLE'] + '/' + btype
+hostenv['RUSTBINS'] = 'build/rust/' + hostenv['TRIPLE'] + '/' + rustbuild
 
 # add arch-dependent stuff to env
 if isa == 'x86_64':

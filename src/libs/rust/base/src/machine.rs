@@ -27,6 +27,21 @@ extern "C" {
     pub fn gem5_shutdown(delay: u64);
 }
 
+pub fn write_coverage(tile: u64, act: u64) {
+    if env::data().platform == env::Platform::GEM5.val {
+        let coverage = minicov::capture_coverage();
+        let filename = alloc::format!("coverage-{}-{}.profraw\0", tile, act);
+        unsafe {
+            gem5_writefile(
+                coverage.as_ptr(),
+                coverage.len() as u64,
+                0,
+                filename.as_ptr() as u64,
+            );
+        }
+    }
+}
+
 pub fn write(buf: &[u8]) -> Result<usize, Error> {
     let amount = tcu::TCU::print(buf);
     if env::data().platform == env::Platform::GEM5.val {

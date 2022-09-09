@@ -67,7 +67,7 @@ pub const TILEMUX_START: usize = MEM_OFFSET + 0x20_0000;
 pub const TILEMUX_RBUF_SPACE: usize = TILEMUX_START + 0x1F_F000;
 
 pub const APP_HEAP_SIZE: usize = 64 * 1024 * 1024;
-pub const MOD_HEAP_SIZE: usize = 4 * 1024 * 1024;
+pub const MOD_HEAP_SIZE: usize = 16 * 1024 * 1024;
 
 pub const SERIAL_BUF_ORD: u32 = 6;
 

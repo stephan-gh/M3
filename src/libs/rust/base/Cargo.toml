@@ -12,6 +12,7 @@ bitflags = "*"
 cfg-if = "*"
 static_assertions = "0.3.1"
 serde = { git = "https://github.com/Barkhausen-Institut/m3-serde", branch = "m3", default-features = false, features = ["derive", "alloc"] }
+minicov = "0.2"
 
 [dependencies.num-traits]
 version = "0.2"

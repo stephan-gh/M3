@@ -25,8 +25,11 @@ else
     echo "Target $M3_TARGET not supported." >&2 && exit 1
 fi
 
-if [ "$M3_BUILD" != "debug" ] && [ "$M3_BUILD" != "release" ]; then
+if [ "$M3_BUILD" != "debug" ] && [ "$M3_BUILD" != "release" ] && [ "$M3_BUILD" != "coverage" ]; then
     echo "Build mode $M3_BUILD not supported." >&2 && exit 1
+fi
+if [ "$M3_BUILD" = "coverage" ] && [ "$M3_ISA" != "riscv" ] && [ "$M3_ISA" != "x86_64" ]; then
+    echo "Coverage mode is only supported with M3_ISA=riscv and M3_ISA=x86_64." >&2 && exit 1
 fi
 
 export M3_BUILD M3_TARGET M3_ISA M3_OUT
@@ -44,6 +47,8 @@ fi
 export PATH=$crossdir:$PATH
 if [ "$M3_TARGET" = "gem5" ] && [ "$M3_ISA" = "arm" ]; then
     rustabi='musleabi'
+elif [ "$M3_BUILD" = "coverage" ]; then
+    rustabi='muslcov'
 else
     rustabi='musl'
 fi
@@ -51,10 +56,21 @@ fi
 # rust env vars
 rusttoolchain=$(readlink -f src/toolchain/rust)
 rustbuild=$(readlink -f build/rust)
-export RUST_TARGET=$M3_ISA-linux-$M3_TARGET-$rustabi
+if [ "$M3_ISA" = "riscv" ]; then
+    rustisa="riscv64"
+else
+    rustisa="$M3_ISA"
+fi
+export RUST_TARGET=$rustisa-linux-$M3_TARGET-$rustabi
 export RUST_TARGET_PATH=$rusttoolchain
 export CARGO_TARGET_DIR=$rustbuild
 export XBUILD_SYSROOT_PATH=$CARGO_TARGET_DIR/sysroot
+# configure TARGET_CFLAGS for llvmprofile within minicov
+case "$M3_ISA" in
+    x86_64) export TARGET_CFLAGS="-msoft-float -mno-sse" ;;
+    riscv)  export TARGET_CFLAGS="-march=rv64imafdc -mabi=lp64" ;;
+    arm)    export TARGET_CFLAGS="-march=armv7-a -fshort-enums" ;;
+esac
 
 build=build/$M3_TARGET-$M3_ISA-$M3_BUILD
 bindir=$build/bin/

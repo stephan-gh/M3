@@ -126,6 +126,9 @@ build_params_gem5() {
         exit 1
     fi
 
+    # remove all coverage files
+    rm -rf $M3_OUT/coverage-*-*.profraw
+
     export M5_PATH=$build
     if [ "$DBG_GEM5" != "" ]; then
         tmp=$(mktemp)
