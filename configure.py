@@ -49,9 +49,9 @@ bins = {
 rustcrates = []
 ldscripts = {}
 if isa == 'riscv':
-    link_addr = 0x10400000
+    link_addr = 0x10A00000
 else:
-    link_addr = 0x400000
+    link_addr = 0xA00000
 
 class M3Env(ninjagen.Env):
     def clone(self):

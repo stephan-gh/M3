@@ -340,9 +340,16 @@ impl TileMux {
         self.send_sidecall::<kif::tilemux::ResetStats>(None, &buf, &msg)
             .map(|_| ())
     }
-}
 
-impl TileMux {
+    pub fn shutdown(&mut self) -> Result<(), Error> {
+        let mut buf = MsgBuf::borrow_def();
+        let msg = kif::tilemux::Shutdown {};
+        build_vmsg!(buf, kif::tilemux::Sidecalls::SHUTDOWN, &msg);
+
+        self.send_sidecall::<kif::tilemux::Shutdown>(None, &buf, &msg)
+            .map(|_| ())
+    }
+
     pub fn handle_call_async(tilemux: RefMut<'_, Self>, msg: &tcu::Message) {
         use base::serialize::M3Deserializer;
 

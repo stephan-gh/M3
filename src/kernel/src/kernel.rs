@@ -46,7 +46,7 @@ use core::ptr;
 
 use paging;
 
-use crate::tiles::ActivityMng;
+use crate::tiles::{tilemng, ActivityMng};
 
 extern "C" {
     fn __m3_init_libc(argc: i32, argv: *const *const u8, envp: *const *const u8);
@@ -190,6 +190,29 @@ fn workloop() -> ! {
 
     thread::stop();
     // if we get back here, there is no ready or sleeping thread anymore and we can shutdown
+
+    if env::data().platform == env::Platform::GEM5.val {
+        let mut sent = 0;
+        for tile in platform::user_tiles() {
+            if platform::tile_desc(tile).is_programmable() {
+                tilemng::tilemux(tile).shutdown().unwrap();
+                sent += 1;
+            }
+        }
+
+        let mut replies = 0;
+        while replies < sent {
+            tcu::TCU::sleep().unwrap();
+            if let Some(msg) = ktcu::fetch_msg(ktcu::KSRV_EP) {
+                unsafe {
+                    let squeue: *mut com::SendQueue = msg.header.label as usize as *mut _;
+                    (*squeue).received_reply(msg);
+                    replies += 1;
+                }
+            }
+        }
+    }
+
     tiles::deinit();
     exit(0);
 }

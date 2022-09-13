@@ -261,6 +261,14 @@ fn reset_stats(_msg: &'static tcu::Message) -> Result<(), Error> {
     Ok(())
 }
 
+fn shutdown(_msg: &'static tcu::Message) -> Result<(), Error> {
+    log!(crate::LOG_SIDECALLS, "sidecall::shutdown()",);
+
+    base::machine::write_coverage(crate::pex_env().tile_id, 0);
+
+    Ok(())
+}
+
 fn handle_sidecall(msg: &'static tcu::Message) {
     let mut de = M3Deserializer::new(msg.as_words());
 
@@ -287,6 +295,7 @@ fn handle_sidecall(msg: &'static tcu::Message) {
         kif::tilemux::Sidecalls::SET_QUOTA => set_quota(msg),
         kif::tilemux::Sidecalls::REMOVE_QUOTAS => remove_quotas(msg),
         kif::tilemux::Sidecalls::RESET_STATS => reset_stats(msg),
+        kif::tilemux::Sidecalls::SHUTDOWN => shutdown(msg),
         _ => Err(Error::new(Code::NotSup)),
     };
 

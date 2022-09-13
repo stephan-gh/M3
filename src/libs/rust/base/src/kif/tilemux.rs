@@ -47,6 +47,7 @@ int_enum! {
         const SET_QUOTA      = 0x8;
         const REMOVE_QUOTAS  = 0x9;
         const RESET_STATS    = 0xA;
+        const SHUTDOWN       = 0xB;
     }
 }
 
@@ -151,6 +152,11 @@ pub struct RemoveQuotas {
 #[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct ResetStats {}
+
+/// The shutdown sidecall
+#[derive(Debug, Serialize, Deserialize)]
+#[repr(C)]
+pub struct Shutdown {}
 
 /// The sidecall response
 #[derive(Debug, Serialize, Deserialize)]
