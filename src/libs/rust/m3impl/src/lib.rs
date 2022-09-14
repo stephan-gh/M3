@@ -50,7 +50,7 @@ use core::ptr;
 
 #[no_mangle]
 pub extern "C" fn abort() -> ! {
-    base::machine::write_coverage(env::data().tile_id, env::data().act_id + 1);
+    base::machine::write_coverage(env::data().act_id + 1);
     tmif::exit(1);
 }
 
@@ -59,7 +59,7 @@ pub extern "C" fn exit(_code: i32) -> ! {
     io::deinit();
     vfs::deinit();
 
-    base::machine::write_coverage(env::data().tile_id, env::data().act_id + 1);
+    base::machine::write_coverage(env::data().act_id + 1);
     tmif::exit(_code);
 }
 

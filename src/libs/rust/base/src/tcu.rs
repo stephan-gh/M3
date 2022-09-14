@@ -686,6 +686,16 @@ impl TCU {
         s.len()
     }
 
+    /// Writes the code-coverage results in `data` to "$M3_OUT/coverage-<tile>-<act>.profraw".
+    pub fn write_coverage(data: &[u8], act: u64) {
+        Self::write_unpriv_reg(
+            UnprivReg::PRINT,
+            act << 56 | (data.as_ptr() as u64) << 24 | data.len() as u64,
+        );
+        // wait until the coverage was written
+        while Self::read_unpriv_reg(UnprivReg::PRINT) != 0 {}
+    }
+
     /// Translates the offset `off` to the message address, using `base` as the base address of the
     /// message's receive buffer
     pub fn offset_to_msg(base: usize, off: usize) -> &'static Message {

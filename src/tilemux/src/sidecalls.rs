@@ -264,7 +264,7 @@ fn reset_stats(_msg: &'static tcu::Message) -> Result<(), Error> {
 fn shutdown(_msg: &'static tcu::Message) -> Result<(), Error> {
     log!(crate::LOG_SIDECALLS, "sidecall::shutdown()",);
 
-    base::machine::write_coverage(crate::pex_env().tile_id, 0);
+    base::machine::write_coverage(0);
 
     Ok(())
 }
