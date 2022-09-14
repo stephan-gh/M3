@@ -108,7 +108,9 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
     let virt = r.virt as usize;
 
     // ensure that we don't overmap critical areas
-    if virt < cfg::ENV_START || virt + r.pages * cfg::PAGE_SIZE > cfg::TILE_MEM_BASE {
+    if virt < cfg::TILEMUX_RBUF_SPACE + cfg::TILEMUX_RBUF_SIZE
+        || virt + r.pages * cfg::PAGE_SIZE > cfg::TILE_MEM_BASE
+    {
         return Err(Error::new(Code::InvArgs));
     }
 

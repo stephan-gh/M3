@@ -949,6 +949,8 @@ impl Activity {
             self.map_segment(base, &_text_start, &_text_end, rx);
             self.map_segment(base, &_data_start, &_data_end, rw);
             self.map_segment(base, &_bss_start, &_bss_end, rw);
+            // ensure that the receive buffer does not overlap with text, data, and bss
+            assert!(cfg::TILEMUX_RBUF_SPACE >= &_bss_end as *const u8 as usize);
         }
 
         // map own receive buffer
