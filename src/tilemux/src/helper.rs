@@ -18,6 +18,11 @@ use base::tcu;
 use core::sync::atomic;
 
 pub fn flush_cache() {
+    // nothing to do if we don't have virtual memory
+    if !crate::pex_env().tile_desc.has_virtmem() {
+        return;
+    }
+
     #[cfg(target_vendor = "hw")]
     let (cacheline_size, cache_size) = (64, 512 * 1024);
     #[cfg(target_vendor = "gem5")]
