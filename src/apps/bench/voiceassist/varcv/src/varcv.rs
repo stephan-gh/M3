@@ -19,6 +19,7 @@
 use core::cmp;
 
 use m3::col::Vec;
+use m3::com::Semaphore;
 use m3::env;
 use m3::net::{
     DGramSocket, DgramSocketArgs, Port, Socket, StreamSocket, StreamSocketArgs, TcpSocket,
@@ -59,6 +60,11 @@ pub fn main() -> i32 {
         .expect("creating TCP socket failed");
 
         tcp_socket.listen(port).expect("listen failed");
+
+        if let Ok(sem) = Semaphore::attach("net") {
+            sem.up().expect("Unable to up semaphore");
+        }
+
         let ep = tcp_socket.accept().expect("accept failed");
         println!("Accepted remote endpoint {}", ep);
 
@@ -101,6 +107,10 @@ pub fn main() -> i32 {
 
         socket.bind(port).expect("Could not bind socket");
         println!("Waiting for UDP packets on port {}", port);
+
+        if let Ok(sem) = Semaphore::attach("net") {
+            sem.up().expect("Unable to up semaphore");
+        }
 
         let mut buf = vec![0u8; 1024];
         loop {

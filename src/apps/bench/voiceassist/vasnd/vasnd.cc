@@ -20,6 +20,7 @@
 #include <m3/Syscalls.h>
 #include <m3/Test.h>
 #include <m3/com/MemGate.h>
+#include <m3/com/Semaphore.h>
 #include <m3/net/TcpSocket.h>
 #include <m3/net/UdpSocket.h>
 #include <m3/session/NetworkManager.h>
@@ -108,6 +109,15 @@ int main(int argc, char **argv) {
     NetworkManager net("net");
 
     ClientSession vamic("vamic");
+
+    // wait until the server is ready (if it's running on the same machine we use a semaphore)
+    try {
+        auto sem = Semaphore::attach("net");
+        sem.down();
+    }
+    catch(...) {
+        // ignore
+    }
 
     OpHandler *hdl;
     if(strcmp(proto, "udp") == 0)
