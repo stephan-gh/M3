@@ -41,7 +41,7 @@ for i in range(0, len(accs)):
                            no=num_tiles + i,
                            accel=accs[i],
                            memTile=mem_tile,
-                           spmsize='4MB',
+                           spmsize='32MB',
                            epCount=num_eps)
     tiles.append(tile)
 

@@ -87,7 +87,7 @@ for i in range(0, num_rot13):
                           no=num_tiles + num_sto + 2 + i,
                           accel='rot13',
                           memTile=mem_tile,
-                          spmsize='2MB',
+                          spmsize='32MB',
                           epCount=num_eps)
     tiles.append(rpe)
 
