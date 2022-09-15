@@ -17,7 +17,7 @@ use m3::cap::Selector;
 use m3::cell::{RefCell, StaticCell};
 use m3::cfg;
 use m3::com::MemGate;
-use m3::errors::Error;
+use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif;
 use m3::log;
@@ -203,7 +203,9 @@ impl DataSpace {
                 if !self.flags.contains(MapFlags::SHARED) && self.perms.contains(kif::Perm::W) {
                     let src = MemGate::new_owned_bind(sel);
                     let mut childs = childs::borrow_mut();
-                    let child = childs.child_by_id_mut(self.child).unwrap();
+                    let child = childs
+                        .child_by_id_mut(self.child)
+                        .ok_or(Error::new(Code::ActivityGone))?;
                     let mgate = child.alloc_local(reg.size(), kif::Perm::RWX)?;
                     let mem = Rc::new(RefCell::new(PhysMem::new((self.owner, self.virt), mgate)?));
                     reg.set_mem(mem);
@@ -246,7 +248,9 @@ impl DataSpace {
                 );
 
                 let mut childs = childs::borrow_mut();
-                let child = childs.child_by_id_mut(self.child).unwrap();
+                let child = childs
+                    .child_by_id_mut(self.child)
+                    .ok_or(Error::new(Code::ActivityGone))?;
                 let mgate = child.alloc_local(reg.size(), kif::Perm::RWX)?;
                 reg.set_mem(Rc::new(RefCell::new(PhysMem::new(
                     (self.owner, self.virt),
