@@ -233,8 +233,6 @@ int_enum! {
         const SET_TIMER   = 5;
         /// Abort the current command
         const ABORT_CMD   = 6;
-        /// Flushes and invalidates the cache
-        const FLUSH_CACHE = 7;
     }
 }
 
@@ -801,12 +799,6 @@ impl TCU {
             | ((flags.bits() as Reg) << 9)
             | PrivCmdOpCode::INS_TLB.val;
         Self::write_priv_reg(PrivReg::PRIV_CMD, cmd);
-        Self::get_priv_error()
-    }
-
-    /// Flushes and invalidates the CPU caches
-    pub fn flush_cache() -> Result<(), Error> {
-        Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::FLUSH_CACHE.val);
         Self::get_priv_error()
     }
 
