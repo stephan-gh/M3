@@ -136,8 +136,6 @@ help() {
     echo "    M3_GEM5_DBG:             The trace-flags for gem5 (--debug-flags)."
     echo "    M3_GEM5_DBGSTART:        When to start tracing for gem5 (--debug-start)."
     echo "    M3_GEM5_CPU:             The CPU model (detailed by default)."
-    echo "    M3_GEM5_TCUPOS:          The TCU position (0=before L1, 1=behind L1 or"
-    echo "                             2=behind L2)."
     echo "    M3_GEM5_CPUFREQ:         The CPU frequency (1GHz by default)."
     echo "    M3_GEM5_MEMFREQ:         The memory frequency (333MHz by default)."
     echo "    M3_GEM5_FSNUM:           The number of times to load the FS image."

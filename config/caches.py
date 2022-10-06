@@ -13,7 +13,6 @@ num_mem = 1
 num_tiles = int(os.environ.get('M3_GEM5_TILES'))
 fsimg = os.environ.get('M3_GEM5_FS')
 fsimgnum = os.environ.get('M3_GEM5_FSNUM', '1')
-tcupos = int(os.environ.get('M3_GEM5_TCUPOS', 0))
 mem_tile = num_tiles + 1
 
 # Memory watch example:
@@ -35,7 +34,6 @@ for i in range(0, num_tiles):
                           memTile=mem_tile,
                           l1size='32kB',
                           l2size='256kB',
-                          tcupos=tcupos,
                           epCount=num_eps)
     tiles.append(tile)
 

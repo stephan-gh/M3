@@ -27,8 +27,6 @@ num_rot13 = 2
 num_kecacc = 1
 mem_tile = num_tiles + num_sto + 2 + num_rot13 + num_kecacc + 1
 
-tcupos = int(os.environ.get('M3_GEM5_TCUPOS', 0))
-
 tiles = []
 
 # create the core tiles
@@ -40,7 +38,6 @@ for i in range(0, num_tiles - num_spm):
                           memTile=mem_tile,
                           l1size='32kB',
                           l2size='256kB',
-                          tcupos=tcupos,
                           epCount=num_eps)
     tiles.append(tile)
 
