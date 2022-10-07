@@ -63,6 +63,12 @@ public:
         return Some(static_cast<size_t>(buf - reinterpret_cast<const char *>(buffer)));
     }
 
+    virtual Errors::Code try_get_tmode(TMode *mode) noexcept override {
+        // the primary reason for this implementation is to make isatty work properly
+        *mode = TMode::RAW;
+        return Errors::NONE;
+    }
+
     virtual FileRef<File> clone() const override {
         auto file = std::unique_ptr<File>(new SerialFile());
         return Activity::own().files()->alloc(std::move(file));
