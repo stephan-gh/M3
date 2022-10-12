@@ -5,6 +5,7 @@
 *.ninja_deps
 *.ninja_log
 /.cache
+/.remote-build-failed
 /build
 /cross/*/build
 /cross/*/src

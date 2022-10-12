@@ -128,6 +128,11 @@ help() {
     echo "                             optimizations are disabled, debug infos are available,"
     echo "                             and assertions are active. In release mode all that is"
     echo "                             disabled. The default is release."
+    echo "    M3_REM_HOST:             if set, the build is performed on this host in"
+    echo "                             M3_REM_DIR. All source files are synced to the remote"
+    echo "                             host before the build and the build files are synced"
+    echo "                             back afterwards."
+    echo "    M3_REM_DIR:              the directory in which the remote build takes place."
     echo "    M3_VERBOSE:              print executed commands in detail during build."
     echo "    M3_CORES:                # of cores to simulate."
     echo "    M3_FS:                   The filesystem to use (filename only)."
@@ -200,14 +205,39 @@ case "$cmd" in
 esac
 
 if [ $skipbuild -eq 0 ]; then
-    echo "Building for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
-    ninja -f $build/build.ninja "${ninjaargs[@]}" >&2 || {
-        # ensure that we regenerate the build.ninja next time. Since ninja does not accept the
-        # build.ninja, it will also not detect changes our build files in order to regenerate it.
-        # Therefore, force ourself to regenerate it by removing our "files id".
-        rm -f $filesid
-        exit 1
-    }
+    if [ "$M3_REM_HOST" != "" ]; then
+        echo "Building for $M3_TARGET-$M3_ISA-$M3_BUILD remotely at $M3_REM_HOST:$M3_REM_DIR..." >&2
+        # sync all sources to the remote host and check whether anything was transferred
+        if [ "$(rsync -az . "--exclude=/.ninja*" --exclude=/platform --exclude=/build \
+                    --stats "$M3_REM_HOST:$M3_REM_DIR" |
+                grep "Number of regular files transferred: 0")" = "" ]; then
+            # if there was something transferred, build it on the remote host. source the .profile
+            # to set environment variables (e.g. PATH to include ~/.cargo/bin).
+            if ssh "$M3_REM_HOST" \
+                   "source .profile && " \
+                   "cd $M3_REM_DIR && " \
+                   "M3_BUILD=$M3_BUILD M3_TARGET=$M3_TARGET M3_ISA=$M3_ISA ./b"; then
+                # and transfer build files back
+                rsync -az \
+                    "$M3_REM_HOST:$M3_REM_DIR/build/$M3_TARGET-$M3_ISA-$M3_BUILD/" \
+                    "build/$M3_TARGET-$M3_ISA-$M3_BUILD/"
+            else
+                # store the current date to some file to ensure that we transfer something next time
+                # we try to build, regardless of whether something changed.
+                date --rfc-3339=ns > .remote-build-failed
+                exit 1
+            fi
+        fi
+    else
+        echo "Building for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
+        ninja -f $build/build.ninja "${ninjaargs[@]}" >&2 || {
+            # ensure that we regenerate the build.ninja next time. Since ninja does not accept the
+            # build.ninja, it will also not detect changes our build files in order to regenerate it.
+            # Therefore, force ourself to regenerate it by removing our "files id".
+            rm -f $filesid
+            exit 1
+        }
+    fi
 fi
 
 # run the specified command, if any
