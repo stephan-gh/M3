@@ -24,20 +24,21 @@ extern int main_example_dma_polled();
 extern int main_example_dma_intr();
 
 int main() {
-    Serial::get() << "Starting AXI Ethernet driver\n\n";
+    logln("Starting AXI Ethernet driver\n"_cf);
 
-    //int error = main_example_polled();
-    // int error = main_example_intr_fifo();
-    //int error = main_fifo_ping_req_example();
-    // int error = main_example_dma_polled();
+    // int error = main_example_polled();
+    //  int error = main_example_intr_fifo();
+    // int error = main_fifo_ping_req_example();
+    //  int error = main_example_dma_polled();
     int error = main_example_dma_intr();
-    if (error){
-        Serial::get() << "Error: " << error << "\n";
-    } else {
-        Serial::get() << "\x1B[1;32mAll tests successful!\x1B[0;m\n";
+    if(error) {
+        logln("Error: {}"_cf, error);
+    }
+    else {
+        logln("\x1B[1;32mAll tests successful!\x1B[0;m"_cf);
     }
 
     // for the test infrastructure
-    Serial::get() << "Shutting down\n";
+    logln("Shutting down"_cf);
     return 0;
 }

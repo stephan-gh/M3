@@ -44,7 +44,7 @@ static m3::LoadGen::Channel *chan;
 
 static void remove_rec(const char *path) {
     if(VERBOSE)
-        cerr << "Unlinking " << path << "\n";
+        eprintln("Unlinking {}"_cf, path);
 
     if(VFS::try_unlink(path) == Errors::IS_DIR) {
         Dir::Entry e;
@@ -55,7 +55,7 @@ static void remove_rec(const char *path) {
                 continue;
 
             OStringStream file(tmp, sizeof(tmp));
-            file << path << "/" << e.name;
+            format_to(file, "{}/{}"_cf, path, e.name);
             remove_rec(file.str());
         }
         VFS::rmdir(path);
@@ -69,7 +69,7 @@ static void cleanup() {
         std::vector<std::string> entries;
 
         if(VERBOSE)
-            cerr << "Collecting files in /tmp\n";
+            eprintln("Collecting files in /tmp"_cf);
 
         // remove all entries; we assume here that they are files
         Dir::Entry e;
@@ -79,7 +79,7 @@ static void cleanup() {
                 continue;
 
             OStringStream file(path, sizeof(path));
-            file << "/tmp/" << e.name;
+            format_to(file, "/tmp/{}"_cf, e.name);
             entries.push_back(file.str());
         }
 
@@ -92,9 +92,9 @@ static void cleanup() {
 }
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-p <prefix>] [-n <iterations>] [-w] [-t] [-v] [-u <warmup>]"
-         << " [-g <rgate selector>] [-l <loadgen>] [-i] [-d]"
-         << " [-f <mount_fs>] <name>\n";
+    eprint("Usage: {} [-p <prefix>] [-n <iterations>] [-w] [-t] [-v] [-u <warmup>]"_cf, name);
+    eprint(" [-g <rgate selector>] [-l <loadgen>] [-i] [-d]"_cf);
+    eprintln(" [-f <mount_fs>] <name>"_cf);
     exit(1);
 }
 
@@ -151,14 +151,14 @@ int main(int argc, char **argv) {
     if(*prefix) {
         Errors::Code res = VFS::try_mkdir(prefix, 0755);
         if(res != Errors::NONE && res != Errors::EXISTS)
-            VTHROW(res, "Unable to create directory " << prefix);
+            vthrow(res, "Unable to create directory {}"_cf, prefix);
     }
 
     TracePlayer player(prefix);
 
     Trace *trace = Traces::get(argv[optind]);
     if(!trace)
-        PANIC("Trace '" << argv[optind] << "' does not exist.");
+        exitmsg("Trace '{}' does not exist."_cf, argv[optind]);
 
     // touch all operations to make sure we don't get pagefaults in trace_ops arrary
     unsigned int numTraceOps = 0;
@@ -181,15 +181,10 @@ int main(int argc, char **argv) {
     }
 
     // print parameters for reference
-    cerr << "VPFS trace_bench started ["
-         << "trace=" << argv[optind] << ","
-         << "n=" << iters << ","
-         << "wait=" << (keep_time ? "yes" : "no") << ","
-         << "data=" << (data ? "yes" : "no") << ","
-         << "stdio=" << (stdio ? "yes" : "no") << ","
-         << "prefix=" << prefix << ","
-         << "loadgen=" << loadgen << ","
-         << "ops=" << numTraceOps << "]\n";
+    eprintln(
+        "VPFS trace_bench started [trace={}, n={}, wait={}, data={}, stdio={}, prefix={}, loadgen={}, ops={}]"_cf,
+        argv[optind], iters, keep_time ? "yes" : "no", data ? "yes" : "no", stdio ? "yes" : "no",
+        prefix, loadgen, numTraceOps);
 
     Profile pr(iters, warmup);
     struct FSTraceRunner : public Runner {
@@ -216,10 +211,10 @@ int main(int argc, char **argv) {
             pr.runner<CycleInstant>(runner);
     }
     catch(::Exception &e) {
-        cerr << "Caught exception: " << e.msg() << "\n";
+        eprintln("Caught exception: {}"_cf, e.msg());
         return 1;
     }
 
-    cerr << "VPFS trace_bench benchmark terminated\n";
+    eprintln("VPFS trace_bench benchmark terminated"_cf);
     return 0;
 }

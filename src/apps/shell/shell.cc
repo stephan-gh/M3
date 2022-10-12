@@ -96,14 +96,14 @@ static void execute_pipeline(Pipes &pipesrv, std::unique_ptr<Parser::CmdList> &c
     for(size_t i = 0; i < cmds->size(); ++i) {
         auto &cmd = cmds->get(i);
         if(cmd->args()->size() == 0) {
-            errmsg("Command has no arguments");
+            eprintln("Command has no arguments"_cf);
             return;
         }
 
         const char *cmd_name = expr_value(*cmd->args()->get(0));
         builtin[i] = Builtin::is_builtin(cmd_name);
         if(i > 0 && builtin[i]) {
-            errmsg("Builtin command cannot read from pipe");
+            eprintln("Builtin command cannot read from pipe"_cf);
             return;
         }
         if(!builtin[i]) {
@@ -285,12 +285,12 @@ static void execute_pipeline(Pipes &pipesrv, std::unique_ptr<Parser::CmdList> &c
             for(size_t i = 0; i < act_count; ++i) {
                 if(acts[i] && (signal || acts[i]->sel() == act)) {
                     if(exitcode != 0) {
-                        cerr << expr_value(*cmds->get(i)->args()->get(0))
-                             << " terminated with exit code " << exitcode << "\n";
+                        eprintln("{} terminated with exit code {}"_cf,
+                                 expr_value(*cmds->get(i)->args()->get(0)), exitcode);
                     }
                     else if(signal) {
-                        cerr << expr_value(*cmds->get(i)->args()->get(0))
-                             << " terminated by signal\n";
+                        eprintln("{} terminated by signal"_cf,
+                                 expr_value(*cmds->get(i)->args()->get(0)));
                     }
                     if(!acts[i]->tile_desc().is_programmable()) {
                         if(pipes[i])
@@ -321,7 +321,7 @@ static void execute(Pipes &pipesrv, std::unique_ptr<Parser::CmdList> &list) {
         execute_pipeline(pipesrv, list);
     }
     catch(const Exception &e) {
-        errmsg("command failed: " << e.what());
+        eprintln("command failed: {}"_cf, e.what());
     }
 }
 
@@ -330,7 +330,7 @@ size_t prompt_len() {
 }
 
 void print_prompt() {
-    cout << VFS::cwd() << " $ ";
+    print("{} $ "_cf, VFS::cwd());
 }
 
 int main(int argc, char **argv) {
@@ -346,7 +346,7 @@ int main(int argc, char **argv) {
         have_vterm = true;
     }
     catch(const Exception &e) {
-        errmsg("Unable to open vterm: " << e.what());
+        eprintln("Unable to open vterm: {}"_cf, e.what());
     }
 
     VFS::set_cwd("/");
@@ -354,7 +354,7 @@ int main(int argc, char **argv) {
     if(argc > 1) {
         OStringStream os;
         for(int i = 1; i < argc; ++i)
-            os << argv[i] << " ";
+            format_to(os, "{} "_cf, argv[i]);
 
         try {
             Parser parser(Tokenizer::tokenize(os.str()));
@@ -364,18 +364,18 @@ int main(int argc, char **argv) {
             execute(pipesrv, cmdlist);
             auto end = TimeInstant::now();
 
-            cerr << "Execution took " << end.duration_since(start) << "\n";
+            println("Execution took {}"_cf, end.duration_since(start));
         }
         catch(const Exception &e) {
-            exitmsg("Unable to execute command: " << e.what() << "\n");
+            eprintln("Unable to execute command: {}"_cf, e.what());
         }
         return 0;
     }
 
-    cout << "========================\n";
-    cout << "Welcome to the M3 shell!\n";
-    cout << "========================\n";
-    cout << "\n";
+    println("========================"_cf);
+    println("Welcome to the M3 shell!"_cf);
+    println("========================"_cf);
+    println();
 
     char buffer[256];
     while(!cin.eof()) {
@@ -396,7 +396,7 @@ int main(int argc, char **argv) {
             execute(pipesrv, cmdlist);
         }
         catch(const Exception &e) {
-            cerr << "Unable to execute command: " << e.what() << "\n";
+            eprintln("Unable to execute command: {}"_cf, e.what());
         }
     }
     return 0;

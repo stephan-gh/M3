@@ -87,14 +87,14 @@ void Socket::process_message(const NetEventChannel::ControlMessage &message,
 
 void Socket::handle_data(NetEventChannel::DataMessage const &msg, NetEventChannel::Event &event) {
     log_net(NetLogEvent::RecvPacket, _sd, msg.size);
-    LLOG(NET, "socket " << _sd << ": received data with " << msg.size << "b"
-                        << " from " << IpAddr(msg.addr) << ":" << msg.port);
+    LLOG(NET, "socket {}: received data with {}b from {}:{}"_cf, _sd, msg.size, IpAddr(msg.addr),
+         msg.port);
     _recv_queue.append(new DataQueue::Item(&msg, std::move(event)));
 }
 
 void Socket::handle_connected(NetEventChannel::ConnectedMessage const &msg) {
     log_net(NetLogEvent::RecvConnected, _sd, msg.port);
-    LLOG(NET, "socket " << _sd << ": connected to " << IpAddr(msg.addr) << ":" << msg.port);
+    LLOG(NET, "socket {}: connected to {}:{}"_cf, _sd, IpAddr(msg.addr), msg.port);
     _state = Connected;
     _remote_ep.addr = IpAddr(msg.addr);
     _remote_ep.port = msg.port;
@@ -102,13 +102,13 @@ void Socket::handle_connected(NetEventChannel::ConnectedMessage const &msg) {
 
 void Socket::handle_close_req(NetEventChannel::CloseReqMessage const &) {
     log_net(NetLogEvent::RecvRemoteClosed, _sd, 0);
-    LLOG(NET, "socket " << _sd << ": remote side was closed");
+    LLOG(NET, "socket {}: remote side was closed"_cf, _sd);
     _state = RemoteClosed;
 }
 
 void Socket::handle_closed(NetEventChannel::ClosedMessage const &) {
     log_net(NetLogEvent::RecvClosed, _sd, 0);
-    LLOG(NET, "socket " << _sd << ": closed");
+    LLOG(NET, "socket {}: closed"_cf, _sd);
     disconnect();
 }
 

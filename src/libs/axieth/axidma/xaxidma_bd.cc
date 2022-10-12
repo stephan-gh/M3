@@ -71,7 +71,7 @@
 int XAxiDma_BdSetLength(XAxiDma_Bd *BdPtr, u32 LenBytes, u32 LengthMask)
 {
 	if (LenBytes <= 0 || (LenBytes > LengthMask)) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "invalid length " << (int)LenBytes << "\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "invalid length {}\n", LenBytes);
 		return XST_INVALID_PARAM;
 	}
 
@@ -106,10 +106,9 @@ u32 XAxiDma_BdSetBufAddr(XAxiDma_Bd* BdPtr, UINTPTR Addr)
 
 	if (Addr & (WordLen - 1)) {
 		if ((HasDRE & XAXIDMA_BD_HAS_DRE_MASK) == 0) {
-			xdbg_printf(XDBG_DEBUG_ERROR, "Error set buf addr " << Addr <<
-				" with " << fmt(HasDRE, "#x") <<
-				" and " << fmt((WordLen - 1), "#x") <<
-				"," << fmt(Addr & (WordLen - 1), "#x") << "\r\n");
+            xdbg_printf(XDBG_DEBUG_ERROR,
+                "Error set buf addr {:p} with {:#x} and {:#x},{:#x}\n",
+                Addr, HasDRE, WordLen - 1, Addr & (WordLen - 1));
 			return XST_INVALID_PARAM;
 		}
 	}
@@ -142,9 +141,9 @@ u32 XAxiDma_BdSetBufAddr(XAxiDma_Bd* BdPtr, UINTPTR Addr)
 u32 XAxiDma_BdSetBufAddrMicroMode(XAxiDma_Bd* BdPtr, UINTPTR Addr)
 {
 	if (Addr & XAXIDMA_MICROMODE_MIN_BUF_ALIGN) {
-			xdbg_printf(XDBG_DEBUG_ERROR, "Error set buf addr " << fmt(Addr, "#x") <<
-				" and " << fmt(XAXIDMA_MICROMODE_MIN_BUF_ALIGN, "#x") <<
-				"," << fmt(Addr & XAXIDMA_MICROMODE_MIN_BUF_ALIGN, "#x") << "\r\n");
+            xdbg_printf(XDBG_DEBUG_ERROR,
+                "Error set buf addr {:p} and {:#x},{:#x}\n",
+                Addr, XAXIDMA_MICROMODE_MIN_BUF_ALIGN, Addr & XAXIDMA_MICROMODE_MIN_BUF_ALIGN);
 			return XST_INVALID_PARAM;
 	}
 
@@ -185,15 +184,14 @@ int XAxiDma_BdSetAppWord(XAxiDma_Bd* BdPtr, int Offset, u32 Word)
 	if (XAxiDma_BdRead(BdPtr, XAXIDMA_BD_HAS_STSCNTRL_OFFSET) == 0) {
 
 		xdbg_printf(XDBG_DEBUG_ERROR, "BdRingSetAppWord: no sts cntrl"
-			"stream in hardware build, cannot set app word\r\n");
+			"stream in hardware build, cannot set app word\n");
 
 		return XST_INVALID_PARAM;
 	}
 
 	if ((Offset < 0) || (Offset > XAXIDMA_LAST_APPWORD)) {
 
-		xdbg_printf(XDBG_DEBUG_ERROR, "BdRingSetAppWord: invalid"
-			"offset " << Offset);
+		xdbg_printf(XDBG_DEBUG_ERROR, "BdRingSetAppWord: invalid offset {}\n", Offset);
 
 		return XST_INVALID_PARAM;
 	}
@@ -225,15 +223,14 @@ u32 XAxiDma_BdGetAppWord(XAxiDma_Bd* BdPtr, int Offset, int *Valid)
 	if (XAxiDma_BdRead(BdPtr, XAXIDMA_BD_HAS_STSCNTRL_OFFSET) == 0) {
 
 		xdbg_printf(XDBG_DEBUG_ERROR, "BdRingGetAppWord: no sts cntrl "
-			"stream in hardware build, no app word available\r\n");
+			"stream in hardware build, no app word available\n");
 
 		return (u32)0;
 	}
 
 	if((Offset < 0) || (Offset > XAXIDMA_LAST_APPWORD)) {
 
-		xdbg_printf(XDBG_DEBUG_ERROR, "BdRingGetAppWord: invalid"
-			" offset " << Offset);
+		xdbg_printf(XDBG_DEBUG_ERROR, "BdRingGetAppWord: invalid offset {}\n", Offset);
 
 		return (u32)0;
 	}
@@ -280,24 +277,24 @@ void XAxiDma_BdSetCtrl(XAxiDma_Bd* BdPtr, u32 Data)
  *****************************************************************************/
 void XAxiDma_DumpBd(XAxiDma_Bd* BdPtr)
 {
-	xdbg_printf(XDBG_DEBUG_GENERAL, "Dump BD: " << fmt((UINTPTR)BdPtr, "#x") << "\r\n");
-	xdbg_printf(XDBG_DEBUG_GENERAL, "\tNext Bd Ptr: " << fmt((unsigned int)XAxiDma_BdRead(BdPtr, XAXIDMA_BD_NDESC_OFFSET), "#x") << "\r\n");
-	xdbg_printf(XDBG_DEBUG_GENERAL, "\tBuff addr: " << fmt((unsigned int)XAxiDma_BdRead(BdPtr, XAXIDMA_BD_BUFA_OFFSET), "#x") << "\r\n");
-	xdbg_printf(XDBG_DEBUG_GENERAL, "\tMCDMA Fields: " << fmt((unsigned int)XAxiDma_BdRead(BdPtr, XAXIDMA_BD_MCCTL_OFFSET), "#x") << "\r\n");
-	xdbg_printf(XDBG_DEBUG_GENERAL, "\tVSIZE_STRIDE: " << fmt((unsigned int)XAxiDma_BdRead(BdPtr, XAXIDMA_BD_STRIDE_VSIZE_OFFSET), "#x") << "\r\n");
-	xdbg_printf(XDBG_DEBUG_GENERAL, "\tContrl len: " << fmt((unsigned int)XAxiDma_BdRead(BdPtr, XAXIDMA_BD_CTRL_LEN_OFFSET), "#x") << "\r\n");
-	xdbg_printf(XDBG_DEBUG_GENERAL, "\tStatus: " << fmt((unsigned int)XAxiDma_BdRead(BdPtr, XAXIDMA_BD_STS_OFFSET), "#x") << "\r\n");
+	xdbg_printf(XDBG_DEBUG_GENERAL, "Dump BD: {:#x}\n", (void*)BdPtr);
+	xdbg_printf(XDBG_DEBUG_GENERAL, "\tNext Bd Ptr: {:#x}\n", XAxiDma_BdRead(BdPtr, XAXIDMA_BD_NDESC_OFFSET));
+	xdbg_printf(XDBG_DEBUG_GENERAL, "\tBuff addr: {:#x}\n", XAxiDma_BdRead(BdPtr, XAXIDMA_BD_BUFA_OFFSET));
+	xdbg_printf(XDBG_DEBUG_GENERAL, "\tMCDMA Fields: {:#x}\n", XAxiDma_BdRead(BdPtr, XAXIDMA_BD_MCCTL_OFFSET));
+	xdbg_printf(XDBG_DEBUG_GENERAL, "\tVSIZE_STRIDE: {:#x}\n", XAxiDma_BdRead(BdPtr, XAXIDMA_BD_STRIDE_VSIZE_OFFSET));
+	xdbg_printf(XDBG_DEBUG_GENERAL, "\tContrl len: {:#x}\n", XAxiDma_BdRead(BdPtr, XAXIDMA_BD_CTRL_LEN_OFFSET));
+	xdbg_printf(XDBG_DEBUG_GENERAL, "\tStatus: {:#x}\n", XAxiDma_BdRead(BdPtr, XAXIDMA_BD_STS_OFFSET));
 
-	xdbg_printf(XDBG_DEBUG_GENERAL, "\tAPP 0: " << fmt((unsigned int)XAxiDma_BdRead(BdPtr, XAXIDMA_BD_USR0_OFFSET), "#x") << "\r\n");
-	xdbg_printf(XDBG_DEBUG_GENERAL, "\tAPP 1: " << fmt((unsigned int)XAxiDma_BdRead(BdPtr, XAXIDMA_BD_USR1_OFFSET), "#x") << "\r\n");
-	xdbg_printf(XDBG_DEBUG_GENERAL, "\tAPP 2: " << fmt((unsigned int)XAxiDma_BdRead(BdPtr, XAXIDMA_BD_USR2_OFFSET), "#x") << "\r\n");
-	xdbg_printf(XDBG_DEBUG_GENERAL, "\tAPP 3: " << fmt((unsigned int)XAxiDma_BdRead(BdPtr, XAXIDMA_BD_USR3_OFFSET), "#x") << "\r\n");
-	xdbg_printf(XDBG_DEBUG_GENERAL, "\tAPP 4: " << fmt((unsigned int)XAxiDma_BdRead(BdPtr, XAXIDMA_BD_USR4_OFFSET), "#x") << "\r\n");
+	xdbg_printf(XDBG_DEBUG_GENERAL, "\tAPP 0: {:#x}\n", XAxiDma_BdRead(BdPtr, XAXIDMA_BD_USR0_OFFSET));
+	xdbg_printf(XDBG_DEBUG_GENERAL, "\tAPP 1: {:#x}\n", XAxiDma_BdRead(BdPtr, XAXIDMA_BD_USR1_OFFSET));
+	xdbg_printf(XDBG_DEBUG_GENERAL, "\tAPP 2: {:#x}\n", XAxiDma_BdRead(BdPtr, XAXIDMA_BD_USR2_OFFSET));
+	xdbg_printf(XDBG_DEBUG_GENERAL, "\tAPP 3: {:#x}\n", XAxiDma_BdRead(BdPtr, XAXIDMA_BD_USR3_OFFSET));
+	xdbg_printf(XDBG_DEBUG_GENERAL, "\tAPP 4: {:#x}\n", XAxiDma_BdRead(BdPtr, XAXIDMA_BD_USR4_OFFSET));
 
-	xdbg_printf(XDBG_DEBUG_GENERAL, "\tSW ID: " << fmt((unsigned int)XAxiDma_BdRead(BdPtr, XAXIDMA_BD_ID_OFFSET), "#x") << "\r\n");
-	xdbg_printf(XDBG_DEBUG_GENERAL, "\tStsCtrl: " << fmt((unsigned int)XAxiDma_BdRead(BdPtr, XAXIDMA_BD_HAS_STSCNTRL_OFFSET), "#x") << "\r\n");
-	xdbg_printf(XDBG_DEBUG_GENERAL, "\tDRE: " << fmt((unsigned int)XAxiDma_BdRead(BdPtr, XAXIDMA_BD_HAS_DRE_OFFSET), "#x") << "\r\n");
+	xdbg_printf(XDBG_DEBUG_GENERAL, "\tSW ID: {:#x}\n", XAxiDma_BdRead(BdPtr, XAXIDMA_BD_ID_OFFSET));
+	xdbg_printf(XDBG_DEBUG_GENERAL, "\tStsCtrl: {:#x}\n", XAxiDma_BdRead(BdPtr, XAXIDMA_BD_HAS_STSCNTRL_OFFSET));
+	xdbg_printf(XDBG_DEBUG_GENERAL, "\tDRE: {:#x}\n", XAxiDma_BdRead(BdPtr, XAXIDMA_BD_HAS_DRE_OFFSET));
 
-	xdbg_printf(XDBG_DEBUG_GENERAL, "\r\n");
+	xdbg_printf(XDBG_DEBUG_GENERAL, "\n");
 }
 /** @} */

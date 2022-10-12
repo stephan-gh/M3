@@ -67,7 +67,7 @@ XLlFifo FifoInstance;
 //callback function for asserts
 void axi_ethernet_assert_callback(const char8 *File, s32 Line)
 {
-	Serial::get() << "Assert in " << File << ": " << Line << "\r\n";
+	logln("Assert in {}:{}"_cf, File, Line);
 }
 
 /******************************************************************************/
@@ -775,7 +775,7 @@ void AxiEthernetUtilErrorTrap(char const *Message)
 	//static int Count = 0;
 	//Count++;
 
-	Serial::get() << Message << "\r\n";
+	logln("{}"_cf, Message);
 
 //#ifdef STDOUT_BASEADDRESS
 //	xil_printf("%s\r\n", Message);

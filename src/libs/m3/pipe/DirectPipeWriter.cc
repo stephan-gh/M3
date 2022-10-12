@@ -67,7 +67,7 @@ void DirectPipeWriter::State::read_replies() {
         int cap = DirectPipe::MSG_BUF_SIZE / DirectPipe::MSG_SIZE;
         while(len && _capacity < cap) {
             receive_vmsg(_rgate, len);
-            LLOG(DIRPIPE, "[shutdown] got len=" << len);
+            LLOG(DIRPIPE, "[shutdown] got len={}"_cf, len);
             _capacity++;
         }
     }
@@ -134,7 +134,7 @@ Option<size_t> DirectPipeWriter::write(const void *buffer, size_t count) {
                 else
                     return None;
             }
-            LLOG(DIRPIPE, "[write] got len=" << len);
+            LLOG(DIRPIPE, "[write] got len={}"_cf, len);
             _state->_rdpos = (_state->_rdpos + len) % _state->_size;
             _state->_free += len;
             _state->_capacity++;
@@ -150,7 +150,7 @@ Option<size_t> DirectPipeWriter::write(const void *buffer, size_t count) {
         }
 
         size_t mem_off = off.unwrap();
-        LLOG(DIRPIPE, "[write] send pos=" << mem_off << ", len=" << amount);
+        LLOG(DIRPIPE, "[write] send pos={}, len={}"_cf, mem_off, amount);
 
         if(amount) {
             _state->_mgate.write(buf, amount, mem_off);

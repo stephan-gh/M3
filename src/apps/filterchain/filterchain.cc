@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
 
     MemGate mem = MemGate::create_global(memSize, MemGate::RW);
 
-    cout << "Initializing memory...\n";
+    println("Initializing memory..."_cf);
 
     // init memory with random numbers
     uint *buffer = new uint[BUF_SIZE / sizeof(uint)];
@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
     }
     mem.deactivate();
 
-    cout << "Starting filter chain...\n";
+    println("Starting filter chain..."_cf);
 
     // create receiver
     auto tile2 = Tile::get("clone|own");
@@ -79,12 +79,12 @@ int main(int argc, char **argv) {
         while(!finished) {
             GateIStream is = receive_vmsg(rgate, count, finished);
 
-            cout << "Got " << count << " data items\n";
+            println("Got {} data items"_cf, count);
 
             reply_vmsg(is, 0);
             total += count;
         }
-        cout << "Got " << total << " items in total\n";
+        println("Got {} items in total"_cf, total);
         return 0;
     });
 
@@ -141,6 +141,6 @@ int main(int argc, char **argv) {
     t1.wait();
     t2.wait();
 
-    cout << "Done.\n";
+    println("Done."_cf);
     return 0;
 }

@@ -18,14 +18,14 @@
 using namespace m3;
 
 int main() {
-    Serial::get() << "Starting TCU tests\n\n";
+    logln("Starting TCU tests\n"_cf);
 
     RUN_SUITE(test_msgs);
     RUN_SUITE(test_mem);
     RUN_SUITE(test_ext);
 
-    Serial::get() << "\x1B[1;32mAll tests successful!\x1B[0;m\n";
+    logln("\x1B[1;32mAll tests successful!\x1B[0;m"_cf);
     // for the test infrastructure
-    Serial::get() << "Shutting down\n";
+    logln("Shutting down"_cf);
     return 0;
 }

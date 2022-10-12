@@ -24,6 +24,8 @@
 
 #define DEBUG 0
 
+using namespace m3;
+
 Executor *Executor::create(const char *db) {
     return new LevelDBExecutor(db);
 }
@@ -40,9 +42,10 @@ LevelDBExecutor::LevelDBExecutor(const char *db)
     leveldb::Options options;
     options.create_if_missing = true;
     leveldb::Status status = leveldb::DB::Open(options, db, &_db);
-    if(!status.ok())
-        VTHROW(m3::Errors::INV_ARGS,
-               "Unable to open/create DB '" << db << "': " << status.ToString().c_str());
+    if(!status.ok()) {
+        vthrow(Errors::INV_ARGS, "Unable to open/create DB '{}': {}"_cf, db,
+               status.ToString().c_str());
+    }
 }
 
 LevelDBExecutor::~LevelDBExecutor() {
@@ -54,91 +57,88 @@ void LevelDBExecutor::reset_stats() {
     _n_read = 0;
     _n_scan = 0;
     _n_update = 0;
-    _t_insert = m3::TimeDuration::ZERO;
-    _t_read = m3::TimeDuration::ZERO;
-    _t_scan = m3::TimeDuration::ZERO;
-    _t_update = m3::TimeDuration::ZERO;
+    _t_insert = TimeDuration::ZERO;
+    _t_read = TimeDuration::ZERO;
+    _t_scan = TimeDuration::ZERO;
+    _t_update = TimeDuration::ZERO;
 }
 
 void LevelDBExecutor::print_stats(size_t num_ops) {
-    m3::TimeDuration avg;
-    m3::cout << "    Key Value Database Timings for " << num_ops << " operations:\n";
+    TimeDuration avg;
+    println("    Key Value Database Timings for {} operations:"_cf, num_ops);
 
-    avg = _n_insert > 0 ? _t_insert / _n_insert : m3::TimeDuration::ZERO;
-    m3::cout << "        Insert: " << _t_insert << ",\t avg_time: " << avg << "\n",
+    avg = _n_insert > 0 ? _t_insert / _n_insert : TimeDuration::ZERO;
+    println("        Insert: {},\t avg_time: {}"_cf, _t_insert, avg);
 
-        avg = _n_read > 0 ? _t_read / _n_read : m3::TimeDuration::ZERO;
-    m3::cout << "        Read:   " << _t_read << ",\t avg_time: " << avg << "\n";
+    avg = _n_read > 0 ? _t_read / _n_read : TimeDuration::ZERO;
+    println("        Read:   {},\t avg_time: {}"_cf, _t_read, avg);
 
-    avg = _n_update > 0 ? _t_update / _n_update : m3::TimeDuration::ZERO;
-    m3::cout << "        Update: " << _t_update << ",\t avg_time: " << avg << "\n";
+    avg = _n_update > 0 ? _t_update / _n_update : TimeDuration::ZERO;
+    println("        Update: {},\t avg_time: {}"_cf, _t_update, avg);
 
-    avg = _n_scan > 0 ? _t_scan / _n_scan : m3::TimeDuration::ZERO;
-    m3::cout << "        Scan:   " << _t_scan << ",\t avg_time: " << avg << "\n";
+    avg = _n_scan > 0 ? _t_scan / _n_scan : TimeDuration::ZERO;
+    println("        Scan:   {},\t avg_time: {}"_cf, _t_scan, avg);
 }
 
 size_t LevelDBExecutor::execute(Package &pkg) {
 #if DEBUG > 0
-    m3::cout << "Executing operation " << (int)pkg.op << " with table " << (int)pkg.table;
-    m3::cout << "  num_kvs=" << (int)pkg.num_kvs << ", key=" << pkg.key;
-    m3::cout << ", scan_length=" << pkg.scan_length << "\n";
+    print("Executing operation {} with table {}"_cf, (int)pkg.op, (int)pkg.table);
+    print("  num_kvs={}, key={}"_cf, (int)pkg.num_kvs, pkg.key);
+    println(", scan_length={}"_cf, pkg.scan_length);
 #endif
 #if DEBUG > 1
     for(auto &pair : pkg.kv_pairs)
-        m3::cout << "  key='field" << pair.first.c_str() << "' val='" << pair.second.c_str()
-                 << "'\n";
+        println("  key='field{}' val='{}'"_cf, pair.first.c_str(), pair.second.c_str());
 #endif
 
     switch(pkg.op) {
-        case Operation::INSERT: {
-            auto start = m3::TimeInstant::now();
+        case ::Operation::INSERT: {
+            auto start = TimeInstant::now();
             exec_insert(pkg);
-            _t_insert += m3::TimeInstant::now().duration_since(start);
+            _t_insert += TimeInstant::now().duration_since(start);
             _n_insert++;
             return 4;
         }
 
-        case Operation::UPDATE: {
-            auto start = m3::TimeInstant::now();
+        case ::Operation::UPDATE: {
+            auto start = TimeInstant::now();
             exec_insert(pkg);
-            _t_update += m3::TimeInstant::now().duration_since(start);
+            _t_update += TimeInstant::now().duration_since(start);
             _n_update++;
             return 4;
         }
 
-        case Operation::READ: {
-            auto start = m3::TimeInstant::now();
+        case ::Operation::READ: {
+            auto start = TimeInstant::now();
             auto vals = exec_read(pkg);
             size_t bytes = 0;
             for(auto &pair : vals) {
                 bytes += pair.first.size() + pair.second.size();
 #if DEBUG > 1
-                m3::cout << "  found '" << pair.first.c_str() << "' -> '" << pair.second.c_str()
-                         << "'\n";
+                println("  found '{}' -> '{}'"_cf, pair.first.c_str(), pair.second.c_str());
 #endif
             }
-            _t_read += m3::TimeInstant::now().duration_since(start);
+            _t_read += TimeInstant::now().duration_since(start);
             _n_read++;
             return bytes;
         }
 
-        case Operation::SCAN: {
-            auto start = m3::TimeInstant::now();
+        case ::Operation::SCAN: {
+            auto start = TimeInstant::now();
             auto vals = exec_scan(pkg);
             size_t bytes = 0;
             for(auto &pair : vals) {
                 bytes += pair.first.size() + pair.second.size();
 #if DEBUG > 1
-                m3::cout << "  found '" << pair.first.c_str() << "' -> '" << pair.second.c_str()
-                         << "'\n";
+                println("  found '{}'' -> '{}'"_cf, pair.first.c_str(), pair.second.c_str());
 #endif
             }
-            _t_scan += m3::TimeInstant::now().duration_since(start);
+            _t_scan += TimeInstant::now().duration_since(start);
             _n_scan++;
             return bytes;
         }
 
-        case Operation::DELETE: m3::cerr << "DELETE is not supported\n"; return 4;
+        case ::Operation::DELETE: eprintln("DELETE is not supported"_cf); return 4;
     }
 
     return 0;
@@ -162,7 +162,7 @@ void LevelDBExecutor::exec_insert(Package &pkg) {
     for(auto &pair : pkg.kv_pairs) {
         auto key = pack_key(pkg.key, pair.first, "field");
 #if DEBUG > 1
-        m3::cerr << "Setting '" << key.c_str() << "' to '" << pair.second.c_str() << "'\n";
+        eprintln("Setting '{}' to '{}'"_cf, key.c_str(), pair.second.c_str());
 #endif
         _db->Put(writeOptions, key, pair.second);
     }
@@ -192,7 +192,7 @@ std::vector<std::pair<std::string, std::string>> LevelDBExecutor::exec_read(Pack
             if(s.ok())
                 res.push_back(std::make_pair(pair.first, value));
             else
-                m3::cerr << "Unable to find key '" << key.c_str() << "'\n";
+                eprintln("Unable to find key '{}'"_cf, key.c_str());
         }
     }
     return res;

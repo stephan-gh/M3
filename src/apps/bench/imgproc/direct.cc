@@ -52,10 +52,10 @@ public:
         // create activities
         for(size_t i = 0; i < ACCEL_COUNT; ++i) {
             OStringStream name;
-            name << names[i] << id;
+            format_to(name, "{}{}"_cf, names[i], id);
 
             if(VERBOSE)
-                Serial::get() << "Creating Activity " << name.str() << "\n";
+                println("Creating Activity {}"_cf, name.str());
 
             tiles[i] = Tile::get("copy");
             acts[i] = std::make_unique<ChildActivity>(tiles[i], name.str());
@@ -70,7 +70,7 @@ public:
         }
 
         if(VERBOSE)
-            Serial::get() << "Connecting input and output...\n";
+            println("Connecting input and output..."_cf);
 
         // connect input/output
         accels[0]->connect_input(&*in);
@@ -111,9 +111,8 @@ public:
     void terminated(capsel_t act, int exitcode) {
         for(size_t i = 0; i < ACCEL_COUNT; ++i) {
             if(running[i] && acts[i]->sel() == act) {
-                if(exitcode != 0) {
-                    cerr << "chain" << i << " terminated with exit code " << exitcode << "\n";
-                }
+                if(exitcode != 0)
+                    eprintln("chain{} terminated with exit code {}"_cf, i, exitcode);
                 if(mode == Mode::DIR_SIMPLE) {
                     if(pipes[i])
                         pipes[i]->close_writer();
@@ -158,7 +157,7 @@ CycleDuration chain_direct(const char *in, size_t num, Mode mode) {
     // create <num> chains
     for(size_t i = 0; i < num; ++i) {
         OStringStream outpath;
-        outpath << "/tmp/res-" << i;
+        format_to(outpath, "/tmp/res-{}"_cf, i);
 
         infds[i] = VFS::open(in, FILE_R | FILE_NEWSESS);
         outfds[i] = VFS::open(outpath.str(), FILE_W | FILE_TRUNC | FILE_CREATE | FILE_NEWSESS);
@@ -167,7 +166,7 @@ CycleDuration chain_direct(const char *in, size_t num, Mode mode) {
     }
 
     if(VERBOSE)
-        Serial::get() << "Starting chain...\n";
+        println("Starting chain..."_cf);
 
     auto start = CycleInstant::now();
 

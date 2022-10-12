@@ -134,15 +134,16 @@
 	((RegOffset) == XLLF_RDR_OFFSET) ? "RDR {rx destination}": \
 	"unknown")
 
-#define XLlFifo_print_reg_o(BaseAddress, RegOffset, Value) ( \
-	xdbg_printf(XDBG_DEBUG_FIFO_REG, fmt((Value), "#x") << " -> " << XLlFifo_reg_name(RegOffset) \
-	 	<< "(" << fmt((RegOffset) + (BaseAddress), "#x") << ")\n") \
+#define XLlFifo_print_reg_o(BaseAddress, RegOffset, Value) ( 				\
+	xdbg_printf(XDBG_DEBUG_FIFO_REG, "{:#x} -> {} ({:#x})\n", 				\
+		(Value), XLlFifo_reg_name(RegOffset), (RegOffset) + (BaseAddress))  \
 	)
 
-#define XLlFifo_print_reg_i(BaseAddress, RegOffset, Value) ( \
-	xdbg_printf(XDBG_DEBUG_FIFO_REG, XLlFifo_reg_name(RegOffset) << "(" << fmt((RegOffset) + (BaseAddress), "#x") \
-		<< ") -> " << fmt((Value), "#x") << "\n") \
+#define XLlFifo_print_reg_i(BaseAddress, RegOffset, Value) ( 				\
+	xdbg_printf(XDBG_DEBUG_FIFO_REG, "{} ({:#x}) -> {:#x}\n", 				\
+		XLlFifo_reg_name(RegOffset), (RegOffset) + (BaseAddress), (Value)) 	\
 	)
+
 /**** end debug macros ****/
 
 /****************************************************************************/
@@ -166,7 +167,7 @@
 extern u32 _xllfifo_rr_value;
 #define XLlFifo_ReadReg(BaseAddress, RegOffset) ({ \
 		if ((RegOffset) > 0x40) { \
-			xdbg_printf(XDBG_DEBUG_ERROR, "XLlFifo_WriteReg: Woah! wrong reg addr: " << fmt((RegOffset), "#x") << "\n"); \
+			xdbg_printf(XDBG_DEBUG_ERROR, "XLlFifo_WriteReg: Woah! wrong reg addr: {:#x}\n", (RegOffset)); \
 		} \
 		_xllfifo_rr_value = Xil_In32((BaseAddress) + (RegOffset)); \
 		XLlFifo_print_reg_i((BaseAddress), (RegOffset), _xllfifo_rr_value); \
@@ -200,7 +201,7 @@ extern u32 _xllfifo_rr_value;
 #ifdef DEBUG
 #define XLlFifo_WriteReg(BaseAddress, RegOffset, Value) ({ \
 		if ((RegOffset) > 0x40) { \
-			xdbg_printf(XDBG_DEBUG_ERROR, "XLlFifo_WriteReg: Woah! wrong reg addr: " << fmt((RegOffset), "#x") << "\n"); \
+			xdbg_printf(XDBG_DEBUG_ERROR, "XLlFifo_WriteReg: Woah! wrong reg addr: {:#x}\n", (RegOffset)); \
 		} \
 		XLlFifo_print_reg_o((BaseAddress), (RegOffset), (Value)); \
 		(Xil_Out32((BaseAddress) + (RegOffset), (Value))); \

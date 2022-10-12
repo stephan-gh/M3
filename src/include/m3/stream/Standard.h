@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <base/stream/Format.h>
+
 #include <m3/stream/FStream.h>
 
 #include <cstdlib>
@@ -32,17 +34,82 @@ extern FStream cin;
 extern FStream cout;
 extern FStream cerr;
 
-#define errmsg(expr)              \
-    do {                          \
-        m3::cerr << expr << "\n"; \
-    }                             \
-    while(0)
+/**
+ * Convenience function that prints a formatted string to m3::cout.
+ * See print_to in Format.h for details on the formatting.
+ *
+ * @param fmt the format string
+ * @param args the arguments
+ */
+template<typename C, size_t N, detail::StaticString<C, N> S, typename... ARGS>
+void print(const detail::CompiledString<C, N, S> &fmt, const ARGS &...args) {
+    detail::format_rec<0, 0>(fmt, m3::cout, args...);
+}
 
-#define exitmsg(expr) \
-    do {              \
-        errmsg(expr); \
-        ::exit(1);    \
-    }                 \
-    while(0)
+/**
+ * Convenience function that prints a formatted string to m3::cout, appended by a newline.
+ * See print_to in Format.h for details on the formatting.
+ *
+ * @param fmt the format string
+ * @param args the arguments
+ */
+template<typename C, size_t N, detail::StaticString<C, N> S, typename... ARGS>
+void println(const detail::CompiledString<C, N, S> &fmt, const ARGS &...args) {
+    detail::format_rec<0, 0>(fmt, m3::cout, args...);
+    m3::cout.write('\n');
+}
+
+/**
+ * Convenience function that prints a newline to m3::cout.
+ */
+static inline void println() {
+    m3::cout.write('\n');
+}
+
+/**
+ * Convenience function that prints a formatted string to m3::cerr.
+ * See print_to in Format.h for details on the formatting.
+ *
+ * @param fmt the format string
+ * @param args the arguments
+ */
+template<typename C, size_t N, detail::StaticString<C, N> S, typename... ARGS>
+void eprint(const detail::CompiledString<C, N, S> &fmt, const ARGS &...args) {
+    detail::format_rec<0, 0>(fmt, m3::cerr, args...);
+}
+
+/**
+ * Convenience function that prints a formatted string to m3::cerr, appended by a newline.
+ * See print_to in Format.h for details on the formatting.
+ *
+ * @param fmt the format string
+ * @param args the arguments
+ */
+template<typename C, size_t N, detail::StaticString<C, N> S, typename... ARGS>
+void eprintln(const detail::CompiledString<C, N, S> &fmt, const ARGS &...args) {
+    detail::format_rec<0, 0>(fmt, m3::cerr, args...);
+    m3::cerr.write('\n');
+}
+
+/**
+ * Convenience function that prints a newline to m3::cerr.
+ */
+static inline void eprintln() {
+    m3::cerr.write('\n');
+}
+
+/**
+ * Convenience function that prints a formatted string to m3::cerr, appended by a newline, and exits
+ * the program with exit code 1. See print_to in Format.h for details on the formatting.
+ *
+ * @param fmt the format string
+ * @param args the arguments
+ */
+template<typename C, size_t N, detail::StaticString<C, N> S, typename... ARGS>
+void exitmsg(const detail::CompiledString<C, N, S> &fmt, const ARGS &...args) {
+    detail::format_rec<0, 0>(fmt, m3::cerr, args...);
+    m3::cerr.write('\n');
+    ::exit(1);
+}
 
 }

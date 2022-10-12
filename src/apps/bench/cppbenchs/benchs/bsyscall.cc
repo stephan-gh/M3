@@ -105,7 +105,7 @@ NOINLINE static void create_sgate() {
 
 NOINLINE static void create_map() {
     if(!Activity::own().tile_desc().has_virtmem()) {
-        cout << "Tile has no virtual memory support; skipping\n";
+        println("Tile has no virtual memory support; skipping"_cf);
         return;
     }
 

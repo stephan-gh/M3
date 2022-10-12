@@ -16,6 +16,7 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/stream/Format.h>
 #include <base/stream/OStream.h>
 #include <base/util/Digits.h>
 #include <base/util/Math.h>
@@ -27,150 +28,17 @@ namespace m3 {
 USED char OStream::_hexchars_big[] = "0123456789ABCDEF";
 USED char OStream::_hexchars_small[] = "0123456789abcdef";
 
-OStream::FormatParams::FormatParams(const char *fmt) : _base(10), _flags(0), _pad(0), _prec(~0UL) {
-    // read flags
-    bool read_flags = true;
-    while(read_flags) {
-        switch(*fmt) {
-            case '-':
-                _flags |= PADRIGHT;
-                fmt++;
-                break;
-            case '+':
-                _flags |= FORCESIGN;
-                fmt++;
-                break;
-            case ' ':
-                _flags |= SPACESIGN;
-                fmt++;
-                break;
-            case '#':
-                _flags |= PRINTBASE;
-                fmt++;
-                break;
-            case '0':
-                _flags |= PADZEROS;
-                fmt++;
-                break;
-            default: read_flags = false; break;
-        }
-    }
-
-    // read base
-    switch(*fmt) {
-        case 'X':
-        case 'x':
-            if(*fmt == 'X')
-                _flags |= CAPHEX;
-            _base = 16;
-            break;
-        case 'o': _base = 8; break;
-        case 'b': _base = 2; break;
-        case 'p': _flags |= POINTER; break;
-    }
-}
-
-size_t OStream::printsignedprefix(llong n, int flags) {
-    size_t count = 0;
-    if(n > 0) {
-        if(flags & FormatParams::FORCESIGN) {
-            write('+');
-            count++;
-        }
-        else if(flags & FormatParams::SPACESIGN) {
-            write(' ');
-            count++;
-        }
-    }
-    return count;
-}
-
-size_t OStream::putspad(const char *s, size_t pad, size_t prec, int flags) {
-    size_t count = 0;
-    if(pad > 0 && !(flags & FormatParams::PADRIGHT)) {
-        size_t width = prec != static_cast<size_t>(-1) ? Math::min<size_t>(prec, strlen(s))
-                                                       : strlen(s);
-        if(pad > width)
-            count += printpad(pad - width, flags);
-    }
-    count += puts(s, prec);
-    if((flags & FormatParams::PADRIGHT) && pad > count)
-        count += printpad(pad - count, flags);
-    return count;
-}
-
-size_t OStream::printnpad(llong n, size_t pad, int flags) {
-    size_t count = 0;
-    // pad left
-    if(!(flags & FormatParams::PADRIGHT) && pad > 0) {
-        size_t width = Digits::count_signed(n, 10);
-        if(n > 0 && (flags & (FormatParams::FORCESIGN | FormatParams::SPACESIGN)))
-            width++;
-        if(pad > width)
-            count += printpad(pad - width, flags);
-    }
-    count += printsignedprefix(n, flags);
-    count += printn(n);
-    // pad right
-    if((flags & FormatParams::PADRIGHT) && pad > count)
-        count += printpad(pad - count, flags);
-    return count;
-}
-
-size_t OStream::printupad(ullong u, uint base, size_t pad, int flags) {
-    size_t count = 0;
-    // pad left - spaces
-    if(!(flags & FormatParams::PADRIGHT) && !(flags & FormatParams::PADZEROS) && pad > 0) {
-        size_t width = Digits::count_unsigned(u, base);
-        if(pad > width)
-            count += printpad(pad - width, flags);
-    }
-    // print base-prefix
-    if((flags & FormatParams::PRINTBASE)) {
-        if(base == 16 || base == 8) {
-            write('0');
-            count++;
-        }
-        if(base == 16) {
-            char c = (flags & FormatParams::CAPHEX) ? 'X' : 'x';
-            write(c);
-            count++;
-        }
-    }
-    // pad left - zeros
-    if(!(flags & FormatParams::PADRIGHT) && (flags & FormatParams::PADZEROS) && pad > 0) {
-        size_t width = Digits::count_unsigned(u, base);
-        if(pad > width)
-            count += printpad(pad - width, flags);
-    }
-    // print number
-    if(flags & FormatParams::CAPHEX)
-        count += printu(u, base, _hexchars_big);
-    else
-        count += printu(u, base, _hexchars_small);
-    // pad right
-    if((flags & FormatParams::PADRIGHT) && pad > count)
-        count += printpad(pad - count, flags);
-    return count;
-}
-
-size_t OStream::printpad(size_t count, int flags) {
-    size_t res = count;
-    char c = flags & FormatParams::PADZEROS ? '0' : ' ';
-    while(count-- > 0)
+USED size_t OStream::write_string(const char *str, size_t limit) {
+    const char *begin = str;
+    char c;
+    while((limit == ~0UL || limit-- > 0) && (c = *str)) {
         write(c);
-    return res;
+        str++;
+    }
+    return static_cast<size_t>(str - begin);
 }
 
-USED size_t OStream::printu(ullong n, uint base, char *chars) {
-    size_t res = 0;
-    if(n >= base)
-        res += printu(n / base, base, chars);
-    write(chars[n % base]);
-    return res + 1;
-}
-
-USED size_t OStream::printn(llong n) {
+USED size_t OStream::write_signed(llong n) {
     size_t res = 0;
     if(n < 0) {
         write('-');
@@ -179,12 +47,139 @@ USED size_t OStream::printn(llong n) {
     }
 
     if(n >= 10)
-        res += printn(n / 10);
+        res += write_signed(n / 10);
     write('0' + (n % 10));
     return res + 1;
 }
 
-size_t OStream::printfloat(float d, size_t precision) {
+USED size_t OStream::write_unsigned(ullong n, uint base, char *digits) {
+    size_t res = 0;
+    if(n >= base)
+        res += write_unsigned(n / base, base, digits);
+    write(digits[n % base]);
+    return res + 1;
+}
+
+size_t OStream::write_pointer(uintptr_t p) {
+    if constexpr(sizeof(uintptr_t) == 8)
+        return write_unsigned_fmt(p, FormatSpecs::create("#016x"_cf));
+    else
+        return write_unsigned_fmt(p, FormatSpecs::create("#08x"_cf));
+}
+
+size_t OStream::write_string_fmt(const char *s, const FormatSpecs &fmt) {
+    size_t count = 0;
+    size_t width = 0;
+
+    if(fmt.width > 0)
+        width = fmt.precision != ~0UL ? Math::min<size_t>(fmt.precision, strlen(s)) : strlen(s);
+
+    if(fmt.align != FormatSpecs::LEFT && fmt.width > 0) {
+        if(fmt.width > width)
+            count += write_padding(fmt.width - width, fmt.align, fmt.fill, false);
+    }
+
+    count += write_string(s, fmt.precision);
+
+    if(fmt.align != FormatSpecs::RIGHT && fmt.width > 0)
+        count += write_padding(fmt.width - width, fmt.align, fmt.fill, true);
+
+    return count;
+}
+
+size_t OStream::write_signed_fmt(llong n, const FormatSpecs &fmt) {
+    if(fmt.base() != 10)
+        return write_unsigned_fmt(static_cast<ullong>(n), fmt);
+
+    size_t count = 0;
+    size_t width = fmt.width > 0 ? Digits::count_signed(n, 10) : 0;
+
+    // pad left - fill
+    if(fmt.align != FormatSpecs::LEFT && !(fmt.flags & FormatSpecs::ZERO) && fmt.width > 0) {
+        if(n > 0 && (fmt.flags & FormatSpecs::SIGN))
+            width++;
+        if(fmt.width > width)
+            count += write_padding(fmt.width - width, fmt.align, fmt.fill, false);
+    }
+
+    // prefix
+    if(n < 0) {
+        write('-');
+        count++;
+        n = -n;
+    }
+    else if(n > 0 && (fmt.flags & FormatSpecs::SIGN)) {
+        write('+');
+        count++;
+    }
+
+    // pad left - zeros
+    if(fmt.align != FormatSpecs::LEFT && (fmt.flags & FormatSpecs::ZERO) && fmt.width > 0) {
+        if(fmt.width > width)
+            count += write_padding(fmt.width - width, fmt.align, '0', false);
+    }
+
+    // print number
+    count += write_signed(n);
+
+    // pad right
+    if(fmt.align != FormatSpecs::RIGHT && fmt.width > 0)
+        count += write_padding(fmt.width - width, fmt.align, fmt.fill, true);
+
+    return count;
+}
+
+size_t OStream::write_unsigned_fmt(ullong u, const FormatSpecs &fmt) {
+    size_t count = 0;
+    uint base = fmt.base();
+    size_t width = fmt.width > 0 ? Digits::count_unsigned(u, base) : 0;
+    if(fmt.width > 0 && (fmt.flags & FormatSpecs::ALT))
+        width += fmt.repr == FormatSpecs::OCTAL ? 1 : 2;
+
+    // pad left - fill
+    if(fmt.align != FormatSpecs::LEFT && !(fmt.flags & FormatSpecs::ZERO) && fmt.width > 0) {
+        if(fmt.width > width)
+            count += write_padding(fmt.width - width, fmt.align, fmt.fill, false);
+    }
+
+    // print base-prefix
+    if(fmt.flags & FormatSpecs::ALT) {
+        uint base = fmt.base();
+        if(base == 16 || base == 8 || base == 2) {
+            write('0');
+            count++;
+        }
+        if(base == 2) {
+            write('b');
+            count++;
+        }
+        else if(base == 16) {
+            char c = fmt.repr == FormatSpecs::HEX_UPPER ? 'X' : 'x';
+            write(c);
+            count++;
+        }
+    }
+
+    // pad left - zeros
+    if(fmt.align != FormatSpecs::LEFT && (fmt.flags & FormatSpecs::ZERO) && fmt.width > 0) {
+        if(fmt.width > width)
+            count += write_padding(fmt.width - width, fmt.align, '0', false);
+    }
+
+    // print number
+    if(fmt.repr == FormatSpecs::HEX_UPPER)
+        count += write_unsigned(u, base, _hexchars_big);
+    else
+        count += write_unsigned(u, base, _hexchars_small);
+
+    // pad right
+    if(fmt.align != FormatSpecs::RIGHT && fmt.width > 0)
+        count += write_padding(fmt.width - width, fmt.align, fmt.fill, true);
+
+    return count;
+}
+
+size_t OStream::write_float_fmt(float d, const FormatSpecs &fmt) {
     size_t c = 0;
     if(d < 0) {
         d = -d;
@@ -193,17 +188,20 @@ size_t OStream::printfloat(float d, size_t precision) {
     }
 
     if(Math::is_nan(d))
-        c += puts("nan");
+        c += write_string("nan");
     else if(Math::is_inf(d))
-        c += puts("inf");
+        c += write_string("inf");
     else {
         // TODO this simple approach does not work in general
         llong val = static_cast<llong>(d);
-        c += printn(val);
+        c += write_signed(val);
         d -= val;
+
         write('.');
         c++;
-        while(precision-- > 0) {
+
+        size_t prec = fmt.precision;
+        while(prec-- > 0) {
             d *= 10;
             val = static_cast<long>(d);
             write((val % 10) + '0');
@@ -214,37 +212,38 @@ size_t OStream::printfloat(float d, size_t precision) {
     return c;
 }
 
-size_t OStream::printptr(uintptr_t u, int flags) {
-    write('0');
-    write('x');
-    return 2 + printupad(u, 16, sizeof(u) * 2, flags | FormatParams::PADZEROS);
-}
-
-USED size_t OStream::puts(const char *str, size_t prec) {
-    const char *begin = str;
-    char c;
-    while((prec == ~0UL || prec-- > 0) && (c = *str)) {
-        write(c);
-        str++;
-    }
-    return static_cast<size_t>(str - begin);
-}
-
 void OStream::dump(const void *data, size_t size) {
+    constexpr auto addr_fmt = FormatSpecs::create("#04x"_cf);
+    constexpr auto byte_fmt = FormatSpecs::create("#02x"_cf);
     const uint8_t *bytes = reinterpret_cast<const uint8_t *>(data);
     for(size_t i = 0; i < size; ++i) {
         if((i % 16) == 0) {
             if(i > 0)
                 write('\n');
-            printupad(i, 16, 4, FormatParams::PADZEROS);
+            write_unsigned_fmt(i, addr_fmt);
             write(':');
             write(' ');
         }
-        printupad(bytes[i], 16, 2, FormatParams::PADZEROS);
+
+        write_unsigned_fmt(bytes[i], byte_fmt);
+
         if(i + 1 < size)
             write(' ');
     }
     write('\n');
+}
+
+size_t OStream::write_padding(size_t count, int align, char c, bool right) {
+    if(align == FormatSpecs::CENTER) {
+        if(right)
+            count++;
+        count /= 2;
+    }
+
+    size_t res = count;
+    while(count-- > 0)
+        write(c);
+    return res;
 }
 
 }

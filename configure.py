@@ -205,7 +205,7 @@ env = M3Env()
 env['CPPFLAGS'] += ['-D__' + target + '__']
 env['CPPPATH']  += ['src/include']
 env['CFLAGS']   += ['-std=c99', '-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
-env['CXXFLAGS'] += ['-std=c++17', '-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
+env['CXXFLAGS'] += ['-std=c++20', '-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
 
 # for host compilation
 hostenv = env.clone()

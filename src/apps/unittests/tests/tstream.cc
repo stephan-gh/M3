@@ -104,51 +104,6 @@ static void istream() {
     }
 }
 
-#define STREAM_CHECK(expr, expstr)            \
-    do {                                      \
-        OStringStream __os(str, sizeof(str)); \
-        __os << expr;                         \
-        WVASSERTSTREQ(str, expstr);           \
-    }                                         \
-    while(0)
-
-static void ostream() {
-    char str[200];
-
-    STREAM_CHECK(1 << 2 << 3, "123");
-
-    STREAM_CHECK(0x1234'5678 << "  " << 1.2f << ' ' << '4' << "\n", "305419896  1.200 4\n");
-
-    STREAM_CHECK(fmt(1, 2) << ' ' << fmt(123, "0", 10) << ' ' << fmt(0xA23, "#0x", 8),
-                 " 1 0000000123 0x00000a23");
-
-    STREAM_CHECK(fmt(-123, "+")
-                     << ' ' << fmt(123, "+") << ' ' << fmt(444, " ") << ' ' << fmt(-3, " "),
-                 "-123 +123  444 -3");
-
-    STREAM_CHECK(fmt(-123, "-", 5) << ' ' << fmt(0755, "0o", 5) << ' ' << fmt(0xFF0, "b"),
-                 "-123  00755 111111110000");
-
-    STREAM_CHECK(fmt(0xDEAD, "#0X", 5) << ' ' << fmt("test", 5, 3) << ' ' << fmt("foo", "-", 4),
-                 "0X0DEAD   tes foo ");
-
-    OStringStream os(str, sizeof(str));
-    os << fmt(0xdead'beef, "p") << ", " << fmt(0x1234'5678, "x");
-    if(sizeof(uintptr_t) == 4)
-        WVASSERTSTREQ(str, "0xdeadbeef, 12345678");
-    else if(sizeof(uintptr_t) == 8)
-        WVASSERTSTREQ(str, "0x00000000deadbeef, 12345678");
-    else
-        WVASSERT(false);
-
-    STREAM_CHECK(0.f << ", " << 1.f << ", " << -1.f << ", " << 0.f << ", " << 0.4f << ", " << 18.4f,
-                 "0.000, 1.000, -1.000, 0.000, 0.400, 18.399");
-    STREAM_CHECK(-1.231f << ", " << 999.999f << ", " << 1234.5678f << ", " << 10018938.f,
-                 "-1.230, 999.999, 1234.567, 10018938.000");
-
-    STREAM_CHECK(Math::inf() << ", " << -Math::inf() << ", " << Math::nan(), "inf, -inf, nan");
-}
-
 static void fstream() {
     int totala = 0, totalb = 0;
     float totalc = 0;
@@ -171,6 +126,5 @@ static void fstream() {
 
 void tstream() {
     RUN_TEST(istream);
-    RUN_TEST(ostream);
     RUN_TEST(fstream);
 }

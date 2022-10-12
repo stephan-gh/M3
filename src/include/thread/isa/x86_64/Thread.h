@@ -35,6 +35,8 @@ struct Regs {
     word_t rdi;
 } PACKED;
 
-enum { T_STACK_WORDS = 2048 };
+enum {
+    T_STACK_WORDS = 2048
+};
 
 }

@@ -324,11 +324,11 @@ int main_fifo_ping_req_example()
 			 &FifoInstance,
 		     AXIETHERNET_DEVICE_ID);
 	if (Status != XST_SUCCESS) {
-		AxiEthernetUtilErrorTrap("Axi Ethernet ping request Example Failed\r\n");
+		AxiEthernetUtilErrorTrap("Axi Ethernet ping request Example Failed\n");
 		return XST_FAILURE;
 	}
 
-	AxiEthernetUtilErrorTrap("Successfully ran Axi Ethernet ping request Example\r\n");
+	AxiEthernetUtilErrorTrap("Successfully ran Axi Ethernet ping request Example\n");
 	return XST_SUCCESS;
 }
 
@@ -382,7 +382,7 @@ int AxiEthernetPingReqExample(XAxiEthernet *AxiEthernetInstancePtr,
 	 */
 	if(MacCfgPtr->AxiDevType != XPAR_AXI_FIFO) {
 		AxiEthernetUtilErrorTrap
-			("Device HW not configured for FIFO mode\r\n");
+			("Device HW not configured for FIFO mode\n");
 		return XST_FAILURE;
 	}
 
@@ -484,7 +484,9 @@ int AxiEthernetPingReqExample(XAxiEthernet *AxiEthernetInstancePtr,
 
 			switch (AxiEthernetPollForRxStatus()) {
 			case XST_SUCCESS:	/* Got a successful receive status */
-				xdbg_printf(XDBG_DEBUG_GENERAL, "Got a successful receive status at Packet No: " << (NUM_PACK_CHECK_RX_PACK-Index) << "\n");
+				xdbg_printf(XDBG_DEBUG_GENERAL,
+					"Got a successful receive status at Packet No: {}\n",
+					NUM_PACK_CHECK_RX_PACK - Index);
 				break;
 
 			case XST_NO_DATA:	/* Timed out */
@@ -535,8 +537,8 @@ int AxiEthernetPingReqExample(XAxiEthernet *AxiEthernetInstancePtr,
 		 */
 		if (EchoReplyStatus == XST_FAILURE) {
 			AxiEthernetUtilErrorTrap("No echo reply packet received");
-			xdbg_printf(XDBG_DEBUG_ERROR, "Packet No: " << (NUM_OF_PING_REQ_PKTS - NumOfPingReqPkts) << "\n");
-			xdbg_printf(XDBG_DEBUG_ERROR, " Seq NO " << SeqNum <<  " Request timed out\r\n");
+			xdbg_printf(XDBG_DEBUG_ERROR, "Packet No: {}\n", NUM_OF_PING_REQ_PKTS - NumOfPingReqPkts);
+			xdbg_printf(XDBG_DEBUG_ERROR, " Seq NO {} Request timed out\n", SeqNum);
 		}
 	}
 	return XST_SUCCESS;
@@ -1000,12 +1002,16 @@ int ProcessRecvFrame(XLlFifo *FifoInstancePtr, u32 frameLength)
 			}
 			if (DataWrong != 1) {
 				AxiEthernetUtilErrorTrap("Echo Packet received");
-				xdbg_printf(XDBG_DEBUG_GENERAL, "Packet No: " << (NUM_OF_PING_REQ_PKTS - NumOfPingReqPkts) << "\n");
-				xdbg_printf(XDBG_DEBUG_GENERAL, "Seq NO " << SeqNum << " Echo Packet received\r\n");
+				xdbg_printf(XDBG_DEBUG_GENERAL,
+					"Packet No: {}\n", NUM_OF_PING_REQ_PKTS - NumOfPingReqPkts);
+				xdbg_printf(XDBG_DEBUG_GENERAL,
+					"Seq NO {} Echo Packet received\n", SeqNum);
 				return XST_SUCCESS;
 			}
 			else {
-				xdbg_printf(XDBG_DEBUG_ERROR, "ProcessRecvFrame: Packet No: " << (NUM_OF_PING_REQ_PKTS - NumOfPingReqPkts) << "wrong data\n");
+				xdbg_printf(XDBG_DEBUG_ERROR,
+					"ProcessRecvFrame: Packet No: {} wrong data\n",
+					NUM_OF_PING_REQ_PKTS - NumOfPingReqPkts);
 			}
 		}
 	}

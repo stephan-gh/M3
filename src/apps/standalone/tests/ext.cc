@@ -28,7 +28,7 @@ static void test_inv_ep() {
     MsgBuf msg;
     msg.cast<uint64_t>() = 0xDEAD'BEEF;
 
-    Serial::get() << "force invalidation\n";
+    logln("force invalidation"_cf);
     {
         uint64_t data;
         kernel::TCU::config_mem(MEP, tile_id(Tile::MEM), 0x1000, sizeof(data), TCU::R);
@@ -57,7 +57,7 @@ static void test_inv_ep() {
         ASSERT_EQ(kernel::TCU::invalidate_ep_remote(tile_id(Tile::T0), REP, true), Errors::NONE);
     }
 
-    Serial::get() << "non-force send EP invalidation\n";
+    logln("non-force send EP invalidation"_cf);
     {
         kernel::TCU::config_recv(REP, buf, 5 /* 32 */, 5 /* 32 */, TCU::INVALID_EP, 0, 0);
         kernel::TCU::config_send(SEP, 0x5678, tile_id(Tile::T0), REP, 5 /* 32 */, 1);
@@ -74,7 +74,7 @@ static void test_inv_ep() {
         ASSERT_EQ(kernel::TCU::send(SEP, msg, 0x5678, TCU::NO_REPLIES), Errors::NO_SEP);
     }
 
-    Serial::get() << "non-force receive EP invalidation\n";
+    logln("non-force receive EP invalidation"_cf);
     {
         kernel::TCU::config_recv(REP, buf, 5 /* 32 */, 5 /* 32 */, TCU::INVALID_EP, 0x1, 0x1);
 

@@ -16,7 +16,7 @@
 #pragma once
 
 #include <base/Common.h>
-#include <base/stream/OStream.h>
+#include <base/stream/Format.h>
 
 namespace m3 {
 
@@ -50,13 +50,12 @@ public:
         return GlobAddr(ga.tile(), ga.offset() + off);
     }
 
-    friend OStream &operator<<(OStream &os, const GlobAddr &ga) {
-        if(ga._raw >= (TILE_OFFSET << TILE_SHIFT))
-            os << "G[Tile" << ga.tile() << "+" << fmt(ga.offset(), "#x") << "]";
+    void format(OStream &os, const FormatSpecs &) const {
+        if(raw() >= (GlobAddr::TILE_OFFSET << GlobAddr::TILE_SHIFT))
+            format_to(os, "G[Tile{}+{:#x}]"_cf, tile(), offset());
         // for bootstrap purposes, we need to use global addresses without Tile prefix
         else
-            os << "G[" << fmt(ga.raw(), "#x") << "]";
-        return os;
+            format_to(os, "G[{:#x}]"_cf, offset());
     }
 
 private:

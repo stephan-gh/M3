@@ -221,7 +221,7 @@ int main_example_intr_fifo(void)
 	Xil_DCacheEnable();
 #endif
 
-	AxiEthernetUtilErrorTrap("\r\n--- Enter main() ---");
+	AxiEthernetUtilErrorTrap("\n--- Enter main() ---");
 	AxiEthernetUtilErrorTrap("This test may take several minutes to finish");
 
 
@@ -237,9 +237,9 @@ int main_example_intr_fifo(void)
 					AXIETHERNET_IRPT_INTR, FIFO_IRPT_INTR);
 
 	if (Status != XST_SUCCESS) {
-		AxiEthernetUtilErrorTrap("Axiethernet intr fifo Example Failed\r\n");
+		AxiEthernetUtilErrorTrap("Axiethernet intr fifo Example Failed\n");
 	} else {
-		AxiEthernetUtilErrorTrap("Successfully ran Axiethernet intr fifo Example\r\n");
+		AxiEthernetUtilErrorTrap("Successfully ran Axiethernet intr fifo Example\n");
 	}
 
 	AxiEthernetUtilErrorTrap("--- Exiting main() ---");
@@ -315,7 +315,7 @@ int AxiEthernetFifoIntrExample(//INTC *IntcInstancePtr,
 	 */
 	if(MacCfgPtr->AxiDevType != XPAR_AXI_FIFO) {
 		AxiEthernetUtilErrorTrap
-			("Device HW not configured for FIFO mode\r\n");
+			("Device HW not configured for FIFO mode\n");
 		return XST_FAILURE;
 	}
 

@@ -31,14 +31,14 @@ TCPOpHandler::TCPOpHandler(NetworkManager &nm, m3::IpAddr ip, m3::port_t port)
 void TCPOpHandler::send(const void *data, size_t len) {
     uint64_t length = len;
     if(_socket->send(&length, sizeof(length)).unwrap() != sizeof(length))
-        m3::cerr << "send failed\n";
+        eprintln("send failed"_cf);
 
     size_t rem = len;
     const char *bytes = static_cast<const char *>(data);
     while(rem > 0) {
         size_t amount = Math::min(rem, static_cast<size_t>(1024));
         if(_socket->send(bytes, amount).unwrap() != amount)
-            m3::cerr << "send failed\n";
+            eprintln("send failed"_cf);
 
         bytes += amount;
         rem -= amount;
@@ -46,5 +46,5 @@ void TCPOpHandler::send(const void *data, size_t len) {
 
     char dummy;
     if(_socket->recv(&dummy, sizeof(dummy)).unwrap() != sizeof(dummy))
-        m3::cerr << "receive failed\n";
+        eprintln("receive failed"_cf);
 }

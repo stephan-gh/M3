@@ -15,6 +15,7 @@
 
 #include <base/Common.h>
 #include <base/stream/Serial.h>
+#include <base/time/Instant.h>
 #include <base/util/Util.h>
 
 #include "../assert.h"
@@ -34,7 +35,7 @@ int main() {
     MsgBuf reply;
     reply.cast<uint64_t>() = 0;
 
-    Serial::get() << "Hello World from receiver!\n";
+    logln("Hello World from receiver!"_cf);
 
     for(int count = 0; count < 700000; ++count) {
         // wait for message
@@ -49,10 +50,11 @@ int main() {
     }
 
     // give the other tiles some time
-    for(volatile int i = 0; i < 1000000; ++i)
+    auto end = TimeInstant::now() + TimeDuration::from_millis(10);
+    while(TimeInstant::now() < end)
         ;
 
     // for the test infrastructure
-    Serial::get() << "Shutting down\n";
+    logln("Shutting down"_cf);
     return 0;
 }

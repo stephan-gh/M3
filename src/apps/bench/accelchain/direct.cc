@@ -47,10 +47,10 @@ public:
         // create activities
         for(size_t i = 0; i < num; ++i) {
             OStringStream name;
-            name << "chain" << i;
+            format_to(name, "chain{}"_cf, i);
 
             if(VERBOSE)
-                Serial::get() << "Creating Activity " << name.str() << "\n";
+                println("Creating Activity {}"_cf, name.str());
 
             tiles[i] = Tile::get("copy");
             acts[i] = std::make_unique<ChildActivity>(tiles[i], name.str());
@@ -65,7 +65,7 @@ public:
         }
 
         if(VERBOSE)
-            Serial::get() << "Connecting input and output...\n";
+            println("Connecting input and output..."_cf);
 
         // connect input/output
         accels[0]->connect_input(&*in);
@@ -106,9 +106,8 @@ public:
     void terminated(capsel_t act, int exitcode) {
         for(size_t i = 0; i < num; ++i) {
             if(running[i] && acts[i]->sel() == act) {
-                if(exitcode != 0) {
-                    cerr << "chain" << i << " terminated with exit code " << exitcode << "\n";
-                }
+                if(exitcode != 0)
+                    eprintln("chain{} terminated with exit code {}"_cf, i, exitcode);
                 if(mode == Mode::DIR_SIMPLE) {
                     if(pipes[i])
                         pipes[i]->close_writer();
@@ -138,7 +137,7 @@ void chain_direct(FileRef<GenericFile> &in, FileRef<GenericFile> &out, size_t nu
     Chain ch(pipes, in, out, num, comptime, mode);
 
     if(VERBOSE)
-        Serial::get() << "Starting chain...\n";
+        println("Starting chain..."_cf);
 
     auto start = CycleInstant::now();
 
@@ -155,7 +154,7 @@ void chain_direct(FileRef<GenericFile> &in, FileRef<GenericFile> &out, size_t nu
     }
 
     auto end = CycleInstant::now();
-    Serial::get() << "Total time: " << end.duration_since(start) << "\n";
+    println("Total time: {}"_cf, end.duration_since(start));
 }
 
 void chain_direct_multi(FileRef<GenericFile> &in, FileRef<GenericFile> &out, size_t num,
@@ -168,7 +167,7 @@ void chain_direct_multi(FileRef<GenericFile> &in, FileRef<GenericFile> &out, siz
     Chain ch2(pipes, in2, out2, num, comptime, mode);
 
     if(VERBOSE)
-        Serial::get() << "Starting chains...\n";
+        println("Starting chains..."_cf);
 
     auto start = CycleInstant::now();
 
@@ -188,5 +187,5 @@ void chain_direct_multi(FileRef<GenericFile> &in, FileRef<GenericFile> &out, siz
     }
 
     auto end = CycleInstant::now();
-    Serial::get() << "Total time: " << end.duration_since(start) << "\n";
+    println("Total time: {}"_cf, end.duration_since(start));
 }

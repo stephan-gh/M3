@@ -452,13 +452,9 @@ int XAxiEthernet_SetMacAddress(XAxiEthernet *InstancePtr, void *AddressPtr)
 	}
 
 	xdbg_printf(XDBG_DEBUG_GENERAL,
-	"XAxiEthernet_SetMacAddress: setting mac address to: " <<
-		fmt(Aptr[0], "#08x") << ":" <<
-		fmt(Aptr[1], "#08x") << ":" <<
-		fmt(Aptr[2], "#08x") << ":" <<
-		fmt(Aptr[3], "#08x") << ":" <<
-		fmt(Aptr[4], "#08x") << ":" <<
-		fmt(Aptr[5], "#08x") << "\n");
+		"XAxiEthernet_SetMacAddress: setting mac address to: "
+		"{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}\n",
+		Aptr[0], Aptr[1], Aptr[2], Aptr[3], Aptr[4], Aptr[5]);
 
 	/* Prepare MAC bits in either UAW0/UAWL */
 	MacAddr = Aptr[0];
@@ -843,9 +839,9 @@ int XAxiEthernet_SetOptions(XAxiEthernet *InstancePtr, u32 Options)
 	RegNewTc = RegTc;
 
 	xdbg_printf(XDBG_DEBUG_GENERAL,
-			"current control regs: RCW1: " << fmt(RegRcw1, "#x") << "; TC: " << fmt(RegTc, "#x") << "\n");
+			"current control regs: RCW1: {:#x}; TC: {:#x}\n", RegRcw1, RegTc);
 	xdbg_printf(XDBG_DEBUG_GENERAL,
-			"Options: " << fmt(Options, "#x") << "; default options: " << fmt(XAE_DEFAULT_OPTIONS, "#x") << "\n");
+			"Options: {:#x}; default options: {:#x}\n", Options, XAE_DEFAULT_OPTIONS);
 
 	/* Turn on jumbo packet support for both Rx and Tx */
 	if (DepOptions & XAE_JUMBO_OPTION) {
@@ -891,14 +887,14 @@ int XAxiEthernet_SetOptions(XAxiEthernet *InstancePtr, u32 Options)
 	/* Change the TC or RCW1 registers if they need to be modified */
 	if (RegTc != RegNewTc) {
 		xdbg_printf(XDBG_DEBUG_GENERAL,
-				"setOptions: writing tc: " << fmt(RegNewTc, "#x") << "\n");
+				"setOptions: writing tc: {:#x}\n", RegNewTc);
 		XAxiEthernet_WriteReg(InstancePtr->Config.BaseAddress,
 						XAE_TC_OFFSET, RegNewTc);
 	}
 
 	if (RegRcw1 != RegNewRcw1) {
 		xdbg_printf(XDBG_DEBUG_GENERAL,
-			"setOptions: writing rcw1: " << fmt(RegNewRcw1, "#x") << "\n");
+			"setOptions: writing rcw1: {:#x}\n", RegNewRcw1);
 		XAxiEthernet_WriteReg(InstancePtr->Config.BaseAddress,
 						XAE_RCW1_OFFSET, RegNewRcw1);
 	}
@@ -919,7 +915,7 @@ int XAxiEthernet_SetOptions(XAxiEthernet *InstancePtr, u32 Options)
 							XAE_FCC_OFFSET, Reg);
 	}
 	xdbg_stmnt(rcw1_value = XAxiEthernet_ReadReg(InstancePtr->Config.BaseAddress, XAE_RCW1_OFFSET);)
-	xdbg_printf(XDBG_DEBUG_GENERAL,	"setOptions: rcw1 is now (fcc): " << fmt(rcw1_value, "#x") << "\n");
+	xdbg_printf(XDBG_DEBUG_GENERAL,	"setOptions: rcw1 is now (fcc): {:#x}\n", rcw1_value);
 
 	/* Turn on promiscuous frame filtering (all frames are received ) */
 	if (DepOptions & XAE_PROMISC_OPTION) {
@@ -932,7 +928,7 @@ int XAxiEthernet_SetOptions(XAxiEthernet *InstancePtr, u32 Options)
 							XAE_FMI_OFFSET, Reg);
 	}
 	xdbg_stmnt(rcw1_value = XAxiEthernet_ReadReg(InstancePtr->Config.BaseAddress, XAE_RCW1_OFFSET);)
-	xdbg_printf(XDBG_DEBUG_GENERAL,	"setOptions: rcw1 is now (afm): " << fmt(rcw1_value, "#x") << "\n");
+	xdbg_printf(XDBG_DEBUG_GENERAL,	"setOptions: rcw1 is now (afm): {:#x}\n", rcw1_value);
 
 	/* Allow broadcast address filtering */
 	if (DepOptions & XAE_BROADCAST_OPTION) {
@@ -943,7 +939,7 @@ int XAxiEthernet_SetOptions(XAxiEthernet *InstancePtr, u32 Options)
 							XAE_RAF_OFFSET, Reg);
 	}
 	xdbg_stmnt(rcw1_value = XAxiEthernet_ReadReg(InstancePtr->Config.BaseAddress, XAE_RCW1_OFFSET);)
-	xdbg_printf(XDBG_DEBUG_GENERAL, "setOptions: rcw1 is now (raf): " << fmt(rcw1_value, "#x") << "\n");
+	xdbg_printf(XDBG_DEBUG_GENERAL, "setOptions: rcw1 is now (raf): {:#x}\n", rcw1_value);
 
 	/* Allow multicast address filtering */
 	if (DepOptions & (XAE_MULTICAST_OPTION | XAE_EXT_MULTICAST_OPTION)) {
@@ -954,7 +950,7 @@ int XAxiEthernet_SetOptions(XAxiEthernet *InstancePtr, u32 Options)
 							XAE_RAF_OFFSET, Reg);
 	}
 	xdbg_stmnt(rcw1_value = XAxiEthernet_ReadReg(InstancePtr->Config.BaseAddress, XAE_RCW1_OFFSET);)
-	xdbg_printf(XDBG_DEBUG_GENERAL, "setOptions: rcw1 is now (raf2): " << fmt(rcw1_value, "#x") << "\n");
+	xdbg_printf(XDBG_DEBUG_GENERAL, "setOptions: rcw1 is now (raf2): {:#x}\n", rcw1_value);
 
 	/*
 	 * The remaining options not handled here are managed elsewhere in the
@@ -1066,7 +1062,7 @@ int XAxiEthernet_ClearOptions(XAxiEthernet *InstancePtr, u32 Options)
 	Xil_AssertNonvoid(InstancePtr->IsReady == XIL_COMPONENT_IS_READY);
 
 
-	xdbg_printf(XDBG_DEBUG_GENERAL, "XAxiEthernet_ClearOptions: " << fmt(Options, "#x") << "\n");	
+	xdbg_printf(XDBG_DEBUG_GENERAL, "XAxiEthernet_ClearOptions: {:#x}\n", Options);
 	/* Be sure device has been stopped */
 	if (InstancePtr->IsStarted == XIL_COMPONENT_IS_STARTED) {
 		return (XST_DEVICE_IS_STARTED);
@@ -1174,14 +1170,14 @@ int XAxiEthernet_ClearOptions(XAxiEthernet *InstancePtr, u32 Options)
 	 */
 	if (RegTc != RegNewTc) {
 		xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_ClearOptions: setting TC: " << fmt(RegNewTc, "#x") << "\n");
+		"XAxiEthernet_ClearOptions: setting TC: {:#x}\n", RegNewTc);
 		XAxiEthernet_WriteReg(InstancePtr->Config.BaseAddress,
 						XAE_TC_OFFSET, RegNewTc);
 	}
 
 	if (RegRcw1 != RegNewRcw1) {
 		xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_ClearOptions: setting RCW1: " << fmt(RegNewRcw1, "#x") << "\n");
+		"XAxiEthernet_ClearOptions: setting RCW1: {:#x}\n", RegNewRcw1);
 		XAxiEthernet_WriteReg(InstancePtr->Config.BaseAddress,
 						XAE_RCW1_OFFSET, RegNewRcw1);
 	}
@@ -1401,7 +1397,7 @@ int XAxiEthernet_SetOperatingSpeed(XAxiEthernet *InstancePtr, u16 Speed)
 
 	xdbg_printf(XDBG_DEBUG_GENERAL, "XAxiEthernet_SetOperatingSpeed\n");
 	xdbg_printf(XDBG_DEBUG_GENERAL,
-	"XAxiEthernet_SetOperatingSpeed: setting speed to: " << Speed << "(" << fmt(Speed, "#x") << ")\n");
+	"XAxiEthernet_SetOperatingSpeed: setting speed to: {:#x})\n", Speed);
 
 	TemacType = XAxiEthernet_GetTemacType(InstancePtr);
 	PhyType = XAxiEthernet_GetPhysicalInterface(InstancePtr);
@@ -1436,7 +1432,7 @@ int XAxiEthernet_SetOperatingSpeed(XAxiEthernet *InstancePtr, u16 Speed)
 				XAE_EMMC_OFFSET) & ~XAE_EMMC_LINKSPEED_MASK;
 
 		xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_SetOperatingSpeed: current speed: " << fmt(EmmcReg, "#x") << "\n");
+		"XAxiEthernet_SetOperatingSpeed: current speed: {:#x}\n", EmmcReg);
 		switch (Speed) {
 		case XAE_SPEED_10_MBPS:
 			break;
@@ -1458,7 +1454,7 @@ int XAxiEthernet_SetOperatingSpeed(XAxiEthernet *InstancePtr, u16 Speed)
 		}
 
 		xdbg_printf(XDBG_DEBUG_GENERAL,
-			"XAxiEthernet_SetOperatingSpeed: new speed: " << fmt(EmmcReg, "#x") << "\n");
+			"XAxiEthernet_SetOperatingSpeed: new speed: {:#x}\n", EmmcReg);
 		/* Set register and return */
 		XAxiEthernet_WriteReg(InstancePtr->Config.BaseAddress,
 				XAE_EMMC_OFFSET, EmmcReg);
@@ -1674,8 +1670,8 @@ void XAxiEthernet_PhyRead(XAxiEthernet *InstancePtr, u32 PhyAddress,
 	Xil_AssertVoid(RegisterNum <= XAE_PHY_REG_NUM_LIMIT);
 
 	xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_PhyRead: BaseAddress: " << fmt(InstancePtr->Config.BaseAddress, "#x")
-			<< ", RegisterNum: " << RegisterNum << "\n");
+		"XAxiEthernet_PhyRead: BaseAddress: {:#x}, RegisterNum: {}\n",
+		InstancePtr->Config.BaseAddress, RegisterNum);
 
 	/*
 	 * Wait till MDIO interface is ready to accept a new transaction.
@@ -1712,7 +1708,7 @@ void XAxiEthernet_PhyRead(XAxiEthernet *InstancePtr, u32 PhyAddress,
 	*PhyDataPtr = (u16) XAxiEthernet_ReadReg
 			(InstancePtr->Config.BaseAddress,XAE_MDIO_MRD_OFFSET);
 	xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_PhyRead: Value retrieved: " << fmt(*PhyDataPtr, "#x") << "\n");
+		"XAxiEthernet_PhyRead: Value retrieved: {:#x}\n", *PhyDataPtr);
 
 }
 
@@ -1768,8 +1764,8 @@ void XAxiEthernet_PhyWrite(XAxiEthernet *InstancePtr, u32 PhyAddress,
 
 
 	xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_PhyWrite: BaseAddress: " << fmt(InstancePtr->Config.BaseAddress, "#x")
-		<< ", RegisterNum: " << RegisterNum << "\n");
+		"XAxiEthernet_PhyWrite: BaseAddress: {:#x}, RegisterNum: {}\n",
+		InstancePtr->Config.BaseAddress, RegisterNum);
 
 	/*
 	 * Wait till the MDIO interface is ready to accept a new transaction.

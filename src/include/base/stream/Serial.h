@@ -28,7 +28,7 @@ namespace m3 {
 /**
  * An output stream that uses the "serial line" (what that exactly means depends on the
  * architecture). This can be used for logging. For example:
- * Serial::get() << "Hello, " << 123 << " World!\n";
+ * logln("Hello, {}!"_cf, "World");
  * Note that it is line-buffered.
  */
 class Serial : public OStream {
@@ -77,5 +77,31 @@ private:
     static const char *_colors[];
     static Serial *_inst;
 };
+
+/**
+ * Writes <fmt> including the arguments <args> into the serial stream.
+ * See Format.h for details.
+ */
+template<typename C, size_t N, detail::StaticString<C, N> S, typename... ARGS>
+void log(const detail::CompiledString<C, N, S> &fmt, const ARGS &...args) {
+    detail::format_rec<0, 0>(fmt, Serial::get(), args...);
+}
+
+/**
+ * Writes <fmt> including the arguments <args> and a newline into the serial stream.
+ * See Format.h for details.
+ */
+template<typename C, size_t N, detail::StaticString<C, N> S, typename... ARGS>
+void logln(const detail::CompiledString<C, N, S> &fmt, const ARGS &...args) {
+    detail::format_rec<0, 0>(fmt, Serial::get(), args...);
+    Serial::get().write('\n');
+}
+
+/**
+ * Writes a newline into the serial stream.
+ */
+static inline void logln() {
+    Serial::get().write('\n');
+}
 
 }

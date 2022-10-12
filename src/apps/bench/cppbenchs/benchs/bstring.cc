@@ -31,12 +31,21 @@ NOINLINE static void memcpy() {
 
     Profile pr(5, 2);
 
-    WVPERF("memcpy aligned " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&src, &dst] {
-        memcpy(dst.get(), src.get(), SIZE);
-    }));
-    WVPERF("memcpy unaligned " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&src, &dst] {
-        memcpy(reinterpret_cast<char *>(dst.get()) + 1, src.get(), SIZE - 1);
-    }));
+    {
+        auto name = OStringStream();
+        format_to(name, "memcpy aligned {} KiB"_cf, SIZE / 1024);
+        WVPERF(name.str(), pr.run<CycleInstant>([&src, &dst] {
+            memcpy(dst.get(), src.get(), SIZE);
+        }));
+    }
+
+    {
+        auto name = OStringStream();
+        format_to(name, "memcpy unaligned {} KiB"_cf, SIZE / 1024);
+        WVPERF(name.str(), pr.run<CycleInstant>([&src, &dst] {
+            memcpy(reinterpret_cast<char *>(dst.get()) + 1, src.get(), SIZE - 1);
+        }));
+    }
 }
 
 NOINLINE static void memset() {
@@ -44,9 +53,13 @@ NOINLINE static void memset() {
 
     Profile pr(5, 2);
 
-    WVPERF("memset " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&dst] {
-        memset(dst.get(), 0, SIZE);
-    }));
+    {
+        auto name = OStringStream();
+        format_to(name, "memset {} KiB"_cf, SIZE / 1024);
+        WVPERF(name.str(), pr.run<CycleInstant>([&dst] {
+            memset(dst.get(), 0, SIZE);
+        }));
+    }
 }
 
 NOINLINE static void memmove() {
@@ -54,19 +67,37 @@ NOINLINE static void memmove() {
 
     Profile pr(5, 2);
 
-    WVPERF("memmove backwards " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&buf] {
-        memmove(buf.get(), buf.get() + SIZE, SIZE);
-    }));
-    WVPERF("memmove overlapping unaligned " << (SIZE / 1024) << " KiB",
-           pr.run<CycleInstant>([&buf] {
-               memmove(buf.get() + 1, buf.get(), SIZE - 1);
-           }));
-    WVPERF("memmove overlapping aligned " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&buf] {
-        memmove(buf.get() + sizeof(word_t), buf.get(), SIZE - sizeof(word_t));
-    }));
-    WVPERF("memmove forward " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&buf] {
-        memmove(buf.get() + SIZE, buf.get(), SIZE);
-    }));
+    {
+        auto name = OStringStream();
+        format_to(name, "memmove backwards {} KiB"_cf, SIZE / 1024);
+        WVPERF(name.str(), pr.run<CycleInstant>([&buf] {
+            memmove(buf.get(), buf.get() + SIZE, SIZE);
+        }));
+    }
+
+    {
+        auto name = OStringStream();
+        format_to(name, "memmove overlapping unaligned {} KiB"_cf, SIZE / 1024);
+        WVPERF(name.str(), pr.run<CycleInstant>([&buf] {
+            memmove(buf.get() + 1, buf.get(), SIZE - 1);
+        }));
+    }
+
+    {
+        auto name = OStringStream();
+        format_to(name, "memmove overlapping aligned {} KiB"_cf, SIZE / 1024);
+        WVPERF(name.str(), pr.run<CycleInstant>([&buf] {
+            memmove(buf.get() + sizeof(word_t), buf.get(), SIZE - sizeof(word_t));
+        }));
+    }
+
+    {
+        auto name = OStringStream();
+        format_to(name, "memmove forward {} KiB"_cf, SIZE / 1024);
+        WVPERF(name.str(), pr.run<CycleInstant>([&buf] {
+            memmove(buf.get() + SIZE, buf.get(), SIZE);
+        }));
+    }
 }
 
 NOINLINE static void memcmp() {
@@ -78,15 +109,23 @@ NOINLINE static void memcmp() {
     memset(b1.get(), 0xAA, SIZE);
     memset(b2.get(), 0xAA, SIZE);
 
-    WVPERF("memcmp succ " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&b1, &b2] {
-        WVASSERTEQ(memcmp(b1.get(), b2.get(), SIZE), 0);
-    }));
+    {
+        auto name = OStringStream();
+        format_to(name, "memcmp succ {} KiB"_cf, SIZE / 1024);
+        WVPERF(name.str(), pr.run<CycleInstant>([&b1, &b2] {
+            WVASSERTEQ(memcmp(b1.get(), b2.get(), SIZE), 0);
+        }));
+    }
 
     memset(b2.get(), 0xBB, SIZE);
 
-    WVPERF("memcmp fail " << (SIZE / 1024) << " KiB", pr.run<CycleInstant>([&b1, &b2] {
-        WVASSERT(memcmp(b1.get(), b2.get(), SIZE) < 0);
-    }));
+    {
+        auto name = OStringStream();
+        format_to(name, "memcmp fail {} KiB"_cf, SIZE / 1024);
+        WVPERF(name.str(), pr.run<CycleInstant>([&b1, &b2] {
+            WVASSERT(memcmp(b1.get(), b2.get(), SIZE) < 0);
+        }));
+    }
 }
 
 void bstring() {

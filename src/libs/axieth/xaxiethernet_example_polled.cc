@@ -135,7 +135,7 @@ int main_example_polled(void)
 	Xil_DCacheEnable();
 #endif
 
-	AxiEthernetUtilErrorTrap("\r\n--- Enter main() ---");
+	AxiEthernetUtilErrorTrap("\n--- Enter main() ---");
 	AxiEthernetUtilErrorTrap("This test may take several minutes to finish");
 
 	/*
@@ -144,11 +144,11 @@ int main_example_polled(void)
 	 */
 	Status = AxiEthernetPolledExample(AXIETHERNET_DEVICE_ID);
 	if (Status != XST_SUCCESS) {
-		AxiEthernetUtilErrorTrap("Axiethernet poll mode fifo Example Failed\r\n");
+		AxiEthernetUtilErrorTrap("Axiethernet poll mode fifo Example Failed\n");
 		return XST_FAILURE;
 	}
 
-	AxiEthernetUtilErrorTrap("Successfully ran Axiethernet poll mode fifo Example\r\n");
+	AxiEthernetUtilErrorTrap("Successfully ran Axiethernet poll mode fifo Example\n");
 	AxiEthernetUtilErrorTrap("--- Exiting main() ---");
 	return XST_SUCCESS;
 
@@ -195,7 +195,7 @@ int AxiEthernetPolledExample(u16 AxiEthernetDeviceId)
 	 */
 	if(MacCfgPtr->AxiDevType != XPAR_AXI_FIFO) {
 		AxiEthernetUtilErrorTrap
-			("Device HW not configured for FIFO mode\r\n");
+			("Device HW not configured for FIFO mode\n");
 		return XST_FAILURE;
 	}
 

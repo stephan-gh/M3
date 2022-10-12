@@ -29,13 +29,13 @@ static void test_msg_errors() {
     MsgBuf msg, empty_msg;
     msg.cast<uint64_t>() = 5678;
 
-    Serial::get() << "SEND without send EP\n";
+    logln("SEND without send EP"_cf);
     {
         kernel::TCU::config_recv(REP, buf1, 6 /* 64 */, 6 /* 64 */, 3);
         ASSERT_EQ(kernel::TCU::send(REP, msg, 0x1111, TCU::NO_REPLIES), Errors::NO_SEP);
     }
 
-    Serial::get() << "SEND+ACK with invalid arguments\n";
+    logln("SEND+ACK with invalid arguments"_cf);
     {
         kernel::TCU::config_send(SEP, 0x1234, tile_id(Tile::T0), 1, 6 /* 64 */, 2);
 
@@ -50,7 +50,7 @@ static void test_msg_errors() {
         ASSERT_EQ(kernel::TCU::ack_msg(SEP, 0, nullptr), Errors::NO_REP);
     }
 
-    Serial::get() << "REPLY+ACK with out-of-bounds message\n";
+    logln("REPLY+ACK with out-of-bounds message"_cf);
     {
         kernel::TCU::config_recv(REP, buf1, 6 /* 64 */, 6 /* 64 */, RPLEP);
 
@@ -61,14 +61,14 @@ static void test_msg_errors() {
         ASSERT_EQ(kernel::TCU::ack_msg(REP, buf1, rmsg), Errors::INV_MSG_OFF);
     }
 
-    Serial::get() << "REPLY with disabled replies\n";
+    logln("REPLY with disabled replies"_cf);
     {
         kernel::TCU::config_recv(REP, buf1, 6 /* 64 */, 6 /* 64 */, TCU::NO_REPLIES);
         const TCU::Message *rmsg = reinterpret_cast<const TCU::Message *>(buf1);
         ASSERT_EQ(kernel::TCU::reply(REP, empty_msg, buf1, rmsg), Errors::REPLIES_DISABLED);
     }
 
-    Serial::get() << "REPLY with normal send EP\n";
+    logln("REPLY with normal send EP"_cf);
     {
         kernel::TCU::config_recv(REP, buf1, 6 /* 64 */, 6 /* 64 */, RPLEP,
                                  1 /* make msg 0 (EP 2) occupied */, 0);
@@ -77,7 +77,7 @@ static void test_msg_errors() {
         ASSERT_EQ(kernel::TCU::reply(REP, empty_msg, buf1, rmsg), Errors::SEND_REPLY_EP);
     }
 
-    Serial::get() << "SEND to invalid receive EP\n";
+    logln("SEND to invalid receive EP"_cf);
     {
         kernel::TCU::config_invalid(REP);
         kernel::TCU::config_send(SEP, 0x5678, tile_id(Tile::T0), REP /* invalid REP */, 4 /* 16 */,
@@ -85,13 +85,13 @@ static void test_msg_errors() {
         ASSERT_EQ(kernel::TCU::send(SEP, empty_msg, 0x1111, TCU::NO_REPLIES), Errors::RECV_GONE);
     }
 
-    Serial::get() << "SEND to out-of-bounds receive EP\n";
+    logln("SEND to out-of-bounds receive EP"_cf);
     {
         kernel::TCU::config_send(SEP, 0x5678, tile_id(Tile::T0), TOTAL_EPS, 4 /* 16 */, 1);
         ASSERT_EQ(kernel::TCU::send(SEP, empty_msg, 0x1111, TCU::NO_REPLIES), Errors::RECV_GONE);
     }
 
-    Serial::get() << "SEND of too large message\n";
+    logln("SEND of too large message"_cf);
     {
         MsgBuf large_msg;
         large_msg.cast<uint64_t[6]>();
@@ -101,7 +101,7 @@ static void test_msg_errors() {
                   Errors::RECV_OUT_OF_BOUNDS);
     }
 
-    Serial::get() << "SEND without 16-byte aligned message\n";
+    logln("SEND without 16-byte aligned message"_cf);
     {
         ALIGNED(16) uint64_t words[2] = {0, 0};
         kernel::TCU::config_recv(REP, buf1, 5 /* 32 */, 5 /* 32 */, TCU::NO_REPLIES);
@@ -111,7 +111,7 @@ static void test_msg_errors() {
                   Errors::MSG_UNALIGNED);
     }
 
-    Serial::get() << "REPLY without 16-byte aligned message\n";
+    logln("REPLY without 16-byte aligned message"_cf);
     {
         ALIGNED(16) uint64_t words[2] = {0, 0};
         kernel::TCU::config_recv(REP, buf1, 5 /* 32 */, 5 /* 32 */, RPLEP, 1, 0);
@@ -121,7 +121,7 @@ static void test_msg_errors() {
                   Errors::MSG_UNALIGNED);
     }
 
-    Serial::get() << "SEND+ACK+REPLY with invalid reply EPs\n";
+    logln("SEND+ACK+REPLY with invalid reply EPs"_cf);
     {
         kernel::TCU::config_recv(REP, buf1, 5 /* 32 */, 5 /* 32 */, TOTAL_EPS);
         kernel::TCU::config_send(SEP, 0x5678, tile_id(Tile::T0), REP, 5 /* 32 */, 1);
@@ -131,7 +131,7 @@ static void test_msg_errors() {
         ASSERT_EQ(kernel::TCU::reply(REP, empty_msg, buf1, rmsg), Errors::RECV_INV_RPL_EPS);
     }
 
-    Serial::get() << "SEND+REPLY with invalid credit EP\n";
+    logln("SEND+REPLY with invalid credit EP"_cf);
     {
         kernel::TCU::config_recv(REP, buf1, 5 /* 32 */, 5 /* 32 */, RPLEP);
         // install reply EP
@@ -142,7 +142,7 @@ static void test_msg_errors() {
         ASSERT_EQ(kernel::TCU::reply(REP, empty_msg, buf1, rmsg), Errors::SEND_INV_CRD_EP);
     }
 
-    Serial::get() << "SEND with invalid message size\n";
+    logln("SEND with invalid message size"_cf);
     {
         MsgBuf large_msg;
         large_msg.cast<uint64_t[6]>();
@@ -151,7 +151,7 @@ static void test_msg_errors() {
                   Errors::SEND_INV_MSG_SZ);
     }
 
-    Serial::get() << "REPLY with invalid message size in reply EP\n";
+    logln("REPLY with invalid message size in reply EP"_cf);
     {
         kernel::TCU::config_recv(REP, buf1, 5 /* 32 */, 5 /* 32 */, RPLEP);
         kernel::TCU::config_send(SEP, 0x5678, tile_id(Tile::T0), REP, 5 /* 32 */, 1);
@@ -162,7 +162,7 @@ static void test_msg_errors() {
         ASSERT_EQ(kernel::TCU::reply(REP, empty_msg, buf1, rmsg), Errors::SEND_INV_MSG_SZ);
     }
 
-    Serial::get() << "Send EP should not lose credits on failed SENDs\n";
+    logln("Send EP should not lose credits on failed SENDs"_cf);
     {
         kernel::TCU::config_invalid(REP);
         kernel::TCU::config_send(SEP, 0x5678, tile_id(Tile::T0), REP, 5 /* 32 */, 1);
@@ -172,7 +172,7 @@ static void test_msg_errors() {
         ASSERT_EQ(kernel::TCU::credits(SEP), 1);
     }
 
-    Serial::get() << "Receive EP should not change on failed REPLYs\n";
+    logln("Receive EP should not change on failed REPLYs"_cf);
     {
         kernel::TCU::config_recv(REP, buf1, 5 /* 32 */, 5 /* 32 */, RPLEP, 0x1, 0x1);
         kernel::TCU::config_send(SEP, 0x5678, tile_id(Tile::T0), REP, 5 /* 32 */, 1);
@@ -193,7 +193,7 @@ static void test_msg_errors() {
 }
 
 static void test_msg_send_empty() {
-    Serial::get() << "SEND with empty message\n";
+    logln("SEND with empty message"_cf);
 
     char buffer[2 * 64];
     uintptr_t buf1 = reinterpret_cast<uintptr_t>(&buffer);
@@ -226,7 +226,7 @@ static void test_msg_send_empty() {
 }
 
 static void test_msg_reply_empty() {
-    Serial::get() << "REPLY with empty message\n";
+    logln("REPLY with empty message"_cf);
 
     char buffer[2 * 64];
     char buffer2[2 * 64];
@@ -284,7 +284,7 @@ static void test_msg_reply_empty() {
 }
 
 static void test_msg_no_reply() {
-    Serial::get() << "SEND without reply\n";
+    logln("SEND without reply"_cf);
 
     char buffer[2 * 64];
     char buffer2[2 * 64];
@@ -329,7 +329,7 @@ static void test_msg_no_reply() {
 }
 
 static void test_msg_no_credits() {
-    Serial::get() << "SEND without credits\n";
+    logln("SEND without credits"_cf);
 
     char buffer[2 * 64];
     char buffer2[2 * 64];
@@ -398,7 +398,7 @@ static void test_msg_no_credits() {
 }
 
 static void test_msg_2send_2reply() {
-    Serial::get() << "Two SENDs and two REPLYs\n";
+    logln("Two SENDs and two REPLYs"_cf);
 
     char buffer[2 * 64];
     char buffer2[2 * 64];
@@ -471,7 +471,7 @@ static void test_msg_2send_2reply() {
 
 template<typename DATA>
 static void test_msg(size_t msg_size_in, size_t reply_size_in) {
-    Serial::get() << "SEND+REPLY with " << msg_size_in << " " << sizeof(DATA) << "B words\n";
+    logln("SEND+REPLY with {} {}B words"_cf, msg_size_in, sizeof(DATA));
 
     const size_t TOTAL_MSG_SIZE = msg_size_in * sizeof(DATA) + sizeof(TCU::Header);
     const size_t TOTAL_REPLY_SIZE = reply_size_in * sizeof(DATA) + sizeof(TCU::Header);
@@ -541,7 +541,7 @@ static void test_msg(size_t msg_size_in, size_t reply_size_in) {
 }
 
 static void test_msg_receive() {
-    Serial::get() << "SEND+FETCH and verify unread/occupied/rpos/wpos\n";
+    logln("SEND+FETCH and verify unread/occupied/rpos/wpos"_cf);
 
     char rbuffer[32 * 32];
     uintptr_t buf = reinterpret_cast<uintptr_t>(&rbuffer);
@@ -627,7 +627,7 @@ static void test_msg_receive() {
 }
 
 static void test_unaligned_recvbuf(size_t pad, size_t msg_size_in) {
-    Serial::get() << "SEND " << msg_size_in << "B with " << pad << "B padding of recv-buf\n";
+    logln("SEND {}B with {}B padding of recv-buf"_cf, msg_size_in, pad);
 
     const size_t TOTAL_MSG_SIZE = msg_size_in + sizeof(TCU::Header);
     char rbuffer[TOTAL_MSG_SIZE + 32]; // reserve some extra space for padding

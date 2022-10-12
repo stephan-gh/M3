@@ -142,32 +142,32 @@ int main_example_dma_polled(void)
 	Xil_AssertSetCallback(axi_ethernet_assert_callback);
 #endif
 
-	xdbg_printf(XDBG_DEBUG_GENERAL, "--- Entering main() --- \r\n");
+	xdbg_printf(XDBG_DEBUG_GENERAL, "--- Entering main() --- \n");
 
 	/* Get the configuration of AxiEthernet hardware */
 	MacCfgPtr = XAxiEthernet_LookupConfig(AXIETHERNET_DEVICE_ID);
 
 	/* Check whether AXI DMA is present or not */
 	if(MacCfgPtr->AxiDevType != XPAR_AXI_DMA) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "Device HW not configured for DMA mode\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "Device HW not configured for DMA mode\n");
 		return XST_FAILURE;
 	}
 
 	DmaConfigPtr = XAxiDma_LookupConfig(DMA_DEV_ID);
 	if (!DmaConfigPtr) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "No DMA config found for " << DMA_DEV_ID << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "No DMA config found for {}\n", DMA_DEV_ID);
 		return XST_FAILURE;
 	}
 
 	/* Initialize DMA engine */
 	Status = XAxiDma_CfgInitialize(&AxiDma, DmaConfigPtr);
 	if (Status != XST_SUCCESS) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "DMA initialization failed " << Status << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "DMA initialization failed {}\n", Status);
 		return XST_FAILURE;
 	}
 
 	if(!XAxiDma_HasSg(&AxiDma)) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "DMA device configured as Simple mode \r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "DMA device configured as Simple mode \n");
 		return XST_FAILURE;
 	}
 
@@ -186,7 +186,7 @@ int main_example_dma_polled(void)
 	/* Initialize AxiEthernet hardware */
 	Status = XAxiEthernet_CfgInitialize(&AxiEthernetInstance, MacCfgPtr, MacCfgPtr->BaseAddress);
 	if (Status != XST_SUCCESS) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "AXI Ethernet initialization failed " << Status << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "AXI Ethernet initialization failed {}\n", Status);
 		return XST_FAILURE;
 	}
 
@@ -258,12 +258,12 @@ int main_example_dma_polled(void)
 	Status = CheckDmaResult(&AxiDma);
 
 	if (Status != XST_SUCCESS) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "AXI DMA SG Polling Example Failed\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "AXI DMA SG Polling Example Failed\n");
 		return XST_FAILURE;
 	}
 
-	xdbg_printf(XDBG_DEBUG_GENERAL, "Successfully ran AXI DMA SG Polling Example\r\n");
-	xdbg_printf(XDBG_DEBUG_GENERAL, "--- Exiting main() --- \r\n");
+	xdbg_printf(XDBG_DEBUG_GENERAL, "Successfully ran AXI DMA SG Polling Example\n");
+	xdbg_printf(XDBG_DEBUG_GENERAL, "--- Exiting main() --- \n");
 
 	if (Status != XST_SUCCESS) {
 		return XST_FAILURE;
@@ -317,7 +317,7 @@ static int RxSetup(XAxiDma * AxiDmaInstPtr)
 				XAXIDMA_BD_MINIMUM_ALIGNMENT, BdCount);
 
 	if (Status != XST_SUCCESS) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "RX create BD ring failed " << Status << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "RX create BD ring failed {}\n", Status);
 		return XST_FAILURE;
 	}
 
@@ -328,7 +328,7 @@ static int RxSetup(XAxiDma * AxiDmaInstPtr)
 
 	Status = XAxiDma_BdRingClone(RxRingPtr, &BdTemplate);
 	if (Status != XST_SUCCESS) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "RX clone BD failed " << Status << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "RX clone BD failed {}\n", Status);
 		return XST_FAILURE;
 	}
 
@@ -338,7 +338,7 @@ static int RxSetup(XAxiDma * AxiDmaInstPtr)
 
 	Status = XAxiDma_BdRingAlloc(RxRingPtr, FreeBdCount, &BdPtr);
 	if (Status != XST_SUCCESS) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "RX alloc BD failed " << Status << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "RX alloc BD failed {}\n", Status);
 		return XST_FAILURE;
 	}
 
@@ -348,16 +348,16 @@ static int RxSetup(XAxiDma * AxiDmaInstPtr)
 		Status = XAxiDma_BdSetBufAddr(BdCurPtr, RxBufferPtr);
 
 		if (Status != XST_SUCCESS) {
-			xdbg_printf(XDBG_DEBUG_ERROR, "Set buffer addr " << fmt((unsigned int)RxBufferPtr, "#x") <<
-				" on BD " << fmt((UINTPTR)BdCurPtr, "#x") << " failed " << Status << "\r\n");
+			xdbg_printf(XDBG_DEBUG_ERROR, "Set buffer addr {:#x} on BD {:#x} failed {}\n",
+				(void*)RxBufferPtr, (void*)BdCurPtr, Status);
 			return XST_FAILURE;
 		}
 
 		Status = XAxiDma_BdSetLength(BdCurPtr, MAX_PKT_LEN,
 				RxRingPtr->MaxTransferLen);
 		if (Status != XST_SUCCESS) {
-			xdbg_printf(XDBG_DEBUG_ERROR, "Rx set length " << MAX_PKT_LEN <<
-				" on BD " << fmt((UINTPTR)BdCurPtr, "#x") << " failed " << Status << "\r\n");
+			xdbg_printf(XDBG_DEBUG_ERROR, "Rx set length {} on BD {:#x} failed {}\n",
+				MAX_PKT_LEN, (void*)BdCurPtr, Status);
 			return XST_FAILURE;
 		}
 
@@ -378,14 +378,14 @@ static int RxSetup(XAxiDma * AxiDmaInstPtr)
 	Status = XAxiDma_BdRingToHw(RxRingPtr, FreeBdCount,
 						BdPtr);
 	if (Status != XST_SUCCESS) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "RX submit hw failed " << Status << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "RX submit hw failed {}\n", Status);
 		return XST_FAILURE;
 	}
 
 	/* Start RX DMA channel */
 	Status = XAxiDma_BdRingStart(RxRingPtr);
 	if (Status != XST_SUCCESS) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "RX start hw failed " << Status << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "RX start hw failed {}\n", Status);
 		return XST_FAILURE;
 	}
 
@@ -431,7 +431,7 @@ static int TxSetup(XAxiDma * AxiDmaInstPtr)
 				TX_BD_SPACE_BASE,
 				XAXIDMA_BD_MINIMUM_ALIGNMENT, BdCount);
 	if (Status != XST_SUCCESS) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "failed create BD ring in txsetup\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "failed create BD ring in txsetup\n");
 		return XST_FAILURE;
 	}
 
@@ -442,14 +442,14 @@ static int TxSetup(XAxiDma * AxiDmaInstPtr)
 
 	Status = XAxiDma_BdRingClone(TxRingPtr, &BdTemplate);
 	if (Status != XST_SUCCESS) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "failed bdring clone in txsetup " << Status << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "failed bdring clone in txsetup {}\n", Status);
 		return XST_FAILURE;
 	}
 
 	/* Start the TX channel */
 	Status = XAxiDma_BdRingStart(TxRingPtr);
 	if (Status != XST_SUCCESS) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "failed start bdring txsetup " << Status << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "failed start bdring txsetup {}\n", Status);
 		return XST_FAILURE;
 	}
 
@@ -506,16 +506,16 @@ static int SendPacket(XAxiDma * AxiDmaInstPtr)
 	/* Set up the BD using the information of the packet to transmit */
 	Status = XAxiDma_BdSetBufAddr(BdPtr, (UINTPTR) Packet);
 	if (Status != XST_SUCCESS) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "Tx set buffer addr " << fmt((UINTPTR)Packet, "#x") <<
-			" on BD " << fmt((UINTPTR)BdPtr, "#x") << " failed " << Status << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "Tx set buffer addr {:#x} on BD {:#x} failed {}\n",
+			(void*)Packet, (void*)BdPtr, Status);
 		return XST_FAILURE;
 	}
 
 	Status = XAxiDma_BdSetLength(BdPtr, MAX_PKT_LEN,
 				TxRingPtr->MaxTransferLen);
 	if (Status != XST_SUCCESS) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "Tx set length " << MAX_PKT_LEN <<
-			" on BD " << fmt((UINTPTR)BdPtr, "#x") << " failed " << Status << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "Tx set length {} on BD {:#x} failed {}\n",
+			MAX_PKT_LEN, (void*)BdPtr, Status);
 		return XST_FAILURE;
 	}
 
@@ -526,7 +526,7 @@ static int SendPacket(XAxiDma * AxiDmaInstPtr)
 	/* If Set app length failed, it is not fatal
 	 */
 	if (Status != XST_SUCCESS) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "Set app word failed with " << Status << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "Set app word failed with {}\n", Status);
 	}
 #endif
 
@@ -540,7 +540,7 @@ static int SendPacket(XAxiDma * AxiDmaInstPtr)
 	/* Give the BD to DMA to kick off the transmission. */
 	Status = XAxiDma_BdRingToHw(TxRingPtr, 1, BdPtr);
 	if (Status != XST_SUCCESS) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "to hw failed " << Status << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "to hw failed {}\n", Status);
 		return XST_FAILURE;
 	}
 
@@ -578,9 +578,9 @@ static int CheckData(void)
 
 	for(Index = 0; Index < MAX_PKT_LEN; Index++) {
 		if (RxPacket[Index] != Value) {
-			xdbg_printf(XDBG_DEBUG_ERROR, "Data error " << Index <<
-				": " << fmt((unsigned int)RxPacket[Index], "#x") <<
-				"/" << fmt((unsigned int)Value, "#x") << "\r\n");
+			xdbg_printf(XDBG_DEBUG_ERROR,
+				"Data error {}: {:#x}/{:#x}\n",
+				Index, RxPacket[Index], Value);
 			return XST_FAILURE;
 		}
 		Value = (Value + 1) & 0xFF;
@@ -626,7 +626,7 @@ static int CheckDmaResult(XAxiDma * AxiDmaInstPtr)
 	xdbg_printf(XDBG_DEBUG_GENERAL, "Free all processed TX BDs for future transmission\n");
 	Status = XAxiDma_BdRingFree(TxRingPtr, ProcessedBdCount, BdPtr);
 	if (Status != XST_SUCCESS) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "Failed to free " << ProcessedBdCount << " tx BDs " << Status << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "Failed to free {} tx BDs {}\n", ProcessedBdCount, Status);
 		return XST_FAILURE;
 	}
 
@@ -647,7 +647,7 @@ static int CheckDmaResult(XAxiDma * AxiDmaInstPtr)
 	xdbg_printf(XDBG_DEBUG_GENERAL, "Free all processed RX BDs for future transmission\n");
 	Status = XAxiDma_BdRingFree(RxRingPtr, ProcessedBdCount, BdPtr);
 	if (Status != XST_SUCCESS) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "Failed to free " << ProcessedBdCount << " tx BDs " << Status << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "Failed to free {} tx BDs {}\n", ProcessedBdCount, Status);
 		return XST_FAILURE;
 	}
 
@@ -659,13 +659,13 @@ static int CheckDmaResult(XAxiDma * AxiDmaInstPtr)
 	FreeBdCount = XAxiDma_BdRingGetFreeCnt(RxRingPtr);
 	Status = XAxiDma_BdRingAlloc(RxRingPtr, FreeBdCount, &BdPtr);
 	if (Status != XST_SUCCESS) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "bd alloc failed\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "bd alloc failed\n");
 		return XST_FAILURE;
 	}
 
 	Status = XAxiDma_BdRingToHw(RxRingPtr, FreeBdCount, BdPtr);
 	if (Status != XST_SUCCESS) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "Submit " << FreeBdCount << " rx BDs failed " << Status << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "Submit {} rx BDs failed {}\n", FreeBdCount, Status);
 		return XST_FAILURE;
 	}
 

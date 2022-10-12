@@ -52,7 +52,7 @@ void chain_indirect(FileRef<GenericFile> &in, FileRef<GenericFile> &out, size_t 
     // create activities
     for(size_t i = 0; i < num; ++i) {
         OStringStream name;
-        name << "chain" << i;
+        format_to(name, "chain{}"_cf, i);
 
         tiles[i] = Tile::get("indir");
         acts[i] = std::make_unique<ChildActivity>(tiles[i], name.str());
@@ -135,5 +135,5 @@ void chain_indirect(FileRef<GenericFile> &in, FileRef<GenericFile> &out, size_t 
     }
 
     auto end = CycleInstant::now();
-    cout << "Total time: " << end.duration_since(start) << "\n";
+    println("Total time: {}"_cf, end.duration_since(start));
 }

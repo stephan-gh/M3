@@ -234,12 +234,12 @@ extern u32 _xstrm_ro_value;
 extern u32 _xstrm_buffered;
 #define XStrm_RxOccupancy(InstancePtr) ({ \
 		_xstrm_ro_value = ((*(InstancePtr)->GetOccupancyFn)((InstancePtr)->FifoInstance)); \
-		xdbg_printf(XDBG_DEBUG_FIFO_RX, "reg: " << _xstrm_ro_value << "; frmbytecnt: " << (InstancePtr)->FrmByteCnt << "\n"); \
+		xdbg_printf(XDBG_DEBUG_FIFO_RX, "reg: {}; frmbytecnt: {}\n", _xstrm_ro_value, (InstancePtr)->FrmByteCnt); \
 		if ((InstancePtr)->FrmByteCnt) { \
 			_xstrm_buffered = ((InstancePtr)->FifoWidth - (InstancePtr)->HeadIndex); \
 		} \
-		xdbg_printf(XDBG_DEBUG_FIFO_RX, "buffered_bytes: " << _xstrm_buffered << "\n"); \
-		xdbg_printf(XDBG_DEBUG_FIFO_RX, "buffered (rounded): " << _xstrm_buffered << "\n"); \
+		xdbg_printf(XDBG_DEBUG_FIFO_RX, "buffered_bytes: {}\n", _xstrm_buffered); \
+		xdbg_printf(XDBG_DEBUG_FIFO_RX, "buffered (rounded): {}\n", _xstrm_buffered); \
 		(_xstrm_ro_value + _xstrm_buffered); \
 	})
 #else

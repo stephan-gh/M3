@@ -281,15 +281,16 @@ void XStrm_Read(XStrm_RxFifoStreamer *InstancePtr, void *BufPtr,
 	unsigned i;
 
 	while (BytesRemaining) {
-		xdbg_printf(XDBG_DEBUG_FIFO_RX, "XStrm_Read: BytesRemaining: " << BytesRemaining << "\n");
+		xdbg_printf(XDBG_DEBUG_FIFO_RX, "XStrm_Read: BytesRemaining: {}\n", BytesRemaining);
 		/* Case 1: There are bytes in the holding buffer
 		 *
 		 *   1) Read the bytes from the holding buffer to the target buffer.
 		 *   2) Loop back around and handle the rest of the transfer.
 		 */
 		if (InstancePtr->HeadIndex != InstancePtr->FifoWidth) {
-			xdbg_printf(XDBG_DEBUG_FIFO_RX, "XStrm_Read: Case 1: InstancePtr->HeadIndex [" << InstancePtr->HeadIndex <<
-					"] != InstancePtr->FifoWidth [" << InstancePtr->FifoWidth << "]\n");
+			xdbg_printf(XDBG_DEBUG_FIFO_RX,
+				"XStrm_Read: Case 1: InstancePtr->HeadIndex [{}] != InstancePtr->FifoWidth [{}]\n",
+				InstancePtr->HeadIndex, InstancePtr->FifoWidth);
 			i = InstancePtr->HeadIndex;
 
 			PartialBytes = min(BytesRemaining,
@@ -315,9 +316,9 @@ void XStrm_Read(XStrm_RxFifoStreamer *InstancePtr, void *BufPtr,
 		 */
 		else if ((((UINTPTR)DestPtr & 3) == 0) &&
 			 (BytesRemaining >= InstancePtr->FifoWidth)) {
-			xdbg_printf(XDBG_DEBUG_FIFO_RX, "XStrm_Read: Case 2: DestPtr: " << DestPtr <<
-					", BytesRemaining: " << BytesRemaining <<
-					", InstancePtr->FifoWidth: " << InstancePtr->FifoWidth << "\n");
+			xdbg_printf(XDBG_DEBUG_FIFO_RX,
+				"XStrm_Read: Case 2: DestPtr: {:p}, BytesRemaining: {}, FifoWidth: {}\n",
+				(void*)DestPtr, BytesRemaining, InstancePtr->FifoWidth);
 			FifoWordsToXfer =
 			    BytesRemaining / InstancePtr->FifoWidth;
 
@@ -418,7 +419,7 @@ void XStrm_Write(XStrm_TxFifoStreamer *InstancePtr, void *BufPtr,
 
 	while (BytesRemaining) {
 		xdbg_printf(XDBG_DEBUG_FIFO_TX,
-			    "XStrm_Write: BytesRemaining: " << BytesRemaining << "\n");
+			    "XStrm_Write: BytesRemaining: {}\n", BytesRemaining);
 		/* Case 1: The holding buffer is full
 		 *
 		 *   1) Write it to the fifo.
@@ -426,9 +427,8 @@ void XStrm_Write(XStrm_TxFifoStreamer *InstancePtr, void *BufPtr,
 		 */
 		if (InstancePtr->TailIndex == InstancePtr->FifoWidth) {
 			xdbg_printf(XDBG_DEBUG_FIFO_TX,
-				    "XStrm_Write: (case 1) TailIndex: " << InstancePtr->TailIndex <<
-					"; FifoWidth: " << InstancePtr->FifoWidth <<
-					"; WriteFn: " << &InstancePtr->WriteFn << "\n");
+				    "XStrm_Write: (case 1) TailIndex: {}; FifoWidth: {}; WriteFn: {}\n",
+				    InstancePtr->TailIndex, InstancePtr->FifoWidth, (void*)&InstancePtr->WriteFn);
 			(*InstancePtr->WriteFn) (InstancePtr->FifoInstance,
 						 &(InstancePtr->AlignedBuffer.
 						   bytes[0]), 1);
@@ -449,22 +449,21 @@ void XStrm_Write(XStrm_TxFifoStreamer *InstancePtr, void *BufPtr,
 			FifoWordsToXfer =
 				BytesRemaining / InstancePtr->FifoWidth;
 
-			xdbg_printf(XDBG_DEBUG_FIFO_TX, "XStrm_Write: (case 2) TailIndex: " << InstancePtr->TailIndex <<
-					"; BytesRemaining: " << BytesRemaining <<
-					"; FifoWidth: " << InstancePtr->FifoWidth <<
-					"; SrcPtr: " << SrcPtr <<
-					";\n InstancePtr: " << InstancePtr <<
-					"; WriteFn: " << &InstancePtr->WriteFn <<
-					",\nFifoWordsToXfer: " << FifoWordsToXfer <<
-					" (BytesRemaining: " << BytesRemaining << ")\n");
+			xdbg_printf(XDBG_DEBUG_FIFO_TX,
+				"XStrm_Write: (case 2) TailIndex: {}; BytesRemaining: {}; FifoWidth: {}; SrcPtr: {};\n"
+				"InstancePtr: {}; WriteFn: {},\n"
+				"FifoWordsToXfer: {} (BytesRemaining: {})\n",
+				InstancePtr->TailIndex, BytesRemaining, InstancePtr->FifoWidth, (void*)SrcPtr,
+				(void*)InstancePtr, (void*)&InstancePtr->WriteFn, FifoWordsToXfer, BytesRemaining);
 
 			(*InstancePtr->WriteFn) (InstancePtr->FifoInstance,
 						 SrcPtr, FifoWordsToXfer);
 			SrcPtr += FifoWordsToXfer * InstancePtr->FifoWidth;
 			BytesRemaining -=
 				FifoWordsToXfer * InstancePtr->FifoWidth;
-			xdbg_printf(XDBG_DEBUG_FIFO_TX, "XStrm_Write: (end case 2) TailIndex: " << InstancePtr->TailIndex <<
-					"; BytesRemaining: " << BytesRemaining << "; SrcPtr: " << SrcPtr << "\n");
+			xdbg_printf(XDBG_DEBUG_FIFO_TX,
+				"XStrm_Write: (end case 2) TailIndex: {}; BytesRemaining: {}; SrcPtr: {}\n",
+				InstancePtr->TailIndex, BytesRemaining, (void*)SrcPtr);
 		}
 		/* Case 3: The alignment of the "galaxies" didn't occur in
 		 *         Case 2 above, so we must pump the bytes through the
@@ -483,7 +482,7 @@ void XStrm_Write(XStrm_TxFifoStreamer *InstancePtr, void *BufPtr,
 			BytesRemaining -= PartialBytes;
 			InstancePtr->TailIndex += PartialBytes;
 			while (PartialBytes--) {
-				xdbg_printf(XDBG_DEBUG_FIFO_TX, "XStrm_Write: (case 3) PartialBytes: " << PartialBytes << "\n");
+				xdbg_printf(XDBG_DEBUG_FIFO_TX, "XStrm_Write: (case 3) PartialBytes: {}\n", PartialBytes);
 				InstancePtr->AlignedBuffer.bytes[i] = *SrcPtr;
 				i++;
 				SrcPtr++;

@@ -26,7 +26,7 @@ using namespace m3;
 
 int main(int argc, char **argv) {
     if(argc < 2)
-        exitmsg("Usage: " << argv[0] << " <file>...");
+        exitmsg("Usage: {} <file>..."_cf, argv[0]);
 
     int res;
     auto start = TimeInstant::now();
@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
 
     auto end = TimeInstant::now();
 
-    cerr << "Activity (" << argv[1] << ") terminated with exit-code " << res << "\n";
-    cerr << "Runtime: " << end.duration_since(start) << "\n";
+    eprintln("Activity ({}) terminated with exit-code {}"_cf, argv[1], res);
+    eprintln("Runtime: {}"_cf, end.duration_since(start));
     return 0;
 }

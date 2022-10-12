@@ -30,16 +30,15 @@
 using namespace m3;
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name
-         << " [-m <mode>] [-c <comptime>] [-n <num>] [-r <repeats>] <in> <out>\n";
-    cerr << "  <mode> can be:\n";
-    cerr << "    'indir'      for a single chain, assisted\n";
-    cerr << "    'dir'        for a single chain, connected directly\n";
-    cerr << "    'dir-simple' for a single chain, connected via pipes\n";
-    cerr << "    'dir-multi'  for two chains, connected directly\n";
-    cerr << "  <comptime> specifies the computation time for each accelerator for 1 KiB\n";
-    cerr << "  <num> specifies the number of accelerators in each chain\n";
-    cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
+    eprintln("Usage: {} [-m <mode>] [-c <comptime>] [-n <num>] [-r <repeats>] <in> <out>"_cf, name);
+    eprintln("  <mode> can be:"_cf);
+    eprintln("    'indir'      for a single chain, assisted"_cf);
+    eprintln("    'dir'        for a single chain, connected directly"_cf);
+    eprintln("    'dir-simple' for a single chain, connected via pipes"_cf);
+    eprintln("    'dir-multi'  for two chains, connected directly"_cf);
+    eprintln("  <comptime> specifies the computation time for each accelerator for 1 KiB"_cf);
+    eprintln("  <num> specifies the number of accelerators in each chain"_cf);
+    eprintln("  <repeats> specifies the number of repetitions of the benchmark"_cf);
     exit(1);
 }
 

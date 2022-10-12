@@ -21,18 +21,6 @@
 
 #include <string>
 
-/**
- * This macro throws an exception and passes a formatted string as its message. That is, you can
- * use the stream operators to build the message. For example:
- * VTHROW(EXISTS, "My exception " << 1 << "," << 2 << " message");
- */
-#define VTHROW(error, expr)                            \
-    {                                                  \
-        m3::OStringStream __os;                        \
-        __os << expr;                                  \
-        throw m3::MessageException(__os.str(), error); \
-    }
-
 namespace m3 {
 
 /**
@@ -75,7 +63,7 @@ public:
      */
     virtual const char *what() const noexcept {
         OStringStream os(msg_buf, sizeof(msg_buf));
-        os << "An error occurred: " << Errors::to_string(code()) << " (" << code() << ")";
+        format_to(os, "An error occurred: {} ({})"_cf, Errors::to_string(code()), code());
         return msg_buf;
     }
 
@@ -85,7 +73,7 @@ public:
      * @param os the stream
      */
     void write(OStream &os) const noexcept {
-        os << what() << "\n";
+        format_to(os, "{}\n"_cf, what());
         write_backtrace(os);
     }
 
@@ -118,9 +106,9 @@ public:
 
     const char *what() const noexcept override {
         OStringStream os(msg_buf, sizeof(msg_buf));
-        os << _msg;
+        format_to(os, "{}"_cf, _msg);
         if(code() != Errors::NONE)
-            os << ": " << Errors::to_string(code()) << " (" << code() << ")";
+            format_to(os, ": {} ({})"_cf, Errors::to_string(code()), code());
         return msg_buf;
     }
 
@@ -138,7 +126,7 @@ public:
 
     const char *what() const noexcept override {
         OStringStream os(msg_buf, sizeof(msg_buf));
-        os << "TCU operation failed: " << Errors::to_string(code()) << " (" << code() << ")";
+        format_to(os, "TCU operation failed: {} ({})"_cf, Errors::to_string(code()), code());
         return msg_buf;
     }
 };
@@ -159,13 +147,26 @@ public:
 
     const char *what() const noexcept override {
         OStringStream os(msg_buf, sizeof(msg_buf));
-        os << "The system call " << _syscall << " failed: " << Errors::to_string(code()) << " ("
-           << code() << ")";
+        format_to(os, "The system call {} failed: {} ({})"_cf, (int)_syscall,
+                  Errors::to_string(code()), code());
         return msg_buf;
     }
 
 private:
     KIF::Syscall::Operation _syscall;
 };
+
+/**
+ * This function throws an exception and passes a formatted string as its message. That is, you can
+ * build the message like in print(). For example:
+ * vthrow(Errors::EXISTS, "My exception {}, {} message", 1, 2);
+ */
+template<typename C, size_t N, detail::StaticString<C, N> S, typename... ARGS>
+NORETURN void vthrow(Errors::Code error, const detail::CompiledString<C, N, S> &fmt,
+                     const ARGS &...args) {
+    OStringStream msg;
+    detail::format_rec<0, 0>(fmt, msg, args...);
+    throw MessageException(msg.str(), error);
+}
 
 }

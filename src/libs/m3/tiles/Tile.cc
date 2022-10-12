@@ -26,7 +26,7 @@ constexpr size_t MAX_DESC_LEN = 256;
 static TileDesc desc_with_properties(TileDesc desc, const char *props) {
     char props_cpy[MAX_DESC_LEN];
     if(strlen(props) >= MAX_DESC_LEN)
-        VTHROW(Errors::NO_SPACE, "Tile description too long");
+        vthrow(Errors::NO_SPACE, "Tile description too long"_cf);
     strcpy(props_cpy, props);
 
     auto res = desc;
@@ -85,7 +85,7 @@ Reference<Tile> Tile::alloc(const TileDesc &desc) {
 Reference<Tile> Tile::get(const char *desc) {
     char desc_cpy[MAX_DESC_LEN];
     if(strlen(desc) >= MAX_DESC_LEN)
-        VTHROW(Errors::NO_SPACE, "Properties description too long");
+        vthrow(Errors::NO_SPACE, "Properties description too long"_cf);
     strcpy(desc_cpy, desc);
 
     auto own = Activity::own().tile();
@@ -112,7 +112,7 @@ Reference<Tile> Tile::get(const char *desc) {
         }
         props = strtok(NULL, "|");
     }
-    VTHROW(Errors::NOT_FOUND, "Unable to find tile with " << desc);
+    vthrow(Errors::NOT_FOUND, "Unable to find tile with {}"_cf, desc);
 }
 
 Reference<Tile> Tile::derive(uint eps, uint64_t time, uint64_t pts) {

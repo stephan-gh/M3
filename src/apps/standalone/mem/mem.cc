@@ -15,6 +15,7 @@
 
 #include <base/Common.h>
 #include <base/stream/Serial.h>
+#include <base/time/Instant.h>
 #include <base/util/Util.h>
 
 #include "../assert.h"
@@ -33,8 +34,8 @@ int main() {
     Tile own_tile = static_cast<Tile>(env()->tile_id);
     Tile partner_tile = static_cast<Tile>((static_cast<tileid_t>(own_tile) + 1) % 8);
 
-    Serial::get() << "Hello from Tile" << static_cast<tileid_t>(own_tile) << " (partner Tile"
-                  << static_cast<tileid_t>(partner_tile) << ")!\n";
+    logln("Hello from Tile{} (partner Tile{})!"_cf, static_cast<tileid_t>(own_tile),
+          static_cast<tileid_t>(partner_tile));
 
     kernel::TCU::config_mem(MEP, tile_id(partner_tile), reinterpret_cast<uintptr_t>(buf1),
                             sizeof(buf1), TCU::R | TCU::W);
@@ -44,7 +45,7 @@ int main() {
 
     for(int i = 0; i < 10000; ++i) {
         if(i % 1000 == 0)
-            Serial::get() << "read-write test " << i << "\n";
+            logln("read-write test {}"_cf, i);
 
         ASSERT_EQ(kernel::TCU::write(MEP, buf2, sizeof(buf2), 0), Errors::NONE);
         ASSERT_EQ(kernel::TCU::read(MEP, buf3, sizeof(buf3), 0), Errors::NONE);
@@ -53,13 +54,14 @@ int main() {
             ASSERT_EQ(buf2[i], buf3[i]);
     }
 
-    Serial::get() << "\x1B[1;32mAll tests successful!\x1B[0;m\n";
+    logln("\x1B[1;32mAll tests successful!\x1B[0;m"_cf);
 
     // give the other tiles some time
-    for(volatile int i = 0; i < 1000000; ++i)
+    auto end = TimeInstant::now() + TimeDuration::from_millis(10);
+    while(TimeInstant::now() < end)
         ;
 
     // for the test infrastructure
-    Serial::get() << "Shutting down\n";
+    logln("Shutting down"_cf);
     return 0;
 }

@@ -30,7 +30,7 @@ static const size_t PAGES = 16;
 
 int main() {
     if(!Activity::own().tile_desc().has_virtmem())
-        exitmsg("Tile has no virtual memory support");
+        exitmsg("Tile has no virtual memory support"_cf);
 
     const uintptr_t virt = 0x3000'0000;
 
@@ -55,6 +55,6 @@ int main() {
                          KIF::CapRngDesc(KIF::CapRngDesc::MAP, virt / PAGE_SIZE, PAGES), true);
     }
 
-    cout << "per-xfer: " << (xfer / (COUNT * PAGES)) << "\n";
+    println("per-xfer: {}"_cf, xfer / (COUNT * PAGES));
     return 0;
 }

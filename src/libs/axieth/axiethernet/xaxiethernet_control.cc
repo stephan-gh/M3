@@ -111,7 +111,7 @@ int XAxiEthernet_MulticastAdd(XAxiEthernet *InstancePtr, void *AddressPtr,
 	 */
 	if (InstancePtr->IsStarted == XIL_COMPONENT_IS_STARTED) {
 		xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_MulticastAdd: returning DEVICE_IS_STARTED\n");
+			"XAxiEthernet_MulticastAdd: returning DEVICE_IS_STARTED\n");
 		return (XST_DEVICE_IS_STARTED);
 	}
 
@@ -134,7 +134,7 @@ int XAxiEthernet_MulticastAdd(XAxiEthernet *InstancePtr, void *AddressPtr,
 						XAE_FMI_OFFSET, FmiReg);
 
 	/* Add in MAT address */
-	xdbg_printf(XDBG_DEBUG_GENERAL, "Setting MAT entry: " << Entry << "\n");
+	xdbg_printf(XDBG_DEBUG_GENERAL, "Setting MAT entry: {}\n", Entry);
 	XAxiEthernet_WriteReg(InstancePtr->Config.BaseAddress,
 						XAE_AF0_OFFSET, Af0Reg);
 
@@ -421,7 +421,7 @@ int XAxiEthernet_SendPausePacket(XAxiEthernet *InstancePtr, u16 PauseValue)
 	/* Make sure device is ready for this operation */
 	if (InstancePtr->IsStarted != XIL_COMPONENT_IS_STARTED) {
 		xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_SendPausePacket:returning DEVICE_IS_STOPPED\n");
+			"XAxiEthernet_SendPausePacket:returning DEVICE_IS_STOPPED\n");
 		return (XST_DEVICE_IS_STOPPED);
 	}
 
@@ -468,7 +468,7 @@ int XAxiEthernet_GetSgmiiStatus(XAxiEthernet *InstancePtr, u16 *SpeedPtr)
 	PhyType = XAxiEthernet_GetPhysicalInterface(InstancePtr);
 	if (PhyType != XAE_PHY_TYPE_SGMII) {
 		xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_GetSgmiiStatus: returning NO_FEATURE\n");
+			"XAxiEthernet_GetSgmiiStatus: returning NO_FEATURE\n");
 		return (XST_NO_FEATURE);
 	}
 
@@ -626,14 +626,14 @@ int XAxiEthernet_SetTpid(XAxiEthernet *InstancePtr, u16 Tpid, u8 Entry)
 	/* The device must be stopped before modify VLAN TPID */
 	if (InstancePtr->IsStarted == XIL_COMPONENT_IS_STARTED) {
 		xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_SetTpid: returning DEVICE_IS_STARTED\n");
+			"XAxiEthernet_SetTpid: returning DEVICE_IS_STARTED\n");
 		return (XST_DEVICE_IS_STARTED);
 	}
 
 	/* Check hw capability */
 	if (!XAxiEthernet_IsExtFuncCap(InstancePtr)) {
 		xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_SetTpid: returning DEVICE_NO_FEATURE\n");
+			"XAxiEthernet_SetTpid: returning DEVICE_NO_FEATURE\n");
 		return (XST_NO_FEATURE);
 	}
 
@@ -709,14 +709,14 @@ int XAxiEthernet_ClearTpid(XAxiEthernet *InstancePtr, u8 Entry)
 	/* The device must be stopped before modify VLAN TPID */
 	if (InstancePtr->IsStarted == XIL_COMPONENT_IS_STARTED) {
 		xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_ClearTpid: returning DEVICE_IS_STARTED\n");
+			"XAxiEthernet_ClearTpid: returning DEVICE_IS_STARTED\n");
 		return (XST_DEVICE_IS_STARTED);
 	}
 
 	/* Check hw capability */
 	if (!XAxiEthernet_IsExtFuncCap(InstancePtr)) {
 		xdbg_printf(XDBG_DEBUG_GENERAL,
-		"XAxiEthernet_ClearTpid: returning DEVICE_NO_FEATURE\n");
+			"XAxiEthernet_ClearTpid: returning DEVICE_NO_FEATURE\n");
 		return (XST_NO_FEATURE);
 	}
 
@@ -1683,12 +1683,8 @@ void XAxiEthernet_DumpExtMulticastGroup(XAxiEthernet *InstancePtr)
 			XAE_MCAST_TABLE_OFFSET + Loc);
 		if (Bit) {
 			xdbg_printf(XDBG_DEBUG_GENERAL,
-			fmt(MacAddr[5], "#x") << ":" <<
-			fmt(MacAddr[4], "#x") << ":" <<
-			fmt(MacAddr[3], "#x") << ":" <<
-			fmt(MacAddr[2], "#x") << ":" <<
-			fmt(MacAddr[1], "#x") << ":" <<
-			fmt(MacAddr[0], "#x") << "\n");
+				"{:#02x}:{:#02x}:{:#02x}:{:#02x}:{:#02x}:{:#02x}\n",
+				MacAddr[5], MacAddr[4], MacAddr[3], MacAddr[2], MacAddr[1], MacAddr[0]);
 		}
 	}
 }

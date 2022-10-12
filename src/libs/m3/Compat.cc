@@ -445,27 +445,27 @@ EXTERN_C void __m3c_sleep(int *seconds, long *nanos) {
 
 EXTERN_C void __m3c_print_syscall_start(const char *name, long a, long b, long c, long d, long e,
                                         long f) {
+    using namespace m3;
     char syscbuf[256];
-    m3::OStringStream os(syscbuf, sizeof(syscbuf));
-    os << name << "(" << a << ", " << b << ", " << c << ", " << d << ", " << e << ", " << f << ")";
-    os << " ...\n";
-    m3::Machine::write(os.str(), os.length());
+    OStringStream os(syscbuf, sizeof(syscbuf));
+    format_to(os, "{}({}, {}, {}, {}, {}, {})...\n"_cf, name, a, b, c, d, e, f);
+    Machine::write(os.str(), os.length());
 }
 
 EXTERN_C void __m3c_print_syscall_end(const char *name, long res, long a, long b, long c, long d,
                                       long e, long f) {
+    using namespace m3;
     char buf[256];
-    m3::OStringStream os(buf, sizeof(buf));
-    os << name << "(" << a << ", " << b << ", " << c << ", " << d << ", " << e << ", " << f << ")";
-    os << " -> " << res << "\n";
-    m3::Machine::write(os.str(), os.length());
+    OStringStream os(buf, sizeof(buf));
+    format_to(os, "{}({}, {}, {}, {}, {}, {}) -> {}\n"_cf, name, a, b, c, d, e, f, res);
+    Machine::write(os.str(), os.length());
 }
 
 EXTERN_C void __m3c_print_syscall_trace(size_t idx, const char *name, long no, uint64_t start,
                                         uint64_t end) {
+    using namespace m3;
     char buf[256];
-    m3::OStringStream os(buf, sizeof(buf));
-    os << "[" << m3::fmt(idx, 3) << "] " << name << " (" << no << ")"
-       << " " << m3::fmt(start, "0", 11) << " " << m3::fmt(end, "0", 11) << "\n";
-    m3::Machine::write(os.str(), os.length());
+    OStringStream os(buf, sizeof(buf));
+    format_to(os, "[{: <3} {}({}) {:011} {:011}\n"_cf, idx, name, no, start, end);
+    Machine::write(os.str(), os.length());
 }

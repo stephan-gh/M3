@@ -54,9 +54,9 @@ static std::vector<std::string> get_completions(const char *line, size_t len, si
             if(!prefix[1] || strncmp(vars[i], prefix + 1, cmp_len) == 0) {
                 char varname[128];
                 OStringStream os(varname, sizeof(varname));
-                os << '$';
+                os.write('$');
                 for(size_t j = 0; j + 1 < ARRAY_SIZE(varname) && j < name_len; ++j)
-                    os << vars[i][j];
+                    os.write(vars[i][j]);
                 matches.push_back(os.str());
             }
         }
@@ -144,13 +144,13 @@ static void handle_tab(char *buffer, size_t &o) {
     }
     else if(matches.size() > 0) {
         // print all completions
-        cout << "\n";
+        println();
         for(auto &s : matches)
-            cout << s.c_str() << " ";
+            print("{} "_cf, s.c_str());
         // and the shell prompt with the current buffer again
-        cout << "\n";
+        println();
         print_prompt();
-        cout << buffer;
+        print("{}"_cf, buffer);
         cout.flush();
     }
 }
@@ -175,14 +175,14 @@ static void handle_backspace(char *, size_t &o) {
 }
 
 static void reset_command(char *buffer, size_t &o, const std::string &new_cmd) {
-    cout << "\r";
+    cout.write('\r');
     // overwrite all including "<PWD> $ "
     for(size_t i = 0; i < o + prompt_len(); ++i)
-        cout << " ";
+        cout.write(' ');
     // replace with item from history
-    cout << "\r";
+    cout.write('\r');
     print_prompt();
-    cout << new_cmd.c_str();
+    cout.write_string(new_cmd.c_str());
     cout.flush();
     o = new_cmd.size();
     memcpy(buffer, new_cmd.c_str(), o);
@@ -217,7 +217,7 @@ static void handle_escape(char *buffer, size_t &o) {
         buffer[o++] = '^';
         buffer[o++] = c2;
         buffer[o++] = c3;
-        cout << "^" << c2 << c3;
+        print("^{}{}"_cf, c2, c3);
         cout.flush();
     }
 }
@@ -241,7 +241,7 @@ ssize_t Input::readline(char *buffer, size_t max) {
             return -1;
         // ^C
         if(c == 0x03) {
-            cout << "\n";
+            println();
             print_prompt();
             o = 0;
             continue;

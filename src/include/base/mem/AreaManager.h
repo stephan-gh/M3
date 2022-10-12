@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include <base/stream/OStream.h>
+#include <base/stream/Format.h>
 #include <base/util/Math.h>
 #include <base/util/Option.h>
 
@@ -177,12 +177,11 @@ public:
         return std::make_pair(total, areas);
     }
 
-    friend m3::OStream &operator<<(m3::OStream &os, const AreaManager &map) {
+    void format(OStream &os, const FormatSpecs &) const {
         size_t areas;
-        os << "Total: " << (map.get_size(&areas) / 1024) << " KiB:\n";
-        for(A *a = map.list; a != nullptr; a = a->next)
-            os << "\t@ " << m3::fmt(a->addr, "p") << ", " << (a->size / 1024) << " KiB\n";
-        return os;
+        format_to(os, "Total: {} KiB:\n"_cf, get_size(&areas) / 1024);
+        for(A *a = list; a != nullptr; a = a->next)
+            format_to(os, "\t@ {:p}, {} KiB\n"_cf, a->addr, a->size / 1024);
     }
 
 private:

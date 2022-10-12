@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
                 read(input);
             }
             catch(const Exception &e) {
-                errmsg("open failed: " << e.what());
+                eprintln("open failed: {}"_cf, e.what());
             }
         }
     }

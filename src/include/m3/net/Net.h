@@ -52,6 +52,11 @@ public:
         _addr = addr;
     }
 
+    void format(OStream &os, const FormatSpecs &) const {
+        format_to(os, "IPv4[{}.{}.{}.{}]"_cf, (_addr >> 24) & 0xFF, (_addr >> 16) & 0xFF,
+                  (_addr >> 8) & 0xFF, (_addr >> 0) & 0xFF);
+    }
+
 private:
     uint32_t _addr;
 };
@@ -61,12 +66,6 @@ static inline bool operator==(const IpAddr &a, const IpAddr &b) noexcept {
 }
 static inline bool operator!=(const IpAddr &a, const IpAddr &b) noexcept {
     return !operator==(a, b);
-}
-
-static inline OStream &operator<<(OStream &os, const IpAddr &a) noexcept {
-    os << "Ipv4[" << ((a.addr() >> 24) & 0xFF) << "." << ((a.addr() >> 16) & 0xFF) << "."
-       << ((a.addr() >> 8) & 0xFF) << "." << ((a.addr() >> 0) & 0xFF) << "]";
-    return os;
 }
 
 static inline IStream &operator>>(IStream &is, IpAddr &addr) {
@@ -95,6 +94,10 @@ struct Endpoint {
     explicit Endpoint(IpAddr addr, port_t port) : addr(addr), port(port) {
     }
 
+    void format(OStream &os, const FormatSpecs &) const {
+        format_to(os, "{}:{}"_cf, addr, port);
+    }
+
     IpAddr addr;
     port_t port;
 };
@@ -104,11 +107,6 @@ static inline bool operator==(const Endpoint &a, const Endpoint &b) noexcept {
 }
 static inline bool operator!=(const Endpoint &a, const Endpoint &b) noexcept {
     return !operator==(a, b);
-}
-
-static inline OStream &operator<<(OStream &os, const Endpoint &ep) noexcept {
-    os << ep.addr << ":" << ep.port;
-    return os;
 }
 
 }

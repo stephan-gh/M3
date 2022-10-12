@@ -16,17 +16,18 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/stream/Format.h>
 #include <base/time/Profile.h>
 
-#define RUN_SUITE(name)                                          \
-    m3::cout << "Running benchmark suite " << #name << " ...\n"; \
-    name();                                                      \
-    m3::cout << "\n";
+#define RUN_SUITE(name)                                  \
+    m3::println("Running benchmark suite {}"_cf, #name); \
+    name();                                              \
+    m3::println();
 
-#define RUN_BENCH(name)                                                 \
-    m3::cout << "Testing \"" << #name << "\" in " << __FILE__ << ":\n"; \
-    name();                                                             \
-    m3::cout << "\n";
+#define RUN_BENCH(name)                                       \
+    m3::println("Testing \"{}\" in {}:"_cf, #name, __FILE__); \
+    name();                                                   \
+    m3::println();
 
 template<typename T>
 class MilliFloatResultRef {
@@ -34,14 +35,19 @@ public:
     explicit MilliFloatResultRef(const m3::Results<T> &res) : _res(res) {
     }
 
-    friend m3::OStream &operator<<(m3::OStream &os, const MilliFloatResultRef &r) {
-        os << (static_cast<float>(r._res.avg().as_nanos()) / 1000000.f) << " ms (+/- "
-           << (static_cast<float>(r._res.stddev().as_nanos()) / 1000000.f) << " ms with "
-           << r._res.runs() << " runs)";
-        return os;
-    }
-
     const m3::Results<T> &_res;
+};
+
+template<typename T>
+struct m3::Formatter<MilliFloatResultRef<T>> {
+    template<typename O>
+    constexpr void format(O &out, UNUSED const FormatSpecs &specs,
+                          const MilliFloatResultRef<T> &r) const {
+        using namespace m3;
+        format_to(out, "{} ms (+/- {} ms with {} runs)"_cf,
+                  static_cast<float>(r._res.avg().as_nanos()) / 1000000.f,
+                  static_cast<float>(r._res.stddev().as_nanos()) / 1000000.f, r._res.runs());
+    }
 };
 
 void budp();

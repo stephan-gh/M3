@@ -29,6 +29,7 @@ using namespace m3;
 int failed;
 
 int main() {
+    RUN_SUITE(tformat);
     RUN_SUITE(tsems);
     RUN_SUITE(tenvvars);
     RUN_SUITE(tfsmeta);
@@ -41,8 +42,8 @@ int main() {
     RUN_SUITE(tsgate);
 
     if(failed > 0)
-        cout << "\033[1;31m" << failed << " tests failed\033[0;m\n";
+        println("\033[1;31m{} tests failed\033[0;m"_cf, failed);
     else
-        cout << "\033[1;32mAll tests successful!\033[0;m\n";
+        println("\033[1;32mAll tests successful!\033[0;m"_cf);
     return 0;
 }

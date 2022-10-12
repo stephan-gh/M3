@@ -62,7 +62,7 @@ public:
           _rgate(RecvGate::create(nextlog2<BUF_SIZE>::val, nextlog2<MSG_SIZE>::val)) {
         init(wl);
 
-        LLOG(SERV, "create(name=" << name << ")");
+        LLOG(SERV, "create(name={})"_cf, name);
         size_t crt = add_creator(MAX_SESSIONS);
         Syscalls::create_srv(sel(), _rgate.sel(), name, crt);
         Activity::own().resmng()->reg_service(sel(), _creators[crt]->sgate.sel(), name,
@@ -109,7 +109,7 @@ private:
                 (this->*_ctrl_handler[op])(is);
             }
             catch(const Exception &e) {
-                cerr << "exception during service request: " << e.what() << "\n";
+                eprintln("exception during service request: {}"_cf, e.what());
                 try {
                     reply_error(is, e.code());
                 }
@@ -147,7 +147,7 @@ private:
                              Math::min(static_cast<size_t>(req->arglen - 1), sizeof(req->arg)));
         reply.error = _handler->open(&sess, crt, sel(), arg);
         if(sess)
-            LLOG(SERV, fmt((word_t)sess, "#x") << ": open()");
+            LLOG(SERV, "{:#x}: open()"_cf, (word_t)sess);
 
         reply.sess = sess ? sess->sel() : KIF::INV_SEL;
         reply.ident = reinterpret_cast<uintptr_t>(sess);
@@ -161,7 +161,7 @@ private:
         size_t sessions = req->sessions;
         assert(crt < MAX_CREATORS && _creators[crt] != nullptr);
 
-        LLOG(SERV, "derive_crt(creator=" << crt << ", sessions=" << sessions << ")");
+        LLOG(SERV, "derive_crt(creator={}, sessions={})"_cf, crt, sessions);
 
         MsgBuf reply_buf;
         auto &reply = reply_buf.cast<KIF::Service::DeriveCreatorReply>();
@@ -184,8 +184,8 @@ private:
         // TODO isolate creators from each other
         label_t crt = is.message().label;
 
-        LLOG(SERV, fmt((word_t)req->sess, "#x") << ": obtain(caps=" << req->data.caps
-                                                << ", args=" << req->data.args.bytes << ")");
+        LLOG(SERV, "{:#x}: obtain(caps={}:{}, args={})"_cf, (word_t)req->sess, req->data.caps[0],
+             req->data.caps[1], req->data.args.bytes);
 
         MsgBuf reply_buf;
         auto &reply = reply_buf.cast<KIF::Service::ExchangeReply>();
@@ -203,8 +203,8 @@ private:
         auto *req = reinterpret_cast<const KIF::Service::Exchange *>(is.message().data);
         label_t crt = is.message().label;
 
-        LLOG(SERV, fmt((word_t)req->sess, "#x") << ": delegate(caps=" << req->data.caps
-                                                << ", args=" << req->data.args.bytes << ")");
+        LLOG(SERV, "{:#x}: delegate(caps={}:{}, args={})"_cf, (word_t)req->sess, req->data.caps[0],
+             req->data.caps[1], req->data.args.bytes);
 
         MsgBuf reply_buf;
         auto &reply = reply_buf.cast<KIF::Service::ExchangeReply>();
@@ -226,7 +226,7 @@ private:
         assert(crt < MAX_CREATORS && _creators[crt] != nullptr);
         _creators[crt]->sessions++;
 
-        LLOG(SERV, fmt((word_t)req->sess, "#x") << ": close()");
+        LLOG(SERV, "{:#x}: close()"_cf, (word_t)req->sess);
 
         typename HDL::session_type *sess =
             reinterpret_cast<typename HDL::session_type *>(req->sess);
@@ -236,7 +236,7 @@ private:
     }
 
     void handle_shutdown(GateIStream &is) {
-        LLOG(SERV, "shutdown()");
+        LLOG(SERV, "shutdown()"_cf, 0);
 
         shutdown();
 

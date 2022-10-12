@@ -33,8 +33,8 @@ int main() {
     RUN_SUITE(ttcp);
 
     if(failed > 0)
-        cout << "\033[1;31m" << failed << " tests failed\033[0;m\n";
+        println("\033[1;31m{} tests failed\033[0;m"_cf, failed);
     else
-        cout << "\033[1;32mAll tests successful!\033[0;m\n";
+        println("\033[1;32mAll tests successful!\033[0;m"_cf);
     return 0;
 }

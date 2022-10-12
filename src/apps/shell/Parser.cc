@@ -22,30 +22,14 @@
 
 #include <algorithm>
 #include <exception>
-#include <initializer_list>
 #include <memory>
 
 using namespace m3;
 
-m3::OStream &operator<<(m3::OStream &os, std::initializer_list<TokenType> tokens) {
-    for(auto it = tokens.begin(); it != tokens.end(); ++it) {
-        os << *it;
-        if(it + 1 != tokens.end())
-            os << ", or ";
-    }
-    return os;
-}
-
-m3::OStream &operator<<(m3::OStream &os, Parser::PrevToken t) {
-    if(t.parser->_token > 0)
-        os << " after " << t.parser->_tokens[t.parser->_token - 1];
-    return os;
-}
-
 const Token &Parser::expect_token(std::initializer_list<TokenType> tokens) {
     const Token *cur = token(0);
     if(!cur)
-        VTHROW(Errors::NONE, "Missing token" << PrevToken(this) << "; expected " << tokens);
+        vthrow(Errors::NONE, "Missing token{}; expected {}"_cf, PrevToken(this), tokens);
 
     for(auto it = tokens.begin(); it != tokens.end(); ++it) {
         if(cur->type() == *it) {
@@ -54,7 +38,7 @@ const Token &Parser::expect_token(std::initializer_list<TokenType> tokens) {
         }
     }
 
-    VTHROW(Errors::NONE, "Unexpected token" << PrevToken(this) << "; expected " << tokens);
+    vthrow(Errors::NONE, "Unexpected token{}; expected {}"_cf, PrevToken(this), tokens);
 }
 
 const Token *Parser::token(size_t off) const {

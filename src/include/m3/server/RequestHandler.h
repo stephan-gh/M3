@@ -49,7 +49,7 @@ public:
                 (static_cast<CLS *>(this)->*_callbacks[op])(msg);
             }
             catch(const Exception &e) {
-                cerr << "exception during request: " << e.what() << "\n";
+                eprintln("exception during request: {}"_cf, e.what());
                 try {
                     reply_error(msg, e.code());
                 }

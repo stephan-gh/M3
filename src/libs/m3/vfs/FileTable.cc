@@ -37,7 +37,7 @@ void FileTable::remove_all() noexcept {
 File *FileTable::do_alloc(std::unique_ptr<File> file) {
     for(fd_t i = 0; i < MAX_FDS; ++i) {
         if(!_fds[i]) {
-            LLOG(FILES, "FileTable[" << i << "] = file");
+            LLOG(FILES, "FileTable[{}] = file"_cf, i);
             file->set_fd(i);
             _fds[i] = file.release();
             return _fds[i];
@@ -68,14 +68,14 @@ void FileTable::remove(fd_t fd) noexcept {
         delete _fds[fd];
         _fds[fd] = nullptr;
 
-        LLOG(FILES, "FileTable[" << fd << "] = --");
+        LLOG(FILES, "FileTable[{}] = --"_cf, fd);
     }
 }
 
 void FileTable::delegate(ChildActivity &act) const {
     for(auto mapping = act._files.begin(); mapping != act._files.end(); ++mapping) {
         auto file = Activity::own().files()->get(mapping->second);
-        LLOG(FILES, "FileTable[" << mapping->second << "] = delegate");
+        LLOG(FILES, "FileTable[{}] = delegate"_cf, mapping->second);
         file->delegate(act);
     }
 }

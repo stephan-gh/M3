@@ -51,8 +51,8 @@ struct App {
 };
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-r <repeats>] <argcount> <prog1>...\n";
-    cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
+    eprintln("Usage: {} [-r <repeats>] <argcount> <prog1>..."_cf, name);
+    eprintln("    <repeats> specifies the number of repetitions of the benchmark"_cf);
     exit(1);
 }
 
@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
 
     for(int j = 0; j < repeats; ++j) {
         if(VERBOSE)
-            cout << "Creating activities...\n";
+            println("Creating activities..."_cf);
 
         {
             size_t idx = 0;
@@ -86,16 +86,16 @@ int main(int argc, char **argv) {
                 for(size_t x = 0; x < argcount; ++x)
                     args[x] = argv[i + x];
                 if(VERBOSE) {
-                    cout << "Creating ";
+                    print("Creating "_cf);
                     for(size_t x = 0; x < argcount; ++x)
-                        cout << args[x] << " ";
-                    cout << "\n";
+                        print("{:x} "_cf, args[x]);
+                    println();
                 }
                 apps[idx++] = std::make_unique<App>(argcount, args);
             }
 
             if(VERBOSE)
-                cout << "Starting activities...\n";
+                println("Starting activities..."_cf);
 
             auto start = CycleInstant::now();
 
@@ -104,27 +104,27 @@ int main(int argc, char **argv) {
                 apps[i]->act.exec(apps[i]->argc, apps[i]->argv);
 
                 if(VERBOSE)
-                    cout << "Waiting for Activity " << apps[i]->argv[0] << " ...\n";
+                    println("Waiting for Activity {}..."_cf, apps[i]->argv[0]);
 
                 UNUSED int res = apps[i]->act.wait();
                 if(VERBOSE)
-                    cout << apps[i]->argv[0] << " exited with " << res << "\n";
+                    println("{} exited with {}"_cf, apps[i]->argv[0], res);
             }
 
             auto end = CycleInstant::now();
-            cout << "Time: " << end.duration_since(start) << "\n";
+            println("Time: {}"_cf, end.duration_since(start));
 
             if(VERBOSE)
-                cout << "Deleting activities...\n";
+                println("Deleting activities..."_cf);
         }
 
         if(VERBOSE)
-            cout << "Cleaning up /tmp...\n";
+            println("Cleaning up /tmp..."_cf);
 
         for(int i = 0; i < MAX_TMP_DIRS; ++i) {
             char path[128];
             OStringStream os(path, sizeof(path));
-            os << "/tmp/" << i;
+            format_to(os, "/tmp/{}"_cf, i);
 
             try {
                 Dir dir(os.str());
@@ -132,7 +132,7 @@ int main(int argc, char **argv) {
                 std::vector<std::string> entries;
 
                 if(VERBOSE)
-                    cout << "Collecting files in " << os.str() << "\n";
+                    println("Collecting files in {}"_cf, os.str());
 
                 // remove all entries; we assume here that they are files
                 Dir::Entry e;
@@ -141,13 +141,13 @@ int main(int argc, char **argv) {
                         continue;
 
                     OStringStream file(path, sizeof(path));
-                    file << "/tmp/" << i << "/" << e.name;
+                    format_to(file, "/tmp/{}/{}"_cf, i, e.name);
                     entries.push_back(file.str());
                 }
 
                 for(std::string &s : entries) {
                     if(VERBOSE)
-                        cout << "Unlinking " << s << "\n";
+                        println("Unlinking {}"_cf, s);
                     VFS::unlink(s.c_str());
                 }
             }
@@ -158,6 +158,6 @@ int main(int argc, char **argv) {
     }
 
     if(VERBOSE)
-        cout << "Done\n";
+        println("Done"_cf);
     return 0;
 }

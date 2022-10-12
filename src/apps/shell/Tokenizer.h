@@ -17,7 +17,7 @@
 #pragma once
 
 #include <base/Common.h>
-#include <base/stream/OStream.h>
+#include <base/stream/Format.h>
 
 #include <string>
 #include <vector>
@@ -35,12 +35,12 @@ enum TokenType {
 
 static inline m3::OStream &operator<<(m3::OStream &os, TokenType type) {
     switch(type) {
-        case PIPE: os << "'|'"; break;
-        case LESS_THAN: os << "'<'"; break;
-        case GREATER_THAN: os << "'>'"; break;
-        case DOLLAR: os << "'$'"; break;
-        case ASSIGN: os << "'='"; break;
-        case STRING: os << "T_STRING"; break;
+        case PIPE: os.write_string("'|'"); break;
+        case LESS_THAN: os.write_string("'<'"); break;
+        case GREATER_THAN: os.write_string("'>'"); break;
+        case DOLLAR: os.write_string("'$'"); break;
+        case ASSIGN: os.write_string("'='"); break;
+        case STRING: os.write_string("T_STRING"); break;
     }
     return os;
 }
@@ -73,10 +73,11 @@ struct Token {
     }
 
     friend m3::OStream &operator<<(m3::OStream &os, const Token &t) {
+        using namespace m3;
         if(t.type() == TokenType::STRING)
-            os << "'" << t.string() << "'";
+            format_to(os, "'{}'"_cf, t.string());
         else
-            os << "'" << t.simple() << "'";
+            format_to(os, "'{}'"_cf, t.simple());
         return os;
     }
 

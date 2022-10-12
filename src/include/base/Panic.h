@@ -20,12 +20,24 @@
 
 #include <base/Backtrace.h>
 #include <base/Env.h>
+#include <base/stream/Format.h>
 #include <base/stream/Serial.h>
 
-#define PANIC(expr)                              \
-    do {                                         \
-        m3::Serial::get() << expr << "\n";       \
-        m3::Backtrace::print(m3::Serial::get()); \
-        abort();                                 \
-    }                                            \
-    while(0)
+namespace m3 {
+
+/**
+ * Convenience function that prints a formatted string to Serial::get(), appended by a newline, and
+ * calls abort(). See print_to in Format.h for details on the formatting.
+ *
+ * @param fmt the format string
+ * @param args the arguments
+ */
+template<typename C, size_t N, detail::StaticString<C, N> S, typename... ARGS>
+NORETURN void panic(const detail::CompiledString<C, N, S> &fmt, const ARGS &...args) {
+    detail::format_rec<0, 0>(fmt, Serial::get(), args...);
+    Serial::get().write('\n');
+    Backtrace::print(Serial::get());
+    abort();
+}
+
+}

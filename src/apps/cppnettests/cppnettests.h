@@ -16,15 +16,15 @@
  * General Public License version 2 for more details.
  */
 
-#define RUN_SUITE(name)                                    \
-    m3::cout << "Running testsuite " << #name << " ...\n"; \
-    name();                                                \
-    m3::cout << "\n";
+#define RUN_SUITE(name)                            \
+    m3::println("Running testsuite {}"_cf, #name); \
+    name();                                        \
+    m3::println();
 
-#define RUN_TEST(name)                                                  \
-    m3::cout << "Testing \"" << #name << "\" in " << __FILE__ << ":\n"; \
-    name();                                                             \
-    m3::cout << "\n";
+#define RUN_TEST(name)                                        \
+    m3::println("Testing \"{}\" in {}:"_cf, #name, __FILE__); \
+    name();                                                   \
+    m3::println();
 
 void tudp();
 void ttcp();

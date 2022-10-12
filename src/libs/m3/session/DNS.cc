@@ -39,7 +39,9 @@ enum Type {
     TYPE_MX = 15,    /* mail exchange */
 };
 
-enum Class { CLASS_IN = 1 /* the Internet */ };
+enum Class {
+    CLASS_IN = 1 /* the Internet */
+};
 
 struct DNSHeader {
     uint16_t id;
@@ -139,7 +141,7 @@ IpAddr DNS::resolve(NetworkManager &netmng, const char *name, TimeDuration timeo
     size_t nameLen = strlen(name);
     size_t total = sizeof(DNSHeader) + nameLen + 2 + sizeof(DNSQuestionEnd);
     if(total > sizeof(buffer))
-        VTHROW(Errors::INV_ARGS, "Hostname too long");
+        vthrow(Errors::INV_ARGS, "Hostname too long"_cf);
 
     // generate a unique transaction id
     uint16_t txid = _rng.get();
@@ -174,9 +176,9 @@ IpAddr DNS::resolve(NetworkManager &netmng, const char *name, TimeDuration timeo
     // receive response
     size_t len = sock->recv(buffer, sizeof(buffer)).unwrap_or(0);
     if(len < sizeof(DNSHeader))
-        VTHROW(Errors::NOT_FOUND, "Received invalid DNS response");
+        vthrow(Errors::NOT_FOUND, "Received invalid DNS response"_cf);
     if(be16toh(h->id) != txid)
-        VTHROW(Errors::NOT_FOUND, "Received DNS response with wrong transaction id");
+        vthrow(Errors::NOT_FOUND, "Received DNS response with wrong transaction id"_cf);
 
     int questions = be16toh(h->qdCount);
     int answers = be16toh(h->anCount);
@@ -197,7 +199,7 @@ IpAddr DNS::resolve(NetworkManager &netmng, const char *name, TimeDuration timeo
         }
     }
 
-    VTHROW(Errors::NOT_FOUND, "Unable to find IP address in DNS response");
+    vthrow(Errors::NOT_FOUND, "Unable to find IP address in DNS response"_cf);
 }
 
 } // namespace m3

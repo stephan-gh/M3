@@ -17,6 +17,7 @@
 
 #include <base/CPU.h>
 #include <base/TCU.h>
+#include <base/stream/Format.h>
 #include <base/stream/OStream.h>
 
 namespace m3 {
@@ -174,14 +175,13 @@ public:
         return *this;
     }
 
-    friend OStream &operator<<(OStream &os, const TimeDuration &t) {
-        if(t._nanos >= SECOND._nanos)
-            os << t.as_millis() << " ms";
-        else if(t._nanos >= MILLISECOND._nanos)
-            os << t.as_micros() << " us";
+    void format(OStream &os, const FormatSpecs &) const {
+        if(as_raw() >= TimeDuration::SECOND.as_raw())
+            format_to(os, "{} ms"_cf, as_millis());
+        if(as_raw() >= TimeDuration::MILLISECOND.as_raw())
+            format_to(os, "{} us"_cf, as_micros());
         else
-            os << t.as_nanos() << " ns";
-        return os;
+            format_to(os, "{} ns"_cf, as_nanos());
     }
 
 private:
@@ -282,9 +282,9 @@ public:
         return *this;
     }
 
-    friend OStream &operator<<(OStream &os, const CycleDuration &t) {
-        os << t._cycles << " cycles";
-        return os;
+    template<typename O>
+    void format(O &out, const FormatSpecs &) const {
+        format_to(out, "{} cycles"_cf, as_raw());
     }
 
 private:

@@ -54,7 +54,8 @@ INIT_PRIO_RECVGATE RecvGate RecvGate::_default(KIF::INV_SEL,
 void RecvGate::RecvGateWorkItem::work() {
     const TCU::Message *msg = _gate->fetch();
     if(msg) {
-        LLOG(IPC, "Received msg @ " << (void *)msg << " over ep " << _gate->ep());
+        LLOG(IPC, "Received msg @ {} over ep {}"_cf, static_cast<const void *>(msg),
+             _gate->ep()->id());
         GateIStream is(*_gate, msg);
         _gate->_handler(is);
     }

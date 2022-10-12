@@ -67,7 +67,7 @@ NOINLINE static void find() {
             for(uint32_t i = 0; i < 10; ++i) {
                 MyTItem *item = treap.find(i);
                 if(!item || item->val != i)
-                    PANIC("Test failed: " << (item ? item->val : 0) << " != " << i);
+                    panic("Test failed: {} != {}"_cf, item ? item->val : 0, i);
             }
         }
         void post() override {

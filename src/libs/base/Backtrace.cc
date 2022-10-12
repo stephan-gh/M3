@@ -19,7 +19,7 @@
 #include <base/Backtrace.h>
 #include <base/CPU.h>
 #include <base/Config.h>
-#include <base/stream/OStream.h>
+#include <base/stream/Format.h>
 #include <base/util/Math.h>
 
 namespace m3 {
@@ -43,9 +43,9 @@ void Backtrace::print(OStream &os) {
     uintptr_t addr[MAX_DEPTH];
     size_t cnt = collect(addr, MAX_DEPTH);
 
-    os << "Backtrace:\n";
+    println_to(os, "Backtrace:"_cf);
     for(size_t i = 0; i < cnt; ++i)
-        os << "  " << fmt(addr[i], "p") << "\n";
+        println_to(os, " {:p}"_cf, addr[i]);
 }
 
 }

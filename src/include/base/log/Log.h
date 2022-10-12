@@ -21,10 +21,11 @@
 #include <base/Env.h>
 #include <base/stream/Serial.h>
 
-#define LOG(cls, lvl, expr)                    \
-    do {                                       \
-        if(m3::cls::level & (m3::cls::lvl)) {  \
-            m3::Serial::get() << expr << '\n'; \
-        }                                      \
-    }                                          \
+#define LOG(cls, lvl, fmt, ...)                                                \
+    do {                                                                       \
+        if(m3::cls::level & (m3::cls::lvl)) {                                  \
+            m3::detail::format_rec<0, 0>(fmt, m3::Serial::get(), __VA_ARGS__); \
+            m3::Serial::get().write('\n');                                     \
+        }                                                                      \
+    }                                                                          \
     while(0)

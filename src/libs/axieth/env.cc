@@ -20,67 +20,6 @@
 
 #include <string.h>
 
-// EXTERN_C void gem5_writefile(const char *str, uint64_t len, uint64_t offset, uint64_t file);
-
-// EXTERN_C void puts(const char *str) {
-//     size_t len = strlen(str);
-//     if(m3::env()->platform == m3::Platform::GEM5) {
-
-//         static const char *fileAddr = "stdout";
-//         gem5_writefile(str, len, 0, reinterpret_cast<uint64_t>(fileAddr));
-//     }
-//     else {
-//         static volatile uint64_t *signal    = reinterpret_cast<uint64_t*>(SERIAL_SIGNAL);
-
-//         strcpy(reinterpret_cast<char*>(SERIAL_BUF), str);
-//         *signal = len;
-//         while(*signal != 0)
-//             ;
-//     }
-// }
-
-// EXTERN_C size_t putubuf(char *buf, ullong n, uint base) {
-//     static char hexchars_small[]   = "0123456789abcdef";
-//     size_t res = 0;
-//     if(n >= base)
-//         res += putubuf(buf, n / base, base);
-//     buf[res] = hexchars_small[n % base];
-//     return res + 1;
-// }
-
-// EXTERN_C void putu(ullong n, uint base) {
-//     char buf[32];
-//     size_t len = putubuf(buf, n, base);
-//     buf[len] = 0;
-//     puts(buf);
-// }
-
-// for __verbose_terminate_handler from libsupc++
-EXTERN_C ssize_t write(int, const void *, size_t) {
-    return 0;
-}
-EXTERN_C int sprintf(char *, const char *, ...) {
-    return 0;
-}
-
-FILE *const stderr = NULL;
-EXTERN_C int fputs(const char *str, FILE *) {
-    m3::Serial::get() << str;
-    return 0;
-}
-EXTERN_C int fputc(int c, FILE *) {
-    m3::Serial::get().write(c);
-    return -1;
-}
-EXTERN_C size_t fwrite(const void *str, UNUSED size_t size, size_t nmemb, FILE *) {
-    // assert(size == 1);
-    const char *s = reinterpret_cast<const char *>(str);
-    auto &ser = m3::Serial::get();
-    while(nmemb-- > 0)
-        ser.write(*s++);
-    return 0;
-}
-
 class StandaloneEnvBackend : public m3::EnvBackend {
 public:
     explicit StandaloneEnvBackend() {

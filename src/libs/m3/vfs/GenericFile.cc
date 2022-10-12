@@ -59,7 +59,7 @@ GenericFile::~GenericFile() {
 }
 
 void GenericFile::remove() noexcept {
-    LLOG(FS, "GenFile[" << fd() << "]::evict()");
+    LLOG(FS, "GenFile[{}]::evict()"_cf, _fd);
 
     // commit read/written data
     try {
@@ -87,7 +87,7 @@ void GenericFile::remove() noexcept {
     }
 
     // file sessions are not known to our resource manager; thus close them manually
-    LLOG(FS, "GenFile[" << fd() << "]::close()");
+    LLOG(FS, "GenFile[{}]::close()"_cf, _fd);
     try {
         send_receive_vmsg(*_sg, M3FS::CLOSE, _id);
     }
@@ -97,7 +97,7 @@ void GenericFile::remove() noexcept {
 }
 
 Errors::Code GenericFile::try_stat(FileInfo &info) const {
-    LLOG(FS, "GenFile[" << fd() << "]::stat()");
+    LLOG(FS, "GenFile[{}]::stat()"_cf, _fd);
 
     GateIStream reply = send_receive_vmsg(*_sg, STAT, _id);
     Errors::Code res;
@@ -108,7 +108,7 @@ Errors::Code GenericFile::try_stat(FileInfo &info) const {
 }
 
 size_t GenericFile::seek(size_t offset, int whence) {
-    LLOG(FS, "GenFile[" << fd() << "]::seek(" << offset << ", " << whence << ")");
+    LLOG(FS, "GenFile[{}]::seek({}, {})"_cf, _fd, offset, whence);
 
     // handle SEEK_CUR as SEEK_SET
     if(whence == M3FS_SEEK_CUR) {
@@ -155,7 +155,7 @@ std::string GenericFile::path() {
     const char *mount = Activity::own().mounts()->path_of_id(_fs_id);
 
     OStringStream abspath;
-    abspath << mount << "/" << path;
+    format_to(abspath, "{}/{}"_cf, mount, path);
     return abspath.str();
 }
 
@@ -186,7 +186,7 @@ NOINLINE bool GenericFile::receive_notify(uint event, bool fetch) {
             imsg >> events;
             _notify_received |= events;
             _notify_requested &= ~events;
-            LLOG(FS, "GenFile[" << fd() << "]::receive_notify() -> received " << fmt(events, "x"));
+            LLOG(FS, "GenFile[{}]::receive_notify() -> received {:x}"_cf, _fd, events);
             // give credits back to sender
             reply_vmsg(imsg, 0);
         }
@@ -198,7 +198,7 @@ NOINLINE bool GenericFile::receive_notify(uint event, bool fetch) {
 
     if(fetch) {
         // okay, event received; remove it and continue
-        LLOG(FS, "GenFile[" << fd() << "]::receive_notify() -> fetched " << fmt(event, "x"));
+        LLOG(FS, "GenFile[{}]::receive_notify() -> fetched {:x}"_cf, _fd, event);
         _notify_received &= ~event;
     }
 
@@ -210,7 +210,7 @@ Option<size_t> GenericFile::read(void *buffer, size_t count) {
     if(_writing)
         commit();
 
-    LLOG(FS, "GenFile[" << fd() << "]::read(" << count << ", pos=" << (_goff + _pos) << ")");
+    LLOG(FS, "GenFile[{}]::read({}, pos={})"_cf, _fd, count, _goff + _pos);
 
     if(_pos == _len) {
         if(!_blocking && !receive_notify(Event::INPUT, true))
@@ -247,7 +247,7 @@ Option<size_t> GenericFile::read(void *buffer, size_t count) {
 Option<size_t> GenericFile::write(const void *buffer, size_t count) {
     delegate_ep();
 
-    LLOG(FS, "GenFile[" << fd() << "]::write(" << count << ", pos=" << (_goff + _pos) << ")");
+    LLOG(FS, "GenFile[{}]::write({}, pos={})"_cf, _fd, count, _goff + _pos);
 
     if(_pos == _len) {
         if(!_blocking && !receive_notify(Event::OUTPUT, true))
@@ -284,8 +284,7 @@ Option<size_t> GenericFile::write(const void *buffer, size_t count) {
 
 void GenericFile::commit() {
     if(_pos > 0) {
-        LLOG(FS, "GenFile[" << fd() << "]::commit(" << (_writing ? "write" : "read") << ", " << _pos
-                            << ")");
+        LLOG(FS, "GenFile[{}]::commit({}, {})"_cf, _fd, _writing ? "write" : "read", _pos);
 
         GateIStream reply = send_receive_vmsg(*_sg, COMMIT, _id, _pos);
         reply.pull_result();
@@ -300,7 +299,7 @@ void GenericFile::commit() {
 void GenericFile::sync() {
     commit();
 
-    LLOG(FS, "GenFile[" << fd() << "]::sync()");
+    LLOG(FS, "GenFile[{}]::sync()"_cf, _fd);
     GateIStream reply = send_receive_vmsg(*_sg, SYNC, _id);
     reply.pull_result();
 }
@@ -337,7 +336,7 @@ NOINLINE void GenericFile::enable_notifications() {
     KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, notify_sgate->sel(), 1);
     _sess.delegate_for(Activity::own(), crd, &args);
 
-    LLOG(FS, "GenFile[" << fd() << "]::enable_notifications()");
+    LLOG(FS, "GenFile[{}]::enable_notifications()"_cf, _fd);
 
     // now that it succeeded, store the gates
     _notify_rgate.swap(notify_rgate);
@@ -345,8 +344,8 @@ NOINLINE void GenericFile::enable_notifications() {
 }
 
 void GenericFile::request_notification(uint events) {
-    LLOG(FS, "GenFile[" << fd() << "]::request_notification(want=" << fmt(events, "x")
-                        << ", have=" << fmt(_notify_requested, "x") << ")");
+    LLOG(FS, "GenFile[{}]::request_notification(want={:x}, have={:x})"_cf, _fd, events,
+         _notify_requested);
 
     if((_notify_requested & events) != events) {
         GateIStream reply = send_receive_vmsg(*_sg, Operation::REQ_NOTIFY, _id, events);
@@ -399,7 +398,7 @@ void GenericFile::delegate_ep() {
 }
 
 void GenericFile::do_delegate_ep(const EP &ep) const {
-    LLOG(FS, "GenFile[" << fd() << "]::delegate_ep(" << ep.id() << ")");
+    LLOG(FS, "GenFile[{}]::delegate_ep({})"_cf, _fd, ep.id());
 
     KIF::ExchangeArgs args;
     ExchangeOStream os(args);

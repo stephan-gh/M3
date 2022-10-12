@@ -27,7 +27,7 @@ using namespace m3;
 
 static void received_data(GateIStream &is) {
     auto data = reinterpret_cast<const uint64_t *>(is.buffer());
-    cout << env()->tile_id << ": received " << fmt(*data, "x") << "\n";
+    println("{}: received {:x}"_cf, env()->tile_id, *data);
 }
 
 int main() {

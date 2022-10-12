@@ -38,30 +38,6 @@ EXTERN_C int main(int argc, char **argv);
 
 namespace m3 {
 
-OStream &operator<<(OStream &os, const Env &senv) {
-    os << "tile_id        : " << senv.tile_id << "\n";
-    os << "tile_desc      : " << fmt(senv.tile_desc, "#x") << "\n";
-    os << "argc         : " << senv.argc << "\n";
-    os << "argv         : " << fmt(senv.argv, "p") << "\n";
-    os << "heap_size    : " << fmt(senv.heap_size, "#x") << "\n";
-    os << "sp           : " << fmt(senv.sp, "p") << "\n";
-    os << "entry        : " << fmt(senv.entry, "p") << "\n";
-    os << "shared       : " << senv.shared << "\n";
-    os << "first_std_ep : " << senv.first_std_ep << "\n";
-    os << "first_sel    : " << senv.first_sel << "\n";
-    os << "act_id       : " << senv.act_id << "\n";
-    os << "lambda       : " << fmt(senv.lambda, "p") << "\n";
-    os << "rmng_sel     : " << senv.rmng_sel << "\n";
-    os << "pager_sess   : " << senv.pager_sess << "\n";
-    os << "mounts_addr  : " << fmt(senv.mounts_addr, "p") << "\n";
-    os << "mounts_len   : " << senv.mounts_len << "\n";
-    os << "fds_addr     : " << senv.fds_addr << "\n";
-    os << "fds_len      : " << fmt(senv.fds_len, "p") << "\n";
-    os << "data_addr    : " << senv.data_addr << "\n";
-    os << "data_len     : " << fmt(senv.data_len, "p") << "\n";
-    return os;
-}
-
 void Env::call_constr() {
     _init();
     for(constr_func *func = &CTORS_BEGIN; func < &CTORS_END; ++func)

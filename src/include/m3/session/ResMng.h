@@ -72,8 +72,8 @@ public:
             };
 
             OStringStream os(msg_buf, sizeof(msg_buf));
-            os << "The resource manager operation " << names[_op]
-               << " failed: " << Errors::to_string(code()) << " (" << code() << ")";
+            format_to(os, "The resource manager operation {} failed: {} ({})"_cf, names[_op],
+                      Errors::to_string(code()), code());
             return msg_buf;
         }
 

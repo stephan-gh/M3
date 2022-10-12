@@ -32,11 +32,14 @@
 #include "fsapi.h"
 
 class FSAPI_M3FS : public FSAPI {
-    enum { MaxOpenFds = 16 };
+    enum {
+        MaxOpenFds = 16
+    };
 
     void checkFd(int fd) {
+        using namespace m3;
         if(!_fdMap[fd].is_valid())
-            exitmsg("Using uninitialized file @ " << fd);
+            exitmsg("Using uninitialized file @ {}"_cf, fd);
     }
 
 public:
@@ -74,8 +77,9 @@ public:
         _start = m3::CycleInstant::now();
     }
     virtual void stop() override {
-        auto end = m3::CycleInstant::now();
-        m3::cerr << "Total time: " << end.duration_since(_start) << "\n";
+        using namespace m3;
+        auto end = CycleInstant::now();
+        eprintln("Total time: {}"_cf, end.duration_since(_start));
     }
 
     virtual void checkpoint(int, int, bool) override {
@@ -87,8 +91,9 @@ public:
     }
 
     NOINLINE virtual void open(const open_args_t *args, UNUSED int lineNo) override {
+        using namespace m3;
         if(args->fd != -1 && (_fdMap[args->fd].is_valid() || _dirMap[args->fd] != nullptr))
-            exitmsg("Overwriting already used file/dir @ " << args->fd);
+            exitmsg("Overwriting already used file/dir @ {}"_cf, args->fd);
 
         try {
             if(args->flags & O_DIRECTORY) {
@@ -108,6 +113,7 @@ public:
     }
 
     NOINLINE virtual void close(const close_args_t *args, int) override {
+        using namespace m3;
         if(_fdMap[args->fd].is_valid())
             _fdMap[args->fd].reset();
         else if(_dirMap[args->fd]) {
@@ -117,7 +123,7 @@ public:
         else if(args->fd == _lgchan_fd)
             _lgchan_fd = -1;
         else
-            exitmsg("Using uninitialized file @ " << args->fd);
+            exitmsg("Using uninitialized file @ {}"_cf, args->fd);
     }
 
     NOINLINE virtual void fsync(const fsync_args_t *, int) override {
@@ -199,13 +205,14 @@ public:
 
     NOINLINE virtual void fstat(const fstat_args_t *args, UNUSED int lineNo) override {
         int res = get_result_of([this, &args] {
+            using namespace m3;
             m3::FileInfo info;
             if(_fdMap[args->fd].is_valid())
                 _fdMap[args->fd]->stat(info);
             else if(_dirMap[args->fd])
                 _dirMap[args->fd]->stat(info);
             else
-                exitmsg("Using uninitialized file/dir @ " << args->fd);
+                exitmsg("Using uninitialized file/dir @ {}"_cf, args->fd);
         });
 
         if((res == m3::Errors::NONE) != (args->err == 0))
@@ -291,8 +298,9 @@ public:
     }
 
     NOINLINE virtual void getdents(const getdents_args_t *args, UNUSED int lineNo) override {
+        using namespace m3;
         if(_dirMap[args->fd] == nullptr)
-            exitmsg("Using uninitialized dir @ " << args->fd);
+            exitmsg("Using uninitialized dir @ {}"_cf, args->fd);
 
         try {
             m3::Dir::Entry e;
@@ -359,11 +367,12 @@ public:
 
 private:
     const char *add_prefix_to(const char *path, char *dst, size_t max) {
+        using namespace m3;
         if(_prefix.length() == 0 || strncmp(path, "/tmp/", 5) != 0)
             return path;
 
-        m3::OStringStream os(dst, max);
-        os << _prefix << (path + 5);
+        OStringStream os(dst, max);
+        format_to(os, "{}{}"_cf, _prefix, path + 5);
         return dst;
     }
     const char *add_prefix(const char *path) {

@@ -58,7 +58,7 @@ void ProxiedPciDevice::receiveInterrupt(ProxiedPciDevice *nic, m3::GateIStream &
     if(nic->_callback)
         nic->_callback();
     else
-        cout << "received interrupt, but no callback is registered.\n";
+        println("received interrupt, but no callback is registered."_cf);
 }
 
 }

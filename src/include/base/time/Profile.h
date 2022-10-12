@@ -82,9 +82,8 @@ public:
         return T::from_raw(_runs == 0 ? 0 : Math::sqrt((float)sum / _runs));
     }
 
-    friend OStream &operator<<(OStream &os, const Results &r) {
-        os << r.avg() << " (+/- " << r.stddev() << " with " << r.runs() << " runs)";
-        return os;
+    void format(OStream &os, const FormatSpecs &) const {
+        format_to(os, "{} (+/- {} with {} runs)"_cf, avg(), stddev(), runs());
     }
 
 private:

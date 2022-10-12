@@ -43,8 +43,7 @@ static void check_content(const char *filename, size_t size) {
     while((count = file->read(largebuf, sizeof(largebuf)).unwrap()) > 0) {
         for(size_t i = 0; i < count; ++i) {
             if(largebuf[i] != pos % 100) {
-                cout << "file[" << pos << "]: expected " << (pos % 100) << ", got " << largebuf[i]
-                     << "\n";
+                println("file[{}]: expected {}, got {}"_cf, pos, pos % 100, largebuf[i]);
                 WVASSERT(false);
             }
             pos++;
@@ -282,7 +281,7 @@ static void pipe_mux() {
         }
     }
     catch(const Exception &e) {
-        cerr << "pipes test failed: " << e.what() << "\n";
+        eprintln("pipes test failed: {}"_cf, e.what());
     }
 }
 

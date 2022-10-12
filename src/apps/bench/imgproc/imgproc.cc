@@ -44,14 +44,14 @@ const CycleDuration ACCEL_TIMES[] = {
 };
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-m <mode>] [-n <num>] [-w <warmups>] [-r <repeats>] <in>\n";
-    cerr << "  <mode> can be:\n";
-    cerr << "    'indir'      for a single chain, assisted\n";
-    cerr << "    'dir'        for a single chain, connected directly\n";
-    cerr << "    'dir-simple' for a single chain, connected via pipes\n";
-    cerr << "  <num> specifies the number of chains\n";
-    cerr << "  <warmups> specifies the number of warmups\n";
-    cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
+    eprintln("Usage: {} [-m <mode>] [-n <num>] [-w <warmups>] [-r <repeats>] <in>"_cf, name);
+    eprintln("  <mode> can be:"_cf);
+    eprintln("    'indir'      for a single chain, assisted"_cf);
+    eprintln("    'dir'        for a single chain, connected directly"_cf);
+    eprintln("    'dir-simple' for a single chain, connected via pipes"_cf);
+    eprintln("  <num> specifies the number of chains"_cf);
+    eprintln("  <warmups> specifies the number of warmups"_cf);
+    eprintln("  <repeats> specifies the number of repetitions of the benchmark"_cf);
     exit(1);
 }
 
@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
     }
 
     OStringStream os;
-    os << "imgproc-" << modename << " (" << num << " chains)";
+    format_to(os, "imgproc-{} ({} chains)"_cf, modename, num);
     WVPERF(os.str(), res);
     return 0;
 }

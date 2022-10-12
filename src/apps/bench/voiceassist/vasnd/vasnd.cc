@@ -60,7 +60,7 @@ static TimeDuration forward_audio(ClientSession &vamic, OpHandler *hdl, void *me
 
     size_t size = recv_audio(mem, vamic);
 
-    m3::cout << "Encoding " << size << " bytes WAV\n";
+    println("Encoding {} bytes WAV"_cf, size);
     size_t res;
     if(compute)
         res = encode((const uint8_t *)mem, size, out, 1024 * 1024);
@@ -68,20 +68,20 @@ static TimeDuration forward_audio(ClientSession &vamic, OpHandler *hdl, void *me
         res = 40 * 1024;
         memset(out, 0, res);
     }
-    m3::cout << "Produced " << res << " bytes of FLAC\n";
+    println("Produced {} bytes of FLAC"_cf, res);
 
     hdl->send(out, res);
 
     auto end = TimeInstant::now();
-    m3::cout << "Iteration: " << end.duration_since(start) << "\n";
+    println("Iteration: {}"_cf, end.duration_since(start));
     return end.duration_since(start);
 }
 
 static void usage(const char *name) {
-    fprintf(stderr, "Usage: %s [-r <repeats>] [-w <warmup>] [-c] (udp|tcp) <ip> <port>\n", name);
-    fprintf(stderr, "  -r <repeats>: the number of runs\n");
-    fprintf(stderr, "  -w <warmup>: the number of warmup runs\n");
-    fprintf(stderr, "  -p: just pretend to use FLAC\n");
+    eprintln("Usage: {} [-r <repeats>] [-w <warmup>] [-c] (udp|tcp) <ip> <port>"_cf, name);
+    eprintln("  -r <repeats>: the number of runs"_cf);
+    eprintln("  -w <warmup>: the number of warmup runs"_cf);
+    eprintln("  -p: just pretend to use FLAC"_cf);
     exit(1);
 }
 
@@ -137,14 +137,16 @@ int main(int argc, char **argv) {
     Results<TimeDuration> res(static_cast<size_t>(repeats));
     for(int i = 0; i < repeats; ++i)
         res.push(forward_audio(vamic, hdl, mem, out, compute));
-    WVPERF("VoiceAssistant with " << proto, res);
+    auto name = OStringStream();
+    format_to(name, "VoiceAssistant with {}"_cf, proto);
+    WVPERF(name.str(), res);
 
     free(out);
     free(mem);
 
     auto wall_stop = TimeInstant::now();
-    m3::cout << "Total Time: " << wall_stop.duration_since(wall_start) << "\n";
-    m3::cout << "\033[1;32mAll tests successful!\033[0;m\n";
+    println("Total Time: {}"_cf, wall_stop.duration_since(wall_start));
+    println("\033[1;32mAll tests successful!\033[0;m"_cf);
 
     Syscalls::reset_stats();
     delete hdl;

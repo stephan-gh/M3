@@ -32,7 +32,7 @@ int main() {
             m3::Syscalls::create_sgate(sel++, rgate.sel(), 0, SendGate::UNLIMITED);
         }
         catch(const Exception &e) {
-            cerr << "Unable to create sgate: " << e.what() << "\n";
+            eprintln("Unable to create sgate: {}"_cf, e.what());
         }
     }
     return 0;

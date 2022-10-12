@@ -22,7 +22,7 @@
 using namespace m3;
 
 static void timer_event(GateIStream &) {
-    cout << "Timer tick @ " << TimeInstant::now().as_nanos() << "\n";
+    println("Timer tick @ {}"_cf, TimeInstant::now().as_nanos());
 }
 
 int main() {

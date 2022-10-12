@@ -55,7 +55,7 @@ void DirectPipeReader::remove() noexcept {
                 _state->_is = std::make_unique<GateIStream>(
                     receive_vmsg(_state->_rgate, _state->_pos, _state->_pkglen));
             }
-            LLOG(DIRPIPE, "[read] replying len=0");
+            LLOG(DIRPIPE, "[read] replying len={}"_cf, 0);
             reply_vmsg(*_state->_is, size_t(0));
         }
         catch(...) {
@@ -74,7 +74,7 @@ Option<size_t> DirectPipeReader::read(void *buffer, size_t count) {
     if(_state->_rem == 0) {
         if(_state->_pos > 0) {
             try {
-                LLOG(DIRPIPE, "[read] replying len=" << _state->_pkglen);
+                LLOG(DIRPIPE, "[read] replying len={}"_cf, _state->_pkglen);
                 reply_vmsg(*_state->_is, _state->_pkglen);
             }
             catch(...) {
@@ -104,7 +104,7 @@ Option<size_t> DirectPipeReader::read(void *buffer, size_t count) {
     }
 
     size_t amount = Math::min(count, _state->_rem);
-    LLOG(DIRPIPE, "[read] read from pos=" << _state->_pos << ", len=" << amount);
+    LLOG(DIRPIPE, "[read] read from pos={}, len={}"_cf, _state->_pos, amount);
     if(amount == 0)
         _state->_eof |= DirectPipe::WRITE_EOF;
     else {

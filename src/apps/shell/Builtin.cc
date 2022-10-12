@@ -46,7 +46,7 @@ bool Builtin::is_builtin(const char *name) {
 
 static int execute_cd(char **args, int) {
     if(!args[1]) {
-        cerr << "Usage: " << args[0] << " <path>\n";
+        eprintln("Usage: {} <path>"_cf, args[0]);
         return 1;
     }
 
@@ -54,7 +54,7 @@ static int execute_cd(char **args, int) {
         VFS::set_cwd(args[1]);
     }
     catch(const Exception &e) {
-        cerr << "Unable to change directory to '" << args[1] << "': " << e.what() << "\n";
+        eprintln("Unable to change directory to '{}': {}"_cf, args[1], e.what());
         return 1;
     }
     return 0;
@@ -72,7 +72,7 @@ static int execute_echo(char **args, int outfd) {
         fout.write('\n');
     }
     catch(const Exception &e) {
-        cerr << "echo failed: " << e.what() << "\n";
+        eprintln("echo failed: {}"_cf, e.what());
         return 1;
     }
     return 0;
@@ -82,7 +82,7 @@ static int execute_export(char **args, int) {
     for(size_t i = 1; args[i] != nullptr; ++i) {
         char *eq = strchr(args[i], '=');
         if(eq == nullptr) {
-            cerr << "Invalid variable assignment '" << args[i] << "'\n";
+            eprintln("Invalid variable assignment '{}'"_cf, args[i]);
             continue;
         }
         *eq = '\0';

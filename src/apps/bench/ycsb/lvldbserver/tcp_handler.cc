@@ -33,7 +33,7 @@ TCPOpHandler::TCPOpHandler(NetworkManager &nm, m3::port_t port)
 
     Endpoint rem_ep;
     _socket->accept(&rem_ep);
-    cout << "Accepted connection from " << rem_ep << "\n";
+    println("Accepted connection from {}"_cf, rem_ep);
 }
 
 OpHandler::Result TCPOpHandler::receive(Package &pkg) {
@@ -47,7 +47,7 @@ OpHandler::Result TCPOpHandler::receive(Package &pkg) {
 
     uint32_t package_size = be32toh(header_word);
     if(package_size > sizeof(package_buffer)) {
-        cerr << "Invalid package header length " << package_size << "\n";
+        eprintln("Invalid package header length {}"_cf, package_size);
         return Result::STOP;
     }
 

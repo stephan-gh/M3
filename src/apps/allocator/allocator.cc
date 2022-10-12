@@ -26,11 +26,11 @@ int main() {
     for(size_t i = 0;; ++i) {
         try {
             MemGate mem = MemGate::create_global(0x1000, MemGate::RW);
-            cout << "Got memory gate :)\n";
+            println("Got memory gate :)"_cf);
             mem.write(&i, sizeof(i), 0);
         }
         catch(const Exception &e) {
-            cerr << "Allocation " << i << " failed: " << e.what() << "\n";
+            eprintln("Allocation {} failed: {}"_cf, i, e.what());
         }
     }
     return 0;

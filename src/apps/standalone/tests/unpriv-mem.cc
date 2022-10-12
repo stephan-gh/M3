@@ -33,7 +33,7 @@ static void test_mem_short() {
 
     kernel::TCU::config_mem(MEP, tile_id(Tile::MEM), 0x1000, sizeof(uint64_t), TCU::R | TCU::W);
 
-    Serial::get() << "WRITE with invalid arguments\n";
+    logln("WRITE with invalid arguments"_cf);
     {
         kernel::TCU::config_mem(MEP2, tile_id(Tile::MEM), 0x1000, sizeof(uint64_t), TCU::R);
         kernel::TCU::config_send(SEP, 0x1234, tile_id(Tile::T0), REP, 6 /* 64 */, 2);
@@ -48,7 +48,7 @@ static void test_mem_short() {
         ASSERT_EQ(kernel::TCU::write(MEP2, &data, sizeof(data), 0), Errors::NO_PERM);
     }
 
-    Serial::get() << "READ with invalid arguments\n";
+    logln("READ with invalid arguments"_cf);
     {
         kernel::TCU::config_mem(MEP2, tile_id(Tile::MEM), 0x1000, sizeof(uint64_t), TCU::W);
         kernel::TCU::config_send(SEP, 0x1234, tile_id(Tile::T0), REP, 6 /* 64 */, 2);
@@ -63,7 +63,7 @@ static void test_mem_short() {
         ASSERT_EQ(kernel::TCU::read(MEP2, &data, sizeof(data), 0), Errors::NO_PERM);
     }
 
-    Serial::get() << "READ+WRITE with offset = 0\n";
+    logln("READ+WRITE with offset = 0"_cf);
     {
         uint64_t data_ctrl = 0;
         ASSERT_EQ(kernel::TCU::write(MEP, &data, sizeof(data), 0), Errors::NONE);
@@ -71,7 +71,7 @@ static void test_mem_short() {
         ASSERT_EQ(data, data_ctrl);
     }
 
-    Serial::get() << "READ+WRITE with offset != 0\n";
+    logln("READ+WRITE with offset != 0"_cf);
     {
         kernel::TCU::config_mem(MEP2, tile_id(Tile::MEM), 0x2000, sizeof(uint64_t) * 2,
                                 TCU::R | TCU::W);
@@ -82,7 +82,7 @@ static void test_mem_short() {
         ASSERT_EQ(data, data_ctrl);
     }
 
-    Serial::get() << "0-byte READ+WRITE transfers\n";
+    logln("0-byte READ+WRITE transfers"_cf);
     {
         kernel::TCU::config_mem(MEP2, tile_id(Tile::MEM), 0x2000, sizeof(uint64_t) * 2,
                                 TCU::R | TCU::W);
@@ -101,7 +101,7 @@ static void test_mem_large(Tile mem_tile) {
 
     const size_t sizes[] = {64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384};
     for(auto size : sizes) {
-        Serial::get() << "READ+WRITE with " << size << " bytes with Tile" << (int)mem_tile << "\n";
+        logln("READ+WRITE with {} bytes with Tile{}"_cf, size, (int)mem_tile);
 
         ASSERT_EQ(kernel::TCU::write(MEP, src_buf, size, 0), Errors::NONE);
         ASSERT_EQ(kernel::TCU::read(MEP, dst_buf, size, 0), Errors::NONE);
@@ -121,8 +121,7 @@ static void test_mem_rdwr(Tile mem_tile) {
     for(auto size : sizes) {
         memset(dst_buf, 0, sizeof(dst_buf));
 
-        Serial::get()
-            << "READ+WRITE+READ+WRITE with " << size << " bytes with Tile" << (int)mem_tile << "\n";
+        logln("READ+WRITE+READ+WRITE with {} bytes with Tile{}"_cf, size, (int)mem_tile);
 
         // first write our data
         ASSERT_EQ(kernel::TCU::write(MEP, src_buf, size, 0), Errors::NONE);
@@ -139,7 +138,7 @@ static void test_mem_rdwr(Tile mem_tile) {
 
 template<typename DATA>
 static void test_mem(size_t size_in) {
-    Serial::get() << "READ+WRITE with " << size_in << " " << sizeof(DATA) << "B words\n";
+    logln("READ+WRITE with {} {}B words"_cf, size_in, sizeof(DATA));
 
     DATA buffer[size_in];
 
@@ -193,7 +192,7 @@ void test_mem() {
     }
 
     // test different alignments
-    Serial::get() << "Test READ+WRITE with different alignments\n";
+    logln("Test READ+WRITE with different alignments"_cf);
     for(size_t nbytes = 1; nbytes < 16; ++nbytes) {
         for(size_t loc_off = 0; loc_off < 16; ++loc_off) {
             for(size_t rem_off = 0; rem_off < 16; ++rem_off) {

@@ -74,7 +74,7 @@ void Serial::write(char c) {
 void Serial::flush() {
     char tmp[14];
     OStringStream curtime(tmp, sizeof(tmp));
-    curtime << m3::fmt((m3::TimeInstant::now().as_nanos() / 1000) % 10000000000, 11) << "] ";
+    format_to(curtime, "{: <11}] "_cf, (m3::TimeInstant::now().as_nanos() / 1000) % 10000000000);
     strncpy(_outbuf + _time, curtime.str(), curtime.length());
     strcpy(_outbuf + _outpos, "\e[0m");
     _outpos += SUFFIX_LEN;

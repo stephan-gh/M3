@@ -21,7 +21,7 @@
 #include <base/Common.h>
 #include <base/Errors.h>
 #include <base/TCU.h>
-#include <base/stream/OStream.h>
+#include <base/stream/Format.h>
 
 #include <utility>
 
@@ -129,10 +129,9 @@ struct KIF {
             raw[1] = _count;
         }
 
-        friend OStream &operator<<(OStream &os, const CapRngDesc &crd) {
-            os << "CRD[" << (crd.type() == OBJ ? "OBJ" : "MAP") << ":" << crd.start() << ":"
-               << crd.count() << "]";
-            return os;
+        void format(OStream &os, const FormatSpecs &) const {
+            format_to(os, "CRD[{}:{}:{}"_cf, type() == KIF::CapRngDesc::OBJ ? "OBJ" : "MAP",
+                      start(), count());
         }
 
     private:

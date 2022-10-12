@@ -23,6 +23,6 @@
 using namespace m3;
 
 int main(int argc, char **) {
-    cout << "Dividing by argc - 1...\n";
+    println("Dividing by argc - 1..."_cf);
     return 1 / (argc - 1);
 }

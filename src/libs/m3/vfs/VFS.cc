@@ -167,7 +167,7 @@ void VFS::mount(const char *path, const char *fs, const char *options) {
     if(strcmp(fs, "m3fs") == 0)
         fsobj = new M3FS(id, options ? options : fs);
     else
-        VTHROW(Errors::INV_ARGS, "Unknown filesystem '" << fs << "'");
+        vthrow(Errors::INV_ARGS, "Unknown filesystem '{}'"_cf, fs);
     ms()->add(path, Reference<FileSystem>(fsobj));
 }
 
@@ -182,20 +182,20 @@ FileRef<GenericFile> VFS::open(const char *path, int flags) {
         Reference<FileSystem> fs = ms()->resolve(&fs_path, buffer, sizeof(buffer));
         std::unique_ptr<GenericFile> file = fs->open(fs_path, flags);
         auto fileref = Activity::own().files()->alloc(std::move(file));
-        LLOG(FS, "GenFile[" << fileref->fd() << "]::open(" << path << ", " << flags << ")");
+        LLOG(FS, "GenFile[{}]::open({}, {})"_cf, fileref->fd(), path, flags);
         if(flags & FILE_APPEND)
             fileref->seek(0, M3FS_SEEK_END);
         return fileref;
     }
     catch(const Exception &e) {
-        VTHROW(e.code(), "Unable to open '" << path << "' with flags=" << flags);
+        vthrow(e.code(), "Unable to open '{}' with flags={}"_cf, path, flags);
     }
 }
 
 void VFS::stat(const char *path, FileInfo &info) {
     Errors::Code res = try_stat(path, info);
     if(res != Errors::NONE)
-        VTHROW(res, "stat '" << path << "' failed");
+        vthrow(res, "stat '{}' failed"_cf, path);
 }
 
 Errors::Code VFS::try_stat(const char *path, FileInfo &info) noexcept {
@@ -210,7 +210,7 @@ Errors::Code VFS::try_stat(const char *path, FileInfo &info) noexcept {
 void VFS::mkdir(const char *path, mode_t mode) {
     Errors::Code res = try_mkdir(path, mode);
     if(res != Errors::NONE)
-        VTHROW(res, "mkdir '" << path << "' failed");
+        vthrow(res, "mkdir '{}' failed"_cf, path);
 }
 
 Errors::Code VFS::try_mkdir(const char *path, mode_t mode) {
@@ -225,7 +225,7 @@ Errors::Code VFS::try_mkdir(const char *path, mode_t mode) {
 void VFS::rmdir(const char *path) {
     Errors::Code res = try_rmdir(path);
     if(res != Errors::NONE)
-        VTHROW(res, "rmdir '" << path << "' failed");
+        vthrow(res, "rmdir '{}' failed"_cf, path);
 }
 
 Errors::Code VFS::try_rmdir(const char *path) {
@@ -240,7 +240,7 @@ Errors::Code VFS::try_rmdir(const char *path) {
 void VFS::link(const char *oldpath, const char *newpath) {
     Errors::Code res = try_link(oldpath, newpath);
     if(res != Errors::NONE)
-        VTHROW(res, "link '" << oldpath << "' to '" << newpath << "' failed");
+        vthrow(res, "link '{}' to '{}' failed"_cf, oldpath, newpath);
 }
 
 Errors::Code VFS::try_link(const char *oldpath, const char *newpath) {
@@ -260,7 +260,7 @@ Errors::Code VFS::try_link(const char *oldpath, const char *newpath) {
 void VFS::unlink(const char *path) {
     Errors::Code res = try_unlink(path);
     if(res != Errors::NONE)
-        VTHROW(res, "unlink '" << path << "' failed");
+        vthrow(res, "unlink '{}' failed"_cf, path);
 }
 
 Errors::Code VFS::try_unlink(const char *path) {
@@ -275,7 +275,7 @@ Errors::Code VFS::try_unlink(const char *path) {
 void VFS::rename(const char *oldpath, const char *newpath) {
     Errors::Code res = try_rename(oldpath, newpath);
     if(res != Errors::NONE)
-        VTHROW(res, "rename '" << oldpath << "' to '" << newpath << "' failed");
+        vthrow(res, "rename '{}' to '{}' failed"_cf, oldpath, newpath);
 }
 
 Errors::Code VFS::try_rename(const char *oldpath, const char *newpath) {

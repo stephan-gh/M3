@@ -60,7 +60,7 @@ NOINLINE static void file() {
 
 void bpagefaults() {
     if(!Activity::own().tile_desc().has_virtmem()) {
-        cout << "Tile has no virtual memory support; skipping pagefault benchmark.\n";
+        println("Tile has no virtual memory support; skipping pagefault benchmark."_cf);
         return;
     }
 

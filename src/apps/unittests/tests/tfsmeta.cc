@@ -99,7 +99,7 @@ static void dir_listing() {
     for(size_t i = 0; i < 80; ++i) {
         char tmp[16];
         OStringStream os(tmp, sizeof(tmp));
-        os << i << ".txt";
+        format_to(os, "{}.txt"_cf, i);
         WVASSERTSTREQ(entries[i + 2].name, os.str());
     }
 }
@@ -122,7 +122,7 @@ static void meta_operations() {
 
     {
         FStream f("/example/myfile", FILE_W | FILE_CREATE);
-        f << "test\n";
+        println_to(f, "test"_cf);
     }
 
     WVASSERTERR(Errors::INV_ARGS, [] {
@@ -143,7 +143,7 @@ static void meta_operations() {
         VFS::unmount("/fs");
     }
     catch(const Exception &e) {
-        cerr << "Mount test failed: " << e.what() << "\n";
+        eprintln("Mount test failed: {}"_cf, e.what());
     }
 
     WVASSERTERR(Errors::NO_SUCH_FILE, [] {
@@ -189,7 +189,7 @@ static void delete_file() {
 
     {
         FStream f(tmp_file, FILE_W | FILE_CREATE);
-        f << "test\n";
+        println_to(f, "test"_cf);
     }
 
     {
@@ -231,7 +231,7 @@ static void relative_paths() {
 
     {
         FStream f("./../example/myfile", FILE_W | FILE_CREATE);
-        f << "test\n";
+        println_to(f, "test"_cf);
     }
 
     WVASSERTERR(Errors::NO_SUCH_FILE, [] {

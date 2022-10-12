@@ -20,7 +20,7 @@
 
 #include <base/log/Log.h>
 
-#define SLOG(lvl, msg) LOG(ServiceLog, lvl, msg)
+#define SLOG(lvl, msg, ...) LOG(ServiceLog, lvl, msg, __VA_ARGS__)
 
 namespace m3 {
 

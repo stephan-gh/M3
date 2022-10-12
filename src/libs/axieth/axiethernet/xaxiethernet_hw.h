@@ -860,12 +860,14 @@ xdbg_stmnt(extern int indent_on);
 	"unknown")
 
 #define XAxiEthernet_print_reg_o(BaseAddress, RegOffset, Value) 	\
-	xdbg_printf(XDBG_DEBUG_TEMAC_REG, XAxiEthernet_indent(RegOffset) << fmt((Value), "#x") << " -> " \
-			<< XAxiEthernet_reg_name(RegOffset) << "(" << fmt((RegOffset), "#x") << ")\n") \
+	xdbg_printf(XDBG_DEBUG_TEMAC_REG, 								\
+		"{}{:#x} -> {} ({:#x})\n", XAxiEthernet_indent(RegOffset),	\
+		(Value), XAxiEthernet_reg_name(RegOffset), (RegOffset))
 
-#define XAxiEthernet_print_reg_i(BaseAddress, RegOffset, Value) \
-	xdbg_printf(XDBG_DEBUG_TEMAC_REG, XAxiEthernet_indent(RegOffset) << XAxiEthernet_reg_name(RegOffset) \
-			<< "(" << fmt((RegOffset), "#x") << ") -> " << fmt((Value), "#x") << "\n") \
+#define XAxiEthernet_print_reg_i(BaseAddress, RegOffset, Value) 	\
+	xdbg_printf(XDBG_DEBUG_TEMAC_REG, 								\
+		"{}{} ({:#x}) -> {:#x}\n", XAxiEthernet_indent(RegOffset), 	\
+		XAxiEthernet_reg_name(RegOffset), (RegOffset), (Value))
 
 
 /****************************************************************************/

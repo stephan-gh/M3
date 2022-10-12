@@ -19,6 +19,6 @@
 using namespace m3;
 
 int main() {
-    cout << "Hello World\n";
+    println("Hello World"_cf);
     return 0;
 }

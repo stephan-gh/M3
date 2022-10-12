@@ -39,13 +39,13 @@ NOINLINE static void pingpong_1u64() {
         auto msg = receive_msg(rgate);
         msg >> res;
         if(res != 0)
-            PANIC("test failed");
+            panic("test failed"_cf);
         reply_vmsg(msg, 0);
 
         auto reply = receive_msg(*sgate.reply_gate());
         reply >> res;
         if(res != 0)
-            PANIC("test failed");
+            panic("test failed"_cf);
     }));
 }
 
@@ -62,13 +62,13 @@ NOINLINE static void pingpong_2u64() {
         auto msg = receive_msg(rgate);
         msg >> res1 >> res2;
         if(res1 != 23 || res2 != 42)
-            PANIC("test failed");
+            panic("test failed"_cf);
         reply_vmsg(msg, 5, 6);
 
         auto reply = receive_msg(*sgate.reply_gate());
         reply >> res1 >> res2;
         if(res1 != 5 || res2 != 6)
-            PANIC("test failed");
+            panic("test failed"_cf);
     }));
 }
 
@@ -85,13 +85,13 @@ NOINLINE static void pingpong_4u64() {
         auto msg = receive_msg(rgate);
         msg >> res1 >> res2 >> res3 >> res4;
         if(res1 != 23 || res2 != 42 || res3 != 10 || res4 != 12)
-            PANIC("test failed");
+            panic("test failed"_cf);
         reply_vmsg(msg, 5, 6, 7, 8);
 
         auto reply = receive_msg(*sgate.reply_gate());
         reply >> res1 >> res2 >> res3 >> res4;
         if(res1 != 5 || res2 != 6 || res3 != 7 || res4 != 8)
-            PANIC("test failed");
+            panic("test failed"_cf);
     }));
 }
 
@@ -108,13 +108,13 @@ NOINLINE static void pingpong_str() {
         auto msg = receive_msg(rgate);
         msg >> res;
         if(res.length() != 4)
-            PANIC("test failed");
+            panic("test failed"_cf);
         reply_vmsg(msg, "foobar");
 
         auto reply = receive_msg(*sgate.reply_gate());
         reply >> res;
         if(res.length() != 6)
-            PANIC("test failed");
+            panic("test failed"_cf);
     }));
 }
 
@@ -131,13 +131,13 @@ NOINLINE static void pingpong_strref() {
         auto msg = receive_msg(rgate);
         msg >> res;
         if(res.length() != 4)
-            PANIC("test failed");
+            panic("test failed"_cf);
         reply_vmsg(msg, "foobar");
 
         auto reply = receive_msg(*sgate.reply_gate());
         reply >> res;
         if(res.length() != 6)
-            PANIC("test failed");
+            panic("test failed"_cf);
     }));
 }
 

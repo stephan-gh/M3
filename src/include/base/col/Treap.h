@@ -17,7 +17,7 @@
 #pragma once
 
 #include <base/Common.h>
-#include <base/stream/OStream.h>
+#include <base/stream/Format.h>
 
 #include <assert.h>
 
@@ -250,15 +250,20 @@ private:
 
     void printRec(OStream &os, T *n, size_t layer, bool tree) const {
         n->print(os);
-        os << "\n";
+        os.write('\n');
+        auto fmt = FormatSpecs(FormatSpecs::DEFAULT, ' ', 0, FormatSpecs::RIGHT, layer * 2, 0);
         if(n->_left) {
-            if(tree)
-                os << fmt("", layer * 2) << "  |-(l) ";
+            if(tree) {
+                os.write_string_fmt("", fmt);
+                print(os, "  |-(l) "_cf);
+            }
             printRec(os, n->_left, layer + 1, tree);
         }
         if(n->_right) {
-            if(tree)
-                os << fmt("", layer * 2) << "  |-(r) ";
+            if(tree) {
+                os.write_string_fmt("", fmt);
+                print(os, "  |-(r) "_cf);
+            }
             printRec(os, n->_right, layer + 1, tree);
         }
     }

@@ -19,6 +19,7 @@
 #pragma once
 
 #include <base/Types.h>
+#include <base/stream/Format.h>
 
 namespace m3 {
 
@@ -100,6 +101,13 @@ struct Errors {
      * @return the statically allocated error message for <code>
      */
     static const char *to_string(Code code);
+};
+
+template<>
+struct Formatter<Errors::Code> {
+    void format(OStream &os, const FormatSpecs &, const Errors::Code &e) const {
+        format_to(os, "{}"_cf, static_cast<int32_t>(e));
+    }
 };
 
 }

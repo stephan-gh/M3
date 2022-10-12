@@ -17,23 +17,15 @@
 #pragma once
 
 #include <base/Common.h>
-#include <base/stream/OStream.h>
+#include <base/stream/Format.h>
 
 namespace m3 {
-
-template<uint BITS>
-class BitField;
-template<uint BITS>
-static OStream &operator<<(OStream &os, const BitField<BITS> &bf);
 
 /**
  * A field of <BITS> bits that is managed in an array of words.
  */
 template<uint BITS>
 class BitField {
-    template<uint N>
-    friend OStream &operator<<(OStream &os, const BitField<N> &bf);
-
     static size_t idx(uint bit) {
         return bit / (sizeof(word_t) * 8);
     }
@@ -91,21 +83,22 @@ public:
             clear(bit);
     }
 
+    void format(OStream &os, const FormatSpecs &) const {
+        format_to(os, "Bitfield[first={}, bm="_cf, first_clear());
+        for(size_t i = 0; i < ARRAY_SIZE(_words); ++i) {
+            if constexpr(sizeof(uintptr_t) == 8)
+                format_to(os, "{:#016x}"_cf, _words[i]);
+            else
+                format_to(os, "{:#08x}"_cf, _words[i]);
+            if(i + 1 < ARRAY_SIZE(_words))
+                os.write(' ');
+        }
+        os.write(']');
+    }
+
 private:
     uint _first_clear;
     word_t _words[(BITS + sizeof(word_t) * 8 - 1) / (sizeof(word_t) * 8)];
 };
-
-template<uint BITS>
-static inline OStream &operator<<(OStream &os, const BitField<BITS> &bf) {
-    os << "Bitfield[first=" << bf.first_clear() << ", bm=";
-    for(size_t i = 0; i < ARRAY_SIZE(bf._words); ++i) {
-        os << fmt(bf._words[i], "0x", sizeof(bf._words[i]) * 2);
-        if(i + 1 < ARRAY_SIZE(bf._words))
-            os << ' ';
-    }
-    os << ']';
-    return os;
-}
 
 }

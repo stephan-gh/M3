@@ -49,7 +49,7 @@ using namespace m3;
 #define xdbg_printf(type, args...) ((((type) & xdbg_current_types) == type) ? printf (## args) : 0)
 #else /* ANSI Syntax */
 //#define xdbg_printf(type, ...) (((type) & xdbg_current_types) ? printf (__VA_ARGS__) : 0)
-#define xdbg_printf(type, arg) ((((type) & xdbg_current_types) == type) ? (Serial::get() << #type << ": " << arg) : 0)
+#define xdbg_printf(type, fmt, ...) ((((type) & xdbg_current_types) == type) ? (log("{}: " fmt ## _cf, type, ##__VA_ARGS__), 0) : 0)
 #endif
 
 #else /* defined(DEBUG) && !defined(NDEBUG) */

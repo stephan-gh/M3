@@ -54,14 +54,14 @@ struct App {
 };
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name
-         << " [-d] [-i <instances>] [-r <repeats>] [-w <warmup>] <wr_name> <rd_name>\n";
-    cerr << "  -d enables data transfers (otherwise the same time is spent locally)\n";
-    cerr << "  <instances> specifies the number of application (<name>) instances\n";
-    cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
-    cerr << "  <warmup> specifies the number of warmup rounds\n";
-    cerr << "  <wr_name> specifies the name of the application trace for the writer\n";
-    cerr << "  <rd_name> specifies the name of the application trace for the reader\n";
+    eprintln("Usage: {} [-d] [-i <instances>] [-r <repeats>] [-w <warmup>] <wr_name> <rd_name>"_cf,
+             name);
+    eprintln("  -d enables data transfers (otherwise the same time is spent locally)"_cf);
+    eprintln("  <instances> specifies the number of application (<name>) instances"_cf);
+    eprintln("  <repeats> specifies the number of repetitions of the benchmark"_cf);
+    eprintln("  <warmup> specifies the number of warmup rounds"_cf);
+    eprintln("  <wr_name> specifies the name of the application trace for the writer"_cf);
+    eprintln("  <rd_name> specifies the name of the application trace for the reader"_cf);
     exit(1);
 }
 
@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
     Pipes pipesrv("pipes");
 
     if(VERBOSE)
-        cout << "Creating application activities...\n";
+        println("Creating application activities..."_cf);
 
     Results<CycleDuration> res(static_cast<ulong>(repeats));
 
@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
         }
 
         if(VERBOSE)
-            cout << "Starting activities...\n";
+            println("Starting activities..."_cf);
 
         auto overall_start = CycleInstant::now();
 
@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
 
         for(size_t i = 0; i < instances * 2; ++i) {
             OStringStream tmpdir(new char[16], 16);
-            tmpdir << "/tmp/" << i << "/";
+            format_to(tmpdir, "/tmp/{}/"_cf, i);
             const char **args = apps[i]->argv;
             args[1] = "-p";
             args[2] = tmpdir.str();
@@ -127,15 +127,15 @@ int main(int argc, char **argv) {
             args[6] = "-g";
 
             OStringStream rgatesel(new char[11], 11);
-            rgatesel << apps[i]->rgate.sel();
+            format_to(rgatesel, "{}"_cf, apps[i]->rgate.sel());
             args[7] = rgatesel.str();
             args[8] = (i % 2 == 0) ? wr_name : rd_name;
 
             if(VERBOSE) {
-                cout << "Starting ";
+                print("Starting "_cf);
                 for(size_t x = 0; x < ARG_COUNT; ++x)
-                    cout << args[x] << " ";
-                cout << "\n";
+                    print("{} "_cf, args[x]);
+                println();
             }
 
             if(i % 2 == 0) {
@@ -158,7 +158,7 @@ int main(int argc, char **argv) {
         }
 
         if(VERBOSE)
-            cout << "Signaling activities...\n";
+            println("Signaling activities..."_cf);
 
         for(size_t i = 0; i < instances * 2; ++i)
             send_receive_vmsg(apps[i]->sgate, 1);
@@ -169,25 +169,25 @@ int main(int argc, char **argv) {
             send_vmsg(apps[i]->sgate, 1);
 
         if(VERBOSE)
-            cout << "Waiting for activities...\n";
+            println("Waiting for activities..."_cf);
 
         for(size_t i = 0; i < instances * 2; ++i) {
             int res = apps[i]->act.wait();
             if(res != 0)
                 exitcode = 1;
             if(VERBOSE)
-                cout << apps[i]->argv[0] << " exited with " << res << "\n";
+                println("{} exited with {}"_cf, apps[i]->argv[0], res);
         }
 
         auto overall_end = CycleInstant::now();
         auto end = CycleInstant::now();
         if(j >= warmup)
             res.push(end.duration_since(start));
-        cout << "Time: " << end.duration_since(start)
-             << ", total: " << overall_end.duration_since(overall_start) << "\n";
+        println("Time: {}, total: {}"_cf, end.duration_since(start),
+                overall_end.duration_since(overall_start));
 
         if(VERBOSE)
-            cout << "Deleting activities...\n";
+            println("Deleting activities..."_cf);
 
         for(size_t i = 0; i < instances * 2; ++i) {
             delete pipes[i / 2];
@@ -205,15 +205,15 @@ int main(int argc, char **argv) {
         if(*s == '_') {
             if(++underscores == 2)
                 break;
-            name << '-';
+            name.write('-');
         }
         else
-            name << *s;
+            name.write(*s);
         s++;
     }
     WVPERF(name.str(), res);
 
     if(VERBOSE)
-        cout << "Done\n";
+        println("Done"_cf);
     return exitcode;
 }

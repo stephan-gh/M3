@@ -34,7 +34,7 @@ IStream &IStream::operator>>(std::string &str) {
         c = read();
         if(bad() || c == '\n')
             break;
-        os << c;
+        os.write(c);
     }
     str.assign(os.str(), os.length());
     return *this;

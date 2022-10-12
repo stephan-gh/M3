@@ -20,7 +20,7 @@
 
 #include <base/log/Log.h>
 
-#define LLOG(lvl, msg) LOG(LibLog, lvl, msg)
+#define LLOG(lvl, fmt, ...) LOG(LibLog, lvl, fmt, __VA_ARGS__)
 
 namespace m3 {
 

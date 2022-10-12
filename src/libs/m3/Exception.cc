@@ -35,7 +35,7 @@ void Exception::terminate_handler() {
         e.write(cerr);
     }
     catch(...) {
-        cerr << "Unhandled exception. Terminating.\n";
+        eprintln("Unhandled exception. Terminating."_cf);
     }
     abort();
 }
@@ -46,9 +46,9 @@ Exception::Exception(Errors::Code code) noexcept : _code(code), _backtrace() {
 }
 
 void Exception::write_backtrace(OStream &os) const noexcept {
-    os << "Backtrace:\n";
+    format_to(os, "Backtrace:\n"_cf);
     for(size_t i = 0; i < MAX_TRACE_DEPTH && _backtrace[i]; ++i)
-        os << "\t" << fmt(_backtrace[i], "p") << "\n";
+        format_to(os, "\t{:p}\n"_cf, _backtrace[i]);
 }
 
 }

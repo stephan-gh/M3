@@ -254,7 +254,7 @@ void ChildActivity::load_segment(ElfPh &pheader, char *buffer) {
     }
 
     if(tile_desc().has_virtmem())
-        VTHROW(Errors::NOT_SUP, "Exec with VM needs a pager");
+        vthrow(Errors::NOT_SUP, "Exec with VM needs a pager"_cf);
 
     MemGate mem = get_mem(0, MEM_OFFSET + tile_desc().mem_size(), MemGate::W);
 
@@ -265,12 +265,12 @@ void ChildActivity::load_segment(ElfPh &pheader, char *buffer) {
         /* seek to that offset and copy it to destination tile */
         size_t off = pheader.p_offset;
         if(_exec->seek(off, M3FS_SEEK_SET) != off)
-            VTHROW(Errors::INVALID_ELF, "Unable to seek to segment at " << off);
+            vthrow(Errors::INVALID_ELF, "Unable to seek to segment at {}"_cf, off);
 
         while(count > 0) {
             size_t amount = std::min(count, BUF_SIZE);
             if(_exec->read(buffer, amount).unwrap() != amount)
-                VTHROW(Errors::INVALID_ELF, "Unable to read " << amount << " bytes");
+                vthrow(Errors::INVALID_ELF, "Unable to read {} bytes"_cf, amount);
 
             mem.write(buffer, amount, segoff);
             count -= amount;
@@ -300,9 +300,9 @@ size_t ChildActivity::load(Env *env, int argc, const char *const *argv, const ch
         /* load program header */
         ElfPh pheader;
         if(_exec->seek(off, M3FS_SEEK_SET) != off)
-            VTHROW(Errors::INVALID_ELF, "Unable to seek to pheader at " << off);
+            vthrow(Errors::INVALID_ELF, "Unable to seek to pheader at {}"_cf, off);
         if(_exec->read(&pheader, sizeof(pheader)).unwrap() != sizeof(pheader))
-            VTHROW(Errors::INVALID_ELF, "Unable to read pheader at " << off);
+            vthrow(Errors::INVALID_ELF, "Unable to read pheader at {}"_cf, off);
 
         /* we're only interested in non-empty load segments */
         if(pheader.p_type != PT_LOAD || pheader.p_memsz == 0)

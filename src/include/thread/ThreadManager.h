@@ -68,10 +68,10 @@ public:
     void wait_for(event_t event) {
         // TODO: Maybe a bug, there could be threads in _ready.
         if(_sleep.length() == 0)
-            PANIC("Not enough threads");
+            panic("Not enough threads"_cf);
         _current->subscribe(event);
         _blocked.append(_current);
-        LLOG(THREAD, "Thread " << _current->id() << " waits for " << fmt(event, "x"));
+        LLOG(THREAD, "Thread {} waits for {:x}"_cf, _current->id(), event);
         if(_ready.length())
             switch_to(_ready.remove_first());
         else
@@ -93,7 +93,7 @@ public:
             if(old->trigger_event(event)) {
                 Thread *t = &(*old);
                 t->set_msg(msg, size);
-                LLOG(THREAD, "Waking up thread " << t->id() << " for event " << fmt(event, "x"));
+                LLOG(THREAD, "Waking up thread {} for event {:x}"_cf, t->id(), event);
                 _blocked.remove(t);
                 _ready.append(t);
             }
@@ -101,7 +101,7 @@ public:
     }
 
     void stop() {
-        LLOG(THREAD, "Stopping thread " << _current->id());
+        LLOG(THREAD, "Stopping thread {}"_cf, _current->id());
         if(_ready.length())
             switch_to(_ready.remove_first());
         if(_sleep.length())
@@ -123,7 +123,7 @@ private:
     }
 
     void switch_to(Thread *t) {
-        LLOG(THREAD, "Switching from " << _current->id() << " to " << t->id());
+        LLOG(THREAD, "Switching from {} to {}"_cf, _current->id(), t->id());
         auto old = _current;
         _current = t;
         thread_switch(&old->_regs, &t->_regs);

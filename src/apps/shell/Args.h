@@ -21,7 +21,9 @@
 #include "Parser.h"
 
 class Args {
-    enum { MAX_ARG_LEN = 256 };
+    enum {
+        MAX_ARG_LEN = 256
+    };
 
 public:
     static void prefix_path(std::unique_ptr<Parser::ArgList> &args);

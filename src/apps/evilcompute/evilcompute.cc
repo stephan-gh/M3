@@ -32,8 +32,8 @@ int main(int argc, char **argv) {
     send_vmsg(sgate, 1, 2, 3);
 
     // now try to trick TileMux to leave us running, because we have unread messages
-    for(volatile int i = 0;; ++i) {
-        cout << "Hello " << i << " from " << (argc > 0 ? argv[1] : "??") << "\n";
+    for(int i = 0;; ++i) {
+        println("Hello {} from {}"_cf, i, argc > 0 ? argv[1] : "??");
         Activity::sleep_for(TimeDuration::from_nanos(10));
     }
     return 0;

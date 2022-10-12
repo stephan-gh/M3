@@ -38,12 +38,12 @@ int main() {
     MsgBuf msg;
     msg.cast<uint64_t>() = 0;
 
-    Serial::get() << "Hello World from sender!\n";
+    logln("Hello World from sender!"_cf);
 
     // initial send; wait until receiver is ready
     Errors::Code res;
     while((res = kernel::TCU::send(SEP, msg, 0x2222, REP)) != Errors::NONE) {
-        Serial::get() << "send failed: " << res << "\n";
+        logln("send failed: {}"_cf, res);
         // get credits back
         kernel::TCU::config_send(SEP, 0x1234, tile_id(Tile::T0), DSTEP, nextlog2<MSG_SIZE>::val, 1);
     }

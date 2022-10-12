@@ -35,7 +35,7 @@ static int get_counter(const char *filename) {
 static void set_counter(const char *filename, int value) {
     char buffer[8];
     OStringStream os(buffer, sizeof(buffer));
-    os << value;
+    format_to(os, "{}"_cf, value);
 
     auto file = VFS::open(filename, FILE_W | FILE_TRUNC | FILE_CREATE);
     file->write(os.str(), os.length());

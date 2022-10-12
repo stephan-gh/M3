@@ -72,7 +72,7 @@ void MountTable::add(const char *path, Reference<FileSystem> fs) {
         assert(_mounts[i]);
 
         if(strcmp(_mounts[i]->path().c_str(), path) == 0)
-            VTHROW(Errors::EXISTS, "Mountpoint " << path << " already exists");
+            vthrow(Errors::EXISTS, "Mountpoint {} already exists"_cf, path);
 
         // sort them by the number of slashes
         size_t cnt = charcount(_mounts[i]->path().c_str(), '/');
@@ -96,7 +96,7 @@ Reference<FileSystem> MountTable::resolve(const char **path, char *buffer, size_
     auto res = try_resolve(path, buffer, bufsize);
     if(res)
         return res;
-    VTHROW(Errors::NO_SUCH_FILE, "Unable to resolve path '" << *path << "'");
+    vthrow(Errors::NO_SUCH_FILE, "Unable to resolve path '{}'"_cf, *path);
 }
 
 Reference<FileSystem> MountTable::try_resolve(const char **path, char *buffer,
@@ -104,10 +104,10 @@ Reference<FileSystem> MountTable::try_resolve(const char **path, char *buffer,
     if(**path != '/') {
         OStringStream os(buffer, bufsize);
         const char *cwd = VFS::cwd();
-        os << cwd;
+        os.write_string(cwd);
         if(strcmp(cwd, "/") != 0)
-            os << "/";
-        os << *path;
+            os.write('/');
+        os.write_string(*path);
         *path = buffer;
     }
 
@@ -209,9 +209,9 @@ MountTable *MountTable::unserialize(const void *buffer, size_t size) {
 }
 
 void MountTable::print(OStream &os) const noexcept {
-    os << "Mounts:\n";
+    format_to(os, "Mounts:\n"_cf);
     for(size_t i = 0; i < _count; ++i)
-        os << "  " << _mounts[i]->path() << ": " << _mounts[i]->fs()->type() << "\n";
+        format_to(os, "  {}: {}\n"_cf, _mounts[i]->path(), _mounts[i]->fs()->type());
 }
 
 }

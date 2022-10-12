@@ -25,7 +25,9 @@
 
 using namespace m3;
 
-enum ArithOp { CALC };
+enum ArithOp {
+    CALC
+};
 
 class ArithRequestHandler;
 using base_class = SimpleRequestHandler<ArithRequestHandler, ArithOp, 1>;
@@ -52,7 +54,7 @@ public:
         }
 
         OStringStream os;
-        os << res;
+        format_to(os, "{}"_cf, res);
         reply_vmsg(is, os.str());
     }
 };

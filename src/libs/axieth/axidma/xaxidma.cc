@@ -247,7 +247,7 @@ int XAxiDma_CfgInitialize(XAxiDma * InstancePtr, XAxiDma_Config *Config)
 
 	if (!TimeOut) {
 		xdbg_printf(XDBG_DEBUG_ERROR, "Failed reset in"
-							"initialize\r\n");
+							"initialize\n");
 
 		/* Need system hard reset to recover
 		 */
@@ -413,7 +413,7 @@ static int XAxiDma_Start(XAxiDma * InstancePtr)
 
 	if (!InstancePtr->Initialized) {
 
-		xdbg_printf(XDBG_DEBUG_ERROR, "Start: Driver not initialized " << InstancePtr->Initialized << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "Start: Driver not initialized {}\n", InstancePtr->Initialized);
 		return XST_NOT_SGDMA;
 	}
 
@@ -428,7 +428,7 @@ static int XAxiDma_Start(XAxiDma * InstancePtr)
 			if(XAxiDma_HasSg(InstancePtr)) {
 				Status = XAxiDma_BdRingStart(TxRingPtr);
 				if (Status != XST_SUCCESS) {
-					xdbg_printf(XDBG_DEBUG_ERROR, "Start hw tx channel failed " << Status << "\r\n");
+					xdbg_printf(XDBG_DEBUG_ERROR, "Start hw tx channel failed {}\n", Status);
 					return XST_DMA_ERROR;
 				}
 			}
@@ -461,7 +461,7 @@ static int XAxiDma_Start(XAxiDma * InstancePtr)
 			if(XAxiDma_HasSg(InstancePtr)) {
 				Status = XAxiDma_BdRingStart(RxRingPtr);
 				if (Status != XST_SUCCESS) {
-					xdbg_printf(XDBG_DEBUG_ERROR, "Start hw tx channel failed " << Status << "\r\n");
+					xdbg_printf(XDBG_DEBUG_ERROR, "Start hw tx channel failed {}\n", Status);
 					return XST_DMA_ERROR;
 				}
 			}
@@ -503,7 +503,7 @@ int XAxiDma_Pause(XAxiDma * InstancePtr)
 {
 
 	if (!InstancePtr->Initialized) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "Pause: Driver not initialized" << InstancePtr->Initialized << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "Pause: Driver not initialized\n");
 		return XST_NOT_SGDMA;
 	}
 
@@ -570,7 +570,7 @@ int XAxiDma_Resume(XAxiDma * InstancePtr)
 	int Status;
 
 	if (!InstancePtr->Initialized) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "Resume: Driver not initialized" << InstancePtr->Initialized << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "Resume: Driver not initialized\n");
 		return XST_NOT_SGDMA;
 	}
 
@@ -580,7 +580,7 @@ int XAxiDma_Resume(XAxiDma * InstancePtr)
 		Status = XAxiDma_Start(InstancePtr);
 
 		if (Status != XST_SUCCESS) {
-			xdbg_printf(XDBG_DEBUG_ERROR, "Resume: failed to start engine " << Status << "\r\n");
+			xdbg_printf(XDBG_DEBUG_ERROR, "Resume: failed to start engine {}\n", Status);
 			return Status;
 		}
 	}
@@ -594,7 +594,7 @@ int XAxiDma_Resume(XAxiDma * InstancePtr)
 		if(XAxiDma_HasSg(InstancePtr)) {
 			Status = XAxiDma_BdRingStart(TxRingPtr);
 			if (Status != XST_SUCCESS) {
-				xdbg_printf(XDBG_DEBUG_ERROR, "Resume: failed to start tx ring " << Status << "\r\n");
+				xdbg_printf(XDBG_DEBUG_ERROR, "Resume: failed to start tx ring {}\n", Status);
 				return XST_DMA_ERROR;
 			}
 		}
@@ -612,7 +612,7 @@ int XAxiDma_Resume(XAxiDma * InstancePtr)
 			if(XAxiDma_HasSg(InstancePtr)) {
 				Status = XAxiDma_BdRingStart(RxRingPtr);
 				if (Status != XST_SUCCESS) {
-					xdbg_printf(XDBG_DEBUG_ERROR, "Resume: failed to start rx ring " << Status << "\r\n");
+					xdbg_printf(XDBG_DEBUG_ERROR, "Resume: failed to start rx ring {}\n", Status);
 					return XST_DMA_ERROR;
 				}
 			}
@@ -642,7 +642,7 @@ static int XAxiDma_Started(XAxiDma * InstancePtr)
 {
 
 	if (!InstancePtr->Initialized) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "Started: Driver not initialized " << InstancePtr->Initialized << "\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "Started: Driver not initialized\n");
 		return 0;
 	}
 
@@ -651,7 +651,7 @@ static int XAxiDma_Started(XAxiDma * InstancePtr)
 		TxRingPtr = XAxiDma_GetTxRing(InstancePtr);
 
 		if (!XAxiDma_BdRingHwIsStarted(TxRingPtr)) {
-			xdbg_printf(XDBG_DEBUG_ERROR, "Started: tx ring not started\r\n");
+			xdbg_printf(XDBG_DEBUG_ERROR, "Started: tx ring not started\n");
 			return 0;
 		}
 	}
@@ -661,7 +661,7 @@ static int XAxiDma_Started(XAxiDma * InstancePtr)
 		RxRingPtr = XAxiDma_GetRxRing(InstancePtr);
 
 		if (!XAxiDma_BdRingHwIsStarted(RxRingPtr)) {
-			xdbg_printf(XDBG_DEBUG_ERROR, "Started: rx ring not started\r\n");
+			xdbg_printf(XDBG_DEBUG_ERROR, "Started: rx ring not started\n");
 			return 0;
 		}
 	}
@@ -803,7 +803,7 @@ u32 XAxiDma_SimpleTransfer(XAxiDma *InstancePtr, UINTPTR BuffAddr, u32 Length,
 	/* If Scatter Gather is included then, cannot submit
 	 */
 	if (XAxiDma_HasSg(InstancePtr)) {
-		xdbg_printf(XDBG_DEBUG_ERROR, "Simple DMA mode is not supported\r\n");
+		xdbg_printf(XDBG_DEBUG_ERROR, "Simple DMA mode is not supported\n");
 		return XST_FAILURE;
 	}
 
@@ -814,7 +814,7 @@ u32 XAxiDma_SimpleTransfer(XAxiDma *InstancePtr, UINTPTR BuffAddr, u32 Length,
 		}
 
 		if (!InstancePtr->HasMm2S) {
-			xdbg_printf(XDBG_DEBUG_ERROR, "MM2S channel is not supported\r\n");
+			xdbg_printf(XDBG_DEBUG_ERROR, "MM2S channel is not supported\n");
 			return XST_FAILURE;
 		}
 
@@ -824,7 +824,7 @@ u32 XAxiDma_SimpleTransfer(XAxiDma *InstancePtr, UINTPTR BuffAddr, u32 Length,
 		if(!(XAxiDma_ReadReg(InstancePtr->TxBdRing.ChanBase,
 				XAXIDMA_SR_OFFSET) & XAXIDMA_HALTED_MASK)) {
 			if (XAxiDma_Busy(InstancePtr,Direction)) {
-				xdbg_printf(XDBG_DEBUG_ERROR, "Engine is busy\r\n");
+				xdbg_printf(XDBG_DEBUG_ERROR, "Engine is busy\n");
 				return XST_FAILURE;
 			}
 		}
@@ -839,7 +839,7 @@ u32 XAxiDma_SimpleTransfer(XAxiDma *InstancePtr, UINTPTR BuffAddr, u32 Length,
 		if ((BuffAddr & WordBits)) {
 
 			if (!InstancePtr->TxBdRing.HasDRE) {
-				xdbg_printf(XDBG_DEBUG_ERROR, "Unaligned transfer without DRE " << fmt((unsigned int)BuffAddr, "#x") << "\r\n");
+				xdbg_printf(XDBG_DEBUG_ERROR, "Unaligned transfer without DRE {:#x}\n", BuffAddr);
 				return XST_INVALID_PARAM;
 			}
 		}
@@ -872,14 +872,14 @@ u32 XAxiDma_SimpleTransfer(XAxiDma *InstancePtr, UINTPTR BuffAddr, u32 Length,
 
 
 		if (!InstancePtr->HasS2Mm) {
-			xdbg_printf(XDBG_DEBUG_ERROR, "S2MM channel is not supported\r\n");
+			xdbg_printf(XDBG_DEBUG_ERROR, "S2MM channel is not supported\n");
 			return XST_FAILURE;
 		}
 
 		if(!(XAxiDma_ReadReg(InstancePtr->RxBdRing[RingIndex].ChanBase,
 				XAXIDMA_SR_OFFSET) & XAXIDMA_HALTED_MASK)) {
 			if (XAxiDma_Busy(InstancePtr,Direction)) {
-				xdbg_printf(XDBG_DEBUG_ERROR, "Engine is busy\r\n");
+				xdbg_printf(XDBG_DEBUG_ERROR, "Engine is busy\n");
 				return XST_FAILURE;
 			}
 		}
@@ -895,7 +895,7 @@ u32 XAxiDma_SimpleTransfer(XAxiDma *InstancePtr, UINTPTR BuffAddr, u32 Length,
 		if ((BuffAddr & WordBits)) {
 
 			if (!InstancePtr->RxBdRing[RingIndex].HasDRE) {
-				xdbg_printf(XDBG_DEBUG_ERROR, "Unaligned transfer without DRE " << fmt((unsigned int)BuffAddr, "#x") << "\r\n");
+				xdbg_printf(XDBG_DEBUG_ERROR, "Unaligned transfer without DRE {:#x}\n", BuffAddr);
 				return XST_INVALID_PARAM;
 			}
 		}

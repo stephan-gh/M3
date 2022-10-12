@@ -52,12 +52,12 @@ struct App {
 };
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-l] [-i <instances>] [-r <repeats>] [-f <fssize>] <name>\n";
-    cerr << "  -l enables the load generator\n";
-    cerr << "  <instances> specifies the number of application (<name>) instances\n";
-    cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
-    cerr << "  <name> specifies the name of the application trace\n";
-    cerr << "  -f <fssize> creates an own m3fs instance for every application with given size\n";
+    eprintln("Usage: {} [-l] [-i <instances>] [-r <repeats>] [-f <fssize>] <name>"_cf, name);
+    eprintln("  -l enables the load generator"_cf);
+    eprintln("  <instances> specifies the number of application (<name>) instances"_cf);
+    eprintln("  <repeats> specifies the number of repetitions of the benchmark"_cf);
+    eprintln("  <name> specifies the name of the application trace"_cf);
+    eprintln("  -f <fssize> creates an own m3fs instance for every application with given size"_cf);
     exit(1);
 }
 
@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
     App *fs[instances];
 
     if(VERBOSE)
-        cout << "Creating application activities...\n";
+        println("Creating application activities..."_cf);
 
     const size_t ARG_COUNT = loadgen ? 11 : 9;
     const size_t FS_ARG_COUNT = 9;
@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
     }
 
     if(VERBOSE)
-        cout << "Starting activities...\n";
+        println("Starting activities..."_cf);
 
     for(size_t i = 0; i < instances; ++i) {
         OStringStream fs_name;
@@ -121,10 +121,10 @@ int main(int argc, char **argv) {
             fs[i]->argv[2] = "1";
             fs[i]->argv[3] = "-o";
             OStringStream fs_off;
-            fs_off << (i * fs_size);
+            format_to(fs_off, "{}"_cf, i * fs_size);
             fs[i]->argv[4] = fs_off.str();
             fs[i]->argv[5] = "-n";
-            fs_name << "m3fs-" << i;
+            format_to(fs_name, "m3fs-{}"_cf, i);
             fs[i]->argv[6] = fs_name.str();
             fs[i]->argv[7] = "mem";
             fs[i]->argv[8] = fs_size_str;
@@ -144,11 +144,11 @@ int main(int argc, char **argv) {
         }
 
         OStringStream tmpdir(new char[16], 16);
-        tmpdir << "/tmp/" << i << "/";
+        format_to(tmpdir, "/tmp/{}/"_cf, i);
         if(repeats > 1) {
             apps[i]->argv[1] = "-n";
             OStringStream num(new char[16], 16);
-            num << repeats;
+            format_to(num, "{}"_cf, repeats);
             apps[i]->argv[2] = num.str();
         }
         else {
@@ -159,7 +159,7 @@ int main(int argc, char **argv) {
         apps[i]->argv[4] = "-g";
 
         OStringStream rgatesel(new char[11], 11);
-        rgatesel << apps[i]->rgate.sel();
+        format_to(rgatesel, "{}"_cf, apps[i]->rgate.sel());
         apps[i]->argv[5] = rgatesel.str();
         if(fs_size_str) {
             apps[i]->argv[6] = "-f";
@@ -172,7 +172,7 @@ int main(int argc, char **argv) {
         if(loadgen) {
             apps[i]->argv[8] = "-l";
             OStringStream loadgen(new char[16], 16);
-            loadgen << "loadgen" << (i % 8);
+            format_to(loadgen, "loadgen{}"_cf, i % 8);
             apps[i]->argv[9] = loadgen.str();
             apps[i]->argv[10] = name;
         }
@@ -180,10 +180,10 @@ int main(int argc, char **argv) {
             apps[i]->argv[8] = name;
 
         if(VERBOSE) {
-            cout << "Starting ";
+            print("Starting "_cf);
             for(size_t x = 0; x < ARG_COUNT; ++x)
-                cout << apps[i]->argv[x] << " ";
-            cout << "\n";
+                print("{} "_cf, apps[i]->argv[x]);
+            println();
         }
 
         if(!fs_size_str)
@@ -193,7 +193,7 @@ int main(int argc, char **argv) {
     }
 
     if(VERBOSE)
-        cout << "Signaling activities...\n";
+        println("Signaling activities..."_cf);
 
     for(size_t i = 0; i < instances; ++i)
         send_receive_vmsg(apps[i]->sgate, 1);
@@ -203,7 +203,7 @@ int main(int argc, char **argv) {
     auto start = CycleInstant::now();
 
     if(VERBOSE)
-        cout << "Waiting for activities...\n";
+        println("Waiting for activities..."_cf);
 
     int exitcode = 0;
     for(size_t i = 0; i < instances; ++i) {
@@ -211,14 +211,14 @@ int main(int argc, char **argv) {
         if(res != 0)
             exitcode = 1;
         if(VERBOSE)
-            cout << apps[i]->argv[0] << " exited with " << res << "\n";
+            println("{} exited with {}"_cf, apps[i]->argv[0], res);
     }
 
     auto end = CycleInstant::now();
-    cout << "Time: " << end.duration_since(start) << "\n";
+    println("Time: {}"_cf, end.duration_since(start));
 
     if(VERBOSE)
-        cout << "Deleting activities...\n";
+        println("Deleting activities..."_cf);
 
     for(size_t i = 0; i < instances; ++i) {
         delete apps[i];
@@ -227,6 +227,6 @@ int main(int argc, char **argv) {
     }
 
     if(VERBOSE)
-        cout << "Done\n";
+        println("Done"_cf);
     return exitcode;
 }

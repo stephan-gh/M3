@@ -77,7 +77,7 @@ static FileRef<Socket> connect(NetworkManager &net, const IpAddr &ip, port_t por
 }
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-t] [-u] [-v] <ip> <port>\n";
+    eprintln("Usage: {} [-t] [-u] [-v] <ip> <port>"_cf, name);
     exit(1);
 }
 
@@ -136,9 +136,9 @@ int main(int argc, char **argv) {
                 input.buf[read++] = '\n';
             if(verbose) {
                 if(eof)
-                    cerr << "-- read EOF from stdin\n";
+                    eprintln("-- read EOF from stdin"_cf);
                 else
-                    cerr << "-- read " << read << "b from stdin\n";
+                    eprintln("-- read {}b from stdin"_cf, read);
             }
 
             input.push(Some(read));
@@ -148,8 +148,7 @@ int main(int argc, char **argv) {
         if(input.left() > 0) {
             auto sent = socket->send(input.buf.get() + input.pos, input.left());
             if(verbose)
-                cerr << "-- send " << sent.unwrap_or(0) << "b to " << socket->remote_endpoint()
-                     << "\n";
+                eprintln("-- send {}b to {}"_cf, sent.unwrap_or(0), socket->remote_endpoint());
             input.pop(sent);
         }
 
@@ -157,8 +156,8 @@ int main(int argc, char **argv) {
         if(socket->has_data()) {
             auto recv = socket->recv(output.buf.get(), OUTBUF_SIZE);
             if(verbose)
-                cerr << "-- received " << recv.unwrap_or(0) << "b from "
-                     << socket->remote_endpoint() << "\n";
+                eprintln("-- received {}b from {}"_cf, recv.unwrap_or(0),
+                         socket->remote_endpoint());
             output.push(recv);
         }
         // if we have received data, try to output it
@@ -166,7 +165,7 @@ int main(int argc, char **argv) {
             cout.clear_state();
             auto written = cout.write(output.buf.get() + output.pos, output.left());
             if(verbose)
-                cerr << "-- wrote " << written.unwrap_or(0) << "b to stdout\n";
+                eprintln("-- wrote {}b to stdout"_cf, written.unwrap_or(0));
             output.pop(written);
             cout.flush();
 

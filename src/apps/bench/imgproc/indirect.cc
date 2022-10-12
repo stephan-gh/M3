@@ -51,7 +51,7 @@ struct IndirChain {
           ops() {
         for(size_t i = 0; i < ACCEL_COUNT; ++i) {
             OStringStream name;
-            name << "chain" << id << "-" << i;
+            format_to(name, "chain{}-{}"_cf, id, i);
 
             tiles[i] = Tile::get("indir");
             acts[i] = std::make_unique<ChildActivity>(tiles[i], name.str());
@@ -114,7 +114,7 @@ struct IndirChain {
         }
 
         if(VERBOSE)
-            cout << "chain" << id << ": " << seen << " / " << total << "\n";
+            println("chain{}: seen {} / {}"_cf, id, seen, total);
         return seen < total;
     }
 
@@ -157,7 +157,7 @@ CycleDuration chain_indirect(const char *in, size_t num) {
     // create chains
     for(size_t i = 0; i < num; ++i) {
         OStringStream outpath;
-        outpath << "/tmp/res-" << i;
+        format_to(outpath, "/tmp/res-{}"_cf, i);
 
         infds[i] = VFS::open(in, FILE_R);
         outfds[i] = VFS::open(outpath.str(), FILE_W | FILE_TRUNC | FILE_CREATE);
@@ -195,7 +195,7 @@ CycleDuration chain_indirect(const char *in, size_t num) {
         size_t accel = (label - 1) % ACCEL_COUNT;
 
         if(VERBOSE)
-            cout << "message for chain" << chain << ", accel" << accel << "\n";
+            println("message for chain{}, accel{}"_cf, chain, accel);
 
         if(!chains[chain]->handle_msg(buffer.get(), accel, written))
             active_chains &= ~(static_cast<size_t>(1) << chain);

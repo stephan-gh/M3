@@ -17,13 +17,15 @@
 #include "exceptions.h"
 #include "fsapi_m3fs.h"
 
+using namespace m3;
+
 __attribute__((unused)) static const char *op_names[] = {
     "INVALID", "WAITUNTIL", "OPEN",      "CLOSE",    "FSYNC",      "READ",   "WRITE",    "PREAD",
     "PWRITE",  "LSEEK",     "FTRUNCATE", "FSTAT",    "FSTATAT",    "STAT",   "RENAME",   "UNLINK",
     "RMDIR",   "MKDIR",     "SENDFILE",  "GETDENTS", "CREATEFILE", "ACCEPT", "RECVFROM", "WRITEV"};
 
-int TracePlayer::play(Trace *trace, m3::LoadGen::Channel *chan, bool data, bool stdio,
-                      bool keep_time, bool verbose) {
+int TracePlayer::play(Trace *trace, LoadGen::Channel *chan, bool data, bool stdio, bool keep_time,
+                      bool verbose) {
     // determine max read and write buf size
     size_t rdBufSize = 0;
     size_t wrBufSize = 0;
@@ -56,17 +58,17 @@ int TracePlayer::play(Trace *trace, m3::LoadGen::Channel *chan, bool data, bool 
 
     fs->start();
 
-    m3::CycleDuration wait_time;
-    auto wait_start = m3::CycleInstant::now();
+    CycleDuration wait_time;
+    auto wait_start = CycleInstant::now();
 
     // let's play
     int lineNo = 1;
     op = trace->trace_ops;
     while(op && op->opcode != INVALID_OP) {
-        auto start = m3::CycleInstant::now();
+        auto start = CycleInstant::now();
 
         if(op->opcode != WAITUNTIL_OP)
-            wait_time += m3::CycleInstant::now().duration_since(wait_start);
+            wait_time += CycleInstant::now().duration_since(wait_start);
 
         switch(op->opcode) {
             case WAITUNTIL_OP: {
@@ -187,25 +189,25 @@ int TracePlayer::play(Trace *trace, m3::LoadGen::Channel *chan, bool data, bool 
                 break;
             }
             default: {
-                VTHROW(m3::Errors::NOT_SUP, "unsupported trace operation: " << op->opcode);
+                vthrow(Errors::NOT_SUP, "unsupported trace operation: {}"_cf, op->opcode);
             }
         }
 
         if(op->opcode != WAITUNTIL_OP)
-            wait_start = m3::CycleInstant::now();
+            wait_start = CycleInstant::now();
 
-        auto end = m3::CycleInstant::now();
+        auto end = CycleInstant::now();
         if(verbose) {
-            m3::Serial::get() << "line " << lineNo << ": opcode=" << op_names[op->opcode] << " -> "
-                              << end.duration_since(start) << "\n";
+            println("line {}: opcode={} -> {}"_cf, lineNo, op_names[op->opcode],
+                    end.duration_since(start));
         }
 
         lineNo++;
         op++;
     }
 
-    wait_time += m3::CycleInstant::now().duration_since(wait_start);
-    m3::Serial::get() << "total waittime: " << wait_time << "\n";
+    wait_time += CycleInstant::now().duration_since(wait_start);
+    println("total waittime: {}"_cf, wait_time);
     fs->stop();
     return 0;
 }

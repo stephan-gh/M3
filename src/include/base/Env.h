@@ -21,13 +21,9 @@
 #include <base/Common.h>
 #include <base/Config.h>
 #include <base/TileDesc.h>
+#include <base/stream/Format.h>
 
 namespace m3 {
-
-class OStream;
-
-class Env;
-OStream &operator<<(OStream &, const Env &senv);
 
 enum Platform {
     GEM5,
@@ -59,8 +55,6 @@ struct BootEnv {
 } PACKED;
 
 class Env : public BootEnv {
-    friend OStream &operator<<(OStream &, const Env &senv);
-
 public:
     // set by TileMux
     uint64_t shared;
@@ -96,6 +90,29 @@ public:
     static void run() asm("env_run");
 
     void exit(int code, bool abort) NORETURN;
+
+    void format(OStream &os, const FormatSpecs &) const {
+        format_to(os, "tile_id      : {}\n"_cf, tile_id);
+        format_to(os, "tile_desc    : {:#x}\n"_cf, tile_desc);
+        format_to(os, "argc         : {}\n"_cf, argc);
+        format_to(os, "argv         : {:p}\n"_cf, argv);
+        format_to(os, "heap_size    : {:#x}\n"_cf, heap_size);
+        format_to(os, "sp           : {:p}\n"_cf, sp);
+        format_to(os, "entry        : {:p}\n"_cf, entry);
+        format_to(os, "shared       : {}\n"_cf, shared);
+        format_to(os, "first_std_ep : {}\n"_cf, first_std_ep);
+        format_to(os, "first_sel    : {}\n"_cf, first_sel);
+        format_to(os, "act_id       : {}\n"_cf, act_id);
+        format_to(os, "lambda       : {:p}\n"_cf, lambda);
+        format_to(os, "rmng_sel     : {}\n"_cf, rmng_sel);
+        format_to(os, "pager_sess   : {}\n"_cf, pager_sess);
+        format_to(os, "mounts_addr  : {:p}\n"_cf, mounts_addr);
+        format_to(os, "mounts_len   : {}\n"_cf, mounts_len);
+        format_to(os, "fds_addr     : {}\n"_cf, fds_addr);
+        format_to(os, "fds_len      : {:p}\n"_cf, fds_len);
+        format_to(os, "data_addr    : {}\n"_cf, data_addr);
+        format_to(os, "data_len     : {:p}\n"_cf, data_len);
+    }
 
 private:
     void call_constr();

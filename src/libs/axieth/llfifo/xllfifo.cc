@@ -168,7 +168,7 @@ int XLlFifo_iRead_Aligned(XLlFifo *InstancePtr, void *BufPtr,
 
 	while (WordsRemaining) {
 		xdbg_printf(XDBG_DEBUG_FIFO_RX,
-			    "XLlFifo_iRead_Aligned: WordsRemaining: " << WordsRemaining << "\n");
+			    "XLlFifo_iRead_Aligned: WordsRemaining: {}\n", WordsRemaining);
 
 		*BufPtrIdx = XLlFifo_RxGetWord(InstancePtr);
 		BufPtrIdx++;
@@ -265,16 +265,15 @@ int XLlFifo_iWrite_Aligned(XLlFifo *InstancePtr, void *BufPtr,
 	u32 *BufPtrIdx = (u32 *)BufPtr;
 
 	xdbg_printf(XDBG_DEBUG_FIFO_TX,
-		    "XLlFifo_iWrite_Aligned: Inst: " << InstancePtr <<
-			"; Buff: " << BufPtr <<
-			"; Count: " << WordCount << "\n");
+		    "XLlFifo_iWrite_Aligned: Inst: {:p}; Buff: {:p}; Count: {}\n",
+		    (void*)InstancePtr, BufPtr, WordCount);
 	Xil_AssertNonvoid(InstancePtr);
 	Xil_AssertNonvoid(BufPtr);
 	/* assert buffer is 32 bit aligned */
 	Xil_AssertNonvoid(((UINTPTR)BufPtr & 0x3) == 0x0);
 
 	xdbg_printf(XDBG_DEBUG_FIFO_TX,
-		    "XLlFifo_iWrite_Aligned: WordsRemaining: " << WordsRemaining << "\n");
+		    "XLlFifo_iWrite_Aligned: WordsRemaining: {}\n", WordsRemaining);
 	while (WordsRemaining) {
 		XLlFifo_TxPutWord(InstancePtr, *BufPtrIdx);
 		BufPtrIdx++;

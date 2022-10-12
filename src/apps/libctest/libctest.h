@@ -16,24 +16,24 @@
  * General Public License version 2 for more details.
  */
 
-#define WVASSERTECODE(err, val)                                                            \
-    ({                                                                                     \
-        if((val) != -1 || errno != err) {                                                  \
-            failed++;                                                                      \
-            m3::cout << "! " << __FILE__ << ":" << __LINE__ << "  expected error " << #err \
-                     << ", got " << val << " (errno=" << errno << ") FAILED\n";            \
-        }                                                                                  \
+#define WVASSERTECODE(err, val)                                                               \
+    ({                                                                                        \
+        if((val) != -1 || errno != err) {                                                     \
+            failed++;                                                                         \
+            m3::eprintln("! {}:{}  expected error {}, got {} (errno={}) FAILED"_cf, __FILE__, \
+                         __LINE__, #err, val, errno);                                         \
+        }                                                                                     \
     })
 
-#define RUN_SUITE(name)                                    \
-    m3::cout << "Running testsuite " << #name << " ...\n"; \
-    name();                                                \
-    m3::cout << "\n";
+#define RUN_SUITE(name)                            \
+    m3::println("Running testsuite {}"_cf, #name); \
+    name();                                        \
+    m3::println();
 
-#define RUN_TEST(name)                                                  \
-    m3::cout << "Testing \"" << #name << "\" in " << __FILE__ << ":\n"; \
-    name();                                                             \
-    m3::cout << "\n";
+#define RUN_TEST(name)                                        \
+    m3::println("Testing \"{}\" in {}:"_cf, #name, __FILE__); \
+    name();                                                   \
+    m3::println();
 
 void tbsdutils();
 void tdir();

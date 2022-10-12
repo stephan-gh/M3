@@ -62,11 +62,13 @@ NOINLINE static void latency() {
                 received += socket->recv(buffer, pkt_size).unwrap();
 
             auto duration = TimeInstant::now().duration_since(start);
-            cout << "RTT (" << pkt_size << "b): " << duration.as_micros() << " us\n";
+            println("RTT ({}b): {} us"_cf, pkt_size, duration.as_micros());
             res.push(duration);
         }
 
-        WVPERF("network latency (" << pkt_size << "b)", MilliFloatResultRef<TimeDuration>(res));
+        auto name = OStringStream();
+        format_to(name, "network latency ({}b)"_cf, pkt_size);
+        WVPERF(name.str(), MilliFloatResultRef<TimeDuration>(res));
     }
 
     socket->close();
@@ -158,16 +160,19 @@ NOINLINE static void bandwidth() {
             break;
     }
 
-    cout << "Benchmark done.\n";
+    println("Benchmark done."_cf);
 
-    cout << "Sent packets: " << sent_count << "\n";
-    cout << "Received packets: " << received_count << "\n";
-    cout << "Received bytes: " << received_bytes << "\n";
+    println("Sent packets: {}"_cf, sent_count);
+    println("Received packets: {}"_cf, received_count);
+    println("Received bytes: {}"_cf, received_bytes);
     auto duration = last_received.duration_since(start);
-    cout << "Duration: " << duration << "\n";
+    println("Duration: {}"_cf, duration);
     auto secs = static_cast<float>(duration.as_nanos()) / 1000000000.f;
     float mbps = (static_cast<float>(received_bytes) / secs) / (1024 * 1024);
-    WVPERF("TCP bandwidth", mbps << " MiB/s (+/- 0 with 1 runs)\n");
+
+    auto res = OStringStream();
+    format_to(res, "{}  MiB/s (+/- 0 with 1 runs)\n"_cf, mbps);
+    WVPERF("TCP bandwidth", res.str());
 
     socket->set_blocking(true);
     socket->close();

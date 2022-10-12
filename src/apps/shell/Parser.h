@@ -19,8 +19,10 @@
 #pragma once
 
 #include <base/Common.h>
+#include <base/stream/Format.h>
 
 #include <algorithm>
+#include <initializer_list>
 #include <memory>
 #include <string>
 #include <vector>
@@ -28,13 +30,19 @@
 #include "Tokenizer.h"
 
 class Parser {
+public:
     struct PrevToken {
         PrevToken(Parser *parser) : parser(parser) {
         }
+
+        void format(m3::OStream &os, const m3::FormatSpecs &) const {
+            using namespace m3;
+            if(parser->_token > 0)
+                format_to(os, " after "_cf, parser->_tokens[parser->_token - 1]);
+        }
+
         Parser *parser;
     };
-
-    friend m3::OStream &operator<<(m3::OStream &os, PrevToken t);
 
 public:
     template<typename T>
@@ -200,6 +208,23 @@ private:
     std::unique_ptr<Expr> parse_expr();
     std::unique_ptr<RedirList> parse_redirections();
 
+public:
     std::vector<Token> _tokens;
     size_t _token;
 };
+
+namespace m3 {
+
+template<>
+struct Formatter<std::initializer_list<TokenType>> {
+    constexpr void format(OStream &os, const FormatSpecs &,
+                          const std::initializer_list<TokenType> &t) const {
+        for(auto it = t.begin(); it != t.end(); ++it) {
+            format_to(os, "{}"_cf, (int)*it);
+            if(it + 1 != t.end())
+                format_to(os, ", or "_cf);
+        }
+    }
+};
+
+}

@@ -26,7 +26,7 @@ using namespace m3;
 
 namespace std {
 WEAK void __throw_bad_function_call() {
-    PANIC("bad function call");
+    panic("bad function call"_cf);
 }
 }
 

@@ -29,19 +29,19 @@ INIT_PRIO_SENDQUEUE SendQueue SendQueue::_inst;
 void SendQueue::work() {
     if(_queue.length() > 0) {
         SendItem *it = _queue.remove_first();
-        LLOG(IPC, "Removing " << it << " from queue");
+        LLOG(IPC, "Removing {} from queue"_cf, static_cast<void *>(it));
         delete it;
         if(_queue.length() > 0) {
             SendItem &first = *_queue.begin();
             first.gate.send(first.msg);
-            LLOG(IPC, "Sending " << &first << " from queue");
+            LLOG(IPC, "Sending {} from queue"_cf, static_cast<void *>(&first));
         }
     }
 }
 
 void SendQueue::send_async(SendItem &it) {
     it.gate.send(it.msg);
-    LLOG(IPC, "Sending " << &it << " from queue");
+    LLOG(IPC, "Sending {} from queue"_cf, static_cast<void *>(&it));
 }
 
 }

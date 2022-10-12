@@ -29,13 +29,13 @@ static FileRef<GenericFile> open_man(const char *arg1) {
         return VFS::open(arg1, FILE_R);
 
     OStringStream os;
-    os << "/man/" << arg1 << ".1";
+    format_to(os, "/man/{}.1"_cf, arg1);
     return VFS::open(os.str(), FILE_R);
 }
 
 int main(int argc, char **argv) {
     if(argc != 2 || strcmp(argv[1], "-h") == 0)
-        exitmsg("Usage: " << argv[0] << " (<command>|<path>)");
+        exitmsg("Usage: {} (<command>|<path>)"_cf, argv[0]);
 
     auto file = open_man(argv[1]);
 

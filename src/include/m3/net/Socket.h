@@ -238,4 +238,7 @@ protected:
     DataQueue _recv_queue;
 };
 
+template<>
+struct Formatter<Socket::State> : public SignedFormatter<int> {};
+
 }

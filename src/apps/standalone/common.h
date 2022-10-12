@@ -33,10 +33,10 @@ struct UnalignedData {
     uint8_t post;
 } PACKED ALIGNED(16);
 
-#define RUN_SUITE(name)                                             \
-    m3::Serial::get() << "Running testsuite " << #name << " ...\n"; \
-    name();                                                         \
-    m3::Serial::get() << "\n";
+#define RUN_SUITE(name)                          \
+    m3::logln("Running testsuite {}"_cf, #name); \
+    name();                                      \
+    m3::logln();
 
 extern void test_msgs();
 extern void test_mem();

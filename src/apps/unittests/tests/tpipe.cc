@@ -40,7 +40,7 @@ static void reader_quit() {
         auto out = Activity::own().files()->get(STDOUT_FD);
         while(1) {
             OStringStream os(buffer, sizeof(buffer));
-            os << "Hello World!\n";
+            format_to(os, "Hello World!\n"_cf);
             if(out->write(buffer, os.length()).unwrap() == 0)
                 break;
         }
@@ -91,7 +91,7 @@ static void writer_quit() {
     {
         FStream f(pipe.writer_fd(), FILE_W);
         for(int i = 0; i < 2; ++i)
-            f << "Hello World!\n";
+            println_to(f, "Hello World!"_cf);
     }
 
     pipe.close_writer();
@@ -128,7 +128,7 @@ static void child_to_child() {
         auto out = Activity::own().files()->get(STDOUT_FD);
         for(int i = 0; i < 10; ++i) {
             OStringStream os(buffer, sizeof(buffer));
-            os << "Hello World!\n";
+            format_to(os, "Hello World!\n"_cf);
             out->write(buffer, os.length());
         }
         return 0;

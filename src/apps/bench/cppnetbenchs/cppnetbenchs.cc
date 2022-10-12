@@ -20,12 +20,14 @@
 
 #include <m3/stream/Standard.h>
 
+using namespace m3;
+
 int failed;
 
 int main() {
     RUN_SUITE(budp);
     RUN_SUITE(btcp);
 
-    m3::cout << "\033[1;32mAll tests successful!\033[0;m\n";
+    println("\033[1;32mAll tests successful!\033[0;m"_cf);
     return 0;
 }

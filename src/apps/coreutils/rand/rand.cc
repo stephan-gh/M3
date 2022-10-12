@@ -30,7 +30,7 @@ alignas(64) static rand_type buffer[EL_COUNT];
 
 int main(int argc, char **argv) {
     if(argc != 2)
-        exitmsg("Usage: " << argv[0] << " <count>");
+        exitmsg("Usage: {} <count>"_cf, argv[0]);
 
     size_t count = IStringStream::read_from<size_t>(argv[1]);
 

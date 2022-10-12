@@ -33,35 +33,35 @@ struct NoneType {};
 template<typename T>
 class Option {
 public:
-    Option(NoneType) noexcept : _inner(std::nullopt) {
+    constexpr Option(NoneType) noexcept : _inner(std::nullopt) {
     }
-    explicit Option(T val) noexcept : _inner(val) {
+    constexpr explicit Option(T val) noexcept : _inner(val) {
     }
 
-    Option(const Option &r) = default;
-    Option &operator=(const Option &r) = default;
+    constexpr Option(const Option &r) = default;
+    constexpr Option &operator=(const Option &r) = default;
 
-    Option(Option &&r) noexcept : _inner(std::move(r._inner)) {
+    constexpr Option(Option &&r) noexcept : _inner(std::move(r._inner)) {
     }
-    Option &operator=(Option &&r) noexcept {
+    constexpr Option &operator=(Option &&r) noexcept {
         _inner = std::move(r._inner);
         return *this;
     }
 
-    explicit operator bool() const noexcept {
+    constexpr explicit operator bool() const noexcept {
         return is_some();
     }
-    bool is_some() const noexcept {
+    constexpr bool is_some() const noexcept {
         return _inner.has_value();
     }
-    bool is_none() const noexcept {
+    constexpr bool is_none() const noexcept {
         return !_inner.has_value();
     }
 
     T unwrap() const {
         return _inner.value();
     }
-    T unwrap_or(T def) const noexcept {
+    constexpr T unwrap_or(T def) const noexcept {
         return _inner.has_value() ? _inner.value() : def;
     }
 
@@ -73,7 +73,7 @@ private:
  * @return a new Option that represents the Some-variant with given value
  */
 template<typename T>
-static inline Option<T> Some(T val) {
+static inline constexpr Option<T> Some(T val) {
     return Option(val);
 }
 

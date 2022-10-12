@@ -36,35 +36,34 @@ static void parse(FStream &bin) {
 
     ELF_EH header;
     if(bin.read(&header, sizeof(header)).unwrap() != sizeof(header))
-        exitmsg("Invalid ELF-file");
+        exitmsg("Invalid ELF-file"_cf);
 
-    cout << "Program Headers:\n";
-    cout << "  Type    Offset     VirtAddr     PhysAddr     FileSiz   MemSiz    Flg Align\n";
+    println("Program Headers:"_cf);
+    println("  Type    Offset   VirtAddr   PhysAddr   FileSiz    MemSiz     Flg Align"_cf);
 
     size_t off = header.e_phoff;
     for(uint i = 0; i < header.e_phnum; ++i, off += header.e_phentsize) {
         ELF_PH pheader;
         if(bin.seek(off, M3FS_SEEK_SET) != off)
-            exitmsg("Invalid ELF-file");
+            exitmsg("Invalid ELF-file"_cf);
         if(bin.read(&pheader, sizeof(pheader)).unwrap() != sizeof(pheader))
-            exitmsg("Invalid ELF-file");
+            exitmsg("Invalid ELF-file"_cf);
 
-        cout << "  " << (pheader.p_type < ARRAY_SIZE(phtypes) ? phtypes[pheader.p_type] : "???????")
-             << " " << fmt(pheader.p_offset, "#0x", 8) << " " << fmt(pheader.p_vaddr, "#0x", 10)
-             << " " << fmt(pheader.p_paddr, "#0x", 10) << " " << fmt(pheader.p_filesz, "#0x", 7)
-             << " " << fmt(pheader.p_memsz, "#0x", 7) << " "
-             << ((pheader.p_flags & PF_R) ? "R" : " ") << ((pheader.p_flags & PF_W) ? "W" : " ")
-             << ((pheader.p_flags & PF_X) ? "E" : " ") << " " << fmt(pheader.p_align, "#0x")
-             << "\n";
+        println("  {} {:#08x} {:#010x} {:#010x} {:#010x} {:#010x} {}{}{} {:#x}"_cf,
+                pheader.p_type < ARRAY_SIZE(phtypes) ? phtypes[pheader.p_type] : "???????",
+                pheader.p_offset, pheader.p_vaddr, pheader.p_paddr, pheader.p_filesz,
+                pheader.p_memsz, (pheader.p_flags & PF_R) ? "R" : " ",
+                (pheader.p_flags & PF_W) ? "W" : " ", (pheader.p_flags & PF_X) ? "E" : " ",
+                pheader.p_align);
 
         if(bin.seek(pheader.p_offset, M3FS_SEEK_SET) != pheader.p_offset)
-            exitmsg("Invalid ELF-file");
+            exitmsg("Invalid ELF-file"_cf);
 
         size_t count = pheader.p_filesz;
         while(count > 0) {
             size_t amount = std::min(count, sizeof(buffer));
             if(bin.read(buffer, amount).unwrap() != amount)
-                exitmsg("Reading failed");
+                exitmsg("Reading failed"_cf);
 
             count -= amount;
         }
@@ -73,18 +72,18 @@ static void parse(FStream &bin) {
 
 int main(int argc, char **argv) {
     if(argc < 2)
-        exitmsg("Usage: " << argv[0] << " <bin>");
+        exitmsg("Usage: {} <bin>"_cf, argv[0]);
 
     FStream bin(argv[1], FILE_R);
 
     /* load and check ELF header */
     ElfEh header;
     if(bin.read(&header, sizeof(header)).unwrap() != sizeof(header))
-        exitmsg("Invalid ELF-file");
+        exitmsg("Invalid ELF-file"_cf);
 
     if(header.e_ident[0] != '\x7F' || header.e_ident[1] != 'E' || header.e_ident[2] != 'L' ||
        header.e_ident[3] != 'F')
-        exitmsg("Invalid ELF-file");
+        exitmsg("Invalid ELF-file"_cf);
 
     if(header.e_ident[EI_CLASS] == ELFCLASS32)
         parse<Elf32_Ehdr, Elf32_Phdr>(bin);
