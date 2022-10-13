@@ -32,7 +32,7 @@ If you setup the project on a new (ubuntu) machine make sure to have at least th
 
 Afterwards, pull in the submodules:
 
-    $ git submodule update --init src/libs/musl src/libs/flac src/libs/leveldb
+    $ git submodule update --init src/apps/bsdutils src/libs/musl src/libs/flac src/libs/leveldb
 
 ### 2. Preparations for gem5
 
