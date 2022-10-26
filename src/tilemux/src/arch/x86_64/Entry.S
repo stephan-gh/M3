@@ -28,11 +28,14 @@ BEGIN_FUNC(_start)
     call    init
 
     // return to idle code
-    pushq   $(4 << 3) | 3   // ss
-    pushq   $isr_stack      // rsp
+    pushq   $(2 << 3) | 3   // ss: kernel data
+    pushq   %rax            // rsp: use the state area as stackpointer, because we don't change
+                            // the stackpointer on TileMux entry as idle is also running in
+                            // privileged mode. this is okay, because the sleep function below does
+                            // not use the stack anyway.
     pushq   $0x200          // rflags: interrupts enabled
-    pushq   $(3 << 3) | 3   // cs
-    pushq   $sleep          // rip
+    pushq   $(1 << 3) | 3   // cs: kernel code
+    pushq   $sleep          // rip: sleep function below
     iretq
 END_FUNC(_start)
 
