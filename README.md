@@ -40,9 +40,9 @@ The submodule in `platform/gem5` needs to be pulled in and built:
 
     $ git submodule update --init platform/gem5
     $ cd platform/gem5
-    $ scons build/X86/gem5.opt
+    $ scons build/RISCV/gem5.opt # change ISA as needed
 
-Note that you can specify the number of threads to use for building in the last command via, for example, `-j8`.
+The build directory (`build/RISCV` in the example above) will be created automatically. You can build gem5 for a different ISA by changing the path to `build/X86/gem5.opt` or `build/ARM/gem5.opt`. Note that you can specify the number of threads to use for building in the last command via, for example, `-j8`.
 
 ### 3. Preparation for the hardware platform
 
