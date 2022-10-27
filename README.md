@@ -62,7 +62,7 @@ Note that the source of the hardware platform is [openly available](https://gith
 
 ### 4. Cross compiler
 
-You need to build a cross compiler for the desired ISA. Note that only gem5 supports all three ISAs; the hardware platform only supports RISC-V. You can build the cross compiler as follows:
+You need to build a cross compiler for the desired ISA. Note that only gem5 supports all three ISAs (arm is currently broken, though); the hardware platform only supports RISC-V. You can build the cross compiler as follows:
 
     $ cd cross
     $ ./build.sh (x86_64|arm|riscv)
