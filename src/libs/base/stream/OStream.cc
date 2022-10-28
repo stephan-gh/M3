@@ -201,6 +201,8 @@ size_t OStream::write_float_fmt(float d, const FormatSpecs &fmt) {
         c++;
 
         size_t prec = fmt.precision;
+        if(prec == ~0UL)
+            prec = 3;
         while(prec-- > 0) {
             d *= 10;
             val = static_cast<long>(d);

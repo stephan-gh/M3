@@ -83,6 +83,7 @@ static void precision() {
     WVASSERTEQ(format("Hello {:.0}!"_cf, "foobar"), "Hello !");
     WVASSERTEQ(format("Hello {:.10}!"_cf, "foobar"), "Hello foobar!");
 
+    WVASSERTEQ(format("{}!"_cf, .1234f), "0.123!");
     WVASSERTEQ(format("{:.3}!"_cf, .1234f), "0.123!");
     WVASSERTEQ(format("{:.1}!"_cf, .1234f), "0.1!");
 }
