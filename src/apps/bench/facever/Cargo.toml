@@ -1,0 +1,11 @@
+[package]
+name = "facever"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+path = "src/facever.rs"
+crate-type = ["staticlib"]
+
+[dependencies]
+m3 = { path = "../../../libs/rust/m3" }
