@@ -30,7 +30,9 @@ use m3::tiles::Activity;
 use m3::time::{CycleInstant, Profiler, TimeDuration, TimeInstant};
 use m3::util::math::next_log2;
 use m3::{env, reply_vmsg};
-use m3::{vec, wv_perf};
+use m3::{log, vec, wv_perf};
+
+const LOG_MSGS: bool = false;
 
 static BUF: StaticRefCell<AlignedBuf<4096>> = StaticRefCell::new(AlignedBuf::new_zeroed());
 
@@ -86,7 +88,9 @@ fn client(args: &[&str]) {
     wv_perf!(
         "faceverification",
         prof.run::<CycleInstant, _>(|| {
+            log!(LOG_MSGS, "client -> frontend");
             call_and_ack(&sgate, &ctrl_msg, &reply_gate).expect("Request failed");
+            log!(LOG_MSGS, "client <- frontend");
         })
     );
 }
@@ -116,14 +120,21 @@ fn frontend(args: &[&str]) {
     req_rgate.activate().expect("Unable to activate RecvGate");
     loop {
         let mut request = recv_msg(&req_rgate).expect("Receiving request failed");
+        log!(LOG_MSGS, "frontend <- client");
 
+        log!(LOG_MSGS, "frontend -> fs");
         call_and_ack(&fs_sgate, &ctrl_msg, &reply_gate).expect("fs request failed");
+        log!(LOG_MSGS, "frontend <- fs");
 
+        log!(LOG_MSGS, "frontend -> storage");
         call_and_ack(&storage_sgate, &ctrl_msg, &reply_gate).expect("storage request failed");
+        log!(LOG_MSGS, "frontend <- storage");
 
         let mut gpu_res = recv_msg(&gpu_rgate).expect("Receiving GPU result failed");
+        log!(LOG_MSGS, "frontend <- gpu");
         reply_vmsg!(gpu_res, 0).expect("Reply to GPU failed");
 
+        log!(LOG_MSGS, "frontend -> client");
         request.reply(&ctrl_msg).expect("Reply to client failed");
     }
 }
@@ -147,9 +158,11 @@ fn fs(args: &[&str]) {
     req_rgate.activate().expect("Unable to activate RecvGate");
     loop {
         let mut request = recv_msg(&req_rgate).expect("Receiving request failed");
+        log!(LOG_MSGS, "fs <- frontend");
 
         compute_for(TimeDuration::from_millis(compute_time));
 
+        log!(LOG_MSGS, "fs -> frontend");
         request.reply(&ctrl_msg).expect("Reply to client failed");
     }
 }
@@ -177,10 +190,12 @@ fn gpu(args: &[&str]) {
     req_rgate.activate().expect("Unable to activate RecvGate");
     loop {
         let mut request = recv_msg(&req_rgate).expect("Receiving request failed");
+        log!(LOG_MSGS, "gpu <- storage");
         reply_vmsg!(request, 0).expect("Reply to storage failed");
 
         compute_for(TimeDuration::from_millis(compute_time));
 
+        log!(LOG_MSGS, "gpu -> frontend");
         call_and_ack(&res_sgate, &ctrl_msg, &reply_gate).expect("GPU-result send failed");
     }
 }
@@ -215,10 +230,12 @@ fn storage(args: &[&str]) {
     req_rgate.activate().expect("Unable to activate RecvGate");
     loop {
         let mut request = recv_msg(&req_rgate).expect("Receiving request failed");
+        log!(LOG_MSGS, "storage <- frontend");
         reply_vmsg!(request, 0).expect("Reply to frontend failed");
 
         compute_for(TimeDuration::from_millis(compute_time));
 
+        log!(LOG_MSGS, "storage: writing to GPU");
         let mut count = 0;
         while count < data_size {
             let amount = BUF.borrow().len().min(data_size - count);
@@ -228,7 +245,9 @@ fn storage(args: &[&str]) {
             count += amount;
         }
 
+        log!(LOG_MSGS, "storage -> gpu");
         call_and_ack(&gpu_sgate, &ctrl_msg, &reply_gate).expect("GPU request failed");
+        log!(LOG_MSGS, "storage <- gpu");
     }
 }
 
