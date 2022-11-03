@@ -178,7 +178,7 @@ public:
     void format(OStream &os, const FormatSpecs &) const {
         if(as_raw() >= TimeDuration::SECOND.as_raw())
             format_to(os, "{} ms"_cf, as_millis());
-        if(as_raw() >= TimeDuration::MILLISECOND.as_raw())
+        else if(as_raw() >= TimeDuration::MILLISECOND.as_raw())
             format_to(os, "{} us"_cf, as_micros());
         else
             format_to(os, "{} ns"_cf, as_nanos());
