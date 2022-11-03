@@ -206,8 +206,18 @@ public:
      * @param reply the message
      */
     void reply(const MsgBuf &reply) {
-        _rgate->reply(reply, _msg);
-        // it's already acked
+        reply_aligned(reply.bytes(), reply.size());
+    }
+
+    /**
+     * Replies the given message to this one, assuming that the reply is properly aligned. The
+     * message address needs to be 16-byte aligned and the message cannot contain a page boundary.
+     *
+     * @param reply the message
+     * @param len the length of the reply
+     */
+    void reply_aligned(const void *reply, size_t len) {
+        _rgate->reply_aligned(reply, len, _msg);
         _ack = false;
     }
 

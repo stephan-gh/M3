@@ -233,7 +233,19 @@ public:
      * @param reply the reply message to send
      * @param msg the message to reply to
      */
-    void reply(const MsgBuf &reply, const TCU::Message *msg);
+    void reply(const MsgBuf &reply, const TCU::Message *msg) {
+        reply_aligned(reply.bytes(), reply.size(), msg);
+    }
+
+    /**
+     * Sends <reply> as a reply to the message <msg>, assuming that <reply> is properly aligned. The
+     * message address needs to be 16-byte aligned and the message cannot contain a page boundary.
+     *
+     * @param reply the reply message to send
+     * @param len the length of the reply
+     * @param msg the message to reply to
+     */
+    void reply_aligned(const void *reply, size_t len, const TCU::Message *msg);
 
     /**
      * Marks the given message as 'read', allowing the TCU to overwrite it with a new message.
