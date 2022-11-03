@@ -49,7 +49,7 @@ public:
     virtual m3::Option<size_t> send(const void *data, size_t len) = 0;
 
     static uint64_t read_u64(const uint8_t *bytes);
-    static size_t from_bytes(uint8_t *package_buffer, size_t package_size, Package &pkg);
+    static size_t from_bytes(const uint8_t *package_buffer, size_t package_size, Package &pkg);
 };
 
 class TCPOpHandler : public OpHandler {
@@ -80,4 +80,22 @@ private:
     uint64_t _total_ops;
     m3::Endpoint _ep;
     m3::FileRef<m3::UdpSocket> _socket;
+};
+
+class TCUOpHandler : public OpHandler {
+    const size_t MAX_RESULT_SIZE = 1024 * 1024;
+
+public:
+    explicit TCUOpHandler();
+
+    virtual Result receive(Package &pkg) override;
+    virtual bool respond(size_t bytes) override;
+
+private:
+    m3::Option<size_t> send(const void *data, size_t len) override;
+    m3::Option<size_t> receive(void *data, size_t max);
+
+    m3::RecvGate _rgate;
+    m3::MemGate _result;
+    m3::GateIStream *_last_req;
 };

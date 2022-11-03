@@ -33,32 +33,39 @@
 using namespace m3;
 
 int main(int argc, char **argv) {
-    if(argc != 5 && argc != 7) {
+    if(argc != 4 && argc != 5 && argc != 7) {
         eprintln("Usage: {} <db> <repeats> tcp <port>"_cf, argv[0]);
+        eprintln("Usage: {} <db> <repeats> tcu"_cf, argv[0]);
         eprintln("Usage: {} <db> <repeats> udp <ip> <port> <workload>"_cf, argv[0]);
         return 1;
     }
 
-    VFS::mount("/", "m3fs", "m3fs");
+    NetworkManager *net = nullptr;
 
-    NetworkManager net("net");
+    VFS::mount("/", "m3fs", "m3fs");
 
     const char *file = argv[1];
     int repeats = IStringStream::read_from<int>(argv[2]);
 
     Executor *exec = Executor::create(file);
 
+    println("Creating handler {}..."_cf, argv[3]);
+
     OpHandler *hdl;
     if(strcmp(argv[3], "tcp") == 0) {
         port_t port = IStringStream::read_from<port_t>(argv[4]);
-        hdl = new TCPOpHandler(net, port);
+        net = new NetworkManager("net");
+        hdl = new TCPOpHandler(*net, port);
     }
-    else {
+    else if(strcmp(argv[3], "udp") == 0) {
         IpAddr ip = IStringStream::read_from<IpAddr>(argv[4]);
         port_t port = IStringStream::read_from<port_t>(argv[5]);
         const char *workload = argv[6];
-        hdl = new UDPOpHandler(net, workload, ip, port);
+        net = new NetworkManager("net");
+        hdl = new UDPOpHandler(*net, workload, ip, port);
     }
+    else
+        hdl = new TCUOpHandler();
 
     println("Starting Benchmark:"_cf);
 
@@ -106,6 +113,7 @@ int main(int argc, char **argv) {
     WVPERF(name.str(), res);
 
     delete hdl;
+    delete net;
 
     return 0;
 }

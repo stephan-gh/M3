@@ -33,7 +33,7 @@ uint64_t OpHandler::read_u64(const uint8_t *bytes) {
     return res;
 }
 
-size_t OpHandler::from_bytes(uint8_t *package_buffer, size_t package_size, Package &pkg) {
+size_t OpHandler::from_bytes(const uint8_t *package_buffer, size_t package_size, Package &pkg) {
     pkg.op = package_buffer[0];
     pkg.table = package_buffer[1];
     pkg.num_kvs = package_buffer[2];
