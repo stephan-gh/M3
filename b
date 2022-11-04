@@ -65,6 +65,7 @@ export RUST_TARGET=$rustisa-linux-$M3_TARGET-$rustabi
 export RUST_TARGET_PATH=$rusttoolchain
 export CARGO_TARGET_DIR=$rustbuild
 export XBUILD_SYSROOT_PATH=$CARGO_TARGET_DIR/sysroot
+rust_args=(--target "$RUST_TARGET" -Z "build-std=core,alloc,std,panic_abort")
 # configure TARGET_CFLAGS for llvmprofile within minicov
 case "$M3_ISA" in
     x86_64) export TARGET_CFLAGS="-msoft-float -mno-sse" ;;
@@ -263,7 +264,7 @@ case "$cmd" in
             # gem5log+hwitrace are always built for the host OS (not our host target)
             target=()
             if [[ ! $f =~ "gem5log" ]] && [[ ! $f =~ "hwitrace" ]] && [[ ! $f =~ "netdbg" ]]; then
-                target=("${target[@]}" -Z "build-std=core,alloc" --target "$RUST_TARGET")
+                target=("${target[@]}" "${rust_args[@]}")
             fi
             echo "Running clippy for $(dirname "$f")..."
             ( cd "$(dirname "$f")" && cargo clippy "${target[@]}" -- \
@@ -280,7 +281,7 @@ case "$cmd" in
         export RUSTDOCFLAGS=$RUSTFLAGS
         for lib in src/libs/rust/*; do
             if [ -d "$lib" ]; then
-                ( cd "$lib" && cargo doc -Z build-std=core,alloc --target $RUST_TARGET )
+                ( cd "$lib" && cargo doc "${rust_args[@]}" )
             fi
         done
         ;;
@@ -309,8 +310,7 @@ case "$cmd" in
     macros=*)
         export RUSTFLAGS="--sysroot $XBUILD_SYSROOT_PATH"
         ( cd "${cmd#macros=}" && \
-            cargo rustc --target $RUST_TARGET --profile=check \
-                -- -Zunstable-options --pretty=expanded | less )
+            cargo rustc "${rust_args[@]}" --profile=check -- -Zunpretty=expanded | less )
         ;;
 
     dbg=*)
