@@ -123,7 +123,7 @@ fn tcp_accept(t: &mut dyn WvTester) {
 
     let tile = wv_assert_ok!(Tile::get("clone|own"));
     let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("server")));
-    let act = wv_assert_ok!(act.run(|| tcp_server()));
+    let act = wv_assert_ok!(act.run(tcp_server));
 
     Activity::own()
         .sleep_for(TimeDuration::from_millis(10))

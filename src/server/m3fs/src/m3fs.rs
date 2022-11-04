@@ -117,7 +117,7 @@ fn flush_buffer() -> Result<(), Error> {
     let blocks = crate::blocks_mut();
     sb.update_blockbm(blocks.free_count(), blocks.first_free());
     sb.checksum = sb.get_checksum();
-    crate::backend_mut().store_sb(&*sb)
+    crate::backend_mut().store_sb(&sb)
 }
 
 int_enum! {

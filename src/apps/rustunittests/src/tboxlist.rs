@@ -95,15 +95,15 @@ fn iter(t: &mut dyn WvTester) {
         let mut it = l.iter_mut();
         let e = it.next();
         wv_assert_eq!(t, e.as_ref().unwrap().data, 23);
-        e.map(|v| (*v).data = 32);
+        e.map(|v| v.data = 32);
 
         let e = it.next();
         wv_assert_eq!(t, e.as_ref().unwrap().data, 42);
-        e.map(|v| (*v).data = 24);
+        e.map(|v| v.data = 24);
 
         let e = it.next();
         wv_assert_eq!(t, e.as_ref().unwrap().data, 57);
-        e.map(|v| (*v).data = 75);
+        e.map(|v| v.data = 75);
     }
 
     wv_assert_eq!(t, l, gen_list(&[32, 24, 75]));

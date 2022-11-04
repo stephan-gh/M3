@@ -130,7 +130,7 @@ impl Disk {
         blocksize: usize,
         off: Option<goff>,
     ) -> Result<(), Error> {
-        if let Err(e) = send_recv_res!(
+        send_recv_res!(
             &self.sgate,
             &self.rgate,
             DiskOperation::READ.val,
@@ -139,12 +139,8 @@ impl Disk {
             blocks.count,
             blocksize,
             off.unwrap_or(0)
-        ) {
-            Err(e)
-        }
-        else {
-            Ok(())
-        }
+        )
+        .map(|_| ())
     }
 
     pub fn write(
@@ -154,7 +150,7 @@ impl Disk {
         blocksize: usize,
         off: Option<goff>,
     ) -> Result<(), Error> {
-        if let Err(e) = send_recv_res!(
+        send_recv_res!(
             &self.sgate,
             &self.rgate,
             DiskOperation::WRITE.val,
@@ -163,11 +159,7 @@ impl Disk {
             blocks.count,
             blocksize,
             off.unwrap_or(0)
-        ) {
-            Err(e)
-        }
-        else {
-            Ok(())
-        }
+        )
+        .map(|_| ())
     }
 }

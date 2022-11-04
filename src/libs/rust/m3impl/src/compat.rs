@@ -61,7 +61,8 @@ fn get_file_as<T>(fd: i32) -> Result<FileRef<T>, Error> {
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_exit(status: i32, abort: bool) -> ! {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_exit(status: i32, abort: bool) -> ! {
     if abort {
         crate::abort();
     }
@@ -71,70 +72,73 @@ pub extern "C" fn __m3c_exit(status: i32, abort: bool) -> ! {
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_getpid() -> i32 {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_getpid() -> i32 {
     // + 1, because our ids start with 0, but pid 0 is special
     Activity::own().id() as i32 + 1
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_fstat(fd: i32, info: *mut FileInfo) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_fstat(fd: i32, info: *mut FileInfo) -> Code {
     let file = try_res!(get_file(fd));
-    unsafe { *info = try_res!(file.stat()) };
+    *info = try_res!(file.stat());
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_stat(pathname: *const i8, info: *mut FileInfo) -> Code {
-    unsafe { *info = try_res!(VFS::stat(util::cstr_to_str(pathname))) };
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_stat(pathname: *const i8, info: *mut FileInfo) -> Code {
+    *info = try_res!(VFS::stat(util::cstr_to_str(pathname)));
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_mkdir(pathname: *const i8, mode: FileMode) -> Code {
-    unsafe { try_res!(VFS::mkdir(util::cstr_to_str(pathname), mode)) };
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_mkdir(pathname: *const i8, mode: FileMode) -> Code {
+    try_res!(VFS::mkdir(util::cstr_to_str(pathname), mode));
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_rmdir(pathname: *const i8) -> Code {
-    unsafe { try_res!(VFS::rmdir(util::cstr_to_str(pathname))) };
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_rmdir(pathname: *const i8) -> Code {
+    try_res!(VFS::rmdir(util::cstr_to_str(pathname)));
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_rename(oldpath: *const i8, newpath: *const i8) -> Code {
-    unsafe {
-        try_res!(VFS::rename(
-            util::cstr_to_str(oldpath),
-            util::cstr_to_str(newpath)
-        ))
-    };
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_rename(oldpath: *const i8, newpath: *const i8) -> Code {
+    try_res!(VFS::rename(
+        util::cstr_to_str(oldpath),
+        util::cstr_to_str(newpath)
+    ));
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_link(oldpath: *const i8, newpath: *const i8) -> Code {
-    unsafe {
-        try_res!(VFS::link(
-            util::cstr_to_str(oldpath),
-            util::cstr_to_str(newpath)
-        ))
-    };
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_link(oldpath: *const i8, newpath: *const i8) -> Code {
+    try_res!(VFS::link(
+        util::cstr_to_str(oldpath),
+        util::cstr_to_str(newpath)
+    ));
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_unlink(pathname: *const i8) -> Code {
-    unsafe { try_res!(VFS::unlink(util::cstr_to_str(pathname))) };
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_unlink(pathname: *const i8) -> Code {
+    try_res!(VFS::unlink(util::cstr_to_str(pathname)));
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_opendir(fd: i32, dir: *mut *mut libc::c_void) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_opendir(fd: i32, dir: *mut *mut libc::c_void) -> Code {
     let file = try_res!(get_file_as::<GenericFile>(fd));
-    unsafe {
-        *dir = Box::into_raw(Box::new(BufReader::new(file))) as *mut libc::c_void;
-    }
+    *dir = Box::into_raw(Box::new(BufReader::new(file))) as *mut libc::c_void;
     Code::None
 }
 
@@ -155,135 +159,137 @@ struct M3FSDirEntry {
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_readdir(dir: *mut libc::c_void, entry: *mut CompatDirEntry) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_readdir(dir: *mut libc::c_void, entry: *mut CompatDirEntry) -> Code {
     let dir = dir as *mut BufReader<FileRef<GenericFile>>;
 
-    unsafe {
-        // read header
-        let head: M3FSDirEntry = match read_object(&mut *dir) {
-            Ok(obj) => obj,
-            Err(_) => return Code::EndOfFile,
-        };
+    // read header
+    let head: M3FSDirEntry = match read_object(&mut *dir) {
+        Ok(obj) => obj,
+        Err(_) => return Code::EndOfFile,
+    };
 
-        // read name
-        (*entry).inode = head.inode;
-        let name_len = (head.name_len as usize).min(MAX_DIR_NAME_LEN - 1);
-        try_res!((*dir).read_exact(&mut (*entry).name[0..name_len]));
-        (*entry).name[name_len] = 0;
+    // read name
+    (*entry).inode = head.inode;
+    let name_len = (head.name_len as usize).min(MAX_DIR_NAME_LEN - 1);
+    try_res!((*dir).read_exact(&mut (*entry).name[0..name_len]));
+    (*entry).name[name_len] = 0;
 
-        // move to next entry
-        let off = head.next as usize - (mem::size_of::<M3FSDirEntry>() + head.name_len as usize);
-        if off != 0 && (*dir).seek(off, SeekMode::CUR).is_err() {
-            return Code::EndOfFile;
-        }
+    // move to next entry
+    let off = head.next as usize - (mem::size_of::<M3FSDirEntry>() + head.name_len as usize);
+    if off != 0 && (*dir).seek(off, SeekMode::CUR).is_err() {
+        return Code::EndOfFile;
     }
 
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_closedir(dir: *mut libc::c_void) -> Code {
-    unsafe { Box::from_raw(dir as *mut BufReader<FileRef<GenericFile>>) };
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_closedir(dir: *mut libc::c_void) -> Code {
+    drop(Box::from_raw(dir as *mut BufReader<FileRef<GenericFile>>));
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_chdir(pathname: *const i8) -> Code {
-    unsafe { try_res!(VFS::set_cwd(util::cstr_to_str(pathname))) };
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_chdir(pathname: *const i8) -> Code {
+    try_res!(VFS::set_cwd(util::cstr_to_str(pathname)));
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_fchdir(fd: i32) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_fchdir(fd: i32) -> Code {
     try_res!(VFS::set_cwd_to(fd as usize));
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_getcwd(buf: *mut u8, size: *mut usize) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_getcwd(buf: *mut u8, size: *mut usize) -> Code {
     let cwd = VFS::cwd();
-    unsafe {
-        if cwd.len() + 1 > *size {
-            return Code::NoSpace;
-        }
-        buf.copy_from(cwd.as_bytes().as_ptr(), cwd.len());
-        *buf.add(cwd.len()) = 0;
-        *size = cwd.len();
+    if cwd.len() + 1 > *size {
+        return Code::NoSpace;
     }
+    buf.copy_from(cwd.as_bytes().as_ptr(), cwd.len());
+    *buf.add(cwd.len()) = 0;
+    *size = cwd.len();
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_open(pathname: *const i8, flags: OpenFlags, fd: *mut i32) -> Code {
-    unsafe {
-        let mut file = try_res!(VFS::open(util::cstr_to_str(pathname), flags));
-        file.claim();
-        *fd = file.fd() as i32;
-    }
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_open(pathname: *const i8, flags: OpenFlags, fd: *mut i32) -> Code {
+    let mut file = try_res!(VFS::open(util::cstr_to_str(pathname), flags));
+    file.claim();
+    *fd = file.fd() as i32;
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_read(fd: i32, buf: *mut libc::c_void, count: *mut usize) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_read(fd: i32, buf: *mut libc::c_void, count: *mut usize) -> Code {
     let mut file = try_res!(get_file(fd));
-    unsafe {
-        let slice = util::slice_for_mut(buf as *mut u8, *count);
-        let res = try_res!(file.read(slice));
-        *count = res;
-    }
+    let slice = util::slice_for_mut(buf as *mut u8, *count);
+    let res = try_res!(file.read(slice));
+    *count = res;
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_write(fd: i32, buf: *const libc::c_void, count: *mut usize) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_write(fd: i32, buf: *const libc::c_void, count: *mut usize) -> Code {
     let mut file = try_res!(get_file(fd));
-    unsafe {
-        let slice = util::slice_for(buf as *const u8, *count);
-        let res = try_res!(file.write(slice));
-        *count = res;
-    }
+    let slice = util::slice_for(buf as *const u8, *count);
+    let res = try_res!(file.write(slice));
+    *count = res;
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_fflush(fd: i32) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_fflush(fd: i32) -> Code {
     let mut file = try_res!(get_file(fd));
     try_res!(file.flush());
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_lseek(fd: i32, off: *mut usize, whence: SeekMode) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_lseek(fd: i32, off: *mut usize, whence: SeekMode) -> Code {
     let mut file = try_res!(get_file(fd));
-    unsafe {
-        *off = try_res!(file.seek(*off, whence));
-    }
+    *off = try_res!(file.seek(*off, whence));
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_ftruncate(fd: i32, length: usize) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_ftruncate(fd: i32, length: usize) -> Code {
     let mut file = try_res!(get_file(fd));
     try_res!(file.truncate(length));
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_truncate(pathname: *const i8, length: usize) -> Code {
-    let mut file = unsafe { try_res!(VFS::open(util::cstr_to_str(pathname), OpenFlags::W)) };
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_truncate(pathname: *const i8, length: usize) -> Code {
+    let mut file = try_res!(VFS::open(util::cstr_to_str(pathname), OpenFlags::W));
     try_res!(file.truncate(length));
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_sync(fd: i32) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_sync(fd: i32) -> Code {
     let mut file = try_res!(get_file(fd));
     try_res!(file.sync());
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_isatty(fd: i32) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_isatty(fd: i32) -> Code {
     let file = try_res!(get_file(fd));
     // try to use the get_tmode operation; only works for vterm
     try_res!(file.get_tmode());
@@ -291,61 +297,68 @@ pub extern "C" fn __m3c_isatty(fd: i32) -> Code {
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_close(fd: i32) {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_close(fd: i32) {
     Activity::own().files().remove(fd as usize);
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_waiter_create(waiter: *mut *mut libc::c_void) -> Code {
-    unsafe {
-        *waiter = Box::into_raw(Box::new(FileWaiter::default())) as *mut libc::c_void;
-    }
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_waiter_create(waiter: *mut *mut libc::c_void) -> Code {
+    *waiter = Box::into_raw(Box::new(FileWaiter::default())) as *mut libc::c_void;
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_waiter_add(waiter: *mut libc::c_void, fd: i32, events: FileEvent) {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_waiter_add(waiter: *mut libc::c_void, fd: i32, events: FileEvent) {
     let waiter = waiter as *mut FileWaiter;
-    unsafe { (*waiter).add(fd as usize, events) };
+    (*waiter).add(fd as usize, events);
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_waiter_set(waiter: *mut libc::c_void, fd: i32, events: FileEvent) {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_waiter_set(waiter: *mut libc::c_void, fd: i32, events: FileEvent) {
     let waiter = waiter as *mut FileWaiter;
-    unsafe { (*waiter).set(fd as usize, events) };
+    (*waiter).set(fd as usize, events);
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_waiter_rem(waiter: *mut libc::c_void, fd: i32) {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_waiter_rem(waiter: *mut libc::c_void, fd: i32) {
     let waiter = waiter as *mut FileWaiter;
-    unsafe { (*waiter).remove(fd as usize) };
+    (*waiter).remove(fd as usize);
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_waiter_wait(waiter: *mut libc::c_void) {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_waiter_wait(waiter: *mut libc::c_void) {
     let waiter = waiter as *mut FileWaiter;
-    unsafe { (*waiter).wait() };
+    (*waiter).wait();
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_waiter_waitfor(waiter: *mut libc::c_void, timeout: u64) {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_waiter_waitfor(waiter: *mut libc::c_void, timeout: u64) {
     let waiter = waiter as *mut FileWaiter;
-    unsafe { (*waiter).wait_for(TimeDuration::from_nanos(timeout)) };
+    (*waiter).wait_for(TimeDuration::from_nanos(timeout));
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_waiter_fetch(
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_waiter_fetch(
     waiter: *mut libc::c_void,
     arg: *mut libc::c_void,
-    cb: extern "C" fn(p: *mut libc::c_void, fd: i32, fdevs: FileEvent),
+    cb: unsafe extern "C" fn(p: *mut libc::c_void, fd: i32, fdevs: FileEvent),
 ) {
     let waiter = waiter as *mut FileWaiter;
-    unsafe { (*waiter).foreach_ready(|fd, events| cb(arg, fd as i32, events)) };
+    (*waiter).foreach_ready(|fd, events| cb(arg, fd as i32, events));
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_waiter_destroy(waiter: *mut libc::c_void) {
-    unsafe { Box::from_raw(waiter as *mut FileWaiter) };
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_waiter_destroy(waiter: *mut libc::c_void) {
+    drop(Box::from_raw(waiter as *mut FileWaiter));
 }
 
 #[repr(C)]
@@ -364,9 +377,10 @@ pub struct CompatEndpoint {
 static NETM: LazyStaticRefCell<Rc<NetworkManager>> = LazyStaticRefCell::default();
 
 #[no_mangle]
-pub extern "C" fn __m3c_init_netmng(name: *const i8) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_init_netmng(name: *const i8) -> Code {
     if !NETM.is_some() {
-        unsafe { NETM.set(try_res!(NetworkManager::new(util::cstr_to_str(name)))) };
+        NETM.set(try_res!(NetworkManager::new(util::cstr_to_str(name))));
     }
     Code::None
 }
@@ -379,7 +393,8 @@ fn create_netmng() -> Result<(), Error> {
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_socket(ty: CompatSock, fd: *mut i32) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_socket(ty: CompatSock, fd: *mut i32) -> Code {
     try_res!(create_netmng());
 
     let mut file = match ty {
@@ -392,9 +407,7 @@ pub extern "C" fn __m3c_socket(ty: CompatSock, fd: *mut i32) -> Code {
         _ => return Code::NotSup,
     };
     file.claim();
-    unsafe {
-        *fd = file.fd() as i32;
-    }
+    *fd = file.fd() as i32;
     Code::None
 }
 
@@ -413,14 +426,12 @@ impl From<Endpoint> for CompatEndpoint {
     }
 }
 
-fn m3_ep_to_compat(m3: Option<Endpoint>, compat: *mut CompatEndpoint) -> Code {
+unsafe fn m3_ep_to_compat(m3: Option<Endpoint>, compat: *mut CompatEndpoint) -> Code {
     if let Some(ep) = m3 {
-        unsafe {
-            *compat = CompatEndpoint {
-                addr: ep.addr.0,
-                port: ep.port,
-            };
-        }
+        *compat = CompatEndpoint {
+            addr: ep.addr.0,
+            port: ep.port,
+        };
         Code::None
     }
     else {
@@ -428,8 +439,8 @@ fn m3_ep_to_compat(m3: Option<Endpoint>, compat: *mut CompatEndpoint) -> Code {
     }
 }
 
-fn compat_to_m3_ep(compat: *const CompatEndpoint) -> Endpoint {
-    unsafe { Endpoint::new(IpAddr::new_from_raw((*compat).addr), (*compat).port) }
+unsafe fn compat_to_m3_ep(compat: *const CompatEndpoint) -> Endpoint {
+    Endpoint::new(IpAddr::new_from_raw((*compat).addr), (*compat).port)
 }
 
 fn with_socket<F, R>(fd: i32, ty: CompatSock, func: F) -> Result<R, Error>
@@ -444,26 +455,42 @@ where
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_get_local_ep(fd: i32, ty: CompatSock, ep: *mut CompatEndpoint) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_get_local_ep(
+    fd: i32,
+    ty: CompatSock,
+    ep: *mut CompatEndpoint,
+) -> Code {
     let m3_ep = try_res!(with_socket(fd, ty, |s| s.local_endpoint()));
     m3_ep_to_compat(m3_ep, ep)
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_get_remote_ep(fd: i32, ty: CompatSock, ep: *mut CompatEndpoint) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_get_remote_ep(
+    fd: i32,
+    ty: CompatSock,
+    ep: *mut CompatEndpoint,
+) -> Code {
     let m3_ep = try_res!(with_socket(fd, ty, |s| s.remote_endpoint()));
     m3_ep_to_compat(m3_ep, ep)
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_bind_dgram(fd: i32, ep: *const CompatEndpoint) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_bind_dgram(fd: i32, ep: *const CompatEndpoint) -> Code {
     let mut s = try_res!(get_file_as::<UdpSocket>(fd));
-    unsafe { try_res!(s.bind((*ep).port)) };
+    try_res!(s.bind((*ep).port));
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_accept_stream(port: i32, cfd: *mut i32, ep: *mut CompatEndpoint) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_accept_stream(
+    port: i32,
+    cfd: *mut i32,
+    ep: *mut CompatEndpoint,
+) -> Code {
     try_res!(create_netmng());
 
     // create a new socket for the to-be-accepted client
@@ -476,14 +503,13 @@ pub extern "C" fn __m3c_accept_stream(port: i32, cfd: *mut i32, ep: *mut CompatE
     try_res!(cs.accept());
 
     cs.claim();
-    unsafe {
-        *cfd = cs.fd() as i32;
-    }
+    *cfd = cs.fd() as i32;
     m3_ep_to_compat(cs.remote_endpoint(), ep)
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_connect(fd: i32, ty: CompatSock, ep: *const CompatEndpoint) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_connect(fd: i32, ty: CompatSock, ep: *const CompatEndpoint) -> Code {
     try_res!(try_res!(
         with_socket(fd, ty, |mut s| s.connect(compat_to_m3_ep(ep)))
     ));
@@ -491,99 +517,98 @@ pub extern "C" fn __m3c_connect(fd: i32, ty: CompatSock, ep: *const CompatEndpoi
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_sendto(
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_sendto(
     fd: i32,
     ty: CompatSock,
     buf: *const libc::c_void,
     len: *mut usize,
     dest: *const CompatEndpoint,
 ) -> Code {
-    unsafe {
-        let slice = util::slice_for(buf as *const u8, *len);
-        match ty {
-            CompatSock::DGRAM => {
-                let mut s = try_res!(get_file_as::<UdpSocket>(fd));
-                try_res!(s.send_to(slice, compat_to_m3_ep(dest)));
-                *len = slice.len();
-            },
-            CompatSock::STREAM => {
-                let mut s = try_res!(get_file_as::<TcpSocket>(fd));
-                *len = try_res!(s.send(slice));
-            },
-            _ => return Code::NotSup,
-        }
+    let slice = util::slice_for(buf as *const u8, *len);
+    match ty {
+        CompatSock::DGRAM => {
+            let mut s = try_res!(get_file_as::<UdpSocket>(fd));
+            try_res!(s.send_to(slice, compat_to_m3_ep(dest)));
+            *len = slice.len();
+        },
+        CompatSock::STREAM => {
+            let mut s = try_res!(get_file_as::<TcpSocket>(fd));
+            *len = try_res!(s.send(slice));
+        },
+        _ => return Code::NotSup,
     }
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_recvfrom(
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_recvfrom(
     fd: i32,
     ty: CompatSock,
     buf: *mut libc::c_void,
     len: *mut usize,
     ep: *mut CompatEndpoint,
 ) -> Code {
-    unsafe {
-        let slice = util::slice_for_mut(buf as *mut u8, *len);
-        match ty {
-            CompatSock::DGRAM => {
-                let mut s = try_res!(get_file_as::<UdpSocket>(fd));
-                let (res, src) = try_res!(s.recv_from(slice));
-                m3_ep_to_compat(Some(src), ep);
-                *len = res;
-            },
-            CompatSock::STREAM => {
-                let mut s = try_res!(get_file_as::<TcpSocket>(fd));
-                m3_ep_to_compat(s.remote_endpoint(), ep);
-                *len = try_res!(s.recv(slice));
-            },
-            _ => return Code::NotSup,
-        }
+    let slice = util::slice_for_mut(buf as *mut u8, *len);
+    match ty {
+        CompatSock::DGRAM => {
+            let mut s = try_res!(get_file_as::<UdpSocket>(fd));
+            let (res, src) = try_res!(s.recv_from(slice));
+            m3_ep_to_compat(Some(src), ep);
+            *len = res;
+        },
+        CompatSock::STREAM => {
+            let mut s = try_res!(get_file_as::<TcpSocket>(fd));
+            m3_ep_to_compat(s.remote_endpoint(), ep);
+            *len = try_res!(s.recv(slice));
+        },
+        _ => return Code::NotSup,
     }
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_abort_stream(fd: i32) -> Code {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_abort_stream(fd: i32) -> Code {
     let mut s = try_res!(get_file_as::<TcpSocket>(fd));
     try_res!(s.abort());
     Code::None
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_get_nanos() -> u64 {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_get_nanos() -> u64 {
     TimeInstant::now().as_nanos()
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_get_time(secs: *mut i32, nanos: *mut isize) {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_get_time(secs: *mut i32, nanos: *mut isize) {
     let now = TimeInstant::now();
-    unsafe {
-        *secs = (now.as_nanos() / 1_000_000_000) as i32;
-        *nanos = now.as_nanos() as isize - (*secs as isize * 1_000_000_000);
-    }
+    *secs = (now.as_nanos() / 1_000_000_000) as i32;
+    *nanos = now.as_nanos() as isize - (*secs as isize * 1_000_000_000);
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_sleep(secs: *mut i32, nanos: *mut isize) {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_sleep(secs: *mut i32, nanos: *mut isize) {
     let start = TimeInstant::now();
 
-    let allnanos = unsafe { *nanos as u64 + *secs as u64 * 1_000_000_000 };
+    let allnanos = *nanos as u64 + *secs as u64 * 1_000_000_000;
     Activity::own()
         .sleep_for(TimeDuration::from_nanos(allnanos))
         .unwrap();
 
     let duration = TimeInstant::now().duration_since(start);
     let remaining = TimeDuration::from_nanos(allnanos).saturating_sub(duration);
-    unsafe {
-        *secs = remaining.as_secs() as i32;
-        *nanos = remaining.as_nanos() as isize - (*secs as isize * 1_000_000_000);
-    }
+    *secs = remaining.as_secs() as i32;
+    *nanos = remaining.as_nanos() as isize - (*secs as isize * 1_000_000_000);
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_print_syscall_start(
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_print_syscall_start(
     name: *const i8,
     a: isize,
     b: isize,
@@ -594,7 +619,7 @@ pub extern "C" fn __m3c_print_syscall_start(
 ) {
     println!(
         "{}({}, {}, {}, {}, {}, {}) ...",
-        unsafe { util::cstr_to_str(name) },
+        util::cstr_to_str(name),
         a,
         b,
         c,
@@ -605,7 +630,8 @@ pub extern "C" fn __m3c_print_syscall_start(
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_print_syscall_end(
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_print_syscall_end(
     name: *const i8,
     res: isize,
     a: isize,
@@ -617,7 +643,7 @@ pub extern "C" fn __m3c_print_syscall_end(
 ) {
     println!(
         "{}({}, {}, {}, {}, {}, {}) -> {}",
-        unsafe { util::cstr_to_str(name) },
+        util::cstr_to_str(name),
         a,
         b,
         c,
@@ -629,7 +655,8 @@ pub extern "C" fn __m3c_print_syscall_end(
 }
 
 #[no_mangle]
-pub extern "C" fn __m3c_print_syscall_trace(
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn __m3c_print_syscall_trace(
     idx: usize,
     name: *const i8,
     no: isize,
@@ -639,7 +666,7 @@ pub extern "C" fn __m3c_print_syscall_trace(
     println!(
         "[{:3}] {}({}) {:011} {:011}",
         idx,
-        unsafe { util::cstr_to_str(name) },
+        util::cstr_to_str(name),
         no,
         start,
         end,

@@ -205,7 +205,7 @@ impl DataSpace {
                     let mut childs = childs::borrow_mut();
                     let child = childs
                         .child_by_id_mut(self.child)
-                        .ok_or(Error::new(Code::ActivityGone))?;
+                        .ok_or_else(|| Error::new(Code::ActivityGone))?;
                     let mgate = child.alloc_local(reg.size(), kif::Perm::RWX)?;
                     let mem = Rc::new(RefCell::new(PhysMem::new((self.owner, self.virt), mgate)?));
                     reg.set_mem(mem);
@@ -250,7 +250,7 @@ impl DataSpace {
                 let mut childs = childs::borrow_mut();
                 let child = childs
                     .child_by_id_mut(self.child)
-                    .ok_or(Error::new(Code::ActivityGone))?;
+                    .ok_or_else(|| Error::new(Code::ActivityGone))?;
                 let mgate = child.alloc_local(reg.size(), kif::Perm::RWX)?;
                 reg.set_mem(Rc::new(RefCell::new(PhysMem::new(
                     (self.owner, self.virt),

@@ -543,12 +543,8 @@ impl FileSession {
         };
 
         self.cur_bytes = 0;
-        if let Err(e) = res {
-            Err(e)
-        }
-        else {
-            stream.reply_error(Code::None)
-        }
+        res?;
+        stream.reply_error(Code::None)
     }
 
     fn commit_append(&mut self, inode: &INodeRef, submit: usize) -> Result<(), Error> {

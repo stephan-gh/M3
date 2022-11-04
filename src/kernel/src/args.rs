@@ -35,7 +35,6 @@ pub fn get() -> Ref<'static, Args> {
 pub fn parse() {
     let mut args = Args {
         kmem: 64 * 1024 * 1024,
-        ..Default::default()
     };
 
     let mut i = 1;

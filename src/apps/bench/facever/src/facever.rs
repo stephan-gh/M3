@@ -86,7 +86,7 @@ impl Node {
         src: &str,
         rgate: &'r RecvGate,
     ) -> Result<GateIStream<'r>, Error> {
-        let request = recv_msg(&rgate)?;
+        let request = recv_msg(rgate)?;
         log!(LOG_MSGS, "{} <- {}", self.name, src);
         Ok(request)
     }

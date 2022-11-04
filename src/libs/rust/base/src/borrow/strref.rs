@@ -33,7 +33,7 @@ impl<'s> Deref for StringRef<'s> {
 
     fn deref(&self) -> &Self::Target {
         match self {
-            Self::Borrowed(r) => *r,
+            Self::Borrowed(r) => r,
             Self::Owned(s) => s,
         }
     }

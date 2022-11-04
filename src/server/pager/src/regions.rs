@@ -153,7 +153,7 @@ impl Region {
                 let mut childs = childs::borrow_mut();
                 let child = childs
                     .child_by_id_mut(self.child)
-                    .ok_or(Error::new(Code::ActivityGone))?;
+                    .ok_or_else(|| Error::new(Code::ActivityGone))?;
                 let mut ngate = child.alloc_local(self.size, Perm::RWX)?;
 
                 log!(

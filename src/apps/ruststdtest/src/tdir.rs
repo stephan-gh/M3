@@ -55,15 +55,15 @@ fn listing(t: &mut dyn WvTester) {
     let mut entries = Vec::new();
     for e in wv_assert_ok!(fs::read_dir("/largedir")) {
         let file_name = e.unwrap().file_name().into_string().unwrap();
-        let no_str = wv_assert_some!(file_name.splitn(2, '.').next());
+        let no_str = wv_assert_some!(file_name.split('.').next());
         let no = wv_assert_ok!(no_str.parse::<usize>());
         entries.push(no);
     }
 
     wv_assert_eq!(t, entries.len(), 80);
     entries.sort();
-    for i in 0..80 {
-        wv_assert_eq!(t, entries[i], i);
+    for (i, entry) in entries.iter().enumerate().take(80) {
+        wv_assert_eq!(t, *entry, i);
     }
 }
 

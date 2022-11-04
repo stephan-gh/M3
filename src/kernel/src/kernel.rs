@@ -44,8 +44,6 @@ use base::util::math;
 
 use core::ptr;
 
-use paging;
-
 use crate::tiles::{tilemng, ActivityMng};
 
 extern "C" {

@@ -23,9 +23,9 @@ use base::mem::GlobAddr;
 use base::tcu;
 use base::util::math;
 
-use crate::mem;
-use crate::paging::{self, AddrSpace, Allocator, Phys};
+use paging::{self, AddrSpace, Allocator, Phys};
 
+use crate::mem;
 use crate::tiles;
 
 extern "C" {

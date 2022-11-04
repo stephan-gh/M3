@@ -95,7 +95,7 @@ pub fn load_program(
             continue;
         }
 
-        load_segment(act, mapper, file, &phdr, &mut *buf)?;
+        load_segment(act, mapper, file, &phdr, &mut buf)?;
 
         end = phdr.vaddr + phdr.memsz as usize;
     }
