@@ -18,13 +18,11 @@
 
 #![no_std]
 
-use m3::cell::StaticRefCell;
 use m3::col::{String, ToString, Vec};
 use m3::com::{recv_msg, GateIStream, MemGate, RGateArgs, RecvGate, SendGate};
 use m3::errors::Error;
-use m3::goff;
 use m3::kif::Perm;
-use m3::mem::{size_of, AlignedBuf, MsgBuf};
+use m3::mem::{size_of, MsgBuf};
 use m3::tcu;
 use m3::tiles::Activity;
 use m3::time::{CycleInstant, Profiler, TimeDuration, TimeInstant};
@@ -35,8 +33,6 @@ use m3::{log, vec, wv_perf};
 const LOG_MSGS: bool = false;
 const LOG_MEM: bool = false;
 const LOG_COMP: bool = false;
-
-static BUF: StaticRefCell<AlignedBuf<4096>> = StaticRefCell::new(AlignedBuf::new_zeroed());
 
 fn create_reply_gate(ctrl_msg_size: usize) -> Result<RecvGate, Error> {
     let mut reply_gate = RecvGate::new_with(
@@ -51,13 +47,19 @@ fn create_reply_gate(ctrl_msg_size: usize) -> Result<RecvGate, Error> {
 struct Node {
     name: String,
     ctrl_msg: MsgBuf,
+    data_buf: Vec<u8>,
 }
 
 impl Node {
-    fn new(name: String, ctrl_msg_size: usize) -> Self {
+    fn new(name: String, ctrl_msg_size: usize, data_size: usize) -> Self {
         let mut ctrl_msg = MsgBuf::new();
         ctrl_msg.set(vec![0u8; ctrl_msg_size]);
-        Self { name, ctrl_msg }
+        let data_buf = vec![0u8; data_size];
+        Self {
+            name,
+            ctrl_msg,
+            data_buf,
+        }
     }
 
     fn compute_for(&self, duration: TimeDuration) {
@@ -110,13 +112,7 @@ impl Node {
 
     fn write_to(&self, dest: &str, mgate: &MemGate, data_size: usize) -> Result<(), Error> {
         log!(LOG_MEM, "{}: writing to {}", self.name, dest);
-        let mut count = 0;
-        while count < data_size {
-            let amount = BUF.borrow().len().min(data_size - count);
-            mgate.write_bytes(BUF.borrow().as_ptr(), amount, count as goff)?;
-            count += amount;
-        }
-        Ok(())
+        mgate.write(&self.data_buf[0..data_size], 0)
     }
 }
 
@@ -132,7 +128,7 @@ fn client(args: &[&str]) {
         .parse::<u64>()
         .expect("Unable to parse number of runs");
 
-    let node = Node::new("client".to_string(), ctrl_msg_size);
+    let node = Node::new("client".to_string(), ctrl_msg_size, 0);
 
     let reply_gate = create_reply_gate(ctrl_msg_size).expect("Unable to create reply RecvGate");
     let sgate = SendGate::new_named("req").expect("Unable to create named SendGate req");
@@ -157,7 +153,7 @@ fn frontend(args: &[&str]) {
         .parse::<usize>()
         .expect("Unable to parse control message size");
 
-    let node = Node::new("frontend".to_string(), ctrl_msg_size);
+    let node = Node::new("frontend".to_string(), ctrl_msg_size, 0);
 
     let fs_sgate = SendGate::new_named("fs").expect("Unable to create named SendGate fs");
     let storage_sgate =
@@ -203,7 +199,7 @@ fn fs(args: &[&str]) {
         .parse::<u64>()
         .expect("Unable to parse compute time");
 
-    let node = Node::new("fs".to_string(), ctrl_msg_size);
+    let node = Node::new("fs".to_string(), ctrl_msg_size, 0);
 
     let mut req_rgate = RecvGate::new_named("fs").expect("Unable to create named RecvGate fs");
     req_rgate.activate().expect("Unable to activate RecvGate");
@@ -231,7 +227,7 @@ fn gpu(args: &[&str]) {
         .parse::<u64>()
         .expect("Unable to parse compute time");
 
-    let node = Node::new("gpu".to_string(), ctrl_msg_size);
+    let node = Node::new("gpu".to_string(), ctrl_msg_size, 0);
 
     let res_sgate = SendGate::new_named("gpures").expect("Unable to create named SendGate gpures");
 
@@ -268,7 +264,7 @@ fn storage(args: &[&str]) {
         .parse::<u64>()
         .expect("Unable to parse compute time");
 
-    let node = Node::new("storage".to_string(), ctrl_msg_size);
+    let node = Node::new("storage".to_string(), ctrl_msg_size, data_size);
 
     let mem_gate = MemGate::new(data_size, Perm::W).expect("Unable to create memory gate");
 
