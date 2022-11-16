@@ -24,11 +24,10 @@ use m3::errors::Error;
 use m3::kif::Perm;
 use m3::mem::{size_of, MsgBuf};
 use m3::tcu;
-use m3::tiles::Activity;
-use m3::time::{CycleInstant, Profiler, TimeDuration, TimeInstant};
+use m3::time::{CycleDuration, CycleInstant, Duration};
 use m3::util::math::next_log2;
 use m3::{env, reply_vmsg};
-use m3::{log, vec, wv_perf};
+use m3::{log, println, vec};
 
 const LOG_MSGS: bool = false;
 const LOG_MEM: bool = false;
@@ -62,25 +61,11 @@ impl Node {
         }
     }
 
-    fn compute_for(&self, duration: TimeDuration) {
-        log!(
-            LOG_COMP,
-            "{}: computing for {}ms",
-            self.name,
-            duration.as_millis()
-        );
+    fn compute_for(&self, duration: CycleDuration) {
+        log!(LOG_COMP, "{}: computing for {:?}", self.name, duration);
 
-        let end = TimeInstant::now() + duration;
-        loop {
-            let now = TimeInstant::now();
-            if now >= end {
-                break;
-            }
-
-            Activity::own()
-                .sleep_for(end - now)
-                .expect("Unable to wait");
-        }
+        let end = CycleInstant::now().as_cycles() + duration.as_raw();
+        while CycleInstant::now().as_cycles() < end {}
     }
 
     fn receive_request<'r>(
@@ -133,15 +118,18 @@ fn client(args: &[&str]) {
     let reply_gate = create_reply_gate(ctrl_msg_size).expect("Unable to create reply RecvGate");
     let sgate = SendGate::new_named("req").expect("Unable to create named SendGate req");
 
-    let mut prof = Profiler::default().repeats(runs).warmup(4);
+    for _ in 0..runs {
+        let start = CycleInstant::now();
 
-    wv_perf!(
-        "faceverification",
-        prof.run::<CycleInstant, _>(|| {
-            node.call_and_ack("frontend", &sgate, &reply_gate)
-                .expect("Request failed");
-        })
-    );
+        node.call_and_ack("frontend", &sgate, &reply_gate)
+            .expect("Request failed");
+
+        let duration = CycleInstant::now().duration_since(start);
+        // compensate for running on a 100MHz core (in contrast to the computing computes that run
+        // on a 80MHz core).
+        let duration = ((duration.as_raw() as f64) * 0.8) as u64;
+        println!("total: {}", duration);
+    }
 }
 
 fn frontend(args: &[&str]) {
@@ -208,7 +196,7 @@ fn fs(args: &[&str]) {
             .receive_request("frontend", &req_rgate)
             .expect("Receiving request failed");
 
-        node.compute_for(TimeDuration::from_millis(compute_time));
+        node.compute_for(CycleDuration::from_raw(compute_time));
 
         node.send_reply("frontend", &mut request)
             .expect("Reply to frontend failed");
@@ -241,7 +229,7 @@ fn gpu(args: &[&str]) {
             .expect("Receiving request failed");
         reply_vmsg!(request, 0).expect("Reply to storage failed");
 
-        node.compute_for(TimeDuration::from_millis(compute_time));
+        node.compute_for(CycleDuration::from_raw(compute_time));
 
         node.call_and_ack("frontend", &res_sgate, &reply_gate)
             .expect("GPU-result send failed");
@@ -266,7 +254,12 @@ fn storage(args: &[&str]) {
 
     let node = Node::new("storage".to_string(), ctrl_msg_size, data_size);
 
-    let mem_gate = MemGate::new(data_size, Perm::W).expect("Unable to create memory gate");
+    let mem_gate = if data_size > 0 {
+        Some(MemGate::new(data_size, Perm::W).expect("Unable to create memory gate"))
+    }
+    else {
+        None
+    };
 
     let gpu_sgate = SendGate::new_named("gpu").expect("Unable to create named SendGate gpures");
 
@@ -281,10 +274,15 @@ fn storage(args: &[&str]) {
             .expect("Receiving request failed");
         reply_vmsg!(request, 0).expect("Reply to frontend failed");
 
-        node.compute_for(TimeDuration::from_millis(compute_time));
+        node.compute_for(CycleDuration::from_raw(compute_time));
 
-        node.write_to("gpu", &mem_gate, data_size)
-            .expect("Writing data failed");
+        if let Some(ref mg) = mem_gate {
+            let start = CycleInstant::now();
+            node.write_to("gpu", mg, data_size)
+                .expect("Writing data failed");
+            let duration = CycleInstant::now().duration_since(start);
+            println!("xfer: {:?}", duration);
+        }
 
         node.call_and_ack("gpu", &gpu_sgate, &reply_gate)
             .expect("GPU request failed");
