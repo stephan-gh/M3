@@ -102,14 +102,17 @@ impl Node {
 }
 
 fn client(args: &[&str]) {
-    if args.len() != 4 {
-        panic!("Usage: {} <ctrl-msg-size> <runs>", args[0]);
+    if args.len() != 5 {
+        panic!("Usage: {} <ctrl-msg-size> <all-compute> <runs>", args[0]);
     }
 
     let ctrl_msg_size = args[2]
         .parse::<usize>()
         .expect("Unable to parse control message size");
-    let runs = args[3]
+    let compute_time = args[3]
+        .parse::<u64>()
+        .expect("Unable to parse compute time");
+    let runs = args[4]
         .parse::<u64>()
         .expect("Unable to parse number of runs");
 
@@ -129,6 +132,7 @@ fn client(args: &[&str]) {
         // on a 80MHz core).
         let duration = ((duration.as_raw() as f64) * 0.8) as u64;
         println!("total: {}", duration);
+        println!("compute: {}", compute_time);
     }
 }
 
