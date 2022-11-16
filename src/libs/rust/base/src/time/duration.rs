@@ -14,6 +14,7 @@
  */
 
 use core::fmt;
+use core::ops::{Add, AddAssign};
 
 use crate::time::TimeDuration;
 
@@ -54,6 +55,21 @@ impl Duration for CycleDuration {
 
     fn as_raw(&self) -> u64 {
         self.0
+    }
+}
+
+impl Add for CycleDuration {
+    type Output = CycleDuration;
+
+    fn add(mut self, rhs: CycleDuration) -> CycleDuration {
+        self.0 += rhs.0;
+        self
+    }
+}
+
+impl AddAssign for CycleDuration {
+    fn add_assign(&mut self, rhs: CycleDuration) {
+        self.0 += rhs.0;
     }
 }
 
