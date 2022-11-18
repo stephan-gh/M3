@@ -11,18 +11,18 @@
                 </app>
             </dom>
             <dom>
-                <app args="facever fs 256 10" daemon="1">
+                <app args="facever fs 256 0" daemon="1">
                     <rgate name="fs" msgsize="512" slots="1" />
                 </app>
             </dom>
             <dom>
-                <app args="facever gpu 256 10" daemon="1">
+                <app args="facever gpu 256 0" daemon="1">
                     <rgate name="gpu" msgsize="512" slots="1" />
                     <sgate name="gpures" />
                 </app>
             </dom>
             <dom>
-                <app args="facever storage 256 1048576 5" daemon="1">
+                <app args="facever storage 256 1048576 0" daemon="1">
                     <rgate name="storage" msgsize="512" slots="1" />
                     <sgate name="gpu" />
                 </app>

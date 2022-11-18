@@ -34,7 +34,7 @@ pub fn main() -> i32 {
     let mgate = MemGate::new(buf.len(), kif::Perm::W).expect("Unable to create mgate");
 
     for i in 0..=28 {
-        let mut prof = Profiler::default().repeats(8).warmup(1);
+        let mut prof = Profiler::default().repeats(10).warmup(2);
         let size = 1 << i;
         let cur_buf = &buf[0..buf.len().min(size)];
 

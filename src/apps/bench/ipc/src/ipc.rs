@@ -40,7 +40,7 @@ pub fn main() -> i32 {
 
     const MSG_ORD: u32 = next_log2(2048);
     const RUNS: u64 = 1000;
-    const WARMUP: u64 = 10;
+    const WARMUP: u64 = 100;
     const MAX_MSG_SIZE: usize = 2048 - size_of::<tcu::Header>();
 
     let rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
