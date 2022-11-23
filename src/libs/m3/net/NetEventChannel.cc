@@ -70,7 +70,7 @@ bool NetEventChannel::can_send() const noexcept {
     return _sgate.can_send();
 }
 
-bool NetEventChannel::has_events() const noexcept {
+bool NetEventChannel::has_events() noexcept {
     return _rgate.has_msgs();
 }
 

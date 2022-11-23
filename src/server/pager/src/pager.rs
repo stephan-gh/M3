@@ -65,7 +65,7 @@ impl PagerReqHandler {
         let crt = self.sessions.get(sid).unwrap().creator();
         self.sessions.remove(crt, sid);
         // ignore all potentially outstanding messages of this session
-        rgate.drop_msgs_with(sid as Label);
+        rgate.drop_msgs_with(sid as Label).unwrap();
     }
 }
 
@@ -332,17 +332,20 @@ pub fn main() -> i32 {
             .expect("Unable to create request handler"),
     );
 
-    let mut req_rgate = RecvGate::new(
+    let req_rgate = RecvGate::new(
         math::next_log2(256 * args.max_clients),
         math::next_log2(256),
     )
     .expect("Unable to create resmng RecvGate");
+    // manually activate the RecvGate here, because it requires quite a lot of EPs and we are
+    // potentially moving (<EPs left> - 16) EPs to a child activity. therefore, we should allocate
+    // all EPs before starting childs.
     req_rgate
         .activate()
         .expect("Unable to activate resmng RecvGate");
     requests::init(req_rgate);
 
-    let mut squeue_rgate = RecvGate::new(
+    let squeue_rgate = RecvGate::new(
         math::next_log2(sendqueue::RBUF_MSG_SIZE * args.max_clients),
         math::next_log2(sendqueue::RBUF_MSG_SIZE),
     )

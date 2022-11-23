@@ -53,8 +53,7 @@ pub fn main() -> i32 {
 
     let act = wv_assert_ok!(act.run(|| {
         let rgate_sel: Selector = Activity::own().data_source().pop().unwrap();
-        let mut rgate = RecvGate::new_bind(rgate_sel);
-        wv_assert_ok!(rgate.activate());
+        let rgate = RecvGate::new_bind(rgate_sel);
 
         for i in 0..=MSG_ORD {
             let size = (1 << i).min(MAX_MSG_SIZE);
@@ -66,8 +65,7 @@ pub fn main() -> i32 {
         0
     }));
 
-    let mut reply_gate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
-    wv_assert_ok!(reply_gate.activate());
+    let reply_gate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
 
     for i in 0..=MSG_ORD {
         let mut prof = Profiler::default().repeats(RUNS).warmup(WARMUP);

@@ -137,7 +137,7 @@ pub struct NetEventChannel {
 
 impl NetEventChannel {
     pub fn new_server(caps: Selector) -> Result<Rc<Self>, Error> {
-        let mut rgate = RecvGate::new_with(
+        let rgate = RecvGate::new_with(
             RGateArgs::default()
                 .sel(caps + 0)
                 .msg_order(math::next_log2(MSG_SIZE))
@@ -165,8 +165,7 @@ impl NetEventChannel {
                 .credits(MSG_CREDITS as u32),
         )?;
 
-        let mut rpl_gate =
-            RecvGate::new(math::next_log2(REPLY_BUF_SIZE), math::next_log2(REPLY_SIZE))?;
+        let rpl_gate = RecvGate::new(math::next_log2(REPLY_BUF_SIZE), math::next_log2(REPLY_SIZE))?;
         rpl_gate.activate()?;
 
         Ok(Rc::new(Self {
@@ -178,11 +177,10 @@ impl NetEventChannel {
     }
 
     pub fn new_client(caps: Selector) -> Result<Rc<Self>, Error> {
-        let mut rgate = RecvGate::new_bind(caps + 0);
+        let rgate = RecvGate::new_bind(caps + 0);
         rgate.activate()?;
 
-        let mut rpl_gate =
-            RecvGate::new(math::next_log2(REPLY_BUF_SIZE), math::next_log2(REPLY_SIZE))?;
+        let rpl_gate = RecvGate::new(math::next_log2(REPLY_BUF_SIZE), math::next_log2(REPLY_SIZE))?;
         rpl_gate.activate()?;
 
         Ok(Rc::new(Self {
@@ -212,17 +210,19 @@ impl NetEventChannel {
     }
 
     pub fn has_events(&self) -> bool {
-        self.rgate.has_msgs()
+        self.rgate.has_msgs().unwrap()
     }
 
     pub fn has_all_credits(&self) -> bool {
         self.sgate.credits().unwrap() == MSG_CREDITS as u32
     }
 
-    pub fn receive_event(self: &Rc<Self>) -> Option<NetEvent> {
-        self.rgate
-            .fetch()
-            .map(|msg| NetEvent::new(msg, self.clone()))
+    pub fn fetch_event(self: &Rc<Self>) -> Option<NetEvent> {
+        match self.rgate.fetch() {
+            Err(e) if e.code() == Code::NotFound => None,
+            Err(_) => panic!("unexpected error in fetch_event"),
+            Ok(msg) => Some(NetEvent::new(msg, self.clone())),
+        }
     }
 
     pub fn send_event<E>(&self, event: E) -> Result<(), Error> {
@@ -274,7 +274,7 @@ impl NetEventChannel {
     }
 
     pub fn fetch_replies(&self) {
-        while let Some(reply) = self.rpl_gate.fetch() {
+        while let Ok(reply) = self.rpl_gate.fetch() {
             self.rpl_gate.ack_msg(reply).unwrap();
         }
     }

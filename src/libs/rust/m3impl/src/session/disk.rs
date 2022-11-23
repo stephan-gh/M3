@@ -92,7 +92,7 @@ impl Disk {
         let sess = ClientSession::new(name)?;
 
         // create receive gate for the responses
-        let mut rgate = RecvGate::new(
+        let rgate = RecvGate::new(
             math::next_log2(MSG_SIZE * MSG_SLOTS),
             math::next_log2(MSG_SIZE),
         )?;

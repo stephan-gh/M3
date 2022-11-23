@@ -134,7 +134,7 @@ impl Device {
         )?;
         let sep = EpMng::acquire_for(act_sel, EP_INT, 0)?;
         let mep = EpMng::acquire_for(act_sel, EP_DMA, 0)?;
-        let mut rgate = RecvGate::new(math::next_log2(BUF_SIZE), math::next_log2(MSG_SIZE))?;
+        let rgate = RecvGate::new(math::next_log2(BUF_SIZE), math::next_log2(MSG_SIZE))?;
         let sgate = SendGate::new(&rgate)?;
         rgate.activate()?;
         sep.configure(sgate.sel())?;
@@ -154,7 +154,7 @@ impl Device {
     }
 
     pub fn check_for_irq(&self) -> bool {
-        if let Some(msg) = self.rgate.fetch() {
+        if let Ok(msg) = self.rgate.fetch() {
             self.rgate.ack_msg(msg).unwrap();
             true
         }

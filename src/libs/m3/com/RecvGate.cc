@@ -150,7 +150,8 @@ void RecvGate::stop() noexcept {
     _workitem.reset();
 }
 
-void RecvGate::wait_for_msg() const {
+void RecvGate::wait_for_msg() {
+    activate();
     Activity::wait_for_msg(ep()->id());
 }
 
@@ -162,7 +163,8 @@ const TCU::Message *RecvGate::fetch() {
     return nullptr;
 }
 
-bool RecvGate::has_msgs() const {
+bool RecvGate::has_msgs() {
+    activate();
     return TCU::get().has_msgs(ep()->id());
 }
 

@@ -20,7 +20,7 @@ use core::fmt;
 use core::ops;
 
 use crate::cap::{CapFlags, Selector};
-use crate::cell::{Cell, LazyReadOnlyCell};
+use crate::cell::{Cell, LazyReadOnlyCell, RefCell};
 use crate::cfg;
 use crate::com::rbufs::{alloc_rbuf, free_rbuf};
 use crate::com::{gate::Gate, RecvBuf, SendGate};
@@ -40,12 +40,18 @@ static SYS_RGATE: LazyReadOnlyCell<RecvGate> = LazyReadOnlyCell::default();
 static UPC_RGATE: LazyReadOnlyCell<RecvGate> = LazyReadOnlyCell::default();
 static DEF_RGATE: LazyReadOnlyCell<RecvGate> = LazyReadOnlyCell::default();
 
+#[derive(Debug)]
+enum RGateBuf {
+    Allocated(RecvBuf),
+    Manual(usize),
+    Invalid,
+}
+
 /// A receive gate (`RecvGate`) can receive messages via TCU from connected [`SendGate`]s and can
 /// reply on the received messages.
 pub struct RecvGate {
     gate: Gate,
-    buf: Option<RecvBuf>,
-    buf_addr: Option<usize>,
+    buf: RefCell<RGateBuf>,
     order: Cell<Option<u32>>,
     msg_order: Cell<Option<u32>>,
 }
@@ -130,8 +136,7 @@ impl RecvGate {
     const fn new_def(sel: Selector, ep: tcu::EpId, addr: usize, order: u32) -> Self {
         RecvGate {
             gate: Gate::new_with_ep(sel, CapFlags::KEEP_CAP, ep),
-            buf: None,
-            buf_addr: Some(addr),
+            buf: RefCell::new(RGateBuf::Manual(addr)),
             order: Cell::new(Some(order)),
             msg_order: Cell::new(Some(order)),
         }
@@ -155,8 +160,7 @@ impl RecvGate {
         syscalls::create_rgate(sel, args.order, args.msg_order)?;
         Ok(RecvGate {
             gate: Gate::new(sel, args.flags),
-            buf: None,
-            buf_addr: None,
+            buf: RefCell::new(RGateBuf::Invalid),
             order: Cell::new(Some(args.order)),
             msg_order: Cell::new(Some(args.msg_order)),
         })
@@ -168,8 +172,7 @@ impl RecvGate {
         let (order, msg_order) = Activity::own().resmng().unwrap().use_rgate(sel, name)?;
         Ok(RecvGate {
             gate: Gate::new(sel, CapFlags::empty()),
-            buf: None,
-            buf_addr: None,
+            buf: RefCell::new(RGateBuf::Invalid),
             order: Cell::new(Some(order)),
             msg_order: Cell::new(Some(msg_order)),
         })
@@ -179,8 +182,7 @@ impl RecvGate {
     pub fn new_bind(sel: Selector) -> Self {
         RecvGate {
             gate: Gate::new(sel, CapFlags::KEEP_CAP),
-            buf: None,
-            buf_addr: None,
+            buf: RefCell::new(RGateBuf::Invalid),
             order: Cell::new(None),
             msg_order: Cell::new(None),
         }
@@ -206,52 +208,73 @@ impl RecvGate {
     }
 
     /// Returns the size of the receive buffer in bytes
+    #[inline(always)]
     pub fn size(&self) -> Result<usize, Error> {
         self.fetch_buffer_size()?;
         Ok(1 << self.order.get().unwrap())
     }
 
     /// Returns the maximum message size
+    #[inline(always)]
     pub fn max_msg_size(&self) -> Result<usize, Error> {
         self.fetch_buffer_size()?;
         Ok(1 << self.msg_order.get().unwrap())
     }
 
     /// Returns the address of the receive buffer
+    #[inline(always)]
     pub fn address(&self) -> Option<usize> {
-        self.buf_addr
+        match *self.buf.borrow() {
+            RGateBuf::Invalid => None,
+            RGateBuf::Manual(addr) => Some(addr),
+            RGateBuf::Allocated(ref buf) => Some(buf.addr()),
+        }
+    }
+
+    #[inline(always)]
+    pub(crate) fn ensure_activated(&self) -> Result<tcu::EpId, Error> {
+        match self.ep() {
+            Some(ep) => Ok(ep),
+            None => self.activate(),
+        }
     }
 
     /// Activates this receive gate. Activation is required before [`SendGate`]s connected to this
     /// `RecvGate` can be activated.
-    pub fn activate(&mut self) -> Result<(), Error> {
-        if self.ep().is_none() {
-            let size = self.size()?;
-            if self.buf.is_none() {
-                let buf = alloc_rbuf(size)?;
-                self.buf_addr = Some(buf.addr());
-                self.buf = Some(buf);
-            }
+    #[cold]
+    pub fn activate(&self) -> Result<tcu::EpId, Error> {
+        match self.ep() {
+            Some(ep) => Ok(ep),
+            None => {
+                let size = self.size()?;
+                if matches!(*self.buf.borrow(), RGateBuf::Invalid) {
+                    let buf = alloc_rbuf(size)?;
+                    *self.buf.borrow_mut() = RGateBuf::Allocated(buf);
+                }
 
-            let buf = self.buf.as_ref().unwrap();
-            let replies = 1 << (self.order.get().unwrap() - self.msg_order.get().unwrap());
-            self.gate.activate_rgate(buf.mem(), buf.off(), replies)?;
+                if let RGateBuf::Allocated(ref buf) = *self.buf.borrow() {
+                    let replies = 1 << (self.order.get().unwrap() - self.msg_order.get().unwrap());
+                    self.gate.activate_rgate(buf.mem(), buf.off(), replies)
+                }
+                else {
+                    panic!("Expected allocated buffer");
+                }
+            },
         }
-
-        Ok(())
     }
 
     /// Activates this receive gate with given receive buffer
     pub fn activate_with(
-        &mut self,
+        &self,
         mem: Option<Selector>,
         off: goff,
         addr: usize,
-    ) -> Result<(), Error> {
+    ) -> Result<tcu::EpId, Error> {
         self.fetch_buffer_size()?;
         let replies = 1 << (self.order.get().unwrap() - self.msg_order.get().unwrap());
-        self.gate.activate_rgate(mem, off, replies).map(|_| {
-            self.buf_addr = Some(addr);
+        self.gate.activate_rgate(mem, off, replies).map(|ep| {
+            *self.buf.borrow_mut() = RGateBuf::Manual(addr);
+            ep
         })
     }
 
@@ -261,15 +284,18 @@ impl RecvGate {
     }
 
     /// Returns true if there are messages that can be fetched
-    pub fn has_msgs(&self) -> bool {
-        tcu::TCU::has_msgs(self.ep().unwrap())
+    #[inline(always)]
+    pub fn has_msgs(&self) -> Result<bool, Error> {
+        Ok(tcu::TCU::has_msgs(self.ensure_activated()?))
     }
 
     /// Tries to fetch a message from the receive gate. If there is an unread message, it returns
     /// a reference to the message. Otherwise it returns None.
-    pub fn fetch(&self) -> Option<&'static tcu::Message> {
-        tcu::TCU::fetch_msg(self.ep().unwrap())
+    #[inline(always)]
+    pub fn fetch(&self) -> Result<&'static tcu::Message, Error> {
+        tcu::TCU::fetch_msg(self.ensure_activated()?)
             .map(|off| tcu::TCU::offset_to_msg(self.address().unwrap(), off))
+            .ok_or(Error::new(Code::NotFound))
     }
 
     /// Sends `reply` as a reply to the message `msg`.
@@ -306,7 +332,7 @@ impl RecvGate {
     /// communication partner is no longer interested in the communication.
     #[inline(always)]
     pub fn receive(&self, sgate: Option<&SendGate>) -> Result<&'static tcu::Message, Error> {
-        let rep = self.ep().unwrap();
+        let rep = self.ensure_activated()?;
         // if the tile is shared with someone else that wants to run, poll a couple of times to
         // prevent too frequent/unnecessary switches.
         let polling = if env::get().shared() { 200 } else { 1 };
@@ -330,8 +356,9 @@ impl RecvGate {
     }
 
     /// Drops all messages with given label. That is, these messages will be marked as read.
-    pub fn drop_msgs_with(&self, label: tcu::Label) {
+    pub fn drop_msgs_with(&self, label: tcu::Label) -> Result<(), Error> {
         tcu::TCU::drop_msgs_with(self.address().unwrap(), self.ep().unwrap(), label);
+        Ok(())
     }
 }
 
@@ -370,7 +397,7 @@ pub(crate) fn pre_init() {
 impl ops::Drop for RecvGate {
     fn drop(&mut self) {
         self.deactivate();
-        if let Some(b) = self.buf.take() {
+        if let RGateBuf::Allocated(ref b) = *self.buf.borrow() {
             free_rbuf(b);
         }
     }

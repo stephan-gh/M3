@@ -144,13 +144,12 @@ fn tcu_sender(sgate: &SendGate, wl: &str, repeats: u32) {
     // Mount fs to load binary data
     m3::vfs::VFS::mount("/", "m3fs", "m3fs").expect("Failed to mount root filesystem on server");
 
-    let mut reply_gate = RecvGate::new_with(
+    let reply_gate = RecvGate::new_with(
         RGateArgs::default()
             .order(next_log2(2048))
             .msg_order(next_log2(2048)),
     )
     .expect("Unable to create RecvGate");
-    reply_gate.activate().expect("Unable to activate RecvGate");
 
     static BUF: StaticRefCell<AlignedBuf<2048>> = StaticRefCell::new(AlignedBuf::new_zeroed());
 

@@ -45,7 +45,7 @@ fn destroy(t: &mut dyn WvTester) {
     let mut child = wv_assert_ok!(ChildActivity::new(tile, "test"));
 
     let act = {
-        let mut rg = wv_assert_ok!(RecvGate::new_with(
+        let rg = wv_assert_ok!(RecvGate::new_with(
             RGateArgs::default().order(6).msg_order(6)
         ));
         // TODO actually, we could create it in the child, but this is not possible in rust atm
@@ -74,8 +74,6 @@ fn destroy(t: &mut dyn WvTester) {
             );
             0
         }));
-
-        wv_assert_ok!(rg.activate());
 
         for i in 0..10 {
             let mut msg = wv_assert_ok!(recv_msg(&rg));

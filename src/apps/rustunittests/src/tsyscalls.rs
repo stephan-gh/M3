@@ -65,7 +65,7 @@ pub fn run(t: &mut dyn WvTester) {
 
 fn create_srv(t: &mut dyn WvTester) {
     let sel = Activity::own().alloc_sel();
-    let mut rgate = wv_assert_ok!(RecvGate::new(10, 10));
+    let rgate = wv_assert_ok!(RecvGate::new(10, 10));
 
     // invalid dest selector
     wv_assert_err!(
@@ -226,7 +226,7 @@ fn create_rgate(t: &mut dyn WvTester) {
 
 fn create_sess(t: &mut dyn WvTester) {
     let srv = Activity::own().alloc_sel();
-    let mut rgate = wv_assert_ok!(RecvGate::new(10, 10));
+    let rgate = wv_assert_ok!(RecvGate::new(10, 10));
     wv_assert_ok!(rgate.activate());
     wv_assert_ok!(syscalls::create_srv(srv, rgate.sel(), "test", 0,));
 
@@ -494,7 +494,7 @@ fn activate(t: &mut dyn WvTester) {
     let ep4 = wv_assert_ok!(Activity::own().epmng_mut().acquire(2));
     let sel = Activity::own().alloc_sel();
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
-    let mut rgate = wv_assert_ok!(RecvGate::new(5, 5));
+    let rgate = wv_assert_ok!(RecvGate::new(5, 5));
     let sgate = wv_assert_ok!(SendGate::new(&rgate));
 
     // invalid EP sel

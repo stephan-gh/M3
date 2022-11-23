@@ -106,15 +106,13 @@ fn server_msgs_main() -> i32 {
     };
     let s = wv_assert_ok!(Server::new("test", &mut hdl));
 
-    let mut rgate = wv_assert_ok!(RecvGate::new(next_log2(256), next_log2(256)));
-    wv_assert_ok!(rgate.activate());
-    RGATE.set(rgate);
+    RGATE.set(wv_assert_ok!(RecvGate::new(next_log2(256), next_log2(256))));
 
     server_loop(|| {
         s.handle_ctrl_chan(&mut hdl)?;
 
         let rgate = RGATE.borrow();
-        if let Some(msg) = rgate.fetch() {
+        if let Ok(msg) = rgate.fetch() {
             let mut is = GateIStream::new(msg, &rgate);
             if let Err(e) = hdl.handle_msg(&mut is) {
                 is.reply_error(e.code()).ok();

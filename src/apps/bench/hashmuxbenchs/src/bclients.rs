@@ -38,12 +38,10 @@ pub fn run(t: &mut dyn WvTester) {
 
 fn _create_rgate(max_clients: usize) -> RecvGate {
     let msg_size = math::next_log2(mem::size_of::<tcu::Header>() + mem::size_of::<u64>());
-    let mut rgate = wv_assert_ok!(RecvGate::new(
+    wv_assert_ok!(RecvGate::new(
         math::next_log2(max_clients) + msg_size,
         msg_size
-    ));
-    wv_assert_ok!(rgate.activate());
-    rgate
+    ))
 }
 
 struct Client {

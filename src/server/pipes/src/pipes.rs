@@ -108,7 +108,7 @@ impl PipesHandler {
                 let crt = sess.creator();
                 self.sessions.remove(crt, id);
                 // ignore all potentially outstanding messages of this session
-                rgate.drop_msgs_with(id as Label);
+                rgate.drop_msgs_with(id as Label).unwrap();
             }
         }
         Ok(())

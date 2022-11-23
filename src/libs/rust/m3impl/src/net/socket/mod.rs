@@ -286,7 +286,7 @@ impl BaseSocket {
     fn process_events(&mut self) -> bool {
         let mut res = false;
         for _ in 0..EVENT_FETCH_BATCH_SIZE {
-            if let Some(event) = self.channel.receive_event() {
+            if let Some(event) = self.channel.fetch_event() {
                 self.process_event(event);
                 res = true;
             }

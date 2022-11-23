@@ -410,7 +410,7 @@ impl VTermHandler {
                 }
 
                 // ignore all potentially outstanding messages of this session
-                rgate.drop_msgs_with(id as Label);
+                rgate.drop_msgs_with(id as Label).unwrap();
             }
         }
         Ok(())
@@ -512,7 +512,7 @@ impl Handler<VTermSession> for VTermHandler {
                     }
 
                     let sel = Activity::own().alloc_sel();
-                    let mut rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
+                    let rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
                     rgate.activate()?;
                     c.notify_gates = Some((rgate, SendGate::new_bind(sel)));
                     xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
@@ -561,7 +561,7 @@ fn receive_acks(hdl: &mut VTermHandler) {
     hdl.sessions.for_each(|s| match &mut s.data {
         SessionData::Chan(c) => {
             if let Some((rg, _sg)) = &c.notify_gates {
-                if let Some(msg) = rg.fetch() {
+                if let Ok(msg) = rg.fetch() {
                     rg.ack_msg(msg).unwrap();
                     // try again to send events, if there are some
                     c.send_events();
@@ -643,19 +643,16 @@ pub fn main() -> i32 {
     REQHDL.set(RequestHandler::default().expect("Unable to create request handler"));
 
     let sel = Activity::own().alloc_sel();
-    let mut serial_gate = Activity::own()
+    let serial_gate = Activity::own()
         .resmng()
         .unwrap()
         .get_serial(sel)
         .expect("Unable to allocate serial rgate");
-    serial_gate
-        .activate()
-        .expect("Unable to activate serial rgate");
 
     server_loop(|| {
         s.handle_ctrl_chan(&mut hdl)?;
 
-        if let Some(msg) = serial_gate.fetch() {
+        if let Ok(msg) = serial_gate.fetch() {
             log!(crate::LOG_INOUT, "Got input message with {} bytes", {
                 msg.header.length
             });

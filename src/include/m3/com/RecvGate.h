@@ -203,12 +203,12 @@ public:
      *
      * @return true if there are unread messages
      */
-    bool has_msgs() const;
+    bool has_msgs();
 
     /**
      * Suspend the activity until a message arrives on this RecvGate.
      */
-    void wait_for_msg() const;
+    void wait_for_msg();
 
     /**
      * Fetches a message from this receive gate and returns it, if there is any.

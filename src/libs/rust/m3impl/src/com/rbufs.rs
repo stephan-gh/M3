@@ -113,7 +113,7 @@ fn map_rbuf(addr: usize, size: usize) -> Result<MemGate, Error> {
 }
 
 /// Frees the given receive buffer
-pub fn free_rbuf(rbuf: RecvBuf) {
+pub fn free_rbuf(rbuf: &RecvBuf) {
     BUFS.borrow_mut().free(rbuf.addr as u64, rbuf.size as u64);
 }
 

@@ -26,8 +26,7 @@ pub fn main() -> i32 {
     let mut tester = DefaultWvTester::default();
 
     let sgate = wv_assert_ok!(SendGate::new_named("chan"));
-    let mut rgate = wv_assert_ok!(RecvGate::new_named(env::args().nth(1).unwrap()));
-    wv_assert_ok!(rgate.activate());
+    let rgate = wv_assert_ok!(RecvGate::new_named(env::args().nth(1).unwrap()));
 
     let mut val = 42;
     for _ in 0..16 {

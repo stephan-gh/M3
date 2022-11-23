@@ -101,7 +101,7 @@ public:
     bool send_close_req();
 
     bool can_send() const noexcept;
-    bool has_events() const noexcept;
+    bool has_events() noexcept;
     bool has_all_credits();
     Event recv_message();
 

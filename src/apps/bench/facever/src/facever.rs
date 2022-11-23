@@ -34,13 +34,11 @@ const LOG_MEM: bool = false;
 const LOG_COMP: bool = false;
 
 fn create_reply_gate(ctrl_msg_size: usize) -> Result<RecvGate, Error> {
-    let mut reply_gate = RecvGate::new_with(
+    RecvGate::new_with(
         RGateArgs::default()
             .order(next_log2(ctrl_msg_size + size_of::<tcu::Header>()))
             .msg_order(next_log2(ctrl_msg_size + size_of::<tcu::Header>())),
-    )?;
-    reply_gate.activate()?;
-    Ok(reply_gate)
+    )
 }
 
 struct Node {
@@ -150,14 +148,11 @@ fn frontend(args: &[&str]) {
     let fs_sgate = SendGate::new_named("fs").expect("Unable to create named SendGate fs");
     let storage_sgate =
         SendGate::new_named("storage").expect("Unable to create named SendGate storage");
-    let mut gpu_rgate =
-        RecvGate::new_named("gpures").expect("Unable to create named RecvGate gpures");
-    gpu_rgate.activate().expect("Unable to activate RecvGate");
+    let gpu_rgate = RecvGate::new_named("gpures").expect("Unable to create named RecvGate gpures");
 
     let reply_gate = create_reply_gate(ctrl_msg_size).expect("Unable to create reply RecvGate");
 
-    let mut req_rgate = RecvGate::new_named("req").expect("Unable to create named RecvGate req");
-    req_rgate.activate().expect("Unable to activate RecvGate");
+    let req_rgate = RecvGate::new_named("req").expect("Unable to create named RecvGate req");
     loop {
         let mut request = node
             .receive_request("client", &req_rgate)
@@ -193,8 +188,7 @@ fn fs(args: &[&str]) {
 
     let node = Node::new("fs".to_string(), ctrl_msg_size, 0);
 
-    let mut req_rgate = RecvGate::new_named("fs").expect("Unable to create named RecvGate fs");
-    req_rgate.activate().expect("Unable to activate RecvGate");
+    let req_rgate = RecvGate::new_named("fs").expect("Unable to create named RecvGate fs");
     loop {
         let mut request = node
             .receive_request("frontend", &req_rgate)
@@ -225,8 +219,7 @@ fn gpu(args: &[&str]) {
 
     let reply_gate = create_reply_gate(ctrl_msg_size).expect("Unable to create reply RecvGate");
 
-    let mut req_rgate = RecvGate::new_named("gpu").expect("Unable to create named RecvGate gpu");
-    req_rgate.activate().expect("Unable to activate RecvGate");
+    let req_rgate = RecvGate::new_named("gpu").expect("Unable to create named RecvGate gpu");
     loop {
         let mut request = node
             .receive_request("storage", &req_rgate)
@@ -269,9 +262,8 @@ fn storage(args: &[&str]) {
 
     let reply_gate = create_reply_gate(ctrl_msg_size).expect("Unable to create reply RecvGate");
 
-    let mut req_rgate =
+    let req_rgate =
         RecvGate::new_named("storage").expect("Unable to create named RecvGate storage");
-    req_rgate.activate().expect("Unable to activate RecvGate");
     loop {
         let mut request = node
             .receive_request("frontend", &req_rgate)

@@ -512,7 +512,7 @@ impl SocketSession {
                 }
 
                 // receive everything in the channel
-                while let Some(event) = chan.receive_event() {
+                while let Some(event) = chan.fetch_event() {
                     if sock.process_event(sess, iface, event) {
                         needs_recheck = true;
                         continue 'outer_loop;

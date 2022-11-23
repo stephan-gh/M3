@@ -41,9 +41,10 @@ fn create(t: &mut dyn WvTester) {
 }
 
 fn send_errors(t: &mut dyn WvTester) {
-    let mut rgate = wv_assert_ok!(RecvGate::new(math::next_log2(256), math::next_log2(256)));
-    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).label(0x1234)));
+    let rgate = wv_assert_ok!(RecvGate::new(math::next_log2(256), math::next_log2(256)));
+    // manually activate the RecvGate, because we are communicating with ourself
     wv_assert_ok!(rgate.activate());
+    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).label(0x1234)));
 
     {
         wv_assert_ok!(send_vmsg!(&sgate, &rgate, 1, 2));
@@ -70,11 +71,11 @@ fn send_errors(t: &mut dyn WvTester) {
 }
 
 fn send_recv(t: &mut dyn WvTester) {
-    let mut rgate = wv_assert_ok!(RecvGate::new(math::next_log2(512), math::next_log2(256)));
+    let rgate = wv_assert_ok!(RecvGate::new(math::next_log2(512), math::next_log2(256)));
+    wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(
         SGateArgs::new(&rgate).credits(2).label(0x1234)
     ));
-    wv_assert_ok!(rgate.activate());
 
     let mut buf = MsgBuf::borrow_def();
     buf.set([0u8; 16]);
@@ -95,11 +96,11 @@ fn send_recv(t: &mut dyn WvTester) {
 
 fn send_reply(t: &mut dyn WvTester) {
     let reply_gate = RecvGate::def();
-    let mut rgate = wv_assert_ok!(RecvGate::new(math::next_log2(64), math::next_log2(64)));
+    let rgate = wv_assert_ok!(RecvGate::new(math::next_log2(64), math::next_log2(64)));
+    wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(
         SGateArgs::new(&rgate).credits(1).label(0x1234)
     ));
-    wv_assert_ok!(rgate.activate());
 
     wv_assert_ok!(send_vmsg!(&sgate, reply_gate, 0x123, 12, "test"));
 

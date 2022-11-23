@@ -50,14 +50,14 @@ where
     loop {
         {
             let rgate = RGATE.borrow();
-            if let Some(msg) = rgate.fetch() {
+            if let Ok(msg) = rgate.fetch() {
                 let is = GateIStream::new(msg, &rgate);
                 handle_request_async(is);
                 subsys::start_delayed_async(&mut spawn)?;
             }
         }
 
-        if let Some(msg) = upcall_rg.fetch() {
+        if let Ok(msg) = upcall_rg.fetch() {
             childs::ChildManager::handle_upcall_async(msg);
         }
 

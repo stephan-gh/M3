@@ -34,7 +34,8 @@ pub fn run(t: &mut dyn WvTester) {
 
 fn pingpong_1u64(t: &mut dyn WvTester) {
     let reply_gate = RecvGate::def();
-    let mut rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
+    let rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
+    // manually activate the RecvGate, because we are communicating with ourself
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
@@ -57,7 +58,7 @@ fn pingpong_1u64(t: &mut dyn WvTester) {
 
 fn pingpong_2u64(t: &mut dyn WvTester) {
     let reply_gate = RecvGate::def();
-    let mut rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
+    let rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
@@ -82,7 +83,7 @@ fn pingpong_2u64(t: &mut dyn WvTester) {
 
 fn pingpong_4u64(t: &mut dyn WvTester) {
     let reply_gate = RecvGate::def();
-    let mut rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
+    let rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
@@ -111,7 +112,7 @@ fn pingpong_4u64(t: &mut dyn WvTester) {
 
 fn pingpong_str(t: &mut dyn WvTester) {
     let reply_gate = RecvGate::def();
-    let mut rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
+    let rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
@@ -134,7 +135,7 @@ fn pingpong_str(t: &mut dyn WvTester) {
 
 fn pingpong_strslice(t: &mut dyn WvTester) {
     let reply_gate = RecvGate::def();
-    let mut rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
+    let rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 

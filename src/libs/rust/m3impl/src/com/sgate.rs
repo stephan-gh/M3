@@ -179,11 +179,13 @@ impl SendGate {
         reply_gate: &RecvGate,
     ) -> Result<(), Error> {
         let ep = self.activate()?;
-        tcu::TCU::send_aligned(ep, msg, len, 0, reply_gate.ep().unwrap())
+        let rep = reply_gate.ensure_activated()?;
+        tcu::TCU::send_aligned(ep, msg, len, 0, rep)
     }
 
     /// Sends `msg` to the associated [`RecvGate`], uses `reply_gate` to receive the reply, and lets
     /// the communication partner use the label `rlabel` for the reply.
+    #[inline(always)]
     pub fn send_with_rlabel(
         &self,
         msg: &MsgBuf,
@@ -191,18 +193,21 @@ impl SendGate {
         rlabel: tcu::Label,
     ) -> Result<(), Error> {
         let ep = self.activate()?;
-        tcu::TCU::send(ep, msg, rlabel, reply_gate.ep().unwrap())
+        let rep = reply_gate.ensure_activated()?;
+        tcu::TCU::send(ep, msg, rlabel, rep)
     }
 
     /// Sends `msg` to the associated [`RecvGate`] and receives the reply from the set reply gate.
     /// Returns the received reply.
+    #[inline(always)]
     pub fn call(
         &self,
         msg: &MsgBuf,
         reply_gate: &RecvGate,
     ) -> Result<&'static tcu::Message, Error> {
         let ep = self.activate()?;
-        tcu::TCU::send(ep, msg, 0, reply_gate.ep().unwrap())?;
+        let rep = reply_gate.ensure_activated()?;
+        tcu::TCU::send(ep, msg, 0, rep)?;
         reply_gate.receive(Some(self))
     }
 }

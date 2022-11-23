@@ -43,7 +43,7 @@ impl RequestHandler {
 
     /// Creates a new request handler for `max_clients` using a message size of `msg_size`.
     pub fn new_with(max_clients: usize, msg_size: usize) -> Result<Self, Error> {
-        let mut rgate = RecvGate::new(
+        let rgate = RecvGate::new(
             math::next_log2(max_clients * msg_size),
             math::next_log2(msg_size),
         )?;
@@ -68,7 +68,7 @@ impl RequestHandler {
         OP: Deserialize<'static>,
         F: FnMut(OP, &mut GateIStream<'_>) -> Result<(), Error>,
     {
-        if let Some(msg) = self.rgate.fetch() {
+        if let Ok(msg) = self.rgate.fetch() {
             let mut is = GateIStream::new(msg, &self.rgate);
             if let Err(e) = is.pop::<OP>().and_then(|op| func(op, &mut is)) {
                 // ignore errors here

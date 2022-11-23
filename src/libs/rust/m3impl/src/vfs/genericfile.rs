@@ -248,7 +248,7 @@ impl GenericFile {
             return Ok(());
         }
 
-        let mut notify_rgate = Box::new(RecvGate::new(
+        let notify_rgate = Box::new(RecvGate::new(
             math::next_log2(NOTIFY_MSG_SIZE),
             math::next_log2(NOTIFY_MSG_SIZE),
         )?);
@@ -301,7 +301,7 @@ impl GenericFile {
         // if we did not receive the given event, check if there is a message
         let nb = self.nb_state.as_mut().unwrap();
         if !nb.notify_received.contains(event) {
-            if let Some(msg) = nb.notify_rgate.fetch() {
+            if let Ok(msg) = nb.notify_rgate.fetch() {
                 let mut imsg = GateIStream::new(msg, &nb.notify_rgate);
                 let events = FileEvent::from_bits_truncate(imsg.pop::<u32>()?);
                 nb.notify_received |= events;

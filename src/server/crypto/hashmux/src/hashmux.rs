@@ -692,7 +692,7 @@ impl Handler<HashSession> for HashHandler {
 
 impl HashMuxReceiver {
     fn has_messages(&self) -> bool {
-        self.reqhdl.recv_gate().has_msgs() || self.server.rgate().has_msgs()
+        self.reqhdl.recv_gate().has_msgs().unwrap() || self.server.rgate().has_msgs().unwrap()
     }
 
     fn handle_messages(&self, hdl: &mut HashHandler) -> Result<(), Error> {

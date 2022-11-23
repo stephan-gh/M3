@@ -162,7 +162,7 @@ impl State {
 
     fn receive_acks(&mut self) {
         for n in &mut self.notify_gates {
-            if let Some(msg) = n.rgate.fetch() {
+            if let Ok(msg) = n.rgate.fetch() {
                 n.rgate.ack_msg(msg).unwrap();
                 // try again to send events, if there are some
                 n.send_events();
@@ -185,7 +185,7 @@ impl State {
         sgate: Selector,
         promised_events: Rc<Cell<FileEvent>>,
     ) -> Result<(), Error> {
-        let mut rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
+        let rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
         rgate.activate()?;
 
         self.notify_gates.push(NotifyGate::new(

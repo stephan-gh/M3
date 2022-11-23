@@ -139,10 +139,9 @@ fn testcliexit(t: &mut dyn WvTester) {
 
     let sact = wv_assert_ok!(serv.run(server_crash_main));
 
-    let mut rg = wv_assert_ok!(RecvGate::new_with(
+    let rg = wv_assert_ok!(RecvGate::new_with(
         RGateArgs::default().order(7).msg_order(6)
     ));
-    wv_assert_ok!(rg.activate());
 
     let sg = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rg).credits(2)));
     wv_assert_ok!(client.delegate_obj(sg.sel()));

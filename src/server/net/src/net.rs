@@ -337,13 +337,11 @@ pub fn main() -> i32 {
         usage();
     });
 
-    let mut rgate = RecvGate::new(
+    let rgate = RecvGate::new(
         math::next_log2(sess::MSG_SIZE * settings.max_clients),
         math::next_log2(sess::MSG_SIZE),
     )
     .expect("failed to create main rgate for handler!");
-
-    rgate.activate().expect("Failed to activate main rgate");
 
     let mut neighbor_cache_entries = [None; 8];
     let neighbor_cache = NeighborCache::new(&mut neighbor_cache_entries[..]);
@@ -435,7 +433,7 @@ pub fn main() -> i32 {
             }
 
             // Check if we got some messages through our main rgate.
-            if let Some(msg) = rgatec.fetch() {
+            if let Ok(msg) = rgatec.fetch() {
                 let mut is = GateIStream::new(msg, &rgatec);
                 if let Err(e) = handler.handle(&mut is) {
                     is.reply_error(e.code()).ok();

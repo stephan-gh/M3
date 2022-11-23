@@ -39,10 +39,9 @@ fn run_stop(_t: &mut dyn WvTester) {
     use m3::com::RGateArgs;
     use m3::vfs;
 
-    let mut rg = wv_assert_ok!(RecvGate::new_with(
+    let rg = wv_assert_ok!(RecvGate::new_with(
         RGateArgs::default().order(6).msg_order(6)
     ));
-    wv_assert_ok!(rg.activate());
 
     let tile = wv_assert_ok!(Tile::get("clone|own"));
 
@@ -122,8 +121,7 @@ fn run_send_receive(t: &mut dyn WvTester) {
         let mut src = Activity::own().data_source();
         let rg_sel: Selector = src.pop().unwrap();
 
-        let mut rgate = RecvGate::new_bind(rg_sel);
-        wv_assert_ok!(rgate.activate());
+        let rgate = RecvGate::new_bind(rg_sel);
         let mut res = wv_assert_ok!(recv_msg(&rgate));
         let i1 = wv_assert_ok!(res.pop::<u32>());
         let i2 = wv_assert_ok!(res.pop::<u32>());

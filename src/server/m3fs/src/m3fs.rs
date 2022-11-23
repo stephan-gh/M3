@@ -296,7 +296,7 @@ impl M3FSRequestHandler {
                 }
 
                 // ignore all potentially outstanding messages of this session
-                rgate.drop_msgs_with(id as Label);
+                rgate.drop_msgs_with(id as Label).unwrap();
             }
         }
         Ok(())

@@ -110,7 +110,7 @@ fn create_rgate(
     rbuf_off: goff,
     rbuf_addr: usize,
 ) -> Result<RecvGate, Error> {
-    let mut rgate = RecvGate::new_with(
+    let rgate = RecvGate::new_with(
         RGateArgs::default()
             .order(math::next_log2(buf_size))
             .msg_order(math::next_log2(msg_size)),

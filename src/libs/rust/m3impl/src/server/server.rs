@@ -151,7 +151,7 @@ impl Server {
 
     fn create<S>(name: &str, hdl: &mut dyn Handler<S>, public: bool) -> Result<Self, Error> {
         let sel = Activity::own().alloc_sel();
-        let mut rgate = RecvGate::new(math::next_log2(BUF_SIZE), math::next_log2(MSG_SIZE))?;
+        let rgate = RecvGate::new(math::next_log2(BUF_SIZE), math::next_log2(MSG_SIZE))?;
         rgate.activate()?;
 
         syscalls::create_srv(sel, rgate.sel(), name, 0)?;
@@ -185,7 +185,7 @@ impl Server {
 
     /// Fetches a message from the control channel and handles it if so.
     pub fn handle_ctrl_chan<S>(&self, hdl: &mut dyn Handler<S>) -> Result<(), Error> {
-        if let Some(msg) = self.rgate.fetch() {
+        if let Ok(msg) = self.rgate.fetch() {
             let mut is = GateIStream::new(msg, &self.rgate);
             match self.handle_ctrl_msg(hdl, &mut is) {
                 // should the server terminate?
