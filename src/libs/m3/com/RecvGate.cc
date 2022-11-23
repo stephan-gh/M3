@@ -90,8 +90,8 @@ RecvGate RecvGate::create_named(const char *name) {
     return RecvGate(sel, 0, args.first, args.second, 0);
 }
 
-RecvGate RecvGate::bind(capsel_t cap, uint order, uint msgorder) noexcept {
-    return RecvGate(cap, 0, order, msgorder, KEEP_CAP);
+RecvGate RecvGate::bind(capsel_t cap) noexcept {
+    return RecvGate(cap, 0, 0, 0, KEEP_CAP);
 }
 
 RecvGate::~RecvGate() {
@@ -104,8 +104,17 @@ uintptr_t RecvGate::address() const noexcept {
     return _buf_addr;
 }
 
+void RecvGate::fetch_buffer_size() const {
+    if(_order == 0) {
+        auto size = Syscalls::rgate_buffer(sel());
+        _order = size.first;
+        _msgorder = size.second;
+    }
+}
+
 void RecvGate::activate() {
     if(!this->ep()) {
+        fetch_buffer_size();
         if(_buf == nullptr) {
             _buf = RecvBufs::get().alloc(1UL << _order);
             _buf_addr = _buf->addr();

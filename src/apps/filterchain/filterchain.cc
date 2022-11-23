@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
     t2.run([] {
         capsel_t rgate_sel;
         Activity::own().data_source() >> rgate_sel;
-        auto rgate = RecvGate::bind(rgate_sel, nextlog2<512>::val, nextlog2<64>::val);
+        auto rgate = RecvGate::bind(rgate_sel);
 
         size_t count, total = 0;
         int finished = 0;

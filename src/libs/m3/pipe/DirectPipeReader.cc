@@ -26,8 +26,7 @@ namespace m3 {
 
 DirectPipeReader::State::State(capsel_t caps) noexcept
     : _mgate(MemGate::bind(caps + 1)),
-      _rgate(RecvGate::bind(caps + 0, nextlog2<DirectPipe::MSG_BUF_SIZE>::val,
-                            nextlog2<DirectPipe::MSG_SIZE>::val)),
+      _rgate(RecvGate::bind(caps + 0)),
       _pos(),
       _rem(),
       _pkglen(static_cast<size_t>(-1)),

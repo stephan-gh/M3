@@ -20,7 +20,7 @@ use core::fmt;
 use core::ops;
 
 use crate::cap::{CapFlags, Selector};
-use crate::cell::LazyReadOnlyCell;
+use crate::cell::{Cell, LazyReadOnlyCell};
 use crate::cfg;
 use crate::com::rbufs::{alloc_rbuf, free_rbuf};
 use crate::com::{gate::Gate, RecvBuf, SendGate};
@@ -46,18 +46,18 @@ pub struct RecvGate {
     gate: Gate,
     buf: Option<RecvBuf>,
     buf_addr: Option<usize>,
-    order: u32,
-    msg_order: u32,
+    order: Cell<Option<u32>>,
+    msg_order: Cell<Option<u32>>,
 }
 
 impl fmt::Debug for RecvGate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
-            "RecvGate[sel: {}, buf: {:?}, size: {:#0x}, ep: {:?}]",
+            "RecvGate[sel: {}, buf: {:?}, size: {:?}, ep: {:?}]",
             self.sel(),
             self.buf,
-            1 << self.order,
+            self.order.get().map(|v| 1 << v),
             self.gate.epid()
         )
     }
@@ -132,8 +132,8 @@ impl RecvGate {
             gate: Gate::new_with_ep(sel, CapFlags::KEEP_CAP, ep),
             buf: None,
             buf_addr: Some(addr),
-            order,
-            msg_order: order,
+            order: Cell::new(Some(order)),
+            msg_order: Cell::new(Some(order)),
         }
     }
 
@@ -157,8 +157,8 @@ impl RecvGate {
             gate: Gate::new(sel, args.flags),
             buf: None,
             buf_addr: None,
-            order: args.order,
-            msg_order: args.msg_order,
+            order: Cell::new(Some(args.order)),
+            msg_order: Cell::new(Some(args.msg_order)),
         })
     }
 
@@ -170,20 +170,19 @@ impl RecvGate {
             gate: Gate::new(sel, CapFlags::empty()),
             buf: None,
             buf_addr: None,
-            order,
-            msg_order,
+            order: Cell::new(Some(order)),
+            msg_order: Cell::new(Some(msg_order)),
         })
     }
 
-    /// Binds a new `RecvGate` to the given selector. The `order` argument denotes the size of the
-    /// receive buffer (`2^order`) and `msg_order` denotes the size of the messages (`2^msg_order`).
-    pub fn new_bind(sel: Selector, order: u32, msg_order: u32) -> Self {
+    /// Binds a new `RecvGate` to the given selector.
+    pub fn new_bind(sel: Selector) -> Self {
         RecvGate {
             gate: Gate::new(sel, CapFlags::KEEP_CAP),
             buf: None,
             buf_addr: None,
-            order,
-            msg_order,
+            order: Cell::new(None),
+            msg_order: Cell::new(None),
         }
     }
 
@@ -197,14 +196,25 @@ impl RecvGate {
         self.gate.epid()
     }
 
+    fn fetch_buffer_size(&self) -> Result<(), Error> {
+        if self.msg_order.get().is_none() {
+            let (order, msg_order) = syscalls::rgate_buffer(self.sel())?;
+            self.order.replace(Some(order));
+            self.msg_order.replace(Some(msg_order));
+        }
+        Ok(())
+    }
+
     /// Returns the size of the receive buffer in bytes
-    pub fn size(&self) -> usize {
-        1 << self.order
+    pub fn size(&self) -> Result<usize, Error> {
+        self.fetch_buffer_size()?;
+        Ok(1 << self.order.get().unwrap())
     }
 
     /// Returns the maximum message size
-    pub fn max_msg_size(&self) -> usize {
-        1 << self.msg_order
+    pub fn max_msg_size(&self) -> Result<usize, Error> {
+        self.fetch_buffer_size()?;
+        Ok(1 << self.msg_order.get().unwrap())
     }
 
     /// Returns the address of the receive buffer
@@ -216,14 +226,15 @@ impl RecvGate {
     /// `RecvGate` can be activated.
     pub fn activate(&mut self) -> Result<(), Error> {
         if self.ep().is_none() {
+            let size = self.size()?;
             if self.buf.is_none() {
-                let buf = alloc_rbuf(1 << self.order)?;
+                let buf = alloc_rbuf(size)?;
                 self.buf_addr = Some(buf.addr());
                 self.buf = Some(buf);
             }
 
             let buf = self.buf.as_ref().unwrap();
-            let replies = 1 << (self.order - self.msg_order);
+            let replies = 1 << (self.order.get().unwrap() - self.msg_order.get().unwrap());
             self.gate.activate_rgate(buf.mem(), buf.off(), replies)?;
         }
 
@@ -237,7 +248,8 @@ impl RecvGate {
         off: goff,
         addr: usize,
     ) -> Result<(), Error> {
-        let replies = 1 << (self.order - self.msg_order);
+        self.fetch_buffer_size()?;
+        let replies = 1 << (self.order.get().unwrap() - self.msg_order.get().unwrap());
         self.gate.activate_rgate(mem, off, replies).map(|_| {
             self.buf_addr = Some(addr);
         })

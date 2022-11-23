@@ -182,6 +182,24 @@ pub fn mgate_region(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
 }
 
 #[inline(never)]
+pub fn rgate_buffer(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+    let r: syscalls::RGateBuffer = get_request(msg)?;
+    sysc_log!(act, "rgate_buffer(rgate={})", r.rgate);
+
+    let act_caps = act.obj_caps().borrow();
+    let rgate = get_kobj_ref!(act_caps, r.rgate, RGate);
+
+    let mut kreply = MsgBuf::borrow_def();
+    build_vmsg!(kreply, Code::None, kif::syscalls::RGateBufferReply {
+        order: rgate.order(),
+        msg_order: rgate.msg_order(),
+    });
+    send_reply(msg, &kreply);
+
+    Ok(())
+}
+
+#[inline(never)]
 pub fn kmem_quota(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let r: syscalls::KMemQuota = get_request(msg)?;
     sysc_log!(act, "kmem_quota(kmem={})", r.kmem);

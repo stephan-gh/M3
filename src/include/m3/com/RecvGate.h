@@ -133,11 +133,9 @@ public:
      * Binds the receive gate at selector <sel>.
      *
      * @param sel the capability selector
-     * @param order the size of the buffer (2^<order> bytes)
-     * @param msgorder the size of messages within the buffer (2^<msgorder> bytes)
      * @return the receive gate
      */
-    static RecvGate bind(capsel_t sel, uint order, uint msgorder) noexcept;
+    static RecvGate bind(capsel_t sel) noexcept;
 
     RecvGate(const RecvGate &) = delete;
     RecvGate &operator=(const RecvGate &) = delete;
@@ -161,7 +159,8 @@ public:
     /**
      * @return the number of slots in the receive buffer
      */
-    uint slots() const noexcept {
+    uint slots() const {
+        fetch_buffer_size();
         return 1U << (_order - _msgorder);
     }
 
@@ -262,14 +261,16 @@ public:
     void drop_msgs_with(label_t label) noexcept;
 
 private:
+    void fetch_buffer_size() const;
+
     void set_ep(epid_t ep) {
         Gate::set_ep(new EP(EP::bind(ep)));
     }
 
     RecvBuf *_buf;
     size_t _buf_addr;
-    uint _order;
-    uint _msgorder;
+    mutable uint _order;
+    mutable uint _msgorder;
     msghandler_t _handler;
     std::unique_ptr<RecvGateWorkItem> _workitem;
     static RecvGate _syscall;

@@ -22,7 +22,7 @@
 namespace m3 {
 
 NetEventChannel::NetEventChannel(capsel_t caps)
-    : _rgate(RecvGate::bind(caps + 0, nextlog2<MSG_BUF_SIZE>::val, nextlog2<MSG_SIZE>::val)),
+    : _rgate(RecvGate::bind(caps + 0)),
       _rplgate(RecvGate::create(nextlog2<REPLY_BUF_SIZE>::val, nextlog2<REPLY_SIZE>::val)),
       _sgate(SendGate::bind(caps + 1, &_rplgate)) {
     _rgate.activate();

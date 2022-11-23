@@ -122,7 +122,7 @@ fn run_send_receive(t: &mut dyn WvTester) {
         let mut src = Activity::own().data_source();
         let rg_sel: Selector = src.pop().unwrap();
 
-        let mut rgate = RecvGate::new_bind(rg_sel, math::next_log2(256), math::next_log2(256));
+        let mut rgate = RecvGate::new_bind(rg_sel);
         wv_assert_ok!(rgate.activate());
         let mut res = wv_assert_ok!(recv_msg(&rgate));
         let i1 = wv_assert_ok!(res.pop::<u32>());

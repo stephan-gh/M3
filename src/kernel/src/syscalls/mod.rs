@@ -137,6 +137,7 @@ pub fn handle_async(msg: &'static tcu::Message) {
         kif::syscalls::Operation::SET_PMP => misc::set_pmp(&act, msg),
         kif::syscalls::Operation::ACTIVATE => misc::activate_async(&act, msg),
         kif::syscalls::Operation::MGATE_REGION => misc::mgate_region(&act, msg),
+        kif::syscalls::Operation::RGATE_BUFFER => misc::rgate_buffer(&act, msg),
         kif::syscalls::Operation::KMEM_QUOTA => misc::kmem_quota(&act, msg),
         kif::syscalls::Operation::TILE_QUOTA => misc::tile_quota_async(&act, msg),
         kif::syscalls::Operation::TILE_SET_QUOTA => misc::tile_set_quota_async(&act, msg),

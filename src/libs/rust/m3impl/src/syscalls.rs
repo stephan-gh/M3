@@ -389,6 +389,19 @@ pub fn mgate_region(mgate: Selector) -> Result<(GlobAddr, goff), Error> {
     Ok((reply.data.global, reply.data.size))
 }
 
+/// Returns the total size and slot size of the RecvGate as powers of 2
+pub fn rgate_buffer(rgate: Selector) -> Result<(u32, u32), Error> {
+    let mut buf = SYSC_BUF.borrow_mut();
+    build_vmsg!(
+        buf,
+        syscalls::Operation::RGATE_BUFFER,
+        syscalls::RGateBuffer { rgate }
+    );
+
+    let reply: Reply<syscalls::RGateBufferReply> = send_receive(&buf)?;
+    Ok((reply.data.order, reply.data.msg_order))
+}
+
 /// Returns the total and remaining quota in bytes for the kernel memory object at `kmem`.
 pub fn kmem_quota(kmem: Selector) -> Result<Quota<usize>, Error> {
     let mut buf = SYSC_BUF.borrow_mut();

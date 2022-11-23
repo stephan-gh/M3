@@ -66,7 +66,7 @@ fn pingpong_with_tile(t: &mut dyn WvTester, name: &str, tile: Rc<Tile>) {
     let act = wv_assert_ok!(act.run(|| {
         let mut t = DefaultWvTester::default();
         let rgate_sel: Selector = Activity::own().data_source().pop().unwrap();
-        let mut rgate = RecvGate::new_bind(rgate_sel, MSG_ORD, MSG_ORD);
+        let mut rgate = RecvGate::new_bind(rgate_sel);
         wv_assert_ok!(rgate.activate());
         for _ in 0..RUNS + WARMUP {
             let mut msg = wv_assert_ok!(recv_msg(&rgate));
@@ -127,7 +127,7 @@ fn pingpong_with_multiple(t: &mut dyn WvTester) {
     let func = || {
         let mut t = DefaultWvTester::default();
         let rgate_sel: Selector = Activity::own().data_source().pop().unwrap();
-        let mut rgate = RecvGate::new_bind(rgate_sel, MSG_ORD, MSG_ORD);
+        let mut rgate = RecvGate::new_bind(rgate_sel);
         wv_assert_ok!(rgate.activate());
         for _ in 0..(RUNS + WARMUP) / 2 {
             let mut msg = wv_assert_ok!(recv_msg(&rgate));

@@ -116,7 +116,7 @@ impl Pager {
             sess,
             req_sgate: sgate,
             child_sgate: kif::INVALID_SEL,
-            pf_rgate: RecvGate::new_bind(kif::INVALID_SEL, 6, 6),
+            pf_rgate: RecvGate::new_bind(kif::INVALID_SEL),
             pf_sgate: SendGate::new_bind(kif::INVALID_SEL),
             close: false,
         }

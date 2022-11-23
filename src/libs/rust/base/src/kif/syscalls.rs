@@ -55,19 +55,20 @@ int_enum! {
         const DERIVE_SRV = 16;
         const GET_SESS = 17;
         const MGATE_REGION = 18;
-        const KMEM_QUOTA = 19;
-        const TILE_QUOTA = 20;
-        const TILE_SET_QUOTA = 21;
-        const SEM_CTRL = 22;
+        const RGATE_BUFFER = 19;
+        const KMEM_QUOTA = 20;
+        const TILE_QUOTA = 21;
+        const TILE_SET_QUOTA = 22;
+        const SEM_CTRL = 23;
 
         // Capability exchange
-        const EXCHANGE_SESS = 23;
-        const EXCHANGE = 24;
-        const REVOKE = 25;
+        const EXCHANGE_SESS = 24;
+        const EXCHANGE = 25;
+        const REVOKE = 26;
 
         // Misc
-        const RESET_STATS = 26;
-        const NOOP = 27;
+        const RESET_STATS = 27;
+        const NOOP = 28;
     }
 }
 
@@ -249,6 +250,12 @@ pub struct MGateRegion {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[repr(C)]
+pub struct RGateBuffer {
+    pub rgate: CapSel,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[repr(C)]
 pub struct KMemQuota {
     pub kmem: CapSel,
 }
@@ -353,6 +360,14 @@ pub struct ActivityWaitReply {
 pub struct MGateRegionReply {
     pub global: GlobAddr,
     pub size: goff,
+}
+
+/// The kernel receive gate buffer reply message
+#[derive(Debug, Serialize, Deserialize)]
+#[repr(C)]
+pub struct RGateBufferReply {
+    pub order: u32,
+    pub msg_order: u32,
 }
 
 /// The kernel memory quota reply message

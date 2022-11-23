@@ -351,8 +351,8 @@ pub trait Child {
         let rgate = gates.get(rdesc.name().global()).unwrap();
         self.delegate(rgate.sel(), sel)?;
         Ok((
-            math::next_log2(rgate.size()),
-            math::next_log2(rgate.max_msg_size()),
+            math::next_log2(rgate.size()?),
+            math::next_log2(rgate.max_msg_size()?),
         ))
     }
     fn use_sgate(&mut self, name: &str, sel: Selector) -> Result<(), Error> {

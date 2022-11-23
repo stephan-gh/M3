@@ -38,7 +38,7 @@ Pager::Pager(capsel_t sess, capsel_t sgate)
       ClientSession(sess),
       _req_sgate(SendGate::bind(sgate)),
       _child_sgate(ObjCap::INVALID),
-      _pf_rgate(RecvGate::bind(ObjCap::INVALID, nextlog2<64>::val, nextlog2<64>::val)),
+      _pf_rgate(RecvGate::bind(ObjCap::INVALID)),
       _pf_sgate(SendGate::bind(ObjCap::INVALID)),
       _close(false) {
 }

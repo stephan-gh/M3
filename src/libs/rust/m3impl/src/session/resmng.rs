@@ -16,7 +16,6 @@
 use base::serialize::{Deserialize, Serialize};
 
 use crate::cap::Selector;
-use crate::cfg;
 use crate::col::String;
 use crate::com::{GateIStream, RecvGate, SendGate};
 use crate::errors::Error;
@@ -261,7 +260,7 @@ impl ResMng {
             ResMngOperation::GET_SERIAL,
             sel
         )
-        .map(|_| RecvGate::new_bind(sel, cfg::SERIAL_BUF_ORD, cfg::SERIAL_BUF_ORD))
+        .map(|_| RecvGate::new_bind(sel))
     }
 
     /// Gets the number of available activities for `get_activity_info` and the starting layer.

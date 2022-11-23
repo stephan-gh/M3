@@ -179,6 +179,7 @@ struct KIF {
             DERIVE_SRV,
             GET_SESS,
             MGATE_REGION,
+            RGATE_BUFFER,
             KMEM_QUOTA,
             TILE_QUOTA,
             TILE_SET_QUOTA,
@@ -356,6 +357,15 @@ struct KIF {
         struct MGateRegionReply : public DefaultReply {
             xfer_t global;
             xfer_t size;
+        } PACKED;
+
+        struct RGateBuffer : public DefaultRequest {
+            xfer_t rgate_sel;
+        } PACKED;
+
+        struct RGateBufferReply : public DefaultReply {
+            xfer_t order;
+            xfer_t msg_order;
         } PACKED;
 
         struct KMemQuota : public DefaultRequest {

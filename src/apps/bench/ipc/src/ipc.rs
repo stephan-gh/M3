@@ -53,7 +53,7 @@ pub fn main() -> i32 {
 
     let act = wv_assert_ok!(act.run(|| {
         let rgate_sel: Selector = Activity::own().data_source().pop().unwrap();
-        let mut rgate = RecvGate::new_bind(rgate_sel, MSG_ORD, MSG_ORD);
+        let mut rgate = RecvGate::new_bind(rgate_sel);
         wv_assert_ok!(rgate.activate());
 
         for i in 0..=MSG_ORD {

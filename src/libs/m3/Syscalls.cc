@@ -303,6 +303,20 @@ std::pair<GlobAddr, size_t> Syscalls::mgate_region(capsel_t mgate) {
     return std::make_pair(GlobAddr(reply->global), reply->size);
 }
 
+std::pair<uint, uint> Syscalls::rgate_buffer(capsel_t rgate) {
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::RGateBuffer>();
+    req.opcode = KIF::Syscall::RGATE_BUFFER;
+    req.rgate_sel = rgate;
+
+    auto reply = send_receive<KIF::Syscall::RGateBufferReply>(req_buf);
+
+    Errors::Code res = static_cast<Errors::Code>(reply.error());
+    if(res != Errors::NONE)
+        throw SyscallException(res, KIF::Syscall::RGATE_BUFFER);
+    return std::make_pair(reply->order, reply->msg_order);
+}
+
 Quota<size_t> Syscalls::kmem_quota(capsel_t kmem) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::KMemQuota>();

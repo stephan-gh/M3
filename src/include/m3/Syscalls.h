@@ -87,6 +87,7 @@ public:
     static void derive_srv(capsel_t srv, const KIF::CapRngDesc &dst, uint sessions, event_t event);
     static void get_sess(capsel_t srv, capsel_t act, capsel_t dst, word_t sid);
     static std::pair<GlobAddr, size_t> mgate_region(capsel_t mgate);
+    static std::pair<uint, uint> rgate_buffer(capsel_t rgate);
     static Quota<size_t> kmem_quota(capsel_t kmem);
     static std::tuple<Quota<uint>, Quota<uint64_t>, Quota<size_t>> tile_quota(capsel_t tile);
     static void tile_set_quota(capsel_t tile, uint64_t time, uint64_t pts);

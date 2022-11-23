@@ -178,11 +178,7 @@ impl NetEventChannel {
     }
 
     pub fn new_client(caps: Selector) -> Result<Rc<Self>, Error> {
-        let mut rgate = RecvGate::new_bind(
-            caps + 0,
-            math::next_log2(MSG_BUF_SIZE),
-            math::next_log2(MSG_SIZE),
-        );
+        let mut rgate = RecvGate::new_bind(caps + 0);
         rgate.activate()?;
 
         let mut rpl_gate =
