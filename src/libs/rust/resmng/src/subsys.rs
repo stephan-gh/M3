@@ -506,7 +506,7 @@ impl Subsystem {
 
             for cfg in d.apps() {
                 // determine tile object with potentially reduced number of EPs
-                let (domain_tile_usage, child_pe_usage) = if !cfg.domains().is_empty() {
+                let (domain_tile_usage, child_tile_usage) = if !cfg.domains().is_empty() {
                     // a resource manager has to be able to set PMPs and thus needs the root tile
                     (None, tile_usage.clone())
                 }
@@ -560,7 +560,7 @@ impl Subsystem {
                     // activities on the same level. The resource manager needs to set PMP EPs and might
                     // thus interfere with the other activities.
                     assert!(
-                        child_pe_usage.tile_id() != Activity::own().tile_id()
+                        child_tile_usage.tile_id() != Activity::own().tile_id()
                             && d.apps().len() == 1
                     );
 
@@ -582,7 +582,10 @@ impl Subsystem {
                     let mut sub = SubsystemBuilder::new((cfg_mem, cfg_slice.addr(), cfg_len));
 
                     // add tiles
-                    sub.add_tile(child_pe_usage.tile_id(), child_pe_usage.tile_obj().clone());
+                    sub.add_tile(
+                        child_tile_usage.tile_id(),
+                        child_tile_usage.tile_obj().clone(),
+                    );
                     pass_down_tiles(&mut sub, cfg);
 
                     // serial rgate
@@ -626,7 +629,7 @@ impl Subsystem {
                     child_id,
                     tile_usage.clone(),
                     domain_tile_usage,
-                    child_pe_usage,
+                    child_tile_usage,
                     // TODO either remove args and daemon from config or remove the clones from OwnChild
                     cfg.args().clone(),
                     cfg.daemon(),
