@@ -27,7 +27,7 @@ pub trait StreamSocket: Socket {
     /// Listing on this port requires that the used session has permission for this port. This is
     /// controlled with the "tcp=..." argument in the session argument of M³'s config files.
     ///
-    /// Returns an error if the socket is not in state [`Closed`](State::Closed).
+    /// Returns an error if the socket is not in state [`Closed`](crate::net::State::Closed).
     fn listen(&mut self, port: Port) -> Result<(), Error>;
 
     /// Accepts a remote connection on this socket

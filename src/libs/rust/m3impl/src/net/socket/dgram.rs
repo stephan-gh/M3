@@ -29,7 +29,7 @@ pub trait DGramSocket: Socket {
     /// port. This is controlled with the "udp=..." argument in the session argument of M³'s config
     /// files.
     ///
-    /// Returns an error if the socket is not in state [`Closed`](State::Closed).
+    /// Returns an error if the socket is not in state [`Closed`](crate::net::State::Closed).
     fn bind(&mut self, port: Port) -> Result<(), Error>;
 
     /// Receives data from the socket into the given buffer.

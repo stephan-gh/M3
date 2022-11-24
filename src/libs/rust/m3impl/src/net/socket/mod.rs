@@ -84,7 +84,7 @@ pub trait Socket: File {
     /// Returns the local endpoint
     ///
     /// The local endpoint is only `Some` if the socket has been put into listen mode via
-    /// [`listen`](StreamSocket::listen), has been bound via [`bind`](Socket::bind), or was
+    /// [`listen`](StreamSocket::listen), has been bound via [`bind`](DGramSocket::bind), or was
     /// connected to a remote endpoint via [`connect`](Socket::connect).
     fn local_endpoint(&self) -> Option<Endpoint>;
 
