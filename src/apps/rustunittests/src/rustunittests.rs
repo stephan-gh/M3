@@ -18,6 +18,7 @@
 
 #![no_std]
 
+use m3::errors::Error;
 use m3::test::{DefaultWvTester, WvTester};
 use m3::{println, wv_run_suite};
 
@@ -45,7 +46,7 @@ mod tsyscalls;
 mod ttreap;
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let mut tester = DefaultWvTester::default();
     wv_run_suite!(tester, tboxlist::run);
     wv_run_suite!(tester, tbufio::run);
@@ -70,5 +71,5 @@ pub fn main() -> i32 {
     wv_run_suite!(tester, ttreap::run);
     wv_run_suite!(tester, tactivity::run);
     println!("{}", tester);
-    0
+    Ok(())
 }

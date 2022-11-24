@@ -14,7 +14,7 @@
  */
 
 use base::cell::StaticCell;
-use base::errors::Error;
+use base::errors::{Code, Error};
 use base::kif::{tilemux, PageFlags};
 use base::libc;
 use base::mem::MaybeUninit;
@@ -148,7 +148,7 @@ pub fn handle_fpu_ex(state: &mut State) {
             "Illegal instruction with user state:\n{:?}",
             state
         );
-        activities::remove_cur(1);
+        activities::remove_cur(Code::Unspecified);
         return;
     }
 

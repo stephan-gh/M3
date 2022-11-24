@@ -286,7 +286,7 @@ fn storage(args: &[&str]) {
 }
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let args: Vec<&str> = env::args().collect();
 
     match args[1] {
@@ -298,5 +298,5 @@ pub fn main() -> i32 {
         s => panic!("unexpected component {}", s),
     }
 
-    0
+    Ok(())
 }

@@ -84,6 +84,7 @@ pub enum Code {
     Utf8Error,
     BadFd,
     SeekPipe,
+    Unspecified,
     // networking
     InvState,
     WouldBlock,

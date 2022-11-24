@@ -1207,7 +1207,7 @@ impl ChildManager {
         thread::notify(upcall.event, Some(msg));
     }
 
-    pub fn kill_child_async(sel: Selector, exitcode: i32) {
+    pub fn kill_child_async(sel: Selector, exitcode: Code) {
         let maybe_id = {
             let childs = borrow_mut();
             childs.sel_to_id(sel)
@@ -1216,8 +1216,12 @@ impl ChildManager {
         if let Some(id) = maybe_id {
             let child = Self::remove_rec_async(id).unwrap();
 
-            if exitcode != 0 {
-                println!("Child '{}' exited with exitcode {}", child.name(), exitcode);
+            if exitcode != Code::None {
+                println!(
+                    "Child '{}' exited with exitcode {:?}",
+                    child.name(),
+                    exitcode
+                );
             }
         }
     }

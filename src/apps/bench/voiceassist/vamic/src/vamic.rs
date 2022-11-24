@@ -33,6 +33,7 @@ use m3::server::{
     server_loop, CapExchange, Handler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS,
 };
 use m3::session::ServerSession;
+use m3::tiles::Activity;
 use m3::util::math;
 use m3::vfs::OpenFlags;
 use m3::vfs::VFS;
@@ -131,11 +132,11 @@ impl Handler<MicSession> for MicHandler {
 
 fn usage(name: &str) -> ! {
     println!("Usage: {} <file>", name);
-    m3::exit(1);
+    Activity::own().exit(Err(Error::new(Code::InvArgs)));
 }
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let args = env::args().collect::<Vec<&str>>();
     if args.len() != 2 {
         usage(args[0]);
@@ -180,5 +181,5 @@ pub fn main() -> i32 {
 
     server_loop(|| srv.handle_ctrl_chan(&mut hdl)).ok();
 
-    0
+    Ok(())
 }

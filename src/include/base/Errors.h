@@ -83,6 +83,7 @@ struct Errors {
         UTF8_ERROR,
         BAD_FD,
         SEEK_PIPE,
+        UNSPECIFIED,
         // networking
         INV_STATE,
         WOULD_BLOCK,

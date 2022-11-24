@@ -219,7 +219,7 @@ impl Handler<DiskSession> for DiskHandler {
 }
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let mut hdl = DiskHandler {
         sessions: SessionContainer::new(DEF_MAX_CLIENTS),
     };
@@ -251,5 +251,5 @@ pub fn main() -> i32 {
     // delete device
     DEVICE.unset();
 
-    0
+    Ok(())
 }

@@ -33,6 +33,7 @@ mod vma;
 use base::cell::{Ref, StaticCell, StaticRefCell};
 use base::cfg;
 use base::env;
+use base::errors::Code;
 use base::io;
 use base::kif;
 use base::libc;
@@ -150,7 +151,7 @@ pub fn reg_timer_reprogram() {
 
 pub extern "C" fn unexpected_irq(state: &mut arch::State) -> *mut libc::c_void {
     log!(LOG_ERR, "Unexpected IRQ with user state:\n{:?}", state);
-    activities::remove_cur(1);
+    activities::remove_cur(Code::Unspecified);
 
     leave(state)
 }
@@ -163,7 +164,7 @@ pub extern "C" fn fpu_ex(state: &mut arch::State) -> *mut libc::c_void {
 
 pub extern "C" fn mmu_pf(state: &mut arch::State) -> *mut libc::c_void {
     if arch::handle_mmu_pf(state).is_err() {
-        activities::remove_cur(1);
+        activities::remove_cur(Code::Unspecified);
     }
 
     leave(state)

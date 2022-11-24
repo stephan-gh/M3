@@ -56,7 +56,7 @@ struct ExitWait {
 pub const KERNEL_ID: ActId = 0xFFFF;
 pub const INVAL_ID: ActId = 0xFFFF;
 
-static EXIT_EVENT: i32 = 0;
+static EXIT_EVENT: Code = Code::None;
 static EXIT_LISTENERS: StaticRefCell<Vec<ExitWait>> = StaticRefCell::new(Vec::new());
 
 pub struct Activity {
@@ -69,7 +69,7 @@ pub struct Activity {
     kmem: SRc<KMemObject>,
 
     state: Cell<State>,
-    exit_code: Cell<Option<i32>>,
+    exit_code: Cell<Option<Code>>,
     first_sel: Cell<CapSel>,
 
     obj_caps: RefCell<CapTable>,
@@ -286,7 +286,7 @@ impl Activity {
         self.first_sel.set(sel);
     }
 
-    pub fn fetch_exit_code(&self) -> Option<i32> {
+    pub fn fetch_exit_code(&self) -> Option<Code> {
         self.exit_code.replace(None)
     }
 
@@ -298,7 +298,7 @@ impl Activity {
         self.eps.borrow_mut().retain(|e| e.ep() != ep.ep());
     }
 
-    fn fetch_exit(&self, sels: &[u64]) -> Option<(CapSel, i32)> {
+    fn fetch_exit(&self, sels: &[u64]) -> Option<(CapSel, Code)> {
         for sel in sels {
             let wact = self
                 .obj_caps()
@@ -323,7 +323,7 @@ impl Activity {
         None
     }
 
-    pub fn wait_exit_async(&self, event: u64, sels: &[u64]) -> Option<(CapSel, i32)> {
+    pub fn wait_exit_async(&self, event: u64, sels: &[u64]) -> Option<(CapSel, Code)> {
         let res = loop {
             // independent of how we notify the activity, check for exits in case the activity we wait for
             // already exited.
@@ -332,7 +332,7 @@ impl Activity {
                 if event != 0 {
                     self.upcall_activity_wait(event, sel, code);
                     // we never report the result via syscall reply, but we need Some for below.
-                    break Some((kif::INVALID_SEL, 0));
+                    break Some((kif::INVALID_SEL, Code::None));
                 }
                 else {
                     break Some((sel, code));
@@ -390,7 +390,7 @@ impl Activity {
         });
     }
 
-    pub fn upcall_activity_wait(&self, event: u64, act_sel: CapSel, exitcode: i32) {
+    pub fn upcall_activity_wait(&self, event: u64, act_sel: CapSel, exitcode: Code) {
         let mut msg = MsgBuf::borrow_def();
         build_vmsg!(
             msg,
@@ -443,7 +443,7 @@ impl Activity {
         ActivityMng::start_activity_async(self)
     }
 
-    pub fn stop_app_async(&self, exit_code: i32, is_self: bool) {
+    pub fn stop_app_async(&self, exit_code: Code, is_self: bool) {
         if self.state.get() == State::DEAD {
             return;
         }
@@ -460,7 +460,12 @@ impl Activity {
         }
         else if self.state.get() == State::RUNNING {
             // devices always exit successfully
-            let exit_code = if self.tile_desc().is_device() { 0 } else { 1 };
+            let exit_code = if self.tile_desc().is_device() {
+                Code::None
+            }
+            else {
+                Code::Unspecified
+            };
             self.exit_app_async(exit_code, true);
         }
         else {
@@ -470,7 +475,7 @@ impl Activity {
         }
     }
 
-    fn exit_app_async(&self, exit_code: i32, stop: bool) {
+    fn exit_app_async(&self, exit_code: Code, stop: bool) {
         let mut tilemux = tilemng::tilemux(self.tile_id());
         // force-invalidate standard EPs
         for ep in self.eps_start..self.eps_start + STD_EPS_COUNT as EpId {

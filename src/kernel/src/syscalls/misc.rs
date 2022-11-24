@@ -566,7 +566,7 @@ pub fn activity_ctrl_async(
 
         kif::syscalls::ActivityOp::STOP => {
             let is_self = r.act == kif::SEL_ACT;
-            actcap.stop_app_async(r.arg as i32, is_self);
+            actcap.stop_app_async(Code::from(r.arg as u32), is_self);
             if is_self {
                 ktcu::ack_msg(ktcu::KSYS_EP, msg);
                 return Ok(());
@@ -595,13 +595,13 @@ pub fn activity_wait_async(
 
     let mut reply_msg = kif::syscalls::ActivityWaitReply {
         act_sel: kif::INVALID_SEL,
-        exitcode: 0,
+        exitcode: Code::None,
     };
 
     // In any case, check whether a activity already exited. If event == 0, wait until that happened.
     // For event != 0, remember that we want to get notified and send an upcall on a activity's exit.
     if let Some((sel, code)) = act.wait_exit_async(r.event, &r.acts) {
-        sysc_log!(act, "act_wait-cont(act={}, exitcode={})", sel, code);
+        sysc_log!(act, "act_wait-cont(act={}, exitcode={:?})", sel, code);
 
         reply_msg.act_sel = sel;
         reply_msg.exitcode = code;

@@ -84,5 +84,5 @@ fn exec_ping(t: &mut dyn WvTester) {
 
     pipe.close_reader();
 
-    wv_assert_eq!(t, ping_act.wait(), Ok(0));
+    wv_assert_eq!(t, ping_act.wait(), Ok(Code::None));
 }

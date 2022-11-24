@@ -20,6 +20,7 @@
 
 #include <base/Common.h>
 #include <base/Config.h>
+#include <base/Errors.h>
 #include <base/TileDesc.h>
 #include <base/stream/Format.h>
 
@@ -40,7 +41,7 @@ public:
     }
 
     virtual void init() = 0;
-    virtual void exit(int code) NORETURN = 0;
+    virtual void exit(Errors::Code code) NORETURN = 0;
 };
 
 struct BootEnv {
@@ -89,7 +90,7 @@ public:
     static void init() asm("env_init");
     static void run() asm("env_run");
 
-    void exit(int code, bool abort) NORETURN;
+    void exit(Errors::Code code, bool abort) NORETURN;
 
     void format(OStream &os, const FormatSpecs &) const {
         format_to(os, "tile_id      : {}\n"_cf, tile_id);

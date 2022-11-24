@@ -206,8 +206,8 @@ void Syscalls::activity_ctrl(capsel_t act, KIF::Syscall::ActivityOp op, xfer_t a
         send_receive_throw(req_buf);
 }
 
-std::pair<int, capsel_t> Syscalls::activity_wait(const capsel_t *acts, size_t count,
-                                                 event_t event) {
+std::pair<Errors::Code, capsel_t> Syscalls::activity_wait(const capsel_t *acts, size_t count,
+                                                          event_t event) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::ActivityWait>();
     req.opcode = KIF::Syscall::ACT_WAIT;
@@ -218,12 +218,12 @@ std::pair<int, capsel_t> Syscalls::activity_wait(const capsel_t *acts, size_t co
 
     auto reply = send_receive<KIF::Syscall::ActivityWaitReply>(req_buf);
 
-    int exitcode = -1;
+    Errors::Code exitcode = Errors::UNSPECIFIED;
     capsel_t act = KIF::INV_SEL;
     Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res == Errors::NONE && event == 0) {
         act = reply->act_sel;
-        exitcode = reply->exitcode;
+        exitcode = static_cast<Errors::Code>(reply->exitcode);
     }
 
     if(res != Errors::NONE)

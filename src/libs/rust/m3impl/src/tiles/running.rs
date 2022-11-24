@@ -15,7 +15,7 @@
 
 //! The different types that are used to hold the own activity running on a activity.
 
-use crate::errors::Error;
+use crate::errors::{Code, Error};
 use crate::kif;
 use crate::syscalls;
 use crate::tiles::ChildActivity;
@@ -41,12 +41,12 @@ pub trait RunningActivity {
     }
 
     /// Waits until the activity exits and returns the error code.
-    fn wait(&self) -> Result<i32, Error> {
+    fn wait(&self) -> Result<Code, Error> {
         syscalls::activity_wait(&[self.activity().sel()], 0).map(|r| r.1)
     }
 
     /// Starts an asynchronous wait for the activity, using the given event for the upcall.
-    fn wait_async(&self, event: u64) -> Result<i32, Error> {
+    fn wait_async(&self, event: u64) -> Result<Code, Error> {
         syscalls::activity_wait(&[self.activity().sel()], event).map(|r| r.1)
     }
 }

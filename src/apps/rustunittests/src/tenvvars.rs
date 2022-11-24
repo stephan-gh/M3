@@ -15,6 +15,7 @@
 
 use m3::col::ToString;
 use m3::env;
+use m3::errors::Code;
 use m3::test::{DefaultWvTester, WvTester};
 use m3::tiles::{ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::{wv_assert_eq, wv_assert_ok, wv_run_test};
@@ -95,10 +96,10 @@ fn to_child(t: &mut dyn WvTester) {
 
         env::remove_var("V2");
         wv_assert_eq!(t, env::vars().len(), 2);
-        0
+        Ok(())
     }));
 
-    wv_assert_eq!(t, run.wait(), Ok(0));
+    wv_assert_eq!(t, run.wait(), Ok(Code::None));
 
     env::remove_var("V3");
     env::remove_var("V2");

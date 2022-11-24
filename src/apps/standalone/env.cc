@@ -15,6 +15,7 @@
 
 #include <base/Common.h>
 #include <base/Env.h>
+#include <base/Errors.h>
 #include <base/TileDesc.h>
 #include <base/stream/Serial.h>
 
@@ -27,7 +28,7 @@ public:
         m3::Serial::init("standalone", m3::env()->tile_id);
     }
 
-    virtual void exit(int) override {
+    virtual void exit(m3::Errors::Code) override {
         m3::Machine::shutdown();
     }
 };

@@ -24,6 +24,7 @@ use m3::{
     col::Vec,
     com::{recv_msg, RGateArgs, RecvGate, Semaphore, SendGate},
     env,
+    errors::{Code, Error},
     mem::AlignedBuf,
     net::{
         DGramSocket, DgramSocketArgs, Endpoint, IpAddr, Port, Socket, StreamSocketArgs, TcpSocket,
@@ -32,6 +33,7 @@ use m3::{
     println,
     rc::Rc,
     session::NetworkManager,
+    tiles::Activity,
     util::math::next_log2,
     vfs::{BufReader, OpenFlags},
 };
@@ -45,7 +47,7 @@ fn usage() {
     println!("Usage: {} tcp <ip> <port> <workload> <repeats>", name);
     println!("Usage: {} tcu <workload> <repeats>", name);
     println!("Usage: {} udp <port>", name);
-    m3::exit(1);
+    Activity::own().exit_with(Code::InvArgs);
 }
 
 fn udp_receiver(nm: Rc<NetworkManager>, port: Port) {
@@ -195,7 +197,7 @@ fn tcu_sender(sgate: &SendGate, wl: &str, repeats: u32) {
 }
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let args: Vec<_> = env::args().collect();
     if args.len() < 2 {
         usage();
@@ -236,5 +238,5 @@ pub fn main() -> i32 {
         tcu_sender(&sgate, args[2], repeats);
     }
 
-    0
+    Ok(())
 }

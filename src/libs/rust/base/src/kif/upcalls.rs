@@ -40,7 +40,7 @@ pub struct ActivityWait {
     pub event: u64,
     pub error: Code,
     pub act_sel: CapSel,
-    pub exitcode: i32,
+    pub exitcode: Code,
 }
 
 /// The derive-srv upcall that is sent upon completion

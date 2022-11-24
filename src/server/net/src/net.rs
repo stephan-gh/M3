@@ -267,7 +267,7 @@ fn usage() -> ! {
     println!("  -a: the network mask to use (default: 255.255.255.0)");
     println!("  -n: the IP address of the DNS server");
     println!("  -g: the IP address of the default gateway");
-    m3::exit(1);
+    Activity::own().exit_with(Code::InvArgs);
 }
 
 fn parse_args() -> Result<NetSettings, String> {
@@ -329,7 +329,7 @@ fn parse_args() -> Result<NetSettings, String> {
 }
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     smoltcpif::logger::init().unwrap();
 
     let settings = parse_args().unwrap_or_else(|e| {
@@ -478,5 +478,5 @@ pub fn main() -> i32 {
         log_net(NetLogEvent::StoppedWaiting, 0, 0);
     }
 
-    0
+    Ok(())
 }

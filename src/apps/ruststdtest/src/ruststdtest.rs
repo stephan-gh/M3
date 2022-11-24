@@ -18,6 +18,7 @@
 #[allow(unused_extern_crates)]
 extern crate m3impl as m3;
 
+use m3::errors::Error;
 use m3::test::{DefaultWvTester, WvTester};
 use m3::wv_run_suite;
 
@@ -34,12 +35,12 @@ macro_rules! wv_assert_stderr {
 }
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let mut tester = DefaultWvTester::default();
     wv_run_suite!(tester, tdir::run);
     wv_run_suite!(tester, tfile::run);
     wv_run_suite!(tester, tsocket::run);
     wv_run_suite!(tester, ttime::run);
     println!("{}", tester);
-    0
+    Ok(())
 }

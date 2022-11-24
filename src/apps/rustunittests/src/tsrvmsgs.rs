@@ -22,7 +22,7 @@ use m3::kif;
 use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::ServerSession;
 use m3::test::WvTester;
-use m3::tiles::{ActivityArgs, ChildActivity, RunningActivity, Tile};
+use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::util::math::next_log2;
 use m3::{reply_vmsg, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
@@ -93,13 +93,13 @@ impl MsgHandler {
         // pretend that we crash after some requests
         self.calls += 1;
         if self.calls == 6 {
-            m3::exit(1);
+            Activity::own().exit_with(Code::EndOfFile);
         }
         Ok(())
     }
 }
 
-fn server_msgs_main() -> i32 {
+fn server_msgs_main() -> Result<(), Error> {
     let mut hdl = MsgHandler {
         sessions: SessionContainer::new(1),
         calls: 0,
@@ -122,7 +122,7 @@ fn server_msgs_main() -> i32 {
     })
     .ok();
 
-    0
+    Ok(())
 }
 
 fn testmsgs(t: &mut dyn WvTester) {
@@ -164,5 +164,5 @@ fn testmsgs(t: &mut dyn WvTester) {
         );
     }
 
-    wv_assert_eq!(t, sact.wait(), Ok(1));
+    wv_assert_eq!(t, sact.wait(), Ok(Code::EndOfFile));
 }

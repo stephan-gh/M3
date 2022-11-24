@@ -20,11 +20,12 @@
 
 mod brdwr;
 
+use m3::errors::Error;
 use m3::test::{DefaultWvTester, WvTester};
 use m3::{println, wv_run_suite};
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     // Mount fs to load binary data
     m3::vfs::VFS::mount("/", "m3fs", "m3fs").expect("Failed to mount root filesystem on server");
 
@@ -32,5 +33,6 @@ pub fn main() -> i32 {
     wv_run_suite!(tester, brdwr::run);
 
     println!("\x1B[1;32mAll tests successful!\x1B[0;m");
-    0
+
+    Ok(())
 }

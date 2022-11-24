@@ -87,7 +87,7 @@ void Env::run() {
     UNREACHED;
 }
 
-USED void Env::exit(int code, bool abort) {
+USED void Env::exit(Errors::Code code, bool abort) {
     if(!abort)
         __cxa_finalize(nullptr);
     backend()->exit(code);

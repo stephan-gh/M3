@@ -15,6 +15,7 @@
 
 use m3::cap::Selector;
 use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
+use m3::errors::Code;
 use m3::rc::Rc;
 use m3::test::{DefaultWvTester, WvTester};
 use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
@@ -72,7 +73,7 @@ fn pingpong_with_tile(t: &mut dyn WvTester, name: &str, tile: Rc<Tile>) {
             wv_assert_eq!(t, msg.pop::<u64>(), Ok(0));
             wv_assert_ok!(reply_vmsg!(msg, 0u64));
         }
-        0
+        Ok(())
     }));
 
     let mut prof = Profiler::default().repeats(RUNS).warmup(WARMUP);
@@ -88,7 +89,7 @@ fn pingpong_with_tile(t: &mut dyn WvTester, name: &str, tile: Rc<Tile>) {
         })
     );
 
-    wv_assert_eq!(t, act.wait(), Ok(0));
+    wv_assert_eq!(t, act.wait(), Ok(Code::None));
 }
 
 fn pingpong_with_multiple(t: &mut dyn WvTester) {
@@ -132,7 +133,7 @@ fn pingpong_with_multiple(t: &mut dyn WvTester) {
             wv_assert_eq!(t, msg.pop::<u64>(), Ok(0));
             wv_assert_ok!(reply_vmsg!(msg, 0u64));
         }
-        0
+        Ok(())
     };
 
     let act1 = wv_assert_ok!(act1.run(func));
@@ -161,6 +162,6 @@ fn pingpong_with_multiple(t: &mut dyn WvTester) {
         })
     );
 
-    wv_assert_eq!(t, act1.wait(), Ok(0));
-    wv_assert_eq!(t, act2.wait(), Ok(0));
+    wv_assert_eq!(t, act1.wait(), Ok(Code::None));
+    wv_assert_eq!(t, act2.wait(), Ok(Code::None));
 }

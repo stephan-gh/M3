@@ -16,7 +16,7 @@
 //! Contains the interface between applications and TileMux
 
 use crate::arch::tmabi;
-use crate::errors::Error;
+use crate::errors::{Code, Error};
 use crate::goff;
 use crate::kif;
 use crate::tcu::{EpId, INVALID_EP};
@@ -73,7 +73,7 @@ pub fn wait(
     .map(|_| ())
 }
 
-pub fn exit(code: i32) -> ! {
+pub fn exit(code: Code) -> ! {
     tmabi::call1(Operation::EXIT, code as usize).ok();
     unreachable!();
 }

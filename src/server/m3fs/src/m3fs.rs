@@ -501,7 +501,7 @@ fn usage() -> ! {
     println!("  -b: the maximum number of blocks loaded from the disk");
     println!("  -o: the file system offset in DRAM");
     println!("  -m: the maximum number of clients (receive slots)");
-    m3::exit(1);
+    Activity::own().exit_with(Code::InvArgs);
 }
 
 fn parse_args() -> Result<FsSettings, String> {
@@ -562,7 +562,7 @@ fn parse_args() -> Result<FsSettings, String> {
 }
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     // parse arguments
     SETTINGS.set(parse_args().unwrap_or_else(|e| {
         println!("Invalid arguments: {}", e);
@@ -603,5 +603,5 @@ pub fn main() -> i32 {
     })
     .ok();
 
-    0
+    Ok(())
 }

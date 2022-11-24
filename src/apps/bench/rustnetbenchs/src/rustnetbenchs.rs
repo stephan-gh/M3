@@ -24,6 +24,7 @@ mod budp;
 use m3::cell::LazyStaticCell;
 use m3::col::Vec;
 use m3::env;
+use m3::errors::{Code, Error};
 use m3::net::IpAddr;
 use m3::test::{DefaultWvTester, WvTester};
 use m3::{println, wv_run_suite};
@@ -31,11 +32,11 @@ use m3::{println, wv_run_suite};
 pub static DST_IP: LazyStaticCell<IpAddr> = LazyStaticCell::default();
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let args: Vec<&str> = env::args().collect();
     if args.len() != 2 {
         println!("Usage: {} <dst-IP>", args[0]);
-        m3::exit(1);
+        return Err(Error::new(Code::InvArgs));
     }
 
     DST_IP.set(
@@ -48,5 +49,5 @@ pub fn main() -> i32 {
     wv_run_suite!(tester, budp::run);
     wv_run_suite!(tester, btcp::run);
     println!("{}", tester);
-    0
+    Ok(())
 }

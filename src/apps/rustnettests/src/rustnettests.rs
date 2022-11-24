@@ -21,6 +21,7 @@
 use m3::cell::LazyStaticCell;
 use m3::col::Vec;
 use m3::env;
+use m3::errors::{Code, Error};
 use m3::net::IpAddr;
 use m3::test::{DefaultWvTester, WvTester};
 use m3::{println, wv_run_suite};
@@ -39,11 +40,11 @@ fn parse_ip(ip: &str) -> IpAddr {
 }
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let args: Vec<&str> = env::args().collect();
     if args.len() != 4 {
         println!("Usage: {} <net0-IP> <net1-IP> <dst-IP>", args[0]);
-        m3::exit(1);
+        return Err(Error::new(Code::InvArgs));
     }
 
     NET0_IP.set(parse_ip(args[1]));
@@ -55,5 +56,5 @@ pub fn main() -> i32 {
     wv_run_suite!(tester, tudp::run);
     wv_run_suite!(tester, ttcp::run);
     println!("{}", tester);
-    0
+    Ok(())
 }

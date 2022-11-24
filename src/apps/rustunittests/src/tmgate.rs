@@ -157,7 +157,7 @@ fn remote_access(t: &mut dyn WvTester) {
         wv_assert_ok!(sem1.up());
         // wait for parent
         wv_assert_ok!(sem2.down());
-        0
+        Ok(())
     }));
 
     // wait until child is ready

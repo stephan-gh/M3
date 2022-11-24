@@ -352,7 +352,7 @@ fn usage() -> ! {
     println!("Usage: {} [-m <clients>]", env::args().next().unwrap());
     println!();
     println!("  -m: the maximum number of clients (receive slots)");
-    m3::exit(1);
+    Activity::own().exit_with(Code::InvArgs);
 }
 
 fn parse_args() -> Result<PipesSettings, String> {
@@ -376,7 +376,7 @@ fn parse_args() -> Result<PipesSettings, String> {
 }
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let settings = parse_args().unwrap_or_else(|e| {
         println!("Invalid arguments: {}", e);
         usage();
@@ -420,5 +420,5 @@ pub fn main() -> i32 {
     })
     .ok();
 
-    0
+    Ok(())
 }

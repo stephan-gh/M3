@@ -20,12 +20,13 @@
 
 use m3::com::MemGate;
 use m3::env;
+use m3::errors::Error;
 use m3::kif;
 use m3::time::{CycleInstant, Profiler};
 use m3::{format, vec, wv_perf};
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let tcu = env::args().nth(1).unwrap() == "tcu";
 
     let buf = vec![0u8; 1024 * 1024];
@@ -54,5 +55,6 @@ pub fn main() -> i32 {
             })
         );
     }
-    0
+
+    Ok(())
 }

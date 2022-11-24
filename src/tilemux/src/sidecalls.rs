@@ -85,7 +85,7 @@ fn activity_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
                 Some(cur) if cur.id() == r.act_id => {
                     crate::reg_scheduling(activities::ScheduleAction::Kill)
                 },
-                _ => activities::remove(r.act_id, 0, false, true),
+                _ => activities::remove(r.act_id, Code::None, false, true),
             }
             Ok(())
         },

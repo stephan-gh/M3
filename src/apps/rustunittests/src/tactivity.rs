@@ -19,6 +19,7 @@
 use m3::cap::Selector;
 use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
 use m3::env;
+use m3::errors::{Code, Error};
 use m3::test::{DefaultWvTester, WvTester};
 use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::time::TimeDuration;
@@ -98,10 +99,10 @@ fn run_arguments(t: &mut dyn WvTester) {
         wv_assert_eq!(t, env::args().count(), 1);
         assert!(env::args().next().is_some());
         assert!(env::args().next().unwrap().ends_with("rustunittests"));
-        0
+        Ok(())
     }));
 
-    wv_assert_eq!(t, act.wait(), Ok(0));
+    wv_assert_eq!(t, act.wait(), Ok(Code::None));
 }
 
 fn run_send_receive(t: &mut dyn WvTester) {
@@ -126,17 +127,15 @@ fn run_send_receive(t: &mut dyn WvTester) {
         let i1 = wv_assert_ok!(res.pop::<u32>());
         let i2 = wv_assert_ok!(res.pop::<u32>());
         wv_assert_eq!(t, (i1, i2), (42, 23));
-        (i1 + i2) as i32
+        Err(Error::new(Code::NoFreeTile))
     }));
 
     wv_assert_ok!(send_vmsg!(&sgate, RecvGate::def(), 42, 23));
 
-    wv_assert_eq!(t, act.wait(), Ok(42 + 23));
+    wv_assert_eq!(t, act.wait(), Ok(Code::NoFreeTile));
 }
 
 fn exec_fail(_t: &mut dyn WvTester) {
-    use m3::errors::Code;
-
     let tile = wv_assert_ok!(Tile::get("clone|own"));
     // file too small
     {
@@ -161,7 +160,7 @@ fn exec_hello(t: &mut dyn WvTester) {
     let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
     let act = wv_assert_ok!(act.exec(&["/bin/hello"]));
-    wv_assert_eq!(t, act.wait(), Ok(0));
+    wv_assert_eq!(t, act.wait(), Ok(Code::None));
 }
 
 fn exec_rust_hello(t: &mut dyn WvTester) {
@@ -169,5 +168,5 @@ fn exec_rust_hello(t: &mut dyn WvTester) {
     let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
     let act = wv_assert_ok!(act.exec(&["/bin/rusthello"]));
-    wv_assert_eq!(t, act.wait(), Ok(0));
+    wv_assert_eq!(t, act.wait(), Ok(Code::None));
 }

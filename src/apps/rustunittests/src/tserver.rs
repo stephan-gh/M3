@@ -66,18 +66,19 @@ impl Handler<EmptySession> for CrashHandler {
 
     fn obtain(&mut self, _: usize, _: SessId, _: &mut CapExchange<'_>) -> Result<(), Error> {
         // don't respond, just exit
-        m3::exit(1);
+        Activity::own().exit_with(Code::EndOfFile);
     }
 }
 
-fn server_crash_main() -> i32 {
+fn server_crash_main() -> Result<(), Error> {
     let mut hdl = CrashHandler {
         sessions: SessionContainer::new(1),
     };
     let s = wv_assert_ok!(Server::new("test", &mut hdl));
 
     server_loop(|| s.handle_ctrl_chan(&mut hdl)).ok();
-    0
+
+    Ok(())
 }
 
 pub fn connect(name: &str) -> ClientSession {
@@ -111,17 +112,17 @@ fn testnoresp(t: &mut dyn WvTester) {
             let mut t = DefaultWvTester::default();
             let sess = connect("test");
             wv_assert_err!(t, sess.obtain_obj(), Code::RecvGone);
-            0
+            Ok(())
         }));
 
-        wv_assert_eq!(t, sact.wait(), Ok(1));
+        wv_assert_eq!(t, sact.wait(), Ok(Code::EndOfFile));
         cact
 
         // destroy server activity to let the client request fail
     };
 
     // now wait for client
-    wv_assert_eq!(t, cact.wait(), Ok(0));
+    wv_assert_eq!(t, cact.wait(), Ok(Code::None));
 }
 
 fn testcliexit(t: &mut dyn WvTester) {
@@ -193,7 +194,7 @@ fn testcliexit(t: &mut dyn WvTester) {
     wv_assert_ok!(recv_msg(&rg));
     wv_assert_ok!(recv_msg(&rg));
 
-    wv_assert_eq!(t, sact.wait(), Ok(1));
+    wv_assert_eq!(t, sact.wait(), Ok(Code::EndOfFile));
     wv_assert_ok!(cact.stop());
 }
 
@@ -246,7 +247,7 @@ impl Handler<EmptySession> for NotSupHandler {
     }
 }
 
-fn server_notsup_main() -> i32 {
+fn server_notsup_main() -> Result<(), Error> {
     for _ in 0..5 {
         STOP.set(false);
 
@@ -269,7 +270,7 @@ fn server_notsup_main() -> i32 {
         }
     }
 
-    0
+    Ok(())
 }
 
 fn testcaps(t: &mut dyn WvTester) {
@@ -304,5 +305,5 @@ fn testcaps(t: &mut dyn WvTester) {
     }
 
     wv_assert_err!(t, ClientSession::new("test"), Code::InvArgs);
-    wv_assert_eq!(t, sact.wait(), Ok(0));
+    wv_assert_eq!(t, sact.wait(), Ok(Code::None));
 }

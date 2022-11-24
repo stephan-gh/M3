@@ -14,7 +14,7 @@
  */
 
 use m3::com::Semaphore;
-use m3::errors::Code;
+use m3::errors::{Code, Error};
 use m3::test::DefaultWvTester;
 use m3::test::WvTester;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
@@ -97,7 +97,7 @@ extern "C" {
     fn __m3c_init_netmng(name: *const i8) -> Code;
 }
 
-fn tcp_server() -> i32 {
+fn tcp_server() -> Result<(), Error> {
     let mut t = DefaultWvTester::default();
     // connect to netmng explicitly here to specify a different session name
     wv_assert_eq!(
@@ -115,7 +115,7 @@ fn tcp_server() -> i32 {
     wv_assert!(t, matches!(stream.read(&mut buf), Ok(4)));
     wv_assert!(t, matches!(stream.write(&buf), Ok(4)));
 
-    0
+    Ok(())
 }
 
 fn tcp_accept(t: &mut dyn WvTester) {
@@ -141,5 +141,5 @@ fn tcp_accept(t: &mut dyn WvTester) {
         }
     }
 
-    wv_assert_eq!(t, act.wait(), Ok(0));
+    wv_assert_eq!(t, act.wait(), Ok(Code::None));
 }

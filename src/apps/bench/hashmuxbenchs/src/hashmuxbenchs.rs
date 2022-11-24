@@ -24,6 +24,7 @@ mod blatency;
 mod util;
 
 use m3::col::Vec;
+use m3::errors::Error;
 use m3::test::{DefaultWvTester, WvTester};
 use m3::{println, wv_run_suite};
 
@@ -56,7 +57,7 @@ impl WvTester for MyTester {
 }
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let mut tester = MyTester {
         def: DefaultWvTester::default(),
         suites: m3::env::args().skip(1).collect(), // Skip program name
@@ -64,5 +65,5 @@ pub fn main() -> i32 {
     wv_run_suite!(tester, bhash::run);
     wv_run_suite!(tester, bclients::run);
     wv_run_suite!(tester, blatency::run);
-    0
+    Ok(())
 }

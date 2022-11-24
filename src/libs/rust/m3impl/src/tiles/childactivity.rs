@@ -282,7 +282,7 @@ impl ChildActivity {
     ///
     /// The method returns the [`RunningProgramActivity`] on success that can be used to wait for
     /// the functions completeness or to stop it.
-    pub fn run(self, func: fn() -> i32) -> Result<RunningProgramActivity, Error> {
+    pub fn run(self, func: fn() -> Result<(), Error>) -> Result<RunningProgramActivity, Error> {
         let args = crate::env::args().collect::<Vec<_>>();
         let file = VFS::open(args[0], OpenFlags::RX | OpenFlags::NEW_SESS)?;
         let mut mapper = DefaultMapper::new(self.tile_desc().has_virtmem());

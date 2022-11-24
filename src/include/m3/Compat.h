@@ -20,7 +20,7 @@
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/File.h>
 
-EXTERN_C NORETURN void __m3c_exit(int status, bool abort);
+EXTERN_C NORETURN void __m3c_exit(m3::Errors::Code status, bool abort);
 EXTERN_C int __m3c_getpid();
 
 EXTERN_C m3::Errors::Code __m3c_fstat(int fd, m3::FileInfo *info);

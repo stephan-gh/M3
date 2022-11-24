@@ -57,7 +57,7 @@ struct TMIF {
         TMABI::call3(Operation::WAIT, ep, irq, timeout.as_nanos());
     }
 
-    static void exit(int code) {
+    static void exit(Errors::Code code) {
         TMABI::call1(Operation::EXIT, static_cast<word_t>(code));
     }
 

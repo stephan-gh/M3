@@ -76,8 +76,8 @@ public:
     static void activate(capsel_t ep, capsel_t gate, capsel_t rbuf_mem, goff_t rbuf_off);
     static void set_pmp(capsel_t tile, capsel_t mgate, epid_t epid);
     static void activity_ctrl(capsel_t act, KIF::Syscall::ActivityOp op, xfer_t arg);
-    static std::pair<int, capsel_t> activity_wait(const capsel_t *acts, size_t count,
-                                                  event_t event);
+    static std::pair<Errors::Code, capsel_t> activity_wait(const capsel_t *acts, size_t count,
+                                                           event_t event);
     static void derive_mem(capsel_t act, capsel_t dst, capsel_t src, goff_t offset, size_t size,
                            int perms);
     static void derive_kmem(capsel_t kmem, capsel_t dst, size_t quota);

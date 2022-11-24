@@ -628,7 +628,7 @@ fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
 }
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let mut hdl = VTermHandler {
         sel: 0,
         sessions: SessionContainer::new(DEF_MAX_CLIENTS),
@@ -687,5 +687,5 @@ pub fn main() -> i32 {
     })
     .ok();
 
-    0
+    Ok(())
 }

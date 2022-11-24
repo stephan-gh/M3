@@ -124,7 +124,7 @@ fn workloop() {
 }
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let sub = subsys::Subsystem::new().expect("Unable to read subsystem info");
     let args = sub.parse_args();
     SUBSYS.set(sub);
@@ -186,5 +186,5 @@ pub fn main() -> i32 {
 
     log!(resmng::LOG_DEF, "All childs gone. Exiting.");
 
-    0
+    Ok(())
 }

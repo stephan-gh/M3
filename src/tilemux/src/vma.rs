@@ -15,7 +15,7 @@
  */
 
 use base::cfg;
-use base::errors::Error;
+use base::errors::{Code, Error};
 use base::kif::PageFlags;
 use base::log;
 use base::mem::MsgBuf;
@@ -127,7 +127,7 @@ pub fn handle_xlate(virt: usize, perm: PageFlags) {
                 "Unable to handle page fault for {:#x}",
                 virt
             );
-            activities::remove_cur(1);
+            activities::remove_cur(Code::Unspecified);
         }
     }
     // translation worked: let transfer continue
@@ -135,7 +135,7 @@ pub fn handle_xlate(virt: usize, perm: PageFlags) {
         // ensure that we only insert user-accessible pages into the TLB
         if (pte & PageFlags::U.bits()) == 0 {
             log!(crate::LOG_ERR, "No permission to access {:#x}", virt);
-            activities::remove_cur(1);
+            activities::remove_cur(Code::Unspecified);
         }
         else {
             let phys = pte & !(cfg::PAGE_MASK as u64);

@@ -18,6 +18,7 @@
 
 //! The system call interface
 
+use crate::errors::Code;
 use crate::goff;
 use crate::kif::{tilemux::QuotaId, CapRngDesc, CapSel, Perm};
 use crate::mem::GlobAddr;
@@ -351,7 +352,7 @@ pub struct AllocEPReply {
 #[repr(C)]
 pub struct ActivityWaitReply {
     pub act_sel: CapSel,
-    pub exitcode: i32,
+    pub exitcode: Code,
 }
 
 /// The kernel gate region reply message

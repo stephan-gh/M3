@@ -19,13 +19,14 @@
 #![no_std]
 
 use m3::env;
+use m3::errors::Error;
 use m3::io::{stdout, Write};
 use m3::time::{TimeDuration, TimeInstant};
 
 const FREQ: TimeDuration = TimeDuration::from_millis(1);
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let c = env::args()
         .nth(1)
         .unwrap_or_else(|| panic!("Usage: {} <str>", env::args().next().unwrap()));

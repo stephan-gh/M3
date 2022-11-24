@@ -39,7 +39,7 @@ public:
         Serial::init(reinterpret_cast<char *>(argv[0]), env()->tile_id);
     }
 
-    NORETURN void exit(UNUSED int code) override {
+    NORETURN void exit(Errors::Code code) override {
         TMIF::exit(code);
         UNREACHED;
     }

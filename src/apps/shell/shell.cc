@@ -285,8 +285,9 @@ static void execute_pipeline(Pipes &pipesrv, std::unique_ptr<Parser::CmdList> &c
             for(size_t i = 0; i < act_count; ++i) {
                 if(acts[i] && (signal || acts[i]->sel() == act)) {
                     if(exitcode != 0) {
-                        eprintln("{} terminated with exit code {}"_cf,
-                                 expr_value(*cmds->get(i)->args()->get(0)), exitcode);
+                        eprintln("{} terminated with exit code {} ({})"_cf,
+                                 expr_value(*cmds->get(i)->args()->get(0)), exitcode,
+                                 Errors::to_string(static_cast<Errors::Code>(exitcode)));
                     }
                     else if(signal) {
                         eprintln("{} terminated by signal"_cf,

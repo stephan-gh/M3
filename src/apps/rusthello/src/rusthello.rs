@@ -18,11 +18,11 @@
 
 #![no_std]
 
+use m3::errors::Error;
 use m3::println;
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     println!("Hello world!");
-
-    0
+    Ok(())
 }

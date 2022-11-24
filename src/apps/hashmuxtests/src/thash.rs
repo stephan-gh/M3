@@ -17,7 +17,7 @@ use hex_literal::hex;
 use m3::col::Vec;
 use m3::com::{MemGate, Perm};
 use m3::crypto::{HashAlgorithm, HashType};
-use m3::errors::Code;
+use m3::errors::{Code, Error};
 use m3::io;
 use m3::io::{Read, Write};
 use m3::session::{HashInput, HashOutput, HashSession, Pipes};
@@ -141,7 +141,7 @@ fn _hash_file(
     hash: &mut HashSession,
     algo: &'static HashAlgorithm,
     expected: &[u8],
-) -> bool {
+) -> Result<(), Error> {
     wv_assert_ok!(hash.reset(algo));
     wv_assert_ok!(file.hash_input(hash, usize::MAX));
 
@@ -149,7 +149,10 @@ fn _hash_file(
     wv_assert_ok!(hash.finish(&mut buf));
 
     wv_assert_eq!(t, &buf, expected);
-    buf != expected
+    match buf == expected {
+        true => Ok(()),
+        false => Err(Error::new(Code::Unspecified)),
+    }
 }
 
 fn _to_hex_bytes(s: &str) -> Vec<u8> {
@@ -196,7 +199,7 @@ fn _hash_file_start(
             &mut hash,
             algo,
             &expected_bytes,
-        ) as i32
+        )
     }))
 }
 
@@ -228,7 +231,7 @@ fn hash_file(t: &mut dyn WvTester) {
 
     for (algo, hash) in &hashes {
         let closure = _hash_file_start(algo, &file, hash);
-        wv_assert_eq!(t, closure.wait(), Ok(0));
+        wv_assert_eq!(t, closure.wait(), Ok(Code::None));
     }
 }
 
@@ -246,7 +249,8 @@ fn seek_then_hash_file(t: &mut dyn WvTester) {
         &mut hash,
         &HashAlgorithm::SHA3_256,
         &hex!("56ea8bb7197d843cfe0cb6e80f6b02e6e1a14b026e6628b91f09cb5f60ca4e01"),
-    );
+    )
+    .unwrap();
 }
 
 fn read0_then_hash_file(t: &mut dyn WvTester) {
@@ -266,7 +270,8 @@ fn read0_then_hash_file(t: &mut dyn WvTester) {
         &mut hash,
         &HashAlgorithm::SHA3_256,
         &hex!("0e63e307beb389b2fd7ea292c3bbf2e9e6e1005d82d3620d39c41b22e6db9df8"),
-    );
+    )
+    .unwrap();
 }
 
 fn write0_then_hash_file(t: &mut dyn WvTester) {
@@ -286,7 +291,8 @@ fn write0_then_hash_file(t: &mut dyn WvTester) {
         &mut hash,
         &HashAlgorithm::SHA3_256,
         &hex!("0e63e307beb389b2fd7ea292c3bbf2e9e6e1005d82d3620d39c41b22e6db9df8"),
-    );
+    )
+    .unwrap();
 }
 
 fn read_then_hash_file(t: &mut dyn WvTester) {
@@ -307,7 +313,8 @@ fn read_then_hash_file(t: &mut dyn WvTester) {
         &mut hash,
         &HashAlgorithm::SHA3_256,
         &hex!("e4a0a34734c9c4bd45fb92cca0204fce0b0188e776632150d5be1083059e934f"),
-    );
+    )
+    .unwrap();
 }
 
 const SHAKE_SIZE: usize = 1 * 1024 * 1024; // 1 MiB
@@ -439,7 +446,7 @@ fn shake_and_hash_pipe(t: &mut dyn WvTester) {
         let hash = wv_assert_ok!(HashSession::new("hash2", &HashAlgorithm::SHAKE128));
         wv_assert_ok!(io::stdin().get_mut().hash_input(&hash, usize::MAX));
         wv_assert_ok!(io::stdout().get_mut().hash_output(&hash, PIPE_SHAKE_SIZE));
-        0
+        Ok(())
     }));
 
     // Close unused parts of pipe that were delegated to activity
@@ -467,5 +474,5 @@ fn shake_and_hash_pipe(t: &mut dyn WvTester) {
         &buf,
         &hex!("dd20e9da838d0643a6d0e8af3ebbcac44692a32d595acd626e993dca02620aee")
     );
-    wv_assert_eq!(t, closure.wait(), Ok(0));
+    wv_assert_eq!(t, closure.wait(), Ok(Code::None));
 }

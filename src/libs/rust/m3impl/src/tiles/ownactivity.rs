@@ -24,7 +24,8 @@ use core::ops::Deref;
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::cell::{Cell, Ref, RefCell, RefMut};
 use crate::com::EpMng;
-use crate::errors::Error;
+use crate::env;
+use crate::errors::{Code, Error};
 use crate::kif;
 use crate::rc::Rc;
 use crate::serialize::M3Deserializer;
@@ -68,6 +69,28 @@ impl OwnActivity {
             mounts: RefCell::new(env.load_mounts()),
             files: RefCell::new(env.load_fds()),
         }
+    }
+
+    /// Exits with an unspecified error without deinitialization
+    pub fn abort(&self) -> ! {
+        base::machine::write_coverage(env::data().act_id + 1);
+        tmif::exit(Code::Unspecified);
+    }
+
+    // Deinitializes all data structures and exits with given result
+    pub fn exit(&self, res: Result<(), Error>) -> ! {
+        let err = match res {
+            Ok(_) => Code::None,
+            Err(e) => e.code(),
+        };
+        self.exit_with(err);
+    }
+
+    // Deinitializes all data structures and exits with given error
+    pub fn exit_with(&self, err: Code) -> ! {
+        crate::deinit();
+        base::machine::write_coverage(env::data().act_id + 1);
+        tmif::exit(err);
     }
 
     /// Puts the own activity to sleep until the next message arrives

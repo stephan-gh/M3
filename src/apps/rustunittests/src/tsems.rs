@@ -72,7 +72,7 @@ fn taking_turns(t: &mut dyn WvTester) {
             set_counter("/sem1", i);
             wv_assert_ok!(sem1.up());
         }
-        0
+        Ok(())
     }));
 
     for i in 0..10 {

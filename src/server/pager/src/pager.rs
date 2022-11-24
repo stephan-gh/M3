@@ -299,10 +299,10 @@ fn parse_args() -> Result<PagerSettings, String> {
 }
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     SETTINGS.set(parse_args().unwrap_or_else(|e| {
         println!("Invalid arguments: {}", e);
-        m3::exit(1);
+        Activity::own().exit_with(Code::InvArgs);
     }));
 
     let subsys = subsys::Subsystem::new().expect("Unable to read subsystem info");
@@ -368,5 +368,5 @@ pub fn main() -> i32 {
 
     workloop(&serv);
 
-    0
+    Ok(())
 }

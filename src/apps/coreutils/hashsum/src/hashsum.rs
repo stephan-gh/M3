@@ -56,7 +56,7 @@ fn hash(
 }
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let mut args = env::args();
     let program = args.next().unwrap_or("hashsum");
     let algo = match args.next().and_then(HashAlgorithm::from_name) {
@@ -69,7 +69,7 @@ pub fn main() -> i32 {
                 sep = "|";
             }
             println!("> [-O <output-bytes>|-o <output-file>] [files...]");
-            return 1;
+            return Err(Error::new(Code::InvArgs));
         },
     };
 
@@ -106,12 +106,12 @@ pub fn main() -> i32 {
             "Output size {} larger than hash output size {}",
             output_bytes, algo.output_bytes
         );
-        return 1;
+        return Err(Error::new(Code::InvArgs));
     }
 
     let mut sess = HashSession::new("hash", algo).expect("Failed to get hash session");
 
-    let mut exit = 0;
+    let mut res = Ok(());
     next = next.or(Some("-"));
     while let Some(path) = next {
         if let Err(e) = hash(&mut sess, path, output_bytes, output_file.as_mut()) {
@@ -122,10 +122,10 @@ pub fn main() -> i32 {
             else {
                 panic!("Failed to hash file: {:?}", e)
             }
-            exit = 1
+            res = Err(e);
         }
         next = args.next()
     }
 
-    exit
+    res
 }

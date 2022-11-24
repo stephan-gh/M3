@@ -46,26 +46,23 @@ pub mod test;
 pub mod tiles;
 pub mod vfs;
 
+use base::errors::Error;
+
 use core::ptr;
 
-#[no_mangle]
-pub extern "C" fn abort() -> ! {
-    base::machine::write_coverage(env::data().act_id + 1);
-    tmif::exit(1);
-}
-
-#[no_mangle]
-pub extern "C" fn exit(_code: i32) -> ! {
-    io::deinit();
-    vfs::deinit();
-
-    base::machine::write_coverage(env::data().act_id + 1);
-    tmif::exit(_code);
-}
+use crate::tiles::Activity;
 
 extern "C" {
     fn __m3_init_libc(argc: i32, argv: *const *const u8, envp: *const *const u8);
-    fn main() -> i32;
+}
+
+extern "Rust" {
+    fn main() -> Result<(), Error>;
+}
+
+pub fn deinit() {
+    io::deinit();
+    vfs::deinit();
 }
 
 #[no_mangle]
@@ -86,5 +83,5 @@ pub extern "C" fn env_run() {
         unsafe { main() }
     };
 
-    exit(res)
+    Activity::own().exit(res);
 }

@@ -64,10 +64,13 @@ fn get_file_as<T>(fd: i32) -> Result<FileRef<T>, Error> {
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn __m3c_exit(status: i32, abort: bool) -> ! {
     if abort {
-        crate::abort();
+        Activity::own().abort();
     }
     else {
-        crate::exit(status)
+        match status {
+            0 => Activity::own().exit(Ok(())),
+            _ => Activity::own().exit_with(Code::Unspecified),
+        }
     }
 }
 

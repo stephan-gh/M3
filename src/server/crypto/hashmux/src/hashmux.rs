@@ -704,7 +704,7 @@ impl HashMuxReceiver {
 }
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let mut hdl = HashHandler {
         sessions: SessionContainer::new(MAX_SESSIONS),
         current: None,
@@ -740,5 +740,6 @@ pub fn main() -> i32 {
         Ok(())
     })
     .ok();
-    0
+
+    Ok(())
 }

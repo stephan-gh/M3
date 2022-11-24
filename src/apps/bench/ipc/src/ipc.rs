@@ -21,6 +21,7 @@
 use m3::cap::Selector;
 use m3::cell::StaticRefCell;
 use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
+use m3::errors::{Code, Error};
 use m3::mem::{size_of, AlignedBuf};
 use m3::tcu;
 use m3::test::{DefaultWvTester, WvTester};
@@ -32,7 +33,7 @@ use m3::{format, wv_assert_eq, wv_assert_ok, wv_perf};
 static BUF: StaticRefCell<AlignedBuf<8192>> = StaticRefCell::new(AlignedBuf::new_zeroed());
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let mut t = DefaultWvTester::default();
 
     let tile = wv_assert_ok!(Tile::get("clone"));
@@ -62,7 +63,7 @@ pub fn main() -> i32 {
                 wv_assert_ok!(msg.reply_aligned(BUF.borrow().as_ptr(), size));
             }
         }
-        0
+        Ok(())
     }));
 
     let reply_gate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
@@ -82,7 +83,7 @@ pub fn main() -> i32 {
         );
     }
 
-    wv_assert_eq!(t, act.wait(), Ok(0));
+    wv_assert_eq!(t, act.wait(), Ok(Code::None));
 
-    0
+    Ok(())
 }

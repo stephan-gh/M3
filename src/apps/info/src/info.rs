@@ -15,11 +15,12 @@
 
 #![no_std]
 
+use m3::errors::Error;
 use m3::println;
 use m3::tiles::Activity;
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let (num, _) = Activity::own()
         .resmng()
         .unwrap()
@@ -63,5 +64,6 @@ pub fn main() -> i32 {
             ),
         }
     }
-    0
+
+    Ok(())
 }

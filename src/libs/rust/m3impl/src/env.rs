@@ -23,6 +23,7 @@ use crate::cap::Selector;
 use crate::cfg;
 use crate::col::Vec;
 use crate::com::SendGate;
+use crate::errors::Error;
 use crate::kif::{self, TileDesc};
 use crate::serialize::M3Deserializer;
 use crate::session::{Pager, ResMng};
@@ -169,7 +170,7 @@ impl EnvData {
 
     // --- gem5 specific API ---
 
-    pub fn load_closure(&self) -> Option<fn() -> i32> {
+    pub fn load_closure(&self) -> Option<fn() -> Result<(), Error>> {
         if self.base.closure != 0 {
             // safety: we trust our loader
             unsafe {

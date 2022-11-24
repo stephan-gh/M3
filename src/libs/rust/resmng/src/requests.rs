@@ -79,7 +79,7 @@ where
     if !thread::cur().is_main() {
         thread::stop();
         // just in case there is no ready thread
-        m3::exit(0);
+        Activity::own().exit(Ok(()));
     }
     Ok(())
 }

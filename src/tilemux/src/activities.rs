@@ -551,12 +551,12 @@ fn make_ready(mut act: Box<Activity>, budget: TimeDuration) {
     }
 }
 
-pub fn remove_cur(status: i32) {
+pub fn remove_cur(status: Code) {
     let cur_id = cur().id();
     remove(cur_id, status, true, true);
 }
 
-pub fn remove(id: Id, status: i32, notify: bool, sched: bool) {
+pub fn remove(id: Id, status: Code, notify: bool, sched: bool) {
     // safety: we don't hold a reference to an activity yet
     if let Some(v) = unsafe { ACTIVITIES.get_mut()[id as usize].take() } {
         // safety: the activity reference `v` is still valid here
@@ -570,7 +570,7 @@ pub fn remove(id: Id, status: i32, notify: bool, sched: bool) {
 
         log!(
             crate::LOG_ACTS,
-            "Removed Activity {} with status {}",
+            "Removed Activity {} with status {:?}",
             old.id(),
             status
         );
@@ -893,7 +893,7 @@ impl Activity {
                 ContResult::Success => Some(ScheduleAction::Block),
                 // failed, so remove activity
                 ContResult::Failure => {
-                    remove(self.id(), 1, true, false);
+                    remove(self.id(), Code::Unspecified, true, false);
                     Some(ScheduleAction::Kill)
                 },
                 // set the continuation again to retry later

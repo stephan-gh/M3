@@ -18,15 +18,16 @@
 
 #![no_std]
 
+use m3::errors::Error;
 use m3::test::{DefaultWvTester, WvTester};
 use m3::{println, wv_run_suite};
 
 mod tdisk;
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let mut tester = DefaultWvTester::default();
     wv_run_suite!(tester, tdisk::run);
     println!("{}", tester);
-    0
+    Ok(())
 }

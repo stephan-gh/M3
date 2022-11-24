@@ -467,7 +467,7 @@ pub fn activity_ctrl(act: Selector, op: syscalls::ActivityOp, arg: u64) -> Resul
 /// request and sends an upcall as soon as a activity exists. Otherwise, the kernel replies only as soon
 /// as a activity exists. In both cases, the kernel returns the selector of the activity that exited and the
 /// exitcode given by the activity.
-pub fn activity_wait(sels: &[Selector], event: u64) -> Result<(Selector, i32), Error> {
+pub fn activity_wait(sels: &[Selector], event: u64) -> Result<(Selector, Code), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
 
     #[allow(clippy::uninit_assumed_init)]
@@ -485,7 +485,7 @@ pub fn activity_wait(sels: &[Selector], event: u64) -> Result<(Selector, i32), E
 
     let reply: Reply<syscalls::ActivityWaitReply> = send_receive(&buf)?;
     if event != 0 {
-        Ok((0, 0))
+        Ok((0, Code::None))
     }
     else {
         Ok((reply.data.act_sel, reply.data.exitcode))

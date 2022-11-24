@@ -72,7 +72,7 @@ fn destroy(t: &mut dyn WvTester) {
                 send_recv!(&sg, RecvGate::def(), i, i + 1, i + 2),
                 Code::NoSEP
             );
-            0
+            Ok(())
         }));
 
         for i in 0..10 {
@@ -91,5 +91,5 @@ fn destroy(t: &mut dyn WvTester) {
         act
     };
 
-    wv_assert_eq!(t, act.wait(), Ok(0));
+    wv_assert_eq!(t, act.wait(), Ok(Code::None));
 }

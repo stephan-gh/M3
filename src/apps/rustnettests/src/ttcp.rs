@@ -219,7 +219,7 @@ fn nonblocking_server(t: &mut dyn WvTester) {
         wv_assert_ok!(socket.set_blocking(true));
         wv_assert_ok!(socket.close());
 
-        0
+        Ok(())
     }));
 
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
@@ -232,7 +232,7 @@ fn nonblocking_server(t: &mut dyn WvTester) {
 
     wv_assert_ok!(socket.close());
 
-    wv_assert_eq!(t, act.wait(), Ok(0));
+    wv_assert_eq!(t, act.wait(), Ok(Code::None));
 }
 
 fn open_close(t: &mut dyn WvTester) {
@@ -296,7 +296,7 @@ fn receive_after_close(t: &mut dyn WvTester) {
         wv_assert_ok!(socket.close());
         wv_assert_eq!(t, socket.state(), State::Closed);
 
-        0
+        Ok(())
     }));
 
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
@@ -321,7 +321,7 @@ fn receive_after_close(t: &mut dyn WvTester) {
 
     wv_assert_ok!(socket.close());
 
-    wv_assert_eq!(t, act.wait(), Ok(0));
+    wv_assert_eq!(t, act.wait(), Ok(Code::None));
 }
 
 fn data(t: &mut dyn WvTester) {

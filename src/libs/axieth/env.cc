@@ -29,7 +29,7 @@ public:
         m3::Serial::init("standalone", m3::env()->tile_id);
     }
 
-    virtual void exit(int) override {
+    virtual void exit(m3::Errors::Code) override {
         m3::Machine::shutdown();
     }
 };

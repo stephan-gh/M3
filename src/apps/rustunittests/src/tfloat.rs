@@ -78,7 +78,7 @@ fn calc_pi(t: &mut dyn WvTester, tile: &Rc<Tile>) {
             Activity::own().tile_id(),
             pi
         );
-        0
+        Ok(())
     }));
 
     let steps = 1000;

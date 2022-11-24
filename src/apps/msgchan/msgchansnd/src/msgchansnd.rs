@@ -18,11 +18,12 @@
 
 use m3::com::{recv_msg, RecvGate, SendGate};
 use m3::env;
+use m3::errors::Error;
 use m3::test::{DefaultWvTester, WvTester};
 use m3::{println, reply_vmsg, send_recv, wv_assert_eq, wv_assert_ok};
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     let mut tester = DefaultWvTester::default();
 
     let sgate = wv_assert_ok!(SendGate::new_named("chan"));
@@ -44,5 +45,5 @@ pub fn main() -> i32 {
 
     println!("{}", tester);
 
-    0
+    Ok(())
 }

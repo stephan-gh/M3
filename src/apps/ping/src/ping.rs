@@ -24,6 +24,7 @@ use m3::mem;
 use m3::net::{self, IpAddr, RawSocket, RawSocketArgs, DNS};
 use m3::println;
 use m3::session::NetworkManager;
+use m3::tiles::Activity;
 use m3::time::{TimeDuration, TimeInstant};
 use m3::util;
 use m3::vec;
@@ -200,7 +201,7 @@ fn usage() -> ! {
     println!("    -t <ttl>      : use <ttl> as time-to-live (default: 64)");
     println!("    -i <interval> : sleep <interval> ms between pings (default: 1000)");
     println!("    -W <timeout>  : wait <timeout> ms for each reply (default: 0 = infinite)");
-    m3::exit(1);
+    Activity::own().exit_with(Code::InvArgs);
 }
 
 fn parse_arg<T: core::str::FromStr>(arg: &str, name: &str) -> Result<T, VerboseError> {
@@ -257,7 +258,7 @@ fn parse_args() -> Result<PingSettings, VerboseError> {
 }
 
 #[no_mangle]
-pub fn main() -> i32 {
+pub fn main() -> Result<(), Error> {
     // parse arguments
     let settings = parse_args().unwrap_or_else(|e| {
         println!("Invalid arguments: {}", e);
@@ -325,5 +326,5 @@ pub fn main() -> i32 {
         end.duration_since(start).as_micros()
     );
 
-    0
+    Ok(())
 }

@@ -18,6 +18,7 @@
 
 //! The kernel-tilemux interface
 
+use crate::errors::Code;
 use crate::goff;
 use crate::kif::PageFlags;
 use crate::mem::GlobAddr;
@@ -178,5 +179,5 @@ int_enum! {
 #[repr(C)]
 pub struct Exit {
     pub act_id: ActId,
-    pub status: i32,
+    pub status: Code,
 }

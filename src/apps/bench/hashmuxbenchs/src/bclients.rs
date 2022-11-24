@@ -194,7 +194,7 @@ fn _start_client(params: ClientParams, rgate: &RecvGate, mgate: &MemGate) -> Cli
                 res,
                 params.size as f32 / res.avg().as_raw() as f32
             );
-            0
+            Ok(())
         })),
     }
 }
