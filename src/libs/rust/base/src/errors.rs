@@ -29,7 +29,7 @@ use crate::serialize::{Deserialize, Deserializer, Serialize, Serializer};
 #[repr(u32)]
 pub enum Code {
     // success
-    None = 0,
+    Success = 0,
     // TCU errors
     NoMEP,
     NoSEP,
@@ -99,7 +99,7 @@ pub enum Code {
 
 impl Default for Code {
     fn default() -> Self {
-        Self::None
+        Self::Success
     }
 }
 
@@ -234,7 +234,7 @@ impl From<Error> for Code {
 impl From<Code> for Result<(), Error> {
     fn from(code: Code) -> Self {
         match code {
-            Code::None => Ok(()),
+            Code::Success => Ok(()),
             e => Err(Error::new(e)),
         }
     }
@@ -243,7 +243,7 @@ impl From<Code> for Result<(), Error> {
 impl<T> From<Result<T, Error>> for Code {
     fn from(res: Result<T, Error>) -> Self {
         match res {
-            Ok(_) => Code::None,
+            Ok(_) => Code::Success,
             Err(e) => e.code(),
         }
     }

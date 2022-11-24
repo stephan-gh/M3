@@ -211,7 +211,7 @@ impl M3FSRequestHandler {
                 Ok(true) => {
                     // get session id, then notify caller that we closed, finally close self
                     let sid = input.label() as SessId;
-                    input.reply_error(Code::None).ok();
+                    input.reply_error(Code::Success).ok();
                     self.close_session(sid, input.rgate())
                 },
                 Ok(false) => Ok(()),

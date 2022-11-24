@@ -163,7 +163,7 @@ public:
      */
     void stat(FileInfo &info) const {
         Errors::Code res = try_stat(info);
-        if(res != Errors::NONE)
+        if(res != Errors::SUCCESS)
             throw Exception(res);
     }
 
@@ -277,7 +277,7 @@ public:
     TMode get_tmode() {
         TMode mode;
         auto res = try_get_tmode(&mode);
-        if(res != Errors::NONE)
+        if(res != Errors::SUCCESS)
             throw Exception(res);
         return mode;
     }

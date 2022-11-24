@@ -122,7 +122,7 @@ fn testnoresp(t: &mut dyn WvTester) {
     };
 
     // now wait for client
-    wv_assert_eq!(t, cact.wait(), Ok(Code::None));
+    wv_assert_eq!(t, cact.wait(), Ok(Code::Success));
 }
 
 fn testcliexit(t: &mut dyn WvTester) {
@@ -305,5 +305,5 @@ fn testcaps(t: &mut dyn WvTester) {
     }
 
     wv_assert_err!(t, ClientSession::new("test"), Code::InvArgs);
-    wv_assert_eq!(t, sact.wait(), Ok(Code::None));
+    wv_assert_eq!(t, sact.wait(), Ok(Code::Success));
 }

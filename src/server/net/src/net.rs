@@ -121,7 +121,7 @@ impl NetHandler<'_> {
 
     fn get_ip(&self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let addr = to_m3_addr(OWN_IP.get());
-        reply_vmsg!(is, Code::None as i32, addr.0)
+        reply_vmsg!(is, Code::Success as i32, addr.0)
     }
 
     fn get_nameserver(&self, is: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -130,7 +130,7 @@ impl NetHandler<'_> {
         }
 
         let addr = to_m3_addr(NAMESERVER.get());
-        reply_vmsg!(is, Code::None as i32, addr.0)
+        reply_vmsg!(is, Code::Success as i32, addr.0)
     }
 
     // processes outgoing events to clients

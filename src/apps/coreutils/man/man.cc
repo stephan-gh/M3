@@ -25,7 +25,7 @@ using namespace m3;
 
 static FileRef<GenericFile> open_man(const char *arg1) {
     FileInfo info;
-    if(VFS::try_stat(arg1, info) == Errors::NONE)
+    if(VFS::try_stat(arg1, info) == Errors::SUCCESS)
         return VFS::open(arg1, FILE_R);
 
     OStringStream os;

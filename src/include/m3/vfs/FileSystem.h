@@ -105,7 +105,7 @@ public:
      */
     void stat(const char *path, FileInfo &info) {
         Errors::Code res = try_stat(path, info);
-        if(res != Errors::NONE)
+        if(res != Errors::SUCCESS)
             throw Exception(res);
     }
 
@@ -127,7 +127,7 @@ public:
      */
     void mkdir(const char *path, mode_t mode) {
         Errors::Code res = try_mkdir(path, mode);
-        if(res != Errors::NONE)
+        if(res != Errors::SUCCESS)
             throw Exception(res);
     }
 
@@ -148,7 +148,7 @@ public:
      */
     void rmdir(const char *path) {
         Errors::Code res = try_rmdir(path);
-        if(res != Errors::NONE)
+        if(res != Errors::SUCCESS)
             throw Exception(res);
     }
 
@@ -169,7 +169,7 @@ public:
      */
     void link(const char *oldpath, const char *newpath) {
         Errors::Code res = try_link(oldpath, newpath);
-        if(res != Errors::NONE)
+        if(res != Errors::SUCCESS)
             throw Exception(res);
     }
 
@@ -190,7 +190,7 @@ public:
      */
     void unlink(const char *path) {
         Errors::Code res = try_unlink(path);
-        if(res != Errors::NONE)
+        if(res != Errors::SUCCESS)
             throw Exception(res);
     }
 
@@ -211,7 +211,7 @@ public:
      */
     void rename(const char *oldpath, const char *newpath) {
         Errors::Code res = try_rename(oldpath, newpath);
-        if(res != Errors::NONE)
+        if(res != Errors::SUCCESS)
             throw Exception(res);
     }
 

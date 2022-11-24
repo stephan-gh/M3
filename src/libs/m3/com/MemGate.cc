@@ -64,14 +64,14 @@ MemGate MemGate::derive_for(capsel_t act, capsel_t cap, goff_t offset, size_t si
 void MemGate::read(void *data, size_t len, goff_t offset) {
     const EP &ep = activate();
     Errors::Code res = TCU::get().read(ep.id(), data, len, offset);
-    if(EXPECT_FALSE(res != Errors::NONE))
+    if(EXPECT_FALSE(res != Errors::SUCCESS))
         throw TCUException(res);
 }
 
 void MemGate::write(const void *data, size_t len, goff_t offset) {
     const EP &ep = activate();
     Errors::Code res = TCU::get().write(ep.id(), data, len, offset);
-    if(EXPECT_FALSE(res != Errors::NONE))
+    if(EXPECT_FALSE(res != Errors::SUCCESS))
         throw TCUException(res);
 }
 

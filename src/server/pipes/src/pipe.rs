@@ -278,7 +278,7 @@ impl State {
                     amount,
                     pos
                 );
-                reply_vmsg_late!(rgate, req.msg, Code::None as u32, pos, amount).ok();
+                reply_vmsg_late!(rgate, req.msg, Code::Success as u32, pos, amount).ok();
 
                 // remove write request
                 self.pending_reads.pop();
@@ -288,7 +288,7 @@ impl State {
             else if self.flags.contains(Flags::WRITE_EOF) {
                 // report EOF
                 log!(crate::LOG_DEF, "[{}] pipes::late_read(): EOF", req.chan);
-                reply_vmsg_late!(rgate, req.msg, Code::None as u32, 0usize, 0usize).ok();
+                reply_vmsg_late!(rgate, req.msg, Code::Success as u32, 0usize, 0usize).ok();
 
                 // remove write request
                 self.pending_reads.pop();
@@ -334,7 +334,7 @@ impl State {
                     amount,
                     pos
                 );
-                reply_vmsg_late!(rgate, req.msg, Code::None as u32, pos, amount).ok();
+                reply_vmsg_late!(rgate, req.msg, Code::Success as u32, pos, amount).ok();
 
                 // remove write request
                 self.pending_writes.pop();

@@ -177,7 +177,7 @@ private:
     void retrieve_result(Operation op, GateIStream &reply) {
         Errors::Code res;
         reply >> res;
-        if(res != Errors::NONE) {
+        if(res != Errors::SUCCESS) {
             // ensure that we ACK the message before throwing the exception, which might trigger
             // other actions that want to reuse the default RecvGate.
             reply.finish();

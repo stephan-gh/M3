@@ -29,7 +29,7 @@ using namespace m3;
 const Token &Parser::expect_token(std::initializer_list<TokenType> tokens) {
     const Token *cur = token(0);
     if(!cur)
-        vthrow(Errors::NONE, "Missing token{}; expected {}"_cf, PrevToken(this), tokens);
+        vthrow(Errors::SUCCESS, "Missing token{}; expected {}"_cf, PrevToken(this), tokens);
 
     for(auto it = tokens.begin(); it != tokens.end(); ++it) {
         if(cur->type() == *it) {
@@ -38,7 +38,7 @@ const Token &Parser::expect_token(std::initializer_list<TokenType> tokens) {
         }
     }
 
-    vthrow(Errors::NONE, "Unexpected token{}; expected {}"_cf, PrevToken(this), tokens);
+    vthrow(Errors::SUCCESS, "Unexpected token{}; expected {}"_cf, PrevToken(this), tokens);
 }
 
 const Token *Parser::token(size_t off) const {

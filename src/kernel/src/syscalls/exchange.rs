@@ -158,7 +158,7 @@ pub fn exchange_over_sess_async(
     let mut de = M3Deserializer::new(rmsg.as_words());
     let err: Code = de.pop()?;
     match err {
-        Code::None => {},
+        Code::Success => {},
         err => sysc_err!(err, "Server {} denied cap exchange", serv.service().name()),
     }
 
@@ -181,7 +181,7 @@ pub fn exchange_over_sess_async(
     )?;
 
     let mut kreply = MsgBuf::borrow_def();
-    build_vmsg!(kreply, Code::None, syscalls::ExchangeSessReply {
+    build_vmsg!(kreply, Code::Success, syscalls::ExchangeSessReply {
         args: reply.data.args,
     });
     send_reply(msg, &kreply);

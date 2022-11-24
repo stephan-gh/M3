@@ -58,7 +58,7 @@ fn child_to_parent(t: &mut dyn WvTester) {
 
     pipe.close_reader();
 
-    wv_assert_eq!(t, act.wait(), Ok(Code::None));
+    wv_assert_eq!(t, act.wait(), Ok(Code::Success));
 }
 
 fn parent_to_child(t: &mut dyn WvTester) {
@@ -84,7 +84,7 @@ fn parent_to_child(t: &mut dyn WvTester) {
 
     pipe.close_writer();
 
-    wv_assert_eq!(t, act.wait(), Ok(Code::None));
+    wv_assert_eq!(t, act.wait(), Ok(Code::Success));
 }
 
 fn child_to_child(t: &mut dyn WvTester) {
@@ -114,8 +114,8 @@ fn child_to_child(t: &mut dyn WvTester) {
     pipe.close_reader();
     pipe.close_writer();
 
-    wv_assert_eq!(t, wr_act.wait(), Ok(Code::None));
-    wv_assert_eq!(t, rd_act.wait(), Ok(Code::None));
+    wv_assert_eq!(t, wr_act.wait(), Ok(Code::Success));
+    wv_assert_eq!(t, rd_act.wait(), Ok(Code::Success));
 }
 
 fn exec_child_to_child(t: &mut dyn WvTester) {
@@ -142,8 +142,8 @@ fn exec_child_to_child(t: &mut dyn WvTester) {
     pipe.close_reader();
     pipe.close_writer();
 
-    wv_assert_eq!(t, wr_act.wait(), Ok(Code::None));
-    wv_assert_eq!(t, rd_act.wait(), Ok(Code::None));
+    wv_assert_eq!(t, wr_act.wait(), Ok(Code::Success));
+    wv_assert_eq!(t, rd_act.wait(), Ok(Code::Success));
 }
 
 fn writer_quit(t: &mut dyn WvTester) {
@@ -177,7 +177,7 @@ fn writer_quit(t: &mut dyn WvTester) {
 
     pipe.close_reader();
 
-    wv_assert_eq!(t, act.wait(), Ok(Code::None));
+    wv_assert_eq!(t, act.wait(), Ok(Code::Success));
 }
 
 fn reader_quit(t: &mut dyn WvTester) {
@@ -213,5 +213,5 @@ fn reader_quit(t: &mut dyn WvTester) {
 
     pipe.close_writer();
 
-    wv_assert_eq!(t, act.wait(), Ok(Code::None));
+    wv_assert_eq!(t, act.wait(), Ok(Code::Success));
 }

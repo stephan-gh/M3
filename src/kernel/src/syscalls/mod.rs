@@ -100,7 +100,7 @@ fn reply_result(msg: &'static tcu::Message, error: Code) {
 }
 
 fn reply_success(msg: &'static tcu::Message) {
-    reply_result(msg, Code::None);
+    reply_result(msg, Code::Success);
 }
 
 fn get_request<R: Deserialize<'static>>(msg: &'static tcu::Message) -> Result<R, Error> {

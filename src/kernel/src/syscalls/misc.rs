@@ -103,7 +103,7 @@ pub fn alloc_ep(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ve
     tilemux.alloc_eps(epid, ep_count);
 
     let mut kreply = MsgBuf::borrow_def();
-    build_vmsg!(kreply, Code::None, kif::syscalls::AllocEPReply { ep: epid });
+    build_vmsg!(kreply, Code::Success, kif::syscalls::AllocEPReply { ep: epid });
     send_reply(msg, &kreply);
 
     Ok(())
@@ -172,7 +172,7 @@ pub fn mgate_region(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
     let mgate = get_kobj_ref!(act_caps, r.mgate, MGate);
 
     let mut kreply = MsgBuf::borrow_def();
-    build_vmsg!(kreply, Code::None, kif::syscalls::MGateRegionReply {
+    build_vmsg!(kreply, Code::Success, kif::syscalls::MGateRegionReply {
         global: mgate.addr(),
         size: mgate.size(),
     });
@@ -190,7 +190,7 @@ pub fn rgate_buffer(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
     let rgate = get_kobj_ref!(act_caps, r.rgate, RGate);
 
     let mut kreply = MsgBuf::borrow_def();
-    build_vmsg!(kreply, Code::None, kif::syscalls::RGateBufferReply {
+    build_vmsg!(kreply, Code::Success, kif::syscalls::RGateBufferReply {
         order: rgate.order(),
         msg_order: rgate.msg_order(),
     });
@@ -208,7 +208,7 @@ pub fn kmem_quota(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), 
     let kmem = get_kobj_ref!(act_caps, r.kmem, KMem);
 
     let mut kreply = MsgBuf::borrow_def();
-    build_vmsg!(kreply, Code::None, kif::syscalls::KMemQuotaReply {
+    build_vmsg!(kreply, Code::Success, kif::syscalls::KMemQuotaReply {
         id: kmem.id(),
         total: kmem.quota(),
         left: kmem.left(),
@@ -246,7 +246,7 @@ pub fn tile_quota_async(
     })?;
 
     let mut kreply = MsgBuf::borrow_def();
-    build_vmsg!(kreply, Code::None, kif::syscalls::TileQuotaReply {
+    build_vmsg!(kreply, Code::Success, kif::syscalls::TileQuotaReply {
         eps_id: tile.ep_quota().id(),
         eps_total: tile.ep_quota().total(),
         eps_left: tile.ep_quota().left(),
@@ -595,7 +595,7 @@ pub fn activity_wait_async(
 
     let mut reply_msg = kif::syscalls::ActivityWaitReply {
         act_sel: kif::INVALID_SEL,
-        exitcode: Code::None,
+        exitcode: Code::Success,
     };
 
     // In any case, check whether a activity already exited. If event == 0, wait until that happened.
@@ -608,7 +608,7 @@ pub fn activity_wait_async(
     }
 
     let mut reply = MsgBuf::borrow_def();
-    build_vmsg!(reply, Code::None, reply_msg);
+    build_vmsg!(reply, Code::Success, reply_msg);
     send_reply(msg, &reply);
 
     Ok(())

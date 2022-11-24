@@ -240,7 +240,7 @@ private:
 
         shutdown();
 
-        reply_error(is, Errors::NONE);
+        reply_error(is, Errors::SUCCESS);
     }
 
     size_t add_creator(size_t sessions) {

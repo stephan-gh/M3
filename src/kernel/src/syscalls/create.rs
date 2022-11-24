@@ -330,7 +330,7 @@ pub fn create_activity_async(
     }
 
     let mut kreply = MsgBuf::borrow_def();
-    build_vmsg!(kreply, Code::None, syscalls::CreateActivityReply {
+    build_vmsg!(kreply, Code::Success, syscalls::CreateActivityReply {
         id: nact.id(),
         eps_start: eps,
     });

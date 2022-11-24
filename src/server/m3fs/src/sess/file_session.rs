@@ -413,7 +413,7 @@ impl FileSession {
             self.cur_bytes
         );
 
-        reply_vmsg!(is, Code::None as u32, capoff, self.cur_bytes)?;
+        reply_vmsg!(is, Code::Success as u32, capoff, self.cur_bytes)?;
 
         self.revoke_cap();
         self.cur_sel = sel;
@@ -443,7 +443,7 @@ impl FileSession {
         self.next_pos = extpos;
         self.next_fileoff = pos;
 
-        reply_vmsg!(stream, Code::None as u32, pos - extpos.off, extpos.off)
+        reply_vmsg!(stream, Code::Success as u32, pos - extpos.off, extpos.off)
     }
 
     pub fn file_stat(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -458,7 +458,7 @@ impl FileSession {
         let info = inode.to_file_info();
 
         let mut reply = m3::mem::MsgBuf::borrow_def();
-        build_vmsg!(reply, Code::None, info);
+        build_vmsg!(reply, Code::Success, info);
         stream.reply(&reply)
     }
 
@@ -470,7 +470,7 @@ impl FileSession {
             self.filename
         );
 
-        reply_vmsg!(stream, Code::None as u32, self.filename)
+        reply_vmsg!(stream, Code::Success as u32, self.filename)
     }
 
     pub fn file_truncate(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -504,7 +504,7 @@ impl FileSession {
         // prepared for that!
         self.revoke_cap();
 
-        reply_vmsg!(stream, Code::None as u32, fileoff - extpos.off, extpos.off)
+        reply_vmsg!(stream, Code::Success as u32, fileoff - extpos.off, extpos.off)
     }
 
     pub fn file_commit(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -544,7 +544,7 @@ impl FileSession {
 
         self.cur_bytes = 0;
         res?;
-        stream.reply_error(Code::None)
+        stream.reply_error(Code::Success)
     }
 
     fn commit_append(&mut self, inode: &INodeRef, submit: usize) -> Result<(), Error> {
@@ -616,7 +616,7 @@ impl FileSession {
         log!(crate::LOG_SESSION, "[{}] file::sync()", self.session_id,);
 
         crate::flush_buffer()?;
-        stream.reply_error(Code::None)
+        stream.reply_error(Code::Success)
     }
 }
 

@@ -153,7 +153,7 @@ impl AddrSpace {
             self.ds[ds_idx.unwrap()].inherit(ds)?;
         }
 
-        is.reply_error(Code::None)
+        is.reply_error(Code::Success)
     }
 
     pub fn pagefault(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -176,7 +176,7 @@ impl AddrSpace {
 
         self.pagefault_at(virt, access)?;
 
-        is.reply_error(Code::None)
+        is.reply_error(Code::Success)
     }
 
     pub(crate) fn pagefault_at(&mut self, virt: goff, access: Perm) -> Result<(), Error> {
@@ -265,7 +265,7 @@ impl AddrSpace {
 
         self.map_anon_with(virt, len, perm, flags)?;
 
-        reply_vmsg!(is, Code::None as u32, virt)
+        reply_vmsg!(is, Code::Success as u32, virt)
     }
 
     pub(crate) fn map_anon_with(
@@ -356,13 +356,13 @@ impl AddrSpace {
             return Err(Error::new(Code::NotFound));
         }
 
-        is.reply_error(Code::None)
+        is.reply_error(Code::Success)
     }
 
     pub fn close(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         log!(crate::LOG_DEF, "[{}] pager::close()", self.id());
 
-        is.reply_error(Code::None)
+        is.reply_error(Code::Success)
     }
 
     fn check_map_args(&self, virt: goff, len: goff, perm: Perm) -> Result<(), Error> {

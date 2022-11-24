@@ -394,7 +394,7 @@ impl SocketSession {
         sock.borrow_mut().bind(crate::own_ip(), port, iface)?;
 
         let addr = to_m3_addr(crate::own_ip());
-        reply_vmsg!(is, Code::None as i32, addr.0, port_no)
+        reply_vmsg!(is, Code::Success as i32, addr.0, port_no)
     }
 
     pub fn listen(
@@ -421,7 +421,7 @@ impl SocketSession {
         sock.borrow_mut().listen(iface, crate::own_ip(), port)?;
 
         let addr = to_m3_addr(crate::own_ip());
-        reply_vmsg!(is, Code::None as i32, addr.0)
+        reply_vmsg!(is, Code::Success as i32, addr.0)
     }
 
     pub fn connect(
@@ -450,7 +450,7 @@ impl SocketSession {
             .connect(remote_addr, remote_port, local_port, iface)?;
 
         let addr = to_m3_addr(crate::own_ip());
-        reply_vmsg!(is, Code::None as i32, addr.0, port_no)
+        reply_vmsg!(is, Code::Success as i32, addr.0, port_no)
     }
 
     pub fn abort(
@@ -462,7 +462,7 @@ impl SocketSession {
         let remove: bool = is.pop()?;
 
         self.do_abort(sd, remove, iface)?;
-        is.reply_error(Code::None)
+        is.reply_error(Code::Success)
     }
 
     pub fn close(&mut self, iface: &mut DriverInterface<'_>) -> Result<(), Error> {

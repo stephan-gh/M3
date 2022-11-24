@@ -56,7 +56,7 @@ fn send_receive<'de, R: Deserialize<'de>>(buf: &MsgBuf) -> Result<Reply<R>, Erro
 
     let mut de = M3Deserializer::new(reply_raw.as_words());
     let res: Code = de.pop()?;
-    if res != Code::None {
+    if res != Code::Success {
         RecvGate::syscall().ack_msg(reply_raw)?;
         return Err(Error::new(res));
     }
@@ -485,7 +485,7 @@ pub fn activity_wait(sels: &[Selector], event: u64) -> Result<(Selector, Code), 
 
     let reply: Reply<syscalls::ActivityWaitReply> = send_receive(&buf)?;
     if event != 0 {
-        Ok((0, Code::None))
+        Ok((0, Code::Success))
     }
     else {
         Ok((reply.data.act_sel, reply.data.exitcode))

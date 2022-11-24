@@ -409,7 +409,7 @@ pub fn main() -> Result<(), Error> {
                     // notice the invalidated sgate before getting the reply and therefore give
                     // up before receiving the reply a bit later anyway. this in turn causes
                     // trouble if the receive gate (with the reply) is reused for something else.
-                    is.reply_error(Code::None).ok();
+                    is.reply_error(Code::Success).ok();
                     hdl.close_sess(sid, is.rgate())
                 },
                 Operation::STAT => hdl.with_chan(is, |c, is| c.stat(is)),

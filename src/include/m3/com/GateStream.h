@@ -196,7 +196,7 @@ public:
     void pull_result() {
         Errors::Code res;
         *this >> res;
-        if(res != Errors::NONE)
+        if(res != Errors::SUCCESS)
             throw Exception(res);
     }
 

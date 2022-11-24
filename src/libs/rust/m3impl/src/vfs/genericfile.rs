@@ -307,7 +307,7 @@ impl GenericFile {
                 nb.notify_received |= events;
                 nb.notify_requested &= !events;
                 // give credits back to sender
-                imsg.reply_error(Code::None)?;
+                imsg.reply_error(Code::Success)?;
             }
         }
 

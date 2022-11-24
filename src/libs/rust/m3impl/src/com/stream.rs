@@ -227,7 +227,7 @@ pub fn recv_result<'r>(
     let mut reply = recv_reply(rgate, sgate)?;
     let res: Code = reply.pop()?;
     match res {
-        Code::None => Ok(reply),
+        Code::Success => Ok(reply),
         e => Err(Error::new(e)),
     }
 }
@@ -253,7 +253,7 @@ macro_rules! send_recv_res {
         send_recv!($sg, $rg, $( $args ),* ).and_then(|mut reply| {
             let res = base::errors::Code::from(reply.pop::<u32>()?);
             match res {
-                base::errors::Code::None => Ok(reply),
+                base::errors::Code::Success => Ok(reply),
                 e => Err(Error::new(e)),
             }
         })

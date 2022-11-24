@@ -194,7 +194,7 @@ FileRef<GenericFile> VFS::open(const char *path, int flags) {
 
 void VFS::stat(const char *path, FileInfo &info) {
     Errors::Code res = try_stat(path, info);
-    if(res != Errors::NONE)
+    if(res != Errors::SUCCESS)
         vthrow(res, "stat '{}' failed"_cf, path);
 }
 
@@ -209,7 +209,7 @@ Errors::Code VFS::try_stat(const char *path, FileInfo &info) noexcept {
 
 void VFS::mkdir(const char *path, mode_t mode) {
     Errors::Code res = try_mkdir(path, mode);
-    if(res != Errors::NONE)
+    if(res != Errors::SUCCESS)
         vthrow(res, "mkdir '{}' failed"_cf, path);
 }
 
@@ -224,7 +224,7 @@ Errors::Code VFS::try_mkdir(const char *path, mode_t mode) {
 
 void VFS::rmdir(const char *path) {
     Errors::Code res = try_rmdir(path);
-    if(res != Errors::NONE)
+    if(res != Errors::SUCCESS)
         vthrow(res, "rmdir '{}' failed"_cf, path);
 }
 
@@ -239,7 +239,7 @@ Errors::Code VFS::try_rmdir(const char *path) {
 
 void VFS::link(const char *oldpath, const char *newpath) {
     Errors::Code res = try_link(oldpath, newpath);
-    if(res != Errors::NONE)
+    if(res != Errors::SUCCESS)
         vthrow(res, "link '{}' to '{}' failed"_cf, oldpath, newpath);
 }
 
@@ -259,7 +259,7 @@ Errors::Code VFS::try_link(const char *oldpath, const char *newpath) {
 
 void VFS::unlink(const char *path) {
     Errors::Code res = try_unlink(path);
-    if(res != Errors::NONE)
+    if(res != Errors::SUCCESS)
         vthrow(res, "unlink '{}' failed"_cf, path);
 }
 
@@ -274,7 +274,7 @@ Errors::Code VFS::try_unlink(const char *path) {
 
 void VFS::rename(const char *oldpath, const char *newpath) {
     Errors::Code res = try_rename(oldpath, newpath);
-    if(res != Errors::NONE)
+    if(res != Errors::SUCCESS)
         vthrow(res, "rename '{}' to '{}' failed"_cf, oldpath, newpath);
 }
 

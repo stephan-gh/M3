@@ -51,13 +51,13 @@ uint SendGate::credits() {
 
 void SendGate::send(const MsgBuf &msg, label_t reply_label) {
     Errors::Code res = try_send(msg, reply_label);
-    if(res != Errors::NONE)
+    if(res != Errors::SUCCESS)
         throw TCUException(res);
 }
 
 void SendGate::send_aligned(const void *msg, size_t len, label_t reply_label) {
     Errors::Code res = try_send_aligned(msg, len, reply_label);
-    if(res != Errors::NONE)
+    if(res != Errors::SUCCESS)
         throw TCUException(res);
 }
 

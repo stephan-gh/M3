@@ -193,7 +193,7 @@ public:
 
     template<class F>
     int get_result_of(F func) {
-        int res = m3::Errors::NONE;
+        int res = m3::Errors::SUCCESS;
         try {
             func();
         }
@@ -215,21 +215,21 @@ public:
                 exitmsg("Using uninitialized file/dir @ {}"_cf, args->fd);
         });
 
-        if((res == m3::Errors::NONE) != (args->err == 0))
+        if((res == m3::Errors::SUCCESS) != (args->err == 0))
             throw ReturnValueException(res, args->err, lineNo);
     }
 
     NOINLINE virtual void fstatat(const fstatat_args_t *args, UNUSED int lineNo) override {
         m3::FileInfo info;
         m3::Errors::Code res = m3::VFS::try_stat(add_prefix(args->name), info);
-        if((res == m3::Errors::NONE) != (args->err == 0))
+        if((res == m3::Errors::SUCCESS) != (args->err == 0))
             throw ReturnValueException(res, args->err, lineNo);
     }
 
     NOINLINE virtual void stat(const stat_args_t *args, UNUSED int lineNo) override {
         m3::FileInfo info;
         m3::Errors::Code res = m3::VFS::try_stat(add_prefix(args->name), info);
-        if((res == m3::Errors::NONE) != (args->err == 0))
+        if((res == m3::Errors::SUCCESS) != (args->err == 0))
             throw ReturnValueException(res, args->err, lineNo);
     }
 
@@ -238,7 +238,7 @@ public:
             char tmpto[255];
             m3::VFS::rename(add_prefix(args->from), add_prefix_to(args->to, tmpto, sizeof(tmpto)));
         });
-        if((res == m3::Errors::NONE) != (args->err == 0))
+        if((res == m3::Errors::SUCCESS) != (args->err == 0))
             throw ReturnValueException(res, args->err, lineNo);
     }
 
@@ -246,7 +246,7 @@ public:
         int res = get_result_of([this, &args] {
             m3::VFS::unlink(add_prefix(args->name));
         });
-        if((res == m3::Errors::NONE) != (args->err == 0))
+        if((res == m3::Errors::SUCCESS) != (args->err == 0))
             throw ReturnValueException(res, args->err, lineNo);
     }
 
@@ -254,7 +254,7 @@ public:
         int res = get_result_of([this, &args] {
             m3::VFS::rmdir(add_prefix(args->name));
         });
-        if((res == m3::Errors::NONE) != (args->err == 0))
+        if((res == m3::Errors::SUCCESS) != (args->err == 0))
             throw ReturnValueException(res, args->err, lineNo);
     }
 
@@ -262,7 +262,7 @@ public:
         int res = get_result_of([this, &args] {
             m3::VFS::mkdir(add_prefix(args->name), 0777 /*args->mode*/);
         });
-        if((res == m3::Errors::NONE) != (args->err == 0))
+        if((res == m3::Errors::SUCCESS) != (args->err == 0))
             throw ReturnValueException(res, args->err, lineNo);
     }
 

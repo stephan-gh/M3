@@ -71,7 +71,7 @@ fn child_to_parent(t: &mut dyn WvTester) {
         let mut buf = BUF.borrow_mut();
         while wv_assert_ok!(input.read(&mut buf[..])) > 0 {}
 
-        wv_assert_eq!(t, act.wait(), Ok(Code::None));
+        wv_assert_eq!(t, act.wait(), Ok(Code::Success));
     });
 
     wv_perf!(
@@ -118,7 +118,7 @@ fn parent_to_child(t: &mut dyn WvTester) {
 
         pipe.close_writer();
 
-        wv_assert_eq!(t, act.wait(), Ok(Code::None));
+        wv_assert_eq!(t, act.wait(), Ok(Code::Success));
     });
 
     wv_perf!(

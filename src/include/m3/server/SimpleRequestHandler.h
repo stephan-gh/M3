@@ -51,7 +51,7 @@ public:
     virtual Errors::Code open(SimpleSession **sess, size_t crt, capsel_t srv_sel,
                               const std::string_view &) override {
         *sess = new SimpleSession(crt, srv_sel);
-        return Errors::NONE;
+        return Errors::SUCCESS;
     }
 
     virtual Errors::Code obtain(SimpleSession *sess, size_t, CapExchange &xchg) override {
@@ -63,13 +63,13 @@ public:
             SendGate::create(&_rgate, SendGateArgs().label(label).credits(1)));
 
         xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess->sgate->sel()));
-        return Errors::NONE;
+        return Errors::SUCCESS;
     }
 
     virtual Errors::Code close(SimpleSession *sess, size_t) override {
         delete sess;
         _rgate.drop_msgs_with(ptr_to_label(sess));
-        return Errors::NONE;
+        return Errors::SUCCESS;
     }
 
     virtual void shutdown() override {

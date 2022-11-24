@@ -220,7 +220,7 @@ pub fn derive_srv_async(
             let mut de = M3Deserializer::new(rmsg.as_words());
             let err: Code = de.pop()?;
             match err {
-                Code::None => {
+                Code::Success => {
                     let reply: kif::service::DeriveCreatorReply = de.pop()?;
 
                     sysc_log!(act, "derive_srv continue with creator={}", reply.creator);

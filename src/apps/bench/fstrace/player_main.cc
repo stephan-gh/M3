@@ -150,7 +150,7 @@ int main(int argc, char **argv) {
 
     if(*prefix) {
         Errors::Code res = VFS::try_mkdir(prefix, 0755);
-        if(res != Errors::NONE && res != Errors::EXISTS)
+        if(res != Errors::SUCCESS && res != Errors::EXISTS)
             vthrow(res, "Unable to create directory {}"_cf, prefix);
     }
 

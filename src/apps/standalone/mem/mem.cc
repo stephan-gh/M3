@@ -47,8 +47,8 @@ int main() {
         if(i % 1000 == 0)
             logln("read-write test {}"_cf, i);
 
-        ASSERT_EQ(kernel::TCU::write(MEP, buf2, sizeof(buf2), 0), Errors::NONE);
-        ASSERT_EQ(kernel::TCU::read(MEP, buf3, sizeof(buf3), 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::write(MEP, buf2, sizeof(buf2), 0), Errors::SUCCESS);
+        ASSERT_EQ(kernel::TCU::read(MEP, buf3, sizeof(buf3), 0), Errors::SUCCESS);
 
         for(size_t i = 0; i < ARRAY_SIZE(buf2); ++i)
             ASSERT_EQ(buf2[i], buf3[i]);

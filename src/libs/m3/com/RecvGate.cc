@@ -171,7 +171,7 @@ bool RecvGate::has_msgs() {
 void RecvGate::reply_aligned(const void *reply, size_t len, const TCU::Message *msg) {
     size_t msg_off = TCU::msg_to_offset(address(), msg);
     Errors::Code res = TCU::get().reply_aligned(ep()->id(), reply, len, msg_off);
-    if(EXPECT_FALSE(res != Errors::NONE))
+    if(EXPECT_FALSE(res != Errors::SUCCESS))
         throw TCUException(res);
 }
 

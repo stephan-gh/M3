@@ -119,7 +119,7 @@ impl DiskSession {
             func(self.part, &mgate, off, start, len)?;
         }
 
-        is.reply_error(Code::None)
+        is.reply_error(Code::Success)
     }
 }
 

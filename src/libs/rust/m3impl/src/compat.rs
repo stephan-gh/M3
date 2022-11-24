@@ -86,28 +86,28 @@ pub unsafe extern "C" fn __m3c_getpid() -> i32 {
 pub unsafe extern "C" fn __m3c_fstat(fd: i32, info: *mut FileInfo) -> Code {
     let file = try_res!(get_file(fd));
     *info = try_res!(file.stat());
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn __m3c_stat(pathname: *const i8, info: *mut FileInfo) -> Code {
     *info = try_res!(VFS::stat(util::cstr_to_str(pathname)));
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn __m3c_mkdir(pathname: *const i8, mode: FileMode) -> Code {
     try_res!(VFS::mkdir(util::cstr_to_str(pathname), mode));
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn __m3c_rmdir(pathname: *const i8) -> Code {
     try_res!(VFS::rmdir(util::cstr_to_str(pathname)));
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
@@ -117,7 +117,7 @@ pub unsafe extern "C" fn __m3c_rename(oldpath: *const i8, newpath: *const i8) ->
         util::cstr_to_str(oldpath),
         util::cstr_to_str(newpath)
     ));
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
@@ -127,14 +127,14 @@ pub unsafe extern "C" fn __m3c_link(oldpath: *const i8, newpath: *const i8) -> C
         util::cstr_to_str(oldpath),
         util::cstr_to_str(newpath)
     ));
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn __m3c_unlink(pathname: *const i8) -> Code {
     try_res!(VFS::unlink(util::cstr_to_str(pathname)));
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
@@ -142,7 +142,7 @@ pub unsafe extern "C" fn __m3c_unlink(pathname: *const i8) -> Code {
 pub unsafe extern "C" fn __m3c_opendir(fd: i32, dir: *mut *mut libc::c_void) -> Code {
     let file = try_res!(get_file_as::<GenericFile>(fd));
     *dir = Box::into_raw(Box::new(BufReader::new(file))) as *mut libc::c_void;
-    Code::None
+    Code::Success
 }
 
 const MAX_DIR_NAME_LEN: usize = 28;
@@ -184,28 +184,28 @@ pub unsafe extern "C" fn __m3c_readdir(dir: *mut libc::c_void, entry: *mut Compa
         return Code::EndOfFile;
     }
 
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn __m3c_closedir(dir: *mut libc::c_void) -> Code {
     drop(Box::from_raw(dir as *mut BufReader<FileRef<GenericFile>>));
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn __m3c_chdir(pathname: *const i8) -> Code {
     try_res!(VFS::set_cwd(util::cstr_to_str(pathname)));
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn __m3c_fchdir(fd: i32) -> Code {
     try_res!(VFS::set_cwd_to(fd as usize));
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
@@ -218,7 +218,7 @@ pub unsafe extern "C" fn __m3c_getcwd(buf: *mut u8, size: *mut usize) -> Code {
     buf.copy_from(cwd.as_bytes().as_ptr(), cwd.len());
     *buf.add(cwd.len()) = 0;
     *size = cwd.len();
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
@@ -227,7 +227,7 @@ pub unsafe extern "C" fn __m3c_open(pathname: *const i8, flags: OpenFlags, fd: *
     let mut file = try_res!(VFS::open(util::cstr_to_str(pathname), flags));
     file.claim();
     *fd = file.fd() as i32;
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
@@ -237,7 +237,7 @@ pub unsafe extern "C" fn __m3c_read(fd: i32, buf: *mut libc::c_void, count: *mut
     let slice = util::slice_for_mut(buf as *mut u8, *count);
     let res = try_res!(file.read(slice));
     *count = res;
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
@@ -247,7 +247,7 @@ pub unsafe extern "C" fn __m3c_write(fd: i32, buf: *const libc::c_void, count: *
     let slice = util::slice_for(buf as *const u8, *count);
     let res = try_res!(file.write(slice));
     *count = res;
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
@@ -255,7 +255,7 @@ pub unsafe extern "C" fn __m3c_write(fd: i32, buf: *const libc::c_void, count: *
 pub unsafe extern "C" fn __m3c_fflush(fd: i32) -> Code {
     let mut file = try_res!(get_file(fd));
     try_res!(file.flush());
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
@@ -263,7 +263,7 @@ pub unsafe extern "C" fn __m3c_fflush(fd: i32) -> Code {
 pub unsafe extern "C" fn __m3c_lseek(fd: i32, off: *mut usize, whence: SeekMode) -> Code {
     let mut file = try_res!(get_file(fd));
     *off = try_res!(file.seek(*off, whence));
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
@@ -271,7 +271,7 @@ pub unsafe extern "C" fn __m3c_lseek(fd: i32, off: *mut usize, whence: SeekMode)
 pub unsafe extern "C" fn __m3c_ftruncate(fd: i32, length: usize) -> Code {
     let mut file = try_res!(get_file(fd));
     try_res!(file.truncate(length));
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
@@ -279,7 +279,7 @@ pub unsafe extern "C" fn __m3c_ftruncate(fd: i32, length: usize) -> Code {
 pub unsafe extern "C" fn __m3c_truncate(pathname: *const i8, length: usize) -> Code {
     let mut file = try_res!(VFS::open(util::cstr_to_str(pathname), OpenFlags::W));
     try_res!(file.truncate(length));
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
@@ -287,7 +287,7 @@ pub unsafe extern "C" fn __m3c_truncate(pathname: *const i8, length: usize) -> C
 pub unsafe extern "C" fn __m3c_sync(fd: i32) -> Code {
     let mut file = try_res!(get_file(fd));
     try_res!(file.sync());
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
@@ -296,7 +296,7 @@ pub unsafe extern "C" fn __m3c_isatty(fd: i32) -> Code {
     let file = try_res!(get_file(fd));
     // try to use the get_tmode operation; only works for vterm
     try_res!(file.get_tmode());
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
@@ -309,7 +309,7 @@ pub unsafe extern "C" fn __m3c_close(fd: i32) {
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn __m3c_waiter_create(waiter: *mut *mut libc::c_void) -> Code {
     *waiter = Box::into_raw(Box::new(FileWaiter::default())) as *mut libc::c_void;
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
@@ -385,7 +385,7 @@ pub unsafe extern "C" fn __m3c_init_netmng(name: *const i8) -> Code {
     if !NETM.is_some() {
         NETM.set(try_res!(NetworkManager::new(util::cstr_to_str(name))));
     }
-    Code::None
+    Code::Success
 }
 
 fn create_netmng() -> Result<(), Error> {
@@ -411,7 +411,7 @@ pub unsafe extern "C" fn __m3c_socket(ty: CompatSock, fd: *mut i32) -> Code {
     };
     file.claim();
     *fd = file.fd() as i32;
-    Code::None
+    Code::Success
 }
 
 impl From<CompatEndpoint> for Endpoint {
@@ -435,7 +435,7 @@ unsafe fn m3_ep_to_compat(m3: Option<Endpoint>, compat: *mut CompatEndpoint) -> 
             addr: ep.addr.0,
             port: ep.port,
         };
-        Code::None
+        Code::Success
     }
     else {
         Code::InvArgs
@@ -484,7 +484,7 @@ pub unsafe extern "C" fn __m3c_get_remote_ep(
 pub unsafe extern "C" fn __m3c_bind_dgram(fd: i32, ep: *const CompatEndpoint) -> Code {
     let mut s = try_res!(get_file_as::<UdpSocket>(fd));
     try_res!(s.bind((*ep).port));
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
@@ -516,7 +516,7 @@ pub unsafe extern "C" fn __m3c_connect(fd: i32, ty: CompatSock, ep: *const Compa
     try_res!(try_res!(
         with_socket(fd, ty, |mut s| s.connect(compat_to_m3_ep(ep)))
     ));
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
@@ -541,7 +541,7 @@ pub unsafe extern "C" fn __m3c_sendto(
         },
         _ => return Code::NotSup,
     }
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
@@ -568,7 +568,7 @@ pub unsafe extern "C" fn __m3c_recvfrom(
         },
         _ => return Code::NotSup,
     }
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]
@@ -576,7 +576,7 @@ pub unsafe extern "C" fn __m3c_recvfrom(
 pub unsafe extern "C" fn __m3c_abort_stream(fd: i32) -> Code {
     let mut s = try_res!(get_file_as::<TcpSocket>(fd));
     try_res!(s.abort());
-    Code::None
+    Code::Success
 }
 
 #[no_mangle]

@@ -95,7 +95,7 @@ protected:
  */
 class MessageException : public Exception {
 public:
-    explicit MessageException(const std::string &msg, Errors::Code code = Errors::NONE) noexcept
+    explicit MessageException(const std::string &msg, Errors::Code code = Errors::SUCCESS) noexcept
         : Exception(code),
           _msg(msg) {
     }
@@ -107,7 +107,7 @@ public:
     const char *what() const noexcept override {
         OStringStream os(msg_buf, sizeof(msg_buf));
         format_to(os, "{}"_cf, _msg);
-        if(code() != Errors::NONE)
+        if(code() != Errors::SUCCESS)
             format_to(os, ": {} ({})"_cf, Errors::to_string(code()), code());
         return msg_buf;
     }

@@ -66,8 +66,8 @@ static void test_mem_short() {
     logln("READ+WRITE with offset = 0"_cf);
     {
         uint64_t data_ctrl = 0;
-        ASSERT_EQ(kernel::TCU::write(MEP, &data, sizeof(data), 0), Errors::NONE);
-        ASSERT_EQ(kernel::TCU::read(MEP, &data_ctrl, sizeof(data), 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::write(MEP, &data, sizeof(data), 0), Errors::SUCCESS);
+        ASSERT_EQ(kernel::TCU::read(MEP, &data_ctrl, sizeof(data), 0), Errors::SUCCESS);
         ASSERT_EQ(data, data_ctrl);
     }
 
@@ -77,8 +77,8 @@ static void test_mem_short() {
                                 TCU::R | TCU::W);
 
         uint64_t data_ctrl = 0;
-        ASSERT_EQ(kernel::TCU::write(MEP2, &data, sizeof(data), 4), Errors::NONE);
-        ASSERT_EQ(kernel::TCU::read(MEP2, &data_ctrl, sizeof(data), 4), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::write(MEP2, &data, sizeof(data), 4), Errors::SUCCESS);
+        ASSERT_EQ(kernel::TCU::read(MEP2, &data_ctrl, sizeof(data), 4), Errors::SUCCESS);
         ASSERT_EQ(data, data_ctrl);
     }
 
@@ -87,8 +87,8 @@ static void test_mem_short() {
         kernel::TCU::config_mem(MEP2, tile_id(Tile::MEM), 0x2000, sizeof(uint64_t) * 2,
                                 TCU::R | TCU::W);
 
-        ASSERT_EQ(kernel::TCU::write(MEP2, nullptr, 0, 0), Errors::NONE);
-        ASSERT_EQ(kernel::TCU::read(MEP2, nullptr, 0, 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::write(MEP2, nullptr, 0, 0), Errors::SUCCESS);
+        ASSERT_EQ(kernel::TCU::read(MEP2, nullptr, 0, 0), Errors::SUCCESS);
     }
 }
 
@@ -103,8 +103,8 @@ static void test_mem_large(Tile mem_tile) {
     for(auto size : sizes) {
         logln("READ+WRITE with {} bytes with Tile{}"_cf, size, (int)mem_tile);
 
-        ASSERT_EQ(kernel::TCU::write(MEP, src_buf, size, 0), Errors::NONE);
-        ASSERT_EQ(kernel::TCU::read(MEP, dst_buf, size, 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::write(MEP, src_buf, size, 0), Errors::SUCCESS);
+        ASSERT_EQ(kernel::TCU::read(MEP, dst_buf, size, 0), Errors::SUCCESS);
         for(size_t i = 0; i < size; ++i)
             ASSERT_EQ(src_buf[i], dst_buf[i]);
     }
@@ -124,13 +124,13 @@ static void test_mem_rdwr(Tile mem_tile) {
         logln("READ+WRITE+READ+WRITE with {} bytes with Tile{}"_cf, size, (int)mem_tile);
 
         // first write our data
-        ASSERT_EQ(kernel::TCU::write(MEP, src_buf, size, 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::write(MEP, src_buf, size, 0), Errors::SUCCESS);
         // read it into a buffer for the next write
-        ASSERT_EQ(kernel::TCU::read(MEP, dst_buf, size, 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::read(MEP, dst_buf, size, 0), Errors::SUCCESS);
         // write the just read data
-        ASSERT_EQ(kernel::TCU::write(MEP, dst_buf, size, 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::write(MEP, dst_buf, size, 0), Errors::SUCCESS);
         // read it again for checking purposes
-        ASSERT_EQ(kernel::TCU::read(MEP, dst_buf, size, 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::read(MEP, dst_buf, size, 0), Errors::SUCCESS);
         for(size_t i = 0; i < size; ++i)
             ASSERT_EQ(src_buf[i], dst_buf[i]);
     }
@@ -151,8 +151,8 @@ static void test_mem(size_t size_in) {
                             TCU::R | TCU::W);
 
     // test write + read
-    ASSERT_EQ(kernel::TCU::write(MEP, msg, size_in * sizeof(DATA), 0), Errors::NONE);
-    ASSERT_EQ(kernel::TCU::read(MEP, buffer, size_in * sizeof(DATA), 0), Errors::NONE);
+    ASSERT_EQ(kernel::TCU::write(MEP, msg, size_in * sizeof(DATA), 0), Errors::SUCCESS);
+    ASSERT_EQ(kernel::TCU::read(MEP, buffer, size_in * sizeof(DATA), 0), Errors::SUCCESS);
     for(size_t i = 0; i < size_in; i++)
         ASSERT_EQ(buffer[i], msg[i]);
 }
@@ -168,8 +168,8 @@ static void test_unaligned_rdwr(size_t nbytes, size_t loc_offset, size_t rem_off
 
     kernel::TCU::config_mem(MEP, tile_id(Tile::MEM), 0x1000 + rem_offset, 0x1000, TCU::R | TCU::W);
 
-    ASSERT_EQ(kernel::TCU::write(MEP, msg.data, nbytes, loc_offset), Errors::NONE);
-    ASSERT_EQ(kernel::TCU::read(MEP, msg.data, nbytes, loc_offset), Errors::NONE);
+    ASSERT_EQ(kernel::TCU::write(MEP, msg.data, nbytes, loc_offset), Errors::SUCCESS);
+    ASSERT_EQ(kernel::TCU::read(MEP, msg.data, nbytes, loc_offset), Errors::SUCCESS);
 
     ASSERT_EQ(msg.pre, 0xFF);
     ASSERT_EQ(msg.post, 0xFF);

@@ -43,7 +43,7 @@ void WorkLoop::multithreaded(UNUSED uint count) {
 
         MsgBuf reply_buf;
         auto &reply = reply_buf.cast<KIF::DefaultReply>();
-        reply.error = Errors::NONE;
+        reply.error = Errors::SUCCESS;
         reply_msg(is, reply_buf);
     });
 

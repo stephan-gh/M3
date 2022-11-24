@@ -232,7 +232,7 @@ fn nonblocking_server(t: &mut dyn WvTester) {
 
     wv_assert_ok!(socket.close());
 
-    wv_assert_eq!(t, act.wait(), Ok(Code::None));
+    wv_assert_eq!(t, act.wait(), Ok(Code::Success));
 }
 
 fn open_close(t: &mut dyn WvTester) {
@@ -321,7 +321,7 @@ fn receive_after_close(t: &mut dyn WvTester) {
 
     wv_assert_ok!(socket.close());
 
-    wv_assert_eq!(t, act.wait(), Ok(Code::None));
+    wv_assert_eq!(t, act.wait(), Ok(Code::Success));
 }
 
 fn data(t: &mut dyn WvTester) {

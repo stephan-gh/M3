@@ -256,7 +256,7 @@ impl HashSession {
         let res = loop_double_buffer(|buf, _| {
             let n = req.take_buffer_size();
             if n == 0 {
-                return Err(Error::new(Code::None)); // Done
+                return Err(Error::new(Code::Success)); // Done
             }
 
             self.mgate.read_bytes(buf.as_mut_ptr(), n, req.off as u64)?;
@@ -304,7 +304,7 @@ impl HashSession {
                 // Still need to write back the last buffer
                 KECACC.poll_complete();
                 self.mgate.write_bytes(lbuf.as_ptr(), ln, req.off as u64)?;
-                return Err(Error::new(Code::None)); // Done
+                return Err(Error::new(Code::Success)); // Done
             }
 
             // Start squeezing *new* buffer and write back the *last* buffer
@@ -355,7 +355,7 @@ impl HashSession {
                 req.reply(e.code());
                 self.remaining_time = timer.finish();
 
-                if e.code() == Code::None {
+                if e.code() == Code::Success {
                     log!(
                         LOG_DEF,
                         "[{}] hash::work() done, remaining time {}",
@@ -452,7 +452,7 @@ impl HashSession {
         self.algo = Some(algo);
         self.state_saved = false;
         self.output_bytes = 0;
-        is.reply_error(Code::None)
+        is.reply_error(Code::Success)
     }
 
     /// Queue a new request for the client and mark client as ready and perhaps
@@ -466,7 +466,7 @@ impl HashSession {
         }
         else {
             // This is weird but not strictly wrong, just return immediately
-            req.reply(Code::None);
+            req.reply(Code::Success);
         }
         Ok(())
     }

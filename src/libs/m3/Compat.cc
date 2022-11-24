@@ -59,7 +59,7 @@ EXTERN_C m3::Errors::Code __m3c_opendir(int fd, void **dir) {
     try {
         m3::Activity::own().files()->get(fd);
         *dir = new m3::Dir(fd);
-        return m3::Errors::NONE;
+        return m3::Errors::SUCCESS;
     }
     catch(const m3::Exception &e) {
         return e.code();
@@ -69,7 +69,7 @@ EXTERN_C m3::Errors::Code __m3c_readdir(void *dir, m3::Dir::Entry *entry) {
     try {
         if(!static_cast<m3::Dir *>(dir)->readdir(*entry))
             return m3::Errors::END_OF_FILE;
-        return m3::Errors::NONE;
+        return m3::Errors::SUCCESS;
     }
     catch(const m3::Exception &e) {
         return e.code();
@@ -82,7 +82,7 @@ EXTERN_C void __m3c_closedir(void *dir) {
 EXTERN_C m3::Errors::Code __m3c_chdir(const char *path) {
     try {
         m3::VFS::set_cwd(path);
-        return m3::Errors::NONE;
+        return m3::Errors::SUCCESS;
     }
     catch(const m3::Exception &e) {
         return e.code();
@@ -91,7 +91,7 @@ EXTERN_C m3::Errors::Code __m3c_chdir(const char *path) {
 EXTERN_C m3::Errors::Code __m3c_fchdir(int fd) {
     try {
         m3::VFS::set_cwd(fd);
-        return m3::Errors::NONE;
+        return m3::Errors::SUCCESS;
     }
     catch(const m3::Exception &e) {
         return e.code();
@@ -104,13 +104,13 @@ EXTERN_C m3::Errors::Code __m3c_getcwd(char *buf, size_t *size) {
         return m3::Errors::NO_SPACE;
     strcpy(buf, cwd);
     *size = len;
-    return m3::Errors::NONE;
+    return m3::Errors::SUCCESS;
 }
 
 EXTERN_C m3::Errors::Code __m3c_open(const char *pathname, int flags, int *fd) {
     try {
         *fd = m3::VFS::open(pathname, flags).release()->fd();
-        return m3::Errors::NONE;
+        return m3::Errors::SUCCESS;
     }
     catch(const m3::Exception &e) {
         return e.code();
@@ -121,7 +121,7 @@ EXTERN_C m3::Errors::Code __m3c_read(int fd, void *buf, size_t *count) {
         auto file = m3::Activity::own().files()->get(fd);
         if(auto res = file->read(buf, *count)) {
             *count = res.unwrap();
-            return m3::Errors::NONE;
+            return m3::Errors::SUCCESS;
         }
         return m3::Errors::WOULD_BLOCK;
     }
@@ -136,7 +136,7 @@ EXTERN_C m3::Errors::Code __m3c_write(int fd, const void *buf, size_t *count) {
         // requested and we don't really lose anything by calling write_all instead of write.
         if(auto res = file->write_all(buf, *count)) {
             *count = res.unwrap();
-            return m3::Errors::NONE;
+            return m3::Errors::SUCCESS;
         }
         return m3::Errors::WOULD_BLOCK;
     }
@@ -148,7 +148,7 @@ EXTERN_C m3::Errors::Code __m3c_fflush(int fd) {
     try {
         m3::File *file = m3::Activity::own().files()->get(fd);
         file->flush();
-        return m3::Errors::NONE;
+        return m3::Errors::SUCCESS;
     }
     catch(const m3::Exception &e) {
         return e.code();
@@ -159,7 +159,7 @@ EXTERN_C m3::Errors::Code __m3c_lseek(int fd, size_t *offset, int whence) {
         auto file = m3::Activity::own().files()->get(fd);
         auto res = file->seek(static_cast<size_t>(*offset), whence);
         *offset = res;
-        return m3::Errors::NONE;
+        return m3::Errors::SUCCESS;
     }
     catch(const m3::Exception &e) {
         return e.code();
@@ -169,7 +169,7 @@ EXTERN_C m3::Errors::Code __m3c_ftruncate(int fd, size_t length) {
     try {
         auto file = m3::Activity::own().files()->get(fd);
         file->truncate(length);
-        return m3::Errors::NONE;
+        return m3::Errors::SUCCESS;
     }
     catch(const m3::Exception &e) {
         return e.code();
@@ -179,7 +179,7 @@ EXTERN_C m3::Errors::Code __m3c_truncate(const char *pathname, size_t length) {
     try {
         auto file = m3::VFS::open(pathname, m3::FILE_W);
         file->truncate(length);
-        return m3::Errors::NONE;
+        return m3::Errors::SUCCESS;
     }
     catch(const m3::Exception &e) {
         return e.code();
@@ -189,7 +189,7 @@ EXTERN_C m3::Errors::Code __m3c_sync(int fd) {
     try {
         auto file = m3::Activity::own().files()->get(fd);
         file->sync();
-        return m3::Errors::NONE;
+        return m3::Errors::SUCCESS;
     }
     catch(const m3::Exception &e) {
         return e.code();
@@ -200,7 +200,7 @@ EXTERN_C bool __m3c_isatty(int fd) {
     // try to use the get_tmode operation; only works for vterm
     auto file = m3::Activity::own().files()->get(fd);
     m3::File::TMode mode;
-    return file->try_get_tmode(&mode) == m3::Errors::NONE;
+    return file->try_get_tmode(&mode) == m3::Errors::SUCCESS;
 }
 
 EXTERN_C void __m3c_close(int fd) {
@@ -209,7 +209,7 @@ EXTERN_C void __m3c_close(int fd) {
 
 EXTERN_C m3::Errors::Code __m3c_waiter_create(void **waiter) {
     *waiter = new m3::FileWaiter();
-    return m3::Errors::NONE;
+    return m3::Errors::SUCCESS;
 }
 EXTERN_C void __m3c_waiter_add(void *waiter, int fd, uint events) {
     static_cast<m3::FileWaiter *>(waiter)->add(fd, events);
@@ -246,7 +246,7 @@ EXTERN_C m3::Errors::Code __m3c_init_netmng(const char *name) {
             return e.code();
         }
     }
-    return m3::Errors::NONE;
+    return m3::Errors::SUCCESS;
 }
 
 static m3::Errors::Code init_netmng() {
@@ -279,7 +279,7 @@ EXTERN_C m3::Errors::Code __m3c_socket(CompatSock type, int *fd) {
         return e.code();
     }
     *fd = file->fd();
-    return m3::Errors::NONE;
+    return m3::Errors::SUCCESS;
 }
 
 EXTERN_C m3::Errors::Code __m3c_get_local_ep(int fd, UNUSED CompatSock type, CompatEndpoint *ep) {
@@ -288,7 +288,7 @@ EXTERN_C m3::Errors::Code __m3c_get_local_ep(int fd, UNUSED CompatSock type, Com
         return m3::Errors::BAD_FD;
     ep->addr = s->local_endpoint().addr.addr();
     ep->port = s->local_endpoint().port;
-    return m3::Errors::NONE;
+    return m3::Errors::SUCCESS;
 }
 
 EXTERN_C m3::Errors::Code __m3c_get_remote_ep(int fd, UNUSED CompatSock type, CompatEndpoint *ep) {
@@ -297,7 +297,7 @@ EXTERN_C m3::Errors::Code __m3c_get_remote_ep(int fd, UNUSED CompatSock type, Co
         return m3::Errors::BAD_FD;
     ep->addr = s->remote_endpoint().addr.addr();
     ep->port = s->remote_endpoint().port;
-    return m3::Errors::NONE;
+    return m3::Errors::SUCCESS;
 }
 
 EXTERN_C m3::Errors::Code __m3c_bind_dgram(int fd, const CompatEndpoint *ep) {
@@ -305,13 +305,13 @@ EXTERN_C m3::Errors::Code __m3c_bind_dgram(int fd, const CompatEndpoint *ep) {
     if(!s)
         return m3::Errors::BAD_FD;
     static_cast<m3::UdpSocket *>(s)->bind(ep->port);
-    return m3::Errors::NONE;
+    return m3::Errors::SUCCESS;
 }
 
 EXTERN_C m3::Errors::Code __m3c_accept_stream(int port, int *cfd, CompatEndpoint *ep) {
     // create a new socket for the to-be-accepted client
     m3::Errors::Code res = __m3c_socket(CompatSock::STREAM, cfd);
-    if(res != m3::Errors::NONE)
+    if(res != m3::Errors::SUCCESS)
         return res;
 
     // put the socket into listen mode
@@ -330,7 +330,7 @@ EXTERN_C m3::Errors::Code __m3c_accept_stream(int port, int *cfd, CompatEndpoint
 
     ep->addr = cs->remote_endpoint().addr.addr();
     ep->port = cs->remote_endpoint().port;
-    return m3::Errors::NONE;
+    return m3::Errors::SUCCESS;
 }
 
 EXTERN_C m3::Errors::Code __m3c_connect(int fd, UNUSED CompatSock type, const CompatEndpoint *ep) {
@@ -340,7 +340,7 @@ EXTERN_C m3::Errors::Code __m3c_connect(int fd, UNUSED CompatSock type, const Co
 
     try {
         s->connect(m3::Endpoint(m3::IpAddr(ep->addr), ep->port));
-        return m3::Errors::NONE;
+        return m3::Errors::SUCCESS;
     }
     catch(const m3::Exception &e) {
         return e.code();
@@ -366,7 +366,7 @@ EXTERN_C m3::Errors::Code __m3c_sendto(int fd, CompatSock type, const void *buf,
         }
         if(auto r = res) {
             *len = r.unwrap();
-            return m3::Errors::NONE;
+            return m3::Errors::SUCCESS;
         }
         return m3::Errors::WOULD_BLOCK;
     }
@@ -406,7 +406,7 @@ EXTERN_C m3::Errors::Code __m3c_recvfrom(int fd, CompatSock type, void *buf, siz
                 break;
             }
         }
-        return m3::Errors::NONE;
+        return m3::Errors::SUCCESS;
     }
     catch(const m3::Exception &e) {
         return e.code();
@@ -418,7 +418,7 @@ EXTERN_C m3::Errors::Code __m3c_abort_stream(int fd) {
     if(!s)
         return m3::Errors::BAD_FD;
     static_cast<m3::TcpSocket *>(s)->abort();
-    return m3::Errors::NONE;
+    return m3::Errors::SUCCESS;
 }
 
 EXTERN_C uint64_t __m3c_get_nanos() {

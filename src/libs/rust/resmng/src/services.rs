@@ -160,7 +160,7 @@ impl Session {
 
             let mut de = M3Deserializer::new(reply.as_words());
             let res: Code = de.pop()?;
-            if res != Code::None {
+            if res != Code::Success {
                 return Err(Error::new(res));
             }
 

@@ -103,7 +103,7 @@ fn tcp_server() -> Result<(), Error> {
     wv_assert_eq!(
         t,
         unsafe { __m3c_init_netmng(b"netserv\0".as_ptr() as *const i8) },
-        Code::None
+        Code::Success
     );
 
     let listener = wv_assert_ok!(TcpListener::bind("127.0.0.1:2000"));
@@ -141,5 +141,5 @@ fn tcp_accept(t: &mut dyn WvTester) {
         }
     }
 
-    wv_assert_eq!(t, act.wait(), Ok(Code::None));
+    wv_assert_eq!(t, act.wait(), Ok(Code::Success));
 }

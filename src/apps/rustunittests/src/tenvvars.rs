@@ -99,7 +99,7 @@ fn to_child(t: &mut dyn WvTester) {
         Ok(())
     }));
 
-    wv_assert_eq!(t, run.wait(), Ok(Code::None));
+    wv_assert_eq!(t, run.wait(), Ok(Code::Success));
 
     env::remove_var("V3");
     env::remove_var("V2");

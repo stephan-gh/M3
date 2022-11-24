@@ -38,7 +38,7 @@ public:
     virtual Errors::Code try_stat(FileInfo &info) const override {
         memset(&info, 0, sizeof(info));
         info.mode = M3FS_IFCHR | M3FS_MODE_READ | M3FS_MODE_WRITE;
-        return Errors::NONE;
+        return Errors::SUCCESS;
     }
     virtual size_t seek(size_t, int) override {
         throw Exception(Errors::NOT_SUP);
@@ -66,7 +66,7 @@ public:
     virtual Errors::Code try_get_tmode(TMode *mode) noexcept override {
         // the primary reason for this implementation is to make isatty work properly
         *mode = TMode::RAW;
-        return Errors::NONE;
+        return Errors::SUCCESS;
     }
 
     virtual FileRef<File> clone() const override {

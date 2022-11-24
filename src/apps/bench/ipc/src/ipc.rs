@@ -83,7 +83,7 @@ pub fn main() -> Result<(), Error> {
         );
     }
 
-    wv_assert_eq!(t, act.wait(), Ok(Code::None));
+    wv_assert_eq!(t, act.wait(), Ok(Code::Success));
 
     Ok(())
 }

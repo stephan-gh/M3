@@ -91,5 +91,5 @@ fn destroy(t: &mut dyn WvTester) {
         act
     };
 
-    wv_assert_eq!(t, act.wait(), Ok(Code::None));
+    wv_assert_eq!(t, act.wait(), Ok(Code::Success));
 }

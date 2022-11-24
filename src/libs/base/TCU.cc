@@ -121,14 +121,14 @@ Errors::Code TCU::perform_transfer(epid_t ep, uintptr_t data_addr, size_t size, 
             TMABI::call2(Operation::TRANSL_FAULT, data_addr, perm);
             continue;
         }
-        if(res != Errors::NONE)
+        if(res != Errors::SUCCESS)
             return res;
 
         size -= amount;
         data_addr += amount;
         off += amount;
     }
-    return Errors::NONE;
+    return Errors::SUCCESS;
 }
 
 }

@@ -40,7 +40,7 @@ Errors::Code NetEventChannel::build_data_message(void *buffer, size_t buf_size, 
     msg->port = static_cast<uint64_t>(ep.port);
     msg->size = static_cast<uint64_t>(payload_size);
     memcpy(msg->data, payload, payload_size);
-    return Errors::NONE;
+    return Errors::SUCCESS;
 }
 
 Errors::Code NetEventChannel::send_data(const void *buffer, size_t payload_size) {
@@ -63,7 +63,7 @@ bool NetEventChannel::send_close_req() {
     MsgBuf msg_buf;
     auto &msg = msg_buf.cast<CloseReqMessage>();
     msg.type = CloseReq;
-    return _sgate.try_send(msg_buf) == Errors::NONE;
+    return _sgate.try_send(msg_buf) == Errors::SUCCESS;
 }
 
 bool NetEventChannel::can_send() const noexcept {

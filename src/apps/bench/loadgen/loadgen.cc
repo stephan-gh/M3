@@ -80,7 +80,7 @@ public:
     virtual Errors::Code open(LoadGenSession **sess, size_t crt, capsel_t srv_sel,
                               const std::string_view &) override {
         *sess = new LoadGenSession(&_rgate, crt, srv_sel);
-        return Errors::NONE;
+        return Errors::SUCCESS;
     }
 
     virtual Errors::Code obtain(LoadGenSession *sess, size_t, CapExchange &xchg) override {
@@ -90,7 +90,7 @@ public:
         SLOG(LOADGEN, "{:#x}: mem::get_sgate()"_cf, (word_t)sess);
 
         xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess->clisgate.sel()));
-        return Errors::NONE;
+        return Errors::SUCCESS;
     }
 
     virtual Errors::Code delegate(LoadGenSession *sess, size_t, CapExchange &xchg) override {
@@ -105,12 +105,12 @@ public:
         sess->mgate.reset(new MemGate(MemGate::bind(crd.start() + 1)));
 
         xchg.out_caps(crd);
-        return Errors::NONE;
+        return Errors::SUCCESS;
     }
 
     virtual Errors::Code close(LoadGenSession *sess, size_t) override {
         delete sess;
-        return Errors::NONE;
+        return Errors::SUCCESS;
     }
 
     virtual void shutdown() override {
@@ -126,7 +126,7 @@ public:
         SLOG(LOADGEN, "{:#x}: mem::start(count={})"_cf, (word_t)sess, count);
 
         sess->send_request();
-        reply_vmsg(is, Errors::NONE);
+        reply_vmsg(is, Errors::SUCCESS);
     }
 
     void response(GateIStream &is) {

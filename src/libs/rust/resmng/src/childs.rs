@@ -1172,7 +1172,7 @@ impl ChildManager {
         }
 
         let mut reply_buf = MsgBuf::borrow_def();
-        m3::build_vmsg!(reply_buf, kif::DefaultReply { error: Code::None });
+        m3::build_vmsg!(reply_buf, kif::DefaultReply { error: Code::Success });
         RecvGate::upcall()
             .reply(&reply_buf, msg)
             .expect("Upcall reply failed");
@@ -1216,7 +1216,7 @@ impl ChildManager {
         if let Some(id) = maybe_id {
             let child = Self::remove_rec_async(id).unwrap();
 
-            if exitcode != Code::None {
+            if exitcode != Code::Success {
                 println!(
                     "Child '{}' exited with exitcode {:?}",
                     child.name(),

@@ -89,7 +89,7 @@ fn pingpong_with_tile(t: &mut dyn WvTester, name: &str, tile: Rc<Tile>) {
         })
     );
 
-    wv_assert_eq!(t, act.wait(), Ok(Code::None));
+    wv_assert_eq!(t, act.wait(), Ok(Code::Success));
 }
 
 fn pingpong_with_multiple(t: &mut dyn WvTester) {
@@ -162,6 +162,6 @@ fn pingpong_with_multiple(t: &mut dyn WvTester) {
         })
     );
 
-    wv_assert_eq!(t, act1.wait(), Ok(Code::None));
-    wv_assert_eq!(t, act2.wait(), Ok(Code::None));
+    wv_assert_eq!(t, act1.wait(), Ok(Code::Success));
+    wv_assert_eq!(t, act2.wait(), Ok(Code::Success));
 }

@@ -366,7 +366,7 @@ impl TileMux {
 
         let mut reply = MsgBuf::borrow_def();
         build_vmsg!(reply, kif::DefaultReply {
-            error: res.err().map(|e| e.code()).unwrap_or(Code::None)
+            error: res.err().map(|e| e.code()).unwrap_or(Code::Success)
         });
         ktcu::reply(ktcu::KPEX_EP, &reply, msg).unwrap();
     }
@@ -611,7 +611,7 @@ impl TileMux {
 
         let mut de = base::serialize::M3Deserializer::new(reply.as_words());
         let code: Code = de.pop()?;
-        if code == Code::None {
+        if code == Code::Success {
             de.pop()
         }
         else {

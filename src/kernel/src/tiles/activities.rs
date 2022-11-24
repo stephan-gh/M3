@@ -56,7 +56,7 @@ struct ExitWait {
 pub const KERNEL_ID: ActId = 0xFFFF;
 pub const INVAL_ID: ActId = 0xFFFF;
 
-static EXIT_EVENT: Code = Code::None;
+static EXIT_EVENT: Code = Code::Success;
 static EXIT_LISTENERS: StaticRefCell<Vec<ExitWait>> = StaticRefCell::new(Vec::new());
 
 pub struct Activity {
@@ -332,7 +332,7 @@ impl Activity {
                 if event != 0 {
                     self.upcall_activity_wait(event, sel, code);
                     // we never report the result via syscall reply, but we need Some for below.
-                    break Some((kif::INVALID_SEL, Code::None));
+                    break Some((kif::INVALID_SEL, Code::Success));
                 }
                 else {
                     break Some((sel, code));
@@ -397,7 +397,7 @@ impl Activity {
             kif::upcalls::Operation::ACT_WAIT,
             kif::upcalls::ActivityWait {
                 event,
-                error: Code::None,
+                error: Code::Success,
                 act_sel,
                 exitcode,
             }
@@ -461,7 +461,7 @@ impl Activity {
         else if self.state.get() == State::RUNNING {
             // devices always exit successfully
             let exit_code = if self.tile_desc().is_device() {
-                Code::None
+                Code::Success
             }
             else {
                 Code::Unspecified

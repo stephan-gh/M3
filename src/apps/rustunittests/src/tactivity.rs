@@ -102,7 +102,7 @@ fn run_arguments(t: &mut dyn WvTester) {
         Ok(())
     }));
 
-    wv_assert_eq!(t, act.wait(), Ok(Code::None));
+    wv_assert_eq!(t, act.wait(), Ok(Code::Success));
 }
 
 fn run_send_receive(t: &mut dyn WvTester) {
@@ -160,7 +160,7 @@ fn exec_hello(t: &mut dyn WvTester) {
     let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
     let act = wv_assert_ok!(act.exec(&["/bin/hello"]));
-    wv_assert_eq!(t, act.wait(), Ok(Code::None));
+    wv_assert_eq!(t, act.wait(), Ok(Code::Success));
 }
 
 fn exec_rust_hello(t: &mut dyn WvTester) {
@@ -168,5 +168,5 @@ fn exec_rust_hello(t: &mut dyn WvTester) {
     let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
     let act = wv_assert_ok!(act.exec(&["/bin/rusthello"]));
-    wv_assert_eq!(t, act.wait(), Ok(Code::None));
+    wv_assert_eq!(t, act.wait(), Ok(Code::Success));
 }

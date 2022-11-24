@@ -42,7 +42,7 @@ int main() {
 
     // initial send; wait until receiver is ready
     Errors::Code res;
-    while((res = kernel::TCU::send(SEP, msg, 0x2222, REP)) != Errors::NONE) {
+    while((res = kernel::TCU::send(SEP, msg, 0x2222, REP)) != Errors::SUCCESS) {
         logln("send failed: {}"_cf, res);
         // get credits back
         kernel::TCU::config_send(SEP, 0x1234, tile_id(Tile::T0), DSTEP, nextlog2<MSG_SIZE>::val, 1);
@@ -56,10 +56,10 @@ int main() {
         ASSERT_EQ(rmsg->label, 0x2222);
 
         // ack reply
-        ASSERT_EQ(kernel::TCU::ack_msg(REP, rbuf_addr, rmsg), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::ack_msg(REP, rbuf_addr, rmsg), Errors::SUCCESS);
 
         // send message
-        ASSERT_EQ(kernel::TCU::send(SEP, msg, 0x2222, REP), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::send(SEP, msg, 0x2222, REP), Errors::SUCCESS);
         msg.cast<uint64_t>() += 1;
     }
     return 0;

@@ -237,7 +237,7 @@ impl Server {
 
         match res {
             Ok((sel, ident)) => {
-                reply_vmsg!(is, Code::None, OpenReply {
+                reply_vmsg!(is, Code::Success, OpenReply {
                     sid: sel,
                     ident: ident as u64,
                 })
@@ -263,7 +263,7 @@ impl Server {
 
         let (nid, sgate) = hdl.sessions().derive_creator(is.rgate(), crt, sessions)?;
 
-        reply_vmsg!(is, Code::None, DeriveCreatorReply {
+        reply_vmsg!(is, Code::Success, DeriveCreatorReply {
             creator: nid,
             sgate_sel: sgate,
         })
@@ -302,7 +302,7 @@ impl Server {
             (res, xchg.out_args().size(), xchg.out_crd)
         };
 
-        let res = res.err().map(|e| e.code()).unwrap_or(Code::None);
+        let res = res.err().map(|e| e.code()).unwrap_or(Code::Success);
         reply.data.args.bytes = args_size;
         reply.data.caps = crd;
         reply_vmsg!(is, res, reply)
@@ -341,7 +341,7 @@ impl Server {
             (res, xchg.out_args().size(), xchg.out_crd)
         };
 
-        let res = res.err().map(|e| e.code()).unwrap_or(Code::None);
+        let res = res.err().map(|e| e.code()).unwrap_or(Code::Success);
         reply.data.args.bytes = args_size;
         reply.data.caps = crd;
         reply_vmsg!(is, res, reply)
@@ -362,7 +362,7 @@ impl Server {
 
         hdl.close(crt, sid as SessId);
 
-        is.reply_error(Code::None)
+        is.reply_error(Code::Success)
     }
 
     fn handle_shutdown<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -376,7 +376,7 @@ impl Server {
 
         hdl.shutdown();
 
-        is.reply_error(Code::None)
+        is.reply_error(Code::Success)
     }
 }
 

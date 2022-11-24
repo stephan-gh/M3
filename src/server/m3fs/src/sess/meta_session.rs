@@ -269,7 +269,7 @@ impl M3FSSession for MetaSession {
         let info = inode.to_file_info();
 
         let mut reply = m3::mem::MsgBuf::borrow_def();
-        build_vmsg!(reply, Code::None, info);
+        build_vmsg!(reply, Code::Success, info);
         stream.reply(&reply)
     }
 
@@ -287,7 +287,7 @@ impl M3FSSession for MetaSession {
 
         dirs::create(path, mode)?;
 
-        stream.reply_error(Code::None)
+        stream.reply_error(Code::Success)
     }
 
     fn rmdir(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -302,7 +302,7 @@ impl M3FSSession for MetaSession {
 
         dirs::remove(path)?;
 
-        stream.reply_error(Code::None)
+        stream.reply_error(Code::Success)
     }
 
     fn link(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -319,7 +319,7 @@ impl M3FSSession for MetaSession {
 
         dirs::link(old_path, new_path)?;
 
-        stream.reply_error(Code::None)
+        stream.reply_error(Code::Success)
     }
 
     fn unlink(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -334,7 +334,7 @@ impl M3FSSession for MetaSession {
 
         dirs::unlink(path, true)?;
 
-        stream.reply_error(Code::None)
+        stream.reply_error(Code::Success)
     }
 
     fn rename(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -351,7 +351,7 @@ impl M3FSSession for MetaSession {
 
         dirs::rename(old_path, new_path)?;
 
-        stream.reply_error(Code::None)
+        stream.reply_error(Code::Success)
     }
 
     fn open_priv(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -396,7 +396,7 @@ impl M3FSSession for MetaSession {
 
         if self.priv_files.remove(&fid).is_some() {
             self.priv_file_count -= 1;
-            stream.reply_error(Code::None)?;
+            stream.reply_error(Code::Success)?;
         }
         else {
             stream.reply_error(Code::InvArgs)?;

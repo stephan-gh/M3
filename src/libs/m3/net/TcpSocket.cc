@@ -143,7 +143,7 @@ void TcpSocket::handle_data(NetEventChannel::DataMessage const &msg,
 
 Errors::Code TcpSocket::close() {
     if(_state == State::Closed)
-        return Errors::NONE;
+        return Errors::SUCCESS;
 
     if(_state == State::Closing)
         throw Exception(Errors::ALREADY_IN_PROGRESS);
@@ -168,7 +168,7 @@ Errors::Code TcpSocket::close() {
 
         wait_for_events();
     }
-    return Errors::NONE;
+    return Errors::SUCCESS;
 }
 
 void TcpSocket::abort() {

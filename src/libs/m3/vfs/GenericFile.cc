@@ -102,7 +102,7 @@ Errors::Code GenericFile::try_stat(FileInfo &info) const {
     GateIStream reply = send_receive_vmsg(*_sg, STAT, _id);
     Errors::Code res;
     reply >> res;
-    if(res == Errors::NONE)
+    if(res == Errors::SUCCESS)
         reply >> info;
     return res;
 }
@@ -223,7 +223,7 @@ Option<size_t> GenericFile::read(void *buffer, size_t count) {
         // have to block us, it returns Errors::WOULD_BLOCK instead.
         if(res == Errors::WOULD_BLOCK)
             return None;
-        if(res != Errors::NONE)
+        if(res != Errors::SUCCESS)
             throw Exception(res);
 
         _goff += _len;
@@ -260,7 +260,7 @@ Option<size_t> GenericFile::write(const void *buffer, size_t count) {
         // have to block us, it returns Errors::WOULD_BLOCK instead.
         if(res == Errors::WOULD_BLOCK)
             return None;
-        if(res != Errors::NONE)
+        if(res != Errors::SUCCESS)
             throw Exception(res);
 
         _goff += _len;
@@ -308,10 +308,10 @@ Errors::Code GenericFile::try_get_tmode(File::TMode *mode) noexcept {
     GateIStream reply = send_receive_vmsg(*_sg, Operation::GET_TMODE, _id);
     Errors::Code res;
     reply >> res;
-    if(res != Errors::NONE)
+    if(res != Errors::SUCCESS)
         return res;
     reply >> *mode;
-    return Errors::NONE;
+    return Errors::SUCCESS;
 }
 
 void GenericFile::set_tmode(TMode mode) {

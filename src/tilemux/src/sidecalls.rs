@@ -85,7 +85,7 @@ fn activity_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
                 Some(cur) if cur.id() == r.act_id => {
                     crate::reg_scheduling(activities::ScheduleAction::Kill)
                 },
-                _ => activities::remove(r.act_id, Code::None, false, true),
+                _ => activities::remove(r.act_id, Code::Success, false, true),
             }
             Ok(())
         },
@@ -305,7 +305,7 @@ fn handle_sidecall(msg: &'static tcu::Message) {
     base::build_vmsg!(
         reply_buf,
         match res {
-            Ok(_) => Code::None,
+            Ok(_) => Code::Success,
             Err(e) => {
                 log!(crate::LOG_SIDECALLS, "sidecall {} failed: {}", op, e);
                 e.code()

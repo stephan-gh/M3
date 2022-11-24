@@ -231,7 +231,7 @@ fn hash_file(t: &mut dyn WvTester) {
 
     for (algo, hash) in &hashes {
         let closure = _hash_file_start(algo, &file, hash);
-        wv_assert_eq!(t, closure.wait(), Ok(Code::None));
+        wv_assert_eq!(t, closure.wait(), Ok(Code::Success));
     }
 }
 
@@ -474,5 +474,5 @@ fn shake_and_hash_pipe(t: &mut dyn WvTester) {
         &buf,
         &hex!("dd20e9da838d0643a6d0e8af3ebbcac44692a32d595acd626e993dca02620aee")
     );
-    wv_assert_eq!(t, closure.wait(), Ok(Code::None));
+    wv_assert_eq!(t, closure.wait(), Ok(Code::Success));
 }

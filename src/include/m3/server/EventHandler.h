@@ -78,7 +78,7 @@ protected:
                               const std::string_view &) override {
         *sess = new SESS(crt, srv_sel);
         _sessions.append(*sess);
-        return Errors::NONE;
+        return Errors::SUCCESS;
     }
 
     virtual Errors::Code delegate(SESS *sess, size_t, CapExchange &xchg) override {
@@ -87,13 +87,13 @@ protected:
 
         sess->_sgate = std::make_unique<SendGate>(SendGate::bind(Activity::own().alloc_sel(), 0));
         xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess->gate()->sel()));
-        return Errors::NONE;
+        return Errors::SUCCESS;
     }
 
     virtual Errors::Code close(SESS *sess, size_t) override {
         _sessions.remove(sess);
         delete sess;
-        return Errors::NONE;
+        return Errors::SUCCESS;
     }
 
 private:

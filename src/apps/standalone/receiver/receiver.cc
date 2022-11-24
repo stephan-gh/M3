@@ -45,7 +45,7 @@ int main() {
         ASSERT_EQ(rmsg->label, 0x1234);
 
         // send reply
-        ASSERT_EQ(kernel::TCU::reply(REP, reply, rbuf_addr, rmsg), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::reply(REP, reply, rbuf_addr, rmsg), Errors::SUCCESS);
         reply.cast<uint64_t>() += 1;
     }
 

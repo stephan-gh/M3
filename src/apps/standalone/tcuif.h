@@ -128,13 +128,13 @@ private:
         size_t addr = m3::TCU::ext_reg_addr(m3::TCU::ExtRegs::EXT_CMD);
         config_mem(TMP_EP, tile, addr, sizeof(reg_t), m3::TCU::R | m3::TCU::W);
         m3::Errors::Code err = write(TMP_EP, &cmd, sizeof(cmd), 0);
-        if(err != m3::Errors::NONE)
+        if(err != m3::Errors::SUCCESS)
             return err;
 
         reg_t res;
         do {
             err = read(TMP_EP, &res, sizeof(res), 0);
-            if(err != m3::Errors::NONE)
+            if(err != m3::Errors::SUCCESS)
                 return err;
         }
         while((res & 0xF) != 0);

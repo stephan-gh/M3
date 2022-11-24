@@ -28,7 +28,7 @@ namespace m3 {
  */
 struct Errors {
     enum Code : int32_t {
-        NONE,
+        SUCCESS,
         // TCU errors
         NO_MEP,
         NO_SEP,

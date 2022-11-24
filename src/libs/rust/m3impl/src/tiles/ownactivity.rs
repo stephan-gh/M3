@@ -80,7 +80,7 @@ impl OwnActivity {
     // Deinitializes all data structures and exits with given result
     pub fn exit(&self, res: Result<(), Error>) -> ! {
         let err = match res {
-            Ok(_) => Code::None,
+            Ok(_) => Code::Success,
             Err(e) => e.code(),
         };
         self.exit_with(err);

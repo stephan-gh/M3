@@ -119,7 +119,7 @@ impl Channel {
 
         self.state.borrow_mut().request_notify(self.id, events)?;
 
-        is.reply_error(Code::None)
+        is.reply_error(Code::Success)
     }
 
     pub fn next_in(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -177,7 +177,7 @@ impl Channel {
         };
 
         let mut reply = m3::mem::MsgBuf::borrow_def();
-        build_vmsg!(reply, Code::None, info);
+        build_vmsg!(reply, Code::Success, info);
         is.reply(&reply)
     }
 
@@ -223,7 +223,7 @@ impl Channel {
 
         // commits are done here, because they don't get new data
         if commit > 0 {
-            return reply_vmsg!(is, Code::None as u32, state.rbuf.size());
+            return reply_vmsg!(is, Code::Success as u32, state.rbuf.size());
         }
 
         // if there are already queued read requests, just append this request
@@ -250,13 +250,13 @@ impl Channel {
                 amount,
                 pos
             );
-            reply_vmsg!(is, Code::None as u32, pos, amount)
+            reply_vmsg!(is, Code::Success as u32, pos, amount)
         }
         else {
             // nothing to read; if there is no writer left, report EOF
             if state.flags().contains(Flags::WRITE_EOF) {
                 log!(crate::LOG_DEF, "[{}] pipes::read(): EOF", self.id);
-                reply_vmsg!(is, Code::None as u32, 0usize, 0usize)
+                reply_vmsg!(is, Code::Success as u32, 0usize, 0usize)
             }
             else {
                 // if we promised the client that input would be available, report WouldBlock
@@ -308,7 +308,7 @@ impl Channel {
 
         // commits are done here, because they don't get new data
         if commit > 0 {
-            return reply_vmsg!(is, Code::None as u32, state.rbuf.size());
+            return reply_vmsg!(is, Code::Success as u32, state.rbuf.size());
         }
 
         // if there are already queued write requests, just append this request
@@ -332,7 +332,7 @@ impl Channel {
                 amount,
                 pos
             );
-            reply_vmsg!(is, Code::None as u32, pos, amount)
+            reply_vmsg!(is, Code::Success as u32, pos, amount)
         }
         else {
             // if we promised the client that input would be available, report WouldBlock

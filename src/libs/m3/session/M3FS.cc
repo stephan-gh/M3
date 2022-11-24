@@ -78,10 +78,10 @@ Errors::Code M3FS::try_stat(const char *path, FileInfo &info) noexcept {
     GateIStream reply = send_receive_vmsg(_gate, STAT, path);
     Errors::Code res;
     reply >> res;
-    if(res != Errors::NONE)
+    if(res != Errors::SUCCESS)
         return res;
     reply >> info;
-    return Errors::NONE;
+    return Errors::SUCCESS;
 }
 
 Errors::Code M3FS::try_mkdir(const char *path, mode_t mode) {

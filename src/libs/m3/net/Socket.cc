@@ -149,12 +149,12 @@ Option<size_t> Socket::do_send(const void *src, size_t amount, const Endpoint &e
     // make sure that the message does not contain a page boundary
     ALIGNED(2048) char msg_buf[2048];
     Errors::Code res = _channel.build_data_message(msg_buf, sizeof(msg_buf), ep, src, amount);
-    if(res != Errors::NONE)
+    if(res != Errors::SUCCESS)
         throw Exception(res);
 
     while(true) {
         Errors::Code res = _channel.send_data(msg_buf, amount);
-        if(res == Errors::NONE) {
+        if(res == Errors::SUCCESS) {
             log_net(NetLogEvent::SentPacket, _sd, amount);
             return Some(amount);
         }
