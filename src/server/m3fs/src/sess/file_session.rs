@@ -413,7 +413,7 @@ impl FileSession {
             self.cur_bytes
         );
 
-        reply_vmsg!(is, Code::Success as u32, capoff, self.cur_bytes)?;
+        reply_vmsg!(is, Code::Success, capoff, self.cur_bytes)?;
 
         self.revoke_cap();
         self.cur_sel = sel;
@@ -443,7 +443,7 @@ impl FileSession {
         self.next_pos = extpos;
         self.next_fileoff = pos;
 
-        reply_vmsg!(stream, Code::Success as u32, pos - extpos.off, extpos.off)
+        reply_vmsg!(stream, Code::Success, pos - extpos.off, extpos.off)
     }
 
     pub fn file_stat(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -470,7 +470,7 @@ impl FileSession {
             self.filename
         );
 
-        reply_vmsg!(stream, Code::Success as u32, self.filename)
+        reply_vmsg!(stream, Code::Success, self.filename)
     }
 
     pub fn file_truncate(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -504,7 +504,7 @@ impl FileSession {
         // prepared for that!
         self.revoke_cap();
 
-        reply_vmsg!(stream, Code::Success as u32, fileoff - extpos.off, extpos.off)
+        reply_vmsg!(stream, Code::Success, fileoff - extpos.off, extpos.off)
     }
 
     pub fn file_commit(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {

@@ -265,7 +265,7 @@ impl AddrSpace {
 
         self.map_anon_with(virt, len, perm, flags)?;
 
-        reply_vmsg!(is, Code::Success as u32, virt)
+        reply_vmsg!(is, Code::Success, virt)
     }
 
     pub(crate) fn map_anon_with(

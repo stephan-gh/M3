@@ -215,7 +215,7 @@ fn alloc_tile(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
     let child = childs.child_by_id_mut(id).unwrap();
     child
         .alloc_tile(dst_sel, desc)
-        .and_then(|(id, desc)| reply_vmsg!(is, Code::Success as u32, id, desc.value()))
+        .and_then(|(id, desc)| reply_vmsg!(is, Code::Success, id, desc.value()))
 }
 
 fn free_tile(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
@@ -234,7 +234,7 @@ fn use_rgate(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
     let child = childs.child_by_id_mut(id).unwrap();
     child
         .use_rgate(&name, sel)
-        .and_then(|(order, msg_order)| reply_vmsg!(is, Code::Success as u32, order, msg_order))
+        .and_then(|(order, msg_order)| reply_vmsg!(is, Code::Success, order, msg_order))
 }
 
 fn use_sgate(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
@@ -273,5 +273,5 @@ fn get_info(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
         Some(act_idx)
     };
 
-    childs::get_info(id, idx).and_then(|info| reply_vmsg!(is, Code::Success as u32, info))
+    childs::get_info(id, idx).and_then(|info| reply_vmsg!(is, Code::Success, info))
 }

@@ -144,7 +144,7 @@ impl Channel {
 
         log!(crate::LOG_DEF, "[{}] vterm::get_tmode()", self.id,);
 
-        reply_vmsg!(is, Code::Success as u32, MODE.get())
+        reply_vmsg!(is, Code::Success, MODE.get())
     }
 
     fn set_tmode(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -193,7 +193,7 @@ impl Channel {
             self.fetch_input(&mut input)?;
         }
 
-        reply_vmsg!(is, Code::Success as u32, self.pos, self.len - self.pos)
+        reply_vmsg!(is, Code::Success, self.pos, self.len - self.pos)
     }
 
     fn fetch_input(&mut self, input: &mut RefMut<'_, Vec<u8>>) -> Result<(), Error> {
@@ -232,7 +232,7 @@ impl Channel {
         self.pos = 0;
         self.len = BUF_SIZE;
 
-        reply_vmsg!(is, Code::Success as u32, 0usize, BUF_SIZE)
+        reply_vmsg!(is, Code::Success, 0usize, BUF_SIZE)
     }
 
     fn commit(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -546,7 +546,7 @@ fn add_input(hdl: &mut VTermHandler, eof: bool, mut flush: bool, input: &mut Ref
             if let SessionData::Chan(c) = &mut s.data {
                 if let Some(msg) = c.pending_nextin.take() {
                     c.fetch_input(input).unwrap();
-                    reply_vmsg_late!(msg, Code::Success as u32, c.pos, c.len - c.pos).unwrap();
+                    reply_vmsg_late!(msg, Code::Success, c.pos, c.len - c.pos).unwrap();
                     flush = false;
                 }
                 else if c.add_event(FileEvent::INPUT) {
