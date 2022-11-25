@@ -20,6 +20,7 @@ use bitflags::bitflags;
 use core::fmt;
 
 use crate::cfg;
+use crate::serialize::{Deserialize, Serialize};
 
 int_enum! {
     /// The different types of tiles
@@ -80,7 +81,7 @@ pub type TileDescRaw = u64;
 ///
 /// [`create_activity`]: ../../m3/syscalls/fn.create_activity.html
 #[repr(C)]
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Serialize, Deserialize)]
 pub struct TileDesc {
     val: TileDescRaw,
 }

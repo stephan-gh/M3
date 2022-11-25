@@ -31,7 +31,7 @@ use m3::println;
 use m3::quota::{Id as QuotaId, Quota};
 use m3::rc::Rc;
 use m3::serialize::M3Deserializer;
-use m3::session::{ResMngActInfo, ResMngActInfoResult};
+use m3::session::resmng;
 use m3::syscalls;
 use m3::tcu;
 use m3::tiles::{
@@ -664,7 +664,7 @@ pub fn rem_child_async(id: Id, act_sel: Selector) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngActInfoResult, Error> {
+pub fn get_info(id: Id, idx: Option<usize>) -> Result<resmng::ActInfoResult, Error> {
     let layer = {
         let mut childs = borrow_mut();
         let child = childs.child_by_id_mut(id).unwrap();
@@ -698,7 +698,7 @@ pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngActInfoResult, Error
 
     if let Some(mut idx) = idx {
         if idx < parent_num {
-            Ok(ResMngActInfoResult::Info(
+            Ok(resmng::ActInfoResult::Info(
                 Activity::own().resmng().unwrap().get_activity_info(idx)?,
             ))
         }
@@ -713,7 +713,7 @@ pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngActInfoResult, Error
                 let kmem_quota = Activity::own().kmem().quota()?;
                 let tile_quota = Activity::own().tile().quota()?;
                 let mem = memory::container();
-                return Ok(ResMngActInfoResult::Info(ResMngActInfo {
+                return Ok(resmng::ActInfoResult::Info(resmng::ActInfo {
                     id: Activity::own().id(),
                     layer: parent_layer + 0,
                     name: env::args().next().unwrap().to_string(),
@@ -751,7 +751,7 @@ pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngActInfoResult, Error
                 .child_tile()
                 .map(|tile| tile.tile_obj().quota())
                 .unwrap_or_else(|| Ok(TileQuota::default()))?;
-            Ok(ResMngActInfoResult::Info(ResMngActInfo {
+            Ok(resmng::ActInfoResult::Info(resmng::ActInfo {
                 id: act.activity_id(),
                 layer: parent_layer + act.layer(),
                 name: act.name().to_string(),
@@ -771,7 +771,7 @@ pub fn get_info(id: Id, idx: Option<usize>) -> Result<ResMngActInfoResult, Error
     }
     else {
         let total = own_num + parent_num;
-        Ok(ResMngActInfoResult::Count((total, layer)))
+        Ok(resmng::ActInfoResult::Count((total, layer)))
     }
 }
 
@@ -1172,7 +1172,9 @@ impl ChildManager {
         }
 
         let mut reply_buf = MsgBuf::borrow_def();
-        m3::build_vmsg!(reply_buf, kif::DefaultReply { error: Code::Success });
+        m3::build_vmsg!(reply_buf, kif::DefaultReply {
+            error: Code::Success
+        });
         RecvGate::upcall()
             .reply(&reply_buf, msg)
             .expect("Upcall reply failed");

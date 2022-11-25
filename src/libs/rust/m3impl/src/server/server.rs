@@ -156,8 +156,8 @@ impl Server {
 
         syscalls::create_srv(sel, rgate.sel(), name, 0)?;
 
-        let max = hdl.sessions().capacity();
-        let (_, sgate) = hdl.sessions().add_creator(&rgate, max as u32)?;
+        let max = hdl.sessions().capacity() as u32;
+        let (_, sgate) = hdl.sessions().add_creator(&rgate, max)?;
 
         if public {
             Activity::own()

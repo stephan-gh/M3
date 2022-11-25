@@ -92,10 +92,12 @@ impl MemGate {
             args.sel
         };
 
-        Activity::own()
-            .resmng()
-            .unwrap()
-            .alloc_mem(sel, args.addr, args.size, args.perm)?;
+        Activity::own().resmng().unwrap().alloc_mem(
+            sel,
+            args.addr,
+            args.size as goff,
+            args.perm,
+        )?;
         Ok(MemGate {
             gate: Gate::new(sel, CapFlags::empty()),
             resmng: true,
