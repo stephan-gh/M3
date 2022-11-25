@@ -15,8 +15,6 @@
  * General Public License version 2 for more details.
  */
 
-// for offset_of with unstable_const feature
-#![feature(const_ptr_offset_from)]
 #![no_std]
 
 use core::str::FromStr;

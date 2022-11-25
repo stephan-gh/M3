@@ -237,6 +237,7 @@ impl NetEventChannel {
     {
         assert!(size <= MTU);
 
+        #[allow(invalid_value)]
         #[allow(clippy::uninit_assumed_init)]
         let mut msg = DataMessage {
             ty: NetEventType::DATA.val,

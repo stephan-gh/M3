@@ -470,6 +470,7 @@ pub fn activity_ctrl(act: Selector, op: syscalls::ActivityOp, arg: u64) -> Resul
 pub fn activity_wait(sels: &[Selector], event: u64) -> Result<(Selector, Code), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
 
+    #[allow(invalid_value)]
     #[allow(clippy::uninit_assumed_init)]
     // safety: will be initialized below
     let mut acts: [Selector; syscalls::MAX_WAIT_ACTS] =
