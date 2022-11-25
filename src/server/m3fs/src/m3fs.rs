@@ -439,7 +439,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
                         new_sel,
                         1,
                     ));
-                    data.out_args().push(&id);
+                    data.out_args().push(id);
                 },
                 M3FSOperation::ENABLE_NOTIFY => return Err(Error::new(Code::NotSup)),
                 _ => return Err(Error::new(Code::InvArgs)),

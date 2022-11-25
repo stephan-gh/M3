@@ -37,7 +37,7 @@ pub struct RequestHandler {
 
 impl RequestHandler {
     /// Creates a new request handler with default arguments
-    pub fn default() -> Result<Self, Error> {
+    pub fn new() -> Result<Self, Error> {
         Self::new_with(DEF_MAX_CLIENTS, DEF_MSG_SIZE)
     }
 

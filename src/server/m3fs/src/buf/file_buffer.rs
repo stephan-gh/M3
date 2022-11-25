@@ -254,7 +254,7 @@ impl FileBuffer {
         // create new entry (boxed to ensure its pointer stays constant)
         let mut new_head = Box::new(FileBufferEntry::new(
             BlockRange::new_range(bno, load_size as BlockNo),
-            self.block_size as usize,
+            self.block_size,
         )?);
         self.size += new_head.blocks.count as usize;
 

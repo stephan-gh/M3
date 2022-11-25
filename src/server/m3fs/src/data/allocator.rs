@@ -66,7 +66,7 @@ impl Allocator {
         let mut tmp_count = 1;
         let count = count.unwrap_or(&mut tmp_count);
 
-        let perblock: usize = self.blocksize as usize * 8;
+        let perblock: usize = self.blocksize * 8;
         let lastno: u32 = self.first + self.blocks - 1;
 
         let icount = *count;
@@ -194,7 +194,7 @@ impl Allocator {
             count
         );
 
-        let perblock: usize = self.blocksize as usize * 8;
+        let perblock: usize = self.blocksize * 8;
         let mut no: usize = self.first as usize + start / perblock;
 
         if start < self.first_free as usize {

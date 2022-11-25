@@ -295,7 +295,7 @@ impl RecvGate {
     pub fn fetch(&self) -> Result<&'static tcu::Message, Error> {
         tcu::TCU::fetch_msg(self.ensure_activated()?)
             .map(|off| tcu::TCU::offset_to_msg(self.address().unwrap(), off))
-            .ok_or(Error::new(Code::NotFound))
+            .ok_or_else(|| Error::new(Code::NotFound))
     }
 
     /// Sends `reply` as a reply to the message `msg`.

@@ -39,7 +39,7 @@ pub extern "C" fn exit(_code: i32) {
 }
 
 pub extern "C" fn tmcall(state: &mut isr::State) -> *mut libc::c_void {
-    let virt = state.r[isr::TMC_ARG1] as usize;
+    let virt = state.r[isr::TMC_ARG1];
     let access = Perm::from_bits_truncate(state.r[isr::TMC_ARG2] as u32);
     let flags = PageFlags::from(access) & PageFlags::RW;
 

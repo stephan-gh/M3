@@ -94,8 +94,8 @@ pub fn init() {
         // map initial heap
         let heap_start = math::round_up(&_bss_end as *const _ as usize, cfg::PAGE_SIZE);
         let heap_size = 64 * cfg::PAGE_SIZE;
-        map_to_phys(&mut aspace, base, heap_start, heap_size as usize, rw);
-        __m3_heap_set_area(heap_start, heap_start + heap_size as usize);
+        map_to_phys(&mut aspace, base, heap_start, heap_size, rw);
+        __m3_heap_set_area(heap_start, heap_start + heap_size);
     }
 
     // map env

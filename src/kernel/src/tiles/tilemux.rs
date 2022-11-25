@@ -460,11 +460,7 @@ impl TileMux {
         Self::send_receive_sidecall_async::<kif::tilemux::GetQuota>(tilemux, None, buf, &msg).map(
             |r| {
                 (
-                    quota::Quota::new(
-                        tile_id | time,
-                        (r.val1 >> 32) as u64,
-                        (r.val1 & 0xFFFF_FFFF) as u64,
-                    ),
+                    quota::Quota::new(tile_id | time, r.val1 >> 32, r.val1 & 0xFFFF_FFFF),
                     quota::Quota::new(
                         tile_id | pts,
                         (r.val2 >> 32) as usize,

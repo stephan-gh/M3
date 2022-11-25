@@ -308,7 +308,7 @@ pub unsafe extern "C" fn __m3c_close(fd: i32) {
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn __m3c_waiter_create(waiter: *mut *mut libc::c_void) -> Code {
-    *waiter = Box::into_raw(Box::new(FileWaiter::default())) as *mut libc::c_void;
+    *waiter = Box::into_raw(Box::<FileWaiter>::default()) as *mut libc::c_void;
     Code::Success
 }
 

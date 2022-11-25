@@ -640,7 +640,7 @@ pub fn main() -> Result<(), Error> {
     let s = Server::new("vterm", &mut hdl).expect("Unable to create service 'vterm'");
     hdl.sel = s.sel();
 
-    REQHDL.set(RequestHandler::default().expect("Unable to create request handler"));
+    REQHDL.set(RequestHandler::new().expect("Unable to create request handler"));
 
     let sel = Activity::own().alloc_sel();
     let serial_gate = Activity::own()

@@ -70,7 +70,7 @@ pub fn get(inode: InodeNo) -> Result<INodeRef, Error> {
     let bno = crate::superblock().first_inode_block() + (inode / inos_per_block as u32);
     let block = crate::meta_buffer_mut().get_block(bno)?;
 
-    let offset = (inode as usize % inos_per_block as usize) * NUM_INODE_BYTES as usize;
+    let offset = (inode as usize % inos_per_block) * NUM_INODE_BYTES;
     Ok(INodeRef::from_buffer(block, offset))
 }
 

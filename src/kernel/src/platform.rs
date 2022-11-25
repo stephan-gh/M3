@@ -205,8 +205,7 @@ pub fn init() {
                 ));
             }
             else {
-                let user_size =
-                    core::cmp::min((1 << 30) - cfg::PAGE_SIZE as usize, tile.mem_size());
+                let user_size = core::cmp::min((1 << 30) - cfg::PAGE_SIZE, tile.mem_size());
                 mem.add(MemMod::new(
                     MemType::USER,
                     i as TileId,

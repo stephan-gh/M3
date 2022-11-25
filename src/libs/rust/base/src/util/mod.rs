@@ -34,7 +34,7 @@ use crate::mem;
 /// This function assumes that `s` points to a permanently valid and null-terminated C string
 pub unsafe fn cstr_to_str(s: *const i8) -> &'static str {
     let len = libc::strlen(s);
-    let sl = slice::from_raw_parts(s, len as usize + 1);
+    let sl = slice::from_raw_parts(s, len + 1);
     &*(&sl[..sl.len() - 1] as *const [i8] as *const str)
 }
 

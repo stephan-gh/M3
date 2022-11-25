@@ -193,7 +193,7 @@ impl Error {
     fn debug(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "{:?} at:", self.code())?;
         for i in 0..self.info.bt_len {
-            writeln!(f, "  {:#x}", self.info.bt[i as usize])?;
+            writeln!(f, "  {:#x}", self.info.bt[i])?;
         }
         Ok(())
     }

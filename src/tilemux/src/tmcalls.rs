@@ -85,9 +85,9 @@ fn tmcall_yield(_state: &mut arch::State) -> Result<(), Error> {
 }
 
 fn tmcall_map(state: &mut arch::State) -> Result<(), Error> {
-    let virt = state.r[isr::TMC_ARG1] as usize;
+    let virt = state.r[isr::TMC_ARG1];
     let phys = state.r[isr::TMC_ARG2] as goff;
-    let pages = state.r[isr::TMC_ARG3] as usize;
+    let pages = state.r[isr::TMC_ARG3];
     let access = kif::Perm::from_bits_truncate(state.r[isr::TMC_ARG4] as u32);
     let flags = kif::PageFlags::from(access) & kif::PageFlags::RW;
 
@@ -123,7 +123,7 @@ fn tmcall_reg_irq(state: &mut arch::State) -> Result<(), Error> {
 }
 
 fn tmcall_transl_fault(state: &mut arch::State) -> Result<(), Error> {
-    let virt = state.r[isr::TMC_ARG1] as usize;
+    let virt = state.r[isr::TMC_ARG1];
     let access = kif::Perm::from_bits_truncate(state.r[isr::TMC_ARG2] as u32);
     let flags = kif::PageFlags::from(access) & kif::PageFlags::RW;
 

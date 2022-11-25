@@ -271,7 +271,7 @@ impl<A: Allocator> AddrSpace<A> {
         unsafe { *(pte_addr as *mut MMUPTE) = pte };
 
         let pt_size = (1 << (LEVEL_BITS * level)) * cfg::PAGE_SIZE;
-        let virt_base = virt as usize & !(pt_size - 1);
+        let virt_base = virt & !(pt_size - 1);
         log!(
             crate::LOG_MAP_DETAIL,
             "Activity{}: lvl {} PTE for 0x{:0>16x}: 0x{:0>16x} @ {:#x}",
@@ -329,7 +329,7 @@ impl<A: Allocator> AddrSpace<A> {
                 }
             }
 
-            virt += 1 << (level as usize * LEVEL_BITS + cfg::PAGE_BITS);
+            virt += 1 << (level * LEVEL_BITS + cfg::PAGE_BITS);
             ptes += size_of::<MMUPTE>();
         }
         Ok(())

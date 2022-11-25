@@ -172,7 +172,7 @@ where
     )?;
 
     *off = argoff + argptr.len() * size_of::<u64>();
-    Ok(argoff as usize)
+    Ok(argoff)
 }
 
 fn load_segment(
@@ -217,7 +217,7 @@ fn load_segment(
             buf,
             &mem,
             file,
-            phdr.vaddr as usize,
+            phdr.vaddr,
             phdr.offset as usize,
             phdr.filesz as usize,
             phdr.memsz as usize,
@@ -257,7 +257,7 @@ fn init_mem(
         segoff += amount as goff;
     }
 
-    clear_mem(buf, mem, vaddr, segoff as usize, (memsize - fsize) as usize)
+    clear_mem(buf, mem, vaddr, segoff as usize, memsize - fsize)
 }
 
 fn clear_mem(

@@ -45,7 +45,7 @@ impl EnvData {
     }
 
     pub fn set_platform(&mut self, platform: Platform) {
-        self.base.platform = platform.val as u64
+        self.base.platform = platform.val;
     }
 
     pub fn tile_id(&self) -> u64 {
@@ -212,8 +212,8 @@ impl EnvData {
     }
 
     pub fn set_pager(&mut self, pager: &Pager) {
-        self.base.pager_sess = pager.sel() as u64;
-        self.base.pager_sgate = pager.sgate_sel() as u64;
+        self.base.pager_sess = pager.sel();
+        self.base.pager_sgate = pager.sgate_sel();
     }
 }
 

@@ -259,7 +259,7 @@ impl Device {
     }
 
     pub fn size(&self) -> usize {
-        self.capacity as usize * self.sec_size as usize
+        self.capacity * self.sec_size
     }
 
     pub fn sector_size(&self) -> usize {

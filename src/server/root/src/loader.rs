@@ -70,7 +70,7 @@ impl vfs::File for BootFile {
     fn stat(&self) -> Result<vfs::FileInfo, Error> {
         Ok(vfs::FileInfo {
             mode: vfs::FileMode::FILE_DEF,
-            size: self.size as usize,
+            size: self.size,
             extents: 1,
             ..Default::default()
         })

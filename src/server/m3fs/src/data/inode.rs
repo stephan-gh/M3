@@ -99,8 +99,8 @@ impl INode {
             size: self.size as usize,
             lastaccess: self.lastaccess,
             lastmod: self.lastmod,
-            extents: self.extents as u32,
-            blocksize: crate::superblock().block_size as u32,
+            extents: self.extents,
+            blocksize: crate::superblock().block_size,
             firstblock: self.direct[0].start,
         }
     }

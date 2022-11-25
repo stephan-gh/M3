@@ -25,6 +25,7 @@ pub use open_files::OpenFiles;
 use m3::com::GateIStream;
 use m3::errors::{Code, Error};
 
+#[allow(clippy::large_enum_variant)]
 pub enum FSSession {
     Meta(meta_session::MetaSession),
     File(file_session::FileSession),

@@ -60,7 +60,7 @@ impl MetaBufferBlock {
             links: 0,
             unlock: thread::alloc_event(),
 
-            data: vec![0; blocksize as usize],
+            data: vec![0; blocksize],
         }
     }
 

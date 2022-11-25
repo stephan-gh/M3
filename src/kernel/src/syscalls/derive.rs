@@ -151,7 +151,7 @@ pub fn derive_mem(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), 
             sysc_err!(Code::InvArgs, "Size or offset invalid");
         }
 
-        let addr = mgate.addr().raw() + r.offset as u64;
+        let addr = mgate.addr().raw() + r.offset;
         let new_mem = mem::Allocation::new(GlobAddr::new(addr), r.size);
         let mgate_obj = MGateObject::new(new_mem, r.perms & mgate.perms(), true);
         Capability::new(r.dst, KObject::MGate(mgate_obj))

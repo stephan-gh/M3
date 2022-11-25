@@ -187,7 +187,7 @@ impl<'a, S: Sink> Serializer for &'a mut M3Serializer<S> {
 
     #[inline(always)]
     fn serialize_u64(self, v: u64) -> Result<Self::Ok, Self::Error> {
-        self.push_word(v as u64);
+        self.push_word(v);
         Ok(())
     }
 

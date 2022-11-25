@@ -85,8 +85,8 @@ fn load_root_async(env_phys: goff, act: &Activity) -> Result<(), Error> {
         tile_desc: act.tile_desc().value(),
         act_id: act.id() as u64,
         heap_size: MOD_HEAP_SIZE as u64,
-        rmng_sel: kif::INVALID_SEL as u64,
-        first_sel: act.first_sel() as u64,
+        rmng_sel: kif::INVALID_SEL,
+        first_sel: act.first_sel(),
         first_std_ep: act.eps_start() as u64,
         ..Default::default()
     };

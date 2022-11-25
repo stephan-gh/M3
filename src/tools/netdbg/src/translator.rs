@@ -240,7 +240,7 @@ fn translate_app(
             (&mut net.stats, &net.full_name)
         };
 
-        let event_type = NetLogEvent::try_from(event as u64 & 0xFF);
+        let event_type = NetLogEvent::try_from(event & 0xFF);
         let arg = (event >> 16) as usize;
         let sd = (event >> 8) & 0xFF;
 

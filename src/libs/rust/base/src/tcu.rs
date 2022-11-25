@@ -649,7 +649,7 @@ impl TCU {
             if (unread & (1 << i)) != 0 {
                 let msg = Self::offset_to_msg(buf_addr, i << msg_size);
                 if msg.header.label == label {
-                    Self::ack_msg(ep, (i << msg_size) as usize).ok();
+                    Self::ack_msg(ep, i << msg_size).ok();
                 }
             }
         }

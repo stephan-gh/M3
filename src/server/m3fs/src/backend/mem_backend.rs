@@ -97,7 +97,7 @@ impl Backend for MemBackend {
         _load: Option<&mut LoadLimit>,
     ) -> Result<usize, Error> {
         let first_block = extoff / self.blocksize;
-        let bytes: usize = (ext.length as usize - first_block) * self.blocksize as usize;
+        let bytes: usize = (ext.length as usize - first_block) * self.blocksize;
         let size = ((ext.start as usize + first_block) * self.blocksize) as u64;
         derive_mem(
             m3::tiles::Activity::own().sel(),

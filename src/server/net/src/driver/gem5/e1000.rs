@@ -205,20 +205,20 @@ impl E1000 {
         self.write_reg(REG::RAL, (macval & 0xFFFFFFFF) as u32);
         self.write_reg(
             REG::RAH,
-            (((macval >> 32) as u32) & 0xFFFF) | (RAH::VALID.bits() as u32),
+            (((macval >> 32) as u32) & 0xFFFF) | RAH::VALID.bits(),
         );
 
         // enable transmitter
         let mut tctl: u32 = self.read_reg(REG::TCTL);
-        tctl &= !((TCTL::COLT_MASK | TCTL::COLD_MASK).bits() as u32);
-        tctl |= (TCTL::ENABLE | TCTL::PSP | TCTL::COLL_DIST | TCTL::COLL_TSH).bits() as u32;
+        tctl &= !((TCTL::COLT_MASK | TCTL::COLD_MASK).bits());
+        tctl |= (TCTL::ENABLE | TCTL::PSP | TCTL::COLL_DIST | TCTL::COLL_TSH).bits();
         self.write_reg(REG::TCTL, tctl);
 
         // enable receiver
         let mut rctl: u32 = self.read_reg(REG::RCTL);
-        rctl &= !((RCTL::BSIZE_MASK | RCTL::BSEX_MASK).bits() as u32);
+        rctl &= !((RCTL::BSIZE_MASK | RCTL::BSEX_MASK).bits());
         rctl |= (RCTL::ENABLE | RCTL::UPE | RCTL::MPE | RCTL::BAM | RCTL::BSIZE_2K | RCTL::SECRC)
-            .bits() as u32;
+            .bits();
         self.write_reg(REG::RCTL, rctl);
     }
 
@@ -321,7 +321,7 @@ impl E1000 {
             desc[0].set_sta(0);
             desc[0].set_tucmd(
                 // DEXT | IP | TCP
-                1 << 5 | (if is_ip { 1 << 1 } else { 0 } | if is_tcp { 1 } else { 0 }) as u8,
+                1 << 5 | (if is_ip { 1 << 1 } else { 0 } | u8::from(is_tcp)),
             );
 
             desc[0].set_dtyp(0x0000);

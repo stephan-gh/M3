@@ -80,7 +80,7 @@ impl From<OpenFlags> for kif::Perm {
         const_assert!(OpenFlags::R.bits() == kif::Perm::R.bits());
         const_assert!(OpenFlags::W.bits() == kif::Perm::W.bits());
         const_assert!(OpenFlags::X.bits() == kif::Perm::X.bits());
-        kif::Perm::from_bits_truncate((flags & OpenFlags::RWX).bits() as u32)
+        kif::Perm::from_bits_truncate((flags & OpenFlags::RWX).bits())
     }
 }
 
