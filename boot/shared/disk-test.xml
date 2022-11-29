@@ -1,5 +1,5 @@
 <config>
-    <kernel args="kernel -d" />
+    <kernel args="kernel" />
     <dom>
         <app args="root">
             <app args="disk -d -i -f $hd.path" daemon="1">

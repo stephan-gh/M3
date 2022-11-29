@@ -1,5 +1,5 @@
 <config>
-    <kernel args="kernel -f $fs.path" />
+    <kernel args="kernel" />
     <dom>
         <app args="root">
             <dom>

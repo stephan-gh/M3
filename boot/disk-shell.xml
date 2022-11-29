@@ -1,5 +1,5 @@
 <config>
-    <kernel args="kernel -d" />
+    <kernel args="kernel" />
     <dom>
         <app args="root">
             <dom>
