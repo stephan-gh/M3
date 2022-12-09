@@ -19,6 +19,7 @@ use core::fmt;
 
 use crate::kif;
 use crate::mem::GlobAddr;
+use crate::tcu::TileId;
 use crate::util;
 
 const MAX_MODNAME_LEN: usize = 64;
@@ -103,12 +104,12 @@ impl fmt::Debug for Mod {
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
 pub struct Tile {
-    pub id: u32,
+    pub id: TileId,
     pub desc: kif::TileDesc,
 }
 
 impl Tile {
-    pub fn new(id: u32, desc: kif::TileDesc) -> Self {
+    pub fn new(id: TileId, desc: kif::TileDesc) -> Self {
         Self { id, desc }
     }
 }
@@ -117,7 +118,7 @@ impl fmt::Debug for Tile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
-            "Tile{:02}: {} {} {:?} {} KiB memory",
+            "{}: {} {} {:?} {} KiB memory",
             { self.id },
             self.desc.tile_type(),
             self.desc.isa(),

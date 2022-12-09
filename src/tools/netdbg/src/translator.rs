@@ -126,10 +126,10 @@ fn translate_nic(
 
     lazy_static! {
         static ref NIC_REGEX: Regex =
-            Regex::new(r"(\d+): T\d+.etherlink.link(\d+): packet (received|sent): len=(\d+)")
+            Regex::new(r"(\d+): C\d+T\d+.etherlink.link(\d+): packet (received|sent): len=(\d+)")
                 .unwrap();
         static ref PKT_REGEX: Regex = Regex::new(
-            r"(\d+): T\d+.etherlink.link(\d+): [0-9a-f]+  (([0-9a-f]{2} ?)+ ?([0-9a-f]{2} ?)*).*"
+            r"(\d+): C\d+T\d+.etherlink.link(\d+): [0-9a-f]+  (([0-9a-f]{2} ?)+ ?([0-9a-f]{2} ?)*).*"
         )
         .unwrap();
     }
@@ -224,7 +224,7 @@ fn translate_app(
 
     lazy_static! {
         static ref APP_REGEX: Regex =
-            Regex::new(r"(\d+): T(\d+).cpu: DEBUG 0x([a-f0-9]+)").unwrap();
+            Regex::new(r"(\d+): C\d+T(\d+).cpu: DEBUG 0x([a-f0-9]+)").unwrap();
     }
 
     if let Some(c) = APP_REGEX.captures(line.trim()) {

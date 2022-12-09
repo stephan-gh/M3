@@ -222,7 +222,7 @@ impl RGateObject {
 
     pub fn print_loc(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.loc.get() {
-            Some((tile, ep)) => write!(f, "Tile{}:EP{}", tile, ep),
+            Some((tile, ep)) => write!(f, "{}:EP{}", tile, ep),
             None => write!(f, "?"),
         }
     }

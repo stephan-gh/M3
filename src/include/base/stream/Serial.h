@@ -56,7 +56,7 @@ public:
      * @param path the path of the program
      * @param tile the tile id
      */
-    static void init(const char *path, tileid_t tile);
+    static void init(const char *path, TileId tile);
 
     /**
      * Flushes the output

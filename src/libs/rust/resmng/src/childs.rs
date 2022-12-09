@@ -831,7 +831,7 @@ impl OwnChild {
     ) -> Result<(), Error> {
         log!(
             crate::LOG_DEF,
-            "Starting boot module '{}' on tile{} with arguments {:?}",
+            "Starting boot module '{}' on {} with arguments {:?}",
             self.name(),
             self.child_tile().unwrap().tile_id(),
             &self.args[1..]

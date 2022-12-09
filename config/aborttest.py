@@ -8,13 +8,13 @@ root = createRoot(options)
 
 num_eps = 128 if os.environ.get('M3_TARGET') == 'hw' else 192
 num_tiles = 1
-mem_tile = num_tiles
+mem_tile = TileId(0, num_tiles)
 tiles = []
 
 for i in range(0, num_tiles):
     tile = createAbortTestTile(noc=root.noc,
                                options=options,
-                               no=i,
+                               id=TileId(0, i),
                                memTile=mem_tile,
                                spmsize='32MB',
                                epCount=num_eps)
@@ -24,7 +24,7 @@ for i in range(0, num_tiles):
 
 tile = createMemTile(noc=root.noc,
                      options=options,
-                     no=num_tiles,
+                     id=TileId(0, num_tiles),
                      size='3072MB',
                      epCount=num_eps)
 

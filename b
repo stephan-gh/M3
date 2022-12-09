@@ -145,8 +145,10 @@ help() {
     echo "    M3_GEM5_CPUFREQ:         The CPU frequency (1GHz by default)."
     echo "    M3_GEM5_MEMFREQ:         The memory frequency (333MHz by default)."
     echo "    M3_GEM5_FSNUM:           The number of times to load the FS image."
-    echo "    M3_GEM5_PAUSE:           Pause the tile with given number until GDB connects"
-    echo "                             (only on gem5 and with command dbg=)."
+    echo "    M3_GEM5_PAUSE:           Pause the tile with given id until GDB connects"
+    echo "                             (only on gem5 and with command dbg=). Numbers"
+    echo "                             are translated into C0T<number>, but ids can also"
+    echo "                             be specified in the form of 'C<chip>T<tile>'."
     echo "    M3_HW_SSH:               The SSH alias for the FPGA PC (default: syn)"
     echo "    M3_HW_FPGA:              The FPGA number (default 0 = IP 192.168.42.240)"
     echo "    M3_HW_RESET:             Reset the FPGA before starting"
@@ -315,21 +317,33 @@ case "$cmd" in
 
     dbg=*)
         if [ "$M3_TARGET" = "gem5" ] || [ "$M3_RUN_GEM5" = "1" ]; then
+            if [ "$M3_GEM5_PAUSE" = "" ]; then
+                echo "Please set M3_GEM5_PAUSE to the tile to debug (e.g., '1' or 'C1T04')."
+                exit 1
+            fi
+
             truncate --size 0 $M3_OUT/log.txt
             ./src/tools/execute.sh "$script" "--debug=${cmd#dbg=}" 1>$M3_OUT/log.txt 2>&1 &
 
-            # wait until it has started
-            while [ "$(grep --text "Global frequency set at" $M3_OUT/log.txt)" = "" ]; do
-                sleep 1
+            # wait until we know the port
+            port=""
+            attemps=0
+            while [ "$port" = "" ]; do
+                if [[ $M3_GEM5_PAUSE =~ C*T* ]]; then
+                    tile="$M3_GEM5_PAUSE"
+                else
+                    tile="C0T$M3_GEM5_PAUSE"
+                fi
+                port=$(grep --text "$tile.remote_gdb" $M3_OUT/log.txt | cut -d ' ' -f 9)
+                if [ "$port" = "" ]; then
+                    if [ $attemps -gt 5 ]; then
+                        echo "Unable to find port for tile '$tile' after 5 attempts."
+                        exit 1
+                    fi
+                    sleep 1
+                fi
+                attemps=$((attemps + 1))
             done
-
-            if [ "$M3_GEM5_PAUSE" != "" ]; then
-                port=$((M3_GEM5_PAUSE + 7000))
-            else
-                echo "Warning: M3_GEM5_PAUSE not specified; gem5 won't wait for GDB."
-                tile=$(grep --text "^T.*$build/bin/${cmd#dbg=}" $M3_OUT/log.txt | cut -d : -f 1)
-                port=$((${tile#T} + 7000))
-            fi
 
             gdbcmd=$(mktemp)
             {

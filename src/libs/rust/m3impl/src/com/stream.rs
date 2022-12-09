@@ -105,7 +105,7 @@ impl<'r> GateIStream<'r> {
     /// Returns the label of the message
     #[inline(always)]
     pub fn label(&self) -> tcu::Label {
-        self.msg.header.label
+        self.msg.header.label()
     }
 
     /// Returns the size of the message

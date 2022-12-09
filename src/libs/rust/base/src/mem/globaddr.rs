@@ -34,8 +34,8 @@ pub struct GlobAddr {
     val: u64,
 }
 
-const TILE_SHIFT: u64 = 56;
-const TILE_OFFSET: u64 = 0x80;
+const TILE_SHIFT: u64 = 49;
+const TILE_OFFSET: u64 = 0x4000;
 
 impl GlobAddr {
     /// Creates a new global address from the given raw value
@@ -45,7 +45,7 @@ impl GlobAddr {
 
     /// Creates a new global address from the given tile id and offset
     pub fn new_with(tile: TileId, off: goff) -> GlobAddr {
-        Self::new(((0x80 + tile as u64) << TILE_SHIFT) | off)
+        Self::new(((TILE_OFFSET + tile.raw() as u64) << TILE_SHIFT) | off)
     }
 
     /// Creates a new global address from the given physical address
@@ -76,7 +76,7 @@ impl GlobAddr {
 
     /// Returns the tile id
     pub fn tile(self) -> TileId {
-        ((self.val >> TILE_SHIFT) - 0x80) as TileId
+        TileId::new_from_raw(((self.val >> TILE_SHIFT) - TILE_OFFSET) as u16)
     }
 
     /// Returns the offset
@@ -142,7 +142,7 @@ impl GlobAddr {
 impl fmt::Debug for GlobAddr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.has_tile() {
-            write!(f, "G[Tile{}+{:#x}]", self.tile(), self.offset())
+            write!(f, "G[{}+{:#x}]", self.tile(), self.offset())
         }
         // we need global addresses without tile prefix for, e.g., the TCU MMIO region
         else {

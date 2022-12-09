@@ -576,8 +576,7 @@ fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
     let mut input = INPUT.borrow_mut();
     let mut buffer = BUFFER.borrow_mut();
 
-    let bytes =
-        unsafe { core::slice::from_raw_parts(msg.data.as_ptr(), msg.header.length as usize) };
+    let bytes = unsafe { core::slice::from_raw_parts(msg.data.as_ptr(), msg.header.length()) };
     let mut flush = false;
     let mut eof = false;
     if MODE.get() == Mode::RAW {
@@ -653,9 +652,11 @@ pub fn main() -> Result<(), Error> {
         s.handle_ctrl_chan(&mut hdl)?;
 
         if let Ok(msg) = serial_gate.fetch() {
-            log!(crate::LOG_INOUT, "Got input message with {} bytes", {
-                msg.header.length
-            });
+            log!(
+                crate::LOG_INOUT,
+                "Got input message with {} bytes",
+                msg.header.length()
+            );
             handle_input(&mut hdl, msg);
             serial_gate.ack_msg(msg).unwrap();
         }

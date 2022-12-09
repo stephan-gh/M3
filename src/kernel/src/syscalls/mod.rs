@@ -110,7 +110,7 @@ fn get_request<R: Deserialize<'static>>(msg: &'static tcu::Message) -> Result<R,
 }
 
 pub fn handle_async(msg: &'static tcu::Message) {
-    let act: Rc<Activity> = ActivityMng::activity(msg.header.label as tcu::ActId).unwrap();
+    let act: Rc<Activity> = ActivityMng::activity(msg.header.label() as tcu::ActId).unwrap();
 
     let opcode = msg.as_words()[0];
     let op = kif::syscalls::Operation::from(opcode);

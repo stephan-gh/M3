@@ -93,7 +93,7 @@ impl Activity {
 
     /// Returns the id of the tile the activity has been assigned to.
     pub fn tile_id(&self) -> TileId {
-        crate::env::get().tile_id() as TileId
+        TileId::new_from_raw(crate::env::get().tile_id() as u16)
     }
 
     /// Returns a reference to the activity's kernel memory.

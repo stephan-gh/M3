@@ -140,7 +140,7 @@ public:
         GateIStream reply = send_receive_vmsg(_sgate, ALLOC_TILE, sel, desc.value());
         retrieve_result(ALLOC_TILE, reply);
         TileDesc::value_t res;
-        tileid_t tileid;
+        TileId::raw_t tileid;
         reply >> tileid >> res;
         return TileDesc(res);
     }

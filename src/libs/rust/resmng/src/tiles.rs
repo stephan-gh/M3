@@ -117,7 +117,7 @@ impl TileUsage {
         let _quota = tile.quota().unwrap();
         log!(
             crate::LOG_TILES,
-            "Deriving Tile{}: (eps={}, time={}, pts={})",
+            "Deriving {}: (eps={}, time={}, pts={})",
             self.tile_id(),
             _quota.endpoints(),
             _quota.time(),
@@ -238,7 +238,7 @@ impl TileManager {
     pub fn alloc(&self, idx: usize) {
         log!(
             crate::LOG_TILES,
-            "Allocating tile{}: {:?} (eps={})",
+            "Allocating {}: {:?} (eps={})",
             self.tiles[idx].id,
             self.tiles[idx].tile.desc(),
             self.get(idx).quota().unwrap().endpoints(),
@@ -251,7 +251,7 @@ impl TileManager {
         if tile.remove_user() == 1 {
             log!(
                 crate::LOG_TILES,
-                "Freeing tile{}: {:?}",
+                "Freeing {}: {:?}",
                 tile.id,
                 tile.tile.desc()
             );

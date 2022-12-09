@@ -62,7 +62,7 @@ pub fn init(rgate: RecvGate) {
 pub fn check_replies() {
     let rgate = RGATE.borrow();
     if let Ok(msg) = rgate.fetch() {
-        if let Ok(mut serv) = services::get_mut_by_id(msg.header.label as Id) {
+        if let Ok(mut serv) = services::get_mut_by_id(msg.header.label() as Id) {
             serv.queue().received_reply(&rgate, msg);
         }
         else {

@@ -67,7 +67,7 @@ pub extern "C" fn env_run() {
                 break m;
             }
         };
-        assert_eq!({ rmsg.header.label }, 0x1234);
+        assert_eq!(rmsg.header.label(), 0x1234);
         log!(crate::LOG_DETAIL, "got message {}", rmsg.as_words()[0]);
 
         // send reply

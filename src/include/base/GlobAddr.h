@@ -17,27 +17,28 @@
 
 #include <base/Common.h>
 #include <base/stream/Format.h>
+#include <base/TCU.h>
 
 namespace m3 {
 
 class GlobAddr {
-    static const uint64_t TILE_SHIFT = 56;
-    static const uint64_t TILE_OFFSET = 0x80;
+    static const uint64_t TILE_SHIFT = 49;
+    static const uint64_t TILE_OFFSET = 0x4000;
 
 public:
     typedef uint64_t raw_t;
 
     explicit GlobAddr(raw_t raw = 0) : _raw(raw) {
     }
-    explicit GlobAddr(tileid_t tile, goff_t off)
-        : _raw((static_cast<raw_t>(TILE_OFFSET + tile) << TILE_SHIFT) | off) {
+    explicit GlobAddr(TileId tile, goff_t off)
+        : _raw((static_cast<raw_t>(TILE_OFFSET + tile.raw()) << TILE_SHIFT) | off) {
     }
 
     raw_t raw() const {
         return _raw;
     }
-    tileid_t tile() const {
-        return (_raw >> TILE_SHIFT) - TILE_OFFSET;
+    TileId tile() const {
+        return TileId::from_raw((_raw >> TILE_SHIFT) - TILE_OFFSET);
     }
     goff_t offset() const {
         return _raw & ((static_cast<goff_t>(1) << TILE_SHIFT) - 1);
@@ -52,7 +53,7 @@ public:
 
     void format(OStream &os, const FormatSpecs &) const {
         if(raw() >= (GlobAddr::TILE_OFFSET << GlobAddr::TILE_SHIFT))
-            format_to(os, "G[Tile{}+{:#x}]"_cf, tile(), offset());
+            format_to(os, "G[{}+{:#x}]"_cf, tile(), offset());
         // for bootstrap purposes, we need to use global addresses without Tile prefix
         else
             format_to(os, "G[{:#x}]"_cf, offset());

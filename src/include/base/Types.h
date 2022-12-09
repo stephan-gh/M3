@@ -42,7 +42,6 @@ typedef int fd_t;
 typedef uint64_t cycles_t;
 
 typedef ulong epid_t;
-typedef ulong tileid_t;
 typedef uint16_t actid_t;
 typedef uint64_t goff_t;
 typedef uint64_t event_t;

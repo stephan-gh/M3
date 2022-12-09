@@ -73,11 +73,7 @@ fn calc_pi(t: &mut dyn WvTester, tile: &Rc<Tile>) {
 
         wv_assert!(t, pi >= PI_MIN);
         wv_assert!(t, pi <= PI_MAX);
-        println!(
-            "PI (Somayaji) on Tile{} = {}",
-            Activity::own().tile_id(),
-            pi
-        );
+        println!("PI (Somayaji) on {} = {}", Activity::own().tile_id(), pi);
         Ok(())
     }));
 
@@ -102,7 +98,7 @@ fn calc_pi(t: &mut dyn WvTester, tile: &Rc<Tile>) {
     let pi = res * 4.0;
     wv_assert!(t, pi >= PI_MIN);
     wv_assert!(t, pi <= PI_MAX);
-    println!("PI (Leibniz) on Tile{} = {}", Activity::own().tile_id(), pi);
+    println!("PI (Leibniz) on {} = {}", Activity::own().tile_id(), pi);
 
     wv_assert_ok!(act.wait());
 }

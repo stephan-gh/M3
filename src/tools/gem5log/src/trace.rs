@@ -27,8 +27,8 @@ fn repl_instr_line(
     line: &str,
 ) -> Option<()> {
     // get the first parts:
-    // 7802000: T00.cpu: T0 : 0x226f3a @ heap_init+26    : mov rcx, DS:[rip + 0x295a7]
-    // ^------^ ^------^ ^^ ^ ^------^ ^---------------------------------------------^
+    // 7802000: C1T00.cpu: T0 : 0x226f3a @ heap_init+26    : mov rcx, DS:[rip + 0x295a7]
+    // ^------^ ^--------^ ^^ ^ ^------^ ^---------------------------------------------^
     let mut parts = line.trim_start().splitn(6, ' ');
     let time = parts.next()?;
     let cpu = parts.next()?;
@@ -48,13 +48,13 @@ fn repl_instr_line(
     // split the rest of the line and omit the symbol and offset:
     let rem = parts.next()?;
     let rem = if rem.starts_with('@') {
-        // 7802000: T00.cpu: T0 : 0x226f3a @ heap_init+26    : mov rcx, DS:[rip + 0x295a7]
-        //                                 ^---------------^   ^-------------------------^
+        // 7802000: C0T00.cpu: T0 : 0x226f3a @ heap_init+26    : mov rcx, DS:[rip + 0x295a7]
+        //                                   ^---------------^   ^-------------------------^
         rem.split_once(" : ").map(|x| x.1)
     }
     else {
-        // 7802000: T00.cpu: T0 : 0x226f3a     : mov rcx, DS:[rip + 0x295a7]
-        //                                       ^-------------------------^
+        // 7802000: C0T00.cpu: T0 : 0x226f3a     : mov rcx, DS:[rip + 0x295a7]
+        //                                         ^-------------------------^
         Some(&rem.trim_start()[2..])
     }?;
 

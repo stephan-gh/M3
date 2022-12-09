@@ -210,10 +210,10 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
     }
 
     std::regex msg_snd_regex(
-        "^: \e\\[1m\\[(?:sd|rp) -> (\\d+)\\]\e\\[0m with EP\\d+ of (?:0x)?[0-9a-f]+:(\\d+)");
-    std::regex msg_rcv_regex("^: \e\\[1m\\[rv <- (\\d+)\\]\e\\[0m (\\d+) bytes on EP\\d+");
+        "^: \e\\[1m\\[(?:sd|rp) -> C\\d+T(\\d+)\\]\e\\[0m with EP\\d+ of (?:0x)?[0-9a-f]+:(\\d+)");
+    std::regex msg_rcv_regex("^: \e\\[1m\\[rv <- C\\d+T(\\d+)\\]\e\\[0m (\\d+) bytes on EP\\d+");
     std::regex msg_rw_regex(
-        "^: \e\\[1m\\[(rd|wr) -> (\\d+)\\]\e\\[0m at (?:0x)?[0-9a-f]+\\+(?:0x)?[0-9a-f]+"
+        "^: \e\\[1m\\[(rd|wr) -> C\\d+T(\\d+)\\]\e\\[0m at (?:0x)?[0-9a-f]+\\+(?:0x)?[0-9a-f]+"
         " with EP\\d+ (?:from|into) (?:0x)?[0-9a-f]+:(\\d+)");
     std::regex suswake_regex("(Suspending|Waking up) core");
     std::regex setact_regex("^\\.regFile: TCU-> PRI\\[CUR_ACT     \\]: 0x([0-9a-f]+)");
@@ -237,7 +237,7 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
         int tid;
 
         if(mode == MODE_ACTS &&
-           sscanf(readbuf, "%Lu: tile%u.cpu T%d : %lx @", &timestamp, &tile, &tid, &addr) == 4) {
+           sscanf(readbuf, "%Lu: C0T%u.cpu T%d : %lx @", &timestamp, &tile, &tid, &addr) == 4) {
             if(states[tile].addr == addr)
                 continue;
 
@@ -269,7 +269,7 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
             continue;
         }
 
-        if(sscanf(readbuf, "%Lu: tile%d.tcu%n", &timestamp, &tile, &numchars) != 2)
+        if(sscanf(readbuf, "%Lu: C0T%d.tcu%n", &timestamp, &tile, &numchars) != 2)
             continue;
 
         std::string line(readbuf + numchars);

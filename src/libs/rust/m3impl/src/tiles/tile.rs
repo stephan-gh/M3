@@ -201,7 +201,7 @@ impl fmt::Debug for Tile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
-            "Tile{}[sel: {}, desc: {:?}]",
+            "{}[sel: {}, desc: {:?}]",
             self.id(),
             self.sel(),
             self.desc()

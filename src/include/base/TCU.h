@@ -40,6 +40,71 @@ class RecvGate;
 class TimeInstant;
 class Activity;
 
+/**
+ * A tile id, consisting of a chip and chip-local tile id
+ */
+class TileId {
+public:
+    typedef uint8_t chipid_t;
+    typedef uint8_t tileid_t;
+    typedef uint16_t raw_t;
+
+    /**
+     * Constructs a new tile id from the given raw id (e.g., as stored in TCUs)
+     *
+     * @param raw the raw 16-bit value that contains both the chip id and chip-local tile id
+     * @return the created TileId
+     */
+    static TileId from_raw(raw_t raw) noexcept {
+        return TileId(raw);
+    }
+
+    /**
+     * Constructs a new tile id from the given raw representation
+     *
+     * @param raw the raw representation
+     */
+    explicit TileId(raw_t raw = 0) noexcept
+        : id(raw) {
+    }
+
+    /**
+     * Constructs a new tile id out of the given chip and chip-local tile id
+     *
+     * @param chip the chip id
+     * @param tile the chip-local tile id
+     */
+    explicit TileId(chipid_t chip, tileid_t tile) noexcept
+        : id(static_cast<raw_t>(chip) << 8 | static_cast<raw_t>(tile)) {
+    }
+
+    /**
+     * @return the chip id
+     */
+    chipid_t chip() const noexcept {
+        return id >> 8;
+    }
+    /**
+     * @return the chip-local tile id
+     */
+    tileid_t tile() const noexcept {
+        return id & 0xFF;
+    }
+    /**
+     * @return the raw representation as used in the TCU, for example
+     */
+    raw_t raw() const noexcept {
+        return id;
+    }
+
+    void format(OStream &os, const FormatSpecs &) const {
+        format_to(os, "C{}T{:02}"_cf, chip(), tile());
+    }
+
+private:
+    raw_t id;
+};
+
 class MsgBuf {
 public:
     static constexpr size_t MAX_MSG_SIZE = 512;
@@ -197,15 +262,12 @@ public:
     struct Header {
         enum {
             FL_REPLY = 1 << 0,
-            FL_PAGEFAULT = 1 << 1,
         };
 
-        uint8_t flags : 2, replySize : 6;
-        uint8_t senderPe;
+        uint32_t flags : 1, replySize : 4, senderTile : 14, length : 13;
         uint16_t senderEp;
         uint16_t replyEp; // for a normal message this is the reply epId
                           // for a reply this is the enpoint that receives credits
-        uint16_t length;
 
         uint32_t replylabel;
         uint32_t label;
@@ -413,22 +475,24 @@ private:
         write_reg(ep, 2, static_cast<reg_t>(unread) << 32 | occupied);
     }
 
-    static void config_send(epid_t ep, label_t lbl, tileid_t tile, epid_t dstep, unsigned msgorder,
+    static void config_send(epid_t ep, label_t lbl, TileId tile, epid_t dstep, unsigned msgorder,
                             unsigned credits, bool reply = false, epid_t crd_ep = INVALID_EP) {
         write_reg(ep, 0,
                   static_cast<reg_t>(m3::TCU::EpType::SEND) |
                       (static_cast<reg_t>(INVALID_ACT) << 3) | (static_cast<reg_t>(credits) << 19) |
                       (static_cast<reg_t>(credits) << 25) | (static_cast<reg_t>(msgorder) << 31) |
                       (static_cast<reg_t>(crd_ep) << 37) | (static_cast<reg_t>(reply) << 53));
-        write_reg(ep, 1, (static_cast<reg_t>(tile) << 16) | (static_cast<reg_t>(dstep) << 0));
+        write_reg(ep, 1,
+                  (static_cast<reg_t>(tileid_to_nocid(tile)) << 16) |
+                      (static_cast<reg_t>(dstep) << 0));
         write_reg(ep, 2, lbl);
     }
 
-    static void config_mem(epid_t ep, tileid_t tile, goff_t addr, size_t size, int perm) {
+    static void config_mem(epid_t ep, TileId tile, goff_t addr, size_t size, int perm) {
         write_reg(ep, 0,
                   static_cast<reg_t>(m3::TCU::EpType::MEMORY) |
                       (static_cast<reg_t>(INVALID_ACT) << 3) | (static_cast<reg_t>(perm) << 19) |
-                      (static_cast<reg_t>(tile) << 23));
+                      (static_cast<reg_t>(tileid_to_nocid(tile)) << 23));
         write_reg(ep, 1, addr);
         write_reg(ep, 2, size);
     }
@@ -437,6 +501,14 @@ private:
         size_t off = m3::TCU::EXT_REGS + m3::TCU::UNPRIV_REGS + m3::TCU::EP_REGS * ep + idx;
         m3::TCU::write_reg(off, value);
     }
+
+    static inline uint16_t tileid_to_nocid(TileId tile) {
+        if(env()->platform == Platform::GEM5)
+            return tile.raw();
+        return HW_MOD_IDS[tile.tile()];
+    }
+
+    static uint16_t HW_MOD_IDS[9];
 
     static TCU inst;
 };

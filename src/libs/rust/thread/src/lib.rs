@@ -193,7 +193,7 @@ impl Thread {
             // safety: has_msg is true and we trust the TCU
             unsafe {
                 let head = self.msg.as_ptr() as *const tcu::Header;
-                let slice = [head as usize, (*head).length as usize];
+                let slice = [head as usize, (*head).length()];
                 Some(transmute(slice))
             }
         }
@@ -218,7 +218,7 @@ impl Thread {
     }
 
     fn set_msg(&mut self, msg: &'static tcu::Message) {
-        let size = msg.header.length as usize + mem::size_of::<tcu::Header>();
+        let size = msg.header.length() + mem::size_of::<tcu::Header>();
         self.has_msg = true;
         // safety: we trust the TCU
         unsafe {

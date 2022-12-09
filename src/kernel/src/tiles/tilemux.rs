@@ -97,7 +97,7 @@ impl TileMux {
             ktcu::config_send(
                 regs,
                 kif::tilemux::ACT_ID as ActId,
-                self.tile_id() as tcu::Label,
+                self.tile_id().raw() as tcu::Label,
                 platform::kernel_tile(),
                 ktcu::KPEX_EP,
                 cfg::KPEX_RBUF_ORD,
@@ -219,7 +219,7 @@ impl TileMux {
         let rgate = obj.rgate();
         assert!(rgate.activated());
 
-        klog!(EPS, "Tile{}:EP{} = {:?}", self.tile_id(), ep, obj);
+        klog!(EPS, "{}:EP{} = {:?}", self.tile_id(), ep, obj);
 
         ktcu::config_remote_ep(self.tile_id(), ep, |regs| {
             let act = self.ep_activity_id(act);
@@ -243,7 +243,7 @@ impl TileMux {
         reply_eps: Option<EpId>,
         obj: &SRc<RGateObject>,
     ) -> Result<(), Error> {
-        klog!(EPS, "Tile{}:EP{} = {:?}", self.tile_id(), ep, obj);
+        klog!(EPS, "{}:EP{} = {:?}", self.tile_id(), ep, obj);
 
         ktcu::config_remote_ep(self.tile_id(), ep, |regs| {
             let act = self.ep_activity_id(act);
@@ -269,10 +269,10 @@ impl TileMux {
         tile_id: TileId,
     ) -> Result<(), Error> {
         if ep < tcu::PMEM_PROT_EPS as EpId {
-            klog!(EPS, "Tile{}:PMPEP{} = {:?}", self.tile_id(), ep, obj);
+            klog!(EPS, "{}:PMPEP{} = {:?}", self.tile_id(), ep, obj);
         }
         else {
-            klog!(EPS, "Tile{}:EP{} = {:?}", self.tile_id(), ep, obj);
+            klog!(EPS, "{}:EP{} = {:?}", self.tile_id(), ep, obj);
         }
 
         ktcu::config_remote_ep(self.tile_id(), ep, |regs| {
@@ -295,7 +295,7 @@ impl TileMux {
         force: bool,
         notify: bool,
     ) -> Result<(), Error> {
-        klog!(EPS, "Tile{}:EP{} = invalid", self.tile_id(), ep);
+        klog!(EPS, "{}:EP{} = invalid", self.tile_id(), ep);
 
         let unread_mask = ktcu::invalidate_ep_remote(self.tile_id(), ep, force)?;
         if unread_mask != 0 && notify {
@@ -322,7 +322,7 @@ impl TileMux {
     ) -> Result<(), Error> {
         klog!(
             EPS,
-            "Tile{}:EP{} = invalid reply EPs at Tile{}:EP{}",
+            "{}:EP{} = invalid reply EPs at {}:EP{}",
             self.tile_id(),
             send_ep,
             recv_tile,
@@ -456,7 +456,7 @@ impl TileMux {
         let msg = kif::tilemux::GetQuota { time, pts };
         build_vmsg!(buf, kif::tilemux::Sidecalls::GET_QUOTA, &msg);
 
-        let tile_id = (tilemux.tile.tile() as quota::Id) << 8;
+        let tile_id = (tilemux.tile.tile().raw() as quota::Id) << 8;
         Self::send_receive_sidecall_async::<kif::tilemux::GetQuota>(tilemux, None, buf, &msg).map(
             |r| {
                 (

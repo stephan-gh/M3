@@ -26,7 +26,7 @@ namespace m3 {
 const char *Serial::_colors[] = {"31", "32", "33", "34", "35", "36"};
 Serial *Serial::_inst USED;
 
-void Serial::init(const char *path, tileid_t tile) {
+void Serial::init(const char *path, TileId tile) {
     if(_inst == nullptr)
         _inst = new Serial();
 
@@ -40,13 +40,16 @@ void Serial::init(const char *path, tileid_t tile) {
     size_t i = 0;
     strcpy(_inst->_outbuf + i, "\e[0;");
     i += 4;
-    ulong col = tile % ARRAY_SIZE(_colors);
+    ulong col = tile.raw() % ARRAY_SIZE(_colors);
     strcpy(_inst->_outbuf + i, _colors[col]);
     i += 2;
     _inst->_outbuf[i++] = 'm';
     _inst->_outbuf[i++] = '[';
+    _inst->_outbuf[i++] = 'C';
+    _inst->_outbuf[i++] = '0' + static_cast<int>(tile.chip());
     _inst->_outbuf[i++] = 'T';
-    _inst->_outbuf[i++] = tile <= 9 ? '0' + tile : 'A' + (tile - 10);
+    _inst->_outbuf[i++] = '0' + (tile.tile() % 10);
+    _inst->_outbuf[i++] = '0' + (tile.tile() / 10);
     _inst->_outbuf[i++] = ':';
     size_t x = 0;
     for(; x < 8 && name[x]; ++x)

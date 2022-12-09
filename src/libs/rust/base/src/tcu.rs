@@ -21,6 +21,7 @@
 use bitflags::bitflags;
 use cfg_if::cfg_if;
 use core::cmp;
+use core::fmt;
 use core::intrinsics;
 use core::slice;
 use core::sync::atomic;
@@ -33,6 +34,7 @@ use crate::goff;
 use crate::io::log::TCU;
 use crate::kif::{PageFlags, Perm};
 use crate::mem;
+use crate::serialize::{Deserialize, Serialize};
 use crate::tmif;
 use crate::util::math;
 
@@ -42,10 +44,49 @@ pub type Reg = u64;
 pub type EpId = u16;
 /// A TCU label used in send EPs
 pub type Label = u32;
-/// A tile id
-pub type TileId = u8;
 /// A activity id
 pub type ActId = u16;
+
+/// A tile id, consisting of a chip and chip-local tile id
+#[derive(Copy, Clone, Default, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TileId {
+    id: u16,
+}
+
+impl TileId {
+    /// Constructs a new tile id out of the given chip and chip-local tile id
+    pub const fn new(chip: u8, tile: u8) -> Self {
+        Self {
+            id: (chip as u16) << 8 | tile as u16,
+        }
+    }
+
+    /// Constructs a new tile id from the given raw id (e.g., as stored in TCUs)
+    pub const fn new_from_raw(raw: u16) -> Self {
+        Self { id: raw }
+    }
+
+    /// Returns the chip id
+    pub const fn chip(&self) -> u8 {
+        (self.id >> 8) as u8
+    }
+
+    /// Returns the chip-local tile id
+    pub const fn tile(&self) -> u8 {
+        (self.id & 0xFF) as u8
+    }
+
+    /// Returns the raw representation of the id (e.g., as stored in TCUs)
+    pub const fn raw(&self) -> u16 {
+        self.id
+    }
+}
+
+impl fmt::Display for TileId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "C{}T{:02}", self.chip(), self.tile())
+    }
+}
 
 cfg_if! {
     if #[cfg(target_vendor = "gem5")] {
@@ -279,15 +320,23 @@ impl CoreForeignReq {
 #[repr(C, packed)]
 #[derive(Copy, Clone, Default, Debug)]
 pub struct Header {
-    pub flags_reply_size: u8,
-    pub sender_tile: u8,
-    pub sender_ep: u16,
-    pub reply_ep: u16,
+    other: u32,
+    sender_ep: u16,
+    reply_ep: u16,
+    reply_label: u32,
+    label: u32,
+}
 
-    pub length: u16,
+impl Header {
+    /// Returns the length of the message payload in bytes
+    pub fn length(&self) -> usize {
+        (self.other >> 19) as usize & ((1 << 13) - 1)
+    }
 
-    pub reply_label: u32,
-    pub label: u32,
+    /// Returns the label that has been assigned to the sender of the message
+    pub fn label(&self) -> u32 {
+        self.label
+    }
 }
 
 /// The TCU message consisting of the header and the payload
@@ -305,7 +354,7 @@ impl Message {
         unsafe {
             #[allow(clippy::cast_ptr_alignment)]
             let ptr = self.data.as_ptr() as *const u64;
-            slice::from_raw_parts(ptr, (self.header.length / 8) as usize)
+            slice::from_raw_parts(ptr, self.header.length() / 8)
         }
     }
 }
@@ -578,7 +627,7 @@ impl TCU {
             return None;
         }
 
-        let tileid = Self::nocid_to_tileid(((regs[0] >> 23) & 0xFF) as TileId);
+        let tileid = Self::nocid_to_tileid(((regs[0] >> 23) & 0x3FFF) as u16);
         let perm = Perm::from_bits_truncate((regs[0] as u32 >> 19) & 0x3);
         Some((tileid, regs[1], regs[2], perm))
     }
@@ -700,7 +749,7 @@ impl TCU {
         // safety: the cast is okay because we trust the TCU
         unsafe {
             let head = (base + off) as *const Header;
-            let slice = [base + off, (*head).length as usize];
+            let slice = [base + off, (*head).length()];
             intrinsics::transmute(slice)
         }
     }
@@ -885,26 +934,26 @@ impl TCU {
     }
 }
 
-static TILE_IDS: [TileId; 9] = [0x06, 0x25, 0x26, 0x00, 0x01, 0x02, 0x20, 0x21, 0x24];
+static TILE_IDS: [u16; 9] = [0x06, 0x25, 0x26, 0x00, 0x01, 0x02, 0x20, 0x21, 0x24];
 
 impl TCU {
-    pub fn tileid_to_nocid(tile: TileId) -> u8 {
+    pub fn tileid_to_nocid(tile: TileId) -> u16 {
         if env::data().platform == env::Platform::GEM5.val {
-            tile
+            tile.raw()
         }
         else {
-            TILE_IDS[tile as usize]
+            TILE_IDS[tile.raw() as usize]
         }
     }
 
-    pub fn nocid_to_tileid(tile: u8) -> TileId {
+    pub fn nocid_to_tileid(tile: u16) -> TileId {
         if env::data().platform == env::Platform::GEM5.val {
-            tile
+            TileId::new_from_raw(tile)
         }
         else {
             for (i, id) in TILE_IDS.iter().enumerate() {
                 if *id == tile {
-                    return i as u8;
+                    return TileId::new_from_raw(i as u16);
                 }
             }
             unreachable!();

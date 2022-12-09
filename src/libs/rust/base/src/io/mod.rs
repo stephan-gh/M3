@@ -25,7 +25,7 @@ mod serial;
 pub use self::rdwr::{read_object, Read, Write};
 pub use self::serial::Serial;
 
-use crate::util;
+use crate::tcu::TileId;
 
 /// Macro for logging (includes a trailing newline)
 ///
@@ -89,13 +89,7 @@ pub fn log_slice(slice: &[u8], addr: usize) {
     }
 }
 
-#[no_mangle]
-#[allow(clippy::missing_safety_doc)]
-pub unsafe extern "C" fn init_rust_io(tile_id: u32, name: *const i8) {
-    init(tile_id as u64, util::cstr_to_str(name));
-}
-
 /// Initializes the I/O module
-pub fn init(tile_id: u64, name: &str) {
+pub fn init(tile_id: TileId, name: &str) {
     log::init(tile_id, name);
 }

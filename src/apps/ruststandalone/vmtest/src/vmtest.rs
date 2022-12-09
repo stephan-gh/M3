@@ -38,8 +38,8 @@ use core::intrinsics::transmute;
 static LOG_DEF: bool = true;
 static LOG_TMCALLS: bool = false;
 
-static OWN_TILE: TileId = 0;
-static MEM_TILE: TileId = 8;
+static OWN_TILE: TileId = TileId::new(0, 0);
+static MEM_TILE: TileId = TileId::new(0, 8);
 
 static OWN_ACT: u16 = 0xFFFF;
 static FOREIGN_MSGS: StaticCell<u64> = StaticCell::new(0);
@@ -194,9 +194,8 @@ fn send_recv(send_addr: usize, size: usize) {
                 break m;
             }
         };
-        assert_eq!({ rmsg.header.label }, 0x1234);
-        let recv_slice =
-            unsafe { util::slice_for(rmsg.data.as_ptr(), rmsg.header.length as usize) };
+        assert_eq!(rmsg.header.label(), 0x1234);
+        let recv_slice = unsafe { util::slice_for(rmsg.data.as_ptr(), rmsg.header.length()) };
         assert_eq!(msg_buf.bytes(), recv_slice);
 
         // send reply
@@ -210,9 +209,8 @@ fn send_recv(send_addr: usize, size: usize) {
                 break m;
             }
         };
-        assert_eq!({ rmsg.header.label }, 0x1111);
-        let recv_slice =
-            unsafe { util::slice_for(rmsg.data.as_ptr(), rmsg.header.length as usize) };
+        assert_eq!(rmsg.header.label(), 0x1111);
+        let recv_slice = unsafe { util::slice_for(rmsg.data.as_ptr(), rmsg.header.length()) };
         assert_eq!(msg_buf.bytes(), recv_slice);
 
         // ack reply
@@ -338,7 +336,7 @@ fn test_foreign_msg() {
 
     // fetch message with foreign activity
     let msg = helper::fetch_msg(1, rbuf1_virt).unwrap();
-    assert_eq!({ msg.header.label }, 0x5678);
+    assert_eq!(msg.header.label(), 0x5678);
     // message is fetched
     assert_eq!(TCU::get_cur_activity(), 0xDEAD);
     tcu::TCU::ack_msg(1, tcu::TCU::msg_to_offset(rbuf1_virt, msg)).unwrap();
@@ -377,7 +375,7 @@ fn test_own_msg() {
 
     // fetch message
     let msg = helper::fetch_msg(1, rbuf1_virt).unwrap();
-    assert_eq!({ msg.header.label }, 0x5678);
+    assert_eq!(msg.header.label(), 0x5678);
     // message is fetched
     assert_eq!(TCU::get_cur_activity(), OWN_ACT as u64);
     tcu::TCU::ack_msg(1, tcu::TCU::msg_to_offset(rbuf1_virt, msg)).unwrap();

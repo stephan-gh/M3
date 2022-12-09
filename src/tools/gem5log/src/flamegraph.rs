@@ -14,7 +14,6 @@
  */
 
 use log::{debug, trace, warn};
-use std::cmp;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::io::{self, BufRead, StdoutLock, Write};
@@ -24,8 +23,35 @@ use crate::symbols;
 
 const STACK_SIZE: u64 = 0x4000;
 
+#[derive(Copy, Clone, Default, Debug, Hash, PartialEq, Eq)]
+struct TileId {
+    id: u16,
+}
+
+impl TileId {
+    pub const fn new(chip: u8, tile: u8) -> Self {
+        Self {
+            id: (chip as u16) << 8 | tile as u16,
+        }
+    }
+
+    pub const fn chip(&self) -> u8 {
+        (self.id >> 8) as u8
+    }
+
+    pub const fn tile(&self) -> u8 {
+        (self.id & 0xFF) as u8
+    }
+}
+
+impl fmt::Display for TileId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "C{}T{:02}", self.chip(), self.tile())
+    }
+}
+
 struct Tile<'n> {
-    id: usize,
+    id: TileId,
     bins: BTreeMap<&'n str, Binary<'n>>,
     last_bin: &'n str,
     last_isr_exit: bool,
@@ -75,19 +101,21 @@ impl<'n> fmt::Display for ThreadId<'n> {
     }
 }
 
-fn get_func_addr(line: &str) -> Option<(u64, usize, Option<usize>)> {
+fn get_func_addr(line: &str) -> Option<(u64, TileId, Option<usize>)> {
     // get the first parts:
-    // 7802000: T00.cpu: T0 : 0x226f3a @ heap_init+26    : mov rcx, DS:[rip + 0x295a7]
-    // ^------^ ^------^ ^^ ^ ^------^ ^---------------------------------------------^
+    // 7802000: C0T00.cpu: T0 : 0x226f3a @ heap_init+26    : mov rcx, DS:[rip + 0x295a7]
+    // ^------^ ^--------^ ^^ ^ ^------^ ^---------------------------------------------^
     let mut parts = line.trim_start().splitn(6, ' ');
     let time = parts.next()?;
     let cpu = parts.next()?;
-    if !cpu.starts_with('T') {
+    if !cpu.starts_with('C') {
         return None;
     }
 
     let time_int = time[..time.len() - 1].parse::<u64>().ok()?;
-    let cpu_int = cpu[1..3].parse::<usize>().ok()?;
+    let chip_int = cpu[1..2].parse::<u8>().ok()?;
+    let tile_int = cpu[3..5].parse::<u8>().ok()?;
+    let tile_int = TileId::new(chip_int, tile_int);
     let addr_int = if cpu.ends_with(".cpu:") {
         let addr = parts.nth(2)?;
         let mut addr_parts = addr.splitn(2, '.');
@@ -97,11 +125,11 @@ fn get_func_addr(line: &str) -> Option<(u64, usize, Option<usize>)> {
         None
     };
 
-    Some((time_int, cpu_int, addr_int))
+    Some((time_int, tile_int, addr_int))
 }
 
 impl<'n> Tile<'n> {
-    fn new(bin: Binary<'n>, id: usize) -> Self {
+    fn new(bin: Binary<'n>, id: TileId) -> Self {
         let mut bins = BTreeMap::new();
         let name = bin.name;
         bins.insert(bin.name, bin);
@@ -127,12 +155,12 @@ impl<'n> Tile<'n> {
 
     fn suspend(&mut self, now: u64) {
         self.susp_start = now;
-        debug!("{}: T{}: sleep begin", now, self.id);
+        debug!("{}: {}: sleep begin", now, self.id);
     }
 
     fn resume(&mut self, now: u64) {
         let duration = now - self.susp_start;
-        debug!("{}: T{}: sleep end ({})", now, self.id, duration);
+        debug!("{}: {}: sleep end ({})", now, self.id, duration);
 
         if self.susp_start > 0 {
             for bin in self.bins.values_mut() {
@@ -150,7 +178,7 @@ impl<'n> Tile<'n> {
     }
 
     fn snapshot(&self) {
-        println!("T{}:", self.id);
+        println!("{}:", self.id);
         for bin in self.bins.values() {
             for (tid, thread) in &bin.stacks {
                 // ignore empty threads
@@ -301,7 +329,7 @@ fn handle_return(
     mode: crate::Mode,
     wr: &mut StdoutLock<'_>,
     time: u64,
-    tile: usize,
+    tile: TileId,
     sym: &symbols::Symbol,
     thread: &mut Thread<'_>,
     tid: &ThreadId<'_>,
@@ -311,7 +339,7 @@ fn handle_return(
         // generate stack
         let stack = if mode == crate::Mode::FlameGraph {
             use std::fmt::Write;
-            let mut stack: String = format!("T{}", tile);
+            let mut stack: String = format!("{}", tile);
             stack.push(';');
             write!(stack, "{}", tid).unwrap();
             for f in thread.stack.iter() {
@@ -349,8 +377,7 @@ pub fn generate(
     syms: &BTreeMap<usize, symbols::Symbol>,
 ) -> Result<(), Error> {
     let mut last_time = 0;
-    let mut max_tileid = 0;
-    let mut tiles: HashMap<usize, Tile<'_>> = HashMap::new();
+    let mut tiles: HashMap<TileId, Tile<'_>> = HashMap::new();
 
     let stdin = io::stdin();
     let mut reader = io::BufReader::new(stdin.lock());
@@ -363,8 +390,8 @@ pub fn generate(
         if let Some((time, tile, maybe_addr)) = get_func_addr(&line) {
             if mode == crate::Mode::Snapshot && time >= snapshot_time {
                 println!("Snapshot at timestamp {}:", time);
-                for id in 0..=max_tileid {
-                    if let Some(tile) = tiles.get(&id) {
+                for t in tiles.keys() {
+                    if let Some(tile) = tiles.get(&t) {
                         tile.snapshot();
                     }
                 }
@@ -392,7 +419,6 @@ pub fn generate(
             if let Some(sym) = symbols::resolve(syms, addr) {
                 // detect tiles
                 if tiles.get(&tile).is_none() {
-                    max_tileid = cmp::max(max_tileid, tile);
                     tiles.insert(tile, Tile::new(Binary::new(&sym.name), tile));
                 }
                 let cur_tile = tiles.get_mut(&tile).unwrap();

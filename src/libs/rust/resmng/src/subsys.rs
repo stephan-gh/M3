@@ -747,7 +747,7 @@ impl SubsystemBuilder {
 
         // tiles
         for (id, tile) in &self.tiles {
-            let boot_tile = boot::Tile::new(*id as u32, tile.desc());
+            let boot_tile = boot::Tile::new(*id, tile.desc());
             mem.write_obj(&boot_tile, off)?;
 
             act.delegate_to(CapRngDesc::new(CapType::OBJECT, tile.sel(), 1), sel)?;
@@ -884,7 +884,7 @@ fn pass_down_mem(sub: &mut SubsystemBuilder, app: &config::AppConfig) -> Result<
                     })?;
                 let mgate = slice.derive()?;
                 // TODO determine memory id
-                let glob = GlobAddr::new_with(0, pmem.phys());
+                let glob = GlobAddr::new_with(TileId::new(0, 0), pmem.phys());
                 sub.add_mem(mgate, glob, pmem.size(), true);
             }
 

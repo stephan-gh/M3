@@ -31,17 +31,16 @@ static ALIGNED(8) uint8_t buf2[1024];
 static ALIGNED(8) uint8_t buf3[1024];
 
 int main() {
-    Tile own_tile = static_cast<Tile>(env()->tile_id);
-    Tile partner_tile = static_cast<Tile>((static_cast<tileid_t>(own_tile) + 1) % 8);
+    TileId own_tile = TileId::from_raw(env()->tile_id);
+    TileId partner_tile = TileId(own_tile.chip(), (own_tile.tile() + 1) % 8);
 
-    logln("Hello from Tile{} (partner Tile{})!"_cf, static_cast<tileid_t>(own_tile),
-          static_cast<tileid_t>(partner_tile));
+    logln("Hello from {} (partner {})!"_cf, own_tile, partner_tile);
 
-    kernel::TCU::config_mem(MEP, tile_id(partner_tile), reinterpret_cast<uintptr_t>(buf1),
-                            sizeof(buf1), TCU::R | TCU::W);
+    kernel::TCU::config_mem(MEP, partner_tile, reinterpret_cast<uintptr_t>(buf1), sizeof(buf1),
+                            TCU::R | TCU::W);
 
     for(size_t i = 0; i < ARRAY_SIZE(buf2); ++i)
-        buf2[i] = static_cast<tileid_t>(own_tile) + i;
+        buf2[i] = own_tile.chip() + i;
 
     for(int i = 0; i < 10000; ++i) {
         if(i % 1000 == 0)

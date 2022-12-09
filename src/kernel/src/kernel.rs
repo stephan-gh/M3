@@ -132,7 +132,7 @@ fn extend_heap() {
 #[no_mangle]
 pub extern "C" fn env_run() {
     unsafe { __m3_init_libc(0, ptr::null(), ptr::null()) };
-    io::init(0, "kernel");
+    io::init(tcu::TileId::new(0, 0), "kernel");
     crate::slab::init();
     runtime::paging::init();
     runtime::exceptions::init();
@@ -173,13 +173,13 @@ fn workloop() -> ! {
 
         if let Some(msg) = ktcu::fetch_msg(ktcu::KSRV_EP) {
             unsafe {
-                let squeue: *mut com::SendQueue = msg.header.label as usize as *mut _;
+                let squeue: *mut com::SendQueue = msg.header.label() as *mut _;
                 (*squeue).received_reply(msg);
             }
         }
 
         if let Some(msg) = ktcu::fetch_msg(ktcu::KPEX_EP) {
-            let tile = msg.header.label as tcu::TileId;
+            let tile = tcu::TileId::new_from_raw(msg.header.label() as u16);
             crate::tiles::TileMux::handle_call_async(crate::tiles::tilemng::tilemux(tile), msg);
         }
 
@@ -203,7 +203,7 @@ fn workloop() -> ! {
             tcu::TCU::sleep().unwrap();
             if let Some(msg) = ktcu::fetch_msg(ktcu::KSRV_EP) {
                 unsafe {
-                    let squeue: *mut com::SendQueue = msg.header.label as usize as *mut _;
+                    let squeue: *mut com::SendQueue = msg.header.label() as *mut _;
                     (*squeue).received_reply(msg);
                     replies += 1;
                 }

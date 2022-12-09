@@ -23,7 +23,7 @@ use core::cmp;
 use crate::cell::{RefMut, StaticCell, StaticRefCell};
 use crate::errors::Error;
 use crate::io::{Serial, Write};
-use crate::tcu::TCU;
+use crate::tcu::{TileId, TCU};
 
 /// Default log message type
 pub const DEF: bool = true;
@@ -98,7 +98,7 @@ impl Log {
         }
     }
 
-    pub(crate) fn init(&mut self, tile_id: u64, name: &str) {
+    pub(crate) fn init(&mut self, tile_id: TileId, name: &str) {
         let colors = ["31", "32", "33", "34", "35", "36"];
         let begin = match name.rfind('/') {
             Some(b) => b + 1,
@@ -108,8 +108,8 @@ impl Log {
 
         self.pos = 0;
         self.write_fmt(format_args!(
-            "\x1B[0;{}m[T{:X}:{:<8}@",
-            colors[(tile_id as usize) % colors.len()],
+            "\x1B[0;{}m[{}:{:<8}@",
+            colors[(tile_id.raw() as usize) % colors.len()],
             tile_id,
             &name[begin..begin + len]
         ))
@@ -145,7 +145,7 @@ impl Write for Log {
 }
 
 /// Initializes the logger
-pub fn init(tile_id: u64, name: &str) {
+pub fn init(tile_id: TileId, name: &str) {
     LOG_READY.set(true);
     Log::get().unwrap().init(tile_id, name);
 }

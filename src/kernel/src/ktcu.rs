@@ -328,9 +328,9 @@ pub fn inv_reply_remote(
             read_ep_remote(recv_tile, reply_eps + i, &mut regs)?;
 
             // is that replying to the sender?
-            let tgt_tile = ((regs[1] >> 16) & 0xFFFF) as TileId;
+            let tgt_tile = ((regs[1] >> 16) & 0xFFFF) as u16;
             let crd_ep = ((regs[0] >> 37) & 0xFFFF) as EpId;
-            if crd_ep == send_ep && tgt_tile == send_tile {
+            if crd_ep == send_ep && tgt_tile == send_tile.raw() {
                 invalidate_ep_remote(recv_tile, reply_eps + i, true)?;
             }
         }

@@ -21,7 +21,7 @@ use base::kif::{PageFlags, Perm, TileDesc};
 use base::libc;
 use base::log;
 use base::machine;
-use base::tcu::{EpId, Message, Reg, EP_REGS, TCU};
+use base::tcu::{EpId, Message, Reg, TileId, EP_REGS, TCU};
 
 use crate::paging;
 
@@ -66,7 +66,7 @@ pub extern "C" fn tmcall(state: &mut isr::State) -> *mut libc::c_void {
 }
 
 pub fn init(name: &str) {
-    io::init(env::data().tile_id, name);
+    io::init(TileId::new_from_raw(env::data().tile_id as u16), name);
 
     if !TileDesc::new_from(env::data().tile_desc).has_virtmem() {
         log!(crate::LOG_DEF, "Disabling paging...");

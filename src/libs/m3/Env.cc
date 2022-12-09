@@ -36,7 +36,7 @@ public:
 
     virtual void init() override {
         uint64_t *argv = reinterpret_cast<uint64_t *>(env()->argv);
-        Serial::init(reinterpret_cast<char *>(argv[0]), env()->tile_id);
+        Serial::init(reinterpret_cast<char *>(argv[0]), TileId::from_raw(env()->tile_id));
     }
 
     NORETURN void exit(Errors::Code code) override {

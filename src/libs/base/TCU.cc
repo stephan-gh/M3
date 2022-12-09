@@ -27,6 +27,8 @@ namespace m3 {
 
 INIT_PRIO_TCU TCU TCU::inst;
 
+uint16_t TCU::HW_MOD_IDS[] = {0x06, 0x25, 0x26, 0x00, 0x01, 0x02, 0x20, 0x21, 0x24};
+
 size_t TCU::print(const char *str, size_t len) {
     len = Math::min(len, PRINT_REGS * sizeof(reg_t) - 1);
 

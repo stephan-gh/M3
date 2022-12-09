@@ -14,6 +14,7 @@
  */
 
 #include <base/Common.h>
+#include <base/TCU.h>
 #include <base/stream/Serial.h>
 
 #include "../assert.h"
@@ -30,7 +31,9 @@ static constexpr epid_t REP = TCU::FIRST_USER_EP + 1;
 static uint8_t rbuf[64];
 
 int main() {
-    kernel::TCU::config_send(SEP, 0x1234, tile_id(Tile::T0), DSTEP, nextlog2<MSG_SIZE>::val, 1);
+    auto dst_tile = TileId(0, Tile::T0);
+
+    kernel::TCU::config_send(SEP, 0x1234, dst_tile, DSTEP, nextlog2<MSG_SIZE>::val, 1);
     size_t size = nextlog2<sizeof(rbuf)>::val;
     uintptr_t rbuf_addr = reinterpret_cast<uintptr_t>(rbuf);
     kernel::TCU::config_recv(REP, rbuf_addr, size, size, TCU::NO_REPLIES);
@@ -45,7 +48,7 @@ int main() {
     while((res = kernel::TCU::send(SEP, msg, 0x2222, REP)) != Errors::SUCCESS) {
         logln("send failed: {}"_cf, res);
         // get credits back
-        kernel::TCU::config_send(SEP, 0x1234, tile_id(Tile::T0), DSTEP, nextlog2<MSG_SIZE>::val, 1);
+        kernel::TCU::config_send(SEP, 0x1234, dst_tile, DSTEP, nextlog2<MSG_SIZE>::val, 1);
     }
 
     for(int count = 0; count < 100000; ++count) {

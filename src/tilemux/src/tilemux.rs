@@ -223,7 +223,10 @@ pub extern "C" fn init() -> usize {
         );
     }
 
-    io::init(pex_env().tile_id, "tilemux");
+    io::init(
+        tcu::TileId::new_from_raw(pex_env().tile_id as u16),
+        "tilemux",
+    );
     activities::init();
 
     // switch to idle; we don't want to keep the reference here, because activities::schedule()

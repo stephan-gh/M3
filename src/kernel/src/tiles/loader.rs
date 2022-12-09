@@ -81,7 +81,7 @@ fn load_root_async(env_phys: goff, act: &Activity) -> Result<(), Error> {
         argv: argv_addr as u64,
         sp: act.tile_desc().stack_top() as u64,
         entry: entry as u64,
-        tile_id: act.tile_id() as u64,
+        tile_id: act.tile_id().raw() as u64,
         tile_desc: act.tile_desc().value(),
         act_id: act.id() as u64,
         heap_size: MOD_HEAP_SIZE as u64,
