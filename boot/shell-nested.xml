@@ -39,6 +39,7 @@
                             </dom>
                             <dom>
                                 <app args="/bin/filterchain 16384">
+                                    <mount fs="m3fs" path="/" />
                                     <tiles type="core" count="2" />
                                 </app>
                             </dom>
