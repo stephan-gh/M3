@@ -22,8 +22,8 @@
 
 #include "ops.h"
 
-#define SYSC_RECEIVE 0xFFFF
-#define SYSC_SEND    0xFFFE
+static constexpr long SYSC_RECEIVE = 0xFFFF;
+static constexpr long SYSC_SEND = 0xFFFE;
 
 extern "C" void __m3_sysc_trace(bool enable, size_t max);
 extern "C" void __m3_sysc_trace_start(long n);

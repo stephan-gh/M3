@@ -54,7 +54,7 @@ public:
     size_t outpos;
 };
 
-#define READSIZE 1024
+static constexpr size_t READSIZE = 1024;
 
 static FLAC__int32 pcm[READSIZE /*samples*/ * 2 /*channels*/];
 
@@ -141,7 +141,7 @@ size_t encode(const uint8_t *indata, size_t inlen, void *outbuf, size_t outmax) 
     if(ok) {
         size_t left = (size_t)encoder.total_samples;
         while(ok && left && pos < inlen) {
-            size_t need = left > READSIZE ? (size_t)READSIZE : left;
+            size_t need = left > READSIZE ? READSIZE : left;
             /* convert the packed little-endian 16-bit PCM samples from WAVE into an interleaved
              * FLAC__int32 buffer for libFLAC */
             size_t i;

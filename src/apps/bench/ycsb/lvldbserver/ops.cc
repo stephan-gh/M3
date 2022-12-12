@@ -22,7 +22,7 @@
 
 #include <sstream>
 
-#define DEBUG 0
+static constexpr int DEBUG = 0;
 
 using namespace m3;
 
@@ -81,15 +81,15 @@ void LevelDBExecutor::print_stats(size_t num_ops) {
 }
 
 size_t LevelDBExecutor::execute(Package &pkg) {
-#if DEBUG > 0
-    print("Executing operation {} with table {}"_cf, (int)pkg.op, (int)pkg.table);
-    print("  num_kvs={}, key={}"_cf, (int)pkg.num_kvs, pkg.key);
-    println(", scan_length={}"_cf, pkg.scan_length);
-#endif
-#if DEBUG > 1
-    for(auto &pair : pkg.kv_pairs)
-        println("  key='field{}' val='{}'"_cf, pair.first.c_str(), pair.second.c_str());
-#endif
+    if(DEBUG > 0) {
+        print("Executing operation {} with table {}"_cf, (int)pkg.op, (int)pkg.table);
+        print("  num_kvs={}, key={}"_cf, (int)pkg.num_kvs, pkg.key);
+        println(", scan_length={}"_cf, pkg.scan_length);
+    }
+    if(DEBUG > 1) {
+        for(auto &pair : pkg.kv_pairs)
+            println("  key='field{}' val='{}'"_cf, pair.first.c_str(), pair.second.c_str());
+    }
 
     switch(pkg.op) {
         case ::Operation::INSERT: {
@@ -114,9 +114,8 @@ size_t LevelDBExecutor::execute(Package &pkg) {
             size_t bytes = 0;
             for(auto &pair : vals) {
                 bytes += pair.first.size() + pair.second.size();
-#if DEBUG > 1
-                println("  found '{}' -> '{}'"_cf, pair.first.c_str(), pair.second.c_str());
-#endif
+                if(DEBUG > 1)
+                    println("  found '{}' -> '{}'"_cf, pair.first.c_str(), pair.second.c_str());
             }
             _t_read += TimeInstant::now().duration_since(start);
             _n_read++;
@@ -129,9 +128,8 @@ size_t LevelDBExecutor::execute(Package &pkg) {
             size_t bytes = 0;
             for(auto &pair : vals) {
                 bytes += pair.first.size() + pair.second.size();
-#if DEBUG > 1
-                println("  found '{}'' -> '{}'"_cf, pair.first.c_str(), pair.second.c_str());
-#endif
+                if(DEBUG > 1)
+                    println("  found '{}'' -> '{}'"_cf, pair.first.c_str(), pair.second.c_str());
             }
             _t_scan += TimeInstant::now().duration_since(start);
             _n_scan++;
@@ -161,9 +159,8 @@ void LevelDBExecutor::exec_insert(Package &pkg) {
     leveldb::WriteOptions writeOptions;
     for(auto &pair : pkg.kv_pairs) {
         auto key = pack_key(pkg.key, pair.first, "field");
-#if DEBUG > 1
-        eprintln("Setting '{}' to '{}'"_cf, key.c_str(), pair.second.c_str());
-#endif
+        if(DEBUG > 1)
+            eprintln("Setting '{}' to '{}'"_cf, key.c_str(), pair.second.c_str());
         _db->Put(writeOptions, key, pair.second);
     }
 }
