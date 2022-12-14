@@ -3,7 +3,7 @@
     <dom>
         <app args="root">
             <dom>
-                <app args="disk -d -i -f $hd.path" daemon="1">
+                <app args="disk -d -i" daemon="1">
                     <serv name="disk" />
                     <tiles type="idedev" />
                 </app>

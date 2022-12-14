@@ -64,13 +64,11 @@ generate_config() {
     fi
 
     # replace variables
-    hd=$M3_HDD_PATH
     fs=build/$M3_TARGET-$M3_ISA-$M3_BUILD/$M3_FS
     fssize=$(stat --format="%s" "$fs")
     sed "
         s#\$fs.path#$fs#g;
         s#\$fs.size#$fssize#g;
-        s#\$hd.path#$hd#g;
     " < "$1" > "$2/boot-all.xml"
 
     # extract runtime part; this can fail if there is no app element (e.g., standalone.xml)
