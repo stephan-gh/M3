@@ -63,22 +63,15 @@ public:
      * @param flags the flags to control whether the cap is kept
      * @return the memory gate
      */
-    static MemGate create_global(size_t size, int perms, capsel_t sel = INVALID, uint flags = 0) {
-        return create_global_for(static_cast<goff_t>(-1), size, perms, sel, flags);
-    }
+    static MemGate create_global(size_t size, int perms, capsel_t sel = INVALID, uint flags = 0);
 
     /**
-     * Creates a new memory-gate for the global memory [addr..addr+size) with given permissions.
+     * Binds a new memory-gate to the boot module with given name.
      *
-     * @param addr the address
-     * @param size the memory size
-     * @param perms the permissions (see MemGate::RWX)
-     * @param sel the selector to use (if != INVALID, the selector is NOT freed on destruction)
-     * @param flags the flags to control whether the cap is kept
+     * @param name the name of the boot module
      * @return the memory gate
      */
-    static MemGate create_global_for(goff_t addr, size_t size, int perms, capsel_t sel = INVALID,
-                                     uint flags = 0);
+    static MemGate bind_bootmod(const std::string_view &name);
 
     /**
      * Binds this gate for read/write/cmpxchg to the given memory capability. That is, the

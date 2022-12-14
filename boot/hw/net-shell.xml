@@ -1,4 +1,7 @@
 <config>
+    <mods>
+        <mod name="fs" file="default.img" />
+    </mods>
     <kernel args="kernel" />
     <dom>
         <app args="root maxcli=4">
@@ -10,15 +13,15 @@
                 <serv name="pipes" />
             </app>
             <dom>
-                <app args="m3fs -m 4 mem $fs.size" daemon="1">
+                <app args="m3fs -m 4 mem" daemon="1">
                     <serv name="m3fs" />
-                    <physmem addr="0" size="$fs.size" />
+                    <mod name="fs" />
                 </app>
             </dom>
             <dom>
-                <app args="pager maxcli=5 $fs.size" usermem="256M" getinfo="1">
+                <app args="pager maxcli=5" usermem="256M" getinfo="1">
                     <sess name="m3fs" />
-                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <mod name="fs" perm="r" />
                     <tiles type="boom+nic" count="1" />
                     <tiles type="core" count="1" />
                     <dom tile="boom+nic">

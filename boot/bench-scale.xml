@@ -1,29 +1,32 @@
 <config>
-    <env>M3_FS=bench.img</env>
+    <mods>
+        <mod name="fs1" file="bench.img" />
+        <mod name="fs2" file="bench.img" />
+    </mods>
     <kernel args="kernel" />
     <dom>
         <app args="root">
             <dom>
-                <app args="m3fs mem $fs.size" daemon="1">
+                <app args="m3fs mem" daemon="1">
                     <serv name="m3fs" />
-                    <physmem addr="0" size="$fs.size" />
+                    <mod gname="fs1" lname="fs" />
                 </app>
             </dom>
             <dom>
-                <app args="pager $fs.size">
+                <app args="pager">
                     <sess name="m3fs" />
-                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <mod gname="fs1" lname="fs" perm="r" />
                     <tiles type="core" count="1" />
                     <dom>
-                        <app args="/bin/bench-scale -i 2 -r 1 -f $fs.size find">
+                        <app args="/bin/bench-scale -i 2 -r 1 find">
                             <mount fs="m3fs" path="/" />
                             <tiles type="boom|core" count="2" />
                             <serv name="m3fs-0" />
                             <serv name="m3fs-1" />
                             <sess name="m3fs-0" dep="false" />
                             <sess name="m3fs-1" dep="false" />
-                            <physmem addr="0" size="$fs.size" />
-                            <physmem addr="$fs.size" size="$fs.size" />
+                            <mod name="fs1" />
+                            <mod name="fs2" />
                         </app>
                     </dom>
                 </app>

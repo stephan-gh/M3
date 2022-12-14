@@ -35,6 +35,7 @@ use crate::childs;
 use crate::config;
 use crate::gates;
 use crate::memory;
+use crate::mods;
 use crate::sems;
 use crate::services;
 use crate::tiles;
@@ -123,6 +124,7 @@ impl Subsystem {
         for m in self.mods() {
             log!(crate::LOG_SUBSYS, "  {:?}", m);
         }
+        mods::create(self.mods());
 
         log!(crate::LOG_SUBSYS, "Available tiles:");
         let mut tiles = Vec::new();
@@ -251,7 +253,7 @@ impl Subsystem {
         &self.servs
     }
 
-    pub fn get_mod(&self, idx: usize) -> MemGate {
+    pub fn get_mod(idx: usize) -> MemGate {
         MemGate::new_bind(SUBSYS_SELS + 2 + idx as Selector)
     }
 
@@ -421,24 +423,6 @@ impl Subsystem {
                 domain_total_time += cfg.time.unwrap_or(DEF_TIME_SLICE);
                 domain_total_pts += cfg.pts.unwrap_or(shared_pts / pt_sharer);
                 domain_kmem_bytes += cfg.kern_mem.unwrap_or(def_kmem);
-
-                // add requested physical memory regions to pool
-                for mem in cfg.phys_mems() {
-                    let mslice = memory::container()
-                        .find_mem(mem.phys(), mem.size(), mem.perm())
-                        .map_err(|e| {
-                            VerboseError::new(
-                                e.code(),
-                                format!(
-                                    "Unable to find physical memory {:#x}..{:#x} with {:?}",
-                                    mem.phys(),
-                                    mem.phys() + mem.size(),
-                                    mem.perm()
-                                ),
-                            )
-                        })?;
-                    mem_pool.borrow_mut().add(mslice);
-                }
             }
 
             // derive kmem for the entire domain. All apps that did not specify a kmem quota will
@@ -576,10 +560,16 @@ impl Subsystem {
                                     format!("Unable to allocate {}b for config", cfg_len),
                                 )
                             })?;
-                    let cfg_mem = cfg_slice.derive()?;
+                    let mut cfg_mem = cfg_slice.derive()?;
                     cfg_mem.write(self.cfg_str()[cfg_range.0..cfg_range.1].as_bytes(), 0)?;
+                    // deactivate the memory gates so that the child can activate them for itself
+                    cfg_mem.deactivate();
 
-                    let mut sub = SubsystemBuilder::new((cfg_mem, cfg_slice.addr(), cfg_len));
+                    let mut sub = SubsystemBuilder::new();
+
+                    // add boot modules
+                    sub.add_mod(cfg_mem, cfg_slice.addr(), cfg_len as goff, "boot.xml");
+                    pass_down_mods(&mut sub, cfg)?;
 
                     // add tiles
                     sub.add_tile(
@@ -610,7 +600,6 @@ impl Subsystem {
                         sub_slice.capacity(),
                         sub_slice.in_reserved_mem(),
                     );
-                    pass_down_mem(&mut sub, cfg)?;
 
                     // add services
                     for s in cfg.sess_creators() {
@@ -655,8 +644,8 @@ impl Subsystem {
 
 pub struct SubsystemBuilder {
     _desc: Option<MemGate>,
-    cfg: (MemGate, GlobAddr, usize),
     tiles: Vec<(TileId, Rc<Tile>)>,
+    mods: Vec<(MemGate, GlobAddr, goff, String)>,
     mems: Vec<(MemGate, GlobAddr, goff, bool)>,
     servs: Vec<(String, u32, u32, Option<u32>)>,
     serv_objs: Vec<services::Service>,
@@ -664,16 +653,20 @@ pub struct SubsystemBuilder {
 }
 
 impl SubsystemBuilder {
-    pub fn new(cfg: (MemGate, GlobAddr, usize)) -> Self {
+    pub fn new() -> Self {
         Self {
             _desc: None,
-            cfg,
             tiles: Vec::new(),
+            mods: Vec::new(),
             mems: Vec::new(),
             servs: Vec::new(),
             serv_objs: Vec::new(),
             serial: false,
         }
+    }
+
+    pub fn add_mod(&mut self, mem: MemGate, addr: GlobAddr, size: goff, name: &str) {
+        self.mods.push((mem, addr, size, name.to_string()));
     }
 
     pub fn add_tile(&mut self, id: TileId, tile: Rc<Tile>) {
@@ -696,7 +689,7 @@ impl SubsystemBuilder {
 
     pub fn desc_size(&self) -> usize {
         size_of::<boot::Info>()
-            + size_of::<boot::Mod>() * 1
+            + size_of::<boot::Mod>() * self.mods.len()
             + size_of::<boot::Tile>() * self.tiles.len()
             + size_of::<boot::Mem>() * self.mems.len()
             + size_of::<boot::Service>() * self.servs.len()
@@ -722,7 +715,7 @@ impl SubsystemBuilder {
 
         // boot info
         let info = boot::Info {
-            mod_count: 1,
+            mod_count: self.mods.len() as u64,
             tile_count: self.tiles.len() as u64,
             mem_count: self.mems.len() as u64,
             serv_count: self.servs.len() as u64,
@@ -738,12 +731,16 @@ impl SubsystemBuilder {
         }
         sel += 1;
 
-        // boot module for config
-        let m = boot::Mod::new(self.cfg.1, self.cfg.2 as u64, "boot.xml");
-        mem.write_obj(&m, off)?;
-        act.delegate_to(CapRngDesc::new(CapType::OBJECT, self.cfg.0.sel(), 1), sel)?;
-        off += size_of::<boot::Mod>() as goff;
-        sel += 1;
+        // boot modules
+        for (mgate, addr, size, name) in &self.mods {
+            let m = boot::Mod::new(*addr, *size as u64, name);
+            mem.write_obj(&m, off)?;
+
+            act.delegate_to(CapRngDesc::new(CapType::OBJECT, mgate.sel(), 1), sel)?;
+
+            off += size_of::<boot::Mod>() as goff;
+            sel += 1;
+        }
 
         // tiles
         for (id, tile) in &self.tiles {
@@ -805,8 +802,6 @@ impl SubsystemBuilder {
             self.serv_objs.push(subserv);
         }
 
-        // deactivate the memory gates so that the child can activate them for itself
-        self.cfg.0.deactivate();
         mem.deactivate();
 
         self._desc = Some(mem);
@@ -866,29 +861,28 @@ fn pass_down_serial(sub: &mut SubsystemBuilder, app: &config::AppConfig) {
     }
 }
 
-fn pass_down_mem(sub: &mut SubsystemBuilder, app: &config::AppConfig) -> Result<(), VerboseError> {
+fn pass_down_mods(sub: &mut SubsystemBuilder, app: &config::AppConfig) -> Result<(), VerboseError> {
     for d in app.domains() {
         for child in d.apps() {
-            for pmem in child.phys_mems() {
-                let slice = memory::container()
-                    .find_mem(pmem.phys(), pmem.size(), Perm::RW)
-                    .map_err(|e| {
-                        VerboseError::new(
-                            e.code(),
-                            format!(
-                                "Unable to find memory {:#x}..{:#x} for subsys",
-                                pmem.phys(),
-                                pmem.phys() + pmem.size()
-                            ),
-                        )
-                    })?;
-                let mgate = slice.derive()?;
-                // TODO determine memory id
-                let glob = GlobAddr::new_with(TileId::new(0, 0), pmem.phys());
-                sub.add_mem(mgate, glob, pmem.size(), true);
+            for m in child.mods() {
+                // find mod with desired name
+                let bmod = mods::get().find(m.name().global()).ok_or_else(|| {
+                    VerboseError::new(
+                        Code::NotFound,
+                        format!(
+                            "Unable to find boot module {} for subsys",
+                            m.name().global()
+                        ),
+                    )
+                })?;
+
+                // derive memory cap with potentially reduced permissions
+                let mgate = bmod.memory().derive(0, bmod.size() as usize, m.perm())?;
+
+                sub.add_mod(mgate, bmod.addr(), bmod.size(), bmod.name());
             }
 
-            pass_down_mem(sub, child)?;
+            pass_down_mods(sub, child)?;
         }
     }
     Ok(())

@@ -20,10 +20,11 @@
                 </xs:complexType>
             </xs:element>
 
-            <xs:element name="physmem">
+            <xs:element name="mod">
                 <xs:complexType>
-                    <xs:attribute name="addr" type="xs:int" use="required"/>
-                    <xs:attribute name="size" type="xs:string" use="required"/>
+                    <xs:attribute name="name" type="xs:string"/>
+                    <xs:attribute name="lname" type="xs:string"/>
+                    <xs:attribute name="gname" type="xs:string"/>
                     <xs:attribute name="perm" type="xs:string"/>
                 </xs:complexType>
             </xs:element>
@@ -105,6 +106,19 @@
         <xs:complexType>
             <xs:sequence>
                 <xs:element name="env" minOccurs="0" maxOccurs="1">
+                </xs:element>
+
+                <xs:element name="mods" minOccurs="0" maxOccurs="1">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="mod" minOccurs="0" maxOccurs="unbounded">
+                                <xs:complexType>
+                                    <xs:attribute name="name" type="xs:string" use="required"/>
+                                    <xs:attribute name="file" type="xs:string" use="required"/>
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                    </xs:complexType>
                 </xs:element>
 
                 <xs:element name="kernel" minOccurs="1" maxOccurs="unbounded">

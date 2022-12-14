@@ -23,6 +23,7 @@ pub mod config;
 mod events;
 pub mod gates;
 pub mod memory;
+pub mod mods;
 mod parser;
 pub mod requests;
 pub mod sems;

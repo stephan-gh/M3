@@ -1,5 +1,5 @@
 <config>
-    <env>M3_FS=bench.img</env>
+    <env>M3_GEM5_CFG=config/default.py</env>
     <kernel args="kernel" />
     <dom>
         <app args="root sem=net-udp sem=net-tcp">

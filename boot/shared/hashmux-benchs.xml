@@ -1,11 +1,13 @@
 <config>
-    <env>M3_FS=bench.img</env>
+    <mods>
+        <mod name="fs" file="bench.img" />
+    </mods>
     <kernel args="kernel" />
     <dom>
         <app args="root">
-            <app args="m3fs mem $fs.size" daemon="1">
+            <app args="m3fs mem" daemon="1">
                 <serv name="m3fs" />
-                <physmem addr="0" size="$fs.size" />
+                <mod name="fs" />
             </app>
             <dom tile="imem+kecacc|core">
                 <app args="hashmux" daemon="1">
@@ -13,9 +15,9 @@
                 </app>
             </dom>
             <dom>
-                <app args="pager $fs.size" usermem="768M">
+                <app args="pager" usermem="768M">
                     <sess name="m3fs" />
-                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <mod name="fs" perm="r" />
                     <tiles type="core" count="1" />
                     <app args="/bin/hashmuxbenchs">
                         <mount fs="m3fs" path="/" />

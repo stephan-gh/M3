@@ -12,8 +12,6 @@ num_eps = 128 if os.environ.get('M3_TARGET') == 'hw' else 192
 num_mem = 1
 num_tiles = int(os.environ.get('M3_GEM5_TILES'))
 num_cores_per_chip = int(num_tiles / 2)
-fsimg = os.environ.get('M3_GEM5_FS')
-fsimgnum = os.environ.get('M3_GEM5_FSNUM', '1')
 mem_tile = TileId(1, num_cores_per_chip)
 
 # Create a top-level voltage domain
@@ -81,8 +79,6 @@ tile = createMemTile(noc=root.noc2,
                      options=options,
                      id=mem_tile,
                      size='3072MB',
-                     image=fsimg,
-                     imageNum=int(fsimgnum),
                      epCount=num_eps)
 tiles.append(tile)
 

@@ -14,9 +14,6 @@ num_mem = 1
 num_sto = 1 # Number of tiles for IDE storage
 num_tiles = int(os.environ.get('M3_GEM5_TILES'))
 
-fsimg = os.environ.get('M3_GEM5_FS')
-fsimgnum = os.environ.get('M3_GEM5_FSNUM', '1')
-
 # disk image
 hard_disk0 = os.environ.get('M3_GEM5_IDE_DRIVE')
 if not os.path.isfile(hard_disk0):
@@ -93,8 +90,6 @@ for i in range(0, num_mem):
                          options=options,
                          id=TileId(0, num_tiles + num_sto + 2 + num_rot13  + num_kecacc + i),
                          size='3072MB',
-                         image=fsimg if i == 0 else None,
-                         imageNum=int(fsimgnum),
                          epCount=num_eps)
     tiles.append(tile)
 

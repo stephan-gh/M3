@@ -1,17 +1,20 @@
 <config>
+    <mods>
+        <mod name="fs" file="default.img" />
+    </mods>
     <kernel args="kernel" />
     <dom>
         <app args="root">
             <dom>
-                <app args="m3fs mem $fs.size" daemon="1">
+                <app args="m3fs mem" daemon="1">
                     <serv name="m3fs" />
-                    <physmem addr="0" size="$fs.size" />
+                    <mod name="fs" />
                 </app>
             </dom>
             <dom>
-                <app args="pager sem=net-udp sem=net-tcp $fs.size" usermem="256M">
+                <app args="pager sem=net-udp sem=net-tcp" usermem="256M">
                     <sess name="m3fs" />
-                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <mod name="fs" perm="r" />
                     <tiles type="core" count="3" />
                     <dom>
                         <app args="/sbin/net -m 4 -d lo net 127.0.0.1" daemon="1">

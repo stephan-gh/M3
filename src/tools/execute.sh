@@ -28,16 +28,7 @@ for p in "$@"; do
     esac
 done
 
-if [ "$M3_FS" = "" ]; then
-    M3_FS="default.img"
-fi
-export M3_FS
-
-if [ "$M3_HDD" = "" ]; then
-    M3_HDD_PATH="build/$M3_TARGET-$M3_ISA-$M3_BUILD/disk.img"
-else
-    M3_HDD_PATH=$M3_HDD
-fi
+M3_MOD_PATH=${M3_MOD_PATH:-$build}
 
 generate_config() {
     if [ ! -f "$1" ]; then
@@ -63,24 +54,60 @@ generate_config() {
         done
     fi
 
-    # replace variables
-    fs=build/$M3_TARGET-$M3_ISA-$M3_BUILD/$M3_FS
-    fssize=$(stat --format="%s" "$fs")
-    sed "
-        s#\$fs.path#$fs#g;
-        s#\$fs.size#$fssize#g;
-    " < "$1" > "$2/boot-all.xml"
-
     # extract runtime part; this can fail if there is no app element (e.g., standalone.xml)
-    xmllint --xpath /config/dom/app "$2/boot-all.xml" > "$2/boot.xml" || true
+    xmllint --xpath /config/dom/app "$1" 2>/dev/null > "$2/boot.xml" || true
+}
+
+get_mods() {
+    echo -n "boot.xml=$M3_OUT/boot.xml"
+
+    # extract binaries we need to pass as boot modules
+    for name in $(xmllint --xpath ".//app[@args]/@args" "$1" 2>/dev/null | awk -e '
+        # we currently assume that binaries starting with "/" are loaded from the FS
+        match($0, /args="([^/][^[:space:]]*).*"/, m) {
+            print(m[1])
+        }
+    '); do
+        # use the stripped binary from the default fs on hw to save time during loading
+        if [ "$2" = "hw" ]; then
+            if [ -f "$build/src/fs/default/bin/$name" ]; then
+                path="$build/src/fs/default/bin/$name"
+            else
+                path="$build/src/fs/default/sbin/$name"
+            fi
+        else
+            if [ "$name" = "disk" ] && [ "$M3_HDD" = "" ]; then
+                echo "Please specify the HDD image to use via M3_HDD." >&2 && exit 1
+            fi
+            path="$bindir/$name"
+        fi
+        if [ ! -f "$path" ]; then
+            echo "Binary '$path' does not exist." >&2 && exit 1
+        fi
+        echo -n ",$name=$path"
+    done
+
+    # add additional boot modules from config
+    for mod in $(xmllint --xpath "/config/mods/mod" "$1" 2>/dev/null | awk -e '
+        match($0, /<mod\s+name="(.*?)"\s+file="(.*?)"/, m) {
+            printf("%s=%s\n", m[1], m[2])
+        }
+    ')
+    do
+        name=${mod%%=*}
+        path=${mod#*=}
+        if [ ! -f "$M3_MOD_PATH/$path" ]; then
+            echo "Boot module '$M3_MOD_PATH/$path' does not exist." >&2 && exit 1
+        fi
+        echo -n ",$name=$M3_MOD_PATH/$path"
+    done
 }
 
 build_params_gem5() {
     generate_config "$1" "$M3_OUT" || exit 1
 
-    kargs=$(perl -ne 'printf("'"$bindir"/'%s,", $1) if /<kernel\s.*args="(.*?)"/' < "$M3_OUT/boot-all.xml")
-    mods=$(perl -ne 'printf(",'"$bindir"'/%s", $1) if /app\s.*args="([^\/"\s]+).*"/' < "$M3_OUT/boot-all.xml")
-    mods="$M3_OUT/boot.xml$mods"
+    kernels=$(perl -ne 'printf("'"$bindir"/'%s,", $1) if /<kernel\s.*args="(.*?)"/' < "$1")
+    mods=$(get_mods "$1" "gem5")
 
     if [ "$M3_GEM5_DBG" = "" ]; then
         M3_GEM5_DBG="Tcu"
@@ -95,23 +122,18 @@ build_params_gem5() {
 
     M3_CORES=${M3_CORES:-16}
 
-    cmd=$kargs
+    cmd=$kernels
     c=$(echo -n "$cmd" | sed 's/[^,]//g' | wc -c)
     while [ "$c" -lt "$M3_CORES" ]; do
         cmd="$cmd$bindir/tilemux,"
         c=$((c + 1))
     done
 
-    if [[ $mods == *disk* ]] && [ "$M3_HDD" = "" ]; then
-        ./src/tools/disk.py create "$M3_HDD_PATH" "$build/$M3_FS"
-    fi
-
     M3_GEM5_CPUFREQ=${M3_GEM5_CPUFREQ:-1GHz}
     M3_GEM5_MEMFREQ=${M3_GEM5_MEMFREQ:-333MHz}
     M3_GEM5_CFG=${M3_GEM5_CFG:-config/default.py}
     export M3_GEM5_TILES=$M3_CORES
-    export M3_GEM5_FS=$build/$M3_FS
-    export M3_GEM5_IDE_DRIVE=$M3_HDD_PATH
+    export M3_GEM5_IDE_DRIVE=$M3_HDD
 
     params=$(mktemp)
     trap 'rm -f $params' EXIT ERR INT TERM
@@ -169,10 +191,9 @@ build_params_gem5() {
 build_params_hw() {
     generate_config "$1" "$M3_OUT" || exit 1
 
-    kargs=$(perl -ne 'printf("%s;", $1) if /<kernel\s.*args="(.*?)"/' < "$M3_OUT/boot-all.xml")
-    mods=$(perl -ne 'printf("%s;", $1) if /app\s.*args="([^\/"\s]+).*"/' < "$M3_OUT/boot-all.xml")
+    kernels=$(perl -ne 'printf("%s,", $1) if /<kernel\s.*args="(.*?)"/' < "$M3_OUT/boot-all.xml")
+    mods=$(get_mods "$1" "hw")
 
-    args="--mod boot.xml"
     if [ "$M3_HW_RESET" = "1" ]; then
         args="$args --reset"
     fi
@@ -184,33 +205,22 @@ build_params_hw() {
     fi
 
     files=("$M3_OUT/boot.xml" "$bindir/tilemux")
-    IFS=';'
+    IFS=','
     c=0
-    for karg in $kargs; do
+    for karg in $kernels; do
         args="$args --tile '$karg'"
         files=("${files[@]}" "$bindir/${karg%% *}")
         c=$((c + 1))
     done
     for mod in $mods; do
         args="$args --mod '$mod'"
-        # use the stripped binary from the default fs
-        basemod=$(basename "$mod")
-        if [ -f "$build/src/fs/default/bin/$basemod" ]; then
-            files=("${files[@]}" "$build/src/fs/default/bin/$basemod")
-        else
-            files=("${files[@]}" "$build/src/fs/default/sbin/$basemod")
-        fi
+        files=("${files[@]}" "${mod#*=}")
     done
     while [ $c -lt 8 ]; do
         args="$args --tile tilemux"
         c=$((c + 1))
     done
     unset IFS
-
-    if [ "$(grep '$fs' "$1")" != "" ]; then
-        files=("${files[@]}" "$build/$M3_FS")
-        args="$args --fs $(basename "$build/$M3_FS")"
-    fi
 
     fpga="--fpga ${M3_HW_FPGA:-0}"
 

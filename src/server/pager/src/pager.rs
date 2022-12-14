@@ -26,13 +26,11 @@ use core::ops::DerefMut;
 use m3::cap::Selector;
 use m3::cell::{LazyReadOnlyCell, LazyStaticRefCell, StaticRefCell};
 use m3::col::{String, ToString, Vec};
-use m3::com::{GateIStream, MGateArgs, MemGate, RecvGate, SGateArgs, SendGate};
-use m3::env;
+use m3::com::{GateIStream, MemGate, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::kif;
 use m3::log;
-use m3::println;
 use m3::server::{
     CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer, DEF_MSG_SIZE,
 };
@@ -52,7 +50,6 @@ static PGHDL: LazyStaticRefCell<PagerReqHandler> = LazyStaticRefCell::default();
 static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 static MOUNTS: LazyStaticRefCell<Vec<(String, String)>> = LazyStaticRefCell::default();
 static PMP_TILES: StaticRefCell<Vec<TileId>> = StaticRefCell::new(Vec::new());
-static SETTINGS: LazyStaticRefCell<PagerSettings> = LazyStaticRefCell::default();
 
 struct PagerReqHandler {
     sel: Selector,
@@ -202,14 +199,13 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
             .kmem(child.kmem().unwrap()),
     )?;
 
-    // TODO make that more flexible
     // add PMP EP for file system
     {
         let mut pmp_tiles = PMP_TILES.borrow_mut();
         if !pmp_tiles.iter().any(|id| *id == tile_usage.tile_id()) {
-            let size = SETTINGS.borrow().fs_size;
-            let fs_mem = MemGate::new_with(MGateArgs::new(size, kif::Perm::R).addr(0))?;
-            child.our_tile().add_mem_region(fs_mem, size, true)?;
+            let fs_mod = MemGate::new_bind_bootmod("fs")?;
+            let fs_mod_size = fs_mod.region()?.1 as usize;
+            child.our_tile().add_mem_region(fs_mod, fs_mod_size, true)?;
             pmp_tiles.push(tile_usage.tile_id());
         }
     }
@@ -283,28 +279,8 @@ fn workloop(serv: &Server) {
     .expect("Unable to run workloop");
 }
 
-#[derive(Clone, Debug)]
-pub struct PagerSettings {
-    fs_size: usize,
-}
-
-fn parse_args() -> Result<PagerSettings, String> {
-    Ok(PagerSettings {
-        fs_size: env::args()
-            .last()
-            .ok_or("File system size missing")?
-            .parse::<usize>()
-            .map_err(|_| String::from("Failed to parse FS size"))?,
-    })
-}
-
 #[no_mangle]
 pub fn main() -> Result<(), Error> {
-    SETTINGS.set(parse_args().unwrap_or_else(|e| {
-        println!("Invalid arguments: {}", e);
-        Activity::own().exit_with(Code::InvArgs);
-    }));
-
     let subsys = subsys::Subsystem::new().expect("Unable to read subsystem info");
 
     let args = subsys.parse_args();

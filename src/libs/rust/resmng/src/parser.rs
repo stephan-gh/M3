@@ -16,7 +16,6 @@
 use m3::col::{String, ToString, Vec};
 use m3::errors::{Code, Error};
 use m3::format;
-use m3::goff;
 use m3::kif;
 use m3::rc::Rc;
 use m3::tcu::Label;
@@ -202,7 +201,7 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
                 "sess" => app.sessions.push(parse_session(p)?),
                 "sesscrt" => app.sesscrt.push(parse_sesscrt(p)?),
                 "serv" => app.services.push(parse_service(p)?),
-                "physmem" => app.phys_mems.push(parse_physmem(p)?),
+                "mod" => app.mods.push(parse_mod(p)?),
                 "tiles" => app.tiles.push(parse_tile(p)?),
                 "rgate" => app.rgates.push(parse_rgate(p)?),
                 "sgate" => app.sgates.push(parse_sgate(p)?),
@@ -337,22 +336,20 @@ fn parse_mount(p: &mut ConfigParser) -> Result<config::MountDesc, Error> {
     Ok(config::MountDesc::new(fs, path))
 }
 
-fn parse_physmem(p: &mut ConfigParser) -> Result<config::PhysMemDesc, Error> {
-    let mut phys = 0;
-    let mut size = 0;
+fn parse_mod(p: &mut ConfigParser) -> Result<config::ModDesc, Error> {
+    let mut name = config::DualName::default();
     let mut perm = kif::Perm::RWX;
     loop {
         match p.parse_arg()? {
             None => break,
             Some((n, v)) => match n.as_ref() {
-                "addr" => phys = parse::addr(&v)?,
-                "size" => size = parse::size(&v)? as goff,
+                "name" | "lname" | "gname" => parse_dual_name(&mut name, n, v)?,
                 "perm" => perm = parse::perm(&v)?,
                 _ => return Err(Error::new(Code::InvArgs)),
             },
         }
     }
-    Ok(config::PhysMemDesc::new(phys, size, perm))
+    Ok(config::ModDesc::new(name, perm))
 }
 
 fn parse_service(p: &mut ConfigParser) -> Result<config::ServiceDesc, Error> {

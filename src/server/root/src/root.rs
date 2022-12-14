@@ -50,7 +50,7 @@ fn find_mod(name: &str) -> Option<(MemGate, usize)> {
         .map(|idx| {
             BMODS.set(BMODS.get() | 1 << idx);
             (
-                SUBSYS.get().get_mod(idx),
+                subsys::Subsystem::get_mod(idx),
                 SUBSYS.get().mods()[idx].size as usize,
             )
         })

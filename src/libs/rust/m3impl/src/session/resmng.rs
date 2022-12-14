@@ -57,10 +57,11 @@ int_enum! {
         const USE_SGATE     = 0xB;
 
         const USE_SEM       = 0xC;
+        const USE_MOD       = 0xD;
 
-        const GET_SERIAL    = 0xD;
+        const GET_SERIAL    = 0xE;
 
-        const GET_INFO      = 0xE;
+        const GET_INFO      = 0xF;
     }
 }
 
@@ -90,7 +91,6 @@ pub struct OpenSessionReq {
 #[serde(crate = "base::serde")]
 pub struct AllocMemReq {
     pub dst: Selector,
-    pub addr: goff,
     pub size: goff,
     pub perms: kif::Perm,
 }
@@ -240,18 +240,10 @@ impl ResMng {
         Self::send_receive(&self.sgate, Operation::CLOSE_SESS, FreeReq { sel }).map(|_| ())
     }
 
-    /// Allocates `size` bytes of physical memory with given permissions. If `addr` is not `!0`, it
-    /// will be allocated at that address.
-    pub fn alloc_mem(
-        &self,
-        dst: Selector,
-        addr: goff,
-        size: goff,
-        perms: kif::Perm,
-    ) -> Result<(), Error> {
+    /// Allocates `size` bytes of physical memory with given permissions.
+    pub fn alloc_mem(&self, dst: Selector, size: goff, perms: kif::Perm) -> Result<(), Error> {
         Self::send_receive(&self.sgate, Operation::ALLOC_MEM, AllocMemReq {
             dst,
-            addr,
             size,
             perms,
         })
@@ -304,6 +296,15 @@ impl ResMng {
     /// Attaches to the semaphore with given name using selector `dst`.
     pub fn use_sem(&self, dst: Selector, name: &str) -> Result<(), Error> {
         Self::send_receive(&self.sgate, Operation::USE_SEM, UseReq {
+            dst,
+            name: name.to_string(),
+        })
+        .map(|_| ())
+    }
+
+    /// Attaches to the boot module with given name using selector `dst`.
+    pub fn use_mod(&self, dst: Selector, name: &str) -> Result<(), Error> {
+        Self::send_receive(&self.sgate, Operation::USE_MOD, UseReq {
             dst,
             name: name.to_string(),
         })

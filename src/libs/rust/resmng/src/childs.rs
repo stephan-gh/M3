@@ -43,6 +43,7 @@ use m3::vfs::{File, FileRef};
 use crate::config::AppConfig;
 use crate::gates;
 use crate::memory::{self, Allocation, MemPool};
+use crate::mods;
 use crate::sems;
 use crate::services::{self, Session};
 use crate::subsys::SubsystemBuilder;
@@ -102,6 +103,7 @@ pub struct Resources {
     services: Vec<(Id, Selector)>,
     sessions: Vec<(usize, Session)>,
     mem: Vec<(Option<Selector>, Allocation)>,
+    mods: Vec<MemGate>,
     tiles: Vec<(tiles::TileUsage, usize, Selector)>,
     sgates: Vec<SendGate>,
 }
@@ -237,31 +239,6 @@ pub trait Child {
         let mem_sel = self.mem().pool.borrow().mem_cap(alloc.slice_id());
         self.add_child_mem(alloc, mem_sel, dst_sel, perm)
     }
-    fn alloc_mem_at(
-        &mut self,
-        dst_sel: Selector,
-        offset: goff,
-        size: goff,
-        perm: Perm,
-    ) -> Result<(), Error> {
-        log!(
-            crate::LOG_MEM,
-            "{}: allocate_at(dst_sel={}, size={:#x}, offset={:#x}, perm={:?})",
-            self.name(),
-            dst_sel,
-            size,
-            offset,
-            perm
-        );
-
-        let alloc = self
-            .mem()
-            .pool
-            .borrow_mut()
-            .allocate_at(offset, size, perm)?;
-        let mem_sel = self.mem().pool.borrow().mem_cap(alloc.slice_id());
-        self.add_child_mem(alloc, mem_sel, dst_sel, perm)
-    }
     fn add_child_mem(
         &mut self,
         alloc: Allocation,
@@ -287,9 +264,7 @@ pub trait Child {
     }
     fn add_mem(&mut self, alloc: Allocation, dst_sel: Option<Selector>) {
         self.res_mut().mem.push((dst_sel, alloc));
-        if !self.mem().pool.borrow().slices()[alloc.slice_id()].in_reserved_mem() {
-            self.mem().alloc_mem(alloc.size());
-        }
+        self.mem().alloc_mem(alloc.size());
         log!(
             crate::LOG_MEM,
             "{}: added {:?} (quota left: {})",
@@ -328,9 +303,7 @@ pub trait Child {
             self.mem().quota.get()
         );
         self.mem().pool.borrow_mut().free(alloc);
-        if !self.mem().pool.borrow().slices()[alloc.slice_id()].in_reserved_mem() {
-            self.mem().free_mem(alloc.size());
-        }
+        self.mem().free_mem(alloc.size());
     }
 
     fn use_rgate(&mut self, name: &str, sel: Selector) -> Result<(u32, u32), Error> {
@@ -403,6 +376,28 @@ pub trait Child {
             .get(sdesc.name().global())
             .ok_or_else(|| Error::new(Code::NotFound))?;
         self.delegate(sem.sel(), sel)
+    }
+    fn use_mod(&mut self, name: &str, sel: Selector) -> Result<(), Error> {
+        log!(
+            crate::LOG_MEM,
+            "{}: use_mod(name={}, sel={})",
+            self.name(),
+            name,
+            sel,
+        );
+
+        let cfg = self.cfg();
+        let mdesc = cfg.get_mod(name).ok_or_else(|| Error::new(Code::InvArgs))?;
+        let bmod = mods::get()
+            .find(mdesc.name().global())
+            .ok_or_else(|| Error::new(Code::NotFound))?;
+
+        let mgate = bmod
+            .memory()
+            .derive(0, bmod.size() as usize, mdesc.perm())?;
+        let our_sel = mgate.sel();
+        self.res_mut().mods.push(mgate);
+        self.delegate(our_sel, sel)
     }
 
     fn get_serial(&mut self, sel: Selector) -> Result<(), Error> {

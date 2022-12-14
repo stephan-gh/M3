@@ -1,5 +1,7 @@
 <config>
-    <env>M3_FS=bench.img</env>
+    <mods>
+        <mod name="fs" file="bench.img" />
+    </mods>
     <kernel args="kernel" />
     <dom>
         <app args="root sem=net-udp sem=net-tcp">

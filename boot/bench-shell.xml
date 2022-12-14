@@ -1,12 +1,14 @@
 <config>
-    <env>M3_FS=default.img</env>
+    <mods>
+        <mod name="fs" file="default.img" />
+    </mods>
     <kernel args="kernel" />
     <dom>
         <app args="root">
             <dom>
-                <app args="m3fs mem $fs.size" daemon="1">
+                <app args="m3fs mem" daemon="1">
                     <serv name="m3fs" />
-                    <physmem addr="0" size="$fs.size" />
+                    <mod name="fs" />
                 </app>
             </dom>
             <dom>
@@ -15,9 +17,9 @@
                 </app>
             </dom>
             <dom>
-                <app args="pager $fs.size">
+                <app args="pager">
                     <sess name="m3fs" />
-                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <mod name="fs" perm="r" />
                     <tiles type="boom|core" count="1" />
                     <dom tile="boom|core">
                         <app args="/bin/shell cat /test.txt | wc">

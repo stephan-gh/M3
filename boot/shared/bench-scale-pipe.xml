@@ -1,21 +1,23 @@
 <config>
-    <env>M3_FS=bench.img</env>
+    <mods>
+        <mod name="fs" file="bench.img" />
+    </mods>
     <kernel args="kernel" />
     <dom>
         <app args="root">
-            <app args="m3fs mem $fs.size" daemon="1">
+            <app args="m3fs mem" daemon="1">
                 <serv name="m3fs" />
-                <physmem addr="0" size="$fs.size" />
+                <mod name="fs" />
             </app>
             <app args="pipes" daemon="1">
                 <serv name="pipes" />
             </app>
             <dom>
-                <app args="pager $fs.size">
+                <app args="pager">
                     <sess name="m3fs" />
-                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <mod name="fs" perm="r" />
                     <tiles type="core" count="1" />
-                    <app args="/bin/bench-scale-pipe -d -i 1 -r 4 -w 1 grep_wc_grep grep_wc_wc $fs.size">
+                    <app args="/bin/bench-scale-pipe -d -i 1 -r 4 -w 1 grep_wc_grep grep_wc_wc">
                         <mount fs="m3fs" path="/" />
                         <sess name="pipes" />
                         <tiles type="core" count="2" />

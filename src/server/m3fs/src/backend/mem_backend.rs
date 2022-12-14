@@ -19,7 +19,7 @@ use crate::buf::{LoadLimit, MetaBufferBlock};
 use crate::data::{BlockNo, BlockRange, Extent};
 
 use m3::cap::Selector;
-use m3::com::{MGateArgs, MemGate, Perm};
+use m3::com::{MemGate, Perm};
 use m3::errors::Error;
 use m3::goff;
 use m3::syscalls::derive_mem;
@@ -31,9 +31,9 @@ pub struct MemBackend {
 }
 
 impl MemBackend {
-    pub fn new(fsoff: goff, fssize: usize) -> Self {
+    pub fn new(name: &str) -> Self {
         MemBackend {
-            mem: MemGate::new_with(MGateArgs::new(fssize, Perm::RWX).addr(fsoff))
+            mem: MemGate::new_bind_bootmod(name)
                 .expect("Could not create MemGate for memory backend"),
             blocksize: 0, // gets set when the superblock is read
         }

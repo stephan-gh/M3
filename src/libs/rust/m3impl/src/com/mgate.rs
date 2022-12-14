@@ -45,7 +45,6 @@ pub struct MemGate {
 /// The arguments for [`MemGate`] creations.
 pub struct MGateArgs {
     size: usize,
-    addr: goff,
     perm: Perm,
     sel: Selector,
 }
@@ -55,17 +54,9 @@ impl MGateArgs {
     pub fn new(size: usize, perm: Perm) -> MGateArgs {
         MGateArgs {
             size,
-            addr: !0,
             perm,
             sel: INVALID_SEL,
         }
-    }
-
-    /// Sets the address to `addr` to request a specific memory region. Otherwise and by default,
-    /// any free memory region of the requested size will be used.
-    pub fn addr(mut self, addr: goff) -> Self {
-        self.addr = addr;
-        self
     }
 
     /// Sets the capability selector that should be used for this [`MemGate`]. Otherwise and by
@@ -92,12 +83,10 @@ impl MemGate {
             args.sel
         };
 
-        Activity::own().resmng().unwrap().alloc_mem(
-            sel,
-            args.addr,
-            args.size as goff,
-            args.perm,
-        )?;
+        Activity::own()
+            .resmng()
+            .unwrap()
+            .alloc_mem(sel, args.size as goff, args.perm)?;
         Ok(MemGate {
             gate: Gate::new(sel, CapFlags::empty()),
             resmng: true,
@@ -126,6 +115,16 @@ impl MemGate {
             gate: Gate::new(sel, CapFlags::empty()),
             resmng: false,
         }
+    }
+
+    /// Binds a new `MemGate` to the boot module with given name.
+    pub fn new_bind_bootmod(name: &str) -> Result<Self, Error> {
+        let sel = Activity::own().alloc_sel();
+        Activity::own().resmng().unwrap().use_mod(sel, name)?;
+        Ok(MemGate {
+            gate: Gate::new(sel, CapFlags::empty()),
+            resmng: false,
+        })
     }
 
     /// Returns the selector of this gate

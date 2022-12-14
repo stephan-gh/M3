@@ -49,19 +49,21 @@ def send_input(fpga_inst, tile, ep, bytes):
     fpga_inst.nocif.send_bytes((0, tile), ep, bytes)
 
 def write_file(mod, file, offset):
-    print("%s: loading %u bytes to %#x" % (mod.name, os.path.getsize(file), offset))
+    print("%s: loading %s with %u bytes to %#x" % (mod.name, file, os.path.getsize(file), offset))
     sys.stdout.flush()
 
     with open(file, "rb") as f:
         content = f.read()
     mod.mem.write_bytes_checked(offset, content, True)
 
-def add_mod(dram, addr, name, offset):
-    size = os.path.getsize(name)
+def add_mod(dram, addr, mod, offset):
+    (name, path) = mod.split('=')
+    path = os.path.basename(path)
+    size = os.path.getsize(path)
     write_u64(dram, offset + 0x0, glob_addr(MEM_TILE, addr))
     write_u64(dram, offset + 0x8, size)
     write_str(dram, name, offset + 16)
-    write_file(dram, name, addr)
+    write_file(dram, path, addr)
     return size
 
 def tile_desc(i, vm):
@@ -231,7 +233,6 @@ def main():
     parser.add_argument('--mod', action='append')
     parser.add_argument('--vm', action='store_true')
     parser.add_argument('--timeout', type=int)
-    parser.add_argument('--fs')
     args = parser.parse_args()
 
     # connect to FPGA
@@ -257,10 +258,6 @@ def main():
     # load boot info into DRAM
     mods = [] if args.mod is None else args.mod
     load_boot_info(fpga_inst.dram1, mods, fpga_inst.pms, args.vm)
-
-    # load file system into DRAM, if there is any
-    if not args.fs is None:
-        write_file(fpga_inst.dram1, args.fs, 0)
 
     # load programs onto tiles
     for i, pargs in enumerate(args.tile[0:len(fpga_inst.pms)], 0):

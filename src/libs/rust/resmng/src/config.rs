@@ -17,7 +17,6 @@ use core::fmt;
 use m3::cell::Cell;
 use m3::col::{BTreeMap, BTreeSet, String, Vec};
 use m3::errors::{Code, Error};
-use m3::goff;
 use m3::kif;
 use m3::rc::Rc;
 use m3::tcu::Label;
@@ -47,24 +46,18 @@ impl fmt::Debug for DualName {
     }
 }
 
-pub struct PhysMemDesc {
-    // TODO add memory id
-    phys: goff,
-    size: goff,
+pub struct ModDesc {
+    name: DualName,
     perm: kif::Perm,
 }
 
-impl PhysMemDesc {
-    pub(crate) fn new(phys: goff, size: goff, perm: kif::Perm) -> Self {
-        Self { phys, size, perm }
+impl ModDesc {
+    pub(crate) fn new(name: DualName, perm: kif::Perm) -> Self {
+        Self { name, perm }
     }
 
-    pub fn phys(&self) -> goff {
-        self.phys
-    }
-
-    pub fn size(&self) -> goff {
-        self.size
+    pub fn name(&self) -> &DualName {
+        &self.name
     }
 
     pub fn perm(&self) -> kif::Perm {
@@ -376,7 +369,7 @@ pub struct AppConfig {
     pub(crate) serial: Option<SerialDesc>,
     pub(crate) domains: Vec<Domain>,
     pub(crate) mounts: Vec<MountDesc>,
-    pub(crate) phys_mems: Vec<PhysMemDesc>,
+    pub(crate) mods: Vec<ModDesc>,
     pub(crate) services: Vec<ServiceDesc>,
     pub(crate) sesscrt: Vec<SessCrtDesc>,
     pub(crate) sessions: Vec<SessionDesc>,
@@ -440,8 +433,8 @@ impl AppConfig {
         &self.mounts
     }
 
-    pub fn phys_mems(&self) -> &Vec<PhysMemDesc> {
-        &self.phys_mems
+    pub fn mods(&self) -> &Vec<ModDesc> {
+        &self.mods
     }
 
     pub fn services(&self) -> &Vec<ServiceDesc> {
@@ -466,6 +459,10 @@ impl AppConfig {
 
     pub fn sgates(&self) -> &Vec<SGateDesc> {
         &self.sgates
+    }
+
+    pub fn get_mod(&self, lname: &str) -> Option<&ModDesc> {
+        self.mods.iter().find(|r| r.name().local() == lname)
     }
 
     pub fn get_rgate(&self, lname: &str) -> Option<&RGateDesc> {
@@ -700,13 +697,12 @@ impl AppConfig {
                 w = layer + 2
             )?;
         }
-        for m in &self.phys_mems {
+        for m in &self.mods {
             writeln!(
                 f,
-                "{:0w$}PhysMem[addr={:#x}, size={:#x} KiB, perm={:?}],",
+                "{:0w$}Mod[{:?}, perm={:?}],",
                 "",
-                m.phys(),
-                m.size() / 1024,
+                m.name,
                 m.perm(),
                 w = layer + 2
             )?;

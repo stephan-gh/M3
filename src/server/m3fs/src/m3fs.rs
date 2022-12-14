@@ -39,7 +39,6 @@ use m3::{
     com::{GateIStream, RecvGate},
     env,
     errors::{Code, Error},
-    goff,
     server::{
         server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
         DEF_MAX_CLIENTS,
@@ -60,7 +59,6 @@ pub const LOG_LINKS: bool = false;
 pub const LOG_FIND: bool = false;
 
 // Server constants
-const FS_IMG_OFFSET: goff = 0;
 const MSG_SIZE: usize = 128;
 
 // The global request handler
@@ -462,13 +460,12 @@ impl Handler<FSSession> for M3FSRequestHandler {
 pub struct FsSettings {
     name: String,
     backend: String,
-    fs_size: usize,
+    mem_mod: String,
     extend: usize,
     max_load: usize,
     max_clients: usize,
     clear: bool,
     selector: Option<Selector>,
-    fs_offset: goff,
 }
 
 impl core::default::Default for FsSettings {
@@ -476,31 +473,30 @@ impl core::default::Default for FsSettings {
         FsSettings {
             name: String::from("m3fs"),
             backend: String::from("mem"),
-            fs_size: 0,
+            mem_mod: String::from("fs"),
             extend: 128,
             max_load: 128,
             max_clients: DEF_MAX_CLIENTS,
             clear: false,
             selector: None,
-            fs_offset: FS_IMG_OFFSET,
         }
     }
 }
 
 fn usage() -> ! {
     println!(
-        "Usage: {} [-n <name>] [-s <sel>] [-e <blocks>] [-c] [-b <blocks>]",
+        "Usage: {} [-n <name>] [-s <sel>] [-e <blocks>] [-c] [-f <name>] [-b <blocks>]",
         env::args().next().unwrap()
     );
-    println!("       [-o <offset>] [-m <clients>] (disk|mem <fssize>)");
+    println!("       [-m <clients>] (disk|mem)");
     println!();
     println!("  -n: the name of the service (m3fs by default)");
     println!("  -s: don't create service, use selectors <sel>..<sel+1>");
     println!("  -e: the number of blocks to extend files when appending");
     println!("  -c: clear allocated blocks");
     println!("  -b: the maximum number of blocks loaded from the disk");
-    println!("  -o: the file system offset in DRAM");
     println!("  -m: the maximum number of clients (receive slots)");
+    println!("  -f: the name of the FS boot module ('fs' by default)");
     Activity::own().exit_with(Code::InvArgs);
 }
 
@@ -512,6 +508,7 @@ fn parse_args() -> Result<FsSettings, String> {
     while i < args.len() {
         match args[i] {
             "-n" => settings.name = args[i + 1].to_string(),
+            "-f" => settings.mem_mod = args[i + 1].to_string(),
             "-s" => {
                 if let Ok(s) = args[i + 1].parse::<Selector>() {
                     settings.selector = Some(s);
@@ -526,11 +523,6 @@ fn parse_args() -> Result<FsSettings, String> {
                 settings.max_load = args[i + 1]
                     .parse::<usize>()
                     .map_err(|_| String::from("Could not parse max load"))?;
-            },
-            "-o" => {
-                settings.fs_offset = args[i + 1]
-                    .parse::<goff>()
-                    .map_err(|_| String::from("Failed to parse FS offset"))?;
             },
             "-m" => {
                 settings.max_clients = args[i + 1]
@@ -549,12 +541,7 @@ fn parse_args() -> Result<FsSettings, String> {
 
     settings.backend = args[i].to_string();
     match settings.backend.as_str() {
-        "mem" => {
-            settings.fs_size = args[i + 1]
-                .parse::<usize>()
-                .map_err(|_| String::from("Failed to parse fs size"))?;
-        },
-        "disk" => {},
+        "mem" | "disk" => {},
         backend => return Err(format!("Unknown backend {}", backend)),
     }
 
@@ -572,10 +559,7 @@ pub fn main() -> Result<(), Error> {
 
     // create backend for the file system
     let mut hdl = if SETTINGS.get().backend == "mem" {
-        let backend = Box::new(MemBackend::new(
-            SETTINGS.get().fs_offset,
-            SETTINGS.get().fs_size,
-        ));
+        let backend = Box::new(MemBackend::new(&SETTINGS.get().mem_mod));
         M3FSRequestHandler::new(backend)
             .expect("Failed to create m3fs handler based on memory backend")
     }

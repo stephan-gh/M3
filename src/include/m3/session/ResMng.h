@@ -51,6 +51,7 @@ public:
         USE_RGATE,
         USE_SGATE,
         USE_SEM,
+        USE_MOD,
     };
 
     class ResMngException : public m3::Exception {
@@ -126,8 +127,8 @@ public:
         retrieve_result(CLOSE_SESS, reply);
     }
 
-    void alloc_mem(capsel_t sel, goff_t addr, size_t size, int perm) {
-        GateIStream reply = send_receive_vmsg(_sgate, ALLOC_MEM, sel, addr, size, perm);
+    void alloc_mem(capsel_t sel, size_t size, int perm) {
+        GateIStream reply = send_receive_vmsg(_sgate, ALLOC_MEM, sel, size, perm);
         retrieve_result(ALLOC_MEM, reply);
     }
 
@@ -166,6 +167,11 @@ public:
     void use_sem(capsel_t sel, const std::string_view &name) {
         GateIStream reply = send_receive_vmsg(_sgate, USE_SEM, sel, name);
         retrieve_result(USE_SEM, reply);
+    }
+
+    void use_mod(capsel_t sel, const std::string_view &name) {
+        GateIStream reply = send_receive_vmsg(_sgate, USE_MOD, sel, name);
+        retrieve_result(USE_MOD, reply);
     }
 
 private:

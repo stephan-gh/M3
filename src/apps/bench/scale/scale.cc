@@ -52,12 +52,11 @@ struct App {
 };
 
 static void usage(const char *name) {
-    eprintln("Usage: {} [-l] [-i <instances>] [-r <repeats>] [-f <fssize>] <name>"_cf, name);
+    eprintln("Usage: {} [-l] [-i <instances>] [-r <repeats>] <name>"_cf, name);
     eprintln("  -l enables the load generator"_cf);
     eprintln("  <instances> specifies the number of application (<name>) instances"_cf);
     eprintln("  <repeats> specifies the number of repetitions of the benchmark"_cf);
     eprintln("  <name> specifies the name of the application trace"_cf);
-    eprintln("  -f <fssize> creates an own m3fs instance for every application with given size"_cf);
     exit(1);
 }
 
@@ -65,8 +64,6 @@ int main(int argc, char **argv) {
     bool loadgen = false;
     size_t instances = 1;
     int repeats = 1;
-    const char *fs_size_str = nullptr;
-    size_t fs_size = 0;
 
     int opt;
     while((opt = getopt(argc, argv, "li:s:r:f:")) != -1) {
@@ -74,11 +71,6 @@ int main(int argc, char **argv) {
             case 'l': loadgen = true; break;
             case 'i': instances = IStringStream::read_from<size_t>(optarg); break;
             case 'r': repeats = IStringStream::read_from<int>(optarg); break;
-            case 'f': {
-                fs_size_str = optarg;
-                fs_size = IStringStream::read_from<size_t>(fs_size_str);
-                break;
-            }
             default: usage(argv[0]);
         }
     }
@@ -94,7 +86,7 @@ int main(int argc, char **argv) {
         println("Creating application activities..."_cf);
 
     const size_t ARG_COUNT = loadgen ? 11 : 9;
-    const size_t FS_ARG_COUNT = 9;
+    const size_t FS_ARG_COUNT = 8;
     for(size_t i = 0; i < instances; ++i) {
         auto tile = Tile::get("core");
 
@@ -104,7 +96,7 @@ int main(int argc, char **argv) {
             apps[i] = new App(tile, ARG_COUNT, args);
         }
 
-        if(fs_size_str) {
+        {
             const char **args = new const char *[FS_ARG_COUNT];
             args[0] = "/sbin/m3fs";
             fs[i] = new App(tile, FS_ARG_COUNT, args);
@@ -115,31 +107,27 @@ int main(int argc, char **argv) {
         println("Starting activities..."_cf);
 
     for(size_t i = 0; i < instances; ++i) {
-        OStringStream fs_name;
-        if(fs_size_str) {
-            fs[i]->argv[1] = "-m";
-            fs[i]->argv[2] = "1";
-            fs[i]->argv[3] = "-o";
-            OStringStream fs_off;
-            format_to(fs_off, "{}"_cf, i * fs_size);
-            fs[i]->argv[4] = fs_off.str();
-            fs[i]->argv[5] = "-n";
-            format_to(fs_name, "m3fs-{}"_cf, i);
-            fs[i]->argv[6] = fs_name.str();
-            fs[i]->argv[7] = "mem";
-            fs[i]->argv[8] = fs_size_str;
+        OStringStream inst_name, fs_name;
+        fs[i]->argv[1] = "-m";
+        fs[i]->argv[2] = "1";
+        fs[i]->argv[3] = "-n";
+        format_to(inst_name, "m3fs-{}"_cf, i);
+        fs[i]->argv[4] = inst_name.str();
+        fs[i]->argv[5] = "-f";
+        format_to(fs_name, "fs{}"_cf, i + 1);
+        fs[i]->argv[6] = fs_name.str();
+        fs[i]->argv[7] = "mem";
 
-            fs[i]->act.exec(static_cast<int>(fs[i]->argc), fs[i]->argv);
+        fs[i]->act.exec(static_cast<int>(fs[i]->argc), fs[i]->argv);
 
-            // wait until the service is available
-            while(true) {
-                try {
-                    ClientSession sess(fs_name.str());
-                    break;
-                }
-                catch(...) {
-                    Activity::sleep_for(TimeDuration::from_micros(10));
-                }
+        // wait until the service is available
+        while(true) {
+            try {
+                ClientSession sess(inst_name.str());
+                break;
+            }
+            catch(...) {
+                Activity::sleep_for(TimeDuration::from_micros(10));
             }
         }
 
@@ -161,14 +149,8 @@ int main(int argc, char **argv) {
         OStringStream rgatesel(new char[11], 11);
         format_to(rgatesel, "{}"_cf, apps[i]->rgate.sel());
         apps[i]->argv[5] = rgatesel.str();
-        if(fs_size_str) {
-            apps[i]->argv[6] = "-f";
-            apps[i]->argv[7] = fs_name.str();
-        }
-        else {
-            apps[i]->argv[6] = "-w";
-            apps[i]->argv[7] = "-w";
-        }
+        apps[i]->argv[6] = "-f";
+        apps[i]->argv[7] = inst_name.str();
         if(loadgen) {
             apps[i]->argv[8] = "-l";
             OStringStream loadgen(new char[16], 16);
@@ -185,9 +167,6 @@ int main(int argc, char **argv) {
                 print("{} "_cf, apps[i]->argv[x]);
             println();
         }
-
-        if(!fs_size_str)
-            apps[i]->act.add_mount("/", "/");
 
         apps[i]->act.exec(static_cast<int>(apps[i]->argc), apps[i]->argv);
     }
@@ -222,8 +201,7 @@ int main(int argc, char **argv) {
 
     for(size_t i = 0; i < instances; ++i) {
         delete apps[i];
-        if(fs_size_str)
-            delete fs[i];
+        delete fs[i];
     }
 
     if(VERBOSE)

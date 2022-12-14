@@ -1,11 +1,14 @@
 <config>
+    <mods>
+        <mod name="fs" file="default.img" />
+    </mods>
     <kernel args="kernel" />
     <dom>
         <app args="root">
             <dom>
-                <app args="m3fs mem $fs.size" daemon="1">
+                <app args="m3fs mem" daemon="1">
                     <serv name="m3fs" />
-                    <physmem addr="0" size="$fs.size" />
+                    <mod name="fs" />
                 </app>
             </dom>
             <dom>
@@ -18,15 +21,15 @@
                 </app>
             </dom>
             <dom>
-                <app args="pager $fs.size" usermem="512M" getinfo="1">
+                <app args="pager" usermem="512M" getinfo="1">
                     <sess name="m3fs" />
-                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <mod name="fs" perm="r" />
                     <sesscrt name="m3fs" count="24" />
                     <tiles type="core" count="1" />
                     <dom>
-                        <app args="/sbin/pager $fs.size" getinfo="1">
+                        <app args="/sbin/pager" getinfo="1">
                             <sess name="m3fs" />
-                            <physmem addr="0" size="$fs.size" perm="r" />
+                            <mod name="fs" perm="r" />
                             <tiles type="core" count="2" />
                             <dom>
                                 <app args="/bin/shell" getinfo="1">

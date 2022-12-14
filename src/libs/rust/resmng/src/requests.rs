@@ -112,6 +112,8 @@ fn handle_request_async(mut is: GateIStream<'_>) {
 
         Ok(resmng::Operation::USE_SEM) => use_sem(&mut is, id),
 
+        Ok(resmng::Operation::USE_MOD) => use_mod(&mut is, id),
+
         Ok(resmng::Operation::GET_SERIAL) => get_serial(&mut is, id),
 
         Ok(resmng::Operation::GET_INFO) => get_info(&mut is, id),
@@ -176,12 +178,7 @@ fn alloc_mem(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
 
     let mut childs = childs::borrow_mut();
     let child = childs.child_by_id_mut(id).unwrap();
-    if req.addr == !0 {
-        child.alloc_mem(req.dst, req.size, req.perms)
-    }
-    else {
-        child.alloc_mem_at(req.dst, req.addr, req.size, req.perms)
-    }
+    child.alloc_mem(req.dst, req.size, req.perms)
 }
 
 fn free_mem(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
@@ -239,6 +236,14 @@ fn use_sem(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
     let mut childs = childs::borrow_mut();
     let child = childs.child_by_id_mut(id).unwrap();
     child.use_sem(&req.name, req.dst)
+}
+
+fn use_mod(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
+    let req: resmng::UseReq = is.pop()?;
+
+    let mut childs = childs::borrow_mut();
+    let child = childs.child_by_id_mut(id).unwrap();
+    child.use_mod(&req.name, req.dst)
 }
 
 fn get_serial(is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {

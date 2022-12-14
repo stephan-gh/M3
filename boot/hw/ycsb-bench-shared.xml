@@ -1,20 +1,23 @@
 <config>
+    <mods>
+        <mod name="fs" file="bench.img" />
+    </mods>
     <kernel args="kernel" />
     <dom>
         <app args="root">
             <dom>
-                <app args="m3fs mem $fs.size" daemon="1">
+                <app args="m3fs mem" daemon="1">
                     <serv name="m3fs" />
-                    <physmem addr="0" size="$fs.size" />
+                    <mod name="fs" />
                 </app>
             </dom>
             <dom tile="boom+nic">
-                <app args="pager maxcli=3 $fs.size" usermem="768M">
+                <app args="pager maxcli=3" usermem="768M">
                     <sess name="m3fs" />
-                    <physmem addr="0" size="$fs.size" perm="r" />
-                    <app args="/sbin/m3fs -m 1 mem $fs.size" daemon="1">
+                    <mod name="fs" perm="r" />
+                    <app args="/sbin/m3fs -m 1 mem" daemon="1">
                         <serv lname="m3fs" gname="app_m3fs" />
-                        <physmem addr="0" size="$fs.size" />
+                        <mod name="fs" />
                     </app>
                     <app args="/sbin/net -m 1 net 192.168.41.11" daemon="1">
                         <serv name="net" />

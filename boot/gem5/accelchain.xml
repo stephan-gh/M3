@@ -1,12 +1,15 @@
 <config>
-    <env>M3_GEM5_CFG=config/accels.py M3_FS=bench.img</env>
+    <env>M3_GEM5_CFG=config/accels.py</env>
+    <mods>
+        <mod name="fs" file="bench.img" />
+    </mods>
     <kernel args="kernel" />
     <dom>
         <app args="root">
             <dom>
-                <app args="m3fs mem $fs.size" daemon="1">
+                <app args="m3fs mem" daemon="1">
                     <serv name="m3fs" />
-                    <physmem addr="0" size="$fs.size" />
+                    <mod name="fs" />
                 </app>
             </dom>
             <dom>
@@ -15,9 +18,9 @@
                 </app>
             </dom>
             <dom>
-                <app args="pager $fs.size">
+                <app args="pager">
                     <sess name="m3fs" />
-                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <mod name="fs" perm="r" />
                     <tiles type="core" count="1" />
                     <dom>
                         <app args="/bin/accelchain -m dir -n 3 -c 1024 -r 1 /medium.bin /tmp/out1.txt">

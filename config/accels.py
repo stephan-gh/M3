@@ -11,8 +11,6 @@ cmd_list = options.cmd.split(",")
 num_eps = 128 if os.environ.get('M3_TARGET') == 'hw' else 192
 num_mem = 1
 num_tiles = int(os.environ.get('M3_GEM5_TILES'))
-fsimg = os.environ.get('M3_GEM5_FS')
-fsimgnum = os.environ.get('M3_GEM5_FSNUM', '1')
 accs = ['indir', 'indir', 'indir', 'indir', 'copy', 'copy', 'copy', 'copy', 'rot13']
 mem_tile = TileId(0, num_tiles + len(accs))
 
@@ -49,8 +47,6 @@ for i in range(0, num_mem):
                          options=options,
                          id=TileId(0, num_tiles + len(accs) + i),
                          size='3072MB',
-                         image=fsimg if i == 0 else None,
-                         imageNum=int(fsimgnum),
                          epCount=num_eps)
     tiles.append(tile)
 

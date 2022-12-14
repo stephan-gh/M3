@@ -1,5 +1,7 @@
 <config>
-    <env>M3_FS=bench.img</env>
+    <mods>
+        <mod name="fs" file="bench.img" />
+    </mods>
     <kernel args="kernel" />
     <dom>
         <app args="root maxcli=3">
@@ -7,15 +9,15 @@
                 <serv name="pipes" />
             </app>
             <dom>
-                <app args="m3fs -m 2 mem $fs.size" daemon="1">
+                <app args="m3fs -m 2 mem" daemon="1">
                     <serv name="m3fs" />
-                    <physmem addr="0" size="$fs.size" />
+                    <mod name="fs" />
                 </app>
             </dom>
             <dom>
-                <app args="pager maxcli=3 $fs.size">
+                <app args="pager maxcli=3">
                     <sess name="m3fs" />
-                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <mod name="fs" perm="r" />
                     <tiles type="core" count="1" />
                     <app args="/bin/rustbenchs" time="1s">
                         <mount fs="m3fs" path="/" />

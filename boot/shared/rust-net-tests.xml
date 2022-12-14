@@ -1,10 +1,14 @@
 <config>
+    <env>M3_GEM5_CFG=config/default.py</env>
+    <mods>
+        <mod name="fs" file="default.img" />
+    </mods>
     <kernel args="kernel" />
     <dom>
         <app args="root">
-            <app args="m3fs mem $fs.size" daemon="1">
+            <app args="m3fs mem" daemon="1">
                 <serv name="m3fs" />
-                <physmem addr="0" size="$fs.size" />
+                <mod name="fs" />
             </app>
             <dom>
                 <app args="net net0 192.168.112.2" daemon="1">
@@ -24,9 +28,9 @@
                 </app>
             </dom>
             <dom>
-                <app args="pager sem=net-udp sem=net-tcp $fs.size">
+                <app args="pager sem=net-udp sem=net-tcp">
                     <sess name="m3fs" />
-                    <physmem addr="0" size="$fs.size" perm="r" />
+                    <mod name="fs" perm="r" />
                     <tiles type="core" count="2" />
                     <app args="/bin/netechoserver" daemon="1">
                         <sess lname="net" gname="net1" args="bufs=1M socks=2 udp=1337 tcp=1338" />
