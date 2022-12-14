@@ -28,6 +28,8 @@ use crate::ktcu;
 use crate::mem::{self, MemMod, MemType};
 use crate::tiles::KERNEL_ID;
 
+const MAX_PHYS_ADDR_SIZE: u64 = 1 << 30;
+
 pub struct KEnv {
     info: boot::Info,
     info_addr: GlobAddr,
@@ -152,6 +154,8 @@ pub fn init() {
 
                 // file system image
                 let mut used = tile.desc.mem_size() as goff - avail;
+                // ensure that we can actually reach the memory with 30-bit physical addresses
+                assert!(used < MAX_PHYS_ADDR_SIZE);
                 mem.add(MemMod::new(MemType::OCCUPIED, tile.id, 0, used));
                 umems.push(boot::Mem::new(GlobAddr::new_with(tile.id, 0), used, true));
 
@@ -181,7 +185,7 @@ pub fn init() {
                 used += cfg::FIXED_ROOT_MEM as goff;
 
                 // user memory
-                let user_size = core::cmp::min((1 << 30) - cfg::PAGE_SIZE as goff, avail);
+                let user_size = core::cmp::min(MAX_PHYS_ADDR_SIZE, avail);
                 mem.add(MemMod::new(MemType::USER, tile.id, used, user_size));
                 umems.push(boot::Mem::new(
                     GlobAddr::new_with(tile.id, used),
@@ -190,11 +194,11 @@ pub fn init() {
                 ));
             }
             else {
-                let user_size = core::cmp::min((1 << 30) - cfg::PAGE_SIZE, tile.desc.mem_size());
-                mem.add(MemMod::new(MemType::USER, tile.id, 0, user_size as goff));
+                let user_size = core::cmp::min(MAX_PHYS_ADDR_SIZE, tile.desc.mem_size() as goff);
+                mem.add(MemMod::new(MemType::USER, tile.id, 0, user_size));
                 umems.push(boot::Mem::new(
                     GlobAddr::new_with(tile.id, 0),
-                    user_size as goff,
+                    user_size,
                     false,
                 ));
             }
