@@ -112,7 +112,7 @@ build_params_gem5() {
     generate_config "$1" "$M3_OUT" || exit 1
 
     kernels=$(perl -ne 'printf("'"$bindir"/'%s,", $1) if /<kernel\s.*args="(.*?)"/' < "$1")
-    mods=$(get_mods "$1" "gem5")
+    mods=$(get_mods "$1" "gem5") || exit 1
 
     if [ "$M3_GEM5_DBG" = "" ]; then
         M3_GEM5_DBG="Tcu"
@@ -197,7 +197,7 @@ build_params_hw() {
     generate_config "$1" "$M3_OUT" || exit 1
 
     kernels=$(perl -ne 'printf("%s,", $1) if /<kernel\s.*args="(.*?)"/' < "$M3_OUT/boot-all.xml")
-    mods=$(get_mods "$1" "hw")
+    mods=$(get_mods "$1" "hw") || exit 1
 
     if [ "$M3_HW_RESET" = "1" ]; then
         args="$args --reset"
