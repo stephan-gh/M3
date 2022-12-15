@@ -145,21 +145,27 @@ pub fn init() {
         .map(|(id, desc)| boot::Tile::new(*id, *desc));
     for tile in all_tiles {
         if tile.desc.tile_type() == TileType::MEM {
-            // the first memory module hosts the FS image and other stuff
+            // the first memory module hosts the boot modules and tile-specific memory areas
             if kmem_idx == 0 {
                 let avail = mems[kmem_idx].size();
                 if avail <= args::get().kmem as goff {
                     panic!("Not enough DRAM for kernel memory ({})", args::get().kmem);
                 }
 
-                // file system image
-                let mut used = tile.desc.mem_size() as goff - avail;
+                // boot modules
+                let last_mod = mods.last().unwrap();
+                let mods_end = (last_mod.addr() + last_mod.size).offset();
                 // ensure that we can actually reach the memory with 30-bit physical addresses
-                assert!(used < MAX_PHYS_ADDR_SIZE);
-                mem.add(MemMod::new(MemType::OCCUPIED, tile.id, 0, used));
-                umems.push(boot::Mem::new(GlobAddr::new_with(tile.id, 0), used, true));
+                assert!(mods_end < MAX_PHYS_ADDR_SIZE);
+                mem.add(MemMod::new(MemType::OCCUPIED, tile.id, 0, mods_end));
+                umems.push(boot::Mem::new(
+                    GlobAddr::new_with(tile.id, 0),
+                    mods_end,
+                    true,
+                ));
 
                 // kernel memory
+                let mut used = tile.desc.mem_size() as goff - avail;
                 let kmem = MemMod::new(MemType::KERNEL, tile.id, used, args::get().kmem as goff);
                 used += args::get().kmem as goff;
                 // configure EP to give us access to this range of physical memory
