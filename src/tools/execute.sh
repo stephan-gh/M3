@@ -42,15 +42,20 @@ generate_config() {
     env=$(xmllint --xpath "/config/env/text()" "$1" 2>/dev/null)
     if [ "$env" != "" ]; then
         for e in $env; do
-            # warn if the user has set it to a different value
             var=${e%%=*}
             val=${e#*=}
             old_env=$(env | grep "^$var=")
             old_val=${old_env#*=}
-            if [ "$old_val" != "" ] && [ "$old_val" != "$val" ]; then
-                echo "Warning: $var is already set to '$old_val', but overridden to '$val' by $1."
+            if [ "$old_val" != "" ]; then
+                # warn if the user has set it to a different value
+                if [ "$old_val" != "$val" ]; then
+                    echo -n "Warning: $var is already set to '$old_val',"
+                    echo " ignoring overwrite to '$val' by '$1'."
+                fi
+            else
+                # only set it if the user has not already set the environment variable
+                export $e
             fi
-            export $e
         done
     fi
 
