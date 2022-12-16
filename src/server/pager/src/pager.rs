@@ -24,32 +24,32 @@ mod regions;
 use core::ops::DerefMut;
 
 use m3::cap::Selector;
-use m3::cell::{LazyReadOnlyCell, LazyStaticRefCell, StaticRefCell};
+use m3::cell::{LazyReadOnlyCell, LazyStaticRefCell};
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, MemGate, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::kif;
 use m3::log;
+use m3::rc::Rc;
 use m3::server::{
     CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer, DEF_MSG_SIZE,
 };
 use m3::session::{ClientSession, Pager, PagerOp, ResMng, M3FS};
-use m3::tcu::{Label, TileId};
+use m3::tcu::Label;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity};
 use m3::util::math;
 use m3::vfs;
 
 use addrspace::AddrSpace;
 use resmng::childs::{self, Child, OwnChild};
-use resmng::{requests, sendqueue, subsys};
+use resmng::{config, requests, sendqueue, subsys, tiles};
 
 pub const LOG_DEF: bool = false;
 
 static PGHDL: LazyStaticRefCell<PagerReqHandler> = LazyStaticRefCell::default();
 static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 static MOUNTS: LazyStaticRefCell<Vec<(String, String)>> = LazyStaticRefCell::default();
-static PMP_TILES: StaticRefCell<Vec<TileId>> = StaticRefCell::new(Vec::new());
 
 struct PagerReqHandler {
     sel: Selector,
@@ -163,77 +163,81 @@ fn get_mount(name: &str) -> Result<String, VerboseError> {
     Ok(our_path)
 }
 
-fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
-    // send gate for resmng
-    #[allow(clippy::useless_conversion)]
-    let resmng_sgate = SendGate::new_with(
-        SGateArgs::new(&requests::rgate())
-            .credits(1)
-            .label(Label::from(child.id())),
-    )?;
+struct PagedChildStarter {}
 
-    // create pager session for child (creator=0 here because we create all sessions ourself)
-    let (sel, sid, child_sgate) = {
-        let mut hdl = PGHDL.borrow_mut();
-        let srv_sel = hdl.sel;
-        let (sel, sid) = hdl.open(0, srv_sel, "")?;
-        let aspace = hdl.sessions.get_mut(sid).unwrap();
-        let child_sgate = aspace.add_sgate(REQHDL.get().recv_gate()).unwrap();
-        (sel, sid, child_sgate)
-    };
-    let sess = ClientSession::new_bind(sel);
-    #[allow(clippy::useless_conversion)]
-    let pager_sgate = SendGate::new_with(
-        SGateArgs::new(REQHDL.get().recv_gate())
-            .credits(1)
-            .label(Label::from(sid as u32)),
-    )?;
+impl subsys::ChildStarter for PagedChildStarter {
+    fn start(&mut self, child: &mut OwnChild) -> Result<(), VerboseError> {
+        // send gate for resmng
+        #[allow(clippy::useless_conversion)]
+        let resmng_sgate = SendGate::new_with(
+            SGateArgs::new(&requests::rgate())
+                .credits(1)
+                .label(Label::from(child.id())),
+        )?;
 
-    // create child activity
-    let tile_usage = child.child_tile().unwrap();
-    let mut act = ChildActivity::new_with(
-        tile_usage.tile_obj().clone(),
-        ActivityArgs::new(child.name())
-            .resmng(ResMng::new(resmng_sgate))
-            .pager(Pager::new(sess, pager_sgate, child_sgate)?)
-            .kmem(child.kmem().unwrap()),
-    )?;
+        // create pager session for child (creator=0 here because we create all sessions ourself)
+        let (sel, sid, child_sgate) = {
+            let mut hdl = PGHDL.borrow_mut();
+            let srv_sel = hdl.sel;
+            let (sel, sid) = hdl.open(0, srv_sel, "")?;
+            let aspace = hdl.sessions.get_mut(sid).unwrap();
+            let child_sgate = aspace.add_sgate(REQHDL.get().recv_gate()).unwrap();
+            (sel, sid, child_sgate)
+        };
+        let sess = ClientSession::new_bind(sel);
+        #[allow(clippy::useless_conversion)]
+        let pager_sgate = SendGate::new_with(
+            SGateArgs::new(REQHDL.get().recv_gate())
+                .credits(1)
+                .label(Label::from(sid as u32)),
+        )?;
 
-    // add PMP EP for file system
-    {
-        let mut pmp_tiles = PMP_TILES.borrow_mut();
-        if !pmp_tiles.iter().any(|id| *id == tile_usage.tile_id()) {
-            let fs_mod = MemGate::new_bind_bootmod("fs")?;
-            let fs_mod_size = fs_mod.region()?.1 as usize;
-            child.our_tile().add_mem_region(fs_mod, fs_mod_size, true)?;
-            pmp_tiles.push(tile_usage.tile_id());
+        // create child activity
+        let mut act = ChildActivity::new_with(
+            child.child_tile().unwrap().tile_obj().clone(),
+            ActivityArgs::new(child.name())
+                .resmng(ResMng::new(resmng_sgate))
+                .pager(Pager::new(sess, pager_sgate, child_sgate)?)
+                .kmem(child.kmem().unwrap()),
+        )?;
+
+        // pass subsystem info to child, if it's a subsystem
+        let id = child.id();
+        if let Some(sub) = child.subsys() {
+            sub.finalize_async(id, &mut act)?;
         }
+
+        // mount file systems for childs
+        for m in child.cfg().mounts() {
+            let path = get_mount(m.fs())?;
+            act.add_mount(m.path(), &path);
+        }
+
+        // init address space (give it activity and mgate selector)
+        let mut hdl = PGHDL.borrow_mut();
+        let aspace = hdl.sessions.get_mut(sid).unwrap();
+        aspace.init(Some(child.id()), Some(act.sel())).unwrap();
+
+        // start activity
+        let file = vfs::VFS::open(child.name(), vfs::OpenFlags::RX | vfs::OpenFlags::NEW_SESS)
+            .map_err(|e| VerboseError::new(e.code(), format!("Unable to open {}", child.name())))?;
+        let mut mapper = mapper::ChildMapper::new(aspace, act.tile_desc().has_virtmem());
+        child
+            .start(act, &mut mapper, file.into_generic())
+            .map_err(|e| VerboseError::new(e.code(), "Unable to start Activity".to_string()))
     }
 
-    // pass subsystem info to child, if it's a subsystem
-    let id = child.id();
-    if let Some(sub) = child.subsys() {
-        sub.finalize_async(id, &mut act)?;
+    fn configure_tile(
+        &mut self,
+        tile: Rc<tiles::TileUsage>,
+        _domain: &config::Domain,
+    ) -> Result<(), VerboseError> {
+        let fs_mod = MemGate::new_bind_bootmod("fs")?;
+        let fs_mod_size = fs_mod.region()?.1 as usize;
+        tile.add_mem_region(fs_mod, fs_mod_size, true).map_err(|e| {
+            VerboseError::new(e.code(), "Unable to add PMP EP for FS image".to_string())
+        })
     }
-
-    // mount file systems for childs
-    for m in child.cfg().mounts() {
-        let path = get_mount(m.fs())?;
-        act.add_mount(m.path(), &path);
-    }
-
-    // init address space (give it activity and mgate selector)
-    let mut hdl = PGHDL.borrow_mut();
-    let aspace = hdl.sessions.get_mut(sid).unwrap();
-    aspace.init(Some(child.id()), Some(act.sel())).unwrap();
-
-    // start activity
-    let file = vfs::VFS::open(child.name(), vfs::OpenFlags::RX | vfs::OpenFlags::NEW_SESS)
-        .map_err(|e| VerboseError::new(e.code(), format!("Unable to open {}", child.name())))?;
-    let mut mapper = mapper::ChildMapper::new(aspace, act.tile_desc().has_virtmem());
-    child
-        .start(act, &mut mapper, file.into_generic())
-        .map_err(|e| VerboseError::new(e.code(), "Unable to start Activity".to_string()))
 }
 
 fn handle_request(op: PagerOp, is: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -274,7 +278,7 @@ fn workloop(serv: &Server) {
 
             REQHDL.get().handle(handle_request).ok();
         },
-        start_child_async,
+        &mut PagedChildStarter {},
     )
     .expect("Unable to run workloop");
 }
@@ -337,7 +341,7 @@ pub fn main() -> Result<(), Error> {
     }
 
     subsys
-        .start(start_child_async)
+        .start(&mut PagedChildStarter {})
         .expect("Unable to start subsystem");
 
     childs::borrow_mut().start_waiting(1);

@@ -116,14 +116,18 @@ impl MemModCon {
         self.available
     }
 
-    pub fn find_mem(&mut self, phys: goff, size: goff, perm: Perm) -> Result<MemSlice, Error> {
+    pub fn find_mem(&mut self, addr: GlobAddr, size: goff, perm: Perm) -> Result<MemSlice, Error> {
         for m in &self.mods {
-            // TODO specify memory id
-            if m.reserved
-                && phys >= m.addr.offset()
-                && phys + size <= m.addr.offset() + m.capacity()
+            if addr.tile() == m.addr.tile()
+                && addr.offset() >= m.addr.offset()
+                && addr.offset() + size <= m.addr.offset() + m.capacity()
             {
-                return Ok(MemSlice::new(m.clone(), phys - m.addr.offset(), size, perm));
+                return Ok(MemSlice::new(
+                    m.clone(),
+                    addr.offset() - m.addr.offset(),
+                    size,
+                    perm,
+                ));
             }
         }
         Err(Error::new(Code::InvArgs))

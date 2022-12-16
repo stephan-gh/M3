@@ -23,7 +23,7 @@ use m3::tiles::Activity;
 
 use crate::childs::{self, Id};
 use crate::sendqueue;
-use crate::subsys;
+use crate::subsys::{self, ChildStarter};
 
 static RGATE: LazyStaticRefCell<RecvGate> = LazyStaticRefCell::default();
 
@@ -35,10 +35,9 @@ pub fn rgate() -> Ref<'static, RecvGate> {
     RGATE.borrow()
 }
 
-pub fn workloop<F, S>(mut func: F, mut spawn: S) -> Result<(), VerboseError>
+pub fn workloop<F>(mut func: F, starter: &mut dyn ChildStarter) -> Result<(), VerboseError>
 where
     F: FnMut(),
-    S: FnMut(&mut childs::OwnChild) -> Result<(), VerboseError>,
 {
     let upcall_rg = RecvGate::upcall();
 
@@ -48,7 +47,7 @@ where
             if let Ok(msg) = rgate.fetch() {
                 let is = GateIStream::new(msg, &rgate);
                 handle_request_async(is);
-                subsys::start_delayed_async(&mut spawn)?;
+                subsys::start_delayed_async(starter)?;
             }
         }
 

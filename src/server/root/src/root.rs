@@ -24,9 +24,12 @@ use m3::cfg;
 use m3::col::ToString;
 use m3::com::{MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error, VerboseError};
+use m3::format;
 use m3::goff;
 use m3::kif;
 use m3::log;
+use m3::mem::GlobAddr;
+use m3::rc::Rc;
 use m3::session::ResMng;
 use m3::syscalls;
 use m3::tcu;
@@ -35,72 +38,129 @@ use m3::util::math;
 use m3::vfs::FileRef;
 
 use resmng::childs::{self, Child, OwnChild};
-use resmng::{memory, requests, sendqueue, subsys};
+use resmng::{config, memory, requests, sendqueue, subsys, tiles};
 
 static SUBSYS: LazyReadOnlyCell<subsys::Subsystem> = LazyReadOnlyCell::default();
-static BMODS: StaticCell<u64> = StaticCell::new(0);
+static LOADED_BMODS: StaticCell<u64> = StaticCell::new(0);
+static PMP_BMODS: StaticCell<u64> = StaticCell::new(0);
 
-fn find_mod(name: &str) -> Option<(MemGate, usize)> {
+fn fetch_mod(mask: &StaticCell<u64>, name: &str) -> Option<(MemGate, GlobAddr, goff)> {
     SUBSYS
         .get()
         .mods()
         .iter()
         .enumerate()
-        .position(|(idx, m)| (BMODS.get() & (1 << idx)) == 0 && m.name() == name)
+        .position(|(idx, m)| (mask.get() & (1 << idx)) == 0 && m.name() == name)
         .map(|idx| {
-            BMODS.set(BMODS.get() | 1 << idx);
+            mask.set(mask.get() | 1 << idx);
+            let bmod = SUBSYS.get().mods()[idx];
             (
                 subsys::Subsystem::get_mod(idx),
-                SUBSYS.get().mods()[idx].size as usize,
+                GlobAddr::new(bmod.addr),
+                bmod.size,
             )
         })
 }
 
-fn start_child_async(child: &mut OwnChild) -> Result<(), VerboseError> {
-    let bmod = find_mod(child.cfg().name()).ok_or_else(|| Error::new(Code::NotFound))?;
+fn modules_range(domain: &config::Domain) -> Result<(GlobAddr, goff), VerboseError> {
+    let mut start = goff::MAX;
+    let mut end = 0;
+    for app in domain.apps() {
+        let (_mgate, addr, size) = fetch_mod(&PMP_BMODS, app.name()).ok_or_else(|| {
+            VerboseError::new(
+                Code::NotFound,
+                format!("Unable to find boot module {}", app.name()),
+            )
+        })?;
+        start = start.min(addr.raw());
+        end = end.max(addr.raw() + size);
+    }
+    Ok((GlobAddr::new(start), end - start))
+}
 
-    #[allow(clippy::useless_conversion)]
-    let sgate = SendGate::new_with(
-        SGateArgs::new(&requests::rgate())
-            .credits(1)
-            .label(tcu::Label::from(child.id())),
-    )?;
+struct RootChildStarter {}
 
-    let mut act = ChildActivity::new_with(
-        child.child_tile().unwrap().tile_obj().clone(),
-        ActivityArgs::new(child.name())
-            .resmng(ResMng::new(sgate))
-            .kmem(child.kmem().unwrap()),
-    )
-    .map_err(|e| VerboseError::new(e.code(), "Unable to create Activity".to_string()))?;
+impl resmng::subsys::ChildStarter for RootChildStarter {
+    fn start(&mut self, child: &mut OwnChild) -> Result<(), VerboseError> {
+        let bmod = fetch_mod(&LOADED_BMODS, child.cfg().name())
+            .ok_or_else(|| Error::new(Code::NotFound))?;
 
-    if Activity::own().mounts().get_by_path("/").is_some() {
-        act.add_mount("/", "/");
+        #[allow(clippy::useless_conversion)]
+        let sgate = SendGate::new_with(
+            SGateArgs::new(&requests::rgate())
+                .credits(1)
+                .label(tcu::Label::from(child.id())),
+        )?;
+
+        let mut act = ChildActivity::new_with(
+            child.child_tile().unwrap().tile_obj().clone(),
+            ActivityArgs::new(child.name())
+                .resmng(ResMng::new(sgate))
+                .kmem(child.kmem().unwrap()),
+        )
+        .map_err(|e| VerboseError::new(e.code(), "Unable to create Activity".to_string()))?;
+
+        if Activity::own().mounts().get_by_path("/").is_some() {
+            act.add_mount("/", "/");
+        }
+
+        let id = child.id();
+        if let Some(sub) = child.subsys() {
+            sub.finalize_async(id, &mut act)
+                .expect("Unable to finalize subsystem");
+        }
+
+        let mut bmapper = loader::BootMapper::new(
+            act.sel(),
+            bmod.0.sel(),
+            act.tile_desc().has_virtmem(),
+            child.mem().pool().clone(),
+        );
+        let bfile = loader::BootFile::new(bmod.0, bmod.2 as usize);
+        let fd = Activity::own().files().add(Box::new(bfile))?;
+        child
+            .start(act, &mut bmapper, FileRef::new_owned(fd))
+            .map_err(|e| VerboseError::new(e.code(), "Unable to start Activity".to_string()))?;
+
+        for a in bmapper.fetch_allocs() {
+            child.add_mem(a, None);
+        }
+
+        Ok(())
     }
 
-    let id = child.id();
-    if let Some(sub) = child.subsys() {
-        sub.finalize_async(id, &mut act)
-            .expect("Unable to finalize subsystem");
+    fn configure_tile(
+        &mut self,
+        tile: Rc<tiles::TileUsage>,
+        domain: &config::Domain,
+    ) -> Result<(), VerboseError> {
+        if tile.tile_id() != Activity::own().tile_id() {
+            // determine minimum range of boot modules we need to give access to to cover all boot
+            // modules that are run on this tile. note that these should always be contiguous,
+            // because we collect the boot modules from the config.
+            let range = modules_range(domain)?;
+            let mslice = memory::container().find_mem(range.0, range.1, kif::Perm::RW)?;
+
+            // create memory gate for this range
+            let mgate = mslice.derive().map_err(|e| {
+                VerboseError::new(e.code(), "Unable to derive from boot module".to_string())
+            })?;
+
+            // configure PMP EP
+            tile.add_mem_region(mgate, range.1 as usize, true)
+                .map_err(|e| {
+                    VerboseError::new(
+                        e.code(),
+                        "Unable to add PMP region for boot module".to_string(),
+                    )
+                })
+        }
+        else {
+            // for our own tile there is nothing to do, because we already have a PMP EP that covers
+            // all boot modules
+            Ok(())
+        }
     }
-
-    let mut bmapper = loader::BootMapper::new(
-        act.sel(),
-        bmod.0.sel(),
-        act.tile_desc().has_virtmem(),
-        child.mem().pool().clone(),
-    );
-    let bfile = loader::BootFile::new(bmod.0, bmod.1);
-    let fd = Activity::own().files().add(Box::new(bfile))?;
-    child
-        .start(act, &mut bmapper, FileRef::new_owned(fd))
-        .map_err(|e| VerboseError::new(e.code(), "Unable to start Activity".to_string()))?;
-
-    for a in bmapper.fetch_allocs() {
-        child.add_mem(a, None);
-    }
-
-    Ok(())
 }
 
 fn create_rgate(
@@ -120,7 +180,7 @@ fn create_rgate(
 }
 
 fn workloop() {
-    requests::workloop(|| {}, start_child_async).expect("Running the workloop failed");
+    requests::workloop(|| {}, &mut RootChildStarter {}).expect("Running the workloop failed");
 }
 
 #[no_mangle]
@@ -177,7 +237,7 @@ pub fn main() -> Result<(), Error> {
 
     SUBSYS
         .get()
-        .start(start_child_async)
+        .start(&mut RootChildStarter {})
         .expect("Unable to start subsystem");
 
     childs::borrow_mut().start_waiting(1);

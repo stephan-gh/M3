@@ -73,6 +73,18 @@ impl Default for Arguments {
     }
 }
 
+pub trait ChildStarter {
+    /// Creates a new activity for the given child and starts it
+    fn start(&mut self, child: &mut childs::OwnChild) -> Result<(), VerboseError>;
+
+    /// Prepares the tiles for the given domain (e.g., installs additional PMP EPs)
+    fn configure_tile(
+        &mut self,
+        tile: Rc<tiles::TileUsage>,
+        domain: &config::Domain,
+    ) -> Result<(), VerboseError>;
+}
+
 pub struct Subsystem {
     info: boot::Info,
     mods: Vec<boot::Mod>,
@@ -275,10 +287,7 @@ impl Subsystem {
             + (self.mods.len() + self.tiles.len() + self.mems.len() + idx * 2) as Selector
     }
 
-    pub fn start<S>(&self, mut spawn: S) -> Result<(), VerboseError>
-    where
-        S: FnMut(&mut childs::OwnChild) -> Result<(), VerboseError>,
-    {
+    pub fn start(&self, starter: &mut dyn ChildStarter) -> Result<(), VerboseError> {
         let root = self.cfg();
         if Activity::own().resmng().is_none() {
             root.check();
@@ -358,35 +367,6 @@ impl Subsystem {
                             VerboseError::new(e.code(), "Unable to add PMP region".to_string())
                         })?;
                 }
-
-                // if we're root, we need to provide the tile access to boot modules as well
-                if Activity::own().resmng().is_none() {
-                    let start_addr = self.mods[0].addr();
-                    let last_mod = &self.mods[self.mods.len() - 1];
-                    let end_addr = last_mod.addr() + last_mod.size;
-                    let mod_size = end_addr.offset() - start_addr.offset();
-                    // boot modules need RW for data segment (every activity gets its own module)
-                    let mod_slice = memory::container()
-                        .find_mem(start_addr.offset(), mod_size, Perm::RW)
-                        .map_err(|e| {
-                            VerboseError::new(
-                                e.code(),
-                                format!(
-                                    "Unable to find memory region for boot module {:#x}..{:#x}",
-                                    start_addr.offset(),
-                                    start_addr.offset() + mod_size
-                                ),
-                            )
-                        })?;
-                    tile_usage
-                        .add_mem_region(mod_slice.derive()?, mod_size as usize, true)
-                        .map_err(|e| {
-                            VerboseError::new(
-                                e.code(),
-                                "Unable to add PMP region for boot mods".to_string(),
-                            )
-                        })?;
-                }
             }
             else {
                 // don't install new PMP EPs, but remember our whole memory areas to inherit them
@@ -402,6 +382,9 @@ impl Subsystem {
                         .unwrap();
                 }
             }
+
+            // let the starter do further configurations on the tile like add PMP EPs
+            starter.configure_tile(tile_usage.clone(), &d)?;
 
             // split available PTs according to the config
             let tile_quota = tile_usage.tile_obj().quota()?;
@@ -633,7 +616,7 @@ impl Subsystem {
                     DELAYED.borrow_mut().push(child);
                 }
                 else {
-                    spawn(&mut child)?;
+                    starter.start(&mut child)?;
                     childs::borrow_mut().add(child);
                 }
             }
@@ -809,10 +792,7 @@ impl SubsystemBuilder {
     }
 }
 
-pub(crate) fn start_delayed_async<S>(mut spawn_async: S) -> Result<(), VerboseError>
-where
-    S: FnMut(&mut childs::OwnChild) -> Result<(), VerboseError>,
-{
+pub(crate) fn start_delayed_async(starter: &mut dyn ChildStarter) -> Result<(), VerboseError> {
     let mut new_wait = false;
     let mut idx = 0;
     while idx < DELAYED.borrow().len() {
@@ -822,7 +802,7 @@ where
         }
 
         let mut child = DELAYED.borrow_mut().remove(idx);
-        spawn_async(&mut child)?;
+        starter.start(&mut child)?;
         childs::borrow_mut().add(child);
         new_wait = true;
     }
