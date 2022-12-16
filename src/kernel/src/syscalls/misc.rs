@@ -103,7 +103,9 @@ pub fn alloc_ep(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ve
     tilemux.alloc_eps(epid, ep_count);
 
     let mut kreply = MsgBuf::borrow_def();
-    build_vmsg!(kreply, Code::Success, kif::syscalls::AllocEPReply { ep: epid });
+    build_vmsg!(kreply, Code::Success, kif::syscalls::AllocEPReply {
+        ep: epid
+    });
     send_reply(msg, &kreply);
 
     Ok(())
@@ -126,11 +128,6 @@ pub fn set_pmp(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ver
         sysc_err!(Code::NoPerm, "Cannot set PMP EPs for derived tile objects");
     }
 
-    // for host: just pretend that we installed it
-    if tcu::PMEM_PROT_EPS == 0 {
-        reply_success(msg);
-        return Ok(());
-    }
     if r.ep < 1 || r.ep >= tcu::PMEM_PROT_EPS as tcu::EpId {
         sysc_err!(
             Code::InvArgs,
