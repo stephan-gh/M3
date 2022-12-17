@@ -124,6 +124,9 @@ build_params_gem5() {
             M3_GEM5_CPU="DerivO3CPU"
         fi
     fi
+    if [ "$M3_HDD" != "" ] && [ ! -f "$M3_HDD" ]; then
+        echo "Hard disk image '$M3_HDD' does not exist." >&2 && exit 1
+    fi
 
     M3_CORES=${M3_CORES:-16}
 
