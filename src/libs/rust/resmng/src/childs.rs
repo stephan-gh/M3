@@ -1070,13 +1070,6 @@ pub struct ChildManager {
 static MNG: StaticRefCell<ChildManager> = StaticRefCell::new(ChildManager::new());
 
 pub fn borrow_mut() -> RefMut<'static, ChildManager> {
-    // let mut bt = [0usize; 16];
-    // let count = backtrace::collect(bt.as_mut());
-    // println!("Backtrace:");
-    // for i in 0..count {
-    //     println!("  {:#x}", bt[i]);
-    // }
-
     MNG.borrow_mut()
 }
 
