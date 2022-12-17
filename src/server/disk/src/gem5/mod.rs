@@ -28,9 +28,9 @@ use crate::partition::{Partition, PART_COUNT};
 
 #[derive(Clone, Copy)]
 pub struct PartDesc {
-    pub chan: u8,
-    pub device: u8,
-    pub part: Partition,
+    chan: u8,
+    device: u8,
+    part: Partition,
 }
 
 pub struct IDEBlockDevice {
