@@ -36,8 +36,8 @@ use m3::session::{BlockNo, BlockRange, DiskOperation, ServerSession};
 use m3::tcu::Label;
 use m3::tiles::Activity;
 
-use backend::BlockDeviceTrait;
-use gem5::BlockDevice;
+use backend::BlockDevice;
+use gem5::IDEBlockDevice;
 
 pub const LOG_DEF: bool = false;
 pub const LOG_ALL: bool = false;
@@ -49,7 +49,7 @@ const MAX_DMA_SIZE: usize = 0x10000;
 const MIN_SEC_SIZE: usize = 512;
 
 static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
-static DEVICE: LazyStaticRefCell<BlockDevice> = LazyStaticRefCell::default();
+static DEVICE: LazyStaticRefCell<IDEBlockDevice> = LazyStaticRefCell::default();
 
 struct DiskSession {
     sess: ServerSession,
@@ -225,7 +225,7 @@ pub fn main() -> Result<(), Error> {
     };
     let s = Server::new("disk", &mut hdl).expect("Unable to create service 'disk'");
 
-    DEVICE.set(BlockDevice::new(env::args().collect()).expect("Unable to create block device"));
+    DEVICE.set(IDEBlockDevice::new(env::args().collect()).expect("Unable to create block device"));
     REQHDL.set(
         RequestHandler::new_with(DEF_MAX_CLIENTS, 256).expect("Unable to create request handler"),
     );

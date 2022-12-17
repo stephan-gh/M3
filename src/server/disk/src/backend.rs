@@ -19,7 +19,7 @@
 use m3::com::MemGate;
 use m3::errors::Error;
 
-pub trait BlockDeviceTrait {
+pub trait BlockDevice {
     fn partition_exists(&self, part: usize) -> bool;
 
     fn read(
