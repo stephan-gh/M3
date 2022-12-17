@@ -13,14 +13,45 @@
  * General Public License version 2 for more details.
  */
 
+use core::fmt;
+
 use m3::col::Vec;
 
 #[derive(Clone, Copy)]
 pub struct Partition {
-    pub id: usize,
-    pub present: bool,
-    pub start: u32,
-    pub size: u32,
+    id: usize,
+    present: bool,
+    start: u32,
+    size: u32,
+}
+
+impl Partition {
+    pub fn id(&self) -> usize {
+        self.id
+    }
+
+    pub fn present(&self) -> bool {
+        self.present
+    }
+
+    pub fn start_sector(&self) -> u32 {
+        self.start
+    }
+
+    pub fn sector_count(&self) -> u32 {
+        self.size
+    }
+}
+
+impl fmt::Debug for Partition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(
+            f,
+            "Partition[sectors={}..{}]",
+            self.start,
+            self.start + self.size - 1
+        )
+    }
 }
 
 // offset of partition-table in MBR

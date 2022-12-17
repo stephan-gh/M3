@@ -96,14 +96,7 @@ impl Channel {
                         d.size() / (1024 * 1024)
                     );
                     for p in d.partitions() {
-                        log!(
-                            crate::LOG_DEF,
-                            "chan[{}] registered partition {}: {}, {}",
-                            id,
-                            p.id,
-                            p.start * 512,
-                            p.size * 512
-                        );
+                        log!(crate::LOG_DEF, "chan[{}] registered {:?}", id, p);
                     }
                     chan.devs.push(d)
                 },
@@ -141,7 +134,7 @@ impl Channel {
         let dev = &self.devs[desc.device as usize];
 
         // check arguments
-        let part_size = desc.part.size as usize * dev.sector_size();
+        let part_size = desc.part.sector_count() as usize * dev.sector_size();
         if disk_off.checked_add(bytes).is_none() || disk_off + bytes > part_size {
             log!(
                 crate::LOG_DEF,
@@ -153,7 +146,7 @@ impl Channel {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let lba = desc.part.start as u64 + disk_off as u64 / dev.sector_size() as u64;
+        let lba = desc.part.start_sector() as u64 + disk_off as u64 / dev.sector_size() as u64;
         let count = bytes / dev.sector_size();
 
         let dev_op = match op {

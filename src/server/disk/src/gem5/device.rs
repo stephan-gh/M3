@@ -234,7 +234,7 @@ impl Device {
         // parse partition table
         mg_buf.read(&mut buffer, 0)?;
         for p in parse_partitions(&buffer) {
-            if p.present {
+            if p.present() {
                 dev.parts.push(p);
             }
         }

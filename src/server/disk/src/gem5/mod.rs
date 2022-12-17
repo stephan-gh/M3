@@ -57,8 +57,8 @@ impl IDEBlockDevice {
         for c in ide_ctrl.channel() {
             for d in c.devices() {
                 for p in d.partitions() {
-                    if p.present {
-                        devs[d.id() as usize * PART_COUNT + p.id] = Some(PartDesc {
+                    if p.present() {
+                        devs[d.id() as usize * PART_COUNT + p.id()] = Some(PartDesc {
                             chan: c.id(),
                             device: d.id(),
                             part: *p,
