@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 import os
 import argparse
@@ -135,4 +135,8 @@ parser_parted.add_argument('disk', metavar='<diskimage>')
 parser_parted.set_defaults(func=parted)
 
 args = parser.parse_args()
-args.func(args)
+try:
+    func = args.func
+except AttributeError:
+    parser.error("too few arguments")
+func(args)
