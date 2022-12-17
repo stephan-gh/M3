@@ -192,7 +192,7 @@ impl Subsystem {
         for (id, m) in mods.iter().enumerate() {
             if m.name() == "boot.xml" {
                 cfg_mem = Some((id, m.size));
-                continue;
+                break;
             }
         }
 
@@ -320,32 +320,32 @@ impl Subsystem {
 
         let mut mem_id = 1;
 
-        for (idx, d) in root.domains().iter().enumerate() {
+        for (idx, dom) in root.domains().iter().enumerate() {
             // allocate new tile; root allocates from its own set, others ask their resmng
-            let tile_usage = if d.pseudo || Activity::own().resmng().is_none() {
+            let tile_usage = if dom.pseudo || Activity::own().resmng().is_none() {
                 Rc::new(
                     tiles::get()
-                        .find_and_alloc_with_desc(&d.tile.0)
+                        .find_and_alloc_with_desc(&dom.tile.0)
                         .map_err(|e| {
                             VerboseError::new(
                                 e.code(),
                                 format!(
                                     "Unable to allocate tile for domain {} with {}",
-                                    idx, d.tile.0
+                                    idx, dom.tile.0
                                 ),
                             )
                         })?,
                 )
             }
             else {
-                let child_tile = Tile::get(&d.tile.0).map_err(|e| {
-                    VerboseError::new(e.code(), format!("Unable to get tile {}", d.tile.0))
+                let child_tile = Tile::get(&dom.tile.0).map_err(|e| {
+                    VerboseError::new(e.code(), format!("Unable to get tile {}", dom.tile.0))
                 })?;
                 Rc::new(tiles::TileUsage::new_obj(child_tile))
             };
 
             // memory pool for the domain
-            let dom_mem = d.apps().iter().fold(0, |sum, a| {
+            let dom_mem = dom.apps().iter().fold(0, |sum, a| {
                 sum + a.user_mem().unwrap_or(def_umem as usize) as goff
             });
             let mem_pool = Rc::new(RefCell::new(
@@ -384,11 +384,11 @@ impl Subsystem {
             }
 
             // let the starter do further configurations on the tile like add PMP EPs
-            starter.configure_tile(tile_usage.clone(), &d)?;
+            starter.configure_tile(tile_usage.clone(), &dom)?;
 
             // split available PTs according to the config
             let tile_quota = tile_usage.tile_obj().quota()?;
-            let (mut pt_sharer, shared_pts) = split_pts(tile_quota.page_tables().left(), d);
+            let (mut pt_sharer, shared_pts) = split_pts(tile_quota.page_tables().left(), dom);
 
             let mut domain_total_eps = tile_quota.endpoints().left();
             let mut domain_total_time = 0;
@@ -401,7 +401,7 @@ impl Subsystem {
                 domain_total_eps -= OUR_EPS;
             }
 
-            for cfg in d.apps() {
+            for cfg in dom.apps() {
                 // accumulate child time, pts, and kmem
                 domain_total_time += cfg.time.unwrap_or(DEF_TIME_SLICE);
                 domain_total_pts += cfg.pts.unwrap_or(shared_pts / pt_sharer);
@@ -448,7 +448,7 @@ impl Subsystem {
                 })?;
 
             // derive a new tile object for the entire domain (so that they cannot change the PMP EPs)
-            let domain_pe_usage = if d.apps().iter().next().unwrap().domains().is_empty() {
+            let domain_pe_usage = if dom.apps().iter().next().unwrap().domains().is_empty() {
                 let domain_eps = Some(domain_total_eps);
                 let domain_time = Some(domain_total_time);
                 let domain_pts = Some(domain_total_pts);
@@ -471,7 +471,7 @@ impl Subsystem {
                 None
             };
 
-            for cfg in d.apps() {
+            for cfg in dom.apps() {
                 // determine tile object with potentially reduced number of EPs
                 let (domain_tile_usage, child_tile_usage) = if !cfg.domains().is_empty() {
                     // a resource manager has to be able to set PMPs and thus needs the root tile
@@ -522,80 +522,22 @@ impl Subsystem {
                     domain_umem.clone()
                 };
 
-                let sub = if !cfg.domains().is_empty() {
-                    // TODO currently, we don't support tile sharing of a resource manager and another
-                    // activities on the same level. The resource manager needs to set PMP EPs and might
-                    // thus interfere with the other activities.
-                    assert!(
-                        child_tile_usage.tile_id() != Activity::own().tile_id()
-                            && d.apps().len() == 1
-                    );
-
-                    // create MemGate for config substring
-                    let cfg_range = cfg.cfg_range();
-                    let cfg_len = cfg_range.1 - cfg_range.0;
-                    let cfg_slice =
-                        memory::container()
-                            .alloc_mem(cfg_len as goff)
-                            .map_err(|e| {
-                                VerboseError::new(
-                                    e.code(),
-                                    format!("Unable to allocate {}b for config", cfg_len),
-                                )
-                            })?;
-                    let mut cfg_mem = cfg_slice.derive()?;
-                    cfg_mem.write(self.cfg_str()[cfg_range.0..cfg_range.1].as_bytes(), 0)?;
-                    // deactivate the memory gates so that the child can activate them for itself
-                    cfg_mem.deactivate();
-
-                    let mut sub = SubsystemBuilder::new();
-
-                    // add boot modules
-                    sub.add_mod(cfg_mem, cfg_slice.addr(), cfg_len as goff, "boot.xml");
-                    pass_down_mods(&mut sub, cfg)?;
-
-                    // add tiles
-                    sub.add_tile(
-                        child_tile_usage.tile_id(),
-                        child_tile_usage.tile_obj().clone(),
-                    );
-                    pass_down_tiles(&mut sub, cfg);
-
-                    // serial rgate
-                    pass_down_serial(&mut sub, cfg);
-
-                    // split off the grandchild memories; allocate them from the child quota
-                    let old_umem_quota = child_mem.quota();
-                    split_child_mem(cfg, &child_mem);
-                    // determine memory size for the entire subsystem
-                    let sub_mem = old_umem_quota - child_mem.quota();
-
-                    // add memory
-                    let sub_slice = mem_pool.borrow_mut().allocate_slice(sub_mem).map_err(|e| {
-                        VerboseError::new(
-                            e.code(),
-                            format!("Unable to allocate {}b for subsys", sub_mem),
-                        )
-                    })?;
-                    sub.add_mem(
-                        sub_slice.derive()?,
-                        sub_slice.addr(),
-                        sub_slice.capacity(),
-                        sub_slice.in_reserved_mem(),
-                    );
-
-                    // add services
-                    for s in cfg.sess_creators() {
-                        let (sess_frac, sess_fixed) = split_sessions(root, s.serv_name());
-                        sub.add_serv(s.serv_name().clone(), sess_frac, sess_fixed, s.sess_count());
-                    }
-
-                    Some(sub)
+                // build subsystem if this child contains domains
+                let sub = if !cfg.domains.is_empty() {
+                    Some(self.build_subsystem(
+                        cfg,
+                        &child_tile_usage,
+                        dom,
+                        &child_mem,
+                        &mem_pool,
+                        root,
+                    )?)
                 }
                 else {
                     None
                 };
 
+                // create child
                 let child_id = childs::borrow_mut().alloc_id();
                 let mut child = Box::new(childs::OwnChild::new(
                     child_id,
@@ -612,16 +554,92 @@ impl Subsystem {
                 ));
                 log!(crate::LOG_CHILD, "Created {:?}", child);
 
-                if child.has_unmet_reqs() {
-                    DELAYED.borrow_mut().push(child);
-                }
-                else {
+                // start it immediately if all dependencies are met or remember it for later
+                if !child.has_unmet_reqs() {
                     starter.start(&mut child)?;
                     childs::borrow_mut().add(child);
+                }
+                else {
+                    DELAYED.borrow_mut().push(child);
                 }
             }
         }
         Ok(())
+    }
+
+    fn build_subsystem(
+        &self,
+        cfg: &Rc<config::AppConfig>,
+        child_tile_usage: &Rc<tiles::TileUsage>,
+        dom: &config::Domain,
+        child_mem: &Rc<childs::ChildMem>,
+        mem_pool: &Rc<RefCell<memory::MemPool>>,
+        root: &config::AppConfig,
+    ) -> Result<SubsystemBuilder, VerboseError> {
+        // TODO currently, we don't support tile sharing of a resource manager and another
+        // activities on the same level. The resource manager needs to set PMP EPs and might
+        // thus interfere with the other activities.
+        assert!(child_tile_usage.tile_id() != Activity::own().tile_id() && dom.apps().len() == 1);
+
+        // create MemGate for config substring
+        let cfg_range = cfg.cfg_range();
+        let cfg_len = cfg_range.1 - cfg_range.0;
+        let cfg_slice = memory::container()
+            .alloc_mem(cfg_len as goff)
+            .map_err(|e| {
+                VerboseError::new(
+                    e.code(),
+                    format!("Unable to allocate {}b for config", cfg_len),
+                )
+            })?;
+        let mut cfg_mem = cfg_slice.derive()?;
+        cfg_mem.write(self.cfg_str()[cfg_range.0..cfg_range.1].as_bytes(), 0)?;
+        // deactivate the memory gates so that the child can activate them for itself
+        cfg_mem.deactivate();
+
+        let mut sub = SubsystemBuilder::new();
+
+        // add boot modules
+        sub.add_mod(cfg_mem, cfg_slice.addr(), cfg_len as goff, "boot.xml");
+        pass_down_mods(&mut sub, cfg)?;
+
+        // add tiles
+        sub.add_tile(
+            child_tile_usage.tile_id(),
+            child_tile_usage.tile_obj().clone(),
+        );
+        pass_down_tiles(&mut sub, cfg);
+
+        // serial rgate
+        pass_down_serial(&mut sub, cfg);
+
+        // split off the grandchild memories; allocate them from the child quota
+        let old_umem_quota = child_mem.quota();
+        split_child_mem(cfg, child_mem);
+        // determine memory size for the entire subsystem
+        let sub_mem = old_umem_quota - child_mem.quota();
+
+        // add memory
+        let sub_slice = mem_pool.borrow_mut().allocate_slice(sub_mem).map_err(|e| {
+            VerboseError::new(
+                e.code(),
+                format!("Unable to allocate {}b for subsys", sub_mem),
+            )
+        })?;
+        sub.add_mem(
+            sub_slice.derive()?,
+            sub_slice.addr(),
+            sub_slice.capacity(),
+            sub_slice.in_reserved_mem(),
+        );
+
+        // add services
+        for s in cfg.sess_creators() {
+            let (sess_frac, sess_fixed) = split_sessions(root, s.serv_name());
+            sub.add_serv(s.serv_name().clone(), sess_frac, sess_fixed, s.sess_count());
+        }
+
+        Ok(sub)
     }
 }
 
