@@ -53,7 +53,7 @@ impl Channel {
             use_irq,
             use_dma,
             port_base,
-            bmr_base: ide_ctrl.bars[IDE_CTRL_BAR].addr as u16,
+            bmr_base: ide_ctrl.bar(IDE_CTRL_BAR).addr() as u16,
             pci_dev,
             devs: Vec::new(),
         };

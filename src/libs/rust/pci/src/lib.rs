@@ -15,6 +15,8 @@
 
 #![no_std]
 
+use core::fmt;
+
 use bitflags::bitflags;
 use m3::cfg;
 use m3::com::{EpMng, MemGate, RecvGate, SendGate, EP};
@@ -85,10 +87,18 @@ pub struct Device {
     _sgate: SendGate,
 }
 
-int_enum! {
-    pub struct BarType : u8 {
-        const MEM   = 0x0;
-        const IO    = 0x1;
+#[derive(Copy, Clone, Debug)]
+pub enum BarType {
+    Memory,
+    IO,
+}
+
+impl From<u8> for BarType {
+    fn from(val: u8) -> Self {
+        match val {
+            0 => BarType::Memory,
+            _ => BarType::IO,
+        }
     }
 }
 
@@ -100,26 +110,144 @@ bitflags! {
     }
 }
 
+#[derive(Debug)]
 pub struct Bar {
-    pub ty: u8,
-    pub flags: BarFlags,
-    pub addr: usize,
-    pub size: usize,
+    ty: BarType,
+    flags: BarFlags,
+    addr: usize,
+    size: usize,
 }
 
+impl Bar {
+    pub fn bar_type(&self) -> BarType {
+        self.ty
+    }
+
+    pub fn flags(&self) -> BarFlags {
+        self.flags
+    }
+
+    pub fn addr(&self) -> usize {
+        self.addr
+    }
+
+    pub fn set_addr(&mut self, addr: usize) {
+        self.addr = addr
+    }
+
+    pub fn size(&self) -> usize {
+        self.size
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct BDF {
+    bus: u8,
+    device: u8,
+    function: u8,
+}
+
+impl BDF {
+    pub fn new(bus: u8, device: u8, function: u8) -> Self {
+        Self {
+            bus,
+            device,
+            function,
+        }
+    }
+
+    pub fn bus(&self) -> u8 {
+        self.bus
+    }
+
+    pub fn device(&self) -> u8 {
+        self.device
+    }
+
+    pub fn function(&self) -> u8 {
+        self.function
+    }
+}
+
+impl fmt::Display for BDF {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "{}.{}.{}", self.bus, self.device, self.function)
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Class {
+    base: u8,
+    sub: u8,
+}
+
+impl Class {
+    pub fn new(base: u8, sub: u8) -> Self {
+        Self { base, sub }
+    }
+
+    pub fn base(&self) -> u8 {
+        self.base
+    }
+
+    pub fn sub(&self) -> u8 {
+        self.sub
+    }
+}
+
+#[derive(Debug)]
 pub struct Info {
-    pub bus: u8,
-    pub dev: u8,
-    pub func: u8,
-    pub ty: u8,
-    pub dev_id: u16,
-    pub vendor_id: u16,
-    pub base_class: u8,
-    pub sub_class: u8,
-    pub prog_if: u8,
-    pub rev_id: u8,
-    pub irq: u8,
-    pub bars: [Bar; 6],
+    id: BDF,
+    ty: u8,
+    device: u16,
+    vendor: u16,
+    class: Class,
+    prog_if: u8,
+    revision: u8,
+    irq: u8,
+    bars: [Bar; 6],
+}
+
+impl Info {
+    pub fn id(&self) -> BDF {
+        self.id
+    }
+
+    pub fn device_type(&self) -> u8 {
+        self.ty
+    }
+
+    pub fn device(&self) -> u16 {
+        self.device
+    }
+
+    pub fn vendor(&self) -> u16 {
+        self.vendor
+    }
+
+    pub fn class(&self) -> Class {
+        self.class
+    }
+
+    pub fn programming_interface(&self) -> u8 {
+        self.prog_if
+    }
+
+    pub fn revision(&self) -> u8 {
+        self.revision
+    }
+
+    pub fn interrupt(&self) -> u8 {
+        self.irq
+    }
+
+    pub fn bar(&self, idx: usize) -> &Bar {
+        &self.bars[idx]
+    }
+
+    pub fn bar_mut(&mut self, idx: usize) -> &mut Bar {
+        &mut self.bars[idx]
+    }
 }
 
 impl Device {
@@ -188,16 +316,16 @@ impl Device {
     pub fn get_info(&self) -> Result<Info, Error> {
         Ok(Info {
             // TODO this is hardcoded atm, because the device tile contains exactly one PCI device
-            bus: 0,
-            dev: 0,
-            func: 0,
-            vendor_id: self.read_config(Reg::VENDOR_ID.val)?,
-            dev_id: self.read_config(Reg::DEVICE_ID.val)?,
+            id: BDF::new(0, 0, 0),
+            vendor: self.read_config(Reg::VENDOR_ID.val)?,
+            device: self.read_config(Reg::DEVICE_ID.val)?,
             ty: self.read_config(Reg::HEADER_TYPE.val)?,
-            rev_id: self.read_config(Reg::REVISION_ID.val)?,
+            revision: self.read_config(Reg::REVISION_ID.val)?,
             prog_if: self.read_config(Reg::CLASS_CODE.val)?,
-            base_class: self.read_config(Reg::BASE_CLASS_CODE.val)?,
-            sub_class: self.read_config(Reg::SUB_CLASS_CODE.val)?,
+            class: Class::new(
+                self.read_config(Reg::BASE_CLASS_CODE.val)?,
+                self.read_config(Reg::SUB_CLASS_CODE.val)?,
+            ),
             irq: 0,
             bars: [
                 self.read_bar(0)?,
@@ -244,7 +372,7 @@ impl Device {
         self.write_config(0x10 + idx as goff * 4, val)?;
 
         Ok(Bar {
-            ty: (val & 0x1) as u8,
+            ty: BarType::from((val & 0x1) as u8),
             addr: (val & !0xF) as usize,
             size: size as usize,
             flags,

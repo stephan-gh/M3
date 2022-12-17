@@ -67,18 +67,16 @@ impl IDEController {
         // find IDE controller via PCI
         let pci_dev = Rc::new(pci::Device::new("idectrl", kif::TileISA::IDE_DEV)?);
         let mut ide_ctrl = pci_dev.get_info()?;
-        assert!(ide_ctrl.base_class == IDE_CTRL_CLASS);
-        assert!(ide_ctrl.sub_class == IDE_CTRL_SUBCLASS);
+        assert!(ide_ctrl.class().base() == IDE_CTRL_CLASS);
+        assert!(ide_ctrl.class().sub() == IDE_CTRL_SUBCLASS);
 
         log!(
             crate::LOG_DEF,
-            "Found IDE controller ({}.{}.{}): vendorId {:x} deviceId {:x} rev {}",
-            ide_ctrl.bus,
-            ide_ctrl.dev,
-            ide_ctrl.func,
-            ide_ctrl.vendor_id,
-            ide_ctrl.dev,
-            ide_ctrl.rev_id
+            "Found IDE controller ({}): vendor {:x} device {:x} rev {}",
+            ide_ctrl.id(),
+            ide_ctrl.vendor(),
+            ide_ctrl.device(),
+            ide_ctrl.revision()
         );
 
         // ensure that the I/O space is enabled and bus mastering is enabled
@@ -86,9 +84,9 @@ impl IDEController {
         pci_dev.write_config(pci::Reg::COMMAND.val, (status_cmd & !0x400) | 0x01 | 0x04)?;
 
         // request I/O ports for bus mastering
-        if use_dma && ide_ctrl.bars[IDE_CTRL_BAR].addr == 0 {
+        if use_dma && ide_ctrl.bar(IDE_CTRL_BAR).addr() == 0 {
             pci_dev.write_config(pci::Type0::BASE_ADDR4.val, 0x400)?;
-            ide_ctrl.bars[IDE_CTRL_BAR].addr = 0x400;
+            ide_ctrl.bar_mut(IDE_CTRL_BAR).set_addr(0x400);
         }
 
         // detect channels and devices
