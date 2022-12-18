@@ -50,21 +50,6 @@ impl CapRngDesc {
         }
     }
 
-    /// Creates a new capability range descriptor from the given raw value
-    // TODO remove this
-    pub fn new_from(raw: [u64; 2]) -> CapRngDesc {
-        CapRngDesc {
-            start: raw[0],
-            count: raw[1],
-        }
-    }
-
-    /// Returns the raw value
-    // TODO remove this
-    pub fn raw(self) -> [u64; 2] {
-        [self.start, self.count]
-    }
-
     /// Returns the capability type
     pub fn cap_type(self) -> CapType {
         CapType::from(self.count & 0x1)
