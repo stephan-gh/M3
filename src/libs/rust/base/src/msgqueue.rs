@@ -13,6 +13,8 @@
  * General Public License version 2 for more details.
  */
 
+//! Contains the message queue types
+
 use crate::col::{DList, Vec};
 use crate::errors::Error;
 use crate::mem::MsgBuf;
@@ -22,9 +24,17 @@ struct PendingMsg<M> {
     meta: M,
 }
 
+/// A type that can send messages
 pub trait MsgSender<M> {
+    /// Checks whether sending is currently possible (e.g., if the endpoint has credits)
+    ///
+    /// If sending is not possible, the message will be queued for a later retry.
     fn can_send(&self) -> bool;
+
+    /// Sends the given message with meta information `meta`
     fn send(&mut self, meta: M, msg: &MsgBuf) -> Result<(), Error>;
+
+    /// Sends the given bytes with meta information `meta`
     fn send_bytes(&mut self, meta: M, msg: &[u8]) -> Result<(), Error> {
         let mut msg_buf = MsgBuf::new();
         msg_buf.set_from_slice(msg);
@@ -32,12 +42,19 @@ pub trait MsgSender<M> {
     }
 }
 
+/// A simple message queue
+///
+/// The message queue first attempts to send a message and queues it on failures for a later retry.
+/// The actual sending and testing whether sends are possible is defined by the implementation of
+/// [`MsgSender`] given as the type argument `S`. Additionally, the custom meta data `M` will be
+/// passed to every sent message.
 pub struct MsgQueue<S: MsgSender<M>, M> {
     queue: DList<PendingMsg<M>>,
     sender: S,
 }
 
 impl<S: MsgSender<M>, M> MsgQueue<S, M> {
+    /// Creates a new message queue with given sender
     pub const fn new(sender: S) -> Self {
         Self {
             queue: DList::new(),
@@ -45,14 +62,20 @@ impl<S: MsgSender<M>, M> MsgQueue<S, M> {
         }
     }
 
+    /// Returns a reference to the sender
     pub fn sender(&self) -> &S {
         &self.sender
     }
 
+    /// Returns a mutable reference to the sender
     pub fn sender_mut(&mut self) -> &mut S {
         &mut self.sender
     }
 
+    /// Sends the given message with given meta data.
+    ///
+    /// If sending is currently possible, it happens immediately. Otherwise, the message is queued
+    /// for a later retry, which needs to be triggered via [`MsgQueue::send_pending`].
     pub fn send(&mut self, meta: M, msg: &MsgBuf) -> Result<bool, Error> {
         if self.sender.can_send() {
             return self.sender.send(meta, msg).map(|_| true);
@@ -64,6 +87,9 @@ impl<S: MsgSender<M>, M> MsgQueue<S, M> {
         Ok(false)
     }
 
+    /// Attempts to send any queued messages
+    ///
+    /// Returns true if any message was sent
     pub fn send_pending(&mut self) -> bool {
         loop {
             match self.queue.pop_front() {
