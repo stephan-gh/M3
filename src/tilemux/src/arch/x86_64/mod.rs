@@ -17,10 +17,10 @@
  */
 
 use base::cell::StaticCell;
-use base::cpu;
 use base::errors::Error;
 use base::kif::{tilemux, PageFlags};
 use base::mem::MaybeUninit;
+use base::{read_csr, write_csr};
 
 use core::arch::asm;
 
@@ -84,14 +84,14 @@ pub fn forget_fpu(act_id: activities::Id) {
 
 pub fn disable_fpu() {
     if activities::cur().id() != FPU_OWNER.get() {
-        cpu::write_cr0(cpu::read_cr0() | CR0_TASK_SWITCHED);
+        write_csr!("cr0", read_csr!("cr0") | CR0_TASK_SWITCHED);
     }
 }
 
 pub fn handle_fpu_ex(_state: &mut State) {
     let mut cur = activities::cur();
 
-    cpu::write_cr0(cpu::read_cr0() & !CR0_TASK_SWITCHED);
+    write_csr!("cr0", read_csr!("cr0") & !CR0_TASK_SWITCHED);
 
     let old_id = FPU_OWNER.get() & 0xFFFF;
     if old_id != cur.id() {
@@ -130,7 +130,7 @@ pub fn handle_fpu_ex(_state: &mut State) {
 }
 
 pub fn handle_mmu_pf(state: &mut State) -> Result<(), Error> {
-    let cr2 = cpu::read_cr2();
+    let cr2 = read_csr!("cr2");
 
     let perm =
         paging::MMUFlags::from_bits_truncate(state.error as paging::MMUPTE & PageFlags::RW.bits());

@@ -15,57 +15,62 @@
 
 use core::arch::asm;
 
+use crate::arch::TMABIOps;
 use crate::errors::Error;
 use crate::tmif::Operation;
 
-pub fn call1(op: Operation, arg1: usize) -> Result<usize, Error> {
-    call2(op, arg1, 0)
-}
+pub struct RISCVTMABI {}
 
-pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
-    let mut res = op.val;
-    unsafe {
-        asm!(
-            "ecall",
-            inout("x10") res,
-            in("x11") arg1,
-            in("x12") arg2,
-        );
+impl TMABIOps for RISCVTMABI {
+    fn call1(op: Operation, arg1: usize) -> Result<usize, Error> {
+        Self::call2(op, arg1, 0)
     }
-    crate::tmif::get_result(res)
-}
 
-pub fn call3(op: Operation, arg1: usize, arg2: usize, arg3: usize) -> Result<usize, Error> {
-    let mut res = op.val;
-    unsafe {
-        asm!(
-            "ecall",
-            inout("x10") res,
-            in("x11") arg1,
-            in("x12") arg2,
-            in("x13") arg3,
-        );
+    fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
+        let mut res = op.val;
+        unsafe {
+            asm!(
+                "ecall",
+                inout("x10") res,
+                in("x11") arg1,
+                in("x12") arg2,
+            );
+        }
+        crate::tmif::get_result(res)
     }
-    crate::tmif::get_result(res)
-}
 
-pub fn call4(
-    op: Operation,
-    arg1: usize,
-    arg2: usize,
-    arg3: usize,
-    arg4: usize,
-) -> Result<usize, Error> {
-    let mut res = op.val;
-    unsafe {
-        asm!(
-            "ecall",
-            inout("x10") res,
-            in("x11") arg1,
-            in("x12") arg2,
-            in("x13") arg3,
-            in("x14") arg4,
-        );
+    fn call3(op: Operation, arg1: usize, arg2: usize, arg3: usize) -> Result<usize, Error> {
+        let mut res = op.val;
+        unsafe {
+            asm!(
+                "ecall",
+                inout("x10") res,
+                in("x11") arg1,
+                in("x12") arg2,
+                in("x13") arg3,
+            );
+        }
+        crate::tmif::get_result(res)
     }
-    crate::tmif::get_result(res)
+
+    fn call4(
+        op: Operation,
+        arg1: usize,
+        arg2: usize,
+        arg3: usize,
+        arg4: usize,
+    ) -> Result<usize, Error> {
+        let mut res = op.val;
+        unsafe {
+            asm!(
+                "ecall",
+                inout("x10") res,
+                in("x11") arg1,
+                in("x12") arg2,
+                in("x13") arg3,
+                in("x14") arg4,
+            );
+        }
+        crate::tmif::get_result(res)
+    }
 }

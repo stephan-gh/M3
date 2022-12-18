@@ -16,16 +16,91 @@
  * General Public License version 2 for more details.
  */
 
-#[cfg(target_arch = "x86_64")]
-#[path = "x86_64/mod.rs"]
-mod isa;
+use cfg_if::cfg_if;
 
-#[cfg(target_arch = "arm")]
-#[path = "arm/mod.rs"]
-mod isa;
+use crate::errors::Error;
+use crate::tmif::Operation;
 
-#[cfg(target_arch = "riscv64")]
-#[path = "riscv/mod.rs"]
-mod isa;
+/// Contains CPU-specific operations
+pub trait CPUOps {
+    /// Reads 8 byte from the given address (using a single load)
+    ///
+    /// # Safety
+    ///
+    /// The function assumes that the address is 8-byte aligned and refers to accessible memory.
+    unsafe fn read8b(addr: usize) -> u64;
 
-pub use self::isa::*;
+    /// Writes `val` as an 8-byte value to the given address (using a single store)
+    ///
+    /// # Safety
+    ///
+    /// The function assumes that the address is 8-byte aligned and refers to accessible memory.
+    unsafe fn write8b(addr: usize, val: u64);
+
+    /// Returns the stack pointer
+    fn stack_pointer() -> usize;
+
+    /// Returns the base pointer
+    fn base_pointer() -> usize;
+
+    /// Returns the number of elapsed cycles
+    fn elapsed_cycles() -> u64;
+
+    /// Architecture-specific helper function for the backtrace module
+    ///
+    /// Sets `func` to the base pointer stored at address `bp` and returns the address of the next base
+    /// pointer.
+    ///
+    /// # Safety
+    ///
+    /// Assumes that `func` is usize-aligned and refers to accessible memory.
+    unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize;
+
+    /// Uses a special instruction to write the given "message" into the gem5 log
+    fn gem5_debug(msg: u64) -> u64;
+}
+
+/// The TileMux ABI operations
+pub trait TMABIOps {
+    /// A TileMux call with a single argument
+    fn call1(op: Operation, arg1: usize) -> Result<usize, Error>;
+
+    /// A TileMux call with a two arguments
+    fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error>;
+
+    /// A TileMux call with a three arguments
+    fn call3(op: Operation, arg1: usize, arg2: usize, arg3: usize) -> Result<usize, Error>;
+
+    /// A TileMux call with a four arguments
+    fn call4(
+        op: Operation,
+        arg1: usize,
+        arg2: usize,
+        arg3: usize,
+        arg4: usize,
+    ) -> Result<usize, Error>;
+}
+
+cfg_if! {
+    if #[cfg(target_arch = "x86_64")] {
+        #[path = "x86_64/mod.rs"]
+        mod isa;
+
+        pub type CPU = crate::arch::isa::cpu::X86CPU;
+        pub type TMABI = crate::arch::isa::tmabi::X86TMABI;
+    }
+    else if #[cfg(target_arch = "arm")] {
+        #[path = "arm/mod.rs"]
+        mod isa;
+
+        pub type CPU = crate::arch::isa::cpu::ARMCPU;
+        pub type TMABI = crate::arch::isa::tmabi::ARMTMABI;
+    }
+    else {
+        #[path = "riscv/mod.rs"]
+        mod isa;
+
+        pub type CPU = crate::arch::isa::cpu::RISCVCPU;
+        pub type TMABI = crate::arch::isa::tmabi::RISCVTMABI;
+    }
+}

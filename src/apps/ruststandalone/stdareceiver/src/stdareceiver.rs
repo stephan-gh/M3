@@ -23,7 +23,7 @@ mod helper;
 #[path = "../../vmtest/src/paging.rs"]
 mod paging;
 
-use base::cpu;
+use base::cpu::{CPUOps, CPU};
 use base::log;
 use base::mem::MsgBuf;
 use base::tcu::{self, EpId, TCU};
@@ -80,8 +80,8 @@ pub extern "C" fn env_run() {
     }
 
     // give the other tiles some time
-    let begin = cpu::elapsed_cycles();
-    while cpu::elapsed_cycles() < begin + 100000 {}
+    let begin = CPU::elapsed_cycles();
+    while CPU::elapsed_cycles() < begin + 100000 {}
 
     log!(crate::LOG_DEF, "Shutting down");
     helper::exit(0);

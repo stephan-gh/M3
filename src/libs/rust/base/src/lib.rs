@@ -40,7 +40,7 @@ pub mod boxed {
 
 /// CPU-specific functions
 pub mod cpu {
-    pub use crate::arch::cpu::*;
+    pub use crate::arch::{CPUOps, CPU};
 }
 
 /// Thread-safe reference-counting pointers

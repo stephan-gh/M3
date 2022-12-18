@@ -18,7 +18,7 @@
 
 //! Contains the backtrace generation function
 
-use crate::arch::cpu;
+use crate::arch::{CPUOps, CPU};
 use crate::cfg;
 use crate::util::math;
 
@@ -28,7 +28,7 @@ use crate::util::math;
 /// The function assumes that the stack is aligned by `cfg::STACK_SIZE` and ensures to not access
 /// below or above the stack.
 pub fn collect(addrs: &mut [usize]) -> usize {
-    collect_for(cpu::base_pointer(), addrs)
+    collect_for(CPU::base_pointer(), addrs)
 }
 
 /// Walks up the stack starting with given base pointer and stores the return addresses into the
@@ -54,7 +54,7 @@ pub fn collect_for(mut base_ptr: usize, addrs: &mut [usize]) -> usize {
         // safety: assuming that the current BP was valid at the beginning of the function, the
         // following access is safe, because the checks above make sure that it's within our stack.
         unsafe {
-            base_ptr = cpu::backtrace_step(base_ptr, addr);
+            base_ptr = CPU::backtrace_step(base_ptr, addr);
         }
     }
     addrs.len()

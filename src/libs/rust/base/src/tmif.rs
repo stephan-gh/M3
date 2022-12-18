@@ -15,7 +15,7 @@
 
 //! Contains the interface between applications and TileMux
 
-use crate::arch::tmabi;
+use crate::arch::{TMABIOps, TMABI};
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::kif;
@@ -61,7 +61,7 @@ pub fn wait(
     irq: Option<IRQId>,
     duration: Option<TimeDuration>,
 ) -> Result<(), Error> {
-    tmabi::call3(
+    TMABI::call3(
         Operation::WAIT,
         ep.unwrap_or(INVALID_EP) as usize,
         irq.unwrap_or(INVALID_IRQ) as usize,
@@ -74,12 +74,12 @@ pub fn wait(
 }
 
 pub fn exit(code: Code) -> ! {
-    tmabi::call1(Operation::EXIT, code as usize).ok();
+    TMABI::call1(Operation::EXIT, code as usize).ok();
     unreachable!();
 }
 
 pub fn map(virt: usize, phys: goff, pages: usize, access: kif::Perm) -> Result<(), Error> {
-    tmabi::call4(
+    TMABI::call4(
         Operation::MAP,
         virt,
         phys as usize,
@@ -90,19 +90,19 @@ pub fn map(virt: usize, phys: goff, pages: usize, access: kif::Perm) -> Result<(
 }
 
 pub fn reg_irq(irq: IRQId) -> Result<(), Error> {
-    tmabi::call1(Operation::REG_IRQ, irq as usize).map(|_| ())
+    TMABI::call1(Operation::REG_IRQ, irq as usize).map(|_| ())
 }
 
 pub fn flush_invalidate() -> Result<(), Error> {
-    tmabi::call1(Operation::FLUSH_INV, 0).map(|_| ())
+    TMABI::call1(Operation::FLUSH_INV, 0).map(|_| ())
 }
 
 #[inline(always)]
 pub fn switch_activity() -> Result<(), Error> {
-    tmabi::call1(Operation::YIELD, 0).map(|_| ())
+    TMABI::call1(Operation::YIELD, 0).map(|_| ())
 }
 
 #[inline(always)]
 pub fn noop() -> Result<(), Error> {
-    tmabi::call1(Operation::NOOP, 0).map(|_| ())
+    TMABI::call1(Operation::NOOP, 0).map(|_| ())
 }

@@ -18,6 +18,9 @@
 
 use core::arch::asm;
 
+use crate::arch::CPUOps;
+
+/// Reads the value of the given control and status register (CSR)
 #[macro_export]
 macro_rules! read_csr {
     ($reg_name:tt) => {{
@@ -33,6 +36,7 @@ macro_rules! read_csr {
     }}
 }
 
+/// Writes `$val` to the given control and status register (CSR)
 #[macro_export]
 macro_rules! write_csr {
     ($reg_name:tt, $val:expr) => {{
@@ -47,6 +51,7 @@ macro_rules! write_csr {
     }};
 }
 
+/// Sets the bits `$bits` in the given control and status register (CSR)
 #[macro_export]
 macro_rules! set_csr_bits {
     ($reg_name:tt, $bits:expr) => {{
@@ -61,81 +66,82 @@ macro_rules! set_csr_bits {
     }};
 }
 
-#[allow(clippy::missing_safety_doc)]
-pub unsafe fn read8b(addr: usize) -> u64 {
-    let res: u64;
-    asm!(
-        "ld {0}, ({1})",
-        out(reg) res,
-        in(reg) addr,
-        options(nostack),
-    );
-    res
-}
+pub struct RISCVCPU {}
 
-#[allow(clippy::missing_safety_doc)]
-pub unsafe fn write8b(addr: usize, val: u64) {
-    asm!(
-        "sd {0}, ({1})",
-        in(reg) val,
-        in(reg) addr,
-        options(nostack),
-    )
-}
-
-#[inline(always)]
-pub fn stack_pointer() -> usize {
-    let sp: usize;
-    unsafe {
+impl CPUOps for RISCVCPU {
+    unsafe fn read8b(addr: usize) -> u64 {
+        let res: u64;
         asm!(
-            "mv {0}, sp",
-            out(reg) sp,
-            options(nomem, nostack),
-        )
-    }
-    sp
-}
-
-#[inline(always)]
-pub fn base_pointer() -> usize {
-    let fp: usize;
-    unsafe {
-        asm!(
-            "mv {0}, fp",
-            out(reg) fp,
-            options(nomem, nostack),
-        )
-    }
-    fp
-}
-
-pub fn elapsed_cycles() -> u64 {
-    let mut res: u64;
-    unsafe {
-        asm!(
-            "rdcycle {0}",
+            "ld {0}, ({1})",
             out(reg) res,
-            options(nomem, nostack),
-        );
-    }
-    res
-}
-
-#[allow(clippy::missing_safety_doc)]
-pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
-    let bp_ptr = bp as *const usize;
-    *func = *bp_ptr.offset(-1);
-    *bp_ptr.offset(-2)
-}
-
-pub fn gem5_debug(msg: u64) -> u64 {
-    let mut res = msg;
-    unsafe {
-        asm!(
-            ".long 0xC600007B",
-            inout("x10") res,
+            in(reg) addr,
             options(nostack),
         );
+        res
     }
-    res
+
+    unsafe fn write8b(addr: usize, val: u64) {
+        asm!(
+            "sd {0}, ({1})",
+            in(reg) val,
+            in(reg) addr,
+            options(nostack),
+        )
+    }
+
+    #[inline(always)]
+    fn stack_pointer() -> usize {
+        let sp: usize;
+        unsafe {
+            asm!(
+                "mv {0}, sp",
+                out(reg) sp,
+                options(nomem, nostack),
+            )
+        }
+        sp
+    }
+
+    #[inline(always)]
+    fn base_pointer() -> usize {
+        let fp: usize;
+        unsafe {
+            asm!(
+                "mv {0}, fp",
+                out(reg) fp,
+                options(nomem, nostack),
+            )
+        }
+        fp
+    }
+
+    fn elapsed_cycles() -> u64 {
+        let mut res: u64;
+        unsafe {
+            asm!(
+                "rdcycle {0}",
+                out(reg) res,
+                options(nomem, nostack),
+            );
+        }
+        res
+    }
+
+    unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
+        let bp_ptr = bp as *const usize;
+        *func = *bp_ptr.offset(-1);
+        *bp_ptr.offset(-2)
+    }
+
+    fn gem5_debug(msg: u64) -> u64 {
+        let mut res = msg;
+        unsafe {
+            asm!(
+                ".long 0xC600007B",
+                inout("x10") res,
+                options(nostack),
+            );
+        }
+        res
+    }
 }

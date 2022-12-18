@@ -18,103 +18,118 @@
 
 use core::arch::asm;
 
-macro_rules! impl_read_reg {
-    ($func_name:tt, $reg_name:tt) => {
-        #[inline(always)]
-        pub fn $func_name() -> usize {
-            let res: usize;
-            unsafe {
-                asm!(
-                    concat!("mov {0}, ", $reg_name),
-                    out(reg) res,
-                    options(nostack, nomem),
-                )
-            };
-            res
-        }
+use crate::arch::CPUOps;
+
+/// Reads the value of the given control and status register (CSR), e.g., "cr0"
+#[macro_export]
+macro_rules! read_csr {
+    ($reg_name:tt) => {{
+        let res: usize;
+        unsafe {
+            asm!(
+                concat!("mov {0}, ", $reg_name),
+                out(reg) res,
+                options(nostack, nomem),
+            )
+        };
+        res
+    }};
+}
+
+/// Writes `$val` to the given control and status register (CSR), e.g., "cr0"
+#[macro_export]
+macro_rules! write_csr {
+    ($reg_name:tt, $val:expr) => {
+        unsafe {
+            asm!(
+                concat!("mov ", $reg_name, ", {0}"),
+                in(reg) $val,
+                options(nostack, nomem),
+            )
+        };
     };
 }
 
-macro_rules! impl_write_reg {
-    ($func_name:tt, $reg_name:tt) => {
-        #[inline(always)]
-        pub fn $func_name(val: usize) {
-            unsafe {
-                asm!(
-                    concat!("mov ", $reg_name, ", {0}"),
-                    in(reg) val,
-                    options(nostack, nomem),
-                )
-            };
-        }
-    };
-}
+pub struct X86CPU {}
 
-impl_read_reg!(read_cr0, "cr0");
-impl_read_reg!(read_cr2, "cr2");
-impl_read_reg!(read_cr3, "cr3");
-impl_read_reg!(read_cr4, "cr4");
-
-impl_write_reg!(write_cr0, "cr0");
-impl_write_reg!(write_cr3, "cr3");
-impl_write_reg!(write_cr4, "cr4");
-
-impl_read_reg!(stack_pointer, "rsp");
-impl_read_reg!(base_pointer, "rbp");
-
-#[allow(clippy::missing_safety_doc)]
-pub unsafe fn read8b(addr: usize) -> u64 {
-    let res: u64;
-    asm!(
-        "mov {0}, [{1}]",
-        out(reg) res,
-        in(reg) addr,
-        options(nostack),
-    );
-    res
-}
-
-#[allow(clippy::missing_safety_doc)]
-pub unsafe fn write8b(addr: usize, val: u64) {
-    asm!(
-        "mov [{1}], {0}",
-        in(reg) val,
-        in(reg) addr,
-        options(nostack),
-    );
-}
-
-#[allow(clippy::missing_safety_doc)]
-pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
-    let bp_ptr = bp as *const usize;
-    *func = *bp_ptr.offset(1);
-    *bp_ptr
-}
-
-pub fn elapsed_cycles() -> u64 {
-    let u: u32;
-    let l: u32;
-    unsafe {
+impl CPUOps for X86CPU {
+    unsafe fn read8b(addr: usize) -> u64 {
+        let res: u64;
         asm!(
-            "rdtsc",
-            out("rax") l,
-            out("rdx") u,
-            options(nostack, nomem),
+            "mov {0}, [{1}]",
+            out(reg) res,
+            in(reg) addr,
+            options(nostack),
         );
+        res
     }
-    u64::from(u) << 32 | u64::from(l)
-}
 
-pub fn gem5_debug(msg: u64) -> u64 {
-    let res: u64;
-    unsafe {
+    unsafe fn write8b(addr: usize, val: u64) {
         asm!(
-            ".byte 0x0F, 0x04",
-            ".word 0x63",
-            out("rax") res,
-            in("rdi") msg,
+            "mov [{1}], {0}",
+            in(reg) val,
+            in(reg) addr,
             options(nostack),
         );
     }
-    res
+
+    #[inline(always)]
+    fn stack_pointer() -> usize {
+        let res: usize;
+        unsafe {
+            asm!(
+                "mov {0}, rsp",
+                out(reg) res,
+                options(nostack, nomem),
+            )
+        };
+        res
+    }
+
+    #[inline(always)]
+    fn base_pointer() -> usize {
+        let res: usize;
+        unsafe {
+            asm!(
+                "mov {0}, rbp",
+                out(reg) res,
+                options(nostack, nomem),
+            )
+        };
+        res
+    }
+
+    unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
+        let bp_ptr = bp as *const usize;
+        *func = *bp_ptr.offset(1);
+        *bp_ptr
+    }
+
+    fn elapsed_cycles() -> u64 {
+        let u: u32;
+        let l: u32;
+        unsafe {
+            asm!(
+                "rdtsc",
+                out("rax") l,
+                out("rdx") u,
+                options(nostack, nomem),
+            );
+        }
+        u64::from(u) << 32 | u64::from(l)
+    }
+
+    fn gem5_debug(msg: u64) -> u64 {
+        let res: u64;
+        unsafe {
+            asm!(
+                ".byte 0x0F, 0x04",
+                ".word 0x63",
+                out("rax") res,
+                in("rdi") msg,
+                options(nostack),
+            );
+        }
+        res
+    }
 }

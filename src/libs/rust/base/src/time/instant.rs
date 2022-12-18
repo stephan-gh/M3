@@ -21,7 +21,7 @@
 use core::fmt;
 use core::ops::{Add, AddAssign, Sub, SubAssign};
 
-use crate::arch::cpu;
+use crate::arch::{CPUOps, CPU};
 use crate::tcu::TCU;
 use crate::time::{CycleDuration, TimeDuration};
 
@@ -147,7 +147,7 @@ pub struct CycleInstant(u64);
 impl CycleInstant {
     /// Returns an instant corresponding to "now".
     pub fn now() -> Self {
-        Self::from_cycles(cpu::elapsed_cycles())
+        Self::from_cycles(CPU::elapsed_cycles())
     }
 
     /// Creates a new cycle instant from the given number of cycles.

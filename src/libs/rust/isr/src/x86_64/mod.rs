@@ -16,10 +16,10 @@
 use base::backtrace;
 use base::cell::StaticRefCell;
 use base::cfg;
-use base::cpu;
 use base::int_enum;
 use base::libc;
 use base::mem;
+use base::read_csr;
 use base::tcu;
 
 use core::arch::asm;
@@ -109,7 +109,7 @@ fn vec_name(vec: usize) -> &'static str {
 
 impl fmt::Debug for State {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        let cr2 = cpu::read_cr2();
+        let cr2 = read_csr!("cr2");
         writeln!(fmt, "  vec: {:#x} ({})", { self.irq }, vec_name(self.irq))?;
         writeln!(fmt, "  cr2:    {:#x}", cr2)?;
         writeln!(fmt, "  error:  {:#x}", { self.error })?;

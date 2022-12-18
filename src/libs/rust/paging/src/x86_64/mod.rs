@@ -14,8 +14,8 @@
  */
 
 use base::cfg;
-use base::cpu;
 use base::kif::PageFlags;
+use base::write_csr;
 
 use bitflags::bitflags;
 
@@ -144,5 +144,5 @@ pub fn invalidate_tlb() {
 }
 
 pub fn set_root_pt(_id: crate::ActId, root: Phys) {
-    cpu::write_cr3(root as usize);
+    write_csr!("cr3", root as usize);
 }

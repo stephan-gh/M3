@@ -26,7 +26,7 @@ use core::intrinsics;
 use core::slice;
 use core::sync::atomic;
 
-use crate::arch;
+use crate::arch::{CPUOps, TMABIOps, CPU, TMABI};
 use crate::cfg;
 use crate::env;
 use crate::errors::{Code, Error};
@@ -567,7 +567,7 @@ impl TCU {
     fn handle_xlate_fault(addr: usize, perm: Perm) {
         // report translation fault to TileMux or whoever handles the call; ignore errors, we won't
         // get back here if TileMux cannot resolve the fault.
-        arch::tmabi::call2(tmif::Operation::TRANSL_FAULT, addr, perm.bits() as usize).ok();
+        TMABI::call2(tmif::Operation::TRANSL_FAULT, addr, perm.bits() as usize).ok();
     }
 
     /// Tries to fetch a new message from the given endpoint.
@@ -738,7 +738,7 @@ impl TCU {
         let num = math::round_up(s.len(), 8) / 8;
         for c in words.iter().take(num) {
             // safety: we know that the address is within the MMIO region of the TCU
-            unsafe { arch::cpu::write8b(buffer, *c) };
+            unsafe { CPU::write8b(buffer, *c) };
             buffer += 8;
         }
 
@@ -933,12 +933,12 @@ impl TCU {
 
     fn read_reg(idx: usize) -> Reg {
         // safety: we know that the address is within the MMIO region of the TCU
-        unsafe { arch::cpu::read8b(MMIO_ADDR + idx * 8) }
+        unsafe { CPU::read8b(MMIO_ADDR + idx * 8) }
     }
 
     fn write_reg(idx: usize, val: Reg) {
         // safety: as above
-        unsafe { arch::cpu::write8b(MMIO_ADDR + idx * 8, val) };
+        unsafe { CPU::write8b(MMIO_ADDR + idx * 8, val) };
     }
 
     fn build_cmd(ep: EpId, cmd: CmdOpCode, arg: Reg) -> Reg {
@@ -1029,7 +1029,7 @@ impl TCU {
         let addr = MMIO_ADDR + off * 8;
         for (i, r) in regs.iter().enumerate() {
             unsafe {
-                arch::cpu::write8b(addr + i * mem::size_of::<Reg>(), *r);
+                CPU::write8b(addr + i * mem::size_of::<Reg>(), *r);
             }
         }
     }

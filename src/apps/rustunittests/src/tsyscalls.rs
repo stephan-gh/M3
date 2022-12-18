@@ -19,7 +19,7 @@
 use m3::cap::Selector;
 use m3::cfg::PAGE_SIZE;
 use m3::com::{MemGate, RecvGate, SendGate};
-use m3::cpu;
+use m3::cpu::{CPUOps, CPU};
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::syscalls::{ActivityOp, SemOp};
@@ -156,7 +156,7 @@ fn create_mgate(t: &mut dyn WvTester) {
             Code::InvArgs
         );
         // and respect the permissions
-        let addr = cpu::stack_pointer() as goff;
+        let addr = CPU::stack_pointer() as goff;
         let addr = math::round_dn(addr, PAGE_SIZE as goff);
         wv_assert_err!(
             t,
@@ -479,7 +479,12 @@ fn alloc_ep(t: &mut dyn WvTester) {
     );
 
     // not enough quota
-    let ep_quota = Activity::own().tile().quota().unwrap().endpoints().remaining();
+    let ep_quota = Activity::own()
+        .tile()
+        .quota()
+        .unwrap()
+        .endpoints()
+        .remaining();
     wv_assert_err!(
         t,
         syscalls::alloc_ep(sel, Activity::own().sel(), TOTAL_EPS, ep_quota + 1),

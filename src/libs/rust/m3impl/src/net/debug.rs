@@ -31,8 +31,9 @@ pub enum NetLogEvent {
 #[cfg(target_vendor = "gem5")]
 #[inline(always)]
 pub fn log_net(ev: NetLogEvent, sd: Sd, arg: usize) {
+    use base::cpu::{CPUOps, CPU};
     let msg = ev as u64 | (sd as u64) << 8 | (arg as u64) << 16;
-    base::cpu::gem5_debug(msg);
+    CPU::gem5_debug(msg);
 }
 
 #[cfg(not(target_vendor = "gem5"))]
