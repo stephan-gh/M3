@@ -18,13 +18,13 @@
 
 //! Contains various collections
 
-mod bitvec;
+mod bitarray;
 mod boxlist;
 mod dlist;
 mod ringbuf;
 mod treap;
 
-pub use self::bitvec::BitVec;
+pub use self::bitarray::BitArray;
 pub use self::boxlist::{BoxItem, BoxList, BoxListIter, BoxListIterMut, BoxRef};
 pub use self::dlist::{DList, DListIter, DListIterMut};
 pub use self::ringbuf::VarRingBuf;

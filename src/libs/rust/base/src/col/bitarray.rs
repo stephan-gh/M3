@@ -17,7 +17,11 @@ use crate::col::Vec;
 use crate::mem;
 use crate::vec;
 
-pub struct BitVec {
+/// An array of bits
+///
+/// Besides storing a sequence of bits, `BitArray` keeps track of the first clear bit in the
+/// sequence to provide quick access to this information.
+pub struct BitArray {
     bits: usize,
     first_clear: usize,
     words: Vec<usize>,
@@ -35,28 +39,33 @@ fn bitpos(bit: usize) -> usize {
     1 << (bit % word_bits())
 }
 
-impl BitVec {
+impl BitArray {
+    /// Creates a new `BitArray` with the given number of bits
     pub fn new(bits: usize) -> Self {
         let word_count = (bits + word_bits() - 1) / word_bits();
-        BitVec {
+        BitArray {
             bits,
             words: vec![0; word_count],
             first_clear: 0,
         }
     }
 
+    /// Returns the number of bits in the array
     pub fn size(&self) -> usize {
         self.bits
     }
 
+    /// Returns true if the bit with given index is set
     pub fn is_set(&self, bit: usize) -> bool {
         self.words[idx(bit)] & bitpos(bit) != 0
     }
 
+    /// Returns the index of the first bit that is not set
     pub fn first_clear(&self) -> usize {
         self.first_clear
     }
 
+    /// Sets the bit with given index
     pub fn set(&mut self, bit: usize) {
         self.words[idx(bit)] |= bitpos(bit);
         if bit == self.first_clear {
@@ -67,6 +76,7 @@ impl BitVec {
         }
     }
 
+    /// Clears the bit with given index
     pub fn clear(&mut self, bit: usize) {
         self.words[idx(bit)] &= !bitpos(bit);
         if bit < self.first_clear {

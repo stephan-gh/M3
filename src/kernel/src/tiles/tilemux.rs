@@ -15,7 +15,7 @@
 
 use base::build_vmsg;
 use base::cell::RefMut;
-use base::col::{BitVec, Vec};
+use base::col::{BitArray, Vec};
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif;
@@ -36,7 +36,7 @@ pub struct TileMux {
     acts: Vec<ActId>,
     queue: base::boxed::Box<crate::com::SendQueue>,
     pmp: Vec<Rc<EPObject>>,
-    eps: BitVec,
+    eps: BitArray,
 }
 
 impl TileMux {
@@ -60,7 +60,7 @@ impl TileMux {
             acts: Vec::new(),
             queue: crate::com::SendQueue::new(crate::com::QueueId::TileMux(tile), tile),
             pmp,
-            eps: BitVec::new(tcu::AVAIL_EPS as usize),
+            eps: BitArray::new(tcu::AVAIL_EPS as usize),
         };
 
         tilemux.eps.set(0); // first EP is reserved for TileMux's memory region

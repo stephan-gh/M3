@@ -16,11 +16,11 @@
 use core::fmt;
 
 use m3::cell::{LazyStaticRefCell, StaticCell};
-use m3::col::BitVec;
+use m3::col::BitArray;
 use m3::log;
 use m3::net::Port;
 
-static PORTS: LazyStaticRefCell<BitVec> = LazyStaticRefCell::default();
+static PORTS: LazyStaticRefCell<BitArray> = LazyStaticRefCell::default();
 static NEXT_PORT: StaticCell<Port> = StaticCell::new(0);
 
 // ephemeral port range is from 49152 to 65535
@@ -73,7 +73,7 @@ impl fmt::Display for EphemeralPort {
 }
 
 pub fn init(sockets: usize) {
-    PORTS.set(BitVec::new(sockets));
+    PORTS.set(BitArray::new(sockets));
 }
 
 pub fn alloc() -> EphemeralPort {
