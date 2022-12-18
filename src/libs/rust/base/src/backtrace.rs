@@ -36,25 +36,25 @@ pub fn collect(addrs: &mut [usize]) -> usize {
 ///
 /// The function assumes that the stack is aligned by `cfg::STACK_SIZE` and ensures to not access
 /// below or above the stack.
-pub fn collect_for(mut bp: usize, addrs: &mut [usize]) -> usize {
-    if bp == 0 {
+pub fn collect_for(mut base_ptr: usize, addrs: &mut [usize]) -> usize {
+    if base_ptr == 0 {
         return 0;
     }
 
-    let base = math::round_dn(bp, cfg::STACK_SIZE);
-    let end = math::round_up(bp, cfg::STACK_SIZE);
+    let base = math::round_dn(base_ptr, cfg::STACK_SIZE);
+    let end = math::round_up(base_ptr, cfg::STACK_SIZE);
     let start = end - cfg::STACK_SIZE;
 
     for (i, addr) in addrs.iter_mut().enumerate() {
-        if bp < start || bp >= end {
+        if base_ptr < start || base_ptr >= end {
             return i;
         }
 
-        bp = base + (bp & (cfg::STACK_SIZE - 1));
+        base_ptr = base + (base_ptr & (cfg::STACK_SIZE - 1));
         // safety: assuming that the current BP was valid at the beginning of the function, the
         // following access is safe, because the checks above make sure that it's within our stack.
         unsafe {
-            bp = cpu::backtrace_step(bp, addr);
+            base_ptr = cpu::backtrace_step(base_ptr, addr);
         }
     }
     addrs.len()
