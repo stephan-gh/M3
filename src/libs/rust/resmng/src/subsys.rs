@@ -384,7 +384,7 @@ impl Subsystem {
             }
 
             // let the starter do further configurations on the tile like add PMP EPs
-            starter.configure_tile(tile_usage.clone(), &dom)?;
+            starter.configure_tile(tile_usage.clone(), dom)?;
 
             // split available PTs according to the config
             let tile_quota = tile_usage.tile_obj().quota()?;
@@ -597,7 +597,7 @@ impl Subsystem {
         // deactivate the memory gates so that the child can activate them for itself
         cfg_mem.deactivate();
 
-        let mut sub = SubsystemBuilder::new();
+        let mut sub = SubsystemBuilder::default();
 
         // add boot modules
         sub.add_mod(cfg_mem, cfg_slice.addr(), cfg_len as goff, "boot.xml");
@@ -643,6 +643,7 @@ impl Subsystem {
     }
 }
 
+#[derive(Default)]
 pub struct SubsystemBuilder {
     _desc: Option<MemGate>,
     tiles: Vec<(TileId, Rc<Tile>)>,
@@ -654,18 +655,6 @@ pub struct SubsystemBuilder {
 }
 
 impl SubsystemBuilder {
-    pub fn new() -> Self {
-        Self {
-            _desc: None,
-            tiles: Vec::new(),
-            mods: Vec::new(),
-            mems: Vec::new(),
-            servs: Vec::new(),
-            serv_objs: Vec::new(),
-            serial: false,
-        }
-    }
-
     pub fn add_mod(&mut self, mem: MemGate, addr: GlobAddr, size: goff, name: &str) {
         self.mods.push((mem, addr, size, name.to_string()));
     }
@@ -734,7 +723,7 @@ impl SubsystemBuilder {
 
         // boot modules
         for (mgate, addr, size, name) in &self.mods {
-            let m = boot::Mod::new(*addr, *size as u64, name);
+            let m = boot::Mod::new(*addr, *size, name);
             mem.write_obj(&m, off)?;
 
             act.delegate_to(CapRngDesc::new(CapType::OBJECT, mgate.sel(), 1), sel)?;

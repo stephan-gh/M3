@@ -391,7 +391,7 @@ pub fn generate(
             if mode == crate::Mode::Snapshot && time >= snapshot_time {
                 println!("Snapshot at timestamp {}:", time);
                 for t in tiles.keys() {
-                    if let Some(tile) = tiles.get(&t) {
+                    if let Some(tile) = tiles.get(t) {
                         tile.snapshot();
                     }
                 }

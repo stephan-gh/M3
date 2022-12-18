@@ -53,7 +53,7 @@ pub struct ModManager {
 
 static MNG: LazyReadOnlyCell<ModManager> = LazyReadOnlyCell::default();
 
-pub fn create(mods: &Vec<boot::Mod>) {
+pub fn create(mods: &[boot::Mod]) {
     let mut mmods = Vec::new();
     for (idx, m) in mods.iter().enumerate() {
         mmods.push(Mod {
