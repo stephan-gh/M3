@@ -71,7 +71,7 @@ pub fn load_program(
     file: &mut BufReader<FileRef<dyn File>>,
 ) -> Result<usize, Error> {
     let mut buf = vec![0u8; 4096];
-    let hdr: elf::Ehdr = read_object(file)?;
+    let hdr: elf::ElfHeader = read_object(file)?;
 
     if hdr.ident[0] != b'\x7F'
         || hdr.ident[1] != b'E'
@@ -83,21 +83,21 @@ pub fn load_program(
 
     // copy load segments to destination tile
     let mut end = 0;
-    let mut off = hdr.phoff;
-    for _ in 0..hdr.phnum {
+    let mut off = hdr.ph_off;
+    for _ in 0..hdr.ph_num {
         // load program header
         file.seek(off, SeekMode::SET)?;
-        let phdr: elf::Phdr = read_object(file)?;
-        off += hdr.phentsize as usize;
+        let phdr: elf::ProgramHeader = read_object(file)?;
+        off += hdr.ph_entry_size as usize;
 
         // we're only interested in non-empty load segments
-        if phdr.ty != elf::PT::LOAD.val || phdr.memsz == 0 {
+        if phdr.ty != elf::PHType::LOAD.val || phdr.mem_size == 0 {
             continue;
         }
 
         load_segment(act, mapper, file, &phdr, &mut buf)?;
 
-        end = phdr.vaddr + phdr.memsz as usize;
+        end = phdr.virt_addr + phdr.mem_size as usize;
     }
 
     // create area for stack
@@ -179,28 +179,28 @@ fn load_segment(
     act: &Activity,
     mapper: &mut dyn Mapper,
     file: &mut BufReader<FileRef<dyn File>>,
-    phdr: &elf::Phdr,
+    phdr: &elf::ProgramHeader,
     buf: &mut [u8],
 ) -> Result<(), Error> {
-    let prot = kif::Perm::from(elf::PF::from_bits_truncate(phdr.flags));
-    let size = math::round_up(phdr.memsz as usize, cfg::PAGE_SIZE);
+    let prot = kif::Perm::from(elf::PHFlags::from_bits_truncate(phdr.flags));
+    let size = math::round_up(phdr.mem_size as usize, cfg::PAGE_SIZE);
 
-    let needs_init = if phdr.memsz == phdr.filesz {
+    let needs_init = if phdr.mem_size == phdr.file_size {
         mapper.map_file(
             act.pager(),
             file,
             phdr.offset as usize,
-            phdr.vaddr as goff,
+            phdr.virt_addr as goff,
             size,
             prot,
             MapFlags::PRIVATE,
         )
     }
     else {
-        assert!(phdr.filesz == 0);
+        assert!(phdr.file_size == 0);
         mapper.map_anon(
             act.pager(),
-            phdr.vaddr as goff,
+            phdr.virt_addr as goff,
             size,
             prot,
             MapFlags::PRIVATE,
@@ -209,7 +209,7 @@ fn load_segment(
 
     if needs_init {
         let mem = act.get_mem(
-            phdr.vaddr as goff,
+            phdr.virt_addr as goff,
             math::round_up(size, cfg::PAGE_SIZE) as goff,
             kif::Perm::RW,
         )?;
@@ -217,10 +217,10 @@ fn load_segment(
             buf,
             &mem,
             file,
-            phdr.vaddr,
+            phdr.virt_addr,
             phdr.offset as usize,
-            phdr.filesz as usize,
-            phdr.memsz as usize,
+            phdr.file_size as usize,
+            phdr.mem_size as usize,
         )
     }
     else {

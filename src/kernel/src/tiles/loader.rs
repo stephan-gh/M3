@@ -155,7 +155,7 @@ fn load_segment_async(
 
 fn load_mod_async(act: &Activity, bm: &kif::boot::Mod) -> Result<usize, Error> {
     let mod_addr = GlobAddr::new(bm.addr);
-    let hdr: elf::Ehdr = read_from_mod(bm, 0)?;
+    let hdr: elf::ElfHeader = read_from_mod(bm, 0)?;
 
     if hdr.ident[0] != b'\x7F'
         || hdr.ident[1] != b'E'
@@ -167,24 +167,29 @@ fn load_mod_async(act: &Activity, bm: &kif::boot::Mod) -> Result<usize, Error> {
 
     // copy load segments to destination tile
     let mut end = 0;
-    let mut off = hdr.phoff;
-    for _ in 0..hdr.phnum {
+    let mut off = hdr.ph_off;
+    for _ in 0..hdr.ph_num {
         // load program header
-        let phdr: elf::Phdr = read_from_mod(bm, off as goff)?;
-        off += hdr.phentsize as usize;
+        let phdr: elf::ProgramHeader = read_from_mod(bm, off as goff)?;
+        off += hdr.ph_entry_size as usize;
 
         // we're only interested in non-empty load segments
-        if phdr.ty != elf::PT::LOAD.val || phdr.memsz == 0 {
+        if phdr.ty != elf::PHType::LOAD.val || phdr.mem_size == 0 {
             continue;
         }
 
-        let flags = PageFlags::from(kif::Perm::from(elf::PF::from_bits_truncate(phdr.flags)));
+        let flags = PageFlags::from(kif::Perm::from(elf::PHFlags::from_bits_truncate(
+            phdr.flags,
+        )));
         let offset = math::round_dn(phdr.offset as usize, PAGE_SIZE);
-        let virt = math::round_dn(phdr.vaddr, PAGE_SIZE);
+        let virt = math::round_dn(phdr.virt_addr, PAGE_SIZE);
 
         // bss?
-        if phdr.filesz == 0 {
-            let size = math::round_up((phdr.vaddr & PAGE_MASK) + phdr.memsz as usize, PAGE_SIZE);
+        if phdr.file_size == 0 {
+            let size = math::round_up(
+                (phdr.virt_addr & PAGE_MASK) + phdr.mem_size as usize,
+                PAGE_SIZE,
+            );
 
             let phys = if act.tile_desc().has_virtmem() {
                 let mem = mem::borrow_mut().allocate(
@@ -203,8 +208,8 @@ fn load_mod_async(act: &Activity, bm: &kif::boot::Mod) -> Result<usize, Error> {
             end = virt + size;
         }
         else {
-            assert!(phdr.memsz == phdr.filesz);
-            let size = (phdr.offset as usize & PAGE_MASK) + phdr.filesz as usize;
+            assert!(phdr.mem_size == phdr.file_size);
+            let size = (phdr.offset as usize & PAGE_MASK) + phdr.file_size as usize;
             load_segment_async(
                 act,
                 mod_addr + offset as goff,

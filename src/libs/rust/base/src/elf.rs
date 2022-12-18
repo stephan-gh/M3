@@ -26,7 +26,7 @@ const EI_NIDENT: usize = 16;
 
 int_enum! {
     /// The program header entry types
-    pub struct PT : u32 {
+    pub struct PHType : u32 {
         /// Load segment
         const LOAD = 0x1;
     }
@@ -34,7 +34,7 @@ int_enum! {
 
 bitflags! {
     /// The program header flags
-    pub struct PF : u32 {
+    pub struct PHFlags : u32 {
         /// Executable
         const X = 0x1;
         /// Writable
@@ -47,68 +47,98 @@ bitflags! {
 /// ELF header
 #[derive(Default)]
 #[repr(C, packed)]
-pub struct Ehdr {
+pub struct ElfHeader {
+    /// ELF magic: ['\x7F', 'E', 'L', 'F']
     pub ident: [u8; EI_NIDENT],
+    /// ELF type (e.g., executable)
     pub ty: u16,
+    /// Machine the ELF binary was built for
     pub machine: u16,
+    /// ELF version
     pub version: u32,
+    /// Entry point of the program
     pub entry: usize,
-    pub phoff: usize,
-    pub shoff: usize,
+    /// Program header offset
+    pub ph_off: usize,
+    /// Section header offset
+    pub sh_off: usize,
+    /// ELF flags
     pub flags: u32,
-    pub ehsize: u16,
-    pub phentsize: u16,
-    pub phnum: u16,
-    pub shentsize: u16,
-    pub shnum: u16,
-    pub shstrndx: u16,
+    /// Size of the ELF header
+    pub eh_size: u16,
+    /// Size of program headers
+    pub ph_entry_size: u16,
+    /// Number of program headers
+    pub ph_num: u16,
+    /// Size of section headers
+    pub sh_entry_size: u16,
+    /// Number of section headers
+    pub sh_num: u16,
+    /// Section header string table index
+    pub sh_string_idx: u16,
 }
 
 /// Program header for 32-bit ELF files
 #[derive(Default)]
 #[repr(C, packed)]
-pub struct Phdr32 {
+pub struct ProgramHeader32 {
+    /// Program header type (see [`PHType`])
     pub ty: u32,
+    /// File offset
     pub offset: u32,
-    pub vaddr: usize,
-    pub paddr: usize,
-    pub filesz: u32,
-    pub memsz: u32,
+    /// Virtual address
+    pub virt_addr: usize,
+    /// Physical address
+    pub phys_addr: usize,
+    /// Size of this program header in the file
+    pub file_size: u32,
+    /// Size of this program header in memory
+    pub mem_size: u32,
+    /// Program header flags (see [`PHFlags`])
     pub flags: u32,
+    /// Alignment
     pub align: u32,
 }
 
 /// Program header for 64-bit ELF files
 #[derive(Default)]
 #[repr(C, packed)]
-pub struct Phdr64 {
+pub struct ProgramHeader64 {
+    /// Program header type (see [`PHType`])
     pub ty: u32,
+    /// Program header flags (see [`PHFlags`])
     pub flags: u32,
+    /// File offset
     pub offset: u64,
-    pub vaddr: usize,
-    pub paddr: usize,
-    pub filesz: u64,
-    pub memsz: u64,
+    /// Virtual address
+    pub virt_addr: usize,
+    /// Physical address
+    pub phys_addr: usize,
+    /// Size of this program header in the file
+    pub file_size: u64,
+    /// Size of this program header in memory
+    pub mem_size: u64,
+    /// Alignment
     pub align: u64,
 }
 
 /// Program header (64-bit)
 #[cfg(target_pointer_width = "64")]
-pub type Phdr = Phdr64;
+pub type ProgramHeader = ProgramHeader64;
 /// Program header (32-bit)
 #[cfg(target_pointer_width = "32")]
-pub type Phdr = Phdr32;
+pub type ProgramHeader = ProgramHeader32;
 
-impl From<PF> for kif::Perm {
-    fn from(flags: PF) -> Self {
+impl From<PHFlags> for kif::Perm {
+    fn from(flags: PHFlags) -> Self {
         let mut prot = kif::Perm::empty();
-        if flags.contains(PF::R) {
+        if flags.contains(PHFlags::R) {
             prot |= kif::Perm::R;
         }
-        if flags.contains(PF::W) {
+        if flags.contains(PHFlags::W) {
             prot |= kif::Perm::W;
         }
-        if flags.contains(PF::X) {
+        if flags.contains(PHFlags::X) {
             prot |= kif::Perm::X;
         }
         prot
