@@ -352,25 +352,6 @@ impl MemPool {
         Err(Error::new(Code::OutOfMem))
     }
 
-    pub fn allocate_at(&mut self, phys: goff, size: goff, perm: Perm) -> Result<Allocation, Error> {
-        for (id, s) in self.slices.iter().enumerate() {
-            // TODO specify memory id
-            if s.mem.reserved
-                && phys >= s.mem.addr.offset()
-                && phys + size <= s.mem.addr.offset() + s.capacity()
-            {
-                if !(!s.perm & perm).is_empty() {
-                    return Err(Error::new(Code::NoPerm));
-                }
-
-                let alloc = Allocation::new(id, phys - s.mem.addr.offset(), size);
-                log!(crate::LOG_MEM, "Allocated {:?}", alloc);
-                return Ok(alloc);
-            }
-        }
-        Err(Error::new(Code::NoPerm))
-    }
-
     pub fn free(&mut self, alloc: Allocation) {
         let s = &mut self.slices[alloc.slice_id];
         log!(crate::LOG_MEM, "Freeing {:?}", alloc);
