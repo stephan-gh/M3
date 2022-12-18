@@ -29,6 +29,7 @@ pub use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 use crate::col::{String, Vec};
 use crate::libc;
 
+/// Constructs a message with the arguments `$args` into the given message buffer `$msg`
 #[macro_export]
 macro_rules! build_vmsg {
     ( $msg:expr, $( $args:expr ),* ) => ({

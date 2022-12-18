@@ -13,7 +13,8 @@
  * General Public License version 2 for more details.
  */
 
-///! Types to work with borrowed data
+//! Types to work with borrowed data
+
 mod strref;
 
 pub use self::strref::StringRef;

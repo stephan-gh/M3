@@ -242,7 +242,7 @@ pub fn vars() -> Vec<(String, String)> {
 }
 
 /// Returns the environment-variable iterator, containing each variable as a single string in the
-/// form of <key>=<value>.
+/// form of `key`=`value`.
 pub fn vars_raw() -> Vec<String> {
     if VARS.is_some() {
         VARS.borrow().iter().map(|p| p.to_string()).collect()

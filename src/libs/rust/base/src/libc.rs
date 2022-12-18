@@ -16,6 +16,8 @@
  * General Public License version 2 for more details.
  */
 
+//! Contains functions and types found in the libc
+
 #[repr(u8)]
 #[allow(non_camel_case_types)]
 pub enum c_void {
