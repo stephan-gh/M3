@@ -20,7 +20,7 @@ use base::col::ToString;
 use base::errors::{Code, Error, VerboseError};
 use base::rc::Rc;
 use base::time::TimeDuration;
-use base::util::random::LCG;
+use base::util::random::LinearCongruentialGenerator;
 use base::vec;
 
 use crate::net::{DGramSocket, DgramSocketArgs, Endpoint, IpAddr, Port, Socket, UdpSocket};
@@ -65,7 +65,7 @@ struct DNSAnswer {
 #[derive(Default)]
 pub struct DNS {
     nameserver: IpAddr,
-    random: LCG,
+    random: LinearCongruentialGenerator,
 }
 
 impl DNS {

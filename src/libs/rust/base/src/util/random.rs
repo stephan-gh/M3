@@ -21,14 +21,14 @@ use crate::time::TimeInstant;
 ///
 /// Source: `<http://en.wikipedia.org/wiki/Linear_congruential_generator>`
 #[derive(Debug)]
-pub struct LCG {
+pub struct LinearCongruentialGenerator {
     a: u32,
     c: u32,
     last: u32,
 }
 
-impl LCG {
-    /// Creates a new LCG with given seed
+impl LinearCongruentialGenerator {
+    /// Creates a new random number generator with given seed
     pub fn new(seed: u32) -> Self {
         Self {
             a: 1103515245,
@@ -44,7 +44,7 @@ impl LCG {
     }
 }
 
-impl Default for LCG {
+impl Default for LinearCongruentialGenerator {
     fn default() -> Self {
         Self::new(TimeInstant::now().as_nanos() as u32)
     }
