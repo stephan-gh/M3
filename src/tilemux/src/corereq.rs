@@ -21,9 +21,9 @@ use crate::activities;
 
 pub fn handle_recv(req: tcu::CoreForeignReq) {
     // add message to activity
-    if let Some(mut v) = activities::get_mut(req.act as activities::Id) {
+    if let Some(mut v) = activities::get_mut(req.activity() as activities::Id) {
         // if this activity is currently running, we have to update the CUR_ACT register
-        if (tcu::TCU::get_cur_activity() & 0xFFFF) == req.act as activities::Id {
+        if (tcu::TCU::get_cur_activity() & 0xFFFF) == req.activity() as activities::Id {
             // temporary switch to idle
             let old_act = tcu::TCU::xchg_activity(activities::idle().activity_reg()).unwrap();
             // set user event
@@ -40,12 +40,12 @@ pub fn handle_recv(req: tcu::CoreForeignReq) {
         log!(
             crate::LOG_FOREIGN_MSG,
             "Added message to Activity {} ({} msgs)",
-            req.act,
+            req.activity(),
             v.msgs()
         );
 
         if v.id() != kif::tilemux::ACT_ID {
-            v.unblock(activities::Event::Message(req.ep));
+            v.unblock(activities::Event::Message(req.ep()));
         }
     }
 

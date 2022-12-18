@@ -304,8 +304,8 @@ int_enum! {
 /// A foreign-msg core request, that is sent by the TCU if a message was received for another activity
 #[derive(Debug)]
 pub struct CoreForeignReq {
-    pub act: u16,
-    pub ep: EpId,
+    act: u16,
+    ep: EpId,
 }
 
 impl CoreForeignReq {
@@ -315,6 +315,16 @@ impl CoreForeignReq {
             act: (req >> 48) as u16,
             ep: ((req >> 2) & 0xFFFF) as EpId,
         }
+    }
+
+    /// Returns the activity id for which the message was received
+    pub fn activity(&self) -> u16 {
+        self.act
+    }
+
+    /// Returns the endpoint on which the message was received
+    pub fn ep(&self) -> EpId {
+        self.ep
     }
 }
 

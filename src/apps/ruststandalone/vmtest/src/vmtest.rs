@@ -296,8 +296,8 @@ pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
     // core request from TCU?
     let req = tcu::TCU::get_core_req().unwrap();
     log!(crate::LOG_DEF, "Got {:x?}", req);
-    assert_eq!(req.act, 0xDEAD);
-    assert_eq!(req.ep, 1);
+    assert_eq!(req.activity(), 0xDEAD);
+    assert_eq!(req.ep(), 1);
 
     FOREIGN_MSGS.set(FOREIGN_MSGS.get() + 1);
 
