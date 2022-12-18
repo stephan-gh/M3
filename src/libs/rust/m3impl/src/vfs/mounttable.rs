@@ -18,7 +18,7 @@
 
 use core::fmt;
 
-use crate::borrow::StringRef;
+use crate::borrow::Cow;
 use crate::cap::Selector;
 use crate::cell::RefCell;
 use crate::col::{String, ToString, Vec};
@@ -100,9 +100,9 @@ impl MountTable {
     /// Resolves the given path to the file system image and the offset of the mount point within
     /// the path. The given path is turned into an absolute path in case it's relative. The returned
     /// offset refers to the absolute path.
-    pub fn resolve(&self, path: &mut StringRef<'_>) -> Result<(FSHandle, usize), Error> {
+    pub fn resolve(&self, path: &mut Cow<'_, str>) -> Result<(FSHandle, usize), Error> {
         if !path.starts_with('/') {
-            path.set(VFS::cwd() + "/" + &*path);
+            *path.to_mut() = VFS::cwd() + "/" + &*path;
         }
 
         for m in &self.mounts {

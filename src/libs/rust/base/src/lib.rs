@@ -48,13 +48,17 @@ pub mod sync {
     pub use alloc::sync::{Arc, Weak};
 }
 
+/// Types to work with borrowed data
+pub mod borrow {
+    pub use alloc::borrow::{Borrow, BorrowMut, Cow, ToOwned};
+}
+
 #[macro_use]
 pub mod io;
 #[macro_use]
 pub mod util;
 
 pub mod backtrace;
-pub mod borrow;
 pub mod cell;
 pub mod cfg;
 pub mod col;

@@ -16,7 +16,7 @@
  * General Public License version 2 for more details.
  */
 
-use crate::borrow::StringRef;
+use crate::borrow::Cow;
 use crate::col::{String, ToString};
 use crate::errors::{Code, Error};
 use crate::rc::Rc;
@@ -43,7 +43,7 @@ fn with_path<F, R>(path: &str, func: F) -> Result<R, Error>
 where
     F: Fn(&FSHandle, &str) -> Result<R, Error>,
 {
-    let mut path = StringRef::Borrowed(path);
+    let mut path = Cow::from(path);
     let (fs, pos) = Activity::own().mounts().resolve(&mut path)?;
     func(&fs, &path[pos..])
 }
@@ -160,9 +160,9 @@ pub fn rmdir(path: &str) -> Result<(), Error> {
 
 /// Creates a link at `new` to `old`.
 pub fn link(old: &str, new: &str) -> Result<(), Error> {
-    let mut old = StringRef::Borrowed(old);
+    let mut old = Cow::from(old);
     let (fs1, pos1) = Activity::own().mounts().resolve(&mut old)?;
-    let mut new = StringRef::Borrowed(new);
+    let mut new = Cow::from(new);
     let (fs2, pos2) = Activity::own().mounts().resolve(&mut new)?;
     if !Rc::ptr_eq(&fs1, &fs2) {
         return Err(Error::new(Code::XfsLink));
@@ -179,9 +179,9 @@ pub fn unlink(path: &str) -> Result<(), Error> {
 
 /// Renames `new` to `old`.
 pub fn rename(old: &str, new: &str) -> Result<(), Error> {
-    let mut old = StringRef::Borrowed(old);
+    let mut old = Cow::from(old);
     let (fs1, pos1) = Activity::own().mounts().resolve(&mut old)?;
-    let mut new = StringRef::Borrowed(new);
+    let mut new = Cow::from(new);
     let (fs2, pos2) = Activity::own().mounts().resolve(&mut new)?;
     if !Rc::ptr_eq(&fs1, &fs2) {
         return Err(Error::new(Code::XfsLink));
