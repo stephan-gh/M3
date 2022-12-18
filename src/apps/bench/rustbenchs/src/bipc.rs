@@ -102,7 +102,7 @@ fn pingpong_with_multiple(t: &mut dyn WvTester) {
     // use long time slices for childs (minimize timer interrupts)
     wv_assert_ok!(tile.set_quota(
         TimeDuration::from_secs(1).as_raw(),
-        tile.quota().unwrap().page_tables().left(),
+        tile.quota().unwrap().page_tables().remaining(),
     ));
 
     // split time quota between childs

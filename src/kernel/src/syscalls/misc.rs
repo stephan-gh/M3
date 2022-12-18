@@ -249,10 +249,10 @@ pub fn tile_quota_async(
         eps_left: tile.ep_quota().left(),
         time_id: time.id(),
         time_total: time.total(),
-        time_left: time.left(),
+        time_left: time.remaining(),
         pts_id: pts.id(),
         pts_total: pts.total(),
-        pts_left: pts.left(),
+        pts_left: pts.remaining(),
     });
     send_reply(msg, &kreply);
 

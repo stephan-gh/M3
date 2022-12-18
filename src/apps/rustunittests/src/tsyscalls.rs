@@ -479,7 +479,7 @@ fn alloc_ep(t: &mut dyn WvTester) {
     );
 
     // not enough quota
-    let ep_quota = Activity::own().tile().quota().unwrap().endpoints().left();
+    let ep_quota = Activity::own().tile().quota().unwrap().endpoints().remaining();
     wv_assert_err!(
         t,
         syscalls::alloc_ep(sel, Activity::own().sel(), TOTAL_EPS, ep_quota + 1),
@@ -635,7 +635,7 @@ fn derive_mem(t: &mut dyn WvTester) {
 
 fn derive_kmem(t: &mut dyn WvTester) {
     let sel = Activity::own().alloc_sel();
-    let quota = wv_assert_ok!(Activity::own().kmem().quota()).left();
+    let quota = wv_assert_ok!(Activity::own().kmem().quota()).remaining();
 
     // invalid dest selector
     wv_assert_err!(
@@ -659,19 +659,19 @@ fn derive_kmem(t: &mut dyn WvTester) {
     // do that test twice, because we might cause pagefaults during the first test, changing the
     // kernel memory quota (our pager shares the kmem with us).
     for i in 0..=1 {
-        let before = wv_assert_ok!(Activity::own().kmem().quota()).left();
+        let before = wv_assert_ok!(Activity::own().kmem().quota()).remaining();
         // transfer memory
         {
             let kmem2 = wv_assert_ok!(Activity::own().kmem().derive(before / 2));
-            let quota2 = wv_assert_ok!(kmem2.quota()).left();
-            let nquota = wv_assert_ok!(Activity::own().kmem().quota()).left();
+            let quota2 = wv_assert_ok!(kmem2.quota()).remaining();
+            let nquota = wv_assert_ok!(Activity::own().kmem().quota()).remaining();
             wv_assert_eq!(t, quota2, before / 2);
             // we don't know exactly, because we have paid for the new cap and kobject too
             wv_assert!(t, nquota <= before / 2);
         }
         // only do the check in the second test where no pagefaults should occur
         if i == 1 {
-            let nquota = wv_assert_ok!(Activity::own().kmem().quota()).left();
+            let nquota = wv_assert_ok!(Activity::own().kmem().quota()).remaining();
             wv_assert_eq!(t, nquota, before);
         }
     }
@@ -699,7 +699,7 @@ fn derive_tile(t: &mut dyn WvTester) {
     let sel = Activity::own().alloc_sel();
     let tile = wv_assert_ok!(Tile::get("clone"));
     let oquota = wv_assert_ok!(tile.quota());
-    let oquote_eps = oquota.endpoints().left();
+    let oquote_eps = oquota.endpoints().remaining();
 
     // invalid dest selector
     wv_assert_err!(
@@ -724,12 +724,12 @@ fn derive_tile(t: &mut dyn WvTester) {
     {
         {
             let tile2 = wv_assert_ok!(tile.derive(Some(1), None, None));
-            let quota2 = wv_assert_ok!(tile2.quota()).endpoints().left();
-            let nquota = wv_assert_ok!(tile.quota()).endpoints().left();
+            let quota2 = wv_assert_ok!(tile2.quota()).endpoints().remaining();
+            let nquota = wv_assert_ok!(tile.quota()).endpoints().remaining();
             wv_assert_eq!(t, quota2, 1);
             wv_assert_eq!(t, nquota, oquote_eps - 1);
         }
-        let nquota = wv_assert_ok!(tile.quota()).endpoints().left();
+        let nquota = wv_assert_ok!(tile.quota()).endpoints().remaining();
         wv_assert_eq!(t, nquota, oquote_eps);
     }
 

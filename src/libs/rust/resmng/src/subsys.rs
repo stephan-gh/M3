@@ -388,9 +388,9 @@ impl Subsystem {
 
             // split available PTs according to the config
             let tile_quota = tile_usage.tile_obj().quota()?;
-            let (mut pt_sharer, shared_pts) = split_pts(tile_quota.page_tables().left(), dom);
+            let (mut pt_sharer, shared_pts) = split_pts(tile_quota.page_tables().remaining(), dom);
 
-            let mut domain_total_eps = tile_quota.endpoints().left();
+            let mut domain_total_eps = tile_quota.endpoints().remaining();
             let mut domain_total_time = 0;
             let mut domain_total_pts = 0;
             let mut domain_kmem_bytes = 0;

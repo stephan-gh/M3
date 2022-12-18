@@ -13,26 +13,32 @@
  * General Public License version 2 for more details.
  */
 
-//! Contains the quota type that is passed around for info purposes
+//! Contains the quota type that is passed around for information purposes
 
 use crate::kif::tilemux;
 use crate::serialize::{Deserialize, Serialize};
 
 use core::fmt;
 
+/// A quota identifier
 pub type Id = tilemux::QuotaId;
 
+/// Represents a generic quota, consisting of an id, a total amount, and a remaining amount
 #[derive(Copy, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Quota<T> {
     id: Id,
     total: T,
-    left: T,
+    remaining: T,
 }
 
 impl<T: Copy> Quota<T> {
     /// Creates a new Quota with given id, total budget and remaining budget
     pub fn new(id: Id, total: T, left: T) -> Self {
-        Self { id, total, left }
+        Self {
+            id,
+            total,
+            remaining: left,
+        }
     }
 
     /// Returns the quota id
@@ -46,13 +52,13 @@ impl<T: Copy> Quota<T> {
     }
 
     /// Returns the remaining budget
-    pub fn left(&self) -> T {
-        self.left
+    pub fn remaining(&self) -> T {
+        self.remaining
     }
 }
 
 impl<T: fmt::Display> fmt::Display for Quota<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Q[{}: {} of {}]", self.id, self.left, self.total)
+        write!(f, "Q[{}: {} of {}]", self.id, self.remaining, self.total)
     }
 }
