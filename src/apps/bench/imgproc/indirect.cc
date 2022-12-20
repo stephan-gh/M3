@@ -167,7 +167,6 @@ CycleDuration chain_indirect(const char *in, size_t num) {
     }
 
     auto start = CycleInstant::now();
-    auto end = start;
 
     // start chains
     for(size_t i = 0; i < num; ++i)
@@ -176,7 +175,7 @@ CycleDuration chain_indirect(const char *in, size_t num) {
     size_t active_chains = 0;
     for(size_t i = 0; i < num; ++i) {
         if(!chains[i]->read_next(buffer.get()))
-            goto error;
+            vthrow(Errors::END_OF_FILE, "Unexpected end of file"_cf);
         active_chains |= static_cast<size_t>(1) << i;
     }
 
@@ -201,8 +200,5 @@ CycleDuration chain_indirect(const char *in, size_t num) {
             active_chains &= ~(static_cast<size_t>(1) << chain);
     }
 
-    end = CycleInstant::now();
-
-error:
-    return end.duration_since(start);
+    return CycleInstant::now().duration_since(start);
 }
