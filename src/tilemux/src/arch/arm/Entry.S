@@ -25,9 +25,6 @@
 .text
 
 BEGIN_FUNC(_start)
-    // force the linker to keep the ISR Entry.S
-    ldr     r0, =isr_common
-
     mrc     p15, 0, r0, c10, c2, 0  // PRRR
     orr     r0, r0, #0x00000002     // set tr0 = 0x2 (normal memory)
     mcr     p15, 0, r0, c10, c2, 0
