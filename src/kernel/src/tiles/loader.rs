@@ -75,7 +75,7 @@ fn load_root_async(env_phys: goff, act: &Activity) -> Result<(), Error> {
     let argv_addr = write_arguments(env_phys, act.tile_id(), &["root"]);
 
     // build env
-    let senv = env::EnvData {
+    let mut senv = env::EnvData {
         platform: env::data().platform,
         argc: 1,
         argv: argv_addr as u64,
@@ -90,6 +90,9 @@ fn load_root_async(env_phys: goff, act: &Activity) -> Result<(), Error> {
         first_std_ep: act.eps_start() as u64,
         ..Default::default()
     };
+    let tile_ids = &env::data().raw_tile_ids[0..env::data().raw_tile_count as usize];
+    senv.raw_tile_count = tile_ids.len() as u64;
+    senv.raw_tile_ids[0..tile_ids.len()].copy_from_slice(tile_ids);
 
     // write env to target tile
     ktcu::write_slice(act.tile_id(), env_phys, &[senv]);
