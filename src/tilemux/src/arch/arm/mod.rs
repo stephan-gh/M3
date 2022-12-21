@@ -16,13 +16,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::errors::Error;
-use base::kif::PageFlags;
-
-use core::arch::asm;
-
 use crate::activities;
-use crate::vma;
 
 pub type State = isr::State;
 
@@ -34,61 +28,10 @@ pub fn init_state(state: &mut State, entry: usize, sp: usize) {
     state.lr = 0;
 }
 
-pub fn init(state: &mut State) {
-    isr::init(state);
-    for i in 0..=7 {
-        match isr::Vector::from(i) {
-            isr::Vector::SWI => isr::reg(i, crate::tmcall),
-            isr::Vector::PREFETCH_ABORT => isr::reg(i, crate::mmu_pf),
-            isr::Vector::DATA_ABORT => isr::reg(i, crate::mmu_pf),
-            isr::Vector::IRQ => isr::reg(i, crate::ext_irq),
-            _ => isr::reg(i, crate::unexpected_irq),
-        }
-    }
-}
-
 pub fn forget_fpu(_act_id: activities::Id) {
     // no FPU support
 }
 
 pub fn disable_fpu() {
     // no FPU support
-}
-
-pub fn handle_mmu_pf(state: &mut State) -> Result<(), Error> {
-    let (virt, perm) = if state.vec == isr::Vector::DATA_ABORT.val {
-        let dfar: usize;
-        let dfsr: usize;
-        unsafe {
-            asm!(
-                "mrc p15, 0, {0}, c6, c0, 0",
-                "mrc p15, 0, {1}, c5, c0, 0",
-                out(reg) dfar,
-                out(reg) dfsr,
-                options(nostack, nomem),
-            );
-        }
-        (
-            dfar,
-            if dfsr & 0x800 != 0 {
-                PageFlags::RW
-            }
-            else {
-                PageFlags::R
-            },
-        )
-    }
-    else {
-        let ifar: usize;
-        unsafe {
-            asm!(
-                "mrc p15, 0, {0}, c6, c0, 2",
-                out(reg) ifar,
-                options(nostack, nomem),
-            );
-        }
-        (ifar, PageFlags::RX)
-    };
-
-    vma::handle_pf(state, virt, perm, state.pc)
 }

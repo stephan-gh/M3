@@ -44,6 +44,8 @@ use base::tcu;
 
 use core::ptr;
 
+use isr::{ISRArch, ISR};
+
 /// Logs errors
 pub const LOG_ERR: bool = true;
 /// Logs basic activity operations
@@ -163,7 +165,8 @@ pub extern "C" fn fpu_ex(state: &mut arch::State) -> *mut libc::c_void {
 }
 
 pub extern "C" fn mmu_pf(state: &mut arch::State) -> *mut libc::c_void {
-    if arch::handle_mmu_pf(state).is_err() {
+    let (virt, perm) = ISR::get_pf_info(state);
+    if vma::handle_pf(state, virt, perm).is_err() {
         activities::remove_cur(Code::Unspecified);
     }
 
@@ -177,7 +180,7 @@ pub extern "C" fn tmcall(state: &mut arch::State) -> *mut libc::c_void {
 }
 
 pub extern "C" fn ext_irq(state: &mut arch::State) -> *mut libc::c_void {
-    match isr::get_irq() {
+    match ISR::fetch_irq() {
         isr::IRQSource::TCU(tcu::IRQ::TIMER) => {
             activities::cur().consume_time();
             timer::trigger();
@@ -237,7 +240,17 @@ pub extern "C" fn init() -> usize {
     let mut idle = activities::idle();
     let state = idle.user_state();
     let state_top = state as *const _ as usize + mem::size_of::<arch::State>();
-    arch::init(state);
+
+    ISR::init(state);
+    isr::reg_all(unexpected_irq);
+    ISR::reg_tm_calls(tmcall);
+    ISR::reg_page_faults(mmu_pf);
+    #[cfg(any(target_arch = "riscv64", target_arch = "x86_64"))]
+    ISR::reg_illegal_instr(fpu_ex);
+    ISR::reg_core_reqs(ext_irq);
+    ISR::reg_timer(ext_irq);
+    ISR::reg_external(ext_irq);
+
     // store platform already in app env, because we need it for logging
     app_env().platform = pex_env().platform;
 

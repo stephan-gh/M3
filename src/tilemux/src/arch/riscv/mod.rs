@@ -14,14 +14,13 @@
  */
 
 use base::cell::StaticCell;
-use base::errors::{Code, Error};
-use base::kif::{tilemux, PageFlags};
+use base::errors::Code;
+use base::kif::tilemux;
 use base::libc;
 use base::mem::MaybeUninit;
 use base::{int_enum, log, read_csr, write_csr};
 
 use crate::activities;
-use crate::vma;
 
 pub type State = isr::State;
 
@@ -98,23 +97,6 @@ fn set_fpu_mode(mut status: usize, mode: FSMode) -> usize {
     status | (mode.val << 13)
 }
 
-pub fn init(state: &mut State) {
-    isr::init(state);
-    for i in 0..=31 {
-        match isr::Vector::from(i) {
-            isr::Vector::ILLEGAL_INSTR => isr::reg(i, crate::fpu_ex),
-            isr::Vector::ENV_UCALL => isr::reg(i, crate::tmcall),
-            isr::Vector::INSTR_PAGEFAULT => isr::reg(i, crate::mmu_pf),
-            isr::Vector::LOAD_PAGEFAULT => isr::reg(i, crate::mmu_pf),
-            isr::Vector::STORE_PAGEFAULT => isr::reg(i, crate::mmu_pf),
-            isr::Vector::SUPER_EXT_IRQ => isr::reg(i, crate::ext_irq),
-            isr::Vector::MACH_EXT_IRQ => isr::reg(i, crate::ext_irq),
-            isr::Vector::SUPER_TIMER_IRQ => isr::reg(i, crate::ext_irq),
-            _ => isr::reg(i, crate::unexpected_irq),
-        }
-    }
-}
-
 pub fn init_state(state: &mut State, entry: usize, sp: usize) {
     state.r[9] = 0xDEAD_BEEF; // a0; don't set the stackpointer in crt0
     state.epc = entry;
@@ -179,17 +161,4 @@ pub fn handle_fpu_ex(state: &mut State) {
         // we are owner now
         FPU_OWNER.set(cur.id());
     }
-}
-
-pub fn handle_mmu_pf(state: &mut State) -> Result<(), Error> {
-    let virt = read_csr!("stval");
-
-    let perm = match isr::Vector::from(state.cause & 0x1F) {
-        isr::Vector::INSTR_PAGEFAULT => PageFlags::R | PageFlags::X,
-        isr::Vector::LOAD_PAGEFAULT => PageFlags::R,
-        isr::Vector::STORE_PAGEFAULT => PageFlags::R | PageFlags::W,
-        _ => unreachable!(),
-    };
-
-    vma::handle_pf(state, virt, perm, state.epc)
 }

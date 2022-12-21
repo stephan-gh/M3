@@ -17,6 +17,7 @@ use base::backtrace;
 use base::cell::StaticRefCell;
 use base::cfg;
 use base::int_enum;
+use base::kif::PageFlags;
 use base::libc;
 use base::mem;
 use base::read_csr;
@@ -27,6 +28,9 @@ use core::fmt;
 use core::ops::Deref;
 
 use crate::IRQSource;
+use crate::StateArch;
+
+use paging::{ArchPaging, MMUFlags, Paging, MMUPTE};
 
 pub const ISR_COUNT: usize = 66;
 
@@ -60,7 +64,7 @@ int_enum! {
 #[derive(Default)]
 // see comment in ARM code
 #[repr(C, align(16))]
-pub struct State {
+pub struct X86State {
     // general purpose registers
     pub r: [usize; 15],
     // interrupt-number
@@ -75,12 +79,16 @@ pub struct State {
     pub ss: usize,
 }
 
-impl State {
-    pub fn base_pointer(&self) -> usize {
+impl crate::StateArch for X86State {
+    fn instr_pointer(&self) -> usize {
+        self.rip
+    }
+
+    fn base_pointer(&self) -> usize {
         self.r[8]
     }
 
-    pub fn came_from_user(&self) -> bool {
+    fn came_from_user(&self) -> bool {
         (self.cs & DPL::USER.val as usize) == DPL::USER.val as usize
     }
 }
@@ -107,7 +115,7 @@ fn vec_name(vec: usize) -> &'static str {
     }
 }
 
-impl fmt::Debug for State {
+impl fmt::Debug for X86State {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         let cr2 = read_csr!("cr2");
         writeln!(fmt, "  vec: {:#x} ({})", { self.irq }, vec_name(self.irq))?;
@@ -368,117 +376,152 @@ static IDT: StaticRefCell<IDT> = StaticRefCell::new(IDT::default());
 static TSS: StaticRefCell<TSS> = StaticRefCell::new(TSS::new(0));
 
 #[no_mangle]
-pub extern "C" fn isr_handler(state: &mut State) -> *mut libc::c_void {
+pub extern "C" fn isr_handler(state: &mut X86State) -> *mut libc::c_void {
     crate::ISRS.borrow()[state.irq](state)
 }
 
-pub fn init(state: &mut State) {
-    let state_top = unsafe { (state as *mut State).offset(1) } as usize;
-    set_entry_sp(state_top);
+pub struct X86ISR {}
 
-    // initialize GDT
-    {
-        let gdt = &mut GDT.borrow_mut().inner;
-        gdt.kcode = Desc::new_flat(Granularity::PAGES, DescType::CODE_XR, DPL::KERNEL);
-        gdt.kdata = Desc::new_flat(Granularity::PAGES, DescType::DATA_RW, DPL::KERNEL);
-        gdt.ucode = Desc::new_flat(Granularity::PAGES, DescType::CODE_XR, DPL::USER);
-        gdt.udata = Desc::new_flat(Granularity::PAGES, DescType::DATA_RW, DPL::USER);
-        let tss = TSS.borrow();
-        gdt.tss = Desc64::new_tss(
-            tss.deref() as *const _ as *const u8 as usize,
-            mem::size_of::<TSSInner>() - 1,
-            Granularity::BYTES,
-            DPL::KERNEL,
-        );
+impl crate::ISRArch for X86ISR {
+    type State = X86State;
 
-        // load GDT and TSS
-        let gdt_tbl = DescTable {
-            size: (mem::size_of::<GDT>() - 1) as u16,
-            offset: gdt as *const _ as *const u8 as u64,
-        };
-        let tss_off = Segment::TSS.val as usize * mem::size_of::<Desc>();
-        unsafe {
-            asm!(
-                "lgdt [{0}]",
-                in(reg) &gdt_tbl,
+    fn init(state: &mut Self::State) {
+        let state_top = unsafe { (state as *mut Self::State).offset(1) } as usize;
+        Self::set_entry_sp(state_top);
+
+        // initialize GDT
+        {
+            let gdt = &mut GDT.borrow_mut().inner;
+            gdt.kcode = Desc::new_flat(Granularity::PAGES, DescType::CODE_XR, DPL::KERNEL);
+            gdt.kdata = Desc::new_flat(Granularity::PAGES, DescType::DATA_RW, DPL::KERNEL);
+            gdt.ucode = Desc::new_flat(Granularity::PAGES, DescType::CODE_XR, DPL::USER);
+            gdt.udata = Desc::new_flat(Granularity::PAGES, DescType::DATA_RW, DPL::USER);
+            let tss = TSS.borrow();
+            gdt.tss = Desc64::new_tss(
+                tss.deref() as *const _ as *const u8 as usize,
+                mem::size_of::<TSSInner>() - 1,
+                Granularity::BYTES,
+                DPL::KERNEL,
             );
-            asm!(
-                "ltr [{0}]",
-                in(reg) &tss_off,
-            );
+
+            // load GDT and TSS
+            let gdt_tbl = DescTable {
+                size: (mem::size_of::<GDT>() - 1) as u16,
+                offset: gdt as *const _ as *const u8 as u64,
+            };
+            let tss_off = Segment::TSS.val as usize * mem::size_of::<Desc>();
+            unsafe {
+                asm!(
+                    "lgdt [{0}]",
+                    in(reg) &gdt_tbl,
+                );
+                asm!(
+                    "ltr [{0}]",
+                    in(reg) &tss_off,
+                );
+            }
+        }
+
+        // setup the idt
+        {
+            let mut idt = IDT.borrow_mut();
+            idt.set(0, isr_0, DPL::KERNEL);
+            idt.set(1, isr_1, DPL::KERNEL);
+            idt.set(2, isr_2, DPL::KERNEL);
+            idt.set(3, isr_3, DPL::KERNEL);
+            idt.set(4, isr_4, DPL::KERNEL);
+            idt.set(5, isr_5, DPL::KERNEL);
+            idt.set(6, isr_6, DPL::KERNEL);
+            idt.set(7, isr_7, DPL::KERNEL);
+            idt.set(8, isr_8, DPL::KERNEL);
+            idt.set(9, isr_9, DPL::KERNEL);
+            idt.set(10, isr_10, DPL::KERNEL);
+            idt.set(11, isr_11, DPL::KERNEL);
+            idt.set(12, isr_12, DPL::KERNEL);
+            idt.set(13, isr_13, DPL::KERNEL);
+            idt.set(14, isr_14, DPL::KERNEL);
+            idt.set(15, isr_15, DPL::KERNEL);
+            idt.set(16, isr_16, DPL::KERNEL);
+
+            // all other interrupts
+            for i in 17..=62 {
+                idt.set(i, isr_null, DPL::KERNEL);
+            }
+
+            // TileMux calls
+            idt.set(TMC_ISR, isr_63, DPL::USER);
+            // TCU interrupts
+            idt.set(TCU_ISR, isr_64, DPL::KERNEL);
+            // Timer interrupts
+            idt.set(TIMER_ISR, isr_65, DPL::KERNEL);
+
+            // now we can use our idt
+            let idt_tbl = DescTable {
+                size: (ISR_COUNT * mem::size_of::<Desc64>() - 1) as u16,
+                offset: idt.entries.as_ptr() as *const _ as *const u8 as u64,
+            };
+            unsafe {
+                asm!(
+                    "lidt [{0}]",
+                    in(reg) &idt_tbl,
+                );
+            }
         }
     }
 
-    // setup the idt
-    {
-        let mut idt = IDT.borrow_mut();
-        idt.set(0, isr_0, DPL::KERNEL);
-        idt.set(1, isr_1, DPL::KERNEL);
-        idt.set(2, isr_2, DPL::KERNEL);
-        idt.set(3, isr_3, DPL::KERNEL);
-        idt.set(4, isr_4, DPL::KERNEL);
-        idt.set(5, isr_5, DPL::KERNEL);
-        idt.set(6, isr_6, DPL::KERNEL);
-        idt.set(7, isr_7, DPL::KERNEL);
-        idt.set(8, isr_8, DPL::KERNEL);
-        idt.set(9, isr_9, DPL::KERNEL);
-        idt.set(10, isr_10, DPL::KERNEL);
-        idt.set(11, isr_11, DPL::KERNEL);
-        idt.set(12, isr_12, DPL::KERNEL);
-        idt.set(13, isr_13, DPL::KERNEL);
-        idt.set(14, isr_14, DPL::KERNEL);
-        idt.set(15, isr_15, DPL::KERNEL);
-        idt.set(16, isr_16, DPL::KERNEL);
-
-        // all other interrupts
-        for i in 17..=62 {
-            idt.set(i, isr_null, DPL::KERNEL);
-        }
-
-        // TileMux calls
-        idt.set(TMC_ISR, isr_63, DPL::USER);
-        // TCU interrupts
-        idt.set(TCU_ISR, isr_64, DPL::KERNEL);
-        // Timer interrupts
-        idt.set(TIMER_ISR, isr_65, DPL::KERNEL);
-
-        // now we can use our idt
-        let idt_tbl = DescTable {
-            size: (ISR_COUNT * mem::size_of::<Desc64>() - 1) as u16,
-            offset: idt.entries.as_ptr() as *const _ as *const u8 as u64,
-        };
-        unsafe {
-            asm!(
-                "lidt [{0}]",
-                in(reg) &idt_tbl,
-            );
-        }
+    fn set_entry_sp(sp: usize) {
+        TSS.borrow_mut().inner.rsp0 = sp as u64;
     }
-}
 
-pub fn init_tmcalls(handler: crate::IsrFunc) {
-    crate::reg(TMC_ISR, handler);
-}
+    fn reg_tm_calls(handler: crate::IsrFunc) {
+        crate::reg(TMC_ISR, handler);
+    }
 
-pub fn set_entry_sp(sp: usize) {
-    TSS.borrow_mut().inner.rsp0 = sp as u64;
-}
+    fn reg_page_faults(handler: crate::IsrFunc) {
+        crate::reg(14, handler);
+    }
 
-pub fn enable_irqs() {
-    unsafe { asm!("sti") };
-}
+    fn reg_core_reqs(handler: crate::IsrFunc) {
+        crate::reg(TCU_ISR, handler);
+    }
 
-pub fn get_irq() -> IRQSource {
-    let irq = tcu::TCU::get_irq();
-    tcu::TCU::clear_irq(irq);
-    IRQSource::TCU(irq)
-}
+    fn reg_illegal_instr(handler: crate::IsrFunc) {
+        crate::reg(7, handler);
+    }
 
-pub fn register_ext_irq(_irq: u32) {
-}
+    fn reg_timer(handler: crate::IsrFunc) {
+        crate::reg(TIMER_ISR, handler);
+    }
 
-pub fn enable_ext_irqs(_mask: u32) {
-}
+    fn reg_external(_handler: crate::IsrFunc) {
+    }
 
-pub fn disable_ext_irqs(_mask: u32) {
+    fn get_pf_info(state: &Self::State) -> (usize, PageFlags) {
+        let virt = read_csr!("cr2");
+
+        let perm = MMUFlags::from_bits_truncate(state.error as MMUPTE & PageFlags::RW.bits());
+        // the access is implicitly no-exec
+        let perm = Paging::to_page_flags(0, perm | MMUFlags::NX);
+
+        (virt, perm)
+    }
+
+    fn enable_irqs() {
+        unsafe { asm!("sti") };
+    }
+
+    fn fetch_irq() -> IRQSource {
+        let irq = tcu::TCU::get_irq();
+        tcu::TCU::clear_irq(irq);
+        IRQSource::TCU(irq)
+    }
+
+    fn register_ext_irq(_irq: u32) {
+    }
+
+    fn enable_ext_irqs(_mask: u32) {
+    }
+
+    fn disable_ext_irqs(_mask: u32) {
+    }
 }

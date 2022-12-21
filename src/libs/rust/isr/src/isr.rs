@@ -18,32 +18,69 @@
 #[allow(unused_extern_crates)]
 extern crate lang;
 
+use core::fmt::Debug;
+
 use cfg_if::cfg_if;
+
+use base::cell::StaticRefCell;
+use base::kif::PageFlags;
+use base::tcu;
+use base::tmif;
+
+pub trait StateArch {
+    fn instr_pointer(&self) -> usize;
+    fn base_pointer(&self) -> usize;
+    fn came_from_user(&self) -> bool;
+}
+
+pub trait ISRArch {
+    type State: StateArch + Debug;
+
+    fn init(state: &mut Self::State);
+    fn set_entry_sp(sp: usize);
+
+    fn reg_tm_calls(handler: crate::IsrFunc);
+    fn reg_page_faults(handle: crate::IsrFunc);
+    fn reg_core_reqs(handler: crate::IsrFunc);
+    fn reg_illegal_instr(handler: crate::IsrFunc);
+    fn reg_timer(handler: crate::IsrFunc);
+    fn reg_external(handler: crate::IsrFunc);
+
+    fn get_pf_info(state: &Self::State) -> (usize, PageFlags);
+
+    fn enable_irqs();
+    fn fetch_irq() -> IRQSource;
+    fn register_ext_irq(irq: u32);
+    fn enable_ext_irqs(mask: u32);
+    fn disable_ext_irqs(mask: u32);
+}
 
 cfg_if! {
     if #[cfg(target_arch = "x86_64")] {
         #[path = "x86_64/mod.rs"]
         mod isa;
+        pub use isa::{Segment, DPL};
+        pub type ISR = isa::X86ISR;
     }
     else if #[cfg(target_arch = "arm")] {
         #[path = "arm/mod.rs"]
         mod isa;
+        pub type ISR = isa::ARMISR;
     }
     else {
         #[path = "riscv/mod.rs"]
         mod isa;
+        pub type ISR = isa::RISCVISR;
     }
 }
 
-pub use self::isa::*;
+pub use isa::{TMC_ARG0, TMC_ARG1, TMC_ARG2, TMC_ARG3, TMC_ARG4};
 
-use base::cell::StaticRefCell;
-use base::tcu;
-use base::tmif;
-
+pub type State = <ISR as ISRArch>::State;
 pub type IsrFunc = extern "C" fn(state: &mut State) -> *mut base::libc::c_void;
 
-static ISRS: StaticRefCell<[IsrFunc; ISR_COUNT]> = StaticRefCell::new([unexpected_irq; ISR_COUNT]);
+static ISRS: StaticRefCell<[IsrFunc; isa::ISR_COUNT]> =
+    StaticRefCell::new([unexpected_irq; isa::ISR_COUNT]);
 
 #[derive(Debug)]
 pub enum IRQSource {
@@ -55,6 +92,12 @@ pub extern "C" fn unexpected_irq(state: &mut State) -> *mut base::libc::c_void {
     panic!("Unexpected IRQ with user state:\n{:?}", state);
 }
 
-pub fn reg(idx: usize, func: IsrFunc) {
+pub fn reg_all(handler: crate::IsrFunc) {
+    for i in 0..isa::ISR_COUNT {
+        reg(i, handler);
+    }
+}
+
+fn reg(idx: usize, func: IsrFunc) {
     ISRS.borrow_mut()[idx] = func;
 }

@@ -18,6 +18,7 @@
 
 use base::backtrace;
 use base::int_enum;
+use base::kif::PageFlags;
 use base::libc;
 use base::tcu;
 
@@ -25,9 +26,9 @@ use core::arch::asm;
 use core::fmt;
 
 use crate::IRQSource;
+use crate::StateArch;
 
 pub const ISR_COUNT: usize = 8;
-pub const TCU_ISR: usize = Vector::IRQ.val;
 
 pub const TMC_ARG0: usize = 0; // r0
 pub const TMC_ARG1: usize = 1; // r1
@@ -40,7 +41,7 @@ pub const TMC_ARG4: usize = 4; // r4
 // but unfortunately, we cannot specify both packed and align. but without packed seems to be fine,
 // because there are no holes between the fields.
 #[repr(C, align(4))]
-pub struct State {
+pub struct ARMState {
     pub sp: usize,
     pub lr: usize,
     pub vec: usize,
@@ -50,13 +51,17 @@ pub struct State {
     pub cpsr: usize,
 }
 
-impl State {
-    pub fn base_pointer(&self) -> usize {
+impl crate::StateArch for ARMState {
+    fn instr_pointer(&self) -> usize {
+        self.pc
+    }
+
+    fn base_pointer(&self) -> usize {
         self.r[11]
     }
 
     #[allow(clippy::verbose_bit_mask)]
-    pub fn came_from_user(&self) -> bool {
+    fn came_from_user(&self) -> bool {
         (self.cpsr & 0x0F) == 0x0
     }
 }
@@ -74,7 +79,7 @@ int_enum! {
     }
 }
 
-impl fmt::Debug for State {
+impl fmt::Debug for ARMState {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         writeln!(fmt, "  lr:     {:#x}", { self.lr })?;
         writeln!(fmt, "  sp:     {:#x}", { self.sp })?;
@@ -102,7 +107,7 @@ impl fmt::Debug for State {
 }
 
 #[no_mangle]
-pub extern "C" fn isr_handler(state: &mut State) -> *mut libc::c_void {
+pub extern "C" fn isr_handler(state: &mut ARMState) -> *mut libc::c_void {
     // repeat last instruction
     if state.vec == 4 {
         state.pc -= 8;
@@ -115,33 +120,96 @@ pub extern "C" fn isr_handler(state: &mut State) -> *mut libc::c_void {
     crate::ISRS.borrow()[state.vec](state)
 }
 
-pub fn init(_state: &mut State) {
-    // nothing to do
-}
+pub struct ARMISR {}
 
-pub fn init_tmcalls(handler: crate::IsrFunc) {
-    crate::reg(Vector::SWI.val, handler);
-}
+impl crate::ISRArch for ARMISR {
+    type State = ARMState;
 
-pub fn set_entry_sp(_sp: usize) {
-    // nothing to do
-}
+    fn init(_state: &mut Self::State) {
+        // nothing to do
+    }
 
-pub fn enable_irqs() {
-    unsafe { asm!("msr cpsr, 0x53") };
-}
+    fn set_entry_sp(_sp: usize) {
+        // nothing to do
+    }
 
-pub fn get_irq() -> IRQSource {
-    let irq = tcu::TCU::get_irq();
-    tcu::TCU::clear_irq(irq);
-    IRQSource::TCU(irq)
-}
+    fn reg_tm_calls(handler: crate::IsrFunc) {
+        crate::reg(Vector::SWI.val, handler);
+    }
 
-pub fn register_ext_irq(_irq: u32) {
-}
+    fn reg_page_faults(handler: crate::IsrFunc) {
+        crate::reg(Vector::PREFETCH_ABORT.val, handler);
+        crate::reg(Vector::DATA_ABORT.val, handler);
+    }
 
-pub fn enable_ext_irqs(_mask: u32) {
-}
+    fn reg_core_reqs(handler: crate::IsrFunc) {
+        crate::reg(Vector::IRQ.val, handler);
+    }
 
-pub fn disable_ext_irqs(_mask: u32) {
+    fn reg_illegal_instr(_handler: crate::IsrFunc) {
+        unimplemented!()
+    }
+
+    fn reg_timer(handler: crate::IsrFunc) {
+        crate::reg(Vector::IRQ.val, handler);
+    }
+
+    fn reg_external(_handler: crate::IsrFunc) {
+    }
+
+    fn get_pf_info(state: &Self::State) -> (usize, PageFlags) {
+        let (virt, perm) = if state.vec == Vector::DATA_ABORT.val {
+            let dfar: usize;
+            let dfsr: usize;
+            unsafe {
+                asm!(
+                    "mrc p15, 0, {0}, c6, c0, 0",
+                    "mrc p15, 0, {1}, c5, c0, 0",
+                    out(reg) dfar,
+                    out(reg) dfsr,
+                    options(nostack, nomem),
+                );
+            }
+            (
+                dfar,
+                if dfsr & 0x800 != 0 {
+                    PageFlags::RW
+                }
+                else {
+                    PageFlags::R
+                },
+            )
+        }
+        else {
+            let ifar: usize;
+            unsafe {
+                asm!(
+                    "mrc p15, 0, {0}, c6, c0, 2",
+                    out(reg) ifar,
+                    options(nostack, nomem),
+                );
+            }
+            (ifar, PageFlags::RX)
+        };
+        (virt, perm)
+    }
+
+    fn enable_irqs() {
+        unsafe { asm!("msr cpsr, 0x53") };
+    }
+
+    fn fetch_irq() -> IRQSource {
+        let irq = tcu::TCU::get_irq();
+        tcu::TCU::clear_irq(irq);
+        IRQSource::TCU(irq)
+    }
+
+    fn register_ext_irq(_irq: u32) {
+    }
+
+    fn enable_ext_irqs(_mask: u32) {
+    }
+
+    fn disable_ext_irqs(_mask: u32) {
+    }
 }

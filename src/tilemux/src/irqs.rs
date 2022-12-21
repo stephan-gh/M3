@@ -19,6 +19,8 @@ use base::tmif;
 
 use crate::activities;
 
+use isr::{ISRArch, ISR};
+
 #[derive(Copy, Clone)]
 struct IRQCounter {
     act: activities::Id,
@@ -36,7 +38,7 @@ pub fn register(act: &mut activities::ActivityRef<'_>, irq: tmif::IRQId) {
         act: act.id(),
         counter: 0,
     });
-    isr::register_ext_irq(irq);
+    ISR::register_ext_irq(irq);
     act.add_irq(irq);
 }
 
@@ -62,7 +64,7 @@ pub fn wait(
     }
 
     log!(crate::LOG_IRQS, "irqmask[{:#x}] enable", cur.irq_mask());
-    isr::enable_ext_irqs(cur.irq_mask());
+    ISR::enable_ext_irqs(cur.irq_mask());
     None
 }
 
@@ -76,7 +78,7 @@ pub fn signal(irq: tmif::IRQId) {
         }
 
         log!(crate::LOG_IRQS, "irqmask[{:#x}] disable", 1 << irq);
-        isr::disable_ext_irqs(1 << irq);
+        ISR::disable_ext_irqs(1 << irq);
     }
 }
 
@@ -93,6 +95,6 @@ pub fn remove(act: &activities::Activity) {
         }
 
         log!(crate::LOG_IRQS, "irqmask[{:#x}] disable", act.irq_mask());
-        isr::disable_ext_irqs(act.irq_mask());
+        ISR::disable_ext_irqs(act.irq_mask());
     }
 }

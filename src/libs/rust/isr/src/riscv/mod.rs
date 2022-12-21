@@ -16,15 +16,16 @@
 use base::backtrace;
 use base::env;
 use base::int_enum;
+use base::kif::PageFlags;
 use base::libc;
 use base::tcu;
 use base::{read_csr, set_csr_bits, write_csr};
 use core::fmt;
 
 use crate::IRQSource;
+use crate::StateArch;
 
 pub const ISR_COUNT: usize = 32;
-pub const TCU_ISR: usize = Vector::SUPER_EXT_IRQ.val;
 
 pub const TMC_ARG0: usize = 9; // a0 = x10
 pub const TMC_ARG1: usize = 10; // a1 = x11
@@ -35,7 +36,7 @@ pub const TMC_ARG4: usize = 13; // a4 = x14
 #[derive(Default)]
 // see comment in ARM code
 #[repr(C, align(8))]
-pub struct State {
+pub struct RISCVState {
     // general purpose registers
     pub r: [usize; 31],
     pub cause: usize,
@@ -43,12 +44,16 @@ pub struct State {
     pub status: usize,
 }
 
-impl State {
-    pub fn base_pointer(&self) -> usize {
+impl crate::StateArch for RISCVState {
+    fn instr_pointer(&self) -> usize {
+        self.epc
+    }
+
+    fn base_pointer(&self) -> usize {
         self.r[7]
     }
 
-    pub fn came_from_user(&self) -> bool {
+    fn came_from_user(&self) -> bool {
         ((self.status >> 8) & 1) == 0
     }
 }
@@ -84,7 +89,7 @@ int_enum! {
     }
 }
 
-impl fmt::Debug for State {
+impl fmt::Debug for RISCVState {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         let vec = if (self.cause & 0x8000_0000_0000_0000) != 0 {
             16 + (self.cause & 0xF)
@@ -169,7 +174,7 @@ extern "C" {
 }
 
 #[no_mangle]
-pub extern "C" fn isr_handler(state: &mut State) -> *mut libc::c_void {
+pub extern "C" fn isr_handler(state: &mut RISCVState) -> *mut libc::c_void {
     let vec = if (state.cause & 0x8000_0000_0000_0000) != 0 {
         16 + (state.cause & 0xF)
     }
@@ -185,81 +190,127 @@ pub extern "C" fn isr_handler(state: &mut State) -> *mut libc::c_void {
     crate::ISRS.borrow()[vec](state)
 }
 
-pub fn init(state: &mut State) {
-    if env::data().platform == env::Platform::HW.val {
-        // configure PLIC
-        plic::set_threshold(0);
-        for id in &[plic::TCU_ID, plic::TIMER_ID] {
-            plic::enable(*id);
-            plic::set_priority(*id, 1);
+pub struct RISCVISR {}
+
+impl crate::ISRArch for RISCVISR {
+    type State = RISCVState;
+
+    fn init(state: &mut Self::State) {
+        if env::data().platform == env::Platform::HW.val {
+            // configure PLIC
+            plic::set_threshold(0);
+            for id in &[plic::TCU_ID, plic::TIMER_ID] {
+                plic::enable(*id);
+                plic::set_priority(*id, 1);
+            }
+
+            // disable timer interrupt
+            const CLINT_MSIP: *mut u64 = 0x0200_0000 as *mut u64;
+            unsafe {
+                CLINT_MSIP.write_volatile(0);
+            }
         }
 
-        // disable timer interrupt
-        const CLINT_MSIP: *mut u64 = 0x0200_0000 as *mut u64;
         unsafe {
-            CLINT_MSIP.write_volatile(0);
+            let state_top = (state as *mut Self::State).offset(1) as usize;
+            isr_setup(state_top)
+        };
+    }
+
+    fn set_entry_sp(sp: usize) {
+        write_csr!("sscratch", sp);
+    }
+
+    fn reg_tm_calls(handler: crate::IsrFunc) {
+        crate::reg(Vector::ENV_UCALL.val, handler);
+        crate::reg(Vector::ENV_SCALL.val, handler);
+    }
+
+    fn reg_page_faults(handler: crate::IsrFunc) {
+        crate::reg(Vector::INSTR_PAGEFAULT.val, handler);
+        crate::reg(Vector::LOAD_PAGEFAULT.val, handler);
+        crate::reg(Vector::STORE_PAGEFAULT.val, handler);
+    }
+
+    fn reg_core_reqs(handler: crate::IsrFunc) {
+        if env::data().platform == env::Platform::HW.val {
+            crate::reg(Vector::MACH_EXT_IRQ.val, handler);
+        }
+        else {
+            crate::reg(Vector::SUPER_EXT_IRQ.val, handler);
         }
     }
 
-    unsafe {
-        let state_top = (state as *mut State).offset(1) as usize;
-        isr_setup(state_top)
-    };
-}
+    fn reg_illegal_instr(handler: crate::IsrFunc) {
+        crate::reg(Vector::ILLEGAL_INSTR.val, handler);
+    }
 
-pub fn init_tmcalls(handler: crate::IsrFunc) {
-    crate::reg(Vector::ENV_UCALL.val, handler);
-    crate::reg(Vector::ENV_SCALL.val, handler);
-}
+    fn reg_timer(handler: crate::IsrFunc) {
+        crate::reg(Vector::SUPER_TIMER_IRQ.val, handler);
+    }
 
-pub fn set_entry_sp(sp: usize) {
-    write_csr!("sscratch", sp);
-}
+    fn reg_external(handler: crate::IsrFunc) {
+        crate::reg(Vector::SUPER_EXT_IRQ.val, handler);
+        crate::reg(Vector::MACH_EXT_IRQ.val, handler);
+    }
 
-pub fn enable_irqs() {
-    // set SIE to 1
-    set_csr_bits!("sstatus", 1 << 1);
-}
+    fn get_pf_info(state: &Self::State) -> (usize, PageFlags) {
+        let virt = read_csr!("stval");
 
-pub fn get_irq() -> IRQSource {
-    if env::data().platform == env::Platform::HW.val {
-        let irq = plic::get();
-        assert!(irq != 0);
+        let perm = match Vector::from(state.cause & 0x1F) {
+            Vector::INSTR_PAGEFAULT => PageFlags::R | PageFlags::X,
+            Vector::LOAD_PAGEFAULT => PageFlags::R,
+            Vector::STORE_PAGEFAULT => PageFlags::R | PageFlags::W,
+            _ => unreachable!(),
+        };
+        (virt, perm)
+    }
 
-        // TODO: temporary (add to spec and make gem5 behave the same)
-        let tcu_set_irq_addr = 0xF000_3030 as *mut u64;
-        unsafe {
-            tcu_set_irq_addr.add((irq - 1) as usize).write_volatile(0);
+    fn enable_irqs() {
+        // set SIE to 1
+        set_csr_bits!("sstatus", 1 << 1);
+    }
+
+    fn fetch_irq() -> IRQSource {
+        if env::data().platform == env::Platform::HW.val {
+            let irq = plic::get();
+            assert!(irq != 0);
+
+            // TODO: temporary (add to spec and make gem5 behave the same)
+            let tcu_set_irq_addr = 0xF000_3030 as *mut u64;
+            unsafe {
+                tcu_set_irq_addr.add((irq - 1) as usize).write_volatile(0);
+            }
+            plic::ack(irq);
+
+            match irq {
+                plic::TCU_ID => IRQSource::TCU(tcu::IRQ::CORE_REQ),
+                plic::TIMER_ID => IRQSource::TCU(tcu::IRQ::TIMER),
+                n => IRQSource::Ext(n),
+            }
         }
-        plic::ack(irq);
-
-        match irq {
-            plic::TCU_ID => IRQSource::TCU(tcu::IRQ::CORE_REQ),
-            plic::TIMER_ID => IRQSource::TCU(tcu::IRQ::TIMER),
-            n => IRQSource::Ext(n),
+        else {
+            let irq = tcu::TCU::get_irq();
+            tcu::TCU::clear_irq(irq);
+            IRQSource::TCU(irq)
         }
     }
-    else {
-        let irq = tcu::TCU::get_irq();
-        tcu::TCU::clear_irq(irq);
-        IRQSource::TCU(irq)
-    }
-}
 
-pub fn register_ext_irq(irq: u32) {
-    if env::data().platform == env::Platform::HW.val {
-        plic::set_priority(irq, 1);
+    fn register_ext_irq(irq: u32) {
+        if env::data().platform == env::Platform::HW.val {
+            plic::set_priority(irq, 1);
+        }
     }
-}
 
-pub fn enable_ext_irqs(mask: u32) {
-    if env::data().platform == env::Platform::HW.val {
-        plic::enable_mask(mask);
+    fn enable_ext_irqs(mask: u32) {
+        if env::data().platform == env::Platform::HW.val {
+            plic::enable_mask(mask);
+        }
     }
-}
 
-pub fn disable_ext_irqs(mask: u32) {
-    if env::data().platform == env::Platform::HW.val {
-        plic::disable_mask(mask);
+    fn disable_ext_irqs(mask: u32) {
+        if env::data().platform == env::Platform::HW.val {
+            plic::disable_mask(mask);
+        }
     }
 }

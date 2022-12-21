@@ -31,7 +31,6 @@ use base::util::math;
 use core::cmp;
 use core::ops::{Deref, DerefMut};
 use core::ptr::NonNull;
-use paging::{Allocator, ArchPaging, Paging, Phys};
 
 use crate::arch;
 use crate::helper;
@@ -41,6 +40,10 @@ use crate::quota::{self, PTQuota, Quota, TimeQuota};
 use crate::sendqueue;
 use crate::timer;
 use crate::vma::PfState;
+
+use isr::{ISRArch, ISR};
+
+use paging::{Allocator, ArchPaging, Paging, Phys};
 
 pub type Id = paging::ActId;
 
@@ -465,7 +468,7 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
 
     // set SP for the next entry
     let new_state = next.user_state_addr;
-    isr::set_entry_sp(new_state + size_of::<arch::State>());
+    ISR::set_entry_sp(new_state + size_of::<arch::State>());
     let next_id = next.id();
     next.state = ActState::Running;
 

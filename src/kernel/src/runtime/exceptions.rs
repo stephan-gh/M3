@@ -20,6 +20,8 @@ use base::libc;
 use base::tcu;
 use base::tmif;
 
+use isr::{ISRArch, ISR};
+
 use crate::runtime::paging;
 use crate::tiles;
 
@@ -27,9 +29,9 @@ static STATE: LazyStaticRefCell<isr::State> = LazyStaticRefCell::default();
 
 pub fn init() {
     STATE.set(isr::State::default());
-    isr::init(&mut STATE.borrow_mut());
-    isr::init_tmcalls(tmcall);
-    isr::enable_irqs();
+    ISR::init(&mut STATE.borrow_mut());
+    ISR::reg_tm_calls(tmcall);
+    ISR::enable_irqs();
 }
 
 pub extern "C" fn tmcall(state: &mut isr::State) -> *mut libc::c_void {

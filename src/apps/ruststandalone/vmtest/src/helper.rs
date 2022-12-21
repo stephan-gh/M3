@@ -25,6 +25,8 @@ use base::tcu::{EpId, Message, Reg, TileId, EP_REGS, TCU};
 
 use crate::paging;
 
+use isr::{ISRArch, ISR};
+
 static STATE: LazyStaticRefCell<isr::State> = LazyStaticRefCell::default();
 pub static XLATES: StaticCell<u64> = StaticCell::new(0);
 
@@ -80,9 +82,9 @@ pub fn init(name: &str) {
 
     log!(crate::LOG_DEF, "Setting up interrupts...");
     STATE.set(isr::State::default());
-    isr::init(&mut STATE.borrow_mut());
-    isr::init_tmcalls(tmcall);
-    isr::enable_irqs();
+    ISR::init(&mut STATE.borrow_mut());
+    ISR::reg_tm_calls(tmcall);
+    ISR::enable_irqs();
 }
 
 pub fn virt_to_phys(virt: usize) -> (usize, ::paging::Phys) {

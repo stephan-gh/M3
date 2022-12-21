@@ -24,6 +24,8 @@ use base::tcu;
 use crate::activities;
 use crate::helper;
 
+use isr::StateArch;
+
 pub struct PfState {
     virt: usize,
     perm: PageFlags,
@@ -145,15 +147,10 @@ pub fn handle_xlate(virt: usize, perm: PageFlags) {
     }
 }
 
-pub fn handle_pf(
-    state: &crate::arch::State,
-    virt: usize,
-    perm: PageFlags,
-    ip: usize,
-) -> Result<(), Error> {
+pub fn handle_pf(state: &crate::arch::State, virt: usize, perm: PageFlags) -> Result<(), Error> {
     // TileMux isn't causing PFs
     if !state.came_from_user() {
-        panic!("pagefault for {:#x} at {:#x}", virt, ip);
+        panic!("pagefault for {:#x} at {:#x}", virt, state.instr_pointer());
     }
 
     if let Err(e) = send_pf(activities::cur(), virt, perm) {

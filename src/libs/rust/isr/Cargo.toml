@@ -10,4 +10,5 @@ crate-type = ["rlib", "staticlib"]
 [dependencies]
 base = { path = "../base" }
 lang = { path = "../lang" }
+paging = { path = "../paging" }
 cfg-if = "*"

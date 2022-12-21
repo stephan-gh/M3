@@ -23,7 +23,6 @@ mod paging;
 
 use base::cell::StaticCell;
 use base::cfg;
-use base::env;
 use base::errors::{Code, Error};
 use base::kif::{PageFlags, Perm};
 use base::libc;
@@ -31,9 +30,10 @@ use base::log;
 use base::mem::{size_of, MsgBuf};
 use base::tcu::{self, TileId, TCU};
 use base::util;
-use base::{read_csr, write_csr};
 
 use core::intrinsics::transmute;
+
+use isr::{ISRArch, StateArch, ISR};
 
 static LOG_DEF: bool = true;
 static LOG_TMCALLS: bool = false;
@@ -45,28 +45,12 @@ static OWN_ACT: u16 = 0xFFFF;
 static FOREIGN_MSGS: StaticCell<u64> = StaticCell::new(0);
 
 pub extern "C" fn mmu_pf(state: &mut isr::State) -> *mut libc::c_void {
-    let virt = read_csr!("stval");
-
-    let perm = match isr::Vector::from(state.cause & 0x1F) {
-        isr::Vector::INSTR_PAGEFAULT => PageFlags::R | PageFlags::X,
-        isr::Vector::LOAD_PAGEFAULT => PageFlags::R,
-        isr::Vector::STORE_PAGEFAULT => PageFlags::R | PageFlags::W,
-        _ => unreachable!(),
-    };
+    let (virt, perm) = ISR::get_pf_info(state);
 
     panic!(
         "Pagefault for address={:#x}, perm={:?} with {:?}",
         virt, perm, state
     );
-}
-
-pub extern "C" fn sw_irq(state: &mut isr::State) -> *mut libc::c_void {
-    log!(crate::LOG_DEF, "Got software IRQ @ {:#x}", state.epc);
-
-    // disable software IRQ
-    write_csr!("sip", read_csr!("sip") & !0x2);
-
-    state as *mut _ as *mut libc::c_void
 }
 
 fn read_write(wr_addr: usize, rd_addr: usize, size: usize) {
@@ -289,9 +273,9 @@ fn test_msgs(area_begin: usize, _area_size: usize) {
 }
 
 pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
-    log!(crate::LOG_DEF, "Got TCU IRQ @ {:#x}", state.epc);
+    log!(crate::LOG_DEF, "Got TCU IRQ @ {:#x}", state.instr_pointer());
 
-    isr::get_irq();
+    ISR::fetch_irq();
 
     // core request from TCU?
     let req = tcu::TCU::get_core_req().unwrap();
@@ -386,21 +370,10 @@ fn test_own_msg() {
 
 #[no_mangle]
 pub extern "C" fn env_run() {
-    isr::reg(isr::Vector::INSTR_PAGEFAULT.val, mmu_pf);
-    isr::reg(isr::Vector::LOAD_PAGEFAULT.val, mmu_pf);
-    isr::reg(isr::Vector::STORE_PAGEFAULT.val, mmu_pf);
-    isr::reg(isr::Vector::SUPER_SW_IRQ.val, sw_irq);
-    if env::data().platform == env::Platform::HW.val {
-        isr::reg(isr::Vector::MACH_EXT_IRQ.val, tcu_irq);
-    }
-    else {
-        isr::reg(isr::Vector::SUPER_EXT_IRQ.val, tcu_irq);
-    }
+    ISR::reg_page_faults(mmu_pf);
+    ISR::reg_core_reqs(tcu_irq);
 
     helper::init("vmtest");
-
-    log!(crate::LOG_DEF, "Triggering software IRQ...");
-    write_csr!("sip", 0x2);
 
     let virt = cfg::ENV_START;
     let pte = paging::translate(virt, PageFlags::R);
