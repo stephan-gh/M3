@@ -454,7 +454,15 @@ pub fn activate_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<
                     }
                     let rbuf_phys =
                         ktcu::glob_to_phys_remote(dst_tile, rbuf.addr(), kif::PageFlags::RW)
-                            .unwrap();
+                            .map_err(|e| {
+                                VerboseError::new(
+                                    e.code(),
+                                    base::format!(
+                                        "Receive buffer at {:?} not accessible via PMP",
+                                        rbuf.addr()
+                                    ),
+                                )
+                            })?;
                     rbuf_phys + r.rbuf_off
                 }
                 else {
