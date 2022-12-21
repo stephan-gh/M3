@@ -31,7 +31,7 @@ use base::util::math;
 use core::cmp;
 use core::ops::{Deref, DerefMut};
 use core::ptr::NonNull;
-use paging::{Allocator, Phys};
+use paging::{Allocator, ArchPaging, Paging, Phys};
 
 use crate::arch;
 use crate::helper;
@@ -271,10 +271,10 @@ pub fn init() {
         our_ref.frames.push(frame);
         our_ref.init();
         our_ref.switch_to();
-        paging::enable_paging();
+        Paging::enable();
     }
     else {
-        paging::disable_paging();
+        Paging::disable();
     }
 
     // add default quota, now that initialization is done and we know how many PTs are left

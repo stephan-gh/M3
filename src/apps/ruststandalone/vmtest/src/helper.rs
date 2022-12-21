@@ -69,8 +69,9 @@ pub fn init(name: &str) {
     io::init(TileId::new_from_raw(env::data().tile_id as u16), name);
 
     if !TileDesc::new_from(env::data().tile_desc).has_virtmem() {
+        use ::paging::ArchPaging;
         log!(crate::LOG_DEF, "Disabling paging...");
-        ::paging::disable_paging();
+        ::paging::Paging::disable();
     }
     else {
         log!(crate::LOG_DEF, "Setting up paging...");

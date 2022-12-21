@@ -23,7 +23,7 @@ use base::mem::GlobAddr;
 use base::tcu;
 use base::util::math;
 
-use paging::{self, AddrSpace, Allocator, Phys};
+use paging::{self, AddrSpace, Allocator, ArchPaging, Paging, Phys};
 
 use crate::mem;
 use crate::tiles;
@@ -68,7 +68,7 @@ static ASPACE: LazyStaticRefCell<AddrSpace<PTAllocator>> = LazyStaticRefCell::de
 
 pub fn init() {
     if !TileDesc::new_from(env::data().tile_desc).has_virtmem() {
-        paging::disable_paging();
+        Paging::disable();
         return;
     }
 
@@ -124,7 +124,7 @@ pub fn init() {
 
     // switch to that address space
     aspace.switch_to();
-    paging::enable_paging();
+    Paging::enable();
 
     ASPACE.set(aspace);
     BOOTSTRAP.set(false);

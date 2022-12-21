@@ -23,7 +23,7 @@ use base::mem::GlobAddr;
 use base::tcu;
 use base::util::math;
 
-use paging::{self, AddrSpace, Allocator, Phys};
+use paging::{self, AddrSpace, Allocator, ArchPaging, Paging, Phys};
 
 extern "C" {
     static _text_start: u8;
@@ -107,7 +107,7 @@ pub fn init() {
 
     // switch to that address space
     ASPACE.borrow_mut().switch_to();
-    paging::enable_paging();
+    Paging::enable();
 
     BOOTSTRAP.set(false);
 }

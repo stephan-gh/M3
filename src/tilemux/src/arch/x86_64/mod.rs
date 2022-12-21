@@ -27,6 +27,8 @@ use core::arch::asm;
 use crate::activities;
 use crate::vma;
 
+use paging::{ArchPaging, Paging};
+
 pub type State = isr::State;
 
 const CR0_TASK_SWITCHED: usize = 1 << 3;
@@ -135,7 +137,7 @@ pub fn handle_mmu_pf(state: &mut State) -> Result<(), Error> {
     let perm =
         paging::MMUFlags::from_bits_truncate(state.error as paging::MMUPTE & PageFlags::RW.bits());
     // the access is implicitly no-exec
-    let perm = paging::to_page_flags(0, perm | paging::MMUFlags::NX);
+    let perm = Paging::to_page_flags(0, perm | paging::MMUFlags::NX);
 
     vma::handle_pf(state, cr2, perm, state.rip)
 }

@@ -22,6 +22,8 @@ use bitflags::bitflags;
 
 use core::arch::asm;
 
+use crate::ArchMMUFlags;
+
 pub type MMUPTE = u64;
 pub type Phys = u64;
 
@@ -35,7 +37,7 @@ pub const MODE_BARE: u64 = 0;
 pub const MODE_SV39: u64 = 8;
 
 bitflags! {
-    pub struct MMUFlags : MMUPTE {
+    pub struct RISCVMMUFlags : MMUPTE {
         const V     = 0b0000_0001;          // valid
         const R     = 0b0100_0010;          // readable
                                             // note: the accessed bit is set here, because the
@@ -55,135 +57,141 @@ bitflags! {
     }
 }
 
-impl MMUFlags {
-    pub fn has_empty_perm(self) -> bool {
-        !self.contains(MMUFlags::V)
+impl ArchMMUFlags for RISCVMMUFlags {
+    fn has_empty_perm(self) -> bool {
+        !self.contains(Self::V)
     }
 
-    pub fn is_leaf(self, _level: usize) -> bool {
+    fn is_leaf(self, _level: usize) -> bool {
         (self & (Self::R | Self::W | Self::X)) != Self::empty()
     }
 
-    pub fn perms_missing(self, perms: Self) -> bool {
+    fn access_allowed(self, flags: Self) -> bool {
         if !self.contains(Self::V) {
-            return true;
+            return false;
         }
-        self.is_leaf(0) && (self & perms) != perms
+        !self.is_leaf(0) || (self & flags) == flags
     }
 }
 
-pub fn build_pte(phys: Phys, perm: MMUFlags, _level: usize, leaf: bool) -> MMUPTE {
-    if leaf {
-        if perm.has_empty_perm() {
-            0
+pub struct RISCVPaging {}
+
+impl crate::ArchPaging for RISCVPaging {
+    type MMUFlags = RISCVMMUFlags;
+
+    fn build_pte(phys: Phys, perm: Self::MMUFlags, _level: usize, leaf: bool) -> MMUPTE {
+        if leaf {
+            if perm.has_empty_perm() {
+                0
+            }
+            else {
+                (phys >> 2) | (Self::MMUFlags::V | perm).bits()
+            }
         }
         else {
-            (phys >> 2) | (MMUFlags::V | perm).bits()
+            (phys >> 2) | Self::MMUFlags::V.bits()
         }
     }
-    else {
-        (phys >> 2) | MMUFlags::V.bits()
-    }
-}
 
-pub fn pte_to_phys(pte: MMUPTE) -> Phys {
-    (pte & !MMUFlags::FLAGS.bits()) << 2
-}
-
-pub fn needs_invalidate(_new_flags: MMUFlags, _old_flags: MMUFlags) -> bool {
-    // according to 4.2.1, we need an invalidate whenever a leaf PTE is updated
-    true
-}
-
-pub fn to_page_flags(level: usize, pte: MMUFlags) -> PageFlags {
-    let mut res = PageFlags::empty();
-    if pte.contains(MMUFlags::V) {
-        res |= PageFlags::R;
-    }
-    else {
-        return res;
+    fn pte_to_phys(pte: MMUPTE) -> Phys {
+        (pte & !Self::MMUFlags::FLAGS.bits()) << 2
     }
 
-    if pte.contains(MMUFlags::W) {
-        res |= PageFlags::W;
+    fn needs_invalidate(_new_flags: Self::MMUFlags, _old_flags: Self::MMUFlags) -> bool {
+        // according to 4.2.1, we need an invalidate whenever a leaf PTE is updated
+        true
     }
-    if pte.contains(MMUFlags::X) {
-        res |= PageFlags::X;
-    }
-    if pte.contains(MMUFlags::U) {
-        res |= PageFlags::U;
-    }
-    if level > 0 {
-        res |= PageFlags::L;
-    }
-    res
-}
 
-pub fn to_mmu_perms(flags: PageFlags) -> MMUFlags {
-    let mut res = MMUFlags::empty();
-    if flags.intersects(PageFlags::RWX) {
-        res |= MMUFlags::V;
-    }
-    if flags.contains(PageFlags::R) {
-        res |= MMUFlags::R;
-    }
-    if flags.contains(PageFlags::W) {
-        res |= MMUFlags::W;
-    }
-    if flags.contains(PageFlags::X) {
-        res |= MMUFlags::X;
-    }
-    if flags.contains(PageFlags::U) {
-        res |= MMUFlags::U;
-    }
-    res
-}
+    fn to_page_flags(level: usize, pte: Self::MMUFlags) -> PageFlags {
+        let mut res = PageFlags::empty();
+        if pte.contains(Self::MMUFlags::V) {
+            res |= PageFlags::R;
+        }
+        else {
+            return res;
+        }
 
-pub fn enable_paging() {
-    // set sstatus.SUM = 1 to allow accesses to user memory (required for TCU)
-    set_csr_bits!("sstatus", 1 << 18);
-}
-
-pub fn disable_paging() {
-    set_csr_bits!("sstatus", 0);
-    write_csr!("satp", MODE_BARE);
-}
-
-pub fn invalidate_page(id: crate::ActId, virt: usize) {
-    unsafe {
-        asm!(
-            "sfence.vma {0}, {1}",
-            in(reg) virt,
-            in(reg) id,
-            options(nomem, nostack),
-        );
+        if pte.contains(Self::MMUFlags::W) {
+            res |= PageFlags::W;
+        }
+        if pte.contains(Self::MMUFlags::X) {
+            res |= PageFlags::X;
+        }
+        if pte.contains(Self::MMUFlags::U) {
+            res |= PageFlags::U;
+        }
+        if level > 0 {
+            res |= PageFlags::L;
+        }
+        res
     }
-}
 
-pub fn invalidate_tlb() {
-    unsafe {
-        asm!("sfence.vma", options(nomem, nostack));
+    fn to_mmu_perms(flags: PageFlags) -> Self::MMUFlags {
+        let mut res = Self::MMUFlags::empty();
+        if flags.intersects(PageFlags::RWX) {
+            res |= Self::MMUFlags::V;
+        }
+        if flags.contains(PageFlags::R) {
+            res |= Self::MMUFlags::R;
+        }
+        if flags.contains(PageFlags::W) {
+            res |= Self::MMUFlags::W;
+        }
+        if flags.contains(PageFlags::X) {
+            res |= Self::MMUFlags::X;
+        }
+        if flags.contains(PageFlags::U) {
+            res |= Self::MMUFlags::U;
+        }
+        res
     }
-}
 
-pub fn set_root_pt(id: crate::ActId, root: Phys) {
-    static MAX_ASID: LazyStaticCell<crate::ActId> = LazyStaticCell::default();
-    if !MAX_ASID.is_some() {
-        // determine how many ASID bits are supported (see 4.1.12)
-        let satp = MODE_SV39 << 60 | 0xFFFF << 44;
+    fn enable() {
+        // set sstatus.SUM = 1 to allow accesses to user memory (required for TCU)
+        set_csr_bits!("sstatus", 1 << 18);
+    }
+
+    fn disable() {
+        set_csr_bits!("sstatus", 0);
+        write_csr!("satp", MODE_BARE);
+    }
+
+    fn invalidate_page(id: crate::ActId, virt: usize) {
+        unsafe {
+            asm!(
+                "sfence.vma {0}, {1}",
+                in(reg) virt,
+                in(reg) id,
+                options(nomem, nostack),
+            );
+        }
+    }
+
+    fn invalidate_tlb() {
+        unsafe {
+            asm!("sfence.vma", options(nomem, nostack));
+        }
+    }
+
+    fn set_root_pt(id: crate::ActId, root: Phys) {
+        static MAX_ASID: LazyStaticCell<crate::ActId> = LazyStaticCell::default();
+        if !MAX_ASID.is_some() {
+            // determine how many ASID bits are supported (see 4.1.12)
+            let satp = MODE_SV39 << 60 | 0xFFFF << 44;
+            write_csr!("satp", satp);
+            let actual_satp = read_csr!("satp");
+            MAX_ASID.set(((actual_satp >> 44) & 0xFFFF) as crate::ActId);
+        }
+
+        let satp: u64 = MODE_SV39 << 60 | id << 44 | (root >> cfg::PAGE_BITS);
         write_csr!("satp", satp);
-        let actual_satp = read_csr!("satp");
-        MAX_ASID.set(((actual_satp >> 44) & 0xFFFF) as crate::ActId);
-    }
 
-    let satp: u64 = MODE_SV39 << 60 | id << 44 | (root >> cfg::PAGE_BITS);
-    write_csr!("satp", satp);
-
-    // if there are not enough ASIDs, always flush the TLB
-    // TODO we could do better here by assigning each activity to an ASID within 0..MAX_ASID and flush
-    // whenever we don't change the ASID. however, the Rocket Core has MAX_ASID=0, so that it's not
-    // worth it right now.
-    if MAX_ASID.get() != 0xFFFF {
-        invalidate_tlb();
+        // if there are not enough ASIDs, always flush the TLB
+        // TODO we could do better here by assigning each activity to an ASID within 0..MAX_ASID and flush
+        // whenever we don't change the ASID. however, the Rocket Core has MAX_ASID=0, so that it's not
+        // worth it right now.
+        if MAX_ASID.get() != 0xFFFF {
+            Self::invalidate_tlb();
+        }
     }
 }

@@ -21,6 +21,8 @@ use bitflags::bitflags;
 
 use core::arch::asm;
 
+use crate::ArchMMUFlags;
+
 pub type MMUPTE = u64;
 pub type Phys = u64;
 
@@ -31,7 +33,7 @@ pub const LEVEL_BITS: usize = cfg::PAGE_BITS - PTE_BITS;
 pub const LEVEL_MASK: usize = (1 << LEVEL_BITS) - 1;
 
 bitflags! {
-    pub struct MMUFlags : MMUPTE {
+    pub struct X86MMUFlags : MMUPTE {
         const P     = 0b0000_0001;
         const W     = 0b0000_0010;
         const U     = 0b0000_0100;
@@ -45,104 +47,110 @@ bitflags! {
     }
 }
 
-impl MMUFlags {
-    pub fn has_empty_perm(self) -> bool {
-        !self.contains(MMUFlags::P)
+impl ArchMMUFlags for X86MMUFlags {
+    fn has_empty_perm(self) -> bool {
+        !self.contains(Self::P)
     }
 
-    pub fn is_leaf(self, level: usize) -> bool {
+    fn is_leaf(self, level: usize) -> bool {
         level == 0 || self.contains(Self::L)
     }
 
-    pub fn perms_missing(self, perms: Self) -> bool {
-        !self.contains(Self::P)
-            || (!self.contains(Self::W) && perms.contains(Self::W))
-            || (self.contains(Self::NX) && !perms.contains(Self::NX))
+    fn access_allowed(self, flags: Self) -> bool {
+        self.contains(Self::P)
+            && !(!self.contains(Self::W) && flags.contains(Self::W))
+            && !(self.contains(Self::NX) && !flags.contains(Self::NX))
     }
 }
 
-pub fn build_pte(phys: MMUPTE, perm: MMUFlags, level: usize, leaf: bool) -> MMUPTE {
-    let pte = phys | perm.bits();
-    if leaf {
-        if level > 0 {
-            pte | MMUFlags::L.bits()
+pub struct X86Paging {}
+
+impl crate::ArchPaging for X86Paging {
+    type MMUFlags = X86MMUFlags;
+
+    fn build_pte(phys: MMUPTE, perm: Self::MMUFlags, level: usize, leaf: bool) -> MMUPTE {
+        let pte = phys | perm.bits();
+        if leaf {
+            if level > 0 {
+                pte | Self::MMUFlags::L.bits()
+            }
+            else {
+                pte
+            }
         }
         else {
-            pte
+            pte | (Self::MMUFlags::RWX | Self::MMUFlags::U).bits()
         }
     }
-    else {
-        pte | (MMUFlags::RWX | MMUFlags::U).bits()
-    }
-}
 
-pub fn pte_to_phys(pte: MMUPTE) -> Phys {
-    pte & !MMUFlags::FLAGS.bits()
-}
+    fn pte_to_phys(pte: MMUPTE) -> Phys {
+        pte & !Self::MMUFlags::FLAGS.bits()
+    }
 
-pub fn needs_invalidate(new_flags: MMUFlags, old_flags: MMUFlags) -> bool {
-    old_flags.bits() != 0 && new_flags.perms_missing(old_flags)
-}
+    fn needs_invalidate(new_flags: Self::MMUFlags, old_flags: Self::MMUFlags) -> bool {
+        old_flags.bits() != 0 && !new_flags.access_allowed(old_flags)
+    }
 
-pub fn to_page_flags(_level: usize, pte: MMUFlags) -> PageFlags {
-    let mut res = PageFlags::empty();
-    if pte.contains(MMUFlags::P) {
-        res |= PageFlags::R;
+    fn to_page_flags(_level: usize, pte: Self::MMUFlags) -> PageFlags {
+        let mut res = PageFlags::empty();
+        if pte.contains(Self::MMUFlags::P) {
+            res |= PageFlags::R;
+        }
+        if pte.contains(Self::MMUFlags::W) {
+            res |= PageFlags::W;
+        }
+        if pte.contains(Self::MMUFlags::U) {
+            res |= PageFlags::U;
+        }
+        if !pte.contains(Self::MMUFlags::NX) {
+            res |= PageFlags::X;
+        }
+        if pte.contains(Self::MMUFlags::L) {
+            res |= PageFlags::L;
+        }
+        res
     }
-    if pte.contains(MMUFlags::W) {
-        res |= PageFlags::W;
-    }
-    if pte.contains(MMUFlags::U) {
-        res |= PageFlags::U;
-    }
-    if !pte.contains(MMUFlags::NX) {
-        res |= PageFlags::X;
-    }
-    if pte.contains(MMUFlags::L) {
-        res |= PageFlags::L;
-    }
-    res
-}
 
-pub fn to_mmu_perms(flags: PageFlags) -> MMUFlags {
-    let mut res = MMUFlags::empty();
-    if flags.intersects(PageFlags::RWX) {
-        res |= MMUFlags::P;
+    fn to_mmu_perms(flags: PageFlags) -> Self::MMUFlags {
+        let mut res = Self::MMUFlags::empty();
+        if flags.intersects(PageFlags::RWX) {
+            res |= Self::MMUFlags::P;
+        }
+        if flags.contains(PageFlags::W) {
+            res |= Self::MMUFlags::W;
+        }
+        if flags.contains(PageFlags::U) {
+            res |= Self::MMUFlags::U;
+        }
+        if !flags.contains(PageFlags::X) {
+            res |= Self::MMUFlags::NX;
+        }
+        res
     }
-    if flags.contains(PageFlags::W) {
-        res |= MMUFlags::W;
+
+    fn enable() {
+        // already enabled by gem5
     }
-    if flags.contains(PageFlags::U) {
-        res |= MMUFlags::U;
+
+    fn disable() {
+        // not possible/necessary
     }
-    if !flags.contains(PageFlags::X) {
-        res |= MMUFlags::NX;
+
+    fn invalidate_page(_id: crate::ActId, virt: usize) {
+        unsafe {
+            asm!(
+                "invlpg [{0}]",
+                in(reg) virt,
+                options(nostack),
+            );
+        }
     }
-    res
-}
 
-pub fn enable_paging() {
-    // already enabled by gem5
-}
-
-pub fn disable_paging() {
-    // not possible/necessary
-}
-
-pub fn invalidate_page(_id: crate::ActId, virt: usize) {
-    unsafe {
-        asm!(
-            "invlpg [{0}]",
-            in(reg) virt,
-            options(nostack),
-        );
+    fn invalidate_tlb() {
+        // nothing to do
     }
-}
 
-pub fn invalidate_tlb() {
-    // nothing to do
-}
-
-pub fn set_root_pt(_id: crate::ActId, root: Phys) {
-    write_csr!("cr3", root as usize);
+    fn set_root_pt(_id: crate::ActId, root: Phys) {
+        write_csr!("cr3", root as usize);
+    }
 }

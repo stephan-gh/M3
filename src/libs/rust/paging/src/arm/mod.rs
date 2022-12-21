@@ -23,6 +23,8 @@ use bitflags::bitflags;
 
 use core::arch::asm;
 
+use crate::ArchMMUFlags;
+
 pub type MMUPTE = u64;
 pub type Phys = u64;
 
@@ -33,7 +35,7 @@ pub const LEVEL_BITS: usize = cfg::PAGE_BITS - PTE_BITS;
 pub const LEVEL_MASK: usize = (1 << LEVEL_BITS) - 1;
 
 bitflags! {
-    pub struct MMUFlags : MMUPTE {
+    pub struct ARMMMUFlags : MMUPTE {
         const P     = 0b0000_0001;          // present
         const U     = 0b0100_0000;          // user accessible
         const NW    = 0b1000_0000;          // non-writable
@@ -53,148 +55,154 @@ bitflags! {
     }
 }
 
-impl MMUFlags {
-    pub fn has_empty_perm(self) -> bool {
-        !self.contains(MMUFlags::P)
+impl ArchMMUFlags for ARMMMUFlags {
+    fn has_empty_perm(self) -> bool {
+        !self.contains(Self::P)
     }
 
-    pub fn is_leaf(self, level: usize) -> bool {
+    fn is_leaf(self, level: usize) -> bool {
         level == 0 || (self.bits() & Self::TYPE.bits()) != Self::TBL.bits()
     }
 
-    pub fn perms_missing(self, perms: Self) -> bool {
-        !self.contains(Self::P)
-            || (self.contains(Self::NW) && !perms.contains(Self::NW))
-            || (self.contains(Self::NX) && !perms.contains(Self::NX))
+    fn access_allowed(self, flags: Self) -> bool {
+        self.contains(Self::P)
+            && !(self.contains(Self::NW) && !flags.contains(Self::NW))
+            && !(self.contains(Self::NX) && !flags.contains(Self::NX))
     }
 }
 
-pub fn build_pte(phys: Phys, perm: MMUFlags, level: usize, leaf: bool) -> MMUPTE {
-    let pte = phys | perm.bits();
-    if leaf {
-        if perm.has_empty_perm() {
-            0
-        }
-        else if level > 0 {
-            pte | (MMUFlags::BLK | MMUFlags::NG).bits()
+pub struct ARMPaging {}
+
+impl crate::ArchPaging for ARMPaging {
+    type MMUFlags = ARMMMUFlags;
+
+    fn build_pte(phys: Phys, perm: Self::MMUFlags, level: usize, leaf: bool) -> MMUPTE {
+        let pte = phys | perm.bits();
+        if leaf {
+            if perm.has_empty_perm() {
+                0
+            }
+            else if level > 0 {
+                pte | (Self::MMUFlags::BLK | Self::MMUFlags::NG).bits()
+            }
+            else {
+                pte | (Self::MMUFlags::PAGE | Self::MMUFlags::NG).bits()
+            }
         }
         else {
-            pte | (MMUFlags::PAGE | MMUFlags::NG).bits()
+            pte | (Self::MMUFlags::TBL | Self::MMUFlags::A | Self::MMUFlags::NG).bits()
         }
     }
-    else {
-        pte | (MMUFlags::TBL | MMUFlags::A | MMUFlags::NG).bits()
-    }
-}
 
-pub fn pte_to_phys(pte: MMUPTE) -> Phys {
-    pte & !MMUFlags::FLAGS.bits()
-}
+    fn pte_to_phys(pte: MMUPTE) -> Phys {
+        pte & !Self::MMUFlags::FLAGS.bits()
+    }
 
-pub fn needs_invalidate(_new_flags: MMUFlags, old_flags: MMUFlags) -> bool {
-    // invalidate the TLB entry on every change
-    old_flags.bits() != 0
-}
+    fn needs_invalidate(_new_flags: Self::MMUFlags, old_flags: Self::MMUFlags) -> bool {
+        // invalidate the TLB entry on every change
+        old_flags.bits() != 0
+    }
 
-pub fn to_page_flags(_level: usize, pte: MMUFlags) -> PageFlags {
-    let mut res = PageFlags::empty();
-    if pte.contains(MMUFlags::P) {
-        res |= PageFlags::R;
+    fn to_page_flags(_level: usize, pte: Self::MMUFlags) -> PageFlags {
+        let mut res = PageFlags::empty();
+        if pte.contains(Self::MMUFlags::P) {
+            res |= PageFlags::R;
+        }
+        else {
+            return res;
+        }
+        if !pte.contains(Self::MMUFlags::NW) {
+            res |= PageFlags::W;
+        }
+        if pte.contains(Self::MMUFlags::U) {
+            res |= PageFlags::U;
+        }
+        if !pte.contains(Self::MMUFlags::NX) {
+            res |= PageFlags::X;
+        }
+        if (pte & Self::MMUFlags::TYPE).bits() == Self::MMUFlags::BLK.bits() {
+            res |= PageFlags::L;
+        }
+        res
     }
-    else {
-        return res;
-    }
-    if !pte.contains(MMUFlags::NW) {
-        res |= PageFlags::W;
-    }
-    if pte.contains(MMUFlags::U) {
-        res |= PageFlags::U;
-    }
-    if !pte.contains(MMUFlags::NX) {
-        res |= PageFlags::X;
-    }
-    if (pte & MMUFlags::TYPE).bits() == MMUFlags::BLK.bits() {
-        res |= PageFlags::L;
-    }
-    res
-}
 
-pub fn to_mmu_perms(flags: PageFlags) -> MMUFlags {
-    let mut res = MMUFlags::empty();
-    if flags.intersects(PageFlags::RWX) {
-        res |= MMUFlags::P | MMUFlags::A;
+    fn to_mmu_perms(flags: PageFlags) -> Self::MMUFlags {
+        let mut res = Self::MMUFlags::empty();
+        if flags.intersects(PageFlags::RWX) {
+            res |= Self::MMUFlags::P | Self::MMUFlags::A;
+        }
+        if !flags.contains(PageFlags::W) {
+            res |= Self::MMUFlags::NW;
+        }
+        if flags.contains(PageFlags::U) {
+            res |= Self::MMUFlags::U;
+        }
+        if !flags.contains(PageFlags::X) {
+            res |= Self::MMUFlags::NX;
+        }
+        res
     }
-    if !flags.contains(PageFlags::W) {
-        res |= MMUFlags::NW;
-    }
-    if flags.contains(PageFlags::U) {
-        res |= MMUFlags::U;
-    }
-    if !flags.contains(PageFlags::X) {
-        res |= MMUFlags::NX;
-    }
-    res
-}
 
-pub fn enable_paging() {
-    unsafe {
-        asm!(
-            "mrc     p15, 0, r0, c2, c0, 2",   // TTBCR
-            "orr     r0, r0, #0x80000000",     // EAE = 1 (40-bit translation system with long table format)
-            "orr     r0, r0, #0x00000500",     // ORGN0 = IRGN0 = 1 (write-back write-allocate cacheable)
-            "mcr     p15, 0, r0, c2, c0, 2",
-            "mrc     p15, 0, r0, c10, c2, 0",  // MAIR0
-            "orr     r0, r0, #0xFF",           // normal memory, write-back, rw-alloc, cacheable
-            "mcr     p15, 0, r0, c10, c2, 0",
-            "mrc     p15, 0, r0, c1, c0, 0",   // SCTLR
-            "orr     r0, r0, #0x00000001",     // enable MMU
-            "mcr     p15, 0, r0, c1, c0, 0",
-            lateout("r0") _,
+    fn enable() {
+        unsafe {
+            asm!(
+                "mrc     p15, 0, r0, c2, c0, 2",   // TTBCR
+                "orr     r0, r0, #0x80000000",     // EAE = 1 (40-bit translation system with long table format)
+                "orr     r0, r0, #0x00000500",     // ORGN0 = IRGN0 = 1 (write-back write-allocate cacheable)
+                "mcr     p15, 0, r0, c2, c0, 2",
+                "mrc     p15, 0, r0, c10, c2, 0",  // MAIR0
+                "orr     r0, r0, #0xFF",           // normal memory, write-back, rw-alloc, cacheable
+                "mcr     p15, 0, r0, c10, c2, 0",
+                "mrc     p15, 0, r0, c1, c0, 0",   // SCTLR
+                "orr     r0, r0, #0x00000001",     // enable MMU
+                "mcr     p15, 0, r0, c1, c0, 0",
+                lateout("r0") _,
+            );
+        }
+    }
+
+    fn disable() {
+        // not necessary
+    }
+
+    fn invalidate_page(id: crate::ActId, virt: usize) {
+        let val = virt | (id as usize & 0xFF);
+        unsafe {
+            asm!(
+                "mcr p15, 0, {0}, c8, c7, 1",
+                in(reg) val,
+                options(nostack),
+            );
+        }
+    }
+
+    fn invalidate_tlb() {
+        // note that r0 is ignored
+        unsafe {
+            asm!("mcr p15, 0, r0, c8, c7, 0", options(nostack));
+        }
+    }
+
+    fn set_root_pt(id: crate::ActId, root: Phys) {
+        // the ASID is 8 bit; make sure that we stay in that space
+        assert!(
+            id == tilemux::ACT_ID
+                || id == tilemux::IDLE_ID
+                || (id != tilemux::ACT_ID & 0xFF && id != tilemux::IDLE_ID & 0xFF)
         );
-    }
-}
-
-pub fn disable_paging() {
-    // not necessary
-}
-
-pub fn invalidate_page(id: crate::ActId, virt: usize) {
-    let val = virt | (id as usize & 0xFF);
-    unsafe {
-        asm!(
-            "mcr p15, 0, {0}, c8, c7, 1",
-            in(reg) val,
-            options(nostack),
-        );
-    }
-}
-
-pub fn invalidate_tlb() {
-    // note that r0 is ignored
-    unsafe {
-        asm!("mcr p15, 0, r0, c8, c7, 0", options(nostack));
-    }
-}
-
-pub fn set_root_pt(id: crate::ActId, root: Phys) {
-    // the ASID is 8 bit; make sure that we stay in that space
-    assert!(
-        id == tilemux::ACT_ID
-            || id == tilemux::IDLE_ID
-            || (id != tilemux::ACT_ID & 0xFF && id != tilemux::IDLE_ID & 0xFF)
-    );
-    // cacheable table walk, non-shareable, outer write-back write-allocate cacheable
-    let ttbr0_low: u32 = (root | 0b00_1001) as u32;
-    let ttbr0_high: u32 = ((id as u32 & 0xFF) << 16) | (root >> 32) as u32;
-    unsafe {
-        asm!(
-             "mcrr p15, 0, {0}, {1}, c2",
-             // synchronize changes to control register
-             ".arch armv7",
-             "isb",
-             in(reg) ttbr0_low,
-             in(reg) ttbr0_high,
-             options(nostack),
-        );
+        // cacheable table walk, non-shareable, outer write-back write-allocate cacheable
+        let ttbr0_low: u32 = (root | 0b00_1001) as u32;
+        let ttbr0_high: u32 = ((id as u32 & 0xFF) << 16) | (root >> 32) as u32;
+        unsafe {
+            asm!(
+                 "mcrr p15, 0, {0}, {1}, c2",
+                 // synchronize changes to control register
+                 ".arch armv7",
+                 "isb",
+                 in(reg) ttbr0_low,
+                 in(reg) ttbr0_high,
+                 options(nostack),
+            );
+        }
     }
 }
