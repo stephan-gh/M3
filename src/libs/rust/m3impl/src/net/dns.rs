@@ -102,16 +102,31 @@ impl DNS {
             self.nameserver = netmng.nameserver()?;
         }
 
-        let name_len = name.len();
-        let total = mem::size_of::<DNSHeader>() + name_len + 2 + mem::size_of::<DNSQuestionEnd>();
-        // reserve some space for the answer as well
-        let mut buffer = vec![0u8; total.max(1024)];
+        let total = mem::size_of::<DNSHeader>() + name.len() + 2 + mem::size_of::<DNSQuestionEnd>();
+        // reserve some space for the response as well
+        let mut buf = vec![0u8; total.max(1024)];
+
+        let mut sock = UdpSocket::new(DgramSocketArgs::new(netmng))?;
 
         let txid = self.random.get() as u16;
+        Self::generate_request(&mut buf, txid, name)?;
+        sock.send_to(&buf[0..total], Endpoint::new(self.nameserver, DNS_PORT))?;
 
+        // wait for the response
+        sock.set_blocking(false)?;
+        let mut waiter = FileWaiter::default();
+        waiter.add(sock.fd(), FileEvent::INPUT);
+        waiter.wait_for(timeout);
+
+        let len = sock.recv(&mut buf)?;
+        Self::handle_response(&buf[0..len], txid)
+    }
+
+    fn generate_request(buf: &mut [u8], txid: u16, name: &str) -> Result<(), VerboseError> {
         // safety: we are still within the allocated vector and DNSHeader has no alignment
         // requirements
-        let mut header = unsafe { &mut *(buffer.as_mut_ptr() as *mut DNSHeader) };
+        let mut header = unsafe { &mut *(buf.as_mut_ptr() as *mut DNSHeader) };
+
         // build DNS request message
         header.id = txid.to_be();
         header.flags = DNS_RECURSION_DESIRED.to_be();
@@ -121,79 +136,21 @@ impl DNS {
         header.ar_count = 0;
 
         // add hostname
-        let hostname_bytes = &mut buffer[mem::size_of::<DNSHeader>()..];
+        let hostname_bytes = &mut buf[mem::size_of::<DNSHeader>()..];
         Self::convert_hostname(hostname_bytes, name)?;
 
         // safety: we are still within the allocated vector and DNSQuestionEnd has no alignment
         // requirements
         let mut qend = unsafe {
-            &mut *(buffer
+            &mut *(buf
                 .as_mut_ptr()
-                .add(mem::size_of::<DNSHeader>() + name_len + 2)
+                .add(mem::size_of::<DNSHeader>() + name.len() + 2)
                 as *mut DNSQuestionEnd)
         };
         qend.ty = TYPE_A.to_be();
         qend.cls = CLASS_IN.to_be();
 
-        // create socket
-        let mut sock = UdpSocket::new(DgramSocketArgs::new(netmng))?;
-
-        // send over socket
-        sock.send_to(&buffer[0..total], Endpoint::new(self.nameserver, DNS_PORT))?;
-
-        // wait for the response
-        sock.set_blocking(false)?;
-        let mut waiter = FileWaiter::default();
-        waiter.add(sock.fd(), FileEvent::INPUT);
-        waiter.wait_for(timeout);
-
-        // receive response
-        let len = sock.recv(&mut buffer)?;
-        if len < mem::size_of::<DNSHeader>() {
-            return Err(VerboseError::new(
-                Code::NotFound,
-                "Invalid DNS response".to_string(),
-            ));
-        }
-        if u16::from_be(header.id) != txid {
-            return Err(VerboseError::new(
-                Code::NotFound,
-                "Received DNS response with wrong transaction id".to_string(),
-            ));
-        }
-
-        let questions = u16::from_be(header.qd_count);
-        let answers = u16::from_be(header.an_count);
-
-        // skip questions
-        let mut idx = mem::size_of::<DNSHeader>();
-        for _ in 0..questions {
-            let qlen = Self::question_length(&buffer[idx..]);
-            idx += qlen + mem::size_of::<DNSQuestionEnd>();
-        }
-
-        // parse answers
-        for _ in 0..answers {
-            if idx + mem::size_of::<DNSAnswer>() > len {
-                return Err(VerboseError::new(
-                    Code::NotFound,
-                    "Invalid DNS response".to_string(),
-                ));
-            }
-
-            // safety: we check above whether we are in bounds and DNSAnswer has no alignment req.
-            let ans = unsafe { &*(buffer.as_ptr().add(idx) as *const DNSAnswer) };
-            if u16::from_be(ans.ty) == TYPE_A
-                && u16::from_be(ans.length) == mem::size_of::<IpAddr>() as u16
-            {
-                return Ok(IpAddr::new_from_raw(u32::from_be(ans.ip_addr)));
-            }
-        }
-
-        Err(VerboseError::new(
-            Code::NotFound,
-            "No IPv4 address in DNS response".to_string(),
-        ))
+        Ok(())
     }
 
     fn convert_hostname(dst: &mut [u8], src: &str) -> Result<(), Error> {
@@ -221,16 +178,73 @@ impl DNS {
         Ok(())
     }
 
-    fn question_length(data: &[u8]) -> usize {
+    fn handle_response(buf: &[u8], txid: u16) -> Result<IpAddr, VerboseError> {
+        if buf.len() < mem::size_of::<DNSHeader>() {
+            return Err(VerboseError::new(
+                Code::NotFound,
+                "Invalid DNS response".to_string(),
+            ));
+        }
+
+        // safety: the length is sufficient now and heap allocations are 16-byte aligned
+        let header = unsafe { &*(buf.as_ptr() as *const DNSHeader) };
+        if u16::from_be(header.id) != txid {
+            return Err(VerboseError::new(
+                Code::NotFound,
+                "Received DNS response with wrong transaction id".to_string(),
+            ));
+        }
+
+        let questions = u16::from_be(header.qd_count);
+        let answers = u16::from_be(header.an_count);
+
+        let answers_off = Self::skip_questions(buf, questions as usize);
+        Self::parse_answers(buf, answers as usize, answers_off)
+    }
+
+    fn skip_questions(buf: &[u8], count: usize) -> usize {
+        let mut off = mem::size_of::<DNSHeader>();
+        for _ in 0..count {
+            let qlen = Self::question_length(&buf[off..]);
+            off += qlen + mem::size_of::<DNSQuestionEnd>();
+        }
+        off
+    }
+
+    fn question_length(buf: &[u8]) -> usize {
         let mut total = 0;
-        let mut idx = 0;
-        while idx < data.len() && data[idx] != 0 {
-            let len = data[idx] as usize;
+        let mut off = 0;
+        while off < buf.len() && buf[off] != 0 {
+            let len = buf[off] as usize;
             // skip this name-part
             total += len + 1;
-            idx += len + 1;
+            off += len + 1;
         }
         // skip zero ending, too
         total + 1
+    }
+
+    fn parse_answers(buf: &[u8], start: usize, count: usize) -> Result<IpAddr, VerboseError> {
+        for off in start..start + count {
+            if off + mem::size_of::<DNSAnswer>() > buf.len() {
+                return Err(VerboseError::new(
+                    Code::NotFound,
+                    "Invalid DNS response".to_string(),
+                ));
+            }
+
+            // safety: we check above whether we are in bounds and DNSAnswer has no alignment req.
+            let ans = unsafe { &*(buf.as_ptr().add(off) as *const DNSAnswer) };
+            if u16::from_be(ans.ty) == TYPE_A
+                && u16::from_be(ans.length) == mem::size_of::<IpAddr>() as u16
+            {
+                return Ok(IpAddr::new_from_raw(u32::from_be(ans.ip_addr)));
+            }
+        }
+
+        Err(VerboseError::new(
+            Code::NotFound,
+            "No IPv4 address in DNS response".to_string(),
+        ))
     }
 }
