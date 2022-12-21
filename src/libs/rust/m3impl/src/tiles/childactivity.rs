@@ -24,18 +24,24 @@ use core::ops::{Deref, DerefMut};
 
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::cell::Cell;
+use crate::cfg;
 use crate::col::{String, ToString, Vec};
+use crate::com::MemGate;
+use crate::env::EnvData;
 use crate::errors::Error;
+use crate::goff;
 use crate::kif;
 use crate::kif::{CapRngDesc, CapType};
+use crate::mem;
 use crate::rc::Rc;
 use crate::serialize::{M3Serializer, VecSink};
 use crate::session::{Pager, ResMng};
 use crate::syscalls;
 use crate::tiles::{
-    loader, Activity, DefaultMapper, KMem, Mapper, RunningDeviceActivity, RunningProgramActivity,
-    Tile,
+    loader, Activity, DefaultMapper, KMem, Mapper, RunningActivity, RunningDeviceActivity,
+    RunningProgramActivity, Tile,
 };
+use crate::util::math;
 use crate::vfs::{BufReader, Fd, File, FileRef, OpenFlags, VFS};
 
 /// Represents a child activity.
@@ -98,6 +104,7 @@ impl ChildActivity {
     pub fn new_with(tile: Rc<Tile>, args: ActivityArgs<'_>) -> Result<Self, Error> {
         let sel = Activity::own().alloc_sels(3);
 
+        // create child activity struct
         let mut act = ChildActivity {
             base: Activity::new_act(
                 Capability::new(sel, CapFlags::empty()),
@@ -109,6 +116,7 @@ impl ChildActivity {
             mounts: Vec::new(),
         };
 
+        // determine pager
         let pager = if act.tile_desc().has_virtmem() {
             if let Some(p) = args.pager {
                 Some(p)
@@ -124,42 +132,41 @@ impl ChildActivity {
             None
         };
 
-        act.pager = if let Some(mut pg) = pager {
-            // now create activity, which implicitly obtains the gate cap from us
-            let (id, eps_start) =
-                syscalls::create_activity(sel, args.name, tile.sel(), act.kmem().sel())?;
-            act.id = id;
-            act.eps_start = eps_start;
+        // actually create activity via syscall
+        let (id, eps_start) =
+            syscalls::create_activity(sel, args.name, tile.sel(), act.kmem().sel())?;
+        act.id = id;
+        act.eps_start = eps_start;
 
-            // delegate activity cap to pager
+        // initialize pager
+        act.pager = if let Some(mut pg) = pager {
             pg.init(&act)?;
             Some(pg)
         }
         else {
-            let (id, eps_start) =
-                syscalls::create_activity(sel, args.name, tile.sel(), act.kmem().sel())?;
-            act.id = id;
-            act.eps_start = eps_start;
             None
         };
+
         act.child_sel
             .set(cmp::max(act.kmem().sel() + 1, act.child_sel.get()));
 
         // determine resource manager
-        let resmng = if let Some(rmng) = args.rmng {
+        act.rmng = if let Some(rmng) = args.rmng {
             act.delegate_obj(rmng.sel())?;
-            rmng
+            Some(rmng)
         }
         else {
             let sgate_sel = act.child_sel.get();
             act.child_sel.set(sgate_sel + 1);
 
-            Activity::own()
-                .resmng()
-                .unwrap()
-                .clone(&mut act, sgate_sel, args.name)?
+            Some(
+                Activity::own()
+                    .resmng()
+                    .unwrap()
+                    .clone(&mut act, sgate_sel, args.name)?,
+            )
         };
-        act.rmng = Some(resmng);
+
         // ensure that the child's cap space is not further ahead than ours
         // TODO improve that
         Activity::own().next_sel.set(cmp::max(
@@ -267,8 +274,6 @@ impl ChildActivity {
     /// accelerators and devices that implement the TileMux protocol to get started, but don't
     /// execute any code.
     pub fn start(self) -> Result<RunningDeviceActivity, Error> {
-        use crate::tiles::RunningActivity;
-
         let act = RunningDeviceActivity::new(self);
         act.start().map(|_| act)
     }
@@ -318,120 +323,20 @@ impl ChildActivity {
         self.do_exec_file(mapper, file, args, None)
     }
 
-    #[allow(unused_mut)]
     fn do_exec_file<S: AsRef<str>>(
-        mut self,
+        self,
         mapper: &mut dyn Mapper,
-        mut file: FileRef<dyn File>,
+        file: FileRef<dyn File>,
         args: &[S],
         closure: Option<usize>,
     ) -> Result<RunningProgramActivity, Error> {
-        use crate::cfg;
-        use crate::goff;
-        use crate::mem;
-        use crate::tiles::RunningActivity;
-
         self.obtain_files_and_mounts()?;
 
         let mut file = BufReader::new(file);
+        let entry = loader::load_program(&self, mapper, &mut file)?;
 
-        let mut senv = crate::env::EnvData::default();
+        self.load_environment(args, closure, entry)?;
 
-        let env_page_off = (cfg::ENV_START & !cfg::PAGE_MASK) as goff;
-        let mem = self.get_mem(env_page_off, cfg::ENV_SIZE as goff, kif::Perm::RW)?;
-
-        {
-            // load program segments
-            senv.set_platform(crate::env::get().platform());
-            senv.set_sp(self.tile_desc().stack_top());
-            senv.set_entry(loader::load_program(&self, mapper, &mut file)?);
-
-            // write args
-            let mut off = cfg::ENV_START + mem::size_of_val(&senv);
-            senv.set_argc(args.len());
-            senv.set_argv(loader::write_arguments(&mem, &mut off, args)?);
-
-            // write env vars
-            senv.set_envp(loader::write_arguments(
-                &mem,
-                &mut off,
-                crate::env::vars_raw(),
-            )?);
-
-            // copy tile ids unchanged to child
-            senv.copy_tile_ids(crate::env::get().tile_ids());
-
-            // write file table
-            {
-                let mut fds_vec = Vec::new();
-                let mut fds = M3Serializer::new(VecSink::new(&mut fds_vec));
-                Activity::own().files().serialize(&self.files, &mut fds);
-                let words = fds.words();
-                mem.write_bytes(
-                    words.as_ptr() as *const u8,
-                    words.len() * mem::size_of::<u64>(),
-                    off as goff - env_page_off,
-                )?;
-                senv.set_files(off, fds.size());
-                off += fds.size();
-            }
-
-            // write mounts table
-            {
-                let mut mounts_vec = Vec::new();
-                let mut mounts = M3Serializer::new(VecSink::new(&mut mounts_vec));
-                Activity::own()
-                    .mounts()
-                    .serialize(&self.mounts, &mut mounts);
-                let words = mounts.words();
-                mem.write_bytes(
-                    words.as_ptr() as *const u8,
-                    words.len() * mem::size_of::<u64>(),
-                    off as goff - env_page_off,
-                )?;
-                senv.set_mounts(off, mounts.size());
-                off += mounts.size();
-            }
-
-            // write data
-            {
-                let size = self.data.len() * mem::size_of::<u64>();
-                mem.write_bytes(
-                    self.data.as_ptr() as *const u8,
-                    size,
-                    off as goff - env_page_off,
-                )?;
-                senv.set_data(off, size);
-            }
-
-            // write closure
-            if let Some(addr) = closure {
-                senv.set_closure(addr);
-            }
-
-            senv.set_first_std_ep(self.eps_start);
-            senv.set_rmng(self.resmng_sel().unwrap());
-            senv.set_first_sel(self.child_sel.get());
-            senv.set_pedesc(self.tile_desc());
-            senv.set_activity_id(self.id());
-
-            if let Some(ref pg) = self.pager {
-                senv.set_pager(pg);
-                senv.set_heap_size(cfg::APP_HEAP_SIZE);
-            }
-            else {
-                senv.set_heap_size(cfg::MOD_HEAP_SIZE);
-            }
-
-            // write start env to tile
-            mem.write_bytes(
-                &senv as *const _ as *const u8,
-                mem::size_of_val(&senv),
-                cfg::ENV_START as goff - env_page_off,
-            )?;
-        }
-
-        // go!
         let act = RunningProgramActivity::new(self, file);
         act.start().map(|_| act)
     }
@@ -440,6 +345,154 @@ impl ChildActivity {
         let fsel = Activity::own().files().delegate(self)?;
         let msel = Activity::own().mounts().delegate(self)?;
         self.child_sel.set(self.child_sel.get().max(msel.max(fsel)));
+        Ok(())
+    }
+
+    fn load_environment<S: AsRef<str>>(
+        &self,
+        args: &[S],
+        closure: Option<usize>,
+        entry: usize,
+    ) -> Result<(), Error> {
+        let env_page_off = (cfg::ENV_START & !cfg::PAGE_MASK) as goff;
+        let mem = self.get_mem(env_page_off, cfg::ENV_SIZE as goff, kif::Perm::RW)?;
+
+        // build child environment
+        let mut cenv = crate::env::EnvData::default();
+        cenv.set_platform(crate::env::get().platform());
+        cenv.set_sp(self.tile_desc().stack_top());
+        cenv.set_entry(entry);
+        cenv.set_first_std_ep(self.eps_start);
+        cenv.set_rmng(self.resmng_sel().unwrap());
+        cenv.set_first_sel(self.child_sel.get());
+        cenv.set_pedesc(self.tile_desc());
+        cenv.set_activity_id(self.id());
+        cenv.copy_tile_ids(crate::env::get().tile_ids());
+
+        if let Some(addr) = closure {
+            cenv.set_closure(addr);
+        }
+
+        if let Some(ref pg) = self.pager {
+            cenv.set_pager(pg);
+            cenv.set_heap_size(cfg::APP_HEAP_SIZE);
+        }
+        else {
+            cenv.set_heap_size(cfg::MOD_HEAP_SIZE);
+        }
+
+        // write arguments and environment variables
+        let mut off = cfg::ENV_START + mem::size_of_val(&cenv);
+        cenv.set_argc(args.len());
+        cenv.set_argv(Self::write_arguments(args, &mem, &mut off)?);
+        cenv.set_envp(Self::write_arguments(
+            &crate::env::vars_raw(),
+            &mem,
+            &mut off,
+        )?);
+
+        // serialize files, mounts, and data and write them to the child's memory
+        let write_words = |words: &[u64], off| mem.write(words, off as goff - env_page_off);
+        self.serialize_files(write_words, &mut cenv, &mut off)?;
+        self.serialize_mounts(write_words, &mut cenv, &mut off)?;
+        self.serialize_data(write_words, &mut cenv, &mut off)?;
+
+        // write environment to tile
+        mem.write_bytes(
+            &cenv as *const _ as *const u8,
+            mem::size_of_val(&cenv),
+            cfg::ENV_START as goff - env_page_off,
+        )
+    }
+
+    fn write_arguments<S>(args: &[S], mem: &MemGate, off: &mut usize) -> Result<usize, Error>
+    where
+        S: AsRef<str>,
+    {
+        let (arg_buf, arg_ptr, arg_end) = Self::collect_args(args, *off);
+
+        // write actual arguments to memory
+        let env_page_off = (cfg::ENV_START & !cfg::PAGE_MASK) as goff;
+        mem.write_bytes(
+            arg_buf.as_ptr() as *const _,
+            arg_buf.len(),
+            *off as goff - env_page_off,
+        )?;
+
+        // write argument pointers to memory
+        let arg_ptr_off = math::round_up(arg_end, mem::size_of::<u64>());
+        mem.write_bytes(
+            arg_ptr.as_ptr() as *const _,
+            arg_ptr.len() * mem::size_of::<u64>(),
+            arg_ptr_off as goff - env_page_off,
+        )?;
+
+        *off = arg_ptr_off + arg_ptr.len() * mem::size_of::<u64>();
+        Ok(arg_ptr_off)
+    }
+
+    fn collect_args<S>(args: &[S], off: usize) -> (Vec<u8>, Vec<u64>, usize)
+    where
+        S: AsRef<str>,
+    {
+        let mut arg_ptr = Vec::<u64>::new();
+        let mut arg_buf = Vec::new();
+
+        let mut arg_off = off;
+        for s in args {
+            // push argv entry
+            arg_ptr.push(arg_off as u64);
+
+            // push string
+            let arg = s.as_ref().as_bytes();
+            arg_buf.extend_from_slice(arg);
+
+            // 0-terminate it
+            arg_buf.push(b'\0');
+
+            arg_off += arg.len() + 1;
+        }
+        arg_ptr.push(0);
+
+        (arg_buf, arg_ptr, arg_off)
+    }
+
+    fn serialize_files<F>(&self, write: F, env: &mut EnvData, off: &mut usize) -> Result<(), Error>
+    where
+        F: Fn(&[u64], usize) -> Result<(), Error>,
+    {
+        let mut fds_vec = Vec::new();
+        let mut fds = M3Serializer::new(VecSink::new(&mut fds_vec));
+        Activity::own().files().serialize(&self.files, &mut fds);
+        let words = fds.words();
+        write(&words, *off)?;
+        env.set_files(*off, fds.size());
+        *off += fds.size();
+        Ok(())
+    }
+
+    fn serialize_mounts<F>(&self, write: F, env: &mut EnvData, off: &mut usize) -> Result<(), Error>
+    where
+        F: Fn(&[u64], usize) -> Result<(), Error>,
+    {
+        let mut mounts_vec = Vec::new();
+        let mut mounts = M3Serializer::new(VecSink::new(&mut mounts_vec));
+        Activity::own()
+            .mounts()
+            .serialize(&self.mounts, &mut mounts);
+        let words = mounts.words();
+        write(&words, *off)?;
+        env.set_mounts(*off, mounts.size());
+        *off += mounts.size();
+        Ok(())
+    }
+
+    fn serialize_data<F>(&self, write: F, env: &mut EnvData, off: &mut usize) -> Result<(), Error>
+    where
+        F: Fn(&[u64], usize) -> Result<(), Error>,
+    {
+        write(&self.data, *off)?;
+        env.set_data(*off, self.data.len() * mem::size_of::<u64>());
         Ok(())
     }
 }

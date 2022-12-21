@@ -16,54 +16,20 @@
  * General Public License version 2 for more details.
  */
 
-use core::{cmp, iter};
+use core::cmp;
 
 use crate::cfg;
-use crate::col::Vec;
 use crate::com::MemGate;
 use crate::elf;
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::io::{read_object, Read};
 use crate::kif;
-use crate::mem::size_of;
 use crate::session::MapFlags;
 use crate::tiles::{Activity, Mapper};
 use crate::util::math;
 use crate::vec;
 use crate::vfs::{BufReader, File, FileRef, Seek, SeekMode};
-
-fn write_bytes_checked(
-    mem: &MemGate,
-    _vaddr: usize,
-    data: *const u8,
-    size: usize,
-    offset: goff,
-) -> Result<(), Error> {
-    mem.write_bytes(data, size, offset)?;
-
-    // on hw, validate whether the data has been written correctly by reading it again
-    #[cfg(target_vendor = "hw")]
-    {
-        use crate::cell::StaticRefCell;
-
-        static BUF: StaticRefCell<[u8; cfg::PAGE_SIZE]> = StaticRefCell::new([0u8; cfg::PAGE_SIZE]);
-
-        let mut off = offset;
-        let mut data_slice = unsafe { core::slice::from_raw_parts(data, size) };
-        let mut buf = BUF.borrow_mut();
-        while !data_slice.is_empty() {
-            let amount = cmp::min(data_slice.len(), cfg::PAGE_SIZE);
-            mem.read_bytes(buf.as_mut_ptr(), amount, off)?;
-            assert_eq!(buf[0..amount], data_slice[0..amount]);
-
-            off += amount as goff;
-            data_slice = &data_slice[amount..];
-        }
-    }
-
-    Ok(())
-}
 
 pub fn load_program(
     act: &Activity,
@@ -81,7 +47,51 @@ pub fn load_program(
         return Err(Error::new(Code::InvalidElf));
     }
 
-    // copy load segments to destination tile
+    let heap_begin = load_segments(act, mapper, file, &hdr, &mut buf)?;
+    create_heap(act, mapper, heap_begin)?;
+    create_stack(act, mapper)?;
+
+    Ok(hdr.entry)
+}
+
+fn create_stack(act: &Activity, mapper: &mut dyn Mapper) -> Result<(), Error> {
+    let (stack_addr, stack_size) = act.tile_desc().stack_space();
+    mapper
+        .map_anon(
+            act.pager(),
+            stack_addr as goff,
+            stack_size,
+            kif::Perm::RW,
+            MapFlags::PRIVATE | MapFlags::UNINIT,
+        )
+        .map(|_| ())
+}
+
+fn create_heap(act: &Activity, mapper: &mut dyn Mapper, start: usize) -> Result<(), Error> {
+    let (heap_size, flags) = if act.pager().is_some() {
+        (cfg::APP_HEAP_SIZE, MapFlags::NOLPAGE)
+    }
+    else {
+        (cfg::MOD_HEAP_SIZE, MapFlags::empty())
+    };
+    mapper
+        .map_anon(
+            act.pager(),
+            start as goff,
+            heap_size,
+            kif::Perm::RW,
+            MapFlags::PRIVATE | MapFlags::UNINIT | flags,
+        )
+        .map(|_| ())
+}
+
+fn load_segments(
+    act: &Activity,
+    mapper: &mut dyn Mapper,
+    file: &mut BufReader<FileRef<dyn File>>,
+    hdr: &elf::ElfHeader,
+    buf: &mut [u8],
+) -> Result<usize, Error> {
     let mut end = 0;
     let mut off = hdr.ph_off;
     for _ in 0..hdr.ph_num {
@@ -95,84 +105,12 @@ pub fn load_program(
             continue;
         }
 
-        load_segment(act, mapper, file, &phdr, &mut buf)?;
+        load_segment(act, mapper, file, &phdr, buf)?;
 
         end = phdr.virt_addr + phdr.mem_size as usize;
     }
 
-    // create area for stack
-    let (stack_addr, stack_size) = act.tile_desc().stack_space();
-    mapper.map_anon(
-        act.pager(),
-        stack_addr as goff,
-        stack_size,
-        kif::Perm::RW,
-        MapFlags::PRIVATE | MapFlags::UNINIT,
-    )?;
-
-    // create heap
-    let heap_begin = math::round_up(end, cfg::PAGE_SIZE);
-    let (heap_size, flags) = if act.pager().is_some() {
-        (cfg::APP_HEAP_SIZE, MapFlags::NOLPAGE)
-    }
-    else {
-        (cfg::MOD_HEAP_SIZE, MapFlags::empty())
-    };
-    mapper.map_anon(
-        act.pager(),
-        heap_begin as goff,
-        heap_size,
-        kif::Perm::RW,
-        MapFlags::PRIVATE | MapFlags::UNINIT | flags,
-    )?;
-
-    Ok(hdr.entry)
-}
-
-pub fn write_arguments<I, S>(mem: &MemGate, off: &mut usize, args: I) -> Result<usize, Error>
-where
-    I: iter::IntoIterator<Item = S>,
-    S: AsRef<str>,
-{
-    let mut argptr = Vec::<u64>::new();
-    let mut argbuf = Vec::new();
-
-    let mut argoff = *off;
-    for s in args {
-        // push argv entry
-        argptr.push(argoff as u64);
-
-        // push string
-        let arg = s.as_ref().as_bytes();
-        argbuf.extend_from_slice(arg);
-
-        // 0-terminate it
-        argbuf.push(b'\0');
-
-        argoff += arg.len() + 1;
-    }
-    argptr.push(0);
-
-    let env_page_off = (cfg::ENV_START & !cfg::PAGE_MASK) as goff;
-    write_bytes_checked(
-        mem,
-        *off,
-        argbuf.as_ptr() as *const _,
-        argbuf.len(),
-        *off as goff - env_page_off,
-    )?;
-
-    argoff = math::round_up(argoff, size_of::<u64>());
-    write_bytes_checked(
-        mem,
-        argoff,
-        argptr.as_ptr() as *const _,
-        argptr.len() * size_of::<u64>(),
-        argoff as goff - env_page_off,
-    )?;
-
-    *off = argoff + argptr.len() * size_of::<u64>();
-    Ok(argoff)
+    Ok(math::round_up(end, cfg::PAGE_SIZE))
 }
 
 fn load_segment(
@@ -213,12 +151,11 @@ fn load_segment(
             math::round_up(size, cfg::PAGE_SIZE) as goff,
             kif::Perm::RW,
         )?;
+        file.seek(phdr.offset as usize, SeekMode::SET)?;
         init_mem(
             buf,
             &mem,
             file,
-            phdr.virt_addr,
-            phdr.offset as usize,
             phdr.file_size as usize,
             phdr.mem_size as usize,
         )
@@ -232,41 +169,25 @@ fn init_mem(
     buf: &mut [u8],
     mem: &MemGate,
     file: &mut BufReader<FileRef<dyn File>>,
-    vaddr: usize,
-    foff: usize,
-    fsize: usize,
-    memsize: usize,
+    file_size: usize,
+    mem_size: usize,
 ) -> Result<(), Error> {
-    file.seek(foff, SeekMode::SET)?;
-
-    let mut count = fsize;
+    let mut count = file_size;
     let mut segoff = 0;
     while count > 0 {
         let amount = cmp::min(count, buf.len());
         let amount = file.read(&mut buf[0..amount])?;
 
-        write_bytes_checked(
-            mem,
-            vaddr + segoff as usize,
-            buf.as_mut_ptr(),
-            amount,
-            segoff,
-        )?;
+        mem.write_bytes(buf.as_mut_ptr(), amount, segoff)?;
 
         count -= amount;
         segoff += amount as goff;
     }
 
-    clear_mem(buf, mem, vaddr, segoff as usize, memsize - fsize)
+    clear_mem(buf, mem, segoff as usize, mem_size - file_size)
 }
 
-fn clear_mem(
-    buf: &mut [u8],
-    mem: &MemGate,
-    virt: usize,
-    mut off: usize,
-    mut len: usize,
-) -> Result<(), Error> {
+fn clear_mem(buf: &mut [u8], mem: &MemGate, mut off: usize, mut len: usize) -> Result<(), Error> {
     if len == 0 {
         return Ok(());
     }
@@ -277,7 +198,7 @@ fn clear_mem(
 
     while len > 0 {
         let amount = cmp::min(len, buf.len());
-        write_bytes_checked(mem, virt, buf.as_mut_ptr(), amount, off as goff)?;
+        mem.write_bytes(buf.as_mut_ptr(), amount, off as goff)?;
         len -= amount;
         off += amount;
     }
