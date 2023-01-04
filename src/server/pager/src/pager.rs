@@ -46,7 +46,6 @@ use resmng::{config, requests, res::Resources, sendqueue, subsys, tiles};
 
 pub const LOG_DEF: bool = false;
 
-static SERV: LazyStaticRefCell<Server> = LazyStaticRefCell::default();
 static PGHDL: LazyStaticRefCell<PagerReqHandler> = LazyStaticRefCell::default();
 static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 static MOUNTS: LazyStaticRefCell<Vec<(String, String)>> = LazyStaticRefCell::default();
@@ -276,21 +275,20 @@ fn handle_request(
     }
 }
 
-struct WorkloopArgs<'c, 'r> {
+struct WorkloopArgs<'c, 'r, 's> {
     childs: &'c mut ChildManager,
     res: &'r mut Resources,
+    serv: &'s mut Server,
 }
 
-fn workloop(args: &mut WorkloopArgs<'_, '_>) {
-    let WorkloopArgs { childs, res } = args;
+fn workloop(args: &mut WorkloopArgs<'_, '_, '_>) {
+    let WorkloopArgs { childs, res, serv } = args;
 
     requests::workloop(
         childs,
         res,
         |childs, _res| {
-            SERV.borrow()
-                .handle_ctrl_chan(PGHDL.borrow_mut().deref_mut())
-                .ok();
+            serv.handle_ctrl_chan(PGHDL.borrow_mut().deref_mut()).ok();
 
             REQHDL
                 .get()
@@ -327,9 +325,8 @@ pub fn main() -> Result<(), Error> {
         sel: 0,
         sessions: SessionContainer::new(args.max_clients),
     };
-    let serv = Server::new_private("pager", &mut hdl).expect("Unable to create service");
+    let mut serv = Server::new_private("pager", &mut hdl).expect("Unable to create service");
     hdl.sel = serv.sel();
-    SERV.set(serv);
     PGHDL.set(hdl);
 
     REQHDL.set(
@@ -364,6 +361,7 @@ pub fn main() -> Result<(), Error> {
     let mut wargs = WorkloopArgs {
         childs: &mut childs,
         res: &mut res,
+        serv: &mut serv,
     };
 
     thread::init();
