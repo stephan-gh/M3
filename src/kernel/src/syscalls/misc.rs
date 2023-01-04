@@ -20,6 +20,7 @@ use base::errors::{Code, Error, VerboseError};
 use base::goff;
 use base::kif::{self, syscalls};
 use base::mem::MsgBuf;
+use base::quota::Quota;
 use base::rc::Rc;
 use base::tcu;
 
@@ -226,21 +227,26 @@ pub fn tile_quota_async(
     let act_caps = act.obj_caps().borrow();
     let tile = get_kobj_ref!(act_caps, r.tile, Tile);
 
-    let (time, pts) = TileMux::get_quota_async(
-        tilemng::tilemux(tile.tile()),
-        tile.time_quota_id(),
-        tile.pt_quota_id(),
-    )
-    .map_err(|e| {
-        VerboseError::new(
-            e.code(),
-            base::format!(
-                "Unable to get quota for time={}, pts={}",
-                tile.time_quota_id(),
-                tile.pt_quota_id()
-            ),
+    let (time, pts) = if platform::tile_desc(tile.tile()).supports_tilemux() {
+        TileMux::get_quota_async(
+            tilemng::tilemux(tile.tile()),
+            tile.time_quota_id(),
+            tile.pt_quota_id(),
         )
-    })?;
+        .map_err(|e| {
+            VerboseError::new(
+                e.code(),
+                base::format!(
+                    "Unable to get quota for time={}, pts={}",
+                    tile.time_quota_id(),
+                    tile.pt_quota_id()
+                ),
+            )
+        })?
+    }
+    else {
+        (Quota::default(), Quota::default())
+    };
 
     let mut kreply = MsgBuf::borrow_def();
     build_vmsg!(kreply, Code::Success, kif::syscalls::TileQuotaReply {

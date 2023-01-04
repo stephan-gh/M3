@@ -339,7 +339,7 @@ impl TileMux {
         klog!(EPS, "{}:EP{} = invalid", self.tile_id(), ep);
 
         let unread_mask = ktcu::invalidate_ep_remote(self.tile_id(), ep, force)?;
-        if unread_mask != 0 && notify {
+        if unread_mask != 0 && notify && platform::tile_desc(self.tile_id()).supports_tilemux() {
             let mut buf = MsgBuf::borrow_def();
             let msg = kif::tilemux::RemMsgs {
                 act_id: act as u64,
