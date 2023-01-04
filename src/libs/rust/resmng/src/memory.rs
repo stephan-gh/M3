@@ -16,7 +16,6 @@
 use core::cmp;
 use core::fmt;
 use m3::cap::Selector;
-use m3::cell::{RefMut, StaticRefCell};
 use m3::cfg;
 use m3::col::Vec;
 use m3::com::MemGate;
@@ -27,12 +26,6 @@ use m3::log;
 use m3::mem::{GlobAddr, MemMap};
 use m3::rc::Rc;
 use m3::util::math;
-
-static CON: StaticRefCell<MemModCon> = StaticRefCell::new(MemModCon::default());
-
-pub fn container() -> RefMut<'static, MemModCon> {
-    CON.borrow_mut()
-}
 
 pub struct MemMod {
     gate: MemGate,
@@ -73,23 +66,15 @@ impl fmt::Debug for MemMod {
     }
 }
 
-pub struct MemModCon {
+#[derive(Default)]
+pub struct MemoryManager {
     mods: Vec<Rc<MemMod>>,
     available: goff,
     cur_mod: usize,
     cur_off: goff,
 }
 
-impl MemModCon {
-    const fn default() -> Self {
-        Self {
-            mods: Vec::new(),
-            available: 0,
-            cur_mod: 0,
-            cur_off: 0,
-        }
-    }
-
+impl MemoryManager {
     pub fn mods(&self) -> &[Rc<MemMod>] {
         &self.mods
     }

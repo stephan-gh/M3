@@ -22,7 +22,7 @@ use m3::rc::Rc;
 use m3::tcu::Label;
 
 use crate::parser;
-use crate::tiles;
+use crate::tiles::TileManager;
 
 #[derive(Default)]
 pub struct DualName {
@@ -538,32 +538,32 @@ impl AppConfig {
         self.domains.iter().fold(0, |total, d| total + d.apps.len())
     }
 
-    pub fn check(&self) {
+    pub fn check(&self, tile_mng: &TileManager) {
         self.check_services(&BTreeSet::new());
         self.check_gates();
-        self.check_tiles();
+        self.check_tiles(tile_mng);
     }
 
-    fn count_tiles(tile: &TileDesc) -> u32 {
+    fn count_tiles(tile_mng: &TileManager, tile: &TileDesc) -> u32 {
         let mut count = 0;
-        for i in 0..tiles::get().count() {
-            if tile.tile_type().matches(tiles::get().get(i).desc()) {
+        for i in 0..tile_mng.count() {
+            if tile.tile_type().matches(tile_mng.get(i).desc()) {
                 count += 1;
             }
         }
         count
     }
 
-    fn check_tiles(&self) {
+    fn check_tiles(&self, tile_mng: &TileManager) {
         for d in &self.domains {
             for a in &d.apps {
-                a.check_tiles();
+                a.check_tiles(tile_mng);
             }
         }
 
         for tile in &self.tiles {
             if !tile.optional {
-                let available = Self::count_tiles(tile);
+                let available = Self::count_tiles(tile_mng, tile);
                 if available < tile.count.get() {
                     panic!(
                         "AppConfig '{}' needs tile type '{}' {} times, but {} are available",

@@ -31,7 +31,6 @@ use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::kif;
 use m3::log;
-use m3::rc::Rc;
 use m3::server::{
     CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer, DEF_MSG_SIZE,
 };
@@ -43,10 +42,11 @@ use m3::vfs;
 
 use addrspace::AddrSpace;
 use resmng::childs::{self, Child, OwnChild};
-use resmng::{config, requests, sendqueue, subsys, tiles};
+use resmng::{config, requests, res::Resources, sendqueue, subsys, tiles};
 
 pub const LOG_DEF: bool = false;
 
+static SERV: LazyStaticRefCell<Server> = LazyStaticRefCell::default();
 static PGHDL: LazyStaticRefCell<PagerReqHandler> = LazyStaticRefCell::default();
 static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 static MOUNTS: LazyStaticRefCell<Vec<(String, String)>> = LazyStaticRefCell::default();
@@ -166,7 +166,7 @@ fn get_mount(name: &str) -> Result<String, VerboseError> {
 struct PagedChildStarter {}
 
 impl subsys::ChildStarter for PagedChildStarter {
-    fn start(&mut self, child: &mut OwnChild) -> Result<(), VerboseError> {
+    fn start(&mut self, res: &mut Resources, child: &mut OwnChild) -> Result<(), VerboseError> {
         // send gate for resmng
         #[allow(clippy::useless_conversion)]
         let resmng_sgate = SendGate::new_with(
@@ -204,7 +204,7 @@ impl subsys::ChildStarter for PagedChildStarter {
         // pass subsystem info to child, if it's a subsystem
         let id = child.id();
         if let Some(sub) = child.subsys() {
-            sub.finalize_async(id, &mut act)?;
+            sub.finalize_async(res, id, &mut act)?;
         }
 
         // mount file systems for childs
@@ -229,7 +229,8 @@ impl subsys::ChildStarter for PagedChildStarter {
 
     fn configure_tile(
         &mut self,
-        tile: Rc<tiles::TileUsage>,
+        _res: &mut Resources,
+        tile: &tiles::TileUsage,
         _domain: &config::Domain,
     ) -> Result<(), VerboseError> {
         let fs_mod = MemGate::new_bind_bootmod("fs")?;
@@ -271,10 +272,13 @@ fn handle_request(op: PagerOp, is: &mut GateIStream<'_>) -> Result<(), Error> {
     }
 }
 
-fn workloop(serv: &Server) {
+fn workloop(res: &mut Resources) {
     requests::workloop(
+        res,
         || {
-            serv.handle_ctrl_chan(PGHDL.borrow_mut().deref_mut()).ok();
+            SERV.borrow()
+                .handle_ctrl_chan(PGHDL.borrow_mut().deref_mut())
+                .ok();
 
             REQHDL.get().handle(handle_request).ok();
         },
@@ -285,9 +289,14 @@ fn workloop(serv: &Server) {
 
 #[no_mangle]
 pub fn main() -> Result<(), Error> {
-    let subsys = subsys::Subsystem::new().expect("Unable to read subsystem info");
+    let (subsys, mut res) = subsys::Subsystem::new().expect("Unable to read subsystem info");
 
     let args = subsys.parse_args();
+    for sem in &args.sems {
+        res.semaphores()
+            .add_sem(sem.clone())
+            .expect("Unable to add semaphore");
+    }
 
     // mount root FS if we haven't done that yet
     MOUNTS.set(Vec::new());
@@ -305,6 +314,7 @@ pub fn main() -> Result<(), Error> {
     };
     let serv = Server::new_private("pager", &mut hdl).expect("Unable to create service");
     hdl.sel = serv.sel();
+    SERV.set(serv);
     PGHDL.set(hdl);
 
     REQHDL.set(
@@ -337,16 +347,16 @@ pub fn main() -> Result<(), Error> {
 
     thread::init();
     for _ in 0..args.max_clients {
-        thread::add_thread(workloop as *const () as usize, &serv as *const _ as usize);
+        thread::add_thread(workloop as *const () as usize, &mut res as *mut _ as usize);
     }
 
     subsys
-        .start(&mut PagedChildStarter {})
+        .start(&mut res, &mut PagedChildStarter {})
         .expect("Unable to start subsystem");
 
     childs::borrow_mut().start_waiting(1);
 
-    workloop(&serv);
+    workloop(&mut res);
 
     Ok(())
 }

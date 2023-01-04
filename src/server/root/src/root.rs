@@ -29,7 +29,6 @@ use m3::goff;
 use m3::kif;
 use m3::log;
 use m3::mem::GlobAddr;
-use m3::rc::Rc;
 use m3::session::ResMng;
 use m3::syscalls;
 use m3::tcu;
@@ -38,7 +37,7 @@ use m3::util::math;
 use m3::vfs::FileRef;
 
 use resmng::childs::{self, Child, OwnChild};
-use resmng::{config, memory, requests, sendqueue, subsys, tiles};
+use resmng::{config, memory, requests, res::Resources, sendqueue, subsys, tiles};
 
 static SUBSYS: LazyReadOnlyCell<subsys::Subsystem> = LazyReadOnlyCell::default();
 static LOADED_BMODS: StaticCell<u64> = StaticCell::new(0);
@@ -81,7 +80,7 @@ fn modules_range(domain: &config::Domain) -> Result<(GlobAddr, goff), VerboseErr
 struct RootChildStarter {}
 
 impl resmng::subsys::ChildStarter for RootChildStarter {
-    fn start(&mut self, child: &mut OwnChild) -> Result<(), VerboseError> {
+    fn start(&mut self, res: &mut Resources, child: &mut OwnChild) -> Result<(), VerboseError> {
         let bmod = fetch_mod(&LOADED_BMODS, child.cfg().name())
             .ok_or_else(|| Error::new(Code::NotFound))?;
 
@@ -106,7 +105,7 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
 
         let id = child.id();
         if let Some(sub) = child.subsys() {
-            sub.finalize_async(id, &mut act)
+            sub.finalize_async(res, id, &mut act)
                 .expect("Unable to finalize subsystem");
         }
 
@@ -131,7 +130,8 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
 
     fn configure_tile(
         &mut self,
-        tile: Rc<tiles::TileUsage>,
+        res: &mut Resources,
+        tile: &tiles::TileUsage,
         domain: &config::Domain,
     ) -> Result<(), VerboseError> {
         if tile.tile_id() != Activity::own().tile_id() {
@@ -139,7 +139,7 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
             // modules that are run on this tile. note that these should always be contiguous,
             // because we collect the boot modules from the config.
             let range = modules_range(domain)?;
-            let mslice = memory::container().find_mem(range.0, range.1, kif::Perm::RW)?;
+            let mslice = res.memory().find_mem(range.0, range.1, kif::Perm::RW)?;
 
             // create memory gate for this range
             let mgate = mslice.derive().map_err(|e| {
@@ -179,14 +179,19 @@ fn create_rgate(
     Ok(rgate)
 }
 
-fn workloop() {
-    requests::workloop(|| {}, &mut RootChildStarter {}).expect("Running the workloop failed");
+fn workloop(res: &mut Resources) {
+    requests::workloop(res, || {}, &mut RootChildStarter {}).expect("Running the workloop failed");
 }
 
 #[no_mangle]
 pub fn main() -> Result<(), Error> {
-    let sub = subsys::Subsystem::new().expect("Unable to read subsystem info");
+    let (sub, mut res) = subsys::Subsystem::new().expect("Unable to read subsystem info");
     let args = sub.parse_args();
+    for sem in &args.sems {
+        res.semaphores()
+            .add_sem(sem.clone())
+            .expect("Unable to add semaphore");
+    }
     SUBSYS.set(sub);
 
     let max_msg_size = 1 << 8;
@@ -197,7 +202,8 @@ pub fn main() -> Result<(), Error> {
     // a resource manager.
     let (rbuf_addr, _) = Activity::own().tile_desc().rbuf_space();
     let (rbuf_off, rbuf_mem) = if Activity::own().tile_desc().has_virtmem() {
-        let buf_mem = memory::container()
+        let buf_mem = res
+            .memory()
             .alloc_mem((buf_size + sendqueue::RBUF_SIZE) as goff)
             .expect("Unable to allocate memory for receive buffers");
         let pages = (buf_mem.capacity() as usize + cfg::PAGE_SIZE - 1) / cfg::PAGE_SIZE;
@@ -232,17 +238,17 @@ pub fn main() -> Result<(), Error> {
 
     thread::init();
     for _ in 0..args.max_clients {
-        thread::add_thread(workloop as *const () as usize, 0);
+        thread::add_thread(workloop as *const () as usize, &mut res as *mut _ as usize);
     }
 
     SUBSYS
         .get()
-        .start(&mut RootChildStarter {})
+        .start(&mut res, &mut RootChildStarter {})
         .expect("Unable to start subsystem");
 
     childs::borrow_mut().start_waiting(1);
 
-    workloop();
+    workloop(&mut res);
 
     log!(resmng::LOG_DEF, "All childs gone. Exiting.");
 

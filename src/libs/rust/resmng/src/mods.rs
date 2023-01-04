@@ -13,7 +13,6 @@
  * General Public License version 2 for more details.
  */
 
-use m3::cell::LazyReadOnlyCell;
 use m3::col::{String, ToString, Vec};
 use m3::com::MemGate;
 use m3::goff;
@@ -47,32 +46,23 @@ impl Mod {
     }
 }
 
+#[derive(Default)]
 pub struct ModManager {
     mods: Vec<Mod>,
-}
-
-static MNG: LazyReadOnlyCell<ModManager> = LazyReadOnlyCell::default();
-
-pub fn create(mods: &[boot::Mod]) {
-    let mut mmods = Vec::new();
-    for (idx, m) in mods.iter().enumerate() {
-        mmods.push(Mod {
-            addr: m.addr(),
-            size: m.size,
-            name: m.name().to_string(),
-            mgate: Subsystem::get_mod(idx),
-        })
-    }
-    MNG.set(ModManager { mods: mmods });
-}
-
-pub fn get() -> &'static ModManager {
-    MNG.get()
 }
 
 impl ModManager {
     pub const fn new() -> Self {
         ModManager { mods: Vec::new() }
+    }
+
+    pub fn add(&mut self, idx: usize, bmod: &boot::Mod) {
+        self.mods.push(Mod {
+            addr: bmod.addr(),
+            size: bmod.size,
+            name: bmod.name().to_string(),
+            mgate: Subsystem::get_mod(idx),
+        });
     }
 
     pub fn find(&self, name: &str) -> Option<&Mod> {

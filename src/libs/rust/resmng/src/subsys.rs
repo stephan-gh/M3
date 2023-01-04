@@ -33,10 +33,9 @@ use m3::util::math;
 
 use crate::childs;
 use crate::config;
-use crate::gates;
 use crate::memory;
-use crate::mods;
-use crate::sems;
+use crate::mods::ModManager;
+use crate::res::Resources;
 use crate::services;
 use crate::tiles;
 
@@ -54,14 +53,13 @@ const OUR_EPS: u32 = 16;
 
 pub(crate) const SERIAL_RGATE_SEL: Selector = SUBSYS_SELS + 1;
 
-static OUR_TILE: StaticRefCell<Option<Rc<tiles::TileUsage>>> = StaticRefCell::new(None);
 // use Box here, because we also store them in the ChildManager, which expects them to be boxed
 #[allow(clippy::vec_box)]
 static DELAYED: StaticRefCell<Vec<Box<childs::OwnChild>>> = StaticRefCell::new(Vec::new());
 
 pub struct Arguments {
     pub max_clients: usize,
-    sems: Vec<String>,
+    pub sems: Vec<String>,
 }
 
 impl Default for Arguments {
@@ -75,12 +73,17 @@ impl Default for Arguments {
 
 pub trait ChildStarter {
     /// Creates a new activity for the given child and starts it
-    fn start(&mut self, child: &mut childs::OwnChild) -> Result<(), VerboseError>;
+    fn start(
+        &mut self,
+        res: &mut Resources,
+        child: &mut childs::OwnChild,
+    ) -> Result<(), VerboseError>;
 
     /// Prepares the tiles for the given domain (e.g., installs additional PMP EPs)
     fn configure_tile(
         &mut self,
-        tile: Rc<tiles::TileUsage>,
+        res: &mut Resources,
+        tile: &tiles::TileUsage,
         domain: &config::Domain,
     ) -> Result<(), VerboseError>;
 }
@@ -96,7 +99,8 @@ pub struct Subsystem {
 }
 
 impl Subsystem {
-    pub fn new() -> Result<Self, Error> {
+    pub fn new() -> Result<(Self, Resources), Error> {
+        let mut res = Resources::default();
         let mgate = MemGate::new_bind(SUBSYS_SELS);
         let mut off: goff = 0;
 
@@ -115,9 +119,6 @@ impl Subsystem {
         let servs = mgate.read_into_vec::<boot::Service>(info.serv_count as usize, off)?;
 
         let cfg = Self::parse_config(&mods)?;
-
-        Self::create_rgates(&cfg.1)?;
-
         let sub = Self {
             info,
             mods,
@@ -127,24 +128,24 @@ impl Subsystem {
             cfg_str: cfg.0,
             cfg: cfg.1,
         };
-        sub.init();
-        Ok(sub)
+
+        sub.init(&mut res)?;
+
+        Ok((sub, res))
     }
 
-    fn init(&self) {
+    fn init(&self, res: &mut Resources) -> Result<(), Error> {
         log!(crate::LOG_SUBSYS, "Boot modules:");
-        for m in self.mods() {
+        for (i, m) in self.mods().iter().enumerate() {
             log!(crate::LOG_SUBSYS, "  {:?}", m);
+            res.mods().add(i, m);
         }
-        mods::create(self.mods());
 
         log!(crate::LOG_SUBSYS, "Available tiles:");
-        let mut tiles = Vec::new();
         for (i, tile) in self.tiles().iter().enumerate() {
             log!(crate::LOG_SUBSYS, "  {:?}", tile);
-            tiles.push((tile.id as TileId, self.get_tile(i)));
+            res.tiles().add(tile.id as TileId, self.get_tile(i));
         }
-        tiles::create(tiles);
 
         log!(crate::LOG_SUBSYS, "Available memory:");
         for (i, mem) in self.mems().iter().enumerate() {
@@ -155,7 +156,7 @@ impl Subsystem {
                 mem.reserved(),
             ));
             log!(crate::LOG_SUBSYS, "  {:?}", mem_mod);
-            memory::container().add(mem_mod);
+            res.memory().add(mem_mod);
         }
 
         if !self.services().is_empty() {
@@ -168,21 +169,36 @@ impl Subsystem {
                     s.name(),
                     s.sessions()
                 );
-                services::add_service(
-                    childs::Id::MAX,
-                    sel,
-                    sel + 1,
-                    s.name().to_string(),
-                    s.sessions(),
-                    false,
-                )
-                .unwrap();
+                res.services()
+                    .add_service(
+                        childs::Id::MAX,
+                        sel,
+                        sel + 1,
+                        s.name().to_string(),
+                        s.sessions(),
+                        false,
+                    )
+                    .unwrap();
+            }
+        }
+
+        for dom in self.cfg.domains() {
+            for a in dom.apps() {
+                for rgate in a.rgates() {
+                    res.gates().add_rgate(
+                        rgate.name().global().clone(),
+                        rgate.msg_size(),
+                        rgate.slots(),
+                    )?;
+                }
             }
         }
 
         if Activity::own().resmng().is_none() {
             log!(crate::LOG_CFG, "Parsed {:?}", self.cfg);
         }
+
+        Ok(())
     }
 
     fn parse_config(mods: &[boot::Mod]) -> Result<(String, config::AppConfig), Error> {
@@ -205,21 +221,6 @@ impl Subsystem {
         let xml_str = String::from_utf8(xml).map_err(|_| Error::new(Code::InvArgs))?;
         let cfg = config::AppConfig::parse(&xml_str)?;
         Ok((xml_str, cfg))
-    }
-
-    fn create_rgates(cfg: &config::AppConfig) -> Result<(), Error> {
-        for dom in cfg.domains() {
-            for a in dom.apps() {
-                for rgate in a.rgates() {
-                    gates::get().add_rgate(
-                        rgate.name().global().clone(),
-                        rgate.msg_size(),
-                        rgate.slots(),
-                    )?;
-                }
-            }
-        }
-        Ok(())
     }
 
     pub fn parse_args(&self) -> Arguments {
@@ -287,75 +288,65 @@ impl Subsystem {
             + (self.mods.len() + self.tiles.len() + self.mems.len() + idx * 2) as Selector
     }
 
-    pub fn start(&self, starter: &mut dyn ChildStarter) -> Result<(), VerboseError> {
+    pub fn start(
+        &self,
+        res: &mut Resources,
+        starter: &mut dyn ChildStarter,
+    ) -> Result<(), VerboseError> {
         let root = self.cfg();
         if Activity::own().resmng().is_none() {
-            root.check();
+            root.check(res.tiles());
         }
 
-        let args = self.parse_args();
-        for sem in &args.sems {
-            sems::get()
-                .add_sem(sem.clone())
-                .expect("Unable to add semaphore");
-        }
-
-        // keep our own tile to make sure that we allocate a different one for the next domain in case
-        // our domain contains just ourself.
+        // mark own tile as used to ensure that we allocate a different one for the next domain in
+        // case our domain contains just ourself.
         if !root.domains().first().unwrap().pseudo {
-            OUR_TILE.replace(Some(Rc::new(
-                tiles::get()
-                    .find_and_alloc(Activity::own().tile_desc())
-                    .map_err(|e| {
-                        VerboseError::new(e.code(), "Unable to allocate own tile".to_string())
-                    })?,
-            )));
+            let own = res.tiles().find(Activity::own().tile_desc()).map_err(|e| {
+                VerboseError::new(e.code(), "Unable to allocate own tile".to_string())
+            })?;
+            res.tiles().add_user(&own);
         }
         else if !Activity::own().tile_desc().has_virtmem() {
             panic!("Can't share tile without VM support");
         }
 
         // determine default mem and kmem per child
-        let (def_kmem, def_umem) = split_mem(root)?;
+        let (def_kmem, def_umem) = split_mem(res, root)?;
 
         let mut mem_id = 1;
 
         for (idx, dom) in root.domains().iter().enumerate() {
             // allocate new tile; root allocates from its own set, others ask their resmng
             let tile_usage = if dom.pseudo || Activity::own().resmng().is_none() {
-                Rc::new(
-                    tiles::get()
-                        .find_and_alloc_with_desc(&dom.tile.0)
-                        .map_err(|e| {
-                            VerboseError::new(
-                                e.code(),
-                                format!(
-                                    "Unable to allocate tile for domain {} with {}",
-                                    idx, dom.tile.0
-                                ),
-                            )
-                        })?,
-                )
+                res.tiles().find_with_desc(&dom.tile.0).map_err(|e| {
+                    VerboseError::new(
+                        e.code(),
+                        format!(
+                            "Unable to allocate tile for domain {} with {}",
+                            idx, dom.tile.0
+                        ),
+                    )
+                })?
             }
             else {
                 let child_tile = Tile::get(&dom.tile.0).map_err(|e| {
                     VerboseError::new(e.code(), format!("Unable to get tile {}", dom.tile.0))
                 })?;
-                Rc::new(tiles::TileUsage::new_obj(child_tile))
+                tiles::TileUsage::new_obj(child_tile)
             };
 
             // memory pool for the domain
             let dom_mem = dom.apps().iter().fold(0, |sum, a| {
                 sum + a.user_mem().unwrap_or(def_umem as usize) as goff
             });
-            let mem_pool = Rc::new(RefCell::new(
-                memory::container().alloc_pool(dom_mem).map_err(|e| {
+            let mem_pool = Rc::new(RefCell::new(res.memory().alloc_pool(dom_mem).map_err(
+                |e| {
                     VerboseError::new(
                         e.code(),
                         format!("Unable to allocate memory pool with {} b", dom_mem),
                     )
-                })?,
-            ));
+                },
+            )?));
 
             // if the activities should run on our own tile, all PMP EPs are already installed
             if tile_usage.tile_id() != Activity::own().tile_id() {
@@ -372,7 +363,7 @@ impl Subsystem {
                 // don't install new PMP EPs, but remember our whole memory areas to inherit them
                 // later to allocated tiles. TODO we could improve that by only providing them access
                 // to the memory pool of the child that allocates the tile, though.
-                for m in memory::container().mods() {
+                for m in res.memory().mods() {
                     tile_usage
                         .add_mem_region(
                             m.mgate().derive(0, m.capacity() as usize, Perm::RWX)?,
@@ -384,7 +375,7 @@ impl Subsystem {
             }
 
             // let the starter do further configurations on the tile like add PMP EPs
-            starter.configure_tile(tile_usage.clone(), dom)?;
+            starter.configure_tile(res, &tile_usage, dom)?;
 
             // split available PTs according to the config
             let tile_quota = tile_usage.tile_obj().quota()?;
@@ -453,7 +444,7 @@ impl Subsystem {
                 let domain_time = Some(domain_total_time);
                 let domain_pts = Some(domain_total_pts);
 
-                Some(Rc::new(
+                Some(
                     tile_usage
                         .derive(domain_eps, domain_time, domain_pts)
                         .map_err(|e| {
@@ -465,7 +456,7 @@ impl Subsystem {
                                 ),
                             )
                         })?,
-                ))
+                )
             }
             else {
                 None
@@ -483,7 +474,7 @@ impl Subsystem {
                     (
                         // keep the base object around in case there are no other children using it
                         Some(base.clone()),
-                        Rc::new(base.derive(cfg.eps, cfg.time, cfg.pts).map_err(|e| {
+                        base.derive(cfg.eps, cfg.time, cfg.pts).map_err(|e| {
                             VerboseError::new(
                                 e.code(),
                                 format!(
@@ -491,13 +482,17 @@ impl Subsystem {
                                     cfg.eps, cfg.time, cfg.pts,
                                 ),
                             )
-                        })?),
+                        })?,
                     )
                 }
                 else {
                     // without specified restrictions, childs share their resource quota
                     (None, domain_pe_usage.as_ref().unwrap().clone())
                 };
+
+                // mark the tile as used here to prevent that we allocate it again in
+                // build_subsystem below.
+                res.tiles().add_user(&child_tile_usage);
 
                 // kernel memory for child
                 let kmem = if cfg.kernel_mem().is_none() {
@@ -525,6 +520,7 @@ impl Subsystem {
                 // build subsystem if this child contains domains
                 let sub = if !cfg.domains.is_empty() {
                     Some(self.build_subsystem(
+                        res,
                         cfg,
                         &child_tile_usage,
                         dom,
@@ -555,8 +551,8 @@ impl Subsystem {
                 log!(crate::LOG_CHILD, "Created {:?}", child);
 
                 // start it immediately if all dependencies are met or remember it for later
-                if !child.has_unmet_reqs() {
-                    starter.start(&mut child)?;
+                if !child.has_unmet_reqs(res) {
+                    starter.start(res, &mut child)?;
                     childs::borrow_mut().add(child);
                 }
                 else {
@@ -569,8 +565,9 @@ impl Subsystem {
 
     fn build_subsystem(
         &self,
+        res: &mut Resources,
         cfg: &Rc<config::AppConfig>,
-        child_tile_usage: &Rc<tiles::TileUsage>,
+        child_tile_usage: &tiles::TileUsage,
         dom: &config::Domain,
         child_mem: &Rc<childs::ChildMem>,
         mem_pool: &Rc<RefCell<memory::MemPool>>,
@@ -584,14 +581,13 @@ impl Subsystem {
         // create MemGate for config substring
         let cfg_range = cfg.cfg_range();
         let cfg_len = cfg_range.1 - cfg_range.0;
-        let cfg_slice = memory::container()
-            .alloc_mem(cfg_len as goff)
-            .map_err(|e| {
-                VerboseError::new(
-                    e.code(),
-                    format!("Unable to allocate {}b for config", cfg_len),
-                )
-            })?;
+        // TODO the resources allocated here currently leak
+        let cfg_slice = res.memory().alloc_mem(cfg_len as goff).map_err(|e| {
+            VerboseError::new(
+                e.code(),
+                format!("Unable to allocate {}b for config", cfg_len),
+            )
+        })?;
         let mut cfg_mem = cfg_slice.derive()?;
         cfg_mem.write(self.cfg_str()[cfg_range.0..cfg_range.1].as_bytes(), 0)?;
         // deactivate the memory gates so that the child can activate them for itself
@@ -601,14 +597,14 @@ impl Subsystem {
 
         // add boot modules
         sub.add_mod(cfg_mem, cfg_slice.addr(), cfg_len as goff, "boot.xml");
-        pass_down_mods(&mut sub, cfg)?;
+        pass_down_mods(res.mods(), &mut sub, cfg)?;
 
         // add tiles
         sub.add_tile(
             child_tile_usage.tile_id(),
             child_tile_usage.tile_obj().clone(),
         );
-        pass_down_tiles(&mut sub, cfg);
+        pass_down_tiles(res.tiles(), &mut sub, cfg);
 
         // serial rgate
         pass_down_serial(&mut sub, cfg);
@@ -687,13 +683,15 @@ impl SubsystemBuilder {
 
     pub fn finalize_async(
         &mut self,
+        res: &mut Resources,
         child: childs::Id,
         act: &mut ChildActivity,
     ) -> Result<(), VerboseError> {
         let mut sel = SUBSYS_SELS;
         let mut off: goff = 0;
 
-        let mut mem = memory::container()
+        let mut mem = res
+            .memory()
             .alloc_mem(self.desc_size() as goff)
             .map_err(|e| {
                 VerboseError::new(
@@ -756,7 +754,7 @@ impl SubsystemBuilder {
 
         // services
         for (name, sess_frac, sess_fixed, sess_quota) in &self.servs {
-            let serv = services::get_by_name(name).unwrap();
+            let serv = res.services().get_by_name(name).unwrap();
             let sessions = if let Some(quota) = sess_quota {
                 *quota
             }
@@ -774,7 +772,7 @@ impl SubsystemBuilder {
                 }
                 (serv.sessions() - sess_fixed) / sess_frac
             };
-            let subserv = services::Service::derive_async(serv, child, sessions).map_err(|e| {
+            let subserv = serv.derive_async(child, sessions).map_err(|e| {
                 VerboseError::new(e.code(), format!("Unable to derive from service {}", name))
             })?;
             let boot_serv = boot::Service::new(name, sessions);
@@ -799,17 +797,20 @@ impl SubsystemBuilder {
     }
 }
 
-pub(crate) fn start_delayed_async(starter: &mut dyn ChildStarter) -> Result<(), VerboseError> {
+pub(crate) fn start_delayed_async(
+    res: &mut Resources,
+    starter: &mut dyn ChildStarter,
+) -> Result<(), VerboseError> {
     let mut new_wait = false;
     let mut idx = 0;
     while idx < DELAYED.borrow().len() {
-        if DELAYED.borrow()[idx].has_unmet_reqs() {
+        if DELAYED.borrow()[idx].has_unmet_reqs(res) {
             idx += 1;
             continue;
         }
 
         let mut child = DELAYED.borrow_mut().remove(idx);
-        starter.start(&mut child)?;
+        starter.start(res, &mut child)?;
         childs::borrow_mut().add(child);
         new_wait = true;
     }
@@ -820,19 +821,23 @@ pub(crate) fn start_delayed_async(starter: &mut dyn ChildStarter) -> Result<(), 
     Ok(())
 }
 
-fn pass_down_tiles(sub: &mut SubsystemBuilder, app: &config::AppConfig) {
+fn pass_down_tiles(
+    tiles: &mut tiles::TileManager,
+    sub: &mut SubsystemBuilder,
+    app: &config::AppConfig,
+) {
     for d in app.domains() {
         for child in d.apps() {
             for tile in child.tiles() {
                 for _ in 0..tile.count() {
-                    if let Some(idx) = tiles::get().find_with_desc(&tile.tile_type().0) {
-                        tiles::get().alloc(idx);
-                        sub.add_tile(tiles::get().id(idx), tiles::get().get(idx));
+                    if let Ok(usage) = tiles.find_with_desc(&tile.tile_type().0) {
+                        sub.add_tile(usage.tile_id(), usage.tile_obj().clone());
+                        tiles.add_user(&usage);
                     }
                 }
             }
 
-            pass_down_tiles(sub, child);
+            pass_down_tiles(tiles, sub, child);
         }
     }
 }
@@ -848,12 +853,16 @@ fn pass_down_serial(sub: &mut SubsystemBuilder, app: &config::AppConfig) {
     }
 }
 
-fn pass_down_mods(sub: &mut SubsystemBuilder, app: &config::AppConfig) -> Result<(), VerboseError> {
+fn pass_down_mods(
+    mods: &mut ModManager,
+    sub: &mut SubsystemBuilder,
+    app: &config::AppConfig,
+) -> Result<(), VerboseError> {
     for d in app.domains() {
         for child in d.apps() {
             for m in child.mods() {
                 // find mod with desired name
-                let bmod = mods::get().find(m.name().global()).ok_or_else(|| {
+                let bmod = mods.find(m.name().global()).ok_or_else(|| {
                     VerboseError::new(
                         Code::NotFound,
                         format!(
@@ -869,7 +878,7 @@ fn pass_down_mods(sub: &mut SubsystemBuilder, app: &config::AppConfig) -> Result
                 sub.add_mod(mgate, bmod.addr(), bmod.size(), bmod.name());
             }
 
-            pass_down_mods(sub, child)?;
+            pass_down_mods(mods, sub, child)?;
         }
     }
     Ok(())
@@ -891,8 +900,8 @@ fn split_child_mem(cfg: &config::AppConfig, mem: &Rc<childs::ChildMem>) {
     mem.alloc_mem(per_child * def_childs);
 }
 
-fn split_mem(cfg: &config::AppConfig) -> Result<(usize, goff), VerboseError> {
-    let mut total_umem = memory::container().capacity();
+fn split_mem(res: &mut Resources, cfg: &config::AppConfig) -> Result<(usize, goff), VerboseError> {
+    let mut total_umem = res.memory().capacity();
     let mut total_kmem = Activity::own().kmem().quota()?.total();
 
     let mut total_kparties = cfg.count_apps() + 1;

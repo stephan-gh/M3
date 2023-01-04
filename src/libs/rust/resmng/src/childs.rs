@@ -41,11 +41,9 @@ use m3::util::math;
 use m3::vfs::{File, FileRef};
 
 use crate::config::AppConfig;
-use crate::gates;
-use crate::memory::{self, Allocation, MemPool};
-use crate::mods;
-use crate::sems;
-use crate::services::{self, Session};
+use crate::memory::{Allocation, MemPool};
+use crate::res::Resources;
+use crate::services::Session;
 use crate::subsys::SubsystemBuilder;
 use crate::tiles;
 use crate::{events, subsys};
@@ -98,7 +96,7 @@ impl fmt::Debug for ChildMem {
 }
 
 #[derive(Default)]
-pub struct Resources {
+pub struct ChildResources {
     childs: Vec<(Id, Selector)>,
     services: Vec<(Id, Selector)>,
     sessions: Vec<(usize, Session)>,
@@ -115,8 +113,8 @@ pub trait Child {
     fn daemon(&self) -> bool;
     fn foreign(&self) -> bool;
 
-    fn our_tile(&self) -> Rc<tiles::TileUsage>;
-    fn child_tile(&self) -> Option<Rc<tiles::TileUsage>>;
+    fn our_tile(&self) -> &tiles::TileUsage;
+    fn child_tile(&self) -> Option<&tiles::TileUsage>;
     fn activity_sel(&self) -> Selector;
     fn activity_id(&self) -> tcu::ActId;
     fn resmng_sgate_sel(&self) -> Selector;
@@ -124,8 +122,8 @@ pub trait Child {
     fn subsys(&mut self) -> Option<&mut SubsystemBuilder>;
     fn mem(&self) -> &Rc<ChildMem>;
     fn cfg(&self) -> Rc<AppConfig>;
-    fn res(&self) -> &Resources;
-    fn res_mut(&mut self) -> &mut Resources;
+    fn res(&self) -> &ChildResources;
+    fn res_mut(&mut self) -> &mut ChildResources;
     fn kmem(&self) -> Option<Rc<KMem>>;
 
     fn delegate(&self, src: Selector, dst: Selector) -> Result<(), Error> {
@@ -145,6 +143,7 @@ pub trait Child {
 
     fn reg_service(
         &mut self,
+        res: &mut Resources,
         srv_sel: Selector,
         sgate_sel: Selector,
         name: String,
@@ -170,7 +169,7 @@ pub trait Child {
 
         let our_srv = self.obtain(srv_sel)?;
         let our_sgate = self.obtain(sgate_sel)?;
-        let id = services::add_service(
+        let id = res.services().add_service(
             self.id(),
             our_srv,
             our_sgate,
@@ -185,7 +184,7 @@ pub trait Child {
         Ok(())
     }
 
-    fn unreg_service(&mut self, sel: Selector) -> Result<(), Error> {
+    fn unreg_service(&mut self, res: &mut Resources, sel: Selector) -> Result<(), Error> {
         log!(crate::LOG_SERV, "{}: unreg_serv(sel={})", self.name(), sel);
 
         let services = &mut self.res_mut().services;
@@ -194,7 +193,7 @@ pub trait Child {
             .position(|t| t.1 == sel)
             .ok_or_else(|| Error::new(Code::InvArgs))
             .map(|idx| services.remove(idx).0)?;
-        let serv = services::remove_service(sid);
+        let serv = res.services().remove_service(sid);
 
         self.cfg().unreg_service(serv.name());
         Ok(())
@@ -306,7 +305,12 @@ pub trait Child {
         self.mem().free_mem(alloc.size());
     }
 
-    fn use_rgate(&mut self, name: &str, sel: Selector) -> Result<(u32, u32), Error> {
+    fn use_rgate(
+        &mut self,
+        res: &mut Resources,
+        name: &str,
+        sel: Selector,
+    ) -> Result<(u32, u32), Error> {
         log!(
             crate::LOG_GATE,
             "{}: use_rgate(name={}, sel={})",
@@ -320,15 +324,14 @@ pub trait Child {
             .get_rgate(name)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
 
-        let gates = gates::get();
-        let rgate = gates.get(rdesc.name().global()).unwrap();
+        let rgate = res.gates().get(rdesc.name().global()).unwrap();
         self.delegate(rgate.sel(), sel)?;
         Ok((
             math::next_log2(rgate.size()?),
             math::next_log2(rgate.max_msg_size()?),
         ))
     }
-    fn use_sgate(&mut self, name: &str, sel: Selector) -> Result<(), Error> {
+    fn use_sgate(&mut self, res: &mut Resources, name: &str, sel: Selector) -> Result<(), Error> {
         log!(
             crate::LOG_GATE,
             "{}: use_sgate(name={}, sel={})",
@@ -345,8 +348,7 @@ pub trait Child {
             return Err(Error::new(Code::Exists));
         }
 
-        let gates = gates::get();
-        let rgate = gates.get(sdesc.name().global()).unwrap();
+        let rgate = res.gates().get(sdesc.name().global()).unwrap();
 
         let sgate = SendGate::new_with(
             SGateArgs::new(rgate)
@@ -359,7 +361,7 @@ pub trait Child {
         self.res_mut().sgates.push(sgate);
         Ok(())
     }
-    fn use_sem(&mut self, name: &str, sel: Selector) -> Result<(), Error> {
+    fn use_sem(&mut self, res: &mut Resources, name: &str, sel: Selector) -> Result<(), Error> {
         log!(
             crate::LOG_SEM,
             "{}: use_sem(name={}, sel={})",
@@ -371,13 +373,13 @@ pub trait Child {
         let cfg = self.cfg();
         let sdesc = cfg.get_sem(name).ok_or_else(|| Error::new(Code::InvArgs))?;
 
-        let sems = sems::get();
-        let sem = sems
+        let sem = res
+            .semaphores()
             .get(sdesc.name().global())
             .ok_or_else(|| Error::new(Code::NotFound))?;
         self.delegate(sem.sel(), sel)
     }
-    fn use_mod(&mut self, name: &str, sel: Selector) -> Result<(), Error> {
+    fn use_mod(&mut self, res: &mut Resources, name: &str, sel: Selector) -> Result<(), Error> {
         log!(
             crate::LOG_MEM,
             "{}: use_mod(name={}, sel={})",
@@ -388,7 +390,8 @@ pub trait Child {
 
         let cfg = self.cfg();
         let mdesc = cfg.get_mod(name).ok_or_else(|| Error::new(Code::InvArgs))?;
-        let bmod = mods::get()
+        let bmod = res
+            .mods()
             .find(mdesc.name().global())
             .ok_or_else(|| Error::new(Code::NotFound))?;
 
@@ -419,6 +422,7 @@ pub trait Child {
 
     fn alloc_tile(
         &mut self,
+        res: &mut Resources,
         sel: Selector,
         desc: kif::TileDesc,
     ) -> Result<(tcu::TileId, kif::TileDesc), Error> {
@@ -432,23 +436,24 @@ pub trait Child {
 
         let cfg = self.cfg();
         let idx = cfg.get_pe_idx(desc)?;
-        let tile_usage = tiles::get().find_and_alloc(desc)?;
+        let tile_usage = res.tiles().find(desc)?;
 
         // give this tile access to the same memory regions the child's tile has access to
         // TODO later we could allow childs to customize that
-        tile_usage.inherit_mem_regions(&self.our_tile())?;
+        tile_usage.inherit_mem_regions(self.our_tile())?;
 
         self.delegate(tile_usage.tile_obj().sel(), sel)?;
 
         let tile_id = tile_usage.tile_id();
         let desc = tile_usage.tile_obj().desc();
+        res.tiles().add_user(&tile_usage);
         self.res_mut().tiles.push((tile_usage, idx, sel));
         cfg.alloc_tile(idx);
 
         Ok((tile_id, desc))
     }
 
-    fn free_tile(&mut self, sel: Selector) -> Result<(), Error> {
+    fn free_tile(&mut self, res: &mut Resources, sel: Selector) -> Result<(), Error> {
         log!(crate::LOG_TILES, "{}: free_tile(sel={})", self.name(), sel);
 
         let idx = self
@@ -457,12 +462,12 @@ pub trait Child {
             .iter()
             .position(|(_, _, psel)| *psel == sel)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
-        self.remove_pe_by_idx(idx)?;
+        self.remove_pe_by_idx(res, idx)?;
 
         Ok(())
     }
 
-    fn remove_pe_by_idx(&mut self, idx: usize) -> Result<(), Error> {
+    fn remove_pe_by_idx(&mut self, res: &mut Resources, idx: usize) -> Result<(), Error> {
         let (tile_usage, idx, ep_sel) = self.res_mut().tiles.remove(idx);
         log!(
             crate::LOG_TILES,
@@ -476,21 +481,22 @@ pub trait Child {
         let crd = CapRngDesc::new(CapType::OBJECT, ep_sel, 1);
         // TODO if that fails, we need to kill this child because otherwise we don't get the tile back
         syscalls::revoke(self.activity_sel(), crd, true).ok();
+        res.tiles().remove_user(&tile_usage);
         cfg.free_tile(idx);
 
         Ok(())
     }
 
-    fn remove_resources_async(&mut self) {
+    fn remove_resources_async(&mut self, res: &mut Resources) {
         while !self.res().sessions.is_empty() {
             let (idx, sess) = self.res_mut().sessions.remove(0);
             self.cfg().close_session(idx);
-            sess.close_async(self.id()).ok();
+            sess.close_async(res, self.id()).ok();
         }
 
         while !self.res().services.is_empty() {
             let (id, _) = self.res_mut().services.remove(0);
-            let serv = services::remove_service(id);
+            let serv = res.services().remove_service(id);
             self.cfg().unreg_service(serv.name());
         }
 
@@ -499,12 +505,13 @@ pub trait Child {
         }
 
         while !self.res().tiles.is_empty() {
-            self.remove_pe_by_idx(0).ok();
+            self.remove_pe_by_idx(res, 0).ok();
         }
     }
 }
 
 pub fn add_child(
+    res: &mut Resources,
     id: Id,
     act_id: tcu::ActId,
     act_sel: Selector,
@@ -541,6 +548,7 @@ pub fn add_child(
     )?;
     let our_sg_sel = sgate.sel();
     let nchild = Box::new(ForeignChild::new(
+        res,
         nid,
         child.layer() + 1,
         child_name,
@@ -548,7 +556,7 @@ pub fn add_child(
         // the PMP EPs and currently, no child can actually influence these. For that reason,
         // all childs get the same PMP EPs, so that we can also give the same PMP EPs to childs
         // of childs.
-        child.our_tile(),
+        child.our_tile().clone(),
         act_id,
         our_sel,
         sgate,
@@ -562,7 +570,12 @@ pub fn add_child(
     Ok(())
 }
 
-pub fn open_session_async(id: Id, dst_sel: Selector, name: &str) -> Result<(), Error> {
+pub fn open_session_async(
+    res: &mut Resources,
+    id: Id,
+    dst_sel: Selector,
+    name: &str,
+) -> Result<(), Error> {
     let (sname, sarg) = {
         let mut childs = borrow_mut();
         let child = childs.child_by_id_mut(id).unwrap();
@@ -584,7 +597,7 @@ pub fn open_session_async(id: Id, dst_sel: Selector, name: &str) -> Result<(), E
         (sdesc.name().global().clone(), sdesc.arg().clone())
     };
 
-    let serv = services::get_mut_by_name(&sname)?;
+    let serv = res.services().get_mut_by_name(&sname)?;
     let serv_sel = serv.sel();
     let sess = Session::new_async(id, dst_sel, serv, &sarg)?;
 
@@ -609,7 +622,7 @@ pub fn open_session_async(id: Id, dst_sel: Selector, name: &str) -> Result<(), E
     Ok(())
 }
 
-pub fn close_session_async(id: Id, sel: Selector) -> Result<(), Error> {
+pub fn close_session_async(res: &mut Resources, id: Id, sel: Selector) -> Result<(), Error> {
     let sess = {
         let mut childs = borrow_mut();
         let child = childs.child_by_id_mut(id).unwrap();
@@ -629,10 +642,10 @@ pub fn close_session_async(id: Id, sel: Selector) -> Result<(), Error> {
         sess
     };
 
-    sess.close_async(id)
+    sess.close_async(res, id)
 }
 
-pub fn rem_child_async(id: Id, act_sel: Selector) -> Result<(), Error> {
+pub fn rem_child_async(res: &mut Resources, id: Id, act_sel: Selector) -> Result<(), Error> {
     let cid = {
         let mut childs = borrow_mut();
         let child = childs.child_by_id_mut(id).unwrap();
@@ -655,11 +668,15 @@ pub fn rem_child_async(id: Id, act_sel: Selector) -> Result<(), Error> {
         cid
     };
 
-    ChildManager::remove_rec_async(cid);
+    ChildManager::remove_rec_async(res, cid);
     Ok(())
 }
 
-pub fn get_info(id: Id, idx: Option<usize>) -> Result<resmng::ActInfoResult, Error> {
+pub fn get_info(
+    res: &mut Resources,
+    id: Id,
+    idx: Option<usize>,
+) -> Result<resmng::ActInfoResult, Error> {
     let layer = {
         let mut childs = borrow_mut();
         let child = childs.child_by_id_mut(id).unwrap();
@@ -707,7 +724,7 @@ pub fn get_info(id: Id, idx: Option<usize>) -> Result<resmng::ActInfoResult, Err
             if idx == 0 {
                 let kmem_quota = Activity::own().kmem().quota()?;
                 let tile_quota = Activity::own().tile().quota()?;
-                let mem = memory::container();
+                let mem = res.memory();
                 return Ok(resmng::ActInfoResult::Info(resmng::ActInfo {
                     id: Activity::own().id(),
                     layer: parent_layer + 0,
@@ -774,14 +791,14 @@ pub struct OwnChild {
     id: Id,
     // the activity has to be dropped before we drop the tile
     activity: Option<RunningProgramActivity>,
-    our_tile: Rc<tiles::TileUsage>,
-    _domain_tile: Option<Rc<tiles::TileUsage>>,
-    child_tile: Rc<tiles::TileUsage>,
+    our_tile: tiles::TileUsage,
+    _domain_tile: Option<tiles::TileUsage>,
+    child_tile: tiles::TileUsage,
     name: String,
     args: Vec<String>,
     cfg: Rc<AppConfig>,
     mem: Rc<ChildMem>,
-    res: Resources,
+    res: ChildResources,
     sub: Option<SubsystemBuilder>,
     daemon: bool,
     kmem: Rc<KMem>,
@@ -791,9 +808,9 @@ impl OwnChild {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: Id,
-        our_tile: Rc<tiles::TileUsage>,
-        _domain_tile: Option<Rc<tiles::TileUsage>>,
-        child_tile: Rc<tiles::TileUsage>,
+        our_tile: tiles::TileUsage,
+        _domain_tile: Option<tiles::TileUsage>,
+        child_tile: tiles::TileUsage,
         args: Vec<String>,
         daemon: bool,
         kmem: Rc<KMem>,
@@ -810,7 +827,7 @@ impl OwnChild {
             args,
             cfg,
             mem,
-            res: Resources::default(),
+            res: ChildResources::default(),
             sub,
             daemon,
             activity: None,
@@ -837,14 +854,19 @@ impl OwnChild {
         Ok(())
     }
 
-    pub fn has_unmet_reqs(&self) -> bool {
+    pub fn has_unmet_reqs(&self, res: &mut Resources) -> bool {
         for sess in self.cfg().sessions() {
-            if sess.is_dep() && services::get_mut_by_name(sess.name().global()).is_err() {
+            if sess.is_dep()
+                && res
+                    .services()
+                    .get_by_name(sess.name().global())
+                    .is_err()
+            {
                 return true;
             }
         }
         for scrt in self.cfg().sess_creators() {
-            if services::get_mut_by_name(scrt.serv_name()).is_err() {
+            if res.services().get_by_name(scrt.serv_name()).is_err() {
                 return true;
             }
         }
@@ -873,12 +895,12 @@ impl Child for OwnChild {
         false
     }
 
-    fn our_tile(&self) -> Rc<tiles::TileUsage> {
-        self.our_tile.clone()
+    fn our_tile(&self) -> &tiles::TileUsage {
+        &self.our_tile
     }
 
-    fn child_tile(&self) -> Option<Rc<tiles::TileUsage>> {
-        Some(self.child_tile.clone())
+    fn child_tile(&self) -> Option<&tiles::TileUsage> {
+        Some(&self.child_tile)
     }
 
     fn activity_id(&self) -> tcu::ActId {
@@ -910,11 +932,11 @@ impl Child for OwnChild {
         self.cfg.clone()
     }
 
-    fn res(&self) -> &Resources {
+    fn res(&self) -> &ChildResources {
         &self.res
     }
 
-    fn res_mut(&mut self) -> &mut Resources {
+    fn res_mut(&mut self) -> &mut ChildResources {
         &mut self.res
     }
 
@@ -943,10 +965,10 @@ pub struct ForeignChild {
     act_id: tcu::ActId,
     layer: u32,
     name: String,
-    parent_tile: Rc<tiles::TileUsage>,
+    parent_tile: tiles::TileUsage,
     cfg: Rc<AppConfig>,
     mem: Rc<ChildMem>,
-    res: Resources,
+    res: ChildResources,
     act_sel: Selector,
     _sgate: SendGate,
 }
@@ -954,16 +976,19 @@ pub struct ForeignChild {
 impl ForeignChild {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
+        res: &mut Resources,
         id: Id,
         layer: u32,
         name: String,
-        parent_tile: Rc<tiles::TileUsage>,
+        parent_tile: tiles::TileUsage,
         act_id: tcu::ActId,
         act_sel: Selector,
         sgate: SendGate,
         cfg: Rc<AppConfig>,
         mem: Rc<ChildMem>,
     ) -> Self {
+        res.tiles().add_user(&parent_tile);
+
         ForeignChild {
             id,
             layer,
@@ -971,7 +996,7 @@ impl ForeignChild {
             parent_tile,
             cfg,
             mem,
-            res: Resources::default(),
+            res: ChildResources::default(),
             act_id,
             act_sel,
             _sgate: sgate,
@@ -1000,11 +1025,11 @@ impl Child for ForeignChild {
         true
     }
 
-    fn our_tile(&self) -> Rc<tiles::TileUsage> {
-        self.parent_tile.clone()
+    fn our_tile(&self) -> &tiles::TileUsage {
+        &self.parent_tile
     }
 
-    fn child_tile(&self) -> Option<Rc<tiles::TileUsage>> {
+    fn child_tile(&self) -> Option<&tiles::TileUsage> {
         None
     }
 
@@ -1032,11 +1057,11 @@ impl Child for ForeignChild {
         self.cfg.clone()
     }
 
-    fn res(&self) -> &Resources {
+    fn res(&self) -> &ChildResources {
         &self.res
     }
 
-    fn res_mut(&mut self) -> &mut Resources {
+    fn res_mut(&mut self) -> &mut ChildResources {
         &mut self.res
     }
 
@@ -1149,12 +1174,12 @@ impl ChildManager {
         syscalls::activity_wait(&sels, event).unwrap();
     }
 
-    pub fn handle_upcall_async(msg: &'static tcu::Message) {
+    pub fn handle_upcall_async(res: &mut Resources, msg: &'static tcu::Message) {
         let mut de = M3Deserializer::new(msg.as_words());
         let opcode: kif::upcalls::Operation = de.pop().unwrap();
 
         match opcode {
-            kif::upcalls::Operation::ACT_WAIT => Self::upcall_wait_act_async(&mut de),
+            kif::upcalls::Operation::ACT_WAIT => Self::upcall_wait_act_async(res, &mut de),
             kif::upcalls::Operation::DERIVE_SRV => Self::upcall_derive_srv(msg, &mut de),
             _ => panic!("Unexpected upcall {}", opcode),
         }
@@ -1168,10 +1193,10 @@ impl ChildManager {
             .expect("Upcall reply failed");
     }
 
-    fn upcall_wait_act_async(de: &mut M3Deserializer<'_>) {
+    fn upcall_wait_act_async(res: &mut Resources, de: &mut M3Deserializer<'_>) {
         let upcall: kif::upcalls::ActivityWait = de.pop().unwrap();
 
-        Self::kill_child_async(upcall.act_sel, upcall.exitcode);
+        Self::kill_child_async(res, upcall.act_sel, upcall.exitcode);
 
         // wait for the next
         {
@@ -1180,8 +1205,8 @@ impl ChildManager {
             if !childs.flags.contains(Flags::SHUTDOWN) && childs.children() == no_wait_childs {
                 childs.flags.set(Flags::SHUTDOWN, true);
                 drop(childs);
-                Self::kill_daemons_async();
-                services::shutdown_async();
+                Self::kill_daemons_async(res);
+                res.services().shutdown_async();
             }
         }
 
@@ -1197,14 +1222,14 @@ impl ChildManager {
         thread::notify(upcall.event, Some(msg));
     }
 
-    pub fn kill_child_async(sel: Selector, exitcode: Code) {
+    pub fn kill_child_async(res: &mut Resources, sel: Selector, exitcode: Code) {
         let maybe_id = {
             let childs = borrow_mut();
             childs.sel_to_id(sel)
         };
 
         if let Some(id) = maybe_id {
-            let child = Self::remove_rec_async(id).unwrap();
+            let child = Self::remove_rec_async(res, id).unwrap();
 
             if exitcode != Code::Success {
                 println!(
@@ -1216,7 +1241,7 @@ impl ChildManager {
         }
     }
 
-    fn kill_daemons_async() {
+    fn kill_daemons_async(res: &mut Resources) {
         let ids = borrow_mut().ids.clone();
         for id in ids {
             // kill all daemons that didn't register a service
@@ -1233,12 +1258,12 @@ impl ChildManager {
             };
 
             if can_kill {
-                Self::remove_rec_async(id).unwrap();
+                Self::remove_rec_async(res, id).unwrap();
             }
         }
     }
 
-    fn remove_rec_async(id: Id) -> Option<Box<dyn Child>> {
+    fn remove_rec_async(res: &mut Resources, id: Id) -> Option<Box<dyn Child>> {
         let maybe_child = {
             let mut childs = borrow_mut();
             childs.childs.remove(&id)
@@ -1264,9 +1289,11 @@ impl ChildManager {
                 .unwrap();
 
             for csel in &child.res().childs {
-                Self::remove_rec_async(csel.0);
+                Self::remove_rec_async(res, csel.0);
             }
-            child.remove_resources_async();
+            child.remove_resources_async(res);
+
+            res.tiles().remove_user(child.our_tile());
 
             let mut childs = borrow_mut();
             childs.ids.retain(|&i| i != id);

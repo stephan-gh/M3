@@ -26,6 +26,7 @@ pub mod memory;
 pub mod mods;
 mod parser;
 pub mod requests;
+pub mod res;
 pub mod sems;
 pub mod sendqueue;
 pub mod services;
