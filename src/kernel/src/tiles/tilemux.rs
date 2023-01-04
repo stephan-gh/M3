@@ -210,6 +210,47 @@ impl TileMux {
         }
     }
 
+    pub fn handle_call_async(tilemux: RefMut<'_, Self>, msg: &tcu::Message) {
+        use base::serialize::M3Deserializer;
+
+        let mut de = M3Deserializer::new(msg.as_words());
+        let op: kif::tilemux::Calls = de.pop().unwrap();
+
+        let res = match op {
+            kif::tilemux::Calls::EXIT => Self::handle_exit_async(tilemux, &mut de),
+            _ => {
+                klog!(ERR, "Unexpected call from TileMux: {}", op);
+                Err(Error::new(Code::InvArgs))
+            },
+        };
+
+        let mut reply = MsgBuf::borrow_def();
+        build_vmsg!(reply, kif::DefaultReply {
+            error: res.err().map(|e| e.code()).unwrap_or(Code::Success)
+        });
+        ktcu::reply(ktcu::KPEX_EP, &reply, msg).unwrap();
+    }
+
+    fn handle_exit_async(
+        tilemux: RefMut<'_, Self>,
+        de: &mut base::serialize::M3Deserializer<'_>,
+    ) -> Result<(), Error> {
+        use crate::tiles::ActivityMng;
+
+        let r: kif::tilemux::Exit = de.pop()?;
+
+        klog!(TMC, "TileMux[{}] received {:?}", tilemux.tile_id(), r);
+
+        let has_act = tilemux.acts.contains(&r.act_id);
+        drop(tilemux);
+
+        if has_act {
+            let act = ActivityMng::activity(r.act_id).unwrap();
+            act.stop_app_async(r.status, true);
+        }
+        Ok(())
+    }
+
     pub fn config_snd_ep(
         &mut self,
         ep: EpId,
@@ -348,47 +389,6 @@ impl TileMux {
 
         self.send_sidecall::<kif::tilemux::Shutdown>(None, &buf, &msg)
             .map(|_| ())
-    }
-
-    pub fn handle_call_async(tilemux: RefMut<'_, Self>, msg: &tcu::Message) {
-        use base::serialize::M3Deserializer;
-
-        let mut de = M3Deserializer::new(msg.as_words());
-        let op: kif::tilemux::Calls = de.pop().unwrap();
-
-        let res = match op {
-            kif::tilemux::Calls::EXIT => Self::handle_exit_async(tilemux, &mut de),
-            _ => {
-                klog!(ERR, "Unexpected call from TileMux: {}", op);
-                Err(Error::new(Code::InvArgs))
-            },
-        };
-
-        let mut reply = MsgBuf::borrow_def();
-        build_vmsg!(reply, kif::DefaultReply {
-            error: res.err().map(|e| e.code()).unwrap_or(Code::Success)
-        });
-        ktcu::reply(ktcu::KPEX_EP, &reply, msg).unwrap();
-    }
-
-    fn handle_exit_async(
-        tilemux: RefMut<'_, Self>,
-        de: &mut base::serialize::M3Deserializer<'_>,
-    ) -> Result<(), Error> {
-        use crate::tiles::ActivityMng;
-
-        let r: kif::tilemux::Exit = de.pop()?;
-
-        klog!(TMC, "TileMux[{}] received {:?}", tilemux.tile_id(), r);
-
-        let has_act = tilemux.acts.contains(&r.act_id);
-        drop(tilemux);
-
-        if has_act {
-            let act = ActivityMng::activity(r.act_id).unwrap();
-            act.stop_app_async(r.status, true);
-        }
-        Ok(())
     }
 
     pub fn activity_init_async(
