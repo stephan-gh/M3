@@ -21,7 +21,7 @@ use m3::reply_vmsg;
 use m3::session::resmng;
 use m3::tiles::Activity;
 
-use crate::childs::{self, Id};
+use crate::childs::{ChildManager, Id};
 use crate::res::Resources;
 use crate::sendqueue;
 use crate::subsys::{self, ChildStarter};
@@ -37,12 +37,13 @@ pub fn rgate() -> Ref<'static, RecvGate> {
 }
 
 pub fn workloop<F>(
+    childs: &mut ChildManager,
     res: &mut Resources,
     mut func: F,
     starter: &mut dyn ChildStarter,
 ) -> Result<(), VerboseError>
 where
-    F: FnMut(),
+    F: FnMut(&mut ChildManager, &mut Resources),
 {
     let upcall_rg = RecvGate::upcall();
 
@@ -51,24 +52,24 @@ where
             let rgate = RGATE.borrow();
             if let Ok(msg) = rgate.fetch() {
                 let is = GateIStream::new(msg, &rgate);
-                handle_request_async(res, is);
-                subsys::start_delayed_async(res, starter)?;
+                handle_request_async(childs, res, is);
+                subsys::start_delayed_async(childs, res, starter)?;
             }
         }
 
         if let Ok(msg) = upcall_rg.fetch() {
-            childs::ChildManager::handle_upcall_async(res, msg);
+            childs.handle_upcall_async(res, msg);
         }
 
         sendqueue::check_replies(res);
 
-        func();
+        func(childs, res);
 
         if thread::ready_count() > 0 {
             thread::try_yield();
         }
 
-        if childs::borrow_mut().should_stop() {
+        if childs.should_stop() {
             break;
         }
 
@@ -83,51 +84,50 @@ where
     Ok(())
 }
 
-fn handle_request_async(res: &mut Resources, mut is: GateIStream<'_>) {
+fn handle_request_async(childs: &mut ChildManager, res: &mut Resources, mut is: GateIStream<'_>) {
     let op: Result<resmng::Operation, Error> = is.pop();
     let id = is.label() as Id;
 
     let res = match op {
-        Ok(resmng::Operation::REG_SERV) => reg_serv(res, &mut is, id),
-        Ok(resmng::Operation::UNREG_SERV) => unreg_serv(res, &mut is, id),
+        Ok(resmng::Operation::REG_SERV) => reg_serv(childs, res, &mut is, id),
+        Ok(resmng::Operation::UNREG_SERV) => unreg_serv(childs, res, &mut is, id),
 
-        Ok(resmng::Operation::OPEN_SESS) => open_session_async(res, &mut is, id),
-        Ok(resmng::Operation::CLOSE_SESS) => close_session_async(res, &mut is, id),
+        Ok(resmng::Operation::OPEN_SESS) => open_session_async(childs, res, &mut is, id),
+        Ok(resmng::Operation::CLOSE_SESS) => close_session_async(childs, res, &mut is, id),
 
-        Ok(resmng::Operation::ADD_CHILD) => add_child(res, &mut is, id),
-        Ok(resmng::Operation::REM_CHILD) => rem_child_async(res, &mut is, id),
+        Ok(resmng::Operation::ADD_CHILD) => add_child(childs, res, &mut is, id),
+        Ok(resmng::Operation::REM_CHILD) => rem_child_async(childs, res, &mut is, id),
 
-        Ok(resmng::Operation::ALLOC_MEM) => alloc_mem(res, &mut is, id),
-        Ok(resmng::Operation::FREE_MEM) => free_mem(res, &mut is, id),
+        Ok(resmng::Operation::ALLOC_MEM) => alloc_mem(childs, res, &mut is, id),
+        Ok(resmng::Operation::FREE_MEM) => free_mem(childs, res, &mut is, id),
 
-        Ok(resmng::Operation::ALLOC_TILE) => match alloc_tile(res, &mut is, id) {
+        Ok(resmng::Operation::ALLOC_TILE) => match alloc_tile(childs, res, &mut is, id) {
             // reply already done
             Ok(_) => return,
             Err(e) => Err(e),
         },
-        Ok(resmng::Operation::FREE_TILE) => free_tile(res, &mut is, id),
+        Ok(resmng::Operation::FREE_TILE) => free_tile(childs, res, &mut is, id),
 
-        Ok(resmng::Operation::USE_RGATE) => match use_rgate(res, &mut is, id) {
+        Ok(resmng::Operation::USE_RGATE) => match use_rgate(childs, res, &mut is, id) {
             // reply already done
             Ok(_) => return,
             Err(e) => Err(e),
         },
-        Ok(resmng::Operation::USE_SGATE) => use_sgate(res, &mut is, id),
+        Ok(resmng::Operation::USE_SGATE) => use_sgate(childs, res, &mut is, id),
 
-        Ok(resmng::Operation::USE_SEM) => use_sem(res, &mut is, id),
+        Ok(resmng::Operation::USE_SEM) => use_sem(childs, res, &mut is, id),
 
-        Ok(resmng::Operation::USE_MOD) => use_mod(res, &mut is, id),
+        Ok(resmng::Operation::USE_MOD) => use_mod(childs, res, &mut is, id),
 
-        Ok(resmng::Operation::GET_SERIAL) => get_serial(res, &mut is, id),
+        Ok(resmng::Operation::GET_SERIAL) => get_serial(childs, res, &mut is, id),
 
-        Ok(resmng::Operation::GET_INFO) => get_info(res, &mut is, id),
+        Ok(resmng::Operation::GET_INFO) => get_info(childs, res, &mut is, id),
 
         _ => Err(Error::new(Code::InvArgs)),
     };
 
     match res {
         Err(e) => {
-            let mut childs = childs::borrow_mut();
             let child = childs.child_by_id_mut(id).unwrap();
             log!(crate::LOG_DEF, "{}: {:?} failed: {}", child.name(), op, e);
             is.reply_error(e.code())
@@ -137,38 +137,63 @@ fn handle_request_async(res: &mut Resources, mut is: GateIStream<'_>) {
     .ok(); // ignore errors; we might have removed the child in the meantime
 }
 
-fn reg_serv(res: &mut Resources, is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
+fn reg_serv(
+    childs: &mut ChildManager,
+    res: &mut Resources,
+    is: &mut GateIStream<'_>,
+    id: Id,
+) -> Result<(), Error> {
     let req: resmng::RegServiceReq = is.pop()?;
 
-    let mut childs = childs::borrow_mut();
     let child = childs.child_by_id_mut(id).unwrap();
     child.reg_service(res, req.dst, req.sgate, req.name, req.sessions)
 }
 
-fn unreg_serv(res: &mut Resources, is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
+fn unreg_serv(
+    childs: &mut ChildManager,
+    res: &mut Resources,
+    is: &mut GateIStream<'_>,
+    id: Id,
+) -> Result<(), Error> {
     let req: resmng::FreeReq = is.pop()?;
 
-    let mut childs = childs::borrow_mut();
     let child = childs.child_by_id_mut(id).unwrap();
     child.unreg_service(res, req.sel)
 }
 
-fn open_session_async(res: &mut Resources, is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
+fn open_session_async(
+    childs: &mut ChildManager,
+    res: &mut Resources,
+    is: &mut GateIStream<'_>,
+    id: Id,
+) -> Result<(), Error> {
     let req: resmng::OpenSessionReq = is.pop()?;
 
-    childs::open_session_async(res, id, req.dst, &req.name)
+    let child = childs.child_by_id_mut(id).unwrap();
+    child.open_session_async(res, id, req.dst, &req.name)
 }
 
-fn close_session_async(res: &mut Resources, is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
+fn close_session_async(
+    childs: &mut ChildManager,
+    res: &mut Resources,
+    is: &mut GateIStream<'_>,
+    id: Id,
+) -> Result<(), Error> {
     let req: resmng::FreeReq = is.pop()?;
 
-    childs::close_session_async(res, id, req.sel)
+    let child = childs.child_by_id_mut(id).unwrap();
+    child.close_session_async(res, id, req.sel)
 }
 
-fn add_child(res: &mut Resources, is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
+fn add_child(
+    childs: &mut ChildManager,
+    res: &mut Resources,
+    is: &mut GateIStream<'_>,
+    id: Id,
+) -> Result<(), Error> {
     let req: resmng::AddChildReq = is.pop()?;
 
-    childs::add_child(
+    childs.add_child(
         res,
         id,
         req.id,
@@ -179,50 +204,75 @@ fn add_child(res: &mut Resources, is: &mut GateIStream<'_>, id: Id) -> Result<()
     )
 }
 
-fn rem_child_async(res: &mut Resources, is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
+fn rem_child_async(
+    childs: &mut ChildManager,
+    res: &mut Resources,
+    is: &mut GateIStream<'_>,
+    id: Id,
+) -> Result<(), Error> {
     let req: resmng::FreeReq = is.pop()?;
 
-    childs::rem_child_async(res, id, req.sel)
+    childs.rem_child_async(res, id, req.sel)
 }
 
-fn alloc_mem(_res: &mut Resources, is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
+fn alloc_mem(
+    childs: &mut ChildManager,
+    _res: &mut Resources,
+    is: &mut GateIStream<'_>,
+    id: Id,
+) -> Result<(), Error> {
     let req: resmng::AllocMemReq = is.pop()?;
 
-    let mut childs = childs::borrow_mut();
     let child = childs.child_by_id_mut(id).unwrap();
     child.alloc_mem(req.dst, req.size, req.perms)
 }
 
-fn free_mem(_res: &mut Resources, is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
+fn free_mem(
+    childs: &mut ChildManager,
+    _res: &mut Resources,
+    is: &mut GateIStream<'_>,
+    id: Id,
+) -> Result<(), Error> {
     let req: resmng::FreeReq = is.pop()?;
 
-    let mut childs = childs::borrow_mut();
     let child = childs.child_by_id_mut(id).unwrap();
     child.free_mem(req.sel)
 }
 
-fn alloc_tile(res: &mut Resources, is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
+fn alloc_tile(
+    childs: &mut ChildManager,
+    res: &mut Resources,
+    is: &mut GateIStream<'_>,
+    id: Id,
+) -> Result<(), Error> {
     let req: resmng::AllocTileReq = is.pop()?;
 
-    let mut childs = childs::borrow_mut();
     let child = childs.child_by_id_mut(id).unwrap();
     child
         .alloc_tile(res, req.dst, req.desc)
         .and_then(|(id, desc)| reply_vmsg!(is, Code::Success, resmng::AllocTileReply { id, desc }))
 }
 
-fn free_tile(res: &mut Resources, is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
+fn free_tile(
+    childs: &mut ChildManager,
+    res: &mut Resources,
+    is: &mut GateIStream<'_>,
+    id: Id,
+) -> Result<(), Error> {
     let req: resmng::FreeReq = is.pop()?;
 
-    let mut childs = childs::borrow_mut();
     let child = childs.child_by_id_mut(id).unwrap();
     child.free_tile(res, req.sel)
 }
 
-fn use_rgate(res: &mut Resources, is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
+fn use_rgate(
+    childs: &mut ChildManager,
+    res: &mut Resources,
+    is: &mut GateIStream<'_>,
+    id: Id,
+) -> Result<(), Error> {
     let req: resmng::UseReq = is.pop()?;
 
-    let mut childs = childs::borrow_mut();
     let child = childs.child_by_id_mut(id).unwrap();
     child
         .use_rgate(res, &req.name, req.dst)
@@ -234,39 +284,60 @@ fn use_rgate(res: &mut Resources, is: &mut GateIStream<'_>, id: Id) -> Result<()
         })
 }
 
-fn use_sgate(res: &mut Resources, is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
+fn use_sgate(
+    childs: &mut ChildManager,
+    res: &mut Resources,
+    is: &mut GateIStream<'_>,
+    id: Id,
+) -> Result<(), Error> {
     let req: resmng::UseReq = is.pop()?;
 
-    let mut childs = childs::borrow_mut();
     let child = childs.child_by_id_mut(id).unwrap();
     child.use_sgate(res, &req.name, req.dst)
 }
 
-fn use_sem(res: &mut Resources, is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
+fn use_sem(
+    childs: &mut ChildManager,
+    res: &mut Resources,
+    is: &mut GateIStream<'_>,
+    id: Id,
+) -> Result<(), Error> {
     let req: resmng::UseReq = is.pop()?;
 
-    let mut childs = childs::borrow_mut();
     let child = childs.child_by_id_mut(id).unwrap();
     child.use_sem(res, &req.name, req.dst)
 }
 
-fn use_mod(res: &mut Resources, is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
+fn use_mod(
+    childs: &mut ChildManager,
+    res: &mut Resources,
+    is: &mut GateIStream<'_>,
+    id: Id,
+) -> Result<(), Error> {
     let req: resmng::UseReq = is.pop()?;
 
-    let mut childs = childs::borrow_mut();
     let child = childs.child_by_id_mut(id).unwrap();
     child.use_mod(res, &req.name, req.dst)
 }
 
-fn get_serial(_res: &mut Resources, is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
+fn get_serial(
+    childs: &mut ChildManager,
+    _res: &mut Resources,
+    is: &mut GateIStream<'_>,
+    id: Id,
+) -> Result<(), Error> {
     let req: resmng::GetSerialReq = is.pop()?;
 
-    let mut childs = childs::borrow_mut();
     let child = childs.child_by_id_mut(id).unwrap();
     child.get_serial(req.dst)
 }
 
-fn get_info(res: &mut Resources, is: &mut GateIStream<'_>, id: Id) -> Result<(), Error> {
+fn get_info(
+    childs: &mut ChildManager,
+    res: &mut Resources,
+    is: &mut GateIStream<'_>,
+    id: Id,
+) -> Result<(), Error> {
     let req: resmng::GetInfoReq = is.pop()?;
 
     let idx = match req.idx {
@@ -274,5 +345,7 @@ fn get_info(res: &mut Resources, is: &mut GateIStream<'_>, id: Id) -> Result<(),
         n => Some(n),
     };
 
-    childs::get_info(res, id, idx).and_then(|info| reply_vmsg!(is, Code::Success, info))
+    childs
+        .get_info(res, id, idx)
+        .and_then(|info| reply_vmsg!(is, Code::Success, info))
 }

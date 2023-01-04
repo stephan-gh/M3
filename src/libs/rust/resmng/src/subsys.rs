@@ -290,6 +290,7 @@ impl Subsystem {
 
     pub fn start(
         &self,
+        childs: &mut childs::ChildManager,
         res: &mut Resources,
         starter: &mut dyn ChildStarter,
     ) -> Result<(), VerboseError> {
@@ -534,7 +535,7 @@ impl Subsystem {
                 };
 
                 // create child
-                let child_id = childs::borrow_mut().alloc_id();
+                let child_id = childs.alloc_id();
                 let mut child = Box::new(childs::OwnChild::new(
                     child_id,
                     tile_usage.clone(),
@@ -553,7 +554,7 @@ impl Subsystem {
                 // start it immediately if all dependencies are met or remember it for later
                 if !child.has_unmet_reqs(res) {
                     starter.start(res, &mut child)?;
-                    childs::borrow_mut().add(child);
+                    childs.add(child);
                 }
                 else {
                     DELAYED.borrow_mut().push(child);
@@ -798,6 +799,7 @@ impl SubsystemBuilder {
 }
 
 pub(crate) fn start_delayed_async(
+    childs: &mut childs::ChildManager,
     res: &mut Resources,
     starter: &mut dyn ChildStarter,
 ) -> Result<(), VerboseError> {
@@ -811,12 +813,12 @@ pub(crate) fn start_delayed_async(
 
         let mut child = DELAYED.borrow_mut().remove(idx);
         starter.start(res, &mut child)?;
-        childs::borrow_mut().add(child);
+        childs.add(child);
         new_wait = true;
     }
 
     if new_wait {
-        childs::borrow_mut().start_waiting(1);
+        childs.start_waiting(1);
     }
     Ok(())
 }

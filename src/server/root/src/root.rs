@@ -36,7 +36,7 @@ use m3::tiles::{Activity, ActivityArgs, ChildActivity};
 use m3::util::math;
 use m3::vfs::FileRef;
 
-use resmng::childs::{self, Child, OwnChild};
+use resmng::childs::{self, Child, ChildManager, OwnChild};
 use resmng::{config, memory, requests, res::Resources, sendqueue, subsys, tiles};
 
 static SUBSYS: LazyReadOnlyCell<subsys::Subsystem> = LazyReadOnlyCell::default();
@@ -179,8 +179,16 @@ fn create_rgate(
     Ok(rgate)
 }
 
-fn workloop(res: &mut Resources) {
-    requests::workloop(res, || {}, &mut RootChildStarter {}).expect("Running the workloop failed");
+struct WorkloopArgs<'c, 'r> {
+    childs: &'c mut ChildManager,
+    res: &'r mut Resources,
+}
+
+fn workloop(args: &mut WorkloopArgs<'_, '_>) {
+    let WorkloopArgs { childs, res } = args;
+
+    requests::workloop(childs, res, |_, _| {}, &mut RootChildStarter {})
+        .expect("Running the workloop failed");
 }
 
 #[no_mangle]
@@ -236,19 +244,28 @@ pub fn main() -> Result<(), Error> {
     .expect("Unable to create sendqueue RecvGate");
     sendqueue::init(squeue_rgate);
 
+    let mut childs = childs::ChildManager::default();
+    let mut wargs = WorkloopArgs {
+        childs: &mut childs,
+        res: &mut res,
+    };
+
     thread::init();
     for _ in 0..args.max_clients {
-        thread::add_thread(workloop as *const () as usize, &mut res as *mut _ as usize);
+        thread::add_thread(
+            workloop as *const () as usize,
+            &mut wargs as *mut _ as usize,
+        );
     }
 
     SUBSYS
         .get()
-        .start(&mut res, &mut RootChildStarter {})
+        .start(wargs.childs, wargs.res, &mut RootChildStarter {})
         .expect("Unable to start subsystem");
 
-    childs::borrow_mut().start_waiting(1);
+    wargs.childs.start_waiting(1);
 
-    workloop(&mut res);
+    workloop(&mut wargs);
 
     log!(resmng::LOG_DEF, "All childs gone. Exiting.");
 

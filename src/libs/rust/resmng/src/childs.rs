@@ -17,7 +17,7 @@ use bitflags::bitflags;
 use core::fmt;
 use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::{Cell, RefCell, RefMut, StaticRefCell};
+use m3::cell::{Cell, RefCell};
 use m3::col::{String, ToString, Treap, Vec};
 use m3::com::{MemGate, RecvGate, SGateArgs, SendGate};
 use m3::env;
@@ -197,6 +197,77 @@ pub trait Child {
 
         self.cfg().unreg_service(serv.name());
         Ok(())
+    }
+
+    fn open_session_async(
+        &mut self,
+        res: &mut Resources,
+        id: Id,
+        dst_sel: Selector,
+        name: &str,
+    ) -> Result<(), Error> {
+        let (sname, sarg) = {
+            log!(
+                crate::LOG_SERV,
+                "{}: open_sess(dst_sel={}, name={})",
+                self.name(),
+                dst_sel,
+                name
+            );
+
+            let cfg = self.cfg();
+            let (_idx, sdesc) = cfg
+                .get_session(name)
+                .ok_or_else(|| Error::new(Code::InvArgs))?;
+            if sdesc.is_used() {
+                return Err(Error::new(Code::Exists));
+            }
+            (sdesc.name().global().clone(), sdesc.arg().clone())
+        };
+
+        let serv = res.services().get_mut_by_name(&sname)?;
+        let serv_sel = serv.sel();
+        let sess = Session::new_async(id, dst_sel, serv, &sarg)?;
+
+        // get child and session desc again
+        let cfg = self.cfg();
+        let (idx, sdesc) = cfg
+            .get_session(name)
+            .ok_or_else(|| Error::new(Code::InvArgs))?;
+
+        // check again if it's still unused, because of the async call above
+        if sdesc.is_used() {
+            return Err(Error::new(Code::Exists));
+        }
+
+        syscalls::get_sess(serv_sel, self.activity_sel(), dst_sel, sess.ident())?;
+
+        sdesc.mark_used();
+        self.res_mut().sessions.push((idx, sess));
+
+        Ok(())
+    }
+
+    fn close_session_async(
+        &mut self,
+        res: &mut Resources,
+        id: Id,
+        sel: Selector,
+    ) -> Result<(), Error> {
+        log!(crate::LOG_SERV, "{}: close_sess(sel={})", self.name(), sel);
+
+        let (cfg_idx, sess) = {
+            let sessions = &mut self.res_mut().sessions;
+            sessions
+                .iter()
+                .position(|(_, s)| s.sel() == sel)
+                .ok_or_else(|| Error::new(Code::InvArgs))
+                .map(|res_idx| sessions.remove(res_idx))
+        }?;
+
+        self.cfg().close_session(cfg_idx);
+
+        sess.close_async(res, id)
     }
 
     fn alloc_local(&mut self, size: goff, perm: Perm) -> Result<MemGate, Error> {
@@ -510,283 +581,6 @@ pub trait Child {
     }
 }
 
-pub fn add_child(
-    res: &mut Resources,
-    id: Id,
-    act_id: tcu::ActId,
-    act_sel: Selector,
-    rgate: &RecvGate,
-    sgate_sel: Selector,
-    name: String,
-) -> Result<(), Error> {
-    let mut childs = borrow_mut();
-    let nid = childs.next_id();
-    let child = childs.child_by_id_mut(id).unwrap();
-    let our_sel = child.obtain(act_sel)?;
-    let child_name = format!("{}.{}", child.name(), name);
-
-    log!(
-        crate::LOG_CHILD,
-        "{}: add_child(act={}, name={}, sgate_sel={}) -> child(id={}, name={})",
-        child.name(),
-        act_sel,
-        name,
-        sgate_sel,
-        nid,
-        child_name
-    );
-
-    if child.res().childs.iter().any(|c| c.1 == act_sel) {
-        return Err(Error::new(Code::Exists));
-    }
-
-    #[allow(clippy::useless_conversion)]
-    let sgate = SendGate::new_with(
-        SGateArgs::new(rgate)
-            .credits(1)
-            .label(tcu::Label::from(nid)),
-    )?;
-    let our_sg_sel = sgate.sel();
-    let nchild = Box::new(ForeignChild::new(
-        res,
-        nid,
-        child.layer() + 1,
-        child_name,
-        // actually, we don't know the tile it's running on. But the TileUsage is only used to set
-        // the PMP EPs and currently, no child can actually influence these. For that reason,
-        // all childs get the same PMP EPs, so that we can also give the same PMP EPs to childs
-        // of childs.
-        child.our_tile().clone(),
-        act_id,
-        our_sel,
-        sgate,
-        child.cfg(),
-        child.mem().clone(),
-    ));
-    nchild.delegate(our_sg_sel, sgate_sel)?;
-
-    child.res_mut().childs.push((nid, act_sel));
-    childs.add(nchild);
-    Ok(())
-}
-
-pub fn open_session_async(
-    res: &mut Resources,
-    id: Id,
-    dst_sel: Selector,
-    name: &str,
-) -> Result<(), Error> {
-    let (sname, sarg) = {
-        let mut childs = borrow_mut();
-        let child = childs.child_by_id_mut(id).unwrap();
-        log!(
-            crate::LOG_SERV,
-            "{}: open_sess(dst_sel={}, name={})",
-            child.name(),
-            dst_sel,
-            name
-        );
-
-        let cfg = child.cfg();
-        let (_idx, sdesc) = cfg
-            .get_session(name)
-            .ok_or_else(|| Error::new(Code::InvArgs))?;
-        if sdesc.is_used() {
-            return Err(Error::new(Code::Exists));
-        }
-        (sdesc.name().global().clone(), sdesc.arg().clone())
-    };
-
-    let serv = res.services().get_mut_by_name(&sname)?;
-    let serv_sel = serv.sel();
-    let sess = Session::new_async(id, dst_sel, serv, &sarg)?;
-
-    // get child and session desc again
-    let mut childs = borrow_mut();
-    let child = childs.child_by_id_mut(id).unwrap();
-    let cfg = child.cfg();
-    let (idx, sdesc) = cfg
-        .get_session(name)
-        .ok_or_else(|| Error::new(Code::InvArgs))?;
-
-    // check again if it's still unused, because of the async call above
-    if sdesc.is_used() {
-        return Err(Error::new(Code::Exists));
-    }
-
-    syscalls::get_sess(serv_sel, child.activity_sel(), dst_sel, sess.ident())?;
-
-    sdesc.mark_used();
-    child.res_mut().sessions.push((idx, sess));
-
-    Ok(())
-}
-
-pub fn close_session_async(res: &mut Resources, id: Id, sel: Selector) -> Result<(), Error> {
-    let sess = {
-        let mut childs = borrow_mut();
-        let child = childs.child_by_id_mut(id).unwrap();
-
-        log!(crate::LOG_SERV, "{}: close_sess(sel={})", child.name(), sel);
-
-        let (cfg_idx, sess) = {
-            let sessions = &mut child.res_mut().sessions;
-            sessions
-                .iter()
-                .position(|(_, s)| s.sel() == sel)
-                .ok_or_else(|| Error::new(Code::InvArgs))
-                .map(|res_idx| sessions.remove(res_idx))
-        }?;
-
-        child.cfg().close_session(cfg_idx);
-        sess
-    };
-
-    sess.close_async(res, id)
-}
-
-pub fn rem_child_async(res: &mut Resources, id: Id, act_sel: Selector) -> Result<(), Error> {
-    let cid = {
-        let mut childs = borrow_mut();
-        let child = childs.child_by_id_mut(id).unwrap();
-
-        log!(
-            crate::LOG_CHILD,
-            "{}: rem_child(act={})",
-            child.name(),
-            act_sel
-        );
-
-        let idx = child
-            .res()
-            .childs
-            .iter()
-            .position(|c| c.1 == act_sel)
-            .ok_or_else(|| Error::new(Code::InvArgs))?;
-        let cid = child.res().childs[idx].0;
-        child.res_mut().childs.remove(idx);
-        cid
-    };
-
-    ChildManager::remove_rec_async(res, cid);
-    Ok(())
-}
-
-pub fn get_info(
-    res: &mut Resources,
-    id: Id,
-    idx: Option<usize>,
-) -> Result<resmng::ActInfoResult, Error> {
-    let layer = {
-        let mut childs = borrow_mut();
-        let child = childs.child_by_id_mut(id).unwrap();
-        if !child.cfg().can_get_info() {
-            return Err(Error::new(Code::NoPerm));
-        }
-        child.layer()
-    };
-
-    let (parent_num, parent_layer) = if let Some(presmng) = Activity::own().resmng() {
-        match presmng.get_activity_count() {
-            Err(e) if e.code() == Code::NoPerm => (0, 0),
-            Err(e) => return Err(e),
-            Ok(res) => res,
-        }
-    }
-    else {
-        (0, 0)
-    };
-
-    let own_num = {
-        let mut childs = borrow_mut();
-        let mut own_num = childs.ids.len() + 1;
-        for id in childs.ids.clone() {
-            if childs.child_by_id_mut(id).unwrap().subsys().is_some() {
-                own_num -= 1;
-            }
-        }
-        own_num
-    };
-
-    if let Some(mut idx) = idx {
-        if idx < parent_num {
-            Ok(resmng::ActInfoResult::Info(
-                Activity::own().resmng().unwrap().get_activity_info(idx)?,
-            ))
-        }
-        else if idx - parent_num >= own_num {
-            Err(Error::new(Code::NotFound))
-        }
-        else {
-            idx -= parent_num;
-
-            // the first is always us
-            if idx == 0 {
-                let kmem_quota = Activity::own().kmem().quota()?;
-                let tile_quota = Activity::own().tile().quota()?;
-                let mem = res.memory();
-                return Ok(resmng::ActInfoResult::Info(resmng::ActInfo {
-                    id: Activity::own().id(),
-                    layer: parent_layer + 0,
-                    name: env::args().next().unwrap().to_string(),
-                    daemon: true,
-                    umem: Quota::new(
-                        parent_num as QuotaId,
-                        mem.capacity() as usize,
-                        mem.available() as usize,
-                    ),
-                    kmem: kmem_quota,
-                    eps: *tile_quota.endpoints(),
-                    time: *tile_quota.time(),
-                    pts: *tile_quota.page_tables(),
-                    tile: Activity::own().tile_id(),
-                }));
-            }
-            idx -= 1;
-
-            // find the next non-subsystem child
-            let mut childs = borrow_mut();
-            let act = loop {
-                let cid = childs.ids[idx];
-                let act = childs.child_by_id_mut(cid).unwrap();
-                if act.subsys().is_none() {
-                    break act;
-                }
-                idx += 1;
-            };
-
-            let kmem_quota = act
-                .kmem()
-                .map(|km| km.quota())
-                .unwrap_or_else(|| Ok(Quota::default()))?;
-            let tile_quota = act
-                .child_tile()
-                .map(|tile| tile.tile_obj().quota())
-                .unwrap_or_else(|| Ok(TileQuota::default()))?;
-            Ok(resmng::ActInfoResult::Info(resmng::ActInfo {
-                id: act.activity_id(),
-                layer: parent_layer + act.layer(),
-                name: act.name().to_string(),
-                daemon: act.daemon(),
-                umem: Quota::new(
-                    parent_num as QuotaId + act.mem().id as QuotaId,
-                    act.mem().total as usize,
-                    act.mem().quota.get() as usize,
-                ),
-                kmem: kmem_quota,
-                eps: *tile_quota.endpoints(),
-                time: *tile_quota.time(),
-                pts: *tile_quota.page_tables(),
-                tile: act.our_tile().tile_id(),
-            }))
-        }
-    }
-    else {
-        let total = own_num + parent_num;
-        Ok(resmng::ActInfoResult::Count((total, layer)))
-    }
-}
-
 pub struct OwnChild {
     id: Id,
     // the activity has to be dropped before we drop the tile
@@ -856,12 +650,7 @@ impl OwnChild {
 
     pub fn has_unmet_reqs(&self, res: &mut Resources) -> bool {
         for sess in self.cfg().sessions() {
-            if sess.is_dep()
-                && res
-                    .services()
-                    .get_by_name(sess.name().global())
-                    .is_err()
-            {
+            if sess.is_dep() && res.services().get_by_name(sess.name().global()).is_err() {
                 return true;
             }
         }
@@ -1092,14 +881,8 @@ pub struct ChildManager {
     foreigns: usize,
 }
 
-static MNG: StaticRefCell<ChildManager> = StaticRefCell::new(ChildManager::new());
-
-pub fn borrow_mut() -> RefMut<'static, ChildManager> {
-    MNG.borrow_mut()
-}
-
-impl ChildManager {
-    pub const fn new() -> Self {
+impl Default for ChildManager {
+    fn default() -> Self {
         ChildManager {
             flags: Flags::STARTING,
             childs: Treap::new(),
@@ -1109,7 +892,9 @@ impl ChildManager {
             foreigns: 0,
         }
     }
+}
 
+impl ChildManager {
     pub fn should_stop(&self) -> bool {
         // don't stop if we didn't have a child yet. this is necessary, because we use derive_srv
         // asynchronously and thus switch to a different thread while starting a subsystem. thus, if
@@ -1174,13 +959,13 @@ impl ChildManager {
         syscalls::activity_wait(&sels, event).unwrap();
     }
 
-    pub fn handle_upcall_async(res: &mut Resources, msg: &'static tcu::Message) {
+    pub fn handle_upcall_async(&mut self, res: &mut Resources, msg: &'static tcu::Message) {
         let mut de = M3Deserializer::new(msg.as_words());
         let opcode: kif::upcalls::Operation = de.pop().unwrap();
 
         match opcode {
-            kif::upcalls::Operation::ACT_WAIT => Self::upcall_wait_act_async(res, &mut de),
-            kif::upcalls::Operation::DERIVE_SRV => Self::upcall_derive_srv(msg, &mut de),
+            kif::upcalls::Operation::ACT_WAIT => self.upcall_wait_act_async(res, &mut de),
+            kif::upcalls::Operation::DERIVE_SRV => self.upcall_derive_srv(msg, &mut de),
             _ => panic!("Unexpected upcall {}", opcode),
         }
 
@@ -1193,43 +978,33 @@ impl ChildManager {
             .expect("Upcall reply failed");
     }
 
-    fn upcall_wait_act_async(res: &mut Resources, de: &mut M3Deserializer<'_>) {
+    fn upcall_wait_act_async(&mut self, res: &mut Resources, de: &mut M3Deserializer<'_>) {
         let upcall: kif::upcalls::ActivityWait = de.pop().unwrap();
 
-        Self::kill_child_async(res, upcall.act_sel, upcall.exitcode);
+        self.kill_child_async(res, upcall.act_sel, upcall.exitcode);
 
         // wait for the next
-        {
-            let mut childs = borrow_mut();
-            let no_wait_childs = childs.daemons() + childs.foreigns();
-            if !childs.flags.contains(Flags::SHUTDOWN) && childs.children() == no_wait_childs {
-                childs.flags.set(Flags::SHUTDOWN, true);
-                drop(childs);
-                Self::kill_daemons_async(res);
-                res.services().shutdown_async();
-            }
+        let no_wait_childs = self.daemons() + self.foreigns();
+        if !self.flags.contains(Flags::SHUTDOWN) && self.children() == no_wait_childs {
+            self.flags.set(Flags::SHUTDOWN, true);
+            self.kill_daemons_async(res);
+            res.services().shutdown_async();
         }
 
-        let mut childs = borrow_mut();
-        if !childs.should_stop() {
-            childs.start_waiting(1);
+        if !self.should_stop() {
+            self.start_waiting(1);
         }
     }
 
-    fn upcall_derive_srv(msg: &'static tcu::Message, de: &mut M3Deserializer<'_>) {
+    fn upcall_derive_srv(&mut self, msg: &'static tcu::Message, de: &mut M3Deserializer<'_>) {
         let upcall: kif::upcalls::DeriveSrv = de.pop().unwrap();
 
         thread::notify(upcall.event, Some(msg));
     }
 
-    pub fn kill_child_async(res: &mut Resources, sel: Selector, exitcode: Code) {
-        let maybe_id = {
-            let childs = borrow_mut();
-            childs.sel_to_id(sel)
-        };
-
-        if let Some(id) = maybe_id {
-            let child = Self::remove_rec_async(res, id).unwrap();
+    pub fn kill_child_async(&mut self, res: &mut Resources, sel: Selector, exitcode: Code) {
+        if let Some(id) = self.sel_to_id(sel) {
+            let child = self.remove_rec_async(res, id).unwrap();
 
             if exitcode != Code::Success {
                 println!(
@@ -1241,13 +1016,12 @@ impl ChildManager {
         }
     }
 
-    fn kill_daemons_async(res: &mut Resources) {
-        let ids = borrow_mut().ids.clone();
+    fn kill_daemons_async(&mut self, res: &mut Resources) {
+        let ids = self.ids.clone();
         for id in ids {
             // kill all daemons that didn't register a service
             let can_kill = {
-                let childs = borrow_mut();
-                let child = childs.child_by_id(id).unwrap();
+                let child = self.child_by_id(id).unwrap();
                 if child.daemon() && child.res().services.is_empty() {
                     log!(crate::LOG_CHILD, "Killing child '{}'", child.name());
                     true
@@ -1258,16 +1032,217 @@ impl ChildManager {
             };
 
             if can_kill {
-                Self::remove_rec_async(res, id).unwrap();
+                self.remove_rec_async(res, id).unwrap();
             }
         }
     }
 
-    fn remove_rec_async(res: &mut Resources, id: Id) -> Option<Box<dyn Child>> {
-        let maybe_child = {
-            let mut childs = borrow_mut();
-            childs.childs.remove(&id)
+    pub fn get_info(
+        &mut self,
+        res: &mut Resources,
+        id: Id,
+        idx: Option<usize>,
+    ) -> Result<resmng::ActInfoResult, Error> {
+        let layer = {
+            let child = self.child_by_id_mut(id).unwrap();
+            if !child.cfg().can_get_info() {
+                return Err(Error::new(Code::NoPerm));
+            }
+            child.layer()
         };
+
+        let (parent_num, parent_layer) = if let Some(presmng) = Activity::own().resmng() {
+            match presmng.get_activity_count() {
+                Err(e) if e.code() == Code::NoPerm => (0, 0),
+                Err(e) => return Err(e),
+                Ok(res) => res,
+            }
+        }
+        else {
+            (0, 0)
+        };
+
+        let own_num = {
+            let mut own_num = self.ids.len() + 1;
+            for id in self.ids.clone() {
+                if self.child_by_id_mut(id).unwrap().subsys().is_some() {
+                    own_num -= 1;
+                }
+            }
+            own_num
+        };
+
+        if let Some(mut idx) = idx {
+            if idx < parent_num {
+                Ok(resmng::ActInfoResult::Info(
+                    Activity::own().resmng().unwrap().get_activity_info(idx)?,
+                ))
+            }
+            else if idx - parent_num >= own_num {
+                Err(Error::new(Code::NotFound))
+            }
+            else {
+                idx -= parent_num;
+
+                // the first is always us
+                if idx == 0 {
+                    let kmem_quota = Activity::own().kmem().quota()?;
+                    let tile_quota = Activity::own().tile().quota()?;
+                    let mem = res.memory();
+                    return Ok(resmng::ActInfoResult::Info(resmng::ActInfo {
+                        id: Activity::own().id(),
+                        layer: parent_layer + 0,
+                        name: env::args().next().unwrap().to_string(),
+                        daemon: true,
+                        umem: Quota::new(
+                            parent_num as QuotaId,
+                            mem.capacity() as usize,
+                            mem.available() as usize,
+                        ),
+                        kmem: kmem_quota,
+                        eps: *tile_quota.endpoints(),
+                        time: *tile_quota.time(),
+                        pts: *tile_quota.page_tables(),
+                        tile: Activity::own().tile_id(),
+                    }));
+                }
+                idx -= 1;
+
+                // find the next non-subsystem child
+                let act = loop {
+                    let cid = self.ids[idx];
+                    let act = self.child_by_id_mut(cid).unwrap();
+                    if act.subsys().is_none() {
+                        break act;
+                    }
+                    idx += 1;
+                };
+
+                let kmem_quota = act
+                    .kmem()
+                    .map(|km| km.quota())
+                    .unwrap_or_else(|| Ok(Quota::default()))?;
+                let tile_quota = act
+                    .child_tile()
+                    .map(|tile| tile.tile_obj().quota())
+                    .unwrap_or_else(|| Ok(TileQuota::default()))?;
+                Ok(resmng::ActInfoResult::Info(resmng::ActInfo {
+                    id: act.activity_id(),
+                    layer: parent_layer + act.layer(),
+                    name: act.name().to_string(),
+                    daemon: act.daemon(),
+                    umem: Quota::new(
+                        parent_num as QuotaId + act.mem().id as QuotaId,
+                        act.mem().total as usize,
+                        act.mem().quota.get() as usize,
+                    ),
+                    kmem: kmem_quota,
+                    eps: *tile_quota.endpoints(),
+                    time: *tile_quota.time(),
+                    pts: *tile_quota.page_tables(),
+                    tile: act.our_tile().tile_id(),
+                }))
+            }
+        }
+        else {
+            let total = own_num + parent_num;
+            Ok(resmng::ActInfoResult::Count((total, layer)))
+        }
+    }
+
+    pub fn add_child(
+        &mut self,
+        res: &mut Resources,
+        id: Id,
+        act_id: tcu::ActId,
+        act_sel: Selector,
+        rgate: &RecvGate,
+        sgate_sel: Selector,
+        name: String,
+    ) -> Result<(), Error> {
+        let nid = self.next_id();
+        let child = self.child_by_id_mut(id).unwrap();
+        let our_sel = child.obtain(act_sel)?;
+        let child_name = format!("{}.{}", child.name(), name);
+
+        log!(
+            crate::LOG_CHILD,
+            "{}: add_child(act={}, name={}, sgate_sel={}) -> child(id={}, name={})",
+            child.name(),
+            act_sel,
+            name,
+            sgate_sel,
+            nid,
+            child_name
+        );
+
+        if child.res().childs.iter().any(|c| c.1 == act_sel) {
+            return Err(Error::new(Code::Exists));
+        }
+
+        #[allow(clippy::useless_conversion)]
+        let sgate = SendGate::new_with(
+            SGateArgs::new(rgate)
+                .credits(1)
+                .label(tcu::Label::from(nid)),
+        )?;
+        let our_sg_sel = sgate.sel();
+        let nchild = Box::new(ForeignChild::new(
+            res,
+            nid,
+            child.layer() + 1,
+            child_name,
+            // actually, we don't know the tile it's running on. But the TileUsage is only used to set
+            // the PMP EPs and currently, no child can actually influence these. For that reason,
+            // all childs get the same PMP EPs, so that we can also give the same PMP EPs to childs
+            // of childs.
+            child.our_tile().clone(),
+            act_id,
+            our_sel,
+            sgate,
+            child.cfg(),
+            child.mem().clone(),
+        ));
+        nchild.delegate(our_sg_sel, sgate_sel)?;
+
+        child.res_mut().childs.push((nid, act_sel));
+        self.add(nchild);
+        Ok(())
+    }
+
+    pub fn rem_child_async(
+        &mut self,
+        res: &mut Resources,
+        id: Id,
+        act_sel: Selector,
+    ) -> Result<(), Error> {
+        let cid = {
+            let child = self.child_by_id_mut(id).unwrap();
+
+            log!(
+                crate::LOG_CHILD,
+                "{}: rem_child(act={})",
+                child.name(),
+                act_sel
+            );
+
+            let idx = child
+                .res()
+                .childs
+                .iter()
+                .position(|c| c.1 == act_sel)
+                .ok_or_else(|| Error::new(Code::InvArgs))?;
+            let cid = child.res().childs[idx].0;
+            child.res_mut().childs.remove(idx);
+            cid
+        };
+
+        self.remove_rec_async(res, cid);
+        Ok(())
+    }
+
+    fn remove_rec_async(&mut self, res: &mut Resources, id: Id) -> Option<Box<dyn Child>> {
+        let maybe_child = self.childs.remove(&id);
 
         if let Some(mut child) = maybe_child {
             log!(crate::LOG_CHILD, "Removing child '{}'", child.name());
@@ -1289,19 +1264,18 @@ impl ChildManager {
                 .unwrap();
 
             for csel in &child.res().childs {
-                Self::remove_rec_async(res, csel.0);
+                self.remove_rec_async(res, csel.0);
             }
             child.remove_resources_async(res);
 
             res.tiles().remove_user(child.our_tile());
 
-            let mut childs = borrow_mut();
-            childs.ids.retain(|&i| i != id);
+            self.ids.retain(|&i| i != id);
             if child.daemon() {
-                childs.daemons -= 1;
+                self.daemons -= 1;
             }
             if child.foreign() {
-                childs.foreigns -= 1;
+                self.foreigns -= 1;
             }
 
             log!(crate::LOG_CHILD, "Removed child '{}'", child.name());

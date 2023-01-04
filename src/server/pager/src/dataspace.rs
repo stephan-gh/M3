@@ -167,7 +167,11 @@ impl DataSpace {
         self.regions.populate(sel);
     }
 
-    pub fn handle_pf(&mut self, virt: goff) -> Result<(), Error> {
+    pub fn handle_pf(
+        &mut self,
+        childs: &mut childs::ChildManager,
+        virt: goff,
+    ) -> Result<(), Error> {
         let pf_off = math::round_dn(virt - self.virt, cfg::PAGE_SIZE as goff);
         let reg = self.regions.pagefault(pf_off);
 
@@ -202,7 +206,6 @@ impl DataSpace {
                 // if it's writable and should not be shared, create a copy
                 if !self.flags.contains(MapFlags::SHARED) && self.perms.contains(kif::Perm::W) {
                     let src = MemGate::new_owned_bind(sel);
-                    let mut childs = childs::borrow_mut();
                     let child = childs
                         .child_by_id_mut(self.child)
                         .ok_or_else(|| Error::new(Code::ActivityGone))?;
@@ -247,7 +250,6 @@ impl DataSpace {
                     reg.virt() + reg.size() - 1
                 );
 
-                let mut childs = childs::borrow_mut();
                 let child = childs
                     .child_by_id_mut(self.child)
                     .ok_or_else(|| Error::new(Code::ActivityGone))?;
@@ -265,7 +267,7 @@ impl DataSpace {
         }
         // if we have memory, but COW is in progress
         else if reg.is_cow() {
-            reg.handle_cow(self.perms)?;
+            reg.handle_cow(childs, self.perms)?;
         }
         else if reg.is_mapped() {
             // nothing to do

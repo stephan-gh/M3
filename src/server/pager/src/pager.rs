@@ -41,7 +41,7 @@ use m3::util::math;
 use m3::vfs;
 
 use addrspace::AddrSpace;
-use resmng::childs::{self, Child, OwnChild};
+use resmng::childs::{self, Child, ChildManager, OwnChild};
 use resmng::{config, requests, res::Resources, sendqueue, subsys, tiles};
 
 pub const LOG_DEF: bool = false;
@@ -241,7 +241,11 @@ impl subsys::ChildStarter for PagedChildStarter {
     }
 }
 
-fn handle_request(op: PagerOp, is: &mut GateIStream<'_>) -> Result<(), Error> {
+fn handle_request(
+    childs: &mut ChildManager,
+    op: PagerOp,
+    is: &mut GateIStream<'_>,
+) -> Result<(), Error> {
     let mut hdl = PGHDL.borrow_mut();
     let sid = is.label() as SessId;
 
@@ -261,7 +265,7 @@ fn handle_request(op: PagerOp, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let aspace = hdl.sessions.get_mut(sid).unwrap();
 
         match op {
-            PagerOp::PAGEFAULT => aspace.pagefault(is),
+            PagerOp::PAGEFAULT => aspace.pagefault(childs, is),
             PagerOp::MAP_ANON => aspace.map_anon(is),
             PagerOp::UNMAP => aspace.unmap(is),
             PagerOp::CLOSE => aspace
@@ -272,15 +276,26 @@ fn handle_request(op: PagerOp, is: &mut GateIStream<'_>) -> Result<(), Error> {
     }
 }
 
-fn workloop(res: &mut Resources) {
+struct WorkloopArgs<'c, 'r> {
+    childs: &'c mut ChildManager,
+    res: &'r mut Resources,
+}
+
+fn workloop(args: &mut WorkloopArgs<'_, '_>) {
+    let WorkloopArgs { childs, res } = args;
+
     requests::workloop(
+        childs,
         res,
-        || {
+        |childs, _res| {
             SERV.borrow()
                 .handle_ctrl_chan(PGHDL.borrow_mut().deref_mut())
                 .ok();
 
-            REQHDL.get().handle(handle_request).ok();
+            REQHDL
+                .get()
+                .handle(|op, is| handle_request(childs, op, is))
+                .ok();
         },
         &mut PagedChildStarter {},
     )
@@ -345,18 +360,27 @@ pub fn main() -> Result<(), Error> {
         .expect("Unable to activate sendqueue RecvGate");
     sendqueue::init(squeue_rgate);
 
+    let mut childs = childs::ChildManager::default();
+    let mut wargs = WorkloopArgs {
+        childs: &mut childs,
+        res: &mut res,
+    };
+
     thread::init();
     for _ in 0..args.max_clients {
-        thread::add_thread(workloop as *const () as usize, &mut res as *mut _ as usize);
+        thread::add_thread(
+            workloop as *const () as usize,
+            &mut wargs as *mut _ as usize,
+        );
     }
 
     subsys
-        .start(&mut res, &mut PagedChildStarter {})
+        .start(wargs.childs, wargs.res, &mut PagedChildStarter {})
         .expect("Unable to start subsystem");
 
-    childs::borrow_mut().start_waiting(1);
+    wargs.childs.start_waiting(1);
 
-    workloop(&mut res);
+    workloop(&mut wargs);
 
     Ok(())
 }
