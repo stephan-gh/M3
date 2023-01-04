@@ -707,6 +707,9 @@ impl AppConfig {
                 w = layer + 2
             )?;
         }
+        for s in &self.sems {
+            writeln!(f, "{:0w$}Semaphore[{:?}],", "", s.name, w = layer + 2)?;
+        }
         for s in &self.services {
             writeln!(f, "{:0w$}Service[{:?}],", "", s.name, w = layer + 2)?;
         }
