@@ -315,6 +315,12 @@ case "$cmd" in
             cargo rustc "${rust_args[@]}" --profile=check -- -Zunpretty=expanded | less )
         ;;
 
+    checkboot)
+        while IFS= read -r -d '' f; do
+            xmllint --schema misc/boot.xsd --noout "$f" > /dev/null
+        done < <(find boot -type f -print0)
+        ;;
+
     dbg=*)
         if [ "$M3_TARGET" = "gem5" ] || [ "$M3_RUN_GEM5" = "1" ]; then
             if [ "$M3_GEM5_PAUSE" = "" ]; then
