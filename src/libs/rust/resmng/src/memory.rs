@@ -48,6 +48,10 @@ impl MemMod {
         &self.gate
     }
 
+    pub fn addr(&self) -> GlobAddr {
+        self.addr
+    }
+
     pub fn capacity(&self) -> goff {
         self.size
     }
@@ -121,7 +125,7 @@ impl MemoryManager {
     pub fn alloc_mem(&mut self, mut size: goff) -> Result<MemSlice, Error> {
         size = math::round_up(size, cfg::PAGE_SIZE as goff);
         while self.cur_mod < self.mods.len() {
-            if let Some(sl) = self.get_slice(size) {
+            if let Some(sl) = self.get_slice(size, true) {
                 self.cur_off += sl.size;
                 self.available -= sl.size;
                 return Ok(sl);
@@ -134,7 +138,7 @@ impl MemoryManager {
         let mut res = MemPool::default();
         size = math::round_up(size, cfg::PAGE_SIZE as goff);
         while size > 0 && self.cur_mod < self.mods.len() {
-            if let Some(sl) = self.get_slice(size) {
+            if let Some(sl) = self.get_slice(size, false) {
                 size -= sl.size;
                 self.cur_off += sl.size;
                 self.available -= sl.size;
@@ -150,15 +154,18 @@ impl MemoryManager {
         }
     }
 
-    fn get_slice(&mut self, size: goff) -> Option<MemSlice> {
+    fn get_slice(&mut self, size: goff, all: bool) -> Option<MemSlice> {
         let m = &self.mods[self.cur_mod];
-        if m.reserved || self.cur_off == m.capacity() {
+        let avail = m.capacity() - self.cur_off;
+        if m.reserved || self.cur_off == m.capacity() || (all && avail < size) {
             self.cur_mod += 1;
             self.cur_off = 0;
+            if !m.reserved {
+                self.available -= avail;
+            }
             return None;
         }
 
-        let avail = m.capacity() - self.cur_off;
         let amount = cmp::min(avail, size);
         Some(MemSlice::new(m.clone(), self.cur_off, amount, Perm::RWX))
     }
@@ -195,6 +202,10 @@ impl MemSlice {
 
     pub fn allocate(&mut self, size: goff, align: goff) -> Result<goff, Error> {
         self.map.allocate(size, align)
+    }
+
+    pub fn free(&mut self, addr: goff, size: goff) {
+        self.map.free(addr, size);
     }
 
     pub fn addr(&self) -> GlobAddr {
@@ -300,7 +311,7 @@ impl MemPool {
         self.slices[idx].mem.gate.sel()
     }
 
-    pub fn add(&mut self, s: MemSlice) {
+    fn add(&mut self, s: MemSlice) {
         self.slices.push(s)
     }
 
@@ -341,7 +352,7 @@ impl MemPool {
         let s = &mut self.slices[alloc.slice_id];
         log!(crate::LOG_MEM, "Freeing {:?}", alloc);
         if !s.mem.reserved {
-            s.map.free(alloc.addr, alloc.size);
+            s.free(alloc.addr, alloc.size);
         }
     }
 }

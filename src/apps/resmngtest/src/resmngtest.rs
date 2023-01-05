@@ -15,6 +15,7 @@
 
 #![no_std]
 
+mod tmemory;
 mod tparse;
 
 use m3::errors::Error;
@@ -25,6 +26,7 @@ use m3::wv_run_suite;
 #[no_mangle]
 pub fn main() -> Result<(), Error> {
     let mut tester = DefaultWvTester::default();
+    wv_run_suite!(tester, tmemory::run);
     wv_run_suite!(tester, tparse::run);
     println!("{}", tester);
     Ok(())
