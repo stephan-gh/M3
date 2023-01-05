@@ -40,7 +40,7 @@
             <xs:element name="sesscrt">
                 <xs:complexType>
                     <xs:attribute name="name" type="xs:string" use="required"/>
-                    <xs:attribute name="count" type="xs:string"/>
+                    <xs:attribute name="count" type="xs:int"/>
                 </xs:complexType>
             </xs:element>
 
@@ -50,15 +50,15 @@
                     <xs:attribute name="lname" type="xs:string"/>
                     <xs:attribute name="gname" type="xs:string"/>
                     <xs:attribute name="args" type="xs:string"/>
-                    <xs:attribute name="dep" type="xs:string"/>
+                    <xs:attribute name="dep" type="xs:string" default="true"/>
                 </xs:complexType>
             </xs:element>
 
             <xs:element name="tiles">
                 <xs:complexType>
                     <xs:attribute name="type" type="xs:string" use="required"/>
-                    <xs:attribute name="count" type="xs:string" default="1"/>
-                    <xs:attribute name="optional" type="xs:int"/>
+                    <xs:attribute name="count" type="xs:int" default="1"/>
+                    <xs:attribute name="optional" type="xs:string" default="false"/>
                 </xs:complexType>
             </xs:element>
 
@@ -67,8 +67,8 @@
                     <xs:attribute name="name" type="xs:string"/>
                     <xs:attribute name="lname" type="xs:string"/>
                     <xs:attribute name="gname" type="xs:string"/>
-                    <xs:attribute name="msgsize" type="xs:string" default="64"/>
-                    <xs:attribute name="slots" type="xs:string" default="1"/>
+                    <xs:attribute name="msgsize" type="xs:int" default="64"/>
+                    <xs:attribute name="slots" type="xs:int" default="1"/>
                 </xs:complexType>
             </xs:element>
 
@@ -77,8 +77,8 @@
                     <xs:attribute name="name" type="xs:string"/>
                     <xs:attribute name="lname" type="xs:string"/>
                     <xs:attribute name="gname" type="xs:string"/>
-                    <xs:attribute name="credits" type="xs:string" default="1"/>
-                    <xs:attribute name="label" type="xs:string" default="0"/>
+                    <xs:attribute name="credits" type="xs:int" default="1"/>
+                    <xs:attribute name="label" type="xs:int" default="0"/>
                 </xs:complexType>
             </xs:element>
 

@@ -1,0 +1,11 @@
+<config>
+    <kernel args="kernel" />
+    <dom>
+        <app args="root">
+            <dom>
+                <app args="resmngtest">
+                </app>
+            </dom>
+        </app>
+    </dom>
+</config>

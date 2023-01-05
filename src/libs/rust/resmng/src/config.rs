@@ -24,13 +24,28 @@ use m3::tcu::Label;
 use crate::parser;
 use crate::tiles::TileManager;
 
-#[derive(Default)]
+#[derive(Default, Eq, PartialEq)]
 pub struct DualName {
     pub(crate) local: String,
     pub(crate) global: String,
 }
 
 impl DualName {
+    pub fn new_simple(name: String) -> Self {
+        Self {
+            local: name.clone(),
+            global: name,
+        }
+    }
+
+    pub fn new(local: String, global: String) -> Self {
+        Self { local, global }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.local.is_empty() || self.global.is_empty()
+    }
+
     pub fn local(&self) -> &String {
         &self.local
     }
@@ -46,13 +61,14 @@ impl fmt::Debug for DualName {
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub struct ModDesc {
     name: DualName,
     perm: kif::Perm,
 }
 
 impl ModDesc {
-    pub(crate) fn new(name: DualName, perm: kif::Perm) -> Self {
+    pub fn new(name: DualName, perm: kif::Perm) -> Self {
         Self { name, perm }
     }
 
@@ -65,14 +81,14 @@ impl ModDesc {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Eq, PartialEq)]
 pub struct MountDesc {
     fs: String,
     path: String,
 }
 
 impl MountDesc {
-    pub(crate) fn new(fs: String, path: String) -> Self {
+    pub fn new(fs: String, path: String) -> Self {
         Self { fs, path }
     }
 
@@ -85,14 +101,14 @@ impl MountDesc {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Eq, PartialEq)]
 pub struct ServiceDesc {
     name: DualName,
     used: Cell<bool>,
 }
 
 impl ServiceDesc {
-    pub(crate) fn new(name: DualName) -> Self {
+    pub fn new(name: DualName) -> Self {
         Self {
             name,
             used: Cell::new(false),
@@ -112,14 +128,14 @@ impl ServiceDesc {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Eq, PartialEq)]
 pub struct SessCrtDesc {
     name: String,
     count: Option<u32>,
 }
 
 impl SessCrtDesc {
-    pub(crate) fn new(name: String, count: Option<u32>) -> Self {
+    pub fn new(name: String, count: Option<u32>) -> Self {
         Self { name, count }
     }
 
@@ -132,7 +148,7 @@ impl SessCrtDesc {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Eq, PartialEq)]
 pub struct SessionDesc {
     name: DualName,
     arg: String,
@@ -141,7 +157,7 @@ pub struct SessionDesc {
 }
 
 impl SessionDesc {
-    pub(crate) fn new(name: DualName, arg: String, dep: bool) -> Self {
+    pub fn new(name: DualName, arg: String, dep: bool) -> Self {
         Self {
             name,
             arg,
@@ -171,6 +187,7 @@ impl SessionDesc {
     }
 }
 
+#[derive(Default, Debug, Eq, PartialEq)]
 pub struct RGateDesc {
     name: DualName,
     msg_size: usize,
@@ -178,7 +195,7 @@ pub struct RGateDesc {
 }
 
 impl RGateDesc {
-    pub(crate) fn new(name: DualName, msg_size: usize, slots: usize) -> Self {
+    pub fn new(name: DualName, msg_size: usize, slots: usize) -> Self {
         Self {
             name,
             msg_size,
@@ -199,6 +216,7 @@ impl RGateDesc {
     }
 }
 
+#[derive(Default, Debug, Eq, PartialEq)]
 pub struct SGateDesc {
     name: DualName,
     credits: u32,
@@ -207,7 +225,7 @@ pub struct SGateDesc {
 }
 
 impl SGateDesc {
-    pub(crate) fn new(name: DualName, credits: u32, label: Label) -> Self {
+    pub fn new(name: DualName, credits: u32, label: Label) -> Self {
         Self {
             name,
             credits,
@@ -237,7 +255,7 @@ impl SGateDesc {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Eq, PartialEq)]
 pub struct TileType(pub String);
 
 impl TileType {
@@ -284,7 +302,7 @@ impl TileType {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Eq, PartialEq)]
 pub struct TileDesc {
     ty: TileType,
     count: Cell<u32>,
@@ -292,7 +310,7 @@ pub struct TileDesc {
 }
 
 impl TileDesc {
-    pub(crate) fn new(ty: String, count: u32, optional: bool) -> Self {
+    pub fn new(ty: String, count: u32, optional: bool) -> Self {
         Self {
             ty: TileType(ty),
             count: Cell::new(count),
@@ -318,12 +336,13 @@ impl TileDesc {
     }
 }
 
+#[derive(Default, Debug, Eq, PartialEq)]
 pub struct SemDesc {
     name: DualName,
 }
 
 impl SemDesc {
-    pub(crate) fn new(name: DualName) -> Self {
+    pub fn new(name: DualName) -> Self {
         SemDesc { name }
     }
 
@@ -332,12 +351,12 @@ impl SemDesc {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Eq, PartialEq)]
 pub struct SerialDesc {
     used: Cell<bool>,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Domain {
     pub(crate) pseudo: bool,
     pub(crate) tile: TileType,
@@ -345,6 +364,14 @@ pub struct Domain {
 }
 
 impl Domain {
+    pub fn new(pseudo: bool, tile: TileType, apps: Vec<Rc<AppConfig>>) -> Self {
+        Self { pseudo, tile, apps }
+    }
+
+    pub fn pseudo(&self) -> bool {
+        self.pseudo
+    }
+
     pub fn apps(&self) -> &Vec<Rc<AppConfig>> {
         &self.apps
     }
@@ -417,6 +444,14 @@ impl AppConfig {
         self.kern_mem
     }
 
+    pub fn time(&self) -> Option<u64> {
+        self.time
+    }
+
+    pub fn page_tables(&self) -> Option<usize> {
+        self.pts
+    }
+
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -459,6 +494,10 @@ impl AppConfig {
 
     pub fn sgates(&self) -> &Vec<SGateDesc> {
         &self.sgates
+    }
+
+    pub fn semaphores(&self) -> &Vec<SemDesc> {
+        &self.sems
     }
 
     pub fn get_mod(&self, lname: &str) -> Option<&ModDesc> {

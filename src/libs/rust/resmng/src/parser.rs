@@ -83,7 +83,11 @@ impl ConfigParser {
         name_buf.push(first);
 
         while let Ok(c) = self.get() {
-            if c == delim || c.is_whitespace() {
+            if c == delim {
+                self.put();
+                break;
+            }
+            if c.is_whitespace() {
                 break;
             }
 
@@ -100,6 +104,7 @@ impl ConfigParser {
         }
 
         let name = self.parse_ident('=')?;
+        self.consume('=')?;
         self.consume('"')?;
 
         let mut val_buf = String::new();
@@ -180,18 +185,22 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
         }
     }
 
+    if app.name.is_empty() || app.args.is_empty() {
+        return Err(Error::new(Code::InvArgs));
+    }
+
+    // put all apps that belong to the same domain as `app` into a pseudo domain
+    let mut pseudo_dom = config::Domain {
+        pseudo: true,
+        tile: config::TileType("core".to_string()),
+        ..Default::default()
+    };
+
     let nc = p.get_no_ws()?;
     if nc == '/' {
         p.consume('>')?;
-        Ok(app)
     }
     else if nc == '>' {
-        // put all apps that belong to the same domain as `app` into a pseudo domain
-        let mut pseudo_dom = config::Domain {
-            pseudo: true,
-            ..Default::default()
-        };
-
         let mut app_start = p.pos;
         while let Some(tag) = p.parse_tag_name()? {
             match tag.as_ref() {
@@ -217,30 +226,30 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
             app_start = p.pos;
         }
         parse_close_tag(p, "app")?;
-
-        if !pseudo_dom.apps.is_empty() {
-            app.domains.insert(0, pseudo_dom);
-        }
-
-        app.cfg_range = (start, p.pos);
-        // don't collect session creators for root
-        if start != 0 {
-            let mut crts = Vec::new();
-            collect_sess_crts(&app, &mut crts);
-
-            for c in crts {
-                let duplicate = app.sesscrt.iter().any(|sc| sc.serv_name() == c.serv_name());
-                if !duplicate && !hosts_service(&app, c.serv_name()) {
-                    app.sesscrt.push(c);
-                }
-            }
-        }
-
-        Ok(app)
     }
     else {
-        Err(Error::new(Code::InvArgs))
+        return Err(Error::new(Code::InvArgs));
     }
+
+    if !pseudo_dom.apps.is_empty() {
+        app.domains.insert(0, pseudo_dom);
+    }
+
+    app.cfg_range = (start, p.pos);
+    // don't collect session creators for root
+    if start != 0 {
+        let mut crts = Vec::new();
+        collect_sess_crts(&app, &mut crts);
+
+        for c in crts {
+            let duplicate = app.sesscrt.iter().any(|sc| sc.serv_name() == c.serv_name());
+            if !duplicate && !hosts_service(&app, c.serv_name()) {
+                app.sesscrt.push(c);
+            }
+        }
+    }
+
+    Ok(app)
 }
 
 fn hosts_service(app: &config::AppConfig, name: &str) -> bool {
@@ -316,6 +325,7 @@ fn parse_domain(p: &mut ConfigParser) -> Result<config::Domain, Error> {
 fn parse_mount(p: &mut ConfigParser) -> Result<config::MountDesc, Error> {
     let mut fs = String::new();
     let mut path = String::new();
+
     loop {
         match p.parse_arg()? {
             None => break,
@@ -333,12 +343,19 @@ fn parse_mount(p: &mut ConfigParser) -> Result<config::MountDesc, Error> {
             },
         }
     }
-    Ok(config::MountDesc::new(fs, path))
+
+    if fs.is_empty() || path.is_empty() {
+        Err(Error::new(Code::InvArgs))
+    }
+    else {
+        Ok(config::MountDesc::new(fs, path))
+    }
 }
 
 fn parse_mod(p: &mut ConfigParser) -> Result<config::ModDesc, Error> {
     let mut name = config::DualName::default();
     let mut perm = kif::Perm::RWX;
+
     loop {
         match p.parse_arg()? {
             None => break,
@@ -349,23 +366,37 @@ fn parse_mod(p: &mut ConfigParser) -> Result<config::ModDesc, Error> {
             },
         }
     }
-    Ok(config::ModDesc::new(name, perm))
+
+    if name.is_empty() {
+        Err(Error::new(Code::InvArgs))
+    }
+    else {
+        Ok(config::ModDesc::new(name, perm))
+    }
 }
 
 fn parse_service(p: &mut ConfigParser) -> Result<config::ServiceDesc, Error> {
     let mut name = config::DualName::default();
+
     loop {
         match p.parse_arg()? {
             None => break,
             Some((n, v)) => parse_dual_name(&mut name, n, v)?,
         }
     }
-    Ok(config::ServiceDesc::new(name))
+
+    if name.is_empty() {
+        Err(Error::new(Code::InvArgs))
+    }
+    else {
+        Ok(config::ServiceDesc::new(name))
+    }
 }
 
 fn parse_sesscrt(p: &mut ConfigParser) -> Result<config::SessCrtDesc, Error> {
     let mut name = String::new();
     let mut count = None;
+
     loop {
         match p.parse_arg()? {
             None => break,
@@ -376,13 +407,20 @@ fn parse_sesscrt(p: &mut ConfigParser) -> Result<config::SessCrtDesc, Error> {
             },
         }
     }
-    Ok(config::SessCrtDesc::new(name, count))
+
+    if name.is_empty() {
+        Err(Error::new(Code::InvArgs))
+    }
+    else {
+        Ok(config::SessCrtDesc::new(name, count))
+    }
 }
 
 fn parse_session(p: &mut ConfigParser) -> Result<config::SessionDesc, Error> {
     let mut name = config::DualName::default();
     let mut arg = String::new();
     let mut dep = true;
+
     loop {
         match p.parse_arg()? {
             None => break,
@@ -394,13 +432,20 @@ fn parse_session(p: &mut ConfigParser) -> Result<config::SessionDesc, Error> {
             },
         }
     }
-    Ok(config::SessionDesc::new(name, arg, dep))
+
+    if name.is_empty() {
+        Err(Error::new(Code::InvArgs))
+    }
+    else {
+        Ok(config::SessionDesc::new(name, arg, dep))
+    }
 }
 
 fn parse_tile(p: &mut ConfigParser) -> Result<config::TileDesc, Error> {
     let mut ty = String::new();
     let mut count = 1;
     let mut optional = false;
+
     loop {
         match p.parse_arg()? {
             None => break,
@@ -412,31 +457,45 @@ fn parse_tile(p: &mut ConfigParser) -> Result<config::TileDesc, Error> {
             },
         }
     }
-    Ok(config::TileDesc::new(ty, count, optional))
+
+    if ty.is_empty() {
+        Err(Error::new(Code::InvArgs))
+    }
+    else {
+        Ok(config::TileDesc::new(ty, count, optional))
+    }
 }
 
 fn parse_rgate(p: &mut ConfigParser) -> Result<config::RGateDesc, Error> {
     let mut name = config::DualName::default();
     let mut msg_size = 64;
     let mut slots = 1;
+
     loop {
         match p.parse_arg()? {
             None => break,
             Some((n, v)) => match n.as_ref() {
                 "name" | "lname" | "gname" => parse_dual_name(&mut name, n, v)?,
-                "msgsize" => msg_size = parse::size(&v)?,
+                "msgsize" => msg_size = parse::int(&v)? as usize,
                 "slots" => slots = parse::int(&v)? as usize,
                 _ => return Err(Error::new(Code::InvArgs)),
             },
         }
     }
-    Ok(config::RGateDesc::new(name, msg_size, slots))
+
+    if name.is_empty() {
+        Err(Error::new(Code::InvArgs))
+    }
+    else {
+        Ok(config::RGateDesc::new(name, msg_size, slots))
+    }
 }
 
 fn parse_sgate(p: &mut ConfigParser) -> Result<config::SGateDesc, Error> {
     let mut name = config::DualName::default();
     let mut credits = 1;
     let mut label = 0;
+
     loop {
         match p.parse_arg()? {
             None => break,
@@ -448,18 +507,31 @@ fn parse_sgate(p: &mut ConfigParser) -> Result<config::SGateDesc, Error> {
             },
         }
     }
-    Ok(config::SGateDesc::new(name, credits, label))
+
+    if name.is_empty() {
+        Err(Error::new(Code::InvArgs))
+    }
+    else {
+        Ok(config::SGateDesc::new(name, credits, label))
+    }
 }
 
 fn parse_sem(p: &mut ConfigParser) -> Result<config::SemDesc, Error> {
     let mut name = config::DualName::default();
+
     loop {
         match p.parse_arg()? {
             None => break,
             Some((n, v)) => parse_dual_name(&mut name, n, v)?,
         }
     }
-    Ok(config::SemDesc::new(name))
+
+    if name.is_empty() {
+        Err(Error::new(Code::InvArgs))
+    }
+    else {
+        Ok(config::SemDesc::new(name))
+    }
 }
 
 fn parse_close_tag(p: &mut ConfigParser, name: &str) -> Result<(), Error> {
@@ -471,6 +543,6 @@ fn parse_close_tag(p: &mut ConfigParser, name: &str) -> Result<(), Error> {
         Err(Error::new(Code::InvArgs))
     }
     else {
-        Ok(())
+        p.consume('>')
     }
 }

@@ -361,6 +361,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "resmngtest"
+version = "0.1.0"
+dependencies = [
+ "m3",
+ "resmng",
+]
+
+[[package]]
 name = "root"
 version = "0.1.0"
 dependencies = [
