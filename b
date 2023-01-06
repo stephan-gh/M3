@@ -335,10 +335,10 @@ case "$cmd" in
             port=""
             attemps=0
             while [ "$port" = "" ]; do
-                if [[ $M3_GEM5_PAUSE =~ C*T* ]]; then
+                if [[ $M3_GEM5_PAUSE =~ C.*T.* ]]; then
                     tile="$M3_GEM5_PAUSE"
                 else
-                    tile="C0T$M3_GEM5_PAUSE"
+                    tile=$(printf "C0T%02d" "$M3_GEM5_PAUSE")
                 fi
                 port=$(grep --text "$tile.remote_gdb" "$M3_OUT/log.txt" | cut -d ' ' -f 9)
                 if [ "$port" = "" ]; then
