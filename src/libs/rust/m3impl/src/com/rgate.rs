@@ -357,7 +357,8 @@ impl RecvGate {
 
     /// Drops all messages with given label. That is, these messages will be marked as read.
     pub fn drop_msgs_with(&self, label: tcu::Label) -> Result<(), Error> {
-        tcu::TCU::drop_msgs_with(self.address().unwrap(), self.ep().unwrap(), label);
+        let rep = self.ensure_activated()?;
+        tcu::TCU::drop_msgs_with(self.address().unwrap(), rep, label);
         Ok(())
     }
 }
