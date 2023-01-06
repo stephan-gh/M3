@@ -54,7 +54,7 @@ generate_config() {
                 fi
             else
                 # only set it if the user has not already set the environment variable
-                export $e
+                export "${e?}"
             fi
         done
     fi
@@ -189,7 +189,7 @@ build_params_gem5() {
         gdb --tui platform/gem5/build/$gem5build/gem5.debug "--command=$tmp"
     else
         if [ "$debug" != "" ]; then
-            xargs -a "$params" $build/tools/ignoreint platform/gem5/build/$gem5build/gem5.opt
+            xargs -a "$params" "$build/tools/ignoreint" platform/gem5/build/$gem5build/gem5.opt
         else
             xargs -a "$params" platform/gem5/build/$gem5build/gem5.opt
         fi
