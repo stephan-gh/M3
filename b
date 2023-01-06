@@ -182,7 +182,7 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-mkdir -p $build $M3_OUT
+mkdir -p "$build" "$M3_OUT"
 
 ninjaargs=()
 if [ "$M3_VERBOSE" != "" ]; then
@@ -191,18 +191,18 @@ fi
 
 if [ $skipbuild -eq 0 ]; then
     filesid=$build/.all-files.id
-    find src -type f > $filesid.new
+    find src -type f > "$filesid.new"
     # redo the configuration if any file was added/removed
-    if [ ! -f $build/build.ninja ] || ! cmp $filesid.new $filesid &>/dev/null; then
+    if [ ! -f "$build/build.ninja" ] || ! cmp "$filesid.new" "$filesid" &>/dev/null; then
         echo "Configuring for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
         ./configure.py || exit 1
-        mv $filesid.new $filesid
+        mv "$filesid.new" "$filesid"
     fi
 fi
 
 case "$cmd" in
     ninja)
-        ninja -f $build/build.ninja "${ninjaargs[@]}" "$script" "$@"
+        ninja -f "$build/build.ninja" "${ninjaargs[@]}" "$script" "$@"
         exit $?
         ;;
 esac
@@ -233,11 +233,11 @@ if [ $skipbuild -eq 0 ]; then
         fi
     else
         echo "Building for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
-        ninja -f $build/build.ninja "${ninjaargs[@]}" >&2 || {
+        ninja -f "$build/build.ninja" "${ninjaargs[@]}" >&2 || {
             # ensure that we regenerate the build.ninja next time. Since ninja does not accept the
             # build.ninja, it will also not detect changes our build files in order to regenerate it.
             # Therefore, force ourself to regenerate it by removing our "files id".
-            rm -f $filesid
+            rm -f "$filesid"
             exit 1
         }
     fi
@@ -249,12 +249,12 @@ case "$cmd" in
         if [ "$DBG_GEM5" = "1" ]; then
             ./src/tools/execute.sh "$script"
         else
-            ./src/tools/execute.sh "$script" 2>&1 | tee $M3_OUT/log.txt
+            ./src/tools/execute.sh "$script" 2>&1 | tee "$M3_OUT/log.txt"
         fi
         ;;
 
     rungem5)
-        M3_RUN_GEM5=1 ./src/tools/execute.sh "$script" 2>&1 | tee $M3_OUT/log.txt
+        M3_RUN_GEM5=1 ./src/tools/execute.sh "$script" 2>&1 | tee "$M3_OUT/log.txt"
         ;;
 
     clippy)
@@ -328,8 +328,8 @@ case "$cmd" in
                 exit 1
             fi
 
-            truncate --size 0 $M3_OUT/log.txt
-            ./src/tools/execute.sh "$script" "--debug=${cmd#dbg=}" 1>$M3_OUT/log.txt 2>&1 &
+            truncate --size 0 "$M3_OUT/log.txt"
+            ./src/tools/execute.sh "$script" "--debug=${cmd#dbg=}" 1>"$M3_OUT/log.txt" 2>&1 &
 
             # wait until we know the port
             port=""
@@ -340,7 +340,7 @@ case "$cmd" in
                 else
                     tile="C0T$M3_GEM5_PAUSE"
                 fi
-                port=$(grep --text "$tile.remote_gdb" $M3_OUT/log.txt | cut -d ' ' -f 9)
+                port=$(grep --text "$tile.remote_gdb" "$M3_OUT/log.txt" | cut -d ' ' -f 9)
                 if [ "$port" = "" ]; then
                     if [ $attemps -gt 5 ]; then
                         echo "Unable to find port for tile '$tile' after 5 attempts."
@@ -393,7 +393,7 @@ case "$cmd" in
             } > "$gdbcmd"
 
             # differentiate between baremetal components and others
-            entry=$(${crossprefix}readelf -h "$bindir/${cmd#dbg=}" | \
+            entry=$("${crossprefix}readelf" -h "$bindir/${cmd#dbg=}" | \
                 grep "Entry point" | awk '{ print($4) }')
             if [ "$entry" = "0x10000000" ]; then
                 echo "b env_run" >> "$gdbcmd"
@@ -414,19 +414,19 @@ case "$cmd" in
         ;;
 
     dis=*)
-        ${crossprefix}objdump -dC "$bindir/${cmd#dis=}" | less
+        "${crossprefix}objdump" -dC "$bindir/${cmd#dis=}" | less
         ;;
 
     elf=*)
-        ${crossprefix}readelf -aW "$bindir/${cmd#elf=}" | c++filt | less
+        "${crossprefix}readelf" -aW "$bindir/${cmd#elf=}" | c++filt | less
         ;;
 
     nms=*)
-        ${crossprefix}nm -SC --size-sort "$bindir/${cmd#nms=}" | less
+        "${crossprefix}nm" -SC --size-sort "$bindir/${cmd#nms=}" | less
         ;;
 
     nma=*)
-        ${crossprefix}nm -SCn "$bindir/${cmd#nma=}" | less
+        "${crossprefix}nm" -SCn "$bindir/${cmd#nma=}" | less
         ;;
 
     straddr=*)
@@ -434,20 +434,20 @@ case "$cmd" in
         str=$script
         echo "Strings containing '$str' in $binary:"
         # find base address of .rodata
-        base=$(${crossprefix}readelf -S "$binary" | grep .rodata | \
+        base=$("${crossprefix}readelf" -S "$binary" | grep .rodata | \
             xargs | cut -d ' ' -f 5)
         # find section number of .rodata
-        section=$(${crossprefix}readelf -S "$binary" | grep .rodata | \
+        section=$("${crossprefix}readelf" -S "$binary" | grep .rodata | \
             sed -e 's/.*\[\s*\([[:digit:]]*\)\].*/\1/g')
         # grep for matching lines, prepare for better use of awk and finally add offset to base
-        ${crossprefix}readelf -p "$section" "$binary" | grep "$str" | \
+        "${crossprefix}readelf" -p "$section" "$binary" | grep "$str" | \
             sed 's/^ *\[ *\([[:xdigit:]]*\)\] *\(.*\)$/0x\1 \2/' | \
             awk '{ printf("0x%x: %s %s %s %s %s %s\n",0x'"$base"' + strtonum($1),$2,$3,$4,$5,$6,$7) }'
         ;;
 
     ctors=*)
         file=$bindir/${cmd#ctors=}
-        section=$(${crossprefix}readelf -SW "$file" | \
+        section=$("${crossprefix}readelf" -SW "$file" | \
             grep "\.ctors\|\.init_array" | sed -e 's/\[.*\]//g' | xargs)
         off=0x$(echo "$section" | cut -d ' ' -f 4)
         len=0x$(echo "$section" | cut -d ' ' -f 5)
@@ -460,7 +460,7 @@ case "$cmd" in
         if [ "$off" != "0x" ]; then
             od -t x$bytes "$file" -j "$off" -N "$len" -v -w$bytes | grep ' ' | while read -r line; do
                 addr=${line#* }
-                ${crossprefix}nm -C -l "$file" 2>/dev/null | grep -m 1 "$addr"
+                "${crossprefix}nm" -C -l "$file" 2>/dev/null | grep -m 1 "$addr"
             done
         fi
         ;;
@@ -471,7 +471,7 @@ case "$cmd" in
         for f in ${names//,/ }; do
             paths=("${paths[@]}" "$build/bin/$f")
         done
-        $build/tools/hwitrace $crossprefix "${paths[@]}" | less
+        "$build/tools/hwitrace" "$crossprefix" "${paths[@]}" | less
         ;;
 
     trace=*)
@@ -480,7 +480,7 @@ case "$cmd" in
         for f in ${names//,/ }; do
             paths=("${paths[@]}" "$build/bin/$f")
         done
-        $build/tools/gem5log $M3_ISA trace "${paths[@]}" | less
+        "$build/tools/gem5log" "$M3_ISA" trace "${paths[@]}" | less
         ;;
 
     flamegraph=*)
@@ -490,7 +490,7 @@ case "$cmd" in
             paths=("${paths[@]}" "$build/bin/$f")
         done
         # inferno-flamegraph is available at https://github.com/jonhoo/inferno
-        $build/tools/gem5log $M3_ISA flamegraph "${paths[@]}" | inferno-flamegraph --countname ns
+        "$build/tools/gem5log" "$M3_ISA" flamegraph "${paths[@]}" | inferno-flamegraph --countname ns
         ;;
 
     snapshot=*)
@@ -499,23 +499,23 @@ case "$cmd" in
         for f in ${names//,/ }; do
             paths=("${paths[@]}" "$build/bin/$f")
         done
-        $build/tools/gem5log $M3_ISA snapshot "$script" "${paths[@]}"
+        "$build/tools/gem5log" "$M3_ISA" snapshot "$script" "${paths[@]}"
         ;;
 
     mkfs=*)
-        $build/tools/mkm3fs "$build/${cmd#mkfs=}" "$script" "$@"
+        "$build/tools/mkm3fs" "$build/${cmd#mkfs=}" "$script" "$@"
         ;;
 
     shfs=*)
-        $build/tools/shm3fs "$build/${cmd#shfs=}" "$script" "$@"
+        "$build/tools/shm3fs" "$build/${cmd#shfs=}" "$script" "$@"
         ;;
 
     fsck=*)
-        $build/tools/m3fsck "$build/${cmd#fsck=}" "$script"
+        "$build/tools/m3fsck" "$build/${cmd#fsck=}" "$script"
         ;;
 
     exfs=*)
-        $build/tools/exm3fs "$build/${cmd#exfs=}" "$script"
+        "$build/tools/exm3fs" "$build/${cmd#exfs=}" "$script"
         ;;
 
     bt=*)
@@ -525,8 +525,8 @@ case "$cmd" in
     list)
         echo "Start of section .text:"
         while IFS= read -r -d '' l; do
-            ${crossprefix}readelf -S "$build/bin/$l" | \
+            "${crossprefix}readelf" -S "$build/bin/$l" | \
                 grep " \.text " | awk "{ printf(\"%20s: %s\n\",\"$l\",\$5) }"
-        done < <(find $build/bin -type f \! \( -name "*.o" -o -name "*.a" \) -printf "%f\0") | sort -k 2
+        done < <(find "$build/bin" -type f \! \( -name "*.o" -o -name "*.a" \) -printf "%f\0") | sort -k 2
         ;;
 esac
