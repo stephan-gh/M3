@@ -17,6 +17,7 @@
 
 mod tmemory;
 mod tparse;
+mod tsubsys;
 mod ttiles;
 
 use m3::errors::Error;
@@ -29,6 +30,7 @@ pub fn main() -> Result<(), Error> {
     let mut tester = DefaultWvTester::default();
     wv_run_suite!(tester, tmemory::run);
     wv_run_suite!(tester, tparse::run);
+    wv_run_suite!(tester, tsubsys::run);
     wv_run_suite!(tester, ttiles::run);
     println!("{}", tester);
     Ok(())
