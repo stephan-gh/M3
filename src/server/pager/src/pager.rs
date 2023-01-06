@@ -166,11 +166,16 @@ fn get_mount(name: &str) -> Result<String, VerboseError> {
 struct PagedChildStarter {}
 
 impl subsys::ChildStarter for PagedChildStarter {
-    fn start(&mut self, res: &mut Resources, child: &mut OwnChild) -> Result<(), VerboseError> {
+    fn start(
+        &mut self,
+        reqs: &requests::Requests,
+        res: &mut Resources,
+        child: &mut OwnChild,
+    ) -> Result<(), VerboseError> {
         // send gate for resmng
         #[allow(clippy::useless_conversion)]
         let resmng_sgate = SendGate::new_with(
-            SGateArgs::new(&requests::rgate())
+            SGateArgs::new(reqs.recv_gate())
                 .credits(1)
                 .label(Label::from(child.id())),
         )?;
@@ -283,16 +288,22 @@ fn handle_request(
     }
 }
 
-struct WorkloopArgs<'c, 'r, 's> {
+struct WorkloopArgs<'c, 'r, 'q, 's> {
     childs: &'c mut ChildManager,
     res: &'r mut Resources,
+    reqs: &'q requests::Requests,
     serv: &'s mut Server,
 }
 
-fn workloop(args: &mut WorkloopArgs<'_, '_, '_>) {
-    let WorkloopArgs { childs, res, serv } = args;
+fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_>) {
+    let WorkloopArgs {
+        childs,
+        res,
+        reqs,
+        serv,
+    } = args;
 
-    requests::workloop(
+    reqs.run_loop(
         childs,
         res,
         |childs, _res| {
@@ -353,7 +364,7 @@ pub fn main() -> Result<(), Error> {
     req_rgate
         .activate()
         .expect("Unable to activate resmng RecvGate");
-    requests::init(req_rgate);
+    let reqs = requests::Requests::new(req_rgate);
 
     let squeue_rgate = RecvGate::new(
         math::next_log2(sendqueue::RBUF_MSG_SIZE * args.max_clients),
@@ -369,6 +380,7 @@ pub fn main() -> Result<(), Error> {
     let mut wargs = WorkloopArgs {
         childs: &mut childs,
         res: &mut res,
+        reqs: &reqs,
         serv: &mut serv,
     };
 
@@ -381,7 +393,12 @@ pub fn main() -> Result<(), Error> {
     }
 
     subsys
-        .start(wargs.childs, wargs.res, &mut PagedChildStarter {})
+        .start(
+            wargs.childs,
+            wargs.reqs,
+            wargs.res,
+            &mut PagedChildStarter {},
+        )
         .expect("Unable to start subsystem");
 
     wargs.childs.start_waiting(1);

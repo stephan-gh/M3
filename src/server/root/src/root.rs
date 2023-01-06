@@ -80,13 +80,18 @@ fn modules_range(domain: &config::Domain) -> Result<(GlobAddr, goff), VerboseErr
 struct RootChildStarter {}
 
 impl resmng::subsys::ChildStarter for RootChildStarter {
-    fn start(&mut self, res: &mut Resources, child: &mut OwnChild) -> Result<(), VerboseError> {
+    fn start(
+        &mut self,
+        reqs: &requests::Requests,
+        res: &mut Resources,
+        child: &mut OwnChild,
+    ) -> Result<(), VerboseError> {
         let bmod = fetch_mod(&LOADED_BMODS, child.cfg().name())
             .ok_or_else(|| Error::new(Code::NotFound))?;
 
         #[allow(clippy::useless_conversion)]
         let sgate = SendGate::new_with(
-            SGateArgs::new(&requests::rgate())
+            SGateArgs::new(reqs.recv_gate())
                 .credits(1)
                 .label(tcu::Label::from(child.id())),
         )?;
@@ -187,15 +192,16 @@ fn create_rgate(
     Ok(rgate)
 }
 
-struct WorkloopArgs<'c, 'r> {
+struct WorkloopArgs<'c, 'q, 'r> {
     childs: &'c mut ChildManager,
+    reqs: &'q requests::Requests,
     res: &'r mut Resources,
 }
 
-fn workloop(args: &mut WorkloopArgs<'_, '_>) {
-    let WorkloopArgs { childs, res } = args;
+fn workloop(args: &mut WorkloopArgs<'_, '_, '_>) {
+    let WorkloopArgs { childs, reqs, res } = args;
 
-    requests::workloop(childs, res, |_, _| {}, &mut RootChildStarter {})
+    reqs.run_loop(childs, res, |_, _| {}, &mut RootChildStarter {})
         .expect("Running the workloop failed");
 }
 
@@ -240,7 +246,7 @@ pub fn main() -> Result<(), Error> {
 
     let req_rgate = create_rgate(buf_size, max_msg_size, rbuf_mem, rbuf_off, rbuf_addr)
         .expect("Unable to create request RecvGate");
-    requests::init(req_rgate);
+    let reqs = requests::Requests::new(req_rgate);
 
     let squeue_rgate = create_rgate(
         sendqueue::RBUF_SIZE,
@@ -255,6 +261,7 @@ pub fn main() -> Result<(), Error> {
     let mut childs = childs::ChildManager::default();
     let mut wargs = WorkloopArgs {
         childs: &mut childs,
+        reqs: &reqs,
         res: &mut res,
     };
 
@@ -268,7 +275,12 @@ pub fn main() -> Result<(), Error> {
 
     SUBSYS
         .get()
-        .start(wargs.childs, wargs.res, &mut RootChildStarter {})
+        .start(
+            wargs.childs,
+            wargs.reqs,
+            wargs.res,
+            &mut RootChildStarter {},
+        )
         .expect("Unable to start subsystem");
 
     wargs.childs.start_waiting(1);

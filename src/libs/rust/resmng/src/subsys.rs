@@ -35,6 +35,7 @@ use crate::childs;
 use crate::config;
 use crate::memory;
 use crate::mods::ModManager;
+use crate::requests::Requests;
 use crate::res::Resources;
 use crate::services;
 use crate::tiles;
@@ -75,6 +76,7 @@ pub trait ChildStarter {
     /// Creates a new activity for the given child and starts it
     fn start(
         &mut self,
+        reqs: &Requests,
         res: &mut Resources,
         child: &mut childs::OwnChild,
     ) -> Result<(), VerboseError>;
@@ -291,6 +293,7 @@ impl Subsystem {
     pub fn start(
         &self,
         childs: &mut childs::ChildManager,
+        reqs: &Requests,
         res: &mut Resources,
         starter: &mut dyn ChildStarter,
     ) -> Result<(), VerboseError> {
@@ -554,7 +557,7 @@ impl Subsystem {
 
                 // start it immediately if all dependencies are met or remember it for later
                 if !child.has_unmet_reqs(res) {
-                    starter.start(res, &mut child)?;
+                    starter.start(reqs, res, &mut child)?;
                     childs.add(child);
                 }
                 else {
@@ -803,6 +806,7 @@ impl SubsystemBuilder {
 
 pub(crate) fn start_delayed_async(
     childs: &mut childs::ChildManager,
+    reqs: &Requests,
     res: &mut Resources,
     starter: &mut dyn ChildStarter,
 ) -> Result<(), VerboseError> {
@@ -815,7 +819,7 @@ pub(crate) fn start_delayed_async(
         }
 
         let mut child = DELAYED.borrow_mut().remove(idx);
-        starter.start(res, &mut child)?;
+        starter.start(reqs, res, &mut child)?;
         childs.add(child);
         new_wait = true;
     }

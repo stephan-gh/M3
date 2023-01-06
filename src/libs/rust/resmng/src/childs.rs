@@ -39,6 +39,7 @@ use m3::util::math;
 
 use crate::config::AppConfig;
 use crate::memory::{Allocation, MemPool};
+use crate::requests::Requests;
 use crate::res::Resources;
 use crate::services::Session;
 use crate::subsys::SubsystemBuilder;
@@ -958,12 +959,17 @@ impl ChildManager {
         syscalls::activity_wait(&sels, event).unwrap();
     }
 
-    pub fn handle_upcall_async(&mut self, res: &mut Resources, msg: &'static tcu::Message) {
+    pub fn handle_upcall_async(
+        &mut self,
+        reqs: &Requests,
+        res: &mut Resources,
+        msg: &'static tcu::Message,
+    ) {
         let mut de = M3Deserializer::new(msg.as_words());
         let opcode: kif::upcalls::Operation = de.pop().unwrap();
 
         match opcode {
-            kif::upcalls::Operation::ACT_WAIT => self.upcall_wait_act_async(res, &mut de),
+            kif::upcalls::Operation::ACT_WAIT => self.upcall_wait_act_async(reqs, res, &mut de),
             kif::upcalls::Operation::DERIVE_SRV => self.upcall_derive_srv(msg, &mut de),
             _ => panic!("Unexpected upcall {}", opcode),
         }
@@ -977,16 +983,21 @@ impl ChildManager {
             .expect("Upcall reply failed");
     }
 
-    fn upcall_wait_act_async(&mut self, res: &mut Resources, de: &mut M3Deserializer<'_>) {
+    fn upcall_wait_act_async(
+        &mut self,
+        reqs: &Requests,
+        res: &mut Resources,
+        de: &mut M3Deserializer<'_>,
+    ) {
         let upcall: kif::upcalls::ActivityWait = de.pop().unwrap();
 
-        self.kill_child_async(res, upcall.act_sel, upcall.exitcode);
+        self.kill_child_async(reqs, res, upcall.act_sel, upcall.exitcode);
 
         // wait for the next
         let no_wait_childs = self.daemons() + self.foreigns();
         if !self.flags.contains(Flags::SHUTDOWN) && self.children() == no_wait_childs {
             self.flags.set(Flags::SHUTDOWN, true);
-            self.kill_daemons_async(res);
+            self.kill_daemons_async(reqs, res);
             res.services().shutdown_async();
         }
 
@@ -1001,9 +1012,15 @@ impl ChildManager {
         thread::notify(upcall.event, Some(msg));
     }
 
-    pub fn kill_child_async(&mut self, res: &mut Resources, sel: Selector, exitcode: Code) {
+    pub fn kill_child_async(
+        &mut self,
+        reqs: &Requests,
+        res: &mut Resources,
+        sel: Selector,
+        exitcode: Code,
+    ) {
         if let Some(id) = self.sel_to_id(sel) {
-            let child = self.remove_rec_async(res, id).unwrap();
+            let child = self.remove_rec_async(reqs, res, id).unwrap();
 
             if exitcode != Code::Success {
                 println!(
@@ -1015,7 +1032,7 @@ impl ChildManager {
         }
     }
 
-    fn kill_daemons_async(&mut self, res: &mut Resources) {
+    fn kill_daemons_async(&mut self, reqs: &Requests, res: &mut Resources) {
         let ids = self.ids.clone();
         for id in ids {
             // kill all daemons that didn't register a service
@@ -1031,7 +1048,7 @@ impl ChildManager {
             };
 
             if can_kill {
-                self.remove_rec_async(res, id).unwrap();
+                self.remove_rec_async(reqs, res, id).unwrap();
             }
         }
     }
@@ -1211,6 +1228,7 @@ impl ChildManager {
 
     pub fn rem_child_async(
         &mut self,
+        reqs: &Requests,
         res: &mut Resources,
         id: Id,
         act_sel: Selector,
@@ -1236,11 +1254,16 @@ impl ChildManager {
             cid
         };
 
-        self.remove_rec_async(res, cid);
+        self.remove_rec_async(reqs, res, cid);
         Ok(())
     }
 
-    fn remove_rec_async(&mut self, res: &mut Resources, id: Id) -> Option<Box<dyn Child>> {
+    fn remove_rec_async(
+        &mut self,
+        reqs: &Requests,
+        res: &mut Resources,
+        id: Id,
+    ) -> Option<Box<dyn Child>> {
         let maybe_child = self.childs.remove(&id);
 
         if let Some(mut child) = maybe_child {
@@ -1258,12 +1281,10 @@ impl ChildManager {
             .ok();
             // now remove all potentially pending messages from the child
             #[allow(clippy::useless_conversion)]
-            crate::requests::rgate()
-                .drop_msgs_with(child.id().into())
-                .unwrap();
+            reqs.recv_gate().drop_msgs_with(child.id().into()).unwrap();
 
             for csel in &child.res().childs {
-                self.remove_rec_async(res, csel.0);
+                self.remove_rec_async(reqs, res, csel.0);
             }
             child.remove_resources_async(res);
 
