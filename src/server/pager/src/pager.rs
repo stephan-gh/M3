@@ -23,6 +23,7 @@ mod regions;
 
 use core::ops::DerefMut;
 
+use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cell::{LazyReadOnlyCell, LazyStaticRefCell};
 use m3::col::{String, ToString, Vec};
@@ -221,9 +222,16 @@ impl subsys::ChildStarter for PagedChildStarter {
         let file = vfs::VFS::open(child.name(), vfs::OpenFlags::RX | vfs::OpenFlags::NEW_SESS)
             .map_err(|e| VerboseError::new(e.code(), format!("Unable to open {}", child.name())))?;
         let mut mapper = mapper::ChildMapper::new(aspace, act.tile_desc().has_virtmem());
-        child
-            .start(act, &mut mapper, file.into_generic())
-            .map_err(|e| VerboseError::new(e.code(), "Unable to start Activity".to_string()))
+
+        let run = act
+            .exec_file(&mut mapper, file.into_generic(), child.arguments())
+            .map_err(|e| {
+                VerboseError::new(e.code(), format!("Unable to execute {}", child.name()))
+            })?;
+
+        child.set_running(Box::new(run));
+
+        Ok(())
     }
 
     fn configure_tile(

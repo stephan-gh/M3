@@ -34,11 +34,8 @@ use m3::serialize::M3Deserializer;
 use m3::session::resmng;
 use m3::syscalls;
 use m3::tcu;
-use m3::tiles::{
-    Activity, ChildActivity, KMem, Mapper, RunningActivity, RunningProgramActivity, TileQuota,
-};
+use m3::tiles::{Activity, KMem, RunningActivity, TileQuota};
 use m3::util::math;
-use m3::vfs::{File, FileRef};
 
 use crate::config::AppConfig;
 use crate::memory::{Allocation, MemPool};
@@ -110,6 +107,7 @@ pub trait Child {
     fn id(&self) -> Id;
     fn layer(&self) -> u32;
     fn name(&self) -> &String;
+    fn arguments(&self) -> &[String];
     fn daemon(&self) -> bool;
     fn foreign(&self) -> bool;
 
@@ -584,7 +582,7 @@ pub trait Child {
 pub struct OwnChild {
     id: Id,
     // the activity has to be dropped before we drop the tile
-    activity: Option<RunningProgramActivity>,
+    activity: Option<Box<dyn RunningActivity>>,
     our_tile: tiles::TileUsage,
     _domain_tile: Option<tiles::TileUsage>,
     child_tile: tiles::TileUsage,
@@ -629,23 +627,16 @@ impl OwnChild {
         }
     }
 
-    pub fn start(
-        &mut self,
-        act: ChildActivity,
-        mapper: &mut dyn Mapper,
-        file: FileRef<dyn File>,
-    ) -> Result<(), Error> {
+    pub fn set_running(&mut self, act: Box<dyn RunningActivity>) {
         log!(
             crate::LOG_DEF,
-            "Starting boot module '{}' on {} with arguments {:?}",
+            "Starting '{}' on {} with arguments {:?}",
             self.name(),
             self.child_tile().unwrap().tile_id(),
             &self.args[1..]
         );
 
-        self.activity = Some(act.exec_file(mapper, file, &self.args)?);
-
-        Ok(())
+        self.activity = Some(act);
     }
 
     pub fn has_unmet_reqs(&self, res: &mut Resources) -> bool {
@@ -674,6 +665,10 @@ impl Child for OwnChild {
 
     fn name(&self) -> &String {
         &self.name
+    }
+
+    fn arguments(&self) -> &[String] {
+        &self.args
     }
 
     fn daemon(&self) -> bool {
@@ -804,6 +799,10 @@ impl Child for ForeignChild {
 
     fn name(&self) -> &String {
         &self.name
+    }
+
+    fn arguments(&self) -> &[String] {
+        &[]
     }
 
     fn daemon(&self) -> bool {

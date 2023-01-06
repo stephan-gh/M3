@@ -117,9 +117,17 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
         );
         let bfile = loader::BootFile::new(bmod.0, bmod.2 as usize);
         let fd = Activity::own().files().add(Box::new(bfile))?;
-        child
-            .start(act, &mut bmapper, FileRef::new_owned(fd))
-            .map_err(|e| VerboseError::new(e.code(), "Unable to start Activity".to_string()))?;
+
+        let run = act
+            .exec_file(&mut bmapper, FileRef::new_owned(fd), child.arguments())
+            .map_err(|e| {
+                VerboseError::new(
+                    e.code(),
+                    format!("Unable to execute boot module {}", child.name()),
+                )
+            })?;
+
+        child.set_running(Box::new(run));
 
         for a in bmapper.fetch_allocs() {
             child.add_mem(a, None);
