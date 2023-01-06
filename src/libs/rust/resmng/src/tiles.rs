@@ -24,24 +24,6 @@ use m3::syscalls;
 use m3::tcu::{EpId, TileId};
 use m3::tiles::Tile;
 
-struct ManagedTile {
-    id: TileId,
-    tile: Rc<Tile>,
-    users: Cell<u32>,
-}
-
-impl ManagedTile {
-    fn add_user(&self) -> u32 {
-        let old = self.users.get();
-        self.users.set(old + 1);
-        old
-    }
-
-    fn remove_user(&self) -> u32 {
-        self.users.replace(self.users.get() - 1)
-    }
-}
-
 #[derive(Debug)]
 struct PMP {
     next_ep: EpId,
@@ -133,6 +115,24 @@ impl TileUsage {
             pmp: self.pmp.clone(),
             tile,
         })
+    }
+}
+
+struct ManagedTile {
+    id: TileId,
+    tile: Rc<Tile>,
+    users: Cell<u32>,
+}
+
+impl ManagedTile {
+    fn add_user(&self) -> u32 {
+        let old = self.users.get();
+        self.users.set(old + 1);
+        old
+    }
+
+    fn remove_user(&self) -> u32 {
+        self.users.replace(self.users.get() - 1)
     }
 }
 
