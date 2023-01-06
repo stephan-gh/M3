@@ -22,7 +22,7 @@ use m3::log;
 use m3::rc::Rc;
 use m3::syscalls;
 use m3::tcu::{EpId, TileId};
-use m3::tiles::{Activity, Tile};
+use m3::tiles::Tile;
 
 struct ManagedTile {
     id: TileId,
@@ -42,6 +42,7 @@ impl ManagedTile {
     }
 }
 
+#[derive(Debug)]
 struct PMP {
     next_ep: EpId,
     regions: Vec<(MemGate, usize)>,
@@ -57,7 +58,7 @@ impl PMP {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TileUsage {
     idx: Option<usize>,
     pmp: Rc<RefCell<PMP>>,
@@ -149,9 +150,9 @@ impl TileManager {
         self.tiles[idx].tile.clone()
     }
 
-    pub fn add(&mut self, id: TileId, tile: Rc<Tile>) {
+    pub fn add(&mut self, tile: Rc<Tile>) {
         self.tiles.push(ManagedTile {
-            id,
+            id: tile.id(),
             tile,
             users: Cell::from(0),
         });
@@ -198,15 +199,17 @@ impl TileManager {
         Err(Error::new(Code::NotFound))
     }
 
-    pub fn find_with_desc(&self, desc: &str) -> Result<TileUsage, Error> {
-        let own = Activity::own().tile().desc();
-        for props in desc.split('|') {
-            let base = TileDesc::new(own.tile_type(), own.isa(), 0);
+    pub fn find_with_attr(&self, base: TileDesc, attr: &str) -> Result<TileUsage, Error> {
+        for props in attr.split('|') {
             if let Ok(usage) = self.find(base.with_properties(props)) {
                 return Ok(usage);
             }
         }
-        log!(crate::LOG_TILES, "Unable to find tile with desc {}", desc);
+        log!(
+            crate::LOG_TILES,
+            "Unable to find tile with attributes {}",
+            attr
+        );
         Err(Error::new(Code::NotFound))
     }
 }

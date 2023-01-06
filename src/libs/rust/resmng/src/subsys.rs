@@ -144,7 +144,7 @@ impl Subsystem {
         log!(crate::LOG_SUBSYS, "Available tiles:");
         for (i, tile) in self.tiles().iter().enumerate() {
             log!(crate::LOG_SUBSYS, "  {:?}", tile);
-            res.tiles().add(tile.id as TileId, self.get_tile(i));
+            res.tiles().add(self.get_tile(i));
         }
 
         log!(crate::LOG_SUBSYS, "Available memory:");
@@ -319,7 +319,8 @@ impl Subsystem {
         for (idx, dom) in root.domains().iter().enumerate() {
             // allocate new tile; root allocates from its own set, others ask their resmng
             let tile_usage = if dom.pseudo || Activity::own().resmng().is_none() {
-                res.tiles().find_with_desc(&dom.tile.0).map_err(|e| {
+                let base = Activity::own().tile_desc();
+                res.tiles().find_with_attr(base, &dom.tile.0).map_err(|e| {
                     VerboseError::new(
                         e.code(),
                         format!(
@@ -828,11 +829,12 @@ fn pass_down_tiles(
     sub: &mut SubsystemBuilder,
     app: &config::AppConfig,
 ) {
+    let base = Activity::own().tile_desc();
     for d in app.domains() {
         for child in d.apps() {
             for tile in child.tiles() {
                 for _ in 0..tile.count() {
-                    if let Ok(usage) = tiles.find_with_desc(&tile.tile_type().0) {
+                    if let Ok(usage) = tiles.find_with_attr(base, &tile.tile_type().0) {
                         sub.add_tile(usage.tile_id(), usage.tile_obj().clone());
                         tiles.add_user(&usage);
                     }
