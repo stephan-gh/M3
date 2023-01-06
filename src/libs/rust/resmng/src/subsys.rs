@@ -24,7 +24,7 @@ use m3::format;
 use m3::goff;
 use m3::kif::{boot, CapRngDesc, CapType, Perm, FIRST_FREE_SEL};
 use m3::log;
-use m3::mem::{size_of, GlobAddr};
+use m3::mem::size_of;
 use m3::rc::Rc;
 use m3::server::DEF_MAX_CLIENTS;
 use m3::tcu::TileId;
@@ -580,32 +580,23 @@ impl Subsystem {
         // thus interfere with the other activities.
         assert!(child_tile_usage.tile_id() != Activity::own().tile_id() && dom.apps().len() == 1);
 
-        // create MemGate for config substring
-        let cfg_range = cfg.cfg_range();
-        let cfg_len = cfg_range.1 - cfg_range.0;
-        // TODO the resources allocated here currently leak
-        let cfg_slice = res.memory().alloc_mem(cfg_len as goff).map_err(|e| {
-            VerboseError::new(
-                e.code(),
-                format!("Unable to allocate {}b for config", cfg_len),
-            )
-        })?;
-        let mut cfg_mem = cfg_slice.derive()?;
-        cfg_mem.write(self.cfg_str()[cfg_range.0..cfg_range.1].as_bytes(), 0)?;
-        // deactivate the memory gates so that the child can activate them for itself
-        cfg_mem.deactivate();
-
         let mut sub = SubsystemBuilder::default();
 
-        // add boot modules
-        sub.add_mod(cfg_mem, cfg_slice.addr(), cfg_len as goff, "boot.xml");
+        // add subset of the config for this child as first boot module
+        let cfg_range = cfg.cfg_range();
+        let cfg_str = &self.cfg_str()[cfg_range.0..cfg_range.1];
+        sub.add_config(cfg_str, |size| {
+            let cfg_slice = res.memory().alloc_mem(size as goff)?;
+            let mgate = cfg_slice.derive()?;
+            Ok(mgate)
+        })
+        .map_err(|e| VerboseError::new(e.code(), format!("Unable to pass boot.xml to child")))?;
+
+        // add remaining boot modules
         pass_down_mods(res.mods(), &mut sub, cfg)?;
 
         // add tiles
-        sub.add_tile(
-            child_tile_usage.tile_id(),
-            child_tile_usage.tile_obj().clone(),
-        );
+        sub.add_tile(child_tile_usage.tile_obj().clone());
         pass_down_tiles(res.tiles(), &mut sub, cfg);
 
         // serial rgate
@@ -624,17 +615,12 @@ impl Subsystem {
                 format!("Unable to allocate {}b for subsys", sub_mem),
             )
         })?;
-        sub.add_mem(
-            sub_slice.derive()?,
-            sub_slice.addr(),
-            sub_slice.capacity(),
-            sub_slice.in_reserved_mem(),
-        );
+        sub.add_mem(sub_slice.derive()?, sub_slice.in_reserved_mem());
 
         // add services
         for s in cfg.sess_creators() {
             let (sess_frac, sess_fixed) = split_sessions(root, s.serv_name());
-            sub.add_serv(s.serv_name().clone(), sess_frac, sess_fixed, s.sess_count());
+            sub.add_serv(&s.serv_name(), sess_frac, sess_fixed, s.sess_count());
         }
 
         Ok(sub)
@@ -644,30 +630,44 @@ impl Subsystem {
 #[derive(Default)]
 pub struct SubsystemBuilder {
     _desc: Option<MemGate>,
-    tiles: Vec<(TileId, Rc<Tile>)>,
-    mods: Vec<(MemGate, GlobAddr, goff, String)>,
-    mems: Vec<(MemGate, GlobAddr, goff, bool)>,
+    tiles: Vec<Rc<Tile>>,
+    mods: Vec<(MemGate, String)>,
+    mems: Vec<(MemGate, bool)>,
     servs: Vec<(String, u32, u32, Option<u32>)>,
     serv_objs: Vec<services::Service>,
     serial: bool,
 }
 
 impl SubsystemBuilder {
-    pub fn add_mod(&mut self, mem: MemGate, addr: GlobAddr, size: goff, name: &str) {
-        self.mods.push((mem, addr, size, name.to_string()));
+    pub fn add_config<F>(&mut self, cfg: &str, alloc: F) -> Result<(), Error>
+    where
+        F: FnOnce(usize) -> Result<MemGate, Error>,
+    {
+        let mut cfg_mem = alloc(cfg.len())?;
+        cfg_mem.write(cfg.as_bytes(), 0)?;
+        // deactivate the memory gates so that the child can activate them for itself
+        cfg_mem.deactivate();
+
+        self.add_mod(cfg_mem, "boot.xml");
+        Ok(())
     }
 
-    pub fn add_tile(&mut self, id: TileId, tile: Rc<Tile>) {
-        self.tiles.push((id, tile));
+    pub fn add_mod(&mut self, mem: MemGate, name: &str) {
+        self.mods.push((mem, name.to_string()));
     }
 
-    pub fn add_mem(&mut self, mem: MemGate, addr: GlobAddr, size: goff, reserved: bool) {
-        self.mems.push((mem, addr, size, reserved));
+    pub fn add_tile(&mut self, tile: Rc<Tile>) {
+        self.tiles.push(tile);
     }
 
-    pub fn add_serv(&mut self, name: String, sess_frac: u32, sess_fixed: u32, quota: Option<u32>) {
+    pub fn add_mem(&mut self, mem: MemGate, reserved: bool) {
+        self.mems.push((mem, reserved));
+    }
+
+    pub fn add_serv(&mut self, name: &str, sess_frac: u32, sess_fixed: u32, quota: Option<u32>) {
         if !self.servs.iter().any(|s| s.0 == name) {
-            self.servs.push((name, sess_frac, sess_fixed, quota));
+            self.servs
+                .push((name.to_string(), sess_frac, sess_fixed, quota));
         }
     }
 
@@ -722,8 +722,9 @@ impl SubsystemBuilder {
         sel += 1;
 
         // boot modules
-        for (mgate, addr, size, name) in &self.mods {
-            let m = boot::Mod::new(*addr, *size, name);
+        for (mgate, name) in &self.mods {
+            let (addr, size) = mgate.region()?;
+            let m = boot::Mod::new(addr, size, name);
             mem.write_obj(&m, off)?;
 
             act.delegate_to(CapRngDesc::new(CapType::OBJECT, mgate.sel(), 1), sel)?;
@@ -733,8 +734,8 @@ impl SubsystemBuilder {
         }
 
         // tiles
-        for (id, tile) in &self.tiles {
-            let boot_tile = boot::Tile::new(*id, tile.desc());
+        for tile in &self.tiles {
+            let boot_tile = boot::Tile::new(tile.id(), tile.desc());
             mem.write_obj(&boot_tile, off)?;
 
             act.delegate_to(CapRngDesc::new(CapType::OBJECT, tile.sel(), 1), sel)?;
@@ -744,8 +745,9 @@ impl SubsystemBuilder {
         }
 
         // memory regions
-        for (mgate, addr, size, reserved) in &self.mems {
-            let boot_mem = boot::Mem::new(*addr, *size, *reserved);
+        for (mgate, reserved) in &self.mems {
+            let (addr, size) = mgate.region()?;
+            let boot_mem = boot::Mem::new(addr, size, *reserved);
             mem.write_obj(&boot_mem, off)?;
 
             act.delegate_to(CapRngDesc::new(CapType::OBJECT, mgate.sel(), 1), sel)?;
@@ -835,7 +837,7 @@ fn pass_down_tiles(
             for tile in child.tiles() {
                 for _ in 0..tile.count() {
                     if let Ok(usage) = tiles.find_with_attr(base, &tile.tile_type().0) {
-                        sub.add_tile(usage.tile_id(), usage.tile_obj().clone());
+                        sub.add_tile(usage.tile_obj().clone());
                         tiles.add_user(&usage);
                     }
                 }
@@ -879,7 +881,7 @@ fn pass_down_mods(
                 // derive memory cap with potentially reduced permissions
                 let mgate = bmod.memory().derive(0, bmod.size() as usize, m.perm())?;
 
-                sub.add_mod(mgate, bmod.addr(), bmod.size(), bmod.name());
+                sub.add_mod(mgate, bmod.name());
             }
 
             pass_down_mods(mods, sub, child)?;
