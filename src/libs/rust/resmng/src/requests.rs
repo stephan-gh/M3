@@ -13,14 +13,16 @@
  * General Public License version 2 for more details.
  */
 
+use m3::boxed::Box;
 use m3::com::{GateIStream, RecvGate};
 use m3::errors::{Code, Error, VerboseError};
 use m3::log;
 use m3::reply_vmsg;
 use m3::session::resmng;
 use m3::tiles::Activity;
+use m3::vec::Vec;
 
-use crate::childs::{ChildManager, Id};
+use crate::childs::{ChildManager, Id, OwnChild};
 use crate::res::Resources;
 use crate::sendqueue;
 use crate::subsys::{self, ChildStarter};
@@ -41,6 +43,7 @@ impl Requests {
     pub fn run_loop<F>(
         &self,
         childs: &mut ChildManager,
+        delayed: &mut Vec<Box<OwnChild>>,
         res: &mut Resources,
         mut func: F,
         starter: &mut dyn ChildStarter,
@@ -55,7 +58,7 @@ impl Requests {
                 if let Ok(msg) = self.rgate.fetch() {
                     let is = GateIStream::new(msg, &self.rgate);
                     self.handle_request_async(childs, res, is);
-                    subsys::start_delayed_async(childs, self, res, starter)?;
+                    subsys::start_delayed_async(childs, delayed, self, res, starter)?;
                 }
             }
 

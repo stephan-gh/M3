@@ -21,7 +21,7 @@ use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cell::{LazyReadOnlyCell, StaticCell};
 use m3::cfg;
-use m3::col::ToString;
+use m3::col::{ToString, Vec};
 use m3::com::{MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
@@ -192,16 +192,22 @@ fn create_rgate(
     Ok(rgate)
 }
 
-struct WorkloopArgs<'c, 'q, 'r> {
+struct WorkloopArgs<'c, 'd, 'q, 'r> {
     childs: &'c mut ChildManager,
+    delayed: &'d mut Vec<Box<OwnChild>>,
     reqs: &'q requests::Requests,
     res: &'r mut Resources,
 }
 
-fn workloop(args: &mut WorkloopArgs<'_, '_, '_>) {
-    let WorkloopArgs { childs, reqs, res } = args;
+fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_>) {
+    let WorkloopArgs {
+        childs,
+        delayed,
+        reqs,
+        res,
+    } = args;
 
-    reqs.run_loop(childs, res, |_, _| {}, &mut RootChildStarter {})
+    reqs.run_loop(childs, delayed, res, |_, _| {}, &mut RootChildStarter {})
         .expect("Running the workloop failed");
 }
 
@@ -259,8 +265,15 @@ pub fn main() -> Result<(), Error> {
     sendqueue::init(squeue_rgate);
 
     let mut childs = childs::ChildManager::default();
+
+    let mut delayed = SUBSYS
+        .get()
+        .start(&mut childs, &reqs, &mut res, &mut RootChildStarter {})
+        .expect("Unable to start subsystem");
+
     let mut wargs = WorkloopArgs {
         childs: &mut childs,
+        delayed: &mut delayed,
         reqs: &reqs,
         res: &mut res,
     };
@@ -272,16 +285,6 @@ pub fn main() -> Result<(), Error> {
             &mut wargs as *mut _ as usize,
         );
     }
-
-    SUBSYS
-        .get()
-        .start(
-            wargs.childs,
-            wargs.reqs,
-            wargs.res,
-            &mut RootChildStarter {},
-        )
-        .expect("Unable to start subsystem");
 
     wargs.childs.start_waiting(1);
 

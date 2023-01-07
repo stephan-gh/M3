@@ -15,7 +15,7 @@
 
 use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::{RefCell, StaticRefCell};
+use m3::cell::RefCell;
 use m3::cfg::PAGE_SIZE;
 use m3::col::{String, ToString, Vec};
 use m3::com::MemGate;
@@ -53,10 +53,6 @@ const DEF_TIME_SLICE: u64 = 1_000_000; // 1ms
 const OUR_EPS: u32 = 16;
 
 pub(crate) const SERIAL_RGATE_SEL: Selector = SUBSYS_SELS + 1;
-
-// use Box here, because we also store them in the ChildManager, which expects them to be boxed
-#[allow(clippy::vec_box)]
-static DELAYED: StaticRefCell<Vec<Box<childs::OwnChild>>> = StaticRefCell::new(Vec::new());
 
 pub struct Arguments {
     pub max_clients: usize,
@@ -296,7 +292,9 @@ impl Subsystem {
         reqs: &Requests,
         res: &mut Resources,
         starter: &mut dyn ChildStarter,
-    ) -> Result<(), VerboseError> {
+    ) -> Result<Vec<Box<childs::OwnChild>>, VerboseError> {
+        let mut delayed = Vec::new();
+
         let root = self.cfg();
         if Activity::own().resmng().is_none() {
             root.check(res.tiles());
@@ -561,11 +559,11 @@ impl Subsystem {
                     childs.add(child);
                 }
                 else {
-                    DELAYED.borrow_mut().push(child);
+                    delayed.push(child);
                 }
             }
         }
-        Ok(())
+        Ok(delayed)
     }
 
     fn build_subsystem(
@@ -806,19 +804,20 @@ impl SubsystemBuilder {
 
 pub(crate) fn start_delayed_async(
     childs: &mut childs::ChildManager,
+    delayed: &mut Vec<Box<childs::OwnChild>>,
     reqs: &Requests,
     res: &mut Resources,
     starter: &mut dyn ChildStarter,
 ) -> Result<(), VerboseError> {
     let mut new_wait = false;
     let mut idx = 0;
-    while idx < DELAYED.borrow().len() {
-        if DELAYED.borrow()[idx].has_unmet_reqs(res) {
+    while idx < delayed.len() {
+        if delayed[idx].has_unmet_reqs(res) {
             idx += 1;
             continue;
         }
 
-        let mut child = DELAYED.borrow_mut().remove(idx);
+        let mut child = delayed.remove(idx);
         starter.start(reqs, res, &mut child)?;
         childs.add(child);
         new_wait = true;

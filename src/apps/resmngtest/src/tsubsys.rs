@@ -141,7 +141,9 @@ fn start(t: &mut dyn WvTester) {
         }
 
         let cid = childs.next_id();
-        wv_assert_ok!(child_sub.start(&mut childs, &reqs, &mut res, &mut TestStarter {}));
+        let delayed =
+            wv_assert_ok!(child_sub.start(&mut childs, &reqs, &mut res, &mut TestStarter {}));
+        wv_assert_eq!(t, delayed.len(), 0);
 
         wv_assert_eq!(t, childs.children(), 1);
         wv_assert_eq!(t, childs.daemons(), 0);

@@ -288,16 +288,18 @@ fn handle_request(
     }
 }
 
-struct WorkloopArgs<'c, 'r, 'q, 's> {
+struct WorkloopArgs<'c, 'd, 'r, 'q, 's> {
     childs: &'c mut ChildManager,
+    delayed: &'d mut Vec<Box<OwnChild>>,
     res: &'r mut Resources,
     reqs: &'q requests::Requests,
     serv: &'s mut Server,
 }
 
-fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_>) {
+fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_, '_>) {
     let WorkloopArgs {
         childs,
+        delayed,
         res,
         reqs,
         serv,
@@ -305,6 +307,7 @@ fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_>) {
 
     reqs.run_loop(
         childs,
+        delayed,
         res,
         |childs, _res| {
             serv.handle_ctrl_chan(PGHDL.borrow_mut().deref_mut()).ok();
@@ -377,8 +380,14 @@ pub fn main() -> Result<(), Error> {
     sendqueue::init(squeue_rgate);
 
     let mut childs = childs::ChildManager::default();
+
+    let mut delayed = subsys
+        .start(&mut childs, &reqs, &mut res, &mut PagedChildStarter {})
+        .expect("Unable to start subsystem");
+
     let mut wargs = WorkloopArgs {
         childs: &mut childs,
+        delayed: &mut delayed,
         res: &mut res,
         reqs: &reqs,
         serv: &mut serv,
@@ -391,15 +400,6 @@ pub fn main() -> Result<(), Error> {
             &mut wargs as *mut _ as usize,
         );
     }
-
-    subsys
-        .start(
-            wargs.childs,
-            wargs.reqs,
-            wargs.res,
-            &mut PagedChildStarter {},
-        )
-        .expect("Unable to start subsystem");
 
     wargs.childs.start_waiting(1);
 
