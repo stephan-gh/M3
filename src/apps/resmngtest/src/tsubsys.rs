@@ -15,7 +15,7 @@
 
 use m3::boxed::Box;
 use m3::com::{MemGate, RGateArgs, RecvGate};
-use m3::errors::{Code, VerboseError};
+use m3::errors::{Code, Error, VerboseError};
 use m3::kif::Perm;
 use m3::test::{DefaultWvTester, WvTester};
 use m3::tiles::{ActivityArgs, ChildActivity, RunningActivity, RunningDeviceActivity, Tile};
@@ -30,7 +30,8 @@ use resmng::tiles::TileUsage;
 
 pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, subsys_builder);
-    wv_run_test!(t, start);
+    wv_run_test!(t, start_simple);
+    wv_run_test!(t, start_service_deps);
 }
 
 fn subsys_builder(t: &mut dyn WvTester) {
@@ -72,7 +73,36 @@ fn subsys_builder(t: &mut dyn WvTester) {
     wv_assert_eq!(t, run.wait(), Ok(Code::Success));
 }
 
-fn start(t: &mut dyn WvTester) {
+struct TestStarter {}
+impl ChildStarter for TestStarter {
+    fn start(
+        &mut self,
+        _reqs: &Requests,
+        _res: &mut Resources,
+        child: &mut OwnChild,
+    ) -> Result<(), VerboseError> {
+        let act = wv_assert_ok!(ChildActivity::new(
+            child.child_tile().unwrap().tile_obj().clone(),
+            child.name(),
+        ));
+
+        let run = RunningDeviceActivity::new(act);
+        child.set_running(Box::new(run));
+
+        Ok(())
+    }
+
+    fn configure_tile(
+        &mut self,
+        _res: &mut Resources,
+        _tile: &TileUsage,
+        _dom: &Domain,
+    ) -> Result<(), VerboseError> {
+        Ok(())
+    }
+}
+
+fn run_subsys(t: &mut dyn WvTester, cfg: &str, func: fn() -> Result<(), Error>) {
     let tile = wv_assert_ok!(Tile::get("clone|own"));
     let mut child = wv_assert_ok!(ChildActivity::new_with(
         tile.clone(),
@@ -82,14 +112,7 @@ fn start(t: &mut dyn WvTester) {
     let (_our_sub, mut res) = wv_assert_ok!(Subsystem::new());
     let mut child_sub = SubsystemBuilder::default();
 
-    wv_assert_ok!(child_sub.add_config(
-        "<app args=\"resmngtest\">
-             <dom>
-                 <app args=\"/bin/rusthello\"/>
-             </dom>
-         </app>",
-        |size| MemGate::new(size, Perm::RW)
-    ));
+    wv_assert_ok!(child_sub.add_config(cfg, |size| MemGate::new(size, Perm::RW)));
     let tile_quota = wv_assert_ok!(tile.quota());
     child_sub.add_tile(wv_assert_ok!(tile.derive(
         Some(tile_quota.endpoints().remaining() / 2),
@@ -99,64 +122,110 @@ fn start(t: &mut dyn WvTester) {
 
     wv_assert_ok!(child_sub.finalize_async(&mut res, 0, &mut child));
 
-    let run = wv_assert_ok!(child.run(|| {
-        let mut t = DefaultWvTester::default();
-
-        let req_rgate = wv_assert_ok!(RecvGate::new_with(
-            RGateArgs::default().order(6).msg_order(6),
-        ));
-        let reqs = Requests::new(req_rgate);
-
-        let mut childs = ChildManager::default();
-
-        let (child_sub, mut res) = wv_assert_ok!(Subsystem::new());
-
-        struct TestStarter {}
-        impl ChildStarter for TestStarter {
-            fn start(
-                &mut self,
-                _reqs: &Requests,
-                _res: &mut Resources,
-                child: &mut OwnChild,
-            ) -> Result<(), VerboseError> {
-                let act = wv_assert_ok!(ChildActivity::new(
-                    child.child_tile().unwrap().tile_obj().clone(),
-                    child.name(),
-                ));
-
-                let run = RunningDeviceActivity::new(act);
-                child.set_running(Box::new(run));
-
-                Ok(())
-            }
-
-            fn configure_tile(
-                &mut self,
-                _res: &mut Resources,
-                _tile: &TileUsage,
-                _dom: &Domain,
-            ) -> Result<(), VerboseError> {
-                Ok(())
-            }
-        }
-
-        let cid = childs.next_id();
-        let delayed =
-            wv_assert_ok!(child_sub.start(&mut childs, &reqs, &mut res, &mut TestStarter {}));
-        wv_assert_eq!(t, delayed.len(), 0);
-
-        wv_assert_eq!(t, childs.children(), 1);
-        wv_assert_eq!(t, childs.daemons(), 0);
-        wv_assert_eq!(t, childs.foreigns(), 0);
-
-        let child = wv_assert_some!(childs.child_by_id(cid));
-
-        childs.kill_child_async(&reqs, &mut res, child.activity_sel(), Code::Success);
-
-        wv_assert_eq!(t, childs.children(), 0);
-
-        Ok(())
-    }));
+    let run = wv_assert_ok!(child.run(func));
 
     wv_assert_eq!(t, run.wait(), Ok(Code::Success));
+}
+
+fn setup_resmng() -> (Requests, ChildManager, Subsystem, Resources) {
+    let req_rgate = wv_assert_ok!(RecvGate::new_with(
+        RGateArgs::default().order(6).msg_order(6),
+    ));
+    let reqs = Requests::new(req_rgate);
+
+    let childs = ChildManager::default();
+
+    let (child_sub, res) = wv_assert_ok!(Subsystem::new());
+
+    (reqs, childs, child_sub, res)
+}
+
+fn start_simple(t: &mut dyn WvTester) {
+    run_subsys(
+        t,
+        "<app args=\"resmngtest\">
+             <dom>
+                 <app args=\"/bin/rusthello\"/>
+             </dom>
+         </app>",
+        || {
+            let mut t = DefaultWvTester::default();
+
+            let (reqs, mut childs, child_sub, mut res) = setup_resmng();
+
+            let cid = childs.next_id();
+            let delayed =
+                wv_assert_ok!(child_sub.start(&mut childs, &reqs, &mut res, &mut TestStarter {}));
+            wv_assert_eq!(t, delayed.len(), 0);
+
+            wv_assert_eq!(t, childs.children(), 1);
+            wv_assert_eq!(t, childs.daemons(), 0);
+            wv_assert_eq!(t, childs.foreigns(), 0);
+
+            let child = wv_assert_some!(childs.child_by_id(cid));
+
+            childs.kill_child_async(&reqs, &mut res, child.activity_sel(), Code::Success);
+
+            wv_assert_eq!(t, childs.children(), 0);
+
+            Ok(())
+        },
+    );
+}
+
+fn start_service_deps(t: &mut dyn WvTester) {
+    run_subsys(
+        t,
+        "<app args=\"resmngtest\">
+             <dom>
+                 <app args=\"1\">
+                    <serv name=\"serv\"/>
+                 </app>
+                 <app args=\"2\">
+                    <sess name=\"serv\"/>
+                 </app>
+                 <app args=\"3\">
+                 </app>
+                 <app args=\"4\">
+                    <sess name=\"serv\" dep=\"false\"/>
+                 </app>
+             </dom>
+         </app>",
+        || {
+            let mut t = DefaultWvTester::default();
+
+            let (reqs, mut childs, child_sub, mut res) = setup_resmng();
+
+            let cid = childs.next_id();
+            let delayed =
+                wv_assert_ok!(child_sub.start(&mut childs, &reqs, &mut res, &mut TestStarter {}));
+            wv_assert_eq!(t, delayed.len(), 1);
+            wv_assert_eq!(t, delayed[0].name(), "2");
+            wv_assert_eq!(t, delayed[0].has_unmet_reqs(&mut res), true);
+
+            wv_assert_eq!(t, childs.children(), 3);
+            wv_assert_eq!(t, childs.daemons(), 0);
+            wv_assert_eq!(t, childs.foreigns(), 0);
+
+            let c1 = wv_assert_some!(childs.child_by_id(cid + 0));
+            wv_assert_eq!(t, c1.name(), "1");
+            childs.kill_child_async(&reqs, &mut res, c1.activity_sel(), Code::Success);
+
+            wv_assert_eq!(t, childs.children(), 2);
+
+            let c2 = wv_assert_some!(childs.child_by_id(cid + 2));
+            wv_assert_eq!(t, c2.name(), "3");
+            childs.kill_child_async(&reqs, &mut res, c2.activity_sel(), Code::Success);
+
+            wv_assert_eq!(t, childs.children(), 1);
+
+            let c3 = wv_assert_some!(childs.child_by_id(cid + 3));
+            wv_assert_eq!(t, c3.name(), "4");
+            childs.kill_child_async(&reqs, &mut res, c3.activity_sel(), Code::Success);
+
+            wv_assert_eq!(t, childs.children(), 0);
+
+            Ok(())
+        },
+    );
 }
