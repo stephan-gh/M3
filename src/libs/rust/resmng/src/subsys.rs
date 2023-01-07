@@ -397,9 +397,9 @@ impl Subsystem {
 
             for cfg in dom.apps() {
                 // accumulate child time, pts, and kmem
-                domain_total_time += cfg.time.unwrap_or(DEF_TIME_SLICE);
-                domain_total_pts += cfg.pts.unwrap_or(shared_pts / pt_sharer);
-                domain_kmem_bytes += cfg.kern_mem.unwrap_or(def_kmem);
+                domain_total_time += cfg.time().unwrap_or(DEF_TIME_SLICE);
+                domain_total_pts += cfg.page_tables().unwrap_or(shared_pts / pt_sharer);
+                domain_kmem_bytes += cfg.kernel_mem().unwrap_or(def_kmem);
             }
 
             // derive kmem for the entire domain. All apps that did not specify a kmem quota will
@@ -471,21 +471,23 @@ impl Subsystem {
                     // a resource manager has to be able to set PMPs and thus needs the root tile
                     (None, tile_usage.clone())
                 }
-                else if cfg.eps.is_some() || cfg.time.is_some() || cfg.pts.is_some() {
+                else if cfg.eps().is_some() || cfg.time().is_some() || cfg.page_tables().is_some()
+                {
                     // if the child wants any specific quota, derive from the base tile object
                     let base = domain_pe_usage.as_ref().unwrap();
                     (
                         // keep the base object around in case there are no other children using it
                         Some(base.clone()),
-                        base.derive(cfg.eps, cfg.time, cfg.pts).map_err(|e| {
-                            VerboseError::new(
-                                e.code(),
-                                format!(
-                                    "Unable to derive new tile with {:?} EPs, {:?} time, {:?} pts",
-                                    cfg.eps, cfg.time, cfg.pts,
-                                ),
-                            )
-                        })?,
+                        base.derive(cfg.eps(), cfg.time(), cfg.page_tables())
+                            .map_err(|e| {
+                                VerboseError::new(
+                                    e.code(),
+                                    format!(
+                                        "Unable to derive new tile with {:?} EPs, {:?} time, {:?} pts",
+                                        cfg.eps(), cfg.time(), cfg.page_tables(),
+                                    ),
+                                )
+                            })?,
                     )
                 }
                 else {
@@ -521,7 +523,7 @@ impl Subsystem {
                 };
 
                 // build subsystem if this child contains domains
-                let sub = if !cfg.domains.is_empty() {
+                let sub = if !cfg.domains().is_empty() {
                     Some(self.build_subsystem(
                         res,
                         cfg,
@@ -854,7 +856,7 @@ fn pass_down_tiles(
 fn pass_down_serial(sub: &mut SubsystemBuilder, app: &config::AppConfig) {
     for d in app.domains() {
         for child in d.apps() {
-            if child.serial.is_some() {
+            if child.can_get_serial() {
                 sub.add_serial();
             }
             pass_down_serial(sub, child);
@@ -981,7 +983,7 @@ fn split_pts(total_pts: usize, d: &config::Domain) -> (usize, usize) {
     let mut pt_sharer = 0;
     let mut rem_pts = total_pts;
     for cfg in d.apps() {
-        match cfg.pts {
+        match cfg.page_tables() {
             Some(n) => {
                 assert!(rem_pts >= n);
                 rem_pts -= n;

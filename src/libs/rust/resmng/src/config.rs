@@ -432,6 +432,10 @@ impl AppConfig {
         self.getinfo
     }
 
+    pub fn can_get_serial(&self) -> bool {
+        self.serial.is_some()
+    }
+
     pub fn eps(&self) -> Option<u32> {
         self.eps
     }
