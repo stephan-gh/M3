@@ -19,7 +19,6 @@ mod loader;
 
 use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::{LazyReadOnlyCell, StaticCell};
 use m3::cfg;
 use m3::col::{ToString, Vec};
 use m3::com::{MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
@@ -39,45 +38,63 @@ use m3::vfs::FileRef;
 use resmng::childs::{self, Child, ChildManager, OwnChild};
 use resmng::{config, memory, requests, res::Resources, sendqueue, subsys, tiles};
 
-static SUBSYS: LazyReadOnlyCell<subsys::Subsystem> = LazyReadOnlyCell::default();
-static LOADED_BMODS: StaticCell<u64> = StaticCell::new(0);
-static PMP_BMODS: StaticCell<u64> = StaticCell::new(0);
-
-fn fetch_mod(mask: &StaticCell<u64>, name: &str) -> Option<(MemGate, GlobAddr, goff)> {
-    SUBSYS
-        .get()
-        .mods()
-        .iter()
-        .enumerate()
-        .position(|(idx, m)| (mask.get() & (1 << idx)) == 0 && m.name() == name)
-        .map(|idx| {
-            mask.set(mask.get() | 1 << idx);
-            let bmod = SUBSYS.get().mods()[idx];
-            (
-                subsys::Subsystem::get_mod(idx),
-                GlobAddr::new(bmod.addr),
-                bmod.size,
-            )
-        })
+struct RootChildStarter {
+    bmods: Vec<kif::boot::Mod>,
+    loaded_bmods: u64,
+    pmp_bmods: u64,
 }
 
-fn modules_range(domain: &config::Domain) -> Result<(GlobAddr, goff), VerboseError> {
-    let mut start = goff::MAX;
-    let mut end = 0;
-    for app in domain.apps() {
-        let (_mgate, addr, size) = fetch_mod(&PMP_BMODS, app.name()).ok_or_else(|| {
-            VerboseError::new(
-                Code::NotFound,
-                format!("Unable to find boot module {}", app.name()),
-            )
-        })?;
-        start = start.min(addr.raw());
-        end = end.max(addr.raw() + size);
+impl RootChildStarter {
+    fn new(bmods: Vec<kif::boot::Mod>) -> Self {
+        Self {
+            bmods,
+            loaded_bmods: 0,
+            pmp_bmods: 0,
+        }
     }
-    Ok((GlobAddr::new(start), end - start))
-}
 
-struct RootChildStarter {}
+    fn fetch_mod(&mut self, name: &str, pmp: bool) -> Option<(MemGate, GlobAddr, goff)> {
+        let RootChildStarter {
+            bmods,
+            loaded_bmods,
+            pmp_bmods,
+        } = self;
+
+        let mask = if pmp { pmp_bmods } else { loaded_bmods };
+
+        bmods
+            .iter()
+            .enumerate()
+            .position(|(idx, m)| (*mask & (1 << idx)) == 0 && m.name() == name)
+            .map(|idx| {
+                *mask = *mask | 1 << idx;
+                (
+                    subsys::Subsystem::get_mod(idx),
+                    GlobAddr::new(bmods[idx].addr),
+                    bmods[idx].size,
+                )
+            })
+    }
+
+    fn modules_range(&mut self, domain: &config::Domain) -> Result<(GlobAddr, goff), VerboseError> {
+        let mut start = goff::MAX;
+        let mut end = 0;
+
+        for app in domain.apps() {
+            let (_mgate, addr, size) = self.fetch_mod(app.name(), true).ok_or_else(|| {
+                VerboseError::new(
+                    Code::NotFound,
+                    format!("Unable to find boot module {}", app.name()),
+                )
+            })?;
+
+            start = start.min(addr.raw());
+            end = end.max(addr.raw() + size);
+        }
+
+        Ok((GlobAddr::new(start), end - start))
+    }
+}
 
 impl resmng::subsys::ChildStarter for RootChildStarter {
     fn start(
@@ -86,7 +103,8 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
         res: &mut Resources,
         child: &mut OwnChild,
     ) -> Result<(), VerboseError> {
-        let bmod = fetch_mod(&LOADED_BMODS, child.cfg().name())
+        let bmod = self
+            .fetch_mod(child.cfg().name(), false)
             .ok_or_else(|| Error::new(Code::NotFound))?;
 
         #[allow(clippy::useless_conversion)]
@@ -151,7 +169,7 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
             // determine minimum range of boot modules we need to give access to to cover all boot
             // modules that are run on this tile. note that these should always be contiguous,
             // because we collect the boot modules from the config.
-            let range = modules_range(domain)?;
+            let range = self.modules_range(domain)?;
             let mslice = res.memory().find_mem(range.0, range.1, kif::Perm::RW)?;
 
             // create memory gate for this range
@@ -192,22 +210,24 @@ fn create_rgate(
     Ok(rgate)
 }
 
-struct WorkloopArgs<'c, 'd, 'q, 'r> {
+struct WorkloopArgs<'s, 'c, 'd, 'q, 'r> {
+    starter: &'s mut RootChildStarter,
     childs: &'c mut ChildManager,
     delayed: &'d mut Vec<Box<OwnChild>>,
     reqs: &'q requests::Requests,
     res: &'r mut Resources,
 }
 
-fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_>) {
+fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_, '_>) {
     let WorkloopArgs {
+        starter,
         childs,
         delayed,
         reqs,
         res,
     } = args;
 
-    reqs.run_loop(childs, delayed, res, |_, _| {}, &mut RootChildStarter {})
+    reqs.run_loop(childs, delayed, res, |_, _| {}, *starter)
         .expect("Running the workloop failed");
 }
 
@@ -220,7 +240,6 @@ pub fn main() -> Result<(), Error> {
             .add_sem(sem.clone())
             .expect("Unable to add semaphore");
     }
-    SUBSYS.set(sub);
 
     let max_msg_size = 1 << 8;
     let buf_size = max_msg_size * args.max_clients;
@@ -266,12 +285,14 @@ pub fn main() -> Result<(), Error> {
 
     let mut childs = childs::ChildManager::default();
 
-    let mut delayed = SUBSYS
-        .get()
-        .start(&mut childs, &reqs, &mut res, &mut RootChildStarter {})
+    let mut starter = RootChildStarter::new(sub.mods().clone());
+
+    let mut delayed = sub
+        .start(&mut childs, &reqs, &mut res, &mut starter)
         .expect("Unable to start subsystem");
 
     let mut wargs = WorkloopArgs {
+        starter: &mut starter,
         childs: &mut childs,
         delayed: &mut delayed,
         reqs: &reqs,
