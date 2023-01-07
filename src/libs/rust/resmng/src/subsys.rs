@@ -500,17 +500,16 @@ impl Subsystem {
                 res.tiles().add_user(&child_tile_usage);
 
                 // kernel memory for child
-                let kmem = if cfg.kernel_mem().is_none() {
-                    domain_kmem.clone()
-                }
-                else {
-                    let kmem_bytes = cfg.kernel_mem().unwrap_or(def_kmem);
+                let kmem = if let Some(kmem_bytes) = cfg.kernel_mem() {
                     domain_kmem.derive(kmem_bytes).map_err(|e| {
                         VerboseError::new(
                             e.code(),
                             format!("Unable to derive {}b of kernel memory", kmem_bytes),
                         )
                     })?
+                }
+                else {
+                    domain_kmem.clone()
                 };
 
                 // determine user memory for child
