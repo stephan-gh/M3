@@ -69,7 +69,7 @@ impl ChildMem {
         &self.pool
     }
 
-    pub(crate) fn quota(&self) -> goff {
+    pub fn quota(&self) -> goff {
         self.quota.get()
     }
 

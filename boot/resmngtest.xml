@@ -19,7 +19,7 @@
                     <dom>
                         <app args="/bin/resmngtest">
                             <mount fs="m3fs" path="/" />
-                            <tiles type="core" count="2" />
+                            <tiles type="core" count="4" />
                             <dom>
                                 <app args="rusthello" />
                             </dom>
