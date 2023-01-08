@@ -24,7 +24,7 @@ mod std;
 pub use self::serial::*;
 pub use self::std::{stderr, stdin, stdout};
 pub use self::std::{STDERR_FILENO, STDIN_FILENO, STDOUT_FILENO};
-pub use base::io::{read_object, Read, Serial, Write};
+pub use base::io::{log_bytes, log_slice, read_object, Read, Serial, Write};
 
 /// Uses stdout to print `$fmt` with given arguments.
 #[macro_export]
