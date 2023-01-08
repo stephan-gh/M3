@@ -15,14 +15,13 @@
 
 use core::fmt;
 use m3::cell::Cell;
-use m3::col::{BTreeMap, BTreeSet, String, Vec};
+use m3::col::{String, Vec};
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::rc::Rc;
 use m3::tcu::Label;
 
 use crate::parser;
-use crate::tiles::TileManager;
 
 #[derive(Default, Eq, PartialEq)]
 pub struct DualName {
@@ -318,6 +317,10 @@ impl TileDesc {
         }
     }
 
+    pub fn optional(&self) -> bool {
+        self.optional
+    }
+
     pub fn tile_type(&self) -> &TileType {
         &self.ty
     }
@@ -579,129 +582,6 @@ impl AppConfig {
 
     pub fn count_apps(&self) -> usize {
         self.domains.iter().fold(0, |total, d| total + d.apps.len())
-    }
-
-    pub fn check(&self, tile_mng: &TileManager) {
-        self.check_services(&BTreeSet::new());
-        self.check_gates();
-        self.check_tiles(tile_mng);
-    }
-
-    fn count_tiles(tile_mng: &TileManager, tile: &TileDesc) -> u32 {
-        let mut count = 0;
-        for i in 0..tile_mng.count() {
-            if tile.tile_type().matches(tile_mng.get(i).desc()) {
-                count += 1;
-            }
-        }
-        count
-    }
-
-    fn check_tiles(&self, tile_mng: &TileManager) {
-        for d in &self.domains {
-            for a in &d.apps {
-                a.check_tiles(tile_mng);
-            }
-        }
-
-        for tile in &self.tiles {
-            if !tile.optional {
-                let available = Self::count_tiles(tile_mng, tile);
-                if available < tile.count.get() {
-                    panic!(
-                        "AppConfig '{}' needs tile type '{}' {} times, but {} are available",
-                        self.name(),
-                        tile.tile_type().0,
-                        tile.count.get(),
-                        available
-                    );
-                }
-            }
-        }
-    }
-
-    fn check_services(&self, parent_set: &BTreeSet<String>) {
-        let mut set = BTreeSet::new();
-        for d in &self.domains {
-            for a in &d.apps {
-                for serv in a.services() {
-                    if set.contains(serv.name().global()) {
-                        panic!(
-                            "config '{}': service '{}' does already exist",
-                            a.name(),
-                            serv.name().global()
-                        );
-                    }
-                    set.insert(serv.name().global().clone());
-                }
-            }
-        }
-
-        let mut subset = set.clone();
-        for s in parent_set.iter() {
-            if !subset.contains(s) {
-                subset.insert(s.clone());
-            }
-        }
-        for d in &self.domains {
-            for a in &d.apps {
-                a.check_services(&subset);
-            }
-        }
-
-        for sess in self.sessions() {
-            if !set.contains(sess.name().global()) && !parent_set.contains(sess.name().global()) {
-                panic!(
-                    "config '{}': service '{}' does not exist",
-                    self.name(),
-                    sess.name().global()
-                );
-            }
-        }
-    }
-
-    fn check_gates(&self) {
-        let mut map = BTreeMap::new();
-        for d in &self.domains {
-            for a in &d.apps {
-                for rgate in a.rgates() {
-                    if map.contains_key(rgate.name().global()) {
-                        panic!(
-                            "config '{}': rgate '{}' does already exist",
-                            a.name(),
-                            rgate.name().global()
-                        );
-                    }
-                    map.insert(rgate.name().global().clone(), rgate.slots());
-                }
-            }
-        }
-
-        for d in &self.domains {
-            for a in &d.apps {
-                a.check_gates();
-
-                for sgate in a.sgates() {
-                    match map.get_mut(sgate.name().global()) {
-                        Some(s) => {
-                            if *s == 0 {
-                                panic!(
-                                    "config '{}': not enough slots in rgate '{}'",
-                                    a.name(),
-                                    sgate.name().global()
-                                );
-                            }
-                            *s -= 1;
-                        },
-                        None => panic!(
-                            "config '{}': rgate '{}' does not exist",
-                            a.name(),
-                            sgate.name().global()
-                        ),
-                    }
-                }
-            }
-        }
     }
 
     fn print_rec(&self, f: &mut fmt::Formatter<'_>, layer: usize) -> Result<(), fmt::Error> {

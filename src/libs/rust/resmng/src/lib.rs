@@ -32,6 +32,7 @@ pub mod sendqueue;
 pub mod services;
 pub mod subsys;
 pub mod tiles;
+pub mod validator;
 
 /// Logs general operations
 pub const LOG_DEF: bool = true;

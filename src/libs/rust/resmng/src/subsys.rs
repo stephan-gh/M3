@@ -39,6 +39,7 @@ use crate::requests::Requests;
 use crate::res::Resources;
 use crate::services;
 use crate::tiles;
+use crate::validator;
 
 //
 // Our parent/kernel initializes our cap space as follows:
@@ -297,7 +298,7 @@ impl Subsystem {
 
         let root = self.cfg();
         if Activity::own().resmng().is_none() {
-            root.check(res.tiles());
+            validator::validate(root, res)?;
         }
 
         // mark own tile as used to ensure that we allocate a different one for the next domain in
