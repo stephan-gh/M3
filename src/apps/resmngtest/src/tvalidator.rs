@@ -13,7 +13,8 @@
  * General Public License version 2 for more details.
  */
 
-use m3::kif::{TileDesc, TileType, TileISA};
+use m3::mem::GlobAddr;
+use m3::kif::{TileDesc, TileType, TileISA, boot};
 use m3::tiles::Tile;
 use m3::tcu::TileId;
 use m3::rc::Rc;
@@ -29,6 +30,7 @@ pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, services);
     wv_run_test!(t, gates);
     wv_run_test!(t, tiles);
+    wv_run_test!(t, mods);
 }
 
 fn services(t: &mut dyn WvTester) {
@@ -196,6 +198,33 @@ fn tiles(t: &mut dyn WvTester) {
             <app args=\"foo\">
                 <tiles type=\"boom|core\" count=\"1\"/>
                 <tiles type=\"indir\" count=\"1\"/>
+            </app>
+        </app>";
+        let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
+        wv_assert_ok!(validator::validate(&cfg, &mut res));
+    }
+}
+
+fn mods(t: &mut dyn WvTester) {
+    let mut res = Resources::default();
+    res.mods().add(0, &boot::Mod::new(GlobAddr::new(0x1000), 0x123, "foo"));
+    res.mods().add(1, &boot::Mod::new(GlobAddr::new(0x2000), 0x456, "bar"));
+
+    {
+        let cfg_str = "<app args=\"ourself\">
+            <app args=\"foo\">
+                <mod name=\"nope\"/>
+            </app>
+        </app>";
+        let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
+        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::NotFound);
+    }
+
+    {
+        let cfg_str = "<app args=\"ourself\">
+            <app args=\"foo\">
+                <mod name=\"foo\"/>
+                <mod lname=\"test\" gname=\"bar\"/>
             </app>
         </app>";
         let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));

@@ -23,7 +23,8 @@ use crate::resources::Resources;
 pub fn validate(cfg: &AppConfig, res: &mut Resources) -> Result<(), VerboseError> {
     validate_services(cfg, &BTreeSet::new())?;
     validate_gates(cfg)?;
-    validate_tiles(cfg, res)
+    validate_tiles(cfg, res)?;
+    validate_mods(cfg, res)
 }
 
 fn validate_tiles(cfg: &AppConfig, res: &mut Resources) -> Result<(), VerboseError> {
@@ -163,6 +164,29 @@ fn validate_gates(cfg: &AppConfig) -> Result<(), VerboseError> {
                     },
                 }
             }
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_mods(cfg: &AppConfig, res: &mut Resources) -> Result<(), VerboseError> {
+    for d in cfg.domains() {
+        for a in d.apps() {
+            validate_mods(a, res)?;
+        }
+    }
+
+    for bmod in cfg.mods() {
+        if res.mods().find(bmod.name().global()).is_none() {
+            return Err(VerboseError::new(
+                Code::NotFound,
+                format!(
+                    "AppConfig '{}' needs non-existing boot module '{}'",
+                    cfg.name(),
+                    bmod.name().global(),
+                ),
+            ));
         }
     }
 
