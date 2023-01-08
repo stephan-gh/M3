@@ -310,7 +310,10 @@ impl Subsystem {
             res.tiles().add_user(&own);
         }
         else if !Activity::own().tile_desc().has_virtmem() {
-            panic!("Can't share tile without VM support");
+            return Err(VerboseError::new(
+                Code::InvArgs,
+                "Can't share tile without VM support".to_string(),
+            ));
         }
 
         // determine default mem and kmem per child
