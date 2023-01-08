@@ -179,7 +179,7 @@ impl Session {
 
     pub fn close_async(self, res: &mut Resources, child: childs::Id) -> Result<(), Error> {
         let event = {
-            let serv = res.services().get_mut_by_id(self.serv)?;
+            let serv = res.services_mut().get_mut_by_id(self.serv)?;
 
             let mut smsg_buf = MsgBuf::borrow_def();
             build_vmsg!(smsg_buf, kif::service::Request::Close { sid: self.ident });

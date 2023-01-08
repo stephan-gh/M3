@@ -105,7 +105,7 @@ impl MemoryManager {
         self.available
     }
 
-    pub fn find_mem(&mut self, addr: GlobAddr, size: goff, perm: Perm) -> Result<MemSlice, Error> {
+    pub fn find_mem(&self, addr: GlobAddr, size: goff, perm: Perm) -> Result<MemSlice, Error> {
         for m in &self.mods {
             if addr.tile() == m.addr.tile()
                 && addr.offset() >= m.addr.offset()

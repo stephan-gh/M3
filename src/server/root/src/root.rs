@@ -240,7 +240,7 @@ pub fn main() -> Result<(), Error> {
     let (sub, mut res) = subsys::Subsystem::new().expect("Unable to read subsystem info");
     let args = sub.parse_args();
     for sem in &args.sems {
-        res.semaphores()
+        res.semaphores_mut()
             .add_sem(sem.clone())
             .expect("Unable to add semaphore");
     }
@@ -254,7 +254,7 @@ pub fn main() -> Result<(), Error> {
     let (rbuf_addr, _) = Activity::own().tile_desc().rbuf_space();
     let (rbuf_off, rbuf_mem) = if Activity::own().tile_desc().has_virtmem() {
         let buf_mem = res
-            .memory()
+            .memory_mut()
             .alloc_mem((buf_size + sendqueue::RBUF_SIZE) as goff)
             .expect("Unable to allocate memory for receive buffers");
         let pages = (buf_mem.capacity() as usize + cfg::PAGE_SIZE - 1) / cfg::PAGE_SIZE;

@@ -162,12 +162,12 @@ fn gates(t: &mut dyn WvTester) {
 
 fn tiles(t: &mut dyn WvTester) {
     let mut res = Resources::default();
-    res.tiles().add(Rc::new(Tile::new_bind(
+    res.tiles_mut().add(Rc::new(Tile::new_bind(
         TileId::new(0, 1),
         TileDesc::new(TileType::COMP_EMEM, TileISA::RISCV, 0),
         64,
     )));
-    res.tiles().add(Rc::new(Tile::new_bind(
+    res.tiles_mut().add(Rc::new(Tile::new_bind(
         TileId::new(0, 2),
         TileDesc::new(TileType::COMP_IMEM, TileISA::ACCEL_INDIR, 0),
         65,
@@ -207,8 +207,8 @@ fn tiles(t: &mut dyn WvTester) {
 
 fn mods(t: &mut dyn WvTester) {
     let mut res = Resources::default();
-    res.mods().add(0, &boot::Mod::new(GlobAddr::new(0x1000), 0x123, "foo"));
-    res.mods().add(1, &boot::Mod::new(GlobAddr::new(0x2000), 0x456, "bar"));
+    res.mods_mut().add(0, &boot::Mod::new(GlobAddr::new(0x1000), 0x123, "foo"));
+    res.mods_mut().add(1, &boot::Mod::new(GlobAddr::new(0x2000), 0x456, "bar"));
 
     {
         let cfg_str = "<app args=\"ourself\">

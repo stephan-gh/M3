@@ -333,7 +333,7 @@ pub fn main() -> Result<(), Error> {
 
     let args = subsys.parse_args();
     for sem in &args.sems {
-        res.semaphores()
+        res.semaphores_mut()
             .add_sem(sem.clone())
             .expect("Unable to add semaphore");
     }

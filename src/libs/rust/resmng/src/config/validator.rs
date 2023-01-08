@@ -20,14 +20,14 @@ use m3::format;
 use crate::config::{AppConfig, TileDesc};
 use crate::resources::Resources;
 
-pub fn validate(cfg: &AppConfig, res: &mut Resources) -> Result<(), VerboseError> {
+pub fn validate(cfg: &AppConfig, res: &Resources) -> Result<(), VerboseError> {
     validate_services(cfg, &BTreeSet::new())?;
     validate_gates(cfg)?;
     validate_tiles(cfg, res)?;
     validate_mods(cfg, res)
 }
 
-fn validate_tiles(cfg: &AppConfig, res: &mut Resources) -> Result<(), VerboseError> {
+fn validate_tiles(cfg: &AppConfig, res: &Resources) -> Result<(), VerboseError> {
     for d in cfg.domains() {
         for a in d.apps() {
             validate_tiles(a, res)?;
@@ -55,7 +55,7 @@ fn validate_tiles(cfg: &AppConfig, res: &mut Resources) -> Result<(), VerboseErr
     Ok(())
 }
 
-fn count_tiles(res: &mut Resources, tile: &TileDesc) -> u32 {
+fn count_tiles(res: &Resources, tile: &TileDesc) -> u32 {
     let mut count = 0;
     for i in 0..res.tiles().count() {
         if tile.tile_type().matches(res.tiles().get(i).desc()) {
@@ -170,7 +170,7 @@ fn validate_gates(cfg: &AppConfig) -> Result<(), VerboseError> {
     Ok(())
 }
 
-fn validate_mods(cfg: &AppConfig, res: &mut Resources) -> Result<(), VerboseError> {
+fn validate_mods(cfg: &AppConfig, res: &Resources) -> Result<(), VerboseError> {
     for d in cfg.domains() {
         for a in d.apps() {
             validate_mods(a, res)?;

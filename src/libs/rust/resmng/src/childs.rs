@@ -170,7 +170,7 @@ pub trait Child {
 
         let our_srv = self.obtain(srv_sel)?;
         let our_sgate = self.obtain(sgate_sel)?;
-        let id = res.services().add_service(
+        let id = res.services_mut().add_service(
             self.id(),
             our_srv,
             our_sgate,
@@ -194,7 +194,7 @@ pub trait Child {
             .position(|t| t.1 == sel)
             .ok_or_else(|| Error::new(Code::InvArgs))
             .map(|idx| services.remove(idx).0)?;
-        let serv = res.services().remove_service(sid);
+        let serv = res.services_mut().remove_service(sid);
 
         self.cfg().unreg_service(serv.name());
         Ok(())
@@ -226,7 +226,7 @@ pub trait Child {
             (sdesc.name().global().clone(), sdesc.arg().clone())
         };
 
-        let serv = res.services().get_mut_by_name(&sname)?;
+        let serv = res.services_mut().get_mut_by_name(&sname)?;
         let serv_sel = serv.sel();
         let sess = Session::new_async(id, dst_sel, serv, &sarg)?;
 
@@ -379,7 +379,7 @@ pub trait Child {
 
     fn use_rgate(
         &mut self,
-        res: &mut Resources,
+        res: &Resources,
         name: &str,
         sel: Selector,
     ) -> Result<(u32, u32), Error> {
@@ -403,7 +403,7 @@ pub trait Child {
             math::next_log2(rgate.max_msg_size()?),
         ))
     }
-    fn use_sgate(&mut self, res: &mut Resources, name: &str, sel: Selector) -> Result<(), Error> {
+    fn use_sgate(&mut self, res: &Resources, name: &str, sel: Selector) -> Result<(), Error> {
         log!(
             crate::LOG_GATE,
             "{}: use_sgate(name={}, sel={})",
@@ -433,7 +433,7 @@ pub trait Child {
         self.res_mut().sgates.push(sgate);
         Ok(())
     }
-    fn use_sem(&mut self, res: &mut Resources, name: &str, sel: Selector) -> Result<(), Error> {
+    fn use_sem(&mut self, res: &Resources, name: &str, sel: Selector) -> Result<(), Error> {
         log!(
             crate::LOG_SEM,
             "{}: use_sem(name={}, sel={})",
@@ -451,7 +451,7 @@ pub trait Child {
             .ok_or_else(|| Error::new(Code::NotFound))?;
         self.delegate(sem.sel(), sel)
     }
-    fn use_mod(&mut self, res: &mut Resources, name: &str, sel: Selector) -> Result<(), Error> {
+    fn use_mod(&mut self, res: &Resources, name: &str, sel: Selector) -> Result<(), Error> {
         log!(
             crate::LOG_MEM,
             "{}: use_mod(name={}, sel={})",
@@ -494,7 +494,7 @@ pub trait Child {
 
     fn alloc_tile(
         &mut self,
-        res: &mut Resources,
+        res: &Resources,
         sel: Selector,
         desc: kif::TileDesc,
     ) -> Result<(tcu::TileId, kif::TileDesc), Error> {
@@ -525,7 +525,7 @@ pub trait Child {
         Ok((tile_id, desc))
     }
 
-    fn free_tile(&mut self, res: &mut Resources, sel: Selector) -> Result<(), Error> {
+    fn free_tile(&mut self, res: &Resources, sel: Selector) -> Result<(), Error> {
         log!(crate::LOG_TILES, "{}: free_tile(sel={})", self.name(), sel);
 
         let idx = self
@@ -539,7 +539,7 @@ pub trait Child {
         Ok(())
     }
 
-    fn remove_pe_by_idx(&mut self, res: &mut Resources, idx: usize) -> Result<(), Error> {
+    fn remove_pe_by_idx(&mut self, res: &Resources, idx: usize) -> Result<(), Error> {
         let (tile_usage, idx, ep_sel) = self.res_mut().tiles.remove(idx);
         log!(
             crate::LOG_TILES,
@@ -568,7 +568,7 @@ pub trait Child {
 
         while !self.res().services.is_empty() {
             let (id, _) = self.res_mut().services.remove(0);
-            let serv = res.services().remove_service(id);
+            let serv = res.services_mut().remove_service(id);
             self.cfg().unreg_service(serv.name());
         }
 
@@ -642,7 +642,7 @@ impl OwnChild {
         self.activity = Some(act);
     }
 
-    pub fn has_unmet_reqs(&self, res: &mut Resources) -> bool {
+    pub fn has_unmet_reqs(&self, res: &Resources) -> bool {
         for sess in self.cfg().sessions() {
             if sess.is_dep() && res.services().get_by_name(sess.name().global()).is_err() {
                 return true;
@@ -763,7 +763,7 @@ pub struct ForeignChild {
 impl ForeignChild {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        res: &mut Resources,
+        res: &Resources,
         id: Id,
         layer: u32,
         name: String,
@@ -1000,7 +1000,7 @@ impl ChildManager {
         if !self.flags.contains(Flags::SHUTDOWN) && self.children() == no_wait_childs {
             self.flags.set(Flags::SHUTDOWN, true);
             self.kill_daemons_async(reqs, res);
-            res.services().shutdown_async();
+            res.services_mut().shutdown_async();
         }
 
         if !self.should_stop() {
@@ -1057,7 +1057,7 @@ impl ChildManager {
 
     pub fn get_info(
         &mut self,
-        res: &mut Resources,
+        res: &Resources,
         id: Id,
         idx: Option<usize>,
     ) -> Result<resmng::ActInfoResult, Error> {
@@ -1170,7 +1170,7 @@ impl ChildManager {
 
     pub fn add_child(
         &mut self,
-        res: &mut Resources,
+        res: &Resources,
         id: Id,
         act_id: tcu::ActId,
         act_sel: Selector,

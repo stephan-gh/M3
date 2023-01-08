@@ -38,27 +38,51 @@ pub struct Resources {
 }
 
 impl Resources {
-    pub fn memory(&mut self) -> &mut MemoryManager {
+    pub fn memory(&self) -> &MemoryManager {
+        &self.mem
+    }
+
+    pub fn memory_mut(&mut self) -> &mut MemoryManager {
         &mut self.mem
     }
 
-    pub fn gates(&mut self) -> &mut GateManager {
+    pub fn gates(&self) -> &GateManager {
+        &self.gates
+    }
+
+    pub fn gates_mut(&mut self) -> &mut GateManager {
         &mut self.gates
     }
 
-    pub fn services(&mut self) -> &mut ServiceManager {
+    pub fn services(&self) -> &ServiceManager {
+        &self.services
+    }
+
+    pub fn services_mut(&mut self) -> &mut ServiceManager {
         &mut self.services
     }
 
-    pub fn semaphores(&mut self) -> &mut SemManager {
+    pub fn semaphores(&self) -> &SemManager {
+        &self.sems
+    }
+
+    pub fn semaphores_mut(&mut self) -> &mut SemManager {
         &mut self.sems
     }
 
-    pub fn tiles(&mut self) -> &mut TileManager {
+    pub fn tiles(&self) -> &TileManager {
+        &self.tiles
+    }
+
+    pub fn tiles_mut(&mut self) -> &mut TileManager {
         &mut self.tiles
     }
 
-    pub fn mods(&mut self) -> &mut ModManager {
+    pub fn mods(&self) -> &ModManager {
+        &self.mods
+    }
+
+    pub fn mods_mut(&mut self) -> &mut ModManager {
         &mut self.mods
     }
 }

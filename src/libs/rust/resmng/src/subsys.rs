@@ -133,13 +133,13 @@ impl Subsystem {
         log!(crate::LOG_SUBSYS, "Boot modules:");
         for (i, m) in self.mods().iter().enumerate() {
             log!(crate::LOG_SUBSYS, "  {:?}", m);
-            res.mods().add(i, m);
+            res.mods_mut().add(i, m);
         }
 
         log!(crate::LOG_SUBSYS, "Available tiles:");
         for (i, tile) in self.tiles().iter().enumerate() {
             log!(crate::LOG_SUBSYS, "  {:?}", tile);
-            res.tiles().add(self.get_tile(i));
+            res.tiles_mut().add(self.get_tile(i));
         }
 
         log!(crate::LOG_SUBSYS, "Available memory:");
@@ -151,7 +151,7 @@ impl Subsystem {
                 mem.reserved(),
             ));
             log!(crate::LOG_SUBSYS, "  {:?}", mem_mod);
-            res.memory().add(mem_mod);
+            res.memory_mut().add(mem_mod);
         }
 
         if !self.services().is_empty() {
@@ -164,7 +164,7 @@ impl Subsystem {
                     s.name(),
                     s.sessions()
                 );
-                res.services()
+                res.services_mut()
                     .add_service(
                         childs::Id::MAX,
                         sel,
@@ -180,7 +180,7 @@ impl Subsystem {
         for dom in self.cfg.domains() {
             for a in dom.apps() {
                 for rgate in a.rgates() {
-                    res.gates().add_rgate(
+                    res.gates_mut().add_rgate(
                         rgate.name().global().clone(),
                         rgate.msg_size(),
                         rgate.slots(),
@@ -342,7 +342,7 @@ impl Subsystem {
             let dom_mem = dom.apps().iter().fold(0, |sum, a| {
                 sum + a.user_mem().unwrap_or(def_umem as usize) as goff
             });
-            let mem_pool = Rc::new(RefCell::new(res.memory().alloc_pool(dom_mem).map_err(
+            let mem_pool = Rc::new(RefCell::new(res.memory_mut().alloc_pool(dom_mem).map_err(
                 |e| {
                     VerboseError::new(
                         e.code(),
@@ -588,7 +588,7 @@ impl Subsystem {
         let cfg_range = cfg.cfg_range();
         let cfg_str = &self.cfg_str()[cfg_range.0..cfg_range.1];
         sub.add_config(cfg_str, |size| {
-            let cfg_slice = res.memory().alloc_mem(size as goff)?;
+            let cfg_slice = res.memory_mut().alloc_mem(size as goff)?;
             // alloc_mem gives us full pages; cut it down to the string size
             let mgate = cfg_slice.derive_with(0, size)?;
             Ok(mgate)
@@ -696,7 +696,7 @@ impl SubsystemBuilder {
         let mut off: goff = 0;
 
         let mut mem = res
-            .memory()
+            .memory_mut()
             .alloc_mem(self.desc_size() as goff)
             .map_err(|e| {
                 VerboseError::new(
@@ -832,7 +832,7 @@ pub(crate) fn start_delayed_async(
 }
 
 fn pass_down_tiles(
-    tiles: &mut tiles::TileManager,
+    tiles: &tiles::TileManager,
     sub: &mut SubsystemBuilder,
     app: &config::AppConfig,
 ) {
@@ -865,7 +865,7 @@ fn pass_down_serial(sub: &mut SubsystemBuilder, app: &config::AppConfig) {
 }
 
 fn pass_down_mods(
-    mods: &mut mods::ModManager,
+    mods: &mods::ModManager,
     sub: &mut SubsystemBuilder,
     app: &config::AppConfig,
 ) -> Result<(), VerboseError> {
@@ -911,7 +911,7 @@ fn split_child_mem(cfg: &config::AppConfig, mem: &Rc<childs::ChildMem>) {
     mem.alloc_mem(per_child * def_childs);
 }
 
-fn split_mem(res: &mut Resources, cfg: &config::AppConfig) -> Result<(usize, goff), VerboseError> {
+fn split_mem(res: &Resources, cfg: &config::AppConfig) -> Result<(usize, goff), VerboseError> {
     let mut total_umem = res.memory().capacity();
     let mut total_kmem = Activity::own().kmem().quota()?.total();
 
