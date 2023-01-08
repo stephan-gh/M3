@@ -36,7 +36,11 @@ use m3::util::math;
 use m3::vfs::FileRef;
 
 use resmng::childs::{self, Child, ChildManager, OwnChild};
-use resmng::{config, memory, requests, res::Resources, sendqueue, subsys, tiles};
+use resmng::config;
+use resmng::requests;
+use resmng::resources::{memory, tiles, Resources};
+use resmng::sendqueue;
+use resmng::subsys;
 
 struct RootChildStarter {
     bmods: Vec<kif::boot::Mod>,

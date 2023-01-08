@@ -13,6 +13,9 @@
  * General Public License version 2 for more details.
  */
 
+pub mod parser;
+pub mod validator;
+
 use core::fmt;
 use m3::cell::Cell;
 use m3::col::{String, Vec};
@@ -20,8 +23,6 @@ use m3::errors::{Code, Error};
 use m3::kif;
 use m3::rc::Rc;
 use m3::tcu::Label;
-
-use crate::parser;
 
 #[derive(Default, Eq, PartialEq)]
 pub struct DualName {

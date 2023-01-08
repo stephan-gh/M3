@@ -21,7 +21,7 @@ use m3::test::WvTester;
 use m3::tiles::{Activity, Tile};
 use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
-use resmng::tiles::TileManager;
+use resmng::resources::tiles::TileManager;
 
 fn create_tiles() -> TileManager {
     let mut mng = TileManager::default();

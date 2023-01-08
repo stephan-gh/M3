@@ -23,7 +23,7 @@ use m3::tiles::Activity;
 use m3::vec::Vec;
 
 use crate::childs::{ChildManager, Id, OwnChild};
-use crate::res::Resources;
+use crate::resources::Resources;
 use crate::sendqueue;
 use crate::subsys::{self, ChildStarter};
 

@@ -24,7 +24,7 @@ use m3::tcu;
 
 use crate::childs::Id;
 use crate::events;
-use crate::res::Resources;
+use crate::resources::Resources;
 
 pub const RBUF_MSG_SIZE: usize = 1 << 6;
 pub const RBUF_SIZE: usize = RBUF_MSG_SIZE * DEF_MAX_CLIENTS;

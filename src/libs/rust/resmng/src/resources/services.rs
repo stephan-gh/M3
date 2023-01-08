@@ -28,7 +28,7 @@ use core::cmp::Reverse;
 
 use crate::childs;
 use crate::events;
-use crate::res::Resources;
+use crate::resources::Resources;
 use crate::sendqueue::SendQueue;
 
 pub type Id = u32;

@@ -24,9 +24,8 @@ use m3::{wv_assert, wv_assert_eq, wv_assert_ok, wv_assert_some, wv_run_test};
 use resmng::childs::{Child, ChildManager, OwnChild};
 use resmng::config::Domain;
 use resmng::requests::Requests;
-use resmng::res::Resources;
+use resmng::resources::{tiles::TileUsage, Resources};
 use resmng::subsys::{ChildStarter, Subsystem, SubsystemBuilder};
-use resmng::tiles::TileUsage;
 
 pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, subsys_builder);

@@ -38,12 +38,14 @@ use m3::tiles::{Activity, KMem, RunningActivity, TileQuota};
 use m3::util::math;
 
 use crate::config::AppConfig;
-use crate::memory::{Allocation, MemPool};
 use crate::requests::Requests;
-use crate::res::Resources;
-use crate::services::Session;
+use crate::resources::{
+    memory::{Allocation, MemPool},
+    services::Session,
+    tiles::TileUsage,
+    Resources,
+};
 use crate::subsys::SubsystemBuilder;
-use crate::tiles;
 use crate::{events, subsys};
 
 pub type Id = u32;
@@ -100,7 +102,7 @@ pub struct ChildResources {
     sessions: Vec<(usize, Session)>,
     mem: Vec<(Option<Selector>, Allocation)>,
     mods: Vec<MemGate>,
-    tiles: Vec<(tiles::TileUsage, usize, Selector)>,
+    tiles: Vec<(TileUsage, usize, Selector)>,
     sgates: Vec<SendGate>,
 }
 
@@ -112,8 +114,8 @@ pub trait Child {
     fn daemon(&self) -> bool;
     fn foreign(&self) -> bool;
 
-    fn our_tile(&self) -> &tiles::TileUsage;
-    fn child_tile(&self) -> Option<&tiles::TileUsage>;
+    fn our_tile(&self) -> &TileUsage;
+    fn child_tile(&self) -> Option<&TileUsage>;
     fn activity_sel(&self) -> Selector;
     fn activity_id(&self) -> tcu::ActId;
     fn resmng_sgate_sel(&self) -> Selector;
@@ -584,9 +586,9 @@ pub struct OwnChild {
     id: Id,
     // the activity has to be dropped before we drop the tile
     activity: Option<Box<dyn RunningActivity>>,
-    our_tile: tiles::TileUsage,
-    _domain_tile: Option<tiles::TileUsage>,
-    child_tile: tiles::TileUsage,
+    our_tile: TileUsage,
+    _domain_tile: Option<TileUsage>,
+    child_tile: TileUsage,
     name: String,
     args: Vec<String>,
     cfg: Rc<AppConfig>,
@@ -601,9 +603,9 @@ impl OwnChild {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: Id,
-        our_tile: tiles::TileUsage,
-        _domain_tile: Option<tiles::TileUsage>,
-        child_tile: tiles::TileUsage,
+        our_tile: TileUsage,
+        _domain_tile: Option<TileUsage>,
+        child_tile: TileUsage,
         args: Vec<String>,
         daemon: bool,
         kmem: Rc<KMem>,
@@ -680,11 +682,11 @@ impl Child for OwnChild {
         false
     }
 
-    fn our_tile(&self) -> &tiles::TileUsage {
+    fn our_tile(&self) -> &TileUsage {
         &self.our_tile
     }
 
-    fn child_tile(&self) -> Option<&tiles::TileUsage> {
+    fn child_tile(&self) -> Option<&TileUsage> {
         Some(&self.child_tile)
     }
 
@@ -750,7 +752,7 @@ pub struct ForeignChild {
     act_id: tcu::ActId,
     layer: u32,
     name: String,
-    parent_tile: tiles::TileUsage,
+    parent_tile: TileUsage,
     cfg: Rc<AppConfig>,
     mem: Rc<ChildMem>,
     res: ChildResources,
@@ -765,7 +767,7 @@ impl ForeignChild {
         id: Id,
         layer: u32,
         name: String,
-        parent_tile: tiles::TileUsage,
+        parent_tile: TileUsage,
         act_id: tcu::ActId,
         act_sel: Selector,
         sgate: SendGate,
@@ -814,11 +816,11 @@ impl Child for ForeignChild {
         true
     }
 
-    fn our_tile(&self) -> &tiles::TileUsage {
+    fn our_tile(&self) -> &TileUsage {
         &self.parent_tile
     }
 
-    fn child_tile(&self) -> Option<&tiles::TileUsage> {
+    fn child_tile(&self) -> Option<&TileUsage> {
         None
     }
 

@@ -22,7 +22,7 @@ use m3::tcu::TileId;
 use m3::test::WvTester;
 use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
-use resmng::memory::{MemMod, MemoryManager};
+use resmng::resources::memory::{MemMod, MemoryManager};
 
 pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, mng_basics);

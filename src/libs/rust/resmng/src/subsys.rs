@@ -33,13 +33,9 @@ use m3::util::math;
 
 use crate::childs;
 use crate::config;
-use crate::memory;
-use crate::mods::ModManager;
+use crate::config::validator;
 use crate::requests::Requests;
-use crate::res::Resources;
-use crate::services;
-use crate::tiles;
-use crate::validator;
+use crate::resources::{memory, mods, services, tiles, Resources};
 
 //
 // Our parent/kernel initializes our cap space as follows:
@@ -868,7 +864,7 @@ fn pass_down_serial(sub: &mut SubsystemBuilder, app: &config::AppConfig) {
 }
 
 fn pass_down_mods(
-    mods: &mut ModManager,
+    mods: &mut mods::ModManager,
     sub: &mut SubsystemBuilder,
     app: &config::AppConfig,
 ) -> Result<(), VerboseError> {

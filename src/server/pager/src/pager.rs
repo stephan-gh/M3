@@ -42,8 +42,13 @@ use m3::util::math;
 use m3::vfs;
 
 use addrspace::AddrSpace;
+
 use resmng::childs::{self, Child, ChildManager, OwnChild};
-use resmng::{config, requests, res::Resources, sendqueue, subsys, tiles};
+use resmng::config;
+use resmng::requests;
+use resmng::resources::{tiles, Resources};
+use resmng::sendqueue;
+use resmng::subsys;
 
 pub const LOG_DEF: bool = false;
 

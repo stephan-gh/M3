@@ -18,7 +18,7 @@ use m3::errors::{Code, VerboseError};
 use m3::format;
 
 use crate::config::{AppConfig, TileDesc};
-use crate::res::Resources;
+use crate::resources::Resources;
 
 pub fn validate(cfg: &AppConfig, res: &mut Resources) -> Result<(), VerboseError> {
     validate_services(cfg, &BTreeSet::new())?;

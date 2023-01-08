@@ -13,12 +13,19 @@
  * General Public License version 2 for more details.
  */
 
-use crate::gates::GateManager;
-use crate::memory::MemoryManager;
-use crate::mods::ModManager;
-use crate::sems::SemManager;
-use crate::services::ServiceManager;
-use crate::tiles::TileManager;
+pub mod gates;
+pub mod memory;
+pub mod mods;
+pub mod sems;
+pub mod services;
+pub mod tiles;
+
+use gates::GateManager;
+use memory::MemoryManager;
+use mods::ModManager;
+use sems::SemManager;
+use services::ServiceManager;
+use tiles::TileManager;
 
 #[derive(Default)]
 pub struct Resources {
