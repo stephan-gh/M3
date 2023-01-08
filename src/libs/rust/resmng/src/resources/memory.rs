@@ -200,6 +200,10 @@ impl MemSlice {
             .derive(self.offset, self.size as usize, self.perm)
     }
 
+    pub fn derive_with(&self, off: goff, size: usize) -> Result<MemGate, Error> {
+        self.mem.gate.derive(self.offset + off, size, self.perm)
+    }
+
     pub fn allocate(&mut self, size: goff, align: goff) -> Result<goff, Error> {
         self.map.allocate(size, align)
     }

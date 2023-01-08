@@ -589,7 +589,8 @@ impl Subsystem {
         let cfg_str = &self.cfg_str()[cfg_range.0..cfg_range.1];
         sub.add_config(cfg_str, |size| {
             let cfg_slice = res.memory().alloc_mem(size as goff)?;
-            let mgate = cfg_slice.derive()?;
+            // alloc_mem gives us full pages; cut it down to the string size
+            let mgate = cfg_slice.derive_with(0, size)?;
             Ok(mgate)
         })
         .map_err(|e| VerboseError::new(e.code(), format!("Unable to pass boot.xml to child")))?;

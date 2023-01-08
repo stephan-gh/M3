@@ -57,6 +57,16 @@ impl ConfigParser {
         }
     }
 
+    fn finish(&mut self) -> Result<(), Error> {
+        while self.pos < self.chars.len() {
+            if !self.chars[self.pos].is_whitespace() {
+                return Err(Error::new(Code::InvArgs));
+            }
+            self.pos += 1;
+        }
+        Ok(())
+    }
+
     fn get_no_ws(&mut self) -> Result<char, Error> {
         loop {
             let c = self.get()?;
@@ -152,10 +162,13 @@ impl ConfigParser {
 pub(crate) fn parse(xml: &str) -> Result<config::AppConfig, Error> {
     let mut p = ConfigParser::new(xml);
 
-    match p.parse_tag_name()? {
+    let app = match p.parse_tag_name()? {
         Some(tag) if tag == "app" => parse_app(&mut p, 0),
         _ => Err(Error::new(Code::InvArgs)),
-    }
+    }?;
+
+    p.finish()?;
+    Ok(app)
 }
 
 fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Error> {

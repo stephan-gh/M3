@@ -65,6 +65,11 @@ fn errors(t: &mut dyn WvTester) {
     wv_assert_err!(t, AppConfig::parse("<app args=\"\">"), Code::InvArgs);
     wv_assert_err!(t, AppConfig::parse("<app/>"), Code::InvArgs);
     wv_assert_err!(t, AppConfig::parse("<app args=\"\"/>"), Code::InvArgs);
+    wv_assert_err!(
+        t,
+        AppConfig::parse("<app args=\"foo\"/><app>"),
+        Code::InvArgs
+    );
 }
 
 fn app_short(t: &mut dyn WvTester) {
