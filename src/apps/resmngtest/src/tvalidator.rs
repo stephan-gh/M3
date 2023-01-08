@@ -1,0 +1,204 @@
+/*
+ * Copyright (C) 2023 Nils Asmussen, Barkhausen Institut
+ *
+ * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
+ *
+ * M3 is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * M3 is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License version 2 for more details.
+ */
+
+use m3::kif::{TileDesc, TileType, TileISA};
+use m3::tiles::Tile;
+use m3::tcu::TileId;
+use m3::rc::Rc;
+use m3::errors::Code;
+
+use m3::test::WvTester;
+use m3::{wv_assert_err, wv_assert_ok, wv_run_test};
+
+use resmng::config::{AppConfig, validator};
+use resmng::resources::Resources;
+
+pub fn run(t: &mut dyn WvTester) {
+    wv_run_test!(t, services);
+    wv_run_test!(t, gates);
+    wv_run_test!(t, tiles);
+}
+
+fn services(t: &mut dyn WvTester) {
+    let mut res = Resources::default();
+
+    {
+        let cfg_str = "<app args=\"ourself\">
+            <app args=\"foo\">
+                <serv name=\"s1\"/>
+                <serv name=\"s1\"/>
+            </app>
+        </app>";
+        let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
+        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::Exists);
+    }
+
+    {
+        let cfg_str = "<app args=\"ourself\">
+            <app args=\"foo\">
+                <serv name=\"s1\"/>
+            </app>
+            <app args=\"bar\">
+                <serv gname=\"s1\" lname=\"something\"/>
+            </app>
+        </app>";
+        let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
+        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::Exists);
+    }
+
+    {
+        let cfg_str = "<app args=\"ourself\">
+            <app args=\"foo\">
+                <serv name=\"s1\"/>
+                <sess name=\"s2\"/>
+            </app>
+        </app>";
+        let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
+        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::NotFound);
+    }
+
+    {
+        let cfg_str = "<app args=\"ourself\">
+            <app args=\"foo\">
+                <serv name=\"s1\"/>
+                <sess lname=\"s1\" gname=\"s2\"/>
+            </app>
+        </app>";
+        let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
+        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::NotFound);
+    }
+
+    {
+        let cfg_str = "<app args=\"ourself\">
+            <app args=\"foo\">
+                <serv name=\"s1\"/>
+                <serv name=\"s2\"/>
+                <sess lname=\"s1\" gname=\"s2\"/>
+                <sess name=\"s1\"/>
+            </app>
+        </app>";
+        let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
+        wv_assert_ok!(validator::validate(&cfg, &mut res));
+    }
+}
+
+fn gates(t: &mut dyn WvTester) {
+    let mut res = Resources::default();
+
+    {
+        let cfg_str = "<app args=\"ourself\">
+            <app args=\"foo\">
+                <rgate name=\"g\"/>
+                <sgate name=\"s\"/>
+            </app>
+        </app>";
+        let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
+        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::NotFound);
+    }
+
+    {
+        let cfg_str = "<app args=\"ourself\">
+            <app args=\"foo\">
+                <rgate name=\"g\"/>
+            </app>
+            <app args=\"bar\">
+                <sgate lname=\"g\" gname=\"s\"/>
+            </app>
+        </app>";
+        let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
+        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::NotFound);
+    }
+
+    {
+        let cfg_str = "<app args=\"ourself\">
+            <app args=\"foo\">
+                <rgate name=\"g1\"/>
+                <rgate name=\"g1\"/>
+            </app>
+        </app>";
+        let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
+        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::Exists);
+    }
+
+    {
+        let cfg_str = "<app args=\"ourself\">
+            <app args=\"foo\">
+                <rgate name=\"g1\" slots=\"2\"/>
+                <sgate name=\"g1\"/>
+                <sgate name=\"g1\"/>
+                <sgate name=\"g1\"/>
+            </app>
+        </app>";
+        let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
+        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::NoSpace);
+    }
+
+    {
+        let cfg_str = "<app args=\"ourself\">
+            <app args=\"foo\">
+                <rgate name=\"g1\" slots=\"2\"/>
+                <sgate name=\"g1\"/>
+                <sgate name=\"g1\"/>
+            </app>
+        </app>";
+        let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
+        wv_assert_ok!(validator::validate(&cfg, &mut res));
+    }
+}
+
+fn tiles(t: &mut dyn WvTester) {
+    let mut res = Resources::default();
+    res.tiles().add(Rc::new(Tile::new_bind(
+        TileId::new(0, 1),
+        TileDesc::new(TileType::COMP_EMEM, TileISA::RISCV, 0),
+        64,
+    )));
+    res.tiles().add(Rc::new(Tile::new_bind(
+        TileId::new(0, 2),
+        TileDesc::new(TileType::COMP_IMEM, TileISA::ACCEL_INDIR, 0),
+        65,
+    )));
+
+    {
+        let cfg_str = "<app args=\"ourself\">
+            <app args=\"foo\">
+                <tiles type=\"core\" count=\"2\"/>
+            </app>
+        </app>";
+        let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
+        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::NotFound);
+    }
+
+    {
+        let cfg_str = "<app args=\"ourself\">
+            <app args=\"foo\">
+                <tiles type=\"copy\" count=\"1\"/>
+            </app>
+        </app>";
+        let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
+        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::NotFound);
+    }
+
+    {
+        let cfg_str = "<app args=\"ourself\">
+            <app args=\"foo\">
+                <tiles type=\"boom|core\" count=\"1\"/>
+                <tiles type=\"indir\" count=\"1\"/>
+            </app>
+        </app>";
+        let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
+        wv_assert_ok!(validator::validate(&cfg, &mut res));
+    }
+}

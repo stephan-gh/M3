@@ -19,6 +19,7 @@ mod tmemory;
 mod tparse;
 mod tsubsys;
 mod ttiles;
+mod tvalidator;
 
 use m3::errors::Error;
 use m3::println;
@@ -32,6 +33,7 @@ pub fn main() -> Result<(), Error> {
     wv_run_suite!(tester, tparse::run);
     wv_run_suite!(tester, tsubsys::run);
     wv_run_suite!(tester, ttiles::run);
+    wv_run_suite!(tester, tvalidator::run);
     println!("{}", tester);
     Ok(())
 }

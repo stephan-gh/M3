@@ -141,7 +141,7 @@ fn validate_gates(cfg: &AppConfig) -> Result<(), VerboseError> {
                     Some(s) => {
                         if *s == 0 {
                             return Err(VerboseError::new(
-                                Code::RecvNoSpace,
+                                Code::NoSpace,
                                 format!(
                                     "config '{}': not enough slots in rgate '{}'",
                                     a.name(),
