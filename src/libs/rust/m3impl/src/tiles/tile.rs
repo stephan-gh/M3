@@ -77,11 +77,40 @@ impl fmt::Debug for TileQuota {
     }
 }
 
+/// Additional arguments for the allocation of tiles
+#[derive(Copy, Clone)]
+pub struct TileArgs {
+    inherit_pmp: bool,
+}
+
+impl Default for TileArgs {
+    fn default() -> Self {
+        Self { inherit_pmp: true }
+    }
+}
+
+impl TileArgs {
+    /// Sets whether the PMP EPs should be inherited from our tile
+    pub fn inherit_pmp(mut self, inherit: bool) -> Self {
+        self.inherit_pmp = inherit;
+        self
+    }
+}
+
 impl Tile {
     /// Allocates a new tile from the resource manager with given description
     pub fn new(desc: TileDesc) -> Result<Rc<Self>, Error> {
+        Self::new_with(desc, TileArgs::default())
+    }
+
+    /// Allocates a new tile from the resource manager with given description
+    pub fn new_with(desc: TileDesc, args: TileArgs) -> Result<Rc<Self>, Error> {
         let sel = Activity::own().alloc_sel();
-        let (id, ndesc) = Activity::own().resmng().unwrap().alloc_tile(sel, desc)?;
+        let (id, ndesc) =
+            Activity::own()
+                .resmng()
+                .unwrap()
+                .alloc_tile(sel, desc, args.inherit_pmp)?;
         Ok(Rc::new(Tile {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
             id,
@@ -115,6 +144,11 @@ impl Tile {
     /// - BOOM core if available, otherwise any core: "boom|core"
     /// - BOOM with NIC if available, otherwise a Rocket: "boom+nic|rocket"
     pub fn get(desc: &str) -> Result<Rc<Self>, Error> {
+        Self::get_with(desc, TileArgs::default())
+    }
+
+    /// Gets a tile with given description and custom arguments.
+    pub fn get_with(desc: &str, args: TileArgs) -> Result<Rc<Self>, Error> {
         let own = Activity::own().tile();
         for props in desc.split('|') {
             match props {
@@ -124,13 +158,13 @@ impl Tile {
                     }
                 },
                 "clone" => {
-                    if let Ok(tile) = Self::new(own.desc()) {
+                    if let Ok(tile) = Self::new_with(own.desc(), args) {
                         return Ok(tile);
                     }
                 },
                 p => {
                     let base = TileDesc::new(own.desc().tile_type(), own.desc().isa(), 0);
-                    if let Ok(tile) = Self::new(base.with_properties(p)) {
+                    if let Ok(tile) = Self::new_with(base.with_properties(p), args) {
                         return Ok(tile);
                     }
                 },

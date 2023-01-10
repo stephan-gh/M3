@@ -33,7 +33,7 @@ pub use self::kmem::KMem;
 pub use self::mapper::{DefaultMapper, Mapper};
 pub use self::ownactivity::OwnActivity;
 pub use self::running::{RunningActivity, RunningDeviceActivity, RunningProgramActivity};
-pub use self::tile::{Tile, TileQuota};
+pub use self::tile::{Tile, TileArgs, TileQuota};
 
 pub(crate) fn init() {
     self::activity::init();

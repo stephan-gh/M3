@@ -736,6 +736,10 @@ impl EPObject {
         }
     }
 
+    pub fn is_configured(&self) -> bool {
+        self.gate.borrow().is_some()
+    }
+
     pub fn configure(ep: &Rc<Self>, gate: &KObject) {
         // create a gate object from the kobj
         let go = match gate {
@@ -752,7 +756,7 @@ impl EPObject {
 
     pub fn deconfigure(&self, force: bool) -> Result<bool, Error> {
         let mut invalidated = false;
-        if let Some(ref gate) = &*self.gate.borrow() {
+        if let Some(ref gate) = self.gate.borrow_mut().take() {
             let tile_id = self.tile_id();
 
             // invalidate receive and send EPs

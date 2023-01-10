@@ -274,13 +274,19 @@ pub fn alloc_ep(dst: Selector, act: Selector, epid: EpId, replies: u32) -> Resul
 /// on the given tile.
 ///
 /// The EP has to be between 1 and `crate::tcu::PMEM_PROT_EPS` - 1 and will be overwritten with the
-/// new memory region. This call requires a non-derived tile capability.
-pub fn set_pmp(tile: Selector, mgate: Selector, ep: EpId) -> Result<(), Error> {
+/// new memory region. If `overwrite` is false, the syscall fails in case the PMP EP is already
+/// configured.
+///
+/// If `mgate` is `INVALID_SEL` the PMP EP will be invalidated.
+///
+/// This call requires a non-derived tile capability.
+pub fn set_pmp(tile: Selector, mgate: Selector, ep: EpId, overwrite: bool) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     build_vmsg!(buf, syscalls::Operation::SET_PMP, syscalls::SetPMP {
         tile,
         mgate,
-        ep
+        ep,
+        overwrite
     });
     send_receive_result(&buf)
 }

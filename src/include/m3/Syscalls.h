@@ -74,7 +74,7 @@ public:
     static epid_t alloc_ep(capsel_t dst, capsel_t act, epid_t ep, uint replies);
 
     static void activate(capsel_t ep, capsel_t gate, capsel_t rbuf_mem, goff_t rbuf_off);
-    static void set_pmp(capsel_t tile, capsel_t mgate, epid_t epid);
+    static void set_pmp(capsel_t tile, capsel_t mgate, epid_t epid, bool overwrite);
     static void activity_ctrl(capsel_t act, KIF::Syscall::ActivityOp op, xfer_t arg);
     static std::pair<Errors::Code, capsel_t> activity_wait(const capsel_t *acts, size_t count,
                                                            event_t event);

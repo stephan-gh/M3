@@ -497,22 +497,26 @@ pub trait Child {
         res: &Resources,
         sel: Selector,
         desc: kif::TileDesc,
+        inherit_pmp: bool,
     ) -> Result<(tcu::TileId, kif::TileDesc), Error> {
         log!(
             crate::LOG_TILES,
-            "{}: alloc_tile(sel={}, desc={:?})",
+            "{}: alloc_tile(sel={}, desc={:?}, inherit_pmp={})",
             self.name(),
             sel,
-            desc
+            desc,
+            inherit_pmp
         );
 
         let cfg = self.cfg();
         let idx = cfg.get_pe_idx(desc)?;
         let tile_usage = res.tiles().find(desc)?;
 
-        // give this tile access to the same memory regions the child's tile has access to
-        // TODO later we could allow childs to customize that
-        tile_usage.inherit_mem_regions(self.our_tile())?;
+        if inherit_pmp {
+            // give this tile access to the same memory regions the child's tile has access to
+            // TODO later we could allow childs to customize that
+            tile_usage.inherit_mem_regions(self.our_tile())?;
+        }
 
         self.delegate(tile_usage.tile_obj().sel(), sel)?;
 

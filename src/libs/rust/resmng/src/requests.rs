@@ -260,7 +260,7 @@ impl Requests {
 
         let child = childs.child_by_id_mut(id).unwrap();
         child
-            .alloc_tile(res, req.dst, req.desc)
+            .alloc_tile(res, req.dst, req.desc, req.inherit_pmp)
             .and_then(|(id, desc)| {
                 reply_vmsg!(is, Code::Success, resmng::AllocTileReply { id, desc })
             })

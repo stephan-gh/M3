@@ -294,6 +294,7 @@ struct KIF {
             xfer_t tile_sel;
             xfer_t mgate_sel;
             xfer_t epid;
+            xfer_t overwrite;
         } PACKED;
 
         struct ActivityCtrl : public DefaultRequest {

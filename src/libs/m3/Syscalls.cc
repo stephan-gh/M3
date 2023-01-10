@@ -183,13 +183,14 @@ void Syscalls::activate(capsel_t ep, capsel_t gate, capsel_t rbuf_mem, goff_t rb
     send_receive_throw(req_buf);
 }
 
-void Syscalls::set_pmp(capsel_t tile, capsel_t mgate, epid_t epid) {
+void Syscalls::set_pmp(capsel_t tile, capsel_t mgate, epid_t epid, bool overwrite) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::SetPMP>();
     req.opcode = KIF::Syscall::SET_PMP;
     req.tile_sel = tile;
     req.mgate_sel = mgate;
     req.epid = epid;
+    req.overwrite = overwrite;
     send_receive_throw(req_buf);
 }
 

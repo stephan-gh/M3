@@ -28,7 +28,7 @@ use m3::mem::size_of;
 use m3::rc::Rc;
 use m3::server::DEF_MAX_CLIENTS;
 use m3::tcu::TileId;
-use m3::tiles::{Activity, ChildActivity, Tile};
+use m3::tiles::{Activity, ChildActivity, Tile, TileArgs};
 use m3::util::math;
 
 use crate::childs;
@@ -332,7 +332,12 @@ impl Subsystem {
                 })?
             }
             else {
-                let child_tile = Tile::get(&dom.tile.0).map_err(|e| {
+                // don't inherit the PMP EPs here, because we want to define them ourself anyway
+                let child_tile = Tile::get_with(
+                    &dom.tile.0,
+                    TileArgs::default().inherit_pmp(false),
+                )
+                .map_err(|e| {
                     VerboseError::new(e.code(), format!("Unable to get tile {}", dom.tile.0))
                 })?;
                 tiles::TileUsage::new_obj(child_tile)
@@ -356,7 +361,7 @@ impl Subsystem {
                 // add regions to PMP
                 for slice in mem_pool.borrow().slices() {
                     tile_usage
-                        .add_mem_region(slice.derive()?, slice.capacity() as usize, true)
+                        .add_mem_region(slice.derive()?, slice.capacity() as usize, true, true)
                         .map_err(|e| {
                             VerboseError::new(e.code(), "Unable to add PMP region".to_string())
                         })?;
@@ -371,6 +376,7 @@ impl Subsystem {
                         .add_mem_region(
                             m.mgate().derive(0, m.capacity() as usize, Perm::RWX)?,
                             m.capacity() as usize,
+                            false,
                             false,
                         )
                         .unwrap();

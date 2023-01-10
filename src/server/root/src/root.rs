@@ -182,7 +182,7 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
             })?;
 
             // configure PMP EP
-            tile.add_mem_region(mgate, range.1 as usize, true)
+            tile.add_mem_region(mgate, range.1 as usize, true, true)
                 .map_err(|e| {
                     VerboseError::new(
                         e.code(),

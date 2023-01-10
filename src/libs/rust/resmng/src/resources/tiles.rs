@@ -78,10 +78,23 @@ impl TileUsage {
         &self.tile
     }
 
-    pub fn add_mem_region(&self, mgate: MemGate, size: usize, set: bool) -> Result<(), Error> {
+    pub fn add_mem_region(
+        &self,
+        mgate: MemGate,
+        size: usize,
+        set: bool,
+        overwrite: bool,
+    ) -> Result<(), Error> {
         let mut pmp = self.pmp.borrow_mut();
         if set {
-            syscalls::set_pmp(self.tile_obj().sel(), mgate.sel(), pmp.next_ep)?;
+            loop {
+                match syscalls::set_pmp(self.tile_obj().sel(), mgate.sel(), pmp.next_ep, overwrite)
+                {
+                    Err(e) if e.code() == Code::Exists && !overwrite => pmp.next_ep += 1,
+                    Err(e) => return Err(e),
+                    Ok(_) => break,
+                }
+            }
             pmp.next_ep += 1;
         }
         pmp.regions.push((mgate, size));
@@ -91,7 +104,7 @@ impl TileUsage {
     pub fn inherit_mem_regions(&self, tile: &TileUsage) -> Result<(), Error> {
         let pmps = tile.pmp.borrow();
         for (mgate, size) in pmps.regions.iter() {
-            self.add_mem_region(mgate.derive(0, *size, Perm::RWX)?, *size, true)?;
+            self.add_mem_region(mgate.derive(0, *size, Perm::RWX)?, *size, true, true)?;
         }
         Ok(())
     }

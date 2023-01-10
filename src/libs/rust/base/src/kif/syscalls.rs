@@ -170,6 +170,7 @@ pub struct SetPMP {
     pub tile: CapSel,
     pub mgate: CapSel,
     pub ep: EpId,
+    pub overwrite: bool,
 }
 
 int_enum! {

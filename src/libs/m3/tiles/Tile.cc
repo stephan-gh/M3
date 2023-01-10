@@ -78,7 +78,7 @@ Tile::~Tile() {
 
 Reference<Tile> Tile::alloc(const TileDesc &desc) {
     capsel_t sel = Activity::own().alloc_sel();
-    TileDesc res = Activity::own().resmng()->alloc_tile(sel, desc);
+    TileDesc res = Activity::own().resmng()->alloc_tile(sel, desc, true);
     return Reference<Tile>(new Tile(sel, res, KEEP_CAP, true));
 }
 

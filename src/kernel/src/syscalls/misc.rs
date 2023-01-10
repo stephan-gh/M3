@@ -117,10 +117,11 @@ pub fn set_pmp(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ver
     let r: syscalls::SetPMP = get_request(msg)?;
     sysc_log!(
         act,
-        "set_pmp(tile={}, mgate={}, ep={})",
+        "set_pmp(tile={}, mgate={}, ep={}, overwrite={})",
         r.tile,
         r.mgate,
-        r.ep
+        r.ep,
+        r.overwrite
     );
 
     let act_caps = act.obj_caps().borrow();
@@ -137,30 +138,43 @@ pub fn set_pmp(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ver
         );
     }
 
-    let kobj = act_caps
-        .get(r.mgate)
-        .ok_or_else(|| Error::new(Code::InvArgs))?
-        .get();
-    match kobj {
-        KObject::MGate(mg) => {
-            let mut tilemux = tilemng::tilemux(tile.tile());
+    let mut tilemux = tilemng::tilemux(tile.tile());
 
-            if let Err(e) = tilemux.config_mem_ep(r.ep, INVAL_ID, mg, mg.tile_id()) {
-                sysc_err!(e.code(), "Unable to configure PMP EP");
-            }
+    // invalidate EP if requested
+    if r.mgate == kif::INVALID_SEL {
+        if let Err(e) = tilemux.invalidate_ep(INVAL_ID, r.ep, true, false) {
+            sysc_err!(e.code(), "Unable to invalidate PMP EP");
+        }
+    }
+    // if overwrite is disabled, the EP needs to be invalid
+    else if tilemux.pmp_ep(r.ep).is_configured() && !r.overwrite {
+        sysc_err!(Code::Exists, "PMP EP is already set");
+    }
 
-            let ep = tilemux.pmp_ep(r.ep);
+    // deconfigure the EP first to ensure that it is not already configured for another gate
+    let ep_obj = tilemux.pmp_ep(r.ep);
+    if let Err(e) = ep_obj.deconfigure(false) {
+        sysc_err!(e.code(), "Unable to deconfigure PMP EP");
+    }
 
-            // deconfigure the EP first to ensure that it is not already configured for another gate
-            if let Err(e) = ep.deconfigure(false) {
-                sysc_err!(e.code(), "Unable to deconfigure PMP EP");
-            }
+    if r.mgate != kif::INVALID_SEL {
+        let kobj = act_caps
+            .get(r.mgate)
+            .ok_or_else(|| Error::new(Code::InvArgs))?
+            .get();
+        match kobj {
+            KObject::MGate(mg) => {
+                if let Err(e) = tilemux.config_mem_ep(r.ep, INVAL_ID, mg, mg.tile_id()) {
+                    sysc_err!(e.code(), "Unable to configure PMP EP");
+                }
 
-            // remember that the MemGate is activated on this EP for the case that the MemGate gets
-            // revoked. If so, the EP is automatically invalidated.
-            EPObject::configure(ep, kobj);
-        },
-        _ => sysc_err!(Code::InvArgs, "Expected MemGate"),
+                // remember that the MemGate is activated on this EP for the case that the MemGate gets
+                // revoked. If so, the EP is automatically invalidated.
+                let ep_obj = tilemux.pmp_ep(r.ep);
+                EPObject::configure(ep_obj, kobj);
+            },
+            _ => sysc_err!(Code::InvArgs, "Expected MemGate"),
+        }
     }
 
     reply_success(msg);
