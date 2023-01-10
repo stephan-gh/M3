@@ -600,7 +600,7 @@ pub fn activity_wait_async(
     sysc_log!(
         act,
         "activity_wait(activities={}, event={})",
-        r.acts.len(),
+        r.act_count,
         r.event
     );
 
@@ -611,7 +611,7 @@ pub fn activity_wait_async(
 
     // In any case, check whether a activity already exited. If event == 0, wait until that happened.
     // For event != 0, remember that we want to get notified and send an upcall on a activity's exit.
-    if let Some((sel, code)) = act.wait_exit_async(r.event, &r.acts) {
+    if let Some((sel, code)) = act.wait_exit_async(r.event, &r.acts[0..r.act_count]) {
         sysc_log!(act, "act_wait-cont(act={}, exitcode={:?})", sel, code);
 
         reply_msg.act_sel = sel;
