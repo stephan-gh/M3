@@ -149,9 +149,15 @@ pub fn set_pmp(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ver
                 sysc_err!(e.code(), "Unable to configure PMP EP");
             }
 
+            let ep = tilemux.pmp_ep(r.ep);
+
+            // deconfigure the EP first to ensure that it is not already configured for another gate
+            if let Err(e) = ep.deconfigure(false) {
+                sysc_err!(e.code(), "Unable to deconfigure PMP EP");
+            }
+
             // remember that the MemGate is activated on this EP for the case that the MemGate gets
             // revoked. If so, the EP is automatically invalidated.
-            let ep = tilemux.pmp_ep(r.ep);
             EPObject::configure(ep, kobj);
         },
         _ => sysc_err!(Code::InvArgs, "Expected MemGate"),
