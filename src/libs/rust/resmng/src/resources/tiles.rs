@@ -24,6 +24,9 @@ use m3::syscalls;
 use m3::tcu::{EpId, TileId};
 use m3::tiles::Tile;
 
+// PMP EPs start at 1, because 0 is reserved for TileMux
+const FIRST_FREE_PMP_EP: EpId = 1;
+
 #[derive(Debug)]
 struct PMP {
     next_ep: EpId,
@@ -33,8 +36,7 @@ struct PMP {
 impl PMP {
     fn new() -> Self {
         Self {
-            // PMP EPs start at 1, because 0 is reserved for TileMux
-            next_ep: 1,
+            next_ep: FIRST_FREE_PMP_EP,
             regions: Vec::new(),
         }
     }
@@ -48,10 +50,10 @@ pub struct TileUsage {
 }
 
 impl TileUsage {
-    fn new(idx: usize, tile: Rc<Tile>) -> Self {
+    fn new(idx: usize, tile: Rc<Tile>, pmp: Rc<RefCell<PMP>>) -> Self {
         Self {
             idx: Some(idx),
-            pmp: Rc::new(RefCell::new(PMP::new())),
+            pmp,
             tile,
         }
     }
@@ -121,6 +123,7 @@ impl TileUsage {
 struct ManagedTile {
     id: TileId,
     tile: Rc<Tile>,
+    pmp: Rc<RefCell<PMP>>,
     users: Cell<u32>,
 }
 
@@ -154,6 +157,7 @@ impl TileManager {
         self.tiles.push(ManagedTile {
             id: tile.id(),
             tile,
+            pmp: Rc::new(RefCell::new(PMP::new())),
             users: Cell::from(0),
         });
     }
@@ -181,6 +185,8 @@ impl TileManager {
                     self.tiles[idx].id,
                     self.tiles[idx].tile.desc()
                 );
+                // all users are gone; restart with the PMP EPs
+                self.tiles[idx].pmp.borrow_mut().next_ep = FIRST_FREE_PMP_EP;
             }
         }
     }
@@ -192,7 +198,7 @@ impl TileManager {
                 && tile.tile.desc().tile_type() == desc.tile_type()
                 && (desc.attr().is_empty() || tile.tile.desc().attr() == desc.attr())
             {
-                return Ok(TileUsage::new(id, tile.tile.clone()));
+                return Ok(TileUsage::new(id, tile.tile.clone(), tile.pmp.clone()));
             }
         }
         log!(crate::LOG_TILES, "Unable to find tile with {:?}", desc);
