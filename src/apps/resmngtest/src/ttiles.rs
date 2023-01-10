@@ -18,7 +18,7 @@ use m3::kif::{TileDesc, TileISA, TileType};
 use m3::rc::Rc;
 use m3::tcu::TileId;
 use m3::test::WvTester;
-use m3::tiles::{Activity, Tile};
+use m3::tiles::Tile;
 use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 use resmng::resources::tiles::TileManager;
@@ -63,7 +63,7 @@ fn find(t: &mut dyn WvTester) {
         Code::NotFound
     );
 
-    let base = Activity::own().tile_desc();
+    let base = TileDesc::new(TileType::COMP_EMEM, TileISA::RISCV, 0);
     let riscv = wv_assert_ok!(mng.find_with_attr(base, "boom|core"));
     wv_assert_eq!(t, riscv.tile_id(), TileId::new(0, 1));
     let arm = wv_assert_ok!(mng.find_with_attr(base, "arm+imem"));

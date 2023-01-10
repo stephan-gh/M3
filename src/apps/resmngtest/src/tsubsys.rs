@@ -18,7 +18,9 @@ use m3::com::{MemGate, RGateArgs, RecvGate};
 use m3::errors::{Code, Error, VerboseError};
 use m3::kif::Perm;
 use m3::test::{DefaultWvTester, WvTester};
-use m3::tiles::{ActivityArgs, ChildActivity, RunningActivity, RunningDeviceActivity, Tile};
+use m3::tiles::{
+    Activity, ActivityArgs, ChildActivity, RunningActivity, RunningDeviceActivity, Tile,
+};
 use m3::{wv_assert, wv_assert_eq, wv_assert_ok, wv_assert_some, wv_run_test};
 
 use resmng::childs::{Child, ChildManager, OwnChild};
@@ -185,11 +187,17 @@ fn start_service_deps(t: &mut dyn WvTester) {
                  <app args=\"1\">
                     <serv name=\"serv\"/>
                  </app>
+             </dom>
+             <dom>
                  <app args=\"2\">
                     <sess name=\"serv\"/>
                  </app>
+             </dom>
+             <dom>
                  <app args=\"3\">
                  </app>
+             </dom>
+             <dom>
                  <app args=\"4\">
                     <sess name=\"serv\" dep=\"false\"/>
                  </app>
@@ -235,6 +243,11 @@ fn start_service_deps(t: &mut dyn WvTester) {
 }
 
 fn start_resource_split(t: &mut dyn WvTester) {
+    if !Activity::own().tile_desc().has_virtmem() {
+        m3::println!("Skipping test on tile without VM support");
+        return;
+    }
+
     run_subsys(
         t,
         "<app args=\"resmngtest\">
