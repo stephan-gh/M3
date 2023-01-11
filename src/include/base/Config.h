@@ -34,7 +34,7 @@
 #define MAX_TILES     64
 #define MAX_CHIPS     2
 
-#if defined(__hw__)
+#if defined(__hw__) || defined(__hw22__)
 #    define TOTAL_EPS 128
 #    define AVAIL_EPS TOTAL_EPS
 #    define MAX_ACTS  8
@@ -111,7 +111,7 @@
 #define RBUF_SIZE     (0x10000000 - RBUF_STD_SIZE)
 #define RBUF_SIZE_SPM 0xE000
 
-#if defined(__hw__)
+#if defined(__hw__) || defined(__hw22__)
 #    define TILEMUX_CODE_START (MEM_OFFSET + 0x1000)
 #    define ENV_START          (MEM_OFFSET + 0x8)
 #else

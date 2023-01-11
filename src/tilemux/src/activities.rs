@@ -992,7 +992,7 @@ impl Activity {
         .unwrap();
 
         // map PLIC
-        #[cfg(target_vendor = "hw")]
+        #[cfg(any(target_vendor = "hw", target_vendor = "hw22"))]
         {
             self.map(0x0C00_0000, GlobAddr::new(0x0C00_0000), 1, rw)
                 .unwrap();

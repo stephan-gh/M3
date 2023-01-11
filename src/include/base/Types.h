@@ -36,7 +36,11 @@ typedef long ssize_t;
 #endif
 
 typedef unsigned long word_t;
+#if defined(__hw22__)
+typedef uint32_t label_t;
+#else
 typedef uint64_t label_t;
+#endif
 typedef uint64_t capsel_t;
 typedef int fd_t;
 typedef uint64_t cycles_t;

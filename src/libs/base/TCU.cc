@@ -90,8 +90,7 @@ Errors::Code TCU::send(epid_t ep, const MsgBuf &msg, label_t replylbl, epid_t re
 Errors::Code TCU::send_aligned(epid_t ep, const void *msg, size_t len, label_t replylbl,
                                epid_t reply_ep) {
     auto msg_addr = reinterpret_cast<uintptr_t>(msg);
-    write_reg(UnprivRegs::DATA_ADDR, static_cast<reg_t>(msg_addr));
-    write_reg(UnprivRegs::DATA_SIZE, static_cast<reg_t>(len));
+    write_data(static_cast<size_t>(msg_addr), len);
     if(replylbl)
         write_reg(UnprivRegs::ARG1, replylbl);
     CPU::compiler_barrier();
@@ -104,8 +103,7 @@ Errors::Code TCU::reply(epid_t ep, const MsgBuf &reply, size_t msg_off) {
 
 Errors::Code TCU::reply_aligned(epid_t ep, const void *reply, size_t len, size_t msg_off) {
     auto reply_addr = reinterpret_cast<uintptr_t>(reply);
-    write_reg(UnprivRegs::DATA_ADDR, static_cast<reg_t>(reply_addr));
-    write_reg(UnprivRegs::DATA_SIZE, static_cast<reg_t>(len));
+    write_data(static_cast<size_t>(reply_addr), len);
     CPU::compiler_barrier();
     return perform_send_reply(reply_addr, build_command(ep, CmdOpCode::REPLY, msg_off));
 }
@@ -140,8 +138,7 @@ Errors::Code TCU::perform_transfer(epid_t ep, uintptr_t data_addr, size_t size, 
                                    CmdOpCode cmd) {
     while(size > 0) {
         size_t amount = Math::min(size, PAGE_SIZE - (data_addr & PAGE_MASK));
-        write_reg(UnprivRegs::DATA_ADDR, static_cast<reg_t>(data_addr));
-        write_reg(UnprivRegs::DATA_SIZE, static_cast<reg_t>(amount));
+        write_data(static_cast<size_t>(data_addr), amount);
         write_reg(UnprivRegs::ARG1, off);
         CPU::compiler_barrier();
         write_reg(UnprivRegs::COMMAND, build_command(ep, cmd));

@@ -44,6 +44,9 @@ pub type Reg = u64;
 /// An endpoint id
 pub type EpId = u16;
 /// A TCU label used in send EPs
+#[cfg(target_vendor = "hw22")]
+pub type Label = u32;
+#[cfg(not(target_vendor = "hw22"))]
 pub type Label = u64;
 /// A activity id
 pub type ActId = u16;
@@ -153,8 +156,16 @@ pub const MMIO_PRIV_SIZE: usize = cfg::PAGE_SIZE * 2;
 
 /// The number of external registers
 pub const EXT_REGS: usize = 2;
-/// The number of unprivileged registers
-pub const UNPRIV_REGS: usize = 6;
+cfg_if! {
+    if #[cfg(target_vendor = "hw22")] {
+        /// The number of unprivileged registers
+        pub const UNPRIV_REGS: usize = 5;
+    }
+    else {
+        /// The number of unprivileged registers
+        pub const UNPRIV_REGS: usize = 6;
+    }
+}
 /// The number of registers per EP
 pub const EP_REGS: usize = 3;
 /// The number of PRINT registers
@@ -196,22 +207,44 @@ int_enum! {
     }
 }
 
-int_enum! {
-    /// The unprivileged registers
-    #[allow(dead_code)]
-    pub struct UnprivReg : Reg {
-        /// Starts commands and signals their completion
-        const COMMAND       = 0x0;
-        /// Specifies the data address
-        const DATA_ADDR     = 0x1;
-        /// Specifies the data size
-        const DATA_SIZE     = 0x2;
-        /// Specifies an additional argument
-        const ARG1          = 0x3;
-        /// The current time in nanoseconds
-        const CUR_TIME      = 0x4;
-        /// Prints a line into the gem5 log
-        const PRINT         = 0x5;
+cfg_if! {
+    if #[cfg(target_vendor = "hw22")] {
+        int_enum! {
+            /// The unprivileged registers
+            #[allow(dead_code)]
+            pub struct UnprivReg : Reg {
+                /// Starts commands and signals their completion
+                const COMMAND       = 0x0;
+                /// Specifies the data address and size
+                const DATA          = 0x1;
+                /// Specifies an additional argument
+                const ARG1          = 0x2;
+                /// The current time in nanoseconds
+                const CUR_TIME      = 0x3;
+                /// Prints a line into the gem5 log
+                const PRINT         = 0x4;
+            }
+        }
+    }
+    else {
+        int_enum! {
+            /// The unprivileged registers
+            #[allow(dead_code)]
+            pub struct UnprivReg : Reg {
+                /// Starts commands and signals their completion
+                const COMMAND       = 0x0;
+                /// Specifies the data address
+                const DATA_ADDR     = 0x1;
+                /// Specifies the data size
+                const DATA_SIZE     = 0x2;
+                /// Specifies an additional argument
+                const ARG1          = 0x3;
+                /// The current time in nanoseconds
+                const CUR_TIME      = 0x4;
+                /// Prints a line into the gem5 log
+                const PRINT         = 0x5;
+            }
+        }
     }
 }
 
@@ -336,8 +369,8 @@ pub struct Header {
     other: u32,
     sender_ep: u16,
     reply_ep: u16,
-    reply_label: u64,
-    label: u64,
+    reply_label: Label,
+    label: Label,
 }
 
 impl Header {
@@ -424,8 +457,7 @@ impl TCU {
             reply_ep
         );
 
-        Self::write_unpriv_reg(UnprivReg::DATA_ADDR, msg_addr as Reg);
-        Self::write_unpriv_reg(UnprivReg::DATA_SIZE, len as Reg);
+        Self::write_data(msg_addr, len);
         if reply_lbl != 0 {
             Self::write_unpriv_reg(UnprivReg::ARG1, reply_lbl as Reg);
         }
@@ -460,8 +492,7 @@ impl TCU {
             msg_off
         );
 
-        Self::write_unpriv_reg(UnprivReg::DATA_ADDR, reply_addr as Reg);
-        Self::write_unpriv_reg(UnprivReg::DATA_SIZE, len as Reg);
+        Self::write_data(reply_addr, len);
 
         Self::perform_send_reply(
             reply_addr,
@@ -533,8 +564,7 @@ impl TCU {
         while size > 0 {
             let amount = cmp::min(size, cfg::PAGE_SIZE - (data & cfg::PAGE_MASK));
 
-            Self::write_unpriv_reg(UnprivReg::DATA_ADDR, data as Reg);
-            Self::write_unpriv_reg(UnprivReg::DATA_SIZE, amount as Reg);
+            Self::write_data(data, amount);
             Self::write_unpriv_reg(UnprivReg::ARG1, off as Reg);
             Self::write_unpriv_reg(UnprivReg::COMMAND, Self::build_cmd(ep, cmd, 0));
 
@@ -850,18 +880,29 @@ impl TCU {
 
     /// Invalidates the entry with given address space id and virtual address in the TCU's TLB
     pub fn invalidate_page(asid: u16, virt: usize) {
-        let val = ((asid as Reg) << 9) | PrivCmdOpCode::INV_PAGE.val;
-        Self::write_priv_reg(PrivReg::PRIV_CMD_ARG, virt as Reg);
+        #[cfg(target_vendor = "hw22")]
+        let val = ((asid as Reg) << 41) | ((virt as Reg) << 9) | PrivCmdOpCode::INV_PAGE.val;
+        #[cfg(not(target_vendor = "hw22"))]
+        let val = {
+            Self::write_priv_reg(PrivReg::PRIV_CMD_ARG, virt as Reg);
+            ((asid as Reg) << 9) | PrivCmdOpCode::INV_PAGE.val
+        };
+
         Self::write_priv_reg(PrivReg::PRIV_CMD, val);
         Self::wait_priv_cmd();
     }
 
     /// Inserts the given entry into the TCU's TLB
     pub fn insert_tlb(asid: u16, virt: usize, phys: u64, flags: PageFlags) -> Result<(), Error> {
-        Self::write_priv_reg(PrivReg::PRIV_CMD_ARG, virt as Reg);
+        #[cfg(target_vendor = "hw22")]
+        let (arg_addr, cmd_addr) = (phys, virt);
+        #[cfg(not(target_vendor = "hw22"))]
+        let (arg_addr, cmd_addr) = (virt, phys);
+
+        Self::write_priv_reg(PrivReg::PRIV_CMD_ARG, arg_addr as Reg);
         atomic::fence(atomic::Ordering::SeqCst);
         let cmd = ((asid as Reg) << 41)
-            | (((phys as Reg) & !(cfg::PAGE_MASK as Reg)) << 9)
+            | (((cmd_addr as Reg) & !(cfg::PAGE_MASK as Reg)) << 9)
             | ((flags.bits() as Reg) << 9)
             | PrivCmdOpCode::INS_TLB.val;
         Self::write_priv_reg(PrivReg::PRIV_CMD, cmd);
@@ -898,6 +939,33 @@ impl TCU {
     /// Enables or disables instruction tracing
     pub fn set_trace_instrs(enable: bool) {
         Self::write_cfg_reg(ConfigReg::INSTR_TRACE, enable as Reg);
+    }
+
+    /// Writes the given address and size into the DATA register
+    pub fn write_data(addr: usize, size: usize) {
+        #[cfg(target_vendor = "hw22")]
+        Self::write_unpriv_reg(UnprivReg::DATA, (size as Reg) << 32 | addr as Reg);
+        #[cfg(not(target_vendor = "hw22"))]
+        {
+            Self::write_unpriv_reg(UnprivReg::DATA_ADDR, addr as Reg);
+            Self::write_unpriv_reg(UnprivReg::DATA_SIZE, size as Reg);
+        }
+    }
+
+    /// Returns the contents of the DATA register (address and size)
+    pub fn read_data() -> (usize, usize) {
+        #[cfg(target_vendor = "hw22")]
+        {
+            let data = Self::read_unpriv_reg(UnprivReg::DATA);
+            ((data & 0xFFFF_FFFF) as usize, data as usize >> 32)
+        }
+        #[cfg(not(target_vendor = "hw22"))]
+        {
+            (
+                Self::read_unpriv_reg(UnprivReg::DATA_ADDR) as usize,
+                Self::read_unpriv_reg(UnprivReg::DATA_SIZE) as usize,
+            )
+        }
     }
 
     /// Returns the value of the given unprivileged register

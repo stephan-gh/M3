@@ -8,7 +8,7 @@ root = createRoot(options)
 
 cmd_list = options.cmd.split(",")
 
-num_eps = 128 if os.environ.get('M3_TARGET') == 'hw' else 192
+num_eps = 192 if os.environ.get('M3_TARGET') == 'gem5' else 128
 num_mem = 1
 num_tiles = int(os.environ.get('M3_GEM5_TILES'))
 accs = ['indir', 'indir', 'indir', 'indir', 'copy', 'copy', 'copy', 'copy', 'rot13']

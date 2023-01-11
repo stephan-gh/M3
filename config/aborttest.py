@@ -6,7 +6,7 @@ from tcu_fs import *
 options = getOptions()
 root = createRoot(options)
 
-num_eps = 128 if os.environ.get('M3_TARGET') == 'hw' else 192
+num_eps = 192 if os.environ.get('M3_TARGET') == 'gem5' else 128
 num_tiles = 1
 mem_tile = TileId(0, num_tiles)
 tiles = []

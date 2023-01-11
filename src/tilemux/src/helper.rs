@@ -23,7 +23,7 @@ pub fn flush_cache() {
         return;
     }
 
-    #[cfg(target_vendor = "hw")]
+    #[cfg(any(target_vendor = "hw", target_vendor = "hw22"))]
     let (cacheline_size, cache_size) = (64, 512 * 1024);
     #[cfg(target_vendor = "gem5")]
     let (cacheline_size, cache_size) = (64, (32 + 256) * 1024);
@@ -38,7 +38,7 @@ pub fn flush_cache() {
         }
     }
 
-    #[cfg(target_vendor = "hw")]
+    #[cfg(any(target_vendor = "hw", target_vendor = "hw22"))]
     unsafe {
         core::arch::asm!("fence.i");
     }
@@ -59,14 +59,14 @@ impl TCUCmdState {
 
         self.cmd_regs[0] = old_cmd;
         self.cmd_regs[1] = tcu::TCU::read_unpriv_reg(tcu::UnprivReg::ARG1);
-        self.cmd_regs[2] = tcu::TCU::read_unpriv_reg(tcu::UnprivReg::DATA_ADDR);
-        self.cmd_regs[3] = tcu::TCU::read_unpriv_reg(tcu::UnprivReg::DATA_SIZE);
+        let (addr, size) = tcu::TCU::read_data();
+        self.cmd_regs[2] = addr as tcu::Reg;
+        self.cmd_regs[3] = size as tcu::Reg;
     }
 
     pub fn restore(&mut self) {
         tcu::TCU::write_unpriv_reg(tcu::UnprivReg::ARG1, self.cmd_regs[1]);
-        tcu::TCU::write_unpriv_reg(tcu::UnprivReg::DATA_ADDR, self.cmd_regs[2]);
-        tcu::TCU::write_unpriv_reg(tcu::UnprivReg::DATA_SIZE, self.cmd_regs[3]);
+        tcu::TCU::write_data(self.cmd_regs[2] as usize, self.cmd_regs[3] as usize);
         // always restore the command register, because the previous activity might have an error code
         // in the command register or similar.
         atomic::fence(atomic::Ordering::SeqCst);

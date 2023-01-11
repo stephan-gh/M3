@@ -271,7 +271,7 @@ build_params_hw() {
 
 if [ "$M3_TARGET" = "gem5" ] || [ "$M3_RUN_GEM5" = "1" ]; then
     build_params_gem5 "$script"
-elif [ "$M3_TARGET" = "hw" ]; then
+elif [ "$M3_TARGET" = "hw" ] || [ "$M3_TARGET" = "hw22" ]; then
     build_params_hw "$script"
 else
     echo "Unknown target '$M3_TARGET'"

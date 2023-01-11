@@ -19,7 +19,7 @@ if [ "$M3_TARGET" = "gem5" ]; then
     if [ "$M3_ISA" != "arm" ] && [ "$M3_ISA" != "x86_64" ] && [ "$M3_ISA" != "riscv" ]; then
         echo "ISA $M3_ISA not supported for target gem5." >&2 && exit 1
     fi
-elif [ "$M3_TARGET" = "hw" ]; then
+elif [ "$M3_TARGET" = "hw" ] || [ "$M3_TARGET" = "hw22" ]; then
     M3_ISA="riscv"
 else
     echo "Target $M3_TARGET not supported." >&2 && exit 1
@@ -81,7 +81,7 @@ help() {
     echo ""
     echo "This is a convenience script that is responsible for building everything"
     echo "and running the specified command afterwards. The most important environment"
-    echo "variables that influence its behaviour are M3_TARGET=(gem5|hw),"
+    echo "variables that influence its behaviour are M3_TARGET=(gem5|hw|hw22),"
     echo "M3_ISA=(x86_64|arm|riscv) [on gem5 only], and M3_BUILD=(debug|release|coverage)."
     echo ""
     echo "The flag -n skips the build and executes the given command directly. This"

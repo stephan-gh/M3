@@ -183,7 +183,11 @@ public:
 private:
     static const size_t EXT_REGS = 2;
     static const size_t PRIV_REGS = 5;
+#if defined(__hw22__)
+    static const size_t UNPRIV_REGS = 5;
+#else
     static const size_t UNPRIV_REGS = 6;
+#endif
     static const size_t EP_REGS = 3;
     static const size_t PRINT_REGS = 32;
 
@@ -202,11 +206,15 @@ private:
 
     enum class UnprivRegs {
         COMMAND = EXT_REGS + 0,
-        DATA_ADDR = EXT_REGS + 1,
-        DATA_SIZE = EXT_REGS + 2,
-        ARG1 = EXT_REGS + 3,
-        CUR_TIME = EXT_REGS + 4,
-        PRINT = EXT_REGS + 5,
+#if defined(__hw22__)
+        DATA,
+#else
+        DATA_ADDR,
+        DATA_SIZE,
+#endif
+        ARG1,
+        CUR_TIME,
+        PRINT,
     };
 
     enum StatusFlags : reg_t {
@@ -269,8 +277,8 @@ public:
         uint16_t replyEp; // for a normal message this is the reply epId
                           // for a reply this is the enpoint that receives credits
 
-        uint64_t replylabel;
-        uint64_t label;
+        label_t replylabel;
+        label_t label;
     } PACKED;
 
     struct Message : Header {
@@ -452,6 +460,15 @@ private:
     }
     static void write_reg(size_t idx, reg_t value) {
         CPU::write8b(MMIO_ADDR + idx * sizeof(reg_t), value);
+    }
+
+    static void write_data(size_t addr, size_t size) {
+#if defined(__hw22__)
+        write_reg(UnprivRegs::DATA, static_cast<reg_t>(addr) | static_cast<reg_t>(size) << 32);
+#else
+        write_reg(UnprivRegs::DATA_ADDR, static_cast<reg_t>(addr));
+        write_reg(UnprivRegs::DATA_SIZE, static_cast<reg_t>(size));
+#endif
     }
 
     static uintptr_t ext_reg_addr(ExtRegs reg) {

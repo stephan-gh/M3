@@ -20,7 +20,7 @@ pub const MAX_CHIPS: usize = 2;
 
 #[cfg(target_vendor = "gem5")]
 pub const MAX_ACTS: usize = 32;
-#[cfg(target_vendor = "hw")]
+#[cfg(any(target_vendor = "hw", target_vendor = "hw22"))]
 pub const MAX_ACTS: usize = 16;
 
 pub const PAGE_BITS: usize = 12;
@@ -49,7 +49,7 @@ pub const TILE_MEM_BASE: usize = 0xE000_0000;
 
 pub const MEM_CAP_END: usize = RBUF_STD_ADDR;
 
-#[cfg(any(target_vendor = "hw", target_arch = "riscv64"))]
+#[cfg(any(target_vendor = "hw", target_vendor = "hw22", target_arch = "riscv64"))]
 pub const ENV_START: usize = MEM_OFFSET + 0x8;
 #[cfg(all(target_vendor = "gem5", not(target_arch = "riscv64")))]
 pub const ENV_START: usize = MEM_OFFSET + 0x10_0000;
@@ -60,7 +60,7 @@ pub const STACK_SIZE: usize = 0x10000;
 pub const FIXED_KMEM: usize = 2 * 1024 * 1024;
 pub const FIXED_ROOT_MEM: usize = MOD_HEAP_SIZE + 2 * 1024 * 1024;
 
-#[cfg(target_vendor = "hw")]
+#[cfg(any(target_vendor = "hw", target_vendor = "hw22"))]
 pub const TILEMUX_START: usize = MEM_OFFSET;
 #[cfg(target_vendor = "gem5")]
 pub const TILEMUX_START: usize = MEM_OFFSET + 0x20_0000;

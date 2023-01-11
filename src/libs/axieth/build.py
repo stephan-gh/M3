@@ -1,7 +1,7 @@
 import os
 
 def build(gen, env):
-    if env['TGT'] == 'hw':
+    if env['TGT'] == 'hw' or env['TGT'] == 'hw22':
         env = env.clone()
 
         pwd = str(env.glob('')[0])

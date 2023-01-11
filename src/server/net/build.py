@@ -1,5 +1,5 @@
 def build(gen, env):
-    if env['TGT'] == 'hw':
+    if env['TGT'] == 'hw' or env['TGT'] == 'hw22':
         libs = ['axieth', 'base', 'supc++']
     else:
         libs = []
