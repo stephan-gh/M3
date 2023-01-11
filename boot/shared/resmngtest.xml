@@ -1,0 +1,30 @@
+<config>
+    <mods>
+        <mod name="fs" file="default.img" />
+    </mods>
+    <kernel args="kernel" />
+    <dom>
+        <app args="root">
+            <app args="m3fs -c mem" daemon="1">
+                <serv name="m3fs" />
+                <mod name="fs" />
+            </app>
+            <dom>
+                <app args="pager">
+                    <sess name="m3fs" />
+                    <mod name="fs" perm="r" />
+                    <tiles type="core" count="1" />
+                    <dom>
+                        <app args="/bin/resmngtest">
+                            <mount fs="m3fs" path="/" />
+                            <tiles type="core" count="5" />
+                            <dom>
+                                <app args="rusthello" />
+                            </dom>
+                        </app>
+                    </dom>
+                </app>
+            </dom>
+        </app>
+    </dom>
+</config>
