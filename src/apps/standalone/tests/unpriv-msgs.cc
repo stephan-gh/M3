@@ -219,7 +219,7 @@ static void test_msg_send_empty() {
     ASSERT_EQ(rmsg->replylabel, 0x2222);
     ASSERT_EQ(rmsg->length, 0);
     ASSERT_EQ(rmsg->senderEp, SEP);
-    ASSERT_EQ(rmsg->replySize, 5 /* log2(TCU::Message::Header) */);
+    ASSERT_EQ(rmsg->replySize, nextlog2<sizeof(TCU::Message::Header)>::val);
     ASSERT_EQ(rmsg->replyEp, TCU::INVALID_EP);
     ASSERT_EQ(rmsg->senderTile, TCU::tileid_to_nocid(own_tile));
     ASSERT_EQ(rmsg->flags, 0);
@@ -320,7 +320,7 @@ static void test_msg_no_reply() {
     ASSERT_EQ(rmsg->replylabel, 0x1111);
     ASSERT_EQ(rmsg->length, msg.size());
     ASSERT_EQ(rmsg->senderEp, SEP);
-    ASSERT_EQ(rmsg->replySize, 5 /* log2(TCU::Message::Header) */);
+    ASSERT_EQ(rmsg->replySize, nextlog2<sizeof(TCU::Message::Header)>::val);
     ASSERT_EQ(rmsg->replyEp, TCU::INVALID_EP);
     ASSERT_EQ(rmsg->senderTile, TCU::tileid_to_nocid(own_tile));
     ASSERT_EQ(rmsg->flags, 0);
