@@ -320,7 +320,8 @@ impl Subsystem {
         for (idx, dom) in root.domains().iter().enumerate() {
             // allocate new tile; root allocates from its own set, others ask their resmng
             let tile_usage = if dom.pseudo || Activity::own().resmng().is_none() {
-                let base = Activity::own().tile_desc();
+                let own_desc = Activity::own().tile_desc();
+                let base = TileDesc::new(own_desc.tile_type(), own_desc.isa(), 0);
                 res.tiles().find_with_attr(base, &dom.tile.0).map_err(|e| {
                     VerboseError::new(
                         e.code(),
