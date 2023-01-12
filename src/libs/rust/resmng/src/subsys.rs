@@ -22,7 +22,7 @@ use m3::com::MemGate;
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::goff;
-use m3::kif::{boot, CapRngDesc, CapType, Perm, FIRST_FREE_SEL};
+use m3::kif::{boot, CapRngDesc, CapType, Perm, TileDesc, FIRST_FREE_SEL};
 use m3::log;
 use m3::mem::size_of;
 use m3::rc::Rc;
@@ -842,7 +842,8 @@ fn pass_down_tiles(
     sub: &mut SubsystemBuilder,
     app: &config::AppConfig,
 ) {
-    let base = Activity::own().tile_desc();
+    let own_desc = Activity::own().tile_desc();
+    let base = TileDesc::new(own_desc.tile_type(), own_desc.isa(), 0);
     for d in app.domains() {
         for child in d.apps() {
             for tile in child.tiles() {
