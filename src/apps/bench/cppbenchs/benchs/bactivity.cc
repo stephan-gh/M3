@@ -46,7 +46,7 @@ NOINLINE static void run() {
     rgate.activate();
     auto sgate = SendGate::create(&rgate, SendGateArgs().credits(SendGate::UNLIMITED));
 
-    auto tile = Tile::get("clone|own");
+    auto tile = Tile::get("compat|own");
     Results<CycleDuration> res(warmup + repeats);
     for(ulong i = 0; i < warmup + repeats; ++i) {
         ChildActivity act(tile, "hello");
@@ -83,7 +83,7 @@ NOINLINE static void run() {
 NOINLINE static void run_wait() {
     Profile pr(4, 2);
 
-    auto tile = Tile::get("clone|own");
+    auto tile = Tile::get("compat|own");
     WVPERF("Activity run wait", pr.run<CycleInstant>([&tile] {
         ChildActivity act(tile, "hello");
         act.run([]() {

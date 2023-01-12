@@ -41,7 +41,7 @@ fn destroy(t: &mut dyn WvTester) {
     use m3::tiles::{Activity, ChildActivity, RunningActivity, Tile};
     use m3::{reply_vmsg, send_recv, wv_assert_eq, wv_assert_ok};
 
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let mut child = wv_assert_ok!(ChildActivity::new(tile, "test"));
 
     let act = {

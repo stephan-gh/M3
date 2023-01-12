@@ -36,7 +36,7 @@ pub fn run(t: &mut dyn WvTester) {
 }
 
 fn pingpong_remote(t: &mut dyn WvTester) {
-    let tile = wv_assert_ok!(Tile::get("clone"));
+    let tile = wv_assert_ok!(Tile::get("compat"));
     pingpong_with_tile(t, "remote", tile);
 }
 
@@ -98,7 +98,7 @@ fn pingpong_with_multiple(t: &mut dyn WvTester) {
         return;
     }
 
-    let tile = wv_assert_ok!(Tile::get("clone"));
+    let tile = wv_assert_ok!(Tile::get("compat"));
     // use long time slices for childs (minimize timer interrupts)
     wv_assert_ok!(tile.set_quota(
         TimeDuration::from_secs(1).as_raw(),

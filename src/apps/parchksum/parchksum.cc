@@ -36,7 +36,7 @@ struct Worker {
     Worker(RecvGate &rgate, MemGate &mem, size_t offset, size_t size)
         : submem(mem.derive(offset, size)),
           sgate(SendGate::create(&rgate, SendGateArgs().credits(1))),
-          tile(Tile::get("clone|own")),
+          tile(Tile::get("compat|own")),
           act(tile, "worker") {
         act.delegate_obj(submem.sel());
     }

@@ -62,6 +62,7 @@ public:
      * special properties are supported:
      * - "own" to denote the own tile (provided that it has support for multiple activities)
      * - "clone" to denote a separate tile that is identical to the own tile
+     * - "compat" to denote a separate tile that is compatible to the own tile (same ISA and type)
      *
      * For other properties, see `desc_with_properties` in tile.cc.
      *

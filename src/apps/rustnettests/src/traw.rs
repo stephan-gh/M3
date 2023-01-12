@@ -52,7 +52,7 @@ fn exec_ping(t: &mut dyn WvTester) {
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let mut ping = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("ping")));
     ping.add_file(io::STDOUT_FILENO, pipe.writer().unwrap().fd());
 

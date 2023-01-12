@@ -80,7 +80,7 @@ fn to_child(t: &mut dyn WvTester) {
     env::set_var("V3", "val3");
 
     let act = wv_assert_ok!(ChildActivity::new_with(
-        wv_assert_ok!(Tile::get("clone|own")),
+        wv_assert_ok!(Tile::get("compat|own")),
         ActivityArgs::new("child")
     ));
 

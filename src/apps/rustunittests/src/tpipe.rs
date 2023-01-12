@@ -41,7 +41,7 @@ fn child_to_parent(t: &mut dyn WvTester) {
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let mut act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("writer")));
     act.add_file(io::STDOUT_FILENO, pipe.writer().unwrap().fd());
 
@@ -66,7 +66,7 @@ fn parent_to_child(t: &mut dyn WvTester) {
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let mut act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("reader")));
     act.add_file(io::STDIN_FILENO, pipe.reader().unwrap().fd());
 
@@ -92,8 +92,8 @@ fn child_to_child(t: &mut dyn WvTester) {
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
-    let tile1 = wv_assert_ok!(Tile::get("clone|own"));
-    let tile2 = wv_assert_ok!(Tile::get("clone|own"));
+    let tile1 = wv_assert_ok!(Tile::get("compat|own"));
+    let tile2 = wv_assert_ok!(Tile::get("compat|own"));
     let mut writer = wv_assert_ok!(ChildActivity::new_with(tile1, ActivityArgs::new("writer")));
     let mut reader = wv_assert_ok!(ChildActivity::new_with(tile2, ActivityArgs::new("reader")));
     writer.add_file(io::STDOUT_FILENO, pipe.writer().unwrap().fd());
@@ -123,8 +123,8 @@ fn exec_child_to_child(t: &mut dyn WvTester) {
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
-    let tile1 = wv_assert_ok!(Tile::get("clone|own"));
-    let tile2 = wv_assert_ok!(Tile::get("clone|own"));
+    let tile1 = wv_assert_ok!(Tile::get("compat|own"));
+    let tile2 = wv_assert_ok!(Tile::get("compat|own"));
     let mut writer = wv_assert_ok!(ChildActivity::new_with(tile1, ActivityArgs::new("writer")));
     let mut reader = wv_assert_ok!(ChildActivity::new_with(tile2, ActivityArgs::new("reader")));
     writer.add_file(io::STDOUT_FILENO, pipe.writer().unwrap().fd());
@@ -151,7 +151,7 @@ fn writer_quit(t: &mut dyn WvTester) {
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let mut act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("writer")));
     act.add_file(io::STDOUT_FILENO, pipe.writer().unwrap().fd());
 
@@ -185,7 +185,7 @@ fn reader_quit(t: &mut dyn WvTester) {
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let mut act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("reader")));
     act.add_file(io::STDIN_FILENO, pipe.reader().unwrap().fd());
 

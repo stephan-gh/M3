@@ -93,13 +93,13 @@ pub fn connect(name: &str) -> ClientSession {
 }
 
 fn testnoresp(t: &mut dyn WvTester) {
-    let client_tile = wv_assert_ok!(Tile::get("clone|own"));
+    let client_tile = wv_assert_ok!(Tile::get("compat|own"));
     let client = wv_assert_ok!(ChildActivity::new_with(
         client_tile,
         ActivityArgs::new("client")
     ));
 
-    let server_tile = wv_assert_ok!(Tile::get("clone|own"));
+    let server_tile = wv_assert_ok!(Tile::get("compat|own"));
     let cact = {
         let serv = wv_assert_ok!(ChildActivity::new_with(
             server_tile,
@@ -126,13 +126,13 @@ fn testnoresp(t: &mut dyn WvTester) {
 }
 
 fn testcliexit(t: &mut dyn WvTester) {
-    let client_tile = wv_assert_ok!(Tile::get("clone|own"));
+    let client_tile = wv_assert_ok!(Tile::get("compat|own"));
     let mut client = wv_assert_ok!(ChildActivity::new_with(
         client_tile,
         ActivityArgs::new("client")
     ));
 
-    let server_tile = wv_assert_ok!(Tile::get("clone|own"));
+    let server_tile = wv_assert_ok!(Tile::get("compat|own"));
     let serv = wv_assert_ok!(ChildActivity::new_with(
         server_tile,
         ActivityArgs::new("server")
@@ -274,7 +274,7 @@ fn server_notsup_main() -> Result<(), Error> {
 }
 
 fn testcaps(t: &mut dyn WvTester) {
-    let server_tile = wv_assert_ok!(Tile::get("clone|own"));
+    let server_tile = wv_assert_ok!(Tile::get("compat|own"));
     let serv = wv_assert_ok!(ChildActivity::new_with(
         server_tile,
         ActivityArgs::new("server")

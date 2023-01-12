@@ -249,7 +249,7 @@ fn create_sess(t: &mut dyn WvTester) {
     // calls are implicitly done with Activity::own() and we cannot exchange caps with ourself.
     // thus, we create a child activity, delegate the cap to it, delegate it back to ourself and try
     // to create a session with it afterwards.
-    let child_tile = wv_assert_ok!(Tile::get("clone"));
+    let child_tile = wv_assert_ok!(Tile::get("compat"));
     let child_act = wv_assert_ok!(ChildActivity::new_with(
         child_tile,
         ActivityArgs::new("tmp")
@@ -348,7 +348,7 @@ fn create_activity(t: &mut dyn WvTester) {
     let sels = Activity::own().alloc_sels(3);
     let kmem = Activity::own().kmem().sel();
 
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
 
     // invalid dest selector
     wv_assert_err!(
@@ -406,7 +406,7 @@ fn alloc_ep(t: &mut dyn WvTester) {
     // try to use the EP object after the activity we allocated it for is gone
     {
         {
-            let tile = wv_assert_ok!(Tile::get("clone"));
+            let tile = wv_assert_ok!(Tile::get("compat"));
             let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
             wv_assert_ok!(syscalls::alloc_ep(sel, act.sel(), TOTAL_EPS, 1));
         }
@@ -683,7 +683,7 @@ fn derive_kmem(t: &mut dyn WvTester) {
 
     let kmem = wv_assert_ok!(Activity::own().kmem().derive(quota / 2));
     {
-        let tile = wv_assert_ok!(Tile::get("clone"));
+        let tile = wv_assert_ok!(Tile::get("compat"));
         let _act = wv_assert_ok!(ChildActivity::new_with(
             tile,
             ActivityArgs::new("test").kmem(kmem.clone())
@@ -702,7 +702,7 @@ fn derive_kmem(t: &mut dyn WvTester) {
 
 fn derive_tile(t: &mut dyn WvTester) {
     let sel = Activity::own().alloc_sel();
-    let tile = wv_assert_ok!(Tile::get("clone"));
+    let tile = wv_assert_ok!(Tile::get("compat"));
     let oquota = wv_assert_ok!(tile.quota());
     let oquote_eps = oquota.endpoints().remaining();
 
@@ -817,7 +817,7 @@ fn get_sess(t: &mut dyn WvTester) {
     let _sess2 = wv_assert_ok!(ServerSession::new(srv.sel(), 1, 0x1234, false));
 
     // dummy activity that should receive the session
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let act = wv_assert_ok!(ChildActivity::new(tile, "test"));
 
     // invalid service selector
@@ -943,7 +943,7 @@ fn activity_ctrl(t: &mut dyn WvTester) {
 }
 
 fn exchange(t: &mut dyn WvTester) {
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let child = wv_assert_ok!(ChildActivity::new(tile, "test"));
 
     let sel = Activity::own().alloc_sel();

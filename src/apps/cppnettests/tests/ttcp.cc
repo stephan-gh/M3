@@ -129,7 +129,7 @@ NOINLINE static void nonblocking_client() {
 }
 
 NOINLINE static void nonblocking_server() {
-    auto tile = Tile::get("clone|own");
+    auto tile = Tile::get("compat|own");
     ChildActivity act(tile, "tcp-server");
 
     auto sem = Semaphore::create(0);
@@ -210,7 +210,7 @@ NOINLINE static void open_close() {
 }
 
 NOINLINE static void receive_after_close() {
-    auto tile = Tile::get("clone|own");
+    auto tile = Tile::get("compat|own");
     ChildActivity act(tile, "tcp-server");
 
     auto sem = Semaphore::create(0);

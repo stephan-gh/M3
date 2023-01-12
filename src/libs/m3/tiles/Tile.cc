@@ -102,6 +102,14 @@ Reference<Tile> Tile::get(const char *desc) {
             catch(...) {
             }
         }
+        else if(strcmp(props, "compat") == 0) {
+            try {
+                auto type_isa = TileDesc(own->desc().type(), own->desc().isa(), 0);
+                return Tile::alloc(type_isa);
+            }
+            catch(...) {
+            }
+        }
         else {
             auto base = TileDesc(own->desc().type(), own->desc().isa(), 0);
             try {

@@ -87,7 +87,7 @@ static void to_child() {
     EnvVars::set("V2", "val2");
     EnvVars::set("V3", "val3");
 
-    ChildActivity act(Tile::get("clone|own"), "child");
+    ChildActivity act(Tile::get("compat|own"), "child");
 
     act.run([] {
         auto vars = EnvVars::vars();

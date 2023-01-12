@@ -47,7 +47,7 @@ fn run_stop(_t: &mut dyn WvTester) {
         RGateArgs::default().order(6).msg_order(6)
     ));
 
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
 
     let mut wait_time = TimeDuration::from_nanos(10000);
     for _ in 1..100 {
@@ -94,7 +94,7 @@ fn run_stop(_t: &mut dyn WvTester) {
 }
 
 fn run_arguments(t: &mut dyn WvTester) {
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
     let act = wv_assert_ok!(act.run(|| {
@@ -109,7 +109,7 @@ fn run_arguments(t: &mut dyn WvTester) {
 }
 
 fn run_send_receive(t: &mut dyn WvTester) {
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let mut act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
     let rgate = wv_assert_ok!(RecvGate::new(math::next_log2(256), math::next_log2(256)));
@@ -142,7 +142,7 @@ fn run_send_receive_chan(t: &mut dyn WvTester) {
     let (tx, rx) = wv_assert_ok!(chan::sync_channel());
     let (res_tx, res_rx) = wv_assert_ok!(chan::sync_channel());
 
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let mut act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
     wv_assert_ok!(act.delegate_obj(rx.sel()));
@@ -177,7 +177,7 @@ fn run_send_receive_chan_macro(t: &mut dyn WvTester) {
     let (tx, rx) = wv_assert_ok!(chan::sync_channel());
     let (res_tx, res_rx) = wv_assert_ok!(chan::sync_channel());
 
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
     let act = wv_assert_ok!(run_with_channels!(
@@ -198,7 +198,7 @@ fn run_send_receive_chan_macro(t: &mut dyn WvTester) {
 }
 
 fn exec_fail(_t: &mut dyn WvTester) {
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     // file too small
     {
         let act = wv_assert_ok!(ChildActivity::new_with(
@@ -218,7 +218,7 @@ fn exec_fail(_t: &mut dyn WvTester) {
 }
 
 fn exec_hello(t: &mut dyn WvTester) {
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
     let act = wv_assert_ok!(act.exec(&["/bin/hello"]));
@@ -226,7 +226,7 @@ fn exec_hello(t: &mut dyn WvTester) {
 }
 
 fn exec_rust_hello(t: &mut dyn WvTester) {
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("test")));
 
     let act = wv_assert_ok!(act.exec(&["/bin/rusthello"]));

@@ -128,7 +128,7 @@ fn server_msgs_main() -> Result<(), Error> {
 fn testmsgs(t: &mut dyn WvTester) {
     use m3::send_recv;
 
-    let server_tile = wv_assert_ok!(Tile::get("clone|own"));
+    let server_tile = wv_assert_ok!(Tile::get("compat|own"));
     let serv = wv_assert_ok!(ChildActivity::new_with(
         server_tile,
         ActivityArgs::new("server")

@@ -36,7 +36,7 @@ static BUF: StaticRefCell<AlignedBuf<8192>> = StaticRefCell::new(AlignedBuf::new
 pub fn main() -> Result<(), Error> {
     let mut t = DefaultWvTester::default();
 
-    let tile = wv_assert_ok!(Tile::get("clone"));
+    let tile = wv_assert_ok!(Tile::get("compat"));
     let mut act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("sender")));
 
     const MSG_ORD: u32 = next_log2(2048);

@@ -44,7 +44,7 @@ fn taking_turns(t: &mut dyn WvTester) {
     let sem0 = wv_assert_ok!(Semaphore::create(1));
     let sem1 = wv_assert_ok!(Semaphore::create(0));
 
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let mut child = wv_assert_ok!(ChildActivity::new(tile, "child"));
     wv_assert_ok!(child.delegate_obj(sem0.sel()));
     wv_assert_ok!(child.delegate_obj(sem1.sel()));

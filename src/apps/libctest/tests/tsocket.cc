@@ -183,7 +183,7 @@ static int tcp_server() {
 static void tcp_accept() {
     Semaphore::attach("net-tcp").down();
 
-    auto tile = Tile::get("clone|own");
+    auto tile = Tile::get("compat|own");
     ChildActivity server(tile, "server");
     server.run(tcp_server);
 

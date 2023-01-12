@@ -164,7 +164,7 @@ fn nonblocking_client(t: &mut dyn WvTester) {
 }
 
 fn nonblocking_server(t: &mut dyn WvTester) {
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let mut act = wv_assert_ok!(ChildActivity::new_with(
         tile,
         ActivityArgs::new("tcp-server")
@@ -256,7 +256,7 @@ fn open_close(t: &mut dyn WvTester) {
 }
 
 fn receive_after_close(t: &mut dyn WvTester) {
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let mut act = wv_assert_ok!(ChildActivity::new_with(
         tile,
         ActivityArgs::new("tcp-server")

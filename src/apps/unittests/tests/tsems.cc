@@ -48,7 +48,7 @@ static void taking_turns() {
     set_counter("/sem0", 0);
     set_counter("/sem1", 0);
 
-    auto tile = Tile::get("clone|own");
+    auto tile = Tile::get("compat|own");
     ChildActivity child(tile, "child");
 
     child.delegate_obj(sem0.sel());

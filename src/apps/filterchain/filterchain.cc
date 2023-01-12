@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
     println("Starting filter chain..."_cf);
 
     // create receiver
-    auto tile2 = Tile::get("clone|own");
+    auto tile2 = Tile::get("compat|own");
     ChildActivity t2(tile2, "receiver");
 
     // create a gate the sender can send to (at the receiver)
@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
         return 0;
     });
 
-    auto tile1 = Tile::get("clone|own");
+    auto tile1 = Tile::get("compat|own");
     ChildActivity t1(tile1, "sender");
     t1.delegate_obj(mem.sel());
     t1.delegate_obj(resmem.sel());

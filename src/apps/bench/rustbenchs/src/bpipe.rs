@@ -43,7 +43,7 @@ fn child_to_parent(t: &mut dyn WvTester) {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let mut prof = Profiler::default().repeats(2).warmup(1);
 
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let res = prof.run::<CycleInstant, _>(|| {
         let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
         let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
@@ -88,7 +88,7 @@ fn parent_to_child(t: &mut dyn WvTester) {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let mut prof = Profiler::default().repeats(2).warmup(1);
 
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let res = prof.run::<CycleInstant, _>(|| {
         let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
         let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));

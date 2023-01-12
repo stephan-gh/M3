@@ -342,7 +342,7 @@ fn exchange(_t: &mut dyn WvTester) {
         "exchange",
         prof.runner::<CycleInstant, _>(&mut Tester {
             act: None,
-            tile: wv_assert_ok!(Tile::get("clone|own")),
+            tile: wv_assert_ok!(Tile::get("compat|own")),
         })
     );
 }

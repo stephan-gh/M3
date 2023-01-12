@@ -37,7 +37,7 @@ pub fn run(t: &mut dyn WvTester) {
 }
 
 fn subsys_builder(t: &mut dyn WvTester) {
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let mut child = wv_assert_ok!(ChildActivity::new_with(
         tile,
         // ensure that the selector for the resmng and the subsystem don't collide
@@ -51,7 +51,7 @@ fn subsys_builder(t: &mut dyn WvTester) {
     wv_assert_ok!(child_sub.add_config("<app args=\"test\"/>", |size| MemGate::new(size, Perm::RW)));
     child_sub.add_mod(wv_assert_ok!(MemGate::new(0x1000, Perm::RW)), "test");
     child_sub.add_mem(wv_assert_ok!(MemGate::new(0x4000, Perm::R)), false);
-    child_sub.add_tile(wv_assert_ok!(Tile::get("clone")));
+    child_sub.add_tile(wv_assert_ok!(Tile::get("compat")));
 
     wv_assert_ok!(child_sub.finalize_async(&mut res, 0, &mut child));
 
@@ -105,7 +105,7 @@ impl ChildStarter for TestStarter {
 }
 
 fn run_subsys(t: &mut dyn WvTester, cfg: &str, func: fn() -> Result<(), Error>) {
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let mut child = wv_assert_ok!(ChildActivity::new_with(
         tile.clone(),
         ActivityArgs::new("test").first_sel(1000)

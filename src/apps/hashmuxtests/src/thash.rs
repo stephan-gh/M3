@@ -176,7 +176,7 @@ fn _hash_file_start(
     file: &FileRef<dyn File>,
     expected: &str,
 ) -> RunningProgramActivity {
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let mut act = wv_assert_ok!(ChildActivity::new(tile, algo.name));
 
     act.add_file(io::STDIN_FILENO, file.fd());
@@ -438,7 +438,7 @@ fn shake_and_hash_pipe(t: &mut dyn WvTester) {
     let opipe = wv_assert_ok!(IndirectPipe::new(&pipes, &omgate, 0x10000));
 
     // Setup child activity that runs "hashsum shake128 -O 262144 -o -"
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let mut act = wv_assert_ok!(ChildActivity::new(tile, "shaker"));
     act.add_file(io::STDIN_FILENO, ipipe.reader().unwrap().fd());
     act.add_file(io::STDOUT_FILENO, opipe.writer().unwrap().fd());

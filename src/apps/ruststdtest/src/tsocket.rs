@@ -121,7 +121,7 @@ fn tcp_server() -> Result<(), Error> {
 fn tcp_accept(t: &mut dyn WvTester) {
     Semaphore::attach("net-tcp").unwrap().down().unwrap();
 
-    let tile = wv_assert_ok!(Tile::get("clone|own"));
+    let tile = wv_assert_ok!(Tile::get("compat|own"));
     let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("server")));
     let act = wv_assert_ok!(act.run(tcp_server));
 

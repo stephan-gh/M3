@@ -31,7 +31,7 @@ static void run_command(int argc, const char *const *argv, const char *expected)
     MemGate mem = MemGate::create_global(PIPE_SIZE, MemGate::RW);
     IndirectPipe pipe(pipes, mem, PIPE_SIZE);
 
-    auto tile = Tile::get("clone|own");
+    auto tile = Tile::get("compat|own");
     ChildActivity child(tile, "child");
     child.add_file(STDIN_FD, STDIN_FD);
     child.add_file(STDOUT_FD, pipe.writer().fd());

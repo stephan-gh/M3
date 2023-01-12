@@ -109,7 +109,7 @@ fn remote_access(t: &mut dyn WvTester) {
     let sem1 = wv_assert_ok!(Semaphore::create(0));
     let sem2 = wv_assert_ok!(Semaphore::create(0));
 
-    let tile = wv_assert_ok!(Tile::get("clone"));
+    let tile = wv_assert_ok!(Tile::get("compat"));
     let mut child = wv_assert_ok!(ChildActivity::new(tile, "child"));
 
     let virt = if child.tile_desc().has_virtmem() {

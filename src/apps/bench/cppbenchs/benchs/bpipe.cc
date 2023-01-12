@@ -44,7 +44,7 @@ NOINLINE void child_to_parent() {
         MemGate mgate = MemGate::create_global(0x1'0000, MemGate::RW);
         IndirectPipe pipe(pipes, mgate, 0x1'0000);
 
-        Reference<Tile> tile = Tile::get("clone|own");
+        Reference<Tile> tile = Tile::get("compat|own");
         ChildActivity act(tile, "writer");
         act.add_file(STDOUT_FD, pipe.writer().fd());
 
@@ -82,7 +82,7 @@ NOINLINE void parent_to_child() {
         MemGate mgate = MemGate::create_global(0x1'0000, MemGate::RW);
         IndirectPipe pipe(pipes, mgate, 0x1'0000);
 
-        Reference<Tile> tile(Tile::get("clone|own"));
+        Reference<Tile> tile(Tile::get("compat|own"));
         ChildActivity act(tile, "writer");
         act.add_file(STDIN_FD, pipe.reader().fd());
 

@@ -34,7 +34,7 @@ fn calc_pi_local(t: &mut dyn WvTester) {
 }
 
 fn calc_pi_remote(t: &mut dyn WvTester) {
-    let tile = wv_assert_ok!(Tile::get("clone"));
+    let tile = wv_assert_ok!(Tile::get("compat"));
     calc_pi(t, &tile);
 }
 

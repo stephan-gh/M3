@@ -135,6 +135,7 @@ impl Tile {
     /// special properties are supported:
     /// - "own" to denote the own tile (provided that it has support for multiple activities)
     /// - "clone" to denote a separate tile that is identical to the own tile
+    /// - "compat" to denote a separate tile that is compatible to the own tile (same ISA and type)
     ///
     /// For other properties, see [`TileDesc::with_properties`].
     ///
@@ -159,6 +160,12 @@ impl Tile {
                 },
                 "clone" => {
                     if let Ok(tile) = Self::new_with(own.desc(), args) {
+                        return Ok(tile);
+                    }
+                },
+                "compat" => {
+                    let type_isa = TileDesc::new(own.desc().tile_type(), own.desc().isa(), 0);
+                    if let Ok(tile) = Self::new_with(type_isa, args) {
                         return Ok(tile);
                     }
                 },
