@@ -25,7 +25,7 @@ void FileWaiter::wait() {
         if(tick_files())
             break;
 
-        Activity::sleep();
+        OwnActivity::sleep();
     }
 }
 
@@ -36,7 +36,7 @@ void FileWaiter::wait_for(TimeDuration timeout) {
         if(tick_files())
             break;
 
-        Activity::sleep_for(end.duration_since(now));
+        OwnActivity::sleep_for(end.duration_since(now));
         now = TimeInstant::now();
     }
 }

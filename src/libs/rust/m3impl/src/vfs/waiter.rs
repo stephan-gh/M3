@@ -14,7 +14,7 @@
  */
 
 use crate::col::Vec;
-use crate::tiles::Activity;
+use crate::tiles::{Activity, OwnActivity};
 use crate::time::{TimeDuration, TimeInstant};
 use crate::vfs::{Fd, File, FileEvent};
 
@@ -61,7 +61,7 @@ impl FileWaiter {
             }
 
             // ignore errors
-            Activity::own().sleep().ok();
+            OwnActivity::sleep().ok();
         }
     }
 
@@ -82,7 +82,7 @@ impl FileWaiter {
             }
 
             // ignore errors
-            Activity::own().sleep_for(duration.unwrap()).ok();
+            OwnActivity::sleep_for(duration.unwrap()).ok();
         }
     }
 
@@ -99,7 +99,7 @@ impl FileWaiter {
             let now = TimeInstant::now();
             match end.checked_duration_since(now) {
                 // ignore errors
-                Some(d) => Activity::own().sleep_for(d).ok(),
+                Some(d) => OwnActivity::sleep_for(d).ok(),
                 None => break,
             };
         }

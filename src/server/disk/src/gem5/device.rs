@@ -23,7 +23,7 @@ use m3::int_enum;
 use m3::kif::Perm;
 use m3::log;
 use m3::mem;
-use m3::tiles::Activity;
+use m3::tiles::OwnActivity;
 use m3::time::TimeDuration;
 
 use super::chan::Channel;
@@ -531,7 +531,7 @@ impl Device {
             while elapsed < ATA_WAIT_TIMEOUT
                 && (chan.read_pio::<u8>(ATAReg::STATUS)? & CommandStatus::BUSY.bits()) != 0
             {
-                Activity::own().sleep_for(SLEEP_TIME)?;
+                OwnActivity::sleep_for(SLEEP_TIME)?;
                 elapsed += SLEEP_TIME;
             }
             chan.wait();

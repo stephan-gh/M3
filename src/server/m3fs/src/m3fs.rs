@@ -44,7 +44,7 @@ use m3::{
         DEF_MAX_CLIENTS,
     },
     tcu::Label,
-    tiles::Activity,
+    tiles::{Activity, OwnActivity},
     vfs::{FSOperation, GenFileOp},
 };
 
@@ -497,7 +497,7 @@ fn usage() -> ! {
     println!("  -b: the maximum number of blocks loaded from the disk");
     println!("  -m: the maximum number of clients (receive slots)");
     println!("  -f: the name of the FS boot module ('fs' by default)");
-    Activity::own().exit_with(Code::InvArgs);
+    OwnActivity::exit_with(Code::InvArgs);
 }
 
 fn parse_args() -> Result<FsSettings, String> {

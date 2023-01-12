@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <base/TCU.h>
+
 #include <m3/tiles/Activity.h>
 
 namespace m3 {
@@ -38,6 +40,34 @@ class OwnActivity : public Activity {
 
 public:
     virtual ~OwnActivity();
+
+    /**
+     * Puts the own activity to sleep until the next message arrives
+     */
+    static void sleep() noexcept {
+        sleep_for(TimeDuration::MAX);
+    }
+
+    /**
+     * Puts the own activity to sleep until the next message arrives or <nanos> nanoseconds have
+     * passed.
+     */
+    static void sleep_for(TimeDuration duration) noexcept {
+        if(env()->shared || duration != TimeDuration::MAX)
+            TMIF::wait(TCU::INVALID_EP, INVALID_IRQ, duration);
+        else if(env()->platform != Platform::HW)
+            TCU::get().wait_for_msg(TCU::INVALID_EP);
+    }
+
+    /**
+     * Puts the own activity to sleep until the next message arrives on the given EP
+     */
+    static void wait_for_msg(epid_t ep) noexcept {
+        if(env()->shared)
+            TMIF::wait(ep, INVALID_IRQ, TimeDuration::MAX);
+        else if(env()->platform != Platform::HW)
+            TCU::get().wait_for_msg(ep);
+    }
 
     /**
      * @return the resource manager

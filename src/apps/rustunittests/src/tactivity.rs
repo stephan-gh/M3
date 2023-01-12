@@ -22,7 +22,7 @@ use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::test::{DefaultWvTester, WvTester};
-use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
+use m3::tiles::{Activity, ActivityArgs, ChildActivity, OwnActivity, RunningActivity, Tile};
 use m3::time::TimeDuration;
 use m3::util::math;
 
@@ -85,7 +85,7 @@ fn run_stop(_t: &mut dyn WvTester) {
         wv_assert_ok!(recv_msg(&rg));
 
         // wait a bit and stop activity
-        wv_assert_ok!(Activity::own().sleep_for(wait_time));
+        wv_assert_ok!(OwnActivity::sleep_for(wait_time));
         wv_assert_ok!(act.stop());
 
         // increase by one ns to attempt interrupts at many points in the instruction stream

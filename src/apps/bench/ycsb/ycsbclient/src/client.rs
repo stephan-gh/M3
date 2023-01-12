@@ -33,7 +33,7 @@ use m3::{
     println,
     rc::Rc,
     session::NetworkManager,
-    tiles::Activity,
+    tiles::OwnActivity,
     util::math::next_log2,
     vfs::{BufReader, OpenFlags},
 };
@@ -47,7 +47,7 @@ fn usage() {
     println!("Usage: {} tcp <ip> <port> <workload> <repeats>", name);
     println!("Usage: {} tcu <workload> <repeats>", name);
     println!("Usage: {} udp <port>", name);
-    Activity::own().exit_with(Code::InvArgs);
+    OwnActivity::exit_with(Code::InvArgs);
 }
 
 fn udp_receiver(nm: Rc<NetworkManager>, port: Port) {

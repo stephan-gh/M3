@@ -17,7 +17,7 @@ use m3::com::Semaphore;
 use m3::errors::{Code, Error};
 use m3::test::DefaultWvTester;
 use m3::test::WvTester;
-use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
+use m3::tiles::{ActivityArgs, ChildActivity, OwnActivity, RunningActivity, Tile};
 use m3::time::TimeDuration;
 use m3::{wv_assert, wv_assert_eq, wv_assert_ok, wv_run_test};
 
@@ -125,9 +125,7 @@ fn tcp_accept(t: &mut dyn WvTester) {
     let act = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("server")));
     let act = wv_assert_ok!(act.run(tcp_server));
 
-    Activity::own()
-        .sleep_for(TimeDuration::from_millis(10))
-        .unwrap();
+    OwnActivity::sleep_for(TimeDuration::from_millis(10)).unwrap();
 
     // close the socket before we wait for the child
     {

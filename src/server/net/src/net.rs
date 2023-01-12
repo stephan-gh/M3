@@ -28,7 +28,7 @@ use m3::net::{log_net, NetLogEvent};
 use m3::rc::Rc;
 use m3::server::{CapExchange, Handler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS};
 use m3::session::NetworkOp;
-use m3::tiles::Activity;
+use m3::tiles::OwnActivity;
 use m3::time::{TimeDuration, TimeInstant};
 use m3::util::math;
 use m3::{env, reply_vmsg};
@@ -265,7 +265,7 @@ fn usage() -> ! {
     println!("  -a: the network mask to use (default: 255.255.255.0)");
     println!("  -n: the IP address of the DNS server");
     println!("  -g: the IP address of the default gateway");
-    Activity::own().exit_with(Code::InvArgs);
+    OwnActivity::exit_with(Code::InvArgs);
 }
 
 fn parse_args() -> Result<NetSettings, String> {
@@ -472,7 +472,7 @@ pub fn main() -> Result<(), Error> {
 
         log_net(NetLogEvent::StartedWaiting, 0, 0);
         log!(LOG_DETAIL, "Sleeping for {:?}", sleep_nanos);
-        Activity::own().sleep_for(sleep_nanos).ok();
+        OwnActivity::sleep_for(sleep_nanos).ok();
         log_net(NetLogEvent::StoppedWaiting, 0, 0);
     }
 

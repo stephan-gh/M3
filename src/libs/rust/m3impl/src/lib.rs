@@ -50,7 +50,7 @@ use base::errors::Error;
 
 use core::ptr;
 
-use crate::tiles::Activity;
+use crate::tiles::OwnActivity;
 
 extern "C" {
     fn __m3_init_libc(argc: i32, argv: *const *const u8, envp: *const *const u8);
@@ -83,5 +83,5 @@ pub extern "C" fn env_run() {
         unsafe { main() }
     };
 
-    Activity::own().exit(res);
+    OwnActivity::exit(res);
 }

@@ -27,7 +27,7 @@ use crate::net::{
 };
 use crate::rc::Rc;
 use crate::session::NetworkManager;
-use crate::tiles::Activity;
+use crate::tiles::{Activity, OwnActivity};
 use crate::time::{TimeDuration, TimeInstant};
 use crate::util;
 use crate::vfs::{
@@ -64,12 +64,12 @@ fn get_file_as<T>(fd: i32) -> Result<FileRef<T>, Error> {
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn __m3c_exit(status: i32, abort: bool) -> ! {
     if abort {
-        Activity::own().abort();
+        OwnActivity::abort();
     }
     else {
         match status {
-            0 => Activity::own().exit(Ok(())),
-            _ => Activity::own().exit_with(Code::Unspecified),
+            0 => OwnActivity::exit(Ok(())),
+            _ => OwnActivity::exit_with(Code::Unspecified),
         }
     }
 }
@@ -599,9 +599,7 @@ pub unsafe extern "C" fn __m3c_sleep(secs: *mut i32, nanos: *mut isize) {
     let start = TimeInstant::now();
 
     let allnanos = *nanos as u64 + *secs as u64 * 1_000_000_000;
-    Activity::own()
-        .sleep_for(TimeDuration::from_nanos(allnanos))
-        .unwrap();
+    OwnActivity::sleep_for(TimeDuration::from_nanos(allnanos)).unwrap();
 
     let duration = TimeInstant::now().duration_since(start);
     let remaining = TimeDuration::from_nanos(allnanos).saturating_sub(duration);

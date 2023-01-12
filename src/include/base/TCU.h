@@ -38,7 +38,7 @@ class MemGate;
 class SendGate;
 class RecvGate;
 class TimeInstant;
-class Activity;
+class OwnActivity;
 
 /**
  * A tile id, consisting of a chip and chip-local tile id
@@ -162,7 +162,7 @@ class TCU {
     friend class SendGate;
     friend class RecvGate;
     friend class TimeInstant;
-    friend class Activity;
+    friend class OwnActivity;
 
     explicit TCU() {
     }

@@ -49,7 +49,7 @@ int main() {
     while(wl.has_items()) {
         auto now = TimeInstant::now();
         if(now > next_tick)
-            Activity::sleep_for(next_tick.duration_since(now));
+            OwnActivity::sleep_for(next_tick.duration_since(now));
 
         wl.tick();
     }

@@ -22,7 +22,7 @@ use m3::kif;
 use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::ServerSession;
 use m3::test::WvTester;
-use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
+use m3::tiles::{ActivityArgs, ChildActivity, OwnActivity, RunningActivity, Tile};
 use m3::util::math::next_log2;
 use m3::{reply_vmsg, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
@@ -93,7 +93,7 @@ impl MsgHandler {
         // pretend that we crash after some requests
         self.calls += 1;
         if self.calls == 6 {
-            Activity::own().exit_with(Code::EndOfFile);
+            OwnActivity::exit_with(Code::EndOfFile);
         }
         Ok(())
     }

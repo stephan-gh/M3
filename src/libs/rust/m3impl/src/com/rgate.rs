@@ -31,7 +31,7 @@ use crate::kif::INVALID_SEL;
 use crate::mem::MsgBuf;
 use crate::syscalls;
 use crate::tcu;
-use crate::tiles::Activity;
+use crate::tiles::{Activity, OwnActivity};
 use crate::util::math;
 
 const DEF_MSG_ORD: u32 = 6;
@@ -351,7 +351,7 @@ impl RecvGate {
                 }
             }
 
-            Activity::own().wait_for(Some(rep), None, None)?;
+            OwnActivity::wait_for(Some(rep), None, None)?;
         }
     }
 

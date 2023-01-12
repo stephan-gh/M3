@@ -152,7 +152,7 @@ void RecvGate::stop() noexcept {
 
 void RecvGate::wait_for_msg() {
     activate();
-    Activity::wait_for_msg(ep()->id());
+    OwnActivity::wait_for_msg(ep()->id());
 }
 
 const TCU::Message *RecvGate::fetch() {
@@ -193,7 +193,7 @@ const TCU::Message *RecvGate::receive(SendGate *sgate) {
                                    Errors::EP_INVALID);
         }
 
-        Activity::wait_for_msg(ep()->id());
+        OwnActivity::wait_for_msg(ep()->id());
     }
     UNREACHED;
 }

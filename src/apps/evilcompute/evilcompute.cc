@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
     // now try to trick TileMux to leave us running, because we have unread messages
     for(int i = 0;; ++i) {
         println("Hello {} from {}"_cf, i, argc > 0 ? argv[1] : "??");
-        Activity::sleep_for(TimeDuration::from_nanos(10));
+        OwnActivity::sleep_for(TimeDuration::from_nanos(10));
     }
     return 0;
 }

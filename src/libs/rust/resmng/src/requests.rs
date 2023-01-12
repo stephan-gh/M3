@@ -19,7 +19,7 @@ use m3::errors::{Code, Error, VerboseError};
 use m3::log;
 use m3::reply_vmsg;
 use m3::session::resmng;
-use m3::tiles::Activity;
+use m3::tiles::OwnActivity;
 use m3::vec::Vec;
 
 use crate::childs::{ChildManager, Id, OwnChild};
@@ -78,13 +78,13 @@ impl Requests {
                 break;
             }
 
-            Activity::own().sleep().ok();
+            OwnActivity::sleep().ok();
         }
 
         if !thread::cur().is_main() {
             thread::stop();
             // just in case there is no ready thread
-            Activity::own().exit(Ok(()));
+            OwnActivity::exit(Ok(()));
         }
         Ok(())
     }

@@ -59,7 +59,7 @@ static void pipes() {
         }
 
         if(count < 100 && progress == 0)
-            Activity::sleep();
+            OwnActivity::sleep();
     }
 
     pipe.close_reader();

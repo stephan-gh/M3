@@ -22,7 +22,7 @@ use m3::log;
 use m3::mem;
 use m3::rc::Rc;
 use m3::session::DiskOperation;
-use m3::tiles::Activity;
+use m3::tiles::OwnActivity;
 use m3::time::TimeDuration;
 
 use super::ctrl::IDE_CTRL_BAR;
@@ -230,7 +230,7 @@ impl Channel {
                 return Ok(());
             }
 
-            Activity::own().sleep_for(sleep)?;
+            OwnActivity::sleep_for(sleep)?;
             elapsed += sleep;
         }
 

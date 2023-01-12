@@ -187,7 +187,7 @@ static void tcp_accept() {
     ChildActivity server(tile, "server");
     server.run(tcp_server);
 
-    Activity::sleep_for(TimeDuration::from_millis(10));
+    OwnActivity::sleep_for(TimeDuration::from_millis(10));
 
     struct addrinfo *rp;
     int fd = open_socket("127.0.0.1", "2000", SOCK_STREAM, &rp);

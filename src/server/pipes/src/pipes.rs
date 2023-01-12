@@ -36,7 +36,7 @@ use m3::server::{
 };
 use m3::session::{PipeOperation, ServerSession};
 use m3::tcu::Label;
-use m3::tiles::Activity;
+use m3::tiles::{Activity, OwnActivity};
 use m3::vec;
 use m3::vfs::GenFileOp;
 
@@ -352,7 +352,7 @@ fn usage() -> ! {
     println!("Usage: {} [-m <clients>]", env::args().next().unwrap());
     println!();
     println!("  -m: the maximum number of clients (receive slots)");
-    Activity::own().exit_with(Code::InvArgs);
+    OwnActivity::exit_with(Code::InvArgs);
 }
 
 fn parse_args() -> Result<PipesSettings, String> {

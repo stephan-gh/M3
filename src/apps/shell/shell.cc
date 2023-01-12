@@ -279,7 +279,7 @@ static void execute_pipeline(Pipes &pipesrv, std::unique_ptr<Parser::CmdList> &c
                     break;
                 }
 
-                Activity::sleep();
+                OwnActivity::sleep();
             }
 
             for(size_t i = 0; i < act_count; ++i) {

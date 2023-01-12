@@ -127,7 +127,7 @@ int main(int argc, char **argv) {
                 break;
             }
             catch(...) {
-                Activity::sleep_for(TimeDuration::from_micros(10));
+                OwnActivity::sleep_for(TimeDuration::from_micros(10));
             }
         }
 

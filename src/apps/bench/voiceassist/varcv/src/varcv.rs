@@ -27,14 +27,14 @@ use m3::net::{
 };
 use m3::println;
 use m3::session::NetworkManager;
-use m3::tiles::Activity;
+use m3::tiles::OwnActivity;
 use m3::vec;
 
 const VERBOSE: bool = false;
 
 fn usage(name: &str) -> ! {
     println!("Usage: {} (udp|tcp) <port> <repeats>", name);
-    Activity::own().exit_with(Code::InvArgs);
+    OwnActivity::exit_with(Code::InvArgs);
 }
 
 #[no_mangle]

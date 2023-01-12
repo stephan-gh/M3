@@ -435,7 +435,7 @@ EXTERN_C void __m3c_sleep(int *seconds, long *nanos) {
     auto start = m3::TimeInstant::now();
 
     uint64_t allnanos = static_cast<uint64_t>(*nanos) + static_cast<ulong>(*seconds) * 1000000000;
-    m3::Activity::sleep_for(m3::TimeDuration::from_nanos(allnanos));
+    m3::OwnActivity::sleep_for(m3::TimeDuration::from_nanos(allnanos));
 
     auto duration = m3::TimeInstant::now().duration_since(start);
     auto remaining = m3::TimeDuration::from_nanos(allnanos) - duration;

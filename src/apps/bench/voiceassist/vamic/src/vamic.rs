@@ -33,7 +33,7 @@ use m3::server::{
     server_loop, CapExchange, Handler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS,
 };
 use m3::session::ServerSession;
-use m3::tiles::Activity;
+use m3::tiles::OwnActivity;
 use m3::util::math;
 use m3::vfs::OpenFlags;
 use m3::vfs::VFS;
@@ -132,7 +132,7 @@ impl Handler<MicSession> for MicHandler {
 
 fn usage(name: &str) -> ! {
     println!("Usage: {} <file>", name);
-    Activity::own().exit(Err(Error::new(Code::InvArgs)));
+    OwnActivity::exit(Err(Error::new(Code::InvArgs)));
 }
 
 #[no_mangle]

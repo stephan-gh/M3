@@ -24,7 +24,7 @@ use m3::mem;
 use m3::net::{self, IpAddr, RawSocket, RawSocketArgs, DNS};
 use m3::println;
 use m3::session::NetworkManager;
-use m3::tiles::Activity;
+use m3::tiles::OwnActivity;
 use m3::time::{TimeDuration, TimeInstant};
 use m3::util;
 use m3::vec;
@@ -201,7 +201,7 @@ fn usage() -> ! {
     println!("    -t <ttl>      : use <ttl> as time-to-live (default: 64)");
     println!("    -i <interval> : sleep <interval> ms between pings (default: 1000)");
     println!("    -W <timeout>  : wait <timeout> ms for each reply (default: 0 = infinite)");
-    Activity::own().exit_with(Code::InvArgs);
+    OwnActivity::exit_with(Code::InvArgs);
 }
 
 fn parse_arg<T: core::str::FromStr>(arg: &str, name: &str) -> Result<T, VerboseError> {

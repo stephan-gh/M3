@@ -27,7 +27,7 @@ use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionConta
 use m3::session::{ClientSession, ServerSession};
 use m3::syscalls;
 use m3::test::{DefaultWvTester, WvTester};
-use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
+use m3::tiles::{Activity, ActivityArgs, ChildActivity, OwnActivity, RunningActivity, Tile};
 use m3::{send_vmsg, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn WvTester) {
@@ -66,7 +66,7 @@ impl Handler<EmptySession> for CrashHandler {
 
     fn obtain(&mut self, _: usize, _: SessId, _: &mut CapExchange<'_>) -> Result<(), Error> {
         // don't respond, just exit
-        Activity::own().exit_with(Code::EndOfFile);
+        OwnActivity::exit_with(Code::EndOfFile);
     }
 }
 

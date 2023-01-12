@@ -19,7 +19,7 @@ use m3::io::{Read, Write};
 use m3::kif;
 use m3::session::Pipes;
 use m3::test::WvTester;
-use m3::tiles::Activity;
+use m3::tiles::OwnActivity;
 use m3::vfs::{File, IndirectPipe, OpenFlags, VFS};
 use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_assert_some, wv_run_test};
 
@@ -59,7 +59,7 @@ fn files(t: &mut dyn WvTester) {
         }
 
         if progress == 0 {
-            Activity::own().sleep().ok();
+            OwnActivity::sleep().ok();
         }
     }
 }
@@ -98,7 +98,7 @@ fn pipes(t: &mut dyn WvTester) {
         }
 
         if count < 100 && progress == 0 {
-            Activity::own().sleep().ok();
+            OwnActivity::sleep().ok();
         }
     }
 }

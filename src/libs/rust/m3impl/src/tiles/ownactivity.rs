@@ -72,22 +72,22 @@ impl OwnActivity {
     }
 
     /// Exits with an unspecified error without deinitialization
-    pub fn abort(&self) -> ! {
+    pub fn abort() -> ! {
         base::machine::write_coverage(env::data().act_id + 1);
         tmif::exit(Code::Unspecified);
     }
 
     // Deinitializes all data structures and exits with given result
-    pub fn exit(&self, res: Result<(), Error>) -> ! {
+    pub fn exit(res: Result<(), Error>) -> ! {
         let err = match res {
             Ok(_) => Code::Success,
             Err(e) => e.code(),
         };
-        self.exit_with(err);
+        Self::exit_with(err);
     }
 
     // Deinitializes all data structures and exits with given error
-    pub fn exit_with(&self, err: Code) -> ! {
+    pub fn exit_with(err: Code) -> ! {
         crate::deinit();
         base::machine::write_coverage(env::data().act_id + 1);
         tmif::exit(err);
@@ -95,13 +95,13 @@ impl OwnActivity {
 
     /// Puts the own activity to sleep until the next message arrives
     #[inline(always)]
-    pub fn sleep(&self) -> Result<(), Error> {
-        self.sleep_for(TimeDuration::MAX)
+    pub fn sleep() -> Result<(), Error> {
+        Self::sleep_for(TimeDuration::MAX)
     }
 
     /// Puts the own activity to sleep until the next message arrives or `timeout` time has passed.
     #[inline(always)]
-    pub fn sleep_for(&self, timeout: TimeDuration) -> Result<(), Error> {
+    pub fn sleep_for(timeout: TimeDuration) -> Result<(), Error> {
         if crate::env::get().shared() || timeout != TimeDuration::MAX {
             let timeout = match timeout {
                 TimeDuration::MAX => None,
@@ -121,7 +121,6 @@ impl OwnActivity {
 
     /// Puts the own activity to sleep until the next message arrives on the given EP
     pub fn wait_for(
-        &self,
         ep: Option<EpId>,
         irq: Option<tmif::IRQId>,
         timeout: Option<TimeDuration>,
