@@ -199,7 +199,7 @@ build_params_gem5() {
 build_params_hw() {
     generate_config "$1" "$M3_OUT" || exit 1
 
-    kernels=$(perl -ne 'printf("%s,", $1) if /<kernel\s.*args="(.*?)"/' < "$M3_OUT/boot-all.xml")
+    kernels=$(perl -ne 'printf("%s,", $1) if /<kernel\s.*args="(.*?)"/' < "$1")
     mods=$(get_mods "$1" "hw") || exit 1
 
     if [ "$M3_HW_RESET" = "1" ]; then
