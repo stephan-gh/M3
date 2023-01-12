@@ -371,6 +371,8 @@ pub struct Header {
     reply_ep: u16,
     reply_label: Label,
     label: Label,
+    #[cfg(not(target_vendor = "hw22"))]
+    _pad: u64,
 }
 
 impl Header {

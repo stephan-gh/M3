@@ -557,11 +557,11 @@ static void test_msg_receive() {
 
     logln("SEND+FETCH and verify unread/occupied/rpos/wpos"_cf);
 
-    char rbuffer[32 * 32];
+    char rbuffer[32 * 64];
     uintptr_t buf = reinterpret_cast<uintptr_t>(&rbuffer);
 
-    kernel::TCU::config_recv(REP, buf, 5 + 5 /* 32 * 32 */, 5 /* 32 */, TCU::NO_REPLIES, 0, 0);
-    kernel::TCU::config_send(SEP, 0x5678, own_tile, REP, 5 /* 32 */, TCU::UNLIM_CREDITS);
+    kernel::TCU::config_recv(REP, buf, 5 + 6 /* 32 * 64 */, 6 /* 64 */, TCU::NO_REPLIES, 0, 0);
+    kernel::TCU::config_send(SEP, 0x5678, own_tile, REP, 6 /* 64 */, TCU::UNLIM_CREDITS);
 
     uint8_t expected_rpos = 0, expected_wpos = 0;
     uint32_t expected_unread = 0, expected_occupied = 0;

@@ -35,7 +35,7 @@ const EP_DMA: EpId = 17;
 const REG_ADDR: goff = 0x4000;
 const PCI_CFG_ADDR: goff = 0x0F00_0000;
 
-const MSG_SIZE: usize = 32;
+const MSG_SIZE: usize = 64;
 const BUF_SIZE: usize = MSG_SIZE * 8;
 
 // Common PCI offsets

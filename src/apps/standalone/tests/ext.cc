@@ -62,8 +62,8 @@ static void test_inv_ep() {
 
     logln("non-force send EP invalidation"_cf);
     {
-        kernel::TCU::config_recv(REP, buf, 5 /* 32 */, 5 /* 32 */, TCU::INVALID_EP, 0, 0);
-        kernel::TCU::config_send(SEP, 0x5678, own_tile, REP, 5 /* 32 */, 1);
+        kernel::TCU::config_recv(REP, buf, 6 /* 64 */, 6 /* 64 */, TCU::INVALID_EP, 0, 0);
+        kernel::TCU::config_send(SEP, 0x5678, own_tile, REP, 6 /* 64 */, 1);
 
         // if credits are missing, we can't invalidate it (with force=0)
         ASSERT_EQ(kernel::TCU::send(SEP, msg, 0x5678, TCU::NO_REPLIES), Errors::SUCCESS);
@@ -71,7 +71,7 @@ static void test_inv_ep() {
         ASSERT_EQ(kernel::TCU::send(SEP, msg, 0x5678, TCU::NO_REPLIES), Errors::NO_CREDITS);
 
         // with all credits, we can invalidate
-        kernel::TCU::config_send(SEP, 0x5678, own_tile, 2, 5 /* 32 */, 1);
+        kernel::TCU::config_send(SEP, 0x5678, own_tile, 2, 6 /* 64 */, 1);
         ASSERT_EQ(kernel::TCU::invalidate_ep_remote(own_tile, SEP, false), Errors::SUCCESS);
         ASSERT_EQ(kernel::TCU::send(SEP, msg, 0x5678, TCU::NO_REPLIES), Errors::NO_SEP);
     }

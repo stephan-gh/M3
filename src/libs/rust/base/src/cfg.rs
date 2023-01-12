@@ -75,7 +75,7 @@ pub const SERIAL_BUF_ORD: u32 = 6;
 pub const KPEX_RBUF_ORD: u32 = 6;
 pub const TMUP_RBUF_ORD: u32 = 7;
 pub const SYSC_RBUF_ORD: u32 = 9;
-pub const UPCALL_RBUF_ORD: u32 = 6;
+pub const UPCALL_RBUF_ORD: u32 = 7;
 pub const DEF_RBUF_ORD: u32 = 8;
 pub const VMA_RBUF_ORD: u32 = 6;
 

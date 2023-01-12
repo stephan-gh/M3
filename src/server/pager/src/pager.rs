@@ -32,9 +32,7 @@ use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::kif;
 use m3::log;
-use m3::server::{
-    CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer, DEF_MSG_SIZE,
-};
+use m3::server::{CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer};
 use m3::session::{ClientSession, Pager, PagerOp, ResMng, M3FS};
 use m3::tcu::Label;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity};
@@ -361,8 +359,7 @@ pub fn main() -> Result<(), Error> {
     PGHDL.set(hdl);
 
     REQHDL.set(
-        RequestHandler::new_with(args.max_clients, DEF_MSG_SIZE)
-            .expect("Unable to create request handler"),
+        RequestHandler::new_with(args.max_clients, 128).expect("Unable to create request handler"),
     );
 
     let req_rgate = RecvGate::new(

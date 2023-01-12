@@ -279,6 +279,9 @@ public:
 
         label_t replylabel;
         label_t label;
+#if !defined(__hw22__)
+        uint64_t : 64;
+#endif
     } PACKED;
 
     struct Message : Header {
