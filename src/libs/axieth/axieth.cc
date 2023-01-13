@@ -13,56 +13,56 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/stream/Serial.h>
-#include <base/TMIF.h>
 #include <base/KIF.h>
+#include <base/TMIF.h>
+#include <base/stream/Serial.h>
 
+#include "sleep.h"
 #include "xaxidma.h"
 #include "xaxiethernet.h"
-#include "xparameters.h"
 #include "xllfifo.h"
-#include "sleep.h"
+#include "xparameters.h"
 
-#define AXIETHERNET_DEVICE_ID   XPAR_AXIETHERNET_0_DEVICE_ID
-#define DMA_DEV_ID              XPAR_AXI_DMA_0_DEVICE_ID
+#define AXIETHERNET_DEVICE_ID         XPAR_AXIETHERNET_0_DEVICE_ID
+#define DMA_DEV_ID                    XPAR_AXI_DMA_0_DEVICE_ID
 
-#define RX_BD_SPACE_PHYS    (phys_base)
-#define RX_BD_SPACE_BASE    (virt_base)
-#define RX_BD_SPACE_HIGH    (virt_base + 0x0000FFFF)
-#define TX_BD_SPACE_PHYS    (phys_base + 0x00010000)
-#define TX_BD_SPACE_BASE    (virt_base + 0x00010000)
-#define TX_BD_SPACE_HIGH    (virt_base + 0x0001FFFF)
-#define TX_BUFFER_BASE      (virt_base + 0x00020000)
-#define RX_BUFFER_PHYS      (phys_base + 0x00021000)
-#define RX_BUFFER_SIZE      (2 * 1024 * 1024)
+#define RX_BD_SPACE_PHYS              (phys_base)
+#define RX_BD_SPACE_BASE              (virt_base)
+#define RX_BD_SPACE_HIGH              (virt_base + 0x0000FFFF)
+#define TX_BD_SPACE_PHYS              (phys_base + 0x00010000)
+#define TX_BD_SPACE_BASE              (virt_base + 0x00010000)
+#define TX_BD_SPACE_HIGH              (virt_base + 0x0001FFFF)
+#define TX_BUFFER_BASE                (virt_base + 0x00020000)
+#define RX_BUFFER_PHYS                (phys_base + 0x00021000)
+#define RX_BUFFER_SIZE                (2 * 1024 * 1024)
 
-#define MAX_PKT_LEN         0x1000
+#define MAX_PKT_LEN                   0x1000
 
-#define COALESCING_COUNT    1
-#define DELAY_TIMER_COUNT   XAXIDMA_NO_CHANGE
+#define COALESCING_COUNT              1
+#define DELAY_TIMER_COUNT             XAXIDMA_NO_CHANGE
 
-#define AXIETHERNET_LOOPBACK_SPEED  100 /* 100Mb/s for Mii */
-#define AXIETHERNET_LOOPBACK_SPEED_1G   1000    /* 1000Mb/s for GMii */
+#define AXIETHERNET_LOOPBACK_SPEED    100  /* 100Mb/s for Mii */
+#define AXIETHERNET_LOOPBACK_SPEED_1G 1000 /* 1000Mb/s for GMii */
 
-#define RX_INTR_ID          5
-#define TX_INTR_ID          4
+#define RX_INTR_ID                    5
+#define TX_INTR_ID                    4
 
 // Marvell PHY 88E1510 Specific definitions
-#define PHY_R0_CTRL_REG		     0
-#define PHY_R21_2_MAC_CTRL_REG   21
-#define PHY_R22_PAGE_ADDR_REG    22
+#define PHY_R0_CTRL_REG               0
+#define PHY_R21_2_MAC_CTRL_REG        21
+#define PHY_R22_PAGE_ADDR_REG         22
 
-#define PHY_R0_RESET         0x8000
-#define PHY_R0_LOOPBACK      0x4000
-#define PHY_R0_ANEG_ENABLE   0x1000
-#define PHY_R0_DFT_SPD_MASK  0x2040
-#define PHY_R0_DFT_SPD_10    0x0000
-#define PHY_R0_DFT_SPD_100   0x2000
-#define PHY_R0_DFT_SPD_1000  0x0040
-#define PHY_R0_ISOLATE       0x0400
+#define PHY_R0_RESET                  0x8000
+#define PHY_R0_LOOPBACK               0x4000
+#define PHY_R0_ANEG_ENABLE            0x1000
+#define PHY_R0_DFT_SPD_MASK           0x2040
+#define PHY_R0_DFT_SPD_10             0x0000
+#define PHY_R0_DFT_SPD_100            0x2000
+#define PHY_R0_DFT_SPD_1000           0x0040
+#define PHY_R0_ISOLATE                0x0400
 
-#define PHY_REG21_2_TX_DLY   0x0010 // bit 4
-#define PHY_REG21_2_RX_DLY   0x0020 // bit 5
+#define PHY_REG21_2_TX_DLY            0x0010 // bit 4
+#define PHY_REG21_2_RX_DLY            0x0020 // bit 5
 
 static goff_t virt_base;
 static goff_t phys_base;
@@ -70,8 +70,7 @@ static XAxiDma AxiDma;
 static XAxiEthernet AxiEthernetInstance;
 static u8 LocalMacAddr[6] = {0x00, 0x0A, 0x35, 0x03, 0x02, 0x03};
 
-static int PhySetup(XAxiEthernet *AxiEthernetInstancePtr)
-{
+static int PhySetup(XAxiEthernet *AxiEthernetInstancePtr) {
     u16 PhyReg0;
     u32 PhyAddr;
 
@@ -81,40 +80,30 @@ static int PhySetup(XAxiEthernet *AxiEthernetInstancePtr)
     PhyAddr = XPAR_AXIETHERNET_0_PHYADDR;
 
     // Switching to PAGE2
-    XAxiEthernet_PhyWrite(AxiEthernetInstancePtr,
-                PhyAddr,
-                PHY_R22_PAGE_ADDR_REG, 2);
+    XAxiEthernet_PhyWrite(AxiEthernetInstancePtr, PhyAddr, PHY_R22_PAGE_ADDR_REG, 2);
 
     // read reg21_2
-    XAxiEthernet_PhyRead(AxiEthernetInstancePtr, PhyAddr,
-        PHY_R21_2_MAC_CTRL_REG, &PhyReg21_2_read);
+    XAxiEthernet_PhyRead(AxiEthernetInstancePtr, PhyAddr, PHY_R21_2_MAC_CTRL_REG, &PhyReg21_2_read);
 
     PhyReg21_2 |= PhyReg21_2_read;
 
     // Enable Rx delay, disable Tx delay
     PhyReg21_2 |= PHY_REG21_2_RX_DLY;
     PhyReg21_2 &= (~PHY_REG21_2_TX_DLY);
-    XAxiEthernet_PhyWrite(AxiEthernetInstancePtr,
-                PhyAddr,
-                PHY_R21_2_MAC_CTRL_REG, PhyReg21_2);
+    XAxiEthernet_PhyWrite(AxiEthernetInstancePtr, PhyAddr, PHY_R21_2_MAC_CTRL_REG, PhyReg21_2);
 
     // Switching to PAGE0
-    XAxiEthernet_PhyWrite(AxiEthernetInstancePtr,
-                PhyAddr,
-                PHY_R22_PAGE_ADDR_REG, 0);
+    XAxiEthernet_PhyWrite(AxiEthernetInstancePtr, PhyAddr, PHY_R22_PAGE_ADDR_REG, 0);
 
     // Clear the PHY of any existing bits by zeroing this out
     PhyReg0 = 0;
-    XAxiEthernet_PhyRead(AxiEthernetInstancePtr, PhyAddr,
-                 PHY_R0_CTRL_REG, &PhyReg0);
+    XAxiEthernet_PhyRead(AxiEthernetInstancePtr, PhyAddr, PHY_R0_CTRL_REG, &PhyReg0);
 
     PhyReg0 &= (~PHY_R0_ANEG_ENABLE);
     PhyReg0 &= (~PHY_R0_ISOLATE);
     PhyReg0 |= PHY_R0_DFT_SPD_1000;
 
-    XAxiEthernet_PhyWrite(AxiEthernetInstancePtr, PhyAddr,
-                PHY_R0_CTRL_REG,
-                PhyReg0 | PHY_R0_RESET);
+    XAxiEthernet_PhyWrite(AxiEthernetInstancePtr, PhyAddr, PHY_R0_CTRL_REG, PhyReg0 | PHY_R0_RESET);
 
     // Wait for PHY to reset
     sleep(4);
@@ -127,23 +116,22 @@ static int alloc_buffer(XAxiDma_BdRing *RxRingPtr, uintptr_t bufPhys) {
     int Status;
 
     Status = XAxiDma_BdRingAlloc(RxRingPtr, 1, &BdPtr);
-    if (Status != 0) {
+    if(Status != 0) {
         xdbg_printf(XDBG_DEBUG_DMA_ALL, "Rx bd alloc failed with {}\n", Status);
         return 1;
     }
 
     Status = XAxiDma_BdSetBufAddr(BdPtr, bufPhys);
-    if (Status != 0) {
-        xdbg_printf(XDBG_DEBUG_DMA_ALL,
-            "Rx set buffer addr {:#x} on BD {:#x} failed {}\n", bufPhys, (void*)BdPtr, Status);
+    if(Status != 0) {
+        xdbg_printf(XDBG_DEBUG_DMA_ALL, "Rx set buffer addr {:#x} on BD {:#x} failed {}\n", bufPhys,
+                    (void *)BdPtr, Status);
         return 1;
     }
 
-    Status = XAxiDma_BdSetLength(BdPtr, MAX_PKT_LEN,
-                RxRingPtr->MaxTransferLen);
-    if (Status != 0) {
-        xdbg_printf(XDBG_DEBUG_DMA_ALL,
-            "Rx set length {} on BD {:#x} failed {}\n", MAX_PKT_LEN, (void*)BdPtr, Status);
+    Status = XAxiDma_BdSetLength(BdPtr, MAX_PKT_LEN, RxRingPtr->MaxTransferLen);
+    if(Status != 0) {
+        xdbg_printf(XDBG_DEBUG_DMA_ALL, "Rx set length {} on BD {:#x} failed {}\n", MAX_PKT_LEN,
+                    (void *)BdPtr, Status);
         return 1;
     }
 
@@ -155,7 +143,7 @@ static int alloc_buffer(XAxiDma_BdRing *RxRingPtr, uintptr_t bufPhys) {
     XAxiDma_BdSetId(BdPtr, bufPhys);
 
     Status = XAxiDma_BdRingToHw(RxRingPtr, 1, BdPtr);
-    if (Status != 0) {
+    if(Status != 0) {
         xdbg_printf(XDBG_DEBUG_DMA_ALL, "Rx ToHw failed with {}\n", Status);
         return 1;
     }
@@ -163,8 +151,7 @@ static int alloc_buffer(XAxiDma_BdRing *RxRingPtr, uintptr_t bufPhys) {
     return 0;
 }
 
-static int RxSetup(XAxiDma * AxiDmaInstPtr)
-{
+static int RxSetup(XAxiDma *AxiDmaInstPtr) {
     XAxiDma_BdRing *RxRingPtr;
     int Status;
     XAxiDma_Bd BdTemplate;
@@ -180,12 +167,11 @@ static int RxSetup(XAxiDma * AxiDmaInstPtr)
 
     /* Setup Rx BD space */
     BdCount = XAxiDma_BdRingCntCalc(XAXIDMA_BD_MINIMUM_ALIGNMENT,
-                RX_BD_SPACE_HIGH - RX_BD_SPACE_BASE + 1);
+                                    RX_BD_SPACE_HIGH - RX_BD_SPACE_BASE + 1);
 
-    Status = XAxiDma_BdRingCreate(RxRingPtr, RX_BD_SPACE_PHYS,
-                    RX_BD_SPACE_BASE,
-                    XAXIDMA_BD_MINIMUM_ALIGNMENT, BdCount);
-    if (Status != 0) {
+    Status = XAxiDma_BdRingCreate(RxRingPtr, RX_BD_SPACE_PHYS, RX_BD_SPACE_BASE,
+                                  XAXIDMA_BD_MINIMUM_ALIGNMENT, BdCount);
+    if(Status != 0) {
         xdbg_printf(XDBG_DEBUG_DMA_ALL, "Rx bd create failed with {}\n", Status);
         return 1;
     }
@@ -195,7 +181,7 @@ static int RxSetup(XAxiDma * AxiDmaInstPtr)
      */
     XAxiDma_BdClear(&BdTemplate);
     Status = XAxiDma_BdRingClone(RxRingPtr, &BdTemplate);
-    if (Status != 0) {
+    if(Status != 0) {
         xdbg_printf(XDBG_DEBUG_DMA_ALL, "Rx bd clone failed with {}\n", Status);
         return 1;
     }
@@ -204,13 +190,13 @@ static int RxSetup(XAxiDma * AxiDmaInstPtr)
     FreeBdCount = XAxiDma_BdRingGetFreeCnt(RxRingPtr);
     if(RX_BUFFER_SIZE < FreeBdCount * MAX_PKT_LEN) {
         xdbg_printf(XDBG_DEBUG_DMA_ALL,
-                    "Reduced bd count from {} to {} to meet receive buffer size\n",
-                    FreeBdCount, RX_BUFFER_SIZE / MAX_PKT_LEN);
+                    "Reduced bd count from {} to {} to meet receive buffer size\n", FreeBdCount,
+                    RX_BUFFER_SIZE / MAX_PKT_LEN);
         FreeBdCount = RX_BUFFER_SIZE / MAX_PKT_LEN;
     }
 
     RxBufferPtr = RX_BUFFER_PHYS;
-    for (Index = 0; Index < FreeBdCount; Index++) {
+    for(Index = 0; Index < FreeBdCount; Index++) {
         if(alloc_buffer(RxRingPtr, RxBufferPtr)) {
             xdbg_printf(XDBG_DEBUG_DMA_ALL, "Unable to allocate receive buffers\n");
             return 1;
@@ -218,9 +204,8 @@ static int RxSetup(XAxiDma * AxiDmaInstPtr)
         RxBufferPtr += MAX_PKT_LEN;
     }
 
-    Status = XAxiDma_BdRingSetCoalesce(RxRingPtr, COALESCING_COUNT,
-            DELAY_TIMER_COUNT);
-    if (Status != 0) {
+    Status = XAxiDma_BdRingSetCoalesce(RxRingPtr, COALESCING_COUNT, DELAY_TIMER_COUNT);
+    if(Status != 0) {
         xdbg_printf(XDBG_DEBUG_DMA_ALL, "Rx set coalesce failed with {}\n", Status);
         return 1;
     }
@@ -230,7 +215,7 @@ static int RxSetup(XAxiDma * AxiDmaInstPtr)
 
     /* Start RX DMA channel */
     Status = XAxiDma_BdRingStart(RxRingPtr);
-    if (Status != 0) {
+    if(Status != 0) {
         xdbg_printf(XDBG_DEBUG_DMA_ALL, "Rx start BD ring failed with {}\n", Status);
         return 1;
     }
@@ -238,8 +223,7 @@ static int RxSetup(XAxiDma * AxiDmaInstPtr)
     return 0;
 }
 
-static int TxSetup(XAxiDma * AxiDmaInstPtr)
-{
+static int TxSetup(XAxiDma *AxiDmaInstPtr) {
     XAxiDma_BdRing *TxRingPtr = XAxiDma_GetTxRing(AxiDmaInstPtr);
     XAxiDma_Bd BdTemplate;
     int Status;
@@ -250,12 +234,11 @@ static int TxSetup(XAxiDma * AxiDmaInstPtr)
 
     /* Setup TxBD space  */
     BdCount = XAxiDma_BdRingCntCalc(XAXIDMA_BD_MINIMUM_ALIGNMENT,
-            (UINTPTR)TX_BD_SPACE_HIGH - (UINTPTR)TX_BD_SPACE_BASE + 1);
+                                    (UINTPTR)TX_BD_SPACE_HIGH - (UINTPTR)TX_BD_SPACE_BASE + 1);
 
-    Status = XAxiDma_BdRingCreate(TxRingPtr, TX_BD_SPACE_PHYS,
-                     TX_BD_SPACE_BASE,
-                     XAXIDMA_BD_MINIMUM_ALIGNMENT, BdCount);
-    if (Status != 0) {
+    Status = XAxiDma_BdRingCreate(TxRingPtr, TX_BD_SPACE_PHYS, TX_BD_SPACE_BASE,
+                                  XAXIDMA_BD_MINIMUM_ALIGNMENT, BdCount);
+    if(Status != 0) {
         xdbg_printf(XDBG_DEBUG_DMA_ALL, "Failed create BD ring\n");
         return 1;
     }
@@ -266,16 +249,15 @@ static int TxSetup(XAxiDma * AxiDmaInstPtr)
      */
     XAxiDma_BdClear(&BdTemplate);
     Status = XAxiDma_BdRingClone(TxRingPtr, &BdTemplate);
-    if (Status != 0) {
+    if(Status != 0) {
         xdbg_printf(XDBG_DEBUG_DMA_ALL, "Failed clone BDs\n");
         return 1;
     }
 
-    Status = XAxiDma_BdRingSetCoalesce(TxRingPtr, COALESCING_COUNT,
-            DELAY_TIMER_COUNT);
-    if (Status != 0) {
-        xdbg_printf(XDBG_DEBUG_DMA_ALL,
-            "Failed set coalescing: {}/{}\n", COALESCING_COUNT, DELAY_TIMER_COUNT);
+    Status = XAxiDma_BdRingSetCoalesce(TxRingPtr, COALESCING_COUNT, DELAY_TIMER_COUNT);
+    if(Status != 0) {
+        xdbg_printf(XDBG_DEBUG_DMA_ALL, "Failed set coalescing: {}/{}\n", COALESCING_COUNT,
+                    DELAY_TIMER_COUNT);
         return 1;
     }
 
@@ -284,7 +266,7 @@ static int TxSetup(XAxiDma * AxiDmaInstPtr)
 
     /* Start the TX channel */
     Status = XAxiDma_BdRingStart(TxRingPtr);
-    if (Status != 0) {
+    if(Status != 0) {
         xdbg_printf(XDBG_DEBUG_DMA_ALL, "Failed bd start\n");
         return 1;
     }
@@ -298,14 +280,14 @@ static int init_mac(XAxiEthernet_Config *MacCfgPtr) {
 
     /* Initialize AxiEthernet hardware */
     Status = XAxiEthernet_CfgInitialize(&AxiEthernetInstance, MacCfgPtr, MacCfgPtr->BaseAddress);
-    if (Status != 0) {
+    if(Status != 0) {
         xdbg_printf(XDBG_DEBUG_ERROR, "AXI Ethernet initialization failed {}\n", Status);
         return 1;
     }
 
     /* Set the MAC  address */
-    Status = XAxiEthernet_SetMacAddress(&AxiEthernetInstance, (u8*)LocalMacAddr);
-    if (Status != 0) {
+    Status = XAxiEthernet_SetMacAddress(&AxiEthernetInstance, (u8 *)LocalMacAddr);
+    if(Status != 0) {
         xdbg_printf(XDBG_DEBUG_ERROR, "Error setting MAC address\n");
         return 1;
     }
@@ -314,17 +296,18 @@ static int init_mac(XAxiEthernet_Config *MacCfgPtr) {
      * Set PHY to loopback, speed depends on phy type.
      * MII is 100 and all others are 1000.
      */
-    if (XAxiEthernet_GetPhysicalInterface(&AxiEthernetInstance) == XAE_PHY_TYPE_MII) {
+    if(XAxiEthernet_GetPhysicalInterface(&AxiEthernetInstance) == XAE_PHY_TYPE_MII) {
         LoopbackSpeed = AXIETHERNET_LOOPBACK_SPEED;
-    } else {
+    }
+    else {
         LoopbackSpeed = AXIETHERNET_LOOPBACK_SPEED_1G;
     }
 
     /*
      * Set PHY<-->MAC data clock
      */
-    Status =  XAxiEthernet_SetOperatingSpeed(&AxiEthernetInstance, (u16)LoopbackSpeed);
-    if (Status != 0) {
+    Status = XAxiEthernet_SetOperatingSpeed(&AxiEthernetInstance, (u16)LoopbackSpeed);
+    if(Status != 0) {
         xdbg_printf(XDBG_DEBUG_ERROR, "Error setting operating speed\n");
         return 1;
     }
@@ -344,15 +327,14 @@ static int init_mac(XAxiEthernet_Config *MacCfgPtr) {
 }
 
 EXTERN_C ssize_t axieth_init(goff_t virt, goff_t phys, size_t size) {
-        int Status;
+    int Status;
     XAxiEthernet_Config *MacCfgPtr;
     XAxiDma_Config *Config;
 
     m3::Serial::init("net", m3::TileId::from_raw(m3::env()->tile_id));
 
-    xdbg_printf(XDBG_DEBUG_GENERAL,
-        "axieth_init(virt={:#x}, phys={:#x}, size={:#x})\n",
-        virt, phys, size);
+    xdbg_printf(XDBG_DEBUG_GENERAL, "axieth_init(virt={:#x}, phys={:#x}, size={:#x})\n", virt, phys,
+                size);
 
     virt_base = virt;
     phys_base = phys;
@@ -379,7 +361,7 @@ EXTERN_C ssize_t axieth_init(goff_t virt, goff_t phys, size_t size) {
     }
 
     Config = XAxiDma_LookupConfig(DMA_DEV_ID);
-    if (!Config) {
+    if(!Config) {
         xdbg_printf(XDBG_DEBUG_ERROR, "No DMA config found for {}\n", DMA_DEV_ID);
         return -1;
     }
@@ -393,7 +375,7 @@ EXTERN_C ssize_t axieth_init(goff_t virt, goff_t phys, size_t size) {
 
     /* Initialize DMA engine */
     Status = XAxiDma_CfgInitialize(&AxiDma, Config);
-    if (Status != 0) {
+    if(Status != 0) {
         xdbg_printf(XDBG_DEBUG_ERROR, "DMA initialization failed {}\n", Status);
         return -1;
     }
@@ -405,13 +387,13 @@ EXTERN_C ssize_t axieth_init(goff_t virt, goff_t phys, size_t size) {
 
     xdbg_printf(XDBG_DEBUG_GENERAL, "DMA TX Setup\n");
     Status = TxSetup(&AxiDma);
-    if (Status != 0) {
+    if(Status != 0) {
         return -1;
     }
 
     xdbg_printf(XDBG_DEBUG_GENERAL, "DMA RX Setup\n");
     Status = RxSetup(&AxiDma);
-    if (Status != 0) {
+    if(Status != 0) {
         return -1;
     }
 
@@ -419,7 +401,7 @@ EXTERN_C ssize_t axieth_init(goff_t virt, goff_t phys, size_t size) {
 
     xdbg_printf(XDBG_DEBUG_GENERAL, "Marvell PHY Setup\n");
     Status = PhySetup(&AxiEthernetInstance);
-    if (Status != 0) {
+    if(Status != 0) {
         return -1;
     }
 
@@ -427,8 +409,8 @@ EXTERN_C ssize_t axieth_init(goff_t virt, goff_t phys, size_t size) {
      * Make sure Tx and Rx are enabled
      */
     Status = XAxiEthernet_SetOptions(&AxiEthernetInstance,
-                         XAE_RECEIVER_ENABLE_OPTION | XAE_TRANSMITTER_ENABLE_OPTION);
-    if (Status != XST_SUCCESS) {
+                                     XAE_RECEIVER_ENABLE_OPTION | XAE_TRANSMITTER_ENABLE_OPTION);
+    if(Status != XST_SUCCESS) {
         xdbg_printf(XDBG_DEBUG_ERROR, "Error setting options");
         return XST_FAILURE;
     }
@@ -488,13 +470,12 @@ static void handle_pending_sends() {
 
     // Handle the BDs
     XAxiDma_Bd *BdCurPtr = BdPtr;
-    for (int Index = 0; Index < BdCount; Index++) {
+    for(int Index = 0; Index < BdCount; Index++) {
         // Check the status in each BD
         // If error happens, the DMA engine will be halted after this
         // BD processing stops.
         u32 BdSts = XAxiDma_BdGetSts(BdCurPtr);
-        if ((BdSts & XAXIDMA_BD_STS_ALL_ERR_MASK) ||
-            (!(BdSts & XAXIDMA_BD_STS_COMPLETE_MASK))) {
+        if((BdSts & XAXIDMA_BD_STS_ALL_ERR_MASK) || (!(BdSts & XAXIDMA_BD_STS_COMPLETE_MASK))) {
             xdbg_printf(XDBG_DEBUG_ERROR, "Error bit set in transmit BD\n");
             break;
         }
@@ -505,7 +486,7 @@ static void handle_pending_sends() {
 
     // Free all processed BDs for future transmission
     int Status = XAxiDma_BdRingFree(TxRingPtr, BdCount, BdPtr);
-    if (Status != XST_SUCCESS) {
+    if(Status != XST_SUCCESS) {
         xdbg_printf(XDBG_DEBUG_ERROR, "Unable to free transmit BDs\n");
     }
 }
@@ -515,31 +496,30 @@ EXTERN_C int axieth_send(void *packet, size_t len) {
     XAxiDma_Bd *BdPtr;
     int Status;
 
-    xdbg_printf(XDBG_DEBUG_GENERAL,
-        "axieth_send(packet= {:p}, len={})\n", packet, len);
+    xdbg_printf(XDBG_DEBUG_GENERAL, "axieth_send(packet= {:p}, len={})\n", packet, len);
 
     // TODO is that correct?
-    if (len > TxRingPtr->MaxTransferLen) {
-        xdbg_printf(XDBG_DEBUG_ERROR,
-            "FIFO has not enough space: need={}, have={}\n", len, TxRingPtr->MaxTransferLen);
+    if(len > TxRingPtr->MaxTransferLen) {
+        xdbg_printf(XDBG_DEBUG_ERROR, "FIFO has not enough space: need={}, have={}\n", len,
+                    TxRingPtr->MaxTransferLen);
         return 1;
     }
 
     Status = XAxiDma_BdRingAlloc(TxRingPtr, 1, &BdPtr);
-    if (Status != 0) {
+    if(Status != 0) {
         xdbg_printf(XDBG_DEBUG_ERROR, "Failed bd alloc\n");
         return 1;
     }
 
     uintptr_t physAddr = (reinterpret_cast<uintptr_t>(packet) - virt_base) + phys_base;
     Status = XAxiDma_BdSetBufAddr(BdPtr, physAddr);
-    if (Status != 0) {
+    if(Status != 0) {
         xdbg_printf(XDBG_DEBUG_ERROR, "BDSetBufAddr failed\n");
         return 1;
     }
 
     Status = XAxiDma_BdSetLength(BdPtr, len, TxRingPtr->MaxTransferLen);
-    if (Status != 0) {
+    if(Status != 0) {
         xdbg_printf(XDBG_DEBUG_ERROR, "BDSetLength failed\n");
         return 1;
     }
@@ -551,7 +531,7 @@ EXTERN_C int axieth_send(void *packet, size_t len) {
 
     // Give the BD to hardware
     Status = XAxiDma_BdRingToHw(TxRingPtr, 1, BdPtr);
-    if (Status != 0) {
+    if(Status != 0) {
         xdbg_printf(XDBG_DEBUG_ERROR, "BdRingToHw failed\n");
         return 1;
     }
@@ -583,8 +563,7 @@ EXTERN_C size_t axieth_recv(void *buffer, size_t len) {
     // If error happens, processing stops, because the DMA engine
     // is halted after this BD.
     u32 BdSts = XAxiDma_BdGetSts(BdPtr);
-    if ((BdSts & XAXIDMA_BD_STS_ALL_ERR_MASK) ||
-        (!(BdSts & XAXIDMA_BD_STS_COMPLETE_MASK))) {
+    if((BdSts & XAXIDMA_BD_STS_ALL_ERR_MASK) || (!(BdSts & XAXIDMA_BD_STS_COMPLETE_MASK))) {
         xdbg_printf(XDBG_DEBUG_ERROR, "Error bit set in receive BD\n");
         return 0;
     }
@@ -594,17 +573,16 @@ EXTERN_C size_t axieth_recv(void *buffer, size_t len) {
     uintptr_t bufPhys = XAxiDma_BdGetBufAddr(BdPtr);
     uintptr_t bufAddr = virt_base + (bufPhys - phys_base);
 
-    xdbg_printf(XDBG_DEBUG_GENERAL, "Received packet of {} bytes @ {:#x}\n",
-        length, (void*)bufAddr);
+    xdbg_printf(XDBG_DEBUG_GENERAL, "Received packet of {} bytes @ {:#x}\n", length,
+                (void *)bufAddr);
 
     if(static_cast<size_t>(length) > len) {
-        xdbg_printf(XDBG_DEBUG_ERROR,
-            "Packet too large for buffer ({} vs. {})\n", length, len);
+        xdbg_printf(XDBG_DEBUG_ERROR, "Packet too large for buffer ({} vs. {})\n", length, len);
         return 0;
     }
 
     // copy to caller buffer
-    memcpy(buffer, reinterpret_cast<void*>(bufAddr), length);
+    memcpy(buffer, reinterpret_cast<void *>(bufAddr), length);
 
     // free BD
     int Status = XAxiDma_BdRingFree(RxRingPtr, 1, BdPtr);
