@@ -63,7 +63,7 @@ public:
      */
     virtual const char *what() const noexcept {
         OStringStream os(msg_buf, sizeof(msg_buf));
-        format_to(os, "An error occurred: {} ({})"_cf, Errors::to_string(code()), code());
+        format_to(os, "An error occurred: {}"_cf, code());
         return msg_buf;
     }
 
@@ -108,7 +108,7 @@ public:
         OStringStream os(msg_buf, sizeof(msg_buf));
         format_to(os, "{}"_cf, _msg);
         if(code() != Errors::SUCCESS)
-            format_to(os, ": {} ({})"_cf, Errors::to_string(code()), code());
+            format_to(os, ": {}"_cf, code());
         return msg_buf;
     }
 
@@ -126,7 +126,7 @@ public:
 
     const char *what() const noexcept override {
         OStringStream os(msg_buf, sizeof(msg_buf));
-        format_to(os, "TCU operation failed: {} ({})"_cf, Errors::to_string(code()), code());
+        format_to(os, "TCU operation failed: {}"_cf, code());
         return msg_buf;
     }
 };

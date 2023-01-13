@@ -107,7 +107,7 @@ struct Errors {
 template<>
 struct Formatter<Errors::Code> {
     void format(OStream &os, const FormatSpecs &, const Errors::Code &e) const {
-        format_to(os, "{}"_cf, static_cast<int32_t>(e));
+        format_to(os, "{} ({})"_cf, Errors::to_string(e), static_cast<int32_t>(e));
     }
 };
 
