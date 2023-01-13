@@ -28,7 +28,7 @@ pub const INVALID_IRQ: IRQId = !0;
 
 int_enum! {
     /// The operations TileMux supports
-    pub struct Operation : isize {
+    pub struct Operation : usize {
         /// Wait for an event, optionally with timeout
         const WAIT          = 0x0;
         /// Exit the application
@@ -48,11 +48,8 @@ int_enum! {
     }
 }
 
-pub(crate) fn get_result(res: isize) -> Result<usize, Error> {
-    match res {
-        e if e < 0 => Err(Error::from(-e as u32)),
-        val => Ok(val as usize),
-    }
+pub(crate) fn get_result(res: usize) -> Result<(), Error> {
+    Result::from(Code::from(res as u32))
 }
 
 #[inline(always)]
@@ -86,23 +83,22 @@ pub fn map(virt: usize, phys: goff, pages: usize, access: kif::Perm) -> Result<(
         pages,
         access.bits() as usize,
     )
-    .map(|_| ())
 }
 
 pub fn reg_irq(irq: IRQId) -> Result<(), Error> {
-    TMABI::call1(Operation::REG_IRQ, irq as usize).map(|_| ())
+    TMABI::call1(Operation::REG_IRQ, irq as usize)
 }
 
 pub fn flush_invalidate() -> Result<(), Error> {
-    TMABI::call1(Operation::FLUSH_INV, 0).map(|_| ())
+    TMABI::call1(Operation::FLUSH_INV, 0)
 }
 
 #[inline(always)]
 pub fn switch_activity() -> Result<(), Error> {
-    TMABI::call1(Operation::YIELD, 0).map(|_| ())
+    TMABI::call1(Operation::YIELD, 0)
 }
 
 #[inline(always)]
 pub fn noop() -> Result<(), Error> {
-    TMABI::call1(Operation::NOOP, 0).map(|_| ())
+    TMABI::call1(Operation::NOOP, 0)
 }

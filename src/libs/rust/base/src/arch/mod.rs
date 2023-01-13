@@ -63,13 +63,13 @@ pub trait CPUOps {
 /// The TileMux ABI operations
 pub trait TMABIOps {
     /// A TileMux call with a single argument
-    fn call1(op: Operation, arg1: usize) -> Result<usize, Error>;
+    fn call1(op: Operation, arg1: usize) -> Result<(), Error>;
 
     /// A TileMux call with a two arguments
-    fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error>;
+    fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<(), Error>;
 
     /// A TileMux call with a three arguments
-    fn call3(op: Operation, arg1: usize, arg2: usize, arg3: usize) -> Result<usize, Error>;
+    fn call3(op: Operation, arg1: usize, arg2: usize, arg3: usize) -> Result<(), Error>;
 
     /// A TileMux call with a four arguments
     fn call4(
@@ -78,7 +78,7 @@ pub trait TMABIOps {
         arg2: usize,
         arg3: usize,
         arg4: usize,
-    ) -> Result<usize, Error>;
+    ) -> Result<(), Error>;
 }
 
 cfg_if! {

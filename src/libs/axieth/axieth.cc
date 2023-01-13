@@ -365,7 +365,12 @@ EXTERN_C ssize_t axieth_init(goff_t virt, goff_t phys, size_t size) {
     MacCfgPtr = XAxiEthernet_LookupConfig(AXIETHERNET_DEVICE_ID);
 
     // map AxiEthernet MMIO region
-    m3::TMIF::map(MacCfgPtr->BaseAddress, MacCfgPtr->BaseAddress, 1, m3::KIF::Perm::RW);
+    Errors::Code err =
+        m3::TMIF::map(MacCfgPtr->BaseAddress, MacCfgPtr->BaseAddress, 1, m3::KIF::Perm::RW);
+    if(err != Errors::SUCCESS) {
+        xdbg_printf(XDBG_DEBUG_ERROR, "Mapping the AxiEthernet MMIO region failed: {}\n", err);
+        return -1;
+    }
 
     /* Check whether AXI DMA is present or not */
     if(MacCfgPtr->AxiDevType != XPAR_AXI_DMA) {
@@ -380,7 +385,11 @@ EXTERN_C ssize_t axieth_init(goff_t virt, goff_t phys, size_t size) {
     }
 
     // map AxiDMA MMIO region
-    m3::TMIF::map(Config->BaseAddr, Config->BaseAddr, 1, m3::KIF::Perm::RW);
+    err = m3::TMIF::map(Config->BaseAddr, Config->BaseAddr, 1, m3::KIF::Perm::RW);
+    if(err != Errors::SUCCESS) {
+        xdbg_printf(XDBG_DEBUG_ERROR, "Mapping the AxiDMA MMIO region failed: {}\n", err);
+        return -1;
+    }
 
     /* Initialize DMA engine */
     Status = XAxiDma_CfgInitialize(&AxiDma, Config);
@@ -432,8 +441,16 @@ EXTERN_C ssize_t axieth_init(goff_t virt, goff_t phys, size_t size) {
     /**
      * Register interrupts
      */
-    m3::TMIF::reg_irq(RX_INTR_ID);
-    m3::TMIF::reg_irq(TX_INTR_ID);
+    err = m3::TMIF::reg_irq(RX_INTR_ID);
+    if(err != Errors::SUCCESS) {
+        xdbg_printf(XDBG_DEBUG_ERROR, "Registering receive interrupt failed: {}\n", err);
+        return -1;
+    }
+    err = m3::TMIF::reg_irq(TX_INTR_ID);
+    if(err != Errors::SUCCESS) {
+        xdbg_printf(XDBG_DEBUG_ERROR, "Registering transmit interrupt failed: {}\n", err);
+        return -1;
+    }
 
     return static_cast<ssize_t>(TX_BUFFER_BASE);
 }

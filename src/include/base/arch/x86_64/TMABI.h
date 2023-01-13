@@ -23,27 +23,28 @@ namespace m3 {
 
 class TMABI {
 public:
-    static word_t call1(Operation op, word_t arg1) {
+    static Errors::Code call1(Operation op, word_t arg1) {
         return call2(op, arg1, 0);
     }
 
-    static word_t call2(Operation op, UNUSED word_t arg1, UNUSED word_t arg2) {
+    static Errors::Code call2(Operation op, UNUSED word_t arg1, UNUSED word_t arg2) {
         word_t res = op;
         asm volatile("int $63" : "+a"(res) : "c"(arg1), "d"(arg2) : "memory");
-        return res;
+        return static_cast<Errors::Code>(res);
     }
 
-    static word_t call3(Operation op, UNUSED word_t arg1, UNUSED word_t arg2, UNUSED word_t arg3) {
+    static Errors::Code call3(Operation op, UNUSED word_t arg1, UNUSED word_t arg2,
+                              UNUSED word_t arg3) {
         word_t res = op;
         asm volatile("int $63" : "+a"(res) : "c"(arg1), "d"(arg2), "D"(arg3) : "memory");
-        return res;
+        return static_cast<Errors::Code>(res);
     }
 
-    static word_t call4(Operation op, UNUSED word_t arg1, UNUSED word_t arg2, UNUSED word_t arg3,
-                        UNUSED word_t arg4) {
+    static Errors::Code call4(Operation op, UNUSED word_t arg1, UNUSED word_t arg2,
+                              UNUSED word_t arg3, UNUSED word_t arg4) {
         word_t res = op;
         asm volatile("int $63" : "+a"(res) : "c"(arg1), "d"(arg2), "D"(arg3), "S"(arg4) : "memory");
-        return res;
+        return static_cast<Errors::Code>(res);
     }
 };
 

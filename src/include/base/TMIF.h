@@ -53,24 +53,24 @@ enum Operation : word_t {
 namespace m3 {
 
 struct TMIF {
-    static void wait(epid_t ep, irq_t irq, TimeDuration timeout) {
-        TMABI::call3(Operation::WAIT, ep, irq, timeout.as_nanos());
+    static Errors::Code wait(epid_t ep, irq_t irq, TimeDuration timeout) {
+        return TMABI::call3(Operation::WAIT, ep, irq, timeout.as_nanos());
     }
 
-    static void exit(Errors::Code code) {
-        TMABI::call1(Operation::EXIT, static_cast<word_t>(code));
+    static Errors::Code exit(Errors::Code code) {
+        return TMABI::call1(Operation::EXIT, static_cast<word_t>(code));
     }
 
-    static void map(uintptr_t virt, goff_t phys, size_t pages, uint perm) {
-        TMABI::call4(Operation::MAP, virt, phys, pages, perm);
+    static Errors::Code map(uintptr_t virt, goff_t phys, size_t pages, uint perm) {
+        return TMABI::call4(Operation::MAP, virt, phys, pages, perm);
     }
 
-    static void reg_irq(irq_t irq) {
-        TMABI::call1(Operation::REG_IRQ, irq);
+    static Errors::Code reg_irq(irq_t irq) {
+        return TMABI::call1(Operation::REG_IRQ, irq);
     }
 
-    static void flush_invalidate() {
-        TMABI::call2(Operation::FLUSH_INV, 0, 0);
+    static Errors::Code flush_invalidate() {
+        return TMABI::call2(Operation::FLUSH_INV, 0, 0);
     }
 };
 

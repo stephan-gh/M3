@@ -154,17 +154,17 @@ fn tmcall_noop(_state: &mut arch::State) -> Result<(), Error> {
 }
 
 pub fn handle_call(state: &mut arch::State) {
-    let call = tmif::Operation::from(state.r[isr::TMC_ARG0] as isize);
+    let call = tmif::Operation::from(state.r[isr::TMC_ARG0] as usize);
 
     let res = match call {
-        tmif::Operation::WAIT => tmcall_wait(state).map(|_| 0isize),
-        tmif::Operation::EXIT => tmcall_stop(state).map(|_| 0isize),
-        tmif::Operation::YIELD => tmcall_yield(state).map(|_| 0isize),
-        tmif::Operation::MAP => tmcall_map(state).map(|_| 0isize),
-        tmif::Operation::REG_IRQ => tmcall_reg_irq(state).map(|_| 0isize),
-        tmif::Operation::TRANSL_FAULT => tmcall_transl_fault(state).map(|_| 0isize),
-        tmif::Operation::FLUSH_INV => tmcall_flush_inv(state).map(|_| 0isize),
-        tmif::Operation::NOOP => tmcall_noop(state).map(|_| 0isize),
+        tmif::Operation::WAIT => tmcall_wait(state),
+        tmif::Operation::EXIT => tmcall_stop(state),
+        tmif::Operation::YIELD => tmcall_yield(state),
+        tmif::Operation::MAP => tmcall_map(state),
+        tmif::Operation::REG_IRQ => tmcall_reg_irq(state),
+        tmif::Operation::TRANSL_FAULT => tmcall_transl_fault(state),
+        tmif::Operation::FLUSH_INV => tmcall_flush_inv(state),
+        tmif::Operation::NOOP => tmcall_noop(state),
 
         _ => Err(Error::new(Code::NotSup)),
     };
@@ -178,5 +178,8 @@ pub fn handle_call(state: &mut arch::State) {
         );
     }
 
-    state.r[isr::TMC_ARG0] = res.unwrap_or_else(|e| -(e.code() as isize)) as usize;
+    state.r[isr::TMC_ARG0] = match res {
+        Ok(_) => 0,
+        Err(e) => e.code() as usize,
+    };
 }

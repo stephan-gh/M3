@@ -22,11 +22,11 @@ use crate::tmif::Operation;
 pub struct ARMTMABI {}
 
 impl TMABIOps for ARMTMABI {
-    fn call1(op: Operation, arg1: usize) -> Result<usize, Error> {
+    fn call1(op: Operation, arg1: usize) -> Result<(), Error> {
         Self::call2(op, arg1, 0)
     }
 
-    fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
+    fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<(), Error> {
         let mut res = op.val;
         unsafe {
             asm!(
@@ -48,7 +48,7 @@ impl TMABIOps for ARMTMABI {
         crate::tmif::get_result(res)
     }
 
-    fn call3(op: Operation, arg1: usize, arg2: usize, arg3: usize) -> Result<usize, Error> {
+    fn call3(op: Operation, arg1: usize, arg2: usize, arg3: usize) -> Result<(), Error> {
         let mut res = op.val;
         unsafe {
             asm!(
@@ -72,7 +72,7 @@ impl TMABIOps for ARMTMABI {
         arg2: usize,
         arg3: usize,
         arg4: usize,
-    ) -> Result<usize, Error> {
+    ) -> Result<(), Error> {
         let mut res = op.val;
         unsafe {
             asm!(
