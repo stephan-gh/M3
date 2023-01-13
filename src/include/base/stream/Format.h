@@ -39,6 +39,15 @@ constexpr auto operator""_cf() {
 }
 
 /**
+ * The character formatter
+ */
+struct CharFormatter {
+    void format(OStream &os, const FormatSpecs &, char val) const {
+        os.write(val);
+    }
+};
+
+/**
  * Base class for all signed-integer formatters
  */
 template<typename T>
@@ -111,7 +120,7 @@ struct Formatter<std::basic_string_view<C>> {
 template<>
 struct Formatter<bool> : public SignedFormatter<bool> {};
 template<>
-struct Formatter<char> : public SignedFormatter<char> {};
+struct Formatter<char> : public CharFormatter {};
 template<>
 struct Formatter<short> : public SignedFormatter<short> {};
 template<>

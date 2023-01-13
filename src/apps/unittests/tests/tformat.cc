@@ -23,6 +23,8 @@
 using namespace m3;
 
 static void basic_arguments() {
+    WVASSERTEQ(format("{}"_cf, 'a'), "a");
+    WVASSERTEQ(format("{}"_cf, (char)0x30), "0");
     WVASSERTEQ(format("{}"_cf, 1234), "1234");
     WVASSERTEQ(format("{} {} {}"_cf, 1234, 7890, 3UL), "1234 7890 3");
     WVASSERTEQ(format("{0}"_cf, 1234), "1234");
