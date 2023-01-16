@@ -28,9 +28,7 @@ int_enum! {
     pub struct NetworkOp : u64 {
         const STAT          = GenFileOp::STAT.val;
         const SEEK          = GenFileOp::SEEK.val;
-        #[allow(non_camel_case_types)]
         const NEXT_IN       = GenFileOp::NEXT_IN.val;
-        #[allow(non_camel_case_types)]
         const NEXT_OUT      = GenFileOp::NEXT_OUT.val;
         const COMMIT        = GenFileOp::COMMIT.val;
         const TRUNCATE      = GenFileOp::TRUNCATE.val;
@@ -54,7 +52,6 @@ int_enum! {
 /// the server and to send close requests to the server. Transmitted and received data is exchanged
 /// via the [`NetEventChannel`] in both directions.
 pub struct NetworkManager {
-    #[allow(dead_code)] // Needs to keep the session alive
     client_session: ClientSession,
     metagate: SendGate,
 }

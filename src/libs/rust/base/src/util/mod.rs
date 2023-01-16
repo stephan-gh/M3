@@ -166,7 +166,6 @@ macro_rules! int_enum {
         impl $Name {
             $(
                 $(#[$attr $($args)*])*
-                #[allow(dead_code)]
                 pub const $Flag: $Name = $Name { val: $value };
             )+
 

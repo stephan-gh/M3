@@ -222,7 +222,6 @@ pub fn create_map(
 ///
 /// On success, the function returns the activity id (for debugging purposes) and EP id of the first
 /// standard EP.
-#[allow(clippy::too_many_arguments)]
 pub fn create_activity(
     dst: Selector,
     name: &str,

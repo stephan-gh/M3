@@ -18,7 +18,7 @@
 
 use m3::col::DList;
 use m3::test::WvTester;
-use m3::{wv_assert_eq, wv_run_test};
+use m3::{wv_assert_eq, wv_assert_some, wv_run_test};
 
 pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, create);
@@ -56,26 +56,25 @@ fn basics(t: &mut dyn WvTester) {
     wv_assert_eq!(t, l.back_mut(), Some(&mut 57));
 }
 
-#[allow(clippy::option_map_unit_fn)]
 fn iter(t: &mut dyn WvTester) {
     let mut l = gen_list(&[23, 42, 57]);
 
     {
         let mut it = l.iter_mut();
-        let e = it.next();
-        wv_assert_eq!(t, e, Some(&mut 23));
+        let e = wv_assert_some!(it.next());
+        wv_assert_eq!(t, e, &mut 23);
         wv_assert_eq!(t, it.peek_prev(), None);
-        e.map(|v| *v = 32);
+        *e = 32;
 
-        let e = it.next();
-        wv_assert_eq!(t, e, Some(&mut 42));
+        let e = wv_assert_some!(it.next());
+        wv_assert_eq!(t, e, &mut 42);
         wv_assert_eq!(t, it.peek_prev(), Some(&mut 32));
-        e.map(|v| *v = 24);
+        *e = 24;
 
-        let e = it.next();
-        wv_assert_eq!(t, e, Some(&mut 57));
+        let e = wv_assert_some!(it.next());
+        wv_assert_eq!(t, e, &mut 57);
         wv_assert_eq!(t, it.peek_prev(), Some(&mut 24));
-        e.map(|v| *v = 75);
+        *e = 75;
     }
 
     wv_assert_eq!(t, l, gen_list(&[32, 24, 75]));

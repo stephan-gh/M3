@@ -129,11 +129,6 @@ macro_rules! wv_perf {
     };
 }
 
-extern "C" {
-    #[allow(dead_code)]
-    fn wvtest_failed();
-}
-
 /// Convenience macro that tests whether $a is true and reports failures
 #[macro_export]
 macro_rules! wv_assert {

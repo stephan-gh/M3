@@ -62,7 +62,6 @@ macro_rules! llog {
 
     (@log_impl $type:expr, $($args:tt)*)    => ({
         if $type {
-            #[allow(unused_imports)]
             use $crate::io::Write;
             if let Some(mut l) = $crate::io::log::Log::get() {
                 l.write_fmt(format_args!($($args)*)).unwrap();

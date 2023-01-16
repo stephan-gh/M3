@@ -15,7 +15,6 @@
 
 #![feature(io_error_more)]
 
-#[allow(unused_extern_crates)]
 extern crate m3impl as m3;
 
 use m3::errors::Error;

@@ -50,7 +50,6 @@ impl Slab {
 
     unsafe fn heap_to_area(&mut self, ptr: *mut libc::c_void) -> *mut Area {
         assert_ne!(ptr, ptr::null_mut());
-        #[allow(clippy::cast_ptr_alignment)]
         let res = ptr as *mut Area;
         (*res).slab = NonNull::new_unchecked(self as *mut _);
         res
@@ -63,7 +62,6 @@ impl Slab {
     #[inline(never)]
     unsafe fn extend(&mut self, objsize: usize) {
         let area_size = objsize + HEADER_SIZE;
-        #[allow(clippy::cast_ptr_alignment)]
         let mut a = malloc(area_size * NEW_AREA_COUNT) as *mut Area;
         assert_ne!(a, ptr::null_mut());
         for _ in 0..NEW_AREA_COUNT {

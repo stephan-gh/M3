@@ -1203,7 +1203,6 @@ impl ChildManager {
             return Err(Error::new(Code::Exists));
         }
 
-        #[allow(clippy::useless_conversion)]
         let sgate = SendGate::new_with(
             SGateArgs::new(rgate)
                 .credits(1)
@@ -1287,7 +1286,6 @@ impl ChildManager {
             )
             .ok();
             // now remove all potentially pending messages from the child
-            #[allow(clippy::useless_conversion)]
             reqs.recv_gate().drop_msgs_with(child.id().into()).unwrap();
 
             for csel in &child.res().childs {

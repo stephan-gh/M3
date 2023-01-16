@@ -44,7 +44,6 @@ pub struct Activity {
     pub(crate) rmng: Option<ResMng>, // close the connection resource manager at last
     pub(crate) tile: Rc<Tile>,
     pub(crate) kmem: Rc<KMem>,
-    #[allow(dead_code)]
     pub(crate) eps_start: EpId,
     pub(crate) pager: Option<Pager>,
     pub(crate) data: Vec<u64>,

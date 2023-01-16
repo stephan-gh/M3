@@ -272,7 +272,6 @@ fn create_sess(t: &mut dyn WvTester) {
     ));
 }
 
-#[allow(clippy::cognitive_complexity)]
 fn create_map(t: &mut dyn WvTester) {
     if !Activity::own().tile_desc().has_virtmem() {
         return;
@@ -343,7 +342,6 @@ fn create_map(t: &mut dyn WvTester) {
     );
 }
 
-#[allow(clippy::cognitive_complexity)]
 fn create_activity(t: &mut dyn WvTester) {
     let sels = Activity::own().alloc_sels(3);
     let kmem = Activity::own().kmem().sel();

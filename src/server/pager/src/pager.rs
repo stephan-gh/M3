@@ -176,7 +176,6 @@ impl subsys::ChildStarter for PagedChildStarter {
         child: &mut OwnChild,
     ) -> Result<(), VerboseError> {
         // send gate for resmng
-        #[allow(clippy::useless_conversion)]
         let resmng_sgate = SendGate::new_with(
             SGateArgs::new(reqs.recv_gate())
                 .credits(1)
@@ -193,7 +192,6 @@ impl subsys::ChildStarter for PagedChildStarter {
             (sel, sid, child_sgate)
         };
         let sess = ClientSession::new_bind(sel);
-        #[allow(clippy::useless_conversion)]
         let pager_sgate = SendGate::new_with(
             SGateArgs::new(REQHDL.get().recv_gate())
                 .credits(1)

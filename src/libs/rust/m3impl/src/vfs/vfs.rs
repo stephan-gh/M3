@@ -167,7 +167,6 @@ pub fn link(old: &str, new: &str) -> Result<(), Error> {
     if !Rc::ptr_eq(&fs1, &fs2) {
         return Err(Error::new(Code::XfsLink));
     }
-    #[allow(clippy::let_and_return)] // is required because of fs1.borrow()'s lifetime
     let res = fs1.borrow().link(&old[pos1..], &new[pos2..]);
     res
 }
@@ -186,7 +185,6 @@ pub fn rename(old: &str, new: &str) -> Result<(), Error> {
     if !Rc::ptr_eq(&fs1, &fs2) {
         return Err(Error::new(Code::XfsLink));
     }
-    #[allow(clippy::let_and_return)] // is required because of fs1.borrow()'s lifetime
     let res = fs1.borrow().rename(&old[pos1..], &new[pos2..]);
     res
 }

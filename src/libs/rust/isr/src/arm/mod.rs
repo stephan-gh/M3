@@ -60,7 +60,6 @@ impl crate::StateArch for ARMState {
         self.r[11]
     }
 
-    #[allow(clippy::verbose_bit_mask)]
     fn came_from_user(&self) -> bool {
         (self.cpsr & 0x0F) == 0x0
     }

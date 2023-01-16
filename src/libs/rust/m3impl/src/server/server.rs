@@ -208,7 +208,6 @@ impl Server {
         is: &mut GateIStream<'_>,
     ) -> Result<bool, Error> {
         let req: Request<'_> = is.pop()?;
-        #[allow(unreachable_patterns)]
         match req {
             Request::Open { arg } => Self::handle_open(hdl, self.sel(), is, arg),
             Request::DeriveCrt { sessions } => Self::handle_derive_crt(hdl, is, sessions),
@@ -219,7 +218,6 @@ impl Server {
                 Ok(_) => return Ok(true),
                 Err(e) => Err(e),
             },
-            _ => is.reply_error(Code::InvArgs),
         }
         .map(|_| false)
     }

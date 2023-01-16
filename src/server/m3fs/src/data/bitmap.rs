@@ -14,6 +14,8 @@
  * General Public License version 2 for more details.
  */
 
+use core::fmt;
+
 /// Bitmap wrapper for a number of bytes.
 pub struct Bitmap<'a> {
     bytes: &'a mut [u8],
@@ -76,11 +78,14 @@ impl<'a> Bitmap<'a> {
     pub fn word_size() -> usize {
         8
     }
+}
 
-    #[allow(dead_code)]
-    pub fn print(&self) {
+impl<'a> fmt::Debug for Bitmap<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        writeln!(f, "Bitmap[")?;
         for (idx, byte) in self.bytes.iter().enumerate() {
-            println!("[{}]\t {:b}\t:{}", idx, byte, byte);
+            writeln!(f, "  [{}]\t {:b}\t:{}", idx, byte, byte)?;
         }
+        write!(f, "]")
     }
 }

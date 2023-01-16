@@ -31,12 +31,9 @@ use crate::DriverInterface;
 
 pub struct FileSession {
     sel: Selector,
-    #[allow(dead_code)]
-    srv_sel: Selector,
-    #[allow(dead_code)]
-    sgate: SendGate,
-    #[allow(dead_code)]
-    socket: Rc<RefCell<Socket>>,
+    _srv_sel: Selector,
+    _sgate: SendGate,
+    _socket: Rc<RefCell<Socket>>,
     memory: Option<MemGate>,
 
     mode: u32,
@@ -87,10 +84,10 @@ impl FileSession {
         );
         let s = Rc::new(RefCell::new(FileSession {
             sel: sels,
-            srv_sel,
+            _srv_sel: srv_sel,
 
-            sgate: new_sgate,
-            socket,
+            _sgate: new_sgate,
+            _socket: socket,
             memory: None,
             mode,
             rbuf: VarRingBuf::new(rmemsize),

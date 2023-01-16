@@ -29,9 +29,6 @@ pub fn get() -> Ref<'static, Args> {
     ARGS.borrow()
 }
 
-// we cannot directly pass `usage` to `unwrap_or_else` below, because `usage` panics and therefore
-// does not return a string as expected by `unwrap_or_else`.
-#[allow(clippy::redundant_closure)]
 pub fn parse() {
     let mut args = Args {
         kmem: 64 * 1024 * 1024,

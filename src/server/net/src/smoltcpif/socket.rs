@@ -21,7 +21,7 @@ use m3::log;
 use m3::mem::size_of;
 use m3::net::{
     log_net, CloseReqMessage, ClosedMessage, ConnectedMessage, DataMessage, DataQueue, Endpoint,
-    IpAddr, NetEvent, NetEventChannel, NetEventType, Port, Sd, NetLogEvent, SocketArgs, SocketType,
+    IpAddr, NetEvent, NetEventChannel, NetEventType, NetLogEvent, Port, Sd, SocketArgs, SocketType,
 };
 use m3::rc::Rc;
 use m3::time::{TimeDuration, TimeInstant};

@@ -30,7 +30,6 @@ pub use base::io::{log_bytes, log_slice, read_object, Read, Serial, Write};
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => ({
-        #[allow(unused_imports)]
         use $crate::io::Write;
         $crate::io::stdout().write_fmt(format_args!($($arg)*)).unwrap();
     });

@@ -118,7 +118,6 @@ bitflags! {
     }
 }
 
-#[allow(dead_code)]
 impl FileMode {
     pub fn is_dir(self) -> bool {
         (self & Self::IFMT) == Self::IFDIR

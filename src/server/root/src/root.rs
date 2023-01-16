@@ -111,7 +111,6 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
             .fetch_mod(child.cfg().name(), false)
             .ok_or_else(|| Error::new(Code::NotFound))?;
 
-        #[allow(clippy::useless_conversion)]
         let sgate = SendGate::new_with(
             SGateArgs::new(reqs.recv_gate())
                 .credits(1)

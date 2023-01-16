@@ -21,7 +21,7 @@ use core::fmt;
 use m3::boxed::Box;
 use m3::col::{BoxList, BoxRef};
 use m3::test::WvTester;
-use m3::{impl_boxitem, wv_assert_eq, wv_run_test};
+use m3::{impl_boxitem, wv_assert_eq, wv_assert_some, wv_run_test};
 
 struct TestItem {
     data: u32,
@@ -87,23 +87,22 @@ fn basics(t: &mut dyn WvTester) {
     wv_assert_eq!(t, l.back_mut().unwrap().data, 57);
 }
 
-#[allow(clippy::option_map_unit_fn)]
 fn iter(t: &mut dyn WvTester) {
     let mut l: BoxList<TestItem> = gen_list(&[23, 42, 57]);
 
     {
         let mut it = l.iter_mut();
-        let e = it.next();
-        wv_assert_eq!(t, e.as_ref().unwrap().data, 23);
-        e.map(|v| v.data = 32);
+        let e = wv_assert_some!(it.next());
+        wv_assert_eq!(t, e.data, 23);
+        e.data = 32;
 
-        let e = it.next();
-        wv_assert_eq!(t, e.as_ref().unwrap().data, 42);
-        e.map(|v| v.data = 24);
+        let e = wv_assert_some!(it.next());
+        wv_assert_eq!(t, e.data, 42);
+        e.data = 24;
 
-        let e = it.next();
-        wv_assert_eq!(t, e.as_ref().unwrap().data, 57);
-        e.map(|v| v.data = 75);
+        let e = wv_assert_some!(it.next());
+        wv_assert_eq!(t, e.data, 57);
+        e.data = 75;
     }
 
     wv_assert_eq!(t, l, gen_list(&[32, 24, 75]));

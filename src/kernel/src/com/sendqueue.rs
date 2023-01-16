@@ -67,7 +67,6 @@ struct MetaData {
 
 #[derive(Copy, Clone, Debug)]
 pub enum QueueId {
-    #[allow(dead_code)]
     TileMux(TileId),
     Activity(ActId),
     Serv(ActId),

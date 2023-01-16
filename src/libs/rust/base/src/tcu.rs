@@ -183,7 +183,6 @@ int_enum! {
 
 bitflags! {
     /// The status flag for the [`ExtReg::FEATURES`] register
-    #[allow(dead_code)]
     pub struct FeatureFlags : Reg {
         /// Whether the tile is privileged
         const PRIV          = 1 << 0;
@@ -192,7 +191,6 @@ bitflags! {
 
 int_enum! {
     /// The privileged registers
-    #[allow(dead_code)]
     pub struct PrivReg : Reg {
         /// For core requests
         const CORE_REQ      = 0x0;
@@ -211,7 +209,6 @@ cfg_if! {
     if #[cfg(target_vendor = "hw22")] {
         int_enum! {
             /// The unprivileged registers
-            #[allow(dead_code)]
             pub struct UnprivReg : Reg {
                 /// Starts commands and signals their completion
                 const COMMAND       = 0x0;
@@ -229,7 +226,6 @@ cfg_if! {
     else {
         int_enum! {
             /// The unprivileged registers
-            #[allow(dead_code)]
             pub struct UnprivReg : Reg {
                 /// Starts commands and signals their completion
                 const COMMAND       = 0x0;
@@ -250,7 +246,6 @@ cfg_if! {
 
 int_enum! {
     /// The config registers (hardware only)
-    #[allow(dead_code)]
     pub struct ConfigReg : Reg {
         /// Enables/disables the instruction trace
         const INSTR_TRACE   = 0xD;
@@ -400,7 +395,6 @@ impl Message {
     pub fn as_words(&self) -> &[u64] {
         // safety: we trust the TCU
         unsafe {
-            #[allow(clippy::cast_ptr_alignment)]
             let ptr = self.data.as_ptr() as *const u64;
             slice::from_raw_parts(ptr, self.header.length() / 8)
         }
@@ -612,7 +606,12 @@ impl TCU {
         );
         Self::get_error().ok()?;
         let msg = Self::read_unpriv_reg(UnprivReg::ARG1);
-        if msg != !0 { Some(msg as usize) } else { None }
+        if msg != !0 {
+            Some(msg as usize)
+        }
+        else {
+            None
+        }
     }
 
     /// Assuming that `ep` is a receive EP, the function returns whether there are unread messages.
@@ -766,9 +765,7 @@ impl TCU {
         let num = math::round_up(s.len(), 8) / 8;
         for c in words.iter().take(num) {
             // safety: we know that the address is within the MMIO region of the TCU
-            unsafe {
-                CPU::write8b(buffer, *c)
-            };
+            unsafe { CPU::write8b(buffer, *c) };
             buffer += 8;
         }
 
@@ -1006,9 +1003,7 @@ impl TCU {
 
     fn write_reg(idx: usize, val: Reg) {
         // safety: as above
-        unsafe {
-            CPU::write8b(MMIO_ADDR + idx * 8, val)
-        };
+        unsafe { CPU::write8b(MMIO_ADDR + idx * 8, val) };
     }
 
     fn build_cmd(ep: EpId, cmd: CmdOpCode, arg: Reg) -> Reg {

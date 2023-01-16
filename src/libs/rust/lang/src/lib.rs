@@ -95,7 +95,6 @@ pub extern "C" fn rust_eh_personality() {
     intrinsics::abort()
 }
 
-#[allow(non_snake_case)]
 #[no_mangle]
 #[doc(hidden)]
 pub extern "C" fn _Unwind_Resume() -> ! {
