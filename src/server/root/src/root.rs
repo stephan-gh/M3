@@ -71,7 +71,7 @@ impl RootChildStarter {
             .enumerate()
             .position(|(idx, m)| (*mask & (1 << idx)) == 0 && m.name() == name)
             .map(|idx| {
-                *mask = *mask | 1 << idx;
+                *mask |= 1 << idx;
                 (
                     subsys::Subsystem::get_mod(idx),
                     GlobAddr::new(bmods[idx].addr),
@@ -214,6 +214,7 @@ fn create_rgate(
     Ok(rgate)
 }
 
+#[allow(clippy::vec_box)]
 struct WorkloopArgs<'s, 'c, 'd, 'q, 'r> {
     starter: &'s mut RootChildStarter,
     childs: &'c mut ChildManager,

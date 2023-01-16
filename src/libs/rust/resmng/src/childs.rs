@@ -1172,6 +1172,7 @@ impl ChildManager {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn add_child(
         &mut self,
         res: &Resources,

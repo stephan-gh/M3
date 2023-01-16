@@ -472,8 +472,7 @@ impl ChildActivity {
         let mut fds_vec = Vec::new();
         let mut fds = M3Serializer::new(VecSink::new(&mut fds_vec));
         Activity::own().files().serialize(&self.files, &mut fds);
-        let words = fds.words();
-        write(&words, *off)?;
+        write(fds.words(), *off)?;
         env.set_files(*off, fds.size());
         *off += fds.size();
         Ok(())
@@ -488,8 +487,7 @@ impl ChildActivity {
         Activity::own()
             .mounts()
             .serialize(&self.mounts, &mut mounts);
-        let words = mounts.words();
-        write(&words, *off)?;
+        write(mounts.words(), *off)?;
         env.set_mounts(*off, mounts.size());
         *off += mounts.size();
         Ok(())

@@ -574,6 +574,7 @@ impl Subsystem {
         Ok(delayed)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn build_subsystem(
         &self,
         res: &mut Resources,
@@ -600,7 +601,7 @@ impl Subsystem {
             let mgate = cfg_slice.derive_with(0, size)?;
             Ok(mgate)
         })
-        .map_err(|e| VerboseError::new(e.code(), format!("Unable to pass boot.xml to child")))?;
+        .map_err(|e| VerboseError::new(e.code(), "Unable to pass boot.xml to child".to_string()))?;
 
         // add remaining boot modules
         pass_down_mods(res.mods(), &mut sub, cfg)?;
@@ -630,7 +631,7 @@ impl Subsystem {
         // add services
         for s in cfg.sess_creators() {
             let (sess_frac, sess_fixed) = split_sessions(root, s.serv_name());
-            sub.add_serv(&s.serv_name(), sess_frac, sess_fixed, s.sess_count());
+            sub.add_serv(s.serv_name(), sess_frac, sess_fixed, s.sess_count());
         }
 
         Ok(sub)
@@ -811,6 +812,7 @@ impl SubsystemBuilder {
     }
 }
 
+#[allow(clippy::vec_box)]
 pub(crate) fn start_delayed_async(
     childs: &mut childs::ChildManager,
     delayed: &mut Vec<Box<childs::OwnChild>>,

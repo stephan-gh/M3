@@ -295,6 +295,7 @@ fn handle_request(
     }
 }
 
+#[allow(clippy::vec_box)]
 struct WorkloopArgs<'c, 'd, 'r, 'q, 's> {
     childs: &'c mut ChildManager,
     delayed: &'d mut Vec<Box<OwnChild>>,

@@ -13,17 +13,17 @@
  * General Public License version 2 for more details.
  */
 
-use m3::mem::GlobAddr;
-use m3::kif::{TileDesc, TileType, TileISA, boot};
-use m3::tiles::Tile;
-use m3::tcu::TileId;
-use m3::rc::Rc;
 use m3::errors::Code;
+use m3::kif::{boot, TileDesc, TileISA, TileType};
+use m3::mem::GlobAddr;
+use m3::rc::Rc;
+use m3::tcu::TileId;
+use m3::tiles::Tile;
 
 use m3::test::WvTester;
 use m3::{wv_assert_err, wv_assert_ok, wv_run_test};
 
-use resmng::config::{AppConfig, validator};
+use resmng::config::{validator, AppConfig};
 use resmng::resources::Resources;
 
 pub fn run(t: &mut dyn WvTester) {
@@ -34,7 +34,7 @@ pub fn run(t: &mut dyn WvTester) {
 }
 
 fn services(t: &mut dyn WvTester) {
-    let mut res = Resources::default();
+    let res = Resources::default();
 
     {
         let cfg_str = "<app args=\"ourself\">
@@ -44,7 +44,7 @@ fn services(t: &mut dyn WvTester) {
             </app>
         </app>";
         let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
-        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::Exists);
+        wv_assert_err!(t, validator::validate(&cfg, &res), Code::Exists);
     }
 
     {
@@ -57,7 +57,7 @@ fn services(t: &mut dyn WvTester) {
             </app>
         </app>";
         let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
-        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::Exists);
+        wv_assert_err!(t, validator::validate(&cfg, &res), Code::Exists);
     }
 
     {
@@ -68,7 +68,7 @@ fn services(t: &mut dyn WvTester) {
             </app>
         </app>";
         let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
-        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::NotFound);
+        wv_assert_err!(t, validator::validate(&cfg, &res), Code::NotFound);
     }
 
     {
@@ -79,7 +79,7 @@ fn services(t: &mut dyn WvTester) {
             </app>
         </app>";
         let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
-        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::NotFound);
+        wv_assert_err!(t, validator::validate(&cfg, &res), Code::NotFound);
     }
 
     {
@@ -92,12 +92,12 @@ fn services(t: &mut dyn WvTester) {
             </app>
         </app>";
         let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
-        wv_assert_ok!(validator::validate(&cfg, &mut res));
+        wv_assert_ok!(validator::validate(&cfg, &res));
     }
 }
 
 fn gates(t: &mut dyn WvTester) {
-    let mut res = Resources::default();
+    let res = Resources::default();
 
     {
         let cfg_str = "<app args=\"ourself\">
@@ -107,7 +107,7 @@ fn gates(t: &mut dyn WvTester) {
             </app>
         </app>";
         let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
-        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::NotFound);
+        wv_assert_err!(t, validator::validate(&cfg, &res), Code::NotFound);
     }
 
     {
@@ -120,7 +120,7 @@ fn gates(t: &mut dyn WvTester) {
             </app>
         </app>";
         let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
-        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::NotFound);
+        wv_assert_err!(t, validator::validate(&cfg, &res), Code::NotFound);
     }
 
     {
@@ -131,7 +131,7 @@ fn gates(t: &mut dyn WvTester) {
             </app>
         </app>";
         let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
-        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::Exists);
+        wv_assert_err!(t, validator::validate(&cfg, &res), Code::Exists);
     }
 
     {
@@ -144,7 +144,7 @@ fn gates(t: &mut dyn WvTester) {
             </app>
         </app>";
         let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
-        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::NoSpace);
+        wv_assert_err!(t, validator::validate(&cfg, &res), Code::NoSpace);
     }
 
     {
@@ -156,7 +156,7 @@ fn gates(t: &mut dyn WvTester) {
             </app>
         </app>";
         let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
-        wv_assert_ok!(validator::validate(&cfg, &mut res));
+        wv_assert_ok!(validator::validate(&cfg, &res));
     }
 }
 
@@ -180,7 +180,7 @@ fn tiles(t: &mut dyn WvTester) {
             </app>
         </app>";
         let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
-        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::NotFound);
+        wv_assert_err!(t, validator::validate(&cfg, &res), Code::NotFound);
     }
 
     {
@@ -190,7 +190,7 @@ fn tiles(t: &mut dyn WvTester) {
             </app>
         </app>";
         let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
-        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::NotFound);
+        wv_assert_err!(t, validator::validate(&cfg, &res), Code::NotFound);
     }
 
     {
@@ -201,14 +201,16 @@ fn tiles(t: &mut dyn WvTester) {
             </app>
         </app>";
         let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
-        wv_assert_ok!(validator::validate(&cfg, &mut res));
+        wv_assert_ok!(validator::validate(&cfg, &res));
     }
 }
 
 fn mods(t: &mut dyn WvTester) {
     let mut res = Resources::default();
-    res.mods_mut().add(0, &boot::Mod::new(GlobAddr::new(0x1000), 0x123, "foo"));
-    res.mods_mut().add(1, &boot::Mod::new(GlobAddr::new(0x2000), 0x456, "bar"));
+    res.mods_mut()
+        .add(0, &boot::Mod::new(GlobAddr::new(0x1000), 0x123, "foo"));
+    res.mods_mut()
+        .add(1, &boot::Mod::new(GlobAddr::new(0x2000), 0x456, "bar"));
 
     {
         let cfg_str = "<app args=\"ourself\">
@@ -217,7 +219,7 @@ fn mods(t: &mut dyn WvTester) {
             </app>
         </app>";
         let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
-        wv_assert_err!(t, validator::validate(&cfg, &mut res), Code::NotFound);
+        wv_assert_err!(t, validator::validate(&cfg, &res), Code::NotFound);
     }
 
     {
@@ -228,6 +230,6 @@ fn mods(t: &mut dyn WvTester) {
             </app>
         </app>";
         let cfg = wv_assert_ok!(AppConfig::parse(cfg_str));
-        wv_assert_ok!(validator::validate(&cfg, &mut res));
+        wv_assert_ok!(validator::validate(&cfg, &res));
     }
 }

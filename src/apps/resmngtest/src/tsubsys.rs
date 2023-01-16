@@ -213,7 +213,7 @@ fn start_service_deps(t: &mut dyn WvTester) {
                 wv_assert_ok!(child_sub.start(&mut childs, &reqs, &mut res, &mut TestStarter {}));
             wv_assert_eq!(t, delayed.len(), 1);
             wv_assert_eq!(t, delayed[0].name(), "2");
-            wv_assert_eq!(t, delayed[0].has_unmet_reqs(&mut res), true);
+            wv_assert_eq!(t, delayed[0].has_unmet_reqs(&res), true);
 
             wv_assert_eq!(t, childs.children(), 3);
             wv_assert_eq!(t, childs.daemons(), 0);

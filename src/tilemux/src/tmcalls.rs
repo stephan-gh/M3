@@ -154,7 +154,7 @@ fn tmcall_noop(_state: &mut arch::State) -> Result<(), Error> {
 }
 
 pub fn handle_call(state: &mut arch::State) {
-    let call = tmif::Operation::from(state.r[isr::TMC_ARG0] as usize);
+    let call = tmif::Operation::from(state.r[isr::TMC_ARG0]);
 
     let res = match call {
         tmif::Operation::WAIT => tmcall_wait(state),

@@ -97,7 +97,6 @@ impl Service {
             sessions,
             event,
         )?;
-        drop(self);
 
         let reply = events::wait_for_async(child, event)?;
         let mut de = M3Deserializer::new(reply.as_words());
@@ -121,7 +120,6 @@ impl Service {
         build_vmsg!(smsg_buf, kif::service::Request::Shutdown);
         let event = self.queue.send(&smsg_buf);
         drop(smsg_buf);
-        drop(self);
 
         if let Ok(ev) = event {
             // ignore errors here
@@ -149,7 +147,6 @@ impl Session {
         build_vmsg!(smsg_buf, kif::service::Request::Open { arg });
         let event = serv.queue.send(&smsg_buf);
         drop(smsg_buf);
-        drop(serv);
 
         event.and_then(|event| {
             let reply = events::wait_for_async(child, event)?;

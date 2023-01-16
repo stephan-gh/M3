@@ -58,19 +58,19 @@ bitflags! {
 }
 
 impl ArchMMUFlags for RISCVMMUFlags {
-    fn has_empty_perm(self) -> bool {
+    fn has_empty_perm(&self) -> bool {
         !self.contains(Self::V)
     }
 
-    fn is_leaf(self, _level: usize) -> bool {
-        (self & (Self::R | Self::W | Self::X)) != Self::empty()
+    fn is_leaf(&self, _level: usize) -> bool {
+        (*self & (Self::R | Self::W | Self::X)) != Self::empty()
     }
 
-    fn access_allowed(self, flags: Self) -> bool {
+    fn access_allowed(&self, flags: Self) -> bool {
         if !self.contains(Self::V) {
             return false;
         }
-        !self.is_leaf(0) || (self & flags) == flags
+        !self.is_leaf(0) || (*self & flags) == flags
     }
 }
 

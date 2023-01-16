@@ -48,15 +48,15 @@ bitflags! {
 }
 
 impl ArchMMUFlags for X86MMUFlags {
-    fn has_empty_perm(self) -> bool {
+    fn has_empty_perm(&self) -> bool {
         !self.contains(Self::P)
     }
 
-    fn is_leaf(self, level: usize) -> bool {
+    fn is_leaf(&self, level: usize) -> bool {
         level == 0 || self.contains(Self::L)
     }
 
-    fn access_allowed(self, flags: Self) -> bool {
+    fn access_allowed(&self, flags: Self) -> bool {
         self.contains(Self::P)
             && !(!self.contains(Self::W) && flags.contains(Self::W))
             && !(self.contains(Self::NX) && !flags.contains(Self::NX))

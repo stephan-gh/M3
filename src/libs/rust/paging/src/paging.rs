@@ -35,13 +35,13 @@ pub type ActId = u64;
 
 pub trait ArchMMUFlags {
     /// Returns true if the flags are empty
-    fn has_empty_perm(self) -> bool;
+    fn has_empty_perm(&self) -> bool;
 
     /// Returns true if this flags define a leaf-PTE at given level
-    fn is_leaf(self, level: usize) -> bool;
+    fn is_leaf(&self, level: usize) -> bool;
 
     /// Returns true if the access with given flags is allowed
-    fn access_allowed(self, flags: Self) -> bool;
+    fn access_allowed(&self, flags: Self) -> bool;
 }
 
 /// Captures all architecture-dependent parts and is therefore implemented for each support ISA

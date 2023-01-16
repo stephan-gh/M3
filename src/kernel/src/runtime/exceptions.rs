@@ -35,7 +35,7 @@ pub fn init() {
 }
 
 pub extern "C" fn tmcall(state: &mut isr::State) -> *mut libc::c_void {
-    assert!(state.r[isr::TMC_ARG0] == tmif::Operation::TRANSL_FAULT.val as usize);
+    assert!(state.r[isr::TMC_ARG0] == tmif::Operation::TRANSL_FAULT.val);
 
     let virt = state.r[isr::TMC_ARG1];
     let access = Perm::from_bits_truncate(state.r[isr::TMC_ARG2] as u32);
