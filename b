@@ -243,6 +243,25 @@ if [ $skipbuild -eq 0 ]; then
     fi
 fi
 
+run_clippy() {
+    # vmtest only works on RISC-V
+    if [ "$M3_ISA" != "riscv" ] && [[ "$1" =~ "vmtest" ]]; then
+        continue;
+    fi
+    # gem5log+hwitrace are always built for the host OS (not our host target)
+    target=()
+    if [[ ! "$1" =~ "gem5log" ]] && [[ ! "$1" =~ "hwitrace" ]] && [[ ! "$1" =~ "netdbg" ]]; then
+        target=("${target[@]}" "${rust_args[@]}")
+    fi
+    echo "Running clippy for $(dirname "$1")..."
+    ( cd "$(dirname "$1")" && cargo clippy "${target[@]}" -- \
+        -A clippy::identity_op \
+        -A clippy::manual_range_contains \
+        -A clippy::assertions_on_constants \
+        -A clippy::upper_case_acronyms \
+        -A clippy::empty_loop )
+}
+
 # run the specified command, if any
 case "$cmd" in
     run)
@@ -259,23 +278,12 @@ case "$cmd" in
 
     clippy)
         while IFS= read -r -d '' f; do
-            # vmtest only works on RISC-V
-            if [ "$M3_ISA" != "riscv" ] && [[ $f =~ "vmtest" ]]; then
-                continue;
-            fi
-            # gem5log+hwitrace are always built for the host OS (not our host target)
-            target=()
-            if [[ ! $f =~ "gem5log" ]] && [[ ! $f =~ "hwitrace" ]] && [[ ! $f =~ "netdbg" ]]; then
-                target=("${target[@]}" "${rust_args[@]}")
-            fi
-            echo "Running clippy for $(dirname "$f")..."
-            ( cd "$(dirname "$f")" && cargo clippy "${target[@]}" -- \
-                -A clippy::identity_op \
-                -A clippy::manual_range_contains \
-                -A clippy::assertions_on_constants \
-                -A clippy::upper_case_acronyms \
-                -A clippy::empty_loop )
+            run_clippy "$f"
         done < <(find src -mindepth 2 -name Cargo.toml -print0)
+        ;;
+
+    clippy=*)
+        run_clippy "${cmd#clippy=}/Cargo.toml"
         ;;
 
     doc)
