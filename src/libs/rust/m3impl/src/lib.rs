@@ -17,7 +17,6 @@
  */
 
 #![feature(core_intrinsics)]
-#![feature(trace_macros)]
 #![no_std]
 
 #[macro_use]

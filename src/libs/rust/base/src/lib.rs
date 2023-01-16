@@ -16,11 +16,9 @@
  * General Public License version 2 for more details.
  */
 
-#![feature(alloc_error_handler, allocator_internals)]
+#![feature(allocator_internals)]
 #![feature(core_intrinsics)]
 #![feature(maybe_uninit_write_slice)]
-#![feature(lang_items)]
-#![feature(panic_info_message)]
 #![default_lib_allocator]
 #![no_std]
 

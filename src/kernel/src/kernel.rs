@@ -16,7 +16,6 @@
  * General Public License version 2 for more details.
  */
 
-#![feature(ptr_internals)]
 #![no_std]
 
 #[macro_use]
