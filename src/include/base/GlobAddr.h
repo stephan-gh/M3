@@ -16,8 +16,8 @@
 #pragma once
 
 #include <base/Common.h>
-#include <base/stream/Format.h>
 #include <base/TCU.h>
+#include <base/stream/Format.h>
 
 namespace m3 {
 
