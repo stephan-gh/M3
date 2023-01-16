@@ -263,7 +263,9 @@ impl<A: Allocator> AddrSpace<A> {
                 let new_flags = MMUFlags::from_bits_truncate(new_pte);
 
                 // safety: as above
-                unsafe { *(pte_addr as *mut MMUPTE) = new_pte };
+                unsafe {
+                    *(pte_addr as *mut MMUPTE) = new_pte
+                };
 
                 let invalidate = Paging::needs_invalidate(new_flags, old_flags);
                 if invalidate {
@@ -316,7 +318,9 @@ impl<A: Allocator> AddrSpace<A> {
         // insert PTE
         let pte = Paging::build_pte(frame, MMUFlags::empty(), level, false);
         // safety: as above
-        unsafe { *(pte_addr as *mut MMUPTE) = pte };
+        unsafe {
+            *(pte_addr as *mut MMUPTE) = pte
+        };
 
         let pt_size = (1 << (LEVEL_BITS * level)) * cfg::PAGE_SIZE;
         let virt_base = virt & !(pt_size - 1);
@@ -334,7 +338,9 @@ impl<A: Allocator> AddrSpace<A> {
     }
 
     fn clear_pt(pt_virt: usize) {
-        unsafe { libc::memset(pt_virt as *mut _, 0, cfg::PAGE_SIZE) };
+        unsafe {
+            libc::memset(pt_virt as *mut _, 0, cfg::PAGE_SIZE)
+        };
     }
 
     fn free_pts_rec(&mut self, pt: MMUPTE, level: usize) {
