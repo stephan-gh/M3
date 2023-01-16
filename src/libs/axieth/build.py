@@ -10,9 +10,9 @@ def build(gen, env):
         if os.environ.get('M3_BUILD') != 'release':
             env['CXXFLAGS'] += ['-DDEBUG', '-UNDEBUG']
             env['CFLAGS'] += ['-DDEBUG', '-UNDEBUG']
-        else:
-            env['CXXFLAGS'] += ['-DDEBUG']
-            env['CFLAGS'] += ['-DDEBUG']
+        # else:
+        #     env['CXXFLAGS'] += ['-DDEBUG']
+        #     env['CFLAGS'] += ['-DDEBUG']
 
         env['CXXFLAGS']  += ['-fno-exceptions']
         env['LINKFLAGS'] += ['-fno-exceptions', '-nodefaultlibs']
