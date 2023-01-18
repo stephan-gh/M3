@@ -28,7 +28,7 @@ use base::kif::{PageFlags, Perm};
 use base::libc;
 use base::log;
 use base::mem::{size_of, MsgBuf};
-use base::tcu::{self, TileId, TCU};
+use base::tcu::{self, EpId, TileId, TCU};
 use base::util;
 
 use core::intrinsics::transmute;
@@ -43,6 +43,12 @@ static MEM_TILE: TileId = TileId::new(0, 8);
 
 static OWN_ACT: u16 = 0xFFFF;
 static FOREIGN_MSGS: StaticCell<u64> = StaticCell::new(0);
+
+static MEP: EpId = tcu::FIRST_USER_EP;
+static SEP: EpId = tcu::FIRST_USER_EP + 1;
+static REP1: EpId = tcu::FIRST_USER_EP + 2;
+static RPLEP: EpId = tcu::FIRST_USER_EP + 3;
+static REP2: EpId = tcu::FIRST_USER_EP + 4;
 
 pub extern "C" fn mmu_pf(state: &mut isr::State) -> *mut libc::c_void {
     let (virt, perm) = ISR::get_pf_info(state);
@@ -74,13 +80,13 @@ fn read_write(wr_addr: usize, rd_addr: usize, size: usize) {
     }
 
     // configure mem EP
-    helper::config_local_ep(1, |regs| {
+    helper::config_local_ep(MEP, |regs| {
         TCU::config_mem(regs, OWN_ACT, MEM_TILE, 0x1000, size, Perm::RW);
     });
 
     // test write + read
-    TCU::write(1, wr_slice.as_ptr(), size, 0).unwrap();
-    TCU::read(1, rd_slice.as_mut_ptr(), size, 0).unwrap();
+    TCU::write(MEP, wr_slice.as_ptr(), size, 0).unwrap();
+    TCU::read(MEP, rd_slice.as_mut_ptr(), size, 0).unwrap();
 
     assert_eq!(rd_slice, wr_slice);
 }
@@ -146,16 +152,16 @@ fn send_recv(send_addr: usize, size: usize) {
     let (rbuf2_virt, rbuf2_phys) = helper::virt_to_phys(RBUF2.as_ptr() as usize);
 
     // create EPs
-    let max_msg_ord = util::math::next_log2(16 + size * 8);
+    let max_msg_ord = util::math::next_log2(size_of::<tcu::Header>() + size * 8);
     assert!(RBUF1.len() * size_of::<u64>() >= 1 << max_msg_ord);
-    helper::config_local_ep(1, |regs| {
-        TCU::config_recv(regs, OWN_ACT, rbuf1_phys, max_msg_ord, max_msg_ord, Some(2));
+    helper::config_local_ep(REP1, |regs| {
+        TCU::config_recv(regs, OWN_ACT, rbuf1_phys, max_msg_ord, max_msg_ord, Some(RPLEP));
     });
-    helper::config_local_ep(3, |regs| {
+    helper::config_local_ep(REP2, |regs| {
         TCU::config_recv(regs, OWN_ACT, rbuf2_phys, max_msg_ord, max_msg_ord, None);
     });
-    helper::config_local_ep(4, |regs| {
-        TCU::config_send(regs, OWN_ACT, 0x1234, OWN_TILE, 1, max_msg_ord, 1);
+    helper::config_local_ep(SEP, |regs| {
+        TCU::config_send(regs, OWN_ACT, 0x1234, OWN_TILE, REP1, max_msg_ord, 1);
     });
 
     let msg_buf: &mut MsgBuf = unsafe { transmute(send_addr) };
@@ -169,12 +175,12 @@ fn send_recv(send_addr: usize, size: usize) {
     };
 
     // send message
-    TCU::send(4, msg_buf, 0x1111, 3).unwrap();
+    TCU::send(SEP, msg_buf, 0x1111, REP2).unwrap();
 
     {
         // fetch message
         let rmsg = loop {
-            if let Some(m) = helper::fetch_msg(1, rbuf1_virt) {
+            if let Some(m) = helper::fetch_msg(REP1, rbuf1_virt) {
                 break m;
             }
         };
@@ -183,13 +189,13 @@ fn send_recv(send_addr: usize, size: usize) {
         assert_eq!(msg_buf.bytes(), recv_slice);
 
         // send reply
-        TCU::reply(1, msg_buf, tcu::TCU::msg_to_offset(rbuf1_virt, rmsg)).unwrap();
+        TCU::reply(REP1, msg_buf, tcu::TCU::msg_to_offset(rbuf1_virt, rmsg)).unwrap();
     }
 
     {
         // fetch reply
         let rmsg = loop {
-            if let Some(m) = helper::fetch_msg(3, rbuf2_virt) {
+            if let Some(m) = helper::fetch_msg(REP2, rbuf2_virt) {
                 break m;
             }
         };
@@ -198,7 +204,7 @@ fn send_recv(send_addr: usize, size: usize) {
         assert_eq!(msg_buf.bytes(), recv_slice);
 
         // ack reply
-        tcu::TCU::ack_msg(3, tcu::TCU::msg_to_offset(rbuf2_virt, rmsg)).unwrap();
+        tcu::TCU::ack_msg(REP2, tcu::TCU::msg_to_offset(rbuf2_virt, rmsg)).unwrap();
     }
 }
 
@@ -220,15 +226,15 @@ fn test_msgs(area_begin: usize, _area_size: usize) {
             bytes: [0u8; cfg::PAGE_SIZE + 16],
         };
 
-        helper::config_local_ep(1, |regs| {
+        helper::config_local_ep(REP1, |regs| {
             TCU::config_recv(regs, OWN_ACT, rbuf1_phys, 6, 6, None);
         });
-        helper::config_local_ep(2, |regs| {
-            TCU::config_send(regs, OWN_ACT, 0x5678, OWN_TILE, 1, 6, 1);
+        helper::config_local_ep(SEP, |regs| {
+            TCU::config_send(regs, OWN_ACT, 0x5678, OWN_TILE, REP1, 6, 1);
         });
         let buf_addr = unsafe { (buf.bytes.as_ptr() as *const u8).add(cfg::PAGE_SIZE - 16) };
         assert_eq!(
-            TCU::send_aligned(2, buf_addr, 32, 0x1111, tcu::NO_REPLIES),
+            TCU::send_aligned(SEP, buf_addr, 32, 0x1111, tcu::NO_REPLIES),
             Err(Error::new(Code::PageBoundary))
         );
     }
@@ -240,19 +246,19 @@ fn test_msgs(area_begin: usize, _area_size: usize) {
             bytes: [0u8; cfg::PAGE_SIZE + 16],
         };
 
-        helper::config_local_ep(1, |regs| {
-            TCU::config_recv(regs, OWN_ACT, rbuf1_phys, 6, 6, Some(2));
+        helper::config_local_ep(REP1, |regs| {
+            TCU::config_recv(regs, OWN_ACT, rbuf1_phys, 6, 6, Some(RPLEP));
             // make the message occupied
             regs[2] = 0 << 32 | 1;
         });
-        helper::config_local_ep(2, |regs| {
-            TCU::config_send(regs, OWN_ACT, 0x5678, OWN_TILE, 1, 6, 1);
+        helper::config_local_ep(RPLEP, |regs| {
+            TCU::config_send(regs, OWN_ACT, 0x5678, OWN_TILE, REP1, 6, 1);
             // make it a reply EP
             regs[0] |= 1 << 53;
         });
         let buf_addr = unsafe { (buf.bytes.as_ptr() as *const u8).add(cfg::PAGE_SIZE - 16) };
         assert_eq!(
-            TCU::reply_aligned(1, buf_addr, 32, 0),
+            TCU::reply_aligned(REP1, buf_addr, 32, 0),
             Err(Error::new(Code::PageBoundary))
         );
     }
@@ -281,7 +287,7 @@ pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
     let req = tcu::TCU::get_core_req().unwrap();
     log!(crate::LOG_DEF, "Got {:x?}", req);
     assert_eq!(req.activity(), 0xDEAD);
-    assert_eq!(req.ep(), 1);
+    assert_eq!(req.ep(), REP1);
 
     FOREIGN_MSGS.set(FOREIGN_MSGS.get() + 1);
 
@@ -296,16 +302,16 @@ fn test_foreign_msg() {
     log!(crate::LOG_DEF, "SEND to REP of foreign Activity");
 
     // create EPs
-    helper::config_local_ep(1, |regs| {
+    helper::config_local_ep(REP1, |regs| {
         TCU::config_recv(regs, 0xDEAD, rbuf1_phys, 6, 6, None);
     });
-    helper::config_local_ep(2, |regs| {
-        TCU::config_send(regs, OWN_ACT, 0x5678, OWN_TILE, 1, 6, 1);
+    helper::config_local_ep(SEP, |regs| {
+        TCU::config_send(regs, OWN_ACT, 0x5678, OWN_TILE, REP1, 6, 1);
     });
 
     // send message
     let buf = MsgBuf::new();
-    assert_eq!(TCU::send(2, &buf, 0x1111, tcu::NO_REPLIES), Ok(()));
+    assert_eq!(TCU::send(SEP, &buf, 0x1111, tcu::NO_REPLIES), Ok(()));
 
     // wait for core request
     while FOREIGN_MSGS.get() == 0 {}
@@ -319,11 +325,11 @@ fn test_foreign_msg() {
     assert_eq!(TCU::get_cur_activity(), (1 << 16) | 0xDEAD);
 
     // fetch message with foreign activity
-    let msg = helper::fetch_msg(1, rbuf1_virt).unwrap();
+    let msg = helper::fetch_msg(REP1, rbuf1_virt).unwrap();
     assert_eq!(msg.header.label(), 0x5678);
     // message is fetched
     assert_eq!(TCU::get_cur_activity(), 0xDEAD);
-    tcu::TCU::ack_msg(1, tcu::TCU::msg_to_offset(rbuf1_virt, msg)).unwrap();
+    tcu::TCU::ack_msg(REP1, tcu::TCU::msg_to_offset(rbuf1_virt, msg)).unwrap();
 
     // no unread messages anymore
     let foreign = TCU::xchg_activity(old).unwrap();
@@ -338,11 +344,11 @@ fn test_own_msg() {
     log!(crate::LOG_DEF, "SEND to REP of own Activity");
 
     // create EPs
-    helper::config_local_ep(1, |regs| {
+    helper::config_local_ep(REP1, |regs| {
         TCU::config_recv(regs, OWN_ACT, rbuf1_phys, 6, 6, None);
     });
-    helper::config_local_ep(2, |regs| {
-        TCU::config_send(regs, OWN_ACT, 0x5678, OWN_TILE, 1, 6, 1);
+    helper::config_local_ep(SEP, |regs| {
+        TCU::config_send(regs, OWN_ACT, 0x5678, OWN_TILE, REP1, 6, 1);
     });
 
     // no message yet
@@ -350,19 +356,19 @@ fn test_own_msg() {
 
     // send message
     let buf = MsgBuf::new();
-    assert_eq!(TCU::send(2, &buf, 0x1111, tcu::NO_REPLIES), Ok(()));
+    assert_eq!(TCU::send(SEP, &buf, 0x1111, tcu::NO_REPLIES), Ok(()));
 
     // wait until it arrived
-    while !TCU::has_msgs(1) {}
+    while !TCU::has_msgs(REP1) {}
     // now we have a message
     assert_eq!(TCU::get_cur_activity(), (1 << 16) | OWN_ACT as u64);
 
     // fetch message
-    let msg = helper::fetch_msg(1, rbuf1_virt).unwrap();
+    let msg = helper::fetch_msg(REP1, rbuf1_virt).unwrap();
     assert_eq!(msg.header.label(), 0x5678);
     // message is fetched
     assert_eq!(TCU::get_cur_activity(), OWN_ACT as u64);
-    tcu::TCU::ack_msg(1, tcu::TCU::msg_to_offset(rbuf1_virt, msg)).unwrap();
+    tcu::TCU::ack_msg(REP1, tcu::TCU::msg_to_offset(rbuf1_virt, msg)).unwrap();
 
     // no foreign message core requests here
     assert_eq!(FOREIGN_MSGS.get(), 0);
