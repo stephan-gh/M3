@@ -15,6 +15,8 @@
 
 #![no_std]
 
+mod helper;
+mod tchilds;
 mod tmemory;
 mod tparse;
 mod tsubsys;
@@ -29,6 +31,7 @@ use m3::wv_run_suite;
 #[no_mangle]
 pub fn main() -> Result<(), Error> {
     let mut tester = DefaultWvTester::default();
+    wv_run_suite!(tester, tchilds::run);
     wv_run_suite!(tester, tmemory::run);
     wv_run_suite!(tester, tparse::run);
     wv_run_suite!(tester, tsubsys::run);

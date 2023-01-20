@@ -106,6 +106,36 @@ pub struct ChildResources {
     sgates: Vec<SendGate>,
 }
 
+impl ChildResources {
+    pub fn childs(&self) -> &[(Id, Selector)] {
+        &self.childs
+    }
+
+    pub fn services(&self) -> &[(Id, Selector)] {
+        &self.services
+    }
+
+    pub fn sessions(&self) -> &[(usize, Session)] {
+        &self.sessions
+    }
+
+    pub fn memories(&self) -> &[(Option<Selector>, Allocation)] {
+        &self.mem
+    }
+
+    pub fn mods(&self) -> &[MemGate] {
+        &self.mods
+    }
+
+    pub fn tiles(&self) -> &[(TileUsage, usize, Selector)] {
+        &self.tiles
+    }
+
+    pub fn send_gates(&self) -> &[SendGate] {
+        &self.sgates
+    }
+}
+
 pub trait Child {
     fn id(&self) -> Id;
     fn layer(&self) -> u32;

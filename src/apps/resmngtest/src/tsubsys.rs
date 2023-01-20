@@ -13,21 +13,17 @@
  * General Public License version 2 for more details.
  */
 
-use m3::boxed::Box;
-use m3::com::{MemGate, RGateArgs, RecvGate};
-use m3::errors::{Code, Error, VerboseError};
+use m3::com::MemGate;
+use m3::errors::Code;
 use m3::kif::Perm;
 use m3::test::{DefaultWvTester, WvTester};
-use m3::tiles::{
-    Activity, ActivityArgs, ChildActivity, RunningActivity, RunningDeviceActivity, Tile,
-};
+use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::{wv_assert, wv_assert_eq, wv_assert_ok, wv_assert_some, wv_run_test};
 
-use resmng::childs::{Child, ChildManager, OwnChild};
-use resmng::config::Domain;
-use resmng::requests::Requests;
-use resmng::resources::{tiles::TileUsage, Resources};
-use resmng::subsys::{ChildStarter, Subsystem, SubsystemBuilder};
+use resmng::childs::Child;
+use resmng::subsys::{Subsystem, SubsystemBuilder};
+
+use crate::helper::{run_subsys, setup_resmng, TestStarter};
 
 pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, subsys_builder);
@@ -48,9 +44,7 @@ fn subsys_builder(t: &mut dyn WvTester) {
 
     let mut child_sub = SubsystemBuilder::default();
 
-    wv_assert_ok!(
-        child_sub.add_config("<app args=\"test\"/>", |size| MemGate::new(size, Perm::RW))
-    );
+    wv_assert_ok!(child_sub.add_config("<app args=\"test\"/>", |size| MemGate::new(size, Perm::RW)));
     child_sub.add_mod(wv_assert_ok!(MemGate::new(0x1000, Perm::RW)), "test");
     child_sub.add_mem(wv_assert_ok!(MemGate::new(0x4000, Perm::R)), false);
     child_sub.add_tile(wv_assert_ok!(Tile::get("compat")));
@@ -77,77 +71,6 @@ fn subsys_builder(t: &mut dyn WvTester) {
     wv_assert_eq!(t, run.wait(), Ok(Code::Success));
 }
 
-struct TestStarter {}
-impl ChildStarter for TestStarter {
-    fn start(
-        &mut self,
-        _reqs: &Requests,
-        _res: &mut Resources,
-        child: &mut OwnChild,
-    ) -> Result<(), VerboseError> {
-        let act = wv_assert_ok!(ChildActivity::new(
-            child.child_tile().unwrap().tile_obj().clone(),
-            child.name(),
-        ));
-
-        let run = RunningDeviceActivity::new(act);
-        child.set_running(Box::new(run));
-
-        Ok(())
-    }
-
-    fn configure_tile(
-        &mut self,
-        _res: &mut Resources,
-        _tile: &TileUsage,
-        _dom: &Domain,
-    ) -> Result<(), VerboseError> {
-        Ok(())
-    }
-}
-
-fn run_subsys(t: &mut dyn WvTester, cfg: &str, func: fn() -> Result<(), Error>) {
-    let tile = wv_assert_ok!(Tile::get("compat|own"));
-    let mut child = wv_assert_ok!(ChildActivity::new_with(
-        tile.clone(),
-        ActivityArgs::new("test").first_sel(1000)
-    ));
-
-    let (_our_sub, mut res) = wv_assert_ok!(Subsystem::new());
-    let mut child_sub = SubsystemBuilder::default();
-
-    wv_assert_ok!(child_sub.add_config(cfg, |size| MemGate::new(size, Perm::RW)));
-    let tile_quota = wv_assert_ok!(tile.quota());
-    child_sub.add_tile(wv_assert_ok!(tile.derive(
-        Some(tile_quota.endpoints().remaining() / 2),
-        Some(tile_quota.time().remaining() / 2),
-        Some(tile_quota.page_tables().remaining() / 2)
-    )));
-    child_sub.add_mem(
-        wv_assert_ok!(MemGate::new(32 * 1024 * 1024, Perm::RW)),
-        false,
-    );
-
-    wv_assert_ok!(child_sub.finalize_async(&mut res, 0, &mut child));
-
-    let run = wv_assert_ok!(child.run(func));
-
-    wv_assert_eq!(t, run.wait(), Ok(Code::Success));
-}
-
-fn setup_resmng() -> (Requests, ChildManager, Subsystem, Resources) {
-    let req_rgate = wv_assert_ok!(RecvGate::new_with(
-        RGateArgs::default().order(6).msg_order(6),
-    ));
-    let reqs = Requests::new(req_rgate);
-
-    let childs = ChildManager::default();
-
-    let (child_sub, res) = wv_assert_ok!(Subsystem::new());
-
-    (reqs, childs, child_sub, res)
-}
-
 fn start_simple(t: &mut dyn WvTester) {
     run_subsys(
         t,
@@ -156,6 +79,7 @@ fn start_simple(t: &mut dyn WvTester) {
                  <app args=\"/bin/rusthello\"/>
              </dom>
          </app>",
+        |_subsys| {},
         || {
             let mut t = DefaultWvTester::default();
 
@@ -205,6 +129,7 @@ fn start_service_deps(t: &mut dyn WvTester) {
                  </app>
              </dom>
          </app>",
+        |_subsys| {},
         || {
             let mut t = DefaultWvTester::default();
 
@@ -265,6 +190,7 @@ fn start_resource_split(t: &mut dyn WvTester) {
                  <app args=\"5\" eps=\"16\"/>
             </dom>
          </app>",
+        |_subsys| {},
         || {
             let mut t = DefaultWvTester::default();
 
