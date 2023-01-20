@@ -46,8 +46,11 @@ use core::ptr;
 use crate::tiles::{tilemng, ActivityMng};
 
 extern "C" {
+    static _bss_end: u8;
+
     fn __m3_init_libc(argc: i32, argv: *const *const u8, envp: *const *const u8);
     fn __m3_heap_get_end() -> usize;
+    fn __m3_heap_set_area(begin: usize, end: usize);
     fn __m3_heap_append(pages: usize);
 }
 
@@ -98,6 +101,16 @@ fn create_rbufs() {
         .expect("Unable to config tilemux REP");
 }
 
+fn create_heap() {
+    unsafe {
+        let heap_start = math::round_up(&_bss_end as *const _ as usize, cfg::PAGE_SIZE);
+        let mut heap_end = __m3_heap_get_end();
+        assert_eq!(heap_end, 0);
+        heap_end = heap_start + 64 * cfg::PAGE_SIZE;
+        __m3_heap_set_area(heap_start, heap_end);
+    }
+}
+
 fn extend_heap() {
     if platform::tile_desc(platform::kernel_tile()).has_virtmem() {
         let free_contiguous = mem::borrow_mut().largest_contiguous(mem::MemType::KERNEL);
@@ -113,9 +126,7 @@ fn extend_heap() {
             let small_pages = (virt_next_lpage - virt) >> cfg::PAGE_BITS;
 
             runtime::paging::map_new_mem(virt, small_pages, cfg::PAGE_SIZE);
-            unsafe {
-                __m3_heap_append(small_pages)
-            };
+            unsafe { __m3_heap_append(small_pages) };
 
             // now map the rest with large pages
             let large_pages = ((pages - small_pages) * cfg::PAGE_SIZE) / cfg::LPAGE_SIZE;
@@ -125,22 +136,19 @@ fn extend_heap() {
                 large_pages * pages_per_lpage,
                 cfg::LPAGE_SIZE,
             );
-            unsafe {
-                __m3_heap_append(large_pages * pages_per_lpage)
-            };
+            unsafe { __m3_heap_append(large_pages * pages_per_lpage) };
         }
     }
 }
 
 #[no_mangle]
 pub extern "C" fn env_run() {
-    unsafe {
-        __m3_init_libc(0, ptr::null(), ptr::null())
-    };
+    unsafe { __m3_init_libc(0, ptr::null(), ptr::null()) };
     io::init(
         tcu::TileId::new_from_raw(env::data().tile_id as u16),
         "kernel",
     );
+    create_heap();
     crate::slab::init();
 
     runtime::paging::init();
