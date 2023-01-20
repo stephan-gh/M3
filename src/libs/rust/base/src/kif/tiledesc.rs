@@ -25,12 +25,10 @@ use crate::serialize::{Deserialize, Serialize};
 int_enum! {
     /// The different types of tiles
     pub struct TileType : TileDescRaw {
-        /// Compute tile with internal memory
-        const COMP_IMEM     = 0x0;
-        /// Compute tile with cache and external memory
-        const COMP_EMEM     = 0x1;
+        /// Compute tile
+        const COMP          = 0x0;
         /// Memory tile
-        const MEM           = 0x2;
+        const MEM           = 0x1;
     }
 }
 
@@ -62,15 +60,22 @@ int_enum! {
 
 bitflags! {
     pub struct TileAttr : TileDescRaw {
-        const BOOM          = 0x1;
-        const ROCKET        = 0x2;
-        const NIC           = 0x4;
+        const BOOM          = 1 << 0;
+        const ROCKET        = 1 << 1;
+        const NIC           = 1 << 2;
+        const SERIAL        = 1 << 3;
         /// Tile contains a Keccak Accelerator (KecAcc)
-        const KECACC        = 0x8;
+        const KECACC        = 1 << 4;
+        const IMEM          = 1 << 5;
     }
 }
 
 /// The underlying type of [`TileDesc`]
+///
+/// +---------------------------+------------+-----+------+
+/// | memory size (in 4K pages) | attributes | ISA | type |
+/// +---------------------------+------------+-----+------+
+/// 64                         28           20     6      0
 pub type TileDescRaw = u64;
 
 /// Describes a tile.
@@ -89,7 +94,8 @@ pub struct TileDesc {
 impl TileDesc {
     /// Creates a new tile description from the given type, ISA, and memory size.
     pub const fn new(ty: TileType, isa: TileISA, memsize: usize) -> TileDesc {
-        let val = ty.val | (isa.val << 3) | memsize as TileDescRaw;
+        let mem_pages = memsize >> 12;
+        let val = ty.val | (isa.val << 6) | (mem_pages as TileDescRaw) << 28;
         Self::new_from(val)
     }
 
@@ -100,7 +106,8 @@ impl TileDesc {
         memsize: usize,
         attr: TileAttr,
     ) -> TileDesc {
-        let val = ty.val | (isa.val << 3) | (attr.bits() << 7) | memsize as TileDescRaw;
+        let mem_pages = memsize >> 12;
+        let val = ty.val | (isa.val << 6) | (attr.bits() << 20) | (mem_pages as TileDescRaw) << 28;
         Self::new_from(val)
     }
 
@@ -115,20 +122,20 @@ impl TileDesc {
     }
 
     pub fn tile_type(self) -> TileType {
-        TileType::from(self.val & 0x7)
+        TileType::from(self.val & 0x3F)
     }
 
     pub fn isa(self) -> TileISA {
-        TileISA::from((self.val >> 3) & 0xF)
+        TileISA::from((self.val >> 6) & 0x3FFF)
     }
 
     pub fn attr(self) -> TileAttr {
-        TileAttr::from_bits_truncate((self.val >> 7) & 0xF)
+        TileAttr::from_bits_truncate((self.val >> 20) & 0xFF)
     }
 
     /// Returns the size of the internal memory (0 if none is present)
     pub fn mem_size(self) -> usize {
-        (self.val & !0xFFF) as usize
+        ((self.val >> 28) as usize) << 12
     }
 
     /// Returns whether the tile executes software
@@ -154,18 +161,14 @@ impl TileDesc {
     }
 
     /// Returns whether the tile has an internal memory (SPM, DRAM, ...)
-    pub fn has_mem(self) -> bool {
-        self.tile_type() == TileType::COMP_IMEM || self.tile_type() == TileType::MEM
+    pub fn has_memory(self) -> bool {
+        self.tile_type() == TileType::MEM || self.attr().contains(TileAttr::IMEM)
     }
 
-    /// Returns whether the tile has a cache
-    pub fn has_cache(self) -> bool {
-        self.tile_type() == TileType::COMP_EMEM
-    }
-
-    /// Returns whether the tile supports virtual memory (either by TCU or MMU)
+    /// Returns whether the tile supports virtual memory
     pub fn has_virtmem(self) -> bool {
-        self.has_cache()
+        // all non-device tiles without internal memory have currently VM support
+        !self.has_memory() && !self.is_device()
     }
 
     /// Derives a new TileDesc from this by changing it based on the given properties.
@@ -173,12 +176,9 @@ impl TileDesc {
         let mut res = *self;
         for prop in props.split('+') {
             match prop {
-                "imem" => res = TileDesc::new(TileType::COMP_IMEM, res.isa(), 0),
-                "emem" | "vm" => res = TileDesc::new(TileType::COMP_EMEM, res.isa(), 0),
-
-                "arm" => res = TileDesc::new(res.tile_type(), TileISA::ARM, 0),
-                "x86" => res = TileDesc::new(res.tile_type(), TileISA::X86, 0),
-                "riscv" => res = TileDesc::new(res.tile_type(), TileISA::RISCV, 0),
+                "arm" => res = TileDesc::new(TileType::COMP, TileISA::ARM, 0),
+                "x86" => res = TileDesc::new(TileType::COMP, TileISA::X86, 0),
+                "riscv" => res = TileDesc::new(TileType::COMP, TileISA::RISCV, 0),
 
                 "rocket" => {
                     res = TileDesc::new_with_attr(
@@ -204,20 +204,63 @@ impl TileDesc {
                         res.attr() | TileAttr::NIC,
                     )
                 },
+                "serial" => {
+                    res = TileDesc::new_with_attr(
+                        res.tile_type(),
+                        res.isa(),
+                        0,
+                        res.attr() | TileAttr::SERIAL,
+                    )
+                },
                 "kecacc" => {
                     res = TileDesc::new_with_attr(
                         res.tile_type(),
                         res.isa(),
                         0,
-                        res.attr() | TileAttr::KECACC,
+                        res.attr() | TileAttr::KECACC | TileAttr::IMEM,
                     )
                 },
 
-                "indir" => res = TileDesc::new(TileType::COMP_IMEM, TileISA::ACCEL_INDIR, 0),
-                "copy" => res = TileDesc::new(TileType::COMP_IMEM, TileISA::ACCEL_COPY, 0),
-                "rot13" => res = TileDesc::new(TileType::COMP_IMEM, TileISA::ACCEL_ROT13, 0),
-                "idedev" => res = TileDesc::new(TileType::COMP_IMEM, TileISA::IDE_DEV, 0),
-                "nicdev" => res = TileDesc::new(TileType::COMP_IMEM, TileISA::NIC_DEV, 0),
+                "indir" => {
+                    res = TileDesc::new_with_attr(
+                        TileType::COMP,
+                        TileISA::ACCEL_INDIR,
+                        0,
+                        TileAttr::IMEM,
+                    )
+                },
+                "copy" => {
+                    res = TileDesc::new_with_attr(
+                        TileType::COMP,
+                        TileISA::ACCEL_COPY,
+                        0,
+                        TileAttr::IMEM,
+                    )
+                },
+                "rot13" => {
+                    res = TileDesc::new_with_attr(
+                        TileType::COMP,
+                        TileISA::ACCEL_ROT13,
+                        0,
+                        TileAttr::IMEM,
+                    )
+                },
+                "idedev" => {
+                    res =
+                        TileDesc::new_with_attr(TileType::COMP, TileISA::IDE_DEV, 0, TileAttr::IMEM)
+                },
+                "nicdev" => {
+                    res =
+                        TileDesc::new_with_attr(TileType::COMP, TileISA::NIC_DEV, 0, TileAttr::IMEM)
+                },
+                "serdev" => {
+                    res = TileDesc::new_with_attr(
+                        TileType::COMP,
+                        TileISA::SERIAL_DEV,
+                        0,
+                        TileAttr::IMEM,
+                    )
+                },
 
                 _ => {},
             }

@@ -14,7 +14,7 @@
  */
 
 use m3::errors::Code;
-use m3::kif::{boot, TileDesc, TileISA, TileType};
+use m3::kif::{boot, TileAttr, TileDesc, TileISA, TileType};
 use m3::mem::GlobAddr;
 use m3::rc::Rc;
 use m3::tcu::TileId;
@@ -164,12 +164,12 @@ fn tiles(t: &mut dyn WvTester) {
     let mut res = Resources::default();
     res.tiles_mut().add(Rc::new(Tile::new_bind(
         TileId::new(0, 1),
-        TileDesc::new(TileType::COMP_EMEM, TileISA::RISCV, 0),
+        TileDesc::new(TileType::COMP, TileISA::RISCV, 0),
         64,
     )));
     res.tiles_mut().add(Rc::new(Tile::new_bind(
         TileId::new(0, 2),
-        TileDesc::new(TileType::COMP_IMEM, TileISA::ACCEL_INDIR, 0),
+        TileDesc::new_with_attr(TileType::COMP, TileISA::ACCEL_INDIR, 0, TileAttr::IMEM),
         65,
     )));
 

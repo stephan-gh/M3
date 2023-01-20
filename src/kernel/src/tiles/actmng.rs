@@ -163,8 +163,9 @@ impl ActivityMng {
     pub fn start_root_async() -> Result<(), Error> {
         // TODO temporary
         let isa = platform::tile_desc(platform::kernel_tile()).isa();
-        let tile_emem = kif::TileDesc::new(kif::TileType::COMP_EMEM, isa, 0);
-        let tile_imem = kif::TileDesc::new(kif::TileType::COMP_IMEM, isa, 0);
+        let tile_emem = kif::TileDesc::new(kif::TileType::COMP, isa, 0);
+        let tile_imem =
+            kif::TileDesc::new_with_attr(kif::TileType::COMP, isa, 0, kif::TileAttr::IMEM);
 
         let tile_id = tilemng::find_tile(&tile_emem)
             .unwrap_or_else(|| tilemng::find_tile(&tile_imem).unwrap());

@@ -29,12 +29,10 @@ namespace m3 {
  * The different types of tiles
  */
 enum class TileType {
-    // Compute tile with internal memory
-    COMP_IMEM = 0,
-    // Compute tile with cache and external memory
-    COMP_EMEM = 1,
+    // Compute tile
+    COMP = 0,
     // memory tile
-    MEM = 2,
+    MEM = 1,
 };
 
 /**
@@ -54,10 +52,12 @@ enum class TileISA {
 };
 
 enum TileAttr {
-    BOOM = 0x1,
-    ROCKET = 0x2,
-    NIC = 0x4,
-    KECACC = 0x8,
+    BOOM = 1 << 0,
+    ROCKET = 1 << 1,
+    NIC = 1 << 2,
+    SERIAL = 1 << 3,
+    KECACC = 1 << 4,
+    IMEM = 1 << 5,
 };
 
 /**
@@ -80,8 +80,8 @@ struct TileDesc {
      * Creates a tile description of given type, ISA and memory size
      */
     explicit TileDesc(TileType type, TileISA isa, size_t memsize = 0, uint attr = 0)
-        : _value(static_cast<value_t>(type) | (static_cast<value_t>(isa) << 3) |
-                 (static_cast<value_t>(attr) << 7) | memsize) {
+        : _value(static_cast<value_t>(type) | (static_cast<value_t>(isa) << 6) |
+                 (static_cast<value_t>(attr) << 20) | ((memsize >> 12) << 28)) {
     }
 
     /**
@@ -95,19 +95,19 @@ struct TileDesc {
      * @return the type of tile
      */
     TileType type() const {
-        return static_cast<TileType>(_value & 0x7);
+        return static_cast<TileType>(_value & 0x3F);
     }
     /**
      * @return the isa of the tile
      */
     TileISA isa() const {
-        return static_cast<TileISA>((_value >> 3) & 0xF);
+        return static_cast<TileISA>((_value >> 6) & 0x3FFF);
     }
     /**
      * @return the attributes of the tile
      */
     uint attr() const {
-        return (_value >> 7) & 0xF;
+        return (_value >> 20) & 0xFF;
     }
     /**
      * @return if the tile has a core that is programmable
@@ -137,28 +137,22 @@ struct TileDesc {
     }
 
     /**
-     * @return the memory size (for type() == COMP_IMEM | MEM)
+     * @return the memory size (if has_memory() == true)
      */
     size_t mem_size() const {
-        return _value & ~static_cast<value_t>(0xFFF);
+        return (_value >> 28) << 12;
     }
     /**
      * @return true if the tile has internal memory
      */
     bool has_memory() const {
-        return type() == TileType::COMP_IMEM || type() == TileType::MEM;
-    }
-    /**
-     * @return true if the tile has a cache, i.e., external memory
-     */
-    bool has_cache() const {
-        return type() == TileType::COMP_EMEM;
+        return type() == TileType::MEM || (attr() & IMEM) != 0;
     }
     /**
      * @return true if the tile has virtual memory support of some form
      */
     bool has_virtmem() const {
-        return has_cache();
+        return !has_memory() && !is_device();
     }
 
     /**

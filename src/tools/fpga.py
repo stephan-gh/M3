@@ -66,14 +66,22 @@ def add_mod(dram, addr, mod, offset):
     write_file(dram, path, addr)
     return size
 
-def tile_desc(i, vm):
-    tile_desc = (3 << 3) | 1 if vm else pmp_size | (3 << 3) | 0
+def tile_desc(tiles, i, vm):
+    if i >= len(tiles):
+        # mem size | TileAttr::IMEM | TileType::MEM
+        return (DRAM_SIZE >> 12) << 28 | ((1 << 5) << 20) | 1
+
+    tile_desc = 3 << 6 # RISCV
+    if not vm:
+        # mem size | TileAttr::IMEM
+        tile_desc |= pmp_size | ((1 << 5) << 20)
     if i < 5:
-        tile_desc |= 1 << 8 # Rocket core
+        tile_desc |= (1 << 0) << 20 # Rocket core
     else:
-        tile_desc |= 1 << 7 # BOOM core
+        tile_desc |= (1 << 1) << 20 # BOOM core
     if i == 6:
-        tile_desc |= 1 << 9 # NIC
+        tile_desc |= (1 << 2) << 20 # NIC
+        tile_desc |= (1 << 3) << 20 # Serial
     return tile_desc
 
 def load_boot_info(dram, mods, tiles, vm):
@@ -96,9 +104,9 @@ def load_boot_info(dram, mods, tiles, vm):
 
     # tile descriptors
     for x in range(0, len(tiles)):
-        write_u64(dram, kenv_off, tile_desc(x, vm))     # PM
+        write_u64(dram, kenv_off, tile_desc(tiles, x, vm))         # PM
         kenv_off += 8
-    write_u64(dram, kenv_off, DRAM_SIZE | (0 << 3) | 2) # dram
+    write_u64(dram, kenv_off, tile_desc(tiles, len(tiles), False)) # dram1
     kenv_off += 8
 
     # mems
@@ -149,11 +157,7 @@ def load_prog(dram, tiles, i, args, vm):
     sys.stdout.flush()
 
     argv = ENV + 0x400
-    if vm:
-        heap_size = 64 * 0x1000
-    else:
-        heap_size = 0
-    desc = tile_desc(i, vm)
+    desc = tile_desc(tiles, i, vm)
     kenv = glob_addr(MEM_TILE, MAX_FS_SIZE + len(tiles) * pmp_size) if i == 0 else 0
 
     # init environment

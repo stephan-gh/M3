@@ -273,10 +273,6 @@ impl TileType {
             let matches = match attr {
                 "core" => desc.is_programmable(),
 
-                "imem" => desc.tile_type() == kif::TileType::COMP_IMEM,
-                "emem" => desc.tile_type() == kif::TileType::COMP_EMEM,
-                "vm" => desc.has_virtmem(),
-
                 "arm" => desc.isa() == kif::TileISA::ARM,
                 "x86" => desc.isa() == kif::TileISA::X86,
                 "riscv" => desc.isa() == kif::TileISA::RISCV,
@@ -285,6 +281,8 @@ impl TileType {
                 "boom" => desc.attr().contains(kif::TileAttr::BOOM),
                 "rocket" => desc.attr().contains(kif::TileAttr::ROCKET),
                 "kecacc" => desc.attr().contains(kif::TileAttr::KECACC),
+                "serial" => desc.attr().contains(kif::TileAttr::SERIAL),
+                "imem" => desc.attr().contains(kif::TileAttr::IMEM),
 
                 "indir" => desc.isa() == kif::TileISA::ACCEL_INDIR,
                 "copy" => desc.isa() == kif::TileISA::ACCEL_COPY,
@@ -292,6 +290,7 @@ impl TileType {
 
                 "idedev" => desc.isa() == kif::TileISA::IDE_DEV,
                 "nicdev" => desc.isa() == kif::TileISA::NIC_DEV,
+                "serdev" => desc.isa() == kif::TileISA::SERIAL_DEV,
                 _ => false,
             };
             if !matches {

@@ -32,11 +32,7 @@ static TileDesc desc_with_properties(TileDesc desc, const char *props) {
     auto res = desc;
     char *prop = strtok(props_cpy, "+");
     while(prop != nullptr) {
-        if(strcmp(prop, "imem") == 0)
-            res = TileDesc(TileType::COMP_IMEM, res.isa(), 0);
-        else if(strcmp(prop, "emem") == 0 || strcmp(prop, "vm") == 0)
-            res = TileDesc(TileType::COMP_EMEM, res.isa(), 0);
-        else if(strcmp(prop, "arm") == 0)
+        if(strcmp(prop, "arm") == 0)
             res = TileDesc(res.type(), TileISA::ARM, 0);
         else if(strcmp(prop, "x86") == 0)
             res = TileDesc(res.type(), TileISA::X86, 0);
@@ -48,18 +44,22 @@ static TileDesc desc_with_properties(TileDesc desc, const char *props) {
             res = TileDesc(res.type(), res.isa(), 0, res.attr() | TileAttr::BOOM);
         else if(strcmp(prop, "nic") == 0)
             res = TileDesc(res.type(), res.isa(), 0, res.attr() | TileAttr::NIC);
+        else if(strcmp(prop, "serial") == 0)
+            res = TileDesc(res.type(), res.isa(), 0, res.attr() | TileAttr::SERIAL);
         else if(strcmp(prop, "kecacc") == 0)
             res = TileDesc(res.type(), res.isa(), 0, res.attr() | TileAttr::KECACC);
         else if(strcmp(prop, "indir") == 0)
-            res = TileDesc(TileType::COMP_IMEM, TileISA::ACCEL_INDIR, 0);
+            res = TileDesc(TileType::COMP, TileISA::ACCEL_INDIR, 0, TileAttr::IMEM);
         else if(strcmp(prop, "copy") == 0)
-            res = TileDesc(TileType::COMP_IMEM, TileISA::ACCEL_COPY, 0);
+            res = TileDesc(TileType::COMP, TileISA::ACCEL_COPY, 0, TileAttr::IMEM);
         else if(strcmp(prop, "rot13") == 0)
-            res = TileDesc(TileType::COMP_IMEM, TileISA::ACCEL_ROT13, 0);
+            res = TileDesc(TileType::COMP, TileISA::ACCEL_ROT13, 0, TileAttr::IMEM);
         else if(strcmp(prop, "idedev") == 0)
-            res = TileDesc(TileType::COMP_IMEM, TileISA::IDE_DEV, 0);
+            res = TileDesc(TileType::COMP, TileISA::IDE_DEV, 0, TileAttr::IMEM);
         else if(strcmp(prop, "nicdev") == 0)
-            res = TileDesc(TileType::COMP_IMEM, TileISA::NIC_DEV, 0);
+            res = TileDesc(TileType::COMP, TileISA::NIC_DEV, 0, TileAttr::IMEM);
+        else if(strcmp(prop, "serdev") == 0)
+            res = TileDesc(TileType::COMP, TileISA::SERIAL_DEV, 0, TileAttr::IMEM);
         prop = strtok(NULL, "+");
     }
     return res;

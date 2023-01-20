@@ -106,7 +106,13 @@ fn create_heap() {
         let heap_start = math::round_up(&_bss_end as *const _ as usize, cfg::PAGE_SIZE);
         let mut heap_end = __m3_heap_get_end();
         assert_eq!(heap_end, 0);
-        heap_end = heap_start + 64 * cfg::PAGE_SIZE;
+        let desc = TileDesc::new_from(env::data().tile_desc);
+        if desc.has_virtmem() {
+            heap_end = heap_start + 64 * cfg::PAGE_SIZE;
+        }
+        else {
+            heap_end = desc.stack_space().0;
+        }
         __m3_heap_set_area(heap_start, heap_end);
     }
 }

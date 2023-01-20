@@ -22,7 +22,7 @@
                     <serial />
                 </app>
             </dom>
-            <dom tile="imem+kecacc|core">
+            <dom tile="core+kecacc">
                 <app args="hashmux" daemon="1">
                     <serv name="hash" />
                 </app>
