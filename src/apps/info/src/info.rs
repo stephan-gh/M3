@@ -27,14 +27,14 @@ pub fn main() -> Result<(), Error> {
         .get_activity_count()
         .expect("Unable to get Activity count");
     println!(
-        "{:2} | {:4} | {:>10} | {:>22} | {:>14} | {:>14} | {:>12} | Name",
+        "{:2} | {:5} | {:>10} | {:>22} | {:>14} | {:>14} | {:>12} | Name",
         "ID", "Tile", "Endpoints", "Time", "UserMem", "KernelMem", "Pagetables"
     );
     for i in 0..num {
         match Activity::own().resmng().unwrap().get_activity_info(i) {
             Ok(act) => {
                 println!(
-                    "{:2} | {:4} | {:2}:{:3}/{:3} | {:4}:{:6}us/{:6}us | {:2}:{:4}M/{:4}M | {:2}:{:4}M/{:4}M | {:4}:{:3}/{:3} | {:0l$}{}",
+                    "{:2} | {:5} | {:2}:{:3}/{:3} | {:4}:{:6}us/{:6}us | {:2}:{:4}M/{:4}M | {:2}:{:4}M/{:4}M | {:4}:{:3}/{:3} | {:0l$}{}",
                     act.id,
                     act.tile,
                     act.eps.id(),
