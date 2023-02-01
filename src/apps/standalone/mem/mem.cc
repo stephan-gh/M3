@@ -29,6 +29,7 @@ static constexpr epid_t MEP = TCU::FIRST_USER_EP;
 static ALIGNED(8) uint8_t buf1[1024];
 static ALIGNED(8) uint8_t buf2[1024];
 static ALIGNED(8) uint8_t buf3[1024];
+static ALIGNED(8) uint8_t zeros[1024];
 
 int main() {
     TileId own_tile = TileId::from_raw(env()->tile_id);
@@ -43,15 +44,20 @@ int main() {
     for(size_t i = 0; i < ARRAY_SIZE(buf2); ++i)
         buf2[i] = own_tile.chip() + i;
 
-    for(int i = 0; i < 10000; ++i) {
-        if(i % 1000 == 0)
-            logln("read-write test {}"_cf, i);
+    for(size_t off = 0; off < 16; ++off) {
+        for(size_t sz = 0; sz < 16; ++sz) {
+            logln("read-write off={}, sz={}"_cf, off, sz);
+            for(int run = 0; run < 100; ++run) {
+                size_t count = sz ? sz : (sizeof(buf2) - off);
+                ASSERT_EQ(kernel::TCU::write(MEP, buf2 + off, count, 0), Errors::SUCCESS);
+                ASSERT_EQ(kernel::TCU::read(MEP, buf3 + off, count, 0), Errors::SUCCESS);
 
-        ASSERT_EQ(kernel::TCU::write(MEP, buf2, sizeof(buf2), 0), Errors::SUCCESS);
-        ASSERT_EQ(kernel::TCU::read(MEP, buf3, sizeof(buf3), 0), Errors::SUCCESS);
+                for(size_t i = 0; i < count; ++i)
+                    ASSERT_EQ(buf2[off + i], buf3[off + i]);
 
-        for(size_t i = 0; i < ARRAY_SIZE(buf2); ++i)
-            ASSERT_EQ(buf2[i], buf3[i]);
+                ASSERT_EQ(kernel::TCU::write(MEP, zeros, sizeof(zeros), 0), Errors::SUCCESS);
+            }
+        }
     }
 
     logln("\x1B[1;32mAll tests successful!\x1B[0;m"_cf);
