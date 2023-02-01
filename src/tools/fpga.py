@@ -74,7 +74,7 @@ def tile_desc(tiles, i, vm):
     tile_desc = 3 << 6 # RISCV
     if not vm:
         # mem size | TileAttr::IMEM
-        tile_desc |= pmp_size | ((1 << 5) << 20)
+        tile_desc |= ((pmp_size >> 12) << 28) | ((1 << 5) << 20)
     if i < 5:
         tile_desc |= (1 << 0) << 20 # Rocket core
     else:
