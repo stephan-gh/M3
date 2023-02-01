@@ -1072,6 +1072,10 @@ impl Drop for Activity {
             }
         }
 
+        // explicitly remove fixed entry for messages from TLB (not done by TLB flush)
+        let virt = MsgBuf::borrow_def().bytes().as_ptr() as usize;
+        tcu::TCU::invalidate_page(self.id() as u16, virt);
+
         // remove activity from other modules
         self.time_quota.detach();
         if self.wait_timeout {
