@@ -169,12 +169,10 @@ def load_prog(dram, tiles, i, args, vm):
     write_u64(dram, dram_env + 24, len(args))  # argc
     write_u64(dram, dram_env + 32, argv)       # argv
     write_u64(dram, dram_env + 40, 0)          # envp
-    write_u64(dram, dram_env + 48, 0)          # heap size
-    write_u64(dram, dram_env + 56, kenv)       # kenv
-    write_u64(dram, dram_env + 64, 0)          # lambda
-    write_u64(dram, dram_env + 72, len(tiles) + 1) # raw tile count
+    write_u64(dram, dram_env + 48, kenv)       # kenv
+    write_u64(dram, dram_env + 56, len(tiles) + 1) # raw tile count
     # tile ids
-    env_off = 80
+    env_off = 64
     for tile in tiles:
         write_u64(dram, dram_env + env_off, tile.nocid[0] << 8 | tile.nocid[1])
         env_off += 8

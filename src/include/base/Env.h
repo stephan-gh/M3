@@ -51,9 +51,7 @@ struct BootEnv {
     uint64_t argc;
     uint64_t argv;
     uint64_t envp;
-    uint64_t heap_size;
     uint64_t kenv;
-    uint64_t lambda;
     uint64_t raw_tile_count;
     uint64_t raw_tile_ids[MAX_TILES * MAX_CHIPS];
 } PACKED;
@@ -65,6 +63,8 @@ public:
 
     uint64_t sp;
     uint64_t entry;
+    uint64_t lambda;
+    uint64_t heap_size;
     uint64_t first_std_ep;
     uint64_t first_sel;
     uint64_t act_id;

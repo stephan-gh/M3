@@ -49,9 +49,7 @@ pub struct EnvData {
     pub argc: u64,
     pub argv: u64,
     pub envp: u64,
-    pub heap_size: u64,
     pub kenv: u64,
-    pub closure: u64,
     pub raw_tile_count: u64,
     #[derivative(Default(value = "[0u64; cfg::MAX_TILES * cfg::MAX_CHIPS]"))]
     pub raw_tile_ids: [u64; cfg::MAX_TILES * cfg::MAX_CHIPS],
@@ -62,6 +60,8 @@ pub struct EnvData {
     // m3 env
     pub sp: u64,
     pub entry: u64,
+    pub closure: u64,
+    pub heap_size: u64,
     pub first_std_ep: u64,
     pub first_sel: u64,
     pub act_id: u64,
