@@ -103,7 +103,6 @@ pub fn init() {
         .borrow_mut()
         .map_pages(cfg::TILE_MEM_BASE, base, pages, rw)
         .unwrap();
-    ASPACE.borrow_mut().allocator_mut().pts_mapped = true;
 
     // map PLIC
     map_ident(0x0C00_0000, 0x1000, PageFlags::RW);
@@ -113,6 +112,9 @@ pub fn init() {
     // switch to that address space
     ASPACE.borrow_mut().switch_to();
     Paging::enable();
+
+    // now we can use the mapped-pts area
+    ASPACE.borrow_mut().allocator_mut().pts_mapped = true;
 }
 
 #[allow(unused)]
