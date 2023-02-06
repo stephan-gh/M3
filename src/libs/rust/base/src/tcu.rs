@@ -875,7 +875,7 @@ impl TCU {
     }
 
     /// Invalidates the entry with given address space id and virtual address in the TCU's TLB
-    pub fn invalidate_page(asid: u16, virt: usize) {
+    pub fn invalidate_page(asid: u16, virt: usize) -> Result<(), Error> {
         #[cfg(target_vendor = "hw22")]
         let val = ((asid as Reg) << 41) | ((virt as Reg) << 9) | PrivCmdOpCode::INV_PAGE.val;
         #[cfg(not(target_vendor = "hw22"))]
@@ -885,7 +885,7 @@ impl TCU {
         };
 
         Self::write_priv_reg(PrivReg::PRIV_CMD, val);
-        Self::wait_priv_cmd();
+        Self::get_priv_error()
     }
 
     /// Inserts the given entry into the TCU's TLB
