@@ -16,5 +16,7 @@
 #include <base/Env.h>
 
 EXTERN_C NORETURN void __m3c_exit(m3::Errors::Code status, bool abort) {
-    m3::env()->exit(status, abort);
+    if(!abort)
+        m3::deinit();
+    m3::__exit(status);
 }

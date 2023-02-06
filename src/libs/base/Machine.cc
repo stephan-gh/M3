@@ -30,7 +30,7 @@ EXTERN_C void gem5_dumpstats(uint64_t delay, uint64_t period);
 namespace m3 {
 
 void Machine::shutdown() {
-    if(env()->platform == Platform::GEM5)
+    if(bootenv()->platform == Platform::GEM5)
         gem5_shutdown(0);
     else {
         while(1)
@@ -41,7 +41,7 @@ void Machine::shutdown() {
 
 ssize_t Machine::write(const char *str, size_t len) {
     size_t amount = TCU::get().print(str, len);
-    if(env()->platform == Platform::GEM5) {
+    if(bootenv()->platform == Platform::GEM5) {
         static const char *fileAddr = "stdout";
         // touch the string first to cause a page fault, if required. gem5 assumes that it's mapped
         ((volatile const char *)fileAddr)[0];
@@ -52,12 +52,12 @@ ssize_t Machine::write(const char *str, size_t len) {
 }
 
 void Machine::reset_stats() {
-    if(env()->platform == Platform::GEM5)
+    if(bootenv()->platform == Platform::GEM5)
         gem5_resetstats(0, 0);
 }
 
 void Machine::dump_stats() {
-    if(env()->platform == Platform::GEM5)
+    if(bootenv()->platform == Platform::GEM5)
         gem5_dumpstats(0, 0);
 }
 

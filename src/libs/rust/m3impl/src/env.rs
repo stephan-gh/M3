@@ -18,8 +18,10 @@
 
 use core::cmp;
 use core::intrinsics;
+use core::ptr;
 
 use crate::cap::Selector;
+
 use crate::cfg;
 use crate::col::Vec;
 use crate::com::SendGate;
@@ -28,6 +30,7 @@ use crate::kif::{self, TileDesc};
 use crate::serialize::M3Deserializer;
 use crate::session::{Pager, ResMng};
 use crate::tcu;
+use crate::tiles::OwnActivity;
 use crate::util;
 use crate::vfs::{FileTable, MountTable};
 
@@ -35,21 +38,21 @@ pub use base::env::*;
 
 #[derive(Default, Copy, Clone)]
 #[repr(C)]
-pub struct EnvData {
-    base: base::env::EnvData,
+pub struct Env {
+    base: base::env::BaseEnv,
 }
 
-impl EnvData {
+impl Env {
     pub fn platform(&self) -> Platform {
-        Platform::from(self.base.platform)
+        Platform::from(self.base.boot.platform)
     }
 
     pub fn set_platform(&mut self, platform: Platform) {
-        self.base.platform = platform.val;
+        self.base.boot.platform = platform.val;
     }
 
-    pub fn tile_id(&self) -> u64 {
-        self.base.tile_id
+    pub fn tile_id(&self) -> tcu::TileId {
+        tcu::TileId::new_from_raw(self.base.boot.tile_id as u16)
     }
 
     pub fn shared(&self) -> bool {
@@ -57,23 +60,23 @@ impl EnvData {
     }
 
     pub fn tile_desc(&self) -> TileDesc {
-        TileDesc::new_from(self.base.tile_desc)
+        TileDesc::new_from(self.base.boot.tile_desc)
     }
 
     pub fn set_pedesc(&mut self, tile: TileDesc) {
-        self.base.tile_desc = tile.value();
+        self.base.boot.tile_desc = tile.value();
     }
 
     pub fn set_argc(&mut self, argc: usize) {
-        self.base.argc = argc as u64;
+        self.base.boot.argc = argc as u64;
     }
 
     pub fn set_argv(&mut self, argv: usize) {
-        self.base.argv = argv as u64;
+        self.base.boot.argv = argv as u64;
     }
 
     pub fn set_envp(&mut self, envp: usize) {
-        self.base.envp = envp as u64;
+        self.base.boot.envp = envp as u64;
     }
 
     pub fn set_sp(&mut self, sp: usize) {
@@ -169,12 +172,12 @@ impl EnvData {
     }
 
     pub fn tile_ids(&self) -> &[u64] {
-        &self.base.raw_tile_ids[0..self.base.raw_tile_count as usize]
+        &self.base.boot.raw_tile_ids[0..self.base.boot.raw_tile_count as usize]
     }
 
     pub fn copy_tile_ids(&mut self, tile_ids: &[u64]) {
-        self.base.raw_tile_count = tile_ids.len() as u64;
-        self.base.raw_tile_ids[0..tile_ids.len()].copy_from_slice(tile_ids);
+        self.base.boot.raw_tile_count = tile_ids.len() as u64;
+        self.base.boot.raw_tile_ids[0..tile_ids.len()].copy_from_slice(tile_ids);
     }
 
     // --- gem5 specific API ---
@@ -226,7 +229,41 @@ impl EnvData {
     }
 }
 
-pub fn get() -> &'static EnvData {
+pub fn get() -> &'static Env {
     // safety: we trust our loader
     unsafe { &*(cfg::ENV_START as *const _) }
+}
+
+extern "C" {
+    fn __m3_init_libc(argc: i32, argv: *const *const u8, envp: *const *const u8);
+}
+
+extern "Rust" {
+    fn main() -> Result<(), Error>;
+}
+
+pub fn deinit() {
+    crate::io::deinit();
+    crate::vfs::deinit();
+}
+
+#[no_mangle]
+pub extern "C" fn env_run() {
+    unsafe {
+        __m3_init_libc(0, ptr::null(), ptr::null());
+    }
+    crate::syscalls::init();
+    crate::com::pre_init();
+    crate::tiles::init();
+    crate::io::init();
+    crate::com::init();
+
+    let res = if let Some(cl) = crate::env::get().load_closure() {
+        cl()
+    }
+    else {
+        unsafe { main() }
+    };
+
+    OwnActivity::exit(res);
 }

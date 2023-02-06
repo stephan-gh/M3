@@ -28,7 +28,7 @@ extern "C" {
 }
 
 pub fn write_coverage(act: u64) {
-    if env::data().platform == env::Platform::GEM5.val {
+    if env::boot().platform == env::Platform::GEM5.val {
         let coverage = minicov::capture_coverage();
         tcu::TCU::write_coverage(&coverage, act);
     }
@@ -36,7 +36,7 @@ pub fn write_coverage(act: u64) {
 
 pub fn write(buf: &[u8]) -> Result<usize, Error> {
     let amount = tcu::TCU::print(buf);
-    if env::data().platform == env::Platform::GEM5.val {
+    if env::boot().platform == env::Platform::GEM5.val {
         unsafe {
             // put the string on the stack to prevent that gem5_writefile causes a pagefault
             let file: [u8; 7] = *b"stdout\0";
@@ -50,10 +50,8 @@ pub fn write(buf: &[u8]) -> Result<usize, Error> {
 }
 
 pub fn shutdown() -> ! {
-    if env::data().platform == env::Platform::GEM5.val {
-        unsafe {
-            gem5_shutdown(0)
-        };
+    if env::boot().platform == env::Platform::GEM5.val {
+        unsafe { gem5_shutdown(0) };
     }
     else {
         #[cfg(target_arch = "riscv64")]

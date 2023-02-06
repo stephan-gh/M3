@@ -34,15 +34,8 @@ EXTERN_C void __m3_init_libc(int argc, char **argv, char **envp);
 EXTERN_C void __m3_set_args(char **argv, char **envp);
 EXTERN_C void __cxa_finalize(void *);
 EXTERN_C void _init();
-EXTERN_C int main(int argc, char **argv);
 
 namespace m3 {
-
-void Env::call_constr() {
-    _init();
-    for(constr_func *func = &CTORS_BEGIN; func < &CTORS_END; ++func)
-        (*func)();
-}
 
 static char **rewrite_args(uint64_t *args, int count) {
     char **nargs = new char *[count + 1];
@@ -52,8 +45,8 @@ static char **rewrite_args(uint64_t *args, int count) {
     return nargs;
 }
 
-void Env::run() {
-    Env *e = env();
+std::pair<int, char **> init() {
+    BootEnv *e = bootenv();
 
     int argc = static_cast<int>(e->argc);
     char **argv = reinterpret_cast<char **>(e->argv);
@@ -72,25 +65,16 @@ void Env::run() {
     else
         __m3_init_libc(argc, argv, envp);
 
-    Env::init();
+    // call constructors
+    _init();
+    for(constr_func *func = &CTORS_BEGIN; func < &CTORS_END; ++func)
+        (*func)();
 
-    int res;
-    if(e->lambda) {
-        auto func = reinterpret_cast<int (*)()>(e->lambda);
-        res = (*func)();
-    }
-    else
-        res = main(argc, argv);
-
-    ::exit(res);
-    UNREACHED;
+    return std::make_pair(argc, argv);
 }
 
-USED void Env::exit(Errors::Code code, bool abort) {
-    if(!abort)
-        __cxa_finalize(nullptr);
-    backend()->exit(code);
-    UNREACHED;
+void deinit() {
+    __cxa_finalize(nullptr);
 }
 
 }

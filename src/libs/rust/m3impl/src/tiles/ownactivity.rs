@@ -30,7 +30,7 @@ use crate::kif;
 use crate::rc::Rc;
 use crate::serialize::M3Deserializer;
 use crate::session::{Pager, ResMng};
-use crate::tcu::{EpId, TileId, INVALID_EP, TCU};
+use crate::tcu::{EpId, INVALID_EP, TCU};
 use crate::tiles::{Activity, KMem, Tile};
 use crate::time::TimeDuration;
 use crate::tmif;
@@ -53,7 +53,7 @@ impl OwnActivity {
                 id: env.activity_id(),
                 cap: Capability::new(kif::SEL_ACT, CapFlags::KEEP_CAP),
                 tile: Rc::new(Tile::new_bind(
-                    TileId::new_from_raw(env.tile_id() as u16),
+                    env.tile_id(),
                     env.tile_desc(),
                     kif::SEL_TILE,
                 )),
@@ -73,7 +73,7 @@ impl OwnActivity {
 
     /// Exits with an unspecified error without deinitialization
     pub fn abort() -> ! {
-        base::machine::write_coverage(env::data().act_id + 1);
+        base::machine::write_coverage(env::get().activity_id() as u64 + 1);
         tmif::exit(Code::Unspecified);
     }
 
@@ -88,8 +88,8 @@ impl OwnActivity {
 
     // Deinitializes all data structures and exits with given error
     pub fn exit_with(err: Code) -> ! {
-        crate::deinit();
-        base::machine::write_coverage(env::data().act_id + 1);
+        crate::env::deinit();
+        base::machine::write_coverage(env::get().activity_id() as u64 + 1);
         tmif::exit(err);
     }
 

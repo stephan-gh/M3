@@ -41,8 +41,7 @@ int_enum! {
 #[derive(Copy, Clone, Derivative, Debug)]
 #[derivative(Default)]
 #[repr(C)]
-pub struct EnvData {
-    // boot env
+pub struct BootEnv {
     pub platform: u64,
     pub tile_id: u64,
     pub tile_desc: u64,
@@ -53,11 +52,14 @@ pub struct EnvData {
     pub raw_tile_count: u64,
     #[derivative(Default(value = "[0u64; cfg::MAX_TILES * cfg::MAX_CHIPS]"))]
     pub raw_tile_ids: [u64; cfg::MAX_TILES * cfg::MAX_CHIPS],
+}
 
-    // set by TileMux
+#[derive(Copy, Clone, Debug, Default)]
+#[repr(C)]
+pub struct BaseEnv {
+    pub boot: BootEnv,
+
     pub shared: u64,
-
-    // m3 env
     pub sp: u64,
     pub entry: u64,
     pub closure: u64,
@@ -78,12 +80,9 @@ pub struct EnvData {
 
     pub data_addr: u64,
     pub data_len: u64,
-
-    // only used in C++
-    pub _backend: u64,
 }
 
-pub fn data() -> &'static EnvData {
+pub fn boot() -> &'static BootEnv {
     // safety: the cast is okay because we trust our loader to put the environment at that place
     unsafe { &*(cfg::ENV_START as *const _) }
 }
@@ -129,7 +128,7 @@ impl Args {
     fn arg(self, idx: isize) -> &'static str {
         // safety: we assume that our loader has put valid strings at argv
         unsafe {
-            let args = data().argv as *const u64;
+            let args = boot().argv as *const u64;
             let arg = *args.offset(idx);
             util::cstr_to_str(arg as *const i8)
         }
@@ -142,7 +141,7 @@ impl Args {
 
     /// Returns the number of arguments
     pub fn len(self) -> usize {
-        data().argc as usize
+        boot().argc as usize
     }
 }
 
@@ -150,7 +149,7 @@ impl iter::Iterator for Args {
     type Item = &'static str;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.pos < data().argc as isize {
+        if self.pos < boot().argc as isize {
             let arg = self.arg(self.pos);
             self.pos += 1;
             Some(arg)
@@ -184,7 +183,7 @@ impl iter::Iterator for Vars {
     type Item = &'static str;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let args = data().envp as *const u64;
+        let args = boot().envp as *const u64;
         if args.is_null() {
             return None;
         }

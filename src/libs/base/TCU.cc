@@ -31,13 +31,13 @@ bool TCU::tile_ids_initialized = false;
 uint16_t TCU::tile_ids[] = {0};
 
 void TCU::init_tileid_translation() {
-    size_t count = env()->raw_tile_count;
+    size_t count = bootenv()->raw_tile_count;
 
     auto log_chip = 0;
     auto log_tile = 0;
     auto phys_chip = -1;
     for(size_t i = 0; i < count; ++i) {
-        auto tid = TileId::from_raw(env()->raw_tile_ids[i]);
+        auto tid = TileId::from_raw(bootenv()->raw_tile_ids[i]);
 
         if(phys_chip != -1) {
             if(phys_chip != tid.chip()) {

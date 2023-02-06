@@ -32,7 +32,7 @@ static ALIGNED(8) uint8_t buf3[1024];
 static ALIGNED(8) uint8_t zeros[1024];
 
 int main() {
-    TileId own_tile = TileId::from_raw(env()->tile_id);
+    TileId own_tile = TileId::from_raw(bootenv()->tile_id);
     size_t own_idx = tile_idx(own_tile).unwrap();
     TileId partner_tile = TILE_IDS[(own_idx + 1) % 8];
 

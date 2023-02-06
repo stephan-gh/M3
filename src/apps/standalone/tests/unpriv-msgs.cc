@@ -23,7 +23,7 @@ static constexpr epid_t REP2 = TCU::FIRST_USER_EP + 2;
 static constexpr epid_t RPLEP = TCU::FIRST_USER_EP + 3; // could be multiple EPs
 
 static void test_msg_errors() {
-    auto own_tile = TileId::from_raw(env()->tile_id);
+    auto own_tile = TileId::from_raw(bootenv()->tile_id);
 
     char buffer[2 * 64];
     uintptr_t buf1 = reinterpret_cast<uintptr_t>(&buffer);
@@ -193,7 +193,7 @@ static void test_msg_errors() {
 }
 
 static void test_msg_send_empty() {
-    auto own_tile = TileId::from_raw(env()->tile_id);
+    auto own_tile = TileId::from_raw(bootenv()->tile_id);
 
     logln("SEND with empty message"_cf);
 
@@ -228,7 +228,7 @@ static void test_msg_send_empty() {
 }
 
 static void test_msg_reply_empty() {
-    auto own_tile = TileId::from_raw(env()->tile_id);
+    auto own_tile = TileId::from_raw(bootenv()->tile_id);
 
     logln("REPLY with empty message"_cf);
 
@@ -288,7 +288,7 @@ static void test_msg_reply_empty() {
 }
 
 static void test_msg_no_reply() {
-    auto own_tile = TileId::from_raw(env()->tile_id);
+    auto own_tile = TileId::from_raw(bootenv()->tile_id);
 
     logln("SEND without reply"_cf);
 
@@ -335,7 +335,7 @@ static void test_msg_no_reply() {
 }
 
 static void test_msg_no_credits() {
-    auto own_tile = TileId::from_raw(env()->tile_id);
+    auto own_tile = TileId::from_raw(bootenv()->tile_id);
 
     logln("SEND without credits"_cf);
 
@@ -406,7 +406,7 @@ static void test_msg_no_credits() {
 }
 
 static void test_msg_2send_2reply() {
-    auto own_tile = TileId::from_raw(env()->tile_id);
+    auto own_tile = TileId::from_raw(bootenv()->tile_id);
 
     logln("Two SENDs and two REPLYs"_cf);
 
@@ -481,7 +481,7 @@ static void test_msg_2send_2reply() {
 
 template<typename DATA>
 static void test_msg(size_t msg_size_in, size_t reply_size_in) {
-    auto own_tile = TileId::from_raw(env()->tile_id);
+    auto own_tile = TileId::from_raw(bootenv()->tile_id);
 
     logln("SEND+REPLY with {} {}B words"_cf, msg_size_in, sizeof(DATA));
 
@@ -553,7 +553,7 @@ static void test_msg(size_t msg_size_in, size_t reply_size_in) {
 }
 
 static void test_msg_receive() {
-    auto own_tile = TileId::from_raw(env()->tile_id);
+    auto own_tile = TileId::from_raw(bootenv()->tile_id);
 
     logln("SEND+FETCH and verify unread/occupied/rpos/wpos"_cf);
 
@@ -641,7 +641,7 @@ static void test_msg_receive() {
 }
 
 static void test_unaligned_recvbuf(size_t pad, size_t msg_size_in) {
-    auto own_tile = TileId::from_raw(env()->tile_id);
+    auto own_tile = TileId::from_raw(bootenv()->tile_id);
 
     logln("SEND {}B with {}B padding of recv-buf"_cf, msg_size_in, pad);
 

@@ -13,28 +13,24 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/Common.h>
-#include <base/Env.h>
-#include <base/Errors.h>
-#include <base/TileDesc.h>
-#include <base/stream/Serial.h>
+#include "common.h"
 
-class StandaloneEnvBackend : public m3::EnvBackend {
-public:
-    explicit StandaloneEnvBackend() {
-    }
+using namespace m3;
 
-    virtual void init() override {
-        m3::Serial::init("standalone", m3::TileId::from_raw(m3::env()->tile_id));
-    }
+extern "C" int main(int argc, char **argv);
 
-    virtual void exit(m3::Errors::Code) override {
-        m3::Machine::shutdown();
-    }
-};
+extern "C" void env_run() {
+    const auto [argc, argv] = init();
+    Serial::init("standalone", TileId::from_raw(bootenv()->tile_id));
 
-void m3::Env::init() {
-    env()->set_backend(new StandaloneEnvBackend());
-    env()->backend()->init();
-    env()->call_constr();
+    int res = main(argc, argv);
+
+    deinit();
+    ::exit(res);
+}
+
+namespace m3 {
+NORETURN void __exit(int) {
+    Machine::shutdown();
+}
 }

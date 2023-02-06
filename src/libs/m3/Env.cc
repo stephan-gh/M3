@@ -16,40 +16,40 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/Backtrace.h>
 #include <base/Common.h>
-#include <base/Env.h>
 #include <base/TMIF.h>
 #include <base/stream/Serial.h>
 
-#include <m3/Syscalls.h>
-#include <m3/com/RecvGate.h>
-#include <m3/stream/Standard.h>
-#include <m3/tiles/Activity.h>
+#include <m3/Env.h>
+#include <m3/Exception.h>
+
+EXTERN_C int main(int argc, char **argv);
 
 namespace m3 {
 
-class EnvUserBackend : public EnvBackend {
-public:
-    explicit EnvUserBackend() {
-    }
+extern "C" void env_run() {
+    const auto [argc, argv] = init();
 
-    virtual void init() override {
-        uint64_t *argv = reinterpret_cast<uint64_t *>(env()->argv);
-        Serial::init(reinterpret_cast<char *>(argv[0]), TileId::from_raw(env()->tile_id));
-    }
+    Env *e = env();
 
-    NORETURN void exit(Errors::Code code) override {
-        TMIF::exit(code);
-        UNREACHED;
-    }
-};
-
-void Env::init() {
     std::set_terminate(Exception::terminate_handler);
-    env()->set_backend(new EnvUserBackend());
-    env()->backend()->init();
-    env()->call_constr();
+    Serial::init(reinterpret_cast<char *>(argv[0]), TileId::from_raw(e->tile_id));
+
+    int res;
+    if(e->lambda) {
+        auto func = reinterpret_cast<int (*)()>(e->lambda);
+        res = (*func)();
+    }
+    else
+        res = ::main(argc, argv);
+
+    deinit();
+    ::exit(res);
+}
+
+NORETURN void __exit(int code) {
+    TMIF::exit(code == 0 ? Errors::SUCCESS : Errors::UNSPECIFIED);
+    UNREACHED;
 }
 
 }

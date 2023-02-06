@@ -75,14 +75,17 @@ fn load_root_async(env_phys: goff, act: &Activity) -> Result<(), Error> {
     let argv_addr = write_arguments(env_phys, act.tile_id(), &["root"]);
 
     // build env
-    let mut senv = env::EnvData {
-        platform: env::data().platform,
-        argc: 1,
-        argv: argv_addr as u64,
+    let mut senv = env::BaseEnv {
+        boot: env::BootEnv {
+            platform: env::boot().platform,
+            argc: 1,
+            argv: argv_addr as u64,
+            tile_id: act.tile_id().raw() as u64,
+            tile_desc: act.tile_desc().value(),
+            ..Default::default()
+        },
         sp: act.tile_desc().stack_top() as u64,
         entry: entry as u64,
-        tile_id: act.tile_id().raw() as u64,
-        tile_desc: act.tile_desc().value(),
         act_id: act.id() as u64,
         heap_size: MOD_HEAP_SIZE as u64,
         rmng_sel: kif::INVALID_SEL,
@@ -90,9 +93,9 @@ fn load_root_async(env_phys: goff, act: &Activity) -> Result<(), Error> {
         first_std_ep: act.eps_start() as u64,
         ..Default::default()
     };
-    let tile_ids = &env::data().raw_tile_ids[0..env::data().raw_tile_count as usize];
-    senv.raw_tile_count = tile_ids.len() as u64;
-    senv.raw_tile_ids[0..tile_ids.len()].copy_from_slice(tile_ids);
+    let tile_ids = &env::boot().raw_tile_ids[0..env::boot().raw_tile_count as usize];
+    senv.boot.raw_tile_count = tile_ids.len() as u64;
+    senv.boot.raw_tile_ids[0..tile_ids.len()].copy_from_slice(tile_ids);
 
     // write env to target tile
     ktcu::write_slice(act.tile_id(), env_phys, &[senv]);
@@ -250,8 +253,8 @@ fn write_arguments(addr: goff, tile: tcu::TileId, args: &[&str]) -> usize {
     let mut argptr: Vec<u64> = Vec::new();
     let mut argbuf: Vec<u8> = Vec::new();
 
-    let off = addr + size_of::<env::EnvData>() as goff;
-    let mut argoff = ENV_START + size_of::<env::EnvData>();
+    let off = addr + size_of::<env::BaseEnv>() as goff;
+    let mut argoff = ENV_START + size_of::<env::BaseEnv>();
     for s in args {
         // push argv entry
         argptr.push(argoff as u64);

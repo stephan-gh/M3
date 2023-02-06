@@ -27,7 +27,7 @@ use crate::cell::Cell;
 use crate::cfg;
 use crate::col::{String, ToString, Vec};
 use crate::com::MemGate;
-use crate::env::EnvData;
+use crate::env::Env;
 use crate::errors::Error;
 use crate::goff;
 use crate::kif;
@@ -366,7 +366,7 @@ impl ChildActivity {
         let mem = self.get_mem(env_page_off, cfg::ENV_SIZE as goff, kif::Perm::RW)?;
 
         // build child environment
-        let mut cenv = crate::env::EnvData::default();
+        let mut cenv = crate::env::Env::default();
         cenv.set_platform(crate::env::get().platform());
         cenv.set_sp(self.tile_desc().stack_top());
         cenv.set_entry(entry);
@@ -465,7 +465,7 @@ impl ChildActivity {
         (arg_buf, arg_ptr, arg_off)
     }
 
-    fn serialize_files<F>(&self, write: F, env: &mut EnvData, off: &mut usize) -> Result<(), Error>
+    fn serialize_files<F>(&self, write: F, env: &mut Env, off: &mut usize) -> Result<(), Error>
     where
         F: Fn(&[u64], usize) -> Result<(), Error>,
     {
@@ -478,7 +478,7 @@ impl ChildActivity {
         Ok(())
     }
 
-    fn serialize_mounts<F>(&self, write: F, env: &mut EnvData, off: &mut usize) -> Result<(), Error>
+    fn serialize_mounts<F>(&self, write: F, env: &mut Env, off: &mut usize) -> Result<(), Error>
     where
         F: Fn(&[u64], usize) -> Result<(), Error>,
     {
@@ -493,7 +493,7 @@ impl ChildActivity {
         Ok(())
     }
 
-    fn serialize_data<F>(&self, write: F, env: &mut EnvData, off: &mut usize) -> Result<(), Error>
+    fn serialize_data<F>(&self, write: F, env: &mut Env, off: &mut usize) -> Result<(), Error>
     where
         F: Fn(&[u64], usize) -> Result<(), Error>,
     {

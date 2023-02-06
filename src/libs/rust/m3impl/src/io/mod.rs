@@ -45,7 +45,7 @@ macro_rules! println {
 
 pub(crate) fn init() {
     base::io::init(
-        base::tcu::TileId::new_from_raw(crate::env::data().tile_id as u16),
+        crate::env::get().tile_id(),
         crate::env::args().next().unwrap_or("Unknown"),
     );
     std::init();

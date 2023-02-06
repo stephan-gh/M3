@@ -867,8 +867,8 @@ impl Activity {
             aspace.flush_tlb();
         }
         // remember the current tile and platform
-        crate::app_env().tile_id = pex_env().tile_id;
-        crate::app_env().platform = pex_env().platform;
+        crate::app_env().boot.tile_id = pex_env().tile_id;
+        crate::app_env().boot.platform = pex_env().platform;
         if self.id() != kif::tilemux::IDLE_ID {
             arch::init_state(
                 &mut self.user_state,

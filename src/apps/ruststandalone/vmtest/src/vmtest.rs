@@ -155,7 +155,14 @@ fn send_recv(send_addr: usize, size: usize) {
     let max_msg_ord = util::math::next_log2(size_of::<tcu::Header>() + size * 8);
     assert!(RBUF1.len() * size_of::<u64>() >= 1 << max_msg_ord);
     helper::config_local_ep(REP1, |regs| {
-        TCU::config_recv(regs, OWN_ACT, rbuf1_phys, max_msg_ord, max_msg_ord, Some(RPLEP));
+        TCU::config_recv(
+            regs,
+            OWN_ACT,
+            rbuf1_phys,
+            max_msg_ord,
+            max_msg_ord,
+            Some(RPLEP),
+        );
     });
     helper::config_local_ep(REP2, |regs| {
         TCU::config_recv(regs, OWN_ACT, rbuf2_phys, max_msg_ord, max_msg_ord, None);

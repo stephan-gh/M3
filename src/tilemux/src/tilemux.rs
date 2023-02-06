@@ -98,7 +98,7 @@ pub fn pex_env() -> Ref<'static, TMEnv> {
     TM_ENV.borrow()
 }
 
-pub fn app_env() -> &'static mut env::EnvData {
+pub fn app_env() -> &'static mut env::BaseEnv {
     unsafe { &mut *(cfg::ENV_START as *mut _) }
 }
 
@@ -213,9 +213,9 @@ pub extern "C" fn init() -> usize {
     // the gem5 loader for us. afterwards, our address space does not contain that anymore.
     {
         let mut env = TM_ENV.borrow_mut();
-        env.tile_id = app_env().tile_id;
-        env.tile_desc = kif::TileDesc::new_from(app_env().tile_desc);
-        env.platform = app_env().platform;
+        env.tile_id = app_env().boot.tile_id;
+        env.tile_desc = kif::TileDesc::new_from(app_env().boot.tile_desc);
+        env.platform = app_env().boot.platform;
     }
 
     unsafe {
@@ -252,7 +252,7 @@ pub extern "C" fn init() -> usize {
     ISR::reg_external(ext_irq);
 
     // store platform already in app env, because we need it for logging
-    app_env().platform = pex_env().platform;
+    app_env().boot.platform = pex_env().platform;
 
     state_top
 }

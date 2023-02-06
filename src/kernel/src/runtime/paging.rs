@@ -66,7 +66,7 @@ static PT_POS: LazyStaticCell<goff> = LazyStaticCell::default();
 static ASPACE: LazyStaticRefCell<AddrSpace<PTAllocator>> = LazyStaticRefCell::default();
 
 pub fn init() {
-    if !TileDesc::new_from(env::data().tile_desc).has_virtmem() {
+    if !TileDesc::new_from(env::boot().tile_desc).has_virtmem() {
         Paging::disable();
         return;
     }

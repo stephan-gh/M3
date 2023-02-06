@@ -21,27 +21,12 @@
 #include <base/Common.h>
 #include <base/Config.h>
 #include <base/Errors.h>
-#include <base/TileDesc.h>
-#include <base/stream/Format.h>
 
 namespace m3 {
 
 enum Platform {
     GEM5,
     HW
-};
-
-class EnvBackend {
-    friend class Env;
-
-public:
-    explicit EnvBackend() {
-    }
-    virtual ~EnvBackend() {
-    }
-
-    virtual void init() = 0;
-    virtual void exit(Errors::Code code) NORETURN = 0;
 };
 
 struct BootEnv {
@@ -82,33 +67,29 @@ public:
     uint64_t data_addr;
     uint64_t data_len;
 
-    EnvBackend *backend() {
-        return _backend;
-    }
-    void set_backend(EnvBackend *backend) {
-        _backend = backend;
-    }
-
-    static void init() asm("env_init");
-    static void run() asm("env_run");
-
-    void exit(Errors::Code code, bool abort) NORETURN;
-
     void format(OStream &os, const FormatSpecs &) const {
+        format_to(os, "platform     : {}\n"_cf, platform);
         format_to(os, "tile_id      : {}\n"_cf, tile_id);
         format_to(os, "tile_desc    : {:#x}\n"_cf, tile_desc);
         format_to(os, "argc         : {}\n"_cf, argc);
         format_to(os, "argv         : {:p}\n"_cf, argv);
-        format_to(os, "heap_size    : {:#x}\n"_cf, heap_size);
+        format_to(os, "envp         : {:p}\n"_cf, envp);
+        format_to(os, "kenv         : {:p}\n"_cf, kenv);
+        format_to(os, "tiles        :\n"_cf);
+        for(uint64_t i = 0; i < raw_tile_count; ++i)
+            format_to(os, "  tile[{}] : {}\n"_cf, i, raw_tile_ids[i]);
+
+        format_to(os, "shared       : {:#x}\n"_cf, shared);
         format_to(os, "sp           : {:p}\n"_cf, sp);
         format_to(os, "entry        : {:p}\n"_cf, entry);
-        format_to(os, "shared       : {}\n"_cf, shared);
+        format_to(os, "lambda       : {:p}\n"_cf, lambda);
+        format_to(os, "heap_size    : {:#x}\n"_cf, heap_size);
         format_to(os, "first_std_ep : {}\n"_cf, first_std_ep);
         format_to(os, "first_sel    : {}\n"_cf, first_sel);
         format_to(os, "act_id       : {}\n"_cf, act_id);
-        format_to(os, "lambda       : {:p}\n"_cf, lambda);
         format_to(os, "rmng_sel     : {}\n"_cf, rmng_sel);
         format_to(os, "pager_sess   : {}\n"_cf, pager_sess);
+        format_to(os, "pager_sgate  : {}\n"_cf, pager_sgate);
         format_to(os, "mounts_addr  : {:p}\n"_cf, mounts_addr);
         format_to(os, "mounts_len   : {}\n"_cf, mounts_len);
         format_to(os, "fds_addr     : {}\n"_cf, fds_addr);
@@ -116,19 +97,18 @@ public:
         format_to(os, "data_addr    : {}\n"_cf, data_addr);
         format_to(os, "data_len     : {:p}\n"_cf, data_len);
     }
-
-private:
-    void call_constr();
-
-    EnvBackend *_backend;
 } PACKED;
 
 #define ENV_SPACE_SIZE  (ENV_SIZE - (sizeof(word_t) * 2 + sizeof(m3::Env)))
 #define ENV_SPACE_START (ENV_START + sizeof(m3::Env))
 #define ENV_SPACE_END   (ENV_SPACE_START + ENV_SPACE_SIZE)
 
-static inline Env *env() {
-    return reinterpret_cast<Env *>(ENV_START);
+static inline BootEnv *bootenv() {
+    return reinterpret_cast<BootEnv *>(ENV_START);
 }
+
+extern std::pair<int, char **> init();
+extern void deinit();
+NORETURN extern void __exit(int code);
 
 }

@@ -196,7 +196,7 @@ impl crate::ISRArch for RISCVISR {
     type State = RISCVState;
 
     fn init(state: &mut Self::State) {
-        if env::data().platform == env::Platform::HW.val {
+        if env::boot().platform == env::Platform::HW.val {
             // configure PLIC
             plic::set_threshold(0);
             for id in &[plic::TCU_ID, plic::TIMER_ID] {
@@ -233,7 +233,7 @@ impl crate::ISRArch for RISCVISR {
     }
 
     fn reg_core_reqs(handler: crate::IsrFunc) {
-        if env::data().platform == env::Platform::HW.val {
+        if env::boot().platform == env::Platform::HW.val {
             crate::reg(Vector::MACH_EXT_IRQ.val, handler);
         }
         else {
@@ -272,7 +272,7 @@ impl crate::ISRArch for RISCVISR {
     }
 
     fn fetch_irq() -> IRQSource {
-        if env::data().platform == env::Platform::HW.val {
+        if env::boot().platform == env::Platform::HW.val {
             let irq = plic::get();
             assert!(irq != 0);
 
@@ -297,19 +297,19 @@ impl crate::ISRArch for RISCVISR {
     }
 
     fn register_ext_irq(irq: u32) {
-        if env::data().platform == env::Platform::HW.val {
+        if env::boot().platform == env::Platform::HW.val {
             plic::set_priority(irq, 1);
         }
     }
 
     fn enable_ext_irqs(mask: u32) {
-        if env::data().platform == env::Platform::HW.val {
+        if env::boot().platform == env::Platform::HW.val {
             plic::enable_mask(mask);
         }
     }
 
     fn disable_ext_irqs(mask: u32) {
-        if env::data().platform == env::Platform::HW.val {
+        if env::boot().platform == env::Platform::HW.val {
             plic::disable_mask(mask);
         }
     }

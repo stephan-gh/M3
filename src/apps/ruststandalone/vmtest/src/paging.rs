@@ -63,7 +63,7 @@ impl Allocator for PTAllocator {
 static ASPACE: LazyStaticRefCell<AddrSpace<PTAllocator>> = LazyStaticRefCell::default();
 
 pub fn init() {
-    assert!(TileDesc::new_from(env::data().tile_desc).has_virtmem());
+    assert!(TileDesc::new_from(env::boot().tile_desc).has_virtmem());
 
     let (mem_tile, mem_base, mem_size, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
 

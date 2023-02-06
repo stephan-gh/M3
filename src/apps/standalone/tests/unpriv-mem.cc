@@ -27,7 +27,7 @@ static uint8_t dst_buf[16384];
 static uint8_t mem_buf[16384];
 
 static void test_mem_short() {
-    auto own_tile = TileId::from_raw(env()->tile_id);
+    auto own_tile = TileId::from_raw(bootenv()->tile_id);
     auto mem_tile = TILE_IDS[Tile::MEM];
 
     uint64_t data = 1234;

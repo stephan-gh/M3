@@ -77,7 +77,7 @@ pub fn info_size() -> usize {
 }
 
 pub fn kernel_tile() -> TileId {
-    TileId::new_from_raw(env::data().tile_id as u16)
+    TileId::new_from_raw(env::boot().tile_id as u16)
 }
 pub fn user_tiles() -> impl Iterator<Item = TileId> {
     get()
@@ -101,7 +101,7 @@ fn get_tile_ids() -> Vec<TileId> {
     let mut log_chip = 0;
     let mut log_tile = 0;
     let mut phys_chip = None;
-    for id in &env::data().raw_tile_ids[0..env::data().raw_tile_count as usize] {
+    for id in &env::boot().raw_tile_ids[0..env::boot().raw_tile_count as usize] {
         let tid = TileId::new_from_raw(*id as u16);
 
         if phys_chip.is_some() {
@@ -128,7 +128,7 @@ pub fn init() {
     let tile_ids = get_tile_ids();
 
     // read kernel env
-    let addr = GlobAddr::new(env::data().kenv);
+    let addr = GlobAddr::new(env::boot().kenv);
     let mut offset = addr.offset();
     let info: boot::Info = ktcu::read_obj(addr.tile(), offset);
     offset += size_of::<boot::Info>() as goff;
@@ -266,9 +266,9 @@ pub fn init() {
 }
 
 pub fn init_serial(dest: Option<(TileId, EpId)>) {
-    if env::data().platform == env::Platform::HW.val {
+    if env::boot().platform == env::Platform::HW.val {
         let (tile, ep) = dest.unwrap_or((TileId::default(), 0));
-        let serial = GlobAddr::new(env::data().kenv + 16 * 1024 * 1024);
+        let serial = GlobAddr::new(env::boot().kenv + 16 * 1024 * 1024);
         let tile_modid = TCU::tileid_to_nocid(tile);
         ktcu::write_slice(serial.tile(), serial.offset(), &[
             tile_modid as u64,

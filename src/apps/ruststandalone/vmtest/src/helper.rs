@@ -68,9 +68,9 @@ pub extern "C" fn tmcall(state: &mut isr::State) -> *mut libc::c_void {
 }
 
 pub fn init(name: &str) {
-    io::init(TileId::new_from_raw(env::data().tile_id as u16), name);
+    io::init(TileId::new_from_raw(env::boot().tile_id as u16), name);
 
-    if !TileDesc::new_from(env::data().tile_desc).has_virtmem() {
+    if !TileDesc::new_from(env::boot().tile_desc).has_virtmem() {
         use ::paging::ArchPaging;
         log!(crate::LOG_DEF, "Disabling paging...");
         ::paging::Paging::disable();
@@ -88,7 +88,7 @@ pub fn init(name: &str) {
 }
 
 pub fn virt_to_phys(virt: usize) -> (usize, ::paging::Phys) {
-    if !TileDesc::new_from(env::data().tile_desc).has_virtmem() {
+    if !TileDesc::new_from(env::boot().tile_desc).has_virtmem() {
         (virt, virt as u64)
     }
     else {

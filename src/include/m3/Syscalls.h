@@ -18,12 +18,12 @@
 
 #pragma once
 
-#include <base/Env.h>
 #include <base/GlobAddr.h>
 #include <base/KIF.h>
 #include <base/Quota.h>
 #include <base/TileDesc.h>
 
+#include <m3/Env.h>
 #include <m3/com/GateStream.h>
 #include <m3/com/SendGate.h>
 

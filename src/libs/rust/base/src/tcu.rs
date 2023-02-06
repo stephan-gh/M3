@@ -1022,8 +1022,8 @@ impl TCU {
         let mut log_chip = 0;
         let mut log_tile = 0;
         let mut phys_chip = None;
-        assert!(env::data().raw_tile_count > 0);
-        for id in &env::data().raw_tile_ids[0..env::data().raw_tile_count as usize] {
+        assert!(env::boot().raw_tile_count > 0);
+        for id in &env::boot().raw_tile_ids[0..env::boot().raw_tile_count as usize] {
             let tid = TileId::new_from_raw(*id as u16);
 
             if phys_chip.is_some() {
