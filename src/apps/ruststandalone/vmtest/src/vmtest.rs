@@ -381,6 +381,60 @@ fn test_own_msg() {
     assert_eq!(FOREIGN_MSGS.get(), 0);
 }
 
+fn test_tlb() {
+    const TLB_SIZE: usize = 32;
+
+    {
+        log!(crate::LOG_DEF, "Testing non-fixed TLB entries");
+
+        TCU::invalidate_tlb();
+
+        // fill with lots of entries (beyond capacity)
+        let mut virt = 0x2000_0000;
+        let mut phys = 0x1000_0000;
+        for _ in 0..TLB_SIZE * 2 {
+            TCU::insert_tlb(1, virt, phys, PageFlags::RW).unwrap();
+            virt += cfg::PAGE_SIZE;
+            phys += cfg::PAGE_SIZE as u64;
+        }
+
+        // this entry should be found (no error)
+        TCU::invalidate_page(1, virt - cfg::PAGE_SIZE).unwrap();
+        // this should not be found
+        assert_eq!(
+            TCU::invalidate_page(1, virt - cfg::PAGE_SIZE),
+            Err(Error::new(Code::TLBMiss)),
+        );
+    }
+
+    {
+        log!(crate::LOG_DEF, "Testing fixed TLB entries");
+
+        TCU::invalidate_tlb();
+
+        // fill with lots of fixed entries
+        let mut virt = 0x2000_0000;
+        let mut phys = 0x1000_0000;
+        for _ in 0..TLB_SIZE {
+            TCU::insert_tlb(1, virt, phys, PageFlags::RW | PageFlags::FIXED).unwrap();
+            virt += cfg::PAGE_SIZE;
+            phys += cfg::PAGE_SIZE as u64;
+        }
+
+        // now the TLB is full and we should get an error
+        assert_eq!(
+            TCU::insert_tlb(1, virt, phys, PageFlags::RW | PageFlags::FIXED),
+            Err(Error::new(Code::TLBFull)),
+        );
+        assert_eq!(
+            TCU::insert_tlb(1, virt, phys, PageFlags::RW),
+            Err(Error::new(Code::TLBFull))
+        );
+    }
+
+    TCU::invalidate_tlb();
+}
+
 #[no_mangle]
 pub extern "C" fn env_run() {
     ISR::reg_page_faults(mmu_pf);
@@ -406,6 +460,7 @@ pub extern "C" fn env_run() {
     test_msgs(area_begin, area_size);
     test_foreign_msg();
     test_own_msg();
+    test_tlb();
 
     log!(crate::LOG_DEF, "Shutting down");
     helper::exit(0);
