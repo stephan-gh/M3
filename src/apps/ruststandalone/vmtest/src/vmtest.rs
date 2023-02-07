@@ -383,6 +383,7 @@ fn test_own_msg() {
 
 fn test_tlb() {
     const TLB_SIZE: usize = 32;
+    const ASID: u16 = 1;
 
     {
         log!(crate::LOG_DEF, "Testing non-fixed TLB entries");
@@ -393,16 +394,16 @@ fn test_tlb() {
         let mut virt = 0x2000_0000;
         let mut phys = 0x1000_0000;
         for _ in 0..TLB_SIZE * 2 {
-            TCU::insert_tlb(1, virt, phys, PageFlags::RW).unwrap();
+            TCU::insert_tlb(ASID, virt, phys, PageFlags::RW).unwrap();
             virt += cfg::PAGE_SIZE;
             phys += cfg::PAGE_SIZE as u64;
         }
 
         // this entry should be found (no error)
-        TCU::invalidate_page(1, virt - cfg::PAGE_SIZE).unwrap();
+        TCU::invalidate_page(ASID, virt - cfg::PAGE_SIZE).unwrap();
         // this should not be found
         assert_eq!(
-            TCU::invalidate_page(1, virt - cfg::PAGE_SIZE),
+            TCU::invalidate_page(ASID, virt - cfg::PAGE_SIZE),
             Err(Error::new(Code::TLBMiss)),
         );
     }
@@ -416,20 +417,68 @@ fn test_tlb() {
         let mut virt = 0x2000_0000;
         let mut phys = 0x1000_0000;
         for _ in 0..TLB_SIZE {
-            TCU::insert_tlb(1, virt, phys, PageFlags::RW | PageFlags::FIXED).unwrap();
+            TCU::insert_tlb(ASID, virt, phys, PageFlags::RW | PageFlags::FIXED).unwrap();
             virt += cfg::PAGE_SIZE;
             phys += cfg::PAGE_SIZE as u64;
         }
 
         // now the TLB is full and we should get an error
         assert_eq!(
-            TCU::insert_tlb(1, virt, phys, PageFlags::RW | PageFlags::FIXED),
+            TCU::insert_tlb(ASID, virt, phys, PageFlags::RW | PageFlags::FIXED),
             Err(Error::new(Code::TLBFull)),
         );
         assert_eq!(
-            TCU::insert_tlb(1, virt, phys, PageFlags::RW),
+            TCU::insert_tlb(ASID, virt, phys, PageFlags::RW),
             Err(Error::new(Code::TLBFull))
         );
+        // but the same address can still be inserted
+        TCU::insert_tlb(ASID, 0x2000_0000, phys, PageFlags::R | PageFlags::FIXED).unwrap();
+
+        // remove all fixed entries
+        let virt = 0x2000_0000;
+        for i in 0..TLB_SIZE {
+            TCU::invalidate_page(ASID, virt + cfg::PAGE_SIZE * i).unwrap();
+        }
+    }
+
+    {
+        log!(crate::LOG_DEF, "Testing removal of TLB entries");
+
+        TCU::invalidate_tlb();
+
+        // insert entries with different flags
+        let virt = 0x2000_0000;
+        let phys = 0x1000_0000;
+        let pgsz = cfg::PAGE_SIZE;
+        TCU::insert_tlb(ASID, virt + pgsz * 0, phys, PageFlags::R).unwrap();
+        TCU::insert_tlb(ASID, virt + pgsz * 1, phys, PageFlags::W).unwrap();
+        TCU::insert_tlb(ASID, virt + pgsz * 2, phys, PageFlags::RW).unwrap();
+        TCU::insert_tlb(ASID, virt + pgsz * 3, phys, PageFlags::R | PageFlags::FIXED).unwrap();
+        TCU::insert_tlb(ASID, virt + pgsz * 4, phys, PageFlags::W | PageFlags::FIXED).unwrap();
+        TCU::insert_tlb(
+            ASID,
+            virt + pgsz * 5,
+            phys,
+            PageFlags::RW | PageFlags::FIXED,
+        )
+        .unwrap();
+
+        // remove all these entries explicitly
+        for i in 0..=5 {
+            TCU::invalidate_page(ASID, virt + pgsz * i).unwrap();
+        }
+
+        // now the TLB should be empty again, so that we can fill it with fixed entries
+        for i in 0..TLB_SIZE {
+            TCU::insert_tlb(ASID, virt + pgsz * i, phys, PageFlags::R | PageFlags::FIXED).unwrap();
+            // overwrite existing entry
+            TCU::insert_tlb(ASID, virt + pgsz * i, phys, PageFlags::R | PageFlags::FIXED).unwrap();
+        }
+
+        // remove all fixed entries
+        for i in 0..TLB_SIZE {
+            TCU::invalidate_page(ASID, virt + pgsz * i).unwrap();
+        }
     }
 
     TCU::invalidate_tlb();
