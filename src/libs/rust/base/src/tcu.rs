@@ -895,11 +895,22 @@ impl TCU {
         #[cfg(not(target_vendor = "hw22"))]
         let (arg_addr, cmd_addr) = (virt, phys);
 
+        let mut tlb_flags = 0;
+        if flags.contains(PageFlags::R) {
+            tlb_flags |= 1;
+        }
+        if flags.contains(PageFlags::W) {
+            tlb_flags |= 2;
+        }
+        if flags.contains(PageFlags::FIXED) {
+            tlb_flags |= 4;
+        }
+
         Self::write_priv_reg(PrivReg::PRIV_CMD_ARG, arg_addr as Reg);
         atomic::fence(atomic::Ordering::SeqCst);
         let cmd = ((asid as Reg) << 41)
             | (((cmd_addr as Reg) & !(cfg::PAGE_MASK as Reg)) << 9)
-            | ((flags.bits() as Reg) << 9)
+            | ((tlb_flags as Reg) << 9)
             | PrivCmdOpCode::INS_TLB.val;
         Self::write_priv_reg(PrivReg::PRIV_CMD, cmd);
         Self::get_priv_error()
