@@ -23,11 +23,11 @@ use m3::com::{recv_msg, GateIStream, MemGate, RGateArgs, RecvGate, SendGate};
 use m3::errors::Error;
 use m3::kif::Perm;
 use m3::mem::{size_of, MsgBuf};
-use m3::tcu;
-use m3::time::{CycleDuration, CycleInstant, Duration};
+use m3::time::{CycleDuration, CycleInstant, Duration, Profiler};
 use m3::util::math::next_log2;
 use m3::{env, reply_vmsg};
 use m3::{log, println, vec};
+use m3::{tcu, wv_perf};
 
 const LOG_MSGS: bool = false;
 const LOG_MEM: bool = false;
@@ -119,19 +119,27 @@ fn client(args: &[&str]) {
     let reply_gate = create_reply_gate(ctrl_msg_size).expect("Unable to create reply RecvGate");
     let sgate = SendGate::new_named("req").expect("Unable to create named SendGate req");
 
-    for _ in 0..runs {
+    let mut prof = Profiler::default().warmup(1).repeats(runs - 1);
+    let res = prof.run::<CycleInstant, _>(|| {
         let start = CycleInstant::now();
 
         node.call_and_ack("frontend", &sgate, &reply_gate)
             .expect("Request failed");
 
         let duration = CycleInstant::now().duration_since(start);
-        // compensate for running on a 100MHz core (in contrast to the computing computes that run
-        // on a 80MHz core).
-        let duration = ((duration.as_raw() as f64) * 0.8) as u64;
+        let duration = if env::get().platform() == env::Platform::HW {
+            // compensate for running on a 100MHz core (in contrast to the computing computes that run
+            // on a 80MHz core).
+            ((duration.as_raw() as f64) * 0.8) as u64
+        }
+        else {
+            duration.as_raw()
+        };
         println!("total: {}", duration);
         println!("compute: {}", compute_time);
-    }
+    });
+
+    wv_perf!("Face verification", res);
 }
 
 fn frontend(args: &[&str]) {
