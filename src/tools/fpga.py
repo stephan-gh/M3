@@ -238,6 +238,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--fpga', type=int)
+    parser.add_argument('--version', type=int)
     parser.add_argument('--reset', action='store_true')
     parser.add_argument('--debug', type=int)
     parser.add_argument('--tile', action='append')
@@ -247,11 +248,18 @@ def main():
     args = parser.parse_args()
 
     # connect to FPGA
-    fpga_inst = fpga_top.FPGA_TOP(args.fpga, args.reset)
+    fpga_inst = fpga_top.FPGA_TOP(args.version, args.fpga, args.reset)
 
     # stop all tiles
     for tile in fpga_inst.pms:
         tile.stop()
+
+    # check TCU versions
+    for tile in fpga_inst.pms:
+        tcu_version = tile.tcu_version()
+        if tcu_version != args.version:
+            print("Tile %s has TCU version %d, but expected %d" % (tile.name, tcu_version, args.version))
+            return
 
     # disable NoC ARQ for program upload
     for tile in fpga_inst.pms:

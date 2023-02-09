@@ -202,6 +202,12 @@ build_params_hw() {
     kernels=$(perl -ne 'printf("%s,", $1) if /<kernel\s.*args="(.*?)"/' < "$1")
     mods=$(get_mods "$1" "hw") || exit 1
 
+    if [ "$M3_TARGET" = "hw22" ]; then
+        args="--version 0"
+    else
+        args="--version 1"
+    fi
+
     if [ "$M3_HW_RESET" = "1" ]; then
         args="$args --reset"
     fi
