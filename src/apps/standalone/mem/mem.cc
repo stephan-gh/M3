@@ -63,7 +63,7 @@ int main() {
     logln("\x1B[1;32mAll tests successful!\x1B[0;m"_cf);
 
     // give the other tiles some time
-    auto end = TimeInstant::now() + TimeDuration::from_millis(10);
+    auto end = TimeInstant::now() + TimeDuration::from_millis(300);
     while(TimeInstant::now() < end)
         ;
 
