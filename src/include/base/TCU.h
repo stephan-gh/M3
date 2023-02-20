@@ -100,6 +100,13 @@ public:
         format_to(os, "C{}T{:02}"_cf, chip(), tile());
     }
 
+    friend bool operator==(const TileId &a, const TileId &b) {
+        return a.raw() == b.raw();
+    }
+    friend bool operator!=(const TileId &a, const TileId &b) {
+        return !operator==(a, b);
+    }
+
 private:
     raw_t id;
 };
