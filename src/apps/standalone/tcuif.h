@@ -91,6 +91,11 @@ public:
         return m3::TCU::get().write(ep, data, size, off);
     }
 
+    static void sleep() {
+        if(m3::bootenv()->platform == m3::Platform::GEM5)
+            m3::TCU::get().sleep();
+    }
+
     static m3::Errors::Code unknown_cmd() {
         m3::TCU::reg_t unknown = static_cast<uint>(m3::TCU::CmdOpCode::SLEEP) + 1;
         m3::TCU::get().write_reg(m3::TCU::UnprivRegs::COMMAND, unknown);
