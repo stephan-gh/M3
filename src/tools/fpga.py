@@ -76,9 +76,9 @@ def tile_desc(tiles, i, vm):
         # mem size | TileAttr::IMEM
         tile_desc |= ((pmp_size >> 12) << 28) | ((1 << 5) << 20)
     if i < 5:
-        tile_desc |= (1 << 0) << 20 # Rocket core
+        tile_desc |= (1 << 1) << 20 # Rocket core
     else:
-        tile_desc |= (1 << 1) << 20 # BOOM core
+        tile_desc |= (1 << 0) << 20 # BOOM core
     if i == 6:
         tile_desc |= (1 << 2) << 20 # NIC
         tile_desc |= (1 << 3) << 20 # Serial
