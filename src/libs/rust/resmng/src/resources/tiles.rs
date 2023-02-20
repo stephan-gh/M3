@@ -209,7 +209,7 @@ impl TileManager {
             if tile.users.get() == 0
                 && tile.tile.desc().isa() == desc.isa()
                 && tile.tile.desc().tile_type() == desc.tile_type()
-                && (desc.attr().is_empty() || tile.tile.desc().attr() == desc.attr())
+                && (tile.tile.desc().attr() & desc.attr()) == desc.attr()
             {
                 return Ok(TileUsage::new(id, tile.tile.clone(), tile.pmp.clone()));
             }
