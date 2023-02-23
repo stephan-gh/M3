@@ -36,7 +36,7 @@ static void parse(FStream &bin) {
 
     ELF_EH header;
     if(bin.read(&header, sizeof(header)).unwrap() != sizeof(header))
-        exitmsg("Invalid ELF-file"_cf);
+        exitmsg("Invalid ELF-file: unable to read arch-specific ELF header"_cf);
 
     println("Program Headers:"_cf);
     println("  Type    Offset   VirtAddr   PhysAddr   FileSiz    MemSiz     Flg Align"_cf);
@@ -44,10 +44,13 @@ static void parse(FStream &bin) {
     size_t off = header.e_phoff;
     for(uint i = 0; i < header.e_phnum; ++i, off += header.e_phentsize) {
         ELF_PH pheader;
-        if(bin.seek(off, M3FS_SEEK_SET) != off)
-            exitmsg("Invalid ELF-file"_cf);
-        if(bin.read(&pheader, sizeof(pheader)).unwrap() != sizeof(pheader))
-            exitmsg("Invalid ELF-file"_cf);
+        auto noff = bin.seek(off, M3FS_SEEK_SET);
+        if(noff != off)
+            exitmsg("Seek to program header failed: expected {}, got {}"_cf, off, noff);
+
+        size_t pheader_size = bin.read(&pheader, sizeof(pheader)).unwrap();
+        if(pheader_size != sizeof(pheader))
+            exitmsg("Reading program header failed: read only {} bytes"_cf, pheader_size);
 
         println("  {} {:#08x} {:#010x} {:#010x} {:#010x} {:#010x} {}{}{} {:#x}"_cf,
                 pheader.p_type < ARRAY_SIZE(phtypes) ? phtypes[pheader.p_type] : "???????",
@@ -79,7 +82,7 @@ int main(int argc, char **argv) {
     /* load and check ELF header */
     ElfEh header;
     if(bin.read(&header, sizeof(header)).unwrap() != sizeof(header))
-        exitmsg("Invalid ELF-file"_cf);
+        exitmsg("Invalid ELF-file: unable to read ELF header"_cf);
 
     if(header.e_ident[0] != '\x7F' || header.e_ident[1] != 'E' || header.e_ident[2] != 'L' ||
        header.e_ident[3] != 'F')
