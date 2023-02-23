@@ -25,8 +25,6 @@
 
 using namespace m3;
 
-alignas(64) static char buffer[4096];
-
 static const char *phtypes[] = {"NULL   ", "LOAD   ", "DYNAMIC", "INTERP ",
                                 "NOTE   ", "SHLIB  ", "PHDR   ", "TLS    "};
 
@@ -58,18 +56,6 @@ static void parse(FStream &bin) {
                 pheader.p_memsz, (pheader.p_flags & PF_R) ? "R" : " ",
                 (pheader.p_flags & PF_W) ? "W" : " ", (pheader.p_flags & PF_X) ? "E" : " ",
                 pheader.p_align);
-
-        if(bin.seek(pheader.p_offset, M3FS_SEEK_SET) != pheader.p_offset)
-            exitmsg("Invalid ELF-file"_cf);
-
-        size_t count = pheader.p_filesz;
-        while(count > 0) {
-            size_t amount = std::min(count, sizeof(buffer));
-            if(bin.read(buffer, amount).unwrap() != amount)
-                exitmsg("Reading failed"_cf);
-
-            count -= amount;
-        }
     }
 }
 
