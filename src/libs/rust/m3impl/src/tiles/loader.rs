@@ -151,11 +151,11 @@ fn load_segment(
             math::round_up(size, cfg::PAGE_SIZE) as goff,
             kif::Perm::RW,
         )?;
-        file.seek(phdr.offset as usize, SeekMode::SET)?;
         init_mem(
             buf,
             &mem,
             file,
+            phdr.offset as usize,
             phdr.file_size as usize,
             phdr.mem_size as usize,
         )
@@ -169,19 +169,24 @@ fn init_mem(
     buf: &mut [u8],
     mem: &MemGate,
     file: &mut BufReader<FileRef<dyn File>>,
+    offset: usize,
     file_size: usize,
     mem_size: usize,
 ) -> Result<(), Error> {
-    let mut count = file_size;
     let mut segoff = 0;
-    while count > 0 {
-        let amount = cmp::min(count, buf.len());
-        let amount = file.read(&mut buf[0..amount])?;
+    if file_size > 0 {
+        file.seek(offset, SeekMode::SET)?;
 
-        mem.write_bytes(buf.as_mut_ptr(), amount, segoff)?;
+        let mut count = file_size;
+        while count > 0 {
+            let amount = cmp::min(count, buf.len());
+            let amount = file.read(&mut buf[0..amount])?;
 
-        count -= amount;
-        segoff += amount as goff;
+            mem.write_bytes(buf.as_mut_ptr(), amount, segoff)?;
+
+            count -= amount;
+            segoff += amount as goff;
+        }
     }
 
     clear_mem(buf, mem, segoff as usize, mem_size - file_size)
