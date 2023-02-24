@@ -141,7 +141,7 @@ impl Instant for TimeInstant {
 }
 
 /// A measurement of cycles. Useful in combination with [`CycleDuration`].
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct CycleInstant(u64);
 
 impl CycleInstant {

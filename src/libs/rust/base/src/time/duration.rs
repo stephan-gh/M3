@@ -38,7 +38,7 @@ impl Duration for TimeDuration {
 }
 
 /// A duration in cycles
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct CycleDuration(u64);
 
 impl CycleDuration {
