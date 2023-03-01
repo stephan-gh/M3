@@ -235,9 +235,9 @@ if [ $skipbuild -eq 0 ]; then
             # if there was something transferred, build it on the remote host. source the .profile
             # to set environment variables (e.g. PATH to include ~/.cargo/bin).
             if ssh "$M3_REM_HOST" \
-                   "source .profile && " \
-                   "cd $M3_REM_DIR && " \
-                   "M3_BUILD=$M3_BUILD M3_TARGET=$M3_TARGET M3_ISA=$M3_ISA ./b"; then
+                   'source .profile && ' \
+                   'cd '"$M3_REM_DIR"' && ' \
+                   'M3_BUILD='"$M3_BUILD"' M3_TARGET='"$M3_TARGET"' M3_ISA='"$M3_ISA"' ./b'; then
                 # and transfer build files back
                 rsync -az \
                     "$M3_REM_HOST:$M3_REM_DIR/build/$M3_TARGET-$M3_ISA-$M3_BUILD/" \
