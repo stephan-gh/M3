@@ -264,7 +264,7 @@ fi
 run_clippy() {
     # vmtest only works on RISC-V
     if [ "$M3_ISA" != "riscv" ] && [[ "$1" =~ "vmtest" ]]; then
-        continue;
+        return;
     fi
     # gem5log+hwitrace are always built for the host OS (not our host target)
     target=()
