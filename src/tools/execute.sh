@@ -173,7 +173,7 @@ build_params_gem5() {
     fi
 
     # remove all coverage files
-    rm -rf $M3_OUT/coverage-*-*.profraw
+    rm -rf "$M3_OUT"/coverage-*-*.profraw
 
     export M5_PATH=$build
     if [ "$DBG_GEM5" != "" ]; then
@@ -251,14 +251,15 @@ build_params_hw() {
             # wait until it's finished or failed
             echo 'fpga=$!'
             echo 'echo "Waiting until FPGA has been initialized..."'
+            # shellcheck disable=SC2016
             echo 'while [ "`cat .ready 2>/dev/null`" = "" ] && [ -f /proc/$fpga/cmdline ]; do sleep 1; done'
             # stop if it failed
-            echo '[ -f /proc/$fpga/cmdline ] || { cat log.txt && exit 1; }'
+            echo "[ -f /proc/\$fpga/cmdline ] || { cat log.txt && exit 1; }"
             # make sure we clean up everything
             echo 'trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT'
             # start openocd
-            echo 'OPENOCD=$HOME/tcu/fpga_tools/debug'
-            echo '$OPENOCD/openocd -f $OPENOCD/fpga_switch.cfg >openocd.log 2>&1'
+            echo "OPENOCD=\$HOME/tcu/fpga_tools/debug"
+            echo "\$OPENOCD/openocd -f \$OPENOCD/fpga_switch.cfg >openocd.log 2>&1"
 
             # make sure that openocd is stopped
             trap 'ssh -t $M3_HW_FPGA_HOST "killall openocd"' ERR INT TERM
