@@ -156,6 +156,9 @@ help() {
     echo "                             files. The directory will be created automatically."
     echo "    M3_HW_FPGA_NO:           The FPGA number. Every FPGA has an IP of"
     echo "                             192.168.42.240 + \$M3_HW_FPGA_NO."
+    echo "    M3_HW_FPGA_JTAG_NO:      The number of the FPGA JTAG cable. Only relevant if"
+    echo "                             there are multiple FPGAs attached to the same PC"
+    echo "                             (default = 0)."
     echo "    M3_HW_VIVADO:            Absolute path on FPGA PC to Vivado/Vivado Lab."
     echo "    M3_HW_RESET:             Reset the FPGA before starting."
     echo "    M3_HW_VM:                Use virtual memory (default = 1)."
@@ -301,6 +304,9 @@ case "$cmd" in
         if [ -z "$M3_HW_VIVADO" ]; then
             echo "Please define M3_HW_VIVADO to the absolute path to Vivado." >&2 && exit 1
         fi
+        if [ -z "$M3_HW_FPGA_JTAG_NO" ]; then
+            M3_HW_FPGA_JTAG_NO=0
+        fi
 
         bitfile=${cmd#loadfpga=}
         fpgatools="platform/hw/fpga_tools"
@@ -316,7 +322,7 @@ case "$cmd" in
         ssh "$M3_HW_FPGA_HOST" \
             "$M3_HW_VIVADO"' -mode batch \
                              -source '"$M3_HW_FPGA_DIR"'/program_fpga.tcl \
-                             -tclargs '"$M3_HW_FPGA_DIR"'/'"$bitfile"
+                             -tclargs '"$M3_HW_FPGA_DIR"'/'"$bitfile" "$M3_HW_FPGA_JTAG_NO"
         ;;
 
     clippy)
