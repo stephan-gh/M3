@@ -14,5 +14,5 @@ isr = { path = "../libs/rust/isr" }
 paging = { path = "../libs/rust/paging" }
 
 [dependencies.num-traits]
-version = "0.2"
+version = "0.2.15"
 default-features = false

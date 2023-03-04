@@ -11,4 +11,4 @@ crate-type = ["rlib", "staticlib"]
 base = { path = "../base" }
 lang = { path = "../lang" }
 paging = { path = "../paging" }
-cfg-if = "*"
+cfg-if = "1.0.0"

@@ -9,4 +9,4 @@ crate-type = ["staticlib"]
 
 [dependencies]
 m3 = { path = "../../libs/rust/m3" }
-bitflags = "*"
+bitflags = "1.3.2"

@@ -9,7 +9,7 @@ crate-type = ["staticlib"]
 
 [dependencies]
 base = { path = "../libs/rust/base" }
-bitflags = "*"
+bitflags = "1.3.2"
 thread = { path = "../libs/rust/thread" }
 isr = { path = "../libs/rust/isr" }
 paging = { path = "../libs/rust/paging" }
