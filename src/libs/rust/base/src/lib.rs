@@ -75,11 +75,6 @@ pub mod tcu;
 pub mod time;
 pub mod tmif;
 
-// this symbol is referenced when build in code-coverage mode for riscv
-#[cfg(target_arch = "riscv64")]
-#[no_mangle]
-static __llvm_profile_runtime: i32 = 0;
-
 pub use minicov;
 
 pub use serde;

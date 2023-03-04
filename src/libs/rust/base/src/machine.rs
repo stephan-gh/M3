@@ -21,6 +21,7 @@
 use crate::env;
 use crate::errors::Error;
 use crate::tcu;
+use crate::vec;
 
 extern "C" {
     pub fn gem5_writefile(src: *const u8, len: u64, offset: u64, file: u64);
@@ -29,7 +30,11 @@ extern "C" {
 
 pub fn write_coverage(act: u64) {
     if env::boot().platform == env::Platform::GEM5.val {
-        let coverage = minicov::capture_coverage();
+        let mut coverage = vec![];
+        // safety: the function is not thread-safe, but we are always single threaded.
+        unsafe {
+            minicov::capture_coverage(&mut coverage).unwrap();
+        }
         tcu::TCU::write_coverage(&coverage, act);
     }
 }

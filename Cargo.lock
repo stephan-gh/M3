@@ -239,9 +239,9 @@ dependencies = [
 
 [[package]]
 name = "minicov"
-version = "0.2.4"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "417b4d73137e93b9845c97c22b5a23bb874cbed2271a4fe23e3bcc56624488c4"
+checksum = "dff5c357a895246778eef0a63c73a81a6a381ed6778a328b6cb4cd3463d7b8f1"
 dependencies = [
  "cc",
  "walkdir",
