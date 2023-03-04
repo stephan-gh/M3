@@ -25,7 +25,7 @@
 
 #    define ARRAY_SIZE(a) ((sizeof((a)) / sizeof((a)[0])))
 
-#    define _STRINGIZE(s) #    s
+#    define _STRINGIZE(s) #s
 #    define STRINGIZE(s)  _STRINGIZE(s)
 
 #endif

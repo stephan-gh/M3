@@ -223,9 +223,7 @@ constexpr auto create_fmtspec_with_type(S fmt, size_t off, char fill, int flags,
 }
 
 template<typename A>
-concept has_format = requires(OStream &os, A &arg) {
-    arg.format(os, FormatSpecs());
-};
+concept has_format = requires(OStream &os, A &arg) { arg.format(os, FormatSpecs()); };
 
 template<size_t POS, size_t ARG, typename A, typename S, typename... ARGS>
 constexpr void format_with_spec_rec(S fmt, OStream &os, A &arg, const ARGS &...args) {
