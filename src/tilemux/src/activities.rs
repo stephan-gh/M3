@@ -59,7 +59,8 @@ impl Allocator for PTAllocator {
             return Err(Error::new(Code::NoSpace));
         }
 
-        if let Some(pt) = PTS.borrow_mut().pop() {
+        let pt = PTS.borrow_mut().pop();
+        if let Some(pt) = pt {
             self.quota.set_left(self.quota.left() - 1);
             log!(
                 crate::LOG_PTS,
