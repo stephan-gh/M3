@@ -450,7 +450,7 @@ fn test_tlb() {
         let virt = 0x2000_0000;
         let phys = 0x1000_0000;
         let pgsz = cfg::PAGE_SIZE;
-        TCU::insert_tlb(ASID, virt + pgsz * 0, phys, PageFlags::R).unwrap();
+        TCU::insert_tlb(ASID, virt, phys, PageFlags::R).unwrap();
         TCU::insert_tlb(ASID, virt + pgsz * 1, phys, PageFlags::W).unwrap();
         TCU::insert_tlb(ASID, virt + pgsz * 2, phys, PageFlags::RW).unwrap();
         TCU::insert_tlb(ASID, virt + pgsz * 3, phys, PageFlags::R | PageFlags::FIXED).unwrap();
