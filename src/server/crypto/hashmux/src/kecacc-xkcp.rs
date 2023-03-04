@@ -94,9 +94,7 @@ impl KecAcc {
     }
 
     pub fn start_pad(&self) {
-        unsafe {
-            kecacc_pad(self.state.borrow_mut().as_mut_ptr())
-        };
+        unsafe { kecacc_pad(self.state.borrow_mut().as_mut_ptr()) };
     }
 
     pub fn start_squeeze(&self, buf: &mut [u8]) {

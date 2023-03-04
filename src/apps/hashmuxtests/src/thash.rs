@@ -103,12 +103,10 @@ fn hash_mapped_mem(t: &mut dyn WvTester) {
     wv_assert_ok!(hash.ep().configure(mgate.sel()));
 
     // Map memory
-    wv_assert_ok!(
-        Activity::own()
-            .pager()
-            .unwrap()
-            .map_mem(ADDR, &mgate, SIZE, Perm::RW)
-    );
+    wv_assert_ok!(Activity::own()
+        .pager()
+        .unwrap()
+        .map_mem(ADDR, &mgate, SIZE, Perm::RW));
 
     // Fill memory with some data
     let buf = unsafe { util::slice_for_mut(ADDR as *mut u8, SIZE) };
