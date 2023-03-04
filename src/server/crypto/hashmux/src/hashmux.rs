@@ -87,7 +87,7 @@ static STATES: StaticRefCell<[KecAccState; MAX_SESSIONS]> =
 /// Amount of bytes that may be directly returned as part of the TCU reply.
 /// Must also fit into [`MsgBuf::borrow_def()`].
 const MAX_DIRECT_SIZE: usize = HashAlgorithm::MAX_OUTPUT_BYTES;
-const_assert!(max_direct_size_fits_in_buf; MAX_DIRECT_SIZE <= BUFFER_SIZE);
+const_assert!(MAX_DIRECT_SIZE <= BUFFER_SIZE);
 
 static RECV: LazyReadOnlyCell<HashMuxReceiver> = LazyReadOnlyCell::default();
 static QUEUE: LazyStaticRefCell<VecDeque<SessId>> = LazyStaticRefCell::default();
