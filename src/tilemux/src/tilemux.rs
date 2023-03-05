@@ -78,9 +78,9 @@ extern "C" {
 
 // the heap area needs to be page-byte aligned
 #[repr(align(4096))]
-struct Heap([u64; 512 * 1024]);
+struct Heap([u64; 1024 * 1024]);
 #[used]
-static mut HEAP: Heap = Heap([0; 512 * 1024]);
+static mut HEAP: Heap = Heap([0; 1024 * 1024]);
 
 pub struct TMEnv {
     tile_id: u64,

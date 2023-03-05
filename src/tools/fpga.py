@@ -269,7 +269,7 @@ def main():
     fpga_inst.dram2.nocarq.set_arq_enable(0)
 
     global serial_begin, pmp_size
-    pmp_size = 8 * 1024 * 1024 if args.vm else 32 * 1024 * 1024
+    pmp_size = 16 * 1024 * 1024 if args.vm else 32 * 1024 * 1024
     serial_begin = MAX_FS_SIZE + len(fpga_inst.pms) * pmp_size + KENV_SIZE
 
     term = TCUTerm(fpga_inst)

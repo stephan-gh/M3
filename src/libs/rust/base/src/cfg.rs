@@ -65,7 +65,7 @@ pub const TILEMUX_START: usize = MEM_OFFSET;
 #[cfg(target_vendor = "gem5")]
 pub const TILEMUX_START: usize = MEM_OFFSET + 0x20_0000;
 
-pub const TILEMUX_RBUF_SPACE: usize = TILEMUX_START + 0x7F_F000;
+pub const TILEMUX_RBUF_SPACE: usize = TILEMUX_START + 0xD0_0000;
 
 pub const APP_HEAP_SIZE: usize = 64 * 1024 * 1024;
 pub const MOD_HEAP_SIZE: usize = 16 * 1024 * 1024;

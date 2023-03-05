@@ -22,7 +22,7 @@ for i in range(0, num_tiles):
                           id=TileId(0, i),
                           cmdline=cmd_list[i],
                           memTile=mem_tile,
-                          spmsize='32MB',
+                          spmsize='64MB',
                           epCount=num_eps)
     tiles.append(tile)
 

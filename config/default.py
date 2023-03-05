@@ -80,7 +80,7 @@ for i in range(0, num_kecacc):
                             id=TileId(0, num_tiles + num_sto + 2 + num_rot13 + i),
                             cmdline=cmd_list[1],  # FIXME
                             memTile=mem_tile,
-                            spmsize='32MB',
+                            spmsize='64MB',
                             epCount=num_eps)
     tiles.append(tile)
 
