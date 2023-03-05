@@ -47,13 +47,7 @@ pub extern "C" fn tmcall(state: &mut isr::State) -> *mut libc::c_void {
     }
 
     let flags = PageFlags::from_bits_truncate(pte & cfg::PAGE_MASK as u64);
-    let phys = if flags.contains(PageFlags::L) {
-        // the current TCU's TLB does not support large pages
-        (pte & !(cfg::LPAGE_MASK as u64)) | (virt & cfg::LPAGE_MASK & !cfg::PAGE_MASK) as u64
-    }
-    else {
-        pte & !(cfg::PAGE_MASK as u64)
-    };
+    let phys = pte & !(cfg::PAGE_MASK as u64);
     tcu::TCU::insert_tlb(tiles::KERNEL_ID, virt, phys, flags).unwrap();
 
     state as *mut _ as *mut libc::c_void

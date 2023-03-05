@@ -891,11 +891,6 @@ impl TCU {
     /// Inserts the given entry into the TCU's TLB
     pub fn insert_tlb(asid: u16, virt: usize, phys: u64, flags: PageFlags) -> Result<(), Error> {
         #[cfg(target_vendor = "hw22")]
-        let (arg_addr, cmd_addr) = (phys, virt);
-        #[cfg(not(target_vendor = "hw22"))]
-        let (arg_addr, cmd_addr) = (virt, phys);
-
-        #[cfg(target_vendor = "hw22")]
         let tlb_flags = flags.bits() as Reg;
         #[cfg(not(target_vendor = "hw22"))]
         let tlb_flags = {
@@ -911,6 +906,19 @@ impl TCU {
             }
             tlb_flags
         };
+
+        let phys = if flags.contains(PageFlags::L) {
+            // the current TCU's TLB does not support large pages
+            phys | (virt & cfg::LPAGE_MASK & !cfg::PAGE_MASK) as u64
+        }
+        else {
+            phys
+        };
+
+        #[cfg(target_vendor = "hw22")]
+        let (arg_addr, cmd_addr) = (phys, virt);
+        #[cfg(not(target_vendor = "hw22"))]
+        let (arg_addr, cmd_addr) = (virt, phys);
 
         Self::write_priv_reg(PrivReg::PRIV_CMD_ARG, arg_addr as Reg);
         atomic::fence(atomic::Ordering::SeqCst);

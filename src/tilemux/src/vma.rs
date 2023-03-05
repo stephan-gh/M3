@@ -141,14 +141,7 @@ pub fn handle_xlate(virt: usize, perm: PageFlags) {
         }
         else {
             let flags = PageFlags::from_bits_truncate(pte & cfg::PAGE_MASK as u64);
-            let phys = if flags.contains(PageFlags::L) {
-                // the current TCU's TLB does not support large pages
-                (pte & !(cfg::LPAGE_MASK as u64))
-                    | (virt & cfg::LPAGE_MASK & !cfg::PAGE_MASK) as u64
-            }
-            else {
-                pte & !(cfg::PAGE_MASK as u64)
-            };
+            let phys = pte & !(cfg::PAGE_MASK as u64);
             tcu::TCU::insert_tlb(act.id() as u16, virt, phys, flags).unwrap();
         }
     }
