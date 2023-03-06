@@ -108,7 +108,7 @@ fn create_heap() {
         assert_eq!(heap_end, 0);
         let desc = TileDesc::new_from(env::boot().tile_desc);
         if desc.has_virtmem() {
-            heap_end = heap_start + 64 * cfg::PAGE_SIZE;
+            heap_end = heap_start + 128 * cfg::PAGE_SIZE;
         }
         else {
             heap_end = desc.stack_space().0;
