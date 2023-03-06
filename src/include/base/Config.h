@@ -61,7 +61,7 @@
 // |     env + TileMux data     |
 // +----------------------------+ 0x10160000
 // |          app data          |
-// +----------------------------+ 0x101E0000
+// +----------------------------+ 0x101D0000
 // |          app stack         |
 // +----------------------------+ 0x101F0000
 // |      app recv buffers      |
@@ -87,7 +87,7 @@
 // +----------------------------+ 0x10400000
 // |       app code+data        |
 // |            ...             |
-// +----------------------------+ 0xCFFF0000
+// +----------------------------+ 0xCFFE0000
 // |          app stack         |
 // +----------------------------+ 0xD0000000
 // |      std recv buffers      |
@@ -103,7 +103,7 @@
 #define ENV_SIZE      PAGE_SIZE
 #define ENV_END       (ENV_START + ENV_SIZE)
 
-#define STACK_SIZE    0x10000
+#define STACK_SIZE    0x20000
 
 #define RBUF_STD_ADDR 0xD0000000
 #define RBUF_STD_SIZE PAGE_SIZE

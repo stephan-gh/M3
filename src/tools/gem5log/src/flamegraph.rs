@@ -21,7 +21,7 @@ use std::io::{self, BufRead, StdoutLock, Write};
 use crate::error::Error;
 use crate::symbols;
 
-const STACK_SIZE: u64 = 0x4000;
+const STACK_SIZE: u64 = 0x20000;
 
 #[derive(Copy, Clone, Default, Debug, Hash, PartialEq, Eq)]
 struct TileId {
