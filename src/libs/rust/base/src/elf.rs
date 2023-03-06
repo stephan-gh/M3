@@ -45,7 +45,7 @@ bitflags! {
 }
 
 /// ELF header
-#[derive(Default)]
+#[derive(Default, Debug)]
 #[repr(C, packed)]
 pub struct ElfHeader {
     /// ELF magic: ['\x7F', 'E', 'L', 'F']
@@ -79,7 +79,7 @@ pub struct ElfHeader {
 }
 
 /// Program header for 32-bit ELF files
-#[derive(Default)]
+#[derive(Default, Debug)]
 #[repr(C, packed)]
 pub struct ProgramHeader32 {
     /// Program header type (see [`PHType`])
@@ -101,7 +101,7 @@ pub struct ProgramHeader32 {
 }
 
 /// Program header for 64-bit ELF files
-#[derive(Default)]
+#[derive(Default, Debug)]
 #[repr(C, packed)]
 pub struct ProgramHeader64 {
     /// Program header type (see [`PHType`])
