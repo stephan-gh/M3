@@ -189,6 +189,7 @@ pub fn init() {
 
                 // kernel memory
                 let mut used = tile.desc.mem_size() as goff - avail;
+                assert!(mods_end <= used);
                 let kmem = MemMod::new(MemType::KERNEL, tile.id, used, args::get().kmem as goff);
                 used += args::get().kmem as goff;
                 // configure EP to give us access to this range of physical memory
@@ -268,7 +269,7 @@ pub fn init() {
 pub fn init_serial(dest: Option<(TileId, EpId)>) {
     if env::boot().platform == env::Platform::HW.val {
         let (tile, ep) = dest.unwrap_or((TileId::default(), 0));
-        let serial = GlobAddr::new(env::boot().kenv + 16 * 1024 * 1024);
+        let serial = GlobAddr::new(env::boot().kenv + 4 * 1024);
         let tile_modid = TCU::tileid_to_nocid(tile);
         ktcu::write_slice(serial.tile(), serial.offset(), &[
             tile_modid as u64,

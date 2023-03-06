@@ -18,13 +18,14 @@ import memory
 DRAM_OFF = 0x10000000
 ENV = 0x10000008
 MEM_TILE = 8
-MEM_SIZE = 2 * 1024 * 1024
 DRAM_SIZE = 2 * 1024 * 1024 * 1024
-MAX_FS_SIZE = 256 * 1024 * 1024
-KENV_SIZE = 16 * 1024 * 1024
-SERIAL_SIZE = 4 * 1024
 
-serial_begin = 0
+KENV_ADDR = 0
+KENV_SIZE = 4 * 1024
+SERIAL_ADDR = KENV_ADDR + KENV_SIZE
+SERIAL_SIZE = 4 * 1024
+PMP_ADDR = SERIAL_ADDR + SERIAL_SIZE
+
 pmp_size = 0
 
 def read_u64(mod, addr):
@@ -85,10 +86,8 @@ def tile_desc(tiles, i, vm):
     return tile_desc
 
 def load_boot_info(dram, mods, tiles, vm):
-    info_start = MAX_FS_SIZE + len(tiles) * pmp_size
-
     # boot info
-    kenv_off = info_start
+    kenv_off = KENV_ADDR
     write_u64(dram, kenv_off + 0 * 8, len(mods))    # mod_count
     write_u64(dram, kenv_off + 1 * 8, len(tiles) + 1) # tile_count
     write_u64(dram, kenv_off + 2 * 8, 1)            # mem_count
@@ -96,7 +95,7 @@ def load_boot_info(dram, mods, tiles, vm):
     kenv_off += 8 * 4
 
     # mods
-    mods_addr = info_start + 0x1000
+    mods_addr = PMP_ADDR + (len(tiles) * pmp_size)
     for m in mods:
         mod_size = add_mod(dram, mods_addr, m, kenv_off)
         mods_addr = (mods_addr + mod_size + 4096 - 1) & ~(4096 - 1)
@@ -110,7 +109,7 @@ def load_boot_info(dram, mods, tiles, vm):
     kenv_off += 8
 
     # mems
-    mem_start = info_start + KENV_SIZE + SERIAL_SIZE
+    mem_start = mods_addr
     write_u64(dram, kenv_off + 0, glob_addr(MEM_TILE, mem_start)) # addr
     write_u64(dram, kenv_off + 8, DRAM_SIZE - mem_start)          # size
 
@@ -135,7 +134,7 @@ def load_prog(dram, tiles, i, args, vm):
     for ep in range(0, 63):
         pm.tcu_set_ep(ep, EP.invalid())
 
-    mem_begin = MAX_FS_SIZE + i * pmp_size
+    mem_begin = PMP_ADDR + i * pmp_size
     # install first PMP EP
     pmp_ep = MemEP()
     pmp_ep.set_chip(dram.mem.nocid[0])
@@ -158,7 +157,7 @@ def load_prog(dram, tiles, i, args, vm):
 
     argv = ENV + 0x400
     desc = tile_desc(tiles, i, vm)
-    kenv = glob_addr(MEM_TILE, MAX_FS_SIZE + len(tiles) * pmp_size) if i == 0 else 0
+    kenv = glob_addr(MEM_TILE, KENV_ADDR) if i == 0 else 0
 
     # init environment
     dram_env = ENV + mem_begin - DRAM_OFF
@@ -192,7 +191,6 @@ def load_prog(dram, tiles, i, args, vm):
 # inspired by MiniTerm (https://github.com/pyserial/pyserial/blob/master/serial/tools/miniterm.py)
 class TCUTerm:
     def __init__(self, fpga_inst):
-        global serial_begin
         self.fd = sys.stdin.fileno()
         # make stdin nonblocking
         fl = fcntl.fcntl(self.fd, fcntl.F_GETFL)
@@ -201,8 +199,8 @@ class TCUTerm:
         self.old = termios.tcgetattr(self.fd)
         self.fpga_inst = fpga_inst
         # reset tile and EP in case they are set from a previous run
-        write_u64(fpga_inst.dram1, serial_begin + 0, 0)
-        write_u64(fpga_inst.dram1, serial_begin + 8, 0)
+        write_u64(fpga_inst.dram1, SERIAL_ADDR + 0, 0)
+        write_u64(fpga_inst.dram1, SERIAL_ADDR + 8, 0)
 
     def setup(self):
         new = termios.tcgetattr(self.fd)
@@ -221,11 +219,10 @@ class TCUTerm:
         return bytes
 
     def write(self, c):
-        global serial_begin
         bytes = c.encode('utf-8')
         # read desired destination
-        tile = read_u64(self.fpga_inst.dram1, serial_begin + 0)
-        ep = read_u64(self.fpga_inst.dram1, serial_begin + 8)
+        tile = read_u64(self.fpga_inst.dram1, SERIAL_ADDR + 0)
+        ep = read_u64(self.fpga_inst.dram1, SERIAL_ADDR + 8)
         # only send if it was initialized
         if ep != 0:
             send_input(self.fpga_inst, tile >> 8, tile & 0xFF, ep, bytes)
@@ -268,9 +265,8 @@ def main():
     fpga_inst.dram1.nocarq.set_arq_enable(0)
     fpga_inst.dram2.nocarq.set_arq_enable(0)
 
-    global serial_begin, pmp_size
-    pmp_size = 16 * 1024 * 1024 if args.vm else 32 * 1024 * 1024
-    serial_begin = MAX_FS_SIZE + len(fpga_inst.pms) * pmp_size + KENV_SIZE
+    global pmp_size
+    pmp_size = 16 * 1024 * 1024 if args.vm else 64 * 1024 * 1024
 
     term = TCUTerm(fpga_inst)
 
