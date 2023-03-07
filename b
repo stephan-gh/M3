@@ -232,7 +232,7 @@ if [ $skipbuild -eq 0 ]; then
     if [ "$M3_REM_HOST" != "" ]; then
         echo "Building for $M3_TARGET-$M3_ISA-$M3_BUILD remotely at $M3_REM_HOST:$M3_REM_DIR..." >&2
         # sync all sources to the remote host and check whether anything was transferred
-        if [ "$(rsync -az . "--exclude=/.ninja*" --exclude=/platform --exclude=/build \
+        if [ "$(rsync -az --delete . "--exclude=/.ninja*" --exclude=/platform --exclude=/build \
                     --stats "$M3_REM_HOST:$M3_REM_DIR" |
                 grep "Number of regular files transferred: 0")" = "" ]; then
             # if there was something transferred, build it on the remote host. source the .profile
