@@ -40,9 +40,9 @@ enum class TileType {
  */
 enum class TileISA {
     NONE = 0,
-    X86 = 1,
-    ARM = 2,
-    RISCV = 3,
+    RISCV = 1,
+    X86 = 2,
+    ARM = 3,
     ACCEL_INDIR = 4,
     ACCEL_COPY = 5,
     ACCEL_ROT13 = 6,
@@ -56,8 +56,8 @@ enum TileAttr {
     ROCKET = 1 << 1,
     NIC = 1 << 2,
     SERIAL = 1 << 3,
-    KECACC = 1 << 4,
-    IMEM = 1 << 5,
+    IMEM = 1 << 4,
+    KECACC = 1 << 5,
 };
 
 /**

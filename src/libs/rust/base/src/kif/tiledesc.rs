@@ -37,12 +37,12 @@ int_enum! {
     pub struct TileISA : TileDescRaw {
         /// Dummy ISA to represent memory tiles
         const NONE          = 0x0;
-        /// x86_64 as supported by gem5
-        const X86           = 0x1;
-        /// ARMv7 as supported by gem5
-        const ARM           = 0x2;
         /// RISCV as supported on hw and gem5
-        const RISCV         = 0x3;
+        const RISCV         = 0x1;
+        /// x86_64 as supported by gem5
+        const X86           = 0x2;
+        /// ARMv7 as supported by gem5
+        const ARM           = 0x3;
         /// Dummy ISA to represent the indirect-chaining fixed-function accelerator
         const ACCEL_INDIR   = 0x4;
         /// Dummy ISA to represent the COPY fixed-function accelerator
@@ -64,9 +64,9 @@ bitflags! {
         const ROCKET        = 1 << 1;
         const NIC           = 1 << 2;
         const SERIAL        = 1 << 3;
+        const IMEM          = 1 << 4;
         /// Tile contains a Keccak Accelerator (KecAcc)
-        const KECACC        = 1 << 4;
-        const IMEM          = 1 << 5;
+        const KECACC        = 1 << 5;
     }
 }
 
