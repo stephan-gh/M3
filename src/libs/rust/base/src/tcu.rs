@@ -158,14 +158,16 @@ pub const MMIO_PRIV_ADDR: VirtAddr = VirtAddr::new(MMIO_ADDR.as_raw() + MMIO_SIZ
 /// The size of the TCU's private MMIO area (including config space on HW)
 pub const MMIO_PRIV_SIZE: usize = cfg::PAGE_SIZE * 2;
 
-/// The number of external registers
-pub const EXT_REGS: usize = 2;
 cfg_if! {
     if #[cfg(feature = "hw22")] {
+        /// The number of external registers
+        pub const EXT_REGS: usize = 2;
         /// The number of unprivileged registers
         pub const UNPRIV_REGS: usize = 5;
     }
     else {
+        /// The number of external registers
+        pub const EXT_REGS: usize = 3;
         /// The number of unprivileged registers
         pub const UNPRIV_REGS: usize = 6;
     }
@@ -175,14 +177,31 @@ pub const EP_REGS: usize = 3;
 /// The number of PRINT registers
 pub const PRINT_REGS: usize = 32;
 
-/// The external registers
-#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
-#[repr(u64)]
-pub enum ExtReg {
-    /// Stores the privileged flag (for now)
-    Features,
-    /// For external commands
-    ExtCmd,
+cfg_if! {
+    if #[cfg(target_vendor = "hw22")] {
+        /// The external registers
+        #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
+        #[repr(u64)]
+        pub enum ExtReg {
+            /// Stores the privileged flag (for now)
+            Features,
+            /// For external commands
+            ExtCmd,
+        }
+    }
+    else {
+        /// The external registers
+        #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
+        #[repr(u64)]
+        pub enum ExtReg {
+            /// Stores the privileged flag (for now)
+            Features,
+            /// Stores the tile description
+            TileDesc,
+            /// For external commands
+            ExtCmd,
+        }
+    }
 }
 
 bitflags! {

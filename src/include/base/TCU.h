@@ -188,7 +188,11 @@ public:
     static const reg_t UNLIM_CREDITS = 0x3F;
 
 private:
+#if defined(__hw22__)
     static const size_t EXT_REGS = 2;
+#else
+    static const size_t EXT_REGS = 3;
+#endif
     static const size_t PRIV_REGS = 5;
 #if defined(__hw22__)
     static const size_t UNPRIV_REGS = 5;
@@ -200,7 +204,12 @@ private:
 
     enum class ExtRegs {
         FEATURES = 0,
+#if defined(__hw22__)
         EXT_CMD = 1,
+#else
+        TILE_DESC = 1,
+        EXT_CMD = 2,
+#endif
     };
 
     enum class PrivRegs {
