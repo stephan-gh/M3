@@ -18,6 +18,7 @@
 
 //! Machine-specific functions
 
+use crate::cfg;
 use crate::env;
 use crate::errors::Error;
 use crate::tcu;
@@ -52,6 +53,34 @@ pub fn write(buf: &[u8]) -> Result<usize, Error> {
         }
     }
     Ok(amount)
+}
+
+/// Flushes the cache
+///
+/// # Safety
+///
+/// The caller needs to ensure that cfg::TILE_MEM_BASE is mapped and readable. The area needs to be
+/// at least 512 KiB large.
+pub unsafe fn flush_cache() {
+    #[cfg(any(target_vendor = "hw", target_vendor = "hw22"))]
+    let (cacheline_size, cache_size) = (64, 512 * 1024);
+    #[cfg(target_vendor = "gem5")]
+    let (cacheline_size, cache_size) = (64, (32 + 256) * 1024);
+
+    // ensure that we replace all cachelines in cache
+    let mut addr = cfg::TILE_MEM_BASE as *const u64;
+    unsafe {
+        let end = addr.add(cache_size / 8);
+        while addr < end {
+            let _val = addr.read_volatile();
+            addr = addr.add(cacheline_size / 8);
+        }
+    }
+
+    #[cfg(any(target_vendor = "hw", target_vendor = "hw22"))]
+    unsafe {
+        core::arch::asm!("fence.i");
+    }
 }
 
 pub fn shutdown() -> ! {
