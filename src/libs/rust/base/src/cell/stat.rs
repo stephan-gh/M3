@@ -52,6 +52,11 @@ impl<T: Copy + Sized> StaticCell<T> {
     pub fn replace(&self, val: T) -> T {
         self.inner.replace(val)
     }
+
+    /// Returns a mutable pointer to the inner value
+    pub fn as_ptr(&self) -> *mut T {
+        self.inner.as_ptr()
+    }
 }
 
 impl<T: Copy + fmt::Debug> fmt::Debug for StaticCell<T> {
