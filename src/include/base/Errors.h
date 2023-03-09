@@ -55,6 +55,7 @@ struct Errors {
         MSG_UNALIGNED,
         TLB_MISS,
         TLB_FULL,
+        NO_PMP_EP,
         // SW errors
         INV_ARGS,
         ACT_GONE,

@@ -13,6 +13,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::errors::Code;
 use base::io::LogFlags;
 use base::kif;
 use base::log;
@@ -20,11 +21,20 @@ use base::tcu;
 
 use crate::activities;
 
-pub fn handle_recv(req: tcu::CoreForeignReq) {
+pub fn handle_recv(req: tcu::CoreReq) {
+    match req {
+        tcu::CoreReq::ForeignReceive { act, ep } => handle_foreign_recv(act, ep),
+        tcu::CoreReq::PMPFailure { phys, write, error } => handle_pmp_failure(phys, write, error),
+    }
+
+    tcu::TCU::set_core_resp();
+}
+
+fn handle_foreign_recv(act: u16, ep: tcu::EpId) {
     // add message to activity
-    if let Some(mut v) = activities::get_mut(req.activity() as activities::Id) {
+    if let Some(mut v) = activities::get_mut(act as activities::Id) {
         // if this activity is currently running, we have to update the CUR_ACT register
-        if (tcu::TCU::get_cur_activity() & 0xFFFF) == req.activity() as activities::Id {
+        if (tcu::TCU::get_cur_activity() & 0xFFFF) == act as activities::Id {
             // temporary switch to idle
             let old_act = tcu::TCU::xchg_activity(activities::idle().activity_reg()).unwrap();
             // set user event
@@ -41,14 +51,19 @@ pub fn handle_recv(req: tcu::CoreForeignReq) {
         log!(
             LogFlags::MuxForMsgs,
             "Added message to Activity {} ({} msgs)",
-            req.activity(),
+            act,
             v.msgs()
         );
 
         if v.id() != kif::tilemux::ACT_ID {
-            v.unblock(activities::Event::Message(req.ep()));
+            v.unblock(activities::Event::Message(ep));
         }
     }
+}
 
-    tcu::TCU::set_foreign_resp();
+fn handle_pmp_failure(phys: u32, write: bool, error: Code) {
+    panic!(
+        "PMP {} access to physical address {:#x} failed: {:?}",
+        write, phys, error
+    );
 }

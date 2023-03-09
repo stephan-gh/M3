@@ -213,20 +213,43 @@ bitflags! {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
-#[repr(u64)]
-/// The privileged registers
-pub enum PrivReg {
-    /// For core requests
-    CoreReq,
-    /// For privileged commands
-    PrivCmd,
-    /// The argument for privileged commands
-    PrivCmdArg,
-    /// The current activity
-    CurAct,
-    /// Used to ack IRQ requests
-    ClearIRQ,
+cfg_if! {
+    if #[cfg(target_vendor = "hw22")] {
+        #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
+        #[repr(u64)]
+        /// The privileged registers
+        pub enum PrivReg {
+            /// For core requests
+            CoreReq,
+            /// For privileged commands
+            PrivCmd,
+            /// The argument for privileged commands
+            PrivCmdArg,
+            /// The current activity
+            CurAct,
+            /// Used to ack IRQ requests
+            ClearIRQ,
+        }
+    }
+    else {
+        #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
+        #[repr(u64)]
+        /// The privileged registers
+        pub enum PrivReg {
+            /// Controls the privileged interface
+            PrivCtrl,
+            /// For core requests
+            CoreReq,
+            /// For privileged commands
+            PrivCmd,
+            /// The argument for privileged commands
+            PrivCmdArg,
+            /// The current activity
+            CurAct,
+            /// Used to ack IRQ requests
+            ClearIRQ,
+        }
+    }
 }
 
 cfg_if! {
@@ -354,30 +377,42 @@ pub enum IRQ {
     Timer,
 }
 
-/// A foreign-msg core request, that is sent by the TCU if a message was received for another activity
-#[derive(Debug)]
-pub struct CoreForeignReq {
-    act: u16,
-    ep: EpId,
+/// The different core requests that are sent by the TCU to the core.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum CoreReq {
+    /// A foreign-msg core request, that is sent by the TCU if a message was received for another
+    /// activity
+    ForeignReceive { act: u16, ep: EpId },
+
+    /// A physical-memory protection faliure that is sent by the TCU if a PMP access failed (e.g.,
+    /// due to missing permissions)
+    PMPFailure { phys: u32, write: bool, error: Code },
 }
 
-impl CoreForeignReq {
-    /// Decodes the given value from `CORE_REQ` into a `CoreForeignReq`
-    pub fn new(req: Reg) -> Self {
-        Self {
+impl CoreReq {
+    fn new_foreign_receive(req: Reg) -> Self {
+        Self::ForeignReceive {
             act: (req >> 48) as u16,
+            #[cfg(target_vendor = "hw22")]
             ep: ((req >> 2) & 0xFFFF) as EpId,
+            #[cfg(not(target_vendor = "hw22"))]
+            ep: ((req >> 3) & 0xFFFF) as EpId,
         }
     }
 
-    /// Returns the activity id for which the message was received
-    pub fn activity(&self) -> u16 {
-        self.act
+    fn new_pmp_failure(req: Reg) -> Self {
+        Self::PMPFailure {
+            phys: (req >> 32) as u32,
+            write: ((req >> 3) & 0x1) != 0,
+            error: Code::from(((req >> 4) & 0x1ffff) as u32),
+        }
     }
+}
 
-    /// Returns the endpoint on which the message was received
-    pub fn ep(&self) -> EpId {
-        self.ep
+bitflags! {
+    struct PrivCtrl : Reg {
+        /// If enabled, the TCU reports PMP failures as core requests
+        const PMP_FAILURES = 0x1;
     }
 }
 
@@ -809,17 +844,23 @@ impl TCU {
     }
 
     /// Returns the current core request
-    pub fn get_core_req() -> Option<CoreForeignReq> {
+    pub fn get_core_req() -> Option<CoreReq> {
         let req = Self::read_priv_reg(PrivReg::CoreReq);
-        match req & 0x3 {
-            0x2 => Some(CoreForeignReq::new(req)),
+        match req & 0x7 {
+            0x2 => Some(CoreReq::new_foreign_receive(req)),
+            0x3 => Some(CoreReq::new_pmp_failure(req)),
             _ => None,
         }
     }
 
-    /// Provides the TCU with the response to a foreign-msg core request
-    pub fn set_foreign_resp() {
+    /// Provides the TCU with the response to a core request
+    pub fn set_core_resp() {
         Self::write_priv_reg(PrivReg::CoreReq, 0x1)
+    }
+
+    /// Enables core requests in case of PMP failures
+    pub fn enable_pmp_corereqs() {
+        Self::write_priv_reg(PrivReg::PrivCtrl, PrivCtrl::PMP_FAILURES.bits());
     }
 
     /// Returns the current activity with its id and message count

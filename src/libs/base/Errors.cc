@@ -51,11 +51,12 @@ static const char *errmsgs[] = {
     "Message is not 16-byte aligned",
     "TLB entry not found",
     "TLB contains only fixed entries",
+    "No PMP endpoint",
     "Invalid arguments",
     "Activity gone",
     "Out of memory",
-    "No such file or directory",
     /* 30 */
+    "No such file or directory",
     "Not supported",
     "No free/suitable tile",
     "Invalid ELF file",
@@ -65,8 +66,8 @@ static const char *errmsgs[] = {
     "Directory not empty",
     "Is a directory",
     "Is no directory",
-    "Endpoint is invalid",
     /* 40 */
+    "Endpoint is invalid",
     "End of file",
     "Messages are waiting to be handled",
     "Reply will be sent via upcall",
@@ -76,8 +77,8 @@ static const char *errmsgs[] = {
     "Not revocable",
     "Timeout",
     "Read failed",
-    "Write failed",
     /* 50 */
+    "Write failed",
     "UTF-8 error",
     "Bad file descriptor",
     "Invalid seek",

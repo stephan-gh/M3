@@ -227,6 +227,17 @@ pub extern "C" fn init() -> usize {
     ISR::reg_timer(ext_irq);
     ISR::reg_external(ext_irq);
 
+    if TM_ENV.borrow().tile_desc.has_virtmem() {
+        // Now that we're running with virtual memory enabled and can handle interrupts, we want to
+        // know about PMP failures. Without virtual memory, the core might send speculative memory
+        // accesses to physical memory and PMP is the first layer that can check their validity.
+        // Therefore, PMP shouldn't report failures due to speculative accesses via core requests.
+        // With virtual memory, the core checks the validity of the accesses via paging and of
+        // course still knows that these are speculative and can thus simply be ignored. The TCU
+        // performing PMP however does not have this information.
+        tcu::TCU::enable_pmp_corereqs();
+    }
+
     // store platform already in app env, because we need it for logging
     app_env().boot.platform = pex_env().platform;
 

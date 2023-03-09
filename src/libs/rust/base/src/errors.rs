@@ -56,6 +56,7 @@ pub enum Code {
     MsgUnaligned,
     TLBMiss,
     TLBFull,
+    NoPMPEP,
     // SW Errors
     InvArgs,
     ActivityGone,
