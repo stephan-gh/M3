@@ -334,6 +334,15 @@ pub fn copy(
     Ok(())
 }
 
+pub fn get_version(tile: TileId) -> Result<(u16, u8, u8), Error> {
+    let features: u64 = try_read_obj(tile, TCU::ext_reg_addr(ExtReg::Features).as_goff())?;
+    Ok((
+        (features >> 32) as u16,
+        (features >> 48) as u8,
+        (features >> 56) as u8,
+    ))
+}
+
 pub fn deprivilege_tile(tile: TileId) -> Result<(), Error> {
     let reg_addr = TCU::ext_reg_addr(ExtReg::Features).as_goff();
     let mut features: u64 = try_read_obj(tile, reg_addr)?;

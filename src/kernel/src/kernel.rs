@@ -159,15 +159,15 @@ pub extern "C" fn env_run() {
     };
     create_heap();
     crate::slab::init();
-    io::init(
-        tcu::TileId::new_from_raw(env::boot().tile_id as u16),
-        "kernel",
-    );
+    let tile_id = tcu::TileId::new_from_raw(env::boot().tile_id as u16);
+    io::init(tile_id, "kernel");
 
     runtime::paging::init();
     runtime::exceptions::init();
     crate::com::init_queues();
 
+    let vers = ktcu::get_version(tile_id).unwrap();
+    log!(LogFlags::Info, "Found TCU version {}.{}.{}", vers.0, vers.1, vers.2);
     log!(LogFlags::Info, "Entered raw mode; Quit via Ctrl+]");
 
     args::parse();
