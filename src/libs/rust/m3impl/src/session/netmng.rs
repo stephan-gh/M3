@@ -33,15 +33,15 @@ int_enum! {
         const COMMIT        = GenFileOp::COMMIT.val;
         const TRUNCATE      = GenFileOp::TRUNCATE.val;
         // TODO what about GenericFile::CLOSE?
-        const BIND          = 15;
-        const LISTEN        = 16;
-        const CONNECT       = 17;
-        const ABORT         = 18;
-        const CREATE        = 19;
-        const GET_IP        = 20;
-        const GET_NAMESRV   = 21;
-        const GET_SGATE     = 22;
-        const OPEN_FILE     = 23;
+        const BIND          = GenFileOp::REQ_NOTIFY.val + 1;
+        const LISTEN        = GenFileOp::REQ_NOTIFY.val + 2;
+        const CONNECT       = GenFileOp::REQ_NOTIFY.val + 3;
+        const ABORT         = GenFileOp::REQ_NOTIFY.val + 4;
+        const CREATE        = GenFileOp::REQ_NOTIFY.val + 5;
+        const GET_IP        = GenFileOp::REQ_NOTIFY.val + 6;
+        const GET_NAMESRV   = GenFileOp::REQ_NOTIFY.val + 7;
+        const GET_SGATE     = GenFileOp::REQ_NOTIFY.val + 8;
+        const OPEN_FILE     = GenFileOp::REQ_NOTIFY.val + 9;
     }
 }
 
