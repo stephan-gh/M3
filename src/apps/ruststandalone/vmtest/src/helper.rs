@@ -114,6 +114,11 @@ pub fn init(name: &str) {
     ISR::init(&mut STATE.borrow_mut());
     ISR::reg_tm_calls(tmcall);
     ISR::enable_irqs();
+
+    if TileDesc::new_from(env::boot().tile_desc).has_virtmem() {
+        // now that we're running with virtual memory enabled and can handle interrupts, we want to know about PMP failures
+        TCU::enable_pmp_corereqs();
+    }
 }
 
 pub fn virt_to_phys(virt: VirtAddr) -> (VirtAddr, PhysAddr) {

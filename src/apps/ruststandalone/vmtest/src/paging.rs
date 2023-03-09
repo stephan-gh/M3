@@ -144,10 +144,26 @@ pub fn map_anon(virt: VirtAddr, size: usize, perm: PageFlags) -> Result<(), Erro
 }
 
 pub fn map_ident(virt: VirtAddr, size: usize, perm: PageFlags) {
-    let glob = GlobAddr::new(virt.as_goff());
+    map_global(virt, GlobAddr::new(virt.as_goff()), size, perm);
+}
+
+pub fn map_global(virt: VirtAddr, glob: GlobAddr, size: usize, perm: PageFlags) {
     ASPACE
         .borrow_mut()
         .map_pages(virt, glob, size / cfg::PAGE_SIZE, perm)
+        .unwrap();
+}
+
+#[allow(unused)]
+pub fn unmap(virt: VirtAddr, size: usize) {
+    ASPACE
+        .borrow_mut()
+        .map_pages(
+            virt,
+            GlobAddr::new(0),
+            size / cfg::PAGE_SIZE,
+            PageFlags::empty(),
+        )
         .unwrap();
 }
 

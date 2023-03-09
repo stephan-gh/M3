@@ -28,11 +28,14 @@ use base::io::LogFlags;
 use base::kif::{PageFlags, Perm};
 use base::libc;
 use base::log;
-use base::mem::{size_of, MsgBuf, PhysAddr, PhysAddrRaw, VirtAddr};
+use base::machine;
+use base::mem::{size_of, GlobAddr, MsgBuf, PhysAddr, PhysAddrRaw, VirtAddr};
 use base::tcu::{self, EpId, TileId, TCU};
 use base::util;
 
 use core::intrinsics::transmute;
+use core::ptr;
+use core::sync::atomic;
 
 use isr::{ISRArch, StateArch, ISR};
 
@@ -40,7 +43,7 @@ static OWN_TILE: TileId = TileId::new(0, 0);
 static MEM_TILE: TileId = TileId::new(0, 8);
 
 static OWN_ACT: u16 = 0xFFFF;
-static FOREIGN_MSGS: StaticCell<u64> = StaticCell::new(0);
+static CORE_REQS: StaticCell<u64> = StaticCell::new(0);
 
 static MEP: EpId = tcu::FIRST_USER_EP;
 static SEP: EpId = tcu::FIRST_USER_EP + 1;
@@ -283,24 +286,29 @@ fn test_msgs(area_begin: VirtAddr, _area_size: usize) {
     }
 }
 
+static EXPECTED_CORE_REQ: StaticCell<Option<tcu::CoreReq>> = StaticCell::new(None);
+
 pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
     log!(LogFlags::Info, "Got TCU IRQ @ {}", state.instr_pointer());
 
     ISR::fetch_irq();
 
     // core request from TCU?
-    let req = tcu::TCU::get_core_req().unwrap();
+    let req = tcu::TCU::get_core_req();
     log!(LogFlags::Info, "Got {:x?}", req);
-    assert_eq!(req.activity(), 0xDEAD);
-    assert_eq!(req.ep(), REP1);
+    assert_eq!(req, EXPECTED_CORE_REQ.get());
 
-    FOREIGN_MSGS.set(FOREIGN_MSGS.get() + 1);
+    if req.is_some() {
+        CORE_REQS.set(CORE_REQS.get() + 1);
+    }
+
+    tcu::TCU::set_core_resp();
 
     state as *mut _ as *mut libc::c_void
 }
 
 fn test_foreign_msg() {
-    FOREIGN_MSGS.set(0);
+    CORE_REQS.set(0);
 
     let (rbuf1_virt, rbuf1_phys) = helper::virt_to_phys(VirtAddr::from(RBUF1.as_ptr()));
 
@@ -314,13 +322,21 @@ fn test_foreign_msg() {
         TCU::config_send(regs, OWN_ACT, 0x5678, OWN_TILE, REP1, 6, 1);
     });
 
+    EXPECTED_CORE_REQ.set(Some(tcu::CoreReq::ForeignReceive {
+        act: 0xDEAD,
+        ep: REP1,
+    }));
+    // ensure that EXPECTED_CORE_REQ is set first
+    atomic::fence(atomic::Ordering::SeqCst);
+
     // send message
     let buf = MsgBuf::new();
     assert_eq!(TCU::send(SEP, &buf, 0x1111, tcu::NO_REPLIES), Ok(()));
 
     // wait for core request
-    while FOREIGN_MSGS.get() == 0 {}
-    assert_eq!(FOREIGN_MSGS.get(), 1);
+    while unsafe { ptr::read_volatile(CORE_REQS.as_ptr()) } == 0 {}
+    assert_eq!(CORE_REQS.get(), 1);
+    EXPECTED_CORE_REQ.set(None);
 
     // switch to foreign activity (we have received a message)
     let old = TCU::xchg_activity((1 << 16) | 0xDEAD).unwrap();
@@ -342,7 +358,7 @@ fn test_foreign_msg() {
 }
 
 fn test_own_msg() {
-    FOREIGN_MSGS.set(0);
+    CORE_REQS.set(0);
 
     let (rbuf1_virt, rbuf1_phys) = helper::virt_to_phys(VirtAddr::from(RBUF1.as_ptr()));
 
@@ -376,7 +392,91 @@ fn test_own_msg() {
     tcu::TCU::ack_msg(REP1, tcu::TCU::msg_to_offset(rbuf1_virt, msg)).unwrap();
 
     // no foreign message core requests here
-    assert_eq!(FOREIGN_MSGS.get(), 0);
+    assert_eq!(CORE_REQS.get(), 0);
+}
+
+fn test_pmp_failures() {
+    CORE_REQS.set(0);
+
+    // flush the cache to be sure that the reads cause cache misses
+    unsafe { machine::flush_cache() };
+
+    {
+        // invalid physical address
+        let virt = VirtAddr::from(0x3000_0000);
+        paging::map_global(virt, GlobAddr::new(0), cfg::PAGE_SIZE, PageFlags::RW);
+
+        EXPECTED_CORE_REQ.set(Some(tcu::CoreReq::PMPFailure {
+            phys: 0,
+            write: false,
+            error: Code::NoPMPEP,
+        }));
+        // ensure that EXPECTED_CORE_REQ is set first
+        atomic::fence(atomic::Ordering::SeqCst);
+
+        let addr = virt.as_mut_ptr::<u8>();
+        let _val = unsafe { ptr::read_volatile(addr) };
+
+        // use read_volatile to ensure that we actually perform memory accesses (not register loads)
+        while unsafe { ptr::read_volatile(CORE_REQS.as_ptr()) } != 1 {}
+        assert_eq!(CORE_REQS.get(), 1);
+
+        EXPECTED_CORE_REQ.set(None);
+        paging::unmap(virt, cfg::PAGE_SIZE);
+    }
+
+    let pmpep0 = tcu::TCU::unpack_mem_ep(0).unwrap();
+    let base_off = pmpep0.1 + pmpep0.2;
+
+    assert_eq!(tcu::TCU::unpack_mem_ep(1), None);
+    helper::config_local_ep(1, |regs| {
+        TCU::config_mem(regs, OWN_ACT, MEM_TILE, base_off, cfg::PAGE_SIZE, Perm::RW);
+    });
+
+    {
+        // beyond bounds
+        let virt = VirtAddr::from(0x4000_0000);
+        let global = GlobAddr::new_with(MEM_TILE, base_off);
+        let size = cfg::PAGE_SIZE;
+        paging::map_global(virt, global, size * 2, PageFlags::RW);
+
+        let addr = virt.as_mut_ptr::<u8>();
+
+        // that's okay
+        let _val = unsafe { ptr::read_volatile(addr) };
+
+        // change EP to read-only (cannot do that before, because otherwise map_global fails)
+        helper::config_local_ep(1, |regs| {
+            TCU::config_mem(regs, OWN_ACT, MEM_TILE, base_off, cfg::PAGE_SIZE, Perm::R);
+        });
+
+        EXPECTED_CORE_REQ.set(Some(tcu::CoreReq::PMPFailure {
+            phys: global.to_phys(PageFlags::R).unwrap().as_raw() + cfg::PAGE_SIZE as u32,
+            write: false,
+            error: Code::OutOfBounds,
+        }));
+        atomic::fence(atomic::Ordering::SeqCst);
+        let _val = unsafe { ptr::read_volatile(addr.add(cfg::PAGE_SIZE)) };
+
+        while unsafe { ptr::read_volatile(CORE_REQS.as_ptr()) } != 2 {}
+        assert_eq!(CORE_REQS.get(), 2);
+
+        EXPECTED_CORE_REQ.set(Some(tcu::CoreReq::PMPFailure {
+            phys: global.to_phys(PageFlags::R).unwrap().as_raw(),
+            write: true,
+            error: Code::NoPerm,
+        }));
+        atomic::fence(atomic::Ordering::SeqCst);
+        unsafe { ptr::write_volatile(addr, 0x77) };
+        // flush the cache to trigger a LLC miss
+        unsafe { machine::flush_cache() };
+
+        while unsafe { ptr::read_volatile(CORE_REQS.as_ptr()) } != 3 {}
+        assert_eq!(CORE_REQS.get(), 3);
+        EXPECTED_CORE_REQ.set(None);
+
+        paging::unmap(virt, size * 2);
+    }
 }
 
 fn test_tlb() {
@@ -521,6 +621,7 @@ pub extern "C" fn env_run() {
     run_test!(test_msgs(area_begin, area_size));
     run_test!(test_foreign_msg());
     run_test!(test_own_msg());
+    run_test!(test_pmp_failures());
     run_test!(test_tlb());
 
     log!(LogFlags::Info, "Shutting down");
