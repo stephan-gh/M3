@@ -34,7 +34,7 @@ static void test_inv_ep() {
     logln("force invalidation"_cf);
     {
         uint64_t data;
-        kernel::TCU::config_mem(MEP, mem_tile, 0x1000, sizeof(data), TCU::R);
+        kernel::TCU::config_mem(MEP, mem_tile, 0x40000000, sizeof(data), TCU::R);
         kernel::TCU::config_recv(REP, buf, 5 /* 32 */, 5 /* 32 */, TCU::INVALID_EP, 0, 0);
         kernel::TCU::config_send(SEP, 0x5678, own_tile, REP, 5 /* 32 */, 1);
 

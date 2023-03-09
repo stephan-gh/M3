@@ -81,7 +81,7 @@ fn read_write(wr_addr: usize, rd_addr: usize, size: usize) {
 
     // configure mem EP
     helper::config_local_ep(MEP, |regs| {
-        TCU::config_mem(regs, OWN_ACT, MEM_TILE, 0x1000, size, Perm::RW);
+        TCU::config_mem(regs, OWN_ACT, MEM_TILE, 0x4000_0000, size, Perm::RW);
     });
 
     // test write + read

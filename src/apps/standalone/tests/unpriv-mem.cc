@@ -34,11 +34,11 @@ static void test_mem_short() {
 
     ASSERT_EQ(kernel::TCU::unknown_cmd(), Errors::UNKNOWN_CMD);
 
-    kernel::TCU::config_mem(MEP, mem_tile, 0x1000, sizeof(uint64_t), TCU::R | TCU::W);
+    kernel::TCU::config_mem(MEP, mem_tile, 0x40000000, sizeof(uint64_t), TCU::R | TCU::W);
 
     logln("WRITE with invalid arguments"_cf);
     {
-        kernel::TCU::config_mem(MEP2, mem_tile, 0x1000, sizeof(uint64_t), TCU::R);
+        kernel::TCU::config_mem(MEP2, mem_tile, 0x40000000, sizeof(uint64_t), TCU::R);
         kernel::TCU::config_send(SEP, 0x1234, own_tile, REP, 6 /* 64 */, 2);
 
         // not a memory EP
@@ -53,7 +53,7 @@ static void test_mem_short() {
 
     logln("READ with invalid arguments"_cf);
     {
-        kernel::TCU::config_mem(MEP2, mem_tile, 0x1000, sizeof(uint64_t), TCU::W);
+        kernel::TCU::config_mem(MEP2, mem_tile, 0x40000000, sizeof(uint64_t), TCU::W);
         kernel::TCU::config_send(SEP, 0x1234, own_tile, REP, 6 /* 64 */, 2);
 
         // not a memory EP
@@ -76,7 +76,7 @@ static void test_mem_short() {
 
     logln("READ+WRITE with offset != 0"_cf);
     {
-        kernel::TCU::config_mem(MEP2, mem_tile, 0x2000, sizeof(uint64_t) * 2, TCU::R | TCU::W);
+        kernel::TCU::config_mem(MEP2, mem_tile, 0x40001000, sizeof(uint64_t) * 2, TCU::R | TCU::W);
 
         uint64_t data_ctrl = 0;
         ASSERT_EQ(kernel::TCU::write(MEP2, &data, sizeof(data), 4), Errors::SUCCESS);
@@ -86,7 +86,7 @@ static void test_mem_short() {
 
     logln("0-byte READ+WRITE transfers"_cf);
     {
-        kernel::TCU::config_mem(MEP2, mem_tile, 0x2000, sizeof(uint64_t) * 2, TCU::R | TCU::W);
+        kernel::TCU::config_mem(MEP2, mem_tile, 0x40001000, sizeof(uint64_t) * 2, TCU::R | TCU::W);
 
         ASSERT_EQ(kernel::TCU::write(MEP2, nullptr, 0, 0), Errors::SUCCESS);
         ASSERT_EQ(kernel::TCU::read(MEP2, nullptr, 0, 0), Errors::SUCCESS);
@@ -97,7 +97,7 @@ static void test_mem_large(TileId mem_tile) {
     for(size_t i = 0; i < ARRAY_SIZE(src_buf); ++i)
         src_buf[i] = i;
 
-    size_t addr = mem_tile.tile() == Tile::MEM ? 0x1000 : reinterpret_cast<size_t>(mem_buf);
+    size_t addr = mem_tile.tile() == Tile::MEM ? 0x40000000 : reinterpret_cast<size_t>(mem_buf);
     kernel::TCU::config_mem(MEP, mem_tile, addr, sizeof(src_buf), TCU::R | TCU::W);
 
     const size_t sizes[] = {64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384};
@@ -115,7 +115,7 @@ static void test_mem_rdwr(TileId mem_tile) {
     for(size_t i = 0; i < ARRAY_SIZE(src_buf); ++i)
         src_buf[i] = i;
 
-    size_t addr = mem_tile.tile() == Tile::MEM ? 0x1000 : reinterpret_cast<size_t>(mem_buf);
+    size_t addr = mem_tile.tile() == Tile::MEM ? 0x40000000 : reinterpret_cast<size_t>(mem_buf);
     kernel::TCU::config_mem(MEP, mem_tile, addr, sizeof(src_buf), TCU::R | TCU::W);
 
     const size_t sizes[] = {4096, 8192};
@@ -150,7 +150,7 @@ static void test_mem(size_t size_in) {
     for(size_t i = 0; i < size_in; ++i)
         msg[i] = i + 1;
 
-    kernel::TCU::config_mem(MEP, mem_tile, 0x1000, size_in * sizeof(DATA), TCU::R | TCU::W);
+    kernel::TCU::config_mem(MEP, mem_tile, 0x40000000, size_in * sizeof(DATA), TCU::R | TCU::W);
 
     // test write + read
     ASSERT_EQ(kernel::TCU::write(MEP, msg, size_in * sizeof(DATA), 0), Errors::SUCCESS);
@@ -170,7 +170,7 @@ static void test_unaligned_rdwr(size_t nbytes, size_t loc_offset, size_t rem_off
     for(size_t i = 0; i < 16; ++i)
         msg.data[i] = i + 1;
 
-    kernel::TCU::config_mem(MEP, mem_tile, 0x1000 + rem_offset, 0x1000, TCU::R | TCU::W);
+    kernel::TCU::config_mem(MEP, mem_tile, 0x40000000 + rem_offset, 0x1000, TCU::R | TCU::W);
 
     ASSERT_EQ(kernel::TCU::write(MEP, msg.data, nbytes, loc_offset), Errors::SUCCESS);
     ASSERT_EQ(kernel::TCU::read(MEP, msg.data, nbytes, loc_offset), Errors::SUCCESS);
