@@ -129,6 +129,12 @@ pub fn set_pmp(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), Ver
     if tile.derived() {
         sysc_err!(Code::NoPerm, "Cannot set PMP EPs for derived tile objects");
     }
+    if r.overwrite && tile.activities() > 0 {
+        sysc_err!(
+            Code::InvState,
+            "Cannot overwrite PMP EPs with existing activities"
+        );
+    }
 
     if r.ep < 1 || r.ep >= tcu::PMEM_PROT_EPS as tcu::EpId {
         sysc_err!(
