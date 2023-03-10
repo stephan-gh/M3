@@ -107,8 +107,8 @@ bitflags! {
         const MuxSideCalls  = 1 << (Self::__mux_start.bits() + 3);
         /// TileMux: foreign messages
         const MuxForMsgs    = 1 << (Self::__mux_start.bits() + 4);
-        /// TileMux: core requests
-        const MuxCoreReqs   = 1 << (Self::__mux_start.bits() + 5);
+        /// TileMux: CU requests
+        const MuxCUReqs     = 1 << (Self::__mux_start.bits() + 5);
         /// TileMux: page table allocations/frees
         const MuxPTs        = 1 << (Self::__mux_start.bits() + 6);
         /// TileMux: timer IRQs

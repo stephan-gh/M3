@@ -144,7 +144,7 @@ impl crate::ISRArch for ARMISR {
         crate::reg(Vector::DataAbort.into(), handler);
     }
 
-    fn reg_core_reqs(handler: crate::IsrFunc) {
+    fn reg_cu_reqs(handler: crate::IsrFunc) {
         crate::reg(Vector::IRQ.into(), handler);
     }
 

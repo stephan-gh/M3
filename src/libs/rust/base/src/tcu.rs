@@ -219,8 +219,8 @@ cfg_if! {
         #[repr(u64)]
         /// The privileged registers
         pub enum PrivReg {
-            /// For core requests
-            CoreReq,
+            /// For CU requests
+            CUReq,
             /// For privileged commands
             PrivCmd,
             /// The argument for privileged commands
@@ -238,8 +238,8 @@ cfg_if! {
         pub enum PrivReg {
             /// Controls the privileged interface
             PrivCtrl,
-            /// For core requests
-            CoreReq,
+            /// For CU requests
+            CUReq,
             /// For privileged commands
             PrivCmd,
             /// The argument for privileged commands
@@ -371,16 +371,16 @@ pub enum ExtCmdOpCode {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u64)]
 pub enum IRQ {
-    /// The core request IRQ
-    CoreReq,
+    /// The CU request IRQ
+    CUReq,
     /// The timer IRQ
     Timer,
 }
 
-/// The different core requests that are sent by the TCU to the core.
+/// The different CU requests that are sent by the TCU to the CU.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum CoreReq {
-    /// A foreign-msg core request, that is sent by the TCU if a message was received for another
+pub enum CUReq {
+    /// A foreign-msg CU request, that is sent by the TCU if a message was received for another
     /// activity
     ForeignReceive { act: u16, ep: EpId },
 
@@ -389,7 +389,7 @@ pub enum CoreReq {
     PMPFailure { phys: u32, write: bool, error: Code },
 }
 
-impl CoreReq {
+impl CUReq {
     fn new_foreign_receive(req: Reg) -> Self {
         Self::ForeignReceive {
             act: (req >> 48) as u16,
@@ -411,7 +411,7 @@ impl CoreReq {
 
 bitflags! {
     struct PrivCtrl : Reg {
-        /// If enabled, the TCU reports PMP failures as core requests
+        /// If enabled, the TCU reports PMP failures as CU requests
         const PMP_FAILURES = 0x1;
     }
 }
@@ -843,23 +843,23 @@ impl TCU {
         Self::write_priv_reg(PrivReg::ClearIRQ, irq.into());
     }
 
-    /// Returns the current core request
-    pub fn get_core_req() -> Option<CoreReq> {
-        let req = Self::read_priv_reg(PrivReg::CoreReq);
+    /// Returns the current CU request
+    pub fn get_cu_req() -> Option<CUReq> {
+        let req = Self::read_priv_reg(PrivReg::CUReq);
         match req & 0x7 {
-            0x2 => Some(CoreReq::new_foreign_receive(req)),
-            0x3 => Some(CoreReq::new_pmp_failure(req)),
+            0x2 => Some(CUReq::new_foreign_receive(req)),
+            0x3 => Some(CUReq::new_pmp_failure(req)),
             _ => None,
         }
     }
 
-    /// Provides the TCU with the response to a core request
-    pub fn set_core_resp() {
-        Self::write_priv_reg(PrivReg::CoreReq, 0x1)
+    /// Provides the TCU with the response to a CU request
+    pub fn set_cu_resp() {
+        Self::write_priv_reg(PrivReg::CUReq, 0x1)
     }
 
-    /// Enables core requests in case of PMP failures
-    pub fn enable_pmp_corereqs() {
+    /// Enables CU requests in case of PMP failures
+    pub fn enable_pmp_cureqs() {
         Self::write_priv_reg(PrivReg::PrivCtrl, PrivCtrl::PMP_FAILURES.bits());
     }
 

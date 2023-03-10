@@ -42,7 +42,7 @@ pub trait ISRArch {
 
     fn reg_tm_calls(handler: crate::IsrFunc);
     fn reg_page_faults(handle: crate::IsrFunc);
-    fn reg_core_reqs(handler: crate::IsrFunc);
+    fn reg_cu_reqs(handler: crate::IsrFunc);
     fn reg_illegal_instr(handler: crate::IsrFunc);
     fn reg_timer(handler: crate::IsrFunc);
     fn reg_external(handler: crate::IsrFunc);

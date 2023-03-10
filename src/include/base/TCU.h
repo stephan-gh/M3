@@ -213,7 +213,7 @@ private:
     };
 
     enum class PrivRegs {
-        CORE_REQ = 0,
+        CU_REQ = 0,
         PRIV_CMD = 1,
         PRIV_CMD_ARG = 2,
         CUR_ACT = 3,
@@ -274,7 +274,7 @@ private:
 
 public:
     enum class IRQ {
-        CORE_REQ = 0,
+        CU_REQ = 0,
         TIMER = 1,
     };
 

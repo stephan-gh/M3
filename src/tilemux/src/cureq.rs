@@ -21,13 +21,13 @@ use base::tcu;
 
 use crate::activities;
 
-pub fn handle_recv(req: tcu::CoreReq) {
+pub fn handle(req: tcu::CUReq) {
     match req {
-        tcu::CoreReq::ForeignReceive { act, ep } => handle_foreign_recv(act, ep),
-        tcu::CoreReq::PMPFailure { phys, write, error } => handle_pmp_failure(phys, write, error),
+        tcu::CUReq::ForeignReceive { act, ep } => handle_foreign_recv(act, ep),
+        tcu::CUReq::PMPFailure { phys, write, error } => handle_pmp_failure(phys, write, error),
     }
 
-    tcu::TCU::set_core_resp();
+    tcu::TCU::set_cu_resp();
 }
 
 fn handle_foreign_recv(act: u16, ep: tcu::EpId) {

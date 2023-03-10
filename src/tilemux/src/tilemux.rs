@@ -20,7 +20,7 @@ extern crate heap;
 
 mod activities;
 mod arch;
-mod corereq;
+mod cureq;
 mod helper;
 mod irqs;
 mod quota;
@@ -167,10 +167,10 @@ pub extern "C" fn ext_irq(state: &mut arch::State) -> *mut libc::c_void {
             timer::trigger();
         },
 
-        isr::IRQSource::TCU(tcu::IRQ::CoreReq) => {
-            if let Some(r) = tcu::TCU::get_core_req() {
-                log!(LogFlags::MuxCoreReqs, "Got {:x?}", r);
-                corereq::handle_recv(r);
+        isr::IRQSource::TCU(tcu::IRQ::CUReq) => {
+            if let Some(r) = tcu::TCU::get_cu_req() {
+                log!(LogFlags::MuxCUReqs, "Got {:x?}", r);
+                cureq::handle(r);
             }
         },
 
@@ -223,7 +223,7 @@ pub extern "C" fn init() -> usize {
     ISR::reg_page_faults(mmu_pf);
     #[cfg(any(target_arch = "riscv64", target_arch = "x86_64"))]
     ISR::reg_illegal_instr(fpu_ex);
-    ISR::reg_core_reqs(ext_irq);
+    ISR::reg_cu_reqs(ext_irq);
     ISR::reg_timer(ext_irq);
     ISR::reg_external(ext_irq);
 
@@ -231,11 +231,11 @@ pub extern "C" fn init() -> usize {
         // Now that we're running with virtual memory enabled and can handle interrupts, we want to
         // know about PMP failures. Without virtual memory, the core might send speculative memory
         // accesses to physical memory and PMP is the first layer that can check their validity.
-        // Therefore, PMP shouldn't report failures due to speculative accesses via core requests.
+        // Therefore, PMP shouldn't report failures due to speculative accesses via CU requests.
         // With virtual memory, the core checks the validity of the accesses via paging and of
         // course still knows that these are speculative and can thus simply be ignored. The TCU
         // performing PMP however does not have this information.
-        tcu::TCU::enable_pmp_corereqs();
+        tcu::TCU::enable_pmp_cureqs();
     }
 
     // store platform already in app env, because we need it for logging

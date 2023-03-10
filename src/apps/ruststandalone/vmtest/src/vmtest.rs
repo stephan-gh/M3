@@ -43,7 +43,7 @@ static OWN_TILE: TileId = TileId::new(0, 0);
 static MEM_TILE: TileId = TileId::new(0, 8);
 
 static OWN_ACT: u16 = 0xFFFF;
-static CORE_REQS: StaticCell<u64> = StaticCell::new(0);
+static CU_REQS: StaticCell<u64> = StaticCell::new(0);
 
 static MEP: EpId = tcu::FIRST_USER_EP;
 static SEP: EpId = tcu::FIRST_USER_EP + 1;
@@ -286,29 +286,29 @@ fn test_msgs(area_begin: VirtAddr, _area_size: usize) {
     }
 }
 
-static EXPECTED_CORE_REQ: StaticCell<Option<tcu::CoreReq>> = StaticCell::new(None);
+static EXPECTED_CU_REQ: StaticCell<Option<tcu::CUReq>> = StaticCell::new(None);
 
 pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
     log!(LogFlags::Info, "Got TCU IRQ @ {}", state.instr_pointer());
 
     ISR::fetch_irq();
 
-    // core request from TCU?
-    let req = tcu::TCU::get_core_req();
+    // CU request from TCU?
+    let req = tcu::TCU::get_cu_req();
     log!(LogFlags::Info, "Got {:x?}", req);
-    assert_eq!(req, EXPECTED_CORE_REQ.get());
+    assert_eq!(req, EXPECTED_CU_REQ.get());
 
     if req.is_some() {
-        CORE_REQS.set(CORE_REQS.get() + 1);
+        CU_REQS.set(CU_REQS.get() + 1);
     }
 
-    tcu::TCU::set_core_resp();
+    tcu::TCU::set_cu_resp();
 
     state as *mut _ as *mut libc::c_void
 }
 
 fn test_foreign_msg() {
-    CORE_REQS.set(0);
+    CU_REQS.set(0);
 
     let (rbuf1_virt, rbuf1_phys) = helper::virt_to_phys(VirtAddr::from(RBUF1.as_ptr()));
 
@@ -322,21 +322,21 @@ fn test_foreign_msg() {
         TCU::config_send(regs, OWN_ACT, 0x5678, OWN_TILE, REP1, 6, 1);
     });
 
-    EXPECTED_CORE_REQ.set(Some(tcu::CoreReq::ForeignReceive {
+    EXPECTED_CU_REQ.set(Some(tcu::CUReq::ForeignReceive {
         act: 0xDEAD,
         ep: REP1,
     }));
-    // ensure that EXPECTED_CORE_REQ is set first
+    // ensure that EXPECTED_CU_REQ is set first
     atomic::fence(atomic::Ordering::SeqCst);
 
     // send message
     let buf = MsgBuf::new();
     assert_eq!(TCU::send(SEP, &buf, 0x1111, tcu::NO_REPLIES), Ok(()));
 
-    // wait for core request
-    while unsafe { ptr::read_volatile(CORE_REQS.as_ptr()) } == 0 {}
-    assert_eq!(CORE_REQS.get(), 1);
-    EXPECTED_CORE_REQ.set(None);
+    // wait for CU request
+    while unsafe { ptr::read_volatile(CU_REQS.as_ptr()) } == 0 {}
+    assert_eq!(CU_REQS.get(), 1);
+    EXPECTED_CU_REQ.set(None);
 
     // switch to foreign activity (we have received a message)
     let old = TCU::xchg_activity((1 << 16) | 0xDEAD).unwrap();
@@ -358,7 +358,7 @@ fn test_foreign_msg() {
 }
 
 fn test_own_msg() {
-    CORE_REQS.set(0);
+    CU_REQS.set(0);
 
     let (rbuf1_virt, rbuf1_phys) = helper::virt_to_phys(VirtAddr::from(RBUF1.as_ptr()));
 
@@ -391,12 +391,12 @@ fn test_own_msg() {
     assert_eq!(TCU::get_cur_activity(), OWN_ACT as u64);
     tcu::TCU::ack_msg(REP1, tcu::TCU::msg_to_offset(rbuf1_virt, msg)).unwrap();
 
-    // no foreign message core requests here
-    assert_eq!(CORE_REQS.get(), 0);
+    // no foreign message CU requests here
+    assert_eq!(CU_REQS.get(), 0);
 }
 
 fn test_pmp_failures() {
-    CORE_REQS.set(0);
+    CU_REQS.set(0);
 
     // flush the cache to be sure that the reads cause cache misses
     unsafe { machine::flush_cache() };
@@ -406,22 +406,22 @@ fn test_pmp_failures() {
         let virt = VirtAddr::from(0x3000_0000);
         paging::map_global(virt, GlobAddr::new(0), cfg::PAGE_SIZE, PageFlags::RW);
 
-        EXPECTED_CORE_REQ.set(Some(tcu::CoreReq::PMPFailure {
+        EXPECTED_CU_REQ.set(Some(tcu::CUReq::PMPFailure {
             phys: 0,
             write: false,
             error: Code::NoPMPEP,
         }));
-        // ensure that EXPECTED_CORE_REQ is set first
+        // ensure that EXPECTED_CU_REQ is set first
         atomic::fence(atomic::Ordering::SeqCst);
 
         let addr = virt.as_mut_ptr::<u8>();
         let _val = unsafe { ptr::read_volatile(addr) };
 
         // use read_volatile to ensure that we actually perform memory accesses (not register loads)
-        while unsafe { ptr::read_volatile(CORE_REQS.as_ptr()) } != 1 {}
-        assert_eq!(CORE_REQS.get(), 1);
+        while unsafe { ptr::read_volatile(CU_REQS.as_ptr()) } != 1 {}
+        assert_eq!(CU_REQS.get(), 1);
 
-        EXPECTED_CORE_REQ.set(None);
+        EXPECTED_CU_REQ.set(None);
         paging::unmap(virt, cfg::PAGE_SIZE);
     }
 
@@ -450,7 +450,7 @@ fn test_pmp_failures() {
             TCU::config_mem(regs, OWN_ACT, MEM_TILE, base_off, cfg::PAGE_SIZE, Perm::R);
         });
 
-        EXPECTED_CORE_REQ.set(Some(tcu::CoreReq::PMPFailure {
+        EXPECTED_CU_REQ.set(Some(tcu::CUReq::PMPFailure {
             phys: global.to_phys(PageFlags::R).unwrap().as_raw() + cfg::PAGE_SIZE as u32,
             write: false,
             error: Code::OutOfBounds,
@@ -458,10 +458,10 @@ fn test_pmp_failures() {
         atomic::fence(atomic::Ordering::SeqCst);
         let _val = unsafe { ptr::read_volatile(addr.add(cfg::PAGE_SIZE)) };
 
-        while unsafe { ptr::read_volatile(CORE_REQS.as_ptr()) } != 2 {}
-        assert_eq!(CORE_REQS.get(), 2);
+        while unsafe { ptr::read_volatile(CU_REQS.as_ptr()) } != 2 {}
+        assert_eq!(CU_REQS.get(), 2);
 
-        EXPECTED_CORE_REQ.set(Some(tcu::CoreReq::PMPFailure {
+        EXPECTED_CU_REQ.set(Some(tcu::CUReq::PMPFailure {
             phys: global.to_phys(PageFlags::R).unwrap().as_raw(),
             write: true,
             error: Code::NoPerm,
@@ -471,9 +471,9 @@ fn test_pmp_failures() {
         // flush the cache to trigger a LLC miss
         unsafe { machine::flush_cache() };
 
-        while unsafe { ptr::read_volatile(CORE_REQS.as_ptr()) } != 3 {}
-        assert_eq!(CORE_REQS.get(), 3);
-        EXPECTED_CORE_REQ.set(None);
+        while unsafe { ptr::read_volatile(CU_REQS.as_ptr()) } != 3 {}
+        assert_eq!(CU_REQS.get(), 3);
+        EXPECTED_CU_REQ.set(None);
 
         paging::unmap(virt, size * 2);
     }
@@ -598,7 +598,7 @@ macro_rules! run_test {
 #[no_mangle]
 pub extern "C" fn env_run() {
     ISR::reg_page_faults(mmu_pf);
-    ISR::reg_core_reqs(tcu_irq);
+    ISR::reg_cu_reqs(tcu_irq);
 
     helper::init("vmtest");
 

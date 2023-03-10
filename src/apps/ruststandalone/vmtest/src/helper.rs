@@ -117,7 +117,7 @@ pub fn init(name: &str) {
 
     if TileDesc::new_from(env::boot().tile_desc).has_virtmem() {
         // now that we're running with virtual memory enabled and can handle interrupts, we want to know about PMP failures
-        TCU::enable_pmp_corereqs();
+        TCU::enable_pmp_cureqs();
     }
 }
 

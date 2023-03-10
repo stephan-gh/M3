@@ -495,7 +495,7 @@ impl crate::ISRArch for X86ISR {
         crate::reg(14, handler);
     }
 
-    fn reg_core_reqs(handler: crate::IsrFunc) {
+    fn reg_cu_reqs(handler: crate::IsrFunc) {
         crate::reg(TCU_ISR, handler);
     }
 

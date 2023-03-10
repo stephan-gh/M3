@@ -234,7 +234,7 @@ impl crate::ISRArch for RISCVISR {
         crate::reg(Vector::StorePagefault.into(), handler);
     }
 
-    fn reg_core_reqs(handler: crate::IsrFunc) {
+    fn reg_cu_reqs(handler: crate::IsrFunc) {
         Self::reg_external(handler);
     }
 
@@ -290,7 +290,7 @@ impl crate::ISRArch for RISCVISR {
         plic::ack(irq);
 
         match irq {
-            plic::TCU_ID => IRQSource::TCU(tcu::IRQ::CoreReq),
+            plic::TCU_ID => IRQSource::TCU(tcu::IRQ::CUReq),
             plic::TIMER_ID => IRQSource::TCU(tcu::IRQ::Timer),
             n => IRQSource::Ext(n),
         }
