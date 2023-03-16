@@ -239,7 +239,7 @@ class Env:
 
 class Rule:
     def __init__(self, cmd, desc, deps = '', depfile = '', generator = '', pool = '', restat = False):
-        assert(cmd != '' and desc != '');
+        assert cmd != '' and desc != ''
         self.cmd = cmd
         self.desc = desc
         self.deps = deps
@@ -333,11 +333,11 @@ class Generator:
         ))
 
     def add_var(self, name, value):
-        assert(name not in self.vars)
+        assert name not in self.vars
         self.vars[name] = value
 
     def add_rule(self, name, rule):
-        assert(name not in self.rules)
+        assert name not in self.rules
         self.rules[name] = rule
 
     def add_build(self, edge):
@@ -397,7 +397,7 @@ class Generator:
             c = 0
             for b in self.build_edges:
                 if b.rule == 'cxx' or b.rule == 'cc':
-                    assert(len(b.ins) == 1)
+                    assert len(b.ins) == 1
                     if c > 0:
                         cmds.write(',\n')
                     cmds.write('  {\n')
