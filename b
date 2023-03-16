@@ -44,7 +44,8 @@ elif [ "$M3_ISA" = "riscv" ]; then
 else
     crossprefix="$crossdir/x86_64-elf-m3-"
 fi
-export PATH=$crossdir:$PATH
+PATH=$(readlink -f "$crossdir"):$PATH
+export PATH
 if [ "$M3_TARGET" = "gem5" ] && [ "$M3_ISA" = "arm" ]; then
     rustabi='musleabi'
 elif [ "$M3_BUILD" = "coverage" ]; then
