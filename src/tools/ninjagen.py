@@ -233,18 +233,20 @@ class Env:
         gen.add_build(edge)
         return lib
 
-    def cargo(self, gen, out, cmd = 'build', deps = []):
+    def cargo(self, gen, out, cmd = 'build', env_vars = {}):
         bin = BuildPath(self['RUSTBINS'] + '/' + out)
-        deps += glob(self.cwd.path + '/**/*.rs', recursive=True)
-        deps += [SourcePath.new(self, 'Cargo.toml')]
+        env = ''
+        for key, value in env_vars.items():
+            env += ' ' + key + '="' + value + '"'
         edge = BuildEdge(
             'cargo',
             outs = [bin],
             ins = [],
-            deps = deps,
+            deps = [],
             vars = {
                 'dir' : self.cwd.path,
                 'cargoflags' : cmd + ' ' + ' '.join(self['CRGFLAGS']),
+                'env' : env,
             }
         )
         gen.add_build(edge)
@@ -283,6 +285,9 @@ class BuildEdge:
         self.ins = ins
         # copy the dependencies, because we want to alter them for this specific BuildEdge later
         self.deps = deps.copy()
+        # without inputs and dependencies, we always want to rebuild it
+        if self.rule != 'phony' and len(self.ins) == 0 and len(self.deps) == 0:
+            self.deps = ['always']
         self.pre_deps = pre_deps
         self.lib_path = lib_path
         self.vars = vars
@@ -343,6 +348,13 @@ class Generator:
         self.add_rule('strip', Rule(
             cmd = '$strip -o $out $in',
             desc = 'STRIP $out'
+        ))
+
+        self.add_build(BuildEdge(
+            'phony',
+            outs = ['always'],
+            ins = [],
+            deps = []
         ))
 
     def add_var(self, name, value):
