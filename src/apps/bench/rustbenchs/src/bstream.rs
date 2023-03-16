@@ -39,7 +39,7 @@ fn pingpong_1u64(t: &mut dyn WvTester) {
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
-    let mut prof = Profiler::default();
+    let prof = Profiler::default();
 
     wv_perf!(
         "pingpong with (1 * u64) msgs",
@@ -62,7 +62,7 @@ fn pingpong_2u64(t: &mut dyn WvTester) {
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
-    let mut prof = Profiler::default();
+    let prof = Profiler::default();
 
     wv_perf!(
         "pingpong with (2 * u64) msgs",
@@ -87,7 +87,7 @@ fn pingpong_4u64(t: &mut dyn WvTester) {
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
-    let mut prof = Profiler::default();
+    let prof = Profiler::default();
 
     wv_perf!(
         "pingpong with (4 * u64) msgs",
@@ -116,7 +116,7 @@ fn pingpong_str(t: &mut dyn WvTester) {
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
-    let mut prof = Profiler::default().warmup(50);
+    let prof = Profiler::default().warmup(50);
 
     wv_perf!(
         "pingpong with (String) msgs",
@@ -139,7 +139,7 @@ fn pingpong_strslice(t: &mut dyn WvTester) {
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
-    let mut prof = Profiler::default();
+    let prof = Profiler::default();
 
     wv_perf!(
         "pingpong with (&str) msgs",

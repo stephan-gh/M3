@@ -119,7 +119,7 @@ fn client(args: &[&str]) {
     let reply_gate = create_reply_gate(ctrl_msg_size).expect("Unable to create reply RecvGate");
     let sgate = SendGate::new_named("req").expect("Unable to create named SendGate req");
 
-    let mut prof = Profiler::default().warmup(1).repeats(runs - 1);
+    let prof = Profiler::default().warmup(1).repeats(runs - 1);
     let res = prof.run::<CycleInstant, _>(|| {
         let start = CycleInstant::now();
 

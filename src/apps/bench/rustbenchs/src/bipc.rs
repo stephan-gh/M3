@@ -76,7 +76,7 @@ fn pingpong_with_tile(t: &mut dyn WvTester, name: &str, tile: Rc<Tile>) {
         Ok(())
     }));
 
-    let mut prof = Profiler::default().repeats(RUNS).warmup(WARMUP);
+    let prof = Profiler::default().repeats(RUNS).warmup(WARMUP);
 
     let reply_gate = RecvGate::def();
     wv_perf!(
@@ -139,7 +139,7 @@ fn pingpong_with_multiple(t: &mut dyn WvTester) {
     let act1 = wv_assert_ok!(act1.run(func));
     let act2 = wv_assert_ok!(act2.run(func));
 
-    let mut prof = Profiler::default().repeats(RUNS).warmup(WARMUP);
+    let prof = Profiler::default().repeats(RUNS).warmup(WARMUP);
 
     let mut count = 0;
     let reply_gate = RecvGate::def();

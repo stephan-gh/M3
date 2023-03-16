@@ -69,7 +69,7 @@ pub fn main() -> Result<(), Error> {
     let reply_gate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
 
     for i in 0..=MSG_ORD {
-        let mut prof = Profiler::default().repeats(RUNS).warmup(WARMUP);
+        let prof = Profiler::default().repeats(RUNS).warmup(WARMUP);
 
         let size = (1 << i).min(MAX_MSG_SIZE);
 
