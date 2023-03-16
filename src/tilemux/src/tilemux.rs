@@ -72,7 +72,7 @@ pub const LOG_SQUEUE: bool = false;
 pub const LOG_QUOTAS: bool = false;
 
 extern "C" {
-    fn __m3_init_libc(argc: i32, argv: *const *const u8, envp: *const *const u8);
+    fn __m3_init_libc(argc: i32, argv: *const *const u8, envp: *const *const u8, tls: bool);
     fn __m3_heap_set_area(begin: usize, end: usize);
 }
 
@@ -219,7 +219,7 @@ pub extern "C" fn init() -> usize {
     }
 
     unsafe {
-        __m3_init_libc(0, ptr::null(), ptr::null());
+        __m3_init_libc(0, ptr::null(), ptr::null(), false);
         __m3_heap_set_area(
             &HEAP.0 as *const u64 as usize,
             &HEAP.0 as *const u64 as usize + HEAP.0.len() * 8,

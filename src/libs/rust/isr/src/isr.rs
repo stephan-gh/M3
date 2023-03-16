@@ -48,6 +48,8 @@ pub trait ISRArch {
 
     fn get_pf_info(state: &Self::State) -> (usize, PageFlags);
 
+    fn init_tls(addr: usize);
+
     fn enable_irqs();
     fn fetch_irq() -> IRQSource;
     fn register_ext_irq(irq: u32);

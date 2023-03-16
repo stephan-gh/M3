@@ -43,8 +43,10 @@ int_enum! {
         const TRANSL_FAULT  = 0x5;
         /// Flush and invalidate cache
         const FLUSH_INV     = 0x6;
+        /// Initializes thread-local storage (x86 only)
+        const INIT_TLS      = 0x7;
         /// Noop operation for testing purposes
-        const NOOP          = 0x7;
+        const NOOP          = 0x8;
     }
 }
 

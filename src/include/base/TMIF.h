@@ -35,6 +35,7 @@ enum Operation : word_t {
     REG_IRQ,
     TRANSL_FAULT,
     FLUSH_INV,
+    INIT_TLS,
     NOOP,
 };
 
@@ -71,6 +72,10 @@ struct TMIF {
 
     static Errors::Code flush_invalidate() {
         return TMABI::call2(Operation::FLUSH_INV, 0, 0);
+    }
+
+    static Errors::Code init_tls(uintptr_t virt) {
+        return TMABI::call2(Operation::INIT_TLS, virt, 0);
     }
 };
 

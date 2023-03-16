@@ -53,3 +53,7 @@ BEGIN_FUNC(_start)
     // just to be sure
 1:  b       1b
 END_FUNC(_start)
+
+BEGIN_FUNC(_init)
+    mov     pc, lr
+END_FUNC(_init)

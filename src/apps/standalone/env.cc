@@ -20,7 +20,7 @@ using namespace m3;
 extern "C" int main(int argc, char **argv);
 
 extern "C" void env_run() {
-    const auto [argc, argv] = init();
+    const auto [argc, argv] = init(false);
     Serial::init("standalone", TileId::from_raw(bootenv()->tile_id));
 
     int res = main(argc, argv);

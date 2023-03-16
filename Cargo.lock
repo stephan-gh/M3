@@ -512,17 +512,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tilemux"
-version = "0.1.0"
-dependencies = [
- "base",
- "heap",
- "isr",
- "num-traits",
- "paging",
-]
-
-[[package]]
 name = "unicode-ident"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"

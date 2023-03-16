@@ -193,6 +193,10 @@ impl crate::ISRArch for ARMISR {
         (virt, perm)
     }
 
+    fn init_tls(_addr: usize) {
+        // unused
+    }
+
     fn enable_irqs() {
         unsafe { asm!("msr cpsr, 0x53") };
     }

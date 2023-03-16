@@ -48,7 +48,7 @@ use crate::tiles::{tilemng, ActivityMng};
 extern "C" {
     static _bss_end: u8;
 
-    fn __m3_init_libc(argc: i32, argv: *const *const u8, envp: *const *const u8);
+    fn __m3_init_libc(argc: i32, argv: *const *const u8, envp: *const *const u8, tls: bool);
     fn __m3_heap_get_end() -> usize;
     fn __m3_heap_set_area(begin: usize, end: usize);
     fn __m3_heap_append(pages: usize);
@@ -149,7 +149,7 @@ fn extend_heap() {
 
 #[no_mangle]
 pub extern "C" fn env_run() {
-    unsafe { __m3_init_libc(0, ptr::null(), ptr::null()) };
+    unsafe { __m3_init_libc(0, ptr::null(), ptr::null(), false) };
     io::init(
         tcu::TileId::new_from_raw(env::boot().tile_id as u16),
         "kernel",

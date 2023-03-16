@@ -38,7 +38,6 @@ members = [
     "src/libs/rust/pci",
     "src/libs/rust/resmng",
     "src/libs/rust/thread",
-    "src/tilemux",
     "src/server/crypto/hashmux",
     "src/server/disk",
     "src/server/m3fs",
@@ -47,6 +46,9 @@ members = [
     "src/server/pipes",
     "src/server/root",
     "src/server/vterm",
+]
+exclude = [
+    "src/tilemux"
 ]
 
 [profile.release]

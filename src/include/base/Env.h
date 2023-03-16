@@ -107,7 +107,7 @@ static inline BootEnv *bootenv() {
     return reinterpret_cast<BootEnv *>(ENV_START);
 }
 
-extern std::pair<int, char **> init();
+extern std::pair<int, char **> init(bool tls = true);
 extern void deinit();
 NORETURN extern void __exit(int code);
 

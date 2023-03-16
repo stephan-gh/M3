@@ -22,6 +22,11 @@ use base::{int_enum, log, read_csr, write_csr};
 
 use crate::activities;
 
+extern "C" {
+    fn save_fpu(state: &mut FPUState);
+    fn restore_fpu(state: &FPUState);
+}
+
 pub type State = isr::State;
 
 #[repr(C, align(8))]
@@ -52,41 +57,6 @@ int_enum! {
 }
 
 static FPU_OWNER: StaticCell<activities::Id> = StaticCell::new(tilemux::ACT_ID);
-
-macro_rules! ldst_fpu_regs {
-    ($ins:tt, $base:expr, $($no:tt)*) => {
-        let base = $base;
-        $(
-            core::arch::asm!(
-                concat!($ins, " f", $no, ", 8*", $no, "({0})"),
-                in(reg) base,
-                options(nostack, nomem)
-            );
-        )*
-    };
-}
-
-fn save_fpu(state: &mut FPUState) {
-    unsafe {
-        ldst_fpu_regs!(
-            "fsd",
-            state as *mut _ as usize,
-            0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
-        );
-    }
-    state.fcsr = read_csr!("fcsr");
-}
-
-fn restore_fpu(state: &FPUState) {
-    unsafe {
-        ldst_fpu_regs!(
-            "fld",
-            state as *const _ as usize,
-            0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
-        );
-    }
-    write_csr!("fcsr", state.fcsr);
-}
 
 fn get_fpu_mode(status: usize) -> FSMode {
     FSMode::from((status >> 13) & 0x3)
@@ -145,13 +115,13 @@ pub fn handle_fpu_ex(state: &mut State) {
         // need to save old state?
         if old_id != tilemux::ACT_ID {
             let mut old_act = activities::get_mut(old_id).unwrap();
-            save_fpu(old_act.fpu_state());
+            unsafe { save_fpu(old_act.fpu_state()) };
         }
 
         // restore new state
         let fpu_state = cur.fpu_state();
         if fpu_state.init {
-            restore_fpu(fpu_state);
+            unsafe { restore_fpu(fpu_state) };
         }
         else {
             unsafe { libc::memset(fpu_state as *mut _ as *mut libc::c_void, 0, 8 * 33) };

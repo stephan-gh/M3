@@ -50,7 +50,8 @@ NOINLINE static void activate() {
 }
 
 NOINLINE static void create_mgate() {
-    static uintptr_t addr = Math::round_dn(reinterpret_cast<uintptr_t>(&create_mgate), PAGE_SIZE);
+    static uintptr_t addr = Math::round_dn(reinterpret_cast<uintptr_t>(&create_mgate),
+                                           static_cast<uintptr_t>(PAGE_SIZE));
 
     struct SyscallMGateRunner : public Runner {
         void run() override {

@@ -36,13 +36,13 @@ export M3_BUILD M3_TARGET M3_ISA M3_OUT
 
 # determine cross compiler and rust ABI based on target and ISA
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$build/bin"
-crossdir="./build/cross-$M3_ISA/bin"
+crossdir="./build/cross-$M3_ISA/host/bin"
 if [ "$M3_ISA" = "arm" ]; then
-    crossprefix="$crossdir/arm-none-eabi-"
+    crossprefix="$crossdir/arm-buildroot-linux-musleabi-"
 elif [ "$M3_ISA" = "riscv" ]; then
-    crossprefix="$crossdir/riscv64-unknown-elf-"
+    crossprefix="$crossdir/riscv64-buildroot-linux-musl-"
 else
-    crossprefix="$crossdir/x86_64-elf-m3-"
+    crossprefix="$crossdir/x86_64-buildroot-linux-musl-"
 fi
 PATH=$(readlink -f "$crossdir"):$PATH
 export PATH
@@ -67,19 +67,6 @@ export RUST_TARGET_PATH=$rusttoolchain
 export CARGO_TARGET_DIR=$rustbuild
 export XBUILD_SYSROOT_PATH=$CARGO_TARGET_DIR/sysroot
 rust_args=(--target "$RUST_TARGET" -Z "build-std=core,alloc,std,panic_abort")
-# configure TARGET_CFLAGS for llvmprofile within minicov
-case "$M3_ISA" in
-    x86_64) export TARGET_CFLAGS="-msoft-float -mno-sse" ;;
-    riscv)  export TARGET_CFLAGS="-march=rv64imafdc -mabi=lp64" ;;
-    arm)    export TARGET_CFLAGS="-march=armv7-a -fshort-enums" ;;
-esac
-# add C include paths as well; otherwise the include paths for the clang host compiler will be used
-for p in "src/libs/musl/arch/$rustisa" \
-         "src/libs/musl/arch/generic" \
-         "src/libs/musl/m3/include/$M3_ISA" \
-         "src/libs/musl/include"; do
-    TARGET_CFLAGS="$TARGET_CFLAGS -I$p"
-done
 
 build=build/$M3_TARGET-$M3_ISA-$M3_BUILD
 bindir=$build/bin/

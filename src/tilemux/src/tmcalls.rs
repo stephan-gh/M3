@@ -22,6 +22,8 @@ use base::tcu::{EpId, INVALID_EP, IRQ};
 use base::time::TimeDuration;
 use base::tmif;
 
+use isr::{ISRArch, ISR};
+
 use crate::activities;
 use crate::irqs;
 use crate::timer;
@@ -139,6 +141,20 @@ fn tmcall_transl_fault(state: &mut arch::State) -> Result<(), Error> {
     Ok(())
 }
 
+fn tmcall_init_tls(state: &mut arch::State) -> Result<(), Error> {
+    let virt = state.r[isr::TMC_ARG1];
+
+    log!(
+        crate::LOG_CALLS,
+        "tmcall::tmcall_init_tls(virt={:#x})",
+        virt
+    );
+
+    ISR::init_tls(virt);
+
+    Ok(())
+}
+
 fn tmcall_flush_inv(_state: &mut arch::State) -> Result<(), Error> {
     log!(crate::LOG_CALLS, "tmcall::flush_inv()");
 
@@ -163,6 +179,7 @@ pub fn handle_call(state: &mut arch::State) {
         tmif::Operation::MAP => tmcall_map(state),
         tmif::Operation::REG_IRQ => tmcall_reg_irq(state),
         tmif::Operation::TRANSL_FAULT => tmcall_transl_fault(state),
+        tmif::Operation::INIT_TLS => tmcall_init_tls(state),
         tmif::Operation::FLUSH_INV => tmcall_flush_inv(state),
         tmif::Operation::NOOP => tmcall_noop(state),
 

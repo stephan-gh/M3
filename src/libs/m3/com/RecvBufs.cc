@@ -35,7 +35,7 @@ RecvBuf *RecvBufs::alloc(size_t size) {
     std::unique_ptr<MemGate> mgate;
     if(vm) {
         // allocate memory
-        size_t aligned_size = Math::round_up(size, PAGE_SIZE);
+        size_t aligned_size = Math::round_up(size, static_cast<size_t>(PAGE_SIZE));
         mgate.reset(new MemGate(MemGate::create_global(aligned_size, MemGate::R)));
 
         // map receive buffer

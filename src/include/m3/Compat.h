@@ -15,10 +15,19 @@
 
 #pragma once
 
+// "restrict" is a keyword in C, but not in C++. Thus, redefine it during the inclusion of headers.
+// The problem occurs here, because we use the C++ compiler for some files in musl and have internal
+// C headers of musl in the include path.
+#ifdef __cplusplus
+#    define restrict __restrict
+#endif
+
 #include <base/Common.h>
 
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/File.h>
+
+#undef restrict
 
 EXTERN_C NORETURN void __m3c_exit(m3::Errors::Code status, bool abort);
 EXTERN_C int __m3c_getpid();

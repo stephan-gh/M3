@@ -30,7 +30,7 @@ typedef void (*constr_func)();
 extern constr_func CTORS_BEGIN;
 extern constr_func CTORS_END;
 
-EXTERN_C void __m3_init_libc(int argc, char **argv, char **envp);
+EXTERN_C void __m3_init_libc(int argc, char **argv, char **envp, int tls);
 EXTERN_C void __m3_set_args(char **argv, char **envp);
 EXTERN_C void __cxa_finalize(void *);
 EXTERN_C void _init();
@@ -45,7 +45,7 @@ static char **rewrite_args(uint64_t *args, int count) {
     return nargs;
 }
 
-std::pair<int, char **> init() {
+std::pair<int, char **> init(bool tls) {
     BootEnv *e = bootenv();
 
     int argc = static_cast<int>(e->argc);
@@ -53,7 +53,7 @@ std::pair<int, char **> init() {
     char **envp = reinterpret_cast<char **>(e->envp);
     if(sizeof(char *) != sizeof(uint64_t)) {
         // ensure that the libc is initialized before the first malloc
-        __m3_init_libc(0, nullptr, nullptr);
+        __m3_init_libc(0, nullptr, nullptr, tls);
         uint64_t *envp64 = reinterpret_cast<uint64_t *>(e->envp);
         int envcnt = 0;
         for(; envp64 && *envp64; envcnt++)
@@ -63,7 +63,7 @@ std::pair<int, char **> init() {
         __m3_set_args(argv, envp);
     }
     else
-        __m3_init_libc(argc, argv, envp);
+        __m3_init_libc(argc, argv, envp, tls);
 
     // call constructors
     _init();

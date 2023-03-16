@@ -16,3 +16,6 @@
 [submodule "src/apps/bsdutils"]
 	path = src/apps/bsdutils
 	url = git@github.com:Barkhausen-Institut/m3-bsdcoreutils.git
+[submodule "cross/buildroot"]
+	path = cross/buildroot
+	url = https://git.buildroot.net/buildroot

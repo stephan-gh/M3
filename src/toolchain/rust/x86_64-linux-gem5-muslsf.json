@@ -27,5 +27,5 @@
   "target-endian": "little",
   "target-family": "unix",
   "target-pointer-width": "64",
-  "features": "+mmx,+sse"
+  "features": "-mmx,-sse,+soft-float"
 }

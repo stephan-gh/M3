@@ -266,6 +266,10 @@ impl crate::ISRArch for RISCVISR {
         (virt, perm)
     }
 
+    fn init_tls(_addr: usize) {
+        // unused
+    }
+
     fn enable_irqs() {
         // set SIE to 1
         set_csr_bits!("sstatus", 1 << 1);

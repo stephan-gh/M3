@@ -57,7 +57,8 @@ int_enum! {
         const KDATA = 2;
         const UCODE = 3;
         const UDATA = 4;
-        const TSS = 5;
+        const UTLS  = 5;
+        const TSS   = 6;
     }
 }
 
@@ -220,6 +221,12 @@ impl Desc {
             ty: (1 << 7) /* present */ | (dpl.val << 5) | ty.val,
         }
     }
+
+    fn set_addr(&mut self, addr: usize) {
+        self.addr_low = addr as u16;
+        self.addr_middle = (addr >> 16) as u8;
+        self.addr_high = ((addr & 0xFF00_0000) >> 16) as u16 | (self.addr_high & 0xFF00);
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -304,6 +311,7 @@ struct GDTInner {
     kdata: Desc,
     ucode: Desc,
     udata: Desc,
+    utls: Desc,
     tss: Desc64,
 }
 
@@ -321,6 +329,7 @@ impl GDT {
                 kdata: Desc::default(),
                 ucode: Desc::default(),
                 udata: Desc::default(),
+                utls: Desc::default(),
                 tss: Desc64::default(),
             },
         }
@@ -396,6 +405,7 @@ impl crate::ISRArch for X86ISR {
             gdt.kdata = Desc::new_flat(Granularity::PAGES, DescType::DATA_RW, DPL::KERNEL);
             gdt.ucode = Desc::new_flat(Granularity::PAGES, DescType::CODE_XR, DPL::USER);
             gdt.udata = Desc::new_flat(Granularity::PAGES, DescType::DATA_RW, DPL::USER);
+            gdt.utls = Desc::new_flat(Granularity::PAGES, DescType::DATA_RW, DPL::USER);
             let tss = TSS.borrow();
             gdt.tss = Desc64::new_tss(
                 tss.deref() as *const _ as *const u8 as usize,
@@ -504,6 +514,18 @@ impl crate::ISRArch for X86ISR {
         let perm = Paging::to_page_flags(0, perm | MMUFlags::NX);
 
         (virt, perm)
+    }
+
+    fn init_tls(addr: usize) {
+        let gdt = &mut GDT.borrow_mut().inner;
+        gdt.utls.set_addr(addr);
+        let fs: u64 = (Segment::UTLS.val << 3) as u64 | DPL::USER.val as u64;
+        unsafe {
+            asm!(
+                "mov fs, {0}",
+                in(reg) fs,
+            );
+        }
     }
 
     fn enable_irqs() {
