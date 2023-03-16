@@ -75,6 +75,7 @@ pub mod tcu;
 pub mod time;
 pub mod tmif;
 
+#[cfg(target_arch = "riscv64")]
 pub use minicov;
 
 pub use serde;
