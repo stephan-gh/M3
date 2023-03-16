@@ -1,6 +1,5 @@
 #!/usr/bin/env -S python3 -B
 
-import copy
 import src.tools.ninjagen as ninjagen
 import os, sys
 from subprocess import check_output
@@ -55,9 +54,7 @@ else:
 
 class M3Env(ninjagen.Env):
     def clone(self):
-        env = M3Env()
-        env.cwd = self.cwd
-        env.vars = copy.deepcopy(self.vars)
+        env = ninjagen.Env.clone(self)
         if hasattr(self, 'hostenv'):
             env.hostenv = self.hostenv
         return env

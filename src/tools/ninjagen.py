@@ -1,3 +1,4 @@
+import copy
 from glob import glob
 import importlib
 import os
@@ -53,6 +54,7 @@ class Location:
 
 class Env:
     def __init__(self):
+        self.id = 1
         self.cwd = Location('.')
 
         self.vars = {}
@@ -80,6 +82,13 @@ class Env:
         self.vars['LIBPATH']    = []
         self.vars['BUILDDIR']   = 'build'
         self.vars['RUSTBINS']   = 'build'
+
+    def clone(self):
+        env = type(self)()
+        env.id = self.id + 1
+        env.cwd = self.cwd
+        env.vars = copy.deepcopy(self.vars)
+        return env
 
     def __getitem__(self, key):
         return self.vars[key]
@@ -163,13 +172,16 @@ class Env:
 
     def objs(self, gen, ins):
         objs = []
+        # add a per-environment suffix to allow users to build the same files in different
+        # environments without interference
+        suffix = '-' + str(self.id) + '.o'
         for i in ins:
             if i.endswith('.S') or i.endswith('.s'):
-                objs.append(self.asm(gen, BuildPath.with_ending(self, i, '.o'), [i]))
+                objs.append(self.asm(gen, BuildPath.with_ending(self, i, suffix), [i]))
             elif i.endswith('.c'):
-                objs.append(self.cc(gen, BuildPath.with_ending(self, i, '.o'), [i]))
+                objs.append(self.cc(gen, BuildPath.with_ending(self, i, suffix), [i]))
             elif i.endswith('.cc') or i.endswith('.cpp'):
-                objs.append(self.cxx(gen, BuildPath.with_ending(self, i, '.o'), [i]))
+                objs.append(self.cxx(gen, BuildPath.with_ending(self, i, suffix), [i]))
             elif i.endswith('.o') or i.endswith('.a'):
                 objs.append(BuildPath.new(self, i))
         return objs
