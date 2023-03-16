@@ -245,6 +245,7 @@ if [ $skipbuild -eq 0 ]; then
             if ssh "$M3_REM_HOST" \
                    'source .profile && ' \
                    'cd '"$M3_REM_DIR"' && ' \
+                   'M3_VERBOSE='"$M3_VERBOSE"' ' \
                    'M3_BUILD='"$M3_BUILD"' M3_TARGET='"$M3_TARGET"' M3_ISA='"$M3_ISA"' ./b'; then
                 # and transfer build files back
                 rsync -az \
