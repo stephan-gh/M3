@@ -753,7 +753,11 @@ impl Activity {
     }
 
     fn can_block(&self, msgs: u16) -> bool {
-        if let Some(wep) = self.wait_ep {
+        // always block activities when they are waiting for a PF response
+        if self.pf_state.is_some() {
+            true
+        }
+        else if let Some(wep) = self.wait_ep {
             !tcu::TCU::has_msgs(wep)
         }
         else {
