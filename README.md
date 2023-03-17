@@ -13,17 +13,21 @@ The new hardware component is called trusted communication unit (TCU). Since not
 Supported Platforms:
 --------------------
 
-Currently, M³ runs on the following platforms:
+Currently, M³ runs on the following target platforms:
 
 - gem5, by adding a TCU model to gem5.
-- hw, a FPGA-based hardware platform.
+- hw or hw22, a FPGA-based hardware platform.
+
+The hardware platform comes in two variants: hw and hw22. The former is the current development version of the hardware platform, whereas the latter corresponds to the silicon version from the year 2022. The target platform is specified with the environment variable `M3_TARGET`. For example:
+
+    $ export M3_TARGET=gem5
 
 Getting Started:
 ----------------
 
 ### 1. Initial setup
 
-If you setup the project on a new (ubuntu) machine make sure to have at least the following packages installed
+If you setup the project on a new (Debian-based) machine make sure to have at least the following packages installed:
 
     $ sudo apt update
     $ sudo apt install git build-essential scons zlib1g-dev \
@@ -44,7 +48,11 @@ The submodule in `platform/gem5` needs to be pulled in and built:
 
 The build directory (`build/RISCV` in the example above) will be created automatically. You can build gem5 for a different ISA by changing the path to `build/X86/gem5.opt` or `build/ARM/gem5.opt`. Note that you can specify the number of threads to use for building in the last command via, for example, `-j8`.
 
-### 3. Preparation for the hardware platform
+### 3. Preparations for the hardware platform
+
+The submodule in `platform/hw` needs to be pulled in:
+
+    $ git submodule update --init platform/hw
 
 The current workflow assumes that the FPGA is connected to a machine `M_fpga` that is reachable via SSH from the machine `M_m3` that hosts M³. A couple of environment variables have to be set before starting with the FPGA:
 
@@ -55,9 +63,11 @@ The current workflow assumes that the FPGA is connected to a machine `M_fpga` th
 
 Note that `M_fpga` and `M_m3` can also be the same, in which case `M3_HW_FPGA_HOST` has to be set to localhost and a local SSH server is required.
 
-The bitfiles for the hardware platform can be found in `platform/hw/fpga_tools/bitfiles`. The bitfiles are built for the Xilinx VCU118 FPGA. The following command can be used to load the latest bitfile onto the FPGA. This requires an installation of Vivado or Vivado Lab:
+The bitfiles for the hardware platform can be found in `platform/hw/fpga_tools/bitfiles`. The bitfiles are built for the Xilinx VCU118 FPGA. The following command can be used to load a specific bitfile onto the FPGA. This requires an installation of Vivado or Vivado Lab:
 
-    $ ./b loadfpga=fpga_top.bit
+    $ ./b loadfpga=fpga_top_v4.5.1.bit
+
+With `M3_TARGET=hw22`, the bitfile `fpga_top_v4.4.12` needs to be used.
 
 Note that the source of the hardware platform is [openly available](https://github.com/Barkhausen-Institut/M3-hardware) as well.
 
