@@ -142,6 +142,7 @@ help() {
     echo "                             by default)."
     echo "    M3_HDD:                  The hard drive image to use (filename only)."
     echo "    M3_OUT:                  The output directory ('run' by default)."
+    echo "    M3_GEM5_CFG:             The gem5 configuration (config/default.py by default)."
     echo "    M3_GEM5_DBG:             The trace-flags for gem5 (--debug-flags)."
     echo "    M3_GEM5_DBGSTART:        When to start tracing for gem5 (--debug-start)."
     echo "    M3_GEM5_CPU:             The CPU model (detailed by default)."
