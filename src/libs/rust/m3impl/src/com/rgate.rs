@@ -290,7 +290,7 @@ impl RecvGate {
     }
 
     /// Tries to fetch a message from the receive gate. If there is an unread message, it returns
-    /// a reference to the message. Otherwise it returns None.
+    /// a reference to the message. Otherwise it returns an error with Code::NotFound.
     #[inline(always)]
     pub fn fetch(&self) -> Result<&'static tcu::Message, Error> {
         tcu::TCU::fetch_msg(self.ensure_activated()?)
