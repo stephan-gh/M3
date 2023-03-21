@@ -195,7 +195,7 @@ done
 mkdir -p "$build" "$M3_OUT"
 
 ninjaargs=()
-if [ "$M3_VERBOSE" != "" ]; then
+if [ "$M3_VERBOSE" = "1" ]; then
     ninjaargs=("${ninjaargs[@]}" -v)
 fi
 

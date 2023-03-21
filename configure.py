@@ -198,7 +198,7 @@ env['CPPPATH']  += ['src/include']
 env['CFLAGS']   += ['-std=c99', '-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
 env['CXXFLAGS'] += ['-std=c++20', '-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
 env['CRGFLAGS'] += ['--color=always']
-if os.environ.get('M3_VERBOSE', 0) != 0:
+if os.environ.get('M3_VERBOSE', '0') == '1':
     env['CRGFLAGS'] += ['-v']
 else:
     env['CRGFLAGS'] += ['-q']
