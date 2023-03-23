@@ -34,6 +34,8 @@ If you setup the project on a new (Debian-based) machine make sure to have at le
         m4 libboost-all-dev libssl-dev libgmp3-dev libmpfr-dev \
         libmpc-dev libncurses5-dev texinfo ninja-build libxml2-utils
 
+Note: If you have `pyenv` installed and therefore `/usr/bin/python` does not exist, you might need to install the package `python-dev-is-python3`.
+
 Afterwards, pull in the submodules:
 
     $ git submodule update --init src/apps/bsdutils src/libs/musl src/libs/flac src/libs/leveldb
