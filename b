@@ -89,6 +89,11 @@ help() {
     echo "can be handy if, for example, the build is currently broken."
     echo ""
     echo "The following commands are available:"
+    echo "    clean:                   remove build directory for the current M3_TARGET,"
+    echo "                             M3_ISA, and M3_BUILD combination. This requires a"
+    echo "                             complete rebuild afterwards."
+    echo "    distclean:               removes the entire build directory, requiring also"
+    echo "                             a rebuild of the cross compiler. Use with caution!"
     echo "    ninja ...:               run ninja with given arguments."
     echo "    run <script>:            run the specified <script>. See directory boot."
     echo "    rungem5 <script>:        run the specified <script> on gem5. See directory boot."
@@ -211,6 +216,18 @@ if [ $skipbuild -eq 0 ]; then
 fi
 
 case "$cmd" in
+    clean)
+        rm -rf "$build"
+        rm -rf "${rustbuild:?}/$RUST_TARGET"
+        rm -rf "${rustbuild:?}/debug" "${rustbuild:?}/release"
+        exit
+        ;;
+
+    distclean)
+        rm -rf build
+        exit
+        ;;
+
     ninja)
         ninja -f "$build/build.ninja" "${ninjaargs[@]}" "$script" "$@"
         exit $?
