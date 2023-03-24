@@ -210,8 +210,8 @@ static m3::inodeno_t copy(const char *path, m3::inodeno_t parent, int level) {
     // TODO don't copy the number of links
     ino.links = st.st_nlink;
     ino.mode = st.st_mode;
-    ino.lastaccess = static_cast<m3::time_t>(st.st_atim.tv_sec);
-    ino.lastmod = static_cast<m3::time_t>(st.st_mtim.tv_sec);
+    ino.lastaccess = static_cast<m3::time_t>(st.st_atime);
+    ino.lastmod = static_cast<m3::time_t>(st.st_mtime);
     ino.size = 0;
     for(int i = 0; i < m3::INODE_DIR_COUNT; ++i)
         ino.direct[i].start = ino.direct[i].length = 0;
