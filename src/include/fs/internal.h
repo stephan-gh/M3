@@ -18,10 +18,12 @@
 
 #pragma once
 
-#include <base/Common.h>
-#include <base/TCU.h>
+#include <stddef.h>
+#include <stdint.h>
 
-#include <m3/com/MemGate.h>
+#if !defined(__tools__)
+#    include <m3/com/MemGate.h>
+#endif
 
 namespace m3 {
 
@@ -89,9 +91,11 @@ enum {
     FILE_NEWSESS = 128,
 };
 
+#if !defined(__tools__)
 static_assert(FILE_R == MemGate::R, "FILE_R is out of sync");
 static_assert(FILE_W == MemGate::W, "FILE_W is out of sync");
 static_assert(FILE_X == MemGate::X, "FILE_X is out of sync");
+#endif
 
 struct Extent {
     uint32_t start;
@@ -102,13 +106,13 @@ struct FileInfo {
     dev_t devno;
     inodeno_t inode;
     mode_t mode;
-    unsigned links;
+    uint32_t links;
     size_t size;
     time_t lastaccess;
     time_t lastmod;
-    unsigned blocksize;
+    uint32_t blocksize;
     // for debugging
-    unsigned extents;
+    uint32_t extents;
     blockno_t firstblock;
 };
 
@@ -126,14 +130,14 @@ struct alignas(8) INode {
     Extent direct[INODE_DIR_COUNT];
     blockno_t indirect;
     blockno_t dindirect;
-} PACKED;
+} __attribute__((packed));
 
 struct DirEntry {
     inodeno_t nodeno;
     uint32_t namelen;
     uint32_t next;
     char name[];
-} PACKED;
+} __attribute__((packed));
 
 struct SuperBlock {
     blockno_t first_inodebm_block() const {
@@ -158,10 +162,10 @@ struct SuperBlock {
     blockno_t first_data_block() const {
         return first_inode_block() + inode_blocks();
     }
-    uint extents_per_block() const {
+    unsigned extents_per_block() const {
         return blocksize / sizeof(Extent);
     }
-    uint inodes_per_block() const {
+    unsigned inodes_per_block() const {
         return blocksize / sizeof(INode);
     }
     uint32_t get_checksum() const {
@@ -177,7 +181,7 @@ struct SuperBlock {
     uint32_t first_free_inode;
     uint32_t first_free_block;
     uint32_t checksum;
-} PACKED;
+} __attribute__((packed));
 
 class Bitmap {
 public:
@@ -200,34 +204,34 @@ public:
         return _words;
     }
 
-    bool is_word_set(uint bit) const {
+    bool is_word_set(unsigned bit) const {
         return _words[idx(bit)] == static_cast<word_t>(-1);
     }
-    bool is_word_free(uint bit) const {
+    bool is_word_free(unsigned bit) const {
         return _words[idx(bit)] == 0;
     }
-    void set_word(uint bit) {
+    void set_word(unsigned bit) {
         _words[idx(bit)] = static_cast<word_t>(-1);
     }
-    void clear_word(uint bit) {
+    void clear_word(unsigned bit) {
         _words[idx(bit)] = 0;
     }
 
-    bool is_set(uint bit) const {
+    bool is_set(unsigned bit) const {
         return (_words[idx(bit)] & bitpos(bit)) != 0;
     }
-    void set(uint bit) {
+    void set(unsigned bit) {
         _words[idx(bit)] |= bitpos(bit);
     }
-    void unset(uint bit) {
+    void unset(unsigned bit) {
         _words[idx(bit)] &= ~bitpos(bit);
     }
 
 private:
-    static size_t idx(uint bit) {
+    static size_t idx(unsigned bit) {
         return bit / WORD_BITS;
     }
-    static word_t bitpos(uint bit) {
+    static word_t bitpos(unsigned bit) {
         return 1UL << (bit % WORD_BITS);
     }
 
@@ -250,8 +254,8 @@ private:
 extern m3::SuperBlock sb;
 extern FILE *file;
 
-static UNUSED inline void read_from_block(void *buffer, size_t len, m3::blockno_t bno,
-                                          size_t off = 0) {
+static __attribute__((unused)) inline void read_from_block(void *buffer, size_t len,
+                                                           m3::blockno_t bno, size_t off = 0) {
     off_t offset = static_cast<off_t>(static_cast<size_t>(bno * sb.blocksize) + off);
     if(fseek(file, offset, SEEK_SET) != 0)
         err(1, "Unable to seek to block %u+%zu: %s\n", bno, off, strerror(errno));
@@ -259,8 +263,8 @@ static UNUSED inline void read_from_block(void *buffer, size_t len, m3::blockno_
         err(1, "Unable to read from block %u: %s\n", bno, strerror(errno));
 }
 
-static UNUSED inline void write_to_block(const void *buffer, size_t len, m3::blockno_t bno,
-                                         size_t off = 0) {
+static __attribute__((unused)) inline void write_to_block(const void *buffer, size_t len,
+                                                          m3::blockno_t bno, size_t off = 0) {
     off_t offset = static_cast<off_t>(static_cast<size_t>(bno * sb.blocksize) + off);
     if(fseek(file, offset, SEEK_SET) != 0)
         err(1, "Unable to seek to block %u+%zu: %s\n", bno, off, strerror(errno));
@@ -268,14 +272,15 @@ static UNUSED inline void write_to_block(const void *buffer, size_t len, m3::blo
         err(1, "Unable to write to block %u: %s\n", bno, strerror(errno));
 }
 
-static UNUSED m3::INode read_inode(m3::inodeno_t ino) {
+static __attribute__((unused)) m3::INode read_inode(m3::inodeno_t ino) {
     m3::INode inode;
     read_from_block(&inode, sizeof(inode), sb.first_inode_block(), ino * sizeof(m3::INode));
     return inode;
 }
 
-static UNUSED m3::blockno_t get_block_no_rec(const m3::INode &ino, m3::blockno_t indirect,
-                                             size_t &no, int layer) {
+static __attribute__((unused)) m3::blockno_t get_block_no_rec(const m3::INode &ino,
+                                                              m3::blockno_t indirect, size_t &no,
+                                                              int layer) {
     m3::blockno_t res = 0;
     std::unique_ptr<m3::Extent[]> extents(new m3::Extent[sb.extents_per_block()]);
     read_from_block(extents.get(), sb.blocksize, indirect);
@@ -296,7 +301,7 @@ static UNUSED m3::blockno_t get_block_no_rec(const m3::INode &ino, m3::blockno_t
     return res;
 }
 
-static UNUSED m3::blockno_t get_block_no(const m3::INode &ino, size_t no) {
+static __attribute__((unused)) m3::blockno_t get_block_no(const m3::INode &ino, size_t no) {
     for(size_t i = 0; i < m3::INODE_DIR_COUNT; ++i) {
         if(ino.direct[i].length > no)
             return ino.direct[i].start + no;
@@ -309,8 +314,8 @@ static UNUSED m3::blockno_t get_block_no(const m3::INode &ino, size_t no) {
     return get_block_no_rec(ino, ino.dindirect, no, 1);
 }
 
-static UNUSED uint first_free(m3::Bitmap &bm, uint total) {
-    uint i;
+static __attribute__((unused)) unsigned first_free(m3::Bitmap &bm, unsigned total) {
+    unsigned i;
     for(i = 0; bm.is_set(i) && i < total; ++i)
         ;
     return i;

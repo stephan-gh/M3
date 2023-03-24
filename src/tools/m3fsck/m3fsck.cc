@@ -16,9 +16,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/Common.h>
-#include <base/util/BitField.h>
-
 #include <cstdarg>
 #include <err.h>
 #include <fs/internal.h>

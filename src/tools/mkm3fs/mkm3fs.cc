@@ -16,10 +16,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/Common.h>
-#include <base/util/BitField.h>
-#include <base/util/Math.h>
-
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -43,6 +39,11 @@
 #else
 #    define PRINT(...)
 #endif
+
+template<typename T>
+static constexpr T round_up(T value, T align) {
+    return (value + align - 1) & ~(align - 1);
+}
 
 enum {
     MAX_BLOCKS = 1024 * 1024,
@@ -162,10 +163,9 @@ static m3::DirEntry *write_dirent(m3::INode *dir, m3::DirEntry *prev, const char
                                   m3::blockno_t &block) {
     size_t len = strlen(name);
     // all entries should be 4-byte aligned
-    size_t total = sizeof(m3::DirEntry) + m3::Math::round_up(len, static_cast<size_t>(4));
+    size_t total = sizeof(m3::DirEntry) + round_up(len, static_cast<size_t>(4));
     if(off + total > sb.blocksize) {
-        size_t namelen =
-            m3::Math::round_up(static_cast<size_t>(prev->namelen), static_cast<size_t>(4));
+        size_t namelen = round_up(static_cast<size_t>(prev->namelen), static_cast<size_t>(4));
         size_t prevlen = sizeof(m3::DirEntry) + namelen;
         prev->next += sb.blocksize - off;
         write_to_block(prev, prevlen, block, off - prevlen);

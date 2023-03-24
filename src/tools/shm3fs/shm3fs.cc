@@ -16,8 +16,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/Common.h>
-
 #include <fs/internal.h>
 #include <inttypes.h>
 #include <stdarg.h>

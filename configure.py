@@ -193,10 +193,9 @@ class M3Env(ninjagen.Env):
 # build basic environment
 env = M3Env()
 
-env['CPPFLAGS'] += ['-D__' + target + '__']
 env['CPPPATH']  += ['src/include']
 env['CFLAGS']   += ['-std=c99', '-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
-env['CXXFLAGS'] += ['-std=c++20', '-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
+env['CXXFLAGS'] += ['-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
 env['CRGFLAGS'] += ['--color=always']
 if os.environ.get('M3_VERBOSE', '0') == '1':
     env['CRGFLAGS'] += ['-v']
@@ -205,6 +204,7 @@ else:
 
 # for host compilation
 hostenv = env.clone()
+hostenv['CXXFLAGS'] += ['-std=c++11']
 hostenv['CPPFLAGS'] += [' -D__tools__']
 hostenv['TRIPLE']   = 'x86_64-unknown-linux-gnu'    # TODO don't hardcode that
 
@@ -220,10 +220,10 @@ env['RANLIB']       = cross + 'gcc-ranlib'
 env['STRIP']        = cross + 'strip'
 
 env['CXXFLAGS']     += [
-    '-ffreestanding', '-fno-strict-aliasing', '-gdwarf-2', '-fno-omit-frame-pointer',
+    '-std=c++20', '-ffreestanding', '-fno-strict-aliasing', '-gdwarf-2', '-fno-omit-frame-pointer',
     '-fno-threadsafe-statics', '-fno-stack-protector', '-Wno-address-of-packed-member'
 ]
-env['CPPFLAGS']     += ['-U_FORTIFY_SOURCE', '-D_GNU_SOURCE']
+env['CPPFLAGS']     += ['-D__' + target + '__', '-U_FORTIFY_SOURCE', '-D_GNU_SOURCE']
 env['CFLAGS']       += ['-gdwarf-2', '-fno-stack-protector']
 env['ASFLAGS']      += ['-Wl,-W', '-Wall', '-Wextra']
 env['LINKFLAGS']    += ['-Wl,--no-gc-sections', '-Wno-lto-type-mismatch', '-fno-stack-protector']
