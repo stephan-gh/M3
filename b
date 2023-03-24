@@ -73,6 +73,13 @@ case "$M3_ISA" in
     riscv)  export TARGET_CFLAGS="-march=rv64imafdc -mabi=lp64" ;;
     arm)    export TARGET_CFLAGS="-march=armv7-a -fshort-enums" ;;
 esac
+# add C include paths as well; otherwise the include paths for the clang host compiler will be used
+for p in "src/libs/musl/arch/$rustisa" \
+         "src/libs/musl/arch/generic" \
+         "src/libs/musl/m3/include/$M3_ISA" \
+         "src/libs/musl/include"; do
+    TARGET_CFLAGS="$TARGET_CFLAGS -I$p"
+done
 
 build=build/$M3_TARGET-$M3_ISA-$M3_BUILD
 bindir=$build/bin/
