@@ -214,6 +214,8 @@ fi
 if [ $skipbuild -eq 0 ]; then
     filesid=$build/.all-files.id
     find src -type f > "$filesid.new"
+    # add the verbosity level as well, because for Rust it changes the generated build.ninja
+    echo "M3_VERBOSE=$M3_VERBOSE" >> "$filesid.new"
     # redo the configuration if any file was added/removed
     if [ ! -f "$build/build.ninja" ] || ! cmp "$filesid.new" "$filesid" &>/dev/null; then
         echo "Configuring for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
