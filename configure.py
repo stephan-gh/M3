@@ -158,11 +158,11 @@ class M3Env(ninjagen.Env):
 
         return env.m3_exe(gen, out, ins, libs, dir, True, ldscript, varAddr)
 
-    def m3_cargo(self, gen, out, cmd = 'build', env_vars = {}):
+    def m3_cargo(self, gen, out, cmd = 'build'):
         env = self.clone()
         env['CRGFLAGS'] += ['--target ' + env['TRIPLE']]
         env['CRGFLAGS'] += ['-Z build-std=core,alloc,std,panic_abort']
-        return env.cargo(gen, out, cmd, env_vars)
+        return env.cargo(gen, out, cmd)
 
     def m3_cargo_ws(self, gen):
         global rustcrates
@@ -177,25 +177,20 @@ class M3Env(ninjagen.Env):
             # specify crates explicitly, because some crates are only supported by some targets
             env['CRGFLAGS'] += ['-p', crate_name]
 
-        # configure TARGET_CFLAGS for llvmprofile within minicov
-        env_vars = ''
-        if env['ISA'] == 'riscv':
-            cflags = '-march=rv64imafdc -mabi=lp64d '
-            # add C include paths as well; otherwise the include paths for the clang host compiler
-            # will be used
-            cflags += ' '.join(['-I' + i for i in env['CPPPATH']])
-            env_vars = 'TARGET_CFLAGS="' + cflags + '"'
-
         flags = ' -Z build-std=core,alloc,std,panic_abort'
         flags += ' --target ' + env['TRIPLE']
         flags += ' ' + ' '.join(env['CRGFLAGS'])
+
+        env_str = ''
+        for key, value in env['CRGENV'].items():
+            env_str += ' ' + key + '="' + value + '"'
 
         gen.add_build(ninjagen.BuildEdge(
             'cargo_ws',
             outs = outs,
             ins = [],
             deps = deps,
-            vars = { 'cargoflags' : 'build ' + flags, 'env' : env_vars }
+            vars = { 'cargoflags' : 'build ' + flags, 'env' : env_str }
         ))
 
     def build_fs(self, gen, out, dir, blocks, inodes):
@@ -271,6 +266,14 @@ env['CFLAGS']       += ['-gdwarf-2', '-fno-stack-protector']
 env['ASFLAGS']      += ['-Wl,-W', '-Wall', '-Wextra']
 env['LINKFLAGS']    += ['-Wl,--no-gc-sections', '-Wno-lto-type-mismatch', '-fno-stack-protector']
 env['TRIPLE']       = rustisa + '-linux-' + target + '-' + rustabi
+
+# configure TARGET_CFLAGS for llvmprofile within minicov
+if isa == 'riscv':
+    cflags = '-march=rv64imafdc -mabi=lp64d '
+    # add C include paths as well; otherwise the include paths for the clang host compiler
+    # will be used
+    cflags += ' '.join(['-I' + i for i in env['CPPPATH']])
+    env['CRGENV']['TARGET_CFLAGS'] = cflags
 
 # add build-dependent flags (debug/release)
 btype = os.environ.get('M3_BUILD')

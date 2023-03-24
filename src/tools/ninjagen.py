@@ -77,6 +77,8 @@ class Env:
         self.vars['CRGFLAGS']   = []
         self.vars['ARFLAGS']    = ['rc']
 
+        self.vars['CRGENV']     = {}
+
         # default paths
         self.vars['CPPPATH']    = []
         self.vars['LIBPATH']    = []
@@ -233,10 +235,10 @@ class Env:
         gen.add_build(edge)
         return lib
 
-    def cargo(self, gen, out, cmd = 'build', env_vars = {}):
+    def cargo(self, gen, out, cmd = 'build'):
         bin = BuildPath(self['RUSTBINS'] + '/' + out)
         env = ''
-        for key, value in env_vars.items():
+        for key, value in self['CRGENV'].items():
             env += ' ' + key + '="' + value + '"'
         edge = BuildEdge(
             'cargo',

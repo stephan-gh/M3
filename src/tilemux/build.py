@@ -17,14 +17,15 @@ def build(gen, env):
     # make sure that embedded C-code or similar (minicov with llvm-profile library) is build
     # with soft-float as well
     libs = ['isrsf']
-    env_vars = {}
     if env['ISA'] == 'riscv':
-        env_vars['TARGET_CFLAGS'] = '-march=rv64imac -mabi=lp64'
+        cflags = '-march=rv64imac -mabi=lp64 '
+        cflags += ' '.join(['-I' + i for i in env['CPPPATH']])
+        env['CRGENV']['TARGET_CFLAGS'] = cflags
     elif env['ISA'] == 'arm':
         libs += ['gcc_eh']
 
     # build tilemux outside of the workspace to use a different target spec that enables soft-float
-    env.m3_cargo(gen, out = 'libtilemux.a', env_vars = env_vars)
+    env.m3_cargo(gen, out = 'libtilemux.a')
 
     # link it as usual
     env.m3_rust_exe(
