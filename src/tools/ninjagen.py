@@ -177,9 +177,10 @@ class Env:
     def cxx_exe(self, gen, out, ins, libs = [], deps = []):
         flags = ' '.join(self['LINKFLAGS'])
         flags += ' ' + ' '.join(['-L' + d for d in self['LIBPATH']])
-        flags += ' -Wl,--start-group'
-        flags += ' ' + ' '.join(['-l' + l for l in libs])
-        flags += ' -Wl,--end-group'
+        if len(libs) > 0:
+            flags += ' -Wl,--start-group'
+            flags += ' ' + ' '.join(['-l' + l for l in libs])
+            flags += ' -Wl,--end-group'
 
         bin = BuildPath.new(self, out)
         edge = BuildEdge(
