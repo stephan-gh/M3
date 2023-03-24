@@ -206,7 +206,10 @@ else:
 hostenv = env.clone()
 hostenv['CXXFLAGS'] += ['-std=c++11']
 hostenv['CPPFLAGS'] += [' -D__tools__']
-hostenv['TRIPLE']   = 'x86_64-unknown-linux-gnu'    # TODO don't hardcode that
+# determine host triple via rustc
+host_triple = check_output('rustc -vV | grep host: | cut -d " " -f 2', shell=True).decode().strip()
+hostenv['TRIPLE']   = host_triple
+hostenv['CRGFLAGS'] += ['--target', hostenv['TRIPLE']]
 
 env.hostenv = hostenv
 
