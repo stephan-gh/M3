@@ -9,7 +9,7 @@ def build(gen, env):
     env.m3_exe(
         gen,
         out = 'standalone',
-        ins = [env_obj, 'standalone.cc'] + env.glob('tests/*.cc'),
+        ins = [env_obj, 'standalone.cc'] + env.glob(gen, 'tests/*.cc'),
         libs = libs,
         dir = None,
         ldscript = 'baremetal',

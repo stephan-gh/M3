@@ -11,17 +11,18 @@ def build(gen, env):
         if stderr != '':
             print(stderr)
 
+        libs = []
         for flag in stdout.decode('utf-8').split():
             if flag.startswith('-I'):
                 env['CPPPATH'] += [flag[2:]]
             elif flag.startswith('-L'):
                 env['LIBPATH'] += [flag[2:]]
             elif flag.startswith('-l'):
-                env['LINKFLAGS'] += [flag]
+                libs += [flag[2:]]
             else:
                 print('tud-otfconfig: unknown flag "%s"' % flag)
 
-        bin = env.cxx_exe(gen, out = 'gem52otf', ins = ['gem52otf.cc', 'Symbols.cc'])
+        bin = env.cxx_exe(gen, out = 'gem52otf', ins = ['gem52otf.cc', 'Symbols.cc'], libs=libs)
         env.install(gen, env['TOOLDIR'], bin)
     else:
         print('Cannot execute tud-otfconfig, skipping gem52otf...')

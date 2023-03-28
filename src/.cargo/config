@@ -1,0 +1,8 @@
+[build]
+rustflags = ["-Wrust-2018-idioms"]
+target = "toolchain/rust/riscv64-linux-gem5-musl.json"
+
+[target.'riscv64-linux-gem5-muslcov']
+rustflags = ["-Cinstrument-coverage", "-Zno-profiler-runtime"]
+[target.'x86_64-linux-gem5-muslcov']
+rustflags = ["-Cinstrument-coverage", "-Zno-profiler-runtime"]

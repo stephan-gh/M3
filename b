@@ -54,6 +54,9 @@ else
     rustabi='musl'
 fi
 
+build=build/$M3_TARGET-$M3_ISA-$M3_BUILD
+bindir=$build/bin/
+
 # rust env vars
 rusttoolchain=$(readlink -f src/toolchain/rust)
 rustbuild=$(readlink -f build/rust)
@@ -64,12 +67,12 @@ else
 fi
 export RUST_TARGET=$rustisa-linux-$M3_TARGET-$rustabi
 export RUST_TARGET_PATH=$rusttoolchain
-export CARGO_TARGET_DIR=$rustbuild
-export XBUILD_SYSROOT_PATH=$CARGO_TARGET_DIR/sysroot
-rust_args=(--target "$RUST_TARGET" -Z "build-std=core,alloc,std,panic_abort")
-
-build=build/$M3_TARGET-$M3_ISA-$M3_BUILD
-bindir=$build/bin/
+host_target=$(rustc -vV | grep host: | cut -d " " -f 2)
+rust_host_args=(--target "$host_target" --target-dir "$rustbuild")
+rust_target_args=(
+    --target "$RUST_TARGET" --target-dir "$(readlink -f "$build")"
+    -Z "build-std=core,alloc,std,panic_abort"
+)
 
 help() {
     echo "Usage: $1 [-n] [<cmd> <arg>]"
@@ -193,29 +196,16 @@ while [ $# -gt 0 ]; do
 done
 
 mkdir -p "$build" "$M3_OUT"
+export NPBUILD="$build"
 
 ninjaargs=()
 if [ "$M3_VERBOSE" = "1" ]; then
     ninjaargs=("${ninjaargs[@]}" -v)
 fi
 
-if [ $skipbuild -eq 0 ]; then
-    filesid=$build/.all-files.id
-    find src -type f > "$filesid.new"
-    # add the verbosity level as well, because for Rust it changes the generated build.ninja
-    echo "M3_VERBOSE=$M3_VERBOSE" >> "$filesid.new"
-    # redo the configuration if any file was added/removed
-    if [ ! -f "$build/build.ninja" ] || ! cmp "$filesid.new" "$filesid" &>/dev/null; then
-        echo "Configuring for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
-        ./configure.py || exit 1
-        mv "$filesid.new" "$filesid"
-    fi
-fi
-
 case "$cmd" in
     clean)
         rm -rf "$build"
-        rm -rf "${rustbuild:?}/$RUST_TARGET"
         rm -rf "${rustbuild:?}/debug" "${rustbuild:?}/release"
         exit
         ;;
@@ -226,7 +216,7 @@ case "$cmd" in
         ;;
 
     ninja)
-        ninja -f "$build/build.ninja" "${ninjaargs[@]}" "$script" "$@"
+        ./ninjapie/ninjapie -- "${ninjaargs[@]}" "$script" "$@"
         exit $?
         ;;
 
@@ -274,13 +264,7 @@ if [ $skipbuild -eq 0 ]; then
         fi
     else
         echo "Building for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
-        ninja -f "$build/build.ninja" "${ninjaargs[@]}" >&2 || {
-            # ensure that we regenerate the build.ninja next time. Since ninja does not accept the
-            # build.ninja, it will also not detect changes our build files in order to regenerate it.
-            # Therefore, force ourself to regenerate it by removing our "files id".
-            rm -f "$filesid"
-            exit 1
-        }
+        ./ninjapie/ninjapie -- "${ninjaargs[@]}" || exit 1
     fi
 fi
 
@@ -289,10 +273,10 @@ run_clippy() {
     if [ "$M3_ISA" != "riscv" ] && [[ "$1" =~ "vmtest" ]]; then
         return;
     fi
-    # gem5log+hwitrace are always built for the host OS (not our host target)
-    target=()
-    if [[ ! "$1" =~ "gem5log" ]] && [[ ! "$1" =~ "hwitrace" ]] && [[ ! "$1" =~ "netdbg" ]]; then
-        target=("${target[@]}" "${rust_args[@]}")
+    if [[ "$1" = src/tools/* ]]; then
+        target=("${rust_host_args[@]}")
+    else
+        target=("${rust_target_args[@]}")
     fi
     echo "Running clippy for $(dirname "$1")..."
     ( cd "$(dirname "$1")" && cargo clippy "${target[@]}" -- \
@@ -356,11 +340,9 @@ case "$cmd" in
         ;;
 
     doc)
-        export RUSTFLAGS="--sysroot $XBUILD_SYSROOT_PATH"
-        export RUSTDOCFLAGS=$RUSTFLAGS
         for lib in src/libs/rust/*; do
             if [ -d "$lib" ]; then
-                ( cd "$lib" && cargo doc "${rust_args[@]}" )
+                ( cd "$lib" && cargo doc "${rust_target_args[@]}" )
             fi
         done
         ;;
@@ -387,9 +369,9 @@ case "$cmd" in
         ;;
 
     macros=*)
-        export RUSTFLAGS="--sysroot $XBUILD_SYSROOT_PATH"
         ( cd "${cmd#macros=}" && \
-            cargo rustc "${rust_args[@]}" --profile=check -- -Zunpretty=expanded | less )
+            cargo rustc "${rust_target_args[@]}" \
+                --profile=check -- -Zunpretty=expanded 2>/dev/null | less )
         ;;
 
     checkboot)

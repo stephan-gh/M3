@@ -1,3 +1,3 @@
 def build(gen, env):
-    bin = env.cargo(gen, out = 'hwitrace')
+    bin = env.m3_cargo(gen, out = 'hwitrace')
     env.install(gen, env['TOOLDIR'], bin)

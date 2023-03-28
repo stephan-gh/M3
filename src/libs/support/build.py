@@ -1,5 +1,5 @@
 from glob import glob
-import src.tools.ninjagen as ninjagen
+from ninjapie import BuildPath, SourcePath
 import os
 
 def is_our(ours, file):
@@ -10,10 +10,10 @@ def is_our(ours, file):
 
 def build(gen, env):
     ours = []
-    for f in env.glob(env['ISA'] + '/*.S'):
-        obj = env.asm(gen, out = ninjagen.BuildPath.with_ending(env, f, '.o'), ins = [f])
+    for f in env.glob(gen, env['ISA'] + '/*.S'):
+        obj = env.asm(gen, out = BuildPath.with_file_ext(env, f, 'o'), ins = [f])
         ours.append(env.install(gen, env['LIBDIR'], obj))
 
-    for f in glob(env['SYSGCCLIBPATH'] + '/crt*'):
+    for f in env.glob(gen, SourcePath(env['SYSGCCLIBPATH'] + '/crt*')):
         if not is_our(ours, f):
-            env.install(gen, env['LIBDIR'], ninjagen.SourcePath(f))
+            env.install(gen, env['LIBDIR'], SourcePath(f))

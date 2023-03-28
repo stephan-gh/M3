@@ -4,7 +4,7 @@ def build(gen, env):
 
     lib = env.static_lib(
         gen,
-        out = 'libbase',
-        ins = env.glob('*.cc') + env.glob('*/*.cc')
+        out = 'base',
+        ins = env.glob(gen, '*.cc') + env.glob(gen, '*/*.cc')
     )
     env.install(gen, env['LIBDIR'], lib)

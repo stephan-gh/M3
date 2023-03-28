@@ -25,7 +25,8 @@ def build(gen, env):
         libs += ['gcc_eh']
 
     # build tilemux outside of the workspace to use a different target spec that enables soft-float
-    env.m3_cargo(gen, out = 'libtilemux.a')
+    lib = env.m3_cargo(gen, out = 'libtilemux.a')
+    env.install(gen, outdir=env['RUSTLIBS'], input=lib)
 
     # link it as usual
     env.m3_rust_exe(

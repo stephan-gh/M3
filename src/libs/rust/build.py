@@ -1,14 +1,5 @@
 dirs = [
-    'base',
-    'heap',
     'isr',
-    'lang',
-    'm3impl',
-    'm3',
-    'paging',
-    'pci',
-    'resmng',
-    'thread',
 ]
 
 def build(gen, env):

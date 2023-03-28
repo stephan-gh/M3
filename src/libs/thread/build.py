@@ -4,7 +4,7 @@ def build(gen, env):
     env['LINKFLAGS'] += ['-fno-exceptions -fno-rtti']
     lib = env.static_lib(
         gen,
-        out = 'libthread',
+        out = 'thread',
         ins = ['Thread.cc', 'ThreadManager.cc'] + \
               ['isa/' + env['ISA'] + '/ThreadSwitch.S'] + \
               ['isa/' + env['ISA'] + '/Thread.cc']

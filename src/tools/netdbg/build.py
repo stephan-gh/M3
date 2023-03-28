@@ -1,3 +1,3 @@
 def build(gen, env):
-    bin = env.cargo(gen, out = 'netdbg')
+    bin = env.m3_cargo(gen, out = 'netdbg')
     env.install(gen, env['TOOLDIR'], bin)

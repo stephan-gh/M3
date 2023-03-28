@@ -1,8 +1,7 @@
-#!/usr/bin/env -S python3 -B
+from ninjapie import Env, Generator, SourcePath, BuildPath, BuildEdge, Rule
 
-import src.tools.ninjagen as ninjagen
 import os, sys
-from subprocess import check_output
+import subprocess
 from glob import glob
 
 target = os.environ.get('M3_TARGET')
@@ -39,7 +38,7 @@ if not os.path.isfile(crossgcc):
     sys.exit('Please install the ' + isa + ' cross compiler first ' \
         + '(cd cross && ./build.sh ' + isa + ').')
 else:
-    ver = check_output([crossgcc, '-dumpversion']).decode().strip()
+    ver = subprocess.check_output([crossgcc, '-dumpversion']).decode().strip()
     if ver != crossver:
         sys.exit('Please update the ' + isa + ' cross compiler from ' \
             + ver + ' to ' + crossver + ' (cd cross && ./build.sh ' + isa + ' clean all).')
@@ -55,20 +54,23 @@ if isa == 'riscv':
 else:
     link_addr = 0x1000000
 
-class M3Env(ninjagen.Env):
+class M3Env(Env):
     def clone(self):
-        env = ninjagen.Env.clone(self)
+        env = Env.clone(self)
         if hasattr(self, 'hostenv'):
             env.hostenv = self.hostenv
         return env
 
+    def try_execute(self, cmd):
+        return subprocess.getstatusoutput(cmd)[0] == 0
+
     def m3_hex(self, gen, out, input):
-        out = ninjagen.BuildPath.new(self, out)
-        gen.add_build(ninjagen.BuildEdge(
+        out = BuildPath.new(self, out)
+        gen.add_build(BuildEdge(
             'elf2hex',
             outs = [out],
-            ins = [ninjagen.SourcePath.new(self, input)],
-            deps = [ninjagen.BuildPath(self['TOOLDIR'] + '/elf2hex')],
+            ins = [SourcePath.new(self, input)],
+            deps = [BuildPath(self['TOOLDIR'] + '/elf2hex')],
         ))
         return out
 
@@ -83,9 +85,6 @@ class M3Env(ninjagen.Env):
             self['CXXFLAGS'] += ['-march=rv64imac', '-mabi=lp64']
         # use the soft-float target spec for rust
         self['TRIPLE'] += 'sf'
-        # that also means that we find the static libraries for rust in a different folder
-        rustbuild = self['BUILD'] if self['BUILD'] != 'coverage' else 'release'
-        self['RUSTBINS'] = 'build/rust/' + self['TRIPLE'] + '/' + rustbuild
 
     def m3_exe(self, gen, out, ins, libs = [], dir = 'bin', NoSup = False,
                ldscript = 'default', varAddr = True):
@@ -112,17 +111,17 @@ class M3Env(ninjagen.Env):
         # we provide our own start files, unless no start files are desired by the app
         if not '-nostartfiles' in env['LINKFLAGS']:
             env['LINKFLAGS'] += ['-nostartfiles']
-            crt0_objs = [ninjagen.BuildPath(self['BINDIR'] + '/' + f) for f in crts0]
-            crtn_objs = [ninjagen.BuildPath(self['BINDIR'] + '/' + f) for f in crtsn]
+            crt0_objs = [BuildPath(self['BINDIR'] + '/' + f) for f in crts0]
+            crtn_objs = [BuildPath(self['BINDIR'] + '/' + f) for f in crtsn]
             ins = crt0_objs + ins + crtn_objs
             gcc_dir = crossdir + '/lib/gcc/' + cross[:-1] + '/' + crossver + '/'
 
         # TODO workaround to ensure that our memcpy, etc. is used instead of the one from Rust's
         # compiler-builtins crate (or musl), because those are poor implementations.
-        fileext = '-sf.o' if env['TRIPLE'].endswith('sf') else '.o'
+        fileext = 'sf.o' if env['TRIPLE'].endswith('sf') else 'o'
         for cc in ['memcmp', 'memcpy', 'memset', 'memmove', 'memzero']:
-            src = ninjagen.SourcePath('src/libs/memory/' + cc + '.cc')
-            ins.append(ninjagen.BuildPath.with_ending(env, src, fileext))
+            src = SourcePath('src/libs/memory/' + cc + '.cc')
+            ins.append(BuildPath.with_file_ext(env, src, fileext))
 
         bin = env.cxx_exe(gen, out, ins, libs, deps)
         if env['TGT'] == 'hw' or env['TGT'] == 'hw22':
@@ -134,19 +133,15 @@ class M3Env(ninjagen.Env):
             bins[dir].append(bin)
         return bin
 
-    def m3_rust_lib(self, gen):
-        global rustcrates
-        rustcrates += [env.cwd.path]
-
     def m3_rust_exe(self, gen, out, libs = [], dir = 'bin', startup = None,
                     ldscript = 'default', varAddr = True, std = False):
         global rustcrates
         if out != 'tilemux':
-            rustcrates += [self.cwd.path]
+            rustcrates += [self.cur_dir]
 
         env = self.clone()
         env['LINKFLAGS'] += ['-Wl,-z,muldefs']
-        env['LIBPATH']   += [env['RUSTBINS']]
+        env['LIBPATH'] += [env['RUSTLIBS']]
         ins     = [] if startup is None else [startup]
         if std:
             libs = ['c', 'gem5', 'gcc', 'gcc_eh', out]
@@ -158,67 +153,62 @@ class M3Env(ninjagen.Env):
 
         return env.m3_exe(gen, out, ins, libs, dir, True, ldscript, varAddr)
 
-    def m3_cargo(self, gen, out, cmd = 'build'):
+    def m3_cargo(self, gen, out):
         env = self.clone()
-        env['CRGFLAGS'] += ['--target ' + env['TRIPLE']]
+        env['CRGFLAGS'] += ['--target', env['TRIPLE']]
         env['CRGFLAGS'] += ['-Z build-std=core,alloc,std,panic_abort']
-        return env.cargo(gen, out, cmd)
+        return env.rust_exe(gen, out)
 
     def m3_cargo_ws(self, gen):
         global rustcrates
         outs = []
-        deps = []
-
         env = self.clone()
         for cr in rustcrates:
             crate_name = os.path.basename(cr)
-            out = ninjagen.BuildPath(env['RUSTBINS'] + '/lib' + crate_name + '.a')
+            out = BuildPath(env['RUSTBINS'] + '/lib' + crate_name + '.a')
             outs.append(out)
             # specify crates explicitly, because some crates are only supported by some targets
             env['CRGFLAGS'] += ['-p', crate_name]
 
-        flags = ' -Z build-std=core,alloc,std,panic_abort'
-        flags += ' --target ' + env['TRIPLE']
-        flags += ' ' + ' '.join(env['CRGFLAGS'])
-
-        env_str = ''
-        for key, value in env['CRGENV'].items():
-            env_str += ' ' + key + '="' + value + '"'
-
-        gen.add_build(ninjagen.BuildEdge(
-            'cargo_ws',
-            outs = outs,
-            ins = [],
-            deps = deps,
-            vars = { 'cargoflags' : 'build ' + flags, 'env' : env_str }
-        ))
+        env['CRGFLAGS'] += ['--target', env['TRIPLE']]
+        env['CRGFLAGS'] += ['-Z build-std=core,alloc,std,panic_abort']
+        outs = env.rust(gen, outs, deps=[])
+        for o in outs:
+            env.install(gen, outdir=env['RUSTLIBS'], input=o)
+        return outs
 
     def build_fs(self, gen, out, dir, blocks, inodes):
-        deps = [ninjagen.BuildPath(env['TOOLDIR'] + '/mkm3fs')]
+        deps = [BuildPath(self['TOOLDIR'] + '/mkm3fs')]
 
         global bins
         for dirname, dirbins in bins.items():
             for b in dirbins:
-                dst = ninjagen.BuildPath.new(self, dirname + '/' + os.path.basename(b))
+                dst = BuildPath.new(self, dirname + '/' + os.path.basename(b))
                 self.strip(gen, out = dst, input = b)
                 deps += [dst]
-        for f in glob(ninjagen.SourcePath.new(self, dir + '/**/*'), recursive = True):
-            src = ninjagen.SourcePath(f)
-            dst = ninjagen.BuildPath.new(self, src)
+
+        dir_env = self.clone()
+        dir_env['INSTFLAGS'] += ['-d']
+        file_env = self.clone()
+        file_env['INSTFLAGS'] += ['-m 0644']
+
+        for f in self.glob(gen, dir + '/**/*'):
+            src = SourcePath(f)
+            dst = BuildPath.new(self, src)
             if os.path.isfile(src):
-                self.install_as(gen, dst, src, flags = '-m 0644')
+                file_env.install_as(gen, dst, src)
             elif os.path.isdir(src):
-                self.install_as(gen, dst, src, flags = '-d')
+                dir_env.install_as(gen, dst, src)
             deps += [dst]
 
-        out = ninjagen.BuildPath(env['BUILDDIR'] + '/' + out)
-        gen.add_build(ninjagen.BuildEdge(
+        out = BuildPath(self['BUILDDIR'] + '/' + out)
+        gen.add_build(BuildEdge(
             'mkm3fs',
             outs = [out],
             ins = [],
             deps = deps,
             vars = {
-                'dir' : ninjagen.BuildPath.new(self, dir),
+                'dir' : BuildPath.new(self, dir),
                 'blocks' : blocks,
                 'inodes' : inodes
             }
@@ -240,11 +230,11 @@ else:
 # for host compilation
 hostenv = env.clone()
 hostenv['CXXFLAGS'] += ['-std=c++11']
-hostenv['CPPFLAGS'] += [' -D__tools__']
+hostenv['CPPFLAGS'] += ['-D__tools__']
 # determine host triple via rustc
-host_triple = check_output('rustc -vV | grep host: | cut -d " " -f 2', shell=True).decode().strip()
+host_triple = subprocess.check_output(
+    'rustc -vV | grep host: | cut -d " " -f 2', shell=True).decode().strip()
 hostenv['TRIPLE']   = host_triple
-hostenv['CRGFLAGS'] += ['--target', hostenv['TRIPLE']]
 
 env.hostenv = hostenv
 
@@ -266,14 +256,6 @@ env['CFLAGS']       += ['-gdwarf-2', '-fno-stack-protector']
 env['ASFLAGS']      += ['-Wl,-W', '-Wall', '-Wextra']
 env['LINKFLAGS']    += ['-Wl,--no-gc-sections', '-Wno-lto-type-mismatch', '-fno-stack-protector']
 env['TRIPLE']       = rustisa + '-linux-' + target + '-' + rustabi
-
-# configure TARGET_CFLAGS for llvmprofile within minicov
-if isa == 'riscv':
-    cflags = '-march=rv64imafdc -mabi=lp64d '
-    # add C include paths as well; otherwise the include paths for the clang host compiler
-    # will be used
-    cflags += ' '.join(['-I' + i for i in env['CPPPATH']])
-    env['CRGENV']['TARGET_CFLAGS'] = cflags
 
 # add build-dependent flags (debug/release)
 btype = os.environ.get('M3_BUILD')
@@ -300,15 +282,14 @@ env['BINDIR']       = builddir + '/bin'
 env['LIBDIR']       = builddir + '/bin'
 env['MEMDIR']       = builddir + '/mem'
 env['TOOLDIR']      = builddir + '/tools'
+env['RUSTLIBS']     = builddir + '/rustlibs'
 env['CROSS']        = cross
 env['CROSSDIR']     = crossdir
 env['CROSSVER']     = crossver
-rustbuild = btype if btype != 'coverage' else 'release'
-env['RUSTBINS']     = 'build/rust/' + env['TRIPLE'] + '/' + rustbuild
 hostenv['TOOLDIR']  = env['TOOLDIR']
 hostenv['BINDIR']   = env['BINDIR']
 hostenv['BUILDDIR'] = env['BUILDDIR']
-hostenv['RUSTBINS'] = 'build/rust/' + hostenv['TRIPLE'] + '/' + rustbuild
+hostenv['RUSTBINS'] = '../rust/'
 
 # add arch-dependent stuff to env
 if isa == 'x86_64':
@@ -343,56 +324,44 @@ env['LINKFLAGS']        += ['-static', '-Wl,--build-id=none']
 env['LINKFLAGS']        += ['-Wl,-z,max-page-size=4096', '-Wl,-z,common-page-size=4096']
 env['LIBPATH']          += [crossdir + '/lib', env['LIBDIR']]
 
-# start the generation
-gen = ninjagen.Generator()
+# configure TARGET_CFLAGS for llvmprofile within minicov
+if isa == 'riscv':
+    cflags = '-march=rv64imafdc -mabi=lp64d '
+    # add C include paths as well; otherwise the include paths for the clang host compiler
+    # will be used
+    cflags += ' '.join(['-I' + i for i in env['CPPPATH']])
+    env['CRGENV']['TARGET_CFLAGS'] = cflags
 
-gen.add_rule('mkm3fs', ninjagen.Rule(
+# start the generation
+gen = Generator()
+
+gen.add_rule('mkm3fs', Rule(
     cmd = env['TOOLDIR'] + '/mkm3fs $out $dir $blocks $inodes 0',
     desc = 'MKFS $out',
 ))
-gen.add_rule('elf2hex', ninjagen.Rule(
+gen.add_rule('elf2hex', Rule(
     cmd = env['TOOLDIR'] + '/elf2hex $in > $out',
     desc = 'ELF2HEX $out',
 ))
 
-# by default, use the cross toolchain
-gen.add_var('cc', env['CC'])
-gen.add_var('cxx', env['CXX'])
-gen.add_var('cpp', env['CPP'])
-gen.add_var('link', env['CXX'])
-gen.add_var('ar', env['AR'])
-gen.add_var('ranlib', env['RANLIB'])
-gen.add_var('strip', env['STRIP'])
-
-gen.add_rule('cargo_ws', ninjagen.Rule(
-    cmd = '$env cargo $cargoflags',
-    desc = 'CARGO Cargo.toml',
-    # recheck which output files have changed after the command to only relink the
-    # executables where the library generated by Rust actually changed
-    restat = True,
-))
-
 # generate linker scripts
 ldscript = 'src/toolchain/ld.conf'
-ldscripts['default'] = env.cpp(gen, out = 'ld-default.conf', ins = [ldscript])
+ldscripts['default'] = env.cpp(gen, out = 'ld-default.conf', input = ldscript)
 
 bare_env = env.clone()
 bare_env['CPPFLAGS'] += ['-D__baremetal__=1']
-ldscripts['baremetal'] = bare_env.cpp(gen, out = 'ld-baremetal.conf', ins = [ldscript])
+ldscripts['baremetal'] = bare_env.cpp(gen, out = 'ld-baremetal.conf', input = ldscript)
 
 isr_env = env.clone()
 isr_env['CPPFLAGS'] += ['-D__baremetal__=1', '-D__isr__=1']
-ldscripts['isr'] = isr_env.cpp(gen, out = 'ld-isr.conf', ins = [ldscript])
+ldscripts['isr'] = isr_env.cpp(gen, out = 'ld-isr.conf', input = ldscript)
 
 tilemux_env = env.clone()
 tilemux_env['CPPFLAGS'] += ['-D__isr__=1', '-D__tilemux__=1']
-ldscripts['tilemux'] = tilemux_env.cpp(gen, out = 'ld-tilemux.conf', ins = [ldscript])
+ldscripts['tilemux'] = tilemux_env.cpp(gen, out = 'ld-tilemux.conf', input = ldscript)
 
 # generate build edges first
 env.sub_build(gen, 'src')
 
-# now that we know the rust crates to build, generate build edge to build the workspace with cargo
-env.m3_cargo_ws(gen)
-
 # finally, write it to file
-gen.write_to_file(env['BUILDDIR'])
+gen.write_to_file()

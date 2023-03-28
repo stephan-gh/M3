@@ -19,3 +19,6 @@
 [submodule "cross/buildroot"]
 	path = cross/buildroot
 	url = https://git.buildroot.net/buildroot
+[submodule "ninjapie"]
+	path = ninjapie
+	url = git@github.com:Barkhausen-Institut/Ninjapie.git

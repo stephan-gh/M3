@@ -4,7 +4,7 @@ def build(gen, env):
     if env['TGT'] == 'hw' or env['TGT'] == 'hw22':
         env = env.clone()
 
-        pwd = str(env.glob('')[0])
+        pwd = 'src/libs/axieth/'
         env['CPPPATH'] += [pwd  + 'common', pwd + 'llfifo', pwd + 'axidma', pwd + 'axiethernet']
         
         if os.environ.get('M3_BUILD') != 'release':
@@ -26,8 +26,12 @@ def build(gen, env):
         ]
 
         env_obj = env.cxx(gen, out = 'env.o', ins = ['env.cc'])
-        files = [env_obj, 'axieth.cc'] + env.glob('common/*.cc') + env.glob('llfifo/*.cc') + env.glob('axidma/*.cc') + env.glob('axiethernet/*.cc')
-        lib = env.static_lib(gen, out = 'libaxieth', ins = files)
+        files = [env_obj, 'axieth.cc'] + \
+            env.glob(gen, 'common/*.cc') + \
+            env.glob(gen, 'llfifo/*.cc') + \
+            env.glob(gen, 'axidma/*.cc') + \
+            env.glob(gen, 'axiethernet/*.cc')
+        lib = env.static_lib(gen, out = 'axieth', ins = files)
         env.install(gen, env['LIBDIR'], lib)
 
         env.m3_exe(
@@ -44,5 +48,5 @@ def build(gen, env):
             NoSup = True,
             ldscript = 'baremetal',
             varAddr = False,
-            libs = ['simplec', 'gem5', 'base', 'supc++', 'gcc', 'axieth']
+            libs = ['simplec', 'gem5', 'base', 'supc++', 'gcc', 'gcc_eh', 'axieth']
         )

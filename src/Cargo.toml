@@ -1,0 +1,59 @@
+[workspace]
+members = [
+    "apps/bench/facever",
+    "apps/bench/fs",
+    "apps/bench/hashmuxbenchs",
+    "apps/bench/ipc",
+    "apps/bench/mem",
+    "apps/bench/netlat",
+    "apps/bench/rustbenchs",
+    "apps/bench/rustnetbenchs",
+    "apps/bench/voiceassist/vamic",
+    "apps/bench/voiceassist/varcv",
+    "apps/bench/ycsb/ycsbclient",
+    "apps/coreutils/hashsum",
+    "apps/disktest",
+    "apps/hashmuxtests",
+    "apps/info",
+    "apps/msgchan/msgchansnd",
+    "apps/netechoserver",
+    "apps/ping",
+    "apps/resmngtest",
+    "apps/rusthello",
+    "apps/rustnettests",
+    "apps/ruststandalone/stdareceiver",
+    "apps/ruststandalone/stdasender",
+    "apps/ruststandalone/vmtest",
+    "apps/ruststdtest",
+    "apps/rustunittests",
+    "apps/spammer",
+    "kernel",
+    "libs/rust/base",
+    "libs/rust/heap",
+    "libs/rust/isr",
+    "libs/rust/lang",
+    "libs/rust/m3impl",
+    "libs/rust/m3",
+    "libs/rust/paging",
+    "libs/rust/pci",
+    "libs/rust/resmng",
+    "libs/rust/thread",
+    "server/crypto/hashmux",
+    "server/disk",
+    "server/m3fs",
+    "server/net",
+    "server/pager",
+    "server/pipes",
+    "server/root",
+    "server/vterm",
+]
+exclude = [
+    "tilemux"
+]
+
+[profile.release]
+lto = true
+panic = 'abort'
+
+[profile.dev]
+panic = 'abort'
