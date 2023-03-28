@@ -153,6 +153,13 @@ class M3Env(Env):
 
         return env.m3_exe(gen, out, ins, libs, dir, True, ldscript, varAddr)
 
+    def rust_exe(self, gen, out):
+        deps = env.glob(gen, '**/*.rs') + [SourcePath.new(self, 'Cargo.toml')]
+        cfg = SourcePath.new(self, '.cargo/config')
+        if os.path.isfile(cfg):
+            deps += [cfg]
+        return Env.rust_exe(self, gen, out, deps=deps)
+
     def m3_cargo(self, gen, out):
         env = self.clone()
         env['CRGFLAGS'] += ['--target', env['TRIPLE']]
@@ -161,9 +168,14 @@ class M3Env(Env):
 
     def m3_cargo_ws(self, gen):
         global rustcrates
-        outs = []
         env = self.clone()
+
+        deps = ['src/Cargo.toml', 'src/.cargo/config', 'rust-toolchain.toml']
+        deps += ['src/toolchain/rust/' + self['TRIPLE'] + '.json']
+
+        outs = []
         for cr in rustcrates:
+            deps += [cr + '/Cargo.toml'] + env.glob(gen, cr + '/**/*.rs')
             crate_name = os.path.basename(cr)
             outs.append('lib' + crate_name + '.a')
             # specify crates explicitly, because some crates are only supported by some targets
@@ -171,7 +183,7 @@ class M3Env(Env):
 
         env['CRGFLAGS'] += ['--target', env['TRIPLE']]
         env['CRGFLAGS'] += ['-Z build-std=core,alloc,std,panic_abort']
-        outs = env.rust(gen, outs, deps=[])
+        outs = env.rust(gen, outs, deps)
         for o in outs:
             env.install(gen, outdir=env['RUSTLIBS'], input=o)
         return outs
