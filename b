@@ -199,9 +199,15 @@ mkdir -p "$build" "$M3_OUT"
 export NPBUILD="$build"
 
 ninjaargs=()
+ninjapieargs=()
 if [ "$M3_VERBOSE" = "1" ]; then
     ninjaargs=("${ninjaargs[@]}" -v)
 fi
+# force regeneration of the ninja build file if the verbosity level changed since last run
+if [ "$(cat "$build/.verbose" 2>/dev/null)" != "M3_VERBOSE=$M3_VERBOSE" ]; then
+    ninjapieargs=(build -f)
+fi
+echo "M3_VERBOSE=$M3_VERBOSE" > "$build/.verbose"
 
 case "$cmd" in
     clean)
@@ -216,7 +222,7 @@ case "$cmd" in
         ;;
 
     ninja)
-        ./ninjapie/ninjapie -- "${ninjaargs[@]}" "$script" "$@"
+        ./ninjapie/ninjapie "${ninjapieargs[@]}" -- "${ninjaargs[@]}" "$script" "$@"
         exit $?
         ;;
 
@@ -264,7 +270,7 @@ if [ $skipbuild -eq 0 ]; then
         fi
     else
         echo "Building for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
-        ./ninjapie/ninjapie -- "${ninjaargs[@]}" || exit 1
+        ./ninjapie/ninjapie "${ninjapieargs[@]}" -- "${ninjaargs[@]}" || exit 1
     fi
 fi
 
