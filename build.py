@@ -165,8 +165,7 @@ class M3Env(Env):
         env = self.clone()
         for cr in rustcrates:
             crate_name = os.path.basename(cr)
-            out = BuildPath(env['RUSTBINS'] + '/lib' + crate_name + '.a')
-            outs.append(out)
+            outs.append('lib' + crate_name + '.a')
             # specify crates explicitly, because some crates are only supported by some targets
             env['CRGFLAGS'] += ['-p', crate_name]
 
@@ -226,6 +225,7 @@ if os.environ.get('M3_VERBOSE', '0') == '1':
     env['CRGFLAGS'] += ['-v']
 else:
     env['CRGFLAGS'] += ['-q']
+env['RUSTBINS'] = 'rust/'
 
 # for host compilation
 hostenv = env.clone()
@@ -282,14 +282,13 @@ env['BINDIR']       = builddir + '/bin'
 env['LIBDIR']       = builddir + '/bin'
 env['MEMDIR']       = builddir + '/mem'
 env['TOOLDIR']      = builddir + '/toolsbin'
-env['RUSTLIBS']     = builddir + '/rustlibs'
+env['RUSTLIBS']     = builddir + '/rust/libs'
 env['CROSS']        = cross
 env['CROSSDIR']     = crossdir
 env['CROSSVER']     = crossver
 hostenv['TOOLDIR']  = env['TOOLDIR']
 hostenv['BINDIR']   = env['BINDIR']
 hostenv['BUILDDIR'] = env['BUILDDIR']
-hostenv['RUSTBINS'] = '../rust/'
 
 # add arch-dependent stuff to env
 if isa == 'x86_64':

@@ -60,7 +60,7 @@ tooldir=$build/toolsbin
 
 # rust env vars
 rusttoolchain=$(readlink -f src/toolchain/rust)
-rustbuild=$(readlink -f build/rust)
+rustbuild=$(readlink -f "$build/rust")
 if [ "$M3_ISA" = "riscv" ]; then
     rustisa="riscv64"
 else
