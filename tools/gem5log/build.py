@@ -1,3 +1,3 @@
 def build(gen, env):
-    bin = env.m3_cargo(gen, out = 'netdbg')
+    bin = env.rust_exe(gen, out = 'gem5log')
     env.install(gen, env['TOOLDIR'], bin)

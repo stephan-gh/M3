@@ -281,7 +281,7 @@ env['BUILDDIR']     = builddir
 env['BINDIR']       = builddir + '/bin'
 env['LIBDIR']       = builddir + '/bin'
 env['MEMDIR']       = builddir + '/mem'
-env['TOOLDIR']      = builddir + '/tools'
+env['TOOLDIR']      = builddir + '/toolsbin'
 env['RUSTLIBS']     = builddir + '/rustlibs'
 env['CROSS']        = cross
 env['CROSSDIR']     = crossdir
@@ -360,8 +360,9 @@ tilemux_env = env.clone()
 tilemux_env['CPPFLAGS'] += ['-D__isr__=1', '-D__tilemux__=1']
 ldscripts['tilemux'] = tilemux_env.cpp(gen, out = 'ld-tilemux.conf', input = ldscript)
 
-# generate build edges first
+# generate build edges
 env.sub_build(gen, 'src')
+env.sub_build(gen, 'tools')
 
 # finally, write it to file
 gen.write_to_file()

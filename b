@@ -56,6 +56,7 @@ fi
 
 build=build/$M3_TARGET-$M3_ISA-$M3_BUILD
 bindir=$build/bin/
+tooldir=$build/toolsbin
 
 # rust env vars
 rusttoolchain=$(readlink -f src/toolchain/rust)
@@ -67,8 +68,7 @@ else
 fi
 export RUST_TARGET=$rustisa-linux-$M3_TARGET-$rustabi
 export RUST_TARGET_PATH=$rusttoolchain
-host_target=$(rustc -vV | grep host: | cut -d " " -f 2)
-rust_host_args=(--target "$host_target" --target-dir "$rustbuild")
+rust_host_args=(--target-dir "$rustbuild")
 rust_target_args=(
     --target "$RUST_TARGET" --target-dir "$(readlink -f "$build")"
     -Z "build-std=core,alloc,std,panic_abort"
@@ -273,7 +273,8 @@ run_clippy() {
     if [ "$M3_ISA" != "riscv" ] && [[ "$1" =~ "vmtest" ]]; then
         return;
     fi
-    if [[ "$1" = src/tools/* ]]; then
+    target=()
+    if [[ "$1" = tools/* ]]; then
         target=("${rust_host_args[@]}")
     else
         target=("${rust_target_args[@]}")
@@ -291,14 +292,14 @@ run_clippy() {
 case "$cmd" in
     run)
         if [ "$DBG_GEM5" = "1" ]; then
-            ./src/tools/execute.sh "$script"
+            ./tools/execute.sh "$script"
         else
-            ./src/tools/execute.sh "$script" 2>&1 | tee "$M3_OUT/log.txt"
+            ./tools/execute.sh "$script" 2>&1 | tee "$M3_OUT/log.txt"
         fi
         ;;
 
     rungem5)
-        M3_RUN_GEM5=1 ./src/tools/execute.sh "$script" 2>&1 | tee "$M3_OUT/log.txt"
+        M3_RUN_GEM5=1 ./tools/execute.sh "$script" 2>&1 | tee "$M3_OUT/log.txt"
         ;;
 
     loadfpga=*)
@@ -332,7 +333,7 @@ case "$cmd" in
     clippy)
         while IFS= read -r -d '' f; do
             run_clippy "$f"
-        done < <(find src -mindepth 2 -name Cargo.toml -print0)
+        done < <(find src tools -mindepth 2 -name Cargo.toml -print0)
         ;;
 
     clippy=*)
@@ -388,7 +389,7 @@ case "$cmd" in
             fi
 
             truncate --size 0 "$M3_OUT/log.txt"
-            ./src/tools/execute.sh "$script" "--debug=${cmd#dbg=}" 1>"$M3_OUT/log.txt" 2>&1 &
+            ./tools/execute.sh "$script" "--debug=${cmd#dbg=}" 1>"$M3_OUT/log.txt" 2>&1 &
 
             # wait until we know the port
             port=""
@@ -425,7 +426,7 @@ case "$cmd" in
                 echo "Please set M3_HW_PAUSE to the tile to debug."
                 exit 1
             fi
-            ./src/tools/execute.sh "$script" "--debug=${cmd#dbg=}" &>/dev/null &
+            ./tools/execute.sh "$script" "--debug=${cmd#dbg=}" &>/dev/null &
 
             port=$((3340 + M3_HW_PAUSE))
             ssh -N -L 30000:localhost:$port "$M3_HW_FPGA_HOST" 2>/dev/null &
@@ -530,7 +531,7 @@ case "$cmd" in
         for f in ${names//,/ }; do
             paths=("${paths[@]}" "$build/bin/$f")
         done
-        "$build/tools/hwitrace" "$crossprefix" "${paths[@]}" | less
+        "$tooldir/hwitrace" "$crossprefix" "${paths[@]}" | less
         ;;
 
     trace=*)
@@ -539,7 +540,7 @@ case "$cmd" in
         for f in ${names//,/ }; do
             paths=("${paths[@]}" "$build/bin/$f")
         done
-        "$build/tools/gem5log" "$M3_ISA" trace "${paths[@]}" | less
+        "$tooldir/gem5log" "$M3_ISA" trace "${paths[@]}" | less
         ;;
 
     flamegraph=*)
@@ -549,7 +550,7 @@ case "$cmd" in
             paths=("${paths[@]}" "$build/bin/$f")
         done
         # inferno-flamegraph is available at https://github.com/jonhoo/inferno
-        "$build/tools/gem5log" "$M3_ISA" flamegraph "${paths[@]}" | inferno-flamegraph --countname ns
+        "$tooldir/gem5log" "$M3_ISA" flamegraph "${paths[@]}" | inferno-flamegraph --countname ns
         ;;
 
     snapshot=*)
@@ -558,27 +559,27 @@ case "$cmd" in
         for f in ${names//,/ }; do
             paths=("${paths[@]}" "$build/bin/$f")
         done
-        "$build/tools/gem5log" "$M3_ISA" snapshot "$script" "${paths[@]}"
+        "$tooldir/gem5log" "$M3_ISA" snapshot "$script" "${paths[@]}"
         ;;
 
     mkfs=*)
-        "$build/tools/mkm3fs" "$build/${cmd#mkfs=}" "$script" "$@"
+        "$tooldir/mkm3fs" "$build/${cmd#mkfs=}" "$script" "$@"
         ;;
 
     shfs=*)
-        "$build/tools/shm3fs" "$build/${cmd#shfs=}" "$script" "$@"
+        "$tooldir/shm3fs" "$build/${cmd#shfs=}" "$script" "$@"
         ;;
 
     fsck=*)
-        "$build/tools/m3fsck" "$build/${cmd#fsck=}" "$script"
+        "$tooldir/m3fsck" "$build/${cmd#fsck=}" "$script"
         ;;
 
     exfs=*)
-        "$build/tools/exm3fs" "$build/${cmd#exfs=}" "$script"
+        "$tooldir/exm3fs" "$build/${cmd#exfs=}" "$script"
         ;;
 
     bt=*)
-        ./src/tools/backtrace.py "$crossprefix" "$bindir/${cmd#bt=}"
+        ./tools/backtrace.py "$crossprefix" "$bindir/${cmd#bt=}"
         ;;
 
     list)

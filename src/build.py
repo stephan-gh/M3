@@ -1,6 +1,5 @@
 dirs = [
     "apps",
-    "tools",
     "kernel",
     "libs",
     "tilemux",

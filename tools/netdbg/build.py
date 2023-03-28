@@ -1,3 +1,3 @@
 def build(gen, env):
-    bin = env.m3_cargo(gen, out = 'hwitrace')
+    bin = env.rust_exe(gen, out = 'netdbg')
     env.install(gen, env['TOOLDIR'], bin)

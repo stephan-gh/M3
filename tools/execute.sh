@@ -188,9 +188,9 @@ build_params_gem5() {
         gdb --tui platform/gem5/build/$gem5build/gem5.debug "--command=$tmp"
     else
         if [ "$debug" != "" ]; then
-            xargs "$build/tools/ignoreint" platform/gem5/build/$gem5build/gem5.opt < "$params"
+            xargs -a "$params" "$build/tools/ignoreint" platform/gem5/build/$gem5build/gem5.opt
         else
-            xargs platform/gem5/build/$gem5build/gem5.opt < "$params"
+            xargs -a "$params" platform/gem5/build/$gem5build/gem5.opt
         fi
     fi
 }
@@ -269,7 +269,7 @@ build_params_hw() {
     } > "$M3_OUT/run.sh"
 
     rsync -rz \
-        src/tools/fpga.py platform/hw/fpga_tools/python "${files[@]}" "$M3_OUT/run.sh" \
+        tools/fpga.py platform/hw/fpga_tools/python "${files[@]}" "$M3_OUT/run.sh" \
         "$M3_HW_FPGA_HOST:$M3_HW_FPGA_DIR"
 
     ssh -t "$M3_HW_FPGA_HOST" "cd $M3_HW_FPGA_DIR && sh run.sh"

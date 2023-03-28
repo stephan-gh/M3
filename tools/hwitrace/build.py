@@ -1,3 +1,3 @@
 def build(gen, env):
-    bin = env.m3_cargo(gen, out = 'gem5log')
+    bin = env.rust_exe(gen, out = 'hwitrace')
     env.install(gen, env['TOOLDIR'], bin)
