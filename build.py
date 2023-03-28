@@ -376,4 +376,4 @@ env.sub_build(gen, 'src')
 env.sub_build(gen, 'tools')
 
 # finally, write it to file
-gen.write_to_file()
+gen.write_to_file(defaults={})
