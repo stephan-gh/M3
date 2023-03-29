@@ -188,9 +188,9 @@ build_params_gem5() {
         gdb --tui platform/gem5/build/$gem5build/gem5.debug "--command=$tmp"
     else
         if [ "$debug" != "" ]; then
-            xargs -a "$params" "$build/tools/ignoreint" platform/gem5/build/$gem5build/gem5.opt
+            xargs -o "$build/tools/ignoreint" platform/gem5/build/$gem5build/gem5.opt < "$params"
         else
-            xargs -a "$params" platform/gem5/build/$gem5build/gem5.opt
+            xargs -o platform/gem5/build/$gem5build/gem5.opt < "$params"
         fi
     fi
 }
