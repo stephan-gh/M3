@@ -356,23 +356,32 @@ case "$cmd" in
 
     fmt)
         while IFS= read -r -d '' f; do
-            if [[ "$f" =~ "src/libs/musl" ]] && [[ ! "$f" =~ "src/libs/musl/m3" ]]; then
-                continue
-            fi
-            if [[ "$f" =~ "src/libs/flac" ]] || [[ "$f" =~ "src/apps/bsdutils" ]] ||
-                [[ "$f" =~ "src/libs/leveldb" ]] || [[ "$f" =~ "src/libs/llvmprofile" ]] ||
-                [[ "$f" =~ "src/libs/axieth" ]]; then
-                continue
+            if [ "$(basename "$f")" != "build.py" ]; then
+                if [[ "$f" =~ "src/libs/musl" ]] && [[ ! "$f" =~ "src/libs/musl/m3" ]]; then
+                    continue
+                fi
+                if [[ "$f" =~ "src/libs/flac" ]] || [[ "$f" =~ "src/apps/bsdutils" ]] ||
+                    [[ "$f" =~ "src/libs/leveldb" ]] || [[ "$f" =~ "src/libs/axieth" ]]; then
+                    continue
+                fi
             fi
 
             echo "Formatting $f..."
-            clang-format -i "$f"
-        done < <(find src \( -name "*.cc" -or -name "*.h" \) -print0)
-
-        while IFS= read -r -d '' f; do
-            echo "Formatting $(dirname "$f")..."
-            rustfmt "$(dirname "$f")"/src/*.rs
-        done < <(find src -mindepth 2 -name Cargo.toml -print0)
+            case "$f" in
+                *.cc|*.h)
+                    clang-format -i "$f"
+                    ;;
+                Cargo.toml)
+                    rustfmt "$(dirname "$f")"/src/*.rs
+                    ;;
+                *.py)
+                    autopep8 -i "$f"
+                    ;;
+            esac
+        done < <(find src tools -mindepth 2 \( -name Cargo.toml -or \
+                                               -name "*.py" -or \
+                                               -name "*.cc" -or \
+                                               -name "*.h" \) -print0)
         ;;
 
     macros=*)
