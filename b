@@ -36,6 +36,7 @@ export M3_BUILD M3_TARGET M3_ISA M3_OUT
 
 # determine cross compiler and rust ABI based on target and ISA
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$build/bin"
+root=$(readlink -f .)
 crossdir="./build/cross-$M3_ISA/host/bin"
 if [ "$M3_ISA" = "arm" ]; then
     crossprefix="$crossdir/arm-buildroot-linux-musleabi-"
@@ -44,7 +45,7 @@ elif [ "$M3_ISA" = "riscv" ]; then
 else
     crossprefix="$crossdir/x86_64-buildroot-linux-musl-"
 fi
-PATH=$(readlink -f "$crossdir"):$PATH
+PATH="$root/$crossdir:$PATH"
 export PATH
 if [ "$M3_TARGET" = "gem5" ] && [ "$M3_ISA" = "arm" ]; then
     rustabi='musleabi'
@@ -59,8 +60,8 @@ bindir=$build/bin/
 tooldir=$build/toolsbin
 
 # rust env vars
-rusttoolchain=$(readlink -f src/toolchain/rust)
-rustbuild=$(readlink -f "$build/rust")
+rusttoolchain="$root/src/toolchain/rust"
+rustbuild="$root/$build/rust"
 if [ "$M3_ISA" = "riscv" ]; then
     rustisa="riscv64"
 else
