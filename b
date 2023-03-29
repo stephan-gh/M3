@@ -70,7 +70,7 @@ export RUST_TARGET=$rustisa-linux-$M3_TARGET-$rustabi
 export RUST_TARGET_PATH=$rusttoolchain
 rust_host_args=(--target-dir "$rustbuild")
 rust_target_args=(
-    --target "$RUST_TARGET" --target-dir "$(readlink -f "$build")"
+    --target "$RUST_TARGET" --target-dir "$rustbuild"
     -Z "build-std=core,alloc,std,panic_abort"
 )
 
