@@ -5,7 +5,7 @@ def build(gen, env):
 
     env.m3_exe(
         gen,
-        out = 'vasnd',
-        ins = ['encoder.cc', 'tcp_handler.cc', 'udp_handler.cc', 'vasnd.cc'],
-        libs = ['flac']
+        out='vasnd',
+        ins=['encoder.cc', 'tcp_handler.cc', 'udp_handler.cc', 'vasnd.cc'],
+        libs=['flac']
     )

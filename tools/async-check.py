@@ -5,6 +5,7 @@ import os
 import re
 import sys
 
+
 def find_files(dir, pat):
     res = []
     for root, dirs, files in os.walk(dir):
@@ -13,31 +14,39 @@ def find_files(dir, pat):
                 res.append(os.path.join(root, f))
     return res
 
+
 def file_content(file):
     with open(file, 'r') as f:
         return f.read()
+
 
 class Location:
     def __init__(self, file, line):
         self.file = file
         self.line = line
+
     def __str__(self):
         return self.file + ":" + str(self.line)
+
 
 class FuncCall:
     def __init__(self, name, loc):
         self.name = name
         self.loc = loc
+
     def __str__(self):
         return self.name + " at " + str(self.loc)
+
 
 class FuncDef:
     def __init__(self, name, loc):
         self.name = name
         self.loc = loc
         self.calls = []
+
     def __str__(self):
         return self.name + " at " + str(self.loc)
+
 
 def parse_file(file):
     bytes = file_content(file)
@@ -82,6 +91,7 @@ def parse_file(file):
             pos += 1
     return funcs
 
+
 def check_funcs(funcs):
     for func in funcs:
         has_async = any([f.name.endswith("_async") for f in func.calls])
@@ -91,12 +101,14 @@ def check_funcs(funcs):
         elif not (has_async or has_wait) and func.name.endswith("_async"):
             print("Function %s calls no asynchronous function, but ends with _async" % func)
 
+
 def print_funcs(funcs):
     print("Parsed file %s:" % f)
     for func in funcs:
         print("  function %s:" % func)
         for call in func.calls:
             print("    calls %s" % call)
+
 
 if len(sys.argv) < 2:
     exit("Usage: %s <dir>" % sys.argv[0])

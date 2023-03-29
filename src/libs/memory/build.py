@@ -1,5 +1,6 @@
 from ninjapie import BuildPath
 
+
 def build(gen, env):
     env = env.clone()
     env.remove_flag('CXXFLAGS', '-flto')

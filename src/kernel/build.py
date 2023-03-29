@@ -5,5 +5,5 @@ def build(gen, env):
         env['LINKFLAGS'] += ['-Wl,--whole-archive', '-lisr', '-Wl,--no-whole-archive']
 
     env.m3_rust_exe(
-        gen, out = 'kernel', libs = ['isr', 'thread'], dir = None, ldscript = 'isr', varAddr = False
+        gen, out='kernel', libs=['isr', 'thread'], dir=None, ldscript='isr', varAddr=False
     )

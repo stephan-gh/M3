@@ -1,2 +1,2 @@
 def build(gen, env):
-    env.m3_exe(gen, out = 'readelf', ins = ['readelf.cc'])
+    env.m3_exe(gen, out='readelf', ins=['readelf.cc'])

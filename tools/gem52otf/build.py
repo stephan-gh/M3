@@ -1,5 +1,6 @@
 from subprocess import Popen, PIPE
 
+
 def build(gen, env):
     if env.try_execute('tud-otfconfig'):
         env = env.clone()
@@ -22,7 +23,7 @@ def build(gen, env):
             else:
                 print('tud-otfconfig: unknown flag "%s"' % flag)
 
-        bin = env.cxx_exe(gen, out = 'gem52otf', ins = ['gem52otf.cc', 'Symbols.cc'], libs=libs)
+        bin = env.cxx_exe(gen, out='gem52otf', ins=['gem52otf.cc', 'Symbols.cc'], libs=libs)
         env.install(gen, env['TOOLDIR'], bin)
     else:
         print('Cannot execute tud-otfconfig, skipping gem52otf...')

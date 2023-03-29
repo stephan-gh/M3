@@ -4,7 +4,10 @@ import argparse
 import traceback
 from time import sleep, time
 from datetime import datetime
-import fcntl, os, sys, select
+import fcntl
+import os
+import sys
+import select
 import termios
 
 import modids
@@ -28,26 +31,33 @@ PMP_ADDR = SERIAL_ADDR + SERIAL_SIZE
 
 pmp_size = 0
 
+
 def read_u64(mod, addr):
     return mod.mem[addr]
 
+
 def write_u64(mod, addr, value):
     mod.mem[addr] = value
+
 
 def read_str(mod, addr, length):
     b = mod.mem.read_bytes(addr, length)
     return b.decode()
 
+
 def write_str(mod, str, addr):
     buf = bytearray(str.encode())
     buf += b'\x00'
-    mod.mem.write_bytes(addr, bytes(buf), burst=False) # TODO enable burst
+    mod.mem.write_bytes(addr, bytes(buf), burst=False)  # TODO enable burst
+
 
 def glob_addr(tile, offset):
     return (0x4000 + tile) << 49 | offset
 
+
 def send_input(fpga_inst, chip, tile, ep, bytes):
     fpga_inst.nocif.send_bytes((chip, tile), ep, bytes)
+
 
 def write_file(mod, file, offset):
     print("%s: loading %s with %u bytes to %#x" % (mod.name, file, os.path.getsize(file), offset))
@@ -56,6 +66,7 @@ def write_file(mod, file, offset):
     with open(file, "rb") as f:
         content = f.read()
     mod.mem.write_bytes_checked(offset, content, True)
+
 
 def add_mod(dram, addr, mod, offset):
     (name, path) = mod.split('=')
@@ -67,29 +78,31 @@ def add_mod(dram, addr, mod, offset):
     write_file(dram, path, addr)
     return size
 
+
 def tile_desc(tiles, i, vm):
     if i >= len(tiles):
         # mem size | TileAttr::IMEM | TileType::MEM
         return (DRAM_SIZE >> 12) << 28 | ((1 << 4) << 20) | 1
 
-    tile_desc = 1 << 6 # RISCV
+    tile_desc = 1 << 6  # RISCV
     if not vm:
         # mem size | TileAttr::IMEM
         tile_desc |= ((pmp_size >> 12) << 28) | ((1 << 4) << 20)
     if i < 5:
-        tile_desc |= (1 << 1) << 20 # Rocket core
+        tile_desc |= (1 << 1) << 20  # Rocket core
     else:
-        tile_desc |= (1 << 0) << 20 # BOOM core
+        tile_desc |= (1 << 0) << 20  # BOOM core
     if i == 6:
-        tile_desc |= (1 << 2) << 20 # NIC
-        tile_desc |= (1 << 3) << 20 # Serial
+        tile_desc |= (1 << 2) << 20  # NIC
+        tile_desc |= (1 << 3) << 20  # Serial
     return tile_desc
+
 
 def load_boot_info(dram, mods, tiles, vm):
     # boot info
     kenv_off = KENV_ADDR
     write_u64(dram, kenv_off + 0 * 8, len(mods))    # mod_count
-    write_u64(dram, kenv_off + 1 * 8, len(tiles) + 1) # tile_count
+    write_u64(dram, kenv_off + 1 * 8, len(tiles) + 1)  # tile_count
     write_u64(dram, kenv_off + 2 * 8, 1)            # mem_count
     write_u64(dram, kenv_off + 3 * 8, 0)            # serv_count
     kenv_off += 8 * 4
@@ -105,13 +118,14 @@ def load_boot_info(dram, mods, tiles, vm):
     for x in range(0, len(tiles)):
         write_u64(dram, kenv_off, tile_desc(tiles, x, vm))         # PM
         kenv_off += 8
-    write_u64(dram, kenv_off, tile_desc(tiles, len(tiles), False)) # dram1
+    write_u64(dram, kenv_off, tile_desc(tiles, len(tiles), False))  # dram1
     kenv_off += 8
 
     # mems
     mem_start = mods_addr
-    write_u64(dram, kenv_off + 0, glob_addr(MEM_TILE, mem_start)) # addr
+    write_u64(dram, kenv_off + 0, glob_addr(MEM_TILE, mem_start))  # addr
     write_u64(dram, kenv_off + 8, DRAM_SIZE - mem_start)          # size
+
 
 def load_prog(dram, tiles, i, args, vm):
     pm = tiles[i]
@@ -149,7 +163,8 @@ def load_prog(dram, tiles, i, args, vm):
     with open(args[0], 'rb') as f:
         elf = ELFFile(f)
         if elf.header['e_entry'] != 0x10001000:
-            sys.exit("error: {} has entry {:#x}, not 0x10001000.".format(args[0], elf.header['e_entry']))
+            sys.exit("error: {} has entry {:#x}, not 0x10001000.".format(
+                args[0], elf.header['e_entry']))
 
     # load ELF file
     dram.mem.write_elf(args[0], mem_begin - DRAM_OFF)
@@ -169,7 +184,7 @@ def load_prog(dram, tiles, i, args, vm):
     write_u64(dram, dram_env + 32, argv)       # argv
     write_u64(dram, dram_env + 40, 0)          # envp
     write_u64(dram, dram_env + 48, kenv)       # kenv
-    write_u64(dram, dram_env + 56, len(tiles) + 1) # raw tile count
+    write_u64(dram, dram_env + 56, len(tiles) + 1)  # raw tile count
     # tile ids
     env_off = 64
     for tile in tiles:
@@ -187,6 +202,7 @@ def load_prog(dram, tiles, i, args, vm):
             sys.exit("Not enough space for arguments")
 
     sys.stdout.flush()
+
 
 # inspired by MiniTerm (https://github.com/pyserial/pyserial/blob/master/serial/tools/miniterm.py)
 class TCUTerm:
@@ -230,6 +246,7 @@ class TCUTerm:
     def cleanup(self):
         termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.old)
 
+
 def main():
     mon = NoCmonitor()
 
@@ -255,7 +272,8 @@ def main():
     for tile in fpga_inst.pms:
         tcu_version = tile.tcu_version()
         if tcu_version != args.version:
-            print("Tile %s has TCU version %d, but expected %d" % (tile.name, tcu_version, args.version))
+            print("Tile %s has TCU version %d, but expected %d" %
+                  (tile.name, tcu_version, args.version))
             return
 
     # disable NoC ARQ for program upload
@@ -281,7 +299,7 @@ def main():
     # enable NoC ARQ when cores are running
     for tile in fpga_inst.pms:
         tile.nocarq.set_arq_enable(1)
-        tile.nocarq.set_arq_timeout(200)    #reduce timeout
+        tile.nocarq.set_arq_timeout(200)  # reduce timeout
     fpga_inst.dram1.nocarq.set_arq_enable(1)
     fpga_inst.dram2.nocarq.set_arq_enable(1)
 
@@ -293,7 +311,7 @@ def main():
             fpga_inst.pms[i].rocket_start()
 
     # signal run.sh that everything has been loaded
-    if not args.debug is None:
+    if args.debug is not None:
         ready = open('.ready', 'w')
         ready.write('1')
         ready.close()
@@ -306,7 +324,7 @@ def main():
     try:
         while True:
             # check for timeout
-            if not args.timeout is None and int(time()) - start >= args.timeout:
+            if args.timeout is not None and int(time()) - start >= args.timeout:
                 print("Execution timed out after {} seconds".format(args.timeout))
                 timed_out = True
                 break
@@ -322,7 +340,7 @@ def main():
 
             # check for output
             try:
-                bytes = fpga_inst.nocif.receive_bytes(timeout_ns = 10_000_000)
+                bytes = fpga_inst.nocif.receive_bytes(timeout_ns=10_000_000)
             except:
                 continue
 
@@ -353,12 +371,14 @@ def main():
         try:
             dropped_packets = tile.nocarq.get_arq_drop_packet_count()
             total_packets = tile.nocarq.get_arq_packet_count()
-            print("PM{}: NoC dropped/total packets: {}/{} ({:.0f}%)".format(i, dropped_packets, total_packets, dropped_packets/total_packets*100))
+            print("PM{}: NoC dropped/total packets: {}/{} ({:.0f}%)".format(i,
+                  dropped_packets, total_packets, dropped_packets/total_packets*100))
         except Exception as e:
             print("PM{}: unable to read number of dropped NoC packets: {}".format(i, e))
 
         try:
-            print("PM{}: TCU dropped/error flits: {}/{}".format(i, tile.tcu_drop_flit_count(), tile.tcu_error_flit_count()))
+            print("PM{}: TCU dropped/error flits: {}/{}".format(i,
+                  tile.tcu_drop_flit_count(), tile.tcu_error_flit_count()))
         except Exception as e:
             print("PM{}: unable to read number of TCU dropped flits: {}".format(i, e))
 
@@ -392,6 +412,7 @@ def main():
                 pass
 
         tile.stop()
+
 
 try:
     main()

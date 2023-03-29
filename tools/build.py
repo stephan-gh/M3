@@ -12,6 +12,7 @@ dirs = [
     'shm3fs',
 ]
 
+
 def build(gen, env):
     for d in dirs:
         env.hostenv.sub_build(gen, d)

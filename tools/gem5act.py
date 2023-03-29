@@ -21,7 +21,7 @@ while True:
     old_act = cur_act
 
     if "ACT_ID" in line:
-        m = re.match('.*(tile[0-9]+\.).*TCU\[ACT_ID\s*\]: 0x([0-9a-f]+).*', line)
+        m = re.match(r'.*(tile[0-9]+\.).*TCU\[ACT_ID\s*\]: 0x([0-9a-f]+).*', line)
         if m:
             next_act = int(m[2], 16)
             next_tile = m[1]

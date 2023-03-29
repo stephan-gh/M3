@@ -1,6 +1,7 @@
 from ninjapie import Env, Generator, SourcePath, BuildPath, BuildEdge, Rule
 
-import os, sys
+import os
+import sys
 import subprocess
 from glob import glob
 
@@ -12,36 +13,36 @@ if (target == 'hw' or target == 'hw22') and isa != 'riscv':
 if isa == 'arm':
     rustisa = isa
     rustabi = 'musleabi'
-    cross   = 'arm-buildroot-linux-musleabi-'
-    crts0   = ['crt0.o', 'crtbegin.o']
-    crtsn   = ['crtend.o']
+    cross = 'arm-buildroot-linux-musleabi-'
+    crts0 = ['crt0.o', 'crtbegin.o']
+    crtsn = ['crtend.o']
 elif isa == 'riscv':
     rustisa = 'riscv64'
     rustabi = 'musl'
-    cross   = 'riscv64-buildroot-linux-musl-'
-    crts0   = ['crt0.o', 'crtbegin.o']
-    crtsn   = ['crtend.o']
+    cross = 'riscv64-buildroot-linux-musl-'
+    crts0 = ['crt0.o', 'crtbegin.o']
+    crtsn = ['crtend.o']
 else:
     rustisa = isa
     rustabi = 'musl'
-    cross   = 'x86_64-buildroot-linux-musl-'
-    crts0   = ['crt0.o', 'crt1.o', 'crtbegin.o']
-    crtsn   = ['crtend.o', 'crtn.o']
+    cross = 'x86_64-buildroot-linux-musl-'
+    crts0 = ['crt0.o', 'crt1.o', 'crtbegin.o']
+    crtsn = ['crtend.o', 'crtn.o']
 if os.environ.get('M3_BUILD') == 'coverage':
     rustabi = 'muslcov'
-crossdir    = os.path.abspath('build/cross-' + isa + '/host')
-crossver    = '11.3.0'
+crossdir = os.path.abspath('build/cross-' + isa + '/host')
+crossver = '11.3.0'
 
 # ensure that the cross compiler is installed and up to date
 crossgcc = crossdir + '/bin/' + cross + 'g++'
 if not os.path.isfile(crossgcc):
-    sys.exit('Please install the ' + isa + ' cross compiler first ' \
-        + '(cd cross && ./build.sh ' + isa + ').')
+    sys.exit('Please install the ' + isa + ' cross compiler first '
+             + '(cd cross && ./build.sh ' + isa + ').')
 else:
     ver = subprocess.check_output([crossgcc, '-dumpversion']).decode().strip()
     if ver != crossver:
-        sys.exit('Please update the ' + isa + ' cross compiler from ' \
-            + ver + ' to ' + crossver + ' (cd cross && ./build.sh ' + isa + ' clean all).')
+        sys.exit('Please update the ' + isa + ' cross compiler from '
+                 + ver + ' to ' + crossver + ' (cd cross && ./build.sh ' + isa + ' clean all).')
 
 bins = {
     'bin': [],
@@ -53,6 +54,7 @@ if isa == 'riscv':
     link_addr = 0x11000000
 else:
     link_addr = 0x1000000
+
 
 class M3Env(Env):
     def clone(self):
@@ -68,9 +70,9 @@ class M3Env(Env):
         out = BuildPath.new(self, out)
         gen.add_build(BuildEdge(
             'elf2hex',
-            outs = [out],
-            ins = [SourcePath.new(self, input)],
-            deps = [BuildPath(self['TOOLDIR'] + '/elf2hex')],
+            outs=[out],
+            ins=[SourcePath.new(self, input)],
+            deps=[BuildPath(self['TOOLDIR'] + '/elf2hex')],
         ))
         return out
 
@@ -86,8 +88,8 @@ class M3Env(Env):
         # use the soft-float target spec for rust
         self['TRIPLE'] += 'sf'
 
-    def m3_exe(self, gen, out, ins, libs = [], dir = 'bin', NoSup = False,
-               ldscript = 'default', varAddr = True):
+    def m3_exe(self, gen, out, ins, libs=[], dir='bin', NoSup=False,
+               ldscript='default', varAddr=True):
         env = self.clone()
 
         m3libs = ['base', 'm3', 'thread']
@@ -109,7 +111,7 @@ class M3Env(Env):
             link_addr += 0x30000
 
         # we provide our own start files, unless no start files are desired by the app
-        if not '-nostartfiles' in env['LINKFLAGS']:
+        if '-nostartfiles' not in env['LINKFLAGS']:
             env['LINKFLAGS'] += ['-nostartfiles']
             crt0_objs = [BuildPath(self['BINDIR'] + '/' + f) for f in crts0]
             crtn_objs = [BuildPath(self['BINDIR'] + '/' + f) for f in crtsn]
@@ -129,12 +131,12 @@ class M3Env(Env):
             env.install(gen, env['MEMDIR'], hex)
 
         env.install(gen, env['BINDIR'], bin)
-        if not dir is None:
+        if dir is not None:
             bins[dir].append(bin)
         return bin
 
-    def m3_rust_exe(self, gen, out, libs = [], dir = 'bin', startup = None,
-                    ldscript = 'default', varAddr = True, std = False):
+    def m3_rust_exe(self, gen, out, libs=[], dir='bin', startup=None,
+                    ldscript='default', varAddr=True, std=False):
         global rustcrates
         if out != 'tilemux':
             rustcrates += [self.cur_dir]
@@ -142,7 +144,7 @@ class M3Env(Env):
         env = self.clone()
         env['LINKFLAGS'] += ['-Wl,-z,muldefs']
         env['LIBPATH'] += [env['RUSTLIBS']]
-        ins     = [] if startup is None else [startup]
+        ins = [] if startup is None else [startup]
         if std:
             libs = ['c', 'gem5', 'gcc', 'gcc_eh', out]
         elif out == 'tilemux':
@@ -195,7 +197,7 @@ class M3Env(Env):
         for dirname, dirbins in bins.items():
             for b in dirbins:
                 dst = BuildPath.new(self, dirname + '/' + os.path.basename(b))
-                self.strip(gen, out = dst, input = b)
+                self.strip(gen, out=dst, input=b)
                 deps += [dst]
 
         dir_env = self.clone()
@@ -215,22 +217,23 @@ class M3Env(Env):
         out = BuildPath(self['BUILDDIR'] + '/' + out)
         gen.add_build(BuildEdge(
             'mkm3fs',
-            outs = [out],
-            ins = [],
-            deps = deps,
-            vars = {
-                'dir' : BuildPath.new(self, dir),
-                'blocks' : blocks,
-                'inodes' : inodes
+            outs=[out],
+            ins=[],
+            deps=deps,
+            vars={
+                'dir': BuildPath.new(self, dir),
+                'blocks': blocks,
+                'inodes': inodes
             }
         ))
         return out
 
+
 # build basic environment
 env = M3Env()
 
-env['CPPPATH']  += ['src/include']
-env['CFLAGS']   += ['-std=c99', '-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
+env['CPPPATH'] += ['src/include']
+env['CFLAGS'] += ['-std=c99', '-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
 env['CXXFLAGS'] += ['-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
 env['CRGFLAGS'] += ['--color=always']
 if os.environ.get('M3_VERBOSE', '0') == '1':
@@ -246,80 +249,80 @@ hostenv['CPPFLAGS'] += ['-D__tools__']
 # determine host triple via rustc
 host_triple = subprocess.check_output(
     'rustc -vV | grep host: | cut -d " " -f 2', shell=True).decode().strip()
-hostenv['TRIPLE']   = host_triple
+hostenv['TRIPLE'] = host_triple
 
 env.hostenv = hostenv
 
 # for target compilation
-env['CXX']          = cross + 'g++'
-env['CPP']          = cross + 'cpp'
-env['AS']           = cross + 'gcc'
-env['CC']           = cross + 'gcc'
-env['AR']           = cross + 'gcc-ar'
-env['RANLIB']       = cross + 'gcc-ranlib'
-env['STRIP']        = cross + 'strip'
+env['CXX'] = cross + 'g++'
+env['CPP'] = cross + 'cpp'
+env['AS'] = cross + 'gcc'
+env['CC'] = cross + 'gcc'
+env['AR'] = cross + 'gcc-ar'
+env['RANLIB'] = cross + 'gcc-ranlib'
+env['STRIP'] = cross + 'strip'
 
-env['CXXFLAGS']     += [
+env['CXXFLAGS'] += [
     '-std=c++20', '-ffreestanding', '-fno-strict-aliasing', '-gdwarf-2', '-fno-omit-frame-pointer',
     '-fno-threadsafe-statics', '-fno-stack-protector', '-Wno-address-of-packed-member'
 ]
-env['CPPFLAGS']     += ['-D__' + target + '__', '-U_FORTIFY_SOURCE', '-D_GNU_SOURCE']
-env['CFLAGS']       += ['-gdwarf-2', '-fno-stack-protector']
-env['ASFLAGS']      += ['-Wl,-W', '-Wall', '-Wextra']
-env['LINKFLAGS']    += ['-Wl,--no-gc-sections', '-Wno-lto-type-mismatch', '-fno-stack-protector']
-env['TRIPLE']       = rustisa + '-linux-' + target + '-' + rustabi
+env['CPPFLAGS'] += ['-D__' + target + '__', '-U_FORTIFY_SOURCE', '-D_GNU_SOURCE']
+env['CFLAGS'] += ['-gdwarf-2', '-fno-stack-protector']
+env['ASFLAGS'] += ['-Wl,-W', '-Wall', '-Wextra']
+env['LINKFLAGS'] += ['-Wl,--no-gc-sections', '-Wno-lto-type-mismatch', '-fno-stack-protector']
+env['TRIPLE'] = rustisa + '-linux-' + target + '-' + rustabi
 
 # add build-dependent flags (debug/release)
 btype = os.environ.get('M3_BUILD')
 if btype == 'debug':
-    env['CXXFLAGS']         += ['-O0', '-g']
-    env['CFLAGS']           += ['-O0', '-g']
-    env['ASFLAGS']          += ['-g']
-    hostenv['CXXFLAGS']     += ['-O0', '-g']
-    hostenv['CFLAGS']       += ['-O0', '-g']
+    env['CXXFLAGS'] += ['-O0', '-g']
+    env['CFLAGS'] += ['-O0', '-g']
+    env['ASFLAGS'] += ['-g']
+    hostenv['CXXFLAGS'] += ['-O0', '-g']
+    hostenv['CFLAGS'] += ['-O0', '-g']
 else:
-    env['CRGFLAGS']         += ['--release']
-    hostenv['CRGFLAGS']     += ['--release']
-    env['CXXFLAGS']         += ['-O2', '-DNDEBUG', '-flto']
-    env['CFLAGS']           += ['-O2', '-DNDEBUG', '-flto']
-    env['LINKFLAGS']        += ['-O2', '-flto']
+    env['CRGFLAGS'] += ['--release']
+    hostenv['CRGFLAGS'] += ['--release']
+    env['CXXFLAGS'] += ['-O2', '-DNDEBUG', '-flto']
+    env['CFLAGS'] += ['-O2', '-DNDEBUG', '-flto']
+    env['LINKFLAGS'] += ['-O2', '-flto']
 builddir = 'build/' + target + '-' + isa + '-' + btype
 
 # add some important paths
-env['TGT']          = target
-env['ISA']          = isa
-env['BUILD']        = btype
-env['BUILDDIR']     = builddir
-env['BINDIR']       = builddir + '/bin'
-env['LIBDIR']       = builddir + '/bin'
-env['MEMDIR']       = builddir + '/mem'
-env['TOOLDIR']      = builddir + '/toolsbin'
-env['RUSTLIBS']     = builddir + '/rust/libs'
-env['CROSS']        = cross
-env['CROSSDIR']     = crossdir
-env['CROSSVER']     = crossver
-hostenv['TOOLDIR']  = env['TOOLDIR']
-hostenv['BINDIR']   = env['BINDIR']
+env['TGT'] = target
+env['ISA'] = isa
+env['BUILD'] = btype
+env['BUILDDIR'] = builddir
+env['BINDIR'] = builddir + '/bin'
+env['LIBDIR'] = builddir + '/bin'
+env['MEMDIR'] = builddir + '/mem'
+env['TOOLDIR'] = builddir + '/toolsbin'
+env['RUSTLIBS'] = builddir + '/rust/libs'
+env['CROSS'] = cross
+env['CROSSDIR'] = crossdir
+env['CROSSVER'] = crossver
+hostenv['TOOLDIR'] = env['TOOLDIR']
+hostenv['BINDIR'] = env['BINDIR']
 hostenv['BUILDDIR'] = env['BUILDDIR']
 
 # add arch-dependent stuff to env
 if isa == 'x86_64':
     # disable red-zone for all applications, because we used the application's stack in rctmux's
     # IRQ handlers since applications run in privileged mode. TODO can we enable that now?
-    env['CFLAGS']       += ['-mno-red-zone']
-    env['CXXFLAGS']     += ['-mno-red-zone']
+    env['CFLAGS'] += ['-mno-red-zone']
+    env['CXXFLAGS'] += ['-mno-red-zone']
 elif isa == 'arm':
-    env['CFLAGS']       += ['-march=armv7-a']
-    env['CXXFLAGS']     += ['-march=armv7-a']
-    env['LINKFLAGS']    += ['-march=armv7-a']
-    env['ASFLAGS']      += ['-march=armv7-a']
+    env['CFLAGS'] += ['-march=armv7-a']
+    env['CXXFLAGS'] += ['-march=armv7-a']
+    env['LINKFLAGS'] += ['-march=armv7-a']
+    env['ASFLAGS'] += ['-march=armv7-a']
 elif isa == 'riscv':
-    env['CFLAGS']       += ['-march=rv64imafdc', '-mabi=lp64d']
-    env['CXXFLAGS']     += ['-march=rv64imafdc', '-mabi=lp64d']
-    env['LINKFLAGS']    += ['-march=rv64imafdc', '-mabi=lp64d']
-    env['ASFLAGS']      += ['-march=rv64imafdc', '-mabi=lp64d']
+    env['CFLAGS'] += ['-march=rv64imafdc', '-mabi=lp64d']
+    env['CXXFLAGS'] += ['-march=rv64imafdc', '-mabi=lp64d']
+    env['LINKFLAGS'] += ['-march=rv64imafdc', '-mabi=lp64d']
+    env['ASFLAGS'] += ['-march=rv64imafdc', '-mabi=lp64d']
 musl_isa = 'riscv64' if isa == 'riscv' else isa
-env['CPPPATH']          += [
+env['CPPPATH'] += [
     'src/libs/musl/arch/' + musl_isa,
     'src/libs/musl/arch/generic',
     'src/libs/musl/m3/include/' + isa,
@@ -328,12 +331,12 @@ env['CPPPATH']          += [
     crossdir + '/include/c++/' + crossver + '/' + cross[:-1],
 ]
 # we install the crt* files to that directory
-env['SYSGCCLIBPATH']    = crossdir + '/lib/gcc/' + cross[:-1] + '/' + crossver
+env['SYSGCCLIBPATH'] = crossdir + '/lib/gcc/' + cross[:-1] + '/' + crossver
 # no build-id because it confuses gem5
-env['LINKFLAGS']        += ['-static', '-Wl,--build-id=none']
+env['LINKFLAGS'] += ['-static', '-Wl,--build-id=none']
 # binaries get very large otherwise
-env['LINKFLAGS']        += ['-Wl,-z,max-page-size=4096', '-Wl,-z,common-page-size=4096']
-env['LIBPATH']          += [crossdir + '/lib', env['LIBDIR']]
+env['LINKFLAGS'] += ['-Wl,-z,max-page-size=4096', '-Wl,-z,common-page-size=4096']
+env['LIBPATH'] += [crossdir + '/lib', env['LIBDIR']]
 
 # configure TARGET_CFLAGS for llvmprofile within minicov
 if isa == 'riscv':
@@ -347,29 +350,29 @@ if isa == 'riscv':
 gen = Generator()
 
 gen.add_rule('mkm3fs', Rule(
-    cmd = env['TOOLDIR'] + '/mkm3fs $out $dir $blocks $inodes 0',
-    desc = 'MKFS $out',
+    cmd=env['TOOLDIR'] + '/mkm3fs $out $dir $blocks $inodes 0',
+    desc='MKFS $out',
 ))
 gen.add_rule('elf2hex', Rule(
-    cmd = env['TOOLDIR'] + '/elf2hex $in > $out',
-    desc = 'ELF2HEX $out',
+    cmd=env['TOOLDIR'] + '/elf2hex $in > $out',
+    desc='ELF2HEX $out',
 ))
 
 # generate linker scripts
 ldscript = 'src/toolchain/ld.conf'
-ldscripts['default'] = env.cpp(gen, out = 'ld-default.conf', input = ldscript)
+ldscripts['default'] = env.cpp(gen, out='ld-default.conf', input=ldscript)
 
 bare_env = env.clone()
 bare_env['CPPFLAGS'] += ['-D__baremetal__=1']
-ldscripts['baremetal'] = bare_env.cpp(gen, out = 'ld-baremetal.conf', input = ldscript)
+ldscripts['baremetal'] = bare_env.cpp(gen, out='ld-baremetal.conf', input=ldscript)
 
 isr_env = env.clone()
 isr_env['CPPFLAGS'] += ['-D__baremetal__=1', '-D__isr__=1']
-ldscripts['isr'] = isr_env.cpp(gen, out = 'ld-isr.conf', input = ldscript)
+ldscripts['isr'] = isr_env.cpp(gen, out='ld-isr.conf', input=ldscript)
 
 tilemux_env = env.clone()
 tilemux_env['CPPFLAGS'] += ['-D__isr__=1', '-D__tilemux__=1']
-ldscripts['tilemux'] = tilemux_env.cpp(gen, out = 'ld-tilemux.conf', input = ldscript)
+ldscripts['tilemux'] = tilemux_env.cpp(gen, out='ld-tilemux.conf', input=ldscript)
 
 # generate build edges
 env.sub_build(gen, 'src')
