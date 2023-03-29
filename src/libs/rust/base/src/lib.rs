@@ -83,3 +83,9 @@ pub use serde;
 /// An offset in a [`GlobAddr`](mem::GlobAddr)
 #[allow(non_camel_case_types)]
 pub type goff = u64;
+
+/// The tmabi
+pub mod tmabi {
+    pub use crate::arch::isa::tmabi::*;
+    pub use crate::arch::{TMABI, TMABIOps};
+}

@@ -84,21 +84,21 @@ pub trait TMABIOps {
 cfg_if! {
     if #[cfg(target_arch = "x86_64")] {
         #[path = "x86_64/mod.rs"]
-        mod isa;
+        pub mod isa;
 
         pub type CPU = crate::arch::isa::cpu::X86CPU;
         pub type TMABI = crate::arch::isa::tmabi::X86TMABI;
     }
     else if #[cfg(target_arch = "arm")] {
         #[path = "arm/mod.rs"]
-        mod isa;
+        pub mod isa;
 
         pub type CPU = crate::arch::isa::cpu::ARMCPU;
         pub type TMABI = crate::arch::isa::tmabi::ARMTMABI;
     }
     else {
         #[path = "riscv/mod.rs"]
-        mod isa;
+        pub mod isa;
 
         pub type CPU = crate::arch::isa::cpu::RISCVCPU;
         pub type TMABI = crate::arch::isa::tmabi::RISCVTMABI;

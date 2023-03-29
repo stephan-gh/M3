@@ -21,6 +21,7 @@ use base::env;
 #[derive(Default)]
 pub struct Args {
     pub kmem: usize,
+    pub keep_alive: bool,
 }
 
 static ARGS: LazyStaticRefCell<Args> = LazyStaticRefCell::default();
@@ -32,6 +33,7 @@ pub fn get() -> Ref<'static, Args> {
 pub fn parse() {
     let mut args = Args {
         kmem: 64 * 1024 * 1024,
+        keep_alive: false,
     };
 
     let mut i = 1;
@@ -46,6 +48,9 @@ pub fn parse() {
             args.kmem = size;
             i += 1;
         }
+        else if argv[i] == "-k" {
+            args.keep_alive = true;
+        }
         i += 1;
     }
 
@@ -54,8 +59,9 @@ pub fn parse() {
 
 fn usage() -> ! {
     panic!(
-        "\nUsage: {} [-m <kmem>]
-          -m: the kernel memory size (> FIXED_KMEM)",
+        "\nUsage: {} [-m <kmem>] [-k]
+          -m: the kernel memory size (> FIXED_KMEM)
+          -k: keep workloop alive after last activity exited (for linux config)",
         env::args().next().unwrap()
     );
 }

@@ -127,7 +127,7 @@ impl subsys::ChildStarter for PagedChildStarter {
         let mut mapper = mapper::ChildMapper::new(aspace, act.tile_desc().has_virtmem());
 
         let run = act
-            .exec_file(&mut mapper, file.into_generic(), child.arguments())
+            .exec_file(Some((&mut mapper, file.into_generic())), child.arguments())
             .map_err(|e| {
                 VerboseError::new(e.code(), format!("Unable to execute {}", child.name()))
             })?;

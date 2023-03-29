@@ -40,6 +40,7 @@ bitflags! {
     #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct ActivityFlags : u32 {
         const IS_ROOT     = 1;
+        const IS_LINUX    = 2;
     }
 }
 
@@ -145,32 +146,13 @@ impl Activity {
     }
 
     pub fn init_async(&self) -> Result<(), Error> {
+        use base::kif::PageFlags;
+
         loader::init_memory_async(self)?;
         if !platform::tile_desc(self.tile_id()).is_device() {
-            self.init_eps_async()
-        }
-        else {
-            Ok(())
-        }
-    }
-
-    fn init_eps_async(&self) -> Result<(), Error> {
-        use crate::cap::{RGateObject, SGateObject};
-        use base::cfg;
-        use base::kif::PageFlags;
-        use base::tcu;
-
-        let act = if platform::is_shared(self.tile_id()) {
-            self.id()
-        }
-        else {
-            INVAL_ID
-        };
-
-        // get physical address of receive buffer
-        let rbuf_virt = platform::tile_desc(self.tile_id()).rbuf_std_space().0;
-        self.rbuf_phys
-            .set(if platform::tile_desc(self.tile_id()).has_virtmem() {
+            // get physical address of receive buffer
+            let rbuf_virt = platform::tile_desc(self.tile_id()).rbuf_std_space().0;
+            let rbuf_phys = if platform::tile_desc(self.tile_id()).has_virtmem() {
                 let glob = crate::tiles::TileMux::translate_async(
                     tilemng::tilemux(self.tile_id()),
                     self.id(),
@@ -181,7 +163,28 @@ impl Activity {
             }
             else {
                 rbuf_virt as goff
-            });
+            };
+
+            self.init_eps_async(rbuf_phys)
+        }
+        else {
+            Ok(())
+        }
+    }
+
+    pub fn init_eps_async(&self, rbuf_phys: u64) -> Result<(), Error> {
+        use crate::cap::{RGateObject, SGateObject};
+        use base::cfg;
+        use base::tcu;
+
+        let act = if platform::is_shared(self.tile_id()) {
+            self.id()
+        }
+        else {
+            INVAL_ID
+        };
+
+        self.rbuf_phys.set(rbuf_phys);
 
         let mut tilemux = tilemng::tilemux(self.tile_id());
 
@@ -277,8 +280,16 @@ impl Activity {
         self.state.get()
     }
 
+    pub fn set_state(&self, state: State) {
+        self.state.set(state);
+    }
+
     pub fn is_root(&self) -> bool {
         self.flags.contains(ActivityFlags::IS_ROOT)
+    }
+
+    pub fn is_linux(&self) -> bool {
+        self.flags.contains(ActivityFlags::IS_LINUX)
     }
 
     pub fn first_sel(&self) -> CapSel {
@@ -506,7 +517,7 @@ impl Activity {
         Self::send_exit_notify();
 
         // if it's root, there is nobody waiting for it; just remove it
-        if self.is_root() {
+        if self.is_root() || self.is_linux() {
             ActivityMng::remove_activity_async(self.id());
         }
     }

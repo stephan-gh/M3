@@ -338,7 +338,7 @@ impl ChildActivity {
         let mut mapper = DefaultMapper::new(self.tile_desc().has_virtmem());
 
         let func_addr = func as *const () as usize;
-        self.do_exec_file(&mut mapper, file.into_generic(), &args, Some(func_addr))
+        self.do_exec_file(Some((&mut mapper, file.into_generic())), &args, Some(func_addr))
     }
 
     /// Executes the given program and arguments with `self`.
@@ -348,7 +348,7 @@ impl ChildActivity {
     pub fn exec<S: AsRef<str>>(self, args: &[S]) -> Result<RunningProgramActivity, Error> {
         let file = VFS::open(args[0].as_ref(), OpenFlags::RX | OpenFlags::NEW_SESS)?;
         let mut mapper = DefaultMapper::new(self.tile_desc().has_virtmem());
-        self.exec_file(&mut mapper, file.into_generic(), args)
+        self.exec_file(Some((&mut mapper, file.into_generic())), args)
     }
 
     /// Executes the program given as a [`FileRef`] with `self`, using `mapper` to initiate the
@@ -361,24 +361,28 @@ impl ChildActivity {
     /// the program completeness or to stop it.
     pub fn exec_file<S: AsRef<str>>(
         self,
-        mapper: &mut dyn Mapper,
-        file: FileRef<dyn File>,
+        program: Option<(&mut dyn Mapper, FileRef<dyn File>)>,
         args: &[S],
     ) -> Result<RunningProgramActivity, Error> {
-        self.do_exec_file(mapper, file, args, None)
+        self.do_exec_file(program, args, None)
     }
 
     fn do_exec_file<S: AsRef<str>>(
         self,
-        mapper: &mut dyn Mapper,
-        file: FileRef<dyn File>,
+        program: Option<(&mut dyn Mapper, FileRef<dyn File>)>,
         args: &[S],
         closure: Option<usize>,
     ) -> Result<RunningProgramActivity, Error> {
         self.obtain_files_and_mounts()?;
 
-        let mut file = BufReader::new(file);
-        let entry = loader::load_program(&self, mapper, &mut file)?;
+        let (file, entry) = if let Some((mapper, file)) = program {
+            let mut file = BufReader::new(file);
+            let entry = loader::load_program(&self, mapper, &mut file)?;
+            (Some(file), entry)
+        }
+        else {
+            (None, 0)
+        };
 
         self.load_environment(args, closure, entry)?;
 

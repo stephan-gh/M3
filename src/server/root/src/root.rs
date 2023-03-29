@@ -108,9 +108,15 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
         res: &mut Resources,
         child: &mut OwnChild,
     ) -> Result<(), VerboseError> {
-        let bmod = self
-            .fetch_mod(child.cfg().name(), false)
-            .ok_or_else(|| Error::new(Code::NotFound))?;
+        let bmod = if !child.cfg().is_foreign() {
+            Some(
+                self.fetch_mod(child.cfg().name(), false)
+                    .ok_or_else(|| Error::new(Code::NotFound))?,
+            )
+        }
+        else {
+            None
+        };
 
         let sgate = SendGate::new_with(
             SGateArgs::new(reqs.recv_gate())
@@ -136,29 +142,40 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
                 .expect("Unable to finalize subsystem");
         }
 
-        let mut bmapper = loader::BootMapper::new(
-            act.sel(),
-            bmod.0.sel(),
-            act.tile_desc().has_virtmem(),
-            child.mem().pool().clone(),
-        );
-        let bfile = loader::BootFile::new(bmod.0, bmod.2 as usize);
-        let fd = Activity::own().files().add(Box::new(bfile))?;
+        let run = if let Some(bmod) = bmod {
+            let mut bmapper = loader::BootMapper::new(
+                act.sel(),
+                bmod.0.sel(),
+                act.tile_desc().has_virtmem(),
+                child.mem().pool().clone(),
+            );
+            let bfile = loader::BootFile::new(bmod.0, bmod.2 as usize);
+            let fd = Activity::own().files().add(Box::new(bfile))?;
 
-        let run = act
-            .exec_file(&mut bmapper, FileRef::new_owned(fd), child.arguments())
-            .map_err(|e| {
-                VerboseError::new(
-                    e.code(),
-                    format!("Unable to execute boot module {}", child.name()),
+            let run = act
+                .exec_file(
+                    Some((&mut bmapper, FileRef::new_owned(fd))),
+                    child.arguments(),
                 )
-            })?;
+                .map_err(|e| {
+                    VerboseError::new(
+                        e.code(),
+                        format!("Unable to execute boot module {}", child.name()),
+                    )
+                })?;
+
+            for a in bmapper.fetch_allocs() {
+                child.add_mem(a, None);
+            }
+
+            run
+        }
+        else {
+            act.exec_file(None, child.arguments())
+                .map_err(|e| VerboseError::new(e.code(), "Unable to start Activity".to_string()))?
+        };
 
         child.set_running(Box::new(run));
-
-        for a in bmapper.fetch_allocs() {
-            child.add_mem(a, None);
-        }
 
         Ok(())
     }

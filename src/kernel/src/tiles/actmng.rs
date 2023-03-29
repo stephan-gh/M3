@@ -243,6 +243,7 @@ impl ActivityMng {
 
                 // we currently assume that we have enough protection EPs for all user memory regions
                 assert!(mem_ep < tcu::PMEM_PROT_EPS as tcu::EpId);
+                assert!(mgate_obj.size() < (1 << 30));
 
                 // configure physical memory protection EP
                 tilemng::tilemux(tile_id)

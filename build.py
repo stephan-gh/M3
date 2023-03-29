@@ -171,7 +171,8 @@ class M3Env(Env):
         global rustlibs
         deps = [SourcePath('src/Cargo.toml'), SourcePath('src/.cargo/config')]
         deps += [SourcePath('rust-toolchain.toml')]
-        deps += [SourcePath('src/toolchain/rust/' + self['TRIPLE'] + '.json')]
+        if os.path.isfile('src/toolchain/rust/' + self['TRIPLE'] + '.json'):
+            deps += [SourcePath('src/toolchain/rust/' + self['TRIPLE'] + '.json')]
         for cr in rustlibs:
             deps += [SourcePath(cr + '/Cargo.toml')]
             deps += env.glob(gen, SourcePath(cr + '/**/*.rs'))
@@ -205,6 +206,19 @@ class M3Env(Env):
         outs = env.rust(gen, outs, deps)
         for o in outs:
             env.install(gen, outdir=env['RUSTLIBS'], input=o)
+        return outs
+
+    def lx_cargo_ws(self, gen, outs):
+        env = self.clone()
+
+        deps = env.rust_deps()
+        deps += [SourcePath.new(env, 'Cargo.toml'), SourcePath.new(env, '.cargo/config')]
+        deps += env.glob(gen, SourcePath.new(env, '**/*.rs'))
+
+        env['CRGFLAGS'] += ['--target', env['TRIPLE']]
+        outs = env.rust(gen, outs, deps)
+        for o in outs:
+            env.install(gen, outdir=env['RUSTBINS'], input=o)
         return outs
 
     def build_fs(self, gen, out, dir, blocks, inodes):
@@ -282,6 +296,11 @@ if btype == 'release':
     hostenv.remove_flag('CFLAGS', '-flto')
     hostenv.remove_flag('LINKFLAGS', '-flto')
 
+# for linux compilation
+lxenv = env.clone()
+lxenv['CPPPATH'] = []
+lxenv['TRIPLE'] = 'riscv64gc-unknown-linux-gnu'
+
 env.hostenv = hostenv
 
 # for target compilation
@@ -321,6 +340,8 @@ env['CROSSVER'] = crossver
 hostenv['TOOLDIR'] = env['TOOLDIR']
 hostenv['BINDIR'] = env['BINDIR']
 hostenv['BUILDDIR'] = env['BUILDDIR']
+lxenv['RUSTLIBS'] = env['RUSTLIBS']
+lxenv['RUSTBINS'] = builddir + '/lxbins'
 
 # add arch-dependent stuff to env
 if isa == 'x86_64':
@@ -394,6 +415,8 @@ ldscripts['tilemux'] = tilemux_env.cpp(gen, out='ld-tilemux.conf', input=ldscrip
 # generate build edges
 env.sub_build(gen, 'src')
 env.sub_build(gen, 'tools')
+if isa == 'riscv' and os.path.exists('m3lx'):
+    lxenv.sub_build(gen, 'm3lx')
 
 # finally, write it to file
 gen.write_to_file(defaults={})

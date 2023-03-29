@@ -28,7 +28,7 @@ pub mod net;
 
 pub use base::{
     backtrace, borrow, boxed, build_vmsg, cell, cfg, col, cpu, elf, errors, format, function, goff,
-    impl_boxitem, kif, libc, log, mem, quota, rc, serde, serialize, sync, tcu, time, tmif, util,
+    impl_boxitem, kif, libc, log, mem, quota, rc, serde, serialize, sync, tcu, time, tmabi, tmif, util,
     vec,
 };
 

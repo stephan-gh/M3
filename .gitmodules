@@ -22,3 +22,6 @@
 [submodule "ninjapie"]
 	path = tools/ninjapie
 	url = git@github.com:Barkhausen-Institut/Ninjapie.git
+[submodule "m3lx"]
+	path = m3lx
+	url = git@github.com:Barkhausen-Institut/M3Lx.git

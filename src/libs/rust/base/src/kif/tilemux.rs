@@ -176,6 +176,8 @@ pub struct Response {
 #[repr(u64)]
 pub enum Calls {
     Exit,
+    LxAct,
+    Noop,
 }
 
 /// The exit call
@@ -184,4 +186,18 @@ pub enum Calls {
 pub struct Exit {
     pub act_id: ActId,
     pub status: Code,
+}
+
+// The linux act call
+#[repr(C)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LxAct {
+    pub op: u64,
+}
+
+/// The noop call
+#[repr(C)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Noop {
+    pub op: u64,
 }
