@@ -17,7 +17,7 @@
  */
 
 #![feature(core_intrinsics)]
-#![no_std]
+#![cfg_attr(not(feature = "linux"), no_std)]
 
 #[macro_use]
 pub mod io;
@@ -43,3 +43,6 @@ pub mod syscalls;
 pub mod test;
 pub mod tiles;
 pub mod vfs;
+
+#[cfg(feature = "linux")]
+pub use base::linux;

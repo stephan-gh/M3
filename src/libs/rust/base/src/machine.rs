@@ -23,6 +23,7 @@ use crate::env;
 use crate::errors::Error;
 use crate::tcu;
 
+// #[cfg_attr(feature = "linux", link(name = "gem5"))]
 extern "C" {
     pub fn gem5_writefile(src: *const u8, len: u64, offset: u64, file: u64);
     pub fn gem5_shutdown(delay: u64);
@@ -42,6 +43,7 @@ pub fn write_coverage(_act: u64) {
 
 pub fn write(buf: &[u8]) -> Result<usize, Error> {
     let amount = tcu::TCU::print(buf);
+    #[cfg(not(feature = "linux"))]
     if env::boot().platform == env::Platform::Gem5 {
         unsafe {
             // put the string on the stack to prevent that gem5_writefile causes a pagefault
@@ -64,7 +66,7 @@ pub fn write(buf: &[u8]) -> Result<usize, Error> {
 pub unsafe fn flush_cache() {
     #[cfg(any(target_vendor = "hw", target_vendor = "hw22"))]
     let (cacheline_size, cache_size) = (64, 512 * 1024);
-    #[cfg(target_vendor = "gem5")]
+    #[cfg(not(any(target_vendor = "hw", target_vendor = "hw22")))]
     let (cacheline_size, cache_size) = (64, (32 + 256) * 1024);
 
     // ensure that we replace all cachelines in cache
@@ -85,6 +87,7 @@ pub unsafe fn flush_cache() {
 
 pub fn shutdown() -> ! {
     if env::boot().platform == env::Platform::Gem5 {
+        #[cfg(not(feature = "linux"))]
         unsafe { gem5_shutdown(0) };
     }
     else {

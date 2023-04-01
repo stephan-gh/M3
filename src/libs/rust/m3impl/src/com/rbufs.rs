@@ -23,7 +23,6 @@ use crate::errors::Error;
 use crate::goff;
 use crate::kif::Perm;
 use crate::mem::MemMap;
-use crate::syscalls;
 use crate::tiles::Activity;
 use crate::util::math;
 
@@ -102,7 +101,8 @@ pub(crate) fn alloc_rbuf(size: usize) -> Result<RecvBuf, Error> {
 fn map_rbuf(addr: usize, size: usize) -> Result<MemGate, Error> {
     let size = math::round_up(size, cfg::PAGE_SIZE);
     let mgate = MemGate::new(size, Perm::R)?;
-    syscalls::create_map(
+    #[cfg(not(feature = "linux"))]
+    crate::syscalls::create_map(
         (addr / cfg::PAGE_SIZE) as Selector,
         Activity::own().sel(),
         mgate.sel(),
@@ -110,11 +110,15 @@ fn map_rbuf(addr: usize, size: usize) -> Result<MemGate, Error> {
         (size / cfg::PAGE_SIZE) as Selector,
         Perm::R,
     )?;
+    #[cfg(feature = "linux")]
+    base::linux::mmap::mmap(addr, size)?;
     Ok(mgate)
 }
 
 /// Frees the given receive buffer
 pub(crate) fn free_rbuf(rbuf: &RecvBuf) {
+    #[cfg(feature = "linux")]
+    base::linux::mmap::munmap(rbuf.addr(), rbuf.size());
     BUFS.borrow_mut().free(rbuf.addr as u64, rbuf.size as u64);
 }
 

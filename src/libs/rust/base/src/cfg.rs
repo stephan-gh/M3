@@ -18,10 +18,10 @@
 pub const MAX_TILES: usize = 64;
 pub const MAX_CHIPS: usize = 2;
 
-#[cfg(target_vendor = "gem5")]
-pub const MAX_ACTS: usize = 32;
 #[cfg(any(target_vendor = "hw", target_vendor = "hw22"))]
 pub const MAX_ACTS: usize = 16;
+#[cfg(not(any(target_vendor = "hw", target_vendor = "hw22")))]
+pub const MAX_ACTS: usize = 32;
 
 pub const PAGE_BITS: usize = 12;
 pub const PAGE_SIZE: usize = 1 << PAGE_BITS;
@@ -62,7 +62,7 @@ pub const FIXED_ROOT_MEM: usize = MOD_HEAP_SIZE + 2 * 1024 * 1024;
 
 #[cfg(any(target_vendor = "hw", target_vendor = "hw22"))]
 pub const TILEMUX_START: usize = MEM_OFFSET;
-#[cfg(target_vendor = "gem5")]
+#[cfg(not(any(target_vendor = "hw", target_vendor = "hw22")))]
 pub const TILEMUX_START: usize = MEM_OFFSET + 0x20_0000;
 
 pub const TILEMUX_RBUF_SPACE: usize = TILEMUX_START + 0xD0_0000;

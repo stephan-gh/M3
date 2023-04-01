@@ -20,7 +20,7 @@
 #![feature(core_intrinsics)]
 #![feature(maybe_uninit_write_slice)]
 #![default_lib_allocator]
-#![no_std]
+#![cfg_attr(not(feature = "linux"), no_std)]
 
 extern crate alloc;
 pub extern crate core as _core;
@@ -87,5 +87,8 @@ pub type goff = u64;
 /// The tmabi
 pub mod tmabi {
     pub use crate::arch::isa::tmabi::*;
-    pub use crate::arch::{TMABI, TMABIOps};
+    pub use crate::arch::{TMABIOps, TMABI};
 }
+
+#[cfg(feature = "linux")]
+pub use arch::linux;

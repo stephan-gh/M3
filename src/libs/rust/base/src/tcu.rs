@@ -31,7 +31,7 @@ use core::sync::atomic;
 
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-use crate::arch::{CPUOps, TMABIOps, CPU, TMABI};
+use crate::arch::{CPUOps, CPU};
 use crate::cell::LazyReadOnlyCell;
 use crate::cfg;
 use crate::env;
@@ -562,7 +562,7 @@ impl TCU {
     pub fn handle_xlate_fault(addr: usize, perm: Perm) {
         // report translation fault to TileMux or whoever handles the call; ignore errors, we won't
         // get back here if TileMux cannot resolve the fault.
-        TMABI::call2(tmif::Operation::TranslFault, addr, perm.bits() as usize).ok();
+        tmif::xlate_fault(addr, perm).ok();
     }
 
     /// Tries to fetch a new message from the given endpoint.

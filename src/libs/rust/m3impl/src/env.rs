@@ -242,6 +242,14 @@ extern "Rust" {
     fn main() -> Result<(), Error>;
 }
 
+pub fn init() {
+    crate::syscalls::init();
+    crate::com::pre_init();
+    crate::tiles::init();
+    crate::io::init();
+    crate::com::init();
+}
+
 pub fn deinit() {
     crate::io::deinit();
     crate::vfs::deinit();
@@ -252,11 +260,7 @@ pub extern "C" fn env_run() {
     unsafe {
         __m3_init_libc(0, ptr::null(), ptr::null(), false);
     }
-    crate::syscalls::init();
-    crate::com::pre_init();
-    crate::tiles::init();
-    crate::io::init();
-    crate::com::init();
+    init();
 
     let res = if let Some(cl) = crate::env::get().load_closure() {
         cl()
