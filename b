@@ -35,7 +35,6 @@ fi
 export M3_BUILD M3_TARGET M3_ISA M3_OUT
 
 # determine cross compiler and rust ABI based on target and ISA
-export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$build/bin"
 root=$(readlink -f .)
 crossdir="./build/cross-$M3_ISA/host/bin"
 if [ "$M3_ISA" = "arm" ]; then
