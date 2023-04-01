@@ -99,7 +99,7 @@ def free_loop(lodev):
 def run_fdisk(image):
     """runs fdisk for `image`"""
     lodev = create_loop(image)
-    hdcyl = os.path.getsize(image) / (1024 * 1024)
+    hdcyl = int(os.path.getsize(image) / (1024 * 1024))
     subprocess.call(["sudo", "fdisk", "-u", "-C", str(hdcyl), "-S", str(hdheads), lodev])
     free_loop(lodev)
 
