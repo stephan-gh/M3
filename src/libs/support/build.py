@@ -1,4 +1,3 @@
-from glob import glob
 from ninjapie import BuildPath, SourcePath
 import os
 
