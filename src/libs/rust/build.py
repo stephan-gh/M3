@@ -1,5 +1,14 @@
 dirs = [
+    'base',
+    'heap',
     'isr',
+    'lang',
+    'm3',
+    'm3impl',
+    'paging',
+    'pci',
+    'resmng',
+    'thread',
 ]
 
 

@@ -48,7 +48,8 @@ bins = {
     'bin': [],
     'sbin': [],
 }
-rustcrates = []
+rustapps = []
+rustlibs = []
 ldscripts = {}
 if isa == 'riscv':
     link_addr = 0x11000000
@@ -137,9 +138,9 @@ class M3Env(Env):
 
     def m3_rust_exe(self, gen, out, libs=[], dir='bin', startup=None,
                     ldscript='default', varAddr=True, std=False):
-        global rustcrates
+        global rustapps
         if out != 'tilemux':
-            rustcrates += [self.cur_dir]
+            rustapps += [self.cur_dir]
 
         env = self.clone()
         env['LINKFLAGS'] += ['-Wl,-z,muldefs']
@@ -155,29 +156,41 @@ class M3Env(Env):
 
         return env.m3_exe(gen, out, ins, libs, dir, True, ldscript, varAddr)
 
-    def rust_exe(self, gen, out):
-        deps = env.glob(gen, '**/*.rs') + [SourcePath.new(self, 'Cargo.toml')]
+    def rust_exe(self, gen, out, deps=[]):
+        deps += env.glob(gen, '**/*.rs') + [SourcePath.new(self, 'Cargo.toml')]
         cfg = SourcePath.new(self, '.cargo/config')
         if os.path.isfile(cfg):
             deps += [cfg]
         return Env.rust_exe(self, gen, out, deps=deps)
 
+    def m3_rust_lib(self, gen):
+        global rustlibs
+        rustlibs += [self.cur_dir]
+
+    def rust_deps(self):
+        global rustlibs
+        deps = [SourcePath('src/Cargo.toml'), SourcePath('src/.cargo/config')]
+        deps += [SourcePath('rust-toolchain.toml')]
+        deps += [SourcePath('src/toolchain/rust/' + self['TRIPLE'] + '.json')]
+        for cr in rustlibs:
+            deps += [SourcePath(cr + '/Cargo.toml')]
+            deps += env.glob(gen, SourcePath(cr + '/**/*.rs'))
+        return deps
+
     def m3_cargo(self, gen, out):
         env = self.clone()
         env['CRGFLAGS'] += ['--target', env['TRIPLE']]
         env['CRGFLAGS'] += ['-Z build-std=core,alloc,std,panic_abort']
-        return env.rust_exe(gen, out)
+        return env.rust_exe(gen, out, self.rust_deps())
 
     def m3_cargo_ws(self, gen):
-        global rustcrates
+        global rustapps
         env = self.clone()
 
-        deps = ['src/Cargo.toml', 'src/.cargo/config', 'rust-toolchain.toml']
-        deps += ['src/toolchain/rust/' + self['TRIPLE'] + '.json']
-
         outs = []
-        for cr in rustcrates:
-            deps += [cr + '/Cargo.toml'] + env.glob(gen, cr + '/**/*.rs')
+        deps = self.rust_deps()
+        for cr in rustapps:
+            deps += [SourcePath(cr + '/Cargo.toml')] + env.glob(gen, SourcePath(cr + '/**/*.rs'))
             crate_name = os.path.basename(cr)
             outs.append('lib' + crate_name + '.a')
             # specify crates explicitly, because some crates are only supported by some targets
