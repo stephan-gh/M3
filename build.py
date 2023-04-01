@@ -255,10 +255,26 @@ else:
     env['CRGFLAGS'] += ['-q']
 env['RUSTBINS'] = 'rust/'
 
+# add build-dependent flags (debug/release)
+btype = os.environ.get('M3_BUILD')
+if btype == 'debug':
+    env['CXXFLAGS'] += ['-O0', '-g']
+    env['CFLAGS'] += ['-O0', '-g']
+    env['ASFLAGS'] += ['-g']
+else:
+    env['CRGFLAGS'] += ['--release']
+    env['CXXFLAGS'] += ['-O2', '-DNDEBUG', '-flto']
+    env['CFLAGS'] += ['-O2', '-DNDEBUG', '-flto']
+    env['LINKFLAGS'] += ['-O2', '-flto']
+
 # for host compilation
 hostenv = env.clone()
 hostenv['CXXFLAGS'] += ['-std=c++11']
 hostenv['CPPFLAGS'] += ['-D__tools__']
+if btype == 'release':
+    hostenv.remove_flag('CXXFLAGS', '-flto')
+    hostenv.remove_flag('CFLAGS', '-flto')
+    hostenv.remove_flag('LINKFLAGS', '-flto')
 # determine host triple via rustc
 host_triple = subprocess.check_output(
     'rustc -vV | grep host: | cut -d " " -f 2', shell=True).decode().strip()
@@ -285,23 +301,8 @@ env['ASFLAGS'] += ['-Wl,-W', '-Wall', '-Wextra']
 env['LINKFLAGS'] += ['-Wl,--no-gc-sections', '-Wno-lto-type-mismatch', '-fno-stack-protector']
 env['TRIPLE'] = rustisa + '-linux-' + target + '-' + rustabi
 
-# add build-dependent flags (debug/release)
-btype = os.environ.get('M3_BUILD')
-if btype == 'debug':
-    env['CXXFLAGS'] += ['-O0', '-g']
-    env['CFLAGS'] += ['-O0', '-g']
-    env['ASFLAGS'] += ['-g']
-    hostenv['CXXFLAGS'] += ['-O0', '-g']
-    hostenv['CFLAGS'] += ['-O0', '-g']
-else:
-    env['CRGFLAGS'] += ['--release']
-    hostenv['CRGFLAGS'] += ['--release']
-    env['CXXFLAGS'] += ['-O2', '-DNDEBUG', '-flto']
-    env['CFLAGS'] += ['-O2', '-DNDEBUG', '-flto']
-    env['LINKFLAGS'] += ['-O2', '-flto']
-builddir = 'build/' + target + '-' + isa + '-' + btype
-
 # add some important paths
+builddir = 'build/' + target + '-' + isa + '-' + btype
 env['TGT'] = target
 env['ISA'] = isa
 env['BUILD'] = btype
