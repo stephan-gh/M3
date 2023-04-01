@@ -8,10 +8,4 @@
 /.remote-build
 /.remote-build-failed
 /build
-/cross/*/build
-/cross/*/src
-/cross/*.tar.gz
-/cross/*.tar.bz2
 /run
-/dddg_parse_progress.out
-/out.csv
