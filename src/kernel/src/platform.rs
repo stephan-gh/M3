@@ -28,7 +28,9 @@ use crate::ktcu;
 use crate::mem::{self, MemMod, MemType};
 use crate::tiles::KERNEL_ID;
 
-const MAX_PHYS_ADDR_SIZE: u64 = 1 << 30;
+// we use the upper two bits for the EP id. Thus, we have 29 bits available. However, we cannot
+// use the lowest bit in kif::boot::Mem and it should be page aligned.
+const MAX_PHYS_ADDR_SIZE: u64 = (1 << 30) - cfg::PAGE_SIZE as u64;
 
 pub struct KEnv {
     info: boot::Info,
