@@ -275,10 +275,6 @@ if btype == 'release':
     hostenv.remove_flag('CXXFLAGS', '-flto')
     hostenv.remove_flag('CFLAGS', '-flto')
     hostenv.remove_flag('LINKFLAGS', '-flto')
-# determine host triple via rustc
-host_triple = subprocess.check_output(
-    'rustc -vV | grep host: | cut -d " " -f 2', shell=True).decode().strip()
-hostenv['TRIPLE'] = host_triple
 
 env.hostenv = hostenv
 
