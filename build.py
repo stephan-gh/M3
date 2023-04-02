@@ -289,12 +289,13 @@ env['STRIP'] = cross + 'strip'
 
 env['CXXFLAGS'] += [
     '-std=c++20', '-ffreestanding', '-fno-strict-aliasing', '-gdwarf-2', '-fno-omit-frame-pointer',
-    '-fno-threadsafe-statics', '-fno-stack-protector', '-Wno-address-of-packed-member'
+    '-fno-threadsafe-statics', '-fno-stack-protector', '-Wno-address-of-packed-member',
+    '-ffunction-sections', '-fdata-sections'
 ]
 env['CPPFLAGS'] += ['-D__' + target + '__', '-U_FORTIFY_SOURCE', '-D_GNU_SOURCE']
-env['CFLAGS'] += ['-gdwarf-2', '-fno-stack-protector']
+env['CFLAGS'] += ['-gdwarf-2', '-fno-stack-protector', '-ffunction-sections', '-fdata-sections']
 env['ASFLAGS'] += ['-Wl,-W', '-Wall', '-Wextra']
-env['LINKFLAGS'] += ['-Wl,--no-gc-sections', '-Wno-lto-type-mismatch', '-fno-stack-protector']
+env['LINKFLAGS'] += ['-Wl,--gc-section', '-Wno-lto-type-mismatch', '-fno-stack-protector']
 env['TRIPLE'] = rustisa + '-linux-' + target + '-' + rustabi
 
 # add some important paths
