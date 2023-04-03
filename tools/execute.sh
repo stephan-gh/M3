@@ -142,24 +142,20 @@ build_params_gem5() {
     export M3_GEM5_TILES=$M3_CORES
     export M3_GEM5_IDE_DRIVE=$M3_HDD
 
-    params=$(mktemp)
-    trap 'rm -f $params' EXIT ERR INT TERM
-
-    {
-        echo -n "--outdir=$M3_OUT --debug-file=gem5.log --debug-flags=$M3_GEM5_DBG"
-        if [ "$M3_GEM5_PAUSE" != "" ]; then
-            echo -n " --listener-mode=on"
-        fi
-        if [ "$M3_GEM5_DBGSTART" != "" ]; then
-            echo -n " --debug-start=$M3_GEM5_DBGSTART"
-        fi
-        echo -n " $M3_GEM5_CFG --cpu-type $M3_GEM5_CPU --isa $M3_ISA"
-        echo -n " --cmd \"$cmd\" --mods \"$mods\""
-        echo -n " --cpu-clock=$M3_GEM5_CPUFREQ --sys-clock=$M3_GEM5_MEMFREQ"
-        if [ "$M3_GEM5_PAUSE" != "" ]; then
-            echo -n " --pausetile=$M3_GEM5_PAUSE"
-        fi
-    } > "$params"
+    params=()
+    params=("${params[@]}" --outdir="$M3_OUT" --debug-file=gem5.log --debug-flags="$M3_GEM5_DBG")
+    if [ "$M3_GEM5_PAUSE" != "" ]; then
+        params=("${params[@]}" --listener-mode=on)
+    fi
+    if [ "$M3_GEM5_DBGSTART" != "" ]; then
+        params=("${params[@]}" --debug-start="$M3_GEM5_DBGSTART")
+    fi
+    params=("${params[@]}" "$M3_GEM5_CFG" --cpu-type "$M3_GEM5_CPU" --isa "$M3_ISA")
+    params=("${params[@]}" --cmd "$cmd" --mods "$mods")
+    params=("${params[@]}" --cpu-clock="$M3_GEM5_CPUFREQ" --sys-clock="$M3_GEM5_MEMFREQ")
+    if [ "$M3_GEM5_PAUSE" != "" ]; then
+        params=("${params[@]}" --pausetile="$M3_GEM5_PAUSE")
+    fi
 
     if [ "$M3_ISA" = "x86_64" ]; then
         gem5build="X86"
@@ -181,16 +177,15 @@ build_params_gem5() {
         trap 'rm -f $tmp' EXIT ERR INT TERM
         {
             echo "b main"
-            echo -n "run "
-            cat "$params"
+            echo -n "run" "${params[@]}"
             echo
         } > "$tmp"
         gdb --tui platform/gem5/build/$gem5build/gem5.debug "--command=$tmp"
     else
         if [ "$debug" != "" ]; then
-            xargs -o "$build/tools/ignoreint" platform/gem5/build/$gem5build/gem5.opt < "$params"
+            "$build/tools/ignoreint" platform/gem5/build/$gem5build/gem5.opt "${params[@]}"
         else
-            xargs -o platform/gem5/build/$gem5build/gem5.opt < "$params"
+            platform/gem5/build/$gem5build/gem5.opt "${params[@]}"
         fi
     fi
 }
