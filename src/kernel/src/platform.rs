@@ -195,9 +195,10 @@ pub fn init() {
                 let kmem = MemMod::new(MemType::KERNEL, tile.id, used, args::get().kmem as goff);
                 used += args::get().kmem as goff;
                 // configure EP to give us access to this range of physical memory
-                ktcu::config_local_ep(1, |regs| {
+                ktcu::config_local_ep(1, |regs, tgtep| {
                     ktcu::config_mem(
                         regs,
+                        tgtep,
                         KERNEL_ID,
                         kmem.addr().tile(),
                         kmem.addr().offset(),
@@ -282,9 +283,18 @@ pub fn init_serial(dest: Option<(TileId, EpId)>) {
         user_tiles().find(|idx| tile_desc(*idx).isa() == TileISA::SERIAL_DEV)
     {
         if let Some((tile, ep)) = dest {
-            ktcu::config_remote_ep(ser_tile, 4, |regs| {
+            ktcu::config_remote_ep(ser_tile, 4, |regs, tgtep| {
                 let act = kif::tilemux::ACT_ID as ActId;
-                ktcu::config_send(regs, act, 0, tile, ep, cfg::SERIAL_BUF_ORD, UNLIM_CREDITS);
+                ktcu::config_send(
+                    regs,
+                    tgtep,
+                    act,
+                    0,
+                    tile,
+                    ep,
+                    cfg::SERIAL_BUF_ORD,
+                    UNLIM_CREDITS,
+                );
             })
             .unwrap();
         }

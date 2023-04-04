@@ -93,9 +93,10 @@ impl TileMux {
         use base::cfg;
 
         // configure send EP
-        ktcu::config_remote_ep(self.tile_id(), tcu::KPEX_SEP, |regs| {
+        ktcu::config_remote_ep(self.tile_id(), tcu::KPEX_SEP, |regs, tgtep| {
             ktcu::config_send(
                 regs,
+                tgtep,
                 kif::tilemux::ACT_ID as ActId,
                 self.tile_id().raw() as tcu::Label,
                 platform::kernel_tile(),
@@ -108,9 +109,10 @@ impl TileMux {
 
         // configure receive EP
         let mut rbuf = cfg::TILEMUX_RBUF_SPACE as goff;
-        ktcu::config_remote_ep(self.tile_id(), tcu::KPEX_REP, |regs| {
+        ktcu::config_remote_ep(self.tile_id(), tcu::KPEX_REP, |regs, tgtep| {
             ktcu::config_recv(
                 regs,
+                tgtep,
                 kif::tilemux::ACT_ID as ActId,
                 rbuf,
                 cfg::KPEX_RBUF_ORD,
@@ -122,9 +124,10 @@ impl TileMux {
         rbuf += 1 << cfg::KPEX_RBUF_ORD;
 
         // configure upcall EP
-        ktcu::config_remote_ep(self.tile_id(), tcu::TMSIDE_REP, |regs| {
+        ktcu::config_remote_ep(self.tile_id(), tcu::TMSIDE_REP, |regs, tgtep| {
             ktcu::config_recv(
                 regs,
+                tgtep,
                 kif::tilemux::ACT_ID as ActId,
                 rbuf,
                 cfg::TMUP_RBUF_ORD,
@@ -260,13 +263,12 @@ impl TileMux {
         let rgate = obj.rgate();
         assert!(rgate.activated());
 
-        klog!(EPS, "{}:EP{} = {:?}", self.tile_id(), ep, obj);
-
-        ktcu::config_remote_ep(self.tile_id(), ep, |regs| {
+        ktcu::config_remote_ep(self.tile_id(), ep, |regs, tgtep| {
             let act = self.ep_activity_id(act);
             let (rpe, rep) = rgate.location().unwrap();
             ktcu::config_send(
                 regs,
+                tgtep,
                 act,
                 obj.label(),
                 rpe,
@@ -284,12 +286,11 @@ impl TileMux {
         reply_eps: Option<EpId>,
         obj: &SRc<RGateObject>,
     ) -> Result<(), Error> {
-        klog!(EPS, "{}:EP{} = {:?}", self.tile_id(), ep, obj);
-
-        ktcu::config_remote_ep(self.tile_id(), ep, |regs| {
+        ktcu::config_remote_ep(self.tile_id(), ep, |regs, tgtep| {
             let act = self.ep_activity_id(act);
             ktcu::config_recv(
                 regs,
+                tgtep,
                 act,
                 obj.addr(),
                 obj.order(),
@@ -309,17 +310,11 @@ impl TileMux {
         obj: &SRc<MGateObject>,
         tile_id: TileId,
     ) -> Result<(), Error> {
-        if ep < tcu::PMEM_PROT_EPS as EpId {
-            klog!(EPS, "{}:PMPEP{} = {:?}", self.tile_id(), ep, obj);
-        }
-        else {
-            klog!(EPS, "{}:EP{} = {:?}", self.tile_id(), ep, obj);
-        }
-
-        ktcu::config_remote_ep(self.tile_id(), ep, |regs| {
+        ktcu::config_remote_ep(self.tile_id(), ep, |regs, tgtep| {
             let act = self.ep_activity_id(act);
             ktcu::config_mem(
                 regs,
+                tgtep,
                 act,
                 tile_id,
                 obj.offset(),
@@ -336,8 +331,6 @@ impl TileMux {
         force: bool,
         notify: bool,
     ) -> Result<(), Error> {
-        klog!(EPS, "{}:EP{} = invalid", self.tile_id(), ep);
-
         let unread_mask = ktcu::invalidate_ep_remote(self.tile_id(), ep, force)?;
         if unread_mask != 0 && notify && platform::tile_desc(self.tile_id()).supports_tilemux() {
             let mut buf = MsgBuf::borrow_def();
@@ -361,15 +354,6 @@ impl TileMux {
         recv_ep: EpId,
         send_ep: EpId,
     ) -> Result<(), Error> {
-        klog!(
-            EPS,
-            "{}:EP{} = invalid reply EPs at {}:EP{}",
-            self.tile_id(),
-            send_ep,
-            recv_tile,
-            recv_ep
-        );
-
         ktcu::inv_reply_remote(recv_tile, recv_ep, self.tile_id(), send_ep)
     }
 
