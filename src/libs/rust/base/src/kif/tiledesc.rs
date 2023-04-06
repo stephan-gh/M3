@@ -246,19 +246,27 @@ impl TileDesc {
                     )
                 },
                 "idedev" => {
-                    res =
-                        TileDesc::new_with_attr(TileType::COMP, TileISA::IDE_DEV, 0, TileAttr::IMEM)
+                    res = TileDesc::new_with_attr(
+                        TileType::COMP,
+                        TileISA::IDE_DEV,
+                        0,
+                        TileAttr::empty(),
+                    )
                 },
                 "nicdev" => {
-                    res =
-                        TileDesc::new_with_attr(TileType::COMP, TileISA::NIC_DEV, 0, TileAttr::IMEM)
+                    res = TileDesc::new_with_attr(
+                        TileType::COMP,
+                        TileISA::NIC_DEV,
+                        0,
+                        TileAttr::empty(),
+                    )
                 },
                 "serdev" => {
                     res = TileDesc::new_with_attr(
                         TileType::COMP,
                         TileISA::SERIAL_DEV,
                         0,
-                        TileAttr::IMEM,
+                        TileAttr::empty(),
                     )
                 },
 
