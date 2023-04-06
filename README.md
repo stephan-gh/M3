@@ -30,7 +30,7 @@ Getting Started:
 If you setup the project on a new (Debian-based) machine make sure to have at least the following packages installed:
 
     $ sudo apt update
-    $ sudo apt install git build-essential scons zlib1g-dev clang \
+    $ sudo apt install git build-essential scons zlib1g-dev clang gawk \
         m4 libboost-all-dev libssl-dev libgmp3-dev libmpfr-dev \
         libmpc-dev libncurses5-dev texinfo ninja-build libxml2-utils
 

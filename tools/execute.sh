@@ -66,7 +66,7 @@ get_mods() {
     echo -n "boot.xml=$M3_OUT/boot.xml"
 
     # extract binaries we need to pass as boot modules
-    for name in $(xmllint --xpath ".//app[@args]/@args" "$1" 2>/dev/null | awk -e '
+    for name in $(xmllint --xpath ".//app[@args]/@args" "$1" 2>/dev/null | gawk '
         # we currently assume that binaries starting with "/" are loaded from the FS
         match($0, /args="([^/][^[:space:]]*).*"/, m) {
             print(m[1])
@@ -92,7 +92,7 @@ get_mods() {
     done
 
     # add additional boot modules from config
-    for mod in $(xmllint --xpath "/config/mods/mod" "$1" 2>/dev/null | awk -e '
+    for mod in $(xmllint --xpath "/config/mods/mod" "$1" 2>/dev/null | gawk '
         match($0, /<mod\s+name="(.*?)"\s+file="(.*?)"/, m) {
             printf("%s=%s\n", m[1], m[2])
         }
