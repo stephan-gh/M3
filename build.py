@@ -147,7 +147,7 @@ class M3Env(Env):
         env['LIBPATH'] += [env['RUSTLIBS']]
         ins = [] if startup is None else [startup]
         if std:
-            libs = ['c', 'gem5', 'gcc', 'gcc_eh', out]
+            libs = ['c', 'gem5', 'gcc', 'gcc_eh', out] + libs
         elif out == 'tilemux':
             libs = ['simplecsf', 'gem5sf', out] + libs
         else:
