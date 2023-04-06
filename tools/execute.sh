@@ -227,10 +227,22 @@ build_params_hw() {
         files=("${files[@]}" "${mod#*=}")
     done
     while [ $c -lt 8 ]; do
-        args="$args --tile tilemux"
+        if [ "$M3_HW_M3LX" != "" ] && [ $c -eq 6 ]; then
+            args="$args --tile bbl"
+        else
+            args="$args --tile tilemux"
+        fi
         c=$((c + 1))
     done
     unset IFS
+
+    if [ "$M3_HW_M3LX" != "" ]; then
+        if [ "$M3_HW_TTY" = "" ]; then
+            echo "Please define M3_HW_TTY first." >&2 && exit 1
+        fi
+        args="$args --linux --initrd rootfs.cpio --serial $M3_HW_TTY"
+        files=("${files[@]}" "build/cross-riscv/images/rootfs.cpio" "build/riscv-pk/hw/bbl")
+    fi
 
     fpga="--fpga $M3_HW_FPGA_NO"
 

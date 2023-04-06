@@ -195,6 +195,7 @@ help() {
     echo "                             there are multiple FPGAs attached to the same PC"
     echo "                             (default = 0)."
     echo "    M3_HW_VIVADO:            Absolute path on FPGA PC to Vivado/Vivado Lab."
+    echo "    M3_HW_TTY:               TTY device to use for the serial console (for M³Lx)."
     echo "    M3_HW_RESET:             Reset the FPGA before starting."
     echo "    M3_HW_VM:                Use virtual memory (default = 1)."
     echo "    M3_HW_TIMEOUT:           Stop execution after given number of seconds."

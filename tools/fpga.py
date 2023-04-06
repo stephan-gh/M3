@@ -9,6 +9,8 @@ import fcntl
 import os
 import sys
 import select
+import serial
+from serial.tools.miniterm import Miniterm
 import termios
 
 import modids
@@ -29,6 +31,9 @@ KENV_SIZE = 4 * 1024
 SERIAL_ADDR = KENV_ADDR + KENV_SIZE
 SERIAL_SIZE = 4 * 1024
 PMP_ADDR = SERIAL_ADDR + SERIAL_SIZE
+LX_ADDR = DRAM_SIZE / 2
+LX_SIZE = DRAM_SIZE / 2
+INITRD_ADDR = int(LX_ADDR + 0x4000000)
 
 pmp_size = 0
 
@@ -144,7 +149,7 @@ def write_args(dram, args, argv, mem_begin):
     return args_addr
 
 
-def load_prog(dram, tiles, i, args, vm, logflags):
+def load_prog(dram, tiles, i, args, vm, logflags, linux):
     pm = tiles[i]
     print("%s: loading %s..." % (pm.name, args[0]))
     sys.stdout.flush()
@@ -165,7 +170,13 @@ def load_prog(dram, tiles, i, args, vm, logflags):
     for ep in range(0, 63):
         pm.tcu_set_ep(ep, EP.invalid())
 
-    mem_begin = PMP_ADDR + i * pmp_size
+    if linux:
+        mem_begin = int(LX_ADDR)
+        mem_size = int(LX_SIZE)
+    else:
+        mem_begin = PMP_ADDR + i * pmp_size
+        mem_size = pmp_size
+
     # install first PMP EP
     pmp_ep = MemEP()
     pmp_ep.set_chip(dram.mem.nocid[0])
@@ -173,7 +184,7 @@ def load_prog(dram, tiles, i, args, vm, logflags):
     pmp_ep.set_act(0xFFFF)
     pmp_ep.set_flags(Flags.READ | Flags.WRITE)
     pmp_ep.set_addr(mem_begin)
-    pmp_ep.set_size(pmp_size)
+    pmp_ep.set_size(mem_size)
     pm.tcu_set_ep(0, pmp_ep)
 
     # verify entrypoint, because inject a jump instruction below that jumps to that address
@@ -219,8 +230,13 @@ def load_prog(dram, tiles, i, args, vm, logflags):
     sys.stdout.flush()
 
 
-# inspired by MiniTerm (https://github.com/pyserial/pyserial/blob/master/serial/tools/miniterm.py)
-class TCUTerm:
+class Term:
+    def __init__(self):
+        pass
+
+
+class TCUTerm(Term):
+    # inspired by MiniTerm (https://github.com/pyserial/pyserial/blob/master/serial/tools/miniterm.py)
     def __init__(self, fpga_inst):
         self.fd = sys.stdin.fileno()
         # make stdin nonblocking
@@ -232,6 +248,7 @@ class TCUTerm:
         # reset tile and EP in case they are set from a previous run
         write_u64(fpga_inst.dram1, SERIAL_ADDR + 0, 0)
         write_u64(fpga_inst.dram1, SERIAL_ADDR + 8, 0)
+        self.setup()
 
     def setup(self):
         new = termios.tcgetattr(self.fd)
@@ -258,8 +275,56 @@ class TCUTerm:
         if ep != 0:
             send_input(self.fpga_inst, tile >> 8, tile & 0xFF, ep, bytes)
 
+    def should_stop(self):
+        if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
+            bytes = self.getkey()
+            if len(bytes) == 1 and bytes[0] == chr(0x1d):
+                return True
+            self.write(bytes)
+        return False
+
     def cleanup(self):
         termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.old)
+
+
+class LxTerm(Term):
+    def __init__(self, port):
+        # interactive usage
+        ser = serial.Serial(port=port, baudrate=115200, xonxoff=True)
+        self.miniterm = Miniterm(ser)
+        self.miniterm.raw = True
+        self.miniterm.set_rx_encoding('UTF-8')
+        self.miniterm.set_tx_encoding('UTF-8')
+
+        def key_description(character):
+            """generate a readable description for a key"""
+            ascii_code = ord(character)
+            if ascii_code < 32:
+                return 'Ctrl+{:c}'.format(ord('@') + ascii_code)
+            else:
+                return repr(character)
+
+        sys.stderr.write('--- Miniterm on {p.name}  {p.baudrate},{p.bytesize},{p.parity},{p.stopbits} ---\n'.format(
+            p=self.miniterm.serial))
+        sys.stderr.write('--- Quit: {} | Menu: {} | Help: {} followed by {} ---\n'.format(
+            key_description(self.miniterm.exit_character),
+            key_description(self.miniterm.menu_character),
+            key_description(self.miniterm.menu_character),
+            key_description('\x08')))
+
+        self.miniterm.start()
+
+    def should_stop(self):
+        return not self.miniterm.alive
+
+    def cleanup(self):
+        try:
+            self.miniterm.join(True)
+        except KeyboardInterrupt:
+            pass
+        sys.stderr.write('\n--- exit ---\n')
+        self.miniterm.join()
+        self.miniterm.close()
 
 
 timeout_ev = threading.Event()
@@ -296,6 +361,9 @@ def main():
     parser.add_argument('--tile', action='append')
     parser.add_argument('--mod', action='append')
     parser.add_argument('--vm', action='store_true')
+    parser.add_argument('--linux', action='store_true')
+    parser.add_argument('--initrd')
+    parser.add_argument('--serial')
     parser.add_argument('--logflags')
     parser.add_argument('--timeout', type=int)
     args = parser.parse_args()
@@ -303,6 +371,10 @@ def main():
     mon = NoCmonitor()
     if args.timeout is not None:
         timeout = TimeoutThread(args.timeout)
+
+    if args.linux:
+        global DRAM_SIZE
+        DRAM_SIZE = int(DRAM_SIZE / 2)
 
     # connect to FPGA
     fpga_inst = fpga_top.FPGA_TOP(args.version, args.fpga, args.reset)
@@ -329,15 +401,18 @@ def main():
     global pmp_size
     pmp_size = 16 * 1024 * 1024 if args.vm else 64 * 1024 * 1024
 
-    term = TCUTerm(fpga_inst)
-
     # load boot info into DRAM
     mods = [] if args.mod is None else args.mod
     load_boot_info(fpga_inst.dram1, mods, fpga_inst.pms, args.vm)
 
     # load programs onto tiles
     for i, pargs in enumerate(args.tile[0:len(fpga_inst.pms)], 0):
-        load_prog(fpga_inst.dram1, fpga_inst.pms, i, pargs.split(' '), args.vm, args.logflags)
+        lx = i == 6 and args.linux
+        load_prog(fpga_inst.dram1, fpga_inst.pms, i, pargs.split(' '), args.vm, args.logflags, lx)
+
+    # load initrd for Linux into memory
+    if args.initrd is not None:
+        write_file(fpga_inst.dram1, args.initrd, INITRD_ADDR)
 
     # enable NoC ARQ when cores are running
     for tile in fpga_inst.pms:
@@ -359,7 +434,10 @@ def main():
         ready.write('1')
         ready.close()
 
-    term.setup()
+    if args.linux:
+        term = LxTerm(args.serial)
+    else:
+        term = TCUTerm(fpga_inst)
 
     # wait for prints
     started_ev.set()
@@ -372,13 +450,10 @@ def main():
                 break
 
             # check if there is input to pass to the FPGA
-            if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
-                bytes = term.getkey()
-                if len(bytes) == 1 and bytes[0] == chr(0x1d):
-                    # force-extract logs on ctrl+]
-                    timed_out = True
-                    break
-                term.write(bytes)
+            if term.should_stop():
+                # force-extract logs on ctrl+]
+                timed_out = True
+                break
 
             # check for output
             try:
