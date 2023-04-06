@@ -235,7 +235,7 @@ case "$cmd" in
         ;;
 
     ninja)
-        ./ninjapie/ninjapie "${ninjapieargs[@]}" -- "${ninjaargs[@]}" "$script" "$@"
+        python3 -B ./ninjapie/ninjapie "${ninjapieargs[@]}" -- "${ninjaargs[@]}" "$script" "$@"
         exit $?
         ;;
 
@@ -285,7 +285,7 @@ if [ $skipbuild -eq 0 ]; then
         fi
     else
         echo "Building for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
-        ./ninjapie/ninjapie "${ninjapieargs[@]}" -- "${ninjaargs[@]}" || exit 1
+        python3 -B ./ninjapie/ninjapie "${ninjapieargs[@]}" -- "${ninjaargs[@]}" || exit 1
     fi
 fi
 
