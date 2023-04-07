@@ -300,6 +300,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "noopbench"
+version = "0.1.0"
+dependencies = [
+ "m3",
+]
+
+[[package]]
 name = "num-traits"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -495,6 +502,13 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.15",
+]
+
+[[package]]
+name = "simplebench"
+version = "0.1.0"
+dependencies = [
+ "m3",
 ]
 
 [[package]]

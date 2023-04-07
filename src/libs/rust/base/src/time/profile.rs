@@ -25,6 +25,7 @@ use crate::time::{Duration, Instant};
 use crate::util::math;
 
 /// A container for the measured execution times
+#[derive(Clone)]
 pub struct Results<T: Duration> {
     times: Vec<T>,
 }
@@ -86,16 +87,39 @@ impl<T: Duration> Results<T> {
             T::from_raw(math::sqrt((sum as f32) / (self.times.len() as f32)) as u64)
         }
     }
+
+    pub fn filter_outliers(&mut self) {
+        let avg = self.avg().as_raw();
+        self.times.retain(|t| t.as_raw() > avg / 2 && t.as_raw() < avg * 2);
+    }
+
+    pub fn min_max(&self) -> (T, T) {
+        let mut min = !0u64;
+        let mut max = 0;
+        for t in &self.times {
+            let r = t.as_raw();
+            if r < min {
+                min = r;
+            }
+            if r > max {
+                max = r;
+            }
+        }
+        return (T::from_raw(min), T::from_raw(max));
+    }
 }
 
 impl<T: Duration> fmt::Display for Results<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let (min, max) = self.min_max();
         write!(
             f,
-            "{:?} (+/- {:?} with {} runs)",
+            "{:?} (+/- {:?} with {} runs, min: {:?}, max: {:?})",
             self.avg(),
             self.stddev(),
-            self.runs()
+            self.runs(),
+            min,
+            max,
         )
     }
 }

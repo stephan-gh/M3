@@ -1,0 +1,11 @@
+<config>
+    <env>M3_CORES=4 M3_HW_M3LX=1 M3_GEM5_CFG=config/linux.py</env>
+    <kernel args="kernel -k" />
+    <dom>
+        <app args="root">
+            <dom tile="boom+nic|core">
+                <app args="hello" foreign="1" />
+            </dom>
+        </app>
+    </dom>
+</config>

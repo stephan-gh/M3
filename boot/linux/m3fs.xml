@@ -1,0 +1,23 @@
+<config>
+    <env>M3_CORES=4 M3_HW_M3LX=1 M3_GEM5_CFG=config/linux.py</env>
+    <mods>
+        <mod name="fs" file="bench.img" />
+    </mods>
+    <kernel args="kernel -k" />
+    <dom>
+        <app args="root">
+            <dom>
+                <app args="m3fs mem" daemon="1">
+                    <serv name="m3fs" />
+                    <mod name="fs" />
+                </app>
+            </dom>
+            <dom tile="boom+nic|core">
+                <app args="hello" foreign="1">
+                    <sess name="m3fs" />
+                    <mount fs="m3fs" path="/" />
+                </app>
+            </dom>
+        </app>
+    </dom>
+</config>
