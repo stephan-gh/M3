@@ -39,12 +39,13 @@ export M3_BUILD M3_TARGET M3_ISA M3_OUT
 root=$(readlink -f .)
 crossdir="./build/cross-$M3_ISA/host/bin"
 if [ "$M3_ISA" = "arm" ]; then
-    crossprefix="$crossdir/arm-buildroot-linux-musleabi-"
+    crossname="arm-buildroot-linux-musleabi-"
 elif [ "$M3_ISA" = "riscv" ]; then
-    crossprefix="$crossdir/riscv64-buildroot-linux-musl-"
+    crossname="riscv64-buildroot-linux-musl-"
 else
-    crossprefix="$crossdir/x86_64-buildroot-linux-musl-"
+    crossname="x86_64-buildroot-linux-musl-"
 fi
+crossprefix="$crossdir/$crossname"
 PATH="$root/$crossdir:$PATH"
 export PATH
 if [ "$M3_TARGET" = "gem5" ] && [ "$M3_ISA" = "arm" ]; then
@@ -140,6 +141,14 @@ help() {
     echo "    clippy=<prog>:           run clippy for Rust code in given directory."
     echo "    doc:                     generate Rust documentation."
     echo "    fmt:                     run formatters for all C++, Rust, and Python code."
+    echo ""
+    echo "  M³Linux (RISC-V only):"
+    echo "    mklx ...:                (re)build Linux including bbl via buildroot. The"
+    echo "                             remaining arguments are passed to Linux's build system."
+    echo "    mkbbl ...:               (re)build the bbl bootloader. The remaining arguments"
+    echo "                             are passed to bbl's build system."
+    echo "    mkrootfs ...:            (re)build the root FS for Linux. The remaining"
+    echo "                             arguments are passed to buildroot."
     echo ""
     echo "Environment variables:"
     echo "    M3_TARGET:               the target. Either 'gem5' or 'hw', default is 'gem5'."
@@ -638,5 +647,11 @@ case "$cmd" in
                                                -name "*.py" -or \
                                                -name "*.cc" -or \
                                                -name "*.h" \) -print0)
+        ;;
+
+    # -- M³Linux --
+
+    mklx|mkbbl|mkrootfs)
+        ./m3lx/build.sh "$crossname" "$crossdir" "$cmd" "$script" "$@"
         ;;
 esac
