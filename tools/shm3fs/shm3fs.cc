@@ -293,7 +293,8 @@ int main(int argc, char **argv) {
     if(!file)
         err(1, "Unable to open %s for reading", argv[1]);
 
-    fread(&sb, sizeof(sb), 1, file);
+    if(fread(&sb, sizeof(sb), 1, file) != 1)
+        err(1, "Unable to read superblock");
     if(sb.checksum != sb.get_checksum()) {
         errx(1, "Superblock checksum is invalid (is %#010x, should be %#010x)", sb.checksum,
              sb.get_checksum());

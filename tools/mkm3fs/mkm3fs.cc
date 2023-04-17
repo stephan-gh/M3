@@ -325,7 +325,8 @@ int main(int argc, char **argv) {
         err(1, "Unable to open '%s' for writing", argv[1]);
 
     // first, init the fs-image with zeros
-    ftruncate(fileno(file), static_cast<off_t>(sb.blocksize * sb.total_blocks));
+    if(ftruncate(fileno(file), static_cast<off_t>(sb.blocksize * sb.total_blocks)) != 0)
+        err(1, "Unable to truncate the FS image");
 
     // mark superblock, inode and block bitmap and inode blocks as occupied
     for(m3::blockno_t i = 0; i < sb.first_data_block(); ++i)
