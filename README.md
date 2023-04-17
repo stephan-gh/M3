@@ -38,7 +38,7 @@ Note: If you have `pyenv` installed and therefore `/usr/bin/python` does not exi
 
 Afterwards, pull in the submodules:
 
-    $ git submodule update --init ninjapie cross/buildroot src/apps/bsdutils src/libs/musl src/libs/flac src/libs/leveldb
+    $ git submodule update --init tools/ninjapie cross/buildroot src/apps/bsdutils src/libs/musl src/libs/flac src/libs/leveldb
 
 ### 2. Preparations for gem5
 
