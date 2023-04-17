@@ -117,27 +117,27 @@ help() {
     echo "                             stdin expects the gem5.log with Exec,ExecPC enabled."
     echo ""
     echo "  Program analysis:"
-    echo "    macros=<path>:           expand Rust macros for app in <path>."
+    echo "    ctors=<prog>:            show the constructors of <prog>."
     echo "    dis=<prog>:              run objdump -SC <prog> (the cross-compiler version)."
     echo "    elf=<prog>:              run readelf -a <prog> (the cc version)."
-    echo "    nms=<prog>:              run nm -SC --size-sort <prog> (the cc version)."
-    echo "    nma=<prog>:              run nm -SCn <prog> (the cc version)."
-    echo "    straddr=<prog> <string>  search for <string> in <prog>."
-    echo "    ctors=<prog>:            show the constructors of <prog>."
     echo "    list:                    list the link-address of all programs."
+    echo "    macros=<path>:           expand Rust macros for app in <path>."
+    echo "    nma=<prog>:              run nm -SCn <prog> (the cc version)."
+    echo "    nms=<prog>:              run nm -SC --size-sort <prog> (the cc version)."
+    echo "    straddr=<prog> <string>  search for <string> in <prog>."
     echo ""
     echo "  File system:"
+    echo "    exfs=<fsimg> <dir>:      export contents of <fsimg> to <dir>."
+    echo "    fsck=<fsimg> ...:        run m3fsck on <fsimg>."
     echo "    mkfs=<fsimg> <dir> ...:  create m3fs in <fsimg> with content of <dir>."
     echo "    shfs=<fsimg> ...:        show m3fs in <fsimg>."
-    echo "    fsck=<fsimg> ...:        run m3fsck on <fsimg>."
-    echo "    exfs=<fsimg> <dir>:      export contents of <fsimg> to <dir>."
     echo ""
-    echo "  Maintainance:"
+    echo "  Maintenance:"
+    echo "    checkboot:               check the validity of all boot scripts."
     echo "    clippy:                  run clippy for all Rust code."
     echo "    clippy=<prog>:           run clippy for Rust code in given directory."
     echo "    doc:                     generate Rust documentation."
     echo "    fmt:                     run formatters for all C++, Rust, and Python code."
-    echo "    checkboot:               check the validity of all boot scripts."
     echo ""
     echo "Environment variables:"
     echo "    M3_TARGET:               the target. Either 'gem5' or 'hw', default is 'gem5'."
@@ -311,6 +311,8 @@ run_clippy() {
 
 # run the specified command, if any
 case "$cmd" in
+    # -- running --
+
     run)
         if [ "$DBG_GEM5" = "1" ]; then
             ./tools/execute.sh "$script"
@@ -351,65 +353,7 @@ case "$cmd" in
                              -tclargs '"$M3_HW_FPGA_DIR"'/'"$bitfile" "$M3_HW_FPGA_JTAG_NO"
         ;;
 
-    clippy)
-        while IFS= read -r -d '' f; do
-            run_clippy "$f"
-        done < <(find src tools -mindepth 2 -name Cargo.toml -print0)
-        ;;
-
-    clippy=*)
-        run_clippy "${cmd#clippy=}/Cargo.toml"
-        ;;
-
-    doc)
-        for lib in src/libs/rust/*; do
-            if [ -d "$lib" ]; then
-                ( cd "$lib" && cargo doc "${rust_target_args[@]}" )
-            fi
-        done
-        ;;
-
-    fmt)
-        while IFS= read -r -d '' f; do
-            if [ "$(basename "$f")" != "build.py" ]; then
-                if [[ "$f" =~ "src/libs/musl" ]] && [[ ! "$f" =~ "src/libs/musl/m3" ]]; then
-                    continue
-                fi
-                if [[ "$f" =~ "src/libs/flac" ]] || [[ "$f" =~ "src/apps/bsdutils" ]] ||
-                    [[ "$f" =~ "src/libs/leveldb" ]] || [[ "$f" =~ "src/libs/axieth" ]]; then
-                    continue
-                fi
-            fi
-
-            echo "Formatting $f..."
-            case "$f" in
-                *.cc|*.h)
-                    clang-format -i "$f"
-                    ;;
-                Cargo.toml)
-                    rustfmt "$(dirname "$f")"/src/*.rs
-                    ;;
-                *.py)
-                    autopep8 -i "$f"
-                    ;;
-            esac
-        done < <(find src tools -mindepth 2 \( -name Cargo.toml -or \
-                                               -name "*.py" -or \
-                                               -name "*.cc" -or \
-                                               -name "*.h" \) -print0)
-        ;;
-
-    macros=*)
-        ( cd "${cmd#macros=}" && \
-            cargo rustc "${rust_target_args[@]}" \
-                --profile=check -- -Zunpretty=expanded 2>/dev/null | less )
-        ;;
-
-    checkboot)
-        while IFS= read -r -d '' f; do
-            xmllint --schema misc/boot.xsd --noout "$f" > /dev/null
-        done < <(find boot -type f -print0)
-        ;;
+    # -- debugging --
 
     dbg=*)
         if [ "$M3_TARGET" = "gem5" ] || [ "$M3_RUN_GEM5" = "1" ]; then
@@ -503,56 +447,8 @@ case "$cmd" in
         fi
         ;;
 
-    dis=*)
-        "${crossprefix}objdump" -dC "$bindir/${cmd#dis=}" | less
-        ;;
-
-    elf=*)
-        "${crossprefix}readelf" -aW "$bindir/${cmd#elf=}" | c++filt | less
-        ;;
-
-    nms=*)
-        "${crossprefix}nm" -SC --size-sort "$bindir/${cmd#nms=}" | less
-        ;;
-
-    nma=*)
-        "${crossprefix}nm" -SCn "$bindir/${cmd#nma=}" | less
-        ;;
-
-    straddr=*)
-        binary=$bindir/${cmd#straddr=}
-        str=$script
-        echo "Strings containing '$str' in $binary:"
-        # find base address of .rodata
-        base=$("${crossprefix}readelf" -S "$binary" | grep .rodata | \
-            xargs | cut -d ' ' -f 5)
-        # find section number of .rodata
-        section=$("${crossprefix}readelf" -S "$binary" | grep .rodata | \
-            sed -e 's/.*\[\s*\([[:digit:]]*\)\].*/\1/g')
-        # grep for matching lines, prepare for better use of awk and finally add offset to base
-        "${crossprefix}readelf" -p "$section" "$binary" | grep "$str" | \
-            sed 's/^ *\[ *\([[:xdigit:]]*\)\] *\(.*\)$/0x\1 \2/' | \
-            awk '{ printf("0x%x: %s %s %s %s %s %s\n",0x'"$base"' + strtonum($1),$2,$3,$4,$5,$6,$7) }'
-        ;;
-
-    ctors=*)
-        file=$bindir/${cmd#ctors=}
-        section=$("${crossprefix}readelf" -SW "$file" | \
-            grep "\.ctors\|\.init_array" | sed -e 's/\[.*\]//g' | xargs)
-        off=0x$(echo "$section" | cut -d ' ' -f 4)
-        len=0x$(echo "$section" | cut -d ' ' -f 5)
-        if [ "$M3_ISA" = "x86_64" ] || [ "$M3_ISA" = "riscv" ]; then
-            bytes=8
-        else
-            bytes=4
-        fi
-        echo "Constructors in $file ($off : $len):"
-        if [ "$off" != "0x" ]; then
-            od -t x$bytes "$file" -j "$off" -N "$len" -v -w$bytes | grep ' ' | while read -r line; do
-                addr=${line#* }
-                "${crossprefix}nm" -C -l "$file" 2>/dev/null | grep -m 1 "$addr"
-            done
-        fi
+    bt=*)
+        ./tools/backtrace.py "$crossprefix" "$bindir/${cmd#bt=}"
         ;;
 
     hwitrace=*)
@@ -592,6 +488,76 @@ case "$cmd" in
         "$tooldir/gem5log" "$M3_ISA" snapshot "$script" "${paths[@]}"
         ;;
 
+    # -- program analysis --
+
+    ctors=*)
+        file=$bindir/${cmd#ctors=}
+        section=$("${crossprefix}readelf" -SW "$file" | \
+            grep "\.ctors\|\.init_array" | sed -e 's/\[.*\]//g' | xargs)
+        off=0x$(echo "$section" | cut -d ' ' -f 4)
+        len=0x$(echo "$section" | cut -d ' ' -f 5)
+        if [ "$M3_ISA" = "x86_64" ] || [ "$M3_ISA" = "riscv" ]; then
+            bytes=8
+        else
+            bytes=4
+        fi
+        echo "Constructors in $file ($off : $len):"
+        if [ "$off" != "0x" ]; then
+            od -t x$bytes "$file" -j "$off" -N "$len" -v -w$bytes | grep ' ' | while read -r line; do
+                addr=${line#* }
+                "${crossprefix}nm" -C -l "$file" 2>/dev/null | grep -m 1 "$addr"
+            done
+        fi
+        ;;
+
+    dis=*)
+        "${crossprefix}objdump" -dC "$bindir/${cmd#dis=}" | less
+        ;;
+
+    elf=*)
+        "${crossprefix}readelf" -aW "$bindir/${cmd#elf=}" | c++filt | less
+        ;;
+
+    list)
+        echo "Start of section .text:"
+        while IFS= read -r -d '' l; do
+            "${crossprefix}readelf" -S "$build/bin/$l" | \
+                grep " \.text " | awk "{ printf(\"%20s: %s\n\",\"$l\",\$5) }"
+        done < <(find "$build/bin" -type f \! \( -name "*.o" -o -name "*.a" \) -printf "%f\0") | sort -k 2
+        ;;
+
+    macros=*)
+        ( cd "${cmd#macros=}" && \
+            cargo rustc "${rust_target_args[@]}" \
+                --profile=check -- -Zunpretty=expanded 2>/dev/null | less )
+        ;;
+
+    nma=*)
+        "${crossprefix}nm" -SCn "$bindir/${cmd#nma=}" | less
+        ;;
+
+    nms=*)
+        "${crossprefix}nm" -SC --size-sort "$bindir/${cmd#nms=}" | less
+        ;;
+
+    straddr=*)
+        binary=$bindir/${cmd#straddr=}
+        str=$script
+        echo "Strings containing '$str' in $binary:"
+        # find base address of .rodata
+        base=$("${crossprefix}readelf" -S "$binary" | grep .rodata | \
+            xargs | cut -d ' ' -f 5)
+        # find section number of .rodata
+        section=$("${crossprefix}readelf" -S "$binary" | grep .rodata | \
+            sed -e 's/.*\[\s*\([[:digit:]]*\)\].*/\1/g')
+        # grep for matching lines, prepare for better use of awk and finally add offset to base
+        "${crossprefix}readelf" -p "$section" "$binary" | grep "$str" | \
+            sed 's/^ *\[ *\([[:xdigit:]]*\)\] *\(.*\)$/0x\1 \2/' | \
+            awk '{ printf("0x%x: %s %s %s %s %s %s\n",0x'"$base"' + strtonum($1),$2,$3,$4,$5,$6,$7) }'
+        ;;
+
+    # -- file system --
+
     mkfs=*)
         "$tooldir/mkm3fs" "$build/${cmd#mkfs=}" "$script" "$@"
         ;;
@@ -608,15 +574,59 @@ case "$cmd" in
         "$tooldir/exm3fs" "$build/${cmd#exfs=}" "$script"
         ;;
 
-    bt=*)
-        ./tools/backtrace.py "$crossprefix" "$bindir/${cmd#bt=}"
+    # -- maintenance --
+
+    checkboot)
+        while IFS= read -r -d '' f; do
+            xmllint --schema misc/boot.xsd --noout "$f" > /dev/null
+        done < <(find boot -type f -print0)
         ;;
 
-    list)
-        echo "Start of section .text:"
-        while IFS= read -r -d '' l; do
-            "${crossprefix}readelf" -S "$build/bin/$l" | \
-                grep " \.text " | awk "{ printf(\"%20s: %s\n\",\"$l\",\$5) }"
-        done < <(find "$build/bin" -type f \! \( -name "*.o" -o -name "*.a" \) -printf "%f\0") | sort -k 2
+    clippy)
+        while IFS= read -r -d '' f; do
+            run_clippy "$f"
+        done < <(find src tools -mindepth 2 -name Cargo.toml -print0)
+        ;;
+
+    clippy=*)
+        run_clippy "${cmd#clippy=}/Cargo.toml"
+        ;;
+
+    doc)
+        for lib in src/libs/rust/*; do
+            if [ -d "$lib" ]; then
+                ( cd "$lib" && cargo doc "${rust_target_args[@]}" )
+            fi
+        done
+        ;;
+
+    fmt)
+        while IFS= read -r -d '' f; do
+            if [ "$(basename "$f")" != "build.py" ]; then
+                if [[ "$f" =~ "src/libs/musl" ]] && [[ ! "$f" =~ "src/libs/musl/m3" ]]; then
+                    continue
+                fi
+                if [[ "$f" =~ "src/libs/flac" ]] || [[ "$f" =~ "src/apps/bsdutils" ]] ||
+                    [[ "$f" =~ "src/libs/leveldb" ]] || [[ "$f" =~ "src/libs/axieth" ]]; then
+                    continue
+                fi
+            fi
+
+            echo "Formatting $f..."
+            case "$f" in
+                *.cc|*.h)
+                    clang-format -i "$f"
+                    ;;
+                Cargo.toml)
+                    rustfmt "$(dirname "$f")"/src/*.rs
+                    ;;
+                *.py)
+                    autopep8 -i "$f"
+                    ;;
+            esac
+        done < <(find src tools -mindepth 2 \( -name Cargo.toml -or \
+                                               -name "*.py" -or \
+                                               -name "*.cc" -or \
+                                               -name "*.h" \) -print0)
         ;;
 esac
