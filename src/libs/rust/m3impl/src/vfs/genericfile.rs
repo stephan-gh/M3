@@ -29,8 +29,9 @@ use crate::com::{MemGate, RecvGate, SendGate, EP};
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::int_enum;
-use crate::io::{Read, Write};
+use crate::io::{LogFlags, Read, Write};
 use crate::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
+use crate::log;
 use crate::rc::Rc;
 use crate::serialize::{M3Deserializer, M3Serializer, VecSink};
 use crate::session::{ClientSession, HashInput, HashOutput, HashSession, MapFlags, Pager};
@@ -158,6 +159,14 @@ impl GenericFile {
 
     fn submit(&mut self, force: bool) -> Result<(), Error> {
         if self.pos > 0 && (self.writing || force) {
+            log!(
+                LogFlags::LibFS,
+                "GenFile[{}]::commit({}, {})",
+                self.fd,
+                if self.writing { "write" } else { "read" },
+                self.pos,
+            );
+
             send_recv_res!(
                 &self.sgate,
                 RecvGate::def(),
@@ -174,8 +183,10 @@ impl GenericFile {
         Ok(())
     }
 
-    fn delegate_ep(&mut self, ep_sel: Selector) -> Result<(), Error> {
+    fn delegate_ep(&mut self, ep_sel: Selector, id: EpId) -> Result<(), Error> {
         if ep_sel != self.delegated_ep {
+            log!(LogFlags::LibFS, "GenFile[{}]::delegate_ep({})", self.fd, id);
+
             self.submit(true)?;
             let crd = CapRngDesc::new(CapType::OBJECT, ep_sel, 1);
             self.sess
@@ -187,8 +198,11 @@ impl GenericFile {
 
     fn delegate_own_ep(&mut self) -> Result<(), Error> {
         self.mgate.activate()?;
-        let ep_sel = self.mgate.ep().unwrap().sel();
-        self.delegate_ep(ep_sel)
+        let (ep_sel, ep_id) = {
+            let ep = self.mgate.ep().unwrap();
+            (ep.sel(), ep.id())
+        };
+        self.delegate_ep(ep_sel, ep_id)
     }
 
     fn next_in(&mut self, len: usize) -> Result<usize, Error> {
@@ -259,6 +273,12 @@ impl GenericFile {
         self.sess
             .delegate(crd, |s| s.push(GenFileOp::ENABLE_NOTIFY), |_| Ok(()))?;
 
+        log!(
+            LogFlags::LibFS,
+            "GenFile[{}]::enable_notifications()",
+            self.fd
+        );
+
         self.nb_state = Some(NonBlocking {
             notify_rgate,
             _notify_sgate,
@@ -272,6 +292,15 @@ impl GenericFile {
     fn request_notification(&mut self, events: FileEvent) -> Result<(), Error> {
         let fid = self.file_id();
         let nb = self.nb_state.as_mut().unwrap();
+
+        log!(
+            LogFlags::LibFS,
+            "GenFile[{}]::request_notification(want={:x}, have={:x})",
+            self.fd,
+            events,
+            nb.notify_requested
+        );
+
         if !nb.notify_requested.contains(events) {
             send_recv_res!(
                 &self.sgate,
@@ -306,6 +335,12 @@ impl GenericFile {
                 let events = FileEvent::from_bits_truncate(imsg.pop::<u32>()?);
                 nb.notify_received |= events;
                 nb.notify_requested &= !events;
+                log!(
+                    LogFlags::LibFS,
+                    "GenFile[{}]::receive_notify() -> received {:x}",
+                    self.fd,
+                    events
+                );
                 // give credits back to sender
                 imsg.reply_error(Code::Success)?;
             }
@@ -318,6 +353,12 @@ impl GenericFile {
 
         // okay, event received; remove it and continue
         if fetch {
+            log!(
+                LogFlags::LibFS,
+                "GenFile[{}]::receive_notify() -> fetched {:x}",
+                self.fd,
+                event
+            );
             nb.notify_received &= !event;
         }
         Ok(true)
@@ -355,6 +396,8 @@ impl File for GenericFile {
     }
 
     fn remove(&mut self) {
+        log!(LogFlags::LibFS, "GenFile[{}]::evict()", self.fd);
+
         // submit read/written data
         self.submit(false).ok();
 
@@ -374,6 +417,7 @@ impl File for GenericFile {
         }
 
         // file sessions are not known to our resource manager; thus close them manually
+        log!(LogFlags::LibFS, "GenFile[{}]::close()", self.fd);
         send_recv_res!(
             &self.sgate,
             RecvGate::def(),
@@ -384,6 +428,8 @@ impl File for GenericFile {
     }
 
     fn stat(&self) -> Result<FileInfo, Error> {
+        log!(LogFlags::LibFS, "GenFile[{}]::stat()", self.fd);
+
         send_vmsg!(
             &self.sgate,
             RecvGate::def(),
@@ -486,6 +532,14 @@ impl File for GenericFile {
 
 impl Seek for GenericFile {
     fn seek(&mut self, mut off: usize, mut whence: SeekMode) -> Result<usize, Error> {
+        log!(
+            LogFlags::LibFS,
+            "GenFile[{}]::seek({}, {})",
+            self.fd,
+            off,
+            whence
+        );
+
         self.submit(false)?;
 
         if whence == SeekMode::CUR {
@@ -523,6 +577,14 @@ impl Read for GenericFile {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
         self.delegate_own_ep()?;
 
+        log!(
+            LogFlags::LibFS,
+            "GenFile[{}]::read({}, pos={})",
+            self.fd,
+            buf.len(),
+            self.off + self.pos
+        );
+
         let amount = self.next_in(buf.len())?;
         if amount > 0 {
             self.mgate
@@ -540,6 +602,8 @@ impl Write for GenericFile {
     }
 
     fn sync(&mut self) -> Result<(), Error> {
+        log!(LogFlags::LibFS, "GenFile[{}]::sync()", self.fd,);
+
         self.flush().and_then(|_| {
             send_recv_res!(
                 &self.sgate,
@@ -553,6 +617,14 @@ impl Write for GenericFile {
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
         self.delegate_own_ep()?;
+
+        log!(
+            LogFlags::LibFS,
+            "GenFile[{}]::write({}, pos={})",
+            self.fd,
+            buf.len(),
+            self.off + self.pos
+        );
 
         let amount = self.next_out(buf.len())?;
         if amount > 0 {
@@ -584,7 +656,7 @@ impl Map for GenericFile {
 
 impl HashInput for GenericFile {
     fn hash_input(&mut self, sess: &HashSession, len: usize) -> Result<usize, Error> {
-        self.delegate_ep(sess.ep().sel())?;
+        self.delegate_ep(sess.ep().sel(), sess.ep().id())?;
 
         let mut remaining = len;
         while remaining > 0 {
@@ -603,7 +675,7 @@ impl HashInput for GenericFile {
 
 impl HashOutput for GenericFile {
     fn hash_output(&mut self, sess: &HashSession, len: usize) -> Result<usize, Error> {
-        self.delegate_ep(sess.ep().sel())?;
+        self.delegate_ep(sess.ep().sel(), sess.ep().id())?;
 
         let mut remaining = len;
         while remaining > 0 {
