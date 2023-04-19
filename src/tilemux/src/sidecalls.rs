@@ -15,6 +15,7 @@
 
 use base::cfg;
 use base::errors::{Code, Error};
+use base::io::LogFlags;
 use base::kif;
 use base::log;
 use base::mem::{GlobAddr, MsgBuf};
@@ -44,7 +45,7 @@ fn activity_init(msg: &'static tcu::Message) -> Result<(), Error> {
     let r: kif::tilemux::ActInit = get_request(msg)?;
 
     log!(
-        crate::LOG_SIDECALLS,
+        LogFlags::MuxSideCalls,
         "sidecall::activity_init(act={}, time={}, pt={}, eps_start={})",
         r.act_id,
         r.time_quota,
@@ -59,7 +60,7 @@ fn activity_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
     let r: kif::tilemux::ActivityCtrl = get_request(msg)?;
 
     log!(
-        crate::LOG_SIDECALLS,
+        LogFlags::MuxSideCalls,
         "sidecall::activity_ctrl(act={}, op={:?})",
         r.act_id,
         r.act_op,
@@ -96,7 +97,7 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
     let r: kif::tilemux::Map = get_request(msg)?;
 
     log!(
-        crate::LOG_SIDECALLS,
+        LogFlags::MuxSideCalls,
         "sidecall::map(act={}, virt={:#x}, global={:?}, pages={}, perm={:?})",
         r.act_id,
         r.virt,
@@ -136,7 +137,7 @@ fn translate(msg: &'static tcu::Message) -> Result<kif::PTE, Error> {
     let r: kif::tilemux::Translate = get_request(msg)?;
 
     log!(
-        crate::LOG_SIDECALLS,
+        LogFlags::MuxSideCalls,
         "sidecall::translate(act={}, virt={:#x}, perm={:?})",
         r.act_id,
         r.virt,
@@ -158,7 +159,7 @@ fn rem_msgs(msg: &'static tcu::Message) -> Result<(), Error> {
     let r: kif::tilemux::RemMsgs = get_request(msg)?;
 
     log!(
-        crate::LOG_SIDECALLS,
+        LogFlags::MuxSideCalls,
         "sidecall::rem_msgs(act={}, unread={})",
         r.act_id,
         r.unread_mask
@@ -177,7 +178,7 @@ fn ep_inval(msg: &'static tcu::Message) -> Result<(), Error> {
     let r: kif::tilemux::EpInval = get_request(msg)?;
 
     log!(
-        crate::LOG_SIDECALLS,
+        LogFlags::MuxSideCalls,
         "sidecall::ep_inval(act={}, ep={})",
         r.act_id,
         r.ep
@@ -195,7 +196,7 @@ fn derive_quota(msg: &'static tcu::Message) -> Result<(u64, u64), Error> {
     let r: kif::tilemux::DeriveQuota = get_request(msg)?;
 
     log!(
-        crate::LOG_SIDECALLS,
+        LogFlags::MuxSideCalls,
         "sidecall::derive_quota(ptime={}, ppts={}, time={:?}, pts={:?})",
         r.parent_time,
         r.parent_pts,
@@ -215,7 +216,7 @@ fn get_quota(msg: &'static tcu::Message) -> Result<(u64, u64, usize, usize), Err
     let r: kif::tilemux::GetQuota = get_request(msg)?;
 
     log!(
-        crate::LOG_SIDECALLS,
+        LogFlags::MuxSideCalls,
         "sidecall::get_quota(time={}, pts={})",
         r.time,
         r.pts
@@ -228,7 +229,7 @@ fn set_quota(msg: &'static tcu::Message) -> Result<(), Error> {
     let r: kif::tilemux::SetQuota = get_request(msg)?;
 
     log!(
-        crate::LOG_SIDECALLS,
+        LogFlags::MuxSideCalls,
         "sidecall::set_quota(id={}, time={:?}, pts={})",
         r.id,
         r.time,
@@ -242,7 +243,7 @@ fn remove_quotas(msg: &'static tcu::Message) -> Result<(), Error> {
     let r: kif::tilemux::RemoveQuotas = get_request(msg)?;
 
     log!(
-        crate::LOG_SIDECALLS,
+        LogFlags::MuxSideCalls,
         "sidecall::remove_quotas(time={:?}, pts={:?})",
         r.time,
         r.pts
@@ -252,7 +253,7 @@ fn remove_quotas(msg: &'static tcu::Message) -> Result<(), Error> {
 }
 
 fn reset_stats(_msg: &'static tcu::Message) -> Result<(), Error> {
-    log!(crate::LOG_SIDECALLS, "sidecall::reset_stats()",);
+    log!(LogFlags::MuxSideCalls, "sidecall::reset_stats()",);
 
     for id in 0..64 {
         if let Some(mut act) = activities::get_mut(id) {
@@ -264,7 +265,7 @@ fn reset_stats(_msg: &'static tcu::Message) -> Result<(), Error> {
 }
 
 fn shutdown(_msg: &'static tcu::Message) -> Result<(), Error> {
-    log!(crate::LOG_SIDECALLS, "sidecall::shutdown()",);
+    log!(LogFlags::MuxSideCalls, "sidecall::shutdown()",);
 
     base::machine::write_coverage(0);
 
@@ -307,7 +308,7 @@ fn handle_sidecall(msg: &'static tcu::Message) {
         match res {
             Ok(_) => Code::Success,
             Err(e) => {
-                log!(crate::LOG_SIDECALLS, "sidecall {} failed: {}", op, e);
+                log!(LogFlags::MuxSideCalls, "sidecall {} failed: {}", op, e);
                 e.code()
             },
         },

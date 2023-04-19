@@ -21,6 +21,7 @@
 use base::cfg;
 use base::errors::Error;
 use base::goff;
+use base::io::LogFlags;
 use base::kif::{PageFlags, PTE};
 use base::libc;
 use base::log;
@@ -99,11 +100,6 @@ cfg_if::cfg_if! {
 }
 
 pub use arch::{Phys, MMUPTE};
-
-/// Logs mapping operations
-pub const LOG_MAP: bool = false;
-/// Logs detailed mapping operations
-pub const LOG_MAP_DETAIL: bool = false;
 
 pub trait Allocator {
     /// Allocates a new page table and returns its physical address
@@ -195,7 +191,7 @@ impl<A: Allocator> AddrSpace<A> {
         };
 
         log!(
-            crate::LOG_MAP,
+            LogFlags::PgMap,
             "Activity{}: mapping 0x{:0>16x}..0x{:0>16x} to {:?}..{:?} (phys={:#x}) with {:?}",
             self.id,
             virt,
@@ -278,7 +274,7 @@ impl<A: Allocator> AddrSpace<A> {
                 }
 
                 log!(
-                    crate::LOG_MAP_DETAIL,
+                    LogFlags::PgMapPages,
                     "Activity{}: lvl {} PTE for 0x{:0>16x}: 0x{:0>16x} (inv={}) @ {:#x}",
                     self.id,
                     level,
@@ -321,7 +317,7 @@ impl<A: Allocator> AddrSpace<A> {
         let pt_size = (1 << (LEVEL_BITS * level)) * cfg::PAGE_SIZE;
         let virt_base = virt & !(pt_size - 1);
         log!(
-            crate::LOG_MAP_DETAIL,
+            LogFlags::PgMapPages,
             "Activity{}: lvl {} PTE for 0x{:0>16x}: 0x{:0>16x} @ {:#x}",
             self.id,
             level,

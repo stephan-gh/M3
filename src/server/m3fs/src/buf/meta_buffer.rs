@@ -20,6 +20,7 @@ use crate::data::BlockNo;
 use core::ops::{Deref, DerefMut};
 use core::ptr::NonNull;
 
+use base::io::LogFlags;
 use m3::boxed::Box;
 use m3::col::{BoxList, Treap, Vec};
 use m3::errors::Error;
@@ -92,7 +93,7 @@ impl MetaBufferBlock {
         if self.dirty {
             self.locked = true;
             log!(
-                crate::LOG_BUFFER,
+                LogFlags::FSBuf,
                 "metabuffer: writing back block <{}>",
                 self.bno
             );
@@ -193,7 +194,7 @@ impl MetaBuffer {
 
     /// Searches for data at `bno`, allocates if none is present.
     pub fn get_block(&mut self, bno: BlockNo) -> Result<MetaBufferBlockRef, Error> {
-        log!(crate::LOG_BUFFER, "metabuffer::get_block(bno={})", bno,);
+        log!(LogFlags::FSBuf, "metabuffer::get_block(bno={})", bno,);
 
         while let Some(id) = self.bno_to_id(bno) {
             // workaround for borrow-checker: don't use our convenience function
@@ -209,7 +210,7 @@ impl MetaBuffer {
                 }
 
                 log!(
-                    crate::LOG_BUFFER,
+                    LogFlags::FSBuf,
                     "metabuffer: found cached block <{}>, links: {}",
                     block.bno,
                     block.links + 1,
@@ -249,7 +250,7 @@ impl MetaBuffer {
         block.locked = false;
 
         log!(
-            crate::LOG_BUFFER,
+            LogFlags::FSBuf,
             "metabuffer: loaded new block<{}> links: {}",
             bno,
             block.links + 1,

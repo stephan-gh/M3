@@ -17,8 +17,8 @@
  */
 
 #include <base/Init.h>
+#include <base/Log.h>
 #include <base/Panic.h>
-#include <base/log/Lib.h>
 
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
@@ -54,8 +54,6 @@ INIT_PRIO_RECVGATE RecvGate RecvGate::_default(KIF::INV_SEL,
 void RecvGate::RecvGateWorkItem::work() {
     const TCU::Message *msg = _gate->fetch();
     if(msg) {
-        LLOG(IPC, "Received msg @ {} over ep {}"_cf, static_cast<const void *>(msg),
-             _gate->ep()->id());
         GateIStream is(*_gate, msg);
         _gate->_handler(is);
     }

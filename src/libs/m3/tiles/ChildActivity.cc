@@ -16,7 +16,8 @@
  * General Public License version 2 for more details.
  */
 
-#include <m3/EnvVars.h>
+#include <base/EnvVars.h>
+
 #include <m3/Syscalls.h>
 #include <m3/session/ResMng.h>
 #include <m3/stream/FStream.h>

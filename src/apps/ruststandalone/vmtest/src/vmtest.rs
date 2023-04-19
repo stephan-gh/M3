@@ -24,6 +24,7 @@ mod paging;
 use base::cell::StaticCell;
 use base::cfg;
 use base::errors::{Code, Error};
+use base::io::LogFlags;
 use base::kif::{PageFlags, Perm};
 use base::libc;
 use base::log;
@@ -34,9 +35,6 @@ use base::util;
 use core::intrinsics::transmute;
 
 use isr::{ISRArch, StateArch, ISR};
-
-static LOG_DEF: bool = true;
-static LOG_TMCALLS: bool = false;
 
 static OWN_TILE: TileId = TileId::new(0, 0);
 static MEM_TILE: TileId = TileId::new(0, 8);
@@ -61,7 +59,7 @@ pub extern "C" fn mmu_pf(state: &mut isr::State) -> *mut libc::c_void {
 
 fn read_write(wr_addr: usize, rd_addr: usize, size: usize) {
     log!(
-        crate::LOG_DEF,
+        LogFlags::Info,
         "WRITE to {:#x} and READ back into {:#x} with {} bytes",
         wr_addr,
         rd_addr,
@@ -139,7 +137,7 @@ static RBUF2: [u64; 32] = [0; 32];
 
 fn send_recv(send_addr: usize, size: usize) {
     log!(
-        crate::LOG_DEF,
+        LogFlags::Info,
         "SEND+REPLY from {:#x} with {} bytes",
         send_addr,
         size * 8
@@ -227,7 +225,7 @@ fn test_msgs(area_begin: usize, _area_size: usize) {
     let (_rbuf1_virt, rbuf1_phys) = helper::virt_to_phys(RBUF1.as_ptr() as usize);
 
     {
-        log!(crate::LOG_DEF, "SEND with page boundary");
+        log!(LogFlags::Info, "SEND with page boundary");
 
         let buf = LargeAlignedBuf {
             bytes: [0u8; cfg::PAGE_SIZE + 16],
@@ -247,7 +245,7 @@ fn test_msgs(area_begin: usize, _area_size: usize) {
     }
 
     {
-        log!(crate::LOG_DEF, "REPLY with page boundary");
+        log!(LogFlags::Info, "REPLY with page boundary");
 
         let buf = LargeAlignedBuf {
             bytes: [0u8; cfg::PAGE_SIZE + 16],
@@ -286,13 +284,13 @@ fn test_msgs(area_begin: usize, _area_size: usize) {
 }
 
 pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
-    log!(crate::LOG_DEF, "Got TCU IRQ @ {:#x}", state.instr_pointer());
+    log!(LogFlags::Info, "Got TCU IRQ @ {:#x}", state.instr_pointer());
 
     ISR::fetch_irq();
 
     // core request from TCU?
     let req = tcu::TCU::get_core_req().unwrap();
-    log!(crate::LOG_DEF, "Got {:x?}", req);
+    log!(LogFlags::Info, "Got {:x?}", req);
     assert_eq!(req.activity(), 0xDEAD);
     assert_eq!(req.ep(), REP1);
 
@@ -306,7 +304,7 @@ fn test_foreign_msg() {
 
     let (rbuf1_virt, rbuf1_phys) = helper::virt_to_phys(RBUF1.as_ptr() as usize);
 
-    log!(crate::LOG_DEF, "SEND to REP of foreign Activity");
+    log!(LogFlags::Info, "SEND to REP of foreign Activity");
 
     // create EPs
     helper::config_local_ep(REP1, |regs| {
@@ -348,7 +346,7 @@ fn test_own_msg() {
 
     let (rbuf1_virt, rbuf1_phys) = helper::virt_to_phys(RBUF1.as_ptr() as usize);
 
-    log!(crate::LOG_DEF, "SEND to REP of own Activity");
+    log!(LogFlags::Info, "SEND to REP of own Activity");
 
     // create EPs
     helper::config_local_ep(REP1, |regs| {
@@ -386,7 +384,7 @@ fn test_tlb() {
     const ASID: u16 = 1;
 
     {
-        log!(crate::LOG_DEF, "Testing non-fixed TLB entries");
+        log!(LogFlags::Info, "Testing non-fixed TLB entries");
 
         TCU::invalidate_tlb();
 
@@ -409,7 +407,7 @@ fn test_tlb() {
     }
 
     {
-        log!(crate::LOG_DEF, "Testing fixed TLB entries");
+        log!(LogFlags::Info, "Testing fixed TLB entries");
 
         TCU::invalidate_tlb();
 
@@ -442,7 +440,7 @@ fn test_tlb() {
     }
 
     {
-        log!(crate::LOG_DEF, "Testing removal of TLB entries");
+        log!(LogFlags::Info, "Testing removal of TLB entries");
 
         TCU::invalidate_tlb();
 
@@ -494,13 +492,13 @@ pub extern "C" fn env_run() {
     let virt = cfg::ENV_START;
     let pte = paging::translate(virt, PageFlags::R);
     log!(
-        crate::LOG_DEF,
+        LogFlags::Info,
         "Translated virt={:#x} to PTE={:#x}",
         virt,
         pte
     );
 
-    log!(crate::LOG_DEF, "Mapping memory area...");
+    log!(LogFlags::Info, "Mapping memory area...");
     let area_begin = 0xC100_0000;
     let area_size = cfg::PAGE_SIZE * 8;
     paging::map_anon(area_begin, area_size, PageFlags::RW).expect("Unable to map memory");
@@ -511,6 +509,6 @@ pub extern "C" fn env_run() {
     test_own_msg();
     test_tlb();
 
-    log!(crate::LOG_DEF, "Shutting down");
+    log!(LogFlags::Info, "Shutting down");
     helper::exit(0);
 }

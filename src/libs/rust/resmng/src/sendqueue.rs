@@ -17,6 +17,7 @@ use m3::cap::Selector;
 use m3::cell::LazyStaticRefCell;
 use m3::com::{MsgQueue, MsgSender, RecvGate, SendGate};
 use m3::errors::Error;
+use m3::io::LogFlags;
 use m3::log;
 use m3::mem::MsgBuf;
 use m3::server::DEF_MAX_CLIENTS;
@@ -41,7 +42,7 @@ impl MsgSender<thread::Event> for GateSender {
     }
 
     fn send(&mut self, event: thread::Event, msg: &MsgBuf) -> Result<(), Error> {
-        log!(crate::LOG_SQUEUE, "{}:squeue: sending msg", self.sid);
+        log!(LogFlags::ResMngSQueue, "{}:squeue: sending msg", self.sid);
 
         // we need the conversion, because the size of label is target dependent
         self.sgate
@@ -96,13 +97,17 @@ impl SendQueue {
     pub fn send(&mut self, msg: &MsgBuf) -> Result<thread::Event, Error> {
         let event = events::alloc_event();
         if !self.queue.send(event, msg)? {
-            log!(crate::LOG_SQUEUE, "{}:squeue: queuing msg", self.sid());
+            log!(LogFlags::ResMngSQueue, "{}:squeue: queuing msg", self.sid());
         }
         Ok(event)
     }
 
     fn received_reply(&mut self, rg: &RecvGate, msg: &'static tcu::Message) {
-        log!(crate::LOG_SQUEUE, "{}:squeue: received reply", self.sid());
+        log!(
+            LogFlags::ResMngSQueue,
+            "{}:squeue: received reply",
+            self.sid()
+        );
 
         let event = self.queue.sender_mut().cur_event.take().unwrap();
         thread::notify(event, Some(msg));

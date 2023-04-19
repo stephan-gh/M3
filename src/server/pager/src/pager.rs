@@ -30,6 +30,7 @@ use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, MemGate, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
+use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
 use m3::server::{CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer};
@@ -48,8 +49,6 @@ use resmng::resources::{tiles, Resources};
 use resmng::sendqueue;
 use resmng::subsys;
 
-pub const LOG_DEF: bool = false;
-
 static PGHDL: LazyStaticRefCell<PagerReqHandler> = LazyStaticRefCell::default();
 static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 static MOUNTS: LazyStaticRefCell<Vec<(String, String)>> = LazyStaticRefCell::default();
@@ -61,7 +60,7 @@ struct PagerReqHandler {
 
 impl PagerReqHandler {
     fn close_sess(&mut self, _crt: usize, sid: SessId, rgate: &RecvGate) {
-        log!(crate::LOG_DEF, "[{}] pager::close()", sid);
+        log!(LogFlags::PgReqs, "[{}] pager::close()", sid);
         let crt = self.sessions.get(sid).unwrap().creator();
         self.sessions.remove(crt, sid);
         // ignore all potentially outstanding messages of this session
@@ -81,7 +80,7 @@ impl Handler<AddrSpace> for PagerReqHandler {
         _arg: &str,
     ) -> Result<(Selector, SessId), Error> {
         self.sessions.add_next(crt, srv_sel, false, |sess| {
-            log!(crate::LOG_DEF, "[{}] pager::open()", sess.ident());
+            log!(LogFlags::PgReqs, "[{}] pager::open()", sess.ident());
             Ok(AddrSpace::new(crt, sess, None, None))
         })
     }
@@ -101,7 +100,12 @@ impl Handler<AddrSpace> for PagerReqHandler {
                 self.sessions
                     .add_next(crt, self.sel, false, |sess| {
                         let nsid = sess.ident();
-                        log!(crate::LOG_DEF, "[{}] pager::add_child(nsid={})", sid, nsid);
+                        log!(
+                            LogFlags::PgReqs,
+                            "[{}] pager::add_child(nsid={})",
+                            sid,
+                            nsid
+                        );
                         Ok(AddrSpace::new(crt, sess, Some(sid), child_id))
                     })
                     .map(|(sel, _)| sel)

@@ -16,6 +16,7 @@
 use m3::boxed::Box;
 use m3::com::{GateIStream, RecvGate};
 use m3::errors::{Code, Error, VerboseError};
+use m3::io::LogFlags;
 use m3::log;
 use m3::reply_vmsg;
 use m3::session::resmng;
@@ -139,7 +140,7 @@ impl Requests {
         match res {
             Err(e) => {
                 let child = childs.child_by_id_mut(id).unwrap();
-                log!(crate::LOG_DEF, "{}: {:?} failed: {}", child.name(), op, e);
+                log!(LogFlags::Error, "{}: {:?} failed: {}", child.name(), op, e);
                 is.reply_error(e.code())
             },
             Ok(_) => is.reply_error(Code::Success),

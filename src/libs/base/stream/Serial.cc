@@ -16,6 +16,7 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/Init.h>
 #include <base/stream/Serial.h>
 #include <base/time/Instant.h>
 

@@ -27,7 +27,7 @@ use crate::cell::Cell;
 use crate::cfg;
 use crate::col::{String, ToString, Vec};
 use crate::com::MemGate;
-use crate::env::Env;
+use crate::env::{self, Env};
 use crate::errors::Error;
 use crate::goff;
 use crate::kif;
@@ -417,7 +417,7 @@ impl ChildActivity {
     where
         S: AsRef<str>,
     {
-        let (arg_buf, arg_ptr, arg_end) = Self::collect_args(args, *off);
+        let (arg_buf, arg_ptr, arg_end) = env::collect_args(args, *off);
 
         // write actual arguments to memory
         let env_page_off = (cfg::ENV_START & !cfg::PAGE_MASK) as goff;
@@ -437,32 +437,6 @@ impl ChildActivity {
 
         *off = arg_ptr_off + arg_ptr.len() * mem::size_of::<u64>();
         Ok(arg_ptr_off)
-    }
-
-    fn collect_args<S>(args: &[S], off: usize) -> (Vec<u8>, Vec<u64>, usize)
-    where
-        S: AsRef<str>,
-    {
-        let mut arg_ptr = Vec::<u64>::new();
-        let mut arg_buf = Vec::new();
-
-        let mut arg_off = off;
-        for s in args {
-            // push argv entry
-            arg_ptr.push(arg_off as u64);
-
-            // push string
-            let arg = s.as_ref().as_bytes();
-            arg_buf.extend_from_slice(arg);
-
-            // 0-terminate it
-            arg_buf.push(b'\0');
-
-            arg_off += arg.len() + 1;
-        }
-        arg_ptr.push(0);
-
-        (arg_buf, arg_ptr, arg_off)
     }
 
     fn serialize_files<F>(&self, write: F, env: &mut Env, off: &mut usize) -> Result<(), Error>

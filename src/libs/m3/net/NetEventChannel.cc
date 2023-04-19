@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/log/Lib.h>
+#include <base/Log.h>
 
 #include <m3/net/NetEventChannel.h>
 #include <m3/tiles/Activity.h>

@@ -31,6 +31,7 @@ use crate::data::{Allocator, SuperBlock};
 use crate::sess::{FSSession, M3FSSession, MetaSession, OpenFiles};
 
 use base::cell::LazyStaticUnsafeCell;
+use base::io::LogFlags;
 use m3::{
     boxed::Box,
     cap::Selector,
@@ -47,16 +48,6 @@ use m3::{
     tiles::{Activity, OwnActivity},
     vfs::{FSOperation, GenFileOp},
 };
-
-// Sets the logging behavior
-pub const LOG_DEF: bool = false;
-pub const LOG_SESSION: bool = false;
-pub const LOG_ALLOC: bool = false;
-pub const LOG_BUFFER: bool = false;
-pub const LOG_DIRS: bool = false;
-pub const LOG_INODES: bool = false;
-pub const LOG_LINKS: bool = false;
-pub const LOG_FIND: bool = false;
 
 // Server constants
 const MSG_SIZE: usize = 128;
@@ -159,7 +150,7 @@ impl M3FSRequestHandler {
         thread::init();
 
         let sb = backend.load_sb().expect("Unable to load super block");
-        log!(crate::LOG_DEF, "Loaded {:#?}", sb);
+        log!(LogFlags::FSInfo, "Loaded {:#?}", sb);
 
         BA.set(Allocator::new(
             String::from("Block"),
@@ -198,7 +189,12 @@ impl M3FSRequestHandler {
     }
 
     pub fn handle(&mut self, op: M3FSOperation, input: &mut GateIStream<'_>) -> Result<(), Error> {
-        log!(LOG_DEF, "[{}] fs::handle(op={})", input.label(), op);
+        log!(
+            LogFlags::FSReqs,
+            "[{}] fs::handle(op={})",
+            input.label(),
+            op
+        );
 
         let res = match op {
             M3FSOperation::NEXT_IN => self.exec_on_sess(input, |sess, is| sess.next_in(is)),
@@ -234,7 +230,7 @@ impl M3FSRequestHandler {
         }
 
         log!(
-            LOG_DEF,
+            LogFlags::FSReqs,
             "[{}] fs::handle(op={}) -> {:?}",
             input.label(),
             op,
@@ -261,7 +257,7 @@ impl M3FSRequestHandler {
         let mut sids = vec![sid];
         while let Some(id) = sids.pop() {
             if let Ok(sess) = self.remove_session(id) {
-                log!(crate::LOG_DEF, "[{}] fs::close(): closing {}", sid, id);
+                log!(LogFlags::FSReqs, "[{}] fs::close(): closing {}", sid, id);
 
                 match sess {
                     FSSession::Meta(ref meta) => {
@@ -336,7 +332,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
 
         self.sessions.add_next(crt, srv_sel, true, |sess| {
             log!(
-                crate::LOG_SESSION,
+                LogFlags::FSSess,
                 "[{}] creating session(crt={}, max_files={})",
                 sess.ident(),
                 crt,
@@ -355,7 +351,13 @@ impl Handler<FSSession> for M3FSRequestHandler {
         let sel: Selector = self.sel;
 
         let op: M3FSOperation = data.in_args().pop()?;
-        log!(LOG_DEF, "[{}] fs::obtain(crt={}, op={})", sid, crt, op);
+        log!(
+            LogFlags::FSReqs,
+            "[{}] fs::obtain(crt={}, op={})",
+            sid,
+            crt,
+            op
+        );
 
         if !self.sessions.can_add(crt) {
             return Err(Error::new(Code::NoSpace));
@@ -400,7 +402,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
         data: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
         let op: M3FSOperation = data.in_args().pop()?;
-        log!(LOG_DEF, "[{}] fs::delegate(op={})", sid, op);
+        log!(LogFlags::FSReqs, "[{}] fs::delegate(op={})", sid, op);
 
         let session = self
             .sessions
@@ -555,7 +557,7 @@ pub fn main() -> Result<(), Error> {
         println!("Invalid arguments: {}", e);
         usage();
     }));
-    log!(crate::LOG_DEF, "{:#?}", SETTINGS.get());
+    log!(LogFlags::FSInfo, "{:#?}", SETTINGS.get());
 
     // create backend for the file system
     let mut hdl = if SETTINGS.get().backend == "mem" {

@@ -16,6 +16,7 @@
 
 use base::cfg;
 use base::errors::{Code, Error};
+use base::io::LogFlags;
 use base::kif::PageFlags;
 use base::log;
 use base::mem::MsgBuf;
@@ -98,7 +99,7 @@ fn recv_pf_resp(cur: &mut activities::Activity) -> activities::ContResult {
         let pf_state = cur.finish_pf();
         if err != 0 {
             log!(
-                crate::LOG_ERR,
+                LogFlags::Error,
                 "Pagefault for {:#x} (perm: {:?}) with user state:\n{:?}",
                 pf_state.virt,
                 pf_state.perm,
@@ -125,7 +126,7 @@ pub fn handle_xlate(virt: usize, perm: PageFlags) {
         // TODO directly insert into TLB when the PF was resolved?
         if send_pf(act, virt, perm).is_err() {
             log!(
-                crate::LOG_ERR,
+                LogFlags::Error,
                 "Unable to handle page fault for {:#x}",
                 virt
             );
@@ -136,7 +137,7 @@ pub fn handle_xlate(virt: usize, perm: PageFlags) {
     else {
         // ensure that we only insert user-accessible pages into the TLB
         if (pte & PageFlags::U.bits()) == 0 {
-            log!(crate::LOG_ERR, "No permission to access {:#x}", virt);
+            log!(LogFlags::Error, "No permission to access {:#x}", virt);
             activities::remove_cur(Code::Unspecified);
         }
         else {
@@ -155,7 +156,7 @@ pub fn handle_pf(state: &crate::arch::State, virt: usize, perm: PageFlags) -> Re
 
     if let Err(e) = send_pf(activities::cur(), virt, perm) {
         log!(
-            crate::LOG_ERR,
+            LogFlags::Error,
             "Pagefault for {:#x} with user state:\n{:?}",
             virt,
             state

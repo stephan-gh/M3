@@ -19,6 +19,7 @@ use m3::cell::{Cell, RefCell};
 use m3::col::{VarRingBuf, Vec};
 use m3::com::{GateIStream, MemGate, RGateArgs, RecvGate, SGateArgs, SendGate, EP};
 use m3::errors::{Code, Error};
+use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
 use m3::rc::Rc;
@@ -66,7 +67,7 @@ impl NotifyGate {
     pub fn send_events(&mut self) {
         if !self.pending_events.is_empty() && self.sgate.credits().unwrap() > 0 {
             log!(
-                crate::LOG_DEF,
+                LogFlags::PipeData,
                 "[{}] pipes::notify({:?})",
                 self.sess,
                 self.pending_events
@@ -231,7 +232,7 @@ impl State {
             let cmem = mem.derive(0, self.mem_size, perm)?;
             // activate it on client's EP
             log!(
-                crate::LOG_DEF,
+                LogFlags::PipeReqs,
                 "[{}] pipes::activate(ep={}, gate={})",
                 id,
                 ep,
@@ -248,11 +249,11 @@ impl State {
     pub fn append_request(&mut self, id: SessId, is: &mut GateIStream<'_>, read: bool) {
         let req = PendingRequest::new(id, is.take_msg());
         if read {
-            log!(crate::LOG_DEF, "[{}] pipes::read_wait()", id);
+            log!(LogFlags::PipeData, "[{}] pipes::read_wait()", id);
             self.pending_reads.insert(0, req);
         }
         else {
-            log!(crate::LOG_DEF, "[{}] pipes::write_wait()", id);
+            log!(LogFlags::PipeData, "[{}] pipes::write_wait()", id);
             self.pending_writes.insert(0, req);
         }
     }
@@ -273,7 +274,7 @@ impl State {
                 // start reading
                 self.last_read = Some((req.chan, amount));
                 log!(
-                    crate::LOG_DEF,
+                    LogFlags::PipeData,
                     "[{}] pipes::late_read(): {} @ {}",
                     req.chan,
                     amount,
@@ -288,7 +289,7 @@ impl State {
             // did all writers leave?
             else if self.flags.contains(Flags::WRITE_EOF) {
                 // report EOF
-                log!(crate::LOG_DEF, "[{}] pipes::late_read(): EOF", req.chan);
+                log!(LogFlags::PipeData, "[{}] pipes::late_read(): EOF", req.chan);
                 reply_vmsg_late!(rgate, req.msg, Code::Success, 0usize, 0usize).ok();
 
                 // remove write request
@@ -317,7 +318,11 @@ impl State {
         // if all readers left, just report EOF to all pending write requests
         if self.flags.contains(Flags::READ_EOF) {
             while let Some(req) = self.pending_writes.pop() {
-                log!(crate::LOG_DEF, "[{}] pipes::late_write(): EOF", req.chan);
+                log!(
+                    LogFlags::PipeData,
+                    "[{}] pipes::late_write(): EOF",
+                    req.chan
+                );
                 reply_vmsg_late!(rgate, req.msg, Code::EndOfFile).ok();
             }
         }
@@ -329,7 +334,7 @@ impl State {
                 // start writing
                 self.last_write = Some((req.chan, amount));
                 log!(
-                    crate::LOG_DEF,
+                    LogFlags::PipeData,
                     "[{}] pipes::late_write(): {} @ {}",
                     req.chan,
                     amount,

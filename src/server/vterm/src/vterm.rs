@@ -21,7 +21,7 @@ use m3::col::Vec;
 use m3::com::{GateIStream, MemGate, Perm, RGateArgs, RecvGate, SGateArgs, SendGate, EP};
 use m3::errors::{Code, Error};
 use m3::int_enum;
-use m3::io::{Serial, Write};
+use m3::io::{LogFlags, Serial, Write};
 use m3::kif;
 use m3::log;
 use m3::rc::Rc;
@@ -36,9 +36,6 @@ use m3::tiles::Activity;
 use m3::vec;
 use m3::vfs::{FileEvent, FileInfo, FileMode, GenFileOp};
 use m3::{build_vmsg, goff, send_vmsg};
-
-pub const LOG_DEF: bool = false;
-pub const LOG_INOUT: bool = false;
 
 const BUF_SIZE: usize = 256;
 
@@ -142,7 +139,7 @@ impl Channel {
     fn get_tmode(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let _fid: usize = is.pop()?;
 
-        log!(crate::LOG_DEF, "[{}] vterm::get_tmode()", self.id,);
+        log!(LogFlags::VTReqs, "[{}] vterm::get_tmode()", self.id,);
 
         reply_vmsg!(is, Code::Success, MODE.get())
     }
@@ -152,7 +149,7 @@ impl Channel {
         let mode = is.pop::<Mode>()?;
 
         log!(
-            crate::LOG_DEF,
+            LogFlags::VTReqs,
             "[{}] vterm::set_tmode(mode={})",
             self.id,
             mode
@@ -166,7 +163,7 @@ impl Channel {
     fn next_in(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let _: usize = is.pop()?;
 
-        log!(crate::LOG_INOUT, "[{}] vterm::next_in()", self.id);
+        log!(LogFlags::VTInOut, "[{}] vterm::next_in()", self.id);
 
         if self.writing {
             return Err(Error::new(Code::NoPerm));
@@ -204,7 +201,7 @@ impl Channel {
         self.pos = 0;
 
         log!(
-            crate::LOG_INOUT,
+            LogFlags::VTInOut,
             "[{}] vterm::next_in() -> ({}, {})",
             self.id,
             self.pos,
@@ -220,7 +217,7 @@ impl Channel {
     fn next_out(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let _: usize = is.pop()?;
 
-        log!(crate::LOG_INOUT, "[{}] vterm::next_out()", self.id);
+        log!(LogFlags::VTInOut, "[{}] vterm::next_out()", self.id);
 
         if !self.writing {
             return Err(Error::new(Code::NoPerm));
@@ -240,7 +237,7 @@ impl Channel {
         let nbytes: usize = is.pop()?;
 
         log!(
-            crate::LOG_INOUT,
+            LogFlags::VTInOut,
             "[{}] vterm::commit(nbytes={})",
             self.id,
             nbytes
@@ -286,7 +283,7 @@ impl Channel {
         let events: FileEvent = FileEvent::from_bits_truncate(is.pop()?);
 
         log!(
-            crate::LOG_DEF,
+            LogFlags::VTReqs,
             "[{}] vterm::req_notify(events={:?})",
             self.id,
             events
@@ -316,7 +313,7 @@ impl Channel {
     fn add_event(&mut self, event: FileEvent) -> bool {
         if self.notify_events.contains(event) {
             log!(
-                crate::LOG_DEF,
+                LogFlags::VTEvents,
                 "[{}] vterm::received_event({:?})",
                 self.id,
                 event
@@ -335,7 +332,7 @@ impl Channel {
             let (rg, sg) = self.notify_gates.as_ref().unwrap();
             if sg.credits().unwrap() > 0 {
                 log!(
-                    crate::LOG_DEF,
+                    LogFlags::VTEvents,
                     "[{}] vterm::sending_events({:?})",
                     self.id,
                     self.pending_events
@@ -359,7 +356,7 @@ struct VTermHandler {
 
 impl VTermHandler {
     fn new_sess(crt: usize, sess: ServerSession) -> VTermSession {
-        log!(crate::LOG_DEF, "[{}] vterm::new_meta()", sess.ident());
+        log!(LogFlags::VTReqs, "[{}] vterm::new_meta()", sess.ident());
         VTermSession {
             crt,
             sess,
@@ -376,7 +373,7 @@ impl VTermHandler {
         sid: SessId,
         writing: bool,
     ) -> Result<VTermSession, Error> {
-        log!(crate::LOG_DEF, "[{}] vterm::new_chan()", sid);
+        log!(LogFlags::VTReqs, "[{}] vterm::new_chan()", sid);
         let sels = Activity::own().alloc_sels(2);
         Ok(VTermSession {
             crt,
@@ -392,7 +389,7 @@ impl VTermHandler {
         let mut sids = vec![sid];
         while let Some(id) = sids.pop() {
             if let Some(sess) = self.sessions.get_mut(id) {
-                log!(crate::LOG_DEF, "[{}] vterm::close(): closing {}", sid, id);
+                log!(LogFlags::VTReqs, "[{}] vterm::close(): closing {}", sid, id);
 
                 // close child sessions as well
                 sids.extend_from_slice(&sess.childs);
@@ -445,7 +442,13 @@ impl Handler<VTermSession> for VTermHandler {
 
     fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
         let op: GenFileOp = xchg.in_args().pop()?;
-        log!(LOG_DEF, "[{}] vterm::obtain(crt={}, op={})", sid, crt, op);
+        log!(
+            LogFlags::VTReqs,
+            "[{}] vterm::obtain(crt={}, op={})",
+            sid,
+            crt,
+            op
+        );
 
         if xchg.in_caps() != 2 {
             return Err(Error::new(Code::InvArgs));
@@ -489,7 +492,7 @@ impl Handler<VTermSession> for VTermHandler {
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
         let op: GenFileOp = xchg.in_args().pop()?;
-        log!(LOG_DEF, "[{}] vterm::delegate(op={})", sid, op);
+        log!(LogFlags::VTReqs, "[{}] vterm::delegate(op={})", sid, op);
 
         if xchg.in_caps() != 1 {
             return Err(Error::new(Code::InvArgs));
@@ -653,7 +656,7 @@ pub fn main() -> Result<(), Error> {
 
         if let Ok(msg) = serial_gate.fetch() {
             log!(
-                crate::LOG_INOUT,
+                LogFlags::VTInOut,
                 "Got input message with {} bytes",
                 msg.header.length()
             );

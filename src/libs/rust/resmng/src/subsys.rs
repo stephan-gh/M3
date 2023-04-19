@@ -22,6 +22,7 @@ use m3::com::MemGate;
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::goff;
+use m3::io::LogFlags;
 use m3::kif::{boot, CapRngDesc, CapType, Perm, TileDesc, FIRST_FREE_SEL};
 use m3::log;
 use m3::mem::size_of;
@@ -130,19 +131,19 @@ impl Subsystem {
     }
 
     fn init(&self, res: &mut Resources) -> Result<(), Error> {
-        log!(crate::LOG_SUBSYS, "Boot modules:");
+        log!(LogFlags::Info, "Boot modules:");
         for (i, m) in self.mods().iter().enumerate() {
-            log!(crate::LOG_SUBSYS, "  {:?}", m);
+            log!(LogFlags::Info, "  {:?}", m);
             res.mods_mut().add(i, m);
         }
 
-        log!(crate::LOG_SUBSYS, "Available tiles:");
+        log!(LogFlags::Info, "Available tiles:");
         for (i, tile) in self.tiles().iter().enumerate() {
-            log!(crate::LOG_SUBSYS, "  {:?}", tile);
+            log!(LogFlags::Info, "  {:?}", tile);
             res.tiles_mut().add(self.get_tile(i));
         }
 
-        log!(crate::LOG_SUBSYS, "Available memory:");
+        log!(LogFlags::Info, "Available memory:");
         for (i, mem) in self.mems().iter().enumerate() {
             let mem_mod = Rc::new(memory::MemMod::new(
                 self.get_mem(i),
@@ -150,16 +151,16 @@ impl Subsystem {
                 mem.size(),
                 mem.reserved(),
             ));
-            log!(crate::LOG_SUBSYS, "  {:?}", mem_mod);
+            log!(LogFlags::Info, "  {:?}", mem_mod);
             res.memory_mut().add(mem_mod);
         }
 
         if !self.services().is_empty() {
-            log!(crate::LOG_SUBSYS, "Services:");
+            log!(LogFlags::Info, "Services:");
             for (i, s) in self.services().iter().enumerate() {
                 let sel = self.get_service(i);
                 log!(
-                    crate::LOG_SUBSYS,
+                    LogFlags::Info,
                     "  Service[name={}, sessions={}]",
                     s.name(),
                     s.sessions()
@@ -190,7 +191,7 @@ impl Subsystem {
         }
 
         if Activity::own().resmng().is_none() {
-            log!(crate::LOG_CFG, "Parsed {:?}", self.cfg);
+            log!(LogFlags::Info, "Parsed {:?}", self.cfg);
         }
 
         Ok(())
@@ -559,7 +560,7 @@ impl Subsystem {
                     cfg.clone(),
                     sub,
                 ));
-                log!(crate::LOG_CHILD, "Created {:?}", child);
+                log!(LogFlags::ResMngChild, "Created {:?}", child);
 
                 // start it immediately if all dependencies are met or remember it for later
                 if !child.has_unmet_reqs(res) {

@@ -17,7 +17,9 @@ use base::build_vmsg;
 use base::col::ToString;
 use base::errors::{Code, VerboseError};
 use base::format;
+use base::io::LogFlags;
 use base::kif::{service, syscalls, CapRngDesc, CapType, SEL_ACT};
+use base::log;
 use base::mem::MsgBuf;
 use base::rc::Rc;
 use base::serialize::M3Deserializer;
@@ -140,8 +142,8 @@ pub fn exchange_over_sess_async(
     let serv = sess.service().clone();
     let label = sess.creator() as tcu::Label;
 
-    klog!(
-        SERV,
+    log!(
+        LogFlags::KernServ,
         "Sending {}(sess={:#x}, caps={}, args={}B) to service {} with creator {}",
         name,
         sess.ident(),

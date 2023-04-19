@@ -27,6 +27,7 @@ for p in "$@"; do
     esac
 done
 
+M3_LOG=${M3_LOG:-Info,Error}
 M3_MOD_PATH=${M3_MOD_PATH:-$build}
 
 generate_config() {
@@ -113,8 +114,8 @@ build_params_gem5() {
     kernels=$(perl -ne 'printf("'"$bindir"/'%s,", $1) if /<kernel\s.*args="(.*?)"/' < "$1")
     mods=$(get_mods "$1" "gem5") || exit 1
 
-    if [ "$M3_GEM5_DBG" = "" ]; then
-        M3_GEM5_DBG="Tcu"
+    if [ "$M3_GEM5_LOG" = "" ]; then
+        M3_GEM5_LOG="Tcu"
     fi
     if [ "$M3_GEM5_CPU" = "" ]; then
         if [ "$debug" != "" ]; then
@@ -143,15 +144,15 @@ build_params_gem5() {
     export M3_GEM5_IDE_DRIVE=$M3_HDD
 
     params=()
-    params=("${params[@]}" --outdir="$M3_OUT" --debug-file=gem5.log --debug-flags="$M3_GEM5_DBG")
+    params=("${params[@]}" --outdir="$M3_OUT" --debug-file=gem5.log --debug-flags="$M3_GEM5_LOG")
     if [ "$M3_GEM5_PAUSE" != "" ]; then
         params=("${params[@]}" --listener-mode=on)
     fi
-    if [ "$M3_GEM5_DBGSTART" != "" ]; then
-        params=("${params[@]}" --debug-start="$M3_GEM5_DBGSTART")
+    if [ "$M3_GEM5_LOGSTART" != "" ]; then
+        params=("${params[@]}" --debug-start="$M3_GEM5_LOGSTART")
     fi
     params=("${params[@]}" "$M3_GEM5_CFG" --cpu-type "$M3_GEM5_CPU" --isa "$M3_ISA")
-    params=("${params[@]}" --cmd "$cmd" --mods "$mods")
+    params=("${params[@]}" --cmd "$cmd" --mods "$mods" --logflags "$M3_LOG")
     params=("${params[@]}" --cpu-clock="$M3_GEM5_CPUFREQ" --sys-clock="$M3_GEM5_MEMFREQ")
     if [ "$M3_GEM5_PAUSE" != "" ]; then
         params=("${params[@]}" --pausetile="$M3_GEM5_PAUSE")
@@ -183,7 +184,7 @@ build_params_gem5() {
         gdb --tui platform/gem5/build/$gem5build/gem5.debug "--command=$tmp"
     else
         if [ "$debug" != "" ]; then
-            "$build/tools/ignoreint" platform/gem5/build/$gem5build/gem5.opt "${params[@]}"
+            "$build/toolsbin/ignoreint" platform/gem5/build/$gem5build/gem5.opt "${params[@]}"
         else
             platform/gem5/build/$gem5build/gem5.opt "${params[@]}"
         fi
@@ -201,6 +202,7 @@ build_params_hw() {
     else
         args="--version 1"
     fi
+    args="$args --logflags $M3_LOG"
 
     if [ "$M3_HW_RESET" = "1" ]; then
         args="$args --reset"

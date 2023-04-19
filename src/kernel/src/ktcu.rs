@@ -18,7 +18,9 @@ use base::cfg;
 use base::env;
 use base::errors::{Code, Error};
 use base::goff;
+use base::io::LogFlags;
 use base::kif;
+use base::log;
 use base::mem;
 use base::tcu::{
     ActId, EpId, ExtCmdOpCode, ExtReg, Header, Label, Message, Reg, TileId, AVAIL_EPS, EP_REGS,
@@ -37,8 +39,11 @@ pub const KPEX_EP: EpId = PMEM_PROT_EPS as EpId + 3;
 static BUF: StaticRefCell<[u8; 8192]> = StaticRefCell::new([0u8; 8192]);
 static RBUFS: StaticRefCell<[usize; 8]> = StaticRefCell::new([0usize; 8]);
 
-fn log_eps(tile: TileId) -> bool {
-    crate::log::ALL_EPS || tile != TileId::new_from_raw(env::boot().tile_id as u16)
+fn log_flag(tile: TileId) -> LogFlags {
+    match tile == TileId::new_from_raw(env::boot().tile_id as u16) {
+        true => LogFlags::KernKEPs,
+        false => LogFlags::KernEPs,
+    }
 }
 
 pub fn config_local_ep<CFG>(ep: EpId, cfg: CFG)
@@ -71,19 +76,17 @@ pub fn config_recv(
     msg_ord: u32,
     reply_eps: Option<EpId>,
 ) {
-    if log_eps(tgtep.0) {
-        klog!(
-            EPS,
-            "{}:EP{} = Recv[act={}, buf={:#x}, buf_ord={}, msg_ord={}, reply_eps={:?}]",
-            tgtep.0,
-            tgtep.1,
-            act,
-            buf,
-            buf_ord,
-            msg_ord,
-            reply_eps
-        );
-    }
+    log!(
+        log_flag(tgtep.0),
+        "{}:EP{} = Recv[act={}, buf={:#x}, buf_ord={}, msg_ord={}, reply_eps={:?}]",
+        tgtep.0,
+        tgtep.1,
+        act,
+        buf,
+        buf_ord,
+        msg_ord,
+        reply_eps
+    );
 
     TCU::config_recv(regs, act, buf, buf_ord, msg_ord, reply_eps);
 }
@@ -98,20 +101,18 @@ pub fn config_send(
     msg_ord: u32,
     credits: u32,
 ) {
-    if log_eps(tgtep.0) {
-        klog!(
-            EPS,
-            "{}:EP{} = Send[act={}, lbl={:#x}, tile={}, ep={}, msg_ord={}, credits={}]",
-            tgtep.0,
-            tgtep.1,
-            act,
-            lbl,
-            tile,
-            ep,
-            msg_ord,
-            credits
-        );
-    }
+    log!(
+        log_flag(tgtep.0),
+        "{}:EP{} = Send[act={}, lbl={:#x}, tile={}, ep={}, msg_ord={}, credits={}]",
+        tgtep.0,
+        tgtep.1,
+        act,
+        lbl,
+        tile,
+        ep,
+        msg_ord,
+        credits
+    );
 
     TCU::config_send(regs, act, lbl, tile, ep, msg_ord, credits);
 }
@@ -125,25 +126,23 @@ pub fn config_mem(
     size: usize,
     perm: kif::Perm,
 ) {
-    if log_eps(tgtep.0) {
-        klog!(
-            EPS,
-            "{}:{}EP{} = Mem[act={}, tile={}, addr={:#x}, size={:#x}, perm={:?}]",
-            tgtep.0,
-            if tgtep.1 < PMEM_PROT_EPS as EpId {
-                "PMP"
-            }
-            else {
-                ""
-            },
-            tgtep.1,
-            act,
-            tile,
-            addr,
-            size,
-            perm
-        );
-    }
+    log!(
+        log_flag(tgtep.0),
+        "{}:{}EP{} = Mem[act={}, tile={}, addr={:#x}, size={:#x}, perm={:?}]",
+        tgtep.0,
+        if tgtep.1 < PMEM_PROT_EPS as EpId {
+            "PMP"
+        }
+        else {
+            ""
+        },
+        tgtep.1,
+        act,
+        tile,
+        addr,
+        size,
+        perm
+    );
 
     TCU::config_mem(regs, act, tile, addr, size, perm);
 }
@@ -204,8 +203,8 @@ pub fn send_to(
         assert!(msg.size() + mem::size_of::<Header>() <= 1 << 8);
         config_send(regs, tgtep, KERNEL_ID, lbl, tile, ep, 8, UNLIM_CREDITS);
     });
-    klog!(
-        KTCU,
+    log!(
+        LogFlags::KernTCU,
         "sending {}-bytes from {:#x} to {}:{}",
         msg.size(),
         msg.bytes().as_ptr() as usize,
@@ -248,7 +247,13 @@ pub fn try_read_mem(src_tile: TileId, addr: goff, data: *mut u8, size: usize) ->
     config_local_ep(KTMP_EP, |regs, tgtep| {
         config_mem(regs, tgtep, KERNEL_ID, src_tile, addr, size, kif::Perm::R);
     });
-    klog!(KTCU, "reading {} bytes from {}:{:#x}", size, src_tile, addr);
+    log!(
+        LogFlags::KernTCU,
+        "reading {} bytes from {}:{:#x}",
+        size,
+        src_tile,
+        addr
+    );
     TCU::read(KTMP_EP, data, size, 0)
 }
 
@@ -275,7 +280,13 @@ pub fn try_write_mem(
     config_local_ep(KTMP_EP, |regs, tgtep| {
         config_mem(regs, tgtep, KERNEL_ID, dst_tile, addr, size, kif::Perm::W);
     });
-    klog!(KTCU, "writing {} bytes to {}:{:#x}", size, dst_tile, addr);
+    log!(
+        LogFlags::KernTCU,
+        "writing {} bytes to {}:{:#x}",
+        size,
+        dst_tile,
+        addr
+    );
     TCU::write(KTMP_EP, data, size, 0)
 }
 
@@ -366,7 +377,7 @@ pub fn write_ep_remote(tile: TileId, ep: EpId, regs: &[Reg]) -> Result<(), Error
 }
 
 pub fn invalidate_ep_remote(tile: TileId, ep: EpId, force: bool) -> Result<u32, Error> {
-    klog!(EPS, "{}:EP{} = invalid", tile, ep);
+    log!(LogFlags::KernEPs, "{}:EP{} = invalid", tile, ep);
 
     let reg = ExtCmdOpCode::INV_EP.val | ((ep as Reg) << 9) as Reg | ((force as Reg) << 25);
     do_ext_cmd(tile, reg).map(|unread| unread as u32)
@@ -378,8 +389,8 @@ pub fn inv_reply_remote(
     send_tile: TileId,
     send_ep: EpId,
 ) -> Result<(), Error> {
-    klog!(
-        EPS,
+    log!(
+        LogFlags::KernEPs,
         "{}:EP{} = invalid reply EPs at {}:EP{}",
         send_tile,
         send_ep,

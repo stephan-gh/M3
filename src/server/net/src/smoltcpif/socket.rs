@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::io::LogFlags;
 use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::errors::{Code, Error};
@@ -287,7 +288,7 @@ impl Socket {
                 Ok(())
             },
             Err(e) => {
-                log!(crate::LOG_ERR, "bind failed: {}", e);
+                log!(LogFlags::Error, "bind failed: {}", e);
                 // bind can only fail if the port is zero
                 Err(Error::new(Code::InvArgs))
             },
@@ -316,7 +317,7 @@ impl Socket {
                 Ok(())
             },
             Err(e) => {
-                log!(crate::LOG_ERR, "listen failed: {}", e);
+                log!(LogFlags::Error, "listen failed: {}", e);
                 // listen can only fail if the port is zero
                 Err(Error::new(Code::InvArgs))
             },
@@ -353,7 +354,7 @@ impl Socket {
                 Ok(())
             },
             Err(e) => {
-                log!(crate::LOG_ERR, "connect failed: {}", e);
+                log!(LogFlags::Error, "connect failed: {}", e);
                 // connect can only fail if the endpoints are invalid
                 Err(Error::new(Code::InvArgs))
             },
@@ -483,7 +484,7 @@ impl Socket {
                 if amount > 0 {
                     log_net(NetLogEvent::SubmitData, sd, amount);
                     log!(
-                        crate::LOG_DATA,
+                        LogFlags::NetData,
                         "[{}] socket {}: sent delayed packet of {}b to {}",
                         sess,
                         sd,
@@ -521,7 +522,7 @@ impl Socket {
                 if res > 0 {
                     log_net(NetLogEvent::SubmitData, self.sd, res);
                     log!(
-                        crate::LOG_DATA,
+                        LogFlags::NetData,
                         "[{}] socket {}: sent packet of {}b to {}:{}",
                         sess,
                         self.sd,
@@ -534,7 +535,7 @@ impl Socket {
                 if res < data.size as usize {
                     // if insufficient buffer space is available, remember the event for later
                     log!(
-                        crate::LOG_DATA,
+                        LogFlags::NetData,
                         "[{}] socket {}: no buffer space, delaying send of {}b to {}:{}",
                         sess,
                         self.sd,
@@ -548,13 +549,18 @@ impl Socket {
             },
 
             NetEventType::CLOSE_REQ => {
-                log!(crate::LOG_SESS, "[{}] net::close_req(sd={})", sess, self.sd);
+                log!(
+                    LogFlags::NetSess,
+                    "[{}] net::close_req(sd={})",
+                    sess,
+                    self.sd
+                );
 
                 // ignore error
                 self.close(iface).ok();
             },
 
-            m => log!(crate::LOG_ERR, "Unexpected message from client: {}", m),
+            m => log!(LogFlags::Error, "Unexpected message from client: {}", m),
         }
         false
     }

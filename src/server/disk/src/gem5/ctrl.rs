@@ -17,6 +17,7 @@ use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::Error;
 use m3::int_enum;
+use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
 use m3::rc::Rc;
@@ -71,7 +72,7 @@ impl IDEController {
         assert!(ide_ctrl.class().sub() == IDE_CTRL_SUBCLASS);
 
         log!(
-            crate::LOG_DEF,
+            LogFlags::DiskCtrl,
             "Found IDE controller ({}): vendor {:x} device {:x} rev {}",
             ide_ctrl.id(),
             ide_ctrl.vendor(),
@@ -97,7 +98,7 @@ impl IDEController {
             let dev = pci_dev.clone();
             match Channel::new(dev, &ide_ctrl, use_irq, use_dma, ids[i], ports[i]) {
                 Ok(c) => chans.push(c),
-                Err(e) => log!(crate::LOG_DEF, "chan[{}] ignoring channel: {}", ids[i], e),
+                Err(e) => log!(LogFlags::Error, "chan[{}] ignoring channel: {}", ids[i], e),
             }
         }
 

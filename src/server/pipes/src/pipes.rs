@@ -27,6 +27,7 @@ use m3::com::{GateIStream, RecvGate};
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::int_enum;
+use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
 use m3::println;
@@ -43,8 +44,6 @@ use m3::vfs::GenFileOp;
 use chan::{ChanType, Channel};
 use meta::Meta;
 use sess::{PipesSession, SessionData};
-
-pub const LOG_DEF: bool = false;
 
 static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 
@@ -96,7 +95,12 @@ impl PipesHandler {
         let mut sids = vec![sid];
         while let Some(id) = sids.pop() {
             if let Some(sess) = self.sessions.get_mut(id) {
-                log!(crate::LOG_DEF, "[{}] pipes::close(): closing {}", sid, id);
+                log!(
+                    LogFlags::PipeReqs,
+                    "[{}] pipes::close(): closing {}",
+                    sid,
+                    id
+                );
 
                 // ignore errors here
                 let _ = match &mut sess.data_mut() {
@@ -138,7 +142,7 @@ impl Handler<PipesSession> for PipesHandler {
         _arg: &str,
     ) -> Result<(Selector, SessId), Error> {
         self.sessions.add_next(crt, srv_sel, true, |sess| {
-            log!(crate::LOG_DEF, "[{}] pipes::new_meta()", sess.ident());
+            log!(LogFlags::PipeReqs, "[{}] pipes::new_meta()", sess.ident());
             Ok(PipesSession::new(
                 crt,
                 sess,
@@ -150,7 +154,7 @@ impl Handler<PipesSession> for PipesHandler {
     fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
         let op: Operation = xchg.in_args().pop().unwrap();
         log!(
-            crate::LOG_DEF,
+            LogFlags::PipeReqs,
             "[{}] pipes::obtain(crt={}, op={})",
             sid,
             crt,
@@ -177,7 +181,7 @@ impl Handler<PipesSession> for PipesHandler {
                     let sel = Activity::own().alloc_sels(2);
                     let msize: usize = xchg.in_args().pop()?;
                     log!(
-                        crate::LOG_DEF,
+                        LogFlags::PipeReqs,
                         "[{}] pipes::open_pipe(sid={}, sel={}, size={:#x})",
                         sid,
                         nsid,
@@ -201,7 +205,7 @@ impl Handler<PipesSession> for PipesHandler {
                         _ => ChanType::WRITE,
                     };
                     log!(
-                        crate::LOG_DEF,
+                        LogFlags::PipeReqs,
                         "[{}] pipes::open_chan(sid={}, sel={}, ty={:?})",
                         sid,
                         nsid,
@@ -222,7 +226,7 @@ impl Handler<PipesSession> for PipesHandler {
 
                     let sel = Activity::own().alloc_sels(2);
                     log!(
-                        crate::LOG_DEF,
+                        LogFlags::PipeReqs,
                         "[{}] pipes::clone(sid={}, sel={})",
                         sid,
                         nsid,
@@ -271,7 +275,7 @@ impl Handler<PipesSession> for PipesHandler {
     ) -> Result<(), Error> {
         let sess = self.sessions.get_mut(sid).unwrap();
         let op: Operation = xchg.in_args().pop()?;
-        log!(crate::LOG_DEF, "[{}] pipes::delegate(op={})", sid, op);
+        log!(LogFlags::PipeReqs, "[{}] pipes::delegate(op={})", sid, op);
 
         match &mut sess.data_mut() {
             // pipe sessions expect a memory cap for the shared memory of the pipe
@@ -282,7 +286,7 @@ impl Handler<PipesSession> for PipesHandler {
                     }
 
                     let sel = Activity::own().alloc_sel();
-                    log!(crate::LOG_DEF, "[{}] pipes::set_mem(sel={})", sid, sel);
+                    log!(LogFlags::PipeReqs, "[{}] pipes::set_mem(sel={})", sid, sel);
                     p.set_mem(sel);
                     xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
 
@@ -299,7 +303,7 @@ impl Handler<PipesSession> for PipesHandler {
                     }
 
                     let sel = Activity::own().alloc_sel();
-                    log!(crate::LOG_DEF, "[{}] pipes::set_ep(sel={})", sid, sel);
+                    log!(LogFlags::PipeReqs, "[{}] pipes::set_ep(sel={})", sid, sel);
                     c.set_ep(sel);
                     xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
 
@@ -313,7 +317,7 @@ impl Handler<PipesSession> for PipesHandler {
 
                     let sel = Activity::own().alloc_sel();
                     log!(
-                        crate::LOG_DEF,
+                        LogFlags::PipeReqs,
                         "[{}] pipes::enable_notify(sel={})",
                         sid,
                         sel

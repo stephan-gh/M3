@@ -15,6 +15,7 @@
 
 use base::errors::{Code, Error};
 use base::goff;
+use base::io::LogFlags;
 use base::kif;
 use base::log;
 use base::mem::GlobAddr;
@@ -39,7 +40,7 @@ fn tmcall_wait(state: &mut arch::State) -> Result<(), Error> {
     };
 
     log!(
-        crate::LOG_CALLS,
+        LogFlags::MuxCalls,
         "tmcall::wait(ep={}, irq={}, timeout={:?})",
         ep,
         irq,
@@ -70,7 +71,7 @@ fn tmcall_wait(state: &mut arch::State) -> Result<(), Error> {
 fn tmcall_stop(state: &mut arch::State) -> Result<(), Error> {
     let code = Code::from(state.r[isr::TMC_ARG1] as u32);
 
-    log!(crate::LOG_CALLS, "tmcall::stop(code={:?})", code);
+    log!(LogFlags::MuxCalls, "tmcall::stop(code={:?})", code);
 
     activities::remove_cur(code);
 
@@ -78,7 +79,7 @@ fn tmcall_stop(state: &mut arch::State) -> Result<(), Error> {
 }
 
 fn tmcall_yield(_state: &mut arch::State) -> Result<(), Error> {
-    log!(crate::LOG_CALLS, "tmcall::yield()");
+    log!(LogFlags::MuxCalls, "tmcall::yield()");
 
     if activities::has_ready() {
         crate::reg_scheduling(activities::ScheduleAction::Yield);
@@ -94,7 +95,7 @@ fn tmcall_map(state: &mut arch::State) -> Result<(), Error> {
     let flags = kif::PageFlags::from(access) & kif::PageFlags::RW;
 
     log!(
-        crate::LOG_CALLS,
+        LogFlags::MuxCalls,
         "tmcall::map(virt={:#x}, phys={:#x}, pages={}, access={:?})",
         virt,
         phys,
@@ -115,7 +116,7 @@ fn tmcall_map(state: &mut arch::State) -> Result<(), Error> {
 fn tmcall_reg_irq(state: &mut arch::State) -> Result<(), Error> {
     let irq = state.r[isr::TMC_ARG1] as tmif::IRQId;
 
-    log!(crate::LOG_CALLS, "tmcall::reg_irq(irq={:?})", irq);
+    log!(LogFlags::MuxCalls, "tmcall::reg_irq(irq={:?})", irq);
 
     // TODO validate whether the activity is allowed to use these IRQs
 
@@ -130,7 +131,7 @@ fn tmcall_transl_fault(state: &mut arch::State) -> Result<(), Error> {
     let flags = kif::PageFlags::from(access) & kif::PageFlags::RW;
 
     log!(
-        crate::LOG_CALLS,
+        LogFlags::MuxCalls,
         "tmcall::transl_fault(virt={:#x}, access={:?})",
         virt,
         access
@@ -145,7 +146,7 @@ fn tmcall_init_tls(state: &mut arch::State) -> Result<(), Error> {
     let virt = state.r[isr::TMC_ARG1];
 
     log!(
-        crate::LOG_CALLS,
+        LogFlags::MuxCalls,
         "tmcall::tmcall_init_tls(virt={:#x})",
         virt
     );
@@ -156,7 +157,7 @@ fn tmcall_init_tls(state: &mut arch::State) -> Result<(), Error> {
 }
 
 fn tmcall_flush_inv(_state: &mut arch::State) -> Result<(), Error> {
-    log!(crate::LOG_CALLS, "tmcall::flush_inv()");
+    log!(LogFlags::MuxCalls, "tmcall::flush_inv()");
 
     helper::flush_cache();
 
@@ -164,7 +165,7 @@ fn tmcall_flush_inv(_state: &mut arch::State) -> Result<(), Error> {
 }
 
 fn tmcall_noop(_state: &mut arch::State) -> Result<(), Error> {
-    log!(crate::LOG_CALLS, "tmcall::noop()");
+    log!(LogFlags::MuxCalls, "tmcall::noop()");
 
     Ok(())
 }
@@ -188,7 +189,7 @@ pub fn handle_call(state: &mut arch::State) {
 
     if let Err(e) = &res {
         log!(
-            crate::LOG_CALLS,
+            LogFlags::MuxCalls,
             "\x1B[1mError for call {:?}: {:?}\x1B[0m",
             call,
             e.code()

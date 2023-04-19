@@ -18,9 +18,6 @@
 
 #![no_std]
 
-#[macro_use]
-mod log;
-
 mod args;
 mod cap;
 mod com;
@@ -35,8 +32,9 @@ mod tiles;
 use base::cfg;
 use base::env;
 use base::goff;
-use base::io;
+use base::io::{self, LogFlags};
 use base::kif::TileDesc;
+use base::log;
 use base::machine;
 use base::tcu;
 use base::util::math;
@@ -61,7 +59,7 @@ pub extern "C" fn abort() -> ! {
 
 #[no_mangle]
 pub extern "C" fn exit(_code: i32) -> ! {
-    klog!(DEF, "Shutting down");
+    log!(LogFlags::Info, "Shutting down");
     machine::write_coverage(0);
     machine::shutdown();
 }
@@ -150,18 +148,18 @@ fn extend_heap() {
 #[no_mangle]
 pub extern "C" fn env_run() {
     unsafe { __m3_init_libc(0, ptr::null(), ptr::null(), false) };
+    create_heap();
+    crate::slab::init();
     io::init(
         tcu::TileId::new_from_raw(env::boot().tile_id as u16),
         "kernel",
     );
-    create_heap();
-    crate::slab::init();
 
     runtime::paging::init();
     runtime::exceptions::init();
     crate::com::init_queues();
 
-    klog!(DEF, "Entered raw mode; Quit via Ctrl+]");
+    log!(LogFlags::Info, "Entered raw mode; Quit via Ctrl+]");
 
     args::parse();
 
@@ -171,7 +169,7 @@ pub extern "C" fn env_run() {
     thread::init();
     tiles::init();
 
-    klog!(DEF, "Kernel is ready!");
+    log!(LogFlags::Info, "Kernel is ready!");
 
     workloop();
 }

@@ -17,6 +17,7 @@
 use crate::data::{DirEntry, INodeRef, DIR_ENTRY_LEN};
 use crate::ops::inodes;
 
+use base::io::LogFlags;
 use m3::errors::{Code, Error};
 
 /// Creates a link in directory `dir` with given name pointing to `inode`.
@@ -24,7 +25,7 @@ use m3::errors::{Code, Error};
 /// Assumes that no entry with given name already exists!
 pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error> {
     log!(
-        crate::LOG_LINKS,
+        LogFlags::FSLinks,
         "links::create(dir={}, name={}, inode={})",
         dir.inode,
         name,
@@ -91,7 +92,7 @@ pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error>
 /// If `deny_dir` is true, the function fails if the link points to a directory.
 pub fn remove(dir: &INodeRef, name: &str, deny_dir: bool) -> Result<(), Error> {
     log!(
-        crate::LOG_LINKS,
+        LogFlags::FSLinks,
         "links::remove(dir={}, name={}, deny_dir={})",
         dir.inode,
         name,

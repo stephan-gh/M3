@@ -18,7 +18,9 @@ use base::cfg;
 use base::col::Treap;
 use base::errors::{Code, Error};
 use base::goff;
+use base::io::LogFlags;
 use base::kif::{CapRngDesc, CapSel, SEL_ACT, SEL_KMEM, SEL_TILE};
+use base::log;
 use base::mem::size_of;
 use base::rc::Rc;
 use core::cmp;
@@ -176,7 +178,7 @@ impl CapTable {
             if let Some(parent) = parent {
                 (*parent.as_ptr()).inherit(child_cap);
             }
-            klog!(CAPS, "Creating cap {:?}", child_cap);
+            log!(LogFlags::KernCaps, "Creating cap {:?}", child_cap);
         }
         Ok(())
     }
@@ -192,7 +194,7 @@ impl CapTable {
         nc.derived = true;
 
         let nc = self.do_insert(nc);
-        klog!(CAPS, "Cloning cap {:?}", nc);
+        log!(LogFlags::KernCaps, "Cloning cap {:?}", nc);
         if child {
             cap.inherit(nc);
         }
@@ -448,7 +450,7 @@ impl Capability {
     }
 
     fn release_async(&mut self, foreign: bool) {
-        klog!(CAPS, "Freeing cap {:?}", self);
+        log!(LogFlags::KernCaps, "Freeing cap {:?}", self);
 
         let act = self.activity();
         let sel = self.sel();

@@ -127,7 +127,23 @@ def load_boot_info(dram, mods, tiles, vm):
     write_u64(dram, kenv_off + 8, DRAM_SIZE - mem_start)          # size
 
 
-def load_prog(dram, tiles, i, args, vm):
+def write_args(dram, args, argv, mem_begin):
+    argc = len(args)
+    args_addr = argv + (argc + 1) * 8
+    for (idx, a) in enumerate(args, 0):
+        # write pointer
+        write_u64(dram, argv + (mem_begin - DRAM_OFF) + idx * 8, args_addr)
+        # write string
+        write_str(dram, a, args_addr + mem_begin - DRAM_OFF)
+        args_addr += (len(a) + 1 + 7) & ~7
+        if args_addr > ENV + 0x800:
+            sys.exit("Not enough space for arguments")
+    # null termination
+    write_u64(dram, argv + (mem_begin - DRAM_OFF) + argc * 8, 0)
+    return args_addr
+
+
+def load_prog(dram, tiles, i, args, vm, logflags):
     pm = tiles[i]
     print("%s: loading %s..." % (pm.name, args[0]))
     sys.stdout.flush()
@@ -170,9 +186,16 @@ def load_prog(dram, tiles, i, args, vm):
     dram.mem.write_elf(args[0], mem_begin - DRAM_OFF)
     sys.stdout.flush()
 
-    argv = ENV + 0x400
     desc = tile_desc(tiles, i, vm)
     kenv = glob_addr(MEM_TILE, KENV_ADDR) if i == 0 else 0
+
+    # write arguments and env vars
+    argv = ENV + 0x400
+    envp = write_args(dram, args, argv, mem_begin)
+    if logflags:
+        write_args(dram, ["LOG=" + logflags], envp, mem_begin)
+    else:
+        envp = 0
 
     # init environment
     dram_env = ENV + mem_begin - DRAM_OFF
@@ -182,7 +205,7 @@ def load_prog(dram, tiles, i, args, vm):
     write_u64(dram, dram_env + 16, desc)       # tile_desc
     write_u64(dram, dram_env + 24, len(args))  # argc
     write_u64(dram, dram_env + 32, argv)       # argv
-    write_u64(dram, dram_env + 40, 0)          # envp
+    write_u64(dram, dram_env + 40, envp)       # envp
     write_u64(dram, dram_env + 48, kenv)       # kenv
     write_u64(dram, dram_env + 56, len(tiles) + 1)  # raw tile count
     # tile ids
@@ -191,15 +214,6 @@ def load_prog(dram, tiles, i, args, vm):
         write_u64(dram, dram_env + env_off, tile.nocid[0] << 8 | tile.nocid[1])
         env_off += 8
     write_u64(dram, dram_env + env_off, dram.mem.nocid[0] << 8 | dram.mem.nocid[1])
-
-    # write arguments to memory
-    args_addr = argv + len(args) * 8
-    for (idx, a) in enumerate(args, 0):
-        write_u64(dram, argv + (mem_begin - DRAM_OFF) + idx * 8, args_addr)
-        write_str(dram, a, args_addr + mem_begin - DRAM_OFF)
-        args_addr += (len(a) + 1 + 7) & ~7
-        if args_addr > ENV + 0x800:
-            sys.exit("Not enough space for arguments")
 
     sys.stdout.flush()
 
@@ -258,6 +272,7 @@ def main():
     parser.add_argument('--tile', action='append')
     parser.add_argument('--mod', action='append')
     parser.add_argument('--vm', action='store_true')
+    parser.add_argument('--logflags')
     parser.add_argument('--timeout', type=int)
     args = parser.parse_args()
 
@@ -294,7 +309,7 @@ def main():
 
     # load programs onto tiles
     for i, pargs in enumerate(args.tile[0:len(fpga_inst.pms)], 0):
-        load_prog(fpga_inst.dram1, fpga_inst.pms, i, pargs.split(' '), args.vm)
+        load_prog(fpga_inst.dram1, fpga_inst.pms, i, pargs.split(' '), args.vm, args.logflags)
 
     # enable NoC ARQ when cores are running
     for tile in fpga_inst.pms:

@@ -17,6 +17,7 @@ use m3::cap::{CapFlags, Capability, Selector};
 use m3::col::{String, Vec};
 use m3::com::SendGate;
 use m3::errors::{Code, Error};
+use m3::io::LogFlags;
 use m3::log;
 use m3::mem::MsgBuf;
 use m3::serialize::M3Deserializer;
@@ -53,7 +54,7 @@ impl Service {
         sessions: u32,
         owned: bool,
     ) -> Self {
-        log!(crate::LOG_SERV, "Creating service {}:{}", id, name);
+        log!(LogFlags::ResMngServ, "Creating service {}:{}", id, name);
 
         Service {
             id,
@@ -109,7 +110,7 @@ impl Service {
 
     fn shutdown_async(&mut self) {
         log!(
-            crate::LOG_SERV,
+            LogFlags::ResMngServ,
             "Sending SHUTDOWN to service {}:{}",
             self.id,
             self.name
@@ -269,7 +270,7 @@ impl ServiceManager {
         let serv = self.servs.remove(idx);
 
         log!(
-            crate::LOG_SERV,
+            LogFlags::ResMngServ,
             "Removing service {}:{}",
             serv.id,
             serv.name

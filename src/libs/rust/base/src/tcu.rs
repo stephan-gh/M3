@@ -32,7 +32,6 @@ use crate::cfg;
 use crate::env;
 use crate::errors::{Code, Error};
 use crate::goff;
-use crate::io::log::TCU;
 use crate::kif::{PageFlags, Perm};
 use crate::mem;
 use crate::serialize::{Deserialize, Serialize};
@@ -444,16 +443,6 @@ impl TCU {
         reply_ep: EpId,
     ) -> Result<(), Error> {
         let msg_addr = msg as usize;
-        log!(
-            TCU,
-            "TCU::send(ep={}, msg={:#x}, size={:#x}, reply_lbl={:#x}, reply_ep={})",
-            ep,
-            msg_addr,
-            len,
-            reply_lbl,
-            reply_ep
-        );
-
         Self::write_data(msg_addr, len);
         if reply_lbl != 0 {
             Self::write_unpriv_reg(UnprivReg::ARG1, reply_lbl as Reg);
@@ -480,15 +469,6 @@ impl TCU {
         msg_off: usize,
     ) -> Result<(), Error> {
         let reply_addr = reply as usize;
-        log!(
-            TCU,
-            "TCU::reply(ep={}, reply={:#x}, size={:#x}, msg_off={:#x})",
-            ep,
-            reply_addr,
-            len,
-            msg_off
-        );
-
         Self::write_data(reply_addr, len);
 
         Self::perform_send_reply(
@@ -517,15 +497,6 @@ impl TCU {
     /// Reads `size` bytes from offset `off` in the memory region denoted by the endpoint into `data`.
     #[inline(always)]
     pub fn read(ep: EpId, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
-        log!(
-            TCU,
-            "TCU::read(ep={}, data={:#x}, size={:#x}, off={:#x})",
-            ep,
-            data as usize,
-            size,
-            off
-        );
-
         let res = Self::perform_transfer(ep, data as usize, size, off, CmdOpCode::READ);
         // ensure that the CPU is not reading the read data before the TCU is finished
         // note that x86 needs SeqCst here, because the Acquire/Release fence is implemented empty
@@ -536,15 +507,6 @@ impl TCU {
     /// Writes `size` bytes from `data` to offset `off` in the memory region denoted by the endpoint.
     #[inline(always)]
     pub fn write(ep: EpId, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
-        log!(
-            TCU,
-            "TCU::write(ep={}, data={:#x}, size={:#x}, off={:#x})",
-            ep,
-            data as usize,
-            size,
-            off
-        );
-
         // ensure that the TCU is not reading the data before the CPU has written everything
         atomic::fence(atomic::Ordering::SeqCst);
         Self::perform_transfer(ep, data as usize, size, off, CmdOpCode::WRITE)

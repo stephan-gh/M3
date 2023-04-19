@@ -21,6 +21,7 @@
 use m3::col::{String, ToString, Vec};
 use m3::com::{recv_msg, GateIStream, MemGate, RGateArgs, RecvGate, SendGate};
 use m3::errors::Error;
+use m3::io::LogFlags;
 use m3::kif::Perm;
 use m3::mem::{size_of, MsgBuf};
 use m3::time::{CycleDuration, CycleInstant, Duration, Profiler};
@@ -28,10 +29,6 @@ use m3::util::math::next_log2;
 use m3::{env, reply_vmsg};
 use m3::{log, println, vec};
 use m3::{tcu, wv_perf};
-
-const LOG_MSGS: bool = false;
-const LOG_MEM: bool = false;
-const LOG_COMP: bool = false;
 
 fn create_reply_gate(ctrl_msg_size: usize) -> Result<RecvGate, Error> {
     RecvGate::new_with(
@@ -60,7 +57,12 @@ impl Node {
     }
 
     fn compute_for(&self, duration: CycleDuration) {
-        log!(LOG_COMP, "{}: computing for {:?}", self.name, duration);
+        log!(
+            LogFlags::Debug,
+            "{}: computing for {:?}",
+            self.name,
+            duration
+        );
 
         let end = CycleInstant::now().as_cycles() + duration.as_raw();
         while CycleInstant::now().as_cycles() < end {}
@@ -72,12 +74,12 @@ impl Node {
         rgate: &'r RecvGate,
     ) -> Result<GateIStream<'r>, Error> {
         let request = recv_msg(rgate)?;
-        log!(LOG_MSGS, "{} <- {}", self.name, src);
+        log!(LogFlags::Debug, "{} <- {}", self.name, src);
         Ok(request)
     }
 
     fn send_reply(&self, dest: &str, request: &mut GateIStream<'_>) -> Result<(), Error> {
-        log!(LOG_MSGS, "{} -> {}", self.name, dest);
+        log!(LogFlags::Debug, "{} -> {}", self.name, dest);
         request.reply(&self.ctrl_msg)
     }
 
@@ -87,14 +89,14 @@ impl Node {
         sgate: &SendGate,
         reply_gate: &RecvGate,
     ) -> Result<(), Error> {
-        log!(LOG_MSGS, "{} -> {}", self.name, dest);
+        log!(LogFlags::Debug, "{} -> {}", self.name, dest);
         let reply = sgate.call(&self.ctrl_msg, reply_gate)?;
-        log!(LOG_MSGS, "{} <- {}", self.name, dest);
+        log!(LogFlags::Debug, "{} <- {}", self.name, dest);
         reply_gate.ack_msg(reply)
     }
 
     fn write_to(&self, dest: &str, mgate: &MemGate, data_size: usize) -> Result<(), Error> {
-        log!(LOG_MEM, "{}: writing to {}", self.name, dest);
+        log!(LogFlags::Debug, "{}: writing to {}", self.name, dest);
         mgate.write(&self.data_buf[0..data_size], 0)
     }
 }

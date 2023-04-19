@@ -19,6 +19,7 @@ use m3::cfg;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
+use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
 use m3::rc::Rc;
@@ -223,7 +224,7 @@ impl DataSpace {
                 }
 
                 log!(
-                    crate::LOG_DEF,
+                    LogFlags::PgMem,
                     "Obtained memory for {:#x}..{:#x}",
                     reg.virt(),
                     reg.virt() + reg.size() - 1
@@ -244,7 +245,7 @@ impl DataSpace {
                 reg.limit_to(pf_off, max as goff);
 
                 log!(
-                    crate::LOG_DEF,
+                    LogFlags::PgMem,
                     "Allocating anonymous memory for {:#x}..{:#x}",
                     reg.virt(),
                     reg.virt() + reg.size() - 1

@@ -15,6 +15,7 @@
 
 use base::cell::StaticCell;
 use base::errors::Code;
+use base::io::LogFlags;
 use base::kif::tilemux;
 use base::libc;
 use base::mem::MaybeUninit;
@@ -96,7 +97,7 @@ pub fn handle_fpu_ex(state: &mut State) {
     // if the FPU is enabled and we receive an illegal instruction exception, kill activity
     if get_fpu_mode(state.status) != FSMode::OFF {
         log!(
-            crate::LOG_ERR,
+            LogFlags::Error,
             "Illegal instruction with user state:\n{:?}",
             state
         );

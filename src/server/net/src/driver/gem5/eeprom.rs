@@ -16,6 +16,7 @@
  */
 
 use m3::errors::{Code, Error};
+use m3::io::LogFlags;
 use m3::log;
 use m3::time::{TimeDuration, TimeInstant};
 
@@ -42,7 +43,7 @@ impl EEPROM {
             let value: u32 = device.read_reg(REG::EERD.val)?;
 
             if (value & EERD::DONE_LARGE.bits() as u32) > 0 {
-                log!(crate::LOG_NIC, "e1000: detected large EERD");
+                log!(LogFlags::NetNIC, "e1000: detected large EERD");
                 return Ok(Self {
                     shift: EERD::SHIFT_LARGE.bits().into(),
                     done_bit: EERD::DONE_LARGE.bits().into(),
@@ -50,7 +51,7 @@ impl EEPROM {
             }
 
             if (value & EERD::DONE_SMALL.bits() as u32) > 0 {
-                log!(crate::LOG_NIC, "e1000: detected small EERD");
+                log!(LogFlags::NetNIC, "e1000: detected small EERD");
                 return Ok(Self {
                     shift: EERD::SHIFT_SMALL.bits().into(),
                     done_bit: EERD::DONE_SMALL.bits().into(),
@@ -61,7 +62,7 @@ impl EEPROM {
         }
 
         log!(
-            crate::LOG_NIC,
+            LogFlags::NetNIC,
             "e1000: timeout while trying to create EEPROM"
         );
         Err(Error::new(Code::Timeout))

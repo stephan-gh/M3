@@ -18,6 +18,7 @@ use m3::cap::Selector;
 use m3::cell::{Cell, RefCell};
 use m3::com::{GateIStream, MemGate, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
+use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
 use m3::rc::Rc;
@@ -111,7 +112,7 @@ impl Channel {
         let events: FileEvent = FileEvent::from_bits_truncate(is.pop()?);
 
         log!(
-            crate::LOG_DEF,
+            LogFlags::PipeReqs,
             "[{}] pipes::request_notify(events={:?})",
             self.id,
             events
@@ -125,7 +126,7 @@ impl Channel {
     pub fn next_in(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let _: usize = is.pop()?;
 
-        log!(crate::LOG_DEF, "[{}] pipes::next_in()", self.id);
+        log!(LogFlags::PipeReqs, "[{}] pipes::next_in()", self.id);
 
         let res = match self.ty {
             ChanType::READ => self.read(is, 0),
@@ -139,7 +140,7 @@ impl Channel {
     pub fn next_out(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let _: usize = is.pop()?;
 
-        log!(crate::LOG_DEF, "[{}] pipes::next_out()", self.id);
+        log!(LogFlags::PipeReqs, "[{}] pipes::next_out()", self.id);
 
         let res = match self.ty {
             ChanType::READ => Err(Error::new(Code::InvArgs)),
@@ -155,7 +156,7 @@ impl Channel {
         let nbytes: usize = is.pop()?;
 
         log!(
-            crate::LOG_DEF,
+            LogFlags::PipeReqs,
             "[{}] pipes::commit(nbytes={})",
             self.id,
             nbytes
@@ -216,7 +217,12 @@ impl Channel {
 
             // this client is the current reader, so commit the read by pulling it from the ringbuf
             let amount = if commit == 0 { last_amount } else { commit };
-            log!(crate::LOG_DEF, "[{}] pipes::read_pull({})", self.id, amount);
+            log!(
+                LogFlags::PipeData,
+                "[{}] pipes::read_pull({})",
+                self.id,
+                amount
+            );
             state.rbuf.pull(amount);
             state.last_read = None;
         }
@@ -244,7 +250,7 @@ impl Channel {
             self.promised_events
                 .set(self.promised_events.get() & !FileEvent::INPUT);
             log!(
-                crate::LOG_DEF,
+                LogFlags::PipeData,
                 "[{}] pipes::read(): {} @ {}",
                 self.id,
                 amount,
@@ -255,7 +261,7 @@ impl Channel {
         else {
             // nothing to read; if there is no writer left, report EOF
             if state.flags().contains(Flags::WRITE_EOF) {
-                log!(crate::LOG_DEF, "[{}] pipes::read(): EOF", self.id);
+                log!(LogFlags::PipeData, "[{}] pipes::read(): EOF", self.id);
                 reply_vmsg!(is, Code::Success, 0usize, 0usize)
             }
             else {
@@ -278,7 +284,7 @@ impl Channel {
         // if there are no readers left, report EOF
         let mut state = self.state.borrow_mut();
         if state.flags().contains(Flags::READ_EOF) {
-            log!(crate::LOG_DEF, "[{}] pipes::write(): EOF", self.id);
+            log!(LogFlags::PipeData, "[{}] pipes::write(): EOF", self.id);
             return is.reply_error(Code::EndOfFile);
         }
 
@@ -297,7 +303,7 @@ impl Channel {
             // this client is the current reader, so commit the write by pushing it to the ringbuf
             let amount = if commit == 0 { last_amount } else { commit };
             log!(
-                crate::LOG_DEF,
+                LogFlags::PipeData,
                 "[{}] pipes::write_push({})",
                 self.id,
                 amount
@@ -326,7 +332,7 @@ impl Channel {
             self.promised_events
                 .set(self.promised_events.get() & !FileEvent::OUTPUT);
             log!(
-                crate::LOG_DEF,
+                LogFlags::PipeData,
                 "[{}] pipes::write(): {} @ {}",
                 self.id,
                 amount,
@@ -360,7 +366,7 @@ impl Channel {
         if let Some((last_id, _)) = state.last_read {
             // pull it from the ring buffer, if it's this client's read
             if last_id == self.id {
-                log!(crate::LOG_DEF, "[{}] pipes::read_pull(): 0", self.id);
+                log!(LogFlags::PipeData, "[{}] pipes::read_pull(): 0", self.id);
                 state.rbuf.pull(0);
                 state.last_read = None;
             }
@@ -371,7 +377,7 @@ impl Channel {
         let rd_left = state.remove_reader(self.id);
         if rd_left > 0 {
             log!(
-                crate::LOG_DEF,
+                LogFlags::PipeData,
                 "[{}] pipes::close(): rd-refs={}",
                 self.id,
                 rd_left
@@ -381,7 +387,7 @@ impl Channel {
 
         // no readers left: EOF
         state.add_flags(Flags::READ_EOF);
-        log!(crate::LOG_DEF, "[{}] pipes::close(): read EOF", self.id);
+        log!(LogFlags::PipeData, "[{}] pipes::close(): read EOF", self.id);
         Ok(())
     }
 
@@ -398,7 +404,7 @@ impl Channel {
         if let Some((last_id, last_amount)) = state.last_write {
             // push it to the ring buffer, if it's this client's read
             if last_id == self.id {
-                log!(crate::LOG_DEF, "[{}] pipes::write_push(): 0", self.id);
+                log!(LogFlags::PipeData, "[{}] pipes::write_push(): 0", self.id);
                 state.rbuf.push(last_amount, 0);
                 state.last_write = None;
             }
@@ -409,7 +415,7 @@ impl Channel {
         let wr_left = state.remove_writer(self.id);
         if wr_left > 0 {
             log!(
-                crate::LOG_DEF,
+                LogFlags::PipeData,
                 "[{}] pipes::close(): wr-refs={}",
                 self.id,
                 wr_left
@@ -419,7 +425,11 @@ impl Channel {
 
         // no writers left: EOF
         state.add_flags(Flags::WRITE_EOF);
-        log!(crate::LOG_DEF, "[{}] pipes::close(): write EOF", self.id);
+        log!(
+            LogFlags::PipeData,
+            "[{}] pipes::close(): write EOF",
+            self.id
+        );
         Ok(())
     }
 

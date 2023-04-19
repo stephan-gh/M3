@@ -21,11 +21,12 @@ use core::fmt;
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::com::{GateIStream, RecvGate};
 use crate::errors::{Code, Error};
+use crate::io::LogFlags;
 use crate::kif::{
     service::{DeriveCreatorReply, ExchangeData, ExchangeReply, OpenReply, Request},
     CapRngDesc,
 };
-use crate::llog;
+use crate::log;
 use crate::serialize::{M3Deserializer, M3Serializer, SliceSink};
 use crate::server::{SessId, SessionContainer};
 use crate::syscalls;
@@ -194,7 +195,7 @@ impl Server {
                 Ok(_) => {},
                 // error, reply error code
                 Err(e) => {
-                    llog!(SERV, "Control channel request failed: {:?}", e);
+                    log!(LogFlags::LibServ, "Control channel request failed: {:?}", e);
                     is.reply_error(e.code()).ok();
                 },
             }
@@ -231,7 +232,13 @@ impl Server {
         let crt = is.label() as usize;
         let res = hdl.open(crt, sel, arg);
 
-        llog!(SERV, "server::open(crt={}, arg={}) -> {:?}", crt, arg, res);
+        log!(
+            LogFlags::LibServ,
+            "server::open(crt={}, arg={}) -> {:?}",
+            crt,
+            arg,
+            res
+        );
 
         match res {
             Ok((sel, ident)) => {
@@ -252,8 +259,8 @@ impl Server {
         sessions: u32,
     ) -> Result<(), Error> {
         let crt = is.label() as usize;
-        llog!(
-            SERV,
+        log!(
+            LogFlags::LibServ,
             "server::derive_crt(crt={}, sessions={})",
             crt,
             sessions
@@ -275,7 +282,12 @@ impl Server {
     ) -> Result<(), Error> {
         let crt = is.label() as usize;
 
-        llog!(SERV, "server::obtain(crt={}, sid={})", crt, sid);
+        log!(
+            LogFlags::LibServ,
+            "server::obtain(crt={}, sid={})",
+            crt,
+            sid
+        );
 
         if !hdl.sessions().creator_owns(crt, sid) {
             return Err(Error::new(Code::NoPerm));
@@ -288,8 +300,8 @@ impl Server {
 
             let res = hdl.obtain(crt, sid, &mut xchg);
 
-            llog!(
-                SERV,
+            log!(
+                LogFlags::LibServ,
                 "server::obtain(crt={}, sid={}) -> xchg={:?}), res={:?}",
                 crt,
                 sid,
@@ -314,7 +326,12 @@ impl Server {
     ) -> Result<(), Error> {
         let crt = is.label() as usize;
 
-        llog!(SERV, "server::delegate(crt={}, sid={})", crt, sid);
+        log!(
+            LogFlags::LibServ,
+            "server::delegate(crt={}, sid={})",
+            crt,
+            sid
+        );
 
         if !hdl.sessions().creator_owns(crt, sid) {
             return Err(Error::new(Code::NoPerm));
@@ -327,8 +344,8 @@ impl Server {
 
             let res = hdl.delegate(crt, sid, &mut xchg);
 
-            llog!(
-                SERV,
+            log!(
+                LogFlags::LibServ,
                 "server::delegate(crt={}, sid={}) -> xchg={:?}), res={:?}",
                 crt,
                 sid,
@@ -352,7 +369,7 @@ impl Server {
     ) -> Result<(), Error> {
         let crt = is.label() as usize;
 
-        llog!(SERV, "server::close(crt={}, sid={})", crt, sid);
+        log!(LogFlags::LibServ, "server::close(crt={}, sid={})", crt, sid);
 
         if !hdl.sessions().creator_owns(crt, sid) {
             return Err(Error::new(Code::NoPerm));
@@ -364,7 +381,7 @@ impl Server {
     }
 
     fn handle_shutdown<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream<'_>) -> Result<(), Error> {
-        llog!(SERV, "server::shutdown()");
+        log!(LogFlags::LibServ, "server::shutdown()");
 
         // only the first creator is allowed to shut us down
         let crt = is.label() as usize;

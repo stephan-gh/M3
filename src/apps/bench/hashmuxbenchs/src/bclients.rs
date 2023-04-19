@@ -21,6 +21,7 @@ use m3::com::{
 };
 use m3::crypto::{HashAlgorithm, HashType};
 use m3::errors::Error;
+use m3::io::LogFlags;
 use m3::mem;
 use m3::serialize::{Deserialize, Serialize};
 use m3::session::HashSession;
@@ -63,7 +64,6 @@ struct ClientParams {
 
 /// Synchronize clients before each benchmark run or just the first one?
 const SYNC_EVERY_RUN: bool = false;
-const LOG_REQUESTS: bool = false;
 
 fn _run_client_bench<F>(
     params: &ClientParams,
@@ -103,7 +103,9 @@ where
 
             for num in 1.. {
                 if fun(&hash).is_err() {
-                    log!(num > 1, "Warning: Had to start {} extra runs", num);
+                    if num > 1 {
+                        log!(LogFlags::Info, "Warning: Had to start {} extra runs", num);
+                    }
                     break;
                 }
             }
@@ -134,7 +136,9 @@ where
         // Keep runnning for other clients that need more time
         for num in 1.. {
             if fun(&hash).is_err() {
-                log!(num > 1, "Done after {} extra runs", num);
+                if num > 1 {
+                    log!(LogFlags::Info, "Done after {} extra runs", num);
+                }
                 break;
             }
         }
@@ -179,14 +183,14 @@ fn _start_client(params: ClientParams, rgate: &RecvGate, mgate: &MemGate) -> Cli
 
             let res = _run_client_bench(&params, sgate_sel, |hash| {
                 for off in (0..params.size).step_by(slice) {
-                    log!(LOG_REQUESTS, "Sending request off {} len {}", off, slice);
+                    log!(LogFlags::Debug, "Sending request off {} len {}", off, slice);
                     hash.input(off, slice)?;
                 }
                 Ok(())
             });
 
             log!(
-                true,
+                LogFlags::Info,
                 "PERF \"hash {} bytes (slice: {} bytes) with {}\": {}\nthroughput {:.8} bytes/cycle",
                 params.size,
                 slice,

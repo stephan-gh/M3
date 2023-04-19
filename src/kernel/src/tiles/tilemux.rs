@@ -18,7 +18,9 @@ use base::cell::RefMut;
 use base::col::{BitArray, Vec};
 use base::errors::{Code, Error};
 use base::goff;
+use base::io::LogFlags;
 use base::kif;
+use base::log;
 use base::mem::GlobAddr;
 use base::mem::MsgBuf;
 use base::quota;
@@ -179,8 +181,8 @@ impl TileMux {
     }
 
     pub fn alloc_eps(&mut self, start: EpId, count: u32) {
-        klog!(
-            EPS,
+        log!(
+            LogFlags::KernEPs,
             "TileMux[{}] allocating EPS {}..{}",
             self.tile_id(),
             start,
@@ -193,8 +195,8 @@ impl TileMux {
     }
 
     pub fn free_eps(&mut self, start: EpId, count: u32) {
-        klog!(
-            EPS,
+        log!(
+            LogFlags::KernEPs,
             "TileMux[{}] freeing EPS {}..{}",
             self.tile_id(),
             start,
@@ -222,7 +224,7 @@ impl TileMux {
         let res = match op {
             kif::tilemux::Calls::EXIT => Self::handle_exit_async(tilemux, &mut de),
             _ => {
-                klog!(ERR, "Unexpected call from TileMux: {}", op);
+                log!(LogFlags::Error, "Unexpected call from TileMux: {}", op);
                 Err(Error::new(Code::InvArgs))
             },
         };
@@ -242,7 +244,12 @@ impl TileMux {
 
         let r: kif::tilemux::Exit = de.pop()?;
 
-        klog!(TMC, "TileMux[{}] received {:?}", tilemux.tile_id(), r);
+        log!(
+            LogFlags::KernTMC,
+            "TileMux[{}] received {:?}",
+            tilemux.tile_id(),
+            r
+        );
 
         let has_act = tilemux.acts.contains(&r.act_id);
         drop(tilemux);
@@ -570,7 +577,12 @@ impl TileMux {
             }
         }
 
-        klog!(TMC, "TileMux[{}] sending {:?}", self.tile_id(), msg);
+        log!(
+            LogFlags::KernTMC,
+            "TileMux[{}] sending {:?}",
+            self.tile_id(),
+            msg
+        );
 
         self.queue.send(tcu::TMSIDE_REP, 0, req)
     }

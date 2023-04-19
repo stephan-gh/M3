@@ -16,7 +16,7 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/log/Lib.h>
+#include <base/Log.h>
 
 #include <m3/com/GateStream.h>
 #include <m3/pipe/DirectPipe.h>
@@ -67,7 +67,7 @@ void DirectPipeWriter::State::read_replies() {
         int cap = DirectPipe::MSG_BUF_SIZE / DirectPipe::MSG_SIZE;
         while(len && _capacity < cap) {
             receive_vmsg(_rgate, len);
-            LLOG(DIRPIPE, "[shutdown] got len={}"_cf, len);
+            LOG(LogFlags::LibDirPipe, "[shutdown] got len={}"_cf, len);
             _capacity++;
         }
     }
@@ -134,7 +134,7 @@ Option<size_t> DirectPipeWriter::write(const void *buffer, size_t count) {
                 else
                     return None;
             }
-            LLOG(DIRPIPE, "[write] got len={}"_cf, len);
+            LOG(LogFlags::LibDirPipe, "[write] got len={}"_cf, len);
             _state->_rdpos = (_state->_rdpos + len) % _state->_size;
             _state->_free += len;
             _state->_capacity++;
@@ -150,7 +150,7 @@ Option<size_t> DirectPipeWriter::write(const void *buffer, size_t count) {
         }
 
         size_t mem_off = off.unwrap();
-        LLOG(DIRPIPE, "[write] send pos={}, len={}"_cf, mem_off, amount);
+        LOG(LogFlags::LibDirPipe, "[write] send pos={}, len={}"_cf, mem_off, amount);
 
         if(amount) {
             _state->_mgate.write(buf, amount, mem_off);

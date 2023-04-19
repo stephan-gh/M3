@@ -15,6 +15,7 @@
 
 use base::cell::StaticRefCell;
 use base::errors::Error;
+use base::io::LogFlags;
 use base::log;
 use base::mem::MsgBuf;
 use base::msgqueue::{MsgQueue, MsgSender};
@@ -28,7 +29,7 @@ impl MsgSender<()> for TCUSender {
     }
 
     fn send(&mut self, _: (), msg: &MsgBuf) -> Result<(), Error> {
-        log!(crate::LOG_SQUEUE, "squeue: sending msg",);
+        log!(LogFlags::MuxSQueue, "squeue: sending msg",);
         tcu::TCU::send(tcu::KPEX_SEP, msg, 0, tcu::KPEX_REP)
     }
 
@@ -44,7 +45,7 @@ static SQUEUE: StaticRefCell<MsgQueue<TCUSender, ()>> =
 
 pub fn check_replies() {
     if let Some(msg_off) = tcu::TCU::fetch_msg(tcu::KPEX_REP) {
-        log!(crate::LOG_SQUEUE, "squeue: received reply",);
+        log!(LogFlags::MuxSQueue, "squeue: received reply",);
 
         // now that we've copied the message, we can mark it read
         tcu::TCU::ack_msg(tcu::KPEX_REP, msg_off).unwrap();
@@ -60,7 +61,7 @@ pub fn send(msg_buf: &MsgBuf) -> Result<(), Error> {
     check_replies();
 
     if !SQUEUE.borrow_mut().send((), msg_buf)? {
-        log!(crate::LOG_SQUEUE, "squeue: queuing msg",);
+        log!(LogFlags::MuxSQueue, "squeue: queuing msg",);
     }
     Ok(())
 }

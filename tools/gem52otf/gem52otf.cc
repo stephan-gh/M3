@@ -790,7 +790,7 @@ static void usage(const char *name) {
         "The 'acts' mode generates a Activity-centric trace, i.e., the activities are the processes");
     fprintf(stderr, " and it is shown what they do.\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "The following gem5 flags (M3_GEM5_DBG) are used:\n");
+    fprintf(stderr, "The following gem5 log flags (M3_GEM5_LOG) are used:\n");
     fprintf(stderr, " - Tcu,TcuCmd    for messages and memory reads/writes\n");
     fprintf(stderr, " - TcuConnector  for suspend/wakeup\n");
     fprintf(stderr, " - TcuRegWrite   for the running Activity\n");

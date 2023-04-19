@@ -16,6 +16,8 @@
 use base::cell::{RefMut, StaticRefCell};
 use base::col::Vec;
 use base::goff;
+use base::io::LogFlags;
+use base::log;
 use base::mem::GlobAddr;
 use core::fmt;
 
@@ -77,7 +79,12 @@ impl MainMemory {
             }
 
             if let Ok(gaddr) = m.allocate(size, align) {
-                klog!(MEM, "Allocated {:#x} bytes at {:?}", size, gaddr);
+                log!(
+                    LogFlags::KernMem,
+                    "Allocated {:#x} bytes at {:?}",
+                    size,
+                    gaddr
+                );
                 return Ok(Allocation::new(gaddr, size));
             }
         }
@@ -87,7 +94,12 @@ impl MainMemory {
     pub fn free(&mut self, alloc: &Allocation) {
         for m in &mut self.mods {
             if m.free(alloc.gaddr, alloc.size) {
-                klog!(MEM, "Freed {:#x} bytes at {:?}", alloc.size, alloc.gaddr);
+                log!(
+                    LogFlags::KernMem,
+                    "Freed {:#x} bytes at {:?}",
+                    alloc.size,
+                    alloc.gaddr
+                );
                 break;
             }
         }

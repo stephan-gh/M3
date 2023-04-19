@@ -34,7 +34,7 @@ use base::cell::{Ref, StaticCell, StaticRefCell};
 use base::cfg;
 use base::env;
 use base::errors::Code;
-use base::io;
+use base::io::{self, LogFlags};
 use base::kif;
 use base::libc;
 use base::log;
@@ -45,31 +45,6 @@ use base::tcu;
 use core::ptr;
 
 use isr::{ISRArch, ISR};
-
-/// Logs errors
-pub const LOG_ERR: bool = true;
-/// Logs basic activity operations
-pub const LOG_ACTS: bool = false;
-/// Logs tmcalls
-pub const LOG_CALLS: bool = false;
-/// Logs context switches
-pub const LOG_CTXSWS: bool = false;
-/// Logs sidecalls
-pub const LOG_SIDECALLS: bool = false;
-/// Logs foreign messages
-pub const LOG_FOREIGN_MSG: bool = false;
-/// Logs core requests
-pub const LOG_CORE_REQS: bool = false;
-/// Logs page table allocations/frees
-pub const LOG_PTS: bool = false;
-/// Logs timer IRQs
-pub const LOG_TIMER: bool = false;
-/// Logs interrupts
-pub const LOG_IRQS: bool = false;
-/// Logs sendqueue operations
-pub const LOG_SQUEUE: bool = false;
-/// Logs quota operations
-pub const LOG_QUOTAS: bool = false;
 
 extern "C" {
     fn __m3_init_libc(argc: i32, argv: *const *const u8, envp: *const *const u8, tls: bool);
@@ -152,7 +127,11 @@ pub fn reg_timer_reprogram() {
 }
 
 pub extern "C" fn unexpected_irq(state: &mut arch::State) -> *mut libc::c_void {
-    log!(LOG_ERR, "Unexpected IRQ with user state:\n{:?}", state);
+    log!(
+        LogFlags::Error,
+        "Unexpected IRQ with user state:\n{:?}",
+        state
+    );
     activities::remove_cur(Code::Unspecified);
 
     leave(state)
@@ -188,7 +167,7 @@ pub extern "C" fn ext_irq(state: &mut arch::State) -> *mut libc::c_void {
 
         isr::IRQSource::TCU(tcu::IRQ::CORE_REQ) => {
             if let Some(r) = tcu::TCU::get_core_req() {
-                log!(crate::LOG_CORE_REQS, "Got {:x?}", r);
+                log!(LogFlags::MuxCoreReqs, "Got {:x?}", r);
                 corereq::handle_recv(r);
             }
         },
@@ -197,7 +176,7 @@ pub extern "C" fn ext_irq(state: &mut arch::State) -> *mut libc::c_void {
             irqs::signal(id);
         },
 
-        n => log!(crate::LOG_ERR, "Unexpected IRQ {:?}", n),
+        n => log!(LogFlags::Error, "Unexpected IRQ {:?}", n),
     }
 
     leave(state)

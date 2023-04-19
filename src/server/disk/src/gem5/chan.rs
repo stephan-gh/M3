@@ -17,6 +17,7 @@ use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
+use m3::io::LogFlags;
 use m3::kif::Perm;
 use m3::log;
 use m3::mem;
@@ -58,7 +59,7 @@ impl Channel {
             devs: Vec::new(),
         };
         log!(
-            crate::LOG_ALL,
+            LogFlags::DiskDbg,
             "chan[{}] initializing with ports={}, bmr={}",
             id,
             port_base,
@@ -70,7 +71,7 @@ impl Channel {
         // init DMA
         if use_dma && chan.bmr_base != 0 {
             chan.bmr_base += id as u16 * 0x8;
-            log!(crate::LOG_ALL, "chan[{}] using DMA", chan.id);
+            log!(LogFlags::DiskDbg, "chan[{}] using DMA", chan.id);
         }
         else {
             chan.use_dma = false;
@@ -81,7 +82,7 @@ impl Channel {
             let did = id * 2 + i;
             match Device::new(did, &chan) {
                 Err(e) => log!(
-                    crate::LOG_DEF,
+                    LogFlags::DiskChan,
                     "chan[{}] ignoring device {}: {}",
                     id,
                     did,
@@ -89,14 +90,14 @@ impl Channel {
                 ),
                 Ok(d) => {
                     log!(
-                        crate::LOG_DEF,
+                        LogFlags::DiskChan,
                         "chan[{}] found device {}: {} MiB",
                         id,
                         did,
                         d.size() / (1024 * 1024)
                     );
                     for p in d.partitions() {
-                        log!(crate::LOG_DEF, "chan[{}] registered {:?}", id, p);
+                        log!(LogFlags::DiskChan, "chan[{}] registered {:?}", id, p);
                     }
                     chan.devs.push(d)
                 },
@@ -137,7 +138,7 @@ impl Channel {
         let part_size = desc.part.sector_count() as usize * dev.sector_size();
         if disk_off.checked_add(bytes).is_none() || disk_off + bytes > part_size {
             log!(
-                crate::LOG_DEF,
+                LogFlags::DiskChan,
                 "Invalid request: disk_off={}, bytes={}, part-size: {}",
                 disk_off,
                 bytes,
@@ -155,7 +156,7 @@ impl Channel {
         };
 
         log!(
-            crate::LOG_DEF,
+            LogFlags::DiskChan,
             "chan[{}] {:?} {} sectors at {}",
             self.id,
             dev_op,
@@ -175,7 +176,7 @@ impl Channel {
 
     pub fn select(&self, id: u8, extra: u8) -> Result<(), Error> {
         log!(
-            crate::LOG_ALL,
+            LogFlags::DiskDbg,
             "chan[{}] selecting device {:x} with {:x}",
             self.id,
             id,
@@ -195,7 +196,7 @@ impl Channel {
 
     pub fn wait_irq(&self) -> Result<(), Error> {
         if self.use_irq {
-            log!(crate::LOG_ALL, "chan[{}] waiting for IRQ...", self.id);
+            log!(LogFlags::DiskDbg, "chan[{}] waiting for IRQ...", self.id);
             self.pci_dev.wait_for_irq()
         }
         else {
@@ -211,7 +212,7 @@ impl Channel {
         unset: CommandStatus,
     ) -> Result<(), Error> {
         log!(
-            crate::LOG_ALL,
+            LogFlags::DiskDbg,
             "chan[{}] waiting for set={:?}, unset={:?}",
             self.id,
             set,

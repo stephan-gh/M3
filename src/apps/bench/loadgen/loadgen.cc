@@ -15,7 +15,7 @@
  */
 
 #include <base/Common.h>
-#include <base/log/Services.h>
+#include <base/Log.h>
 
 #include <m3/com/MemGate.h>
 #include <m3/com/RecvGate.h>
@@ -87,7 +87,7 @@ public:
         if(xchg.in_caps() != 1)
             return Errors::INV_ARGS;
 
-        SLOG(LOADGEN, "{:#x}: mem::get_sgate()"_cf, (word_t)sess);
+        LOG(LogFlags::Debug, "{:#x}: mem::get_sgate()"_cf, (word_t)sess);
 
         xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess->clisgate.sel()));
         return Errors::SUCCESS;
@@ -97,7 +97,7 @@ public:
         if(xchg.in_caps() != 2 || sess->sgate)
             return Errors::INV_ARGS;
 
-        SLOG(LOADGEN, "{:#x}: mem::create_chan()"_cf, (word_t)sess);
+        LOG(LogFlags::Debug, "{:#x}: mem::create_chan()"_cf, (word_t)sess);
 
         KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, Activity::own().alloc_sels(2), 2);
 
@@ -123,7 +123,7 @@ public:
         is >> count;
         sess->rem_req = count;
 
-        SLOG(LOADGEN, "{:#x}: mem::start(count={})"_cf, (word_t)sess, count);
+        LOG(LogFlags::Debug, "{:#x}: mem::start(count={})"_cf, (word_t)sess, count);
 
         sess->send_request();
         reply_vmsg(is, Errors::SUCCESS);
@@ -134,7 +134,7 @@ public:
         size_t amount;
         is >> amount;
 
-        SLOG(LOADGEN, "{:#x}: mem::response(amount={})"_cf, (word_t)sess, amount);
+        LOG(LogFlags::Debug, "{:#x}: mem::response(amount={})"_cf, (word_t)sess, amount);
 
         sess->send_request();
     }

@@ -16,7 +16,9 @@
 use base::cell::{Cell, Ref, RefCell, RefMut, StaticCell};
 use base::errors::{Code, Error};
 use base::goff;
+use base::io::LogFlags;
 use base::kif::{self, tilemux::QuotaId};
+use base::log;
 use base::mem::{size_of, GlobAddr};
 use base::rc::{Rc, SRc, Weak};
 use base::tcu::{EpId, Label, TileId};
@@ -557,8 +559,8 @@ impl TileObject {
             pt_quota,
             derived,
         });
-        klog!(
-            TILES,
+        log!(
+            LogFlags::KernTiles,
             "Tile[{}, {:#x}]: {} new TileObject with EPs={}, time={}, pts={}",
             tile,
             &*res as *const _ as usize,
@@ -608,8 +610,8 @@ impl TileObject {
     }
 
     pub fn alloc(&self, eps: u32) {
-        klog!(
-            TILES,
+        log!(
+            LogFlags::KernTiles,
             "Tile[{}, {:#x}]: allocating {} EPs ({} left)",
             self.tile,
             self as *const _ as usize,
@@ -623,8 +625,8 @@ impl TileObject {
     pub fn free(&self, eps: u32) {
         assert!(self.ep_quota.left() + eps <= self.ep_quota.total);
         self.ep_quota.left.set(self.ep_quota.left() + eps);
-        klog!(
-            TILES,
+        log!(
+            LogFlags::KernTiles,
             "Tile[{}, {:#x}]: freed {} EPs ({} left)",
             self.tile,
             self as *const _ as usize,
@@ -828,7 +830,7 @@ impl KMemObject {
             quota,
             left: Cell::from(quota),
         });
-        klog!(KMEM, "{:?} created", kmem);
+        log!(LogFlags::KernKMem, "{:?} created", kmem);
         kmem
     }
 
@@ -849,8 +851,8 @@ impl KMemObject {
     }
 
     pub fn alloc(&self, act: &Activity, sel: kif::CapSel, size: usize) -> bool {
-        klog!(
-            KMEM,
+        log!(
+            LogFlags::KernKMem,
             "{:?} Activity{}:{} allocates {}b (sel={})",
             self,
             act.id(),
@@ -872,8 +874,8 @@ impl KMemObject {
         assert!(self.left() + size <= self.quota);
         self.left.set(self.left() + size);
 
-        klog!(
-            KMEM,
+        log!(
+            LogFlags::KernKMem,
             "{:?} Activity{}:{} freed {}b (sel={})",
             self,
             act.id(),
@@ -904,7 +906,7 @@ impl fmt::Debug for KMemObject {
 
 impl Drop for KMemObject {
     fn drop(&mut self) {
-        klog!(KMEM, "{:?} dropped", self);
+        log!(LogFlags::KernKMem, "{:?} dropped", self);
         assert!(self.left() == self.quota);
     }
 }

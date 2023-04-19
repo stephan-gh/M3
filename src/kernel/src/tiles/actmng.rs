@@ -18,7 +18,9 @@ use base::cfg;
 use base::col::Vec;
 use base::errors::{Code, Error};
 use base::goff;
+use base::io::LogFlags;
 use base::kif;
+use base::log;
 use base::mem::GlobAddr;
 use base::rc::{Rc, SRc};
 use base::tcu;
@@ -93,8 +95,8 @@ impl ActivityMng {
 
         let act = Activity::new(name, id, tile, eps_start, kmem, flags)?;
 
-        klog!(
-            ACTIVITIES,
+        log!(
+            LogFlags::KernActs,
             "Created Activity {} [id={}, tile={}]",
             name,
             id,

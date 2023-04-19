@@ -14,6 +14,7 @@
  */
 
 use base::cell::StaticRefCell;
+use base::io::LogFlags;
 use base::log;
 use base::tmif;
 
@@ -63,7 +64,7 @@ pub fn wait(
         }
     }
 
-    log!(crate::LOG_IRQS, "irqmask[{:#x}] enable", cur.irq_mask());
+    log!(LogFlags::MuxIRQs, "irqmask[{:#x}] enable", cur.irq_mask());
     ISR::enable_ext_irqs(cur.irq_mask());
     None
 }
@@ -74,10 +75,10 @@ pub fn signal(irq: tmif::IRQId) {
         let mut act = activities::get_mut(cnt.act).unwrap();
         if !act.unblock(activities::Event::Interrupt(irq)) {
             cnt.counter += 1;
-            log!(crate::LOG_IRQS, "irqs[{}] signal -> {}", irq, cnt.counter);
+            log!(LogFlags::MuxIRQs, "irqs[{}] signal -> {}", irq, cnt.counter);
         }
 
-        log!(crate::LOG_IRQS, "irqmask[{:#x}] disable", 1 << irq);
+        log!(LogFlags::MuxIRQs, "irqmask[{:#x}] disable", 1 << irq);
         ISR::disable_ext_irqs(1 << irq);
     }
 }
@@ -94,7 +95,7 @@ pub fn remove(act: &activities::Activity) {
             }
         }
 
-        log!(crate::LOG_IRQS, "irqmask[{:#x}] disable", act.irq_mask());
+        log!(LogFlags::MuxIRQs, "irqmask[{:#x}] disable", act.irq_mask());
         ISR::disable_ext_irqs(act.irq_mask());
     }
 }

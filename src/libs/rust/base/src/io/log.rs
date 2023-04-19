@@ -19,26 +19,13 @@
 //! Contains the logger
 
 use core::cmp;
+use core::str::FromStr;
 
 use crate::cell::{RefMut, StaticCell, StaticRefCell};
+use crate::env;
 use crate::errors::Error;
-use crate::io::{Serial, Write};
+use crate::io::{LogFlags, Serial, Write};
 use crate::tcu::{TileId, TCU};
-
-/// Default log message type
-pub const DEF: bool = true;
-/// Logs heap operations
-pub const HEAP: bool = false;
-/// Logs file system operations
-pub const FS: bool = false;
-/// Logs server operations
-pub const SERV: bool = false;
-/// Logs TCU operations
-pub const TCU: bool = false;
-/// Logs networking events
-pub const NET: bool = false;
-/// Logs global<->phys address translations
-pub const TRANSLATE: bool = false;
 
 const MAX_LINE_LEN: usize = 180;
 const SUFFIX: &[u8] = b"\x1B[0m";
@@ -49,6 +36,7 @@ static LOG: StaticRefCell<Log> = StaticRefCell::new(Log::new());
 /// A buffered logger that writes to the serial line
 pub struct Log {
     serial: Serial,
+    flags: LogFlags,
     buf: [u8; MAX_LINE_LEN],
     pos: usize,
     time_pos: usize,
@@ -67,11 +55,16 @@ impl Log {
     pub(crate) const fn new() -> Self {
         Log {
             serial: Serial::new(),
+            flags: LogFlags::empty(),
             buf: [0; MAX_LINE_LEN],
             pos: 0,
             time_pos: 0,
             start_pos: 0,
         }
+    }
+
+    pub fn flags(&self) -> LogFlags {
+        self.flags
     }
 
     fn write_bytes(&mut self, bytes: &[u8]) {
@@ -148,4 +141,12 @@ impl Write for Log {
 pub fn init(tile_id: TileId, name: &str) {
     LOG_READY.set(true);
     Log::get().unwrap().init(tile_id, name);
+
+    // set log flags afterwards so that we can properly print errors during parsing
+    if let Some(log) = env::var("LOG") {
+        let log_commas = log.replace(',', "|");
+        let flags = LogFlags::from_str(&log_commas)
+            .expect(&crate::format!("Unable to decode log-flags '{}'", log));
+        Log::get().unwrap().flags = flags;
+    }
 }

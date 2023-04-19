@@ -19,9 +19,11 @@
 //! Contains the modules for serial output, logging, etc.
 
 pub mod log;
+mod logflags;
 mod rdwr;
 mod serial;
 
+pub use self::logflags::LogFlags;
 pub use self::rdwr::{read_object, Read, Write};
 pub use self::serial::Serial;
 
@@ -29,41 +31,27 @@ use crate::tcu::TileId;
 
 /// Macro for logging (includes a trailing newline)
 ///
-/// The arguments are printed if `$type` is enabled.
+/// The arguments are printed if $flag is enabled (see `$crate::io::loglvl::LogFlags`).
 ///
 /// # Examples
 ///
 /// ```
-/// log!(SYSC, "my log entry: {}, {}", 1, "test");
+/// log!(LogFlags::KernEPs, "my log entry: {}, {}", 1, "test");
 /// ```
 #[macro_export]
 macro_rules! log {
-    ($type:expr, $fmt:expr)                   => (
-        $crate::llog!(@log_impl $type, concat!($fmt, "\n"))
+    ($flag:expr, $fmt:expr)                   => (
+        $crate::log!(@log_impl $flag, concat!($fmt, "\n"))
     );
 
-    ($type:expr, $fmt:expr, $($arg:tt)*)      => (
-        $crate::llog!(@log_impl $type, concat!($fmt, "\n"), $($arg)*)
-    );
-}
-
-/// Macro for library-internal logging (includes a trailing newline)
-///
-/// The arguments are printed if `$crate::io::log::$type` is enabled.
-#[macro_export]
-macro_rules! llog {
-    ($type:tt, $fmt:expr)                   => (
-        llog!(@log_impl $crate::io::log::$type, concat!($fmt, "\n"))
+    ($flag:expr, $fmt:expr, $($arg:tt)*)      => (
+        $crate::log!(@log_impl $flag, concat!($fmt, "\n"), $($arg)*)
     );
 
-    ($type:tt, $fmt:expr, $($arg:tt)*)      => (
-        llog!(@log_impl $crate::io::log::$type, concat!($fmt, "\n"), $($arg)*)
-    );
-
-    (@log_impl $type:expr, $($args:tt)*)    => ({
-        if $type {
-            use $crate::io::Write;
-            if let Some(mut l) = $crate::io::log::Log::get() {
+    (@log_impl $flag:expr, $($args:tt)*)    => ({
+        use $crate::io::Write;
+        if let Some(mut l) = $crate::io::log::Log::get() {
+            if l.flags().contains($flag) {
                 l.write_fmt(format_args!($($args)*)).unwrap();
             }
         }

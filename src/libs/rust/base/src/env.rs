@@ -82,6 +82,38 @@ pub struct BaseEnv {
     pub data_len: u64,
 }
 
+/// Collects the strings and pointers for the given slice of arguments to pass to a program.
+///
+/// The strings and pointers are stored relative to the given offset (`off`).
+///
+/// Returns a tuple of the strings, pointers, and the final offset (for a another call of
+/// `collect_args`).
+pub fn collect_args<S>(args: &[S], off: usize) -> (Vec<u8>, Vec<u64>, usize)
+where
+    S: AsRef<str>,
+{
+    let mut arg_ptr = Vec::<u64>::new();
+    let mut arg_buf = Vec::new();
+
+    let mut arg_off = off;
+    for s in args {
+        // push argv entry
+        arg_ptr.push(arg_off as u64);
+
+        // push string
+        let arg = s.as_ref().as_bytes();
+        arg_buf.extend_from_slice(arg);
+
+        // 0-terminate it
+        arg_buf.push(b'\0');
+
+        arg_off += arg.len() + 1;
+    }
+    arg_ptr.push(0);
+
+    (arg_buf, arg_ptr, arg_off)
+}
+
 pub fn boot() -> &'static BootEnv {
     // safety: the cast is okay because we trust our loader to put the environment at that place
     unsafe { &*(cfg::ENV_START as *const _) }

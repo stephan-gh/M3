@@ -16,7 +16,9 @@
 use base::build_vmsg;
 use base::col::ToString;
 use base::errors::{Code, Error, VerboseError};
+use base::io::LogFlags;
 use base::kif::{self, syscalls};
+use base::log;
 use base::mem::{GlobAddr, MsgBuf};
 use base::rc::Rc;
 use base::serialize::M3Deserializer;
@@ -196,8 +198,8 @@ pub fn derive_srv_async(
     });
 
     let label = srvcap.creator() as tcu::Label;
-    klog!(
-        SERV,
+    log!(
+        LogFlags::KernServ,
         "Sending DERIVE_CRT(sessions={}) to service {} with creator {}",
         r.sessions,
         srvcap.service().name(),

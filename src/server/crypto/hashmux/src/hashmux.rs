@@ -27,6 +27,7 @@ mod kecacc;
 
 use crate::kecacc::{KecAcc, KecAccState};
 use base::const_assert;
+use base::io::LogFlags;
 use core::cmp::min;
 use core::sync::atomic;
 use m3::cap::Selector;
@@ -46,10 +47,6 @@ use m3::session::{HashOp, ServerSession};
 use m3::tcu::{Label, Message};
 use m3::tiles::Activity;
 use m3::time::{TimeDuration, TimeInstant};
-
-const LOG_DEF: bool = false;
-const LOG_ERRORS: bool = true;
-const LOG_VERBOSE: bool = false;
 
 /// Size of the two SRAMs used as temporary buffer for TCU transfers
 /// and the accelerator.
@@ -344,7 +341,7 @@ impl HashSession {
                 self.req = Some(req);
 
                 log!(
-                    LOG_VERBOSE,
+                    LogFlags::HMuxDbg,
                     "[{}] hash::work() pause, remaining time {}",
                     self.sess.ident(),
                     self.remaining_time,
@@ -357,7 +354,7 @@ impl HashSession {
 
                 if e.code() == Code::Success {
                     log!(
-                        LOG_DEF,
+                        LogFlags::HMuxInOut,
                         "[{}] hash::work() done, remaining time {}",
                         self.sess.ident(),
                         self.remaining_time,
@@ -365,7 +362,7 @@ impl HashSession {
                 }
                 else {
                     log!(
-                        LOG_ERRORS,
+                        LogFlags::Error,
                         "[{}] hash::work() failed with {:?}",
                         self.sess.ident(),
                         e.code(),
@@ -396,7 +393,7 @@ impl HashSession {
         req.reply_msg(msg);
         self.remaining_time = timer.finish();
         log!(
-            LOG_DEF,
+            LogFlags::HMuxInOut,
             "[{}] hash::work() done, remaining time {}",
             self.sess.ident(),
             self.remaining_time,
@@ -415,7 +412,7 @@ impl HashSession {
         let req = self.req.take().unwrap();
 
         log!(
-            LOG_VERBOSE,
+            LogFlags::HMuxDbg,
             "[{}] hash::work() {:?} start len {} off {} remaining time {} queue {:?}",
             self.sess.ident(),
             req.ty,
@@ -443,7 +440,7 @@ impl HashSession {
         let algo = HashAlgorithm::from_type(ty).ok_or_else(|| Error::new(Code::InvArgs))?;
 
         log!(
-            LOG_DEF,
+            LogFlags::HMuxInOut,
             "[{}] hash::reset() algo {}",
             self.sess.ident(),
             algo
@@ -472,7 +469,7 @@ impl HashSession {
     }
 
     fn input(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
-        log!(LOG_DEF, "[{}] hash::input()", self.sess.ident());
+        log!(LogFlags::HMuxInOut, "[{}] hash::input()", self.sess.ident());
 
         // Disallow input after output for now since this is not part of the SHA-3 specification.
         // However, there is a separate paper about the "Duplex" construction:
@@ -490,7 +487,11 @@ impl HashSession {
     }
 
     fn output(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
-        log!(LOG_DEF, "[{}] hash::output()", self.sess.ident());
+        log!(
+            LogFlags::HMuxInOut,
+            "[{}] hash::output()",
+            self.sess.ident()
+        );
 
         let algo = self.algo.ok_or_else(|| Error::new(Code::InvState))?;
 
@@ -512,7 +513,7 @@ impl HashSession {
             // No parameters, return the fixed size hash directly in the TCU reply
             if algo.output_bytes > MAX_DIRECT_SIZE {
                 log!(
-                    LOG_ERRORS,
+                    LogFlags::Error,
                     "[{}] hash::output() cannot use direct output for {}",
                     self.sess.ident(),
                     algo.name,
@@ -532,7 +533,7 @@ impl HashSession {
         self.output_bytes = self.output_bytes.saturating_add(req.len);
         if self.output_bytes > algo.output_bytes {
             log!(
-                LOG_ERRORS,
+                LogFlags::Error,
                 "[{}] hash::output() attempting to output {} bytes while only {} are supported for {}",
                 self.sess.ident(),
                 self.output_bytes,
@@ -618,7 +619,7 @@ impl Handler<HashSession> for HashHandler {
 
         self.sessions.add_next(crt, srv_sel, false, |sess| {
             let sid = sess.ident() as SessId;
-            log!(LOG_DEF, "[{}] hash::open()", sid);
+            log!(LogFlags::HMuxReqs, "[{}] hash::open()", sid);
             assert!(sid < MAX_SESSIONS);
 
             let sel = Activity::own().alloc_sels(2);
@@ -647,7 +648,7 @@ impl Handler<HashSession> for HashHandler {
         sid: SessId,
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
-        log!(LOG_DEF, "[{}] hash::obtain()", sid);
+        log!(LogFlags::HMuxReqs, "[{}] hash::obtain()", sid);
         let hash = self
             .sessions
             .get_mut(sid)
@@ -671,7 +672,7 @@ impl Handler<HashSession> for HashHandler {
     }
 
     fn close(&mut self, crt: usize, sid: SessId) {
-        log!(LOG_DEF, "[{}] hash::close()", sid);
+        log!(LogFlags::HMuxReqs, "[{}] hash::close()", sid);
 
         let sess = self.sessions.remove(crt, sid);
         QUEUE.borrow_mut().retain(|&n| n != sid);
@@ -684,7 +685,7 @@ impl Handler<HashSession> for HashHandler {
             if let Err(e) =
                 Activity::own().revoke(CapRngDesc::new(CapType::OBJECT, ep.sel(), 1), true)
             {
-                log!(LOG_ERRORS, "[{}] Failed to revoke EP cap: {}", sid, e)
+                log!(LogFlags::Error, "[{}] Failed to revoke EP cap: {}", sid, e)
             }
         };
     }

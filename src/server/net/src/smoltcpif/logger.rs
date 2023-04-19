@@ -16,6 +16,7 @@
 
 // ! Provides a really simple logger that logs messages generated somewhere in the crate via the log crate.
 
+use base::io::LogFlags;
 use log::{LevelFilter, Metadata, Record, SetLoggerError};
 use m3::log;
 
@@ -30,7 +31,12 @@ impl log::Log for SimpleLogger {
 
     fn log(&self, record: &Record<'_>) {
         if self.enabled(record.metadata()) {
-            log!(crate::LOG_SMOLTCP, "{}: {}", record.level(), record.args());
+            log!(
+                LogFlags::NetSmolTCP,
+                "{}: {}",
+                record.level(),
+                record.args()
+            );
         }
     }
 

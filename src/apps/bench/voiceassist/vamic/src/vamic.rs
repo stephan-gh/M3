@@ -25,7 +25,7 @@ use m3::errors::{Code, Error};
 use m3::format;
 use m3::goff;
 use m3::int_enum;
-use m3::io::Read;
+use m3::io::{LogFlags, Read};
 use m3::kif::{self, Perm};
 use m3::log;
 use m3::println;
@@ -37,8 +37,6 @@ use m3::tiles::OwnActivity;
 use m3::util::math;
 use m3::vfs::OpenFlags;
 use m3::vfs::VFS;
-
-pub const LOG_DEF: bool = false;
 
 static AUDIO_DATA: LazyStaticRefCell<MemGate> = LazyStaticRefCell::default();
 static AUDIO_SIZE: LazyStaticCell<usize> = LazyStaticCell::default();
@@ -62,7 +60,7 @@ struct MicHandler {
 
 impl MicHandler {
     fn new_sess(crt: usize, sess: ServerSession) -> MicSession {
-        log!(crate::LOG_DEF, "[{}] vamic::new()", sess.ident());
+        log!(LogFlags::Info, "[{}] vamic::new()", sess.ident());
         MicSession {
             crt,
             _sess: sess,
@@ -71,7 +69,7 @@ impl MicHandler {
     }
 
     fn close_sess(&mut self, sid: SessId) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "[{}] vamic::close()", sid);
+        log!(LogFlags::Info, "[{}] vamic::close()", sid);
         let crt = self.sessions.get(sid).unwrap().crt;
         self.sessions.remove(crt, sid);
         Ok(())
@@ -99,7 +97,7 @@ impl Handler<MicSession> for MicHandler {
         sid: SessId,
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "[{}] vamic::recv()", sid);
+        log!(LogFlags::Info, "[{}] vamic::recv()", sid);
 
         if xchg.in_caps() != 1 {
             return Err(Error::new(Code::InvArgs));

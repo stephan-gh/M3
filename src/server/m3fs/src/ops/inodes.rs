@@ -20,6 +20,7 @@ use crate::data::{
     NUM_INODE_BYTES,
 };
 
+use base::io::LogFlags;
 use m3::{
     cap::Selector,
     com::Perm,
@@ -30,7 +31,7 @@ use m3::{
 
 /// Creates a new inode with given mode and returns its INodeRef
 pub fn create(mode: FileMode) -> Result<INodeRef, Error> {
-    log!(crate::LOG_INODES, "inodes::create(mode={:o})", mode);
+    log!(LogFlags::FSINodes, "inodes::create(mode={:o})", mode);
 
     let ino = crate::inodes_mut().alloc(None)?;
     let inode = get(ino)?;
@@ -54,7 +55,7 @@ pub fn decrease_links(inode: &INodeRef) -> Result<(), Error> {
 
 /// Frees the inode with given number
 pub fn free(inode_no: InodeNo) -> Result<(), Error> {
-    log!(crate::LOG_INODES, "inodes::free(inode_no={})", inode_no);
+    log!(LogFlags::FSINodes, "inodes::free(inode_no={})", inode_no);
 
     let ino = get(inode_no)?;
     let inodeno = ino.inode as usize;
@@ -64,7 +65,7 @@ pub fn free(inode_no: InodeNo) -> Result<(), Error> {
 
 /// Loads an INodeRef for given inode number
 pub fn get(inode: InodeNo) -> Result<INodeRef, Error> {
-    log!(crate::LOG_INODES, "inodes::get({})", inode);
+    log!(LogFlags::FSINodes, "inodes::get({})", inode);
 
     let inos_per_block = crate::superblock().inodes_per_block();
     let bno = crate::superblock().first_inode_block() + (inode / inos_per_block as u32);
@@ -85,7 +86,7 @@ pub fn get_seek_pos(
     whence: SeekMode,
 ) -> Result<(usize, ExtPos), Error> {
     log!(
-        crate::LOG_INODES,
+        LogFlags::FSINodes,
         "inodes::seek(inode={}, off={}, whence={})",
         inode.inode,
         off,
@@ -153,7 +154,7 @@ pub fn get_extent_mem(
     limit: &mut LoadLimit,
 ) -> Result<(usize, usize), Error> {
     log!(
-        crate::LOG_INODES,
+        LogFlags::FSINodes,
         "inodes::get_extent_mem(inode={}, start={:?})",
         inode.inode,
         start,
@@ -202,7 +203,7 @@ pub fn req_append(
     let num_extents = inode.extents;
 
     log!(
-        crate::LOG_INODES,
+        LogFlags::FSINodes,
         "inodes::req_append(inode={}, pos={:?}, num_extents={})",
         inode.inode,
         pos,
@@ -239,7 +240,7 @@ pub fn req_append(
 /// Returns whether a new extent was created (false means that it was appended to an existing one).
 pub fn append_extent(inode: &INodeRef, next: Extent) -> Result<bool, Error> {
     log!(
-        crate::LOG_INODES,
+        LogFlags::FSINodes,
         "inodes::append_extent(inode={}, next=(start={}, length={}))",
         inode.inode,
         next.start,
@@ -292,7 +293,7 @@ pub fn get_extent(
     create: bool,
 ) -> Result<ExtentRef, Error> {
     log!(
-        crate::LOG_INODES,
+        LogFlags::FSINodes,
         "inodes::get_extent(inode={}, extent={}, create={})",
         inode.inode,
         extent,
@@ -358,7 +359,7 @@ pub fn get_extent(
         }
 
         log!(
-            crate::LOG_INODES,
+            LogFlags::FSINodes,
             "Using d-indirect block, WARNING: not fully tested atm."
         );
 
@@ -408,7 +409,7 @@ fn change_extent(
     remove: bool,
 ) -> Result<ExtentRef, Error> {
     log!(
-        crate::LOG_INODES,
+        LogFlags::FSINodes,
         "inodes::change_extent(inode={}, extent={}, remove={})",
         inode.inode,
         extent,
@@ -507,7 +508,7 @@ pub fn create_extent(inode: Option<&INodeRef>, blocks: u32) -> Result<Extent, Er
 /// Truncates the given inode until the given position.
 pub fn truncate(inode: &INodeRef, pos: &ExtPos) -> Result<(), Error> {
     log!(
-        crate::LOG_INODES,
+        LogFlags::FSINodes,
         "inodes::truncate(inode={}, pos={:?})",
         inode.inode,
         pos,
@@ -571,7 +572,7 @@ pub fn truncate(inode: &INodeRef, pos: &ExtPos) -> Result<(), Error> {
 /// Writes all dirty metadata from given inode back to storage
 pub fn sync_metadata(inode: &INodeRef) -> Result<(), Error> {
     log!(
-        crate::LOG_INODES,
+        LogFlags::FSINodes,
         "inodes::sync_metadata(inode={})",
         inode.inode,
     );

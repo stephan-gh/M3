@@ -20,6 +20,7 @@ use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::int_enum;
+use m3::io::LogFlags;
 use m3::kif::Perm;
 use m3::log;
 use m3::mem;
@@ -204,7 +205,7 @@ impl Device {
         let mut dev = match Self::identify(id, chan) {
             Err(e) => {
                 log!(
-                    crate::LOG_ALL,
+                    LogFlags::DiskDev,
                     "chan[{}] command {} failed: {}",
                     chan.id(),
                     Command::IDENTIFY,
@@ -289,7 +290,7 @@ impl Device {
         let cmd = self.get_command(chan, op);
 
         log!(
-            crate::LOG_ALL,
+            LogFlags::DiskDev,
             "chan[{}] {:?} for sectors {}..{} with {}B sectors",
             chan.id(),
             op,
@@ -440,7 +441,7 @@ impl Device {
         chan.write_pio::<u8>(ATAReg::CONTROL, nien)?;
 
         log!(
-            crate::LOG_ALL,
+            LogFlags::DiskDev,
             "chan[{}] setting LBA={}, sec_count={}",
             chan.id(),
             lba,
@@ -470,7 +471,7 @@ impl Device {
         chan.write_pio::<u8>(ATAReg::ADDRESS3, (lba >> 16) as u8)?;
 
         log!(
-            crate::LOG_ALL,
+            LogFlags::DiskDev,
             "chan[{}] starting command {:?}",
             chan.id(),
             cmd
@@ -515,7 +516,7 @@ impl Device {
 
         // check whether the device exists
         log!(
-            crate::LOG_ALL,
+            LogFlags::DiskDev,
             "chan[{}] sending '{}' to device {}",
             chan.id(),
             Command::IDENTIFY,

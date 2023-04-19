@@ -21,9 +21,17 @@ use m3::tiles::{ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::{wv_assert_eq, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn WvTester) {
+    // remove the potentially existing LOG variable
+    let log = env::var("LOG");
+    env::remove_var("LOG");
+
     wv_run_test!(t, basics);
     wv_run_test!(t, multi);
     wv_run_test!(t, to_child);
+
+    if let Some(log) = log {
+        env::set_var("LOG", log);
+    }
 }
 
 fn basics(t: &mut dyn WvTester) {

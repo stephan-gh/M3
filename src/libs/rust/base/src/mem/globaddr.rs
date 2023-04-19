@@ -21,7 +21,7 @@ use core::ops;
 
 use crate::errors::{Code, Error};
 use crate::goff;
-use crate::io::log;
+use crate::io::LogFlags;
 use crate::kif::{PageFlags, Perm};
 use crate::serialize::{Deserialize, Serialize};
 use crate::tcu::{EpId, TileId, PMEM_PROT_EPS, TCU};
@@ -60,7 +60,7 @@ impl GlobAddr {
         let res = TCU::unpack_mem_ep(epid)
             .map(|(tile, addr, _, _)| GlobAddr::new_with(tile, addr + off))
             .ok_or_else(|| Error::new(Code::InvArgs));
-        log!(log::TRANSLATE, "Translated {:#x} to {:?}", phys, res);
+        log!(LogFlags::LibXlate, "Translated {:#x} to {:?}", phys, res);
         res
     }
 
@@ -107,7 +107,7 @@ impl GlobAddr {
         for ep in 0..PMEM_PROT_EPS as EpId {
             if let Some((tile, addr, size, perm)) = _get_ep(ep) {
                 log!(
-                    log::TRANSLATE,
+                    LogFlags::LibXlate,
                     "Translating {:?}: considering EP{} with tile={}, addr={:#x}, size={:#x}",
                     self,
                     ep,
@@ -130,7 +130,7 @@ impl GlobAddr {
 
                     let phys = crate::cfg::MEM_OFFSET as Phys
                         + ((ep as Phys) << 30 | (self.offset() - addr));
-                    log!(log::TRANSLATE, "Translated {:?} to {:#x}", self, phys);
+                    log!(LogFlags::LibXlate, "Translated {:?} to {:#x}", self, phys);
                     return Ok(phys);
                 }
             }

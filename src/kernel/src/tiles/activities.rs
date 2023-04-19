@@ -19,7 +19,9 @@ use base::cell::{Cell, RefCell, StaticRefCell};
 use base::col::{String, ToString, Vec};
 use base::errors::{Code, Error};
 use base::goff;
+use base::io::LogFlags;
 use base::kif::{self, CapRngDesc, CapSel, CapType, TileDesc};
+use base::log;
 use base::mem::MsgBuf;
 use base::rc::{Rc, SRc};
 use base::tcu::Label;
@@ -422,8 +424,8 @@ impl Activity {
     }
 
     fn send_upcall<M: fmt::Debug>(&self, msg: &MsgBuf) {
-        klog!(
-            UPCALLS,
+        log!(
+            LogFlags::KernUpcalls,
             "Sending upcall {:?} to Activity {}",
             msg.get::<M>(),
             self.id()
@@ -449,8 +451,8 @@ impl Activity {
             return;
         }
 
-        klog!(
-            ACTIVITIES,
+        log!(
+            LogFlags::KernActs,
             "Stopping Activity {} [id={}]",
             self.name(),
             self.id()
@@ -548,8 +550,8 @@ impl Drop for Activity {
         // remove some thread from the pool as there is one activity less now
         thread::remove_thread();
 
-        klog!(
-            ACTIVITIES,
+        log!(
+            LogFlags::KernActs,
             "Removed Activity {} [id={}, tile={}]",
             self.name(),
             self.id(),

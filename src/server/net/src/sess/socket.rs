@@ -17,6 +17,7 @@
 
 use core::cmp;
 
+use base::io::LogFlags;
 use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::col::Vec;
@@ -72,7 +73,7 @@ fn parse_ports(port_descs: &str, ports: &mut Vec<(Port, Port)>) -> Result<(), Er
         };
 
         if ports::is_ephemeral(range.0) || ports::is_ephemeral(range.1) {
-            log!(crate::LOG_ERR, "Cannot bind/listen on ephemeral ports");
+            log!(LogFlags::Error, "Cannot bind/listen on ephemeral ports");
             return Err(Error::new(Code::InvArgs));
         }
 
@@ -128,7 +129,7 @@ impl SocketSession {
     ) -> Result<Self, Error> {
         let settings = parse_arguments(args_str).map_err(|e| {
             log!(
-                crate::LOG_ERR,
+                LogFlags::Error,
                 "Unable to parse session arguments: '{}'",
                 args_str
             );
@@ -204,7 +205,7 @@ impl SocketSession {
         let smemsize = is.pop::<usize>().expect("Failed to get smemsize");
 
         log!(
-            crate::LOG_SESS,
+            LogFlags::NetSess,
             "socket_session::open_file(sd={}, mode={}, rmemsize={}, smemsize={})",
             sd,
             mode,
@@ -214,7 +215,7 @@ impl SocketSession {
         // Create socket for file
         let socket = self.get_socket(sd)?;
         if (mode & OpenFlags::RW.bits()) == 0 {
-            log!(crate::LOG_SESS, "open_file failed: invalid mode");
+            log!(LogFlags::NetSess, "open_file failed: invalid mode");
             return Err(Error::new(Code::InvArgs));
         }
 
@@ -222,7 +223,7 @@ impl SocketSession {
             || (socket.borrow().send_file().is_some() && ((mode & OpenFlags::W.bits()) > 0))
         {
             log!(
-                crate::LOG_SESS,
+                LogFlags::NetSess,
                 "open_file failed: socket already has a file session attached"
             );
             return Err(Error::new(Code::InvArgs));
@@ -244,7 +245,7 @@ impl SocketSession {
         }
 
         log!(
-            crate::LOG_SESS,
+            LogFlags::NetSess,
             "open_file: {}@{}{}",
             sd,
             if file.borrow().is_recv() { "r" } else { "" },
@@ -326,7 +327,7 @@ impl SocketSession {
         );
 
         log!(
-            crate::LOG_SESS,
+            LogFlags::NetSess,
             "net::create(type={:?}, protocol={}, rbuf=[{}b,{}], sbuf=[{}b,{}]) -> {:?}",
             ty,
             protocol,
@@ -371,7 +372,7 @@ impl SocketSession {
         let port: Port = is.pop()?;
 
         log!(
-            crate::LOG_SESS,
+            LogFlags::NetSess,
             "[{}] net::bind(sd={}, port={})",
             self.server_session.ident(),
             sd,
@@ -406,7 +407,7 @@ impl SocketSession {
         let port: Port = is.pop()?;
 
         log!(
-            crate::LOG_SESS,
+            LogFlags::NetSess,
             "[{}] net::listen(sd={}, port={})",
             self.server_session.ident(),
             sd,
@@ -435,7 +436,7 @@ impl SocketSession {
 
         let local_port = ports::alloc();
         log!(
-            crate::LOG_SESS,
+            LogFlags::NetSess,
             "[{}] net::connect(sd={}, remote={}:{}, local={})",
             self.server_session.ident(),
             sd,
@@ -479,7 +480,7 @@ impl SocketSession {
         iface: &mut DriverInterface<'_>,
     ) -> Result<(), Error> {
         log!(
-            crate::LOG_SESS,
+            LogFlags::NetSess,
             "[{}] net::abort(sd={}, remove={})",
             self.server_session.ident(),
             sd,
@@ -544,7 +545,7 @@ impl SocketSession {
 
                 if let Some(event) = socket.borrow_mut().fetch_event(iface) {
                     log!(
-                        crate::LOG_DATA,
+                        LogFlags::NetData,
                         "[{}] socket {}: received event {:?}",
                         socket_sd,
                         self.server_session.ident(),
@@ -585,7 +586,7 @@ impl SocketSession {
 
                     log_net(NetLogEvent::FetchData, socket_sd, amount);
                     log!(
-                        crate::LOG_DATA,
+                        LogFlags::NetData,
                         "[{}] socket {}: received packet with {}b from {}",
                         socket_sd,
                         self.server_session.ident(),
@@ -599,7 +600,7 @@ impl SocketSession {
 
                     if let Err(e) = chan.send_data(&msg) {
                         log!(
-                            crate::LOG_ERR,
+                            LogFlags::Error,
                             "[{}] socket {}: sending received packet with {}b failed: {}",
                             socket_sd,
                             self.server_session.ident(),

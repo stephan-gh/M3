@@ -23,6 +23,7 @@ use base::cell::{LazyStaticRefCell, Ref, StaticCell};
 use base::cfg;
 use base::col::{BoxList, Vec};
 use base::impl_boxitem;
+use base::io::LogFlags;
 use base::libc;
 use base::log;
 use base::mem;
@@ -30,9 +31,6 @@ use base::tcu::{self, Message};
 use base::vec;
 use core::intrinsics::transmute;
 use core::ptr::NonNull;
-
-/// Logs thread switching etc.
-pub const LOG_DEF: bool = false;
 
 pub type Event = u64;
 
@@ -173,7 +171,7 @@ impl Thread {
             msg: unsafe { mem::MaybeUninit::uninit().assume_init() },
         });
 
-        log!(LOG_DEF, "Created thread {}", thread.id);
+        log!(LogFlags::LibThread, "Created thread {}", thread.id);
 
         thread_init(&mut thread, func_addr, arg);
 
@@ -233,7 +231,7 @@ impl Thread {
 
 impl Drop for Thread {
     fn drop(&mut self) {
-        log!(LOG_DEF, "Thread {} destroyed", self.id);
+        log!(LogFlags::LibThread, "Thread {} destroyed", self.id);
     }
 }
 
@@ -267,7 +265,12 @@ impl ThreadManager {
                 if let Some(m) = msg {
                     t.set_msg(m);
                 }
-                log!(LOG_DEF, "Waking up thread {} for event {:#x}", t.id, event);
+                log!(
+                    LogFlags::LibThread,
+                    "Waking up thread {} for event {:#x}",
+                    t.id,
+                    event
+                );
                 let t = it.remove();
                 self.ready.push_back(t.unwrap());
             }
@@ -340,7 +343,7 @@ pub fn wait_for(event: Event) {
     let next = tmng.get_next().unwrap();
 
     log!(
-        LOG_DEF,
+        LogFlags::LibThread,
         "Thread {} waits for {:#x}, switching to {}",
         tmng.current.as_ref().unwrap().id,
         event,
@@ -371,7 +374,7 @@ pub fn try_yield() {
         None => {},
         Some(next) => {
             log!(
-                LOG_DEF,
+                LogFlags::LibThread,
                 "Yielding from {} to {}",
                 tmng.current.as_ref().unwrap().id,
                 next.id
@@ -396,7 +399,7 @@ pub fn stop() {
     let mut tmng = TMNG.borrow_mut();
     if let Some(next) = tmng.get_next() {
         log!(
-            LOG_DEF,
+            LogFlags::LibThread,
             "Stopping thread {}, switching to {}",
             tmng.current.as_ref().unwrap().id,
             next.id

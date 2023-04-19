@@ -14,12 +14,13 @@
  */
 
 use base::cfg::{ENV_START, MOD_HEAP_SIZE, PAGE_BITS, PAGE_MASK, PAGE_SIZE};
-use base::col::Vec;
 use base::elf;
 use base::env;
 use base::errors::{Code, Error};
 use base::goff;
+use base::io::LogFlags;
 use base::kif::{self, PageFlags};
+use base::log;
 use base::mem::{size_of, GlobAddr};
 use base::tcu;
 use base::util::math;
@@ -68,11 +69,13 @@ fn load_root_async(env_phys: goff, act: &Activity) -> Result<(), Error> {
 
     let entry: usize = {
         let app = get_mod("root").ok_or_else(|| Error::new(Code::NoSuchFile))?;
-        klog!(ACTIVITIES, "Loading mod '{}':", app.name());
+        log!(LogFlags::KernActs, "Loading mod '{}':", app.name());
         load_mod_async(act, app)?
     };
 
-    let argv_addr = write_arguments(env_phys, act.tile_id(), &["root"]);
+    let mut env_off = size_of::<env::BaseEnv>();
+    let argv_addr = write_arguments(&["root"], act.tile_id(), env_phys, &mut env_off);
+    let envp_addr = write_arguments(&env::vars_raw(), act.tile_id(), env_phys, &mut env_off);
 
     // build env
     let mut senv = env::BaseEnv {
@@ -80,6 +83,7 @@ fn load_root_async(env_phys: goff, act: &Activity) -> Result<(), Error> {
             platform: env::boot().platform,
             argc: 1,
             argv: argv_addr as u64,
+            envp: envp_addr as u64,
             tile_id: act.tile_id().raw() as u64,
             tile_desc: act.tile_desc().value(),
             ..Default::default()
@@ -249,39 +253,29 @@ fn load_mod_async(act: &Activity, bm: &kif::boot::Mod) -> Result<usize, Error> {
     Ok(hdr.entry)
 }
 
-fn write_arguments(addr: goff, tile: tcu::TileId, args: &[&str]) -> usize {
-    let mut argptr: Vec<u64> = Vec::new();
-    let mut argbuf: Vec<u8> = Vec::new();
+fn write_arguments<S>(args: &[S], tile: tcu::TileId, env_phys: goff, env_off: &mut usize) -> usize
+where
+    S: AsRef<str>,
+{
+    let (arg_buf, arg_ptr, arg_end) = env::collect_args(args, *env_off + ENV_START);
 
-    let off = addr + size_of::<env::BaseEnv>() as goff;
-    let mut argoff = ENV_START + size_of::<env::BaseEnv>();
-    for s in args {
-        // push argv entry
-        argptr.push(argoff as u64);
-
-        // push string
-        let arg = s.as_bytes();
-        argbuf.extend_from_slice(arg);
-
-        // 0-terminate it
-        argbuf.push(b'\0');
-
-        argoff += arg.len() + 1;
-    }
-
+    // write actual arguments to memory
     ktcu::write_mem(
         tile,
-        off as goff,
-        argbuf.as_ptr() as *const u8,
-        argbuf.len(),
+        env_phys + *env_off as goff,
+        arg_buf.as_ptr() as *const u8,
+        arg_buf.len(),
     );
-    let argv_size = argptr.len() * size_of::<u64>();
-    argoff = math::round_up(argoff, size_of::<u64>());
+
+    // write argument pointers to memory
+    let arg_ptr_off = math::round_up(arg_end - ENV_START, size_of::<u64>());
     ktcu::write_mem(
         tile,
-        addr + (argoff - ENV_START) as goff,
-        argptr.as_ptr() as *const u8,
-        argv_size,
+        env_phys + arg_ptr_off as goff,
+        arg_ptr.as_ptr() as *const _,
+        arg_ptr.len() * size_of::<u64>(),
     );
-    argoff
+
+    *env_off = arg_ptr_off + arg_ptr.len() * size_of::<u64>();
+    ENV_START + arg_ptr_off
 }

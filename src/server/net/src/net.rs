@@ -19,6 +19,7 @@
 
 use core::str::FromStr;
 
+use base::io::LogFlags;
 use m3::cap::Selector;
 use m3::cell::{LazyStaticCell, StaticRefCell};
 use m3::col::{BTreeMap, String, ToString, Vec};
@@ -45,17 +46,6 @@ mod driver;
 mod ports;
 mod sess;
 mod smoltcpif;
-
-pub const LOG_ERR: bool = true;
-pub const LOG_DEF: bool = true;
-pub const LOG_SESS: bool = false;
-pub const LOG_DATA: bool = false;
-pub const LOG_PORTS: bool = false;
-pub const LOG_NIC: bool = false;
-pub const LOG_NIC_ERR: bool = true;
-pub const LOG_NIC_DETAIL: bool = false;
-pub const LOG_SMOLTCP: bool = false;
-pub const LOG_DETAIL: bool = false;
 
 const MAX_SOCKETS: usize = 64;
 
@@ -170,7 +160,12 @@ impl Handler<NetworkSession> for NetHandler<'_> {
         let rgate = self.rgate.clone();
 
         self.sessions.add_next(crt, srv_sel, false, |sess| {
-            log!(LOG_SESS, "[{}] net::open(sel={})", sess.ident(), sess.sel());
+            log!(
+                LogFlags::NetSess,
+                "[{}] net::open(sel={})",
+                sess.ident(),
+                sess.sel()
+            );
             Ok(NetworkSession::SocketSession(sess::SocketSession::new(
                 crt, arg, sess, rgate,
             )?))
@@ -179,7 +174,7 @@ impl Handler<NetworkSession> for NetHandler<'_> {
 
     fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
         log!(
-            LOG_SESS,
+            LogFlags::NetSess,
             "[{}] net::obtain(crt={}, #caps={})",
             sid,
             crt,
@@ -200,7 +195,7 @@ impl Handler<NetworkSession> for NetHandler<'_> {
         sid: SessId,
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
-        log!(LOG_SESS, "[{}] net::delegate(crt={})", sid, crt);
+        log!(LogFlags::NetSess, "[{}] net::delegate(crt={})", sid, crt);
 
         if let Some(s) = self.sessions.get_mut(sid) {
             s.delegate(xchg)
@@ -211,7 +206,7 @@ impl Handler<NetworkSession> for NetHandler<'_> {
     }
 
     fn close(&mut self, crt: usize, sid: SessId) {
-        log!(LOG_SESS, "[{}] net::close(crt={})", sid, crt);
+        log!(LogFlags::NetSess, "[{}] net::close(crt={})", sid, crt);
 
         if let Some(s) = self.sessions.get_mut(sid) {
             s.close(&mut self.iface).unwrap();
@@ -221,7 +216,7 @@ impl Handler<NetworkSession> for NetHandler<'_> {
     }
 
     fn shutdown(&mut self) {
-        log!(LOG_DEF, "Shutdown request");
+        log!(LogFlags::Info, "Shutdown request");
     }
 }
 
@@ -405,7 +400,7 @@ pub fn main() -> Result<(), Error> {
     handler.sel = serv.sel();
 
     log!(
-        LOG_DEF,
+        LogFlags::Info,
         concat!(
             "netrs: created service {} with {{\n",
             "  driver={},\n",
@@ -445,7 +440,7 @@ pub fn main() -> Result<(), Error> {
 
             // now poll smoltcp to send and receive packets
             if let Err(e) = handler.iface.poll(cur_time) {
-                log!(LOG_DETAIL, "netrs: poll failed: {}", e);
+                log!(LogFlags::NetPoll, "netrs: poll failed: {}", e);
             }
 
             // check for outgoing events we have to send to clients
@@ -471,7 +466,7 @@ pub fn main() -> Result<(), Error> {
         };
 
         log_net(NetLogEvent::StartedWaiting, 0, 0);
-        log!(LOG_DETAIL, "Sleeping for {:?}", sleep_nanos);
+        log!(LogFlags::NetPoll, "Sleeping for {:?}", sleep_nanos);
         OwnActivity::sleep_for(sleep_nanos).ok();
         log_net(NetLogEvent::StoppedWaiting, 0, 0);
     }

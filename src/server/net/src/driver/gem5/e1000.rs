@@ -19,6 +19,7 @@ use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
+use m3::io::LogFlags;
 use m3::kif::{Perm, TileISA};
 use m3::log;
 use m3::net::{log_net, NetLogEvent, MAC};
@@ -235,7 +236,7 @@ impl E1000 {
         let head: u32 = self.read_reg(REG::TDH);
         // TODO: is the condition correct or off by one?
         if next_tx_desc == head {
-            log!(crate::LOG_NIC, "e1000: no free descriptors for sending");
+            log!(LogFlags::NetNIC, "e1000: no free descriptors for sending");
             return false;
         }
 
@@ -277,7 +278,7 @@ impl E1000 {
 
         if txd_context_update_required && (next_tx_desc == head) {
             log!(
-                crate::LOG_NIC,
+                LogFlags::NetNIC,
                 "e1000: no free descriptors to update context and transmit data"
             );
             return false;
@@ -342,7 +343,7 @@ impl E1000 {
 
         log_net(NetLogEvent::SentPacket, 0, packet.len());
         log!(
-            crate::LOG_NIC,
+            LogFlags::NetNIC,
             "e1000: TX {} : {:#x}..{:#x}, {}",
             cur_tx_desc,
             offset,
@@ -384,12 +385,12 @@ impl E1000 {
         if (desc.status & RXDS::IXSM.bits()) == 0 {
             if (desc.status & RXDS::IPCS.bits()) != 0 {
                 if (desc.error & RXDE::IPE.bits()) != 0 {
-                    log!(crate::LOG_NIC_ERR, "e1000: IP checksum error");
+                    log!(LogFlags::NetNICChksum, "e1000: IP checksum error");
                     false
                 }
                 else if (desc.status & (RXDS::TCPCS | RXDS::UDPCS).bits()) != 0 {
                     if (desc.error & RXDE::TCPE.bits()) != 0 {
-                        log!(crate::LOG_NIC_ERR, "e1000: TCP/UDP checksum error");
+                        log!(LogFlags::NetNICChksum, "e1000: TCP/UDP checksum error");
                         false
                     }
                     else {
@@ -399,7 +400,7 @@ impl E1000 {
                 else {
                     // TODO: Maybe ensure that it is really not TCP/UDP?
                     log!(
-                        crate::LOG_NIC_ERR,
+                        LogFlags::NetNICChksum,
                         "e1000: IXMS set, but checksum does not match"
                     );
                     true
@@ -408,14 +409,14 @@ impl E1000 {
             else {
                 // TODO: Maybe ensure that it is really not IP?
                 log!(
-                    crate::LOG_NIC,
+                    LogFlags::NetNIC,
                     "e1000: IXMS set, IPCS not set, skipping checksum"
                 );
                 true
             }
         }
         else {
-            log!(crate::LOG_NIC, "e1000: IXMS not set, skipping checksum");
+            log!(LogFlags::NetNIC, "e1000: IXMS not set, skipping checksum");
             true
         }
     }
@@ -451,7 +452,7 @@ impl E1000 {
 
         log_net(NetLogEvent::RecvPacket, 0, desc[0].length as usize);
         log!(
-            crate::LOG_NIC,
+            LogFlags::NetNIC,
             "e1000: RX {}: {:#x}..{:#x} st={:#x} er={:#x}",
             tail,
             desc[0].buffer,
@@ -506,17 +507,12 @@ impl E1000 {
             .nic
             .read_reg(reg.val)
             .expect("failed to read NIC register");
-        log!(crate::LOG_NIC_DETAIL, "e1000: REG[{:?}] -> {:#x}", reg, val);
+        log!(LogFlags::NetNICDbg, "e1000: REG[{:?}] -> {:#x}", reg, val);
         val
     }
 
     pub fn write_reg(&self, reg: REG, value: u32) {
-        log!(
-            crate::LOG_NIC_DETAIL,
-            "e1000: REG[{:?}] <- {:#x}",
-            reg,
-            value
-        );
+        log!(LogFlags::NetNICDbg, "e1000: REG[{:?}] <- {:#x}", reg, value);
         // there is no reasonable way to continue if that fails -> panic
         self.nic
             .write_reg(reg.val, value)
@@ -525,7 +521,7 @@ impl E1000 {
 
     fn read_bufs<T>(&self, data: &mut [T], offset: goff) {
         log!(
-            crate::LOG_NIC_DETAIL,
+            LogFlags::NetNICDbg,
             "e1000: reading BUF[{:#x} .. {:#x}]",
             offset,
             offset + data.len() as goff - 1
@@ -537,7 +533,7 @@ impl E1000 {
 
     fn write_bufs<T>(&self, data: &[T], offset: goff) {
         log!(
-            crate::LOG_NIC_DETAIL,
+            LogFlags::NetNICDbg,
             "e1000: writing BUF[{:#x} .. {:#x}]",
             offset,
             offset + data.len() as goff - 1
@@ -554,7 +550,7 @@ impl E1000 {
     }
 
     fn sleep(&self, duration: TimeDuration) {
-        log!(crate::LOG_NIC, "e1000: sleep for {:?}", duration);
+        log!(LogFlags::NetNIC, "e1000: sleep for {:?}", duration);
         m3::tiles::OwnActivity::sleep_for(duration).expect("Failed to sleep in NIC driver");
     }
 
@@ -571,7 +567,7 @@ impl E1000 {
             ((mach >> 8) & 0xff) as u8,
         );
 
-        log!(crate::LOG_NIC, "e1000: got MAC: {}", mac);
+        log!(LogFlags::NetNIC, "e1000: got MAC: {}", mac);
 
         // if thats valid, take it
         if mac != MAC::broadcast() && mac.raw() != 0 {
@@ -584,7 +580,7 @@ impl E1000 {
 
         mac = MAC::new(bytes[1], bytes[0], bytes[3], bytes[2], bytes[5], bytes[4]);
 
-        log!(crate::LOG_NIC, "e1000: got MAC from EEPROM: {}", mac);
+        log!(LogFlags::NetNIC, "e1000: got MAC from EEPROM: {}", mac);
 
         mac
     }

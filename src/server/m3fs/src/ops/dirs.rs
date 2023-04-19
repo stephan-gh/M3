@@ -17,6 +17,7 @@
 use crate::data::{DirEntry, DirEntryIterator, INodeRef, InodeNo};
 use crate::ops::{inodes, links};
 
+use base::io::LogFlags;
 use m3::errors::{Code, Error};
 use m3::vfs::FileMode;
 
@@ -47,7 +48,7 @@ fn find_entry(inode: &INodeRef, name: &str) -> Result<InodeNo, Error> {
     }
 
     log!(
-        crate::LOG_FIND,
+        LogFlags::FSFind,
         "dirs::find(inode: {}, name={})",
         inode.inode,
         name
@@ -57,7 +58,7 @@ fn find_entry(inode: &INodeRef, name: &str) -> Result<InodeNo, Error> {
         for block in ext.block_iter() {
             let entry_iter = DirEntryIterator::from_block(block.data());
             while let Some(entry) = entry_iter.next() {
-                log!(crate::LOG_FIND, "  considering {}", entry.name());
+                log!(LogFlags::FSFind, "  considering {}", entry.name());
                 if entry.name() == name {
                     return Ok(entry.nodeno);
                 }
@@ -72,7 +73,7 @@ fn find_entry(inode: &INodeRef, name: &str) -> Result<InodeNo, Error> {
 pub fn search(path: &str, create: bool) -> Result<InodeNo, Error> {
     let ino = do_search(path, create);
     log!(
-        crate::LOG_DIRS,
+        LogFlags::FSDirs,
         "dirs::search(path={}, create={}) -> {:?}",
         path,
         create,
@@ -152,7 +153,7 @@ fn do_search(mut path: &str, create: bool) -> Result<InodeNo, Error> {
 pub fn create(path: &str, mode: FileMode) -> Result<(), Error> {
     let res = do_create(path, mode);
     log!(
-        crate::LOG_DIRS,
+        LogFlags::FSDirs,
         "dirs::create(path={}, mode={:o}) -> {:?}",
         path,
         mode,
@@ -202,7 +203,7 @@ fn do_create(path: &str, mode: FileMode) -> Result<(), Error> {
 
 /// Removes the directory at given path if it is empty
 pub fn remove(path: &str) -> Result<(), Error> {
-    log!(crate::LOG_DIRS, "dirs::remove(path={})", path);
+    log!(LogFlags::FSDirs, "dirs::remove(path={})", path);
 
     let ino = search(path, false)?;
     // cannot remove root directory
@@ -243,7 +244,7 @@ pub fn remove(path: &str) -> Result<(), Error> {
 /// Creates a link at `new_path` to `old_path`
 pub fn link(old_path: &str, new_path: &str) -> Result<(), Error> {
     log!(
-        crate::LOG_DIRS,
+        LogFlags::FSDirs,
         "dirs::link(old_path={}, new_path={})",
         old_path,
         new_path
@@ -277,7 +278,7 @@ pub fn link(old_path: &str, new_path: &str) -> Result<(), Error> {
 /// Returns the directory inode
 pub fn unlink(path: &str, deny_dir: bool) -> Result<INodeRef, Error> {
     log!(
-        crate::LOG_DIRS,
+        LogFlags::FSDirs,
         "dirs::unlink(path={}, deny_dir={})",
         path,
         deny_dir
@@ -298,7 +299,7 @@ pub fn unlink(path: &str, deny_dir: bool) -> Result<INodeRef, Error> {
 /// Renames `old_path` to `new_path`
 pub fn rename(old_path: &str, new_path: &str) -> Result<(), Error> {
     log!(
-        crate::LOG_DIRS,
+        LogFlags::FSDirs,
         "dirs::rename(old_path={}, new_path={})",
         old_path,
         new_path

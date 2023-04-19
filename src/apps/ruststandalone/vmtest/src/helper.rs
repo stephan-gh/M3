@@ -16,7 +16,7 @@
 use base::cell::{LazyStaticRefCell, StaticCell};
 use base::cfg;
 use base::env;
-use base::io;
+use base::io::{self, LogFlags};
 use base::kif::{PageFlags, Perm, TileDesc};
 use base::libc;
 use base::log;
@@ -46,7 +46,7 @@ pub extern "C" fn tmcall(state: &mut isr::State) -> *mut libc::c_void {
     let flags = PageFlags::from(access) & PageFlags::RW;
 
     log!(
-        crate::LOG_TMCALLS,
+        LogFlags::Debug,
         "tmcall::transl_fault(virt={:#x}, access={:?})",
         virt,
         access
@@ -57,7 +57,7 @@ pub extern "C" fn tmcall(state: &mut isr::State) -> *mut libc::c_void {
     let pte = paging::translate(virt, flags);
     // no page faults supported
     assert!(!(pte & PageFlags::RW.bits()) & flags.bits() == 0);
-    log!(crate::LOG_TMCALLS, "TCU can continue with PTE={:#x}", pte);
+    log!(LogFlags::Debug, "TCU can continue with PTE={:#x}", pte);
 
     // insert TLB entry
     let phys = pte & !(cfg::PAGE_MASK as u64);
@@ -72,15 +72,15 @@ pub fn init(name: &str) {
 
     if !TileDesc::new_from(env::boot().tile_desc).has_virtmem() {
         use ::paging::ArchPaging;
-        log!(crate::LOG_DEF, "Disabling paging...");
+        log!(LogFlags::Info, "Disabling paging...");
         ::paging::Paging::disable();
     }
     else {
-        log!(crate::LOG_DEF, "Setting up paging...");
+        log!(LogFlags::Info, "Setting up paging...");
         paging::init();
     }
 
-    log!(crate::LOG_DEF, "Setting up interrupts...");
+    log!(LogFlags::Info, "Setting up interrupts...");
     STATE.set(isr::State::default());
     ISR::init(&mut STATE.borrow_mut());
     ISR::reg_tm_calls(tmcall);

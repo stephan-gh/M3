@@ -13,6 +13,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::io::LogFlags;
 use base::kif;
 use base::log;
 use base::tcu;
@@ -38,7 +39,7 @@ pub fn handle_recv(req: tcu::CoreForeignReq) {
         }
 
         log!(
-            crate::LOG_FOREIGN_MSG,
+            LogFlags::MuxForMsgs,
             "Added message to Activity {} ({} msgs)",
             req.activity(),
             v.msgs()

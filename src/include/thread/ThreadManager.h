@@ -20,7 +20,7 @@
 #pragma once
 
 #include <base/Panic.h>
-#include <base/log/Lib.h>
+#include <base/Log.h>
 
 #include <thread/Thread.h>
 
@@ -71,7 +71,7 @@ public:
             panic("Not enough threads"_cf);
         _current->subscribe(event);
         _blocked.append(_current);
-        LLOG(THREAD, "Thread {} waits for {:x}"_cf, _current->id(), event);
+        LOG(LogFlags::LibThread, "Thread {} waits for {:x}"_cf, _current->id(), event);
         if(_ready.length())
             switch_to(_ready.remove_first());
         else
@@ -93,7 +93,7 @@ public:
             if(old->trigger_event(event)) {
                 Thread *t = &(*old);
                 t->set_msg(msg, size);
-                LLOG(THREAD, "Waking up thread {} for event {:x}"_cf, t->id(), event);
+                LOG(LogFlags::LibThread, "Waking up thread {} for event {:x}"_cf, t->id(), event);
                 _blocked.remove(t);
                 _ready.append(t);
             }
@@ -101,7 +101,7 @@ public:
     }
 
     void stop() {
-        LLOG(THREAD, "Stopping thread {}"_cf, _current->id());
+        LOG(LogFlags::LibThread, "Stopping thread {}"_cf, _current->id());
         if(_ready.length())
             switch_to(_ready.remove_first());
         if(_sleep.length())
@@ -123,7 +123,7 @@ private:
     }
 
     void switch_to(Thread *t) {
-        LLOG(THREAD, "Switching from {} to {}"_cf, _current->id(), t->id());
+        LOG(LogFlags::LibThread, "Switching from {} to {}"_cf, _current->id(), t->id());
         auto old = _current;
         _current = t;
         thread_switch(&old->_regs, &t->_regs);

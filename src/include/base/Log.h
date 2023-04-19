@@ -21,11 +21,38 @@
 #include <base/Env.h>
 #include <base/stream/Serial.h>
 
-#define LOG(cls, lvl, fmt, ...)                                                \
+#define LOG(flag, fmt, ...)                                                    \
     do {                                                                       \
-        if(m3::cls::level & (m3::cls::lvl)) {                                  \
+        if(Log::inst.flags & (flag)) {                                         \
             m3::detail::format_rec<0, 0>(fmt, m3::Serial::get(), __VA_ARGS__); \
             m3::Serial::get().write('\n');                                     \
         }                                                                      \
     }                                                                          \
     while(0)
+
+namespace m3 {
+
+// Note: needs to be in sync with Rust's LogFlags
+enum LogFlags {
+    Info = 1 << 0,
+    Debug = 1 << 1,
+    Error = 1 << 2,
+
+    LibFS = 1 << 3,
+    LibServ = 1 << 4,
+    LibNet = 1 << 5,
+    LibXlate = 1 << 6,
+    LibThread = 1 << 7,
+    LibSQueue = 1 << 8,
+    LibDirPipe = 1 << 9,
+};
+
+struct Log {
+    Log();
+
+    uint64_t flags;
+
+    static Log inst;
+};
+
+}

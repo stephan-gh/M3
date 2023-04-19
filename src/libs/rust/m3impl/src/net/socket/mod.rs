@@ -16,7 +16,8 @@
  */
 
 use crate::errors::{Code, Error};
-use crate::llog;
+use crate::io::LogFlags;
+use crate::log;
 use crate::net::dataqueue::DataQueue;
 use crate::net::{
     event, log_net, Endpoint, IpAddr, NetEvent, NetEventChannel, NetEventType, NetLogEvent, Port,
@@ -234,6 +235,13 @@ impl BaseSocket {
                 Err(e) if e.code() != Code::NoCredits => break Err(e),
                 Ok(_) => {
                     log_net(NetLogEvent::SentPacket, self.sd, msg.size as usize);
+                    log!(
+                        LogFlags::LibNet,
+                        "socket {}: sent data with {}b to {}",
+                        self.sd,
+                        msg.size,
+                        endpoint
+                    );
                     break Ok(());
                 },
                 _ => {},
@@ -331,8 +339,8 @@ impl BaseSocket {
                 {
                     let _msg = event.msg::<event::DataMessage>();
                     log_net(NetLogEvent::RecvPacket, self.sd, _msg.size as usize);
-                    llog!(
-                        NET,
+                    log!(
+                        LogFlags::LibNet,
                         "socket {}: received data with {}b from {}",
                         self.sd,
                         _msg.size,
@@ -350,20 +358,24 @@ impl BaseSocket {
                     self.sd,
                     msg.remote_port as usize,
                 );
-                llog!(NET, "socket {}: connected to {}", self.sd, ep);
+                log!(LogFlags::LibNet, "socket {}: connected to {}", self.sd, ep);
                 self.state = State::Connected;
                 self.remote_ep = Some(ep);
             },
 
             NetEventType::CLOSED => {
                 log_net(NetLogEvent::RecvClosed, self.sd, 0);
-                llog!(NET, "socket {}: closed", self.sd);
+                log!(LogFlags::LibNet, "socket {}: closed", self.sd);
                 self.disconnect();
             },
 
             NetEventType::CLOSE_REQ => {
                 log_net(NetLogEvent::RecvRemoteClosed, self.sd, 0);
-                llog!(NET, "socket {}: remote side was closed", self.sd);
+                log!(
+                    LogFlags::LibNet,
+                    "socket {}: remote side was closed",
+                    self.sd
+                );
                 self.state = State::RemoteClosed;
             },
 

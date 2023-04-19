@@ -16,6 +16,7 @@
 use m3::col::{String, Vec};
 use m3::com::{RGateArgs, RecvGate};
 use m3::errors::Error;
+use m3::io::LogFlags;
 use m3::log;
 use m3::util::math;
 
@@ -34,7 +35,12 @@ impl GateManager {
         let order = msg_order + math::next_log2(slots);
         let rgate = RecvGate::new_with(RGateArgs::default().order(order).msg_order(msg_order))?;
 
-        log!(crate::LOG_GATE, "Created rgate {} @ {}", name, rgate.sel());
+        log!(
+            LogFlags::ResMngGate,
+            "Created rgate {} @ {}",
+            name,
+            rgate.sel()
+        );
         self.gates.push((name, rgate));
         Ok(())
     }

@@ -16,11 +16,11 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/EnvVars.h>
 #include <base/Init.h>
-#include <base/log/Lib.h>
+#include <base/Log.h>
 #include <base/stream/Serial.h>
 
-#include <m3/EnvVars.h>
 #include <m3/com/Marshalling.h>
 #include <m3/tiles/Activity.h>
 #include <m3/vfs/File.h>
@@ -182,7 +182,7 @@ FileRef<GenericFile> VFS::open(const char *path, int flags) {
         Reference<FileSystem> fs = ms()->resolve(&fs_path, buffer, sizeof(buffer));
         std::unique_ptr<GenericFile> file = fs->open(fs_path, flags);
         auto fileref = Activity::own().files()->alloc(std::move(file));
-        LLOG(FS, "GenFile[{}]::open({}, {})"_cf, fileref->fd(), path, flags);
+        LOG(LogFlags::LibFS, "GenFile[{}]::open({}, {})"_cf, fileref->fd(), path, flags);
         if(flags & FILE_APPEND)
             fileref->seek(0, M3FS_SEEK_END);
         return fileref;

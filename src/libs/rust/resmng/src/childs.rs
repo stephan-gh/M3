@@ -24,6 +24,7 @@ use m3::env;
 use m3::errors::{Code, Error};
 use m3::format;
 use m3::goff;
+use m3::io::LogFlags;
 use m3::kif::{self, CapRngDesc, CapType, Perm};
 use m3::log;
 use m3::mem::MsgBuf;
@@ -181,7 +182,7 @@ pub trait Child {
         sessions: u32,
     ) -> Result<(), Error> {
         log!(
-            crate::LOG_SERV,
+            LogFlags::ResMngServ,
             "{}: reg_serv(srv_sel={}, sgate_sel={}, name={}, sessions={})",
             self.name(),
             srv_sel,
@@ -216,7 +217,12 @@ pub trait Child {
     }
 
     fn unreg_service(&mut self, res: &mut Resources, sel: Selector) -> Result<(), Error> {
-        log!(crate::LOG_SERV, "{}: unreg_serv(sel={})", self.name(), sel);
+        log!(
+            LogFlags::ResMngServ,
+            "{}: unreg_serv(sel={})",
+            self.name(),
+            sel
+        );
 
         let services = &mut self.res_mut().services;
         let sid = services
@@ -239,7 +245,7 @@ pub trait Child {
     ) -> Result<(), Error> {
         let (sname, sarg) = {
             log!(
-                crate::LOG_SERV,
+                LogFlags::ResMngServ,
                 "{}: open_sess(dst_sel={}, name={})",
                 self.name(),
                 dst_sel,
@@ -285,7 +291,12 @@ pub trait Child {
         id: Id,
         sel: Selector,
     ) -> Result<(), Error> {
-        log!(crate::LOG_SERV, "{}: close_sess(sel={})", self.name(), sel);
+        log!(
+            LogFlags::ResMngServ,
+            "{}: close_sess(sel={})",
+            self.name(),
+            sel
+        );
 
         let (cfg_idx, sess) = {
             let sessions = &mut self.res_mut().sessions;
@@ -303,7 +314,7 @@ pub trait Child {
 
     fn alloc_local(&mut self, size: goff, perm: Perm) -> Result<MemGate, Error> {
         log!(
-            crate::LOG_MEM,
+            LogFlags::ResMngMem,
             "{}: allocate_local(size={:#x}, perm={:?})",
             self.name(),
             size,
@@ -324,7 +335,7 @@ pub trait Child {
 
     fn alloc_mem(&mut self, dst_sel: Selector, size: goff, perm: Perm) -> Result<(), Error> {
         log!(
-            crate::LOG_MEM,
+            LogFlags::ResMngMem,
             "{}: allocate(dst_sel={}, size={:#x}, perm={:?})",
             self.name(),
             dst_sel,
@@ -367,7 +378,7 @@ pub trait Child {
         self.res_mut().mem.push((dst_sel, alloc));
         self.mem().alloc_mem(alloc.size());
         log!(
-            crate::LOG_MEM,
+            LogFlags::ResMngMem,
             "{}: added {:?} (quota left: {})",
             self.name(),
             alloc,
@@ -397,7 +408,7 @@ pub trait Child {
         }
 
         log!(
-            crate::LOG_MEM,
+            LogFlags::ResMngMem,
             "{}: removed {:?} (quota left: {})",
             self.name(),
             alloc,
@@ -414,7 +425,7 @@ pub trait Child {
         sel: Selector,
     ) -> Result<(u32, u32), Error> {
         log!(
-            crate::LOG_GATE,
+            LogFlags::ResMngGate,
             "{}: use_rgate(name={}, sel={})",
             self.name(),
             name,
@@ -435,7 +446,7 @@ pub trait Child {
     }
     fn use_sgate(&mut self, res: &Resources, name: &str, sel: Selector) -> Result<(), Error> {
         log!(
-            crate::LOG_GATE,
+            LogFlags::ResMngGate,
             "{}: use_sgate(name={}, sel={})",
             self.name(),
             name,
@@ -465,7 +476,7 @@ pub trait Child {
     }
     fn use_sem(&mut self, res: &Resources, name: &str, sel: Selector) -> Result<(), Error> {
         log!(
-            crate::LOG_SEM,
+            LogFlags::ResMngSem,
             "{}: use_sem(name={}, sel={})",
             self.name(),
             name,
@@ -483,7 +494,7 @@ pub trait Child {
     }
     fn use_mod(&mut self, res: &Resources, name: &str, sel: Selector) -> Result<(), Error> {
         log!(
-            crate::LOG_MEM,
+            LogFlags::ResMngMem,
             "{}: use_mod(name={}, sel={})",
             self.name(),
             name,
@@ -507,7 +518,7 @@ pub trait Child {
 
     fn get_serial(&mut self, sel: Selector) -> Result<(), Error> {
         log!(
-            crate::LOG_SERIAL,
+            LogFlags::ResMngSerial,
             "{}: get_serial(sel={})",
             self.name(),
             sel
@@ -530,7 +541,7 @@ pub trait Child {
         inherit_pmp: bool,
     ) -> Result<(tcu::TileId, kif::TileDesc), Error> {
         log!(
-            crate::LOG_TILES,
+            LogFlags::ResMngTiles,
             "{}: alloc_tile(sel={}, desc={:?}, inherit_pmp={})",
             self.name(),
             sel,
@@ -560,7 +571,12 @@ pub trait Child {
     }
 
     fn free_tile(&mut self, res: &Resources, sel: Selector) -> Result<(), Error> {
-        log!(crate::LOG_TILES, "{}: free_tile(sel={})", self.name(), sel);
+        log!(
+            LogFlags::ResMngTiles,
+            "{}: free_tile(sel={})",
+            self.name(),
+            sel
+        );
 
         let idx = self
             .res_mut()
@@ -576,7 +592,7 @@ pub trait Child {
     fn remove_pe_by_idx(&mut self, res: &Resources, idx: usize) -> Result<(), Error> {
         let (tile_usage, idx, ep_sel) = self.res_mut().tiles.remove(idx);
         log!(
-            crate::LOG_TILES,
+            LogFlags::ResMngTiles,
             "{}: removed tile (id={}, sel={})",
             self.name(),
             tile_usage.tile_id(),
@@ -666,7 +682,7 @@ impl OwnChild {
 
     pub fn set_running(&mut self, act: Box<dyn RunningActivity>) {
         log!(
-            crate::LOG_DEF,
+            LogFlags::Info,
             "Starting '{}' on {} with arguments {:?}",
             self.name(),
             self.child_tile().unwrap().tile_id(),
@@ -1076,7 +1092,7 @@ impl ChildManager {
             let can_kill = {
                 let child = self.child_by_id(id).unwrap();
                 if child.daemon() && child.res().services.is_empty() {
-                    log!(crate::LOG_CHILD, "Killing child '{}'", child.name());
+                    log!(LogFlags::ResMngChild, "Killing child '{}'", child.name());
                     true
                 }
                 else {
@@ -1220,7 +1236,7 @@ impl ChildManager {
         let child_name = format!("{}.{}", child.name(), name);
 
         log!(
-            crate::LOG_CHILD,
+            LogFlags::ResMngChild,
             "{}: add_child(act={}, name={}, sgate_sel={}) -> child(id={}, name={})",
             child.name(),
             act_sel,
@@ -1274,7 +1290,7 @@ impl ChildManager {
             let child = self.child_by_id_mut(id).unwrap();
 
             log!(
-                crate::LOG_CHILD,
+                LogFlags::ResMngChild,
                 "{}: rem_child(act={})",
                 child.name(),
                 act_sel
@@ -1304,7 +1320,7 @@ impl ChildManager {
         let maybe_child = self.childs.remove(&id);
 
         if let Some(mut child) = maybe_child {
-            log!(crate::LOG_CHILD, "Removing child '{}'", child.name());
+            log!(LogFlags::ResMngChild, "Removing child '{}'", child.name());
 
             // let a potential ongoing async. operation fail
             events::remove_child(id);
@@ -1334,7 +1350,7 @@ impl ChildManager {
                 self.foreigns -= 1;
             }
 
-            log!(crate::LOG_CHILD, "Removed child '{}'", child.name());
+            log!(LogFlags::ResMngChild, "Removed child '{}'", child.name());
 
             Some(child)
         }

@@ -19,6 +19,7 @@ use m3::col::Vec;
 use m3::com::{GateIStream, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
 use m3::goff;
+use m3::io::LogFlags;
 use m3::kif::{PageFlags, Perm};
 use m3::log;
 use m3::reply_vmsg;
@@ -93,7 +94,7 @@ impl AddrSpace {
         else {
             let act = act.unwrap_or_else(|| Activity::own().alloc_sel());
             log!(
-                crate::LOG_DEF,
+                LogFlags::PgReqs,
                 "[{}] pager::init(child={:?}, act={})",
                 self.id(),
                 child,
@@ -112,7 +113,7 @@ impl AddrSpace {
     }
 
     pub fn add_sgate(&mut self, rgate: &RecvGate) -> Result<Selector, Error> {
-        log!(crate::LOG_DEF, "[{}] pager::add_sgate()", self.id());
+        log!(LogFlags::PgReqs, "[{}] pager::add_sgate()", self.id());
 
         let sgate = SendGate::new_with(SGateArgs::new(rgate).label(self.id() as Label).credits(1))?;
         let sel = sgate.sel();
@@ -123,7 +124,7 @@ impl AddrSpace {
 
     pub fn clone(&mut self, is: &mut GateIStream<'_>, parent: &mut AddrSpace) -> Result<(), Error> {
         log!(
-            crate::LOG_DEF,
+            LogFlags::PgReqs,
             "[{}] pager::clone(parent={})",
             self.id(),
             parent.id()
@@ -166,7 +167,7 @@ impl AddrSpace {
         let access = Perm::from_bits_truncate(access.bits() as u32);
 
         log!(
-            crate::LOG_DEF,
+            LogFlags::PgReqs,
             "[{}] pager::pagefault(virt={:#x}, access={:#x})",
             self.id(),
             virt,
@@ -174,7 +175,7 @@ impl AddrSpace {
         );
 
         if !self.has_owner() {
-            log!(crate::LOG_DEF, "Invalid session");
+            log!(LogFlags::Error, "Invalid session");
             return Err(Error::new(Code::InvArgs));
         }
 
@@ -192,7 +193,7 @@ impl AddrSpace {
         if let Some(ds) = self.find_ds_mut(virt) {
             if (ds.perm() & access) != access {
                 log!(
-                    crate::LOG_DEF,
+                    LogFlags::Error,
                     "Access at {:#x} for {:#x} not allowed: {:#x}",
                     virt,
                     access,
@@ -204,7 +205,7 @@ impl AddrSpace {
             ds.handle_pf(childs, virt)
         }
         else {
-            log!(crate::LOG_DEF, "No dataspace at {:#x}", virt);
+            log!(LogFlags::Error, "No dataspace at {:#x}", virt);
             Err(Error::new(Code::NotFound))
         }
     }
@@ -235,7 +236,7 @@ impl AddrSpace {
         sess: Selector,
     ) -> Result<goff, Error> {
         log!(
-            crate::LOG_DEF,
+            LogFlags::PgReqs,
             "[{}] pager::map_ds(virt={:#x}, len={:#x}, perm={:?}, off={:#x}, flags={:?})",
             self.id(),
             virt,
@@ -285,7 +286,7 @@ impl AddrSpace {
         flags: MapFlags,
     ) -> Result<(), Error> {
         log!(
-            crate::LOG_DEF,
+            LogFlags::PgReqs,
             "[{}] pager::map_anon(virt={:#x}, len={:#x}, perm={:?}, flags={:?})",
             self.id(),
             virt,
@@ -319,7 +320,7 @@ impl AddrSpace {
         let perm = Perm::from_bits_truncate(args.pop()?);
 
         log!(
-            crate::LOG_DEF,
+            LogFlags::PgReqs,
             "[{}] pager::map_mem(virt={:#x}, len={:#x}, perm={:?})",
             self.id(),
             virt,
@@ -351,7 +352,7 @@ impl AddrSpace {
         let virt: goff = is.pop()?;
 
         log!(
-            crate::LOG_DEF,
+            LogFlags::PgReqs,
             "[{}] pager::unmap(virt={:#x})",
             self.id(),
             virt,
@@ -361,7 +362,7 @@ impl AddrSpace {
             self.ds.remove(idx);
         }
         else {
-            log!(crate::LOG_DEF, "No dataspace at {:#x}", virt);
+            log!(LogFlags::Error, "No dataspace at {:#x}", virt);
             return Err(Error::new(Code::NotFound));
         }
 
@@ -369,7 +370,7 @@ impl AddrSpace {
     }
 
     pub fn close(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "[{}] pager::close()", self.id());
+        log!(LogFlags::PgReqs, "[{}] pager::close()", self.id());
 
         is.reply_error(Code::Success)
     }

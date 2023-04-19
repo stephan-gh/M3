@@ -15,6 +15,7 @@
 
 use core::fmt;
 
+use base::io::LogFlags;
 use m3::cell::{LazyStaticRefCell, StaticCell};
 use m3::col::BitArray;
 use m3::log;
@@ -46,14 +47,14 @@ pub struct EphemeralPort {
 
 impl EphemeralPort {
     fn new(port: Port) -> Self {
-        log!(crate::LOG_PORTS, "ephemeral-ports: allocated {}", port);
+        log!(LogFlags::NetPorts, "ephemeral-ports: allocated {}", port);
         Self { port }
     }
 }
 
 impl Drop for EphemeralPort {
     fn drop(&mut self) {
-        log!(crate::LOG_PORTS, "ephemeral-ports: freeing {}", self.port);
+        log!(LogFlags::NetPorts, "ephemeral-ports: freeing {}", self.port);
         free(self.port);
     }
 }

@@ -25,6 +25,7 @@ use m3::com::{MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::goff;
+use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
 use m3::mem::GlobAddr;
@@ -315,7 +316,7 @@ pub fn main() -> Result<(), Error> {
 
     workloop(&mut wargs);
 
-    log!(resmng::LOG_DEF, "All childs gone. Exiting.");
+    log!(LogFlags::Info, "All childs gone. Exiting.");
 
     Ok(())
 }

@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::io::LogFlags;
 use m3::col::String;
 
 use crate::data::bitmap::Bitmap;
@@ -50,7 +51,7 @@ impl Allocator {
             blocks,
             blocksize,
         };
-        log!(crate::LOG_ALLOC, "Created {:#?}", alloc);
+        log!(LogFlags::FSAlloc, "Created {:#?}", alloc);
         alloc
     }
 
@@ -174,7 +175,7 @@ impl Allocator {
 
         let start = off - total as u32;
         log!(
-            crate::LOG_ALLOC,
+            LogFlags::FSAlloc,
             "allocator[{}]::alloc(count={}) -> {}..{}",
             self.name,
             count,
@@ -187,7 +188,7 @@ impl Allocator {
 
     pub fn free(&mut self, mut start: usize, mut count: usize) -> Result<(), Error> {
         log!(
-            crate::LOG_ALLOC,
+            LogFlags::FSAlloc,
             "allocator[{}]::free(start={}, count={})",
             self.name,
             start,

@@ -14,8 +14,8 @@
  */
 
 #include <base/Common.h>
+#include <base/EnvVars.h>
 
-#include <m3/EnvVars.h>
 #include <m3/Test.h>
 #include <m3/tiles/ChildActivity.h>
 
@@ -110,7 +110,14 @@ static void to_child() {
 }
 
 void tenvvars() {
+    // remove the potentially existing LOG variable
+    const char *log = EnvVars::get("LOG");
+    EnvVars::remove("LOG");
+
     RUN_TEST(basics);
     RUN_TEST(multi);
     RUN_TEST(to_child);
+
+    if(log)
+        EnvVars::set("LOG", log);
 }

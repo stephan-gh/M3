@@ -13,10 +13,10 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/EnvVars.h>
 #include <base/util/Math.h>
 
 #include <m3/Env.h>
-#include <m3/EnvVars.h>
 
 #include <algorithm>
 #include <assert.h>

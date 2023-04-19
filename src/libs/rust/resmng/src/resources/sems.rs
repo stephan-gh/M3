@@ -16,6 +16,7 @@
 use m3::col::{String, Vec};
 use m3::com::Semaphore;
 use m3::errors::{Code, Error};
+use m3::io::LogFlags;
 use m3::log;
 
 #[derive(Default)]
@@ -34,7 +35,12 @@ impl SemManager {
         }
 
         let sem = Semaphore::create(0)?;
-        log!(crate::LOG_SEM, "Created semaphore {} @ {}", name, sem.sel());
+        log!(
+            LogFlags::ResMngSem,
+            "Created semaphore {} @ {}",
+            name,
+            sem.sel()
+        );
         self.sems.push((name, sem));
         Ok(())
     }

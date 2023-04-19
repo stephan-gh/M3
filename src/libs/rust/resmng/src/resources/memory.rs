@@ -21,6 +21,7 @@ use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
+use m3::io::LogFlags;
 use m3::kif::Perm;
 use m3::log;
 use m3::mem::{GlobAddr, MemMap};
@@ -345,7 +346,7 @@ impl MemPool {
 
             if let Ok(addr) = s.allocate(size, align) {
                 let alloc = Allocation::new(id, addr, size);
-                log!(crate::LOG_MEM, "Allocated {:?}", alloc);
+                log!(LogFlags::ResMngMem, "Allocated {:?}", alloc);
                 return Ok(alloc);
             }
         }
@@ -354,7 +355,7 @@ impl MemPool {
 
     pub fn free(&mut self, alloc: Allocation) {
         let s = &mut self.slices[alloc.slice_id];
-        log!(crate::LOG_MEM, "Freeing {:?}", alloc);
+        log!(LogFlags::ResMngMem, "Freeing {:?}", alloc);
         if !s.mem.reserved {
             s.free(alloc.addr, alloc.size);
         }

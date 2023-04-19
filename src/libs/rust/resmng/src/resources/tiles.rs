@@ -17,6 +17,7 @@ use m3::cell::{Cell, RefCell};
 use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
+use m3::io::LogFlags;
 use m3::kif::{Perm, TileDesc};
 use m3::log;
 use m3::rc::Rc;
@@ -118,7 +119,7 @@ impl TileUsage {
         let tile = self.tile_obj().derive(eps, time, pts)?;
         let _quota = tile.quota().unwrap();
         log!(
-            crate::LOG_TILES,
+            LogFlags::ResMngTiles,
             "Deriving {}: (eps={}, time={}, pts={})",
             self.tile_id(),
             _quota.endpoints(),
@@ -179,7 +180,7 @@ impl TileManager {
         if let Some(idx) = usage.idx {
             if self.tiles[idx].add_user() == 0 {
                 log!(
-                    crate::LOG_TILES,
+                    LogFlags::ResMngTiles,
                     "Allocating {}: {:?} (eps={})",
                     self.tiles[idx].id,
                     self.tiles[idx].tile.desc(),
@@ -193,7 +194,7 @@ impl TileManager {
         if let Some(idx) = usage.idx {
             if self.tiles[idx].remove_user() == 1 {
                 log!(
-                    crate::LOG_TILES,
+                    LogFlags::ResMngTiles,
                     "Freeing {}: {:?}",
                     self.tiles[idx].id,
                     self.tiles[idx].tile.desc()
@@ -214,7 +215,7 @@ impl TileManager {
                 return Ok(TileUsage::new(id, tile.tile.clone(), tile.pmp.clone()));
             }
         }
-        log!(crate::LOG_TILES, "Unable to find tile with {:?}", desc);
+        log!(LogFlags::ResMngTiles, "Unable to find tile with {:?}", desc);
         Err(Error::new(Code::NotFound))
     }
 
@@ -225,7 +226,7 @@ impl TileManager {
             }
         }
         log!(
-            crate::LOG_TILES,
+            LogFlags::ResMngTiles,
             "Unable to find tile with attributes {}",
             attr
         );

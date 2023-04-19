@@ -18,6 +18,7 @@ use crate::data::ExtPos;
 use crate::ops::{dirs, inodes};
 use crate::sess::{FileSession, M3FSSession};
 
+use base::io::LogFlags;
 use m3::{
     cap::Selector,
     cell::StaticCell,
@@ -117,7 +118,7 @@ impl MetaSession {
         let path: &str = args.pop()?;
 
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] meta::open(path={}, flags={:?})",
             self.session_id,
             path,
@@ -131,7 +132,7 @@ impl MetaSession {
         data.out_caps(session.caps());
 
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] meta::open(path={}, flags={:?}) -> inode={}, sid={}",
             self.session_id,
             path,
@@ -164,7 +165,7 @@ impl MetaSession {
             || (flags.contains(OpenFlags::R) && !inode_mode.contains(FileMode::IRUSR))
         {
             log!(
-                crate::LOG_SESSION,
+                LogFlags::FSSess,
                 "insufficient permissions: flags={:o}, mode={:o}",
                 flags,
                 inode.mode,
@@ -257,7 +258,7 @@ impl M3FSSession for MetaSession {
         let path: &str = stream.pop()?;
 
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] meta::stat(path={})",
             self.session_id,
             path
@@ -278,7 +279,7 @@ impl M3FSSession for MetaSession {
         let mode = FileMode::from_bits_truncate(stream.pop::<u16>()?) & FileMode::PERM;
 
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] meta::mkdir(path={}, mode={:o})",
             self.session_id,
             path,
@@ -294,7 +295,7 @@ impl M3FSSession for MetaSession {
         let path: &str = stream.pop()?;
 
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] meta::rmdir(path={})",
             self.session_id,
             path
@@ -310,7 +311,7 @@ impl M3FSSession for MetaSession {
         let new_path: &str = stream.pop()?;
 
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] meta::link(old_path={}, new_path: {})",
             self.session_id,
             old_path,
@@ -326,7 +327,7 @@ impl M3FSSession for MetaSession {
         let path: &str = stream.pop()?;
 
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] meta::unlink(path={})",
             self.session_id,
             path
@@ -342,7 +343,7 @@ impl M3FSSession for MetaSession {
         let new_path: &str = stream.pop()?;
 
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] meta::rename(old_path={}, new_path: {})",
             self.session_id,
             old_path,
@@ -360,7 +361,7 @@ impl M3FSSession for MetaSession {
         let ep = stream.pop::<usize>()?;
 
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] meta::open_priv(path={}, flags={:?}, ep={})",
             self.session_id,
             path,
@@ -376,7 +377,7 @@ impl M3FSSession for MetaSession {
         NEXT_PRIV_ID.set(id + 1);
 
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] meta::open_priv(path={}, flags={:?}) -> inode={}, sid={}",
             self.session_id,
             path,

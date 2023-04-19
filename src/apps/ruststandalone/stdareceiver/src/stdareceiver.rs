@@ -24,14 +24,11 @@ mod helper;
 mod paging;
 
 use base::cpu::{CPUOps, CPU};
+use base::io::LogFlags;
 use base::log;
 use base::mem::MsgBuf;
 use base::tcu::{self, EpId, TCU};
 use base::util::math;
-
-const LOG_DEF: bool = true;
-const LOG_DETAIL: bool = false;
-const LOG_TMCALLS: bool = false;
 
 const OWN_ACT: u16 = 0xFFFF;
 const CREDITS: usize = 4;
@@ -58,7 +55,7 @@ pub extern "C" fn env_run() {
     let mut buf = MsgBuf::new();
     buf.set::<u64>(0);
 
-    log!(crate::LOG_DEF, "Hello World from receiver!");
+    log!(LogFlags::Info, "Hello World from receiver!");
 
     for recv in 0..SENDS * 7 {
         // wait for message
@@ -68,14 +65,14 @@ pub extern "C" fn env_run() {
             }
         };
         assert_eq!(rmsg.header.label(), 0x1234);
-        log!(crate::LOG_DETAIL, "got message {}", rmsg.as_words()[0]);
+        log!(LogFlags::Debug, "got message {}", rmsg.as_words()[0]);
 
         // send reply
         TCU::reply(REP, &buf, TCU::msg_to_offset(rbuf_virt, rmsg)).unwrap();
         buf.set(buf.get::<u64>() + 1);
 
         if recv % 1000 == 0 {
-            log!(crate::LOG_DEF, "Received {} messages", recv);
+            log!(LogFlags::Info, "Received {} messages", recv);
         }
     }
 
@@ -83,6 +80,6 @@ pub extern "C" fn env_run() {
     let begin = CPU::elapsed_cycles();
     while CPU::elapsed_cycles() < begin + 100000 {}
 
-    log!(crate::LOG_DEF, "Shutting down");
+    log!(LogFlags::Info, "Shutting down");
     helper::exit(0);
 }

@@ -20,6 +20,7 @@ use crate::data::{ExtPos, Extent, INodeRef, InodeNo};
 use crate::ops::inodes;
 use crate::sess::M3FSSession;
 
+use base::io::LogFlags;
 use m3::{
     cap::Selector,
     col::{String, ToString, Vec},
@@ -189,7 +190,7 @@ impl FileSession {
         rgate: &RecvGate,
     ) -> Result<Self, Error> {
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] file::clone(path={})",
             self.session_id,
             self.filename
@@ -218,7 +219,7 @@ impl FileSession {
         let offset: u32 = data.in_args().pop()?;
 
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] file::get_mem(path={}, offset={})",
             self.session_id,
             self.filename,
@@ -244,7 +245,7 @@ impl FileSession {
         data.out_args().push(len);
 
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] file::get_mem(path={}, offset={}) -> {}",
             self.session_id,
             self.filename,
@@ -299,7 +300,7 @@ impl FileSession {
 
     pub fn file_in_out(&mut self, is: &mut GateIStream<'_>, out: bool) -> Result<(), Error> {
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] file::next_{}(); file[path={}, fileoff={}, pos={:?}]",
             self.session_id,
             if out { "out" } else { "in" },
@@ -330,7 +331,7 @@ impl FileSession {
 
             if open_file.appending() {
                 log!(
-                    crate::LOG_SESSION,
+                    LogFlags::FSSess,
                     "[{}] file::next_in_out(): append already in progress!",
                     self.session_id,
                 );
@@ -405,7 +406,7 @@ impl FileSession {
         self.cur_bytes = len - capoff;
 
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] file::next_{}() -> ({:?}, {})",
             self.session_id,
             if out { "out" } else { "in" },
@@ -426,7 +427,7 @@ impl FileSession {
         let whence = SeekMode::from(stream.pop::<u32>()?);
 
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] file::seek(path={}, off={}, whence={})",
             self.session_id,
             self.filename,
@@ -448,7 +449,7 @@ impl FileSession {
 
     pub fn file_stat(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] file::fstat(path={})",
             self.session_id,
             self.filename
@@ -464,7 +465,7 @@ impl FileSession {
 
     pub fn file_path(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] file::get_path(path={})",
             self.session_id,
             self.filename
@@ -477,7 +478,7 @@ impl FileSession {
         let off: usize = stream.pop()?;
 
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] file::truncate(path={}, off={})",
             self.session_id,
             self.filename,
@@ -511,7 +512,7 @@ impl FileSession {
         let nbytes: usize = stream.pop()?;
 
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] file::commit(nbytes={}); file[path={}, fileoff={}, next={:?}]",
             self.session_id,
             nbytes,
@@ -549,7 +550,7 @@ impl FileSession {
 
     fn commit_append(&mut self, inode: &INodeRef, submit: usize) -> Result<(), Error> {
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] file::commit_append(inode={}, submit={})",
             self.session_id,
             inode.inode,
@@ -613,7 +614,7 @@ impl FileSession {
     }
 
     pub fn file_sync(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
-        log!(crate::LOG_SESSION, "[{}] file::sync()", self.session_id,);
+        log!(LogFlags::FSSess, "[{}] file::sync()", self.session_id,);
 
         crate::flush_buffer()?;
         stream.reply_error(Code::Success)
@@ -623,7 +624,7 @@ impl FileSession {
 impl Drop for FileSession {
     fn drop(&mut self) {
         log!(
-            crate::LOG_SESSION,
+            LogFlags::FSSess,
             "[{}] file::close(path={})",
             self.session_id,
             self.filename

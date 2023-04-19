@@ -15,7 +15,8 @@
 
 #include "Input.h"
 
-#include <m3/EnvVars.h>
+#include <base/EnvVars.h>
+
 #include <m3/stream/Standard.h>
 #include <m3/vfs/Dir.h>
 

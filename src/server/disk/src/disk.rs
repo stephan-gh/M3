@@ -26,6 +26,7 @@ use m3::col::Vec;
 use m3::com::{GateIStream, MemGate, SGateArgs, SendGate};
 use m3::env;
 use m3::errors::{Code, Error};
+use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
 use m3::server::{
@@ -38,9 +39,6 @@ use m3::tiles::Activity;
 
 use backend::BlockDevice;
 use gem5::IDEBlockDevice;
-
-pub const LOG_DEF: bool = false;
-pub const LOG_ALL: bool = false;
 
 // we can only read 255 sectors (<31 blocks) at once (see ata.cc ata_setupCommand)
 // and the max DMA size is 0x10000 in gem5
@@ -82,7 +80,7 @@ impl DiskSession {
         let mut off: usize = is.pop()?;
 
         log!(
-            crate::LOG_DEF,
+            LogFlags::DiskReqs,
             "[{}] disk::{}(cap={}, start={}, len={}, block_size={}, off={})",
             self.sess.ident(),
             name,
@@ -146,7 +144,12 @@ impl Handler<DiskSession> for DiskHandler {
         }
 
         self.sessions.add_next(crt, srv_sel, false, |sess| {
-            log!(crate::LOG_DEF, "[{}] disk::open(dev={})", sess.ident(), dev);
+            log!(
+                LogFlags::DiskReqs,
+                "[{}] disk::open(dev={})",
+                sess.ident(),
+                dev
+            );
             Ok(DiskSession {
                 sess,
                 part: dev,
@@ -166,7 +169,7 @@ impl Handler<DiskSession> for DiskHandler {
             return Err(Error::new(Code::InvArgs));
         }
 
-        log!(crate::LOG_DEF, "[{}] disk::get_sgate()", sid);
+        log!(LogFlags::DiskReqs, "[{}] disk::get_sgate()", sid);
 
         let sess = self.sessions.get_mut(sid).unwrap();
         let sgate = SendGate::new_with(
@@ -195,7 +198,7 @@ impl Handler<DiskSession> for DiskHandler {
         let len: u32 = xchg.in_args().pop()?;
 
         log!(
-            crate::LOG_DEF,
+            LogFlags::DiskReqs,
             "[{}] disk::add_mem(bno={}, len={})",
             sid,
             bno,
@@ -213,7 +216,7 @@ impl Handler<DiskSession> for DiskHandler {
     }
 
     fn close(&mut self, crt: usize, sid: SessId) {
-        log!(crate::LOG_DEF, "[{}] disk::close()", sid);
+        log!(LogFlags::DiskReqs, "[{}] disk::close()", sid);
         self.sessions.remove(crt, sid);
     }
 }

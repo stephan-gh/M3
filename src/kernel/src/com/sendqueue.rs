@@ -17,6 +17,8 @@ use base::boxed::Box;
 use base::cell::{LazyStaticRefCell, StaticCell};
 use base::col::VecDeque;
 use base::errors::{Code, Error};
+use base::io::LogFlags;
+use base::log;
 use base::mem::MsgBuf;
 use base::msgqueue::{MsgQueue, MsgSender};
 use base::tcu::{self, ActId, TileId};
@@ -31,7 +33,11 @@ static PENDING_MSGS: StaticCell<usize> = StaticCell::new(0);
 fn delay_queue(queue: &mut SendQueue) {
     if !queue.pending {
         queue.pending = true;
-        klog!(SQUEUE, "SendQueue[{:?}]: delaying", queue.id());
+        log!(
+            LogFlags::KernSQueue,
+            "SendQueue[{:?}]: delaying",
+            queue.id()
+        );
         PENDING_QUEUES.borrow_mut().push_back(queue as *mut _);
     }
 }
@@ -42,7 +48,7 @@ fn resume_queue() {
         // thus, whenever a queue is found here, it is still alive (and has messages pending) and
         // therefore safe to access
         unsafe {
-            klog!(SQUEUE, "SendQueue[{:?}]: resuming", (*q).id());
+            log!(LogFlags::KernSQueue, "SendQueue[{:?}]: resuming", (*q).id());
             (*q).pending = false;
             (*q).queue.send_pending();
         }
@@ -51,7 +57,11 @@ fn resume_queue() {
 
 fn remove_queue(queue: &mut SendQueue) {
     if queue.pending {
-        klog!(SQUEUE, "SendQueue[{:?}]: removing", queue.id());
+        log!(
+            LogFlags::KernSQueue,
+            "SendQueue[{:?}]: removing",
+            queue.id()
+        );
         PENDING_QUEUES
             .borrow_mut()
             .retain(|q| *q != queue as *mut _);
@@ -85,7 +95,11 @@ impl MsgSender<MetaData> for KTCUSender {
     }
 
     fn send(&mut self, meta: MetaData, msg: &MsgBuf) -> Result<(), Error> {
-        klog!(SQUEUE, "SendQueue[{:?}]: sending msg", self.id);
+        log!(
+            LogFlags::KernSQueue,
+            "SendQueue[{:?}]: sending msg",
+            self.id
+        );
 
         ktcu::send_to(
             self.tile,
@@ -150,7 +164,11 @@ impl SendQueue {
         lbl: tcu::Label,
         msg: &MsgBuf,
     ) -> Result<thread::Event, Error> {
-        klog!(SQUEUE, "SendQueue[{:?}]: trying to send msg", self.id());
+        log!(
+            LogFlags::KernSQueue,
+            "SendQueue[{:?}]: trying to send msg",
+            self.id()
+        );
 
         if self.aborted {
             return Err(Error::new(Code::RecvGone));
@@ -159,7 +177,11 @@ impl SendQueue {
         let id = alloc_qid();
 
         if !self.queue.send(MetaData { id, rep, lbl }, msg)? {
-            klog!(SQUEUE, "SendQueue[{:?}]: queuing msg", self.id());
+            log!(
+                LogFlags::KernSQueue,
+                "SendQueue[{:?}]: queuing msg",
+                self.id()
+            );
             if self.queue.sender().cur_event.is_none() {
                 delay_queue(self);
             }
@@ -174,7 +196,11 @@ impl SendQueue {
     }
 
     pub fn received_reply(&mut self, msg: &'static tcu::Message) {
-        klog!(SQUEUE, "SendQueue[{:?}]: received reply", self.id());
+        log!(
+            LogFlags::KernSQueue,
+            "SendQueue[{:?}]: received reply",
+            self.id()
+        );
 
         if let Some(ev) = self.queue.sender_mut().cur_event.take() {
             thread::notify(ev, Some(msg));
@@ -190,7 +216,7 @@ impl SendQueue {
     }
 
     pub fn abort(&mut self) {
-        klog!(SQUEUE, "SendQueue[{:?}]: aborting", self.id());
+        log!(LogFlags::KernSQueue, "SendQueue[{:?}]: aborting", self.id());
 
         remove_queue(self);
         if let Some(ev) = self.queue.sender_mut().cur_event.take() {

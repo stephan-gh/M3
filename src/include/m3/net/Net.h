@@ -18,8 +18,8 @@
 #pragma once
 
 #include <base/Common.h>
+#include <base/Log.h>
 #include <base/col/SList.h>
-#include <base/log/Lib.h>
 
 #include <m3/Exception.h>
 

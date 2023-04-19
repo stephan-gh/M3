@@ -23,14 +23,11 @@ mod helper;
 #[path = "../../vmtest/src/paging.rs"]
 mod paging;
 
+use base::io::LogFlags;
 use base::log;
 use base::mem::MsgBuf;
 use base::tcu::{EpId, TileId, FIRST_USER_EP, TCU};
 use base::util::math;
-
-const LOG_DEF: bool = true;
-const LOG_DETAIL: bool = false;
-const LOG_TMCALLS: bool = false;
 
 const OWN_ACT: u16 = 0xFFFF;
 
@@ -65,12 +62,12 @@ pub extern "C" fn env_run() {
     let mut msg = MsgBuf::new();
     msg.set::<u64>(0);
 
-    log!(crate::LOG_DEF, "Hello World from sender!");
-    log!(crate::LOG_DEF, "Starting sends!");
+    log!(LogFlags::Info, "Hello World from sender!");
+    log!(LogFlags::Info, "Starting sends!");
 
     // initial send; wait until receiver is ready
     while let Err(e) = TCU::send(SEP, &msg, 0x2222, REP) {
-        log!(crate::LOG_DEF, "send failed: {}", e);
+        log!(LogFlags::Info, "send failed: {}", e);
         // get credits back
         helper::config_local_ep(SEP, |regs| {
             TCU::config_send(regs, OWN_ACT, 0x1234, DST_TILE, DST_EP, 6, CREDITS);
@@ -83,7 +80,7 @@ pub extern "C" fn env_run() {
         // received reply?
         while let Some(m) = helper::fetch_msg(REP, rbuf_virt) {
             assert_eq!(m.header.label(), 0x2222);
-            log!(crate::LOG_DETAIL, "got reply {}", m.as_words()[0]);
+            log!(LogFlags::Debug, "got reply {}", m.as_words()[0]);
 
             // ack reply
             TCU::ack_msg(REP, TCU::msg_to_offset(rbuf_virt, m)).unwrap();

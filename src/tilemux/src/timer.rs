@@ -15,6 +15,7 @@
 
 use base::cell::StaticRefCell;
 use base::col::Vec;
+use base::io::LogFlags;
 use base::kif;
 use base::log;
 use base::tcu;
@@ -37,7 +38,7 @@ pub fn add(act: activities::Id, duration: TimeDuration) {
     };
 
     log!(
-        crate::LOG_TIMER,
+        LogFlags::MuxTimer,
         "timer: blocking Activity {} for {} ns (until {:?})",
         act,
         duration.as_nanos(),
@@ -57,7 +58,7 @@ pub fn add(act: activities::Id, duration: TimeDuration) {
 }
 
 pub fn remove(act: activities::Id) {
-    log!(crate::LOG_TIMER, "timer: removing Activity {}", act);
+    log!(LogFlags::MuxTimer, "timer: removing Activity {}", act);
     LIST.borrow_mut().retain(|t| t.act != act);
     crate::reg_timer_reprogram();
 }
@@ -99,7 +100,7 @@ pub fn reprogram() {
         },
     };
 
-    log!(crate::LOG_TIMER, "timer: setting timer to {:?}", timeout);
+    log!(LogFlags::MuxTimer, "timer: setting timer to {:?}", timeout);
     tcu::TCU::set_timer(timeout.as_nanos() as u64).unwrap();
 }
 
@@ -114,7 +115,7 @@ pub fn trigger() {
     while !list.is_empty() && now >= list[list.len() - 1].end {
         let timeout = list.pop().unwrap();
         log!(
-            crate::LOG_TIMER,
+            LogFlags::MuxTimer,
             "timer: unblocking Activity {} @ {:?}",
             timeout.act,
             now

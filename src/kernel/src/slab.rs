@@ -14,7 +14,9 @@
  */
 
 use base::cell::LazyStaticRefCell;
+use base::io::LogFlags;
 use base::libc;
+use base::log;
 use base::mem;
 use core::ptr::{self, NonNull};
 
@@ -162,8 +164,8 @@ extern "C" fn __rdl_alloc(size: usize, _align: usize, _err: *mut u8) -> *mut lib
         SLAB_ALL.borrow_mut()
     };
     let res = unsafe { slab.alloc(size) };
-    klog!(
-        SLAB,
+    log!(
+        LogFlags::KernSlab,
         "alloc(sz={}, s={:?}) -> {:#x}",
         size,
         slab.size,
@@ -176,7 +178,12 @@ extern "C" fn __rdl_alloc(size: usize, _align: usize, _err: *mut u8) -> *mut lib
 unsafe extern "C" fn __rdl_dealloc(ptr: *mut libc::c_void, _size: usize, _align: usize) {
     let area = get_area(ptr);
     let slab = &mut *(*area).slab.as_ptr();
-    klog!(SLAB, "free(p={:#x}, s={:?})", ptr as usize, slab.size);
+    log!(
+        LogFlags::KernSlab,
+        "free(p={:#x}, s={:?})",
+        ptr as usize,
+        slab.size
+    );
     slab.free(area);
 }
 
@@ -192,8 +199,8 @@ unsafe extern "C" fn __rdl_realloc(
     let area = get_area(ptr);
     let slab = &mut *(*area).slab.as_ptr();
     let res = slab.realloc(area, old_size, new_size);
-    klog!(
-        SLAB,
+    log!(
+        LogFlags::KernSlab,
         "realloc(p={:#x}, newsz={}, s={:?}) -> {:#x}",
         ptr as usize,
         new_size,
@@ -206,8 +213,8 @@ unsafe extern "C" fn __rdl_realloc(
 #[no_mangle]
 extern "C" fn __rdl_alloc_zeroed(size: usize, _align: usize, _err: *mut u8) -> *mut libc::c_void {
     let res = unsafe { SLAB_ALL.borrow_mut().calloc(size) };
-    klog!(
-        SLAB,
+    log!(
+        LogFlags::KernSlab,
         "calloc(sz={}, s={:?}) -> {:#x}",
         size,
         SLAB_ALL.borrow().size,

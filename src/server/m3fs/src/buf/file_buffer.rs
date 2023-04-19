@@ -22,6 +22,7 @@ use core::cmp;
 use core::fmt;
 use core::ptr::NonNull;
 
+use base::io::LogFlags;
 use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::col::{BoxList, Treap};
@@ -67,7 +68,7 @@ impl FileBufferEntry {
         if self.dirty {
             self.locked = true;
             log!(
-                crate::LOG_BUFFER,
+                LogFlags::FSBuf,
                 "filebuffer: writing back blocks <{:?}>",
                 self.blocks,
             );
@@ -144,7 +145,7 @@ impl FileBuffer {
         mut load: Option<&mut LoadLimit>,
     ) -> Result<usize, Error> {
         log!(
-            crate::LOG_BUFFER,
+            LogFlags::FSBuf,
             "filebuffer::get_extent(bno={}, size={}, sel={}, load={:?})",
             bno,
             size,
@@ -165,7 +166,7 @@ impl FileBuffer {
                 if head.locked {
                     // wait for block to unlock
                     log!(
-                        crate::LOG_BUFFER,
+                        LogFlags::FSBuf,
                         "filebuffer: waiting for cached blocks <{:?}>",
                         head.blocks,
                     );
@@ -178,7 +179,7 @@ impl FileBuffer {
                     }
 
                     log!(
-                        crate::LOG_BUFFER,
+                        LogFlags::FSBuf,
                         "filebuffer: found cached blocks <{:?}>",
                         head.blocks,
                     );
@@ -219,7 +220,7 @@ impl FileBuffer {
             if head.locked {
                 // wait for block to be evicted
                 log!(
-                    crate::LOG_BUFFER,
+                    LogFlags::FSBuf,
                     "filebuffer: waiting for eviction of blocks <{:?}>",
                     head.blocks,
                 );
@@ -228,7 +229,7 @@ impl FileBuffer {
             else {
                 // remove from treap
                 log!(
-                    crate::LOG_BUFFER,
+                    LogFlags::FSBuf,
                     "filebuffer: evict blocks <{:?}>",
                     head.blocks
                 );
@@ -259,7 +260,7 @@ impl FileBuffer {
         self.size += new_head.blocks.count as usize;
 
         log!(
-            crate::LOG_BUFFER,
+            LogFlags::FSBuf,
             "filebuffer: allocated blocks <{:?}>{}",
             new_head.blocks,
             if load.is_some() { " (loading)" } else { "" }

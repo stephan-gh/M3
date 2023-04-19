@@ -15,7 +15,9 @@
 
 use base::build_vmsg;
 use base::errors::{Code, Error};
+use base::io::LogFlags;
 use base::kif;
+use base::log;
 use base::mem;
 use base::rc::Rc;
 use base::serialize::{Deserialize, M3Deserializer};
@@ -28,8 +30,8 @@ use crate::tiles::ActivityMng;
 #[macro_export]
 macro_rules! sysc_log {
     ($act:expr, $fmt:tt, $($args:tt)*) => (
-        klog!(
-            SYSC,
+        $crate::log!(
+            base::io::LogFlags::KernSysc,
             concat!("{}:{}@{}: syscall::", $fmt),
             $act.id(), $act.name(), $act.tile_id(), $($args)*
         )
@@ -153,8 +155,8 @@ pub fn handle_async(msg: &'static tcu::Message) {
     };
 
     if let Err(e) = res {
-        klog!(
-            ERR,
+        log!(
+            LogFlags::Error,
             "\x1B[37;41m{}:{}@{}: {:?} failed: {} ({:?})\x1B[0m",
             act.id(),
             act.name(),

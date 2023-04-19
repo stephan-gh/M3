@@ -18,6 +18,7 @@ use base::cell::StaticCell;
 use base::cell::StaticRefCell;
 use base::col::Vec;
 use base::errors::{Code, Error};
+use base::io::LogFlags;
 use base::kif;
 use base::log;
 use base::rc::Rc;
@@ -153,7 +154,7 @@ pub fn set(id: Id, time: TimeDuration, pts: usize) -> Result<(), Error> {
     let ppt = get_pt(id).ok_or_else(|| Error::new(Code::InvArgs))?;
 
     log!(
-        crate::LOG_QUOTAS,
+        LogFlags::MuxQuotas,
         "quota::set(id={}, time={}, ppt={})",
         id,
         time.as_nanos(),
@@ -162,7 +163,7 @@ pub fn set(id: Id, time: TimeDuration, pts: usize) -> Result<(), Error> {
 
     ptime.total.set(time.as_nanos() as u64);
     ptime.left.set(time.as_nanos() as u64);
-    log!(crate::LOG_QUOTAS, "time-quota: {:?}", ptime);
+    log!(LogFlags::MuxQuotas, "time-quota: {:?}", ptime);
 
     if pts > ppt.total() {
         ppt.left.set(ppt.left() + (pts - ppt.total()));
@@ -171,7 +172,7 @@ pub fn set(id: Id, time: TimeDuration, pts: usize) -> Result<(), Error> {
         ppt.left.set(ppt.left() - (ppt.total() - pts));
     }
     ppt.total.set(pts);
-    log!(crate::LOG_QUOTAS, "pt-quota: {:?}", ppt);
+    log!(LogFlags::MuxQuotas, "pt-quota: {:?}", ppt);
 
     Ok(())
 }
@@ -186,7 +187,7 @@ pub fn derive(
     let ppt = get_pt(parent_pts).ok_or_else(|| Error::new(Code::InvArgs))?;
 
     log!(
-        crate::LOG_QUOTAS,
+        LogFlags::MuxQuotas,
         "quota::derive(ptime={}, ppt={}, time={:?}, pts={:?})",
         parent_time,
         parent_pts,
@@ -208,7 +209,7 @@ pub fn derive(
 
         let ctime = ptime.derive(t.as_nanos() as u64)?;
         log!(
-            crate::LOG_QUOTAS,
+            LogFlags::MuxQuotas,
             "time-quota: parent={:?}, child={:?}",
             ptime,
             ctime
@@ -230,7 +231,7 @@ pub fn derive(
 
         let cpt = ppt.derive(p)?;
         log!(
-            crate::LOG_QUOTAS,
+            LogFlags::MuxQuotas,
             "pt-quota: parent={:?}, child={:?}",
             ppt,
             cpt
@@ -247,7 +248,7 @@ pub fn derive(
 
 pub fn remove(time: Option<Id>, pts: Option<Id>) -> Result<(), Error> {
     log!(
-        crate::LOG_QUOTAS,
+        LogFlags::MuxQuotas,
         "quota::remove(time={:?}, pt={:?})",
         time,
         pts
@@ -256,7 +257,7 @@ pub fn remove(time: Option<Id>, pts: Option<Id>) -> Result<(), Error> {
     if let Some(id) = time {
         assert!(id > kif::tilemux::DEF_QUOTA_ID);
         let time = get_time(id).ok_or_else(|| Error::new(Code::InvArgs))?;
-        log!(crate::LOG_QUOTAS, "time-quota: removing {:?}", time);
+        log!(LogFlags::MuxQuotas, "time-quota: removing {:?}", time);
         // give quota back to parent object
         if let Some(parent) = time.parent {
             let ptime = get_time(parent).unwrap();
@@ -268,7 +269,7 @@ pub fn remove(time: Option<Id>, pts: Option<Id>) -> Result<(), Error> {
     if let Some(id) = pts {
         assert!(id > kif::tilemux::DEF_QUOTA_ID);
         let pt = get_pt(id).ok_or_else(|| Error::new(Code::InvArgs))?;
-        log!(crate::LOG_QUOTAS, "pt-quota: removing {:?}", pt);
+        log!(LogFlags::MuxQuotas, "pt-quota: removing {:?}", pt);
         if let Some(parent) = pt.parent {
             assert!(pt.left == pt.total);
             let ppt = get_pt(parent).unwrap();

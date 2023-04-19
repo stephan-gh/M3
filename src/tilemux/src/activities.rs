@@ -20,6 +20,7 @@ use base::col::{BoxList, Vec};
 use base::errors::{Code, Error};
 use base::goff;
 use base::impl_boxitem;
+use base::io::LogFlags;
 use base::kif;
 use base::log;
 use base::mem::{size_of, GlobAddr, MsgBuf};
@@ -63,7 +64,7 @@ impl Allocator for PTAllocator {
         if let Some(pt) = pt {
             self.quota.set_left(self.quota.left() - 1);
             log!(
-                crate::LOG_PTS,
+                LogFlags::MuxPTs,
                 "Alloc PT {:#x} (quota[{}]: {}, total: {})",
                 pt,
                 self.quota.id(),
@@ -88,7 +89,7 @@ impl Allocator for PTAllocator {
 
     fn free_pt(&mut self, phys: Phys) {
         log!(
-            crate::LOG_PTS,
+            LogFlags::MuxPTs,
             "Free PT {:#x} (quota[{}]: {}, free: {})",
             phys,
             self.quota.id(),
@@ -293,7 +294,7 @@ pub fn add(
     pt_quota: quota::Id,
     eps_start: tcu::EpId,
 ) -> Result<(), Error> {
-    log!(crate::LOG_ACTS, "Created Activity {}", id);
+    log!(LogFlags::MuxActs, "Created Activity {}", id);
 
     let time_quota = quota::get_time(time_quota).unwrap();
     if time_quota.total() == 0 {
@@ -490,7 +491,7 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
     // safety: we do no longer hold a reference to `own`
     if let Some(mut old) = unsafe { CUR.set(Some(next)) } {
         log!(
-            crate::LOG_CTXSWS,
+            LogFlags::MuxCtxSws,
             "Switching from {} (budget {}) to {} (budget {}): {:?} old Activity",
             old.id(),
             old.time_quota.left(),
@@ -528,7 +529,7 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
     }
     else {
         log!(
-            crate::LOG_CTXSWS,
+            LogFlags::MuxCtxSws,
             "Switching to {} (budget {})",
             next_id,
             next_budget
@@ -572,7 +573,7 @@ pub fn remove(id: Id, status: Code, notify: bool, sched: bool) {
         // we now can't access `v` anymore
 
         log!(
-            crate::LOG_ACTS,
+            LogFlags::MuxActs,
             "Removed Activity {} with status {:?}",
             old.id(),
             status
@@ -732,7 +733,7 @@ impl Activity {
             self.cpu_time
         };
         log!(
-            crate::LOG_ACTS,
+            LogFlags::MuxActs,
             "Activity{} consumed {:?} CPU time and was suspended {} times",
             self.id(),
             old_time,
@@ -773,7 +774,7 @@ impl Activity {
         timeout: Option<TimeDuration>,
     ) {
         log!(
-            crate::LOG_CTXSWS,
+            LogFlags::MuxCtxSws,
             "Block Activity {} for ep={:?}, irq={:?}, timeout={:?}",
             self.id(),
             ep,
@@ -814,7 +815,7 @@ impl Activity {
 
     pub fn unblock(&mut self, event: Event) -> bool {
         log!(
-            crate::LOG_CTXSWS,
+            LogFlags::MuxCtxSws,
             "Trying to unblock Activity {} for event={:?}",
             self.id(),
             event
@@ -1063,7 +1064,7 @@ impl Drop for Activity {
         }
 
         log!(
-            crate::LOG_ACTS,
+            LogFlags::MuxActs,
             "Destroyed Activity {} ({:?} CPU time, {} context switches)",
             self.id(),
             self.cpu_time,

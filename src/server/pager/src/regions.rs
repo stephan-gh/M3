@@ -24,6 +24,7 @@ use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
+use m3::io::LogFlags;
 use m3::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
 use m3::log;
 use m3::rc::Rc;
@@ -161,7 +162,7 @@ impl Region {
                 let mut ngate = child.alloc_local(self.size, Perm::RWX)?;
 
                 log!(
-                    crate::LOG_DEF,
+                    LogFlags::PgMem,
                     "Copying memory {:#x}..{:#x} from {} (we are {})",
                     self.ds_off + self.off,
                     self.ds_off + self.off + self.size - 1,

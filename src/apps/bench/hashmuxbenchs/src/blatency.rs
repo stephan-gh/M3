@@ -18,6 +18,7 @@ use m3::cap::Selector;
 use m3::col::Vec;
 use m3::com::{MemGate, Perm, Semaphore};
 use m3::crypto::HashAlgorithm;
+use m3::io::LogFlags;
 use m3::session::HashSession;
 use m3::test::WvTester;
 use m3::tiles::{Activity, ChildActivity, RunningActivity, RunningProgramActivity, Tile};
@@ -26,7 +27,6 @@ use m3::{format, log, println, wv_assert_ok, wv_perf, wv_run_test};
 
 const TEST_ALGO: &HashAlgorithm = &HashAlgorithm::SHA3_256;
 const SLOW_ALGO: &HashAlgorithm = &HashAlgorithm::SHA3_512;
-const LOG_DEBUG: bool = true;
 
 pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, small_client_latency);
@@ -38,7 +38,7 @@ struct Client {
 }
 
 fn _start_background_client(num: usize, mgate: &MemGate, sem: &Semaphore, size: usize) -> Client {
-    log!(LOG_DEBUG, "Starting client {}", num);
+    log!(LogFlags::Info, "Starting client {}", num);
 
     let tile = wv_assert_ok!(Tile::new(Activity::own().tile_desc()));
     let mut act = wv_assert_ok!(ChildActivity::new(tile, &format!("hash-c{}", num)));
@@ -70,7 +70,7 @@ fn _start_background_client(num: usize, mgate: &MemGate, sem: &Semaphore, size: 
             wv_assert_ok!(sem.up());
 
             loop {
-                log!(LOG_DEBUG, "Starting to hash {} bytes", size);
+                log!(LogFlags::Info, "Starting to hash {} bytes", size);
                 wv_assert_ok!(hash.input(0, size));
             }
         })),
@@ -101,7 +101,7 @@ fn _bench_latency(mgate: &MemGate, size: usize) -> Results<CycleDuration> {
         {
             // Spin for the chosen amount of time
             let end = TimeInstant::now() + TimeDuration::from_nanos(wait);
-            log!(LOG_DEBUG, "Waiting {} ns", wait);
+            log!(LogFlags::Info, "Waiting {} ns", wait);
             while TimeInstant::now() < end {}
         }
 
@@ -120,7 +120,11 @@ fn small_client_latency(_t: &mut dyn WvTester) {
     const LARGE_SIZE: usize = 16 * 1024 * 1024; // 16 MiB
     const SMALL_SIZE: usize = 512;
 
-    log!(LOG_DEBUG, "Preparing {} bytes using SHAKE...", LARGE_SIZE);
+    log!(
+        LogFlags::Info,
+        "Preparing {} bytes using SHAKE...",
+        LARGE_SIZE
+    );
     let mgate = util::prepare_shake_mem(LARGE_SIZE);
 
     // Start clients that produce background load
@@ -135,14 +139,14 @@ fn small_client_latency(_t: &mut dyn WvTester) {
             clients.push(_start_background_client(c, &mgate, &sem, LARGE_SIZE));
         }
 
-        log!(LOG_DEBUG, "Waiting for clients");
+        log!(LogFlags::Info, "Waiting for clients");
         for _ in 0..count {
             wv_assert_ok!(sem.down());
         }
 
         let res = _bench_latency(&mgate, SMALL_SIZE);
 
-        log!(LOG_DEBUG, "Stopping clients");
+        log!(LogFlags::Info, "Stopping clients");
         for client in clients {
             wv_assert_ok!(client.act.stop());
         }
