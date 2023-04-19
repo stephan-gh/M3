@@ -94,6 +94,11 @@ impl<'de> M3Deserializer<'de> {
 impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
     type Error = Error;
 
+    fn is_human_readable(&self) -> bool {
+        // we never want to have a human-readable serialization
+        false
+    }
+
     #[inline(always)]
     fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
     where
@@ -273,12 +278,12 @@ impl<'de, 'a> Deserializer<'de> for &'a mut M3Deserializer<'de> {
     fn deserialize_newtype_struct<V>(
         self,
         _name: &'static str,
-        _visitor: V,
+        visitor: V,
     ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        unimplemented!()
+        visitor.visit_newtype_struct(self)
     }
 
     #[inline(always)]

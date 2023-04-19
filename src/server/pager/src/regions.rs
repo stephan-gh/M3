@@ -33,6 +33,7 @@ use resmng::childs;
 use crate::physmem::{copy_block, PhysMem};
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     struct RegionFlags : u64 {
         const MAPPED = 0x1;
         const COW    = 0x2;

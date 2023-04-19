@@ -82,6 +82,7 @@ impl NotifyGate {
 }
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct Flags : u64 {
         const WRITE_EOF = 0x1;
         const READ_EOF  = 0x2;

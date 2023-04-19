@@ -70,7 +70,7 @@ int_enum! {
 
 bitflags! {
     /// The mapping flags
-    #[derive(Serialize, Deserialize)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(crate = "base::serde")]
     pub struct MapFlags : u32 {
         /// A private mapping, not shared with anyone else

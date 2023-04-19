@@ -34,6 +34,7 @@ int_enum! {
 
 bitflags! {
     /// The program header flags
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct PHFlags : u32 {
         /// Executable
         const X = 0x1;

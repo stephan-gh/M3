@@ -22,7 +22,7 @@ use crate::serialize::{Deserialize, Serialize};
 
 bitflags! {
     /// The permission bitmap that is used for memory and mapping capabilities.
-    #[derive(Serialize, Deserialize)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct Perm : u32 {
         /// Read permission
         const R = 1;
@@ -31,9 +31,9 @@ bitflags! {
         /// Execute permission
         const X = 4;
         /// Read + write permission
-        const RW = Self::R.bits | Self::W.bits;
+        const RW = Self::R.bits() | Self::W.bits();
         /// Read + write + execute permission
-        const RWX = Self::R.bits | Self::W.bits | Self::X.bits;
+        const RWX = Self::R.bits() | Self::W.bits() | Self::X.bits();
     }
 }
 
@@ -42,7 +42,7 @@ pub type PTE = u64;
 
 bitflags! {
     /// The flags for virtual mappings
-    #[derive(Serialize, Deserialize)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub struct PageFlags : u64 {
         /// Readable
         const R             = 0b0000_0001;
@@ -57,11 +57,11 @@ bitflags! {
         /// User accessible
         const U             = 0b0010_0000;
         /// Read+write
-        const RW            = Self::R.bits | Self::W.bits;
+        const RW            = Self::R.bits() | Self::W.bits();
         /// Read+execute
-        const RX            = Self::R.bits | Self::X.bits;
+        const RX            = Self::R.bits() | Self::X.bits();
         /// Read+write+execute
-        const RWX           = Self::R.bits | Self::W.bits | Self::X.bits;
+        const RWX           = Self::R.bits() | Self::W.bits() | Self::X.bits();
     }
 }
 

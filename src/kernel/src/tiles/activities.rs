@@ -35,6 +35,7 @@ use crate::thread_startup;
 use crate::tiles::{loader, tilemng, ActivityMng};
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct ActivityFlags : u32 {
         const IS_ROOT     = 1;
     }

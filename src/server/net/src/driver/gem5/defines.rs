@@ -69,12 +69,14 @@ int_enum! {
 }
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct STATUS: u8 {
         const LU              = 1 << 1;        /* link up */
     }
 }
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct CTL: u32 {
         const LRST            = 1 << 3;        /* link reset */
         const ASDE            = 1 << 5;        /* auto speed detection enable */
@@ -87,12 +89,14 @@ bitflags! {
 }
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct XDCTL: u32 {
         const ENABLE          = 1 << 25;       /* queue enable */
     }
 }
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct ICR: u8 {
         const LSC             = 1 << 2;        /* Link Status Change */
         const RXDMT0          = 1 << 4;        /* Receive Descriptor Minimum Threshold Reached */
@@ -102,6 +106,7 @@ bitflags! {
 }
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct RCTL: u32 {
         const ENABLE          = 1 << 1;
         const UPE             = 1 << 3;        /* unicast promiscuous mode */
@@ -118,6 +123,7 @@ bitflags! {
 }
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct TCTL: u32 {
         const ENABLE          = 1 << 1;
         const PSP             = 1 << 3;        /* pad short packets */
@@ -129,12 +135,14 @@ bitflags! {
 }
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct RAH: u32 {
         const VALID           = 1 << 31;       /* marks a receive address filter as valid */
     }
 }
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct RXCSUM: u16 {
         const PCSS_MASK       = 0xff;           /* Packet Checksum Start */
         const IPOFLD          = 1 << 8;         /* IP Checksum Off-load Enable */
@@ -144,12 +152,14 @@ bitflags! {
 }
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct EEPROM: u8 {
         const OFS_MAC         = 0x0;           /* offset of the MAC in EEPROM */
     }
 }
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct EERD: u8 {
         const START           = 1 << 0;        /* start command */
         const DONE_SMALL      = 1 << 4;        /* read done (small EERD) */
@@ -160,6 +170,7 @@ bitflags! {
 }
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct TX: u8 {
         const CMD_EOP         = 0x01;          /* end of packet */
         const CMD_IFCS        = 0x02;          /* insert FCS/CRC */
@@ -167,6 +178,7 @@ bitflags! {
 }
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct RXDS: u8 {
         const PIF             = 1 << 7; /* Passed in-exact filter */
         const IPCS            = 1 << 6; /* IP Checksum Calculated on Packet */
@@ -182,6 +194,7 @@ bitflags! {
 }
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct RXDE: u8 {
         const RXE             = 1 << 7; /* RX Data Error */
         const IPE             = 1 << 6; /* IP Checksum Error */
@@ -305,6 +318,7 @@ impl Default for RxDesc {
 }
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct TxoProto: u8 {
         const UNSUPPORTED     = 1 << 1;
         const IP              = 1 << 2 | TxoProto::UNSUPPORTED.bits();

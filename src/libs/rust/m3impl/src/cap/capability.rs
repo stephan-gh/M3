@@ -28,6 +28,7 @@ pub type Selector = kif::CapSel;
 
 bitflags! {
     /// Flags for [`Capability`]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct CapFlags : u32 {
         const KEEP_CAP   = 0x1;
     }

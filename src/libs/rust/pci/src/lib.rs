@@ -103,6 +103,7 @@ impl From<u8> for BarType {
 }
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct BarFlags : u8 {
         const MEM_32        = 0x1;
         const MEM_64        = 0x2;

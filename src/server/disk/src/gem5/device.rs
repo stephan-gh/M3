@@ -79,6 +79,7 @@ int_enum! {
 
 bitflags! {
     /// ATA status register
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct CommandStatus : u8 {
         /// Drive is preparing to accept/send data -- wait until this bit clears. If it never
         /// clears, do a Software Reset. Technically, when BSY is set, the other bits in the Status
@@ -100,6 +101,7 @@ bitflags! {
 
 bitflags! {
     /// ATA device capabilities
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     struct Capabilities : u16 {
         const DMA = 1 << 8;
         const LBA = 1 << 9;
@@ -110,6 +112,7 @@ bitflags! {
 
 bitflags! {
     /// ATA device features
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     struct Features : u32 {
         const SMART = 1 << 0;
         const SECURITY_MODE = 1 << 1;
@@ -152,6 +155,7 @@ int_enum! {
 
 bitflags! {
     /// Bus master IDE status flags
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     struct BMIStatus : u8 {
         const IRQ = 1 << 2;
         const ERROR = 1 << 1;
@@ -161,6 +165,7 @@ bitflags! {
 
 bitflags! {
     /// Bus master IDE commands
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     struct BMICmd : u8 {
         const START = 1 << 0;
         const READ = 1 << 3;

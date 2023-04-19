@@ -37,6 +37,7 @@ pub const MODE_BARE: u64 = 0;
 pub const MODE_SV39: u64 = 8;
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct RISCVMMUFlags : MMUPTE {
         const V     = 0b0000_0001;          // valid
         const R     = 0b0100_0010;          // readable
@@ -50,8 +51,8 @@ bitflags! {
         const A     = 0b0100_0000;          // accessed
         const D     = 0b1000_0000;          // dirty
 
-        const RW    = Self::V.bits | Self::R.bits | Self::W.bits;
-        const RWX   = Self::RW.bits | Self::X.bits;
+        const RW    = Self::V.bits() | Self::R.bits() | Self::W.bits();
+        const RWX   = Self::RW.bits() | Self::X.bits();
 
         const FLAGS = 0xFFu64;
     }

@@ -183,6 +183,7 @@ int_enum! {
 
 bitflags! {
     /// The status flag for the [`ExtReg::FEATURES`] register
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct FeatureFlags : Reg {
         /// Whether the tile is privileged
         const PRIV          = 1 << 0;

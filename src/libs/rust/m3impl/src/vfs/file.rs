@@ -45,7 +45,7 @@ int_enum! {
 
 bitflags! {
     /// The flags to open files.
-    #[derive(Serialize, Deserialize)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     #[repr(C)]
     #[serde(crate = "base::serde")]
     pub struct OpenFlags : u32 {
@@ -67,11 +67,11 @@ bitflags! {
         const NEW_SESS  = 0b1000_0000;
 
         /// Opens the file for reading and writing.
-        const RW        = Self::R.bits | Self::W.bits;
+        const RW        = Self::R.bits() | Self::W.bits();
         /// Opens the file for reading and code execution.
-        const RX        = Self::R.bits | Self::X.bits;
+        const RX        = Self::R.bits() | Self::X.bits();
         /// Opens the file for reading, writing, and code execution.
-        const RWX       = Self::R.bits | Self::W.bits | Self::X.bits;
+        const RWX       = Self::R.bits() | Self::W.bits() | Self::X.bits();
     }
 }
 
@@ -85,7 +85,7 @@ impl From<OpenFlags> for kif::Perm {
 }
 
 bitflags! {
-    #[derive(Default, Serialize, Deserialize)]
+    #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
     #[repr(C)]
     #[serde(crate = "base::serde")]
     pub struct FileMode : u16 {
@@ -112,8 +112,8 @@ bitflags! {
         const IWOTH     = 0o0000002;
         const IXOTH     = 0o0000001;
 
-        const FILE_DEF  = Self::IFREG.bits | 0o0644;
-        const DIR_DEF   = Self::IFDIR.bits;
+        const FILE_DEF  = Self::IFREG.bits() | 0o0644;
+        const DIR_DEF   = Self::IFDIR.bits();
         const PERM      = 0o777;
     }
 }
@@ -164,6 +164,7 @@ pub struct FileInfo {
 
 bitflags! {
     #[repr(C)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct FileEvent : u32 {
         const INPUT         = 1;
         const OUTPUT        = 2;

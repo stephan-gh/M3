@@ -35,6 +35,7 @@ pub const LEVEL_BITS: usize = cfg::PAGE_BITS - PTE_BITS;
 pub const LEVEL_MASK: usize = (1 << LEVEL_BITS) - 1;
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct ARMMMUFlags : MMUPTE {
         const P     = 0b0000_0001;          // present
         const U     = 0b0100_0000;          // user accessible
@@ -48,10 +49,10 @@ bitflags! {
         const BLK   = 0b01;
         const PAGE  = 0b11;
 
-        const RW    = Self::A.bits | Self::P.bits | Self::NX.bits;
-        const RWX   = Self::A.bits | Self::P.bits;
+        const RW    = Self::A.bits() | Self::P.bits() | Self::NX.bits();
+        const RWX   = Self::A.bits() | Self::P.bits();
 
-        const FLAGS = cfg::PAGE_MASK as u64 | Self::NX.bits;
+        const FLAGS = cfg::PAGE_MASK as u64 | Self::NX.bits();
     }
 }
 

@@ -137,6 +137,11 @@ impl<'a, S: Sink> Serializer for &'a mut M3Serializer<S> {
     type SerializeTupleStruct = Self;
     type SerializeTupleVariant = Self;
 
+    fn is_human_readable(&self) -> bool {
+        // we never want to have a human-readable serialization
+        false
+    }
+
     #[inline(always)]
     fn serialize_bool(self, v: bool) -> Result<Self::Ok, Self::Error> {
         self.push_word(v as u64);
@@ -260,12 +265,12 @@ impl<'a, S: Sink> Serializer for &'a mut M3Serializer<S> {
     fn serialize_newtype_struct<T: ?Sized>(
         self,
         _name: &'static str,
-        _value: &T,
+        value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
         T: serde::Serialize,
     {
-        unimplemented!()
+        value.serialize(self)
     }
 
     #[inline(always)]

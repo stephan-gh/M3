@@ -33,6 +33,7 @@ pub const LEVEL_BITS: usize = cfg::PAGE_BITS - PTE_BITS;
 pub const LEVEL_MASK: usize = (1 << LEVEL_BITS) - 1;
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct X86MMUFlags : MMUPTE {
         const P     = 0b0000_0001;
         const W     = 0b0000_0010;
@@ -40,10 +41,10 @@ bitflags! {
         const L     = 0b1000_0000;
         const NX    = 0x8000_0000_0000_0000;
 
-        const RW    = Self::P.bits | Self::W.bits | Self::NX.bits;
-        const RWX   = Self::P.bits | Self::W.bits;
+        const RW    = Self::P.bits() | Self::W.bits() | Self::NX.bits();
+        const RWX   = Self::P.bits() | Self::W.bits();
 
-        const FLAGS = cfg::PAGE_MASK as MMUPTE | Self::NX.bits;
+        const FLAGS = cfg::PAGE_MASK as MMUPTE | Self::NX.bits();
     }
 }
 

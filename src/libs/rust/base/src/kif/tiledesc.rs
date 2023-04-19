@@ -59,6 +59,7 @@ int_enum! {
 }
 
 bitflags! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     pub struct TileAttr : TileDescRaw {
         const BOOM          = 1 << 0;
         const ROCKET        = 1 << 1;

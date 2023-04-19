@@ -902,6 +902,7 @@ impl fmt::Debug for ForeignChild {
 }
 
 bitflags! {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     struct Flags : u64 {
         const STARTING = 1;
         const SHUTDOWN = 2;
