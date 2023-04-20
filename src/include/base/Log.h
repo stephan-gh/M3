@@ -23,7 +23,7 @@
 
 #define LOG(flag, fmt, ...)                                                    \
     do {                                                                       \
-        if(Log::inst.flags & (flag)) {                                         \
+        if(EXPECT_FALSE(Log::inst.flags & (flag))) {                           \
             m3::detail::format_rec<0, 0>(fmt, m3::Serial::get(), __VA_ARGS__); \
             m3::Serial::get().write('\n');                                     \
         }                                                                      \

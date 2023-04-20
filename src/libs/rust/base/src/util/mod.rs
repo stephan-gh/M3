@@ -22,6 +22,7 @@ pub mod math;
 pub mod parse;
 pub mod random;
 
+use core::intrinsics;
 use core::slice;
 
 use crate::libc;
@@ -70,6 +71,14 @@ pub fn object_to_bytes_mut<T: Sized>(obj: &mut T) -> &mut [u8] {
     let p: *mut T = obj;
     let p: *mut u8 = p as *mut u8;
     unsafe { slice::from_raw_parts_mut(p, mem::size_of::<T>()) }
+}
+
+/// Wrapper for `intrinsics::unlikely`.
+///
+/// Tells the compiler that the given condition will likely be false.
+#[inline(always)]
+pub fn unlikely(cond: bool) -> bool {
+    intrinsics::unlikely(cond)
 }
 
 /// Expands to the current function name.

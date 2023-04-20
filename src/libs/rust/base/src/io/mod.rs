@@ -27,7 +27,10 @@ pub use self::logflags::LogFlags;
 pub use self::rdwr::{read_object, Read, Write};
 pub use self::serial::Serial;
 
+use crate::io::log::Log;
 use crate::tcu::TileId;
+
+use core::fmt;
 
 /// Macro for logging (includes a trailing newline)
 ///
@@ -48,14 +51,20 @@ macro_rules! log {
         $crate::log!(@log_impl $flag, concat!($fmt, "\n"), $($arg)*)
     );
 
-    (@log_impl $flag:expr, $($args:tt)*)    => ({
-        use $crate::io::Write;
-        if let Some(mut l) = $crate::io::log::Log::get() {
-            if l.flags().contains($flag) {
-                l.write_fmt(format_args!($($args)*)).unwrap();
-            }
+    (@log_impl $flag:expr, $($args:tt)*)      => ({
+        if $crate::util::unlikely($crate::io::log::flags().contains($flag)) {
+            $crate::io::log_str(format_args!($($args)*));
         }
     });
+}
+
+/// Helper for the log macro to keep the amount of additional code for logging at a minimum.
+#[cold]
+#[inline(never)]
+pub fn log_str(fmt: fmt::Arguments<'_>) {
+    if let Some(mut l) = Log::get() {
+        l.write_fmt(fmt).unwrap();
+    }
 }
 
 /// Writes the given byte array to the log, showing `addr` as a prefix.
