@@ -25,7 +25,8 @@ else
     echo "Target $M3_TARGET not supported." >&2 && exit 1
 fi
 
-if [ "$M3_BUILD" != "debug" ] && [ "$M3_BUILD" != "release" ] && [ "$M3_BUILD" != "coverage" ]; then
+if [ "$M3_BUILD" != "debug" ] && [ "$M3_BUILD" != "release" ] &&
+    [ "$M3_BUILD" != "bench" ] && [ "$M3_BUILD" != "coverage" ]; then
     echo "Build mode $M3_BUILD not supported." >&2 && exit 1
 fi
 if [ "$M3_BUILD" = "coverage" ] && [ "$M3_ISA" != "riscv" ] && [ "$M3_ISA" != "x86_64" ]; then
@@ -80,7 +81,8 @@ help() {
     echo "This is a convenience script that is responsible for building everything"
     echo "and running the specified command afterwards. The most important environment"
     echo "variables that influence its behaviour are M3_TARGET=(gem5|hw|hw22),"
-    echo "M3_ISA=(x86_64|arm|riscv) [on gem5 only], and M3_BUILD=(debug|release|coverage)."
+    echo "M3_ISA=(x86_64|arm|riscv) [on gem5 only], and"
+    echo "M3_BUILD=(debug|release|bench|coverage)."
     echo ""
     echo "The flag -n skips the build and executes the given command directly. This"
     echo "can be handy if, for example, the build is currently broken."
@@ -143,10 +145,14 @@ help() {
     echo "    M3_TARGET:               the target. Either 'gem5' or 'hw', default is 'gem5'."
     echo "    M3_ISA:                  the ISA to use. On gem5, 'arm', 'riscv', and 'x86_64'"
     echo "                             is supported. On other targets, it is ignored."
-    echo "    M3_BUILD:                the build-type. Either debug or release. In debug mode"
-    echo "                             optimizations are disabled, debug infos are available,"
-    echo "                             and assertions are active. In release mode all that is"
-    echo "                             disabled. The default is release."
+    echo "    M3_BUILD:                the build-type is debug, release, bench or coverage."
+    echo "                             In debug mode optimizations are disabled, debug infos"
+    echo "                             are available, and assertions are active. In release mode"
+    echo "                             all that is disabled. In bench, all logging is hardcoded"
+    echo "                             to Info,Error in contrast to all other modes where it is"
+    echo "                             defined by the environment variable LOG (see M3_LOG)."
+    echo "                             The coverage is mode is only used for code coverage. The"
+    echo "                             default mode is release."
     echo "    M3_REM_HOST:             if set, the build is performed on this host in"
     echo "                             M3_REM_DIR. All source files are synced to the remote"
     echo "                             host before the build and the build files are synced"

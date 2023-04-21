@@ -179,6 +179,8 @@ class M3Env(Env):
 
     def m3_cargo(self, gen, out):
         env = self.clone()
+        if env['BUILD'] == 'bench':
+            env['CRGFLAGS'] += ['--features', 'base/bench']
         env['CRGFLAGS'] += ['--target', env['TRIPLE']]
         env['CRGFLAGS'] += ['-Z build-std=core,alloc,std,panic_abort']
         return env.rust_exe(gen, out, self.rust_deps())
@@ -196,6 +198,8 @@ class M3Env(Env):
             # specify crates explicitly, because some crates are only supported by some targets
             env['CRGFLAGS'] += ['-p', crate_name]
 
+        if env['BUILD'] == 'bench':
+            env['CRGFLAGS'] += ['--features', 'base/bench']
         env['CRGFLAGS'] += ['--target', env['TRIPLE']]
         env['CRGFLAGS'] += ['-Z build-std=core,alloc,std,panic_abort']
         outs = env.rust(gen, outs, deps)
@@ -266,6 +270,8 @@ else:
     env['CXXFLAGS'] += ['-O2', '-DNDEBUG', '-flto']
     env['CFLAGS'] += ['-O2', '-DNDEBUG', '-flto']
     env['LINKFLAGS'] += ['-O2', '-flto']
+if btype == 'bench':
+    env['CPPFLAGS'] += ['-Dbench']
 
 # for host compilation
 hostenv = env.clone()

@@ -52,10 +52,23 @@ macro_rules! log {
     );
 
     (@log_impl $flag:expr, $($args:tt)*)      => ({
-        if $crate::util::unlikely($crate::io::log::flags().contains($flag)) {
+        if $crate::util::unlikely($crate::io::should_log($flag)) {
             $crate::io::log_str(format_args!($($args)*));
         }
     });
+}
+
+/// Returns whether a log statement with given flag should be executed
+///
+/// For bench mode, this will only happen if it's Info or Error. Otherwise, it will depend on what
+/// logging flags are set in the environment variable LOG.
+#[inline(always)]
+pub fn should_log(flag: LogFlags) -> bool {
+    #[cfg(feature = "bench")]
+    let res = flag == LogFlags::Info || flag == LogFlags::Error;
+    #[cfg(not(feature = "bench"))]
+    let res = log::flags().contains(flag);
+    res
 }
 
 /// Helper for the log macro to keep the amount of additional code for logging at a minimum.

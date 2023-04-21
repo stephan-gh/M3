@@ -23,7 +23,7 @@
 
 #define LOG(flag, fmt, ...)                                                    \
     do {                                                                       \
-        if(EXPECT_FALSE(Log::inst.flags & (flag))) {                           \
+        if(EXPECT_FALSE(should_log(flag))) {                                   \
             m3::detail::format_rec<0, 0>(fmt, m3::Serial::get(), __VA_ARGS__); \
             m3::Serial::get().write('\n');                                     \
         }                                                                      \
@@ -54,5 +54,13 @@ struct Log {
 
     static Log inst;
 };
+
+static inline bool should_log(uint64_t flag) {
+#if defined(bench)
+    return flag == LogFlags::Info || flag == LogFlags::Error;
+#else
+    return (Log::inst.flags & flag) != 0;
+#endif
+}
 
 }
