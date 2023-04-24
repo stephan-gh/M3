@@ -46,31 +46,6 @@ class NetworkManager : public ClientSession {
     friend class RawSocket;
     friend class DNS;
 
-    enum Operation {
-        STAT = GenericFile::STAT,
-        SEEK = GenericFile::SEEK,
-        NEXT_IN = GenericFile::NEXT_IN,
-        NEXT_OUT = GenericFile::NEXT_OUT,
-        COMMIT = GenericFile::COMMIT,
-        TRUNCATE = GenericFile::TRUNCATE,
-        CLOSE = GenericFile::CLOSE,
-        CLONE = GenericFile::CLONE,
-        GET_TMODE = GenericFile::GET_TMODE,
-        SET_TMODE = GenericFile::SET_TMODE,
-        SET_DEST = GenericFile::SET_DEST,
-        ENABLE_NOTIFY = GenericFile::ENABLE_NOTIFY,
-        REQ_NOTIFY = GenericFile::REQ_NOTIFY,
-        BIND,
-        LISTEN,
-        CONNECT,
-        ABORT,
-        CREATE,
-        GET_IP,
-        GET_NAMESRV,
-        GET_SGATE,
-        OPEN_FILE,
-    };
-
 public:
     /**
      * Creates a new instance for `service`

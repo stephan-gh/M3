@@ -33,7 +33,7 @@ use core::sync::atomic;
 use m3::cap::Selector;
 use m3::cell::{LazyReadOnlyCell, LazyStaticRefCell, StaticRefCell};
 use m3::col::VecDeque;
-use m3::com::{GateIStream, MemGate, SGateArgs, SendGate};
+use m3::com::{opcodes, GateIStream, MemGate, SGateArgs, SendGate};
 use m3::crypto::{HashAlgorithm, HashType};
 use m3::errors::{Code, Error};
 use m3::kif::{CapRngDesc, CapType, INVALID_SEL};
@@ -43,7 +43,7 @@ use m3::server::{
     server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
     DEF_MSG_SIZE,
 };
-use m3::session::{HashOp, ServerSession};
+use m3::session::ServerSession;
 use m3::tcu::{Label, Message};
 use m3::tiles::Activity;
 use m3::time::{TimeDuration, TimeInstant};
@@ -550,7 +550,7 @@ impl HashSession {
 }
 
 impl HashHandler {
-    fn handle(&mut self, op: HashOp, is: &mut GateIStream<'_>) -> Result<(), Error> {
+    fn handle(&mut self, op: opcodes::Hash, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let sid = is.label() as SessId;
         let sess = self
             .sessions
@@ -558,14 +558,14 @@ impl HashHandler {
             .ok_or_else(|| Error::new(Code::InvArgs))?;
 
         match op {
-            HashOp::RESET => sess.reset(is).map(|_| {
+            opcodes::Hash::RESET => sess.reset(is).map(|_| {
                 // Clear current session if necessary to force re-initialization
                 if self.current == Some(sid) {
                     self.current = None;
                 }
             }),
-            HashOp::INPUT => sess.input(is),
-            HashOp::OUTPUT => sess.output(is),
+            opcodes::Hash::INPUT => sess.input(is),
+            opcodes::Hash::OUTPUT => sess.output(is),
             _ => Err(Error::new(Code::InvArgs)),
         }
     }

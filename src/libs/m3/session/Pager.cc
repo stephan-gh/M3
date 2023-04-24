@@ -18,6 +18,7 @@
 
 #include <m3/Syscalls.h>
 #include <m3/com/GateStream.h>
+#include <m3/com/OpCodes.h>
 #include <m3/session/Pager.h>
 #include <m3/tiles/ChildActivity.h>
 
@@ -46,7 +47,7 @@ Pager::Pager(capsel_t sess, capsel_t sgate)
 Pager::~Pager() {
     if(_close) {
         try {
-            send_receive_vmsg(_req_sgate, CLOSE);
+            send_receive_vmsg(_req_sgate, opcodes::Pager::CLOSE);
         }
         catch(...) {
             // ignore
@@ -57,18 +58,19 @@ Pager::~Pager() {
 capsel_t Pager::get_sgate() {
     KIF::ExchangeArgs args;
     ExchangeOStream os(args);
-    os << Operation::ADD_SGATE;
+    os << opcodes::Pager::ADD_SGATE;
     args.bytes = os.total();
     return obtain(1, &args).start();
 }
 
 void Pager::pagefault(goff_t addr, uint access) {
-    GateIStream reply = send_receive_vmsg(_req_sgate, PAGEFAULT, addr, access);
+    GateIStream reply = send_receive_vmsg(_req_sgate, opcodes::Pager::PAGEFAULT, addr, access);
     reply.pull_result();
 }
 
 void Pager::map_anon(goff_t *virt, size_t len, int prot, int flags) {
-    GateIStream reply = send_receive_vmsg(_req_sgate, MAP_ANON, *virt, len, prot, flags);
+    GateIStream reply =
+        send_receive_vmsg(_req_sgate, opcodes::Pager::MAP_ANON, *virt, len, prot, flags);
     reply.pull_result();
     reply >> *virt;
 }
@@ -77,7 +79,7 @@ void Pager::map_ds(goff_t *virt, size_t len, int prot, int flags, const ClientSe
                    size_t offset) {
     KIF::ExchangeArgs args;
     ExchangeOStream os(args);
-    os << Operation::MAP_DS << *virt << len << prot << flags << offset;
+    os << opcodes::Pager::MAP_DS << *virt << len << prot << flags << offset;
     args.bytes = os.total();
 
     delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess.sel()), &args);
@@ -89,7 +91,7 @@ void Pager::map_ds(goff_t *virt, size_t len, int prot, int flags, const ClientSe
 void Pager::map_mem(goff_t *virt, MemGate &mem, size_t len, int prot) {
     KIF::ExchangeArgs args;
     ExchangeOStream os(args);
-    os << Operation::MAP_MEM << *virt << len << prot;
+    os << opcodes::Pager::MAP_MEM << *virt << len << prot;
     args.bytes = os.total();
 
     delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, mem.sel()), &args);
@@ -99,7 +101,7 @@ void Pager::map_mem(goff_t *virt, MemGate &mem, size_t len, int prot) {
 }
 
 void Pager::unmap(goff_t virt) {
-    GateIStream reply = send_receive_vmsg(_req_sgate, UNMAP, virt);
+    GateIStream reply = send_receive_vmsg(_req_sgate, opcodes::Pager::UNMAP, virt);
     reply.pull_result();
 }
 
@@ -108,7 +110,7 @@ Reference<Pager> Pager::create_clone() {
     {
         KIF::ExchangeArgs args;
         ExchangeOStream os(args);
-        os << Operation::ADD_CHILD;
+        os << opcodes::Pager::ADD_CHILD;
         args.bytes = os.total();
         caps = obtain(1, &args);
     }
@@ -130,14 +132,14 @@ void Pager::init(ChildActivity &act) {
     if(_close) {
         KIF::ExchangeArgs args;
         ExchangeOStream os(args);
-        os << Operation::INIT;
+        os << opcodes::Pager::INIT;
         args.bytes = os.total();
         delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, act.sel()), &args);
     }
 }
 
 void Pager::clone() {
-    GateIStream reply = send_receive_vmsg(_req_sgate, CLONE);
+    GateIStream reply = send_receive_vmsg(_req_sgate, opcodes::Pager::CLONE);
     reply.pull_result();
 }
 

@@ -36,24 +36,6 @@ class GenericFile : public File {
     friend class FileTable;
 
 public:
-    enum Operation {
-        STAT,
-        SEEK,
-        NEXT_IN,
-        NEXT_OUT,
-        COMMIT,
-        TRUNCATE,
-        SYNC,
-        CLOSE,
-        CLONE,
-        GET_PATH,
-        GET_TMODE,
-        SET_TMODE,
-        SET_DEST,
-        ENABLE_NOTIFY,
-        REQ_NOTIFY,
-    };
-
     explicit GenericFile(int flags, capsel_t caps, size_t fs_id, size_t id = 0,
                          epid_t mep = TCU::INVALID_EP, SendGate *sg = nullptr);
     virtual ~GenericFile();

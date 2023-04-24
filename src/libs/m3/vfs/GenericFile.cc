@@ -20,6 +20,7 @@
 
 #include <m3/Syscalls.h>
 #include <m3/com/GateStream.h>
+#include <m3/com/OpCodes.h>
 #include <m3/session/M3FS.h>
 #include <m3/vfs/FileTable.h>
 #include <m3/vfs/GenericFile.h>
@@ -89,7 +90,7 @@ void GenericFile::remove() noexcept {
     // file sessions are not known to our resource manager; thus close them manually
     LOG(LogFlags::LibFS, "GenFile[{}]::close()"_cf, _fd);
     try {
-        send_receive_vmsg(*_sg, M3FS::CLOSE, _id);
+        send_receive_vmsg(*_sg, opcodes::File::CLOSE, _id);
     }
     catch(...) {
         // ignore
@@ -99,7 +100,7 @@ void GenericFile::remove() noexcept {
 Errors::Code GenericFile::try_stat(FileInfo &info) const {
     LOG(LogFlags::LibFS, "GenFile[{}]::stat()"_cf, _fd);
 
-    GateIStream reply = send_receive_vmsg(*_sg, STAT, _id);
+    GateIStream reply = send_receive_vmsg(*_sg, opcodes::File::STAT, _id);
     Errors::Code res;
     reply >> res;
     if(res == Errors::SUCCESS)
@@ -138,7 +139,7 @@ size_t GenericFile::seek(size_t offset, int whence) {
     }
 
     // now seek on the server side
-    GateIStream reply = send_receive_vmsg(*_sg, SEEK, _id, offset, whence);
+    GateIStream reply = send_receive_vmsg(*_sg, opcodes::File::SEEK, _id, offset, whence);
     reply.pull_result();
 
     reply >> _goff >> _off;
@@ -148,7 +149,7 @@ size_t GenericFile::seek(size_t offset, int whence) {
 
 std::string GenericFile::path() {
     std::string path;
-    GateIStream reply = send_receive_vmsg(*_sg, GET_PATH, _id);
+    GateIStream reply = send_receive_vmsg(*_sg, opcodes::File::GET_PATH, _id);
     reply.pull_result();
     reply >> path;
 
@@ -163,7 +164,7 @@ void GenericFile::truncate(size_t length) {
     if(_writing)
         commit();
 
-    GateIStream reply = send_receive_vmsg(*_sg, TRUNCATE, _id, length);
+    GateIStream reply = send_receive_vmsg(*_sg, opcodes::File::TRUNCATE, _id, length);
     reply.pull_result();
     // reset position in case we were behind the truncated position
     reply >> _goff >> _off;
@@ -216,7 +217,7 @@ Option<size_t> GenericFile::read(void *buffer, size_t count) {
         if(!_blocking && !receive_notify(Event::INPUT, true))
             return None;
 
-        GateIStream reply = send_receive_vmsg(*_sg, NEXT_IN, _id);
+        GateIStream reply = send_receive_vmsg(*_sg, opcodes::File::NEXT_IN, _id);
         Errors::Code res;
         reply >> res;
         // if the server promised that we can call NEXT_IN without being blocked, but would still
@@ -253,7 +254,7 @@ Option<size_t> GenericFile::write(const void *buffer, size_t count) {
         if(!_blocking && !receive_notify(Event::OUTPUT, true))
             return None;
 
-        GateIStream reply = send_receive_vmsg(*_sg, NEXT_OUT, _id);
+        GateIStream reply = send_receive_vmsg(*_sg, opcodes::File::NEXT_OUT, _id);
         Errors::Code res;
         reply >> res;
         // if the server promised that we can call NEXT_OUT without being blocked, but would still
@@ -287,7 +288,7 @@ void GenericFile::commit() {
         LOG(LogFlags::LibFS, "GenFile[{}]::commit({}, {})"_cf, _fd, _writing ? "write" : "read",
             _pos);
 
-        GateIStream reply = send_receive_vmsg(*_sg, COMMIT, _id, _pos);
+        GateIStream reply = send_receive_vmsg(*_sg, opcodes::File::COMMIT, _id, _pos);
         reply.pull_result();
 
         // if we append, the file was truncated
@@ -301,12 +302,12 @@ void GenericFile::sync() {
     commit();
 
     LOG(LogFlags::LibFS, "GenFile[{}]::sync()"_cf, _fd);
-    GateIStream reply = send_receive_vmsg(*_sg, SYNC, _id);
+    GateIStream reply = send_receive_vmsg(*_sg, opcodes::File::SYNC, _id);
     reply.pull_result();
 }
 
 Errors::Code GenericFile::try_get_tmode(File::TMode *mode) noexcept {
-    GateIStream reply = send_receive_vmsg(*_sg, Operation::GET_TMODE, _id);
+    GateIStream reply = send_receive_vmsg(*_sg, opcodes::File::GET_TMODE, _id);
     Errors::Code res;
     reply >> res;
     if(res != Errors::SUCCESS)
@@ -316,7 +317,7 @@ Errors::Code GenericFile::try_get_tmode(File::TMode *mode) noexcept {
 }
 
 void GenericFile::set_tmode(TMode mode) {
-    GateIStream reply = send_receive_vmsg(*_sg, Operation::SET_TMODE, _id, mode);
+    GateIStream reply = send_receive_vmsg(*_sg, opcodes::File::SET_TMODE, _id, mode);
     reply.pull_result();
 }
 
@@ -332,7 +333,7 @@ NOINLINE void GenericFile::enable_notifications() {
 
     KIF::ExchangeArgs args;
     ExchangeOStream os(args);
-    os << Operation::ENABLE_NOTIFY;
+    os << opcodes::File::ENABLE_NOTIFY;
     args.bytes = os.total();
     KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, notify_sgate->sel(), 1);
     _sess.delegate_for(Activity::own(), crd, &args);
@@ -349,7 +350,7 @@ void GenericFile::request_notification(uint events) {
         _notify_requested);
 
     if((_notify_requested & events) != events) {
-        GateIStream reply = send_receive_vmsg(*_sg, Operation::REQ_NOTIFY, _id, events);
+        GateIStream reply = send_receive_vmsg(*_sg, opcodes::File::REQ_NOTIFY, _id, events);
         reply.pull_result();
         _notify_requested |= events;
     }
@@ -386,7 +387,7 @@ FileRef<File> GenericFile::clone() const {
 void GenericFile::do_clone(Activity &act, KIF::CapRngDesc &crd) const {
     KIF::ExchangeArgs args;
     ExchangeOStream os(args);
-    os << Operation::CLONE;
+    os << opcodes::File::CLONE;
     args.bytes = os.total();
     _sess.obtain_for(act, crd, &args);
 }
@@ -403,7 +404,7 @@ void GenericFile::do_delegate_ep(const EP &ep) const {
 
     KIF::ExchangeArgs args;
     ExchangeOStream os(args);
-    os << Operation::SET_DEST;
+    os << opcodes::File::SET_DEST;
     args.bytes = os.total();
     KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, ep.sel(), 1);
     _sess.delegate_for(Activity::own(), crd, &args);

@@ -19,6 +19,7 @@
 #pragma once
 
 #include <m3/com/GateStream.h>
+#include <m3/com/OpCodes.h>
 #include <m3/com/SendGate.h>
 #include <m3/session/ClientSession.h>
 #include <m3/vfs/FileTable.h>
@@ -27,13 +28,6 @@
 namespace m3 {
 
 class Pipes : public ClientSession {
-    enum {
-        OPEN_PIPE = GenericFile::REQ_NOTIFY + 1,
-        OPEN_CHAN,
-        SET_MEM,
-        CLOSE_PIPE,
-    };
-
 public:
     class Pipe : public ClientSession {
     public:
@@ -42,20 +36,20 @@ public:
               _sgate(SendGate::bind(sel + 1)) {
             KIF::ExchangeArgs args;
             ExchangeOStream os(args);
-            os << SET_MEM;
+            os << opcodes::Pipe::SET_MEM;
             args.bytes = os.total();
             delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, memory.sel(), 1), &args);
         }
         Pipe(Pipe &&p) noexcept : ClientSession(std::move(p)), _sgate(std::move(p._sgate)) {
         }
         virtual ~Pipe() {
-            send_receive_vmsg(_sgate, CLOSE_PIPE);
+            send_receive_vmsg(_sgate, opcodes::Pipe::CLOSE_PIPE);
         }
 
         FileRef<GenericFile> create_channel(bool read, int flags = 0) {
             KIF::ExchangeArgs args;
             ExchangeOStream os(args);
-            os << OPEN_CHAN << read;
+            os << opcodes::Pipe::OPEN_CHAN << read;
             args.bytes = os.total();
             KIF::CapRngDesc desc = obtain(2, &args);
             flags |= FILE_NEWSESS | (read ? FILE_R : FILE_W);
@@ -74,7 +68,7 @@ public:
     Pipe create_pipe(MemGate &memory, size_t memsize) {
         KIF::ExchangeArgs args;
         ExchangeOStream os(args);
-        os << OPEN_PIPE << memsize;
+        os << opcodes::Pipe::OPEN_PIPE << memsize;
         args.bytes = os.total();
         KIF::CapRngDesc desc = obtain(2, &args);
         return Pipe(desc.start(), memory);

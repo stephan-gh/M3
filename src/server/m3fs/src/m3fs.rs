@@ -37,7 +37,7 @@ use m3::{
     cap::Selector,
     cell::{LazyReadOnlyCell, LazyStaticRefCell, Ref, RefMut, StaticRefCell},
     col::{String, ToString, Vec},
-    com::{GateIStream, RecvGate},
+    com::{opcodes, GateIStream, RecvGate},
     env,
     errors::{Code, Error},
     server::{
@@ -46,7 +46,6 @@ use m3::{
     },
     tcu::Label,
     tiles::{Activity, OwnActivity},
-    vfs::{FSOperation, GenFileOp},
 };
 
 // Server constants
@@ -111,31 +110,31 @@ fn flush_buffer() -> Result<(), Error> {
 
 int_enum! {
     pub struct M3FSOperation : u64 {
-        const STAT          = GenFileOp::STAT.val;
-        const SEEK          = GenFileOp::SEEK.val;
-        const NEXT_IN       = GenFileOp::NEXT_IN.val;
-        const NEXT_OUT      = GenFileOp::NEXT_OUT.val;
-        const COMMIT        = GenFileOp::COMMIT.val;
-        const TRUNCATE      = GenFileOp::TRUNCATE.val;
-        const SYNC          = GenFileOp::SYNC.val;
-        const CLOSE         = GenFileOp::CLOSE.val;
-        const CLONE         = GenFileOp::CLONE.val;
-        const GET_PATH      = GenFileOp::GET_PATH.val;
-        const SET_TMODE     = GenFileOp::SET_TMODE.val;
-        const SET_DEST      = GenFileOp::SET_DEST.val;
-        const ENABLE_NOTIFY = GenFileOp::ENABLE_NOTIFY.val;
-        const REQ_NOTIFY    = GenFileOp::REQ_NOTIFY.val;
-        const OPEN          = FSOperation::OPEN.val;
-        const FSTAT         = FSOperation::STAT.val;
-        const MKDIR         = FSOperation::MKDIR.val;
-        const RMDIR         = FSOperation::RMDIR.val;
-        const LINK          = FSOperation::LINK.val;
-        const UNLINK        = FSOperation::UNLINK.val;
-        const RENAME        = FSOperation::RENAME.val;
-        const GET_MEM       = FSOperation::GET_MEM.val;
-        const GET_SGATE     = FSOperation::GET_SGATE.val;
-        const DEL_EP        = FSOperation::DEL_EP.val;
-        const OPEN_PRIV     = FSOperation::OPEN_PRIV.val;
+        const STAT          = opcodes::File::STAT.val;
+        const SEEK          = opcodes::File::SEEK.val;
+        const NEXT_IN       = opcodes::File::NEXT_IN.val;
+        const NEXT_OUT      = opcodes::File::NEXT_OUT.val;
+        const COMMIT        = opcodes::File::COMMIT.val;
+        const TRUNCATE      = opcodes::File::TRUNCATE.val;
+        const SYNC          = opcodes::File::SYNC.val;
+        const CLOSE         = opcodes::File::CLOSE.val;
+        const CLONE         = opcodes::File::CLONE.val;
+        const GET_PATH      = opcodes::File::GET_PATH.val;
+        const SET_TMODE     = opcodes::File::SET_TMODE.val;
+        const SET_DEST      = opcodes::File::SET_DEST.val;
+        const ENABLE_NOTIFY = opcodes::File::ENABLE_NOTIFY.val;
+        const REQ_NOTIFY    = opcodes::File::REQ_NOTIFY.val;
+        const OPEN          = opcodes::FileSystem::OPEN.val;
+        const FSTAT         = opcodes::FileSystem::STAT.val;
+        const MKDIR         = opcodes::FileSystem::MKDIR.val;
+        const RMDIR         = opcodes::FileSystem::RMDIR.val;
+        const LINK          = opcodes::FileSystem::LINK.val;
+        const UNLINK        = opcodes::FileSystem::UNLINK.val;
+        const RENAME        = opcodes::FileSystem::RENAME.val;
+        const GET_MEM       = opcodes::FileSystem::GET_MEM.val;
+        const GET_SGATE     = opcodes::FileSystem::GET_SGATE.val;
+        const DEL_EP        = opcodes::FileSystem::DEL_EP.val;
+        const OPEN_PRIV     = opcodes::FileSystem::OPEN_PRIV.val;
     }
 }
 

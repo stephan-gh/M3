@@ -23,7 +23,7 @@ mod sess;
 use m3::cap::Selector;
 use m3::cell::LazyReadOnlyCell;
 use m3::col::{String, Vec};
-use m3::com::{GateIStream, RecvGate};
+use m3::com::{opcodes, GateIStream, RecvGate};
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::int_enum;
@@ -35,11 +35,10 @@ use m3::server::{
     server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
     DEF_MAX_CLIENTS, DEF_MSG_SIZE,
 };
-use m3::session::{PipeOperation, ServerSession};
+use m3::session::ServerSession;
 use m3::tcu::Label;
 use m3::tiles::{Activity, OwnActivity};
 use m3::vec;
-use m3::vfs::GenFileOp;
 
 use chan::{ChanType, Channel};
 use meta::Meta;
@@ -49,22 +48,22 @@ static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 
 int_enum! {
     pub struct Operation : u64 {
-        const STAT          = GenFileOp::STAT.val;
-        const SEEK          = GenFileOp::SEEK.val;
-        const NEXT_IN       = GenFileOp::NEXT_IN.val;
-        const NEXT_OUT      = GenFileOp::NEXT_OUT.val;
-        const COMMIT        = GenFileOp::COMMIT.val;
-        const SYNC          = GenFileOp::SYNC.val;
-        const CLOSE         = GenFileOp::CLOSE.val;
-        const CLONE         = GenFileOp::CLONE.val;
-        const SET_TMODE     = GenFileOp::SET_TMODE.val;
-        const SET_DEST      = GenFileOp::SET_DEST.val;
-        const ENABLE_NOTIFY = GenFileOp::ENABLE_NOTIFY.val;
-        const REQ_NOTIFY    = GenFileOp::REQ_NOTIFY.val;
-        const OPEN_PIPE     = PipeOperation::OPEN_PIPE.val;
-        const OPEN_CHAN     = PipeOperation::OPEN_CHAN.val;
-        const SET_MEM       = PipeOperation::SET_MEM.val;
-        const CLOSE_PIPE    = PipeOperation::CLOSE_PIPE.val;
+        const STAT          = opcodes::File::STAT.val;
+        const SEEK          = opcodes::File::SEEK.val;
+        const NEXT_IN       = opcodes::File::NEXT_IN.val;
+        const NEXT_OUT      = opcodes::File::NEXT_OUT.val;
+        const COMMIT        = opcodes::File::COMMIT.val;
+        const SYNC          = opcodes::File::SYNC.val;
+        const CLOSE         = opcodes::File::CLOSE.val;
+        const CLONE         = opcodes::File::CLONE.val;
+        const SET_TMODE     = opcodes::File::SET_TMODE.val;
+        const SET_DEST      = opcodes::File::SET_DEST.val;
+        const ENABLE_NOTIFY = opcodes::File::ENABLE_NOTIFY.val;
+        const REQ_NOTIFY    = opcodes::File::REQ_NOTIFY.val;
+        const OPEN_PIPE     = opcodes::Pipe::OPEN_PIPE.val;
+        const OPEN_CHAN     = opcodes::Pipe::OPEN_CHAN.val;
+        const SET_MEM       = opcodes::Pipe::SET_MEM.val;
+        const CLOSE_PIPE    = opcodes::Pipe::CLOSE_PIPE.val;
     }
 }
 

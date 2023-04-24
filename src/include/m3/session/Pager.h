@@ -35,20 +35,6 @@ private:
     explicit Pager(capsel_t sess);
 
 public:
-    enum Operation {
-        PAGEFAULT,
-        INIT,
-        ADD_CHILD,
-        ADD_SGATE,
-        CLONE,
-        MAP_ANON,
-        MAP_DS,
-        MAP_MEM,
-        UNMAP,
-        CLOSE,
-        COUNT,
-    };
-
     enum Flags {
         MAP_PRIVATE = 0,
         MAP_SHARED = 0x2000,

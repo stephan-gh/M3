@@ -18,26 +18,15 @@
 
 use crate::boxed::Box;
 use crate::cap::Selector;
-use crate::com::{MemGate, RecvGate, SendGate};
+use crate::com::{opcodes, MemGate, RecvGate, SendGate};
 use crate::errors::Error;
-use crate::int_enum;
 use crate::kif::{CapRngDesc, CapType};
 use crate::session::ClientSession;
-use crate::vfs::{File, GenFileOp, GenericFile, OpenFlags};
+use crate::vfs::{File, GenericFile, OpenFlags};
 
 /// Represents a session at the pipes server.
 pub struct Pipes {
     sess: ClientSession,
-}
-
-int_enum! {
-    /// The pipe operations.
-    pub struct PipeOperation : u64 {
-        const OPEN_PIPE     = GenFileOp::REQ_NOTIFY.val + 1;
-        const OPEN_CHAN     = Self::OPEN_PIPE.val + 1;
-        const SET_MEM       = Self::OPEN_CHAN.val + 1;
-        const CLOSE_PIPE    = Self::SET_MEM.val + 1;
-    }
 }
 
 impl Pipes {
@@ -52,7 +41,7 @@ impl Pipes {
         let crd = self.sess.obtain(
             2,
             |os| {
-                os.push(PipeOperation::OPEN_PIPE);
+                os.push(opcodes::Pipe::OPEN_PIPE);
                 os.push(mem_size);
             },
             |_| Ok(()),
@@ -73,7 +62,7 @@ impl Pipe {
         sess.delegate(
             CapRngDesc::new(CapType::OBJECT, mem.sel(), 1),
             |os| {
-                os.push(PipeOperation::SET_MEM);
+                os.push(opcodes::Pipe::SET_MEM);
             },
             |_| Ok(()),
         )?;
@@ -94,7 +83,7 @@ impl Pipe {
         let crd = self.sess.obtain(
             2,
             |os| {
-                os.push(PipeOperation::OPEN_CHAN);
+                os.push(opcodes::Pipe::OPEN_CHAN);
                 os.push(read);
             },
             |_| Ok(()),
@@ -111,6 +100,6 @@ impl Pipe {
 
 impl Drop for Pipe {
     fn drop(&mut self) {
-        send_recv_res!(&self.sgate, RecvGate::def(), PipeOperation::CLOSE_PIPE).unwrap();
+        send_recv_res!(&self.sgate, RecvGate::def(), opcodes::Pipe::CLOSE_PIPE).unwrap();
     }
 }

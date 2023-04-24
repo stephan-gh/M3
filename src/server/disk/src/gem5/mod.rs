@@ -18,9 +18,8 @@ mod ctrl;
 mod device;
 
 use m3::col::Vec;
-use m3::com::MemGate;
+use m3::com::{opcodes, MemGate};
 use m3::errors::Error;
-use m3::session::DiskOperation;
 
 use self::ctrl::DEVICE_COUNT;
 use crate::backend::BlockDevice;
@@ -88,7 +87,7 @@ impl BlockDevice for IDEBlockDevice {
         let part_desc = self.devs[part].unwrap();
         self.ide_ctrl.read_write(
             part_desc,
-            DiskOperation::READ,
+            opcodes::Disk::READ,
             buf,
             buf_off,
             disk_off,
@@ -107,7 +106,7 @@ impl BlockDevice for IDEBlockDevice {
         let part_desc = self.devs[part].unwrap();
         self.ide_ctrl.read_write(
             part_desc,
-            DiskOperation::WRITE,
+            opcodes::Disk::WRITE,
             buf,
             buf_off,
             disk_off,

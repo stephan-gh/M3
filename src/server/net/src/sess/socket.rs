@@ -21,14 +21,14 @@ use base::io::LogFlags;
 use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::col::Vec;
-use m3::com::{GateIStream, RecvGate, SendGate};
+use m3::com::{opcodes, GateIStream, RecvGate, SendGate};
 use m3::errors::{Code, Error};
 use m3::kif::{CapRngDesc, CapType};
 use m3::net::{log_net, IpAddr, NetLogEvent, Port, Sd, SocketArgs, SocketType, MTU};
 use m3::rc::Rc;
 use m3::serialize::M3Deserializer;
 use m3::server::CapExchange;
-use m3::session::{NetworkOp, ServerSession};
+use m3::session::ServerSession;
 use m3::tcu;
 use m3::util::parse;
 use m3::vfs::OpenFlags;
@@ -153,21 +153,21 @@ impl SocketSession {
         iface: &mut DriverInterface<'_>,
     ) -> Result<(), Error> {
         let is = xchg.in_args();
-        let op = is.pop::<NetworkOp>()?;
+        let op = is.pop::<opcodes::Net>()?;
 
         match op {
-            NetworkOp::GET_SGATE => {
+            opcodes::Net::GET_SGATE => {
                 let caps = self.get_sgate()?;
                 xchg.out_caps(caps);
                 Ok(())
             },
-            NetworkOp::CREATE => {
+            opcodes::Net::CREATE => {
                 let (caps, sd) = self.create_socket(is, iface)?;
                 xchg.out_caps(caps);
                 xchg.out_args().push(sd);
                 Ok(())
             },
-            NetworkOp::OPEN_FILE => {
+            opcodes::Net::OPEN_FILE => {
                 let caps = self.open_file(crt, srv_sel, is)?;
                 xchg.out_caps(caps);
                 Ok(())

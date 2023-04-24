@@ -18,7 +18,7 @@
 use m3::cap::Selector;
 use m3::cell::{LazyReadOnlyCell, RefMut, StaticCell, StaticRefCell};
 use m3::col::Vec;
-use m3::com::{GateIStream, MemGate, Perm, RGateArgs, RecvGate, SGateArgs, SendGate, EP};
+use m3::com::{opcodes, GateIStream, MemGate, Perm, RGateArgs, RecvGate, SGateArgs, SendGate, EP};
 use m3::errors::{Code, Error};
 use m3::int_enum;
 use m3::io::{LogFlags, Serial, Write};
@@ -34,7 +34,7 @@ use m3::session::ServerSession;
 use m3::tcu::{Label, Message};
 use m3::tiles::Activity;
 use m3::vec;
-use m3::vfs::{FileEvent, FileInfo, FileMode, GenFileOp};
+use m3::vfs::{FileEvent, FileInfo, FileMode};
 use m3::{build_vmsg, goff, send_vmsg};
 
 const BUF_SIZE: usize = 256;
@@ -441,7 +441,7 @@ impl Handler<VTermSession> for VTermHandler {
     }
 
     fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
-        let op: GenFileOp = xchg.in_args().pop()?;
+        let op: opcodes::File = xchg.in_args().pop()?;
         log!(
             LogFlags::VTReqs,
             "[{}] vterm::obtain(crt={}, op={})",
@@ -463,14 +463,16 @@ impl Handler<VTermSession> for VTermHandler {
             let sess = sessions.get(sid).unwrap();
             match &sess.data {
                 SessionData::Meta => match op {
-                    GenFileOp::CLONE => self
+                    opcodes::File::CLONE => self
                         .new_chan(sid, crt, nsid, xchg.in_args().pop::<i32>()? == 1)
                         .map(|s| (nsid, s)),
                     _ => Err(Error::new(Code::InvArgs)),
                 },
 
                 SessionData::Chan(c) => match op {
-                    GenFileOp::CLONE => self.new_chan(sid, crt, nsid, c.writing).map(|s| (nsid, s)),
+                    opcodes::File::CLONE => {
+                        self.new_chan(sid, crt, nsid, c.writing).map(|s| (nsid, s))
+                    },
                     _ => Err(Error::new(Code::InvArgs)),
                 },
             }
@@ -491,7 +493,7 @@ impl Handler<VTermSession> for VTermHandler {
         sid: SessId,
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
-        let op: GenFileOp = xchg.in_args().pop()?;
+        let op: opcodes::File = xchg.in_args().pop()?;
         log!(LogFlags::VTReqs, "[{}] vterm::delegate(op={})", sid, op);
 
         if xchg.in_caps() != 1 {
@@ -503,13 +505,13 @@ impl Handler<VTermSession> for VTermHandler {
         match &mut sess.data {
             SessionData::Meta => Err(Error::new(Code::InvArgs)),
             SessionData::Chan(c) => match op {
-                GenFileOp::SET_DEST => {
+                opcodes::File::SET_DEST => {
                     let sel = Activity::own().alloc_sel();
                     c.ep = Some(sel);
                     xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
                     Ok(())
                 },
-                GenFileOp::ENABLE_NOTIFY => {
+                opcodes::File::ENABLE_NOTIFY => {
                     if c.notify_gates.is_some() {
                         return Err(Error::new(Code::Exists));
                     }
@@ -668,10 +670,10 @@ pub fn main() -> Result<(), Error> {
 
         REQHDL.get().handle(|op, is| {
             match op {
-                GenFileOp::NEXT_IN => hdl.with_chan(is, |c, is| c.next_in(is)),
-                GenFileOp::NEXT_OUT => hdl.with_chan(is, |c, is| c.next_out(is)),
-                GenFileOp::COMMIT => hdl.with_chan(is, |c, is| c.commit(is)),
-                GenFileOp::CLOSE => {
+                opcodes::File::NEXT_IN => hdl.with_chan(is, |c, is| c.next_in(is)),
+                opcodes::File::NEXT_OUT => hdl.with_chan(is, |c, is| c.next_out(is)),
+                opcodes::File::COMMIT => hdl.with_chan(is, |c, is| c.commit(is)),
+                opcodes::File::CLOSE => {
                     let sid = is.label() as SessId;
                     // reply before we destroy the client's sgate. otherwise the client might
                     // notice the invalidated sgate before getting the reply and therefore give
@@ -680,11 +682,11 @@ pub fn main() -> Result<(), Error> {
                     is.reply_error(Code::Success).ok();
                     hdl.close_sess(sid, is.rgate())
                 },
-                GenFileOp::STAT => hdl.with_chan(is, |c, is| c.stat(is)),
-                GenFileOp::SEEK => Err(Error::new(Code::NotSup)),
-                GenFileOp::GET_TMODE => hdl.with_chan(is, |c, is| c.get_tmode(is)),
-                GenFileOp::SET_TMODE => hdl.with_chan(is, |c, is| c.set_tmode(is)),
-                GenFileOp::REQ_NOTIFY => hdl.with_chan(is, |c, is| c.request_notify(is)),
+                opcodes::File::STAT => hdl.with_chan(is, |c, is| c.stat(is)),
+                opcodes::File::SEEK => Err(Error::new(Code::NotSup)),
+                opcodes::File::GET_TMODE => hdl.with_chan(is, |c, is| c.get_tmode(is)),
+                opcodes::File::SET_TMODE => hdl.with_chan(is, |c, is| c.set_tmode(is)),
+                opcodes::File::REQ_NOTIFY => hdl.with_chan(is, |c, is| c.request_notify(is)),
                 _ => Err(Error::new(Code::InvArgs)),
             }
         })

@@ -23,7 +23,7 @@ use m3::cap::Selector;
 use m3::cell::{LazyReadOnlyCell, LazyStaticRefCell};
 use m3::col::Treap;
 use m3::col::Vec;
-use m3::com::{GateIStream, MemGate, SGateArgs, SendGate};
+use m3::com::{opcodes, GateIStream, MemGate, SGateArgs, SendGate};
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::io::LogFlags;
@@ -33,7 +33,7 @@ use m3::server::{
     server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
     DEF_MAX_CLIENTS,
 };
-use m3::session::{BlockNo, BlockRange, DiskOperation, ServerSession};
+use m3::session::{BlockNo, BlockRange, ServerSession};
 use m3::tcu::Label;
 use m3::tiles::Activity;
 
@@ -243,8 +243,8 @@ pub fn main() -> Result<(), Error> {
                 .ok_or_else(|| Error::new(Code::InvArgs))?;
 
             match op {
-                DiskOperation::READ => sess.read(is),
-                DiskOperation::WRITE => sess.write(is),
+                opcodes::Disk::READ => sess.read(is),
+                opcodes::Disk::WRITE => sess.write(is),
                 _ => Err(Error::new(Code::InvArgs)),
             }
         })

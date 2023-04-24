@@ -14,14 +14,13 @@
  */
 
 use m3::col::Vec;
-use m3::com::MemGate;
+use m3::com::{opcodes, MemGate};
 use m3::errors::Error;
 use m3::int_enum;
 use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
 use m3::rc::Rc;
-use m3::session::DiskOperation;
 
 use super::chan::Channel;
 use super::PartDesc;
@@ -112,7 +111,7 @@ impl IDEController {
     pub fn read_write(
         &self,
         part: PartDesc,
-        op: DiskOperation,
+        op: opcodes::Disk,
         buf: &MemGate,
         buf_off: usize,
         disk_off: usize,

@@ -20,10 +20,9 @@ use crate::cap::Selector;
 use crate::cell::StaticRefCell;
 use crate::col::String;
 use crate::col::ToString;
-use crate::com::{GateIStream, RecvGate, SendGate};
+use crate::com::{opcodes, GateIStream, RecvGate, SendGate};
 use crate::errors::{Code, Error};
 use crate::goff;
-use crate::int_enum;
 use crate::kif;
 use crate::mem::MsgBuf;
 use crate::quota::Quota;
@@ -34,36 +33,6 @@ use crate::tiles::Activity;
 // a SendGate, for which the reply gate needs to activated first, possibly involving a MemGate
 // creation via the resource manager.
 static RESMNG_BUF: StaticRefCell<MsgBuf> = StaticRefCell::new(MsgBuf::new_initialized());
-
-int_enum! {
-    /// The resource manager calls
-    pub struct Operation : u64 {
-        const REG_SERV      = 0x0;
-        const UNREG_SERV    = 0x1;
-
-        const OPEN_SESS     = 0x2;
-        const CLOSE_SESS    = 0x3;
-
-        const ADD_CHILD     = 0x4;
-        const REM_CHILD     = 0x5;
-
-        const ALLOC_MEM     = 0x6;
-        const FREE_MEM      = 0x7;
-
-        const ALLOC_TILE    = 0x8;
-        const FREE_TILE     = 0x9;
-
-        const USE_RGATE     = 0xA;
-        const USE_SGATE     = 0xB;
-
-        const USE_SEM       = 0xC;
-        const USE_MOD       = 0xD;
-
-        const GET_SERIAL    = 0xE;
-
-        const GET_INFO      = 0xF;
-    }
-}
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(crate = "base::serde")]
@@ -193,7 +162,7 @@ impl ResMng {
     /// Clones this connection to be used by the given activity as well. `name` specifies the name of the
     /// activity.
     pub fn clone(&self, act: &mut Activity, sgate: Selector, name: &str) -> Result<Self, Error> {
-        Self::send_receive(&self.sgate, Operation::ADD_CHILD, AddChildReq {
+        Self::send_receive(&self.sgate, opcodes::ResMng::ADD_CHILD, AddChildReq {
             id: act.id(),
             sel: act.sel(),
             sgate,
@@ -213,7 +182,7 @@ impl ResMng {
         name: &str,
         sessions: u32,
     ) -> Result<(), Error> {
-        Self::send_receive(&self.sgate, Operation::REG_SERV, RegServiceReq {
+        Self::send_receive(&self.sgate, opcodes::ResMng::REG_SERV, RegServiceReq {
             dst,
             sgate,
             sessions,
@@ -224,12 +193,12 @@ impl ResMng {
 
     /// Unregisters the service with given selector.
     pub fn unreg_service(&self, sel: Selector) -> Result<(), Error> {
-        Self::send_receive(&self.sgate, Operation::UNREG_SERV, FreeReq { sel }).map(|_| ())
+        Self::send_receive(&self.sgate, opcodes::ResMng::UNREG_SERV, FreeReq { sel }).map(|_| ())
     }
 
     /// Opens a session at service `name` using selector `dst`.
     pub fn open_sess(&self, dst: Selector, name: &str) -> Result<(), Error> {
-        Self::send_receive(&self.sgate, Operation::OPEN_SESS, OpenSessionReq {
+        Self::send_receive(&self.sgate, opcodes::ResMng::OPEN_SESS, OpenSessionReq {
             dst,
             name: name.to_string(),
         })
@@ -238,12 +207,12 @@ impl ResMng {
 
     /// Closes the session with given selector.
     pub fn close_sess(&self, sel: Selector) -> Result<(), Error> {
-        Self::send_receive(&self.sgate, Operation::CLOSE_SESS, FreeReq { sel }).map(|_| ())
+        Self::send_receive(&self.sgate, opcodes::ResMng::CLOSE_SESS, FreeReq { sel }).map(|_| ())
     }
 
     /// Allocates `size` bytes of physical memory with given permissions.
     pub fn alloc_mem(&self, dst: Selector, size: goff, perms: kif::Perm) -> Result<(), Error> {
-        Self::send_receive(&self.sgate, Operation::ALLOC_MEM, AllocMemReq {
+        Self::send_receive(&self.sgate, opcodes::ResMng::ALLOC_MEM, AllocMemReq {
             dst,
             size,
             perms,
@@ -253,7 +222,7 @@ impl ResMng {
 
     /// Free's the memory with given selector.
     pub fn free_mem(&self, sel: Selector) -> Result<(), Error> {
-        Self::send_receive(&self.sgate, Operation::FREE_MEM, FreeReq { sel }).map(|_| ())
+        Self::send_receive(&self.sgate, opcodes::ResMng::FREE_MEM, FreeReq { sel }).map(|_| ())
     }
 
     /// Allocates a new processing element of given type and assigns it to selector `dst`.
@@ -265,23 +234,24 @@ impl ResMng {
         desc: kif::TileDesc,
         inherit_pmp: bool,
     ) -> Result<(TileId, kif::TileDesc), Error> {
-        let mut reply = Self::send_receive(&self.sgate, Operation::ALLOC_TILE, AllocTileReq {
-            dst,
-            desc,
-            inherit_pmp,
-        })?;
+        let mut reply =
+            Self::send_receive(&self.sgate, opcodes::ResMng::ALLOC_TILE, AllocTileReq {
+                dst,
+                desc,
+                inherit_pmp,
+            })?;
         let reply: AllocTileReply = reply.pop()?;
         Ok((reply.id, reply.desc))
     }
 
     /// Free's the processing element with given selector
     pub fn free_tile(&self, sel: Selector) -> Result<(), Error> {
-        Self::send_receive(&self.sgate, Operation::FREE_TILE, FreeReq { sel }).map(|_| ())
+        Self::send_receive(&self.sgate, opcodes::ResMng::FREE_TILE, FreeReq { sel }).map(|_| ())
     }
 
     /// Attaches to the RecvGate with given name using selector `dst`.
     pub fn use_rgate(&self, dst: Selector, name: &str) -> Result<(u32, u32), Error> {
-        let mut reply = Self::send_receive(&self.sgate, Operation::USE_RGATE, UseReq {
+        let mut reply = Self::send_receive(&self.sgate, opcodes::ResMng::USE_RGATE, UseReq {
             dst,
             name: name.to_string(),
         })?;
@@ -291,7 +261,7 @@ impl ResMng {
 
     /// Attaches to the SendGate with given name using selector `dst`.
     pub fn use_sgate(&self, dst: Selector, name: &str) -> Result<(), Error> {
-        Self::send_receive(&self.sgate, Operation::USE_SGATE, UseReq {
+        Self::send_receive(&self.sgate, opcodes::ResMng::USE_SGATE, UseReq {
             dst,
             name: name.to_string(),
         })
@@ -300,7 +270,7 @@ impl ResMng {
 
     /// Attaches to the semaphore with given name using selector `dst`.
     pub fn use_sem(&self, dst: Selector, name: &str) -> Result<(), Error> {
-        Self::send_receive(&self.sgate, Operation::USE_SEM, UseReq {
+        Self::send_receive(&self.sgate, opcodes::ResMng::USE_SEM, UseReq {
             dst,
             name: name.to_string(),
         })
@@ -309,7 +279,7 @@ impl ResMng {
 
     /// Attaches to the boot module with given name using selector `dst`.
     pub fn use_mod(&self, dst: Selector, name: &str) -> Result<(), Error> {
-        Self::send_receive(&self.sgate, Operation::USE_MOD, UseReq {
+        Self::send_receive(&self.sgate, opcodes::ResMng::USE_MOD, UseReq {
             dst,
             name: name.to_string(),
         })
@@ -318,8 +288,10 @@ impl ResMng {
 
     /// Retrieves the receive gate to receive serial input
     pub fn get_serial(&self, dst: Selector) -> Result<RecvGate, Error> {
-        Self::send_receive(&self.sgate, Operation::GET_SERIAL, GetSerialReq { dst })
-            .map(|_| RecvGate::new_bind(dst))
+        Self::send_receive(&self.sgate, opcodes::ResMng::GET_SERIAL, GetSerialReq {
+            dst,
+        })
+        .map(|_| RecvGate::new_bind(dst))
     }
 
     /// Gets the number of available activities for `get_activity_info` and the starting layer.
@@ -341,7 +313,7 @@ impl ResMng {
     }
 
     fn activity_info(&self, act_idx: Option<usize>) -> Result<ActInfoResult, Error> {
-        Self::send_receive(&self.sgate, Operation::GET_INFO, GetInfoReq {
+        Self::send_receive(&self.sgate, opcodes::ResMng::GET_INFO, GetInfoReq {
             idx: act_idx.unwrap_or(usize::MAX),
         })
         .and_then(|mut is| is.pop())
@@ -349,7 +321,7 @@ impl ResMng {
 
     fn send_receive<R: Serialize>(
         sgate: &SendGate,
-        op: Operation,
+        op: opcodes::ResMng,
         req: R,
     ) -> Result<GateIStream<'_>, Error> {
         let reply_gate = RecvGate::def();
@@ -371,7 +343,7 @@ impl Drop for ResMng {
         if self.act_sel != kif::INVALID_SEL {
             Self::send_receive(
                 &Activity::own().resmng().unwrap().sgate,
-                Operation::REM_CHILD,
+                opcodes::ResMng::REM_CHILD,
                 FreeReq { sel: self.act_sel },
             )
             .ok();

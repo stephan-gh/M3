@@ -20,10 +20,9 @@ use bitflags::bitflags;
 use core::fmt;
 
 use crate::cap;
-use crate::com::{MemGate, RGateArgs, RecvGate, SendGate};
+use crate::com::{opcodes, MemGate, RGateArgs, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::goff;
-use crate::int_enum;
 use crate::kif;
 use crate::serialize::{Deserialize, Serialize};
 use crate::session::ClientSession;
@@ -40,32 +39,6 @@ pub struct Pager {
     pf_rgate: RecvGate,
     pf_sgate: SendGate,
     close: bool,
-}
-
-int_enum! {
-    /// The pager's operations
-    pub struct PagerOp : u32 {
-        /// A page fault
-        const PAGEFAULT = 0x0;
-        /// Initializes the pager session
-        const INIT      = 0x1;
-        /// Adds a child activity to the pager session
-        const ADD_CHILD = 0x2;
-        /// Adds a new send gate to the pager session
-        const ADD_SGATE = 0x3;
-        /// Clone the address space of a child activity (see `ADD_CHILD`) from the parent
-        const CLONE     = 0x4;
-        /// Add a new mapping with anonymous memory
-        const MAP_ANON  = 0x5;
-        /// Add a new data space mapping (e.g., a file)
-        const MAP_DS    = 0x6;
-        /// Add a new mapping for a given memory capability
-        const MAP_MEM   = 0x7;
-        /// Remove an existing mapping
-        const UNMAP     = 0x8;
-        /// Close the pager session
-        const CLOSE     = 0x9;
-    }
 }
 
 bitflags! {
@@ -86,7 +59,7 @@ bitflags! {
 
 impl Pager {
     fn get_sgate(sess: &ClientSession) -> Result<cap::Selector, Error> {
-        sess.obtain(1, |os| os.push(PagerOp::ADD_SGATE), |_| Ok(()))
+        sess.obtain(1, |os| os.push(opcodes::Pager::ADD_SGATE), |_| Ok(()))
             .map(|crd| crd.start())
     }
 
@@ -126,7 +99,7 @@ impl Pager {
     pub(crate) fn new_clone(&self) -> Result<Self, Error> {
         let res = self
             .sess
-            .obtain(1, |os| os.push(PagerOp::ADD_CHILD), |_| Ok(()))?;
+            .obtain(1, |os| os.push(opcodes::Pager::ADD_CHILD), |_| Ok(()))?;
         let sess = ClientSession::new_bind(res.start());
 
         // get send gates for us and our child
@@ -159,7 +132,7 @@ impl Pager {
         if self.close {
             let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, act.sel(), 1);
             self.sess
-                .delegate(crd, |os| os.push(PagerOp::INIT), |_| Ok(()))
+                .delegate(crd, |os| os.push(opcodes::Pager::INIT), |_| Ok(()))
         }
         else {
             Ok(())
@@ -179,7 +152,7 @@ impl Pager {
     /// Performs the clone-operation on server-side using copy-on-write.
     #[allow(clippy::should_implement_trait)]
     pub fn clone(&self) -> Result<(), Error> {
-        send_recv_res!(&self.req_sgate, RecvGate::def(), PagerOp::CLONE).map(|_| ())
+        send_recv_res!(&self.req_sgate, RecvGate::def(), opcodes::Pager::CLONE).map(|_| ())
     }
 
     /// Sends a page fault for the virtual address `addr` for given access type to the server.
@@ -187,7 +160,7 @@ impl Pager {
         send_recv_res!(
             &self.req_sgate,
             RecvGate::def(),
-            PagerOp::PAGEFAULT,
+            opcodes::Pager::PAGEFAULT,
             addr,
             access
         )
@@ -205,7 +178,7 @@ impl Pager {
         let mut reply = send_recv_res!(
             &self.req_sgate,
             RecvGate::def(),
-            PagerOp::MAP_ANON,
+            opcodes::Pager::MAP_ANON,
             addr,
             len,
             prot.bits(),
@@ -230,7 +203,7 @@ impl Pager {
         self.sess.delegate(
             crd,
             |os| {
-                os.push(PagerOp::MAP_DS);
+                os.push(opcodes::Pager::MAP_DS);
                 os.push(addr);
                 os.push(len);
                 os.push(prot);
@@ -258,7 +231,7 @@ impl Pager {
         self.sess.delegate(
             crd,
             |os| {
-                os.push(PagerOp::MAP_MEM);
+                os.push(opcodes::Pager::MAP_MEM);
                 os.push(addr);
                 os.push(len);
                 os.push(prot);
@@ -274,14 +247,20 @@ impl Pager {
 
     /// Unaps the mapping at virtual address `addr`.
     pub fn unmap(&self, addr: goff) -> Result<(), Error> {
-        send_recv_res!(&self.req_sgate, RecvGate::def(), PagerOp::UNMAP, addr).map(|_| ())
+        send_recv_res!(
+            &self.req_sgate,
+            RecvGate::def(),
+            opcodes::Pager::UNMAP,
+            addr
+        )
+        .map(|_| ())
     }
 }
 
 impl Drop for Pager {
     fn drop(&mut self) {
         if self.close {
-            send_recv_res!(&self.req_sgate, RecvGate::def(), PagerOp::CLOSE).ok();
+            send_recv_res!(&self.req_sgate, RecvGate::def(), opcodes::Pager::CLOSE).ok();
         }
     }
 }

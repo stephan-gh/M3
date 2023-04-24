@@ -24,6 +24,7 @@
 
 #include <m3/com/GateStream.h>
 #include <m3/com/MemGate.h>
+#include <m3/com/OpCodes.h>
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
 #include <m3/session/ClientSession.h>
@@ -76,7 +77,7 @@ public:
         }
 
         void reply() {
-            reply_vmsg(*_is, RESPONSE, _off);
+            reply_vmsg(*_is, opcodes::LoadGen::RESPONSE, _off);
         }
 
     private:
@@ -88,19 +89,13 @@ public:
         std::unique_ptr<GateIStream> _is;
     };
 
-    enum Operation {
-        START,
-        RESPONSE,
-        COUNT
-    };
-
     explicit LoadGen(const std::string_view &name)
         : ClientSession(name),
           _sgate(SendGate::bind(obtain(1).start())) {
     }
 
     void start(uint count) {
-        send_receive_vmsg(_sgate, START, count);
+        send_receive_vmsg(_sgate, opcodes::LoadGen::START, count);
     }
 
     Channel *create_channel(size_t memsize) {

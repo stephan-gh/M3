@@ -29,11 +29,11 @@ pub mod resmng;
 mod srvsession;
 
 pub use self::clisession::ClientSession;
-pub use self::disk::{BlockNo, BlockRange, Disk, DiskOperation};
-pub use self::hash::{HashInput, HashOp, HashOutput, HashSession};
+pub use self::disk::{BlockNo, BlockRange, Disk};
+pub use self::hash::{HashInput, HashOutput, HashSession};
 pub use self::m3fs::M3FS;
-pub use self::netmng::{NetworkManager, NetworkOp};
-pub use self::pager::{MapFlags, Pager, PagerOp};
-pub use self::pipe::{Pipe, PipeOperation, Pipes};
+pub use self::netmng::NetworkManager;
+pub use self::pager::{MapFlags, Pager};
+pub use self::pipe::{Pipe, Pipes};
 pub use self::resmng::ResMng;
 pub use self::srvsession::ServerSession;

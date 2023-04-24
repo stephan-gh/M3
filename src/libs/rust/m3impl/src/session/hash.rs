@@ -12,10 +12,9 @@
  * General Public License version 2 for more details.
  */
 
-use crate::com::{RecvGate, SendGate, EP};
+use crate::com::{opcodes, RecvGate, SendGate, EP};
 use crate::crypto::HashAlgorithm;
 use crate::errors::{Code, Error};
-use crate::int_enum;
 use crate::session::ClientSession;
 
 /// Represents a session at the hash multiplexer.
@@ -26,15 +25,6 @@ pub struct HashSession {
     _sess: ClientSession,
     sgate: SendGate,
     ep: EP,
-}
-
-int_enum! {
-    /// The operations for the hash protocol.
-    pub struct HashOp : u64 {
-        const RESET = 0;
-        const INPUT = 1;
-        const OUTPUT = 2;
-    }
 }
 
 impl HashSession {
@@ -73,7 +63,7 @@ impl HashSession {
     /// Reset the state of the hash session (discarding all previous input and
     /// output data) and change the [`HashAlgorithm`].
     pub fn reset(&mut self, algo: &'static HashAlgorithm) -> Result<(), Error> {
-        send_recv_res!(&self.sgate, RecvGate::def(), HashOp::RESET, algo.ty).map(|_| ())?;
+        send_recv_res!(&self.sgate, RecvGate::def(), opcodes::Hash::RESET, algo.ty).map(|_| ())?;
         self.algo = algo;
         Ok(())
     }
@@ -84,7 +74,7 @@ impl HashSession {
     /// [`MemGate`](crate::com::MemGate) so that the hash multiplexer can successfully read `len`
     /// bytes with offset `off`.
     pub fn input(&self, off: usize, len: usize) -> Result<(), Error> {
-        send_recv_res!(&self.sgate, RecvGate::def(), HashOp::INPUT, off, len).map(|_| ())
+        send_recv_res!(&self.sgate, RecvGate::def(), opcodes::Hash::INPUT, off, len).map(|_| ())
     }
 
     /// Output new data from the state of the hash session.
@@ -101,7 +91,14 @@ impl HashSession {
         if len > self.algo.output_bytes {
             return Err(Error::new(Code::InvArgs));
         }
-        send_recv_res!(&self.sgate, RecvGate::def(), HashOp::OUTPUT, off, len).map(|_| ())
+        send_recv_res!(
+            &self.sgate,
+            RecvGate::def(),
+            opcodes::Hash::OUTPUT,
+            off,
+            len
+        )
+        .map(|_| ())
     }
 
     /// Finish the hash for previous [`input`](HashSession::input) data. If successful, the hash is
@@ -110,7 +107,7 @@ impl HashSession {
     /// functions).
     pub fn finish(&self, result: &mut [u8]) -> Result<(), Error> {
         assert_eq!(result.len(), self.algo.output_bytes);
-        send_recv!(self.sgate, RecvGate::def(), HashOp::OUTPUT).and_then(|mut reply| {
+        send_recv!(self.sgate, RecvGate::def(), opcodes::Hash::OUTPUT).and_then(|mut reply| {
             // FIXME: Find a better way to copy out the slice?
             let msg = reply.msg();
             if msg.data.len() != self.algo.output_bytes {

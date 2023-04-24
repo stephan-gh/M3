@@ -14,36 +14,11 @@
  * General Public License version 2 for more details.
  */
 
-use base::int_enum;
-
-use crate::com::{RecvGate, SendGate};
+use crate::com::{opcodes, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::net::{BaseSocket, Endpoint, IpAddr, NetEventChannel, Port, Sd, SocketArgs, SocketType};
 use crate::rc::Rc;
 use crate::session::ClientSession;
-use crate::vfs::GenFileOp;
-
-int_enum! {
-    /// The operations for the network service
-    pub struct NetworkOp : u64 {
-        const STAT          = GenFileOp::STAT.val;
-        const SEEK          = GenFileOp::SEEK.val;
-        const NEXT_IN       = GenFileOp::NEXT_IN.val;
-        const NEXT_OUT      = GenFileOp::NEXT_OUT.val;
-        const COMMIT        = GenFileOp::COMMIT.val;
-        const TRUNCATE      = GenFileOp::TRUNCATE.val;
-        // TODO what about GenericFile::CLOSE?
-        const BIND          = GenFileOp::REQ_NOTIFY.val + 1;
-        const LISTEN        = GenFileOp::REQ_NOTIFY.val + 2;
-        const CONNECT       = GenFileOp::REQ_NOTIFY.val + 3;
-        const ABORT         = GenFileOp::REQ_NOTIFY.val + 4;
-        const CREATE        = GenFileOp::REQ_NOTIFY.val + 5;
-        const GET_IP        = GenFileOp::REQ_NOTIFY.val + 6;
-        const GET_NAMESRV   = GenFileOp::REQ_NOTIFY.val + 7;
-        const GET_SGATE     = GenFileOp::REQ_NOTIFY.val + 8;
-        const OPEN_FILE     = GenFileOp::REQ_NOTIFY.val + 9;
-    }
-}
 
 /// Represents a session at the network service, allowing to create and use sockets
 ///
@@ -62,8 +37,11 @@ impl NetworkManager {
         let client_session = ClientSession::new(service)?;
 
         // Obtain meta gate for the service
-        let sgate_crd =
-            client_session.obtain(1, |sink| sink.push(NetworkOp::GET_SGATE), |_source| Ok(()))?;
+        let sgate_crd = client_session.obtain(
+            1,
+            |sink| sink.push(opcodes::Net::GET_SGATE),
+            |_source| Ok(()),
+        )?;
 
         Ok(Rc::new(NetworkManager {
             client_session,
@@ -73,7 +51,7 @@ impl NetworkManager {
 
     /// Returns the local IP address
     pub fn ip_addr(&self) -> Result<IpAddr, Error> {
-        let mut reply = send_recv_res!(&self.metagate, RecvGate::def(), NetworkOp::GET_IP)?;
+        let mut reply = send_recv_res!(&self.metagate, RecvGate::def(), opcodes::Net::GET_IP)?;
         let addr = IpAddr(reply.pop::<u32>()?);
         Ok(addr)
     }
@@ -88,7 +66,7 @@ impl NetworkManager {
         let crd = self.client_session.obtain(
             2,
             |sink| {
-                sink.push(NetworkOp::CREATE);
+                sink.push(opcodes::Net::CREATE);
                 sink.push(ty);
                 sink.push(protocol.unwrap_or(0));
                 sink.push(args.rbuf_size);
@@ -107,21 +85,32 @@ impl NetworkManager {
     }
 
     pub(crate) fn nameserver(&self) -> Result<IpAddr, Error> {
-        let mut reply = send_recv_res!(&self.metagate, RecvGate::def(), NetworkOp::GET_NAMESRV)?;
+        let mut reply = send_recv_res!(&self.metagate, RecvGate::def(), opcodes::Net::GET_NAMESRV)?;
         let addr = IpAddr(reply.pop::<u32>()?);
         Ok(addr)
     }
 
     pub(crate) fn bind(&self, sd: Sd, port: Port) -> Result<(IpAddr, Port), Error> {
-        let mut reply = send_recv_res!(&self.metagate, RecvGate::def(), NetworkOp::BIND, sd, port)?;
+        let mut reply = send_recv_res!(
+            &self.metagate,
+            RecvGate::def(),
+            opcodes::Net::BIND,
+            sd,
+            port
+        )?;
         let addr = IpAddr(reply.pop::<u32>()?);
         let port = reply.pop::<Port>()?;
         Ok((addr, port))
     }
 
     pub(crate) fn listen(&self, sd: Sd, port: Port) -> Result<IpAddr, Error> {
-        let mut reply =
-            send_recv_res!(&self.metagate, RecvGate::def(), NetworkOp::LISTEN, sd, port)?;
+        let mut reply = send_recv_res!(
+            &self.metagate,
+            RecvGate::def(),
+            opcodes::Net::LISTEN,
+            sd,
+            port
+        )?;
         let addr = IpAddr(reply.pop::<u32>()?);
         Ok(addr)
     }
@@ -130,7 +119,7 @@ impl NetworkManager {
         let mut reply = send_recv_res!(
             &self.metagate,
             RecvGate::def(),
-            NetworkOp::CONNECT,
+            opcodes::Net::CONNECT,
             sd,
             endpoint.addr.0,
             endpoint.port
@@ -144,7 +133,7 @@ impl NetworkManager {
         send_recv_res!(
             &self.metagate,
             RecvGate::def(),
-            NetworkOp::ABORT,
+            opcodes::Net::ABORT,
             sd,
             remove
         )

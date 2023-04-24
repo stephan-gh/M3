@@ -36,34 +36,6 @@ class Marshaller;
  */
 class FileSystem : public RefCounted {
 public:
-    enum Operation {
-        FSTAT = GenericFile::STAT,
-        SEEK = GenericFile::SEEK,
-        NEXT_IN = GenericFile::NEXT_IN,
-        NEXT_OUT = GenericFile::NEXT_OUT,
-        COMMIT = GenericFile::COMMIT,
-        TRUNCATE = GenericFile::TRUNCATE,
-        SYNC = GenericFile::SYNC,
-        CLOSE = GenericFile::CLOSE,
-        CLONE = GenericFile::CLONE,
-        GET_TMODE = GenericFile::GET_TMODE,
-        SET_TMODE = GenericFile::SET_TMODE,
-        SET_DEST = GenericFile::SET_DEST,
-        ENABLE_NOTIFY = GenericFile::ENABLE_NOTIFY,
-        REQ_NOTIFY = GenericFile::REQ_NOTIFY,
-        STAT,
-        MKDIR,
-        RMDIR,
-        LINK,
-        UNLINK,
-        RENAME,
-        OPEN,
-        GET_SGATE,
-        GET_MEM,
-        DEL_EP,
-        OPEN_PRIV,
-    };
-
     explicit FileSystem(size_t id) noexcept : RefCounted(), _id(id) {
     }
     virtual ~FileSystem() {

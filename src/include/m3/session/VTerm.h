@@ -23,6 +23,7 @@
 
 #include <m3/ObjCap.h>
 #include <m3/com/GateStream.h>
+#include <m3/com/OpCodes.h>
 #include <m3/tiles/Activity.h>
 #include <m3/vfs/FileRef.h>
 #include <m3/vfs/FileTable.h>
@@ -39,7 +40,7 @@ public:
         capsel_t sels = Activity::own().alloc_sels(2);
         KIF::ExchangeArgs args;
         ExchangeOStream os(args);
-        os << GenericFile::CLONE << (read ? 0 : 1);
+        os << opcodes::File::CLONE << (read ? 0 : 1);
         args.bytes = os.total();
         obtain_for(Activity::own(), KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sels, 2), &args);
         auto flags = FILE_NEWSESS | (read ? FILE_R : FILE_W);

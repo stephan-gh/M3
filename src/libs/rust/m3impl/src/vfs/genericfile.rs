@@ -25,10 +25,9 @@ use crate::cap::Selector;
 use crate::col::{String, ToString};
 use crate::com::recv_result;
 use crate::com::GateIStream;
-use crate::com::{MemGate, RecvGate, SendGate, EP};
+use crate::com::{opcodes, MemGate, RecvGate, SendGate, EP};
 use crate::errors::{Code, Error};
 use crate::goff;
-use crate::int_enum;
 use crate::io::{LogFlags, Read, Write};
 use crate::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
 use crate::log;
@@ -39,27 +38,6 @@ use crate::tcu::EpId;
 use crate::tiles::{Activity, ChildActivity};
 use crate::util::math;
 use crate::vfs::{filetable, Fd, File, FileEvent, FileInfo, Map, OpenFlags, Seek, SeekMode, TMode};
-
-int_enum! {
-    /// The operations for [`GenericFile`].
-    pub struct GenFileOp : u64 {
-        const STAT          = 0;
-        const SEEK          = 1;
-        const NEXT_IN       = 2;
-        const NEXT_OUT      = 3;
-        const COMMIT        = 4;
-        const TRUNCATE      = 5;
-        const SYNC          = 6;
-        const CLOSE         = 7;
-        const CLONE         = 8;
-        const GET_PATH      = 9;
-        const GET_TMODE     = 10;
-        const SET_TMODE     = 11;
-        const SET_DEST      = 12;
-        const ENABLE_NOTIFY = 13;
-        const REQ_NOTIFY    = 14;
-    }
-}
 
 const NOTIFY_MSG_SIZE: usize = 64;
 
@@ -170,7 +148,7 @@ impl GenericFile {
             send_recv_res!(
                 &self.sgate,
                 RecvGate::def(),
-                GenFileOp::COMMIT,
+                opcodes::File::COMMIT,
                 self.file_id(),
                 self.pos
             )?;
@@ -190,7 +168,7 @@ impl GenericFile {
             self.submit(true)?;
             let crd = CapRngDesc::new(CapType::OBJECT, ep_sel, 1);
             self.sess
-                .delegate(crd, |s| s.push(GenFileOp::SET_DEST), |_| Ok(()))?;
+                .delegate(crd, |s| s.push(opcodes::File::SET_DEST), |_| Ok(()))?;
             self.delegated_ep = ep_sel;
         }
         Ok(())
@@ -219,7 +197,7 @@ impl GenericFile {
             let mut reply = send_recv_res!(
                 &self.sgate,
                 RecvGate::def(),
-                GenFileOp::NEXT_IN,
+                opcodes::File::NEXT_IN,
                 self.file_id()
             )?;
             self.goff += self.len;
@@ -244,7 +222,7 @@ impl GenericFile {
             let mut reply = send_recv_res!(
                 &self.sgate,
                 RecvGate::def(),
-                GenFileOp::NEXT_OUT,
+                opcodes::File::NEXT_OUT,
                 self.file_id()
             )?;
             self.goff += self.len;
@@ -271,7 +249,7 @@ impl GenericFile {
 
         let crd = CapRngDesc::new(CapType::OBJECT, _notify_sgate.sel(), 1);
         self.sess
-            .delegate(crd, |s| s.push(GenFileOp::ENABLE_NOTIFY), |_| Ok(()))?;
+            .delegate(crd, |s| s.push(opcodes::File::ENABLE_NOTIFY), |_| Ok(()))?;
 
         log!(
             LogFlags::LibFS,
@@ -305,7 +283,7 @@ impl GenericFile {
             send_recv_res!(
                 &self.sgate,
                 RecvGate::def(),
-                GenFileOp::REQ_NOTIFY,
+                opcodes::File::REQ_NOTIFY,
                 fid,
                 events.bits()
             )?;
@@ -421,7 +399,7 @@ impl File for GenericFile {
         send_recv_res!(
             &self.sgate,
             RecvGate::def(),
-            GenFileOp::CLOSE,
+            opcodes::File::CLOSE,
             self.file_id()
         )
         .ok();
@@ -433,7 +411,7 @@ impl File for GenericFile {
         send_vmsg!(
             &self.sgate,
             RecvGate::def(),
-            GenFileOp::STAT,
+            opcodes::File::STAT,
             self.file_id()
         )?;
         let mut reply = recv_result(RecvGate::def(), Some(&self.sgate))?;
@@ -444,7 +422,7 @@ impl File for GenericFile {
         let mut reply = send_recv_res!(
             &self.sgate,
             RecvGate::def(),
-            GenFileOp::GET_PATH,
+            opcodes::File::GET_PATH,
             self.file_id()
         )?;
         let path = reply.pop()?;
@@ -462,7 +440,7 @@ impl File for GenericFile {
         let mut reply = send_recv_res!(
             &self.sgate,
             RecvGate::def(),
-            GenFileOp::TRUNCATE,
+            opcodes::File::TRUNCATE,
             self.file_id(),
             length
         )?;
@@ -479,7 +457,7 @@ impl File for GenericFile {
         let mut reply = send_recv_res!(
             &self.sgate,
             RecvGate::def(),
-            GenFileOp::GET_TMODE,
+            opcodes::File::GET_TMODE,
             self.file_id()
         )?;
         reply.pop()
@@ -492,7 +470,7 @@ impl File for GenericFile {
     fn delegate(&self, act: &ChildActivity) -> Result<Selector, Error> {
         let crd = CapRngDesc::new(CapType::OBJECT, self.sess.sel(), 2);
         self.sess
-            .obtain_for(act.sel(), crd, |s| s.push(GenFileOp::CLONE), |_| Ok(()))?;
+            .obtain_for(act.sel(), crd, |s| s.push(opcodes::File::CLONE), |_| Ok(()))?;
         Ok(self.sess.sel() + 2)
     }
 
@@ -559,7 +537,7 @@ impl Seek for GenericFile {
         let mut reply = send_recv_res!(
             &self.sgate,
             RecvGate::def(),
-            GenFileOp::SEEK,
+            opcodes::File::SEEK,
             self.file_id(),
             off,
             whence
@@ -608,7 +586,7 @@ impl Write for GenericFile {
             send_recv_res!(
                 &self.sgate,
                 RecvGate::def(),
-                GenFileOp::SYNC,
+                opcodes::File::SYNC,
                 self.file_id()
             )
             .map(|_| ())

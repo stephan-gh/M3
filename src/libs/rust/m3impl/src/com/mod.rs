@@ -26,6 +26,7 @@ mod ep;
 mod epmng;
 mod gate;
 mod mgate;
+pub mod opcodes;
 mod rbufs;
 mod rgate;
 mod sem;

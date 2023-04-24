@@ -23,12 +23,11 @@ use base::io::LogFlags;
 use m3::cap::Selector;
 use m3::cell::{LazyStaticCell, StaticRefCell};
 use m3::col::{BTreeMap, String, ToString, Vec};
-use m3::com::{GateIStream, RecvGate};
+use m3::com::{opcodes, GateIStream, RecvGate};
 use m3::errors::{Code, Error};
 use m3::net::{log_net, NetLogEvent};
 use m3::rc::Rc;
 use m3::server::{CapExchange, Handler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS};
-use m3::session::NetworkOp;
 use m3::tiles::OwnActivity;
 use m3::time::{TimeDuration, TimeInstant};
 use m3::util::math;
@@ -83,22 +82,22 @@ struct NetHandler<'a> {
 
 impl NetHandler<'_> {
     fn handle(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
-        let op = is.pop::<NetworkOp>()?;
+        let op = is.pop::<opcodes::Net>()?;
         let sess_id: SessId = is.label() as SessId;
 
         if let Some(sess) = self.sessions.get_mut(sess_id) {
             match op {
-                NetworkOp::STAT => sess.stat(is),
-                NetworkOp::SEEK => sess.seek(is),
-                NetworkOp::NEXT_IN => sess.next_in(is),
-                NetworkOp::NEXT_OUT => sess.next_out(is),
-                NetworkOp::COMMIT => sess.commit(is),
-                NetworkOp::BIND => sess.bind(is, &mut self.iface),
-                NetworkOp::LISTEN => sess.listen(is, &mut self.iface),
-                NetworkOp::CONNECT => sess.connect(is, &mut self.iface),
-                NetworkOp::ABORT => sess.abort(is, &mut self.iface),
-                NetworkOp::GET_IP => self.get_ip(is),
-                NetworkOp::GET_NAMESRV => self.get_nameserver(is),
+                opcodes::Net::STAT => sess.stat(is),
+                opcodes::Net::SEEK => sess.seek(is),
+                opcodes::Net::NEXT_IN => sess.next_in(is),
+                opcodes::Net::NEXT_OUT => sess.next_out(is),
+                opcodes::Net::COMMIT => sess.commit(is),
+                opcodes::Net::BIND => sess.bind(is, &mut self.iface),
+                opcodes::Net::LISTEN => sess.listen(is, &mut self.iface),
+                opcodes::Net::CONNECT => sess.connect(is, &mut self.iface),
+                opcodes::Net::ABORT => sess.abort(is, &mut self.iface),
+                opcodes::Net::GET_IP => self.get_ip(is),
+                opcodes::Net::GET_NAMESRV => self.get_nameserver(is),
                 _ => Err(Error::new(Code::InvArgs)),
             }
         }

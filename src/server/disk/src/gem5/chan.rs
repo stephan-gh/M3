@@ -14,7 +14,7 @@
  */
 
 use m3::col::Vec;
-use m3::com::MemGate;
+use m3::com::{opcodes, MemGate};
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::io::LogFlags;
@@ -22,7 +22,6 @@ use m3::kif::Perm;
 use m3::log;
 use m3::mem;
 use m3::rc::Rc;
-use m3::session::DiskOperation;
 use m3::tiles::OwnActivity;
 use m3::time::TimeDuration;
 
@@ -126,7 +125,7 @@ impl Channel {
     pub fn read_write(
         &self,
         desc: PartDesc,
-        op: DiskOperation,
+        op: opcodes::Disk,
         buf: &MemGate,
         buf_off: usize,
         disk_off: usize,
@@ -151,7 +150,7 @@ impl Channel {
         let count = bytes / dev.sector_size();
 
         let dev_op = match op {
-            DiskOperation::READ => DevOp::READ,
+            opcodes::Disk::READ => DevOp::READ,
             _ => DevOp::WRITE,
         };
 

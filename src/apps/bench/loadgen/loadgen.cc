@@ -18,6 +18,7 @@
 #include <base/Log.h>
 
 #include <m3/com/MemGate.h>
+#include <m3/com/OpCodes.h>
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
 #include <m3/server/RequestHandler.h>
@@ -60,7 +61,9 @@ public:
 };
 
 class ReqHandler;
-typedef RequestHandler<ReqHandler, LoadGen::Operation, LoadGen::COUNT, LoadGenSession> base_class_t;
+typedef RequestHandler<ReqHandler, opcodes::LoadGen::Operation, opcodes::LoadGen::COUNT,
+                       LoadGenSession>
+    base_class_t;
 
 class ReqHandler : public base_class_t {
 public:
@@ -70,8 +73,8 @@ public:
     explicit ReqHandler(WorkLoop *wl)
         : base_class_t(),
           _rgate(RecvGate::create(nextlog2<BUF_SIZE>::val, nextlog2<MSG_SIZE>::val)) {
-        add_operation(LoadGen::START, &ReqHandler::start);
-        add_operation(LoadGen::RESPONSE, &ReqHandler::response);
+        add_operation(opcodes::LoadGen::START, &ReqHandler::start);
+        add_operation(opcodes::LoadGen::RESPONSE, &ReqHandler::response);
 
         using std::placeholders::_1;
         _rgate.start(wl, std::bind(&ReqHandler::handle_message, this, _1));

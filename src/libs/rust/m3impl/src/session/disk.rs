@@ -15,10 +15,9 @@
  * General Public License version 2 for more details.
  */
 
-use crate::com::{MemGate, RecvGate, SendGate};
+use crate::com::{opcodes, MemGate, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::goff;
-use crate::int_enum;
 use crate::kif::{CapRngDesc, CapType};
 use crate::session::ClientSession;
 use crate::tiles::Activity;
@@ -70,13 +69,6 @@ impl cmp::Ord for BlockRange {
         else {
             cmp::Ordering::Greater
         }
-    }
-}
-
-int_enum! {
-    pub struct DiskOperation : u32 {
-        const READ  = 0x0;
-        const WRITE = 0x1;
     }
 }
 
@@ -133,7 +125,7 @@ impl Disk {
         send_recv_res!(
             &self.sgate,
             &self.rgate,
-            DiskOperation::READ.val,
+            opcodes::Disk::READ,
             cap,
             blocks.start,
             blocks.count,
@@ -153,7 +145,7 @@ impl Disk {
         send_recv_res!(
             &self.sgate,
             &self.rgate,
-            DiskOperation::WRITE.val,
+            opcodes::Disk::WRITE,
             cap,
             blocks.start,
             blocks.count,

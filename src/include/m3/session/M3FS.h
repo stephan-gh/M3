@@ -21,6 +21,7 @@
 #include <base/util/Reference.h>
 
 #include <m3/com/GateStream.h>
+#include <m3/com/OpCodes.h>
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
 #include <m3/session/ClientSession.h>
@@ -90,7 +91,7 @@ private:
     capsel_t get_sgate(Activity &act) {
         KIF::ExchangeArgs args;
         ExchangeOStream os(args);
-        os << GET_SGATE;
+        os << opcodes::FileSystem::GET_SGATE;
         args.bytes = os.total();
         obtain_for(act, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel() + 1, 1), &args);
         return sel() + 1;

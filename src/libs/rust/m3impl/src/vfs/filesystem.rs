@@ -22,27 +22,9 @@ use core::fmt;
 use crate::boxed::Box;
 use crate::cap::Selector;
 use crate::errors::Error;
-use crate::int_enum;
 use crate::serialize::{M3Serializer, VecSink};
 use crate::tiles::ChildActivity;
 use crate::vfs::{File, FileInfo, FileMode, OpenFlags};
-
-int_enum! {
-    /// The file system operations.
-    pub struct FSOperation : u64 {
-        const STAT          = 15;
-        const MKDIR         = 16;
-        const RMDIR         = 17;
-        const LINK          = 18;
-        const UNLINK        = 19;
-        const RENAME        = 20;
-        const OPEN          = 21;
-        const GET_SGATE     = 22;
-        const GET_MEM       = 23;
-        const DEL_EP        = 24;
-        const OPEN_PRIV     = 25;
-    }
-}
 
 /// Trait for file systems.
 pub trait FileSystem: fmt::Debug {

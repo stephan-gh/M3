@@ -27,14 +27,14 @@ use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cell::{LazyReadOnlyCell, LazyStaticRefCell};
 use m3::col::{String, ToString, Vec};
-use m3::com::{GateIStream, MemGate, RecvGate, SGateArgs, SendGate};
+use m3::com::{opcodes, GateIStream, MemGate, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
 use m3::server::{CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer};
-use m3::session::{ClientSession, Pager, PagerOp, ResMng, M3FS};
+use m3::session::{ClientSession, Pager, ResMng, M3FS};
 use m3::tcu::Label;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity};
 use m3::util::math;
@@ -94,7 +94,7 @@ impl Handler<AddrSpace> for PagerReqHandler {
 
         let args = xchg.in_args();
         let sel = match args.pop()? {
-            PagerOp::ADD_CHILD => {
+            opcodes::Pager::ADD_CHILD => {
                 let sid = aspace.id();
                 let child_id = aspace.child_id();
                 self.sessions
@@ -110,7 +110,7 @@ impl Handler<AddrSpace> for PagerReqHandler {
                     })
                     .map(|(sel, _)| sel)
             },
-            PagerOp::ADD_SGATE => aspace.add_sgate(REQHDL.get().recv_gate()),
+            opcodes::Pager::ADD_SGATE => aspace.add_sgate(REQHDL.get().recv_gate()),
             _ => Err(Error::new(Code::InvArgs)),
         }?;
 
@@ -132,9 +132,9 @@ impl Handler<AddrSpace> for PagerReqHandler {
 
         let args = xchg.in_args();
         let (sel, virt) = match args.pop()? {
-            PagerOp::INIT => aspace.init(None, None).map(|sel| (sel, 0)),
-            PagerOp::MAP_DS => aspace.map_ds(args),
-            PagerOp::MAP_MEM => aspace.map_mem(args),
+            opcodes::Pager::INIT => aspace.init(None, None).map(|sel| (sel, 0)),
+            opcodes::Pager::MAP_DS => aspace.map_ds(args),
+            opcodes::Pager::MAP_MEM => aspace.map_mem(args),
             _ => Err(Error::new(Code::InvArgs)),
         }?;
 
@@ -264,14 +264,14 @@ impl subsys::ChildStarter for PagedChildStarter {
 
 fn handle_request(
     childs: &mut ChildManager,
-    op: PagerOp,
+    op: opcodes::Pager,
     is: &mut GateIStream<'_>,
 ) -> Result<(), Error> {
     let mut hdl = PGHDL.borrow_mut();
     let sid = is.label() as SessId;
 
     // clone is special, because we need two sessions
-    if op == PagerOp::CLONE {
+    if op == opcodes::Pager::CLONE {
         let pid = hdl.sessions.get(sid).unwrap().parent();
         if let Some(pid) = pid {
             let (sess, psess) = hdl.sessions.get_two_mut(sid, pid);
@@ -286,10 +286,10 @@ fn handle_request(
         let aspace = hdl.sessions.get_mut(sid).unwrap();
 
         match op {
-            PagerOp::PAGEFAULT => aspace.pagefault(childs, is),
-            PagerOp::MAP_ANON => aspace.map_anon(is),
-            PagerOp::UNMAP => aspace.unmap(is),
-            PagerOp::CLOSE => aspace
+            opcodes::Pager::PAGEFAULT => aspace.pagefault(childs, is),
+            opcodes::Pager::MAP_ANON => aspace.map_anon(is),
+            opcodes::Pager::UNMAP => aspace.unmap(is),
+            opcodes::Pager::CLOSE => aspace
                 .close(is)
                 .map(|_| hdl.close_sess(0, is.label() as SessId, is.rgate())),
             _ => Err(Error::new(Code::InvArgs)),

@@ -23,7 +23,7 @@ use crate::boxed::Box;
 use crate::cap::Selector;
 use crate::cell::RefCell;
 use crate::col::Vec;
-use crate::com::{recv_result, RecvGate, SendGate, EP};
+use crate::com::{opcodes, recv_result, RecvGate, SendGate, EP};
 use crate::errors::Error;
 use crate::goff;
 use crate::kif;
@@ -31,9 +31,7 @@ use crate::rc::Rc;
 use crate::serialize::{M3Deserializer, M3Serializer, VecSink};
 use crate::session::ClientSession;
 use crate::tiles::{Activity, ChildActivity};
-use crate::vfs::{
-    FSHandle, FSOperation, File, FileInfo, FileMode, FileSystem, GenericFile, OpenFlags,
-};
+use crate::vfs::{FSHandle, File, FileInfo, FileMode, FileSystem, GenericFile, OpenFlags};
 
 struct CachedEP {
     id: usize,
@@ -69,7 +67,7 @@ impl M3FS {
         sess.obtain_for(
             Activity::own().sel(),
             crd,
-            |os| os.push(FSOperation::GET_SGATE),
+            |os| os.push(opcodes::FileSystem::GET_SGATE),
             |_| Ok(()),
         )?;
         let sgate = SendGate::new_bind(sels + 1);
@@ -96,7 +94,7 @@ impl M3FS {
         let crd = sess.obtain(
             1,
             |os| {
-                os.push(FSOperation::GET_MEM);
+                os.push(opcodes::FileSystem::GET_MEM);
                 os.push(off);
             },
             |is| {
@@ -125,7 +123,7 @@ impl FileSystem for M3FS {
             let mut reply = send_recv_res!(
                 &self.sgate,
                 RecvGate::def(),
-                FSOperation::OPEN_PRIV,
+                opcodes::FileSystem::OPEN_PRIV,
                 path,
                 u64::from(flags.bits()),
                 self.eps[ep_idx].id
@@ -148,7 +146,7 @@ impl FileSystem for M3FS {
             let crd = self.sess.obtain(
                 2,
                 |os| {
-                    os.push(FSOperation::OPEN);
+                    os.push(opcodes::FileSystem::OPEN);
                     os.push(flags);
                     os.push(path);
                 },
@@ -172,7 +170,12 @@ impl FileSystem for M3FS {
     }
 
     fn stat(&self, path: &str) -> Result<FileInfo, Error> {
-        send_vmsg!(&self.sgate, RecvGate::def(), FSOperation::STAT, path)?;
+        send_vmsg!(
+            &self.sgate,
+            RecvGate::def(),
+            opcodes::FileSystem::STAT,
+            path
+        )?;
         let mut reply = recv_result(RecvGate::def(), Some(&self.sgate))?;
         reply.pop()
     }
@@ -181,7 +184,7 @@ impl FileSystem for M3FS {
         send_recv_res!(
             &self.sgate,
             RecvGate::def(),
-            FSOperation::MKDIR,
+            opcodes::FileSystem::MKDIR,
             path,
             mode.bits()
         )
@@ -189,14 +192,20 @@ impl FileSystem for M3FS {
     }
 
     fn rmdir(&self, path: &str) -> Result<(), Error> {
-        send_recv_res!(&self.sgate, RecvGate::def(), FSOperation::RMDIR, path).map(|_| ())
+        send_recv_res!(
+            &self.sgate,
+            RecvGate::def(),
+            opcodes::FileSystem::RMDIR,
+            path
+        )
+        .map(|_| ())
     }
 
     fn link(&self, old_path: &str, new_path: &str) -> Result<(), Error> {
         send_recv_res!(
             &self.sgate,
             RecvGate::def(),
-            FSOperation::LINK,
+            opcodes::FileSystem::LINK,
             old_path,
             new_path
         )
@@ -204,14 +213,20 @@ impl FileSystem for M3FS {
     }
 
     fn unlink(&self, path: &str) -> Result<(), Error> {
-        send_recv_res!(&self.sgate, RecvGate::def(), FSOperation::UNLINK, path).map(|_| ())
+        send_recv_res!(
+            &self.sgate,
+            RecvGate::def(),
+            opcodes::FileSystem::UNLINK,
+            path
+        )
+        .map(|_| ())
     }
 
     fn rename(&self, old_path: &str, new_path: &str) -> Result<(), Error> {
         send_recv_res!(
             &self.sgate,
             RecvGate::def(),
-            FSOperation::RENAME,
+            opcodes::FileSystem::RENAME,
             old_path,
             new_path
         )
@@ -229,7 +244,7 @@ impl FileSystem for M3FS {
         self.sess.obtain_for(
             act.sel(),
             crd,
-            |os| os.push(FSOperation::GET_SGATE),
+            |os| os.push(opcodes::FileSystem::GET_SGATE),
             |_| Ok(()),
         )?;
 
@@ -260,7 +275,7 @@ impl M3FS {
         let mut id = 0;
         self.sess.delegate(
             kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1),
-            |os| os.push(FSOperation::DEL_EP),
+            |os| os.push(opcodes::FileSystem::DEL_EP),
             |is| {
                 id = is.pop()?;
                 Ok(())

@@ -17,6 +17,7 @@
  */
 
 #include <m3/com/GateStream.h>
+#include <m3/com/OpCodes.h>
 #include <m3/session/M3FS.h>
 #include <m3/vfs/GenericFile.h>
 #include <m3/vfs/VFS.h>
@@ -32,7 +33,8 @@ std::unique_ptr<GenericFile> M3FS::open(const char *path, int perms) {
     if(!(perms & FILE_NEWSESS)) {
         size_t ep_idx = get_ep();
 
-        GateIStream reply = send_receive_vmsg(_gate, OPEN_PRIV, path, perms, _eps[ep_idx].id);
+        GateIStream reply =
+            send_receive_vmsg(_gate, opcodes::FileSystem::OPEN_PRIV, path, perms, _eps[ep_idx].id);
         reply.pull_result();
         ssize_t file_id;
         reply >> file_id;
@@ -44,7 +46,7 @@ std::unique_ptr<GenericFile> M3FS::open(const char *path, int perms) {
     else {
         KIF::ExchangeArgs args;
         ExchangeOStream os(args);
-        os << OPEN << perms << path;
+        os << opcodes::FileSystem::OPEN << perms << path;
         args.bytes = os.total();
         KIF::CapRngDesc crd = obtain(2, &args);
 
@@ -75,7 +77,7 @@ size_t M3FS::get_ep() {
 }
 
 Errors::Code M3FS::try_stat(const char *path, FileInfo &info) noexcept {
-    GateIStream reply = send_receive_vmsg(_gate, STAT, path);
+    GateIStream reply = send_receive_vmsg(_gate, opcodes::FileSystem::STAT, path);
     Errors::Code res;
     reply >> res;
     if(res != Errors::SUCCESS)
@@ -85,35 +87,35 @@ Errors::Code M3FS::try_stat(const char *path, FileInfo &info) noexcept {
 }
 
 Errors::Code M3FS::try_mkdir(const char *path, mode_t mode) {
-    GateIStream reply = send_receive_vmsg(_gate, MKDIR, path, mode);
+    GateIStream reply = send_receive_vmsg(_gate, opcodes::FileSystem::MKDIR, path, mode);
     Errors::Code res;
     reply >> res;
     return res;
 }
 
 Errors::Code M3FS::try_rmdir(const char *path) {
-    GateIStream reply = send_receive_vmsg(_gate, RMDIR, path);
+    GateIStream reply = send_receive_vmsg(_gate, opcodes::FileSystem::RMDIR, path);
     Errors::Code res;
     reply >> res;
     return res;
 }
 
 Errors::Code M3FS::try_link(const char *oldpath, const char *newpath) {
-    GateIStream reply = send_receive_vmsg(_gate, LINK, oldpath, newpath);
+    GateIStream reply = send_receive_vmsg(_gate, opcodes::FileSystem::LINK, oldpath, newpath);
     Errors::Code res;
     reply >> res;
     return res;
 }
 
 Errors::Code M3FS::try_unlink(const char *path) {
-    GateIStream reply = send_receive_vmsg(_gate, UNLINK, path);
+    GateIStream reply = send_receive_vmsg(_gate, opcodes::FileSystem::UNLINK, path);
     Errors::Code res;
     reply >> res;
     return res;
 }
 
 Errors::Code M3FS::try_rename(const char *oldpath, const char *newpath) {
-    GateIStream reply = send_receive_vmsg(_gate, RENAME, oldpath, newpath);
+    GateIStream reply = send_receive_vmsg(_gate, opcodes::FileSystem::RENAME, oldpath, newpath);
     Errors::Code res;
     reply >> res;
     return res;
@@ -122,7 +124,7 @@ Errors::Code M3FS::try_rename(const char *oldpath, const char *newpath) {
 size_t M3FS::delegate_ep(capsel_t sel) {
     KIF::ExchangeArgs args;
     ExchangeOStream os(args);
-    os << FileSystem::DEL_EP;
+    os << opcodes::FileSystem::DEL_EP;
     args.bytes = os.total();
 
     ClientSession::delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel, 1), &args);
