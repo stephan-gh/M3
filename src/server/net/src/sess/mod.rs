@@ -41,12 +41,13 @@ impl NetworkSession {
         &mut self,
         crt: usize,
         server: Selector,
+        opcode: u64,
         xchg: &mut CapExchange<'_>,
         iface: &mut DriverInterface<'_>,
     ) -> Result<(), Error> {
         match self {
             NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
-            NetworkSession::SocketSession(ss) => ss.obtain(crt, server, xchg, iface),
+            NetworkSession::SocketSession(ss) => ss.obtain(crt, server, opcode, xchg, iface),
         }
     }
 

@@ -16,15 +16,13 @@
 use m3::build_vmsg;
 use m3::cap::Selector;
 use m3::cell::{Cell, RefCell};
-use m3::com::{GateIStream, MemGate, RecvGate, SGateArgs, SendGate};
+use m3::com::{GateIStream, MemGate, RecvGate};
 use m3::errors::{Code, Error};
 use m3::io::LogFlags;
-use m3::kif;
 use m3::log;
 use m3::rc::Rc;
 use m3::reply_vmsg;
 use m3::server::SessId;
-use m3::tcu::Label;
 use m3::vfs::{FileEvent, FileInfo, FileMode};
 
 use crate::pipe::{Flags, State};
@@ -41,7 +39,6 @@ pub struct Channel {
     pipe: SessId,
     state: Rc<RefCell<State>>,
     mem: Option<MemGate>,
-    sgate: SendGate,
     ep_cap: Option<Selector>,
     promised_events: Rc<Cell<FileEvent>>,
 }
@@ -49,25 +46,16 @@ pub struct Channel {
 impl Channel {
     pub fn new(
         id: SessId,
-        sel: Selector,
         ty: ChanType,
         pipe: SessId,
         state: Rc<RefCell<State>>,
-        rgate: &RecvGate,
     ) -> Result<Self, Error> {
-        let sgate = SendGate::new_with(
-            SGateArgs::new(rgate)
-                .label(id as Label)
-                .credits(1)
-                .sel(sel + 1),
-        )?;
         Ok(Channel {
             ty,
             id,
             pipe,
             state,
             mem: None,
-            sgate,
             ep_cap: None,
             promised_events: Rc::new(Cell::from(FileEvent::empty())),
         })
@@ -85,12 +73,8 @@ impl Channel {
         self.pipe
     }
 
-    pub fn crd(&self) -> kif::CapRngDesc {
-        kif::CapRngDesc::new(kif::CapType::OBJECT, self.sgate.sel() - 1, 2)
-    }
-
-    pub fn clone(&self, id: SessId, sel: Selector, rgate: &RecvGate) -> Result<Channel, Error> {
-        Channel::new(id, sel, self.ty, self.pipe, self.state.clone(), rgate)
+    pub fn clone(&self, id: SessId) -> Result<Channel, Error> {
+        Channel::new(id, self.ty, self.pipe, self.state.clone())
     }
 
     pub fn set_ep(&mut self, ep: Selector) {

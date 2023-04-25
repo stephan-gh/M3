@@ -67,7 +67,7 @@ impl M3FS {
         sess.obtain_for(
             Activity::own().sel(),
             crd,
-            |os| os.push(opcodes::FileSystem::GET_SGATE),
+            |os| os.push(opcodes::General::CONNECT),
             |_| Ok(()),
         )?;
         let sgate = SendGate::new_bind(sels + 1);
@@ -244,7 +244,7 @@ impl FileSystem for M3FS {
         self.sess.obtain_for(
             act.sel(),
             crd,
-            |os| os.push(opcodes::FileSystem::GET_SGATE),
+            |os| os.push(opcodes::General::CONNECT),
             |_| Ok(()),
         )?;
 

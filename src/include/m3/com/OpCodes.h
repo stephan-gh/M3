@@ -15,8 +15,16 @@
 
 #pragma once
 
+#include <base/Types.h>
+
 namespace m3 {
 namespace opcodes {
+
+struct General {
+    enum Operation : uint64_t {
+        CONNECT = static_cast<uint64_t>(1) << 63,
+    };
+};
 
 struct File {
     enum Operation {
@@ -61,7 +69,6 @@ struct FileSystem {
         UNLINK,
         RENAME,
         OPEN,
-        GET_SGATE,
         GET_MEM,
         DEL_EP,
         OPEN_PRIV,
@@ -133,7 +140,6 @@ struct Pager {
         PAGEFAULT,
         INIT,
         ADD_CHILD,
-        ADD_SGATE,
         CLONE,
         MAP_ANON,
         MAP_DS,

@@ -27,7 +27,9 @@ use m3::com::{opcodes, GateIStream, RecvGate};
 use m3::errors::{Code, Error};
 use m3::net::{log_net, NetLogEvent};
 use m3::rc::Rc;
-use m3::server::{CapExchange, Handler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS};
+use m3::server::{
+    CapExchange, ExcType, Handler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS,
+};
 use m3::tiles::OwnActivity;
 use m3::time::{TimeDuration, TimeInstant};
 use m3::util::math;
@@ -171,36 +173,21 @@ impl Handler<NetworkSession> for NetHandler<'_> {
         })
     }
 
-    fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
-        log!(
-            LogFlags::NetSess,
-            "[{}] net::obtain(crt={}, #caps={})",
-            sid,
-            crt,
-            xchg.in_caps()
-        );
-
-        if let Some(s) = self.sessions.get_mut(sid) {
-            s.obtain(crt, self.sel, xchg, &mut self.iface)
-        }
-        else {
-            Err(Error::new(Code::InvArgs))
-        }
-    }
-
-    fn delegate(
+    fn exchange_handler(
         &mut self,
         crt: usize,
         sid: SessId,
+        opcode: u64,
+        ty: m3::server::ExcType,
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
-        log!(LogFlags::NetSess, "[{}] net::delegate(crt={})", sid, crt);
-
-        if let Some(s) = self.sessions.get_mut(sid) {
-            s.delegate(xchg)
-        }
-        else {
-            Err(Error::new(Code::InvArgs))
+        let sess = self
+            .sessions
+            .get_mut(sid)
+            .ok_or_else(|| Error::new(Code::InvArgs))?;
+        match ty {
+            ExcType::Obt(_) => sess.obtain(crt, self.sel, opcode, xchg, &mut self.iface),
+            ExcType::Del(_) => sess.delegate(xchg),
         }
     }
 
@@ -420,7 +407,7 @@ pub fn main() -> Result<(), Error> {
 
     'outer: loop {
         let sleep_nanos = loop {
-            if serv.handle_ctrl_chan(&mut handler).is_err() {
+            if serv.fetch_and_handle(&mut handler).is_err() {
                 break 'outer;
             }
 

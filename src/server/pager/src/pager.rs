@@ -25,16 +25,13 @@ use core::ops::DerefMut;
 
 use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::{LazyReadOnlyCell, LazyStaticRefCell};
+use m3::cell::{LazyStaticRefCell, StaticCell, StaticRefCell};
 use m3::col::{String, ToString, Vec};
-use m3::com::{opcodes, GateIStream, MemGate, RecvGate, SGateArgs, SendGate};
+use m3::com::{opcodes, MemGate, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
-use m3::io::LogFlags;
-use m3::kif;
-use m3::log;
-use m3::server::{CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer};
-use m3::session::{ClientSession, Pager, ResMng, M3FS};
+use m3::server::{ExcType, RequestHandler, Server, SessId};
+use m3::session::{ClientSession, Pager, ResMng, ServerSession, M3FS};
 use m3::tcu::Label;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity};
 use m3::util::math;
@@ -49,107 +46,11 @@ use resmng::resources::{tiles, Resources};
 use resmng::sendqueue;
 use resmng::subsys;
 
-static PGHDL: LazyStaticRefCell<PagerReqHandler> = LazyStaticRefCell::default();
-static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
+static SERV_SEL: StaticCell<Selector> = StaticCell::new(0);
+static REQHDL: LazyStaticRefCell<RequestHandler<AddrSpace>> = LazyStaticRefCell::default();
+static CLOSED_SESS: StaticRefCell<Option<SessId>> = StaticRefCell::new(None);
+
 static MOUNTS: LazyStaticRefCell<Vec<(String, String)>> = LazyStaticRefCell::default();
-
-struct PagerReqHandler {
-    sel: Selector,
-    sessions: SessionContainer<AddrSpace>,
-}
-
-impl PagerReqHandler {
-    fn close_sess(&mut self, _crt: usize, sid: SessId, rgate: &RecvGate) {
-        log!(LogFlags::PgReqs, "[{}] pager::close()", sid);
-        let crt = self.sessions.get(sid).unwrap().creator();
-        self.sessions.remove(crt, sid);
-        // ignore all potentially outstanding messages of this session
-        rgate.drop_msgs_with(sid as Label).unwrap();
-    }
-}
-
-impl Handler<AddrSpace> for PagerReqHandler {
-    fn sessions(&mut self) -> &mut m3::server::SessionContainer<AddrSpace> {
-        &mut self.sessions
-    }
-
-    fn open(
-        &mut self,
-        crt: usize,
-        srv_sel: Selector,
-        _arg: &str,
-    ) -> Result<(Selector, SessId), Error> {
-        self.sessions.add_next(crt, srv_sel, false, |sess| {
-            log!(LogFlags::PgReqs, "[{}] pager::open()", sess.ident());
-            Ok(AddrSpace::new(crt, sess, None, None))
-        })
-    }
-
-    fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
-        if xchg.in_caps() != 1 {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        let aspace = self.sessions.get_mut(sid).unwrap();
-
-        let args = xchg.in_args();
-        let sel = match args.pop()? {
-            opcodes::Pager::ADD_CHILD => {
-                let sid = aspace.id();
-                let child_id = aspace.child_id();
-                self.sessions
-                    .add_next(crt, self.sel, false, |sess| {
-                        let nsid = sess.ident();
-                        log!(
-                            LogFlags::PgReqs,
-                            "[{}] pager::add_child(nsid={})",
-                            sid,
-                            nsid
-                        );
-                        Ok(AddrSpace::new(crt, sess, Some(sid), child_id))
-                    })
-                    .map(|(sel, _)| sel)
-            },
-            opcodes::Pager::ADD_SGATE => aspace.add_sgate(REQHDL.get().recv_gate()),
-            _ => Err(Error::new(Code::InvArgs)),
-        }?;
-
-        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
-        Ok(())
-    }
-
-    fn delegate(
-        &mut self,
-        _crt: usize,
-        sid: SessId,
-        xchg: &mut CapExchange<'_>,
-    ) -> Result<(), Error> {
-        if xchg.in_caps() != 1 {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        let aspace = self.sessions.get_mut(sid).unwrap();
-
-        let args = xchg.in_args();
-        let (sel, virt) = match args.pop()? {
-            opcodes::Pager::INIT => aspace.init(None, None).map(|sel| (sel, 0)),
-            opcodes::Pager::MAP_DS => aspace.map_ds(args),
-            opcodes::Pager::MAP_MEM => aspace.map_mem(args),
-            _ => Err(Error::new(Code::InvArgs)),
-        }?;
-
-        if virt != 0 {
-            xchg.out_args().push(virt);
-        }
-
-        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
-        Ok(())
-    }
-
-    fn close(&mut self, _crt: usize, sid: SessId) {
-        self.close_sess(_crt, sid, REQHDL.get().recv_gate());
-    }
-}
 
 fn get_mount(name: &str) -> Result<String, VerboseError> {
     for (n, mpath) in MOUNTS.borrow().iter() {
@@ -187,27 +88,28 @@ impl subsys::ChildStarter for PagedChildStarter {
         )?;
 
         // create pager session for child (creator=0 here because we create all sessions ourself)
-        let (sel, sid, child_sgate) = {
-            let mut hdl = PGHDL.borrow_mut();
-            let srv_sel = hdl.sel;
-            let (sel, sid) = hdl.open(0, srv_sel, "")?;
-            let aspace = hdl.sessions.get_mut(sid).unwrap();
-            let child_sgate = aspace.add_sgate(REQHDL.get().recv_gate()).unwrap();
-            (sel, sid, child_sgate)
+        let (child_sess, child_sgate, pager_sgate, child_sid) = {
+            let mut hdl = REQHDL.borrow_mut();
+            let cli = hdl.clients_mut();
+            let sels = Activity::own().alloc_sels(2);
+            let nsid = cli.add_connected_session(0, sels + 1, |_hdl, nsid, _sgate| {
+                Ok(AddrSpace::new(
+                    0,
+                    ServerSession::new_with_sel(SERV_SEL.get(), sels, 0, nsid as u64, true)?,
+                    None,
+                    None,
+                ))
+            })?;
+            let pf_sgate = cli.add_connection(nsid)?;
+            (ClientSession::new_bind(sels + 0), sels + 1, pf_sgate, nsid)
         };
-        let sess = ClientSession::new_bind(sel);
-        let pager_sgate = SendGate::new_with(
-            SGateArgs::new(REQHDL.get().recv_gate())
-                .credits(1)
-                .label(Label::from(sid as u32)),
-        )?;
 
         // create child activity
         let mut act = ChildActivity::new_with(
             child.child_tile().unwrap().tile_obj().clone(),
             ActivityArgs::new(child.name())
                 .resmng(ResMng::new(resmng_sgate))
-                .pager(Pager::new(sess, pager_sgate, child_sgate)?)
+                .pager(Pager::new(child_sess, pager_sgate, child_sgate)?)
                 .kmem(child.kmem().unwrap()),
         )?;
 
@@ -224,9 +126,9 @@ impl subsys::ChildStarter for PagedChildStarter {
         }
 
         // init address space (give it activity and mgate selector)
-        let mut hdl = PGHDL.borrow_mut();
-        let aspace = hdl.sessions.get_mut(sid).unwrap();
-        aspace.init(Some(child.id()), Some(act.sel())).unwrap();
+        let mut hdl = REQHDL.borrow_mut();
+        let aspace = hdl.clients_mut().sessions_mut().get_mut(child_sid).unwrap();
+        aspace.do_init(Some(child.id()), Some(act.sel())).unwrap();
 
         // start activity
         let file = vfs::VFS::open(child.name(), vfs::OpenFlags::RX | vfs::OpenFlags::NEW_SESS)
@@ -262,41 +164,6 @@ impl subsys::ChildStarter for PagedChildStarter {
     }
 }
 
-fn handle_request(
-    childs: &mut ChildManager,
-    op: opcodes::Pager,
-    is: &mut GateIStream<'_>,
-) -> Result<(), Error> {
-    let mut hdl = PGHDL.borrow_mut();
-    let sid = is.label() as SessId;
-
-    // clone is special, because we need two sessions
-    if op == opcodes::Pager::CLONE {
-        let pid = hdl.sessions.get(sid).unwrap().parent();
-        if let Some(pid) = pid {
-            let (sess, psess) = hdl.sessions.get_two_mut(sid, pid);
-            let sess = sess.unwrap();
-            sess.clone(is, psess.unwrap())
-        }
-        else {
-            Err(Error::new(Code::InvArgs))
-        }
-    }
-    else {
-        let aspace = hdl.sessions.get_mut(sid).unwrap();
-
-        match op {
-            opcodes::Pager::PAGEFAULT => aspace.pagefault(childs, is),
-            opcodes::Pager::MAP_ANON => aspace.map_anon(is),
-            opcodes::Pager::UNMAP => aspace.unmap(is),
-            opcodes::Pager::CLOSE => aspace
-                .close(is)
-                .map(|_| hdl.close_sess(0, is.label() as SessId, is.rgate())),
-            _ => Err(Error::new(Code::InvArgs)),
-        }
-    }
-}
-
 #[allow(clippy::vec_box)]
 struct WorkloopArgs<'c, 'd, 'r, 'q, 's> {
     childs: &'c mut ChildManager,
@@ -319,17 +186,38 @@ fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_, '_>) {
         childs,
         delayed,
         res,
-        |childs, _res| {
-            serv.handle_ctrl_chan(PGHDL.borrow_mut().deref_mut()).ok();
+        |mut childs, _res| {
+            serv.fetch_and_handle(REQHDL.borrow_mut().deref_mut()).ok();
 
             REQHDL
-                .get()
-                .handle(|op, is| handle_request(childs, op, is))
+                .borrow_mut()
+                .fetch_and_handle_with(|_handler, opcode, sess, is| {
+                    match opcodes::Pager::from(opcode) {
+                        opcodes::Pager::PAGEFAULT => sess.pagefault(&mut childs, is),
+                        opcodes::Pager::MAP_ANON => sess.map_anon(is),
+                        opcodes::Pager::UNMAP => sess.unmap(is),
+                        opcodes::Pager::CLOSE => sess.close(is),
+                        _ => Err(Error::new(Code::InvArgs)),
+                    }
+                })
                 .ok();
+
+            // check if there is a session to close
+            if let Some(sid) = CLOSED_SESS.borrow_mut().take() {
+                let mut hdl = REQHDL.borrow_mut();
+                let cli = hdl.clients_mut();
+                let creator = cli.sessions().get(sid).unwrap().creator();
+                cli.remove_session(creator, sid);
+            }
         },
         &mut PagedChildStarter {},
     )
     .expect("Unable to run workloop");
+}
+
+fn register_close(sid: SessId) {
+    assert!(crate::CLOSED_SESS.borrow().is_none());
+    *crate::CLOSED_SESS.borrow_mut() = Some(sid);
 }
 
 #[no_mangle]
@@ -352,18 +240,19 @@ pub fn main() -> Result<(), Error> {
         .borrow_mut()
         .push(("m3fs".to_string(), "/".to_string()));
 
-    // create server
-    let mut hdl = PagerReqHandler {
-        sel: 0,
-        sessions: SessionContainer::new(args.max_clients),
-    };
-    let mut serv = Server::new_private("pager", &mut hdl).expect("Unable to create service");
-    hdl.sel = serv.sel();
-    PGHDL.set(hdl);
+    // create request handler and server
+    let mut hdl = RequestHandler::new_with(args.max_clients, 128)
+        .expect("Unable to create request handler");
 
-    REQHDL.set(
-        RequestHandler::new_with(args.max_clients, 128).expect("Unable to create request handler"),
-    );
+    let mut srv = Server::new_private("pager", &mut hdl).expect("Unable to create service");
+    SERV_SEL.set(srv.sel());
+
+    use opcodes::Pager;
+    hdl.reg_cap_handler(Pager::INIT.val, ExcType::Del(1), AddrSpace::init);
+    hdl.reg_cap_handler(Pager::ADD_CHILD.val, ExcType::Obt(1), AddrSpace::add_child);
+    hdl.reg_cap_handler(Pager::MAP_DS.val, ExcType::Del(1), AddrSpace::map_ds);
+    hdl.reg_cap_handler(Pager::MAP_MEM.val, ExcType::Del(1), AddrSpace::map_mem);
+    REQHDL.set(hdl);
 
     let req_rgate = RecvGate::new(
         math::next_log2(256 * args.max_clients),
@@ -399,7 +288,7 @@ pub fn main() -> Result<(), Error> {
         delayed: &mut delayed,
         res: &mut res,
         reqs: &reqs,
-        serv: &mut serv,
+        serv: &mut srv,
     };
 
     thread::init();

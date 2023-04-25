@@ -25,28 +25,30 @@ mod kecacc;
 #[path = "kecacc-xkcp.rs"]
 mod kecacc;
 
-use crate::kecacc::{KecAcc, KecAccState};
 use base::const_assert;
-use base::io::LogFlags;
+
 use core::cmp::min;
 use core::sync::atomic;
-use m3::cap::Selector;
-use m3::cell::{LazyReadOnlyCell, LazyStaticRefCell, StaticRefCell};
-use m3::col::VecDeque;
-use m3::com::{opcodes, GateIStream, MemGate, SGateArgs, SendGate};
+
+use m3::cell::{LazyStaticRefCell, StaticCell, StaticRefCell};
+use m3::col::{Vec, VecDeque};
+use m3::com::{opcodes, GateIStream, MemGate, RecvGate};
 use m3::crypto::{HashAlgorithm, HashType};
 use m3::errors::{Code, Error};
+use m3::io::LogFlags;
 use m3::kif::{CapRngDesc, CapType, INVALID_SEL};
 use m3::log;
 use m3::mem::{size_of, AlignedBuf, MsgBuf, MsgBufRef};
 use m3::server::{
-    server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
-    DEF_MSG_SIZE,
+    server_loop, CapExchange, ClientManager, ExcType, RequestHandler, RequestSession, Server,
+    SessId, DEF_MSG_SIZE,
 };
 use m3::session::ServerSession;
-use m3::tcu::{Label, Message};
+use m3::tcu::Message;
 use m3::tiles::Activity;
 use m3::time::{TimeDuration, TimeInstant};
+
+use crate::kecacc::{KecAcc, KecAccState};
 
 /// Size of the two SRAMs used as temporary buffer for TCU transfers
 /// and the accelerator.
@@ -86,7 +88,7 @@ static STATES: StaticRefCell<[KecAccState; MAX_SESSIONS]> =
 const MAX_DIRECT_SIZE: usize = HashAlgorithm::MAX_OUTPUT_BYTES;
 const_assert!(MAX_DIRECT_SIZE <= BUFFER_SIZE);
 
-static RECV: LazyReadOnlyCell<HashMuxReceiver> = LazyReadOnlyCell::default();
+static CURRENT: StaticCell<Option<SessId>> = StaticCell::new(None);
 static QUEUE: LazyStaticRefCell<VecDeque<SessId>> = LazyStaticRefCell::default();
 static KECACC: KecAcc = KecAcc::new(0xF4200000);
 
@@ -112,8 +114,7 @@ struct HashRequest {
 
 /// A session opened by a client, holds state and scheduling information.
 struct HashSession {
-    sess: ServerSession,
-    sgate: SendGate,
+    serv: ServerSession,
     mgate: MemGate,
     algo: Option<&'static HashAlgorithm>,
     state_saved: bool,
@@ -123,16 +124,61 @@ struct HashSession {
     output_bytes: usize,
 }
 
-/// Handles requests and holds all hash sessions.
-struct HashHandler {
-    sessions: SessionContainer<HashSession>,
-    current: Option<SessId>,
+impl RequestSession for HashSession {
+    fn new(_crt: usize, serv: ServerSession, arg: &str) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        // Use the time slice specified in the arguments or fall back to the default one
+        let time_slice = if !arg.is_empty() {
+            TimeDuration::from_nanos(arg.parse::<u64>().map_err(|_| Error::new(Code::InvArgs))?)
+        }
+        else {
+            DEFAULT_TIME_SLICE
+        };
+
+        let sid = serv.ident() as SessId;
+        log!(LogFlags::HMuxReqs, "[{}] hash::open()", sid);
+        assert!(sid < MAX_SESSIONS);
+
+        Ok(Self {
+            serv,
+            mgate: MemGate::new_bind(INVALID_SEL),
+            algo: None,
+            state_saved: false,
+            req: None,
+            time_slice,
+            remaining_time: 0,
+            output_bytes: 0,
+        })
+    }
+
+    fn close(&mut self, _cli: &mut ClientManager<Self>, sid: SessId, _sub_ids: &mut Vec<SessId>)
+    where
+        Self: Sized,
+    {
+        log!(LogFlags::HMuxReqs, "[{}] hash::close()", sid);
+
+        QUEUE.borrow_mut().retain(|&n| n != sid);
+        if CURRENT.get() == Some(sid) {
+            CURRENT.set(None);
+        }
+
+        // Revoke EP capability that was delegated for memory accesses
+        if let Some(ep) = self.mgate.ep() {
+            if let Err(e) =
+                Activity::own().revoke(CapRngDesc::new(CapType::OBJECT, ep.sel(), 1), true)
+            {
+                log!(LogFlags::Error, "[{}] Failed to revoke EP cap: {}", sid, e)
+            }
+        };
+    }
 }
 
 /// Receives requests from kernel and clients through `RecvGate`s.
 struct HashMuxReceiver {
     server: Server,
-    reqhdl: RequestHandler,
+    reqhdl: RequestHandler<HashSession>,
 }
 
 /// Run func repeatedly with the two buffers swapped,
@@ -192,11 +238,15 @@ impl HashMuxTimer {
     /// is needed at some point. The time when the accelerator is busy could
     /// be used to check pending messages more frequently, without adjusting
     /// the time slice of low-priority clients.
-    fn try_continue(&mut self) -> Result<(), i64> {
+    fn try_continue(&mut self, req_rgate: &RecvGate, srv_rgate: &RecvGate) -> Result<(), i64> {
         let t = TimeInstant::now();
         if t >= self.end {
             // Time expired, look for other clients to work on
-            if !OPTIMIZE_SCHEDULING || !QUEUE.borrow().is_empty() || RECV.get().has_messages() {
+            if !OPTIMIZE_SCHEDULING
+                || !QUEUE.borrow().is_empty()
+                || req_rgate.has_msgs().unwrap()
+                || srv_rgate.has_msgs().unwrap()
+            {
                 return Err(self.remaining_time(t));
             }
 
@@ -228,18 +278,17 @@ impl HashRequest {
     }
 
     /// Reply with code to the original request.
-    fn reply(self, code: Code) {
+    fn reply(self, code: Code, req_rgate: &RecvGate) {
         let mut msg = MsgBuf::borrow_def();
         msg.set(code as u64);
-        self.reply_msg(msg)
+        self.reply_msg(msg, req_rgate)
     }
 
     /// Reply with the specified message to the original request.
-    fn reply_msg(self, msg: MsgBufRef<'_>) {
-        let rgate = RECV.get().reqhdl.recv_gate();
-        rgate
+    fn reply_msg(self, msg: MsgBufRef<'_>, req_rgate: &RecvGate) {
+        req_rgate
             .reply(&msg, self.msg)
-            .or_else(|_| rgate.ack_msg(self.msg))
+            .or_else(|_| req_rgate.ack_msg(self.msg))
             .ok();
     }
 }
@@ -247,7 +296,12 @@ impl HashRequest {
 impl HashSession {
     /// Work on an input request by reading memory from the MemGate and
     /// letting the accelerator absorb it.
-    fn work_input(&mut self, mut req: HashRequest) -> bool {
+    fn work_input(
+        &mut self,
+        mut req: HashRequest,
+        req_rgate: &RecvGate,
+        srv_rgate: &RecvGate,
+    ) -> bool {
         let mut timer = HashMuxTimer::start(self);
 
         let res = loop_double_buffer(|buf, _| {
@@ -264,18 +318,23 @@ impl HashSession {
             }
             req.complete_buffer(n);
 
-            if let Err(remaining_time) = timer.try_continue() {
+            if let Err(remaining_time) = timer.try_continue(req_rgate, srv_rgate) {
                 self.remaining_time = remaining_time;
                 return Ok(false);
             }
             Ok(true)
         });
-        self.handle_result(res, req, timer)
+        self.handle_result(res, req, timer, req_rgate)
     }
 
     /// Work on an output request by letting the accelerator squeeze it
     /// and then writing it to the MemGate.
-    fn work_output(&mut self, mut req: HashRequest) -> bool {
+    fn work_output(
+        &mut self,
+        mut req: HashRequest,
+        req_rgate: &RecvGate,
+        srv_rgate: &RecvGate,
+    ) -> bool {
         let mut timer = HashMuxTimer::start(self);
 
         // Apply padding once for the request if needed
@@ -313,7 +372,7 @@ impl HashSession {
             self.mgate.write_bytes(lbuf.as_ptr(), ln, req.off as u64)?;
             req.complete_buffer(ln);
 
-            if let Err(remaining_time) = timer.try_continue() {
+            if let Err(remaining_time) = timer.try_continue(req_rgate, srv_rgate) {
                 // Still need to write back the last buffer - this might take a bit
                 // so measure the time and subtract it from the remaining time.
                 let t = TimeInstant::now();
@@ -326,7 +385,7 @@ impl HashSession {
             ln = n;
             Ok(true)
         });
-        self.handle_result(res, req, timer)
+        self.handle_result(res, req, timer, req_rgate)
     }
 
     fn handle_result(
@@ -334,6 +393,7 @@ impl HashSession {
         res: Result<(), Error>,
         req: HashRequest,
         timer: HashMuxTimer,
+        req_rgate: &RecvGate,
     ) -> bool {
         match res {
             Ok(_) => {
@@ -343,20 +403,20 @@ impl HashSession {
                 log!(
                     LogFlags::HMuxDbg,
                     "[{}] hash::work() pause, remaining time {}",
-                    self.sess.ident(),
+                    self.serv.ident(),
                     self.remaining_time,
                 );
                 false // not done
             },
             Err(e) => {
-                req.reply(e.code());
+                req.reply(e.code(), req_rgate);
                 self.remaining_time = timer.finish();
 
                 if e.code() == Code::Success {
                     log!(
                         LogFlags::HMuxInOut,
                         "[{}] hash::work() done, remaining time {}",
-                        self.sess.ident(),
+                        self.serv.ident(),
                         self.remaining_time,
                     )
                 }
@@ -364,7 +424,7 @@ impl HashSession {
                     log!(
                         LogFlags::Error,
                         "[{}] hash::work() failed with {:?}",
-                        self.sess.ident(),
+                        self.serv.ident(),
                         e.code(),
                     );
                 }
@@ -375,7 +435,7 @@ impl HashSession {
 
     /// Work on a direct output request by letting the accelerator squeeze
     /// a few bytes and then sending them directly as reply.
-    fn work_output_direct(&mut self, req: HashRequest) -> bool {
+    fn work_output_direct(&mut self, req: HashRequest, req_rgate: &RecvGate) -> bool {
         let timer = HashMuxTimer::start(self);
         let buf = &mut BUF1.borrow_mut()[..req.len];
         let mut msg = MsgBuf::borrow_def();
@@ -390,18 +450,18 @@ impl HashSession {
         atomic::fence(atomic::Ordering::SeqCst);
         msg.set_from_slice(buf);
 
-        req.reply_msg(msg);
+        req.reply_msg(msg, req_rgate);
         self.remaining_time = timer.finish();
         log!(
             LogFlags::HMuxInOut,
             "[{}] hash::work() done, remaining time {}",
-            self.sess.ident(),
+            self.serv.ident(),
             self.remaining_time,
         );
         true // done
     }
 
-    fn work(&mut self) -> bool {
+    fn work(&mut self, req_rgate: &RecvGate, srv_rgate: &RecvGate) -> bool {
         // Fill up time of client. Subtract time from time slice if client took too long last time
         if self.remaining_time < 0 {
             self.remaining_time += self.time_slice.as_nanos() as i64;
@@ -414,7 +474,7 @@ impl HashSession {
         log!(
             LogFlags::HMuxDbg,
             "[{}] hash::work() {:?} start len {} off {} remaining time {} queue {:?}",
-            self.sess.ident(),
+            self.serv.ident(),
             req.ty,
             req.len,
             req.off,
@@ -423,16 +483,18 @@ impl HashSession {
         );
 
         match req.ty {
-            HashRequestType::Input => self.work_input(req),
-            HashRequestType::Output | HashRequestType::OutputPad => self.work_output(req),
-            HashRequestType::OutputDirect => self.work_output_direct(req),
+            HashRequestType::Input => self.work_input(req, req_rgate, srv_rgate),
+            HashRequestType::Output | HashRequestType::OutputPad => {
+                self.work_output(req, req_rgate, srv_rgate)
+            },
+            HashRequestType::OutputDirect => self.work_output_direct(req, req_rgate),
         }
     }
 }
 
 impl HashSession {
     fn id(&self) -> SessId {
-        self.sess.ident() as SessId
+        self.serv.ident() as SessId
     }
 
     fn reset(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -442,19 +504,49 @@ impl HashSession {
         log!(
             LogFlags::HMuxInOut,
             "[{}] hash::reset() algo {}",
-            self.sess.ident(),
+            self.serv.ident(),
             algo
         );
         assert!(self.req.is_none());
         self.algo = Some(algo);
         self.state_saved = false;
         self.output_bytes = 0;
-        is.reply_error(Code::Success)
+
+        if is.reply_error(Code::Success).is_ok() {
+            // Clear current session if necessary to force re-initialization
+            if CURRENT.get() == Some(is.label() as SessId) {
+                CURRENT.set(None);
+            }
+        }
+
+        Ok(())
+    }
+
+    fn get_mem(
+        cli: &mut ClientManager<Self>,
+        _crt: usize,
+        sid: SessId,
+        xchg: &mut CapExchange<'_>,
+    ) -> Result<(), Error> {
+        log!(LogFlags::HMuxReqs, "[{}] hash::obtain()", sid);
+        let hash = cli
+            .sessions_mut()
+            .get_mut(sid)
+            .ok_or_else(|| Error::new(Code::InvArgs))?;
+
+        // FIXME: Let client obtain EP capability directly with first obtain() below
+        // Right now this is not possible because mgate.activate() returns an EP
+        // from the EpMng which does not allow binding it to a specified capability selector.
+        hash.mgate.activate()?;
+        let ep_sel = hash.mgate.ep().unwrap().sel();
+        xchg.out_caps(CapRngDesc::new(CapType::OBJECT, ep_sel, 1));
+
+        Ok(())
     }
 
     /// Queue a new request for the client and mark client as ready and perhaps
     /// even waiting if it has remaining time.
-    fn queue_request(&mut self, req: HashRequest) -> Result<(), Error> {
+    fn queue_request(&mut self, req: HashRequest, req_rgate: &RecvGate) -> Result<(), Error> {
         assert!(self.req.is_none());
 
         if req.len > 0 {
@@ -463,13 +555,13 @@ impl HashSession {
         }
         else {
             // This is weird but not strictly wrong, just return immediately
-            req.reply(Code::Success);
+            req.reply(Code::Success, req_rgate);
         }
         Ok(())
     }
 
     fn input(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
-        log!(LogFlags::HMuxInOut, "[{}] hash::input()", self.sess.ident());
+        log!(LogFlags::HMuxInOut, "[{}] hash::input()", self.serv.ident());
 
         // Disallow input after output for now since this is not part of the SHA-3 specification.
         // However, there is a separate paper about the "Duplex" construction:
@@ -478,19 +570,22 @@ impl HashSession {
             return Err(Error::new(Code::InvState));
         }
 
-        self.queue_request(HashRequest {
-            ty: HashRequestType::Input,
-            off: is.pop()?,
-            len: is.pop()?,
-            msg: is.take_msg(),
-        })
+        self.queue_request(
+            HashRequest {
+                ty: HashRequestType::Input,
+                off: is.pop()?,
+                len: is.pop()?,
+                msg: is.take_msg(),
+            },
+            is.rgate(),
+        )
     }
 
     fn output(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         log!(
             LogFlags::HMuxInOut,
             "[{}] hash::output()",
-            self.sess.ident()
+            self.serv.ident()
         );
 
         let algo = self.algo.ok_or_else(|| Error::new(Code::InvState))?;
@@ -515,7 +610,7 @@ impl HashSession {
                 log!(
                     LogFlags::Error,
                     "[{}] hash::output() cannot use direct output for {}",
-                    self.sess.ident(),
+                    self.serv.ident(),
                     algo.name,
                 );
                 return Err(Error::new(Code::InvArgs));
@@ -535,39 +630,35 @@ impl HashSession {
             log!(
                 LogFlags::Error,
                 "[{}] hash::output() attempting to output {} bytes while only {} are supported for {}",
-                self.sess.ident(),
+                self.serv.ident(),
                 self.output_bytes,
                 algo.output_bytes,
                 algo.name
             );
 
-            req.reply(Code::InvArgs);
+            req.reply(Code::InvArgs, is.rgate());
             return Ok(());
         }
 
-        self.queue_request(req)
+        self.queue_request(req, is.rgate())
     }
 }
 
-impl HashHandler {
-    fn handle(&mut self, op: opcodes::Hash, is: &mut GateIStream<'_>) -> Result<(), Error> {
-        let sid = is.label() as SessId;
-        let sess = self
-            .sessions
-            .get_mut(sid)
-            .ok_or_else(|| Error::new(Code::InvArgs))?;
+impl HashMuxReceiver {
+    fn work(&mut self, sid: SessId) -> bool {
+        let Self { server, reqhdl } = self;
+        let serv_rgate = server.rgate();
+        reqhdl
+            .clients_mut()
+            .with_session(sid, |sess, rgate| Ok(sess.work(rgate, serv_rgate)))
+            .unwrap()
+    }
 
-        match op {
-            opcodes::Hash::RESET => sess.reset(is).map(|_| {
-                // Clear current session if necessary to force re-initialization
-                if self.current == Some(sid) {
-                    self.current = None;
-                }
-            }),
-            opcodes::Hash::INPUT => sess.input(is),
-            opcodes::Hash::OUTPUT => sess.output(is),
-            _ => Err(Error::new(Code::InvArgs)),
-        }
+    fn handle_messages(&mut self) -> Result<(), Error> {
+        // NOTE: Currently this only fetches a single message, perhaps handle()
+        // should return if a message was handled so this could be put in a loop.
+        self.server.fetch_and_handle(&mut self.reqhdl)?;
+        self.reqhdl.fetch_and_handle()
     }
 
     /// Switch the current client in the accelerator if necessary
@@ -575,7 +666,7 @@ impl HashHandler {
     fn switch(&mut self, to: SessId) {
         let mut state = STATES.borrow_mut();
 
-        if let Some(cur) = self.current {
+        if let Some(cur) = CURRENT.get() {
             if !FORCE_CONTEXT_SWITCH && cur == to {
                 // Already the current client
                 return;
@@ -583,12 +674,17 @@ impl HashHandler {
 
             // Save state of current client
             KECACC.start_save(&mut state[cur]);
-            self.sessions.get_mut(cur as SessId).unwrap().state_saved = true;
+            self.reqhdl
+                .clients_mut()
+                .sessions_mut()
+                .get_mut(cur as SessId)
+                .unwrap()
+                .state_saved = true;
         }
-        self.current = Some(to);
+        CURRENT.set(Some(to));
 
         // Restore state of new client or initialize it if necessary
-        let sess = self.sessions.get(to).unwrap();
+        let sess = self.reqhdl.clients_mut().sessions_mut().get(to).unwrap();
         if sess.state_saved {
             KECACC.start_load(&state[to]);
         }
@@ -598,129 +694,28 @@ impl HashHandler {
     }
 }
 
-impl Handler<HashSession> for HashHandler {
-    fn sessions(&mut self) -> &mut SessionContainer<HashSession> {
-        &mut self.sessions
-    }
-
-    fn open(
-        &mut self,
-        crt: usize,
-        srv_sel: Selector,
-        arg: &str,
-    ) -> Result<(Selector, SessId), Error> {
-        // Use the time slice specified in the arguments or fall back to the default one
-        let time_slice = if !arg.is_empty() {
-            TimeDuration::from_nanos(arg.parse::<u64>().map_err(|_| Error::new(Code::InvArgs))?)
-        }
-        else {
-            DEFAULT_TIME_SLICE
-        };
-
-        self.sessions.add_next(crt, srv_sel, false, |sess| {
-            let sid = sess.ident() as SessId;
-            log!(LogFlags::HMuxReqs, "[{}] hash::open()", sid);
-            assert!(sid < MAX_SESSIONS);
-
-            let sel = Activity::own().alloc_sels(2);
-            Ok(HashSession {
-                sess,
-                sgate: SendGate::new_with(
-                    SGateArgs::new(RECV.get().reqhdl.recv_gate())
-                        .sel(sel)
-                        .credits(1)
-                        .label(sid as Label),
-                )?,
-                mgate: MemGate::new_bind(INVALID_SEL),
-                algo: None,
-                state_saved: false,
-                req: None,
-                time_slice,
-                remaining_time: 0,
-                output_bytes: 0,
-            })
-        })
-    }
-
-    fn obtain(
-        &mut self,
-        _crt: usize,
-        sid: SessId,
-        xchg: &mut CapExchange<'_>,
-    ) -> Result<(), Error> {
-        log!(LogFlags::HMuxReqs, "[{}] hash::obtain()", sid);
-        let hash = self
-            .sessions
-            .get_mut(sid)
-            .ok_or_else(|| Error::new(Code::InvArgs))?;
-
-        // FIXME: Let client obtain EP capability directly with first obtain() below
-        // Right now this is not possible because mgate.activate() returns an EP
-        // from the EpMng which does not allow binding it to a specified capability selector.
-        if xchg.in_caps() == 1 {
-            hash.mgate.activate()?;
-            let ep_sel = hash.mgate.ep().unwrap().sel();
-            xchg.out_caps(CapRngDesc::new(CapType::OBJECT, ep_sel, 1));
-            return Ok(());
-        }
-
-        if xchg.in_caps() != 2 {
-            return Err(Error::new(Code::InvArgs));
-        }
-        xchg.out_caps(CapRngDesc::new(CapType::OBJECT, hash.sgate.sel(), 1));
-        Ok(())
-    }
-
-    fn close(&mut self, crt: usize, sid: SessId) {
-        log!(LogFlags::HMuxReqs, "[{}] hash::close()", sid);
-
-        let sess = self.sessions.remove(crt, sid);
-        QUEUE.borrow_mut().retain(|&n| n != sid);
-        if self.current == Some(sid) {
-            self.current = None;
-        }
-
-        // Revoke EP capability that was delegated for memory accesses
-        if let Some(ep) = sess.mgate.ep() {
-            if let Err(e) =
-                Activity::own().revoke(CapRngDesc::new(CapType::OBJECT, ep.sel(), 1), true)
-            {
-                log!(LogFlags::Error, "[{}] Failed to revoke EP cap: {}", sid, e)
-            }
-        };
-    }
-}
-
-impl HashMuxReceiver {
-    fn has_messages(&self) -> bool {
-        self.reqhdl.recv_gate().has_msgs().unwrap() || self.server.rgate().has_msgs().unwrap()
-    }
-
-    fn handle_messages(&self, hdl: &mut HashHandler) -> Result<(), Error> {
-        // NOTE: Currently this only fetches a single message, perhaps handle()
-        // should return if a message was handled so this could be put in a loop.
-        self.server.handle_ctrl_chan(hdl)?;
-        self.reqhdl.handle(|op, is| hdl.handle(op, is))
-    }
-}
-
 #[no_mangle]
 pub fn main() -> Result<(), Error> {
-    let mut hdl = HashHandler {
-        sessions: SessionContainer::new(MAX_SESSIONS),
-        current: None,
-    };
-    let server = Server::new("hash", &mut hdl).expect("Unable to create service 'hash'");
+    let mut hdl = RequestHandler::new_with(MAX_SESSIONS, DEF_MSG_SIZE)
+        .expect("Unable to create request handler");
 
-    RECV.set(HashMuxReceiver {
-        server,
-        reqhdl: RequestHandler::new_with(MAX_SESSIONS, DEF_MSG_SIZE)
-            .expect("Unable to create request handler"),
-    });
+    let srv = Server::new("hash", &mut hdl).expect("Unable to create service 'hash'");
+
+    use opcodes::Hash;
+    hdl.reg_cap_handler(Hash::GET_MEM.val, ExcType::Obt(1), HashSession::get_mem);
+    hdl.reg_msg_handler(Hash::RESET.val, HashSession::reset);
+    hdl.reg_msg_handler(Hash::INPUT.val, HashSession::input);
+    hdl.reg_msg_handler(Hash::OUTPUT.val, HashSession::output);
+
+    let mut recv = HashMuxReceiver {
+        server: srv,
+        reqhdl: hdl,
+    };
+
     QUEUE.set(VecDeque::with_capacity(MAX_SESSIONS));
 
     server_loop(|| {
-        RECV.get().handle_messages(&mut hdl)?;
+        recv.handle_messages()?;
 
         // The QUEUE is mutably borrowed to pop a session and again later while
         // working on a request. When this is placed directly into the while let
@@ -731,9 +726,11 @@ pub fn main() -> Result<(), Error> {
 
         // Keep working until no more work is available
         while let Some(sid) = pop_queue() {
-            hdl.switch(sid);
-            let done = hdl.sessions.get_mut(sid as SessId).unwrap().work();
-            RECV.get().handle_messages(&mut hdl)?;
+            recv.switch(sid);
+
+            let done = recv.work(sid);
+
+            recv.handle_messages()?;
             if !done {
                 QUEUE.borrow_mut().push_back(sid);
             }

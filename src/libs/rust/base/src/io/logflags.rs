@@ -148,25 +148,23 @@ bitflags! {
 
         /// m3fs: general information (superblock, ...)
         const FSInfo        = 1 << (Self::__fs_start.bits() + 0);
-        /// m3fs: requests
-        const FSReqs        = 1 << (Self::__fs_start.bits() + 1);
         /// m3fs: session operations
-        const FSSess        = 1 << (Self::__fs_start.bits() + 2);
+        const FSSess        = 1 << (Self::__fs_start.bits() + 1);
         /// m3fs: inode/block bitmap allocations
-        const FSAlloc       = 1 << (Self::__fs_start.bits() + 3);
+        const FSAlloc       = 1 << (Self::__fs_start.bits() + 2);
         /// m3fs: file/meta buffer
-        const FSBuf         = 1 << (Self::__fs_start.bits() + 4);
+        const FSBuf         = 1 << (Self::__fs_start.bits() + 3);
         /// m3fs: directory operations
-        const FSDirs        = 1 << (Self::__fs_start.bits() + 5);
+        const FSDirs        = 1 << (Self::__fs_start.bits() + 4);
         /// m3fs: inode operations
-        const FSINodes      = 1 << (Self::__fs_start.bits() + 6);
+        const FSINodes      = 1 << (Self::__fs_start.bits() + 5);
         /// m3fs: link creation/removal
-        const FSLinks       = 1 << (Self::__fs_start.bits() + 7);
+        const FSLinks       = 1 << (Self::__fs_start.bits() + 6);
         /// m3fs: directory traversal
-        const FSFind        = 1 << (Self::__fs_start.bits() + 8);
+        const FSFind        = 1 << (Self::__fs_start.bits() + 7);
 
         #[doc(hidden)]
-        const __pg_start = Self::__fs_start.bits() + 9;
+        const __pg_start = Self::__fs_start.bits() + 8;
 
         /// Paging: mapping operations
         const PgMap         = 1 << (Self::__pg_start.bits() + 0);

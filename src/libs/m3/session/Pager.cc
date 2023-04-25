@@ -58,7 +58,7 @@ Pager::~Pager() {
 capsel_t Pager::get_sgate() {
     KIF::ExchangeArgs args;
     ExchangeOStream os(args);
-    os << opcodes::Pager::ADD_SGATE;
+    os << opcodes::General::CONNECT;
     args.bytes = os.total();
     return obtain(1, &args).start();
 }

@@ -16,17 +16,15 @@
 use m3::cap::Selector;
 use m3::cfg;
 use m3::col::Vec;
-use m3::com::{GateIStream, RecvGate, SGateArgs, SendGate};
+use m3::com::GateIStream;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::io::LogFlags;
-use m3::kif::{PageFlags, Perm};
+use m3::kif::{CapRngDesc, CapType, PageFlags, Perm};
 use m3::log;
 use m3::reply_vmsg;
-use m3::serialize::M3Deserializer;
-use m3::server::SessId;
+use m3::server::{CapExchange, ClientManager, RequestSession, SessId};
 use m3::session::{MapFlags, ServerSession};
-use m3::tcu::Label;
 use m3::tiles::Activity;
 use m3::util::math;
 use resmng::childs;
@@ -37,12 +35,29 @@ const MAX_VIRT_ADDR: goff = cfg::MEM_CAP_END as goff - 1;
 
 pub struct AddrSpace {
     crt: usize,
+    #[allow(unused)]
     parent: Option<SessId>,
     sess: ServerSession,
     child: Option<childs::Id>,
     owner: Option<Selector>,
-    sgates: Vec<SendGate>,
     ds: Vec<DataSpace>,
+}
+
+impl RequestSession for AddrSpace {
+    fn new(crt: usize, serv: ServerSession, _arg: &str) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        log!(LogFlags::PgReqs, "[{}] pager::open()", serv.ident());
+        Ok(AddrSpace::new(crt, serv, None, None))
+    }
+
+    fn close(&mut self, _cli: &mut ClientManager<Self>, sid: SessId, _sub_ids: &mut Vec<SessId>)
+    where
+        Self: Sized,
+    {
+        log!(LogFlags::PgReqs, "[{}] pager::close()", sid);
+    }
 }
 
 impl AddrSpace {
@@ -58,7 +73,6 @@ impl AddrSpace {
             sess,
             child,
             owner: None,
-            sgates: Vec::new(),
             ds: Vec::new(),
         }
     }
@@ -75,6 +89,7 @@ impl AddrSpace {
         self.child
     }
 
+    #[allow(unused)]
     pub fn parent(&self) -> Option<SessId> {
         self.parent
     }
@@ -83,7 +98,46 @@ impl AddrSpace {
         self.owner.is_some()
     }
 
+    pub fn add_child(
+        cli: &mut ClientManager<Self>,
+        crt: usize,
+        sid: SessId,
+        xchg: &mut CapExchange<'_>,
+    ) -> Result<(), Error> {
+        let child_id = cli.sessions_mut().get_mut(sid).unwrap().child_id();
+
+        let (sel, _) = cli
+            .sessions_mut()
+            .add_next(crt, crate::SERV_SEL.get(), false, |sess| {
+                let nsid = sess.ident();
+                log!(
+                    LogFlags::PgReqs,
+                    "[{}] pager::add_child(nsid={})",
+                    sid,
+                    nsid
+                );
+                Ok(AddrSpace::new(crt, sess, Some(sid), child_id))
+            })?;
+
+        xchg.out_caps(CapRngDesc::new(CapType::OBJECT, sel, 1));
+
+        Ok(())
+    }
+
     pub fn init(
+        cli: &mut ClientManager<Self>,
+        _crt: usize,
+        sid: SessId,
+        xchg: &mut CapExchange<'_>,
+    ) -> Result<(), Error> {
+        let aspace = cli.sessions_mut().get_mut(sid).unwrap();
+        let sel = aspace.do_init(None, None)?;
+
+        xchg.out_caps(CapRngDesc::new(CapType::OBJECT, sel, 1));
+        Ok(())
+    }
+
+    pub fn do_init(
         &mut self,
         child: Option<childs::Id>,
         act: Option<Selector>,
@@ -112,16 +166,7 @@ impl AddrSpace {
         }
     }
 
-    pub fn add_sgate(&mut self, rgate: &RecvGate) -> Result<Selector, Error> {
-        log!(LogFlags::PgReqs, "[{}] pager::add_sgate()", self.id());
-
-        let sgate = SendGate::new_with(SGateArgs::new(rgate).label(self.id() as Label).credits(1))?;
-        let sel = sgate.sel();
-        self.sgates.push(sgate);
-
-        Ok(sel)
-    }
-
+    #[allow(unused)]
     pub fn clone(&mut self, is: &mut GateIStream<'_>, parent: &mut AddrSpace) -> Result<(), Error> {
         log!(
             LogFlags::PgReqs,
@@ -210,11 +255,18 @@ impl AddrSpace {
         }
     }
 
-    pub fn map_ds(&mut self, args: &mut M3Deserializer<'_>) -> Result<(Selector, goff), Error> {
-        if !self.has_owner() {
+    pub fn map_ds(
+        cli: &mut ClientManager<Self>,
+        _crt: usize,
+        sid: SessId,
+        xchg: &mut CapExchange<'_>,
+    ) -> Result<(), Error> {
+        let aspace = cli.sessions_mut().get_mut(sid).unwrap();
+        if !aspace.has_owner() {
             return Err(Error::new(Code::InvArgs));
         }
 
+        let args = xchg.in_args();
         let virt = args.pop()?;
         let len = args.pop()?;
         let perm = Perm::from_bits_truncate(args.pop()?);
@@ -222,8 +274,12 @@ impl AddrSpace {
         let off = args.pop()?;
 
         let sel = Activity::own().alloc_sel();
-        self.map_ds_with(virt, len, off, perm, flags, sel)
-            .map(|virt| (sel, virt))
+        let virt = aspace.map_ds_with(virt, len, off, perm, flags, sel)?;
+
+        xchg.out_args().push(virt);
+        xchg.out_caps(CapRngDesc::new(CapType::OBJECT, sel, 1));
+
+        Ok(())
     }
 
     pub(crate) fn map_ds_with(
@@ -310,11 +366,18 @@ impl AddrSpace {
         Ok(())
     }
 
-    pub fn map_mem(&mut self, args: &mut M3Deserializer<'_>) -> Result<(Selector, goff), Error> {
-        if !self.has_owner() {
+    pub fn map_mem(
+        cli: &mut ClientManager<Self>,
+        _crt: usize,
+        sid: SessId,
+        xchg: &mut CapExchange<'_>,
+    ) -> Result<(), Error> {
+        let aspace = cli.sessions_mut().get_mut(sid).unwrap();
+        if !aspace.has_owner() {
             return Err(Error::new(Code::InvArgs));
         }
 
+        let args = xchg.in_args();
         let virt: goff = args.pop()?;
         let len: goff = args.pop()?;
         let perm = Perm::from_bits_truncate(args.pop()?);
@@ -322,17 +385,17 @@ impl AddrSpace {
         log!(
             LogFlags::PgReqs,
             "[{}] pager::map_mem(virt={:#x}, len={:#x}, perm={:?})",
-            self.id(),
+            aspace.id(),
             virt,
             len,
             perm,
         );
 
-        self.check_map_args(virt, len, perm)?;
+        aspace.check_map_args(virt, len, perm)?;
 
         let mut ds = DataSpace::new_anon(
-            self.owner.unwrap(),
-            self.child.unwrap(),
+            aspace.owner.unwrap(),
+            aspace.child.unwrap(),
             virt,
             len,
             perm,
@@ -343,9 +406,12 @@ impl AddrSpace {
         let sel = Activity::own().alloc_sel();
         ds.populate(sel);
 
-        self.ds.push(ds);
+        aspace.ds.push(ds);
 
-        Ok((sel, virt))
+        xchg.out_args().push(virt);
+        xchg.out_caps(CapRngDesc::new(CapType::OBJECT, sel, 1));
+
+        Ok(())
     }
 
     pub fn unmap(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -371,6 +437,8 @@ impl AddrSpace {
 
     pub fn close(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         log!(LogFlags::PgReqs, "[{}] pager::close()", self.id());
+
+        crate::register_close(is.label() as SessId);
 
         is.reply_error(Code::Success)
     }

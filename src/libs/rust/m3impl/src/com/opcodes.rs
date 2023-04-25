@@ -18,6 +18,12 @@
 use crate::int_enum;
 
 int_enum! {
+    pub struct General : u64 {
+        const CONNECT       = (1 << 63) + 0;
+    }
+}
+
+int_enum! {
     /// The operations for the file protocol.
     pub struct File : u64 {
         const STAT          = 0;
@@ -48,10 +54,9 @@ int_enum! {
         const UNLINK        = File::REQ_NOTIFY.val + 5;
         const RENAME        = File::REQ_NOTIFY.val + 6;
         const OPEN          = File::REQ_NOTIFY.val + 7;
-        const GET_SGATE     = File::REQ_NOTIFY.val + 8;
-        const GET_MEM       = File::REQ_NOTIFY.val + 9;
-        const DEL_EP        = File::REQ_NOTIFY.val + 10;
-        const OPEN_PRIV     = File::REQ_NOTIFY.val + 11;
+        const GET_MEM       = File::REQ_NOTIFY.val + 8;
+        const DEL_EP        = File::REQ_NOTIFY.val + 9;
+        const OPEN_PRIV     = File::REQ_NOTIFY.val + 10;
     }
 }
 
@@ -126,20 +131,18 @@ int_enum! {
         const INIT          = 1;
         /// Adds a child activity to the pager session
         const ADD_CHILD     = 2;
-        /// Adds a new send gate to the pager session
-        const ADD_SGATE     = 3;
         /// Clone the address space of a child activity (see `ADD_CHILD`) from the parent
-        const CLONE         = 4;
+        const CLONE         = 3;
         /// Add a new mapping with anonymous memory
-        const MAP_ANON      = 5;
+        const MAP_ANON      = 4;
         /// Add a new data space mapping (e.g., a file)
-        const MAP_DS        = 6;
+        const MAP_DS        = 5;
         /// Add a new mapping for a given memory capability
-        const MAP_MEM       = 7;
+        const MAP_MEM       = 6;
         /// Remove an existing mapping
-        const UNMAP         = 8;
+        const UNMAP         = 7;
         /// Close the pager session
-        const CLOSE         = 9;
+        const CLOSE         = 8;
     }
 }
 
@@ -148,6 +151,8 @@ int_enum! {
     pub struct Disk : u64 {
         const READ          = 0;
         const WRITE         = 1;
+        const GET_SGATE     = 2;
+        const ADD_MEM       = 3;
     }
 }
 
@@ -157,5 +162,6 @@ int_enum! {
         const RESET         = 0;
         const INPUT         = 1;
         const OUTPUT        = 2;
+        const GET_MEM       = 3;
     }
 }

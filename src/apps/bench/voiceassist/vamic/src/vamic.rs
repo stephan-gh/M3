@@ -15,7 +15,6 @@
 
 #![no_std]
 
-use m3::cap::Selector;
 use m3::cell::{LazyStaticCell, LazyStaticRefCell};
 use m3::cfg;
 use m3::col::Vec;
@@ -30,7 +29,7 @@ use m3::kif::{self, Perm};
 use m3::log;
 use m3::println;
 use m3::server::{
-    server_loop, CapExchange, Handler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS,
+    CapExchange, ClientManager, ExcType, RequestHandler, RequestSession, Server, SessId,
 };
 use m3::session::ServerSession;
 use m3::tiles::OwnActivity;
@@ -49,70 +48,45 @@ int_enum! {
 
 #[derive(Debug)]
 struct MicSession {
-    crt: usize,
-    _sess: ServerSession,
+    _serv: ServerSession,
     img: Option<MemGate>,
 }
 
-struct MicHandler {
-    sessions: SessionContainer<MicSession>,
-}
-
-impl MicHandler {
-    fn new_sess(crt: usize, sess: ServerSession) -> MicSession {
-        log!(LogFlags::Info, "[{}] vamic::new()", sess.ident());
-        MicSession {
-            crt,
-            _sess: sess,
+impl RequestSession for MicSession {
+    fn new(_crt: usize, serv: ServerSession, _arg: &str) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        log!(LogFlags::Debug, "[{}] vamic::new()", serv.ident());
+        Ok(MicSession {
+            _serv: serv,
             img: None,
-        }
+        })
     }
 
-    fn close_sess(&mut self, sid: SessId) -> Result<(), Error> {
-        log!(LogFlags::Info, "[{}] vamic::close()", sid);
-        let crt = self.sessions.get(sid).unwrap().crt;
-        self.sessions.remove(crt, sid);
-        Ok(())
+    fn close(&mut self, _cli: &mut ClientManager<Self>, sid: SessId, _sub_ids: &mut Vec<SessId>)
+    where
+        Self: Sized,
+    {
+        log!(LogFlags::Debug, "[{}] vamic::close()", sid);
     }
 }
 
-impl Handler<MicSession> for MicHandler {
-    fn sessions(&mut self) -> &mut m3::server::SessionContainer<MicSession> {
-        &mut self.sessions
-    }
-
-    fn open(
-        &mut self,
-        crt: usize,
-        srv_sel: Selector,
-        _arg: &str,
-    ) -> Result<(Selector, SessId), Error> {
-        self.sessions
-            .add_next(crt, srv_sel, false, |sess| Ok(Self::new_sess(crt, sess)))
-    }
-
-    fn obtain(
-        &mut self,
+impl MicSession {
+    fn recv(
+        cli: &mut ClientManager<Self>,
         _crt: usize,
         sid: SessId,
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
-        log!(LogFlags::Info, "[{}] vamic::recv()", sid);
+        log!(LogFlags::Debug, "[{}] vamic::recv()", sid);
 
-        if xchg.in_caps() != 1 {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        let op = xchg.in_args().pop::<ImgSndOp>()?;
-        if op != ImgSndOp::RECV {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        let sess = self.sessions.get_mut(sid).unwrap();
+        let sess = cli.sessions_mut().get_mut(sid).unwrap();
 
         // derive a read-only memory cap for the client. this revokes the previous memory cap, if
         // there was any.
         sess.img = Some(AUDIO_DATA.borrow().derive(0, AUDIO_SIZE.get(), Perm::R)?);
+
         xchg.out_args().push(AUDIO_SIZE.get());
         xchg.out_caps(kif::CapRngDesc::new(
             kif::CapType::OBJECT,
@@ -121,10 +95,6 @@ impl Handler<MicSession> for MicHandler {
         ));
 
         Ok(())
-    }
-
-    fn close(&mut self, _crt: usize, sid: SessId) {
-        self.close_sess(sid).ok();
     }
 }
 
@@ -171,13 +141,12 @@ pub fn main() -> Result<(), Error> {
         off += amount as goff;
     }
 
-    let mut hdl = MicHandler {
-        sessions: SessionContainer::new(DEF_MAX_CLIENTS),
-    };
+    let mut hdl = RequestHandler::new().expect("Unable to create request handler");
+    let mut srv = Server::new("vamic", &mut hdl).expect("Unable to create service 'vamic'");
 
-    let srv = Server::new("vamic", &mut hdl).expect("Unable to create service 'vamic'");
+    hdl.reg_cap_handler(ImgSndOp::RECV.val, ExcType::Obt(1), MicSession::recv);
 
-    server_loop(|| srv.handle_ctrl_chan(&mut hdl)).ok();
+    hdl.run(&mut srv).expect("Server loop failed");
 
     Ok(())
 }

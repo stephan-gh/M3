@@ -17,14 +17,24 @@
  */
 
 //! Contains server-related abstractions.
+//!
+//! The foundation of the server API is provided by [`Server`], which is responsible for handling
+//! the interaction with the kernel (service registration, session creation, capability exchanges,
+//! etc.). [`Server`] is customized by a [`Handler`] trait, which defines how sessions are opened
+//! and closed and is responsible for capability exchanges over these sessions. The typically used
+//! implementation of [`Handler`] is [`RequestHandler`], which implements the way we handle client
+//! requests in pretty much all servers and supports the registration of capability handlers and
+//! message handlers.
 
 mod reqhdl;
 #[allow(clippy::module_inception)]
 mod server;
 mod sesscon;
 
-pub use self::reqhdl::{RequestHandler, DEF_MAX_CLIENTS, DEF_MSG_SIZE};
-pub use self::server::{CapExchange, Handler, Server};
+pub use self::reqhdl::{
+    ClientManager, RequestHandler, RequestSession, DEF_MAX_CLIENTS, DEF_MSG_SIZE,
+};
+pub use self::server::{CapExchange, ExcType, Handler, Server};
 pub use self::sesscon::{SessId, SessionContainer};
 
 use crate::errors::Error;

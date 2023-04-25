@@ -21,322 +21,21 @@ mod pipe;
 mod sess;
 
 use m3::cap::Selector;
-use m3::cell::LazyReadOnlyCell;
+use m3::cell::{StaticCell, StaticRefCell};
 use m3::col::{String, Vec};
-use m3::com::{opcodes, GateIStream, RecvGate};
+use m3::com::opcodes;
 use m3::env;
 use m3::errors::{Code, Error};
-use m3::int_enum;
-use m3::io::LogFlags;
-use m3::kif;
-use m3::log;
 use m3::println;
 use m3::server::{
-    server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
-    DEF_MAX_CLIENTS, DEF_MSG_SIZE,
+    server_loop, ExcType, RequestHandler, Server, SessId, DEF_MAX_CLIENTS, DEF_MSG_SIZE,
 };
-use m3::session::ServerSession;
-use m3::tcu::Label;
-use m3::tiles::{Activity, OwnActivity};
-use m3::vec;
+use m3::tiles::OwnActivity;
 
-use chan::{ChanType, Channel};
-use meta::Meta;
-use sess::{PipesSession, SessionData};
+use sess::PipesSession;
 
-static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
-
-int_enum! {
-    pub struct Operation : u64 {
-        const STAT          = opcodes::File::STAT.val;
-        const SEEK          = opcodes::File::SEEK.val;
-        const NEXT_IN       = opcodes::File::NEXT_IN.val;
-        const NEXT_OUT      = opcodes::File::NEXT_OUT.val;
-        const COMMIT        = opcodes::File::COMMIT.val;
-        const SYNC          = opcodes::File::SYNC.val;
-        const CLOSE         = opcodes::File::CLOSE.val;
-        const CLONE         = opcodes::File::CLONE.val;
-        const SET_TMODE     = opcodes::File::SET_TMODE.val;
-        const SET_DEST      = opcodes::File::SET_DEST.val;
-        const ENABLE_NOTIFY = opcodes::File::ENABLE_NOTIFY.val;
-        const REQ_NOTIFY    = opcodes::File::REQ_NOTIFY.val;
-        const OPEN_PIPE     = opcodes::Pipe::OPEN_PIPE.val;
-        const OPEN_CHAN     = opcodes::Pipe::OPEN_CHAN.val;
-        const SET_MEM       = opcodes::Pipe::SET_MEM.val;
-        const CLOSE_PIPE    = opcodes::Pipe::CLOSE_PIPE.val;
-    }
-}
-
-struct PipesHandler {
-    sel: Selector,
-    sessions: SessionContainer<PipesSession>,
-}
-
-impl PipesHandler {
-    fn new_sub_sess(
-        &self,
-        crt: usize,
-        sel: Selector,
-        nsid: SessId,
-        data: SessionData,
-    ) -> Result<PipesSession, Error> {
-        // let the kernel close the session as soon as the client dies or the session is revoked
-        // for some other reason. this is required to signal EOF to the other side of the pipe.
-        Ok(PipesSession::new(
-            crt,
-            ServerSession::new_with_sel(self.sel, sel, crt, nsid as u64, true)?,
-            data,
-        ))
-    }
-
-    fn close_sess(&mut self, sid: SessId, rgate: &RecvGate) -> Result<(), Error> {
-        // close this and all child sessions
-        let mut sids = vec![sid];
-        while let Some(id) = sids.pop() {
-            if let Some(sess) = self.sessions.get_mut(id) {
-                log!(
-                    LogFlags::PipeReqs,
-                    "[{}] pipes::close(): closing {}",
-                    sid,
-                    id
-                );
-
-                // ignore errors here
-                let _ = match &mut sess.data_mut() {
-                    SessionData::Meta(ref mut m) => m.close(&mut sids),
-                    SessionData::Pipe(ref mut p) => p.close(&mut sids),
-                    SessionData::Chan(ref mut c) => c.close(&mut sids, rgate),
-                };
-
-                let crt = sess.creator();
-                self.sessions.remove(crt, id);
-                // ignore all potentially outstanding messages of this session
-                rgate.drop_msgs_with(id as Label).unwrap();
-            }
-        }
-        Ok(())
-    }
-
-    fn with_chan<F, R>(&mut self, is: &mut GateIStream<'_>, func: F) -> Result<R, Error>
-    where
-        F: Fn(&mut Channel, &mut GateIStream<'_>) -> Result<R, Error>,
-    {
-        let sess = self.sessions.get_mut(is.label() as SessId).unwrap();
-        match &mut sess.data_mut() {
-            SessionData::Chan(c) => func(c, is),
-            _ => Err(Error::new(Code::InvArgs)),
-        }
-    }
-}
-
-impl Handler<PipesSession> for PipesHandler {
-    fn sessions(&mut self) -> &mut m3::server::SessionContainer<PipesSession> {
-        &mut self.sessions
-    }
-
-    fn open(
-        &mut self,
-        crt: usize,
-        srv_sel: Selector,
-        _arg: &str,
-    ) -> Result<(Selector, SessId), Error> {
-        self.sessions.add_next(crt, srv_sel, true, |sess| {
-            log!(LogFlags::PipeReqs, "[{}] pipes::new_meta()", sess.ident());
-            Ok(PipesSession::new(
-                crt,
-                sess,
-                SessionData::Meta(Meta::default()),
-            ))
-        })
-    }
-
-    fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
-        let op: Operation = xchg.in_args().pop().unwrap();
-        log!(
-            LogFlags::PipeReqs,
-            "[{}] pipes::obtain(crt={}, op={})",
-            sid,
-            crt,
-            op
-        );
-
-        if xchg.in_caps() != 2 {
-            return Err(Error::new(Code::InvArgs));
-        }
-        if !self.sessions.can_add(crt) {
-            return Err(Error::new(Code::NoSpace));
-        }
-
-        let res: Result<_, Error> = {
-            let nsid = self.sessions.next_id()?;
-            let osess = self.sessions.get_mut(sid).unwrap();
-            match &mut osess.data_mut() {
-                // meta sessions allow to create new pipes
-                SessionData::Meta(ref mut m) => {
-                    if op != Operation::OPEN_PIPE {
-                        return Err(Error::new(Code::InvArgs));
-                    }
-
-                    let sel = Activity::own().alloc_sels(2);
-                    let msize: usize = xchg.in_args().pop()?;
-                    log!(
-                        LogFlags::PipeReqs,
-                        "[{}] pipes::open_pipe(sid={}, sel={}, size={:#x})",
-                        sid,
-                        nsid,
-                        sel,
-                        msize
-                    );
-                    let pipe = m.create_pipe(sel, nsid, msize, REQHDL.get().recv_gate())?;
-                    let nsess = self.new_sub_sess(crt, sel, nsid, SessionData::Pipe(pipe))?;
-                    Ok((nsid, nsess, false))
-                },
-
-                // pipe sessions allow to create new channels
-                SessionData::Pipe(ref mut p) => {
-                    if op != Operation::OPEN_CHAN {
-                        return Err(Error::new(Code::InvArgs));
-                    }
-
-                    let sel = Activity::own().alloc_sels(2);
-                    let ty = match xchg.in_args().pop()? {
-                        1 => ChanType::READ,
-                        _ => ChanType::WRITE,
-                    };
-                    log!(
-                        LogFlags::PipeReqs,
-                        "[{}] pipes::open_chan(sid={}, sel={}, ty={:?})",
-                        sid,
-                        nsid,
-                        sel,
-                        ty
-                    );
-                    let chan = p.new_chan(nsid, sel, ty, REQHDL.get().recv_gate())?;
-                    p.attach(&chan);
-                    let nsess = self.new_sub_sess(crt, sel, nsid, SessionData::Chan(chan))?;
-                    Ok((nsid, nsess, false))
-                },
-
-                // channel sessions can be cloned
-                SessionData::Chan(ref mut c) => {
-                    if op != Operation::CLONE {
-                        return Err(Error::new(Code::InvArgs));
-                    }
-
-                    let sel = Activity::own().alloc_sels(2);
-                    log!(
-                        LogFlags::PipeReqs,
-                        "[{}] pipes::clone(sid={}, sel={})",
-                        sid,
-                        nsid,
-                        sel
-                    );
-
-                    let chan = c.clone(nsid, sel, REQHDL.get().recv_gate())?;
-                    let nsess = self.new_sub_sess(crt, sel, nsid, SessionData::Chan(chan))?;
-                    Ok((nsid, nsess, true))
-                },
-            }
-        };
-        let (nsid, nsess, attach_pipe) = res?;
-
-        let crd = if let SessionData::Chan(ref c) = nsess.data() {
-            // workaround because we cannot borrow self.sessions again inside the above match
-            if attach_pipe {
-                let psess = self.sessions.get_mut(c.pipe()).unwrap();
-                if let SessionData::Pipe(ref mut p) = psess.data_mut() {
-                    p.attach(c);
-                }
-            }
-
-            c.crd()
-        }
-        else if let SessionData::Pipe(_) = nsess.data() {
-            kif::CapRngDesc::new(kif::CapType::OBJECT, nsess.sel(), 2)
-        }
-        else {
-            kif::CapRngDesc::new(kif::CapType::OBJECT, nsess.sel(), 1)
-        };
-
-        // cannot fail because of the check above
-        self.sessions.add(crt, nsid, nsess).unwrap();
-
-        xchg.out_caps(crd);
-
-        Ok(())
-    }
-
-    fn delegate(
-        &mut self,
-        _crt: usize,
-        sid: SessId,
-        xchg: &mut CapExchange<'_>,
-    ) -> Result<(), Error> {
-        let sess = self.sessions.get_mut(sid).unwrap();
-        let op: Operation = xchg.in_args().pop()?;
-        log!(LogFlags::PipeReqs, "[{}] pipes::delegate(op={})", sid, op);
-
-        match &mut sess.data_mut() {
-            // pipe sessions expect a memory cap for the shared memory of the pipe
-            SessionData::Pipe(ref mut p) => match op {
-                Operation::SET_MEM => {
-                    if xchg.in_caps() != 1 || p.has_mem() {
-                        return Err(Error::new(Code::InvArgs));
-                    }
-
-                    let sel = Activity::own().alloc_sel();
-                    log!(LogFlags::PipeReqs, "[{}] pipes::set_mem(sel={})", sid, sel);
-                    p.set_mem(sel);
-                    xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
-
-                    Ok(())
-                },
-                _ => Err(Error::new(Code::InvArgs)),
-            },
-
-            // channel sessions expect an EP cap to get access to the data
-            SessionData::Chan(ref mut c) => match op {
-                Operation::SET_DEST => {
-                    if xchg.in_caps() != 1 {
-                        return Err(Error::new(Code::InvArgs));
-                    }
-
-                    let sel = Activity::own().alloc_sel();
-                    log!(LogFlags::PipeReqs, "[{}] pipes::set_ep(sel={})", sid, sel);
-                    c.set_ep(sel);
-                    xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
-
-                    Ok(())
-                },
-
-                Operation::ENABLE_NOTIFY => {
-                    if xchg.in_caps() != 1 {
-                        return Err(Error::new(Code::InvArgs));
-                    }
-
-                    let sel = Activity::own().alloc_sel();
-                    log!(
-                        LogFlags::PipeReqs,
-                        "[{}] pipes::enable_notify(sel={})",
-                        sid,
-                        sel
-                    );
-                    c.enable_notify(sel)?;
-                    xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
-                    Ok(())
-                },
-
-                _ => Err(Error::new(Code::InvArgs)),
-            },
-
-            SessionData::Meta(_) => Err(Error::new(Code::InvArgs)),
-        }
-    }
-
-    fn close(&mut self, _crt: usize, sid: SessId) {
-        self.close_sess(sid, REQHDL.get().recv_gate()).ok();
-    }
-}
+static SERV_SEL: StaticCell<Selector> = StaticCell::new(0);
+static CLOSED_SESS: StaticRefCell<Option<SessId>> = StaticRefCell::new(None);
 
 #[derive(Clone, Debug)]
 pub struct PipesSettings {
@@ -378,6 +77,11 @@ fn parse_args() -> Result<PipesSettings, String> {
     Ok(settings)
 }
 
+fn register_close(sid: SessId) {
+    assert!(crate::CLOSED_SESS.borrow().is_none());
+    *crate::CLOSED_SESS.borrow_mut() = Some(sid);
+}
+
 #[no_mangle]
 pub fn main() -> Result<(), Error> {
     let settings = parse_args().unwrap_or_else(|e| {
@@ -385,41 +89,79 @@ pub fn main() -> Result<(), Error> {
         usage();
     });
 
-    let mut hdl = PipesHandler {
-        sel: 0,
-        sessions: SessionContainer::new(settings.max_clients),
-    };
-    let s = Server::new("pipes", &mut hdl).expect("Unable to create service 'pipes'");
-    hdl.sel = s.sel();
+    // create request handler and server
+    let mut hdl = RequestHandler::new_with(settings.max_clients, DEF_MSG_SIZE)
+        .expect("Unable to create request handler");
 
-    REQHDL.set(
-        RequestHandler::new_with(settings.max_clients, DEF_MSG_SIZE)
-            .expect("Unable to create request handler"),
+    let srv = Server::new("pipes", &mut hdl).expect("Unable to create service 'pipes'");
+    SERV_SEL.set(srv.sel());
+
+    // register capability handler
+    hdl.reg_cap_handler(
+        opcodes::Pipe::OPEN_PIPE.val,
+        ExcType::Obt(2),
+        PipesSession::open_pipe,
+    );
+    hdl.reg_cap_handler(
+        opcodes::Pipe::OPEN_CHAN.val,
+        ExcType::Obt(2),
+        PipesSession::open_chan,
+    );
+    hdl.reg_cap_handler(
+        opcodes::Pipe::SET_MEM.val,
+        ExcType::Del(1),
+        PipesSession::set_mem,
+    );
+    hdl.reg_cap_handler(
+        opcodes::File::CLONE.val,
+        ExcType::Obt(2),
+        PipesSession::clone,
+    );
+    hdl.reg_cap_handler(
+        opcodes::File::SET_DEST.val,
+        ExcType::Del(1),
+        PipesSession::set_dest,
+    );
+    hdl.reg_cap_handler(
+        opcodes::File::ENABLE_NOTIFY.val,
+        ExcType::Del(1),
+        PipesSession::enable_notify,
     );
 
-    server_loop(|| {
-        s.handle_ctrl_chan(&mut hdl)?;
+    // register message handler
+    hdl.reg_msg_handler(opcodes::File::NEXT_IN.val, |sess, is| {
+        sess.with_chan(is, |c, is| c.next_in(is))
+    });
+    hdl.reg_msg_handler(opcodes::File::NEXT_OUT.val, |sess, is| {
+        sess.with_chan(is, |c, is| c.next_out(is))
+    });
+    hdl.reg_msg_handler(opcodes::File::COMMIT.val, |sess, is| {
+        sess.with_chan(is, |c, is| c.commit(is))
+    });
+    hdl.reg_msg_handler(opcodes::File::REQ_NOTIFY.val, |sess, is| {
+        sess.with_chan(is, |c, is| c.request_notify(is))
+    });
+    hdl.reg_msg_handler(opcodes::File::STAT.val, |sess, is| {
+        sess.with_chan(is, |c, is| c.stat(is))
+    });
+    hdl.reg_msg_handler(opcodes::File::SEEK.val, |_sess, _is| {
+        Err(Error::new(Code::SeekPipe))
+    });
+    hdl.reg_msg_handler(opcodes::File::CLOSE.val, |sess, is| sess.close(is));
+    hdl.reg_msg_handler(opcodes::Pipe::CLOSE_PIPE.val, |sess, is| sess.close(is));
 
-        REQHDL.get().handle(|op, is| {
-            match op {
-                Operation::NEXT_IN => hdl.with_chan(is, |c, is| c.next_in(is)),
-                Operation::NEXT_OUT => hdl.with_chan(is, |c, is| c.next_out(is)),
-                Operation::COMMIT => hdl.with_chan(is, |c, is| c.commit(is)),
-                Operation::REQ_NOTIFY => hdl.with_chan(is, |c, is| c.request_notify(is)),
-                Operation::CLOSE | Operation::CLOSE_PIPE => {
-                    let sid = is.label() as SessId;
-                    // reply before we destroy the client's sgate. otherwise the client might
-                    // notice the invalidated sgate before getting the reply and therefore give
-                    // up before receiving the reply a bit later anyway. this in turn causes
-                    // trouble if the receive gate (with the reply) is reused for something else.
-                    is.reply_error(Code::Success).ok();
-                    hdl.close_sess(sid, is.rgate())
-                },
-                Operation::STAT => hdl.with_chan(is, |c, is| c.stat(is)),
-                Operation::SEEK => Err(Error::new(Code::SeekPipe)),
-                _ => Err(Error::new(Code::InvArgs)),
-            }
-        })
+    server_loop(|| {
+        srv.fetch_and_handle(&mut hdl)?;
+
+        hdl.fetch_and_handle()?;
+
+        // check if there is a session to close
+        if let Some(sid) = CLOSED_SESS.borrow_mut().take() {
+            let creator = hdl.clients().sessions().get(sid).unwrap().creator();
+            hdl.clients_mut().remove_session(creator, sid);
+        }
+
+        Ok(())
     })
     .ok();
 

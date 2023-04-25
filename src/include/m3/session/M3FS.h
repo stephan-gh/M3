@@ -91,7 +91,7 @@ private:
     capsel_t get_sgate(Activity &act) {
         KIF::ExchangeArgs args;
         ExchangeOStream os(args);
-        os << opcodes::FileSystem::GET_SGATE;
+        os << opcodes::General::CONNECT;
         args.bytes = os.total();
         obtain_for(act, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel() + 1, 1), &args);
         return sel() + 1;

@@ -18,18 +18,18 @@
 use crate::buf::LoadLimit;
 use crate::data::{ExtPos, Extent, INodeRef, InodeNo};
 use crate::ops::inodes;
-use crate::sess::M3FSSession;
+use crate::sess::{self, M3FSSession};
 
 use base::io::LogFlags;
 use m3::{
     cap::Selector,
     col::{String, ToString, Vec},
-    com::{GateIStream, RecvGate, SendGate},
+    com::GateIStream,
     errors::{Code, Error},
     kif::{CapRngDesc, CapType, Perm, INVALID_SEL},
     server::{CapExchange, SessId},
     session::ServerSession,
-    syscalls, tcu,
+    syscalls,
     vfs::{OpenFlags, SeekMode},
 };
 
@@ -79,7 +79,6 @@ pub struct FileSession {
     // capabilities
     capscon: CapContainer,
     epcap: Selector,
-    _sgate: Option<SendGate>, // keep the send gate alive
 
     // the file the client has access to
     oflags: OpenFlags,
@@ -101,6 +100,7 @@ impl FileSession {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         srv_sel: Selector,
+        sess_sel: Selector,
         crt: usize,
         parent_sess_id: Option<SessId>,
         file_sess_id: SessId,
@@ -108,16 +108,7 @@ impl FileSession {
         filename: &str,
         oflags: OpenFlags,
         ino: InodeNo,
-        rgate: Option<&RecvGate>,
     ) -> Result<Self, Error> {
-        // the server session for this file
-        let sess_sel = if srv_sel == m3::kif::INVALID_SEL {
-            srv_sel
-        }
-        else {
-            m3::tiles::Activity::own().alloc_sels(2)
-        };
-
         let _server_session = if srv_sel == m3::kif::INVALID_SEL {
             None
         }
@@ -128,19 +119,6 @@ impl FileSession {
                 crt,
                 file_sess_id as u64,
                 false,
-            )?)
-        };
-
-        let send_gate = if srv_sel == m3::kif::INVALID_SEL {
-            None
-        }
-        else {
-            Some(m3::com::SendGate::new_with(
-                m3::com::SGateArgs::new(rgate.unwrap())
-                    // use the session id as identifier
-                    .label(file_sess_id as tcu::Label)
-                    .credits(1)
-                    .sel(sess_sel + 1),
             )?)
         };
 
@@ -160,7 +138,6 @@ impl FileSession {
 
             capscon: CapContainer { caps: vec![] },
             epcap: m3::kif::INVALID_SEL,
-            _sgate: send_gate,
 
             oflags,
             filename: filename.to_string(),
@@ -183,11 +160,11 @@ impl FileSession {
 
     pub fn clone(
         &mut self,
-        srv_sel: Selector,
+        serv_sel: Selector,
+        sess_sel: Selector,
         crt: usize,
         sid: SessId,
         data: &mut CapExchange<'_>,
-        rgate: &RecvGate,
     ) -> Result<Self, Error> {
         log!(
             LogFlags::FSSess,
@@ -197,7 +174,8 @@ impl FileSession {
         );
 
         let nsess = Self::new(
-            srv_sel,
+            serv_sel,
+            sess_sel,
             crt,
             Some(self.session_id),
             sid,
@@ -205,7 +183,6 @@ impl FileSession {
             &self.filename,
             self.oflags,
             self.ino,
-            Some(rgate),
         )?;
 
         self.child_sessions.push(sid);
@@ -708,5 +685,10 @@ impl M3FSSession for FileSession {
     fn sync(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let _: usize = stream.pop()?;
         self.file_sync(stream)
+    }
+
+    fn close(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
+        sess::register_closed_file(stream.label() as SessId);
+        stream.reply_error(Code::Success)
     }
 }

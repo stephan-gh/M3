@@ -149,13 +149,13 @@ impl SocketSession {
         &mut self,
         crt: usize,
         srv_sel: Selector,
+        opcode: u64,
         xchg: &mut CapExchange<'_>,
         iface: &mut DriverInterface<'_>,
     ) -> Result<(), Error> {
         let is = xchg.in_args();
-        let op = is.pop::<opcodes::Net>()?;
 
-        match op {
+        match opcodes::Net::from(opcode) {
             opcodes::Net::GET_SGATE => {
                 let caps = self.get_sgate()?;
                 xchg.out_caps(caps);

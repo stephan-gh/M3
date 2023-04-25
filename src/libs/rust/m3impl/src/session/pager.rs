@@ -37,7 +37,7 @@ pub struct Pager {
     req_sgate: SendGate,
     child_sgate: cap::Selector,
     pf_rgate: RecvGate,
-    pf_sgate: SendGate,
+    pf_sgate: cap::Selector,
     close: bool,
 }
 
@@ -59,14 +59,14 @@ bitflags! {
 
 impl Pager {
     fn get_sgate(sess: &ClientSession) -> Result<cap::Selector, Error> {
-        sess.obtain(1, |os| os.push(opcodes::Pager::ADD_SGATE), |_| Ok(()))
+        sess.obtain(1, |os| os.push(opcodes::General::CONNECT), |_| Ok(()))
             .map(|crd| crd.start())
     }
 
-    /// Creates a new session with given `SendGate` (for the pager).
+    /// Creates a new session with given gates (for the pager).
     pub fn new(
         sess: ClientSession,
-        pf_sgate: SendGate,
+        pf_sgate: cap::Selector,
         child_sgate: cap::Selector,
     ) -> Result<Self, Error> {
         let pf_rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
@@ -90,7 +90,7 @@ impl Pager {
             req_sgate: sgate,
             child_sgate: kif::INVALID_SEL,
             pf_rgate: RecvGate::new_bind(kif::INVALID_SEL),
-            pf_sgate: SendGate::new_bind(kif::INVALID_SEL),
+            pf_sgate: kif::INVALID_SEL,
             close: false,
         }
     }
@@ -105,7 +105,7 @@ impl Pager {
         // get send gates for us and our child
         let child_sgate = Self::get_sgate(&sess)?;
         let req_sgate = SendGate::new_bind(Self::get_sgate(&sess)?);
-        let pf_sgate = SendGate::new_bind(Self::get_sgate(&sess)?);
+        let pf_sgate = Self::get_sgate(&sess)?;
 
         let pf_rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
         Ok(Pager {
@@ -121,7 +121,7 @@ impl Pager {
     /// Initializes this pager session by delegating the activity cap to the server.
     pub(crate) fn init(&mut self, act: &ChildActivity) -> Result<(), Error> {
         // activate send and receive gate for page faults
-        syscalls::activate(act.sel() + 1, self.pf_sgate.sel(), kif::INVALID_SEL, 0)?;
+        syscalls::activate(act.sel() + 1, self.pf_sgate, kif::INVALID_SEL, 0)?;
         syscalls::activate(act.sel() + 2, self.pf_rgate.sel(), kif::INVALID_SEL, 0)?;
 
         // delegate session and sgate caps to child

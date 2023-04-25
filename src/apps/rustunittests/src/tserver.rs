@@ -16,14 +16,19 @@
  * General Public License version 2 for more details.
  */
 
+use core::mem::size_of_val;
+
 use m3::build_vmsg;
 use m3::cap::Selector;
 use m3::cell::StaticCell;
 use m3::com::{recv_msg, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
-use m3::kif;
+use m3::kif::{self, CapRngDesc, CapType};
 use m3::mem::MsgBuf;
-use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
+use m3::server::{
+    server_loop, CapExchange, ClientManager, ExcType, RequestHandler, RequestSession, Server,
+    SessId,
+};
 use m3::session::{ClientSession, ServerSession};
 use m3::syscalls;
 use m3::test::{DefaultWvTester, WvTester};
@@ -36,47 +41,38 @@ pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, testcaps);
 }
 
-struct EmptySession {
-    _sess: ServerSession,
+struct CrashSession {
+    _serv: ServerSession,
 }
 
-struct CrashHandler {
-    sessions: SessionContainer<EmptySession>,
+impl RequestSession for CrashSession {
+    fn new(_crt: usize, _serv: ServerSession, _arg: &str) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        Ok(Self { _serv })
+    }
 }
 
-impl Handler<EmptySession> for CrashHandler {
-    fn sessions(&mut self) -> &mut SessionContainer<EmptySession> {
-        &mut self.sessions
-    }
-
-    fn open(
-        &mut self,
-        crt: usize,
-        srv_sel: Selector,
-        _arg: &str,
-    ) -> Result<(Selector, SessId), Error> {
-        let sess = ServerSession::new(srv_sel, crt, 0, false)?;
-
-        let sel = sess.sel();
-        // keep the session to ensure that it's not destroyed
-        self.sessions
-            .add(crt, 0, EmptySession { _sess: sess })
-            .map(|_| (sel, 0))
-    }
-
-    fn obtain(&mut self, _: usize, _: SessId, _: &mut CapExchange<'_>) -> Result<(), Error> {
+impl CrashSession {
+    fn dummy(
+        _cli: &mut ClientManager<Self>,
+        _crt: usize,
+        _sid: SessId,
+        _xchg: &mut CapExchange<'_>,
+    ) -> Result<(), Error> {
         // don't respond, just exit
         OwnActivity::exit_with(Code::EndOfFile);
     }
 }
 
 fn server_crash_main() -> Result<(), Error> {
-    let mut hdl = CrashHandler {
-        sessions: SessionContainer::new(1),
-    };
-    let s = wv_assert_ok!(Server::new("test", &mut hdl));
+    let mut hdl = wv_assert_ok!(RequestHandler::new());
+    let mut srv = wv_assert_ok!(Server::new("test", &mut hdl));
 
-    server_loop(|| s.handle_ctrl_chan(&mut hdl)).ok();
+    hdl.reg_cap_handler(0, ExcType::Obt(1), CrashSession::dummy);
+
+    wv_assert_ok!(hdl.run(&mut srv));
 
     Ok(())
 }
@@ -111,7 +107,11 @@ fn testnoresp(t: &mut dyn WvTester) {
         let cact = wv_assert_ok!(client.run(|| {
             let mut t = DefaultWvTester::default();
             let sess = connect("test");
-            wv_assert_err!(t, sess.obtain_obj(), Code::RecvGone);
+            wv_assert_err!(
+                t,
+                sess.obtain(1, |is| is.push(0), |_| Ok(())),
+                Code::RecvGone
+            );
             Ok(())
         }));
 
@@ -168,14 +168,18 @@ fn testcliexit(t: &mut dyn WvTester) {
         {
             // perform the obtain syscall
             let mut req_buf = MsgBuf::borrow_def();
+            let mut args = kif::syscalls::ExchangeArgs::default();
+            // insert opcode
+            args.data[0] = 0;
+            args.bytes = size_of_val(&args.data[0]);
             build_vmsg!(
                 req_buf,
                 kif::syscalls::Operation::EXCHANGE_SESS,
                 kif::syscalls::ExchangeSess {
                     act: Activity::own().sel(),
                     sess: sess.sel(),
-                    crd: kif::CapRngDesc::new(kif::CapType::OBJECT, 0, 2),
-                    args: kif::syscalls::ExchangeArgs::default(),
+                    crd: kif::CapRngDesc::new(kif::CapType::OBJECT, 0, 1),
+                    args,
                     obtain: true,
                 }
             );
@@ -200,50 +204,34 @@ fn testcliexit(t: &mut dyn WvTester) {
 
 static STOP: StaticCell<bool> = StaticCell::new(false);
 
-struct NotSupHandler {
-    sessions: SessionContainer<EmptySession>,
+struct NotSupSession {
+    _serv: ServerSession,
     calls: u32,
 }
 
-impl Handler<EmptySession> for NotSupHandler {
-    fn sessions(&mut self) -> &mut SessionContainer<EmptySession> {
-        &mut self.sessions
+impl RequestSession for NotSupSession {
+    fn new(_crt: usize, _serv: ServerSession, _arg: &str) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        Ok(Self { _serv, calls: 0 })
     }
+}
 
-    fn open(
-        &mut self,
-        crt: usize,
-        srv_sel: Selector,
-        _arg: &str,
-    ) -> Result<(Selector, SessId), Error> {
-        let sess = ServerSession::new(srv_sel, crt, 0, false)?;
-
-        let sel = sess.sel();
-        // keep the session to ensure that it's not destroyed
-        self.sessions
-            .add(crt, 0, EmptySession { _sess: sess })
-            .map(|_| (sel, 0))
-    }
-
-    fn obtain(&mut self, _: usize, _: SessId, _: &mut CapExchange<'_>) -> Result<(), Error> {
-        self.calls += 1;
+impl NotSupSession {
+    fn fivetimes(
+        cli: &mut ClientManager<Self>,
+        _crt: usize,
+        sid: SessId,
+        _xchg: &mut CapExchange<'_>,
+    ) -> Result<(), Error> {
+        let mut sess = cli.sessions_mut().get_mut(sid).unwrap();
+        sess.calls += 1;
         // stop the service after 5 calls
-        if self.calls == 5 {
+        if sess.calls == 5 {
             STOP.set(true);
         }
         Err(Error::new(Code::NotSup))
-    }
-
-    fn delegate(&mut self, _: usize, _: SessId, _: &mut CapExchange<'_>) -> Result<(), Error> {
-        self.calls += 1;
-        if self.calls == 5 {
-            STOP.set(true);
-        }
-        Err(Error::new(Code::NotSup))
-    }
-
-    fn close(&mut self, crt: usize, sid: SessId) {
-        self.sessions.remove(crt, sid);
     }
 }
 
@@ -251,17 +239,20 @@ fn server_notsup_main() -> Result<(), Error> {
     for _ in 0..5 {
         STOP.set(false);
 
-        let mut hdl = NotSupHandler {
-            sessions: SessionContainer::new(1),
-            calls: 0,
-        };
-        let s = wv_assert_ok!(Server::new("test", &mut hdl));
+        let mut hdl = wv_assert_ok!(RequestHandler::new());
+        let srv = wv_assert_ok!(Server::new("test", &mut hdl));
+
+        hdl.reg_cap_handler(0, ExcType::Obt(1), NotSupSession::fivetimes);
+        hdl.reg_cap_handler(0, ExcType::Del(1), NotSupSession::fivetimes);
 
         let res = server_loop(|| {
             if STOP.get() {
                 return Err(Error::new(Code::ActivityGone));
             }
-            s.handle_ctrl_chan(&mut hdl)
+
+            srv.fetch_and_handle(&mut hdl)?;
+
+            hdl.fetch_and_handle()
         });
         match res {
             // if there is any other error than our own stop signal, break
@@ -287,17 +278,27 @@ fn testcaps(t: &mut dyn WvTester) {
         // test both obtain and delegate
         if i % 2 == 0 {
             for _ in 0..5 {
-                wv_assert_err!(t, sess.obtain_obj(), Code::NotSup);
-            }
-            wv_assert_err!(t, sess.obtain_obj(), Code::InvArgs, Code::RecvGone);
-        }
-        else {
-            for _ in 0..5 {
-                wv_assert_err!(t, sess.delegate_obj(sess.sel()), Code::NotSup);
+                wv_assert_err!(t, sess.obtain(1, |is| is.push(0), |_| Ok(())), Code::NotSup);
             }
             wv_assert_err!(
                 t,
-                sess.delegate_obj(sess.sel()),
+                sess.obtain(1, |is| is.push(0), |_| Ok(())),
+                Code::InvArgs,
+                Code::RecvGone
+            );
+        }
+        else {
+            let crd = CapRngDesc::new(CapType::OBJECT, sess.sel(), 1);
+            for _ in 0..5 {
+                wv_assert_err!(
+                    t,
+                    sess.delegate(crd, |is| is.push(0), |_| Ok(())),
+                    Code::NotSup
+                );
+            }
+            wv_assert_err!(
+                t,
+                sess.delegate(crd, |is| is.push(0), |_| Ok(())),
                 Code::InvArgs,
                 Code::RecvGone
             );

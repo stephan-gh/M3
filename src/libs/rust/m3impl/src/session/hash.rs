@@ -33,17 +33,14 @@ impl HashSession {
     pub fn new(name: &str, algo: &'static HashAlgorithm) -> Result<Self, Error> {
         let sess = ClientSession::new(name)?;
 
-        // FIXME: Obtain EP immediately with single obtain()
-        // This is not possible right now because there is no way to bind the EP to an arbitrary
-        // capability selector since those are managed by the EpMng on the server side.
-        let crd = sess.obtain(2, |_| {}, |_| Ok(()))?;
-        let ep_sel = sess.obtain_obj()?;
+        let sgate = sess.obtain(1, |is| is.push(opcodes::General::CONNECT), |_| Ok(()))?;
+        let ep = sess.obtain(1, |is| is.push(opcodes::Hash::GET_MEM), |_| Ok(()))?;
 
         let mut sess = HashSession {
             algo,
             _sess: sess,
-            sgate: SendGate::new_bind(crd.start()),
-            ep: EP::new_bind(0, ep_sel),
+            sgate: SendGate::new_bind(sgate.start()),
+            ep: EP::new_bind(0, ep.start()),
         };
         sess.reset(algo)?;
         Ok(sess)

@@ -13,9 +13,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::cap::Selector;
 use m3::col::Vec;
-use m3::com::RecvGate;
 use m3::errors::Error;
 use m3::server::SessId;
 
@@ -27,15 +25,9 @@ pub struct Meta {
 }
 
 impl Meta {
-    pub fn create_pipe(
-        &mut self,
-        sel: Selector,
-        sid: SessId,
-        mem_size: usize,
-        rgate: &RecvGate,
-    ) -> Result<Pipe, Error> {
+    pub fn create_pipe(&mut self, sid: SessId, mem_size: usize) -> Pipe {
         self.pipes.push(sid);
-        Pipe::new(sel, sid, mem_size, rgate)
+        Pipe::new(sid, mem_size)
     }
 
     pub fn close(&mut self, sids: &mut Vec<SessId>) -> Result<(), Error> {

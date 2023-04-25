@@ -28,32 +28,29 @@ mod sess;
 use crate::backend::{Backend, DiskBackend, MemBackend};
 use crate::buf::{FileBuffer, MetaBuffer};
 use crate::data::{Allocator, SuperBlock};
-use crate::sess::{FSSession, M3FSSession, MetaSession, OpenFiles};
+use crate::sess::{FSSession, M3FSSession, OpenFiles};
 
-use base::cell::LazyStaticUnsafeCell;
-use base::io::LogFlags;
+use m3::server::ExcType;
 use m3::{
     boxed::Box,
     cap::Selector,
-    cell::{LazyReadOnlyCell, LazyStaticRefCell, Ref, RefMut, StaticRefCell},
+    cell::{
+        LazyReadOnlyCell, LazyStaticRefCell, LazyStaticUnsafeCell, Ref, RefMut, StaticCell,
+        StaticRefCell,
+    },
     col::{String, ToString, Vec},
-    com::{opcodes, GateIStream, RecvGate},
+    com::opcodes,
     env,
     errors::{Code, Error},
-    server::{
-        server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
-        DEF_MAX_CLIENTS,
-    },
-    tcu::Label,
-    tiles::{Activity, OwnActivity},
+    io::LogFlags,
+    server::{server_loop, RequestHandler, Server, SessId, DEF_MAX_CLIENTS},
+    tiles::OwnActivity,
 };
 
 // Server constants
 const MSG_SIZE: usize = 128;
 
-// The global request handler
-static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
-
+static SERV_SEL: StaticCell<Selector> = StaticCell::new(0);
 static SB: LazyStaticRefCell<SuperBlock> = LazyStaticRefCell::default();
 // TODO we unfortunately need to use an unsafe cell here at the moment, because the meta buffer is
 // basicalled used in all modules, making it really hard to use something like a RefCell here.
@@ -64,6 +61,7 @@ static BA: LazyStaticRefCell<Allocator> = LazyStaticRefCell::default();
 static IA: LazyStaticRefCell<Allocator> = LazyStaticRefCell::default();
 static SETTINGS: LazyReadOnlyCell<FsSettings> = LazyReadOnlyCell::default();
 static BACKEND: LazyStaticRefCell<Box<dyn Backend>> = LazyStaticRefCell::default();
+static CLOSED_FILE: StaticRefCell<Option<SessId>> = StaticRefCell::new(None);
 
 fn superblock() -> Ref<'static, SuperBlock> {
     SB.borrow()
@@ -106,355 +104,6 @@ fn flush_buffer() -> Result<(), Error> {
     sb.update_blockbm(blocks.free_count(), blocks.first_free());
     sb.checksum = sb.get_checksum();
     crate::backend_mut().store_sb(&sb)
-}
-
-int_enum! {
-    pub struct M3FSOperation : u64 {
-        const STAT          = opcodes::File::STAT.val;
-        const SEEK          = opcodes::File::SEEK.val;
-        const NEXT_IN       = opcodes::File::NEXT_IN.val;
-        const NEXT_OUT      = opcodes::File::NEXT_OUT.val;
-        const COMMIT        = opcodes::File::COMMIT.val;
-        const TRUNCATE      = opcodes::File::TRUNCATE.val;
-        const SYNC          = opcodes::File::SYNC.val;
-        const CLOSE         = opcodes::File::CLOSE.val;
-        const CLONE         = opcodes::File::CLONE.val;
-        const GET_PATH      = opcodes::File::GET_PATH.val;
-        const SET_TMODE     = opcodes::File::SET_TMODE.val;
-        const SET_DEST      = opcodes::File::SET_DEST.val;
-        const ENABLE_NOTIFY = opcodes::File::ENABLE_NOTIFY.val;
-        const REQ_NOTIFY    = opcodes::File::REQ_NOTIFY.val;
-        const OPEN          = opcodes::FileSystem::OPEN.val;
-        const FSTAT         = opcodes::FileSystem::STAT.val;
-        const MKDIR         = opcodes::FileSystem::MKDIR.val;
-        const RMDIR         = opcodes::FileSystem::RMDIR.val;
-        const LINK          = opcodes::FileSystem::LINK.val;
-        const UNLINK        = opcodes::FileSystem::UNLINK.val;
-        const RENAME        = opcodes::FileSystem::RENAME.val;
-        const GET_MEM       = opcodes::FileSystem::GET_MEM.val;
-        const GET_SGATE     = opcodes::FileSystem::GET_SGATE.val;
-        const DEL_EP        = opcodes::FileSystem::DEL_EP.val;
-        const OPEN_PRIV     = opcodes::FileSystem::OPEN_PRIV.val;
-    }
-}
-
-struct M3FSRequestHandler {
-    sel: Selector,
-    sessions: SessionContainer<FSSession>,
-}
-
-impl M3FSRequestHandler {
-    fn new(mut backend: Box<dyn Backend>) -> Result<Self, Error> {
-        // init thread manager, otherwise the waiting within the file and meta buffer impl. panics.
-        thread::init();
-
-        let sb = backend.load_sb().expect("Unable to load super block");
-        log!(LogFlags::FSInfo, "Loaded {:#?}", sb);
-
-        BA.set(Allocator::new(
-            String::from("Block"),
-            sb.first_blockbm_block(),
-            sb.first_free_block,
-            sb.free_blocks,
-            sb.total_blocks,
-            sb.blockbm_blocks(),
-            sb.block_size as usize,
-        ));
-        IA.set(Allocator::new(
-            String::from("INodes"),
-            sb.first_inodebm_block(),
-            sb.first_free_inode,
-            sb.free_inodes,
-            sb.total_inodes,
-            sb.inodebm_block(),
-            sb.block_size as usize,
-        ));
-
-        // safety: we pass in a newly constructed MetaBuffer and have not initialized MB before
-        unsafe {
-            MB.set(MetaBuffer::new(sb.block_size as usize));
-        }
-        FB.set(FileBuffer::new(sb.block_size as usize));
-        SB.set(sb);
-
-        BACKEND.set(backend);
-
-        let container = SessionContainer::new(DEF_MAX_CLIENTS);
-
-        Ok(M3FSRequestHandler {
-            sel: 0, // gets set later in main
-            sessions: container,
-        })
-    }
-
-    pub fn handle(&mut self, op: M3FSOperation, input: &mut GateIStream<'_>) -> Result<(), Error> {
-        log!(
-            LogFlags::FSReqs,
-            "[{}] fs::handle(op={})",
-            input.label(),
-            op
-        );
-
-        let res = match op {
-            M3FSOperation::NEXT_IN => self.exec_on_sess(input, |sess, is| sess.next_in(is)),
-            M3FSOperation::NEXT_OUT => self.exec_on_sess(input, |sess, is| sess.next_out(is)),
-            M3FSOperation::COMMIT => self.exec_on_sess(input, |sess, is| sess.commit(is)),
-            M3FSOperation::TRUNCATE => self.exec_on_sess(input, |sess, is| sess.truncate(is)),
-            M3FSOperation::CLOSE => match self.exec_on_sess(input, |sess, is| sess.close(is)) {
-                Ok(true) => {
-                    // get session id, then notify caller that we closed, finally close self
-                    let sid = input.label() as SessId;
-                    input.reply_error(Code::Success).ok();
-                    self.close_session(sid, input.rgate())
-                },
-                Ok(false) => Ok(()),
-                Err(e) => Err(e),
-            },
-            M3FSOperation::STAT => self.exec_on_sess(input, |sess, is| sess.stat(is)),
-            M3FSOperation::GET_PATH => self.exec_on_sess(input, |sess, is| sess.get_path(is)),
-            M3FSOperation::SEEK => self.exec_on_sess(input, |sess, is| sess.seek(is)),
-            M3FSOperation::FSTAT => self.exec_on_sess(input, |sess, is| sess.fstat(is)),
-            M3FSOperation::MKDIR => self.exec_on_sess(input, |sess, is| sess.mkdir(is)),
-            M3FSOperation::RMDIR => self.exec_on_sess(input, |sess, is| sess.rmdir(is)),
-            M3FSOperation::LINK => self.exec_on_sess(input, |sess, is| sess.link(is)),
-            M3FSOperation::UNLINK => self.exec_on_sess(input, |sess, is| sess.unlink(is)),
-            M3FSOperation::RENAME => self.exec_on_sess(input, |sess, is| sess.rename(is)),
-            M3FSOperation::SYNC => self.exec_on_sess(input, |sess, is| sess.sync(is)),
-            M3FSOperation::OPEN_PRIV => self.exec_on_sess(input, |sess, is| sess.open_priv(is)),
-            _ => Err(Error::new(Code::InvArgs)),
-        };
-
-        if let Err(ref e) = res {
-            input.reply_error(e.code()).ok();
-        }
-
-        log!(
-            LogFlags::FSReqs,
-            "[{}] fs::handle(op={}) -> {:?}",
-            input.label(),
-            op,
-            res.as_ref().map_err(|e| e.code()),
-        );
-        Ok(())
-    }
-
-    fn exec_on_sess<F, R>(&mut self, is: &mut GateIStream<'_>, function: F) -> Result<R, Error>
-    where
-        F: Fn(&mut FSSession, &mut GateIStream<'_>) -> Result<R, Error>,
-    {
-        let session_id: SessId = is.label() as SessId;
-        if let Some(sess) = self.sessions.get_mut(session_id) {
-            function(sess, is)
-        }
-        else {
-            Err(Error::new(Code::InvArgs))
-        }
-    }
-
-    fn close_session(&mut self, sid: SessId, rgate: &RecvGate) -> Result<(), Error> {
-        // close this and all child sessions
-        let mut sids = vec![sid];
-        while let Some(id) = sids.pop() {
-            if let Ok(sess) = self.remove_session(id) {
-                log!(LogFlags::FSReqs, "[{}] fs::close(): closing {}", sid, id);
-
-                match sess {
-                    FSSession::Meta(ref meta) => {
-                        // remove contained file sessions
-                        sids.extend_from_slice(meta.file_sessions());
-                    },
-
-                    FSSession::File(ref file) => {
-                        // remove file session from parent meta session
-                        if let Some(parent_meta_session) = self.sessions.get_mut(file.meta_sess()) {
-                            match parent_meta_session {
-                                FSSession::Meta(ref mut pms) => pms.remove_file(id),
-                                _ => panic!("FileSession's parent is not a MetaSession!?"),
-                            }
-                        }
-
-                        // remove file session from parent file session
-                        if let Some(psid) = file.parent_sess() {
-                            if let Some(parent_file_session) = self.sessions.get_mut(psid) {
-                                match parent_file_session {
-                                    FSSession::File(ref mut pfs) => pfs.remove_child(id),
-                                    _ => panic!("Parent FileSession is not a FileSession!?"),
-                                }
-                            }
-                        }
-
-                        // remove child file sessions
-                        sids.extend_from_slice(file.child_sessions());
-                    },
-                }
-
-                // ignore all potentially outstanding messages of this session
-                rgate.drop_msgs_with(id as Label).unwrap();
-            }
-        }
-        Ok(())
-    }
-
-    fn remove_session(&mut self, sid: SessId) -> Result<FSSession, Error> {
-        let session = self
-            .sessions
-            .get_mut(sid)
-            .ok_or_else(|| Error::new(Code::InvArgs))?;
-
-        let creator = session.creator();
-        Ok(self.sessions.remove(creator, sid))
-    }
-}
-
-impl Handler<FSSession> for M3FSRequestHandler {
-    fn sessions(&mut self) -> &mut SessionContainer<FSSession> {
-        &mut self.sessions
-    }
-
-    /// Creates a new session with `arg` as an argument for the service with selector `srv_sel`.
-    ///
-    /// Returns the session selector and the session identifier.
-    fn open(
-        &mut self,
-        crt: usize,
-        srv_sel: Selector,
-        arg: &str,
-    ) -> Result<(Selector, SessId), Error> {
-        // get max number of files
-        let mut max_files: usize = 16;
-        if arg.len() > 6 && &arg[..6] == "files=" {
-            max_files = arg[6..].parse().map_err(|_| Error::new(Code::InvArgs))?;
-        }
-
-        // get the id this session would belong to.
-        let sessid = self.sessions.next_id()?;
-
-        self.sessions.add_next(crt, srv_sel, true, |sess| {
-            log!(
-                LogFlags::FSSess,
-                "[{}] creating session(crt={}, max_files={})",
-                sess.ident(),
-                crt,
-                max_files
-            );
-            Ok(FSSession::Meta(MetaSession::new(
-                sess, sessid, crt, max_files,
-            )))
-        })
-    }
-
-    /// Let's the client obtain a capability from the server
-    fn obtain(&mut self, crt: usize, sid: SessId, data: &mut CapExchange<'_>) -> Result<(), Error> {
-        // get some values now, because we cannot borrow self while holding the session reference
-        let next_sess_id = self.sessions.next_id()?;
-        let sel: Selector = self.sel;
-
-        let op: M3FSOperation = data.in_args().pop()?;
-        log!(
-            LogFlags::FSReqs,
-            "[{}] fs::obtain(crt={}, op={})",
-            sid,
-            crt,
-            op
-        );
-
-        if !self.sessions.can_add(crt) {
-            return Err(Error::new(Code::NoSpace));
-        }
-
-        let session = self
-            .sessions
-            .get_mut(sid)
-            .ok_or_else(|| Error::new(Code::InvArgs))?;
-        match session {
-            FSSession::Meta(meta) => match op {
-                M3FSOperation::GET_SGATE => meta.get_sgate(data, REQHDL.get().recv_gate()),
-                M3FSOperation::OPEN => {
-                    let file_session =
-                        meta.open_file(sel, crt, data, next_sess_id, REQHDL.get().recv_gate())?;
-
-                    self.sessions
-                        .add(crt, next_sess_id, FSSession::File(file_session))
-                },
-                _ => Err(Error::new(Code::InvArgs)),
-            },
-
-            FSSession::File(file) => match op {
-                M3FSOperation::CLONE => {
-                    let nfile_session =
-                        file.clone(sel, crt, next_sess_id, data, REQHDL.get().recv_gate())?;
-
-                    self.sessions
-                        .add(crt, next_sess_id, FSSession::File(nfile_session))
-                },
-                M3FSOperation::GET_MEM => file.get_mem(data),
-                _ => Err(Error::new(Code::InvArgs)),
-            },
-        }
-    }
-
-    /// Let's the client delegate a capability to the server
-    fn delegate(
-        &mut self,
-        _crt: usize,
-        sid: SessId,
-        data: &mut CapExchange<'_>,
-    ) -> Result<(), Error> {
-        let op: M3FSOperation = data.in_args().pop()?;
-        log!(LogFlags::FSReqs, "[{}] fs::delegate(op={})", sid, op);
-
-        let session = self
-            .sessions
-            .get_mut(sid)
-            .ok_or_else(|| Error::new(Code::InvArgs))?;
-        match session {
-            FSSession::File(fs) => match op {
-                M3FSOperation::SET_DEST => {
-                    if data.in_caps() != 1 {
-                        return Err(Error::new(Code::NotSup));
-                    }
-
-                    let new_sel: Selector = Activity::own().alloc_sel();
-                    fs.set_ep(new_sel);
-                    data.out_caps(m3::kif::CapRngDesc::new(
-                        m3::kif::CapType::OBJECT,
-                        new_sel,
-                        1,
-                    ));
-                },
-                M3FSOperation::ENABLE_NOTIFY => return Err(Error::new(Code::NotSup)),
-                _ => return Err(Error::new(Code::InvArgs)),
-            },
-            FSSession::Meta(m) => match op {
-                M3FSOperation::DEL_EP => {
-                    if data.in_caps() != 1 {
-                        return Err(Error::new(Code::NotSup));
-                    }
-
-                    let new_sel: Selector = Activity::own().alloc_sel();
-                    let id = m.add_ep(new_sel);
-                    data.out_caps(m3::kif::CapRngDesc::new(
-                        m3::kif::CapType::OBJECT,
-                        new_sel,
-                        1,
-                    ));
-                    data.out_args().push(id);
-                },
-                M3FSOperation::ENABLE_NOTIFY => return Err(Error::new(Code::NotSup)),
-                _ => return Err(Error::new(Code::InvArgs)),
-            },
-        }
-
-        Ok(())
-    }
-
-    fn close(&mut self, _crt: usize, sid: SessId) {
-        self.close_session(sid, REQHDL.get().recv_gate()).ok();
-    }
-
-    fn shutdown(&mut self) {
-        crate::flush_buffer().expect("buffer flush at shutdown failed");
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -549,6 +198,42 @@ fn parse_args() -> Result<FsSettings, String> {
     Ok(settings)
 }
 
+fn init_fs(mut backend: Box<dyn Backend>) {
+    // init thread manager, otherwise the waiting within the file and meta buffer impl. panics.
+    thread::init();
+
+    let sb = backend.load_sb().expect("Unable to load super block");
+    log!(LogFlags::FSInfo, "Loaded {:#?}", sb);
+
+    BA.set(Allocator::new(
+        String::from("Block"),
+        sb.first_blockbm_block(),
+        sb.first_free_block,
+        sb.free_blocks,
+        sb.total_blocks,
+        sb.blockbm_blocks(),
+        sb.block_size as usize,
+    ));
+    IA.set(Allocator::new(
+        String::from("INodes"),
+        sb.first_inodebm_block(),
+        sb.first_free_inode,
+        sb.free_inodes,
+        sb.total_inodes,
+        sb.inodebm_block(),
+        sb.block_size as usize,
+    ));
+
+    // safety: we pass in a newly constructed MetaBuffer and have not initialized MB before
+    unsafe {
+        MB.set(MetaBuffer::new(sb.block_size as usize));
+    }
+    FB.set(FileBuffer::new(sb.block_size as usize));
+    SB.set(sb);
+
+    BACKEND.set(backend);
+}
+
 #[no_mangle]
 pub fn main() -> Result<(), Error> {
     // parse arguments
@@ -558,33 +243,67 @@ pub fn main() -> Result<(), Error> {
     }));
     log!(LogFlags::FSInfo, "{:#?}", SETTINGS.get());
 
-    // create backend for the file system
-    let mut hdl = if SETTINGS.get().backend == "mem" {
-        let backend = Box::new(MemBackend::new(&SETTINGS.get().mem_mod));
-        M3FSRequestHandler::new(backend)
-            .expect("Failed to create m3fs handler based on memory backend")
+    // create and initialize backend for the file system
+    let backend = if SETTINGS.get().backend == "mem" {
+        Box::new(MemBackend::new(&SETTINGS.get().mem_mod)) as Box<dyn Backend>
     }
     else {
-        let backend = Box::new(DiskBackend::new().expect("Failed to initialize disk backend!"));
-        M3FSRequestHandler::new(backend)
-            .expect("Failed to create m3fs handler based on disk backend")
+        Box::new(DiskBackend::new().expect("Failed to initialize disk backend!"))
+            as Box<dyn Backend>
     };
+    init_fs(backend);
 
-    // create new server for file system and pass on selector to handler
-    let serv =
-        Server::new(&SETTINGS.get().name, &mut hdl).expect("Could not create service 'm3fs'");
-    hdl.sel = serv.sel();
+    // create request handler and server
+    let mut hdl = RequestHandler::new_with(SETTINGS.get().max_clients, MSG_SIZE)
+        .expect("Unable to create request handler");
 
-    // create request handler
-    REQHDL.set(
-        RequestHandler::new_with(SETTINGS.get().max_clients, MSG_SIZE)
-            .expect("Unable to create request handler"),
+    let srv = Server::new(&SETTINGS.get().name, &mut hdl).expect("Could not create service 'm3fs'");
+    SERV_SEL.set(srv.sel());
+
+    use opcodes::{File, FileSystem};
+
+    // register capability handler
+    hdl.reg_cap_handler(FileSystem::OPEN.val, ExcType::Obt(2), FSSession::open);
+    hdl.reg_cap_handler(FileSystem::GET_MEM.val, ExcType::Obt(1), FSSession::get_mem);
+    hdl.reg_cap_handler(FileSystem::DEL_EP.val, ExcType::Del(1), FSSession::del_ep);
+    hdl.reg_cap_handler(File::CLONE.val, ExcType::Obt(2), FSSession::clone);
+    hdl.reg_cap_handler(File::SET_DEST.val, ExcType::Del(1), FSSession::set_dest);
+    hdl.reg_cap_handler(
+        File::ENABLE_NOTIFY.val,
+        ExcType::Del(1),
+        FSSession::enable_notify,
     );
 
+    // register message handler
+    hdl.reg_msg_handler(File::NEXT_IN.val, FSSession::next_in);
+    hdl.reg_msg_handler(File::NEXT_OUT.val, FSSession::next_out);
+    hdl.reg_msg_handler(File::COMMIT.val, FSSession::commit);
+    hdl.reg_msg_handler(File::TRUNCATE.val, FSSession::truncate);
+    hdl.reg_msg_handler(File::CLOSE.val, FSSession::close);
+    hdl.reg_msg_handler(File::STAT.val, FSSession::stat);
+    hdl.reg_msg_handler(File::GET_PATH.val, FSSession::get_path);
+    hdl.reg_msg_handler(File::SEEK.val, FSSession::seek);
+    hdl.reg_msg_handler(File::SYNC.val, FSSession::sync);
+    hdl.reg_msg_handler(FileSystem::STAT.val, FSSession::fstat);
+    hdl.reg_msg_handler(FileSystem::MKDIR.val, FSSession::mkdir);
+    hdl.reg_msg_handler(FileSystem::RMDIR.val, FSSession::rmdir);
+    hdl.reg_msg_handler(FileSystem::LINK.val, FSSession::link);
+    hdl.reg_msg_handler(FileSystem::UNLINK.val, FSSession::unlink);
+    hdl.reg_msg_handler(FileSystem::RENAME.val, FSSession::rename);
+    hdl.reg_msg_handler(FileSystem::OPEN_PRIV.val, FSSession::open_priv);
+
     server_loop(|| {
-        // handle message that is given to the server
-        serv.handle_ctrl_chan(&mut hdl)?;
-        REQHDL.get().handle(|op, is| hdl.handle(op, is))
+        srv.fetch_and_handle(&mut hdl)?;
+
+        hdl.fetch_and_handle()?;
+
+        // check if there is a session to close
+        if let Some(sid) = CLOSED_FILE.borrow_mut().take() {
+            let creator = hdl.clients().sessions().get(sid).unwrap().creator();
+            hdl.clients_mut().remove_session(creator, sid);
+        }
+
+        Ok(())
     })
     .ok();
 

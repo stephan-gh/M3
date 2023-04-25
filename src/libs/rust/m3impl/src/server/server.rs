@@ -33,11 +33,16 @@ use crate::syscalls;
 use crate::tiles::Activity;
 use crate::util::math;
 
-/// Represents a server that provides a service for clients.
-pub struct Server {
-    cap: Capability,
-    rgate: RecvGate,
-    public: bool,
+const MSG_SIZE: usize = 256;
+const BUF_SIZE: usize = MSG_SIZE * (1 + super::sesscon::MAX_CREATORS);
+
+/// Describes the type of capability exchange including the number of capabilities
+#[derive(Debug, PartialEq, Eq)]
+pub enum ExcType {
+    /// A delegate (client copies caps to the server)
+    Del(u64),
+    /// An obtain (server copies caps to the client)
+    Obt(u64),
 }
 
 /// The struct to exchange capabilities with a client (obtain/delegate)
@@ -93,8 +98,13 @@ impl<'d> fmt::Debug for CapExchange<'d> {
     }
 }
 
-/// The handler for a server that implements the service calls (session creations, cap exchange,
-/// ...).
+/// The handler customizes a [`Server`] by defining the opening and closing of sessions and capability
+/// exchanges.
+///
+/// In more detail, for every request the [`Server`] receives from the kernel, it will call the
+/// corresponding function of `Handler`. For example, whenever [`Server`] receives a open-session
+/// request from the kernel, it will call [`Handler::open`] to let the `Handler` create the session
+/// (if desired).
 pub trait Handler<S> {
     /// Returns the session container
     fn sessions(&mut self) -> &mut SessionContainer<S>;
@@ -108,20 +118,66 @@ pub trait Handler<S> {
         arg: &str,
     ) -> Result<(Selector, SessId), Error>;
 
-    /// Let's the client obtain a capability from the server
-    fn obtain(
+    /// Performs a capability exchange between a client and our service
+    ///
+    /// The default implementation expects a 64-bit opcode as the first word in the message and
+    /// calls [`exchange_handler`](`Self::exchange_handler`) to handle this operation.
+    fn exchange(
         &mut self,
-        _crt: usize,
-        _sid: SessId,
-        _xchg: &mut CapExchange<'_>,
+        crt: usize,
+        sid: SessId,
+        xchg: &mut CapExchange<'_>,
+        obtain: bool,
     ) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
+        let opcode = xchg.in_args().pop::<u64>()?;
+
+        let ty = if obtain {
+            ExcType::Obt(xchg.in_caps())
+        }
+        else {
+            ExcType::Del(xchg.in_caps())
+        };
+
+        log!(
+            LogFlags::LibServ,
+            "server::exchange(crt={}, sid={}, ty={:?}, op={:?})",
+            crt,
+            sid,
+            ty,
+            opcode,
+        );
+
+        if !self.sessions().creator_owns(crt, sid) {
+            return Err(Error::new(Code::NoPerm));
+        }
+
+        let res = self.exchange_handler(crt, sid, opcode, ty, xchg);
+
+        log!(
+            LogFlags::LibServ,
+            "server::{}(crt={}, sid={}, op={:?}) -> xchg={:?}), res={:?}",
+            if obtain { "obtain" } else { "delegate" },
+            crt,
+            sid,
+            opcode,
+            xchg,
+            res
+        );
+
+        res
     }
-    /// Let's the client delegate a capability to the server
-    fn delegate(
+
+    /// The handler for capability exchanges
+    ///
+    /// It receives the opcode of the message included in the exchange and the type of exchange and
+    /// is responsible to fill the output side of the [`CapExchange`] data structure accordingly. To
+    /// do so it can also read further arguments out of the input side of [`CapExchange`].
+    fn exchange_handler(
         &mut self,
         _crt: usize,
         _sid: SessId,
+        _opcode: u64,
+        _ty: ExcType,
         _xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
@@ -136,21 +192,43 @@ pub trait Handler<S> {
     }
 }
 
-const MSG_SIZE: usize = 256;
-const BUF_SIZE: usize = MSG_SIZE * (1 + super::sesscon::MAX_CREATORS);
+/// Represents a server that provides a service for clients.
+///
+/// The `Server` is the corner stone of the server API in M³, because it handles new connections
+/// from clients, capability exchanges, and connection tear downs. These connections are represented
+/// as sessions. That is, as soon as a client is connected to a server, the server uses a session to
+/// represent this connection and potentially keep client-specific state.
+///
+/// How exactly sessions are opened, closed, and capabilities are exchanged is defined by the
+/// [`Handler`], which is used by the server to handle the requests from the kernel. `Server`
+/// therefore does not care what exactly a session is, but leaves this part to the [`Handler`].
+pub struct Server {
+    cap: Capability,
+    rgate: RecvGate,
+    public: bool,
+}
 
 impl Server {
     /// Creates a new server with given service name.
-    pub fn new<S>(name: &str, hdl: &mut dyn Handler<S>) -> Result<Self, Error> {
+    pub fn new<H, S>(name: &str, hdl: &mut H) -> Result<Self, Error>
+    where
+        H: Handler<S>,
+    {
         Self::create(name, hdl, true)
     }
 
     /// Creates a new private server that is not visible to anyone
-    pub fn new_private<S>(name: &str, hdl: &mut dyn Handler<S>) -> Result<Self, Error> {
+    pub fn new_private<H, S>(name: &str, hdl: &mut H) -> Result<Self, Error>
+    where
+        H: Handler<S>,
+    {
         Self::create(name, hdl, false)
     }
 
-    fn create<S>(name: &str, hdl: &mut dyn Handler<S>, public: bool) -> Result<Self, Error> {
+    fn create<H, S>(name: &str, hdl: &mut H, public: bool) -> Result<Self, Error>
+    where
+        H: Handler<S>,
+    {
         let sel = Activity::own().alloc_sel();
         let rgate = RecvGate::new(math::next_log2(BUF_SIZE), math::next_log2(MSG_SIZE))?;
         rgate.activate()?;
@@ -185,10 +263,13 @@ impl Server {
     }
 
     /// Fetches a message from the control channel and handles it if so.
-    pub fn handle_ctrl_chan<S>(&self, hdl: &mut dyn Handler<S>) -> Result<(), Error> {
+    pub fn fetch_and_handle<H, S>(&self, hdl: &mut H) -> Result<(), Error>
+    where
+        H: Handler<S>,
+    {
         if let Ok(msg) = self.rgate.fetch() {
             let mut is = GateIStream::new(msg, &self.rgate);
-            match self.handle_ctrl_msg(hdl, &mut is) {
+            match self.handle(hdl, &mut is) {
                 // should the server terminate?
                 Ok(true) => return Err(Error::new(Code::EndOfFile)),
                 // everything okay
@@ -203,17 +284,20 @@ impl Server {
         Ok(())
     }
 
-    fn handle_ctrl_msg<S>(
-        &self,
-        hdl: &mut dyn Handler<S>,
-        is: &mut GateIStream<'_>,
-    ) -> Result<bool, Error> {
+    fn handle<H, S>(&self, hdl: &mut H, is: &mut GateIStream<'_>) -> Result<bool, Error>
+    where
+        H: Handler<S>,
+    {
         let req: Request<'_> = is.pop()?;
         match req {
             Request::Open { arg } => Self::handle_open(hdl, self.sel(), is, arg),
             Request::DeriveCrt { sessions } => Self::handle_derive_crt(hdl, is, sessions),
-            Request::Obtain { sid, data } => Self::handle_obtain(hdl, is, sid as SessId, &data),
-            Request::Delegate { sid, data } => Self::handle_delegate(hdl, is, sid as SessId, &data),
+            Request::Obtain { sid, data } => {
+                self.handle_exchange(hdl, is, sid as SessId, &data, true)
+            },
+            Request::Delegate { sid, data } => {
+                self.handle_exchange(hdl, is, sid as SessId, &data, false)
+            },
             Request::Close { sid } => Self::handle_close(hdl, is, sid as SessId),
             Request::Shutdown => match Self::handle_shutdown(hdl, is) {
                 Ok(_) => return Ok(true),
@@ -223,12 +307,15 @@ impl Server {
         .map(|_| false)
     }
 
-    fn handle_open<S>(
-        hdl: &mut dyn Handler<S>,
+    fn handle_open<H, S>(
+        hdl: &mut H,
         sel: Selector,
         is: &mut GateIStream<'_>,
         arg: &str,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Error>
+    where
+        H: Handler<S>,
+    {
         let crt = is.label() as usize;
         let res = hdl.open(crt, sel, arg);
 
@@ -253,11 +340,14 @@ impl Server {
         }
     }
 
-    fn handle_derive_crt<S>(
-        hdl: &mut dyn Handler<S>,
+    fn handle_derive_crt<H, S>(
+        hdl: &mut H,
         is: &mut GateIStream<'_>,
         sessions: u32,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Error>
+    where
+        H: Handler<S>,
+    {
         let crt = is.label() as usize;
         log!(
             LogFlags::LibServ,
@@ -274,40 +364,25 @@ impl Server {
         })
     }
 
-    fn handle_obtain<S>(
-        hdl: &mut dyn Handler<S>,
+    fn handle_exchange<H, S>(
+        &self,
+        hdl: &mut H,
         is: &mut GateIStream<'_>,
         sid: SessId,
         data: &ExchangeData,
-    ) -> Result<(), Error> {
+        obtain: bool,
+    ) -> Result<(), Error>
+    where
+        H: Handler<S>,
+    {
         let crt = is.label() as usize;
-
-        log!(
-            LogFlags::LibServ,
-            "server::obtain(crt={}, sid={})",
-            crt,
-            sid
-        );
-
-        if !hdl.sessions().creator_owns(crt, sid) {
-            return Err(Error::new(Code::NoPerm));
-        }
 
         let mut reply = ExchangeReply::default();
 
         let (res, args_size, crd) = {
             let mut xchg = CapExchange::new(data, &mut reply.data);
 
-            let res = hdl.obtain(crt, sid, &mut xchg);
-
-            log!(
-                LogFlags::LibServ,
-                "server::obtain(crt={}, sid={}) -> xchg={:?}), res={:?}",
-                crt,
-                sid,
-                xchg,
-                res
-            );
+            let res = hdl.exchange(crt, sid, &mut xchg, obtain);
 
             (res, xchg.out_args().size(), xchg.out_crd)
         };
@@ -318,55 +393,10 @@ impl Server {
         reply_vmsg!(is, res, reply)
     }
 
-    fn handle_delegate<S>(
-        hdl: &mut dyn Handler<S>,
-        is: &mut GateIStream<'_>,
-        sid: SessId,
-        data: &ExchangeData,
-    ) -> Result<(), Error> {
-        let crt = is.label() as usize;
-
-        log!(
-            LogFlags::LibServ,
-            "server::delegate(crt={}, sid={})",
-            crt,
-            sid
-        );
-
-        if !hdl.sessions().creator_owns(crt, sid) {
-            return Err(Error::new(Code::NoPerm));
-        }
-
-        let mut reply = ExchangeReply::default();
-
-        let (res, args_size, crd) = {
-            let mut xchg = CapExchange::new(data, &mut reply.data);
-
-            let res = hdl.delegate(crt, sid, &mut xchg);
-
-            log!(
-                LogFlags::LibServ,
-                "server::delegate(crt={}, sid={}) -> xchg={:?}), res={:?}",
-                crt,
-                sid,
-                xchg,
-                res
-            );
-
-            (res, xchg.out_args().size(), xchg.out_crd)
-        };
-
-        let res = res.err().map(|e| e.code()).unwrap_or(Code::Success);
-        reply.data.args.bytes = args_size;
-        reply.data.caps = crd;
-        reply_vmsg!(is, res, reply)
-    }
-
-    fn handle_close<S>(
-        hdl: &mut dyn Handler<S>,
-        is: &mut GateIStream<'_>,
-        sid: SessId,
-    ) -> Result<(), Error> {
+    fn handle_close<H, S>(hdl: &mut H, is: &mut GateIStream<'_>, sid: SessId) -> Result<(), Error>
+    where
+        H: Handler<S>,
+    {
         let crt = is.label() as usize;
 
         log!(LogFlags::LibServ, "server::close(crt={}, sid={})", crt, sid);
@@ -380,7 +410,10 @@ impl Server {
         is.reply_error(Code::Success)
     }
 
-    fn handle_shutdown<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream<'_>) -> Result<(), Error> {
+    fn handle_shutdown<H, S>(hdl: &mut H, is: &mut GateIStream<'_>) -> Result<(), Error>
+    where
+        H: Handler<S>,
+    {
         log!(LogFlags::LibServ, "server::shutdown()");
 
         // only the first creator is allowed to shut us down

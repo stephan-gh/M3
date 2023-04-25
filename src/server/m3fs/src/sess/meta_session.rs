@@ -18,17 +18,17 @@ use crate::data::ExtPos;
 use crate::ops::{dirs, inodes};
 use crate::sess::{FileSession, M3FSSession};
 
-use base::io::LogFlags;
 use m3::{
     cap::Selector,
     cell::StaticCell,
     col::{Treap, Vec},
-    com::{GateIStream, RecvGate, SGateArgs, SendGate},
+    com::{GateIStream, SendGate},
     errors::{Code, Error},
+    io::LogFlags,
     server::CapExchange,
     server::SessId,
     session::ServerSession,
-    tcu::Label,
+    tiles::Activity,
     vfs::{FileMode, OpenFlags},
 };
 
@@ -78,24 +78,6 @@ impl MetaSession {
         self.priv_eps.len() - 1
     }
 
-    pub fn get_sgate(&mut self, data: &mut CapExchange<'_>, rgate: &RecvGate) -> Result<(), Error> {
-        if data.in_caps() != 1 {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        let sgate = SendGate::new_with(SGateArgs::new(rgate).label(self.session_id as Label))?;
-        let sgate_selector = sgate.sel();
-        self.sgates.push(sgate);
-
-        data.out_caps(m3::kif::CapRngDesc::new(
-            m3::kif::CapType::OBJECT,
-            sgate_selector,
-            1,
-        ));
-
-        Ok(())
-    }
-
     pub fn file_sessions(&self) -> &[SessId] {
         &self.files
     }
@@ -107,11 +89,11 @@ impl MetaSession {
     /// Creates a file session based on this meta session for `file_session_id`.
     pub fn open_file(
         &mut self,
-        selector: Selector,
+        serv_sel: Selector,
+        sess_sel: Selector,
         crt: usize,
         data: &mut CapExchange<'_>,
         file_session_id: SessId,
-        rgate: &RecvGate,
     ) -> Result<FileSession, Error> {
         let args = data.in_args();
         let flags: OpenFlags = args.pop()?;
@@ -125,7 +107,7 @@ impl MetaSession {
             flags
         );
 
-        let session = self.do_open(selector, crt, path, flags, file_session_id, Some(rgate))?;
+        let session = self.do_open(serv_sel, sess_sel, crt, path, flags, file_session_id)?;
 
         self.files.push(file_session_id);
 
@@ -146,12 +128,12 @@ impl MetaSession {
 
     fn do_open(
         &mut self,
-        srv: Selector,
+        serv_sel: Selector,
+        sess_sel: Selector,
         crt: usize,
         path: &str,
         flags: OpenFlags,
         file_session_id: SessId,
-        rgate: Option<&RecvGate>,
     ) -> Result<FileSession, Error> {
         if self.files.len() + self.priv_file_count == self.max_files {
             return Err(Error::new(Code::NoSpace));
@@ -185,7 +167,8 @@ impl MetaSession {
         }
 
         FileSession::new(
-            srv,
+            serv_sel,
+            sess_sel,
             crt,
             None,
             file_session_id,
@@ -193,7 +176,6 @@ impl MetaSession {
             path,
             flags,
             inode.inode,
-            rgate,
         )
     }
 
@@ -372,7 +354,8 @@ impl M3FSSession for MetaSession {
         let ep_sel = self.get_ep(ep)?;
 
         let id = NEXT_PRIV_ID.get();
-        let mut session = self.do_open(m3::kif::INVALID_SEL, 0, path, flags, id, None)?;
+        let sess_sel = Activity::own().alloc_sels(2);
+        let mut session = self.do_open(m3::kif::INVALID_SEL, sess_sel, 0, path, flags, id)?;
         session.set_ep(ep_sel);
         NEXT_PRIV_ID.set(id + 1);
 
@@ -392,16 +375,15 @@ impl M3FSSession for MetaSession {
         reply_vmsg!(stream, 0, id)
     }
 
-    fn close(&mut self, stream: &mut GateIStream<'_>) -> Result<bool, Error> {
+    fn close(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let fid = stream.pop::<SessId>()?;
 
         if self.priv_files.remove(&fid).is_some() {
             self.priv_file_count -= 1;
-            stream.reply_error(Code::Success)?;
+            stream.reply_error(Code::Success)
         }
         else {
-            stream.reply_error(Code::InvArgs)?;
+            stream.reply_error(Code::InvArgs)
         }
-        Ok(false)
     }
 }

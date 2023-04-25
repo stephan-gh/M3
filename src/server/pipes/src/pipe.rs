@@ -17,7 +17,7 @@ use bitflags::bitflags;
 use m3::cap::Selector;
 use m3::cell::{Cell, RefCell};
 use m3::col::{VarRingBuf, Vec};
-use m3::com::{GateIStream, MemGate, RGateArgs, RecvGate, SGateArgs, SendGate, EP};
+use m3::com::{GateIStream, MemGate, RGateArgs, RecvGate, SendGate, EP};
 use m3::errors::{Code, Error};
 use m3::io::LogFlags;
 use m3::kif;
@@ -25,7 +25,7 @@ use m3::log;
 use m3::rc::Rc;
 use m3::send_vmsg;
 use m3::server::SessId;
-use m3::tcu::{Label, Message};
+use m3::tcu::Message;
 use m3::vfs::FileEvent;
 
 use crate::chan::{ChanType, Channel};
@@ -378,28 +378,15 @@ impl State {
 
 pub struct Pipe {
     id: SessId,
-    _sgate: SendGate,
     state: Rc<RefCell<State>>,
 }
 
 impl Pipe {
-    pub fn new(
-        sel: Selector,
-        id: SessId,
-        mem_size: usize,
-        rgate: &RecvGate,
-    ) -> Result<Self, Error> {
-        let sgate = SendGate::new_with(
-            SGateArgs::new(rgate)
-                .label(id as Label)
-                .credits(1)
-                .sel(sel + 1),
-        )?;
-        Ok(Pipe {
+    pub fn new(id: SessId, mem_size: usize) -> Self {
+        Pipe {
             id,
-            _sgate: sgate,
             state: Rc::new(RefCell::new(State::new(mem_size))),
-        })
+        }
     }
 
     pub fn has_mem(&self) -> bool {
@@ -410,14 +397,8 @@ impl Pipe {
         self.state.borrow_mut().mem = Some(MemGate::new_bind(sel));
     }
 
-    pub fn new_chan(
-        &self,
-        sid: SessId,
-        sel: Selector,
-        ty: ChanType,
-        rgate: &RecvGate,
-    ) -> Result<Channel, Error> {
-        Channel::new(sid, sel, ty, self.id, self.state.clone(), rgate)
+    pub fn new_chan(&self, sid: SessId, ty: ChanType) -> Result<Channel, Error> {
+        Channel::new(sid, ty, self.id, self.state.clone())
     }
 
     pub fn attach(&mut self, chan: &Channel) {

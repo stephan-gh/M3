@@ -205,14 +205,19 @@ impl<S> SessionContainer<S> {
     }
 
     /// Removes the session with given id, assuming that the session exists.
-    pub fn remove(&mut self, crt: usize, sid: SessId) -> S {
-        // increase session quota
-        assert!(crt < self.creators.len());
-        self.creators[crt].sids &= !(1 << sid);
-        self.creators[crt].sessions += 1;
+    pub fn remove(&mut self, crt: usize, sid: SessId) -> Option<S> {
+        if (self.used & (1 << sid)) != 0 {
+            self.used &= !(1 << sid);
 
-        assert!(self.used & (1 << sid) != 0);
-        self.used &= !(1 << sid);
-        self.con[sid].take().unwrap()
+            // increase session quota
+            assert!(crt < self.creators.len());
+            self.creators[crt].sids &= !(1 << sid);
+            self.creators[crt].sessions += 1;
+
+            self.con[sid].take()
+        }
+        else {
+            None
+        }
     }
 }

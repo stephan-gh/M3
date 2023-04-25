@@ -95,7 +95,9 @@ impl Disk {
         sess.obtain_for(
             Activity::own().sel(),
             crd,
-            |_slice_sink| {},
+            |slice_sink| {
+                slice_sink.push(opcodes::General::CONNECT);
+            },
             |_slice_source| Ok(()),
         )?;
         let sgate = SendGate::new_bind(crd.start());
@@ -108,6 +110,7 @@ impl Disk {
         self.sess.delegate(
             crd,
             |slice_sink| {
+                slice_sink.push(opcodes::Disk::ADD_MEM);
                 slice_sink.push(blocks.start);
                 slice_sink.push(blocks.count);
             },

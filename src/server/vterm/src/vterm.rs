@@ -16,9 +16,9 @@
 #![no_std]
 
 use m3::cap::Selector;
-use m3::cell::{LazyReadOnlyCell, RefMut, StaticCell, StaticRefCell};
+use m3::cell::{LazyStaticRefCell, RefMut, StaticCell, StaticRefCell};
 use m3::col::Vec;
-use m3::com::{opcodes, GateIStream, MemGate, Perm, RGateArgs, RecvGate, SGateArgs, SendGate, EP};
+use m3::com::{opcodes, GateIStream, MemGate, Perm, RGateArgs, RecvGate, SendGate, EP};
 use m3::errors::{Code, Error};
 use m3::int_enum;
 use m3::io::{LogFlags, Serial, Write};
@@ -27,11 +27,11 @@ use m3::log;
 use m3::rc::Rc;
 use m3::reply_vmsg;
 use m3::server::{
-    server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
-    DEF_MAX_CLIENTS,
+    server_loop, CapExchange, ClientManager, ExcType, RequestHandler, RequestSession, Server,
+    SessId, DEF_MAX_CLIENTS,
 };
 use m3::session::ServerSession;
-use m3::tcu::{Label, Message};
+use m3::tcu::Message;
 use m3::tiles::Activity;
 use m3::vec;
 use m3::vfs::{FileEvent, FileInfo, FileMode};
@@ -46,7 +46,10 @@ int_enum! {
     }
 }
 
-static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
+static SERV_SEL: StaticCell<Selector> = StaticCell::new(0);
+static CLOSED_SESS: StaticRefCell<Option<SessId>> = StaticRefCell::new(None);
+
+static MEM: LazyStaticRefCell<Rc<MemGate>> = LazyStaticRefCell::default();
 static BUFFER: StaticRefCell<Vec<u8>> = StaticRefCell::new(Vec::new());
 static INPUT: StaticRefCell<Vec<u8>> = StaticRefCell::new(Vec::new());
 static EOF: StaticCell<bool> = StaticCell::new(false);
@@ -54,17 +57,17 @@ static MODE: StaticCell<Mode> = StaticCell::new(Mode::COOKED);
 static TMP_BUF: StaticRefCell<[u8; BUF_SIZE]> = StaticRefCell::new([0u8; BUF_SIZE]);
 
 macro_rules! reply_vmsg_late {
-    ( $msg:expr, $( $args:expr ),* ) => ({
+    ( $rgate:expr, $msg:expr, $( $args:expr ),* ) => ({
         let mut msg = m3::mem::MsgBuf::borrow_def();
         m3::build_vmsg!(&mut msg, $( $args ),*);
-        crate::REQHDL.get().recv_gate().reply(&msg, $msg)
+        $rgate.reply(&msg, $msg)
     });
 }
 
 #[derive(Debug)]
 struct VTermSession {
     crt: usize,
-    sess: ServerSession,
+    _serv: ServerSession,
     data: SessionData,
     parent: Option<SessId>,
     childs: Vec<SessId>,
@@ -83,7 +86,6 @@ struct Channel {
     active: bool,
     writing: bool,
     ep: Option<Selector>,
-    _sgate: SendGate,
     our_mem: Rc<MemGate>,
     notify_gates: Option<(RecvGate, SendGate)>,
     notify_events: FileEvent,
@@ -100,13 +102,7 @@ fn mem_off(id: SessId) -> goff {
 }
 
 impl Channel {
-    fn new(id: SessId, mem: Rc<MemGate>, caps: Selector, writing: bool) -> Result<Self, Error> {
-        let sgate = SendGate::new_with(
-            SGateArgs::new(REQHDL.get().recv_gate())
-                .label(id as Label)
-                .credits(1)
-                .sel(caps + 1),
-        )?;
+    fn new(id: SessId, mem: Rc<MemGate>, writing: bool) -> Result<Self, Error> {
         let cmem = mem.derive(mem_off(id), BUF_SIZE, kif::Perm::RW)?;
 
         Ok(Channel {
@@ -114,7 +110,6 @@ impl Channel {
             active: false,
             writing,
             ep: None,
-            _sgate: sgate,
             our_mem: mem,
             notify_gates: None,
             notify_events: FileEvent::empty(),
@@ -348,193 +343,157 @@ impl Channel {
     }
 }
 
-struct VTermHandler {
-    sel: Selector,
-    sessions: SessionContainer<VTermSession>,
-    mem: Rc<MemGate>,
-}
-
-impl VTermHandler {
-    fn new_sess(crt: usize, sess: ServerSession) -> VTermSession {
-        log!(LogFlags::VTReqs, "[{}] vterm::new_meta()", sess.ident());
-        VTermSession {
-            crt,
-            sess,
-            data: SessionData::Meta,
-            parent: None,
-            childs: Vec::new(),
-        }
-    }
-
-    fn new_chan(
-        &self,
-        parent: SessId,
-        crt: usize,
-        sid: SessId,
-        writing: bool,
-    ) -> Result<VTermSession, Error> {
-        log!(LogFlags::VTReqs, "[{}] vterm::new_chan()", sid);
-        let sels = Activity::own().alloc_sels(2);
+impl RequestSession for VTermSession {
+    fn new(crt: usize, _serv: ServerSession, _arg: &str) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
         Ok(VTermSession {
             crt,
-            sess: ServerSession::new_with_sel(self.sel, sels, crt, sid as u64, false)?,
-            data: SessionData::Chan(Channel::new(sid, self.mem.clone(), sels, writing)?),
-            parent: Some(parent),
+            _serv,
+            data: SessionData::Meta,
+            parent: None,
             childs: Vec::new(),
         })
     }
 
-    fn close_sess(&mut self, sid: SessId, rgate: &RecvGate) -> Result<(), Error> {
-        // close this and all child sessions
-        let mut sids = vec![sid];
-        while let Some(id) = sids.pop() {
-            if let Some(sess) = self.sessions.get_mut(id) {
-                log!(LogFlags::VTReqs, "[{}] vterm::close(): closing {}", sid, id);
+    fn close(&mut self, cli: &mut ClientManager<Self>, sid: SessId, sub_ids: &mut Vec<SessId>)
+    where
+        Self: Sized,
+    {
+        log!(
+            LogFlags::VTReqs,
+            "[{}] vterm::close(): closing {:?}",
+            sid,
+            sub_ids
+        );
 
-                // close child sessions as well
-                sids.extend_from_slice(&sess.childs);
+        // close child sessions as well
+        sub_ids.extend_from_slice(&self.childs);
 
-                // remove session
-                let parent = sess.parent.take();
-                let crt = sess.crt;
-                self.sessions.remove(crt, id);
-
-                // remove us from parent
-                if let Some(pid) = parent {
-                    if let Some(p) = self.sessions.get_mut(pid) {
-                        p.childs.retain(|cid| *cid != id);
-                    }
-                }
-
-                // ignore all potentially outstanding messages of this session
-                rgate.drop_msgs_with(id as Label).unwrap();
+        // remove us from parent
+        if let Some(pid) = self.parent.take() {
+            if let Some(p) = cli.sessions_mut().get_mut(pid) {
+                p.childs.retain(|cid| *cid != sid);
             }
         }
-        Ok(())
+    }
+}
+
+impl VTermSession {
+    fn get_sess(cli: &mut ClientManager<Self>, sid: SessId) -> Result<&mut Self, Error> {
+        cli.sessions_mut()
+            .get_mut(sid)
+            .ok_or_else(|| Error::new(Code::InvArgs))
     }
 
     fn with_chan<F, R>(&mut self, is: &mut GateIStream<'_>, func: F) -> Result<R, Error>
     where
         F: Fn(&mut Channel, &mut GateIStream<'_>) -> Result<R, Error>,
     {
-        let sess = self.sessions.get_mut(is.label() as SessId).unwrap();
-        match &mut sess.data {
+        match &mut self.data {
             SessionData::Meta => Err(Error::new(Code::InvArgs)),
             SessionData::Chan(c) => func(c, is),
         }
     }
-}
 
-impl Handler<VTermSession> for VTermHandler {
-    fn sessions(&mut self) -> &mut m3::server::SessionContainer<VTermSession> {
-        &mut self.sessions
-    }
-
-    fn open(
-        &mut self,
+    fn new_chan(
+        parent: SessId,
+        sess: Selector,
         crt: usize,
-        srv_sel: Selector,
-        _arg: &str,
-    ) -> Result<(Selector, SessId), Error> {
-        self.sessions
-            .add_next(crt, srv_sel, false, |sess| Ok(Self::new_sess(crt, sess)))
+        sid: SessId,
+        writing: bool,
+    ) -> Result<VTermSession, Error> {
+        log!(LogFlags::VTReqs, "[{}] vterm::new_chan()", sid);
+
+        Ok(VTermSession {
+            crt,
+            _serv: ServerSession::new_with_sel(SERV_SEL.get(), sess, crt, sid as u64, false)?,
+            data: SessionData::Chan(Channel::new(sid, MEM.borrow().clone(), writing)?),
+            parent: Some(parent),
+            childs: Vec::new(),
+        })
     }
 
-    fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
-        let op: opcodes::File = xchg.in_args().pop()?;
-        log!(
-            LogFlags::VTReqs,
-            "[{}] vterm::obtain(crt={}, op={})",
-            sid,
-            crt,
-            op
-        );
+    fn clone(
+        cli: &mut ClientManager<Self>,
+        crt: usize,
+        sid: SessId,
+        xchg: &mut CapExchange<'_>,
+    ) -> Result<(), Error> {
+        log!(LogFlags::VTReqs, "[{}] vterm::clone(crt={})", sid, crt);
 
-        if xchg.in_caps() != 2 {
-            return Err(Error::new(Code::InvArgs));
-        }
-        if !self.sessions.can_add(crt) {
-            return Err(Error::new(Code::NoSpace));
-        }
+        let sels = Activity::own().alloc_sels(2);
+        cli.add_connected_session(crt, sels + 1, |cli, nsid, _sgate| {
+            let parent_sess = Self::get_sess(cli, sid)?;
 
-        let (nsid, nsess) = {
-            let sessions = &self.sessions;
-            let nsid = sessions.next_id()?;
-            let sess = sessions.get(sid).unwrap();
-            match &sess.data {
-                SessionData::Meta => match op {
-                    opcodes::File::CLONE => self
-                        .new_chan(sid, crt, nsid, xchg.in_args().pop::<i32>()? == 1)
-                        .map(|s| (nsid, s)),
-                    _ => Err(Error::new(Code::InvArgs)),
+            let child_sess = match &parent_sess.data {
+                SessionData::Meta => {
+                    let writing = xchg.in_args().pop::<i32>()? == 1;
+                    Self::new_chan(sid, sels, crt, nsid, writing)
                 },
 
-                SessionData::Chan(c) => match op {
-                    opcodes::File::CLONE => {
-                        self.new_chan(sid, crt, nsid, c.writing).map(|s| (nsid, s))
-                    },
-                    _ => Err(Error::new(Code::InvArgs)),
-                },
-            }
-        }?;
+                SessionData::Chan(c) => Self::new_chan(sid, sels, crt, nsid, c.writing),
+            }?;
 
-        let sel = nsess.sess.sel();
-        self.sessions.add(crt, nsid, nsess).unwrap();
-        // remember that the new session is a child of the current one
-        self.sessions.get_mut(sid).unwrap().childs.push(nsid);
+            // remember that the new session is a child of the current one
+            parent_sess.childs.push(nsid);
+            Ok(child_sess)
+        })?;
 
-        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 2));
+        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sels, 2));
         Ok(())
     }
 
-    fn delegate(
-        &mut self,
+    fn set_dest(
+        cli: &mut ClientManager<Self>,
         _crt: usize,
         sid: SessId,
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
-        let op: opcodes::File = xchg.in_args().pop()?;
-        log!(LogFlags::VTReqs, "[{}] vterm::delegate(op={})", sid, op);
+        log!(LogFlags::VTReqs, "[{}] vterm::set_dest()", sid);
 
-        if xchg.in_caps() != 1 {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        let sessions = &mut self.sessions;
-        let sess = sessions.get_mut(sid).unwrap();
+        let sess = Self::get_sess(cli, sid)?;
         match &mut sess.data {
-            SessionData::Meta => Err(Error::new(Code::InvArgs)),
-            SessionData::Chan(c) => match op {
-                opcodes::File::SET_DEST => {
-                    let sel = Activity::own().alloc_sel();
-                    c.ep = Some(sel);
-                    xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
-                    Ok(())
-                },
-                opcodes::File::ENABLE_NOTIFY => {
-                    if c.notify_gates.is_some() {
-                        return Err(Error::new(Code::Exists));
-                    }
-
-                    let sel = Activity::own().alloc_sel();
-                    let rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
-                    rgate.activate()?;
-                    c.notify_gates = Some((rgate, SendGate::new_bind(sel)));
-                    xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
-                    Ok(())
-                },
-                _ => Err(Error::new(Code::InvArgs)),
+            SessionData::Chan(c) => {
+                let sel = Activity::own().alloc_sel();
+                c.ep = Some(sel);
+                xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
+                Ok(())
             },
+            _ => Err(Error::new(Code::InvArgs)),
         }
     }
 
-    fn close(&mut self, _crt: usize, sid: SessId) {
-        self.close_sess(sid, REQHDL.get().recv_gate()).ok();
+    fn enable_notify(
+        cli: &mut ClientManager<Self>,
+        _crt: usize,
+        sid: SessId,
+        xchg: &mut CapExchange<'_>,
+    ) -> Result<(), Error> {
+        log!(LogFlags::VTReqs, "[{}] vterm::set_notify()", sid);
+
+        let sess = Self::get_sess(cli, sid)?;
+        match &mut sess.data {
+            SessionData::Chan(c) => {
+                if c.notify_gates.is_some() {
+                    return Err(Error::new(Code::Exists));
+                }
+
+                let sel = Activity::own().alloc_sel();
+                let rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
+                rgate.activate()?;
+                c.notify_gates = Some((rgate, SendGate::new_bind(sel)));
+                xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
+                Ok(())
+            },
+            _ => Err(Error::new(Code::InvArgs)),
+        }
     }
 }
 
-fn add_signal(hdl: &mut VTermHandler) {
-    hdl.sessions.for_each(|s| match &mut s.data {
+fn add_signal(cli: &mut ClientManager<VTermSession>) {
+    cli.sessions_mut().for_each(|s| match &mut s.data {
         SessionData::Chan(c) => {
             c.add_event(FileEvent::SIGNAL);
         },
@@ -542,16 +501,24 @@ fn add_signal(hdl: &mut VTermHandler) {
     });
 }
 
-fn add_input(hdl: &mut VTermHandler, eof: bool, mut flush: bool, input: &mut RefMut<'_, Vec<u8>>) {
+fn add_input(
+    cli: &mut ClientManager<VTermSession>,
+    eof: bool,
+    mut flush: bool,
+    input: &mut RefMut<'_, Vec<u8>>,
+) {
     // pass to first session that wants input
     EOF.set(eof);
 
-    hdl.sessions.for_each(|s| {
+    let mut input_recv: Option<(&Message, usize, usize)> = None;
+
+    cli.sessions_mut().for_each(|s| {
         if flush || !input.is_empty() {
             if let SessionData::Chan(c) = &mut s.data {
-                if let Some(msg) = c.pending_nextin.take() {
+                let msg = c.pending_nextin.take();
+                if let Some(msg) = msg {
                     c.fetch_input(input).unwrap();
-                    reply_vmsg_late!(msg, Code::Success, c.pos, c.len - c.pos).unwrap();
+                    input_recv = Some((msg, c.pos, c.len));
                     flush = false;
                 }
                 else if c.add_event(FileEvent::INPUT) {
@@ -560,10 +527,14 @@ fn add_input(hdl: &mut VTermHandler, eof: bool, mut flush: bool, input: &mut Ref
             }
         }
     });
+
+    if let Some((msg, pos, len)) = input_recv {
+        reply_vmsg_late!(cli.recv_gate(), msg, Code::Success, pos, len - pos).unwrap();
+    }
 }
 
-fn receive_acks(hdl: &mut VTermHandler) {
-    hdl.sessions.for_each(|s| match &mut s.data {
+fn receive_acks(cli: &mut ClientManager<VTermSession>) {
+    cli.sessions_mut().for_each(|s| match &mut s.data {
         SessionData::Chan(c) => {
             if let Some((rg, _sg)) = &c.notify_gates {
                 if let Ok(msg) = rg.fetch() {
@@ -577,7 +548,7 @@ fn receive_acks(hdl: &mut VTermHandler) {
     });
 }
 
-fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
+fn handle_input(cli: &mut ClientManager<VTermSession>, msg: &'static Message) {
     let mut input = INPUT.borrow_mut();
     let mut buffer = BUFFER.borrow_mut();
 
@@ -594,7 +565,7 @@ fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
                 // ^D
                 0x04 => eof = true,
                 // ^C
-                0x03 => add_signal(hdl),
+                0x03 => add_signal(cli),
                 // backspace
                 0x7f => {
                     output.push(0x08);
@@ -628,23 +599,65 @@ fn handle_input(hdl: &mut VTermHandler, msg: &'static Message) {
         Serial::new().write(&output).unwrap();
     }
 
-    add_input(hdl, eof, eof || flush, &mut input);
+    add_input(cli, eof, eof || flush, &mut input);
+}
+
+fn register_close(sid: SessId) {
+    assert!(crate::CLOSED_SESS.borrow().is_none());
+    *crate::CLOSED_SESS.borrow_mut() = Some(sid);
 }
 
 #[no_mangle]
 pub fn main() -> Result<(), Error> {
-    let mut hdl = VTermHandler {
-        sel: 0,
-        sessions: SessionContainer::new(DEF_MAX_CLIENTS),
-        mem: Rc::new(
-            MemGate::new(DEF_MAX_CLIENTS * BUF_SIZE, Perm::RW).expect("Unable to alloc memory"),
-        ),
-    };
+    MEM.set(Rc::new(
+        MemGate::new(DEF_MAX_CLIENTS * BUF_SIZE, Perm::RW).expect("Unable to alloc memory"),
+    ));
 
-    let s = Server::new("vterm", &mut hdl).expect("Unable to create service 'vterm'");
-    hdl.sel = s.sel();
+    let mut hdl = RequestHandler::new().expect("Unable to create request handler");
 
-    REQHDL.set(RequestHandler::new().expect("Unable to create request handler"));
+    let srv = Server::new("vterm", &mut hdl).expect("Unable to create service 'vterm'");
+    SERV_SEL.set(srv.sel());
+
+    use opcodes::File;
+    hdl.reg_cap_handler(File::CLONE.val, ExcType::Obt(2), VTermSession::clone);
+    hdl.reg_cap_handler(File::SET_DEST.val, ExcType::Del(1), VTermSession::set_dest);
+    hdl.reg_cap_handler(
+        File::ENABLE_NOTIFY.val,
+        ExcType::Del(1),
+        VTermSession::enable_notify,
+    );
+
+    hdl.reg_msg_handler(File::NEXT_IN.val, |sess, is| {
+        sess.with_chan(is, |c, is| c.next_in(is))
+    });
+    hdl.reg_msg_handler(File::NEXT_IN.val, |sess, is| {
+        sess.with_chan(is, |c, is| c.next_in(is))
+    });
+    hdl.reg_msg_handler(File::NEXT_OUT.val, |sess, is| {
+        sess.with_chan(is, |c, is| c.next_out(is))
+    });
+    hdl.reg_msg_handler(File::COMMIT.val, |sess, is| {
+        sess.with_chan(is, |c, is| c.commit(is))
+    });
+    hdl.reg_msg_handler(File::STAT.val, |sess, is| {
+        sess.with_chan(is, |c, is| c.stat(is))
+    });
+    hdl.reg_msg_handler(File::CLOSE.val, |_sess, is| {
+        let sid = is.label() as SessId;
+        is.reply_error(Code::Success).ok();
+        register_close(sid);
+        Ok(())
+    });
+    hdl.reg_msg_handler(File::SEEK.val, |_sess, _is| Err(Error::new(Code::NotSup)));
+    hdl.reg_msg_handler(File::GET_TMODE.val, |sess, is| {
+        sess.with_chan(is, |c, is| c.get_tmode(is))
+    });
+    hdl.reg_msg_handler(File::SET_TMODE.val, |sess, is| {
+        sess.with_chan(is, |c, is| c.set_tmode(is))
+    });
+    hdl.reg_msg_handler(File::REQ_NOTIFY.val, |sess, is| {
+        sess.with_chan(is, |c, is| c.request_notify(is))
+    });
 
     let sel = Activity::own().alloc_sel();
     let serial_gate = Activity::own()
@@ -654,7 +667,7 @@ pub fn main() -> Result<(), Error> {
         .expect("Unable to allocate serial rgate");
 
     server_loop(|| {
-        s.handle_ctrl_chan(&mut hdl)?;
+        srv.fetch_and_handle(&mut hdl)?;
 
         if let Ok(msg) = serial_gate.fetch() {
             log!(
@@ -662,34 +675,21 @@ pub fn main() -> Result<(), Error> {
                 "Got input message with {} bytes",
                 msg.header.length()
             );
-            handle_input(&mut hdl, msg);
+            handle_input(hdl.clients_mut(), msg);
             serial_gate.ack_msg(msg).unwrap();
         }
 
-        receive_acks(&mut hdl);
+        receive_acks(hdl.clients_mut());
 
-        REQHDL.get().handle(|op, is| {
-            match op {
-                opcodes::File::NEXT_IN => hdl.with_chan(is, |c, is| c.next_in(is)),
-                opcodes::File::NEXT_OUT => hdl.with_chan(is, |c, is| c.next_out(is)),
-                opcodes::File::COMMIT => hdl.with_chan(is, |c, is| c.commit(is)),
-                opcodes::File::CLOSE => {
-                    let sid = is.label() as SessId;
-                    // reply before we destroy the client's sgate. otherwise the client might
-                    // notice the invalidated sgate before getting the reply and therefore give
-                    // up before receiving the reply a bit later anyway. this in turn causes
-                    // trouble if the receive gate (with the reply) is reused for something else.
-                    is.reply_error(Code::Success).ok();
-                    hdl.close_sess(sid, is.rgate())
-                },
-                opcodes::File::STAT => hdl.with_chan(is, |c, is| c.stat(is)),
-                opcodes::File::SEEK => Err(Error::new(Code::NotSup)),
-                opcodes::File::GET_TMODE => hdl.with_chan(is, |c, is| c.get_tmode(is)),
-                opcodes::File::SET_TMODE => hdl.with_chan(is, |c, is| c.set_tmode(is)),
-                opcodes::File::REQ_NOTIFY => hdl.with_chan(is, |c, is| c.request_notify(is)),
-                _ => Err(Error::new(Code::InvArgs)),
-            }
-        })
+        hdl.fetch_and_handle()?;
+
+        // check if there is a session to close
+        if let Some(sid) = CLOSED_SESS.borrow_mut().take() {
+            let creator = hdl.clients().sessions().get(sid).unwrap().crt;
+            hdl.clients_mut().remove_session(creator, sid);
+        }
+
+        Ok(())
     })
     .ok();
 

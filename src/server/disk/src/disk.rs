@@ -20,21 +20,19 @@ mod gem5;
 mod partition;
 
 use m3::cap::Selector;
-use m3::cell::{LazyReadOnlyCell, LazyStaticRefCell};
-use m3::col::Treap;
-use m3::col::Vec;
-use m3::com::{opcodes, GateIStream, MemGate, SGateArgs, SendGate};
+use m3::cell::LazyStaticRefCell;
+use m3::col::{Treap, Vec};
+use m3::com::{opcodes, GateIStream, MemGate};
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
 use m3::server::{
-    server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
+    CapExchange, ClientManager, ExcType, RequestHandler, RequestSession, Server, SessId,
     DEF_MAX_CLIENTS,
 };
 use m3::session::{BlockNo, BlockRange, ServerSession};
-use m3::tcu::Label;
 use m3::tiles::Activity;
 
 use backend::BlockDevice;
@@ -46,17 +44,73 @@ const MAX_DMA_SIZE: usize = 0x10000;
 
 const MIN_SEC_SIZE: usize = 512;
 
-static REQHDL: LazyReadOnlyCell<RequestHandler> = LazyReadOnlyCell::default();
 static DEVICE: LazyStaticRefCell<IDEBlockDevice> = LazyStaticRefCell::default();
 
 struct DiskSession {
-    sess: ServerSession,
+    serv: ServerSession,
     part: usize,
-    sgates: Vec<SendGate>,
     blocks: Treap<BlockRange, Selector>,
 }
 
+impl RequestSession for DiskSession {
+    fn new(_crt: usize, serv: ServerSession, arg: &str) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        let dev = arg
+            .parse::<usize>()
+            .map_err(|_| Error::new(Code::InvArgs))?;
+        if !DEVICE.borrow().partition_exists(dev) {
+            return Err(Error::new(Code::InvArgs));
+        }
+
+        log!(
+            LogFlags::DiskReqs,
+            "[{}] disk::open(dev={})",
+            serv.ident(),
+            dev
+        );
+
+        Ok(DiskSession {
+            serv,
+            part: dev,
+            blocks: Treap::new(),
+        })
+    }
+
+    fn close(&mut self, _hdl: &mut ClientManager<Self>, sid: SessId, _sub_ids: &mut Vec<SessId>) {
+        log!(LogFlags::DiskReqs, "[{}] disk::close()", sid);
+    }
+}
+
 impl DiskSession {
+    fn add_mem(
+        cli: &mut ClientManager<Self>,
+        _crt: usize,
+        sid: SessId,
+        xchg: &mut CapExchange<'_>,
+    ) -> Result<(), Error> {
+        let bno: BlockNo = xchg.in_args().pop()?;
+        let len: u32 = xchg.in_args().pop()?;
+
+        log!(
+            LogFlags::DiskReqs,
+            "[{}] disk::add_mem(bno={}, len={})",
+            sid,
+            bno,
+            len
+        );
+
+        let sess = cli.sessions_mut().get_mut(sid).unwrap();
+        let sel = Activity::own().alloc_sel();
+        let range = BlockRange::new_range(bno, len);
+        sess.blocks.remove(&range);
+        sess.blocks.insert(range, sel);
+
+        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
+        Ok(())
+    }
+
     fn read(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         self.read_write(is, "read", |part, mgate, off, start, count| {
             DEVICE.borrow_mut().read(part, mgate, off, start, count)
@@ -82,7 +136,7 @@ impl DiskSession {
         log!(
             LogFlags::DiskReqs,
             "[{}] disk::{}(cap={}, start={}, len={}, block_size={}, off={})",
-            self.sess.ident(),
+            self.serv.ident(),
             name,
             cap,
             start,
@@ -121,135 +175,21 @@ impl DiskSession {
     }
 }
 
-struct DiskHandler {
-    sessions: SessionContainer<DiskSession>,
-}
-
-impl Handler<DiskSession> for DiskHandler {
-    fn sessions(&mut self) -> &mut m3::server::SessionContainer<DiskSession> {
-        &mut self.sessions
-    }
-
-    fn open(
-        &mut self,
-        crt: usize,
-        srv_sel: Selector,
-        arg: &str,
-    ) -> Result<(Selector, SessId), Error> {
-        let dev = arg
-            .parse::<usize>()
-            .map_err(|_| Error::new(Code::InvArgs))?;
-        if !DEVICE.borrow().partition_exists(dev) {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        self.sessions.add_next(crt, srv_sel, false, |sess| {
-            log!(
-                LogFlags::DiskReqs,
-                "[{}] disk::open(dev={})",
-                sess.ident(),
-                dev
-            );
-            Ok(DiskSession {
-                sess,
-                part: dev,
-                sgates: Vec::new(),
-                blocks: Treap::new(),
-            })
-        })
-    }
-
-    fn obtain(
-        &mut self,
-        _crt: usize,
-        sid: SessId,
-        xchg: &mut CapExchange<'_>,
-    ) -> Result<(), Error> {
-        if xchg.in_caps() != 1 {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        log!(LogFlags::DiskReqs, "[{}] disk::get_sgate()", sid);
-
-        let sess = self.sessions.get_mut(sid).unwrap();
-        let sgate = SendGate::new_with(
-            SGateArgs::new(REQHDL.get().recv_gate())
-                .label(sid as Label)
-                .credits(1),
-        )?;
-        let sel = sgate.sel();
-        sess.sgates.push(sgate);
-
-        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
-        Ok(())
-    }
-
-    fn delegate(
-        &mut self,
-        _crt: usize,
-        sid: SessId,
-        xchg: &mut CapExchange<'_>,
-    ) -> Result<(), Error> {
-        if xchg.in_caps() != 1 {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        let bno: BlockNo = xchg.in_args().pop()?;
-        let len: u32 = xchg.in_args().pop()?;
-
-        log!(
-            LogFlags::DiskReqs,
-            "[{}] disk::add_mem(bno={}, len={})",
-            sid,
-            bno,
-            len
-        );
-
-        let sess = self.sessions.get_mut(sid).unwrap();
-        let sel = Activity::own().alloc_sel();
-        let range = BlockRange::new_range(bno, len);
-        sess.blocks.remove(&range);
-        sess.blocks.insert(range, sel);
-
-        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
-        Ok(())
-    }
-
-    fn close(&mut self, crt: usize, sid: SessId) {
-        log!(LogFlags::DiskReqs, "[{}] disk::close()", sid);
-        self.sessions.remove(crt, sid);
-    }
-}
-
 #[no_mangle]
 pub fn main() -> Result<(), Error> {
-    let mut hdl = DiskHandler {
-        sessions: SessionContainer::new(DEF_MAX_CLIENTS),
-    };
-    let s = Server::new("disk", &mut hdl).expect("Unable to create service 'disk'");
-
     DEVICE.set(IDEBlockDevice::new(env::args().collect()).expect("Unable to create block device"));
-    REQHDL.set(
-        RequestHandler::new_with(DEF_MAX_CLIENTS, 256).expect("Unable to create request handler"),
-    );
 
-    server_loop(|| {
-        s.handle_ctrl_chan(&mut hdl)?;
+    let mut hdl = RequestHandler::new_with(DEF_MAX_CLIENTS, 256)
+        .expect("Unable to create request handler");
 
-        REQHDL.get().handle(|op, is| {
-            let sess = hdl
-                .sessions
-                .get_mut(is.label() as usize)
-                .ok_or_else(|| Error::new(Code::InvArgs))?;
+    let mut srv = Server::new("disk", &mut hdl).expect("Unable to create service 'disk'");
 
-            match op {
-                opcodes::Disk::READ => sess.read(is),
-                opcodes::Disk::WRITE => sess.write(is),
-                _ => Err(Error::new(Code::InvArgs)),
-            }
-        })
-    })
-    .ok();
+    use opcodes::Disk;
+    hdl.reg_cap_handler(Disk::ADD_MEM.val, ExcType::Del(1), DiskSession::add_mem);
+    hdl.reg_msg_handler(Disk::READ.val, DiskSession::read);
+    hdl.reg_msg_handler(Disk::WRITE.val, DiskSession::write);
+
+    hdl.run(&mut srv).expect("Server loop failed");
 
     // delete device
     DEVICE.unset();
