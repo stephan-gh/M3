@@ -169,13 +169,13 @@ bitflags! {
         const __pg_start = Self::__fs_start.bits() + 9;
 
         /// Paging: mapping operations
-        const PgMap         = 1 << (Self::__fs_start.bits() + 0);
+        const PgMap         = 1 << (Self::__pg_start.bits() + 0);
         /// Paging: individual pages of mapping operations
-        const PgMapPages    = 1 << (Self::__fs_start.bits() + 1);
+        const PgMapPages    = 1 << (Self::__pg_start.bits() + 1);
         /// Paging: requests to the pager
-        const PgReqs        = 1 << (Self::__fs_start.bits() + 2);
+        const PgReqs        = 1 << (Self::__pg_start.bits() + 2);
         /// Paging: memory allocations
-        const PgMem         = 1 << (Self::__fs_start.bits() + 3);
+        const PgMem         = 1 << (Self::__pg_start.bits() + 3);
 
         #[doc(hidden)]
         const __vt_start = Self::__pg_start.bits() + 4;
