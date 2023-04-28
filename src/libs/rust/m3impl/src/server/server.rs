@@ -37,7 +37,7 @@ const MSG_SIZE: usize = 256;
 const BUF_SIZE: usize = MSG_SIZE * (1 + super::sesscon::MAX_CREATORS);
 
 /// Describes the type of capability exchange including the number of capabilities
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ExcType {
     /// A delegate (client copies caps to the server)
     Del(u64),
