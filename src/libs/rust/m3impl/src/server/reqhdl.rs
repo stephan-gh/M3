@@ -240,30 +240,17 @@ impl<S: RequestSession + 'static> ClientManager<S> {
     }
 }
 
+type CapHandlerFunc<S> =
+    dyn Fn(&mut ClientManager<S>, usize, SessId, &mut CapExchange<'_>) -> Result<(), Error>;
+
 struct CapHandler<S> {
     opcode: u64,
     ty: ExcType,
-    func: Box<
-        dyn Fn(&mut ClientManager<S>, usize, SessId, &mut CapExchange<'_>) -> Result<(), Error>,
-    >,
+    func: Box<CapHandlerFunc<S>>,
 }
 
-pub struct MsgHandler<S> {
-    opcode: u64,
-    func: Box<dyn Fn(&mut S, &mut GateIStream<'_>) -> Result<(), Error>>,
-}
-
-impl<S> MsgHandler<S> {
-    /// Returns the opcode this handler is responsible for
-    pub fn opcode(&self) -> u64 {
-        self.opcode
-    }
-
-    /// Returns the handler function
-    pub fn func(&self) -> &Box<dyn Fn(&mut S, &mut GateIStream<'_>) -> Result<(), Error>> {
-        &self.func
-    }
-}
+/// A handler function for messages
+pub type MsgHandlerFunc<S> = Option<Box<dyn Fn(&mut S, &mut GateIStream<'_>) -> Result<(), Error>>>;
 
 /// Handles requests from clients
 ///
@@ -284,7 +271,7 @@ impl<S> MsgHandler<S> {
 /// (sessions) and their communication channels.
 pub struct RequestHandler<S> {
     clients: ClientManager<S>,
-    msg_hdls: Vec<MsgHandler<S>>,
+    msg_hdls: Vec<MsgHandlerFunc<S>>,
     cap_hdls: Vec<CapHandler<S>>,
 }
 
@@ -337,14 +324,19 @@ impl<S: RequestSession + 'static> RequestHandler<S> {
     /// this opcode as the first 64-bit word. The function is expected to reply to the caller unless
     /// there is an error. In the latter case, `fetch_and_handle` is responsible for replying with
     /// an error.
+    ///
+    /// Note that `opcode` will be used as an index into a `Vec` and should therefore be reasonably
+    /// small.
     pub fn reg_msg_handler<F>(&mut self, opcode: u64, func: F)
     where
         F: Fn(&mut S, &mut GateIStream<'_>) -> Result<(), Error> + 'static,
     {
-        self.msg_hdls.push(MsgHandler {
-            opcode,
-            func: Box::new(func),
-        });
+        let idx = opcode as usize;
+        while idx >= self.msg_hdls.len() {
+            self.msg_hdls.push(None);
+        }
+        assert!(self.msg_hdls[idx].is_none());
+        self.msg_hdls[idx] = Some(Box::new(func));
     }
 
     /// Fetches the next message from the receive gate and calls the appropriate handler function
@@ -353,20 +345,18 @@ impl<S: RequestSession + 'static> RequestHandler<S> {
     /// The handlers are registered via `reg_msg_handler`. In case the handler returns an error,
     /// this function sends a reply to the caller with the error code.
     pub fn fetch_and_handle(&mut self) -> Result<(), Error> {
-        self.fetch_and_handle_with(|handler, opcode, sess, is| {
-            let msg_hdl = handler
-                .iter()
-                .find(|h| h.opcode == opcode)
-                .ok_or_else(|| Error::new(Code::InvArgs))?;
-
-            (msg_hdl.func)(sess, is)
-        })
+        self.fetch_and_handle_with(
+            |handler, opcode, sess, is| match &handler[opcode as usize] {
+                Some(f) => f(sess, is),
+                None => Err(Error::new(Code::InvArgs)),
+            },
+        )
     }
 
     /// Fetches the next message from the receive gate and calls the given function to handle it.
     pub fn fetch_and_handle_with<F>(&mut self, func: F) -> Result<(), Error>
     where
-        F: FnOnce(&Vec<MsgHandler<S>>, u64, &mut S, &mut GateIStream<'_>) -> Result<(), Error>,
+        F: FnOnce(&Vec<MsgHandlerFunc<S>>, u64, &mut S, &mut GateIStream<'_>) -> Result<(), Error>,
     {
         if let Ok(msg) = self.clients.rgate.fetch() {
             let mut is = GateIStream::new(msg, &self.clients.rgate);
