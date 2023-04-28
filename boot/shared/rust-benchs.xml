@@ -9,7 +9,7 @@
                 <serv name="pipes" />
             </app>
             <dom>
-                <app args="m3fs -m 2 mem" daemon="1">
+                <app args="m3fs mem" daemon="1">
                     <serv name="m3fs" />
                     <mod name="fs" />
                 </app>

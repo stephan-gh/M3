@@ -15,7 +15,7 @@
                 <app args="pager maxcli=2" usermem="768M">
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
-                    <app args="/sbin/m3fs -e 64 -c -m 1 mem" daemon="1">
+                    <app args="/sbin/m3fs -e 64 -c -m 4 mem" daemon="1">
                         <serv lname="m3fs" gname="app_m3fs" />
                         <mod name="fs" />
                     </app>
