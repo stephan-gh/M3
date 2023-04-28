@@ -25,12 +25,12 @@ use core::ops::DerefMut;
 
 use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::{LazyStaticRefCell, StaticCell, StaticRefCell};
+use m3::cell::{LazyStaticRefCell, StaticCell};
 use m3::col::{String, ToString, Vec};
 use m3::com::{opcodes, MemGate, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
-use m3::server::{ExcType, RequestHandler, Server, SessId};
+use m3::server::{ExcType, RequestHandler, Server};
 use m3::session::{ClientSession, Pager, ResMng, ServerSession, M3FS};
 use m3::tcu::Label;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity};
@@ -48,7 +48,6 @@ use resmng::subsys;
 
 static SERV_SEL: StaticCell<Selector> = StaticCell::new(0);
 static REQHDL: LazyStaticRefCell<RequestHandler<AddrSpace>> = LazyStaticRefCell::default();
-static CLOSED_SESS: StaticRefCell<Option<SessId>> = StaticRefCell::new(None);
 
 static MOUNTS: LazyStaticRefCell<Vec<(String, String)>> = LazyStaticRefCell::default();
 
@@ -201,23 +200,10 @@ fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_, '_>) {
                     }
                 })
                 .ok();
-
-            // check if there is a session to close
-            if let Some(sid) = CLOSED_SESS.borrow_mut().take() {
-                let mut hdl = REQHDL.borrow_mut();
-                let cli = hdl.clients_mut();
-                let creator = cli.sessions().get(sid).unwrap().creator();
-                cli.remove_session(creator, sid);
-            }
         },
         &mut PagedChildStarter {},
     )
     .expect("Unable to run workloop");
-}
-
-fn register_close(sid: SessId) {
-    assert!(crate::CLOSED_SESS.borrow().is_none());
-    *crate::CLOSED_SESS.borrow_mut() = Some(sid);
 }
 
 #[no_mangle]
@@ -241,8 +227,8 @@ pub fn main() -> Result<(), Error> {
         .push(("m3fs".to_string(), "/".to_string()));
 
     // create request handler and server
-    let mut hdl = RequestHandler::new_with(args.max_clients, 128)
-        .expect("Unable to create request handler");
+    let mut hdl =
+        RequestHandler::new_with(args.max_clients, 128).expect("Unable to create request handler");
 
     let mut srv = Server::new_private("pager", &mut hdl).expect("Unable to create service");
     SERV_SEL.set(srv.sel());

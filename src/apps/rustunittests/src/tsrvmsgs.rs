@@ -43,6 +43,10 @@ impl RequestSession for MsgSession {
     {
         Ok(Self { _serv })
     }
+
+    fn creator(&self) -> usize {
+        0
+    }
 }
 
 impl MsgSession {

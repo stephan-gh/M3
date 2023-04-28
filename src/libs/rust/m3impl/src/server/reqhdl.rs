@@ -23,7 +23,7 @@ use crate::kif;
 use crate::server::{server_loop, CapExchange, ExcType, Handler, Server, SessId, SessionContainer};
 use crate::session::ServerSession;
 use crate::tcu::Label;
-use crate::util::math;
+use crate::util::{self, math};
 use crate::vec;
 
 /// The default maximum number of clients a service supports
@@ -50,6 +50,19 @@ pub trait RequestSession {
     fn new(crt: usize, serv: ServerSession, arg: &str) -> Result<Self, Error>
     where
         Self: Sized;
+
+    /// Returns the creator of this session
+    fn creator(&self) -> usize;
+
+    /// Returns whether this session is still alive
+    ///
+    /// This method will be used on remove "dead" sessions after each request handling. Therefore,
+    /// overriding this method and setting a session to "dead" in a request handler allows to remove
+    /// this session upon client requests. Note however that only the session that received the
+    /// request is considered for removal!
+    fn alive(&self) -> bool {
+        true
+    }
 
     /// This method is called after the session has been removed from the session container and
     /// gives the session a chance to perform cleanup actions (with the [`RequestHandler`]).
@@ -362,10 +375,18 @@ impl<S: RequestSession + 'static> RequestHandler<S> {
             let mut is = GateIStream::new(msg, &self.clients.rgate);
             let opcode: u64 = is.pop()?;
 
-            let sess = self.clients.sessions.get_mut(is.label() as SessId).unwrap();
+            let sid = is.label() as SessId;
+            let sess = self.clients.sessions.get_mut(sid).unwrap();
             if let Err(e) = func(&self.msg_hdls, opcode, sess, &mut is) {
                 // ignore errors here
                 is.reply_error(e.code()).ok();
+            }
+
+            if util::unlikely(!sess.alive()) {
+                let crt = sess.creator();
+                drop(sess);
+                drop(is);
+                self.clients.remove_session(crt, sid);
             }
         }
         Ok(())

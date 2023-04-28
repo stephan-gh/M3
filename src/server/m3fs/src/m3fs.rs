@@ -43,7 +43,7 @@ use m3::{
     env,
     errors::{Code, Error},
     io::LogFlags,
-    server::{server_loop, RequestHandler, Server, SessId, DEF_MAX_CLIENTS},
+    server::{RequestHandler, Server, DEF_MAX_CLIENTS},
     tiles::OwnActivity,
 };
 
@@ -61,7 +61,6 @@ static BA: LazyStaticRefCell<Allocator> = LazyStaticRefCell::default();
 static IA: LazyStaticRefCell<Allocator> = LazyStaticRefCell::default();
 static SETTINGS: LazyReadOnlyCell<FsSettings> = LazyReadOnlyCell::default();
 static BACKEND: LazyStaticRefCell<Box<dyn Backend>> = LazyStaticRefCell::default();
-static CLOSED_FILE: StaticRefCell<Option<SessId>> = StaticRefCell::new(None);
 
 fn superblock() -> Ref<'static, SuperBlock> {
     SB.borrow()
@@ -257,7 +256,8 @@ pub fn main() -> Result<(), Error> {
     let mut hdl = RequestHandler::new_with(SETTINGS.get().max_clients, MSG_SIZE)
         .expect("Unable to create request handler");
 
-    let srv = Server::new(&SETTINGS.get().name, &mut hdl).expect("Could not create service 'm3fs'");
+    let mut srv =
+        Server::new(&SETTINGS.get().name, &mut hdl).expect("Could not create service 'm3fs'");
     SERV_SEL.set(srv.sel());
 
     use opcodes::{File, FileSystem};
@@ -292,20 +292,7 @@ pub fn main() -> Result<(), Error> {
     hdl.reg_msg_handler(FileSystem::RENAME.val, FSSession::rename);
     hdl.reg_msg_handler(FileSystem::OPEN_PRIV.val, FSSession::open_priv);
 
-    server_loop(|| {
-        srv.fetch_and_handle(&mut hdl)?;
-
-        hdl.fetch_and_handle()?;
-
-        // check if there is a session to close
-        if let Some(sid) = CLOSED_FILE.borrow_mut().take() {
-            let creator = hdl.clients().sessions().get(sid).unwrap().creator();
-            hdl.clients_mut().remove_session(creator, sid);
-        }
-
-        Ok(())
-    })
-    .ok();
+    hdl.run(&mut srv).expect("Server loop failed");
 
     Ok(())
 }

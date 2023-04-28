@@ -59,6 +59,20 @@ impl RequestSession for FSSession {
         Ok(FSSession::Meta(MetaSession::new(serv, id, crt, max_files)))
     }
 
+    fn alive(&self) -> bool {
+        match self {
+            FSSession::Meta(_) => true,
+            FSSession::File(ref file) => file.alive(),
+        }
+    }
+
+    fn creator(&self) -> usize {
+        match self {
+            FSSession::Meta(ref meta) => meta.creator(),
+            FSSession::File(ref file) => file.creator(),
+        }
+    }
+
     fn close(&mut self, cli: &mut ClientManager<Self>, sid: SessId, sub_ids: &mut Vec<SessId>) {
         log!(
             LogFlags::FSSess,
@@ -97,11 +111,6 @@ impl RequestSession for FSSession {
             },
         }
     }
-}
-
-pub fn register_closed_file(sid: SessId) {
-    assert!(crate::CLOSED_FILE.borrow().is_none());
-    *crate::CLOSED_FILE.borrow_mut() = Some(sid);
 }
 
 impl FSSession {

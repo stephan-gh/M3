@@ -18,7 +18,7 @@
 use crate::buf::LoadLimit;
 use crate::data::{ExtPos, Extent, INodeRef, InodeNo};
 use crate::ops::inodes;
-use crate::sess::{self, M3FSSession};
+use crate::sess::M3FSSession;
 
 use base::io::LogFlags;
 use m3::{
@@ -86,6 +86,7 @@ pub struct FileSession {
     ino: InodeNo,
 
     // session information
+    alive: bool,
     sess_sel: Selector,
     sess_creator: usize,
     session_id: SessId,
@@ -143,6 +144,7 @@ impl FileSession {
             filename: filename.to_string(),
             ino,
 
+            alive: true,
             sess_sel,
             sess_creator: crt,
             session_id: file_sess_id,
@@ -245,6 +247,10 @@ impl FileSession {
                 .unwrap();
             self.cur_sel = m3::kif::INVALID_SEL;
         }
+    }
+
+    pub fn alive(&self) -> bool {
+        self.alive
     }
 
     pub fn set_ep(&mut self, ep: Selector) {
@@ -688,7 +694,8 @@ impl M3FSSession for FileSession {
     }
 
     fn close(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
-        sess::register_closed_file(stream.label() as SessId);
+        // let the request handler remove the session
+        self.alive = false;
         stream.reply_error(Code::Success)
     }
 }

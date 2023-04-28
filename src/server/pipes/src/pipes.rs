@@ -21,21 +21,18 @@ mod pipe;
 mod sess;
 
 use m3::cap::Selector;
-use m3::cell::{StaticCell, StaticRefCell};
+use m3::cell::StaticCell;
 use m3::col::{String, Vec};
 use m3::com::opcodes;
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::println;
-use m3::server::{
-    server_loop, ExcType, RequestHandler, Server, SessId, DEF_MAX_CLIENTS, DEF_MSG_SIZE,
-};
+use m3::server::{ExcType, RequestHandler, Server, DEF_MAX_CLIENTS, DEF_MSG_SIZE};
 use m3::tiles::OwnActivity;
 
 use sess::PipesSession;
 
 static SERV_SEL: StaticCell<Selector> = StaticCell::new(0);
-static CLOSED_SESS: StaticRefCell<Option<SessId>> = StaticRefCell::new(None);
 
 #[derive(Clone, Debug)]
 pub struct PipesSettings {
@@ -77,11 +74,6 @@ fn parse_args() -> Result<PipesSettings, String> {
     Ok(settings)
 }
 
-fn register_close(sid: SessId) {
-    assert!(crate::CLOSED_SESS.borrow().is_none());
-    *crate::CLOSED_SESS.borrow_mut() = Some(sid);
-}
-
 #[no_mangle]
 pub fn main() -> Result<(), Error> {
     let settings = parse_args().unwrap_or_else(|e| {
@@ -93,7 +85,7 @@ pub fn main() -> Result<(), Error> {
     let mut hdl = RequestHandler::new_with(settings.max_clients, DEF_MSG_SIZE)
         .expect("Unable to create request handler");
 
-    let srv = Server::new("pipes", &mut hdl).expect("Unable to create service 'pipes'");
+    let mut srv = Server::new("pipes", &mut hdl).expect("Unable to create service 'pipes'");
     SERV_SEL.set(srv.sel());
 
     // register capability handler
@@ -150,20 +142,7 @@ pub fn main() -> Result<(), Error> {
     hdl.reg_msg_handler(opcodes::File::CLOSE.val, |sess, is| sess.close(is));
     hdl.reg_msg_handler(opcodes::Pipe::CLOSE_PIPE.val, |sess, is| sess.close(is));
 
-    server_loop(|| {
-        srv.fetch_and_handle(&mut hdl)?;
-
-        hdl.fetch_and_handle()?;
-
-        // check if there is a session to close
-        if let Some(sid) = CLOSED_SESS.borrow_mut().take() {
-            let creator = hdl.clients().sessions().get(sid).unwrap().creator();
-            hdl.clients_mut().remove_session(creator, sid);
-        }
-
-        Ok(())
-    })
-    .ok();
+    hdl.run(&mut srv).expect("Server loop failed");
 
     Ok(())
 }

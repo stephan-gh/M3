@@ -78,6 +78,10 @@ impl RequestSession for DiskSession {
         })
     }
 
+    fn creator(&self) -> usize {
+        0
+    }
+
     fn close(&mut self, _hdl: &mut ClientManager<Self>, sid: SessId, _sub_ids: &mut Vec<SessId>) {
         log!(LogFlags::DiskReqs, "[{}] disk::close()", sid);
     }
@@ -179,8 +183,8 @@ impl DiskSession {
 pub fn main() -> Result<(), Error> {
     DEVICE.set(IDEBlockDevice::new(env::args().collect()).expect("Unable to create block device"));
 
-    let mut hdl = RequestHandler::new_with(DEF_MAX_CLIENTS, 256)
-        .expect("Unable to create request handler");
+    let mut hdl =
+        RequestHandler::new_with(DEF_MAX_CLIENTS, 256).expect("Unable to create request handler");
 
     let mut srv = Server::new("disk", &mut hdl).expect("Unable to create service 'disk'");
 

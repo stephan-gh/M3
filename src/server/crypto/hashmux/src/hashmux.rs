@@ -153,6 +153,10 @@ impl RequestSession for HashSession {
         })
     }
 
+    fn creator(&self) -> usize {
+        0
+    }
+
     fn close(&mut self, _cli: &mut ClientManager<Self>, sid: SessId, _sub_ids: &mut Vec<SessId>)
     where
         Self: Sized,

@@ -19,7 +19,7 @@ mod chan;
 mod input;
 
 use m3::cap::Selector;
-use m3::cell::{LazyStaticRefCell, StaticCell, StaticRefCell};
+use m3::cell::{LazyStaticRefCell, StaticCell};
 use m3::col::Vec;
 use m3::com::{opcodes, GateIStream, MemGate, Perm, RGateArgs, RecvGate};
 use m3::errors::{Code, Error};
@@ -35,7 +35,6 @@ use m3::session::ServerSession;
 use m3::tiles::Activity;
 
 static SERV_SEL: StaticCell<Selector> = StaticCell::new(0);
-static CLOSED_SESS: StaticRefCell<Option<SessId>> = StaticRefCell::new(None);
 
 static MEM: LazyStaticRefCell<Rc<MemGate>> = LazyStaticRefCell::default();
 
@@ -48,6 +47,7 @@ enum SessionData {
 
 #[derive(Debug)]
 pub struct VTermSession {
+    alive: bool,
     crt: usize,
     _serv: ServerSession,
     data: SessionData,
@@ -61,12 +61,21 @@ impl RequestSession for VTermSession {
         Self: Sized,
     {
         Ok(VTermSession {
+            alive: true,
             crt,
             _serv,
             data: SessionData::Meta,
             parent: None,
             childs: Vec::new(),
         })
+    }
+
+    fn creator(&self) -> usize {
+        self.crt
+    }
+
+    fn alive(&self) -> bool {
+        self.alive
     }
 
     fn close(&mut self, cli: &mut ClientManager<Self>, sid: SessId, sub_ids: &mut Vec<SessId>)
@@ -119,6 +128,7 @@ impl VTermSession {
         log!(LogFlags::VTReqs, "[{}] vterm::new_chan()", sid);
 
         Ok(VTermSession {
+            alive: true,
             crt,
             _serv: ServerSession::new_with_sel(SERV_SEL.get(), sess, crt, sid as u64, false)?,
             data: SessionData::Chan(chan::Channel::new(sid, MEM.borrow().clone(), writing)?),
@@ -200,11 +210,6 @@ impl VTermSession {
     }
 }
 
-fn register_close(sid: SessId) {
-    assert!(crate::CLOSED_SESS.borrow().is_none());
-    *crate::CLOSED_SESS.borrow_mut() = Some(sid);
-}
-
 #[no_mangle]
 pub fn main() -> Result<(), Error> {
     MEM.set(Rc::new(
@@ -240,10 +245,10 @@ pub fn main() -> Result<(), Error> {
     hdl.reg_msg_handler(File::STAT.val, |sess, is| {
         sess.with_chan(is, |c, is| c.stat(is))
     });
-    hdl.reg_msg_handler(File::CLOSE.val, |_sess, is| {
-        let sid = is.label() as SessId;
+    hdl.reg_msg_handler(File::CLOSE.val, |sess, is| {
+        // let the request handler remove the session
+        sess.alive = false;
         is.reply_error(Code::Success).ok();
-        register_close(sid);
         Ok(())
     });
     hdl.reg_msg_handler(File::SEEK.val, |_sess, _is| Err(Error::new(Code::NotSup)));
@@ -274,15 +279,7 @@ pub fn main() -> Result<(), Error> {
 
         input::receive_acks(hdl.clients_mut());
 
-        hdl.fetch_and_handle()?;
-
-        // check if there is a session to close
-        if let Some(sid) = CLOSED_SESS.borrow_mut().take() {
-            let creator = hdl.clients().sessions().get(sid).unwrap().crt;
-            hdl.clients_mut().remove_session(creator, sid);
-        }
-
-        Ok(())
+        hdl.fetch_and_handle()
     })
     .ok();
 

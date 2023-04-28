@@ -34,6 +34,7 @@ use crate::dataspace::DataSpace;
 const MAX_VIRT_ADDR: goff = cfg::MEM_CAP_END as goff - 1;
 
 pub struct AddrSpace {
+    alive: bool,
     crt: usize,
     #[allow(unused)]
     parent: Option<SessId>,
@@ -52,11 +53,19 @@ impl RequestSession for AddrSpace {
         Ok(AddrSpace::new(crt, serv, None, None))
     }
 
+    fn creator(&self) -> usize {
+        self.crt
+    }
+
+    fn alive(&self) -> bool {
+        self.alive
+    }
+
     fn close(&mut self, _cli: &mut ClientManager<Self>, sid: SessId, _sub_ids: &mut Vec<SessId>)
     where
         Self: Sized,
     {
-        log!(LogFlags::PgReqs, "[{}] pager::close()", sid);
+        log!(LogFlags::PgReqs, "[{}] closing session", sid);
     }
 }
 
@@ -68,6 +77,7 @@ impl AddrSpace {
         child: Option<childs::Id>,
     ) -> Self {
         AddrSpace {
+            alive: true,
             crt,
             parent,
             sess,
@@ -75,10 +85,6 @@ impl AddrSpace {
             owner: None,
             ds: Vec::new(),
         }
-    }
-
-    pub fn creator(&self) -> usize {
-        self.crt
     }
 
     pub fn id(&self) -> SessId {
@@ -438,7 +444,8 @@ impl AddrSpace {
     pub fn close(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         log!(LogFlags::PgReqs, "[{}] pager::close()", self.id());
 
-        crate::register_close(is.label() as SessId);
+        // let the request handler remove this session
+        self.alive = false;
 
         is.reply_error(Code::Success)
     }

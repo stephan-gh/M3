@@ -35,6 +35,7 @@ pub enum SessionData {
 }
 
 pub struct PipesSession {
+    alive: bool,
     crt: usize,
     sess: ServerSession,
     data: SessionData,
@@ -42,7 +43,12 @@ pub struct PipesSession {
 
 impl PipesSession {
     pub fn new(crt: usize, sess: ServerSession, data: SessionData) -> Self {
-        let res = PipesSession { crt, sess, data };
+        let res = PipesSession {
+            alive: true,
+            crt,
+            sess,
+            data,
+        };
 
         log!(
             LogFlags::PipeReqs,
@@ -57,10 +63,6 @@ impl PipesSession {
         );
 
         res
-    }
-
-    pub fn creator(&self) -> usize {
-        self.crt
     }
 
     pub fn data(&self) -> &SessionData {
@@ -82,6 +84,14 @@ impl RequestSession for PipesSession {
             serv,
             SessionData::Meta(Meta::default()),
         ))
+    }
+
+    fn creator(&self) -> usize {
+        self.crt
+    }
+
+    fn alive(&self) -> bool {
+        self.alive
     }
 
     fn close(&mut self, cli: &mut ClientManager<Self>, sid: SessId, sub_ids: &mut Vec<SessId>)
@@ -319,8 +329,9 @@ impl PipesSession {
     }
 
     pub fn close(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
-        let sid = is.label() as SessId;
-        crate::register_close(sid);
+        // let the request handler remove this session
+        self.alive = false;
+
         is.reply_error(Code::Success)
     }
 }
