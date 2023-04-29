@@ -356,52 +356,20 @@ impl M3FSSession for FSSession {
 pub trait M3FSSession {
     fn creator(&self) -> usize;
 
-    fn next_in(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
-    }
-    fn next_out(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
-    }
-    fn commit(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
-    }
-    fn seek(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
-    }
-    fn fstat(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
-    }
-    fn stat(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
-    }
-    fn get_path(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
-    }
-    fn truncate(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
-    }
-    fn mkdir(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
-    }
-    fn rmdir(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
-    }
-    fn link(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
-    }
-    fn unlink(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
-    }
-    fn rename(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
-    }
-    fn sync(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
-    }
-    fn open_priv(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
-    }
-    fn close(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
-        Err(Error::new(Code::NotSup))
-    }
+    fn next_in(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
+    fn next_out(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
+    fn commit(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
+    fn seek(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
+    fn fstat(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
+    fn stat(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
+    fn get_path(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
+    fn truncate(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
+    fn mkdir(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
+    fn rmdir(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
+    fn link(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
+    fn unlink(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
+    fn rename(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
+    fn sync(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
+    fn open_priv(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
+    fn close(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
 }

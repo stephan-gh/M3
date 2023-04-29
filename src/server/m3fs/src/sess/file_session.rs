@@ -688,9 +688,17 @@ impl M3FSSession for FileSession {
         Err(Error::new(Code::NotSup))
     }
 
+    fn rename(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
+        Err(Error::new(Code::NotSup))
+    }
+
     fn sync(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let _: usize = stream.pop()?;
         self.file_sync(stream)
+    }
+
+    fn open_priv(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
+        Err(Error::new(Code::NotSup))
     }
 
     fn close(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
