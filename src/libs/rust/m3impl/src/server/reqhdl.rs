@@ -95,14 +95,16 @@ impl<S: RequestSession + 'static> Handler<S> for RequestHandler<S> {
         } = self;
 
         if opcode == opcodes::General::CONNECT.val {
-            clients.connect(crt, sid, xchg)
+            clients.connect(crt, sid, ty, xchg)
         }
         else {
-            let cap_hdl = cap_hdls
-                .iter()
-                .find(|h| h.opcode == opcode && h.ty == ty)
-                .ok_or_else(|| Error::new(Code::InvArgs))?;
-            (cap_hdl.func)(clients, crt, sid, xchg)
+            match &cap_hdls[opcode as usize] {
+                CapHandler {
+                    ty: hdl_ty,
+                    func: Some(func),
+                } if *hdl_ty == ty => (func)(clients, crt, sid, xchg),
+                _ => Err(Error::new(Code::InvArgs)),
+            }
         }
     }
 
@@ -245,8 +247,13 @@ impl<S: RequestSession + 'static> ClientManager<S> {
         &mut self,
         _crt: usize,
         sid: SessId,
+        ty: ExcType,
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
+        if ty != ExcType::Obt(1) {
+            return Err(Error::new(Code::InvArgs));
+        }
+
         let sel = self.add_connection(sid)?;
         xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
         Ok(())
@@ -257,9 +264,8 @@ type CapHandlerFunc<S> =
     dyn Fn(&mut ClientManager<S>, usize, SessId, &mut CapExchange<'_>) -> Result<(), Error>;
 
 struct CapHandler<S> {
-    opcode: u64,
     ty: ExcType,
-    func: Box<CapHandlerFunc<S>>,
+    func: Option<Box<CapHandlerFunc<S>>>,
 }
 
 /// A handler function for messages
@@ -319,16 +325,26 @@ impl<S: RequestSession + 'static> RequestHandler<S> {
     /// given opcode and exchange type match. That is, the message from the client is expected to
     /// have the given opcode as the first 64-bit word. Furthermore, the exchange type (obtain or
     /// delegate) and the number of exchanged capabilities need to match.
+    ///
+    /// Note that `opcode` will be used as an index into a `Vec` and should therefore be reasonably
+    /// small.
     pub fn reg_cap_handler<F>(&mut self, opcode: u64, ty: ExcType, func: F)
     where
         F: Fn(&mut ClientManager<S>, usize, SessId, &mut CapExchange<'_>) -> Result<(), Error>
             + 'static,
     {
-        self.cap_hdls.push(CapHandler {
-            opcode,
+        let idx = opcode as usize;
+        while idx >= self.cap_hdls.len() {
+            self.cap_hdls.push(CapHandler {
+                ty: ExcType::Del(1),
+                func: None,
+            });
+        }
+        assert!(self.cap_hdls[idx].func.is_none());
+        self.cap_hdls[idx] = CapHandler {
             ty,
-            func: Box::new(func),
-        });
+            func: Some(Box::new(func)),
+        };
     }
 
     /// Registers `func` as the message handler for the given opcode

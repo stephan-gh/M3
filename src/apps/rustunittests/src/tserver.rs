@@ -251,7 +251,7 @@ fn server_notsup_main() -> Result<(), Error> {
         let srv = wv_assert_ok!(Server::new("test", &mut hdl));
 
         hdl.reg_cap_handler(0, ExcType::Obt(1), NotSupSession::fivetimes);
-        hdl.reg_cap_handler(0, ExcType::Del(1), NotSupSession::fivetimes);
+        hdl.reg_cap_handler(1, ExcType::Del(1), NotSupSession::fivetimes);
 
         let res = server_loop(|| {
             if STOP.get() {
@@ -300,13 +300,13 @@ fn testcaps(t: &mut dyn WvTester) {
             for _ in 0..5 {
                 wv_assert_err!(
                     t,
-                    sess.delegate(crd, |is| is.push(0), |_| Ok(())),
+                    sess.delegate(crd, |is| is.push(1), |_| Ok(())),
                     Code::NotSup
                 );
             }
             wv_assert_err!(
                 t,
-                sess.delegate(crd, |is| is.push(0), |_| Ok(())),
+                sess.delegate(crd, |is| is.push(1), |_| Ok(())),
                 Code::InvArgs,
                 Code::RecvGone
             );
