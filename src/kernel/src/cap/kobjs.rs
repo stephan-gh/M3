@@ -438,9 +438,10 @@ impl fmt::Debug for SessObject {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Sess[service={}, ident={:#x}]",
+            "Sess[service={}, creator={}, ident={:#x}]",
             self.service().service().name(),
-            self.ident
+            self.creator,
+            self.ident,
         )
     }
 }

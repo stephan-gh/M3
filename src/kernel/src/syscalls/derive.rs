@@ -200,7 +200,7 @@ pub fn derive_srv_async(
     let label = srvcap.creator() as tcu::Label;
     log!(
         LogFlags::KernServ,
-        "Sending DERIVE_CRT(sessions={}) to service {} with creator {}",
+        "Sending derive_crt(sessions={}) to service {} with creator {}",
         r.sessions,
         srvcap.service().name(),
         label,
