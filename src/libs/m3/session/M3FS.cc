@@ -136,9 +136,12 @@ size_t M3FS::delegate_ep(capsel_t sel) {
 }
 
 void M3FS::delegate(ChildActivity &act) {
-    act.delegate_obj(sel());
-    // TODO what if it fails?
-    connect_for(act, sel() + 1);
+    KIF::ExchangeArgs args;
+    ExchangeOStream os(args);
+    os << opcodes::FileSystem::CLONE_META;
+    args.bytes = os.total();
+    auto crd = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel(), 2);
+    obtain_for(act, crd, &args);
 }
 
 void M3FS::serialize(Marshaller &m) {

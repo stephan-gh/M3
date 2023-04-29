@@ -263,6 +263,7 @@ pub fn main() -> Result<(), Error> {
     hdl.reg_cap_handler(FileSystem::GetMem, ExcType::Obt(1), FSSession::get_mem);
     hdl.reg_cap_handler(FileSystem::DelEP, ExcType::Del(1), FSSession::del_ep);
     hdl.reg_cap_handler(FileSystem::CloneFile, ExcType::Obt(2), FSSession::clone);
+    hdl.reg_cap_handler(FileSystem::CloneMeta, ExcType::Obt(2), FSSession::clone);
     hdl.reg_cap_handler(FileSystem::SetDest, ExcType::Del(1), FSSession::set_dest);
     hdl.reg_cap_handler(
         FileSystem::EnableNotify,

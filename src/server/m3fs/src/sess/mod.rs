@@ -19,6 +19,7 @@ mod meta_session;
 mod open_files;
 
 pub use file_session::FileSession;
+use meta_session::FileCount;
 pub use meta_session::MetaSession;
 pub use open_files::OpenFiles;
 
@@ -54,7 +55,11 @@ impl RequestSession for FSSession {
             max_files
         );
 
-        Ok(FSSession::Meta(MetaSession::new(serv, max_files)))
+        Ok(FSSession::Meta(MetaSession::new(
+            serv,
+            max_files,
+            FileCount::new(),
+        )))
     }
 
     fn is_dead(&self) -> Option<usize> {
@@ -171,7 +176,7 @@ impl FSSession {
     ) -> Result<(), Error> {
         cli.add_connected(crt, |cli, serv, _sgate| match Self::get_sess(cli, sid)? {
             FSSession::File(file) => file.clone(serv, xchg).map(FSSession::File),
-            FSSession::Meta(_) => Err(Error::new(Code::InvArgs)),
+            FSSession::Meta(meta) => meta.clone(serv, xchg).map(FSSession::Meta),
         })
         .map(|_| ())
     }

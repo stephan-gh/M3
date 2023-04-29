@@ -75,6 +75,7 @@ pub enum FileSystem {
     GetMem,
     DelEP,
     OpenPriv,
+    CloneMeta,
 }
 
 /// The operations for the pipe protocol.

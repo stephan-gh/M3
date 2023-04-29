@@ -58,6 +58,7 @@ struct FileSystem {
         GET_MEM,
         DEL_EP,
         OPEN_PRIV,
+        CLONE_META,
     };
 };
 

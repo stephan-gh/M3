@@ -234,8 +234,14 @@ impl FileSystem for M3FS {
     }
 
     fn delegate(&self, act: &ChildActivity) -> Result<Selector, Error> {
-        act.delegate_obj(self.sess.sel())?;
-        self.sess.connect_for(act, self.sess.sel() + 1)?;
+        let crd = kif::CapRngDesc::new(kif::CapType::Object, self.sess.sel(), 2);
+        self.sess.obtain_for(
+            act.sel(),
+            crd,
+            |os| os.push(opcodes::FileSystem::CloneMeta),
+            |_| Ok(()),
+        )?;
+
         Ok(self.sess.sel() + 2)
     }
 
