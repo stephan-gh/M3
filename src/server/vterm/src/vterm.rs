@@ -223,9 +223,6 @@ pub fn main() -> Result<(), Error> {
     hdl.reg_msg_handler(File::NEXT_IN.val, |sess, is| {
         sess.with_chan(is, |c, is| c.next_in(is))
     });
-    hdl.reg_msg_handler(File::NEXT_IN.val, |sess, is| {
-        sess.with_chan(is, |c, is| c.next_in(is))
-    });
     hdl.reg_msg_handler(File::NEXT_OUT.val, |sess, is| {
         sess.with_chan(is, |c, is| c.next_out(is))
     });
