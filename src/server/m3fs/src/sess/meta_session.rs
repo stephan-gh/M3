@@ -25,44 +25,35 @@ use m3::{
     com::{GateIStream, SendGate},
     errors::{Code, Error},
     io::LogFlags,
+    kif::{CapRngDesc, CapType},
     server::CapExchange,
     server::SessId,
     session::ServerSession,
-    tiles::Activity,
     vfs::{FileMode, OpenFlags},
 };
 
 static NEXT_PRIV_ID: StaticCell<SessId> = StaticCell::new(1);
 
 pub struct MetaSession {
-    _server_session: ServerSession,
+    serv: ServerSession,
     sgates: Vec<SendGate>,
     max_files: usize,
     files: Vec<SessId>,
     priv_files: Treap<SessId, FileSession>,
     priv_file_count: usize,
     priv_eps: Vec<Selector>,
-    creator: usize,
-    session_id: SessId,
 }
 
 impl MetaSession {
-    pub fn new(
-        _server_session: ServerSession,
-        session_id: SessId,
-        crt: usize,
-        max_files: usize,
-    ) -> Self {
+    pub fn new(serv: ServerSession, max_files: usize) -> Self {
         MetaSession {
-            _server_session,
+            serv,
             sgates: Vec::new(),
             max_files,
             files: Vec::new(),
             priv_files: Treap::new(),
             priv_file_count: 0,
             priv_eps: Vec::new(),
-            creator: crt,
-            session_id,
         }
     }
 
@@ -89,11 +80,8 @@ impl MetaSession {
     /// Creates a file session based on this meta session for `file_session_id`.
     pub fn open_file(
         &mut self,
-        serv_sel: Selector,
-        sess_sel: Selector,
-        crt: usize,
+        serv: ServerSession,
         data: &mut CapExchange<'_>,
-        file_session_id: SessId,
     ) -> Result<FileSession, Error> {
         let args = data.in_args();
         let flags: OpenFlags = args.pop()?;
@@ -102,25 +90,28 @@ impl MetaSession {
         log!(
             LogFlags::FSSess,
             "[{}] meta::open(path={}, flags={:?})",
-            self.session_id,
+            self.serv.id(),
             path,
             flags
         );
 
-        let session = self.do_open(serv_sel, sess_sel, crt, path, flags, file_session_id)?;
+        let creator = serv.creator();
+        let sid = serv.id();
+        let sel = serv.sel();
+        let session = self.do_open(Some(serv), creator, sid, path, flags)?;
 
-        self.files.push(file_session_id);
+        self.files.push(sid);
 
-        data.out_caps(session.caps());
+        data.out_caps(CapRngDesc::new(CapType::OBJECT, sel, 2));
 
         log!(
             LogFlags::FSSess,
             "[{}] meta::open(path={}, flags={:?}) -> inode={}, sid={}",
-            self.session_id,
+            self.serv.id(),
             path,
             flags,
             session.ino(),
-            file_session_id,
+            sid,
         );
 
         Ok(session)
@@ -128,12 +119,11 @@ impl MetaSession {
 
     fn do_open(
         &mut self,
-        serv_sel: Selector,
-        sess_sel: Selector,
+        serv: Option<ServerSession>,
         crt: usize,
+        id: SessId,
         path: &str,
         flags: OpenFlags,
-        file_session_id: SessId,
     ) -> Result<FileSession, Error> {
         if self.files.len() + self.priv_file_count == self.max_files {
             return Err(Error::new(Code::NoSpace));
@@ -167,12 +157,11 @@ impl MetaSession {
         }
 
         FileSession::new(
-            serv_sel,
-            sess_sel,
+            serv,
             crt,
             None,
-            file_session_id,
-            self.session_id,
+            id,
+            self.serv.id(),
             path,
             flags,
             inode.inode,
@@ -201,7 +190,7 @@ impl Drop for MetaSession {
 
 impl M3FSSession for MetaSession {
     fn creator(&self) -> usize {
-        self.creator
+        self.serv.creator()
     }
 
     fn next_in(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -242,7 +231,7 @@ impl M3FSSession for MetaSession {
         log!(
             LogFlags::FSSess,
             "[{}] meta::stat(path={})",
-            self.session_id,
+            self.serv.id(),
             path
         );
 
@@ -263,7 +252,7 @@ impl M3FSSession for MetaSession {
         log!(
             LogFlags::FSSess,
             "[{}] meta::mkdir(path={}, mode={:o})",
-            self.session_id,
+            self.serv.id(),
             path,
             mode
         );
@@ -279,7 +268,7 @@ impl M3FSSession for MetaSession {
         log!(
             LogFlags::FSSess,
             "[{}] meta::rmdir(path={})",
-            self.session_id,
+            self.serv.id(),
             path
         );
 
@@ -295,7 +284,7 @@ impl M3FSSession for MetaSession {
         log!(
             LogFlags::FSSess,
             "[{}] meta::link(old_path={}, new_path: {})",
-            self.session_id,
+            self.serv.id(),
             old_path,
             new_path
         );
@@ -311,7 +300,7 @@ impl M3FSSession for MetaSession {
         log!(
             LogFlags::FSSess,
             "[{}] meta::unlink(path={})",
-            self.session_id,
+            self.serv.id(),
             path
         );
 
@@ -327,7 +316,7 @@ impl M3FSSession for MetaSession {
         log!(
             LogFlags::FSSess,
             "[{}] meta::rename(old_path={}, new_path: {})",
-            self.session_id,
+            self.serv.id(),
             old_path,
             new_path
         );
@@ -345,7 +334,7 @@ impl M3FSSession for MetaSession {
         log!(
             LogFlags::FSSess,
             "[{}] meta::open_priv(path={}, flags={:?}, ep={})",
-            self.session_id,
+            self.serv.id(),
             path,
             flags,
             ep
@@ -354,15 +343,14 @@ impl M3FSSession for MetaSession {
         let ep_sel = self.get_ep(ep)?;
 
         let id = NEXT_PRIV_ID.get();
-        let sess_sel = Activity::own().alloc_sels(2);
-        let mut session = self.do_open(m3::kif::INVALID_SEL, sess_sel, 0, path, flags, id)?;
+        let mut session = self.do_open(None, 0, id, path, flags)?;
         session.set_ep(ep_sel);
         NEXT_PRIV_ID.set(id + 1);
 
         log!(
             LogFlags::FSSess,
             "[{}] meta::open_priv(path={}, flags={:?}) -> inode={}, sid={}",
-            self.session_id,
+            self.serv.id(),
             path,
             flags,
             session.ino(),

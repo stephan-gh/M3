@@ -87,21 +87,19 @@ pub struct FileSession {
 
     // session information
     alive: bool,
-    sess_sel: Selector,
     sess_creator: usize,
     session_id: SessId,
     meta_sess_id: SessId,
     parent_sess_id: Option<SessId>,
     child_sessions: Vec<SessId>,
 
-    _server_session: Option<ServerSession>, // keep the server session alive
+    _serv: Option<ServerSession>, // keep the server session alive
 }
 
 impl FileSession {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        srv_sel: Selector,
-        sess_sel: Selector,
+        _serv: Option<ServerSession>,
         crt: usize,
         parent_sess_id: Option<SessId>,
         file_sess_id: SessId,
@@ -110,19 +108,6 @@ impl FileSession {
         oflags: OpenFlags,
         ino: InodeNo,
     ) -> Result<Self, Error> {
-        let _server_session = if srv_sel == m3::kif::INVALID_SEL {
-            None
-        }
-        else {
-            Some(ServerSession::new_with_sel(
-                srv_sel,
-                sess_sel,
-                crt,
-                file_sess_id as u64,
-                false,
-            )?)
-        };
-
         let fsess = FileSession {
             cur_pos: ExtPos::new(0, 0),
             cur_extlen: 0,
@@ -145,14 +130,13 @@ impl FileSession {
             ino,
 
             alive: true,
-            sess_sel,
             sess_creator: crt,
             session_id: file_sess_id,
             meta_sess_id,
             parent_sess_id,
             child_sessions: Vec::new(),
 
-            _server_session,
+            _serv,
         };
 
         crate::open_files_mut().add_sess(ino);
@@ -162,10 +146,7 @@ impl FileSession {
 
     pub fn clone(
         &mut self,
-        serv_sel: Selector,
-        sess_sel: Selector,
-        crt: usize,
-        sid: SessId,
+        serv: ServerSession,
         data: &mut CapExchange<'_>,
     ) -> Result<Self, Error> {
         log!(
@@ -175,10 +156,12 @@ impl FileSession {
             self.filename
         );
 
+        let creator = serv.creator();
+        let sid = serv.id();
+        let sel = serv.sel();
         let nsess = Self::new(
-            serv_sel,
-            sess_sel,
-            crt,
+            Some(serv),
+            creator,
             Some(self.session_id),
             sid,
             self.meta_sess_id,
@@ -189,7 +172,7 @@ impl FileSession {
 
         self.child_sessions.push(sid);
 
-        data.out_caps(CapRngDesc::new(CapType::OBJECT, nsess.sess_sel, 2));
+        data.out_caps(CapRngDesc::new(CapType::OBJECT, sel, 2));
 
         Ok(nsess)
     }
@@ -275,10 +258,6 @@ impl FileSession {
 
     pub fn remove_child(&mut self, id: SessId) {
         self.child_sessions.retain(|s| *s != id);
-    }
-
-    pub fn caps(&self) -> CapRngDesc {
-        CapRngDesc::new(CapType::OBJECT, self.sess_sel, 2)
     }
 
     pub fn file_in_out(&mut self, is: &mut GateIStream<'_>, out: bool) -> Result<(), Error> {

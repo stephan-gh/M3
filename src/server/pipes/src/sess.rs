@@ -26,7 +26,6 @@ use m3::tiles::Activity;
 use crate::chan::{ChanType, Channel};
 use crate::meta::Meta;
 use crate::pipe::Pipe;
-use crate::SERV_SEL;
 
 pub enum SessionData {
     Meta(Meta),
@@ -36,30 +35,28 @@ pub enum SessionData {
 
 pub struct PipesSession {
     alive: bool,
-    crt: usize,
-    sess: ServerSession,
+    serv: ServerSession,
     data: SessionData,
 }
 
 impl PipesSession {
-    pub fn new(crt: usize, sess: ServerSession, data: SessionData) -> Self {
+    pub fn new(serv: ServerSession, data: SessionData) -> Self {
         let res = PipesSession {
             alive: true,
-            crt,
-            sess,
+            serv,
             data,
         };
 
         log!(
             LogFlags::PipeReqs,
             "[{}] pipes::new_{}(sel={})",
-            res.sess.ident(),
+            res.serv.id(),
             match &res.data {
                 SessionData::Meta(_) => "meta",
                 SessionData::Pipe(_) => "pipe",
                 SessionData::Chan(_) => "chan",
             },
-            res.sess.sel(),
+            res.serv.sel(),
         );
 
         res
@@ -75,19 +72,15 @@ impl PipesSession {
 }
 
 impl RequestSession for PipesSession {
-    fn new(crt: usize, serv: ServerSession, _arg: &str) -> Result<Self, Error>
+    fn new(serv: ServerSession, _arg: &str) -> Result<Self, Error>
     where
         Self: Sized,
     {
-        Ok(PipesSession::new(
-            crt,
-            serv,
-            SessionData::Meta(Meta::default()),
-        ))
+        Ok(PipesSession::new(serv, SessionData::Meta(Meta::default())))
     }
 
     fn creator(&self) -> usize {
-        self.crt
+        self.serv.creator()
     }
 
     fn alive(&self) -> bool {
@@ -146,25 +139,20 @@ impl PipesSession {
             msize
         );
 
-        let sels = Activity::own().alloc_sels(2);
-        cli.add_connected_session(crt, sels + 1, |cli, nsid, _sgate| {
+        let (sel, _nsid) = cli.add_connected_session(crt, |cli, serv, _sgate| {
             let parent_sess = Self::get_sess(cli, sid)?;
 
             match parent_sess.data_mut() {
                 SessionData::Meta(ref mut m) => {
-                    let pipe = m.create_pipe(nsid, msize);
-                    Ok(PipesSession::new(
-                        crt,
-                        ServerSession::new_with_sel(SERV_SEL.get(), sels, crt, nsid as u64, true)?,
-                        SessionData::Pipe(pipe),
-                    ))
+                    let pipe = m.create_pipe(serv.id(), msize);
+                    Ok(PipesSession::new(serv, SessionData::Pipe(pipe)))
                 },
 
                 _ => Err(Error::new(Code::InvArgs)),
             }
         })?;
 
-        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sels, 2));
+        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 2));
 
         Ok(())
     }
@@ -187,26 +175,21 @@ impl PipesSession {
             ty
         );
 
-        let sels = Activity::own().alloc_sels(2);
-        cli.add_connected_session(crt, sels + 1, |cli, nsid, _sgate| {
+        let (sel, _nsid) = cli.add_connected_session(crt, |cli, serv, _sgate| {
             let parent_sess = Self::get_sess(cli, sid)?;
 
             match parent_sess.data_mut() {
                 SessionData::Pipe(ref mut p) => {
-                    let chan = p.new_chan(nsid, ty)?;
+                    let chan = p.new_chan(serv.id(), ty)?;
                     p.attach(&chan);
-                    Ok(PipesSession::new(
-                        crt,
-                        ServerSession::new_with_sel(SERV_SEL.get(), sels, crt, nsid as u64, true)?,
-                        SessionData::Chan(chan),
-                    ))
+                    Ok(PipesSession::new(serv, SessionData::Chan(chan)))
                 },
 
                 _ => Err(Error::new(Code::InvArgs)),
             }
         })?;
 
-        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sels, 2));
+        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 2));
 
         Ok(())
     }
@@ -219,19 +202,14 @@ impl PipesSession {
     ) -> Result<(), Error> {
         log!(LogFlags::PipeReqs, "[{}] pipes::clone()", sid,);
 
-        let sels = Activity::own().alloc_sels(2);
-        cli.add_connected_session(crt, sels + 1, |cli, nsid, _sgate| {
+        let (sel, _nsid) = cli.add_connected_session(crt, |cli, serv, _sgate| {
             let parent_sess = Self::get_sess(cli, sid)?;
 
             let res = match &mut parent_sess.data_mut() {
                 SessionData::Chan(ref mut c) => {
-                    let chan = c.clone(nsid)?;
+                    let chan = c.clone(serv.id())?;
 
-                    Ok(PipesSession::new(
-                        crt,
-                        ServerSession::new_with_sel(SERV_SEL.get(), sels, crt, nsid as u64, true)?,
-                        SessionData::Chan(chan),
-                    ))
+                    Ok(PipesSession::new(serv, SessionData::Chan(chan)))
                 },
 
                 _ => Err(Error::new(Code::InvArgs)),
@@ -247,7 +225,7 @@ impl PipesSession {
             Ok(res)
         })?;
 
-        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sels, 2));
+        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 2));
 
         Ok(())
     }

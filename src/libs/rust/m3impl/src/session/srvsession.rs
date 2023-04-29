@@ -20,38 +20,41 @@ use core::fmt;
 
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::errors::Error;
+use crate::server::SessId;
 use crate::syscalls;
 use crate::tiles::Activity;
 
 /// Represents a session at the server-side.
 pub struct ServerSession {
     cap: Capability,
-    ident: u64,
+    creator: usize,
+    id: SessId,
 }
 
 impl ServerSession {
-    /// Creates a new session for server `srv` and given creator using the given ident. `auto_close`
+    /// Creates a new session for server `srv` and given creator using the given id. `auto_close`
     /// specifies whether the CLOSE message should be sent to the server as soon as all derived
     /// session capabilities have been revoked.
-    pub fn new(srv: Selector, creator: usize, ident: u64, auto_close: bool) -> Result<Self, Error> {
+    pub fn new(srv: Selector, creator: usize, id: SessId, auto_close: bool) -> Result<Self, Error> {
         let sel = Activity::own().alloc_sel();
-        Self::new_with_sel(srv, sel, creator, ident, auto_close)
+        Self::new_with_sel(srv, sel, creator, id, auto_close)
     }
 
     /// Creates a new session for server `srv` and given creator at selector `sel` using the given
-    /// ident. `auto_close` specifies whether the CLOSE message should be sent to the server as soon
+    /// id. `auto_close` specifies whether the CLOSE message should be sent to the server as soon
     /// as all derived session capabilities have been revoked.
     pub fn new_with_sel(
         srv: Selector,
         sel: Selector,
         creator: usize,
-        ident: u64,
+        id: SessId,
         auto_close: bool,
     ) -> Result<Self, Error> {
-        syscalls::create_sess(sel, srv, creator, ident, auto_close)?;
+        syscalls::create_sess(sel, srv, creator, id as u64, auto_close)?;
         Ok(ServerSession {
+            creator,
             cap: Capability::new(sel, CapFlags::empty()),
-            ident,
+            id,
         })
     }
 
@@ -60,9 +63,14 @@ impl ServerSession {
         self.cap.sel()
     }
 
-    /// Returns the ident of the session
-    pub fn ident(&self) -> u64 {
-        self.ident
+    /// Returns the id of the creator of the session.
+    pub fn creator(&self) -> usize {
+        self.creator
+    }
+
+    /// Returns the id of the session
+    pub fn id(&self) -> SessId {
+        self.id
     }
 }
 

@@ -20,8 +20,6 @@ mod meta;
 mod pipe;
 mod sess;
 
-use m3::cap::Selector;
-use m3::cell::StaticCell;
 use m3::col::{String, Vec};
 use m3::com::opcodes;
 use m3::env;
@@ -31,8 +29,6 @@ use m3::server::{ExcType, RequestHandler, Server, DEF_MAX_CLIENTS, DEF_MSG_SIZE}
 use m3::tiles::OwnActivity;
 
 use sess::PipesSession;
-
-static SERV_SEL: StaticCell<Selector> = StaticCell::new(0);
 
 #[derive(Clone, Debug)]
 pub struct PipesSettings {
@@ -84,9 +80,7 @@ pub fn main() -> Result<(), Error> {
     // create request handler and server
     let mut hdl = RequestHandler::new_with(settings.max_clients, DEF_MSG_SIZE, 1)
         .expect("Unable to create request handler");
-
     let mut srv = Server::new("pipes", &mut hdl).expect("Unable to create service 'pipes'");
-    SERV_SEL.set(srv.sel());
 
     // register capability handler
     hdl.reg_cap_handler(

@@ -23,6 +23,7 @@ use crate::kif;
 use crate::server::{server_loop, CapExchange, ExcType, Handler, Server, SessId, SessionContainer};
 use crate::session::ServerSession;
 use crate::tcu::Label;
+use crate::tiles::Activity;
 use crate::util::{self, math};
 use crate::vec;
 
@@ -45,9 +46,9 @@ pub const DEF_MSG_SIZE: usize = 64;
 pub trait RequestSession {
     /// Creates a new instance of the session with given arguments.
     ///
-    /// The argument `crt` specifies the creator, `serv` is the server session object, and `arg`
-    /// is a string of arguments passed by the resource manager on behalf of the client.
-    fn new(crt: usize, serv: ServerSession, arg: &str) -> Result<Self, Error>
+    /// The argument `serv` is the server session object, and `arg` is a string of arguments passed
+    /// by the resource manager on behalf of the client.
+    fn new(serv: ServerSession, arg: &str) -> Result<Self, Error>
     where
         Self: Sized;
 
@@ -82,6 +83,10 @@ impl<S: RequestSession + 'static> Handler<S> for RequestHandler<S> {
         &mut self.clients.sessions
     }
 
+    fn init(&mut self, serv: &Server) {
+        self.clients.serv_sel = serv.sel();
+    }
+
     fn exchange_handler(
         &mut self,
         crt: usize,
@@ -114,9 +119,17 @@ impl<S: RequestSession + 'static> Handler<S> for RequestHandler<S> {
         srv_sel: Selector,
         arg: &str,
     ) -> Result<(Selector, SessId), Error> {
-        self.clients
-            .sessions
-            .add_next(crt, srv_sel, false, |serv| S::new(crt, serv, arg))
+        let sid = self.clients.sessions.next_id()?;
+        if !self.clients.sessions.can_add(crt) {
+            return Err(Error::new(Code::NoSpace));
+        }
+
+        let sel = Activity::own().alloc_sel();
+        let serv = ServerSession::new_with_sel(srv_sel, sel, crt, sid, false)?;
+        let sess = S::new(serv, arg)?;
+        // the add cannot fail, because we called can_add before
+        self.clients.sessions.add(crt, sid, sess).unwrap();
+        Ok((sel, sid))
     }
 
     fn close(&mut self, crt: usize, sid: SessId) {
@@ -133,6 +146,7 @@ impl<S: RequestSession + 'static> Handler<S> for RequestHandler<S> {
 /// created manually. However, some methods (e.g., capability exchange handlers) receive a reference
 /// to the [`ClientManager`] to have access to all sessions etc.
 pub struct ClientManager<S> {
+    serv_sel: Selector,
     sessions: SessionContainer<S>,
     rgate: RecvGate,
     sgates: Vec<(SessId, SendGate)>,
@@ -149,6 +163,8 @@ impl<S: RequestSession + 'static> ClientManager<S> {
         )?;
         rgate.activate()?;
         Ok(Self {
+            // will be initialized during the init call in the Handler trait
+            serv_sel: 0,
             sessions: SessionContainer::new(max_clients),
             rgate,
             sgates: Vec::new(),
@@ -171,7 +187,7 @@ impl<S: RequestSession + 'static> ClientManager<S> {
         &mut self.sessions
     }
 
-    /// Adds a new connection ([`SendGate`]) for the given session id.
+    /// Adds a new connection ([`SendGate`]) for the existing session with given id.
     ///
     /// Returns the selector of the [`SendGate`]
     pub fn add_connection(&mut self, sid: SessId) -> Result<Selector, Error> {
@@ -188,36 +204,77 @@ impl<S: RequestSession + 'static> ClientManager<S> {
         Ok(sel)
     }
 
-    /// Creates a new session using `create_sess` using a newly created [`SendGate`] that allows the
-    /// session to send requests to us. The argument `sel` specifies the desired selector for the
-    /// [`SendGate`].
-    pub fn add_connected_session<F>(
+    /// Creates and adds a new session using `create_sess`.
+    ///
+    /// The `create_sess` closure receives the created [`ServerSession`] instance and is expected
+    /// to store it to keep the session alive.
+    ///
+    /// Returns the selector and session id of the session
+    pub fn add_session<F>(
         &mut self,
         crt: usize,
-        sel: Selector,
         create_sess: F,
-    ) -> Result<SessId, Error>
+    ) -> Result<(Selector, SessId), Error>
     where
-        F: FnOnce(&mut Self, SessId, &SendGate) -> Result<S, Error>,
+        F: FnOnce(&mut Self, ServerSession) -> Result<S, Error>,
     {
         let sid = self.sessions.next_id()?;
         if !self.sessions.can_add(crt) {
             return Err(Error::new(Code::NoSpace));
         }
 
+        // always enable autoclose here, because this session was created manually and not via the
+        // session-open call through the resource manager and kernel. For that reason, the resource
+        // manager will also not close the session and therefore we want to know when the session
+        // capability was revoked to remove the session.
+        let serv = ServerSession::new(self.serv_sel, crt, sid, true)?;
+        let sel = serv.sel();
+        let sess = create_sess(self, serv)?;
+        // the add cannot fail, because we called can_add before
+        self.sessions.add(crt, sid, sess).unwrap();
+        Ok((sel, sid))
+    }
+
+    /// Creates a new session using `create_sess` with a newly created [`SendGate`] that allows the
+    /// session to send requests to us.
+    ///
+    /// The `create_sess` closure receives the created [`ServerSession`] instance and is expected to
+    /// store it to keep the session alive. The closure also receives a reference to the created
+    /// [`SendGate`] in case it's required.
+    ///
+    /// Note that it allocates two consecutive selectors for the session and the [`SendGate`]. The
+    /// first one (for the session) is returned, together with the chosen session id.
+    ///
+    /// Returns the selector and session id of the session
+    pub fn add_connected_session<F>(
+        &mut self,
+        crt: usize,
+        create_sess: F,
+    ) -> Result<(Selector, SessId), Error>
+    where
+        F: FnOnce(&mut Self, ServerSession, &SendGate) -> Result<S, Error>,
+    {
+        let sid = self.sessions.next_id()?;
+        if !self.sessions.can_add(crt) {
+            return Err(Error::new(Code::NoSpace));
+        }
+
+        let sels = Activity::own().alloc_sels(2);
         let sgate = SendGate::new_with(
             SGateArgs::new(&self.rgate)
                 .label(sid as Label)
                 .credits(1)
-                .sel(sel),
+                .sel(sels + 1),
         )?;
-        let sess = create_sess(self, sid, &sgate)?;
+        // autoclose enabled for the same reason as above
+        let serv = ServerSession::new_with_sel(self.serv_sel, sels, crt, sid, true)?;
+        let sess = create_sess(self, serv, &sgate)?;
 
         // the add cannot fail, because we called can_add before
         self.sessions.add(crt, sid, sess).unwrap();
         self.sgates.push((sid, sgate));
 
-        Ok(sid)
+        Ok((sels, sid))
     }
 
     /// Retrieves the session with given id and calls the given function with that session.

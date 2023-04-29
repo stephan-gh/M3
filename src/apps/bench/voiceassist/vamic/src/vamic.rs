@@ -53,11 +53,11 @@ struct MicSession {
 }
 
 impl RequestSession for MicSession {
-    fn new(_crt: usize, serv: ServerSession, _arg: &str) -> Result<Self, Error>
+    fn new(serv: ServerSession, _arg: &str) -> Result<Self, Error>
     where
         Self: Sized,
     {
-        log!(LogFlags::Debug, "[{}] vamic::new()", serv.ident());
+        log!(LogFlags::Debug, "[{}] vamic::new()", serv.id());
         Ok(MicSession {
             _serv: serv,
             img: None,

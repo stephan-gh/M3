@@ -109,6 +109,11 @@ pub trait Handler<S> {
     /// Returns the session container
     fn sessions(&mut self) -> &mut SessionContainer<S>;
 
+    /// Is called during initialization of the server and gives the handler a chance to perform
+    /// further initialization based on the given server instance.
+    fn init(&mut self, _serv: &Server) {
+    }
+
     /// Creates a new session with `arg` as an argument for the service with selector `srv_sel`.
     /// Returns the session selector and the session identifier.
     fn open(
@@ -245,11 +250,13 @@ impl Server {
                 .reg_service(sel, sgate, name, max)?;
         }
 
-        Ok(Server {
+        let serv = Server {
             cap: Capability::new(sel, CapFlags::empty()),
             rgate,
             public,
-        })
+        };
+        hdl.init(&serv);
+        Ok(serv)
     }
 
     /// Returns the capability selector of the service

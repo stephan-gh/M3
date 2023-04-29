@@ -35,26 +35,25 @@ const MAX_VIRT_ADDR: goff = cfg::MEM_CAP_END as goff - 1;
 
 pub struct AddrSpace {
     alive: bool,
-    crt: usize,
     #[allow(unused)]
     parent: Option<SessId>,
-    sess: ServerSession,
+    serv: ServerSession,
     child: Option<childs::Id>,
     owner: Option<Selector>,
     ds: Vec<DataSpace>,
 }
 
 impl RequestSession for AddrSpace {
-    fn new(crt: usize, serv: ServerSession, _arg: &str) -> Result<Self, Error>
+    fn new(serv: ServerSession, _arg: &str) -> Result<Self, Error>
     where
         Self: Sized,
     {
-        log!(LogFlags::PgReqs, "[{}] pager::open()", serv.ident());
-        Ok(AddrSpace::new(crt, serv, None, None))
+        log!(LogFlags::PgReqs, "[{}] pager::open()", serv.id());
+        Ok(AddrSpace::new(serv, None, None))
     }
 
     fn creator(&self) -> usize {
-        self.crt
+        self.serv.creator()
     }
 
     fn alive(&self) -> bool {
@@ -70,17 +69,11 @@ impl RequestSession for AddrSpace {
 }
 
 impl AddrSpace {
-    pub fn new(
-        crt: usize,
-        sess: ServerSession,
-        parent: Option<SessId>,
-        child: Option<childs::Id>,
-    ) -> Self {
+    pub fn new(serv: ServerSession, parent: Option<SessId>, child: Option<childs::Id>) -> Self {
         AddrSpace {
             alive: true,
-            crt,
             parent,
-            sess,
+            serv,
             child,
             owner: None,
             ds: Vec::new(),
@@ -88,7 +81,7 @@ impl AddrSpace {
     }
 
     pub fn id(&self) -> SessId {
-        self.sess.ident() as SessId
+        self.serv.id()
     }
 
     pub fn child_id(&self) -> Option<childs::Id> {
@@ -112,18 +105,15 @@ impl AddrSpace {
     ) -> Result<(), Error> {
         let child_id = cli.sessions_mut().get_mut(sid).unwrap().child_id();
 
-        let (sel, _) = cli
-            .sessions_mut()
-            .add_next(crt, crate::SERV_SEL.get(), false, |sess| {
-                let nsid = sess.ident();
-                log!(
-                    LogFlags::PgReqs,
-                    "[{}] pager::add_child(nsid={})",
-                    sid,
-                    nsid
-                );
-                Ok(AddrSpace::new(crt, sess, Some(sid), child_id))
-            })?;
+        let (sel, _) = cli.add_session(crt, |_cli, serv| {
+            log!(
+                LogFlags::PgReqs,
+                "[{}] pager::add_child(nsid={})",
+                sid,
+                serv.id()
+            );
+            Ok(AddrSpace::new(serv, Some(sid), child_id))
+        })?;
 
         xchg.out_caps(CapRngDesc::new(CapType::OBJECT, sel, 1));
 

@@ -18,8 +18,7 @@
 mod chan;
 mod input;
 
-use m3::cap::Selector;
-use m3::cell::{LazyStaticRefCell, StaticCell};
+use m3::cell::LazyStaticRefCell;
 use m3::col::Vec;
 use m3::com::{opcodes, GateIStream, MemGate, Perm, RGateArgs, RecvGate};
 use m3::errors::{Code, Error};
@@ -34,8 +33,6 @@ use m3::server::{
 use m3::session::ServerSession;
 use m3::tiles::Activity;
 
-static SERV_SEL: StaticCell<Selector> = StaticCell::new(0);
-
 static MEM: LazyStaticRefCell<Rc<MemGate>> = LazyStaticRefCell::default();
 
 #[allow(clippy::large_enum_variant)]
@@ -48,22 +45,20 @@ enum SessionData {
 #[derive(Debug)]
 pub struct VTermSession {
     alive: bool,
-    crt: usize,
-    _serv: ServerSession,
+    serv: ServerSession,
     data: SessionData,
     parent: Option<SessId>,
     childs: Vec<SessId>,
 }
 
 impl RequestSession for VTermSession {
-    fn new(crt: usize, _serv: ServerSession, _arg: &str) -> Result<Self, Error>
+    fn new(serv: ServerSession, _arg: &str) -> Result<Self, Error>
     where
         Self: Sized,
     {
         Ok(VTermSession {
             alive: true,
-            crt,
-            _serv,
+            serv,
             data: SessionData::Meta,
             parent: None,
             childs: Vec::new(),
@@ -71,7 +66,7 @@ impl RequestSession for VTermSession {
     }
 
     fn creator(&self) -> usize {
-        self.crt
+        self.serv.creator()
     }
 
     fn alive(&self) -> bool {
@@ -118,20 +113,17 @@ impl VTermSession {
         }
     }
 
-    fn new_chan(
-        parent: SessId,
-        sess: Selector,
-        crt: usize,
-        sid: SessId,
-        writing: bool,
-    ) -> Result<VTermSession, Error> {
-        log!(LogFlags::VTReqs, "[{}] vterm::new_chan()", sid);
+    fn new_chan(parent: SessId, serv: ServerSession, writing: bool) -> Result<VTermSession, Error> {
+        log!(LogFlags::VTReqs, "[{}] vterm::new_chan()", serv.id());
 
         Ok(VTermSession {
             alive: true,
-            crt,
-            _serv: ServerSession::new_with_sel(SERV_SEL.get(), sess, crt, sid as u64, false)?,
-            data: SessionData::Chan(chan::Channel::new(sid, MEM.borrow().clone(), writing)?),
+            data: SessionData::Chan(chan::Channel::new(
+                serv.id(),
+                MEM.borrow().clone(),
+                writing,
+            )?),
+            serv,
             parent: Some(parent),
             childs: Vec::new(),
         })
@@ -145,17 +137,17 @@ impl VTermSession {
     ) -> Result<(), Error> {
         log!(LogFlags::VTReqs, "[{}] vterm::clone(crt={})", sid, crt);
 
-        let sels = Activity::own().alloc_sels(2);
-        cli.add_connected_session(crt, sels + 1, |cli, nsid, _sgate| {
+        let (sel, _nsid) = cli.add_connected_session(crt, |cli, serv, _sgate| {
             let parent_sess = Self::get_sess(cli, sid)?;
+            let nsid = serv.id();
 
             let child_sess = match &parent_sess.data {
                 SessionData::Meta => {
                     let writing = xchg.in_args().pop::<i32>()? == 1;
-                    Self::new_chan(sid, sels, crt, nsid, writing)
+                    Self::new_chan(sid, serv, writing)
                 },
 
-                SessionData::Chan(c) => Self::new_chan(sid, sels, crt, nsid, c.is_writing()),
+                SessionData::Chan(c) => Self::new_chan(sid, serv, c.is_writing()),
             }?;
 
             // remember that the new session is a child of the current one
@@ -163,7 +155,7 @@ impl VTermSession {
             Ok(child_sess)
         })?;
 
-        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sels, 2));
+        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 2));
         Ok(())
     }
 
@@ -217,9 +209,7 @@ pub fn main() -> Result<(), Error> {
     ));
 
     let mut hdl = RequestHandler::new().expect("Unable to create request handler");
-
     let srv = Server::new("vterm", &mut hdl).expect("Unable to create service 'vterm'");
-    SERV_SEL.set(srv.sel());
 
     use opcodes::File;
     hdl.reg_cap_handler(File::CLONE.val, ExcType::Obt(2), VTermSession::clone);

@@ -24,14 +24,13 @@ mod regions;
 use core::ops::DerefMut;
 
 use m3::boxed::Box;
-use m3::cap::Selector;
-use m3::cell::{LazyStaticRefCell, StaticCell};
+use m3::cell::LazyStaticRefCell;
 use m3::col::{String, ToString, Vec};
 use m3::com::{opcodes, MemGate, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::server::{ExcType, RequestHandler, Server};
-use m3::session::{ClientSession, Pager, ResMng, ServerSession, M3FS};
+use m3::session::{ClientSession, Pager, ResMng, M3FS};
 use m3::tcu::Label;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity};
 use m3::util::math;
@@ -46,7 +45,6 @@ use resmng::resources::{tiles, Resources};
 use resmng::sendqueue;
 use resmng::subsys;
 
-static SERV_SEL: StaticCell<Selector> = StaticCell::new(0);
 static REQHDL: LazyStaticRefCell<RequestHandler<AddrSpace>> = LazyStaticRefCell::default();
 
 static MOUNTS: LazyStaticRefCell<Vec<(String, String)>> = LazyStaticRefCell::default();
@@ -90,17 +88,11 @@ impl subsys::ChildStarter for PagedChildStarter {
         let (child_sess, child_sgate, pager_sgate, child_sid) = {
             let mut hdl = REQHDL.borrow_mut();
             let cli = hdl.clients_mut();
-            let sels = Activity::own().alloc_sels(2);
-            let nsid = cli.add_connected_session(0, sels + 1, |_hdl, nsid, _sgate| {
-                Ok(AddrSpace::new(
-                    0,
-                    ServerSession::new_with_sel(SERV_SEL.get(), sels, 0, nsid as u64, true)?,
-                    None,
-                    None,
-                ))
+            let (sel, nsid) = cli.add_connected_session(0, |_hdl, serv, _sgate| {
+                Ok(AddrSpace::new(serv, None, None))
             })?;
             let pf_sgate = cli.add_connection(nsid)?;
-            (ClientSession::new_bind(sels + 0), sels + 1, pf_sgate, nsid)
+            (ClientSession::new_bind(sel + 0), sel + 1, pf_sgate, nsid)
         };
 
         // create child activity
@@ -229,9 +221,7 @@ pub fn main() -> Result<(), Error> {
     // create request handler and server
     let mut hdl = RequestHandler::new_with(args.max_clients, 128, 3)
         .expect("Unable to create request handler");
-
     let mut srv = Server::new_private("pager", &mut hdl).expect("Unable to create service");
-    SERV_SEL.set(srv.sel());
 
     use opcodes::Pager;
     hdl.reg_cap_handler(Pager::INIT.val, ExcType::Del(1), AddrSpace::init);

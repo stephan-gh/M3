@@ -20,9 +20,7 @@ use crate::cap::Selector;
 use crate::col::Vec;
 use crate::com::{RecvGate, SGateArgs, SendGate};
 use crate::errors::{Code, Error};
-use crate::session::ServerSession;
 use crate::tcu::Label;
-use crate::tiles::Activity;
 
 pub(crate) const MAX_CREATORS: usize = 3;
 
@@ -180,28 +178,6 @@ impl<S> SessionContainer<S> {
         self.con[sid] = Some(sess);
         self.used |= 1 << sid;
         Ok(())
-    }
-
-    /// Adds a new session with the next available id and a selector allocated from
-    /// [`Activity::own()`]. The session is created by `create_sess`, which takes a new
-    /// [`ServerSession`] object for the service denoted by `srv_sel`. The parameter `auto_close` is
-    /// passed to [`ServerSession`] on creation.
-    pub fn add_next<F>(
-        &mut self,
-        crt: usize,
-        srv_sel: Selector,
-        auto_close: bool,
-        create_sess: F,
-    ) -> Result<(Selector, SessId), Error>
-    where
-        F: FnOnce(ServerSession) -> Result<S, Error>,
-    {
-        let sid = self.next_id()?;
-        let sel = Activity::own().alloc_sel();
-        let sess = create_sess(ServerSession::new_with_sel(
-            srv_sel, sel, crt, sid as u64, auto_close,
-        )?)?;
-        self.add(crt, sid, sess).map(|_| (sel, sid))
     }
 
     /// Removes the session with given id, assuming that the session exists.

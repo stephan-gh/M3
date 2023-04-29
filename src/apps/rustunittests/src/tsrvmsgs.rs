@@ -37,7 +37,7 @@ struct MsgSession {
 }
 
 impl RequestSession for MsgSession {
-    fn new(_crt: usize, _serv: ServerSession, _arg: &str) -> Result<Self, Error>
+    fn new(_serv: ServerSession, _arg: &str) -> Result<Self, Error>
     where
         Self: Sized,
     {

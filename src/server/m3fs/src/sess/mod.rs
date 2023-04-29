@@ -19,7 +19,6 @@ mod meta_session;
 mod open_files;
 
 pub use file_session::FileSession;
-use m3::tiles::Activity;
 pub use meta_session::MetaSession;
 pub use open_files::OpenFiles;
 
@@ -29,6 +28,7 @@ use m3::errors::{Code, Error};
 use m3::io::LogFlags;
 use m3::server::{CapExchange, ClientManager, RequestSession, SessId};
 use m3::session::ServerSession;
+use m3::tiles::Activity;
 
 #[allow(clippy::large_enum_variant)]
 pub enum FSSession {
@@ -37,7 +37,7 @@ pub enum FSSession {
 }
 
 impl RequestSession for FSSession {
-    fn new(crt: usize, serv: ServerSession, arg: &str) -> Result<Self, Error>
+    fn new(serv: ServerSession, arg: &str) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -50,13 +50,12 @@ impl RequestSession for FSSession {
         log!(
             LogFlags::FSSess,
             "[{}] creating session(crt={}, max_files={})",
-            serv.ident(),
-            crt,
+            serv.id(),
+            serv.creator(),
             max_files
         );
 
-        let id = serv.ident() as usize;
-        Ok(FSSession::Meta(MetaSession::new(serv, id, crt, max_files)))
+        Ok(FSSession::Meta(MetaSession::new(serv, max_files)))
     }
 
     fn alive(&self) -> bool {
@@ -126,14 +125,8 @@ impl FSSession {
         sid: SessId,
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
-        let sess_sel = Activity::own().alloc_sels(2);
-
-        cli.add_connected_session(crt, sess_sel + 1, |cli, nsid, _sgate| match Self::get_sess(
-            cli, sid,
-        )? {
-            FSSession::Meta(meta) => meta
-                .open_file(crate::SERV_SEL.get(), sess_sel, crt, xchg, nsid)
-                .map(|s| FSSession::File(s)),
+        cli.add_connected_session(crt, |cli, serv, _sgate| match Self::get_sess(cli, sid)? {
+            FSSession::Meta(meta) => meta.open_file(serv, xchg).map(|s| FSSession::File(s)),
             _ => Err(Error::new(Code::InvArgs)),
         })
         .map(|_| ())
@@ -186,15 +179,9 @@ impl FSSession {
         sid: SessId,
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
-        let sess_sel = Activity::own().alloc_sels(2);
-
-        cli.add_connected_session(crt, sess_sel + 1, |cli, nsid, _sgate| match Self::get_sess(
-            cli, sid,
-        )? {
-            FSSession::File(file) => file
-                .clone(crate::SERV_SEL.get(), sess_sel, crt, nsid, xchg)
-                .map(|s| FSSession::File(s)),
-            _ => Err(Error::new(Code::InvArgs)),
+        cli.add_connected_session(crt, |cli, serv, _sgate| match Self::get_sess(cli, sid)? {
+            FSSession::File(file) => file.clone(serv, xchg).map(|s| FSSession::File(s)),
+            FSSession::Meta(_) => Err(Error::new(Code::InvArgs)),
         })
         .map(|_| ())
     }

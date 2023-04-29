@@ -25,6 +25,7 @@ use m3::net::{
     IpAddr, NetEvent, NetEventChannel, NetEventType, NetLogEvent, Port, Sd, SocketArgs, SocketType,
 };
 use m3::rc::Rc;
+use m3::server::SessId;
 use m3::time::{TimeDuration, TimeInstant};
 use m3::vec;
 
@@ -472,7 +473,7 @@ impl Socket {
         }
     }
 
-    pub fn process_queued_events(&mut self, sess: u64, iface: &mut DriverInterface<'_>) -> bool {
+    pub fn process_queued_events(&mut self, sess: SessId, iface: &mut DriverInterface<'_>) -> bool {
         let socket = self.socket;
         let ty = self.ty;
         let sd = self.sd;
@@ -501,7 +502,7 @@ impl Socket {
 
     pub fn process_event(
         &mut self,
-        sess: u64,
+        sess: SessId,
         iface: &mut DriverInterface<'_>,
         event: NetEvent,
     ) -> bool {

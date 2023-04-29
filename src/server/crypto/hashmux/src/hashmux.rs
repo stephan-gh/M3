@@ -125,7 +125,7 @@ struct HashSession {
 }
 
 impl RequestSession for HashSession {
-    fn new(_crt: usize, serv: ServerSession, arg: &str) -> Result<Self, Error>
+    fn new(serv: ServerSession, arg: &str) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -137,9 +137,8 @@ impl RequestSession for HashSession {
             DEFAULT_TIME_SLICE
         };
 
-        let sid = serv.ident() as SessId;
-        log!(LogFlags::HMuxReqs, "[{}] hash::open()", sid);
-        assert!(sid < MAX_SESSIONS);
+        log!(LogFlags::HMuxReqs, "[{}] hash::open()", serv.id());
+        assert!(serv.id() < MAX_SESSIONS);
 
         Ok(Self {
             serv,
@@ -407,7 +406,7 @@ impl HashSession {
                 log!(
                     LogFlags::HMuxDbg,
                     "[{}] hash::work() pause, remaining time {}",
-                    self.serv.ident(),
+                    self.serv.id(),
                     self.remaining_time,
                 );
                 false // not done
@@ -420,7 +419,7 @@ impl HashSession {
                     log!(
                         LogFlags::HMuxInOut,
                         "[{}] hash::work() done, remaining time {}",
-                        self.serv.ident(),
+                        self.serv.id(),
                         self.remaining_time,
                     )
                 }
@@ -428,7 +427,7 @@ impl HashSession {
                     log!(
                         LogFlags::Error,
                         "[{}] hash::work() failed with {:?}",
-                        self.serv.ident(),
+                        self.serv.id(),
                         e.code(),
                     );
                 }
@@ -459,7 +458,7 @@ impl HashSession {
         log!(
             LogFlags::HMuxInOut,
             "[{}] hash::work() done, remaining time {}",
-            self.serv.ident(),
+            self.serv.id(),
             self.remaining_time,
         );
         true // done
@@ -478,7 +477,7 @@ impl HashSession {
         log!(
             LogFlags::HMuxDbg,
             "[{}] hash::work() {:?} start len {} off {} remaining time {} queue {:?}",
-            self.serv.ident(),
+            self.serv.id(),
             req.ty,
             req.len,
             req.off,
@@ -498,7 +497,7 @@ impl HashSession {
 
 impl HashSession {
     fn id(&self) -> SessId {
-        self.serv.ident() as SessId
+        self.serv.id()
     }
 
     fn reset(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
@@ -508,7 +507,7 @@ impl HashSession {
         log!(
             LogFlags::HMuxInOut,
             "[{}] hash::reset() algo {}",
-            self.serv.ident(),
+            self.serv.id(),
             algo
         );
         assert!(self.req.is_none());
@@ -565,7 +564,7 @@ impl HashSession {
     }
 
     fn input(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
-        log!(LogFlags::HMuxInOut, "[{}] hash::input()", self.serv.ident());
+        log!(LogFlags::HMuxInOut, "[{}] hash::input()", self.serv.id());
 
         // Disallow input after output for now since this is not part of the SHA-3 specification.
         // However, there is a separate paper about the "Duplex" construction:
@@ -586,11 +585,7 @@ impl HashSession {
     }
 
     fn output(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
-        log!(
-            LogFlags::HMuxInOut,
-            "[{}] hash::output()",
-            self.serv.ident()
-        );
+        log!(LogFlags::HMuxInOut, "[{}] hash::output()", self.serv.id());
 
         let algo = self.algo.ok_or_else(|| Error::new(Code::InvState))?;
 
@@ -614,7 +609,7 @@ impl HashSession {
                 log!(
                     LogFlags::Error,
                     "[{}] hash::output() cannot use direct output for {}",
-                    self.serv.ident(),
+                    self.serv.id(),
                     algo.name,
                 );
                 return Err(Error::new(Code::InvArgs));
@@ -634,7 +629,7 @@ impl HashSession {
             log!(
                 LogFlags::Error,
                 "[{}] hash::output() attempting to output {} bytes while only {} are supported for {}",
-                self.serv.ident(),
+                self.serv.id(),
                 self.output_bytes,
                 algo.output_bytes,
                 algo.name
@@ -702,7 +697,6 @@ impl HashMuxReceiver {
 pub fn main() -> Result<(), Error> {
     let mut hdl = RequestHandler::new_with(MAX_SESSIONS, DEF_MSG_SIZE, 1)
         .expect("Unable to create request handler");
-
     let srv = Server::new("hash", &mut hdl).expect("Unable to create service 'hash'");
 
     use opcodes::Hash;

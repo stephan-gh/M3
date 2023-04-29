@@ -34,10 +34,7 @@ use m3::server::ExcType;
 use m3::{
     boxed::Box,
     cap::Selector,
-    cell::{
-        LazyReadOnlyCell, LazyStaticRefCell, LazyStaticUnsafeCell, Ref, RefMut, StaticCell,
-        StaticRefCell,
-    },
+    cell::{LazyReadOnlyCell, LazyStaticRefCell, LazyStaticUnsafeCell, Ref, RefMut, StaticRefCell},
     col::{String, ToString, Vec},
     com::opcodes,
     env,
@@ -50,7 +47,6 @@ use m3::{
 // Server constants
 const MSG_SIZE: usize = 128;
 
-static SERV_SEL: StaticCell<Selector> = StaticCell::new(0);
 static SB: LazyStaticRefCell<SuperBlock> = LazyStaticRefCell::default();
 // TODO we unfortunately need to use an unsafe cell here at the moment, because the meta buffer is
 // basicalled used in all modules, making it really hard to use something like a RefCell here.
@@ -257,10 +253,8 @@ pub fn main() -> Result<(), Error> {
     // the meta session is used.
     let mut hdl = RequestHandler::new_with(SETTINGS.get().max_clients, MSG_SIZE, 1024)
         .expect("Unable to create request handler");
-
     let mut srv =
         Server::new(&SETTINGS.get().name, &mut hdl).expect("Could not create service 'm3fs'");
-    SERV_SEL.set(srv.sel());
 
     use opcodes::{File, FileSystem};
 

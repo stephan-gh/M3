@@ -181,7 +181,7 @@ impl SocketSession {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let label = self.server_session.ident() as tcu::Label;
+        let label = self.server_session.id() as tcu::Label;
         self.sgate = Some(SendGate::new_with(
             m3::com::SGateArgs::new(&self.rgate).label(label).credits(1),
         )?);
@@ -374,7 +374,7 @@ impl SocketSession {
         log!(
             LogFlags::NetSess,
             "[{}] net::bind(sd={}, port={})",
-            self.server_session.ident(),
+            self.server_session.id(),
             sd,
             port
         );
@@ -409,7 +409,7 @@ impl SocketSession {
         log!(
             LogFlags::NetSess,
             "[{}] net::listen(sd={}, port={})",
-            self.server_session.ident(),
+            self.server_session.id(),
             sd,
             port
         );
@@ -438,7 +438,7 @@ impl SocketSession {
         log!(
             LogFlags::NetSess,
             "[{}] net::connect(sd={}, remote={}:{}, local={})",
-            self.server_session.ident(),
+            self.server_session.id(),
             sd,
             remote_addr,
             remote_port,
@@ -482,7 +482,7 @@ impl SocketSession {
         log!(
             LogFlags::NetSess,
             "[{}] net::abort(sd={}, remove={})",
-            self.server_session.ident(),
+            self.server_session.id(),
             sd,
             remove
         );
@@ -496,7 +496,7 @@ impl SocketSession {
     }
 
     pub fn process_incoming(&mut self, iface: &mut DriverInterface<'_>) -> bool {
-        let sess = self.server_session.ident();
+        let sess = self.server_session.id();
         let mut needs_recheck = false;
 
         // iterate over all sockets and check for events
@@ -548,7 +548,7 @@ impl SocketSession {
                         LogFlags::NetData,
                         "[{}] socket {}: received event {:?}",
                         socket_sd,
-                        self.server_session.ident(),
+                        self.server_session.id(),
                         event,
                     );
 
@@ -589,7 +589,7 @@ impl SocketSession {
                         LogFlags::NetData,
                         "[{}] socket {}: received packet with {}b from {}",
                         socket_sd,
-                        self.server_session.ident(),
+                        self.server_session.id(),
                         amount,
                         ep
                     );
@@ -603,7 +603,7 @@ impl SocketSession {
                             LogFlags::Error,
                             "[{}] socket {}: sending received packet with {}b failed: {}",
                             socket_sd,
-                            self.server_session.ident(),
+                            self.server_session.id(),
                             amount,
                             e
                         );

@@ -53,7 +53,7 @@ struct DiskSession {
 }
 
 impl RequestSession for DiskSession {
-    fn new(_crt: usize, serv: ServerSession, arg: &str) -> Result<Self, Error>
+    fn new(serv: ServerSession, arg: &str) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -67,7 +67,7 @@ impl RequestSession for DiskSession {
         log!(
             LogFlags::DiskReqs,
             "[{}] disk::open(dev={})",
-            serv.ident(),
+            serv.id(),
             dev
         );
 
@@ -140,7 +140,7 @@ impl DiskSession {
         log!(
             LogFlags::DiskReqs,
             "[{}] disk::{}(cap={}, start={}, len={}, block_size={}, off={})",
-            self.serv.ident(),
+            self.serv.id(),
             name,
             cap,
             start,
@@ -185,7 +185,6 @@ pub fn main() -> Result<(), Error> {
 
     let mut hdl = RequestHandler::new_with(DEF_MAX_CLIENTS, 256, 1)
         .expect("Unable to create request handler");
-
     let mut srv = Server::new("disk", &mut hdl).expect("Unable to create service 'disk'");
 
     use opcodes::Disk;

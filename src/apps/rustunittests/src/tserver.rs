@@ -46,7 +46,7 @@ struct CrashSession {
 }
 
 impl RequestSession for CrashSession {
-    fn new(_crt: usize, _serv: ServerSession, _arg: &str) -> Result<Self, Error>
+    fn new(_serv: ServerSession, _arg: &str) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -214,7 +214,7 @@ struct NotSupSession {
 }
 
 impl RequestSession for NotSupSession {
-    fn new(_crt: usize, _serv: ServerSession, _arg: &str) -> Result<Self, Error>
+    fn new(_serv: ServerSession, _arg: &str) -> Result<Self, Error>
     where
         Self: Sized,
     {

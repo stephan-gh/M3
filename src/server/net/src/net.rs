@@ -30,7 +30,8 @@ use m3::rc::Rc;
 use m3::server::{
     CapExchange, ExcType, Handler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS,
 };
-use m3::tiles::OwnActivity;
+use m3::session::ServerSession;
+use m3::tiles::{Activity, OwnActivity};
 use m3::time::{TimeDuration, TimeInstant};
 use m3::util::math;
 use m3::{env, reply_vmsg};
@@ -160,17 +161,13 @@ impl Handler<NetworkSession> for NetHandler<'_> {
     ) -> Result<(Selector, SessId), Error> {
         let rgate = self.rgate.clone();
 
-        self.sessions.add_next(crt, srv_sel, false, |sess| {
-            log!(
-                LogFlags::NetSess,
-                "[{}] net::open(sel={})",
-                sess.ident(),
-                sess.sel()
-            );
-            Ok(NetworkSession::SocketSession(sess::SocketSession::new(
-                crt, arg, sess, rgate,
-            )?))
-        })
+        let sid = self.sessions.next_id()?;
+        let sel = Activity::own().alloc_sel();
+        log!(LogFlags::NetSess, "[{}] net::open(sel={})", sid, sel);
+
+        let serv = ServerSession::new_with_sel(srv_sel, sel, crt, sid, false)?;
+        let sess = NetworkSession::SocketSession(sess::SocketSession::new(crt, arg, serv, rgate)?);
+        self.sessions.add(crt, sid, sess).map(|_| (sel, sid))
     }
 
     fn exchange_handler(
