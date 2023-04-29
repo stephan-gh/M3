@@ -82,7 +82,7 @@ pub fn main() -> Result<(), Error> {
     });
 
     // create request handler and server
-    let mut hdl = RequestHandler::new_with(settings.max_clients, DEF_MSG_SIZE)
+    let mut hdl = RequestHandler::new_with(settings.max_clients, DEF_MSG_SIZE, 1)
         .expect("Unable to create request handler");
 
     let mut srv = Server::new("pipes", &mut hdl).expect("Unable to create service 'pipes'");

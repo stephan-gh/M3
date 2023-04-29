@@ -253,7 +253,9 @@ pub fn main() -> Result<(), Error> {
     init_fs(backend);
 
     // create request handler and server
-    let mut hdl = RequestHandler::new_with(SETTINGS.get().max_clients, MSG_SIZE)
+    // TODO just temporary: set a very high limit for client connections until we repair the way
+    // the meta session is used.
+    let mut hdl = RequestHandler::new_with(SETTINGS.get().max_clients, MSG_SIZE, 1024)
         .expect("Unable to create request handler");
 
     let mut srv =

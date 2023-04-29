@@ -183,8 +183,8 @@ impl DiskSession {
 pub fn main() -> Result<(), Error> {
     DEVICE.set(IDEBlockDevice::new(env::args().collect()).expect("Unable to create block device"));
 
-    let mut hdl =
-        RequestHandler::new_with(DEF_MAX_CLIENTS, 256).expect("Unable to create request handler");
+    let mut hdl = RequestHandler::new_with(DEF_MAX_CLIENTS, 256, 1)
+        .expect("Unable to create request handler");
 
     let mut srv = Server::new("disk", &mut hdl).expect("Unable to create service 'disk'");
 

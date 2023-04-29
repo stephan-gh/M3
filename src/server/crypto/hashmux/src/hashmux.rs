@@ -700,7 +700,7 @@ impl HashMuxReceiver {
 
 #[no_mangle]
 pub fn main() -> Result<(), Error> {
-    let mut hdl = RequestHandler::new_with(MAX_SESSIONS, DEF_MSG_SIZE)
+    let mut hdl = RequestHandler::new_with(MAX_SESSIONS, DEF_MSG_SIZE, 1)
         .expect("Unable to create request handler");
 
     let srv = Server::new("hash", &mut hdl).expect("Unable to create service 'hash'");

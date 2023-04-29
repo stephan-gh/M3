@@ -136,11 +136,13 @@ pub struct ClientManager<S> {
     sessions: SessionContainer<S>,
     rgate: RecvGate,
     sgates: Vec<(SessId, SendGate)>,
+    max_cli_cons: usize,
 }
 
 impl<S: RequestSession + 'static> ClientManager<S> {
     /// Creates a new client manager for `max_clients` using a message size of `msg_size`.
-    pub fn new(max_clients: usize, msg_size: usize) -> Result<Self, Error> {
+    /// Additionally, `max_cli_cons` defines the maximum connections each client session may create.
+    pub fn new(max_clients: usize, msg_size: usize, max_cli_cons: usize) -> Result<Self, Error> {
         let rgate = RecvGate::new(
             math::next_log2(max_clients * msg_size),
             math::next_log2(msg_size),
@@ -150,6 +152,7 @@ impl<S: RequestSession + 'static> ClientManager<S> {
             sessions: SessionContainer::new(max_clients),
             rgate,
             sgates: Vec::new(),
+            max_cli_cons,
         })
     }
 
@@ -172,9 +175,16 @@ impl<S: RequestSession + 'static> ClientManager<S> {
     ///
     /// Returns the selector of the [`SendGate`]
     pub fn add_connection(&mut self, sid: SessId) -> Result<Selector, Error> {
+        // check if the client has already exceeded the connection limit
+        let cons = self.sgates.iter().filter(|s| s.0 == sid).count();
+        if cons + 1 > self.max_cli_cons {
+            return Err(Error::new(Code::NoSpace));
+        }
+
         let sgate = SendGate::new_with(SGateArgs::new(&self.rgate).label(sid as Label).credits(1))?;
         let sel = sgate.sel();
         self.sgates.push((sid, sgate));
+
         Ok(sel)
     }
 
@@ -297,13 +307,18 @@ pub struct RequestHandler<S> {
 impl<S: RequestSession + 'static> RequestHandler<S> {
     /// Creates a new request handler with default arguments
     pub fn new() -> Result<Self, Error> {
-        Self::new_with(DEF_MAX_CLIENTS, DEF_MSG_SIZE)
+        Self::new_with(DEF_MAX_CLIENTS, DEF_MSG_SIZE, 1)
     }
 
     /// Creates a new request handler for `max_clients` using a message size of `msg_size`.
-    pub fn new_with(max_clients: usize, msg_size: usize) -> Result<Self, Error> {
+    /// Additionally, `max_cli_cons` defines the maximum connections each client session may create.
+    pub fn new_with(
+        max_clients: usize,
+        msg_size: usize,
+        max_cli_cons: usize,
+    ) -> Result<Self, Error> {
         Ok(Self {
-            clients: ClientManager::new(max_clients, msg_size)?,
+            clients: ClientManager::new(max_clients, msg_size, max_cli_cons)?,
             msg_hdls: Vec::new(),
             cap_hdls: Vec::new(),
         })

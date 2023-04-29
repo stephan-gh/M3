@@ -227,8 +227,8 @@ pub fn main() -> Result<(), Error> {
         .push(("m3fs".to_string(), "/".to_string()));
 
     // create request handler and server
-    let mut hdl =
-        RequestHandler::new_with(args.max_clients, 128).expect("Unable to create request handler");
+    let mut hdl = RequestHandler::new_with(args.max_clients, 128, 3)
+        .expect("Unable to create request handler");
 
     let mut srv = Server::new_private("pager", &mut hdl).expect("Unable to create service");
     SERV_SEL.set(srv.sel());
