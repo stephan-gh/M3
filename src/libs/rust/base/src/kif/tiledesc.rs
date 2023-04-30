@@ -19,43 +19,47 @@
 use bitflags::bitflags;
 use core::fmt;
 
+use num_enum::{FromPrimitive, IntoPrimitive};
+
 use crate::cfg;
 use crate::serialize::{Deserialize, Serialize};
 
-int_enum! {
-    /// The different types of tiles
-    pub struct TileType : TileDescRaw {
-        /// Compute tile
-        const COMP          = 0x0;
-        /// Memory tile
-        const MEM           = 0x1;
-    }
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, FromPrimitive)]
+#[repr(u64)]
+/// The different types of tiles
+pub enum TileType {
+    /// Compute tile
+    #[default]
+    Comp,
+    /// Memory tile
+    Mem,
 }
 
-int_enum! {
-    /// The supported instruction set architectures (ISAs)
-    pub struct TileISA : TileDescRaw {
-        /// Dummy ISA to represent memory tiles
-        const NONE          = 0x0;
-        /// RISCV as supported on hw and gem5
-        const RISCV         = 0x1;
-        /// x86_64 as supported by gem5
-        const X86           = 0x2;
-        /// ARMv7 as supported by gem5
-        const ARM           = 0x3;
-        /// Dummy ISA to represent the indirect-chaining fixed-function accelerator
-        const ACCEL_INDIR   = 0x4;
-        /// Dummy ISA to represent the COPY fixed-function accelerator
-        const ACCEL_COPY    = 0x5;
-        /// Dummy ISA to represent the ROT-13 fixed-function accelerator
-        const ACCEL_ROT13   = 0x6;
-        /// Dummy ISA to represent the IDE controller
-        const IDE_DEV       = 0x7;
-        /// Dummy ISA to represent the NIC
-        const NIC_DEV       = 0x8;
-        /// Dummy ISA to represent the serial input device
-        const SERIAL_DEV    = 0x9;
-    }
+/// The supported instruction set architectures (ISAs)
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, FromPrimitive)]
+#[repr(u64)]
+pub enum TileISA {
+    /// Dummy ISA to represent memory tiles
+    #[default]
+    None,
+    /// RISCV as supported on hw and gem5
+    RISCV,
+    /// x86_64 as supported by gem5
+    X86,
+    /// ARMv7 as supported by gem5
+    ARM,
+    /// Dummy ISA to represent the indirect-chaining fixed-function accelerator
+    AccelIndir,
+    /// Dummy ISA to represent the COPY fixed-function accelerator
+    AccelCopy,
+    /// Dummy ISA to represent the ROT-13 fixed-function accelerator
+    AccelRot13,
+    /// Dummy ISA to represent the IDE controller
+    IDEDev,
+    /// Dummy ISA to represent the NIC
+    NICDev,
+    /// Dummy ISA to represent the serial input device
+    SerialDev,
 }
 
 bitflags! {
@@ -96,7 +100,7 @@ impl TileDesc {
     /// Creates a new tile description from the given type, ISA, and memory size.
     pub const fn new(ty: TileType, isa: TileISA, memsize: usize) -> TileDesc {
         let mem_pages = memsize >> 12;
-        let val = ty.val | (isa.val << 6) | (mem_pages as TileDescRaw) << 28;
+        let val = ty as TileDescRaw | (isa as TileDescRaw) << 6 | (mem_pages as TileDescRaw) << 28;
         Self::new_from(val)
     }
 
@@ -108,7 +112,10 @@ impl TileDesc {
         attr: TileAttr,
     ) -> TileDesc {
         let mem_pages = memsize >> 12;
-        let val = ty.val | (isa.val << 6) | (attr.bits() << 20) | (mem_pages as TileDescRaw) << 28;
+        let val = ty as TileDescRaw
+            | (isa as TileDescRaw) << 6
+            | (attr.bits() << 20)
+            | (mem_pages as TileDescRaw) << 28;
         Self::new_from(val)
     }
 
@@ -146,14 +153,14 @@ impl TileDesc {
 
     /// Return if the tile supports multiple contexts
     pub fn is_device(self) -> bool {
-        self.isa() == TileISA::NIC_DEV
-            || self.isa() == TileISA::IDE_DEV
-            || self.isa() == TileISA::SERIAL_DEV
+        self.isa() == TileISA::NICDev
+            || self.isa() == TileISA::IDEDev
+            || self.isa() == TileISA::SerialDev
     }
 
     /// Return if the tile supports activities
     pub fn supports_activities(self) -> bool {
-        self.tile_type() != TileType::MEM
+        self.tile_type() != TileType::Mem
     }
 
     /// Return if the tile supports the context switching protocol
@@ -163,7 +170,7 @@ impl TileDesc {
 
     /// Returns whether the tile has an internal memory (SPM, DRAM, ...)
     pub fn has_memory(self) -> bool {
-        self.tile_type() == TileType::MEM || self.attr().contains(TileAttr::IMEM)
+        self.tile_type() == TileType::Mem || self.attr().contains(TileAttr::IMEM)
     }
 
     /// Returns whether the tile supports virtual memory
@@ -177,9 +184,9 @@ impl TileDesc {
         let mut res = *self;
         for prop in props.split('+') {
             match prop {
-                "arm" => res = TileDesc::new(TileType::COMP, TileISA::ARM, 0),
-                "x86" => res = TileDesc::new(TileType::COMP, TileISA::X86, 0),
-                "riscv" => res = TileDesc::new(TileType::COMP, TileISA::RISCV, 0),
+                "arm" => res = TileDesc::new(TileType::Comp, TileISA::ARM, 0),
+                "x86" => res = TileDesc::new(TileType::Comp, TileISA::X86, 0),
+                "riscv" => res = TileDesc::new(TileType::Comp, TileISA::RISCV, 0),
 
                 "rocket" => {
                     res = TileDesc::new_with_attr(
@@ -224,48 +231,48 @@ impl TileDesc {
 
                 "indir" => {
                     res = TileDesc::new_with_attr(
-                        TileType::COMP,
-                        TileISA::ACCEL_INDIR,
+                        TileType::Comp,
+                        TileISA::AccelIndir,
                         0,
                         TileAttr::IMEM,
                     )
                 },
                 "copy" => {
                     res = TileDesc::new_with_attr(
-                        TileType::COMP,
-                        TileISA::ACCEL_COPY,
+                        TileType::Comp,
+                        TileISA::AccelCopy,
                         0,
                         TileAttr::IMEM,
                     )
                 },
                 "rot13" => {
                     res = TileDesc::new_with_attr(
-                        TileType::COMP,
-                        TileISA::ACCEL_ROT13,
+                        TileType::Comp,
+                        TileISA::AccelRot13,
                         0,
                         TileAttr::IMEM,
                     )
                 },
                 "idedev" => {
                     res = TileDesc::new_with_attr(
-                        TileType::COMP,
-                        TileISA::IDE_DEV,
+                        TileType::Comp,
+                        TileISA::IDEDev,
                         0,
                         TileAttr::empty(),
                     )
                 },
                 "nicdev" => {
                     res = TileDesc::new_with_attr(
-                        TileType::COMP,
-                        TileISA::NIC_DEV,
+                        TileType::Comp,
+                        TileISA::NICDev,
                         0,
                         TileAttr::empty(),
                     )
                 },
                 "serdev" => {
                     res = TileDesc::new_with_attr(
-                        TileType::COMP,
-                        TileISA::SERIAL_DEV,
+                        TileType::Comp,
+                        TileISA::SerialDev,
                         0,
                         TileAttr::empty(),
                     )
@@ -319,7 +326,7 @@ impl fmt::Debug for TileDesc {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "TileDesc[type={}, isa={}, memsz={}, attr={:?}]",
+            "TileDesc[type={:?}, isa={:?}, memsz={}, attr={:?}]",
             self.tile_type(),
             self.isa(),
             self.mem_size(),

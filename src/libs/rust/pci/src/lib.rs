@@ -253,7 +253,7 @@ impl Info {
 
 impl Device {
     pub fn new(name: &str, isa: TileISA) -> Result<Self, Error> {
-        let tile = Tile::new(TileDesc::new(TileType::COMP, isa, 0))?;
+        let tile = Tile::new(TileDesc::new(TileType::Comp, isa, 0))?;
         let act = ChildActivity::new(tile, name)?;
         let act_sel = act.sel();
         let mem = act.get_mem(

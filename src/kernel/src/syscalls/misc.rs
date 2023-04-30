@@ -481,7 +481,7 @@ pub fn activate_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<
                     if r.rbuf_off >= rbuf.size() || r.rbuf_off + rg.size() as goff > rbuf.size() {
                         sysc_err!(Code::InvArgs, "Invalid receive buffer memory");
                     }
-                    if platform::tile_desc(rbuf.tile_id()).tile_type() != kif::TileType::MEM {
+                    if platform::tile_desc(rbuf.tile_id()).tile_type() != kif::TileType::Mem {
                         sysc_err!(Code::InvArgs, "rbuffer not in physical memory");
                     }
                     let rbuf_phys =

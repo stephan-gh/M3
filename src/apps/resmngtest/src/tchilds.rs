@@ -109,7 +109,7 @@ fn tiles(t: &mut dyn WvTester, child: &mut dyn Child, res: &mut Resources) {
         child.alloc_tile(
             res,
             123,
-            TileDesc::new(TileType::MEM, TileISA::NONE, 0),
+            TileDesc::new(TileType::Mem, TileISA::None, 0),
             false
         ),
         Code::InvArgs

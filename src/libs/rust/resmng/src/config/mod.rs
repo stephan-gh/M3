@@ -284,13 +284,13 @@ impl TileType {
                 "serial" => desc.attr().contains(kif::TileAttr::SERIAL),
                 "imem" => desc.attr().contains(kif::TileAttr::IMEM),
 
-                "indir" => desc.isa() == kif::TileISA::ACCEL_INDIR,
-                "copy" => desc.isa() == kif::TileISA::ACCEL_COPY,
-                "rot13" => desc.isa() == kif::TileISA::ACCEL_ROT13,
+                "indir" => desc.isa() == kif::TileISA::AccelIndir,
+                "copy" => desc.isa() == kif::TileISA::AccelCopy,
+                "rot13" => desc.isa() == kif::TileISA::AccelRot13,
 
-                "idedev" => desc.isa() == kif::TileISA::IDE_DEV,
-                "nicdev" => desc.isa() == kif::TileISA::NIC_DEV,
-                "serdev" => desc.isa() == kif::TileISA::SERIAL_DEV,
+                "idedev" => desc.isa() == kif::TileISA::IDEDev,
+                "nicdev" => desc.isa() == kif::TileISA::NICDev,
+                "serdev" => desc.isa() == kif::TileISA::SerialDev,
                 _ => false,
             };
             if !matches {

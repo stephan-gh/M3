@@ -57,7 +57,7 @@ static ZEROS: [u8; 4096] = [0; 4096];
 
 impl E1000 {
     pub fn new() -> Result<Self, Error> {
-        let nic = Device::new("nic", TileISA::NIC_DEV)?;
+        let nic = Device::new("nic", TileISA::NICDev)?;
 
         let bufs = MemGate::new(core::mem::size_of::<Buffers>(), Perm::RW)?;
         let devbufs = bufs.derive(0, core::mem::size_of::<Buffers>(), Perm::RW)?;

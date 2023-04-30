@@ -86,7 +86,7 @@ pub fn user_tiles() -> impl Iterator<Item = TileId> {
         .tiles
         .iter()
         .flat_map(|chip| chip.iter())
-        .filter(|t| { t.id } != kernel_tile() && t.desc.tile_type() != TileType::MEM)
+        .filter(|t| { t.id } != kernel_tile() && t.desc.tile_type() != TileType::Mem)
         .map(|t| t.id)
 }
 
@@ -169,7 +169,7 @@ pub fn init() {
         .zip(tile_descs.iter())
         .map(|(id, desc)| boot::Tile::new(*id, *desc));
     for tile in all_tiles {
-        if tile.desc.tile_type() == TileType::MEM {
+        if tile.desc.tile_type() == TileType::Mem {
             // the first memory module hosts the boot modules and tile-specific memory areas
             if kmem_idx == 0 {
                 let avail = mems[kmem_idx].size();
@@ -280,7 +280,7 @@ pub fn init_serial(dest: Option<(TileId, EpId)>) {
         ]);
     }
     else if let Some(ser_tile) =
-        user_tiles().find(|idx| tile_desc(*idx).isa() == TileISA::SERIAL_DEV)
+        user_tiles().find(|idx| tile_desc(*idx).isa() == TileISA::SerialDev)
     {
         if let Some((tile, ep)) = dest {
             ktcu::config_remote_ep(ser_tile, 4, |regs, tgtep| {

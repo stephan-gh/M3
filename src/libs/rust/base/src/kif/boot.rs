@@ -118,7 +118,7 @@ impl fmt::Debug for Tile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
-            "{}: {} {} {:?} {} KiB memory",
+            "{}: {:?} {:?} {:?} {} KiB memory",
             { self.id },
             self.desc.tile_type(),
             self.desc.isa(),
