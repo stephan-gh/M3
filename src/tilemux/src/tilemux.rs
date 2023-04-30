@@ -60,13 +60,13 @@ static mut HEAP: Heap = Heap([0; 1024 * 1024]);
 pub struct TMEnv {
     tile_id: u64,
     tile_desc: kif::TileDesc,
-    platform: u64,
+    platform: env::Platform,
 }
 
 static TM_ENV: StaticRefCell<TMEnv> = StaticRefCell::new(TMEnv {
     tile_id: 0,
     tile_desc: kif::TileDesc::new_from(0),
-    platform: 0,
+    platform: env::Platform::Gem5,
 });
 
 pub fn pex_env() -> Ref<'static, TMEnv> {

@@ -270,7 +270,7 @@ pub fn init() {
 }
 
 pub fn init_serial(dest: Option<(TileId, EpId)>) {
-    if env::boot().platform == env::Platform::HW.val {
+    if env::boot().platform == env::Platform::Hw {
         let (tile, ep) = dest.unwrap_or((TileId::default(), 0));
         let serial = GlobAddr::new(env::boot().kenv + 4 * 1024);
         let tile_modid = TCU::tileid_to_nocid(tile);

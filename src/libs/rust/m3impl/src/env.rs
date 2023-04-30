@@ -44,11 +44,11 @@ pub struct Env {
 
 impl Env {
     pub fn platform(&self) -> Platform {
-        Platform::from(self.base.boot.platform)
+        self.base.boot.platform
     }
 
     pub fn set_platform(&mut self, platform: Platform) {
-        self.base.boot.platform = platform.val;
+        self.base.boot.platform = platform;
     }
 
     pub fn tile_id(&self) -> tcu::TileId {

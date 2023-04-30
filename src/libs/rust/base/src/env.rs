@@ -23,6 +23,8 @@ use core::ops::FnOnce;
 
 use derivative::Derivative;
 
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+
 use crate::boxed::Box;
 use crate::cell::LazyStaticRefCell;
 use crate::cfg;
@@ -31,18 +33,19 @@ use crate::format;
 use crate::mem;
 use crate::util;
 
-int_enum! {
-    pub struct Platform : u64 {
-        const GEM5 = 0;
-        const HW = 1;
-    }
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
+#[repr(u64)]
+pub enum Platform {
+    #[default]
+    Gem5,
+    Hw,
 }
 
 #[derive(Copy, Clone, Derivative, Debug)]
 #[derivative(Default)]
 #[repr(C)]
 pub struct BootEnv {
-    pub platform: u64,
+    pub platform: Platform,
     pub tile_id: u64,
     pub tile_desc: u64,
     pub argc: u64,

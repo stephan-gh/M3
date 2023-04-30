@@ -30,7 +30,7 @@ extern "C" {
 
 pub fn write_coverage(_act: u64) {
     #[cfg(target_arch = "riscv64")]
-    if env::boot().platform == env::Platform::GEM5.val {
+    if env::boot().platform == env::Platform::Gem5 {
         let mut coverage = crate::vec![];
         // safety: the function is not thread-safe, but we are always single threaded.
         unsafe {
@@ -42,7 +42,7 @@ pub fn write_coverage(_act: u64) {
 
 pub fn write(buf: &[u8]) -> Result<usize, Error> {
     let amount = tcu::TCU::print(buf);
-    if env::boot().platform == env::Platform::GEM5.val {
+    if env::boot().platform == env::Platform::Gem5 {
         unsafe {
             // put the string on the stack to prevent that gem5_writefile causes a pagefault
             let file: [u8; 7] = *b"stdout\0";
@@ -84,7 +84,7 @@ pub unsafe fn flush_cache() {
 }
 
 pub fn shutdown() -> ! {
-    if env::boot().platform == env::Platform::GEM5.val {
+    if env::boot().platform == env::Platform::Gem5 {
         unsafe { gem5_shutdown(0) };
     }
     else {

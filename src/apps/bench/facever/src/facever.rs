@@ -129,7 +129,7 @@ fn client(args: &[&str]) {
             .expect("Request failed");
 
         let duration = CycleInstant::now().duration_since(start);
-        let duration = if env::get().platform() == env::Platform::HW {
+        let duration = if env::get().platform() == env::Platform::Hw {
             // compensate for running on a 100MHz core (in contrast to the computing computes that run
             // on a 80MHz core).
             ((duration.as_raw() as f64) * 0.8) as u64

@@ -184,7 +184,7 @@ fn workloop() -> ! {
     }
 
     while ActivityMng::count() > 0 {
-        if env::boot().platform != env::Platform::HW.val {
+        if env::boot().platform != env::Platform::Hw {
             tcu::TCU::sleep().unwrap();
         }
 
@@ -210,7 +210,7 @@ fn workloop() -> ! {
     thread::stop();
     // if we get back here, there is no ready or sleeping thread anymore and we can shutdown
 
-    if env::boot().platform == env::Platform::GEM5.val {
+    if env::boot().platform == env::Platform::Gem5 {
         let mut sent = 0;
         for tile in platform::user_tiles() {
             if platform::tile_desc(tile).is_programmable() {

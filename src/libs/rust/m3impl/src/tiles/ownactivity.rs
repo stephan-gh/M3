@@ -109,7 +109,7 @@ impl OwnActivity {
             };
             return tmif::wait(None, None, timeout);
         }
-        if crate::env::get().platform() != crate::env::Platform::HW {
+        if crate::env::get().platform() != crate::env::Platform::Hw {
             let timeout = match timeout {
                 TimeDuration::MAX => None,
                 t => Some(t.as_nanos() as u64),
@@ -128,7 +128,7 @@ impl OwnActivity {
         if crate::env::get().shared() {
             return tmif::wait(ep, irq, timeout);
         }
-        if crate::env::get().platform() != crate::env::Platform::HW {
+        if crate::env::get().platform() != crate::env::Platform::Hw {
             if let Some(ep) = ep {
                 let timeout = timeout.map(|t| t.as_nanos() as u64);
                 return TCU::wait_for_msg(ep, timeout);
