@@ -18,11 +18,13 @@
 use core::fmt;
 
 use bitflags::bitflags;
+
+use num_enum::IntoPrimitive;
+
 use m3::cfg;
 use m3::com::{EpMng, MemGate, RecvGate, SendGate, EP};
 use m3::errors::Error;
 use m3::goff;
-use m3::int_enum;
 use m3::kif::{Perm, TileDesc, TileISA, TileType};
 use m3::tcu::EpId;
 use m3::tiles::{ChildActivity, RunningDeviceActivity, Tile};
@@ -39,43 +41,43 @@ const MSG_SIZE: usize = 64;
 const BUF_SIZE: usize = MSG_SIZE * 8;
 
 // Common PCI offsets
-int_enum! {
-    pub struct Reg : goff {
-        const VENDOR_ID = 0x00;       // Vendor ID                    ro
-        const DEVICE_ID = 0x02;       // Device ID                    ro
-        const COMMAND = 0x04;         // Command                      rw
-        const STATUS = 0x06;          // Status                       rw
-        const REVISION_ID = 0x08;     // Revision ID                  ro
-        const CLASS_CODE = 0x09;      // Class Code                   ro
-        const SUB_CLASS_CODE = 0x0A;  // Sub Class Code               ro
-        const BASE_CLASS_CODE = 0x0B; // Base Class Code              ro
-        const CACHE_LINE_SIZE = 0x0C; // Cache Line Size              ro+
-        const LATENCY_TIMER = 0x0D;   // Latency Timer                ro+
-        const HEADER_TYPE = 0x0E;     // Header Type                  ro
-        const BIST = 0x0F;            // Built in self test           rw
-    }
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
+#[repr(u64)]
+pub enum Reg {
+    VendorId      = 0x00, // Vendor ID                    ro
+    DeviceId      = 0x02, // Device ID                    ro
+    Command       = 0x04, // Command                      rw
+    Status        = 0x06, // Status                       rw
+    RevisionId    = 0x08, // Revision ID                  ro
+    ClassCode     = 0x09, // Class Code                   ro
+    SubClassCode  = 0x0A, // Sub Class Code               ro
+    BaseClassCode = 0x0B, // Base Class Code              ro
+    CacheLineSize = 0x0C, // Cache Line Size              ro+
+    LatencyTimer  = 0x0D, // Latency Timer                ro+
+    HeaderType    = 0x0E, // Header Type                  ro
+    Bist          = 0x0F, // Built in self test           rw
 }
 
 // Type 0 PCI offsets
-int_enum! {
-    pub struct Type0 : goff {
-        const BASE_ADDR0 = 0x10;      // Base Address 0               rw
-        const BASE_ADDR1 = 0x14;      // Base Address 1               rw
-        const BASE_ADDR2 = 0x18;      // Base Address 2               rw
-        const BASE_ADDR3 = 0x1C;      // Base Address 3               rw
-        const BASE_ADDR4 = 0x20;      // Base Address 4               rw
-        const BASE_ADDR5 = 0x24;      // Base Address 5               rw
-        const CIS = 0x28;             // CardBus CIS Pointer          ro
-        const SUB_VENDOR_ID = 0x2C;   // Sub-Vendor ID                ro
-        const SUB_SYSTEM_ID = 0x2E;   // Sub-System ID                ro
-        const ROM_BASE_ADDR = 0x30;   // Expansion ROM Base Address   rw
-        const CAP_PTR = 0x34;         // Capability list pointer      ro
-        const RESERVED = 0x35;
-        const INTERRUPT_LINE = 0x3C;  // Interrupt Line               rw
-        const INTERRUPT_PIN = 0x3D;   // Interrupt Pin                ro
-        const MIN_GRANT = 0x3E;       // Maximum Grant                ro
-        const MAX_LATENCY = 0x3F;     // Maximum Latency              ro
-    }
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
+#[repr(u64)]
+pub enum Type0 {
+    BaseAddr0     = 0x10, // Base Address 0               rw
+    BaseAddr1     = 0x14, // Base Address 1               rw
+    BaseAddr2     = 0x18, // Base Address 2               rw
+    BaseAddr3     = 0x1C, // Base Address 3               rw
+    BaseAddr4     = 0x20, // Base Address 4               rw
+    BaseAddr5     = 0x24, // Base Address 5               rw
+    CIS           = 0x28, // CardBus CIS Pointer          ro
+    SubVendorId   = 0x2C, // Sub-Vendor ID                ro
+    SubSystemId   = 0x2E, // Sub-System ID                ro
+    RomBaseAddr   = 0x30, // Expansion ROM Base Address   rw
+    CapPtr        = 0x34, // Capability list pointer      ro
+    Reserved      = 0x35,
+    InterruptLine = 0x3C, // Interrupt Line               rw
+    InterruptPin  = 0x3D, // Interrupt Pin                ro
+    MinGrant      = 0x3E, // Maximum Grant                ro
+    MaxLatency    = 0x3F, // Maximum Latency              ro
 }
 
 pub struct Device {
@@ -318,14 +320,14 @@ impl Device {
         Ok(Info {
             // TODO this is hardcoded atm, because the device tile contains exactly one PCI device
             id: BDF::new(0, 0, 0),
-            vendor: self.read_config(Reg::VENDOR_ID.val)?,
-            device: self.read_config(Reg::DEVICE_ID.val)?,
-            ty: self.read_config(Reg::HEADER_TYPE.val)?,
-            revision: self.read_config(Reg::REVISION_ID.val)?,
-            prog_if: self.read_config(Reg::CLASS_CODE.val)?,
+            vendor: self.read_config(Reg::VendorId.into())?,
+            device: self.read_config(Reg::DeviceId.into())?,
+            ty: self.read_config(Reg::HeaderType.into())?,
+            revision: self.read_config(Reg::RevisionId.into())?,
+            prog_if: self.read_config(Reg::ClassCode.into())?,
             class: Class::new(
-                self.read_config(Reg::BASE_CLASS_CODE.val)?,
-                self.read_config(Reg::SUB_CLASS_CODE.val)?,
+                self.read_config(Reg::BaseClassCode.into())?,
+                self.read_config(Reg::SubClassCode.into())?,
             ),
             irq: 0,
             bars: [
@@ -340,14 +342,14 @@ impl Device {
     }
 
     fn read_bar(&self, idx: usize) -> Result<Bar, Error> {
-        let val: u32 = self.read_config(Type0::BASE_ADDR0.val + idx as goff * 4)?;
+        let val: u32 = self.read_config(Type0::BaseAddr0 as goff + idx as goff * 4)?;
         self.write_config(
-            Type0::BASE_ADDR0.val + idx as goff * 4,
+            Type0::BaseAddr0 as goff + idx as goff * 4,
             0xFFFF_FFF0 | (val & 0x1),
         )?;
 
         let mut flags = BarFlags::empty();
-        let mut size: u32 = self.read_config(Type0::BASE_ADDR0.val + idx as goff * 4)?;
+        let mut size: u32 = self.read_config(Type0::BaseAddr0 as goff + idx as goff * 4)?;
         let size = if size == 0 || size == 0xFFFF_FFFF {
             0
         }

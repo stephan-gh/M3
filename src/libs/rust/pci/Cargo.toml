@@ -9,4 +9,5 @@ crate-type = ["rlib"]
 
 [dependencies]
 bitflags = "2.1.0"
+num_enum = { version = "0.6.1", default-features = false }
 m3 = { path = "../m3" }

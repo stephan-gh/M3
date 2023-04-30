@@ -351,6 +351,7 @@ version = "0.1.0"
 dependencies = [
  "bitflags 2.1.0",
  "m3",
+ "num_enum",
 ]
 
 [[package]]
