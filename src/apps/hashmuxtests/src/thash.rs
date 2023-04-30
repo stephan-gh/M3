@@ -182,7 +182,7 @@ fn _hash_file_start(
     act.add_file(io::STDIN_FILENO, file.fd());
 
     let mut dst = act.data_sink();
-    dst.push(algo.ty.val);
+    dst.push(algo.ty);
     dst.push(expected);
 
     wv_assert_ok!(act.run(|| {
@@ -192,7 +192,7 @@ fn _hash_file_start(
         let expected_bytes = _to_hex_bytes(src.pop().unwrap());
 
         let algo = HashAlgorithm::from_type(ty).unwrap();
-        let mut hash = wv_assert_ok!(HashSession::new(&format!("hash{}", ty.val), algo));
+        let mut hash = wv_assert_ok!(HashSession::new(&format!("hash{}", ty as usize), algo));
         _hash_file(
             &mut t,
             io::stdin().get_mut(),

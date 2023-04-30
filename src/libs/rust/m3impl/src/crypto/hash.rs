@@ -12,7 +12,10 @@
  * General Public License version 2 for more details.
  */
 
-use crate::int_enum;
+use num_enum::IntoPrimitive;
+
+use serde_repr::{Deserialize_repr, Serialize_repr};
+
 use core::fmt;
 
 /// A static definition of the properties of a hash algorithm.
@@ -29,17 +32,17 @@ pub struct HashAlgorithm {
     pub output_bytes: usize,
 }
 
-int_enum! {
-    /// The hash type ID for [`HashAlgorithm`].
-    pub struct HashType : u64 {
-        // Note: Must match the order in HashAlgorithm::ALL
-        const SHA3_224 = 1;
-        const SHA3_256 = 2;
-        const SHA3_384 = 3;
-        const SHA3_512 = 4;
-        const SHAKE128 = 5;
-        const SHAKE256 = 6;
-    }
+/// The hash type ID for [`HashAlgorithm`].
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(usize)]
+pub enum HashType {
+    // Note: Must match the order in HashAlgorithm::ALL
+    SHA3_224 = 1,
+    SHA3_256,
+    SHA3_384,
+    SHA3_512,
+    SHAKE128,
+    SHAKE256,
 }
 
 impl HashAlgorithm {
@@ -79,7 +82,7 @@ impl HashAlgorithm {
 
     /// Obtain the [`HashAlgorithm`] from the specified [`HashType`], if valid.
     pub fn from_type(ty: HashType) -> Option<&'static HashAlgorithm> {
-        HashAlgorithm::ALL.get(ty.val as usize - 1).copied()
+        HashAlgorithm::ALL.get(ty as usize - 1).copied()
     }
 
     /// Obtain the [`HashAlgorithm`] from the specified name, if valid.

@@ -191,7 +191,7 @@ fn _start_client(params: ClientParams, rgate: &RecvGate, mgate: &MemGate) -> Cli
 
             log!(
                 LogFlags::Info,
-                "PERF \"hash {} bytes (slice: {} bytes) with {}\": {}\nthroughput {:.8} bytes/cycle",
+                "PERF \"hash {} bytes (slice: {} bytes) with {:?}\": {}\nthroughput {:.8} bytes/cycle",
                 params.size,
                 slice,
                 params.algo,

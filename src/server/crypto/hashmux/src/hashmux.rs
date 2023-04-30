@@ -688,7 +688,7 @@ impl HashMuxReceiver {
             KECACC.start_load(&state[to]);
         }
         else {
-            KECACC.start_init(sess.algo.unwrap().ty.val as u8);
+            KECACC.start_init(sess.algo.unwrap().ty as u8);
         }
     }
 }
