@@ -19,53 +19,53 @@ use base::const_assert;
 
 use bitflags::bitflags;
 
-use m3::goff;
-use m3::int_enum;
+use num_enum::IntoPrimitive;
+
 use m3::time::TimeDuration;
 
-int_enum! {
-    pub struct REG: goff {
-        const CTRL            = 0x0;           /* device control register */
-        const STATUS          = 0x8;           /* device status register */
-        const EECD            = 0x10;          /* EEPROM control/data register */
-        const EERD            = 0x14;          /* EEPROM read register */
-        const VET             = 0x38;          /* VLAN ether type */
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
+#[repr(u64)]
+pub enum REG {
+    CTRL   = 0x0,  /* device control register */
+    STATUS = 0x8,  /* device status register */
+    EECD   = 0x10, /* EEPROM control/data register */
+    EERD   = 0x14, /* EEPROM read register */
+    VET    = 0x38, /* VLAN ether type */
 
-        const ICR             = 0xc0;          /* interrupt cause read register */
-        const IMS             = 0xd0;          /* interrupt mask set/read register */
-        const IMC             = 0xd8;          /* interrupt mask clear register */
+    ICR    = 0xc0, /* interrupt cause read register */
+    IMS    = 0xd0, /* interrupt mask set/read register */
+    IMC    = 0xd8, /* interrupt mask clear register */
 
-        const RCTL            = 0x100;         /* receive control register */
-        const TCTL            = 0x400;         /* transmit control register */
+    RCTL   = 0x100, /* receive control register */
+    TCTL   = 0x400, /* transmit control register */
 
-        const PBA             = 0x1000;        /* packet buffer allocation */
-        const PBS             = 0x1008;        /* packet buffer size */
+    PBA    = 0x1000, /* packet buffer allocation */
+    PBS    = 0x1008, /* packet buffer size */
 
-        const RDBAL           = 0x2800;        /* register descriptor base address low */
-        const RDBAH           = 0x2804;        /* register descriptor base address high */
-        const RDLEN           = 0x2808;        /* register descriptor length */
-        const RDH             = 0x2810;        /* register descriptor head */
-        const RDT             = 0x2818;        /* register descriptor tail */
+    RDBAL  = 0x2800, /* register descriptor base address low */
+    RDBAH  = 0x2804, /* register descriptor base address high */
+    RDLEN  = 0x2808, /* register descriptor length */
+    RDH    = 0x2810, /* register descriptor head */
+    RDT    = 0x2818, /* register descriptor tail */
 
-        const RDTR            = 0x2820;        /* receive delay timer register */
-        const RDCTL           = 0x2828;        /* transmit descriptor control */
-        const RADV            = 0x282c;        /* receive absolute interrupt delay timer */
+    RDTR   = 0x2820, /* receive delay timer register */
+    RDCTL  = 0x2828, /* transmit descriptor control */
+    RADV   = 0x282c, /* receive absolute interrupt delay timer */
 
-        const TDBAL           = 0x3800;        /* transmit descriptor base address low */
-        const TDBAH           = 0x3804;        /* transmit descriptor base address high */
-        const TDLEN           = 0x3808;        /* transmit descriptor length */
-        const TDH             = 0x3810;        /* transmit descriptor head */
-        const TDT             = 0x3818;        /* transmit descriptor tail */
+    TDBAL  = 0x3800, /* transmit descriptor base address low */
+    TDBAH  = 0x3804, /* transmit descriptor base address high */
+    TDLEN  = 0x3808, /* transmit descriptor length */
+    TDH    = 0x3810, /* transmit descriptor head */
+    TDT    = 0x3818, /* transmit descriptor tail */
 
-        const TIDV            = 0x3820;        /* transmit interrupt delay value */
-        const TDCTL           = 0x3828;        /* transmit descriptor control */
-        const TADV            = 0x382c;        /* transmit absolute interrupt delay timer */
+    TIDV   = 0x3820, /* transmit interrupt delay value */
+    TDCTL  = 0x3828, /* transmit descriptor control */
+    TADV   = 0x382c, /* transmit absolute interrupt delay timer */
 
-        const RAL             = 0x5400;        /* filtering: receive address low */
-        const RAH             = 0x5404;        /* filtering: receive address high */
+    RAL    = 0x5400, /* filtering: receive address low */
+    RAH    = 0x5404, /* filtering: receive address high */
 
-        const RXCSUM          = 0x5000;        /* receive checksum control */
-    }
+    RXCSUM = 0x5000, /* receive checksum control */
 }
 
 bitflags! {

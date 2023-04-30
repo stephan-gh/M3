@@ -35,12 +35,12 @@ pub struct EEPROM {
 
 impl EEPROM {
     pub fn new(device: &Device) -> Result<Self, Error> {
-        device.write_reg(REG::EERD.val, EERD::START.bits() as u32)?;
+        device.write_reg(REG::EERD.into(), EERD::START.bits() as u32)?;
 
         let t = TimeInstant::now();
         let mut tried_once = false;
         while !tried_once && (TimeInstant::now() - t) < MAX_WAIT_TIME {
-            let value: u32 = device.read_reg(REG::EERD.val)?;
+            let value: u32 = device.read_reg(REG::EERD.into())?;
 
             if (value & EERD::DONE_LARGE.bits() as u32) > 0 {
                 log!(LogFlags::NetNIC, "e1000: detected large EERD");

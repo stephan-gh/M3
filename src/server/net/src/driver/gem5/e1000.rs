@@ -505,7 +505,7 @@ impl E1000 {
         // there is no reasonable way to continue if that fails -> panic
         let val: u32 = self
             .nic
-            .read_reg(reg.val)
+            .read_reg(reg.into())
             .expect("failed to read NIC register");
         log!(LogFlags::NetNICDbg, "e1000: REG[{:?}] -> {:#x}", reg, val);
         val
@@ -515,7 +515,7 @@ impl E1000 {
         log!(LogFlags::NetNICDbg, "e1000: REG[{:?}] <- {:#x}", reg, value);
         // there is no reasonable way to continue if that fails -> panic
         self.nic
-            .write_reg(reg.val, value)
+            .write_reg(reg.into(), value)
             .expect("failed to write NIC register");
     }
 
