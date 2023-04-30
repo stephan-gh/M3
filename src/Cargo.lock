@@ -169,6 +169,7 @@ dependencies = [
  "base",
  "cfg-if",
  "lang",
+ "num_enum",
  "paging",
 ]
 

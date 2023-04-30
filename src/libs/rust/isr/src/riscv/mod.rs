@@ -15,12 +15,15 @@
 
 use base::backtrace;
 use base::env;
-use base::int_enum;
 use base::kif::PageFlags;
 use base::libc;
 use base::tcu;
 use base::{read_csr, set_csr_bits, write_csr};
+
+use core::convert::TryFrom;
 use core::fmt;
+
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::IRQSource;
 use crate::StateArch;
@@ -58,35 +61,35 @@ impl crate::StateArch for RISCVState {
     }
 }
 
-int_enum! {
-    pub struct Vector : usize {
-        // exceptions
-        const INSTR_MISALIGNED = 0;
-        const INSTR_ACC_FAULT = 1;
-        const ILLEGAL_INSTR = 2;
-        const BREAKPOINT = 3;
-        const LOAD_MISALIGNED = 4;
-        const LOAD_ACC_FAULT = 5;
-        const STORE_MISALIGNED = 6;
-        const STORE_ACC_FAULT = 7;
-        const ENV_UCALL = 8;
-        const ENV_SCALL = 9;
-        const ENV_MCALL = 11;
-        const INSTR_PAGEFAULT = 12;
-        const LOAD_PAGEFAULT = 13;
-        const STORE_PAGEFAULT = 15;
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
+#[repr(usize)]
+pub enum Vector {
+    // exceptions
+    InstrMisaligned,
+    InstrAccFault,
+    IllegalInstr,
+    Breakpoint,
+    LoadMisaligned,
+    LoadAccFault,
+    StoreMisaligned,
+    StoreAccFault,
+    EnvUCall,
+    EnvSCall,
+    EnvMCall       = 11,
+    InstrPagefault,
+    LoadPagefault,
+    StorePagefault = 15,
 
-        // interrupts
-        const USER_SW_IRQ = 16;
-        const SUPER_SW_IRQ = 17;
-        const MACH_SW_IRQ = 19;
-        const USER_TIMER_IRQ = 20;
-        const SUPER_TIMER_IRQ = 21;
-        const MACH_TIMER_IRQ = 23;
-        const USER_EXT_IRQ = 24;
-        const SUPER_EXT_IRQ = 25;
-        const MACH_EXT_IRQ = 27;
-    }
+    // interrupts
+    UserSWIRQ,
+    SuperSWIRQ,
+    MachSWIRQ      = 19,
+    UserTimerIRQ,
+    SuperTimerIRQ,
+    MachTimerIRQ   = 23,
+    UserExtIRQ,
+    SuperExtIRQ,
+    MachExtIRQ     = 27,
 }
 
 impl fmt::Debug for RISCVState {
@@ -98,7 +101,7 @@ impl fmt::Debug for RISCVState {
             self.cause & 0xF
         };
 
-        writeln!(fmt, "  vec: {:#x} ({})", vec, Vector::from(vec))?;
+        writeln!(fmt, "  vec: {:#x} ({:?})", vec, Vector::try_from(vec))?;
         for (idx, r) in { self.r }.iter().enumerate() {
             writeln!(fmt, "  r[{:02}]:  {:#x}", idx + 1, r)?;
         }
@@ -222,45 +225,45 @@ impl crate::ISRArch for RISCVISR {
     }
 
     fn reg_tm_calls(handler: crate::IsrFunc) {
-        crate::reg(Vector::ENV_UCALL.val, handler);
-        crate::reg(Vector::ENV_SCALL.val, handler);
+        crate::reg(Vector::EnvUCall.into(), handler);
+        crate::reg(Vector::EnvSCall.into(), handler);
     }
 
     fn reg_page_faults(handler: crate::IsrFunc) {
-        crate::reg(Vector::INSTR_PAGEFAULT.val, handler);
-        crate::reg(Vector::LOAD_PAGEFAULT.val, handler);
-        crate::reg(Vector::STORE_PAGEFAULT.val, handler);
+        crate::reg(Vector::InstrPagefault.into(), handler);
+        crate::reg(Vector::LoadPagefault.into(), handler);
+        crate::reg(Vector::StorePagefault.into(), handler);
     }
 
     fn reg_core_reqs(handler: crate::IsrFunc) {
         if env::boot().platform == env::Platform::Hw {
-            crate::reg(Vector::MACH_EXT_IRQ.val, handler);
+            crate::reg(Vector::MachExtIRQ.into(), handler);
         }
         else {
-            crate::reg(Vector::SUPER_EXT_IRQ.val, handler);
+            crate::reg(Vector::SuperExtIRQ.into(), handler);
         }
     }
 
     fn reg_illegal_instr(handler: crate::IsrFunc) {
-        crate::reg(Vector::ILLEGAL_INSTR.val, handler);
+        crate::reg(Vector::IllegalInstr.into(), handler);
     }
 
     fn reg_timer(handler: crate::IsrFunc) {
-        crate::reg(Vector::SUPER_TIMER_IRQ.val, handler);
+        crate::reg(Vector::SuperTimerIRQ.into(), handler);
     }
 
     fn reg_external(handler: crate::IsrFunc) {
-        crate::reg(Vector::SUPER_EXT_IRQ.val, handler);
-        crate::reg(Vector::MACH_EXT_IRQ.val, handler);
+        crate::reg(Vector::SuperExtIRQ.into(), handler);
+        crate::reg(Vector::MachExtIRQ.into(), handler);
     }
 
     fn get_pf_info(state: &Self::State) -> (usize, PageFlags) {
         let virt = read_csr!("stval");
 
-        let perm = match Vector::from(state.cause & 0x1F) {
-            Vector::INSTR_PAGEFAULT => PageFlags::R | PageFlags::X,
-            Vector::LOAD_PAGEFAULT => PageFlags::R,
-            Vector::STORE_PAGEFAULT => PageFlags::R | PageFlags::W,
+        let perm = match Vector::try_from(state.cause & 0x1F).unwrap() {
+            Vector::InstrPagefault => PageFlags::R | PageFlags::X,
+            Vector::LoadPagefault => PageFlags::R,
+            Vector::StorePagefault => PageFlags::R | PageFlags::W,
             _ => unreachable!(),
         };
         (virt, perm)

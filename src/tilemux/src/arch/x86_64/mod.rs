@@ -56,8 +56,8 @@ pub fn init_state(state: &mut State, entry: usize, sp: usize) {
     state.rflags = 0x200; // enable interrupts
 
     // run in user mode
-    state.cs = ((isr::Segment::UCODE.val << 3) | isr::DPL::USER.val) as usize;
-    state.ss = ((isr::Segment::UDATA.val << 3) | isr::DPL::USER.val) as usize;
+    state.cs = ((isr::Segment::UCode as usize) << 3) | isr::DPL::User as usize;
+    state.ss = ((isr::Segment::UData as usize) << 3) | isr::DPL::User as usize;
 }
 
 pub fn forget_fpu(act_id: activities::Id) {

@@ -17,13 +17,15 @@
  */
 
 use base::backtrace;
-use base::int_enum;
 use base::kif::PageFlags;
 use base::libc;
 use base::tcu;
 
 use core::arch::asm;
+use core::convert::TryFrom;
 use core::fmt;
+
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::IRQSource;
 use crate::StateArch;
@@ -65,17 +67,17 @@ impl crate::StateArch for ARMState {
     }
 }
 
-int_enum! {
-    pub struct Vector : usize {
-        const RESET = 0;
-        const UNDEF_INSTR = 1;
-        const SWI = 2;
-        const PREFETCH_ABORT = 3;
-        const DATA_ABORT = 4;
-        const RESERVED = 5;
-        const IRQ = 6;
-        const FIQ = 7;
-    }
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
+#[repr(usize)]
+pub enum Vector {
+    Reset,
+    UndefInstr,
+    SWI,
+    PrefetchAbort,
+    DataAbort,
+    _Reserved,
+    IRQ,
+    FIQ,
 }
 
 impl fmt::Debug for ARMState {
@@ -84,9 +86,9 @@ impl fmt::Debug for ARMState {
         writeln!(fmt, "  sp:     {:#x}", { self.sp })?;
         writeln!(
             fmt,
-            "  vec:    {:#x} ({})",
+            "  vec:    {:#x} ({:?})",
             { self.vec },
-            Vector::from(self.vec)
+            Vector::try_from(self.vec)
         )?;
         writeln!(fmt, "  klr:    {:#x}", { self.klr })?;
         for (idx, r) in { self.r }.iter().enumerate() {
@@ -133,16 +135,16 @@ impl crate::ISRArch for ARMISR {
     }
 
     fn reg_tm_calls(handler: crate::IsrFunc) {
-        crate::reg(Vector::SWI.val, handler);
+        crate::reg(Vector::SWI.into(), handler);
     }
 
     fn reg_page_faults(handler: crate::IsrFunc) {
-        crate::reg(Vector::PREFETCH_ABORT.val, handler);
-        crate::reg(Vector::DATA_ABORT.val, handler);
+        crate::reg(Vector::PrefetchAbort.into(), handler);
+        crate::reg(Vector::DataAbort.into(), handler);
     }
 
     fn reg_core_reqs(handler: crate::IsrFunc) {
-        crate::reg(Vector::IRQ.val, handler);
+        crate::reg(Vector::IRQ.into(), handler);
     }
 
     fn reg_illegal_instr(_handler: crate::IsrFunc) {
@@ -150,14 +152,14 @@ impl crate::ISRArch for ARMISR {
     }
 
     fn reg_timer(handler: crate::IsrFunc) {
-        crate::reg(Vector::IRQ.val, handler);
+        crate::reg(Vector::IRQ.into(), handler);
     }
 
     fn reg_external(_handler: crate::IsrFunc) {
     }
 
     fn get_pf_info(state: &Self::State) -> (usize, PageFlags) {
-        let (virt, perm) = if state.vec == Vector::DATA_ABORT.val {
+        let (virt, perm) = if state.vec == Vector::DataAbort.into() {
             let dfar: usize;
             let dfsr: usize;
             unsafe {

@@ -16,7 +16,6 @@
 use base::backtrace;
 use base::cell::StaticRefCell;
 use base::cfg;
-use base::int_enum;
 use base::kif::PageFlags;
 use base::libc;
 use base::mem;
@@ -26,6 +25,8 @@ use base::tcu;
 use core::arch::asm;
 use core::fmt;
 use core::ops::Deref;
+
+use num_enum::IntoPrimitive;
 
 use crate::IRQSource;
 use crate::StateArch;
@@ -44,22 +45,22 @@ pub const TMC_ARG2: usize = 11; // rdx
 pub const TMC_ARG3: usize = 10; // rdi
 pub const TMC_ARG4: usize = 9; // rsi
 
-int_enum! {
-    pub struct DPL : u8 {
-        const KERNEL = 0x0;
-        const USER   = 0x3;
-    }
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
+#[repr(u8)]
+pub enum DPL {
+    Kernel = 0,
+    User   = 3,
 }
 
-int_enum! {
-    pub struct Segment : u8 {
-        const KCODE = 1;
-        const KDATA = 2;
-        const UCODE = 3;
-        const UDATA = 4;
-        const UTLS  = 5;
-        const TSS   = 6;
-    }
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
+#[repr(u8)]
+pub enum Segment {
+    KCode = 1,
+    KData,
+    UCode,
+    UData,
+    UTLS,
+    TSS,
 }
 
 #[derive(Default)]
@@ -90,7 +91,7 @@ impl crate::StateArch for X86State {
     }
 
     fn came_from_user(&self) -> bool {
-        (self.cs & DPL::USER.val as usize) == DPL::USER.val as usize
+        (self.cs & DPL::User as usize) == DPL::User as usize
     }
 }
 
@@ -162,38 +163,41 @@ struct Desc {
     addr_high: u16,
 }
 
-int_enum! {
-    struct DescType : u8 {
-        const NULL            = 0x00;
-        const SYS_TASK_GATE   = 0x05;
-        const SYS_TSS         = 0x09;
-        const SYS_INTR_GATE   = 0x0E;
-        const DATA_RO         = 0x10;
-        const DATA_RW         = 0x12;
-        const CODE_X          = 0x18;
-        const CODE_XR         = 0x1A;
-    }
+#[allow(dead_code)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
+#[repr(u8)]
+enum DescType {
+    Null        = 0x00,
+    SysTaskGate = 0x05,
+    SysTSS      = 0x09,
+    SysIntrGate = 0x0E,
+    DataRO      = 0x10,
+    DataRW      = 0x12,
+    CodeX       = 0x18,
+    CodeXR      = 0x1A,
 }
 
-int_enum! {
-    struct Bits : u8 {
-        const B32 = 0 << 5;
-        const B64 = 1 << 5;
-    }
+#[allow(dead_code)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
+#[repr(u8)]
+enum Bits {
+    B32 = 0 << 5,
+    B64 = 1 << 5,
 }
 
-int_enum! {
-    struct Size : u8 {
-        const S16 = 0 << 6; // 16 bit protected mode
-        const S32 = 1 << 6; // 32 bit protected mode
-    }
+#[allow(dead_code)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
+#[repr(u8)]
+enum Size {
+    S16 = 0 << 6, // 16 bit protected mode
+    S32 = 1 << 6, // 32 bit protected mode
 }
 
-int_enum! {
-    struct Granularity : u8 {
-        const BYTES = 0 << 7;
-        const PAGES = 1 << 7;
-    }
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
+#[repr(u8)]
+enum Granularity {
+    Bytes = 0 << 7,
+    Pages = 1 << 7,
 }
 
 impl Desc {
@@ -212,13 +216,13 @@ impl Desc {
     }
 
     fn new(addr: usize, limit: usize, granu: Granularity, ty: DescType, dpl: DPL) -> Self {
-        let misc = (Bits::B64.val | Size::S16.val | granu.val) as u16;
+        let misc = (Bits::B64 as u8 | Size::S16 as u8 | granu as u8) as u16;
         Self {
             addr_low: addr as u16,
             addr_middle: (addr >> 16) as u8,
             addr_high: ((addr & 0xFF00_0000) >> 16) as u16 | ((limit >> 16) & 0xF) as u16 | misc,
             limit_low: (limit & 0xFFFF) as u16,
-            ty: (1 << 7) /* present */ | (dpl.val << 5) | ty.val,
+            ty: (1 << 7) /* present */ | ((dpl as u8) << 5) | (ty as u8),
         }
     }
 
@@ -250,7 +254,7 @@ impl Desc64 {
 
     fn new_tss(addr: usize, limit: usize, granu: Granularity, dpl: DPL) -> Self {
         Self {
-            low: Desc::new(addr, limit, granu, DescType::SYS_TSS, dpl),
+            low: Desc::new(addr, limit, granu, DescType::SysTSS, dpl),
             addr_upper: (addr >> 32) as u32,
             _reserved: 0,
         }
@@ -261,11 +265,11 @@ impl Desc64 {
         let present = (no != 2 && no != 15) as u8; // reserved by intel
         Self {
             low: Desc {
-                addr_low: (Segment::KCODE.val as u16) << 3,
+                addr_low: (Segment::KCode as u16) << 3,
                 addr_middle: 0,
                 addr_high: (func_addr >> 16) as u16,
                 limit_low: (func_addr & 0xFFFF) as u16,
-                ty: (present << 7) | (dpl.val << 5) | DescType::SYS_INTR_GATE.val,
+                ty: (present << 7) | ((dpl as u8) << 5) | (DescType::SysIntrGate as u8),
             },
             addr_upper: (func_addr >> 32) as u32,
             _reserved: 0,
@@ -401,17 +405,17 @@ impl crate::ISRArch for X86ISR {
         // initialize GDT
         {
             let gdt = &mut GDT.borrow_mut().inner;
-            gdt.kcode = Desc::new_flat(Granularity::PAGES, DescType::CODE_XR, DPL::KERNEL);
-            gdt.kdata = Desc::new_flat(Granularity::PAGES, DescType::DATA_RW, DPL::KERNEL);
-            gdt.ucode = Desc::new_flat(Granularity::PAGES, DescType::CODE_XR, DPL::USER);
-            gdt.udata = Desc::new_flat(Granularity::PAGES, DescType::DATA_RW, DPL::USER);
-            gdt.utls = Desc::new_flat(Granularity::PAGES, DescType::DATA_RW, DPL::USER);
+            gdt.kcode = Desc::new_flat(Granularity::Pages, DescType::CodeXR, DPL::Kernel);
+            gdt.kdata = Desc::new_flat(Granularity::Pages, DescType::DataRW, DPL::Kernel);
+            gdt.ucode = Desc::new_flat(Granularity::Pages, DescType::CodeXR, DPL::User);
+            gdt.udata = Desc::new_flat(Granularity::Pages, DescType::DataRW, DPL::User);
+            gdt.utls = Desc::new_flat(Granularity::Pages, DescType::DataRW, DPL::User);
             let tss = TSS.borrow();
             gdt.tss = Desc64::new_tss(
                 tss.deref() as *const _ as *const u8 as usize,
                 mem::size_of::<TSSInner>() - 1,
-                Granularity::BYTES,
-                DPL::KERNEL,
+                Granularity::Bytes,
+                DPL::Kernel,
             );
 
             // load GDT and TSS
@@ -419,7 +423,7 @@ impl crate::ISRArch for X86ISR {
                 size: (mem::size_of::<GDT>() - 1) as u16,
                 offset: gdt as *const _ as *const u8 as u64,
             };
-            let tss_off = Segment::TSS.val as usize * mem::size_of::<Desc>();
+            let tss_off = Segment::TSS as usize * mem::size_of::<Desc>();
             unsafe {
                 asm!(
                     "lgdt [{0}]",
@@ -435,35 +439,35 @@ impl crate::ISRArch for X86ISR {
         // setup the idt
         {
             let mut idt = IDT.borrow_mut();
-            idt.set(0, isr_0, DPL::KERNEL);
-            idt.set(1, isr_1, DPL::KERNEL);
-            idt.set(2, isr_2, DPL::KERNEL);
-            idt.set(3, isr_3, DPL::KERNEL);
-            idt.set(4, isr_4, DPL::KERNEL);
-            idt.set(5, isr_5, DPL::KERNEL);
-            idt.set(6, isr_6, DPL::KERNEL);
-            idt.set(7, isr_7, DPL::KERNEL);
-            idt.set(8, isr_8, DPL::KERNEL);
-            idt.set(9, isr_9, DPL::KERNEL);
-            idt.set(10, isr_10, DPL::KERNEL);
-            idt.set(11, isr_11, DPL::KERNEL);
-            idt.set(12, isr_12, DPL::KERNEL);
-            idt.set(13, isr_13, DPL::KERNEL);
-            idt.set(14, isr_14, DPL::KERNEL);
-            idt.set(15, isr_15, DPL::KERNEL);
-            idt.set(16, isr_16, DPL::KERNEL);
+            idt.set(0, isr_0, DPL::Kernel);
+            idt.set(1, isr_1, DPL::Kernel);
+            idt.set(2, isr_2, DPL::Kernel);
+            idt.set(3, isr_3, DPL::Kernel);
+            idt.set(4, isr_4, DPL::Kernel);
+            idt.set(5, isr_5, DPL::Kernel);
+            idt.set(6, isr_6, DPL::Kernel);
+            idt.set(7, isr_7, DPL::Kernel);
+            idt.set(8, isr_8, DPL::Kernel);
+            idt.set(9, isr_9, DPL::Kernel);
+            idt.set(10, isr_10, DPL::Kernel);
+            idt.set(11, isr_11, DPL::Kernel);
+            idt.set(12, isr_12, DPL::Kernel);
+            idt.set(13, isr_13, DPL::Kernel);
+            idt.set(14, isr_14, DPL::Kernel);
+            idt.set(15, isr_15, DPL::Kernel);
+            idt.set(16, isr_16, DPL::Kernel);
 
             // all other interrupts
             for i in 17..=62 {
-                idt.set(i, isr_null, DPL::KERNEL);
+                idt.set(i, isr_null, DPL::Kernel);
             }
 
             // TileMux calls
-            idt.set(TMC_ISR, isr_63, DPL::USER);
+            idt.set(TMC_ISR, isr_63, DPL::User);
             // TCU interrupts
-            idt.set(TCU_ISR, isr_64, DPL::KERNEL);
+            idt.set(TCU_ISR, isr_64, DPL::Kernel);
             // Timer interrupts
-            idt.set(TIMER_ISR, isr_65, DPL::KERNEL);
+            idt.set(TIMER_ISR, isr_65, DPL::Kernel);
 
             // now we can use our idt
             let idt_tbl = DescTable {
@@ -519,7 +523,7 @@ impl crate::ISRArch for X86ISR {
     fn init_tls(addr: usize) {
         let gdt = &mut GDT.borrow_mut().inner;
         gdt.utls.set_addr(addr);
-        let fs: u64 = (Segment::UTLS.val << 3) as u64 | DPL::USER.val as u64;
+        let fs: u64 = ((Segment::UTLS as u64) << 3) | DPL::User as u64;
         unsafe {
             asm!(
                 "mov fs, {0}",
