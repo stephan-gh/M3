@@ -19,6 +19,7 @@ dependencies = [
  "num-traits",
  "num_enum",
  "serde",
+ "serde_repr",
  "static_assertions",
 ]
 

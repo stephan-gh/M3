@@ -178,7 +178,7 @@ fn testcliexit(t: &mut dyn WvTester) {
             args.bytes = size_of_val(&args.data[0]);
             build_vmsg!(
                 req_buf,
-                kif::syscalls::Operation::EXCHANGE_SESS,
+                kif::syscalls::Operation::ExchangeSess,
                 kif::syscalls::ExchangeSess {
                     act: Activity::own().sel(),
                     sess: sess.sel(),

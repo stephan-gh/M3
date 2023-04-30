@@ -13,8 +13,11 @@
  * General Public License version 2 for more details.
  */
 
+use core::convert::TryFrom;
+
 use base::build_vmsg;
 use base::errors::{Code, Error};
+use base::format;
 use base::io::LogFlags;
 use base::kif;
 use base::log;
@@ -115,43 +118,42 @@ pub fn handle_async(msg: &'static tcu::Message) {
     let act: Rc<Activity> = ActivityMng::activity(msg.header.label() as tcu::ActId).unwrap();
 
     let opcode = msg.as_words()[0];
-    let op = kif::syscalls::Operation::from(opcode);
+    let op = kif::syscalls::Operation::try_from(opcode)
+        .expect(&format!("Unexpected operation {}", opcode));
     let res = match op {
-        kif::syscalls::Operation::CREATE_MGATE => create::create_mgate(&act, msg),
-        kif::syscalls::Operation::CREATE_RGATE => create::create_rgate(&act, msg),
-        kif::syscalls::Operation::CREATE_SGATE => create::create_sgate(&act, msg),
-        kif::syscalls::Operation::CREATE_SRV => create::create_srv(&act, msg),
-        kif::syscalls::Operation::CREATE_SESS => create::create_sess(&act, msg),
-        kif::syscalls::Operation::CREATE_ACT => create::create_activity_async(&act, msg),
-        kif::syscalls::Operation::CREATE_SEM => create::create_sem(&act, msg),
-        kif::syscalls::Operation::CREATE_MAP => create::create_map_async(&act, msg),
+        kif::syscalls::Operation::CreateMGate => create::create_mgate(&act, msg),
+        kif::syscalls::Operation::CreateRGate => create::create_rgate(&act, msg),
+        kif::syscalls::Operation::CreateSGate => create::create_sgate(&act, msg),
+        kif::syscalls::Operation::CreateSrv => create::create_srv(&act, msg),
+        kif::syscalls::Operation::CreateSess => create::create_sess(&act, msg),
+        kif::syscalls::Operation::CreateAct => create::create_activity_async(&act, msg),
+        kif::syscalls::Operation::CreateSem => create::create_sem(&act, msg),
+        kif::syscalls::Operation::CreateMap => create::create_map_async(&act, msg),
 
-        kif::syscalls::Operation::DERIVE_TILE => derive::derive_tile_async(&act, msg),
-        kif::syscalls::Operation::DERIVE_MEM => derive::derive_mem(&act, msg),
-        kif::syscalls::Operation::DERIVE_KMEM => derive::derive_kmem(&act, msg),
-        kif::syscalls::Operation::DERIVE_SRV => derive::derive_srv_async(&act, msg),
+        kif::syscalls::Operation::DeriveTile => derive::derive_tile_async(&act, msg),
+        kif::syscalls::Operation::DeriveMem => derive::derive_mem(&act, msg),
+        kif::syscalls::Operation::DeriveKMem => derive::derive_kmem(&act, msg),
+        kif::syscalls::Operation::DeriveSrv => derive::derive_srv_async(&act, msg),
 
-        kif::syscalls::Operation::EXCHANGE => exchange::exchange(&act, msg),
-        kif::syscalls::Operation::EXCHANGE_SESS => exchange::exchange_over_sess_async(&act, msg),
-        kif::syscalls::Operation::REVOKE => exchange::revoke_async(&act, msg),
+        kif::syscalls::Operation::Exchange => exchange::exchange(&act, msg),
+        kif::syscalls::Operation::ExchangeSess => exchange::exchange_over_sess_async(&act, msg),
+        kif::syscalls::Operation::Revoke => exchange::revoke_async(&act, msg),
 
-        kif::syscalls::Operation::ALLOC_EP => misc::alloc_ep(&act, msg),
-        kif::syscalls::Operation::SET_PMP => misc::set_pmp(&act, msg),
-        kif::syscalls::Operation::ACTIVATE => misc::activate_async(&act, msg),
-        kif::syscalls::Operation::MGATE_REGION => misc::mgate_region(&act, msg),
-        kif::syscalls::Operation::RGATE_BUFFER => misc::rgate_buffer(&act, msg),
-        kif::syscalls::Operation::KMEM_QUOTA => misc::kmem_quota(&act, msg),
-        kif::syscalls::Operation::TILE_QUOTA => misc::tile_quota_async(&act, msg),
-        kif::syscalls::Operation::TILE_SET_QUOTA => misc::tile_set_quota_async(&act, msg),
-        kif::syscalls::Operation::GET_SESS => misc::get_sess(&act, msg),
-        kif::syscalls::Operation::SEM_CTRL => misc::sem_ctrl_async(&act, msg),
-        kif::syscalls::Operation::ACT_CTRL => misc::activity_ctrl_async(&act, msg),
-        kif::syscalls::Operation::ACT_WAIT => misc::activity_wait_async(&act, msg),
+        kif::syscalls::Operation::AllocEP => misc::alloc_ep(&act, msg),
+        kif::syscalls::Operation::SetPMP => misc::set_pmp(&act, msg),
+        kif::syscalls::Operation::Activate => misc::activate_async(&act, msg),
+        kif::syscalls::Operation::MGateRegion => misc::mgate_region(&act, msg),
+        kif::syscalls::Operation::RGateBuffer => misc::rgate_buffer(&act, msg),
+        kif::syscalls::Operation::KMemQuota => misc::kmem_quota(&act, msg),
+        kif::syscalls::Operation::TileQuota => misc::tile_quota_async(&act, msg),
+        kif::syscalls::Operation::TileSetQuota => misc::tile_set_quota_async(&act, msg),
+        kif::syscalls::Operation::GetSess => misc::get_sess(&act, msg),
+        kif::syscalls::Operation::SemCtrl => misc::sem_ctrl_async(&act, msg),
+        kif::syscalls::Operation::ActCtrl => misc::activity_ctrl_async(&act, msg),
+        kif::syscalls::Operation::ActWait => misc::activity_wait_async(&act, msg),
 
-        kif::syscalls::Operation::RESET_STATS => misc::reset_stats(&act, msg),
-        kif::syscalls::Operation::NOOP => misc::noop(&act, msg),
-
-        _ => panic!("Unexpected operation: {}", opcode),
+        kif::syscalls::Operation::ResetStats => misc::reset_stats(&act, msg),
+        kif::syscalls::Operation::Noop => misc::noop(&act, msg),
     };
 
     if let Err(e) = res {

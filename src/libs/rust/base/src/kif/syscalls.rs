@@ -18,6 +18,10 @@
 
 //! The system call interface
 
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+
+use serde_repr::{Deserialize_repr, Serialize_repr};
+
 use crate::errors::Code;
 use crate::goff;
 use crate::kif::{tilemux::QuotaId, CapRngDesc, CapSel, Perm};
@@ -31,46 +35,56 @@ pub const MAX_EXCHG_ARGS: usize = 8;
 /// The maximum number of activities one can wait for
 pub const MAX_WAIT_ACTS: usize = 32;
 
-int_enum! {
-    /// The system calls
-    pub struct Operation : u64 {
-        // Capability creations
-        const CREATE_SRV = 0;
-        const CREATE_SESS = 1;
-        const CREATE_MGATE = 2;
-        const CREATE_RGATE = 3;
-        const CREATE_SGATE = 4;
-        const CREATE_MAP = 5;
-        const CREATE_ACT = 6;
-        const CREATE_SEM = 7;
-        const ALLOC_EP = 8;
+/// The system calls
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    IntoPrimitive,
+    TryFromPrimitive,
+    Serialize_repr,
+    Deserialize_repr,
+)]
+#[repr(u64)]
+pub enum Operation {
+    // Capability creations
+    CreateSrv,
+    CreateSess,
+    CreateMGate,
+    CreateRGate,
+    CreateSGate,
+    CreateMap,
+    CreateAct,
+    CreateSem,
+    AllocEP,
 
-        // Capability operations
-        const ACTIVATE = 9;
-        const SET_PMP = 10;
-        const ACT_CTRL = 11;
-        const ACT_WAIT = 12;
-        const DERIVE_MEM = 13;
-        const DERIVE_KMEM = 14;
-        const DERIVE_TILE = 15;
-        const DERIVE_SRV = 16;
-        const GET_SESS = 17;
-        const MGATE_REGION = 18;
-        const RGATE_BUFFER = 19;
-        const KMEM_QUOTA = 20;
-        const TILE_QUOTA = 21;
-        const TILE_SET_QUOTA = 22;
-        const SEM_CTRL = 23;
+    // Capability operations
+    Activate,
+    SetPMP,
+    ActCtrl,
+    ActWait,
+    DeriveMem,
+    DeriveKMem,
+    DeriveTile,
+    DeriveSrv,
+    GetSess,
+    MGateRegion,
+    RGateBuffer,
+    KMemQuota,
+    TileQuota,
+    TileSetQuota,
+    SemCtrl,
 
-        // Capability exchange
-        const EXCHANGE_SESS = 24;
-        const EXCHANGE = 25;
-        const REVOKE = 26;
+    // Capability exchange
+    ExchangeSess,
+    Exchange,
+    Revoke,
 
-        // Misc
-        const RESET_STATS = 27;
-        const NOOP = 28;
-    }
+    // Misc
+    ResetStats,
+    Noop,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -173,12 +187,12 @@ pub struct SetPMP {
     pub overwrite: bool,
 }
 
-int_enum! {
-    /// The operations for the `act_ctrl` system call
-    pub struct ActivityOp : u64 {
-        const START = 0x1;
-        const STOP  = 0x2;
-    }
+/// The operations for the `act_ctrl` system call
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(u64)]
+pub enum ActivityOp {
+    START = 1,
+    STOP,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -276,12 +290,12 @@ pub struct TileSetQuota {
     pub pts: usize,
 }
 
-int_enum! {
-    /// The operations for the `sem_ctrl` system call
-    pub struct SemOp : u64 {
-        const UP   = 0x0;
-        const DOWN = 0x1;
-    }
+/// The operations for the `sem_ctrl` system call
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(u64)]
+pub enum SemOp {
+    UP,
+    DOWN,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

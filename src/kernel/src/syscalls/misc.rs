@@ -550,7 +550,7 @@ pub fn activate_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<
 #[inline(never)]
 pub fn sem_ctrl_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
     let r: syscalls::SemCtrl = get_request(msg)?;
-    sysc_log!(act, "sem_ctrl(sem={}, op={})", r.sem, r.op);
+    sysc_log!(act, "sem_ctrl(sem={}, op={:?})", r.sem, r.op);
 
     let sem = get_kobj!(act, r.sem, Sem);
 
@@ -566,8 +566,6 @@ pub fn sem_ctrl_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<
                 sysc_err!(e.code(), "Semaphore operation failed");
             }
         },
-
-        _ => sysc_err!(Code::InvArgs, "ActivityOp unsupported: {:?}", r.op),
     }
 
     reply_success(msg);
@@ -609,8 +607,6 @@ pub fn activity_ctrl_async(
                 return Ok(());
             }
         },
-
-        _ => sysc_err!(Code::InvArgs, "ActivityOp unsupported: {:?}", r.op),
     };
 
     reply_success(msg);
