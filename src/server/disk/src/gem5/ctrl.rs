@@ -13,10 +13,11 @@
  * General Public License version 2 for more details.
  */
 
+use num_enum::IntoPrimitive;
+
 use m3::col::Vec;
 use m3::com::{opcodes, MemGate};
 use m3::errors::Error;
-use m3::int_enum;
 use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
@@ -38,24 +39,24 @@ pub const IDE_CTRL_BAR: usize = 4;
 
 pub const DEVICE_COUNT: usize = 4;
 
-int_enum! {
-    pub struct DeviceId : u32 {
-        const PRIM_MASTER   = 0x0;
-        const PRIM_SLAVE    = 0x1;
-        const SEC_MASTER    = 0x2;
-        const SEC_SLAVE     = 0x3;
-    }
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
+#[repr(u32)]
+pub enum DeviceId {
+    PrimMaster,
+    PrimSlave,
+    SecMaster,
+    SecSlave,
 }
 
-int_enum! {
-    pub struct ControlFlag : u8 {
-        // set this to read back the High Order Byte of the last LBA48 value sent to an IO port.
-        const HIGH_ORDER_BYTE = 1 << 7;
-        // software reset -- set this to reset all ATA drives on a bus, if one is misbehaving.
-        const SOFTWARE_RESET = 1 << 2;
-        // set this to stop the current device from sending interrupts.
-        const NIEN = 1 << 1;
-    }
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
+#[repr(u8)]
+pub enum ControlFlag {
+    // set this to read back the High Order Byte of the last LBA48 value sent to an IO port.
+    HighOrderByte = 1 << 7,
+    // software reset -- set this to reset all ATA drives on a bus, if one is misbehaving.
+    SoftwareReset = 1 << 2,
+    // set this to stop the current device from sending interrupts.
+    NIEN          = 1 << 1,
 }
 
 pub struct IDEController {

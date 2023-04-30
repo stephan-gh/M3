@@ -181,14 +181,14 @@ impl Channel {
             id,
             extra
         );
-        self.write_pio(ATAReg::DRIVE_SELECT, extra | ((id & 0x1) << 4))
+        self.write_pio(ATAReg::DriveSelect, extra | ((id & 0x1) << 4))
             .map(|_| self.wait())
     }
 
     pub fn wait(&self) {
         for _ in 0..4 {
             self.pci_dev
-                .read_config::<u8>((self.port_base + ATAReg::STATUS.val) as goff)
+                .read_config::<u8>((self.port_base + ATAReg::CmdStatus as u16) as goff)
                 .unwrap();
         }
     }
@@ -220,10 +220,10 @@ impl Channel {
 
         let mut elapsed = TimeDuration::ZERO;
         while elapsed < timeout {
-            let status: u8 = self.read_pio(ATAReg::STATUS)?;
+            let status: u8 = self.read_pio(ATAReg::CmdStatus)?;
             if (status & CommandStatus::ERROR.bits()) != 0 {
                 // TODO convert error code
-                self.read_pio(ATAReg::ERROR)?;
+                self.read_pio(ATAReg::Error)?;
                 return Err(Error::new(Code::InvArgs));
             }
             if (status & set.bits()) == set.bits() && (status & unset.bits()) == 0 {
@@ -238,12 +238,12 @@ impl Channel {
     }
 
     pub fn read_pio<T>(&self, reg: ATAReg) -> Result<T, Error> {
-        self.pci_dev.read_reg((self.port_base + reg.val) as goff)
+        self.pci_dev.read_reg((self.port_base + reg as u16) as goff)
     }
 
     pub fn write_pio<T>(&self, reg: ATAReg, val: T) -> Result<(), Error> {
         self.pci_dev
-            .write_reg((self.port_base + reg.val) as goff, val)
+            .write_reg((self.port_base + reg as u16) as goff, val)
     }
 
     pub fn read_pio_words(&self, reg: ATAReg, buf: &mut [u16]) -> Result<(), Error> {
@@ -261,30 +261,30 @@ impl Channel {
     }
 
     pub fn read_bmr<T>(&self, reg: BMIReg) -> Result<T, Error> {
-        self.pci_dev.read_reg((self.bmr_base + reg.val) as goff)
+        self.pci_dev.read_reg((self.bmr_base + reg as u16) as goff)
     }
 
     pub fn write_bmr<T>(&self, reg: BMIReg, val: T) -> Result<(), Error> {
         self.pci_dev
-            .write_reg((self.bmr_base + reg.val) as goff, val)
+            .write_reg((self.bmr_base + reg as u16) as goff, val)
     }
 
     fn check_bus(&self) -> Result<(), Error> {
         for i in (0..2).rev() {
             // begin with slave. master should respond if there is no slave
-            self.write_pio::<u8>(ATAReg::DRIVE_SELECT, i << 4)?;
+            self.write_pio::<u8>(ATAReg::DriveSelect, i << 4)?;
             self.wait();
 
             // write some arbitrary values to some registers
-            self.write_pio(ATAReg::ADDRESS1, 0xF1u8)?;
-            self.write_pio(ATAReg::ADDRESS2, 0xF2u8)?;
-            self.write_pio(ATAReg::ADDRESS3, 0xF3u8)?;
+            self.write_pio(ATAReg::Address1, 0xF1u8)?;
+            self.write_pio(ATAReg::Address2, 0xF2u8)?;
+            self.write_pio(ATAReg::Address3, 0xF3u8)?;
 
             // if we can read them back, the bus is present
             // check for value, one must not be floating
-            if self.read_pio::<u8>(ATAReg::ADDRESS1)? == 0xF1
-                && self.read_pio::<u8>(ATAReg::ADDRESS2)? == 0xF2
-                && self.read_pio::<u8>(ATAReg::ADDRESS3)? == 0xF3
+            if self.read_pio::<u8>(ATAReg::Address1)? == 0xF1
+                && self.read_pio::<u8>(ATAReg::Address2)? == 0xF2
+                && self.read_pio::<u8>(ATAReg::Address3)? == 0xF3
             {
                 return Ok(());
             }

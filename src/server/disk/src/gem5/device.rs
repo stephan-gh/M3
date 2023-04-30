@@ -14,12 +14,14 @@
  */
 
 use bitflags::bitflags;
+
+use num_enum::IntoPrimitive;
+
 use m3::cell::StaticRefCell;
 use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
-use m3::int_enum;
 use m3::io::LogFlags;
 use m3::kif::Perm;
 use m3::log;
@@ -43,39 +45,38 @@ const SLEEP_TIME: TimeDuration = TimeDuration::from_micros(20);
 
 static BUF: StaticRefCell<[u16; 1024]> = StaticRefCell::new([0; 1024]);
 
-int_enum! {
-    /// ATA I/O ports as offsets from base
-    pub struct ATAReg : u16 {
-        const DATA         = 0x0;
-        const ERROR        = 0x1;
-        const FEATURES     = 0x1;
-        const SECTOR_COUNT = 0x2;
-        const ADDRESS1     = 0x3;
-        const ADDRESS2     = 0x4;
-        const ADDRESS3     = 0x5;
-        const DRIVE_SELECT = 0x6;
-        const COMMAND      = 0x7;
-        const STATUS       = 0x7;
-        const CONTROL      = 0x206;
-    }
+/// ATA I/O ports as offsets from base
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
+#[repr(u16)]
+pub enum ATAReg {
+    Data        = 0x0,
+    Error       = 0x1,
+    SectorCount = 0x2,
+    Address1    = 0x3,
+    Address2    = 0x4,
+    Address3    = 0x5,
+    DriveSelect = 0x6,
+    CmdStatus   = 0x7,
+    Control     = 0x206,
 }
 
-int_enum! {
-    /// ATA commands
-    struct Command : u8 {
-        const IDENTIFY = 0xEC;
-        const IDENTIFY_PACKET = 0xA1;
-        const READ_SEC = 0x20;
-        const READ_SEC_EXT = 0x24;
-        const WRITE_SEC = 0x30;
-        const WRITE_SEC_EXT = 0x34;
-        const READ_DMA = 0xC8;
-        const READ_DMA_EXT = 0x25;
-        const WRITE_DMA = 0xCA;
-        const WRITE_DMA_EXT = 0x35;
-        const PACKET = 0xA0;
-        const ATAPI_RESET = 0x8;
-    }
+/// ATA commands
+#[allow(dead_code)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
+#[repr(u8)]
+enum Command {
+    Identify       = 0xEC,
+    IdentifyPacket = 0xA1,
+    ReadSec        = 0x20,
+    ReadSecExt     = 0x24,
+    WriteSec       = 0x30,
+    WriteSecExt    = 0x34,
+    ReadDMA        = 0xC8,
+    ReadDMAExt     = 0x25,
+    WriteDMA       = 0xCA,
+    WriteDMAExt    = 0x35,
+    Packet         = 0xA0,
+    AtapiReset     = 0x8,
 }
 
 bitflags! {
@@ -145,13 +146,13 @@ bitflags! {
     }
 }
 
-int_enum! {
-    /// Bus master IDE registers
-    pub struct BMIReg : u16 {
-        const COMMAND = 0x0;
-        const STATUS = 0x2;
-        const PRDT = 0x4;
-    }
+/// Bus master IDE registers
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
+#[repr(u16)]
+pub enum BMIReg {
+    Command = 0x0,
+    Status  = 0x2,
+    PRDT    = 0x4,
 }
 
 bitflags! {
@@ -206,9 +207,9 @@ impl Device {
             Err(e) => {
                 log!(
                     LogFlags::DiskDev,
-                    "chan[{}] command {} failed: {}",
+                    "chan[{}] command {:?} failed: {}",
                     chan.id(),
-                    Command::IDENTIFY,
+                    Command::Identify,
                     e
                 );
                 return Err(e);
@@ -302,11 +303,11 @@ impl Device {
         self.setup_command(chan, lba, sec_count, cmd)?;
 
         match cmd {
-            Command::PACKET
-            | Command::READ_SEC
-            | Command::READ_SEC_EXT
-            | Command::WRITE_SEC
-            | Command::WRITE_SEC_EXT => {
+            Command::Packet
+            | Command::ReadSec
+            | Command::ReadSecExt
+            | Command::WriteSec
+            | Command::WriteSecExt => {
                 self.transfer_pio(chan, op, buf, off, sec_size, sec_count, true)
             },
             _ => self.transfer_dma(chan, op, buf, off, sec_size, sec_count),
@@ -340,12 +341,12 @@ impl Device {
 
             match op {
                 DevOp::READ => {
-                    chan.read_pio_words(ATAReg::DATA, &mut buffer[0..sec_size / 2])?;
+                    chan.read_pio_words(ATAReg::Data, &mut buffer[0..sec_size / 2])?;
                     buf.write(&buffer[0..sec_size / 2], (off + i * sec_size) as goff)?;
                 },
                 _ => {
                     buf.read(&mut buffer[0..sec_size / 2], (off + i * sec_size) as goff)?;
-                    chan.write_pio_words(ATAReg::DATA, &buffer[0..sec_size / 2])?;
+                    chan.write_pio_words(ATAReg::Data, &buffer[0..sec_size / 2])?;
                 },
             }
         }
@@ -372,10 +373,10 @@ impl Device {
         buf.write(&[prdt], (off + sec_size * sec_count) as goff)?;
 
         // stop running transfers
-        chan.write_bmr::<u8>(BMIReg::COMMAND, 0)?;
-        let status = chan.read_bmr::<u8>(BMIReg::STATUS)?;
+        chan.write_bmr::<u8>(BMIReg::Command, 0)?;
+        let status = chan.read_bmr::<u8>(BMIReg::Status)?;
         chan.write_bmr::<u8>(
-            BMIReg::STATUS,
+            BMIReg::Status,
             status | BMIStatus::ERROR.bits() | BMIStatus::IRQ.bits(),
         )?;
 
@@ -383,17 +384,17 @@ impl Device {
         chan.write_bmr::<u32>(BMIReg::PRDT, (sec_size * sec_count) as u32)?;
 
         // it seems to be necessary to read those ports here
-        chan.read_bmr::<u8>(BMIReg::COMMAND)?;
-        chan.read_bmr::<u8>(BMIReg::STATUS)?;
+        chan.read_bmr::<u8>(BMIReg::Command)?;
+        chan.read_bmr::<u8>(BMIReg::Status)?;
         // start bus mastering
         if op == DevOp::READ {
-            chan.write_bmr::<u8>(BMIReg::COMMAND, (BMICmd::START | BMICmd::READ).bits())?;
+            chan.write_bmr::<u8>(BMIReg::Command, (BMICmd::START | BMICmd::READ).bits())?;
         }
         else {
-            chan.write_bmr::<u8>(BMIReg::COMMAND, BMICmd::START.bits())?;
+            chan.write_bmr::<u8>(BMIReg::Command, BMICmd::START.bits())?;
         }
-        chan.read_bmr::<u8>(BMIReg::COMMAND)?;
-        chan.read_bmr::<u8>(BMIReg::STATUS)?;
+        chan.read_bmr::<u8>(BMIReg::Command)?;
+        chan.read_bmr::<u8>(BMIReg::Status)?;
 
         // wait for an interrupt
         chan.wait_irq()?;
@@ -405,8 +406,8 @@ impl Device {
             CommandStatus::BUSY | CommandStatus::DRQ,
         )?;
 
-        chan.read_bmr::<u8>(BMIReg::STATUS)?;
-        chan.write_bmr::<u8>(BMIReg::COMMAND, 0)
+        chan.read_bmr::<u8>(BMIReg::Status)?;
+        chan.write_bmr::<u8>(BMIReg::Command, 0)
     }
 
     fn setup_command(
@@ -436,9 +437,9 @@ impl Device {
             0
         }
         else {
-            ControlFlag::NIEN.val
+            ControlFlag::NIEN.into()
         };
-        chan.write_pio::<u8>(ATAReg::CONTROL, nien)?;
+        chan.write_pio::<u8>(ATAReg::Control, nien)?;
 
         log!(
             LogFlags::DiskDev,
@@ -452,23 +453,23 @@ impl Device {
             // LBA: | LBA6 | LBA5 | LBA4 | LBA3 | LBA2 | LBA1 |
             //     48             32            16            0
             // sector count, high byte
-            chan.write_pio::<u8>(ATAReg::SECTOR_COUNT, (sec_count >> 8) as u8)?;
+            chan.write_pio::<u8>(ATAReg::SectorCount, (sec_count >> 8) as u8)?;
             // LBA4, LBA5, and LBA6
-            chan.write_pio::<u8>(ATAReg::ADDRESS1, (lba >> 24) as u8)?;
-            chan.write_pio::<u8>(ATAReg::ADDRESS2, (lba >> 32) as u8)?;
-            chan.write_pio::<u8>(ATAReg::ADDRESS3, (lba >> 40) as u8)?;
+            chan.write_pio::<u8>(ATAReg::Address1, (lba >> 24) as u8)?;
+            chan.write_pio::<u8>(ATAReg::Address2, (lba >> 32) as u8)?;
+            chan.write_pio::<u8>(ATAReg::Address3, (lba >> 40) as u8)?;
             // sector count, low byte
-            chan.write_pio::<u8>(ATAReg::SECTOR_COUNT, (sec_count & 0xFF) as u8)?;
+            chan.write_pio::<u8>(ATAReg::SectorCount, (sec_count & 0xFF) as u8)?;
         }
         else {
             // sector count
-            chan.write_pio::<u8>(ATAReg::SECTOR_COUNT, sec_count as u8)?;
+            chan.write_pio::<u8>(ATAReg::SectorCount, sec_count as u8)?;
         }
 
         // LBA1, LBA2, and LBA3
-        chan.write_pio::<u8>(ATAReg::ADDRESS1, (lba & 0xFF) as u8)?;
-        chan.write_pio::<u8>(ATAReg::ADDRESS2, (lba >> 8) as u8)?;
-        chan.write_pio::<u8>(ATAReg::ADDRESS3, (lba >> 16) as u8)?;
+        chan.write_pio::<u8>(ATAReg::Address1, (lba & 0xFF) as u8)?;
+        chan.write_pio::<u8>(ATAReg::Address2, (lba >> 8) as u8)?;
+        chan.write_pio::<u8>(ATAReg::Address3, (lba >> 16) as u8)?;
 
         log!(
             LogFlags::DiskDev,
@@ -478,23 +479,23 @@ impl Device {
         );
 
         // send command
-        chan.write_pio::<u8>(ATAReg::COMMAND, cmd.val)
+        chan.write_pio::<u8>(ATAReg::CmdStatus, cmd as u8)
     }
 
     fn get_command(&self, chan: &Channel, op: DevOp) -> Command {
         if op == DevOp::PACKET {
-            return Command::PACKET;
+            return Command::Packet;
         }
 
         let cmds = [
-            Command::READ_SEC,
-            Command::READ_SEC_EXT,
-            Command::WRITE_SEC,
-            Command::WRITE_SEC_EXT,
-            Command::READ_DMA,
-            Command::READ_DMA_EXT,
-            Command::WRITE_DMA,
-            Command::WRITE_DMA_EXT,
+            Command::ReadSec,
+            Command::ReadSecExt,
+            Command::WriteSec,
+            Command::WriteSecExt,
+            Command::ReadDMA,
+            Command::ReadDMAExt,
+            Command::WriteDMA,
+            Command::WriteDMAExt,
         ];
 
         let mut idx = if self.use_dma(chan) { 4 } else { 0 };
@@ -512,19 +513,19 @@ impl Device {
         chan.select(id, 0)?;
 
         // disable interrupts
-        chan.write_pio(ATAReg::CONTROL, ControlFlag::NIEN.val)?;
+        chan.write_pio(ATAReg::Control, ControlFlag::NIEN as u8)?;
 
         // check whether the device exists
         log!(
             LogFlags::DiskDev,
-            "chan[{}] sending '{}' to device {}",
+            "chan[{}] sending '{:?}' to device {}",
             chan.id(),
-            Command::IDENTIFY,
+            Command::Identify,
             id
         );
-        chan.write_pio(ATAReg::COMMAND, Command::IDENTIFY.val)?;
+        chan.write_pio(ATAReg::CmdStatus, Command::Identify as u8)?;
 
-        let status: u8 = chan.read_pio(ATAReg::STATUS)?;
+        let status: u8 = chan.read_pio(ATAReg::CmdStatus)?;
         if status == 0 {
             Err(Error::new(Code::NotFound))
         }
@@ -535,7 +536,7 @@ impl Device {
 
             let mut elapsed = TimeDuration::ZERO;
             while elapsed < ATA_WAIT_TIMEOUT
-                && (chan.read_pio::<u8>(ATAReg::STATUS)? & CommandStatus::BUSY.bits()) != 0
+                && (chan.read_pio::<u8>(ATAReg::CmdStatus)? & CommandStatus::BUSY.bits()) != 0
             {
                 OwnActivity::sleep_for(SLEEP_TIME)?;
                 elapsed += SLEEP_TIME;
@@ -552,7 +553,7 @@ impl Device {
 
             // device is ready, read data
             let mut words = [0u16; 256];
-            chan.read_pio_words(ATAReg::DATA, &mut words)?;
+            chan.read_pio_words(ATAReg::Data, &mut words)?;
 
             // wait until DRQ and BUSY bits are unset
             chan.wait_until(
