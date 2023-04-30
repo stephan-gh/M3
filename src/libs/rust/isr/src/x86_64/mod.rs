@@ -533,7 +533,7 @@ impl crate::ISRArch for X86ISR {
     }
 
     fn fetch_irq() -> IRQSource {
-        let irq = tcu::TCU::get_irq();
+        let irq = tcu::TCU::get_irq().unwrap();
         tcu::TCU::clear_irq(irq);
         IRQSource::TCU(irq)
     }

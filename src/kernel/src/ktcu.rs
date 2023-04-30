@@ -330,15 +330,15 @@ pub fn copy(
 }
 
 pub fn deprivilege_tile(tile: TileId) -> Result<(), Error> {
-    let mut features: u64 = try_read_obj(tile, TCU::ext_reg_addr(ExtReg::FEATURES) as goff)?;
+    let mut features: u64 = try_read_obj(tile, TCU::ext_reg_addr(ExtReg::Features) as goff)?;
     features &= !1;
-    try_write_slice(tile, TCU::ext_reg_addr(ExtReg::FEATURES) as goff, &[
+    try_write_slice(tile, TCU::ext_reg_addr(ExtReg::Features) as goff, &[
         features,
     ])
 }
 
 pub fn reset_tile(tile: TileId) -> Result<(), Error> {
-    let value = ExtCmdOpCode::RESET.val as Reg;
+    let value = ExtCmdOpCode::Reset as Reg;
     do_ext_cmd(tile, value).map(|_| ())
 }
 
@@ -379,7 +379,7 @@ pub fn write_ep_remote(tile: TileId, ep: EpId, regs: &[Reg]) -> Result<(), Error
 pub fn invalidate_ep_remote(tile: TileId, ep: EpId, force: bool) -> Result<u32, Error> {
     log!(LogFlags::KernEPs, "{}:EP{} = invalid", tile, ep);
 
-    let reg = ExtCmdOpCode::INV_EP.val | ((ep as Reg) << 9) as Reg | ((force as Reg) << 25);
+    let reg = ExtCmdOpCode::InvEP as Reg | ((ep as Reg) << 9) as Reg | ((force as Reg) << 25);
     do_ext_cmd(tile, reg).map(|unread| unread as u32)
 }
 
@@ -427,12 +427,12 @@ pub fn inv_reply_remote(
 }
 
 fn do_ext_cmd(tile: TileId, cmd: Reg) -> Result<Reg, Error> {
-    let addr = TCU::ext_reg_addr(ExtReg::EXT_CMD) as goff;
+    let addr = TCU::ext_reg_addr(ExtReg::ExtCmd) as goff;
     try_write_slice(tile, addr, &[cmd])?;
 
     let res = loop {
         let res: Reg = try_read_obj(tile, addr)?;
-        if (res & 0xF) == ExtCmdOpCode::IDLE.val {
+        if (res & 0xF) == ExtCmdOpCode::Idle.into() {
             break res;
         }
     };

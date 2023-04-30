@@ -160,12 +160,12 @@ pub extern "C" fn tmcall(state: &mut arch::State) -> *mut libc::c_void {
 
 pub extern "C" fn ext_irq(state: &mut arch::State) -> *mut libc::c_void {
     match ISR::fetch_irq() {
-        isr::IRQSource::TCU(tcu::IRQ::TIMER) => {
+        isr::IRQSource::TCU(tcu::IRQ::Timer) => {
             activities::cur().consume_time();
             timer::trigger();
         },
 
-        isr::IRQSource::TCU(tcu::IRQ::CORE_REQ) => {
+        isr::IRQSource::TCU(tcu::IRQ::CoreReq) => {
             if let Some(r) = tcu::TCU::get_core_req() {
                 log!(LogFlags::MuxCoreReqs, "Got {:x?}", r);
                 corereq::handle_recv(r);
@@ -175,8 +175,6 @@ pub extern "C" fn ext_irq(state: &mut arch::State) -> *mut libc::c_void {
         isr::IRQSource::Ext(id) => {
             irqs::signal(id);
         },
-
-        n => log!(LogFlags::Error, "Unexpected IRQ {:?}", n),
     }
 
     leave(state)

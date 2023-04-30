@@ -288,13 +288,13 @@ impl crate::ISRArch for RISCVISR {
             plic::ack(irq);
 
             match irq {
-                plic::TCU_ID => IRQSource::TCU(tcu::IRQ::CORE_REQ),
-                plic::TIMER_ID => IRQSource::TCU(tcu::IRQ::TIMER),
+                plic::TCU_ID => IRQSource::TCU(tcu::IRQ::CoreReq),
+                plic::TIMER_ID => IRQSource::TCU(tcu::IRQ::Timer),
                 n => IRQSource::Ext(n),
             }
         }
         else {
-            let irq = tcu::TCU::get_irq();
+            let irq = tcu::TCU::get_irq().unwrap();
             tcu::TCU::clear_irq(irq);
             IRQSource::TCU(irq)
         }

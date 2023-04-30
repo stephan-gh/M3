@@ -49,7 +49,7 @@ fn tmcall_wait(state: &mut arch::State) -> Result<(), Error> {
 
     let mut cur = activities::cur();
     let wait_ep = if ep == INVALID_EP { None } else { Some(ep) };
-    let wait_irq = if irq <= IRQ::TIMER.val as tmif::IRQId || irq == tmif::INVALID_IRQ {
+    let wait_irq = if irq <= IRQ::Timer as tmif::IRQId || irq == tmif::INVALID_IRQ {
         None
     }
     else {
