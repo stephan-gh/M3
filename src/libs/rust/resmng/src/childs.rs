@@ -1022,9 +1022,8 @@ impl ChildManager {
         let opcode: kif::upcalls::Operation = de.pop().unwrap();
 
         match opcode {
-            kif::upcalls::Operation::ACT_WAIT => self.upcall_wait_act_async(reqs, res, &mut de),
-            kif::upcalls::Operation::DERIVE_SRV => self.upcall_derive_srv(msg, &mut de),
-            _ => panic!("Unexpected upcall {}", opcode),
+            kif::upcalls::Operation::ActWait => self.upcall_wait_act_async(reqs, res, &mut de),
+            kif::upcalls::Operation::DeriveSrv => self.upcall_derive_srv(msg, &mut de),
         }
 
         let mut reply_buf = MsgBuf::borrow_def();

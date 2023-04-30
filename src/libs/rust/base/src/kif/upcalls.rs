@@ -18,19 +18,22 @@
 
 //! The upcall interface
 
+use num_enum::IntoPrimitive;
+
+use serde_repr::{Deserialize_repr, Serialize_repr};
+
 use crate::errors::Code;
 use crate::kif::CapSel;
 use crate::serialize::{Deserialize, Serialize};
 
-int_enum! {
-    /// The upcalls
-    pub struct Operation : u64 {
-        /// completions of the derive-srv syscall
-        const DERIVE_SRV        = 0;
-
-        /// waits for activity exits
-        const ACT_WAIT          = 1;
-    }
+/// The upcalls
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(u64)]
+pub enum Operation {
+    /// completions of the derive-srv syscall
+    DeriveSrv,
+    /// waits for activity exits
+    ActWait,
 }
 
 /// The activity-wait upcall that is sent upon a activity-exit

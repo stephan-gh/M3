@@ -397,7 +397,7 @@ impl Activity {
         let mut msg = MsgBuf::borrow_def();
         build_vmsg!(
             msg,
-            kif::upcalls::Operation::ACT_WAIT,
+            kif::upcalls::Operation::ActWait,
             kif::upcalls::ActivityWait {
                 event,
                 error: Code::Success,
@@ -413,7 +413,7 @@ impl Activity {
         let mut msg = MsgBuf::borrow_def();
         build_vmsg!(
             msg,
-            kif::upcalls::Operation::DERIVE_SRV,
+            kif::upcalls::Operation::DeriveSrv,
             kif::upcalls::DeriveSrv {
                 event,
                 error: Code::from(result)
