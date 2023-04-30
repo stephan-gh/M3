@@ -223,6 +223,7 @@ dependencies = [
  "heap",
  "isr",
  "num-traits",
+ "num_enum",
  "paging",
 ]
 

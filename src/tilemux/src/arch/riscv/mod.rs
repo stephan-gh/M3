@@ -19,7 +19,9 @@ use base::io::LogFlags;
 use base::kif::tilemux;
 use base::libc;
 use base::mem::MaybeUninit;
-use base::{int_enum, log, read_csr, write_csr};
+use base::{log, read_csr, write_csr};
+
+use num_enum::{FromPrimitive, IntoPrimitive};
 
 use crate::activities;
 
@@ -48,13 +50,14 @@ impl Default for FPUState {
     }
 }
 
-int_enum! {
-    struct FSMode : usize {
-        const OFF = 0;
-        const INITIAL = 1;
-        const CLEAN = 2;
-        const DIRTY = 3;
-    }
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, FromPrimitive)]
+#[repr(usize)]
+enum FSMode {
+    #[default]
+    OFF     = 0,
+    INITIAL = 1,
+    CLEAN   = 2,
+    DIRTY   = 3,
 }
 
 static FPU_OWNER: StaticCell<activities::Id> = StaticCell::new(tilemux::ACT_ID);
@@ -65,7 +68,7 @@ fn get_fpu_mode(status: usize) -> FSMode {
 
 fn set_fpu_mode(mut status: usize, mode: FSMode) -> usize {
     status &= !(0x3 << 13);
-    status | (mode.val << 13)
+    status | (mode as usize) << 13
 }
 
 pub fn init_state(state: &mut State, entry: usize, sp: usize) {
