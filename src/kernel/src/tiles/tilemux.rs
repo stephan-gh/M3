@@ -223,10 +223,6 @@ impl TileMux {
 
         let res = match op {
             kif::tilemux::Calls::EXIT => Self::handle_exit_async(tilemux, &mut de),
-            _ => {
-                log!(LogFlags::Error, "Unexpected call from TileMux: {}", op);
-                Err(Error::new(Code::InvArgs))
-            },
         };
 
         let mut reply = MsgBuf::borrow_def();
@@ -345,7 +341,7 @@ impl TileMux {
                 act_id: act as u64,
                 unread_mask,
             };
-            build_vmsg!(buf, kif::tilemux::Sidecalls::REM_MSGS, &msg);
+            build_vmsg!(buf, kif::tilemux::Sidecalls::RemMsgs, &msg);
 
             self.send_sidecall::<kif::tilemux::RemMsgs>(Some(act), &buf, &msg)
                 .map(|_| ())
@@ -367,7 +363,7 @@ impl TileMux {
     pub fn reset_stats(&mut self) -> Result<(), Error> {
         let mut buf = MsgBuf::borrow_def();
         let msg = kif::tilemux::ResetStats {};
-        build_vmsg!(buf, kif::tilemux::Sidecalls::RESET_STATS, &msg);
+        build_vmsg!(buf, kif::tilemux::Sidecalls::ResetStats, &msg);
 
         self.send_sidecall::<kif::tilemux::ResetStats>(None, &buf, &msg)
             .map(|_| ())
@@ -376,7 +372,7 @@ impl TileMux {
     pub fn shutdown(&mut self) -> Result<(), Error> {
         let mut buf = MsgBuf::borrow_def();
         let msg = kif::tilemux::Shutdown {};
-        build_vmsg!(buf, kif::tilemux::Sidecalls::SHUTDOWN, &msg);
+        build_vmsg!(buf, kif::tilemux::Sidecalls::Shutdown, &msg);
 
         self.send_sidecall::<kif::tilemux::Shutdown>(None, &buf, &msg)
             .map(|_| ())
@@ -396,7 +392,7 @@ impl TileMux {
             pt_quota,
             eps_start,
         };
-        build_vmsg!(buf, kif::tilemux::Sidecalls::ACT_INIT, &msg);
+        build_vmsg!(buf, kif::tilemux::Sidecalls::ActInit, &msg);
 
         Self::send_receive_sidecall_async::<kif::tilemux::ActInit>(tilemux, None, buf, &msg)
             .map(|_| ())
@@ -412,7 +408,7 @@ impl TileMux {
             act_id: act as u64,
             act_op,
         };
-        build_vmsg!(buf, kif::tilemux::Sidecalls::ACT_CTRL, &msg);
+        build_vmsg!(buf, kif::tilemux::Sidecalls::ActCtrl, &msg);
 
         Self::send_receive_sidecall_async::<kif::tilemux::ActivityCtrl>(tilemux, None, buf, &msg)
             .map(|_| ())
@@ -432,7 +428,7 @@ impl TileMux {
             time,
             pts,
         };
-        build_vmsg!(buf, kif::tilemux::Sidecalls::DERIVE_QUOTA, &msg);
+        build_vmsg!(buf, kif::tilemux::Sidecalls::DeriveQuota, &msg);
 
         Self::send_receive_sidecall_async::<kif::tilemux::DeriveQuota>(tilemux, None, buf, &msg)
             .map(|r| (r.val1 as quota::Id, r.val2 as quota::Id))
@@ -445,7 +441,7 @@ impl TileMux {
     ) -> Result<(quota::Quota<u64>, quota::Quota<usize>), Error> {
         let mut buf = MsgBuf::borrow_def();
         let msg = kif::tilemux::GetQuota { time, pts };
-        build_vmsg!(buf, kif::tilemux::Sidecalls::GET_QUOTA, &msg);
+        build_vmsg!(buf, kif::tilemux::Sidecalls::GetQuota, &msg);
 
         let tile_id = (tilemux.tile.tile().raw() as quota::Id) << 8;
         Self::send_receive_sidecall_async::<kif::tilemux::GetQuota>(tilemux, None, buf, &msg).map(
@@ -470,7 +466,7 @@ impl TileMux {
     ) -> Result<(), Error> {
         let mut buf = MsgBuf::borrow_def();
         let msg = kif::tilemux::SetQuota { id, time, pts };
-        build_vmsg!(buf, kif::tilemux::Sidecalls::SET_QUOTA, &msg);
+        build_vmsg!(buf, kif::tilemux::Sidecalls::SetQuota, &msg);
 
         Self::send_receive_sidecall_async::<kif::tilemux::SetQuota>(tilemux, None, buf, &msg)
             .map(|_| ())
@@ -483,7 +479,7 @@ impl TileMux {
     ) -> Result<(), Error> {
         let mut buf = MsgBuf::borrow_def();
         let msg = kif::tilemux::RemoveQuotas { time, pts };
-        build_vmsg!(buf, kif::tilemux::Sidecalls::REMOVE_QUOTAS, &msg);
+        build_vmsg!(buf, kif::tilemux::Sidecalls::RemoveQuotas, &msg);
 
         Self::send_receive_sidecall_async::<kif::tilemux::RemoveQuotas>(tilemux, None, buf, &msg)
             .map(|_| ())
@@ -505,7 +501,7 @@ impl TileMux {
             pages,
             perm,
         };
-        build_vmsg!(buf, kif::tilemux::Sidecalls::MAP, &msg);
+        build_vmsg!(buf, kif::tilemux::Sidecalls::Map, &msg);
 
         Self::send_receive_sidecall_async::<kif::tilemux::Map>(tilemux, Some(act), buf, &msg)
             .map(|_| ())
@@ -541,7 +537,7 @@ impl TileMux {
             virt,
             perm,
         };
-        build_vmsg!(buf, kif::tilemux::Sidecalls::TRANSLATE, msg);
+        build_vmsg!(buf, kif::tilemux::Sidecalls::Translate, msg);
 
         Self::send_receive_sidecall_async::<kif::tilemux::Translate>(tilemux, Some(act), buf, &msg)
             .map(|reply| GlobAddr::new(reply.val1 & !(PAGE_MASK as goff)))
@@ -553,7 +549,7 @@ impl TileMux {
             act_id: act as u64,
             ep,
         };
-        build_vmsg!(buf, kif::tilemux::Sidecalls::EP_INVAL, msg);
+        build_vmsg!(buf, kif::tilemux::Sidecalls::EPInval, msg);
 
         self.send_sidecall::<kif::tilemux::EpInval>(Some(act), &buf, &msg)
             .map(|_| ())

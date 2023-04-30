@@ -18,6 +18,10 @@
 
 //! The kernel-tilemux interface
 
+use num_enum::IntoPrimitive;
+
+use serde_repr::{Deserialize_repr, Serialize_repr};
+
 use crate::errors::Code;
 use crate::goff;
 use crate::kif::PageFlags;
@@ -34,30 +38,30 @@ pub type QuotaId = u64;
 
 pub const DEF_QUOTA_ID: QuotaId = 1;
 
-int_enum! {
-    /// The sidecalls from the kernel to TileMux
-    pub struct Sidecalls : u64 {
-        const ACT_INIT       = 0x0;
-        const ACT_CTRL       = 0x1;
-        const MAP            = 0x2;
-        const TRANSLATE      = 0x3;
-        const REM_MSGS       = 0x4;
-        const EP_INVAL       = 0x5;
-        const DERIVE_QUOTA   = 0x6;
-        const GET_QUOTA      = 0x7;
-        const SET_QUOTA      = 0x8;
-        const REMOVE_QUOTAS  = 0x9;
-        const RESET_STATS    = 0xA;
-        const SHUTDOWN       = 0xB;
-    }
+/// The sidecalls from the kernel to TileMux
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(u64)]
+pub enum Sidecalls {
+    ActInit,
+    ActCtrl,
+    Map,
+    Translate,
+    RemMsgs,
+    EPInval,
+    DeriveQuota,
+    GetQuota,
+    SetQuota,
+    RemoveQuotas,
+    ResetStats,
+    Shutdown,
 }
 
-int_enum! {
-    /// The operations for the `act_ctrl` sidecall
-    pub struct ActivityOp : u64 {
-        const START = 0x0;
-        const STOP  = 0x1;
-    }
+/// The operations for the `act_ctrl` sidecall
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(u64)]
+pub enum ActivityOp {
+    START,
+    STOP,
 }
 
 /// The activity init sidecall
@@ -167,11 +171,11 @@ pub struct Response {
     pub val2: u64,
 }
 
-int_enum! {
-    /// The calls from TileMux to the kernel
-    pub struct Calls : u64 {
-        const EXIT           = 0x0;
-    }
+/// The calls from TileMux to the kernel
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(u64)]
+pub enum Calls {
+    EXIT,
 }
 
 /// The exit call

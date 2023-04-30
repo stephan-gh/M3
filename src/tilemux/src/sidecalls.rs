@@ -279,27 +279,26 @@ fn handle_sidecall(msg: &'static tcu::Message) {
     let mut val2 = 0;
     let op: kif::tilemux::Sidecalls = de.pop().unwrap();
     let res = match op {
-        kif::tilemux::Sidecalls::ACT_INIT => activity_init(msg),
-        kif::tilemux::Sidecalls::ACT_CTRL => activity_ctrl(msg),
-        kif::tilemux::Sidecalls::MAP => map(msg),
-        kif::tilemux::Sidecalls::TRANSLATE => translate(msg).map(|pte| val1 = pte),
-        kif::tilemux::Sidecalls::REM_MSGS => rem_msgs(msg),
-        kif::tilemux::Sidecalls::EP_INVAL => ep_inval(msg),
-        kif::tilemux::Sidecalls::DERIVE_QUOTA => derive_quota(msg).map(|(time, pts)| {
+        kif::tilemux::Sidecalls::ActInit => activity_init(msg),
+        kif::tilemux::Sidecalls::ActCtrl => activity_ctrl(msg),
+        kif::tilemux::Sidecalls::Map => map(msg),
+        kif::tilemux::Sidecalls::Translate => translate(msg).map(|pte| val1 = pte),
+        kif::tilemux::Sidecalls::RemMsgs => rem_msgs(msg),
+        kif::tilemux::Sidecalls::EPInval => ep_inval(msg),
+        kif::tilemux::Sidecalls::DeriveQuota => derive_quota(msg).map(|(time, pts)| {
             val1 = time;
             val2 = pts;
         }),
-        kif::tilemux::Sidecalls::GET_QUOTA => {
+        kif::tilemux::Sidecalls::GetQuota => {
             get_quota(msg).map(|(t_total, t_left, p_total, p_left)| {
                 val1 = t_total << 32 | t_left;
                 val2 = (p_total as u64) << 32 | (p_left as u64);
             })
         },
-        kif::tilemux::Sidecalls::SET_QUOTA => set_quota(msg),
-        kif::tilemux::Sidecalls::REMOVE_QUOTAS => remove_quotas(msg),
-        kif::tilemux::Sidecalls::RESET_STATS => reset_stats(msg),
-        kif::tilemux::Sidecalls::SHUTDOWN => shutdown(msg),
-        _ => Err(Error::new(Code::NotSup)),
+        kif::tilemux::Sidecalls::SetQuota => set_quota(msg),
+        kif::tilemux::Sidecalls::RemoveQuotas => remove_quotas(msg),
+        kif::tilemux::Sidecalls::ResetStats => reset_stats(msg),
+        kif::tilemux::Sidecalls::Shutdown => shutdown(msg),
     };
 
     let mut reply_buf = MsgBuf::borrow_def();
@@ -308,7 +307,7 @@ fn handle_sidecall(msg: &'static tcu::Message) {
         match res {
             Ok(_) => Code::Success,
             Err(e) => {
-                log!(LogFlags::MuxSideCalls, "sidecall {} failed: {}", op, e);
+                log!(LogFlags::MuxSideCalls, "sidecall {:?} failed: {}", op, e);
                 e.code()
             },
         },
