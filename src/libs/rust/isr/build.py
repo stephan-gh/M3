@@ -8,3 +8,5 @@ def build(gen, env):
     sf_env.soft_float()
     lib = sf_env.static_lib(gen, out='isrsf', ins=files)
     sf_env.install(gen, sf_env['LIBDIR'], lib)
+
+    env.m3_rust_lib(gen)
