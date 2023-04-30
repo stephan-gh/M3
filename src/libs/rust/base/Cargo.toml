@@ -12,6 +12,7 @@ bitflags = { version = "2.1.0", features = ["serde"] }
 cfg-if = "1.0.0"
 derivative = { version = "2.2.0", features = ["use_core"] }
 static_assertions = "1.1.0"
+num_enum = { version = "0.6.1", default-features = false }
 serde = { version = "1.0.152", default-features = false, features = ["derive", "alloc"] }
 
 [target.'cfg(target_arch = "riscv64")'.dependencies]

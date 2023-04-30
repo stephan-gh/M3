@@ -20,21 +20,24 @@
 
 use bitflags::bitflags;
 
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+
 use crate::kif;
 
 const EI_NIDENT: usize = 16;
 
-int_enum! {
-    /// The program header entry types
-    pub struct PHType : u32 {
-        /// Load segment
-        const LOAD = 0x1;
-    }
+/// The program header entry types
+#[derive(Copy, Clone, Default, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
+#[repr(u32)]
+pub enum PHType {
+    /// Load segment
+    #[default]
+    Load = 1,
 }
 
 bitflags! {
     /// The program header flags
-    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+    #[derive(Copy, Clone, Default, Debug, PartialEq, Eq)]
     pub struct PHFlags : u32 {
         /// Executable
         const X = 0x1;
@@ -83,7 +86,7 @@ pub struct ElfHeader {
 #[derive(Default, Debug)]
 #[repr(C, packed)]
 pub struct ProgramHeader32 {
-    /// Program header type (see [`PHType`])
+    /// Program header type
     pub ty: u32,
     /// File offset
     pub offset: u32,
@@ -95,7 +98,7 @@ pub struct ProgramHeader32 {
     pub file_size: u32,
     /// Size of this program header in memory
     pub mem_size: u32,
-    /// Program header flags (see [`PHFlags`])
+    /// Program header flags
     pub flags: u32,
     /// Alignment
     pub align: u32,
@@ -105,9 +108,9 @@ pub struct ProgramHeader32 {
 #[derive(Default, Debug)]
 #[repr(C, packed)]
 pub struct ProgramHeader64 {
-    /// Program header type (see [`PHType`])
+    /// Program header type
     pub ty: u32,
-    /// Program header flags (see [`PHFlags`])
+    /// Program header flags
     pub flags: u32,
     /// File offset
     pub offset: u64,

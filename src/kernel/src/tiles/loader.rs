@@ -184,7 +184,7 @@ fn load_mod_async(act: &Activity, bm: &kif::boot::Mod) -> Result<usize, Error> {
         off += hdr.ph_entry_size as usize;
 
         // we're only interested in non-empty load segments
-        if phdr.ty != elf::PHType::LOAD.val || phdr.mem_size == 0 {
+        if phdr.ty != elf::PHType::Load.into() || phdr.mem_size == 0 {
             continue;
         }
 

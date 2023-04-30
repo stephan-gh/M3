@@ -17,6 +17,7 @@ dependencies = [
  "derivative",
  "minicov",
  "num-traits",
+ "num_enum",
  "serde",
  "static_assertions",
 ]
