@@ -84,10 +84,9 @@ impl vfs::File for BootFile {
 impl vfs::Seek for BootFile {
     fn seek(&mut self, off: usize, whence: vfs::SeekMode) -> Result<usize, Error> {
         match whence {
-            vfs::SeekMode::CUR => self.pos += off,
-            vfs::SeekMode::SET => self.pos = off,
-            vfs::SeekMode::END => self.pos = self.size,
-            _ => panic!("Unexpected whence"),
+            vfs::SeekMode::Cur => self.pos += off,
+            vfs::SeekMode::Set => self.pos = off,
+            vfs::SeekMode::End => self.pos = self.size,
         }
         Ok(self.pos)
     }

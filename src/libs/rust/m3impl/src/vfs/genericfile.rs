@@ -516,7 +516,7 @@ impl Seek for GenericFile {
     fn seek(&mut self, mut off: usize, mut whence: SeekMode) -> Result<usize, Error> {
         log!(
             LogFlags::LibFS,
-            "GenFile[{}]::seek({}, {})",
+            "GenFile[{}]::seek({}, {:?})",
             self.fd,
             off,
             whence
@@ -524,12 +524,12 @@ impl Seek for GenericFile {
 
         self.submit(false)?;
 
-        if whence == SeekMode::CUR {
+        if whence == SeekMode::Cur {
             off += self.goff + self.off + self.pos;
-            whence = SeekMode::SET;
+            whence = SeekMode::Set;
         }
 
-        if whence != SeekMode::END
+        if whence != SeekMode::End
             && self.pos < self.len
             && off > self.goff + self.off
             && off < self.goff + self.off + self.len

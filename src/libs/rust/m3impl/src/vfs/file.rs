@@ -20,12 +20,13 @@ use base::const_assert;
 use bitflags::bitflags;
 use core::any::Any;
 use core::fmt::Debug;
+use num_enum::IntoPrimitive;
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::cap::Selector;
 use crate::col::String;
 use crate::errors::{Code, Error};
 use crate::goff;
-use crate::int_enum;
 use crate::io::{Read, Write};
 use crate::kif;
 use crate::serialize::{Deserialize, M3Serializer, Serialize, VecSink};
@@ -33,14 +34,13 @@ use crate::session::{HashInput, HashOutput, MapFlags, Pager};
 use crate::tiles::ChildActivity;
 use crate::vfs::{BlockId, DevId, Fd, INodeId};
 
-int_enum! {
-    /// The different seek modes.
-    #[repr(C)]
-    pub struct SeekMode : u32 {
-        const SET       = 0x0;
-        const CUR       = 0x1;
-        const END       = 0x2;
-    }
+/// The different seek modes.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(u32)]
+pub enum SeekMode {
+    Set,
+    Cur,
+    End,
 }
 
 bitflags! {
@@ -172,12 +172,11 @@ bitflags! {
     }
 }
 
-int_enum! {
-    #[repr(C)]
-    pub struct TMode: u32 {
-        const RAW = 0;
-        const COOKED = 1;
-    }
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(u32)]
+pub enum TMode {
+    Raw,
+    Cooked,
 }
 
 /// Trait for files.

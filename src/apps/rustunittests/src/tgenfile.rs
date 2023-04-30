@@ -62,7 +62,7 @@ fn read_string(t: &mut dyn WvTester) {
     let mut file = wv_assert_ok!(VFS::open(filename, OpenFlags::R));
 
     for i in 0..content.len() {
-        wv_assert_eq!(t, file.seek(0, SeekMode::SET), Ok(0));
+        wv_assert_eq!(t, file.seek(0, SeekMode::Set), Ok(0));
         let s = wv_assert_ok!(file.read_string(i));
         wv_assert_eq!(t, &s, &content[0..i]);
     }
@@ -78,11 +78,11 @@ fn read_exact(t: &mut dyn WvTester) {
     wv_assert_ok!(file.read_exact(&mut buf[0..8]));
     wv_assert_eq!(t, &buf[0..8], &content[0..8]);
 
-    wv_assert_eq!(t, file.seek(0, SeekMode::SET), Ok(0));
+    wv_assert_eq!(t, file.seek(0, SeekMode::Set), Ok(0));
     wv_assert_ok!(file.read_exact(&mut buf[0..16]));
     wv_assert_eq!(t, &buf[0..16], &content[0..16]);
 
-    wv_assert_eq!(t, file.seek(0, SeekMode::SET), Ok(0));
+    wv_assert_eq!(t, file.seek(0, SeekMode::Set), Ok(0));
     wv_assert_err!(t, file.read_exact(&mut buf), Code::EndOfFile);
 }
 
@@ -128,15 +128,15 @@ fn write_and_read_file(t: &mut dyn WvTester) {
 
     wv_assert_ok!(write!(file, "{}", content));
 
-    wv_assert_eq!(t, file.seek(0, SeekMode::CUR), Ok(content.len()));
-    wv_assert_eq!(t, file.seek(0, SeekMode::SET), Ok(0));
+    wv_assert_eq!(t, file.seek(0, SeekMode::Cur), Ok(content.len()));
+    wv_assert_eq!(t, file.seek(0, SeekMode::Set), Ok(0));
 
     let res = wv_assert_ok!(file.read_string(content.len()));
     wv_assert_eq!(t, &content, &res);
 
     // undo the write
     let mut old = vec![0u8; content.len()];
-    wv_assert_eq!(t, file.seek(0, SeekMode::SET), Ok(0));
+    wv_assert_eq!(t, file.seek(0, SeekMode::Set), Ok(0));
     for (i, b) in old.iter_mut().enumerate() {
         *b = i as u8;
     }
@@ -178,7 +178,7 @@ fn write_fmt(t: &mut dyn WvTester) {
     ));
     wv_assert_ok!(write!(file, "More formatting: {:?}", Some(Some(1))));
 
-    wv_assert_eq!(t, file.seek(0, SeekMode::SET), Ok(0));
+    wv_assert_eq!(t, file.seek(0, SeekMode::Set), Ok(0));
 
     let s = wv_assert_ok!(file.read_to_string());
     wv_assert_eq!(
@@ -232,7 +232,7 @@ fn append(t: &mut dyn WvTester) {
         let mut file = wv_assert_ok!(VFS::open("/test.txt", OpenFlags::W | OpenFlags::APPEND));
         // TODO perform the seek to end here, because we cannot do that during open atm (m3fs
         // already borrowed as mutable). it's the wrong semantic anyway, so ...
-        wv_assert_ok!(file.seek(0, SeekMode::END));
+        wv_assert_ok!(file.seek(0, SeekMode::End));
 
         let buf = _get_pat_vector(1024);
         for _ in 0..2 {
@@ -260,13 +260,13 @@ fn append_read(t: &mut dyn WvTester) {
         wv_assert_eq!(t, file.read(&mut buf), Ok(0));
 
         // seek back
-        wv_assert_eq!(t, file.seek(1 * 1024, SeekMode::SET), Ok(1 * 1024));
+        wv_assert_eq!(t, file.seek(1 * 1024, SeekMode::Set), Ok(1 * 1024));
 
         // now reading should work
         wv_assert_eq!(t, file.read(&mut buf), Ok(1024));
 
         // seek back and overwrite
-        wv_assert_eq!(t, file.seek(2 * 1024, SeekMode::SET), Ok(2 * 1024));
+        wv_assert_eq!(t, file.seek(2 * 1024, SeekMode::Set), Ok(2 * 1024));
 
         for _ in 0..2 {
             wv_assert_eq!(t, file.write_all(&pat[0..1024]), Ok(()));

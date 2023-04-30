@@ -96,7 +96,7 @@ fn load_segments(
     let mut off = hdr.ph_off;
     for _ in 0..hdr.ph_num {
         // load program header
-        file.seek(off, SeekMode::SET)?;
+        file.seek(off, SeekMode::Set)?;
         let phdr: elf::ProgramHeader = read_object(file)?;
         off += hdr.ph_entry_size as usize;
 
@@ -175,7 +175,7 @@ fn init_mem(
 ) -> Result<(), Error> {
     let mut segoff = 0;
     if file_size > 0 {
-        file.seek(offset, SeekMode::SET)?;
+        file.seek(offset, SeekMode::Set)?;
 
         let mut count = file_size;
         while count > 0 {

@@ -87,19 +87,19 @@ pub fn get_seek_pos(
 ) -> Result<(usize, ExtPos), Error> {
     log!(
         LogFlags::FSINodes,
-        "inodes::seek(inode={}, off={}, whence={})",
+        "inodes::seek(inode={}, off={}, whence={:?})",
         inode.inode,
         off,
         whence,
     );
 
-    assert!(whence != SeekMode::CUR);
+    assert!(whence != SeekMode::Cur);
 
     let blocksize = crate::superblock().block_size as usize;
     let mut indir = None;
 
     // seeking to the end
-    if whence == SeekMode::END {
+    if whence == SeekMode::End {
         // TODO support off != 0
         assert!(off == 0);
 

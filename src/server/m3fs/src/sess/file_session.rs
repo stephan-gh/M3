@@ -191,7 +191,7 @@ impl FileSession {
         let inode = inodes::get(self.ino)?;
 
         // determine extent from byte offset
-        let (_, extpos) = inodes::get_seek_pos(&inode, offset as usize, SeekMode::SET)?;
+        let (_, extpos) = inodes::get_seek_pos(&inode, offset as usize, SeekMode::Set)?;
 
         let sel = m3::tiles::Activity::own().alloc_sel();
         let (len, _) = inodes::get_extent_mem(
@@ -305,7 +305,7 @@ impl FileSession {
                 && (self.next_fileoff as u64 == inode.size)
                 && ((self.next_fileoff % crate::superblock().block_size as usize) != 0)
             {
-                let (fileoff, extpos) = inodes::get_seek_pos(&inode, 0, SeekMode::END)?;
+                let (fileoff, extpos) = inodes::get_seek_pos(&inode, 0, SeekMode::End)?;
                 self.next_fileoff = fileoff;
                 self.next_pos = extpos;
             }
@@ -386,18 +386,18 @@ impl FileSession {
 
     pub fn file_seek(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let off: usize = stream.pop()?;
-        let whence = SeekMode::from(stream.pop::<u32>()?);
+        let whence = stream.pop::<SeekMode>()?;
 
         log!(
             LogFlags::FSSess,
-            "[{}] file::seek(path={}, off={}, whence={})",
+            "[{}] file::seek(path={}, off={}, whence={:?})",
             self.session_id,
             self.filename,
             off,
             whence
         );
 
-        if whence == SeekMode::CUR {
+        if whence == SeekMode::Cur {
             return Err(Error::new(Code::InvArgs));
         }
 
@@ -453,7 +453,7 @@ impl FileSession {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let (fileoff, extpos) = inodes::get_seek_pos(&inode, off, SeekMode::SET)?;
+        let (fileoff, extpos) = inodes::get_seek_pos(&inode, off, SeekMode::Set)?;
         inodes::truncate(&inode, &extpos)?;
 
         // stay within the file bounds

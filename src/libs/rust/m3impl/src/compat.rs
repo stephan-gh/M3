@@ -180,7 +180,7 @@ pub unsafe extern "C" fn __m3c_readdir(dir: *mut libc::c_void, entry: *mut Compa
 
     // move to next entry
     let off = head.next as usize - (mem::size_of::<M3FSDirEntry>() + head.name_len as usize);
-    if off != 0 && (*dir).seek(off, SeekMode::CUR).is_err() {
+    if off != 0 && (*dir).seek(off, SeekMode::Cur).is_err() {
         return Code::EndOfFile;
     }
 

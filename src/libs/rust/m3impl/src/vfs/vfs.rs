@@ -135,7 +135,7 @@ pub fn open(path: &str, flags: OpenFlags) -> Result<FileRef<GenericFile>, Error>
     with_path(path, |fs, fs_path| {
         let mut file = fs.borrow_mut().open(fs_path, flags)?;
         if flags.contains(OpenFlags::APPEND) {
-            file.seek(0, SeekMode::END)?;
+            file.seek(0, SeekMode::End)?;
         }
 
         let fd = Activity::own().files().add(file)?;

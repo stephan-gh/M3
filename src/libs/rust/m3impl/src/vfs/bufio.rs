@@ -101,19 +101,19 @@ impl<R: Read> Read for BufReader<R> {
 
 impl<R: Read + Seek> Seek for BufReader<R> {
     fn seek(&mut self, off: usize, whence: SeekMode) -> Result<usize, Error> {
-        if whence == SeekMode::CUR {
+        if whence == SeekMode::Cur {
             // move buffer-internal position forward, but not beyond the buffer end
             let rem = self.cap - self.pos;
             self.pos += cmp::min(off, rem);
             // if the user wants to seek beyond the buffer end, do that with the underlying reader
             let rem_off = off.saturating_sub(rem);
             return if rem_off > 0 {
-                self.reader.seek(rem_off, SeekMode::CUR)
+                self.reader.seek(rem_off, SeekMode::Cur)
             }
             // otherwise, just get the current position
             else {
                 self.reader
-                    .seek(0, SeekMode::CUR)
+                    .seek(0, SeekMode::Cur)
                     .map(|pos| pos - (self.cap - self.pos))
             };
         }
@@ -219,7 +219,7 @@ impl<W: Write> Write for BufWriter<W> {
 
 impl<W: Write + Seek> Seek for BufWriter<W> {
     fn seek(&mut self, off: usize, whence: SeekMode) -> Result<usize, Error> {
-        if whence != SeekMode::CUR || off != 0 {
+        if whence != SeekMode::Cur || off != 0 {
             self.flush()?;
         }
         self.writer.seek(off, whence)

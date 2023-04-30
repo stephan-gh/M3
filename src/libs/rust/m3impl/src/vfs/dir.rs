@@ -82,7 +82,7 @@ impl iter::Iterator for ReadDir {
 
         // move to next entry
         let off = entry.next as usize - (mem::size_of::<M3FSDirEntry>() + entry.name_len as usize);
-        if off != 0 && self.reader.seek(off, SeekMode::CUR).is_err() {
+        if off != 0 && self.reader.seek(off, SeekMode::Cur).is_err() {
             return None;
         }
 
