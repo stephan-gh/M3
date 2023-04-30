@@ -16,27 +16,19 @@
 use m3::cell::{RefMut, StaticCell, StaticRefCell};
 use m3::col::Vec;
 use m3::errors::Code;
-use m3::int_enum;
 use m3::io::{LogFlags, Serial, Write};
 use m3::log;
 use m3::server::ClientManager;
 use m3::tcu::Message;
 use m3::vec;
-use m3::vfs::FileEvent;
+use m3::vfs::{FileEvent, TMode};
 
 use crate::{SessionData, VTermSession};
-
-int_enum! {
-    pub struct Mode : u64 {
-        const RAW       = 0;
-        const COOKED    = 1;
-    }
-}
 
 static BUFFER: StaticRefCell<Vec<u8>> = StaticRefCell::new(Vec::new());
 static INPUT: StaticRefCell<Vec<u8>> = StaticRefCell::new(Vec::new());
 static EOF: StaticCell<bool> = StaticCell::new(false);
-static MODE: StaticCell<Mode> = StaticCell::new(Mode::COOKED);
+static MODE: StaticCell<TMode> = StaticCell::new(TMode::Cooked);
 
 macro_rules! reply_vmsg_late {
     ( $rgate:expr, $msg:expr, $( $args:expr ),* ) => ({
@@ -54,11 +46,11 @@ pub fn set_eof(eof: bool) {
     EOF.set(eof);
 }
 
-pub fn mode() -> Mode {
+pub fn mode() -> TMode {
     MODE.get()
 }
 
-pub fn set_mode(mode: Mode) {
+pub fn set_mode(mode: TMode) {
     MODE.set(mode);
     INPUT.borrow_mut().clear();
 }
@@ -95,7 +87,7 @@ pub fn handle_input(cli: &mut ClientManager<VTermSession>, msg: &'static Message
     let bytes = unsafe { core::slice::from_raw_parts(msg.data.as_ptr(), msg.header.length()) };
     let mut flush = false;
     let mut eof = false;
-    if MODE.get() == Mode::RAW {
+    if MODE.get() == TMode::Raw {
         input.extend_from_slice(bytes);
     }
     else {

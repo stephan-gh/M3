@@ -26,7 +26,7 @@ use m3::reply_vmsg;
 use m3::server::SessId;
 use m3::tcu::Message;
 use m3::tiles::Activity;
-use m3::vfs::{FileEvent, FileInfo, FileMode};
+use m3::vfs::{FileEvent, FileInfo, FileMode, TMode};
 use m3::{build_vmsg, goff, send_vmsg};
 
 use crate::input;
@@ -118,11 +118,11 @@ impl Channel {
 
     pub fn set_tmode(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
         let _fid: usize = is.pop()?;
-        let mode = is.pop::<input::Mode>()?;
+        let mode = is.pop::<TMode>()?;
 
         log!(
             LogFlags::VTReqs,
-            "[{}] vterm::set_tmode(mode={})",
+            "[{}] vterm::set_tmode(mode={:?})",
             self.id,
             mode
         );
