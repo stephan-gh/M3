@@ -14,12 +14,14 @@
  * General Public License version 2 for more details.
  */
 
+use core::convert::TryFrom;
 use core::fmt;
+
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::cap::{CapFlags, Selector};
 use crate::com::{RGateArgs, RecvGate, SGateArgs, SendGate};
 use crate::errors::{Code, Error};
-use crate::int_enum;
 use crate::kif::{CapRngDesc, CapType};
 use crate::mem::{self, MaybeUninit, MsgBuf};
 use crate::net::{Endpoint, IpAddr, Port};
@@ -39,18 +41,18 @@ const REPLY_BUF_SIZE: usize = REPLY_SIZE * MSG_CREDITS;
 // fields in DataMessage.
 pub const MTU: usize = MSG_SIZE - (mem::size_of::<Header>() + 4 * mem::size_of::<u64>());
 
-int_enum! {
-    pub struct NetEventType : u64 {
-        const DATA          = 0;
-        const CONNECTED     = 1;
-        const CLOSED        = 2;
-        const CLOSE_REQ     = 3;
-    }
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
+#[repr(u64)]
+pub enum NetEventType {
+    Data,
+    Connected,
+    Closed,
+    CloseReq,
 }
 
 #[repr(C, align(2048))]
 pub struct DataMessage {
-    ty: u64,
+    ty: NetEventType,
     pub addr: u64,
     pub port: u64,
     pub size: u64,
@@ -59,7 +61,7 @@ pub struct DataMessage {
 
 #[repr(C)]
 pub struct ConnectedMessage {
-    ty: u64,
+    ty: NetEventType,
     pub remote_addr: u64,
     pub remote_port: u64,
 }
@@ -67,7 +69,7 @@ pub struct ConnectedMessage {
 impl ConnectedMessage {
     pub fn new(endpoint: Endpoint) -> Self {
         Self {
-            ty: NetEventType::CONNECTED.val,
+            ty: NetEventType::Connected,
             remote_addr: endpoint.addr.0 as u64,
             remote_port: endpoint.port as u64,
         }
@@ -86,13 +88,13 @@ impl fmt::Debug for ConnectedMessage {
 
 #[repr(C)]
 pub struct ClosedMessage {
-    ty: u64,
+    ty: NetEventType,
 }
 
 impl Default for ClosedMessage {
     fn default() -> Self {
         Self {
-            ty: NetEventType::CLOSED.val,
+            ty: NetEventType::Closed,
         }
     }
 }
@@ -105,13 +107,13 @@ impl fmt::Debug for ClosedMessage {
 
 #[repr(C)]
 pub struct CloseReqMessage {
-    ty: u64,
+    ty: NetEventType,
 }
 
 impl Default for CloseReqMessage {
     fn default() -> Self {
         Self {
-            ty: NetEventType::CLOSE_REQ.val,
+            ty: NetEventType::CloseReq,
         }
     }
 }
@@ -236,7 +238,7 @@ impl NetEventChannel {
         #[allow(invalid_value)]
         #[allow(clippy::uninit_assumed_init)]
         let mut msg = DataMessage {
-            ty: NetEventType::DATA.val,
+            ty: NetEventType::Data,
             addr: endpoint.addr.0 as u64,
             port: endpoint.port as u64,
             size: size as u64,
@@ -302,7 +304,7 @@ impl NetEvent {
     }
 
     pub fn msg_type(&self) -> NetEventType {
-        NetEventType::from(self.msg.as_words()[0])
+        NetEventType::try_from(self.msg.as_words()[0]).unwrap()
     }
 
     pub fn msg<T>(&self) -> &T {

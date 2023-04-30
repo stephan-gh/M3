@@ -333,7 +333,7 @@ impl BaseSocket {
 
     fn process_event(&mut self, event: NetEvent) {
         match event.msg_type() {
-            NetEventType::DATA => {
+            NetEventType::Data => {
                 if self.ty != SocketType::Stream
                     || (self.state != State::Closing && self.state != State::Closed)
                 {
@@ -350,7 +350,7 @@ impl BaseSocket {
                 }
             },
 
-            NetEventType::CONNECTED => {
+            NetEventType::Connected => {
                 let msg = event.msg::<event::ConnectedMessage>();
                 let ep = Endpoint::new(IpAddr(msg.remote_addr as u32), msg.remote_port as Port);
                 log_net(
@@ -363,13 +363,13 @@ impl BaseSocket {
                 self.remote_ep = Some(ep);
             },
 
-            NetEventType::CLOSED => {
+            NetEventType::Closed => {
                 log_net(NetLogEvent::RecvClosed, self.sd, 0);
                 log!(LogFlags::LibNet, "socket {}: closed", self.sd);
                 self.disconnect();
             },
 
-            NetEventType::CLOSE_REQ => {
+            NetEventType::CloseReq => {
                 log_net(NetLogEvent::RecvRemoteClosed, self.sd, 0);
                 log!(
                     LogFlags::LibNet,
@@ -378,8 +378,6 @@ impl BaseSocket {
                 );
                 self.state = State::RemoteClosed;
             },
-
-            t => panic!("unexpected message type {}", t),
         }
     }
 }

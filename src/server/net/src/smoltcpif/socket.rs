@@ -507,7 +507,7 @@ impl Socket {
         event: NetEvent,
     ) -> bool {
         match event.msg_type() {
-            NetEventType::DATA => {
+            NetEventType::Data => {
                 let data = event.msg::<DataMessage>();
                 let ip = IpAddr(data.addr as u32);
                 let port = data.port as Port;
@@ -549,7 +549,7 @@ impl Socket {
                 }
             },
 
-            NetEventType::CLOSE_REQ => {
+            NetEventType::CloseReq => {
                 log!(
                     LogFlags::NetSess,
                     "[{}] net::close_req(sd={})",
@@ -561,7 +561,7 @@ impl Socket {
                 self.close(iface).ok();
             },
 
-            m => log!(LogFlags::Error, "Unexpected message from client: {}", m),
+            m => log!(LogFlags::Error, "Unexpected message from client: {:?}", m),
         }
         false
     }
