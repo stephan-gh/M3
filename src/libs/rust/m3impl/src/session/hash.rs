@@ -33,8 +33,8 @@ impl HashSession {
     pub fn new(name: &str, algo: &'static HashAlgorithm) -> Result<Self, Error> {
         let sess = ClientSession::new(name)?;
 
-        let sgate = sess.obtain(1, |is| is.push(opcodes::General::CONNECT), |_| Ok(()))?;
-        let ep = sess.obtain(1, |is| is.push(opcodes::Hash::GET_MEM), |_| Ok(()))?;
+        let sgate = sess.obtain(1, |is| is.push(opcodes::General::Connect), |_| Ok(()))?;
+        let ep = sess.obtain(1, |is| is.push(opcodes::Hash::GetMem), |_| Ok(()))?;
 
         let mut sess = HashSession {
             algo,
@@ -60,7 +60,7 @@ impl HashSession {
     /// Reset the state of the hash session (discarding all previous input and
     /// output data) and change the [`HashAlgorithm`].
     pub fn reset(&mut self, algo: &'static HashAlgorithm) -> Result<(), Error> {
-        send_recv_res!(&self.sgate, RecvGate::def(), opcodes::Hash::RESET, algo.ty).map(|_| ())?;
+        send_recv_res!(&self.sgate, RecvGate::def(), opcodes::Hash::Reset, algo.ty).map(|_| ())?;
         self.algo = algo;
         Ok(())
     }
@@ -71,7 +71,7 @@ impl HashSession {
     /// [`MemGate`](crate::com::MemGate) so that the hash multiplexer can successfully read `len`
     /// bytes with offset `off`.
     pub fn input(&self, off: usize, len: usize) -> Result<(), Error> {
-        send_recv_res!(&self.sgate, RecvGate::def(), opcodes::Hash::INPUT, off, len).map(|_| ())
+        send_recv_res!(&self.sgate, RecvGate::def(), opcodes::Hash::Input, off, len).map(|_| ())
     }
 
     /// Output new data from the state of the hash session.
@@ -91,7 +91,7 @@ impl HashSession {
         send_recv_res!(
             &self.sgate,
             RecvGate::def(),
-            opcodes::Hash::OUTPUT,
+            opcodes::Hash::Output,
             off,
             len
         )
@@ -104,7 +104,7 @@ impl HashSession {
     /// functions).
     pub fn finish(&self, result: &mut [u8]) -> Result<(), Error> {
         assert_eq!(result.len(), self.algo.output_bytes);
-        send_recv!(self.sgate, RecvGate::def(), opcodes::Hash::OUTPUT).and_then(|mut reply| {
+        send_recv!(self.sgate, RecvGate::def(), opcodes::Hash::Output).and_then(|mut reply| {
             // FIXME: Find a better way to copy out the slice?
             let msg = reply.msg();
             if msg.data.len() != self.algo.output_bytes {

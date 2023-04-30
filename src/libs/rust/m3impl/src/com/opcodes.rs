@@ -15,153 +15,170 @@
 
 //! Contains the opcode definitions for all protocols.
 
-use crate::int_enum;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-int_enum! {
-    pub struct General : u64 {
-        const CONNECT       = (1 << 63) + 0;
-    }
+use serde_repr::{Deserialize_repr, Serialize_repr};
+
+#[derive(Copy, Clone, Debug, IntoPrimitive, TryFromPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(usize)]
+pub enum General {
+    Connect = (1 << 31) + 0,
 }
 
-int_enum! {
-    /// The operations for the file protocol.
-    pub struct File : u64 {
-        const STAT          = 0;
-        const SEEK          = 1;
-        const NEXT_IN       = 2;
-        const NEXT_OUT      = 3;
-        const COMMIT        = 4;
-        const TRUNCATE      = 5;
-        const SYNC          = 6;
-        const CLOSE         = 7;
-        const CLONE         = 8;
-        const GET_PATH      = 9;
-        const GET_TMODE     = 10;
-        const SET_TMODE     = 11;
-        const SET_DEST      = 12;
-        const ENABLE_NOTIFY = 13;
-        const REQ_NOTIFY    = 14;
-    }
+/// The operations for the file protocol.
+#[derive(Copy, Clone, Debug, IntoPrimitive, TryFromPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(usize)]
+pub enum File {
+    FStat,
+    Seek,
+    NextIn,
+    NextOut,
+    Commit,
+    Truncate,
+    Sync,
+    Close,
+    CloneFile,
+    GetPath,
+    GetTMode,
+    SetTMode,
+    SetDest,
+    EnableNotify,
+    ReqNotify,
 }
 
-int_enum! {
-    /// The operations for the file-system protocol.
-    pub struct FileSystem : u64 {
-        const STAT          = File::REQ_NOTIFY.val + 1;
-        const MKDIR         = File::REQ_NOTIFY.val + 2;
-        const RMDIR         = File::REQ_NOTIFY.val + 3;
-        const LINK          = File::REQ_NOTIFY.val + 4;
-        const UNLINK        = File::REQ_NOTIFY.val + 5;
-        const RENAME        = File::REQ_NOTIFY.val + 6;
-        const OPEN          = File::REQ_NOTIFY.val + 7;
-        const GET_MEM       = File::REQ_NOTIFY.val + 8;
-        const DEL_EP        = File::REQ_NOTIFY.val + 9;
-        const OPEN_PRIV     = File::REQ_NOTIFY.val + 10;
-    }
+/// The operations for the file-system protocol.
+#[derive(Copy, Clone, Debug, IntoPrimitive, TryFromPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(usize)]
+pub enum FileSystem {
+    FStat        = File::FStat as usize,
+    Seek         = File::Seek as usize,
+    NextIn       = File::NextIn as usize,
+    NextOut      = File::NextOut as usize,
+    Commit       = File::Commit as usize,
+    Truncate     = File::Truncate as usize,
+    Sync         = File::Sync as usize,
+    Close        = File::Close as usize,
+    CloneFile    = File::CloneFile as usize,
+    GetPath      = File::GetPath as usize,
+    GetTMode     = File::GetTMode as usize,
+    SetTMode     = File::SetTMode as usize,
+    SetDest      = File::SetDest as usize,
+    EnableNotify = File::EnableNotify as usize,
+    ReqNotify    = File::ReqNotify as usize,
+    Stat,
+    Mkdir,
+    Rmdir,
+    Link,
+    Unlink,
+    Rename,
+    Open,
+    GetMem,
+    DelEP,
+    OpenPriv,
 }
 
-int_enum! {
-    /// The operations for the pipe protocol.
-    pub struct Pipe : u64 {
-        const OPEN_PIPE     = File::REQ_NOTIFY.val + 1;
-        const OPEN_CHAN     = File::REQ_NOTIFY.val + 2;
-        const SET_MEM       = File::REQ_NOTIFY.val + 3;
-        const CLOSE_PIPE    = File::REQ_NOTIFY.val + 4;
-    }
+/// The operations for the pipe protocol.
+#[derive(Copy, Clone, Debug, IntoPrimitive, TryFromPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(usize)]
+pub enum Pipe {
+    FStat        = File::FStat as usize,
+    Seek         = File::Seek as usize,
+    NextIn       = File::NextIn as usize,
+    NextOut      = File::NextOut as usize,
+    Commit       = File::Commit as usize,
+    Close        = File::Close as usize,
+    CloneFile    = File::CloneFile as usize,
+    SetDest      = File::SetDest as usize,
+    EnableNotify = File::EnableNotify as usize,
+    ReqNotify    = File::ReqNotify as usize,
+    OpenPipe,
+    OpenChan,
+    SetMem,
+    ClosePipe,
 }
 
-int_enum! {
-    /// The operations for the network protocol.
-    pub struct Net : u64 {
-        const STAT          = File::STAT.val;
-        const SEEK          = File::SEEK.val;
-        const NEXT_IN       = File::NEXT_IN.val;
-        const NEXT_OUT      = File::NEXT_OUT.val;
-        const COMMIT        = File::COMMIT.val;
-        const TRUNCATE      = File::TRUNCATE.val;
-        // TODO what about GenericFile::CLOSE?
-        const BIND          = File::REQ_NOTIFY.val + 1;
-        const LISTEN        = File::REQ_NOTIFY.val + 2;
-        const CONNECT       = File::REQ_NOTIFY.val + 3;
-        const ABORT         = File::REQ_NOTIFY.val + 4;
-        const CREATE        = File::REQ_NOTIFY.val + 5;
-        const GET_IP        = File::REQ_NOTIFY.val + 6;
-        const GET_NAMESRV   = File::REQ_NOTIFY.val + 7;
-        const GET_SGATE     = File::REQ_NOTIFY.val + 8;
-        const OPEN_FILE     = File::REQ_NOTIFY.val + 9;
-    }
+/// The operations for the network protocol.
+#[derive(Copy, Clone, Debug, IntoPrimitive, TryFromPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(usize)]
+pub enum Net {
+    FStat   = File::FStat as usize,
+    Seek    = File::Seek as usize,
+    NextIn  = File::NextIn as usize,
+    NextOut = File::NextOut as usize,
+    Commit  = File::Commit as usize,
+    // TODO what about GenericFile::CLOSE?
+    Bind    = File::ReqNotify as usize + 1,
+    Listen,
+    Connect,
+    Abort,
+    Create,
+    GetIP,
+    GetNameSrv,
+    GetSGate,
+    OpenFile,
 }
 
-int_enum! {
-    /// The operations for the resmng protocol.
-    pub struct ResMng : u64 {
-        const REG_SERV      = 0;
-        const UNREG_SERV    = 1;
-
-        const OPEN_SESS     = 2;
-        const CLOSE_SESS    = 3;
-
-        const ADD_CHILD     = 4;
-        const REM_CHILD     = 5;
-
-        const ALLOC_MEM     = 6;
-        const FREE_MEM      = 7;
-
-        const ALLOC_TILE    = 8;
-        const FREE_TILE     = 9;
-
-        const USE_RGATE     = 10;
-        const USE_SGATE     = 11;
-
-        const USE_SEM       = 12;
-        const USE_MOD       = 13;
-
-        const GET_SERIAL    = 14;
-
-        const GET_INFO      = 15;
-    }
+/// The operations for the resmng protocol.
+#[derive(Copy, Clone, Debug, IntoPrimitive, TryFromPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(usize)]
+pub enum ResMng {
+    RegServ,
+    UnregServ,
+    OpenSess,
+    CloseSess,
+    AddChild,
+    RemChild,
+    AllocMem,
+    FreeMem,
+    AllocTile,
+    FreeTile,
+    UseRGate,
+    UseSGate,
+    UseSem,
+    UseMod,
+    GetSerial,
+    GetInfo,
 }
 
-int_enum! {
-    /// The operations for the pager protocol.
-    pub struct Pager : u64 {
-        /// A page fault
-        const PAGEFAULT     = 0;
-        /// Initializes the pager session
-        const INIT          = 1;
-        /// Adds a child activity to the pager session
-        const ADD_CHILD     = 2;
-        /// Clone the address space of a child activity (see `ADD_CHILD`) from the parent
-        const CLONE         = 3;
-        /// Add a new mapping with anonymous memory
-        const MAP_ANON      = 4;
-        /// Add a new data space mapping (e.g., a file)
-        const MAP_DS        = 5;
-        /// Add a new mapping for a given memory capability
-        const MAP_MEM       = 6;
-        /// Remove an existing mapping
-        const UNMAP         = 7;
-        /// Close the pager session
-        const CLOSE         = 8;
-    }
+/// The operations for the pager protocol.
+#[derive(Copy, Clone, Debug, IntoPrimitive, TryFromPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(usize)]
+pub enum Pager {
+    /// A page fault
+    Pagefault,
+    /// Initializes the pager session
+    Init,
+    /// Adds a child activity to the pager session
+    AddChild,
+    /// Clone the address space of a child activity (see `ADD_CHILD`) from the parent
+    Clone,
+    /// Add a new mapping with anonymous memory
+    MapAnon,
+    /// Add a new data space mapping (e.g., a file)
+    MapDS,
+    /// Add a new mapping for a given memory capability
+    MapMem,
+    /// Remove an existing mapping
+    Unmap,
+    /// Close the pager session
+    Close,
 }
 
-int_enum! {
-    /// The operations for the disk protocol.
-    pub struct Disk : u64 {
-        const READ          = 0;
-        const WRITE         = 1;
-        const GET_SGATE     = 2;
-        const ADD_MEM       = 3;
-    }
+/// The operations for the disk protocol.
+#[derive(Copy, Clone, Debug, IntoPrimitive, TryFromPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(usize)]
+pub enum Disk {
+    Read,
+    Write,
+    AddMem,
 }
 
-int_enum! {
-    /// The operations for the hash protocol.
-    pub struct Hash : u64 {
-        const RESET         = 0;
-        const INPUT         = 1;
-        const OUTPUT        = 2;
-        const GET_MEM       = 3;
-    }
+/// The operations for the hash protocol.
+#[derive(Copy, Clone, Debug, IntoPrimitive, TryFromPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(usize)]
+pub enum Hash {
+    Reset,
+    Input,
+    Output,
+    GetMem,
 }

@@ -40,7 +40,7 @@ public:
         capsel_t sels = Activity::own().alloc_sels(2);
         KIF::ExchangeArgs args;
         ExchangeOStream os(args);
-        os << opcodes::File::CLONE << (read ? 0 : 1);
+        os << opcodes::File::CLONE_FILE << (read ? 0 : 1);
         args.bytes = os.total();
         obtain_for(Activity::own(), KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sels, 2), &args);
         auto flags = FILE_NEWSESS | (read ? FILE_R : FILE_W);

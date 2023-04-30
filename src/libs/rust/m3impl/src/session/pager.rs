@@ -59,7 +59,7 @@ bitflags! {
 
 impl Pager {
     fn get_sgate(sess: &ClientSession) -> Result<cap::Selector, Error> {
-        sess.obtain(1, |os| os.push(opcodes::General::CONNECT), |_| Ok(()))
+        sess.obtain(1, |os| os.push(opcodes::General::Connect), |_| Ok(()))
             .map(|crd| crd.start())
     }
 
@@ -99,7 +99,7 @@ impl Pager {
     pub(crate) fn new_clone(&self) -> Result<Self, Error> {
         let res = self
             .sess
-            .obtain(1, |os| os.push(opcodes::Pager::ADD_CHILD), |_| Ok(()))?;
+            .obtain(1, |os| os.push(opcodes::Pager::AddChild), |_| Ok(()))?;
         let sess = ClientSession::new_bind(res.start());
 
         // get send gates for us and our child
@@ -132,7 +132,7 @@ impl Pager {
         if self.close {
             let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, act.sel(), 1);
             self.sess
-                .delegate(crd, |os| os.push(opcodes::Pager::INIT), |_| Ok(()))
+                .delegate(crd, |os| os.push(opcodes::Pager::Init), |_| Ok(()))
         }
         else {
             Ok(())
@@ -152,7 +152,7 @@ impl Pager {
     /// Performs the clone-operation on server-side using copy-on-write.
     #[allow(clippy::should_implement_trait)]
     pub fn clone(&self) -> Result<(), Error> {
-        send_recv_res!(&self.req_sgate, RecvGate::def(), opcodes::Pager::CLONE).map(|_| ())
+        send_recv_res!(&self.req_sgate, RecvGate::def(), opcodes::Pager::Clone).map(|_| ())
     }
 
     /// Sends a page fault for the virtual address `addr` for given access type to the server.
@@ -160,7 +160,7 @@ impl Pager {
         send_recv_res!(
             &self.req_sgate,
             RecvGate::def(),
-            opcodes::Pager::PAGEFAULT,
+            opcodes::Pager::Pagefault,
             addr,
             access
         )
@@ -178,7 +178,7 @@ impl Pager {
         let mut reply = send_recv_res!(
             &self.req_sgate,
             RecvGate::def(),
-            opcodes::Pager::MAP_ANON,
+            opcodes::Pager::MapAnon,
             addr,
             len,
             prot.bits(),
@@ -203,7 +203,7 @@ impl Pager {
         self.sess.delegate(
             crd,
             |os| {
-                os.push(opcodes::Pager::MAP_DS);
+                os.push(opcodes::Pager::MapDS);
                 os.push(addr);
                 os.push(len);
                 os.push(prot);
@@ -231,7 +231,7 @@ impl Pager {
         self.sess.delegate(
             crd,
             |os| {
-                os.push(opcodes::Pager::MAP_MEM);
+                os.push(opcodes::Pager::MapMem);
                 os.push(addr);
                 os.push(len);
                 os.push(prot);
@@ -250,7 +250,7 @@ impl Pager {
         send_recv_res!(
             &self.req_sgate,
             RecvGate::def(),
-            opcodes::Pager::UNMAP,
+            opcodes::Pager::Unmap,
             addr
         )
         .map(|_| ())
@@ -260,7 +260,7 @@ impl Pager {
 impl Drop for Pager {
     fn drop(&mut self) {
         if self.close {
-            send_recv_res!(&self.req_sgate, RecvGate::def(), opcodes::Pager::CLOSE).ok();
+            send_recv_res!(&self.req_sgate, RecvGate::def(), opcodes::Pager::Close).ok();
         }
     }
 }

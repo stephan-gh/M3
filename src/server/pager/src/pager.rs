@@ -21,6 +21,7 @@ mod mapper;
 mod physmem;
 mod regions;
 
+use core::convert::TryFrom;
 use core::ops::DerefMut;
 
 use m3::boxed::Box;
@@ -45,7 +46,8 @@ use resmng::resources::{tiles, Resources};
 use resmng::sendqueue;
 use resmng::subsys;
 
-static REQHDL: LazyStaticRefCell<RequestHandler<AddrSpace>> = LazyStaticRefCell::default();
+static REQHDL: LazyStaticRefCell<RequestHandler<AddrSpace, opcodes::Pager>> =
+    LazyStaticRefCell::default();
 
 static MOUNTS: LazyStaticRefCell<Vec<(String, String)>> = LazyStaticRefCell::default();
 
@@ -182,14 +184,14 @@ fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_, '_>) {
 
             REQHDL
                 .borrow_mut()
-                .fetch_and_handle_with(|_handler, opcode, sess, is| {
-                    match opcodes::Pager::from(opcode) {
-                        opcodes::Pager::PAGEFAULT => sess.pagefault(&mut childs, is),
-                        opcodes::Pager::MAP_ANON => sess.map_anon(is),
-                        opcodes::Pager::UNMAP => sess.unmap(is),
-                        opcodes::Pager::CLOSE => sess.close(is),
-                        _ => Err(Error::new(Code::InvArgs)),
-                    }
+                .fetch_and_handle_with(|_handler, opcode, sess, is| match opcodes::Pager::try_from(
+                    opcode,
+                ) {
+                    Ok(opcodes::Pager::Pagefault) => sess.pagefault(&mut childs, is),
+                    Ok(opcodes::Pager::MapAnon) => sess.map_anon(is),
+                    Ok(opcodes::Pager::Unmap) => sess.unmap(is),
+                    Ok(opcodes::Pager::Close) => sess.close(is),
+                    _ => Err(Error::new(Code::InvArgs)),
                 })
                 .ok();
         },
@@ -224,10 +226,10 @@ pub fn main() -> Result<(), Error> {
     let mut srv = Server::new_private("pager", &mut hdl).expect("Unable to create service");
 
     use opcodes::Pager;
-    hdl.reg_cap_handler(Pager::INIT.val, ExcType::Del(1), AddrSpace::init);
-    hdl.reg_cap_handler(Pager::ADD_CHILD.val, ExcType::Obt(1), AddrSpace::add_child);
-    hdl.reg_cap_handler(Pager::MAP_DS.val, ExcType::Del(1), AddrSpace::map_ds);
-    hdl.reg_cap_handler(Pager::MAP_MEM.val, ExcType::Del(1), AddrSpace::map_mem);
+    hdl.reg_cap_handler(Pager::Init, ExcType::Del(1), AddrSpace::init);
+    hdl.reg_cap_handler(Pager::AddChild, ExcType::Obt(1), AddrSpace::add_child);
+    hdl.reg_cap_handler(Pager::MapDS, ExcType::Del(1), AddrSpace::map_ds);
+    hdl.reg_cap_handler(Pager::MapMem, ExcType::Del(1), AddrSpace::map_mem);
     REQHDL.set(hdl);
 
     let req_rgate = RecvGate::new(

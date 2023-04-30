@@ -23,7 +23,6 @@ use m3::env;
 use m3::errors::{Code, Error};
 use m3::format;
 use m3::goff;
-use m3::int_enum;
 use m3::io::{LogFlags, Read};
 use m3::kif::{self, Perm};
 use m3::log;
@@ -39,12 +38,6 @@ use m3::vfs::VFS;
 
 static AUDIO_DATA: LazyStaticRefCell<MemGate> = LazyStaticRefCell::default();
 static AUDIO_SIZE: LazyStaticCell<usize> = LazyStaticCell::default();
-
-int_enum! {
-    struct ImgSndOp : u64 {
-        const RECV       = 0;
-    }
-}
 
 #[derive(Debug)]
 struct MicSession {
@@ -148,7 +141,7 @@ pub fn main() -> Result<(), Error> {
     let mut hdl = RequestHandler::new().expect("Unable to create request handler");
     let mut srv = Server::new("vamic", &mut hdl).expect("Unable to create service 'vamic'");
 
-    hdl.reg_cap_handler(ImgSndOp::RECV.val, ExcType::Obt(1), MicSession::recv);
+    hdl.reg_cap_handler(0usize, ExcType::Obt(1), MicSession::recv);
 
     hdl.run(&mut srv).expect("Server loop failed");
 

@@ -73,7 +73,7 @@ fn server_msgs_main() -> Result<(), Error> {
     let mut hdl = wv_assert_ok!(RequestHandler::new());
     let mut srv = wv_assert_ok!(Server::new("test", &mut hdl));
 
-    hdl.reg_msg_handler(0, MsgSession::test);
+    hdl.reg_msg_handler(0usize, MsgSession::test);
 
     hdl.run(&mut srv)
 }
@@ -91,7 +91,7 @@ fn testmsgs(t: &mut dyn WvTester) {
     {
         let sess = crate::tserver::connect("test");
         let sels =
-            wv_assert_ok!(sess.obtain(1, |is| is.push(opcodes::General::CONNECT), |_| Ok(())));
+            wv_assert_ok!(sess.obtain(1, |is| is.push(opcodes::General::Connect), |_| Ok(())));
         let sgate = SendGate::new_bind(sels.start());
 
         for _ in 0..5 {
@@ -104,7 +104,7 @@ fn testmsgs(t: &mut dyn WvTester) {
     {
         let sess = crate::tserver::connect("test");
         let sels =
-            wv_assert_ok!(sess.obtain(1, |is| is.push(opcodes::General::CONNECT), |_| Ok(())));
+            wv_assert_ok!(sess.obtain(1, |is| is.push(opcodes::General::Connect), |_| Ok(())));
         let sgate = SendGate::new_bind(sels.start());
 
         let mut reply = wv_assert_ok!(send_recv!(&sgate, RecvGate::def(), 0, "123456"));

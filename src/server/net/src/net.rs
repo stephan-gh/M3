@@ -90,17 +90,17 @@ impl NetHandler<'_> {
 
         if let Some(sess) = self.sessions.get_mut(sess_id) {
             match op {
-                opcodes::Net::STAT => sess.stat(is),
-                opcodes::Net::SEEK => sess.seek(is),
-                opcodes::Net::NEXT_IN => sess.next_in(is),
-                opcodes::Net::NEXT_OUT => sess.next_out(is),
-                opcodes::Net::COMMIT => sess.commit(is),
-                opcodes::Net::BIND => sess.bind(is, &mut self.iface),
-                opcodes::Net::LISTEN => sess.listen(is, &mut self.iface),
-                opcodes::Net::CONNECT => sess.connect(is, &mut self.iface),
-                opcodes::Net::ABORT => sess.abort(is, &mut self.iface),
-                opcodes::Net::GET_IP => self.get_ip(is),
-                opcodes::Net::GET_NAMESRV => self.get_nameserver(is),
+                opcodes::Net::FStat => sess.stat(is),
+                opcodes::Net::Seek => sess.seek(is),
+                opcodes::Net::NextIn => sess.next_in(is),
+                opcodes::Net::NextOut => sess.next_out(is),
+                opcodes::Net::Commit => sess.commit(is),
+                opcodes::Net::Bind => sess.bind(is, &mut self.iface),
+                opcodes::Net::Listen => sess.listen(is, &mut self.iface),
+                opcodes::Net::Connect => sess.connect(is, &mut self.iface),
+                opcodes::Net::Abort => sess.abort(is, &mut self.iface),
+                opcodes::Net::GetIP => self.get_ip(is),
+                opcodes::Net::GetNameSrv => self.get_nameserver(is),
                 _ => Err(Error::new(Code::InvArgs)),
             }
         }
@@ -148,7 +148,7 @@ impl NetHandler<'_> {
     }
 }
 
-impl Handler<NetworkSession> for NetHandler<'_> {
+impl Handler<NetworkSession, opcodes::Net> for NetHandler<'_> {
     fn sessions(&mut self) -> &mut SessionContainer<NetworkSession> {
         &mut self.sessions
     }
@@ -174,7 +174,7 @@ impl Handler<NetworkSession> for NetHandler<'_> {
         &mut self,
         crt: usize,
         sid: SessId,
-        opcode: u64,
+        opcode: usize,
         ty: m3::server::ExcType,
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {

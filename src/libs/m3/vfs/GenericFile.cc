@@ -100,7 +100,7 @@ void GenericFile::remove() noexcept {
 Errors::Code GenericFile::try_stat(FileInfo &info) const {
     LOG(LogFlags::LibFS, "GenFile[{}]::stat()"_cf, _fd);
 
-    GateIStream reply = send_receive_vmsg(*_sg, opcodes::File::STAT, _id);
+    GateIStream reply = send_receive_vmsg(*_sg, opcodes::File::FSTAT, _id);
     Errors::Code res;
     reply >> res;
     if(res == Errors::SUCCESS)
@@ -387,7 +387,7 @@ FileRef<File> GenericFile::clone() const {
 void GenericFile::do_clone(Activity &act, KIF::CapRngDesc &crd) const {
     KIF::ExchangeArgs args;
     ExchangeOStream os(args);
-    os << opcodes::File::CLONE;
+    os << opcodes::File::CLONE_FILE;
     args.bytes = os.total();
     _sess.obtain_for(act, crd, &args);
 }

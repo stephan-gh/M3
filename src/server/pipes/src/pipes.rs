@@ -83,58 +83,37 @@ pub fn main() -> Result<(), Error> {
     let mut srv = Server::new("pipes", &mut hdl).expect("Unable to create service 'pipes'");
 
     // register capability handler
+    use opcodes::Pipe;
+    hdl.reg_cap_handler(Pipe::OpenPipe, ExcType::Obt(2), PipesSession::open_pipe);
+    hdl.reg_cap_handler(Pipe::OpenChan, ExcType::Obt(2), PipesSession::open_chan);
+    hdl.reg_cap_handler(Pipe::SetMem, ExcType::Del(1), PipesSession::set_mem);
+    hdl.reg_cap_handler(Pipe::CloneFile, ExcType::Obt(2), PipesSession::clone);
+    hdl.reg_cap_handler(Pipe::SetDest, ExcType::Del(1), PipesSession::set_dest);
     hdl.reg_cap_handler(
-        opcodes::Pipe::OPEN_PIPE.val,
-        ExcType::Obt(2),
-        PipesSession::open_pipe,
-    );
-    hdl.reg_cap_handler(
-        opcodes::Pipe::OPEN_CHAN.val,
-        ExcType::Obt(2),
-        PipesSession::open_chan,
-    );
-    hdl.reg_cap_handler(
-        opcodes::Pipe::SET_MEM.val,
-        ExcType::Del(1),
-        PipesSession::set_mem,
-    );
-    hdl.reg_cap_handler(
-        opcodes::File::CLONE.val,
-        ExcType::Obt(2),
-        PipesSession::clone,
-    );
-    hdl.reg_cap_handler(
-        opcodes::File::SET_DEST.val,
-        ExcType::Del(1),
-        PipesSession::set_dest,
-    );
-    hdl.reg_cap_handler(
-        opcodes::File::ENABLE_NOTIFY.val,
+        Pipe::EnableNotify,
         ExcType::Del(1),
         PipesSession::enable_notify,
     );
 
     // register message handler
-    hdl.reg_msg_handler(opcodes::File::NEXT_IN.val, |sess, is| {
+    hdl.reg_msg_handler(Pipe::NextIn, |sess, is| {
         sess.with_chan(is, |c, is| c.next_in(is))
     });
-    hdl.reg_msg_handler(opcodes::File::NEXT_OUT.val, |sess, is| {
+    hdl.reg_msg_handler(Pipe::NextOut, |sess, is| {
         sess.with_chan(is, |c, is| c.next_out(is))
     });
-    hdl.reg_msg_handler(opcodes::File::COMMIT.val, |sess, is| {
+    hdl.reg_msg_handler(Pipe::Commit, |sess, is| {
         sess.with_chan(is, |c, is| c.commit(is))
     });
-    hdl.reg_msg_handler(opcodes::File::REQ_NOTIFY.val, |sess, is| {
+    hdl.reg_msg_handler(Pipe::ReqNotify, |sess, is| {
         sess.with_chan(is, |c, is| c.request_notify(is))
     });
-    hdl.reg_msg_handler(opcodes::File::STAT.val, |sess, is| {
+    hdl.reg_msg_handler(Pipe::FStat, |sess, is| {
         sess.with_chan(is, |c, is| c.stat(is))
     });
-    hdl.reg_msg_handler(opcodes::File::SEEK.val, |_sess, _is| {
-        Err(Error::new(Code::SeekPipe))
-    });
-    hdl.reg_msg_handler(opcodes::File::CLOSE.val, |sess, is| sess.close(is));
-    hdl.reg_msg_handler(opcodes::Pipe::CLOSE_PIPE.val, |sess, is| sess.close(is));
+    hdl.reg_msg_handler(Pipe::Seek, |_sess, _is| Err(Error::new(Code::SeekPipe)));
+    hdl.reg_msg_handler(Pipe::Close, |sess, is| sess.close(is));
+    hdl.reg_msg_handler(Pipe::ClosePipe, |sess, is| sess.close(is));
 
     hdl.run(&mut srv).expect("Server loop failed");
 

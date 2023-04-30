@@ -148,7 +148,7 @@ impl GenericFile {
             send_recv_res!(
                 &self.sgate,
                 RecvGate::def(),
-                opcodes::File::COMMIT,
+                opcodes::File::Commit,
                 self.file_id(),
                 self.pos
             )?;
@@ -168,7 +168,7 @@ impl GenericFile {
             self.submit(true)?;
             let crd = CapRngDesc::new(CapType::OBJECT, ep_sel, 1);
             self.sess
-                .delegate(crd, |s| s.push(opcodes::File::SET_DEST), |_| Ok(()))?;
+                .delegate(crd, |s| s.push(opcodes::File::SetDest), |_| Ok(()))?;
             self.delegated_ep = ep_sel;
         }
         Ok(())
@@ -197,7 +197,7 @@ impl GenericFile {
             let mut reply = send_recv_res!(
                 &self.sgate,
                 RecvGate::def(),
-                opcodes::File::NEXT_IN,
+                opcodes::File::NextIn,
                 self.file_id()
             )?;
             self.goff += self.len;
@@ -222,7 +222,7 @@ impl GenericFile {
             let mut reply = send_recv_res!(
                 &self.sgate,
                 RecvGate::def(),
-                opcodes::File::NEXT_OUT,
+                opcodes::File::NextOut,
                 self.file_id()
             )?;
             self.goff += self.len;
@@ -249,7 +249,7 @@ impl GenericFile {
 
         let crd = CapRngDesc::new(CapType::OBJECT, _notify_sgate.sel(), 1);
         self.sess
-            .delegate(crd, |s| s.push(opcodes::File::ENABLE_NOTIFY), |_| Ok(()))?;
+            .delegate(crd, |s| s.push(opcodes::File::EnableNotify), |_| Ok(()))?;
 
         log!(
             LogFlags::LibFS,
@@ -283,7 +283,7 @@ impl GenericFile {
             send_recv_res!(
                 &self.sgate,
                 RecvGate::def(),
-                opcodes::File::REQ_NOTIFY,
+                opcodes::File::ReqNotify,
                 fid,
                 events.bits()
             )?;
@@ -399,7 +399,7 @@ impl File for GenericFile {
         send_recv_res!(
             &self.sgate,
             RecvGate::def(),
-            opcodes::File::CLOSE,
+            opcodes::File::Close,
             self.file_id()
         )
         .ok();
@@ -411,7 +411,7 @@ impl File for GenericFile {
         send_vmsg!(
             &self.sgate,
             RecvGate::def(),
-            opcodes::File::STAT,
+            opcodes::File::FStat,
             self.file_id()
         )?;
         let mut reply = recv_result(RecvGate::def(), Some(&self.sgate))?;
@@ -422,7 +422,7 @@ impl File for GenericFile {
         let mut reply = send_recv_res!(
             &self.sgate,
             RecvGate::def(),
-            opcodes::File::GET_PATH,
+            opcodes::File::GetPath,
             self.file_id()
         )?;
         let path = reply.pop()?;
@@ -440,7 +440,7 @@ impl File for GenericFile {
         let mut reply = send_recv_res!(
             &self.sgate,
             RecvGate::def(),
-            opcodes::File::TRUNCATE,
+            opcodes::File::Truncate,
             self.file_id(),
             length
         )?;
@@ -457,7 +457,7 @@ impl File for GenericFile {
         let mut reply = send_recv_res!(
             &self.sgate,
             RecvGate::def(),
-            opcodes::File::GET_TMODE,
+            opcodes::File::GetTMode,
             self.file_id()
         )?;
         reply.pop()
@@ -469,8 +469,12 @@ impl File for GenericFile {
 
     fn delegate(&self, act: &ChildActivity) -> Result<Selector, Error> {
         let crd = CapRngDesc::new(CapType::OBJECT, self.sess.sel(), 2);
-        self.sess
-            .obtain_for(act.sel(), crd, |s| s.push(opcodes::File::CLONE), |_| Ok(()))?;
+        self.sess.obtain_for(
+            act.sel(),
+            crd,
+            |s| s.push(opcodes::File::CloneFile),
+            |_| Ok(()),
+        )?;
         Ok(self.sess.sel() + 2)
     }
 
@@ -537,7 +541,7 @@ impl Seek for GenericFile {
         let mut reply = send_recv_res!(
             &self.sgate,
             RecvGate::def(),
-            opcodes::File::SEEK,
+            opcodes::File::Seek,
             self.file_id(),
             off,
             whence
@@ -586,7 +590,7 @@ impl Write for GenericFile {
             send_recv_res!(
                 &self.sgate,
                 RecvGate::def(),
-                opcodes::File::SYNC,
+                opcodes::File::Sync,
                 self.file_id()
             )
             .map(|_| ())

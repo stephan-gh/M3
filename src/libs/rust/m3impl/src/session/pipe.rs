@@ -41,7 +41,7 @@ impl Pipes {
         let crd = self.sess.obtain(
             2,
             |os| {
-                os.push(opcodes::Pipe::OPEN_PIPE);
+                os.push(opcodes::Pipe::OpenPipe);
                 os.push(mem_size);
             },
             |_| Ok(()),
@@ -62,7 +62,7 @@ impl Pipe {
         sess.delegate(
             CapRngDesc::new(CapType::OBJECT, mem.sel(), 1),
             |os| {
-                os.push(opcodes::Pipe::SET_MEM);
+                os.push(opcodes::Pipe::SetMem);
             },
             |_| Ok(()),
         )?;
@@ -83,7 +83,7 @@ impl Pipe {
         let crd = self.sess.obtain(
             2,
             |os| {
-                os.push(opcodes::Pipe::OPEN_CHAN);
+                os.push(opcodes::Pipe::OpenChan);
                 os.push(read);
             },
             |_| Ok(()),
@@ -100,6 +100,6 @@ impl Pipe {
 
 impl Drop for Pipe {
     fn drop(&mut self) {
-        send_recv_res!(&self.sgate, RecvGate::def(), opcodes::Pipe::CLOSE_PIPE).unwrap();
+        send_recv_res!(&self.sgate, RecvGate::def(), opcodes::Pipe::ClosePipe).unwrap();
     }
 }

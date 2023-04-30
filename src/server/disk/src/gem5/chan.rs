@@ -150,7 +150,7 @@ impl Channel {
         let count = bytes / dev.sector_size();
 
         let dev_op = match op {
-            opcodes::Disk::READ => DevOp::READ,
+            opcodes::Disk::Read => DevOp::READ,
             _ => DevOp::WRITE,
         };
 

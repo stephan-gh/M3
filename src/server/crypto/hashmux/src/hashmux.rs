@@ -181,7 +181,7 @@ impl RequestSession for HashSession {
 /// Receives requests from kernel and clients through `RecvGate`s.
 struct HashMuxReceiver {
     server: Server,
-    reqhdl: RequestHandler<HashSession>,
+    reqhdl: RequestHandler<HashSession, opcodes::Hash>,
 }
 
 /// Run func repeatedly with the two buffers swapped,
@@ -700,10 +700,10 @@ pub fn main() -> Result<(), Error> {
     let srv = Server::new("hash", &mut hdl).expect("Unable to create service 'hash'");
 
     use opcodes::Hash;
-    hdl.reg_cap_handler(Hash::GET_MEM.val, ExcType::Obt(1), HashSession::get_mem);
-    hdl.reg_msg_handler(Hash::RESET.val, HashSession::reset);
-    hdl.reg_msg_handler(Hash::INPUT.val, HashSession::input);
-    hdl.reg_msg_handler(Hash::OUTPUT.val, HashSession::output);
+    hdl.reg_cap_handler(Hash::GetMem, ExcType::Obt(1), HashSession::get_mem);
+    hdl.reg_msg_handler(Hash::Reset, HashSession::reset);
+    hdl.reg_msg_handler(Hash::Input, HashSession::input);
+    hdl.reg_msg_handler(Hash::Output, HashSession::output);
 
     let mut recv = HashMuxReceiver {
         server: srv,

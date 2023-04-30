@@ -41,7 +41,7 @@ impl NetworkSession {
         &mut self,
         crt: usize,
         server: Selector,
-        opcode: u64,
+        opcode: usize,
         xchg: &mut CapExchange<'_>,
         iface: &mut DriverInterface<'_>,
     ) -> Result<(), Error> {

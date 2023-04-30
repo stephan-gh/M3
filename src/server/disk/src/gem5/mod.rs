@@ -87,7 +87,7 @@ impl BlockDevice for IDEBlockDevice {
         let part_desc = self.devs[part].unwrap();
         self.ide_ctrl.read_write(
             part_desc,
-            opcodes::Disk::READ,
+            opcodes::Disk::Read,
             buf,
             buf_off,
             disk_off,
@@ -106,7 +106,7 @@ impl BlockDevice for IDEBlockDevice {
         let part_desc = self.devs[part].unwrap();
         self.ide_ctrl.read_write(
             part_desc,
-            opcodes::Disk::WRITE,
+            opcodes::Disk::Write,
             buf,
             buf_off,
             disk_off,

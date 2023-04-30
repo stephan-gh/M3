@@ -22,13 +22,13 @@ namespace opcodes {
 
 struct General {
     enum Operation : uint64_t {
-        CONNECT = static_cast<uint64_t>(1) << 63,
+        CONNECT = static_cast<uint64_t>(1) << 31,
     };
 };
 
 struct File {
     enum Operation {
-        STAT,
+        FSTAT,
         SEEK,
         NEXT_IN,
         NEXT_OUT,
@@ -36,7 +36,7 @@ struct File {
         TRUNCATE,
         SYNC,
         CLOSE,
-        CLONE,
+        CLONE_FILE,
         GET_PATH,
         GET_TMODE,
         SET_TMODE,
@@ -48,21 +48,7 @@ struct File {
 
 struct FileSystem {
     enum Operation {
-        FSTAT = File::STAT,
-        SEEK = File::SEEK,
-        NEXT_IN = File::NEXT_IN,
-        NEXT_OUT = File::NEXT_OUT,
-        COMMIT = File::COMMIT,
-        TRUNCATE = File::TRUNCATE,
-        SYNC = File::SYNC,
-        CLOSE = File::CLOSE,
-        CLONE = File::CLONE,
-        GET_TMODE = File::GET_TMODE,
-        SET_TMODE = File::SET_TMODE,
-        SET_DEST = File::SET_DEST,
-        ENABLE_NOTIFY = File::ENABLE_NOTIFY,
-        REQ_NOTIFY = File::REQ_NOTIFY,
-        STAT,
+        STAT = File::REQ_NOTIFY + 1,
         MKDIR,
         RMDIR,
         LINK,
@@ -77,20 +63,7 @@ struct FileSystem {
 
 struct Net {
     enum Operation {
-        STAT = File::STAT,
-        SEEK = File::SEEK,
-        NEXT_IN = File::NEXT_IN,
-        NEXT_OUT = File::NEXT_OUT,
-        COMMIT = File::COMMIT,
-        TRUNCATE = File::TRUNCATE,
-        CLOSE = File::CLOSE,
-        CLONE = File::CLONE,
-        GET_TMODE = File::GET_TMODE,
-        SET_TMODE = File::SET_TMODE,
-        SET_DEST = File::SET_DEST,
-        ENABLE_NOTIFY = File::ENABLE_NOTIFY,
-        REQ_NOTIFY = File::REQ_NOTIFY,
-        BIND,
+        BIND = File::REQ_NOTIFY + 1,
         LISTEN,
         CONNECT,
         ABORT,

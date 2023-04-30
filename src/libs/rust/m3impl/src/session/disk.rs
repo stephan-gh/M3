@@ -96,7 +96,7 @@ impl Disk {
             Activity::own().sel(),
             crd,
             |slice_sink| {
-                slice_sink.push(opcodes::General::CONNECT);
+                slice_sink.push(opcodes::General::Connect);
             },
             |_slice_source| Ok(()),
         )?;
@@ -110,7 +110,7 @@ impl Disk {
         self.sess.delegate(
             crd,
             |slice_sink| {
-                slice_sink.push(opcodes::Disk::ADD_MEM);
+                slice_sink.push(opcodes::Disk::AddMem);
                 slice_sink.push(blocks.start);
                 slice_sink.push(blocks.count);
             },
@@ -128,7 +128,7 @@ impl Disk {
         send_recv_res!(
             &self.sgate,
             &self.rgate,
-            opcodes::Disk::READ,
+            opcodes::Disk::Read,
             cap,
             blocks.start,
             blocks.count,
@@ -148,7 +148,7 @@ impl Disk {
         send_recv_res!(
             &self.sgate,
             &self.rgate,
-            opcodes::Disk::WRITE,
+            opcodes::Disk::Write,
             cap,
             blocks.start,
             blocks.count,

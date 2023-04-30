@@ -212,40 +212,40 @@ pub fn main() -> Result<(), Error> {
     let srv = Server::new("vterm", &mut hdl).expect("Unable to create service 'vterm'");
 
     use opcodes::File;
-    hdl.reg_cap_handler(File::CLONE.val, ExcType::Obt(2), VTermSession::clone);
-    hdl.reg_cap_handler(File::SET_DEST.val, ExcType::Del(1), VTermSession::set_dest);
+    hdl.reg_cap_handler(File::CloneFile, ExcType::Obt(2), VTermSession::clone);
+    hdl.reg_cap_handler(File::SetDest, ExcType::Del(1), VTermSession::set_dest);
     hdl.reg_cap_handler(
-        File::ENABLE_NOTIFY.val,
+        File::EnableNotify,
         ExcType::Del(1),
         VTermSession::enable_notify,
     );
 
-    hdl.reg_msg_handler(File::NEXT_IN.val, |sess, is| {
+    hdl.reg_msg_handler(File::NextIn, |sess, is| {
         sess.with_chan(is, |c, is| c.next_in(is))
     });
-    hdl.reg_msg_handler(File::NEXT_OUT.val, |sess, is| {
+    hdl.reg_msg_handler(File::NextOut, |sess, is| {
         sess.with_chan(is, |c, is| c.next_out(is))
     });
-    hdl.reg_msg_handler(File::COMMIT.val, |sess, is| {
+    hdl.reg_msg_handler(File::Commit, |sess, is| {
         sess.with_chan(is, |c, is| c.commit(is))
     });
-    hdl.reg_msg_handler(File::STAT.val, |sess, is| {
+    hdl.reg_msg_handler(File::FStat, |sess, is| {
         sess.with_chan(is, |c, is| c.stat(is))
     });
-    hdl.reg_msg_handler(File::CLOSE.val, |sess, is| {
+    hdl.reg_msg_handler(File::Close, |sess, is| {
         // let the request handler remove the session
         sess.alive = false;
         is.reply_error(Code::Success).ok();
         Ok(())
     });
-    hdl.reg_msg_handler(File::SEEK.val, |_sess, _is| Err(Error::new(Code::NotSup)));
-    hdl.reg_msg_handler(File::GET_TMODE.val, |sess, is| {
+    hdl.reg_msg_handler(File::Seek, |_sess, _is| Err(Error::new(Code::NotSup)));
+    hdl.reg_msg_handler(File::GetTMode, |sess, is| {
         sess.with_chan(is, |c, is| c.get_tmode(is))
     });
-    hdl.reg_msg_handler(File::SET_TMODE.val, |sess, is| {
+    hdl.reg_msg_handler(File::SetTMode, |sess, is| {
         sess.with_chan(is, |c, is| c.set_tmode(is))
     });
-    hdl.reg_msg_handler(File::REQ_NOTIFY.val, |sess, is| {
+    hdl.reg_msg_handler(File::ReqNotify, |sess, is| {
         sess.with_chan(is, |c, is| c.request_notify(is))
     });
 

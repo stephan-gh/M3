@@ -74,7 +74,7 @@ fn server_crash_main() -> Result<(), Error> {
     let mut hdl = wv_assert_ok!(RequestHandler::new());
     let mut srv = wv_assert_ok!(Server::new("test", &mut hdl));
 
-    hdl.reg_cap_handler(0, ExcType::Obt(1), CrashSession::dummy);
+    hdl.reg_cap_handler(0usize, ExcType::Obt(1), CrashSession::dummy);
 
     wv_assert_ok!(hdl.run(&mut srv));
 
@@ -250,8 +250,8 @@ fn server_notsup_main() -> Result<(), Error> {
         let mut hdl = wv_assert_ok!(RequestHandler::new());
         let srv = wv_assert_ok!(Server::new("test", &mut hdl));
 
-        hdl.reg_cap_handler(0, ExcType::Obt(1), NotSupSession::fivetimes);
-        hdl.reg_cap_handler(1, ExcType::Del(1), NotSupSession::fivetimes);
+        hdl.reg_cap_handler(0usize, ExcType::Obt(1), NotSupSession::fivetimes);
+        hdl.reg_cap_handler(1usize, ExcType::Del(1), NotSupSession::fivetimes);
 
         let res = server_loop(|| {
             if STOP.get() {

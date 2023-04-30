@@ -34,19 +34,21 @@ bitflags! {
         const LibFS         = 1 << (Self::__lib_start.bits() + 0);
         /// libraries: server operations
         const LibServ       = 1 << (Self::__lib_start.bits() + 1);
+        /// libraries: requests to servers
+        const LibServReqs   = 1 << (Self::__lib_start.bits() + 2);
         /// libraries: networking events
-        const LibNet        = 1 << (Self::__lib_start.bits() + 2);
+        const LibNet        = 1 << (Self::__lib_start.bits() + 3);
         /// libraries: global<->phys address translations
-        const LibXlate      = 1 << (Self::__lib_start.bits() + 3);
+        const LibXlate      = 1 << (Self::__lib_start.bits() + 4);
         /// libraries: thread switching
-        const LibThread     = 1 << (Self::__lib_start.bits() + 4);
+        const LibThread     = 1 << (Self::__lib_start.bits() + 5);
         /// libraries: send queue
-        const LibSQueue     = 1 << (Self::__lib_start.bits() + 5);
+        const LibSQueue     = 1 << (Self::__lib_start.bits() + 6);
         /// libraries: direct pipe
-        const LibDirPipe    = 1 << (Self::__lib_start.bits() + 6);
+        const LibDirPipe    = 1 << (Self::__lib_start.bits() + 7);
 
         #[doc(hidden)]
-        const __kern_start = Self::__lib_start.bits() + 7;
+        const __kern_start = Self::__lib_start.bits() + 8;
 
         /// Kernel: endpoint configurations for user tiles
         const KernEPs       = 1 << (Self::__kern_start.bits() + 0);

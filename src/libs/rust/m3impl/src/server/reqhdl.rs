@@ -13,13 +13,20 @@
  * General Public License version 2 for more details.
  */
 
+use core::convert::TryFrom;
+use core::fmt::Debug;
+use core::marker::PhantomData;
+
 use crate::boxed::Box;
 use crate::cap::Selector;
 use crate::cfg;
 use crate::col::Vec;
 use crate::com::{opcodes, GateIStream, RecvGate, SGateArgs, SendGate};
 use crate::errors::{Code, Error};
+use crate::format;
+use crate::io::LogFlags;
 use crate::kif;
+use crate::log;
 use crate::server::{server_loop, CapExchange, ExcType, Handler, Server, SessId, SessionContainer};
 use crate::session::ServerSession;
 use crate::tcu::Label;
@@ -78,7 +85,9 @@ pub trait RequestSession {
     }
 }
 
-impl<S: RequestSession + 'static> Handler<S> for RequestHandler<S> {
+impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Handler<S, O>
+    for RequestHandler<S, O>
+{
     fn sessions(&mut self) -> &mut SessionContainer<S> {
         &mut self.clients.sessions
     }
@@ -91,7 +100,7 @@ impl<S: RequestSession + 'static> Handler<S> for RequestHandler<S> {
         &mut self,
         crt: usize,
         sid: SessId,
-        opcode: u64,
+        opcode: usize,
         ty: ExcType,
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
@@ -99,11 +108,11 @@ impl<S: RequestSession + 'static> Handler<S> for RequestHandler<S> {
             clients, cap_hdls, ..
         } = self;
 
-        if opcode == opcodes::General::CONNECT.val {
+        if opcode == opcodes::General::Connect.into() {
             clients.connect(crt, sid, ty, xchg)
         }
         else {
-            match &cap_hdls[opcode as usize] {
+            match &cap_hdls[opcode] {
                 CapHandler {
                     ty: hdl_ty,
                     func: Some(func),
@@ -355,13 +364,14 @@ pub type MsgHandlerFunc<S> = Option<Box<dyn Fn(&mut S, &mut GateIStream<'_>) -> 
 ///
 /// The sessions are managed by the [`ClientManager`], which holds the client-specific data
 /// (sessions) and their communication channels.
-pub struct RequestHandler<S> {
+pub struct RequestHandler<S, O> {
     clients: ClientManager<S>,
     msg_hdls: Vec<MsgHandlerFunc<S>>,
     cap_hdls: Vec<CapHandler<S>>,
+    _opcode: PhantomData<O>,
 }
 
-impl<S: RequestSession + 'static> RequestHandler<S> {
+impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> RequestHandler<S, O> {
     /// Creates a new request handler with default arguments
     pub fn new() -> Result<Self, Error> {
         Self::new_with(DEF_MAX_CLIENTS, DEF_MSG_SIZE, 1)
@@ -378,6 +388,7 @@ impl<S: RequestSession + 'static> RequestHandler<S> {
             clients: ClientManager::new(max_clients, msg_size, max_cli_cons)?,
             msg_hdls: Vec::new(),
             cap_hdls: Vec::new(),
+            _opcode: PhantomData::default(),
         })
     }
 
@@ -395,17 +406,17 @@ impl<S: RequestSession + 'static> RequestHandler<S> {
     ///
     /// This function is called whenever a capability should be exchanged with a client and the
     /// given opcode and exchange type match. That is, the message from the client is expected to
-    /// have the given opcode as the first 64-bit word. Furthermore, the exchange type (obtain or
+    /// have the given opcode as the first integer. Furthermore, the exchange type (obtain or
     /// delegate) and the number of exchanged capabilities need to match.
     ///
     /// Note that `opcode` will be used as an index into a `Vec` and should therefore be reasonably
     /// small.
-    pub fn reg_cap_handler<F>(&mut self, opcode: u64, ty: ExcType, func: F)
+    pub fn reg_cap_handler<F>(&mut self, opcode: O, ty: ExcType, func: F)
     where
         F: Fn(&mut ClientManager<S>, usize, SessId, &mut CapExchange<'_>) -> Result<(), Error>
             + 'static,
     {
-        let idx = opcode as usize;
+        let idx = opcode.into();
         while idx >= self.cap_hdls.len() {
             self.cap_hdls.push(CapHandler {
                 ty: ExcType::Del(1),
@@ -422,17 +433,17 @@ impl<S: RequestSession + 'static> RequestHandler<S> {
     /// Registers `func` as the message handler for the given opcode
     ///
     /// This function is called whenever `fetch_and_handle` is called and receives a message with
-    /// this opcode as the first 64-bit word. The function is expected to reply to the caller unless
+    /// this opcode as the first integer. The function is expected to reply to the caller unless
     /// there is an error. In the latter case, `fetch_and_handle` is responsible for replying with
     /// an error.
     ///
     /// Note that `opcode` will be used as an index into a `Vec` and should therefore be reasonably
     /// small.
-    pub fn reg_msg_handler<F>(&mut self, opcode: u64, func: F)
+    pub fn reg_msg_handler<F>(&mut self, opcode: O, func: F)
     where
         F: Fn(&mut S, &mut GateIStream<'_>) -> Result<(), Error> + 'static,
     {
-        let idx = opcode as usize;
+        let idx = opcode.into();
         while idx >= self.msg_hdls.len() {
             self.msg_hdls.push(None);
         }
@@ -441,31 +452,56 @@ impl<S: RequestSession + 'static> RequestHandler<S> {
     }
 
     /// Fetches the next message from the receive gate and calls the appropriate handler function
-    /// depending on the opcode (first 64-bit word in the message).
+    /// depending on the opcode (first integer in the message).
     ///
     /// The handlers are registered via `reg_msg_handler`. In case the handler returns an error,
     /// this function sends a reply to the caller with the error code.
     pub fn fetch_and_handle(&mut self) -> Result<(), Error> {
-        self.fetch_and_handle_with(
-            |handler, opcode, sess, is| match &handler[opcode as usize] {
-                Some(f) => f(sess, is),
-                None => Err(Error::new(Code::InvArgs)),
-            },
-        )
+        self.fetch_and_handle_with(|handler, opcode, sess, is| match &handler[opcode] {
+            Some(f) => f(sess, is),
+            None => Err(Error::new(Code::InvArgs)),
+        })
     }
 
     /// Fetches the next message from the receive gate and calls the given function to handle it.
     pub fn fetch_and_handle_with<F>(&mut self, func: F) -> Result<(), Error>
     where
-        F: FnOnce(&Vec<MsgHandlerFunc<S>>, u64, &mut S, &mut GateIStream<'_>) -> Result<(), Error>,
+        F: FnOnce(
+            &Vec<MsgHandlerFunc<S>>,
+            usize,
+            &mut S,
+            &mut GateIStream<'_>,
+        ) -> Result<(), Error>,
     {
         if let Ok(msg) = self.clients.rgate.fetch() {
             let mut is = GateIStream::new(msg, &self.clients.rgate);
-            let opcode: u64 = is.pop()?;
-
+            let opcode = is.pop::<usize>()?;
             let sid = is.label() as SessId;
+
+            let op_name = |opcode| match O::try_from(opcode) {
+                Ok(op) => format!("{:?}:{}", op, opcode),
+                _ => format!("??:{}", opcode),
+            };
+
+            log!(
+                LogFlags::LibServReqs,
+                "server::request(sid={}, op={})",
+                sid,
+                op_name(opcode),
+            );
+
             let sess = self.clients.sessions.get_mut(sid).unwrap();
-            if let Err(e) = func(&self.msg_hdls, opcode, sess, &mut is) {
+            let res = func(&self.msg_hdls, opcode, sess, &mut is);
+
+            log!(
+                LogFlags::LibServReqs,
+                "server::request(sid={}, op={}) -> {:?}",
+                sid,
+                op_name(opcode),
+                res,
+            );
+
+            if let Err(e) = res {
                 // ignore errors here
                 is.reply_error(e.code()).ok();
             }

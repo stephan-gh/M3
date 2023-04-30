@@ -188,9 +188,9 @@ pub fn main() -> Result<(), Error> {
     let mut srv = Server::new("disk", &mut hdl).expect("Unable to create service 'disk'");
 
     use opcodes::Disk;
-    hdl.reg_cap_handler(Disk::ADD_MEM.val, ExcType::Del(1), DiskSession::add_mem);
-    hdl.reg_msg_handler(Disk::READ.val, DiskSession::read);
-    hdl.reg_msg_handler(Disk::WRITE.val, DiskSession::write);
+    hdl.reg_cap_handler(Disk::AddMem, ExcType::Del(1), DiskSession::add_mem);
+    hdl.reg_msg_handler(Disk::Read, DiskSession::read);
+    hdl.reg_msg_handler(Disk::Write, DiskSession::write);
 
     hdl.run(&mut srv).expect("Server loop failed");
 

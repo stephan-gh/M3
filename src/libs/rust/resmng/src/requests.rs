@@ -100,39 +100,39 @@ impl Requests {
         let id = is.label() as Id;
 
         let res = match op {
-            Ok(opcodes::ResMng::REG_SERV) => self.reg_serv(childs, res, &mut is, id),
-            Ok(opcodes::ResMng::UNREG_SERV) => self.unreg_serv(childs, res, &mut is, id),
+            Ok(opcodes::ResMng::RegServ) => self.reg_serv(childs, res, &mut is, id),
+            Ok(opcodes::ResMng::UnregServ) => self.unreg_serv(childs, res, &mut is, id),
 
-            Ok(opcodes::ResMng::OPEN_SESS) => self.open_session_async(childs, res, &mut is, id),
-            Ok(opcodes::ResMng::CLOSE_SESS) => self.close_session_async(childs, res, &mut is, id),
+            Ok(opcodes::ResMng::OpenSess) => self.open_session_async(childs, res, &mut is, id),
+            Ok(opcodes::ResMng::CloseSess) => self.close_session_async(childs, res, &mut is, id),
 
-            Ok(opcodes::ResMng::ADD_CHILD) => self.add_child(childs, res, &mut is, id),
-            Ok(opcodes::ResMng::REM_CHILD) => self.rem_child_async(childs, res, &mut is, id),
+            Ok(opcodes::ResMng::AddChild) => self.add_child(childs, res, &mut is, id),
+            Ok(opcodes::ResMng::RemChild) => self.rem_child_async(childs, res, &mut is, id),
 
-            Ok(opcodes::ResMng::ALLOC_MEM) => self.alloc_mem(childs, res, &mut is, id),
-            Ok(opcodes::ResMng::FREE_MEM) => self.free_mem(childs, res, &mut is, id),
+            Ok(opcodes::ResMng::AllocMem) => self.alloc_mem(childs, res, &mut is, id),
+            Ok(opcodes::ResMng::FreeMem) => self.free_mem(childs, res, &mut is, id),
 
-            Ok(opcodes::ResMng::ALLOC_TILE) => match self.alloc_tile(childs, res, &mut is, id) {
+            Ok(opcodes::ResMng::AllocTile) => match self.alloc_tile(childs, res, &mut is, id) {
                 // reply already done
                 Ok(_) => return,
                 Err(e) => Err(e),
             },
-            Ok(opcodes::ResMng::FREE_TILE) => self.free_tile(childs, res, &mut is, id),
+            Ok(opcodes::ResMng::FreeTile) => self.free_tile(childs, res, &mut is, id),
 
-            Ok(opcodes::ResMng::USE_RGATE) => match self.use_rgate(childs, res, &mut is, id) {
+            Ok(opcodes::ResMng::UseRGate) => match self.use_rgate(childs, res, &mut is, id) {
                 // reply already done
                 Ok(_) => return,
                 Err(e) => Err(e),
             },
-            Ok(opcodes::ResMng::USE_SGATE) => self.use_sgate(childs, res, &mut is, id),
+            Ok(opcodes::ResMng::UseSGate) => self.use_sgate(childs, res, &mut is, id),
 
-            Ok(opcodes::ResMng::USE_SEM) => self.use_sem(childs, res, &mut is, id),
+            Ok(opcodes::ResMng::UseSem) => self.use_sem(childs, res, &mut is, id),
 
-            Ok(opcodes::ResMng::USE_MOD) => self.use_mod(childs, res, &mut is, id),
+            Ok(opcodes::ResMng::UseMod) => self.use_mod(childs, res, &mut is, id),
 
-            Ok(opcodes::ResMng::GET_SERIAL) => self.get_serial(childs, res, &mut is, id),
+            Ok(opcodes::ResMng::GetSerial) => self.get_serial(childs, res, &mut is, id),
 
-            Ok(opcodes::ResMng::GET_INFO) => self.get_info(childs, res, &mut is, id),
+            Ok(opcodes::ResMng::GetInfo) => self.get_info(childs, res, &mut is, id),
 
             _ => Err(Error::new(Code::InvArgs)),
         };

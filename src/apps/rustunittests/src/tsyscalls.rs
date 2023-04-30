@@ -770,7 +770,7 @@ struct DummyHandler {
     sessions: SessionContainer<()>,
 }
 
-impl Handler<()> for DummyHandler {
+impl Handler<(), usize> for DummyHandler {
     fn sessions(&mut self) -> &mut SessionContainer<()> {
         &mut self.sessions
     }

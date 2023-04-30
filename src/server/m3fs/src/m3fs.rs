@@ -256,37 +256,37 @@ pub fn main() -> Result<(), Error> {
     let mut srv =
         Server::new(&SETTINGS.get().name, &mut hdl).expect("Could not create service 'm3fs'");
 
-    use opcodes::{File, FileSystem};
+    use opcodes::FileSystem;
 
     // register capability handler
-    hdl.reg_cap_handler(FileSystem::OPEN.val, ExcType::Obt(2), FSSession::open);
-    hdl.reg_cap_handler(FileSystem::GET_MEM.val, ExcType::Obt(1), FSSession::get_mem);
-    hdl.reg_cap_handler(FileSystem::DEL_EP.val, ExcType::Del(1), FSSession::del_ep);
-    hdl.reg_cap_handler(File::CLONE.val, ExcType::Obt(2), FSSession::clone);
-    hdl.reg_cap_handler(File::SET_DEST.val, ExcType::Del(1), FSSession::set_dest);
+    hdl.reg_cap_handler(FileSystem::Open, ExcType::Obt(2), FSSession::open);
+    hdl.reg_cap_handler(FileSystem::GetMem, ExcType::Obt(1), FSSession::get_mem);
+    hdl.reg_cap_handler(FileSystem::DelEP, ExcType::Del(1), FSSession::del_ep);
+    hdl.reg_cap_handler(FileSystem::CloneFile, ExcType::Obt(2), FSSession::clone);
+    hdl.reg_cap_handler(FileSystem::SetDest, ExcType::Del(1), FSSession::set_dest);
     hdl.reg_cap_handler(
-        File::ENABLE_NOTIFY.val,
+        FileSystem::EnableNotify,
         ExcType::Del(1),
         FSSession::enable_notify,
     );
 
     // register message handler
-    hdl.reg_msg_handler(File::NEXT_IN.val, FSSession::next_in);
-    hdl.reg_msg_handler(File::NEXT_OUT.val, FSSession::next_out);
-    hdl.reg_msg_handler(File::COMMIT.val, FSSession::commit);
-    hdl.reg_msg_handler(File::TRUNCATE.val, FSSession::truncate);
-    hdl.reg_msg_handler(File::CLOSE.val, FSSession::close);
-    hdl.reg_msg_handler(File::STAT.val, FSSession::stat);
-    hdl.reg_msg_handler(File::GET_PATH.val, FSSession::get_path);
-    hdl.reg_msg_handler(File::SEEK.val, FSSession::seek);
-    hdl.reg_msg_handler(File::SYNC.val, FSSession::sync);
-    hdl.reg_msg_handler(FileSystem::STAT.val, FSSession::fstat);
-    hdl.reg_msg_handler(FileSystem::MKDIR.val, FSSession::mkdir);
-    hdl.reg_msg_handler(FileSystem::RMDIR.val, FSSession::rmdir);
-    hdl.reg_msg_handler(FileSystem::LINK.val, FSSession::link);
-    hdl.reg_msg_handler(FileSystem::UNLINK.val, FSSession::unlink);
-    hdl.reg_msg_handler(FileSystem::RENAME.val, FSSession::rename);
-    hdl.reg_msg_handler(FileSystem::OPEN_PRIV.val, FSSession::open_priv);
+    hdl.reg_msg_handler(FileSystem::NextIn, FSSession::next_in);
+    hdl.reg_msg_handler(FileSystem::NextOut, FSSession::next_out);
+    hdl.reg_msg_handler(FileSystem::Commit, FSSession::commit);
+    hdl.reg_msg_handler(FileSystem::Truncate, FSSession::truncate);
+    hdl.reg_msg_handler(FileSystem::Close, FSSession::close);
+    hdl.reg_msg_handler(FileSystem::FStat, FSSession::stat);
+    hdl.reg_msg_handler(FileSystem::GetPath, FSSession::get_path);
+    hdl.reg_msg_handler(FileSystem::Seek, FSSession::seek);
+    hdl.reg_msg_handler(FileSystem::Sync, FSSession::sync);
+    hdl.reg_msg_handler(FileSystem::Stat, FSSession::fstat);
+    hdl.reg_msg_handler(FileSystem::Mkdir, FSSession::mkdir);
+    hdl.reg_msg_handler(FileSystem::Rmdir, FSSession::rmdir);
+    hdl.reg_msg_handler(FileSystem::Link, FSSession::link);
+    hdl.reg_msg_handler(FileSystem::Unlink, FSSession::unlink);
+    hdl.reg_msg_handler(FileSystem::Rename, FSSession::rename);
+    hdl.reg_msg_handler(FileSystem::OpenPriv, FSSession::open_priv);
 
     hdl.run(&mut srv).expect("Server loop failed");
 

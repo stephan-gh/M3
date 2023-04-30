@@ -16,11 +16,14 @@
  * General Public License version 2 for more details.
  */
 
+use core::convert::TryFrom;
 use core::fmt;
 
 use crate::cap::{CapFlags, Capability, Selector};
-use crate::com::{GateIStream, RecvGate};
+use crate::col::ToString;
+use crate::com::{opcodes, GateIStream, RecvGate};
 use crate::errors::{Code, Error};
+use crate::format;
 use crate::io::LogFlags;
 use crate::kif::{
     service::{DeriveCreatorReply, ExchangeData, ExchangeReply, OpenReply, Request},
@@ -105,7 +108,7 @@ impl<'d> fmt::Debug for CapExchange<'d> {
 /// corresponding function of `Handler`. For example, whenever [`Server`] receives a open-session
 /// request from the kernel, it will call [`Handler::open`] to let the `Handler` create the session
 /// (if desired).
-pub trait Handler<S> {
+pub trait Handler<S, O: Into<usize> + TryFrom<usize> + fmt::Debug> {
     /// Returns the session container
     fn sessions(&mut self) -> &mut SessionContainer<S>;
 
@@ -134,7 +137,7 @@ pub trait Handler<S> {
         xchg: &mut CapExchange<'_>,
         obtain: bool,
     ) -> Result<(), Error> {
-        let opcode = xchg.in_args().pop::<u64>()?;
+        let opcode = xchg.in_args().pop::<usize>()?;
 
         let ty = if obtain {
             ExcType::Obt(xchg.in_caps())
@@ -143,13 +146,19 @@ pub trait Handler<S> {
             ExcType::Del(xchg.in_caps())
         };
 
+        let op_name = |opcode| match O::try_from(opcode) {
+            Ok(op) => format!("{:?}:{}", op, opcode),
+            Err(_) if opcode == opcodes::General::Connect.into() => "Connect".to_string(),
+            _ => format!("??:{}", opcode),
+        };
+
         log!(
             LogFlags::LibServ,
-            "server::exchange(crt={}, sid={}, ty={:?}, op={:?})",
+            "server::exchange(crt={}, sid={}, ty={:?}, op={})",
             crt,
             sid,
             ty,
-            opcode,
+            op_name(opcode),
         );
 
         if !self.sessions().creator_owns(crt, sid) {
@@ -160,13 +169,13 @@ pub trait Handler<S> {
 
         log!(
             LogFlags::LibServ,
-            "server::{}(crt={}, sid={}, op={:?}) -> xchg={:?}), res={:?}",
-            if obtain { "obtain" } else { "delegate" },
+            "server::exchange(crt={}, sid={}, ty={:?}, op={}) -> res={:?}, out={})",
             crt,
             sid,
-            opcode,
-            xchg,
-            res
+            ty,
+            op_name(opcode),
+            res,
+            xchg.out_crd,
         );
 
         res
@@ -181,7 +190,7 @@ pub trait Handler<S> {
         &mut self,
         _crt: usize,
         _sid: SessId,
-        _opcode: u64,
+        _opcode: usize,
         _ty: ExcType,
         _xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
@@ -215,24 +224,27 @@ pub struct Server {
 
 impl Server {
     /// Creates a new server with given service name.
-    pub fn new<H, S>(name: &str, hdl: &mut H) -> Result<Self, Error>
+    pub fn new<H, S, O>(name: &str, hdl: &mut H) -> Result<Self, Error>
     where
-        H: Handler<S>,
+        H: Handler<S, O>,
+        O: Into<usize> + TryFrom<usize> + fmt::Debug,
     {
         Self::create(name, hdl, true)
     }
 
     /// Creates a new private server that is not visible to anyone
-    pub fn new_private<H, S>(name: &str, hdl: &mut H) -> Result<Self, Error>
+    pub fn new_private<H, S, O>(name: &str, hdl: &mut H) -> Result<Self, Error>
     where
-        H: Handler<S>,
+        H: Handler<S, O>,
+        O: Into<usize> + TryFrom<usize> + fmt::Debug,
     {
         Self::create(name, hdl, false)
     }
 
-    fn create<H, S>(name: &str, hdl: &mut H, public: bool) -> Result<Self, Error>
+    fn create<H, S, O>(name: &str, hdl: &mut H, public: bool) -> Result<Self, Error>
     where
-        H: Handler<S>,
+        H: Handler<S, O>,
+        O: Into<usize> + TryFrom<usize> + fmt::Debug,
     {
         let sel = Activity::own().alloc_sel();
         let rgate = RecvGate::new(math::next_log2(BUF_SIZE), math::next_log2(MSG_SIZE))?;
@@ -270,9 +282,10 @@ impl Server {
     }
 
     /// Fetches a message from the control channel and handles it if so.
-    pub fn fetch_and_handle<H, S>(&self, hdl: &mut H) -> Result<(), Error>
+    pub fn fetch_and_handle<H, S, O>(&self, hdl: &mut H) -> Result<(), Error>
     where
-        H: Handler<S>,
+        H: Handler<S, O>,
+        O: Into<usize> + TryFrom<usize> + fmt::Debug,
     {
         if let Ok(msg) = self.rgate.fetch() {
             let mut is = GateIStream::new(msg, &self.rgate);
@@ -291,9 +304,10 @@ impl Server {
         Ok(())
     }
 
-    fn handle<H, S>(&self, hdl: &mut H, is: &mut GateIStream<'_>) -> Result<bool, Error>
+    fn handle<H, S, O>(&self, hdl: &mut H, is: &mut GateIStream<'_>) -> Result<bool, Error>
     where
-        H: Handler<S>,
+        H: Handler<S, O>,
+        O: Into<usize> + TryFrom<usize> + fmt::Debug,
     {
         let req: Request<'_> = is.pop()?;
         match req {
@@ -314,14 +328,15 @@ impl Server {
         .map(|_| false)
     }
 
-    fn handle_open<H, S>(
+    fn handle_open<H, S, O>(
         hdl: &mut H,
         sel: Selector,
         is: &mut GateIStream<'_>,
         arg: &str,
     ) -> Result<(), Error>
     where
-        H: Handler<S>,
+        H: Handler<S, O>,
+        O: Into<usize> + TryFrom<usize> + fmt::Debug,
     {
         let crt = is.label() as usize;
         let res = hdl.open(crt, sel, arg);
@@ -347,13 +362,14 @@ impl Server {
         }
     }
 
-    fn handle_derive_crt<H, S>(
+    fn handle_derive_crt<H, S, O>(
         hdl: &mut H,
         is: &mut GateIStream<'_>,
         sessions: u32,
     ) -> Result<(), Error>
     where
-        H: Handler<S>,
+        H: Handler<S, O>,
+        O: Into<usize> + TryFrom<usize> + fmt::Debug,
     {
         let crt = is.label() as usize;
         log!(
@@ -371,7 +387,7 @@ impl Server {
         })
     }
 
-    fn handle_exchange<H, S>(
+    fn handle_exchange<H, S, O>(
         &self,
         hdl: &mut H,
         is: &mut GateIStream<'_>,
@@ -380,7 +396,8 @@ impl Server {
         obtain: bool,
     ) -> Result<(), Error>
     where
-        H: Handler<S>,
+        H: Handler<S, O>,
+        O: Into<usize> + TryFrom<usize> + fmt::Debug,
     {
         let crt = is.label() as usize;
 
@@ -400,9 +417,14 @@ impl Server {
         reply_vmsg!(is, res, reply)
     }
 
-    fn handle_close<H, S>(hdl: &mut H, is: &mut GateIStream<'_>, sid: SessId) -> Result<(), Error>
+    fn handle_close<H, S, O>(
+        hdl: &mut H,
+        is: &mut GateIStream<'_>,
+        sid: SessId,
+    ) -> Result<(), Error>
     where
-        H: Handler<S>,
+        H: Handler<S, O>,
+        O: Into<usize> + TryFrom<usize> + fmt::Debug,
     {
         let crt = is.label() as usize;
 
@@ -417,9 +439,10 @@ impl Server {
         is.reply_error(Code::Success)
     }
 
-    fn handle_shutdown<H, S>(hdl: &mut H, is: &mut GateIStream<'_>) -> Result<(), Error>
+    fn handle_shutdown<H, S, O>(hdl: &mut H, is: &mut GateIStream<'_>) -> Result<(), Error>
     where
-        H: Handler<S>,
+        H: Handler<S, O>,
+        O: Into<usize> + TryFrom<usize> + fmt::Debug,
     {
         log!(LogFlags::LibServ, "server::shutdown()");
 
