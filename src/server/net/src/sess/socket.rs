@@ -188,7 +188,7 @@ impl SocketSession {
         )?);
 
         Ok(CapRngDesc::new(
-            CapType::OBJECT,
+            CapType::Object,
             self.sgate.as_ref().unwrap().sel(),
             1,
         ))
@@ -342,7 +342,7 @@ impl SocketSession {
         match res {
             Ok(sd) => {
                 // Send capabilities back to caller so it can connect to the created gates
-                let caps = CapRngDesc::new(CapType::OBJECT, caps + 2, 2);
+                let caps = CapRngDesc::new(CapType::Object, caps + 2, 2);
                 Ok((caps, sd))
             },
 

@@ -94,7 +94,7 @@ impl Service {
         let name = self.name.clone();
         syscalls::derive_srv(
             self.sel(),
-            kif::CapRngDesc::new(kif::CapType::OBJECT, dst, 2),
+            kif::CapRngDesc::new(kif::CapType::Object, dst, 2),
             sessions,
             event,
         )?;

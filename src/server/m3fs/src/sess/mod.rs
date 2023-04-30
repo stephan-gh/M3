@@ -162,7 +162,7 @@ impl FSSession {
                     id
                 );
                 xchg.out_caps(m3::kif::CapRngDesc::new(
-                    m3::kif::CapType::OBJECT,
+                    m3::kif::CapType::Object,
                     new_sel,
                     1,
                 ));
@@ -198,7 +198,7 @@ impl FSSession {
                 log!(LogFlags::FSSess, "[{}] fs::set_dest(sel={})", sid, new_sel);
                 fs.set_ep(new_sel);
                 xchg.out_caps(m3::kif::CapRngDesc::new(
-                    m3::kif::CapType::OBJECT,
+                    m3::kif::CapType::Object,
                     new_sel,
                     1,
                 ));

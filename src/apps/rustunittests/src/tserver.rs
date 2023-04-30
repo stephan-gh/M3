@@ -182,7 +182,7 @@ fn testcliexit(t: &mut dyn WvTester) {
                 kif::syscalls::ExchangeSess {
                     act: Activity::own().sel(),
                     sess: sess.sel(),
-                    crd: kif::CapRngDesc::new(kif::CapType::OBJECT, 0, 1),
+                    crd: kif::CapRngDesc::new(kif::CapType::Object, 0, 1),
                     args,
                     obtain: true,
                 }
@@ -296,7 +296,7 @@ fn testcaps(t: &mut dyn WvTester) {
             );
         }
         else {
-            let crd = CapRngDesc::new(CapType::OBJECT, sess.sel(), 1);
+            let crd = CapRngDesc::new(CapType::Object, sess.sel(), 1);
             for _ in 0..5 {
                 wv_assert_err!(
                     t,

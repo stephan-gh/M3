@@ -155,7 +155,7 @@ impl VTermSession {
             Ok(child_sess)
         })?;
 
-        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 2));
+        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::Object, sel, 2));
         Ok(())
     }
 
@@ -172,7 +172,7 @@ impl VTermSession {
             SessionData::Chan(c) => {
                 let sel = Activity::own().alloc_sel();
                 c.set_dest(sel);
-                xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
+                xchg.out_caps(kif::CapRngDesc::new(kif::CapType::Object, sel, 1));
                 Ok(())
             },
             _ => Err(Error::new(Code::InvArgs)),
@@ -194,7 +194,7 @@ impl VTermSession {
                 rgate.activate()?;
                 let sgate = c.set_notify_gates(rgate)?;
 
-                xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sgate, 1));
+                xchg.out_caps(kif::CapRngDesc::new(kif::CapType::Object, sgate, 1));
                 Ok(())
             },
             _ => Err(Error::new(Code::InvArgs)),

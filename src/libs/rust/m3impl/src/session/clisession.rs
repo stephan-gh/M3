@@ -63,7 +63,7 @@ impl ClientSession {
 
     /// Delegates the object capability with selector `sel` to the server.
     pub fn delegate_obj(&self, sel: Selector) -> Result<(), Error> {
-        let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1);
+        let crd = kif::CapRngDesc::new(kif::CapType::Object, sel, 1);
         self.delegate_crd(crd)
     }
 
@@ -134,7 +134,7 @@ impl ClientSession {
         POST: FnMut(&mut M3Deserializer<'_>) -> Result<(), Error>,
     {
         let caps = Activity::own().alloc_sels(count);
-        let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, caps, count);
+        let crd = kif::CapRngDesc::new(kif::CapType::Object, caps, count);
         self.obtain_for(Activity::own().sel(), crd, pre, post)?;
         Ok(crd)
     }

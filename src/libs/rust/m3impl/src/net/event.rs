@@ -283,7 +283,7 @@ impl Drop for NetEventChannel {
             // revoke client caps
             Activity::own()
                 .revoke(
-                    CapRngDesc::new(CapType::OBJECT, self.rgate.sel() + 2, 2),
+                    CapRngDesc::new(CapType::Object, self.rgate.sel() + 2, 2),
                     false,
                 )
                 .unwrap();

@@ -166,7 +166,7 @@ impl GenericFile {
             log!(LogFlags::LibFS, "GenFile[{}]::delegate_ep({})", self.fd, id);
 
             self.submit(true)?;
-            let crd = CapRngDesc::new(CapType::OBJECT, ep_sel, 1);
+            let crd = CapRngDesc::new(CapType::Object, ep_sel, 1);
             self.sess
                 .delegate(crd, |s| s.push(opcodes::File::SetDest), |_| Ok(()))?;
             self.delegated_ep = ep_sel;
@@ -247,7 +247,7 @@ impl GenericFile {
         notify_rgate.activate()?;
         let _notify_sgate = Box::new(SendGate::new(&notify_rgate)?);
 
-        let crd = CapRngDesc::new(CapType::OBJECT, _notify_sgate.sel(), 1);
+        let crd = CapRngDesc::new(CapType::Object, _notify_sgate.sel(), 1);
         self.sess
             .delegate(crd, |s| s.push(opcodes::File::EnableNotify), |_| Ok(()))?;
 
@@ -389,7 +389,7 @@ impl File for GenericFile {
             // revoke EP cap
             if let Some(ep) = self.mgate.ep() {
                 Activity::own()
-                    .revoke(CapRngDesc::new(CapType::OBJECT, ep.sel(), 1), true)
+                    .revoke(CapRngDesc::new(CapType::Object, ep.sel(), 1), true)
                     .ok();
             }
         }
@@ -468,7 +468,7 @@ impl File for GenericFile {
     }
 
     fn delegate(&self, act: &ChildActivity) -> Result<Selector, Error> {
-        let crd = CapRngDesc::new(CapType::OBJECT, self.sess.sel(), 2);
+        let crd = CapRngDesc::new(CapType::Object, self.sess.sel(), 2);
         self.sess.obtain_for(
             act.sel(),
             crd,

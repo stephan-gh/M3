@@ -264,7 +264,7 @@ pub fn create_activity_async(
     if !act
         .obj_caps()
         .borrow()
-        .range_unused(&CapRngDesc::new(CapType::OBJECT, r.dst, 3))
+        .range_unused(&CapRngDesc::new(CapType::Object, r.dst, 3))
     {
         sysc_err!(
             Code::InvArgs,
@@ -419,7 +419,7 @@ pub fn create_map_async(
                 (c.get().clone(), true)
             },
             None => {
-                let range = CapRngDesc::new(CapType::MAPPING, r.dst, r.pages);
+                let range = CapRngDesc::new(CapType::Mapping, r.dst, r.pages);
                 if !map_caps.range_unused(&range) {
                     sysc_err!(Code::InvArgs, "Capability range {} already in use", range);
                 }

@@ -60,7 +60,7 @@ impl Pipe {
     fn new(mem: &MemGate, sel: Selector) -> Result<Self, Error> {
         let sess = ClientSession::new_bind(sel);
         sess.delegate(
-            CapRngDesc::new(CapType::OBJECT, mem.sel(), 1),
+            CapRngDesc::new(CapType::Object, mem.sel(), 1),
             |os| {
                 os.push(opcodes::Pipe::SetMem);
             },

@@ -130,7 +130,7 @@ impl Pager {
 
         // we only need to do that for clones
         if self.close {
-            let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, act.sel(), 1);
+            let crd = kif::CapRngDesc::new(kif::CapType::Object, act.sel(), 1);
             self.sess
                 .delegate(crd, |os| os.push(opcodes::Pager::Init), |_| Ok(()))
         }
@@ -198,7 +198,7 @@ impl Pager {
         flags: MapFlags,
         sess: &ClientSession,
     ) -> Result<goff, Error> {
-        let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, sess.sel(), 1);
+        let crd = kif::CapRngDesc::new(kif::CapType::Object, sess.sel(), 1);
         let mut res = 0;
         self.sess.delegate(
             crd,
@@ -226,7 +226,7 @@ impl Pager {
         len: usize,
         prot: kif::Perm,
     ) -> Result<goff, Error> {
-        let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, mem.sel(), 1);
+        let crd = kif::CapRngDesc::new(kif::CapType::Object, mem.sel(), 1);
         let mut res = 0;
         self.sess.delegate(
             crd,

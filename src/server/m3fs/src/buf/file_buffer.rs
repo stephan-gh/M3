@@ -242,7 +242,7 @@ impl FileBuffer {
                 // TODO currently, clients are not prepared for that
                 m3::tiles::Activity::own()
                     .revoke(
-                        m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, head.data.sel(), 1),
+                        m3::kif::CapRngDesc::new(m3::kif::CapType::Object, head.data.sel(), 1),
                         false,
                     )
                     .unwrap();

@@ -518,7 +518,7 @@ impl Activity {
 
     pub fn revoke_async(&self, crd: CapRngDesc, own: bool) -> Result<(), Error> {
         // we can't use borrow_mut() here, because revoke might need to use borrow as well.
-        if crd.cap_type() == CapType::OBJECT {
+        if crd.cap_type() == CapType::Object {
             self.obj_caps().borrow_mut().revoke_async(crd, own)
         }
         else {

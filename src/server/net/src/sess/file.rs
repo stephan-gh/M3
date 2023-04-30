@@ -113,7 +113,7 @@ impl FileSession {
     }
 
     pub fn caps(&self) -> CapRngDesc {
-        m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, self.sel, 2)
+        m3::kif::CapRngDesc::new(m3::kif::CapType::Object, self.sel, 2)
     }
 
     pub fn delegate(&mut self, xchg: &mut CapExchange<'_>) -> Result<(), Error> {
@@ -121,13 +121,13 @@ impl FileSession {
         if xchg.in_caps() == 1 && xchg.in_args().size() > 0 {
             let sel = m3::tiles::Activity::own().alloc_sel();
             self.memory = Some(MemGate::new_bind(sel));
-            xchg.out_caps(m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, sel, 1));
+            xchg.out_caps(m3::kif::CapRngDesc::new(m3::kif::CapType::Object, sel, 1));
         // Client delegates a memory endpoint to us for configuration
         }
         else if xchg.in_caps() == 1 && xchg.in_args().size() == 0 {
             let sel = m3::tiles::Activity::own().alloc_sel();
             self.client_memep = sel;
-            xchg.out_caps(m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, sel, 1));
+            xchg.out_caps(m3::kif::CapRngDesc::new(m3::kif::CapType::Object, sel, 1));
         }
         else {
             return Err(Error::new(Code::InvArgs));

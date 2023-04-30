@@ -102,7 +102,7 @@ impl MetaSession {
 
         self.files.push(sid);
 
-        data.out_caps(CapRngDesc::new(CapType::OBJECT, sel, 2));
+        data.out_caps(CapRngDesc::new(CapType::Object, sel, 2));
 
         log!(
             LogFlags::FSSess,

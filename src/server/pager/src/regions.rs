@@ -274,7 +274,7 @@ impl Drop for Region {
             syscalls::revoke(
                 self.owner,
                 CapRngDesc::new(
-                    CapType::MAPPING,
+                    CapType::Mapping,
                     (self.virt() >> cfg::PAGE_BITS as goff) as Selector,
                     (self.size() >> cfg::PAGE_BITS as goff) as Selector,
                 ),

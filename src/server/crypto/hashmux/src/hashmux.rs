@@ -170,7 +170,7 @@ impl RequestSession for HashSession {
         // Revoke EP capability that was delegated for memory accesses
         if let Some(ep) = self.mgate.ep() {
             if let Err(e) =
-                Activity::own().revoke(CapRngDesc::new(CapType::OBJECT, ep.sel(), 1), true)
+                Activity::own().revoke(CapRngDesc::new(CapType::Object, ep.sel(), 1), true)
             {
                 log!(LogFlags::Error, "[{}] Failed to revoke EP cap: {}", sid, e)
             }
@@ -542,7 +542,7 @@ impl HashSession {
         // from the EpMng which does not allow binding it to a specified capability selector.
         hash.mgate.activate()?;
         let ep_sel = hash.mgate.ep().unwrap().sel();
-        xchg.out_caps(CapRngDesc::new(CapType::OBJECT, ep_sel, 1));
+        xchg.out_caps(CapRngDesc::new(CapType::Object, ep_sel, 1));
 
         Ok(())
     }

@@ -63,7 +63,7 @@ impl M3FS {
         let sels = Activity::own().alloc_sels(2);
         let sess = ClientSession::new_with_sel(name, sels + 0)?;
 
-        let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, sels + 1, 1);
+        let crd = kif::CapRngDesc::new(kif::CapType::Object, sels + 1, 1);
         sess.obtain_for(
             Activity::own().sel(),
             crd,
@@ -240,7 +240,7 @@ impl FileSystem for M3FS {
     fn delegate(&self, act: &ChildActivity) -> Result<Selector, Error> {
         act.delegate_obj(self.sess.sel())?;
 
-        let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, self.sess.sel() + 1, 1);
+        let crd = kif::CapRngDesc::new(kif::CapType::Object, self.sess.sel() + 1, 1);
         self.sess.obtain_for(
             act.sel(),
             crd,
@@ -274,7 +274,7 @@ impl M3FS {
     fn delegate_ep(&self, sel: Selector) -> Result<usize, Error> {
         let mut id = 0;
         self.sess.delegate(
-            kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1),
+            kif::CapRngDesc::new(kif::CapType::Object, sel, 1),
             |os| os.push(opcodes::FileSystem::DelEP),
             |is| {
                 id = is.pop()?;

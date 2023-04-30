@@ -42,7 +42,7 @@ impl Drop for Entry {
         // revoke all capabilities
         m3::tiles::Activity::own()
             .revoke(
-                m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, self.sel, 1),
+                m3::kif::CapRngDesc::new(m3::kif::CapType::Object, self.sel, 1),
                 false,
             )
             .unwrap();
@@ -172,7 +172,7 @@ impl FileSession {
 
         self.child_sessions.push(sid);
 
-        data.out_caps(CapRngDesc::new(CapType::OBJECT, sel, 2));
+        data.out_caps(CapRngDesc::new(CapType::Object, sel, 2));
 
         Ok(nsess)
     }
@@ -202,7 +202,7 @@ impl FileSession {
             &mut self.load_limit,
         )?;
 
-        data.out_caps(m3::kif::CapRngDesc::new(CapType::OBJECT, sel, 1));
+        data.out_caps(m3::kif::CapRngDesc::new(CapType::Object, sel, 1));
         data.out_args().push(0);
         data.out_args().push(len);
 
@@ -224,7 +224,7 @@ impl FileSession {
         if self.cur_sel != m3::kif::INVALID_SEL {
             m3::tiles::Activity::own()
                 .revoke(
-                    m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, self.cur_sel, 1),
+                    m3::kif::CapRngDesc::new(m3::kif::CapType::Object, self.cur_sel, 1),
                     false,
                 )
                 .unwrap();

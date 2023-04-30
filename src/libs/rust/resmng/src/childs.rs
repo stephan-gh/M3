@@ -159,12 +159,12 @@ pub trait Child {
     fn kmem(&self) -> Option<Rc<KMem>>;
 
     fn delegate(&self, src: Selector, dst: Selector) -> Result<(), Error> {
-        let crd = CapRngDesc::new(CapType::OBJECT, src, 1);
+        let crd = CapRngDesc::new(CapType::Object, src, 1);
         syscalls::exchange(self.activity_sel(), crd, dst, false)
     }
     fn obtain(&self, src: Selector) -> Result<Selector, Error> {
         let dst = Activity::own().alloc_sels(1);
-        let own = CapRngDesc::new(CapType::OBJECT, dst, 1);
+        let own = CapRngDesc::new(CapType::Object, dst, 1);
         syscalls::exchange(self.activity_sel(), own, src, true)?;
         Ok(dst)
     }
@@ -402,7 +402,7 @@ pub trait Child {
     fn remove_mem_by_idx(&mut self, idx: usize) {
         let (sel, alloc) = self.res_mut().mem.remove(idx);
         if let Some(s) = sel {
-            let crd = CapRngDesc::new(CapType::OBJECT, s, 1);
+            let crd = CapRngDesc::new(CapType::Object, s, 1);
             // ignore failures here; maybe the activity is already gone
             syscalls::revoke(self.activity_sel(), crd, true).ok();
         }
@@ -600,7 +600,7 @@ pub trait Child {
         );
 
         let cfg = self.cfg();
-        let crd = CapRngDesc::new(CapType::OBJECT, ep_sel, 1);
+        let crd = CapRngDesc::new(CapType::Object, ep_sel, 1);
         // TODO if that fails, we need to kill this child because otherwise we don't get the tile back
         syscalls::revoke(self.activity_sel(), crd, true).ok();
         res.tiles().remove_user(&tile_usage);
@@ -1328,7 +1328,7 @@ impl ChildManager {
             // first, revoke the child's SendGate
             syscalls::revoke(
                 Activity::own().sel(),
-                CapRngDesc::new(CapType::OBJECT, child.resmng_sgate_sel(), 1),
+                CapRngDesc::new(CapType::Object, child.resmng_sgate_sel(), 1),
                 true,
             )
             .ok();

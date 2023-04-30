@@ -86,7 +86,7 @@ impl MicSession {
 
         xchg.out_args().push(AUDIO_SIZE.get());
         xchg.out_caps(kif::CapRngDesc::new(
-            kif::CapType::OBJECT,
+            kif::CapType::Object,
             sess.img.as_ref().unwrap().sel(),
             1,
         ));

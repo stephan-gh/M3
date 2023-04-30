@@ -18,6 +18,8 @@
 
 use core::fmt;
 
+use num_enum::{FromPrimitive, IntoPrimitive};
+
 use crate::serialize::{Deserialize, Serialize};
 
 /// A capability selector
@@ -30,14 +32,15 @@ pub struct CapRngDesc {
     count: u64,
 }
 
-int_enum! {
-    /// The capability types
-    pub struct CapType : u64 {
-        /// Object capabilities are used for kernel objects (SendGate, Activity, ...)
-        const OBJECT        = 0x0;
-        /// Mapping capabilities are used for page table entries
-        const MAPPING       = 0x1;
-    }
+/// The capability types
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, FromPrimitive)]
+#[repr(u64)]
+pub enum CapType {
+    /// Object capabilities are used for kernel objects (SendGate, Activity, ...)
+    #[default]
+    Object,
+    /// Mapping capabilities are used for page table entries
+    Mapping,
 }
 
 impl CapRngDesc {
@@ -46,7 +49,7 @@ impl CapRngDesc {
     pub fn new(ty: CapType, start: CapSel, count: CapSel) -> CapRngDesc {
         CapRngDesc {
             start,
-            count: count << 1 | ty.val,
+            count: count << 1 | (ty as u64),
         }
     }
 
@@ -70,7 +73,7 @@ impl fmt::Display for CapRngDesc {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "CRD[{}: {}:{}]",
+            "CRD[{:?}: {}:{}]",
             self.cap_type(),
             self.start(),
             self.count()

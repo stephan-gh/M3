@@ -240,7 +240,7 @@ impl ChildActivity {
     /// Delegates the object capability with selector `sel` of [`Activity::own`](Activity::own) to
     /// `self`.
     pub fn delegate_obj(&self, sel: Selector) -> Result<(), Error> {
-        self.delegate(CapRngDesc::new(CapType::OBJECT, sel, 1))
+        self.delegate(CapRngDesc::new(CapType::Object, sel, 1))
     }
 
     /// Delegates the given capability range of [`Activity::own`](Activity::own) to `self`.
@@ -261,7 +261,7 @@ impl ChildActivity {
     /// Obtains the object capability with selector `sel` from `self` to
     /// [`Activity::own`](Activity::own).
     pub fn obtain_obj(&self, sel: Selector) -> Result<Selector, Error> {
-        self.obtain(CapRngDesc::new(CapType::OBJECT, sel, 1))
+        self.obtain(CapRngDesc::new(CapType::Object, sel, 1))
     }
 
     /// Obtains the given capability range of `self` to [`Activity::own`](Activity::own).

@@ -91,7 +91,7 @@ impl Disk {
         rgate.activate()?;
 
         // get send gate for our requests
-        let crd = CapRngDesc::new(CapType::OBJECT, Activity::own().alloc_sel(), 1);
+        let crd = CapRngDesc::new(CapType::Object, Activity::own().alloc_sel(), 1);
         sess.obtain_for(
             Activity::own().sel(),
             crd,
@@ -106,7 +106,7 @@ impl Disk {
     }
 
     pub fn delegate_mem(&self, mem: &MemGate, blocks: BlockRange) -> Result<(), Error> {
-        let crd = CapRngDesc::new(CapType::OBJECT, mem.sel(), 1);
+        let crd = CapRngDesc::new(CapType::Object, mem.sel(), 1);
         self.sess.delegate(
             crd,
             |slice_sink| {

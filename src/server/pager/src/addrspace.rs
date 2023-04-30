@@ -115,7 +115,7 @@ impl AddrSpace {
             Ok(AddrSpace::new(serv, Some(sid), child_id))
         })?;
 
-        xchg.out_caps(CapRngDesc::new(CapType::OBJECT, sel, 1));
+        xchg.out_caps(CapRngDesc::new(CapType::Object, sel, 1));
 
         Ok(())
     }
@@ -129,7 +129,7 @@ impl AddrSpace {
         let aspace = cli.sessions_mut().get_mut(sid).unwrap();
         let sel = aspace.do_init(None, None)?;
 
-        xchg.out_caps(CapRngDesc::new(CapType::OBJECT, sel, 1));
+        xchg.out_caps(CapRngDesc::new(CapType::Object, sel, 1));
         Ok(())
     }
 
@@ -273,7 +273,7 @@ impl AddrSpace {
         let virt = aspace.map_ds_with(virt, len, off, perm, flags, sel)?;
 
         xchg.out_args().push(virt);
-        xchg.out_caps(CapRngDesc::new(CapType::OBJECT, sel, 1));
+        xchg.out_caps(CapRngDesc::new(CapType::Object, sel, 1));
 
         Ok(())
     }
@@ -405,7 +405,7 @@ impl AddrSpace {
         aspace.ds.push(ds);
 
         xchg.out_args().push(virt);
-        xchg.out_caps(CapRngDesc::new(CapType::OBJECT, sel, 1));
+        xchg.out_caps(CapRngDesc::new(CapType::Object, sel, 1));
 
         Ok(())
     }

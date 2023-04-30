@@ -51,7 +51,11 @@ fn do_exchange(
     if c1.cap_type() != c2.cap_type() {
         return Err(VerboseError::new(
             Code::InvArgs,
-            format!("Cap types differ ({} vs {})", c1.cap_type(), c2.cap_type()),
+            format!(
+                "Cap types differ ({:?} vs {:?})",
+                c1.cap_type(),
+                c2.cap_type()
+            ),
         ));
     }
     if (obtain && c2.count() > c1.count()) || (!obtain && c2.count() != c1.count()) {
@@ -196,7 +200,7 @@ pub fn revoke_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
     let r: syscalls::Revoke = get_request(msg)?;
     sysc_log!(act, "revoke(act={}, crd={}, own={})", r.act, r.crd, r.own);
 
-    if r.crd.cap_type() == CapType::OBJECT && r.crd.start() <= SEL_ACT {
+    if r.crd.cap_type() == CapType::Object && r.crd.start() <= SEL_ACT {
         sysc_err!(Code::InvArgs, "Cap 0, 1, and 2 are not revokeable");
     }
 
