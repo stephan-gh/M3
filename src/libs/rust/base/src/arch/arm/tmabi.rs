@@ -27,7 +27,7 @@ impl TMABIOps for ARMTMABI {
     }
 
     fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<(), Error> {
-        let mut res = op.val;
+        let mut res = op.into();
         unsafe {
             asm!(
                 // XXX: hack to make these calls work for the kernel. the problem is that the kernel
@@ -49,7 +49,7 @@ impl TMABIOps for ARMTMABI {
     }
 
     fn call3(op: Operation, arg1: usize, arg2: usize, arg3: usize) -> Result<(), Error> {
-        let mut res = op.val;
+        let mut res = op.into();
         unsafe {
             asm!(
                 // see above
@@ -73,7 +73,7 @@ impl TMABIOps for ARMTMABI {
         arg3: usize,
         arg4: usize,
     ) -> Result<(), Error> {
-        let mut res = op.val;
+        let mut res = op.into();
         unsafe {
             asm!(
                 // see above

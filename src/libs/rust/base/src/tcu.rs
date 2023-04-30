@@ -562,7 +562,7 @@ impl TCU {
     fn handle_xlate_fault(addr: usize, perm: Perm) {
         // report translation fault to TileMux or whoever handles the call; ignore errors, we won't
         // get back here if TileMux cannot resolve the fault.
-        TMABI::call2(tmif::Operation::TRANSL_FAULT, addr, perm.bits() as usize).ok();
+        TMABI::call2(tmif::Operation::TranslFault, addr, perm.bits() as usize).ok();
     }
 
     /// Tries to fetch a new message from the given endpoint.

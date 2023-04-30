@@ -15,6 +15,8 @@
 
 //! Contains the interface between applications and TileMux
 
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+
 use crate::arch::{TMABIOps, TMABI};
 use crate::errors::{Code, Error};
 use crate::goff;
@@ -26,28 +28,28 @@ pub type IRQId = u32;
 
 pub const INVALID_IRQ: IRQId = !0;
 
-int_enum! {
-    /// The operations TileMux supports
-    pub struct Operation : usize {
-        /// Wait for an event, optionally with timeout
-        const WAIT          = 0x0;
-        /// Exit the application
-        const EXIT          = 0x1;
-        /// Switch to the next ready activity
-        const YIELD         = 0x2;
-        /// Map local physical memory (IO memory)
-        const MAP           = 0x3;
-        /// Register for a given interrupt
-        const REG_IRQ       = 0x4;
-        /// For TCU TLB misses
-        const TRANSL_FAULT  = 0x5;
-        /// Flush and invalidate cache
-        const FLUSH_INV     = 0x6;
-        /// Initializes thread-local storage (x86 only)
-        const INIT_TLS      = 0x7;
-        /// Noop operation for testing purposes
-        const NOOP          = 0x8;
-    }
+/// The operations TileMux supports
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
+#[repr(usize)]
+pub enum Operation {
+    /// Wait for an event, optionally with timeout
+    Wait,
+    /// Exit the application
+    Exit,
+    /// Switch to the next ready activity
+    Yield,
+    /// Map local physical memory (IO memory)
+    Map,
+    /// Register for a given interrupt
+    RegIRQ,
+    /// For TCU TLB misses
+    TranslFault,
+    /// Flush and invalidate cache
+    FlushInv,
+    /// Initializes thread-local storage (x86 only)
+    InitTLS,
+    /// Noop operation for testing purposes
+    Noop,
 }
 
 pub(crate) fn get_result(res: usize) -> Result<(), Error> {
@@ -61,7 +63,7 @@ pub fn wait(
     duration: Option<TimeDuration>,
 ) -> Result<(), Error> {
     TMABI::call3(
-        Operation::WAIT,
+        Operation::Wait,
         ep.unwrap_or(INVALID_EP) as usize,
         irq.unwrap_or(INVALID_IRQ) as usize,
         match duration {
@@ -73,13 +75,13 @@ pub fn wait(
 }
 
 pub fn exit(code: Code) -> ! {
-    TMABI::call1(Operation::EXIT, code as usize).ok();
+    TMABI::call1(Operation::Exit, code as usize).ok();
     unreachable!();
 }
 
 pub fn map(virt: usize, phys: goff, pages: usize, access: kif::Perm) -> Result<(), Error> {
     TMABI::call4(
-        Operation::MAP,
+        Operation::Map,
         virt,
         phys as usize,
         pages,
@@ -88,19 +90,19 @@ pub fn map(virt: usize, phys: goff, pages: usize, access: kif::Perm) -> Result<(
 }
 
 pub fn reg_irq(irq: IRQId) -> Result<(), Error> {
-    TMABI::call1(Operation::REG_IRQ, irq as usize)
+    TMABI::call1(Operation::RegIRQ, irq as usize)
 }
 
 pub fn flush_invalidate() -> Result<(), Error> {
-    TMABI::call1(Operation::FLUSH_INV, 0)
+    TMABI::call1(Operation::FlushInv, 0)
 }
 
 #[inline(always)]
 pub fn switch_activity() -> Result<(), Error> {
-    TMABI::call1(Operation::YIELD, 0)
+    TMABI::call1(Operation::Yield, 0)
 }
 
 #[inline(always)]
 pub fn noop() -> Result<(), Error> {
-    TMABI::call1(Operation::NOOP, 0)
+    TMABI::call1(Operation::Noop, 0)
 }

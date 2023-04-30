@@ -13,6 +13,8 @@
  * General Public License version 2 for more details.
  */
 
+use core::convert::TryFrom;
+
 use base::errors::{Code, Error};
 use base::goff;
 use base::io::LogFlags;
@@ -171,21 +173,21 @@ fn tmcall_noop(_state: &mut arch::State) -> Result<(), Error> {
 }
 
 pub fn handle_call(state: &mut arch::State) {
-    let call = tmif::Operation::from(state.r[isr::TMC_ARG0]);
+    let call = tmif::Operation::try_from(state.r[isr::TMC_ARG0]);
 
-    let res = match call {
-        tmif::Operation::WAIT => tmcall_wait(state),
-        tmif::Operation::EXIT => tmcall_stop(state),
-        tmif::Operation::YIELD => tmcall_yield(state),
-        tmif::Operation::MAP => tmcall_map(state),
-        tmif::Operation::REG_IRQ => tmcall_reg_irq(state),
-        tmif::Operation::TRANSL_FAULT => tmcall_transl_fault(state),
-        tmif::Operation::INIT_TLS => tmcall_init_tls(state),
-        tmif::Operation::FLUSH_INV => tmcall_flush_inv(state),
-        tmif::Operation::NOOP => tmcall_noop(state),
-
-        _ => Err(Error::new(Code::NotSup)),
-    };
+    let res = call
+        .map_err(|_| Error::new(Code::NotSup))
+        .map(|op| match op {
+            tmif::Operation::Wait => tmcall_wait(state),
+            tmif::Operation::Exit => tmcall_stop(state),
+            tmif::Operation::Yield => tmcall_yield(state),
+            tmif::Operation::Map => tmcall_map(state),
+            tmif::Operation::RegIRQ => tmcall_reg_irq(state),
+            tmif::Operation::TranslFault => tmcall_transl_fault(state),
+            tmif::Operation::InitTLS => tmcall_init_tls(state),
+            tmif::Operation::FlushInv => tmcall_flush_inv(state),
+            tmif::Operation::Noop => tmcall_noop(state),
+        });
 
     if let Err(e) = &res {
         log!(

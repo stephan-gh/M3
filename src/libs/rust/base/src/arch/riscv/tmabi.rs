@@ -27,7 +27,7 @@ impl TMABIOps for RISCVTMABI {
     }
 
     fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<(), Error> {
-        let mut res = op.val;
+        let mut res = op.into();
         unsafe {
             asm!(
                 "ecall",
@@ -40,7 +40,7 @@ impl TMABIOps for RISCVTMABI {
     }
 
     fn call3(op: Operation, arg1: usize, arg2: usize, arg3: usize) -> Result<(), Error> {
-        let mut res = op.val;
+        let mut res = op.into();
         unsafe {
             asm!(
                 "ecall",
@@ -60,7 +60,7 @@ impl TMABIOps for RISCVTMABI {
         arg3: usize,
         arg4: usize,
     ) -> Result<(), Error> {
-        let mut res = op.val;
+        let mut res = op.into();
         unsafe {
             asm!(
                 "ecall",

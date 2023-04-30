@@ -25,7 +25,7 @@ impl TMABIOps for X86TMABI {
     }
 
     fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<(), Error> {
-        let mut res = op.val;
+        let mut res = op.into();
         unsafe {
             core::arch::asm!(
                 "int $63",
@@ -38,7 +38,7 @@ impl TMABIOps for X86TMABI {
     }
 
     fn call3(op: Operation, arg1: usize, arg2: usize, arg3: usize) -> Result<(), Error> {
-        let mut res = op.val;
+        let mut res = op.into();
         unsafe {
             core::arch::asm!(
                 "int $63",
@@ -58,7 +58,7 @@ impl TMABIOps for X86TMABI {
         arg3: usize,
         arg4: usize,
     ) -> Result<(), Error> {
-        let mut res = op.val;
+        let mut res = op.into();
         unsafe {
             core::arch::asm!(
                 "int $63",
