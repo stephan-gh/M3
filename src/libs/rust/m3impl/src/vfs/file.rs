@@ -267,8 +267,8 @@ pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
 
     /// Checks whether any of the given events has arrived.
     ///
-    /// More specifically, if FileEvent::INPUT is given and reading from the file might result in
-    /// receiving data, the function returns true.
+    /// More specifically, if [`FileEvent::INPUT`] is given and reading from the file might result
+    /// in receiving data, the function returns true.
     ///
     /// This function is used by the [`FileWaiter`](crate::vfs::FileWaiter) that waits until any of
     /// its files can make progress. Some types of files (e.g., sockets) needs to be "ticked" in
@@ -284,9 +284,9 @@ pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
 pub trait Seek {
     /// Seeks to position `off`, using the given seek mode.
     ///
-    /// If `whence` == [`SeekMode::SET`], the position is set to `off`.
-    /// If `whence` == [`SeekMode::CUR`], the position is increased by `off`.
-    /// If `whence` == [`SeekMode::END`], the position is set to the end of the file.
+    /// If `whence` == [`SeekMode::Set`], the position is set to `off`.
+    /// If `whence` == [`SeekMode::Cur`], the position is increased by `off`.
+    /// If `whence` == [`SeekMode::End`], the position is set to the end of the file.
     fn seek(&mut self, _off: usize, _whence: SeekMode) -> Result<usize, Error> {
         Err(Error::new(Code::NotSup))
     }
