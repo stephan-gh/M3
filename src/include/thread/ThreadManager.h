@@ -19,8 +19,8 @@
 
 #pragma once
 
-#include <base/Panic.h>
 #include <base/Log.h>
+#include <base/Panic.h>
 
 #include <thread/Thread.h>
 

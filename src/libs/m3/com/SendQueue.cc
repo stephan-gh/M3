@@ -17,8 +17,8 @@
  */
 
 #include <base/Init.h>
-#include <base/TCU.h>
 #include <base/Log.h>
+#include <base/TCU.h>
 
 #include <m3/com/SendQueue.h>
 
