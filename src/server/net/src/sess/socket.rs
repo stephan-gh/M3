@@ -16,7 +16,6 @@
  */
 
 use core::cmp;
-use core::convert::TryFrom;
 
 use base::io::LogFlags;
 use m3::cap::Selector;
@@ -156,19 +155,19 @@ impl SocketSession {
     ) -> Result<(), Error> {
         let is = xchg.in_args();
 
-        match opcodes::Net::try_from(opcode) {
-            Ok(opcodes::Net::GetSGate) => {
+        match opcode {
+            o if o == opcodes::Net::GetSGate.into() => {
                 let caps = self.get_sgate()?;
                 xchg.out_caps(caps);
                 Ok(())
             },
-            Ok(opcodes::Net::Create) => {
+            o if o == opcodes::Net::Create.into() => {
                 let (caps, sd) = self.create_socket(is, iface)?;
                 xchg.out_caps(caps);
                 xchg.out_args().push(sd);
                 Ok(())
             },
-            Ok(opcodes::Net::OpenFile) => {
+            o if o == opcodes::Net::OpenFile.into() => {
                 let caps = self.open_file(crt, srv_sel, is)?;
                 xchg.out_caps(caps);
                 Ok(())

@@ -21,7 +21,6 @@ mod mapper;
 mod physmem;
 mod regions;
 
-use core::convert::TryFrom;
 use core::ops::DerefMut;
 
 use m3::boxed::Box;
@@ -184,13 +183,11 @@ fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_, '_>) {
 
             REQHDL
                 .borrow_mut()
-                .fetch_and_handle_with(|_handler, opcode, sess, is| match opcodes::Pager::try_from(
-                    opcode,
-                ) {
-                    Ok(opcodes::Pager::Pagefault) => sess.pagefault(&mut childs, is),
-                    Ok(opcodes::Pager::MapAnon) => sess.map_anon(is),
-                    Ok(opcodes::Pager::Unmap) => sess.unmap(is),
-                    Ok(opcodes::Pager::Close) => sess.close(is),
+                .fetch_and_handle_with(|_handler, opcode, sess, is| match opcode {
+                    o if o == opcodes::Pager::Pagefault.into() => sess.pagefault(&mut childs, is),
+                    o if o == opcodes::Pager::MapAnon.into() => sess.map_anon(is),
+                    o if o == opcodes::Pager::Unmap.into() => sess.unmap(is),
+                    o if o == opcodes::Pager::Close.into() => sess.close(is),
                     _ => Err(Error::new(Code::InvArgs)),
                 })
                 .ok();

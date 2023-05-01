@@ -173,27 +173,26 @@ fn tmcall_noop(_state: &mut arch::State) -> Result<(), Error> {
 }
 
 pub fn handle_call(state: &mut arch::State) {
-    let call = tmif::Operation::try_from(state.r[isr::TMC_ARG0]);
+    let opcode = state.r[isr::TMC_ARG0];
 
-    let res = call
-        .map_err(|_| Error::new(Code::NotSup))
-        .map(|op| match op {
-            tmif::Operation::Wait => tmcall_wait(state),
-            tmif::Operation::Exit => tmcall_stop(state),
-            tmif::Operation::Yield => tmcall_yield(state),
-            tmif::Operation::Map => tmcall_map(state),
-            tmif::Operation::RegIRQ => tmcall_reg_irq(state),
-            tmif::Operation::TranslFault => tmcall_transl_fault(state),
-            tmif::Operation::InitTLS => tmcall_init_tls(state),
-            tmif::Operation::FlushInv => tmcall_flush_inv(state),
-            tmif::Operation::Noop => tmcall_noop(state),
-        });
+    let res = match opcode {
+        o if o == tmif::Operation::Wait.into() => tmcall_wait(state),
+        o if o == tmif::Operation::Exit.into() => tmcall_stop(state),
+        o if o == tmif::Operation::Yield.into() => tmcall_yield(state),
+        o if o == tmif::Operation::Map.into() => tmcall_map(state),
+        o if o == tmif::Operation::RegIRQ.into() => tmcall_reg_irq(state),
+        o if o == tmif::Operation::TranslFault.into() => tmcall_transl_fault(state),
+        o if o == tmif::Operation::InitTLS.into() => tmcall_init_tls(state),
+        o if o == tmif::Operation::FlushInv.into() => tmcall_flush_inv(state),
+        o if o == tmif::Operation::Noop.into() => tmcall_noop(state),
+        _ => Err(Error::new(Code::InvArgs)),
+    };
 
     if let Err(e) = &res {
         log!(
             LogFlags::MuxCalls,
             "\x1B[1mError for call {:?}: {:?}\x1B[0m",
-            call,
+            tmif::Operation::try_from(opcode),
             e.code()
         );
     }

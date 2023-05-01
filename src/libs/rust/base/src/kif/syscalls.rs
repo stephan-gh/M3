@@ -36,17 +36,7 @@ pub const MAX_EXCHG_ARGS: usize = 8;
 pub const MAX_WAIT_ACTS: usize = 32;
 
 /// The system calls
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    IntoPrimitive,
-    TryFromPrimitive,
-    Serialize_repr,
-    Deserialize_repr,
-)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive, Serialize_repr)]
 #[repr(u64)]
 pub enum Operation {
     // Capability creations
