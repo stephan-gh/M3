@@ -69,8 +69,6 @@ public:
     void unmap(goff_t virt);
 
 private:
-    capsel_t get_sgate();
-
     SendGate _req_sgate;
     capsel_t _child_sgate;
     RecvGate _pf_rgate;

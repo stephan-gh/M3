@@ -138,7 +138,7 @@ size_t M3FS::delegate_ep(capsel_t sel) {
 void M3FS::delegate(ChildActivity &act) {
     act.delegate_obj(sel());
     // TODO what if it fails?
-    get_sgate(act);
+    connect_for(act, sel() + 1);
 }
 
 void M3FS::serialize(Marshaller &m) {

@@ -15,7 +15,7 @@
 
 use m3::cell::StaticCell;
 use m3::col::String;
-use m3::com::{opcodes, GateIStream, RecvGate, SendGate};
+use m3::com::{GateIStream, RecvGate};
 use m3::errors::{Code, Error};
 use m3::io::LogFlags;
 use m3::log;
@@ -89,10 +89,8 @@ fn testmsgs(t: &mut dyn WvTester) {
     let sact = wv_assert_ok!(serv.run(server_msgs_main));
 
     {
-        let sess = crate::tserver::connect("test");
-        let sels =
-            wv_assert_ok!(sess.obtain(1, |is| is.push(opcodes::General::Connect), |_| Ok(())));
-        let sgate = SendGate::new_bind(sels.start());
+        let sess = crate::tserver::open_sess("test");
+        let sgate = wv_assert_ok!(sess.connect());
 
         for _ in 0..5 {
             let mut reply = wv_assert_ok!(send_recv!(&sgate, RecvGate::def(), 0, "123456"));
@@ -102,10 +100,8 @@ fn testmsgs(t: &mut dyn WvTester) {
     }
 
     {
-        let sess = crate::tserver::connect("test");
-        let sels =
-            wv_assert_ok!(sess.obtain(1, |is| is.push(opcodes::General::Connect), |_| Ok(())));
-        let sgate = SendGate::new_bind(sels.start());
+        let sess = crate::tserver::open_sess("test");
+        let sgate = wv_assert_ok!(sess.connect());
 
         let mut reply = wv_assert_ok!(send_recv!(&sgate, RecvGate::def(), 0, "123456"));
         let resp: String = wv_assert_ok!(reply.pop());

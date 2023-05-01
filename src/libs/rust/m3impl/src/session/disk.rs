@@ -20,7 +20,6 @@ use crate::errors::Error;
 use crate::goff;
 use crate::kif::{CapRngDesc, CapType};
 use crate::session::ClientSession;
-use crate::tiles::Activity;
 use crate::util::math;
 
 use core::{cmp, fmt};
@@ -91,16 +90,7 @@ impl Disk {
         rgate.activate()?;
 
         // get send gate for our requests
-        let crd = CapRngDesc::new(CapType::Object, Activity::own().alloc_sel(), 1);
-        sess.obtain_for(
-            Activity::own().sel(),
-            crd,
-            |slice_sink| {
-                slice_sink.push(opcodes::General::Connect);
-            },
-            |_slice_source| Ok(()),
-        )?;
-        let sgate = SendGate::new_bind(crd.start());
+        let sgate = sess.connect()?;
 
         Ok(Disk { sess, rgate, sgate })
     }

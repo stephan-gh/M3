@@ -27,10 +27,10 @@ namespace m3 {
 Pager::Pager(capsel_t sess)
     : RefCounted(),
       ClientSession(sess),
-      _req_sgate(SendGate::bind(get_sgate())),
-      _child_sgate(get_sgate()),
+      _req_sgate(connect()),
+      _child_sgate(connect().sel()),
       _pf_rgate(RecvGate::create(nextlog2<64>::val, nextlog2<64>::val)),
-      _pf_sgate(SendGate::bind(get_sgate())),
+      _pf_sgate(connect()),
       _close(true) {
 }
 
@@ -53,14 +53,6 @@ Pager::~Pager() {
             // ignore
         }
     }
-}
-
-capsel_t Pager::get_sgate() {
-    KIF::ExchangeArgs args;
-    ExchangeOStream os(args);
-    os << opcodes::General::CONNECT;
-    args.bytes = os.total();
-    return obtain(1, &args).start();
 }
 
 void Pager::pagefault(goff_t addr, uint access) {

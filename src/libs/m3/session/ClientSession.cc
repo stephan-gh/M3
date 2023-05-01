@@ -35,12 +35,26 @@ ClientSession::~ClientSession() {
     }
 }
 
-void ClientSession::connect(const std::string_view &service, capsel_t selector) {
+void ClientSession::open(const std::string_view &service, capsel_t selector) {
     if(selector == INVALID)
         selector = Activity::own().alloc_sel();
 
     Activity::own().resmng()->open_sess(selector, service);
     sel(selector);
+}
+
+SendGate ClientSession::connect() {
+    auto sel = Activity::own().alloc_sel();
+    return SendGate::bind(connect_for(Activity::own(), sel));
+}
+
+capsel_t ClientSession::connect_for(Activity &act, capsel_t sel) {
+    KIF::ExchangeArgs args;
+    ExchangeOStream os(args);
+    os << opcodes::General::CONNECT;
+    args.bytes = os.total();
+    obtain_for(act, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel, 1), &args);
+    return sel;
 }
 
 void ClientSession::delegate(const KIF::CapRngDesc &caps, KIF::ExchangeArgs *args) {

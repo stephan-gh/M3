@@ -81,7 +81,7 @@ fn server_crash_main() -> Result<(), Error> {
     Ok(())
 }
 
-pub fn connect(name: &str) -> ClientSession {
+pub fn open_sess(name: &str) -> ClientSession {
     // try to open a session until we succeed. this is required because we start the servers ourself
     // and don't know when they register their service.
     loop {
@@ -110,7 +110,7 @@ fn testnoresp(t: &mut dyn WvTester) {
 
         let cact = wv_assert_ok!(client.run(|| {
             let mut t = DefaultWvTester::default();
-            let sess = connect("test");
+            let sess = open_sess("test");
             wv_assert_err!(
                 t,
                 sess.obtain(1, |is| is.push(0), |_| Ok(())),
@@ -281,7 +281,7 @@ fn testcaps(t: &mut dyn WvTester) {
     let sact = wv_assert_ok!(serv.run(server_notsup_main));
 
     for i in 0..5 {
-        let sess = connect("test");
+        let sess = open_sess("test");
 
         // test both obtain and delegate
         if i % 2 == 0 {

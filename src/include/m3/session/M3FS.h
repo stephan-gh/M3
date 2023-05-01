@@ -55,7 +55,7 @@ public:
     explicit M3FS(size_t id, const std::string_view &service)
         : ClientSession(service, Activity::own().alloc_sels(2)),
           FileSystem(id),
-          _gate(SendGate::bind(get_sgate(Activity::own()))),
+          _gate(SendGate::bind(connect_for(Activity::own(), sel() + 1))),
           _eps() {
     }
     explicit M3FS(size_t id, capsel_t caps) noexcept
@@ -88,14 +88,6 @@ public:
 private:
     size_t get_ep();
     size_t delegate_ep(capsel_t sel);
-    capsel_t get_sgate(Activity &act) {
-        KIF::ExchangeArgs args;
-        ExchangeOStream os(args);
-        os << opcodes::General::CONNECT;
-        args.bytes = os.total();
-        obtain_for(act, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel() + 1, 1), &args);
-        return sel() + 1;
-    }
 
     SendGate _gate;
     std::vector<CachedEP> _eps;

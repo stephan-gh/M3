@@ -62,16 +62,8 @@ impl M3FS {
     pub fn new(id: usize, name: &str) -> Result<FSHandle, Error> {
         let sels = Activity::own().alloc_sels(2);
         let sess = ClientSession::new_with_sel(name, sels + 0)?;
-
-        let crd = kif::CapRngDesc::new(kif::CapType::Object, sels + 1, 1);
-        sess.obtain_for(
-            Activity::own().sel(),
-            crd,
-            |os| os.push(opcodes::General::Connect),
-            |_| Ok(()),
-        )?;
-        let sgate = SendGate::new_bind(sels + 1);
-        Ok(Self::create(id, sess, sgate))
+        sess.connect_for(Activity::own(), sels + 1)?;
+        Ok(Self::create(id, sess, SendGate::new_bind(sels + 1)))
     }
 
     /// Binds a new m3fs-session to selectors `sels`..`sels+1`.
@@ -239,15 +231,7 @@ impl FileSystem for M3FS {
 
     fn delegate(&self, act: &ChildActivity) -> Result<Selector, Error> {
         act.delegate_obj(self.sess.sel())?;
-
-        let crd = kif::CapRngDesc::new(kif::CapType::Object, self.sess.sel() + 1, 1);
-        self.sess.obtain_for(
-            act.sel(),
-            crd,
-            |os| os.push(opcodes::General::Connect),
-            |_| Ok(()),
-        )?;
-
+        self.sess.connect_for(act, self.sess.sel() + 1)?;
         Ok(self.sess.sel() + 2)
     }
 

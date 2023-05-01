@@ -19,6 +19,7 @@
 use core::fmt;
 
 use crate::cap::{CapFlags, Capability, Selector};
+use crate::com::{opcodes, SendGate};
 use crate::errors::Error;
 use crate::kif;
 use crate::serialize::{M3Deserializer, M3Serializer, SliceSink};
@@ -59,6 +60,33 @@ impl ClientSession {
     /// Returns the capability selector.
     pub fn sel(&self) -> Selector {
         self.cap.sel()
+    }
+
+    /// Creates a connection for requests to the server
+    ///
+    /// The method uses the [`Connect`](`opcodes::General::Connect`) operation to obtain a
+    /// [`SendGate`] from the server that can be used afterwards to send requests to the server.
+    ///
+    /// Returns the obtained [`SendGate`]
+    pub fn connect(&self) -> Result<SendGate, Error> {
+        let sel = Activity::own().alloc_sel();
+        self.connect_for(Activity::own(), sel)?;
+        Ok(SendGate::new_bind(sel))
+    }
+
+    /// Creates a connection for requests to the server for given activity
+    ///
+    /// The method uses the [`Connect`](`opcodes::General::Connect`) operation to obtain a
+    /// [`SendGate`] from the server that can be used afterwards to send requests to the server.
+    /// The [`SendGate`] will be obtained for the given activity and bound to the given selector.
+    pub fn connect_for(&self, act: &Activity, sel: Selector) -> Result<(), Error> {
+        let crd = kif::CapRngDesc::new(kif::CapType::Object, sel, 1);
+        self.obtain_for(
+            act.sel(),
+            crd,
+            |is| is.push(opcodes::General::Connect),
+            |_| Ok(()),
+        )
     }
 
     /// Delegates the object capability with selector `sel` to the server.

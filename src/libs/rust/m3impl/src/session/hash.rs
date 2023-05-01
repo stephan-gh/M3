@@ -32,14 +32,13 @@ impl HashSession {
     /// and initialize it with the specified [`HashAlgorithm`].
     pub fn new(name: &str, algo: &'static HashAlgorithm) -> Result<Self, Error> {
         let sess = ClientSession::new(name)?;
-
-        let sgate = sess.obtain(1, |is| is.push(opcodes::General::Connect), |_| Ok(()))?;
+        let sgate = sess.connect()?;
         let ep = sess.obtain(1, |is| is.push(opcodes::Hash::GetMem), |_| Ok(()))?;
 
         let mut sess = HashSession {
             algo,
             _sess: sess,
-            sgate: SendGate::new_bind(sgate.start()),
+            sgate,
             ep: EP::new_bind(0, ep.start()),
         };
         sess.reset(algo)?;

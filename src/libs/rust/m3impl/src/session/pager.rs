@@ -58,11 +58,6 @@ bitflags! {
 }
 
 impl Pager {
-    fn get_sgate(sess: &ClientSession) -> Result<cap::Selector, Error> {
-        sess.obtain(1, |os| os.push(opcodes::General::Connect), |_| Ok(()))
-            .map(|crd| crd.start())
-    }
-
     /// Creates a new session with given gates (for the pager).
     pub fn new(
         sess: ClientSession,
@@ -103,9 +98,9 @@ impl Pager {
         let sess = ClientSession::new_bind(res.start());
 
         // get send gates for us and our child
-        let child_sgate = Self::get_sgate(&sess)?;
-        let req_sgate = SendGate::new_bind(Self::get_sgate(&sess)?);
-        let pf_sgate = Self::get_sgate(&sess)?;
+        let child_sgate = sess.connect()?.sel();
+        let pf_sgate = sess.connect()?.sel();
+        let req_sgate = sess.connect()?;
 
         let pf_rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
         Ok(Pager {

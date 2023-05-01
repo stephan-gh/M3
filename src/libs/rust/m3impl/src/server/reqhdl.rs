@@ -353,7 +353,7 @@ pub type MsgHandlerFunc<S> = Option<Box<dyn Fn(&mut S, &mut GateIStream<'_>) -> 
 /// clients send requests to the server, which are handled by the server. For that reason, the
 /// server maintains a list of sessions to hold client-specific state, and uses a [`RecvGate`] to
 /// receive client requests. Clients can obtain a [`SendGate`] to the [`RecvGate`] via the operation
-/// [`CONNECT`](`opcodes::General::CONNECT`).
+/// [`Connect`](`opcodes::General::Connect`).
 ///
 /// The actual requests are implemented by handler functions. [`RequestHandler`] supports both
 /// capability handlers and message handlers. The former are called whenever a capability exchange

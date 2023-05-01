@@ -49,7 +49,7 @@ public:
     explicit ClientSession(const std::string_view &name, capsel_t sel = ObjCap::INVALID)
         : ObjCap(SESSION),
           _close(true) {
-        connect(name, sel);
+        open(name, sel);
     }
 
     /**
@@ -67,6 +67,27 @@ public:
     }
 
     ~ClientSession();
+
+    /**
+     * Creates a connection for requests to the server for given activity
+     *
+     * The method uses the Connect operation to obtain a SendGate from the server that can be used
+     * afterwards to send requests to the server.
+     *
+     * @return the obtained SendGate
+     */
+    SendGate connect();
+
+    /**
+     * Creates a connection for requests to the server for given activity
+     *
+     * The method uses the Connect operation to obtain a SendGate from the server that can be used
+     * afterwards to send requests to the server. The SendGate will be obtained for the given
+     * activity and bound to the given selector.
+     *
+     * @return the used selector (<sel>)
+     */
+    capsel_t connect_for(Activity &act, capsel_t sel);
 
     /**
      * Delegates the given object capability to the server.
@@ -131,7 +152,7 @@ public:
     void obtain_for(Activity &act, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args = nullptr);
 
 private:
-    void connect(const std::string_view &name, capsel_t sel);
+    void open(const std::string_view &name, capsel_t sel);
 
     bool _close;
 };
