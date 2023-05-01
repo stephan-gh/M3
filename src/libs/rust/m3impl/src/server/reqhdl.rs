@@ -186,16 +186,6 @@ impl<S: RequestSession + 'static> ClientManager<S> {
         &self.rgate
     }
 
-    /// Returns a reference to the session container
-    pub fn sessions(&self) -> &SessionContainer<S> {
-        &self.sessions
-    }
-
-    /// Returns a mutable reference to the session container
-    pub fn sessions_mut(&mut self) -> &mut SessionContainer<S> {
-        &mut self.sessions
-    }
-
     /// Adds a new connection ([`SendGate`]) for the existing session with given id.
     ///
     /// Returns the selector of the [`SendGate`]
@@ -286,6 +276,16 @@ impl<S: RequestSession + 'static> ClientManager<S> {
         Ok((sels, sid))
     }
 
+    /// Returns a reference to the session with given id
+    pub fn get(&self, sid: SessId) -> Option<&S> {
+        self.sessions.get(sid)
+    }
+
+    /// Returns a mutable reference to the session with given id
+    pub fn get_mut(&mut self, sid: SessId) -> Option<&mut S> {
+        self.sessions.get_mut(sid)
+    }
+
     /// Retrieves the session with given id and calls the given function with that session.
     ///
     /// The function also receives the internal [`RecvGate`] in case it's needed.
@@ -298,6 +298,14 @@ impl<S: RequestSession + 'static> ClientManager<S> {
             .get_mut(sid)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
         func(sess, &self.rgate)
+    }
+
+    /// Iterates over all sessions and calls `func` on each session.
+    pub fn for_each<F>(&mut self, func: F)
+    where
+        F: FnMut(&mut S),
+    {
+        self.sessions.for_each(func)
     }
 
     /// Removes the session with given id

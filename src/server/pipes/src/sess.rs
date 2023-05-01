@@ -109,9 +109,7 @@ impl RequestSession for PipesSession {
 
 impl PipesSession {
     fn get_sess(cli: &mut ClientManager<Self>, sid: SessId) -> Result<&mut Self, Error> {
-        cli.sessions_mut()
-            .get_mut(sid)
-            .ok_or_else(|| Error::new(Code::InvArgs))
+        cli.get_mut(sid).ok_or_else(|| Error::new(Code::InvArgs))
     }
 
     pub fn with_chan<F, R>(&mut self, is: &mut GateIStream<'_>, func: F) -> Result<R, Error>

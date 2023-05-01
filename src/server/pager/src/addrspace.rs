@@ -103,7 +103,7 @@ impl AddrSpace {
         sid: SessId,
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
-        let child_id = cli.sessions_mut().get_mut(sid).unwrap().child_id();
+        let child_id = cli.get_mut(sid).unwrap().child_id();
 
         let (sel, _) = cli.add_session(crt, |_cli, serv| {
             log!(
@@ -126,7 +126,7 @@ impl AddrSpace {
         sid: SessId,
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
-        let aspace = cli.sessions_mut().get_mut(sid).unwrap();
+        let aspace = cli.get_mut(sid).unwrap();
         let sel = aspace.do_init(None, None)?;
 
         xchg.out_caps(CapRngDesc::new(CapType::Object, sel, 1));
@@ -257,7 +257,7 @@ impl AddrSpace {
         sid: SessId,
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
-        let aspace = cli.sessions_mut().get_mut(sid).unwrap();
+        let aspace = cli.get_mut(sid).unwrap();
         if !aspace.has_owner() {
             return Err(Error::new(Code::InvArgs));
         }
@@ -368,7 +368,7 @@ impl AddrSpace {
         sid: SessId,
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
-        let aspace = cli.sessions_mut().get_mut(sid).unwrap();
+        let aspace = cli.get_mut(sid).unwrap();
         if !aspace.has_owner() {
             return Err(Error::new(Code::InvArgs));
         }

@@ -532,10 +532,7 @@ impl HashSession {
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
         log!(LogFlags::HMuxReqs, "[{}] hash::obtain()", sid);
-        let hash = cli
-            .sessions_mut()
-            .get_mut(sid)
-            .ok_or_else(|| Error::new(Code::InvArgs))?;
+        let hash = cli.get_mut(sid).ok_or_else(|| Error::new(Code::InvArgs))?;
 
         // FIXME: Let client obtain EP capability directly with first obtain() below
         // Right now this is not possible because mgate.activate() returns an EP
@@ -675,7 +672,6 @@ impl HashMuxReceiver {
             KECACC.start_save(&mut state[cur]);
             self.reqhdl
                 .clients_mut()
-                .sessions_mut()
                 .get_mut(cur as SessId)
                 .unwrap()
                 .state_saved = true;
@@ -683,7 +679,7 @@ impl HashMuxReceiver {
         CURRENT.set(Some(to));
 
         // Restore state of new client or initialize it if necessary
-        let sess = self.reqhdl.clients_mut().sessions_mut().get(to).unwrap();
+        let sess = self.reqhdl.clients_mut().get(to).unwrap();
         if sess.state_saved {
             KECACC.start_load(&state[to]);
         }

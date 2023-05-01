@@ -88,7 +88,7 @@ impl RequestSession for FSSession {
 
             FSSession::File(ref file) => {
                 // remove file session from parent meta session
-                if let Some(parent_meta_session) = cli.sessions_mut().get_mut(file.meta_sess()) {
+                if let Some(parent_meta_session) = cli.get_mut(file.meta_sess()) {
                     match parent_meta_session {
                         FSSession::Meta(ref mut pms) => pms.remove_file(sid),
                         _ => panic!("FileSession's parent is not a MetaSession!?"),
@@ -97,7 +97,7 @@ impl RequestSession for FSSession {
 
                 // remove file session from parent file session
                 if let Some(psid) = file.parent_sess() {
-                    if let Some(parent_file_session) = cli.sessions_mut().get_mut(psid) {
+                    if let Some(parent_file_session) = cli.get_mut(psid) {
                         match parent_file_session {
                             FSSession::File(ref mut pfs) => pfs.remove_child(sid),
                             _ => panic!("Parent FileSession is not a FileSession!?"),
@@ -114,9 +114,7 @@ impl RequestSession for FSSession {
 
 impl FSSession {
     fn get_sess(cli: &mut ClientManager<Self>, sid: SessId) -> Result<&mut Self, Error> {
-        cli.sessions_mut()
-            .get_mut(sid)
-            .ok_or_else(|| Error::new(Code::InvArgs))
+        cli.get_mut(sid).ok_or_else(|| Error::new(Code::InvArgs))
     }
 
     pub fn open(

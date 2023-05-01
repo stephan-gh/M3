@@ -105,7 +105,7 @@ impl DiskSession {
             len
         );
 
-        let sess = cli.sessions_mut().get_mut(sid).unwrap();
+        let sess = cli.get_mut(sid).unwrap();
         let sel = Activity::own().alloc_sel();
         let range = BlockRange::new_range(bno, len);
         sess.blocks.remove(&range);

@@ -119,7 +119,7 @@ impl subsys::ChildStarter for PagedChildStarter {
 
         // init address space (give it activity and mgate selector)
         let mut hdl = REQHDL.borrow_mut();
-        let aspace = hdl.clients_mut().sessions_mut().get_mut(child_sid).unwrap();
+        let aspace = hdl.clients_mut().get_mut(child_sid).unwrap();
         aspace.do_init(Some(child.id()), Some(act.sel())).unwrap();
 
         // start activity

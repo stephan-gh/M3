@@ -78,7 +78,7 @@ impl MicSession {
     ) -> Result<(), Error> {
         log!(LogFlags::Debug, "[{}] vamic::recv()", sid);
 
-        let sess = cli.sessions_mut().get_mut(sid).unwrap();
+        let sess = cli.get_mut(sid).unwrap();
 
         // derive a read-only memory cap for the client. this revokes the previous memory cap, if
         // there was any.

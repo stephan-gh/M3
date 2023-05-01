@@ -89,7 +89,7 @@ impl RequestSession for VTermSession {
 
         // remove us from parent
         if let Some(pid) = self.parent.take() {
-            if let Some(p) = cli.sessions_mut().get_mut(pid) {
+            if let Some(p) = cli.get_mut(pid) {
                 p.childs.retain(|cid| *cid != sid);
             }
         }
@@ -98,9 +98,7 @@ impl RequestSession for VTermSession {
 
 impl VTermSession {
     fn get_sess(cli: &mut ClientManager<Self>, sid: SessId) -> Result<&mut Self, Error> {
-        cli.sessions_mut()
-            .get_mut(sid)
-            .ok_or_else(|| Error::new(Code::InvArgs))
+        cli.get_mut(sid).ok_or_else(|| Error::new(Code::InvArgs))
     }
 
     fn with_chan<F, R>(&mut self, is: &mut GateIStream<'_>, func: F) -> Result<R, Error>

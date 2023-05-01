@@ -60,7 +60,7 @@ pub fn get() -> RefMut<'static, Vec<u8>> {
 }
 
 pub fn receive_acks(cli: &mut ClientManager<VTermSession>) {
-    cli.sessions_mut().for_each(|s| match &mut s.data {
+    cli.for_each(|s| match &mut s.data {
         SessionData::Chan(c) => {
             if let Some((rg, _sg)) = c.notify_gates() {
                 if let Ok(msg) = rg.fetch() {
@@ -135,7 +135,7 @@ pub fn handle_input(cli: &mut ClientManager<VTermSession>, msg: &'static Message
 }
 
 fn add_signal(cli: &mut ClientManager<VTermSession>) {
-    cli.sessions_mut().for_each(|s| match &mut s.data {
+    cli.for_each(|s| match &mut s.data {
         SessionData::Chan(c) => {
             c.add_event(FileEvent::SIGNAL);
         },
@@ -154,7 +154,7 @@ fn add_input(
 
     let mut input_recv: Option<(&Message, usize, usize)> = None;
 
-    cli.sessions_mut().for_each(|s| {
+    cli.for_each(|s| {
         if flush || !input.is_empty() {
             if let SessionData::Chan(c) = &mut s.data {
                 if let Some((msg, pos, len)) = c.fetch_input(input).unwrap() {
