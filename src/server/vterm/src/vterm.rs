@@ -65,12 +65,11 @@ impl RequestSession for VTermSession {
         })
     }
 
-    fn creator(&self) -> usize {
-        self.serv.creator()
-    }
-
-    fn alive(&self) -> bool {
-        self.alive
+    fn is_dead(&self) -> Option<usize> {
+        match self.alive {
+            false => Some(self.serv.creator()),
+            true => None,
+        }
     }
 
     fn close(&mut self, cli: &mut ClientManager<Self>, sid: SessId, sub_ids: &mut Vec<SessId>)

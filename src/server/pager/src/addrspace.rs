@@ -52,12 +52,11 @@ impl RequestSession for AddrSpace {
         Ok(AddrSpace::new(serv, None, None))
     }
 
-    fn creator(&self) -> usize {
-        self.serv.creator()
-    }
-
-    fn alive(&self) -> bool {
-        self.alive
+    fn is_dead(&self) -> Option<usize> {
+        match self.alive {
+            false => Some(self.serv.creator()),
+            true => None,
+        }
     }
 
     fn close(&mut self, _cli: &mut ClientManager<Self>, sid: SessId, _sub_ids: &mut Vec<SessId>)

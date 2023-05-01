@@ -78,10 +78,6 @@ impl RequestSession for DiskSession {
         })
     }
 
-    fn creator(&self) -> usize {
-        0
-    }
-
     fn close(&mut self, _hdl: &mut ClientManager<Self>, sid: SessId, _sub_ids: &mut Vec<SessId>) {
         log!(LogFlags::DiskReqs, "[{}] disk::close()", sid);
     }

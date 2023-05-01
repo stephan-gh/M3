@@ -95,10 +95,9 @@ impl MetaSession {
             flags
         );
 
-        let creator = serv.creator();
         let sid = serv.id();
         let sel = serv.sel();
-        let session = self.do_open(Some(serv), creator, sid, path, flags)?;
+        let session = self.do_open(Some(serv), sid, path, flags)?;
 
         self.files.push(sid);
 
@@ -120,7 +119,6 @@ impl MetaSession {
     fn do_open(
         &mut self,
         serv: Option<ServerSession>,
-        crt: usize,
         id: SessId,
         path: &str,
         flags: OpenFlags,
@@ -156,16 +154,7 @@ impl MetaSession {
             inodes::sync_metadata(&inode)?;
         }
 
-        FileSession::new(
-            serv,
-            crt,
-            None,
-            id,
-            self.serv.id(),
-            path,
-            flags,
-            inode.inode,
-        )
+        FileSession::new(serv, None, id, self.serv.id(), path, flags, inode.inode)
     }
 
     fn with_file_sess<F>(&mut self, stream: &mut GateIStream<'_>, func: F) -> Result<(), Error>
@@ -189,10 +178,6 @@ impl Drop for MetaSession {
 }
 
 impl M3FSSession for MetaSession {
-    fn creator(&self) -> usize {
-        self.serv.creator()
-    }
-
     fn next_in(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         self.with_file_sess(stream, |f, stream| f.file_in_out(stream, false))
     }
@@ -343,7 +328,7 @@ impl M3FSSession for MetaSession {
         let ep_sel = self.get_ep(ep)?;
 
         let id = NEXT_PRIV_ID.get();
-        let mut session = self.do_open(None, 0, id, path, flags)?;
+        let mut session = self.do_open(None, id, path, flags)?;
         session.set_ep(ep_sel);
         NEXT_PRIV_ID.set(id + 1);
 

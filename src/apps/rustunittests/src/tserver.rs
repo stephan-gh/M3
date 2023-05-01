@@ -52,10 +52,6 @@ impl RequestSession for CrashSession {
     {
         Ok(Self { _serv })
     }
-
-    fn creator(&self) -> usize {
-        0
-    }
 }
 
 impl CrashSession {
@@ -219,10 +215,6 @@ impl RequestSession for NotSupSession {
         Self: Sized,
     {
         Ok(Self { _serv, calls: 0 })
-    }
-
-    fn creator(&self) -> usize {
-        0
     }
 }
 

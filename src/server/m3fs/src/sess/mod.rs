@@ -58,17 +58,10 @@ impl RequestSession for FSSession {
         Ok(FSSession::Meta(MetaSession::new(serv, max_files)))
     }
 
-    fn alive(&self) -> bool {
+    fn is_dead(&self) -> Option<usize> {
         match self {
-            FSSession::Meta(_) => true,
-            FSSession::File(ref file) => file.alive(),
-        }
-    }
-
-    fn creator(&self) -> usize {
-        match self {
-            FSSession::Meta(ref meta) => meta.creator(),
-            FSSession::File(ref file) => file.creator(),
+            FSSession::Meta(_) => None,
+            FSSession::File(ref file) => file.is_dead(),
         }
     }
 
@@ -217,13 +210,6 @@ impl FSSession {
 }
 
 impl M3FSSession for FSSession {
-    fn creator(&self) -> usize {
-        match self {
-            FSSession::Meta(m) => m.creator(),
-            FSSession::File(f) => f.creator(),
-        }
-    }
-
     fn next_in(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
             FSSession::Meta(m) => m.next_in(stream),
@@ -339,8 +325,6 @@ impl M3FSSession for FSSession {
 
 /// Represents an abstract server-side M3FS Session.
 pub trait M3FSSession {
-    fn creator(&self) -> usize;
-
     fn next_in(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
     fn next_out(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
     fn commit(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;

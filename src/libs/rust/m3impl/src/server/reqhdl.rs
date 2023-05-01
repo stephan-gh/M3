@@ -31,7 +31,7 @@ use crate::server::{server_loop, CapExchange, ExcType, Handler, Server, SessId, 
 use crate::session::ServerSession;
 use crate::tcu::Label;
 use crate::tiles::Activity;
-use crate::util::{self, math};
+use crate::util::math;
 use crate::vec;
 
 /// The default maximum number of clients a service supports
@@ -59,17 +59,16 @@ pub trait RequestSession {
     where
         Self: Sized;
 
-    /// Returns the creator of this session
-    fn creator(&self) -> usize;
-
-    /// Returns whether this session is still alive
+    /// Returns whether this session is dead
     ///
-    /// This method will be used on remove "dead" sessions after each request handling. Therefore,
-    /// overriding this method and setting a session to "dead" in a request handler allows to remove
-    /// this session upon client requests. Note however that only the session that received the
-    /// request is considered for removal!
-    fn alive(&self) -> bool {
-        true
+    /// This method will be called after each request handling (see
+    /// [`RequestHandler::fetch_and_handle`]) to see whether the session is still "alive".
+    /// Therefore, overriding this method allows to remove a client's session upon a request from
+    /// that client (only the session that received the request is considered for removal!).
+    ///
+    /// Returns `Some` with the creator of the session if dead or `None` otherwise
+    fn is_dead(&self) -> Option<usize> {
+        None
     }
 
     /// This method is called after the session has been removed from the session container and
@@ -514,8 +513,7 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Reque
                 is.reply_error(e.code()).ok();
             }
 
-            if util::unlikely(!sess.alive()) {
-                let crt = sess.creator();
+            if let Some(crt) = sess.is_dead() {
                 drop(sess);
                 drop(is);
                 self.clients.remove_session(crt, sid);

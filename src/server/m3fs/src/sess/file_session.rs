@@ -87,20 +87,18 @@ pub struct FileSession {
 
     // session information
     alive: bool,
-    sess_creator: usize,
     session_id: SessId,
     meta_sess_id: SessId,
     parent_sess_id: Option<SessId>,
     child_sessions: Vec<SessId>,
 
-    _serv: Option<ServerSession>, // keep the server session alive
+    serv: Option<ServerSession>, // keep the server session alive
 }
 
 impl FileSession {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        _serv: Option<ServerSession>,
-        crt: usize,
+        serv: Option<ServerSession>,
         parent_sess_id: Option<SessId>,
         file_sess_id: SessId,
         meta_sess_id: SessId,
@@ -130,13 +128,12 @@ impl FileSession {
             ino,
 
             alive: true,
-            sess_creator: crt,
             session_id: file_sess_id,
             meta_sess_id,
             parent_sess_id,
             child_sessions: Vec::new(),
 
-            _serv,
+            serv,
         };
 
         crate::open_files_mut().add_sess(ino);
@@ -156,12 +153,10 @@ impl FileSession {
             self.filename
         );
 
-        let creator = serv.creator();
         let sid = serv.id();
         let sel = serv.sel();
         let nsess = Self::new(
             Some(serv),
-            creator,
             Some(self.session_id),
             sid,
             self.meta_sess_id,
@@ -232,8 +227,13 @@ impl FileSession {
         }
     }
 
-    pub fn alive(&self) -> bool {
-        self.alive
+    pub fn is_dead(&self) -> Option<usize> {
+        match self.alive {
+            // private file sessions are always removed via the meta session. thus, the
+            // ServerSession is always Some if alive is true.
+            false => self.serv.as_ref().map(|s| s.creator()),
+            true => None,
+        }
     }
 
     pub fn set_ep(&mut self, ep: Selector) {
@@ -608,10 +608,6 @@ impl Drop for FileSession {
 }
 
 impl M3FSSession for FileSession {
-    fn creator(&self) -> usize {
-        self.sess_creator
-    }
-
     fn next_in(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let _: usize = stream.pop()?;
         self.file_in_out(stream, false)
