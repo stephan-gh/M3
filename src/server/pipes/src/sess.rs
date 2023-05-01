@@ -136,7 +136,7 @@ impl PipesSession {
             msize
         );
 
-        let (sel, _nsid) = cli.add_connected_session(crt, |cli, serv, _sgate| {
+        let (sel, _nsid) = cli.add_connected(crt, |cli, serv, _sgate| {
             let parent_sess = Self::get_sess(cli, sid)?;
 
             match parent_sess.data_mut() {
@@ -172,7 +172,7 @@ impl PipesSession {
             ty
         );
 
-        let (sel, _nsid) = cli.add_connected_session(crt, |cli, serv, _sgate| {
+        let (sel, _nsid) = cli.add_connected(crt, |cli, serv, _sgate| {
             let parent_sess = Self::get_sess(cli, sid)?;
 
             match parent_sess.data_mut() {
@@ -199,7 +199,7 @@ impl PipesSession {
     ) -> Result<(), Error> {
         log!(LogFlags::PipeReqs, "[{}] pipes::clone()", sid,);
 
-        let (sel, _nsid) = cli.add_connected_session(crt, |cli, serv, _sgate| {
+        let (sel, _nsid) = cli.add_connected(crt, |cli, serv, _sgate| {
             let parent_sess = Self::get_sess(cli, sid)?;
 
             let res = match &mut parent_sess.data_mut() {

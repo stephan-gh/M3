@@ -134,7 +134,7 @@ impl VTermSession {
     ) -> Result<(), Error> {
         log!(LogFlags::VTReqs, "[{}] vterm::clone(crt={})", sid, crt);
 
-        let (sel, _nsid) = cli.add_connected_session(crt, |cli, serv, _sgate| {
+        let (sel, _nsid) = cli.add_connected(crt, |cli, serv, _sgate| {
             let parent_sess = Self::get_sess(cli, sid)?;
             let nsid = serv.id();
 

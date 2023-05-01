@@ -89,10 +89,9 @@ impl subsys::ChildStarter for PagedChildStarter {
         let (child_sess, child_sgate, pager_sgate, child_sid) = {
             let mut hdl = REQHDL.borrow_mut();
             let cli = hdl.clients_mut();
-            let (sel, nsid) = cli.add_connected_session(0, |_hdl, serv, _sgate| {
-                Ok(AddrSpace::new(serv, None, None))
-            })?;
-            let pf_sgate = cli.add_connection(nsid)?;
+            let (sel, nsid) =
+                cli.add_connected(0, |_hdl, serv, _sgate| Ok(AddrSpace::new(serv, None, None)))?;
+            let pf_sgate = cli.add_connection_to(nsid)?;
             (ClientSession::new_bind(sel + 0), sel + 1, pf_sgate, nsid)
         };
 

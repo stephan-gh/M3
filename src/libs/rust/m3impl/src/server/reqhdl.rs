@@ -141,7 +141,7 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Handl
     }
 
     fn close(&mut self, crt: usize, sid: SessId) {
-        self.clients.remove_session(crt, sid);
+        self.clients.remove(crt, sid);
     }
 }
 
@@ -185,34 +185,13 @@ impl<S: RequestSession + 'static> ClientManager<S> {
         &self.rgate
     }
 
-    /// Adds a new connection ([`SendGate`]) for the existing session with given id.
-    ///
-    /// Returns the selector of the [`SendGate`]
-    pub fn add_connection(&mut self, sid: SessId) -> Result<Selector, Error> {
-        // check if the client has already exceeded the connection limit
-        let cons = self.sgates.iter().filter(|s| s.0 == sid).count();
-        if cons + 1 > self.max_cli_cons {
-            return Err(Error::new(Code::NoSpace));
-        }
-
-        let sgate = SendGate::new_with(SGateArgs::new(&self.rgate).label(sid as Label).credits(1))?;
-        let sel = sgate.sel();
-        self.sgates.push((sid, sgate));
-
-        Ok(sel)
-    }
-
     /// Creates and adds a new session using `create_sess`.
     ///
     /// The `create_sess` closure receives the created [`ServerSession`] instance and is expected
     /// to store it to keep the session alive.
     ///
     /// Returns the selector and session id of the session
-    pub fn add_session<F>(
-        &mut self,
-        crt: usize,
-        create_sess: F,
-    ) -> Result<(Selector, SessId), Error>
+    pub fn add<F>(&mut self, crt: usize, create_sess: F) -> Result<(Selector, SessId), Error>
     where
         F: FnOnce(&mut Self, ServerSession) -> Result<S, Error>,
     {
@@ -244,7 +223,7 @@ impl<S: RequestSession + 'static> ClientManager<S> {
     /// first one (for the session) is returned, together with the chosen session id.
     ///
     /// Returns the selector and session id of the session
-    pub fn add_connected_session<F>(
+    pub fn add_connected<F>(
         &mut self,
         crt: usize,
         create_sess: F,
@@ -275,6 +254,23 @@ impl<S: RequestSession + 'static> ClientManager<S> {
         Ok((sels, sid))
     }
 
+    /// Adds a new connection ([`SendGate`]) for the existing session with given id.
+    ///
+    /// Returns the selector of the [`SendGate`]
+    pub fn add_connection_to(&mut self, sid: SessId) -> Result<Selector, Error> {
+        // check if the client has already exceeded the connection limit
+        let cons = self.sgates.iter().filter(|s| s.0 == sid).count();
+        if cons + 1 > self.max_cli_cons {
+            return Err(Error::new(Code::NoSpace));
+        }
+
+        let sgate = SendGate::new_with(SGateArgs::new(&self.rgate).label(sid as Label).credits(1))?;
+        let sel = sgate.sel();
+        self.sgates.push((sid, sgate));
+
+        Ok(sel)
+    }
+
     /// Returns a reference to the session with given id
     pub fn get(&self, sid: SessId) -> Option<&S> {
         self.sessions.get(sid)
@@ -288,7 +284,7 @@ impl<S: RequestSession + 'static> ClientManager<S> {
     /// Retrieves the session with given id and calls the given function with that session.
     ///
     /// The function also receives the internal [`RecvGate`] in case it's needed.
-    pub fn with_session<F, R>(&mut self, sid: SessId, mut func: F) -> Result<R, Error>
+    pub fn with<F, R>(&mut self, sid: SessId, mut func: F) -> Result<R, Error>
     where
         F: FnMut(&mut S, &RecvGate) -> Result<R, Error>,
     {
@@ -311,7 +307,7 @@ impl<S: RequestSession + 'static> ClientManager<S> {
     ///
     /// The removal calls `close` on the session, which has the option to add other sessions to the
     /// removal.
-    pub fn remove_session(&mut self, crt: usize, sid: SessId) {
+    pub fn remove(&mut self, crt: usize, sid: SessId) {
         self.sgates.retain(|s| s.0 != sid);
 
         // close this and all child sessions
@@ -337,7 +333,7 @@ impl<S: RequestSession + 'static> ClientManager<S> {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let sel = self.add_connection(sid)?;
+        let sel = self.add_connection_to(sid)?;
         xchg.out_caps(kif::CapRngDesc::new(kif::CapType::Object, sel, 1));
         Ok(())
     }
@@ -516,7 +512,7 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Reque
             if let Some(crt) = sess.is_dead() {
                 drop(sess);
                 drop(is);
-                self.clients.remove_session(crt, sid);
+                self.clients.remove(crt, sid);
             }
         }
         Ok(())

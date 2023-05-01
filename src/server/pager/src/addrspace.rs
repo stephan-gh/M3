@@ -104,7 +104,7 @@ impl AddrSpace {
     ) -> Result<(), Error> {
         let child_id = cli.get_mut(sid).unwrap().child_id();
 
-        let (sel, _) = cli.add_session(crt, |_cli, serv| {
+        let (sel, _) = cli.add(crt, |_cli, serv| {
             log!(
                 LogFlags::PgReqs,
                 "[{}] pager::add_child(nsid={})",

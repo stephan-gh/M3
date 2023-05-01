@@ -642,7 +642,7 @@ impl HashMuxReceiver {
         let serv_rgate = server.rgate();
         reqhdl
             .clients_mut()
-            .with_session(sid, |sess, rgate| Ok(sess.work(rgate, serv_rgate)))
+            .with(sid, |sess, rgate| Ok(sess.work(rgate, serv_rgate)))
             .unwrap()
     }
 
