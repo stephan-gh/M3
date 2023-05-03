@@ -36,25 +36,39 @@ use crate::util::math;
 const MSG_SIZE: usize = 256;
 const BUF_SIZE: usize = MSG_SIZE * (1 + super::sesscon::MAX_CREATORS);
 
+/// Describes the type of capability exchange including the number of capabilities
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum ExcType {
+    /// A delegate (client copies caps to the server)
+    Del(u64),
+    /// An obtain (server copies caps to the client)
+    Obt(u64),
+}
+
 /// The struct to exchange capabilities with a client (obtain/delegate)
 pub struct CapExchange<'d> {
+    ty: ExcType,
     src: M3Deserializer<'d>,
     sink: M3Serializer<SliceSink<'d>>,
-    input: &'d ExchangeData,
     pub(crate) out_crd: CapRngDesc,
 }
 
 impl<'d> CapExchange<'d> {
     /// Creates a new `CapExchange` object, taking input arguments from `input` and putting output
     /// arguments into `output`.
-    pub fn new(input: &'d ExchangeData, output: &'d mut ExchangeData) -> Self {
+    pub fn new(ty: ExcType, input: &'d ExchangeData, output: &'d mut ExchangeData) -> Self {
         let len = (input.args.bytes + 7) / 8;
         Self {
+            ty,
             src: M3Deserializer::new(&input.args.data[..len]),
             sink: M3Serializer::new(SliceSink::new(&mut output.args.data)),
-            input,
             out_crd: CapRngDesc::default(),
         }
+    }
+
+    /// Returns the type of exchange including the number of capabilities
+    pub fn ty(&self) -> ExcType {
+        self.ty
     }
 
     /// Returns the input arguments
@@ -67,11 +81,6 @@ impl<'d> CapExchange<'d> {
         &mut self.sink
     }
 
-    /// Returns the number of input capabilities
-    pub fn in_caps(&self) -> u64 {
-        self.input.caps.count()
-    }
-
     /// Sets the output capabilities to given [`CapRngDesc`]
     pub fn out_caps(&mut self, crd: CapRngDesc) {
         self.out_crd = crd;
@@ -82,9 +91,8 @@ impl<'d> fmt::Debug for CapExchange<'d> {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             fmt,
-            "CapExchange[in_caps={}, out_crd={}]",
-            self.in_caps(),
-            self.out_crd,
+            "CapExchange[ty={:?}, out_crd={}]",
+            self.ty, self.out_crd,
         )
     }
 }
@@ -105,8 +113,14 @@ pub trait Handler<S> {
     fn init(&mut self, _serv: &Server) {
     }
 
-    /// Creates a new session with `arg` as an argument for the service with selector `srv_sel`.
-    /// Returns the session selector and the session identifier.
+    /// Opens a new session for a client
+    ///
+    /// This method is called by `Server` whenever a new session should be opened and is expected to
+    /// create it. It receives the id of the session creator (`crt`), the selector of the server, and the
+    /// arguments for the session. Note that the arguments are not specified by the calling
+    /// application, but in the booted configuration file.
+    ///
+    /// Returns the used session selector and session identifier.
     fn open(
         &mut self,
         crt: usize,
@@ -116,21 +130,28 @@ pub trait Handler<S> {
 
     /// Performs a capability exchange between a client and our service
     ///
-    /// The default implementation expects a 64-bit opcode as the first word in the message and
-    /// calls [`exchange_handler`](`Self::exchange_handler`) to handle this operation.
+    /// This method is called by `Server` whenever capabilities should be exchanged over an existing
+    /// session. It receives the id of the session creator (`crt`), the id of the session, and the
+    /// [`CapExchange`] data structure. The last argument contains information about the exchange
+    /// (e.g., obtain/delegate) and is used to exchange input and output arguments with the client.
     fn exchange(
         &mut self,
         crt: usize,
         sid: SessId,
         xchg: &mut CapExchange<'_>,
-        obtain: bool,
     ) -> Result<(), Error>;
 
     /// Closes the given session
+    ///
+    /// This method is called by `Server` whenever a session should be closed and receives the
+    /// session creator (`crt`) and the session id as arguments.
     fn close(&mut self, _crt: usize, _sid: SessId) {
     }
 
-    /// Performs cleanup actions before shutdown
+    /// Shuts down the server
+    ///
+    /// This method is called by `Server` upon receiving the shutdown request from the kernel and
+    /// allows handlers to performs cleanup actions before actually shutting down.
     fn shutdown(&mut self) {
     }
 }
@@ -326,14 +347,21 @@ impl Server {
 
         let mut reply = ExchangeReply::default();
 
+        let ty = if obtain {
+            ExcType::Obt(data.caps.count())
+        }
+        else {
+            ExcType::Del(data.caps.count())
+        };
+
         let (res, args_size, crd) = {
-            let mut xchg = CapExchange::new(data, &mut reply.data);
+            let mut xchg = CapExchange::new(ty, data, &mut reply.data);
 
             let res = if !hdl.sessions().creator_owns(crt, sid) {
                 Err(Error::new(Code::NoPerm))
             }
             else {
-                hdl.exchange(crt, sid, &mut xchg, obtain)
+                hdl.exchange(crt, sid, &mut xchg)
             };
 
             (res, xchg.out_args().size(), xchg.out_crd)

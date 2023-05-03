@@ -96,18 +96,17 @@ impl Handler<SocketSession> for NetHandler<'_> {
         crt: usize,
         sid: SessId,
         xchg: &mut CapExchange<'_>,
-        obtain: bool,
     ) -> Result<(), Error> {
         let Self { reqhdl, iface } = self;
 
-        reqhdl.handle_capxchg_with(crt, sid, xchg, obtain, |reqhdl, opcode, ty, xchg| {
+        reqhdl.handle_capxchg_with(crt, sid, xchg, |reqhdl, opcode, xchg| {
             assert!(opcode == opcodes::Net::Create.into());
 
             let sess = reqhdl
                 .clients_mut()
                 .get_mut(sid)
                 .ok_or_else(|| Error::new(Code::InvArgs))?;
-            match ty {
+            match xchg.ty() {
                 ExcType::Obt(_) => sess.create_socket(xchg, iface),
                 ExcType::Del(_) => Err(Error::new(Code::InvArgs)),
             }

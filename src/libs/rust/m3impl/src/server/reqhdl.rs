@@ -27,7 +27,7 @@ use crate::format;
 use crate::io::LogFlags;
 use crate::kif;
 use crate::log;
-use crate::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
+use crate::server::{server_loop, CapExchange, ExcType, Handler, Server, SessId, SessionContainer};
 use crate::session::ServerSession;
 use crate::tcu::Label;
 use crate::tiles::Activity;
@@ -100,9 +100,8 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Handl
         crt: usize,
         sid: SessId,
         xchg: &mut CapExchange<'_>,
-        obtain: bool,
     ) -> Result<(), Error> {
-        self.handle_capxchg(crt, sid, xchg, obtain)
+        self.handle_capxchg(crt, sid, xchg)
     }
 
     fn open(
@@ -310,10 +309,9 @@ impl<S: RequestSession + 'static> ClientManager<S> {
         &mut self,
         _crt: usize,
         sid: SessId,
-        ty: ExcType,
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
-        if ty != ExcType::Obt(1) {
+        if xchg.ty() != ExcType::Obt(1) {
             return Err(Error::new(Code::InvArgs));
         }
 
@@ -333,15 +331,6 @@ struct CapHandler<S> {
 
 /// A handler function for messages
 pub type MsgHandlerFunc<S> = Option<Box<dyn Fn(&mut S, &mut GateIStream<'_>) -> Result<(), Error>>>;
-
-/// Describes the type of capability exchange including the number of capabilities
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum ExcType {
-    /// A delegate (client copies caps to the server)
-    Del(u64),
-    /// An obtain (server copies caps to the client)
-    Obt(u64),
-}
 
 /// Handles requests from clients
 ///
@@ -457,9 +446,8 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Reque
         crt: usize,
         sid: SessId,
         xchg: &mut CapExchange<'_>,
-        obtain: bool,
     ) -> Result<(), Error> {
-        self.handle_capxchg_with(crt, sid, xchg, obtain, |reqhdl, opcode, ty, xchg| {
+        self.handle_capxchg_with(crt, sid, xchg, |reqhdl, opcode, xchg| {
             let Self {
                 clients, cap_hdls, ..
             } = reqhdl;
@@ -468,7 +456,7 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Reque
                 CapHandler {
                     ty: hdl_ty,
                     func: Some(func),
-                } if *hdl_ty == ty => (func)(clients, crt, sid, xchg),
+                } if *hdl_ty == xchg.ty() => (func)(clients, crt, sid, xchg),
                 _ => Err(Error::new(Code::InvArgs)),
             }
         })
@@ -488,20 +476,12 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Reque
         crt: usize,
         sid: SessId,
         xchg: &mut CapExchange<'_>,
-        obtain: bool,
         func: F,
     ) -> Result<(), Error>
     where
-        F: FnOnce(&mut Self, usize, ExcType, &mut CapExchange<'_>) -> Result<(), Error>,
+        F: FnOnce(&mut Self, usize, &mut CapExchange<'_>) -> Result<(), Error>,
     {
         let opcode = xchg.in_args().pop::<usize>()?;
-
-        let ty = if obtain {
-            ExcType::Obt(xchg.in_caps())
-        }
-        else {
-            ExcType::Del(xchg.in_caps())
-        };
 
         let op_name = |opcode| match O::try_from(opcode) {
             Ok(op) => format!("{:?}:{}", op, opcode),
@@ -514,15 +494,15 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Reque
             "server::exchange(crt={}, sid={}, ty={:?}, op={})",
             crt,
             sid,
-            ty,
+            xchg.ty(),
             op_name(opcode),
         );
 
         let res = if opcode == opcodes::General::Connect.into() {
-            self.clients.connect(crt, sid, ty, xchg)
+            self.clients.connect(crt, sid, xchg)
         }
         else {
-            func(self, opcode, ty, xchg)
+            func(self, opcode, xchg)
         };
 
         log!(
@@ -530,7 +510,7 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Reque
             "server::exchange(crt={}, sid={}, ty={:?}, op={}) -> res={:?}, out={})",
             crt,
             sid,
-            ty,
+            xchg.ty(),
             op_name(opcode),
             res,
             xchg.out_crd,

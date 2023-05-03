@@ -780,7 +780,6 @@ impl Handler<()> for DummyHandler {
         _crt: usize,
         _sid: SessId,
         _xchg: &mut CapExchange<'_>,
-        _obtain: bool,
     ) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
