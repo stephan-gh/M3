@@ -20,14 +20,14 @@ use core::marker::PhantomData;
 use crate::boxed::Box;
 use crate::cap::Selector;
 use crate::cfg;
-use crate::col::Vec;
+use crate::col::{ToString, Vec};
 use crate::com::{opcodes, GateIStream, RecvGate, SGateArgs, SendGate};
 use crate::errors::{Code, Error};
 use crate::format;
 use crate::io::LogFlags;
 use crate::kif;
 use crate::log;
-use crate::server::{server_loop, CapExchange, ExcType, Handler, Server, SessId, SessionContainer};
+use crate::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use crate::session::ServerSession;
 use crate::tcu::Label;
 use crate::tiles::Activity;
@@ -84,7 +84,7 @@ pub trait RequestSession {
     }
 }
 
-impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Handler<S, O>
+impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Handler<S>
     for RequestHandler<S, O>
 {
     fn sessions(&mut self) -> &mut SessionContainer<S> {
@@ -95,30 +95,14 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Handl
         self.clients.serv_sel = serv.sel();
     }
 
-    fn exchange_handler(
+    fn exchange(
         &mut self,
         crt: usize,
         sid: SessId,
-        opcode: usize,
-        ty: ExcType,
         xchg: &mut CapExchange<'_>,
+        obtain: bool,
     ) -> Result<(), Error> {
-        let Self {
-            clients, cap_hdls, ..
-        } = self;
-
-        if opcode == opcodes::General::Connect.into() {
-            clients.connect(crt, sid, ty, xchg)
-        }
-        else {
-            match &cap_hdls[opcode] {
-                CapHandler {
-                    ty: hdl_ty,
-                    func: Some(func),
-                } if *hdl_ty == ty => (func)(clients, crt, sid, xchg),
-                _ => Err(Error::new(Code::InvArgs)),
-            }
-        }
+        self.handle_capxchg(crt, sid, xchg, obtain)
     }
 
     fn open(
@@ -350,6 +334,15 @@ struct CapHandler<S> {
 /// A handler function for messages
 pub type MsgHandlerFunc<S> = Option<Box<dyn Fn(&mut S, &mut GateIStream<'_>) -> Result<(), Error>>>;
 
+/// Describes the type of capability exchange including the number of capabilities
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum ExcType {
+    /// A delegate (client copies caps to the server)
+    Del(u64),
+    /// An obtain (server copies caps to the client)
+    Obt(u64),
+}
+
 /// Handles requests from clients
 ///
 /// [`RequestHandler`] is one implementation for [`Handler`] that is suitable for the typical server:
@@ -454,20 +447,112 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Reque
         self.msg_hdls[idx] = Some(Box::new(func));
     }
 
+    /// Handles a capability exchange with given session
+    ///
+    /// This function is called upon receiving a obtain/delegate request from the kernel and will
+    /// call the previously registered capability handler function (see
+    /// [`reg_cap_handler`](`Self::reg_cap_handler`)).
+    pub fn handle_capxchg(
+        &mut self,
+        crt: usize,
+        sid: SessId,
+        xchg: &mut CapExchange<'_>,
+        obtain: bool,
+    ) -> Result<(), Error> {
+        self.handle_capxchg_with(crt, sid, xchg, obtain, |reqhdl, opcode, ty, xchg| {
+            let Self {
+                clients, cap_hdls, ..
+            } = reqhdl;
+
+            match &cap_hdls[opcode] {
+                CapHandler {
+                    ty: hdl_ty,
+                    func: Some(func),
+                } if *hdl_ty == ty => (func)(clients, crt, sid, xchg),
+                _ => Err(Error::new(Code::InvArgs)),
+            }
+        })
+    }
+
+    /// Handles a capability exchange with given session by calling `func`
+    ///
+    /// This function is therefore similar to [`handle_capxchg`](`Self::handle_capxchg`), but does
+    /// not use the previously registered capability handler functions, but calls `func` instead.
+    ///
+    /// The called function receives [`RequestHandler`], the opcode, the type of exchange
+    /// ([`ExcType`]), and the [`CapExchange`] data structure to perform the capability exchange.
+    ///
+    /// Note that the [`Connect`](`opcodes::General::Connect`) is already handled by this function.
+    pub fn handle_capxchg_with<F>(
+        &mut self,
+        crt: usize,
+        sid: SessId,
+        xchg: &mut CapExchange<'_>,
+        obtain: bool,
+        func: F,
+    ) -> Result<(), Error>
+    where
+        F: FnOnce(&mut Self, usize, ExcType, &mut CapExchange<'_>) -> Result<(), Error>,
+    {
+        let opcode = xchg.in_args().pop::<usize>()?;
+
+        let ty = if obtain {
+            ExcType::Obt(xchg.in_caps())
+        }
+        else {
+            ExcType::Del(xchg.in_caps())
+        };
+
+        let op_name = |opcode| match O::try_from(opcode) {
+            Ok(op) => format!("{:?}:{}", op, opcode),
+            Err(_) if opcode == opcodes::General::Connect.into() => "Connect".to_string(),
+            _ => format!("??:{}", opcode),
+        };
+
+        log!(
+            LogFlags::LibServ,
+            "server::exchange(crt={}, sid={}, ty={:?}, op={})",
+            crt,
+            sid,
+            ty,
+            op_name(opcode),
+        );
+
+        let res = if opcode == opcodes::General::Connect.into() {
+            self.clients.connect(crt, sid, ty, xchg)
+        }
+        else {
+            func(self, opcode, ty, xchg)
+        };
+
+        log!(
+            LogFlags::LibServ,
+            "server::exchange(crt={}, sid={}, ty={:?}, op={}) -> res={:?}, out={})",
+            crt,
+            sid,
+            ty,
+            op_name(opcode),
+            res,
+            xchg.out_crd,
+        );
+
+        res
+    }
+
     /// Fetches the next message from the receive gate and calls the appropriate handler function
     /// depending on the opcode (first integer in the message).
     ///
     /// The handlers are registered via `reg_msg_handler`. In case the handler returns an error,
     /// this function sends a reply to the caller with the error code.
-    pub fn fetch_and_handle(&mut self) {
-        self.fetch_and_handle_with(|handler, opcode, sess, is| match &handler[opcode] {
+    pub fn fetch_and_handle_msg(&mut self) {
+        self.fetch_and_handle_msg_with(|handler, opcode, sess, is| match &handler[opcode] {
             Some(f) => f(sess, is),
             None => Err(Error::new(Code::InvArgs)),
         })
     }
 
     /// Fetches the next message from the receive gate and calls the given function to handle it.
-    pub fn fetch_and_handle_with<F>(&mut self, func: F)
+    pub fn fetch_and_handle_msg_with<F>(&mut self, func: F)
     where
         F: FnOnce(
             &Vec<MsgHandlerFunc<S>>,
@@ -528,7 +613,7 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Reque
     pub fn run(&mut self, srv: &mut Server) -> Result<(), Error> {
         let res = server_loop(|| {
             srv.fetch_and_handle(self)?;
-            self.fetch_and_handle();
+            self.fetch_and_handle_msg();
 
             Ok(())
         });

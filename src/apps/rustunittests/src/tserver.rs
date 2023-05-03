@@ -251,7 +251,7 @@ fn server_notsup_main() -> Result<(), Error> {
             }
 
             srv.fetch_and_handle(&mut hdl)?;
-            hdl.fetch_and_handle();
+            hdl.fetch_and_handle_msg();
 
             Ok(())
         });

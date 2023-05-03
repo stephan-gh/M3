@@ -32,9 +32,9 @@ mod server;
 mod sesscon;
 
 pub use self::reqhdl::{
-    ClientManager, RequestHandler, RequestSession, DEF_MAX_CLIENTS, DEF_MSG_SIZE,
+    ClientManager, ExcType, RequestHandler, RequestSession, DEF_MAX_CLIENTS, DEF_MSG_SIZE,
 };
-pub use self::server::{CapExchange, ExcType, Handler, Server};
+pub use self::server::{CapExchange, Handler, Server};
 pub use self::sesscon::{SessId, SessionContainer};
 
 use crate::errors::Error;

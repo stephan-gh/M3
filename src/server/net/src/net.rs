@@ -77,7 +77,7 @@ struct NetHandler<'a> {
     iface: DriverInterface<'a>,
 }
 
-impl Handler<SocketSession, opcodes::Net> for NetHandler<'_> {
+impl Handler<SocketSession> for NetHandler<'_> {
     fn sessions(&mut self) -> &mut SessionContainer<SocketSession> {
         self.reqhdl.sessions()
     }
@@ -91,28 +91,27 @@ impl Handler<SocketSession, opcodes::Net> for NetHandler<'_> {
         self.reqhdl.open(crt, srv_sel, arg)
     }
 
-    fn exchange_handler(
+    fn exchange(
         &mut self,
         crt: usize,
         sid: SessId,
-        opcode: usize,
-        ty: m3::server::ExcType,
         xchg: &mut CapExchange<'_>,
+        obtain: bool,
     ) -> Result<(), Error> {
-        if opcode == opcodes::General::Connect.into() {
-            self.reqhdl.exchange_handler(crt, sid, opcode, ty, xchg)
-        }
-        else {
-            let sess = self
-                .reqhdl
+        let Self { reqhdl, iface } = self;
+
+        reqhdl.handle_capxchg_with(crt, sid, xchg, obtain, |reqhdl, opcode, ty, xchg| {
+            assert!(opcode == opcodes::Net::Create.into());
+
+            let sess = reqhdl
                 .clients_mut()
                 .get_mut(sid)
                 .ok_or_else(|| Error::new(Code::InvArgs))?;
             match ty {
-                ExcType::Obt(_) => sess.create_socket(xchg, &mut self.iface),
+                ExcType::Obt(_) => sess.create_socket(xchg, iface),
                 ExcType::Del(_) => Err(Error::new(Code::InvArgs)),
             }
-        }
+        })
     }
 
     fn close(&mut self, crt: usize, sid: SessId) {
@@ -128,7 +127,7 @@ impl NetHandler<'_> {
     fn fetch_and_handle(&mut self) {
         let Self { reqhdl, iface } = self;
 
-        reqhdl.fetch_and_handle_with(|_, opcode, sess, is| match opcode {
+        reqhdl.fetch_and_handle_msg_with(|_, opcode, sess, is| match opcode {
             o if o == opcodes::Net::Bind.into() => sess.bind(is, iface),
             o if o == opcodes::Net::Listen.into() => sess.listen(is, iface),
             o if o == opcodes::Net::Connect.into() => sess.connect(is, iface),

@@ -24,7 +24,7 @@ use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::syscalls::{ActivityOp, SemOp};
 use m3::kif::{CapRngDesc, CapType, Perm, INVALID_SEL, SEL_ACT, SEL_KMEM, SEL_TILE};
-use m3::server::{Handler, Server, SessId, SessionContainer};
+use m3::server::{CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::{ServerSession, M3FS};
 use m3::syscalls;
 use m3::tcu::{AVAIL_EPS, FIRST_USER_EP, TOTAL_EPS};
@@ -770,9 +770,19 @@ struct DummyHandler {
     sessions: SessionContainer<()>,
 }
 
-impl Handler<(), usize> for DummyHandler {
+impl Handler<()> for DummyHandler {
     fn sessions(&mut self) -> &mut SessionContainer<()> {
         &mut self.sessions
+    }
+
+    fn exchange(
+        &mut self,
+        _crt: usize,
+        _sid: SessId,
+        _xchg: &mut CapExchange<'_>,
+        _obtain: bool,
+    ) -> Result<(), Error> {
+        Err(Error::new(Code::NotSup))
     }
 
     fn open(&mut self, _: usize, _: Selector, _: &str) -> Result<(Selector, SessId), Error> {
