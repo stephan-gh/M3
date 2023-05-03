@@ -58,7 +58,7 @@ bool TcpSocket::connect(const Endpoint &endpoint) {
     if(_state == State::Connecting)
         throw Exception(Errors::ALREADY_IN_PROGRESS);
 
-    Endpoint local_ep = _nm.connect(sd(), endpoint);
+    Endpoint local_ep = _nm.connect_socket(sd(), endpoint);
     _state = State::Connecting;
     _remote_ep = endpoint;
     _local_ep = local_ep;

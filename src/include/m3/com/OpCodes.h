@@ -79,7 +79,6 @@ struct Net {
         CREATE,
         GET_IP,
         GET_NAMESRV,
-        GET_SGATE,
     };
 };
 

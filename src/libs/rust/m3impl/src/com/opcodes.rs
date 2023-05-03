@@ -108,7 +108,6 @@ pub enum Net {
     Create,
     GetIP,
     GetNameSrv,
-    GetSGate,
 }
 
 /// The operations for the resmng protocol.

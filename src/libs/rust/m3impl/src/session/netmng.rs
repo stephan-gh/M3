@@ -27,31 +27,21 @@ use crate::session::ClientSession;
 /// the server and to send close requests to the server. Transmitted and received data is exchanged
 /// via the [`NetEventChannel`] in both directions.
 pub struct NetworkManager {
-    client_session: ClientSession,
-    metagate: SendGate,
+    sess: ClientSession,
+    sgate: SendGate,
 }
 
 impl NetworkManager {
     /// Creates a new instance for `service`
     pub fn new(service: &str) -> Result<Rc<Self>, Error> {
-        let client_session = ClientSession::new(service)?;
-
-        // Obtain meta gate for the service
-        let sgate_crd = client_session.obtain(
-            1,
-            |sink| sink.push(opcodes::Net::GetSGate),
-            |_source| Ok(()),
-        )?;
-
-        Ok(Rc::new(NetworkManager {
-            client_session,
-            metagate: SendGate::new_bind(sgate_crd.start()),
-        }))
+        let sess = ClientSession::new(service)?;
+        let sgate = sess.connect()?;
+        Ok(Rc::new(NetworkManager { sess, sgate }))
     }
 
     /// Returns the local IP address
     pub fn ip_addr(&self) -> Result<IpAddr, Error> {
-        let mut reply = send_recv_res!(&self.metagate, RecvGate::def(), opcodes::Net::GetIP)?;
+        let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), opcodes::Net::GetIP)?;
         let addr = IpAddr(reply.pop::<u32>()?);
         Ok(addr)
     }
@@ -63,7 +53,7 @@ impl NetworkManager {
         args: &SocketArgs,
     ) -> Result<BaseSocket, Error> {
         let mut sd = 0;
-        let crd = self.client_session.obtain(
+        let crd = self.sess.obtain(
             2,
             |sink| {
                 sink.push(opcodes::Net::Create);
@@ -85,39 +75,28 @@ impl NetworkManager {
     }
 
     pub(crate) fn nameserver(&self) -> Result<IpAddr, Error> {
-        let mut reply = send_recv_res!(&self.metagate, RecvGate::def(), opcodes::Net::GetNameSrv)?;
+        let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), opcodes::Net::GetNameSrv)?;
         let addr = IpAddr(reply.pop::<u32>()?);
         Ok(addr)
     }
 
     pub(crate) fn bind(&self, sd: Sd, port: Port) -> Result<(IpAddr, Port), Error> {
-        let mut reply = send_recv_res!(
-            &self.metagate,
-            RecvGate::def(),
-            opcodes::Net::Bind,
-            sd,
-            port
-        )?;
+        let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), opcodes::Net::Bind, sd, port)?;
         let addr = IpAddr(reply.pop::<u32>()?);
         let port = reply.pop::<Port>()?;
         Ok((addr, port))
     }
 
     pub(crate) fn listen(&self, sd: Sd, port: Port) -> Result<IpAddr, Error> {
-        let mut reply = send_recv_res!(
-            &self.metagate,
-            RecvGate::def(),
-            opcodes::Net::Listen,
-            sd,
-            port
-        )?;
+        let mut reply =
+            send_recv_res!(&self.sgate, RecvGate::def(), opcodes::Net::Listen, sd, port)?;
         let addr = IpAddr(reply.pop::<u32>()?);
         Ok(addr)
     }
 
     pub(crate) fn connect(&self, sd: Sd, endpoint: Endpoint) -> Result<Endpoint, Error> {
         let mut reply = send_recv_res!(
-            &self.metagate,
+            &self.sgate,
             RecvGate::def(),
             opcodes::Net::Connect,
             sd,
@@ -131,7 +110,7 @@ impl NetworkManager {
 
     pub(crate) fn abort(&self, sd: Sd, remove: bool) -> Result<(), Error> {
         send_recv_res!(
-            &self.metagate,
+            &self.sgate,
             RecvGate::def(),
             opcodes::Net::Abort,
             sd,

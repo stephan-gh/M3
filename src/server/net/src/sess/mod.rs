@@ -24,101 +24,108 @@ use base::io::LogFlags;
 use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::col::Vec;
-use m3::com::{opcodes, GateIStream, RecvGate, SendGate};
+use m3::com::GateIStream;
 use m3::errors::{Code, Error};
 use m3::kif::{CapRngDesc, CapType};
 use m3::net::{log_net, IpAddr, NetLogEvent, Port, Sd, SocketArgs, SocketType, MTU};
 use m3::rc::Rc;
-use m3::serialize::M3Deserializer;
-use m3::server::CapExchange;
+use m3::server::{CapExchange, RequestSession};
 use m3::session::ServerSession;
-use m3::tcu;
 use m3::{log, reply_vmsg, vec};
 
 use crate::driver::DriverInterface;
 use crate::ports::{self, AnyPort};
 use crate::smoltcpif::socket::{to_m3_addr, to_m3_ep, SendNetEvent, Socket};
 
-pub const MSG_SIZE: usize = 128;
-
 pub struct SocketSession {
-    // client send gate to send us requests
-    sgate: Option<SendGate>,
-    // our receive gate (shared among all sessions)
-    rgate: Rc<RecvGate>,
+    // our session cap
+    serv: ServerSession,
     // the settings for this session
     settings: settings::Settings,
-    // our session cap
-    server_session: ServerSession,
     // sockets the client has open
     sockets: Vec<Option<Rc<RefCell<Socket>>>>,
 }
 
-impl SocketSession {
-    pub fn new(
-        _crt: usize,
-        args_str: &str,
-        server_session: ServerSession,
-        rgate: Rc<RecvGate>,
-    ) -> Result<Self, Error> {
-        let settings = settings::parse_arguments(args_str).map_err(|e| {
-            log!(
-                LogFlags::Error,
-                "Unable to parse session arguments: '{}'",
-                args_str
-            );
-            e
-        })?;
+impl RequestSession for SocketSession {
+    fn new(serv: ServerSession, arg: &str) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        log!(LogFlags::NetSess, "[{}] net::open(arg={})", serv.id(), arg,);
 
+        let settings = settings::parse_arguments(arg)?;
         Ok(SocketSession {
-            sgate: None,
-            rgate,
-            server_session,
+            serv,
             sockets: vec![None; settings.socks],
             settings,
         })
     }
 
-    pub fn obtain(
+    fn close(
         &mut self,
-        _crt: usize,
-        opcode: usize,
+        _cli: &mut m3::server::ClientManager<Self>,
+        sid: m3::server::SessId,
+        _sub_ids: &mut Vec<m3::server::SessId>,
+    ) where
+        Self: Sized,
+    {
+        log!(LogFlags::NetSess, "[{}] net::close()", sid);
+    }
+}
+
+impl SocketSession {
+    pub fn create_socket(
+        &mut self,
         xchg: &mut CapExchange<'_>,
         iface: &mut DriverInterface<'_>,
     ) -> Result<(), Error> {
         let is = xchg.in_args();
 
-        match opcode {
-            o if o == opcodes::Net::GetSGate.into() => {
-                let caps = self.get_sgate()?;
-                xchg.out_caps(caps);
-                Ok(())
+        let ty = SocketType::from_usize(is.pop::<usize>()?);
+        let protocol: u8 = is.pop()?;
+        let rbuf_size: usize = is.pop()?;
+        let rbuf_slots: usize = is.pop()?;
+        let sbuf_size: usize = is.pop()?;
+        let sbuf_slots: usize = is.pop()?;
+
+        // 2 caps for us, 2 for the client
+        let caps = m3::tiles::Activity::own().alloc_sels(4);
+
+        let res = self.add_socket(
+            ty,
+            protocol,
+            &SocketArgs {
+                rbuf_slots,
+                rbuf_size,
+                sbuf_slots,
+                sbuf_size,
             },
-            o if o == opcodes::Net::Create.into() => {
-                let (caps, sd) = self.create_socket(is, iface)?;
-                xchg.out_caps(caps);
+            caps,
+            iface,
+        );
+
+        log!(
+            LogFlags::NetSess,
+            "net::create(type={:?}, protocol={}, rbuf=[{}b,{}], sbuf=[{}b,{}]) -> {:?}",
+            ty,
+            protocol,
+            rbuf_size,
+            rbuf_slots,
+            sbuf_size,
+            sbuf_slots,
+            res
+        );
+
+        match res {
+            Ok(sd) => {
+                // Send capabilities back to caller so it can connect to the created gates
+                xchg.out_caps(CapRngDesc::new(CapType::Object, caps + 2, 2));
                 xchg.out_args().push(sd);
                 Ok(())
             },
-            _ => Err(Error::new(Code::InvArgs)),
+
+            Err(e) => Err(e),
         }
-    }
-
-    fn get_sgate(&mut self) -> Result<CapRngDesc, Error> {
-        if self.sgate.is_some() {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        let label = self.server_session.id() as tcu::Label;
-        self.sgate = Some(SendGate::new_with(
-            m3::com::SGateArgs::new(&self.rgate).label(label).credits(1),
-        )?);
-
-        Ok(CapRngDesc::new(
-            CapType::Object,
-            self.sgate.as_ref().unwrap().sel(),
-            1,
-        ))
     }
 
     fn get_socket(&self, sd: Sd) -> Result<Rc<RefCell<Socket>>, Error> {
@@ -163,57 +170,6 @@ impl SocketSession {
         }
     }
 
-    fn create_socket(
-        &mut self,
-        is: &mut M3Deserializer<'_>,
-        iface: &mut DriverInterface<'_>,
-    ) -> Result<(CapRngDesc, Sd), Error> {
-        let ty = SocketType::from_usize(is.pop::<usize>()?);
-        let protocol: u8 = is.pop()?;
-        let rbuf_size: usize = is.pop()?;
-        let rbuf_slots: usize = is.pop()?;
-        let sbuf_size: usize = is.pop()?;
-        let sbuf_slots: usize = is.pop()?;
-
-        // 2 caps for us, 2 for the client
-        let caps = m3::tiles::Activity::own().alloc_sels(4);
-
-        let res = self.add_socket(
-            ty,
-            protocol,
-            &SocketArgs {
-                rbuf_slots,
-                rbuf_size,
-                sbuf_slots,
-                sbuf_size,
-            },
-            caps,
-            iface,
-        );
-
-        log!(
-            LogFlags::NetSess,
-            "net::create(type={:?}, protocol={}, rbuf=[{}b,{}], sbuf=[{}b,{}]) -> {:?}",
-            ty,
-            protocol,
-            rbuf_size,
-            rbuf_slots,
-            sbuf_size,
-            sbuf_slots,
-            res
-        );
-
-        match res {
-            Ok(sd) => {
-                // Send capabilities back to caller so it can connect to the created gates
-                let caps = CapRngDesc::new(CapType::Object, caps + 2, 2);
-                Ok((caps, sd))
-            },
-
-            Err(e) => Err(e),
-        }
-    }
-
     fn can_use_port(&self, ty: SocketType, port: Port) -> bool {
         let ports = match ty {
             SocketType::Stream => &self.settings.tcp_ports,
@@ -239,7 +195,7 @@ impl SocketSession {
         log!(
             LogFlags::NetSess,
             "[{}] net::bind(sd={}, port={})",
-            self.server_session.id(),
+            self.serv.id(),
             sd,
             port
         );
@@ -274,7 +230,7 @@ impl SocketSession {
         log!(
             LogFlags::NetSess,
             "[{}] net::listen(sd={}, port={})",
-            self.server_session.id(),
+            self.serv.id(),
             sd,
             port
         );
@@ -303,7 +259,7 @@ impl SocketSession {
         log!(
             LogFlags::NetSess,
             "[{}] net::connect(sd={}, remote={}:{}, local={})",
-            self.server_session.id(),
+            self.serv.id(),
             sd,
             remote_addr,
             remote_port,
@@ -331,7 +287,7 @@ impl SocketSession {
         is.reply_error(Code::Success)
     }
 
-    pub fn close(&mut self, iface: &mut DriverInterface<'_>) -> Result<(), Error> {
+    pub fn abort_all(&mut self, iface: &mut DriverInterface<'_>) -> Result<(), Error> {
         for sd in 0..self.sockets.len() {
             self.do_abort(sd, true, iface).ok();
         }
@@ -347,7 +303,7 @@ impl SocketSession {
         log!(
             LogFlags::NetSess,
             "[{}] net::abort(sd={}, remove={})",
-            self.server_session.id(),
+            self.serv.id(),
             sd,
             remove
         );
@@ -361,7 +317,7 @@ impl SocketSession {
     }
 
     pub fn process_incoming(&mut self, iface: &mut DriverInterface<'_>) -> bool {
-        let sess = self.server_session.id();
+        let sess = self.serv.id();
         let mut needs_recheck = false;
 
         // iterate over all sockets and check for events
@@ -413,7 +369,7 @@ impl SocketSession {
                         LogFlags::NetData,
                         "[{}] socket {}: received event {:?}",
                         socket_sd,
-                        self.server_session.id(),
+                        self.serv.id(),
                         event,
                     );
 
@@ -454,7 +410,7 @@ impl SocketSession {
                         LogFlags::NetData,
                         "[{}] socket {}: received packet with {}b from {}",
                         socket_sd,
-                        self.server_session.id(),
+                        self.serv.id(),
                         amount,
                         ep
                     );
@@ -468,7 +424,7 @@ impl SocketSession {
                             LogFlags::Error,
                             "[{}] socket {}: sending received packet with {}b failed: {}",
                             socket_sd,
-                            self.server_session.id(),
+                            self.serv.id(),
                             amount,
                             e
                         );

@@ -19,21 +19,19 @@
 
 use core::str::FromStr;
 
-use base::io::LogFlags;
 use m3::cap::Selector;
 use m3::cell::{LazyStaticCell, StaticRefCell};
 use m3::col::{BTreeMap, String, ToString, Vec};
-use m3::com::{opcodes, GateIStream, RecvGate};
+use m3::com::{opcodes, GateIStream};
 use m3::errors::{Code, Error};
+use m3::io::LogFlags;
 use m3::net::{log_net, NetLogEvent};
-use m3::rc::Rc;
 use m3::server::{
-    CapExchange, ExcType, Handler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS,
+    CapExchange, ExcType, Handler, RequestHandler, Server, SessId, SessionContainer,
+    DEF_MAX_CLIENTS,
 };
-use m3::session::ServerSession;
-use m3::tiles::{Activity, OwnActivity};
+use m3::tiles::OwnActivity;
 use m3::time::{TimeDuration, TimeInstant};
-use m3::util::math;
 use m3::{env, reply_vmsg};
 use m3::{log, println};
 
@@ -50,6 +48,7 @@ mod sess;
 mod smoltcpif;
 
 const MAX_SOCKETS: usize = 64;
+const MSG_SIZE: usize = 128;
 
 static OWN_IP: LazyStaticCell<IpAddress> = LazyStaticCell::default();
 static NAMESERVER: LazyStaticCell<IpAddress> = LazyStaticCell::default();
@@ -73,41 +72,79 @@ fn next_timeout() -> Option<TimeInstant> {
 }
 
 struct NetHandler<'a> {
-    // our sessions
-    sessions: SessionContainer<SocketSession>,
+    reqhdl: RequestHandler<SocketSession, opcodes::Net>,
     // holds all the actual smoltcp sockets. Used for polling events on them.
     iface: DriverInterface<'a>,
-    // the receive gates for requests from clients
-    rgate: Rc<RecvGate>,
 }
 
-impl NetHandler<'_> {
-    fn handle(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
-        let op = is.pop::<opcodes::Net>()?;
-        let sess_id: SessId = is.label() as SessId;
+impl Handler<SocketSession, opcodes::Net> for NetHandler<'_> {
+    fn sessions(&mut self) -> &mut SessionContainer<SocketSession> {
+        self.reqhdl.sessions()
+    }
 
-        if let Some(sess) = self.sessions.get_mut(sess_id) {
-            match op {
-                opcodes::Net::Bind => sess.bind(is, &mut self.iface),
-                opcodes::Net::Listen => sess.listen(is, &mut self.iface),
-                opcodes::Net::Connect => sess.connect(is, &mut self.iface),
-                opcodes::Net::Abort => sess.abort(is, &mut self.iface),
-                opcodes::Net::GetIP => self.get_ip(is),
-                opcodes::Net::GetNameSrv => self.get_nameserver(is),
-                _ => Err(Error::new(Code::InvArgs)),
-            }
+    fn open(
+        &mut self,
+        crt: usize,
+        srv_sel: Selector,
+        arg: &str,
+    ) -> Result<(Selector, SessId), Error> {
+        self.reqhdl.open(crt, srv_sel, arg)
+    }
+
+    fn exchange_handler(
+        &mut self,
+        crt: usize,
+        sid: SessId,
+        opcode: usize,
+        ty: m3::server::ExcType,
+        xchg: &mut CapExchange<'_>,
+    ) -> Result<(), Error> {
+        if opcode == opcodes::General::Connect.into() {
+            self.reqhdl.exchange_handler(crt, sid, opcode, ty, xchg)
         }
         else {
-            Err(Error::new(Code::InvArgs))
+            let sess = self
+                .reqhdl
+                .clients_mut()
+                .get_mut(sid)
+                .ok_or_else(|| Error::new(Code::InvArgs))?;
+            match ty {
+                ExcType::Obt(_) => sess.create_socket(xchg, &mut self.iface),
+                ExcType::Del(_) => Err(Error::new(Code::InvArgs)),
+            }
         }
     }
 
-    fn get_ip(&self, is: &mut GateIStream<'_>) -> Result<(), Error> {
+    fn close(&mut self, crt: usize, sid: SessId) {
+        if let Some(s) = self.reqhdl.clients_mut().get_mut(sid) {
+            s.abort_all(&mut self.iface).unwrap();
+        }
+
+        self.reqhdl.clients_mut().remove(crt, sid);
+    }
+}
+
+impl NetHandler<'_> {
+    fn fetch_and_handle(&mut self) {
+        let Self { reqhdl, iface } = self;
+
+        reqhdl.fetch_and_handle_with(|_, opcode, sess, is| match opcode {
+            o if o == opcodes::Net::Bind.into() => sess.bind(is, iface),
+            o if o == opcodes::Net::Listen.into() => sess.listen(is, iface),
+            o if o == opcodes::Net::Connect.into() => sess.connect(is, iface),
+            o if o == opcodes::Net::Abort.into() => sess.abort(is, iface),
+            o if o == opcodes::Net::GetIP.into() => Self::get_ip(is),
+            o if o == opcodes::Net::GetNameSrv.into() => Self::get_nameserver(is),
+            _ => Err(Error::new(Code::InvArgs)),
+        });
+    }
+
+    fn get_ip(is: &mut GateIStream<'_>) -> Result<(), Error> {
         let addr = to_m3_addr(OWN_IP.get());
         reply_vmsg!(is, Code::Success, addr.0)
     }
 
-    fn get_nameserver(&self, is: &mut GateIStream<'_>) -> Result<(), Error> {
+    fn get_nameserver(is: &mut GateIStream<'_>) -> Result<(), Error> {
         if !NAMESERVER.is_some() {
             return Err(Error::new(Code::NotSup));
         }
@@ -120,7 +157,7 @@ impl NetHandler<'_> {
     fn process_outgoing(&mut self) -> bool {
         let iface = &mut self.iface;
         let mut res = false;
-        self.sessions.for_each(|s| {
+        self.reqhdl.clients_mut().for_each(|s| {
             res |= s.process_outgoing(iface);
         });
         res
@@ -130,65 +167,10 @@ impl NetHandler<'_> {
     fn process_incoming(&mut self) -> bool {
         let iface = &mut self.iface;
         let mut res = false;
-        self.sessions.for_each(|s| {
+        self.reqhdl.clients_mut().for_each(|s| {
             res |= s.process_incoming(iface);
         });
         res
-    }
-}
-
-impl Handler<SocketSession, opcodes::Net> for NetHandler<'_> {
-    fn sessions(&mut self) -> &mut SessionContainer<SocketSession> {
-        &mut self.sessions
-    }
-
-    fn open(
-        &mut self,
-        crt: usize,
-        srv_sel: Selector,
-        arg: &str,
-    ) -> Result<(Selector, SessId), Error> {
-        let rgate = self.rgate.clone();
-
-        let sid = self.sessions.next_id()?;
-        let sel = Activity::own().alloc_sel();
-        log!(LogFlags::NetSess, "[{}] net::open(sel={})", sid, sel);
-
-        let serv = ServerSession::new_with_sel(srv_sel, sel, crt, sid, false)?;
-        let sess = sess::SocketSession::new(crt, arg, serv, rgate)?;
-        self.sessions.add(crt, sid, sess).map(|_| (sel, sid))
-    }
-
-    fn exchange_handler(
-        &mut self,
-        crt: usize,
-        sid: SessId,
-        opcode: usize,
-        ty: m3::server::ExcType,
-        xchg: &mut CapExchange<'_>,
-    ) -> Result<(), Error> {
-        let sess = self
-            .sessions
-            .get_mut(sid)
-            .ok_or_else(|| Error::new(Code::InvArgs))?;
-        match ty {
-            ExcType::Obt(_) => sess.obtain(crt, opcode, xchg, &mut self.iface),
-            ExcType::Del(_) => Err(Error::new(Code::InvArgs)),
-        }
-    }
-
-    fn close(&mut self, crt: usize, sid: SessId) {
-        log!(LogFlags::NetSess, "[{}] net::close(crt={})", sid, crt);
-
-        if let Some(s) = self.sessions.get_mut(sid) {
-            s.close(&mut self.iface).unwrap();
-        }
-
-        self.sessions.remove(crt, sid);
-    }
-
-    fn shutdown(&mut self) {
-        log!(LogFlags::Info, "Shutdown request");
     }
 }
 
@@ -302,12 +284,6 @@ pub fn main() -> Result<(), Error> {
         usage();
     });
 
-    let rgate = RecvGate::new(
-        math::next_log2(sess::MSG_SIZE * settings.max_clients),
-        math::next_log2(sess::MSG_SIZE),
-    )
-    .expect("failed to create main rgate for handler!");
-
     let mut neighbor_cache_entries = [None; 8];
     let neighbor_cache = NeighborCache::new(&mut neighbor_cache_entries[..]);
 
@@ -362,9 +338,9 @@ pub fn main() -> Result<(), Error> {
     };
 
     let mut handler = NetHandler {
-        sessions: SessionContainer::new(settings.max_clients),
+        reqhdl: RequestHandler::new_with(settings.max_clients, MSG_SIZE, 1)
+            .expect("Unable to create request handler"),
         iface,
-        rgate: Rc::new(rgate),
     };
 
     let serv = Server::new(&settings.name, &mut handler).expect("Failed to create server!");
@@ -386,7 +362,6 @@ pub fn main() -> Result<(), Error> {
         settings.gateway,
     );
 
-    let rgatec = handler.rgate.clone();
     let start = TimeInstant::now();
 
     'outer: loop {
@@ -396,12 +371,7 @@ pub fn main() -> Result<(), Error> {
             }
 
             // Check if we got some messages through our main rgate.
-            if let Ok(msg) = rgatec.fetch() {
-                let mut is = GateIStream::new(msg, &rgatec);
-                if let Err(e) = handler.handle(&mut is) {
-                    is.reply_error(e.code()).ok();
-                }
-            }
+            handler.fetch_and_handle();
 
             // receive events from clients and push data to send into smoltcp sockets
             let sends_pending = handler.process_incoming();

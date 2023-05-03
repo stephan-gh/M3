@@ -60,20 +60,14 @@ public:
     IpAddr ip_addr();
 
 private:
-    static KIF::CapRngDesc get_sgate(ClientSession &sess);
-
-    const SendGate &meta_gate() const noexcept {
-        return _metagate;
-    }
-
     int32_t create(SocketType type, uint8_t protocol, const SocketArgs &args, capsel_t *caps);
     IpAddr get_nameserver();
     std::pair<IpAddr, port_t> bind(int32_t sd, port_t port);
     IpAddr listen(int32_t sd, port_t port);
-    Endpoint connect(int32_t sd, Endpoint remote_ep);
+    Endpoint connect_socket(int32_t sd, Endpoint remote_ep);
     void abort(int32_t sd, bool remove);
 
-    SendGate _metagate;
+    SendGate _sgate;
 };
 
 }
