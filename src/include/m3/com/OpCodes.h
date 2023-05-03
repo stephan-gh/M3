@@ -61,9 +61,18 @@ struct FileSystem {
     };
 };
 
+struct Pipe {
+    enum Operation {
+        OPEN_PIPE = File::REQ_NOTIFY + 1,
+        OPEN_CHAN,
+        SET_MEM,
+        CLOSE_PIPE,
+    };
+};
+
 struct Net {
     enum Operation {
-        BIND = File::REQ_NOTIFY + 1,
+        BIND,
         LISTEN,
         CONNECT,
         ABORT,
@@ -71,16 +80,6 @@ struct Net {
         GET_IP,
         GET_NAMESRV,
         GET_SGATE,
-        OPEN_FILE,
-    };
-};
-
-struct Pipe {
-    enum Operation {
-        OPEN_PIPE = File::REQ_NOTIFY + 1,
-        OPEN_CHAN,
-        SET_MEM,
-        CLOSE_PIPE,
     };
 };
 

@@ -16,7 +16,6 @@
 
 use base::io::LogFlags;
 use m3::cap::Selector;
-use m3::cell::RefCell;
 use m3::errors::{Code, Error};
 use m3::log;
 use m3::mem::size_of;
@@ -39,7 +38,6 @@ use smoltcp::wire::{IpAddress, IpEndpoint, Ipv4Address};
 
 use crate::driver::DriverInterface;
 use crate::ports::{AnyPort, EphemeralPort};
-use crate::sess::FileSession;
 
 const CONNECT_TIMEOUT: TimeDuration = TimeDuration::from_secs(6);
 
@@ -89,10 +87,6 @@ pub struct Socket {
     channel: Rc<NetEventChannel>,
     // pending incoming data events we could not send due to missing buffer space
     send_queue: DataQueue,
-
-    // for the file session
-    rfile: Option<Rc<RefCell<FileSession>>>,
-    sfile: Option<Rc<RefCell<FileSession>>>,
 }
 
 impl Socket {
@@ -159,9 +153,6 @@ impl Socket {
 
             channel: NetEventChannel::new_server(caps)?,
             send_queue: DataQueue::default(),
-
-            rfile: None,
-            sfile: None,
         })
     }
 
@@ -179,22 +170,6 @@ impl Socket {
 
     pub fn buffer_space(&self) -> usize {
         self.buffer_space
-    }
-
-    pub fn recv_file(&self) -> Option<&Rc<RefCell<FileSession>>> {
-        self.rfile.as_ref()
-    }
-
-    pub fn send_file(&self) -> Option<&Rc<RefCell<FileSession>>> {
-        self.sfile.as_ref()
-    }
-
-    pub fn set_recv_file(&mut self, file: Option<Rc<RefCell<FileSession>>>) {
-        self.rfile = file;
-    }
-
-    pub fn set_send_file(&mut self, file: Option<Rc<RefCell<FileSession>>>) {
-        self.sfile = file;
     }
 
     pub fn fetch_event(&mut self, iface: &mut DriverInterface<'_>) -> Option<SendNetEvent> {

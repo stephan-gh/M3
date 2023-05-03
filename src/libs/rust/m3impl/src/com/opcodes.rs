@@ -101,13 +101,7 @@ pub enum Pipe {
 #[derive(Copy, Clone, Debug, IntoPrimitive, TryFromPrimitive, Serialize_repr, Deserialize_repr)]
 #[repr(usize)]
 pub enum Net {
-    FStat   = File::FStat as usize,
-    Seek    = File::Seek as usize,
-    NextIn  = File::NextIn as usize,
-    NextOut = File::NextOut as usize,
-    Commit  = File::Commit as usize,
-    // TODO what about GenericFile::CLOSE?
-    Bind    = File::ReqNotify as usize + 1,
+    Bind,
     Listen,
     Connect,
     Abort,
@@ -115,7 +109,6 @@ pub enum Net {
     GetIP,
     GetNameSrv,
     GetSGate,
-    OpenFile,
 }
 
 /// The operations for the resmng protocol.

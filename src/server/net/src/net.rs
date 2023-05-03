@@ -41,7 +41,7 @@ use smoltcp::iface::{InterfaceBuilder, NeighborCache, Routes, SocketHandle};
 use smoltcp::wire::{EthernetAddress, IpAddress, Ipv4Cidr};
 
 use crate::driver::DriverInterface;
-use crate::sess::NetworkSession;
+use crate::sess::SocketSession;
 use crate::smoltcpif::socket::to_m3_addr;
 
 mod driver;
@@ -73,10 +73,8 @@ fn next_timeout() -> Option<TimeInstant> {
 }
 
 struct NetHandler<'a> {
-    // our service selector
-    sel: Selector,
     // our sessions
-    sessions: SessionContainer<NetworkSession>,
+    sessions: SessionContainer<SocketSession>,
     // holds all the actual smoltcp sockets. Used for polling events on them.
     iface: DriverInterface<'a>,
     // the receive gates for requests from clients
@@ -90,11 +88,6 @@ impl NetHandler<'_> {
 
         if let Some(sess) = self.sessions.get_mut(sess_id) {
             match op {
-                opcodes::Net::FStat => sess.stat(is),
-                opcodes::Net::Seek => sess.seek(is),
-                opcodes::Net::NextIn => sess.next_in(is),
-                opcodes::Net::NextOut => sess.next_out(is),
-                opcodes::Net::Commit => sess.commit(is),
                 opcodes::Net::Bind => sess.bind(is, &mut self.iface),
                 opcodes::Net::Listen => sess.listen(is, &mut self.iface),
                 opcodes::Net::Connect => sess.connect(is, &mut self.iface),
@@ -128,9 +121,7 @@ impl NetHandler<'_> {
         let iface = &mut self.iface;
         let mut res = false;
         self.sessions.for_each(|s| {
-            if let NetworkSession::SocketSession(ss) = s {
-                res |= ss.process_outgoing(iface)
-            }
+            res |= s.process_outgoing(iface);
         });
         res
     }
@@ -140,16 +131,14 @@ impl NetHandler<'_> {
         let iface = &mut self.iface;
         let mut res = false;
         self.sessions.for_each(|s| {
-            if let NetworkSession::SocketSession(ss) = s {
-                res |= ss.process_incoming(iface)
-            }
+            res |= s.process_incoming(iface);
         });
         res
     }
 }
 
-impl Handler<NetworkSession, opcodes::Net> for NetHandler<'_> {
-    fn sessions(&mut self) -> &mut SessionContainer<NetworkSession> {
+impl Handler<SocketSession, opcodes::Net> for NetHandler<'_> {
+    fn sessions(&mut self) -> &mut SessionContainer<SocketSession> {
         &mut self.sessions
     }
 
@@ -166,7 +155,7 @@ impl Handler<NetworkSession, opcodes::Net> for NetHandler<'_> {
         log!(LogFlags::NetSess, "[{}] net::open(sel={})", sid, sel);
 
         let serv = ServerSession::new_with_sel(srv_sel, sel, crt, sid, false)?;
-        let sess = NetworkSession::SocketSession(sess::SocketSession::new(crt, arg, serv, rgate)?);
+        let sess = sess::SocketSession::new(crt, arg, serv, rgate)?;
         self.sessions.add(crt, sid, sess).map(|_| (sel, sid))
     }
 
@@ -183,8 +172,8 @@ impl Handler<NetworkSession, opcodes::Net> for NetHandler<'_> {
             .get_mut(sid)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
         match ty {
-            ExcType::Obt(_) => sess.obtain(crt, self.sel, opcode, xchg, &mut self.iface),
-            ExcType::Del(_) => sess.delegate(xchg),
+            ExcType::Obt(_) => sess.obtain(crt, opcode, xchg, &mut self.iface),
+            ExcType::Del(_) => Err(Error::new(Code::InvArgs)),
         }
     }
 
@@ -373,14 +362,12 @@ pub fn main() -> Result<(), Error> {
     };
 
     let mut handler = NetHandler {
-        sel: 0,
         sessions: SessionContainer::new(settings.max_clients),
         iface,
         rgate: Rc::new(rgate),
     };
 
     let serv = Server::new(&settings.name, &mut handler).expect("Failed to create server!");
-    handler.sel = serv.sel();
 
     log!(
         LogFlags::Info,
