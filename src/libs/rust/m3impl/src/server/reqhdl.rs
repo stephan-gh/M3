@@ -459,7 +459,7 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Reque
     ///
     /// The handlers are registered via `reg_msg_handler`. In case the handler returns an error,
     /// this function sends a reply to the caller with the error code.
-    pub fn fetch_and_handle(&mut self) -> Result<(), Error> {
+    pub fn fetch_and_handle(&mut self) {
         self.fetch_and_handle_with(|handler, opcode, sess, is| match &handler[opcode] {
             Some(f) => f(sess, is),
             None => Err(Error::new(Code::InvArgs)),
@@ -467,7 +467,7 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Reque
     }
 
     /// Fetches the next message from the receive gate and calls the given function to handle it.
-    pub fn fetch_and_handle_with<F>(&mut self, func: F) -> Result<(), Error>
+    pub fn fetch_and_handle_with<F>(&mut self, func: F)
     where
         F: FnOnce(
             &Vec<MsgHandlerFunc<S>>,
@@ -478,7 +478,14 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Reque
     {
         if let Ok(msg) = self.clients.rgate.fetch() {
             let mut is = GateIStream::new(msg, &self.clients.rgate);
-            let opcode = is.pop::<usize>()?;
+            let opcode = match is.pop::<usize>() {
+                Ok(opcode) => opcode,
+                Err(e) => {
+                    is.reply_error(e.code()).ok();
+                    return;
+                },
+            };
+
             let sid = is.label() as SessId;
 
             let op_name = |opcode| match O::try_from(opcode) {
@@ -515,15 +522,15 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Reque
                 self.clients.remove(crt, sid);
             }
         }
-        Ok(())
     }
 
     /// Runs the default server loop
     pub fn run(&mut self, srv: &mut Server) -> Result<(), Error> {
         let res = server_loop(|| {
             srv.fetch_and_handle(self)?;
+            self.fetch_and_handle();
 
-            self.fetch_and_handle()
+            Ok(())
         });
 
         match res {

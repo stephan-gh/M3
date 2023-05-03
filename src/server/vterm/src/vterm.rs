@@ -263,7 +263,9 @@ pub fn main() -> Result<(), Error> {
 
         input::receive_acks(hdl.clients_mut());
 
-        hdl.fetch_and_handle()
+        hdl.fetch_and_handle();
+
+        Ok(())
     })
     .ok();
 

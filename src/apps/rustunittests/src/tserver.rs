@@ -251,8 +251,9 @@ fn server_notsup_main() -> Result<(), Error> {
             }
 
             srv.fetch_and_handle(&mut hdl)?;
+            hdl.fetch_and_handle();
 
-            hdl.fetch_and_handle()
+            Ok(())
         });
         match res {
             // if there is any other error than our own stop signal, break

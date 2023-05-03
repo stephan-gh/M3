@@ -282,6 +282,8 @@ impl Server {
     }
 
     /// Fetches a message from the control channel and handles it if so.
+    ///
+    /// Returns [`Code::EndOfFile`] if the server should shut down
     pub fn fetch_and_handle<H, S, O>(&self, hdl: &mut H) -> Result<(), Error>
     where
         H: Handler<S, O>,

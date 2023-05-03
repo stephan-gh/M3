@@ -650,7 +650,8 @@ impl HashMuxReceiver {
         // NOTE: Currently this only fetches a single message, perhaps handle()
         // should return if a message was handled so this could be put in a loop.
         self.server.fetch_and_handle(&mut self.reqhdl)?;
-        self.reqhdl.fetch_and_handle()
+        self.reqhdl.fetch_and_handle();
+        Ok(())
     }
 
     /// Switch the current client in the accelerator if necessary

@@ -188,8 +188,7 @@ fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_, '_>) {
                     o if o == opcodes::Pager::Unmap.into() => sess.unmap(is),
                     o if o == opcodes::Pager::Close.into() => sess.close(is),
                     _ => Err(Error::new(Code::InvArgs)),
-                })
-                .ok();
+                });
         },
         &mut PagedChildStarter {},
     )
