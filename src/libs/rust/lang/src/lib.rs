@@ -47,7 +47,7 @@ fn panic(info: &PanicInfo<'_>) -> ! {
 
     // disable instruction trace here to see the instructions that lead to the panic
     #[cfg(any(target_vendor = "hw", target_vendor = "hw22"))]
-    if base::env::boot().platform == base::env::Platform::HW.val {
+    if base::env::boot().platform == base::env::Platform::Hw {
         base::tcu::TCU::set_trace_instrs(false);
     }
 
