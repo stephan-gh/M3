@@ -222,7 +222,7 @@ impl TileMux {
         let op: kif::tilemux::Calls = de.pop().unwrap();
 
         let res = match op {
-            kif::tilemux::Calls::EXIT => Self::handle_exit_async(tilemux, &mut de),
+            kif::tilemux::Calls::Exit => Self::handle_exit_async(tilemux, &mut de),
         };
 
         let mut reply = MsgBuf::borrow_def();

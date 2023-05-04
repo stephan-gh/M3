@@ -67,7 +67,7 @@ fn activity_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
     );
 
     match r.act_op {
-        kif::tilemux::ActivityOp::START => {
+        kif::tilemux::ActivityOp::Start => {
             let cur = activities::cur();
             assert!(cur.id() != r.act_id);
             let mut act = activities::get_mut(r.act_id).unwrap();

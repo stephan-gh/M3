@@ -30,13 +30,13 @@ pub trait RunningActivity {
 
     /// Starts the activity.
     fn start(&self) -> Result<(), Error> {
-        syscalls::activity_ctrl(self.activity().sel(), kif::syscalls::ActivityOp::START, 0)
+        syscalls::activity_ctrl(self.activity().sel(), kif::syscalls::ActivityOp::Start, 0)
             .map(|_| ())
     }
 
     /// Stops the activity.
     fn stop(&self) -> Result<(), Error> {
-        syscalls::activity_ctrl(self.activity().sel(), kif::syscalls::ActivityOp::STOP, 0)
+        syscalls::activity_ctrl(self.activity().sel(), kif::syscalls::ActivityOp::Stop, 0)
             .map(|_| ())
     }
 

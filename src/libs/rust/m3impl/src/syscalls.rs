@@ -450,7 +450,7 @@ pub fn activity_ctrl(act: Selector, op: syscalls::ActivityOp, arg: u64) -> Resul
         arg
     });
 
-    if act == kif::SEL_ACT && op == syscalls::ActivityOp::STOP {
+    if act == kif::SEL_ACT && op == syscalls::ActivityOp::Stop {
         SGATE.borrow().send(&buf, RecvGate::syscall())
     }
     else {

@@ -596,7 +596,7 @@ pub fn remove(id: Id, status: Code, notify: bool, sched: bool) {
             }
 
             let mut msg_buf = MsgBuf::borrow_def();
-            base::build_vmsg!(msg_buf, kif::tilemux::Calls::EXIT, kif::tilemux::Exit {
+            base::build_vmsg!(msg_buf, kif::tilemux::Calls::Exit, kif::tilemux::Exit {
                 act_id: old.id() as tcu::ActId,
                 status,
             });

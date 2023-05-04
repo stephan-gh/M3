@@ -60,8 +60,8 @@ pub enum Sidecalls {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, Serialize_repr, Deserialize_repr)]
 #[repr(u64)]
 pub enum ActivityOp {
-    START,
-    STOP,
+    Start,
+    Stop,
 }
 
 /// The activity init sidecall
@@ -175,7 +175,7 @@ pub struct Response {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, Serialize_repr, Deserialize_repr)]
 #[repr(u64)]
 pub enum Calls {
-    EXIT,
+    Exit,
 }
 
 /// The exit call

@@ -181,8 +181,8 @@ pub struct SetPMP {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, Serialize_repr, Deserialize_repr)]
 #[repr(u64)]
 pub enum ActivityOp {
-    START = 1,
-    STOP,
+    Start = 1,
+    Stop,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -284,8 +284,8 @@ pub struct TileSetQuota {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, Serialize_repr, Deserialize_repr)]
 #[repr(u64)]
 pub enum SemOp {
-    UP,
-    DOWN,
+    Up,
+    Down,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

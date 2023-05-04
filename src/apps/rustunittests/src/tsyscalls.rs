@@ -393,7 +393,7 @@ fn create_sem(t: &mut dyn WvTester) {
     wv_assert_err!(t, syscalls::create_sem(SEL_ACT, 0), Code::InvArgs);
     wv_assert_ok!(syscalls::create_sem(sel, 1));
     // one down does not block us
-    wv_assert_ok!(syscalls::sem_ctrl(sel, SemOp::DOWN));
+    wv_assert_ok!(syscalls::sem_ctrl(sel, SemOp::Down));
 
     wv_assert_ok!(Activity::own().revoke(CapRngDesc::new(CapType::Object, sel, 1), false));
 }
@@ -922,10 +922,10 @@ fn tile_set_quota(t: &mut dyn WvTester) {
 
 fn sem_ctrl(t: &mut dyn WvTester) {
     // invalid selector
-    wv_assert_err!(t, syscalls::sem_ctrl(SEL_ACT, SemOp::DOWN), Code::InvArgs);
+    wv_assert_err!(t, syscalls::sem_ctrl(SEL_ACT, SemOp::Down), Code::InvArgs);
     wv_assert_err!(
         t,
-        syscalls::sem_ctrl(Activity::own().alloc_sel(), SemOp::DOWN),
+        syscalls::sem_ctrl(Activity::own().alloc_sel(), SemOp::Down),
         Code::InvArgs
     );
 }
@@ -933,18 +933,18 @@ fn sem_ctrl(t: &mut dyn WvTester) {
 fn activity_ctrl(t: &mut dyn WvTester) {
     wv_assert_err!(
         t,
-        syscalls::activity_ctrl(SEL_KMEM, ActivityOp::START, 0),
+        syscalls::activity_ctrl(SEL_KMEM, ActivityOp::Start, 0),
         Code::InvArgs
     );
     wv_assert_err!(
         t,
-        syscalls::activity_ctrl(INVALID_SEL, ActivityOp::START, 0),
+        syscalls::activity_ctrl(INVALID_SEL, ActivityOp::Start, 0),
         Code::InvArgs
     );
     // can't start ourself
     wv_assert_err!(
         t,
-        syscalls::activity_ctrl(Activity::own().sel(), ActivityOp::START, 0),
+        syscalls::activity_ctrl(Activity::own().sel(), ActivityOp::Start, 0),
         Code::InvArgs
     );
 }

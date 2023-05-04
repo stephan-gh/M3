@@ -63,11 +63,11 @@ impl Semaphore {
 
     /// Performs the `up` operation on the semaphore
     pub fn up(&self) -> Result<(), Error> {
-        syscalls::sem_ctrl(self.sel(), kif::syscalls::SemOp::UP)
+        syscalls::sem_ctrl(self.sel(), kif::syscalls::SemOp::Up)
     }
 
     /// Performs the `down` operation on the semaphore
     pub fn down(&self) -> Result<(), Error> {
-        syscalls::sem_ctrl(self.sel(), kif::syscalls::SemOp::DOWN)
+        syscalls::sem_ctrl(self.sel(), kif::syscalls::SemOp::Down)
     }
 }

@@ -137,7 +137,7 @@ impl ActivityMng {
             TileMux::activity_ctrl_async(
                 tilemng::tilemux(act.tile_id()),
                 act.id(),
-                kif::tilemux::ActivityOp::START,
+                kif::tilemux::ActivityOp::Start,
             )
         }
         else {
@@ -150,7 +150,7 @@ impl ActivityMng {
             TileMux::activity_ctrl_async(
                 tilemng::tilemux(act.tile_id()),
                 act.id(),
-                kif::tilemux::ActivityOp::STOP,
+                kif::tilemux::ActivityOp::Stop,
             )?;
         }
 

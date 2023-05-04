@@ -555,11 +555,11 @@ pub fn sem_ctrl_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<
     let sem = get_kobj!(act, r.sem, Sem);
 
     match r.op {
-        kif::syscalls::SemOp::UP => {
+        kif::syscalls::SemOp::Up => {
             sem.up();
         },
 
-        kif::syscalls::SemOp::DOWN => {
+        kif::syscalls::SemOp::Down => {
             let res = SemObject::down_async(&sem);
             sysc_log!(act, "sem_ctrl-cont(res={:?})", res);
             if let Err(e) = res {
@@ -589,7 +589,7 @@ pub fn activity_ctrl_async(
     let actcap = get_kobj!(act, r.act, Activity).upgrade().unwrap();
 
     match r.op {
-        kif::syscalls::ActivityOp::START => {
+        kif::syscalls::ActivityOp::Start => {
             if Rc::ptr_eq(act, &actcap) {
                 sysc_err!(Code::InvArgs, "Activity can't start itself");
             }
@@ -599,7 +599,7 @@ pub fn activity_ctrl_async(
             }
         },
 
-        kif::syscalls::ActivityOp::STOP => {
+        kif::syscalls::ActivityOp::Stop => {
             let is_self = r.act == kif::SEL_ACT;
             actcap.stop_app_async(Code::from(r.arg as u32), is_self);
             if is_self {
