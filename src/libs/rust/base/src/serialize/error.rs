@@ -15,18 +15,18 @@
 
 use core::fmt::Display;
 
-use crate::errors::Error;
+use crate::errors::{Code, Error};
 
-// this function is left unimplemented because the error type does not allow for custom messages
 impl serde::ser::Error for Error {
     fn custom<T: Display>(_msg: T) -> Self {
-        unimplemented!("Custom error messages are not supported.")
+        // TODO use/pass-on the message somehow
+        Error::new(Code::InvArgs)
     }
 }
 
-// this function is left unimplemented because the error type does not allow for custom messages
 impl serde::de::Error for Error {
     fn custom<T: Display>(_msg: T) -> Self {
-        unimplemented!("Custom error messages are not supported.")
+        // TODO use/pass-on the message somehow
+        Error::new(Code::InvArgs)
     }
 }
