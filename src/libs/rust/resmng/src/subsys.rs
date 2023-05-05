@@ -912,6 +912,11 @@ fn split_child_mem(cfg: &config::AppConfig, mem: &Rc<childs::ChildMem>) {
         for a in d.apps() {
             if let Some(cmem) = a.user_mem() {
                 mem.alloc_mem(cmem as goff);
+                // if the child is a resource manager, it needs some additional memory for that
+                // child that isn't passed down to the child
+                if a.domains().len() > 0 {
+                    def_childs += 1;
+                }
             }
             else {
                 def_childs += 1;
