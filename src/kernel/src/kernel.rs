@@ -210,24 +210,24 @@ fn workloop() -> ! {
     thread::stop();
     // if we get back here, there is no ready or sleeping thread anymore and we can shutdown
 
-    if env::boot().platform == env::Platform::Gem5 {
-        let mut sent = 0;
-        for tile in platform::user_tiles() {
-            if platform::tile_desc(tile).is_programmable() {
-                tilemng::tilemux(tile).shutdown().unwrap();
-                sent += 1;
-            }
+    // send shutdown sidecall to all tiles
+    let mut sent = 0;
+    for tile in platform::user_tiles() {
+        if platform::tile_desc(tile).is_programmable() {
+            tilemng::tilemux(tile).shutdown().unwrap();
+            sent += 1;
         }
+    }
 
-        let mut replies = 0;
-        while replies < sent {
-            tcu::TCU::sleep().unwrap();
-            if let Some(msg) = ktcu::fetch_msg(ktcu::KSRV_EP) {
-                unsafe {
-                    let squeue: *mut com::SendQueue = msg.header.label() as *mut _;
-                    (*squeue).received_reply(msg);
-                    replies += 1;
-                }
+    // wait for their replies
+    let mut replies = 0;
+    while replies < sent {
+        tcu::TCU::sleep().ok();
+        if let Some(msg) = ktcu::fetch_msg(ktcu::KSRV_EP) {
+            unsafe {
+                let squeue: *mut com::SendQueue = msg.header.label() as *mut _;
+                (*squeue).received_reply(msg);
+                replies += 1;
             }
         }
     }
