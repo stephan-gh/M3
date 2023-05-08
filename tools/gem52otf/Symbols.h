@@ -19,6 +19,7 @@
 #include <linux/elf.h>
 #include <ostream>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string>
 #include <vector>
