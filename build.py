@@ -271,7 +271,7 @@ if os.environ.get('M3_VERBOSE', '0') == '1':
     env['CRGFLAGS'] += ['-v']
 else:
     env['CRGFLAGS'] += ['-q']
-env['RUSTBINS'] = 'rust/'
+env['RUSTOUT'] = 'rust/'
 
 # add build-dependent flags (debug/release)
 btype = os.environ.get('M3_BUILD')
@@ -341,7 +341,8 @@ hostenv['TOOLDIR'] = env['TOOLDIR']
 hostenv['BINDIR'] = env['BINDIR']
 hostenv['BUILDDIR'] = env['BUILDDIR']
 lxenv['RUSTLIBS'] = env['RUSTLIBS']
-lxenv['RUSTBINS'] = builddir + '/lxbins'
+lxenv['RUSTOUT'] = 'm3lx'
+lxenv['RUSTBINS'] = builddir + '/lxbin'
 
 # add arch-dependent stuff to env
 if isa == 'x86_64':
