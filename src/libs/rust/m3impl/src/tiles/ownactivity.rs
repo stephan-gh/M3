@@ -23,7 +23,7 @@ use core::ops::Deref;
 
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::cell::{Cell, Ref, RefCell, RefMut};
-use crate::client::{Pager, ResMng};
+use crate::client::ResMng;
 use crate::com::EpMng;
 use crate::env;
 use crate::errors::{Code, Error};
@@ -169,11 +169,6 @@ impl OwnActivity {
     /// Returns a reference to the activity's resource manager.
     pub fn resmng(&self) -> Option<&ResMng> {
         self.rmng.as_ref()
-    }
-
-    /// Returns a reference to the activity's pager.
-    pub fn pager(&self) -> Option<&Pager> {
-        self.pager.as_ref()
     }
 
     /// Allocates a new capability selector and returns it.
