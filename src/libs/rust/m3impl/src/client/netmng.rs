@@ -20,7 +20,7 @@ use crate::errors::Error;
 use crate::net::{BaseSocket, Endpoint, IpAddr, NetEventChannel, Port, Sd, SocketArgs, SocketType};
 use crate::rc::Rc;
 
-/// Represents a session at the network service, allowing to create and use sockets
+/// Represents a session at the network server, allowing to create and use sockets
 ///
 /// To exchange events and data with the server, the [`NetEventChannel`] is used, which allows to
 /// send and receive multiple messages. Events are used to receive connected or closed events from

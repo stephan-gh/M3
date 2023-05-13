@@ -29,9 +29,10 @@ use crate::serialize::{Deserialize, Serialize};
 use crate::syscalls;
 use crate::tiles::ChildActivity;
 
-/// Represents a session at the pager.
+/// Represents a session at the pager
 ///
-/// The pager is responsible to resolve page faults and allows to create memory mappings.
+/// The pager allows to map memory into the virtual address space and is responsible to resolve page
+/// faults when this memory is accessed.
 pub struct Pager {
     sess: ClientSession,
     req_sgate: SendGate,
@@ -150,22 +151,26 @@ impl Pager {
         send_recv_res!(&self.req_sgate, RecvGate::def(), opcodes::Pager::Clone).map(|_| ())
     }
 
-    /// Sends a page fault for the virtual address `addr` for given access type to the server.
-    pub fn pagefault(&self, addr: goff, access: u32) -> Result<(), Error> {
+    /// Sends a page fault for the virtual address `virt` for given access type to the server.
+    ///
+    /// This method just exists for completeness, because page faults are send by TileMux to the
+    /// pager, which uses a lower-level API. However, this method can still be used to let the pager
+    /// resolve a page fault for a particular address.
+    pub fn pagefault(&self, virt: goff, access: kif::Perm) -> Result<(), Error> {
         send_recv_res!(
             &self.req_sgate,
             RecvGate::def(),
             opcodes::Pager::Pagefault,
-            addr,
-            access
+            virt,
+            access.bits()
         )
         .map(|_| ())
     }
 
-    /// Maps `len` bytes of anonymous memory to virtual address `addr` with permissions `prot`.
+    /// Maps `len` bytes of anonymous memory to virtual address `virt` with permissions `prot`.
     pub fn map_anon(
         &self,
-        addr: goff,
+        virt: goff,
         len: usize,
         prot: kif::Perm,
         flags: MapFlags,
@@ -174,7 +179,7 @@ impl Pager {
             &self.req_sgate,
             RecvGate::def(),
             opcodes::Pager::MapAnon,
-            addr,
+            virt,
             len,
             prot.bits(),
             flags.bits()
@@ -182,11 +187,11 @@ impl Pager {
         reply.pop()
     }
 
-    /// Maps a dataspace of `len` bytes handled by given session to virtual address `addr` with
+    /// Maps a dataspace of `len` bytes handled by given session to virtual address `virt` with
     /// permissions `prot`.
     pub fn map_ds(
         &self,
-        addr: goff,
+        virt: goff,
         len: usize,
         off: usize,
         prot: kif::Perm,
@@ -199,7 +204,7 @@ impl Pager {
             crd,
             |os| {
                 os.push(opcodes::Pager::MapDS);
-                os.push(addr);
+                os.push(virt);
                 os.push(len);
                 os.push(prot);
                 os.push(flags);
@@ -214,9 +219,13 @@ impl Pager {
         Ok(res)
     }
 
+    /// Maps `len` bytes of the given [`MemGate`] at the virtual address `virt` with permissions
+    /// `prot`.
+    ///
+    /// As the [`MemGate`] already refers to allocated physical memory, no page faults will occur.
     pub fn map_mem(
         &self,
-        addr: goff,
+        virt: goff,
         mem: &MemGate,
         len: usize,
         prot: kif::Perm,
@@ -227,7 +236,7 @@ impl Pager {
             crd,
             |os| {
                 os.push(opcodes::Pager::MapMem);
-                os.push(addr);
+                os.push(virt);
                 os.push(len);
                 os.push(prot);
             },
@@ -240,13 +249,13 @@ impl Pager {
         Ok(res)
     }
 
-    /// Unaps the mapping at virtual address `addr`.
-    pub fn unmap(&self, addr: goff) -> Result<(), Error> {
+    /// Unaps the mapping at virtual address `virt`.
+    pub fn unmap(&self, virt: goff) -> Result<(), Error> {
         send_recv_res!(
             &self.req_sgate,
             RecvGate::def(),
             opcodes::Pager::Unmap,
-            addr
+            virt
         )
         .map(|_| ())
     }

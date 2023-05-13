@@ -24,7 +24,14 @@ use crate::errors::Error;
 use crate::kif::{CapRngDesc, CapType};
 use crate::vfs::{File, GenericFile, OpenFlags};
 
-/// Represents a session at the pipes server.
+/// Represents a session at the pipes server
+///
+/// The pipes server implements a uni-directional first-in-first-out communication channel with
+/// multiple readers and writes and therefore provides the same semantics as anonymous pipes on
+/// UNIX.
+///
+/// Note that [`IndirectPipe`](`crate::vfs::IndirectPipe`) provides a convenience layer on top of
+/// this API.
 pub struct Pipes {
     sess: ClientSession,
 }
@@ -50,7 +57,10 @@ impl Pipes {
     }
 }
 
-/// Represents a pipe.
+/// Represents a pipe
+///
+/// A pipe allows to create *channels* that either write to the pipe or read from the pipe. To
+/// exchange the data, the pipe requires memory, which is provided in form of a [`MemGate`].
 pub struct Pipe {
     sess: ClientSession,
     mgate: MemGate,

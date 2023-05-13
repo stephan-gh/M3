@@ -16,7 +16,16 @@
  * General Public License version 2 for more details.
  */
 
-//! Contains session-related abstractions.
+//! Contains client-side abstractions
+//!
+//! This module contains abstraction to interact with the services that are provided by M³. These
+//! are based on a [`ClientSession`] that refers to a corresponding session at the server side,
+//! potentially holding client-specific state. Based on the [`ClientSession`], capabilities can be
+//! exchanged to establish further communication channels.
+//!
+//! The [`ClientSession`] is therefore used to provide service-specific APIs on top. For example,
+//! [`Pipes`] builds upon a [`ClientSession`] and uses it to perform capability exchanges in order
+//! to create pipes and channels to such pipes.
 
 mod disk;
 mod hash;

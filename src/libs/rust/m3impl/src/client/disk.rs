@@ -29,6 +29,7 @@ pub const MSG_SLOTS: usize = 1;
 
 pub type DiskBlockNo = u32;
 
+/// A range of blocks on a hard disk
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct DiskBlockRange {
     pub start: DiskBlockNo,
@@ -36,10 +37,13 @@ pub struct DiskBlockRange {
 }
 
 impl DiskBlockRange {
+    /// Creates a `DiskBlockRange` only for the given block
     pub fn new(bno: DiskBlockNo) -> Self {
         Self::new_range(bno, 1)
     }
 
+    /// Creates a `DiskBlockRange` for the given range: `start`..`start`+`count` (not including
+    /// block `start`+`count`)
     pub fn new_range(start: DiskBlockNo, count: DiskBlockNo) -> Self {
         DiskBlockRange { start, count }
     }
@@ -71,6 +75,7 @@ impl cmp::Ord for DiskBlockRange {
     }
 }
 
+/// Represents a session at the disk server
 pub struct Disk {
     sess: ClientSession,
     rgate: RecvGate,

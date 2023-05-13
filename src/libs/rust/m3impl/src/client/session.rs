@@ -26,20 +26,23 @@ use crate::serialize::{M3Deserializer, M3Serializer, SliceSink};
 use crate::syscalls;
 use crate::tiles::Activity;
 
-/// Represents an established connection to a server that can be used to exchange capabilities.
+/// Represents a session at a specific server
+///
+/// An established session can be used to exchange capabilities and thereby create communication
+/// channels, for example.
 pub struct ClientSession {
     cap: Capability,
     close: bool,
 }
 
 impl ClientSession {
-    /// Creates a new `ClientSession` by connecting to the service with given name.
+    /// Creates a new `ClientSession` by opening a session at the server with given name.
     pub fn new(name: &str) -> Result<Self, Error> {
         Self::new_with_sel(name, Activity::own().alloc_sel())
     }
 
-    /// Creates a new `ClientSession` by connecting to the service with given name, using the given
-    /// capability selector for the session.
+    /// Creates a new `ClientSession` by opening a session at the server with given name, using the
+    /// given capability selector for the session.
     pub fn new_with_sel(name: &str, sel: Selector) -> Result<Self, Error> {
         Activity::own().resmng().unwrap().open_sess(sel, name)?;
 

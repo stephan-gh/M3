@@ -136,10 +136,22 @@ pub enum ActInfoResult {
     Count((usize, u32)),
 }
 
-/// Represents a connection to the resource manager.
+/// Represents a connection to the resource manager
 ///
-/// The resource manager is used to request access to resources like memory and services and is
-/// provided by any of the parent activities.
+/// The resource manager is a special service that every application is implicitly connected to,
+/// because every application is (directly or indirectly) started by a resource manager. The
+/// resource manager will therefore create a connection for each application before starting it.
+///
+/// As the name implies, resource managers are responsible to manage a certain set of resources and
+/// distribute them among their clients. Examples are tiles, memory, CPU time, and services. To
+/// obtain access to such resources, clients need to send a request to their resource manager.
+/// Depending on what has been defined for the client and depending on the availability, the
+/// resource manager will grant access or not.
+///
+/// The access permissions and resource shares of each applications and services are defined via a
+/// *configuration file* or *boot script* in form of XML. The XML file specifies what applications
+/// and services should be started including their permissions and resource shares. See the `boot`
+/// directory for examples.
 pub struct ResMng {
     sgate: SendGate,
     act_sel: Selector,

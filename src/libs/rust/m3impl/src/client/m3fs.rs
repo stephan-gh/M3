@@ -39,7 +39,11 @@ struct CachedEP {
     file: Option<usize>,
 }
 
-/// Represents a session at m3fs.
+/// Represents a session at m3fs
+///
+/// m3fs is M³'s standard file system that supports both an in-memory backend and a disk backend.
+/// The data of files is stored in *extents*, that is, contiguous ranges of blocks of arbitrary
+/// length. Unsurprisingly, m3fs implements the file protocol.
 pub struct M3FS {
     id: usize,
     sess: ClientSession,

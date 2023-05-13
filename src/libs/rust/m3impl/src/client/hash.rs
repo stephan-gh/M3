@@ -17,9 +17,9 @@ use crate::com::{opcodes, RecvGate, SendGate, EP};
 use crate::crypto::HashAlgorithm;
 use crate::errors::{Code, Error};
 
-/// Represents a session at the hash multiplexer.
-/// The state of previously hashed data will be maintained
-/// until the session is destroyed.
+/// Represents a session at the hash multiplexer
+///
+/// The state of previously hashed data will be maintained until the session is destroyed.
 pub struct HashSession {
     algo: &'static HashAlgorithm,
     _sess: ClientSession,
@@ -28,8 +28,8 @@ pub struct HashSession {
 }
 
 impl HashSession {
-    /// Request a hash session from the resource manager
-    /// and initialize it with the specified [`HashAlgorithm`].
+    /// Request a hash session from the resource manager and initialize it with the specified
+    /// [`HashAlgorithm`].
     pub fn new(name: &str, algo: &'static HashAlgorithm) -> Result<Self, Error> {
         let sess = ClientSession::new(name)?;
         let sgate = sess.connect()?;
@@ -56,8 +56,8 @@ impl HashSession {
         &self.ep
     }
 
-    /// Reset the state of the hash session (discarding all previous input and
-    /// output data) and change the [`HashAlgorithm`].
+    /// Reset the state of the hash session (discarding all previous input and output data) and
+    /// change the [`HashAlgorithm`].
     pub fn reset(&mut self, algo: &'static HashAlgorithm) -> Result<(), Error> {
         send_recv_res!(&self.sgate, RecvGate::def(), opcodes::Hash::Reset, algo.ty).map(|_| ())?;
         self.algo = algo;
@@ -79,10 +79,9 @@ impl HashSession {
     /// [`MemGate`](crate::com::MemGate) so that the hash multiplexer can successfully write `len`
     /// bytes with offset `off`.
     ///
-    /// Note that this operation does not allow output of more bytes than
-    /// supported by the current hash algorithm. It is mainly intended for
-    /// use with XOFs (extendable output functions) that allow arbitrarily
-    /// large output, e.g. as pseudo-random number generator.
+    /// Note that this operation does not allow output of more bytes than supported by the current
+    /// hash algorithm. It is mainly intended for use with XOFs (extendable output functions) that
+    /// allow arbitrarily large output, e.g. as pseudo-random number generator.
     pub fn output(&self, off: usize, len: usize) -> Result<(), Error> {
         if len > self.algo.output_bytes {
             return Err(Error::new(Code::InvArgs));
