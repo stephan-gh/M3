@@ -366,33 +366,29 @@ impl RecvGate {
 pub(crate) fn pre_init() {
     let eps_start = env::get().first_std_ep();
     let mut rbuf = env::get().tile_desc().rbuf_std_space().0;
-    // safety: we only do that during (re-)initialization so that there are no outstanding
-    // references to the old value. note that we need to use reset() here, because we also use it
-    // for activity::run() to reinitialize everything.
-    unsafe {
-        SYS_RGATE.reset(RecvGate::new_def(
-            INVALID_SEL,
-            eps_start + tcu::SYSC_REP_OFF,
-            rbuf,
-            math::next_log2(cfg::SYSC_RBUF_SIZE),
-        ));
-        rbuf += cfg::SYSC_RBUF_SIZE;
 
-        UPC_RGATE.reset(RecvGate::new_def(
-            INVALID_SEL,
-            eps_start + tcu::UPCALL_REP_OFF,
-            rbuf,
-            math::next_log2(cfg::UPCALL_RBUF_SIZE),
-        ));
-        rbuf += cfg::UPCALL_RBUF_SIZE;
+    SYS_RGATE.set(RecvGate::new_def(
+        INVALID_SEL,
+        eps_start + tcu::SYSC_REP_OFF,
+        rbuf,
+        math::next_log2(cfg::SYSC_RBUF_SIZE),
+    ));
+    rbuf += cfg::SYSC_RBUF_SIZE;
 
-        DEF_RGATE.reset(RecvGate::new_def(
-            INVALID_SEL,
-            eps_start + tcu::DEF_REP_OFF,
-            rbuf,
-            math::next_log2(cfg::DEF_RBUF_SIZE),
-        ));
-    }
+    UPC_RGATE.set(RecvGate::new_def(
+        INVALID_SEL,
+        eps_start + tcu::UPCALL_REP_OFF,
+        rbuf,
+        math::next_log2(cfg::UPCALL_RBUF_SIZE),
+    ));
+    rbuf += cfg::UPCALL_RBUF_SIZE;
+
+    DEF_RGATE.set(RecvGate::new_def(
+        INVALID_SEL,
+        eps_start + tcu::DEF_REP_OFF,
+        rbuf,
+        math::next_log2(cfg::DEF_RBUF_SIZE),
+    ));
 }
 
 impl ops::Drop for RecvGate {
