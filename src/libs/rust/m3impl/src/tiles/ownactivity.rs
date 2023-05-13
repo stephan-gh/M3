@@ -36,7 +36,16 @@ use crate::time::TimeDuration;
 use crate::tmif;
 use crate::vfs::{FileTable, MountTable};
 
-/// Represents the own activity.
+/// Represents the own activity
+///
+/// The own activity provides access to the resources associated with this activity, such as the
+/// pager, the resource manager, and endpoints. Additionally, it provides access to the resources
+/// that can be transferred to [`ChildActivity`](`crate::tiles::ChildActivity`)s: files, mount
+/// points, and data.
+///
+/// Besides access to these resources, [`OwnActivity`] offers operations regarding the execution of
+/// the own activity such as [`sleep`](`OwnActivity::sleep`), [`wait_for`](`OwnActivity::wait_for`),
+/// and [`exit`](`OwnActivity::exit`).
 pub struct OwnActivity {
     base: Activity,
     pub(crate) next_sel: Cell<Selector>,

@@ -44,7 +44,40 @@ use crate::tiles::{
 use crate::util::math;
 use crate::vfs::{BufReader, Fd, File, FileRef, OpenFlags, VFS};
 
-/// Represents a child activity.
+/// Represents a child activity
+///
+/// Child activities allow to execute code on the same or other tiles or make use of acceleratores
+/// in other tiles. Creating a child activity only makes it known to the M³ kernel and potentially
+/// the TileMux instance on the tile, but does not start it yet. This allows to customize the
+/// environment and available resources for the child before its execution.
+///
+/// There are different types of items that can be transferred to childs:
+/// - data (see [`ChildActivity::data_sink`])
+/// - capabilities (see [`ChildActivity::delegate`])
+/// - files (see [`ChildActivity::add_file`])
+/// - mount points (see [`ChildActivity::add_mount`])
+///
+/// Finally, child activities are started with either:
+/// - [`ChildActivity::start`] to run on a non-programmable accelerator
+/// - [`ChildActivity::run`] to execute a function of our program in the child activity
+/// - [`ChildActivity::exec`] to execute a given executable in the child activity
+///
+/// All three variants consume [`ChildActivity`] and yield a [`RunningActivity`] that holds the
+/// activity during its execution and allows to stop it forcefully or wait until its completion.
+///
+/// # Example
+///
+/// ```
+/// let tile = Tile::get("compat|own").unwrap();
+/// let act = ChildActivity::new_with(tile, ActivityArgs::new("test")).unwrap();
+///
+/// let act = act.run(|| {
+///     println!("Hello World!");
+///     Ok(())
+/// }).unwrap();
+///
+/// act.wait().unwrap();
+/// ```
 pub struct ChildActivity {
     base: Activity,
     child_sel: Cell<Selector>,
@@ -101,14 +134,18 @@ impl<'n> ActivityArgs<'n> {
 }
 
 impl ChildActivity {
-    /// Creates a new [`ChildActivity`] on tile `tile` with given name and default settings. The
-    /// activity provides access to the tile and allows to run an activity on the tile.
+    /// Creates a new [`ChildActivity`] on tile `tile` with given name and default settings.
+    ///
+    /// The given tile specifies the tile where the activity will execute and its resource share
+    /// (CPU time etc.). The name is only specified for debugging purposes.
     pub fn new(tile: Rc<Tile>, name: &str) -> Result<Self, Error> {
         Self::new_with(tile, ActivityArgs::new(name))
     }
 
-    /// Creates a new [`ChildActivity`] on tile `tile` with given arguments. The activity provides
-    /// access to the tile and allows to run an activity on the tile.
+    /// Creates a new [`ChildActivity`] on tile `tile` with given arguments.
+    ///
+    /// The given tile specifies the tile where the activity will execute and its resource share
+    /// (CPU time etc.).
     pub fn new_with(tile: Rc<Tile>, args: ActivityArgs<'_>) -> Result<Self, Error> {
         let sel = Activity::own().alloc_sels(3);
 

@@ -27,7 +27,26 @@ use crate::syscalls;
 use crate::tcu::TileId;
 use crate::tiles::Activity;
 
-/// Represents a tile in the tiled architecture.
+/// Represents a tile in the tiled architecture
+///
+/// A tile does not only refer to a specific tile on the hardware platform, but also contains a
+/// specific resource share. Namely, it provides access to a certain number of endpoints, a certain
+/// CPU time (time slice), and certain number of page tables.
+///
+/// Allocating a new tile yields a [`Tile`] object with all resources of that tile and a so called
+/// *root tile capability*. Such capability allows to customize the page-table and CPU time quota as
+/// these are not dictated by hardware constraints. Additionally, a root tile capability allows to
+/// configure the physical-memory protection endpoints (PMP EPs) that define to which physical
+/// memory regions the tile has access.
+///
+/// New [`Tile`] objects can be *derived* from an existing [`Tile`] object to transfer a subset of
+/// the resource share to a new object. Since the creation of child activities (see below) requires
+/// a tile capability, different activities on the same tile can be run with different resource
+/// shares. Derived objects are no longer root tile capabilities and thus are constrained to the
+/// set limits.
+///
+/// Tile allocations are done via the resource manager and are thus subject to the restrictions set
+/// via the boot script.
 pub struct Tile {
     cap: Capability,
     id: TileId,

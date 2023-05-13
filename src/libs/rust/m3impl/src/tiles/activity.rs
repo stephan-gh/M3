@@ -34,10 +34,17 @@ use crate::syscalls;
 use crate::tcu::{ActId, EpId, TileId};
 use crate::tiles::{KMem, OwnActivity, Tile};
 
-/// Represents an activity on a tile.
+/// Represents an activity on a tile
 ///
 /// On general-purpose tiles, the activity executes code on the core. On accelerator/device tiles,
 /// the activity uses the logic of the accelerator/device.
+///
+/// [`Activity`] is the "base class" of all activities, which come in two flavors: [`OwnActivity`]
+/// that represents the own activity and [`ChildActivity`](`crate::tiles::ChildActivity`) that is
+/// used to create child activities. Both share common properties such as an id, a capability, a
+/// [`Tile`] etc., which are part of [`Activity`]. Both [`OwnActivity`] and
+/// [`ChildActivity`](`crate::tiles::ChildActivity`) implement `Deref` to [`Activity`] to make the
+/// common properties accessible.
 pub struct Activity {
     pub(crate) id: ActId,
     pub(crate) cap: Capability,
@@ -113,10 +120,13 @@ impl Activity {
         syscalls::revoke(self.sel(), crd, !del_only)
     }
 
-    /// Creates a new memory gate that refers to the address region `addr`..`addr`+`size` in the
-    /// address space of this activity. The region must be physically contiguous and page aligned.
-    pub fn get_mem(&self, addr: goff, size: goff, perms: kif::Perm) -> Result<MemGate, Error> {
-        MemGate::new_foreign(self.sel(), addr, size, perms)
+    /// Creates a new [`MemGate`] that refers to the address region `virt`..`virt`+`size` in the
+    /// virtual address space of this activity.
+    ///
+    /// The given region in virtual memory must be physically contiguous and page aligned. See
+    /// [`MemGate`] for a more detailed explanation of how that works.
+    pub fn get_mem(&self, virt: goff, size: goff, perms: kif::Perm) -> Result<MemGate, Error> {
+        MemGate::new_foreign(self.sel(), virt, size, perms)
     }
 }
 

@@ -23,7 +23,19 @@ use crate::rc::Rc;
 use crate::syscalls;
 use crate::tiles::Activity;
 
-/// Represents a certain amount of kernel memory.
+/// Represents a certain amount of kernel memory
+///
+/// Kernel memory is used by the M³ kernel to fulfill operations on behalf of activities. For
+/// example, if the [`create_sgate`](`syscalls::create_sgate`) system call is used to create a new
+/// [`SendGate`](`crate::com::SendGate`), the kernel needs memory to create the associated kernel
+/// object. To prevent DOS attacks on the kernel, the kernel requires that this amount of memory is
+/// available in the calling activity's kernel memory quota. This kernel memory quota is represented
+/// by [`KMem`].
+///
+/// As the amount of kernel memory is fixed at boot, [`KMem`] instances cannot be created, but all
+/// available memory is passed to the root activity, which distributes it among its children
+/// accordingly. For that reason, [`KMem`] supports the [`derive`](`KMem::derive`) operation that
+/// splits off a certain amount of kernel memory into a new [`KMem`] object.
 pub struct KMem {
     cap: Capability,
 }

@@ -31,7 +31,7 @@ use crate::util::math;
 use crate::vec;
 use crate::vfs::{BufReader, File, FileRef, Seek, SeekMode};
 
-pub fn load_program(
+pub(crate) fn load_program(
     act: &Activity,
     mapper: &mut dyn Mapper,
     file: &mut BufReader<FileRef<dyn File>>,
