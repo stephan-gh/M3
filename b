@@ -626,8 +626,8 @@ case "$cmd" in
                 *.cc|*.h)
                     clang-format -i "$f"
                     ;;
-                Cargo.toml)
-                    rustfmt "$(dirname "$f")"/src/*.rs
+                */Cargo.toml)
+                    find "$(dirname "$f")/src" -name "*.rs" -print0 | xargs -0 rustfmt
                     ;;
                 *.py)
                     autopep8 -i "$f"
