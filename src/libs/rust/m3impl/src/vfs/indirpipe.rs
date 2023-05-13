@@ -33,7 +33,7 @@ pub struct IndirectPipe {
 impl IndirectPipe {
     /// Creates a new pipe at pipe service `pipes` using `mem` as the shared memory of `mem_size`
     /// bytes.
-    pub fn new(pipes: &Pipes, mem: &MemGate, mem_size: usize) -> Result<Self, Error> {
+    pub fn new(pipes: &Pipes, mem: MemGate, mem_size: usize) -> Result<Self, Error> {
         let pipe = Rc::new(pipes.create_pipe(mem, mem_size)?);
         let mut files = Activity::own().files();
         let rd_fd = files.add(pipe.create_chan(true)?)?;

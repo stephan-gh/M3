@@ -63,7 +63,6 @@ fn pipe_mux(t: &mut dyn WvTester) {
     const PIPE_SIZE: usize = 256;
 
     struct Pipe {
-        _mgate: MemGate,
         _pipe: IndirectPipe,
         reader: FileRef<GenericFile>,
         writer: FileRef<GenericFile>,
@@ -73,12 +72,11 @@ fn pipe_mux(t: &mut dyn WvTester) {
     let mut pipes = vec![];
     for _ in 0..NUM {
         let mgate = wv_assert_ok!(MemGate::new(PIPE_SIZE, kif::Perm::RW));
-        let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &mgate, PIPE_SIZE));
+        let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, mgate, PIPE_SIZE));
         pipes.push(Pipe {
             reader: pipe.reader().unwrap(),
             writer: pipe.writer().unwrap(),
             _pipe: pipe,
-            _mgate: mgate,
         });
     }
 

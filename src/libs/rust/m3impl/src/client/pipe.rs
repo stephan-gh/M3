@@ -37,7 +37,7 @@ impl Pipes {
     }
 
     /// Creates a new pipe using `mem` of `mem_size` bytes as shared memory for the data exchange.
-    pub fn create_pipe(&self, mem: &MemGate, mem_size: usize) -> Result<Pipe, Error> {
+    pub fn create_pipe(&self, mem: MemGate, mem_size: usize) -> Result<Pipe, Error> {
         let crd = self.sess.obtain(
             2,
             |os| {
@@ -53,11 +53,12 @@ impl Pipes {
 /// Represents a pipe.
 pub struct Pipe {
     sess: ClientSession,
+    mgate: MemGate,
     sgate: SendGate,
 }
 
 impl Pipe {
-    fn new(mem: &MemGate, sel: Selector) -> Result<Self, Error> {
+    fn new(mem: MemGate, sel: Selector) -> Result<Self, Error> {
         let sess = ClientSession::new_bind(sel);
         sess.delegate(
             CapRngDesc::new(CapType::Object, mem.sel(), 1),
@@ -68,6 +69,7 @@ impl Pipe {
         )?;
         Ok(Pipe {
             sess,
+            mgate: mem,
             sgate: SendGate::new_bind(sel + 1),
         })
     }
@@ -75,6 +77,11 @@ impl Pipe {
     /// Returns the session's capability selector.
     pub fn sel(&self) -> Selector {
         self.sess.sel()
+    }
+
+    /// Returns the [`MemGate`] used for the data exchange
+    pub fn memory(&self) -> &MemGate {
+        &self.mgate
     }
 
     /// Creates a new channel for this pipe. If `read` is true, it is a read-end, otherwise a
