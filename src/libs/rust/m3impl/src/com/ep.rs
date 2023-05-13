@@ -20,9 +20,13 @@ use crate::syscalls;
 use crate::tcu::{EpId, TOTAL_EPS};
 use crate::tiles::Activity;
 
-/// Represents a TCU endpoint that can be used for communication. This class only serves the purpose
-/// to allocate a EP capability and revoke it on destruction. In the meantime, the EP capability can
-/// be delegated to someone else.
+/// Represents a TCU endpoint that can be used for communication
+///
+/// Endpoints are allocated by the [`EpMng`](`crate::com::EpMng`), which in turn is typically called
+/// automatically by the corresponding gate (e.g., [`SendGate`](`crate::com::SendGate`)) that wants
+/// to use it. Therefore, this type is typically not used by applications. However, if an endpoint
+/// is obtained from another application, an EP object can be constructed via [`EP::new_bind`] and
+/// passed to a gate, for example.
 #[derive(Debug)]
 pub struct EP {
     cap: Capability,

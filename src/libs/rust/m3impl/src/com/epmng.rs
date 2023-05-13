@@ -25,7 +25,10 @@ use crate::kif::INVALID_SEL;
 use crate::syscalls;
 use crate::tcu::EpId;
 
-/// The endpoint manager (`EpMng`) multiplexes all non-reserved endpoints among the gates.
+/// The endpoint manager (`EpMng`)
+///
+/// The `EpMng` is responsible for endpoint allocation and deallocation. It will also reuse already
+/// allocated, but no longer used endpoints for new allocations, if possible.
 #[derive(Default)]
 pub struct EpMng {
     eps: Vec<EP>,

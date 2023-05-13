@@ -28,8 +28,9 @@ use crate::syscalls;
 use crate::tcu::EpId;
 use crate::tiles::Activity;
 
-/// A gate is one side of a TCU-based communication channel and exists in the variants [`MemGate`],
-/// [`SendGate`], and [`RecvGate`].
+/// A gate is one side of a TCU-based communication channel and exists in the variants
+/// [`MemGate`](`crate::com::MemGate`), [`SendGate`](`crate::com::SendGate`), and
+/// [`RecvGate`](`crate::com::RecvGate`).
 pub struct Gate {
     cap: Capability,
     // keep the endpoint id separately in a Cell for a cheaper access. most of the time, we only

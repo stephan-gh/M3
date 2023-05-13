@@ -31,8 +31,9 @@ static BUFS: LazyStaticRefCell<MemMap> = LazyStaticRefCell::default();
 
 /// A buffer to receive messages from a [`RecvGate`](crate::com::RecvGate).
 ///
-/// For SPM tiles, the receive buffer will always be in the local SPM and thus there is no [`MemGate`]
-/// used. For cache tiles, we allocate physical memory and map it into our address space.
+/// For SPM tiles, the receive buffer will always be in the local SPM and thus there is no
+/// [`MemGate`] used. For cache tiles, we allocate physical memory and map it into our address
+/// space.
 pub struct RecvBuf {
     addr: usize,
     size: usize,
@@ -77,7 +78,7 @@ impl fmt::Debug for RecvBuf {
 }
 
 /// Allocates a new receive buffer with given size
-pub fn alloc_rbuf(size: usize) -> Result<RecvBuf, Error> {
+pub(crate) fn alloc_rbuf(size: usize) -> Result<RecvBuf, Error> {
     let vm = Activity::own().tile_desc().has_virtmem();
     let align = if vm { cfg::PAGE_SIZE as u64 } else { 1 };
     let addr = BUFS.borrow_mut().allocate(size as u64, align)? as usize;
@@ -113,7 +114,7 @@ fn map_rbuf(addr: usize, size: usize) -> Result<MemGate, Error> {
 }
 
 /// Frees the given receive buffer
-pub fn free_rbuf(rbuf: &RecvBuf) {
+pub(crate) fn free_rbuf(rbuf: &RecvBuf) {
     BUFS.borrow_mut().free(rbuf.addr as u64, rbuf.size as u64);
 }
 

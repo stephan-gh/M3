@@ -47,8 +47,56 @@ enum RGateBuf {
     Invalid,
 }
 
-/// A receive gate (`RecvGate`) can receive messages via TCU from connected [`SendGate`]s and can
-/// reply on the received messages.
+/// A receive gate receives messages via TCU
+///
+/// A [`RecvGate`] works in combination with [`SendGate`]s to form message passing channels. Such a
+/// channel exists between a [`SendGate`] and [`RecvGate`] and allows to exchange messages, always
+/// initiated by the [`SendGate`]. Upon receiving a message, the [`RecvGate`] can send a reply to
+/// the message, though.
+///
+/// # Message passing basics
+///
+/// A [`SendGate`] is always connected to exactly one [`RecvGate`], whereas a [`RecvGate`] can
+/// receive messages from multiple [`SendGate`]s. Each message consists of a header, provided by the
+/// TCU, and a payload, provided by the sender. Thus, headers are trustworthy (we always trust the
+/// TCU), whereas the payloads are not. The header contains meta data about the message such as its
+/// length and a *label*. A label can be set for each [`SendGate`], which allows to distinguish
+/// between senders. On the receiver side, messages are stored in a *receive buffer*. Hence, each
+/// [`RecvGate`] has an associated receive buffer, represented by [`RecvBuf`].
+///
+/// # Receive buffer and credit system
+///
+/// The receive buffer is split into fixed-sized slots and shared among all senders, but each sender
+/// has a certain number of *credits* that limits the available space for that sender. Messages can
+/// be smaller than the slot size (to reduce traffic), but not larger. The credit system is
+/// implemented by the TCU and requires senders to have at least one credit when sending a message.
+/// If one credit is available, the number of credits is reduced by one. The number of credits is
+/// increased again upon a reply from the receiver. If at most as many credits as receive-buffer
+/// slots are handed out to senders, each sender has the guarantee that message sending will always
+/// succeed. Otherwise, senders receive the [`RecvNoSpace`](`Code::RecvNoSpace`) error in case all
+/// slots are occupied.
+///
+/// # Receive buffer slots
+///
+/// To keep track of the receive buffer slots, slots can be in three states: `free`, `unread`, and
+/// `occupied`. Free slots are filled by the TCU upon message reception, which brings the slot into
+/// the `unread` state. Thus, unread slots contain new messages (not seen by the software). These
+/// messages can be *fetched* from the receive buffer via [`RecvGate::fetch`], which brings the slot
+/// into the `occupied` state. As soon as the message has been processed, the software should inform
+/// the TCU about that by *acknowledging* the message via [`RecvGate::ack_msg`], which brings the
+/// slot back into the `free` state.
+///
+/// # Message reception and processing
+///
+/// The TCU stores received messages into the next slot that is `free` by walking over the slots in
+/// round-robin fashion and remembering the last used slot (to prevent starvation). New messages are
+/// retrieved via [`RecvGate::fetch`] in non-blocking fashion or [`RecvGate::receive`] in blocking
+/// fashion. Note also that this allows to reply to messages out of order. That is, it is possible
+/// to receive message A first and then message B, but first reply to message B and later to message
+/// A.
+///
+/// Messages are implicitly acknowledged when replying to the message (see [`RecvGate::reply`]), but
+/// need to be acknowledged explicitly otherwise (see [`RecvGate::ack_msg`]).
 pub struct RecvGate {
     gate: Gate,
     buf: RefCell<RGateBuf>,
@@ -69,7 +117,7 @@ impl fmt::Debug for RecvGate {
     }
 }
 
-/// The arguments for `RecvGate` creations
+/// The arguments for [`RecvGate`] creations
 pub struct RGateArgs {
     order: u32,
     msg_order: u32,
@@ -290,7 +338,7 @@ impl RecvGate {
     }
 
     /// Tries to fetch a message from the receive gate. If there is an unread message, it returns
-    /// a reference to the message. Otherwise it returns an error with Code::NotFound.
+    /// a reference to the message. Otherwise it returns an error with [`Code::NotFound`].
     #[inline(always)]
     pub fn fetch(&self) -> Result<&'static tcu::Message, Error> {
         tcu::TCU::fetch_msg(self.ensure_activated()?)
@@ -325,11 +373,18 @@ impl RecvGate {
         tcu::TCU::ack_msg(self.ep().unwrap(), off)
     }
 
-    /// Waits until a message arrives and returns a reference to the message. If not `None`, the
-    /// argument `sgate` denotes the [`SendGate`] that was used to send the request to the
-    /// communication for which this method should receive the reply now. If the endpoint associated
-    /// with `sgate` becomes invalid, the method stops waiting for a reply assuming that the
-    /// communication partner is no longer interested in the communication.
+    /// Waits until a message arrives and returns a reference to the message.
+    ///
+    /// In contrast to [`RecvGate::fetch`], this method blocks until a message is received via this
+    /// `RecvGate`. Depending on the platform and whether there are other activities ready to run on
+    /// our tile, blocking will be performed via TCU (on gem5 and if no other activity is ready),
+    /// polling (on hw and if no other activity is ready), or blocking of the activity (if another
+    /// activity is ready).
+    ///
+    /// If not `None`, the argument `sgate` denotes the [`SendGate`] that was used to send the
+    /// request to the communication partner for which this method should receive the reply now. If
+    /// the endpoint associated with `sgate` becomes invalid, the method stops waiting for a reply
+    /// assuming that the communication partner is no longer interested in the communication.
     #[inline(always)]
     pub fn receive(&self, sgate: Option<&SendGate>) -> Result<&'static tcu::Message, Error> {
         let rep = self.ensure_activated()?;
@@ -356,6 +411,11 @@ impl RecvGate {
     }
 
     /// Drops all messages with given label. That is, these messages will be marked as read.
+    ///
+    /// This may be required when clients are removed at the server side to ensure that no further
+    /// messages from that client are already stored in the receive buffer. Note that the send EP of
+    /// the client has to be invalidated *before* calling this method to ensure that no further
+    /// message of the client can arrive.
     pub fn drop_msgs_with(&self, label: tcu::Label) -> Result<(), Error> {
         let rep = self.ensure_activated()?;
         tcu::TCU::drop_msgs_with(self.address().unwrap(), rep, label);

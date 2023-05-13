@@ -30,7 +30,10 @@ use crate::syscalls;
 use crate::tcu;
 use crate::tiles::Activity;
 
-/// A send gate (`SendGate`) can send message via TCU to an associated `RecvGate`.
+/// A send gate sends message via TCU
+///
+/// The interaction of [`SendGate`]s and [`RecvGate`]s including the message-passing concept is
+/// explained [`here`](`RecvGate`).
 pub struct SendGate {
     gate: Gate,
 }

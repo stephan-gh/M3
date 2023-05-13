@@ -16,7 +16,30 @@
  * General Public License version 2 for more details.
  */
 
-//! Contains communication abstractions.
+//! Contains communication abstractions
+//!
+//! Communication on M³ is performed via the trusted communication unit (TCU) and comes in two
+//! primary flavors: message passing and DMA-like memory access. The communication abstractions can
+//! be devided in two layers: lower-level primitives that work with the TCU and higher-level
+//! primitives and build on top of them.
+//!
+//! # Endpoints and gates
+//!
+//! The lower-level primitives are [`endpoints`](`EP`) and [`gates`](`gate::Gate`). Each TCU-based
+//! communication channel is represented by *endpoints* (EPs) in the TCU. A message-passing channel
+//! consists of a send EP and a receive EP, whereas a memory-channel consists of a single memory EP.
+//! A *gate* is the software abstraction that comes in three variants, corresponding to the endpoint
+//! types: [`SendGate`], [`RecvGate`], and [`MemGate`]. All gates therefore use a specific endpoint
+//! for the communication and need to be *activated* before they can be used. The activation of a
+//! gate allocates an endpoint (if required) and configures the endpoint for the gate.
+//!
+//! # Streams and channels
+//!
+//! The higher-level primitives are streams and channels. [`GateOStream`] allows to marshall data
+//! types into a message, whereas [`GateIStream`] allows to unmarshall a message into data types.
+//! Both work in combination with [`SendGate`]s and [`RecvGate`]s, respectively. A
+//! [`channel`](`chan::sync_channel`) provides a synchronous uni-directional communication channel
+//! based on gates.
 
 #[macro_use]
 mod stream;
@@ -34,8 +57,9 @@ mod sgate;
 
 pub use self::ep::{EPArgs, EP};
 pub use self::epmng::EpMng;
+pub use self::gate::Gate;
 pub use self::mgate::{MGateArgs, MemGate, Perm};
-pub use self::rbufs::{alloc_rbuf, free_rbuf, RecvBuf};
+pub use self::rbufs::RecvBuf;
 pub use self::rgate::{RGateArgs, RecvGate};
 pub use self::sem::Semaphore;
 pub use self::sgate::{SGateArgs, SendGate};

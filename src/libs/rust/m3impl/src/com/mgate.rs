@@ -35,8 +35,56 @@ use crate::tiles::Activity;
 
 pub use crate::kif::Perm;
 
-/// A memory gate (`MemGate`) has access to a contiguous memory region and allows RDMA-like memory
-/// accesses via TCU.
+/// Represents a contiguous region of memory, accessible via TCU
+///
+/// A memory gate provides access to a contiguous region of physical memory and allows RDMA-like
+/// memory accesses via TCU. The physical memory can be located in a memory tile (e.g., DRAM), but
+/// also in a compute tile. In the latter case it either refers to local memory (scratchpad) in the
+/// destination tile or to physical memory located in another tile, but accessed through the cache
+/// of the destination tile.
+///
+/// The following illustrates the difference with an example:
+///
+/// ```text
+///    +-------------+        +--------------------------+
+///    | Tile1       |        | Tile2                    |
+///    | +---------+ |        | +---------+  +---------+ |
+///    | |         | |        | |         |  |  Cache  | |
+///    | |   TCU   | |    +---+->   TCU   +->+         | |
+///    | |         | |    |   | |         |  |  BBCB   | |
+///    | +----+----+ |    |   | +----+----+  |         | |
+/// +--+-++ A | B ++-+----+   | |    |    |  |         | |
+/// |  | +----+----+ |        | +----+----+  +----+----+ |
+/// |  |             |        |                   |      |
+/// |  +-------------+        +-------------------+------+
+/// |                                             |
+/// |  +------------------------------------------+------+
+/// |  | Tile3                                    |      |
+/// |  | +----------------------------------------+----+ |
+/// |  | |                                        v    | |
+/// +--+-+-->AAAA             DRAM              BBBB   | |
+///    | |                                             | |
+///    | +---------------------------------------------+ |
+///    +-------------------------------------------------+
+/// ```
+///
+/// The example above has two memory endpoints in Tile1's TCU (A and B). Endpoint A is directly
+/// referring to the DRAM tile and thus sees the data `AAAA` in DRAM. In contrast, endpoint B refers
+/// to the physical memory visible through the cache in Tile2. Therefore, endpoint B will see the
+/// current state of the data in Tile2's cache (`BBCB`) instead of the potentially outdated data in
+/// DRAM (`BBBB`).
+///
+/// Accessing physical memory through the cache of another tile therefore primarily exists because
+/// tiles are not cache coherent. For example, it allows one application to get direct access to
+/// data managed by another application.
+///
+/// The creation of `MemGate` therefore comes in two primary flavors: [`MemGate::new`] that
+/// allocates new physical memory in DRAM and [`MemGate::new_foreign`] that provides access to a
+/// physically contiguous physical memory region within another virtual address space.
+///
+/// Independent of the creation, every `MemGate` allows to issue DMA requests to the associated
+/// memory region via [`MemGate::read`] and [`MemGate::write`].
+
 pub struct MemGate {
     gate: Gate,
     resmng: bool,
@@ -70,11 +118,15 @@ impl MGateArgs {
 
 impl MemGate {
     /// Creates a new `MemGate` that has access to a region of `size` bytes with permissions `perm`.
+    ///
+    /// This method will allocate `size` bytes with given permissions from the resource manager.
     pub fn new(size: usize, perm: Perm) -> Result<Self, Error> {
         Self::new_with(MGateArgs::new(size, perm))
     }
 
     /// Creates a new `MemGate` with given arguments.
+    ///
+    /// This method will allocate `size` bytes with given permissions from the resource manager.
     pub fn new_with(args: MGateArgs) -> Result<Self, Error> {
         let sel = if args.sel == INVALID_SEL {
             Activity::own().alloc_sel()
@@ -93,11 +145,14 @@ impl MemGate {
         })
     }
 
-    /// Creates a new `MemGate` for the region `off`..`off`+`size` in the address space of the given
-    /// activity. The region must be physically contiguous and page aligned.
-    pub fn new_foreign(act: Selector, off: goff, size: goff, perm: Perm) -> Result<Self, Error> {
+    /// Creates a new `MemGate` for the region `virt`..`virt`+`size` in the virtual address space of
+    /// the given activity.
+    ///
+    /// The given region in virtual memory must be physically contiguous and page aligned. Note that
+    /// the preferred interface for this functionality is [`Activity::get_mem`].
+    pub fn new_foreign(act: Selector, virt: goff, size: goff, perm: Perm) -> Result<Self, Error> {
         let sel = Activity::own().alloc_sel();
-        syscalls::create_mgate(sel, act, off, size, perm)?;
+        syscalls::create_mgate(sel, act, virt, size, perm)?;
         Ok(MemGate::new_owned_bind(sel))
     }
 
