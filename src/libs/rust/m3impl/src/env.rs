@@ -23,12 +23,12 @@ use core::ptr;
 use crate::cap::Selector;
 
 use crate::cfg;
+use crate::client::{Pager, ResMng};
 use crate::col::Vec;
 use crate::com::SendGate;
 use crate::errors::Error;
 use crate::kif::{self, TileDesc};
 use crate::serialize::M3Deserializer;
-use crate::session::{Pager, ResMng};
 use crate::tcu;
 use crate::tiles::OwnActivity;
 use crate::util;

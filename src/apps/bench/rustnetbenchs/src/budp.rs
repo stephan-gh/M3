@@ -13,12 +13,12 @@
  * General Public License version 2 for more details.
  */
 
+use m3::client::NetworkManager;
 use m3::com::Semaphore;
 use m3::errors::{Code, Error};
 use m3::format;
 use m3::net::{DGramSocket, DgramSocketArgs, Endpoint, Socket, UdpSocket};
 use m3::println;
-use m3::session::NetworkManager;
 use m3::test::WvTester;
 use m3::time::{Results, TimeDuration, TimeInstant};
 use m3::vfs::{File, FileEvent, FileRef, FileWaiter};

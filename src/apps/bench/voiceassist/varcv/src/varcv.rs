@@ -17,6 +17,7 @@
 #![no_std]
 
 use core::cmp;
+use m3::client::NetworkManager;
 use m3::col::Vec;
 use m3::com::Semaphore;
 use m3::env;
@@ -26,7 +27,6 @@ use m3::net::{
     UdpSocket,
 };
 use m3::println;
-use m3::session::NetworkManager;
 use m3::tiles::OwnActivity;
 use m3::vec;
 

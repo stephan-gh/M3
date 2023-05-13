@@ -12,10 +12,10 @@
  * General Public License version 2 for more details.
  */
 
+use crate::client::ClientSession;
 use crate::com::{opcodes, RecvGate, SendGate, EP};
 use crate::crypto::HashAlgorithm;
 use crate::errors::{Code, Error};
-use crate::session::ClientSession;
 
 /// Represents a session at the hash multiplexer.
 /// The state of previously hashed data will be maintained

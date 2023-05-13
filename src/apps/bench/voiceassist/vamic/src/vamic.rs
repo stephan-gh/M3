@@ -28,9 +28,9 @@ use m3::kif::{self, Perm};
 use m3::log;
 use m3::println;
 use m3::server::{
-    CapExchange, ClientManager, ExcType, RequestHandler, RequestSession, Server, SessId,
+    CapExchange, ClientManager, ExcType, RequestHandler, RequestSession, Server, ServerSession,
+    SessId,
 };
-use m3::session::ServerSession;
 use m3::tiles::OwnActivity;
 use m3::util::math;
 use m3::vfs::OpenFlags;

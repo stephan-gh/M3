@@ -22,6 +22,7 @@ use core::marker::PhantomData;
 
 use crate::cap::Selector;
 use crate::cell::RefMut;
+use crate::client::{HashInput, HashOutput, HashSession, MapFlags, Pager};
 use crate::col::String;
 use crate::errors::Error;
 use crate::goff;
@@ -29,7 +30,6 @@ use crate::io::{Read, Write};
 use crate::kif;
 use crate::net::{DGramSocket, Socket, StreamSocket};
 use crate::serialize::{M3Serializer, VecSink};
-use crate::session::{HashInput, HashOutput, HashSession, MapFlags, Pager};
 use crate::tiles::{Activity, ChildActivity};
 use crate::vfs::{Fd, File, FileEvent, FileTable, Map, Seek, SeekMode, TMode};
 

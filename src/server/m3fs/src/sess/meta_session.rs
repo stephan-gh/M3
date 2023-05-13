@@ -26,9 +26,7 @@ use m3::{
     errors::{Code, Error},
     io::LogFlags,
     kif::{CapRngDesc, CapType},
-    server::CapExchange,
-    server::SessId,
-    session::ServerSession,
+    server::{CapExchange, ServerSession, SessId},
     vfs::{FileMode, OpenFlags},
 };
 

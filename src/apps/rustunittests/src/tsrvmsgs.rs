@@ -19,8 +19,7 @@ use m3::com::{GateIStream, RecvGate};
 use m3::errors::{Code, Error};
 use m3::io::LogFlags;
 use m3::log;
-use m3::server::{RequestHandler, RequestSession, Server};
-use m3::session::ServerSession;
+use m3::server::{RequestHandler, RequestSession, Server, ServerSession};
 use m3::test::WvTester;
 use m3::tiles::{ActivityArgs, ChildActivity, OwnActivity, RunningActivity, Tile};
 

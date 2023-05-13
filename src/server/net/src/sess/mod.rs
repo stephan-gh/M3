@@ -29,8 +29,7 @@ use m3::errors::{Code, Error};
 use m3::kif::{CapRngDesc, CapType};
 use m3::net::{log_net, IpAddr, NetLogEvent, Port, Sd, SocketArgs, SocketType, MTU};
 use m3::rc::Rc;
-use m3::server::{CapExchange, RequestSession};
-use m3::session::ServerSession;
+use m3::server::{CapExchange, RequestSession, ServerSession};
 use m3::{log, reply_vmsg, vec};
 
 use crate::driver::DriverInterface;

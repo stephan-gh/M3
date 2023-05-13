@@ -16,6 +16,7 @@
 
 #![no_std]
 
+use m3::client::NetworkManager;
 use m3::col::{String, ToString, Vec};
 use m3::env;
 use m3::errors::{Code, Error, VerboseError};
@@ -23,7 +24,6 @@ use m3::format;
 use m3::mem;
 use m3::net::{self, IpAddr, RawSocket, RawSocketArgs, DNS};
 use m3::println;
-use m3::session::NetworkManager;
 use m3::tiles::OwnActivity;
 use m3::time::{TimeDuration, TimeInstant};
 use m3::util;

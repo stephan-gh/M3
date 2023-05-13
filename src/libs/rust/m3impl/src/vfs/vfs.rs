@@ -17,10 +17,10 @@
  */
 
 use crate::borrow::Cow;
+use crate::client::M3FS;
 use crate::col::{String, ToString};
 use crate::errors::{Code, Error};
 use crate::rc::Rc;
-use crate::session::M3FS;
 use crate::tiles::Activity;
 use crate::vfs::{FSHandle, File, FileInfo, FileMode, FileRef, GenericFile, OpenFlags, SeekMode};
 

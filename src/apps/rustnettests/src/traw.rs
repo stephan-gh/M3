@@ -13,13 +13,13 @@
  * General Public License version 2 for more details.
  */
 
+use m3::client::{NetworkManager, Pipes};
 use m3::col::{String, ToString};
 use m3::com::MemGate;
 use m3::errors::Code;
 use m3::io;
 use m3::kif;
 use m3::net::{RawSocket, RawSocketArgs, MAC};
-use m3::session::{NetworkManager, Pipes};
 use m3::test::WvTester;
 use m3::tiles::{ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::vfs::{BufReader, IndirectPipe};

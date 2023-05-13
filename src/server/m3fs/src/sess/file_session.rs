@@ -27,8 +27,7 @@ use m3::{
     com::GateIStream,
     errors::{Code, Error},
     kif::{CapRngDesc, CapType, Perm, INVALID_SEL},
-    server::{CapExchange, SessId},
-    session::ServerSession,
+    server::{CapExchange, ServerSession, SessId},
     syscalls,
     vfs::{OpenFlags, SeekMode},
 };

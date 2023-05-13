@@ -21,11 +21,11 @@ use core::fmt;
 use crate::borrow::Cow;
 use crate::cap::Selector;
 use crate::cell::RefCell;
+use crate::client::M3FS;
 use crate::col::{String, ToString, Vec};
 use crate::errors::{Code, Error};
 use crate::rc::Rc;
 use crate::serialize::{M3Deserializer, M3Serializer, VecSink};
-use crate::session::M3FS;
 use crate::tiles::ChildActivity;
 use crate::vfs::{FileSystem, VFS};
 

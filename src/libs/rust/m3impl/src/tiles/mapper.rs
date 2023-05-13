@@ -15,10 +15,10 @@
 
 //! The mapper types that are used to init the memory of an activity.
 
+use crate::client::{MapFlags, Pager};
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::kif;
-use crate::session::{MapFlags, Pager};
 use crate::vfs::{BufReader, File, FileRef, Map};
 
 /// The mapper trait is used to map the memory of an activity before running it.

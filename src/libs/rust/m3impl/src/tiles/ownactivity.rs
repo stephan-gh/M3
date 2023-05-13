@@ -23,13 +23,13 @@ use core::ops::Deref;
 
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::cell::{Cell, Ref, RefCell, RefMut};
+use crate::client::{Pager, ResMng};
 use crate::com::EpMng;
 use crate::env;
 use crate::errors::{Code, Error};
 use crate::kif;
 use crate::rc::Rc;
 use crate::serialize::M3Deserializer;
-use crate::session::{Pager, ResMng};
 use crate::tcu::{EpId, INVALID_EP, TCU};
 use crate::tiles::{Activity, KMem, Tile};
 use crate::time::TimeDuration;

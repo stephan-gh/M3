@@ -21,6 +21,7 @@ extern crate m3;
 
 use m3::{
     cell::StaticRefCell,
+    client::NetworkManager,
     col::Vec,
     com::{recv_msg, RGateArgs, RecvGate, Semaphore, SendGate},
     env,
@@ -32,7 +33,6 @@ use m3::{
     },
     println,
     rc::Rc,
-    session::NetworkManager,
     tiles::OwnActivity,
     util::math::next_log2,
     vfs::{BufReader, OpenFlags},

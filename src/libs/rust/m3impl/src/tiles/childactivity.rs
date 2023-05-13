@@ -25,6 +25,7 @@ use core::ops::{Deref, DerefMut};
 use crate::cap::{CapFlags, Capability, Selector};
 use crate::cell::Cell;
 use crate::cfg;
+use crate::client::{Pager, ResMng};
 use crate::col::{String, ToString, Vec};
 use crate::com::MemGate;
 use crate::env::{self, Env};
@@ -35,7 +36,6 @@ use crate::kif::{CapRngDesc, CapType};
 use crate::mem;
 use crate::rc::Rc;
 use crate::serialize::{M3Serializer, VecSink};
-use crate::session::{Pager, ResMng};
 use crate::syscalls;
 use crate::tiles::{
     loader, Activity, DefaultMapper, KMem, Mapper, RunningActivity, RunningDeviceActivity,

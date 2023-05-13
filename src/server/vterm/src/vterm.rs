@@ -28,9 +28,8 @@ use m3::log;
 use m3::rc::Rc;
 use m3::server::{
     server_loop, CapExchange, ClientManager, ExcType, RequestHandler, RequestSession, Server,
-    SessId, DEF_MAX_CLIENTS,
+    ServerSession, SessId, DEF_MAX_CLIENTS,
 };
-use m3::session::ServerSession;
 use m3::tiles::Activity;
 
 static MEM: LazyStaticRefCell<Rc<MemGate>> = LazyStaticRefCell::default();

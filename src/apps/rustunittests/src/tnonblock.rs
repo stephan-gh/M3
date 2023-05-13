@@ -13,11 +13,11 @@
  * General Public License version 2 for more details.
  */
 
+use m3::client::Pipes;
 use m3::com::MemGate;
 use m3::errors::Code;
 use m3::io::{Read, Write};
 use m3::kif;
-use m3::session::Pipes;
 use m3::test::WvTester;
 use m3::tiles::OwnActivity;
 use m3::vfs::{File, IndirectPipe, OpenFlags, VFS};

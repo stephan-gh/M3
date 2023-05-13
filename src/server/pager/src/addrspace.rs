@@ -15,6 +15,7 @@
 
 use m3::cap::Selector;
 use m3::cfg;
+use m3::client::MapFlags;
 use m3::col::Vec;
 use m3::com::GateIStream;
 use m3::errors::{Code, Error};
@@ -23,8 +24,7 @@ use m3::io::LogFlags;
 use m3::kif::{CapRngDesc, CapType, PageFlags, Perm};
 use m3::log;
 use m3::reply_vmsg;
-use m3::server::{CapExchange, ClientManager, RequestSession, SessId};
-use m3::session::{MapFlags, ServerSession};
+use m3::server::{CapExchange, ClientManager, RequestSession, ServerSession, SessId};
 use m3::tiles::Activity;
 use m3::util::math;
 use resmng::childs;

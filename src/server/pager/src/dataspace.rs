@@ -16,6 +16,7 @@
 use m3::cap::Selector;
 use m3::cell::{RefCell, StaticCell};
 use m3::cfg;
+use m3::client::{ClientSession, MapFlags, M3FS};
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
@@ -23,7 +24,6 @@ use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
 use m3::rc::Rc;
-use m3::session::{ClientSession, MapFlags, M3FS};
 use m3::util::math;
 use resmng::childs;
 

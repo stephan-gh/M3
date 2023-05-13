@@ -22,6 +22,7 @@ use core::fmt;
 
 use crate::cap::{Capability, Selector};
 use crate::cell::LazyReadOnlyCell;
+use crate::client::{Pager, ResMng};
 use crate::col::Vec;
 use crate::com::MemGate;
 use crate::errors::Error;
@@ -29,7 +30,6 @@ use crate::goff;
 use crate::kif;
 use crate::kif::{CapRngDesc, TileDesc};
 use crate::rc::Rc;
-use crate::session::{Pager, ResMng};
 use crate::syscalls;
 use crate::tcu::{ActId, EpId, TileId};
 use crate::tiles::{KMem, OwnActivity, Tile};

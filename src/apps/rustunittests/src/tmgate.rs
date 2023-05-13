@@ -18,10 +18,10 @@
 
 use m3::cap::Selector;
 use m3::cfg;
+use m3::client::MapFlags;
 use m3::com::{MGateArgs, MemGate, Perm, Semaphore};
 use m3::errors::Code;
 use m3::goff;
-use m3::session::MapFlags;
 use m3::test::WvTester;
 use m3::tiles::{Activity, ChildActivity, RunningActivity, Tile};
 use m3::util::math;

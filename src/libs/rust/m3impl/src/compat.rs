@@ -18,6 +18,7 @@ use core::mem;
 
 use crate::boxed::Box;
 use crate::cell::{LazyStaticRefCell, RefMut};
+use crate::client::NetworkManager;
 use crate::errors::{Code, Error};
 use crate::io::{read_object, Read, Write};
 use crate::libc;
@@ -26,7 +27,6 @@ use crate::net::{
     TcpSocket, UdpSocket,
 };
 use crate::rc::Rc;
-use crate::session::NetworkManager;
 use crate::tiles::{Activity, OwnActivity};
 use crate::time::{TimeDuration, TimeInstant};
 use crate::util;

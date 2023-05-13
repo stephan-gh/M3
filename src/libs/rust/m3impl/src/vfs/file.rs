@@ -24,13 +24,13 @@ use num_enum::IntoPrimitive;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::cap::Selector;
+use crate::client::{HashInput, HashOutput, MapFlags, Pager};
 use crate::col::String;
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::io::{Read, Write};
 use crate::kif;
 use crate::serialize::{Deserialize, M3Serializer, Serialize, VecSink};
-use crate::session::{HashInput, HashOutput, MapFlags, Pager};
 use crate::tiles::ChildActivity;
 use crate::vfs::{BlockId, DevId, Fd, INodeId};
 

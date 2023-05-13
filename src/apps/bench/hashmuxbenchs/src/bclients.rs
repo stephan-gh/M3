@@ -15,6 +15,7 @@
 use crate::util;
 
 use m3::cap::Selector;
+use m3::client::HashSession;
 use m3::col::Vec;
 use m3::com::{
     recv_msg, recv_reply, GateIStream, MemGate, Perm, RecvGate, SGateArgs, SendGate, EP,
@@ -24,7 +25,6 @@ use m3::errors::Error;
 use m3::io::LogFlags;
 use m3::mem;
 use m3::serialize::{Deserialize, Serialize};
-use m3::session::HashSession;
 use m3::tcu;
 use m3::tcu::INVALID_EP;
 use m3::test::WvTester;

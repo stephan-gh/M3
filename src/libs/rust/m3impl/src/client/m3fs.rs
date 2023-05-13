@@ -22,6 +22,7 @@ use core::fmt;
 use crate::boxed::Box;
 use crate::cap::Selector;
 use crate::cell::RefCell;
+use crate::client::ClientSession;
 use crate::col::Vec;
 use crate::com::{opcodes, recv_result, RecvGate, SendGate, EP};
 use crate::errors::Error;
@@ -29,7 +30,6 @@ use crate::goff;
 use crate::kif;
 use crate::rc::Rc;
 use crate::serialize::{M3Deserializer, M3Serializer, VecSink};
-use crate::session::ClientSession;
 use crate::tiles::{Activity, ChildActivity};
 use crate::vfs::{FSHandle, File, FileInfo, FileMode, FileSystem, GenericFile, OpenFlags};
 

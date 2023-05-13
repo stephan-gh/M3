@@ -16,13 +16,13 @@
 
 #![no_std]
 
+use m3::client::NetworkManager;
 use m3::com::Semaphore;
 use m3::errors::Error;
 use m3::net::{
     DGramSocket, DgramSocketArgs, Socket, State, StreamSocket, StreamSocketArgs, TcpSocket,
     UdpSocket,
 };
-use m3::session::NetworkManager;
 use m3::vfs::{FileEvent, FileWaiter};
 
 #[no_mangle]

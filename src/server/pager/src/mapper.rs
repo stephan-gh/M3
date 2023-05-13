@@ -13,11 +13,11 @@
  * General Public License version 2 for more details.
  */
 
+use m3::client::MapFlags;
+use m3::client::Pager;
 use m3::errors::Error;
 use m3::goff;
 use m3::kif::Perm;
-use m3::session::MapFlags;
-use m3::session::Pager;
 use m3::tiles::Mapper;
 use m3::vfs::{BufReader, File, FileRef};
 

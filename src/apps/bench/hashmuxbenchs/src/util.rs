@@ -12,9 +12,9 @@
  * General Public License version 2 for more details.
  */
 
+use m3::client::HashSession;
 use m3::com::{MemGate, Perm};
 use m3::crypto::HashAlgorithm;
-use m3::session::HashSession;
 use m3::wv_assert_ok;
 
 pub fn prepare_shake_mem(size: usize) -> MemGate {

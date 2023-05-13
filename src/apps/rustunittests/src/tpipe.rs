@@ -16,12 +16,12 @@
  * General Public License version 2 for more details.
  */
 
+use m3::client::Pipes;
 use m3::col::String;
 use m3::com::MemGate;
 use m3::errors::Code;
 use m3::io::{self, Read, Write};
 use m3::kif;
-use m3::session::Pipes;
 use m3::test::{DefaultWvTester, WvTester};
 use m3::tiles::{ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::vfs::{BufReader, IndirectPipe};

@@ -21,15 +21,15 @@ use core::mem::size_of_val;
 use m3::build_vmsg;
 use m3::cap::Selector;
 use m3::cell::StaticCell;
+use m3::client::ClientSession;
 use m3::com::{recv_msg, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
 use m3::kif::{self, CapRngDesc, CapType};
 use m3::mem::MsgBuf;
 use m3::server::{
     server_loop, CapExchange, ClientManager, ExcType, RequestHandler, RequestSession, Server,
-    SessId,
+    ServerSession, SessId,
 };
-use m3::session::{ClientSession, ServerSession};
 use m3::syscalls;
 use m3::test::{DefaultWvTester, WvTester};
 use m3::tiles::{Activity, ActivityArgs, ChildActivity, OwnActivity, RunningActivity, Tile};

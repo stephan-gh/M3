@@ -30,12 +30,14 @@ mod reqhdl;
 #[allow(clippy::module_inception)]
 mod server;
 mod sesscon;
+mod session;
 
 pub use self::reqhdl::{
     ClientManager, RequestHandler, RequestSession, DEF_MAX_CLIENTS, DEF_MSG_SIZE,
 };
 pub use self::server::{CapExchange, ExcType, Handler, Server};
 pub use self::sesscon::{SessId, SessionContainer};
+pub use self::session::ServerSession;
 
 use crate::errors::Error;
 use crate::tiles::OwnActivity;

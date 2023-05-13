@@ -19,13 +19,13 @@
 use core::cmp;
 
 use crate::cfg;
+use crate::client::MapFlags;
 use crate::com::MemGate;
 use crate::elf;
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::io::{read_object, Read};
 use crate::kif;
-use crate::session::MapFlags;
 use crate::tiles::{Activity, Mapper};
 use crate::util::math;
 use crate::vec;

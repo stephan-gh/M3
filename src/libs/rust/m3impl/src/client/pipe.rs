@@ -18,10 +18,10 @@
 
 use crate::boxed::Box;
 use crate::cap::Selector;
+use crate::client::ClientSession;
 use crate::com::{opcodes, MemGate, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::kif::{CapRngDesc, CapType};
-use crate::session::ClientSession;
 use crate::vfs::{File, GenericFile, OpenFlags};
 
 /// Represents a session at the pipes server.

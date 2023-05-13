@@ -34,11 +34,11 @@ pub use base::{
 };
 
 pub mod cap;
+pub mod client;
 pub mod compat;
 pub mod crypto;
 pub mod env;
 pub mod server;
-pub mod session;
 pub mod syscalls;
 #[macro_use]
 pub mod test;

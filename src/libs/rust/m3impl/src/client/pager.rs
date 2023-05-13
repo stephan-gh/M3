@@ -20,12 +20,12 @@ use bitflags::bitflags;
 use core::fmt;
 
 use crate::cap;
+use crate::client::ClientSession;
 use crate::com::{opcodes, MemGate, RGateArgs, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::goff;
 use crate::kif;
 use crate::serialize::{Deserialize, Serialize};
-use crate::session::ClientSession;
 use crate::syscalls;
 use crate::tiles::ChildActivity;
 

@@ -15,11 +15,11 @@
 use crate::util;
 
 use m3::cap::Selector;
+use m3::client::HashSession;
 use m3::col::Vec;
 use m3::com::{MemGate, Perm, Semaphore};
 use m3::crypto::HashAlgorithm;
 use m3::io::LogFlags;
-use m3::session::HashSession;
 use m3::test::WvTester;
 use m3::tiles::{Activity, ChildActivity, RunningActivity, RunningProgramActivity, Tile};
 use m3::time::{CycleDuration, CycleInstant, Results, TimeDuration, TimeInstant};

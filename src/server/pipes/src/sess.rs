@@ -19,8 +19,7 @@ use m3::errors::{Code, Error};
 use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
-use m3::server::{CapExchange, ClientManager, RequestSession, SessId};
-use m3::session::ServerSession;
+use m3::server::{CapExchange, ClientManager, RequestSession, ServerSession, SessId};
 use m3::tiles::Activity;
 
 use crate::chan::{ChanType, Channel};

@@ -14,10 +14,10 @@
 
 #![no_std]
 
+use m3::client::{HashInput, HashOutput, HashSession};
 use m3::crypto::HashAlgorithm;
 use m3::errors::{Code, Error};
 use m3::io::{STDIN_FILENO, STDOUT_FILENO};
-use m3::session::{HashInput, HashOutput, HashSession};
 use m3::tiles::Activity;
 use m3::vfs::{Fd, File, FileRef, OpenFlags, VFS};
 use m3::{env, print, println, vec};

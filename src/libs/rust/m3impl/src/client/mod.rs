@@ -18,7 +18,6 @@
 
 //! Contains session-related abstractions.
 
-mod clisession;
 mod disk;
 mod hash;
 mod m3fs;
@@ -26,9 +25,8 @@ mod netmng;
 mod pager;
 mod pipe;
 pub mod resmng;
-mod srvsession;
+mod session;
 
-pub use self::clisession::ClientSession;
 pub use self::disk::{BlockNo, BlockRange, Disk};
 pub use self::hash::{HashInput, HashOutput, HashSession};
 pub use self::m3fs::M3FS;
@@ -36,4 +34,4 @@ pub use self::netmng::NetworkManager;
 pub use self::pager::{MapFlags, Pager};
 pub use self::pipe::{Pipe, Pipes};
 pub use self::resmng::ResMng;
-pub use self::srvsession::ServerSession;
+pub use self::session::ClientSession;

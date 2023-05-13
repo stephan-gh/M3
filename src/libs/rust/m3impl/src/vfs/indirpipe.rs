@@ -16,10 +16,10 @@
  * General Public License version 2 for more details.
  */
 
+use crate::client::{Pipe, Pipes};
 use crate::com::MemGate;
 use crate::errors::Error;
 use crate::rc::Rc;
-use crate::session::{Pipe, Pipes};
 use crate::tiles::Activity;
 use crate::vfs::{Fd, FileRef, GenericFile};
 

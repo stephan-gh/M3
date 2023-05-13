@@ -41,9 +41,8 @@ use m3::log;
 use m3::mem::{size_of, AlignedBuf, MsgBuf, MsgBufRef};
 use m3::server::{
     server_loop, CapExchange, ClientManager, ExcType, RequestHandler, RequestSession, Server,
-    SessId, DEF_MSG_SIZE,
+    ServerSession, SessId, DEF_MSG_SIZE,
 };
-use m3::session::ServerSession;
 use m3::tcu::Message;
 use m3::tiles::Activity;
 use m3::time::{TimeDuration, TimeInstant};

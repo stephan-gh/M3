@@ -25,12 +25,12 @@ use core::ops::DerefMut;
 
 use m3::boxed::Box;
 use m3::cell::LazyStaticRefCell;
+use m3::client::{ClientSession, Pager, ResMng, M3FS};
 use m3::col::{String, ToString, Vec};
 use m3::com::{opcodes, MemGate, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
 use m3::server::{ExcType, RequestHandler, Server};
-use m3::session::{ClientSession, Pager, ResMng, M3FS};
 use m3::tcu::Label;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity};
 use m3::util::math;

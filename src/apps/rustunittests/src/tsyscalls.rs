@@ -18,14 +18,14 @@
 
 use m3::cap::Selector;
 use m3::cfg::PAGE_SIZE;
+use m3::client::M3FS;
 use m3::com::{MemGate, RecvGate, SendGate};
 use m3::cpu::{CPUOps, CPU};
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::syscalls::{ActivityOp, SemOp};
 use m3::kif::{CapRngDesc, CapType, Perm, INVALID_SEL, SEL_ACT, SEL_KMEM, SEL_TILE};
-use m3::server::{CapExchange, Handler, Server, SessId, SessionContainer};
-use m3::session::{ServerSession, M3FS};
+use m3::server::{CapExchange, Handler, Server, ServerSession, SessId, SessionContainer};
 use m3::syscalls;
 use m3::tcu::{AVAIL_EPS, FIRST_USER_EP, TOTAL_EPS};
 use m3::test::WvTester;

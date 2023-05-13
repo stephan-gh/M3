@@ -15,11 +15,11 @@
  * General Public License version 2 for more details.
  */
 
+use crate::client::ClientSession;
 use crate::com::{opcodes, MemGate, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::goff;
 use crate::kif::{CapRngDesc, CapType};
-use crate::session::ClientSession;
 use crate::util::math;
 
 use core::{cmp, fmt};

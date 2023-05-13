@@ -26,8 +26,7 @@ use m3::col::Vec;
 use m3::com::GateIStream;
 use m3::errors::{Code, Error};
 use m3::io::LogFlags;
-use m3::server::{CapExchange, ClientManager, RequestSession, SessId};
-use m3::session::ServerSession;
+use m3::server::{CapExchange, ClientManager, RequestSession, ServerSession, SessId};
 use m3::tiles::Activity;
 
 #[allow(clippy::large_enum_variant)]

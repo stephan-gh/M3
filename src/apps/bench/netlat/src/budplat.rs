@@ -13,9 +13,9 @@
  * General Public License version 2 for more details.
  */
 
+use m3::client::NetworkManager;
 use m3::format;
 use m3::net::{DGramSocket, DgramSocketArgs, Endpoint, Socket, UdpSocket};
-use m3::session::NetworkManager;
 use m3::test::WvTester;
 use m3::time::{CycleInstant, Results, TimeDuration};
 use m3::vfs::{File, FileEvent, FileRef, FileWaiter};

@@ -13,9 +13,9 @@
  */
 
 use crate::util;
+use m3::client::{HashInput, HashOutput, HashSession};
 use m3::com::{MemGate, Perm};
 use m3::crypto::HashAlgorithm;
-use m3::session::{HashInput, HashOutput, HashSession};
 use m3::test::WvTester;
 use m3::time::{CycleInstant, Duration, Profiler};
 use m3::vfs::{OpenFlags, VFS};

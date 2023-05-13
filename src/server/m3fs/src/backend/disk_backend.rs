@@ -19,11 +19,11 @@ use crate::buf::{LoadLimit, MetaBufferBlock};
 use crate::data::{BlockNo, BlockRange, Extent};
 
 use m3::cap::Selector;
+use m3::client::Disk;
 use m3::com::{MemGate, Perm};
 use m3::errors::Error;
 use m3::goff;
 use m3::kif::INVALID_SEL;
-use m3::session::Disk;
 
 use thread::Event;
 

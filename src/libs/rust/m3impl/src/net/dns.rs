@@ -23,8 +23,8 @@ use base::time::TimeDuration;
 use base::util::random::LinearCongruentialGenerator;
 use base::vec;
 
+use crate::client::NetworkManager;
 use crate::net::{DGramSocket, DgramSocketArgs, Endpoint, IpAddr, Port, Socket, UdpSocket};
-use crate::session::NetworkManager;
 use crate::vfs::{File, FileEvent, FileWaiter};
 
 // based on http://tools.ietf.org/html/rfc1035

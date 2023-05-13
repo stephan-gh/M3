@@ -14,12 +14,12 @@
  */
 
 use m3::boxed::Box;
+use m3::client::resmng;
 use m3::com::{opcodes, GateIStream, RecvGate};
 use m3::errors::{Code, Error, VerboseError};
 use m3::io::LogFlags;
 use m3::log;
 use m3::reply_vmsg;
-use m3::session::resmng;
 use m3::tiles::OwnActivity;
 use m3::vec::Vec;
 

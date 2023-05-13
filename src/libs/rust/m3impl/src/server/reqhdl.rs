@@ -27,8 +27,9 @@ use crate::format;
 use crate::io::LogFlags;
 use crate::kif;
 use crate::log;
-use crate::server::{server_loop, CapExchange, ExcType, Handler, Server, SessId, SessionContainer};
-use crate::session::ServerSession;
+use crate::server::{
+    server_loop, CapExchange, ExcType, Handler, Server, ServerSession, SessId, SessionContainer,
+};
 use crate::tcu::Label;
 use crate::tiles::Activity;
 use crate::util::math;
@@ -62,7 +63,7 @@ pub trait RequestSession {
     /// Returns whether this session is dead
     ///
     /// This method will be called after each request handling (see
-    /// [`RequestHandler::fetch_and_handle`]) to see whether the session is still "alive".
+    /// [`RequestHandler::fetch_and_handle_msg`]) to see whether the session is still "alive".
     /// Therefore, overriding this method allows to remove a client's session upon a request from
     /// that client (only the session that received the request is considered for removal!).
     ///

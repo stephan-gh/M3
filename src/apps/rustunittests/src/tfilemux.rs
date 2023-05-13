@@ -17,10 +17,10 @@
  */
 
 use core::cmp;
+use m3::client::Pipes;
 use m3::com::MemGate;
 use m3::io::{Read, Write};
 use m3::kif;
-use m3::session::Pipes;
 use m3::test::WvTester;
 use m3::vfs::{BufReader, FileRef, GenericFile, IndirectPipe, OpenFlags, VFS};
 use m3::{vec, wv_assert_eq, wv_assert_ok, wv_run_test};

@@ -21,6 +21,7 @@ mod partition;
 
 use m3::cap::Selector;
 use m3::cell::LazyStaticRefCell;
+use m3::client::{BlockNo, BlockRange};
 use m3::col::{Treap, Vec};
 use m3::com::{opcodes, GateIStream, MemGate};
 use m3::env;
@@ -29,10 +30,9 @@ use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
 use m3::server::{
-    CapExchange, ClientManager, ExcType, RequestHandler, RequestSession, Server, SessId,
-    DEF_MAX_CLIENTS,
+    CapExchange, ClientManager, ExcType, RequestHandler, RequestSession, Server, ServerSession,
+    SessId, DEF_MAX_CLIENTS,
 };
-use m3::session::{BlockNo, BlockRange, ServerSession};
 use m3::tiles::Activity;
 
 use backend::BlockDevice;

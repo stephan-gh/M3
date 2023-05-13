@@ -14,13 +14,13 @@
 
 use hex_literal::hex;
 
+use m3::client::{HashInput, HashOutput, HashSession, Pipes};
 use m3::col::Vec;
 use m3::com::{MemGate, Perm};
 use m3::crypto::{HashAlgorithm, HashType};
 use m3::errors::{Code, Error};
 use m3::io;
 use m3::io::{Read, Write};
-use m3::session::{HashInput, HashOutput, HashSession, Pipes};
 use m3::test::{DefaultWvTester, WvTester};
 use m3::tiles::{Activity, ChildActivity, RunningActivity, RunningProgramActivity, Tile};
 use m3::vfs::{File, FileRef, IndirectPipe, OpenFlags, Seek, SeekMode, VFS};

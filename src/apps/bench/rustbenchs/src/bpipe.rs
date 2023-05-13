@@ -17,12 +17,12 @@
  */
 
 use m3::cell::StaticRefCell;
+use m3::client::Pipes;
 use m3::com::MemGate;
 use m3::errors::Code;
 use m3::io::{self, Read, Write};
 use m3::kif;
 use m3::mem::AlignedBuf;
-use m3::session::Pipes;
 use m3::test::WvTester;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::time::{CycleInstant, Profiler};

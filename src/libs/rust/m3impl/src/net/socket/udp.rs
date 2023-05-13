@@ -19,6 +19,7 @@ use core::any::Any;
 use core::fmt;
 
 use crate::boxed::Box;
+use crate::client::{HashInput, HashOutput, NetworkManager};
 use crate::errors::{Code, Error};
 use crate::io;
 use crate::net::{
@@ -27,7 +28,6 @@ use crate::net::{
     Endpoint, NetLogEvent, Port, SocketType,
 };
 use crate::rc::Rc;
-use crate::session::{HashInput, HashOutput, NetworkManager};
 use crate::tiles::Activity;
 use crate::vfs::{self, Fd, File, FileEvent, FileRef, INV_FD};
 

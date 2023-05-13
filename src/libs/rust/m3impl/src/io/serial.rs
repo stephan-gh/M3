@@ -20,9 +20,9 @@ use core::any::Any;
 
 use crate::cap::Selector;
 
+use crate::client::{HashInput, HashOutput};
 use crate::errors::Error;
 use crate::io;
-use crate::session::{HashInput, HashOutput};
 use crate::tiles::ChildActivity;
 use crate::vfs;
 

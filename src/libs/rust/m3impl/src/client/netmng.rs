@@ -14,11 +14,11 @@
  * General Public License version 2 for more details.
  */
 
+use crate::client::ClientSession;
 use crate::com::{opcodes, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::net::{BaseSocket, Endpoint, IpAddr, NetEventChannel, Port, Sd, SocketArgs, SocketType};
 use crate::rc::Rc;
-use crate::session::ClientSession;
 
 /// Represents a session at the network service, allowing to create and use sockets
 ///
