@@ -27,37 +27,37 @@ use core::{cmp, fmt};
 pub const MSG_SIZE: usize = 128;
 pub const MSG_SLOTS: usize = 1;
 
-pub type BlockNo = u32;
+pub type DiskBlockNo = u32;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub struct BlockRange {
-    pub start: BlockNo,
-    pub count: BlockNo,
+pub struct DiskBlockRange {
+    pub start: DiskBlockNo,
+    pub count: DiskBlockNo,
 }
 
-impl BlockRange {
-    pub fn new(bno: BlockNo) -> Self {
+impl DiskBlockRange {
+    pub fn new(bno: DiskBlockNo) -> Self {
         Self::new_range(bno, 1)
     }
 
-    pub fn new_range(start: BlockNo, count: BlockNo) -> Self {
-        BlockRange { start, count }
+    pub fn new_range(start: DiskBlockNo, count: DiskBlockNo) -> Self {
+        DiskBlockRange { start, count }
     }
 }
 
-impl fmt::Debug for BlockRange {
+impl fmt::Debug for DiskBlockRange {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}..{}", self.start, self.start + self.count - 1)
     }
 }
 
-impl cmp::PartialOrd for BlockRange {
-    fn partial_cmp(&self, other: &BlockRange) -> Option<cmp::Ordering> {
+impl cmp::PartialOrd for DiskBlockRange {
+    fn partial_cmp(&self, other: &DiskBlockRange) -> Option<cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl cmp::Ord for BlockRange {
+impl cmp::Ord for DiskBlockRange {
     fn cmp(&self, other: &Self) -> cmp::Ordering {
         if self.start >= other.start && self.start < other.start + other.count {
             cmp::Ordering::Equal
@@ -95,7 +95,7 @@ impl Disk {
         Ok(Disk { sess, rgate, sgate })
     }
 
-    pub fn delegate_mem(&self, mem: &MemGate, blocks: BlockRange) -> Result<(), Error> {
+    pub fn delegate_mem(&self, mem: &MemGate, blocks: DiskBlockRange) -> Result<(), Error> {
         let crd = CapRngDesc::new(CapType::Object, mem.sel(), 1);
         self.sess.delegate(
             crd,
@@ -110,8 +110,8 @@ impl Disk {
 
     pub fn read(
         &self,
-        cap: BlockNo,
-        blocks: BlockRange,
+        cap: DiskBlockNo,
+        blocks: DiskBlockRange,
         blocksize: usize,
         off: Option<goff>,
     ) -> Result<(), Error> {
@@ -130,8 +130,8 @@ impl Disk {
 
     pub fn write(
         &self,
-        cap: BlockNo,
-        blocks: BlockRange,
+        cap: DiskBlockNo,
+        blocks: DiskBlockRange,
         blocksize: usize,
         off: Option<goff>,
     ) -> Result<(), Error> {

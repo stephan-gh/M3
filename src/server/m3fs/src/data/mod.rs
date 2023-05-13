@@ -27,8 +27,8 @@ pub use extent::{ExtPos, Extent, ExtentCache, ExtentRef};
 pub use inode::INodeRef;
 pub use superblock::SuperBlock;
 
-pub type BlockNo = m3::client::BlockNo;
-pub type BlockRange = m3::client::BlockRange;
+pub type BlockNo = m3::client::DiskBlockNo;
+pub type BlockRange = m3::client::DiskBlockRange;
 pub type Dev = u8;
 pub type InodeNo = u32;
 pub type Time = u32;

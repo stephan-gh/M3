@@ -21,7 +21,7 @@ mod partition;
 
 use m3::cap::Selector;
 use m3::cell::LazyStaticRefCell;
-use m3::client::{BlockNo, BlockRange};
+use m3::client::{DiskBlockNo, DiskBlockRange};
 use m3::col::{Treap, Vec};
 use m3::com::{opcodes, GateIStream, MemGate};
 use m3::env;
@@ -49,7 +49,7 @@ static DEVICE: LazyStaticRefCell<IDEBlockDevice> = LazyStaticRefCell::default();
 struct DiskSession {
     serv: ServerSession,
     part: usize,
-    blocks: Treap<BlockRange, Selector>,
+    blocks: Treap<DiskBlockRange, Selector>,
 }
 
 impl RequestSession for DiskSession {
@@ -90,7 +90,7 @@ impl DiskSession {
         sid: SessId,
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
-        let bno: BlockNo = xchg.in_args().pop()?;
+        let bno: DiskBlockNo = xchg.in_args().pop()?;
         let len: u32 = xchg.in_args().pop()?;
 
         log!(
@@ -103,7 +103,7 @@ impl DiskSession {
 
         let sess = cli.get_mut(sid).unwrap();
         let sel = Activity::own().alloc_sel();
-        let range = BlockRange::new_range(bno, len);
+        let range = DiskBlockRange::new_range(bno, len);
         sess.blocks.remove(&range);
         sess.blocks.insert(range, sel);
 
@@ -127,8 +127,8 @@ impl DiskSession {
     where
         F: Fn(usize, &MemGate, usize, usize, usize) -> Result<(), Error>,
     {
-        let cap: BlockNo = is.pop()?;
-        let start: BlockNo = is.pop()?;
+        let cap: DiskBlockNo = is.pop()?;
+        let start: DiskBlockNo = is.pop()?;
         let len: usize = is.pop()?;
         let block_size: usize = is.pop()?;
         let mut off: usize = is.pop()?;
@@ -149,7 +149,7 @@ impl DiskSession {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let range = BlockRange::new_range(cap, 1);
+        let range = DiskBlockRange::new_range(cap, 1);
         let mem_sel = self
             .blocks
             .get(&range)

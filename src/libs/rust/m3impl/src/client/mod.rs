@@ -27,7 +27,7 @@ mod pipe;
 pub mod resmng;
 mod session;
 
-pub use self::disk::{BlockNo, BlockRange, Disk};
+pub use self::disk::{Disk, DiskBlockNo, DiskBlockRange};
 pub use self::hash::{HashInput, HashOutput, HashSession};
 pub use self::m3fs::M3FS;
 pub use self::netmng::NetworkManager;
