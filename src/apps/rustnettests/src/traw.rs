@@ -50,7 +50,7 @@ fn mac_addr(t: &mut dyn WvTester) {
 fn exec_ping(t: &mut dyn WvTester) {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
-    let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, pipe_mem, 0x10000));
+    let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, pipe_mem));
 
     let tile = wv_assert_ok!(Tile::get("compat|own"));
     let mut ping = wv_assert_ok!(ChildActivity::new_with(tile, ActivityArgs::new("ping")));

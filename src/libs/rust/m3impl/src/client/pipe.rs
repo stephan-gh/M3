@@ -43,8 +43,9 @@ impl Pipes {
         Ok(Pipes { sess })
     }
 
-    /// Creates a new pipe using `mem` of `mem_size` bytes as shared memory for the data exchange.
-    pub fn create_pipe(&self, mem: MemGate, mem_size: usize) -> Result<Pipe, Error> {
+    /// Creates a new pipe using `mem` as shared memory for the data exchange.
+    pub fn create_pipe(&self, mem: MemGate) -> Result<Pipe, Error> {
+        let mem_size = mem.region()?.1;
         let crd = self.sess.obtain(
             2,
             |os| {

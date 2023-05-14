@@ -67,7 +67,7 @@ fn files(t: &mut dyn WvTester) {
 fn pipes(t: &mut dyn WvTester) {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let pipe_mem = wv_assert_ok!(MemGate::new(PIPE_SIZE, kif::Perm::RW));
-    let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, pipe_mem, PIPE_SIZE));
+    let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, pipe_mem));
 
     let mut fin = wv_assert_some!(pipe.reader());
     let mut fout = wv_assert_some!(pipe.writer());
