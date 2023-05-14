@@ -20,11 +20,11 @@ use m3::cell::StaticRefCell;
 use m3::client::Pipes;
 use m3::com::MemGate;
 use m3::errors::Code;
-use m3::io::{self, Read, Write};
+use m3::io::{self, stdin, stdout, Read, Write};
 use m3::kif;
 use m3::mem::AlignedBuf;
 use m3::test::WvTester;
-use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
+use m3::tiles::{ActivityArgs, ChildActivity, RunningActivity, Tile};
 use m3::time::{CycleInstant, Profiler};
 use m3::vfs::IndirectPipe;
 use m3::{format, wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test};
@@ -55,11 +55,10 @@ fn child_to_parent(t: &mut dyn WvTester) {
         act.add_file(io::STDOUT_FILENO, pipe.writer().unwrap().fd());
 
         let act = wv_assert_ok!(act.run(|| {
-            let mut output = Activity::own().files().get(io::STDOUT_FILENO).unwrap();
             let buf = BUF.borrow();
             let mut rem = DATA_SIZE;
             while rem > 0 {
-                wv_assert_ok!(output.write(&buf[..]));
+                wv_assert_ok!(stdout().write(&buf[..]));
                 rem -= BUF_SIZE;
             }
             Ok(())
@@ -100,9 +99,8 @@ fn parent_to_child(t: &mut dyn WvTester) {
         act.add_file(io::STDIN_FILENO, pipe.reader().unwrap().fd());
 
         let act = wv_assert_ok!(act.run(|| {
-            let mut input = Activity::own().files().get(io::STDIN_FILENO).unwrap();
             let mut buf = BUF.borrow_mut();
-            while wv_assert_ok!(input.read(&mut buf[..])) > 0 {}
+            while wv_assert_ok!(stdin().read(&mut buf[..])) > 0 {}
             Ok(())
         }));
 
