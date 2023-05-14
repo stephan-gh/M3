@@ -29,7 +29,7 @@ use crate::serialize::{M3Deserializer, M3Serializer, VecSink};
 use crate::tiles::ChildActivity;
 use crate::vfs::{FileSystem, VFS};
 
-/// A reference to a file system.
+/// A reference to a file system
 pub type FSHandle = Rc<RefCell<dyn FileSystem>>;
 
 /// Represents a mount point
@@ -39,7 +39,7 @@ pub struct MountPoint {
 }
 
 impl MountPoint {
-    /// Creates a new mount point for given path and file system.
+    /// Creates a new mount point for given path and file system
     pub fn new(path: &str, fs: FSHandle) -> MountPoint {
         MountPoint {
             path: path.to_string(),
@@ -48,7 +48,11 @@ impl MountPoint {
     }
 }
 
-/// The table of mount points.
+/// The table of mount points
+///
+/// Similarly to the [`FileTable`](`crate::vfs::FileTable`), the mount table stores all mount points
+/// and is used to resolve a path into a file system instance and the remaining file-system-internal
+/// path.
 #[derive(Default)]
 pub struct MountTable {
     mounts: Vec<MountPoint>,
@@ -63,7 +67,7 @@ impl MountTable {
         res
     }
 
-    /// Adds a new mount point at given path and given file system to the table.
+    /// Adds a new mount point at given path and given file system to the table
     pub fn add(&mut self, path: &str, fs: FSHandle) -> Result<(), Error> {
         if self.path_to_idx(path).is_some() {
             return Err(Error::new(Code::Exists));
@@ -76,12 +80,12 @@ impl MountTable {
         Ok(())
     }
 
-    /// Returns the file system mounted exactly at the given path.
+    /// Returns the file system mounted exactly at the given path
     pub fn get_by_path(&self, path: &str) -> Option<FSHandle> {
         self.path_to_idx(path).map(|i| self.mounts[i].fs.clone())
     }
 
-    /// Returns the mount point with id `mid`.
+    /// Returns the mount point with id `mid`
     pub fn get_by_id(&self, mid: usize) -> Option<FSHandle> {
         self.mounts
             .iter()
@@ -97,8 +101,10 @@ impl MountTable {
             .map(|mp| &mp.path)
     }
 
-    /// Resolves the given path to the file system image and the offset of the mount point within
-    /// the path. The given path is turned into an absolute path in case it's relative. The returned
+    /// Resolves the given path to the file-system instance
+    ///
+    /// The method returns the file-system instance and the offset of the mount point within the
+    /// path. The given path is turned into an absolute path in case it's relative. The returned
     /// offset refers to the absolute path.
     pub fn resolve(&self, path: &mut Cow<'_, str>) -> Result<(FSHandle, usize), Error> {
         if !path.starts_with('/') {
@@ -113,7 +119,7 @@ impl MountTable {
         Err(Error::new(Code::NoSuchFile))
     }
 
-    /// Removes the mount point at `path` from the table.
+    /// Removes the mount point at `path` from the table
     pub fn remove(&mut self, path: &str) -> Result<(), Error> {
         match self.path_to_idx(path) {
             Some(i) => {

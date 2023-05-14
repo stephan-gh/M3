@@ -33,7 +33,7 @@ use crate::serialize::{M3Serializer, VecSink};
 use crate::tiles::{Activity, ChildActivity};
 use crate::vfs::{Fd, File, FileEvent, FileTable, Map, Seek, SeekMode, TMode};
 
-/// A file reference provides access to a file of type `T`.
+/// A file reference provides access to a file of type `T`
 ///
 /// Depending on whether `FileRef` was created via [`FileRef::new_owned`] or [`FileRef::new`] the
 /// file is closed on drop or not, respectively.
@@ -45,7 +45,9 @@ pub struct FileRef<T: ?Sized> {
 }
 
 impl<T: ?Sized> FileRef<T> {
-    /// Creates new file reference for the given file descriptor. The file is not closed on drop.
+    /// Creates new "unowned" file reference for the given file descriptor
+    ///
+    /// The file is *not* closed on drop.
     pub fn new(fd: Fd) -> Self {
         FileRef {
             fd,
@@ -54,7 +56,9 @@ impl<T: ?Sized> FileRef<T> {
         }
     }
 
-    /// Creates new file reference for the given file descriptor. On drop, the file is closed.
+    /// Creates new owned file reference for the given file descriptor
+    ///
+    /// On drop, the file is closed.
     pub fn new_owned(fd: Fd) -> Self {
         FileRef {
             fd,
@@ -63,18 +67,20 @@ impl<T: ?Sized> FileRef<T> {
         }
     }
 
-    /// Claims the ownership of the file in the sense that this `FileRef` does not close the file on
-    /// drop. Therefore, the caller is responsible to close the file.
+    /// Claims the ownership of the file
+    ///
+    /// That is, on drop the file is not closed even if [`FileRef::new_owned`] was used to create
+    /// the `FileRef`. Therefore, the caller is responsible to close the file.
     pub fn claim(&mut self) {
         self.close = false;
     }
 
-    /// Returns the file descriptor.
+    /// Returns the file descriptor
     pub fn fd(&self) -> Fd {
         self.fd
     }
 
-    /// Returns the file.
+    /// Returns the file
     pub fn borrow(&self) -> RefMut<'_, dyn File> {
         let files = Activity::own().files();
         FileTable::get_raw(files, self.fd).unwrap()
@@ -88,7 +94,7 @@ impl<T: ?Sized> FileRef<T> {
 }
 
 impl<T: 'static> FileRef<T> {
-    /// Returns the file.
+    /// Returns the file
     pub fn borrow_as(&self) -> RefMut<'_, T> {
         let files = Activity::own().files();
         let file = FileTable::get_raw(files, self.fd).unwrap();

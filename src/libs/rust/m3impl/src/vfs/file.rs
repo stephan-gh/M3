@@ -34,43 +34,46 @@ use crate::serialize::{Deserialize, M3Serializer, Serialize, VecSink};
 use crate::tiles::ChildActivity;
 use crate::vfs::{BlockId, DevId, Fd, INodeId};
 
-/// The different seek modes.
+/// The different seek modes
 #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, Serialize_repr, Deserialize_repr)]
 #[repr(u32)]
 pub enum SeekMode {
+    /// Set the file position to given absolute offset
     Set,
+    /// Set the file position relatively to the current position
     Cur,
+    /// Set the file position to the end of the file
     End,
 }
 
 bitflags! {
-    /// The flags to open files.
+    /// The flags to open files
     #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     #[repr(C)]
     #[serde(crate = "base::serde")]
     pub struct OpenFlags : u32 {
-        /// Opens the file for reading.
+        /// Opens the file for reading
         const R         = 0b0000_0001;
-        /// Opens the file for writing.
+        /// Opens the file for writing
         const W         = 0b0000_0010;
-        /// Opens the file for code execution.
+        /// Opens the file for code execution
         const X         = 0b0000_0100;
-        /// Truncates the file on open.
+        /// Truncates the file on open
         const TRUNC     = 0b0000_1000;
-        /// Appends to the file.
+        /// Appends to the file
         const APPEND    = 0b0001_0000;
-        /// Creates the file if it doesn't exist.
+        /// Creates the file if it doesn't exist
         const CREATE    = 0b0010_0000;
-        /// For benchmarking: only pretend to access the file's data.
+        /// For benchmarking: only pretend to access the file's data
         const NODATA    = 0b0100_0000;
         /// Create a new file session
         const NEW_SESS  = 0b1000_0000;
 
-        /// Opens the file for reading and writing.
+        /// Opens the file for reading and writing
         const RW        = Self::R.bits() | Self::W.bits();
-        /// Opens the file for reading and code execution.
+        /// Opens the file for reading and code execution
         const RX        = Self::R.bits() | Self::X.bits();
-        /// Opens the file for reading, writing, and code execution.
+        /// Opens the file for reading, writing, and code execution
         const RWX       = Self::R.bits() | Self::W.bits() | Self::X.bits();
     }
 }
@@ -85,6 +88,7 @@ impl From<OpenFlags> for kif::Perm {
 }
 
 bitflags! {
+    /// The file mode (type and access permissions)
     #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
     #[repr(C)]
     #[serde(crate = "base::serde")]
@@ -119,32 +123,18 @@ bitflags! {
 }
 
 impl FileMode {
+    /// Returns true if this file mode represents a directory
     pub fn is_dir(self) -> bool {
         (self & Self::IFMT) == Self::IFDIR
     }
 
+    /// Returns true if this file mode represents a regular file
     pub fn is_reg(self) -> bool {
         (self & Self::IFMT) == Self::IFREG
     }
-
-    pub fn is_link(self) -> bool {
-        (self & Self::IFMT) == Self::IFLNK
-    }
-
-    pub fn is_chr(self) -> bool {
-        (self & Self::IFMT) == Self::IFCHR
-    }
-
-    pub fn is_blk(self) -> bool {
-        (self & Self::IFMT) == Self::IFBLK
-    }
-
-    pub fn is_pip(self) -> bool {
-        (self & Self::IFMT) == Self::IFPIP
-    }
 }
 
-/// The file information that can be retrieved via [`VFS::stat`](crate::vfs::VFS::stat).
+/// The file information that can be retrieved via [`VFS::stat`](crate::vfs::VFS::stat)
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 #[repr(C)]
 #[serde(crate = "base::serde")]
@@ -163,32 +153,39 @@ pub struct FileInfo {
 }
 
 bitflags! {
+    /// The events that are supported for a [`File`]
     #[repr(C)]
     #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct FileEvent : u32 {
+        /// Input is available, that is, data can be read from the file
         const INPUT         = 1;
+        /// Output is available, that is, data can be written to the file
         const OUTPUT        = 2;
+        /// A signal is available (see [`File::fetch_signal`])
         const SIGNAL        = 4;
     }
 }
 
+/// The different terminal modes
 #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, Serialize_repr, Deserialize_repr)]
 #[repr(u32)]
 pub enum TMode {
+    /// No handling of control characters and no buffering; pass all read characters to the client
     Raw,
+    /// Handle control characters and pass full lines to the client
     Cooked,
 }
 
-/// Trait for files.
+/// Trait for files
 ///
 /// All files can be read, written, seeked and mapped into memory.
 pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
 
-    /// Returns the file descriptor.
+    /// Returns the file descriptor
     fn fd(&self) -> Fd;
-    /// Sets the file descriptor.
+    /// Sets the file descriptor
     fn set_fd(&mut self, fd: Fd);
 
     /// Returns the session selector, if any
@@ -196,19 +193,19 @@ pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
         None
     }
 
-    /// Executes necessary actions on file removal.
+    /// Executes necessary actions on file removal
     ///
     /// Implementations of [`File`] can use this to perform final actions when the file is removed
     /// from the file table.
     fn remove(&mut self) {
     }
 
-    /// Retrieves the file information.
+    /// Retrieves the file information
     fn stat(&self) -> Result<FileInfo, Error> {
         Err(Error::new(Code::NotSup))
     }
 
-    /// Retrieves the absolute path for this file, including its mount point.
+    /// Retrieves the absolute path for this file, including its mount point
     fn path(&self) -> Result<String, Error> {
         Err(Error::new(Code::NotSup))
     }
@@ -223,13 +220,13 @@ pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
         Err(Error::new(Code::NotSup))
     }
 
-    /// Returns the type of the file implementation used for serialization.
+    /// Returns the type of the file implementation used for serialization
     fn file_type(&self) -> u8;
-    /// Delegates this file to `act`.
+    /// Delegates this file to `act`
     fn delegate(&self, _act: &ChildActivity) -> Result<Selector, Error> {
         Err(Error::new(Code::NotSup))
     }
-    /// Serializes this file into `s`.
+    /// Serializes this file into `s`
     fn serialize(&self, _s: &mut M3Serializer<VecSink<'_>>) {
     }
 
@@ -239,15 +236,17 @@ pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
         true
     }
 
-    /// Sets whether this file operates in blocking or non-blocking mode. In blocking mode,
-    /// [`read`](Read::read) and [`write`](Write::write) will block, whereas in non-blocking mode,
-    /// they return -1 in case they would block (e.g., when the server needs to be asked to get
-    /// access to the next input/output region).
+    /// Sets whether this file operates in blocking or non-blocking mode
+    ///
+    /// In blocking mode, [`read`](Read::read) and [`write`](Write::write) will block, whereas in
+    /// non-blocking mode, they return [`Code::WouldBlock`] in case they would block (e.g., when the
+    /// server needs to be asked to get access to the next input/output region).
     ///
     /// Note that setting the file to non-blocking might establish an additional communication
     /// channel to the server, if required and not already done.
     ///
-    /// If the server or the file type does not the non-blocking mode, an exception is thrown.
+    /// If the server or the file type does not the non-blocking mode, the [`Code::NotSup`] error is
+    /// returned.
     fn set_blocking(&mut self, blocking: bool) -> Result<(), Error> {
         match blocking {
             true => Ok(()),
@@ -255,17 +254,20 @@ pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
         }
     }
 
-    /// Tries to fetch a signal from the file, if any. Note that this might establish an additional
-    /// communication channel to the server, if required and not already done.
+    /// Tries to fetch a signal from the file, if any
     ///
-    /// If the server or the file type does not support signals, an exception is thrown.
+    /// Note that this might establish an additional communication channel to the server, if
+    /// required and not already done.
+    ///
+    /// If the server or the file type does not support signals, the [`Code::NotSup`] error is
+    /// returned.
     ///
     /// Returns true if a signal was found
     fn fetch_signal(&mut self) -> Result<bool, Error> {
         Err(Error::new(Code::NotSup))
     }
 
-    /// Checks whether any of the given events has arrived.
+    /// Checks whether any of the given events has arrived
     ///
     /// More specifically, if [`FileEvent::INPUT`] is given and reading from the file might result
     /// in receiving data, the function returns true.
@@ -280,9 +282,9 @@ pub trait File: Read + Write + Seek + Map + Debug + HashInput + HashOutput {
     }
 }
 
-/// Trait for resources that are seekable.
+/// Trait for resources that are seekable
 pub trait Seek {
-    /// Seeks to position `off`, using the given seek mode.
+    /// Seeks to position `off`, using the given seek mode
     ///
     /// If `whence` == [`SeekMode::Set`], the position is set to `off`.
     /// If `whence` == [`SeekMode::Cur`], the position is increased by `off`.
@@ -292,10 +294,10 @@ pub trait Seek {
     }
 }
 
-/// Trait for resources that can be mapped into the virtual address space.
+/// Trait for resources that can be mapped into the virtual address space
 pub trait Map {
     /// Maps the region `off`..`off`+`len` of this file at address `virt` using the given pager and
-    /// permissions.
+    /// permissions
     fn map(
         &self,
         _pager: &Pager,

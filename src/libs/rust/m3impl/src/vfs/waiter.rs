@@ -18,22 +18,29 @@ use crate::tiles::{Activity, OwnActivity};
 use crate::time::{TimeDuration, TimeInstant};
 use crate::vfs::{Fd, File, FileEvent};
 
+/// The file waiter allows to wait for events on multiple files
+///
+/// `FileWaiter` keeps a set of file descriptor and [`FileEvent`] and allows to block until any of
+/// them receives this event (e.g., a file can be read).
 #[derive(Default)]
 pub struct FileWaiter {
     files: Vec<(Fd, FileEvent)>,
 }
 
 impl FileWaiter {
-    /// Adds the given file descriptor with given events to the set of files that this `FileWaiter`
-    /// waits for.
+    /// Adds the given file descriptor with given events to the set of files
     ///
-    /// This method assumes that the file descriptor has not been given to this waiter yet.
+    /// Afterwards, if [`FileWaiter::wait`] for example is called, it will return if this file
+    /// received this event. Note that this method assumes that the file descriptor has not been
+    /// given to this waiter yet.
     pub fn add(&mut self, fd: Fd, events: FileEvent) {
         self.files.push((fd, events));
     }
 
-    /// Adds or sets the given events for the given file descriptor. If the file descriptor already
-    /// exists, the events are updated. Otherwise, a new entry is created.
+    /// Adds or sets the given events for the given file descriptor
+    ///
+    /// If the file descriptor already exists, the events are updated. Otherwise, a new entry is
+    /// created.
     pub fn set(&mut self, fd: Fd, events: FileEvent) {
         if let Some((_, ref mut cur_events)) = self.files.iter_mut().find(|(id, _)| *id == fd) {
             *cur_events = events;
@@ -43,12 +50,12 @@ impl FileWaiter {
         }
     }
 
-    /// Removes the given file descriptor from the set of files that this `FileWaiter` waits for.
+    /// Removes the given file descriptor from the set of files
     pub fn remove(&mut self, fd: Fd) {
         self.files.retain(|(id, _)| *id != fd);
     }
 
-    /// Waits until any file has received any of the desired events.
+    /// Waits until any file has received any of the desired events
     ///
     /// Note also that this function uses
     /// [`Activity::own().sleep`](crate::tiles::OwnActivity::sleep) if no read/write on any file is
@@ -66,7 +73,7 @@ impl FileWaiter {
     }
 
     /// Waits until any file has received any of the desired events or the given timeout in
-    /// nanoseconds is reached.
+    /// nanoseconds is reached
     ///
     /// Note also that this function uses
     /// [`Activity::own().sleep`](crate::tiles::OwnActivity::sleep) if no read/write on any file is
@@ -86,7 +93,7 @@ impl FileWaiter {
         }
     }
 
-    /// Sleep for the given duration, respecting events that may arrive for files.
+    /// Sleep for the given duration, respecting events that may arrive for files
     ///
     /// Note that this function uses [`Activity::own().sleep`](crate::tiles::OwnActivity::sleep) if
     /// no read/write on any file is possible, which suspends the core until the next TCU message
@@ -105,7 +112,7 @@ impl FileWaiter {
         }
     }
 
-    /// Walks through all files and calls `func` on all ready files.
+    /// Walks through all files and calls `func` on all ready files
     pub fn foreach_ready<F>(&self, mut func: F)
     where
         F: FnMut(usize, FileEvent),

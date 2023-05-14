@@ -26,7 +26,7 @@ use crate::vfs::{
     FSHandle, File, FileInfo, FileMode, FileRef, GenericFile, OpenFlags, ReadDir, SeekMode,
 };
 
-/// Mounts the file system of type `fstype` at `path`, creating a session at `service`.
+/// Mounts the file system of type `fstype` at `path`, creating a session at `service`
 pub fn mount(path: &str, fstype: &str, service: &str) -> Result<(), Error> {
     let id = Activity::own().mounts().alloc_id();
     let fsobj = match fstype {
@@ -36,7 +36,7 @@ pub fn mount(path: &str, fstype: &str, service: &str) -> Result<(), Error> {
     Activity::own().mounts().add(path, fsobj)
 }
 
-/// Umounts the file system mounted at `path`.
+/// Umounts the file system mounted at `path`
 pub fn unmount(path: &str) -> Result<(), Error> {
     Activity::own().mounts().remove(path)
 }
@@ -132,7 +132,7 @@ pub fn set_cwd_to(dir_fd: usize) -> Result<(), Error> {
     Ok(())
 }
 
-/// Opens the file at `path` with given flags.
+/// Opens the file at `path` with given flags
 pub fn open(path: &str, flags: OpenFlags) -> Result<FileRef<GenericFile>, Error> {
     with_path(path, |fs, fs_path| {
         let mut file = fs.borrow_mut().open(fs_path, flags)?;
@@ -145,28 +145,28 @@ pub fn open(path: &str, flags: OpenFlags) -> Result<FileRef<GenericFile>, Error>
     })
 }
 
-/// Returns an iterator for entries in the directory at `path`.
+/// Returns an iterator for entries in the directory at `path`
 pub fn read_dir(path: &str) -> Result<ReadDir, Error> {
     let dir = open(path, OpenFlags::R)?;
     Ok(ReadDir::new(dir))
 }
 
-/// Retrieves the file information from the file at `path`.
+/// Retrieves the file information from the file at `path`
 pub fn stat(path: &str) -> Result<FileInfo, Error> {
     with_path(path, |fs, fs_path| fs.borrow().stat(fs_path))
 }
 
-/// Creates a directory with permissions `mode` at `path`.
+/// Creates a directory with permissions `mode` at `path`
 pub fn mkdir(path: &str, mode: FileMode) -> Result<(), Error> {
     with_path(path, |fs, fs_path| fs.borrow().mkdir(fs_path, mode))
 }
 
-/// Removes the directory at `path`, if it is empty.
+/// Removes the directory at `path`, if it is empty
 pub fn rmdir(path: &str) -> Result<(), Error> {
     with_path(path, |fs, fs_path| fs.borrow().rmdir(fs_path))
 }
 
-/// Creates a link at `new` to `old`.
+/// Creates a link at `new` to `old`
 pub fn link(old: &str, new: &str) -> Result<(), Error> {
     let mut old = Cow::from(old);
     let (fs1, pos1) = Activity::own().mounts().resolve(&mut old)?;
@@ -179,12 +179,12 @@ pub fn link(old: &str, new: &str) -> Result<(), Error> {
     res
 }
 
-/// Removes the file at `path`.
+/// Removes the file at `path`
 pub fn unlink(path: &str) -> Result<(), Error> {
     with_path(path, |fs, fs_path| fs.borrow().unlink(fs_path))
 }
 
-/// Renames `new` to `old`.
+/// Renames `new` to `old`
 pub fn rename(old: &str, new: &str) -> Result<(), Error> {
     let mut old = Cow::from(old);
     let (fs1, pos1) = Activity::own().mounts().resolve(&mut old)?;

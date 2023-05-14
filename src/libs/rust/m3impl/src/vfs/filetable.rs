@@ -31,17 +31,21 @@ use crate::vfs::{File, FileRef, GenericFile};
 /// A file descriptor
 pub type Fd = usize;
 
-/// The maximum number of files per [`FileTable`].
+/// The maximum number of files per [`FileTable`]
 pub const INV_FD: usize = !0;
 
-/// The table of open files.
+/// The table of open files
+///
+/// The table is indexed by a file descriptor. However, typical applications don't use the file
+/// table directly, but use [`VFS::open`](`crate::vfs::VFS::open`) and [`FileRef`] to open and
+/// access files.
 #[derive(Default)]
 pub struct FileTable {
     files: Vec<Option<Box<dyn File>>>,
 }
 
 impl FileTable {
-    /// Adds the given file to this file table by allocating a new slot in the table.
+    /// Adds the given file to this file table by allocating a new slot in the table
     pub fn add(&mut self, file: Box<dyn File>) -> Result<Fd, Error> {
         for (fd, cur_file) in self.files.iter().enumerate() {
             if cur_file.is_none() {
@@ -59,12 +63,12 @@ impl FileTable {
         fd < self.files.len() && self.files[fd].is_some()
     }
 
-    /// Returns a reference to the file with given file descriptor.
+    /// Returns a reference to the file with given file descriptor
     pub fn get(&self, fd: Fd) -> Option<FileRef<dyn File>> {
         self.get_as(fd)
     }
 
-    /// Returns a reference to the file with given file descriptor.
+    /// Returns a reference to the file with given file descriptor
     pub fn get_as<T: ?Sized>(&self, fd: Fd) -> Option<FileRef<T>> {
         if fd < self.files.len() {
             self.files[fd].as_ref().map(|_| FileRef::new(fd))
@@ -74,7 +78,7 @@ impl FileTable {
         }
     }
 
-    /// Returns the file with given file descriptor.
+    /// Returns the file with given file descriptor
     pub(crate) fn get_raw(
         ftable: RefMut<'static, Self>,
         fd: Fd,
@@ -90,7 +94,7 @@ impl FileTable {
     }
 
     /// Adds the given file to the table using the file descriptor `fd`, assuming that the file
-    /// descriptor is not yet in use.
+    /// descriptor is not yet in use
     pub(crate) fn set_raw(&mut self, fd: Fd, mut file: Box<dyn File>) {
         if file.fd() == INV_FD {
             file.set_fd(fd);
@@ -109,7 +113,7 @@ impl FileTable {
         }
     }
 
-    /// Removes the file with given file descriptor from the table.
+    /// Removes the file with given file descriptor from the table
     pub fn remove(&mut self, fd: Fd) {
         if let Some(ref mut f) = mem::replace(&mut self.files[fd], None) {
             f.remove();

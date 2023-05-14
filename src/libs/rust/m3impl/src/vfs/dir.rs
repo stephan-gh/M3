@@ -23,7 +23,7 @@ use crate::io::{read_object, Read};
 use crate::mem;
 use crate::vfs::{BufReader, FileRef, GenericFile, INodeId, Seek, SeekMode};
 
-/// Represents a directory entry.
+/// Represents a directory entry
 #[derive(Debug)]
 pub struct DirEntry {
     inode: INodeId,
@@ -31,8 +31,7 @@ pub struct DirEntry {
 }
 
 impl DirEntry {
-    /// Creates a new directory entry with given inode number and name.
-    pub fn new(inode: INodeId, name: String) -> Self {
+    pub(crate) fn new(inode: INodeId, name: String) -> Self {
         DirEntry { inode, name }
     }
 
@@ -41,13 +40,13 @@ impl DirEntry {
         self.inode
     }
 
-    /// Returns the file name.
+    /// Returns the file name
     pub fn file_name(&self) -> &str {
         &self.name
     }
 }
 
-/// An iterator to walk over a directory.
+/// An iterator to walk over a directory
 pub struct ReadDir {
     reader: BufReader<FileRef<GenericFile>>,
 }

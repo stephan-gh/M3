@@ -48,10 +48,63 @@ struct NonBlocking {
     notify_requested: FileEvent,
 }
 
-/// A file implementation for all file-like objects.
+/// A file implementation based on the *file protocol*
 ///
 /// `GenericFile` implements the file protocol and can therefore be used for m3fs files, pipes,
 /// virtual terminals, and whatever else provides file-like objects in the future.
+///
+/// # File protocol
+///
+/// The file protocol is a client/server protocol where the server provides clients direct access to
+/// the data via their TCU. The following provides an overview:
+///
+/// ```text
+/// +-------------------+           +-------------------+
+/// |                   |           |                   |
+/// |       Client      |           |       Server      |
+/// |                   |           |                   |
+/// |  +-------------+  |  request  |  +-------------+  |
+/// |  |             +==+===========+=>|             |  |
+/// |  |     TCU     |  |           |  |     TCU     |  |
+/// |  |             |<=+===========+==+             |  |
+/// |  +---+---------+  | response  |  +-------------+  |
+/// |      |            |           |                   |
+/// +------+------------+           +-------------------+
+///        |
+///        | data access
+///        |
+/// +------+--------------------------------------------+
+/// |      v          +-----+     +-------+        DRAM |
+/// |    +-+-----+    |  D3 |     |  D2   |             |
+/// |    |  D1   |    +-----+     +-------+             |
+/// |    +-------+                                      |
+/// +---------------------------------------------------+
+/// ```
+///
+/// As illustrated above, there are two types of channels: a message-passing channel between client
+/// and server (shown as `==>`) and a memory channel of the client to the data in memory (shown as
+/// `-->`). The data does not have to be contiguous in memory as the client can obtain access to
+/// multiple and variably sized pieces (`D1`, `D2`, and `D3`) step by step. Access to the pieces of
+/// data is requested by the client via the message-passing channel. The server is expected to
+/// update the memory channel at the client side accordingly. Additionally, the server can instruct
+/// clients to consider only a subset of the data visible via the memory channel. The server
+/// therefore tells the client the offset and length of the subset, called *chunk*.
+///
+/// In more detail, the mandatory requests each server needs to support are:
+/// - [`NextIn`](`opcodes::File::NextIn`): requests access to the next chunk of data to read. The
+///   server is expected to update the memory channel (if required) and reply the offset and length
+///   of the current chunk. The `NextIn` request also implicitly acknowledges that the client is
+///   done with the previous chunk.
+/// - [`NextOut`](`opcodes::File::NextOut`): requests access to the location where the next chunk of
+///   data should be written to. Otherwise, it works analogously to `NextIn`.
+/// - [`Commit`](`opcodes::File::Commit`): explicitly acknowledges the completion up to a specified
+///   offset of the previous chunk. In case a client did not read or write the complete chunk, the
+///   `Commit` should be used to inform the server. For example, if an application appends data to a
+///   file and got access to a chunk of 1 MiB to do so, but only wrote 512 KiB, the client has to
+///   inform the file system about the amount of data that was actually appended to the file.
+///
+/// Besides these mandatory requests, servers can optionally also support others like
+/// [`Seek`](`opcodes::File::Seek`) or [`FStat`](`opcodes::File::FStat`).
 pub struct GenericFile {
     id: Option<usize>,
     fs_id: Option<usize>,

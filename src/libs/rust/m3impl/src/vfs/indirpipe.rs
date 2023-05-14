@@ -23,7 +23,12 @@ use crate::rc::Rc;
 use crate::tiles::Activity;
 use crate::vfs::{Fd, FileRef, GenericFile};
 
-/// A uni-directional channel between potentially multiple readers and writers.
+/// A uni-directional communication channel
+///
+/// The `IndirectPipe` provides a uni-directional first-in-first-out communication channel with
+/// multiple readers and writes and therefore provides the same semantics as anonymous pipes on
+/// UNIX. It is called indirect, because the communication between writer and reader happens
+/// indirectly via the pipe server.
 pub struct IndirectPipe {
     _pipe: Rc<Pipe>,
     rd_fd: Fd,
@@ -31,8 +36,13 @@ pub struct IndirectPipe {
 }
 
 impl IndirectPipe {
-    /// Creates a new pipe at pipe service `pipes` using `mem` as the shared memory of `mem_size`
-    /// bytes.
+    /// Creates a new pipe at the service with given name
+    ///
+    /// The argument `mem` specifies the memory region that should be used to exchange the data.
+    /// Besides creating the pipe itself, two channels are created, one for reading and one for
+    /// writing. The methods [`IndirectPipe::reader`] and [`IndirectPipe::writer`] provide access to
+    /// these channels. In case one or both channels are delegated to another activity, the channel
+    /// can be closed via [`IndirectPipe::close_reader`] or [`IndirectPipe::close_writer`].
     pub fn new(pipes: &Pipes, mem: MemGate) -> Result<Self, Error> {
         let pipe = Rc::new(pipes.create_pipe(mem)?);
         let mut files = Activity::own().files();
@@ -45,22 +55,22 @@ impl IndirectPipe {
         })
     }
 
-    /// Returns the file for the reading side.
+    /// Returns the file for the reading side
     pub fn reader(&self) -> Option<FileRef<GenericFile>> {
         Activity::own().files().get_as(self.rd_fd)
     }
 
-    /// Closes the reading side.
+    /// Closes the reading side
     pub fn close_reader(&self) {
         Activity::own().files().remove(self.rd_fd);
     }
 
-    /// Returns the file for the writing side.
+    /// Returns the file for the writing side
     pub fn writer(&self) -> Option<FileRef<GenericFile>> {
         Activity::own().files().get_as(self.wr_fd)
     }
 
-    /// Closes the writing side.
+    /// Closes the writing side
     pub fn close_writer(&self) {
         Activity::own().files().remove(self.wr_fd);
     }
