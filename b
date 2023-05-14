@@ -607,6 +607,7 @@ case "$cmd" in
                 ( cd "$lib" && cargo doc "${rust_target_args[@]}" )
             fi
         done
+        echo "Documentation generated at file://$root/$build/rust/$RUST_TARGET/doc/m3/index.html"
         ;;
 
     fmt)
