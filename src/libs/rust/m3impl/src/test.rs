@@ -16,7 +16,7 @@
  * General Public License version 2 for more details.
  */
 
-//! Contains unittest utilities inspired by WvTest <https://github.com/apenwarr/wvtest>
+//! Contains unittest utilities inspired by [`WvTest`](https://github.com/apenwarr/wvtest)
 
 use core::fmt::{Display, Formatter};
 

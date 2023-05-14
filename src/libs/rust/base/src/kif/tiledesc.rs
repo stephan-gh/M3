@@ -63,14 +63,23 @@ pub enum TileISA {
 }
 
 bitflags! {
+    /// The attributes for tiles
+    ///
+    /// These attributes cover smaller differences between tiles and allow us to choose between
+    /// otherwise identical tiles.
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     pub struct TileAttr : TileDescRaw {
+        /// Contains a BOOM core
         const BOOM          = 1 << 0;
+        /// Contains a Rocket core
         const ROCKET        = 1 << 1;
+        /// Contains a NIC
         const NIC           = 1 << 2;
+        /// Contains a serial line
         const SERIAL        = 1 << 3;
+        /// Contains internal memory (for memory tiles or SPM in compute tiles)
         const IMEM          = 1 << 4;
-        /// Tile contains a Keccak Accelerator (KecAcc)
+        /// Contains a Keccak Accelerator (KecAcc)
         const KECACC        = 1 << 5;
     }
 }

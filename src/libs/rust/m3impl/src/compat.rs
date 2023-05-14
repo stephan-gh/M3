@@ -13,6 +13,11 @@
  * General Public License version 2 for more details.
  */
 
+//! POSIX compatibility layer
+//!
+//! This compatibility layer is used by our translation layer in musl to translate between Linux
+//! system calls and the M³ API.
+
 use core::convert::From;
 use core::mem;
 
