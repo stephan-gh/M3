@@ -16,7 +16,7 @@
 
 #![no_std]
 
-use m3::client::NetworkManager;
+use m3::client::Network;
 use m3::col::{String, ToString, Vec};
 use m3::env;
 use m3::errors::{Code, Error, VerboseError};
@@ -265,21 +265,21 @@ pub fn main() -> Result<(), Error> {
         usage();
     });
 
-    let nm = NetworkManager::new("net").expect("connecting to net failed");
+    let net = Network::new("net").expect("connecting to net failed");
 
     let mut raw_socket = RawSocket::new(
-        RawSocketArgs::new(nm.clone())
+        RawSocketArgs::new(net.clone())
             .send_buffer(8, 64 * 1024)
             .recv_buffer(8, 64 * 1024),
         Some(IP_PROTO_ICMP),
     )
     .expect("creating raw socket failed");
 
-    let src_ip = nm.ip_addr().expect("Unable to get own IP address");
+    let src_ip = net.ip_addr().expect("Unable to get own IP address");
 
     let mut dns = DNS::default();
     let dest_ip = dns
-        .get_addr(nm, &settings.dest, TimeDuration::from_secs(3))
+        .get_addr(net, &settings.dest, TimeDuration::from_secs(3))
         .unwrap_or_else(|_| panic!("Unable to resolve name '{}'", settings.dest));
 
     let total = mem::size_of::<IPv4Header>() + mem::size_of::<ICMP>() + settings.nbytes;

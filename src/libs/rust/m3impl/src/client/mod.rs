@@ -30,7 +30,7 @@
 mod disk;
 mod hash;
 mod m3fs;
-mod netmng;
+mod network;
 mod pager;
 mod pipe;
 pub mod resmng;
@@ -39,7 +39,7 @@ mod session;
 pub use self::disk::{Disk, DiskBlockNo, DiskBlockRange};
 pub use self::hash::{HashInput, HashOutput, HashSession};
 pub use self::m3fs::M3FS;
-pub use self::netmng::NetworkManager;
+pub use self::network::Network;
 pub use self::pager::{MapFlags, Pager};
 pub use self::pipe::{Pipe, Pipes};
 pub use self::resmng::ResMng;

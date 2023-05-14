@@ -18,7 +18,7 @@
 #include <m3/net/DNS.h>
 #include <m3/net/TcpSocket.h>
 #include <m3/net/UdpSocket.h>
-#include <m3/session/NetworkManager.h>
+#include <m3/session/Network.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/Waiter.h>
 
@@ -64,7 +64,7 @@ static void set_nonblocking(File *file) {
     }
 }
 
-static FileRef<Socket> connect(NetworkManager &net, const IpAddr &ip, port_t port, bool tcp) {
+static FileRef<Socket> connect(Network &net, const IpAddr &ip, port_t port, bool tcp) {
     if(tcp) {
         auto socket = TcpSocket::create(net);
         socket->connect(Endpoint(ip, port));
@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
     const char *dest_str = argv[optind + 0];
     const char *port_str = argv[optind + 1];
 
-    NetworkManager net("net");
+    Network net("net");
 
     DNS dns;
     IpAddr dest = dns.get_addr(net, dest_str);

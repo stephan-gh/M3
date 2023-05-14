@@ -22,7 +22,7 @@
 
 using namespace m3;
 
-TCPOpHandler::TCPOpHandler(NetworkManager &nm, m3::IpAddr ip, m3::port_t port)
+TCPOpHandler::TCPOpHandler(Network &nm, m3::IpAddr ip, m3::port_t port)
     : _socket(TcpSocket::create(
           nm, StreamSocketArgs().send_buffer(64 * 1024).recv_buffer(256 * 1024))) {
     _socket->connect(Endpoint(ip, port));

@@ -17,7 +17,7 @@
 #![no_std]
 
 use core::cmp;
-use m3::client::NetworkManager;
+use m3::client::Network;
 use m3::col::Vec;
 use m3::com::Semaphore;
 use m3::env;
@@ -48,13 +48,13 @@ pub fn main() -> Result<(), Error> {
     let port = args[2].parse::<Port>().unwrap_or_else(|_| usage(args[0]));
     let repeats = args[3].parse::<usize>().unwrap_or_else(|_| usage(args[0]));
 
-    let nm = NetworkManager::new("net").expect("connecting to net failed");
+    let net = Network::new("net").expect("connecting to net failed");
 
     let mut buffer = [0u8; 1024];
 
     if proto == "tcp" {
         let mut tcp_socket = TcpSocket::new(
-            StreamSocketArgs::new(nm)
+            StreamSocketArgs::new(net)
                 .send_buffer(64 * 1024)
                 .recv_buffer(768 * 1024),
         )
@@ -100,7 +100,7 @@ pub fn main() -> Result<(), Error> {
     }
     else {
         let mut socket = UdpSocket::new(
-            DgramSocketArgs::new(nm)
+            DgramSocketArgs::new(net)
                 .send_buffer(2, 1 * 1024)
                 .recv_buffer(8, 8 * 1024),
         )

@@ -22,7 +22,7 @@
 
 using namespace m3;
 
-UDPOpHandler::UDPOpHandler(NetworkManager &nm, m3::IpAddr ip, m3::port_t port)
+UDPOpHandler::UDPOpHandler(Network &nm, m3::IpAddr ip, m3::port_t port)
     : _ep(ip, port),
       _socket(UdpSocket::create(nm, DgramSocketArgs().send_buffer(8, 8 * 1024))) {
 }

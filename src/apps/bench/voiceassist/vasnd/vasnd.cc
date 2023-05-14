@@ -23,7 +23,7 @@
 #include <m3/com/Semaphore.h>
 #include <m3/net/TcpSocket.h>
 #include <m3/net/UdpSocket.h>
-#include <m3/session/NetworkManager.h>
+#include <m3/session/Network.h>
 #include <m3/stream/Standard.h>
 
 #include <stdio.h>
@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
     IpAddr ip = IStringStream::read_from<IpAddr>(argv[optind + 1]);
     port_t port = IStringStream::read_from<port_t>(argv[optind + 2]);
 
-    NetworkManager net("net");
+    Network net("net");
 
     ClientSession vamic("vamic");
 

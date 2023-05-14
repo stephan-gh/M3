@@ -19,7 +19,7 @@
 
 #include <m3/net/Socket.h>
 #include <m3/net/UdpSocket.h>
-#include <m3/session/NetworkManager.h>
+#include <m3/session/Network.h>
 
 namespace m3 {
 
@@ -29,7 +29,7 @@ namespace m3 {
 class RawSocket : public Socket {
     friend class Socket;
 
-    explicit RawSocket(int sd, capsel_t caps, NetworkManager &nm);
+    explicit RawSocket(int sd, capsel_t caps, Network &net);
 
 public:
     /**
@@ -41,11 +41,11 @@ public:
      * Creation of a raw socket requires that the used session has permission to do so. This is
      * controlled with the "raw=yes" argument in the session argument of M³'s config files.
      *
-     * @param nm the network manager
+     * @param net the network service
      * @param protocol the IP protocol
      * @param args optionally additional arguments that define the buffer sizes
      */
-    static FileRef<RawSocket> create(NetworkManager &nm, uint8_t protocol,
+    static FileRef<RawSocket> create(Network &net, uint8_t protocol,
                                      const DgramSocketArgs &args = DgramSocketArgs());
 
     ~RawSocket();

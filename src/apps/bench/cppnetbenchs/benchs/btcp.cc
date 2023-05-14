@@ -20,7 +20,7 @@
 #include <m3/Test.h>
 #include <m3/com/Semaphore.h>
 #include <m3/net/TcpSocket.h>
-#include <m3/session/NetworkManager.h>
+#include <m3/session/Network.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/Waiter.h>
 
@@ -29,7 +29,7 @@
 using namespace m3;
 
 NOINLINE static void latency() {
-    NetworkManager net("net");
+    Network net("net");
 
     auto socket = TcpSocket::create(net);
 
@@ -79,7 +79,7 @@ NOINLINE static void bandwidth() {
     const size_t BURST_SIZE = 2;
     const TimeDuration TIMEOUT = TimeDuration::from_secs(1);
 
-    NetworkManager net("net");
+    Network net("net");
 
     auto socket =
         TcpSocket::create(net, StreamSocketArgs().send_buffer(64 * 1024).recv_buffer(256 * 1024));

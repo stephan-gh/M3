@@ -18,7 +18,7 @@
 #pragma once
 
 #include <m3/net/Socket.h>
-#include <m3/session/NetworkManager.h>
+#include <m3/session/Network.h>
 
 namespace m3 {
 
@@ -61,7 +61,7 @@ public:
 class UdpSocket : public Socket {
     friend class Socket;
 
-    explicit UdpSocket(int sd, capsel_t caps, NetworkManager &nm);
+    explicit UdpSocket(int sd, capsel_t caps, Network &net);
 
 public:
     /**
@@ -70,11 +70,10 @@ public:
      * By default, the socket is in blocking mode, that is, all functions (send_to, recv_from, ...)
      * do not return until the operation is complete. This can be changed via set_blocking.
      *
-     * @param nm the network manager
+     * @param net the network service
      * @param args optionally additional arguments that define the buffer sizes
      */
-    static FileRef<UdpSocket> create(NetworkManager &nm,
-                                     const DgramSocketArgs &args = DgramSocketArgs());
+    static FileRef<UdpSocket> create(Network &net, const DgramSocketArgs &args = DgramSocketArgs());
 
     ~UdpSocket();
 

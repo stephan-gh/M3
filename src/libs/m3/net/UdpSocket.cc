@@ -19,22 +19,22 @@
 #include <m3/net/Debug.h>
 #include <m3/net/Socket.h>
 #include <m3/net/UdpSocket.h>
-#include <m3/session/NetworkManager.h>
+#include <m3/session/Network.h>
 #include <m3/vfs/FileTable.h>
 
 namespace m3 {
 
-UdpSocket::UdpSocket(int sd, capsel_t caps, NetworkManager &nm) : Socket(sd, caps, nm) {
+UdpSocket::UdpSocket(int sd, capsel_t caps, Network &net) : Socket(sd, caps, net) {
 }
 
 UdpSocket::~UdpSocket() {
     remove();
 }
 
-FileRef<UdpSocket> UdpSocket::create(NetworkManager &nm, const DgramSocketArgs &args) {
+FileRef<UdpSocket> UdpSocket::create(Network &net, const DgramSocketArgs &args) {
     capsel_t caps;
-    int sd = nm.create(SocketType::DGRAM, 0, args, &caps);
-    auto sock = std::unique_ptr<UdpSocket>(new UdpSocket(sd, caps, nm));
+    int sd = net.create(SocketType::DGRAM, 0, args, &caps);
+    auto sock = std::unique_ptr<UdpSocket>(new UdpSocket(sd, caps, net));
     return Activity::own().files()->alloc(std::move(sock));
 }
 
@@ -42,7 +42,7 @@ void UdpSocket::bind(port_t port) {
     if(_state != Closed)
         throw Exception(Errors::INV_STATE);
 
-    const auto [addr, used_port] = _nm.bind(sd(), port);
+    const auto [addr, used_port] = _net.bind(sd(), port);
     _local_ep.addr = addr;
     _local_ep.port = used_port;
     _state = State::Bound;

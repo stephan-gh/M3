@@ -24,7 +24,7 @@ using namespace m3;
 
 static uint8_t package_buffer[8 * 1024];
 
-TCPOpHandler::TCPOpHandler(NetworkManager &nm, m3::port_t port)
+TCPOpHandler::TCPOpHandler(Network &nm, m3::port_t port)
     : _socket(TcpSocket::create(
           nm, StreamSocketArgs().send_buffer(64 * 1024).recv_buffer(256 * 1024))) {
     _socket->listen(port);

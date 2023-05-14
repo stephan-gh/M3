@@ -18,7 +18,7 @@
 #pragma once
 
 #include <m3/net/Socket.h>
-#include <m3/session/NetworkManager.h>
+#include <m3/session/Network.h>
 
 namespace m3 {
 
@@ -59,7 +59,7 @@ public:
 class TcpSocket : public Socket {
     friend class Socket;
 
-    explicit TcpSocket(int fd, capsel_t caps, NetworkManager &nm);
+    explicit TcpSocket(int fd, capsel_t caps, Network &nm);
 
 public:
     /**
@@ -68,7 +68,7 @@ public:
      * By default, the socket is in blocking mode, that is, all functions (connect, send, recv, ...)
      * do not return until the operation is complete. This can be changed via set_blocking.
      */
-    static FileRef<TcpSocket> create(NetworkManager &nm,
+    static FileRef<TcpSocket> create(Network &nm,
                                      const StreamSocketArgs &args = StreamSocketArgs());
 
     ~TcpSocket();

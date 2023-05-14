@@ -21,7 +21,7 @@ extern crate m3;
 
 use m3::{
     cell::StaticRefCell,
-    client::NetworkManager,
+    client::Network,
     col::Vec,
     com::{recv_msg, RGateArgs, RecvGate, Semaphore, SendGate},
     env,
@@ -50,9 +50,9 @@ fn usage() {
     OwnActivity::exit_with(Code::InvArgs);
 }
 
-fn udp_receiver(nm: Rc<NetworkManager>, port: Port) {
+fn udp_receiver(net: Rc<Network>, port: Port) {
     let mut socket = UdpSocket::new(
-        DgramSocketArgs::new(nm)
+        DgramSocketArgs::new(net)
             .send_buffer(2, 1024)
             .recv_buffer(128, 768 * 1024),
     )
@@ -69,13 +69,13 @@ fn udp_receiver(nm: Rc<NetworkManager>, port: Port) {
     }
 }
 
-fn tcp_sender(nm: Rc<NetworkManager>, ip: IpAddr, port: Port, wl: &str, repeats: u32) {
+fn tcp_sender(net: Rc<Network>, ip: IpAddr, port: Port, wl: &str, repeats: u32) {
     // Mount fs to load binary data
     m3::vfs::VFS::mount("/", "m3fs", "m3fs").expect("Failed to mount root filesystem on server");
 
     // Connect to server
     let mut socket = TcpSocket::new(
-        StreamSocketArgs::new(nm)
+        StreamSocketArgs::new(net)
             .send_buffer(64 * 1024)
             .recv_buffer(256 * 1024),
     )
@@ -210,8 +210,8 @@ pub fn main() -> Result<(), Error> {
 
         let port = args[2].parse::<Port>().expect("Failed to parse port");
 
-        let nm = NetworkManager::new("net").expect("Could not connect to network manager");
-        udp_receiver(nm, port);
+        let net = Network::new("net").expect("Could not connect to network");
+        udp_receiver(net, port);
     }
     else if args[1] == "tcp" {
         if args.len() != 6 {
@@ -224,8 +224,8 @@ pub fn main() -> Result<(), Error> {
         let port = args[3].parse::<Port>().expect("Failed to parse port");
         let repeats = args[5].parse::<u32>().expect("Failed to parse repeats");
 
-        let nm = NetworkManager::new("net").expect("Could not connect to network manager");
-        tcp_sender(nm, ip, port, args[4], repeats);
+        let net = Network::new("net").expect("Could not connect to network");
+        tcp_sender(net, ip, port, args[4], repeats);
     }
     else {
         if args.len() != 4 {

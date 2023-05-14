@@ -19,19 +19,19 @@
 #include <m3/net/Debug.h>
 #include <m3/net/Socket.h>
 #include <m3/net/TcpSocket.h>
-#include <m3/session/NetworkManager.h>
+#include <m3/session/Network.h>
 #include <m3/vfs/FileTable.h>
 
 namespace m3 {
 
-TcpSocket::TcpSocket(int sd, capsel_t caps, NetworkManager &nm) : Socket(sd, caps, nm) {
+TcpSocket::TcpSocket(int sd, capsel_t caps, Network &nm) : Socket(sd, caps, nm) {
 }
 
 TcpSocket::~TcpSocket() {
     remove();
 }
 
-FileRef<TcpSocket> TcpSocket::create(NetworkManager &nm, const StreamSocketArgs &args) {
+FileRef<TcpSocket> TcpSocket::create(Network &nm, const StreamSocketArgs &args) {
     capsel_t caps;
     int sd = nm.create(SocketType::STREAM, 0, args, &caps);
     auto sock = std::unique_ptr<TcpSocket>(new TcpSocket(sd, caps, nm));
@@ -42,7 +42,7 @@ void TcpSocket::listen(port_t port) {
     if(_state != State::Closed)
         throw Exception(Errors::INV_STATE);
 
-    IpAddr addr = _nm.listen(sd(), port);
+    IpAddr addr = _net.listen(sd(), port);
     _local_ep.addr = addr;
     _local_ep.port = port;
     _state = State::Listening;
@@ -58,7 +58,7 @@ bool TcpSocket::connect(const Endpoint &endpoint) {
     if(_state == State::Connecting)
         throw Exception(Errors::ALREADY_IN_PROGRESS);
 
-    Endpoint local_ep = _nm.connect_socket(sd(), endpoint);
+    Endpoint local_ep = _net.connect_socket(sd(), endpoint);
     _state = State::Connecting;
     _remote_ep = endpoint;
     _local_ep = local_ep;
@@ -175,7 +175,7 @@ void TcpSocket::abort() {
     if(_state == State::Closed)
         return;
 
-    _nm.abort(sd(), false);
+    _net.abort(sd(), false);
     _recv_queue.clear();
     disconnect();
 }

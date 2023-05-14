@@ -18,7 +18,7 @@ use core::mem;
 
 use crate::boxed::Box;
 use crate::cell::{LazyStaticRefCell, RefMut};
-use crate::client::NetworkManager;
+use crate::client::Network;
 use crate::errors::{Code, Error};
 use crate::io::{read_object, Read, Write};
 use crate::libc;
@@ -377,20 +377,20 @@ pub struct CompatEndpoint {
     port: u16,
 }
 
-static NETM: LazyStaticRefCell<Rc<NetworkManager>> = LazyStaticRefCell::default();
+static NETM: LazyStaticRefCell<Rc<Network>> = LazyStaticRefCell::default();
 
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn __m3c_init_netmng(name: *const i8) -> Code {
     if !NETM.is_some() {
-        NETM.set(try_res!(NetworkManager::new(util::cstr_to_str(name))));
+        NETM.set(try_res!(Network::new(util::cstr_to_str(name))));
     }
     Code::Success
 }
 
 fn create_netmng() -> Result<(), Error> {
     if !NETM.is_some() {
-        NETM.set(NetworkManager::new("net")?);
+        NETM.set(Network::new("net")?);
     }
     Ok(())
 }

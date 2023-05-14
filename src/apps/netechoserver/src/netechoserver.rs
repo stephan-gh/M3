@@ -16,7 +16,7 @@
 
 #![no_std]
 
-use m3::client::NetworkManager;
+use m3::client::Network;
 use m3::com::Semaphore;
 use m3::errors::Error;
 use m3::net::{
@@ -27,17 +27,17 @@ use m3::vfs::{FileEvent, FileWaiter};
 
 #[no_mangle]
 pub fn main() -> Result<(), Error> {
-    let nm = NetworkManager::new("net").expect("connecting to net failed");
+    let net = Network::new("net").expect("connecting to net failed");
 
     let mut udp_socket = UdpSocket::new(
-        DgramSocketArgs::new(nm.clone())
+        DgramSocketArgs::new(net.clone())
             .send_buffer(8, 64 * 1024)
             .recv_buffer(32, 256 * 1024),
     )
     .expect("creating UDP socket failed");
 
     let mut tcp_socket = TcpSocket::new(
-        StreamSocketArgs::new(nm)
+        StreamSocketArgs::new(net)
             .send_buffer(64 * 1024)
             .recv_buffer(256 * 1024),
     )

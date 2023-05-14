@@ -13,7 +13,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::client::NetworkManager;
+use m3::client::Network;
 use m3::format;
 use m3::net::{DGramSocket, DgramSocketArgs, Endpoint, Socket, UdpSocket};
 use m3::test::WvTester;
@@ -44,8 +44,8 @@ fn send_recv(waiter: &mut FileWaiter, socket: &mut FileRef<UdpSocket>, dest: End
 }
 
 fn latency(_t: &mut dyn WvTester) {
-    let nm = wv_assert_ok!(NetworkManager::new("net"));
-    let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(nm)));
+    let net = wv_assert_ok!(Network::new("net"));
+    let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(net)));
 
     wv_assert_ok!(socket.set_blocking(false));
 

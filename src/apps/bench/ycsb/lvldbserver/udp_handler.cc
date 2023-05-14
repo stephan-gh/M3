@@ -39,7 +39,7 @@ static uint32_t wl_read4b() {
     return be32toh(word);
 }
 
-UDPOpHandler::UDPOpHandler(NetworkManager &nm, const char *workload, m3::IpAddr ip, m3::port_t port)
+UDPOpHandler::UDPOpHandler(Network &nm, const char *workload, m3::IpAddr ip, m3::port_t port)
     : _ops(),
       _total_ops(),
       _ep(ip, port),

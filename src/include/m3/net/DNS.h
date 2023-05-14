@@ -22,13 +22,13 @@
 
 namespace m3 {
 
-class NetworkManager;
+class Network;
 
 /**
  * Implements the DNS protocol to resolve host names to IP addresses.
  */
 class DNS {
-    friend class NetworkManager;
+    friend class Network;
 
 public:
     /**
@@ -49,13 +49,13 @@ public:
      * Translates the given name into an IP address. If the name is already an IP address, it will
      * simply be converted into an [`IpAddr`] object. Otherwise, the name will be solved via DNS.
      *
-     * @param netmng the network manager
+     * @param net the network service
      * @param name the hostname
      * @param timeout specifies the maximum time we wait for the DNS response
      * @return the IP address
      * @throws if the operation failed
      */
-    IpAddr get_addr(NetworkManager &netmng, const char *name,
+    IpAddr get_addr(Network &net, const char *name,
                     TimeDuration timeout = TimeDuration::from_secs(3));
 
     /**
@@ -63,13 +63,13 @@ public:
      * not an IP address, but an actual hostname and will therefore always use DNS to resolve the
      * name. Use get_addr() if you don't know whether it's a hostname or an IP address.
      *
-     * @param netmng the network manager
+     * @param net the network service
      * @param name the domain name
      * @param timeout specifies the maximum time we wait for the DNS response
      * @return the ip address
      * @throws if the operation failed
      */
-    IpAddr resolve(NetworkManager &netmng, const char *name,
+    IpAddr resolve(Network &net, const char *name,
                    TimeDuration timeout = TimeDuration::from_secs(3));
 
 private:

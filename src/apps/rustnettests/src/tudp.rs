@@ -13,7 +13,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::client::NetworkManager;
+use m3::client::Network;
 use m3::com::Semaphore;
 use m3::errors::{Code, Error};
 use m3::net::{DGramSocket, DgramSocketArgs, Endpoint, Socket, State, UdpSocket, MTU};
@@ -34,9 +34,9 @@ pub fn run(t: &mut dyn WvTester) {
 }
 
 fn basics(t: &mut dyn WvTester) {
-    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+    let net = wv_assert_ok!(Network::new("net0"));
 
-    let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(nm)));
+    let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(net)));
 
     wv_assert_eq!(t, socket.state(), State::Closed);
     wv_assert_eq!(t, socket.local_endpoint(), None);
@@ -53,9 +53,9 @@ fn basics(t: &mut dyn WvTester) {
 }
 
 fn connect(t: &mut dyn WvTester) {
-    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+    let net = wv_assert_ok!(Network::new("net0"));
 
-    let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(nm)));
+    let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(net)));
 
     wv_assert_eq!(t, socket.state(), State::Closed);
     wv_assert_eq!(t, socket.local_endpoint(), None);
@@ -85,9 +85,9 @@ fn send_recv(
 }
 
 fn data(t: &mut dyn WvTester) {
-    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+    let net = wv_assert_ok!(Network::new("net0"));
 
-    let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(nm)));
+    let mut socket = wv_assert_ok!(UdpSocket::new(DgramSocketArgs::new(net)));
 
     wv_assert_ok!(socket.set_blocking(false));
 

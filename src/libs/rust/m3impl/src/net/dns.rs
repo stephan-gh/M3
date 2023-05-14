@@ -23,7 +23,7 @@ use base::time::TimeDuration;
 use base::util::random::LinearCongruentialGenerator;
 use base::vec;
 
-use crate::client::NetworkManager;
+use crate::client::Network;
 use crate::net::{DGramSocket, DgramSocketArgs, Endpoint, IpAddr, Port, Socket, UdpSocket};
 use crate::vfs::{File, FileEvent, FileWaiter};
 
@@ -75,7 +75,7 @@ impl DNS {
     /// The timeout specifies the maximum time to wait for the DNS response.
     pub fn get_addr(
         &mut self,
-        netmng: Rc<NetworkManager>,
+        netmng: Rc<Network>,
         name: &str,
         timeout: TimeDuration,
     ) -> Result<IpAddr, VerboseError> {
@@ -94,7 +94,7 @@ impl DNS {
     /// The timeout specifies the maximum time to wait for the DNS response.
     pub fn resolve(
         &mut self,
-        netmng: Rc<NetworkManager>,
+        netmng: Rc<Network>,
         name: &str,
         timeout: TimeDuration,
     ) -> Result<IpAddr, VerboseError> {

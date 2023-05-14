@@ -23,7 +23,7 @@
 #include <m3/Test.h>
 #include <m3/com/Semaphore.h>
 #include <m3/net/UdpSocket.h>
-#include <m3/session/NetworkManager.h>
+#include <m3/session/Network.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/Waiter.h>
 
@@ -46,7 +46,7 @@ static Option<size_t> send_recv(FileWaiter &waiter, FileRef<UdpSocket> &socket,
 NOINLINE static void latency() {
     const TimeDuration TIMEOUT = TimeDuration::from_secs(1);
 
-    NetworkManager net("net");
+    Network net("net");
 
     uint8_t request[1024];
     uint8_t response[1024];
@@ -97,7 +97,7 @@ NOINLINE static void latency() {
 }
 
 NOINLINE static void bandwidth() {
-    NetworkManager net("net");
+    Network net("net");
 
     auto socket = UdpSocket::create(
         net, DgramSocketArgs().send_buffer(8, 64 * 1024).recv_buffer(32, 256 * 1024));

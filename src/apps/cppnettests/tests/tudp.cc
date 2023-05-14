@@ -18,7 +18,7 @@
 #include <m3/Test.h>
 #include <m3/com/Semaphore.h>
 #include <m3/net/UdpSocket.h>
-#include <m3/session/NetworkManager.h>
+#include <m3/session/Network.h>
 #include <m3/vfs/Waiter.h>
 
 #include "../cppnettests.h"
@@ -26,7 +26,7 @@
 using namespace m3;
 
 static void basics() {
-    NetworkManager net("net0");
+    Network net("net0");
 
     auto socket = UdpSocket::create(net);
 
@@ -43,7 +43,7 @@ static void basics() {
 }
 
 static void connect() {
-    NetworkManager net("net0");
+    Network net("net0");
 
     auto socket = UdpSocket::create(net);
 
@@ -71,7 +71,7 @@ static receive_result send_recv(FileWaiter &waiter, FileRef<UdpSocket> &socket,
 NOINLINE static void data() {
     const TimeDuration TIMEOUT = TimeDuration::from_secs(1);
 
-    NetworkManager net("net0");
+    Network net("net0");
 
     auto socket = UdpSocket::create(net);
     socket->set_blocking(false);

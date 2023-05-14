@@ -22,20 +22,17 @@
 #include <m3/com/GateStream.h>
 #include <m3/com/OpCodes.h>
 #include <m3/net/Socket.h>
-#include <m3/session/NetworkManager.h>
+#include <m3/session/Network.h>
 #include <m3/stream/Standard.h>
 
 #include <thread/ThreadManager.h>
 
 namespace m3 {
 
-NetworkManager::NetworkManager(const std::string_view &service)
-    : ClientSession(service),
-      _sgate(connect()) {
+Network::Network(const std::string_view &service) : ClientSession(service), _sgate(connect()) {
 }
 
-int32_t NetworkManager::create(SocketType type, uint8_t protocol, const SocketArgs &args,
-                               capsel_t *caps) {
+int32_t Network::create(SocketType type, uint8_t protocol, const SocketArgs &args, capsel_t *caps) {
     KIF::ExchangeArgs eargs;
     ExchangeOStream os(eargs);
     os << opcodes::Net::CREATE << static_cast<uint64_t>(type) << protocol << args.rbuf_size
@@ -50,7 +47,7 @@ int32_t NetworkManager::create(SocketType type, uint8_t protocol, const SocketAr
     return sd;
 }
 
-IpAddr NetworkManager::ip_addr() {
+IpAddr Network::ip_addr() {
     GateIStream reply = send_receive_vmsg(_sgate, opcodes::Net::GET_IP);
     reply.pull_result();
     uint32_t addr;
@@ -58,7 +55,7 @@ IpAddr NetworkManager::ip_addr() {
     return IpAddr(addr);
 }
 
-IpAddr NetworkManager::get_nameserver() {
+IpAddr Network::get_nameserver() {
     GateIStream reply = send_receive_vmsg(_sgate, opcodes::Net::GET_NAMESRV);
     reply.pull_result();
     uint32_t addr;
@@ -66,7 +63,7 @@ IpAddr NetworkManager::get_nameserver() {
     return IpAddr(addr);
 }
 
-std::pair<IpAddr, port_t> NetworkManager::bind(int32_t sd, port_t port) {
+std::pair<IpAddr, port_t> Network::bind(int32_t sd, port_t port) {
     GateIStream reply = send_receive_vmsg(_sgate, opcodes::Net::BIND, sd, port);
     reply.pull_result();
     uint32_t addr;
@@ -74,7 +71,7 @@ std::pair<IpAddr, port_t> NetworkManager::bind(int32_t sd, port_t port) {
     return std::make_pair(IpAddr(addr), port);
 }
 
-IpAddr NetworkManager::listen(int32_t sd, port_t port) {
+IpAddr Network::listen(int32_t sd, port_t port) {
     GateIStream reply = send_receive_vmsg(_sgate, opcodes::Net::LISTEN, sd, port);
     reply.pull_result();
     uint32_t addr;
@@ -82,7 +79,7 @@ IpAddr NetworkManager::listen(int32_t sd, port_t port) {
     return IpAddr(addr);
 }
 
-Endpoint NetworkManager::connect_socket(int32_t sd, Endpoint remote_ep) {
+Endpoint Network::connect_socket(int32_t sd, Endpoint remote_ep) {
     GateIStream reply =
         send_receive_vmsg(_sgate, opcodes::Net::CONNECT, sd, remote_ep.addr.addr(), remote_ep.port);
     reply.pull_result();
@@ -92,7 +89,7 @@ Endpoint NetworkManager::connect_socket(int32_t sd, Endpoint remote_ep) {
     return Endpoint(IpAddr(addr), port);
 }
 
-void NetworkManager::abort(int32_t sd, bool remove) {
+void Network::abort(int32_t sd, bool remove) {
     GateIStream reply = send_receive_vmsg(_sgate, opcodes::Net::ABORT, sd, remove);
     reply.pull_result();
 }

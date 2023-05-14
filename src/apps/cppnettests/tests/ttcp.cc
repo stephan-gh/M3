@@ -18,7 +18,7 @@
 #include <m3/Test.h>
 #include <m3/com/Semaphore.h>
 #include <m3/net/TcpSocket.h>
-#include <m3/session/NetworkManager.h>
+#include <m3/session/Network.h>
 #include <m3/tiles/ChildActivity.h>
 #include <m3/vfs/Waiter.h>
 
@@ -27,7 +27,7 @@
 using namespace m3;
 
 static void basics() {
-    NetworkManager net("net0");
+    Network net("net0");
 
     auto socket = TcpSocket::create(net);
 
@@ -68,7 +68,7 @@ static void basics() {
 }
 
 NOINLINE static void unreachable() {
-    NetworkManager net("net0");
+    Network net("net0");
 
     auto socket = TcpSocket::create(net);
 
@@ -78,7 +78,7 @@ NOINLINE static void unreachable() {
 }
 
 NOINLINE static void nonblocking_client() {
-    NetworkManager net("net0");
+    Network net("net0");
 
     auto socket = TcpSocket::create(net);
 
@@ -141,7 +141,7 @@ NOINLINE static void nonblocking_server() {
         capsel_t sem_sel;
         Activity::own().data_source() >> sem_sel;
 
-        NetworkManager net("net1");
+        Network net("net1");
 
         auto socket = TcpSocket::create(net);
 
@@ -175,7 +175,7 @@ NOINLINE static void nonblocking_server() {
         return 0;
     });
 
-    NetworkManager net("net0");
+    Network net("net0");
 
     auto socket = TcpSocket::create(net);
 
@@ -189,7 +189,7 @@ NOINLINE static void nonblocking_server() {
 }
 
 NOINLINE static void open_close() {
-    NetworkManager net("net0");
+    Network net("net0");
 
     auto socket = TcpSocket::create(net);
 
@@ -222,7 +222,7 @@ NOINLINE static void receive_after_close() {
         capsel_t sem_sel;
         Activity::own().data_source() >> sem_sel;
 
-        NetworkManager net("net1");
+        Network net("net1");
 
         auto socket = TcpSocket::create(net);
 
@@ -247,7 +247,7 @@ NOINLINE static void receive_after_close() {
         return 0;
     });
 
-    NetworkManager net("net0");
+    Network net("net0");
 
     auto socket = TcpSocket::create(net);
 
@@ -272,7 +272,7 @@ NOINLINE static void receive_after_close() {
 }
 
 NOINLINE static void data() {
-    NetworkManager net("net0");
+    Network net("net0");
 
     auto socket = TcpSocket::create(net, StreamSocketArgs().send_buffer(2 * 1024));
 

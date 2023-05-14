@@ -19,7 +19,7 @@ use core::any::Any;
 use core::fmt;
 
 use crate::boxed::Box;
-use crate::client::{HashInput, HashOutput, NetworkManager};
+use crate::client::{HashInput, HashOutput, Network};
 use crate::errors::{Code, Error};
 use crate::io;
 use crate::net::{
@@ -33,15 +33,15 @@ use crate::vfs::{self, Fd, File, FileEvent, FileRef, INV_FD};
 
 /// Configures the buffer sizes for datagram sockets
 pub struct DgramSocketArgs {
-    pub(crate) nm: Rc<NetworkManager>,
+    pub(crate) net: Rc<Network>,
     pub(crate) args: SocketArgs,
 }
 
 impl DgramSocketArgs {
-    /// Creates a new [`DgramSocketArgs`] with default settings.
-    pub fn new(nm: Rc<NetworkManager>) -> Self {
+    /// Creates a new [`DgramSocketArgs`] with default settings
+    pub fn new(net: Rc<Network>) -> Self {
         Self {
-            nm,
+            net,
             args: SocketArgs::default(),
         }
     }
@@ -65,7 +65,7 @@ impl DgramSocketArgs {
 pub struct UdpSocket {
     fd: Fd,
     socket: BaseSocket,
-    nm: Rc<NetworkManager>,
+    net: Rc<Network>,
 }
 
 impl UdpSocket {
@@ -77,8 +77,8 @@ impl UdpSocket {
     /// [`set_blocking`](UdpSocket::set_blocking).
     pub fn new(args: DgramSocketArgs) -> Result<FileRef<Self>, Error> {
         let sock = Box::new(UdpSocket {
-            socket: args.nm.create(SocketType::Dgram, None, &args.args)?,
-            nm: args.nm,
+            socket: args.net.create(SocketType::Dgram, None, &args.args)?,
+            net: args.net,
             fd: INV_FD,
         });
         let fd = Activity::own().files().add(sock)?;
@@ -137,7 +137,7 @@ impl DGramSocket for UdpSocket {
             return Err(Error::new(Code::InvState));
         }
 
-        let (addr, port) = self.nm.bind(self.socket.sd(), port)?;
+        let (addr, port) = self.net.bind(self.socket.sd(), port)?;
         self.socket.local_ep = Some(Endpoint::new(addr, port));
         self.socket.state = State::Bound;
         Ok(())
@@ -235,6 +235,6 @@ impl fmt::Debug for UdpSocket {
 impl Drop for UdpSocket {
     fn drop(&mut self) {
         self.socket.tear_down();
-        self.nm.abort(self.socket.sd(), true).ok();
+        self.net.abort(self.socket.sd(), true).ok();
     }
 }

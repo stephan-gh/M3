@@ -19,7 +19,7 @@ use core::any::Any;
 use core::fmt;
 
 use crate::boxed::Box;
-use crate::client::{HashInput, HashOutput, NetworkManager};
+use crate::client::{HashInput, HashOutput, Network};
 use crate::errors::Error;
 use crate::io;
 use crate::net::{
@@ -37,7 +37,7 @@ pub type RawSocketArgs = DgramSocketArgs;
 pub struct RawSocket {
     fd: Fd,
     socket: BaseSocket,
-    nm: Rc<NetworkManager>,
+    net: Rc<Network>,
 }
 
 impl RawSocket {
@@ -51,8 +51,8 @@ impl RawSocket {
     /// controlled with the "raw=yes" argument in the session argument of M³'s config files.
     pub fn new(args: RawSocketArgs, protocol: Option<u8>) -> Result<FileRef<Self>, Error> {
         let sock = Box::new(RawSocket {
-            socket: args.nm.create(SocketType::Raw, protocol, &args.args)?,
-            nm: args.nm,
+            socket: args.net.create(SocketType::Raw, protocol, &args.args)?,
+            net: args.net,
             fd: INV_FD,
         });
         let fd = Activity::own().files().add(sock)?;
@@ -159,6 +159,6 @@ impl fmt::Debug for RawSocket {
 impl Drop for RawSocket {
     fn drop(&mut self) {
         self.socket.tear_down();
-        self.nm.abort(self.socket.sd(), true).ok();
+        self.net.abort(self.socket.sd(), true).ok();
     }
 }

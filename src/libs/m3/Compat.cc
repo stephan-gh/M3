@@ -16,7 +16,7 @@
 #include <m3/Compat.h>
 #include <m3/net/TcpSocket.h>
 #include <m3/net/UdpSocket.h>
-#include <m3/session/NetworkManager.h>
+#include <m3/session/Network.h>
 #include <m3/vfs/VFS.h>
 #include <m3/vfs/Waiter.h>
 
@@ -235,12 +235,12 @@ EXTERN_C void __m3c_waiter_destroy(void *waiter) {
     delete static_cast<m3::FileWaiter *>(waiter);
 }
 
-static m3::NetworkManager *netmng = nullptr;
+static m3::Network *netmng = nullptr;
 
 EXTERN_C m3::Errors::Code __m3c_init_netmng(const char *name) {
     if(!netmng) {
         try {
-            netmng = new m3::NetworkManager(name);
+            netmng = new m3::Network(name);
         }
         catch(const m3::Exception &e) {
             return e.code();

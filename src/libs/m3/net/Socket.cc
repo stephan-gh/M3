@@ -22,25 +22,25 @@
 #include <m3/net/Socket.h>
 #include <m3/net/TcpSocket.h>
 #include <m3/net/UdpSocket.h>
-#include <m3/session/NetworkManager.h>
+#include <m3/session/Network.h>
 
 #include <utility>
 
 namespace m3 {
 
-Socket::Socket(int sd, capsel_t caps, NetworkManager &nm)
+Socket::Socket(int sd, capsel_t caps, Network &net)
     : File(0),
       _sd(sd),
       _state(Closed),
       _local_ep(),
       _remote_ep(),
-      _nm(nm),
+      _net(net),
       _channel(caps),
       _recv_queue() {
 }
 
 Socket::~Socket() {
-    _nm.abort(sd(), true);
+    _net.abort(sd(), true);
 }
 
 void Socket::tear_down() noexcept {

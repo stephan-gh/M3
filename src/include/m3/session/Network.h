@@ -39,7 +39,7 @@ class DNS;
  * server and to send close requests to the server. Transmitted and received data is exchanged via
  * the NetEventChannel in both directions.
  */
-class NetworkManager : public ClientSession {
+class Network : public ClientSession {
     friend class Socket;
     friend class UdpSocket;
     friend class TcpSocket;
@@ -52,7 +52,7 @@ public:
      *
      * @param service the service name
      */
-    explicit NetworkManager(const std::string_view &service);
+    explicit Network(const std::string_view &service);
 
     /**
      * @return the local IP address

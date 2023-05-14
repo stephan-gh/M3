@@ -13,7 +13,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::client::NetworkManager;
+use m3::client::Network;
 use m3::com::Semaphore;
 use m3::errors::Code;
 use m3::format;
@@ -30,8 +30,8 @@ pub fn run(t: &mut dyn WvTester) {
 }
 
 fn latency(t: &mut dyn WvTester) {
-    let nm = wv_assert_ok!(NetworkManager::new("net"));
-    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(nm)));
+    let net = wv_assert_ok!(Network::new("net"));
+    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(net)));
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
@@ -87,9 +87,9 @@ fn bandwidth(t: &mut dyn WvTester) {
     const BURST_SIZE: usize = 2;
     const TIMEOUT: TimeDuration = TimeDuration::from_secs(1);
 
-    let nm = wv_assert_ok!(NetworkManager::new("net"));
+    let net = wv_assert_ok!(Network::new("net"));
     let mut socket = wv_assert_ok!(TcpSocket::new(
-        StreamSocketArgs::new(nm)
+        StreamSocketArgs::new(net)
             .send_buffer(64 * 1024)
             .recv_buffer(256 * 1024)
     ));

@@ -17,7 +17,7 @@
 #include <base/time/Profile.h>
 
 #include <m3/Test.h>
-#include <m3/session/NetworkManager.h>
+#include <m3/session/Network.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/VFS.h>
 
@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    NetworkManager *net = nullptr;
+    Network *net = nullptr;
 
     VFS::mount("/", "m3fs", "m3fs");
 
@@ -54,14 +54,14 @@ int main(int argc, char **argv) {
     OpHandler *hdl;
     if(strcmp(argv[3], "tcp") == 0) {
         port_t port = IStringStream::read_from<port_t>(argv[4]);
-        net = new NetworkManager("net");
+        net = new Network("net");
         hdl = new TCPOpHandler(*net, port);
     }
     else if(strcmp(argv[3], "udp") == 0) {
         IpAddr ip = IStringStream::read_from<IpAddr>(argv[4]);
         port_t port = IStringStream::read_from<port_t>(argv[5]);
         const char *workload = argv[6];
-        net = new NetworkManager("net");
+        net = new Network("net");
         hdl = new UDPOpHandler(*net, workload, ip, port);
     }
     else

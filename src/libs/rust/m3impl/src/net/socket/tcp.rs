@@ -19,7 +19,7 @@ use core::any::Any;
 use core::fmt;
 
 use crate::boxed::Box;
-use crate::client::{HashInput, HashOutput, NetworkManager};
+use crate::client::{HashInput, HashOutput, Network};
 use crate::errors::{Code, Error};
 use crate::io;
 use crate::net::{
@@ -33,15 +33,15 @@ use crate::vfs::{self, Fd, File, FileEvent, FileRef, INV_FD};
 
 /// Configures the buffer sizes for stream sockets
 pub struct StreamSocketArgs {
-    nm: Rc<NetworkManager>,
+    net: Rc<Network>,
     args: SocketArgs,
 }
 
 impl StreamSocketArgs {
     /// Creates a new [`StreamSocketArgs`] with default settings
-    pub fn new(nm: Rc<NetworkManager>) -> Self {
+    pub fn new(net: Rc<Network>) -> Self {
         Self {
-            nm,
+            net,
             args: SocketArgs::default(),
         }
     }
@@ -63,7 +63,7 @@ impl StreamSocketArgs {
 pub struct TcpSocket {
     fd: Fd,
     socket: BaseSocket,
-    nm: Rc<NetworkManager>,
+    net: Rc<Network>,
 }
 
 impl TcpSocket {
@@ -75,8 +75,8 @@ impl TcpSocket {
     /// [`set_blocking`](TcpSocket::set_blocking).
     pub fn new(args: StreamSocketArgs) -> Result<FileRef<Self>, Error> {
         let sock = Box::new(TcpSocket {
-            socket: args.nm.create(SocketType::Stream, None, &args.args)?,
-            nm: args.nm,
+            socket: args.net.create(SocketType::Stream, None, &args.args)?,
+            net: args.net,
             fd: INV_FD,
         });
         let fd = Activity::own().files().add(sock)?;
@@ -112,7 +112,7 @@ impl Socket for TcpSocket {
             return Err(Error::new(Code::AlreadyInProgress));
         }
 
-        let local_ep = self.nm.connect(self.socket.sd(), endpoint)?;
+        let local_ep = self.net.connect(self.socket.sd(), endpoint)?;
         self.socket.state = State::Connecting;
         self.socket.remote_ep = Some(endpoint);
         self.socket.local_ep = Some(local_ep);
@@ -183,7 +183,7 @@ impl StreamSocket for TcpSocket {
             return Err(Error::new(Code::InvState));
         }
 
-        let addr = self.nm.listen(self.socket.sd(), port)?;
+        let addr = self.net.listen(self.socket.sd(), port)?;
         self.socket.local_ep = Some(Endpoint::new(addr, port));
         self.socket.state = State::Listening;
         Ok(())
@@ -261,7 +261,7 @@ impl StreamSocket for TcpSocket {
     }
 
     fn abort(&mut self) -> Result<(), Error> {
-        self.nm.abort(self.socket.sd(), false)?;
+        self.net.abort(self.socket.sd(), false)?;
         self.socket.recv_queue.clear();
         self.socket.disconnect();
         Ok(())
@@ -347,6 +347,6 @@ impl Drop for TcpSocket {
         // ignore errors
         self.close().ok();
 
-        self.nm.abort(self.socket.sd(), true).ok();
+        self.net.abort(self.socket.sd(), true).ok();
     }
 }

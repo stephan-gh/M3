@@ -13,7 +13,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::client::{NetworkManager, Pipes};
+use m3::client::{Network, Pipes};
 use m3::col::{String, ToString};
 use m3::com::MemGate;
 use m3::errors::Code;
@@ -32,11 +32,11 @@ pub fn run(t: &mut dyn WvTester) {
 }
 
 fn no_perm(t: &mut dyn WvTester) {
-    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+    let net = wv_assert_ok!(Network::new("net0"));
 
     wv_assert_err!(
         t,
-        RawSocket::new(RawSocketArgs::new(nm), None).map(|_| ()),
+        RawSocket::new(RawSocketArgs::new(net), None).map(|_| ()),
         Code::NoPerm
     );
 }

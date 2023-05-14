@@ -26,17 +26,17 @@ use crate::rc::Rc;
 /// send and receive multiple messages. Events are used to receive connected or closed events from
 /// the server and to send close requests to the server. Transmitted and received data is exchanged
 /// via the [`NetEventChannel`] in both directions.
-pub struct NetworkManager {
+pub struct Network {
     sess: ClientSession,
     sgate: SendGate,
 }
 
-impl NetworkManager {
+impl Network {
     /// Creates a new instance for `service`
     pub fn new(service: &str) -> Result<Rc<Self>, Error> {
         let sess = ClientSession::new(service)?;
         let sgate = sess.connect()?;
-        Ok(Rc::new(NetworkManager { sess, sgate }))
+        Ok(Rc::new(Network { sess, sgate }))
     }
 
     /// Returns the local IP address

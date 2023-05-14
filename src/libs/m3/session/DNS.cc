@@ -19,7 +19,7 @@
 
 #include <m3/net/DNS.h>
 #include <m3/net/UdpSocket.h>
-#include <m3/session/NetworkManager.h>
+#include <m3/session/Network.h>
 #include <m3/vfs/Waiter.h>
 
 #include <endian.h>
@@ -65,7 +65,7 @@ struct DNSAnswer {
     uint16_t length;
 } PACKED;
 
-IpAddr DNS::get_addr(NetworkManager &netmng, const char *name, TimeDuration timeout) {
+IpAddr DNS::get_addr(Network &net, const char *name, TimeDuration timeout) {
     if(is_ip_addr(name)) {
         IpAddr addr;
         IStringStream is(name);
@@ -73,7 +73,7 @@ IpAddr DNS::get_addr(NetworkManager &netmng, const char *name, TimeDuration time
         return addr;
     }
 
-    return resolve(netmng, name, timeout);
+    return resolve(net, name, timeout);
 }
 
 bool DNS::is_ip_addr(const char *name) {
@@ -133,10 +133,10 @@ static size_t question_length(const uint8_t *data) {
     return total + 1;
 }
 
-IpAddr DNS::resolve(NetworkManager &netmng, const char *name, TimeDuration timeout) {
+IpAddr DNS::resolve(Network &net, const char *name, TimeDuration timeout) {
     uint8_t buffer[512];
     if(_nameserver.addr() == 0)
-        _nameserver = netmng.get_nameserver();
+        _nameserver = net.get_nameserver();
 
     size_t nameLen = strlen(name);
     size_t total = sizeof(DNSHeader) + nameLen + 2 + sizeof(DNSQuestionEnd);
@@ -162,7 +162,7 @@ IpAddr DNS::resolve(NetworkManager &netmng, const char *name, TimeDuration timeo
     qend->cls = htobe16(CLASS_IN);
 
     // create socket
-    auto sock = UdpSocket::create(netmng);
+    auto sock = UdpSocket::create(net);
     sock->set_blocking(false);
 
     // send over socket

@@ -14,7 +14,7 @@
  */
 
 use m3::cap::Selector;
-use m3::client::NetworkManager;
+use m3::client::Network;
 use m3::com::Semaphore;
 use m3::errors::Code;
 use m3::net::{Endpoint, IpAddr, Socket, State, StreamSocket, StreamSocketArgs, TcpSocket};
@@ -35,9 +35,9 @@ pub fn run(t: &mut dyn WvTester) {
 }
 
 fn basics(t: &mut dyn WvTester) {
-    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+    let net = wv_assert_ok!(Network::new("net0"));
 
-    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(nm)));
+    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(net)));
 
     wv_assert_eq!(t, socket.state(), State::Closed);
     wv_assert_eq!(t, socket.local_endpoint(), None);
@@ -84,9 +84,9 @@ fn basics(t: &mut dyn WvTester) {
 }
 
 fn unreachable(t: &mut dyn WvTester) {
-    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+    let net = wv_assert_ok!(Network::new("net0"));
 
-    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(nm)));
+    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(net)));
 
     wv_assert_err!(
         t,
@@ -96,9 +96,9 @@ fn unreachable(t: &mut dyn WvTester) {
 }
 
 fn nonblocking_client(t: &mut dyn WvTester) {
-    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+    let net = wv_assert_ok!(Network::new("net0"));
 
-    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(nm)));
+    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(net)));
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
@@ -187,9 +187,9 @@ fn nonblocking_server(t: &mut dyn WvTester) {
 
         let sem = Semaphore::bind(sem_sel);
 
-        let nm = wv_assert_ok!(NetworkManager::new("net1"));
+        let net = wv_assert_ok!(Network::new("net1"));
 
-        let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(nm)));
+        let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(net)));
         wv_assert_ok!(socket.set_blocking(false));
 
         wv_assert_eq!(t, socket.local_endpoint(), None);
@@ -222,9 +222,9 @@ fn nonblocking_server(t: &mut dyn WvTester) {
         Ok(())
     }));
 
-    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+    let net = wv_assert_ok!(Network::new("net0"));
 
-    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(nm)));
+    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(net)));
 
     wv_assert_ok!(sem.down());
 
@@ -236,9 +236,9 @@ fn nonblocking_server(t: &mut dyn WvTester) {
 }
 
 fn open_close(t: &mut dyn WvTester) {
-    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+    let net = wv_assert_ok!(Network::new("net0"));
 
-    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(nm)));
+    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(net)));
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());
 
@@ -277,9 +277,9 @@ fn receive_after_close(t: &mut dyn WvTester) {
 
         let sem = Semaphore::bind(sem_sel);
 
-        let nm = wv_assert_ok!(NetworkManager::new("net1"));
+        let net = wv_assert_ok!(Network::new("net1"));
 
-        let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(nm)));
+        let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(net)));
 
         wv_assert_ok!(socket.listen(3000));
         wv_assert_eq!(t, socket.state(), State::Listening);
@@ -299,9 +299,9 @@ fn receive_after_close(t: &mut dyn WvTester) {
         Ok(())
     }));
 
-    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+    let net = wv_assert_ok!(Network::new("net0"));
 
-    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(nm)));
+    let mut socket = wv_assert_ok!(TcpSocket::new(StreamSocketArgs::new(net)));
 
     wv_assert_ok!(sem.down());
 
@@ -325,10 +325,10 @@ fn receive_after_close(t: &mut dyn WvTester) {
 }
 
 fn data(t: &mut dyn WvTester) {
-    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+    let net = wv_assert_ok!(Network::new("net0"));
 
     let mut socket = wv_assert_ok!(TcpSocket::new(
-        StreamSocketArgs::new(nm).send_buffer(2 * 1024)
+        StreamSocketArgs::new(net).send_buffer(2 * 1024)
     ));
 
     wv_assert_ok!(Semaphore::attach("net-tcp").unwrap().down());

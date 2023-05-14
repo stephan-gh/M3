@@ -18,7 +18,7 @@
 #include <m3/net/Net.h>
 #include <m3/net/TcpSocket.h>
 #include <m3/net/UdpSocket.h>
-#include <m3/session/NetworkManager.h>
+#include <m3/session/Network.h>
 
 #include "ops.h"
 
@@ -54,7 +54,7 @@ public:
 
 class TCPOpHandler : public OpHandler {
 public:
-    explicit TCPOpHandler(m3::NetworkManager &nm, m3::port_t port);
+    explicit TCPOpHandler(m3::Network &nm, m3::port_t port);
 
     virtual Result receive(Package &pkg) override;
 
@@ -67,8 +67,7 @@ private:
 
 class UDPOpHandler : public OpHandler {
 public:
-    explicit UDPOpHandler(m3::NetworkManager &nm, const char *workload, m3::IpAddr ip,
-                          m3::port_t port);
+    explicit UDPOpHandler(m3::Network &nm, const char *workload, m3::IpAddr ip, m3::port_t port);
 
     virtual Result receive(Package &pkg) override;
     virtual void reset() override;

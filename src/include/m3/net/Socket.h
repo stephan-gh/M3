@@ -25,7 +25,7 @@
 
 namespace m3 {
 
-class NetworkManager;
+class Network;
 
 /**
  * Arguments for socket creations that define the buffer sizes
@@ -48,7 +48,7 @@ struct SocketArgs {
  * The base class of all sockets, which provides the common functionality
  */
 class Socket : public File {
-    friend class NetworkManager;
+    friend class Network;
 
     static const int EVENT_FETCH_BATCH_SIZE = 4;
 
@@ -131,7 +131,7 @@ public:
      * Checks whether there is data to receive.
      *
      * Note that this function does not process events. To receive data, any receive function on
-     * this socket or [`NetworkManager::wait`] has to be called.
+     * this socket or [`Network::wait`] has to be called.
      *
      * @return true if data can currently be received from the socket
      */
@@ -196,7 +196,7 @@ public:
     virtual Option<size_t> recv(void *dst, size_t amount) = 0;
 
 protected:
-    explicit Socket(int sd, capsel_t caps, NetworkManager &nm);
+    explicit Socket(int sd, capsel_t caps, Network &nm);
 
     virtual void enable_notifications() override {
         // nothing to do
@@ -232,7 +232,7 @@ protected:
     Endpoint _local_ep;
     Endpoint _remote_ep;
 
-    NetworkManager &_nm;
+    Network &_net;
 
     NetEventChannel _channel;
     DataQueue _recv_queue;
