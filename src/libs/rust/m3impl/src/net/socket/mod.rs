@@ -32,11 +32,11 @@ mod stream;
 mod tcp;
 mod udp;
 
-pub use self::dgram::DGramSocket;
+pub use self::dgram::{DGramSocket, DgramSocketArgs};
 pub use self::raw::{RawSocket, RawSocketArgs};
-pub use self::stream::StreamSocket;
-pub use self::tcp::{StreamSocketArgs, TcpSocket};
-pub use self::udp::{DgramSocketArgs, UdpSocket};
+pub use self::stream::{StreamSocket, StreamSocketArgs};
+pub use self::tcp::TcpSocket;
+pub use self::udp::UdpSocket;
 
 const EVENT_FETCH_BATCH_SIZE: u32 = 4;
 

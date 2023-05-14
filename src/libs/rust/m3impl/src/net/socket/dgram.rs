@@ -13,8 +13,40 @@
  * General Public License version 2 for more details.
  */
 
+use crate::client::Network;
 use crate::errors::Error;
-use crate::net::{Endpoint, Port, Socket};
+use crate::net::{Endpoint, Port, Socket, SocketArgs};
+use crate::rc::Rc;
+
+/// Configures the buffer sizes for [`DGramSocket`]s
+pub struct DgramSocketArgs {
+    pub(crate) net: Rc<Network>,
+    pub(crate) args: SocketArgs,
+}
+
+impl DgramSocketArgs {
+    /// Creates a new [`DgramSocketArgs`] with default settings
+    pub fn new(net: Rc<Network>) -> Self {
+        Self {
+            net,
+            args: SocketArgs::default(),
+        }
+    }
+
+    /// Sets the number of slots and the size in bytes of the receive buffer
+    pub fn recv_buffer(mut self, slots: usize, size: usize) -> Self {
+        self.args.rbuf_slots = slots;
+        self.args.rbuf_size = size;
+        self
+    }
+
+    /// Sets the number of slots and the size in bytes of the send buffer
+    pub fn send_buffer(mut self, slots: usize, size: usize) -> Self {
+        self.args.sbuf_slots = slots;
+        self.args.sbuf_size = size;
+        self
+    }
+}
 
 /// Trait for all data-gram sockets, like UDP
 pub trait DGramSocket: Socket {

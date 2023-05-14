@@ -24,42 +24,12 @@ use crate::errors::{Code, Error};
 use crate::io;
 use crate::net::{
     log_net,
-    socket::{BaseSocket, DGramSocket, Socket, SocketArgs, State},
+    socket::{BaseSocket, DGramSocket, DgramSocketArgs, Socket, State},
     Endpoint, NetLogEvent, Port, SocketType,
 };
 use crate::rc::Rc;
 use crate::tiles::Activity;
 use crate::vfs::{self, Fd, File, FileEvent, FileRef, INV_FD};
-
-/// Configures the buffer sizes for datagram sockets
-pub struct DgramSocketArgs {
-    pub(crate) net: Rc<Network>,
-    pub(crate) args: SocketArgs,
-}
-
-impl DgramSocketArgs {
-    /// Creates a new [`DgramSocketArgs`] with default settings
-    pub fn new(net: Rc<Network>) -> Self {
-        Self {
-            net,
-            args: SocketArgs::default(),
-        }
-    }
-
-    /// Sets the number of slots and the size in bytes of the receive buffer
-    pub fn recv_buffer(mut self, slots: usize, size: usize) -> Self {
-        self.args.rbuf_slots = slots;
-        self.args.rbuf_size = size;
-        self
-    }
-
-    /// Sets the number of slots and the size in bytes of the send buffer
-    pub fn send_buffer(mut self, slots: usize, size: usize) -> Self {
-        self.args.sbuf_slots = slots;
-        self.args.sbuf_size = size;
-        self
-    }
-}
 
 /// Represents a datagram socket using the user datagram protocol (UDP)
 pub struct UdpSocket {

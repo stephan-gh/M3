@@ -24,40 +24,12 @@ use crate::errors::{Code, Error};
 use crate::io;
 use crate::net::{
     event, log_net,
-    socket::{BaseSocket, Socket, SocketArgs, State, StreamSocket},
+    socket::{BaseSocket, Socket, State, StreamSocket, StreamSocketArgs},
     Endpoint, NetLogEvent, Port, SocketType,
 };
 use crate::rc::Rc;
 use crate::tiles::Activity;
 use crate::vfs::{self, Fd, File, FileEvent, FileRef, INV_FD};
-
-/// Configures the buffer sizes for stream sockets
-pub struct StreamSocketArgs {
-    net: Rc<Network>,
-    args: SocketArgs,
-}
-
-impl StreamSocketArgs {
-    /// Creates a new [`StreamSocketArgs`] with default settings
-    pub fn new(net: Rc<Network>) -> Self {
-        Self {
-            net,
-            args: SocketArgs::default(),
-        }
-    }
-
-    /// Sets the size in bytes of the receive buffer
-    pub fn recv_buffer(mut self, size: usize) -> Self {
-        self.args.rbuf_size = size;
-        self
-    }
-
-    /// Sets the size in bytes of the send buffer
-    pub fn send_buffer(mut self, size: usize) -> Self {
-        self.args.sbuf_size = size;
-        self
-    }
-}
 
 /// Represents a stream socket using the transmission control protocol (TCP)
 pub struct TcpSocket {
