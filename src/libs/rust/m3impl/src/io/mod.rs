@@ -16,7 +16,7 @@
  * General Public License version 2 for more details.
  */
 
-//! Input/output abstractions.
+//! Input/output abstractions
 
 mod serial;
 mod std;
@@ -26,7 +26,7 @@ pub use self::std::{stderr, stdin, stdout};
 pub use self::std::{STDERR_FILENO, STDIN_FILENO, STDOUT_FILENO};
 pub use base::io::{log_bytes, log_slice, read_object, LogFlags, Read, Serial, Write};
 
-/// Uses stdout to print `$fmt` with given arguments.
+/// Uses stdout to print `$fmt` with given arguments
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => ({
@@ -35,7 +35,7 @@ macro_rules! print {
     });
 }
 
-/// Uses stdout to print `$fmt` with given arguments and a newline.
+/// Uses stdout to print `$fmt` with given arguments and a newline
 #[macro_export]
 macro_rules! println {
     ()                       => ($crate::print!("\n"));

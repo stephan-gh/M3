@@ -71,7 +71,7 @@ pub fn should_log(flag: LogFlags) -> bool {
     res
 }
 
-/// Helper for the log macro to keep the amount of additional code for logging at a minimum.
+/// Helper for the log macro to keep the amount of additional code for logging at a minimum
 #[cold]
 #[inline(never)]
 pub fn log_str(fmt: fmt::Arguments<'_>) {
@@ -80,7 +80,7 @@ pub fn log_str(fmt: fmt::Arguments<'_>) {
     }
 }
 
-/// Writes the given byte array to the log, showing `addr` as a prefix.
+/// Writes the given byte array to the log, showing `addr` as a prefix
 ///
 /// # Safety
 ///
@@ -91,7 +91,7 @@ pub unsafe fn log_bytes(addr: *const u8, len: usize) {
     }
 }
 
-/// Writes the given slice to the log, showing `addr` as a prefix.
+/// Writes the given slice to the log, showing `addr` as a prefix
 pub fn log_slice(slice: &[u8], addr: usize) {
     if let Some(mut l) = log::Log::get() {
         l.dump_slice(slice, addr).unwrap();

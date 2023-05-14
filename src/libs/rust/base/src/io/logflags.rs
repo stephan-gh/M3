@@ -18,6 +18,21 @@ use bitflags::bitflags;
 use core::str;
 
 bitflags! {
+    /// All log flags used in M³
+    ///
+    /// Logging in M³ is controlled at runtime via the environment variable `LOG`. Additionally, it
+    /// can be passed to all components when starting M³ via `M3_LOG`. Any component can then use
+    /// the `log` macro to log something. The available flags are kept here.
+    ///
+    /// There are three general flags: `Info`, `Debug`, and `Error`. These are used by various
+    /// components and Info and Error is enabled by default. These flags are also used in some
+    /// applications, so that we don't need to add new flags for applications.
+    ///
+    /// Additionally, there are per-component flags such as `KernEPs`, `ResMngChild`, or `PgReqs`
+    /// that control the logging of certain aspects within a specific component.
+    ///
+    /// Note however that the log flags are hard coded to `Info` and `Error` in bench mode
+    /// (`M3_BUILD=bench`)!
     #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct LogFlags : u128 {
         /// General: informational output (enabled by default)
