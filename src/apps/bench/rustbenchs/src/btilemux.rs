@@ -98,7 +98,7 @@ fn translates(_t: &mut dyn WvTester) {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             write!(
                 f,
-                "{} cycles (+/- {} with {} runs)",
+                "{} cycles (+/- {} cycles with {} runs)",
                 self.0.avg().as_raw() / PAGES as u64,
                 self.0.stddev().as_raw() / PAGES as u64,
                 self.0.runs()
