@@ -22,7 +22,9 @@ use crate::col::{String, ToString};
 use crate::errors::{Code, Error};
 use crate::rc::Rc;
 use crate::tiles::Activity;
-use crate::vfs::{FSHandle, File, FileInfo, FileMode, FileRef, GenericFile, OpenFlags, SeekMode};
+use crate::vfs::{
+    FSHandle, File, FileInfo, FileMode, FileRef, GenericFile, OpenFlags, ReadDir, SeekMode,
+};
 
 /// Mounts the file system of type `fstype` at `path`, creating a session at `service`.
 pub fn mount(path: &str, fstype: &str, service: &str) -> Result<(), Error> {
@@ -141,6 +143,12 @@ pub fn open(path: &str, flags: OpenFlags) -> Result<FileRef<GenericFile>, Error>
         let fd = Activity::own().files().add(file)?;
         Ok(FileRef::new_owned(fd))
     })
+}
+
+/// Returns an iterator for entries in the directory at `path`.
+pub fn read_dir(path: &str) -> Result<ReadDir, Error> {
+    let dir = open(path, OpenFlags::R)?;
+    Ok(ReadDir::new(dir))
 }
 
 /// Retrieves the file information from the file at `path`.

@@ -19,10 +19,9 @@
 use core::iter;
 
 use crate::col::String;
-use crate::errors::Error;
 use crate::io::{read_object, Read};
 use crate::mem;
-use crate::vfs::{BufReader, FileRef, GenericFile, INodeId, OpenFlags, Seek, SeekMode, VFS};
+use crate::vfs::{BufReader, FileRef, GenericFile, INodeId, Seek, SeekMode};
 
 /// Represents a directory entry.
 #[derive(Debug)]
@@ -51,6 +50,14 @@ impl DirEntry {
 /// An iterator to walk over a directory.
 pub struct ReadDir {
     reader: BufReader<FileRef<GenericFile>>,
+}
+
+impl ReadDir {
+    pub(crate) fn new(file: FileRef<GenericFile>) -> Self {
+        Self {
+            reader: BufReader::new(file),
+        }
+    }
 }
 
 impl iter::Iterator for ReadDir {
@@ -88,12 +95,4 @@ impl iter::Iterator for ReadDir {
 
         Some(res)
     }
-}
-
-/// Returns an iterator for entries in the directory at `path`.
-pub fn read_dir(path: &str) -> Result<ReadDir, Error> {
-    let dir = VFS::open(path, OpenFlags::R)?;
-    Ok(ReadDir {
-        reader: BufReader::new(dir),
-    })
 }

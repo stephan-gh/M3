@@ -19,7 +19,7 @@
 use core::cmp;
 use m3::col::{ToString, Vec};
 use m3::test::WvTester;
-use m3::vfs::read_dir;
+use m3::vfs::VFS;
 use m3::{wv_assert_eq, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn WvTester) {
@@ -30,7 +30,7 @@ fn list_dir(t: &mut dyn WvTester) {
     // read a dir with known content
     let dirname = "/largedir";
     let mut vec = Vec::new();
-    for e in wv_assert_ok!(read_dir(dirname)) {
+    for e in wv_assert_ok!(VFS::read_dir(dirname)) {
         vec.push(e);
     }
     wv_assert_eq!(t, vec.len(), 82);

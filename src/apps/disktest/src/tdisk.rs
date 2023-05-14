@@ -16,7 +16,7 @@
 use m3::col::{ToString, Vec};
 use m3::io::{Read, Write};
 use m3::test::WvTester;
-use m3::vfs::{read_dir, FileRef, GenericFile, OpenFlags, VFS};
+use m3::vfs::{FileRef, GenericFile, OpenFlags, VFS};
 use m3::{vec, wv_assert_eq, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn WvTester) {
@@ -71,7 +71,7 @@ fn write_file(t: &mut dyn WvTester) {
 
 fn list_dir(t: &mut dyn WvTester) {
     let mut vec = Vec::new();
-    for e in wv_assert_ok!(read_dir("/")) {
+    for e in wv_assert_ok!(VFS::read_dir("/")) {
         if e.file_name() != "." && e.file_name() != ".." {
             vec.push(e.file_name().to_string());
         }
