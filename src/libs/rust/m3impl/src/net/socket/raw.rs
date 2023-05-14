@@ -31,6 +31,7 @@ use crate::rc::Rc;
 use crate::tiles::Activity;
 use crate::vfs::{self, Fd, File, FileEvent, FileRef, INV_FD};
 
+/// Configures the buffer sizes for raw sockets
 pub type RawSocketArgs = DgramSocketArgs;
 
 /// Represents a raw internet protocol (IP) socket
@@ -41,7 +42,7 @@ pub struct RawSocket {
 }
 
 impl RawSocket {
-    /// Creates a new raw IP socket with given arguments.
+    /// Creates a new raw IP socket with given arguments
     ///
     /// By default, the socket is in blocking mode, that is, all functions
     /// ([`send`](RawSocket::send), [`recv`](RawSocket::recv), ...) do not return until the
@@ -67,7 +68,7 @@ impl RawSocket {
         self.socket.has_data()
     }
 
-    /// Receives data from the socket into the given buffer.
+    /// Receives data from the socket into the given buffer
     ///
     /// Returns the number of received bytes.
     pub fn recv(&mut self, data: &mut [u8]) -> Result<usize, Error> {
@@ -110,7 +111,7 @@ impl File for RawSocket {
         self.socket.blocking()
     }
 
-    /// Sets whether the socket is using blocking mode.
+    /// Sets whether the socket is using blocking mode
     ///
     /// In blocking mode, all functions ([`send`](RawSocket::send), [`recv`](RawSocket::recv), ...)
     /// do not return until the operation is complete. In non-blocking mode, all functions return in

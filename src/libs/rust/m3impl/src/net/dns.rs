@@ -62,6 +62,9 @@ struct DNSAnswer {
     ip_addr: u32,
 }
 
+/// Domain name service resolver
+///
+/// The DNS type uses [`Network`] to resolve host names to IP addresses.
 #[derive(Default)]
 pub struct DNS {
     nameserver: IpAddr,

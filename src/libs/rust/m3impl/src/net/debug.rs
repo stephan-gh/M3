@@ -15,6 +15,7 @@
 
 use crate::net::Sd;
 
+#[doc(hidden)]
 #[repr(usize)]
 pub enum NetLogEvent {
     SubmitData = 1,
@@ -28,6 +29,7 @@ pub enum NetLogEvent {
     StoppedWaiting,
 }
 
+#[doc(hidden)]
 #[cfg(target_vendor = "gem5")]
 #[inline(always)]
 pub fn log_net(ev: NetLogEvent, sd: Sd, arg: usize) {
@@ -36,6 +38,7 @@ pub fn log_net(ev: NetLogEvent, sd: Sd, arg: usize) {
     CPU::gem5_debug(msg);
 }
 
+#[doc(hidden)]
 #[cfg(not(target_vendor = "gem5"))]
 pub fn log_net(_ev: NetLogEvent, _sd: Sd, _arg: usize) {
 }

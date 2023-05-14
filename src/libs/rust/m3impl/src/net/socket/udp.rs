@@ -69,7 +69,7 @@ pub struct UdpSocket {
 }
 
 impl UdpSocket {
-    /// Creates a new UDP sockets with given arguments.
+    /// Creates a new UDP sockets with given arguments
     ///
     /// By default, the socket is in blocking mode, that is, all functions
     /// ([`send_to`](UdpSocket::send_to), [`recv_from`](UdpSocket::recv_from), ...) do not return
@@ -186,7 +186,7 @@ impl File for UdpSocket {
         self.socket.blocking()
     }
 
-    /// Sets whether the socket is using blocking mode.
+    /// Sets whether the socket is using blocking mode
     ///
     /// In blocking mode, all functions ([`send_to`](UdpSocket::send_to),
     /// [`recv_from`](UdpSocket::recv_from), ...) do not return until the operation is complete. In

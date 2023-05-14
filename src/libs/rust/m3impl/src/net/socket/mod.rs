@@ -40,6 +40,7 @@ pub use self::udp::{DgramSocketArgs, UdpSocket};
 
 const EVENT_FETCH_BATCH_SIZE: u32 = 4;
 
+#[doc(hidden)]
 pub struct SocketArgs {
     pub rbuf_slots: usize,
     pub rbuf_size: usize,
@@ -77,7 +78,7 @@ pub enum State {
     Closed,
 }
 
-/// Trait for all sockets.
+/// Trait for all sockets
 pub trait Socket: File {
     /// Returns the current state of the socket
     fn state(&self) -> State;

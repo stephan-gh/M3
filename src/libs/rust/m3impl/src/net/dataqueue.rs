@@ -46,6 +46,7 @@ impl Item {
     }
 }
 
+#[doc(hidden)]
 #[derive(Default)]
 pub struct DataQueue {
     items: DList<Item>,

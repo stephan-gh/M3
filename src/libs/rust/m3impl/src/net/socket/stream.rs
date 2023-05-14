@@ -16,9 +16,9 @@
 use crate::errors::Error;
 use crate::net::{Endpoint, Port, Socket};
 
-/// Trait for all stream sockets, like TCP.
+/// Trait for all stream sockets, like TCP
 pub trait StreamSocket: Socket {
-    /// Puts this socket into listen mode on the given port.
+    /// Puts this socket into listen mode on the given port
     ///
     /// In listen mode, remote connections can be accepted. See [`accept`](StreamSocket::accept).
     /// Note that in contrast to conventional TCP/IP stacks, [`listen`](StreamSocket::listen) is a

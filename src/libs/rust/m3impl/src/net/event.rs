@@ -37,19 +37,26 @@ const MSG_BUF_SIZE: usize = MSG_SIZE * MSG_CREDITS;
 const REPLY_SIZE: usize = 32;
 const REPLY_BUF_SIZE: usize = REPLY_SIZE * MSG_CREDITS;
 
-// the receive buffer slots are 2048 bytes, but we need to substract the TCU header and the other
+/// The maximum transmission unit when sending network packets via TCU messages
+// The receive buffer slots are 2048 bytes, but we need to substract the TCU header and the other
 // fields in DataMessage.
 pub const MTU: usize = MSG_SIZE - (mem::size_of::<Header>() + 4 * mem::size_of::<u64>());
 
+/// The different network event types
 #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u64)]
 pub enum NetEventType {
+    /// A data event for network packet (both directions)
     Data,
+    /// Socket is now connected (server -> client)
     Connected,
+    /// Socket was closed (server -> client)
     Closed,
+    /// Socket should be closed (client -> server)
     CloseReq,
 }
 
+#[doc(hidden)]
 #[repr(C, align(2048))]
 pub struct DataMessage {
     ty: NetEventType,
@@ -59,6 +66,7 @@ pub struct DataMessage {
     pub data: [u8; MTU],
 }
 
+#[doc(hidden)]
 #[repr(C)]
 pub struct ConnectedMessage {
     ty: NetEventType,
@@ -86,6 +94,7 @@ impl fmt::Debug for ConnectedMessage {
     }
 }
 
+#[doc(hidden)]
 #[repr(C)]
 pub struct ClosedMessage {
     ty: NetEventType,
@@ -105,6 +114,7 @@ impl fmt::Debug for ClosedMessage {
     }
 }
 
+#[doc(hidden)]
 #[repr(C)]
 pub struct CloseReqMessage {
     ty: NetEventType,
@@ -130,6 +140,11 @@ enum NetEventSide {
     Server,
 }
 
+/// A channel for events between client and server
+///
+/// The `NetEventChannel` is used to exchange events and data between the client and the server. The
+/// channel is bidirectional as we need to send events and data in both directions and supports
+/// multiple messages in each direction without blocking.
 pub struct NetEventChannel {
     side: NetEventSide,
     rgate: RecvGate,
@@ -138,6 +153,8 @@ pub struct NetEventChannel {
 }
 
 impl NetEventChannel {
+    /// Creates a new `NetEventChannel` for the server side with objects bound to the given
+    /// selectors
     pub fn new_server(caps: Selector) -> Result<Rc<Self>, Error> {
         let rgate = RecvGate::new_with(
             RGateArgs::default()
@@ -178,6 +195,8 @@ impl NetEventChannel {
         }))
     }
 
+    /// Creates a new `NetEventChannel` for the client side with objects bound to the given
+    /// selectors
     pub fn new_client(caps: Selector) -> Result<Rc<Self>, Error> {
         let rgate = RecvGate::new_bind(caps + 0);
         rgate.activate()?;
@@ -193,28 +212,36 @@ impl NetEventChannel {
         }))
     }
 
+    /// Wait until new messages have been received
     pub fn wait_for_events(&self) {
         // ignore errors
         OwnActivity::wait_for(Some(self.rgate.ep().unwrap()), None, None).ok();
     }
 
+    /// Wait until new messages can be send
     pub fn wait_for_credits(&self) {
         // ignore errors
         OwnActivity::wait_for(Some(self.rpl_gate.ep().unwrap()), None, None).ok();
     }
 
+    /// Returns true if messages can be send
     pub fn can_send(&self) -> Result<bool, Error> {
         self.sgate.can_send()
     }
 
+    /// Returns true if there are any events to read
     pub fn has_events(&self) -> bool {
         self.rgate.has_msgs().unwrap()
     }
 
+    /// Returns true if our [`SendGate`] has full credits
+    ///
+    /// This is the case if the server has replied to all previously send messages.
     pub fn has_all_credits(&self) -> bool {
         self.sgate.credits().unwrap() == MSG_CREDITS as u32
     }
 
+    /// Fetches the next event from the queue
     pub fn fetch_event(self: &Rc<Self>) -> Option<NetEvent> {
         match self.rgate.fetch() {
             Err(e) if e.code() == Code::NotFound => None,
@@ -223,12 +250,17 @@ impl NetEventChannel {
         }
     }
 
+    /// Sends the given event to the other side
     pub fn send_event<E>(&self, event: E) -> Result<(), Error> {
         let mut msg_buf = MsgBuf::borrow_def();
         msg_buf.set(event);
         self.sgate.send(&msg_buf, &self.rpl_gate)
     }
 
+    /// Builds a data message for sending
+    ///
+    /// Expects the endpoint to send the message to, the size of the message and a function that
+    /// populates the message data.
     pub fn build_data_message<F>(&self, endpoint: Endpoint, size: usize, populate: F) -> DataMessage
     where
         F: FnOnce(&mut [u8]),
@@ -250,6 +282,7 @@ impl NetEventChannel {
         msg
     }
 
+    /// Sends the given data message to the other side
     pub fn send_data(&self, msg: &DataMessage) -> Result<(), Error> {
         // we need to make sure here that we have enough space for the replies. therefore, we need
         // to fetch&ACK all available replies before sending. but there is still a race: if we have
@@ -272,6 +305,7 @@ impl NetEventChannel {
         }
     }
 
+    /// Fetch all replies that the other side sent to us
     pub fn fetch_replies(&self) {
         while let Ok(reply) = self.rpl_gate.fetch() {
             self.rpl_gate.ack_msg(reply).unwrap();
@@ -293,6 +327,7 @@ impl Drop for NetEventChannel {
     }
 }
 
+/// A network event exchanged over the [`NetEventChannel`]
 pub struct NetEvent {
     msg: &'static Message,
     channel: Rc<NetEventChannel>,
@@ -303,10 +338,12 @@ impl NetEvent {
         Self { msg, channel }
     }
 
+    /// Returns the type of event
     pub fn msg_type(&self) -> NetEventType {
         NetEventType::try_from(self.msg.as_words()[0]).unwrap()
     }
 
+    /// Returns a reference to the message, interpreted as `T`
     pub fn msg<T>(&self) -> &T {
         // TODO improve that
         unsafe {

@@ -16,9 +16,9 @@
 use crate::errors::Error;
 use crate::net::{Endpoint, Port, Socket};
 
-/// Trait for all data-gram sockets, like UDP.
+/// Trait for all data-gram sockets, like UDP
 pub trait DGramSocket: Socket {
-    /// Binds this socket to the given local port.
+    /// Binds this socket to the given local port
     ///
     /// Note that specifying 0 for `port` will allocate an ephemeral port for this socket.
     ///
@@ -32,7 +32,7 @@ pub trait DGramSocket: Socket {
     /// Returns an error if the socket is not in state [`Closed`](crate::net::State::Closed).
     fn bind(&mut self, port: Port) -> Result<(), Error>;
 
-    /// Receives data from the socket into the given buffer.
+    /// Receives data from the socket into the given buffer
     ///
     /// Returns the number of received bytes and the remote endpoint it was received from.
     fn recv_from(&mut self, data: &mut [u8]) -> Result<(usize, Endpoint), Error>;

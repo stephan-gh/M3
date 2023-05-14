@@ -15,6 +15,64 @@
  * General Public License version 2 for more details.
  */
 
+//! Network abstractions
+//!
+//! Network support on M³ builds upon a server called `net` that provides a TCP/IP stack and hosts
+//! the NIC driver and a client side API that allows to perform networking via the `net` server.
+//!
+//! # General organization
+//!
+//! The following diagram illustrates this organization:
+//!
+//! ```text
+//! +-------------------+                +-------------------+
+//! |      Client       |                |        Net        |
+//! |                   |                |                   |
+//! |          +------+ |  data, events  | +------+          |
+//! |          |      +-+----------------+>+      |          |
+//! |          |Socket| |                | |Socket|          |
+//! |          |      +<+----------------+-+      |          |
+//! |          +------+ |  data, events  | +------+          |
+//! |                   |                |                   |
+//! | +---------------+ |                | +---------------+ |
+//! | | Network Sess  | |                | |   NIC Driver  | |
+//! | +---------------+ |                | +---------------+ |
+//! +-------------------+                +-------------------+
+//! ```
+//!
+//! The right-hand side shows the net server that provides the TCP/IP stack based on `smoltcp` and
+//! an M³-specific interface to the client side. Additionally, net hosts a NIC driver to send and
+//! receive network packets.
+//!
+//! # Data and event exchange
+//!
+//! The left-hand side shows the client that has an established
+//! [`Network`](`crate::client::Network`) session at net. As can be seen, the client has opened a
+//! socket which is represented both at the client side and the server side. Between these two parts
+//! of the socket is a communication channel called [`NetEventChannel`] that is used to exchange
+//! data (network packets) and events (e.g., socket connected) between the client and the server.
+//!
+//! # Sockets
+//!
+//! Sockets come in multiple flavors (see [`SocketType`]) and all implement the [`Socket`] and
+//! [`File`](`crate::vfs::File`) traits:
+//! - [`StreamSocket`] with [`TcpSocket`] as the currently only implementation
+//! - [`DGramSocket`] with [`UdpSocket`] as the currently only implementation
+//! - [`RawSocket`]
+//!
+//! # Example
+//!
+//! A basic usage of a [`TcpSocket`] looks like the following:
+//!
+//! ```
+//! let net = Network::new("net").unwrap();
+//! let mut socket = TcpSocket::new(StreamSocketArgs::new(net)).unwrap();
+//! socket
+//!     .connect(Endpoint::new("127.0.0.1".parse().unwrap(), 1337))
+//!     .unwrap();
+//! socket.send(b"my data").unwrap();
+//! ```
+
 use base::errors::{Code, Error};
 use base::serialize::{Deserialize, Serialize};
 
@@ -45,21 +103,17 @@ pub type Sd = usize;
 /// A network port
 pub type Port = u16;
 
+/// Message size for the event channel
 pub const MSG_SIZE: usize = 2048;
-pub const MSG_ORDER: u32 = 11;
+/// The number of credits for the event channel
 pub const MSG_CREDITS: usize = 4;
-pub const MSG_CREDITS_ORDER: u32 = 2;
+/// The receive buffer size for the event channel
 pub const MSG_BUF_SIZE: usize = MSG_SIZE * MSG_CREDITS;
-pub const MSG_BUF_ORDER: u32 = MSG_ORDER + MSG_CREDITS_ORDER;
 
-pub const REPLY_SIZE: usize = 32;
-pub const REPLY_ORDER: u32 = 6;
+/// The message size for replies over the event channel
+pub const REPLY_SIZE: usize = 64;
+/// The receive buffer size for replies
 pub const REPLY_BUF_SIZE: usize = REPLY_SIZE * MSG_CREDITS;
-pub const REPLY_BUF_ORDER: u32 = REPLY_ORDER + MSG_CREDITS_ORDER;
-pub const INBAND_DATA_SIZE: usize = 2048;
-pub const INBAND_DATA_CREDITS: usize = 4;
-pub const INBAND_DATA_BUF_SIZE: usize = INBAND_DATA_SIZE * INBAND_DATA_CREDITS;
-pub const MAX_NETDATA_SIZE: usize = 1024;
 
 /// Represents an internet protocol (IP) address
 #[derive(Debug, Default, Eq, PartialEq, Clone, Copy)]
@@ -137,6 +191,7 @@ impl core::fmt::Display for Endpoint {
     }
 }
 
+/// The type of socket
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(crate = "base::serde")]
 pub enum SocketType {
@@ -196,7 +251,7 @@ impl core::fmt::Display for MAC {
     }
 }
 
-/// Compute an RFC 1071 compliant checksum.
+/// Compute an RFC 1071 compliant checksum
 // taken from smoltcp
 pub fn data_checksum(mut data: &[u8]) -> u16 {
     use core::convert::TryInto;

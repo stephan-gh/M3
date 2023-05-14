@@ -67,7 +67,7 @@ pub struct TcpSocket {
 }
 
 impl TcpSocket {
-    /// Creates a new TCP sockets with given arguments.
+    /// Creates a new TCP sockets with given arguments
     ///
     /// By default, the socket is in blocking mode, that is, all functions
     /// ([`connect`](TcpSocket::connect), [`send`](TcpSocket::send), [`recv`](TcpSocket::recv),
@@ -294,7 +294,7 @@ impl File for TcpSocket {
         self.socket.blocking()
     }
 
-    /// Sets whether the socket is using blocking mode.
+    /// Sets whether the socket is using blocking mode
     ///
     /// In blocking mode, all functions ([`connect`](TcpSocket::connect), [`send`](TcpSocket::send),
     /// [`recv`](TcpSocket::recv), ...) do not return until the operation is complete. In
