@@ -81,7 +81,7 @@ struct TileDesc {
      */
     explicit TileDesc(TileType type, TileISA isa, size_t memsize = 0, uint attr = 0)
         : _value(static_cast<value_t>(type) | (static_cast<value_t>(isa) << 6) |
-                 (static_cast<value_t>(attr) << 20) | ((memsize >> 12) << 28)) {
+                 (static_cast<value_t>(attr) << 11) | ((memsize >> 12) << 28)) {
     }
 
     /**
@@ -101,13 +101,13 @@ struct TileDesc {
      * @return the isa of the tile
      */
     TileISA isa() const {
-        return static_cast<TileISA>((_value >> 6) & 0x3FFF);
+        return static_cast<TileISA>((_value >> 6) & 0x1F);
     }
     /**
      * @return the attributes of the tile
      */
     uint attr() const {
-        return (_value >> 20) & 0xFF;
+        return (_value >> 11) & 0x1FFFF;
     }
     /**
      * @return if the tile has a core that is programmable

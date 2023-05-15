@@ -90,7 +90,7 @@ bitflags! {
 /// +---------------------------+------------+-----+------+
 /// | memory size (in 4K pages) | attributes | ISA | type |
 /// +---------------------------+------------+-----+------+
-/// 64                         28           20     6      0
+/// 64                         28           11     6      0
 pub type TileDescRaw = u64;
 
 /// Describes a tile.
@@ -124,7 +124,7 @@ impl TileDesc {
         let mem_pages = memsize >> 12;
         let val = ty as TileDescRaw
             | (isa as TileDescRaw) << 6
-            | (attr.bits() << 20)
+            | (attr.bits() << 11)
             | (mem_pages as TileDescRaw) << 28;
         Self::new_from(val)
     }
@@ -144,11 +144,11 @@ impl TileDesc {
     }
 
     pub fn isa(self) -> TileISA {
-        TileISA::from((self.val >> 6) & 0x3FFF)
+        TileISA::from((self.val >> 6) & 0x1F)
     }
 
     pub fn attr(self) -> TileAttr {
-        TileAttr::from_bits_truncate((self.val >> 20) & 0xFF)
+        TileAttr::from_bits_truncate((self.val >> 11) & 0x1FFFF)
     }
 
     /// Returns the size of the internal memory (0 if none is present)
