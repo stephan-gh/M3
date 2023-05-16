@@ -51,11 +51,16 @@ extern "C" {
     fn __m3_heap_set_area(begin: usize, end: usize);
 }
 
+#[cfg(feature = "coverage")]
+const HEAP_SIZE: usize = 8 * 1024 * 1024;
+#[cfg(not(feature = "coverage"))]
+const HEAP_SIZE: usize = 512 * 1024;
+
 // the heap area needs to be page-byte aligned
 #[repr(align(4096))]
-struct Heap([u64; 1024 * 1024]);
+struct Heap([u64; HEAP_SIZE / mem::size_of::<u64>()]);
 #[used]
-static mut HEAP: Heap = Heap([0; 1024 * 1024]);
+static mut HEAP: Heap = Heap([0; HEAP_SIZE / mem::size_of::<u64>()]);
 
 pub struct TMEnv {
     tile_id: u64,
@@ -199,7 +204,7 @@ pub extern "C" fn init() -> usize {
         __m3_init_libc(0, ptr::null(), ptr::null(), false);
         __m3_heap_set_area(
             &HEAP.0 as *const u64 as usize,
-            &HEAP.0 as *const u64 as usize + HEAP.0.len() * 8,
+            &HEAP.0 as *const u64 as usize + HEAP.0.len() * mem::size_of::<u64>(),
         );
     }
 
