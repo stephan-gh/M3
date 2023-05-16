@@ -85,19 +85,19 @@ def add_mod(dram, addr, mod, offset):
 def tile_desc(tiles, i, vm):
     if i >= len(tiles):
         # mem size | TileAttr::IMEM | TileType::MEM
-        return (DRAM_SIZE >> 12) << 28 | ((1 << 4) << 20) | 1
+        return (DRAM_SIZE >> 12) << 28 | ((1 << 4) << 11) | 1
 
     tile_desc = 1 << 6  # RISCV
     if not vm:
         # mem size | TileAttr::IMEM
-        tile_desc |= ((pmp_size >> 12) << 28) | ((1 << 4) << 20)
+        tile_desc |= ((pmp_size >> 12) << 28) | ((1 << 4) << 11)
     if i < 5:
-        tile_desc |= (1 << 1) << 20  # Rocket core
+        tile_desc |= (1 << 1) << 11  # Rocket core
     else:
-        tile_desc |= (1 << 0) << 20  # BOOM core
+        tile_desc |= (1 << 0) << 11  # BOOM core
     if i == 6:
-        tile_desc |= (1 << 2) << 20  # NIC
-        tile_desc |= (1 << 3) << 20  # Serial
+        tile_desc |= (1 << 2) << 11  # NIC
+        tile_desc |= (1 << 3) << 11  # Serial
     return tile_desc
 
 
