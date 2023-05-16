@@ -265,27 +265,6 @@ pub fn alloc_ep(dst: Selector, act: Selector, epid: EpId, replies: u32) -> Resul
     Ok(reply.data.ep)
 }
 
-/// Sets the given physical-memory-protection EP to the memory region as defined by the `MemGate`
-/// on the given tile.
-///
-/// The EP has to be between 1 and `crate::tcu::PMEM_PROT_EPS` - 1 and will be overwritten with the
-/// new memory region. If `overwrite` is false, the syscall fails in case the PMP EP is already
-/// configured.
-///
-/// If `mgate` is `INVALID_SEL` the PMP EP will be invalidated.
-///
-/// This call requires a non-derived tile capability.
-pub fn set_pmp(tile: Selector, mgate: Selector, ep: EpId, overwrite: bool) -> Result<(), Error> {
-    let mut buf = SYSC_BUF.borrow_mut();
-    build_vmsg!(buf, syscalls::Operation::SetPMP, syscalls::SetPMP {
-        tile,
-        mgate,
-        ep,
-        overwrite
-    });
-    send_receive_result(&buf)
-}
-
 /// Derives a new memory gate for given activity at selector `dst` based on memory gate `sel`.
 ///
 /// The subset of the region is given by `offset` and `size`, whereas the subset of the permissions
@@ -438,6 +417,32 @@ pub fn tile_set_quota(tile: Selector, time: u64, pts: usize) -> Result<(), Error
         syscalls::Operation::TileSetQuota,
         syscalls::TileSetQuota { tile, time, pts }
     );
+    send_receive_result(&buf)
+}
+
+/// Sets the given physical-memory-protection EP to the memory region as defined by the `MemGate`
+/// on the given tile.
+///
+/// The EP has to be between 1 and `crate::tcu::PMEM_PROT_EPS` - 1 and will be overwritten with the
+/// new memory region. If `overwrite` is false, the syscall fails in case the PMP EP is already
+/// configured.
+///
+/// If `mgate` is `INVALID_SEL` the PMP EP will be invalidated.
+///
+/// This call requires a non-derived tile capability.
+pub fn tile_set_pmp(
+    tile: Selector,
+    mgate: Selector,
+    ep: EpId,
+    overwrite: bool,
+) -> Result<(), Error> {
+    let mut buf = SYSC_BUF.borrow_mut();
+    build_vmsg!(buf, syscalls::Operation::TileSetPMP, syscalls::TileSetPMP {
+        tile,
+        mgate,
+        ep,
+        overwrite
+    });
     send_receive_result(&buf)
 }
 

@@ -170,7 +170,6 @@ struct KIF {
 
             // capability operations
             ACTIVATE,
-            SET_PMP,
             ACT_CTRL,
             ACT_WAIT,
             DERIVE_MEM,
@@ -183,6 +182,7 @@ struct KIF {
             KMEM_QUOTA,
             TILE_QUOTA,
             TILE_SET_QUOTA,
+            TILE_SET_PMP,
             SEM_CTRL,
 
             // capability exchange
@@ -290,13 +290,6 @@ struct KIF {
             xfer_t rbuf_off;
         } PACKED;
 
-        struct SetPMP : public DefaultRequest {
-            xfer_t tile_sel;
-            xfer_t mgate_sel;
-            xfer_t epid;
-            xfer_t overwrite;
-        } PACKED;
-
         struct ActivityCtrl : public DefaultRequest {
             xfer_t act_sel;
             xfer_t op;
@@ -399,6 +392,18 @@ struct KIF {
             xfer_t tile_sel;
             xfer_t time;
             xfer_t pts;
+        } PACKED;
+
+        struct TileSetPMP : public DefaultRequest {
+            xfer_t tile_sel;
+            xfer_t mgate_sel;
+            xfer_t epid;
+            xfer_t overwrite;
+        } PACKED;
+
+        struct TileReset : public DefaultRequest {
+            xfer_t tile_sel;
+            xfer_t mux_mem_sel;
         } PACKED;
 
         struct SemCtrl : public DefaultRequest {

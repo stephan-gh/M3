@@ -183,17 +183,6 @@ void Syscalls::activate(capsel_t ep, capsel_t gate, capsel_t rbuf_mem, goff_t rb
     send_receive_throw(req_buf);
 }
 
-void Syscalls::set_pmp(capsel_t tile, capsel_t mgate, epid_t epid, bool overwrite) {
-    MsgBuf req_buf;
-    auto &req = req_buf.cast<KIF::Syscall::SetPMP>();
-    req.opcode = KIF::Syscall::SET_PMP;
-    req.tile_sel = tile;
-    req.mgate_sel = mgate;
-    req.epid = epid;
-    req.overwrite = overwrite;
-    send_receive_throw(req_buf);
-}
-
 void Syscalls::activity_ctrl(capsel_t act, KIF::Syscall::ActivityOp op, xfer_t arg) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::ActivityCtrl>();
@@ -356,6 +345,17 @@ void Syscalls::tile_set_quota(capsel_t tile, uint64_t time, uint64_t pts) {
     req.tile_sel = tile;
     req.time = time;
     req.pts = pts;
+    send_receive_throw(req_buf);
+}
+
+void Syscalls::tile_set_pmp(capsel_t tile, capsel_t mgate, epid_t epid, bool overwrite) {
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::TileSetPMP>();
+    req.opcode = KIF::Syscall::TILE_SET_PMP;
+    req.tile_sel = tile;
+    req.mgate_sel = mgate;
+    req.epid = epid;
+    req.overwrite = overwrite;
     send_receive_throw(req_buf);
 }
 

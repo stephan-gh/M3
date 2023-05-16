@@ -89,8 +89,12 @@ impl TileUsage {
         let mut pmp = self.pmp.borrow_mut();
         if set {
             loop {
-                match syscalls::set_pmp(self.tile_obj().sel(), mgate.sel(), pmp.next_ep, overwrite)
-                {
+                match syscalls::tile_set_pmp(
+                    self.tile_obj().sel(),
+                    mgate.sel(),
+                    pmp.next_ep,
+                    overwrite,
+                ) {
                     Err(e) if e.code() == Code::Exists && !overwrite => pmp.next_ep += 1,
                     Err(e) => return Err(e),
                     Ok(_) => break,

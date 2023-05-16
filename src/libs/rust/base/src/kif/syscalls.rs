@@ -52,7 +52,6 @@ pub enum Operation {
 
     // Capability operations
     Activate,
-    SetPMP,
     ActCtrl,
     ActWait,
     DeriveMem,
@@ -65,6 +64,7 @@ pub enum Operation {
     KMemQuota,
     TileQuota,
     TileSetQuota,
+    TileSetPMP,
     SemCtrl,
 
     // Capability exchange
@@ -168,15 +168,6 @@ pub struct Activate {
     pub rbuf_off: goff,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[repr(C)]
-pub struct SetPMP {
-    pub tile: CapSel,
-    pub mgate: CapSel,
-    pub ep: EpId,
-    pub overwrite: bool,
-}
-
 /// The operations for the `act_ctrl` system call
 #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, Serialize_repr, Deserialize_repr)]
 #[repr(u64)]
@@ -278,6 +269,15 @@ pub struct TileSetQuota {
     pub tile: CapSel,
     pub time: u64,
     pub pts: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[repr(C)]
+pub struct TileSetPMP {
+    pub tile: CapSel,
+    pub mgate: CapSel,
+    pub ep: EpId,
+    pub overwrite: bool,
 }
 
 /// The operations for the `sem_ctrl` system call
