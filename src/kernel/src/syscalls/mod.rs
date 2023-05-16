@@ -92,6 +92,7 @@ mod create;
 mod derive;
 mod exchange;
 mod misc;
+mod tile;
 
 fn send_reply(msg: &'static tcu::Message, rep: &mem::MsgBuf) {
     ktcu::reply(ktcu::KSYS_EP, rep, msg).ok();
@@ -142,9 +143,9 @@ pub fn handle_async(msg: &'static tcu::Message) {
         o if o == Operation::MGateRegion.into() => misc::mgate_region(&act, msg),
         o if o == Operation::RGateBuffer.into() => misc::rgate_buffer(&act, msg),
         o if o == Operation::KMemQuota.into() => misc::kmem_quota(&act, msg),
-        o if o == Operation::TileQuota.into() => misc::tile_quota_async(&act, msg),
-        o if o == Operation::TileSetQuota.into() => misc::tile_set_quota_async(&act, msg),
-        o if o == Operation::TileSetPMP.into() => misc::tile_set_pmp(&act, msg),
+        o if o == Operation::TileQuota.into() => tile::tile_quota_async(&act, msg),
+        o if o == Operation::TileSetQuota.into() => tile::tile_set_quota_async(&act, msg),
+        o if o == Operation::TileSetPMP.into() => tile::tile_set_pmp(&act, msg),
         o if o == Operation::GetSess.into() => misc::get_sess(&act, msg),
         o if o == Operation::SemCtrl.into() => misc::sem_ctrl_async(&act, msg),
         o if o == Operation::ActCtrl.into() => misc::activity_ctrl_async(&act, msg),
