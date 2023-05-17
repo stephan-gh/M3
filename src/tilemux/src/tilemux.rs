@@ -187,10 +187,6 @@ pub extern "C" fn ext_irq(state: &mut arch::State) -> *mut libc::c_void {
 
 #[no_mangle]
 pub extern "C" fn init() -> usize {
-    // switch to a different activity during the init phase to ensure that we don't miss messages for us
-    let old_id = tcu::TCU::xchg_activity(0).unwrap();
-    assert!((old_id >> 16) == 0);
-
     // init our own environment; at this point we can still access app_env, because it is mapped by
     // the gem5 loader for us. afterwards, our address space does not contain that anymore.
     {
@@ -217,13 +213,14 @@ pub extern "C" fn init() -> usize {
     // switch to idle; we don't want to keep the reference here, because activities::schedule()
     // below will also take a reference to idle.
     activities::idle().start();
-    activities::schedule(activities::ScheduleAction::Yield);
 
-    let mut idle = activities::idle();
-    let state = idle.user_state();
-    let state_top = state as *const _ as usize + mem::size_of::<arch::State>();
+    let state_top = {
+        let mut idle = activities::idle();
+        let state = idle.user_state();
+        ISR::init(state);
+        state as *const _ as usize + mem::size_of::<arch::State>()
+    };
 
-    ISR::init(state);
     isr::reg_all(unexpected_irq);
     ISR::reg_tm_calls(tmcall);
     ISR::reg_page_faults(mmu_pf);
@@ -235,6 +232,13 @@ pub extern "C" fn init() -> usize {
 
     // store platform already in app env, because we need it for logging
     app_env().boot.platform = pex_env().platform;
+
+    // now that interrupts have been set up, we can schedule and thereby switch to idle in the TCU
+    activities::schedule(activities::ScheduleAction::Yield);
+
+    // in case messages arrived before we scheduled, handle them now. if any arrives after we
+    // switched to idle, we'll get an interrupt later
+    sidecalls::check();
 
     state_top
 }

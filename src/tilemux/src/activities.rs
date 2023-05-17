@@ -460,7 +460,13 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
         TimeDuration::from_nanos(old.time_quota.left())
     }
     else {
-        tcu::TCU::xchg_activity(next.activity_reg()).unwrap();
+        let old_id = tcu::TCU::xchg_activity(next.activity_reg()).unwrap();
+        // during startup we might get here if we received a sidecall from the kernel before being
+        // fully initialized. in this case, remember the message count in our activity to handle
+        // these sidecalls later.
+        if (old_id & 0xFFFF) == kif::tilemux::ACT_ID {
+            our().set_activity_reg(old_id);
+        }
         TimeDuration::ZERO
     };
 
