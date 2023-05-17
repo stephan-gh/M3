@@ -263,7 +263,7 @@ impl<A: Allocator> AddrSpace<A> {
 
                 let invalidate = Paging::needs_invalidate(new_flags, old_flags);
                 if invalidate {
-                    TCU::invalidate_page(self.id as u16, *virt).ok();
+                    TCU::invalidate_page_unchecked(self.id as u16, *virt);
                     // flush single page for leaf PTEs and complete TLB for higher-level PTEs
                     if level == 0 {
                         Paging::invalidate_page(self.id, *virt);

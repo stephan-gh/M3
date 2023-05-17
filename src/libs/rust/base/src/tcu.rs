@@ -848,6 +848,16 @@ impl TCU {
 
     /// Invalidates the entry with given address space id and virtual address in the TCU's TLB
     pub fn invalidate_page(asid: u16, virt: usize) -> Result<(), Error> {
+        Self::invalidate_page_unchecked(asid, virt);
+        Self::get_priv_error()
+    }
+
+    /// Invalidates the entry with given address space id and virtual address in the TCU's TLB
+    ///
+    /// In contrast to `invalidate_page`, errors are ignored. Note that we avoid even allocating the
+    /// Error type here, because that causes a heap allocation in debug mode and is used in the
+    /// paging code.
+    pub fn invalidate_page_unchecked(asid: u16, virt: usize) {
         #[cfg(target_vendor = "hw22")]
         let val = ((asid as Reg) << 41) | ((virt as Reg) << 9) | PrivCmdOpCode::INV_PAGE.val;
         #[cfg(not(target_vendor = "hw22"))]
@@ -857,7 +867,7 @@ impl TCU {
         };
 
         Self::write_priv_reg(PrivReg::PrivCmd, val);
-        Self::get_priv_error()
+        Self::wait_priv_cmd();
     }
 
     /// Inserts the given entry into the TCU's TLB
