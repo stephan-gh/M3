@@ -117,9 +117,9 @@ public:
         retrieve_result(opcodes::ResMng::FREE_MEM, reply);
     }
 
-    TileDesc alloc_tile(capsel_t sel, const TileDesc &desc, bool inherit_pmp) {
+    TileDesc alloc_tile(capsel_t sel, const TileDesc &desc, bool init) {
         GateIStream reply =
-            send_receive_vmsg(_sgate, opcodes::ResMng::ALLOC_TILE, sel, desc.value(), inherit_pmp);
+            send_receive_vmsg(_sgate, opcodes::ResMng::ALLOC_TILE, sel, desc.value(), init);
         retrieve_result(opcodes::ResMng::ALLOC_TILE, reply);
         TileDesc::value_t res;
         TileId::raw_t tileid;

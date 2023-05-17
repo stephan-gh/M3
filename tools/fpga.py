@@ -149,26 +149,29 @@ def write_args(dram, args, argv, mem_begin):
     return args_addr
 
 
+def init_tile(tile, vm):
+    # reset TCU (clear command log and reset registers except FEATURES and EPs)
+    tile.tcu_reset()
+
+    # enable instruction trace for all tiles (doesn't cost anything)
+    tile.rocket_enableTrace()
+
+    # set features: privileged, vm, ctxsw
+    tile.tcu_set_features(1, vm, 1)
+
+    # invalidate all EPs
+    for ep in range(0, 63):
+        tile.tcu_set_ep(ep, EP.invalid())
+
+
 def load_prog(dram, tiles, i, args, vm, logflags, linux):
     pm = tiles[i]
-    print("%s: loading %s..." % (pm.name, args[0]))
-    sys.stdout.flush()
 
     # start core
     pm.start()
 
-    # reset TCU (clear command log and reset registers except FEATURES and EPs)
-    pm.tcu_reset()
-
-    # enable instruction trace for all tiles (doesn't cost anything)
-    pm.rocket_enableTrace()
-
-    # set features: privileged, vm, ctxsw
-    pm.tcu_set_features(1, vm, 1)
-
-    # invalidate all EPs
-    for ep in range(0, 63):
-        pm.tcu_set_ep(ep, EP.invalid())
+    print("%s: loading %s..." % (pm.name, args[0]))
+    sys.stdout.flush()
 
     if linux:
         mem_begin = int(LX_ADDR)
@@ -405,14 +408,19 @@ def main():
     mods = [] if args.mod is None else args.mod
     load_boot_info(fpga_inst.dram1, mods, fpga_inst.pms, args.vm)
 
-    # load programs onto tiles
-    for i, pargs in enumerate(args.tile[0:len(fpga_inst.pms)], 0):
-        lx = i == 6 and args.linux
-        load_prog(fpga_inst.dram1, fpga_inst.pms, i, pargs.split(' '), args.vm, args.logflags, lx)
+    # init all tiles
+    for tile in fpga_inst.pms:
+        init_tile(tile, args.vm)
 
-    # load initrd for Linux into memory
-    if args.initrd is not None:
-        write_file(fpga_inst.dram1, args.initrd, INITRD_ADDR)
+    # load kernels on tiles
+    for i, pargs in enumerate(args.tile[0:len(fpga_inst.pms)], 0):
+        load_prog(fpga_inst.dram1, fpga_inst.pms, i,
+                  pargs.split(' '), args.vm, args.logflags, False)
+
+    # lx = i == 6 and args.linux
+    # load_prog(fpga_inst.dram1, fpga_inst.pms, i, pargs.split(' '), args.vm, args.logflags, lx)
+    # if args.initrd is not None:
+    #     write_file(fpga_inst.dram1, args.initrd, INITRD_ADDR)
 
     # enable NoC ARQ when cores are running
     for tile in fpga_inst.pms:
@@ -421,7 +429,7 @@ def main():
     fpga_inst.dram1.nocarq.set_arq_enable(1)
     fpga_inst.dram2.nocarq.set_arq_enable(1)
 
-    # start tiles
+    # start kernel tiles
     debug_tile = len(fpga_inst.pms) if args.debug is None else args.debug
     for i, tile in enumerate(fpga_inst.pms, 0):
         if i != debug_tile:

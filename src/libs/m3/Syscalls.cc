@@ -359,6 +359,24 @@ void Syscalls::tile_set_pmp(capsel_t tile, capsel_t mgate, epid_t epid, bool ove
     send_receive_throw(req_buf);
 }
 
+void Syscalls::tile_mem(capsel_t dst, capsel_t tile) {
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::TileMem>();
+    req.opcode = KIF::Syscall::TILE_MEM;
+    req.dst_sel = dst;
+    req.tile_sel = tile;
+    send_receive_throw(req_buf);
+}
+
+void Syscalls::tile_reset(capsel_t tile, capsel_t mux_mem) {
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::TileReset>();
+    req.opcode = KIF::Syscall::TILE_RESET;
+    req.tile_sel = tile;
+    req.mux_mem_sel = mux_mem;
+    send_receive_throw(req_buf);
+}
+
 void Syscalls::sem_ctrl(capsel_t sel, KIF::Syscall::SemOp op) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::SemCtrl>();

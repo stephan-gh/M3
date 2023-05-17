@@ -31,6 +31,6 @@ pub fn init() {
     self::actmng::init();
 }
 
-pub fn deinit() {
-    self::actmng::deinit();
+pub fn deinit_async() {
+    self::tilemng::deinit_async();
 }

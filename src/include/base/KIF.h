@@ -183,6 +183,8 @@ struct KIF {
             TILE_QUOTA,
             TILE_SET_QUOTA,
             TILE_SET_PMP,
+            TILE_MEM,
+            TILE_RESET,
             SEM_CTRL,
 
             // capability exchange
@@ -404,6 +406,11 @@ struct KIF {
         struct TileReset : public DefaultRequest {
             xfer_t tile_sel;
             xfer_t mux_mem_sel;
+        } PACKED;
+
+        struct TileMem : public DefaultRequest {
+            xfer_t dst_sel;
+            xfer_t tile_sel;
         } PACKED;
 
         struct SemCtrl : public DefaultRequest {

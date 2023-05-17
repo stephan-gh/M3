@@ -112,7 +112,7 @@ build_params_gem5() {
     generate_config "$1" "$M3_OUT" || exit 1
 
     kernels=$(perl -ne 'printf("'"$bindir"/'%s,", $1) if /<kernel\s.*args="(.*?)"/' < "$1")
-    mods=$(get_mods "$1" "gem5") || exit 1
+    mods="$(get_mods "$1" "gem5"),tilemux=$bindir/tilemux" || exit 1
 
     if [ "$M3_GEM5_LOG" = "" ]; then
         M3_GEM5_LOG="Tcu"
@@ -133,7 +133,7 @@ build_params_gem5() {
     cmd=$kernels
     c=$(echo -n "$cmd" | sed 's/[^,]//g' | wc -c)
     while [ "$c" -lt "$M3_CORES" ]; do
-        cmd="$cmd$bindir/tilemux,"
+        cmd="$cmd,"
         c=$((c + 1))
     done
 
@@ -195,7 +195,7 @@ build_params_hw() {
     generate_config "$1" "$M3_OUT" || exit 1
 
     kernels=$(perl -ne 'printf("%s,", $1) if /<kernel\s.*args="(.*?)"/' < "$1")
-    mods=$(get_mods "$1" "hw") || exit 1
+    mods="$(get_mods "$1" "hw"),tilemux=$bindir/tilemux" || exit 1
 
     if [ "$M3_TARGET" = "hw22" ]; then
         args="--version 0"
@@ -225,14 +225,6 @@ build_params_hw() {
     for mod in $mods; do
         args="$args --mod '$mod'"
         files=("${files[@]}" "${mod#*=}")
-    done
-    while [ $c -lt 8 ]; do
-        if [ "$M3_HW_M3LX" != "" ] && [ $c -eq 6 ]; then
-            args="$args --tile bbl"
-        else
-            args="$args --tile tilemux"
-        fi
-        c=$((c + 1))
     done
     unset IFS
 

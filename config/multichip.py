@@ -1,6 +1,7 @@
-import os, sys
+import os
+import sys
 
-sys.path.append(os.path.realpath('platform/gem5/configs/example'))
+sys.path.append(os.path.realpath('platform/gem5/configs/example'))  # NOQA
 from tcu_fs import *
 
 options = getOptions()
@@ -49,7 +50,7 @@ for i in range(0, num_cores_per_chip):
                           options=options,
                           id=TileId(0, i),
                           cmdline=cmd_list[i],
-                          memTile=mem_tile,
+                          memTile=mem_tile if cmd_list[i] != "" else None,
                           l1size='32kB',
                           l2size='256kB',
                           epCount=num_eps)
@@ -59,7 +60,7 @@ for i in range(0, num_cores_per_chip):
 tile = createSerialTile(noc=root.noc1,
                         options=options,
                         id=TileId(0, num_cores_per_chip),
-                        memTile=mem_tile,
+                        memTile=None,
                         epCount=num_eps)
 tiles.append(tile)
 
@@ -68,7 +69,7 @@ for i in range(0, num_cores_per_chip):
                           options=options,
                           id=TileId(1, i),
                           cmdline=cmd_list[num_cores_per_chip + i],
-                          memTile=mem_tile,
+                          memTile=mem_tile if cmd_list[num_cores_per_chip + i] != "" else None,
                           l1size='32kB',
                           l2size='256kB',
                           epCount=num_eps)

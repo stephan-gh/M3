@@ -27,6 +27,7 @@ pub struct MainMemory {
     mods: Vec<MemMod>,
 }
 
+#[derive(Copy, Clone)]
 pub struct Allocation {
     gaddr: GlobAddr,
     size: goff,

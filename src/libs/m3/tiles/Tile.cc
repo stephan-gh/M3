@@ -76,13 +76,13 @@ Tile::~Tile() {
     }
 }
 
-Reference<Tile> Tile::alloc(const TileDesc &desc) {
+Reference<Tile> Tile::alloc(const TileDesc &desc, bool init) {
     capsel_t sel = Activity::own().alloc_sel();
-    TileDesc res = Activity::own().resmng()->alloc_tile(sel, desc, true);
+    TileDesc res = Activity::own().resmng()->alloc_tile(sel, desc, init);
     return Reference<Tile>(new Tile(sel, res, KEEP_CAP, true));
 }
 
-Reference<Tile> Tile::get(const char *desc) {
+Reference<Tile> Tile::get(const char *desc, bool init) {
     char desc_cpy[MAX_DESC_LEN];
     if(strlen(desc) >= MAX_DESC_LEN)
         vthrow(Errors::NO_SPACE, "Properties description too long"_cf);
@@ -97,7 +97,7 @@ Reference<Tile> Tile::get(const char *desc) {
         }
         else if(strcmp(props, "clone") == 0) {
             try {
-                return Tile::alloc(own->desc());
+                return Tile::alloc(own->desc(), init);
             }
             catch(...) {
             }
@@ -105,7 +105,7 @@ Reference<Tile> Tile::get(const char *desc) {
         else if(strcmp(props, "compat") == 0) {
             try {
                 auto type_isa = TileDesc(own->desc().type(), own->desc().isa(), 0);
-                return Tile::alloc(type_isa);
+                return Tile::alloc(type_isa, init);
             }
             catch(...) {
             }
@@ -113,7 +113,7 @@ Reference<Tile> Tile::get(const char *desc) {
         else {
             auto base = TileDesc(own->desc().type(), own->desc().isa(), 0);
             try {
-                return Tile::alloc(desc_with_properties(base, props));
+                return Tile::alloc(desc_with_properties(base, props), init);
             }
             catch(...) {
             }

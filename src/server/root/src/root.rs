@@ -102,6 +102,15 @@ impl RootChildStarter {
 }
 
 impl resmng::subsys::ChildStarter for RootChildStarter {
+    fn get_bootmod(&mut self, name: &str) -> Result<MemGate, Error> {
+        let idx = self
+            .bmods
+            .iter()
+            .position(|m| m.name() == name)
+            .ok_or_else(|| Error::new(Code::NotFound))?;
+        Ok(subsys::Subsystem::get_mod(idx))
+    }
+
     fn start(
         &mut self,
         reqs: &requests::Requests,
@@ -183,7 +192,7 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
     fn configure_tile(
         &mut self,
         res: &mut Resources,
-        tile: &tiles::TileUsage,
+        tile: &mut tiles::TileUsage,
         domain: &config::Domain,
     ) -> Result<(), VerboseError> {
         if tile.tile_id() != Activity::own().tile_id() {
@@ -199,7 +208,8 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
             })?;
 
             // configure PMP EP
-            tile.add_mem_region(mgate, range.1 as usize, true, true)
+            tile.state_mut()
+                .add_mem_region(mgate, range.1 as usize, true, true)
                 .map_err(|e| {
                     VerboseError::new(
                         e.code(),

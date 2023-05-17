@@ -488,7 +488,8 @@ pub fn reset_stats(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(),
     sysc_log!(act, "reset_stats()",);
 
     for tile in platform::user_tiles() {
-        tilemng::tilemux(tile).reset_stats().unwrap();
+        // ignore failures in case the TileMux is not available
+        tilemng::tilemux(tile).reset_stats().ok();
     }
 
     reply_success(msg);

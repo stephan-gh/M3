@@ -19,7 +19,7 @@ use base::col::Vec;
 use base::errors::{Code, Error};
 use base::goff;
 use base::io::LogFlags;
-use base::kif;
+use base::kif::{self, Perm};
 use base::log;
 use base::mem::GlobAddr;
 use base::rc::{Rc, SRc};
@@ -28,11 +28,12 @@ use base::util::math;
 use base::vec;
 
 use crate::args;
-use crate::cap::{Capability, KMemObject, KObject, MGateObject, RGateObject, TileObject};
-use crate::ktcu;
+use crate::cap::{
+    Capability, GateObject, KMemObject, KObject, MGateObject, RGateObject, TileObject,
+};
 use crate::mem::{self, Allocation};
 use crate::platform;
-use crate::tiles::{tilemng, Activity, ActivityFlags, State, TileMux};
+use crate::tiles::{loader, tilemng, Activity, ActivityFlags, State, TileMux};
 
 pub struct ActivityMng {
     acts: Vec<Option<Rc<Activity>>>,
@@ -48,10 +49,6 @@ pub fn init() {
         count: 0,
         next_id: 0,
     });
-}
-
-pub fn deinit() {
-    INST.unset();
 }
 
 impl ActivityMng {
@@ -145,7 +142,7 @@ impl ActivityMng {
         }
     }
 
-    pub fn stop_activity_async(act: &Activity, stop: bool, reset: bool) -> Result<(), Error> {
+    pub fn stop_activity_async(act: &Activity, stop: bool) -> Result<(), Error> {
         if stop && platform::tile_desc(act.tile_id()).supports_tilemux() {
             TileMux::activity_ctrl_async(
                 tilemng::tilemux(act.tile_id()),
@@ -153,13 +150,7 @@ impl ActivityMng {
                 kif::tilemux::ActivityOp::Stop,
             )?;
         }
-
-        if reset && !platform::tile_desc(act.tile_id()).is_programmable() {
-            ktcu::reset_tile(act.tile_id())
-        }
-        else {
-            Ok(())
-        }
+        Ok(())
     }
 
     pub fn start_root_async() -> Result<(), Error> {
@@ -172,7 +163,30 @@ impl ActivityMng {
         let tile_id = tilemng::find_tile(&tile_emem)
             .unwrap_or_else(|| tilemng::find_tile(&tile_imem).unwrap());
         let tile = tilemng::tilemux(tile_id).tile().clone();
+        let tile_desc = platform::tile_desc(tile_id);
 
+        let mux_mem = if tile_desc.has_memory() {
+            // load tilemux into the tile's internal memory
+            Allocation::new(
+                GlobAddr::new_with(tile_id, cfg::MEM_OFFSET as goff),
+                tile_desc.mem_size() as goff,
+            )
+        }
+        else {
+            // allocate some memory for the tilemux
+            let mux_mem_size = cfg::FIXED_TILEMUX_MEM as goff;
+            mem::borrow_mut().allocate(mem::MemType::ROOT, mux_mem_size, cfg::PAGE_SIZE as goff)?
+        };
+
+        // load and start tilemux
+        loader::load_mux_async(tile.tile(), &mux_mem).expect("Unable to load TileMux");
+        let mux_mgate = GateObject::Mem(MGateObject::new(mux_mem, Perm::RWX, false));
+        // note that we provide access to the entire ROOT memory pool via PMP down below and
+        // therefore provide access to parts of this pool twice. that's currently required, because
+        // TileMux reads PMP EP0 to discover the available memory.
+        TileMux::reset_async(tile.tile(), Some(mux_mgate)).expect("Tile reset failed");
+
+        // create root activity
         let kmem = KMemObject::new(args::get().kmem - cfg::FIXED_KMEM);
         let act = Self::create_activity_async(
             "root",

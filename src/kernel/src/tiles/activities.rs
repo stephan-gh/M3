@@ -148,7 +148,7 @@ impl Activity {
     pub fn init_async(&self) -> Result<(), Error> {
         use base::kif::PageFlags;
 
-        loader::init_memory_async(self)?;
+        loader::init_activity_async(self)?;
         if !platform::tile_desc(self.tile_id()).is_device() {
             // get physical address of receive buffer
             let rbuf_virt = platform::tile_desc(self.tile_id()).rbuf_std_space().0;
@@ -165,14 +165,14 @@ impl Activity {
                 rbuf_virt as goff
             };
 
-            self.init_eps_async(rbuf_phys)
+            self.init_eps(rbuf_phys)
         }
         else {
             Ok(())
         }
     }
 
-    pub fn init_eps_async(&self, rbuf_phys: u64) -> Result<(), Error> {
+    pub fn init_eps(&self, rbuf_phys: u64) -> Result<(), Error> {
         use crate::cap::{RGateObject, SGateObject};
         use base::cfg;
         use base::tcu;
@@ -484,7 +484,7 @@ impl Activity {
         }
         else {
             self.state.set(State::DEAD);
-            ActivityMng::stop_activity_async(self, true, true).unwrap();
+            ActivityMng::stop_activity_async(self, true).unwrap();
             ktcu::drop_msgs(ktcu::KSYS_EP, self.id() as Label);
         }
     }
@@ -538,7 +538,7 @@ impl Activity {
     }
 
     pub fn force_stop_async(&self, stop: bool) {
-        ActivityMng::stop_activity_async(self, stop, true).unwrap();
+        ActivityMng::stop_activity_async(self, stop).unwrap();
 
         self.revoke_caps_async();
     }

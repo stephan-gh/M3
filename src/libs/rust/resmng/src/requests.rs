@@ -58,7 +58,7 @@ impl Requests {
             {
                 if let Ok(msg) = self.rgate.fetch() {
                     let is = GateIStream::new(msg, &self.rgate);
-                    self.handle_request_async(childs, res, is);
+                    self.handle_request_async(childs, res, starter, is);
                     subsys::start_delayed_async(childs, delayed, self, res, starter)?;
                 }
             }
@@ -94,6 +94,7 @@ impl Requests {
         &self,
         childs: &mut ChildManager,
         res: &mut Resources,
+        starter: &mut dyn ChildStarter,
         mut is: GateIStream<'_>,
     ) {
         let op: Result<opcodes::ResMng, Error> = is.pop();
@@ -112,10 +113,12 @@ impl Requests {
             Ok(opcodes::ResMng::AllocMem) => self.alloc_mem(childs, res, &mut is, id),
             Ok(opcodes::ResMng::FreeMem) => self.free_mem(childs, res, &mut is, id),
 
-            Ok(opcodes::ResMng::AllocTile) => match self.alloc_tile(childs, res, &mut is, id) {
-                // reply already done
-                Ok(_) => return,
-                Err(e) => Err(e),
+            Ok(opcodes::ResMng::AllocTile) => {
+                match self.alloc_tile(childs, res, starter, &mut is, id) {
+                    // reply already done
+                    Ok(_) => return,
+                    Err(e) => Err(e),
+                }
             },
             Ok(opcodes::ResMng::FreeTile) => self.free_tile(childs, res, &mut is, id),
 
@@ -254,6 +257,7 @@ impl Requests {
         &self,
         childs: &mut ChildManager,
         res: &mut Resources,
+        starter: &mut dyn ChildStarter,
         is: &mut GateIStream<'_>,
         id: Id,
     ) -> Result<(), Error> {
@@ -261,7 +265,7 @@ impl Requests {
 
         let child = childs.child_by_id_mut(id).unwrap();
         child
-            .alloc_tile(res, req.dst, req.desc, req.inherit_pmp)
+            .alloc_tile(res, starter, req.dst, req.desc, req.init)
             .and_then(|(id, desc)| {
                 reply_vmsg!(is, Code::Success, resmng::AllocTileReply { id, desc })
             })

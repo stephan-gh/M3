@@ -58,7 +58,8 @@ pub const ENV_SIZE: usize = PAGE_SIZE;
 pub const STACK_SIZE: usize = 0x20000;
 
 pub const FIXED_KMEM: usize = 2 * 1024 * 1024;
-pub const FIXED_ROOT_MEM: usize = MOD_HEAP_SIZE + 2 * 1024 * 1024;
+pub const FIXED_ROOT_MEM: usize = MOD_HEAP_SIZE + FIXED_TILEMUX_MEM + 2 * 1024 * 1024;
+pub const FIXED_TILEMUX_MEM: usize = 16 * 1024 * 1024;
 
 #[cfg(any(target_vendor = "hw", target_vendor = "hw22"))]
 pub const TILEMUX_START: usize = MEM_OFFSET;

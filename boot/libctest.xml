@@ -20,6 +20,7 @@
                 <app args="pager sem=net-udp sem=net-tcp" usermem="256M">
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
+                    <mod name="tilemux" perm="r" />
                     <tiles type="core" count="3" />
                     <dom>
                         <app args="/sbin/net -m 4 -d lo net 127.0.0.1" daemon="1">

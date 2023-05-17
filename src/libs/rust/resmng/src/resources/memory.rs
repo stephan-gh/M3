@@ -255,7 +255,7 @@ impl fmt::Debug for MemSlice {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Allocation {
     slice_id: usize,
     addr: goff,

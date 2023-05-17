@@ -15,6 +15,7 @@
                 <app args="pager">
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
+                    <mod name="tilemux" perm="r" />
                     <tiles type="core" count="1" />
                     <dom>
                         <app args="/bin/bench-apps -r 1 4 /bin/fstrace-m3fs -p /tmp/1/ empty /bin/fstrace-m3fs -p /tmp/2/ empty">

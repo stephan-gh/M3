@@ -22,6 +22,7 @@
             <dom>
                 <app args="pager">
                     <sess name="m3fs" args="files=4" />
+                    <mod name="tilemux" perm="r" />
                     <tiles type="core" count="1" />
                     <dom>
                         <app args="/bin/shell">

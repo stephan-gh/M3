@@ -13,48 +13,213 @@
  * General Public License version 2 for more details.
  */
 
-use m3::cell::{Cell, RefCell};
+use m3::cell::{Cell, Ref, RefCell, RefMut};
+use m3::cfg;
 use m3::col::Vec;
 use m3::com::MemGate;
+use m3::elf;
+use m3::env;
 use m3::errors::{Code, Error};
+use m3::goff;
 use m3::io::LogFlags;
-use m3::kif::{Perm, TileDesc};
+use m3::kif::{Perm, TileDesc, INVALID_SEL};
 use m3::log;
+use m3::mem::size_of;
 use m3::rc::Rc;
 use m3::syscalls;
 use m3::tcu::{EpId, TileId};
 use m3::tiles::Tile;
 
+use crate::resources::memory::Allocation;
+
 // PMP EPs start at 1, because 0 is reserved for TileMux
 const FIRST_FREE_PMP_EP: EpId = 1;
 
 #[derive(Debug)]
-struct PMP {
-    next_ep: EpId,
-    regions: Vec<(MemGate, usize)>,
+struct Mux {
+    mem: MemGate,
+    alloc: Option<Allocation>,
 }
 
-impl PMP {
-    fn new() -> Self {
+#[derive(Debug)]
+pub struct TileState {
+    tile: Rc<Tile>,
+    next_pmp_ep: EpId,
+    pmp_regions: Vec<(MemGate, usize)>,
+    mux: Option<Mux>,
+}
+
+impl TileState {
+    fn new(tile: Rc<Tile>) -> Self {
         Self {
-            next_ep: FIRST_FREE_PMP_EP,
-            regions: Vec::new(),
+            tile,
+            next_pmp_ep: FIRST_FREE_PMP_EP,
+            pmp_regions: Vec::new(),
+            mux: None,
         }
+    }
+
+    pub fn add_mem_region(
+        &mut self,
+        mgate: MemGate,
+        size: usize,
+        set: bool,
+        overwrite: bool,
+    ) -> Result<(), Error> {
+        if set {
+            loop {
+                match syscalls::tile_set_pmp(
+                    self.tile.sel(),
+                    mgate.sel(),
+                    self.next_pmp_ep,
+                    overwrite,
+                ) {
+                    Err(e) if e.code() == Code::Exists && !overwrite => self.next_pmp_ep += 1,
+                    Err(e) => return Err(e),
+                    Ok(_) => break,
+                }
+            }
+            self.next_pmp_ep += 1;
+        }
+        self.pmp_regions.push((mgate, size));
+        Ok(())
+    }
+
+    pub fn inherit_mem_regions(&mut self, tile: &TileUsage) -> Result<(), Error> {
+        for (mgate, size) in tile.state().pmp_regions.iter() {
+            self.add_mem_region(mgate.derive(0, *size, Perm::RWX)?, *size, true, true)?;
+        }
+        Ok(())
+    }
+
+    pub fn load_mux<A, M>(
+        &mut self,
+        name: &str,
+        mem_size: usize,
+        alloc_mem: A,
+        get_mux: M,
+    ) -> Result<(), Error>
+    where
+        A: FnOnce(usize) -> Result<(MemGate, Option<Allocation>), Error>,
+        M: FnOnce(&str) -> Result<MemGate, Error>,
+    {
+        if self.mux.is_some() {
+            return Ok(());
+        }
+
+        let mux = match self.tile.memory() {
+            Ok(mem) => Mux { mem, alloc: None },
+            Err(_) => {
+                let (mem, alloc) = alloc_mem(mem_size)?;
+                Mux { mem, alloc }
+            },
+        };
+        let mux_elf = get_mux(name)?;
+
+        let hdr: elf::ElfHeader = mux_elf.read_obj(0)?;
+
+        if hdr.ident[0] != b'\x7F'
+            || hdr.ident[1] != b'E'
+            || hdr.ident[2] != b'L'
+            || hdr.ident[3] != b'F'
+        {
+            return Err(Error::new(Code::InvalidElf));
+        }
+
+        let zeros = m3::vec![0u8; 4096];
+        let mut buf = m3::vec![0u8; 4096];
+
+        let mut off = hdr.ph_off;
+        for _ in 0..hdr.ph_num {
+            // load program header
+            let phdr: elf::ProgramHeader = mux_elf.read_obj(off as goff)?;
+            off += hdr.ph_entry_size as usize;
+
+            // we're only interested in non-empty load segments
+            if phdr.ty != elf::PHType::Load.into() || phdr.mem_size == 0 {
+                continue;
+            }
+
+            // load segment from boot module
+            let phys = phdr.phys_addr - cfg::MEM_OFFSET;
+            let mut segpos = 0;
+            while segpos < phdr.file_size as usize {
+                let amount = (phdr.file_size as usize - segpos).min(buf.len());
+                mux_elf.read(&mut buf[0..amount], (phdr.offset as usize + segpos) as goff)?;
+                mux.mem.write(&buf[0..amount], (phys + segpos) as goff)?;
+                segpos += amount;
+            }
+
+            // zero the remaining memory
+            while segpos < phdr.mem_size as usize {
+                let amount = (phdr.mem_size as usize - segpos).min(buf.len());
+                mux.mem.write(&zeros[0..amount], (phys + segpos) as goff)?;
+                segpos += amount;
+            }
+        }
+
+        // pass env vars to multiplexer
+        let mut off = cfg::ENV_START + size_of::<env::BaseEnv>();
+        let envp = env::write_args(
+            &env::vars_raw(),
+            &mux.mem,
+            &mut off,
+            cfg::MEM_OFFSET as goff,
+        )?;
+
+        // init environment
+        let env = env::BootEnv {
+            platform: env::boot().platform,
+            envp: envp as goff,
+            tile_id: self.tile.id().raw() as u64,
+            tile_desc: self.tile.desc().value(),
+            raw_tile_count: env::boot().raw_tile_count,
+            raw_tile_ids: env::boot().raw_tile_ids,
+            ..Default::default()
+        };
+        mux.mem
+            .write_obj(&env, (cfg::ENV_START - cfg::MEM_OFFSET) as goff)?;
+
+        syscalls::tile_reset(self.tile.sel(), mux.mem.sel())?;
+
+        self.mux = Some(mux);
+        Ok(())
+    }
+
+    pub fn unload_mux<F>(&mut self, free: F) -> Result<(), Error>
+    where
+        F: FnOnce(Allocation),
+    {
+        // reset the tile before we drop the MemGate for its PMP EP
+        if let Some(mux) = self.mux.take() {
+            syscalls::tile_reset(self.tile.sel(), INVALID_SEL)?;
+            if let Some(alloc) = mux.alloc {
+                free(alloc);
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Drop for TileState {
+    fn drop(&mut self) {
+        self.unload_mux(|_alloc| panic!("Mux memory not freed before dropping tile"))
+            .unwrap();
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct TileUsage {
     idx: Option<usize>,
-    pmp: Rc<RefCell<PMP>>,
+    state: Rc<RefCell<TileState>>,
     tile: Rc<Tile>,
 }
 
 impl TileUsage {
-    fn new(idx: usize, tile: Rc<Tile>, pmp: Rc<RefCell<PMP>>) -> Self {
+    fn new(idx: usize, tile: Rc<Tile>) -> Self {
         Self {
             idx: Some(idx),
-            pmp,
+            state: Rc::new(RefCell::new(TileState::new(tile.clone()))),
             tile,
         }
     }
@@ -62,7 +227,7 @@ impl TileUsage {
     pub fn new_obj(tile: Rc<Tile>) -> Self {
         Self {
             idx: None,
-            pmp: Rc::new(RefCell::new(PMP::new())),
+            state: Rc::new(RefCell::new(TileState::new(tile.clone()))),
             tile,
         }
     }
@@ -79,39 +244,12 @@ impl TileUsage {
         &self.tile
     }
 
-    pub fn add_mem_region(
-        &self,
-        mgate: MemGate,
-        size: usize,
-        set: bool,
-        overwrite: bool,
-    ) -> Result<(), Error> {
-        let mut pmp = self.pmp.borrow_mut();
-        if set {
-            loop {
-                match syscalls::tile_set_pmp(
-                    self.tile_obj().sel(),
-                    mgate.sel(),
-                    pmp.next_ep,
-                    overwrite,
-                ) {
-                    Err(e) if e.code() == Code::Exists && !overwrite => pmp.next_ep += 1,
-                    Err(e) => return Err(e),
-                    Ok(_) => break,
-                }
-            }
-            pmp.next_ep += 1;
-        }
-        pmp.regions.push((mgate, size));
-        Ok(())
+    pub fn state(&self) -> Ref<'_, TileState> {
+        self.state.borrow()
     }
 
-    pub fn inherit_mem_regions(&self, tile: &TileUsage) -> Result<(), Error> {
-        let pmps = tile.pmp.borrow();
-        for (mgate, size) in pmps.regions.iter() {
-            self.add_mem_region(mgate.derive(0, *size, Perm::RWX)?, *size, true, true)?;
-        }
-        Ok(())
+    pub fn state_mut(&mut self) -> RefMut<'_, TileState> {
+        self.state.borrow_mut()
     }
 
     pub fn derive(
@@ -132,7 +270,7 @@ impl TileUsage {
         );
         Ok(TileUsage {
             idx: self.idx,
-            pmp: self.pmp.clone(),
+            state: self.state.clone(),
             tile,
         })
     }
@@ -141,7 +279,6 @@ impl TileUsage {
 struct ManagedTile {
     id: TileId,
     tile: Rc<Tile>,
-    pmp: Rc<RefCell<PMP>>,
     users: Cell<u32>,
 }
 
@@ -175,7 +312,6 @@ impl TileManager {
         self.tiles.push(ManagedTile {
             id: tile.id(),
             tile,
-            pmp: Rc::new(RefCell::new(PMP::new())),
             users: Cell::from(0),
         });
     }
@@ -203,8 +339,6 @@ impl TileManager {
                     self.tiles[idx].id,
                     self.tiles[idx].tile.desc()
                 );
-                // all users are gone; restart with the PMP EPs
-                self.tiles[idx].pmp.borrow_mut().next_ep = FIRST_FREE_PMP_EP;
             }
         }
     }
@@ -216,7 +350,7 @@ impl TileManager {
                 && tile.tile.desc().tile_type() == desc.tile_type()
                 && (tile.tile.desc().attr() & desc.attr()) == desc.attr()
             {
-                return Ok(TileUsage::new(id, tile.tile.clone(), tile.pmp.clone()));
+                return Ok(TileUsage::new(id, tile.tile.clone()));
             }
         }
         log!(LogFlags::ResMngTiles, "Unable to find tile with {:?}", desc);

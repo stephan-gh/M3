@@ -15,6 +15,7 @@
                 <app args="pager maxcli=4 sem=net">
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
+                    <mod name="tilemux" perm="r" />
                     <tiles type="core" count="2" />
                     <app args="/sbin/net -d lo -m 2 net 127.0.0.1" daemon="1">
                         <serv name="net" />

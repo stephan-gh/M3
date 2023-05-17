@@ -15,6 +15,7 @@
                 <app args="pager maxcli=4 sem=net-udp sem=net-tcp" usermem="768M">
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
+                    <mod name="tilemux" perm="r" />
                     <tiles type="rocket+nic" count="2" />
                     <tiles type="core" count="2" />
                     <dom tile="rocket+nic">

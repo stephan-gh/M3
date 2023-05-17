@@ -19,6 +19,7 @@
 use core::fmt;
 
 use crate::cap::{CapFlags, Capability, Selector};
+use crate::com::MemGate;
 use crate::errors::{Code, Error};
 use crate::kif::TileDesc;
 use crate::quota::Quota;
@@ -99,19 +100,20 @@ impl fmt::Debug for TileQuota {
 /// Additional arguments for the allocation of tiles
 #[derive(Copy, Clone)]
 pub struct TileArgs {
-    inherit_pmp: bool,
+    init: bool,
 }
 
 impl Default for TileArgs {
     fn default() -> Self {
-        Self { inherit_pmp: true }
+        Self { init: true }
     }
 }
 
 impl TileArgs {
-    /// Sets whether the PMP EPs should be inherited from our tile
-    pub fn inherit_pmp(mut self, inherit: bool) -> Self {
-        self.inherit_pmp = inherit;
+    /// Sets whether the tile should be initialized with TileMux and PMP EPs should be inherited
+    /// from our tile
+    pub fn init(mut self, init: bool) -> Self {
+        self.init = init;
         self
     }
 }
@@ -125,11 +127,10 @@ impl Tile {
     /// Allocates a new tile from the resource manager with given description
     pub fn new_with(desc: TileDesc, args: TileArgs) -> Result<Rc<Self>, Error> {
         let sel = Activity::own().alloc_sel();
-        let (id, ndesc) =
-            Activity::own()
-                .resmng()
-                .unwrap()
-                .alloc_tile(sel, desc, args.inherit_pmp)?;
+        let (id, ndesc) = Activity::own()
+            .resmng()
+            .unwrap()
+            .alloc_tile(sel, desc, args.init)?;
         Ok(Rc::new(Tile {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
             id,
@@ -246,6 +247,22 @@ impl Tile {
     /// This call requires a root tile capability.
     pub fn set_quota(&self, time: u64, pts: usize) -> Result<(), Error> {
         syscalls::tile_set_quota(self.sel(), time, pts)
+    }
+
+    /// Creates a [`MemGate`] for the internal memory of this tile
+    ///
+    /// The tile needs to have internal memory (see [`TileDesc::has_memory`]).
+    ///
+    /// This call requires a non-derived tile capability.
+    pub fn memory(&self) -> Result<MemGate, Error> {
+        if self.desc.has_memory() {
+            let sel = Activity::own().alloc_sel();
+            syscalls::tile_mem(sel, self.sel())?;
+            Ok(MemGate::new_owned_bind(sel))
+        }
+        else {
+            Err(Error::new(Code::InvArgs))
+        }
     }
 }
 

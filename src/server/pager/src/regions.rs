@@ -159,7 +159,8 @@ impl Region {
                 let child = childs
                     .child_by_id_mut(self.child)
                     .ok_or_else(|| Error::new(Code::ActivityGone))?;
-                let mut ngate = child.alloc_local(self.size, Perm::RWX)?;
+                // TODO this memory is currently only free'd on child exit
+                let (mut ngate, _alloc) = child.alloc_local(self.size, Perm::RWX)?;
 
                 log!(
                     LogFlags::PgMem,

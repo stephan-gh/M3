@@ -13,7 +13,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::{LazyStaticRefCell, RefMut};
+use base::cell::{LazyStaticRefCell, RefMut, StaticCell};
 use base::col::Vec;
 use base::kif;
 use base::tcu::TileId;
@@ -22,7 +22,19 @@ use crate::ktcu;
 use crate::platform;
 use crate::tiles::TileMux;
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum State {
+    RUNNING,
+    DEINIT,
+    SHUTDOWN,
+}
+
 static MUXES: LazyStaticRefCell<Vec<Vec<Option<TileMux>>>> = LazyStaticRefCell::default();
+static STATE: StaticCell<State> = StaticCell::new(State::RUNNING);
+
+pub fn state() -> State {
+    STATE.get()
+}
 
 pub fn init() {
     deprivilege_tiles();
@@ -41,6 +53,18 @@ pub fn init() {
         muxes[cid].push(Some(TileMux::new(tile)));
     }
     MUXES.set(muxes);
+}
+
+pub fn deinit_async() {
+    assert_eq!(STATE.get(), State::RUNNING);
+    STATE.set(State::DEINIT);
+
+    for tile in platform::user_tiles() {
+        // ignore the tiles that are already shut down
+        TileMux::reset_async(tile, None).ok();
+    }
+
+    STATE.set(State::SHUTDOWN);
 }
 
 pub fn tilemux(tile: TileId) -> RefMut<'static, TileMux> {

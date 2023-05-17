@@ -16,6 +16,8 @@
  * General Public License version 2 for more details.
  */
 
+#![feature(register_tool)]
+#![register_tool(m3_async)]
 #![no_std]
 
 mod args;
@@ -41,7 +43,7 @@ use base::util::math;
 
 use core::ptr;
 
-use crate::tiles::{tilemng, ActivityMng};
+use crate::tiles::ActivityMng;
 
 extern "C" {
     static _bss_end: u8;
@@ -210,31 +212,32 @@ fn workloop() -> ! {
         thread::try_yield();
     }
 
-    thread::stop();
-    // if we get back here, there is no ready or sleeping thread anymore and we can shutdown
+    // do the tile deinit just once
+    if tiles::tilemng::state() == tiles::tilemng::State::RUNNING {
+        // with all activities gone, we should only have the main thread left; add another thread for
+        // the asynchronous tile reset
+        assert_eq!(thread::thread_count(), 0);
+        thread::add_thread(thread_startup as *const () as usize, 0);
 
-    // send shutdown sidecall to all tiles
-    let mut sent = 0;
-    for tile in platform::user_tiles() {
-        if platform::tile_desc(tile).is_programmable() {
-            tilemng::tilemux(tile).shutdown().unwrap();
-            sent += 1;
-        }
+        // trigger the shutdown of tiles
+        tiles::deinit_async();
     }
 
-    // wait for their replies
-    let mut replies = 0;
-    while replies < sent {
+    // wait until all tiles are shut down
+    while tiles::tilemng::state() != tiles::tilemng::State::SHUTDOWN {
         tcu::TCU::sleep().ok();
+
         if let Some(msg) = ktcu::fetch_msg(ktcu::KSRV_EP) {
             unsafe {
                 let squeue: *mut com::SendQueue = msg.header.label() as *mut _;
                 (*squeue).received_reply(msg);
-                replies += 1;
             }
         }
+
+        thread::try_yield();
     }
 
-    tiles::deinit();
+    // if we get back here, all activities and multiplexers on user tiles are shut down, so we can
+    // shut down the kernel tile as well
     exit(0);
 }

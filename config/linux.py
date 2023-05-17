@@ -24,7 +24,7 @@ for i in range(0, num_tiles - 1):
                           options=options,
                           id=TileId(0, i),
                           cmdline=cmd_list[i],
-                          memTile=mem_tile,
+                          memTile=mem_tile if cmd_list[i] != "" else None,
                           l1size='32kB',
                           l2size='256kB',
                           epCount=num_eps)
@@ -34,7 +34,7 @@ for i in range(0, num_tiles - 1):
 tile = createLinuxTile(noc=root.noc,
                        options=options,
                        id=TileId(0, num_tiles - 1),
-                       memTile=mem_tile,
+                       memTile=None,
                        l1size='32kB',
                        l2size='256kB',
                        epCount=num_eps)
@@ -52,7 +52,7 @@ tiles.append(memory_tile)
 tile = createSerialTile(noc=root.noc,
                         options=options,
                         id=TileId(0, num_tiles + 1),
-                        memTile=mem_tile,
+                        memTile=None,
                         epCount=num_eps)
 tiles.append(tile)
 

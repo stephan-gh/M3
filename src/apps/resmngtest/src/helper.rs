@@ -49,7 +49,7 @@ impl ChildStarter for TestStarter {
     fn configure_tile(
         &mut self,
         _res: &mut Resources,
-        _tile: &TileUsage,
+        _tile: &mut TileUsage,
         _dom: &Domain,
     ) -> Result<(), VerboseError> {
         Ok(())
@@ -80,10 +80,11 @@ pub fn run_subsys<F>(
         Some(tile_quota.time().remaining() / 2),
         Some(tile_quota.page_tables().remaining() / 2)
     )));
-    child_sub.add_mem(
-        wv_assert_ok!(MemGate::new(32 * 1024 * 1024, Perm::RW)),
-        false,
-    );
+    let mux = "tilemux";
+    let mux_mod = wv_assert_ok!(MemGate::new_bind_bootmod(mux));
+    child_sub.add_mod(mux_mod, mux);
+    let sub_mem = wv_assert_ok!(res.memory_mut().alloc_mem(64 * 1024 * 1024));
+    child_sub.add_mem(wv_assert_ok!(sub_mem.derive()), false);
     customize_subsys(&mut child_sub);
 
     wv_assert_ok!(child_sub.finalize_async(&mut res, 0, &mut child));

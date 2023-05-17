@@ -24,7 +24,7 @@ use base::log;
 use base::mem;
 use base::tcu::{
     ActId, EpId, ExtCmdOpCode, ExtReg, Header, Label, Message, Reg, TileId, AVAIL_EPS, EP_REGS,
-    PMEM_PROT_EPS, TCU, UNLIM_CREDITS,
+    MMIO_ADDR, PMEM_PROT_EPS, TCU, UNLIM_CREDITS,
 };
 
 use crate::platform;
@@ -337,9 +337,19 @@ pub fn deprivilege_tile(tile: TileId) -> Result<(), Error> {
     ])
 }
 
-pub fn reset_tile(tile: TileId) -> Result<(), Error> {
-    let value = ExtCmdOpCode::Reset as Reg;
-    do_ext_cmd(tile, value).map(|_| ())
+pub fn reset_tile(tile: TileId, start: bool) -> Result<(), Error> {
+    let val: Reg = if start { 1 } else { 0 };
+    if env::boot().platform == env::Platform::Hw {
+        // TODO put the reset command into the spec so that we can use that on HW as well
+        // start/stop tile
+        try_write_slice(tile, (MMIO_ADDR + 0x3028) as goff, &[val])?;
+        // start/stop rocket core
+        try_write_slice(tile, (MMIO_ADDR + 0x3030) as goff, &[val])
+    }
+    else {
+        let value = ExtCmdOpCode::Reset as Reg | (val << 9) as Reg;
+        do_ext_cmd(tile, value).map(|_| ())
+    }
 }
 
 pub fn glob_to_phys_remote(

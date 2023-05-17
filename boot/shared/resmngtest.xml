@@ -10,13 +10,15 @@
                 <mod name="fs" />
             </app>
             <dom>
-                <app args="pager">
+                <app args="pager" usermem="768M">
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
+                    <mod name="tilemux" perm="r" />
                     <tiles type="core" count="1" />
                     <dom>
-                        <app args="/bin/resmngtest">
+                        <app args="/bin/resmngtest" usermem="512M">
                             <mount fs="m3fs" path="/" />
+                            <mod name="tilemux" perm="r" />
                             <tiles type="core" count="5" />
                             <dom>
                                 <app args="rusthello" />

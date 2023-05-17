@@ -210,7 +210,8 @@ impl DataSpace {
                     let child = childs
                         .child_by_id_mut(self.child)
                         .ok_or_else(|| Error::new(Code::ActivityGone))?;
-                    let mgate = child.alloc_local(reg.size(), kif::Perm::RWX)?;
+                    // TODO this memory is currently only free'd on child exit
+                    let (mgate, _alloc) = child.alloc_local(reg.size(), kif::Perm::RWX)?;
                     let mem = Rc::new(RefCell::new(PhysMem::new((self.owner, self.virt), mgate)?));
                     reg.set_mem(mem);
                     reg.copy_from(&src);
@@ -254,7 +255,8 @@ impl DataSpace {
                 let child = childs
                     .child_by_id_mut(self.child)
                     .ok_or_else(|| Error::new(Code::ActivityGone))?;
-                let mgate = child.alloc_local(reg.size(), kif::Perm::RWX)?;
+                // TODO this memory is currently only free'd on child exit
+                let (mgate, _alloc) = child.alloc_local(reg.size(), kif::Perm::RWX)?;
                 reg.set_mem(Rc::new(RefCell::new(PhysMem::new(
                     (self.owner, self.virt),
                     mgate,

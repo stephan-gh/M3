@@ -18,6 +18,7 @@
                 <app args="pager maxcli=3">
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
+                    <mod name="tilemux" perm="r" />
                     <tiles type="core" count="1" />
                     <app args="/bin/rustbenchs" time="1s">
                         <mount fs="m3fs" path="/" />

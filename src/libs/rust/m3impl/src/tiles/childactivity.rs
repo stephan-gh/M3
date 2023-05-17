@@ -27,7 +27,6 @@ use crate::cell::Cell;
 use crate::cfg;
 use crate::client::{Pager, ResMng};
 use crate::col::{String, ToString, Vec};
-use crate::com::MemGate;
 use crate::env::{self, Env};
 use crate::errors::Error;
 use crate::goff;
@@ -41,7 +40,6 @@ use crate::tiles::{
     loader, Activity, DefaultMapper, KMem, Mapper, RunningActivity, RunningDeviceActivity,
     RunningProgramActivity, Tile,
 };
-use crate::util::math;
 use crate::vfs::{BufReader, Fd, File, FileRef, OpenFlags, VFS};
 
 /// Represents a child activity
@@ -338,7 +336,11 @@ impl ChildActivity {
         let mut mapper = DefaultMapper::new(self.tile_desc().has_virtmem());
 
         let func_addr = func as *const () as usize;
-        self.do_exec_file(Some((&mut mapper, file.into_generic())), &args, Some(func_addr))
+        self.do_exec_file(
+            Some((&mut mapper, file.into_generic())),
+            &args,
+            Some(func_addr),
+        )
     }
 
     /// Executes the given program and arguments with `self`.
@@ -432,12 +434,14 @@ impl ChildActivity {
 
         // write arguments and environment variables
         let mut off = cfg::ENV_START + mem::size_of_val(&cenv);
+        let env_off = (cfg::ENV_START & !cfg::PAGE_MASK) as goff;
         cenv.set_argc(args.len());
-        cenv.set_argv(Self::write_arguments(args, &mem, &mut off)?);
-        cenv.set_envp(Self::write_arguments(
+        cenv.set_argv(env::write_args(args, &mem, &mut off, env_off)?);
+        cenv.set_envp(env::write_args(
             &crate::env::vars_raw(),
             &mem,
             &mut off,
+            env_off,
         )?);
 
         // serialize files, mounts, and data and write them to the child's memory
@@ -452,32 +456,6 @@ impl ChildActivity {
             mem::size_of_val(&cenv),
             cfg::ENV_START as goff - env_page_off,
         )
-    }
-
-    fn write_arguments<S>(args: &[S], mem: &MemGate, off: &mut usize) -> Result<usize, Error>
-    where
-        S: AsRef<str>,
-    {
-        let (arg_buf, arg_ptr, arg_end) = env::collect_args(args, *off);
-
-        // write actual arguments to memory
-        let env_page_off = (cfg::ENV_START & !cfg::PAGE_MASK) as goff;
-        mem.write_bytes(
-            arg_buf.as_ptr() as *const _,
-            arg_buf.len(),
-            *off as goff - env_page_off,
-        )?;
-
-        // write argument pointers to memory
-        let arg_ptr_off = math::round_up(arg_end, mem::size_of::<u64>());
-        mem.write_bytes(
-            arg_ptr.as_ptr() as *const _,
-            arg_ptr.len() * mem::size_of::<u64>(),
-            arg_ptr_off as goff - env_page_off,
-        )?;
-
-        *off = arg_ptr_off + arg_ptr.len() * mem::size_of::<u64>();
-        Ok(arg_ptr_off)
     }
 
     fn serialize_files<F>(&self, write: F, env: &mut Env, off: &mut usize) -> Result<(), Error>

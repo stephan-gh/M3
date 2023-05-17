@@ -91,6 +91,8 @@ public:
     static std::tuple<Quota<uint>, Quota<uint64_t>, Quota<size_t>> tile_quota(capsel_t tile);
     static void tile_set_quota(capsel_t tile, uint64_t time, uint64_t pts);
     static void tile_set_pmp(capsel_t tile, capsel_t mgate, epid_t epid, bool overwrite);
+    static void tile_mem(capsel_t dst, capsel_t tile);
+    static void tile_reset(capsel_t tile, capsel_t mux_mem);
     static void sem_ctrl(capsel_t sem, KIF::Syscall::SemOp);
 
     static void delegate(capsel_t act, capsel_t sess, const KIF::CapRngDesc &crd,

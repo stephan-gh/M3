@@ -33,6 +33,7 @@
                 <app args="pager sem=net-udp sem=net-tcp">
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
+                    <mod name="tilemux" perm="r" />
                     <tiles type="core" count="2" />
                     <dom>
                         <app args="/bin/netechoserver" daemon="1">

@@ -16,7 +16,7 @@
 use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cell::RefCell;
-use m3::cfg::PAGE_SIZE;
+use m3::cfg::{self, PAGE_SIZE};
 use m3::col::{String, ToString, Vec};
 use m3::com::MemGate;
 use m3::errors::{Code, Error, VerboseError};
@@ -68,6 +68,11 @@ impl Default for Arguments {
 }
 
 pub trait ChildStarter {
+    /// Returns a [`MemGate`] for the boot module with given name
+    fn get_bootmod(&mut self, name: &str) -> Result<MemGate, Error> {
+        MemGate::new_bind_bootmod(name)
+    }
+
     /// Creates a new activity for the given child and starts it
     fn start(
         &mut self,
@@ -80,7 +85,7 @@ pub trait ChildStarter {
     fn configure_tile(
         &mut self,
         res: &mut Resources,
-        tile: &tiles::TileUsage,
+        tile: &mut tiles::TileUsage,
         domain: &config::Domain,
     ) -> Result<(), VerboseError>;
 }
@@ -321,7 +326,7 @@ impl Subsystem {
 
         for (idx, dom) in root.domains().iter().enumerate() {
             // allocate new tile; root allocates from its own set, others ask their resmng
-            let tile_usage = if dom.pseudo || Activity::own().resmng().is_none() {
+            let mut tile_usage = if dom.pseudo || Activity::own().resmng().is_none() {
                 let own_desc = Activity::own().tile_desc();
                 let base = TileDesc::new(own_desc.tile_type(), own_desc.isa(), 0);
                 res.tiles().find_with_attr(base, &dom.tile.0).map_err(|e| {
@@ -335,14 +340,12 @@ impl Subsystem {
                 })?
             }
             else {
-                // don't inherit the PMP EPs here, because we want to define them ourself anyway
-                let child_tile = Tile::get_with(
-                    &dom.tile.0,
-                    TileArgs::default().inherit_pmp(false),
-                )
-                .map_err(|e| {
-                    VerboseError::new(e.code(), format!("Unable to get tile {}", dom.tile.0))
-                })?;
+                // don't initialize the tile here, because we want to load the multiplexer ourself
+                // and also define all PMP EPs
+                let child_tile = Tile::get_with(&dom.tile.0, TileArgs::default().init(false))
+                    .map_err(|e| {
+                        VerboseError::new(e.code(), format!("Unable to get tile {}", dom.tile.0))
+                    })?;
                 tiles::TileUsage::new_obj(child_tile)
             };
 
@@ -361,9 +364,42 @@ impl Subsystem {
 
             // if the activities should run on our own tile, all PMP EPs are already installed
             if tile_usage.tile_id() != Activity::own().tile_id() {
+                // load multiplexer onto tile
+                tile_usage.state_mut().load_mux(
+                    "tilemux",
+                    cfg::FIXED_TILEMUX_MEM,
+                    |size| {
+                        let mux_mem_slice = match res.memory_mut().alloc_mem(size as goff) {
+                            Ok(mem) => mem,
+                            Err(e) => {
+                                log!(
+                                    LogFlags::Error,
+                                    "Unable to allocate {}b for multiplexer",
+                                    size
+                                );
+                                return Err(e);
+                            },
+                        };
+                        mux_mem_slice.derive().map(|m| (m, None))
+                    },
+                    |name| match starter.get_bootmod(name) {
+                        Ok(mem) => Ok(mem),
+                        Err(e) => {
+                            log!(
+                                LogFlags::Error,
+                                "Unable to get boot module {}: {:?}",
+                                name,
+                                e
+                            );
+                            return Err(e);
+                        },
+                    },
+                )?;
+
                 // add regions to PMP
                 for slice in mem_pool.borrow().slices() {
                     tile_usage
+                        .state_mut()
                         .add_mem_region(slice.derive()?, slice.capacity() as usize, true, true)
                         .map_err(|e| {
                             VerboseError::new(e.code(), "Unable to add PMP region".to_string())
@@ -376,6 +412,7 @@ impl Subsystem {
                 // to the memory pool of the child that allocates the tile, though.
                 for m in res.memory().mods() {
                     tile_usage
+                        .state_mut()
                         .add_mem_region(
                             m.mgate().derive(0, m.capacity() as usize, Perm::RWX)?,
                             m.capacity() as usize,
@@ -387,7 +424,7 @@ impl Subsystem {
             }
 
             // let the starter do further configurations on the tile like add PMP EPs
-            starter.configure_tile(res, &tile_usage, dom)?;
+            starter.configure_tile(res, &mut tile_usage, dom)?;
 
             // split available PTs according to the config
             let tile_quota = tile_usage.tile_obj().quota()?;
@@ -617,7 +654,7 @@ impl Subsystem {
 
         // split off the grandchild memories; allocate them from the child quota
         let old_umem_quota = child_mem.quota();
-        split_child_mem(cfg, child_mem);
+        split_child_mem(cfg, child_mem, sub.tiles.len());
         // determine memory size for the entire subsystem
         let sub_mem = old_umem_quota - child_mem.quota();
 
@@ -907,7 +944,7 @@ fn pass_down_mods(
     Ok(())
 }
 
-fn split_child_mem(cfg: &config::AppConfig, mem: &Rc<childs::ChildMem>) {
+fn split_child_mem(cfg: &config::AppConfig, mem: &Rc<childs::ChildMem>, tiles: usize) {
     let mut def_childs = 0;
     for d in cfg.domains() {
         for a in d.apps() {
@@ -927,8 +964,9 @@ fn split_child_mem(cfg: &config::AppConfig, mem: &Rc<childs::ChildMem>) {
 
     if def_childs > 0 {
         // The resmng needs some memory for itself (which it will allocate from us later and
-        // therefore should stay in the pool).
-        let remaining = DEF_RESMNG_MEM;
+        // therefore should stay in the pool). Additionally, for every tile the resmng manages, it
+        // potentially needs memory for the multiplexer.
+        let remaining = DEF_RESMNG_MEM + (tiles * cfg::FIXED_TILEMUX_MEM) as goff;
         assert!(mem.quota() > remaining);
         // the rest of the quota is split equally among the children
         let per_child = (mem.quota() - remaining) / def_childs;
@@ -943,6 +981,9 @@ fn split_mem(res: &Resources, cfg: &config::AppConfig) -> Result<(usize, goff), 
     let mut total_kparties = cfg.count_apps() + 1;
     let mut total_mparties = total_kparties;
     for d in cfg.domains() {
+        // for every domain we need a multiplexer
+        total_umem -= cfg::FIXED_TILEMUX_MEM as goff;
+
         for a in d.apps() {
             if let Some(kmem) = a.kernel_mem() {
                 if total_kmem < kmem {

@@ -94,6 +94,8 @@ ChildActivity::~ChildActivity() {
     catch(...) {
         // ignore
     }
+    // revoke activity capability before revoking the tile cap
+    release();
 }
 
 fd_t ChildActivity::get_file(fd_t child_fd) {

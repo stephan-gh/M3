@@ -1,7 +1,8 @@
-import os, sys
+import os
+import sys
 from subprocess import call
 
-sys.path.append(os.path.realpath('platform/gem5/configs/example'))
+sys.path.append(os.path.realpath('platform/gem5/configs/example'))  # NOQA
 from tcu_fs import *
 
 options = getOptions()
@@ -11,7 +12,7 @@ cmd_list = options.cmd.split(",")
 
 num_eps = 192 if os.environ.get('M3_TARGET') == 'gem5' else 128
 num_mem = 1
-num_sto = 1 # Number of tiles for IDE storage
+num_sto = 1  # Number of tiles for IDE storage
 num_tiles = int(os.environ.get('M3_GEM5_TILES'))
 
 # disk image
@@ -31,7 +32,7 @@ for i in range(0, num_tiles):
                           options=options,
                           id=TileId(0, i),
                           cmdline=cmd_list[i],
-                          memTile=mem_tile,
+                          memTile=mem_tile if cmd_list[i] != "" else None,
                           l1size='32kB',
                           l2size='256kB',
                           epCount=num_eps)
@@ -42,7 +43,7 @@ for i in range(0, num_sto):
     tile = createStorageTile(noc=root.noc,
                              options=options,
                              id=TileId(0, num_tiles + i),
-                             memTile=mem_tile,
+                             memTile=None,
                              img0=hard_disk0,
                              epCount=num_eps)
     tiles.append(tile)
@@ -51,14 +52,14 @@ for i in range(0, num_sto):
 ether0 = createEtherTile(noc=root.noc,
                          options=options,
                          id=TileId(0, num_tiles + num_sto + 0),
-                         memTile=mem_tile,
+                         memTile=None,
                          epCount=num_eps)
 tiles.append(ether0)
 
 ether1 = createEtherTile(noc=root.noc,
                          options=options,
                          id=TileId(0, num_tiles + num_sto + 1),
-                         memTile=mem_tile,
+                         memTile=None,
                          epCount=num_eps)
 tiles.append(ether1)
 
@@ -69,7 +70,7 @@ for i in range(0, num_rot13):
                           options=options,
                           id=TileId(0, num_tiles + num_sto + 2 + i),
                           accel='rot13',
-                          memTile=mem_tile,
+                          memTile=None,
                           spmsize='32MB',
                           epCount=num_eps)
     tiles.append(rpe)
@@ -79,7 +80,7 @@ for i in range(0, num_kecacc):
                             options=options,
                             id=TileId(0, num_tiles + num_sto + 2 + num_rot13 + i),
                             cmdline=cmd_list[1],  # FIXME
-                            memTile=mem_tile,
+                            memTile=None,
                             spmsize='64MB',
                             epCount=num_eps)
     tiles.append(tile)
@@ -88,7 +89,7 @@ for i in range(0, num_kecacc):
 for i in range(0, num_mem):
     tile = createMemTile(noc=root.noc,
                          options=options,
-                         id=TileId(0, num_tiles + num_sto + 2 + num_rot13  + num_kecacc + i),
+                         id=TileId(0, num_tiles + num_sto + 2 + num_rot13 + num_kecacc + i),
                          size='3072MB',
                          epCount=num_eps)
     tiles.append(tile)
@@ -97,7 +98,7 @@ for i in range(0, num_mem):
 tile = createSerialTile(noc=root.noc,
                         options=options,
                         id=TileId(0, num_tiles + num_sto + 2 + num_rot13 + num_kecacc + num_mem),
-                        memTile=mem_tile,
+                        memTile=None,
                         epCount=num_eps)
 tiles.append(tile)
 

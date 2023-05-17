@@ -13,7 +13,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cfg::{ENV_START, MOD_HEAP_SIZE, PAGE_BITS, PAGE_MASK, PAGE_SIZE};
+use base::cfg::{ENV_START, MEM_OFFSET, MOD_HEAP_SIZE, PAGE_BITS, PAGE_MASK, PAGE_SIZE};
 use base::elf;
 use base::env;
 use base::errors::{Code, Error};
@@ -32,7 +32,39 @@ use crate::tiles::{tilemng, Activity, TileMux};
 
 use crate::platform;
 
-pub fn init_memory_async(act: &Activity) -> Result<i32, Error> {
+trait ELFLoader {
+    #[allow(m3_async::no_async_call)]
+    fn load_segment_async(
+        &mut self,
+        virt: goff,
+        phys: GlobAddr,
+        size: usize,
+        flags: PageFlags,
+        map: bool,
+    ) -> Result<(), Error>;
+
+    #[allow(m3_async::no_async_call)]
+    fn zero_segment_async(
+        &mut self,
+        virt: goff,
+        size: usize,
+        flags: PageFlags,
+    ) -> Result<(), Error>;
+
+    #[allow(m3_async::no_async_call)]
+    fn map_heap_async(&mut self, _virt: goff) -> Result<(), Error> {
+        Ok(())
+    }
+
+    #[allow(m3_async::no_async_call)]
+    fn map_stack_async(&mut self) -> Result<(), Error> {
+        Ok(())
+    }
+}
+
+pub fn init_activity_async(act: &Activity) -> Result<i32, Error> {
+    let mut loader = ActivityELFLoader(act);
+
     // put mapping for env into cap table (so that we can access it in create_mgate later)
     let env_phys = if platform::tile_desc(act.tile_id()).has_virtmem() {
         let mut env_addr = TileMux::translate_async(
@@ -44,7 +76,7 @@ pub fn init_memory_async(act: &Activity) -> Result<i32, Error> {
         env_addr = env_addr + (ENV_START & PAGE_MASK) as goff;
 
         let flags = PageFlags::from(kif::Perm::RW);
-        load_segment_async(act, env_addr, ENV_START as goff, PAGE_SIZE, flags, false)?;
+        loader.load_segment_async(ENV_START as goff, env_addr, PAGE_SIZE, flags, false)?;
 
         ktcu::glob_to_phys_remote(act.tile_id(), env_addr, flags)?
     }
@@ -53,32 +85,63 @@ pub fn init_memory_async(act: &Activity) -> Result<i32, Error> {
     };
 
     if act.is_root() {
-        load_root_async(env_phys, act)?;
+        load_root_async(loader, env_phys)?;
     }
     Ok(0)
 }
 
-fn load_root_async(env_phys: goff, act: &Activity) -> Result<(), Error> {
-    // map stack
-    if act.tile_desc().has_virtmem() {
-        let (virt, size) = act.tile_desc().stack_space();
-        let phys =
-            mem::borrow_mut().allocate(mem::MemType::ROOT, size as goff, PAGE_SIZE as goff)?;
-        load_segment_async(act, phys.global(), virt as goff, size, PageFlags::RW, true)?;
-    }
+pub fn load_mux_async(tile: tcu::TileId, mem: &mem::Allocation) -> Result<(), Error> {
+    let app = get_mod("tilemux").ok_or_else(|| Error::new(Code::NoSuchFile))?;
+    log!(
+        LogFlags::KernActs,
+        "Loading multiplexer '{}' onto {}",
+        app.name(),
+        tile
+    );
 
+    // load multiplexer into memory
+    let mut loader = MetalELFLoader::new(mem.global(), MEM_OFFSET as goff);
+    load_mod_async(&mut loader, app)?;
+
+    // write env vars
+    let env_phys = mem.global().offset() + ENV_START as goff - MEM_OFFSET as goff;
+    let mut env_off = size_of::<env::BaseEnv>();
+    let envp_addr = write_arguments(
+        &env::vars_raw(),
+        mem.global().tile(),
+        env_phys,
+        &mut env_off,
+    );
+
+    // load environment into memory
+    let env = env::BootEnv {
+        platform: env::boot().platform,
+        envp: envp_addr as u64,
+        tile_id: tile.raw() as u64,
+        tile_desc: platform::tile_desc(tile).value(),
+        raw_tile_count: env::boot().raw_tile_count,
+        raw_tile_ids: env::boot().raw_tile_ids,
+        ..Default::default()
+    };
+    ktcu::write_slice(mem.global().tile(), env_phys, &[env]);
+
+    Ok(())
+}
+
+fn load_root_async(mut loader: ActivityELFLoader<'_>, env_phys: goff) -> Result<(), Error> {
     let entry: usize = {
         let app = get_mod("root").ok_or_else(|| Error::new(Code::NoSuchFile))?;
-        log!(LogFlags::KernActs, "Loading mod '{}':", app.name());
-        load_mod_async(act, app)?
+        log!(LogFlags::KernActs, "Loading boot module '{}'", app.name());
+        load_mod_async(&mut loader, app)?
     };
 
+    let act = loader.0;
     let mut env_off = size_of::<env::BaseEnv>();
     let argv_addr = write_arguments(&["root"], act.tile_id(), env_phys, &mut env_off);
     let envp_addr = write_arguments(&env::vars_raw(), act.tile_id(), env_phys, &mut env_off);
 
-    // build env
-    let mut senv = env::BaseEnv {
+    // write env to target tile
+    let senv = env::BaseEnv {
         boot: env::BootEnv {
             platform: env::boot().platform,
             argc: 1,
@@ -86,6 +149,8 @@ fn load_root_async(env_phys: goff, act: &Activity) -> Result<(), Error> {
             envp: envp_addr as u64,
             tile_id: act.tile_id().raw() as u64,
             tile_desc: act.tile_desc().value(),
+            raw_tile_count: env::boot().raw_tile_count,
+            raw_tile_ids: env::boot().raw_tile_ids,
             ..Default::default()
         },
         sp: act.tile_desc().stack_top() as u64,
@@ -97,12 +162,8 @@ fn load_root_async(env_phys: goff, act: &Activity) -> Result<(), Error> {
         first_std_ep: act.eps_start() as u64,
         ..Default::default()
     };
-    let tile_ids = &env::boot().raw_tile_ids[0..env::boot().raw_tile_count as usize];
-    senv.boot.raw_tile_count = tile_ids.len() as u64;
-    senv.boot.raw_tile_ids[0..tile_ids.len()].copy_from_slice(tile_ids);
-
-    // write env to target tile
     ktcu::write_slice(act.tile_id(), env_phys, &[senv]);
+
     Ok(())
 }
 
@@ -127,43 +188,10 @@ fn read_from_mod<T: Default>(bm: &kif::boot::Mod, off: goff) -> Result<T, Error>
     Ok(ktcu::read_obj(gaddr.tile(), gaddr.offset() + off))
 }
 
-fn load_segment_async(
-    act: &Activity,
-    phys: GlobAddr,
-    virt: goff,
-    size: usize,
-    flags: PageFlags,
-    map: bool,
-) -> Result<(), Error> {
-    if act.tile_desc().has_virtmem() {
-        let dst_sel = virt >> PAGE_BITS;
-        let pages = math::round_up(size, PAGE_SIZE) >> PAGE_BITS;
-
-        let phys_align = GlobAddr::new_with(phys.tile(), phys.offset() & !PAGE_MASK as goff);
-        let map_obj = MapObject::new(phys_align, flags);
-        if map {
-            map_obj.map_async(act, virt & !PAGE_MASK as goff, phys_align, pages, flags)?;
-        }
-
-        act.map_caps().borrow_mut().insert(Capability::new_range(
-            SelRange::new_range(dst_sel as kif::CapSel, pages as kif::CapSel),
-            KObject::Map(map_obj),
-        ))
-    }
-    else {
-        ktcu::copy(
-            // destination
-            act.tile_id(),
-            virt as goff,
-            // source
-            phys.tile(),
-            phys.offset(),
-            size,
-        )
-    }
-}
-
-fn load_mod_async(act: &Activity, bm: &kif::boot::Mod) -> Result<usize, Error> {
+fn load_mod_async<L>(loader: &mut L, bm: &kif::boot::Mod) -> Result<usize, Error>
+where
+    L: ELFLoader,
+{
     let mod_addr = GlobAddr::new(bm.addr);
     let hdr: elf::ElfHeader = read_from_mod(bm, 0)?;
 
@@ -201,29 +229,15 @@ fn load_mod_async(act: &Activity, bm: &kif::boot::Mod) -> Result<usize, Error> {
                 PAGE_SIZE,
             );
 
-            let phys = if act.tile_desc().has_virtmem() {
-                let mem = mem::borrow_mut().allocate(
-                    mem::MemType::ROOT,
-                    size as goff,
-                    PAGE_SIZE as goff,
-                )?;
-                load_segment_async(act, mem.global(), virt as goff, size, flags, true)?;
-                ktcu::glob_to_phys_remote(act.tile_id(), mem.global(), flags)?
-            }
-            else {
-                virt as goff
-            };
-
-            ktcu::clear(act.tile_id(), phys, size)?;
+            loader.zero_segment_async(virt as goff, size, flags)?;
             end = virt + size;
         }
         else {
             assert!(phdr.mem_size == phdr.file_size);
             let size = (phdr.offset as usize & PAGE_MASK) + phdr.file_size as usize;
-            load_segment_async(
-                act,
-                mod_addr + offset as goff,
+            loader.load_segment_async(
                 virt as goff,
+                mod_addr + offset as goff,
                 size,
                 flags,
                 true,
@@ -232,25 +246,139 @@ fn load_mod_async(act: &Activity, bm: &kif::boot::Mod) -> Result<usize, Error> {
         }
     }
 
-    if act.tile_desc().has_virtmem() {
-        // create initial heap
-        let end = math::round_up(end, PAGE_SIZE);
-        let phys = mem::borrow_mut().allocate(
-            mem::MemType::ROOT,
-            MOD_HEAP_SIZE as goff,
-            PAGE_SIZE as goff,
-        )?;
-        load_segment_async(
-            act,
-            phys.global(),
-            end as goff,
-            MOD_HEAP_SIZE,
-            PageFlags::RW,
-            true,
-        )?;
-    }
+    // map heap and stack
+    let end = math::round_up(end, PAGE_SIZE);
+    loader.map_heap_async(end as goff)?;
+    loader.map_stack_async()?;
 
     Ok(hdr.entry)
+}
+
+struct MetalELFLoader {
+    dst: GlobAddr,
+    offset: goff,
+}
+
+impl MetalELFLoader {
+    fn new(dst: GlobAddr, offset: goff) -> Self {
+        Self { dst, offset }
+    }
+}
+
+impl ELFLoader for MetalELFLoader {
+    #[allow(m3_async::no_async_call)]
+    fn load_segment_async(
+        &mut self,
+        virt: goff,
+        phys: GlobAddr,
+        size: usize,
+        _flags: PageFlags,
+        _map: bool,
+    ) -> Result<(), Error> {
+        ktcu::copy(
+            // destination
+            self.dst.tile(),
+            self.dst.offset() + virt as goff - self.offset,
+            // source
+            phys.tile(),
+            phys.offset(),
+            size,
+        )
+    }
+
+    #[allow(m3_async::no_async_call)]
+    fn zero_segment_async(
+        &mut self,
+        virt: goff,
+        size: usize,
+        _flags: PageFlags,
+    ) -> Result<(), Error> {
+        ktcu::clear(
+            self.dst.tile(),
+            self.dst.offset() + virt - self.offset,
+            size,
+        )
+    }
+}
+
+struct ActivityELFLoader<'a>(&'a Activity);
+
+impl ELFLoader for ActivityELFLoader<'_> {
+    fn load_segment_async(
+        &mut self,
+        virt: goff,
+        phys: GlobAddr,
+        size: usize,
+        flags: PageFlags,
+        map: bool,
+    ) -> Result<(), Error> {
+        if self.0.tile_desc().has_virtmem() {
+            let dst_sel = virt >> PAGE_BITS;
+            let pages = math::round_up(size, PAGE_SIZE) >> PAGE_BITS;
+
+            let phys_align = GlobAddr::new_with(phys.tile(), phys.offset() & !PAGE_MASK as goff);
+            let map_obj = MapObject::new(phys_align, flags);
+            if map {
+                map_obj.map_async(self.0, virt & !PAGE_MASK as goff, phys_align, pages, flags)?;
+            }
+
+            self.0.map_caps().borrow_mut().insert(Capability::new_range(
+                SelRange::new_range(dst_sel as kif::CapSel, pages as kif::CapSel),
+                KObject::Map(map_obj),
+            ))
+        }
+        else {
+            MetalELFLoader::new(GlobAddr::new_with(self.0.tile_id(), 0), 0)
+                .load_segment_async(virt, phys, size, flags, map)
+        }
+    }
+
+    fn zero_segment_async(
+        &mut self,
+        virt: goff,
+        size: usize,
+        flags: PageFlags,
+    ) -> Result<(), Error> {
+        let phys = if self.0.tile_desc().has_virtmem() {
+            let mem =
+                mem::borrow_mut().allocate(mem::MemType::ROOT, size as goff, PAGE_SIZE as goff)?;
+            self.load_segment_async(virt as goff, mem.global(), size, flags, true)?;
+
+            ktcu::glob_to_phys_remote(self.0.tile_id(), mem.global(), flags)?
+        }
+        else {
+            virt
+        };
+
+        MetalELFLoader::new(GlobAddr::new_with(self.0.tile_id(), 0), 0)
+            .zero_segment_async(phys, size, flags)
+    }
+
+    fn map_heap_async(&mut self, virt: goff) -> Result<(), Error> {
+        if self.0.tile_desc().has_virtmem() {
+            let phys = mem::borrow_mut().allocate(
+                mem::MemType::ROOT,
+                MOD_HEAP_SIZE as goff,
+                PAGE_SIZE as goff,
+            )?;
+            self.load_segment_async(virt, phys.global(), MOD_HEAP_SIZE, PageFlags::RW, true)
+        }
+        else {
+            Ok(())
+        }
+    }
+
+    fn map_stack_async(&mut self) -> Result<(), Error> {
+        if self.0.tile_desc().has_virtmem() {
+            let (virt, size) = self.0.tile_desc().stack_space();
+            let phys =
+                mem::borrow_mut().allocate(mem::MemType::ROOT, size as goff, PAGE_SIZE as goff)?;
+            self.load_segment_async(virt as goff, phys.global(), size, PageFlags::RW, true)
+        }
+        else {
+            Ok(())
+        }
+    }
 }
 
 fn write_arguments<S>(args: &[S], tile: tcu::TileId, env_phys: goff, env_off: &mut usize) -> usize

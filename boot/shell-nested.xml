@@ -24,12 +24,14 @@
                 <app args="pager" usermem="512M" getinfo="1">
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
+                    <mod name="tilemux" perm="r" />
                     <sesscrt name="m3fs" count="24" />
                     <tiles type="core" count="1" />
                     <dom>
                         <app args="/sbin/pager" getinfo="1">
                             <sess name="m3fs" />
                             <mod name="fs" perm="r" />
+                            <mod name="tilemux" perm="r" />
                             <tiles type="core" count="2" />
                             <dom>
                                 <app args="/bin/shell" getinfo="1">

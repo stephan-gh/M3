@@ -39,9 +39,10 @@ class FuncCall:
 
 
 class FuncDef:
-    def __init__(self, name, loc):
+    def __init__(self, name, loc, allow_no_async):
         self.name = name
         self.loc = loc
+        self.allow_no_async = allow_no_async
         self.calls = []
 
     def __str__(self):
@@ -58,16 +59,21 @@ def parse_file(file):
     pos = 0
     braces = 0
     in_func = False
+
     while pos < len(bytes):
         if bytes[pos] == '\n':
             line += 1
             pos += 1
         elif not in_func:
-            m = re.search(r'\bfn\s+([a-zA-Z0-9_]+)\s*(?:<.*?>\s*)?\(', bytes[pos:])
+            m = re.search(
+                r'(#\[allow\(m3_async::no_async_call\)\])?\s*(?:pub\(crate\)?)?\s*fn\s+([a-zA-Z0-9_]+)\s*(?:<.*?>\s*)?\(',
+                bytes[pos:],
+            )
             if m:
+                allow_no_async = m.group(1) is not None
                 line += bytes[pos:pos + m.span()[1]].count('\n')
                 pos += m.span()[1]
-                func = FuncDef(m.group(1), Location(file, line))
+                func = FuncDef(m.group(2), Location(file, line), allow_no_async)
                 braces = 0
                 in_func = True
             else:
@@ -98,7 +104,7 @@ def check_funcs(funcs):
         has_wait = any([f.name == "wait_for" for f in func.calls])
         if (has_async or has_wait) and not func.name.endswith("_async"):
             print("Function %s calls an asynchronous function, but doesn't end with _async" % func)
-        elif not (has_async or has_wait) and func.name.endswith("_async"):
+        elif not (has_async or has_wait) and func.name.endswith("_async") and not func.allow_no_async:
             print("Function %s calls no asynchronous function, but ends with _async" % func)
 
 

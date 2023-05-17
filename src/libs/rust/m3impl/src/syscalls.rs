@@ -446,6 +446,37 @@ pub fn tile_set_pmp(
     send_receive_result(&buf)
 }
 
+/// Creates a memory gate capability for the internal memory of the given tile
+///
+/// The tile needs to have internal memory (see
+/// [`TileDesc::has_memory`](`crate::kif::TileDesc::has_memory`)).
+///
+/// This call requires a non-derived tile capability.
+pub fn tile_mem(dst: Selector, tile: Selector) -> Result<(), Error> {
+    let mut buf = SYSC_BUF.borrow_mut();
+    build_vmsg!(buf, syscalls::Operation::TileMem, syscalls::TileMem {
+        dst,
+        tile,
+    });
+    send_receive_result(&buf)
+}
+
+/// Resets the given tile.
+///
+/// In any case, this call will invalidate all PMP EPs. If mux_mem is not `INVALID_SEL`, `mux_mem`
+/// is installed as the first PMP EP and the multiplexer that has been loaded into
+/// `mux_mem` is started.
+///
+/// This call requires a non-derived tile capability.
+pub fn tile_reset(tile: Selector, mux_mem: Selector) -> Result<(), Error> {
+    let mut buf = SYSC_BUF.borrow_mut();
+    build_vmsg!(buf, syscalls::Operation::TileReset, syscalls::TileReset {
+        tile,
+        mux_mem,
+    });
+    send_receive_result(&buf)
+}
+
 /// Performs the activity operation `op` with the given activity.
 pub fn activity_ctrl(act: Selector, op: syscalls::ActivityOp, arg: u64) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();

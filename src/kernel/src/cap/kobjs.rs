@@ -83,6 +83,15 @@ impl KObject {
         let idx: usize = unsafe { *(self as *const _ as *const usize) };
         KOBJ_SIZES[idx]
     }
+
+    pub fn to_gate(&self) -> Option<GateObject> {
+        match self {
+            KObject::MGate(g) => Some(GateObject::Mem(g.clone())),
+            KObject::RGate(g) => Some(GateObject::Recv(g.clone())),
+            KObject::SGate(g) => Some(GateObject::Send(g.clone())),
+            _ => None,
+        }
+    }
 }
 
 impl fmt::Debug for KObject {
@@ -744,17 +753,14 @@ impl EPObject {
     }
 
     pub fn configure(ep: &Rc<Self>, gate: &KObject) {
-        // create a gate object from the kobj
-        let go = match gate {
-            KObject::MGate(g) => GateObject::Mem(g.clone()),
-            KObject::RGate(g) => GateObject::Recv(g.clone()),
-            KObject::SGate(g) => GateObject::Send(g.clone()),
-            _ => unreachable!(),
-        };
+        Self::configure_obj(ep, gate.to_gate().unwrap());
+    }
+
+    pub fn configure_obj(ep: &Rc<Self>, obj: GateObject) {
         // we tell the gate object its gate object
-        go.set_ep(ep);
+        obj.set_ep(ep);
         // we tell the endpoint its current gate object
-        ep.set_gate(go);
+        ep.set_gate(obj);
     }
 
     pub fn deconfigure(&self, force: bool) -> Result<bool, Error> {

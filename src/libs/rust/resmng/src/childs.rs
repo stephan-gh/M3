@@ -21,7 +21,6 @@ use m3::cell::{Cell, RefCell};
 use m3::client::resmng;
 use m3::col::{String, ToString, Treap, Vec};
 use m3::com::{MemGate, RecvGate, SGateArgs, SendGate};
-use m3::env;
 use m3::errors::{Code, Error};
 use m3::format;
 use m3::goff;
@@ -37,6 +36,7 @@ use m3::syscalls;
 use m3::tcu;
 use m3::tiles::{Activity, KMem, RunningActivity, TileQuota};
 use m3::util::math;
+use m3::{cfg, env};
 
 use crate::config::AppConfig;
 use crate::requests::Requests;
@@ -46,7 +46,7 @@ use crate::resources::{
     tiles::TileUsage,
     Resources,
 };
-use crate::subsys::SubsystemBuilder;
+use crate::subsys::{ChildStarter, SubsystemBuilder};
 use crate::{events, subsys};
 
 pub type Id = u32;
@@ -149,6 +149,7 @@ pub trait Child {
     fn child_tile(&self) -> Option<&TileUsage>;
     fn activity_sel(&self) -> Selector;
     fn activity_id(&self) -> tcu::ActId;
+    fn remove_activity(&mut self);
     fn resmng_sgate_sel(&self) -> Selector;
 
     fn subsys(&mut self) -> Option<&mut SubsystemBuilder>;
@@ -312,7 +313,7 @@ pub trait Child {
         sess.close_async(res, id)
     }
 
-    fn alloc_local(&mut self, size: goff, perm: Perm) -> Result<MemGate, Error> {
+    fn alloc_local(&mut self, size: goff, perm: Perm) -> Result<(MemGate, Allocation), Error> {
         log!(
             LogFlags::ResMngMem,
             "{}: allocate_local(size={:#x}, perm={:?})",
@@ -328,9 +329,8 @@ pub trait Child {
         let alloc = self.mem().pool.borrow_mut().allocate(size)?;
         let mem_sel = self.mem().pool.borrow().mem_cap(alloc.slice_id());
         let mgate = MemGate::new_bind(mem_sel).derive(alloc.addr(), alloc.size() as usize, perm)?;
-        // TODO this memory is currently only free'd on child exit
         self.add_mem(alloc, None);
-        Ok(mgate)
+        Ok((mgate, alloc))
     }
 
     fn alloc_mem(&mut self, dst_sel: Selector, size: goff, perm: Perm) -> Result<(), Error> {
@@ -535,28 +535,59 @@ pub trait Child {
 
     fn alloc_tile(
         &mut self,
-        res: &Resources,
+        res: &mut Resources,
+        starter: &mut dyn ChildStarter,
         sel: Selector,
         desc: kif::TileDesc,
-        inherit_pmp: bool,
+        init: bool,
     ) -> Result<(tcu::TileId, kif::TileDesc), Error> {
         log!(
             LogFlags::ResMngTiles,
-            "{}: alloc_tile(sel={}, desc={:?}, inherit_pmp={})",
+            "{}: alloc_tile(sel={}, desc={:?}, init={})",
             self.name(),
             sel,
             desc,
-            inherit_pmp
+            init
         );
 
         let cfg = self.cfg();
         let idx = cfg.get_pe_idx(desc)?;
-        let tile_usage = res.tiles().find(desc)?;
+        let mut tile_usage = res.tiles().find(desc)?;
 
-        if inherit_pmp {
+        if init {
+            tile_usage.state_mut().load_mux(
+                "tilemux",
+                cfg::FIXED_TILEMUX_MEM,
+                |size| match self.alloc_local(size as goff, Perm::RWX) {
+                    Ok((mem, alloc)) => Ok((mem, Some(alloc))),
+                    Err(e) => {
+                        log!(
+                            LogFlags::Error,
+                            "Unable to allocate {}b for multiplexer",
+                            size
+                        );
+                        return Err(e);
+                    },
+                },
+                |name| match starter.get_bootmod(name) {
+                    Ok(mem) => Ok(mem),
+                    Err(e) => {
+                        log!(
+                            LogFlags::Error,
+                            "Unable to get boot module {}: {:?}",
+                            name,
+                            e
+                        );
+                        return Err(e);
+                    },
+                },
+            )?;
+
             // give this tile access to the same memory regions the child's tile has access to
             // TODO later we could allow childs to customize that
-            tile_usage.inherit_mem_regions(self.our_tile())?;
+            tile_usage
+                .state_mut()
+                .inherit_mem_regions(self.our_tile())?;
         }
 
         self.delegate(tile_usage.tile_obj().sel(), sel)?;
@@ -590,7 +621,7 @@ pub trait Child {
     }
 
     fn remove_pe_by_idx(&mut self, res: &Resources, idx: usize) -> Result<(), Error> {
-        let (tile_usage, idx, ep_sel) = self.res_mut().tiles.remove(idx);
+        let (mut tile_usage, idx, ep_sel) = self.res_mut().tiles.remove(idx);
         log!(
             LogFlags::ResMngTiles,
             "{}: removed tile (id={}, sel={})",
@@ -599,11 +630,25 @@ pub trait Child {
             ep_sel
         );
 
+        // uninstall multiplexer and free its memory
+        tile_usage
+            .state_mut()
+            .unload_mux(|alloc| {
+                let idx = self
+                    .res_mut()
+                    .mem
+                    .iter()
+                    .position(|(_, a)| *a == alloc)
+                    .unwrap();
+                self.remove_mem_by_idx(idx);
+            })
+            .unwrap();
+
         let cfg = self.cfg();
         let crd = CapRngDesc::new(CapType::Object, ep_sel, 1);
         // TODO if that fails, we need to kill this child because otherwise we don't get the tile back
         syscalls::revoke(self.activity_sel(), crd, true).ok();
-        res.tiles().remove_user(&tile_usage);
+        res.tiles().remove_user(&mut tile_usage);
         cfg.free_tile(idx);
 
         Ok(())
@@ -748,6 +793,10 @@ impl Child for OwnChild {
         self.activity.as_ref().unwrap().activity().sel()
     }
 
+    fn remove_activity(&mut self) {
+        self.activity = None;
+    }
+
     fn subsys(&mut self) -> Option<&mut SubsystemBuilder> {
         self.sub.as_mut()
     }
@@ -880,6 +929,9 @@ impl Child for ForeignChild {
 
     fn activity_sel(&self) -> Selector {
         self.act_sel
+    }
+
+    fn remove_activity(&mut self) {
     }
 
     fn subsys(&mut self) -> Option<&mut SubsystemBuilder> {
@@ -1339,6 +1391,8 @@ impl ChildManager {
             }
             child.remove_resources_async(res);
 
+            // revoke the activity before we get rid of the tile
+            child.remove_activity();
             res.tiles().remove_user(child.our_tile());
 
             self.ids.retain(|&i| i != id);

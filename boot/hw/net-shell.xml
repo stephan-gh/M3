@@ -22,6 +22,7 @@
                 <app args="pager maxcli=5" usermem="256M" getinfo="1">
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
+                    <mod name="tilemux" perm="r" />
                     <tiles type="boom+nic" count="1" />
                     <tiles type="core" count="1" />
                     <dom tile="boom+nic">

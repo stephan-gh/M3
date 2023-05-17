@@ -105,17 +105,19 @@ fn memories(t: &mut dyn WvTester, child: &mut dyn Child, _res: &mut Resources) {
 fn tiles(t: &mut dyn WvTester, child: &mut dyn Child, res: &mut Resources) {
     wv_assert_eq!(t, child.res().tiles().len(), 0);
 
+    let starter = &mut TestStarter {};
     wv_assert_err!(
         t,
         child.alloc_tile(
             res,
+            starter,
             123,
             TileDesc::new(TileType::Mem, TileISA::None, 0),
             false
         ),
         Code::InvArgs
     );
-    wv_assert_ok!(child.alloc_tile(res, 123, Activity::own().tile_desc(), false));
+    wv_assert_ok!(child.alloc_tile(res, starter, 123, Activity::own().tile_desc(), false));
 
     wv_assert_eq!(t, child.res().tiles().len(), 1);
 

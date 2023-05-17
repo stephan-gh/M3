@@ -65,6 +65,8 @@ pub enum Operation {
     TileQuota,
     TileSetQuota,
     TileSetPMP,
+    TileMem,
+    TileReset,
     SemCtrl,
 
     // Capability exchange
@@ -278,6 +280,20 @@ pub struct TileSetPMP {
     pub mgate: CapSel,
     pub ep: EpId,
     pub overwrite: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[repr(C)]
+pub struct TileMem {
+    pub tile: CapSel,
+    pub dst: CapSel,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[repr(C)]
+pub struct TileReset {
+    pub tile: CapSel,
+    pub mux_mem: CapSel,
 }
 
 /// The operations for the `sem_ctrl` system call

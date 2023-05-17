@@ -140,7 +140,7 @@ impl subsys::ChildStarter for PagedChildStarter {
     fn configure_tile(
         &mut self,
         _res: &mut Resources,
-        tile: &tiles::TileUsage,
+        tile: &mut tiles::TileUsage,
         _domain: &config::Domain,
     ) -> Result<(), VerboseError> {
         let fs_mod = MemGate::new_bind_bootmod("fs")?;
@@ -148,7 +148,8 @@ impl subsys::ChildStarter for PagedChildStarter {
         // don't overwrite PMP EPs here, but use the next free one. this is required in case we
         // share our tile with this child and therefore need to add a PMP EP for ourself. Since our
         // parent has already set PMP EPs, we don't want to overwrite them.
-        tile.add_mem_region(fs_mod, fs_mod_size, true, false)
+        tile.state_mut()
+            .add_mem_region(fs_mod, fs_mod_size, true, false)
             .map_err(|e| {
                 VerboseError::new(e.code(), "Unable to add PMP EP for FS image".to_string())
             })

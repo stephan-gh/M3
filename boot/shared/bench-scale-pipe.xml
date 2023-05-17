@@ -16,6 +16,7 @@
                 <app args="pager">
                     <sess name="m3fs" />
                     <mod name="fs" perm="r" />
+                    <mod name="tilemux" perm="r" />
                     <tiles type="core" count="1" />
                     <app args="/bin/bench-scale-pipe -d -i 1 -r 4 -w 1 grep_wc_grep grep_wc_wc">
                         <mount fs="m3fs" path="/" />

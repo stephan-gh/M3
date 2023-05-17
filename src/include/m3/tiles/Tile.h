@@ -51,9 +51,11 @@ public:
      * Allocate a new processing element
      *
      * @param desc the tile description
+     * @param init whether the tile should be initialized with TileMux and PMP EPs should be
+     *  inherited from our tile
      * @return the tile object
      */
-    static Reference<Tile> alloc(const TileDesc &desc);
+    static Reference<Tile> alloc(const TileDesc &desc, bool init = true);
 
     /**
      * Gets a tile with given description.
@@ -73,8 +75,10 @@ public:
      * - BOOM with NIC if available, otherwise a Rocket: "boom+nic|rocket"
      *
      * @param desc the textual description of the tile
+     * @param init whether the tile should be initialized with TileMux and PMP EPs should be
+     *  inherited from our tile
      */
-    static Reference<Tile> get(const char *desc);
+    static Reference<Tile> get(const char *desc, bool init = true);
 
     /**
      * Binds a tile object to the given selector and tile description

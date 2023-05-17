@@ -25,9 +25,11 @@ use crate::cap::Selector;
 use crate::cfg;
 use crate::client::{Pager, ResMng};
 use crate::col::Vec;
-use crate::com::SendGate;
+use crate::com::{MemGate, SendGate};
 use crate::errors::Error;
+use crate::goff;
 use crate::kif::{self, TileDesc};
+use crate::mem;
 use crate::serialize::M3Deserializer;
 use crate::tcu;
 use crate::tiles::OwnActivity;
@@ -35,6 +37,42 @@ use crate::util;
 use crate::vfs::{FileTable, MountTable};
 
 pub use base::env::*;
+
+/// Writes the given arguments to `mem` at given offset
+///
+/// This is intended [`ChildActivity`] and other components that want to start applications and
+/// therefore need to pass arguments and environment variables to the application.
+///
+/// Returns the address of arguments array (argv)
+pub fn write_args<S>(
+    args: &[S],
+    mem: &MemGate,
+    off: &mut usize,
+    env_off: goff,
+) -> Result<usize, Error>
+where
+    S: AsRef<str>,
+{
+    let (arg_buf, arg_ptr, arg_end) = collect_args(args, *off);
+
+    // write actual arguments to memory
+    mem.write_bytes(
+        arg_buf.as_ptr() as *const _,
+        arg_buf.len(),
+        *off as goff - env_off,
+    )?;
+
+    // write argument pointers to memory
+    let arg_ptr_off = util::math::round_up(arg_end, mem::size_of::<u64>());
+    mem.write_bytes(
+        arg_ptr.as_ptr() as *const _,
+        arg_ptr.len() * mem::size_of::<u64>(),
+        arg_ptr_off as goff - env_off,
+    )?;
+
+    *off = arg_ptr_off + arg_ptr.len() * mem::size_of::<u64>();
+    Ok(arg_ptr_off)
+}
 
 #[derive(Default, Copy, Clone)]
 #[repr(C)]

@@ -15,7 +15,9 @@
 
 use base::build_vmsg;
 use base::cell::RefMut;
+use base::cfg;
 use base::col::{BitArray, Vec};
+use base::env;
 use base::errors::{Code, Error};
 use base::goff;
 use base::io::LogFlags;
@@ -29,11 +31,11 @@ use base::tcu::{self, ActId, EpId, TileId};
 use core::cmp;
 
 use crate::cap::{
-    EPObject, EPQuota, KMemObject, MGateObject, RGateObject, SGateObject, TileObject,
+    EPObject, EPQuota, GateObject, KMemObject, MGateObject, RGateObject, SGateObject, TileObject,
 };
 use crate::ktcu;
 use crate::platform;
-use crate::tiles::INVAL_ID;
+use crate::tiles::{tilemng, INVAL_ID};
 
 pub struct TileMux {
     tile: SRc<TileObject>,
@@ -41,6 +43,7 @@ pub struct TileMux {
     queue: base::boxed::Box<crate::com::SendQueue>,
     pmp: Vec<Rc<EPObject>>,
     eps: BitArray,
+    initialized: bool,
 }
 
 impl TileMux {
@@ -65,6 +68,7 @@ impl TileMux {
             queue: crate::com::SendQueue::new(crate::com::QueueId::TileMux(tile), tile),
             pmp,
             eps: BitArray::new(tcu::AVAIL_EPS as usize),
+            initialized: false,
         };
 
         tilemux.eps.set(0); // first EP is reserved for TileMux's memory region
@@ -73,11 +77,11 @@ impl TileMux {
             tilemux.eps.set(ep as usize);
         }
 
-        if platform::tile_desc(tile).supports_tilemux() {
-            tilemux.init();
-        }
-
         tilemux
+    }
+
+    pub fn is_initialized(&self) -> bool {
+        self.initialized
     }
 
     pub fn has_activities(&self) -> bool {
@@ -93,9 +97,7 @@ impl TileMux {
         self.acts.retain(|id| *id != act);
     }
 
-    fn init(&mut self) {
-        use base::cfg;
-
+    fn init_eps(&mut self) {
         // configure send EP
         ktcu::config_remote_ep(self.tile_id(), tcu::KPEX_SEP, |regs, tgtep| {
             ktcu::config_send(
@@ -142,6 +144,76 @@ impl TileMux {
         .unwrap();
     }
 
+    pub fn reset_async(tile: TileId, mux_mem: Option<GateObject>) -> Result<(), Error> {
+        let start = mux_mem.is_some();
+
+        if tilemng::tilemux(tile).has_activities() {
+            return Err(Error::new(Code::InvState));
+        }
+
+        log!(
+            LogFlags::KernTiles,
+            "Resetting tile {} (start={})",
+            tile,
+            start
+        );
+
+        {
+            let mut tilemux = tilemng::tilemux(tile);
+            // reset can only be used in two ways: off -> on and on -> off
+            if (!tilemux.initialized && !start) || (tilemux.initialized && start) {
+                return Err(Error::new(Code::InvArgs));
+            }
+
+            // should we start and therefore initialize the tile?
+            if let Some(mux_mem) = mux_mem {
+                if platform::tile_desc(tilemux.tile_id()).supports_tilemux() {
+                    tilemux.init_eps();
+                }
+
+                let mgate = match mux_mem {
+                    GateObject::Mem(ref mg) => mg.clone(),
+                    _ => unreachable!(),
+                };
+
+                // use the given memory gate for the first PMP EP (for the multiplexer)
+                // TODO do we even need that for tiles that don't support tilemux?
+                tilemux.configure_pmp_ep(0, mux_mem)?;
+
+                if env::boot().platform == env::Platform::Hw {
+                    // write trampoline to 0x1000_0000 to jump to TileMux's entry point
+                    let trampoline: u64 = 0x0000_0000_0000_106f; // j _start (+0x1000)
+                    ktcu::write_slice(mgate.tile_id(), mgate.offset(), &[trampoline]);
+                }
+
+                tilemux.initialized = true;
+            }
+            else {
+                // give tilemux the chance to shutdown properly
+                if platform::tile_desc(tilemux.tile_id()).is_programmable() {
+                    Self::shutdown_async(tilemux).unwrap();
+                }
+            }
+        }
+
+        // reset the tile; start it if mux_mem is some; stop it otherwise
+        ktcu::reset_tile(tile, start)?;
+
+        if !start {
+            let mut tilemux = tilemng::tilemux(tile);
+            tilemux.initialized = false;
+
+            // now that the tile is stopped, deconfigure PMP EPs
+            for ep in 0..tcu::PMEM_PROT_EPS as tcu::EpId {
+                // cannot fail for memory EPs
+                let ep_obj = tilemux.pmp_ep(ep);
+                ep_obj.deconfigure(false).unwrap();
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn tile(&self) -> &SRc<TileObject> {
         &self.tile
     }
@@ -152,6 +224,21 @@ impl TileMux {
 
     pub fn pmp_ep(&self, ep: EpId) -> &Rc<EPObject> {
         &self.pmp[ep as usize]
+    }
+
+    pub fn configure_pmp_ep(&mut self, ep: tcu::EpId, gate: GateObject) -> Result<(), Error> {
+        match gate {
+            GateObject::Mem(ref mg) => {
+                self.config_mem_ep(ep, INVAL_ID, mg, mg.tile_id())?;
+
+                // remember that the MemGate is activated on this EP for the case that the MemGate gets
+                // revoked. If so, the EP is automatically invalidated.
+                let ep_obj = self.pmp_ep(ep);
+                EPObject::configure_obj(ep_obj, gate);
+            },
+            _ => return Err(Error::new(Code::InvArgs)),
+        }
+        Ok(())
     }
 
     pub fn find_eps(&self, count: u32) -> Result<EpId, Error> {
@@ -329,12 +416,12 @@ impl TileMux {
             .map(|_| ())
     }
 
-    pub fn shutdown(&mut self) -> Result<(), Error> {
+    pub fn shutdown_async(tilemux: RefMut<'_, Self>) -> Result<(), Error> {
         let mut buf = MsgBuf::borrow_def();
         let msg = kif::tilemux::Shutdown {};
         build_vmsg!(buf, kif::tilemux::Sidecalls::Shutdown, &msg);
 
-        self.send_sidecall::<kif::tilemux::Shutdown>(None, &buf, &msg)
+        Self::send_receive_sidecall_async::<kif::tilemux::Shutdown>(tilemux, None, buf, &msg)
             .map(|_| ())
     }
 
@@ -347,7 +434,7 @@ impl TileMux {
         match op {
             kif::tilemux::Calls::Exit => Self::handle_exit_async(tilemux, msg, &mut de).unwrap(),
             kif::tilemux::Calls::LxAct => {
-                Self::handle_lx_act_sidecall(tilemux, msg, &mut de).unwrap()
+                Self::handle_lx_act_sidecall_async(tilemux, msg, &mut de).unwrap()
             },
             kif::tilemux::Calls::Noop => Self::handle_noop_sidecall(tilemux, msg, &mut de).unwrap(),
         }
@@ -389,11 +476,9 @@ impl TileMux {
         Ok(())
     }
 
-    fn create_lx_activity(tilemux: RefMut<'_, Self>) -> Result<(), Error> {
+    fn create_lx_activity_async(tilemux: RefMut<'_, Self>) -> Result<(), Error> {
         use crate::args;
         use crate::tiles::{ActivityFlags, ActivityMng, State};
-        use base::cfg;
-        use base::env;
 
         let kmem = KMemObject::new(args::get().kmem - cfg::FIXED_KMEM);
         let tile = tilemux.tile().clone();
@@ -408,7 +493,7 @@ impl TileMux {
         )?;
         let rbuf_virt = platform::tile_desc(tile_id).rbuf_std_space().0;
         // TODO: use virt rbuf address as phys rbuf address?
-        act.init_eps_async(rbuf_virt as u64)?;
+        act.init_eps(rbuf_virt as u64)?;
 
         // build env
         let mut senv = env::BaseEnv {
@@ -438,7 +523,7 @@ impl TileMux {
         Ok(())
     }
 
-    fn handle_lx_act_sidecall(
+    fn handle_lx_act_sidecall_async(
         tilemux: RefMut<'_, Self>,
         msg: &tcu::Message,
         de: &mut base::serialize::M3Deserializer<'_>,
@@ -448,7 +533,7 @@ impl TileMux {
         let tile_id = tilemux.tile_id();
         log!(LogFlags::KernTMC, "TileMux[{}] received {:?}", tile_id, r);
 
-        let res = Self::create_lx_activity(tilemux);
+        let res = Self::create_lx_activity_async(tilemux);
 
         let error = match res {
             Ok(_) => Code::Success,
@@ -680,6 +765,11 @@ impl TileMux {
         msg: &R,
     ) -> Result<thread::Event, Error> {
         use crate::tiles::{ActivityMng, State};
+
+        // if tilemux is not initialized, we cannot talk to it
+        if !self.initialized {
+            return Err(Error::new(Code::RecvGone));
+        }
 
         // if the activity has no app anymore, don't send the notify
         if let Some(id) = act {

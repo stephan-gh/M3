@@ -14,16 +14,18 @@
  */
 
 use base::build_vmsg;
+use base::cfg;
 use base::col::ToString;
 use base::errors::{Code, Error, VerboseError};
+use base::goff;
 use base::kif::{self, syscalls};
-use base::mem::MsgBuf;
+use base::mem::{GlobAddr, MsgBuf};
 use base::quota::Quota;
 use base::rc::Rc;
 use base::tcu;
 
-use crate::cap::EPObject;
-use crate::cap::KObject;
+use crate::cap::{Capability, KObject, MGateObject};
+use crate::mem::Allocation;
 use crate::platform;
 use crate::syscalls::{get_request, reply_success, send_reply};
 use crate::tiles::{tilemng, Activity, TileMux, INVAL_ID};
@@ -42,21 +44,27 @@ pub fn tile_quota_async(
     };
 
     let (time, pts) = if platform::tile_desc(tile.tile()).supports_tilemux() {
-        TileMux::get_quota_async(
-            tilemng::tilemux(tile.tile()),
-            tile.time_quota_id(),
-            tile.pt_quota_id(),
-        )
-        .map_err(|e| {
-            VerboseError::new(
-                e.code(),
-                base::format!(
-                    "Unable to get quota for time={}, pts={}",
-                    tile.time_quota_id(),
-                    tile.pt_quota_id()
-                ),
+        if tilemng::tilemux(tile.tile()).is_initialized() {
+            TileMux::get_quota_async(
+                tilemng::tilemux(tile.tile()),
+                tile.time_quota_id(),
+                tile.pt_quota_id(),
             )
-        })?
+            .map_err(|e| {
+                VerboseError::new(
+                    e.code(),
+                    base::format!(
+                        "Unable to get quota for time={}, pts={}",
+                        tile.time_quota_id(),
+                        tile.pt_quota_id()
+                    ),
+                )
+            })?
+        }
+        else {
+            // fall back to defaults if TileMux isn't available
+            (Quota::default(), Quota::default())
+        }
     }
     else {
         (Quota::default(), Quota::default())
@@ -176,20 +184,81 @@ pub fn tile_set_pmp(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
             .get(r.mgate)
             .ok_or_else(|| Error::new(Code::InvArgs))?
             .get();
-        match kobj {
-            KObject::MGate(mg) => {
-                if let Err(e) = tilemux.config_mem_ep(r.ep, INVAL_ID, mg, mg.tile_id()) {
-                    sysc_err!(e.code(), "Unable to configure PMP EP");
-                }
-
-                // remember that the MemGate is activated on this EP for the case that the MemGate gets
-                // revoked. If so, the EP is automatically invalidated.
-                let ep_obj = tilemux.pmp_ep(r.ep);
-                EPObject::configure(ep_obj, kobj);
-            },
-            _ => sysc_err!(Code::InvArgs, "Expected MemGate"),
-        }
+        tilemux.configure_pmp_ep(
+            r.ep,
+            kobj.to_gate().ok_or_else(|| {
+                VerboseError::new(Code::InvArgs, "Expected a MemGate".to_string())
+            })?,
+        )?;
     }
+
+    reply_success(msg);
+    Ok(())
+}
+
+#[inline(never)]
+pub fn tile_reset_async(
+    act: &Rc<Activity>,
+    msg: &'static tcu::Message,
+) -> Result<(), VerboseError> {
+    let r: syscalls::TileReset = get_request(msg)?;
+    sysc_log!(act, "tile_reset(tile={}, mux_mem={})", r.tile, r.mux_mem);
+
+    let act_caps = act.obj_caps().borrow();
+    let tile = get_kobj_ref!(act_caps, r.tile, Tile);
+    if tile.derived() {
+        sysc_err!(Code::NoPerm, "Cannot reset tiles for derived tile objects");
+    }
+
+    let tile_id = tile.tile();
+    let mux_mem = if r.mux_mem == kif::INVALID_SEL {
+        None
+    }
+    else {
+        Some(
+            act_caps
+                .get(r.mux_mem)
+                .ok_or_else(|| Error::new(Code::InvArgs))?
+                .get()
+                .to_gate()
+                .ok_or_else(|| {
+                    VerboseError::new(Code::InvArgs, "Expected a MemGate".to_string())
+                })?,
+        )
+    };
+    drop(act_caps);
+
+    TileMux::reset_async(tile_id, mux_mem)?;
+
+    reply_success(msg);
+    Ok(())
+}
+
+#[inline(never)]
+pub fn tile_mem(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(), VerboseError> {
+    let r: syscalls::TileMem = get_request(msg)?;
+    sysc_log!(act, "tile_mem(dst={}, tile={})", r.dst, r.tile);
+
+    if !act.obj_caps().borrow().unused(r.dst) {
+        sysc_err!(Code::InvArgs, "Selector {} already in use", r.dst);
+    }
+
+    let mut act_caps = act.obj_caps().borrow_mut();
+    let tile = get_kobj_ref!(act_caps, r.tile, Tile);
+    if tile.derived() {
+        sysc_err!(Code::NoPerm, "Cannot reset tiles for derived tile objects");
+    }
+    if !platform::tile_desc(tile.tile()).has_memory() {
+        sysc_err!(Code::InvArgs, "Tile has no internal memory");
+    }
+
+    let glob = GlobAddr::new_with(tile.tile(), cfg::MEM_OFFSET as goff);
+    let mem = Allocation::new(glob, platform::tile_desc(tile.tile()).mem_size() as goff);
+    let cap = Capability::new(
+        r.dst,
+        KObject::MGate(MGateObject::new(mem, kif::Perm::RWX, true)),
+    );
+    try_kmem_quota!(act_caps.insert_as_child(cap, r.tile));
 
     reply_success(msg);
     Ok(())
