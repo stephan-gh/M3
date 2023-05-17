@@ -23,7 +23,6 @@ use core::fmt;
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MemType {
     KERNEL,
-    BOOT,
     ROOT,
     USER,
     OCCUPIED,
