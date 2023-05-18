@@ -36,8 +36,10 @@ pub fn tile_quota_async(
     let r: syscalls::TileQuota = get_request(msg)?;
     sysc_log!(act, "tile_quota(tile={})", r.tile);
 
-    let act_caps = act.obj_caps().borrow();
-    let tile = get_kobj_ref!(act_caps, r.tile, Tile);
+    let tile = {
+        let act_caps = act.obj_caps().borrow();
+        get_kobj_ref!(act_caps, r.tile, Tile).clone()
+    };
 
     let (time, pts) = if platform::tile_desc(tile.tile()).supports_tilemux() {
         TileMux::get_quota_async(
@@ -91,8 +93,10 @@ pub fn tile_set_quota_async(
         r.pts
     );
 
-    let act_caps = act.obj_caps().borrow();
-    let tile = get_kobj_ref!(act_caps, r.tile, Tile);
+    let tile = {
+        let act_caps = act.obj_caps().borrow();
+        get_kobj_ref!(act_caps, r.tile, Tile).clone()
+    };
 
     if tile.derived() {
         sysc_err!(
@@ -108,6 +112,7 @@ pub fn tile_set_quota_async(
     }
 
     let tilemux = tilemng::tilemux(tile.tile());
+
     // the root tile object has always the same id for the time quota and the pts quota
     TileMux::set_quota_async(tilemux, tile.time_quota_id(), r.time, r.pts)?;
 
