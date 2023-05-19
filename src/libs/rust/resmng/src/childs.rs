@@ -77,7 +77,7 @@ impl ChildMem {
     }
 
     pub(crate) fn have_quota(&self, size: goff) -> bool {
-        self.quota.get() > size
+        self.quota.get() >= size
     }
 
     pub(crate) fn alloc_mem(&self, size: goff) {
