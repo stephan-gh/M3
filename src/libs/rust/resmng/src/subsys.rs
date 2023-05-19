@@ -47,6 +47,7 @@ use crate::resources::{memory, mods, services, tiles, Resources};
 //
 const SUBSYS_SELS: Selector = FIRST_FREE_SEL;
 
+const DEF_RESMNG_MEM: goff = 32 * 1024 * 1024;
 const DEF_TIME_SLICE: u64 = 1_000_000; // 1ms
 const OUR_EPS: u32 = 16;
 
@@ -910,21 +911,29 @@ fn split_child_mem(cfg: &config::AppConfig, mem: &Rc<childs::ChildMem>) {
     let mut def_childs = 0;
     for d in cfg.domains() {
         for a in d.apps() {
-            if let Some(cmem) = a.user_mem() {
-                mem.alloc_mem(cmem as goff);
+            if let Some(mut cmem) = a.user_mem() {
                 // if the child is a resource manager, it needs some additional memory for that
                 // child that isn't passed down to the child
                 if a.domains().len() > 0 {
-                    def_childs += 1;
+                    cmem += DEF_RESMNG_MEM as usize;
                 }
+                mem.alloc_mem(cmem as goff);
             }
             else {
                 def_childs += 1;
             }
         }
     }
-    let per_child = mem.quota() / (def_childs + 1);
-    mem.alloc_mem(per_child * def_childs);
+
+    if def_childs > 0 {
+        // The resmng needs some memory for itself (which it will allocate from us later and
+        // therefore should stay in the pool).
+        let remaining = DEF_RESMNG_MEM;
+        assert!(mem.quota() > remaining);
+        // the rest of the quota is split equally among the children
+        let per_child = (mem.quota() - remaining) / def_childs;
+        mem.alloc_mem(per_child * def_childs);
+    }
 }
 
 fn split_mem(res: &Resources, cfg: &config::AppConfig) -> Result<(usize, goff), VerboseError> {
