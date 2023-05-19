@@ -160,7 +160,7 @@ def init_tile(tile, vm):
     tile.tcu_set_features(1, vm, 1)
 
     # invalidate all EPs
-    for ep in range(0, 63):
+    for ep in range(0, 127):
         tile.tcu_set_ep(ep, EP.invalid())
 
 
