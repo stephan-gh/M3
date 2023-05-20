@@ -1,2 +1,3 @@
 def build(gen, env):
-    env.m3_rust_exe(gen, out='simplebench')
+    if env['ISA'] == 'riscv':
+        env.m3_rust_exe(gen, out='simplebench')
