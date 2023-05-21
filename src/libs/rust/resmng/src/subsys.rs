@@ -969,7 +969,10 @@ fn split_child_mem(cfg: &config::AppConfig, mem: &Rc<childs::ChildMem>, tiles: u
         let remaining = DEF_RESMNG_MEM + (tiles * cfg::FIXED_TILEMUX_MEM) as goff;
         assert!(mem.quota() > remaining);
         // the rest of the quota is split equally among the children
-        let per_child = (mem.quota() - remaining) / def_childs;
+        let per_child = math::round_dn(
+            (mem.quota() - remaining) / def_childs,
+            cfg::PAGE_SIZE as goff,
+        );
         mem.alloc_mem(per_child * def_childs);
     }
 }
