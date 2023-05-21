@@ -23,6 +23,17 @@ use crate::env;
 use crate::errors::Error;
 use crate::tcu;
 
+#[cfg(target_arch = "riscv64")]
+struct Gem5CovWriter(u64);
+
+#[cfg(target_arch = "riscv64")]
+impl minicov::CoverageWriter for Gem5CovWriter {
+    fn write(&mut self, data: &[u8]) -> Result<(), minicov::CoverageWriteError> {
+        tcu::TCU::write_coverage(data, self.0);
+        Ok(())
+    }
+}
+
 // #[cfg_attr(feature = "linux", link(name = "gem5"))]
 extern "C" {
     pub fn gem5_writefile(src: *const u8, len: u64, offset: u64, file: u64);
@@ -32,12 +43,10 @@ extern "C" {
 pub fn write_coverage(_act: u64) {
     #[cfg(target_arch = "riscv64")]
     if env::boot().platform == env::Platform::Gem5 {
-        let mut coverage = crate::vec![];
         // safety: the function is not thread-safe, but we are always single threaded.
         unsafe {
-            minicov::capture_coverage(&mut coverage).unwrap();
+            minicov::capture_coverage(&mut Gem5CovWriter(_act)).unwrap();
         }
-        tcu::TCU::write_coverage(&coverage, _act);
     }
 }
 
@@ -88,7 +97,9 @@ pub unsafe fn flush_cache() {
 pub fn shutdown() -> ! {
     if env::boot().platform == env::Platform::Gem5 {
         #[cfg(not(feature = "linux"))]
-        unsafe { gem5_shutdown(0) };
+        unsafe {
+            gem5_shutdown(0)
+        };
     }
     else {
         #[cfg(target_arch = "riscv64")]

@@ -51,9 +51,6 @@ extern "C" {
     fn __m3_heap_set_area(begin: usize, end: usize);
 }
 
-#[cfg(feature = "coverage")]
-const HEAP_SIZE: usize = 8 * 1024 * 1024;
-#[cfg(not(feature = "coverage"))]
 const HEAP_SIZE: usize = 512 * 1024;
 
 // the heap area needs to be page-byte aligned

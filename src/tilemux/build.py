@@ -10,9 +10,6 @@ def build(gen, env):
     # for some reason, we need to force the linker to not throw away the isr_* functions on ARM
     if env['ISA'] == 'arm':
         env['LINKFLAGS'] += ['-Wl,--whole-archive', '-lisrsf', '-Wl,--no-whole-archive']
-    # enable coverage feature if necessary
-    if env['BUILD'] == 'coverage':
-        env['CRGFLAGS'] += ['--features', 'coverage']
 
     entry_file = 'src/arch/' + env['ISA'] + '/Entry.S'
     entry = env.asm(gen, out=entry_file[:-2] + '.o', ins=[entry_file])
