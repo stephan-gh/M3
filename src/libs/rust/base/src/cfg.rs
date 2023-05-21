@@ -43,16 +43,14 @@ pub const MEM_OFFSET: usize = 0x1000_0000;
 #[cfg(not(target_arch = "riscv64"))]
 pub const MEM_OFFSET: usize = 0;
 
-pub const TILEMUX_RBUF_SIZE: usize = 1 * PAGE_SIZE;
-
 pub const TILE_MEM_BASE: usize = 0xE000_0000;
 
 pub const MEM_CAP_END: usize = RBUF_STD_ADDR;
 
-#[cfg(any(target_vendor = "hw", target_vendor = "hw22", target_arch = "riscv64"))]
-pub const ENV_START: usize = MEM_OFFSET + 0x8;
-#[cfg(all(target_vendor = "gem5", not(target_arch = "riscv64")))]
-pub const ENV_START: usize = MEM_OFFSET + 0x10_0000;
+#[cfg(target_arch = "riscv64")]
+pub const ENV_START: usize = MEM_OFFSET + PAGE_SIZE;
+#[cfg(not(target_arch = "riscv64"))]
+pub const ENV_START: usize = MEM_OFFSET + 0x1F_E000;
 pub const ENV_SIZE: usize = PAGE_SIZE;
 
 pub const STACK_SIZE: usize = 0x20000;
@@ -61,12 +59,8 @@ pub const FIXED_KMEM: usize = 2 * 1024 * 1024;
 pub const FIXED_ROOT_MEM: usize = MOD_HEAP_SIZE + FIXED_TILEMUX_MEM + 2 * 1024 * 1024;
 pub const FIXED_TILEMUX_MEM: usize = 16 * 1024 * 1024;
 
-#[cfg(any(target_vendor = "hw", target_vendor = "hw22"))]
-pub const TILEMUX_START: usize = MEM_OFFSET;
-#[cfg(not(any(target_vendor = "hw", target_vendor = "hw22")))]
-pub const TILEMUX_START: usize = MEM_OFFSET + 0x20_0000;
-
-pub const TILEMUX_RBUF_SPACE: usize = TILEMUX_START + 0xD0_0000;
+pub const TILEMUX_RBUF_SPACE: usize = ENV_START + ENV_SIZE;
+pub const TILEMUX_RBUF_SIZE: usize = 1 * PAGE_SIZE;
 
 pub const APP_HEAP_SIZE: usize = 64 * 1024 * 1024;
 pub const MOD_HEAP_SIZE: usize = 16 * 1024 * 1024;

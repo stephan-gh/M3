@@ -189,7 +189,7 @@ private:
     uintptr_t rbuf_base() const {
         if(has_virtmem())
             return RBUF_STD_ADDR;
-        size_t rbufs = TILEMUX_RBUF_SIZE + RBUF_SIZE_SPM + RBUF_STD_SIZE;
+        size_t rbufs = RBUF_SIZE_SPM + RBUF_STD_SIZE;
         return MEM_OFFSET + mem_size() - rbufs;
     }
 

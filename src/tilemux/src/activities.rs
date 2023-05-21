@@ -222,15 +222,26 @@ pub fn init() {
         let base = GlobAddr::new_with(mem_tile, mem_base);
 
         // use the memory behind ourself for page tables
-        let bss_end = unsafe { &_bss_end as *const _ as usize };
+        let bss_end = math::round_up(unsafe { &_bss_end as *const _ as usize }, cfg::PAGE_SIZE);
         let first_pt = bss_end / cfg::PAGE_SIZE;
         let first_pt = 1 + first_pt as Phys - (cfg::MEM_OFFSET / cfg::PAGE_SIZE) as Phys;
         // we don't need that many PTs here; 512 are enough for now
-        let pt_count = cmp::min(first_pt + 512, (mem_size as usize / cfg::PAGE_SIZE) as Phys);
+        let pt_count = cmp::min(
+            512,
+            // -1 to not use the rbuf itself for page tables
+            ((cfg::MEM_OFFSET + mem_size as usize - bss_end) / cfg::PAGE_SIZE - 1) as Phys,
+        );
         {
             let mut pts = PTS.borrow_mut();
-            pts.reserve((pt_count - first_pt) as usize);
-            for i in first_pt..pt_count {
+            pts.reserve(pt_count as usize);
+            log!(
+                LogFlags::MuxPTs,
+                "Using {:#x} .. {:#x} for page tables ({} in total)",
+                cfg::MEM_OFFSET + first_pt as usize * cfg::PAGE_SIZE,
+                cfg::MEM_OFFSET + (first_pt + pt_count) as usize * cfg::PAGE_SIZE - 1,
+                pt_count,
+            );
+            for i in first_pt..first_pt + pt_count {
                 pts.push(cfg::MEM_OFFSET as Phys + i * cfg::PAGE_SIZE as Phys);
             }
         }
@@ -963,8 +974,6 @@ impl Activity {
             self.map_segment(base, &_text_start, &_text_end, rx);
             self.map_segment(base, &_data_start, &_data_end, rw);
             self.map_segment(base, &_bss_start, &_bss_end, rw);
-            // ensure that the receive buffer does not overlap with text, data, and bss
-            assert!(cfg::TILEMUX_RBUF_SPACE >= &_bss_end as *const u8 as usize);
         }
 
         // map own receive buffer

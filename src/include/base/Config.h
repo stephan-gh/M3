@@ -54,20 +54,20 @@
 // +----------------------------+ 0x0
 // |         devices etc.       |
 // +----------------------------+ 0x10000000
-// |        TileMux code        |
-// +----------------------------+ 0x10060000
-// |           app code         |
-// +----------------------------+ 0x10100000
-// |     env + TileMux data     |
-// +----------------------------+ 0x10160000
-// |          app data          |
-// +----------------------------+ 0x101D0000
-// |          app stack         |
-// +----------------------------+ 0x101F0000
-// |      app recv buffers      |
-// +----------------------------+ 0x101FF000
+// |         entry point        |
+// +----------------------------+ 0x10001000
+// |         TileMux env        |
+// +----------------------------+ 0x10002000
 // |    TileMux recv buffers    |
-// +----------------------------+ 0x10200000
+// +----------------------------+ 0x10003000
+// |     TileMux code+data      |
+// +----------------------------+ 0x11000000
+// |        app code+data       |
+// +----------------------------+ 0x13FD1000
+// |          app stack         |
+// +----------------------------+ 0x13FF1000
+// |      app recv buffers      |
+// +----------------------------+ 0x14000000
 // |            ...             |
 // +----------------------------+ 0xF0000000
 // |          TCU MMIO          |
@@ -76,15 +76,13 @@
 // (RISC-V) virtual memory layout:
 // +----------------------------+ 0x0
 // |            ...             |
-// +----------------------------+ 0x10100000
-// |            env             |
-// +----------------------------+ 0x10101000
-// |            ...             |
-// +----------------------------+ 0x10200000
-// |     TileMux code+data      |
-// +----------------------------+ 0x103FF000
+// +----------------------------+ 0x10001000
+// |          app env           |
+// +----------------------------+ 0x10002000
 // |    TileMux recv buffers    |
-// +----------------------------+ 0x10400000
+// +----------------------------+ 0x10003000
+// |     TileMux code+data      |
+// +----------------------------+ 0x11000000
 // |       app code+data        |
 // |            ...             |
 // +----------------------------+ 0xCFFE0000
@@ -100,9 +98,6 @@
 // |          TCU MMIO          |
 // +----------------------------+ 0xF0002000
 
-#define ENV_SIZE      PAGE_SIZE
-#define ENV_END       (ENV_START + ENV_SIZE)
-
 #define STACK_SIZE    0x20000
 
 #define RBUF_STD_ADDR 0xD0000000
@@ -111,19 +106,15 @@
 #define RBUF_SIZE     (0x10000000 - RBUF_STD_SIZE)
 #define RBUF_SIZE_SPM 0xE000
 
-#if defined(__hw__) || defined(__hw22__)
-#    define TILEMUX_CODE_START (MEM_OFFSET + 0x1000)
-#    define ENV_START          (MEM_OFFSET + 0x8)
+#if defined(__riscv)
+#    define ENV_START     (MEM_OFFSET + 0x1000)
 #else
-#    define TILEMUX_CODE_START (MEM_OFFSET + 0x200000)
-#    if defined(__riscv)
-#        define ENV_START (MEM_OFFSET + 0x8)
-#    else
-#        define ENV_START (MEM_OFFSET + 0x100000)
-#    endif
+#    define ENV_START     (MEM_OFFSET + 0x1FE000)
 #endif
+#define ENV_SIZE      0x1000
 
-#define TILEMUX_RBUF_SIZE 0x1000
+#define TILEMUX_RBUF_SIZE   0x1000
+#define TILEMUX_CODE_START  (ENV_START + ENV_SIZE + TILEMUX_RBUF_SIZE)
 
 #define KPEX_RBUF_ORDER   6
 #define KPEX_RBUF_SIZE    (1 << KPEX_RBUF_ORDER)

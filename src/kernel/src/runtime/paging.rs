@@ -99,13 +99,7 @@ pub fn init() {
     }
 
     // map env
-    map_to_phys(
-        &mut aspace,
-        base,
-        cfg::ENV_START & !cfg::PAGE_MASK,
-        cfg::ENV_SIZE,
-        rw,
-    );
+    map_to_phys(&mut aspace, base, cfg::ENV_START, cfg::ENV_SIZE, rw);
 
     // map PTs
     let pages = mem_size as usize / cfg::PAGE_SIZE;

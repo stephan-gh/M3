@@ -167,7 +167,7 @@ impl TileMux {
 
             // should we start and therefore initialize the tile?
             if let Some(mux_mem) = mux_mem {
-                if platform::tile_desc(tilemux.tile_id()).supports_tilemux() {
+                if platform::tile_desc(tile).supports_tilemux() {
                     tilemux.init_eps();
                 }
 
@@ -182,7 +182,7 @@ impl TileMux {
 
                 if env::boot().platform == env::Platform::Hw {
                     // write trampoline to 0x1000_0000 to jump to TileMux's entry point
-                    let trampoline: u64 = 0x0000_0000_0000_106f; // j _start (+0x1000)
+                    let trampoline: u64 = 0x0000_0000_0000_306f; // j _start (+0x3000)
                     ktcu::write_slice(mgate.tile_id(), mgate.offset(), &[trampoline]);
                 }
 
@@ -190,7 +190,7 @@ impl TileMux {
             }
             else {
                 // give tilemux the chance to shutdown properly
-                if platform::tile_desc(tilemux.tile_id()).is_programmable() {
+                if platform::tile_desc(tile).is_programmable() {
                     Self::shutdown_async(tilemux).unwrap();
                 }
             }

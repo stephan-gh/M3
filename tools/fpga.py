@@ -22,7 +22,7 @@ from fpga_utils import FPGA_Error
 import memory
 
 DRAM_OFF = 0x10000000
-ENV = 0x10000008
+ENV = 0x10001000
 MEM_TILE = 8
 DRAM_SIZE = 2 * 1024 * 1024 * 1024
 
@@ -104,7 +104,7 @@ def tile_desc(tiles, i, vm):
     return tile_desc
 
 
-def load_boot_info(dram, mods, tiles, vm):
+def load_boot_info(dram, mods, tiles, vm, mods_addr):
     # boot info
     kenv_off = KENV_ADDR
     write_u64(dram, kenv_off + 0 * 8, len(mods))    # mod_count
@@ -114,7 +114,6 @@ def load_boot_info(dram, mods, tiles, vm):
     kenv_off += 8 * 4
 
     # mods
-    mods_addr = PMP_ADDR + (len(tiles) * pmp_size)
     for m in mods:
         mod_size = add_mod(dram, mods_addr, m, kenv_off)
         mods_addr = (mods_addr + mod_size + 4096 - 1) & ~(4096 - 1)
@@ -149,7 +148,7 @@ def write_args(dram, args, argv, mem_begin):
     return args_addr
 
 
-def init_tile(tile, vm):
+def init_tile(dram, tile, i, loaded, vm, linux):
     # reset TCU (clear command log and reset registers except FEATURES and EPs)
     tile.tcu_reset()
 
@@ -163,6 +162,25 @@ def init_tile(tile, vm):
     for ep in range(0, 127):
         tile.tcu_set_ep(ep, EP.invalid())
 
+    # init PMP EP (for loaded tiles or if SPM should be emulated)
+    if loaded or not vm:
+        if linux:
+            mem_begin = int(LX_ADDR)
+            mem_size = int(LX_SIZE)
+        else:
+            mem_begin = PMP_ADDR + i * pmp_size
+            mem_size = pmp_size
+
+        # install first PMP EP
+        pmp_ep = MemEP()
+        pmp_ep.set_chip(dram.mem.nocid[0])
+        pmp_ep.set_tile(dram.mem.nocid[1])
+        pmp_ep.set_act(0xFFFF)
+        pmp_ep.set_flags(Flags.READ | Flags.WRITE)
+        pmp_ep.set_addr(mem_begin)
+        pmp_ep.set_size(mem_size)
+        tile.tcu_set_ep(0, pmp_ep)
+
 
 def load_prog(dram, tiles, i, args, vm, logflags, linux):
     pm = tiles[i]
@@ -175,26 +193,14 @@ def load_prog(dram, tiles, i, args, vm, logflags, linux):
 
     if linux:
         mem_begin = int(LX_ADDR)
-        mem_size = int(LX_SIZE)
     else:
         mem_begin = PMP_ADDR + i * pmp_size
-        mem_size = pmp_size
-
-    # install first PMP EP
-    pmp_ep = MemEP()
-    pmp_ep.set_chip(dram.mem.nocid[0])
-    pmp_ep.set_tile(dram.mem.nocid[1])
-    pmp_ep.set_act(0xFFFF)
-    pmp_ep.set_flags(Flags.READ | Flags.WRITE)
-    pmp_ep.set_addr(mem_begin)
-    pmp_ep.set_size(mem_size)
-    pm.tcu_set_ep(0, pmp_ep)
 
     # verify entrypoint, because inject a jump instruction below that jumps to that address
     with open(args[0], 'rb') as f:
         elf = ELFFile(f)
-        if elf.header['e_entry'] != 0x10001000:
-            sys.exit("error: {} has entry {:#x}, not 0x10001000.".format(
+        if elf.header['e_entry'] != 0x10003000:
+            sys.exit("error: {} has entry {:#x}, not 0x10003000.".format(
                 args[0], elf.header['e_entry']))
 
     # load ELF file
@@ -214,7 +220,7 @@ def load_prog(dram, tiles, i, args, vm, logflags, linux):
 
     # init environment
     dram_env = ENV + mem_begin - DRAM_OFF
-    write_u64(dram, dram_env - 8, 0x0000106f)  # j _start (+0x1000)
+    write_u64(dram, dram_env - 0x1000, 0x0000306f)  # j _start (+0x3000)
     write_u64(dram, dram_env + 0, 1)           # platform = HW
     write_u64(dram, dram_env + 8, i)           # chip, tile
     write_u64(dram, dram_env + 16, desc)       # tile_desc
@@ -405,20 +411,25 @@ def main():
     pmp_size = 16 * 1024 * 1024 if args.vm else 64 * 1024 * 1024
 
     # load boot info into DRAM
+    kernel_tiles = args.tile[0:len(fpga_inst.pms)]
+    if args.vm:
+        mods_addr = PMP_ADDR + (len(kernel_tiles) * pmp_size)
+    else:
+        mods_addr = PMP_ADDR + (len(fpga_inst.pms) * pmp_size)
     mods = [] if args.mod is None else args.mod
-    load_boot_info(fpga_inst.dram1, mods, fpga_inst.pms, args.vm)
+    load_boot_info(fpga_inst.dram1, mods, fpga_inst.pms, args.vm, mods_addr)
 
     # init all tiles
-    for tile in fpga_inst.pms:
-        init_tile(tile, args.vm)
+    for i, tile in enumerate(fpga_inst.pms, 0):
+        lx = i == 6 and args.linux
+        init_tile(fpga_inst.dram1, tile, i, i < len(kernel_tiles), args.vm, lx)
 
     # load kernels on tiles
-    for i, pargs in enumerate(args.tile[0:len(fpga_inst.pms)], 0):
+    for i, pargs in enumerate(kernel_tiles, 0):
+        lx = i == 6 and args.linux
         load_prog(fpga_inst.dram1, fpga_inst.pms, i,
-                  pargs.split(' '), args.vm, args.logflags, False)
+                  pargs.split(' '), args.vm, args.logflags, lx)
 
-    # lx = i == 6 and args.linux
-    # load_prog(fpga_inst.dram1, fpga_inst.pms, i, pargs.split(' '), args.vm, args.logflags, lx)
     # if args.initrd is not None:
     #     write_file(fpga_inst.dram1, args.initrd, INITRD_ADDR)
 

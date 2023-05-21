@@ -67,13 +67,12 @@ pub fn init_activity_async(act: &Activity) -> Result<i32, Error> {
 
     // put mapping for env into cap table (so that we can access it in create_mgate later)
     let env_phys = if platform::tile_desc(act.tile_id()).has_virtmem() {
-        let mut env_addr = TileMux::translate_async(
+        let env_addr = TileMux::translate_async(
             tilemng::tilemux(act.tile_id()),
             act.id(),
             ENV_START as goff,
             kif::PageFlags::RW,
         )?;
-        env_addr = env_addr + (ENV_START & PAGE_MASK) as goff;
 
         let flags = PageFlags::from(kif::Perm::RW);
         loader.load_segment_async(ENV_START as goff, env_addr, PAGE_SIZE, flags, false)?;

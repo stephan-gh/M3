@@ -405,8 +405,7 @@ impl ChildActivity {
         closure: Option<usize>,
         entry: usize,
     ) -> Result<(), Error> {
-        let env_page_off = (cfg::ENV_START & !cfg::PAGE_MASK) as goff;
-        let mem = self.get_mem(env_page_off, cfg::ENV_SIZE as goff, kif::Perm::RW)?;
+        let mem = self.get_mem(cfg::ENV_START as goff, cfg::ENV_SIZE as goff, kif::Perm::RW)?;
 
         // build child environment
         let mut cenv = crate::env::Env::default();
@@ -445,17 +444,13 @@ impl ChildActivity {
         )?);
 
         // serialize files, mounts, and data and write them to the child's memory
-        let write_words = |words: &[u64], off| mem.write(words, off as goff - env_page_off);
+        let write_words = |words: &[u64], off| mem.write(words, (off - cfg::ENV_START) as goff);
         self.serialize_files(write_words, &mut cenv, &mut off)?;
         self.serialize_mounts(write_words, &mut cenv, &mut off)?;
         self.serialize_data(write_words, &mut cenv, &mut off)?;
 
         // write environment to tile
-        mem.write_bytes(
-            &cenv as *const _ as *const u8,
-            mem::size_of_val(&cenv),
-            cfg::ENV_START as goff - env_page_off,
-        )
+        mem.write_bytes(&cenv as *const _ as *const u8, mem::size_of_val(&cenv), 0)
     }
 
     fn serialize_files<F>(&self, write: F, env: &mut Env, off: &mut usize) -> Result<(), Error>

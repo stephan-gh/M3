@@ -325,7 +325,7 @@ impl TileDesc {
             cfg::RBUF_STD_ADDR
         }
         else {
-            let rbufs = cfg::TILEMUX_RBUF_SIZE + cfg::RBUF_SIZE_SPM + cfg::RBUF_STD_SIZE;
+            let rbufs = cfg::RBUF_SIZE_SPM + cfg::RBUF_STD_SIZE;
             cfg::MEM_OFFSET + self.mem_size() - rbufs
         }
     }

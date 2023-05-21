@@ -197,14 +197,13 @@ void ChildActivity::do_exec(int argc, const char *const *argv, const char *const
     size_t env_size = Math::round_up(size, sizeof(word_t));
     env_size = serialize_state(senv, buffer.get(), env_size);
 
-    goff_t env_page_off = ENV_START & ~PAGE_MASK;
-    MemGate env_mem = get_mem(env_page_off, ENV_SIZE, MemGate::W);
+    MemGate env_mem = get_mem(ENV_START, ENV_SIZE, MemGate::W);
 
     /* write entire runtime stuff */
-    env_mem.write(buffer.get(), env_size, ENV_START + sizeof(senv) - env_page_off);
+    env_mem.write(buffer.get(), env_size, sizeof(senv));
 
     /* write start env to tile */
-    env_mem.write(&senv, sizeof(senv), ENV_START - env_page_off);
+    env_mem.write(&senv, sizeof(senv), 0);
 
     /* go! */
     start();
