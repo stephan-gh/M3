@@ -39,6 +39,9 @@ const SEP: EpId = FIRST_USER_EP + 1;
 
 const MSG_SIZE: usize = 64;
 const CREDITS: u32 = 4;
+#[cfg(target_vendor = "gem5")]
+const SENDS: usize = 100;
+#[cfg(not(target_vendor = "gem5"))]
 const SENDS: usize = 100000;
 
 static RBUF: [u64; CREDITS as usize * MSG_SIZE] = [0; CREDITS as usize * MSG_SIZE];

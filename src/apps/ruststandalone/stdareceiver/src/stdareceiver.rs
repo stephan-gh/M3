@@ -34,6 +34,9 @@ const OWN_ACT: u16 = 0xFFFF;
 const CREDITS: usize = 4;
 const CLIENTS: usize = 8;
 const MSG_SIZE: usize = 64;
+#[cfg(target_vendor = "gem5")]
+const SENDS: usize = 100;
+#[cfg(not(target_vendor = "gem5"))]
 const SENDS: usize = 100000;
 
 const REP: EpId = tcu::FIRST_USER_EP;
