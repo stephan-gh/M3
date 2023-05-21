@@ -25,6 +25,7 @@ mod paging;
 
 use base::io::LogFlags;
 use base::log;
+use base::machine;
 use base::mem::MsgBuf;
 use base::tcu::{EpId, TileId, FIRST_USER_EP, TCU};
 use base::util::math;
@@ -97,6 +98,8 @@ pub extern "C" fn env_run() {
             sent += 1;
         }
     }
+
+    machine::write_coverage(0);
 
     // wait for ever
     loop {}
