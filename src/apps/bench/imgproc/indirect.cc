@@ -30,7 +30,7 @@ using namespace m3;
 
 #include "imgproc.h"
 
-static const bool VERBOSE = 0;
+static const int VERBOSE = 1;
 static const size_t BUF_SIZE = 2048;
 static const size_t REPLY_SIZE = 64;
 
@@ -52,6 +52,9 @@ struct IndirChain {
         for(size_t i = 0; i < ACCEL_COUNT; ++i) {
             OStringStream name;
             format_to(name, "chain{}-{}"_cf, id, i);
+
+            if(VERBOSE)
+                println("Creating Activity {}"_cf, name.str());
 
             tiles[i] = Tile::get("indir");
             acts[i] = std::make_unique<ChildActivity>(tiles[i], name.str());
@@ -113,7 +116,7 @@ struct IndirChain {
             sizes[idx] = 0;
         }
 
-        if(VERBOSE)
+        if(VERBOSE > 1)
             println("chain{}: seen {} / {}"_cf, id, seen, total);
         return seen < total;
     }
@@ -166,6 +169,9 @@ CycleDuration chain_indirect(const char *in, size_t num) {
             new IndirChain(i, reply_gate, std::move(infds[i]), std::move(outfds[i])));
     }
 
+    if(VERBOSE)
+        println("Starting chain..."_cf);
+
     auto start = CycleInstant::now();
 
     // start chains
@@ -193,7 +199,7 @@ CycleDuration chain_indirect(const char *in, size_t num) {
         size_t chain = (label - 1) / ACCEL_COUNT;
         size_t accel = (label - 1) % ACCEL_COUNT;
 
-        if(VERBOSE)
+        if(VERBOSE > 1)
             println("message for chain{}, accel{}"_cf, chain, accel);
 
         if(!chains[chain]->handle_msg(buffer.get(), accel, written))
