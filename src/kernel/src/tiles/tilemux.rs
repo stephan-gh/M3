@@ -177,8 +177,9 @@ impl TileMux {
                 };
 
                 // use the given memory gate for the first PMP EP (for the multiplexer)
-                // TODO do we even need that for tiles that don't support tilemux?
-                tilemux.configure_pmp_ep(0, mux_mem)?;
+                if platform::tile_desc(tile).has_virtmem() {
+                    tilemux.configure_pmp_ep(0, mux_mem)?;
+                }
 
                 if env::boot().platform == env::Platform::Hw {
                     // write trampoline to 0x1000_0000 to jump to TileMux's entry point
