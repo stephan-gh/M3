@@ -482,6 +482,13 @@ fn test_tlb() {
     TCU::invalidate_tlb();
 }
 
+macro_rules! run_test {
+    ($name:ident($( $arg:expr ),*)) => {{
+        log!(LogFlags::Info, "-- Running {} --", stringify!($name));
+        $name($( $arg ),*);
+    }};
+}
+
 #[no_mangle]
 pub extern "C" fn env_run() {
     ISR::reg_page_faults(mmu_pf);
@@ -503,11 +510,11 @@ pub extern "C" fn env_run() {
     let area_size = cfg::PAGE_SIZE * 8;
     paging::map_anon(area_begin, area_size, PageFlags::RW).expect("Unable to map memory");
 
-    test_mem(area_begin, area_size);
-    test_msgs(area_begin, area_size);
-    test_foreign_msg();
-    test_own_msg();
-    test_tlb();
+    run_test!(test_mem(area_begin, area_size));
+    run_test!(test_msgs(area_begin, area_size));
+    run_test!(test_foreign_msg());
+    run_test!(test_own_msg());
+    run_test!(test_tlb());
 
     log!(LogFlags::Info, "Shutting down");
     helper::exit(0);
