@@ -236,10 +236,10 @@ cfg_if! {
         #[repr(u64)]
         /// The privileged registers
         pub enum PrivReg {
-            /// Controls the privileged interface
-            PrivCtrl,
             /// For CU requests
             CUReq,
+            /// Controls the privileged interface
+            PrivCtrl,
             /// For privileged commands
             PrivCmd,
             /// The argument for privileged commands

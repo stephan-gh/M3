@@ -193,7 +193,6 @@ private:
 #else
     static const size_t EXT_REGS = 3;
 #endif
-    static const size_t PRIV_REGS = 5;
 #if defined(__hw22__)
     static const size_t UNPRIV_REGS = 5;
 #else
@@ -214,10 +213,11 @@ private:
 
     enum class PrivRegs {
         CU_REQ = 0,
-        PRIV_CMD = 1,
-        PRIV_CMD_ARG = 2,
-        CUR_ACT = 3,
-        CLEAR_IRQ = 4,
+        PRIV_CTRL = 1,
+        PRIV_CMD = 2,
+        PRIV_CMD_ARG = 3,
+        CUR_ACT = 4,
+        CLEAR_IRQ = 5,
     };
 
     enum class UnprivRegs {
