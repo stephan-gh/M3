@@ -13,6 +13,9 @@
  * General Public License version 2 for more details.
  */
 
+use core::mem;
+use core::ptr;
+
 use base::cell::{LazyStaticRefCell, StaticCell};
 use base::cfg;
 use base::env;
@@ -29,6 +32,19 @@ use isr::{ISRArch, ISR};
 
 static STATE: LazyStaticRefCell<isr::State> = LazyStaticRefCell::default();
 pub static XLATES: StaticCell<u64> = StaticCell::new(0);
+
+const HEAP_SIZE: usize = 64 * 1024;
+
+// the heap area needs to be page-byte aligned
+#[repr(align(4096))]
+struct Heap([u64; HEAP_SIZE / mem::size_of::<u64>()]);
+#[used]
+static mut HEAP: Heap = Heap([0; HEAP_SIZE / mem::size_of::<u64>()]);
+
+extern "C" {
+    fn __m3_init_libc(argc: i32, argv: *const *const u8, envp: *const *const u8, tls: bool);
+    fn __m3_heap_set_area(begin: usize, end: usize);
+}
 
 #[no_mangle]
 pub extern "C" fn abort() {
@@ -69,6 +85,14 @@ pub extern "C" fn tmcall(state: &mut isr::State) -> *mut libc::c_void {
 }
 
 pub fn init(name: &str) {
+    unsafe {
+        __m3_init_libc(0, ptr::null(), ptr::null(), false);
+        __m3_heap_set_area(
+            &HEAP.0 as *const u64 as usize,
+            &HEAP.0 as *const u64 as usize + HEAP.0.len() * 8,
+        );
+    }
+
     io::init(TileId::new_from_raw(env::boot().tile_id as u16), name);
 
     if !TileDesc::new_from(env::boot().tile_desc).has_virtmem() {
