@@ -54,6 +54,8 @@ BEGIN_FUNC(isr_setup)
     csrs    mstatus, t1
     li      t1, 1 << 21     # TW = 0 (allow wfi in user mode)
     csrc    mstatus, t1
+    li      t1, 1 << 1      # SIE = 0 (disable interrupts in supervisor mode)
+    csrc    mstatus, t1
 
     // jump to 1:
     la      t0, 1f
