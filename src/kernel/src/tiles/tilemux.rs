@@ -31,7 +31,7 @@ use base::tcu::{self, ActId, EpId, TileId};
 use core::cmp;
 
 use crate::cap::{
-    EPObject, EPQuota, GateObject, KMemObject, MGateObject, RGateObject, SGateObject, TileObject,
+    EPObject, EPQuota, GateObject, MGateObject, RGateObject, SGateObject, TileObject,
 };
 use crate::ktcu;
 use crate::platform;
@@ -434,10 +434,6 @@ impl TileMux {
 
         match op {
             kif::tilemux::Calls::Exit => Self::handle_exit_async(tilemux, msg, &mut de).unwrap(),
-            kif::tilemux::Calls::LxAct => {
-                Self::handle_lx_act_sidecall_async(tilemux, msg, &mut de).unwrap()
-            },
-            kif::tilemux::Calls::Noop => Self::handle_noop_sidecall(tilemux, msg, &mut de).unwrap(),
         }
     }
 
@@ -469,111 +465,6 @@ impl TileMux {
             log!(
                 LogFlags::Error,
                 "TileMux[{}] got {} on Exit sidecall reply",
-                tile_id,
-                e
-            );
-        }
-
-        Ok(())
-    }
-
-    fn create_lx_activity_async(tilemux: RefMut<'_, Self>) -> Result<(), Error> {
-        use crate::args;
-        use crate::tiles::{ActivityFlags, ActivityMng, State};
-
-        let kmem = KMemObject::new(args::get().kmem - cfg::FIXED_KMEM);
-        let tile = tilemux.tile().clone();
-        let tile_id = tilemux.tile_id();
-        drop(tilemux);
-        let act = ActivityMng::create_activity_async(
-            "lx_act",
-            tile,
-            tcu::FIRST_USER_EP,
-            kmem,
-            ActivityFlags::IS_LINUX,
-        )?;
-        let rbuf_virt = platform::tile_desc(tile_id).rbuf_std_space().0;
-        // TODO: use virt rbuf address as phys rbuf address?
-        act.init_eps(rbuf_virt as u64)?;
-
-        // build env
-        let mut senv = env::BaseEnv {
-            boot: env::BootEnv {
-                platform: env::boot().platform,
-                tile_id: act.tile_id().raw() as u64,
-                tile_desc: act.tile_desc().value(),
-                ..Default::default()
-            },
-            act_id: act.id() as u64,
-            first_sel: act.first_sel(),
-            first_std_ep: act.eps_start() as u64,
-            ..Default::default()
-        };
-        let tile_ids = &env::boot().raw_tile_ids[0..env::boot().raw_tile_count as usize];
-        senv.boot.raw_tile_count = tile_ids.len() as u64;
-        senv.boot.raw_tile_ids[0..tile_ids.len()].copy_from_slice(tile_ids);
-
-        ktcu::write_mem(
-            act.tile_id(),
-            cfg::ENV_START as u64,
-            &senv as *const _ as *const u8,
-            base::mem::size_of_val(&senv),
-        );
-
-        act.set_state(State::RUNNING);
-        Ok(())
-    }
-
-    fn handle_lx_act_sidecall_async(
-        tilemux: RefMut<'_, Self>,
-        msg: &tcu::Message,
-        de: &mut base::serialize::M3Deserializer<'_>,
-    ) -> Result<(), Error> {
-        let r: kif::tilemux::LxAct = de.pop()?;
-
-        let tile_id = tilemux.tile_id();
-        log!(LogFlags::KernTMC, "TileMux[{}] received {:?}", tile_id, r);
-
-        let res = Self::create_lx_activity_async(tilemux);
-
-        let error = match res {
-            Ok(_) => Code::Success,
-            Err(e) => e.code(),
-        };
-        let mut reply = MsgBuf::borrow_def();
-        reply.set(kif::DefaultReply { error });
-        if let Err(e) = ktcu::reply(ktcu::KPEX_EP, &reply, msg) {
-            log!(
-                LogFlags::Error,
-                "TileMux[{}] got {} on LxAct sidecall reply",
-                tile_id,
-                e
-            );
-        }
-
-        Ok(())
-    }
-
-    fn handle_noop_sidecall(
-        tilemux: RefMut<'_, Self>,
-        msg: &tcu::Message,
-        de: &mut base::serialize::M3Deserializer<'_>,
-    ) -> Result<(), Error> {
-        let r: kif::tilemux::LxAct = de.pop()?;
-
-        let tile_id = tilemux.tile_id();
-        log!(LogFlags::KernTMC, "TileMux[{}] received {:?}", tile_id, r);
-
-        drop(tilemux);
-
-        let mut reply = MsgBuf::borrow_def();
-        reply.set(kif::DefaultReply {
-            error: Code::Success,
-        });
-        if let Err(e) = ktcu::reply(ktcu::KPEX_EP, &reply, msg) {
-            log!(
-                LogFlags::Error,
-                "TileMux[{}] got {} on Noop sidecall reply",
                 tile_id,
                 e
             );

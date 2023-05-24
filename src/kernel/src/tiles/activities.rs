@@ -40,7 +40,6 @@ bitflags! {
     #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct ActivityFlags : u32 {
         const IS_ROOT     = 1;
-        const IS_LINUX    = 2;
     }
 }
 
@@ -280,16 +279,8 @@ impl Activity {
         self.state.get()
     }
 
-    pub fn set_state(&self, state: State) {
-        self.state.set(state);
-    }
-
     pub fn is_root(&self) -> bool {
         self.flags.contains(ActivityFlags::IS_ROOT)
-    }
-
-    pub fn is_linux(&self) -> bool {
-        self.flags.contains(ActivityFlags::IS_LINUX)
     }
 
     pub fn first_sel(&self) -> CapSel {
@@ -517,7 +508,7 @@ impl Activity {
         Self::send_exit_notify();
 
         // if it's root, there is nobody waiting for it; just remove it
-        if self.is_root() || self.is_linux() {
+        if self.is_root() {
             ActivityMng::remove_activity_async(self.id());
         }
     }
