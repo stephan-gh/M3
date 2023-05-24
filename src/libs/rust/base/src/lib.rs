@@ -84,11 +84,5 @@ pub use serde;
 #[allow(non_camel_case_types)]
 pub type goff = u64;
 
-/// The tmabi
-pub mod tmabi {
-    pub use crate::arch::isa::tmabi::*;
-    pub use crate::arch::{TMABIOps, TMABI};
-}
-
 #[cfg(feature = "linux")]
 pub use arch::linux;
