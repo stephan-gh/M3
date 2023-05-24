@@ -18,6 +18,7 @@ pub mod validator;
 
 use core::fmt;
 use m3::cell::Cell;
+use m3::cfg;
 use m3::col::{String, Vec};
 use m3::errors::{Code, Error};
 use m3::kif;
@@ -363,12 +364,22 @@ pub struct SerialDesc {
 pub struct Domain {
     pub(crate) pseudo: bool,
     pub(crate) tile: TileType,
+    pub(crate) mux: Option<String>,
+    pub(crate) mux_mem: Option<usize>,
+    pub(crate) initrd: Option<String>,
     pub(crate) apps: Vec<Rc<AppConfig>>,
 }
 
 impl Domain {
     pub fn new(pseudo: bool, tile: TileType, apps: Vec<Rc<AppConfig>>) -> Self {
-        Self { pseudo, tile, apps }
+        Self {
+            pseudo,
+            tile,
+            mux: None,
+            mux_mem: None,
+            initrd: None,
+            apps,
+        }
     }
 
     pub fn pseudo(&self) -> bool {
@@ -377,6 +388,18 @@ impl Domain {
 
     pub fn apps(&self) -> &Vec<Rc<AppConfig>> {
         &self.apps
+    }
+
+    pub fn mux(&self) -> Option<&str> {
+        self.mux.as_ref().map(|m| m.as_str())
+    }
+
+    pub fn mux_mem(&self) -> Option<usize> {
+        self.mux_mem
+    }
+
+    pub fn initrd(&self) -> Option<&str> {
+        self.initrd.as_ref().map(|i| i.as_str())
     }
 
     pub fn tile(&self) -> &TileType {
@@ -717,7 +740,16 @@ impl AppConfig {
         for d in &self.domains {
             let mut sub_layer = layer;
             if !d.pseudo {
-                writeln!(f, "{:0w$}Domain on {} [", "", d.tile.0, w = layer + 2)?;
+                writeln!(
+                    f,
+                    "{:0w$}Domain on {} with mux=({}, {}M, {:?}) [",
+                    "",
+                    d.tile.0,
+                    d.mux().unwrap_or("tilemux"),
+                    d.mux_mem.unwrap_or(cfg::FIXED_TILEMUX_MEM) / (1024 * 1024),
+                    d.initrd(),
+                    w = layer + 2
+                )?;
                 sub_layer += 2;
             }
             for a in &d.apps {

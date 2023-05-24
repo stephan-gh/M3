@@ -364,10 +364,13 @@ impl Subsystem {
 
             // if the activities should run on our own tile, all PMP EPs are already installed
             if tile_usage.tile_id() != Activity::own().tile_id() {
+                let mux = dom.mux().unwrap_or("tilemux");
+                let mux_mem = dom.mux_mem().unwrap_or(cfg::FIXED_TILEMUX_MEM);
                 // load multiplexer onto tile
                 tile_usage.state_mut().load_mux(
-                    "tilemux",
-                    cfg::FIXED_TILEMUX_MEM,
+                    mux,
+                    mux_mem,
+                    dom.initrd(),
                     |size| {
                         let mux_mem_slice = match res.memory_mut().alloc_mem(size as goff) {
                             Ok(mem) => mem,
@@ -985,7 +988,7 @@ fn split_mem(res: &Resources, cfg: &config::AppConfig) -> Result<(usize, goff), 
     let mut total_mparties = total_kparties;
     for d in cfg.domains() {
         // for every domain we need a multiplexer
-        total_umem -= cfg::FIXED_TILEMUX_MEM as goff;
+        total_umem -= d.mux_mem().unwrap_or(cfg::FIXED_TILEMUX_MEM) as goff;
 
         for a in d.apps() {
             if let Some(kmem) = a.kernel_mem() {

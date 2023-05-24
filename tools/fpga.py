@@ -31,9 +31,6 @@ KENV_SIZE = 4 * 1024
 SERIAL_ADDR = KENV_ADDR + KENV_SIZE
 SERIAL_SIZE = 4 * 1024
 PMP_ADDR = SERIAL_ADDR + SERIAL_SIZE
-LX_ADDR = DRAM_SIZE / 2
-LX_SIZE = DRAM_SIZE / 2
-INITRD_ADDR = int(LX_ADDR + 0x4000000)
 
 pmp_size = 0
 
@@ -148,7 +145,7 @@ def write_args(dram, args, argv, mem_begin):
     return args_addr
 
 
-def init_tile(dram, tile, i, loaded, vm, linux):
+def init_tile(dram, tile, i, loaded, vm):
     # reset TCU (clear command log and reset registers except FEATURES and EPs)
     tile.tcu_reset()
 
@@ -164,12 +161,8 @@ def init_tile(dram, tile, i, loaded, vm, linux):
 
     # init PMP EP (for loaded tiles or if SPM should be emulated)
     if loaded or not vm:
-        if linux:
-            mem_begin = int(LX_ADDR)
-            mem_size = int(LX_SIZE)
-        else:
-            mem_begin = PMP_ADDR + i * pmp_size
-            mem_size = pmp_size
+        mem_begin = PMP_ADDR + i * pmp_size
+        mem_size = pmp_size
 
         # install first PMP EP
         pmp_ep = MemEP()
@@ -182,7 +175,7 @@ def init_tile(dram, tile, i, loaded, vm, linux):
         tile.tcu_set_ep(0, pmp_ep)
 
 
-def load_prog(dram, tiles, i, args, vm, logflags, linux):
+def load_prog(dram, tiles, i, args, vm, logflags):
     pm = tiles[i]
 
     # start core
@@ -191,17 +184,14 @@ def load_prog(dram, tiles, i, args, vm, logflags, linux):
     print("%s: loading %s..." % (pm.name, args[0]))
     sys.stdout.flush()
 
-    if linux:
-        mem_begin = int(LX_ADDR)
-    else:
-        mem_begin = PMP_ADDR + i * pmp_size
-
     # verify entrypoint, because inject a jump instruction below that jumps to that address
     with open(args[0], 'rb') as f:
         elf = ELFFile(f)
         if elf.header['e_entry'] != 0x10003000:
             sys.exit("error: {} has entry {:#x}, not 0x10003000.".format(
                 args[0], elf.header['e_entry']))
+
+    mem_begin = PMP_ADDR + i * pmp_size
 
     # load ELF file
     dram.mem.write_elf(args[0], mem_begin - DRAM_OFF)
@@ -370,8 +360,6 @@ def main():
     parser.add_argument('--tile', action='append')
     parser.add_argument('--mod', action='append')
     parser.add_argument('--vm', action='store_true')
-    parser.add_argument('--linux', action='store_true')
-    parser.add_argument('--initrd')
     parser.add_argument('--serial')
     parser.add_argument('--logflags')
     parser.add_argument('--timeout', type=int)
@@ -380,10 +368,6 @@ def main():
     mon = NoCmonitor()
     if args.timeout is not None:
         timeout = TimeoutThread(args.timeout)
-
-    if args.linux:
-        global DRAM_SIZE
-        DRAM_SIZE = int(DRAM_SIZE / 2)
 
     # connect to FPGA
     fpga_inst = fpga_top.FPGA_TOP(args.version, args.fpga, args.reset)
@@ -421,17 +405,12 @@ def main():
 
     # init all tiles
     for i, tile in enumerate(fpga_inst.pms, 0):
-        lx = i == 6 and args.linux
-        init_tile(fpga_inst.dram1, tile, i, i < len(kernel_tiles), args.vm, lx)
+        init_tile(fpga_inst.dram1, tile, i, i < len(kernel_tiles), args.vm)
 
     # load kernels on tiles
     for i, pargs in enumerate(kernel_tiles, 0):
-        lx = i == 6 and args.linux
         load_prog(fpga_inst.dram1, fpga_inst.pms, i,
-                  pargs.split(' '), args.vm, args.logflags, lx)
-
-    # if args.initrd is not None:
-    #     write_file(fpga_inst.dram1, args.initrd, INITRD_ADDR)
+                  pargs.split(' '), args.vm, args.logflags)
 
     # enable NoC ARQ when cores are running
     for tile in fpga_inst.pms:
@@ -453,7 +432,7 @@ def main():
         ready.write('1')
         ready.close()
 
-    if args.linux:
+    if args.serial is not None:
         term = LxTerm(args.serial)
     else:
         term = TCUTerm(fpga_inst)

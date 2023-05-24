@@ -1,7 +1,9 @@
 <config>
-    <env>M3_CORES=4 M3_HW_M3LX=1 M3_GEM5_CFG=config/linux.py</env>
+    <env>M3_HW_M3LX=1</env>
     <mods>
         <mod name="fs" file="bench.img" />
+        <mod name="bbl" file="bbl" />
+        <mod name="initrd" file="rootfs.cpio" />
     </mods>
     <kernel args="kernel -k" />
     <dom>
@@ -12,7 +14,7 @@
                     <mod name="fs" />
                 </app>
             </dom>
-            <dom tile="boom+nic|core">
+            <dom tile="boom+nic|core" mux="bbl" muxmem="512M" initrd="initrd">
                 <app args="hello" foreign="1">
                     <sess name="m3fs" />
                     <mount fs="m3fs" path="/" />

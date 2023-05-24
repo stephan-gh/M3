@@ -8,6 +8,9 @@
                         <xs:element name="app" type="appType"/>
                     </xs:sequence>
                     <xs:attribute name="tile" type="xs:string"/>
+                    <xs:attribute name="mux" type="xs:string"/>
+                    <xs:attribute name="muxmem" type="xs:string"/>
+                    <xs:attribute name="initrd" type="xs:string"/>
                 </xs:complexType>
             </xs:element>
 

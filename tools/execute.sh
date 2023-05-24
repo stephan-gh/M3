@@ -232,7 +232,7 @@ build_params_hw() {
         if [ "$M3_HW_TTY" = "" ]; then
             echo "Please define M3_HW_TTY first." >&2 && exit 1
         fi
-        args="$args --linux --initrd rootfs.cpio --serial $M3_HW_TTY"
+        args="$args --serial $M3_HW_TTY"
         files=("${files[@]}" "build/cross-riscv/images/rootfs.cpio" "build/riscv-pk/hw/bbl")
     fi
 

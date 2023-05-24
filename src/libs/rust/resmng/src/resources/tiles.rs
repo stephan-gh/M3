@@ -96,12 +96,13 @@ impl TileState {
         &mut self,
         name: &str,
         mem_size: usize,
+        initrd: Option<&str>,
         alloc_mem: A,
-        get_mux: M,
+        mut get_mod: M,
     ) -> Result<(), Error>
     where
         A: FnOnce(usize) -> Result<(MemGate, Option<Allocation>), Error>,
-        M: FnOnce(&str) -> Result<MemGate, Error>,
+        M: FnMut(&str) -> Result<MemGate, Error>,
     {
         if self.mux.is_some() {
             return Ok(());
@@ -114,7 +115,17 @@ impl TileState {
                 Mux { mem, alloc }
             },
         };
-        let mux_elf = get_mux(name)?;
+        let mux_elf = get_mod(name)?;
+        let mem_region = mux.mem.region()?;
+
+        log!(
+            LogFlags::ResMngTiles,
+            "Loading multiplexer '{}' to ({:?}, {}M) for {}",
+            name,
+            mem_region.0,
+            mem_region.1 / (1024 * 1024),
+            self.tile.id(),
+        );
 
         let hdr: elf::ElfHeader = mux_elf.read_obj(0)?;
 
@@ -155,6 +166,30 @@ impl TileState {
                 let amount = (phdr.mem_size as usize - segpos).min(buf.len());
                 mux.mem.write(&zeros[0..amount], (phys + segpos) as goff)?;
                 segpos += amount;
+            }
+        }
+
+        // load initrd to the end of the memory region
+        if let Some(initrd) = initrd {
+            let initrd_mod = get_mod(initrd)?;
+            let initrd_size = initrd_mod.region()?.1 as usize;
+            let initrd_start = mem_size - initrd_size;
+
+            log!(
+                LogFlags::ResMngTiles,
+                "Loading initrd '{}' with {}b to {:#x}",
+                initrd,
+                initrd_size,
+                cfg::MEM_OFFSET + initrd_start
+            );
+
+            let mut pos = 0;
+            while pos < initrd_size {
+                let amount = (initrd_size - pos).min(buf.len());
+                initrd_mod.read(&mut buf[0..amount], pos as goff)?;
+                mux.mem
+                    .write(&buf[0..amount], (initrd_start + pos) as goff)?;
+                pos += amount;
             }
         }
 
