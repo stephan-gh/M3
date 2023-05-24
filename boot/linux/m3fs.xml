@@ -5,7 +5,7 @@
         <mod name="bbl" file="bbl" />
         <mod name="initrd" file="rootfs.cpio" />
     </mods>
-    <kernel args="kernel -k" />
+    <kernel args="kernel" />
     <dom>
         <app args="root">
             <dom>

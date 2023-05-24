@@ -185,10 +185,7 @@ fn workloop() -> ! {
         ActivityMng::start_root_async().expect("starting root failed");
     }
 
-    // prevent the workloop from exiting right away because there is no activity
-    let keep_alive = thread::cur().is_main() && args::get().keep_alive;
-
-    while ActivityMng::count() > 0 || keep_alive {
+    while ActivityMng::count() > 0 {
         if env::boot().platform != env::Platform::Hw {
             tcu::TCU::sleep().unwrap();
         }
