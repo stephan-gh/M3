@@ -1012,13 +1012,13 @@ impl Activity {
         .unwrap();
 
         // map PLIC
-        #[cfg(any(target_vendor = "hw", target_vendor = "hw22"))]
+        #[cfg(target_arch = "riscv64")]
         {
             self.map(0x0C00_0000, GlobAddr::new(0x0C00_0000), 1, rw)
                 .unwrap();
             self.map(0x0C00_2000, GlobAddr::new(0x0C00_2000), 1, rw)
                 .unwrap();
-            self.map(0x0C20_0000, GlobAddr::new(0x0C20_0000), 1, rw)
+            self.map(0x0C20_1000, GlobAddr::new(0x0C20_1000), 1, rw)
                 .unwrap();
         }
 

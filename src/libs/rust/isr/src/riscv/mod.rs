@@ -125,9 +125,9 @@ mod plic {
     pub const TIMER_ID: u32 = 2;
 
     const MMIO_PRIORITY: *mut u32 = 0x0C00_0000 as *mut u32;
-    const MMIO_ENABLE: *mut u32 = 0x0C00_2000 as *mut u32;
-    const MMIO_THRESHOLD: *mut u32 = 0x0C20_0000 as *mut u32;
-    const MMIO_CLAIM: *mut u32 = 0x0C20_0004 as *mut u32;
+    const MMIO_ENABLE: *mut u32 = 0x0C00_2080 as *mut u32;
+    const MMIO_THRESHOLD: *mut u32 = 0x0C20_1000 as *mut u32;
+    const MMIO_CLAIM: *mut u32 = 0x0C20_1004 as *mut u32;
 
     pub fn get() -> u32 {
         unsafe { MMIO_CLAIM.read_volatile() }
@@ -199,19 +199,17 @@ impl crate::ISRArch for RISCVISR {
     type State = RISCVState;
 
     fn init(state: &mut Self::State) {
-        if env::boot().platform == env::Platform::Hw {
-            // configure PLIC
-            plic::set_threshold(0);
-            for id in &[plic::TCU_ID, plic::TIMER_ID] {
-                plic::enable(*id);
-                plic::set_priority(*id, 1);
-            }
+        // configure PLIC
+        plic::set_threshold(0);
+        for id in &[plic::TCU_ID, plic::TIMER_ID] {
+            plic::enable(*id);
+            plic::set_priority(*id, 1);
+        }
 
-            // disable timer interrupt
-            const CLINT_MSIP: *mut u64 = 0x0200_0000 as *mut u64;
-            unsafe {
-                CLINT_MSIP.write_volatile(0);
-            }
+        // disable timer interrupt
+        const CLINT_MSIP: *mut u64 = 0x0200_0000 as *mut u64;
+        unsafe {
+            CLINT_MSIP.write_volatile(0);
         }
 
         unsafe {
@@ -236,12 +234,7 @@ impl crate::ISRArch for RISCVISR {
     }
 
     fn reg_core_reqs(handler: crate::IsrFunc) {
-        if env::boot().platform == env::Platform::Hw {
-            crate::reg(Vector::MachExtIRQ.into(), handler);
-        }
-        else {
-            crate::reg(Vector::SuperExtIRQ.into(), handler);
-        }
+        Self::reg_external(handler);
     }
 
     fn reg_illegal_instr(handler: crate::IsrFunc) {
@@ -279,45 +272,38 @@ impl crate::ISRArch for RISCVISR {
     }
 
     fn fetch_irq() -> IRQSource {
-        if env::boot().platform == env::Platform::Hw {
-            let irq = plic::get();
-            assert!(irq != 0);
+        let irq = plic::get();
+        assert!(irq != 0);
 
-            // TODO: temporary (add to spec and make gem5 behave the same)
+        // TODO: temporary (add to spec and make gem5 behave the same)
+        if env::boot().platform == env::Platform::Hw {
             let tcu_set_irq_addr = 0xF000_3030 as *mut u64;
             unsafe {
                 tcu_set_irq_addr.add((irq - 1) as usize).write_volatile(0);
             }
-            plic::ack(irq);
-
-            match irq {
-                plic::TCU_ID => IRQSource::TCU(tcu::IRQ::CoreReq),
-                plic::TIMER_ID => IRQSource::TCU(tcu::IRQ::Timer),
-                n => IRQSource::Ext(n),
-            }
         }
         else {
-            let irq = tcu::TCU::get_irq().unwrap();
-            tcu::TCU::clear_irq(irq);
-            IRQSource::TCU(irq)
+            let tcu_irq = tcu::TCU::get_irq().unwrap();
+            tcu::TCU::clear_irq(tcu_irq);
+        }
+        plic::ack(irq);
+
+        match irq {
+            plic::TCU_ID => IRQSource::TCU(tcu::IRQ::CoreReq),
+            plic::TIMER_ID => IRQSource::TCU(tcu::IRQ::Timer),
+            n => IRQSource::Ext(n),
         }
     }
 
     fn register_ext_irq(irq: u32) {
-        if env::boot().platform == env::Platform::Hw {
-            plic::set_priority(irq, 1);
-        }
+        plic::set_priority(irq, 1);
     }
 
     fn enable_ext_irqs(mask: u32) {
-        if env::boot().platform == env::Platform::Hw {
-            plic::enable_mask(mask);
-        }
+        plic::enable_mask(mask);
     }
 
     fn disable_ext_irqs(mask: u32) {
-        if env::boot().platform == env::Platform::Hw {
-            plic::disable_mask(mask);
-        }
+        plic::disable_mask(mask);
     }
 }

@@ -105,9 +105,12 @@ pub fn init() {
         .unwrap();
 
     // map PLIC
-    map_ident(0x0C00_0000, 0x1000, PageFlags::RW);
-    map_ident(0x0C00_2000, 0x1000, PageFlags::RW);
-    map_ident(0x0C20_0000, 0x1000, PageFlags::RW);
+    #[cfg(target_arch = "riscv64")]
+    {
+        map_ident(0x0C00_0000, 0x1000, PageFlags::RW);
+        map_ident(0x0C00_2000, 0x1000, PageFlags::RW);
+        map_ident(0x0C20_1000, 0x1000, PageFlags::RW);
+    }
 
     // switch to that address space
     ASPACE.borrow_mut().switch_to();
