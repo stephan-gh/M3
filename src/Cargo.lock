@@ -512,13 +512,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "simplebench"
-version = "0.1.0"
-dependencies = [
- "m3",
-]
-
-[[package]]
 name = "smoltcp"
 version = "0.8.2"
 source = "git+https://github.com/smoltcp-rs/smoltcp.git?tag=v0.8.2#c4e1f8f139763e3d37781b5b84580365c20e3829"
