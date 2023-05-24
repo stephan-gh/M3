@@ -2,36 +2,27 @@
 
 use m3::{
     build_vmsg,
-    col::{String, ToString, Vec},
+    col::String,
     errors::{Code, Error},
-    format,
     io::{Read, Write},
     kif::{self, Perm},
     mem::MsgBuf,
     println,
-    serialize::{Deserialize, M3Deserializer},
+    serialize::M3Deserializer,
     tcu::{self, EpId},
     tiles::Activity,
     time::{CycleDuration, CycleInstant, Duration, Profiler, Results, Runner},
-    tmabi::{TMABIOps, TMABI},
-    vec,
     vfs::{FileMode, FileRef, GenericFile, OpenFlags, VFS},
 };
 
-fn wait_for_rpl<'de, T>(rep: EpId, rcv_buf: usize) -> Result<T, Error>
-where
-    T: Deserialize<'de>,
-{
+fn wait_for_rpl<'de>(rep: EpId, rcv_buf: usize) -> Result<(), Error> {
     loop {
         if let Some(off) = tcu::TCU::fetch_msg(rep) {
             let msg = tcu::TCU::offset_to_msg(rcv_buf, off);
             let mut de = M3Deserializer::new(msg.as_words());
             let res: Code = de.pop()?;
             tcu::TCU::ack_msg(rep, off)?;
-            return match res {
-                Code::Success => de.pop(),
-                e => Err((e as u32).into()),
-            };
+            return Result::from(res);
         }
     }
 }
@@ -46,7 +37,7 @@ fn noop_syscall(rbuf: usize) {
         tcu::FIRST_USER_EP + tcu::SYSC_REP_OFF,
     )
     .unwrap();
-    wait_for_rpl::<()>(tcu::FIRST_USER_EP + tcu::SYSC_REP_OFF, rbuf).unwrap();
+    wait_for_rpl(tcu::FIRST_USER_EP + tcu::SYSC_REP_OFF, rbuf).unwrap();
 }
 
 #[inline(never)]
@@ -75,7 +66,7 @@ fn bench_tlb_insert(profiler: &Profiler) -> Results<CycleDuration> {
 #[inline(never)]
 fn bench_os_call(profiler: &Profiler) -> Results<CycleDuration> {
     profiler.run::<CycleInstant, _>(|| {
-        TMABI::call2(m3::tmif::Operation::Noop, 0, 0).unwrap();
+        m3::tmif::noop().unwrap();
     })
 }
 
@@ -158,40 +149,12 @@ fn bench_m3fs_meta(profiler: &Profiler) -> Results<CycleDuration> {
     })
 }
 
-fn print_csv(data: Vec<(String, Vec<u64>)>) {
-    if data.is_empty() {
-        return;
-    }
-    let header = data
-        .iter()
-        .map(|column| format!("\"{}\"", column.0))
-        .collect::<Vec<String>>()
-        .join(",");
-    println!("{}", header);
-    let n_row = data[0].1.len();
-    for r in 0..n_row {
-        let row = data
-            .iter()
-            .map(|(_, d)| d[r].to_string())
-            .collect::<Vec<String>>()
-            .join(",");
-        println!("{}", row);
-    }
-}
-
 fn print_summary<T: Duration + Clone>(name: &str, res: &Results<T>) {
     println!("{}: {}", name, res);
 }
 
-fn _column<T: Duration>(name: &str, res: &Results<T>) -> (String, Vec<u64>) {
-    (
-        name.into(),
-        res.times().iter().map(|t| t.as_raw()).collect(),
-    )
-}
-
 #[no_mangle]
-pub fn main() {
+pub fn main() -> Result<(), Error> {
     VFS::mount("/", "m3fs", "m3fs").unwrap();
     let profiler = Profiler::default().warmup(10).repeats(100);
 
@@ -209,14 +172,5 @@ pub fn main() {
     print_summary("m3fs read", &read);
     let write = bench_m3fs_write(&profiler);
     print_summary("m3fs write", &write);
-
-    print_csv(vec![
-        _column("custom noop", &cnoop),
-        _column("m3 noop", &m3noop),
-        _column("oscall", &oscall),
-        _column("tlb insert", &tlb),
-        _column("m3fs read", &read),
-        _column("m3fs write", &write),
-        _column("m3fs meta", &meta),
-    ]);
+    Ok(())
 }
