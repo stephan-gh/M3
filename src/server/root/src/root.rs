@@ -195,7 +195,9 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
         tile: &mut tiles::TileUsage,
         domain: &config::Domain,
     ) -> Result<(), VerboseError> {
-        if tile.tile_id() != Activity::own().tile_id() {
+        if tile.tile_id() != Activity::own().tile_id()
+            && !domain.apps().first().unwrap().is_foreign()
+        {
             // determine minimum range of boot modules we need to give access to to cover all boot
             // modules that are run on this tile. note that these should always be contiguous,
             // because we collect the boot modules from the config.
