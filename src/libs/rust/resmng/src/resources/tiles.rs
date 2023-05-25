@@ -29,6 +29,7 @@ use m3::rc::Rc;
 use m3::syscalls;
 use m3::tcu::{EpId, TileId};
 use m3::tiles::Tile;
+use m3::util::math;
 
 use crate::resources::memory::Allocation;
 
@@ -173,7 +174,7 @@ impl TileState {
         if let Some(initrd) = initrd {
             let initrd_mod = get_mod(initrd)?;
             let initrd_size = initrd_mod.region()?.1 as usize;
-            let initrd_start = mem_size - initrd_size;
+            let initrd_start = mem_size - math::round_up(initrd_size, cfg::PAGE_SIZE);
 
             log!(
                 LogFlags::ResMngTiles,
