@@ -317,12 +317,14 @@ class LxTerm(Term):
         return not self.miniterm.alive
 
     def cleanup(self):
+        self.miniterm.stop()
         try:
-            self.miniterm.join(True)
-        except KeyboardInterrupt:
+            self.miniterm.console.cancel()
+        except:
             pass
+        self.miniterm.serial.cancel_read()
+        self.miniterm.serial.cancel_write()
         sys.stderr.write('\n--- exit ---\n')
-        self.miniterm.join()
         self.miniterm.close()
 
 
