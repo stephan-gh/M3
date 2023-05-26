@@ -371,6 +371,7 @@ impl Subsystem {
                     mux,
                     mux_mem,
                     dom.initrd(),
+                    dom.dtb(),
                     |size| {
                         let mux_mem_slice = match res.memory_mut().alloc_mem(size as goff) {
                             Ok(mem) => mem,

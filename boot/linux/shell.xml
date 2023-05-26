@@ -3,11 +3,12 @@
     <mods>
         <mod name="bbl" file="bbl" />
         <mod name="initrd" file="rootfs.cpio" />
+        <mod name="dtb" file="m3lx.dtb" />
     </mods>
     <kernel args="kernel" />
     <dom>
         <app args="root">
-            <dom tile="boom+nic|core" mux="bbl" muxmem="512M" initrd="initrd">
+            <dom tile="boom+nic|core" mux="bbl" muxmem="512M" initrd="initrd" dtb="dtb">
                 <app args="/bin/sh" foreign="1" />
             </dom>
         </app>

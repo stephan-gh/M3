@@ -4,6 +4,7 @@
         <mod name="fs" file="bench.img" />
         <mod name="bbl" file="bbl" />
         <mod name="initrd" file="rootfs.cpio" />
+        <mod name="dtb" file="m3lx.dtb" />
     </mods>
     <kernel args="kernel" />
     <dom>
@@ -14,7 +15,7 @@
                     <mod name="fs" />
                 </app>
             </dom>
-            <dom tile="boom+nic|core" mux="bbl" muxmem="512M" initrd="initrd">
+            <dom tile="boom+nic|core" mux="bbl" muxmem="512M" initrd="initrd" dtb="dtb">
                 <app args="/lxbench" foreign="1">
                     <sess name="m3fs" />
                     <mount fs="m3fs" path="/" />

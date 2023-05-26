@@ -367,6 +367,7 @@ pub struct Domain {
     pub(crate) mux: Option<String>,
     pub(crate) mux_mem: Option<usize>,
     pub(crate) initrd: Option<String>,
+    pub(crate) dtb: Option<String>,
     pub(crate) apps: Vec<Rc<AppConfig>>,
 }
 
@@ -378,6 +379,7 @@ impl Domain {
             mux: None,
             mux_mem: None,
             initrd: None,
+            dtb: None,
             apps,
         }
     }
@@ -400,6 +402,10 @@ impl Domain {
 
     pub fn initrd(&self) -> Option<&str> {
         self.initrd.as_ref().map(|i| i.as_str())
+    }
+
+    pub fn dtb(&self) -> Option<&str> {
+        self.dtb.as_ref().map(|i| i.as_str())
     }
 
     pub fn tile(&self) -> &TileType {

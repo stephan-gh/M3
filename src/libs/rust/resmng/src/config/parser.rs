@@ -314,6 +314,7 @@ fn parse_domain(p: &mut ConfigParser) -> Result<config::Domain, Error> {
                 "mux" => dom.mux = Some(v),
                 "muxmem" => dom.mux_mem = Some(parse::size(&v)?),
                 "initrd" => dom.initrd = Some(v),
+                "dtb" => dom.dtb = Some(v),
                 _ => return Err(Error::new(Code::InvArgs)),
             },
         }

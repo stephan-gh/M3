@@ -11,6 +11,7 @@ fi
 
 build=build/$M3_TARGET-$M3_ISA-$M3_BUILD
 bindir=$build/bin
+crossdir="./build/cross-$M3_ISA/host/bin"
 
 if [ $# -lt 1 ]; then
     usage "$0"
@@ -63,6 +64,45 @@ generate_config() {
     xmllint --xpath /config/dom/app "$1" 2>/dev/null > "$2/boot.xml" || true
 }
 
+generate_m3lx_deps() {
+    initrds=$(xmllint --xpath './/dom[@initrd]/@initrd' "$1" | wc -l)
+    if [ "$initrds" -gt 1 ]; then
+        echo "Multiple domains with initrd are not supported" >&2 && exit 1
+    fi
+    if [ "$initrds" -eq 0 ]; then
+        return
+    fi
+
+    # determine initrd size
+    initrd="$crossdir/../../images/rootfs.cpio"
+    initrd_size=$(stat --printf="%s" "$initrd")
+    # round up to page size
+    initrd_size=$(python -c "print('{}'.format(($initrd_size + 0xFFF) & 0xFFFFF000))")
+    # ensure that we find it during module lookup
+    cp -f "$initrd" "$M3_MOD_PATH/rootfs.cpio"
+    cp -f "$build/../riscv-pk/bbl" "$M3_MOD_PATH/bbl"
+
+    # determine memory size for the multiplexer
+    mem_size=$(xmllint --xpath 'string(.//dom[@initrd]/@muxmem)' "$1")
+    case "$mem_size" in
+        *G) mem_size=$(("${mem_size%G*}" * 1024 * 1024 * 1024)) ;;
+        *M) mem_size=$(("${mem_size%M*}" * 1024 * 1024)) ;;
+        *K) mem_size=$(("${mem_size%K*}" * 1024)) ;;
+    esac
+
+    # we always place the initrd at the end of the memory region (512M currently)
+    mem_off=0x10000000
+    initrd_end=$(printf "%#x" $(("$mem_off" + "$mem_size")))
+    initrd_start=$(printf "%#x" $((initrd_end - initrd_size)))
+    sed -e "s/linux,initrd-start = <.*>;/linux,initrd-start = <$initrd_start>;/g" \
+        -e "s/linux,initrd-end = <.*>;/linux,initrd-end = <$initrd_end>;/g" \
+        -e "s/reg = <MEM_REGION>;/reg = <0x00000000 $mem_off 0x00000000 $(printf "%#x" "$mem_size")>;/g" \
+        "m3lx/configs/$M3_TARGET.dts" > "$M3_OUT/m3lx.dts" || exit 1
+
+    # generate dtb
+    dtc -O dtb "$M3_OUT/m3lx.dts" -o "$M3_MOD_PATH/m3lx.dtb"
+}
+
 get_mods() {
     echo -n "boot.xml=$M3_OUT/boot.xml"
 
@@ -110,6 +150,7 @@ get_mods() {
 
 build_params_gem5() {
     generate_config "$1" "$M3_OUT" || exit 1
+    generate_m3lx_deps "$1" || exit 1
 
     kernels=$(perl -ne 'printf("'"$bindir"/'%s,", $1) if /<kernel\s.*args="(.*?)"/' < "$1")
     mods="$(get_mods "$1" "gem5"),tilemux=$bindir/tilemux" || exit 1
@@ -193,6 +234,7 @@ build_params_gem5() {
 
 build_params_hw() {
     generate_config "$1" "$M3_OUT" || exit 1
+    generate_m3lx_deps "$1" || exit 1
 
     kernels=$(perl -ne 'printf("%s,", $1) if /<kernel\s.*args="(.*?)"/' < "$1")
     mods="$(get_mods "$1" "hw"),tilemux=$bindir/tilemux" || exit 1
@@ -214,7 +256,7 @@ build_params_hw() {
         args="$args --vm"
     fi
 
-    files=("$M3_OUT/boot.xml" "$bindir/tilemux")
+    files=("$M3_OUT/boot.xml")
     IFS=','
     c=0
     for karg in $kernels; do
@@ -233,7 +275,6 @@ build_params_hw() {
             echo "Please define M3_HW_TTY first." >&2 && exit 1
         fi
         args="$args --serial $M3_HW_TTY"
-        files=("${files[@]}" "build/cross-riscv/images/rootfs.cpio" "build/riscv-pk/hw/bbl")
     fi
 
     fpga="--fpga $M3_HW_FPGA_NO"

@@ -36,6 +36,9 @@ use crate::resources::memory::Allocation;
 // PMP EPs start at 1, because 0 is reserved for TileMux
 const FIRST_FREE_PMP_EP: EpId = 1;
 
+// The hardcoded location of the DTB as expected by bbl
+const DTB_OFFSET: usize = 0x1FF000;
+
 #[derive(Debug)]
 struct Mux {
     mem: MemGate,
@@ -93,11 +96,30 @@ impl TileState {
         Ok(())
     }
 
+    fn copy_data(
+        buf: &mut [u8],
+        src: &MemGate,
+        dst: &MemGate,
+        src_off: usize,
+        dst_off: usize,
+        size: usize,
+    ) -> Result<(), Error> {
+        let mut pos = 0;
+        while pos < size {
+            let amount = (size - pos).min(buf.len());
+            src.read(&mut buf[0..amount], (src_off + pos) as goff)?;
+            dst.write(&buf[0..amount], (dst_off + pos) as goff)?;
+            pos += amount;
+        }
+        Ok(())
+    }
+
     pub fn load_mux<A, M>(
         &mut self,
         name: &str,
         mem_size: usize,
         initrd: Option<&str>,
+        dtb: Option<&str>,
         alloc_mem: A,
         mut get_mod: M,
     ) -> Result<(), Error>
@@ -154,15 +176,17 @@ impl TileState {
 
             // load segment from boot module
             let phys = phdr.phys_addr - cfg::MEM_OFFSET;
-            let mut segpos = 0;
-            while segpos < phdr.file_size as usize {
-                let amount = (phdr.file_size as usize - segpos).min(buf.len());
-                mux_elf.read(&mut buf[0..amount], (phdr.offset as usize + segpos) as goff)?;
-                mux.mem.write(&buf[0..amount], (phys + segpos) as goff)?;
-                segpos += amount;
-            }
+            Self::copy_data(
+                &mut buf,
+                &mux_elf,
+                &mux.mem,
+                phdr.offset as usize,
+                phys as usize,
+                phdr.file_size as usize,
+            )?;
 
             // zero the remaining memory
+            let mut segpos = phdr.file_size as usize;
             while segpos < phdr.mem_size as usize {
                 let amount = (phdr.mem_size as usize - segpos).min(buf.len());
                 mux.mem.write(&zeros[0..amount], (phys + segpos) as goff)?;
@@ -172,26 +196,37 @@ impl TileState {
 
         // load initrd to the end of the memory region
         if let Some(initrd) = initrd {
-            let initrd_mod = get_mod(initrd)?;
-            let initrd_size = initrd_mod.region()?.1 as usize;
-            let initrd_start = mem_size - math::round_up(initrd_size, cfg::PAGE_SIZE);
+            let rd_mod = get_mod(initrd)?;
+            let rd_size = rd_mod.region()?.1 as usize;
+            let rd_start = mem_size - math::round_up(rd_size, cfg::PAGE_SIZE);
 
             log!(
                 LogFlags::ResMngTiles,
                 "Loading initrd '{}' with {}b to {:#x}",
                 initrd,
-                initrd_size,
-                cfg::MEM_OFFSET + initrd_start
+                rd_size,
+                cfg::MEM_OFFSET + rd_start
             );
 
-            let mut pos = 0;
-            while pos < initrd_size {
-                let amount = (initrd_size - pos).min(buf.len());
-                initrd_mod.read(&mut buf[0..amount], pos as goff)?;
-                mux.mem
-                    .write(&buf[0..amount], (initrd_start + pos) as goff)?;
-                pos += amount;
-            }
+            Self::copy_data(&mut buf, &rd_mod, &mux.mem, 0, rd_start, rd_size)?;
+        }
+
+        // load dtb to the expected location
+        if let Some(dtb) = dtb {
+            let dtb_mod = get_mod(dtb)?;
+            let dtb_size = dtb_mod.region()?.1 as usize;
+            // the payload of bbl starts one page behind the dtb
+            assert!(dtb_size <= cfg::PAGE_SIZE);
+
+            log!(
+                LogFlags::ResMngTiles,
+                "Loading dtb '{}' with {}b to {:#x}",
+                dtb,
+                dtb_size,
+                cfg::MEM_OFFSET + DTB_OFFSET
+            );
+
+            Self::copy_data(&mut buf, &dtb_mod, &mux.mem, 0, DTB_OFFSET, dtb_size)?;
         }
 
         // pass env vars to multiplexer
