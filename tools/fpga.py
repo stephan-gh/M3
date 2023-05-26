@@ -305,25 +305,20 @@ class LxTerm(Term):
 
         sys.stderr.write('--- Miniterm on {p.name}  {p.baudrate},{p.bytesize},{p.parity},{p.stopbits} ---\n'.format(
             p=self.miniterm.serial))
-        sys.stderr.write('--- Quit: {} | Menu: {} | Help: {} followed by {} ---\n'.format(
-            key_description(self.miniterm.exit_character),
-            key_description(self.miniterm.menu_character),
-            key_description(self.miniterm.menu_character),
-            key_description('\x08')))
+        sys.stderr.write('--- Quit: {} ---\n'.format(key_description(self.miniterm.exit_character)))
 
-        self.miniterm.start()
+        # only start the miniterm writer (we'll never read, because all prints are done via TCU)
+        self.miniterm.alive = True
+        self.miniterm.transmitter_thread = threading.Thread(target=self.miniterm.writer, name='tx')
+        self.miniterm.transmitter_thread.daemon = True
+        self.miniterm.transmitter_thread.start()
+        self.miniterm.console.setup()
 
     def should_stop(self):
         return not self.miniterm.alive
 
     def cleanup(self):
         self.miniterm.stop()
-        try:
-            self.miniterm.console.cancel()
-        except:
-            pass
-        self.miniterm.serial.cancel_read()
-        self.miniterm.serial.cancel_write()
         sys.stderr.write('\n--- exit ---\n')
         self.miniterm.close()
 
@@ -439,6 +434,9 @@ def main():
     else:
         term = TCUTerm(fpga_inst)
 
+    # write in binary to stdout (we get individual bytes from Linux, for example)
+    fdout = os.fdopen(sys.stdout.fileno(), "wb", closefd=False)
+
     # wait for prints
     started_ev.set()
     timed_out = False
@@ -461,16 +459,16 @@ def main():
             except:
                 continue
 
-            msg = ""
+            fdout.write(bytes)
+            fdout.flush()
+
+            # stop when we see the shutdown message from the M³ kernel
             try:
                 msg = bytes.decode()
-                sys.stdout.write(msg)
+                if "kernel" in msg and "Shutting down" in msg:
+                    break
             except:
-                print("Unable to decode: {}".format(bytes))
-            sys.stdout.write('\033[0m')
-            sys.stdout.flush()
-            if "Shutting down" in msg:
-                break
+                pass
     except KeyboardInterrupt:
         timed_out = True
 
