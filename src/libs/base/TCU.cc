@@ -76,6 +76,14 @@ size_t TCU::print(const char *str, size_t len) {
         rstr++;
     }
 
+    // limit the UDP packet rate a bit to avoid packet drops
+    if(bootenv()->platform == Platform::HW) {
+        static reg_t LAST_PRINT = 0;
+        while((read_reg(UnprivRegs::CUR_TIME) - LAST_PRINT) < 100000)
+            ;
+        LAST_PRINT = read_reg(UnprivRegs::CUR_TIME);
+    }
+
     write_reg(UnprivRegs::PRINT, len);
     // wait until the print was carried out
     while(read_reg(UnprivRegs::PRINT) != 0)

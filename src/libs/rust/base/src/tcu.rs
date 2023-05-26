@@ -33,6 +33,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::arch::{CPUOps, CPU};
 use crate::cell::LazyReadOnlyCell;
+use crate::cell::StaticCell;
 use crate::cfg;
 use crate::env;
 use crate::errors::{Code, Error};
@@ -735,6 +736,17 @@ impl TCU {
             // safety: we know that the address is within the MMIO region of the TCU
             unsafe { CPU::write8b(buffer, *c) };
             buffer += 8;
+        }
+
+        // limit the UDP packet rate a bit to avoid packet drops
+        if env::boot().platform == env::Platform::Hw {
+            static LAST_PRINT: StaticCell<u64> = StaticCell::new(0);
+            loop {
+                if (Self::read_unpriv_reg(UnprivReg::CurTime) - LAST_PRINT.get()) >= 100000 {
+                    break;
+                }
+            }
+            LAST_PRINT.set(Self::read_unpriv_reg(UnprivReg::CurTime));
         }
 
         Self::write_unpriv_reg(UnprivReg::Print, s.len() as u64);
