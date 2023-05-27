@@ -141,7 +141,7 @@ pub fn sync_channel_with(msg_size: usize) -> Result<(Sender, Receiver), Error> {
 /// See `rustunittests::tactivity::run_send_receive_chan_macro` for an example usage.
 #[macro_export]
 macro_rules! run_with_channels {
-    ($act:expr, | $($b_chans:ident : $b_types:ty),+ | $b:block ( $($chans:ident),+ ) ) => {
+    ($act:expr, | $($b_chans:ident : $b_types:ty),+ $(,)? | $b:block ( $($chans:ident),+ ) ) => {
         (|| {
             let mut act = $act;
             $( act.delegate_obj($chans.sel())?; )+
