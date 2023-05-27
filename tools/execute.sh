@@ -89,8 +89,12 @@ generate_m3lx_deps() {
         *M) mem_size=$(("${mem_size%M*}" * 1024 * 1024)) ;;
         *K) mem_size=$(("${mem_size%K*}" * 1024)) ;;
     esac
+    # ensure that it's a power of two. otherwise we can't configure RISC-V's PMP properly
+    if [ "$(python -c "print('{}'.format(($mem_size & ($mem_size - 1) == 0)))")" != "True" ]; then
+        echo "The memory size ($mem_size) for Linux needs to be a power of two!" >&2 && exit 1
+    fi
 
-    # we always place the initrd at the end of the memory region (512M currently)
+    # we always place the initrd at the end of the memory region
     mem_off=0x10000000
     initrd_end=$(printf "%#x" $(("$mem_off" + "$mem_size")))
     initrd_start=$(printf "%#x" $((initrd_end - initrd_size)))
