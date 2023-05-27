@@ -18,7 +18,6 @@
             <dom tile="boom+nic|core" mux="bbl" muxmem="128M" initrd="initrd" dtb="dtb">
                 <app args="/lxbench" foreign="1">
                     <sess name="m3fs" />
-                    <mount fs="m3fs" path="/" />
                 </app>
             </dom>
         </app>
