@@ -1,8 +1,8 @@
-use crate::errors::{Code, Error};
 use crate::cell::LazyStaticRefCell;
+use crate::errors::{Code, Error};
 
-use std::os::unix::io::AsRawFd;
 use std::fs::File;
+use std::os::unix::io::AsRawFd;
 
 use libc;
 
@@ -21,7 +21,8 @@ pub fn mmap(addr: usize, size: usize) -> Result<(), Error> {
     };
     if base as usize == addr {
         Ok(())
-    } else {
+    }
+    else {
         Err(Error::new(Code::InvArgs))
     }
 }

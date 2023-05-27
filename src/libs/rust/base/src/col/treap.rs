@@ -84,7 +84,9 @@ impl<K: Copy + Ord, V> Treap<K, V> {
         if let Some(r) = mem::replace(&mut self.root, None) {
             Self::remove_rec(r);
             // destroy the node
-            unsafe { drop(Box::from_raw(r.as_ptr())) };
+            unsafe {
+                drop(Box::from_raw(r.as_ptr()))
+            };
         }
 
         self.prio = Wrapping(314_159_265);

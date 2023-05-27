@@ -160,7 +160,7 @@ fn validate_gates(cfg: &AppConfig) -> Result<(), VerboseError> {
                                 a.name(),
                                 sgate.name().global()
                             ),
-                        ))
+                        ));
                     },
                 }
             }

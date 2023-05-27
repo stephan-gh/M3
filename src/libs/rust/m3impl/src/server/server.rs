@@ -296,15 +296,11 @@ impl Server {
         );
 
         match res {
-            Ok((sel, ident)) => {
-                reply_vmsg!(is, Code::Success, OpenReply {
-                    sid: sel,
-                    ident: ident as u64,
-                })
-            },
-            Err(e) => {
-                reply_vmsg!(is, e.code(), OpenReply { sid: 0, ident: 0 })
-            },
+            Ok((sel, ident)) => reply_vmsg!(is, Code::Success, OpenReply {
+                sid: sel,
+                ident: ident as u64,
+            }),
+            Err(e) => reply_vmsg!(is, e.code(), OpenReply { sid: 0, ident: 0 }),
         }
     }
 

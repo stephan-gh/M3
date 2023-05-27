@@ -119,7 +119,7 @@ impl MemMap {
                 {
                     p.size += size + n.size;
                     1
-                },
+                }
 
                 // merge with prev
                 (Some(ref mut p), _) if p.addr + p.size as goff == addr => {

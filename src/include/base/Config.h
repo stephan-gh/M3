@@ -107,29 +107,29 @@
 #define RBUF_SIZE_SPM 0xE000
 
 #if defined(__riscv)
-#    define ENV_START     (MEM_OFFSET + 0x1000)
+#    define ENV_START (MEM_OFFSET + 0x1000)
 #else
-#    define ENV_START     (MEM_OFFSET + 0x1FE000)
+#    define ENV_START (MEM_OFFSET + 0x1FE000)
 #endif
-#define ENV_SIZE      0x1000
+#define ENV_SIZE           0x1000
 
-#define TILEMUX_RBUF_SIZE   0x1000
-#define TILEMUX_CODE_START  (ENV_START + ENV_SIZE + TILEMUX_RBUF_SIZE)
+#define TILEMUX_RBUF_SIZE  0x1000
+#define TILEMUX_CODE_START (ENV_START + ENV_SIZE + TILEMUX_RBUF_SIZE)
 
-#define KPEX_RBUF_ORDER   6
-#define KPEX_RBUF_SIZE    (1 << KPEX_RBUF_ORDER)
+#define KPEX_RBUF_ORDER    6
+#define KPEX_RBUF_SIZE     (1 << KPEX_RBUF_ORDER)
 
-#define TMUP_RBUF_ORDER   7
-#define TMUP_RBUF_SIZE    (1 << TMUP_RBUF_ORDER)
+#define TMUP_RBUF_ORDER    7
+#define TMUP_RBUF_SIZE     (1 << TMUP_RBUF_ORDER)
 
-#define SYSC_RBUF_ORDER   9
-#define SYSC_RBUF_SIZE    (1 << SYSC_RBUF_ORDER)
+#define SYSC_RBUF_ORDER    9
+#define SYSC_RBUF_SIZE     (1 << SYSC_RBUF_ORDER)
 
-#define UPCALL_RBUF_ORDER 7
-#define UPCALL_RBUF_SIZE  (1 << UPCALL_RBUF_ORDER)
+#define UPCALL_RBUF_ORDER  7
+#define UPCALL_RBUF_SIZE   (1 << UPCALL_RBUF_ORDER)
 
-#define DEF_RBUF_ORDER    8
-#define DEF_RBUF_SIZE     (1 << DEF_RBUF_ORDER)
+#define DEF_RBUF_ORDER     8
+#define DEF_RBUF_SIZE      (1 << DEF_RBUF_ORDER)
 
-#define VMA_RBUF_ORDER    6
-#define VMA_RBUF_SIZE     (1 << VMA_RBUF_ORDER)
+#define VMA_RBUF_ORDER     6
+#define VMA_RBUF_SIZE      (1 << VMA_RBUF_ORDER)
