@@ -1,5 +1,6 @@
 use crate::cell::LazyStaticRefCell;
 use crate::cfg;
+use crate::kif;
 use libc;
 use std::fs::File;
 use std::os::unix::prelude::AsRawFd;
@@ -48,6 +49,16 @@ pub fn register_act() {
 }
 
 pub fn tlb_insert_addr(virt: usize, perm: u8) {
+    // touch the memory first to cause a page fault, because the TCU-TLB miss handler in the Linux
+    // kernel cannot deal with the request if the page isn't mapped.
+    let virt_ptr = virt as *mut u8;
+    if (perm & kif::Perm::W.bits() as u8) != 0 {
+        unsafe { virt_ptr.write_volatile(0) }
+    }
+    else {
+        let _val = unsafe { virt_ptr.read_volatile() };
+    }
+
     let arg = virt & !cfg::PAGE_MASK | perm as usize;
     ioctl_plain(IOCTL_TLB_INSRT, arg);
 }
