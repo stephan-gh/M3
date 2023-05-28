@@ -27,14 +27,15 @@ pub struct Symbol {
     pub size: usize,
     pub name: String,
     pub bin: String,
+    pub binoff: usize,
 }
 
 impl fmt::Display for Symbol {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             fmt,
-            "Symbol {{ addr: {:#x}, size: {:#x}, name: {}, bin: {} }}",
-            self.addr, self.size, self.name, self.bin
+            "Symbol {{ addr: {:#x}, size: {:#x}, name: {}, bin: {}, binoff: {:#x} }}",
+            self.addr, self.size, self.name, self.bin, self.binoff
         )
     }
 }
@@ -43,14 +44,25 @@ pub fn parse_symbols<P>(syms: &mut BTreeMap<usize, Symbol>, file: P) -> Result<(
 where
     P: AsRef<Path>,
 {
+    let path = file.as_ref().to_str().ok_or_else(|| Error::InvalPath)?;
+    let (path, offset) = if path.contains("+0x") {
+        let mut parts = path.split("+0x");
+        let path = parts.next().ok_or_else(|| Error::InvalPath)?;
+        let offset = parts.next().ok_or_else(|| Error::InvalPath)?;
+        let offset = usize::from_str_radix(offset, 16)?;
+        (path, offset)
+    }
+    else {
+        (path.as_ref(), 0)
+    };
+
     let mut cmd = Command::new("nm")
         .arg("-SC")
-        .arg(file.as_ref().as_os_str())
+        .arg(path)
         .stdout(Stdio::piped())
         .spawn()?;
 
-    let binary = file
-        .as_ref()
+    let binary = Path::new(path)
         .file_name()
         .ok_or(Error::InvalPath)?
         .to_str()
@@ -67,23 +79,27 @@ where
             continue;
         }
 
-        let addr = usize::from_str_radix(parts[0], 16)?;
-        let (size, name) = if parts[1].len() == 1 {
-            (0, parts[2].to_string())
-        }
-        else if parts.len() > 3 {
-            (usize::from_str_radix(parts[1], 16)?, parts[3].to_string())
-        }
-        else {
-            continue;
+        let parse_line = |parts: Vec<_>| -> Result<(usize, usize, String), Error> {
+            let addr = usize::from_str_radix(parts[0], 16)?;
+            if parts.len() > 3 {
+                Ok((
+                    addr,
+                    usize::from_str_radix(parts[1], 16)?,
+                    parts[3].to_string(),
+                ))
+            }
+            else {
+                Err(Error::Internal)
+            }
         };
 
-        if size != 0 {
-            syms.insert(addr, Symbol {
+        if let Ok((addr, size, name)) = parse_line(parts) {
+            syms.insert(addr + offset, Symbol {
                 addr,
                 size,
                 name,
                 bin: binary.to_string(),
+                binoff: offset,
             });
         }
 
@@ -99,7 +115,7 @@ where
 
 pub fn resolve(syms: &BTreeMap<usize, Symbol>, addr: usize) -> Option<&Symbol> {
     syms.range(..=addr).nth_back(0).and_then(|(_, sym)| {
-        if addr >= sym.addr && addr < sym.addr + sym.size {
+        if addr >= sym.binoff + sym.addr && addr < sym.binoff + sym.addr + sym.size {
             Some(sym)
         }
         else {

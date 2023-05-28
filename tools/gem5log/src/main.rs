@@ -67,7 +67,7 @@ pub enum ISA {
 
 fn usage(prog: &str) -> ! {
     eprintln!(
-        "Usage: {} (x86_64|arm|riscv) (trace|flamegraph|snapshot <time>) [<binary>...]",
+        "Usage: {} (x86_64|arm|riscv) (trace|flamegraph|snapshot <time>) [<binary>[+<offset>]...]",
         prog
     );
     exit(1)

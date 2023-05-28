@@ -65,9 +65,9 @@ fn repl_instr_line(
             time,
             cpu,
             sym.bin,
-            addr_int,
+            addr_int - sym.binoff,
             sym.name,
-            addr_int - sym.addr,
+            addr_int - (sym.addr + sym.binoff),
             rem
         )
         .ok()?;

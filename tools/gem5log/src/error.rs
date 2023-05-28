@@ -24,6 +24,7 @@ pub enum Error {
     SetLog(log::SetLoggerError),
     Nm(i32),
     InvalPath,
+    Internal,
 }
 
 macro_rules! impl_err {
@@ -50,6 +51,7 @@ impl fmt::Debug for Error {
             Error::LogLevel(e) => write!(fmt, "Parsing log level failed: {}", e),
             Error::Nm(c) => write!(fmt, "nm -SC <bin> failed: {}", c),
             Error::InvalPath => write!(fmt, "path is invalid"),
+            Error::Internal => write!(fmt, "internal error"),
         }
     }
 }
