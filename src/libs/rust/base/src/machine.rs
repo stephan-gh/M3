@@ -34,7 +34,7 @@ impl minicov::CoverageWriter for Gem5CovWriter {
     }
 }
 
-// #[cfg_attr(feature = "linux", link(name = "gem5"))]
+#[cfg(not(feature = "linux"))]
 extern "C" {
     pub fn gem5_writefile(src: *const u8, len: u64, offset: u64, file: u64);
     pub fn gem5_shutdown(delay: u64);
@@ -52,15 +52,21 @@ pub fn write_coverage(_act: u64) {
 
 pub fn write(buf: &[u8]) -> Result<usize, Error> {
     let amount = tcu::TCU::print(buf);
+    #[cfg(feature = "linux")]
+    unsafe {
+        libc::write(1, buf.as_ptr() as *const libc::c_void, buf.len())
+    };
     #[cfg(not(feature = "linux"))]
-    if env::boot().platform == env::Platform::Gem5 {
-        unsafe {
-            // put the string on the stack to prevent that gem5_writefile causes a pagefault
-            let file: [u8; 7] = *b"stdout\0";
-            // touch the string first to cause a page fault, if required. gem5 assumes that it's mapped
-            let _b = file.as_ptr().read_volatile();
-            let _b = file.as_ptr().add(6).read_volatile();
-            gem5_writefile(buf.as_ptr(), amount as u64, 0, file.as_ptr() as u64);
+    {
+        if env::boot().platform == env::Platform::Gem5 {
+            unsafe {
+                // put the string on the stack to prevent that gem5_writefile causes a pagefault
+                let file: [u8; 7] = *b"stdout\0";
+                // touch the string first to cause a page fault, if required. gem5 assumes that it's mapped
+                let _b = file.as_ptr().read_volatile();
+                let _b = file.as_ptr().add(6).read_volatile();
+                gem5_writefile(buf.as_ptr(), amount as u64, 0, file.as_ptr() as u64);
+            }
         }
     }
     Ok(amount)
