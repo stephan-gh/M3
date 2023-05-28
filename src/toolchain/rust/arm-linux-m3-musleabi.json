@@ -1,7 +1,6 @@
 {
   "arch": "arm",
   "os": "linux",
-  "vendor": "gem5",
 
   "llvm-target": "armv7-unknown-linux-gnueabi",
   "target-endian": "little",

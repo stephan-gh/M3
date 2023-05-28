@@ -50,6 +50,7 @@ bins = {
 }
 rustapps = []
 rustlibs = []
+rustfeatures = []
 ldscripts = {}
 if isa == 'riscv':
     link_addr = 0x11000000
@@ -137,10 +138,11 @@ class M3Env(Env):
         return bin
 
     def m3_rust_exe(self, gen, out, libs=[], dir='bin', startup=None,
-                    ldscript='default', varAddr=True, std=False):
-        global rustapps
+                    ldscript='default', varAddr=True, std=False, features=[]):
+        global rustapps, rustfeatures
         if out != 'tilemux':
             rustapps += [self.cur_dir]
+        rustfeatures += features
 
         env = self.clone()
         env['LINKFLAGS'] += ['-Wl,-z,muldefs']
@@ -167,6 +169,11 @@ class M3Env(Env):
         global rustlibs
         rustlibs += [self.cur_dir]
 
+    def add_rust_features(self):
+        if self['BUILD'] == 'bench':
+            self['CRGFLAGS'] += ['--features', 'base/bench']
+        self['CRGFLAGS'] += ['--features', 'base/' + self['TGT']]
+
     def rust_deps(self):
         global rustlibs
         deps = [SourcePath('src/Cargo.toml'), SourcePath('src/.cargo/config')]
@@ -180,14 +187,13 @@ class M3Env(Env):
 
     def m3_cargo(self, gen, out):
         env = self.clone()
-        if env['BUILD'] == 'bench':
-            env['CRGFLAGS'] += ['--features', 'base/bench']
         env['CRGFLAGS'] += ['--target', env['TRIPLE']]
         env['CRGFLAGS'] += ['-Z build-std=core,alloc,std,panic_abort']
+        env.add_rust_features()
         return env.rust_exe(gen, out, self.rust_deps())
 
     def m3_cargo_ws(self, gen):
-        global rustapps
+        global rustapps, rustfeatures
         env = self.clone()
 
         outs = []
@@ -199,10 +205,12 @@ class M3Env(Env):
             # specify crates explicitly, because some crates are only supported by some targets
             env['CRGFLAGS'] += ['-p', crate_name]
 
-        if env['BUILD'] == 'bench':
-            env['CRGFLAGS'] += ['--features', 'base/bench']
         env['CRGFLAGS'] += ['--target', env['TRIPLE']]
         env['CRGFLAGS'] += ['-Z build-std=core,alloc,std,panic_abort']
+        for f in rustfeatures:
+            env['CRGFLAGS'] += ['--features', f]
+        env.add_rust_features()
+
         outs = env.rust(gen, outs, deps)
         for o in outs:
             env.install(gen, outdir=env['RUSTLIBS'], input=o)
@@ -216,6 +224,8 @@ class M3Env(Env):
         deps += env.glob(gen, SourcePath.new(env, '**/*.rs'))
 
         env['CRGFLAGS'] += ['--target', env['TRIPLE']]
+        env.add_rust_features()
+
         outs = env.rust(gen, outs, deps)
         for o in outs:
             env.install(gen, outdir=env['RUSTBINS'], input=o)
@@ -298,6 +308,9 @@ if btype == 'release':
 
 # for linux compilation
 lxenv = env.clone()
+lxenv['TGT'] = target
+lxenv['ISA'] = isa
+lxenv['BUILD'] = btype
 lxenv['CPPPATH'] = []
 lxenv['TRIPLE'] = 'riscv64gc-unknown-linux-gnu'
 
@@ -321,7 +334,7 @@ env['CPPFLAGS'] += ['-D__' + target + '__', '-U_FORTIFY_SOURCE', '-D_GNU_SOURCE'
 env['CFLAGS'] += ['-gdwarf-2', '-fno-stack-protector', '-ffunction-sections', '-fdata-sections']
 env['ASFLAGS'] += ['-Wl,-W', '-Wall', '-Wextra']
 env['LINKFLAGS'] += ['-Wl,--gc-section', '-Wno-lto-type-mismatch', '-fno-stack-protector']
-env['TRIPLE'] = rustisa + '-linux-' + target + '-' + rustabi
+env['TRIPLE'] = rustisa + '-linux-m3-' + rustabi
 
 # add some important paths
 builddir = 'build/' + target + '-' + isa + '-' + btype

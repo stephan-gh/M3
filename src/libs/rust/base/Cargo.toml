@@ -30,3 +30,6 @@ default-features = false
 default = []
 bench = []
 linux = []
+gem5 = []
+hw = []
+hw22 = []

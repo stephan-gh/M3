@@ -30,7 +30,7 @@ pub enum NetLogEvent {
 }
 
 #[doc(hidden)]
-#[cfg(target_vendor = "gem5")]
+#[cfg(feature = "gem5")]
 #[inline(always)]
 pub fn log_net(ev: NetLogEvent, sd: Sd, arg: usize) {
     use base::cpu::{CPUOps, CPU};
@@ -39,6 +39,6 @@ pub fn log_net(ev: NetLogEvent, sd: Sd, arg: usize) {
 }
 
 #[doc(hidden)]
-#[cfg(not(target_vendor = "gem5"))]
+#[cfg(not(feature = "gem5"))]
 pub fn log_net(_ev: NetLogEvent, _sd: Sd, _arg: usize) {
 }

@@ -18,9 +18,9 @@
 pub const MAX_TILES: usize = 64;
 pub const MAX_CHIPS: usize = 2;
 
-#[cfg(any(target_vendor = "hw", target_vendor = "hw22"))]
+#[cfg(any(feature = "hw", feature = "hw22"))]
 pub const MAX_ACTS: usize = 16;
-#[cfg(not(any(target_vendor = "hw", target_vendor = "hw22")))]
+#[cfg(not(any(feature = "hw", feature = "hw22")))]
 pub const MAX_ACTS: usize = 32;
 
 pub const PAGE_BITS: usize = 12;

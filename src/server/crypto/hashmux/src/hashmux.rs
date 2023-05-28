@@ -18,10 +18,10 @@
 // Note that this is a compile-time choice currently, the XKCP increases the
 // binary size of HashMux by about 200 KiB.
 // FIXME: Enable hardware accelerator on "hw" target
-#[cfg(target_vendor = "gem5")]
+#[cfg(feature = "gem5")]
 mod kecacc;
 
-#[cfg(not(target_vendor = "gem5"))]
+#[cfg(not(feature = "gem5"))]
 #[path = "kecacc-xkcp.rs"]
 mod kecacc;
 

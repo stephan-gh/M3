@@ -49,9 +49,9 @@ pub type Reg = u64;
 /// An endpoint id
 pub type EpId = u16;
 /// A TCU label used in send EPs
-#[cfg(target_vendor = "hw22")]
+#[cfg(feature = "hw22")]
 pub type Label = u32;
-#[cfg(not(target_vendor = "hw22"))]
+#[cfg(not(feature = "hw22"))]
 pub type Label = u64;
 /// A activity id
 pub type ActId = u16;
@@ -98,7 +98,7 @@ impl fmt::Display for TileId {
 }
 
 cfg_if! {
-    if #[cfg(target_vendor = "gem5")] {
+    if #[cfg(feature = "gem5")] {
         /// The total number of endpoints in each TCU
         pub const TOTAL_EPS: EpId = 192;
         /// The number of available endpoints in each TCU
@@ -162,7 +162,7 @@ pub const MMIO_PRIV_SIZE: usize = cfg::PAGE_SIZE * 2;
 /// The number of external registers
 pub const EXT_REGS: usize = 2;
 cfg_if! {
-    if #[cfg(target_vendor = "hw22")] {
+    if #[cfg(feature = "hw22")] {
         /// The number of unprivileged registers
         pub const UNPRIV_REGS: usize = 5;
     }
@@ -212,7 +212,7 @@ pub enum PrivReg {
 }
 
 cfg_if! {
-    if #[cfg(target_vendor = "hw22")] {
+    if #[cfg(feature = "hw22")] {
         /// The unprivileged registers
         #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
         #[repr(u64)]
@@ -372,7 +372,7 @@ pub struct Header {
     reply_ep: u16,
     reply_label: Label,
     label: Label,
-    #[cfg(not(target_vendor = "hw22"))]
+    #[cfg(not(feature = "hw22"))]
     _pad: u64,
 }
 
@@ -867,9 +867,9 @@ impl TCU {
     /// Error type here, because that causes a heap allocation in debug mode and is used in the
     /// paging code.
     pub fn invalidate_page_unchecked(asid: u16, virt: usize) {
-        #[cfg(target_vendor = "hw22")]
+        #[cfg(feature = "hw22")]
         let val = ((asid as Reg) << 41) | ((virt as Reg) << 9) | PrivCmdOpCode::INV_PAGE.val;
-        #[cfg(not(target_vendor = "hw22"))]
+        #[cfg(not(feature = "hw22"))]
         let val = {
             Self::write_priv_reg(PrivReg::PrivCmdArg, virt as Reg);
             ((asid as Reg) << 9) | PrivCmdOpCode::InvPage as Reg
@@ -881,9 +881,9 @@ impl TCU {
 
     /// Inserts the given entry into the TCU's TLB
     pub fn insert_tlb(asid: u16, virt: usize, phys: u64, flags: PageFlags) -> Result<(), Error> {
-        #[cfg(target_vendor = "hw22")]
+        #[cfg(feature = "hw22")]
         let tlb_flags = flags.bits() as Reg;
-        #[cfg(not(target_vendor = "hw22"))]
+        #[cfg(not(feature = "hw22"))]
         let tlb_flags = {
             let mut tlb_flags = 0 as Reg;
             if flags.contains(PageFlags::R) {
@@ -906,9 +906,9 @@ impl TCU {
             phys
         };
 
-        #[cfg(target_vendor = "hw22")]
+        #[cfg(feature = "hw22")]
         let (arg_addr, cmd_addr) = (phys, virt);
-        #[cfg(not(target_vendor = "hw22"))]
+        #[cfg(not(feature = "hw22"))]
         let (arg_addr, cmd_addr) = (virt, phys);
 
         Self::write_priv_reg(PrivReg::PrivCmdArg, arg_addr as Reg);
@@ -955,9 +955,9 @@ impl TCU {
 
     /// Writes the given address and size into the Data register
     pub fn write_data(addr: usize, size: usize) {
-        #[cfg(target_vendor = "hw22")]
+        #[cfg(feature = "hw22")]
         Self::write_unpriv_reg(UnprivReg::Data, (size as Reg) << 32 | addr as Reg);
-        #[cfg(not(target_vendor = "hw22"))]
+        #[cfg(not(feature = "hw22"))]
         {
             Self::write_unpriv_reg(UnprivReg::DataAddr, addr as Reg);
             Self::write_unpriv_reg(UnprivReg::DataSize, size as Reg);
@@ -966,12 +966,12 @@ impl TCU {
 
     /// Returns the contents of the Data register (address and size)
     pub fn read_data() -> (usize, usize) {
-        #[cfg(target_vendor = "hw22")]
+        #[cfg(feature = "hw22")]
         {
             let data = Self::read_unpriv_reg(UnprivReg::Data);
             ((data & 0xFFFF_FFFF) as usize, data as usize >> 32)
         }
-        #[cfg(not(target_vendor = "hw22"))]
+        #[cfg(not(feature = "hw22"))]
         {
             (
                 Self::read_unpriv_reg(UnprivReg::DataAddr) as usize,
