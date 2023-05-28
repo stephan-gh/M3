@@ -23,6 +23,7 @@ mod helper;
 #[path = "../../vmtest/src/paging.rs"]
 mod paging;
 
+use base::env;
 use base::io::LogFlags;
 use base::log;
 use base::machine;
@@ -40,10 +41,6 @@ const SEP: EpId = FIRST_USER_EP + 1;
 
 const MSG_SIZE: usize = 64;
 const CREDITS: u32 = 4;
-#[cfg(target_vendor = "gem5")]
-const SENDS: usize = 100;
-#[cfg(not(target_vendor = "gem5"))]
-const SENDS: usize = 100000;
 
 static RBUF: [u64; CREDITS as usize * MSG_SIZE] = [0; CREDITS as usize * MSG_SIZE];
 
@@ -78,9 +75,14 @@ pub extern "C" fn env_run() {
         });
     }
 
+    let sends = match env::boot().platform {
+        env::Platform::Hw => 100000,
+        env::Platform::Gem5 => 100,
+    };
+
     let mut sent = 1;
     let mut recv = 0;
-    while recv < SENDS {
+    while recv < sends {
         // received reply?
         while let Some(m) = helper::fetch_msg(REP, rbuf_virt) {
             assert_eq!(m.header.label(), 0x2222);
@@ -91,7 +93,7 @@ pub extern "C" fn env_run() {
             recv += 1;
         }
 
-        if sent < SENDS && TCU::credits(SEP).unwrap() > 0 {
+        if sent < sends && TCU::credits(SEP).unwrap() > 0 {
             // send message
             TCU::send(SEP, &msg, 0x2222, REP).unwrap();
             msg.set(msg.get::<u64>() + 1);
