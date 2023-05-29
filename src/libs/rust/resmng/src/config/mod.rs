@@ -748,12 +748,13 @@ impl AppConfig {
             if !d.pseudo {
                 writeln!(
                     f,
-                    "{:0w$}Domain on {} with mux=({}, {}M, {:?}) [",
+                    "{:0w$}Domain on {} with mux=({}, {}M, {:?}, {:?}) [",
                     "",
                     d.tile.0,
                     d.mux().unwrap_or("tilemux"),
                     d.mux_mem.unwrap_or(cfg::FIXED_TILEMUX_MEM) / (1024 * 1024),
                     d.initrd(),
+                    d.dtb(),
                     w = layer + 2
                 )?;
                 sub_layer += 2;
