@@ -52,7 +52,7 @@ pub fn write_coverage(_act: u64) {
 
 pub fn write(buf: &[u8]) -> Result<usize, Error> {
     let amount = tcu::TCU::print(buf);
-    #[cfg(feature = "linux")]
+    #[cfg(all(feature = "linux", feature = "gem5"))]
     unsafe {
         libc::write(1, buf.as_ptr() as *const libc::c_void, buf.len())
     };
