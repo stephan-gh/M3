@@ -23,10 +23,12 @@ DIST="$(readlink -f "$ROOT/..")/build/cross-$ARCH"
 if [ -f "$DIST/.config" ] && [ "$(cmp "$DIST/.config-origin" "config-$ARCH" 2>/dev/null)" != "" ]; then
     printf "\e[1mWARNING: %s/.config-origin and config-%s differ\n\e[0m" "$DIST" "$ARCH"
     printf "This probably indicates that config-%s was updated and you should rebuild.\n" "$ARCH"
-    printf "Do you want to rebuild (r) or continue (c) with the potentially outdated %s/.config? " "$DIST"
+    printf "Do you want to rebuild completely (r), update to the new config (u), or continue"
+    printf " with the potentially outdated %s/.config (c)? " "$DIST"
     read -r choice
     case $choice in
         r) rm -rf "$DIST" ;;
+        u) rm -f "$DIST/.config" ;;
         c) ;;
         *) exit ;;
     esac
