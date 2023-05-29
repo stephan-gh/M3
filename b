@@ -336,14 +336,14 @@ case "$cmd" in
 
     run)
         if [ "$DBG_GEM5" = "1" ]; then
-            ./tools/execute.sh "$script"
+            ./tools/execute.sh "$crossname" "$script"
         else
-            ./tools/execute.sh "$script" 2>&1 | tee "$M3_OUT/log.txt"
+            ./tools/execute.sh "$crossname" "$script" 2>&1 | tee "$M3_OUT/log.txt"
         fi
         ;;
 
     rungem5)
-        M3_RUN_GEM5=1 ./tools/execute.sh "$script" 2>&1 | tee "$M3_OUT/log.txt"
+        M3_RUN_GEM5=1 ./tools/execute.sh "$crossname" "$script" 2>&1 | tee "$M3_OUT/log.txt"
         ;;
 
     loadfpga=*)
@@ -384,7 +384,7 @@ case "$cmd" in
             fi
 
             truncate --size 0 "$M3_OUT/log.txt"
-            ./tools/execute.sh "$script" "--debug=${cmd#dbg=}" 1>"$M3_OUT/log.txt" 2>&1 &
+            ./tools/execute.sh "$crossname" "$script" "--debug=${cmd#dbg=}" 1>"$M3_OUT/log.txt" 2>&1 &
 
             # wait until we know the port
             port=""
@@ -421,7 +421,7 @@ case "$cmd" in
                 echo "Please set M3_HW_PAUSE to the tile to debug."
                 exit 1
             fi
-            ./tools/execute.sh "$script" "--debug=${cmd#dbg=}" &>/dev/null &
+            ./tools/execute.sh "$crossname" "$script" "--debug=${cmd#dbg=}" &>/dev/null &
 
             port=$((3340 + M3_HW_PAUSE))
             ssh -N -L 30000:localhost:$port "$M3_HW_FPGA_HOST" 2>/dev/null &

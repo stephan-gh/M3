@@ -1,7 +1,7 @@
 #!/bin/bash
 
 usage() {
-    echo "Usage: $1 <script> [--debug=<prog>]" 1>&2
+    echo "Usage: $1 <crossname> <script> [--debug=<prog>]" 1>&2
     exit 1
 }
 
@@ -13,11 +13,12 @@ build=build/$M3_TARGET-$M3_ISA-$M3_BUILD
 bindir=$build/bin
 crossdir="./build/cross-$M3_ISA/host/bin"
 
-if [ $# -lt 1 ]; then
+if [ $# -lt 2 ]; then
     usage "$0"
 fi
-script=$1
-shift
+crossname="$1"
+script=$2
+shift 2
 
 debug=""
 for p in "$@"; do
@@ -65,7 +66,7 @@ generate_config() {
 }
 
 generate_m3lx_deps() {
-    initrds=$(xmllint --xpath './/dom[@initrd]/@initrd' "$1" | wc -l)
+    initrds=$(xmllint --xpath './/dom[@initrd]/@initrd' "$1" 2>/dev/null | wc -l)
     if [ "$initrds" -gt 1 ]; then
         echo "Multiple domains with initrd are not supported" >&2 && exit 1
     fi
@@ -73,8 +74,26 @@ generate_m3lx_deps() {
         return
     fi
 
+    # generate final initrd
+    crossroot="$(readlink -f "$crossdir/../../")"
+    initrd="$crossroot/images/rootfs.cpio"
+    targetdir="$crossroot/build/buildroot-fs/cpio/target"
+    # we build upon the initrd generation of buildroot
+    if [ ! -f "$crossroot/build/buildroot-fs/cpio/fakeroot" ]; then
+        echo "Please run ./b mkrootfs first" >&2 && exit 1
+    fi
+    rsync -auH --exclude=/THIS_IS_NOT_YOUR_ROOT_FILESYSTEM "$crossroot/target/" "$targetdir"
+    # copy our overlay directory to the target directory (binaries in stripped form)
+    for f in "$build"/lxbin/*; do
+        "$crossdir/${crossname}strip" -o "$targetdir/$(basename "$f")" "$f"
+    done
+    cp -a m3lx/rootfs/* "$targetdir"
+    # now generate image
+    ( cd cross/buildroot && PATH="$crossroot/host/sbin:$PATH" FAKEROOTDONTTRYCHOWN=1 \
+        "$crossroot/host/bin/fakeroot" -- "$crossroot/build/buildroot-fs/cpio/fakeroot" ) >/dev/null
+    rm -rf "$targetdir"
+
     # determine initrd size
-    initrd="$crossdir/../../images/rootfs.cpio"
     initrd_size=$(stat --printf="%s" "$initrd")
     # round up to page size
     initrd_size=$(python -c "print('{}'.format(($initrd_size + 0xFFF) & 0xFFFFF000))")
