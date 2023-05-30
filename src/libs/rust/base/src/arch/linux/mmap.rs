@@ -1,12 +1,6 @@
-use crate::cell::LazyStaticRefCell;
-use crate::errors::{Code, Error};
-
-use std::fs::File;
-use std::os::unix::io::AsRawFd;
-
 use libc;
 
-static MEM_DEV: LazyStaticRefCell<File> = LazyStaticRefCell::default();
+use crate::errors::{Code, Error};
 
 pub fn mmap(addr: usize, size: usize) -> Result<(), Error> {
     let base = unsafe {
@@ -14,8 +8,8 @@ pub fn mmap(addr: usize, size: usize) -> Result<(), Error> {
             addr as *mut libc::c_void,
             size,
             libc::PROT_READ,
-            libc::MAP_SHARED,
-            MEM_DEV.borrow().as_raw_fd(),
+            libc::MAP_PRIVATE | libc::MAP_ANON,
+            -1,
             0,
         )
     };
@@ -31,8 +25,4 @@ pub fn munmap(addr: usize, size: usize) {
     unsafe {
         libc::munmap(addr as *mut libc::c_void, size);
     }
-}
-
-pub fn init() {
-    MEM_DEV.set(std::fs::File::open("/dev/mem").unwrap());
 }
