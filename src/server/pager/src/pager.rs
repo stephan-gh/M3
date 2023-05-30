@@ -116,21 +116,28 @@ impl subsys::ChildStarter for PagedChildStarter {
             act.add_mount(m.path(), &path);
         }
 
-        // init address space (give it activity and mgate selector)
-        let mut hdl = REQHDL.borrow_mut();
-        let aspace = hdl.clients_mut().get_mut(child_sid).unwrap();
-        aspace.do_init(Some(child.id()), Some(act.sel())).unwrap();
+        let run = if !child.cfg().is_foreign() {
+            // init address space (give it activity and mgate selector)
+            let mut hdl = REQHDL.borrow_mut();
+            let aspace = hdl.clients_mut().get_mut(child_sid).unwrap();
+            aspace.do_init(Some(child.id()), Some(act.sel())).unwrap();
 
-        // start activity
-        let file = vfs::VFS::open(child.name(), vfs::OpenFlags::RX | vfs::OpenFlags::NEW_SESS)
-            .map_err(|e| VerboseError::new(e.code(), format!("Unable to open {}", child.name())))?;
-        let mut mapper = mapper::ChildMapper::new(aspace, act.tile_desc().has_virtmem());
+            // start activity
+            let file = vfs::VFS::open(child.name(), vfs::OpenFlags::RX | vfs::OpenFlags::NEW_SESS)
+                .map_err(|e| {
+                    VerboseError::new(e.code(), format!("Unable to open {}", child.name()))
+                })?;
+            let mut mapper = mapper::ChildMapper::new(aspace, act.tile_desc().has_virtmem());
 
-        let run = act
-            .exec_file(Some((&mut mapper, file.into_generic())), child.arguments())
-            .map_err(|e| {
-                VerboseError::new(e.code(), format!("Unable to execute {}", child.name()))
-            })?;
+            act.exec_file(Some((&mut mapper, file.into_generic())), child.arguments())
+                .map_err(|e| {
+                    VerboseError::new(e.code(), format!("Unable to execute {}", child.name()))
+                })?
+        }
+        else {
+            act.exec_file(None, child.arguments())
+                .map_err(|e| VerboseError::new(e.code(), "Unable to start Activity".to_string()))?
+        };
 
         child.set_running(Box::new(run));
 
