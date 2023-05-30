@@ -15,9 +15,19 @@
                     <mod name="fs" />
                 </app>
             </dom>
-            <dom tile="boom+nic|core" mux="bbl" muxmem="128M" initrd="initrd" dtb="dtb">
-                <app args="/lxbench" foreign="1">
+            <dom>
+                <app args="pager">
                     <sess name="m3fs" />
+                    <mod name="fs" perm="r" />
+                    <mod name="bbl" perm="r" />
+                    <mod name="initrd" perm="r" />
+                    <mod name="dtb" perm="r" />
+                    <tiles type="boom+nic|core" count="1" />
+                    <dom tile="boom+nic|core" mux="bbl" muxmem="128M" initrd="initrd" dtb="dtb">
+                        <app args="/lxbench" foreign="1">
+                            <mount fs="m3fs" path="/" />
+                        </app>
+                    </dom>
                 </app>
             </dom>
         </app>
