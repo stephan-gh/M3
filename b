@@ -311,10 +311,6 @@ if [ $skipbuild -eq 0 ]; then
 fi
 
 run_clippy() {
-    # vmtest only works on RISC-V
-    if [ "$M3_ISA" != "riscv" ] && [[ "$1" =~ "vmtest" ]]; then
-        return;
-    fi
     target=()
     if [[ "$1" = tools/* ]]; then
         target=("${rust_host_args[@]}")
@@ -605,6 +601,10 @@ case "$cmd" in
 
     clippy)
         while IFS= read -r -d '' f; do
+            # vmtest only works on RISC-V
+            if [ "$M3_ISA" != "riscv" ] && [[ "$f" =~ "vmtest" ]]; then
+                continue
+            fi
             run_clippy "$f"
         done < <(find src tools -mindepth 2 -name Cargo.toml -print0)
         ;;
