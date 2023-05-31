@@ -575,7 +575,12 @@ impl TCU {
         );
         Self::get_error().ok()?;
         let msg = Self::read_unpriv_reg(UnprivReg::Arg1);
-        if msg != !0 { Some(msg as usize) } else { None }
+        if msg != !0 {
+            Some(msg as usize)
+        }
+        else {
+            None
+        }
     }
 
     /// Assuming that `ep` is a receive EP, the function returns whether there are unread messages.
@@ -729,9 +734,7 @@ impl TCU {
         let num = math::round_up(s.len(), 8) / 8;
         for c in words.iter().take(num) {
             // safety: we know that the address is within the MMIO region of the TCU
-            unsafe {
-                CPU::write8b(buffer, *c)
-            };
+            unsafe { CPU::write8b(buffer, *c) };
             buffer += 8;
         }
 
@@ -782,8 +785,7 @@ impl TCU {
 
     /// Returns the injected IRQ (assuming that a IRQ has been injected and was not cleared yet)
     pub fn get_irq() -> Result<IRQ, Error> {
-        IRQ::try_from(Self::read_priv_reg(PrivReg::ClearIRQ.into()))
-            .map_err(|_| Error::new(Code::InvArgs))
+        IRQ::try_from(Self::read_priv_reg(PrivReg::ClearIRQ)).map_err(|_| Error::new(Code::InvArgs))
     }
 
     /// Clears the given IRQ to notify the TCU that the IRQ has been accepted
@@ -1019,9 +1021,7 @@ impl TCU {
 
     fn write_reg(idx: usize, val: Reg) {
         // safety: as above
-        unsafe {
-            CPU::write8b(MMIO_ADDR + idx * 8, val)
-        };
+        unsafe { CPU::write8b(MMIO_ADDR + idx * 8, val) };
     }
 
     fn build_cmd(ep: EpId, cmd: CmdOpCode, arg: Reg) -> Reg {

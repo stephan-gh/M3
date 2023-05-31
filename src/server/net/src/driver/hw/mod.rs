@@ -100,7 +100,7 @@ impl<'a> smoltcp::phy::Device<'a> for AXIEthDevice {
         }
 
         let buf = self.rx_buf.as_mut().unwrap();
-        let res = unsafe { axieth_recv((&mut buf[..]).as_mut_ptr(), buf.len()) };
+        let res = unsafe { axieth_recv(buf[..].as_mut_ptr(), buf.len()) };
         if res == 0 {
             None
         }

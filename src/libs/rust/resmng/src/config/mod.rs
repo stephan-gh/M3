@@ -393,7 +393,7 @@ impl Domain {
     }
 
     pub fn mux(&self) -> Option<&str> {
-        self.mux.as_ref().map(|m| m.as_str())
+        self.mux.as_deref()
     }
 
     pub fn mux_mem(&self) -> Option<usize> {
@@ -401,11 +401,11 @@ impl Domain {
     }
 
     pub fn initrd(&self) -> Option<&str> {
-        self.initrd.as_ref().map(|i| i.as_str())
+        self.initrd.as_deref()
     }
 
     pub fn dtb(&self) -> Option<&str> {
-        self.dtb.as_ref().map(|i| i.as_str())
+        self.dtb.as_deref()
     }
 
     pub fn tile(&self) -> &TileType {

@@ -116,7 +116,7 @@ impl FSSession {
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
         cli.add_connected(crt, |cli, serv, _sgate| match Self::get_sess(cli, sid)? {
-            FSSession::Meta(meta) => meta.open_file(serv, xchg).map(|s| FSSession::File(s)),
+            FSSession::Meta(meta) => meta.open_file(serv, xchg).map(FSSession::File),
             _ => Err(Error::new(Code::InvArgs)),
         })
         .map(|_| ())
@@ -170,7 +170,7 @@ impl FSSession {
         xchg: &mut CapExchange<'_>,
     ) -> Result<(), Error> {
         cli.add_connected(crt, |cli, serv, _sgate| match Self::get_sess(cli, sid)? {
-            FSSession::File(file) => file.clone(serv, xchg).map(|s| FSSession::File(s)),
+            FSSession::File(file) => file.clone(serv, xchg).map(FSSession::File),
             FSSession::Meta(_) => Err(Error::new(Code::InvArgs)),
         })
         .map(|_| ())

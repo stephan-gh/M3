@@ -146,7 +146,7 @@ pub fn init(tile_id: TileId, name: &str) {
     if let Some(log) = env::var("LOG") {
         let log_commas = log.replace(',', "|");
         let flags = LogFlags::from_str(&log_commas)
-            .expect(&crate::format!("Unable to decode log-flags '{}'", log));
+            .unwrap_or_else(|_| panic!("Unable to decode log-flags '{}'", log));
         LOG_FLAGS.set(flags);
     }
 }

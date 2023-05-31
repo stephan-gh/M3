@@ -568,7 +568,7 @@ pub trait Child {
                             "Unable to allocate {}b for multiplexer",
                             size
                         );
-                        return Err(e);
+                        Err(e)
                     },
                 },
                 |name| match starter.get_bootmod(name) {
@@ -580,7 +580,7 @@ pub trait Child {
                             name,
                             e
                         );
-                        return Err(e);
+                        Err(e)
                     },
                 },
             )?;
@@ -650,7 +650,7 @@ pub trait Child {
         let crd = CapRngDesc::new(CapType::Object, ep_sel, 1);
         // TODO if that fails, we need to kill this child because otherwise we don't get the tile back
         syscalls::revoke(self.activity_sel(), crd, true).ok();
-        res.tiles().remove_user(&mut tile_usage);
+        res.tiles().remove_user(&tile_usage);
         cfg.free_tile(idx);
 
         Ok(())

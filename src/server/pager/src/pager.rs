@@ -185,12 +185,12 @@ fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_, '_>) {
         childs,
         delayed,
         res,
-        |mut childs, _res| {
+        |childs, _res| {
             serv.fetch_and_handle(REQHDL.borrow_mut().deref_mut()).ok();
 
             REQHDL.borrow_mut().fetch_and_handle_msg_with(
                 |_handler, opcode, sess, is| match opcode {
-                    o if o == opcodes::Pager::Pagefault.into() => sess.pagefault(&mut childs, is),
+                    o if o == opcodes::Pager::Pagefault.into() => sess.pagefault(childs, is),
                     o if o == opcodes::Pager::MapAnon.into() => sess.map_anon(is),
                     o if o == opcodes::Pager::Unmap.into() => sess.unmap(is),
                     o if o == opcodes::Pager::Close.into() => sess.close(is),

@@ -395,7 +395,7 @@ impl Subsystem {
                                 name,
                                 e
                             );
-                            return Err(e);
+                            Err(e)
                         },
                     },
                 )?;
@@ -955,7 +955,7 @@ fn split_child_mem(cfg: &config::AppConfig, mem: &Rc<childs::ChildMem>, tiles: u
             if let Some(mut cmem) = a.user_mem() {
                 // if the child is a resource manager, it needs some additional memory for that
                 // child that isn't passed down to the child
-                if a.domains().len() > 0 {
+                if !a.domains().is_empty() {
                     cmem += DEF_RESMNG_MEM as usize;
                 }
                 mem.alloc_mem(cmem as goff);

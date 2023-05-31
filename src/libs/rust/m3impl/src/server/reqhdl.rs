@@ -583,7 +583,6 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Reque
             }
 
             if let Some(crt) = sess.is_dead() {
-                drop(sess);
                 drop(is);
                 self.clients.remove(crt, sid);
             }

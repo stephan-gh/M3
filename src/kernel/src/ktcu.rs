@@ -91,6 +91,7 @@ pub fn config_recv(
     TCU::config_recv(regs, act, buf, buf_ord, msg_ord, reply_eps);
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn config_send(
     regs: &mut [Reg],
     tgtep: (TileId, EpId),

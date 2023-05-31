@@ -53,7 +53,7 @@ where
         (path, offset)
     }
     else {
-        (path.as_ref(), 0)
+        (path, 0)
     };
 
     let mut cmd = Command::new("nm")

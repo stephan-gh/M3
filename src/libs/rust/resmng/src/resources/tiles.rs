@@ -181,7 +181,7 @@ impl TileState {
                 &mux_elf,
                 &mux.mem,
                 phdr.offset as usize,
-                phys as usize,
+                phys,
                 phdr.file_size as usize,
             )?;
 

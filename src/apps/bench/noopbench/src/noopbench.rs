@@ -15,7 +15,7 @@ use m3::{
     vfs::{FileMode, FileRef, GenericFile, OpenFlags, VFS},
 };
 
-fn wait_for_rpl<'de>(rep: EpId, rcv_buf: usize) -> Result<(), Error> {
+fn wait_for_rpl(rep: EpId, rcv_buf: usize) -> Result<(), Error> {
     loop {
         if let Some(off) = tcu::TCU::fetch_msg(rep) {
             let msg = tcu::TCU::offset_to_msg(rcv_buf, off);
