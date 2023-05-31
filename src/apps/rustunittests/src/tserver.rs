@@ -190,8 +190,12 @@ fn testcliexit(t: &mut dyn WvTester) {
         wv_assert_ok!(send_vmsg!(&sg, RecvGate::def(), 1));
 
         // wait here; don't exit (we don't have credits anymore)
-        #[allow(clippy::empty_loop)]
-        loop {}
+        loop {
+            // note that we cannot have an empty loop here due to the bug in gem5's O3 model (with
+            // x86 only?): jumps to the same instruction don't work, because the CPU executes the
+            // next instruction anyway.
+            OwnActivity::sleep().ok();
+        }
     }));
 
     // wait until the child is ready to be killed
