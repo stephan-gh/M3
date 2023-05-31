@@ -149,8 +149,6 @@ help() {
     echo "                             remaining arguments are passed to Linux's build system."
     echo "    mkbbl ...:               (re)build the bbl bootloader. The remaining arguments"
     echo "                             are passed to bbl's build system."
-    echo "    mkrootfs ...:            (re)build the root FS for Linux. The remaining"
-    echo "                             arguments are passed to buildroot."
     echo ""
     echo "Environment variables:"
     echo "    M3_TARGET:               the target. Either 'gem5' or 'hw', default is 'gem5'."
@@ -661,7 +659,7 @@ case "$cmd" in
 
     # -- M³Linux --
 
-    mklx|mkbbl|mkrootfs)
+    mklx|mkbbl)
         ./src/m3lx/build.sh "$crossname" "$crossdir" "$cmd" "$script" "$@"
         ;;
 esac
