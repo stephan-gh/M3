@@ -87,7 +87,7 @@ generate_m3lx_deps() {
     for f in "$build"/lxbin/*; do
         "$crossdir/${crossname}strip" -o "$targetdir/$(basename "$f")" "$f"
     done
-    cp -a m3lx/rootfs/* "$targetdir"
+    cp -a src/m3lx/rootfs/* "$targetdir"
     # now generate image
     ( cd cross/buildroot && PATH="$crossroot/host/sbin:$PATH" FAKEROOTDONTTRYCHOWN=1 \
         "$crossroot/host/bin/fakeroot" -- "$crossroot/build/buildroot-fs/cpio/fakeroot" ) >/dev/null
@@ -120,7 +120,7 @@ generate_m3lx_deps() {
     sed -e "s/linux,initrd-start = <.*>;/linux,initrd-start = <$initrd_start>;/g" \
         -e "s/linux,initrd-end = <.*>;/linux,initrd-end = <$initrd_end>;/g" \
         -e "s/reg = <MEM_REGION>;/reg = <0x00000000 $mem_off 0x00000000 $(printf "%#x" "$mem_size")>;/g" \
-        "m3lx/configs/$M3_TARGET.dts" > "$M3_OUT/m3lx.dts" || exit 1
+        "src/m3lx/configs/$M3_TARGET.dts" > "$M3_OUT/m3lx.dts" || exit 1
 
     # generate dtb
     dtc -O dtb "$M3_OUT/m3lx.dts" -o "$M3_MOD_PATH/m3lx.dtb"

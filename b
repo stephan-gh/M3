@@ -624,6 +624,9 @@ case "$cmd" in
 
     fmt)
         while IFS= read -r -d '' f; do
+            if [[ "$f" =~ "src/m3lx" ]]; then
+                continue
+            fi
             if [ "$(basename "$f")" != "build.py" ]; then
                 if [[ "$f" =~ "src/libs/musl" ]] && [[ ! "$f" =~ "src/libs/musl/m3" ]]; then
                     continue
@@ -655,6 +658,6 @@ case "$cmd" in
     # -- M³Linux --
 
     mklx|mkbbl|mkrootfs)
-        ./m3lx/build.sh "$crossname" "$crossdir" "$cmd" "$script" "$@"
+        ./src/m3lx/build.sh "$crossname" "$crossdir" "$cmd" "$script" "$@"
         ;;
 esac
