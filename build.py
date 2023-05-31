@@ -221,7 +221,9 @@ class M3Env(Env):
 
         deps = env.rust_deps()
         deps += [SourcePath.new(env, 'Cargo.toml'), SourcePath.new(env, '.cargo/config')]
-        deps += env.glob(gen, SourcePath.new(env, '**/*.rs'))
+        for o in outs:
+            deps += [SourcePath.new(env, o + '/Cargo.toml')]
+            deps += env.glob(gen, SourcePath.new(env, o + '/**/*.rs'))
 
         env['CRGFLAGS'] += ['--target', env['TRIPLE']]
         env.add_rust_features()
