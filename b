@@ -314,6 +314,10 @@ run_clippy() {
     target=()
     if [[ "$1" = tools/* ]]; then
         target=("${rust_host_args[@]}")
+    elif [[ "$1" = src/m3lx/* ]]; then
+        target=(--target riscv64gc-unknown-linux-gnu
+                --target-dir "$rustbuild"
+                -Z "build-std=core,alloc,std,panic_abort")
     else
         target=("${rust_target_args[@]}")
     fi
