@@ -103,6 +103,23 @@ Note that this command ensures that everything is up to date as well. For more i
 
     $ ./b -h
 
+### 8. M³Linux
+
+M³Linux allows to run Linux on an isolated tile within M³. Before it can be used, the submodule has to be pulled in:
+
+    $ git submodule update --init --recursive src/m3lx
+
+M³Linux consists of Linux itself, riscv-pk with the bbl bootloader, and applications. The applications can both interface with M³ and Linux and thereby bridge the gap between both systems.
+
+Linux and bbl need to be built explicitly due to the long build times and different build systems. `b` offers two commands for this purpose:
+
+1. `./b mklx`: build Linux including bbl
+2. `./b mkbbl`: build bbl
+
+As bbl contains Linux as the payload, bbl needs to be rebuilt whenever Linux changes. Note that the M³Linux applications are automatically built with every `b` run and initrd and DTS for Linux are generated before every start.
+
+M³Linux can be used via the boot scripts in `boot/linux/`. Note however, that M³Linux currently only works on RISC-V (both gem5 and hw).
+
 References:
 -----------
 
