@@ -2,11 +2,14 @@
 with import nixpkgs { inherit system; };
 
 let
+	# general dependencies
+	generalInputs = [ git gawk openssh which rsync wget cpio ];
+
 	# building gem5
-	gem5Inputs = [ scons gcc python3 zlib.dev ];
+	gem5Inputs = [ scons gcc python3 zlib.dev protobuf gnum4 ];
 
 	# building the C cross compiler
-	crossInputs = [ gcc python3 gmp.dev gmp mpfr.dev mpfr libmpc ncurses.dev ncurses texinfo ] ++
+	crossInputs = [ gcc python3 perl unzip bc flock ] ++
 		lib.optional stdenv.isDarwin (runCommand "CoreFoundation" {} ''
 			# I think the vanilla CoreFoundation package should add its frameworks search path
 			# but it doesn’t, so we stitch together a new package here
@@ -16,11 +19,14 @@ let
 		'');
 
 	# building the M3 system and applications
-	m3Inputs = [ rustup ninja clang ];
+	# glibc_multi is required because minicov includes gnu/stubs-32.h
+	m3Inputs = [ rustup ninja clang glibc_multi libxml2 ];
+
+	# building M³Linux
+	m3lxInputs = [ flex bison dtc ];
 
 	# build system support on Darwin
 	darwinInputs = lib.attrValues {
-		inherit gawk;
 		nproc = writeScriptBin "nproc" ''#!/bin/sh
 			exec sysctl -n hw.activecpu
 		'';
@@ -28,13 +34,14 @@ let
 
 in mkShellNoCC {
 
-	packages = gem5Inputs ++ crossInputs ++ m3Inputs ++
+	packages = generalInputs ++ gem5Inputs ++ crossInputs ++ m3Inputs ++ m3lxInputs ++
 		lib.optionals stdenv.isDarwin darwinInputs;
 
 	hardeningDisable = [ "format" ];  # breaks cross-gcc build
 		
 	shellHook = ''
-		unset CC CXX AS LD AR RANLIB NM  # having these set breaks the cross-gcc build
+		# having these set breaks some configure checks
+		unset CC CXX AS LD AR RANLIB NM OBJCOPY OBJDUMP READELF SIZE STRINGS STRIP
 
 		export RUSTUP_HOME=$PWD/.rustup
 		export CARGO_HOME=$PWD/.cargo

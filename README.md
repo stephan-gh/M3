@@ -24,12 +24,15 @@ Getting Started:
 
 ### 1. Initial setup
 
-If you setup the project on a new (Debian-based) machine make sure to have at least the following packages installed:
+The recommended way to install all required packages is to use [Nix](https://nixos.org/):
 
-    $ sudo apt update
-    $ sudo apt install git build-essential scons zlib1g-dev clang gawk \
-        m4 libboost-all-dev libssl-dev libgmp3-dev libmpfr-dev \
-        libmpc-dev libncurses5-dev texinfo ninja-build libxml2-utils
+    $ nix develop
+
+Nix will then install all required packages in a known-to-work version and drop you into a shell to work with M³.
+
+Without Nix, you need to install the packages manually and hope that all versions are as expected. On Debian-based distributions, this should be something like:
+
+    $ sudo apt install git build-essential scons zlib1g-dev clang gawk m4 ninja-build libxml2-utils
 
 Note: If you have `pyenv` installed and therefore `/usr/bin/python` does not exist, you might need to install the package `python-dev-is-python3`.
 
