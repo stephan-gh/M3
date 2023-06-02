@@ -345,8 +345,8 @@ case "$cmd" in
         ;;
 
     loadfpga=*)
-        if [ "$M3_TARGET" != "hw" ]; then
-            echo "Only supported on M3_TARGET=hw." >&2 && exit 1
+        if [ "$M3_TARGET" != "hw" ] && [ "$M3_TARGET" != "hw22" ]; then
+            echo "Only supported on M3_TARGET=hw and M3_TARGET=hw22." >&2 && exit 1
         fi
         if [ -z "$M3_HW_VIVADO" ]; then
             echo "Please define M3_HW_VIVADO to the absolute path to Vivado." >&2 && exit 1
