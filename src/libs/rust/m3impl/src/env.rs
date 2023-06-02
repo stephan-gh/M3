@@ -40,8 +40,9 @@ pub use base::env::*;
 
 /// Writes the given arguments to `mem` at given offset
 ///
-/// This is intended [`ChildActivity`] and other components that want to start applications and
-/// therefore need to pass arguments and environment variables to the application.
+/// This is intended [`ChildActivity`](`crate::tiles::ChildActivity`) and other components that want
+/// to start applications and therefore need to pass arguments and environment variables to the
+/// application.
 ///
 /// Returns the address of arguments array (argv)
 pub fn write_args<S>(
