@@ -867,11 +867,11 @@ impl TCU {
     /// paging code.
     pub fn invalidate_page_unchecked(asid: u16, virt: usize) {
         #[cfg(feature = "hw22")]
-        let val = ((asid as Reg) << 41) | ((virt as Reg) << 9) | PrivCmdOpCode::INV_PAGE.val;
+        let val = ((asid as Reg) << 41) | ((virt as Reg) << 9) | (PrivCmdOpCode::InvPage as Reg);
         #[cfg(not(feature = "hw22"))]
         let val = {
             Self::write_priv_reg(PrivReg::PrivCmdArg, virt as Reg);
-            ((asid as Reg) << 9) | PrivCmdOpCode::InvPage as Reg
+            ((asid as Reg) << 9) | (PrivCmdOpCode::InvPage as Reg)
         };
 
         Self::write_priv_reg(PrivReg::PrivCmd, val);
