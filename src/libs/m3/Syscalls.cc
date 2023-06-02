@@ -63,8 +63,9 @@ void Syscalls::create_srv(capsel_t dst, capsel_t rgate, const std::string_view &
     req.dst_sel = dst;
     req.rgate_sel = rgate;
     req.creator = creator;
-    req.namelen = Math::min(name.length(), sizeof(req.name));
-    memcpy(req.name, name.data(), req.namelen);
+    req.namelen = Math::min(name.length() + 1, sizeof(req.name));
+    memcpy(req.name, name.data(), req.namelen - 1);
+    req.name[req.namelen - 1] = '\0';
     send_receive_throw(req_buf);
 }
 
@@ -135,8 +136,9 @@ std::pair<epid_t, actid_t> Syscalls::create_activity(capsel_t dst, const std::st
     req.dst_sel = dst;
     req.tile_sel = tile;
     req.kmem_sel = kmem;
-    req.namelen = Math::min(name.length(), sizeof(req.name));
-    memcpy(req.name, name.data(), req.namelen);
+    req.namelen = Math::min(name.length() + 1, sizeof(req.name));
+    memcpy(req.name, name.data(), req.namelen - 1);
+    req.name[req.namelen - 1] = '\0';
 
     auto reply = send_receive<KIF::Syscall::CreateActivityReply>(req_buf);
 
