@@ -27,6 +27,7 @@ use crate::rc::Rc;
 use crate::syscalls;
 use crate::tcu::TileId;
 use crate::tiles::Activity;
+use crate::time::TimeDuration;
 
 /// Represents a tile in the tiled architecture
 ///
@@ -59,13 +60,13 @@ pub struct Tile {
 #[derive(Default)]
 pub struct TileQuota {
     eps: Quota<u32>,
-    time: Quota<u64>,
+    time: Quota<TimeDuration>,
     pts: Quota<usize>,
 }
 
 impl TileQuota {
     /// Creates a new `TileQuota` object from given quotas.
-    pub fn new(eps: Quota<u32>, time: Quota<u64>, pts: Quota<usize>) -> Self {
+    pub fn new(eps: Quota<u32>, time: Quota<TimeDuration>, pts: Quota<usize>) -> Self {
         Self { eps, time, pts }
     }
 
@@ -75,7 +76,7 @@ impl TileQuota {
     }
 
     /// Returns the time quota
-    pub fn time(&self) -> &Quota<u64> {
+    pub fn time(&self) -> &Quota<TimeDuration> {
         &self.time
     }
 
@@ -89,7 +90,7 @@ impl fmt::Debug for TileQuota {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
-            "TileQuota[eps={}, time={}, pts={}]",
+            "TileQuota[eps={:?}, time={:?}ns, pts={:?}]",
             self.endpoints(),
             self.time(),
             self.page_tables()
@@ -203,12 +204,12 @@ impl Tile {
     /// Derives a new tile object from `self` with a subset of the resources, removing them from
     /// `self`
     ///
-    /// The three resources are the number of EPs, the time slice length in nanoseconds, and the
-    /// number of page tables.
+    /// The three resources are the number of EPs, the time slice length, and the number of page
+    /// tables.
     pub fn derive(
         &self,
         eps: Option<u32>,
-        time: Option<u64>,
+        time: Option<TimeDuration>,
         pts: Option<usize>,
     ) -> Result<Rc<Self>, Error> {
         let sel = Activity::own().alloc_sel();
@@ -245,7 +246,7 @@ impl Tile {
     /// length and number of page tables).
     ///
     /// This call requires a root tile capability.
-    pub fn set_quota(&self, time: u64, pts: usize) -> Result<(), Error> {
+    pub fn set_quota(&self, time: TimeDuration, pts: usize) -> Result<(), Error> {
         syscalls::tile_set_quota(self.sel(), time, pts)
     }
 

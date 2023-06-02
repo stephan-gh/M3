@@ -24,7 +24,7 @@ use core::fmt;
 pub type Id = tilemux::QuotaId;
 
 /// Represents a generic quota, consisting of an id, a total amount, and a remaining amount
-#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Copy, Clone, Default, Serialize, Deserialize)]
 pub struct Quota<T> {
     id: Id,
     total: T,
@@ -57,8 +57,12 @@ impl<T: Copy> Quota<T> {
     }
 }
 
-impl<T: fmt::Display> fmt::Display for Quota<T> {
+impl<T: fmt::Debug> fmt::Debug for Quota<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Q[{}: {} of {}]", self.id, self.remaining, self.total)
+        write!(
+            f,
+            "Q[{}: {:?} of {:?}]",
+            self.id, self.remaining, self.total
+        )
     }
 }

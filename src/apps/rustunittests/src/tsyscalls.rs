@@ -30,6 +30,7 @@ use m3::syscalls;
 use m3::tcu::{AVAIL_EPS, FIRST_USER_EP, TOTAL_EPS};
 use m3::test::WvTester;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity, Tile};
+use m3::time::TimeDuration;
 use m3::util::math;
 use m3::{wv_assert, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
@@ -737,13 +738,17 @@ fn derive_tile(t: &mut dyn WvTester) {
     }
 
     // transfer time
-    if oquota.time().total() > 100 {
+    if oquota.time().total().as_nanos() > 100 {
         {
-            let tile2 = wv_assert_ok!(tile.derive(None, Some(100), None));
+            let tile2 = wv_assert_ok!(tile.derive(None, Some(TimeDuration::from_nanos(100)), None));
             let quota2 = wv_assert_ok!(tile2.quota()).time().total();
             let nquota = wv_assert_ok!(tile.quota()).time().total();
-            wv_assert_eq!(t, quota2, 100);
-            wv_assert_eq!(t, nquota, oquota.time().total() - 100);
+            wv_assert_eq!(t, quota2, TimeDuration::from_nanos(100));
+            wv_assert_eq!(
+                t,
+                nquota,
+                oquota.time().total() - TimeDuration::from_nanos(100)
+            );
         }
         let nquota = wv_assert_ok!(tile.quota()).time().total();
         wv_assert_eq!(t, nquota, oquota.time().total());
@@ -909,13 +914,17 @@ fn tile_quota(t: &mut dyn WvTester) {
 
 fn tile_set_quota(t: &mut dyn WvTester) {
     // invalid selector
-    wv_assert_err!(t, syscalls::tile_set_quota(SEL_ACT, 0, 0), Code::InvArgs);
+    wv_assert_err!(
+        t,
+        syscalls::tile_set_quota(SEL_ACT, TimeDuration::default(), 0),
+        Code::InvArgs
+    );
 
     // cannot be called on derived tile caps
     let der_tile = wv_assert_ok!(Activity::own().tile().derive(None, None, None));
     wv_assert_err!(
         t,
-        syscalls::tile_set_quota(der_tile.sel(), 100, 100),
+        syscalls::tile_set_quota(der_tile.sel(), TimeDuration::from_nanos(100), 100),
         Code::NoPerm
     );
 }

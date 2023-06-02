@@ -47,7 +47,7 @@ static const CycleDuration ACOMP_TIME = CycleDuration::from_raw(4096);
 static const size_t PIPE_SHM_SIZE = 512 * 1024;
 
 static const uint MIN_EPS = 16;
-static const uint64_t MIN_TIME = 100000; // 100µs
+static const TimeDuration MIN_TIME = TimeDuration::from_micros(100);
 static const size_t MIN_PTS = 16;
 
 static constexpr size_t MAX_CMDS = 8; // TODO get rid of this limit
@@ -128,9 +128,11 @@ static void execute_pipeline(Pipes &pipesrv, std::unique_ptr<Parser::CmdList> &c
             // that we get our share (we don't trust the child apps)
             if(tiles[i]->sel() == Activity::own().tile()->sel()) {
                 const auto [eps, time, pts] = tiles[i]->quota();
-                if(eps.left > MIN_EPS && pts.left > MIN_PTS)
-                    tiles[i] = tiles[i]->derive(eps.left - MIN_EPS, time.total - MIN_TIME,
-                                                pts.left - MIN_PTS);
+                if(eps.left > MIN_EPS && pts.left > MIN_PTS) {
+                    tiles[i] = tiles[i]->derive(Some(eps.left - MIN_EPS),
+                                                Some(time.total - MIN_TIME),
+                                                Some(pts.left - MIN_PTS));
+                }
                 else
                     tiles[i] = Tile::get("core");
             }

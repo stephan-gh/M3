@@ -19,7 +19,7 @@ use m3::errors::Code;
 use m3::rc::Rc;
 use m3::test::{DefaultWvTester, WvTester};
 use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
-use m3::time::{CycleInstant, Duration, Profiler, TimeDuration};
+use m3::time::{CycleInstant, Profiler, TimeDuration};
 use m3::{
     format, println, reply_vmsg, send_vmsg, wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test,
 };
@@ -101,7 +101,7 @@ fn pingpong_with_multiple(t: &mut dyn WvTester) {
     let tile = wv_assert_ok!(Tile::get("compat"));
     // use long time slices for childs (minimize timer interrupts)
     wv_assert_ok!(tile.set_quota(
-        TimeDuration::from_secs(1).as_raw(),
+        TimeDuration::from_secs(1),
         tile.quota().unwrap().page_tables().remaining(),
     ));
 

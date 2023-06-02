@@ -247,15 +247,19 @@ void Syscalls::derive_kmem(capsel_t kmem, capsel_t dst, size_t quota) {
     send_receive_throw(req_buf);
 }
 
-void Syscalls::derive_tile(capsel_t tile, capsel_t dst, uint eps, uint64_t time, uint64_t pts) {
+void Syscalls::derive_tile(capsel_t tile, capsel_t dst, Option<uint> eps, Option<TimeDuration> time,
+                           Option<uint64_t> pts) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::DeriveTile>();
     req.opcode = KIF::Syscall::DERIVE_TILE;
     req.tile_sel = tile;
     req.dst_sel = dst;
-    req.eps = eps;
-    req.time = time;
-    req.pts = pts;
+    req.eps = eps.unwrap_or(static_cast<uint>(-1));
+    if(auto duration = time)
+        req.time = duration.unwrap().as_nanos();
+    else
+        req.time = static_cast<uint64_t>(-1);
+    req.pts = pts.unwrap_or(static_cast<uint64_t>(-1));
     send_receive_throw(req_buf);
 }
 
@@ -323,7 +327,7 @@ Quota<size_t> Syscalls::kmem_quota(capsel_t kmem) {
     return Quota<size_t>(reply->id, reply->total, reply->left);
 }
 
-std::tuple<Quota<uint>, Quota<uint64_t>, Quota<size_t>> Syscalls::tile_quota(capsel_t tile) {
+std::tuple<Quota<uint>, Quota<TimeDuration>, Quota<size_t>> Syscalls::tile_quota(capsel_t tile) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::TileQuota>();
     req.opcode = KIF::Syscall::TILE_QUOTA;
@@ -336,16 +340,18 @@ std::tuple<Quota<uint>, Quota<uint64_t>, Quota<size_t>> Syscalls::tile_quota(cap
         throw SyscallException(res, KIF::Syscall::TILE_QUOTA);
 
     return std::make_tuple(Quota<uint>(reply->eps_id, reply->eps_total, reply->eps_left),
-                           Quota<uint64_t>(reply->time_id, reply->time_total, reply->time_left),
+                           Quota<TimeDuration>(reply->time_id,
+                                               TimeDuration::from_nanos(reply->time_total),
+                                               TimeDuration::from_nanos(reply->time_left)),
                            Quota<size_t>(reply->pts_id, reply->pts_total, reply->pts_left));
 }
 
-void Syscalls::tile_set_quota(capsel_t tile, uint64_t time, uint64_t pts) {
+void Syscalls::tile_set_quota(capsel_t tile, TimeDuration time, uint64_t pts) {
     MsgBuf req_buf;
     auto &req = req_buf.cast<KIF::Syscall::TileSetQuota>();
     req.opcode = KIF::Syscall::TILE_SET_QUOTA;
     req.tile_sel = tile;
-    req.time = time;
+    req.time = time.as_nanos();
     req.pts = pts;
     send_receive_throw(req_buf);
 }

@@ -29,6 +29,7 @@ use m3::rc::Rc;
 use m3::syscalls;
 use m3::tcu::{EpId, TileId};
 use m3::tiles::Tile;
+use m3::time::TimeDuration;
 use m3::util::math;
 
 use crate::resources::memory::Allocation;
@@ -326,14 +327,14 @@ impl TileUsage {
     pub fn derive(
         &self,
         eps: Option<u32>,
-        time: Option<u64>,
+        time: Option<TimeDuration>,
         pts: Option<usize>,
     ) -> Result<TileUsage, Error> {
         let tile = self.tile_obj().derive(eps, time, pts)?;
         let _quota = tile.quota().unwrap();
         log!(
             LogFlags::ResMngTiles,
-            "Deriving {}: (eps={}, time={}, pts={})",
+            "Deriving {}: (eps={:?}, time={:?}, pts={:?})",
             self.tile_id(),
             _quota.endpoints(),
             _quota.time(),
@@ -392,7 +393,7 @@ impl TileManager {
             if self.tiles[idx].add_user() == 0 {
                 log!(
                     LogFlags::ResMngTiles,
-                    "Allocating {}: {:?} (eps={})",
+                    "Allocating {}: {:?} (eps={:?})",
                     self.tiles[idx].id,
                     self.tiles[idx].tile.desc(),
                     self.get(idx).quota().unwrap().endpoints(),

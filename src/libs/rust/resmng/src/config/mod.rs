@@ -24,6 +24,7 @@ use m3::errors::{Code, Error};
 use m3::kif;
 use m3::rc::Rc;
 use m3::tcu::Label;
+use m3::time::TimeDuration;
 
 #[derive(Default, Eq, PartialEq)]
 pub struct DualName {
@@ -424,7 +425,7 @@ pub struct AppConfig {
     pub(crate) eps: Option<u32>,
     pub(crate) user_mem: Option<usize>,
     pub(crate) kern_mem: Option<usize>,
-    pub(crate) time: Option<u64>,
+    pub(crate) time: Option<TimeDuration>,
     pub(crate) pts: Option<usize>,
     pub(crate) serial: Option<SerialDesc>,
     pub(crate) domains: Vec<Domain>,
@@ -485,7 +486,7 @@ impl AppConfig {
         self.kern_mem
     }
 
-    pub fn time(&self) -> Option<u64> {
+    pub fn time(&self) -> Option<TimeDuration> {
         self.time
     }
 
@@ -634,7 +635,7 @@ impl AppConfig {
             writeln!(f, "{:0w$}Endpoints[count={}],", "", eps, w = layer + 2)?;
         }
         if let Some(t) = self.time {
-            writeln!(f, "{:0w$}TimeSlice[{} ns],", "", t, w = layer + 2)?;
+            writeln!(f, "{:0w$}TimeSlice[{:?}],", "", t, w = layer + 2)?;
         }
         if let Some(n) = self.pts {
             writeln!(f, "{:0w$}PageTables[{}],", "", n, w = layer + 2)?;

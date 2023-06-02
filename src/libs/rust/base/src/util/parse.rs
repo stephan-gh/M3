@@ -18,6 +18,7 @@
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::kif;
+use crate::time::TimeDuration;
 
 /// Parses an address from the given string
 ///
@@ -54,7 +55,7 @@ pub fn size(s: &str) -> Result<usize, Error> {
 ///
 /// The suffixes ns, µs, ms, and s can be used to denote nanoseconds, microseconds, milliseconds and
 /// seconds.
-pub fn time(s: &str) -> Result<u64, Error> {
+pub fn time(s: &str) -> Result<TimeDuration, Error> {
     let (width, mul) = if s.ends_with("ns") {
         (2, 1)
     }
@@ -70,10 +71,10 @@ pub fn time(s: &str) -> Result<u64, Error> {
     else {
         return Err(Error::new(Code::InvArgs));
     };
-    Ok(match mul {
+    Ok(TimeDuration::from_nanos(match mul {
         1 => int(s)?,
         m => m * int(&s[0..s.len() - width])?,
-    })
+    }))
 }
 
 /// Parses a u64 from the given string

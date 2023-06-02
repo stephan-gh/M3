@@ -18,6 +18,7 @@ use m3::errors::Code;
 use m3::kif::Perm;
 use m3::test::{DefaultWvTester, WvTester};
 use m3::tiles::{Activity, ActivityArgs, ChildActivity, RunningActivity, Tile};
+use m3::time::TimeDuration;
 use m3::{wv_assert, wv_assert_eq, wv_assert_ok, wv_assert_some, wv_run_test};
 
 use resmng::childs::Child;
@@ -332,11 +333,11 @@ fn start_resource_split(t: &mut dyn WvTester) {
                 wv_assert!(t, c3_quota.id() != c4_quota.id());
                 wv_assert_eq!(t, c3_quota.id(), c5_quota.id());
                 // check time quotas (1ms is the default quota)
-                wv_assert_eq!(t, c1_quota.total(), 1_000_000);
-                wv_assert_eq!(t, c2_quota.total(), 1_000_000);
+                wv_assert_eq!(t, c1_quota.total(), TimeDuration::from_millis(1));
+                wv_assert_eq!(t, c2_quota.total(), TimeDuration::from_millis(1));
                 // c3 and c5 share their quota and have twice the default quota
-                wv_assert_eq!(t, c3_quota.total(), 2_000_000);
-                wv_assert_eq!(t, c4_quota.total(), 2_000_000);
+                wv_assert_eq!(t, c3_quota.total(), TimeDuration::from_millis(2));
+                wv_assert_eq!(t, c4_quota.total(), TimeDuration::from_millis(2));
             }
 
             let c5_sel = c5.activity_sel();

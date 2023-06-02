@@ -28,6 +28,7 @@ use crate::mem::MsgBuf;
 use crate::quota::Quota;
 use crate::tcu::{ActId, TileId};
 use crate::tiles::Activity;
+use crate::time::TimeDuration;
 
 // use a separate message buffer here, because the default buffer could be in use for a message over
 // a SendGate, for which the reply gate needs to activated first, possibly involving a MemGate
@@ -124,7 +125,7 @@ pub struct ActInfo {
     pub umem: Quota<usize>,
     pub kmem: Quota<usize>,
     pub eps: Quota<u32>,
-    pub time: Quota<u64>,
+    pub time: Quota<TimeDuration>,
     pub pts: Quota<usize>,
     pub tile: TileId,
 }

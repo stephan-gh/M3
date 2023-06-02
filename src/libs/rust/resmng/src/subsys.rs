@@ -30,6 +30,7 @@ use m3::rc::Rc;
 use m3::server::DEF_MAX_CLIENTS;
 use m3::tcu::TileId;
 use m3::tiles::{Activity, ChildActivity, Tile, TileArgs};
+use m3::time::TimeDuration;
 use m3::util::math;
 
 use crate::childs;
@@ -48,7 +49,7 @@ use crate::resources::{memory, mods, services, tiles, Resources};
 const SUBSYS_SELS: Selector = FIRST_FREE_SEL;
 
 const DEF_RESMNG_MEM: goff = 32 * 1024 * 1024;
-const DEF_TIME_SLICE: u64 = 1_000_000; // 1ms
+const DEF_TIME_SLICE: TimeDuration = TimeDuration::from_millis(1);
 const OUR_EPS: u32 = 16;
 
 pub(crate) const SERIAL_RGATE_SEL: Selector = SUBSYS_SELS + 1;
@@ -435,7 +436,7 @@ impl Subsystem {
             let (mut pt_sharer, shared_pts) = split_pts(tile_quota.page_tables().remaining(), dom);
 
             let mut domain_total_eps = tile_quota.endpoints().remaining();
-            let mut domain_total_time = 0;
+            let mut domain_total_time = TimeDuration::default();
             let mut domain_total_pts = 0;
             let mut domain_kmem_bytes = 0;
 
@@ -484,7 +485,7 @@ impl Subsystem {
                     VerboseError::new(
                         e.code(),
                         format!(
-                            "Unable to set quota for tile to time={}, pts={}",
+                            "Unable to set quota for tile to time={:?}, pts={}",
                             child_total_time,
                             tile_quota.page_tables().total()
                         ),

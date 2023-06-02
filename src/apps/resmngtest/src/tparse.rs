@@ -17,6 +17,7 @@ use m3::col::ToString;
 use m3::errors::Code;
 use m3::kif::Perm;
 use m3::test::WvTester;
+use m3::time::TimeDuration;
 use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 use resmng::config::{
@@ -136,7 +137,7 @@ fn app_args(t: &mut dyn WvTester) {
     wv_assert_eq!(t, cfg.daemon(), true);
     wv_assert_eq!(t, cfg.user_mem(), Some(4 * 1024 * 1024));
     wv_assert_eq!(t, cfg.kernel_mem(), Some(32 * 1024 * 1024));
-    wv_assert_eq!(t, cfg.time(), Some(4 * 1000 * 1000));
+    wv_assert_eq!(t, cfg.time(), Some(TimeDuration::from_millis(4)));
     wv_assert_eq!(t, cfg.page_tables(), Some(18));
     wv_assert_eq!(t, cfg.eps(), Some(64));
     wv_assert_eq!(t, cfg.can_get_info(), true);

@@ -17,6 +17,7 @@
 
 #include <base/Quota.h>
 #include <base/TileDesc.h>
+#include <base/time/Duration.h>
 #include <base/util/Reference.h>
 
 #include <m3/ObjCap.h>
@@ -95,14 +96,13 @@ public:
      * Derives a new tile object from the this by transferring a subset of the resources to the new
      * one
      *
-     * @param eps the number of EPs to transfer (-1 = none, share the quota)
-     * @param time the time slice length in nanoseconds to transfer (-1 = none, share the quota)
-     * @param pts the number of page tables to transfer (-1 = none, share the quota)
+     * @param eps the number of EPs to transfer (None = share the quota)
+     * @param time the time slice length to transfer (None = share the quota)
+     * @param pts the number of page tables to transfer (None = share the quota)
      * @return the new tile object
      */
-    Reference<Tile> derive(uint eps = static_cast<uint>(-1),
-                           uint64_t time = static_cast<uint64_t>(-1),
-                           uint64_t pts = static_cast<uint64_t>(-1));
+    Reference<Tile> derive(Option<uint> eps = None, Option<TimeDuration> time = None,
+                           Option<uint64_t> pts = None);
 
     /**
      * @return the description of the tile
@@ -114,16 +114,16 @@ public:
     /**
      * @return a tuple with the current EP quota, time quota and page-table quota
      */
-    std::tuple<Quota<uint>, Quota<uint64_t>, Quota<size_t>> quota() const;
+    std::tuple<Quota<uint>, Quota<TimeDuration>, Quota<size_t>> quota() const;
 
     /**
      * Sets the quota of the tile with given selector to specified initial values.
      * This call requires a root tile capability.
      *
-     * @param time the time slice length in nanoseconds
+     * @param time the time slice length
      * @param pts the number of page tables
      */
-    void set_quota(uint64_t time, uint64_t pts);
+    void set_quota(TimeDuration time, uint64_t pts);
 
 private:
     TileDesc _desc;

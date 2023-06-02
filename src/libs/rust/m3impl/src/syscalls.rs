@@ -33,6 +33,7 @@ use crate::quota::Quota;
 use crate::serialize::{Deserialize, M3Deserializer, M3Serializer, SliceSink};
 use crate::tcu::{ActId, EpId, Label, Message, SYSC_SEP_OFF};
 use crate::tiles::TileQuota;
+use crate::time::TimeDuration;
 
 static SGATE: LazyStaticRefCell<SendGate> = LazyStaticRefCell::default();
 // use a separate message buffer here, because the default buffer could be in use for a message over
@@ -301,8 +302,8 @@ pub fn derive_kmem(kmem: Selector, dst: Selector, quota: usize) -> Result<(), Er
     send_receive_result(&buf)
 }
 
-/// Derives a new tile object at `dst` from `tile`, transferring a subset of the resources to the new tile
-/// object.
+/// Derives a new tile object at `dst` from `tile`, transferring a subset of the resources to the
+/// new tile object.
 ///
 /// If a value is not `None`, the corresponding amount is substracted from the current quota (and
 /// therefore, needs to be available). If a value is `None`, the quota will be shared with the
@@ -311,7 +312,7 @@ pub fn derive_tile(
     tile: Selector,
     dst: Selector,
     eps: Option<u32>,
-    time: Option<u64>,
+    time: Option<TimeDuration>,
     pts: Option<usize>,
 ) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
@@ -319,7 +320,7 @@ pub fn derive_tile(
         tile,
         dst,
         eps,
-        time,
+        time: time.map(|t| t.as_nanos() as u64),
         pts,
     });
     send_receive_result(&buf)
@@ -401,8 +402,8 @@ pub fn tile_quota(tile: Selector) -> Result<TileQuota, Error> {
         Quota::new(reply.data.eps_id, reply.data.eps_total, reply.data.eps_left),
         Quota::new(
             reply.data.time_id,
-            reply.data.time_total,
-            reply.data.time_left,
+            TimeDuration::from_nanos(reply.data.time_total),
+            TimeDuration::from_nanos(reply.data.time_left),
         ),
         Quota::new(reply.data.pts_id, reply.data.pts_total, reply.data.pts_left),
     ))
@@ -410,12 +411,16 @@ pub fn tile_quota(tile: Selector) -> Result<TileQuota, Error> {
 
 /// Sets the quota of the tile with given selector to specified initial values (given time slice
 /// length and number of page tables). This call is only permitted for root tile capabilities.
-pub fn tile_set_quota(tile: Selector, time: u64, pts: usize) -> Result<(), Error> {
+pub fn tile_set_quota(tile: Selector, time: TimeDuration, pts: usize) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     build_vmsg!(
         buf,
         syscalls::Operation::TileSetQuota,
-        syscalls::TileSetQuota { tile, time, pts }
+        syscalls::TileSetQuota {
+            tile,
+            time: time.as_nanos() as u64,
+            pts
+        }
     );
     send_receive_result(&buf)
 }

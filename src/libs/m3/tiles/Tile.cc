@@ -123,17 +123,17 @@ Reference<Tile> Tile::get(const char *desc, bool init) {
     vthrow(Errors::NOT_FOUND, "Unable to find tile with {}"_cf, desc);
 }
 
-Reference<Tile> Tile::derive(uint eps, uint64_t time, uint64_t pts) {
+Reference<Tile> Tile::derive(Option<uint> eps, Option<TimeDuration> time, Option<uint64_t> pts) {
     capsel_t sel = Activity::own().alloc_sel();
     Syscalls::derive_tile(this->sel(), sel, eps, time, pts);
     return Reference<Tile>(new Tile(sel, desc(), 0, false));
 }
 
-std::tuple<Quota<uint>, Quota<uint64_t>, Quota<size_t>> Tile::quota() const {
+std::tuple<Quota<uint>, Quota<TimeDuration>, Quota<size_t>> Tile::quota() const {
     return Syscalls::tile_quota(sel());
 }
 
-void Tile::set_quota(uint64_t time, uint64_t pts) {
+void Tile::set_quota(TimeDuration time, uint64_t pts) {
     Syscalls::tile_set_quota(sel(), time, pts);
 }
 
