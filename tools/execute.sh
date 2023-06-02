@@ -126,6 +126,12 @@ generate_m3lx_deps() {
     dtc -O dtb "$M3_OUT/m3lx.dts" -o "$M3_MOD_PATH/m3lx.dtb"
 }
 
+get_kernel() {
+    gawk 'match($0, /<kernel\s.*args="(.*?)"/, m) {
+        printf("%s/%s,", "'"$bindir"'", m[1])
+    }' < "$1"
+}
+
 get_mods() {
     echo -n "boot.xml=$M3_OUT/boot.xml"
 
@@ -175,7 +181,7 @@ build_params_gem5() {
     generate_config "$1" "$M3_OUT" || exit 1
     generate_m3lx_deps "$1" || exit 1
 
-    kernels=$(perl -ne 'printf("'"$bindir"/'%s,", $1) if /<kernel\s.*args="(.*?)"/' < "$1")
+    kernels=$(get_kernel "$1")
     mods="$(get_mods "$1" "gem5"),tilemux=$bindir/tilemux" || exit 1
 
     if [ "$M3_GEM5_LOG" = "" ]; then
@@ -259,7 +265,7 @@ build_params_hw() {
     generate_config "$1" "$M3_OUT" || exit 1
     generate_m3lx_deps "$1" || exit 1
 
-    kernels=$(perl -ne 'printf("%s,", $1) if /<kernel\s.*args="(.*?)"/' < "$1")
+    kernels=$(get_kernel "$1")
     mods="$(get_mods "$1" "hw"),tilemux=$bindir/tilemux" || exit 1
 
     if [ "$M3_TARGET" = "hw22" ]; then
