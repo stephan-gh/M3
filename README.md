@@ -42,7 +42,7 @@ Afterwards, pull in the submodules:
 
 ### 2. Preparations for gem5
 
-The submodule in `platform/gem5` needs to be pulled in and built:
+These preparations are required when gem5 should be used as the M³ target. To use gem5, pull in the submodule `platform/gem5` and build it:
 
     $ git submodule update --init platform/gem5
     $ cd platform/gem5
@@ -52,7 +52,7 @@ The build directory (`build/RISCV` in the example above) will be created automat
 
 ### 3. Preparations for the hardware platform
 
-The submodule in `platform/hw` needs to be pulled in:
+These preparations are required when hw/hw22 should be used as the M³ target. To use the hardware platform, pull in the submodule `platform/hw`:
 
     $ git submodule update --init platform/hw
 
@@ -75,7 +75,7 @@ Note that the source of the hardware platform is [openly available](https://gith
 
 ### 4. Cross compiler
 
-You need to build a cross compiler for the desired ISA. Note that only gem5 supports all three ISAs (arm is currently broken, though); the hardware platform only supports RISC-V. You can build the cross compiler as follows:
+To build M³, you need to first build a cross compiler for the desired ISA. Note that only gem5 supports all three ISAs (arm is currently broken, though); the hardware platform only supports RISC-V. You can build the cross compiler as follows:
 
     $ cd cross
     $ ./build.sh (x86_64|arm|riscv)
