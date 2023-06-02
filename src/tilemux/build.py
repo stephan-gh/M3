@@ -1,3 +1,6 @@
+import os
+
+
 def build(gen, env):
     env = env.clone()
     # tilemux has to use soft-float, because the applications might use the FPU and we have to make
@@ -19,7 +22,7 @@ def build(gen, env):
     libs = ['isrsf']
     if env['ISA'] == 'riscv':
         cflags = '-march=rv64imac -mabi=lp64 '
-        cflags += ' '.join(['-I' + i for i in env['CPPPATH']])
+        cflags += ' '.join(['-I' + os.path.abspath(i) for i in env['CPPPATH']])
         env['CRGENV']['TARGET_CFLAGS'] = cflags
     elif env['ISA'] == 'arm':
         libs += ['gcc_eh']

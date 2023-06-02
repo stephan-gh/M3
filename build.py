@@ -397,7 +397,7 @@ if isa == 'riscv':
     cflags = '-march=rv64imafdc -mabi=lp64d '
     # add C include paths as well; otherwise the include paths for the clang host compiler
     # will be used
-    cflags += ' '.join(['-I' + i for i in env['CPPPATH']])
+    cflags += ' '.join(['-I' + os.path.abspath(i) for i in env['CPPPATH']])
     env['CRGENV']['TARGET_CFLAGS'] = cflags
 
 # start the generation
