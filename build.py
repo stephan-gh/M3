@@ -381,8 +381,6 @@ env['CPPPATH'] += [
     'src/libs/musl/arch/generic',
     'src/libs/musl/m3/include/' + isa,
     'src/libs/musl/include',
-    crossdir + '/include/c++/' + crossver,
-    crossdir + '/include/c++/' + crossver + '/' + cross[:-1],
 ]
 # we install the crt* files to that directory
 env['SYSGCCLIBPATH'] = crossdir + '/lib/gcc/' + cross[:-1] + '/' + crossver
