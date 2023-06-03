@@ -289,8 +289,8 @@ build_params_hw() {
     IFS=','
     c=0
     for karg in $kernels; do
-        args="$args --tile '$karg'"
-        files=("${files[@]}" "$bindir/${karg%% *}")
+        args="$args --tile '$(basename "$karg")'"
+        files=("${files[@]}" "${karg%% *}")
         c=$((c + 1))
     done
     for mod in $mods; do
