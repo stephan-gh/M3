@@ -102,7 +102,7 @@ public:
      * @return the new tile object
      */
     Reference<Tile> derive(Option<uint> eps = None, Option<TimeDuration> time = None,
-                           Option<uint64_t> pts = None);
+                           Option<size_t> pts = None);
 
     /**
      * @return the description of the tile
@@ -123,7 +123,7 @@ public:
      * @param time the time slice length
      * @param pts the number of page tables
      */
-    void set_quota(TimeDuration time, uint64_t pts);
+    void set_quota(TimeDuration time, size_t pts);
 
 private:
     TileDesc _desc;

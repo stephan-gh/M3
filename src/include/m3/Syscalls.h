@@ -82,14 +82,14 @@ public:
                            int perms);
     static void derive_kmem(capsel_t kmem, capsel_t dst, size_t quota);
     static void derive_tile(capsel_t tile, capsel_t dst, Option<uint> eps,
-                            Option<TimeDuration> time, Option<uint64_t> pts);
+                            Option<TimeDuration> time, Option<size_t> pts);
     static void derive_srv(capsel_t srv, const KIF::CapRngDesc &dst, uint sessions, event_t event);
     static void get_sess(capsel_t srv, capsel_t act, capsel_t dst, word_t sid);
     static std::pair<GlobAddr, size_t> mgate_region(capsel_t mgate);
     static std::pair<uint, uint> rgate_buffer(capsel_t rgate);
     static Quota<size_t> kmem_quota(capsel_t kmem);
     static std::tuple<Quota<uint>, Quota<TimeDuration>, Quota<size_t>> tile_quota(capsel_t tile);
-    static void tile_set_quota(capsel_t tile, TimeDuration time, uint64_t pts);
+    static void tile_set_quota(capsel_t tile, TimeDuration time, size_t pts);
     static void tile_set_pmp(capsel_t tile, capsel_t mgate, epid_t epid, bool overwrite);
     static void tile_mem(capsel_t dst, capsel_t tile);
     static void tile_reset(capsel_t tile, capsel_t mux_mem);
