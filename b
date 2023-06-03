@@ -76,6 +76,24 @@ rust_target_args=(
     -Z "build-std=core,alloc,std,panic_abort"
 )
 
+# configure TARGET_CFLAGS for llvmprofile within minicov (only used with RISC-V)
+if [ "$M3_ISA" = "riscv" ]; then
+    flags="-march=rv64imafdc -mabi=lp64d"
+    # add C include paths to ensure that these instead of the include paths for the clang host
+    # compiler will be used
+    paths=(
+        "src/include"
+        "src/libs/musl/arch/$rustisa"
+        "src/libs/musl/arch/generic"
+        "src/libs/musl/m3/include/$M3_ISA"
+        "src/libs/musl/include"
+    )
+    for p in "${paths[@]}"; do
+        flags="$flags -I$(readlink -f "$p")"
+    done
+    export TARGET_CFLAGS="$flags"
+fi
+
 help() {
     echo "Usage: $1 [-n] [<cmd> <arg>]"
     echo ""

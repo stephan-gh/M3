@@ -390,14 +390,6 @@ env['LINKFLAGS'] += ['-static', '-Wl,--build-id=none']
 env['LINKFLAGS'] += ['-Wl,-z,max-page-size=4096', '-Wl,-z,common-page-size=4096']
 env['LIBPATH'] += [crossdir + '/lib', env['LIBDIR']]
 
-# configure TARGET_CFLAGS for llvmprofile within minicov
-if isa == 'riscv':
-    cflags = '-march=rv64imafdc -mabi=lp64d '
-    # add C include paths as well; otherwise the include paths for the clang host compiler
-    # will be used
-    cflags += ' '.join(['-I' + os.path.abspath(i) for i in env['CPPPATH']])
-    env['CRGENV']['TARGET_CFLAGS'] = cflags
-
 # start the generation
 gen = Generator()
 

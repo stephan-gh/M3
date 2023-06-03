@@ -21,8 +21,9 @@ def build(gen, env):
     # with soft-float as well
     libs = ['isrsf']
     if env['ISA'] == 'riscv':
-        cflags = '-march=rv64imac -mabi=lp64 '
-        cflags += ' '.join(['-I' + os.path.abspath(i) for i in env['CPPPATH']])
+        cflags = os.environ.get('TARGET_CFLAGS')
+        cflags = cflags.replace('-march=rv64imafdc', '-march=rv64imac')
+        cflags = cflags.replace('-mabi=lp64d', '-mabi=lp64')
         env['CRGENV']['TARGET_CFLAGS'] = cflags
     elif env['ISA'] == 'arm':
         libs += ['gcc_eh']
