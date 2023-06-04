@@ -13,7 +13,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::{RefMut, StaticCell};
+use base::cell::{RefCell, RefMut, StaticCell};
 use base::cfg;
 use base::col::Treap;
 use base::errors::{Code, Error};
@@ -211,36 +211,51 @@ impl CapTable {
         self.caps.insert(*cap.sel_range(), cap)
     }
 
-    pub fn revoke_async(&mut self, crd: CapRngDesc, own: bool) -> Result<(), Error> {
+    pub fn revoke_async(tbl: &RefCell<Self>, crd: CapRngDesc, own: bool) -> Result<(), Error> {
         let mut sel = crd.start();
         while sel < crd.start() + crd.count() {
-            if let Some(cap) = self.get_mut(sel) {
-                if !cap.can_revoke() {
-                    return Err(Error::new(Code::NotRevocable));
-                }
-
-                if own {
-                    cap.revoke_async(false, false);
-                }
-                else if let Some(child) = cap.child {
-                    unsafe {
-                        (*child.as_ptr()).revoke_async(true, true);
+            let tbl_ref = tbl.borrow_mut();
+            match RefMut::filter_map(tbl_ref, |t| t.get_mut(sel)) {
+                Ok(cap) => {
+                    if !cap.can_revoke() {
+                        return Err(Error::new(Code::NotRevocable));
                     }
-                }
-                sel += cap.len();
-            }
-            else {
-                sel += 1;
+
+                    let len = cap.len();
+                    if own {
+                        Capability::revoke_async(cap, false, false);
+                    }
+                    else if let Ok(child) = RefMut::filter_map(cap, |c| c.child.as_mut()) {
+                        unsafe {
+                            Capability::revoke_async(
+                                RefMut::map(child, |c| &mut (*c.as_ptr())),
+                                true,
+                                true,
+                            );
+                        }
+                    }
+                    sel += len;
+                },
+
+                Err(_tbl) => {
+                    sel += 1;
+                },
             }
         }
         Ok(())
     }
 
-    pub fn revoke_all_async(&mut self) {
-        while let Some(cap) = self.caps.get_root_mut() {
-            // on revoke_all, we consider all revokes foreign to notify about invalidate send gates
-            // in any case. on explicit revokes, we only do that if it's a derived cap.
-            cap.revoke_async(false, true);
+    pub fn revoke_all_async(tbl: &RefCell<Self>) {
+        loop {
+            let tbl_ref = tbl.borrow_mut();
+            match RefMut::filter_map(tbl_ref, |t| t.caps.get_root_mut()) {
+                Ok(cap) => {
+                    // on revoke_all, we consider all revokes foreign to notify about invalidate send gates
+                    // in any case. on explicit revokes, we only do that if it's a derived cap.
+                    Capability::revoke_async(cap, false, true)
+                },
+                Err(_tbl) => break,
+            }
         }
     }
 }
@@ -349,49 +364,56 @@ impl Capability {
         }
     }
 
-    fn revoke_async(&mut self, rev_next: bool, foreign: bool) {
+    fn revoke_async(mut cap: RefMut<'_, Self>, rev_next: bool, foreign: bool) {
         unsafe {
-            if let Some(n) = self.next {
-                (*n.as_ptr()).prev = self.prev;
+            if let Some(n) = cap.next {
+                (*n.as_ptr()).prev = cap.prev;
             }
-            if let Some(p) = self.prev {
-                (*p.as_ptr()).next = self.next;
+            if let Some(p) = cap.prev {
+                (*p.as_ptr()).next = cap.next;
             }
-            if let Some(p) = self.parent {
-                if self.prev.is_none() {
+            if let Some(p) = cap.parent {
+                if cap.prev.is_none() {
                     let child = &mut (*p.as_ptr()).child;
-                    *child = self.next;
+                    *child = cap.next;
                 }
             }
-            self.revoke_rec_async(rev_next, foreign);
         }
+
+        // remove it from the table
+        let sels = SelRange::new(cap.sel());
+        let owned_cap = cap.table_mut().caps.remove(&sels).unwrap();
+        drop(cap);
+
+        owned_cap.revoke_rec_async(rev_next, foreign);
     }
 
-    fn revoke_rec_async(&mut self, rev_next: bool, foreign: bool) {
+    fn revoke_rec_async(self, rev_next: bool, foreign: bool) {
         unsafe {
-            // remove it from the table
-            let sels = SelRange::new(self.sel());
-            let cap = self.table_mut().caps.remove(&sels).unwrap();
-
-            if let Some(c) = cap.child {
-                (*c.as_ptr()).revoke_rec_async(true, true);
+            if let Some(c) = self.child {
+                let child_cap = &mut (*c.as_ptr());
+                let child_sels = SelRange::new(child_cap.sel());
+                let owned_child = child_cap.table_mut().caps.remove(&child_sels).unwrap();
+                owned_child.revoke_rec_async(true, true);
             }
             // on the first level, we don't want to revoke siblings
             if rev_next {
-                let mut cap_next = cap.next;
+                let mut cap_next = self.next;
                 while let Some(n) = cap_next {
                     let sib = &mut *n.as_ptr();
                     // remove it from the table
                     let sels = SelRange::new(sib.sel());
-                    let cap = sib.table_mut().caps.remove(&sels).unwrap();
+                    let owned_sib = sib.table_mut().caps.remove(&sels).unwrap();
 
-                    if let Some(c) = cap.child {
-                        (*c.as_ptr()).revoke_rec_async(true, true);
+                    if let Some(c) = owned_sib.child {
+                        let child_cap = &mut (*c.as_ptr());
+                        let child_sels = SelRange::new(child_cap.sel());
+                        let owned_child = child_cap.table_mut().caps.remove(&child_sels).unwrap();
+                        owned_child.revoke_rec_async(true, true);
                     }
 
-                    sib.release_async(true);
-
-                    cap_next = cap.next;
+                    cap_next = owned_sib.next;
+                    owned_sib.release_async(true);
                 }
             }
         }
@@ -449,7 +471,7 @@ impl Capability {
         }
     }
 
-    fn release_async(&mut self, foreign: bool) {
+    fn release_async(mut self, foreign: bool) {
         log!(LogFlags::KernCaps, "Freeing cap {:?}", self);
 
         let act = self.activity();

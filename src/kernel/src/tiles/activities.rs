@@ -514,17 +514,17 @@ impl Activity {
     }
 
     fn revoke_caps_async(&self) {
-        self.obj_caps.borrow_mut().revoke_all_async();
-        self.map_caps.borrow_mut().revoke_all_async();
+        CapTable::revoke_all_async(&self.obj_caps);
+        CapTable::revoke_all_async(&self.map_caps);
     }
 
     pub fn revoke_async(&self, crd: CapRngDesc, own: bool) -> Result<(), Error> {
         // we can't use borrow_mut() here, because revoke might need to use borrow as well.
         if crd.cap_type() == CapType::Object {
-            self.obj_caps().borrow_mut().revoke_async(crd, own)
+            CapTable::revoke_async(self.obj_caps(), crd, own)
         }
         else {
-            self.map_caps().borrow_mut().revoke_async(crd, own)
+            CapTable::revoke_async(self.map_caps(), crd, own)
         }
     }
 
