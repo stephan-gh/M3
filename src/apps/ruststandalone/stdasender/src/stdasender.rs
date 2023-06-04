@@ -104,5 +104,11 @@ pub extern "C" fn env_run() {
     machine::write_coverage(0);
 
     // wait for ever
-    loop {}
+    loop {
+        // avoid bug in gem5's O3 model with x86: we cannot have empty loops
+        match env::boot().platform {
+            env::Platform::Gem5 => TCU::sleep().ok(),
+            env::Platform::Hw => None,
+        };
+    }
 }
