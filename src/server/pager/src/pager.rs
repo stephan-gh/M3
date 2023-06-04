@@ -48,28 +48,29 @@ use resmng::subsys;
 static REQHDL: LazyStaticRefCell<RequestHandler<AddrSpace, opcodes::Pager>> =
     LazyStaticRefCell::default();
 
-static MOUNTS: LazyStaticRefCell<Vec<(String, String)>> = LazyStaticRefCell::default();
-
-fn get_mount(name: &str) -> Result<String, VerboseError> {
-    for (n, mpath) in MOUNTS.borrow().iter() {
-        if n == name {
-            return Ok(mpath.clone());
-        }
-    }
-
-    let id = MOUNTS.borrow().len();
-    let fs = M3FS::new(id, name).map_err(|e| {
-        VerboseError::new(e.code(), format!("Unable to open m3fs session {}", name))
-    })?;
-    let our_path = format!("/child-mount-{}", name);
-    Activity::own().mounts().add(&our_path, fs)?;
-    MOUNTS
-        .borrow_mut()
-        .push((name.to_string(), our_path.to_string()));
-    Ok(our_path)
+#[derive(Default)]
+struct PagedChildStarter {
+    mounts: Vec<(String, String)>,
 }
 
-struct PagedChildStarter {}
+impl PagedChildStarter {
+    fn get_mount(&mut self, name: &str) -> Result<String, VerboseError> {
+        for (n, mpath) in self.mounts.iter() {
+            if n == name {
+                return Ok(mpath.clone());
+            }
+        }
+
+        let id = self.mounts.len();
+        let fs = M3FS::new(id, name).map_err(|e| {
+            VerboseError::new(e.code(), format!("Unable to open m3fs session {}", name))
+        })?;
+        let our_path = format!("/child-mount-{}", name);
+        Activity::own().mounts().add(&our_path, fs)?;
+        self.mounts.push((name.to_string(), our_path.to_string()));
+        Ok(our_path)
+    }
+}
 
 impl subsys::ChildStarter for PagedChildStarter {
     fn start_async(
@@ -112,7 +113,7 @@ impl subsys::ChildStarter for PagedChildStarter {
 
         // mount file systems for childs
         for m in child.cfg().mounts() {
-            let path = get_mount(m.fs())?;
+            let path = self.get_mount(m.fs())?;
             act.add_mount(m.path(), &path);
         }
 
@@ -164,7 +165,8 @@ impl subsys::ChildStarter for PagedChildStarter {
 }
 
 #[allow(clippy::vec_box)]
-struct WorkloopArgs<'c, 'd, 'r, 'q, 's> {
+struct WorkloopArgs<'t, 'c, 'd, 'r, 'q, 's> {
+    starter: &'t mut PagedChildStarter,
     childs: &'c mut ChildManager,
     delayed: &'d mut Vec<Box<OwnChild>>,
     res: &'r mut Resources,
@@ -172,8 +174,9 @@ struct WorkloopArgs<'c, 'd, 'r, 'q, 's> {
     serv: &'s mut Server,
 }
 
-fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_, '_>) {
+fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_, '_, '_>) {
     let WorkloopArgs {
+        starter,
         childs,
         delayed,
         res,
@@ -197,7 +200,7 @@ fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_, '_>) {
                 },
             );
         },
-        &mut PagedChildStarter {},
+        *starter,
     )
     .expect("Unable to run workloop");
 }
@@ -214,13 +217,11 @@ pub fn main() -> Result<(), Error> {
     }
 
     // mount root FS if we haven't done that yet
-    MOUNTS.set(Vec::new());
+    let mut starter = PagedChildStarter::default();
     if vfs::VFS::stat("/").is_err() {
         vfs::VFS::mount("/", "m3fs", "m3fs").expect("Unable to mount root filesystem");
     }
-    MOUNTS
-        .borrow_mut()
-        .push(("m3fs".to_string(), "/".to_string()));
+    starter.mounts.push(("m3fs".to_string(), "/".to_string()));
 
     // create request handler and server
     let mut hdl = RequestHandler::new_with(args.max_clients, 128, 3)
@@ -260,10 +261,11 @@ pub fn main() -> Result<(), Error> {
     let mut childs = childs::ChildManager::default();
 
     let mut delayed = subsys
-        .start_async(&mut childs, &reqs, &mut res, &mut PagedChildStarter {})
+        .start_async(&mut childs, &reqs, &mut res, &mut starter)
         .expect("Unable to start subsystem");
 
     let mut wargs = WorkloopArgs {
+        starter: &mut starter,
         childs: &mut childs,
         delayed: &mut delayed,
         res: &mut res,
