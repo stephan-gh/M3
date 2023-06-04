@@ -465,7 +465,7 @@ def main():
             # stop when we see the shutdown message from the M³ kernel
             try:
                 msg = bytes.decode()
-                if "kernel" in msg and "Shutting down" in msg:
+                if "Shutting down" in msg:
                     break
             except:
                 pass
