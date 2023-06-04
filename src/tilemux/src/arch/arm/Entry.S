@@ -55,6 +55,8 @@ END_FUNC(_start)
 .section .user_text
 
 BEGIN_FUNC(sleep)
+start_sleep:
+.global start_sleep
     // enable interrupts and user mode
     mov     r0, #0x10
     msr     CPSR, r0

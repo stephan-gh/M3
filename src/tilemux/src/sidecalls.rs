@@ -264,12 +264,29 @@ fn reset_stats(_msg: &'static tcu::Message) -> Result<(), Error> {
     Ok(())
 }
 
-fn shutdown(_msg: &'static tcu::Message) -> Result<(), Error> {
+fn shutdown(msg: &'static tcu::Message) -> Result<(), Error> {
     log!(LogFlags::MuxSideCalls, "sidecall::shutdown()",);
 
     base::machine::write_coverage(0);
 
-    Ok(())
+    let mut reply_buf = MsgBuf::borrow_def();
+    base::build_vmsg!(reply_buf, Code::Success, kif::tilemux::Response {
+        val1: 0,
+        val2: 0
+    });
+    reply_msg(msg, &reply_buf);
+
+    // call sleep here directly after reply, so that we hopefully don't execute any code while the
+    // kernel resets the tile. this is actually just a workaround for gem5, where we cannot reset
+    // the core properly.
+    extern "C" {
+        fn start_sleep();
+    }
+    unsafe {
+        start_sleep();
+    }
+
+    unreachable!();
 }
 
 fn handle_sidecall(msg: &'static tcu::Message) {

@@ -25,7 +25,12 @@
 BEGIN_FUNC(_start)
     la      sp, isr_stack
     call    init
+    j       start_sleep
+END_FUNC(_start)
 
+// this is also used to "shutdown" the core from supervisor mode. as we cannot execute user pages in
+// supervisor mode, we have to switch to user mode first
+BEGIN_FUNC(start_sleep)
     // return to user mode
     li      a0, 1 << 8
     csrc    sstatus, a0
@@ -39,7 +44,7 @@ BEGIN_FUNC(_start)
 
     // go!
     sret
-END_FUNC(_start)
+END_FUNC(start_sleep)
 
 // fn save_fpu(state: &mut FPUState)
 BEGIN_FUNC(save_fpu)

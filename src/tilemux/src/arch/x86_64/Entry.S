@@ -42,6 +42,8 @@ END_FUNC(_start)
 .section .user_text
 
 BEGIN_FUNC(sleep)
+start_sleep:
+.global start_sleep
 1:  hlt
     jmp     1b
 END_FUNC(sleep)
