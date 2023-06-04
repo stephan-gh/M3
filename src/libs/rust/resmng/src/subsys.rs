@@ -75,7 +75,8 @@ pub trait ChildStarter {
     }
 
     /// Creates a new activity for the given child and starts it
-    fn start(
+    #[allow(m3_async::no_async_call)]
+    fn start_async(
         &mut self,
         reqs: &Requests,
         res: &mut Resources,
@@ -291,7 +292,7 @@ impl Subsystem {
             + (self.mods.len() + self.tiles.len() + self.mems.len() + idx * 2) as Selector
     }
 
-    pub fn start(
+    pub fn start_async(
         &self,
         childs: &mut childs::ChildManager,
         reqs: &Requests,
@@ -607,7 +608,7 @@ impl Subsystem {
 
                 // start it immediately if all dependencies are met or remember it for later
                 if !child.has_unmet_reqs(res) {
-                    starter.start(reqs, res, &mut child)?;
+                    starter.start_async(reqs, res, &mut child)?;
                     childs.add(child);
                 }
                 else {
@@ -873,7 +874,7 @@ pub(crate) fn start_delayed_async(
         }
 
         let mut child = delayed.remove(idx);
-        starter.start(reqs, res, &mut child)?;
+        starter.start_async(reqs, res, &mut child)?;
         childs.add(child);
         new_wait = true;
     }

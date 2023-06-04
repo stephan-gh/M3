@@ -16,6 +16,8 @@
  * General Public License version 2 for more details.
  */
 
+#![feature(register_tool)]
+#![register_tool(m3_async)]
 #![no_std]
 
 pub mod childs;

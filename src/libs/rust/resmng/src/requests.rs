@@ -41,7 +41,7 @@ impl Requests {
         &self.rgate
     }
 
-    pub fn run_loop<F>(
+    pub fn run_loop_async<F>(
         &self,
         childs: &mut ChildManager,
         delayed: &mut Vec<Box<OwnChild>>,

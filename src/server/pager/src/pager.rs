@@ -72,7 +72,7 @@ fn get_mount(name: &str) -> Result<String, VerboseError> {
 struct PagedChildStarter {}
 
 impl subsys::ChildStarter for PagedChildStarter {
-    fn start(
+    fn start_async(
         &mut self,
         reqs: &requests::Requests,
         res: &mut Resources,
@@ -181,7 +181,7 @@ fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_, '_>) {
         serv,
     } = args;
 
-    reqs.run_loop(
+    reqs.run_loop_async(
         childs,
         delayed,
         res,
@@ -260,7 +260,7 @@ pub fn main() -> Result<(), Error> {
     let mut childs = childs::ChildManager::default();
 
     let mut delayed = subsys
-        .start(&mut childs, &reqs, &mut res, &mut PagedChildStarter {})
+        .start_async(&mut childs, &reqs, &mut res, &mut PagedChildStarter {})
         .expect("Unable to start subsystem");
 
     let mut wargs = WorkloopArgs {

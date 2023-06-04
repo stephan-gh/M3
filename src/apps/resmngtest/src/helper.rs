@@ -29,7 +29,7 @@ use resmng::subsys::{ChildStarter, Subsystem, SubsystemBuilder};
 
 pub struct TestStarter {}
 impl ChildStarter for TestStarter {
-    fn start(
+    fn start_async(
         &mut self,
         _reqs: &Requests,
         _res: &mut Resources,

@@ -45,9 +45,7 @@ fn subsys_builder(t: &mut dyn WvTester) {
 
     let mut child_sub = SubsystemBuilder::default();
 
-    wv_assert_ok!(
-        child_sub.add_config("<app args=\"test\"/>", |size| MemGate::new(size, Perm::RW))
-    );
+    wv_assert_ok!(child_sub.add_config("<app args=\"test\"/>", |size| MemGate::new(size, Perm::RW)));
     child_sub.add_mod(wv_assert_ok!(MemGate::new(0x1000, Perm::RW)), "test");
     child_sub.add_mem(wv_assert_ok!(MemGate::new(0x4000, Perm::R)), false);
     child_sub.add_tile(wv_assert_ok!(Tile::get("compat")));
@@ -89,8 +87,12 @@ fn start_simple(t: &mut dyn WvTester) {
             let (reqs, mut childs, child_sub, mut res) = setup_resmng();
 
             let cid = childs.next_id();
-            let delayed =
-                wv_assert_ok!(child_sub.start(&mut childs, &reqs, &mut res, &mut TestStarter {}));
+            let delayed = wv_assert_ok!(child_sub.start_async(
+                &mut childs,
+                &reqs,
+                &mut res,
+                &mut TestStarter {}
+            ));
             wv_assert_eq!(t, delayed.len(), 0);
 
             wv_assert_eq!(t, childs.children(), 1);
@@ -139,8 +141,12 @@ fn start_service_deps(t: &mut dyn WvTester) {
             let (reqs, mut childs, child_sub, mut res) = setup_resmng();
 
             let cid = childs.next_id();
-            let delayed =
-                wv_assert_ok!(child_sub.start(&mut childs, &reqs, &mut res, &mut TestStarter {}));
+            let delayed = wv_assert_ok!(child_sub.start_async(
+                &mut childs,
+                &reqs,
+                &mut res,
+                &mut TestStarter {}
+            ));
             wv_assert_eq!(t, delayed.len(), 1);
             wv_assert_eq!(t, delayed[0].name(), "2");
             wv_assert_eq!(t, delayed[0].has_unmet_reqs(&res), true);
@@ -200,8 +206,12 @@ fn start_resource_split(t: &mut dyn WvTester) {
             let (reqs, mut childs, child_sub, mut res) = setup_resmng();
 
             let cid = childs.next_id();
-            let delayed =
-                wv_assert_ok!(child_sub.start(&mut childs, &reqs, &mut res, &mut TestStarter {}));
+            let delayed = wv_assert_ok!(child_sub.start_async(
+                &mut childs,
+                &reqs,
+                &mut res,
+                &mut TestStarter {}
+            ));
             wv_assert_eq!(t, delayed.len(), 0);
 
             wv_assert_eq!(t, childs.children(), 5);

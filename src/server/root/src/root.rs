@@ -111,7 +111,7 @@ impl resmng::subsys::ChildStarter for RootChildStarter {
         Ok(subsys::Subsystem::get_mod(idx))
     }
 
-    fn start(
+    fn start_async(
         &mut self,
         reqs: &requests::Requests,
         res: &mut Resources,
@@ -261,7 +261,7 @@ fn workloop(args: &mut WorkloopArgs<'_, '_, '_, '_, '_>) {
         res,
     } = args;
 
-    reqs.run_loop(childs, delayed, res, |_, _| {}, *starter)
+    reqs.run_loop_async(childs, delayed, res, |_, _| {}, *starter)
         .expect("Running the workloop failed");
 }
 
@@ -322,7 +322,7 @@ pub fn main() -> Result<(), Error> {
     let mut starter = RootChildStarter::new(sub.mods().clone());
 
     let mut delayed = sub
-        .start(&mut childs, &reqs, &mut res, &mut starter)
+        .start_async(&mut childs, &reqs, &mut res, &mut starter)
         .expect("Unable to start subsystem");
 
     let mut wargs = WorkloopArgs {
