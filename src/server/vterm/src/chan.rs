@@ -145,6 +145,8 @@ impl Channel {
         self.activate()?;
 
         if self.pos == self.len {
+            assert!(self.pending_nextin.is_none());
+
             let mut input = input::get();
             if !input::eof() && input.is_empty() {
                 // if we promised the client that input would be available, report WouldBlock
@@ -153,11 +155,11 @@ impl Channel {
                     return Err(Error::new(Code::WouldBlock));
                 }
 
-                assert!(self.pending_nextin.is_none());
                 self.pending_nextin = Some(is.take_msg());
                 return Ok(());
             }
 
+            self.pending_nextin = Some(is.take_msg());
             self.fetch_input(&mut input)?;
         }
 
