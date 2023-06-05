@@ -60,18 +60,6 @@ pub trait RequestSession {
     where
         Self: Sized;
 
-    /// Returns whether this session is dead
-    ///
-    /// This method will be called after each request handling (see
-    /// [`RequestHandler::fetch_and_handle_msg`]) to see whether the session is still "alive".
-    /// Therefore, overriding this method allows to remove a client's session upon a request from
-    /// that client (only the session that received the request is considered for removal!).
-    ///
-    /// Returns `Some` with the creator of the session if dead or `None` otherwise
-    fn is_dead(&self) -> Option<usize> {
-        None
-    }
-
     /// This method is called after the session has been removed from the session container and
     /// gives the session a chance to perform cleanup actions (with the [`RequestHandler`]).
     ///
@@ -580,11 +568,6 @@ impl<S: RequestSession + 'static, O: Into<usize> + TryFrom<usize> + Debug> Reque
             if let Err(e) = res {
                 // ignore errors here
                 is.reply_error(e.code()).ok();
-            }
-
-            if let Some(crt) = sess.is_dead() {
-                drop(is);
-                self.clients.remove(crt, sid);
             }
         }
     }
