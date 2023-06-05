@@ -15,13 +15,13 @@
 
 use base::cell::{Cell, Ref, RefCell, RefMut, StaticCell};
 use base::errors::{Code, Error};
-use base::goff;
 use base::io::LogFlags;
-use base::kif::{self, tilemux::QuotaId};
+use base::kif::{self, service, tilemux::QuotaId};
 use base::log;
-use base::mem::{size_of, GlobAddr};
+use base::mem::{size_of, GlobAddr, MsgBuf};
 use base::rc::{Rc, SRc, Weak};
-use base::tcu::{EpId, Label, TileId};
+use base::tcu::{ActId, EpId, Label, TileId};
+use base::{build_vmsg, goff};
 
 use core::fmt;
 use core::ptr;
@@ -419,14 +419,16 @@ pub struct SessObject {
     srv: SRc<ServObject>,
     creator: usize,
     ident: u64,
+    pub auto_close: bool,
 }
 
 impl SessObject {
-    pub fn new(srv: &SRc<ServObject>, creator: usize, ident: u64) -> SRc<Self> {
+    pub fn new(srv: &SRc<ServObject>, creator: usize, ident: u64, auto_close: bool) -> SRc<Self> {
         SRc::new(Self {
             srv: srv.clone(),
             creator,
             ident,
+            auto_close,
         })
     }
 
@@ -440,6 +442,33 @@ impl SessObject {
 
     pub fn ident(&self) -> u64 {
         self.ident
+    }
+
+    pub fn close_async(&self, revoker: ActId) {
+        if self.auto_close {
+            // don't send the close, if the server is the revoker
+            if self.srv.service().activity().id() == revoker {
+                return;
+            }
+
+            log!(
+                LogFlags::KernServ,
+                "Sending close(sess={:#x}) to service {} with creator {}",
+                self.ident(),
+                self.srv.service().name(),
+                self.creator,
+            );
+
+            let mut smsg = MsgBuf::borrow_def();
+            build_vmsg!(smsg, service::Request::Close { sid: self.ident });
+
+            // this should never fail, because the close request fails only if the creator does not
+            // own the session. but we know here that the creator owns this session.
+            self.srv
+                .service()
+                .send_receive_async(self.creator as Label, smsg)
+                .unwrap();
+        }
     }
 }
 

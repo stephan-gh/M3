@@ -448,7 +448,7 @@ impl Activity {
         ActivityMng::start_activity_async(self)
     }
 
-    pub fn stop_app_async(&self, exit_code: Code, is_self: bool) {
+    pub fn stop_app_async(&self, exit_code: Code, is_self: bool, revoker: ActId) {
         if self.state.get() == State::DEAD {
             return;
         }
@@ -461,7 +461,7 @@ impl Activity {
         );
 
         if is_self {
-            self.exit_app_async(exit_code, false);
+            self.exit_app_async(exit_code, false, revoker);
         }
         else if self.state.get() == State::RUNNING {
             // devices always exit successfully
@@ -471,7 +471,7 @@ impl Activity {
             else {
                 Code::Unspecified
             };
-            self.exit_app_async(exit_code, true);
+            self.exit_app_async(exit_code, true, revoker);
         }
         else {
             self.state.set(State::DEAD);
@@ -480,7 +480,7 @@ impl Activity {
         }
     }
 
-    fn exit_app_async(&self, exit_code: Code, stop: bool) {
+    fn exit_app_async(&self, exit_code: Code, stop: bool, revoker: ActId) {
         let mut tilemux = tilemng::tilemux(self.tile_id());
         // force-invalidate standard EPs
         for ep in self.eps_start..self.eps_start + STD_EPS_COUNT as EpId {
@@ -501,7 +501,7 @@ impl Activity {
         self.state.set(State::DEAD);
         self.exit_code.set(Some(exit_code));
 
-        self.force_stop_async(stop);
+        self.force_stop_async(stop, revoker);
 
         EXIT_LISTENERS.borrow_mut().retain(|l| l.id != self.id());
 
@@ -509,29 +509,29 @@ impl Activity {
 
         // if it's root, there is nobody waiting for it; just remove it
         if self.is_root() {
-            ActivityMng::remove_activity_async(self.id());
+            ActivityMng::remove_activity_async(self.id(), revoker);
         }
     }
 
-    fn revoke_caps_async(&self) {
-        CapTable::revoke_all_async(&self.obj_caps);
-        CapTable::revoke_all_async(&self.map_caps);
+    fn revoke_caps_async(&self, revoker: ActId) {
+        CapTable::revoke_all_async(&self.obj_caps, revoker);
+        CapTable::revoke_all_async(&self.map_caps, revoker);
     }
 
-    pub fn revoke_async(&self, crd: CapRngDesc, own: bool) -> Result<(), Error> {
+    pub fn revoke_async(&self, crd: CapRngDesc, own: bool, revoker: ActId) -> Result<(), Error> {
         // we can't use borrow_mut() here, because revoke might need to use borrow as well.
         if crd.cap_type() == CapType::Object {
-            CapTable::revoke_async(self.obj_caps(), crd, own)
+            CapTable::revoke_async(self.obj_caps(), crd, own, revoker)
         }
         else {
-            CapTable::revoke_async(self.map_caps(), crd, own)
+            CapTable::revoke_async(self.map_caps(), crd, own, revoker)
         }
     }
 
-    pub fn force_stop_async(&self, stop: bool) {
+    pub fn force_stop_async(&self, stop: bool, revoker: ActId) {
         ActivityMng::stop_activity_async(self, stop).unwrap();
 
-        self.revoke_caps_async();
+        self.revoke_caps_async(revoker);
     }
 }
 

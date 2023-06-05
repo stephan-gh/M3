@@ -23,13 +23,14 @@ use base::kif::{CapRngDesc, CapSel, SEL_ACT, SEL_KMEM, SEL_TILE};
 use base::log;
 use base::mem::size_of;
 use base::rc::Rc;
+use base::tcu::ActId;
 use core::cmp;
 use core::fmt;
 use core::ptr::NonNull;
 
 use crate::cap::{EPObject, GateEP, KObject};
 use crate::ktcu;
-use crate::tiles::{tilemng, Activity, ActivityMng};
+use crate::tiles::{tilemng, Activity, ActivityMng, INVAL_ID};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct SelRange {
@@ -211,7 +212,12 @@ impl CapTable {
         self.caps.insert(*cap.sel_range(), cap)
     }
 
-    pub fn revoke_async(tbl: &RefCell<Self>, crd: CapRngDesc, own: bool) -> Result<(), Error> {
+    pub fn revoke_async(
+        tbl: &RefCell<Self>,
+        crd: CapRngDesc,
+        own: bool,
+        revoker: ActId,
+    ) -> Result<(), Error> {
         let mut sel = crd.start();
         while sel < crd.start() + crd.count() {
             let tbl_ref = tbl.borrow_mut();
@@ -223,14 +229,14 @@ impl CapTable {
 
                     let len = cap.len();
                     if own {
-                        Capability::revoke_async(cap, false, false);
+                        Capability::revoke_async(cap, false, revoker);
                     }
                     else if let Ok(child) = RefMut::filter_map(cap, |c| c.child.as_mut()) {
                         unsafe {
                             Capability::revoke_async(
                                 RefMut::map(child, |c| &mut (*c.as_ptr())),
                                 true,
-                                true,
+                                revoker,
                             );
                         }
                     }
@@ -245,15 +251,11 @@ impl CapTable {
         Ok(())
     }
 
-    pub fn revoke_all_async(tbl: &RefCell<Self>) {
+    pub fn revoke_all_async(tbl: &RefCell<Self>, revoker: ActId) {
         loop {
             let tbl_ref = tbl.borrow_mut();
             match RefMut::filter_map(tbl_ref, |t| t.caps.get_root_mut()) {
-                Ok(cap) => {
-                    // on revoke_all, we consider all revokes foreign to notify about invalidate send gates
-                    // in any case. on explicit revokes, we only do that if it's a derived cap.
-                    Capability::revoke_async(cap, false, true)
-                },
+                Ok(cap) => Capability::revoke_async(cap, false, revoker),
                 Err(_tbl) => break,
             }
         }
@@ -364,7 +366,7 @@ impl Capability {
         }
     }
 
-    fn revoke_async(mut cap: RefMut<'_, Self>, rev_next: bool, foreign: bool) {
+    fn revoke_async(mut cap: RefMut<'_, Self>, rev_next: bool, revoker: ActId) {
         unsafe {
             if let Some(n) = cap.next {
                 (*n.as_ptr()).prev = cap.prev;
@@ -385,16 +387,16 @@ impl Capability {
         let owned_cap = cap.table_mut().caps.remove(&sels).unwrap();
         drop(cap);
 
-        owned_cap.revoke_rec_async(rev_next, foreign);
+        owned_cap.revoke_rec_async(rev_next, revoker);
     }
 
-    fn revoke_rec_async(self, rev_next: bool, foreign: bool) {
+    fn revoke_rec_async(self, rev_next: bool, revoker: ActId) {
         unsafe {
             if let Some(c) = self.child {
                 let child_cap = &mut (*c.as_ptr());
                 let child_sels = SelRange::new(child_cap.sel());
                 let owned_child = child_cap.table_mut().caps.remove(&child_sels).unwrap();
-                owned_child.revoke_rec_async(true, true);
+                owned_child.revoke_rec_async(true, revoker);
             }
             // on the first level, we don't want to revoke siblings
             if rev_next {
@@ -409,18 +411,18 @@ impl Capability {
                         let child_cap = &mut (*c.as_ptr());
                         let child_sels = SelRange::new(child_cap.sel());
                         let owned_child = child_cap.table_mut().caps.remove(&child_sels).unwrap();
-                        owned_child.revoke_rec_async(true, true);
+                        owned_child.revoke_rec_async(true, revoker);
                     }
 
                     cap_next = owned_sib.next;
-                    owned_sib.release_async(true);
+                    owned_sib.release_async(revoker);
                 }
             }
         }
 
         // do that after making the cap inaccessible to make sure that no one can still access it,
         // because we might do a thread switch in release().
-        self.release_async(foreign);
+        self.release_async(revoker);
     }
 
     fn table(&self) -> &CapTable {
@@ -435,7 +437,7 @@ impl Capability {
         self.table().activity()
     }
 
-    fn invalidate_ep(mut cgp: RefMut<'_, GateEP>, foreign: bool) {
+    fn invalidate_ep(mut cgp: RefMut<'_, GateEP>, revoker: ActId, notify: bool) {
         if let Some(ep) = cgp.get_ep() {
             let mut tilemux = tilemng::tilemux(ep.tile_id());
             if let Some(act) = ep.activity() {
@@ -444,11 +446,8 @@ impl Capability {
                     .invalidate_ep(act.id(), ep.ep(), !ep.is_rgate(), true)
                     .ok();
 
-                // notify TileMux about the invalidation if it's not a self-invalidation (technically,
-                // `foreign` indicates whether we're in the first level of revoke, but since it is
-                // just a notification, we can ignore the case that someone delegated a cap to
-                // itself).
-                if foreign {
+                // notify TileMux about the invalidation if it's not a self-invalidation
+                if notify && revoker != act.id() {
                     tilemux.notify_invalidate(act.id(), ep.ep()).ok();
                 }
             }
@@ -471,7 +470,7 @@ impl Capability {
         }
     }
 
-    fn release_async(mut self, foreign: bool) {
+    fn release_async(mut self, revoker: ActId) {
         log!(LogFlags::KernCaps, "Freeing cap {:?}", self);
 
         let act = self.activity();
@@ -491,7 +490,7 @@ impl Capability {
                 // remove activity if we revoked the root capability and if it's not the own activity
                 if let Some(v) = v.upgrade() {
                     if sel != SEL_ACT && self.parent.is_none() && !v.is_root() {
-                        ActivityMng::remove_activity_async(v.id());
+                        ActivityMng::remove_activity_async(v.id(), revoker);
                     }
                 }
             },
@@ -527,23 +526,30 @@ impl Capability {
 
             KObject::SGate(ref mut o) => {
                 o.invalidate_reply_eps();
-                Self::invalidate_ep(o.gate_ep_mut(), foreign);
+                Self::invalidate_ep(o.gate_ep_mut(), revoker, true);
             },
 
             KObject::RGate(ref mut o) => {
-                Self::invalidate_ep(o.gate_ep_mut(), false);
+                Self::invalidate_ep(o.gate_ep_mut(), INVAL_ID, false);
             },
 
             KObject::MGate(ref mut o) => {
-                Self::invalidate_ep(o.gate_ep_mut(), false);
+                Self::invalidate_ep(o.gate_ep_mut(), INVAL_ID, false);
             },
 
             KObject::Serv(ref s) => {
                 s.service().abort();
             },
 
-            KObject::Sess(ref _s) => {
-                // TODO if this is the root session, drop messages at server
+            KObject::Sess(ref s) => {
+                // if the session is derived, we notify the server about this and let him remove the
+                // session. this has the consequence that in delegation chains every activity in the
+                // chain can remove the session for all. I think this is fine, because we are never
+                // sharing a session between multiple activities, but are at most "granting" the
+                // session to someone else if we don't want to use it ourself.
+                if self.derived {
+                    s.close_async(revoker);
+                }
             },
 
             KObject::Map(ref m) => {

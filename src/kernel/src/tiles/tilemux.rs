@@ -454,7 +454,7 @@ impl TileMux {
 
         if has_act {
             let act = ActivityMng::activity(r.act_id).unwrap();
-            act.stop_app_async(r.status, true);
+            act.stop_app_async(r.status, true, INVAL_ID);
         }
 
         let mut reply = MsgBuf::borrow_def();

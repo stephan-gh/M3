@@ -440,7 +440,7 @@ pub fn activity_ctrl_async(
 
         kif::syscalls::ActivityOp::Stop => {
             let is_self = r.act == kif::SEL_ACT;
-            actcap.stop_app_async(Code::from(r.arg as u32), is_self);
+            actcap.stop_app_async(Code::from(r.arg as u32), is_self, act.id());
             if is_self {
                 ktcu::ack_msg(ktcu::KSYS_EP, msg);
                 return Ok(());

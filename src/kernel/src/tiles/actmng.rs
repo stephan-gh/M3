@@ -287,7 +287,7 @@ impl ActivityMng {
         act.start_app_async()
     }
 
-    pub fn remove_activity_async(id: tcu::ActId) {
+    pub fn remove_activity_async(id: tcu::ActId, revoker: tcu::ActId) {
         let mut actmng = INST.borrow_mut();
         // Replace item at position
         // https://stackoverflow.com/questions/33204273/how-can-i-take-ownership-of-a-vec-element-and-replace-it-with-something-else
@@ -298,7 +298,7 @@ impl ActivityMng {
                 actmng.count -= 1;
                 drop(actmng);
                 tilemng::tilemux(v.tile_id()).rem_activity(v.id());
-                v.force_stop_async(v.state() != State::DEAD);
+                v.force_stop_async(v.state() != State::DEAD, revoker);
             },
             None => panic!("Removing nonexisting Activity with id {}", id),
         };

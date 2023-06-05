@@ -235,10 +235,9 @@ pub fn create_sess(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<(),
     }
 
     let serv = as_obj!(serv_cap.get(), Serv);
-    // TODO implement auto_close
     let cap = Capability::new(
         r.dst,
-        KObject::Sess(SessObject::new(serv, r.creator, r.ident)),
+        KObject::Sess(SessObject::new(serv, r.creator, r.ident, r.auto_close)),
     );
 
     try_kmem_quota!(obj_caps.insert_as_child(cap, r.srv));

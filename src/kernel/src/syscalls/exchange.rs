@@ -205,7 +205,7 @@ pub fn revoke_async(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
     }
 
     let actcap = get_kobj!(act, r.act, Activity).upgrade().unwrap();
-    if let Err(e) = actcap.revoke_async(r.crd, r.own) {
+    if let Err(e) = actcap.revoke_async(r.crd, r.own, act.id()) {
         sysc_err!(
             e.code(),
             "Revoke of {} with Activity {} failed",
