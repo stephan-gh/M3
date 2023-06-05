@@ -156,13 +156,22 @@ impl FileSystem for M3FS {
         }
     }
 
-    fn close(&mut self, file_id: usize) {
+    fn close(&mut self, file_id: usize) -> Result<(), Error> {
         for ep in &mut self.eps {
             if matches!(ep.file, Some(fid) if fid == file_id) {
                 ep.file = None;
                 break;
             }
         }
+
+        // this is always a file without file session and therefore is closed manually
+        send_recv_res!(
+            &self.sgate,
+            RecvGate::def(),
+            opcodes::FileSystem::ClosePriv,
+            file_id
+        )
+        .map(|_| ())
     }
 
     fn stat(&self, path: &str) -> Result<FileInfo, Error> {

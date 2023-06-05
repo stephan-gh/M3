@@ -130,7 +130,7 @@ impl GenericFile {
             fs_id,
             fd: filetable::INV_FD,
             flags,
-            sess: ClientSession::new_bind(sel),
+            sess: ClientSession::new_owned_bind(sel),
             sgate: Rc::new(SendGate::new_bind(sel + 1)),
             mgate: MemGate::new_bind(INVALID_SEL),
             delegated_ep: INVALID_SEL,
@@ -427,7 +427,7 @@ impl File for GenericFile {
     }
 
     fn remove(&mut self) {
-        log!(LogFlags::LibFS, "GenFile[{}]::evict()", self.fd);
+        log!(LogFlags::LibFS, "GenFile[{}]::remove()", self.fd);
 
         // submit read/written data
         self.submit(false).ok();
@@ -435,7 +435,7 @@ impl File for GenericFile {
         if !self.flags.contains(OpenFlags::NEW_SESS) {
             let file_id = self.id.unwrap();
             if let Some(fs) = Activity::own().mounts().get_by_id(self.fs_id.unwrap()) {
-                fs.borrow_mut().close(file_id);
+                fs.borrow_mut().close(file_id).ok();
             }
         }
         else {
@@ -446,16 +446,6 @@ impl File for GenericFile {
                     .ok();
             }
         }
-
-        // file sessions are not known to our resource manager; thus close them manually
-        log!(LogFlags::LibFS, "GenFile[{}]::close()", self.fd);
-        send_recv_res!(
-            &self.sgate,
-            RecvGate::def(),
-            opcodes::File::Close,
-            self.file_id()
-        )
-        .ok();
     }
 
     fn stat(&self) -> Result<FileInfo, Error> {

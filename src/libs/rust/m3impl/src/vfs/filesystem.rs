@@ -38,7 +38,7 @@ pub trait FileSystem: fmt::Debug {
     fn open(&mut self, path: &str, flags: OpenFlags) -> Result<Box<dyn File>, Error>;
 
     /// Closes the given file
-    fn close(&mut self, file_id: usize);
+    fn close(&mut self, file_id: usize) -> Result<(), Error>;
 
     /// Retrieves the file information for the file at `path`
     fn stat(&self, path: &str) -> Result<FileInfo, Error>;

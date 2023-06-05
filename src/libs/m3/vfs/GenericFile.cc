@@ -85,15 +85,13 @@ void GenericFile::remove() noexcept {
         catch(...) {
             // ignore
         }
-    }
 
-    // file sessions are not known to our resource manager; thus close them manually
-    LOG(LogFlags::LibFS, "GenFile[{}]::close()"_cf, _fd);
-    try {
-        send_receive_vmsg(*_sg, opcodes::File::CLOSE, _id);
-    }
-    catch(...) {
-        // ignore
+        try {
+            Activity::own().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _sess.sel()));
+        }
+        catch(...) {
+            // ignore
+        }
     }
 }
 

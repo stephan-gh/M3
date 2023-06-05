@@ -33,18 +33,13 @@ pub enum SessionData {
 }
 
 pub struct PipesSession {
-    alive: bool,
     serv: ServerSession,
     data: SessionData,
 }
 
 impl PipesSession {
     pub fn new(serv: ServerSession, data: SessionData) -> Self {
-        let res = PipesSession {
-            alive: true,
-            serv,
-            data,
-        };
+        let res = PipesSession { serv, data };
 
         log!(
             LogFlags::PipeReqs,
@@ -76,13 +71,6 @@ impl RequestSession for PipesSession {
         Self: Sized,
     {
         Ok(PipesSession::new(serv, SessionData::Meta(Meta::default())))
-    }
-
-    fn is_dead(&self) -> Option<usize> {
-        match self.alive {
-            false => Some(self.serv.creator()),
-            true => None,
-        }
     }
 
     fn close(&mut self, cli: &mut ClientManager<Self>, sid: SessId, sub_ids: &mut Vec<SessId>)
@@ -135,7 +123,7 @@ impl PipesSession {
             msize
         );
 
-        let (sel, _nsid) = cli.add_connected(crt, |cli, serv, _sgate| {
+        let (sel, _nsid) = cli.add(crt, |cli, serv| {
             let parent_sess = Self::get_sess(cli, sid)?;
 
             match parent_sess.data_mut() {
@@ -148,7 +136,7 @@ impl PipesSession {
             }
         })?;
 
-        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::Object, sel, 2));
+        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::Object, sel, 1));
 
         Ok(())
     }
@@ -300,12 +288,5 @@ impl PipesSession {
 
             _ => Err(Error::new(Code::InvArgs)),
         }
-    }
-
-    pub fn close(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
-        // let the request handler remove this session
-        self.alive = false;
-
-        is.reply_error(Code::Success)
     }
 }

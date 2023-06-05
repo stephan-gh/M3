@@ -36,7 +36,6 @@ pub enum File {
     Commit,
     Truncate,
     Sync,
-    Close,
     CloneFile,
     GetPath,
     GetTMode,
@@ -57,7 +56,6 @@ pub enum FileSystem {
     Commit       = File::Commit as usize,
     Truncate     = File::Truncate as usize,
     Sync         = File::Sync as usize,
-    Close        = File::Close as usize,
     CloneFile    = File::CloneFile as usize,
     GetPath      = File::GetPath as usize,
     GetTMode     = File::GetTMode as usize,
@@ -75,6 +73,7 @@ pub enum FileSystem {
     GetMem,
     DelEP,
     OpenPriv,
+    ClosePriv,
     CloneMeta,
 }
 
@@ -87,7 +86,6 @@ pub enum Pipe {
     NextIn       = File::NextIn as usize,
     NextOut      = File::NextOut as usize,
     Commit       = File::Commit as usize,
-    Close        = File::Close as usize,
     CloneFile    = File::CloneFile as usize,
     SetDest      = File::SetDest as usize,
     EnableNotify = File::EnableNotify as usize,
@@ -95,7 +93,6 @@ pub enum Pipe {
     OpenPipe,
     OpenChan,
     SetMem,
-    ClosePipe,
 }
 
 /// The operations for the network protocol.

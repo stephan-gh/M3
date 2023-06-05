@@ -62,13 +62,6 @@ impl RequestSession for FSSession {
         )))
     }
 
-    fn is_dead(&self) -> Option<usize> {
-        match self {
-            FSSession::Meta(_) => None,
-            FSSession::File(ref file) => file.is_dead(),
-        }
-    }
-
     fn close(&mut self, cli: &mut ClientManager<Self>, sid: SessId, sub_ids: &mut Vec<SessId>) {
         log!(
             LogFlags::FSSess,
@@ -319,10 +312,10 @@ impl M3FSSession for FSSession {
         }
     }
 
-    fn close(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
+    fn close_priv(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         match self {
-            FSSession::Meta(m) => m.close(stream),
-            FSSession::File(f) => f.close(stream),
+            FSSession::Meta(m) => m.close_priv(stream),
+            FSSession::File(f) => f.close_priv(stream),
         }
     }
 }
@@ -344,5 +337,5 @@ pub trait M3FSSession {
     fn rename(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
     fn sync(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
     fn open_priv(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
-    fn close(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
+    fn close_priv(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error>;
 }

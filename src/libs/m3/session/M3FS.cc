@@ -61,6 +61,9 @@ void M3FS::close(size_t file_id) {
             break;
         }
     }
+
+    // this is always a file without file session and therefore is closed manually
+    send_receive_vmsg(_gate, opcodes::FileSystem::CLOSE_PRIV, file_id);
 }
 
 size_t M3FS::get_ep() {

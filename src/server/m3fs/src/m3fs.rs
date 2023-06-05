@@ -276,7 +276,6 @@ pub fn main() -> Result<(), Error> {
     hdl.reg_msg_handler(FileSystem::NextOut, FSSession::next_out);
     hdl.reg_msg_handler(FileSystem::Commit, FSSession::commit);
     hdl.reg_msg_handler(FileSystem::Truncate, FSSession::truncate);
-    hdl.reg_msg_handler(FileSystem::Close, FSSession::close);
     hdl.reg_msg_handler(FileSystem::FStat, FSSession::stat);
     hdl.reg_msg_handler(FileSystem::GetPath, FSSession::get_path);
     hdl.reg_msg_handler(FileSystem::Seek, FSSession::seek);
@@ -288,6 +287,7 @@ pub fn main() -> Result<(), Error> {
     hdl.reg_msg_handler(FileSystem::Unlink, FSSession::unlink);
     hdl.reg_msg_handler(FileSystem::Rename, FSSession::rename);
     hdl.reg_msg_handler(FileSystem::OpenPriv, FSSession::open_priv);
+    hdl.reg_msg_handler(FileSystem::ClosePriv, FSSession::close_priv);
 
     hdl.run(&mut srv).expect("Server loop failed");
 

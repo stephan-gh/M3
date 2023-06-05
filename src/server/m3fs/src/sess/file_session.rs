@@ -85,13 +85,12 @@ pub struct FileSession {
     ino: InodeNo,
 
     // session information
-    alive: bool,
     session_id: SessId,
     meta_sess_id: SessId,
     parent_sess_id: Option<SessId>,
     child_sessions: Vec<SessId>,
 
-    serv: Option<ServerSession>, // keep the server session alive
+    _serv: Option<ServerSession>, // keep the server session alive
 }
 
 impl FileSession {
@@ -126,13 +125,12 @@ impl FileSession {
             filename: filename.to_string(),
             ino,
 
-            alive: true,
             session_id: file_sess_id,
             meta_sess_id,
             parent_sess_id,
             child_sessions: Vec::new(),
 
-            serv,
+            _serv: serv,
         };
 
         crate::open_files_mut().add_sess(ino);
@@ -223,15 +221,6 @@ impl FileSession {
                 )
                 .unwrap();
             self.cur_sel = m3::kif::INVALID_SEL;
-        }
-    }
-
-    pub fn is_dead(&self) -> Option<usize> {
-        match self.alive {
-            // private file sessions are always removed via the meta session. thus, the
-            // ServerSession is always Some if alive is true.
-            false => self.serv.as_ref().map(|s| s.creator()),
-            true => None,
         }
     }
 
@@ -675,9 +664,7 @@ impl M3FSSession for FileSession {
         Err(Error::new(Code::NotSup))
     }
 
-    fn close(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
-        // let the request handler remove the session
-        self.alive = false;
-        stream.reply_error(Code::Success)
+    fn close_priv(&mut self, _stream: &mut GateIStream<'_>) -> Result<(), Error> {
+        Err(Error::new(Code::NotSup))
     }
 }

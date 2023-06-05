@@ -32,18 +32,14 @@ public:
     class Pipe : public ClientSession {
     public:
         explicit Pipe(capsel_t sel, MemGate &memory)
-            : ClientSession(sel),
-              _sgate(SendGate::bind(sel + 1)) {
+            : ClientSession(sel, 0) {
             KIF::ExchangeArgs args;
             ExchangeOStream os(args);
             os << opcodes::Pipe::SET_MEM;
             args.bytes = os.total();
             delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, memory.sel(), 1), &args);
         }
-        Pipe(Pipe &&p) noexcept : ClientSession(std::move(p)), _sgate(std::move(p._sgate)) {
-        }
-        virtual ~Pipe() {
-            send_receive_vmsg(_sgate, opcodes::Pipe::CLOSE_PIPE);
+        Pipe(Pipe &&p) noexcept : ClientSession(std::move(p)) {
         }
 
         FileRef<GenericFile> create_channel(bool read, int flags = 0) {
@@ -57,9 +53,6 @@ public:
                 new GenericFile(flags, desc.start(), static_cast<size_t>(-1)));
             return Activity::own().files()->alloc(std::move(file));
         }
-
-    private:
-        SendGate _sgate;
     };
 
     explicit Pipes(const std::string_view &service) : ClientSession(service) {
@@ -70,7 +63,7 @@ public:
         ExchangeOStream os(args);
         os << opcodes::Pipe::OPEN_PIPE << memsize;
         args.bytes = os.total();
-        KIF::CapRngDesc desc = obtain(2, &args);
+        KIF::CapRngDesc desc = obtain(1, &args);
         return Pipe(desc.start(), memory);
     }
 };

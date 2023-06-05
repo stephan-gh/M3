@@ -19,7 +19,7 @@
 use crate::boxed::Box;
 use crate::cap::Selector;
 use crate::client::ClientSession;
-use crate::com::{opcodes, MemGate, RecvGate, SendGate};
+use crate::com::{opcodes, MemGate};
 use crate::errors::Error;
 use crate::kif::{CapRngDesc, CapType};
 use crate::vfs::{File, GenericFile, OpenFlags};
@@ -47,7 +47,7 @@ impl Pipes {
     pub fn create_pipe(&self, mem: MemGate) -> Result<Pipe, Error> {
         let mem_size = mem.region()?.1;
         let crd = self.sess.obtain(
-            2,
+            1,
             |os| {
                 os.push(opcodes::Pipe::OpenPipe);
                 os.push(mem_size);
@@ -65,12 +65,11 @@ impl Pipes {
 pub struct Pipe {
     sess: ClientSession,
     mgate: MemGate,
-    sgate: SendGate,
 }
 
 impl Pipe {
     fn new(mem: MemGate, sel: Selector) -> Result<Self, Error> {
-        let sess = ClientSession::new_bind(sel);
+        let sess = ClientSession::new_owned_bind(sel);
         sess.delegate(
             CapRngDesc::new(CapType::Object, mem.sel(), 1),
             |os| {
@@ -78,11 +77,7 @@ impl Pipe {
             },
             |_| Ok(()),
         )?;
-        Ok(Pipe {
-            sess,
-            mgate: mem,
-            sgate: SendGate::new_bind(sel + 1),
-        })
+        Ok(Pipe { sess, mgate: mem })
     }
 
     /// Returns the session's capability selector.
@@ -113,11 +108,5 @@ impl Pipe {
             OpenFlags::W | OpenFlags::NEW_SESS
         };
         Ok(Box::new(GenericFile::new(flags, crd.start(), None)))
-    }
-}
-
-impl Drop for Pipe {
-    fn drop(&mut self) {
-        send_recv_res!(&self.sgate, RecvGate::def(), opcodes::Pipe::ClosePipe).unwrap();
     }
 }

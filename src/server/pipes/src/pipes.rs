@@ -84,7 +84,7 @@ pub fn main() -> Result<(), Error> {
 
     // register capability handler
     use opcodes::Pipe;
-    hdl.reg_cap_handler(Pipe::OpenPipe, ExcType::Obt(2), PipesSession::open_pipe);
+    hdl.reg_cap_handler(Pipe::OpenPipe, ExcType::Obt(1), PipesSession::open_pipe);
     hdl.reg_cap_handler(Pipe::OpenChan, ExcType::Obt(2), PipesSession::open_chan);
     hdl.reg_cap_handler(Pipe::SetMem, ExcType::Del(1), PipesSession::set_mem);
     hdl.reg_cap_handler(Pipe::CloneFile, ExcType::Obt(2), PipesSession::clone);
@@ -112,8 +112,6 @@ pub fn main() -> Result<(), Error> {
         sess.with_chan(is, |c, is| c.stat(is))
     });
     hdl.reg_msg_handler(Pipe::Seek, |_sess, _is| Err(Error::new(Code::SeekPipe)));
-    hdl.reg_msg_handler(Pipe::Close, |sess, is| sess.close(is));
-    hdl.reg_msg_handler(Pipe::ClosePipe, |sess, is| sess.close(is));
 
     hdl.run(&mut srv).expect("Server loop failed");
 

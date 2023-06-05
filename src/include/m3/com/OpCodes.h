@@ -35,7 +35,6 @@ struct File {
         COMMIT,
         TRUNCATE,
         SYNC,
-        CLOSE,
         CLONE_FILE,
         GET_PATH,
         GET_TMODE,
@@ -58,6 +57,7 @@ struct FileSystem {
         GET_MEM,
         DEL_EP,
         OPEN_PRIV,
+        CLOSE_PRIV,
         CLONE_META,
     };
 };
@@ -67,7 +67,6 @@ struct Pipe {
         OPEN_PIPE = File::REQ_NOTIFY + 1,
         OPEN_CHAN,
         SET_MEM,
-        CLOSE_PIPE,
     };
 };
 

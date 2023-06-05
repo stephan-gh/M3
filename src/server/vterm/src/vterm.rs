@@ -43,8 +43,7 @@ enum SessionData {
 
 #[derive(Debug)]
 pub struct VTermSession {
-    alive: bool,
-    serv: ServerSession,
+    _serv: ServerSession,
     data: SessionData,
     parent: Option<SessId>,
     childs: Vec<SessId>,
@@ -56,19 +55,11 @@ impl RequestSession for VTermSession {
         Self: Sized,
     {
         Ok(VTermSession {
-            alive: true,
-            serv,
+            _serv: serv,
             data: SessionData::Meta,
             parent: None,
             childs: Vec::new(),
         })
-    }
-
-    fn is_dead(&self) -> Option<usize> {
-        match self.alive {
-            false => Some(self.serv.creator()),
-            true => None,
-        }
     }
 
     fn close(&mut self, cli: &mut ClientManager<Self>, sid: SessId, sub_ids: &mut Vec<SessId>)
@@ -113,13 +104,12 @@ impl VTermSession {
         log!(LogFlags::VTReqs, "[{}] vterm::new_chan()", serv.id());
 
         Ok(VTermSession {
-            alive: true,
             data: SessionData::Chan(chan::Channel::new(
                 serv.id(),
                 MEM.borrow().clone(),
                 writing,
             )?),
-            serv,
+            _serv: serv,
             parent: Some(parent),
             childs: Vec::new(),
         })
@@ -227,12 +217,6 @@ pub fn main() -> Result<(), Error> {
     });
     hdl.reg_msg_handler(File::FStat, |sess, is| {
         sess.with_chan(is, |c, is| c.stat(is))
-    });
-    hdl.reg_msg_handler(File::Close, |sess, is| {
-        // let the request handler remove the session
-        sess.alive = false;
-        is.reply_error(Code::Success).ok();
-        Ok(())
     });
     hdl.reg_msg_handler(File::Seek, |_sess, _is| Err(Error::new(Code::NotSup)));
     hdl.reg_msg_handler(File::GetTMode, |sess, is| {

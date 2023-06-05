@@ -403,7 +403,7 @@ impl M3FSSession for MetaSession {
         reply_vmsg!(stream, 0, id)
     }
 
-    fn close(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
+    fn close_priv(&mut self, stream: &mut GateIStream<'_>) -> Result<(), Error> {
         let fid = stream.pop::<SessId>()?;
 
         if self.priv_files.remove(&fid).is_some() {
