@@ -39,7 +39,6 @@ pub struct Pager {
     child_sgate: cap::Selector,
     pf_rgate: RecvGate,
     pf_sgate: cap::Selector,
-    close: bool,
 }
 
 bitflags! {
@@ -73,7 +72,6 @@ impl Pager {
             child_sgate,
             pf_rgate,
             pf_sgate,
-            close: false,
         })
     }
 
@@ -87,7 +85,6 @@ impl Pager {
             child_sgate: kif::INVALID_SEL,
             pf_rgate: RecvGate::new_bind(kif::INVALID_SEL),
             pf_sgate: kif::INVALID_SEL,
-            close: false,
         }
     }
 
@@ -96,7 +93,7 @@ impl Pager {
         let res = self
             .sess
             .obtain(1, |os| os.push(opcodes::Pager::AddChild), |_| Ok(()))?;
-        let sess = ClientSession::new_bind(res.start());
+        let sess = ClientSession::new_owned_bind(res.start());
 
         // get send gates for us and our child
         let child_sgate = sess.connect()?.sel();
@@ -110,7 +107,6 @@ impl Pager {
             req_sgate,
             pf_rgate,
             pf_sgate,
-            close: true,
         })
     }
 
@@ -125,7 +121,7 @@ impl Pager {
         act.delegate_obj(self.sgate_sel())?;
 
         // we only need to do that for clones
-        if self.close {
+        if self.sess.is_owned() {
             let crd = kif::CapRngDesc::new(kif::CapType::Object, act.sel(), 1);
             self.sess
                 .delegate(crd, |os| os.push(opcodes::Pager::Init), |_| Ok(()))
@@ -258,14 +254,6 @@ impl Pager {
             virt
         )
         .map(|_| ())
-    }
-}
-
-impl Drop for Pager {
-    fn drop(&mut self) {
-        if self.close {
-            send_recv_res!(&self.req_sgate, RecvGate::def(), opcodes::Pager::Close).ok();
-        }
     }
 }
 

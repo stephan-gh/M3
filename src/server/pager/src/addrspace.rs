@@ -34,7 +34,6 @@ use crate::dataspace::DataSpace;
 const MAX_VIRT_ADDR: goff = cfg::MEM_CAP_END as goff - 1;
 
 pub struct AddrSpace {
-    alive: bool,
     #[allow(unused)]
     parent: Option<SessId>,
     serv: ServerSession,
@@ -52,13 +51,6 @@ impl RequestSession for AddrSpace {
         Ok(AddrSpace::new(serv, None, None))
     }
 
-    fn is_dead(&self) -> Option<usize> {
-        match self.alive {
-            false => Some(self.serv.creator()),
-            true => None,
-        }
-    }
-
     fn close(&mut self, _cli: &mut ClientManager<Self>, sid: SessId, _sub_ids: &mut Vec<SessId>)
     where
         Self: Sized,
@@ -70,7 +62,6 @@ impl RequestSession for AddrSpace {
 impl AddrSpace {
     pub fn new(serv: ServerSession, parent: Option<SessId>, child: Option<childs::Id>) -> Self {
         AddrSpace {
-            alive: true,
             parent,
             serv,
             child,
@@ -426,15 +417,6 @@ impl AddrSpace {
             log!(LogFlags::Error, "No dataspace at {:#x}", virt);
             return Err(Error::new(Code::NotFound));
         }
-
-        is.reply_error(Code::Success)
-    }
-
-    pub fn close(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
-        log!(LogFlags::PgReqs, "[{}] pager::close()", self.id());
-
-        // let the request handler remove this session
-        self.alive = false;
 
         is.reply_error(Code::Success)
     }

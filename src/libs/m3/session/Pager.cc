@@ -26,12 +26,11 @@ namespace m3 {
 
 Pager::Pager(capsel_t sess)
     : RefCounted(),
-      ClientSession(sess),
+      ClientSession(sess, 0),
       _req_sgate(connect()),
       _child_sgate(connect().sel()),
       _pf_rgate(RecvGate::create(nextlog2<64>::val, nextlog2<64>::val)),
-      _pf_sgate(connect()),
-      _close(true) {
+      _pf_sgate(connect()) {
 }
 
 Pager::Pager(capsel_t sess, capsel_t sgate)
@@ -40,19 +39,7 @@ Pager::Pager(capsel_t sess, capsel_t sgate)
       _req_sgate(SendGate::bind(sgate)),
       _child_sgate(ObjCap::INVALID),
       _pf_rgate(RecvGate::bind(ObjCap::INVALID)),
-      _pf_sgate(SendGate::bind(ObjCap::INVALID)),
-      _close(false) {
-}
-
-Pager::~Pager() {
-    if(_close) {
-        try {
-            send_receive_vmsg(_req_sgate, opcodes::Pager::CLOSE);
-        }
-        catch(...) {
-            // ignore
-        }
-    }
+      _pf_sgate(SendGate::bind(ObjCap::INVALID)) {
 }
 
 void Pager::pagefault(goff_t addr, uint access) {
@@ -121,7 +108,7 @@ void Pager::init(ChildActivity &act) {
     act.delegate_obj(_child_sgate);
 
     // we only need to do that for clones
-    if(_close) {
+    if(!(flags() & KEEP_CAP)) {
         KIF::ExchangeArgs args;
         ExchangeOStream os(args);
         os << opcodes::Pager::INIT;

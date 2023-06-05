@@ -153,8 +153,6 @@ pub enum Pager {
     MapMem,
     /// Remove an existing mapping
     Unmap,
-    /// Close the pager session
-    Close,
 }
 
 /// The operations for the disk protocol.

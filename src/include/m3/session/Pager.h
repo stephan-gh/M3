@@ -51,7 +51,6 @@ public:
     };
 
     explicit Pager(capsel_t sess, capsel_t sgate);
-    ~Pager();
 
     capsel_t child_sgate() const noexcept {
         return _child_sgate;
@@ -73,7 +72,6 @@ private:
     capsel_t _child_sgate;
     RecvGate _pf_rgate;
     SendGate _pf_sgate;
-    bool _close;
 };
 
 }

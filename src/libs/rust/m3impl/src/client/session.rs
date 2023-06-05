@@ -60,6 +60,20 @@ impl ClientSession {
         }
     }
 
+    /// Binds a new `ClientSession` to given selector and revokes the cap on drop.
+    pub fn new_owned_bind(sel: Selector) -> Self {
+        ClientSession {
+            cap: Capability::new(sel, CapFlags::empty()),
+            close: false,
+        }
+    }
+
+    /// Return true if this session is owned, i.e., was not created via [`Self::new_bind`] and
+    /// therefore will be closed on drop.
+    pub fn is_owned(&self) -> bool {
+        self.close || !self.cap.flags().contains(CapFlags::KEEP_CAP)
+    }
+
     /// Returns the capability selector.
     pub fn sel(&self) -> Selector {
         self.cap.sel()

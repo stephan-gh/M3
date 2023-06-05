@@ -117,7 +117,6 @@ struct Pager {
         MAP_DS,
         MAP_MEM,
         UNMAP,
-        CLOSE,
         COUNT,
     };
 };
