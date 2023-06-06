@@ -30,7 +30,7 @@
 #include <array>
 #include <iostream>
 #include <map>
-#include <open-trace-format/otf.h>
+#include <otf.h>
 #include <queue>
 #include <regex>
 #include <set>
