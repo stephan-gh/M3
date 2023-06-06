@@ -19,7 +19,7 @@ mod meta_session;
 mod open_files;
 
 pub use file_session::FileSession;
-use meta_session::FileCount;
+use meta_session::FileLimit;
 pub use meta_session::MetaSession;
 pub use open_files::OpenFiles;
 
@@ -57,8 +57,7 @@ impl RequestSession for FSSession {
 
         Ok(FSSession::Meta(MetaSession::new(
             serv,
-            max_files,
-            FileCount::new(),
+            FileLimit::new(max_files),
         )))
     }
 
@@ -77,14 +76,6 @@ impl RequestSession for FSSession {
             },
 
             FSSession::File(ref file) => {
-                // remove file session from parent meta session
-                if let Some(parent_meta_session) = cli.get_mut(file.meta_sess()) {
-                    match parent_meta_session {
-                        FSSession::Meta(ref mut pms) => pms.remove_file(sid),
-                        _ => panic!("FileSession's parent is not a MetaSession!?"),
-                    }
-                }
-
                 // remove file session from parent file session
                 if let Some(psid) = file.parent_sess() {
                     if let Some(parent_file_session) = cli.get_mut(psid) {
@@ -92,6 +83,13 @@ impl RequestSession for FSSession {
                             FSSession::File(ref mut pfs) => pfs.remove_child(sid),
                             _ => panic!("Parent FileSession is not a FileSession!?"),
                         }
+                    }
+                }
+                // otherwise remove file session from parent meta session
+                else if let Some(parent_meta_session) = cli.get_mut(file.meta_sess()) {
+                    match parent_meta_session {
+                        FSSession::Meta(ref mut pms) => pms.remove_file(sid),
+                        _ => panic!("FileSession's parent is not a MetaSession!?"),
                     }
                 }
 

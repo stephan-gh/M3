@@ -34,56 +34,71 @@ use m3::{
 
 static NEXT_PRIV_ID: StaticCell<SessId> = StaticCell::new(1);
 
-pub struct FileCount {
+pub struct FileLimit {
+    max: usize,
     public: usize,
     private: usize,
 }
 
-impl FileCount {
-    pub fn new() -> Rc<RefCell<Self>> {
+impl FileLimit {
+    pub fn new(max: usize) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Self {
+            max,
             public: 0,
             private: 0,
         }))
+    }
+
+    pub fn add(&mut self, public: bool) {
+        match public {
+            true => self.public += 1,
+            false => self.private += 1,
+        }
+    }
+
+    pub fn remove(&mut self, public: bool) {
+        match public {
+            true => self.public -= 1,
+            false => self.private -= 1,
+        }
+    }
+
+    pub fn check(&self, sid: SessId) -> Result<(), Error> {
+        if self.public + self.private == self.max {
+            log!(
+                LogFlags::Error,
+                "[{}] file limit reached (priv={}, pub={})",
+                sid,
+                self.private,
+                self.public,
+            );
+            Err(Error::new(Code::NoSpace))
+        }
+        else {
+            Ok(())
+        }
     }
 }
 
 pub struct MetaSession {
     serv: ServerSession,
     sgates: Vec<SendGate>,
-    max_files: usize,
     files: Vec<SessId>,
     priv_files: Treap<SessId, FileSession>,
-    file_count: Rc<RefCell<FileCount>>,
+    file_limit: Rc<RefCell<FileLimit>>,
     priv_eps: Vec<Selector>,
 }
 
 impl MetaSession {
-    pub fn new(serv: ServerSession, max_files: usize, file_count: Rc<RefCell<FileCount>>) -> Self {
+    pub fn new(serv: ServerSession, file_limit: Rc<RefCell<FileLimit>>) -> Self {
         MetaSession {
             serv,
             sgates: Vec::new(),
-            max_files,
             files: Vec::new(),
             priv_files: Treap::new(),
-            file_count,
+            file_limit,
             priv_eps: Vec::new(),
         }
-    }
-
-    fn check_file_count(&self) -> Result<(), Error> {
-        let count = self.file_count.borrow();
-        if count.public + count.private == self.max_files {
-            log!(
-                LogFlags::Error,
-                "[{}] file limit reached (priv={}, pub={})",
-                self.serv.id(),
-                count.private,
-                count.public,
-            );
-            return Err(Error::new(Code::NoSpace));
-        }
-        return Ok(());
     }
 
     fn get_ep(&self, idx: usize) -> Result<Selector, Error> {
@@ -106,7 +121,7 @@ impl MetaSession {
         let old_count = self.files.len();
         self.files.retain(|sid| *sid != file_session);
         assert!(self.files.len() == old_count - 1);
-        self.file_count.borrow_mut().public -= 1;
+        self.file_limit.borrow_mut().remove(true);
     }
 
     pub fn clone(
@@ -124,7 +139,7 @@ impl MetaSession {
         // the session shares the file count with the parent to prevent that clients can sidestep
         // the limit by cloning sessions.
         let sel = serv.sel();
-        let nsess = MetaSession::new(serv, self.max_files, self.file_count.clone());
+        let nsess = MetaSession::new(serv, self.file_limit.clone());
 
         data.out_caps(CapRngDesc::new(CapType::Object, sel, 2));
 
@@ -137,7 +152,7 @@ impl MetaSession {
         serv: ServerSession,
         data: &mut CapExchange<'_>,
     ) -> Result<FileSession, Error> {
-        self.check_file_count()?;
+        self.file_limit.borrow().check(self.serv.id())?;
 
         let args = data.in_args();
         let flags: OpenFlags = args.pop()?;
@@ -156,7 +171,7 @@ impl MetaSession {
         let session = self.do_open(Some(serv), sid, path, flags)?;
 
         self.files.push(sid);
-        self.file_count.borrow_mut().public += 1;
+        self.file_limit.borrow_mut().add(true);
 
         data.out_caps(CapRngDesc::new(CapType::Object, sel, 2));
 
@@ -180,7 +195,7 @@ impl MetaSession {
         path: &str,
         flags: OpenFlags,
     ) -> Result<FileSession, Error> {
-        self.check_file_count()?;
+        self.file_limit.borrow().check(self.serv.id())?;
 
         let ino = dirs::search(path, flags.contains(OpenFlags::CREATE))?;
         let inode = inodes::get(ino)?;
@@ -209,7 +224,16 @@ impl MetaSession {
             inodes::sync_metadata(&inode)?;
         }
 
-        FileSession::new(serv, None, id, self.serv.id(), path, flags, inode.inode)
+        FileSession::new(
+            serv,
+            None,
+            id,
+            self.serv.id(),
+            self.file_limit.clone(),
+            path,
+            flags,
+            inode.inode,
+        )
     }
 
     fn with_file_sess<F>(&mut self, stream: &mut GateIStream<'_>, func: F) -> Result<(), Error>
@@ -398,7 +422,7 @@ impl M3FSSession for MetaSession {
         );
 
         self.priv_files.insert(id, session);
-        self.file_count.borrow_mut().private += 1;
+        self.file_limit.borrow_mut().add(false);
 
         reply_vmsg!(stream, 0, id)
     }
@@ -407,7 +431,7 @@ impl M3FSSession for MetaSession {
         let fid = stream.pop::<SessId>()?;
 
         if self.priv_files.remove(&fid).is_some() {
-            self.file_count.borrow_mut().private -= 1;
+            self.file_limit.borrow_mut().remove(false);
             stream.reply_error(Code::Success)
         }
         else {

@@ -18,15 +18,17 @@
 use crate::buf::LoadLimit;
 use crate::data::{ExtPos, Extent, INodeRef, InodeNo};
 use crate::ops::inodes;
-use crate::sess::M3FSSession;
+use crate::sess::{meta_session::FileLimit, M3FSSession};
 
-use base::io::LogFlags;
 use m3::{
     cap::Selector,
+    cell::RefCell,
     col::{String, ToString, Vec},
     com::GateIStream,
     errors::{Code, Error},
+    io::LogFlags,
     kif::{CapRngDesc, CapType, Perm, INVALID_SEL},
+    rc::Rc,
     server::{CapExchange, ServerSession, SessId},
     syscalls,
     vfs::{OpenFlags, SeekMode},
@@ -89,6 +91,7 @@ pub struct FileSession {
     meta_sess_id: SessId,
     parent_sess_id: Option<SessId>,
     child_sessions: Vec<SessId>,
+    file_limit: Rc<RefCell<FileLimit>>,
 
     _serv: Option<ServerSession>, // keep the server session alive
 }
@@ -100,6 +103,7 @@ impl FileSession {
         parent_sess_id: Option<SessId>,
         file_sess_id: SessId,
         meta_sess_id: SessId,
+        file_limit: Rc<RefCell<FileLimit>>,
         filename: &str,
         oflags: OpenFlags,
         ino: InodeNo,
@@ -129,6 +133,7 @@ impl FileSession {
             meta_sess_id,
             parent_sess_id,
             child_sessions: Vec::new(),
+            file_limit,
 
             _serv: serv,
         };
@@ -150,6 +155,8 @@ impl FileSession {
             self.filename
         );
 
+        self.file_limit.borrow().check(self.session_id)?;
+
         let sid = serv.id();
         let sel = serv.sel();
         let nsess = Self::new(
@@ -157,12 +164,14 @@ impl FileSession {
             Some(self.session_id),
             sid,
             self.meta_sess_id,
+            self.file_limit.clone(),
             &self.filename,
             self.oflags,
             self.ino,
         )?;
 
         self.child_sessions.push(sid);
+        self.file_limit.borrow_mut().add(true);
 
         data.out_caps(CapRngDesc::new(CapType::Object, sel, 2));
 
@@ -245,7 +254,10 @@ impl FileSession {
     }
 
     pub fn remove_child(&mut self, id: SessId) {
+        let old_count = self.child_sessions.len();
         self.child_sessions.retain(|s| *s != id);
+        assert!(self.child_sessions.len() == old_count - 1);
+        self.file_limit.borrow_mut().remove(true);
     }
 
     pub fn file_in_out(&mut self, is: &mut GateIStream<'_>, out: bool) -> Result<(), Error> {
