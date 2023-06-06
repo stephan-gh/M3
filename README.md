@@ -112,6 +112,10 @@ M³Linux allows to run Linux on an isolated tile within M³. Before it can be us
 
     $ git submodule update --init --recursive src/m3lx
 
+Additionally, the Rust target needs to be installed:
+
+    $ rustup target add riscv64gc-unknown-linux-gnu
+
 M³Linux consists of Linux itself, riscv-pk with the bbl bootloader, and applications. The applications can both interface with M³ and Linux and thereby bridge the gap between both systems.
 
 Linux and bbl need to be built explicitly due to the long build times and different build systems. `b` offers two commands for this purpose:
