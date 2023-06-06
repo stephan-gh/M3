@@ -421,8 +421,8 @@ ldscripts['tilemux'] = tilemux_env.cpp(gen, out='ld-tilemux.conf', input=ldscrip
 # generate build edges
 env.sub_build(gen, 'src')
 env.sub_build(gen, 'tools')
-if isa == 'riscv' and os.path.exists('m3lx'):
-    lxenv.sub_build(gen, 'm3lx')
+if isa == 'riscv' and os.path.exists('src/m3lx'):
+    lxenv.sub_build(gen, 'src/m3lx')
 
 # finally, write it to file
 gen.write_to_file(defaults={})
