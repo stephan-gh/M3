@@ -31,7 +31,7 @@ fn perf_alloc(_t: &mut dyn WvTester) {
     let prof = Profiler::default().repeats(10);
 
     struct MemMapTester {
-        map: MemMap,
+        map: MemMap<usize>,
     }
 
     impl Runner for MemMapTester {
@@ -60,8 +60,8 @@ fn perf_free(_t: &mut dyn WvTester) {
     let prof = Profiler::default().repeats(10);
 
     struct MemMapTester {
-        map: MemMap,
-        addrs: Vec<u64>,
+        map: MemMap<usize>,
+        addrs: Vec<usize>,
         forward: bool,
     }
 

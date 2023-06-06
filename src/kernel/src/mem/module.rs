@@ -31,7 +31,7 @@ pub enum MemType {
 pub struct MemMod {
     gaddr: GlobAddr,
     size: goff,
-    map: MemMap,
+    map: MemMap<goff>,
     ty: MemType,
 }
 

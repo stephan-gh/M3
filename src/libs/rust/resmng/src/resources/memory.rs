@@ -176,7 +176,7 @@ pub struct MemSlice {
     mem: Rc<MemMod>,
     offset: goff,
     size: goff,
-    map: MemMap,
+    map: MemMap<goff>,
     perm: Perm,
 }
 

@@ -26,7 +26,7 @@ use crate::mem::MemMap;
 use crate::tiles::Activity;
 use crate::util::math;
 
-static BUFS: LazyStaticRefCell<MemMap> = LazyStaticRefCell::default();
+static BUFS: LazyStaticRefCell<MemMap<usize>> = LazyStaticRefCell::default();
 
 /// A buffer to receive messages from a [`RecvGate`](crate::com::RecvGate).
 ///
@@ -79,14 +79,14 @@ impl fmt::Debug for RecvBuf {
 /// Allocates a new receive buffer with given size
 pub(crate) fn alloc_rbuf(size: usize) -> Result<RecvBuf, Error> {
     let vm = Activity::own().tile_desc().has_virtmem();
-    let align = if vm { cfg::PAGE_SIZE as u64 } else { 1 };
-    let addr = BUFS.borrow_mut().allocate(size as u64, align)? as usize;
+    let align = if vm { cfg::PAGE_SIZE } else { 1 };
+    let addr = BUFS.borrow_mut().allocate(size, align)?;
 
     let mgate = if vm {
         match map_rbuf(addr, size) {
             Ok(mgate) => Some(mgate),
             Err(e) => {
-                BUFS.borrow_mut().free(addr as u64, size as u64);
+                BUFS.borrow_mut().free(addr, size);
                 return Err(e);
             },
         }
@@ -119,10 +119,10 @@ fn map_rbuf(addr: usize, size: usize) -> Result<MemGate, Error> {
 pub(crate) fn free_rbuf(rbuf: &RecvBuf) {
     #[cfg(feature = "linux")]
     base::linux::mmap::munmap(rbuf.addr(), rbuf.size());
-    BUFS.borrow_mut().free(rbuf.addr as u64, rbuf.size as u64);
+    BUFS.borrow_mut().free(rbuf.addr, rbuf.size);
 }
 
 pub(crate) fn init() {
     let (addr, size) = Activity::own().tile_desc().rbuf_space();
-    BUFS.set(MemMap::new(addr as u64, size as u64));
+    BUFS.set(MemMap::new(addr, size));
 }
