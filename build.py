@@ -278,6 +278,7 @@ env = M3Env()
 env['CPPPATH'] += ['src/include']
 env['CFLAGS'] += ['-std=c99', '-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
 env['CXXFLAGS'] += ['-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
+env['CPPFLAGS'] += ['-U_FORTIFY_SOURCE']
 env['CRGFLAGS'] += ['--color=always']
 if os.environ.get('M3_VERBOSE', '0') == '1':
     env['CRGFLAGS'] += ['-v']
@@ -332,7 +333,7 @@ env['CXXFLAGS'] += [
     '-fno-threadsafe-statics', '-fno-stack-protector', '-Wno-address-of-packed-member',
     '-ffunction-sections', '-fdata-sections'
 ]
-env['CPPFLAGS'] += ['-D__' + target + '__', '-U_FORTIFY_SOURCE', '-D_GNU_SOURCE']
+env['CPPFLAGS'] += ['-D__' + target + '__', '-D_GNU_SOURCE']
 env['CFLAGS'] += ['-gdwarf-2', '-fno-stack-protector', '-ffunction-sections', '-fdata-sections']
 env['ASFLAGS'] += ['-Wl,-W', '-Wall', '-Wextra']
 env['LINKFLAGS'] += ['-Wl,--gc-section', '-Wno-lto-type-mismatch', '-fno-stack-protector']
