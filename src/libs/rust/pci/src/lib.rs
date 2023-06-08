@@ -26,6 +26,7 @@ use m3::com::{EpMng, MemGate, RecvGate, SendGate, EP};
 use m3::errors::Error;
 use m3::goff;
 use m3::kif::{Perm, TileDesc, TileISA, TileType};
+use m3::mem::VirtAddr;
 use m3::tcu::EpId;
 use m3::tiles::{ChildActivity, RunningDeviceActivity, Tile};
 use m3::util::math;
@@ -259,7 +260,7 @@ impl Device {
         let act = ChildActivity::new(tile, name)?;
         let act_sel = act.sel();
         let mem = act.get_mem(
-            0,
+            VirtAddr::null(),
             (PCI_CFG_ADDR + REG_ADDR) + cfg::PAGE_SIZE as goff,
             Perm::RW,
         )?;

@@ -22,6 +22,7 @@ use m3::client::MapFlags;
 use m3::com::{MGateArgs, MemGate, Perm, Semaphore};
 use m3::errors::Code;
 use m3::goff;
+use m3::mem::VirtAddr;
 use m3::test::WvTester;
 use m3::tiles::{Activity, ChildActivity, RunningActivity, Tile};
 use m3::util::math;
@@ -113,7 +114,7 @@ fn remote_access(t: &mut dyn WvTester) {
     let mut child = wv_assert_ok!(ChildActivity::new(tile, "child"));
 
     let virt = if child.tile_desc().has_virtmem() {
-        let virt: goff = 0x3000_0000;
+        let virt = VirtAddr::new(0x3000_0000);
         // creating mapping in the child
         wv_assert_ok!(child.pager().unwrap().map_anon(
             virt,
@@ -123,7 +124,7 @@ fn remote_access(t: &mut dyn WvTester) {
         ));
         // another mapping that is not touched by the child
         wv_assert_ok!(child.pager().unwrap().map_anon(
-            virt + cfg::PAGE_SIZE as goff,
+            virt + cfg::PAGE_SIZE,
             cfg::PAGE_SIZE,
             Perm::RW,
             MapFlags::PRIVATE
@@ -131,7 +132,7 @@ fn remote_access(t: &mut dyn WvTester) {
         virt
     }
     else {
-        unsafe { &_OBJ as *const _ as goff }
+        VirtAddr::from(unsafe { &_OBJ as *const _ })
     };
 
     wv_assert_ok!(child.delegate_obj(sem1.sel()));
@@ -144,17 +145,15 @@ fn remote_access(t: &mut dyn WvTester) {
 
     let mut act = wv_assert_ok!(child.run(|| {
         let mut src = Activity::own().data_source();
-        let virt: goff = src.pop().unwrap();
+        let virt: VirtAddr = src.pop().unwrap();
         let sem1_sel: Selector = src.pop().unwrap();
         let sem2_sel: Selector = src.pop().unwrap();
 
         let sem1 = Semaphore::bind(sem1_sel);
         let sem2 = Semaphore::bind(sem2_sel);
         // write value to own address space
-        let obj_addr = virt as *mut u64;
-        unsafe {
-            *obj_addr = 0xDEAD_BEEF
-        };
+        let obj_addr = virt.as_mut_ptr::<u64>();
+        unsafe { *obj_addr = 0xDEAD_BEEF };
         //  notify parent that we're ready
         wv_assert_ok!(sem1.up());
         // wait for parent
@@ -167,12 +166,13 @@ fn remote_access(t: &mut dyn WvTester) {
 
     // read object from his address space
     let obj_mem = wv_assert_ok!(act.activity_mut().get_mem(
-        math::round_dn(virt, cfg::PAGE_SIZE as goff),
+        math::round_dn(virt, VirtAddr::from(cfg::PAGE_SIZE)),
         cfg::PAGE_SIZE as goff,
         Perm::R
     ));
     let obj: u64 =
-        wv_assert_ok!(obj_mem.read_obj(virt - math::round_dn(virt, cfg::PAGE_SIZE as goff)));
+        wv_assert_ok!(obj_mem
+            .read_obj((virt - math::round_dn(virt, VirtAddr::from(cfg::PAGE_SIZE))).as_goff()));
     wv_assert_eq!(t, obj, 0xDEAD_BEEF);
 
     // notify child that we're done

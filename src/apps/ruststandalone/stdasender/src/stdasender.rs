@@ -27,7 +27,7 @@ use base::env;
 use base::io::LogFlags;
 use base::log;
 use base::machine;
-use base::mem::MsgBuf;
+use base::mem::{MsgBuf, VirtAddr};
 use base::tcu::{EpId, TileId, FIRST_USER_EP, TCU};
 use base::util::math;
 
@@ -55,7 +55,7 @@ pub extern "C" fn env_run() {
 
     let buf_ord = math::next_log2(RBUF.len());
     let msg_ord = math::next_log2(MSG_SIZE);
-    let (rbuf_virt, rbuf_phys) = helper::virt_to_phys(RBUF.as_ptr() as usize);
+    let (rbuf_virt, rbuf_phys) = helper::virt_to_phys(VirtAddr::from(RBUF.as_ptr()));
     helper::config_local_ep(REP, |regs| {
         TCU::config_recv(regs, OWN_ACT, rbuf_phys, buf_ord, msg_ord, None);
     });

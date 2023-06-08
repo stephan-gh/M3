@@ -19,7 +19,7 @@ use base::env;
 use base::errors::Error;
 use base::goff;
 use base::kif::{PageFlags, TileDesc, PTE};
-use base::mem::GlobAddr;
+use base::mem::{GlobAddr, VirtAddr};
 use base::tcu;
 use base::util::math;
 
@@ -47,9 +47,9 @@ impl Allocator for PTAllocator {
         Ok(PT_POS.get() - cfg::PAGE_SIZE as goff)
     }
 
-    fn translate_pt(&self, phys: Phys) -> usize {
+    fn translate_pt(&self, phys: Phys) -> VirtAddr {
         if BOOTSTRAP.get() {
-            phys as usize
+            VirtAddr::new(phys)
         }
         else {
             cfg::TILE_MEM_BASE + (phys as usize - cfg::MEM_OFFSET)
@@ -95,7 +95,13 @@ pub fn init() {
         let mut heap_start = 0;
         let mut heap_end = 0;
         __m3_heap_get_area(&mut heap_start, &mut heap_end);
-        map_to_phys(&mut aspace, base, heap_start, heap_end - heap_start, rw);
+        map_to_phys(
+            &mut aspace,
+            base,
+            VirtAddr::from(heap_start),
+            heap_end - heap_start,
+            rw,
+        );
     }
 
     // map env
@@ -109,7 +115,13 @@ pub fn init() {
 
     // map vectors
     #[cfg(target_arch = "arm")]
-    map_to_phys(&mut aspace, base, 0, cfg::PAGE_SIZE, PageFlags::RX);
+    map_to_phys(
+        &mut aspace,
+        base,
+        VirtAddr::null(),
+        cfg::PAGE_SIZE,
+        PageFlags::RX,
+    );
 
     // switch to that address space
     aspace.switch_to();
@@ -119,11 +131,11 @@ pub fn init() {
     BOOTSTRAP.set(false);
 }
 
-pub fn translate(virt: usize, perm: PageFlags) -> PTE {
+pub fn translate(virt: VirtAddr, perm: PageFlags) -> PTE {
     ASPACE.borrow().translate(virt, perm.bits())
 }
 
-pub fn map_new_mem(virt: usize, pages: usize, align: usize) -> GlobAddr {
+pub fn map_new_mem(virt: VirtAddr, pages: usize, align: usize) -> GlobAddr {
     let alloc = mem::borrow_mut()
         .allocate(
             mem::MemType::KERNEL,
@@ -139,8 +151,8 @@ pub fn map_new_mem(virt: usize, pages: usize, align: usize) -> GlobAddr {
     alloc.global()
 }
 
-fn map_ident(aspace: &mut AddrSpace<PTAllocator>, virt: usize, size: usize, perm: PageFlags) {
-    let glob = GlobAddr::new(virt as goff);
+fn map_ident(aspace: &mut AddrSpace<PTAllocator>, virt: VirtAddr, size: usize, perm: PageFlags) {
+    let glob = GlobAddr::new(virt.as_goff());
     aspace
         .map_pages(virt, glob, size / cfg::PAGE_SIZE, perm)
         .unwrap();
@@ -149,11 +161,11 @@ fn map_ident(aspace: &mut AddrSpace<PTAllocator>, virt: usize, size: usize, perm
 fn map_to_phys(
     aspace: &mut AddrSpace<PTAllocator>,
     base: GlobAddr,
-    virt: usize,
+    virt: VirtAddr,
     size: usize,
     perm: PageFlags,
 ) {
-    let glob = base + (virt - cfg::MEM_OFFSET) as Phys;
+    let glob = base + (virt.as_goff() - cfg::MEM_OFFSET as goff);
     aspace
         .map_pages(virt, glob, size / cfg::PAGE_SIZE, perm)
         .unwrap();
@@ -166,7 +178,13 @@ fn map_segment(
     end: *const u8,
     perm: PageFlags,
 ) {
-    let start_addr = math::round_dn(start as usize, cfg::PAGE_SIZE);
-    let end_addr = math::round_up(end as usize, cfg::PAGE_SIZE);
-    map_to_phys(aspace, base, start_addr, end_addr - start_addr, perm);
+    let start_addr = math::round_dn(VirtAddr::from(start), VirtAddr::from(cfg::PAGE_SIZE));
+    let end_addr = math::round_up(VirtAddr::from(end), VirtAddr::from(cfg::PAGE_SIZE));
+    map_to_phys(
+        aspace,
+        base,
+        start_addr,
+        (end_addr - start_addr).as_local(),
+        perm,
+    );
 }

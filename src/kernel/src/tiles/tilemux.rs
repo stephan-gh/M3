@@ -23,8 +23,7 @@ use base::goff;
 use base::io::LogFlags;
 use base::kif;
 use base::log;
-use base::mem::GlobAddr;
-use base::mem::MsgBuf;
+use base::mem::{GlobAddr, MsgBuf, VirtAddr};
 use base::quota;
 use base::rc::{Rc, SRc, Weak};
 use base::tcu::{self, ActId, EpId, TileId};
@@ -114,7 +113,7 @@ impl TileMux {
         .unwrap();
 
         // configure receive EP
-        let mut rbuf = cfg::TILEMUX_RBUF_SPACE as goff;
+        let mut rbuf = cfg::TILEMUX_RBUF_SPACE.as_raw();
         ktcu::config_remote_ep(self.tile_id(), tcu::KPEX_REP, |regs, tgtep| {
             ktcu::config_recv(
                 regs,
@@ -583,7 +582,7 @@ impl TileMux {
     pub fn map_async(
         tilemux: RefMut<'_, Self>,
         act: ActId,
-        virt: goff,
+        virt: VirtAddr,
         global: GlobAddr,
         pages: usize,
         perm: kif::PageFlags,
@@ -605,7 +604,7 @@ impl TileMux {
     pub fn unmap_async(
         tilemux: RefMut<'_, Self>,
         act: ActId,
-        virt: goff,
+        virt: VirtAddr,
         pages: usize,
     ) -> Result<(), Error> {
         Self::map_async(
@@ -621,7 +620,7 @@ impl TileMux {
     pub fn translate_async(
         tilemux: RefMut<'_, Self>,
         act: ActId,
-        virt: goff,
+        virt: VirtAddr,
         perm: kif::PageFlags,
     ) -> Result<GlobAddr, Error> {
         use base::cfg::PAGE_MASK;

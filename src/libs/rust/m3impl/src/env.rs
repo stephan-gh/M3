@@ -29,7 +29,7 @@ use crate::com::{MemGate, SendGate};
 use crate::errors::Error;
 use crate::goff;
 use crate::kif::{self, TileDesc};
-use crate::mem;
+use crate::mem::{self, VirtAddr};
 use crate::serialize::M3Deserializer;
 use crate::tcu;
 use crate::tiles::OwnActivity;
@@ -38,7 +38,7 @@ use crate::vfs::{FileTable, MountTable};
 
 pub use base::env::*;
 
-/// Writes the given arguments to `mem` at given offset
+/// Writes the given arguments to `mem` at given address
 ///
 /// This is intended [`ChildActivity`](`crate::tiles::ChildActivity`) and other components that want
 /// to start applications and therefore need to pass arguments and environment variables to the
@@ -48,31 +48,31 @@ pub use base::env::*;
 pub fn write_args<S>(
     args: &[S],
     mem: &MemGate,
-    off: &mut usize,
+    addr: &mut VirtAddr,
     env_off: goff,
-) -> Result<usize, Error>
+) -> Result<VirtAddr, Error>
 where
     S: AsRef<str>,
 {
-    let (arg_buf, arg_ptr, arg_end) = collect_args(args, *off);
+    let (arg_buf, arg_ptr, arg_end) = collect_args(args, *addr);
 
     // write actual arguments to memory
     mem.write_bytes(
         arg_buf.as_ptr() as *const _,
         arg_buf.len(),
-        *off as goff - env_off,
+        (*addr).as_goff() - env_off,
     )?;
 
     // write argument pointers to memory
-    let arg_ptr_off = util::math::round_up(arg_end, mem::size_of::<u64>());
+    let arg_ptr_addr = util::math::round_up(arg_end, VirtAddr::from(mem::size_of::<VirtAddr>()));
     mem.write_bytes(
         arg_ptr.as_ptr() as *const _,
-        arg_ptr.len() * mem::size_of::<u64>(),
-        arg_ptr_off as goff - env_off,
+        arg_ptr.len() * mem::size_of::<VirtAddr>(),
+        arg_ptr_addr.as_goff() - env_off,
     )?;
 
-    *off = arg_ptr_off + arg_ptr.len() * mem::size_of::<u64>();
-    Ok(arg_ptr_off)
+    *addr = arg_ptr_addr + arg_ptr.len() * mem::size_of::<VirtAddr>();
+    Ok(arg_ptr_addr)
 }
 
 #[derive(Default, Copy, Clone)]
@@ -110,20 +110,20 @@ impl Env {
         self.base.boot.argc = argc as u64;
     }
 
-    pub fn set_argv(&mut self, argv: usize) {
-        self.base.boot.argv = argv as u64;
+    pub fn set_argv(&mut self, argv: VirtAddr) {
+        self.base.boot.argv = argv.as_raw();
     }
 
-    pub fn set_envp(&mut self, envp: usize) {
-        self.base.boot.envp = envp as u64;
+    pub fn set_envp(&mut self, envp: VirtAddr) {
+        self.base.boot.envp = envp.as_raw();
     }
 
-    pub fn set_sp(&mut self, sp: usize) {
-        self.base.sp = sp as u64;
+    pub fn set_sp(&mut self, sp: VirtAddr) {
+        self.base.sp = sp.as_raw();
     }
 
-    pub fn set_entry(&mut self, entry: usize) {
-        self.base.entry = entry as u64;
+    pub fn set_entry(&mut self, entry: VirtAddr) {
+        self.base.entry = entry.as_raw();
     }
 
     pub fn set_heap_size(&mut self, size: usize) {
@@ -235,8 +235,8 @@ impl Env {
         }
     }
 
-    pub fn set_closure(&mut self, addr: usize) {
-        self.base.closure = addr as u64;
+    pub fn set_closure(&mut self, addr: VirtAddr) {
+        self.base.closure = addr.as_raw();
     }
 
     pub fn set_first_sel(&mut self, sel: Selector) {
@@ -247,18 +247,18 @@ impl Env {
         self.base.rmng_sel = sel;
     }
 
-    pub fn set_files(&mut self, off: usize, len: usize) {
-        self.base.fds_addr = off as u64;
+    pub fn set_files(&mut self, addr: VirtAddr, len: usize) {
+        self.base.fds_addr = addr.as_raw();
         self.base.fds_len = len as u64;
     }
 
-    pub fn set_mounts(&mut self, off: usize, len: usize) {
-        self.base.mounts_addr = off as u64;
+    pub fn set_mounts(&mut self, addr: VirtAddr, len: usize) {
+        self.base.mounts_addr = addr.as_raw();
         self.base.mounts_len = len as u64;
     }
 
-    pub fn set_data(&mut self, off: usize, len: usize) {
-        self.base.data_addr = off as u64;
+    pub fn set_data(&mut self, addr: VirtAddr, len: usize) {
+        self.base.data_addr = addr.as_raw();
         self.base.data_len = len as u64;
     }
 
@@ -270,7 +270,7 @@ impl Env {
 
 pub fn get() -> &'static Env {
     // safety: we trust our loader
-    unsafe { &*(cfg::ENV_START as *const _) }
+    unsafe { &*(cfg::ENV_START.as_ptr()) }
 }
 
 extern "C" {

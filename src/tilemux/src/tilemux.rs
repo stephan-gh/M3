@@ -76,12 +76,12 @@ pub fn pex_env() -> Ref<'static, TMEnv> {
 }
 
 pub fn app_env() -> &'static mut env::BaseEnv {
-    unsafe { &mut *(cfg::ENV_START as *mut _) }
+    unsafe { &mut *(cfg::ENV_START.as_mut_ptr()) }
 }
 
 pub struct PagefaultMessage {
     pub op: u64,
-    pub virt: u64,
+    pub virt: mem::VirtAddr,
     pub access: u64,
 }
 
@@ -103,7 +103,7 @@ fn leave(state: &mut arch::State) -> *mut libc::c_void {
     sidecalls::check();
 
     let addr = if let Some(action) = NEED_SCHED.replace(None) {
-        activities::schedule(action) as *mut libc::c_void
+        activities::schedule(action).as_mut_ptr()
     }
     else {
         state as *mut _ as *mut libc::c_void

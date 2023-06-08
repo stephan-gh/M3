@@ -19,6 +19,7 @@
 use base::backtrace;
 use base::kif::PageFlags;
 use base::libc;
+use base::mem::VirtAddr;
 use base::tcu;
 
 use core::arch::asm;
@@ -54,12 +55,12 @@ pub struct ARMState {
 }
 
 impl crate::StateArch for ARMState {
-    fn instr_pointer(&self) -> usize {
-        self.pc
+    fn instr_pointer(&self) -> VirtAddr {
+        VirtAddr::from(self.pc)
     }
 
-    fn base_pointer(&self) -> usize {
-        self.r[11]
+    fn base_pointer(&self) -> VirtAddr {
+        VirtAddr::from(self.r[11])
     }
 
     fn came_from_user(&self) -> bool {
@@ -98,10 +99,10 @@ impl fmt::Debug for ARMState {
         writeln!(fmt, "  cpsr:   {:#x}", { self.cpsr })?;
 
         writeln!(fmt, "\nUser backtrace:")?;
-        let mut bt = [0usize; 16];
+        let mut bt = [VirtAddr::default(); 16];
         let bt_len = backtrace::collect_for(self.base_pointer(), &mut bt);
         for addr in bt.iter().take(bt_len) {
-            writeln!(fmt, "  {:#x}", addr)?;
+            writeln!(fmt, "  {:#x}", addr.as_local())?;
         }
         Ok(())
     }
@@ -130,7 +131,7 @@ impl crate::ISRArch for ARMISR {
         // nothing to do
     }
 
-    fn set_entry_sp(_sp: usize) {
+    fn set_entry_sp(_sp: VirtAddr) {
         // nothing to do
     }
 
@@ -158,7 +159,7 @@ impl crate::ISRArch for ARMISR {
     fn reg_external(_handler: crate::IsrFunc) {
     }
 
-    fn get_pf_info(state: &Self::State) -> (usize, PageFlags) {
+    fn get_pf_info(state: &Self::State) -> (VirtAddr, PageFlags) {
         let (virt, perm) = if state.vec == Vector::DataAbort.into() {
             let dfar: usize;
             let dfsr: usize;
@@ -192,17 +193,15 @@ impl crate::ISRArch for ARMISR {
             }
             (ifar, PageFlags::RX)
         };
-        (virt, perm)
+        (VirtAddr::from(virt), perm)
     }
 
-    fn init_tls(_addr: usize) {
+    fn init_tls(_addr: VirtAddr) {
         // unused
     }
 
     fn enable_irqs() {
-        unsafe {
-            asm!("msr cpsr, 0x53")
-        };
+        unsafe { asm!("msr cpsr, 0x53") };
     }
 
     fn fetch_irq() -> IRQSource {

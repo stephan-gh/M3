@@ -28,7 +28,7 @@ use base::io::LogFlags;
 use base::kif::{PageFlags, Perm};
 use base::libc;
 use base::log;
-use base::mem::{size_of, MsgBuf};
+use base::mem::{size_of, MsgBuf, VirtAddr};
 use base::tcu::{self, EpId, TileId, TCU};
 use base::util;
 
@@ -52,15 +52,15 @@ pub extern "C" fn mmu_pf(state: &mut isr::State) -> *mut libc::c_void {
     let (virt, perm) = ISR::get_pf_info(state);
 
     panic!(
-        "Pagefault for address={:#x}, perm={:?} with {:?}",
+        "Pagefault for address={}, perm={:?} with {:?}",
         virt, perm, state
     );
 }
 
-fn read_write(wr_addr: usize, rd_addr: usize, size: usize) {
+fn read_write(wr_addr: VirtAddr, rd_addr: VirtAddr, size: usize) {
     log!(
         LogFlags::Info,
-        "WRITE to {:#x} and READ back into {:#x} with {} bytes",
+        "WRITE to {} and READ back into {} with {} bytes",
         wr_addr,
         rd_addr,
         size
@@ -68,8 +68,8 @@ fn read_write(wr_addr: usize, rd_addr: usize, size: usize) {
 
     TCU::invalidate_tlb();
 
-    let wr_slice = unsafe { util::slice_for_mut(wr_addr as *mut u8, size) };
-    let rd_slice = unsafe { util::slice_for_mut(rd_addr as *mut u8, size) };
+    let wr_slice = unsafe { util::slice_for_mut(wr_addr.as_mut_ptr(), size) };
+    let rd_slice = unsafe { util::slice_for_mut(rd_addr.as_mut_ptr(), size) };
 
     // prepare test data
     for i in 0..size {
@@ -89,7 +89,7 @@ fn read_write(wr_addr: usize, rd_addr: usize, size: usize) {
     assert_eq!(rd_slice, wr_slice);
 }
 
-fn test_mem(area_begin: usize, area_size: usize) {
+fn test_mem(area_begin: VirtAddr, area_size: usize) {
     helper::XLATES.set(0);
     let mut count = 0;
 
@@ -98,7 +98,7 @@ fn test_mem(area_begin: usize, area_size: usize) {
 
     // same page
     {
-        read_write(wr_area, wr_area + 16, 16);
+        read_write(wr_area, wr_area + 16usize, 16);
         count += 1;
         assert_eq!(helper::XLATES.get(), count);
     }
@@ -112,21 +112,21 @@ fn test_mem(area_begin: usize, area_size: usize) {
 
     // unaligned
     {
-        read_write(wr_area + 1, rd_area, 3);
+        read_write(wr_area + 1usize, rd_area, 3);
         count += 2;
         assert_eq!(helper::XLATES.get(), count);
     }
 
     // unaligned write with page boundary
     {
-        read_write(wr_area + 1, rd_area, cfg::PAGE_SIZE);
+        read_write(wr_area + 1usize, rd_area, cfg::PAGE_SIZE);
         count += 3;
         assert_eq!(helper::XLATES.get(), count);
     }
 
     // unaligned read with page boundary
     {
-        read_write(wr_area, rd_area + 1, cfg::PAGE_SIZE);
+        read_write(wr_area, rd_area + 1usize, cfg::PAGE_SIZE);
         count += 3;
         assert_eq!(helper::XLATES.get(), count);
     }
@@ -135,10 +135,10 @@ fn test_mem(area_begin: usize, area_size: usize) {
 static RBUF1: [u64; 32] = [0; 32];
 static RBUF2: [u64; 32] = [0; 32];
 
-fn send_recv(send_addr: usize, size: usize) {
+fn send_recv(send_addr: VirtAddr, size: usize) {
     log!(
         LogFlags::Info,
-        "SEND+REPLY from {:#x} with {} bytes",
+        "SEND+REPLY from {} with {} bytes",
         send_addr,
         size * 8
     );
@@ -146,8 +146,8 @@ fn send_recv(send_addr: usize, size: usize) {
     TCU::invalidate_tlb();
 
     // create receive buffers
-    let (rbuf1_virt, rbuf1_phys) = helper::virt_to_phys(RBUF1.as_ptr() as usize);
-    let (rbuf2_virt, rbuf2_phys) = helper::virt_to_phys(RBUF2.as_ptr() as usize);
+    let (rbuf1_virt, rbuf1_phys) = helper::virt_to_phys(VirtAddr::from(RBUF1.as_ptr()));
+    let (rbuf2_virt, rbuf2_phys) = helper::virt_to_phys(VirtAddr::from(RBUF2.as_ptr()));
 
     // create EPs
     let max_msg_ord = util::math::next_log2(size_of::<tcu::Header>() + size * 8);
@@ -169,7 +169,7 @@ fn send_recv(send_addr: usize, size: usize) {
         TCU::config_send(regs, OWN_ACT, 0x1234, OWN_TILE, REP1, max_msg_ord, 1);
     });
 
-    let msg_buf: &mut MsgBuf = unsafe { transmute(send_addr) };
+    let msg_buf: &mut MsgBuf = unsafe { transmute(send_addr.as_local()) };
 
     // prepare test data
     unsafe {
@@ -218,11 +218,11 @@ struct LargeAlignedBuf {
     bytes: [u8; cfg::PAGE_SIZE + 16],
 }
 
-fn test_msgs(area_begin: usize, _area_size: usize) {
+fn test_msgs(area_begin: VirtAddr, _area_size: usize) {
     helper::XLATES.set(0);
     let mut count = 0;
 
-    let (_rbuf1_virt, rbuf1_phys) = helper::virt_to_phys(RBUF1.as_ptr() as usize);
+    let (_rbuf1_virt, rbuf1_phys) = helper::virt_to_phys(VirtAddr::from(RBUF1.as_ptr()));
 
     {
         log!(LogFlags::Info, "SEND with page boundary");
@@ -284,7 +284,7 @@ fn test_msgs(area_begin: usize, _area_size: usize) {
 }
 
 pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
-    log!(LogFlags::Info, "Got TCU IRQ @ {:#x}", state.instr_pointer());
+    log!(LogFlags::Info, "Got TCU IRQ @ {}", state.instr_pointer());
 
     ISR::fetch_irq();
 
@@ -302,7 +302,7 @@ pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
 fn test_foreign_msg() {
     FOREIGN_MSGS.set(0);
 
-    let (rbuf1_virt, rbuf1_phys) = helper::virt_to_phys(RBUF1.as_ptr() as usize);
+    let (rbuf1_virt, rbuf1_phys) = helper::virt_to_phys(VirtAddr::from(RBUF1.as_ptr()));
 
     log!(LogFlags::Info, "SEND to REP of foreign Activity");
 
@@ -344,7 +344,7 @@ fn test_foreign_msg() {
 fn test_own_msg() {
     FOREIGN_MSGS.set(0);
 
-    let (rbuf1_virt, rbuf1_phys) = helper::virt_to_phys(RBUF1.as_ptr() as usize);
+    let (rbuf1_virt, rbuf1_phys) = helper::virt_to_phys(VirtAddr::from(RBUF1.as_ptr()));
 
     log!(LogFlags::Info, "SEND to REP of own Activity");
 
@@ -389,7 +389,7 @@ fn test_tlb() {
         TCU::invalidate_tlb();
 
         // fill with lots of entries (beyond capacity)
-        let mut virt = 0x2000_0000;
+        let mut virt = VirtAddr::from(0x2000_0000);
         let mut phys = 0x1000_0000;
         for _ in 0..TLB_SIZE * 2 {
             TCU::insert_tlb(ASID, virt, phys, PageFlags::RW).unwrap();
@@ -412,7 +412,7 @@ fn test_tlb() {
         TCU::invalidate_tlb();
 
         // fill with lots of fixed entries
-        let mut virt = 0x2000_0000;
+        let mut virt = VirtAddr::from(0x2000_0000);
         let mut phys = 0x1000_0000;
         for _ in 0..TLB_SIZE {
             TCU::insert_tlb(ASID, virt, phys, PageFlags::RW | PageFlags::FIXED).unwrap();
@@ -430,10 +430,16 @@ fn test_tlb() {
             Err(Error::new(Code::TLBFull))
         );
         // but the same address can still be inserted
-        TCU::insert_tlb(ASID, 0x2000_0000, phys, PageFlags::R | PageFlags::FIXED).unwrap();
+        TCU::insert_tlb(
+            ASID,
+            VirtAddr::from(0x2000_0000),
+            phys,
+            PageFlags::R | PageFlags::FIXED,
+        )
+        .unwrap();
 
         // remove all fixed entries
-        let virt = 0x2000_0000;
+        let virt = VirtAddr::from(0x2000_0000);
         for i in 0..TLB_SIZE {
             TCU::invalidate_page(ASID, virt + cfg::PAGE_SIZE * i).unwrap();
         }
@@ -445,7 +451,7 @@ fn test_tlb() {
         TCU::invalidate_tlb();
 
         // insert entries with different flags
-        let virt = 0x2000_0000;
+        let virt = VirtAddr::from(0x2000_0000);
         let phys = 0x1000_0000;
         let pgsz = cfg::PAGE_SIZE;
         TCU::insert_tlb(ASID, virt, phys, PageFlags::R).unwrap();
@@ -498,15 +504,10 @@ pub extern "C" fn env_run() {
 
     let virt = cfg::ENV_START;
     let pte = paging::translate(virt, PageFlags::R);
-    log!(
-        LogFlags::Info,
-        "Translated virt={:#x} to PTE={:#x}",
-        virt,
-        pte
-    );
+    log!(LogFlags::Info, "Translated virt={} to PTE={:#x}", virt, pte);
 
     log!(LogFlags::Info, "Mapping memory area...");
-    let area_begin = 0xC100_0000;
+    let area_begin = VirtAddr::from(0xC100_0000);
     let area_size = cfg::PAGE_SIZE * 8;
     paging::map_anon(area_begin, area_size, PageFlags::RW).expect("Unable to map memory");
 

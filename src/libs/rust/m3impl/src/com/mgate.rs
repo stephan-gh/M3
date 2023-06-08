@@ -28,7 +28,7 @@ use crate::com::gate::Gate;
 use crate::errors::Error;
 use crate::goff;
 use crate::kif::INVALID_SEL;
-use crate::mem::{self, MaybeUninit};
+use crate::mem::{self, MaybeUninit, VirtAddr};
 use crate::syscalls;
 use crate::tcu;
 use crate::tiles::Activity;
@@ -150,9 +150,14 @@ impl MemGate {
     ///
     /// The given region in virtual memory must be physically contiguous and page aligned. Note that
     /// the preferred interface for this functionality is [`Activity::get_mem`].
-    pub fn new_foreign(act: Selector, virt: goff, size: goff, perm: Perm) -> Result<Self, Error> {
+    pub fn new_foreign(
+        act: Selector,
+        virt: VirtAddr,
+        size: goff,
+        perm: Perm,
+    ) -> Result<Self, Error> {
         let sel = Activity::own().alloc_sel();
-        syscalls::create_mgate(sel, act, virt, size, perm)?;
+        syscalls::create_mgate(sel, act, virt.as_goff(), size, perm)?;
         Ok(MemGate::new_owned_bind(sel))
     }
 
@@ -238,9 +243,7 @@ impl MemGate {
         let mut vec = Vec::<T>::with_capacity(items);
         // we deliberately use uninitialize memory here, because it's performance critical
         // safety: this is okay, because the TCU does not read from `vec`
-        unsafe {
-            vec.set_len(items)
-        };
+        unsafe { vec.set_len(items) };
         self.read(&mut vec, off)?;
         Ok(vec)
     }

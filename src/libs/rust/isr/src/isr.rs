@@ -24,12 +24,13 @@ use cfg_if::cfg_if;
 
 use base::cell::StaticRefCell;
 use base::kif::PageFlags;
+use base::mem::VirtAddr;
 use base::tcu;
 use base::tmif;
 
 pub trait StateArch {
-    fn instr_pointer(&self) -> usize;
-    fn base_pointer(&self) -> usize;
+    fn instr_pointer(&self) -> VirtAddr;
+    fn base_pointer(&self) -> VirtAddr;
     fn came_from_user(&self) -> bool;
 }
 
@@ -37,7 +38,7 @@ pub trait ISRArch {
     type State: StateArch + Debug;
 
     fn init(state: &mut Self::State);
-    fn set_entry_sp(sp: usize);
+    fn set_entry_sp(sp: VirtAddr);
 
     fn reg_tm_calls(handler: crate::IsrFunc);
     fn reg_page_faults(handle: crate::IsrFunc);
@@ -46,9 +47,9 @@ pub trait ISRArch {
     fn reg_timer(handler: crate::IsrFunc);
     fn reg_external(handler: crate::IsrFunc);
 
-    fn get_pf_info(state: &Self::State) -> (usize, PageFlags);
+    fn get_pf_info(state: &Self::State) -> (VirtAddr, PageFlags);
 
-    fn init_tls(addr: usize);
+    fn init_tls(addr: VirtAddr);
 
     fn enable_irqs();
     fn fetch_irq() -> IRQSource;

@@ -15,6 +15,7 @@
 
 use base::cfg;
 use base::kif::PageFlags;
+use base::mem::VirtAddr;
 use base::write_csr;
 
 use bitflags::bitflags;
@@ -137,11 +138,11 @@ impl crate::ArchPaging for X86Paging {
         // not possible/necessary
     }
 
-    fn invalidate_page(_id: crate::ActId, virt: usize) {
+    fn invalidate_page(_id: crate::ActId, virt: VirtAddr) {
         unsafe {
             asm!(
                 "invlpg [{0}]",
-                in(reg) virt,
+                in(reg) virt.as_local(),
                 options(nostack),
             );
         }

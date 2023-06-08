@@ -27,6 +27,7 @@ use m3::goff;
 use m3::io::LogFlags;
 use m3::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
 use m3::log;
+use m3::mem::VirtAddr;
 use m3::rc::Rc;
 use m3::syscalls;
 use resmng::childs;
@@ -46,7 +47,7 @@ pub struct Region {
     child: childs::Id,
     mem: Option<Rc<RefCell<PhysMem>>>,
     mem_off: goff,
-    ds_off: goff,
+    ds_off: VirtAddr,
     off: goff,
     size: goff,
     perm: Perm,
@@ -54,7 +55,13 @@ pub struct Region {
 }
 
 impl Region {
-    pub fn new(owner: Selector, child: childs::Id, ds_off: goff, off: goff, size: goff) -> Self {
+    pub fn new(
+        owner: Selector,
+        child: childs::Id,
+        ds_off: VirtAddr,
+        off: goff,
+        size: goff,
+    ) -> Self {
         Region {
             owner,
             child,
@@ -82,8 +89,8 @@ impl Region {
         }
     }
 
-    pub fn virt(&self) -> goff {
-        self.ds_off + self.off
+    pub fn virt(&self) -> VirtAddr {
+        self.ds_off + VirtAddr::new(self.off)
     }
 
     pub fn offset(&self) -> goff {
@@ -149,7 +156,7 @@ impl Region {
 
                 // either copy from owner memory or the physical memory
                 let (off, osel) = if let Some((oact, ovirt)) = mem.owner_mem() {
-                    (ovirt + self.off, oact)
+                    ((ovirt + self.off).as_goff(), oact)
                 }
                 else {
                     (self.mem_off, INVALID_SEL)
@@ -164,9 +171,9 @@ impl Region {
 
                 log!(
                     LogFlags::PgMem,
-                    "Copying memory {:#x}..{:#x} from {} (we are {})",
-                    self.ds_off + self.off,
-                    self.ds_off + self.off + self.size - 1,
+                    "Copying memory {}..{} from {} (we are {})",
+                    self.virt(),
+                    self.virt() + self.size - 1,
                     if mem.owner_mem().is_some() {
                         "owner"
                     }
@@ -185,7 +192,7 @@ impl Region {
                     copy_block(mem.gate(), &ngate, off, self.size);
                 }
                 else {
-                    let omem = MemGate::new_foreign(osel, off, self.size, Perm::R)?;
+                    let omem = MemGate::new_foreign(osel, VirtAddr::new(off), self.size, Perm::R)?;
                     copy_block(&omem, &ngate, 0, self.size);
                 }
 
@@ -250,7 +257,7 @@ impl Region {
     pub fn map(&mut self, perm: Perm) -> Result<(), Error> {
         if let Some(ref mem) = self.mem {
             syscalls::create_map(
-                (self.virt() >> cfg::PAGE_BITS as goff) as Selector,
+                self.virt(),
                 self.owner,
                 mem.borrow().gate().sel(),
                 (self.mem_off >> cfg::PAGE_BITS as goff) as Selector,
@@ -276,7 +283,7 @@ impl Drop for Region {
                 self.owner,
                 CapRngDesc::new(
                     CapType::Mapping,
-                    (self.virt() >> cfg::PAGE_BITS as goff) as Selector,
+                    (self.virt().as_goff() >> cfg::PAGE_BITS as goff) as Selector,
                     (self.size() >> cfg::PAGE_BITS as goff) as Selector,
                 ),
                 true,
@@ -290,7 +297,7 @@ impl fmt::Debug for Region {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             fmt,
-            "Region[{:#x}..{:#x} with {:#x}]",
+            "Region[{}..{} with {:#x}]",
             self.virt(),
             self.virt() + self.size() - 1,
             self.perm
@@ -301,7 +308,7 @@ impl fmt::Debug for Region {
 pub struct RegionList {
     owner: Selector,
     child: childs::Id,
-    ds_off: goff,
+    ds_off: VirtAddr,
     size: goff,
     // put regions in Boxes to cheaply move them around
     #[allow(clippy::vec_box)]
@@ -309,7 +316,7 @@ pub struct RegionList {
 }
 
 impl RegionList {
-    pub fn new(owner: Selector, child: childs::Id, ds_off: goff, size: goff) -> Self {
+    pub fn new(owner: Selector, child: childs::Id, ds_off: VirtAddr, size: goff) -> Self {
         RegionList {
             owner,
             child,

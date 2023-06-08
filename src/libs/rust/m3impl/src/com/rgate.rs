@@ -28,7 +28,7 @@ use crate::env;
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::kif::INVALID_SEL;
-use crate::mem::MsgBuf;
+use crate::mem::{MsgBuf, VirtAddr};
 use crate::syscalls;
 use crate::tcu;
 use crate::tiles::{Activity, OwnActivity};
@@ -43,7 +43,7 @@ static DEF_RGATE: LazyReadOnlyCell<RecvGate> = LazyReadOnlyCell::default();
 #[derive(Debug)]
 enum RGateBuf {
     Allocated(RecvBuf),
-    Manual(usize),
+    Manual(VirtAddr),
     Invalid,
 }
 
@@ -181,7 +181,7 @@ impl RecvGate {
         DEF_RGATE.get()
     }
 
-    const fn new_def(sel: Selector, ep: tcu::EpId, addr: usize, order: u32) -> Self {
+    const fn new_def(sel: Selector, ep: tcu::EpId, addr: VirtAddr, order: u32) -> Self {
         RecvGate {
             gate: Gate::new_with_ep(sel, CapFlags::KEEP_CAP, ep),
             buf: RefCell::new(RGateBuf::Manual(addr)),
@@ -271,7 +271,7 @@ impl RecvGate {
 
     /// Returns the address of the receive buffer
     #[inline(always)]
-    pub fn address(&self) -> Option<usize> {
+    pub fn address(&self) -> Option<VirtAddr> {
         match *self.buf.borrow() {
             RGateBuf::Invalid => None,
             RGateBuf::Manual(addr) => Some(addr),
@@ -316,7 +316,7 @@ impl RecvGate {
         &self,
         mem: Option<Selector>,
         off: goff,
-        addr: usize,
+        addr: VirtAddr,
     ) -> Result<tcu::EpId, Error> {
         self.fetch_buffer_size()?;
         let replies = 1 << (self.order.get().unwrap() - self.msg_order.get().unwrap());

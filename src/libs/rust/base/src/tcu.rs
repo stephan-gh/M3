@@ -39,7 +39,7 @@ use crate::env;
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::kif::{PageFlags, Perm};
-use crate::mem;
+use crate::mem::{self, VirtAddr, VirtAddrRaw};
 use crate::serialize::{Deserialize, Serialize};
 use crate::tmif;
 use crate::util::math;
@@ -151,11 +151,11 @@ pub const NO_REPLIES: EpId = INVALID_EP;
 pub const UNLIM_CREDITS: u32 = 0x3F;
 
 /// The base address of the TCU's MMIO area
-pub const MMIO_ADDR: usize = 0xF000_0000;
+pub const MMIO_ADDR: VirtAddr = VirtAddr::new(0xF000_0000);
 /// The size of the TCU's MMIO area
 pub const MMIO_SIZE: usize = cfg::PAGE_SIZE * 2;
 /// The base address of the TCU's private MMIO area
-pub const MMIO_PRIV_ADDR: usize = MMIO_ADDR + MMIO_SIZE;
+pub const MMIO_PRIV_ADDR: VirtAddr = VirtAddr::new(MMIO_ADDR.as_raw() + MMIO_SIZE as VirtAddrRaw);
 /// The size of the TCU's private MMIO area (including config space on HW)
 pub const MMIO_PRIV_SIZE: usize = cfg::PAGE_SIZE * 2;
 
@@ -575,7 +575,12 @@ impl TCU {
         );
         Self::get_error().ok()?;
         let msg = Self::read_unpriv_reg(UnprivReg::Arg1);
-        if msg != !0 { Some(msg as usize) } else { None }
+        if msg != !0 {
+            Some(msg as usize)
+        }
+        else {
+            None
+        }
     }
 
     /// Assuming that `ep` is a receive EP, the function returns whether there are unread messages.
@@ -689,7 +694,7 @@ impl TCU {
     }
 
     /// Drops all messages in the receive buffer of given receive EP that have the given label.
-    pub fn drop_msgs_with(buf_addr: usize, ep: EpId, label: Label) {
+    pub fn drop_msgs_with(buf_addr: VirtAddr, ep: EpId, label: Label) {
         // we assume that the one that used the label can no longer send messages. thus, if there
         // are no messages yet, we are done.
         let unread = Self::read_ep_reg(ep, 2) >> 32;
@@ -713,7 +718,6 @@ impl TCU {
     /// Prints the given message into the gem5 log
     pub fn print(s: &[u8]) -> usize {
         let regs = EXT_REGS + UNPRIV_REGS + EP_REGS * TOTAL_EPS as usize;
-        let mut buffer = MMIO_ADDR + regs * 8;
 
         let s = &s[0..cmp::min(s.len(), PRINT_REGS * mem::size_of::<Reg>() - 1)];
 
@@ -727,12 +731,13 @@ impl TCU {
         };
 
         let num = math::round_up(s.len(), 8) / 8;
-        for c in words.iter().take(num) {
-            // safety: we know that the address is within the MMIO region of the TCU
-            unsafe {
-                CPU::write8b(buffer, *c)
-            };
-            buffer += 8;
+        // safety: we know that the address is within the MMIO region of the TCU
+        unsafe {
+            let mut buffer = (MMIO_ADDR.as_mut_ptr::<Reg>()).add(regs);
+            for c in words.iter().take(num) {
+                CPU::write8b(buffer, *c);
+                buffer = buffer.add(1);
+            }
         }
 
         // limit the UDP packet rate a bit to avoid packet drops
@@ -764,20 +769,20 @@ impl TCU {
 
     /// Translates the offset `off` to the message address, using `base` as the base address of the
     /// message's receive buffer
-    pub fn offset_to_msg(base: usize, off: usize) -> &'static Message {
+    pub fn offset_to_msg(base: VirtAddr, off: usize) -> &'static Message {
         // safety: the cast is okay because we trust the TCU
         unsafe {
-            let head = (base + off) as *const Header;
-            let slice = [base + off, (*head).length()];
+            let head = (base.as_local() + off) as *const Header;
+            let slice = [base.as_local() + off, (*head).length()];
             intrinsics::transmute(slice)
         }
     }
 
     /// Translates the message address `msg` to the offset within its receive buffer, using `base`
     /// as the base address of the receive buffer
-    pub fn msg_to_offset(base: usize, msg: &Message) -> usize {
+    pub fn msg_to_offset(base: VirtAddr, msg: &Message) -> usize {
         let addr = msg as *const _ as *const u8 as usize;
-        addr - base
+        addr - base.as_local()
     }
 
     /// Returns the injected IRQ (assuming that a IRQ has been injected and was not cleared yet)
@@ -855,7 +860,7 @@ impl TCU {
     }
 
     /// Invalidates the entry with given address space id and virtual address in the TCU's TLB
-    pub fn invalidate_page(asid: u16, virt: usize) -> Result<(), Error> {
+    pub fn invalidate_page(asid: u16, virt: VirtAddr) -> Result<(), Error> {
         Self::invalidate_page_unchecked(asid, virt);
         Self::get_priv_error()
     }
@@ -865,12 +870,12 @@ impl TCU {
     /// In contrast to `invalidate_page`, errors are ignored. Note that we avoid even allocating the
     /// Error type here, because that causes a heap allocation in debug mode and is used in the
     /// paging code.
-    pub fn invalidate_page_unchecked(asid: u16, virt: usize) {
+    pub fn invalidate_page_unchecked(asid: u16, virt: VirtAddr) {
         #[cfg(feature = "hw22")]
         let val = ((asid as Reg) << 41) | ((virt as Reg) << 9) | (PrivCmdOpCode::InvPage as Reg);
         #[cfg(not(feature = "hw22"))]
         let val = {
-            Self::write_priv_reg(PrivReg::PrivCmdArg, virt as Reg);
+            Self::write_priv_reg(PrivReg::PrivCmdArg, virt.as_local() as Reg);
             ((asid as Reg) << 9) | (PrivCmdOpCode::InvPage as Reg)
         };
 
@@ -879,7 +884,7 @@ impl TCU {
     }
 
     /// Inserts the given entry into the TCU's TLB
-    pub fn insert_tlb(asid: u16, virt: usize, phys: u64, flags: PageFlags) -> Result<(), Error> {
+    pub fn insert_tlb(asid: u16, virt: VirtAddr, phys: u64, flags: PageFlags) -> Result<(), Error> {
         #[cfg(feature = "hw22")]
         let tlb_flags = flags.bits() as Reg;
         #[cfg(not(feature = "hw22"))]
@@ -899,7 +904,7 @@ impl TCU {
 
         let phys = if flags.contains(PageFlags::L) {
             // the current TCU's TLB does not support large pages
-            phys | (virt & cfg::LPAGE_MASK & !cfg::PAGE_MASK) as u64
+            phys | (virt.as_local() & cfg::LPAGE_MASK & !cfg::PAGE_MASK) as u64
         }
         else {
             phys
@@ -910,7 +915,7 @@ impl TCU {
         #[cfg(not(feature = "hw22"))]
         let (arg_addr, cmd_addr) = (virt, phys);
 
-        Self::write_priv_reg(PrivReg::PrivCmdArg, arg_addr as Reg);
+        Self::write_priv_reg(PrivReg::PrivCmdArg, arg_addr.as_local() as Reg);
         atomic::fence(atomic::Ordering::SeqCst);
         let cmd = ((asid as Reg) << 41)
             | (((cmd_addr as Reg) & !(cfg::PAGE_MASK as Reg)) << 9)
@@ -1013,14 +1018,12 @@ impl TCU {
 
     fn read_reg(idx: usize) -> Reg {
         // safety: we know that the address is within the MMIO region of the TCU
-        unsafe { CPU::read8b(MMIO_ADDR + idx * 8) }
+        unsafe { CPU::read8b((MMIO_ADDR.as_ptr::<Reg>()).add(idx)) }
     }
 
     fn write_reg(idx: usize, val: Reg) {
         // safety: as above
-        unsafe {
-            CPU::write8b(MMIO_ADDR + idx * 8, val)
-        };
+        unsafe { CPU::write8b((MMIO_ADDR.as_mut_ptr::<Reg>()).add(idx), val) };
     }
 
     fn build_cmd(ep: EpId, cmd: CmdOpCode, arg: Reg) -> Reg {
@@ -1142,21 +1145,21 @@ impl TCU {
     /// Configures the given endpoint
     pub fn set_ep_regs(ep: EpId, regs: &[Reg]) {
         let off = EXT_REGS + UNPRIV_REGS + EP_REGS * ep as usize;
-        let addr = MMIO_ADDR + off * 8;
-        for (i, r) in regs.iter().enumerate() {
-            unsafe {
-                CPU::write8b(addr + i * mem::size_of::<Reg>(), *r);
+        unsafe {
+            let addr = (MMIO_ADDR.as_mut_ptr::<Reg>()).add(off);
+            for (i, r) in regs.iter().enumerate() {
+                CPU::write8b(addr.add(i), *r);
             }
         }
     }
 
     /// Returns the MMIO address for the given external register
-    pub fn ext_reg_addr(reg: ExtReg) -> usize {
-        MMIO_ADDR + (reg as usize) * 8
+    pub fn ext_reg_addr(reg: ExtReg) -> VirtAddr {
+        MMIO_ADDR + (reg as usize) * mem::size_of::<Reg>()
     }
 
     /// Returns the MMIO address of the given endpoint registers
-    pub fn ep_regs_addr(ep: EpId) -> usize {
-        MMIO_ADDR + (EXT_REGS + UNPRIV_REGS + EP_REGS * ep as usize) * 8
+    pub fn ep_regs_addr(ep: EpId) -> VirtAddr {
+        MMIO_ADDR + (EXT_REGS + UNPRIV_REGS + EP_REGS * ep as usize) * mem::size_of::<Reg>()
     }
 }

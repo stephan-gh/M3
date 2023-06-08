@@ -28,6 +28,7 @@ use core::panic::PanicInfo;
 use base::backtrace;
 use base::cell::StaticCell;
 use base::io::{log, Write};
+use base::mem::VirtAddr;
 
 extern "C" {
     fn abort();
@@ -68,11 +69,12 @@ fn panic(info: &PanicInfo<'_>) -> ! {
         }
         l.write(b"\n\n").unwrap();
 
-        let mut bt = [0usize; 16];
+        let mut bt = [VirtAddr::default(); 16];
         let bt_len = backtrace::collect(&mut bt);
         l.write(b"Backtrace:\n").unwrap();
         for addr in bt.iter().take(bt_len) {
-            l.write_fmt(format_args!("  {:#x}\n", addr)).unwrap();
+            l.write_fmt(format_args!("  {:#x}\n", addr.as_local()))
+                .unwrap();
         }
     }
 

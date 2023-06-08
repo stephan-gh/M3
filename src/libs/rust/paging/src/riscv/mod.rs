@@ -16,6 +16,7 @@
 use base::cell::LazyStaticCell;
 use base::cfg;
 use base::kif::PageFlags;
+use base::mem::VirtAddr;
 use base::{read_csr, set_csr_bits, write_csr};
 
 use bitflags::bitflags;
@@ -157,11 +158,11 @@ impl crate::ArchPaging for RISCVPaging {
         write_csr!("satp", MODE_BARE);
     }
 
-    fn invalidate_page(id: crate::ActId, virt: usize) {
+    fn invalidate_page(id: crate::ActId, virt: VirtAddr) {
         unsafe {
             asm!(
                 "sfence.vma {0}, {1}",
-                in(reg) virt,
+                in(reg) virt.as_local(),
                 in(reg) id,
                 options(nomem, nostack),
             );

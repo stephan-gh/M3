@@ -25,6 +25,7 @@ use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::syscalls::{ActivityOp, SemOp};
 use m3::kif::{CapRngDesc, CapType, Perm, INVALID_SEL, SEL_ACT, SEL_KMEM, SEL_TILE};
+use m3::mem::VirtAddr;
 use m3::server::{CapExchange, Handler, Server, ServerSession, SessId, SessionContainer};
 use m3::syscalls;
 use m3::tcu::{AVAIL_EPS, FIRST_USER_EP, TOTAL_EPS};
@@ -157,7 +158,7 @@ fn create_mgate(t: &mut dyn WvTester) {
             Code::InvArgs
         );
         // and respect the permissions
-        let addr = CPU::stack_pointer() as goff;
+        let addr = CPU::stack_pointer().as_goff();
         let addr = math::round_dn(addr, PAGE_SIZE as goff);
         wv_assert_err!(
             t,
@@ -166,10 +167,10 @@ fn create_mgate(t: &mut dyn WvTester) {
         );
 
         // create 4-page mapping
-        let virt: goff = 0x3000_0000;
+        let virt = VirtAddr::new(0x3000_0000);
         let mem = wv_assert_ok!(MemGate::new(PAGE_SIZE * 4, Perm::RW));
         wv_assert_ok!(syscalls::create_map(
-            (virt / PAGE_SIZE as goff) as Selector,
+            virt,
             Activity::own().sel(),
             mem.sel(),
             0,
@@ -180,7 +181,7 @@ fn create_mgate(t: &mut dyn WvTester) {
         // it has to be within bounds
         wv_assert_err!(
             t,
-            syscalls::create_mgate(sel, SEL_ACT, virt, PAGE_SIZE as goff * 5, Perm::W),
+            syscalls::create_mgate(sel, SEL_ACT, virt.as_goff(), PAGE_SIZE as goff * 5, Perm::W),
             Code::InvArgs
         );
         wv_assert_err!(
@@ -188,7 +189,7 @@ fn create_mgate(t: &mut dyn WvTester) {
             syscalls::create_mgate(
                 sel,
                 SEL_ACT,
-                virt + PAGE_SIZE as goff,
+                virt.as_goff() + PAGE_SIZE as goff,
                 PAGE_SIZE as goff * 4,
                 Perm::W
             ),
@@ -202,7 +203,7 @@ fn create_mgate(t: &mut dyn WvTester) {
         syscalls::create_mgate(
             sel,
             SEL_ACT,
-            m3::tcu::MMIO_ADDR as goff,
+            m3::tcu::MMIO_ADDR.as_goff(),
             PAGE_SIZE as goff,
             Perm::R
         ),
@@ -278,67 +279,68 @@ fn create_map(t: &mut dyn WvTester) {
         return;
     }
 
+    let virt = VirtAddr::null();
     let meminv = wv_assert_ok!(MemGate::new(64, Perm::RW)); // not page-granular
     let mem = wv_assert_ok!(MemGate::new(PAGE_SIZE * 4, Perm::RW));
 
     // invalid activity selector
     wv_assert_err!(
         t,
-        syscalls::create_map(0, SEL_KMEM, mem.sel(), 0, 4, Perm::RW),
+        syscalls::create_map(virt, SEL_KMEM, mem.sel(), 0, 4, Perm::RW),
         Code::InvArgs
     );
     // invalid memgate selector
     wv_assert_err!(
         t,
-        syscalls::create_map(0, Activity::own().sel(), SEL_ACT, 0, 4, Perm::RW),
+        syscalls::create_map(virt, Activity::own().sel(), SEL_ACT, 0, 4, Perm::RW),
         Code::InvArgs
     );
     wv_assert_err!(
         t,
-        syscalls::create_map(0, Activity::own().sel(), meminv.sel(), 0, 4, Perm::RW),
+        syscalls::create_map(virt, Activity::own().sel(), meminv.sel(), 0, 4, Perm::RW),
         Code::InvArgs
     );
     // invalid first page
     wv_assert_err!(
         t,
-        syscalls::create_map(0, Activity::own().sel(), mem.sel(), 4, 4, Perm::RW),
+        syscalls::create_map(virt, Activity::own().sel(), mem.sel(), 4, 4, Perm::RW),
         Code::InvArgs
     );
     wv_assert_err!(
         t,
-        syscalls::create_map(0, Activity::own().sel(), mem.sel(), !0, 4, Perm::RW),
+        syscalls::create_map(virt, Activity::own().sel(), mem.sel(), !0, 4, Perm::RW),
         Code::InvArgs
     );
     // invalid page count
     wv_assert_err!(
         t,
-        syscalls::create_map(0, Activity::own().sel(), mem.sel(), 0, 5, Perm::RW),
+        syscalls::create_map(virt, Activity::own().sel(), mem.sel(), 0, 5, Perm::RW),
         Code::InvArgs
     );
     wv_assert_err!(
         t,
-        syscalls::create_map(0, Activity::own().sel(), mem.sel(), 3, 2, Perm::RW),
+        syscalls::create_map(virt, Activity::own().sel(), mem.sel(), 3, 2, Perm::RW),
         Code::InvArgs
     );
     wv_assert_err!(
         t,
-        syscalls::create_map(0, Activity::own().sel(), mem.sel(), 4, 0, Perm::RW),
+        syscalls::create_map(virt, Activity::own().sel(), mem.sel(), 4, 0, Perm::RW),
         Code::InvArgs
     );
     wv_assert_err!(
         t,
-        syscalls::create_map(0, Activity::own().sel(), mem.sel(), !0, !0, Perm::RW),
+        syscalls::create_map(virt, Activity::own().sel(), mem.sel(), !0, !0, Perm::RW),
         Code::InvArgs
     );
     // invalid permissions
     wv_assert_err!(
         t,
-        syscalls::create_map(0, Activity::own().sel(), mem.sel(), 0, 4, Perm::X),
+        syscalls::create_map(virt, Activity::own().sel(), mem.sel(), 0, 4, Perm::X),
         Code::InvArgs
     );
     wv_assert_err!(
         t,
-        syscalls::create_map(0, Activity::own().sel(), mem.sel(), 0, 4, Perm::RWX),
+        syscalls::create_map(virt, Activity::own().sel(), mem.sel(), 0, 4, Perm::RWX),
         Code::InvArgs
     );
 }

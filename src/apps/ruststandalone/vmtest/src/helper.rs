@@ -24,9 +24,11 @@ use base::kif::{PageFlags, Perm, TileDesc};
 use base::libc;
 use base::log;
 use base::machine;
+use base::mem::VirtAddr;
 use base::tcu::{EpId, Message, Reg, TileId, EP_REGS, TCU};
 
 use crate::paging;
+use ::paging::Phys;
 
 use isr::{ISRArch, ISR};
 
@@ -58,13 +60,13 @@ pub extern "C" fn exit(_code: i32) {
 }
 
 pub extern "C" fn tmcall(state: &mut isr::State) -> *mut libc::c_void {
-    let virt = state.r[isr::TMC_ARG1];
+    let virt = VirtAddr::from(state.r[isr::TMC_ARG1]);
     let access = Perm::from_bits_truncate(state.r[isr::TMC_ARG2] as u32);
     let flags = PageFlags::from(access) & PageFlags::RW;
 
     log!(
         LogFlags::Debug,
-        "tmcall::transl_fault(virt={:#x}, access={:?})",
+        "tmcall::transl_fault(virt={}, access={:?})",
         virt,
         access
     );
@@ -112,20 +114,20 @@ pub fn init(name: &str) {
     ISR::enable_irqs();
 }
 
-pub fn virt_to_phys(virt: usize) -> (usize, ::paging::Phys) {
+pub fn virt_to_phys(virt: VirtAddr) -> (VirtAddr, Phys) {
     if !TileDesc::new_from(env::boot().tile_desc).has_virtmem() {
-        (virt, virt as u64)
+        (virt, virt.as_raw() as Phys)
     }
     else {
         let rbuf_pte = paging::translate(virt, PageFlags::R);
         (
             virt,
-            (rbuf_pte & !cfg::PAGE_MASK as u64) + (virt & cfg::PAGE_MASK) as u64,
+            (rbuf_pte & !cfg::PAGE_MASK as u64) + (virt.as_raw() & (cfg::PAGE_MASK as u64)),
         )
     }
 }
 
-pub fn fetch_msg(ep: EpId, rbuf: usize) -> Option<&'static Message> {
+pub fn fetch_msg(ep: EpId, rbuf: VirtAddr) -> Option<&'static Message> {
     TCU::fetch_msg(ep).map(|off| TCU::offset_to_msg(rbuf, off))
 }
 

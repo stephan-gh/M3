@@ -64,7 +64,7 @@
 #define PHY_REG21_2_TX_DLY            0x0010 // bit 4
 #define PHY_REG21_2_RX_DLY            0x0020 // bit 5
 
-static goff_t virt_base;
+static uintptr_t virt_base;
 static goff_t phys_base;
 static XAxiDma AxiDma;
 static XAxiEthernet AxiEthernetInstance;
@@ -326,7 +326,7 @@ static int init_mac(XAxiEthernet_Config *MacCfgPtr) {
     return 0;
 }
 
-EXTERN_C ssize_t axieth_init(goff_t virt, goff_t phys, size_t size) {
+EXTERN_C ssize_t axieth_init(uintptr_t virt, goff_t phys, size_t size) {
     int Status;
     XAxiEthernet_Config *MacCfgPtr;
     XAxiDma_Config *Config;

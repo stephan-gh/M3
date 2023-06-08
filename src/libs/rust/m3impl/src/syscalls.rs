@@ -25,10 +25,11 @@ use core::mem::MaybeUninit;
 use crate::build_vmsg;
 use crate::cap::Selector;
 use crate::cell::{LazyStaticRefCell, Ref, StaticRefCell};
+use crate::cfg;
 use crate::com::{RecvGate, SendGate};
 use crate::errors::{Code, Error};
 use crate::goff;
-use crate::mem::{GlobAddr, MsgBuf};
+use crate::mem::{GlobAddr, MsgBuf, VirtAddr};
 use crate::quota::Quota;
 use crate::serialize::{Deserialize, M3Deserializer, M3Serializer, SliceSink};
 use crate::tcu::{ActId, EpId, Label, Message, SYSC_SEP_OFF};
@@ -178,9 +179,9 @@ pub fn create_sess(
     send_receive_result(&buf)
 }
 
-/// Creates a new mapping at page `dst` for the given activity. The syscall maps `pages` pages to the
-/// physical memory given by `mgate`, starting at the page `first` within the physical memory using
-/// the given permissions.
+/// Creates a new mapping at given virtual address for the given activity. The syscall maps `pages`
+/// pages to the physical memory given by `mgate`, starting at the page `first` within the physical
+/// memory using the given permissions.
 ///
 /// Note that the address and size of `mgate` needs to be page aligned.
 ///
@@ -191,10 +192,10 @@ pub fn create_sess(
 ///
 /// ```
 /// let mem = MemGate::new(0x2000, MemGate::RW).expect("Unable to alloc mem");
-/// syscalls::create_map(10, Activity::own().sel(), mem.sel(), 0, 2, MemGate::RW);
+/// syscalls::create_map(VirtAddr::new(0x1000), Activity::own().sel(), mem.sel(), 0, 2, MemGate::RW);
 /// ```
 pub fn create_map(
-    dst: Selector,
+    virt: VirtAddr,
     act: Selector,
     mgate: Selector,
     first: Selector,
@@ -203,7 +204,7 @@ pub fn create_map(
 ) -> Result<(), Error> {
     let mut buf = SYSC_BUF.borrow_mut();
     build_vmsg!(buf, syscalls::Operation::CreateMap, syscalls::CreateMap {
-        dst,
+        dst: virt.as_goff() / cfg::PAGE_SIZE as goff,
         act,
         mgate,
         first,

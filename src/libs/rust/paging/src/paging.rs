@@ -25,7 +25,7 @@ use base::io::LogFlags;
 use base::kif::{PageFlags, PTE};
 use base::libc;
 use base::log;
-use base::mem::{size_of, GlobAddr};
+use base::mem::{size_of, GlobAddr, VirtAddr};
 use base::tcu::TCU;
 use base::util::math;
 use core::fmt;
@@ -69,7 +69,7 @@ pub trait ArchPaging {
     fn disable();
 
     /// Invalidates the entry in the TLB for given activity and virtual address
-    fn invalidate_page(id: ActId, virt: usize);
+    fn invalidate_page(id: ActId, virt: VirtAddr);
 
     /// Invalidates all entries in the TLB
     fn invalidate_tlb();
@@ -106,7 +106,7 @@ pub trait Allocator {
     fn allocate_pt(&mut self) -> Result<Phys, Error>;
 
     /// Translates the given physical address of a page table to a virtual address
-    fn translate_pt(&self, phys: Phys) -> usize;
+    fn translate_pt(&self, phys: Phys) -> VirtAddr;
 
     /// Frees the given page table
     fn free_pt(&mut self, phys: Phys);
@@ -154,17 +154,17 @@ impl<A: Allocator> AddrSpace<A> {
         Self::clear_pt(pt_virt);
     }
 
-    pub fn translate(&self, virt: usize, perm: PTE) -> PTE {
+    pub fn translate(&self, virt: VirtAddr, perm: PTE) -> PTE {
         // otherwise, walk through all levels
         let perm = Paging::to_mmu_perms(PageFlags::from_bits_truncate(perm));
         let mut pte = self.root;
         for lvl in (0..LEVEL_CNT).rev() {
             let pt_virt = self.alloc.translate_pt(Paging::pte_to_phys(pte));
-            let idx = (virt >> (cfg::PAGE_BITS + lvl * LEVEL_BITS)) & LEVEL_MASK;
+            let idx = (virt.as_local() >> (cfg::PAGE_BITS + lvl * LEVEL_BITS)) & LEVEL_MASK;
             let pte_addr = pt_virt + idx * size_of::<MMUPTE>();
 
             // safety: as above
-            pte = unsafe { *(pte_addr as *const MMUPTE) };
+            pte = unsafe { *pte_addr.as_ptr::<MMUPTE>() };
 
             let pte_flags = MMUFlags::from_bits_truncate(pte);
             if pte_flags.is_leaf(lvl) || !pte_flags.access_allowed(perm) {
@@ -178,7 +178,7 @@ impl<A: Allocator> AddrSpace<A> {
 
     pub fn map_pages(
         &mut self,
-        mut virt: usize,
+        mut virt: VirtAddr,
         global: GlobAddr,
         mut pages: usize,
         perm: PageFlags,
@@ -192,7 +192,7 @@ impl<A: Allocator> AddrSpace<A> {
 
         log!(
             LogFlags::PgMap,
-            "Activity{}: mapping 0x{:0>16x}..0x{:0>16x} to {:?}..{:?} (phys={:#x}) with {:?}",
+            "Activity{}: mapping {}..{} to {:?}..{:?} (phys={:#x}) with {:?}",
             self.id,
             virt,
             virt + pages * cfg::PAGE_SIZE - 1,
@@ -209,7 +209,7 @@ impl<A: Allocator> AddrSpace<A> {
 
     fn map_pages_rec(
         &mut self,
-        virt: &mut usize,
+        virt: &mut VirtAddr,
         phys: &mut Phys,
         pages: &mut usize,
         perm: MMUFlags,
@@ -220,7 +220,7 @@ impl<A: Allocator> AddrSpace<A> {
         let pt_virt = self.alloc.translate_pt(Paging::pte_to_phys(pte));
 
         // start at the corresponding index
-        let idx = (*virt >> (cfg::PAGE_BITS + level * LEVEL_BITS)) & LEVEL_MASK;
+        let idx = ((*virt).as_local() >> (cfg::PAGE_BITS + level * LEVEL_BITS)) & LEVEL_MASK;
         let mut pte_addr = pt_virt + idx * size_of::<MMUPTE>();
 
         while *pages > 0 {
@@ -230,7 +230,7 @@ impl<A: Allocator> AddrSpace<A> {
             }
 
             // safety: as above
-            let mut pte = unsafe { *(pte_addr as *const MMUPTE) };
+            let mut pte = unsafe { *pte_addr.as_ptr::<MMUPTE>() };
 
             let is_leaf = if perm.has_empty_perm() {
                 MMUFlags::from_bits_truncate(pte).is_leaf(level)
@@ -239,7 +239,7 @@ impl<A: Allocator> AddrSpace<A> {
                 level == 0
                 // can we use a large page?
                 || (level == 1
-                    && math::is_aligned(*virt, cfg::LPAGE_SIZE)
+                    && math::is_aligned((*virt).as_local(), cfg::LPAGE_SIZE)
                     && math::is_aligned(*phys, cfg::LPAGE_SIZE as MMUPTE)
                     && *pages * cfg::PAGE_SIZE >= cfg::LPAGE_SIZE)
             };
@@ -259,9 +259,7 @@ impl<A: Allocator> AddrSpace<A> {
                 let new_flags = MMUFlags::from_bits_truncate(new_pte);
 
                 // safety: as above
-                unsafe {
-                    *(pte_addr as *mut MMUPTE) = new_pte
-                };
+                unsafe { *pte_addr.as_mut_ptr::<MMUPTE>() = new_pte };
 
                 let invalidate = Paging::needs_invalidate(new_flags, old_flags);
                 if invalidate {
@@ -277,7 +275,7 @@ impl<A: Allocator> AddrSpace<A> {
 
                 log!(
                     LogFlags::PgMapPages,
-                    "Activity{}: lvl {} PTE for 0x{:0>16x}: 0x{:0>16x} (inv={}) @ {:#x}",
+                    "Activity{}: lvl {} PTE for {}: 0x{:0>16x} (inv={}) @ {}",
                     self.id,
                     level,
                     virt,
@@ -307,22 +305,25 @@ impl<A: Allocator> AddrSpace<A> {
         Ok(())
     }
 
-    fn create_pt(&mut self, virt: usize, pte_addr: usize, level: usize) -> Result<MMUPTE, Error> {
+    fn create_pt(
+        &mut self,
+        virt: VirtAddr,
+        pte_addr: VirtAddr,
+        level: usize,
+    ) -> Result<MMUPTE, Error> {
         let frame = self.alloc.allocate_pt()?;
         Self::clear_pt(self.alloc.translate_pt(frame));
 
         // insert PTE
         let pte = Paging::build_pte(frame, MMUFlags::empty(), level, false);
         // safety: as above
-        unsafe {
-            *(pte_addr as *mut MMUPTE) = pte
-        };
+        unsafe { *pte_addr.as_mut_ptr::<MMUPTE>() = pte };
 
         let pt_size = (1 << (LEVEL_BITS * level)) * cfg::PAGE_SIZE;
-        let virt_base = virt & !(pt_size - 1);
+        let virt_base = virt & VirtAddr::from(!(pt_size - 1));
         log!(
             LogFlags::PgMapPages,
-            "Activity{}: lvl {} PTE for 0x{:0>16x}: 0x{:0>16x} @ {:#x}",
+            "Activity{}: lvl {} PTE for {}: 0x{:0>16x} @ {}",
             self.id,
             level,
             virt_base,
@@ -333,17 +334,15 @@ impl<A: Allocator> AddrSpace<A> {
         Ok(pte)
     }
 
-    fn clear_pt(pt_virt: usize) {
-        unsafe {
-            libc::memset(pt_virt as *mut _, 0, cfg::PAGE_SIZE)
-        };
+    fn clear_pt(pt_virt: VirtAddr) {
+        unsafe { libc::memset(pt_virt.as_mut_ptr(), 0, cfg::PAGE_SIZE) };
     }
 
     fn free_pts_rec(&mut self, pt: MMUPTE, level: usize) {
         let mut ptes = self.alloc.translate_pt(Paging::pte_to_phys(pt));
         for _ in 0..1 << LEVEL_BITS {
             // safety: as above
-            let pte = unsafe { *(ptes as *const MMUPTE) };
+            let pte = unsafe { *ptes.as_ptr::<MMUPTE>() };
             if pte != 0 {
                 let pte_phys = Paging::pte_to_phys(pte);
                 // does the PTE refer to a PT?
@@ -364,16 +363,16 @@ impl<A: Allocator> AddrSpace<A> {
         &self,
         f: &mut fmt::Formatter<'_>,
         pt: MMUPTE,
-        mut virt: usize,
+        mut virt: VirtAddr,
         level: usize,
     ) -> Result<(), fmt::Error> {
         let mut ptes = self.alloc.translate_pt(Paging::pte_to_phys(pt));
         for _ in 0..1 << LEVEL_BITS {
             // safety: as above
-            let pte = unsafe { *(ptes as *const MMUPTE) };
+            let pte = unsafe { *ptes.as_ptr::<MMUPTE>() };
             if pte != 0 {
                 let w = (LEVEL_CNT - level - 1) * 2;
-                writeln!(f, "{:w$}0x{:0>16x}: 0x{:0>16x}", "", virt, pte, w = w)?;
+                writeln!(f, "{:w$}{}: 0x{:0>16x}", "", virt, pte, w = w)?;
                 if !MMUFlags::from_bits_truncate(pte).is_leaf(level) {
                     self.print_as_rec(f, pte, virt, level - 1)?;
                 }
@@ -405,6 +404,6 @@ impl<A: Allocator> fmt::Debug for AddrSpace<A> {
             "Address space @ 0x{:0>16x}:",
             Paging::pte_to_phys(self.root)
         )?;
-        self.print_as_rec(f, self.root, 0, LEVEL_CNT - 1)
+        self.print_as_rec(f, self.root, VirtAddr::null(), LEVEL_CNT - 1)
     }
 }

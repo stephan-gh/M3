@@ -23,9 +23,8 @@ use num_enum::IntoPrimitive;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::errors::Code;
-use crate::goff;
 use crate::kif::PageFlags;
-use crate::mem::GlobAddr;
+use crate::mem::{GlobAddr, VirtAddr};
 use crate::serialize::{Deserialize, Serialize};
 use crate::tcu::{ActId, EpId};
 
@@ -87,7 +86,7 @@ pub struct ActivityCtrl {
 #[repr(C)]
 pub struct Map {
     pub act_id: u64,
-    pub virt: goff,
+    pub virt: VirtAddr,
     pub global: GlobAddr,
     pub pages: usize,
     pub perm: PageFlags,
@@ -98,7 +97,7 @@ pub struct Map {
 #[repr(C)]
 pub struct Translate {
     pub act_id: u64,
-    pub virt: goff,
+    pub virt: VirtAddr,
     pub perm: PageFlags,
 }
 

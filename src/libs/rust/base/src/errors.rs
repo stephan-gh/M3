@@ -129,6 +129,8 @@ impl<'de> Deserialize<'de> for Code {
 
 #[cfg(debug_assertions)]
 use crate::boxed::Box;
+#[cfg(debug_assertions)]
+use crate::mem::VirtAddr;
 
 #[cfg(debug_assertions)]
 const MAX_BT_LEN: usize = 16;
@@ -139,7 +141,7 @@ const MAX_BT_LEN: usize = 16;
 pub struct ErrorInfo {
     code: Code,
     bt_len: usize,
-    bt: [usize; MAX_BT_LEN],
+    bt: [VirtAddr; MAX_BT_LEN],
 }
 
 #[cfg(debug_assertions)]
@@ -151,7 +153,7 @@ impl ErrorInfo {
     pub fn new(code: Code) -> Self {
         use crate::backtrace;
 
-        let mut bt = [0usize; MAX_BT_LEN];
+        let mut bt = [VirtAddr::default(); MAX_BT_LEN];
         let count = backtrace::collect(bt.as_mut());
 
         ErrorInfo {
@@ -186,14 +188,14 @@ impl Error {
     }
 
     /// Returns the backtrace to the location where the error occurred
-    pub fn backtrace(&self) -> &[usize] {
+    pub fn backtrace(&self) -> &[VirtAddr] {
         self.info.bt.as_ref()
     }
 
     fn debug(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "{:?} at:", self.code())?;
         for i in 0..self.info.bt_len {
-            writeln!(f, "  {:#x}", self.info.bt[i])?;
+            writeln!(f, "  {:#x}", self.info.bt[i].as_local())?;
         }
         Ok(())
     }

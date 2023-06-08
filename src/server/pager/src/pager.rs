@@ -30,6 +30,7 @@ use m3::col::{String, ToString, Vec};
 use m3::com::{opcodes, MemGate, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error, VerboseError};
 use m3::format;
+use m3::mem::VirtAddr;
 use m3::server::{ExcType, RequestHandler, Server};
 use m3::tcu::Label;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity};
@@ -276,7 +277,7 @@ pub fn main() -> Result<(), Error> {
     thread::init();
     for _ in 0..args.max_clients {
         thread::add_thread(
-            workloop as *const () as usize,
+            VirtAddr::from(workloop as *const ()),
             &mut wargs as *mut _ as usize,
         );
     }

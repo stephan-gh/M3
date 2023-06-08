@@ -20,7 +20,7 @@ use base::goff;
 use base::io::LogFlags;
 use base::kif;
 use base::log;
-use base::mem::GlobAddr;
+use base::mem::{GlobAddr, VirtAddr};
 use base::tcu::{EpId, INVALID_EP, IRQ};
 use base::time::TimeDuration;
 use base::tmif;
@@ -90,7 +90,7 @@ fn tmcall_yield(_state: &mut arch::State) -> Result<(), Error> {
 }
 
 fn tmcall_map(state: &mut arch::State) -> Result<(), Error> {
-    let virt = state.r[isr::TMC_ARG1];
+    let virt = VirtAddr::from(state.r[isr::TMC_ARG1]);
     let phys = state.r[isr::TMC_ARG2] as goff;
     let pages = state.r[isr::TMC_ARG3];
     let access = kif::Perm::from_bits_truncate(state.r[isr::TMC_ARG4] as u32);
@@ -98,7 +98,7 @@ fn tmcall_map(state: &mut arch::State) -> Result<(), Error> {
 
     log!(
         LogFlags::MuxCalls,
-        "tmcall::map(virt={:#x}, phys={:#x}, pages={}, access={:?})",
+        "tmcall::map(virt={}, phys={:#x}, pages={}, access={:?})",
         virt,
         phys,
         pages,
@@ -128,13 +128,13 @@ fn tmcall_reg_irq(state: &mut arch::State) -> Result<(), Error> {
 }
 
 fn tmcall_transl_fault(state: &mut arch::State) -> Result<(), Error> {
-    let virt = state.r[isr::TMC_ARG1];
+    let virt = VirtAddr::from(state.r[isr::TMC_ARG1]);
     let access = kif::Perm::from_bits_truncate(state.r[isr::TMC_ARG2] as u32);
     let flags = kif::PageFlags::from(access) & kif::PageFlags::RW;
 
     log!(
         LogFlags::MuxCalls,
-        "tmcall::transl_fault(virt={:#x}, access={:?})",
+        "tmcall::transl_fault(virt={}, access={:?})",
         virt,
         access
     );
@@ -145,13 +145,9 @@ fn tmcall_transl_fault(state: &mut arch::State) -> Result<(), Error> {
 }
 
 fn tmcall_init_tls(state: &mut arch::State) -> Result<(), Error> {
-    let virt = state.r[isr::TMC_ARG1];
+    let virt = VirtAddr::from(state.r[isr::TMC_ARG1]);
 
-    log!(
-        LogFlags::MuxCalls,
-        "tmcall::tmcall_init_tls(virt={:#x})",
-        virt
-    );
+    log!(LogFlags::MuxCalls, "tmcall::tmcall_init_tls(virt={})", virt);
 
     ISR::init_tls(virt);
 

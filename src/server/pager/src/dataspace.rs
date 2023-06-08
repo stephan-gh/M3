@@ -23,6 +23,7 @@ use m3::goff;
 use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
+use m3::mem::VirtAddr;
 use m3::rc::Rc;
 use m3::util::math;
 use resmng::childs;
@@ -67,7 +68,7 @@ impl Clone for FileMapping {
 pub struct DataSpace {
     id: u64,
     child: childs::Id,
-    virt: goff,
+    virt: VirtAddr,
     size: goff,
     perms: kif::Perm,
     flags: MapFlags,
@@ -81,7 +82,7 @@ impl DataSpace {
     pub fn new_extern(
         owner: Selector,
         child: childs::Id,
-        virt: goff,
+        virt: VirtAddr,
         size: goff,
         perms: kif::Perm,
         flags: MapFlags,
@@ -104,7 +105,7 @@ impl DataSpace {
     pub fn new_anon(
         owner: Selector,
         child: childs::Id,
-        virt: goff,
+        virt: VirtAddr,
         size: goff,
         perms: kif::Perm,
         flags: MapFlags,
@@ -140,7 +141,7 @@ impl DataSpace {
         self.id
     }
 
-    pub fn virt(&self) -> goff {
+    pub fn virt(&self) -> VirtAddr {
         self.virt
     }
 
@@ -171,9 +172,9 @@ impl DataSpace {
     pub fn handle_pf(
         &mut self,
         childs: &mut childs::ChildManager,
-        virt: goff,
+        virt: VirtAddr,
     ) -> Result<(), Error> {
-        let pf_off = math::round_dn(virt - self.virt, cfg::PAGE_SIZE as goff);
+        let pf_off = math::round_dn((virt - self.virt).as_goff(), cfg::PAGE_SIZE as goff);
         let reg = self.regions.pagefault(pf_off);
 
         // if it isn't backed with memory yet, allocate memory for it
@@ -226,14 +227,14 @@ impl DataSpace {
 
                 log!(
                     LogFlags::PgMem,
-                    "Obtained memory for {:#x}..{:#x}",
+                    "Obtained memory for {}..{}",
                     reg.virt(),
                     reg.virt() + reg.size() - 1
                 );
             }
             else {
                 let max = if !self.flags.contains(MapFlags::NOLPAGE)
-                    && math::is_aligned(virt, cfg::LPAGE_SIZE as goff)
+                    && math::is_aligned(virt, VirtAddr::from(cfg::LPAGE_SIZE))
                     && reg.size() >= cfg::LPAGE_SIZE as goff
                 {
                     cfg::LPAGE_SIZE / cfg::PAGE_SIZE
@@ -247,7 +248,7 @@ impl DataSpace {
 
                 log!(
                     LogFlags::PgMem,
-                    "Allocating anonymous memory for {:#x}..{:#x}",
+                    "Allocating anonymous memory for {}..{}",
                     reg.virt(),
                     reg.virt() + reg.size() - 1
                 );

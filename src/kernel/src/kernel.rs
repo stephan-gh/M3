@@ -33,11 +33,11 @@ mod tiles;
 
 use base::cfg;
 use base::env;
-use base::goff;
 use base::io::{self, LogFlags};
 use base::kif::TileDesc;
 use base::log;
 use base::machine;
+use base::mem::VirtAddr;
 use base::tcu;
 use base::util::math;
 
@@ -89,15 +89,15 @@ fn create_rbufs() {
     };
 
     // TODO add second syscall REP
-    ktcu::recv_msgs(ktcu::KSYS_EP, rbuf as goff, sysc_rbuf_size, sysc_slot_size)
+    ktcu::recv_msgs(ktcu::KSYS_EP, rbuf, sysc_rbuf_size, sysc_slot_size)
         .expect("Unable to config syscall REP");
     rbuf += 1 << sysc_rbuf_size as usize;
 
-    ktcu::recv_msgs(ktcu::KSRV_EP, rbuf as goff, serv_rbuf_size, serv_slot_size)
+    ktcu::recv_msgs(ktcu::KSRV_EP, rbuf, serv_rbuf_size, serv_slot_size)
         .expect("Unable to config service REP");
     rbuf += 1 << serv_rbuf_size as usize;
 
-    ktcu::recv_msgs(ktcu::KPEX_EP, rbuf as goff, tm_rbuf_size, tm_slot_size)
+    ktcu::recv_msgs(ktcu::KPEX_EP, rbuf, tm_rbuf_size, tm_slot_size)
         .expect("Unable to config tilemux REP");
 }
 
@@ -111,7 +111,7 @@ fn create_heap() {
             heap_end = heap_start + 128 * cfg::PAGE_SIZE;
         }
         else {
-            heap_end = desc.stack_space().0;
+            heap_end = desc.stack_space().0.as_local();
         }
         __m3_heap_set_area(heap_start, heap_end);
     }
@@ -121,20 +121,19 @@ fn extend_heap() {
     if platform::tile_desc(platform::kernel_tile()).has_virtmem() {
         let free_contiguous = mem::borrow_mut().largest_contiguous(mem::MemType::KERNEL);
         if let Some(bytes) = free_contiguous {
-            let heap_end = unsafe { __m3_heap_get_end() };
+            let heap_end = VirtAddr::from(unsafe { __m3_heap_get_end() });
 
             // determine page count and virtual start address
             let pages = (bytes as usize) >> cfg::PAGE_BITS;
-            let virt = math::round_up(heap_end, cfg::PAGE_SIZE);
+            let virt = math::round_up(heap_end, VirtAddr::from(cfg::PAGE_SIZE));
 
             // first map small pages until the next large page
-            let virt_next_lpage = (virt + cfg::LPAGE_SIZE - 1) & !(cfg::LPAGE_SIZE - 1);
-            let small_pages = (virt_next_lpage - virt) >> cfg::PAGE_BITS;
+            let virt_next_lpage =
+                (virt + cfg::LPAGE_SIZE - 1) & VirtAddr::from(!(cfg::LPAGE_SIZE - 1));
+            let small_pages = ((virt_next_lpage - virt) >> cfg::PAGE_BITS).as_local();
 
             runtime::paging::map_new_mem(virt, small_pages, cfg::PAGE_SIZE);
-            unsafe {
-                __m3_heap_append(small_pages)
-            };
+            unsafe { __m3_heap_append(small_pages) };
 
             // now map the rest with large pages
             let large_pages = ((pages - small_pages) * cfg::PAGE_SIZE) / cfg::LPAGE_SIZE;
@@ -144,18 +143,14 @@ fn extend_heap() {
                 large_pages * pages_per_lpage,
                 cfg::LPAGE_SIZE,
             );
-            unsafe {
-                __m3_heap_append(large_pages * pages_per_lpage)
-            };
+            unsafe { __m3_heap_append(large_pages * pages_per_lpage) };
         }
     }
 }
 
 #[no_mangle]
 pub extern "C" fn env_run() {
-    unsafe {
-        __m3_init_libc(0, ptr::null(), ptr::null(), false)
-    };
+    unsafe { __m3_init_libc(0, ptr::null(), ptr::null(), false) };
     create_heap();
     crate::slab::init();
     io::init(
@@ -220,7 +215,7 @@ fn workloop() -> ! {
         // with all activities gone, we should only have the main thread left; add another thread for
         // the asynchronous tile reset
         assert_eq!(thread::thread_count(), 0);
-        thread::add_thread(thread_startup as *const () as usize, 0);
+        thread::add_thread(VirtAddr::from(thread_startup as *const ()), 0);
 
         // trigger the shutdown of tiles
         tiles::deinit_async();

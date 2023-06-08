@@ -23,6 +23,7 @@ use m3::goff;
 use m3::io::LogFlags;
 use m3::kif::{CapRngDesc, CapType, PageFlags, Perm};
 use m3::log;
+use m3::mem::VirtAddr;
 use m3::reply_vmsg;
 use m3::server::{CapExchange, ClientManager, RequestSession, ServerSession, SessId};
 use m3::tiles::Activity;
@@ -31,7 +32,7 @@ use resmng::childs;
 
 use crate::dataspace::DataSpace;
 
-const MAX_VIRT_ADDR: goff = cfg::MEM_CAP_END as goff - 1;
+const MAX_VIRT_ADDR: VirtAddr = VirtAddr::new(cfg::MEM_CAP_END.as_raw() - 1);
 
 pub struct AddrSpace {
     #[allow(unused)]
@@ -193,13 +194,13 @@ impl AddrSpace {
         childs: &mut childs::ChildManager,
         is: &mut GateIStream<'_>,
     ) -> Result<(), Error> {
-        let virt: goff = is.pop()?;
+        let virt: VirtAddr = is.pop()?;
         let access = PageFlags::from_bits_truncate(is.pop()?) & !PageFlags::U;
         let access = Perm::from_bits_truncate(access.bits() as u32);
 
         log!(
             LogFlags::PgReqs,
-            "[{}] pager::pagefault(virt={:#x}, access={:#x})",
+            "[{}] pager::pagefault(virt={}, access={:#x})",
             self.id(),
             virt,
             access
@@ -218,14 +219,14 @@ impl AddrSpace {
     pub(crate) fn pagefault_at(
         &mut self,
         childs: &mut childs::ChildManager,
-        virt: goff,
+        virt: VirtAddr,
         access: Perm,
     ) -> Result<(), Error> {
         if let Some(ds) = self.find_ds_mut(virt) {
             if (ds.perm() & access) != access {
                 log!(
                     LogFlags::Error,
-                    "Access at {:#x} for {:#x} not allowed: {:#x}",
+                    "Access at {} for {:#x} not allowed: {:#x}",
                     virt,
                     access,
                     ds.perm()
@@ -236,7 +237,7 @@ impl AddrSpace {
             ds.handle_pf(childs, virt)
         }
         else {
-            log!(LogFlags::Error, "No dataspace at {:#x}", virt);
+            log!(LogFlags::Error, "No dataspace at {}", virt);
             Err(Error::new(Code::NotFound))
         }
     }
@@ -270,16 +271,16 @@ impl AddrSpace {
 
     pub(crate) fn map_ds_with(
         &mut self,
-        virt: goff,
+        virt: VirtAddr,
         len: goff,
         off: goff,
         perm: Perm,
         flags: MapFlags,
         sess: Selector,
-    ) -> Result<goff, Error> {
+    ) -> Result<VirtAddr, Error> {
         log!(
             LogFlags::PgReqs,
-            "[{}] pager::map_ds(virt={:#x}, len={:#x}, perm={:?}, off={:#x}, flags={:?})",
+            "[{}] pager::map_ds(virt={}, len={:#x}, perm={:?}, off={:#x}, flags={:?})",
             self.id(),
             virt,
             len,
@@ -310,7 +311,7 @@ impl AddrSpace {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let virt: goff = is.pop()?;
+        let virt: VirtAddr = is.pop()?;
         let len: goff = is.pop()?;
         let perm = Perm::from_bits_truncate(is.pop::<u32>()?);
         let flags = MapFlags::from_bits_truncate(is.pop::<u32>()?);
@@ -322,14 +323,14 @@ impl AddrSpace {
 
     pub(crate) fn map_anon_with(
         &mut self,
-        virt: goff,
+        virt: VirtAddr,
         len: goff,
         perm: Perm,
         flags: MapFlags,
     ) -> Result<(), Error> {
         log!(
             LogFlags::PgReqs,
-            "[{}] pager::map_anon(virt={:#x}, len={:#x}, perm={:?}, flags={:?})",
+            "[{}] pager::map_anon(virt={}, len={:#x}, perm={:?}, flags={:?})",
             self.id(),
             virt,
             len,
@@ -364,13 +365,13 @@ impl AddrSpace {
         }
 
         let args = xchg.in_args();
-        let virt: goff = args.pop()?;
+        let virt: VirtAddr = args.pop()?;
         let len: goff = args.pop()?;
         let perm = Perm::from_bits_truncate(args.pop()?);
 
         log!(
             LogFlags::PgReqs,
-            "[{}] pager::map_mem(virt={:#x}, len={:#x}, perm={:?})",
+            "[{}] pager::map_mem(virt={}, len={:#x}, perm={:?})",
             aspace.id(),
             virt,
             len,
@@ -401,11 +402,11 @@ impl AddrSpace {
     }
 
     pub fn unmap(&mut self, is: &mut GateIStream<'_>) -> Result<(), Error> {
-        let virt: goff = is.pop()?;
+        let virt: VirtAddr = is.pop()?;
 
         log!(
             LogFlags::PgReqs,
-            "[{}] pager::unmap(virt={:#x})",
+            "[{}] pager::unmap(virt={})",
             self.id(),
             virt,
         );
@@ -414,18 +415,19 @@ impl AddrSpace {
             self.ds.remove(idx);
         }
         else {
-            log!(LogFlags::Error, "No dataspace at {:#x}", virt);
+            log!(LogFlags::Error, "No dataspace at {}", virt);
             return Err(Error::new(Code::NotFound));
         }
 
         is.reply_error(Code::Success)
     }
 
-    fn check_map_args(&self, virt: goff, len: goff, perm: Perm) -> Result<(), Error> {
+    fn check_map_args(&self, virt: VirtAddr, len: goff, perm: Perm) -> Result<(), Error> {
         if virt >= MAX_VIRT_ADDR {
             return Err(Error::new(Code::InvArgs));
         }
-        if (virt & cfg::PAGE_BITS as goff) != 0 || (len & cfg::PAGE_BITS as goff) != 0 {
+        if !(virt & VirtAddr::from(cfg::PAGE_BITS)).is_null() || (len & cfg::PAGE_BITS as goff) != 0
+        {
             return Err(Error::new(Code::InvArgs));
         }
         if perm.is_empty() {
@@ -438,11 +440,11 @@ impl AddrSpace {
         Ok(())
     }
 
-    fn find_ds_mut(&mut self, virt: goff) -> Option<&mut DataSpace> {
+    fn find_ds_mut(&mut self, virt: VirtAddr) -> Option<&mut DataSpace> {
         self.find_ds_idx(virt).map(move |idx| &mut self.ds[idx])
     }
 
-    fn find_ds_idx(&self, virt: goff) -> Option<usize> {
+    fn find_ds_idx(&self, virt: VirtAddr) -> Option<usize> {
         for (i, ds) in self.ds.iter().enumerate() {
             if virt >= ds.virt() && virt < ds.virt() + ds.size() {
                 return Some(i);
@@ -451,7 +453,7 @@ impl AddrSpace {
         None
     }
 
-    fn overlaps(&self, virt: goff, size: goff) -> bool {
+    fn overlaps(&self, virt: VirtAddr, size: goff) -> bool {
         for ds in &self.ds {
             if math::overlaps(ds.virt(), ds.virt() + ds.size(), virt, virt + size) {
                 return true;

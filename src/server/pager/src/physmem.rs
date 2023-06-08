@@ -44,25 +44,25 @@ fn clear_block(mem: &MemGate, size: goff) {
 
 pub struct PhysMem {
     mgate: MemGate,
-    owner_mem: Option<(Selector, goff)>,
+    owner_mem: Option<(Selector, mem::VirtAddr)>,
 }
 
 impl PhysMem {
-    pub fn new(owner_mem: (Selector, goff), mem: MemGate) -> Result<Self, Error> {
+    pub fn new(owner_mem: (Selector, mem::VirtAddr), mem: MemGate) -> Result<Self, Error> {
         Ok(PhysMem {
             mgate: mem,
             owner_mem: Some(owner_mem),
         })
     }
 
-    pub fn new_with_mem(owner_mem: (Selector, goff), mem: MemGate) -> Self {
+    pub fn new_with_mem(owner_mem: (Selector, mem::VirtAddr), mem: MemGate) -> Self {
         PhysMem {
             mgate: mem,
             owner_mem: Some(owner_mem),
         }
     }
 
-    pub fn new_bind(owner_mem: (Selector, goff), sel: Selector) -> Self {
+    pub fn new_bind(owner_mem: (Selector, mem::VirtAddr), sel: Selector) -> Self {
         PhysMem {
             mgate: MemGate::new_bind(sel),
             owner_mem: Some(owner_mem),
@@ -81,11 +81,11 @@ impl PhysMem {
         mem::replace(&mut self.mgate, mem)
     }
 
-    pub fn owner_mem(&self) -> Option<(Selector, goff)> {
+    pub fn owner_mem(&self) -> Option<(Selector, mem::VirtAddr)> {
         self.owner_mem
     }
 
-    pub fn set_owner(&mut self, act: Selector, virt: goff) {
+    pub fn set_owner(&mut self, act: Selector, virt: mem::VirtAddr) {
         self.owner_mem = Some((act, virt));
     }
 

@@ -32,6 +32,7 @@ use crate::goff;
 use crate::io::{LogFlags, Read, Write};
 use crate::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
 use crate::log;
+use crate::mem::VirtAddr;
 use crate::rc::Rc;
 use crate::serialize::{M3Deserializer, M3Serializer, VecSink};
 use crate::tcu::EpId;
@@ -666,7 +667,7 @@ impl Map for GenericFile {
     fn map(
         &self,
         pager: &Pager,
-        virt: goff,
+        virt: VirtAddr,
         off: usize,
         len: usize,
         prot: Perm,

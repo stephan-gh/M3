@@ -18,6 +18,7 @@
 
 use base::cfg;
 use base::kif::{tilemux, PageFlags};
+use base::mem::VirtAddr;
 
 use bitflags::bitflags;
 
@@ -166,8 +167,8 @@ impl crate::ArchPaging for ARMPaging {
         // not necessary
     }
 
-    fn invalidate_page(id: crate::ActId, virt: usize) {
-        let val = virt | (id as usize & 0xFF);
+    fn invalidate_page(id: crate::ActId, virt: VirtAddr) {
+        let val = virt.as_local() | (id as usize & 0xFF);
         unsafe {
             asm!(
                 "mcr p15, 0, {0}, c8, c7, 1",

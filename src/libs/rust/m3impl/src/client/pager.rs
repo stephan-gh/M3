@@ -23,8 +23,8 @@ use crate::cap;
 use crate::client::ClientSession;
 use crate::com::{opcodes, MemGate, RGateArgs, RecvGate, SendGate};
 use crate::errors::Error;
-use crate::goff;
 use crate::kif;
+use crate::mem::VirtAddr;
 use crate::serialize::{Deserialize, Serialize};
 use crate::syscalls;
 use crate::tiles::ChildActivity;
@@ -152,7 +152,7 @@ impl Pager {
     /// This method just exists for completeness, because page faults are send by TileMux to the
     /// pager, which uses a lower-level API. However, this method can still be used to let the pager
     /// resolve a page fault for a particular address.
-    pub fn pagefault(&self, virt: goff, access: kif::Perm) -> Result<(), Error> {
+    pub fn pagefault(&self, virt: VirtAddr, access: kif::Perm) -> Result<(), Error> {
         send_recv_res!(
             &self.req_sgate,
             RecvGate::def(),
@@ -166,11 +166,11 @@ impl Pager {
     /// Maps `len` bytes of anonymous memory to virtual address `virt` with permissions `prot`.
     pub fn map_anon(
         &self,
-        virt: goff,
+        virt: VirtAddr,
         len: usize,
         prot: kif::Perm,
         flags: MapFlags,
-    ) -> Result<goff, Error> {
+    ) -> Result<VirtAddr, Error> {
         let mut reply = send_recv_res!(
             &self.req_sgate,
             RecvGate::def(),
@@ -187,15 +187,15 @@ impl Pager {
     /// permissions `prot`.
     pub fn map_ds(
         &self,
-        virt: goff,
+        virt: VirtAddr,
         len: usize,
         off: usize,
         prot: kif::Perm,
         flags: MapFlags,
         sess: &ClientSession,
-    ) -> Result<goff, Error> {
+    ) -> Result<VirtAddr, Error> {
         let crd = kif::CapRngDesc::new(kif::CapType::Object, sess.sel(), 1);
-        let mut res = 0;
+        let mut res = VirtAddr::default();
         self.sess.delegate(
             crd,
             |os| {
@@ -221,13 +221,13 @@ impl Pager {
     /// As the [`MemGate`] already refers to allocated physical memory, no page faults will occur.
     pub fn map_mem(
         &self,
-        virt: goff,
+        virt: VirtAddr,
         mem: &MemGate,
         len: usize,
         prot: kif::Perm,
-    ) -> Result<goff, Error> {
+    ) -> Result<VirtAddr, Error> {
         let crd = kif::CapRngDesc::new(kif::CapType::Object, mem.sel(), 1);
-        let mut res = 0;
+        let mut res = VirtAddr::default();
         self.sess.delegate(
             crd,
             |os| {
@@ -246,7 +246,7 @@ impl Pager {
     }
 
     /// Unaps the mapping at virtual address `virt`.
-    pub fn unmap(&self, virt: goff) -> Result<(), Error> {
+    pub fn unmap(&self, virt: VirtAddr) -> Result<(), Error> {
         send_recv_res!(
             &self.req_sgate,
             RecvGate::def(),

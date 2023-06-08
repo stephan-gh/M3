@@ -29,7 +29,7 @@ use m3::goff;
 use m3::io::LogFlags;
 use m3::kif;
 use m3::log;
-use m3::mem::GlobAddr;
+use m3::mem::{GlobAddr, VirtAddr};
 use m3::syscalls;
 use m3::tcu;
 use m3::tiles::{Activity, ActivityArgs, ChildActivity};
@@ -232,7 +232,7 @@ fn create_rgate(
     msg_size: usize,
     rbuf_mem: Option<Selector>,
     rbuf_off: goff,
-    rbuf_addr: usize,
+    rbuf_addr: VirtAddr,
 ) -> Result<RecvGate, Error> {
     let rgate = RecvGate::new_with(
         RGateArgs::default()
@@ -289,7 +289,7 @@ pub fn main() -> Result<(), Error> {
             .expect("Unable to allocate memory for receive buffers");
         let pages = (buf_mem.capacity() as usize + cfg::PAGE_SIZE - 1) / cfg::PAGE_SIZE;
         syscalls::create_map(
-            (rbuf_addr / cfg::PAGE_SIZE) as Selector,
+            rbuf_addr,
             Activity::own().sel(),
             buf_mem.sel(),
             0,
@@ -300,7 +300,7 @@ pub fn main() -> Result<(), Error> {
         (0, Some(buf_mem.sel()))
     }
     else {
-        (rbuf_addr as goff, None)
+        (rbuf_addr.as_goff(), None)
     };
 
     let req_rgate = create_rgate(buf_size, max_msg_size, rbuf_mem, rbuf_off, rbuf_addr)
@@ -336,7 +336,7 @@ pub fn main() -> Result<(), Error> {
     thread::init();
     for _ in 0..args.max_clients {
         thread::add_thread(
-            workloop as *const () as usize,
+            VirtAddr::from(workloop as *const ()),
             &mut wargs as *mut _ as usize,
         );
     }

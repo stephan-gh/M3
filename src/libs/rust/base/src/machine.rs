@@ -85,7 +85,7 @@ pub unsafe fn flush_cache() {
     let (cacheline_size, cache_size) = (64, (32 + 256) * 1024);
 
     // ensure that we replace all cachelines in cache
-    let mut addr = cfg::TILE_MEM_BASE as *const u64;
+    let mut addr = cfg::TILE_MEM_BASE.as_ptr::<u64>();
     unsafe {
         let end = addr.add(cache_size / 8);
         while addr < end {

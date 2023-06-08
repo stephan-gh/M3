@@ -6,7 +6,7 @@ use m3::{
     errors::{Code, Error},
     io::{Read, Write},
     kif::{self, Perm},
-    mem::MsgBuf,
+    mem::{MsgBuf, VirtAddr},
     println,
     serialize::M3Deserializer,
     tcu::{self, EpId},
@@ -15,7 +15,7 @@ use m3::{
     vfs::{FileMode, FileRef, GenericFile, OpenFlags, VFS},
 };
 
-fn wait_for_rpl(rep: EpId, rcv_buf: usize) -> Result<(), Error> {
+fn wait_for_rpl(rep: EpId, rcv_buf: VirtAddr) -> Result<(), Error> {
     loop {
         if let Some(off) = tcu::TCU::fetch_msg(rep) {
             let msg = tcu::TCU::offset_to_msg(rcv_buf, off);
@@ -27,7 +27,7 @@ fn wait_for_rpl(rep: EpId, rcv_buf: usize) -> Result<(), Error> {
     }
 }
 
-fn noop_syscall(rbuf: usize) {
+fn noop_syscall(rbuf: VirtAddr) {
     let mut msg = MsgBuf::borrow_def();
     build_vmsg!(msg, kif::syscalls::Operation::Noop, kif::syscalls::Noop {});
     tcu::TCU::send(

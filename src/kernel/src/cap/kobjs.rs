@@ -18,7 +18,7 @@ use base::errors::{Code, Error};
 use base::io::LogFlags;
 use base::kif::{self, service, tilemux::QuotaId};
 use base::log;
-use base::mem::{size_of, GlobAddr, MsgBuf};
+use base::mem::{size_of, GlobAddr, MsgBuf, VirtAddr};
 use base::rc::{Rc, SRc, Weak};
 use base::tcu::{ActId, EpId, Label, TileId};
 use base::{build_vmsg, goff};
@@ -977,7 +977,7 @@ impl MapObject {
     pub fn map_async(
         &self,
         act: &Activity,
-        virt: goff,
+        virt: VirtAddr,
         glob: GlobAddr,
         pages: usize,
         flags: kif::PageFlags,
@@ -997,7 +997,7 @@ impl MapObject {
         })
     }
 
-    pub fn unmap_async(&self, act: &Activity, virt: goff, pages: usize) {
+    pub fn unmap_async(&self, act: &Activity, virt: VirtAddr, pages: usize) {
         // TODO currently, it can happen that we've already stopped the activity, but still
         // accept/continue a syscall that inserts something into the activity's table.
         if act.state() != State::DEAD {

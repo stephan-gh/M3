@@ -17,6 +17,7 @@ use base::cell::LazyStaticRefCell;
 use base::cfg;
 use base::kif::{PageFlags, Perm};
 use base::libc;
+use base::mem::VirtAddr;
 use base::tcu;
 use base::tmif;
 
@@ -37,13 +38,13 @@ pub fn init() {
 pub extern "C" fn tmcall(state: &mut isr::State) -> *mut libc::c_void {
     assert!(state.r[isr::TMC_ARG0] == tmif::Operation::TranslFault.into());
 
-    let virt = state.r[isr::TMC_ARG1];
+    let virt = VirtAddr::from(state.r[isr::TMC_ARG1]);
     let access = Perm::from_bits_truncate(state.r[isr::TMC_ARG2] as u32);
     let flags = PageFlags::from(access);
 
     let pte = paging::translate(virt, flags);
     if (!(pte & 0xF) & flags.bits()) != 0 {
-        panic!("Pagefault during PT walk for {:#x} (PTE={:#x})", virt, pte);
+        panic!("Pagefault during PT walk for {} (PTE={:#x})", virt, pte);
     }
 
     let flags = PageFlags::from_bits_truncate(pte & cfg::PAGE_MASK as u64);

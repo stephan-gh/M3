@@ -18,12 +18,11 @@ use base::cell::{LazyStaticUnsafeCell, StaticCell, StaticRefCell, StaticUnsafeCe
 use base::cfg;
 use base::col::{BoxList, Vec};
 use base::errors::{Code, Error};
-use base::goff;
 use base::impl_boxitem;
 use base::io::LogFlags;
 use base::kif;
 use base::log;
-use base::mem::{size_of, GlobAddr, MsgBuf};
+use base::mem::{size_of, GlobAddr, MsgBuf, VirtAddr, VirtAddrRaw};
 use base::rc::Rc;
 use base::tcu;
 use base::time::{TimeDuration, TimeInstant};
@@ -78,9 +77,9 @@ impl Allocator for PTAllocator {
         }
     }
 
-    fn translate_pt(&self, phys: Phys) -> usize {
+    fn translate_pt(&self, phys: Phys) -> VirtAddr {
         if BOOTSTRAP.get() {
-            phys as usize
+            VirtAddr::new(phys as VirtAddrRaw)
         }
         else {
             cfg::TILE_MEM_BASE + (phys as usize - cfg::MEM_OFFSET)
@@ -141,7 +140,7 @@ pub struct Activity {
     #[cfg(any(target_arch = "riscv64", target_arch = "x86_64"))]
     fpu_state: arch::FPUState,
     user_state: arch::State,
-    user_state_addr: usize,
+    user_state_addr: VirtAddr,
     scheduled: TimeInstant,
     time_quota: Rc<TimeQuota>,
     cpu_time: TimeDuration,
@@ -384,7 +383,7 @@ pub fn has_ready() -> bool {
     !RDY.borrow().is_empty()
 }
 
-pub fn schedule(mut action: ScheduleAction) -> usize {
+pub fn schedule(mut action: ScheduleAction) -> VirtAddr {
     let res = loop {
         let new_state = do_schedule(action);
 
@@ -418,7 +417,7 @@ pub fn schedule(mut action: ScheduleAction) -> usize {
     res
 }
 
-fn do_schedule(mut action: ScheduleAction) -> usize {
+fn do_schedule(mut action: ScheduleAction) -> VirtAddr {
     let now = TimeInstant::now();
     let mut next = RDY
         .borrow_mut()
@@ -583,9 +582,7 @@ pub fn remove(id: Id, status: Code, notify: bool, sched: bool) {
         // safety: the activity reference `v` is still valid here
         let old = match unsafe { &v.as_ref().state } {
             // safety: we don't access `v` afterwards
-            ActState::Running => unsafe {
-                CUR.set(None).unwrap()
-            },
+            ActState::Running => unsafe { CUR.set(None).unwrap() },
             ActState::Ready => RDY.borrow_mut().remove_if(|v| v.id() == id).unwrap(),
             ActState::Blocked => BLK.borrow_mut().remove_if(|v| v.id() == id).unwrap(),
         };
@@ -659,7 +656,7 @@ impl Activity {
             #[cfg(any(target_arch = "riscv64", target_arch = "x86_64"))]
             fpu_state: arch::FPUState::default(),
             user_state: arch::State::default(),
-            user_state_addr: 0,
+            user_state_addr: VirtAddr::null(),
             time_quota,
             cpu_time: TimeDuration::ZERO,
             ctxsws: 0,
@@ -678,7 +675,7 @@ impl Activity {
 
     pub fn map(
         &mut self,
-        virt: usize,
+        virt: VirtAddr,
         global: GlobAddr,
         pages: usize,
         perm: kif::PageFlags,
@@ -689,7 +686,7 @@ impl Activity {
             .map_pages(virt, global, pages, perm)
     }
 
-    pub fn translate(&self, virt: usize, perm: kif::PageFlags) -> kif::PTE {
+    pub fn translate(&self, virt: VirtAddr, perm: kif::PageFlags) -> kif::PTE {
         self.aspace.as_ref().unwrap().translate(virt, perm.bits())
     }
 
@@ -841,7 +838,7 @@ impl Activity {
         );
 
         // activity not ready yet?
-        if self.user_state_addr == 0 {
+        if self.user_state_addr.is_null() {
             return false;
         }
 
@@ -886,7 +883,7 @@ impl Activity {
     }
 
     pub fn start(&mut self) {
-        assert!(self.user_state_addr == 0);
+        assert!(self.user_state_addr.is_null());
         // ensure that recent page table modifications (initialization of the AS) are considered
         if let Some(ref aspace) = self.aspace {
             aspace.flush_tlb();
@@ -901,7 +898,7 @@ impl Activity {
                 crate::app_env().sp as usize,
             );
         }
-        self.user_state_addr = &self.user_state as *const _ as usize;
+        self.user_state_addr = VirtAddr::from(&self.user_state as *const _);
     }
 
     pub fn switch_to(&self) {
@@ -915,7 +912,7 @@ impl Activity {
             let result = cont(self);
             match result {
                 // only resume this activity if it has been initialized
-                ContResult::Success if self.user_state_addr != 0 => None,
+                ContResult::Success if !self.user_state_addr.is_null() => None,
                 // not initialized yet
                 ContResult::Success => Some(ScheduleAction::Block),
                 // failed, so remove activity
@@ -957,14 +954,14 @@ impl Activity {
         let rw = kif::PageFlags::RW;
         self.map(
             tcu::MMIO_ADDR,
-            GlobAddr::new(tcu::MMIO_ADDR as goff),
+            GlobAddr::new(tcu::MMIO_ADDR.as_goff()),
             tcu::MMIO_SIZE / cfg::PAGE_SIZE,
             kif::PageFlags::U | rw,
         )
         .unwrap();
         self.map(
             tcu::MMIO_PRIV_ADDR,
-            GlobAddr::new(tcu::MMIO_PRIV_ADDR as goff),
+            GlobAddr::new(tcu::MMIO_PRIV_ADDR.as_goff()),
             tcu::MMIO_PRIV_SIZE / cfg::PAGE_SIZE,
             kif::PageFlags::U | rw,
         )
@@ -979,7 +976,7 @@ impl Activity {
         }
 
         // map own receive buffer
-        let own_rbuf = base + (cfg::TILEMUX_RBUF_SPACE - cfg::MEM_OFFSET) as goff;
+        let own_rbuf = base + (cfg::TILEMUX_RBUF_SPACE - cfg::MEM_OFFSET).as_goff();
         assert!(cfg::TILEMUX_RBUF_SIZE == cfg::PAGE_SIZE);
         self.map(cfg::TILEMUX_RBUF_SPACE, own_rbuf, 1, kif::PageFlags::R)
             .unwrap();
@@ -997,12 +994,7 @@ impl Activity {
         }
 
         // map runtime environment
-        self.map_new_mem(
-            base,
-            cfg::ENV_START & !cfg::PAGE_MASK,
-            cfg::ENV_SIZE,
-            rw | kif::PageFlags::U,
-        );
+        self.map_new_mem(base, cfg::ENV_START, cfg::ENV_SIZE, rw | kif::PageFlags::U);
 
         // map PTs
         self.map(
@@ -1016,20 +1008,35 @@ impl Activity {
         // map PLIC
         #[cfg(target_arch = "riscv64")]
         {
-            self.map(0x0C00_0000, GlobAddr::new(0x0C00_0000), 1, rw)
-                .unwrap();
-            self.map(0x0C00_2000, GlobAddr::new(0x0C00_2000), 1, rw)
-                .unwrap();
-            self.map(0x0C20_1000, GlobAddr::new(0x0C20_1000), 1, rw)
-                .unwrap();
+            self.map(
+                VirtAddr::from(0x0C00_0000),
+                GlobAddr::new(0x0C00_0000),
+                1,
+                rw,
+            )
+            .unwrap();
+            self.map(
+                VirtAddr::from(0x0C00_2000),
+                GlobAddr::new(0x0C00_2000),
+                1,
+                rw,
+            )
+            .unwrap();
+            self.map(
+                VirtAddr::from(0x0C20_1000),
+                GlobAddr::new(0x0C20_1000),
+                1,
+                rw,
+            )
+            .unwrap();
         }
 
         // map vectors
         #[cfg(target_arch = "arm")]
-        self.map(0, base, 1, rx).unwrap();
+        self.map(VirtAddr::null(), base, 1, rx).unwrap();
 
         // insert fixed entry for messages into TLB
-        let virt = MsgBuf::borrow_def().bytes().as_ptr() as usize;
+        let virt = VirtAddr::from(MsgBuf::borrow_def().bytes().as_ptr());
         let pte = self.translate(virt, kif::PageFlags::R);
         let phys = pte & !(cfg::PAGE_MASK as u64);
         let mut flags = kif::PageFlags::from_bits_truncate(pte & cfg::PAGE_MASK as u64);
@@ -1037,7 +1044,7 @@ impl Activity {
         tcu::TCU::insert_tlb(self.id() as u16, virt, phys, flags).unwrap();
     }
 
-    fn map_new_mem(&mut self, base: GlobAddr, addr: usize, size: usize, perm: kif::PageFlags) {
+    fn map_new_mem(&mut self, base: GlobAddr, addr: VirtAddr, size: usize, perm: kif::PageFlags) {
         for i in 0..(size / cfg::PAGE_SIZE) {
             let frame = self
                 .aspace
@@ -1069,7 +1076,7 @@ impl Activity {
         let end = math::round_up(end as usize, cfg::PAGE_SIZE);
         let pages = (end - start) / cfg::PAGE_SIZE;
         let glob = base + (start - cfg::MEM_OFFSET) as Phys;
-        self.map(start, glob, pages, perm).unwrap();
+        self.map(VirtAddr::from(start), glob, pages, perm).unwrap();
     }
 }
 
@@ -1096,7 +1103,7 @@ impl Drop for Activity {
         }
 
         // explicitly remove fixed entry for messages from TLB (not done by TLB flush)
-        let virt = MsgBuf::borrow_def().bytes().as_ptr() as usize;
+        let virt = VirtAddr::from(MsgBuf::borrow_def().bytes().as_ptr());
         tcu::TCU::invalidate_page(self.id() as u16, virt).ok();
 
         // remove activity from other modules

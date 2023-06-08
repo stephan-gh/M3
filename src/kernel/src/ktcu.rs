@@ -21,7 +21,7 @@ use base::goff;
 use base::io::LogFlags;
 use base::kif;
 use base::log;
-use base::mem;
+use base::mem::{self, GlobAddr, VirtAddr};
 use base::tcu::{
     ActId, EpId, ExtCmdOpCode, ExtReg, Header, Label, Message, Reg, TileId, AVAIL_EPS, EP_REGS,
     MMIO_ADDR, PMEM_PROT_EPS, TCU, UNLIM_CREDITS,
@@ -37,7 +37,7 @@ pub const KTMP_EP: EpId = PMEM_PROT_EPS as EpId + 2;
 pub const KPEX_EP: EpId = PMEM_PROT_EPS as EpId + 3;
 
 static BUF: StaticRefCell<[u8; 8192]> = StaticRefCell::new([0u8; 8192]);
-static RBUFS: StaticRefCell<[usize; 8]> = StaticRefCell::new([0usize; 8]);
+static RBUFS: StaticRefCell<[VirtAddr; 8]> = StaticRefCell::new([VirtAddr::null(); 8]);
 
 fn log_flag(tile: TileId) -> LogFlags {
     match tile == TileId::new_from_raw(env::boot().tile_id as u16) {
@@ -148,20 +148,20 @@ pub fn config_mem(
     TCU::config_mem(regs, act, tile, addr, size, perm);
 }
 
-fn rbuf_addrs(virt: goff) -> (goff, goff) {
+fn rbuf_addrs(virt: VirtAddr) -> (VirtAddr, goff) {
     if platform::tile_desc(platform::kernel_tile()).has_virtmem() {
-        let pte = paging::translate(virt as usize, kif::PageFlags::R);
+        let pte = paging::translate(virt, kif::PageFlags::R);
         (
             virt,
-            (pte & !(cfg::PAGE_MASK as goff)) | (virt & cfg::PAGE_MASK as goff),
+            (pte & !(cfg::PAGE_MASK as goff)) | (virt.as_raw() & cfg::PAGE_MASK as goff),
         )
     }
     else {
-        (virt, virt)
+        (virt, virt.as_raw())
     }
 }
 
-pub fn recv_msgs(ep: EpId, buf: goff, ord: u32, msg_ord: u32) -> Result<(), Error> {
+pub fn recv_msgs(ep: EpId, buf: VirtAddr, ord: u32, msg_ord: u32) -> Result<(), Error> {
     static REPS: StaticCell<EpId> = StaticCell::new(8);
 
     if REPS.get() + (1 << (ord - msg_ord)) > AVAIL_EPS {
@@ -173,7 +173,7 @@ pub fn recv_msgs(ep: EpId, buf: goff, ord: u32, msg_ord: u32) -> Result<(), Erro
         config_recv(regs, tgtep, KERNEL_ID, phys, ord, msg_ord, Some(REPS.get()));
         REPS.set(REPS.get() + (1 << (ord - msg_ord)));
     });
-    RBUFS.borrow_mut()[ep as usize] = buf as usize;
+    RBUFS.borrow_mut()[ep as usize] = buf;
     Ok(())
 }
 
@@ -331,11 +331,10 @@ pub fn copy(
 }
 
 pub fn deprivilege_tile(tile: TileId) -> Result<(), Error> {
-    let mut features: u64 = try_read_obj(tile, TCU::ext_reg_addr(ExtReg::Features) as goff)?;
+    let reg_addr = TCU::ext_reg_addr(ExtReg::Features).as_goff();
+    let mut features: u64 = try_read_obj(tile, reg_addr)?;
     features &= !1;
-    try_write_slice(tile, TCU::ext_reg_addr(ExtReg::Features) as goff, &[
-        features,
-    ])
+    try_write_slice(tile, reg_addr, &[features])
 }
 
 pub fn reset_tile(tile: TileId, start: bool) -> Result<(), Error> {
@@ -343,9 +342,9 @@ pub fn reset_tile(tile: TileId, start: bool) -> Result<(), Error> {
     if env::boot().platform == env::Platform::Hw {
         // TODO put the reset command into the spec so that we can use that on HW as well
         // start/stop tile
-        try_write_slice(tile, (MMIO_ADDR + 0x3028) as goff, &[val])?;
+        try_write_slice(tile, MMIO_ADDR.as_goff() + 0x3028, &[val])?;
         // start/stop rocket core
-        try_write_slice(tile, (MMIO_ADDR + 0x3030) as goff, &[val])
+        try_write_slice(tile, MMIO_ADDR.as_goff() + 0x3030, &[val])
     }
     else {
         let value = ExtCmdOpCode::Reset as Reg | (val << 9) as Reg;
@@ -355,7 +354,7 @@ pub fn reset_tile(tile: TileId, start: bool) -> Result<(), Error> {
 
 pub fn glob_to_phys_remote(
     tile: TileId,
-    glob: mem::GlobAddr,
+    glob: GlobAddr,
     flags: kif::PageFlags,
 ) -> Result<goff, Error> {
     glob.to_phys_with(flags, |ep| {
@@ -373,7 +372,7 @@ pub fn read_ep_remote(tile: TileId, ep: EpId, regs: &mut [Reg]) -> Result<(), Er
     for i in 0..regs.len() {
         try_read_slice(
             tile,
-            (TCU::ep_regs_addr(ep) + i * 8) as goff,
+            (TCU::ep_regs_addr(ep) + i * 8).as_goff(),
             &mut regs[i..i + 1],
         )?;
     }
@@ -382,7 +381,7 @@ pub fn read_ep_remote(tile: TileId, ep: EpId, regs: &mut [Reg]) -> Result<(), Er
 
 pub fn write_ep_remote(tile: TileId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
     for (i, r) in regs.iter().enumerate() {
-        try_write_slice(tile, (TCU::ep_regs_addr(ep) + i * 8) as goff, &[*r])?;
+        try_write_slice(tile, (TCU::ep_regs_addr(ep) + i * 8).as_goff(), &[*r])?;
     }
     Ok(())
 }
@@ -438,7 +437,7 @@ pub fn inv_reply_remote(
 }
 
 fn do_ext_cmd(tile: TileId, cmd: Reg) -> Result<Reg, Error> {
-    let addr = TCU::ext_reg_addr(ExtReg::ExtCmd) as goff;
+    let addr = TCU::ext_reg_addr(ExtReg::ExtCmd).as_goff();
     try_write_slice(tile, addr, &[cmd])?;
 
     let res = loop {

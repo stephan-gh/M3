@@ -25,9 +25,9 @@ use crate::cell::RefMut;
 use crate::client::{HashInput, HashOutput, HashSession, MapFlags, Pager};
 use crate::col::String;
 use crate::errors::Error;
-use crate::goff;
 use crate::io::{Read, Write};
 use crate::kif;
+use crate::mem::VirtAddr;
 use crate::net::{DGramSocket, Socket, StreamSocket};
 use crate::serialize::{M3Serializer, VecSink};
 use crate::tiles::{Activity, ChildActivity};
@@ -210,7 +210,7 @@ impl<T: ?Sized> Map for FileRef<T> {
     fn map(
         &self,
         pager: &Pager,
-        virt: goff,
+        virt: VirtAddr,
         off: usize,
         len: usize,
         prot: kif::Perm,

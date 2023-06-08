@@ -27,6 +27,7 @@ use m3::errors::{Code, Error};
 use m3::goff;
 use m3::io::{Read, Write};
 use m3::kif::Perm;
+use m3::mem::VirtAddr;
 use m3::rc::Rc;
 use m3::syscalls;
 use m3::tiles::Mapper;
@@ -116,7 +117,7 @@ impl vfs::Map for BootFile {
     fn map(
         &self,
         _pager: &Pager,
-        _virt: goff,
+        _virt: VirtAddr,
         _off: usize,
         _len: usize,
         _prot: Perm,
@@ -179,7 +180,7 @@ impl Mapper for BootMapper {
         pager: Option<&Pager>,
         _file: &mut vfs::BufReader<vfs::FileRef<dyn vfs::File>>,
         foff: usize,
-        virt: goff,
+        virt: VirtAddr,
         len: usize,
         perm: Perm,
         flags: MapFlags,
@@ -191,7 +192,7 @@ impl Mapper for BootMapper {
         else if self.has_virtmem {
             // map the memory of the boot module directly; therefore no initialization necessary
             syscalls::create_map(
-                (virt >> PAGE_BITS) as Selector,
+                virt,
                 self.act_sel,
                 self.mem_sel,
                 (foff >> PAGE_BITS) as Selector,
@@ -208,7 +209,7 @@ impl Mapper for BootMapper {
     fn map_anon(
         &mut self,
         _pager: Option<&Pager>,
-        virt: goff,
+        virt: VirtAddr,
         len: usize,
         perm: Perm,
         _flags: MapFlags,
@@ -218,7 +219,7 @@ impl Mapper for BootMapper {
             let msel = self.mem_pool.borrow().mem_cap(alloc.slice_id());
 
             syscalls::create_map(
-                (virt >> PAGE_BITS) as Selector,
+                virt,
                 self.act_sel,
                 msel,
                 (alloc.addr() >> PAGE_BITS) as Selector,

@@ -22,6 +22,7 @@ use core::fmt;
 use num_enum::{FromPrimitive, IntoPrimitive};
 
 use crate::cfg;
+use crate::mem::VirtAddr;
 use crate::serialize::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive, FromPrimitive)]
@@ -294,12 +295,12 @@ impl TileDesc {
     }
 
     /// Returns the starting address and size of the standard receive buffer space
-    pub fn rbuf_std_space(self) -> (usize, usize) {
+    pub fn rbuf_std_space(self) -> (VirtAddr, usize) {
         (self.rbuf_base(), cfg::RBUF_STD_SIZE)
     }
 
     /// Returns the starting address and size of the receive buffer space
-    pub fn rbuf_space(self) -> (usize, usize) {
+    pub fn rbuf_space(self) -> (VirtAddr, usize) {
         let size = if self.has_virtmem() {
             cfg::RBUF_SIZE
         }
@@ -310,23 +311,23 @@ impl TileDesc {
     }
 
     /// Returns the highest address of the stack
-    pub fn stack_top(self) -> usize {
+    pub fn stack_top(self) -> VirtAddr {
         let (addr, size) = self.stack_space();
         addr + size
     }
 
     /// Returns the starting address and size of the stack
-    pub fn stack_space(self) -> (usize, usize) {
+    pub fn stack_space(self) -> (VirtAddr, usize) {
         (self.rbuf_base() - cfg::STACK_SIZE, cfg::STACK_SIZE)
     }
 
-    fn rbuf_base(self) -> usize {
+    fn rbuf_base(self) -> VirtAddr {
         if self.has_virtmem() {
             cfg::RBUF_STD_ADDR
         }
         else {
             let rbufs = cfg::RBUF_SIZE_SPM + cfg::RBUF_STD_SIZE;
-            cfg::MEM_OFFSET + self.mem_size() - rbufs
+            VirtAddr::from(cfg::MEM_OFFSET + self.mem_size() - rbufs)
         }
     }
 }

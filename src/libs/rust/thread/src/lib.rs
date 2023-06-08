@@ -26,7 +26,7 @@ use base::impl_boxitem;
 use base::io::LogFlags;
 use base::libc;
 use base::log;
-use base::mem;
+use base::mem::{self, VirtAddr};
 use base::tcu::{self, Message};
 use base::vec;
 use core::intrinsics::transmute;
@@ -40,84 +40,84 @@ const MAX_MSG_SIZE: usize = 1024;
 #[derive(Default)]
 #[repr(C, align(8))]
 pub struct Regs {
-    rbx: u64,
-    rsp: u64,
-    rbp: u64,
-    r12: u64,
-    r13: u64,
-    r14: u64,
-    r15: u64,
-    rflags: u64,
-    rdi: u64,
+    rbx: usize,
+    rsp: usize,
+    rbp: usize,
+    r12: usize,
+    r13: usize,
+    r14: usize,
+    r15: usize,
+    rflags: usize,
+    rdi: usize,
 }
 
 #[cfg(target_arch = "arm")]
 #[derive(Default)]
 #[repr(C, align(4))]
 pub struct Regs {
-    r0: u32,
-    r4: u32,
-    r5: u32,
-    r6: u32,
-    r7: u32,
-    r8: u32,
-    r9: u32,
-    r10: u32,
-    r11: u32,
-    r13: u32,
-    r14: u32,
-    cpsr: u32,
+    r0: usize,
+    r4: usize,
+    r5: usize,
+    r6: usize,
+    r7: usize,
+    r8: usize,
+    r9: usize,
+    r10: usize,
+    r11: usize,
+    r13: usize,
+    r14: usize,
+    cpsr: usize,
 }
 
 #[cfg(target_arch = "riscv64")]
 #[derive(Default)]
 #[repr(C, align(8))]
 pub struct Regs {
-    a0: u64,
-    ra: u64,
-    sp: u64,
-    fp: u64,
-    s1: u64,
-    s2: u64,
-    s3: u64,
-    s4: u64,
-    s5: u64,
-    s6: u64,
-    s7: u64,
-    s8: u64,
-    s9: u64,
-    s10: u64,
-    s11: u64,
+    a0: usize,
+    ra: usize,
+    sp: usize,
+    fp: usize,
+    s1: usize,
+    s2: usize,
+    s3: usize,
+    s4: usize,
+    s5: usize,
+    s6: usize,
+    s7: usize,
+    s8: usize,
+    s9: usize,
+    s10: usize,
+    s11: usize,
 }
 
 #[cfg(target_arch = "x86_64")]
-fn thread_init(thread: &mut Thread, func_addr: usize, arg: usize) {
+fn thread_init(thread: &mut Thread, func_addr: VirtAddr, arg: usize) {
     let top_idx = thread.stack.len() - 2;
     // put argument in rdi and function to return to on the stack
-    thread.regs.rdi = arg as u64;
-    thread.regs.rsp = &thread.stack[top_idx] as *const usize as u64;
-    thread.stack[top_idx] = func_addr;
+    thread.regs.rdi = arg;
+    thread.regs.rsp = &thread.stack[top_idx] as *const usize as usize;
+    thread.stack[top_idx] = func_addr.as_local();
     thread.regs.rbp = thread.regs.rsp;
     thread.regs.rflags = 0x200; // enable interrupts
 }
 
 #[cfg(target_arch = "arm")]
-fn thread_init(thread: &mut Thread, func_addr: usize, arg: usize) {
+fn thread_init(thread: &mut Thread, func_addr: VirtAddr, arg: usize) {
     let top_idx = thread.stack.len() - 2;
-    thread.regs.r0 = arg as u32; // arg
-    thread.regs.r13 = &thread.stack[top_idx] as *const usize as u32; // sp
+    thread.regs.r0 = arg; // arg
+    thread.regs.r13 = &thread.stack[top_idx] as *const usize as usize; // sp
     thread.regs.r11 = 0; // fp
-    thread.regs.r14 = func_addr as u32; // lr
+    thread.regs.r14 = func_addr.as_local(); // lr
     thread.regs.cpsr = 0x13; // supervisor mode
 }
 
 #[cfg(target_arch = "riscv64")]
-fn thread_init(thread: &mut Thread, func_addr: usize, arg: usize) {
+fn thread_init(thread: &mut Thread, func_addr: VirtAddr, arg: usize) {
     let top_idx = thread.stack.len() - 2;
-    thread.regs.a0 = arg as u64;
-    thread.regs.sp = &thread.stack[top_idx] as *const usize as u64;
+    thread.regs.a0 = arg;
+    thread.regs.sp = &thread.stack[top_idx] as *const usize as usize;
     thread.regs.fp = 0;
-    thread.regs.ra = func_addr as u64;
+    thread.regs.ra = func_addr.as_local();
 }
 
 fn alloc_id() -> u32 {
@@ -158,7 +158,7 @@ impl Thread {
         })
     }
 
-    pub fn new(func_addr: usize, arg: usize) -> Box<Self> {
+    pub fn new(func_addr: VirtAddr, arg: usize) -> Box<Self> {
         let mut thread = Box::new(Thread {
             prev: None,
             next: None,
@@ -315,7 +315,7 @@ pub fn fetch_msg() -> Option<&'static tcu::Message> {
     }
 }
 
-pub fn add_thread(func_addr: usize, arg: usize) {
+pub fn add_thread(func_addr: VirtAddr, arg: usize) {
     TMNG.borrow_mut()
         .sleep
         .push_back(Thread::new(func_addr, arg));

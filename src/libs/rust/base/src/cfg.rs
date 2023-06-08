@@ -15,6 +15,8 @@
 
 //! The target-dependent configuration
 
+use crate::mem::{VirtAddr, VirtAddrRaw};
+
 pub const MAX_TILES: usize = 64;
 pub const MAX_CHIPS: usize = 2;
 
@@ -31,9 +33,9 @@ pub const LPAGE_BITS: usize = 21;
 pub const LPAGE_SIZE: usize = 1 << LPAGE_BITS;
 pub const LPAGE_MASK: usize = LPAGE_SIZE - 1;
 
-pub const RBUF_STD_ADDR: usize = 0xD000_0000;
+pub const RBUF_STD_ADDR: VirtAddr = VirtAddr::new(0xD000_0000);
 pub const RBUF_STD_SIZE: usize = PAGE_SIZE;
-pub const RBUF_ADDR: usize = RBUF_STD_ADDR + RBUF_STD_SIZE;
+pub const RBUF_ADDR: VirtAddr = VirtAddr::new(RBUF_STD_ADDR.as_raw() + RBUF_STD_SIZE as VirtAddrRaw);
 pub const RBUF_SIZE: usize = 0x1000_0000 - RBUF_STD_SIZE;
 pub const RBUF_SIZE_SPM: usize = 0xE000;
 pub const MAX_RB_SIZE: usize = 32;
@@ -43,14 +45,14 @@ pub const MEM_OFFSET: usize = 0x1000_0000;
 #[cfg(not(target_arch = "riscv64"))]
 pub const MEM_OFFSET: usize = 0;
 
-pub const TILE_MEM_BASE: usize = 0xE000_0000;
+pub const TILE_MEM_BASE: VirtAddr = VirtAddr::new(0xE000_0000);
 
-pub const MEM_CAP_END: usize = RBUF_STD_ADDR;
+pub const MEM_CAP_END: VirtAddr = RBUF_STD_ADDR;
 
 #[cfg(target_arch = "riscv64")]
-pub const ENV_START: usize = MEM_OFFSET + PAGE_SIZE;
+pub const ENV_START: VirtAddr = VirtAddr::new((MEM_OFFSET + PAGE_SIZE) as VirtAddrRaw);
 #[cfg(not(target_arch = "riscv64"))]
-pub const ENV_START: usize = MEM_OFFSET + 0x1F_E000;
+pub const ENV_START: VirtAddr = VirtAddr::new((MEM_OFFSET + 0x1F_E000) as VirtAddrRaw);
 pub const ENV_SIZE: usize = PAGE_SIZE;
 
 pub const STACK_SIZE: usize = 0x20000;
@@ -59,7 +61,7 @@ pub const FIXED_KMEM: usize = 2 * 1024 * 1024;
 pub const FIXED_ROOT_MEM: usize = MOD_HEAP_SIZE + FIXED_TILEMUX_MEM + 2 * 1024 * 1024;
 pub const FIXED_TILEMUX_MEM: usize = 5 * 1024 * 1024;
 
-pub const TILEMUX_RBUF_SPACE: usize = ENV_START + ENV_SIZE;
+pub const TILEMUX_RBUF_SPACE: VirtAddr = VirtAddr::new(ENV_START.as_raw() + ENV_SIZE as VirtAddrRaw);
 pub const TILEMUX_RBUF_SIZE: usize = 1 * PAGE_SIZE;
 
 pub const APP_HEAP_SIZE: usize = 64 * 1024 * 1024;

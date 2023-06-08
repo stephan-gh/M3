@@ -17,8 +17,8 @@
 
 use crate::client::{MapFlags, Pager};
 use crate::errors::{Code, Error};
-use crate::goff;
 use crate::kif;
+use crate::mem::VirtAddr;
 use crate::vfs::{BufReader, File, FileRef, Map};
 
 /// The mapper trait is used to map the memory of an activity before running it.
@@ -30,7 +30,7 @@ pub trait Mapper {
         pager: Option<&Pager>,
         file: &mut BufReader<FileRef<dyn File>>,
         foff: usize,
-        virt: goff,
+        virt: VirtAddr,
         len: usize,
         perm: kif::Perm,
         flags: MapFlags,
@@ -40,7 +40,7 @@ pub trait Mapper {
     fn map_anon(
         &mut self,
         pager: Option<&Pager>,
-        virt: goff,
+        virt: VirtAddr,
         len: usize,
         perm: kif::Perm,
         flags: MapFlags,
@@ -65,7 +65,7 @@ impl Mapper for DefaultMapper {
         pager: Option<&Pager>,
         file: &mut BufReader<FileRef<dyn File>>,
         foff: usize,
-        virt: goff,
+        virt: VirtAddr,
         len: usize,
         perm: kif::Perm,
         flags: MapFlags,
@@ -87,7 +87,7 @@ impl Mapper for DefaultMapper {
     fn map_anon(
         &mut self,
         pager: Option<&Pager>,
-        virt: goff,
+        virt: VirtAddr,
         len: usize,
         perm: kif::Perm,
         flags: MapFlags,

@@ -19,18 +19,19 @@
 use core::arch::asm;
 
 use crate::arch::CPUOps;
+use crate::mem::VirtAddr;
 
 pub struct ARMCPU {}
 
 impl CPUOps for ARMCPU {
-    unsafe fn read8b(addr: usize) -> u64 {
+    unsafe fn read8b(addr: *const u64) -> u64 {
         // dual registers are unfortunately no longer supported with the new asm! macro. thus, we work
         // around that by hardcoding the registers here.
         let lo: u32;
         let hi: u32;
         asm! {
             "ldrd r2, r3, [{0}]",
-            in(reg) addr,
+            in(reg) addr as usize,
             lateout("r2") lo,
             out("r3") hi,
             options(nostack),
@@ -38,13 +39,13 @@ impl CPUOps for ARMCPU {
         ((hi as u64) << 32) | (lo as u64)
     }
 
-    unsafe fn write8b(addr: usize, val: u64) {
+    unsafe fn write8b(addr: *mut u64, val: u64) {
         // see `read8b`
         let lo = val as u32;
         let hi = (val >> 32) as u32;
         asm! {
             "strd r2, r3, [{0}]",
-            in(reg) addr,
+            in(reg) addr as usize,
             in("r2") lo,
             in("r3") hi,
             options(nostack),
@@ -52,7 +53,7 @@ impl CPUOps for ARMCPU {
     }
 
     #[inline(always)]
-    fn stack_pointer() -> usize {
+    fn stack_pointer() -> VirtAddr {
         let sp: usize;
         unsafe {
             asm!(
@@ -61,11 +62,11 @@ impl CPUOps for ARMCPU {
                 options(nomem, nostack),
             )
         }
-        sp
+        VirtAddr::from(sp)
     }
 
     #[inline(always)]
-    fn base_pointer() -> usize {
+    fn base_pointer() -> VirtAddr {
         let fp: usize;
         unsafe {
             asm!(
@@ -74,13 +75,13 @@ impl CPUOps for ARMCPU {
                 options(nomem, nostack),
             )
         }
-        fp
+        VirtAddr::from(fp)
     }
 
-    unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
-        let bp_ptr = bp as *const usize;
-        *func = *bp_ptr.offset(1);
-        *bp_ptr
+    unsafe fn backtrace_step(bp: VirtAddr, func: &mut VirtAddr) -> VirtAddr {
+        let bp_ptr = bp.as_ptr::<usize>();
+        *func = VirtAddr::from(*bp_ptr.offset(1));
+        VirtAddr::from(*bp_ptr)
     }
 
     fn elapsed_cycles() -> u64 {

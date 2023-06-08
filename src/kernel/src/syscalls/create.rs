@@ -19,7 +19,7 @@ use base::col::ToString;
 use base::errors::{Code, VerboseError};
 use base::goff;
 use base::kif::{syscalls, CapRngDesc, CapSel, CapType, PageFlags, Perm};
-use base::mem::{GlobAddr, MsgBuf};
+use base::mem::{GlobAddr, MsgBuf, VirtAddr, VirtAddrRaw};
 use base::rc::Rc;
 use base::tcu;
 
@@ -83,7 +83,7 @@ pub fn create_mgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
         GlobAddr::new_with(tgt_act.tile_id(), off)
     }
     else {
-        if r.size == 0 || r.addr + r.size >= cfg::MEM_CAP_END as goff {
+        if r.size == 0 || r.addr + r.size >= cfg::MEM_CAP_END.as_goff() {
             sysc_err!(Code::InvArgs, "Region empty or out of bounds");
         }
 
@@ -95,11 +95,10 @@ pub fn create_mgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
 
     if platform::tile_desc(tgt_act.tile_id()).has_virtmem() {
         let map_caps = tgt_act.map_caps().borrow_mut();
-        try_kmem_quota!(
-            act.obj_caps()
-                .borrow_mut()
-                .insert_as_child_from(cap, map_caps, sel)
-        );
+        try_kmem_quota!(act
+            .obj_caps()
+            .borrow_mut()
+            .insert_as_child_from(cap, map_caps, sel));
     }
     else {
         try_kmem_quota!(act.obj_caps().borrow_mut().insert_as_child(cap, r.act));
@@ -400,7 +399,7 @@ pub fn create_map_async(
         sysc_err!(Code::InvArgs, "Region of memory cap is invalid");
     }
 
-    let virt = (r.dst as goff) << cfg::PAGE_BITS;
+    let virt = VirtAddr::new((r.dst as VirtAddrRaw) << (cfg::PAGE_BITS) as VirtAddrRaw);
     let base = mgate.addr().raw();
     let phys = GlobAddr::new(base + (cfg::PAGE_SIZE * r.first as usize) as u64);
 

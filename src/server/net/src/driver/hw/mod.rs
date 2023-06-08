@@ -22,13 +22,14 @@ use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{PageFlags, Perm};
+use m3::mem::VirtAddr;
 use m3::tiles::Activity;
 use m3::vec;
 
 use smoltcp::time::Instant;
 
 extern "C" {
-    pub fn axieth_init(virt: goff, phys: goff, size: usize) -> isize;
+    pub fn axieth_init(virt: usize, phys: goff, size: usize) -> isize;
     pub fn axieth_deinit();
     pub fn axieth_send(packet: *const u8, len: usize) -> i32;
     pub fn axieth_recv(buffer: *mut u8, len: usize) -> usize;
@@ -36,7 +37,7 @@ extern "C" {
 
 const RX_BUF_SIZE: usize = 2 * 1024 * 1024;
 const ALL_BUF_SIZE: usize = RX_BUF_SIZE + 0x21000; // see axieth.cc
-const BUF_VIRT_ADDR: goff = 0x3000_0000;
+const BUF_VIRT_ADDR: VirtAddr = VirtAddr::new(0x3000_0000);
 const MTU: usize = 1500;
 
 pub struct AXIEthDevice {
@@ -54,7 +55,7 @@ impl AXIEthDevice {
             .map_mem(BUF_VIRT_ADDR, &bufs, ALL_BUF_SIZE, Perm::RW)?;
         let phys = bufs.region()?.0.to_phys(PageFlags::RW)?;
 
-        let res = unsafe { axieth_init(BUF_VIRT_ADDR, phys, RX_BUF_SIZE) };
+        let res = unsafe { axieth_init(BUF_VIRT_ADDR.as_local(), phys, RX_BUF_SIZE) };
         if res < 0 {
             Err(Error::new(Code::NotFound))
         }

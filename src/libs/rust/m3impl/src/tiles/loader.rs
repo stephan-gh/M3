@@ -26,6 +26,7 @@ use crate::errors::{Code, Error};
 use crate::goff;
 use crate::io::{read_object, Read};
 use crate::kif;
+use crate::mem::VirtAddr;
 use crate::tiles::{Activity, Mapper};
 use crate::util::math;
 use crate::vec;
@@ -35,7 +36,7 @@ pub(crate) fn load_program(
     act: &Activity,
     mapper: &mut dyn Mapper,
     file: &mut BufReader<FileRef<dyn File>>,
-) -> Result<usize, Error> {
+) -> Result<VirtAddr, Error> {
     let mut buf = vec![0u8; 4096];
     let hdr: elf::ElfHeader = read_object(file)?;
 
@@ -51,7 +52,7 @@ pub(crate) fn load_program(
     create_heap(act, mapper, heap_begin)?;
     create_stack(act, mapper)?;
 
-    Ok(hdr.entry)
+    Ok(VirtAddr::from(hdr.entry))
 }
 
 fn create_stack(act: &Activity, mapper: &mut dyn Mapper) -> Result<(), Error> {
@@ -59,7 +60,7 @@ fn create_stack(act: &Activity, mapper: &mut dyn Mapper) -> Result<(), Error> {
     mapper
         .map_anon(
             act.pager(),
-            stack_addr as goff,
+            stack_addr,
             stack_size,
             kif::Perm::RW,
             MapFlags::PRIVATE | MapFlags::UNINIT,
@@ -67,7 +68,7 @@ fn create_stack(act: &Activity, mapper: &mut dyn Mapper) -> Result<(), Error> {
         .map(|_| ())
 }
 
-fn create_heap(act: &Activity, mapper: &mut dyn Mapper, start: usize) -> Result<(), Error> {
+fn create_heap(act: &Activity, mapper: &mut dyn Mapper, start: VirtAddr) -> Result<(), Error> {
     let (heap_size, flags) = if act.pager().is_some() {
         (cfg::APP_HEAP_SIZE, MapFlags::NOLPAGE)
     }
@@ -77,7 +78,7 @@ fn create_heap(act: &Activity, mapper: &mut dyn Mapper, start: usize) -> Result<
     mapper
         .map_anon(
             act.pager(),
-            start as goff,
+            start,
             heap_size,
             kif::Perm::RW,
             MapFlags::PRIVATE | MapFlags::UNINIT | flags,
@@ -91,7 +92,7 @@ fn load_segments(
     file: &mut BufReader<FileRef<dyn File>>,
     hdr: &elf::ElfHeader,
     buf: &mut [u8],
-) -> Result<usize, Error> {
+) -> Result<VirtAddr, Error> {
     let mut end = 0;
     let mut off = hdr.ph_off;
     for _ in 0..hdr.ph_num {
@@ -110,7 +111,7 @@ fn load_segments(
         end = phdr.virt_addr + phdr.mem_size as usize;
     }
 
-    Ok(math::round_up(end, cfg::PAGE_SIZE))
+    Ok(VirtAddr::from(math::round_up(end, cfg::PAGE_SIZE)))
 }
 
 fn load_segment(
@@ -128,7 +129,7 @@ fn load_segment(
             act.pager(),
             file,
             phdr.offset as usize,
-            phdr.virt_addr as goff,
+            VirtAddr::from(phdr.virt_addr),
             size,
             prot,
             MapFlags::PRIVATE,
@@ -138,7 +139,7 @@ fn load_segment(
         assert!(phdr.file_size == 0);
         mapper.map_anon(
             act.pager(),
-            phdr.virt_addr as goff,
+            VirtAddr::from(phdr.virt_addr),
             size,
             prot,
             MapFlags::PRIVATE,
@@ -147,7 +148,7 @@ fn load_segment(
 
     if needs_init {
         let mem = act.get_mem(
-            phdr.virt_addr as goff,
+            VirtAddr::from(phdr.virt_addr),
             math::round_up(size, cfg::PAGE_SIZE) as goff,
             kif::Perm::RW,
         )?;

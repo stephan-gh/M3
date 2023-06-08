@@ -21,11 +21,12 @@ use m3::crypto::{HashAlgorithm, HashType};
 use m3::errors::{Code, Error};
 use m3::io;
 use m3::io::{Read, Write};
+use m3::mem::VirtAddr;
 use m3::test::{DefaultWvTester, WvTester};
 use m3::tiles::{Activity, ChildActivity, RunningActivity, RunningProgramActivity, Tile};
 use m3::vfs::{File, FileRef, IndirectPipe, OpenFlags, Seek, SeekMode, VFS};
 use m3::{format, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_assert_some, wv_run_test};
-use m3::{goff, println, tmif, util, vec};
+use m3::{println, tmif, util, vec};
 
 pub fn run(t: &mut dyn WvTester) {
     wv_run_test!(t, hash_empty);
@@ -94,7 +95,7 @@ fn hash_mapped_mem(t: &mut dyn WvTester) {
         return;
     }
 
-    const ADDR: goff = 0x3000_0000;
+    const ADDR: VirtAddr = VirtAddr::new(0x3000_0000);
     const SIZE: usize = 32 * 1024; // 32 KiB
     let mgate = wv_assert_ok!(MemGate::new(SIZE, Perm::RW));
 
@@ -103,15 +104,13 @@ fn hash_mapped_mem(t: &mut dyn WvTester) {
     wv_assert_ok!(hash.ep().configure(mgate.sel()));
 
     // Map memory
-    wv_assert_ok!(
-        Activity::own()
-            .pager()
-            .unwrap()
-            .map_mem(ADDR, &mgate, SIZE, Perm::RW)
-    );
+    wv_assert_ok!(Activity::own()
+        .pager()
+        .unwrap()
+        .map_mem(ADDR, &mgate, SIZE, Perm::RW));
 
     // Fill memory with some data
-    let buf = unsafe { util::slice_for_mut(ADDR as *mut u8, SIZE) };
+    let buf = unsafe { util::slice_for_mut(ADDR.as_mut_ptr(), SIZE) };
     let mut i = 0u8;
     for b in buf {
         *b = i;

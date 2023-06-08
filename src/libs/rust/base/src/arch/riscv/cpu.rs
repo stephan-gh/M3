@@ -19,6 +19,7 @@
 use core::arch::asm;
 
 use crate::arch::CPUOps;
+use crate::mem::VirtAddr;
 
 /// Reads the value of the given control and status register (CSR)
 #[macro_export]
@@ -69,28 +70,28 @@ macro_rules! set_csr_bits {
 pub struct RISCVCPU {}
 
 impl CPUOps for RISCVCPU {
-    unsafe fn read8b(addr: usize) -> u64 {
+    unsafe fn read8b(addr: *const u64) -> u64 {
         let res: u64;
         asm!(
             "ld {0}, ({1})",
             out(reg) res,
-            in(reg) addr,
+            in(reg) addr as usize,
             options(nostack),
         );
         res
     }
 
-    unsafe fn write8b(addr: usize, val: u64) {
+    unsafe fn write8b(addr: *mut u64, val: u64) {
         asm!(
             "sd {0}, ({1})",
             in(reg) val,
-            in(reg) addr,
+            in(reg) addr as usize,
             options(nostack),
         )
     }
 
     #[inline(always)]
-    fn stack_pointer() -> usize {
+    fn stack_pointer() -> VirtAddr {
         let sp: usize;
         unsafe {
             asm!(
@@ -99,11 +100,11 @@ impl CPUOps for RISCVCPU {
                 options(nomem, nostack),
             )
         }
-        sp
+        VirtAddr::from(sp)
     }
 
     #[inline(always)]
-    fn base_pointer() -> usize {
+    fn base_pointer() -> VirtAddr {
         let fp: usize;
         unsafe {
             asm!(
@@ -112,7 +113,7 @@ impl CPUOps for RISCVCPU {
                 options(nomem, nostack),
             )
         }
-        fp
+        VirtAddr::from(fp)
     }
 
     fn elapsed_cycles() -> u64 {
@@ -127,10 +128,10 @@ impl CPUOps for RISCVCPU {
         res
     }
 
-    unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
-        let bp_ptr = bp as *const usize;
-        *func = *bp_ptr.offset(-1);
-        *bp_ptr.offset(-2)
+    unsafe fn backtrace_step(bp: VirtAddr, func: &mut VirtAddr) -> VirtAddr {
+        let bp_ptr = bp.as_ptr::<usize>();
+        *func = VirtAddr::from(*bp_ptr.offset(-1));
+        VirtAddr::from(*bp_ptr.offset(-2))
     }
 
     fn gem5_debug(msg: u64) -> u64 {

@@ -242,7 +242,7 @@ impl TileState {
         // init environment
         let env = env::BootEnv {
             platform: env::boot().platform,
-            envp: envp as goff,
+            envp: envp.as_raw(),
             tile_id: self.tile.id().raw() as u64,
             tile_desc: self.tile.desc().value(),
             raw_tile_count: env::boot().raw_tile_count,
@@ -250,7 +250,7 @@ impl TileState {
             ..Default::default()
         };
         mux.mem
-            .write_obj(&env, (cfg::ENV_START - cfg::MEM_OFFSET) as goff)?;
+            .write_obj(&env, (cfg::ENV_START - cfg::MEM_OFFSET).as_goff())?;
 
         syscalls::tile_reset(self.tile.sel(), mux.mem.sel())?;
 

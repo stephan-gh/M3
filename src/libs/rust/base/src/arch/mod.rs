@@ -19,6 +19,7 @@
 use cfg_if::cfg_if;
 
 use crate::errors::Error;
+use crate::mem::VirtAddr;
 use crate::tmif::Operation;
 
 /// Contains CPU-specific operations
@@ -28,20 +29,20 @@ pub trait CPUOps {
     /// # Safety
     ///
     /// The function assumes that the address is 8-byte aligned and refers to accessible memory.
-    unsafe fn read8b(addr: usize) -> u64;
+    unsafe fn read8b(addr: *const u64) -> u64;
 
     /// Writes `val` as an 8-byte value to the given address (using a single store)
     ///
     /// # Safety
     ///
     /// The function assumes that the address is 8-byte aligned and refers to accessible memory.
-    unsafe fn write8b(addr: usize, val: u64);
+    unsafe fn write8b(addr: *mut u64, val: u64);
 
     /// Returns the stack pointer
-    fn stack_pointer() -> usize;
+    fn stack_pointer() -> VirtAddr;
 
     /// Returns the base pointer
-    fn base_pointer() -> usize;
+    fn base_pointer() -> VirtAddr;
 
     /// Returns the number of elapsed cycles
     fn elapsed_cycles() -> u64;
@@ -54,7 +55,7 @@ pub trait CPUOps {
     /// # Safety
     ///
     /// Assumes that `func` is usize-aligned and refers to accessible memory.
-    unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize;
+    unsafe fn backtrace_step(bp: VirtAddr, func: &mut VirtAddr) -> VirtAddr;
 
     /// Uses a special instruction to write the given "message" into the gem5 log
     fn gem5_debug(msg: u64) -> u64;

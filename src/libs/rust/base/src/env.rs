@@ -30,7 +30,7 @@ use crate::cell::LazyStaticRefCell;
 use crate::cfg;
 use crate::col::{String, ToString, Vec};
 use crate::format;
-use crate::mem;
+use crate::mem::{self, VirtAddr};
 use crate::util;
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
@@ -87,21 +87,21 @@ pub struct BaseEnv {
 
 /// Collects the strings and pointers for the given slice of arguments to pass to a program.
 ///
-/// The strings and pointers are stored relative to the given offset (`off`).
+/// The strings and pointers are stored relative to the given address (`addr`).
 ///
-/// Returns a tuple of the strings, pointers, and the final offset (for a another call of
+/// Returns a tuple of the strings, pointers, and the final address (for a another call of
 /// `collect_args`).
-pub fn collect_args<S>(args: &[S], off: usize) -> (Vec<u8>, Vec<u64>, usize)
+pub fn collect_args<S>(args: &[S], addr: VirtAddr) -> (Vec<u8>, Vec<VirtAddr>, VirtAddr)
 where
     S: AsRef<str>,
 {
-    let mut arg_ptr = Vec::<u64>::new();
+    let mut arg_ptr = Vec::<VirtAddr>::new();
     let mut arg_buf = Vec::new();
 
-    let mut arg_off = off;
+    let mut arg_addr = addr;
     for s in args {
         // push argv entry
-        arg_ptr.push(arg_off as u64);
+        arg_ptr.push(arg_addr);
 
         // push string
         let arg = s.as_ref().as_bytes();
@@ -110,16 +110,16 @@ where
         // 0-terminate it
         arg_buf.push(b'\0');
 
-        arg_off += arg.len() + 1;
+        arg_addr += arg.len() + 1;
     }
-    arg_ptr.push(0);
+    arg_ptr.push(VirtAddr::null());
 
-    (arg_buf, arg_ptr, arg_off)
+    (arg_buf, arg_ptr, arg_addr)
 }
 
 pub fn boot() -> &'static BootEnv {
     // safety: the cast is okay because we trust our loader to put the environment at that place
-    unsafe { &*(cfg::ENV_START as *const _) }
+    unsafe { &*(cfg::ENV_START.as_ptr()) }
 }
 
 /// The closure used by `Activity::run`

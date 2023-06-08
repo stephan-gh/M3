@@ -22,7 +22,7 @@ use crate::com::MemGate;
 use crate::errors::Error;
 use crate::goff;
 use crate::kif::Perm;
-use crate::mem::MemMap;
+use crate::mem::{MemMap, VirtAddr};
 use crate::tiles::Activity;
 use crate::util::math;
 
@@ -34,14 +34,14 @@ static BUFS: LazyStaticRefCell<MemMap<usize>> = LazyStaticRefCell::default();
 /// [`MemGate`] used. For cache tiles, we allocate physical memory and map it into our address
 /// space.
 pub struct RecvBuf {
-    addr: usize,
+    addr: VirtAddr,
     size: usize,
     mgate: Option<MemGate>,
 }
 
 impl RecvBuf {
     /// Returns the base address of the receive buffer
-    pub fn addr(&self) -> usize {
+    pub fn addr(&self) -> VirtAddr {
         self.addr
     }
 
@@ -54,7 +54,7 @@ impl RecvBuf {
     pub fn off(&self) -> goff {
         match self.mgate {
             Some(_) => 0,
-            None => self.addr as goff,
+            None => self.addr.as_goff(),
         }
     }
 
@@ -80,13 +80,13 @@ impl fmt::Debug for RecvBuf {
 pub(crate) fn alloc_rbuf(size: usize) -> Result<RecvBuf, Error> {
     let vm = Activity::own().tile_desc().has_virtmem();
     let align = if vm { cfg::PAGE_SIZE } else { 1 };
-    let addr = BUFS.borrow_mut().allocate(size, align)?;
+    let addr = VirtAddr::from(BUFS.borrow_mut().allocate(size, align)?);
 
     let mgate = if vm {
         match map_rbuf(addr, size) {
             Ok(mgate) => Some(mgate),
             Err(e) => {
-                BUFS.borrow_mut().free(addr, size);
+                BUFS.borrow_mut().free(addr.as_local(), size);
                 return Err(e);
             },
         }
@@ -98,12 +98,12 @@ pub(crate) fn alloc_rbuf(size: usize) -> Result<RecvBuf, Error> {
     Ok(RecvBuf { addr, size, mgate })
 }
 
-fn map_rbuf(addr: usize, size: usize) -> Result<MemGate, Error> {
+fn map_rbuf(addr: VirtAddr, size: usize) -> Result<MemGate, Error> {
     let size = math::round_up(size, cfg::PAGE_SIZE);
     let mgate = MemGate::new(size, Perm::R)?;
     #[cfg(not(feature = "linux"))]
     crate::syscalls::create_map(
-        (addr / cfg::PAGE_SIZE) as Selector,
+        addr,
         Activity::own().sel(),
         mgate.sel(),
         0,
@@ -119,10 +119,10 @@ fn map_rbuf(addr: usize, size: usize) -> Result<MemGate, Error> {
 pub(crate) fn free_rbuf(rbuf: &RecvBuf) {
     #[cfg(feature = "linux")]
     base::linux::mmap::munmap(rbuf.addr(), rbuf.size());
-    BUFS.borrow_mut().free(rbuf.addr, rbuf.size);
+    BUFS.borrow_mut().free(rbuf.addr.as_local(), rbuf.size);
 }
 
 pub(crate) fn init() {
     let (addr, size) = Activity::own().tile_desc().rbuf_space();
-    BUFS.set(MemMap::new(addr, size));
+    BUFS.set(MemMap::new(addr.as_local(), size));
 }

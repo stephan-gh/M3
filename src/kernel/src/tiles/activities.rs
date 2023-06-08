@@ -22,7 +22,7 @@ use base::goff;
 use base::io::LogFlags;
 use base::kif::{self, CapRngDesc, CapSel, CapType, TileDesc};
 use base::log;
-use base::mem::MsgBuf;
+use base::mem::{MsgBuf, VirtAddr};
 use base::rc::{Rc, SRc};
 use base::tcu::Label;
 use base::tcu::{ActId, EpId, TileId, STD_EPS_COUNT, UPCALL_REP_OFF};
@@ -139,7 +139,7 @@ impl Activity {
 
         // some system calls are blocking, leading to a thread switch in the kernel. there is just
         // one syscall per activity at a time, thus at most one additional thread per activity is required.
-        thread::add_thread(thread_startup as *const () as usize, 0);
+        thread::add_thread(VirtAddr::from(thread_startup as *const ()), 0);
 
         Ok(act)
     }
@@ -155,13 +155,13 @@ impl Activity {
                 let glob = crate::tiles::TileMux::translate_async(
                     tilemng::tilemux(self.tile_id()),
                     self.id(),
-                    rbuf_virt as goff,
+                    rbuf_virt,
                     PageFlags::RW,
                 )?;
                 ktcu::glob_to_phys_remote(self.tile_id(), glob, base::kif::PageFlags::RW).unwrap()
             }
             else {
-                rbuf_virt as goff
+                rbuf_virt.as_raw()
             };
 
             self.init_eps(rbuf_phys)

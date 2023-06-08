@@ -17,6 +17,7 @@ use base::backtrace;
 use base::env;
 use base::kif::PageFlags;
 use base::libc;
+use base::mem::VirtAddr;
 use base::tcu;
 use base::{read_csr, set_csr_bits, write_csr};
 
@@ -48,12 +49,12 @@ pub struct RISCVState {
 }
 
 impl crate::StateArch for RISCVState {
-    fn instr_pointer(&self) -> usize {
-        self.epc
+    fn instr_pointer(&self) -> VirtAddr {
+        VirtAddr::from(self.epc)
     }
 
-    fn base_pointer(&self) -> usize {
-        self.r[7]
+    fn base_pointer(&self) -> VirtAddr {
+        VirtAddr::from(self.r[7])
     }
 
     fn came_from_user(&self) -> bool {
@@ -111,10 +112,10 @@ impl fmt::Debug for RISCVState {
         writeln!(fmt, "  stval:  {:#x}", read_csr!("stval"))?;
 
         writeln!(fmt, "\nUser backtrace:")?;
-        let mut bt = [0usize; 16];
+        let mut bt = [VirtAddr::default(); 16];
         let bt_len = backtrace::collect_for(self.base_pointer(), &mut bt);
         for addr in bt.iter().take(bt_len) {
-            writeln!(fmt, "  {:#x}", addr)?;
+            writeln!(fmt, "  {:#x}", addr.as_local())?;
         }
         Ok(())
     }
@@ -218,8 +219,8 @@ impl crate::ISRArch for RISCVISR {
         };
     }
 
-    fn set_entry_sp(sp: usize) {
-        write_csr!("sscratch", sp);
+    fn set_entry_sp(sp: VirtAddr) {
+        write_csr!("sscratch", sp.as_local());
     }
 
     fn reg_tm_calls(handler: crate::IsrFunc) {
@@ -250,8 +251,8 @@ impl crate::ISRArch for RISCVISR {
         crate::reg(Vector::MachExtIRQ.into(), handler);
     }
 
-    fn get_pf_info(state: &Self::State) -> (usize, PageFlags) {
-        let virt = read_csr!("stval");
+    fn get_pf_info(state: &Self::State) -> (VirtAddr, PageFlags) {
+        let virt = VirtAddr::from(read_csr!("stval"));
 
         let perm = match Vector::try_from(state.cause & 0x1F).unwrap() {
             Vector::InstrPagefault => PageFlags::R | PageFlags::X,
@@ -262,7 +263,7 @@ impl crate::ISRArch for RISCVISR {
         (virt, perm)
     }
 
-    fn init_tls(_addr: usize) {
+    fn init_tls(_addr: VirtAddr) {
         // unused
     }
 

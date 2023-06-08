@@ -27,9 +27,9 @@ use crate::cap::Selector;
 use crate::client::{HashInput, HashOutput, MapFlags, Pager};
 use crate::col::String;
 use crate::errors::{Code, Error};
-use crate::goff;
 use crate::io::{Read, Write};
 use crate::kif;
+use crate::mem::VirtAddr;
 use crate::serialize::{Deserialize, M3Serializer, Serialize, VecSink};
 use crate::tiles::ChildActivity;
 use crate::vfs::{BlockId, DevId, Fd, INodeId};
@@ -301,7 +301,7 @@ pub trait Map {
     fn map(
         &self,
         _pager: &Pager,
-        _virt: goff,
+        _virt: VirtAddr,
         _off: usize,
         _len: usize,
         _prot: kif::Perm,

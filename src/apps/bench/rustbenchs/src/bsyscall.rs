@@ -21,6 +21,7 @@ use m3::cfg;
 use m3::com::{MemGate, Perm, RecvGate};
 use m3::goff;
 use m3::kif;
+use m3::mem::VirtAddr;
 use m3::rc::Rc;
 use m3::syscalls;
 use m3::test::WvTester;
@@ -182,7 +183,7 @@ fn create_map(_t: &mut dyn WvTester) {
         return;
     }
 
-    const DEST: kif::CapSel = 0x3000_0000 >> cfg::PAGE_BITS;
+    const DEST: VirtAddr = VirtAddr::new(0x3000_0000);
     let prof = Profiler::default().repeats(100).warmup(10);
 
     struct Tester(MemGate);
@@ -203,7 +204,7 @@ fn create_map(_t: &mut dyn WvTester) {
 
         fn run(&mut self) {
             wv_assert_ok!(syscalls::create_map(
-                DEST + 1,
+                DEST + cfg::PAGE_SIZE,
                 Activity::own().sel(),
                 self.0.sel(),
                 1,
@@ -215,7 +216,11 @@ fn create_map(_t: &mut dyn WvTester) {
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
                 Activity::own().sel(),
-                kif::CapRngDesc::new(kif::CapType::Mapping, DEST, 2),
+                kif::CapRngDesc::new(
+                    kif::CapType::Mapping,
+                    DEST.as_goff() / cfg::PAGE_SIZE as goff,
+                    2
+                ),
                 true
             ));
         }

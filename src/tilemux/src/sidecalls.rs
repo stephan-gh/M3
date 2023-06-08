@@ -18,7 +18,7 @@ use base::errors::{Code, Error};
 use base::io::LogFlags;
 use base::kif;
 use base::log;
-use base::mem::{GlobAddr, MsgBuf};
+use base::mem::{GlobAddr, MsgBuf, VirtAddr, VirtAddrRaw};
 use base::serialize::{Deserialize, M3Deserializer};
 use base::tcu;
 use base::time::TimeDuration;
@@ -28,7 +28,8 @@ use crate::helper;
 use crate::quota;
 use crate::sendqueue;
 
-const SIDE_RBUF_ADDR: usize = cfg::TILEMUX_RBUF_SPACE + cfg::KPEX_RBUF_SIZE;
+const SIDE_RBUF_ADDR: VirtAddr =
+    VirtAddr::new(cfg::TILEMUX_RBUF_SPACE.as_raw() + cfg::KPEX_RBUF_SIZE as VirtAddrRaw);
 
 fn get_request<'de, R: Deserialize<'de>>(msg: &'static tcu::Message) -> Result<R, Error> {
     let mut de = M3Deserializer::new(msg.as_words());
@@ -98,7 +99,7 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
 
     log!(
         LogFlags::MuxSideCalls,
-        "sidecall::map(act={}, virt={:#x}, global={:?}, pages={}, perm={:?})",
+        "sidecall::map(act={}, virt={}, global={:?}, pages={}, perm={:?})",
         r.act_id,
         r.virt,
         r.global,
@@ -106,11 +107,9 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
         r.perm
     );
 
-    let virt = r.virt as usize;
-
     // ensure that we don't overmap critical areas
-    if virt < cfg::TILEMUX_RBUF_SPACE + cfg::TILEMUX_RBUF_SIZE
-        || virt + r.pages * cfg::PAGE_SIZE > cfg::TILE_MEM_BASE
+    if r.virt < cfg::TILEMUX_RBUF_SPACE + cfg::TILEMUX_RBUF_SIZE
+        || r.virt + r.pages * cfg::PAGE_SIZE > cfg::TILE_MEM_BASE
     {
         return Err(Error::new(Code::InvArgs));
     }
@@ -126,7 +125,7 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
             r.perm | kif::PageFlags::U
         };
 
-        act.map(virt, r.global, r.pages, perm)
+        act.map(r.virt, r.global, r.pages, perm)
     }
     else {
         Ok(())
@@ -138,7 +137,7 @@ fn translate(msg: &'static tcu::Message) -> Result<kif::PTE, Error> {
 
     log!(
         LogFlags::MuxSideCalls,
-        "sidecall::translate(act={}, virt={:#x}, perm={:?})",
+        "sidecall::translate(act={}, virt={}, perm={:?})",
         r.act_id,
         r.virt,
         r.perm
@@ -146,7 +145,7 @@ fn translate(msg: &'static tcu::Message) -> Result<kif::PTE, Error> {
 
     let pte = activities::get_mut(r.act_id)
         .unwrap()
-        .translate(r.virt as usize, r.perm | kif::PageFlags::U);
+        .translate(r.virt, r.perm | kif::PageFlags::U);
     if (pte & r.perm.bits()) == 0 {
         Err(Error::new(Code::NoPerm))
     }

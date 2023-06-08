@@ -19,6 +19,7 @@
 use core::arch::asm;
 
 use crate::arch::CPUOps;
+use crate::mem::VirtAddr;
 
 /// Reads the value of the given control and status register (CSR), e.g., "cr0"
 #[macro_export]
@@ -53,28 +54,28 @@ macro_rules! write_csr {
 pub struct X86CPU {}
 
 impl CPUOps for X86CPU {
-    unsafe fn read8b(addr: usize) -> u64 {
+    unsafe fn read8b(addr: *const u64) -> u64 {
         let res: u64;
         asm!(
             "mov {0}, [{1}]",
             out(reg) res,
-            in(reg) addr,
+            in(reg) addr as usize,
             options(nostack),
         );
         res
     }
 
-    unsafe fn write8b(addr: usize, val: u64) {
+    unsafe fn write8b(addr: *mut u64, val: u64) {
         asm!(
             "mov [{1}], {0}",
             in(reg) val,
-            in(reg) addr,
+            in(reg) addr as usize,
             options(nostack),
         );
     }
 
     #[inline(always)]
-    fn stack_pointer() -> usize {
+    fn stack_pointer() -> VirtAddr {
         let res: usize;
         unsafe {
             asm!(
@@ -83,11 +84,11 @@ impl CPUOps for X86CPU {
                 options(nostack, nomem),
             )
         };
-        res
+        VirtAddr::from(res)
     }
 
     #[inline(always)]
-    fn base_pointer() -> usize {
+    fn base_pointer() -> VirtAddr {
         let res: usize;
         unsafe {
             asm!(
@@ -96,13 +97,13 @@ impl CPUOps for X86CPU {
                 options(nostack, nomem),
             )
         };
-        res
+        VirtAddr::from(res)
     }
 
-    unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
-        let bp_ptr = bp as *const usize;
-        *func = *bp_ptr.offset(1);
-        *bp_ptr
+    unsafe fn backtrace_step(bp: VirtAddr, func: &mut VirtAddr) -> VirtAddr {
+        let bp_ptr = bp.as_ptr::<usize>();
+        *func = VirtAddr::from(*bp_ptr.offset(1));
+        VirtAddr::from(*bp_ptr)
     }
 
     fn elapsed_cycles() -> u64 {

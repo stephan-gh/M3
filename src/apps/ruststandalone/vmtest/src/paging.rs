@@ -19,7 +19,7 @@ use base::env;
 use base::errors::Error;
 use base::goff;
 use base::kif::{PageFlags, TileDesc, PTE};
-use base::mem::GlobAddr;
+use base::mem::{GlobAddr, VirtAddr};
 use base::tcu;
 use base::util::math;
 
@@ -46,9 +46,9 @@ impl Allocator for PTAllocator {
         Ok(res)
     }
 
-    fn translate_pt(&self, phys: Phys) -> usize {
+    fn translate_pt(&self, phys: Phys) -> VirtAddr {
         if !self.pts_mapped {
-            phys as usize
+            VirtAddr::new(phys)
         }
         else {
             cfg::TILE_MEM_BASE + (phys as usize - cfg::MEM_OFFSET)
@@ -91,7 +91,7 @@ pub fn init() {
 
         // map initial heap
         let heap_start = math::round_up(&_bss_end as *const _ as usize, cfg::PAGE_SIZE);
-        map_ident(heap_start, 4 * cfg::PAGE_SIZE, rw);
+        map_ident(VirtAddr::from(heap_start), 4 * cfg::PAGE_SIZE, rw);
     }
 
     // map env
@@ -107,9 +107,9 @@ pub fn init() {
     // map PLIC
     #[cfg(target_arch = "riscv64")]
     {
-        map_ident(0x0C00_0000, 0x1000, PageFlags::RW);
-        map_ident(0x0C00_2000, 0x1000, PageFlags::RW);
-        map_ident(0x0C20_1000, 0x1000, PageFlags::RW);
+        map_ident(VirtAddr::from(0x0C00_0000), 0x1000, PageFlags::RW);
+        map_ident(VirtAddr::from(0x0C00_2000), 0x1000, PageFlags::RW);
+        map_ident(VirtAddr::from(0x0C20_1000), 0x1000, PageFlags::RW);
     }
 
     // switch to that address space
@@ -121,12 +121,12 @@ pub fn init() {
 }
 
 #[allow(unused)]
-pub fn translate(virt: usize, perm: PageFlags) -> PTE {
+pub fn translate(virt: VirtAddr, perm: PageFlags) -> PTE {
     ASPACE.borrow().translate(virt, perm.bits())
 }
 
 #[allow(unused)]
-pub fn map_anon(virt: usize, size: usize, perm: PageFlags) -> Result<(), Error> {
+pub fn map_anon(virt: VirtAddr, size: usize, perm: PageFlags) -> Result<(), Error> {
     let (mem_tile, mem_base, _, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
     let base = GlobAddr::new_with(mem_tile, mem_base);
 
@@ -142,8 +142,8 @@ pub fn map_anon(virt: usize, size: usize, perm: PageFlags) -> Result<(), Error> 
     Ok(())
 }
 
-pub fn map_ident(virt: usize, size: usize, perm: PageFlags) {
-    let glob = GlobAddr::new(virt as goff);
+pub fn map_ident(virt: VirtAddr, size: usize, perm: PageFlags) {
+    let glob = GlobAddr::new(virt.as_goff());
     ASPACE
         .borrow_mut()
         .map_pages(virt, glob, size / cfg::PAGE_SIZE, perm)
@@ -153,5 +153,5 @@ pub fn map_ident(virt: usize, size: usize, perm: PageFlags) {
 fn map_segment(start: *const u8, end: *const u8, perm: PageFlags) {
     let start_addr = math::round_dn(start as usize, cfg::PAGE_SIZE);
     let end_addr = math::round_up(end as usize, cfg::PAGE_SIZE);
-    map_ident(start_addr, end_addr - start_addr, perm);
+    map_ident(VirtAddr::from(start_addr), end_addr - start_addr, perm);
 }

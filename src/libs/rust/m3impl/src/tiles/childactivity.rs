@@ -32,7 +32,7 @@ use crate::errors::Error;
 use crate::goff;
 use crate::kif;
 use crate::kif::{CapRngDesc, CapType};
-use crate::mem;
+use crate::mem::{self, VirtAddr};
 use crate::rc::Rc;
 use crate::serialize::{M3Serializer, VecSink};
 use crate::syscalls;
@@ -335,7 +335,7 @@ impl ChildActivity {
         let file = VFS::open(args[0], OpenFlags::RX | OpenFlags::NEW_SESS)?;
         let mut mapper = DefaultMapper::new(self.tile_desc().has_virtmem());
 
-        let func_addr = func as *const () as usize;
+        let func_addr = VirtAddr::from(func as *const ());
         self.do_exec_file(
             Some((&mut mapper, file.into_generic())),
             &args,
@@ -373,7 +373,7 @@ impl ChildActivity {
         self,
         program: Option<(&mut dyn Mapper, FileRef<dyn File>)>,
         args: &[S],
-        closure: Option<usize>,
+        closure: Option<VirtAddr>,
     ) -> Result<RunningProgramActivity, Error> {
         self.obtain_files_and_mounts()?;
 
@@ -383,7 +383,7 @@ impl ChildActivity {
             (Some(file), entry)
         }
         else {
-            (None, 0)
+            (None, VirtAddr::null())
         };
 
         self.load_environment(args, closure, entry)?;
@@ -402,10 +402,10 @@ impl ChildActivity {
     fn load_environment<S: AsRef<str>>(
         &self,
         args: &[S],
-        closure: Option<usize>,
-        entry: usize,
+        closure: Option<VirtAddr>,
+        entry: VirtAddr,
     ) -> Result<(), Error> {
-        let mem = self.get_mem(cfg::ENV_START as goff, cfg::ENV_SIZE as goff, kif::Perm::RW)?;
+        let mem = self.get_mem(cfg::ENV_START, cfg::ENV_SIZE as goff, kif::Perm::RW)?;
 
         // build child environment
         let mut cenv = crate::env::Env::default();
@@ -432,61 +432,62 @@ impl ChildActivity {
         }
 
         // write arguments and environment variables
-        let mut off = cfg::ENV_START + mem::size_of_val(&cenv);
-        let env_off = (cfg::ENV_START & !cfg::PAGE_MASK) as goff;
+        let mut addr = cfg::ENV_START + mem::size_of_val(&cenv);
+        let env_off = cfg::ENV_START.as_goff();
         cenv.set_argc(args.len());
-        cenv.set_argv(env::write_args(args, &mem, &mut off, env_off)?);
+        cenv.set_argv(env::write_args(args, &mem, &mut addr, env_off)?);
         cenv.set_envp(env::write_args(
             &crate::env::vars_raw(),
             &mem,
-            &mut off,
+            &mut addr,
             env_off,
         )?);
 
         // serialize files, mounts, and data and write them to the child's memory
-        let write_words = |words: &[u64], off| mem.write(words, (off - cfg::ENV_START) as goff);
-        self.serialize_files(write_words, &mut cenv, &mut off)?;
-        self.serialize_mounts(write_words, &mut cenv, &mut off)?;
-        self.serialize_data(write_words, &mut cenv, &mut off)?;
+        let write_words =
+            |words: &[u64], addr: VirtAddr| mem.write(words, (addr - cfg::ENV_START).as_goff());
+        self.serialize_files(write_words, &mut cenv, &mut addr)?;
+        self.serialize_mounts(write_words, &mut cenv, &mut addr)?;
+        self.serialize_data(write_words, &mut cenv, &mut addr)?;
 
         // write environment to tile
         mem.write_bytes(&cenv as *const _ as *const u8, mem::size_of_val(&cenv), 0)
     }
 
-    fn serialize_files<F>(&self, write: F, env: &mut Env, off: &mut usize) -> Result<(), Error>
+    fn serialize_files<F>(&self, write: F, env: &mut Env, addr: &mut VirtAddr) -> Result<(), Error>
     where
-        F: Fn(&[u64], usize) -> Result<(), Error>,
+        F: Fn(&[u64], VirtAddr) -> Result<(), Error>,
     {
         let mut fds_vec = Vec::new();
         let mut fds = M3Serializer::new(VecSink::new(&mut fds_vec));
         Activity::own().files().serialize(&self.files, &mut fds);
-        write(fds.words(), *off)?;
-        env.set_files(*off, fds.size());
-        *off += fds.size();
+        write(fds.words(), *addr)?;
+        env.set_files(*addr, fds.size());
+        *addr += fds.size();
         Ok(())
     }
 
-    fn serialize_mounts<F>(&self, write: F, env: &mut Env, off: &mut usize) -> Result<(), Error>
+    fn serialize_mounts<F>(&self, write: F, env: &mut Env, addr: &mut VirtAddr) -> Result<(), Error>
     where
-        F: Fn(&[u64], usize) -> Result<(), Error>,
+        F: Fn(&[u64], VirtAddr) -> Result<(), Error>,
     {
         let mut mounts_vec = Vec::new();
         let mut mounts = M3Serializer::new(VecSink::new(&mut mounts_vec));
         Activity::own()
             .mounts()
             .serialize(&self.mounts, &mut mounts);
-        write(mounts.words(), *off)?;
-        env.set_mounts(*off, mounts.size());
-        *off += mounts.size();
+        write(mounts.words(), *addr)?;
+        env.set_mounts(*addr, mounts.size());
+        *addr += mounts.size();
         Ok(())
     }
 
-    fn serialize_data<F>(&self, write: F, env: &mut Env, off: &mut usize) -> Result<(), Error>
+    fn serialize_data<F>(&self, write: F, env: &mut Env, addr: &mut VirtAddr) -> Result<(), Error>
     where
-        F: Fn(&[u64], usize) -> Result<(), Error>,
+        F: Fn(&[u64], VirtAddr) -> Result<(), Error>,
     {
-        write(&self.data, *off)?;
-        env.set_data(*off, self.data.len() * mem::size_of::<u64>());
+        write(&self.data, *addr)?;
+        env.set_data(*addr, self.data.len() * mem::size_of::<u64>());
         Ok(())
     }
 }

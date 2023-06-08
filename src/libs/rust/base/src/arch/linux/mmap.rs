@@ -3,6 +3,7 @@ use libc;
 use num_enum::IntoPrimitive;
 
 use crate::errors::{Code, Error};
+use crate::mem::VirtAddr;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, IntoPrimitive)]
 #[repr(usize)]
@@ -12,10 +13,10 @@ pub enum MemType {
     StdRecvBuf,
 }
 
-pub fn mmap(addr: usize, size: usize) -> Result<(), Error> {
+pub fn mmap(addr: VirtAddr, size: usize) -> Result<(), Error> {
     let base = unsafe {
         libc::mmap(
-            addr as *mut libc::c_void,
+            addr.as_local() as *mut libc::c_void,
             size,
             libc::PROT_READ,
             libc::MAP_PRIVATE | libc::MAP_ANON,
@@ -23,7 +24,7 @@ pub fn mmap(addr: usize, size: usize) -> Result<(), Error> {
             0,
         )
     };
-    if base as usize == addr {
+    if base as usize == addr.as_local() {
         Ok(())
     }
     else {
@@ -31,10 +32,10 @@ pub fn mmap(addr: usize, size: usize) -> Result<(), Error> {
     }
 }
 
-pub fn mmap_tcu(fd: libc::c_int, addr: usize, size: usize, ty: MemType) -> Result<(), Error> {
+pub fn mmap_tcu(fd: libc::c_int, addr: VirtAddr, size: usize, ty: MemType) -> Result<(), Error> {
     let base = unsafe {
         libc::mmap(
-            addr as *mut libc::c_void,
+            addr.as_local() as *mut libc::c_void,
             size,
             libc::PROT_READ | libc::PROT_WRITE,
             libc::MAP_SHARED | libc::MAP_FIXED | libc::MAP_SYNC,
@@ -43,13 +44,13 @@ pub fn mmap_tcu(fd: libc::c_int, addr: usize, size: usize, ty: MemType) -> Resul
         )
     };
     match base {
-        x if x as usize == addr => Ok(()),
+        x if x as usize == addr.as_local() => Ok(()),
         _ => Err(Error::new(Code::Unspecified)),
     }
 }
 
-pub fn munmap(addr: usize, size: usize) {
+pub fn munmap(addr: VirtAddr, size: usize) {
     unsafe {
-        libc::munmap(addr as *mut libc::c_void, size);
+        libc::munmap(addr.as_local() as *mut libc::c_void, size);
     }
 }

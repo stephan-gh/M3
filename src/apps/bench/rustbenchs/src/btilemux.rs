@@ -22,6 +22,7 @@ use m3::client::MapFlags;
 use m3::com::MemGate;
 use m3::goff;
 use m3::kif::Perm;
+use m3::mem::VirtAddr;
 use m3::test::WvTester;
 use m3::tiles::Activity;
 use m3::time::{CycleDuration, CycleInstant, Duration, Profiler, Results, Runner};
@@ -47,11 +48,11 @@ fn translates(_t: &mut dyn WvTester) {
         return;
     }
 
-    const VIRT: goff = 0x3000_0000;
+    const VIRT: VirtAddr = VirtAddr::new(0x3000_0000);
     const PAGES: usize = 16;
 
     struct Tester {
-        virt: usize,
+        virt: VirtAddr,
         mgate: MemGate,
     }
 
@@ -62,10 +63,10 @@ fn translates(_t: &mut dyn WvTester) {
                 .pager()
                 .unwrap()
                 .map_anon(VIRT, PAGES * cfg::PAGE_SIZE, Perm::RW, MapFlags::PRIVATE)
-                .unwrap() as usize;
+                .unwrap();
 
             // touch all pages to map them
-            let buf: *mut u8 = self.virt as *mut u8;
+            let buf: *mut u8 = self.virt.as_mut_ptr();
             for p in 0..PAGES {
                 let _byte = unsafe { buf.add(p * cfg::PAGE_SIZE).read_volatile() };
             }
@@ -73,7 +74,7 @@ fn translates(_t: &mut dyn WvTester) {
 
         fn run(&mut self) {
             // now access every page via TCU transfer, which triggers a TLB miss in the TCU
-            let buf: *mut u8 = self.virt as *mut u8;
+            let buf: *mut u8 = self.virt.as_mut_ptr();
             for p in 0..PAGES {
                 let page_buf = unsafe { buf.add(p * cfg::PAGE_SIZE) };
                 self.mgate
@@ -84,11 +85,7 @@ fn translates(_t: &mut dyn WvTester) {
 
         fn post(&mut self) {
             // remove mapping
-            Activity::own()
-                .pager()
-                .unwrap()
-                .unmap(self.virt as goff)
-                .unwrap();
+            Activity::own().pager().unwrap().unmap(self.virt).unwrap();
         }
     }
 
@@ -108,7 +105,7 @@ fn translates(_t: &mut dyn WvTester) {
 
     let prof = Profiler::default().repeats(10).warmup(2);
     let results = MyResults(prof.runner::<CycleInstant, _>(&mut Tester {
-        virt: 0,
+        virt: VirtAddr::null(),
         mgate: MemGate::new(PAGES * cfg::PAGE_SIZE, Perm::RW).unwrap(),
     }));
 

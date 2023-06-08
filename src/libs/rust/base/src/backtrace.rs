@@ -20,6 +20,7 @@
 
 use crate::arch::{CPUOps, CPU};
 use crate::cfg;
+use crate::mem::VirtAddr;
 use crate::util::math;
 
 /// Walks up the stack and stores the return addresses into the given slice and returns the number
@@ -27,7 +28,7 @@ use crate::util::math;
 ///
 /// The function assumes that the stack is aligned by `cfg::STACK_SIZE` and ensures to not access
 /// below or above the stack.
-pub fn collect(addrs: &mut [usize]) -> usize {
+pub fn collect(addrs: &mut [VirtAddr]) -> usize {
     collect_for(CPU::base_pointer(), addrs)
 }
 
@@ -36,13 +37,13 @@ pub fn collect(addrs: &mut [usize]) -> usize {
 ///
 /// The function assumes that the stack is aligned by `cfg::STACK_SIZE` and ensures to not access
 /// below or above the stack.
-pub fn collect_for(mut base_ptr: usize, addrs: &mut [usize]) -> usize {
-    if base_ptr == 0 {
+pub fn collect_for(mut base_ptr: VirtAddr, addrs: &mut [VirtAddr]) -> usize {
+    if base_ptr.is_null() {
         return 0;
     }
 
-    let base = math::round_dn(base_ptr, cfg::STACK_SIZE);
-    let end = math::round_up(base_ptr, cfg::STACK_SIZE);
+    let base = math::round_dn(base_ptr, VirtAddr::from(cfg::STACK_SIZE));
+    let end = math::round_up(base_ptr, VirtAddr::from(cfg::STACK_SIZE));
     let start = end - cfg::STACK_SIZE;
 
     for (i, addr) in addrs.iter_mut().enumerate() {
@@ -50,7 +51,7 @@ pub fn collect_for(mut base_ptr: usize, addrs: &mut [usize]) -> usize {
             return i;
         }
 
-        base_ptr = base + (base_ptr & (cfg::STACK_SIZE - 1));
+        base_ptr = base + (base_ptr & VirtAddr::from(cfg::STACK_SIZE - 1));
         // safety: assuming that the current BP was valid at the beginning of the function, the
         // following access is safe, because the checks above make sure that it's within our stack.
         unsafe {

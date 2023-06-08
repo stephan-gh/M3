@@ -18,6 +18,7 @@ use m3::client::Pager;
 use m3::errors::Error;
 use m3::goff;
 use m3::kif::Perm;
+use m3::mem::VirtAddr;
 use m3::tiles::Mapper;
 use m3::vfs::{BufReader, File, FileRef};
 
@@ -43,7 +44,7 @@ impl<'a> Mapper for ChildMapper<'a> {
         _pager: Option<&Pager>,
         file: &mut BufReader<FileRef<dyn File>>,
         foff: usize,
-        virt: goff,
+        virt: VirtAddr,
         len: usize,
         perm: Perm,
         flags: MapFlags,
@@ -62,7 +63,7 @@ impl<'a> Mapper for ChildMapper<'a> {
     fn map_anon(
         &mut self,
         _pager: Option<&Pager>,
-        virt: goff,
+        virt: VirtAddr,
         len: usize,
         perm: Perm,
         flags: MapFlags,

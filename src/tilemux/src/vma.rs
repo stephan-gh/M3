@@ -19,7 +19,7 @@ use base::errors::{Code, Error};
 use base::io::LogFlags;
 use base::kif::PageFlags;
 use base::log;
-use base::mem::MsgBuf;
+use base::mem::{MsgBuf, VirtAddr};
 use base::tcu;
 
 use crate::activities;
@@ -28,13 +28,13 @@ use crate::helper;
 use isr::StateArch;
 
 pub struct PfState {
-    virt: usize,
+    virt: VirtAddr,
     perm: PageFlags,
 }
 
 fn send_pf(
     mut act: activities::ActivityRef<'_>,
-    virt: usize,
+    virt: VirtAddr,
     perm: PageFlags,
 ) -> Result<(), Error> {
     // save command registers to be able to send a message
@@ -51,7 +51,7 @@ fn send_pf(
     let mut msg_buf = MsgBuf::borrow_def();
     msg_buf.set(crate::PagefaultMessage {
         op: 0, // PagerOp::PAGEFAULT
-        virt: virt as u64,
+        virt,
         access: perm.bits(),
     });
 
@@ -100,7 +100,7 @@ fn recv_pf_resp(cur: &mut activities::Activity) -> activities::ContResult {
         if err != 0 {
             log!(
                 LogFlags::Error,
-                "Pagefault for {:#x} (perm: {:?}) with user state:\n{:?}",
+                "Pagefault for {} (perm: {:?}) with user state:\n{:?}",
                 pf_state.virt,
                 pf_state.perm,
                 cur.user_state()
@@ -116,7 +116,7 @@ fn recv_pf_resp(cur: &mut activities::Activity) -> activities::ContResult {
     }
 }
 
-pub fn handle_xlate(virt: usize, perm: PageFlags) {
+pub fn handle_xlate(virt: VirtAddr, perm: PageFlags) {
     // perform page table walk
     let act = activities::cur();
     let pte = act.translate(virt, perm);
@@ -125,11 +125,7 @@ pub fn handle_xlate(virt: usize, perm: PageFlags) {
     if (!(pte & PageFlags::RW.bits()) & perm.bits()) != 0 {
         // TODO directly insert into TLB when the PF was resolved?
         if send_pf(act, virt, perm).is_err() {
-            log!(
-                LogFlags::Error,
-                "Unable to handle page fault for {:#x}",
-                virt
-            );
+            log!(LogFlags::Error, "Unable to handle page fault for {}", virt);
             activities::remove_cur(Code::Unspecified);
         }
     }
@@ -137,7 +133,7 @@ pub fn handle_xlate(virt: usize, perm: PageFlags) {
     else {
         // ensure that we only insert user-accessible pages into the TLB
         if (pte & PageFlags::U.bits()) == 0 {
-            log!(LogFlags::Error, "No permission to access {:#x}", virt);
+            log!(LogFlags::Error, "No permission to access {}", virt);
             activities::remove_cur(Code::Unspecified);
         }
         else {
@@ -148,16 +144,16 @@ pub fn handle_xlate(virt: usize, perm: PageFlags) {
     }
 }
 
-pub fn handle_pf(state: &crate::arch::State, virt: usize, perm: PageFlags) -> Result<(), Error> {
+pub fn handle_pf(state: &crate::arch::State, virt: VirtAddr, perm: PageFlags) -> Result<(), Error> {
     // TileMux isn't causing PFs
     if !state.came_from_user() {
-        panic!("pagefault for {:#x} at {:#x}", virt, state.instr_pointer());
+        panic!("pagefault for {} at {}", virt, state.instr_pointer());
     }
 
     if let Err(e) = send_pf(activities::cur(), virt, perm) {
         log!(
             LogFlags::Error,
-            "Pagefault for {:#x} with user state:\n{:?}",
+            "Pagefault for {} with user state:\n{:?}",
             virt,
             state
         );
