@@ -157,7 +157,7 @@ impl MemGate {
         perm: Perm,
     ) -> Result<Self, Error> {
         let sel = Activity::own().alloc_sel();
-        syscalls::create_mgate(sel, act, virt.as_goff(), size, perm)?;
+        syscalls::create_mgate(sel, act, virt, size, perm)?;
         Ok(MemGate::new_owned_bind(sel))
     }
 

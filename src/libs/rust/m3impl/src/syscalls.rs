@@ -101,7 +101,7 @@ pub fn create_srv(dst: Selector, rgate: Selector, name: &str, creator: usize) ->
 pub fn create_mgate(
     dst: Selector,
     act: Selector,
-    addr: goff,
+    addr: VirtAddr,
     size: goff,
     perms: Perm,
 ) -> Result<(), Error> {

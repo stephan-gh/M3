@@ -25,7 +25,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use crate::errors::Code;
 use crate::goff;
 use crate::kif::{tilemux::QuotaId, CapRngDesc, CapSel, Perm};
-use crate::mem::GlobAddr;
+use crate::mem::{GlobAddr, VirtAddr};
 use crate::serialize::{Deserialize, Serialize};
 use crate::tcu::{ActId, EpId, Label};
 
@@ -103,7 +103,7 @@ pub struct CreateSess {
 pub struct CreateMGate {
     pub dst: CapSel,
     pub act: CapSel,
-    pub addr: goff,
+    pub addr: VirtAddr,
     pub size: goff,
     pub perms: Perm,
 }

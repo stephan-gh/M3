@@ -85,14 +85,14 @@ fn create_mgate(_t: &mut dyn WvTester) {
     let prof = Profiler::default().repeats(100).warmup(100);
 
     #[derive(Default)]
-    struct Tester(usize);
+    struct Tester(VirtAddr);
 
     impl Runner for Tester {
         fn run(&mut self) {
             wv_assert_ok!(syscalls::create_mgate(
                 SEL.get(),
                 Activity::own().sel(),
-                self.0 as goff,
+                self.0,
                 cfg::PAGE_SIZE as goff,
                 Perm::R
             ));
@@ -107,7 +107,10 @@ fn create_mgate(_t: &mut dyn WvTester) {
         }
     }
 
-    let addr: usize = math::round_dn(&create_mgate as *const _ as usize, cfg::PAGE_SIZE);
+    let addr = VirtAddr::from(math::round_dn(
+        &create_mgate as *const _ as usize,
+        cfg::PAGE_SIZE,
+    ));
     wv_perf!(
         "create_mgate",
         prof.runner::<CycleInstant, _>(&mut Tester(addr))

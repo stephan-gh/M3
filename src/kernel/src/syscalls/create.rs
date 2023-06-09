@@ -49,7 +49,7 @@ pub fn create_mgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
     if !act.obj_caps().borrow().unused(r.dst) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", r.dst);
     }
-    if (r.addr & cfg::PAGE_MASK as goff) != 0 || (r.size & cfg::PAGE_MASK as goff) != 0 {
+    if (r.addr.as_goff() & cfg::PAGE_MASK as goff) != 0 || (r.size & cfg::PAGE_MASK as goff) != 0 {
         sysc_err!(
             Code::InvArgs,
             "Virt address and size need to be page-aligned"
@@ -58,7 +58,7 @@ pub fn create_mgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
 
     let tgt_act = get_kobj!(act, r.act, Activity).upgrade().unwrap();
 
-    let sel = (r.addr / cfg::PAGE_SIZE as goff) as CapSel;
+    let sel = (r.addr.as_goff() / cfg::PAGE_SIZE as goff) as CapSel;
     let glob = if platform::tile_desc(tgt_act.tile_id()).has_virtmem() {
         let map_caps = tgt_act.map_caps().borrow();
         let map_cap = map_caps
@@ -73,7 +73,7 @@ pub fn create_mgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
         }
 
         let pages = (r.size / cfg::PAGE_SIZE as goff) as CapSel;
-        let off = (r.addr / cfg::PAGE_SIZE as goff) as CapSel - map_cap.sel();
+        let off = sel - map_cap.sel();
         if pages == 0 || off + pages > map_cap.len() {
             sysc_err!(Code::InvArgs, "Invalid length");
         }
@@ -83,11 +83,11 @@ pub fn create_mgate(act: &Rc<Activity>, msg: &'static tcu::Message) -> Result<()
         GlobAddr::new_with(tgt_act.tile_id(), phys.as_goff())
     }
     else {
-        if r.size == 0 || r.addr + r.size >= cfg::MEM_CAP_END.as_goff() {
+        if r.size == 0 || r.addr + r.size >= cfg::MEM_CAP_END {
             sysc_err!(Code::InvArgs, "Region empty or out of bounds");
         }
 
-        GlobAddr::new_with(tgt_act.tile_id(), r.addr)
+        GlobAddr::new_with(tgt_act.tile_id(), r.addr.as_goff())
     };
 
     let mem = mem::Allocation::new(glob, r.size);
